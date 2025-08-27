@@ -1,0 +1,19 @@
+---
+description: git 提交信息要求
+alwaysApply: true
+---
+git commit 智能产生的信息要求为中文
+
+
+
+---
+description: 测试代码要求
+alwaysApply: true
+---
+
+测试代码在有异常抛出的过程必须用 FAFAFA_COLLECTIONS_ANONYMOUS_REFERENCES 条件宏包裹 AssertException 来测试触发异常(具体会产生的异常去查接口函数声明的注释 @Exceptions 段)
+
+
+
+
+

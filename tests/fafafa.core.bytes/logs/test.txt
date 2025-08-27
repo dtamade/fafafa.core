@@ -1,0 +1,50 @@
+ Time:00.002 N:37 E:0 F:0 I:0
+  TTestCase_Global Time:00.001 N:16 E:0 F:0 I:0
+    00.001  Test_BytesToHex_Empty
+    00.000  Test_HexToBytes_EvenValid
+    00.000  Test_HexToBytes_InvalidLength
+    00.000  Test_TryHexToBytesLoose_PrefixSpaces
+    00.000  Test_TryParseHexLoose_PrefixHash
+    00.000  Test_Hex_Roundtrip_Random
+    00.000  Test_TryParseHexLoose_EmptyAndSpaces
+    00.000  Test_TryParseHexLoose_InvalidChar
+    00.000  Test_BytesToHex_Upper
+    00.000  Test_TryHexToBytesStrict_OK_And_Fail
+    00.000  Test_Slice_Bounds
+    00.000  Test_Concat_Basic
+    00.000  Test_Zero
+    00.000  Test_SecureBytesZero
+    00.000  Test_ReadWrite_U16_U32_U64_LE_BE
+    00.000  Test_ReadWithCursor_Advance_And_Bounds
+  TTestCase_TBytesBuilder Time:00.001 N:21 E:0 F:0 I:0
+    00.000  Test_Append_And_ToBytes
+    00.000  Test_AppendUxx_And_Length
+    00.000  Test_AppendHex_Strict
+    00.000  Test_Reset_Clear_Equivalence
+    00.000  Test_Truncate_Bounds
+    00.000  Test_ShrinkToFit
+    00.000  Test_AppendString_And_Grow
+    00.000  Test_Grow_Explicit
+    00.000  Test_BeginWrite_Commit_Normal_And_Errors
+    00.000  Test_DetachRaw_IntoBytes_Behavior
+    00.000  Test_EnsureCapacity_Negative_Argument
+    00.000  Test_BeginWrite_Negative_Request_Error
+    00.000  Test_IntoBytes_PerfectCapacity_ZeroCopy_Semantics
+    00.000  Test_IntoBytes_CopyPath_NoReset
+    00.000  Test_Peek_ReadOnly_Borrow
+    00.000  Test_DetachNoTrim_StrictZeroCopy
+    00.001  Test_IO_Adapters_Roundtrip
+    00.000  Test_Source_ShortReads_EOF
+    00.000  Test_EnsureWritable_Overflow_Guard
+    00.000  Test_BeginWrite_Overflow_Guard
+    00.000  Test_Stream_Roundtrip_Direct
+
+Number of run tests: 37
+Number of errors:    0
+Number of failures:  0
+
+
+=== fafafa.core.bytes ≤‚ ‘Ã◊º˛ ===
+∏≤∏«£∫Hex/«–∆¨∆¥Ω”/«Â¡„/∂À–Ú∂¡–¥/BytesBuilder
+
+

@@ -1,0 +1,13 @@
+{
+  "results": [
+    {
+      "name": "sample.simple",
+      "statistics": { "mean": 120000.0 }
+    },
+    {
+      "name": "sample.slow",
+      "statistics": { "mean": 450000.0 }
+    }
+  ]
+}
+

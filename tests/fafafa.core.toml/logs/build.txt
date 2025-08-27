@@ -1,0 +1,133 @@
+[tools\lazbuild.bat] using LAZBUILD_EXE: "D:\devtools\lazarus\trunk\lazarus\lazbuild.exe" --quiet "tests_toml.lpi"
+Hint: (11030) Start of reading config file D:\devtools\lazarus\trunk\fpc\bin\x86_64-win64\fpc.cfg
+Hint: (11031) End of reading config file D:\devtools\lazarus\trunk\fpc\bin\x86_64-win64\fpc.cfg
+Free Pascal Compiler version 3.3.1-18303-gc4aa8b02fb-dirty [2025/07/28] for x86_64
+Copyright (c) 1993-2025 by Florian Klaempfl and others
+(1002) Target OS: Win64 for x64
+(3104) Compiling tests_toml.lpr
+(3104) Compiling Test_fafafa_core_toml_unicode_keys_regression.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.parser.v2.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.lexer.t99.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.lexer.t99.pas(266,5) Note: (5027) Local variable "startP" is assigned but never used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.lexer.t99.pas(309,12) Warning: (5089) Local variable "buf" of a managed type does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.lexer.t99.pas(315,10) Note: (5025) Local variable "tmp" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.lexer.t99.pas(413,17) Hint: (4055) Conversion between ordinals and pointers is not portable
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.lexer.t99.pas(413,11) Hint: (4055) Conversion between ordinals and pointers is not portable
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.lexer.t99.pas(426,47) Hint: (5092) Variable "Tok" of a managed type does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.parser.v2.pas(80,18) Hint: (5091) Local variable "parts" of a managed type does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.parser.v2.pas(484,26) Hint: (5091) Local variable "tmpIntArr" of a managed type does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.parser.v2.pas(632,21) Hint: (5091) Local variable "itemsI" of a managed type does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.parser.v2.pas(632,42) Hint: (5091) Local variable "itemsF" of a managed type does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.parser.v2.pas(632,63) Hint: (5091) Local variable "itemsB" of a managed type does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.parser.v2.pas(632,84) Hint: (5091) Local variable "itemsS" of a managed type does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.parser.v2.pas(324,3) Note: (5025) Local variable "FS" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.parser.v2.pas(338,3) Note: (5027) Local variable "first" is assigned but never used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.parser.v2.pas(341,3) Note: (5025) Local variable "innerI" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.parser.v2.pas(342,3) Note: (5025) Local variable "innerF" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.parser.v2.pas(343,3) Note: (5025) Local variable "innerB" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.parser.v2.pas(344,3) Note: (5025) Local variable "innerS" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.parser.v2.pas(345,3) Note: (5027) Local variable "tI" is assigned but never used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.parser.v2.pas(345,7) Note: (5027) Local variable "tF" is assigned but never used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.parser.v2.pas(345,11) Note: (5027) Local variable "tB" is assigned but never used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.parser.v2.pas(345,15) Note: (5027) Local variable "tS" is assigned but never used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.parser.v2.pas(345,19) Note: (5027) Local variable "hasT" is assigned but never used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.parser.v2.pas(347,15) Note: (5025) Local variable "k2" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.parser.v2.pas(815,13) Hint: (5091) Local variable "P" of a managed type does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.parser.v2.pas(812,3) Note: (6058) Call to subroutine "procedure TTomlError.Clear;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.pas(583,24) Hint: (5091) Local variable "LNewBuckets" of a managed type does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.pas(964,43) Note: (5025) Local variable "i" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.pas(1381,5) Note: (5025) Local variable "i" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.pas(1381,8) Note: (5025) Local variable "v" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.pas(1381,11) Note: (5025) Local variable "i2" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.pas(1381,15) Note: (5025) Local variable "v2" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.pas(1468,5) Note: (5025) Local variable "i" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.pas(1468,8) Note: (5025) Local variable "v" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.pas(1468,11) Note: (5025) Local variable "i2" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.pas(1468,15) Note: (5025) Local variable "v2" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.pas(1177,19) Note: (5025) Local variable "R" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.pas(1187,4) Note: (5025) Local variable "LContextPath" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.pas(1190,4) Note: (5025) Local variable "LParsedKey" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.pas(1198,3) Note: (5025) Local variable "LPath" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.pas(1199,3) Note: (5025) Local variable "LPathLen" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.pas(1200,3) Note: (5025) Local variable "I" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.pas(1152,110) Hint: (5024) Parameter "AFlags" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.pas(1812,16) Note: (6058) Call to subroutine "function ReadString(out AOut:AnsiString):System.Boolean is nested;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.pas(1823,20) Note: (6058) Call to subroutine "function ReadString(out AOut:AnsiString):System.Boolean is nested;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.pas(1874,14) Note: (6058) Call to subroutine "function ReadString(out AOut:AnsiString):System.Boolean is nested;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.pas(1889,18) Note: (6058) Call to subroutine "function ReadString(out AOut:AnsiString):System.Boolean is nested;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.pas(1966,12) Note: (6058) Call to subroutine "function ReadString(out AOut:AnsiString):System.Boolean is nested;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.pas(1986,14) Note: (6058) Call to subroutine "function ReadString(out AOut:AnsiString):System.Boolean is nested;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.pas(2137,18) Note: (6058) Call to subroutine "function ReadString(out AOut:AnsiString):System.Boolean is nested;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.pas(2372,22) Hint: (5091) Local variable "LText" of a managed type does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.pas(2332,3) Note: (5025) Local variable "LSS" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.pas(2460,6) Note: (3123) "access to local from nested scope" not yet supported inside inline procedure/function
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.pas(2460,6) Hint: (3124) Inlining disabled
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.pas(2542,5) Note: (5025) Local variable "varBody" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.pas(2542,22) Note: (5025) Local variable "C2" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.pas(2660,23) Warning: (5093) Function result variable of a managed type does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.pas(2710,23) Warning: (5093) Function result variable of a managed type does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.toml.pas(11,3) Hint: (5023) Unit "fafafa.core.mem.allocator" not used in fafafa.core.toml
+(3104) Compiling Test_fafafa_core_toml_unicode_keys_negatives.pas
+(3104) Compiling Test_fafafa_core_toml_unicode_negatives_ext.pas
+(3104) Compiling Test_fafafa_core_toml_unicode_negatives.pas
+(3104) Compiling Test_fafafa_core_toml_unicode_escapes.pas
+(3104) Compiling Test_fafafa_core_toml_array_of_tables.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.toml\Test_fafafa_core_toml_array_of_tables.pas(24,3) Note: (5025) Local variable "S" not used
+(3104) Compiling Test_fafafa_core_toml_inline_tables.pas
+(3104) Compiling Test_fafafa_core_toml_datetime_negatives.pas
+(3104) Compiling Test_fafafa_core_toml_datetime.pas
+(3104) Compiling Test_fafafa_core_toml_tables_headers_conflicts.pas
+(3104) Compiling Test_fafafa_core_toml_tables_headers.pas
+(3104) Compiling Test_fafafa_core_toml_arrays_empty_bool.pas
+(3104) Compiling Test_fafafa_core_toml_arrays_strings.pas
+(3104) Compiling Test_fafafa_core_toml_arrays_nested_writer.pas
+(3104) Compiling Test_fafafa_core_toml_arrays_writer.pas
+(3104) Compiling Test_fafafa_core_toml_arrays.pas
+(3104) Compiling Test_fafafa_core_toml_builder_getters.pas
+(3104) Compiling Test_fafafa_core_toml_builder.pas
+(3104) Compiling Test_fafafa_core_toml_reader_errors_consistency.pas
+(3104) Compiling Test_fafafa_core_toml_numbers_bases_negatives.pas
+(3104) Compiling Test_fafafa_core_toml_numbers_negatives.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.toml\Test_fafafa_core_toml_numbers_negatives.pas(50,5) Note: (5025) Local variable "Doc" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.toml\Test_fafafa_core_toml_numbers_negatives.pas(50,25) Note: (5025) Local variable "Err" not used
+(3104) Compiling Test_fafafa_core_toml_strings_numbers_negatives.pas
+(3104) Compiling Test_fafafa_core_toml_reader_errors_consistency_2.pas
+(3104) Compiling Test_fafafa_core_toml_reader_errors_datetime_prefix_ext.pas
+(3104) Compiling Test_fafafa_core_toml_writer_snapshot_tight_unicode_pretty.pas
+(3104) Compiling Test_fafafa_core_toml_writer_snapshot_tight_unicode_sort.pas
+(3104) Compiling Test_fafafa_core_toml_reader_errors_datetime_prefix.pas
+(3104) Compiling Test_fafafa_core_toml_writer_snapshot_tight_unicode.pas
+(3104) Compiling Test_fafafa_core_toml_reader_errors_consistency_3.pas
+(3104) Compiling Test_fafafa_core_toml_writer_snapshot_tight_sort_pretty.pas
+(3104) Compiling Test_fafafa_core_toml_writer_snapshot_tight_sort.pas
+(3104) Compiling Test_fafafa_core_toml_writer_snapshot_tight_pretty.pas
+(3104) Compiling Test_fafafa_core_toml_writer_snapshot_tight_todo.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.toml\Test_fafafa_core_toml_writer_snapshot_tight_todo.pas(27,6) Note: (5027) Local variable "ExpectedTight" is assigned but never used
+(3104) Compiling Test_fafafa_core_toml_writer_snapshot_pretty_no_sort.pas
+(3104) Compiling Test_fafafa_core_toml_writer_snapshot_no_pretty.pas
+(3104) Compiling Test_fafafa_core_toml_writer_snapshot_full.pas
+(3104) Compiling Test_fafafa_core_toml_writer_deep_mixed_2.pas
+(3104) Compiling Test_fafafa_core_toml_writer_snapshots_deep.pas
+(3104) Compiling Test_fafafa_core_toml_writer_datetime_snapshots.pas
+(3104) Compiling Test_fafafa_core_toml_writer_pretty_flag.pas
+(3104) Compiling Test_fafafa_core_toml_writer_aot_interleaved.pas
+(3104) Compiling Test_fafafa_core_toml_writer_mixed_nested.pas
+(3104) Compiling Test_fafafa_core_toml_writer_spaces_flag.pas
+(3104) Compiling Test_fafafa_core_toml_writer_sort.pas
+(3104) Compiling Test_fafafa_core_toml_writer_strings_order.pas
+(3104) Compiling Test_fafafa_core_toml_writer_quoted_mixed.pas
+(3104) Compiling Test_fafafa_core_toml_writer_combination_flags.pas
+(3104) Compiling Test_fafafa_core_toml_writer_flags.pas
+(3104) Compiling Test_fafafa_core_toml_writer_nested.pas
+(3104) Compiling Test_fafafa_core_toml_reader_dotted_extras.pas
+(3104) Compiling Test_fafafa_core_toml_dotted2.pas
+(3104) Compiling Test_fafafa_core_toml_dotted.pas
+(3104) Compiling Test_fafafa_core_toml_contains.pas
+(3104) Compiling Test_fafafa_core_toml.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.toml\Test_fafafa_core_toml.pas(9,31) Hint: (5023) Unit "testutils" not used in Test_fafafa_core_toml
+(9015) Linking D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.toml\bin\tests_toml.exe
+(1008) 8239 lines compiled, 3.7 sec, 537008 bytes code, 14084 bytes data
+(1021) 3 warning(s) issued
+(1022) 18 hint(s) issued
+(1023) 45 note(s) issued

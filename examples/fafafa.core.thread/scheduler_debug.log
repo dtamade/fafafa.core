@@ -1,0 +1,13 @@
+20:16:14.968 scheduler create
+20:16:14.968 timer thread created
+20:16:14.970 timer thread started
+20:16:15.020 watchdog: zero sleep -> sleep(10)
+20:16:15.034 watchdog: zero sleep -> sleep(10)
+20:16:15.049 watchdog: zero sleep -> sleep(10)
+20:16:15.065 watchdog: zero sleep -> sleep(10)
+20:16:15.081 watchdog: zero sleep -> sleep(10)
+20:16:15.094 watchdog: zero sleep -> sleep(10)
+20:16:15.111 watchdog: zero sleep -> sleep(10)
+20:16:15.123 watchdog: zero sleep -> sleep(10)
+20:16:15.140 watchdog: zero sleep -> sleep(10)
+20:16:15.153 watchdog: zero sleep -> sleep(10)

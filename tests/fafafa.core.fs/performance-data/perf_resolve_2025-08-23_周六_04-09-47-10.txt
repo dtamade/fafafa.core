@@ -1,0 +1,4 @@
+ResolvePathEx: TouchDisk=False, iters=1000, time=4 ms, last=D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\"tests\fafafa.core.fs\walk_bench_root"
+ResolvePathEx: TouchDisk=True,  iters=1000, time=20 ms, last=D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\"tests\fafafa.core.fs\walk_bench_root"
+
+==== Walk (genwalk) ====

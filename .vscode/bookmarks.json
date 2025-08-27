@@ -1,0 +1,329 @@
+{
+	"files": [
+		{
+			"path": "src/fafafa.collections.pas",
+			"bookmarks": [
+				{
+					"line": 12,
+					"column": 0,
+					"label": ""
+				},
+				{
+					"line": 130,
+					"column": 0,
+					"label": ""
+				},
+				{
+					"line": 413,
+					"column": 0,
+					"label": ""
+				},
+				{
+					"line": 466,
+					"column": 0,
+					"label": ""
+				},
+				{
+					"line": 817,
+					"column": 0,
+					"label": ""
+				},
+				{
+					"line": 870,
+					"column": 2,
+					"label": ""
+				},
+				{
+					"line": 879,
+					"column": 34,
+					"label": ""
+				},
+				{
+					"line": 921,
+					"column": 0,
+					"label": ""
+				},
+				{
+					"line": 937,
+					"column": 0,
+					"label": ""
+				},
+				{
+					"line": 1274,
+					"column": 15,
+					"label": ""
+				},
+				{
+					"line": 1325,
+					"column": 0,
+					"label": ""
+				},
+				{
+					"line": 1333,
+					"column": 0,
+					"label": ""
+				},
+				{
+					"line": 1340,
+					"column": 0,
+					"label": ""
+				},
+				{
+					"line": 1349,
+					"column": 0,
+					"label": ""
+				},
+				{
+					"line": 1591,
+					"column": 0,
+					"label": ""
+				},
+				{
+					"line": 1766,
+					"column": 9,
+					"label": ""
+				},
+				{
+					"line": 3866,
+					"column": 5,
+					"label": ""
+				},
+				{
+					"line": 4098,
+					"column": 0,
+					"label": ""
+				},
+				{
+					"line": 4305,
+					"column": 4,
+					"label": ""
+				},
+				{
+					"line": 4403,
+					"column": 0,
+					"label": ""
+				},
+				{
+					"line": 4613,
+					"column": 0,
+					"label": ""
+				},
+				{
+					"line": 4800,
+					"column": 4,
+					"label": ""
+				},
+				{
+					"line": 4948,
+					"column": 0,
+					"label": ""
+				},
+				{
+					"line": 5811,
+					"column": 8,
+					"label": ""
+				},
+				{
+					"line": 6103,
+					"column": 0,
+					"label": ""
+				},
+				{
+					"line": 6132,
+					"column": 7,
+					"label": ""
+				}
+			]
+		},
+		{
+			"path": "src/fafafa.core.mem.utils.pas",
+			"bookmarks": [
+				{
+					"line": 10,
+					"column": 7,
+					"label": ""
+				}
+			]
+		},
+		{
+			"path": "src/fafafa.core.collections.base.pas",
+			"bookmarks": [
+				{
+					"line": 25,
+					"column": 14,
+					"label": ""
+				},
+				{
+					"line": 51,
+					"column": 0,
+					"label": ""
+				},
+				{
+					"line": 556,
+					"column": 12,
+					"label": ""
+				},
+				{
+					"line": 616,
+					"column": 6,
+					"label": ""
+				},
+				{
+					"line": 632,
+					"column": 0,
+					"label": ""
+				},
+				{
+					"line": 661,
+					"column": 20,
+					"label": ""
+				},
+				{
+					"line": 754,
+					"column": 10,
+					"label": ""
+				},
+				{
+					"line": 758,
+					"column": 14,
+					"label": ""
+				},
+				{
+					"line": 820,
+					"column": 11,
+					"label": ""
+				},
+				{
+					"line": 907,
+					"column": 16,
+					"label": ""
+				},
+				{
+					"line": 940,
+					"column": 17,
+					"label": ""
+				},
+				{
+					"line": 1052,
+					"column": 12,
+					"label": ""
+				},
+				{
+					"line": 1273,
+					"column": 5,
+					"label": ""
+				},
+				{
+					"line": 1301,
+					"column": 4,
+					"label": ""
+				}
+			]
+		},
+		{
+			"path": "src/fafafa.core.collections.arr.pas",
+			"bookmarks": [
+				{
+					"line": 16,
+					"column": 15,
+					"label": ""
+				},
+				{
+					"line": 550,
+					"column": 16,
+					"label": ""
+				},
+				{
+					"line": 581,
+					"column": 17,
+					"label": ""
+				},
+				{
+					"line": 716,
+					"column": 18,
+					"label": ""
+				},
+				{
+					"line": 902,
+					"column": 10,
+					"label": ""
+				},
+				{
+					"line": 1167,
+					"column": 17,
+					"label": ""
+				},
+				{
+					"line": 1187,
+					"column": 27,
+					"label": ""
+				},
+				{
+					"line": 1207,
+					"column": 24,
+					"label": ""
+				},
+				{
+					"line": 1230,
+					"column": 32,
+					"label": ""
+				},
+				{
+					"line": 1250,
+					"column": 36,
+					"label": ""
+				},
+				{
+					"line": 1270,
+					"column": 14,
+					"label": ""
+				},
+				{
+					"line": 1368,
+					"column": 27,
+					"label": ""
+				},
+				{
+					"line": 1452,
+					"column": 18,
+					"label": ""
+				},
+				{
+					"line": 1572,
+					"column": 26,
+					"label": ""
+				},
+				{
+					"line": 1663,
+					"column": 14,
+					"label": ""
+				},
+				{
+					"line": 1687,
+					"column": 10,
+					"label": ""
+				},
+				{
+					"line": 1936,
+					"column": 19,
+					"label": ""
+				},
+				{
+					"line": 2232,
+					"column": 25,
+					"label": ""
+				},
+				{
+					"line": 2602,
+					"column": 18,
+					"label": ""
+				},
+				{
+					"line": 2748,
+					"column": 13,
+					"label": ""
+				}
+			]
+		}
+	]
+}

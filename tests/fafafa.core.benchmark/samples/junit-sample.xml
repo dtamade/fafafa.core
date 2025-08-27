@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="benchmarks" tests="2">
+  <testcase name="example1" time="0.001234"/>
+  <testcase name="example2" time="0.003210"/>
+</testsuite>
+

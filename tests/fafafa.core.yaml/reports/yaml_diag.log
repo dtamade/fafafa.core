@@ -1,0 +1,76 @@
+[2025-08-21 04:18:16.032] diag start
+[PARSE][ERROR] L6148914691236517205 C6148914691236517205: unexpected EOF while scanning flow sequence item
+[PARSE][INFO] L1 C3: empty/closed flow mapping
+[PARSE][INFO] L1 C4: empty/closed flow sequence
+[PARSE][INFO] L1 C6: empty/closed flow sequence
+[PARSE][INFO] L1 C7: empty/closed flow mapping
+[PARSE][INFO] L1 C2: empty/closed flow sequence
+[PARSE][ERROR] L6148914691236517205 C6148914691236517205: unexpected EOF while scanning flow sequence item
+[PARSE][INFO] L1 C2: empty/closed flow mapping
+[PARSE][ERROR] L6148914691236517205 C6148914691236517205: unexpected EOF while scanning flow sequence item
+[PARSE][INFO] L1 C3: empty/closed flow mapping
+[PARSE][INFO] L1 C4: empty/closed flow sequence
+[PARSE][INFO] L1 C6: empty/closed flow sequence
+[PARSE][INFO] L1 C7: empty/closed flow mapping
+[PARSE][INFO] L1 C2: empty/closed flow sequence
+[PARSE][ERROR] L6148914691236517205 C6148914691236517205: unexpected EOF while scanning flow sequence item
+[PARSE][INFO] L1 C2: empty/closed flow mapping
+[PARSE][ERROR] L6148914691236517205 C6148914691236517205: unexpected EOF while scanning flow sequence item
+[PARSE][INFO] L1 C3: empty/closed flow mapping
+[PARSE][INFO] L1 C4: empty/closed flow sequence
+[PARSE][INFO] L1 C6: empty/closed flow sequence
+[PARSE][INFO] L1 C7: empty/closed flow mapping
+[PARSE][INFO] L1 C2: empty/closed flow sequence
+[PARSE][ERROR] L6148914691236517205 C6148914691236517205: unexpected EOF while scanning flow sequence item
+[PARSE][INFO] L1 C2: empty/closed flow mapping
+[PARSE][ERROR] L6148914691236517205 C6148914691236517205: unexpected EOF while scanning flow mapping
+[PARSE][ERROR] L6148914691236517205 C6148914691236517205: unexpected EOF while scanning flow sequence item
+[PARSE][INFO] L1 C3: empty/closed flow mapping
+[PARSE][INFO] L1 C4: empty/closed flow sequence
+[PARSE][INFO] L1 C6: empty/closed flow sequence
+[PARSE][INFO] L1 C7: empty/closed flow mapping
+[PARSE][INFO] L1 C2: empty/closed flow sequence
+[PARSE][ERROR] L6148914691236517205 C6148914691236517205: unexpected EOF while scanning flow sequence item
+[PARSE][INFO] L1 C2: empty/closed flow mapping
+[PARSE][ERROR] L6148914691236517205 C6148914691236517205: unexpected EOF while scanning flow mapping
+[PARSE][ERROR] L6148914691236517205 C6148914691236517205: unexpected EOF while scanning flow sequence item
+[PARSE][INFO] L1 C3: empty/closed flow mapping
+[PARSE][INFO] L1 C4: empty/closed flow sequence
+[PARSE][INFO] L1 C6: empty/closed flow sequence
+[PARSE][INFO] L1 C7: empty/closed flow mapping
+[PARSE][ERROR] L6148914691236517205 C6148914691236517205: unexpected EOF while scanning flow sequence item
+[PARSE][ERROR] L6148914691236517205 C6148914691236517205: unexpected EOF while scanning flow sequence item
+[PARSE][INFO] L1 C18: empty/closed flow sequence
+[PARSE][INFO] L1 C3: empty/closed flow sequence
+[PARSE][INFO] L1 C2: empty/closed flow sequence
+[PARSE][ERROR] L6148914691236517205 C6148914691236517205: unexpected EOF while scanning flow sequence item
+[PARSE][INFO] L1 C2: empty/closed flow mapping
+[PARSE][ERROR] L6148914691236517205 C6148914691236517205: unexpected EOF while scanning flow mapping
+[PARSE][ERROR] L6148914691236517205 C6148914691236517205: unexpected EOF while scanning flow sequence item
+[PARSE][INFO] L1 C3: empty/closed flow mapping
+[PARSE][INFO] L1 C4: empty/closed flow sequence
+[PARSE][INFO] L1 C6: empty/closed flow sequence
+[PARSE][INFO] L1 C7: empty/closed flow mapping
+[PARSE][ERROR] L6148914691236517205 C6148914691236517205: unexpected EOF while scanning flow sequence item
+[PARSE][ERROR] L6148914691236517205 C6148914691236517205: unexpected EOF while scanning flow sequence item
+[PARSE][INFO] L1 C18: empty/closed flow sequence
+[PARSE][INFO] L1 C3: empty/closed flow sequence
+[PARSE][INFO] L1 C2: empty/closed flow sequence
+[PARSE][ERROR] L6148914691236517205 C6148914691236517205: unexpected EOF while scanning flow sequence item
+[PARSE][INFO] L1 C2: empty/closed flow mapping
+[PARSE][ERROR] L6148914691236517205 C6148914691236517205: unexpected EOF while scanning flow mapping
+[PARSE][ERROR] L6148914691236517205 C6148914691236517205: unexpected EOF while scanning flow sequence item
+[PARSE][INFO] L1 C3: empty/closed flow mapping
+[PARSE][INFO] L1 C4: empty/closed flow sequence
+[PARSE][INFO] L1 C6: empty/closed flow sequence
+[PARSE][INFO] L1 C7: empty/closed flow mapping
+[PARSE][ERROR] L1 C2: unterminated double-quoted scalar
+[PARSE][ERROR] L6148914691236517205 C6148914691236517205: unexpected EOF while scanning flow sequence item
+[PARSE][ERROR] L1 C2: unterminated single-quoted scalar
+[PARSE][ERROR] L6148914691236517205 C6148914691236517205: unexpected EOF while scanning flow sequence item
+[PARSE][ERROR] L1 C2: unterminated tag
+[PARSE][ERROR] L1 C2: unterminated tag
+[PARSE][INFO] L1 C2: tag payload has 0 or multiple colons: treated as plain scalar
+[PARSE][INFO] L1 C18: empty/closed flow sequence
+[PARSE][ERROR] L1 C2: illegal control character in scalar
+[PARSE][INFO] L1 C3: empty/closed flow sequence

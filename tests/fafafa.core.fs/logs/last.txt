@@ -1,0 +1,80 @@
+[BUILD] Project: D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.fs\tests_fs.lpi
+[tools\lazbuild.bat] using LAZBUILD_EXE: "D:\devtools\lazarus\trunk\lazarus\lazbuild.exe" "D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.fs\tests_fs.lpi"
+SetPrimaryConfigPath NewValue="D:\devtools\lazarus\trunk\config_lazarus"
+Hint: (lazbuild) Primary config path: "D:\devtools\lazarus\trunk\config_lazarus"
+Hint: (lazarus) [TBuildManager.SetBuildTarget] Old=x86_64-win64--win32 New=x86_64-win64--win32 Changed: OS/CPU=True LCL=False
+Hint: (lazarus) [TBuildManager.SetBuildTarget] Old=x86_64-win64--win32 New=x86_64-win64--win32 Changed: OS/CPU=True LCL=False
+Hint: (lazarus) Project needs building: missing target file "D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.fs\bin\tests_fs.exe"
+Info: (lazarus) Execute Title="Compile Project, Target: D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.fs\bin\tests_fs.exe"
+Info: (lazarus) Working Directory="D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.fs\"
+Info: (lazarus) Executable="D:\devtools\lazarus\trunk\fpc\bin\x86_64-win64\fpc.exe"
+Info: (lazarus) Param[0]="-MObjFPC"
+Info: (lazarus) Param[1]="-Scaghi"
+Info: (lazarus) Param[2]="-CirotR"
+Info: (lazarus) Param[3]="-O1"
+Info: (lazarus) Param[4]="-gw3"
+Info: (lazarus) Param[5]="-gl"
+Info: (lazarus) Param[6]="-gh"
+Info: (lazarus) Param[7]="-Xg"
+Info: (lazarus) Param[8]="-gt"
+Info: (lazarus) Param[9]="-l"
+Info: (lazarus) Param[10]="-vewnhibq"
+Info: (lazarus) Param[11]="-FiD:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.fs\lib\x86_64-win64"
+Info: (lazarus) Param[12]="-FuD:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.fs\"
+Info: (lazarus) Param[13]="-FuD:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src"
+Info: (lazarus) Param[14]="-FuD:\devtools\lazarus\trunk\lazarus\components\fpcunit\lib\x86_64-win64\win32"
+Info: (lazarus) Param[15]="-FuD:\devtools\lazarus\trunk\lazarus\components\synedit\units\x86_64-win64\win32"
+Info: (lazarus) Param[16]="-FuD:\devtools\lazarus\trunk\lazarus\lcl\units\x86_64-win64\win32"
+Info: (lazarus) Param[17]="-FuD:\devtools\lazarus\trunk\lazarus\components\lazedit\lib\x86_64-win64"
+Info: (lazarus) Param[18]="-FuD:\devtools\lazarus\trunk\lazarus\lcl\units\x86_64-win64"
+Info: (lazarus) Param[19]="-FuD:\devtools\lazarus\trunk\lazarus\components\freetype\lib\x86_64-win64"
+Info: (lazarus) Param[20]="-FuD:\devtools\lazarus\trunk\lazarus\components\lazutils\lib\x86_64-win64"
+Info: (lazarus) Param[21]="-FuD:\devtools\lazarus\trunk\lazarus\packager\units\x86_64-win64"
+Info: (lazarus) Param[22]="-FUD:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.fs\lib\x86_64-win64\"
+Info: (lazarus) Param[23]="-FED:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.fs\bin\"
+Info: (lazarus) Param[24]="-oD:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.fs\bin\tests_fs.exe"
+Info: (lazarus) Param[25]="-dLCL"
+Info: (lazarus) Param[26]="-dLCLwin32"
+Info: (lazarus) Param[27]="tests_fs.lpr"
+Hint: (11030) Start of reading config file D:\devtools\lazarus\trunk\fpc\bin\x86_64-win64\fpc.cfg
+Hint: (11031) End of reading config file D:\devtools\lazarus\trunk\fpc\bin\x86_64-win64\fpc.cfg
+Free Pascal Compiler version 3.3.1-18303-gc4aa8b02fb-dirty [2025/07/28] for x86_64
+Copyright (c) 1993-2025 by Florian Klaempfl and others
+(1002) Target OS: Win64 for x64
+(3104) Compiling tests_fs.lpr
+(3104) Compiling Test_fafafa_core_fs_mkstemp_mkdtemp_flock.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.fs.errors.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.fs.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.fs.pas(599,3) Fatal: (2003) Syntax error, "IMPLEMENTATION" expected but "*" found
+Fatal: (1018) Compilation aborted
+Error: D:\devtools\lazarus\trunk\fpc\bin\x86_64-win64\ppcx64.exe returned an error exitcode
+Error: (lazarus) Compile Project, Target: D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.fs\bin\tests_fs.exe: stopped with exit code 1
+Info: (lazarus) [TCompiler.Compile] end
+Error: (lazbuild) Failed compiling of project "D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.fs\tests_fs.lpi"
+[BUILD] OK
+
+Listing bin directory: D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.fs\bin
+ 驱动器 D 中的卷是 软件
+ 卷的序列号是 299D-817A
+
+ D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.fs\bin 的目录
+
+2025/08/22  22:51    <DIR>          .
+2025/08/22  22:46    <DIR>          ..
+2025/08/16  21:10            35,214 fafafa.core.fs.errors.o
+2025/08/16  21:10            13,072 fafafa.core.fs.errors.ppu
+2025/08/16  21:10           218,982 fafafa.core.fs.highlevel.o
+2025/08/16  21:10            49,749 fafafa.core.fs.highlevel.ppu
+2025/08/16  21:10           191,423 fafafa.core.fs.o
+2025/08/16  21:10           177,562 fafafa.core.fs.path.o
+2025/08/16  21:10            18,540 fafafa.core.fs.path.ppu
+2025/08/16  21:10            36,349 fafafa.core.fs.ppu
+2025/08/16  21:10             5,122 libimpfafafa.core.fs.a
+2025/08/15  06:23           299,520 perf_fs_bench.exe
+2025/08/22  21:17           327,680 perf_resolve_bench.exe
+2025/08/16  21:10         1,306,377 perf_walk_bench.exe
+2025/08/16  21:10            43,632 perf_walk_bench.o
+2025/08/22  22:46         2,081,718 tests_fs.dbg
+              14 个文件      4,804,940 字节
+               2 个目录 185,295,671,296 可用字节
+ERROR: Test executable not found: D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.fs\bin\tests_fs.exe

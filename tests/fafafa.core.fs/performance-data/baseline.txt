@@ -1,0 +1,14 @@
+Baseline: 2025-08-13
+Command: BuildOrRunPerf.bat (default)
+--- Output ---
+Sequential write: 364-366 MB/s
+Sequential read:  560-570 MB/s
+Random read:      11500-12500 ops/s
+
+Notes:
+- Values are approximate averages from recent local runs.
+- Re-run multiple times to account for cache/AV jitter.
+
+
+--- WalkDir quick snapshot baseline ---
+Entries: ~200-250, Time: ~350-500 ms (repo-root on local NVMe)

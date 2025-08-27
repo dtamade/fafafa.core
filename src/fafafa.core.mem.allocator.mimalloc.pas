@@ -1,0 +1,199 @@
+unit fafafa.core.mem.allocator.mimalloc;
+
+{$mode objfpc}{$H+}
+{$I fafafa.core.settings.inc}
+
+interface
+
+uses
+  SysUtils,
+  fafafa.core.mem.allocator.base
+  {$IFNDEF FAFAFA_CORE_MIMALLOC_STATIC}
+  ,dynlibs
+  {$ENDIF}
+  ;
+
+type
+  {**
+   * TMimallocAllocator
+   * @desc 使用 mimalloc 库的 IAllocator 实现
+   *}
+  TMimallocAllocator = class(TAllocator)
+  protected
+    function  DoGetMem(aSize: SizeUInt): Pointer; override;
+    function  DoAllocMem(aSize: SizeUInt): Pointer; override;
+    function  DoReallocMem(aDst: Pointer; aSize: SizeUInt): Pointer; override;
+    procedure DoFreeMem(aDst: Pointer); override;
+  public
+    function  Traits: TAllocatorTraits; override;
+  end;
+
+function TryGetMimallocAllocator(out A: IAllocator): Boolean;
+function GetMimallocAllocator: IAllocator;
+
+implementation
+
+uses
+  fafafa.core.sync;
+
+{$IFDEF FAFAFA_CORE_MIMALLOC_STATIC}
+  {$LINKLIB mimalloc}
+  {$IFDEF UNIX}
+    {$LINKLIB c}
+  {$ENDIF}
+  // Static link/import: bind directly at link time
+  function _mi_malloc(aSize: SizeUInt): Pointer; cdecl; external name 'mi_malloc';
+  function _mi_calloc(aCount, aSize: SizeUInt): Pointer; cdecl; external name 'mi_calloc';
+  function _mi_realloc(aPtr: Pointer; aNewSize: SizeUInt): Pointer; cdecl; external name 'mi_realloc';
+  procedure _mi_free(aPtr: Pointer); cdecl; external name 'mi_free';
+  function EnsureMimallocLoaded: Boolean; inline;
+  begin
+    Result := True;
+  end;
+{$ELSE}
+  // Delayed loading of mimalloc to avoid loader-time failures
+  var
+    _miLib: TLibHandle = 0;
+    _miLoaded: Boolean = False;
+    _mi_malloc: function(aSize: SizeUInt): Pointer; cdecl = nil;
+    _mi_calloc: function(aCount, aSize: SizeUInt): Pointer; cdecl = nil;
+    _mi_realloc: function(aPtr: Pointer; aNewSize: SizeUInt): Pointer; cdecl = nil;
+    _mi_free: procedure(aPtr: Pointer); cdecl = nil;
+    GLoadLock: ILock;
+
+  function TryLoadMimallocLibrary: TLibHandle;
+  var
+    EnvPath: AnsiString;
+  begin
+    Result := 0;
+    {$IFDEF MSWINDOWS}
+    Result := LoadLibrary('mimalloc.dll');
+    if Result = 0 then Result := LoadLibrary('mimalloc-redirect.dll');
+    {$ELSE}
+    // Allow env override: FAFAFA_MIMALLOC_SO=/custom/path/libmimalloc.so
+    EnvPath := GetEnvironmentVariable('FAFAFA_MIMALLOC_SO');
+    if (EnvPath <> '') then Result := LoadLibrary(PChar(EnvPath));
+    if Result = 0 then Result := LoadLibrary('libmimalloc.so');
+    if Result = 0 then Result := LoadLibrary('libmimalloc.so.2');
+    if Result = 0 then Result := LoadLibrary('mimalloc');
+    {$ENDIF}
+  end;
+
+  function EnsureMimallocLoaded: Boolean;
+  var
+    LLib: TLibHandle;
+    LAuto: TAutoLock;
+  begin
+    if _miLoaded then Exit(True);
+    LAuto := TAutoLock.Create(GLoadLock);
+    try
+      if _miLoaded then Exit(True);
+      // try load
+      LLib := TryLoadMimallocLibrary;
+      if LLib = 0 then Exit(False);
+      _miLib := LLib;
+      Pointer(_mi_malloc) := GetProcedureAddress(_miLib, 'mi_malloc');
+      Pointer(_mi_calloc) := GetProcedureAddress(_miLib, 'mi_calloc');
+      Pointer(_mi_realloc) := GetProcedureAddress(_miLib, 'mi_realloc');
+      Pointer(_mi_free) := GetProcedureAddress(_miLib, 'mi_free');
+      _miLoaded := Assigned(_mi_malloc) and Assigned(_mi_calloc) and Assigned(_mi_realloc) and Assigned(_mi_free);
+      if not _miLoaded then
+      begin
+        FreeLibrary(_miLib);
+        _miLib := 0;
+      end;
+      Result := _miLoaded;
+    finally
+      LAuto.Free;
+    end;
+  end;
+{$ENDIF}
+
+var
+  _MimallocAllocatorObj: TAllocator = nil;
+  _MimallocAllocatorIntf: IAllocator = nil;
+  GAllocatorLock: ILock;
+
+function TMimallocAllocator.DoGetMem(aSize: SizeUInt): Pointer;
+begin
+  if not EnsureMimallocLoaded then
+    raise Exception.Create('mimalloc not available: cannot load library');
+  Result := _mi_malloc(aSize);
+end;
+
+function TMimallocAllocator.DoAllocMem(aSize: SizeUInt): Pointer;
+begin
+  if not EnsureMimallocLoaded then
+    raise Exception.Create('mimalloc not available: cannot load library');
+  Result := _mi_calloc(1, aSize);
+end;
+
+function TMimallocAllocator.DoReallocMem(aDst: Pointer; aSize: SizeUInt): Pointer;
+begin
+  if not EnsureMimallocLoaded then
+    raise Exception.Create('mimalloc not available: cannot load library');
+  Result := _mi_realloc(aDst, aSize);
+end;
+
+procedure TMimallocAllocator.DoFreeMem(aDst: Pointer);
+begin
+  if not EnsureMimallocLoaded then
+    Exit; // free path when library missing: nothing to do
+  _mi_free(aDst);
+end;
+
+function TMimallocAllocator.Traits: TAllocatorTraits;
+begin
+  Result := inherited Traits;
+  // mimalloc semantics:
+  // - AllocMem uses mi_calloc => zero initialized; GetMem not guaranteed
+  // - SupportsAligned remains False here (use aligned bridge or module)
+  // - HasMemSize stays False until we wire mi_usable_size with contract/tests
+  Result.ZeroInitialized := True;
+  Result.SupportsAligned := False;
+  Result.HasMemSize      := False;
+end;
+
+function GetMimallocAllocator: IAllocator;
+begin
+  if _MimallocAllocatorObj = nil then
+  begin
+    with TAutoLock.Create(GAllocatorLock) do
+    try
+      if _MimallocAllocatorObj = nil then
+      begin
+        _MimallocAllocatorObj := TMimallocAllocator.Create;
+        _MimallocAllocatorIntf := _MimallocAllocatorObj as IAllocator; // anchor lifetime
+      end;
+    finally
+      Free;
+    end;
+  end;
+  Result := _MimallocAllocatorIntf;
+end;
+function TryGetMimallocAllocator(out A: IAllocator): Boolean;
+begin
+  try
+    A := GetMimallocAllocator;
+    Result := True;
+  except
+    A := nil;
+    Result := False;
+  end;
+end;
+
+initialization
+  GLoadLock := TMutex.Create;
+  GAllocatorLock := TMutex.Create;
+finalization
+  _MimallocAllocatorIntf := nil;
+  _MimallocAllocatorObj := nil;
+  {$IFNDEF FAFAFA_CORE_MIMALLOC_STATIC}
+  if _miLib <> 0 then
+    FreeLibrary(_miLib);
+  _miLib := 0;
+  {$ENDIF}
+
+
+end.
+

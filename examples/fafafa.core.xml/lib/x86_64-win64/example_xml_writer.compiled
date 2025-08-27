@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <Compiler Value="D:\devtools\lazarus\trunk\fpc\bin\x86_64-win64\fpc.exe" Date="1526497373"/>
+  <Params Value="-MObjFPC -Scaghi -O1 -gw2 -godwarfsets -gl -l -vewnhibq -FiD:\projects\Pascal\lazarus\My\libs\fafafa.collections5\examples\fafafa.core.xml\lib\x86_64-win64 -FiD:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src -FuD:\projects\Pascal\lazarus\My\libs\fafafa.collections5\examples\fafafa.core.xml\ -FuD:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src -FUD:\projects\Pascal\lazarus\My\libs\fafafa.collections5\examples\fafafa.core.xml\lib\x86_64-win64\ -FED:\projects\Pascal\lazarus\My\libs\fafafa.collections5\examples\fafafa.core.xml\bin\ -oD:\projects\Pascal\lazarus\My\libs\fafafa.collections5\examples\fafafa.core.xml\bin\example_xml_writer.exe example_xml_writer.lpr"/>
+  <Complete Value="False"/>
+</CONFIG>

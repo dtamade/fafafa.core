@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ProjectOptions>
+  <General>
+    <SessionStorage Value="InProjectDir"/>
+    <MainUnit Value="0"/>
+    <Title Value="example_json"/>
+    <UseAppBundle Value="False"/>
+    <ResourceType Value="res"/>
+    <UseXPManifest Value="True"/>
+    <Icon Value="0"/>
+  </General>
+  <BuildModes Count="1">
+    <Item1 Name="Debug" Default="True">
+      <CompilerOptions>
+        <Target>
+          <Filename Value="bin/example_json.exe"/>
+        </Target>
+        <SearchPaths>
+          <IncludeFiles Value="../../src"/>
+          <OtherUnitFiles Value="../../src"/>
+          <UnitOutputDirectory Value="lib"/>
+        </SearchPaths>
+        <Parsing>
+          <SyntaxOptions>
+            <SyntaxMode Value="ObjFPC"/>
+            <IncludeAssertionCode Value="True"/>
+          </SyntaxOptions>
+        </Parsing>
+        <Linking>
+          <Debugging>
+            <UseHeaptrc Value="True"/>
+            <StripSymbols Value="False"/>
+          </Debugging>
+        </Linking>
+        <Other>
+          <Verbosity>
+            <ShowHints Value="True"/>
+            <ShowNotes Value="True"/>
+          </Verbosity>
+        </Other>
+      </CompilerOptions>
+    </Item1>
+  </BuildModes>
+  <Units Count="1">
+    <Unit0>
+      <Filename Value="example_json.lpr"/>
+      <IsPartOfProject Value="True"/>
+    </Unit0>
+  </Units>
+</ProjectOptions>
+

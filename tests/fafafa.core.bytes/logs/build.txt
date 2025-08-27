@@ -1,0 +1,44 @@
+[tools\lazbuild.bat] using LAZBUILD_EXE: "D:\devtools\lazarus\trunk\lazarus\lazbuild.exe" --quiet --build-all "fafafa.core.bytes.test.lpi"
+Hint: (11030) Start of reading config file D:\devtools\lazarus\trunk\fpc\bin\x86_64-win64\fpc.cfg
+Hint: (11031) End of reading config file D:\devtools\lazarus\trunk\fpc\bin\x86_64-win64\fpc.cfg
+Free Pascal Compiler version 3.3.1-18303-gc4aa8b02fb-dirty [2025/07/28] for x86_64
+Copyright (c) 1993-2025 by Florian Klaempfl and others
+(1002) Target OS: Win64 for x64
+(3104) Compiling fafafa.core.bytes.test.lpr
+(3104) Compiling fafafa.core.bytes.testcase.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.io.adapters.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.bytes.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.base.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.bytes.pas(254,34) Warning: (4044) Comparison might be always false due to range of constant and expression
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.bytes.pas(254,55) Warning: (6018) Unreachable code
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.bytes.pas(269,15) Warning: (4044) Comparison might be always false due to range of constant and expression
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.bytes.pas(269,36) Warning: (6018) Unreachable code
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.bytes.pas(287,14) Hint: (5092) Variable "B" of a managed type does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.bytes.pas(322,14) Hint: (5092) Variable "B" of a managed type does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.bytes.pas(415,19) Warning: (5093) Function result variable of a managed type does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.bytes.pas(427,19) Warning: (5093) Function result variable of a managed type does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.bytes.pas(437,19) Warning: (5093) Function result variable of a managed type does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.bytes.pas(939,19) Warning: (5093) Function result variable of a managed type does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.bytes.pas(966,15) Warning: (4044) Comparison might be always false due to range of constant and expression
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.bytes.pas(966,36) Warning: (6018) Unreachable code
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.bytes.pas(981,15) Warning: (4044) Comparison might be always false due to range of constant and expression
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.bytes.pas(981,36) Warning: (6018) Unreachable code
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.io.adapters.pas(23,24) Hint: (5026) Value parameter "Value" is assigned but never used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.bytes\fafafa.core.bytes.testcase.pas(86,14) Hint: (5091) Local variable "B" of a managed type does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.bytes\fafafa.core.bytes.testcase.pas(100,5) Note: (5027) Local variable "Tmp" is assigned but never used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.bytes\fafafa.core.bytes.testcase.pas(131,14) Hint: (5091) Local variable "B" of a managed type does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.bytes\fafafa.core.bytes.testcase.pas(189,14) Hint: (5091) Local variable "B" of a managed type does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.bytes\fafafa.core.bytes.testcase.pas(207,21) Warning: (5036) Local variable "u32" does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.bytes\fafafa.core.bytes.testcase.pas(207,36) Warning: (5036) Local variable "u64" does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.bytes\fafafa.core.bytes.testcase.pas(372,28) Warning: (5066) Symbol "TBytesBuilder.DetachRaw" is deprecated: "Use DetachTrim (may shrink/copy) or DetachNoTrim for strict zero-copy"
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.bytes\fafafa.core.bytes.testcase.pas(479,34) Warning: (5066) Symbol "TBytesBuilder.WriteToStream" is deprecated: "Use WriteToSink with TStreamSink"
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.bytes\fafafa.core.bytes.testcase.pas(485,39) Warning: (5066) Symbol "TBytesBuilder.ReadFromStream" is deprecated: "Use ReadFromSource with TStreamSource"
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.bytes\fafafa.core.bytes.testcase.pas(520,33) Hint: (5057) Local variable "buf" does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.bytes\fafafa.core.bytes.testcase.pas(522,16) Hint: (5091) Local variable "arr" of a managed type does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.bytes\fafafa.core.bytes.test.lpr(11,3) Hint: (5023) Unit "fafafa.core.base" not used in fafafa.core.bytes.test
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.bytes\fafafa.core.bytes.test.lpr(12,3) Hint: (5023) Unit "fafafa.core.bytes" not used in fafafa.core.bytes.test
+(9015) Linking D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.bytes\bin\fafafa.core.bytes.test.exe
+(1008) 3568 lines compiled, 3.3 sec, 359360 bytes code, 13188 bytes data
+(1021) 17 warning(s) issued
+(1022) 12 hint(s) issued
+(1023) 1 note(s) issued

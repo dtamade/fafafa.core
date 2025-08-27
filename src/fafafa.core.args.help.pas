@@ -1,0 +1,445 @@
+unit fafafa.core.args.help;
+
+{$mode objfpc}{$H+}
+{$I fafafa.core.settings.inc}
+
+interface
+
+uses
+  SysUtils, fafafa.core.args.schema, fafafa.core.args.command, fafafa.core.env;
+
+type
+  TGroupBy = (gbNone, gbRequired, gbAlpha);
+
+  TRenderUsageOptions = record
+    width: Integer; // 0=auto (env COLUMNS or fallback)
+    wrap: Boolean;  // soft-wrap descriptions
+    sortSubcommands: Boolean; // sort children by name
+    markDefaultInChildren: Boolean; // append [default] to default child
+    showAliases: Boolean; // show command/flag aliases
+    showTypes: Boolean;   // show [type] tags for flags
+    showSectionHeaders: Boolean; // show section headers like Aliases/Flags/Args
+    groupFlagsBy: TGroupBy;      // grouping/sorting strategy for flags
+    groupPositionalsBy: TGroupBy;// grouping/sorting strategy for positionals
+  end;
+
+function RenderUsage(const Node: IBaseCommand): string; overload;
+function RenderUsage(const Node: IBaseCommand; const Opts: TRenderUsageOptions): string; overload;
+function RenderUsageOptionsDefault: TRenderUsageOptions;
+function CompareTextCI(const A, B: string): Integer; inline;
+
+implementation
+function GetEnvWidth(Fallback: Integer): Integer;
+var s: string; v: Integer;
+begin
+  s := env_get('COLUMNS');
+  if s<>'' then
+  begin
+    Val(s, v);
+    if v>20 then Exit(v);
+  end;
+  Exit(Fallback);
+end;
+
+function RenderUsageOptionsDefault: TRenderUsageOptions;
+begin
+  Result.width := 0;
+  Result.wrap := True;
+  Result.sortSubcommands := True;
+  Result.markDefaultInChildren := True;
+  Result.showAliases := True;
+  Result.showTypes := True;
+  Result.showSectionHeaders := True;
+  Result.groupFlagsBy := gbNone;
+  Result.groupPositionalsBy := gbNone;
+end;
+
+function CompareTextCI(const A, B: string): Integer; inline;
+var LA, LB: string;
+begin
+  LA := LowerCase(A); LB := LowerCase(B);
+  if LA = LB then Exit(0);
+  if LA < LB then Exit(-1) else Exit(1);
+end;
+
+
+function JoinAliases(const Arr: TStringArray): string;
+var i: Integer; sep: string;
+begin
+  Result := '';
+  sep := '';
+  for i := 0 to High(Arr) do
+  begin
+    Result := Result + sep + Arr[i];
+    sep := ', ';
+  end;
+end;
+
+function RenderUsage(const Node: IBaseCommand): string;
+begin
+  Result := RenderUsage(Node, RenderUsageOptionsDefault);
+end;
+
+function RenderUsage(const Node: IBaseCommand; const Opts: TRenderUsageOptions): string;
+var
+  i, j: Integer;
+  s: string;
+  c: ICommand;
+  spec: IArgsCommandSpec;
+  defChild: string;
+  f: IArgsFlagSpec;
+  p: IArgsPositionalSpec;
+  flagLabel, argLabel: string;
+  // alignment and wrapping helpers
+  maxLabel, maxArg: SizeInt;
+  meta, desc, pad, line, remaining, chunk: string;
+  first: boolean;
+  limit, baseLen, budget, take, k: SizeInt;
+  width: Integer;
+  // children rendering helpers
+  arr: array of ICommand;
+  tmp: ICommand;
+  name, d: string;
+  // new: grouping arrays
+  flags: array of IArgsFlagSpec;
+  poss: array of IArgsPositionalSpec;
+  ftmp: IArgsFlagSpec;
+  ptmp: IArgsPositionalSpec;
+
+  // local helpers
+  function WrapLimit(const base: string): Integer;
+  begin
+    // base is currently unused (kept for potential future width calc), suppress unused hint
+    if base='' then ;
+    if not Opts.wrap then Exit(High(Integer));
+    if width<=0 then width := GetEnvWidth(80);
+    Result := width;
+  end;
+
+  function CompareCmdNames(const A, B: ICommand): Integer;
+  begin
+    if A=nil then Exit(-1);
+    if B=nil then Exit(1);
+    if A.Name = B.Name then Exit(0);
+    if A.Name < B.Name then Exit(-1) else Exit(1);
+  end;
+
+  function FirstDescendantDesc(const N: ICommand): string;
+  var jj: Integer; child: ICommand; r: string;
+  begin
+    Result := N.Description;
+    if Result<>'' then Exit;
+    for jj := 0 to N.ChildCount-1 do
+    begin
+      child := N.ChildAt(jj);
+      r := FirstDescendantDesc(child);
+      if r<>'' then Exit(r);
+    end;
+    Result := '';
+  end;
+
+begin
+  if Node=nil then Exit('');
+
+  // Commands list (children) with optional sorting and [default] marking
+  s := '';
+  if Node.ChildCount>0 then
+  begin
+    s := s + 'Commands:';
+    // collect children
+    SetLength(arr, 0);
+    SetLength(arr, Node.ChildCount);
+    for i := 0 to Node.ChildCount-1 do arr[i] := Node.ChildAt(i);
+    // sort
+    if Opts.sortSubcommands then
+      for i := 0 to High(arr) do
+        for j := i+1 to High(arr) do
+          if CompareCmdNames(arr[i], arr[j])>0 then begin tmp := arr[i]; arr[i] := arr[j]; arr[j] := tmp; end;
+    // render
+    for i := 0 to High(arr) do
+    begin
+      name := arr[i].Name;
+      if Opts.markDefaultInChildren and (Node.DefaultChildName<> '') and (LowerCase(Node.DefaultChildName)=LowerCase(name)) then
+        name := name + ' [default]';
+      // pick first descendant description
+      d := FirstDescendantDesc(arr[i]);
+      s := s + LineEnding + Format('  %s: %s', [name, d]);
+    end;
+  end;
+
+  // default subcommand hint (if any)
+  defChild := Node.DefaultChildName;
+  if defChild<>'' then
+    s := s + LineEnding + Format('Default subcommand: %s', [defChild]);
+
+  // Append flags/positionals if spec is attached (only for ICommand nodes)
+  if Supports(Node, ICommand, c) then
+  begin
+    // command aliases
+    if Opts.showAliases and (Length(c.Aliases) > 0) then
+    begin
+      if Opts.showSectionHeaders then
+        s := s + LineEnding + 'Aliases: ' + JoinAliases(c.Aliases)
+      else
+        s := s + LineEnding + JoinAliases(c.Aliases);
+    end;
+    spec := c.GetSpec;
+    if spec<>nil then
+    begin
+      // flags with aligned description and soft wrap
+      if spec.FlagCount>0 then
+      begin
+        if Opts.showSectionHeaders then
+          s := s + LineEnding + 'Flags:'
+        else
+          s := s + LineEnding;
+        // collect flags into arrays for grouping/sorting
+        SetLength(flags, spec.FlagCount);
+        for j := 0 to spec.FlagCount-1 do flags[j] := spec.FlagAt(j);
+        // compute label width (on chosen labels)
+        maxLabel := 0;
+        for j := 0 to High(flags) do
+        begin
+          f := flags[j];
+          flagLabel := '--' + f.Name;
+          if Length(f.Aliases) > 0 then
+            if Opts.showAliases then
+              flagLabel := flagLabel + ' (aliases: ' + JoinAliases(f.Aliases) + ')';
+          if Length(flagLabel) > maxLabel then maxLabel := Length(flagLabel);
+        end;
+        // simple alpha sort if requested
+        if Opts.groupFlagsBy = gbAlpha then
+          for i := 0 to High(flags) do
+            for k := i+1 to High(flags) do
+              if CompareTextCI(flags[i].Name, flags[k].Name) > 0 then
+              begin ftmp := flags[i]; flags[i] := flags[k]; flags[k] := ftmp; end;
+        // render (optionally required-first grouping)
+        for j := 0 to High(flags) do
+        begin
+          if (Opts.groupFlagsBy = gbRequired) and (not flags[j].Required) then Continue;
+          f := flags[j];
+          flagLabel := '--' + f.Name;
+          if Length(f.Aliases) > 0 then
+            if Opts.showAliases then
+              flagLabel := flagLabel + ' (aliases: ' + JoinAliases(f.Aliases) + ')';
+          meta := '';
+          if f.Required then meta := meta + ' [required]';
+          if f.DefaultValue<>'' then meta := meta + ' [default=' + f.DefaultValue + ']';
+          if Opts.showTypes and (f.ValueType<>'') then meta := meta + ' [' + f.ValueType + ']';
+          desc := '';
+          if f.Description<>'' then desc := f.Description;
+          // align: two spaces + label padded to maxLabel + two spaces + meta + two spaces + desc
+          pad := StringOfChar(' ', maxLabel - Length(flagLabel));
+          line := '  ' + flagLabel + pad + '  ' + Trim(meta);
+          if desc<>'' then
+          begin
+            if line<>'' then line := line + '  ';
+            // soft wrap
+            remaining := desc;
+            first := True;
+            while Length(remaining) > 0 do
+            begin
+              limit := WrapLimit(line);
+              baseLen := Length(line);
+              budget := limit - baseLen;
+              if budget < 20 then budget := 20; // ensure minimal budget for first line
+              take := budget;
+              if take > Length(remaining) then take := Length(remaining);
+              // try break at last space
+              k := take;
+              while (k>1) and (remaining[k]<>' ') do Dec(k);
+              if (k>1) and (k>=take div 2) then take := k; // avoid splitting too early
+              chunk := Copy(remaining, 1, take);
+              Delete(remaining, 1, take);
+              if first then
+              begin
+                line := line + chunk;
+                first := False;
+                if Length(remaining)>0 then s := s + LineEnding + '  ' + StringOfChar(' ', maxLabel) + '  ';
+              end
+              else
+              begin
+                s := s + chunk;
+                if Length(remaining)>0 then s := s + LineEnding + '  ' + StringOfChar(' ', maxLabel) + '  ';
+              end;
+            end;
+          end;
+          s := s + LineEnding + line;
+        end;
+        // render optional (non-required) flags if required-first grouping
+        if Opts.groupFlagsBy = gbRequired then
+          for j := 0 to High(flags) do
+          begin
+            if flags[j].Required then Continue;
+            f := flags[j];
+            flagLabel := '--' + f.Name;
+            if Length(f.Aliases) > 0 then
+              if Opts.showAliases then
+                flagLabel := flagLabel + ' (aliases: ' + JoinAliases(f.Aliases) + ')';
+            meta := '';
+            if f.Required then meta := meta + ' [required]';
+            if f.DefaultValue<>'' then meta := meta + ' [default=' + f.DefaultValue + ']';
+            if Opts.showTypes and (f.ValueType<>'') then meta := meta + ' [' + f.ValueType + ']';
+            desc := '';
+            if f.Description<>'' then desc := f.Description;
+            pad := StringOfChar(' ', maxLabel - Length(flagLabel));
+            line := '  ' + flagLabel + pad + '  ' + Trim(meta);
+            if desc<>'' then
+            begin
+              if line<>'' then line := line + '  ';
+              remaining := desc;
+              first := True;
+              while Length(remaining) > 0 do
+              begin
+                limit := WrapLimit(line);
+                baseLen := Length(line);
+                budget := limit - baseLen;
+                if budget < 20 then budget := 20;
+                take := budget;
+                if take > Length(remaining) then take := Length(remaining);
+                k := take;
+                while (k>1) and (remaining[k]<>' ') do Dec(k);
+                if (k>1) and (k>=take div 2) then take := k;
+                chunk := Copy(remaining, 1, take);
+                Delete(remaining, 1, take);
+                if first then
+                begin
+                  line := line + chunk;
+                  first := False;
+                  if Length(remaining)>0 then s := s + LineEnding + '  ' + StringOfChar(' ', maxLabel) + '  ';
+                end
+                else
+                begin
+                  s := s + chunk;
+                  if Length(remaining)>0 then s := s + LineEnding + '  ' + StringOfChar(' ', maxLabel) + '  ';
+                end;
+              end;
+            end;
+            s := s + LineEnding + line;
+          end;
+      end;
+      // positionals with alignment
+      if spec.PositionalCount>0 then
+      begin
+        if Opts.showSectionHeaders then
+          s := s + LineEnding + 'Args:'
+        else
+          s := s + LineEnding;
+        // collect positionals
+        SetLength(poss, spec.PositionalCount);
+        for j := 0 to spec.PositionalCount-1 do poss[j] := spec.PositionalAt(j);
+        // compute label width
+        maxArg := 0;
+        for j := 0 to High(poss) do
+        begin
+          p := poss[j];
+          argLabel := p.Name;
+          if Length(argLabel) > maxArg then maxArg := Length(argLabel);
+        end;
+        // sort alpha if requested
+        if Opts.groupPositionalsBy = gbAlpha then
+          for i := 0 to High(poss) do
+            for k := i+1 to High(poss) do
+              if CompareTextCI(poss[i].Name, poss[k].Name) > 0 then
+              begin ptmp := poss[i]; poss[i] := poss[k]; poss[k] := ptmp; end;
+        // render required first if requested
+        for j := 0 to High(poss) do
+        begin
+          if (Opts.groupPositionalsBy = gbRequired) and (not poss[j].Required) then Continue;
+          p := poss[j];
+          argLabel := p.Name;
+          meta := '';
+          if p.Required then meta := meta + ' [required]';
+          if p.Variadic then meta := meta + ' [variadic]';
+          desc := '';
+          if p.Description<>'' then desc := p.Description;
+          pad := StringOfChar(' ', maxArg - Length(argLabel));
+          line := '  ' + argLabel + pad + '  ' + Trim(meta);
+          if desc<>'' then
+          begin
+            if line<>'' then line := line + '  ';
+            remaining := desc;
+            first := True;
+            while Length(remaining) > 0 do
+            begin
+              limit := WrapLimit(line);
+              baseLen := Length(line);
+              budget := limit - baseLen;
+              if budget < 20 then budget := 20;
+              take := budget;
+              if take > Length(remaining) then take := Length(remaining);
+              k := take;
+              while (k>1) and (remaining[k]<>' ') do Dec(k);
+              if (k>1) and (k>=take div 2) then take := k;
+              chunk := Copy(remaining, 1, take);
+              Delete(remaining, 1, take);
+              if first then
+              begin
+                line := line + chunk;
+                first := False;
+                if Length(remaining)>0 then s := s + LineEnding + '  ' + StringOfChar(' ', maxArg) + '  ';
+              end
+              else
+              begin
+                s := s + chunk;
+                if Length(remaining)>0 then s := s + LineEnding + '  ' + StringOfChar(' ', maxArg) + '  ';
+              end;
+            end;
+          end;
+          s := s + LineEnding + line;
+        end;
+        if Opts.groupPositionalsBy = gbRequired then
+          for j := 0 to High(poss) do
+          begin
+            if poss[j].Required then Continue;
+            p := poss[j];
+            argLabel := p.Name;
+            meta := '';
+            if p.Required then meta := meta + ' [required]';
+            if p.Variadic then meta := meta + ' [variadic]';
+            desc := '';
+            if p.Description<>'' then desc := p.Description;
+            pad := StringOfChar(' ', maxArg - Length(argLabel));
+            line := '  ' + argLabel + pad + '  ' + Trim(meta);
+            if desc<>'' then
+            begin
+              if line<>'' then line := line + '  ';
+              remaining := desc;
+              first := True;
+              while Length(remaining) > 0 do
+              begin
+                limit := WrapLimit(line);
+                baseLen := Length(line);
+                budget := limit - baseLen;
+                if budget < 20 then budget := 20;
+                take := budget;
+                if take > Length(remaining) then take := Length(remaining);
+                k := take;
+                while (k>1) and (remaining[k]<>' ') do Dec(k);
+                if (k>1) and (k>=take div 2) then take := k;
+                chunk := Copy(remaining, 1, take);
+                Delete(remaining, 1, take);
+                if first then
+                begin
+                  line := line + chunk;
+                  first := False;
+                  if Length(remaining)>0 then s := s + LineEnding + '  ' + StringOfChar(' ', maxArg) + '  ';
+                end
+                else
+                begin
+                  s := s + chunk;
+                  if Length(remaining)>0 then s := s + LineEnding + '  ' + StringOfChar(' ', maxArg) + '  ';
+                end;
+              end;
+            end;
+            s := s + LineEnding + line;
+          end;
+
+      end;
+    end;
+  end;
+  Result := s;
+end;
+
+end.
+

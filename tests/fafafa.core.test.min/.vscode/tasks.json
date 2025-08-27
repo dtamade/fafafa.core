@@ -1,0 +1,60 @@
+{
+  // VSCode Tasks for building and running the minimal core test project
+  // No external dependencies or CI integration required
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build: tests_core_min",
+      "type": "shell",
+      "windows": {
+        "command": "cmd",
+        "args": ["/c", "tests\\fafafa.core.test.min\\BuildOrRun.bat", "build"]
+      },
+      "linux": {
+        "command": "bash",
+        "args": ["tests/fafafa.core.test.min/BuildOrRun.sh", "build"]
+      },
+      "osx": {
+        "command": "bash",
+        "args": ["tests/fafafa.core.test.min/BuildOrRun.sh", "build"]
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Run: tests_core_min",
+      "type": "shell",
+      "windows": {
+        "command": "cmd",
+        "args": ["/c", "tests\\fafafa.core.test.min\\BuildOrRun.bat", "run", "--all"]
+      },
+      "linux": {
+        "command": "bash",
+        "args": ["tests/fafafa.core.test.min/BuildOrRun.sh", "run", "--all"]
+      },
+      "osx": {
+        "command": "bash",
+        "args": ["tests/fafafa.core.test.min/BuildOrRun.sh", "run", "--all"]
+      },
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "Build+Run: tests_core_min",
+      "dependsOrder": "sequence",
+      "dependsOn": [
+        "Build: tests_core_min",
+        "Run: tests_core_min"
+      ]
+    }
+  ]
+}
+

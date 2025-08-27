@@ -1,0 +1,11 @@
+archiver: fix gzip to raw deflate; robust trailer; tar path-safety; test runner sync
+
+- gzip body switched to raw deflate (zlib deflateInit2/inflateInit2 with windowBits=-15)
+  * eliminate data error and ensure spec-compliant gzip stream
+  * add TRawDeflateStream/TRawInflateStream wrapper unit
+- CRC/ISIZE: seed 0xFFFFFFFF, write NOT(FCRC), read compare with NOT(FCRC)
+- Decode: seekable bounded body; separate 8-byte trailer read/verify; stable EOF check
+- Tar reader: zero-allocation path-safety before entry creation; PAX override string check
+- Tests: all suites green (11/11); heaptrc 0 unfreed
+- Script: copy latest lib/x86_64-win64 test exe to bin to avoid stale binary
+

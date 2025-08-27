@@ -1,0 +1,15 @@
+title = "TOML"
+y = 9
+z = 0
+
+[a]
+
+[[a.t]]
+name = "n1"
+
+[[a.t]]
+name = "n2"
+
+[a.b]
+c = 1
+d = 2

@@ -1,0 +1,138 @@
+[tools\lazbuild.bat] using LAZBUILD_EXE: "D:\devtools\lazarus\trunk\lazarus\lazbuild.exe" "tests_term.lpi"
+SetPrimaryConfigPath NewValue="D:\devtools\lazarus\trunk\config_lazarus"
+Hint: (lazbuild) Primary config path: "D:\devtools\lazarus\trunk\config_lazarus"
+Hint: (lazarus) [TBuildManager.SetBuildTarget] Old=x86_64-win64--win32 New=x86_64-win64--win32 Changed: OS/CPU=True LCL=False
+Hint: (lazarus) [TBuildManager.SetBuildTarget] Old=x86_64-win64--win32 New=x86_64-win64--win32 Changed: OS/CPU=True LCL=False
+TProject.DoLoadStateFile Statefile not found: D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.term\lib\x86_64-win64\tests_term.compiled
+Hint: (lazarus) Project needs building: No state file for Project
+Info: (lazarus) Execute Title="Compile Project, Mode: Default, Target: D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.term\bin\tests_term.exe"
+Info: (lazarus) Working Directory="D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.term\"
+Info: (lazarus) Executable="D:\devtools\lazarus\trunk\fpc\bin\x86_64-win64\fpc.exe"
+Info: (lazarus) Param[0]="-MObjFPC"
+Info: (lazarus) Param[1]="-Scghi"
+Info: (lazarus) Param[2]="-O1"
+Info: (lazarus) Param[3]="-g"
+Info: (lazarus) Param[4]="-gl"
+Info: (lazarus) Param[5]="-vewnhibq"
+Info: (lazarus) Param[6]="-FiD:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.term\lib\x86_64-win64"
+Info: (lazarus) Param[7]="-FiD:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src"
+Info: (lazarus) Param[8]="-FiD:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\ui"
+Info: (lazarus) Param[9]="-FuD:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.term\"
+Info: (lazarus) Param[10]="-FuD:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src"
+Info: (lazarus) Param[11]="-FuD:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\ui"
+Info: (lazarus) Param[12]="-FuD:\devtools\lazarus\trunk\lazarus\components\fpcunit\lib\x86_64-win64\win32"
+Info: (lazarus) Param[13]="-FuD:\devtools\lazarus\trunk\lazarus\components\synedit\units\x86_64-win64\win32"
+Info: (lazarus) Param[14]="-FuD:\devtools\lazarus\trunk\lazarus\lcl\units\x86_64-win64\win32"
+Info: (lazarus) Param[15]="-FuD:\devtools\lazarus\trunk\lazarus\components\lazedit\lib\x86_64-win64"
+Info: (lazarus) Param[16]="-FuD:\devtools\lazarus\trunk\lazarus\lcl\units\x86_64-win64"
+Info: (lazarus) Param[17]="-FuD:\devtools\lazarus\trunk\lazarus\components\freetype\lib\x86_64-win64"
+Info: (lazarus) Param[18]="-FuD:\devtools\lazarus\trunk\lazarus\components\lazutils\lib\x86_64-win64"
+Info: (lazarus) Param[19]="-FuD:\devtools\lazarus\trunk\lazarus\packager\units\x86_64-win64"
+Info: (lazarus) Param[20]="-FUD:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.term\lib\x86_64-win64\"
+Info: (lazarus) Param[21]="-FED:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.term\bin\"
+Info: (lazarus) Param[22]="-oD:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.term\bin\tests_term.exe"
+Info: (lazarus) Param[23]="-dLCL"
+Info: (lazarus) Param[24]="-dLCLwin32"
+Info: (lazarus) Param[25]="tests_term.lpr"
+Info: (lazarus) Param[26]="-B"
+Hint: (11030) Start of reading config file D:\devtools\lazarus\trunk\fpc\bin\x86_64-win64\fpc.cfg
+Hint: (11031) End of reading config file D:\devtools\lazarus\trunk\fpc\bin\x86_64-win64\fpc.cfg
+Free Pascal Compiler version 3.3.1-18303-gc4aa8b02fb-dirty [2025/07/28] for x86_64
+Copyright (c) 1993-2025 by Florian Klaempfl and others
+(1002) Target OS: Win64 for x64
+(3104) Compiling tests_term.lpr
+(3104) Compiling Test_term_windows_modifiers.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.windows.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.ansi.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.ansi.pas(365,18) Hint: (5060) Function result variable does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.windows.pas(225,33) Hint: (5024) Parameter "aTerm" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.windows.pas(242,119) Hint: (5024) Parameter "aStyles" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.windows.pas(212,28) Hint: (5024) Parameter "aTerm" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.windows.pas(991,18) Hint: (5060) Function result variable does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.windows.pas(997,24) Note: (6058) Call to subroutine "function term_char(aChar:WideChar):fafafa.core.term.term_char_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.windows.pas(999,24) Note: (6058) Call to subroutine "function term_char(aChar:AnsiChar):fafafa.core.term.term_char_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.windows.pas(1001,24) Note: (6058) Call to subroutine "function term_char(aChar:AnsiChar):fafafa.core.term.term_char_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.windows.pas(1015,18) Hint: (5060) Function result variable does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8009,3) Note: (6058) Call to subroutine "procedure term_attr_set(aTerm:pterm_t;aForeground:Byte;aBackground:Byte;const aStyles:term_attr_styles_t);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8014,3) Note: (6058) Call to subroutine "procedure term_attr_set(aTerm:pterm_t;aForeground:Byte;aBackground:Byte;const aStyles:term_attr_styles_t);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8019,3) Note: (6058) Call to subroutine "procedure term_attr_set(aTerm:pterm_t;aForeground:Byte;aBackground:Byte;const aStyles:term_attr_styles_t);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8024,3) Note: (6058) Call to subroutine "procedure term_attr_set(aTerm:pterm_t;aForeground:Byte;aBackground:Byte;const aStyles:term_attr_styles_t);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8029,3) Note: (6058) Call to subroutine "procedure term_attr_set(aTerm:pterm_t;aForeground:term_color_24bit_t;aBackground:term_color_24bit_t;const aStyles:term_attr_styles_t);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8034,3) Note: (6058) Call to subroutine "procedure term_attr_set(aTerm:pterm_t;aForeground:term_color_24bit_t;aBackground:term_color_24bit_t;const aStyles:term_attr_styles_t);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8534,5) Note: (6058) Call to subroutine "function term_rgb_to_256(aR:Byte;aG:Byte;aB:Byte):term_color_256_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8534,5) Note: (6058) Call to subroutine "function term_rgb_to_256(aR:Byte;aG:Byte;aB:Byte):term_color_256_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8534,5) Note: (6058) Call to subroutine "function term_rgb_to_256(aR:Byte;aG:Byte;aB:Byte):term_color_256_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8534,5) Note: (6058) Call to subroutine "function term_rgb_to_256(aR:Byte;aG:Byte;aB:Byte):term_color_256_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8534,5) Note: (6058) Call to subroutine "function term_rgb_to_16(aR:Byte;aG:Byte;aB:Byte):term_color_16_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8534,5) Note: (6058) Call to subroutine "function term_rgb_to_16(aR:Byte;aG:Byte;aB:Byte):term_color_16_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8534,5) Note: (6058) Call to subroutine "function term_rgb_to_16(aR:Byte;aG:Byte;aB:Byte):term_color_16_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8534,5) Note: (6058) Call to subroutine "function term_rgb_to_16(aR:Byte;aG:Byte;aB:Byte):term_color_16_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8594,5) Note: (6058) Call to subroutine "function term_rgb_to_256(aR:Byte;aG:Byte;aB:Byte):term_color_256_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8594,5) Note: (6058) Call to subroutine "function term_rgb_to_256(aR:Byte;aG:Byte;aB:Byte):term_color_256_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8594,5) Note: (6058) Call to subroutine "function term_rgb_to_256(aR:Byte;aG:Byte;aB:Byte):term_color_256_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8594,5) Note: (6058) Call to subroutine "function term_rgb_to_256(aR:Byte;aG:Byte;aB:Byte):term_color_256_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8594,5) Note: (6058) Call to subroutine "function term_rgb_to_16(aR:Byte;aG:Byte;aB:Byte):term_color_16_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8594,5) Note: (6058) Call to subroutine "function term_rgb_to_16(aR:Byte;aG:Byte;aB:Byte):term_color_16_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8594,5) Note: (6058) Call to subroutine "function term_rgb_to_16(aR:Byte;aG:Byte;aB:Byte):term_color_16_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8594,5) Note: (6058) Call to subroutine "function term_rgb_to_16(aR:Byte;aG:Byte;aB:Byte):term_color_16_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8654,5) Note: (6058) Call to subroutine "function term_rgb_to_256(aR:Byte;aG:Byte;aB:Byte):term_color_256_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8654,5) Note: (6058) Call to subroutine "function term_rgb_to_256(aR:Byte;aG:Byte;aB:Byte):term_color_256_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8654,5) Note: (6058) Call to subroutine "function term_rgb_to_256(aR:Byte;aG:Byte;aB:Byte):term_color_256_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8654,5) Note: (6058) Call to subroutine "function term_rgb_to_256(aR:Byte;aG:Byte;aB:Byte):term_color_256_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8654,5) Note: (6058) Call to subroutine "function term_rgb_to_16(aR:Byte;aG:Byte;aB:Byte):term_color_16_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8654,5) Note: (6058) Call to subroutine "function term_rgb_to_16(aR:Byte;aG:Byte;aB:Byte):term_color_16_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8654,5) Note: (6058) Call to subroutine "function term_rgb_to_16(aR:Byte;aG:Byte;aB:Byte):term_color_16_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8654,5) Note: (6058) Call to subroutine "function term_rgb_to_16(aR:Byte;aG:Byte;aB:Byte):term_color_16_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8714,5) Note: (6058) Call to subroutine "function term_rgb_to_256(aR:Byte;aG:Byte;aB:Byte):term_color_256_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8714,5) Note: (6058) Call to subroutine "function term_rgb_to_256(aR:Byte;aG:Byte;aB:Byte):term_color_256_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8714,5) Note: (6058) Call to subroutine "function term_rgb_to_256(aR:Byte;aG:Byte;aB:Byte):term_color_256_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8714,5) Note: (6058) Call to subroutine "function term_rgb_to_256(aR:Byte;aG:Byte;aB:Byte):term_color_256_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8714,5) Note: (6058) Call to subroutine "function term_rgb_to_16(aR:Byte;aG:Byte;aB:Byte):term_color_16_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8714,5) Note: (6058) Call to subroutine "function term_rgb_to_16(aR:Byte;aG:Byte;aB:Byte):term_color_16_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8714,5) Note: (6058) Call to subroutine "function term_rgb_to_16(aR:Byte;aG:Byte;aB:Byte):term_color_16_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8714,5) Note: (6058) Call to subroutine "function term_rgb_to_16(aR:Byte;aG:Byte;aB:Byte):term_color_16_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8774,5) Note: (6058) Call to subroutine "function term_rgb_to_256(aR:Byte;aG:Byte;aB:Byte):term_color_256_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8774,5) Note: (6058) Call to subroutine "function term_rgb_to_256(aR:Byte;aG:Byte;aB:Byte):term_color_256_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8774,5) Note: (6058) Call to subroutine "function term_rgb_to_256(aR:Byte;aG:Byte;aB:Byte):term_color_256_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8774,5) Note: (6058) Call to subroutine "function term_rgb_to_256(aR:Byte;aG:Byte;aB:Byte):term_color_256_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8774,5) Note: (6058) Call to subroutine "function term_rgb_to_16(aR:Byte;aG:Byte;aB:Byte):term_color_16_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8774,5) Note: (6058) Call to subroutine "function term_rgb_to_16(aR:Byte;aG:Byte;aB:Byte):term_color_16_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8774,5) Note: (6058) Call to subroutine "function term_rgb_to_16(aR:Byte;aG:Byte;aB:Byte):term_color_16_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8774,5) Note: (6058) Call to subroutine "function term_rgb_to_16(aR:Byte;aG:Byte;aB:Byte):term_color_16_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8834,5) Note: (6058) Call to subroutine "function term_rgb_to_256(aR:Byte;aG:Byte;aB:Byte):term_color_256_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8834,5) Note: (6058) Call to subroutine "function term_rgb_to_256(aR:Byte;aG:Byte;aB:Byte):term_color_256_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8834,5) Note: (6058) Call to subroutine "function term_rgb_to_256(aR:Byte;aG:Byte;aB:Byte):term_color_256_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8834,5) Note: (6058) Call to subroutine "function term_rgb_to_256(aR:Byte;aG:Byte;aB:Byte):term_color_256_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8834,5) Note: (6058) Call to subroutine "function term_rgb_to_16(aR:Byte;aG:Byte;aB:Byte):term_color_16_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8834,5) Note: (6058) Call to subroutine "function term_rgb_to_16(aR:Byte;aG:Byte;aB:Byte):term_color_16_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8834,5) Note: (6058) Call to subroutine "function term_rgb_to_16(aR:Byte;aG:Byte;aB:Byte):term_color_16_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(8834,5) Note: (6058) Call to subroutine "function term_rgb_to_16(aR:Byte;aG:Byte;aB:Byte):term_color_16_t;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(9835,13) Hint: (5057) Local variable "E" does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(9836,13) Note: (6058) Call to subroutine "function term_event_poll(var aEvent:term_event_t;aTimeout:QWord):System.Boolean;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(9877,30) Hint: (5057) Local variable "E" does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(9877,13) Note: (6058) Call to subroutine "function term_event_poll(var aEvent:term_event_t;aTimeout:QWord):System.Boolean;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(9893,13) Hint: (5057) Local variable "E" does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(9894,13) Note: (6058) Call to subroutine "function term_event_poll(var aEvent:term_event_t;aTimeout:QWord):System.Boolean;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(9907,26) Hint: (5057) Local variable "E" does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(9907,9) Note: (6058) Call to subroutine "function term_event_poll(var aEvent:term_event_t;aTimeout:QWord):System.Boolean;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(10092,54) Hint: (5057) Local variable "ev" does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.term.pas(5588,23) Hint: (5024) Parameter "aTerm" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.term\Test_term_windows_modifiers.pas(27,35) Error: (4025) Incompatible type for arg no. 2: Got "term_event_kind_t", expected "QWord"
+D:\devtools\lazarus\trunk\fpc\units\x86_64-win64\fcl-fpcunit\fpcunit.ppu:DUnitCompatibleInterface.inc(111,25) Hint: (5039) Found declaration: class CheckEquals(QWord;QWord;const AnsiString);
+D:\devtools\lazarus\trunk\fpc\units\x86_64-win64\fcl-fpcunit\fpcunit.ppu:DUnitCompatibleInterface.inc(117,25) Hint: (5039) Found declaration: class CheckEquals(Int64;Int64;const AnsiString);
+D:\devtools\lazarus\trunk\fpc\units\x86_64-win64\fcl-fpcunit\fpcunit.ppu:DUnitCompatibleInterface.inc(106,25) Hint: (5039) Found declaration: class CheckEquals(TClass;TClass;const AnsiString);
+D:\devtools\lazarus\trunk\fpc\units\x86_64-win64\fcl-fpcunit\fpcunit.ppu:DUnitCompatibleInterface.inc(101,25) Hint: (5039) Found declaration: class CheckEquals(Boolean;Boolean;const AnsiString);
+D:\devtools\lazarus\trunk\fpc\units\x86_64-win64\fcl-fpcunit\fpcunit.ppu:DUnitCompatibleInterface.inc(96,25) Hint: (5039) Found declaration: class CheckEquals(LongInt;LongInt;const AnsiString);
+D:\devtools\lazarus\trunk\fpc\units\x86_64-win64\fcl-fpcunit\fpcunit.ppu:DUnitCompatibleInterface.inc(91,25) Hint: (5039) Found declaration: class CheckEquals(UnicodeString;UnicodeString;const AnsiString);
+D:\devtools\lazarus\trunk\fpc\units\x86_64-win64\fcl-fpcunit\fpcunit.ppu:DUnitCompatibleInterface.inc(86,25) Hint: (5039) Found declaration: class CheckEquals(AnsiString;AnsiString;const AnsiString);
+D:\devtools\lazarus\trunk\fpc\units\x86_64-win64\fcl-fpcunit\fpcunit.ppu:DUnitCompatibleInterface.inc(80,25) Hint: (5039) Found declaration: class CheckEquals(Double;Double;Double;const AnsiString);
+D:\devtools\lazarus\trunk\fpc\units\x86_64-win64\fcl-fpcunit\fpcunit.ppu:DUnitCompatibleInterface.inc(75,25) Hint: (5039) Found declaration: class CheckEquals(Double;Double;const AnsiString);
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.term\Test_term_windows_modifiers.pas(28,59) Error: (4025) Incompatible type for arg no. 1: Got "Byte", expected "Boolean"
+D:\devtools\lazarus\trunk\fpc\units\x86_64-win64\fcl-fpcunit\fpcunit.ppu:DUnitCompatibleInterface.inc(219,25) Hint: (5039) Found declaration: class CheckTrue(Boolean;const AnsiString);
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.term\Test_term_windows_modifiers.pas(35) Fatal: (10026) There were 2 errors compiling module, stopping
+Fatal: (1018) Compilation aborted
+Error: D:\devtools\lazarus\trunk\fpc\bin\x86_64-win64\ppcx64.exe returned an error exitcode
+Error: (lazarus) Compile Project, Mode: Default, Target: D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.term\bin\tests_term.exe: stopped with exit code 1
+Info: (lazarus) [TCompiler.Compile] end
+Error: (lazbuild) Failed compiling of project "D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.term\tests_term.lpi"

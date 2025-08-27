@@ -1,0 +1,21 @@
+=== Clip vs Preserve (OKLCH -> sRGB) ===
+Input  OKLCH = (L=0.700, C=0.450, h=20.0°)
+Clip     : #D9874C  (217,135, 76)
+Preserve : #D07F4A  (208,127, 74)
+
+Input  OKLCH = (L=0.700, C=0.500, h=220.0°)
+Clip     : #2969F8  ( 41,105,248)
+Preserve : #2863F0  ( 40, 99,240)
+
+Input  OKLCH = (L=0.850, C=0.400, h=350.0°)
+Clip     : #FF7EBE  (255,126,190)
+Preserve : #F779B5  (247,121,181)
+
+Input  OKLCH = (L=0.500, C=0.180, h=120.0°)
+Clip     : #46AA85  ( 70,170,133)
+Preserve : #46AA85  ( 70,170,133)
+
+Input  OKLCH = (L=0.300, C=0.220, h=280.0°)
+Clip     : #8A49D3  (138, 73,211)
+Preserve : #8447CB  (132, 71,203)
+

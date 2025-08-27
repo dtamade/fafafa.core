@@ -1,0 +1,3 @@
+mode,N,avg_ms
+polling,2,32
+nonpolling,2,32

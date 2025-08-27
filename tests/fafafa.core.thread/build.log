@@ -1,0 +1,464 @@
+[tools\lazbuild.bat] using LAZBUILD_EXE: "D:\devtools\lazarus\trunk\lazarus\lazbuild.exe" "tests_thread.lpi"
+SetPrimaryConfigPath NewValue="D:\devtools\lazarus\trunk\config_lazarus"
+Hint: (lazbuild) Primary config path: "D:\devtools\lazarus\trunk\config_lazarus"
+Hint: (lazarus) [TBuildManager.SetBuildTarget] Old=x86_64-win64--win32 New=x86_64-win64--win32 Changed: OS/CPU=True LCL=False
+Hint: (lazarus) [TBuildManager.SetBuildTarget] Old=x86_64-win64--win32 New=x86_64-win64--win32 Changed: OS/CPU=True LCL=False
+TProject.DoLoadStateFile Statefile not found: D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\lib\x86_64-win64\tests_thread.compiled
+Hint: (lazarus) Project needs building: No state file for Project
+Info: (lazarus) Execute Title="Compile Project, Mode: Default, Target: D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\bin\tests_thread.exe"
+Info: (lazarus) Working Directory="D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\"
+Info: (lazarus) Executable="D:\devtools\lazarus\trunk\fpc\bin\x86_64-win64\fpc.exe"
+Info: (lazarus) Param[0]="-MObjFPC"
+Info: (lazarus) Param[1]="-Scghi"
+Info: (lazarus) Param[2]="-O1"
+Info: (lazarus) Param[3]="-gw3"
+Info: (lazarus) Param[4]="-gl"
+Info: (lazarus) Param[5]="-gh"
+Info: (lazarus) Param[6]="-Xg"
+Info: (lazarus) Param[7]="-gt"
+Info: (lazarus) Param[8]="-l"
+Info: (lazarus) Param[9]="-vewnhibq"
+Info: (lazarus) Param[10]="-FiD:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\lib\x86_64-win64"
+Info: (lazarus) Param[11]="-FiD:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src"
+Info: (lazarus) Param[12]="-FuD:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\"
+Info: (lazarus) Param[13]="-FuD:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src"
+Info: (lazarus) Param[14]="-FuD:\devtools\lazarus\trunk\lazarus\components\fpcunit\lib\x86_64-win64\win32"
+Info: (lazarus) Param[15]="-FuD:\devtools\lazarus\trunk\lazarus\components\synedit\units\x86_64-win64\win32"
+Info: (lazarus) Param[16]="-FuD:\devtools\lazarus\trunk\lazarus\lcl\units\x86_64-win64\win32"
+Info: (lazarus) Param[17]="-FuD:\devtools\lazarus\trunk\lazarus\components\lazedit\lib\x86_64-win64"
+Info: (lazarus) Param[18]="-FuD:\devtools\lazarus\trunk\lazarus\lcl\units\x86_64-win64"
+Info: (lazarus) Param[19]="-FuD:\devtools\lazarus\trunk\lazarus\components\freetype\lib\x86_64-win64"
+Info: (lazarus) Param[20]="-FuD:\devtools\lazarus\trunk\lazarus\components\lazutils\lib\x86_64-win64"
+Info: (lazarus) Param[21]="-FuD:\devtools\lazarus\trunk\lazarus\packager\units\x86_64-win64"
+Info: (lazarus) Param[22]="-FUD:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\lib\x86_64-win64\"
+Info: (lazarus) Param[23]="-FED:\projects\Pascal\lazarus\My\libs\fafafa.collections5\bin\"
+Info: (lazarus) Param[24]="-oD:\projects\Pascal\lazarus\My\libs\fafafa.collections5\bin\tests_thread.exe"
+Info: (lazarus) Param[25]="-dLCL"
+Info: (lazarus) Param[26]="-dLCLwin32"
+Info: (lazarus) Param[27]="tests_thread.lpr"
+Info: (lazarus) Param[28]="-B"
+Hint: (11030) Start of reading config file D:\devtools\lazarus\trunk\fpc\bin\x86_64-win64\fpc.cfg
+Hint: (11031) End of reading config file D:\devtools\lazarus\trunk\fpc\bin\x86_64-win64\fpc.cfg
+Free Pascal Compiler version 3.3.1-18303-gc4aa8b02fb-dirty [2025/07/28] for x86_64
+Copyright (c) 1993-2025 by Florian Klaempfl and others
+(1002) Target OS: Win64 for x64
+(3104) Compiling tests_thread.lpr
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.constants.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.cancel.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.sync.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.threadpool.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vecdeque.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vec.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.slice.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.base.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.base.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.elementManager.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.math.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.mem.utils.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.mem.utils.pas(837,13) Note: (6058) Call to subroutine "function IsOverlapUnChecked(aPtr1:Pointer;aSize1:QWord;aPtr2:Pointer;aSize2:QWord):System.Boolean;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.mem.utils.pas(874,3) Note: (6058) Call to subroutine "procedure CopyUnChecked(aSrc:Pointer;aDst:Pointer;aSize:QWord);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.mem.utils.pas(903,3) Note: (6058) Call to subroutine "procedure CopyNonOverlapUnChecked(aSrc:Pointer;aDst:Pointer;aSize:QWord);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.mem.utils.pas(917,3) Note: (6058) Call to subroutine "procedure Fill8(aDst:Pointer;aCount:Int64;aValue:Byte);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.mem.utils.pas(922,3) Note: (6058) Call to subroutine "procedure Fill8(aDst:Pointer;aCount:QWord;aValue:Byte);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.mem.utils.pas(1119,13) Note: (6058) Call to subroutine "function Compare8(aPtr1:Pointer;aPtr2:Pointer;aCount:QWord):System.LongInt;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.mem.utils.pas(1124,13) Note: (6058) Call to subroutine "function Compare8(aPtr1:Pointer;aPtr2:Pointer;aCount:Int64):System.LongInt;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.mem.utils.pas(1148,16) Note: (6058) Call to subroutine "function Compare8(aPtr1:Pointer;aPtr2:Pointer;aCount:Int64):System.LongInt;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.mem.utils.pas(1187,16) Note: (6058) Call to subroutine "function Compare16(aPtr1:Pointer;aPtr2:Pointer;aCount:Int64):System.LongInt;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.mem.utils.pas(1229,16) Note: (6058) Call to subroutine "function Compare32(aPtr1:Pointer;aPtr2:Pointer;aCount:Int64):System.LongInt;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.mem.utils.pas(1278,10) Note: (6058) Call to subroutine "function IsPowerOfTwo(N:QWord):System.Boolean;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.mem.utils.pas(1281,13) Note: (6058) Call to subroutine "function AlignUpUnChecked(aPtr:Pointer;aAlignment:QWord=`8`):System.Pointer;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.mem.utils.pas(1305,13) Note: (6058) Call to subroutine "function AlignDownUnChecked(aPtr:Pointer;aAlignment:QWord=`8`):System.Pointer;" marked as inline is not inlined
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.mem.allocator.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.mem.allocator.crtAllocator.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.mem.allocator.base.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.mem.allocator.base.pas(10,3) Hint: (5023) Unit "fafafa.core.base" not used in fafafa.core.mem.allocator.base
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\plat\fafafa.core.sync.win.inc(86,3) Note: (5025) Local variable "start" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.mem.allocator.crtAllocator.pas(10,3) Hint: (5023) Unit "fafafa.core.base" not used in fafafa.core.mem.allocator.crtAllocator
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.mem.allocator.callbackAllocator.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.mem.allocator.rtlAllocator.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.mem.allocator.rtlAllocator.pas(10,3) Hint: (5023) Unit "fafafa.core.base" not used in fafafa.core.mem.allocator.rtlAllocator
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.mem.allocator.pas(24,3) Hint: (5023) Unit "fafafa.core.base" not used in fafafa.core.mem.allocator
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.base.pas(1575,13) Note: (6058) Call to subroutine "function compare_u8(const aLeft:Byte;const aRight:Byte):System.Int64;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.base.pas(1580,13) Note: (6058) Call to subroutine "function compare_u16(const aLeft:Word;const aRight:Word):System.Int64;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.base.pas(2068,33) Note: (6058) Call to subroutine "function TCollection.GetAllocator:fafafa.core.mem.allocator.base.IAllocator;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.base.pas(2068,44) Note: (6058) Call to subroutine "function TCollection.GetData:System.Pointer;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.base.pas(2076,37) Note: (6058) Call to subroutine "function TCollection.GetData:System.Pointer;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.base.pas(1392,28) Hint: (5024) Parameter "aCurrentSize" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.base.pas(1458,28) Hint: (5024) Parameter "aCurrentSize" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.base.pas(13,15) Hint: (5023) Unit "fafafa.core.mem.utils" not used in fafafa.core.collections.base
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.slice.pas(73,63) Hint: (4055) Conversion between ordinals and pointers is not portable
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.slice.pas(73,55) Hint: (4055) Conversion between ordinals and pointers is not portable
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.slice.pas(80,67) Hint: (4055) Conversion between ordinals and pointers is not portable
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.slice.pas(80,59) Hint: (4055) Conversion between ordinals and pointers is not portable
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.slice.pas(90,21) Hint: (4055) Conversion between ordinals and pointers is not portable
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.slice.pas(90,13) Hint: (4055) Conversion between ordinals and pointers is not portable
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.slice.pas(101,33) Hint: (4055) Conversion between ordinals and pointers is not portable
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.slice.pas(101,25) Hint: (4055) Conversion between ordinals and pointers is not portable
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.stack.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(355,5) Warning: (2005) Comment level 2 found
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vec.pas(122,14) Warning: (3057) An inherited method is hidden by "TryLoadFrom(const Pointer;QWord):System.Boolean;"
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vec.pas(123,14) Warning: (3057) An inherited method is hidden by "TryAppend(const Pointer;QWord):System.Boolean;"
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.base.pas(122,14) Warning: (3057) An inherited method is hidden by "TryLoadFrom(const Pointer;QWord):System.Boolean;"
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.base.pas(123,14) Warning: (3057) An inherited method is hidden by "TryAppend(const Pointer;QWord):System.Boolean;"
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vec.pas(1311,15) Warning: (3057) An inherited method is hidden by "TryLoadFrom(const Pointer;QWord):System.Boolean;"
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vec.pas(1312,15) Warning: (3057) An inherited method is hidden by "TryAppend(const Pointer;QWord):System.Boolean;"
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vec.pas(2210,28) Hint: (5058) Variable "aElement" does not seem to be initialized
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.deque.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.queue.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.base.pas(122,14) Warning: (3057) An inherited method is hidden by "TryLoadFrom(const Pointer;QWord):System.Boolean;"
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.base.pas(123,14) Warning: (3057) An inherited method is hidden by "TryAppend(const Pointer;QWord):System.Boolean;"
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vecdeque.pas(267,14) Warning: (3057) An inherited method is hidden by "TryLoadFrom(const Pointer;QWord):System.Boolean;"
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vecdeque.pas(268,14) Warning: (3057) An inherited method is hidden by "TryAppend(const Pointer;QWord):System.Boolean;"
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vecdeque.pas(2562,30) Hint: (5058) Variable "aElement" does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vecdeque.pas(6414,31) Hint: (5058) Variable "aElement" does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vecdeque.pas(6419,30) Hint: (5058) Variable "aElement" does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vecdeque.pas(6424,30) Hint: (5058) Variable "aElement" does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vecdeque.pas(6429,29) Hint: (5058) Variable "aElement" does not seem to be initialized
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.debuglog.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.debuglog.pas(13,26) Hint: (5024) Parameter "S" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.cancel.pas(86,4) Note: (3123) "nested procedures" not yet supported inside inline procedure/function
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.cancel.pas(86,4) Hint: (3124) Inlining disabled
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.future.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.future.pas(306,3) Note: (5027) Local variable "LDidCancel" is assigned but never used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(122,14) Warning: (3057) An inherited method is hidden by "TryLoadFrom(const Pointer;QWord):System.Boolean;"
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(123,14) Warning: (3057) An inherited method is hidden by "TryAppend(const Pointer;QWord):System.Boolean;"
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(267,14) Warning: (3057) An inherited method is hidden by "TryLoadFrom(const Pointer;QWord):System.Boolean;"
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(268,14) Warning: (3057) An inherited method is hidden by "TryAppend(const Pointer;QWord):System.Boolean;"
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.base.pas(2337,12) Note: (6058) Call to subroutine "function TGenericCollection<fafafa.core.thread.threadpool.PTaskItem>.Iter:TIter<FAFAFA.CORE.THREAD.THREADPOOL.PTaskItem>;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.base.pas(2528,12) Note: (6058) Call to subroutine "function TGenericCollection<fafafa.core.thread.threadpool.PTaskItem>.Iter:TIter<FAFAFA.CORE.THREAD.THREADPOOL.PTaskItem>;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.base.pas(2543,13) Note: (6058) Call to subroutine "function TGenericCollection<fafafa.core.thread.threadpool.PTaskItem>.Iter:TIter<FAFAFA.CORE.THREAD.THREADPOOL.PTaskItem>;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.base.pas(2557,13) Note: (6058) Call to subroutine "function TGenericCollection<fafafa.core.thread.threadpool.PTaskItem>.Iter:TIter<FAFAFA.CORE.THREAD.THREADPOOL.PTaskItem>;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.base.pas(2841,16) Note: (6058) Call to subroutine "function TGenericCollection<fafafa.core.thread.threadpool.PTaskItem>.GetElementTypeInfo:TypInfo.PTypeInfo;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.base.pas(3006,13) Note: (6058) Call to subroutine "function TGenericCollection<fafafa.core.thread.threadpool.PTaskItem>.Iter:TIter<FAFAFA.CORE.THREAD.THREADPOOL.PTaskItem>;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4080,13) Note: (6058) Call to subroutine "function TArray<fafafa.core.thread.threadpool.PTaskItem>.GetPtrUnChecked(aIndex:QWord):TGenericCollection$1$crc3D43D1B9_crc60C0FE1D.PElement;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4103,22) Note: (6058) Call to subroutine "function TArray<fafafa.core.thread.threadpool.PTaskItem>.GetUnChecked(aIndex:QWord):PTaskItem;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4104,3) Note: (6058) Call to subroutine "procedure TArray<fafafa.core.thread.threadpool.PTaskItem>.PutUnChecked(aIndex:QWord;const aValue:PTaskItem);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4104,46) Note: (6058) Call to subroutine "function TArray<fafafa.core.thread.threadpool.PTaskItem>.GetUnChecked(aIndex:QWord):PTaskItem;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4105,3) Note: (6058) Call to subroutine "procedure TArray<fafafa.core.thread.threadpool.PTaskItem>.PutUnChecked(aIndex:QWord;const aValue:PTaskItem);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4113,33) Note: (6058) Call to subroutine "function TArray<fafafa.core.thread.threadpool.PTaskItem>.GetPtrUnChecked(aIndex:QWord):TGenericCollection$1$crc3D43D1B9_crc60C0FE1D.PElement;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4114,33) Note: (6058) Call to subroutine "function TArray<fafafa.core.thread.threadpool.PTaskItem>.GetPtrUnChecked(aIndex:QWord):TGenericCollection$1$crc3D43D1B9_crc60C0FE1D.PElement;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4125,10) Note: (6058) Call to subroutine "function TArray<fafafa.core.thread.threadpool.PTaskItem>.GetPtrUnChecked(aIndex:QWord):TGenericCollection$1$crc3D43D1B9_crc60C0FE1D.PElement;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4126,10) Note: (6058) Call to subroutine "function TArray<fafafa.core.thread.threadpool.PTaskItem>.GetPtrUnChecked(aIndex:QWord):TGenericCollection$1$crc3D43D1B9_crc60C0FE1D.PElement;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4152,55) Note: (6058) Call to subroutine "function TArray<fafafa.core.thread.threadpool.PTaskItem>.GetPtrUnChecked(aIndex:QWord):TGenericCollection$1$crc3D43D1B9_crc60C0FE1D.PElement;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4162,55) Note: (6058) Call to subroutine "function TArray<fafafa.core.thread.threadpool.PTaskItem>.GetPtrUnChecked(aIndex:QWord):TGenericCollection$1$crc3D43D1B9_crc60C0FE1D.PElement;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4183,5) Note: (6058) Call to subroutine "procedure TArray<fafafa.core.thread.threadpool.PTaskItem>.SwapUnChecked(aIndex1:QWord;aIndex2:QWord);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4202,46) Note: (6058) Call to subroutine "function TArray<fafafa.core.thread.threadpool.PTaskItem>.GetUnChecked(aIndex:QWord):PTaskItem;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4226,49) Note: (6058) Call to subroutine "function TArray<fafafa.core.thread.threadpool.PTaskItem>.GetUnChecked(aIndex:QWord):PTaskItem;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4242,42) Note: (6058) Call to subroutine "function TArray<fafafa.core.thread.threadpool.PTaskItem>.GetUnChecked(aIndex:QWord):PTaskItem;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4256,46) Note: (6058) Call to subroutine "function TArray<fafafa.core.thread.threadpool.PTaskItem>.GetUnChecked(aIndex:QWord):PTaskItem;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4270,49) Note: (6058) Call to subroutine "function TArray<fafafa.core.thread.threadpool.PTaskItem>.GetUnChecked(aIndex:QWord):PTaskItem;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4284,42) Note: (6058) Call to subroutine "function TArray<fafafa.core.thread.threadpool.PTaskItem>.GetUnChecked(aIndex:QWord):PTaskItem;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4298,46) Note: (6058) Call to subroutine "function TArray<fafafa.core.thread.threadpool.PTaskItem>.GetUnChecked(aIndex:QWord):PTaskItem;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4319,49) Note: (6058) Call to subroutine "function TArray<fafafa.core.thread.threadpool.PTaskItem>.GetUnChecked(aIndex:QWord):PTaskItem;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4339,42) Note: (6058) Call to subroutine "function TArray<fafafa.core.thread.threadpool.PTaskItem>.GetUnChecked(aIndex:QWord):PTaskItem;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4358,11) Note: (6058) Call to subroutine "function TArray<fafafa.core.thread.threadpool.PTaskItem>.GetPtrUnChecked(aIndex:QWord):TGenericCollection$1$crc3D43D1B9_crc60C0FE1D.PElement;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4380,11) Note: (6058) Call to subroutine "function TArray<fafafa.core.thread.threadpool.PTaskItem>.GetPtrUnChecked(aIndex:QWord):TGenericCollection$1$crc3D43D1B9_crc60C0FE1D.PElement;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4396,16) Note: (6058) Call to subroutine "function TArray<fafafa.core.thread.threadpool.PTaskItem>.GetPtrUnChecked(aIndex:QWord):TGenericCollection$1$crc3D43D1B9_crc60C0FE1D.PElement;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4397,16) Note: (6058) Call to subroutine "function TArray<fafafa.core.thread.threadpool.PTaskItem>.GetPtrUnChecked(aIndex:QWord):TGenericCollection$1$crc3D43D1B9_crc60C0FE1D.PElement;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4508,1) Note: (3123) "access to local from nested scope" not yet supported inside inline procedure/function
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4508,1) Hint: (3124) Inlining disabled
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4490,11) Note: (6058) Call to subroutine "procedure TArray<fafafa.core.thread.threadpool.PTaskItem>.SwapUnChecked(aIndex1:QWord;aIndex2:QWord);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4540,9) Note: (6058) Call to subroutine "function TArray<fafafa.core.thread.threadpool.PTaskItem>.GetPtrUnChecked(aIndex:QWord):TGenericCollection$1$crc3D43D1B9_crc60C0FE1D.PElement;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4571,5) Note: (6058) Call to subroutine "procedure TArray<fafafa.core.thread.threadpool.PTaskItem>.SwapUnChecked(aIndex1:QWord;aIndex2:QWord);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4671,3) Note: (6058) Call to subroutine "procedure TArray<fafafa.core.thread.threadpool.PTaskItem>.OverWriteUnChecked(aIndex:QWord;const aSrc:Pointer;aCount:QWord);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4704,5) Note: (6058) Call to subroutine "procedure TArray<fafafa.core.thread.threadpool.PTaskItem>.OverWriteUnChecked(aIndex:QWord;const aSrc:Pointer;aCount:QWord);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4758,13) Note: (6058) Call to subroutine "function TArray<fafafa.core.thread.threadpool.PTaskItem>.GetPtr(aIndex:QWord):TGenericCollection$1$crc3D43D1B9_crc60C0FE1D.PElement;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4763,13) Note: (6058) Call to subroutine "function TArray<fafafa.core.thread.threadpool.PTaskItem>.GetPtrUnChecked(aIndex:QWord):TGenericCollection$1$crc3D43D1B9_crc60C0FE1D.PElement;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4768,3) Note: (6058) Call to subroutine "function TArray<fafafa.core.thread.threadpool.PTaskItem>.GetPtr(aIndex:QWord):TGenericCollection$1$crc3D43D1B9_crc60C0FE1D.PElement;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4773,3) Note: (6058) Call to subroutine "function TArray<fafafa.core.thread.threadpool.PTaskItem>.GetPtrUnChecked(aIndex:QWord):TGenericCollection$1$crc3D43D1B9_crc60C0FE1D.PElement;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4781,13) Note: (6058) Call to subroutine "function TArray<fafafa.core.thread.threadpool.PTaskItem>.GetPtrUnChecked(aIndex:QWord):TGenericCollection$1$crc3D43D1B9_crc60C0FE1D.PElement;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(6770,3) Note: (6058) Call to subroutine "procedure TArray<fafafa.core.thread.threadpool.PTaskItem>.OverWriteUnChecked(aIndex:QWord;const aSrc:Pointer;aCount:QWord);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(6786,1) Note: (3123) "open array" not yet supported inside inline procedure/function
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(6786,1) Hint: (3124) Inlining disabled
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(6796,1) Note: (3123) "open array" not yet supported inside inline procedure/function
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(6796,1) Hint: (3124) Inlining disabled
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(6803,3) Note: (6058) Call to subroutine "procedure TArray<fafafa.core.thread.threadpool.PTaskItem>.OverWrite(aIndex:QWord;const aSrc:TCollection;aCount:QWord);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(6823,3) Note: (6058) Call to subroutine "procedure TArray<fafafa.core.thread.threadpool.PTaskItem>.OverWriteUnChecked(aIndex:QWord;const aSrc:TCollection;aCount:QWord);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(6845,3) Note: (6058) Call to subroutine "procedure TArray<fafafa.core.thread.threadpool.PTaskItem>.ReadUnChecked(aIndex:QWord;aDst:Pointer;aCount:QWord);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4865,3) Note: (6058) Call to subroutine "procedure TArray<fafafa.core.thread.threadpool.PTaskItem>.SwapUnChecked(aIndex1:QWord;aIndex2:QWord);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4875,3) Note: (6058) Call to subroutine "procedure TArray<fafafa.core.thread.threadpool.PTaskItem>.Swap(aIndex1:QWord;aIndex2:QWord;aCount:QWord;aSwapBufferSize:QWord);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4946,1) Note: (3123) "nested procedures" not yet supported inside inline procedure/function
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4946,1) Hint: (3124) Inlining disabled
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vecdeque.pas(820,13) Note: (6058) Call to subroutine "function TVecDeque<fafafa.core.thread.threadpool.PTaskItem>.WrapAdd(aIndex:QWord;aValue:QWord):System.QWord;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vecdeque.pas(7321,5) Note: (6058) Call to subroutine "procedure TVecDeque<fafafa.core.thread.threadpool.PTaskItem>.DoSwap(aIndex1:QWord;aIndex2:QWord);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vecdeque.pas(7274,12) Note: (6058) Call to subroutine "function TVecDeque<fafafa.core.thread.threadpool.PTaskItem>.DoCompare(const aLeft:PTaskItem;const aRight:PTaskItem;aComparer:TCompareFunc$1$crc3D43D1B9_crc60C0FE1D;aData:Pointer):System.LongInt;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vecdeque.pas(7282,12) Note: (6058) Call to subroutine "function TVecDeque<fafafa.core.thread.threadpool.PTaskItem>.DoCompare(const aLeft:PTaskItem;const aRight:PTaskItem;aComparer:TCompareFunc$1$crc3D43D1B9_crc60C0FE1D;aData:Pointer):System.LongInt;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vecdeque.pas(7290,9) Note: (6058) Call to subroutine "procedure TVecDeque<fafafa.core.thread.threadpool.PTaskItem>.DoSwap(aIndex1:QWord;aIndex2:QWord);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vecdeque.pas(7455,18) Note: (6058) Call to subroutine "function TVecDeque<fafafa.core.thread.threadpool.PTaskItem>.DoIntroSortDepthLimit(aCount:QWord):System.LongInt;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vecdeque.pas(7118,12) Note: (6058) Call to subroutine "function TVecDeque<fafafa.core.thread.threadpool.PTaskItem>.DoCompare(const aLeft:PTaskItem;const aRight:PTaskItem;aComparer:TCompareFunc$1$crc3D43D1B9_crc60C0FE1D;aData:Pointer):System.LongInt;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vecdeque.pas(2562,30) Hint: (5058) Variable "aElement" does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(569,20) Hint: (5024) Parameter "aComparer" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(569,47) Hint: (5024) Parameter "aData" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(573,43) Hint: (5024) Parameter "aComparer" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(573,70) Hint: (5024) Parameter "aData" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(577,51) Hint: (5024) Parameter "aComparer" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(577,78) Hint: (5024) Parameter "aData" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(583,60) Hint: (5024) Parameter "aComparer" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(583,87) Hint: (5024) Parameter "aData" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(605,83) Hint: (5024) Parameter "aComparer" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vecdeque.pas(6414,31) Hint: (5058) Variable "aElement" does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vecdeque.pas(6419,30) Hint: (5058) Variable "aElement" does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vecdeque.pas(6424,30) Hint: (5058) Variable "aElement" does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vecdeque.pas(6429,29) Hint: (5058) Variable "aElement" does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.threadpool.pas(620,9) Note: (6058) Call to subroutine "procedure TThreadPool.ReleaseTaskItem(var AItem:PTaskItem);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.threadpool.pas(818,32) Hint: (5057) Local variable "LItem" does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.threadpool.pas(826,11) Note: (6058) Call to subroutine "procedure TThreadPool.AddQueueObserved(ADelta:QWord);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.threadpool.pas(840,3) Note: (5027) Local variable "LException" is assigned but never used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.threadpool.pas(942,3) Note: (5025) Local variable "I" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.threadpool.pas(1057,3) Note: (5025) Local variable "I" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.threadpool.pas(1358,4) Note: (3123) "nested procedures" not yet supported inside inline procedure/function
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.threadpool.pas(1358,4) Hint: (3124) Inlining disabled
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.threadpool.pas(1391,4) Note: (3123) "nested procedures" not yet supported inside inline procedure/function
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.threadpool.pas(1391,4) Hint: (3124) Inlining disabled
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.threadpool.pas(410,52) Hint: (5024) Parameter "AFuture" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.threadpool.pas(1641,4) Note: (3123) "nested procedures" not yet supported inside inline procedure/function
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.threadpool.pas(1641,4) Hint: (3124) Inlining disabled
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.threadpool.pas(2129,3) Note: (5025) Local variable "LTaskItem" not used
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.scheduler.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.time.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.time.consts.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.time.pas(323,4) Note: (3123) "assembler" not yet supported inside inline procedure/function
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.time.pas(323,4) Hint: (3124) Inlining disabled
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.time.pas(447,13) Note: (6058) Call to subroutine "function TDuration.Clamp(const MinV:TDuration;const MaxV:TDuration):TDuration;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.time.pas(533,15) Note: (6058) Call to subroutine "function TDuration.Zero:TDuration; Static;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.time.pas(540,13) Note: (6058) Call to subroutine "function TDuration.Zero:TDuration; Static;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.time.pas(546,37) Note: (6058) Call to subroutine "function TDuration.Zero:TDuration; Static;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.time.pas(817,8) Note: (6058) Call to subroutine "function TDeadline.Remaining(const NowI:TInstant):TDuration;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.time.pas(818,7) Note: (6058) Call to subroutine "function TDuration.IsNegative:System.Boolean;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.time.pas(819,15) Note: (6058) Call to subroutine "function TDuration.Zero:TDuration; Static;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.time.pas(867,13) Note: (6058) Call to subroutine "function TInstant.Diff(const Older:TInstant):TDuration;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.time.pas(873,8) Note: (6058) Call to subroutine "function TInstant.Diff(const Older:TInstant):TDuration;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.time.pas(1520,16) Warning: (6018) Unreachable code
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.time.pas(398,3) Note: (5027) Local variable "GLowLatencySleepEnabled" is assigned but never used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.time.pas(401,3) Note: (5027) Local variable "GFinalSpinThresholdNsLinux" is assigned but never used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.time.pas(402,3) Note: (5027) Local variable "GFinalSpinThresholdNsDarwin" is assigned but never used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.scheduler.pas(483,3) Note: (6058) Call to subroutine "procedure TTaskScheduler.HeapSiftUp(AIndex:LongInt);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.scheduler.pas(529,3) Note: (5025) Local variable "Cur" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.scheduler.pas(529,8) Note: (5025) Local variable "Left" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.scheduler.pas(529,14) Note: (5025) Local variable "Right" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.scheduler.pas(529,21) Note: (5025) Local variable "Smallest" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.scheduler.pas(820,3) Note: (5025) Local variable "LItems" not used
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.channel.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(122,14) Warning: (3057) An inherited method is hidden by "TryLoadFrom(const Pointer;QWord):System.Boolean;"
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(123,14) Warning: (3057) An inherited method is hidden by "TryAppend(const Pointer;QWord):System.Boolean;"
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(267,14) Warning: (3057) An inherited method is hidden by "TryLoadFrom(const Pointer;QWord):System.Boolean;"
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(268,14) Warning: (3057) An inherited method is hidden by "TryAppend(const Pointer;QWord):System.Boolean;"
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.base.pas(2337,12) Note: (6058) Call to subroutine "function TGenericCollection<System.Pointer>.Iter:TIter<SYSTEM.Pointer>;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.base.pas(2528,12) Note: (6058) Call to subroutine "function TGenericCollection<System.Pointer>.Iter:TIter<SYSTEM.Pointer>;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.base.pas(2543,13) Note: (6058) Call to subroutine "function TGenericCollection<System.Pointer>.Iter:TIter<SYSTEM.Pointer>;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.base.pas(2557,13) Note: (6058) Call to subroutine "function TGenericCollection<System.Pointer>.Iter:TIter<SYSTEM.Pointer>;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.base.pas(2841,16) Note: (6058) Call to subroutine "function TGenericCollection<System.Pointer>.GetElementTypeInfo:TypInfo.PTypeInfo;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.base.pas(3006,13) Note: (6058) Call to subroutine "function TGenericCollection<System.Pointer>.Iter:TIter<SYSTEM.Pointer>;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4080,13) Note: (6058) Call to subroutine "function TArray<System.Pointer>.GetPtrUnChecked(aIndex:QWord):TGenericCollection$1$crcBF5EA2A4_crc60C0FE1D.PElement;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4103,22) Note: (6058) Call to subroutine "function TArray<System.Pointer>.GetUnChecked(aIndex:QWord):System.Pointer;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4104,3) Note: (6058) Call to subroutine "procedure TArray<System.Pointer>.PutUnChecked(aIndex:QWord;const aValue:Pointer);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4104,46) Note: (6058) Call to subroutine "function TArray<System.Pointer>.GetUnChecked(aIndex:QWord):System.Pointer;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4105,3) Note: (6058) Call to subroutine "procedure TArray<System.Pointer>.PutUnChecked(aIndex:QWord;const aValue:Pointer);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4113,33) Note: (6058) Call to subroutine "function TArray<System.Pointer>.GetPtrUnChecked(aIndex:QWord):TGenericCollection$1$crcBF5EA2A4_crc60C0FE1D.PElement;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4114,33) Note: (6058) Call to subroutine "function TArray<System.Pointer>.GetPtrUnChecked(aIndex:QWord):TGenericCollection$1$crcBF5EA2A4_crc60C0FE1D.PElement;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4125,10) Note: (6058) Call to subroutine "function TArray<System.Pointer>.GetPtrUnChecked(aIndex:QWord):TGenericCollection$1$crcBF5EA2A4_crc60C0FE1D.PElement;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4126,10) Note: (6058) Call to subroutine "function TArray<System.Pointer>.GetPtrUnChecked(aIndex:QWord):TGenericCollection$1$crcBF5EA2A4_crc60C0FE1D.PElement;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4152,55) Note: (6058) Call to subroutine "function TArray<System.Pointer>.GetPtrUnChecked(aIndex:QWord):TGenericCollection$1$crcBF5EA2A4_crc60C0FE1D.PElement;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4162,55) Note: (6058) Call to subroutine "function TArray<System.Pointer>.GetPtrUnChecked(aIndex:QWord):TGenericCollection$1$crcBF5EA2A4_crc60C0FE1D.PElement;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4183,5) Note: (6058) Call to subroutine "procedure TArray<System.Pointer>.SwapUnChecked(aIndex1:QWord;aIndex2:QWord);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4202,46) Note: (6058) Call to subroutine "function TArray<System.Pointer>.GetUnChecked(aIndex:QWord):System.Pointer;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4226,49) Note: (6058) Call to subroutine "function TArray<System.Pointer>.GetUnChecked(aIndex:QWord):System.Pointer;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4242,42) Note: (6058) Call to subroutine "function TArray<System.Pointer>.GetUnChecked(aIndex:QWord):System.Pointer;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4256,46) Note: (6058) Call to subroutine "function TArray<System.Pointer>.GetUnChecked(aIndex:QWord):System.Pointer;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4270,49) Note: (6058) Call to subroutine "function TArray<System.Pointer>.GetUnChecked(aIndex:QWord):System.Pointer;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4284,42) Note: (6058) Call to subroutine "function TArray<System.Pointer>.GetUnChecked(aIndex:QWord):System.Pointer;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4298,46) Note: (6058) Call to subroutine "function TArray<System.Pointer>.GetUnChecked(aIndex:QWord):System.Pointer;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4319,49) Note: (6058) Call to subroutine "function TArray<System.Pointer>.GetUnChecked(aIndex:QWord):System.Pointer;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4339,42) Note: (6058) Call to subroutine "function TArray<System.Pointer>.GetUnChecked(aIndex:QWord):System.Pointer;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4358,11) Note: (6058) Call to subroutine "function TArray<System.Pointer>.GetPtrUnChecked(aIndex:QWord):TGenericCollection$1$crcBF5EA2A4_crc60C0FE1D.PElement;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4380,11) Note: (6058) Call to subroutine "function TArray<System.Pointer>.GetPtrUnChecked(aIndex:QWord):TGenericCollection$1$crcBF5EA2A4_crc60C0FE1D.PElement;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4396,16) Note: (6058) Call to subroutine "function TArray<System.Pointer>.GetPtrUnChecked(aIndex:QWord):TGenericCollection$1$crcBF5EA2A4_crc60C0FE1D.PElement;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4397,16) Note: (6058) Call to subroutine "function TArray<System.Pointer>.GetPtrUnChecked(aIndex:QWord):TGenericCollection$1$crcBF5EA2A4_crc60C0FE1D.PElement;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4508,1) Note: (3123) "access to local from nested scope" not yet supported inside inline procedure/function
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4508,1) Hint: (3124) Inlining disabled
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4490,11) Note: (6058) Call to subroutine "procedure TArray<System.Pointer>.SwapUnChecked(aIndex1:QWord;aIndex2:QWord);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4540,9) Note: (6058) Call to subroutine "function TArray<System.Pointer>.GetPtrUnChecked(aIndex:QWord):TGenericCollection$1$crcBF5EA2A4_crc60C0FE1D.PElement;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4571,5) Note: (6058) Call to subroutine "procedure TArray<System.Pointer>.SwapUnChecked(aIndex1:QWord;aIndex2:QWord);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4671,3) Note: (6058) Call to subroutine "procedure TArray<System.Pointer>.OverWriteUnChecked(aIndex:QWord;const aSrc:Pointer;aCount:QWord);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4704,5) Note: (6058) Call to subroutine "procedure TArray<System.Pointer>.OverWriteUnChecked(aIndex:QWord;const aSrc:Pointer;aCount:QWord);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4758,13) Note: (6058) Call to subroutine "function TArray<System.Pointer>.GetPtr(aIndex:QWord):TGenericCollection$1$crcBF5EA2A4_crc60C0FE1D.PElement;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4763,13) Note: (6058) Call to subroutine "function TArray<System.Pointer>.GetPtrUnChecked(aIndex:QWord):TGenericCollection$1$crcBF5EA2A4_crc60C0FE1D.PElement;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4768,3) Note: (6058) Call to subroutine "function TArray<System.Pointer>.GetPtr(aIndex:QWord):TGenericCollection$1$crcBF5EA2A4_crc60C0FE1D.PElement;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4773,3) Note: (6058) Call to subroutine "function TArray<System.Pointer>.GetPtrUnChecked(aIndex:QWord):TGenericCollection$1$crcBF5EA2A4_crc60C0FE1D.PElement;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4781,13) Note: (6058) Call to subroutine "function TArray<System.Pointer>.GetPtrUnChecked(aIndex:QWord):TGenericCollection$1$crcBF5EA2A4_crc60C0FE1D.PElement;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(6770,3) Note: (6058) Call to subroutine "procedure TArray<System.Pointer>.OverWriteUnChecked(aIndex:QWord;const aSrc:Pointer;aCount:QWord);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(6786,1) Note: (3123) "open array" not yet supported inside inline procedure/function
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(6786,1) Hint: (3124) Inlining disabled
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(6796,1) Note: (3123) "open array" not yet supported inside inline procedure/function
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(6796,1) Hint: (3124) Inlining disabled
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(6803,3) Note: (6058) Call to subroutine "procedure TArray<System.Pointer>.OverWrite(aIndex:QWord;const aSrc:TCollection;aCount:QWord);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(6823,3) Note: (6058) Call to subroutine "procedure TArray<System.Pointer>.OverWriteUnChecked(aIndex:QWord;const aSrc:TCollection;aCount:QWord);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(6845,3) Note: (6058) Call to subroutine "procedure TArray<System.Pointer>.ReadUnChecked(aIndex:QWord;aDst:Pointer;aCount:QWord);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4865,3) Note: (6058) Call to subroutine "procedure TArray<System.Pointer>.SwapUnChecked(aIndex1:QWord;aIndex2:QWord);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4875,3) Note: (6058) Call to subroutine "procedure TArray<System.Pointer>.Swap(aIndex1:QWord;aIndex2:QWord;aCount:QWord;aSwapBufferSize:QWord);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4946,1) Note: (3123) "nested procedures" not yet supported inside inline procedure/function
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(4946,1) Hint: (3124) Inlining disabled
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vecdeque.pas(820,13) Note: (6058) Call to subroutine "function TVecDeque<System.Pointer>.WrapAdd(aIndex:QWord;aValue:QWord):System.QWord;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vecdeque.pas(7321,5) Note: (6058) Call to subroutine "procedure TVecDeque<System.Pointer>.DoSwap(aIndex1:QWord;aIndex2:QWord);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vecdeque.pas(7274,12) Note: (6058) Call to subroutine "function TVecDeque<System.Pointer>.DoCompare(const aLeft:Pointer;const aRight:Pointer;aComparer:TCompareFunc$1$crcBF5EA2A4_crc60C0FE1D;aData:Pointer):System.LongInt;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vecdeque.pas(7282,12) Note: (6058) Call to subroutine "function TVecDeque<System.Pointer>.DoCompare(const aLeft:Pointer;const aRight:Pointer;aComparer:TCompareFunc$1$crcBF5EA2A4_crc60C0FE1D;aData:Pointer):System.LongInt;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vecdeque.pas(7290,9) Note: (6058) Call to subroutine "procedure TVecDeque<System.Pointer>.DoSwap(aIndex1:QWord;aIndex2:QWord);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vecdeque.pas(7455,18) Note: (6058) Call to subroutine "function TVecDeque<System.Pointer>.DoIntroSortDepthLimit(aCount:QWord):System.LongInt;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vecdeque.pas(7118,12) Note: (6058) Call to subroutine "function TVecDeque<System.Pointer>.DoCompare(const aLeft:Pointer;const aRight:Pointer;aComparer:TCompareFunc$1$crcBF5EA2A4_crc60C0FE1D;aData:Pointer):System.LongInt;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vecdeque.pas(2562,30) Hint: (5058) Variable "aElement" does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(569,20) Hint: (5024) Parameter "aComparer" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(569,47) Hint: (5024) Parameter "aData" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(573,43) Hint: (5024) Parameter "aComparer" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(573,70) Hint: (5024) Parameter "aData" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(577,51) Hint: (5024) Parameter "aComparer" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(577,78) Hint: (5024) Parameter "aData" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(583,60) Hint: (5024) Parameter "aComparer" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(583,87) Hint: (5024) Parameter "aData" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(605,83) Hint: (5024) Parameter "aComparer" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vecdeque.pas(6414,31) Hint: (5058) Variable "aElement" does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vecdeque.pas(6419,30) Hint: (5058) Variable "aElement" does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vecdeque.pas(6424,30) Hint: (5058) Variable "aElement" does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vecdeque.pas(6429,29) Hint: (5058) Variable "aElement" does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.channel.pas(487,36) Hint: (5057) Local variable "tmp" does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.channel.pas(500,37) Hint: (5057) Local variable "tmp2" does not seem to be initialized
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.sync.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.threadlocal.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.pas(829,23) Hint: (5091) Local variable "LCallbacks" of a managed type does not seem to be initialized
+(3104) Compiling Test_threadpool_policy_caller_runs.pas
+(3104) Compiling Test_thread_facade_smoke.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_thread_facade_smoke.pas(23,15) Hint: (5024) Parameter "Data" not used
+(3104) Compiling Test_scheduler_precision.pas
+(3104) Compiling Test_token_precancel_semantics.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_token_precancel_semantics.pas(28,23) Hint: (5024) Parameter "Data" not used
+(3104) Compiling Test_threadpool_reject_metrics.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_threadpool_reject_metrics.pas(56,44) Note: (5025) Local variable "i" not used
+(3104) Compiling Test_threadpool_cached_cap.pas
+(3104) Compiling Test_cancel_more_paths.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_cancel_more_paths.pas(15,29) Hint: (5024) Parameter "Data" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_cancel_more_paths.pas(9,31) Hint: (5023) Unit "testutils" not used in Test_cancel_more_paths
+(3104) Compiling Test_threadpool_effective_queue_overflow_regression.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_threadpool_effective_queue_overflow_regression.pas(48,22) Hint: (5091) Local variable "Futures" of a managed type does not seem to be initialized
+(3104) Compiling Test_threadpool_queue_perf_baseline.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_threadpool_queue_perf_baseline.pas(33,30) Hint: (5024) Parameter "Data" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_threadpool_queue_perf_baseline.pas(9,31) Hint: (5023) Unit "testutils" not used in Test_threadpool_queue_perf_baseline
+(3104) Compiling Test_threadpool_token_preexec_cancel.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_threadpool_token_preexec_cancel.pas(15,29) Hint: (5024) Parameter "Data" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_threadpool_token_preexec_cancel.pas(9,31) Hint: (5023) Unit "testutils" not used in Test_threadpool_token_preexec_cancel
+(3104) Compiling Test_channel_close_drain.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_channel_close_drain.pas(41,85) Hint: (4055) Conversion between ordinals and pointers is not portable
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_channel_close_drain.pas(42,85) Hint: (4055) Conversion between ordinals and pointers is not portable
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_channel_close_drain.pas(43,85) Hint: (4055) Conversion between ordinals and pointers is not portable
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_channel_close_drain.pas(9,31) Hint: (5023) Unit "testutils" not used in Test_channel_close_drain
+(3104) Compiling Test_threadpool_caller_runs_race.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_threadpool_caller_runs_race.pas(45,22) Hint: (5091) Local variable "Futures" of a managed type does not seem to be initialized
+(3104) Compiling Test_cancel_token_postsubmit.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_cancel_token_postsubmit.pas(23,18) Hint: (4055) Conversion between ordinals and pointers is not portable
+(3104) Compiling Test_select_edges.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_select_edges.pas(24,14) Hint: (5024) Parameter "Data" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_select_edges.pas(37,15) Hint: (5091) Local variable "Fs" of a managed type does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_select_edges.pas(46,19) Warning: (5089) Local variable "Fs" of a managed type does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_select_edges.pas(9,31) Hint: (5023) Unit "testutils" not used in Test_select_edges
+(3104) Compiling Test_example_cancel_io_batch.pas
+(3104) Compiling Test_example_tasks_impl.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_example_tasks_impl.pas(29,27) Hint: (5057) Local variable "Buf" does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_example_cancel_io_batch.pas(8,31) Hint: (5023) Unit "testutils" not used in Test_example_cancel_io_batch
+(3104) Compiling Test_threadpool_env_taskitempoolmax.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_threadpool_env_taskitempoolmax.pas(25,31) Hint: (5024) Parameter "Data" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_threadpool_env_taskitempoolmax.pas(8,31) Hint: (5023) Unit "testutils" not used in Test_threadpool_env_taskitempoolmax
+(3104) Compiling Test_threadpool_metrics_observed.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_threadpool_metrics_observed.pas(21,19) Hint: (5024) Parameter "Data" not used
+(3104) Compiling Test_threadpool_metrics_more.pas
+(3104) Compiling Test_threadpool_effective_queue_abort_boundary.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_threadpool_effective_queue_abort_boundary.pas(22,26) Hint: (5024) Parameter "Data" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_threadpool_effective_queue_abort_boundary.pas(30,23) Hint: (5024) Parameter "Data" not used
+(3104) Compiling Test_threadpool_effective_queue_boundary.pas
+(3104) Compiling Test_threadpool_metrics_pool.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_threadpool_metrics_pool.pas(34,28) Hint: (5024) Parameter "Data" not used
+(3104) Compiling Test_scheduler_cancel.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_scheduler_cancel.pas(19,14) Hint: (5024) Parameter "Data" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_scheduler_cancel.pas(8,31) Hint: (5023) Unit "testutils" not used in Test_scheduler_cancel
+(3104) Compiling Test_channel_sendtimeout.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_channel_sendtimeout.pas(8,31) Hint: (5023) Unit "testutils" not used in Test_channel_sendtimeout
+(3104) Compiling Test_select_race.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_select_race.pas(23,14) Hint: (5024) Parameter "Data" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_select_race.pas(9,31) Hint: (5023) Unit "testutils" not used in Test_select_race
+(3104) Compiling Test_threadpool_cancel.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_threadpool_cancel.pas(28,19) Hint: (5024) Parameter "Data" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_threadpool_cancel.pas(25,21) Hint: (5024) Parameter "Data" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_threadpool_cancel.pas(68,5) Note: (5025) Local variable "P" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_threadpool_cancel.pas(68,21) Note: (5025) Local variable "C" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_threadpool_cancel.pas(68,50) Note: (5025) Local variable "F" not used
+(3104) Compiling Test_future_cancel.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_future_cancel.pas(23,18) Hint: (4055) Conversion between ordinals and pointers is not portable
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_future_cancel.pas(8,31) Hint: (5023) Unit "testutils" not used in Test_future_cancel
+(3104) Compiling Test_future_map_then.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_future_map_then.pas(20,14) Hint: (5024) Parameter "Data" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_future_map_then.pas(24,18) Hint: (4055) Conversion between ordinals and pointers is not portable
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_future_map_then.pas(8,31) Hint: (5023) Unit "testutils" not used in Test_future_map_then
+(3104) Compiling Test_future_helpers.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_future_helpers.pas(23,18) Hint: (4055) Conversion between ordinals and pointers is not portable
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_future_helpers.pas(8,31) Hint: (5023) Unit "testutils" not used in Test_future_helpers
+(3104) Compiling Test_scheduler_metrics_observed.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_scheduler_metrics_observed.pas(33,34) Hint: (5024) Parameter "Data" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_scheduler_metrics_observed.pas(34,34) Hint: (5024) Parameter "Data" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_scheduler_metrics_observed.pas(35,34) Hint: (5024) Parameter "Data" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_scheduler_metrics_observed.pas(36,34) Hint: (5024) Parameter "Data" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_scheduler_metrics_observed.pas(37,34) Hint: (5024) Parameter "Data" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_scheduler_metrics_observed.pas(38,34) Hint: (5024) Parameter "Data" not used
+(3104) Compiling Test_scheduler_metrics.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_scheduler_metrics.pas(31,29) Hint: (5024) Parameter "Data" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_scheduler_metrics.pas(32,29) Hint: (5024) Parameter "Data" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_scheduler_metrics.pas(33,29) Hint: (5024) Parameter "Data" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_scheduler_metrics.pas(54,29) Hint: (5024) Parameter "Data" not used
+(3104) Compiling Test_scheduler_order.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_scheduler_order.pas(42,16) Hint: (5057) Local variable "LRec" does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_scheduler_order.pas(25,15) Hint: (5028) Local type "POrderRec" is not used
+(3104) Compiling Test_scheduler_basic.pas
+(3104) Compiling Test_channel_fairness.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_channel_fairness.pas(60,10) Hint: (4055) Conversion between ordinals and pointers is not portable
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_channel_fairness.pas(68,3) Note: (5025) Local variable "Idx" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_channel_fairness.pas(89,25) Hint: (4055) Conversion between ordinals and pointers is not portable
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_channel_fairness.pas(125,18) Hint: (5057) Local variable "Counts" does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_channel_fairness.pas(176,18) Hint: (5057) Local variable "Counts" does not seem to be initialized
+(3104) Compiling Test_channel_unbuffered.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_channel_unbuffered.pas(58,43) Hint: (4055) Conversion between ordinals and pointers is not portable
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_channel_unbuffered.pas(58,59) Hint: (4055) Conversion between ordinals and pointers is not portable
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_channel_unbuffered.pas(95,43) Hint: (4055) Conversion between ordinals and pointers is not portable
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_channel_unbuffered.pas(95,59) Hint: (4055) Conversion between ordinals and pointers is not portable
+(3104) Compiling Test_future_oncomplete.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_future_oncomplete.pas(31,32) Hint: (5024) Parameter "Data" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_future_oncomplete.pas(68,32) Hint: (5024) Parameter "Data" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_future_oncomplete.pas(91,32) Hint: (5024) Parameter "Data" not used
+(3104) Compiling Test_threadpool_keepalive.pas
+(3104) Compiling Test_threadpool_policy_more.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_threadpool_policy_more.pas(32,3) Note: (5027) Local variable "F" is assigned but never used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_threadpool_policy_more.pas(88,7) Note: (5027) Local variable "F2" is assigned but never used
+(3104) Compiling Test_threadpool_policy_queue0.pas
+(3104) Compiling Test_threadpool_policy.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_threadpool_policy.pas(30,3) Note: (5025) Local variable "I" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_threadpool_policy.pas(76,3) Note: (5025) Local variable "I" not used
+(3104) Compiling Test_future_generic.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.future.generic.pas
+(3104) Compiling Test_thread.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_thread.pas(199,27) Hint: (4055) Conversion between ordinals and pointers is not portable
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_thread.pas(209,27) Hint: (4055) Conversion between ordinals and pointers is not portable
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_thread.pas(237,27) Hint: (4055) Conversion between ordinals and pointers is not portable
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_thread.pas(247,27) Hint: (4055) Conversion between ordinals and pointers is not portable
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_thread.pas(307,3) Note: (5027) Local variable "LPool" is assigned but never used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_thread.pas(466,52) Hint: (4055) Conversion between ordinals and pointers is not portable
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_thread.pas(474,28) Warning: (4104) Implicit string type conversion from "AnsiString" to "UnicodeString"
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_thread.pas(474,60) Warning: (4105) Implicit string type conversion with potential data loss from "UnicodeString" to "AnsiString"
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_thread.pas(858,31) Hint: (4055) Conversion between ordinals and pointers is not portable
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_thread.pas(860,29) Hint: (4055) Conversion between ordinals and pointers is not portable
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_thread.pas(869,31) Hint: (4055) Conversion between ordinals and pointers is not portable
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_thread.pas(871,29) Hint: (4055) Conversion between ordinals and pointers is not portable
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_thread.pas(10,31) Hint: (5023) Unit "testutils" not used in Test_thread
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.thread\Test_thread.pas(12,3) Hint: (5023) Unit "fafafa.core.sync" not used in Test_thread
+(9015) Linking D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\bin\tests_thread.exe
+(1008) 61319 lines compiled, 8.6 sec, 945120 bytes code, 18340 bytes data
+(1021) 23 warning(s) issued
+(1022) 144 hint(s) issued
+(1023) 175 note(s) issued
+Info: (lazarus) [TCompiler.Compile] end

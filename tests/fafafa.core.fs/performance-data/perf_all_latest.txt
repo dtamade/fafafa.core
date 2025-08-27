@@ -1,0 +1,9 @@
+==== ResolvePathEx ==== 
+ResolvePathEx: TouchDisk=False, iters=2000, time=13 ms, last=D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\"tests\fafafa.core.fs\walk_bench_root"
+ResolvePathEx: TouchDisk=True,  iters=2000, time=53 ms, last=D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\"tests\fafafa.core.fs\walk_bench_root"
+CSV,ResolvePathEx,"tests\fafafa.core.fs\walk_bench_root",2000,13,53
+
+==== Walk ====
+Walk entries: 211, time: 10 ms
+CSV,Walk,tests/fafafa.core.fs/walk_bench_root,3,4,2,10,211
+

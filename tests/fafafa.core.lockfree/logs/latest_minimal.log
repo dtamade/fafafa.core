@@ -1,0 +1,16 @@
+[run] test_api_aliases.exe
+== OA: API aliases and tombstone basic check ==
+.. OK
+== MM: API aliases basic check ==
+.. OK
+All alias/tombstone tests passed.
+
+[run] test_oa_tombstone_stress.exe
+== OA tombstone stress (small capacity) ==
+  Final size: 8, capacity: 8
+.. OK
+
+[run] test_resource_safety_basic.exe
+== Resource safety basic (string keys/values) ==
+.. OK
+

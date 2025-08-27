@@ -1,0 +1,3 @@
+ResolvePathEx: TouchDisk=False, iters=1000, time=7 ms, last=D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.fs\walk_bench_root
+ResolvePathEx: TouchDisk=True,  iters=1000, time=333 ms, last=D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.fs\walk_bench_root
+CSV,ResolvePathEx,tests\fafafa.core.fs\walk_bench_root,1000,7,333

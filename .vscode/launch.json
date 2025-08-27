@@ -1,0 +1,47 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "fpDebug",
+      "request": "launch",
+      "name": "Debug Pascal program",
+      "program": "${workspaceRoot}/bin/tests.exe"
+    },
+    {
+      "type": "gdb",
+      "request": "launch",
+      "name": "Launch Program",
+      "target": "${workspaceRoot}/bin/tests.exe",
+      "cwd": "${workspaceRoot}",
+      "valuesFormatting": "parseText"
+    },
+    {
+      "type": "fpDebug",
+      "request": "launch",
+      "name": "Launch(gdb)",
+      "program": "${workspaceRoot}/bin/tests.exe",
+      "fpdserver": {
+        "executable": "E:\\VSCodeData\\.cursor\\extensions\\cnoc.fpdebug-0.6.0\\bin\\fpdserver-x86_64.exe"
+      }
+    },
+    {
+      "name": "C/C++ Runner: Debug Session",
+      "type": "cppdbg",
+      "request": "launch",
+      "args": [],
+      "stopAtEntry": false,
+      "externalConsole": true,
+      "cwd": "c:/Users/dtama/Downloads",
+      "program": "c:/Users/dtama/Downloads/build/Debug/outDebug",
+      "MIMode": "gdb",
+      "miDebuggerPath": "gdb",
+      "setupCommands": [
+        {
+          "description": "Enable pretty-printing for gdb",
+          "text": "-enable-pretty-printing",
+          "ignoreFailures": true
+        }
+      ]
+    }
+  ]
+}

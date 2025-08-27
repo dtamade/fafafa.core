@@ -1,0 +1,3 @@
+Walk entries: 211, time: 10 ms
+CSV,Walk,tests/fafafa.core.fs/walk_bench_root,3,4,2,10,211
+

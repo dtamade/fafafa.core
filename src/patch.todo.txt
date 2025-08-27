@@ -1,0 +1,6 @@
+Fixup history for fafafa.core.xml.pas around FreezeCurrentNode/TXmlNodeIntf methods:
+- Remove misplaced method implementations inside type section
+- Implement TXmlNodeIntf navigation methods in implementation section, BEFORE FreezeCurrentNode
+- Ensure FreezeCurrentNode signature and begin are contiguous
+- Verify destructor TXmlReaderImpl.Destroy ends with end; and has no local nested procs after it
+

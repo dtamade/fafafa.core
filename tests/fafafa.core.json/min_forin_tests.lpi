@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <ProjectOptions>
+    <Version Value="12"/>
+    <General>
+      <Flags>
+        <MainUnitHasCreateFormStatements Value="False"/>
+        <MainUnitHasTitleStatement Value="False"/>
+        <UseDefaultCompilerOptions Value="True"/>
+      </Flags>
+      <SessionStorage Value="InProjectDir"/>
+      <Title Value="min_forin_tests"/>
+      <UseAppBundle Value="False"/>
+      <ResourceType Value="res"/>
+      <UseXPManifest Value="True"/>
+      <Icon Value="0"/>
+    </General>
+    <i18n>
+      <EnableI18N Value="False"/>
+    </i18n>
+    <VersionInfo>
+      <ProjectVersion Value="1.0.0.0"/>
+      <Language Value=""/>
+      <CharSet Value=""/>
+    </VersionInfo>
+    <BuildModes Count="1">
+      <Item1 Name="Default" Default="True"/>
+    </BuildModes>
+  </ProjectOptions>
+  <CompilerOptions>
+    <Version Value="11"/>
+    <Target>
+      <Filename Value="min_forin_tests"/>
+    </Target>
+    <SearchPaths>
+      <IncludeFiles Value="."/>
+      <OtherUnitFiles Value="../..;../../src;."/>
+      <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
+    </SearchPaths>
+    <Parsing>
+      <SyntaxOptions>
+        <IncludeAssertionCode Value="True"/>
+        <UseAnsiStrings Value="True"/>
+      </SyntaxOptions>
+    </Parsing>
+    <CodeGeneration>
+      <TargetCPU Value="x86_64"/>
+      <TargetOS Value="win64"/>
+      <Optimizations>
+        <OptimizationLevel Value="1"/>
+      </Optimizations>
+    </CodeGeneration>
+  </CompilerOptions>
+  <Debugging>
+    <DebugInfoType Value="dsDwarf2Set"/>
+  </Debugging>
+  <Project>
+    <Units Count="2">
+      <Unit0>
+        <Filename Value="min_forin_tests.lpr"/>
+        <IsPartOfProject Value="True"/>
+        <IsPartOfProjectLaz Value="True"/>
+        <UnitName Value="min_forin_tests"/>
+        <UnitType Value="Program"/>
+        <IsMainUnit Value="True"/>
+      </Unit0>
+      <Unit1>
+        <Filename Value="Test_fafafa_core_json_facade_forin.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit1>
+    </Units>
+  </Project>
+</CONFIG>
+

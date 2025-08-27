@@ -1,0 +1,68 @@
+[tools\lazbuild.bat] using LAZBUILD_EXE: "D:\devtools\lazarus\trunk\lazarus\lazbuild.exe" --quiet "D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.logging\tests_logging.lpi"
+Hint: (11030) Start of reading config file D:\devtools\lazarus\trunk\fpc\bin\x86_64-win64\fpc.cfg
+Hint: (11031) End of reading config file D:\devtools\lazarus\trunk\fpc\bin\x86_64-win64\fpc.cfg
+Free Pascal Compiler version 3.3.1-18303-gc4aa8b02fb-dirty [2025/07/28] for x86_64
+Copyright (c) 1993-2025 by Florian Klaempfl and others
+(1002) Target OS: Win64 for x64
+(3104) Compiling tests_logging.lpr
+(3104) Compiling Test_fafafa_core_logging_async_sink_shutdown_cancel.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.logging.sinks.async.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.logging.interfaces.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.constants.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.cancel.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.sync.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\plat\fafafa.core.sync.win.inc(86,3) Note: (5025) Local variable "start" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.cancel.pas(86,4) Note: (3123) "nested procedures" not yet supported inside inline procedure/function
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.cancel.pas(86,4) Hint: (3124) Inlining disabled
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.thread.threadpool.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vecdeque.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vec.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.stack.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.base.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.elementManager.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.math.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.mem.utils.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.mem.utils.pas(837,13) Note: (6058) Call to subroutine "function IsOverlapUnChecked(aPtr1:Pointer;aSize1:QWord;aPtr2:Pointer;aSize2:QWord):System.Boolean;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.mem.utils.pas(874,3) Note: (6058) Call to subroutine "procedure CopyUnChecked(aSrc:Pointer;aDst:Pointer;aSize:QWord);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.mem.utils.pas(903,3) Note: (6058) Call to subroutine "procedure CopyNonOverlapUnChecked(aSrc:Pointer;aDst:Pointer;aSize:QWord);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.mem.utils.pas(917,3) Note: (6058) Call to subroutine "procedure Fill8(aDst:Pointer;aCount:Int64;aValue:Byte);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.mem.utils.pas(922,3) Note: (6058) Call to subroutine "procedure Fill8(aDst:Pointer;aCount:QWord;aValue:Byte);" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.mem.utils.pas(1119,13) Note: (6058) Call to subroutine "function Compare8(aPtr1:Pointer;aPtr2:Pointer;aCount:QWord):System.LongInt;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.mem.utils.pas(1124,13) Note: (6058) Call to subroutine "function Compare8(aPtr1:Pointer;aPtr2:Pointer;aCount:Int64):System.LongInt;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.mem.utils.pas(1148,16) Note: (6058) Call to subroutine "function Compare8(aPtr1:Pointer;aPtr2:Pointer;aCount:Int64):System.LongInt;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.mem.utils.pas(1187,16) Note: (6058) Call to subroutine "function Compare16(aPtr1:Pointer;aPtr2:Pointer;aCount:Int64):System.LongInt;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.mem.utils.pas(1229,16) Note: (6058) Call to subroutine "function Compare32(aPtr1:Pointer;aPtr2:Pointer;aCount:Int64):System.LongInt;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.mem.utils.pas(1278,10) Note: (6058) Call to subroutine "function IsPowerOfTwo(N:QWord):System.Boolean;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.mem.utils.pas(1281,13) Note: (6058) Call to subroutine "function AlignUpUnChecked(aPtr:Pointer;aAlignment:QWord=`8`):System.Pointer;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.mem.utils.pas(1305,13) Note: (6058) Call to subroutine "function AlignDownUnChecked(aPtr:Pointer;aAlignment:QWord=`8`):System.Pointer;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.base.pas(1575,13) Note: (6058) Call to subroutine "function compare_u8(const aLeft:Byte;const aRight:Byte):System.Int64;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.base.pas(1580,13) Note: (6058) Call to subroutine "function compare_u16(const aLeft:Word;const aRight:Word):System.Int64;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.base.pas(2068,33) Note: (6058) Call to subroutine "function TCollection.GetAllocator:fafafa.core.mem.allocator.base.IAllocator;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.base.pas(2068,44) Note: (6058) Call to subroutine "function TCollection.GetData:System.Pointer;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.base.pas(2076,37) Note: (6058) Call to subroutine "function TCollection.GetData:System.Pointer;" marked as inline is not inlined
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.base.pas(1392,28) Hint: (5024) Parameter "aCurrentSize" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.base.pas(1458,28) Hint: (5024) Parameter "aCurrentSize" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.base.pas(13,15) Hint: (5023) Unit "fafafa.core.mem.utils" not used in fafafa.core.collections.base
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.arr.pas(355,5) Warning: (2005) Comment level 2 found
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vec.pas(121,14) Warning: (3057) An inherited method is hidden by "TryLoadFrom(const Pointer;QWord):System.Boolean;"
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vec.pas(122,14) Warning: (3057) An inherited method is hidden by "TryAppend(const Pointer;QWord):System.Boolean;"
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.base.pas(121,14) Warning: (3057) An inherited method is hidden by "TryLoadFrom(const Pointer;QWord):System.Boolean;"
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.base.pas(122,14) Warning: (3057) An inherited method is hidden by "TryAppend(const Pointer;QWord):System.Boolean;"
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vec.pas(1307,15) Warning: (3057) An inherited method is hidden by "TryLoadFrom(const Pointer;QWord):System.Boolean;"
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vec.pas(1308,15) Warning: (3057) An inherited method is hidden by "TryAppend(const Pointer;QWord):System.Boolean;"
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vec.pas(2186,28) Hint: (5058) Variable "aElement" does not seem to be initialized
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.deque.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.queue.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.base.pas(121,14) Warning: (3057) An inherited method is hidden by "TryLoadFrom(const Pointer;QWord):System.Boolean;"
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.base.pas(122,14) Warning: (3057) An inherited method is hidden by "TryAppend(const Pointer;QWord):System.Boolean;"
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vecdeque.pas(262,14) Warning: (3057) An inherited method is hidden by "TryLoadFrom(const Pointer;QWord):System.Boolean;"
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vecdeque.pas(263,14) Warning: (3057) An inherited method is hidden by "TryAppend(const Pointer;QWord):System.Boolean;"
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vecdeque.pas(43,26) Error: (5042) No matching implementation for interface method "GetGrowStrategy:fafafa.core.collections.base.IGrowthStrategy;" found
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vecdeque.pas(43,26) Error: (5042) No matching implementation for interface method "SetGrowStrategy(IGrowthStrategy);" found
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.collections.vecdeque.pas(733,1) Fatal: (10026) There were 2 errors compiling module, stopping
+Fatal: (1018) Compilation aborted
+Error: D:\devtools\lazarus\trunk\fpc\bin\x86_64-win64\ppcx64.exe returned an error exitcode
+Error: (lazarus) Compile Project, Target: D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.logging\bin\tests_logging.exe: stopped with exit code 1
+Error: (lazbuild) Failed compiling of project "D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.logging\tests_logging.lpi"

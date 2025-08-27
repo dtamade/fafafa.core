@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <ProjectOptions>
+    <Version Value="12"/>
+    <PathDelim Value="\"/>
+    <General>
+      <SessionStorage Value="InProjectDir"/>
+      <MainUnit Value="0"/>
+      <Title Value="palette_demo"/>
+      <TargetFileExt Value=".exe"/>
+      <TargetFile Value="../../bin/palette_demo"/>
+    </General>
+    <BuildModes Count="1">
+      <Item1 Name="Debug" Default="True"/>
+    </BuildModes>
+    <Units Count="1">
+      <Unit0>
+        <Filename Value="palette_demo.lpr"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="palette_demo"/>
+      </Unit0>
+    </Units>
+  </ProjectOptions>
+  <CompilerOptions>
+    <Version Value="11"/>
+    <Target>
+      <Filename Value="../../bin/palette_demo.exe"/>
+    </Target>
+    <SearchPaths>
+      <IncludeFiles Value="../../src"/>
+      <OtherUnitFiles Value="../../src"/>
+      <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
+    </SearchPaths>
+    <Parsing>
+      <SyntaxMode Value="Delphi"/>
+    </Parsing>
+  </CompilerOptions>
+</CONFIG>
+

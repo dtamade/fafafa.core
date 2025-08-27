@@ -1,0 +1,8 @@
+Warning: Only one source file supported, changing source file to compile from ".\src" into ".core.json\bin"
+Warning: Only one source file supported, changing source file to compile from ".core.json\bin" into "examples\fafafa.core.json\example_fluent_min.lpr"
+Free Pascal Compiler version 3.3.1-18303-gc4aa8b02fb-dirty [2025/07/28] for x86_64
+Copyright (c) 1993-2025 by Florian Klaempfl and others
+Target OS: Win64 for x64
+Compiling examples\fafafa.core.json\example_fluent_min.lpr
+example_fluent_min.lpr(7,3) Fatal: Can't find unit fafafa.core.mem.allocator used by example_fluent_min
+Fatal: Compilation aborted

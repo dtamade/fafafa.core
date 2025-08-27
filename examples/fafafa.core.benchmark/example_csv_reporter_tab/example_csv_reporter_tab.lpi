@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <ProjectOptions>
+    <Version Value="12"/>
+    <General>
+      <SessionStorage Value="InProjectDir"/>
+      <MainUnit Value="1"/>
+      <TargetFileExt Value=".exe"/>
+      <UseAppBundle Value="False"/>
+      <Title Value="example_csv_reporter_tab"/>
+      <ActiveEditorIndexAtStart Value="0"/>
+    </General>
+    <BuildModes Count="1">
+      <Item1 Name="Default" Default="True"/>
+    </BuildModes>
+    <PublishOptions>
+      <Version Value="2"/>
+    </PublishOptions>
+    <RunParams>
+      <FormatVersion Value="2"/>
+    </RunParams>
+  </ProjectOptions>
+  <CompilerOptions>
+    <Version Value="11"/>
+    <Target>
+      <Filename Value="bin/example_csv_reporter_tab"/>
+    </Target>
+    <SearchPaths>
+      <IncludeFiles Value="lib\$(TargetCPU)-$(TargetOS)"/>
+      <OtherUnitFiles Value="..\..\src"/>
+      <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+    </SearchPaths>
+    <Parsing>
+      <SyntaxMode Value="Delphi"/>
+      <UseAnsiStrings Value="False"/>
+    </Parsing>
+    <CodeGeneration>
+      <Optimizations>
+        <Level Value="0"/>
+      </Optimizations>
+    </CodeGeneration>
+    <Linking>
+      <Debugging>
+        <GenerateDebugInfo Value="True"/>
+      </Debugging>
+    </Linking>
+  </CompilerOptions>
+  <Units Count="1">
+    <Unit0>
+      <Filename Value="example_csv_reporter_tab.lpr"/>
+      <IsPartOfProject Value="True"/>
+      <IsPartOfProject Value="True"/>
+    </Unit0>
+  </Units>
+  <Other>
+    <MainUnit Value="0"/>
+  </Other>
+
+</CONFIG>
+

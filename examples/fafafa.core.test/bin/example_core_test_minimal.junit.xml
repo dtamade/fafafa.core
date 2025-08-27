@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="fafafa.core.test" tests="8" failures="0" skipped="0" time="0.000000" timestamp="2025-08-21T04:41:57Z" hostname="FAFAFA">
+  <testcase classname="default" name="example.smoke.equals" time="0.000000"/>
+  <testcase classname="example.smoke.subtests" name="a" time="0.000000"/>
+  <testcase classname="example.smoke.subtests" name="b" time="0.000000"/>
+  <testcase classname="default" name="example.smoke.subtests" time="0.000000"/>
+  <testcase classname="example.foreach/len" name="0" time="0.000000"/>
+  <testcase classname="example.foreach/len" name="1" time="0.000000"/>
+  <testcase classname="example.foreach/len" name="2" time="0.000000"/>
+  <testcase classname="default" name="example.foreach" time="0.000000"/>
+</testsuite>

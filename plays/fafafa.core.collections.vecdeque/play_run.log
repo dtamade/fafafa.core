@@ -1,0 +1,23 @@
+ Time:00.001 N:12 E:0 F:0 I:0
+  Play Time:00.001 N:12 E:0 F:0 I:0
+    VecDeque Time:00.001 N:12 E:0 F:0 I:0
+      TPlayVecDeque Time:00.001 N:12 E:0 F:0 I:0
+        00.000  Smoke_Insert_Write_Remove
+        00.000  RemoveCopy_Pointer_Count
+        00.001  RemoveCopy_NilPtr_Raises
+        00.000  RemoveArray_Index_Array_Count
+        00.000  RemoveCopySwap_Pointer_Count
+        00.000  RemoveArraySwap_Index_Array_Count
+        00.000  RemoveSwap_Index_Var
+        00.000  RemoveCopy_Wraparound_Range
+        00.000  RemoveArraySwap_Wraparound_Range
+        00.000  RemoveCopy_OutOfRange_Raises
+        00.000  RemoveArray_CountZero_NoOp
+        00.000  RemoveCopySwap_CountZero_NoOp
+
+Number of run tests: 12
+Number of errors:    0
+Number of failures:  0
+
+
+

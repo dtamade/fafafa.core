@@ -1,0 +1,27 @@
+Timestamp: 2025-08-12_�ܶ�-21-39
+Command: BuildOrRunPerf.bat
+--- Output ---
+=== fafafa.core.fs perf benchmark: build and run perf_fs_bench ===
+[1/2] Compiling: perf_fs_bench.lpr ...
+Hint: (11030) Start of reading config file D:\devtools\lazarus\trunk\fpc\bin\x86_64-win64\fpc.cfg
+Hint: (11031) End of reading config file D:\devtools\lazarus\trunk\fpc\bin\x86_64-win64\fpc.cfg
+Free Pascal Compiler version 3.3.1-18303-gc4aa8b02fb-dirty [2025/07/28] for x86_64
+Copyright (c) 1993-2025 by Florian Klaempfl and others
+(1002) Target OS: Win64 for x64
+(3104) Compiling perf_fs_bench.lpr
+(9015) Linking D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.fs\bin\perf_fs_bench.exe
+(1008) 266 lines compiled, 0.5 sec, 190656 bytes code, 10500 bytes data
+(1022) 2 hint(s) issued
+
+[OK] Build successful.
+
+[2/2] Running benchmark...
+Sequential write: 64 MB in 175 ms, 365 MB/s
+Sequential read:  64 MB in 113 ms, 566 MB/s
+Random read:     5000 ops in 417 ms, 11990 ops/s
+
+Benchmark exited with code 0
+
+
+--- WalkDir quick snapshot ---
+Walk entries: 211, time: 427 ms

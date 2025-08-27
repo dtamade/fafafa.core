@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <ProjectOptions>
+    <Version Value="12"/>
+    <PathDelim Value="\"/>
+    <General>
+      <Flags>
+        <MainUnitHasCreateFormStatements Value="False"/>
+        <MainUnitHasTitleStatement Value="False"/>
+        <MainUnitHasScaledStatement Value="False"/>
+      </Flags>
+      <SessionStorage Value="InProjectDir"/>
+
+      <MainUnit Value="0"/>
+      <Title Value="lockfree_ifaces_factories_tests"/>
+      <UseAppBundle Value="False"/>
+      <ResourceType Value="res"/>
+      <MainUnitHasCreateFormStatements Value="False"/>
+      <MainUnitHasTitleStatement Value="False"/>
+      <MainUnitHasScaledStatement Value="False"/>
+    </General>
+    <i18n>
+      <EnableI18nLrs Value="False"/>
+    </i18n>
+    <VersionInfo>
+      <StringTable ProductVersion="" FileVersion="" CompanyName="" FileDescription="" InternalName="" LegalCopyright="" LegalTrademarks="" OriginalFilename="" ProductName="" Comments=""/>
+    </VersionInfo>
+    <BuildModes>
+      <Item Name="Default" Default="True"/>
+    </BuildModes>
+    <PublishOptions>
+      <Version Value="2"/>
+      <UseFileFilters Value="True"/>
+    </PublishOptions>
+    <RunParams>
+      <FormatVersion Value="2"/>
+    </RunParams>
+    <RequiredPackages Count="2">
+      <Item1>
+        <PackageName Value="FCL"/>
+      </Item1>
+      <Item2>
+        <PackageName Value="fpcunittestrunner"/>
+      </Item2>
+    </RequiredPackages>
+    <Units>
+      <Unit>
+        <Filename Value="fafafa.core.lockfree.ifaces_factories.test.lpr"/>
+        <IsPartOfProject Value="True"/>
+        <IsMainUnit Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="ifaces_factories.testcase.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+    </Units>
+  </ProjectOptions>
+  <CompilerOptions>
+    <Version Value="11"/>
+    <PathDelim Value="\"/>
+    <Target>
+      <Filename Value="bin\lockfree_ifaces_factories_tests"/>
+    </Target>
+    <SearchPaths>
+      <IncludeFiles Value="$(ProjOutDir);..\..\src"/>
+      <OtherUnitFiles Value="..\..\src"/>
+      <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+    </SearchPaths>
+    <Parsing>
+      <SyntaxMode Value="ObjFPC"/>
+      <AllowLabel Value="False"/>
+      <CPPInline Value="False"/>
+      <TypeInfo Value="False"/>
+      <UseLineInfoUnit Value="True"/>
+    </Parsing>
+    <CodeGeneration>
+      <SmartLinkUnit Value="False"/>
+      <Optimizations>
+        <OptimizationLevel Value="1"/>
+      </Optimizations>
+      <TargetCPU Value="x86_64"/>
+      <TargetOS Value="win64"/>
+      <SmallerCode Value="False"/>
+      <Relocatable Value="False"/>
+      <HeapSize Value="16777216"/>
+      <StackSize Value="8388608"/>
+    </CodeGeneration>
+    <Linking>
+      <Debugging>
+        <DebugInfoType Value="dsDwarf3"/>
+        <UseExternalDbgSyms Value="True"/>
+        <StripSymbols Value="False"/>
+      </Debugging>
+      <Options>
+        <Win32>
+          <GraphicApplication Value="False"/>
+        </Win32>
+      </Options>
+    </Linking>
+  </CompilerOptions>
+  <Debugging>
+    <Exceptions Count="3">
+      <Item1>
+        <Name Value="EAbort"/>
+      </Item1>
+      <Item2>
+        <Name Value="ECodetoolError"/>
+      </Item2>
+      <Item3>
+        <Name Value="EFOpenError"/>
+      </Item3>
+    </Exceptions>
+  </Debugging>
+
+
+
+
+
+</CONFIG>
+

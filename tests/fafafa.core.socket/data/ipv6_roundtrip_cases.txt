@@ -1,0 +1,5 @@
+# IPv6 Roundtrip Cases (used for manual dev check; not loaded by tests)
+2001:0:0:1:0:0:0:1 => 2001:0:0:1::1
+2001:0:0:1:0:0:1:1 => 2001::1:0:0:1:1
+::ffff:192.0.2.1 => ::ffff:192.0.2.1
+

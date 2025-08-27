@@ -1,0 +1,26 @@
+[tools\lazbuild.bat] using LAZBUILD_EXE: "D:\devtools\lazarus\trunk\lazarus\lazbuild.exe" --quiet --build-all "fafafa.core.result.test.lpi"
+Hint: (11030) Start of reading config file D:\devtools\lazarus\trunk\fpc\bin\x86_64-win64\fpc.cfg
+Hint: (11031) End of reading config file D:\devtools\lazarus\trunk\fpc\bin\x86_64-win64\fpc.cfg
+Free Pascal Compiler version 3.3.1-18303-gc4aa8b02fb-dirty [2025/07/28] for x86_64
+Copyright (c) 1993-2025 by Florian Klaempfl and others
+(1002) Target OS: Win64 for x64
+(3104) Compiling fafafa.core.result.test.lpr
+(3104) Compiling fafafa.core.result.testcase.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.option.pas
+(3104) Compiling D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src\fafafa.core.result.pas
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.result\fafafa.core.result.testcase.pas(87,10) Warning: (5033) Function result does not seem to be set
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.result\fafafa.core.result.testcase.pas(203,30) Hint: (5024) Parameter "S" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.result\fafafa.core.result.testcase.pas(265,21) Hint: (5024) Parameter "E" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.result\fafafa.core.result.testcase.pas(269,21) Hint: (5024) Parameter "E" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.result\fafafa.core.result.testcase.pas(294,22) Hint: (5024) Parameter "E" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.result\fafafa.core.result.testcase.pas(364,14) Hint: (5091) Local variable "A" of a managed type does not seem to be initialized
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.result\fafafa.core.result.testcase.pas(528,21) Hint: (5024) Parameter "Ex" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.result\fafafa.core.result.testcase.pas(594,13) Warning: (5033) Function result does not seem to be set
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.result\fafafa.core.result.testcase.pas(654,21) Hint: (5024) Parameter "E" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.result\fafafa.core.result.testcase.pas(660,21) Hint: (5024) Parameter "E" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.result\fafafa.core.result.testcase.pas(664,21) Hint: (5024) Parameter "E" not used
+D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.result\fafafa.core.result.testcase.pas(717,21) Hint: (5024) Parameter "X" not used
+(9015) Linking D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\tests\fafafa.core.result\bin\fafafa.core.result.test.exe
+(1008) 2932 lines compiled, 7.0 sec, 365760 bytes code, 13124 bytes data
+(1021) 2 warning(s) issued
+(1022) 12 hint(s) issued
