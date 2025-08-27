@@ -14,6 +14,7 @@ uses
   {$IFDEF FAFAFA_ENV_ENABLE_RESULT}
   , fafafa.core.result
   {$ENDIF}
+  , fafafa.core.stringBuilder
   ;
 
 // Modern, cross-platform environment helpers inspired by Rust std::env and Go os
@@ -151,7 +152,18 @@ function env_executable_path: string; inline;
 function env_user_config_dir: string; // XDG/APPDATA
 function env_user_cache_dir: string;  // XDG/LOCALAPPDATA/~/Library/Caches
 
+// Security helpers (2024 best practices)
+function env_is_sensitive_name(const AName: string): Boolean; // Check if env var name suggests sensitive content
+function env_mask_value(const AValue: string): string; // Mask sensitive values for logging
+function env_validate_name(const AName: string): Boolean; // Validate env var name format
+
 implementation
+
+// Core RAII functions (always available)
+function env_override(const AName, AValue: string): TEnvOverrideGuard; inline;
+begin
+  Result := TEnvOverrideGuard.New(AName, AValue);
+end;
 
 {$IFDEF FAFAFA_ENV_ENABLE_RESULT}
 // Result-enabled section
@@ -159,11 +171,6 @@ implementation
 function env_resolve_os(const Key: string; out Value: string): Boolean;
 begin
   Result := env_lookup(Key, Value);
-end;
-
-function env_override(const AName, AValue: string): TEnvOverrideGuard; inline;
-begin
-  Result := TEnvOverrideGuard.New(AName, AValue);
 end;
 
 class function TEnvOverrideGuard.New(const AName, AValue: string): TEnvOverrideGuard;
@@ -419,11 +426,13 @@ end;
 
 function env_get(const AName: string): string; inline;
 begin
+  if AName = '' then Exit('');
   Result := os_getenv(AName);
 end;
 
 function env_get_or(const AName, ADefault: string): string; inline;
 begin
+  if AName = '' then Exit(ADefault);
   if not env_lookup(AName, Result) then
     Result := ADefault;
 end;
@@ -431,22 +440,30 @@ end;
 
 function env_set(const AName, AValue: string): Boolean; inline;
 begin
+  if AName = '' then Exit(False);
   Result := os_setenv(AName, AValue);
 end;
 
 function env_unset(const AName: string): Boolean; inline;
 begin
+  if AName = '' then Exit(False);
   Result := os_unsetenv(AName);
 end;
 
 procedure env_vars(const ADest: TStrings); inline;
 begin
+  if not Assigned(ADest) then Exit;
   os_environ(ADest);
 end;
 
 
 function env_lookup(const AName: string; out AValue: string): Boolean; inline;
 begin
+  if AName = '' then
+  begin
+    AValue := '';
+    Exit(False);
+  end;
   // Delegate to os_lookupenv for performance and correct semantics (distinguish undefined vs empty)
   Result := os_lookupenv(AName, AValue);
 end;
@@ -454,6 +471,7 @@ end;
 function env_has(const AName: string): Boolean; inline;
 var dummy: string;
 begin
+  if AName = '' then Exit(False);
   Result := env_lookup(AName, dummy);
 end;
 
@@ -462,81 +480,87 @@ var
   I, L: Integer;
   C: Char;
   Name, Val: string;
+  Builder: TStringBuilder;
 
   procedure AppendResolved(const Key: string);
   begin
     if Assigned(Resolver) and Resolver(Key, Val) then
-      Result := Result + Val
-    else
-      Result := Result + '';
+      Builder.Append(Val);
+    // Note: if resolver fails or returns false, append nothing (empty expansion)
   end;
 begin
-  Result := '';
+  if S = '' then Exit('');
 
-
-  I := 1; L := Length(S);
-  while I <= L do
-  begin
-    C := S[I];
-    if C = '$' then
+  Builder := TStringBuilder.Create(Length(S) * 2); // Pre-allocate with reasonable capacity
+  try
+    I := 1; L := Length(S);
+    while I <= L do
     begin
-      Inc(I);
-      if (I <= L) and (S[I] = '$') then
+      C := S[I];
+      if C = '$' then
       begin
-        Result := Result + '$';
         Inc(I);
-        Continue;
-      end;
-      if (I <= L) and (S[I] = '{') then
-      begin
-        Inc(I); Name := '';
-        while (I <= L) and (S[I] <> '}') do begin Name := Name + S[I]; Inc(I); end;
-        if (I <= L) and (S[I] = '}') then Inc(I);
-        AppendResolved(Name);
-      end
-      else
-      begin
-        Name := '';
-        if (I <= L) and (S[I] in ['A'..'Z','a'..'z','_']) then
+        if (I <= L) and (S[I] = '$') then
         begin
-          while (I <= L) and (S[I] in ['A'..'Z','a'..'z','0'..'9','_']) do
-          begin
-            Name := Name + S[I]; Inc(I);
-          end;
+          Builder.Append('$');
+          Inc(I);
+          Continue;
+        end;
+        if (I <= L) and (S[I] = '{') then
+        begin
+          Inc(I); Name := '';
+          while (I <= L) and (S[I] <> '}') do begin Name := Name + S[I]; Inc(I); end;
+          if (I <= L) and (S[I] = '}') then Inc(I);
           AppendResolved(Name);
         end
         else
-          Result := Result + '$';
-      end;
-    end
-    {$IFDEF WINDOWS}
-    else if C = '%' then
-    begin
-      if (I+1 <= L) and (S[I+1] = '%') then
+        begin
+          Name := '';
+          if (I <= L) and (S[I] in ['A'..'Z','a'..'z','_']) then
+          begin
+            while (I <= L) and (S[I] in ['A'..'Z','a'..'z','0'..'9','_']) do
+            begin
+              Name := Name + S[I]; Inc(I);
+            end;
+            AppendResolved(Name);
+          end
+          else
+            Builder.Append('$');
+        end;
+      end
+      {$IFDEF WINDOWS}
+      else if C = '%' then
       begin
-        Result := Result + '%';
-        Inc(I, 2);
-        Continue;
-      end;
-      // %NAME%
-      Name := '';
-      Inc(I);
-      while (I <= L) and (S[I] <> '%') do begin Name := Name + S[I]; Inc(I); end;
-      if (I <= L) and (S[I] = '%') then
-      begin
+        if (I+1 <= L) and (S[I+1] = '%') then
+        begin
+          Builder.Append('%');
+          Inc(I, 2);
+          Continue;
+        end;
+        // %NAME%
+        Name := '';
         Inc(I);
-        AppendResolved(Name);
-        Continue;
+        while (I <= L) and (S[I] <> '%') do begin Name := Name + S[I]; Inc(I); end;
+        if (I <= L) and (S[I] = '%') then
+        begin
+          Inc(I);
+          AppendResolved(Name);
+          Continue;
+        end;
+        // unmatched: treat literally
+        Builder.Append('%').Append(Name);
+      end
+      {$ENDIF}
+      else
+      begin
+        Builder.Append(C);
+        Inc(I);
       end;
-      // unmatched: treat literally
-      Result := Result + '%' + Name;
-    end
-    {$ENDIF}
-    else
-    begin
-      Result := Result + C;
-      Inc(I);
     end;
+
+    Result := Builder.ToString;
+  finally
+    Builder.Free;
   end;
 end;
 
@@ -560,57 +584,94 @@ end;
 function env_split_paths(const S: string): TStringArray;
 var
   Sep: Char;
-  I, StartIdx: Integer;
+  I, StartIdx, Count, Capacity: Integer;
   Item: string;
+
+  procedure AddItem(const AItem: string);
+  begin
+    if AItem = '' then Exit;
+    if Count >= Capacity then
+    begin
+      if Capacity = 0 then
+        Capacity := 4
+      else
+        Capacity := Capacity * 2;
+      SetLength(Result, Capacity);
+    end;
+    Result[Count] := AItem;
+    Inc(Count);
+  end;
+
 begin
   Result := nil;
+  if S = '' then Exit;
+
   Sep := env_path_list_separator;
-  SetLength(Result, 0);
+  Count := 0;
+  Capacity := 0;
   StartIdx := 1;
+
   for I := 1 to Length(S) do
   begin
     if S[I] = Sep then
     begin
       Item := Copy(S, StartIdx, I - StartIdx);
-      if Item <> '' then
-      begin
-        SetLength(Result, Length(Result)+1);
-        Result[High(Result)] := Item;
-      end;
+      AddItem(Item);
       StartIdx := I + 1;
     end;
   end;
-  // tail
+
+  // Handle tail
   Item := Copy(S, StartIdx, Length(S) - StartIdx + 1);
-  if Item <> '' then
-  begin
-    SetLength(Result, Length(Result)+1);
-    Result[High(Result)] := Item;
-  end;
+  AddItem(Item);
+
+  // Trim to actual size
+  SetLength(Result, Count);
 end;
 
 function env_join_paths_checked(const Paths: array of string; out ErrIndex: Integer): string;
 var
   Sep: Char;
-  I: Integer;
+  I, TotalLen: Integer;
   P: string;
+  Builder: TStringBuilder;
+  FirstItem: Boolean;
 begin
   Sep := env_path_list_separator;
-  Result := '';
   ErrIndex := -1;
+
+  // Pre-calculate approximate capacity
+  TotalLen := 0;
   for I := Low(Paths) to High(Paths) do
-  begin
-    P := Paths[I];
-    if P = '' then Continue;
-    // if a segment contains the separator, fail like Rust's join_paths
-    if Pos(Sep, P) > 0 then
+    if Paths[I] <> '' then
+      Inc(TotalLen, Length(Paths[I]) + 1); // +1 for separator
+
+  if TotalLen = 0 then Exit('');
+
+  Builder := TStringBuilder.Create(TotalLen);
+  try
+    FirstItem := True;
+    for I := Low(Paths) to High(Paths) do
     begin
-      ErrIndex := I;
-      Result := '';
-      Exit;
+      P := Paths[I];
+      if P = '' then Continue;
+
+      // Check if segment contains the separator, fail like Rust's join_paths
+      if Pos(Sep, P) > 0 then
+      begin
+        ErrIndex := I;
+        Exit('');
+      end;
+
+      if not FirstItem then
+        Builder.Append(Sep);
+      Builder.Append(P);
+      FirstItem := False;
     end;
-    if Result <> '' then Result := Result + Sep;
-    Result := Result + P;
+
+    Result := Builder.ToString;
+  finally
+    Builder.Free;
   end;
 end;
 
@@ -790,6 +851,64 @@ begin
   S := env_home_dir; if S <> '' then Exit(S + PathDelim + '.cache');
   {$ENDIF}
   Result := '';
+end;
+
+// Security helpers (2024 best practices)
+function env_is_sensitive_name(const AName: string): Boolean;
+var
+  UpperName: string;
+begin
+  if AName = '' then Exit(False);
+
+  UpperName := UpperCase(AName);
+
+  // Common patterns for sensitive environment variables
+  Result := (Pos('PASSWORD', UpperName) > 0) or
+            (Pos('SECRET', UpperName) > 0) or
+            (Pos('KEY', UpperName) > 0) or
+            (Pos('TOKEN', UpperName) > 0) or
+            (Pos('CREDENTIAL', UpperName) > 0) or
+            (Pos('AUTH', UpperName) > 0) or
+            (Pos('PRIVATE', UpperName) > 0) or
+            (Pos('CERT', UpperName) > 0) or
+            (Pos('SSL', UpperName) > 0) or
+            (Pos('TLS', UpperName) > 0);
+end;
+
+function env_mask_value(const AValue: string): string;
+var
+  Len: Integer;
+begin
+  Len := Length(AValue);
+  if Len = 0 then
+    Exit('');
+  if Len <= 4 then
+    Exit('***')
+  else
+    Exit(Copy(AValue, 1, 2) + StringOfChar('*', Len - 4) + Copy(AValue, Len - 1, 2));
+end;
+
+function env_validate_name(const AName: string): Boolean;
+var
+  I: Integer;
+  C: Char;
+begin
+  if AName = '' then Exit(False);
+
+  // Environment variable names should start with letter or underscore
+  // and contain only letters, digits, and underscores
+  C := AName[1];
+  if not (C in ['A'..'Z', 'a'..'z', '_']) then
+    Exit(False);
+
+  for I := 2 to Length(AName) do
+  begin
+    C := AName[I];
+    if not (C in ['A'..'Z', 'a'..'z', '0'..'9', '_']) then
+      Exit(False);
+  end;
+
+  Result := True;
 end;
 
 end.

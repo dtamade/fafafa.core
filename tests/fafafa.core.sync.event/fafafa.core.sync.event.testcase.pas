@@ -1,0 +1,254 @@
+unit fafafa.core.sync.event.testcase;
+
+{$mode objfpc}{$H+}
+{$CODEPAGE UTF8}
+
+interface
+
+uses
+  Classes, SysUtils, fpcunit, testregistry,
+  fafafa.core.sync.event, fafafa.core.sync.base;
+
+type
+  // 基础功能测试
+  TTestCase_Event_Basic = class(TTestCase)
+  private
+    FEvent: IEvent;
+  protected
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    procedure Test_Create_Default;
+    procedure Test_Create_ManualReset_Initial;
+    procedure Test_Set_Reset;
+    procedure Test_Wait_Immediate;
+    procedure Test_Wait_TimeoutZero;
+    procedure Test_Wait_TimeoutShort;
+    procedure Test_AutoReset_Behavior;
+    procedure Test_ManualReset_Behavior;
+    // ILock 继承方法
+    procedure Test_LockMethods_AutoReset;
+    procedure Test_LockMethods_ManualReset;
+  end;
+
+  // 并发测试
+  TWaitThread = class(TThread)
+  private
+    FEvent: IEvent;
+    FTimeout: Cardinal;
+    FResult: TWaitResult;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(const AEvent: IEvent; ATimeout: Cardinal);
+    property ResultCode: TWaitResult read FResult;
+  end;
+
+  TTestCase_Event_Concurrency = class(TTestCase)
+  published
+    procedure Test_ManualReset_WakesAll;
+    procedure Test_AutoReset_WakesOne;
+  end;
+
+implementation
+
+{ TTestCase_Event_Basic }
+procedure TTestCase_Event_Basic.SetUp;
+begin
+  inherited SetUp;
+  FEvent := MakeEvent(False, False); // 自动重置，初始未信号
+end;
+
+procedure TTestCase_Event_Basic.TearDown;
+begin
+  FEvent := nil;
+  inherited TearDown;
+end;
+
+procedure TTestCase_Event_Basic.Test_Create_Default;
+begin
+  AssertNotNull('CreateEvent should return non-nil', FEvent);
+  AssertFalse('Default event should be non-signaled', FEvent.IsSignaled);
+end;
+
+procedure TTestCase_Event_Basic.Test_Create_ManualReset_Initial;
+var E: IEvent;
+begin
+  E := MakeEvent(True, True);
+  AssertNotNull('MakeEvent(manual,initial) non-nil', E);
+  AssertTrue('ManualReset initial True should be signaled', E.IsSignaled);
+end;
+
+procedure TTestCase_Event_Basic.Test_Set_Reset;
+var r: TWaitResult;
+begin
+  // 对自动重置事件，不使用 IsSignaled（不可非破坏式观察）
+  r := FEvent.WaitFor(0);
+  AssertEquals('Initially should timeout', Ord(wrTimeout), Ord(r));
+  FEvent.SetEvent;
+  r := FEvent.WaitFor(0);
+  AssertEquals('After SetEvent, WaitFor(0) should be signaled', Ord(wrSignaled), Ord(r));
+  // 再次零等待应超时（自动重置已消费）
+  r := FEvent.WaitFor(0);
+  AssertEquals('Auto-reset consumed signal', Ord(wrTimeout), Ord(r));
+end;
+
+procedure TTestCase_Event_Basic.Test_Wait_Immediate;
+var r: TWaitResult;
+begin
+  FEvent.SetEvent;
+  r := FEvent.WaitFor(1000);
+  AssertEquals('Wait on signaled should return wrSignaled', Ord(wrSignaled), Ord(r));
+end;
+
+procedure TTestCase_Event_Basic.Test_Wait_TimeoutZero;
+var r: TWaitResult;
+begin
+  r := FEvent.WaitFor(0);
+  AssertEquals('Zero-timeout should time out', Ord(wrTimeout), Ord(r));
+end;
+
+procedure TTestCase_Event_Basic.Test_Wait_TimeoutShort;
+var r: TWaitResult;
+begin
+  r := FEvent.WaitFor(10);
+  AssertTrue('Short-timeout should be timeout or signaled (both acceptable)', (r = wrTimeout) or (r = wrSignaled));
+end;
+
+procedure TTestCase_Event_Basic.Test_AutoReset_Behavior;
+var r1, r2: TWaitResult;
+begin
+  // 自动重置：一次等待后自动返回未信号
+  FEvent.SetEvent;
+  r1 := FEvent.WaitFor(1000);
+  AssertEquals(Ord(wrSignaled), Ord(r1));
+  // 第二次应当超时（若没有再次 set）
+  r2 := FEvent.WaitFor(0);
+  AssertEquals(Ord(wrTimeout), Ord(r2));
+end;
+
+procedure TTestCase_Event_Basic.Test_ManualReset_Behavior;
+var E: IEvent; r1, r2: TWaitResult;
+begin
+  E := MakeEvent(True, False);
+  E.SetEvent;
+  AssertTrue(E.IsSignaled);
+  r1 := E.WaitFor(1000);
+  AssertEquals(Ord(wrSignaled), Ord(r1));
+  // 手动重置：等待后仍旧保持信号
+  AssertTrue(E.IsSignaled);
+  r2 := E.WaitFor(0);
+  AssertEquals(Ord(wrSignaled), Ord(r2));
+  E.ResetEvent;
+  AssertFalse(E.IsSignaled);
+end;
+
+procedure TTestCase_Event_Basic.Test_LockMethods_AutoReset;
+var r: TWaitResult;
+begin
+  // TryAcquire 先失败
+  AssertFalse('TryAcquire should fail initially', FEvent.TryAcquire);
+  // Set 后 Acquire 应成功返回
+  FEvent.SetEvent;
+  FEvent.Acquire; // 等价 WaitFor(INFINITE)
+  // 自动重置已消费，此时再零等待应超时
+  r := FEvent.WaitFor(0);
+  AssertEquals('Auto-reset consumed after Acquire', Ord(wrTimeout), Ord(r));
+  // Release 为 no-op，不改变状态
+  FEvent.Release;
+  r := FEvent.WaitFor(0);
+  AssertEquals('Release is no-op', Ord(wrTimeout), Ord(r));
+end;
+
+procedure TTestCase_Event_Basic.Test_LockMethods_ManualReset;
+var E: IEvent; r: TWaitResult;
+begin
+  E := MakeEvent(True, False);
+  AssertFalse('TryAcquire should fail initially', E.TryAcquire);
+  E.SetEvent;
+  AssertTrue('TryAcquire should succeed after SetEvent', E.TryAcquire);
+  E.Acquire;
+  // 手动重置仍保持信号
+  r := E.WaitFor(0);
+  AssertEquals('ManualReset remains signaled after Acquire', Ord(wrSignaled), Ord(r));
+  E.Release; // no-op
+  r := E.WaitFor(0);
+  AssertEquals('Release is no-op (still signaled)', Ord(wrSignaled), Ord(r));
+  // 恢复未信号
+  E.ResetEvent;
+  r := E.WaitFor(0);
+  AssertEquals('After ResetEvent, zero-timeout should timeout', Ord(wrTimeout), Ord(r));
+end;
+
+{ TWaitThread }
+constructor TWaitThread.Create(const AEvent: IEvent; ATimeout: Cardinal);
+begin
+  inherited Create(True);
+  FreeOnTerminate := False;
+  FEvent := AEvent;
+  FTimeout := ATimeout;
+  Start;
+end;
+
+procedure TWaitThread.Execute;
+begin
+  if FEvent <> nil then
+    FResult := FEvent.WaitFor(FTimeout)
+  else
+    FResult := wrError;
+end;
+
+{ TTestCase_Event_Concurrency }
+procedure TTestCase_Event_Concurrency.Test_ManualReset_WakesAll;
+const N = 4;
+var
+  E: IEvent;
+  i: Integer;
+  threads: array[0..N-1] of TWaitThread;
+begin
+  E := MakeEvent(True, False); // 手动重置
+  for i := 0 to N-1 do
+    threads[i] := TWaitThread.Create(E, 2000);
+  // 让线程进入等待
+  Sleep(50);
+  // 触发
+  E.SetEvent;
+  // 等待并断言全部唤醒
+  for i := 0 to N-1 do
+  begin
+    threads[i].WaitFor;
+    AssertEquals(Format('Thread %d should be signaled', [i]), Ord(wrSignaled), Ord(threads[i].ResultCode));
+    threads[i].Free;
+  end;
+  // 重置后应超时
+  E.ResetEvent;
+  AssertEquals(Ord(wrTimeout), Ord(E.WaitFor(0)));
+end;
+
+procedure TTestCase_Event_Concurrency.Test_AutoReset_WakesOne;
+var
+  E: IEvent;
+  T1, T2: TWaitThread;
+  w1, w2: TWaitResult;
+begin
+  E := MakeEvent(False, False); // 自动重置
+  T1 := TWaitThread.Create(E, 1000);
+  T2 := TWaitThread.Create(E, 1000);
+  Sleep(50);
+  E.SetEvent;
+  T1.WaitFor;
+  w1 := T1.ResultCode;
+  T2.WaitFor;
+  w2 := T2.ResultCode;
+  // 应当有且仅有一个被唤醒
+  AssertTrue('One should be signaled', (w1 = wrSignaled) or (w2 = wrSignaled));
+  AssertTrue('One should timeout', (w1 = wrTimeout) or (w2 = wrTimeout));
+  T1.Free; T2.Free;
+end;
+
+initialization
+  RegisterTest(TTestCase_Event_Basic);
+  RegisterTest(TTestCase_Event_Concurrency);
+
+end.
+

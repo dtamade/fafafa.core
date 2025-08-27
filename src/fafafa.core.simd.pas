@@ -37,6 +37,18 @@ type
   // 搜索
   TBytesIndexOfFunc  = function(hay: Pointer; len: SizeUInt; ned: Pointer; nlen: SizeUInt): PtrInt;
 
+  // === 新增 SIMD 接口类型 ===
+
+  // 内存操作
+  TMemCopyProc       = procedure(dest, src: Pointer; len: SizeUInt);
+  TMemSetProc        = procedure(dest: Pointer; value: Byte; len: SizeUInt);
+  TMemReverseProc    = procedure(p: Pointer; len: SizeUInt);
+
+  // 数值计算
+  TSumBytesFunc      = function(p: Pointer; len: SizeUInt): QWord;
+  TMinMaxBytesProc   = procedure(p: Pointer; len: SizeUInt; out minVal, maxVal: Byte);
+  TCountByteFunc     = function(p: Pointer; len: SizeUInt; value: Byte): SizeUInt;
+
 // 对外函数变量（初始化时绑定到最佳实现；无 SIMD 时为标量）
 var
   MemEqual:      TMemEqualFunc;
@@ -52,6 +64,18 @@ var
 
   // 搜索
   BytesIndexOf:  TBytesIndexOfFunc;
+
+  // === 新增 SIMD 接口变量 ===
+
+  // 内存操作
+  MemCopy:       TMemCopyProc;
+  MemSet:        TMemSetProc;
+  MemReverse:    TMemReverseProc;
+
+  // 数值计算
+  SumBytes:      TSumBytesFunc;
+  MinMaxBytes:   TMinMaxBytesProc;
+  CountByte:     TCountByteFunc;
 
 // 运行时信息与控制
 function SimdInfo: string;
@@ -96,6 +120,18 @@ begin
   BitsetPopCount := @BitsetPopCount_Scalar;
 
   BytesIndexOf  := @BytesIndexOf_Scalar;
+
+  // === 新增 SIMD 接口绑定 ===
+
+  // 内存操作
+  MemCopy       := @MemCopy_Scalar;
+  MemSet        := @MemSet_Scalar;
+  MemReverse    := @MemReverse_Scalar;
+
+  // 数值计算
+  SumBytes      := @SumBytes_Scalar;
+  MinMaxBytes   := @MinMaxBytes_Scalar;
+  CountByte     := @CountByte_Scalar;
 end;
 
 procedure BindBestAvailable;
@@ -128,11 +164,40 @@ begin
 
   // x86_64: 为确保稳定，先全局绑定 SCALAR；专项测试中通过环境/接口强制 SSE2/AVX2
   {$IFDEF CPUX86_64}
+  // 检查并绑定 POPCNT 指令（独立于 SIMD profile）
+  if HasPopcnt then
+  begin
+    BitsetPopCount := @BitsetPopCount_Popcnt;
+  end;
+
   // 按 Profile 渐进恢复绑定（先恢复 MemFindByte_SSE2）
   if (Pos('X86_64-SSE2', profile) = 1) then
   begin
     MemFindByte  := @MemFindByte_SSE2;
-    BytesIndexOf := @BytesIndexOf_SSE2;
+    // 暂时禁用 BytesIndexOf_SSE2，因为它调用 MemEqual_SSE2 有访问违例
+    // BytesIndexOf := @BytesIndexOf_SSE2;
+
+    // 绑定新的 SIMD 接口
+    MemCopy      := @MemCopy_SSE2;
+    MemSet       := @MemSet_SSE2;
+    MemReverse   := @MemReverse_SSE2;
+    SumBytes     := @SumBytes_SSE2;
+    MinMaxBytes  := @MinMaxBytes_SSE2;
+    CountByte    := @CountByte_SSE2;
+  end
+  else if (Pos('X86_64-AVX2', profile) = 1) then
+  begin
+    MemFindByte  := @MemFindByte_AVX2;
+    // 暂时禁用 BytesIndexOf_AVX2，因为它调用 MemEqual_SSE2 有访问违例
+    // BytesIndexOf := @BytesIndexOf_AVX2;
+
+    // 绑定新的 SIMD 接口（AVX2 版本）
+    MemCopy      := @MemCopy_AVX2;
+    MemSet       := @MemSet_AVX2;
+    MemReverse   := @MemReverse_SSE2; // 暂时使用 SSE2 版本
+    SumBytes     := @SumBytes_AVX2;
+    MinMaxBytes  := @MinMaxBytes_SSE2; // 暂时使用 SSE2 版本
+    CountByte    := @CountByte_SSE2;   // 暂时使用 SSE2 版本
   end;
   {$ENDIF}
 

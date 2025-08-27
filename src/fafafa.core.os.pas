@@ -124,6 +124,7 @@ var
     linkbuf: array[0..4095] of Char;
     L: ssize_t;
     {$ENDIF}
+    sizeDarwin: Cardinal;
   {$ENDIF}
   tmp: string;
 begin
@@ -144,13 +145,13 @@ begin
   {$ELSE}
   {$IFDEF DARWIN}
   // Try _NSGetExecutablePath
-  var size: Cardinal = 0;
+  sizeDarwin := 0;
   // First call to get required size
-  if _NSGetExecutablePath(nil, size) <> 0 then
+  if _NSGetExecutablePath(nil, sizeDarwin) <> 0 then
   begin
     // allocate buffer dynamically
-    SetLength(tmp, size);
-    if _NSGetExecutablePath(PAnsiChar(@tmp[1]), size) = 0 then
+    SetLength(tmp, sizeDarwin);
+    if _NSGetExecutablePath(PAnsiChar(@tmp[1]), sizeDarwin) = 0 then
       Result := string(tmp)
     else
       Result := '';
@@ -177,7 +178,6 @@ begin
   {$ENDIF}
   {$ENDIF}
 {$ENDIF}
-  {$ENDIF}
 
 end;
 

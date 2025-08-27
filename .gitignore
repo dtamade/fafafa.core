@@ -21,3 +21,6 @@ release
 tests/*/backup/
 tests/fafafa.core.csv/tmp/
 tests/fafafa.core.csv/*.csv
+tests/fafafa.core.collections/fafafa.core.collections.vec/bin
+tests/fafafa.core.mem.pool.fixedSlab/build/
+tests/lib/x86_64-linux/

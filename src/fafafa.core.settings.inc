@@ -11,6 +11,9 @@
 { Result: method-style API is macro-gated; default OFF }
 {.$DEFINE FAFAFA_CORE_RESULT_METHODS}
 
+{ Environment module Result-style API support; default ON for consistency with tests }
+{$DEFINE FAFAFA_ENV_ENABLE_RESULT}
+
 
 {$DEFINE FAFAFA_COLOR_ENABLE_LOWL_HUE_SNAPPING}
 
@@ -316,3 +319,7 @@
 { 使用 SRWLOCK 优化读写锁（写锁非递归），默认关闭以避免影响现有行为 }
 {.$DEFINE FAFAFA_SYNC_USE_SRWLOCK}
 
+{ Unix 平台支持 CLOCK_MONOTONIC 定时等待（避免系统时间跳变影响） }
+{$IFDEF UNIX}
+  {$DEFINE HAS_CLOCK_GETTIME}
+{$ENDIF}

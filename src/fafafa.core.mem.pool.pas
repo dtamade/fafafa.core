@@ -43,10 +43,8 @@ begin
   Result := TFixedSlabPool.Create(ACapacity);
 end;
 
-end.
 
 
 
-implementation
 
 end.

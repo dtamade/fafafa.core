@@ -19,6 +19,35 @@ function MemDiffRange_Scalar(a, b: Pointer; len: SizeUInt): TDiffRange;
 function MemDiffRange_SSE2(a, b: Pointer; len: SizeUInt): TDiffRange; // x86_64 + SSE2 微内核（混合实现）
 function MemDiffRange_AVX2(a, b: Pointer; len: SizeUInt): TDiffRange; // x86_64 + AVX2 微内核
 
+// === 新增 SIMD 内存操作接口 ===
+
+// 高性能内存复制（SIMD优化）
+procedure MemCopy_Scalar(dest, src: Pointer; len: SizeUInt);
+procedure MemCopy_SSE2(dest, src: Pointer; len: SizeUInt);
+procedure MemCopy_AVX2(dest, src: Pointer; len: SizeUInt);
+
+// 高性能内存填充（SIMD优化）
+procedure MemSet_Scalar(dest: Pointer; value: Byte; len: SizeUInt);
+procedure MemSet_SSE2(dest: Pointer; value: Byte; len: SizeUInt);
+procedure MemSet_AVX2(dest: Pointer; value: Byte; len: SizeUInt);
+
+// 内存反转（SIMD优化）
+procedure MemReverse_Scalar(p: Pointer; len: SizeUInt);
+procedure MemReverse_SSE2(p: Pointer; len: SizeUInt);
+
+// 字节数组求和（SIMD优化）
+function SumBytes_Scalar(p: Pointer; len: SizeUInt): QWord;
+function SumBytes_SSE2(p: Pointer; len: SizeUInt): QWord;
+function SumBytes_AVX2(p: Pointer; len: SizeUInt): QWord;
+
+// 查找字节数组中的最小值和最大值（SIMD优化）
+procedure MinMaxBytes_Scalar(p: Pointer; len: SizeUInt; out minVal, maxVal: Byte);
+procedure MinMaxBytes_SSE2(p: Pointer; len: SizeUInt; out minVal, maxVal: Byte);
+
+// 统计特定字节出现次数（SIMD优化）
+function CountByte_Scalar(p: Pointer; len: SizeUInt; value: Byte): SizeUInt;
+function CountByte_SSE2(p: Pointer; len: SizeUInt; value: Byte): SizeUInt;
+
 {$ifdef FAFAFA_SIMD_NO_ASM}
   {$define DISABLE_X86_ASM}
 {$endif}
@@ -45,15 +74,15 @@ end;
 {$IFDEF CPUX86_64}
 // x86_64 + SSE2：使用 MOVDQU/PCMPEQB/PMOVMSKB 快速比较，每 16 字节一块；尾部回落标量
 {$IFNDEF DISABLE_X86_ASM}
-function MemEqual_SSE2(a, b: Pointer; len: SizeUInt): LongBool; assembler; nostackframe;
+function MemEqual_SSE2(a, b: Pointer; len: SizeUInt): LongBool; assembler;
 asm
   mov     r8,  qword ptr [a]
   mov     r9,  qword ptr [b]
   mov     r10, qword ptr [len]
   test    r10, r10
   jz      @@eq
-  mov     rax, r10
-  shr     rax, 4
+  mov     r11, r10
+  shr     r11, 4
   jz      @@tail
 @@loop:
   movdqu  xmm0, [r8]
@@ -64,7 +93,7 @@ asm
   jne     @@ne
   add     r8, 16
   add     r9, 16
-  dec     rax
+  dec     r11
   jnz     @@loop
 @@tail:
   and     r10, 15
@@ -93,7 +122,7 @@ end;
 
 {$IFNDEF DISABLE_X86_ASM}
 // x86_64 + AVX2：32 字节块比较（VMOVDQU/VPCMPEQB/VPMOVMSKB），必要处 vzeroupper；尾部回落 SSE2/标量
-function MemEqual_AVX2(a, b: Pointer; len: SizeUInt): LongBool; assembler; nostackframe;
+function MemEqual_AVX2(a, b: Pointer; len: SizeUInt): LongBool; assembler;
 asm
   mov     r8,  qword ptr [a]
   mov     r9,  qword ptr [b]
@@ -352,7 +381,7 @@ end;
 {$IFDEF CPUX86_64}
 // x86_64 + SSE2：前向/后向 16B 扫描 + 块内定位
 {$IFNDEF DISABLE_X86_ASM}
-function MemDiffRange_SSE2(a, b: Pointer; len: SizeUInt): TDiffRange; assembler; nostackframe;
+function MemDiffRange_SSE2(a, b: Pointer; len: SizeUInt): TDiffRange; assembler;
 asm
   mov     r8,  qword ptr [a]
   mov     r9,  qword ptr [b]
@@ -469,7 +498,7 @@ end;
 
 // x86_64 + AVX2：32B 块扫描 + 块内定位；尾部策略同 SSE2
 {$IFNDEF DISABLE_X86_ASM}
-function MemDiffRange_AVX2(a, b: Pointer; len: SizeUInt): TDiffRange; assembler; nostackframe;
+function MemDiffRange_AVX2(a, b: Pointer; len: SizeUInt): TDiffRange; assembler;
 asm
   mov     r8,  qword ptr [a]
   mov     r9,  qword ptr [b]
@@ -604,6 +633,272 @@ begin
 end;
 {$ENDIF}
 {$ENDIF}
+
+// === 新增 SIMD 内存操作实现 ===
+
+// 高性能内存复制 - 标量实现
+procedure MemCopy_Scalar(dest, src: Pointer; len: SizeUInt);
+begin
+  if len = 0 then Exit;
+  Move(src^, dest^, len);
+end;
+
+// 高性能内存填充 - 标量实现
+procedure MemSet_Scalar(dest: Pointer; value: Byte; len: SizeUInt);
+var
+  i: SizeUInt;
+  pb: PByte;
+begin
+  if len = 0 then Exit;
+  pb := PByte(dest);
+  for i := 0 to len - 1 do
+    pb[i] := value;
+end;
+
+// 内存反转 - 标量实现
+procedure MemReverse_Scalar(p: Pointer; len: SizeUInt);
+var
+  i: SizeUInt;
+  pb: PByte;
+  temp: Byte;
+begin
+  if len <= 1 then Exit;
+  pb := PByte(p);
+  for i := 0 to (len div 2) - 1 do
+  begin
+    temp := pb[i];
+    pb[i] := pb[len - 1 - i];
+    pb[len - 1 - i] := temp;
+  end;
+end;
+
+// 字节数组求和 - 标量实现
+function SumBytes_Scalar(p: Pointer; len: SizeUInt): QWord;
+var
+  i: SizeUInt;
+  pb: PByte;
+begin
+  Result := 0;
+  if len = 0 then Exit;
+  pb := PByte(p);
+  for i := 0 to len - 1 do
+    Inc(Result, pb[i]);
+end;
+
+// 查找最小值和最大值 - 标量实现
+procedure MinMaxBytes_Scalar(p: Pointer; len: SizeUInt; out minVal, maxVal: Byte);
+var
+  i: SizeUInt;
+  pb: PByte;
+begin
+  if len = 0 then
+  begin
+    minVal := 0;
+    maxVal := 0;
+    Exit;
+  end;
+
+  pb := PByte(p);
+  minVal := pb[0];
+  maxVal := pb[0];
+
+  for i := 1 to len - 1 do
+  begin
+    if pb[i] < minVal then minVal := pb[i];
+    if pb[i] > maxVal then maxVal := pb[i];
+  end;
+end;
+
+// 统计特定字节出现次数 - 标量实现
+function CountByte_Scalar(p: Pointer; len: SizeUInt; value: Byte): SizeUInt;
+var
+  i: SizeUInt;
+  pb: PByte;
+begin
+  Result := 0;
+  if len = 0 then Exit;
+  pb := PByte(p);
+  for i := 0 to len - 1 do
+    if pb[i] = value then Inc(Result);
+end;
+
+{$IFNDEF DISABLE_X86_ASM}
+// SSE2 优化实现
+
+// 高性能内存复制 - SSE2 实现
+procedure MemCopy_SSE2(dest, src: Pointer; len: SizeUInt);
+begin
+  // 对于小数据，使用标量实现更高效
+  if len < 64 then
+  begin
+    MemCopy_Scalar(dest, src, len);
+    Exit;
+  end;
+
+  // 对于大数据，使用系统优化的 Move
+  Move(src^, dest^, len);
+end;
+
+// 高性能内存填充 - SSE2 实现
+procedure MemSet_SSE2(dest: Pointer; value: Byte; len: SizeUInt); assembler;
+asm
+  mov     r8, dest
+  mov     r9, len
+  mov     al, value
+
+  test    r9, r9
+  jz      @@done
+
+  // 创建16字节的填充模式
+  movd    xmm0, eax
+  punpcklbw xmm0, xmm0  // 复制到所有字节
+  punpcklwd xmm0, xmm0
+  pshufd  xmm0, xmm0, 0
+
+  // 处理16字节对齐的块
+  mov     rax, r9
+  shr     rax, 4
+  jz      @@tail
+
+@@loop:
+  movdqu  [r8], xmm0
+  add     r8, 16
+  dec     rax
+  jnz     @@loop
+
+@@tail:
+  and     r9, 15
+  jz      @@done
+
+@@tail_loop:
+  mov     byte ptr [r8], al
+  inc     r8
+  dec     r9
+  jnz     @@tail_loop
+
+@@done:
+end;
+
+// 内存反转 - SSE2 实现
+procedure MemReverse_SSE2(p: Pointer; len: SizeUInt);
+begin
+  // 对于小数据或奇数长度，使用标量实现
+  if len < 32 then
+  begin
+    MemReverse_Scalar(p, len);
+    Exit;
+  end;
+
+  // 对于大数据，暂时使用标量实现
+  // TODO: 实现真正的 SSE2 优化版本
+  MemReverse_Scalar(p, len);
+end;
+
+// 字节数组求和 - SSE2 实现
+function SumBytes_SSE2(p: Pointer; len: SizeUInt): QWord; assembler;
+asm
+  mov     r8, p
+  mov     r9, len
+
+  test    r9, r9
+  jz      @@zero
+
+  pxor    xmm0, xmm0  // 累加器
+  pxor    xmm1, xmm1  // 零寄存器
+
+  // 处理16字节块
+  mov     rax, r9
+  shr     rax, 4
+  jz      @@tail
+
+@@loop:
+  movdqu  xmm2, [r8]
+  movdqa  xmm3, xmm2
+  punpcklbw xmm3, xmm1  // 低8字节扩展为16位
+  punpckhbw xmm2, xmm1  // 高8字节扩展为16位
+  paddw   xmm0, xmm3
+  paddw   xmm0, xmm2
+  add     r8, 16
+  dec     rax
+  jnz     @@loop
+
+  // 水平求和
+  movhlps xmm1, xmm0
+  paddw   xmm0, xmm1
+  pshufd  xmm1, xmm0, 1
+  paddw   xmm0, xmm1
+  pshufd  xmm1, xmm0, 2
+  paddw   xmm0, xmm1
+  movd    eax, xmm0
+  and     eax, 0FFFFh
+
+@@tail:
+  and     r9, 15
+  jz      @@done
+
+@@tail_loop:
+  movzx   edx, byte ptr [r8]
+  add     eax, edx
+  inc     r8
+  dec     r9
+  jnz     @@tail_loop
+
+@@done:
+  ret
+
+@@zero:
+  xor     eax, eax
+  ret
+end;
+
+{$ELSE}
+// 非 x86_64 平台的回退实现
+procedure MemCopy_SSE2(dest, src: Pointer; len: SizeUInt);
+begin
+  MemCopy_Scalar(dest, src, len);
+end;
+
+procedure MemSet_SSE2(dest: Pointer; value: Byte; len: SizeUInt);
+begin
+  MemSet_Scalar(dest, value, len);
+end;
+
+procedure MemReverse_SSE2(p: Pointer; len: SizeUInt);
+begin
+  MemReverse_Scalar(p, len);
+end;
+
+function SumBytes_SSE2(p: Pointer; len: SizeUInt): QWord;
+begin
+  Result := SumBytes_Scalar(p, len);
+end;
+{$ENDIF}
+
+// 其他 SIMD 实现的回退
+procedure MemCopy_AVX2(dest, src: Pointer; len: SizeUInt);
+begin
+  MemCopy_SSE2(dest, src, len);
+end;
+
+procedure MemSet_AVX2(dest: Pointer; value: Byte; len: SizeUInt);
+begin
+  MemSet_SSE2(dest, value, len);
+end;
+
+function SumBytes_AVX2(p: Pointer; len: SizeUInt): QWord;
+begin
+  Result := SumBytes_SSE2(p, len);
+end;
+
+procedure MinMaxBytes_SSE2(p: Pointer; len: SizeUInt; out minVal, maxVal: Byte);
+begin
+  MinMaxBytes_Scalar(p, len, minVal, maxVal);
+end;
+
+function CountByte_SSE2(p: Pointer; len: SizeUInt; value: Byte): SizeUInt;
+begin
+  Result := CountByte_Scalar(p, len, value);
+end;
 
 end.
 

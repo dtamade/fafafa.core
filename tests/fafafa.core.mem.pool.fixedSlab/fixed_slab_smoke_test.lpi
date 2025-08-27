@@ -22,8 +22,8 @@
             <Filename Value="build/tests/fixed_slab_smoke_test"/>
           </Target>
           <SearchPaths>
-            <IncludeFiles Value="src"/>
-            <OtherUnitFiles Value="src"/>
+            <IncludeFiles Value="..\..\src"/>
+            <OtherUnitFiles Value="..\..\src"/>
             <UnitOutputDirectory Value="build/units"/>
           </SearchPaths>
           <Parsing>
@@ -33,7 +33,7 @@
           <CodeGeneration>
             <SmartLinkUnit Value="True"/>
             <TargetCPU Value="x86_64"/>
-            <TargetOS Value="win64"/>
+            <TargetOS Value="linux"/>
           </CodeGeneration>
           <Linking>
             <Debugging>
@@ -87,7 +87,7 @@
     </RunParams>
     <Units Count="1">
       <Unit0>
-        <Filename Value="tests/fafafa.core.mem.pool.fixedSlab/fixed_slab_smoke_test.pas"/>
+        <Filename Value="fixed_slab_smoke_test.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit0>
     </Units>
@@ -99,8 +99,8 @@
       <Filename Value="build/tests/fixed_slab_smoke_test"/>
     </Target>
     <SearchPaths>
-      <IncludeFiles Value="src"/>
-      <OtherUnitFiles Value="src"/>
+      <IncludeFiles Value="..\..\src"/>
+      <OtherUnitFiles Value="..\..\src"/>
       <UnitOutputDirectory Value="build/units"/>
     </SearchPaths>
     <Parsing>

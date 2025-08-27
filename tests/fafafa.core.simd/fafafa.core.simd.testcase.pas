@@ -32,6 +32,18 @@ type
 
     // Search
     procedure Test_BytesIndexOf_Basic_And_Edges;
+
+    // === 新增 SIMD 接口测试 ===
+
+    // 内存操作
+    procedure Test_MemCopy_Basic;
+    procedure Test_MemSet_Basic;
+    procedure Test_MemReverse_Basic;
+
+    // 数值计算
+    procedure Test_SumBytes_Basic;
+    procedure Test_MinMaxBytes_Basic;
+    procedure Test_CountByte_Basic;
   end;
 
 implementation
@@ -191,6 +203,123 @@ begin
   // needle 长于 hay => -1
   idx := BytesIndexOf(@hay[0], Length(hay), @hay[0], Length(hay)+1);
   AssertTrue('nlen>len => -1', idx = -1);
+end;
+
+// === 新增 SIMD 接口测试实现 ===
+
+procedure TTestCase_Global.Test_MemCopy_Basic;
+var
+  src, dest: array[0..15] of Byte;
+  i: Integer;
+begin
+  // 初始化源数据
+  for i := 0 to 15 do
+    src[i] := i;
+
+  // 清空目标数据
+  FillChar(dest, SizeOf(dest), 0);
+
+  // 测试复制
+  MemCopy(@dest[0], @src[0], 16);
+
+  // 验证结果
+  for i := 0 to 15 do
+    AssertEquals('MemCopy byte ' + IntToStr(i), src[i], dest[i]);
+end;
+
+procedure TTestCase_Global.Test_MemSet_Basic;
+var
+  data: array[0..15] of Byte;
+  i: Integer;
+begin
+  // 测试填充
+  MemSet(@data[0], $AA, 16);
+
+  // 验证结果
+  for i := 0 to 15 do
+    AssertEquals('MemSet byte ' + IntToStr(i), $AA, data[i]);
+
+  // 测试零长度
+  MemSet(@data[0], $BB, 0);
+  AssertEquals('MemSet zero length should not change', $AA, data[0]);
+end;
+
+procedure TTestCase_Global.Test_MemReverse_Basic;
+var
+  data: array[0..7] of Byte;
+  i: Integer;
+begin
+  // 初始化数据
+  for i := 0 to 7 do
+    data[i] := i;
+
+  // 测试反转
+  MemReverse(@data[0], 8);
+
+  // 验证结果
+  for i := 0 to 7 do
+    AssertEquals('MemReverse byte ' + IntToStr(i), 7 - i, data[i]);
+end;
+
+procedure TTestCase_Global.Test_SumBytes_Basic;
+var
+  data: array[0..3] of Byte;
+  sum: QWord;
+begin
+  // 测试数据：1, 2, 3, 4
+  data[0] := 1;
+  data[1] := 2;
+  data[2] := 3;
+  data[3] := 4;
+
+  sum := SumBytes(@data[0], 4);
+  AssertEquals('SumBytes 1+2+3+4', QWord(10), sum);
+
+  // 测试零长度
+  sum := SumBytes(@data[0], 0);
+  AssertEquals('SumBytes zero length', QWord(0), sum);
+end;
+
+procedure TTestCase_Global.Test_MinMaxBytes_Basic;
+var
+  data: array[0..4] of Byte;
+  minVal, maxVal: Byte;
+begin
+  // 测试数据：5, 1, 9, 3, 7
+  data[0] := 5;
+  data[1] := 1;
+  data[2] := 9;
+  data[3] := 3;
+  data[4] := 7;
+
+  MinMaxBytes(@data[0], 5, minVal, maxVal);
+  AssertEquals('MinMaxBytes min', 1, minVal);
+  AssertEquals('MinMaxBytes max', 9, maxVal);
+
+  // 测试单个元素
+  MinMaxBytes(@data[0], 1, minVal, maxVal);
+  AssertEquals('MinMaxBytes single min', 5, minVal);
+  AssertEquals('MinMaxBytes single max', 5, maxVal);
+end;
+
+procedure TTestCase_Global.Test_CountByte_Basic;
+var
+  data: array[0..7] of Byte;
+  count: SizeUInt;
+begin
+  // 测试数据：1, 2, 1, 3, 1, 4, 1, 5
+  data[0] := 1; data[1] := 2; data[2] := 1; data[3] := 3;
+  data[4] := 1; data[5] := 4; data[6] := 1; data[7] := 5;
+
+  count := CountByte(@data[0], 8, 1);
+  AssertEquals('CountByte count of 1', SizeUInt(4), count);
+
+  count := CountByte(@data[0], 8, 9);
+  AssertEquals('CountByte count of 9 (not found)', SizeUInt(0), count);
+
+  // 测试零长度
+  count := CountByte(@data[0], 0, 1);
+  AssertEquals('CountByte zero length', SizeUInt(0), count);
 end;
 
 initialization

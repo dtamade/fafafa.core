@@ -1,53 +1,153 @@
-# fafafa.core.simd 规格说明（定稿）
+# fafafa.core.simd 模块文档
 
-目的
-- 在 FPC 缺少稳定 SIMD 内建支持的现实下，以“手写汇编微内核 + 运行时派发 + 标量回退”的方式，为常见热点提供可选加速。
-- 不改变调用方 API 语义；任何平台/构建环境下均可运行；有 SIMD 则自动用更快实现。
+## 概述
 
-设计原则
-- 接口稳定、低耦合：对外只暴露语义清晰的函数；不暴露 ISA 细节。
-- 运行时派发：初始化时根据 CPU/OS 能力选择最优实现；支持环境/宏强制降级。
-- 平滑回退：标量实现永远可用；汇编不可用/检测失败时自动回退。
-- 小而精：优先覆盖高 ROI 原语（mem/text/bitset/hash 的核心路径）。
-- 命名统一：全部指令集名称使用全大写（SSE2/AVX2/NEON/AVX-512/SVE）。
+`fafafa.core.simd` 是一个高性能、跨平台的 SIMD 优化模块，为 FreePascal 应用程序提供内存、文本、位集和搜索操作的硬件加速。
 
-目录结构（建议）
-- src/
-  - fafafa.core.simd.pas（门面：类型/函数指针/派发/Info）
-  - fafafa.core.simd.detect.pas（能力检测：CPUID/OSXSAVE/XGETBV/NEON 等）
-  - fafafa.core.simd.mem.pas（内存与字节原语：标量实现 + SSE2 内核）
-  - fafafa.core.simd.text.pas（文本原语：标量实现 + SSE2 快路径）
-  - fafafa.core.simd.bitset.pas（位集原语：标量实现 + POPCNT 快路径）
-- simd/
-  - x86_64/*.S（SSE2/AVX2 微内核，可选）
-  - aarch64/*.S（NEON 微内核，可选）
+### 设计目标
 
-指令集清单（全大写）
-- x86/x64：MMX, SSE, SSE2, SSE3, SSSE3, SSE4.1, SSE4.2, POPCNT, LZCNT, AESNI, PCLMULQDQ, SHA, AVX, AVX2, FMA,
-  BMI1, BMI2, AVX-512F, AVX-512VL, AVX-512BW, AVX-512DQ, AVX-512VPOPCNTDQ, AVX-512VAES, AVX-512VPCLMULQDQ,
-  AVX-512VBMI, AVX-512VBMI2, GFNI 等。
-- AArch64：NEON(ASIMD), CRC32(ARMv8.1-CRC), AES, PMULL, SHA1, SHA2, DOTPROD, SVE, SVE2。
+- **性能优化**：在 FPC 缺少稳定 SIMD 内建支持的现实下，以“手写汇编微内核 + 运行时派发 + 标量回退”的方式，为常见热点提供可选加速
+- **API 兼容性**：不改变调用方 API 语义；任何平台/构建环境下均可运行；有 SIMD 则自动用更快实现
+- **跨平台支持**：支持 x86_64 (SSE2/AVX2) 和 AArch64 (NEON) 架构
 
-能力等级（抽象层）
-- LEVEL_0 = SCALAR（无 SIMD）
-- LEVEL_1 = SSE2 或 NEON（基线）
-- LEVEL_2 = AVX2 或 NEON+CRC/AES（增强）
-- LEVEL_3 = AVX-512 或 SVE/SVE2（可选高端）
+### 设计原则
 
-对外 API（首批）
-- Mem
-  - function MemEqual(a, b: Pointer; len: SizeUInt): LongBool;
-  - function MemFindByte(p: Pointer; len: SizeUInt; value: Byte): PtrInt; // -1 未找到
-  - function MemDiffRange(a, b: Pointer; len: SizeUInt): TDiffRange;      // First/Last 索引，-1/-1 表示完全相同
-- Text
-  - function Utf8Validate(p: Pointer; len: SizeUInt): LongBool; // 门面在 x86_64 下绑定 FastPath（ASCII SSE2 + 非 ASCII 回退标量）
-  - procedure ToLowerAscii(p: Pointer; len: SizeUInt);
-  - procedure ToUpperAscii(p: Pointer; len: SizeUInt);
-- Bitset
-  - function BitsetPopCount(p: Pointer; bitLen: SizeUInt): SizeUInt; // x86_64 若 HasPopcnt 则绑定 POPCNT 快路径
-  - procedure BitsetAnd(dst, a, b: Pointer; bitLen: SizeUInt); // Or/Xor/Not 同理（后续增补）
+- **接口稳定、低耦合**：对外只暴露语义清晰的函数；不暴露 ISA 细节
+- **运行时派发**：初始化时根据 CPU/OS 能力选择最优实现；支持环境/宏强制降级
+- **平滑回退**：标量实现永远可用；汇编不可用/检测失败时自动回退
+- **小而精**：优先覆盖高 ROI 原语（mem/text/bitset/search 的核心路径）
+- **命名统一**：全部指令集名称使用全大写（SSE2/AVX2/NEON/AVX-512/SVE）
 
-运行时派发与回退
+## 架构设计
+
+### 模块结构
+
+```
+src/
+├── fafafa.core.simd.pas           # 主模块：类型定义、函数指针、运行时派发
+├── fafafa.core.simd.detect.pas    # 能力检测：CPUID/OSXSAVE/XGETBV/NEON 等
+├── fafafa.core.simd.types.pas     # 类型定义和常量
+├── fafafa.core.simd.mem.pas       # 内存操作：MemEqual/MemFindByte/MemDiffRange
+├── fafafa.core.simd.text.pas      # 文本操作：UTF-8 验证、ASCII 大小写转换
+├── fafafa.core.simd.bitset.pas    # 位集操作：PopCount 等
+├── fafafa.core.simd.search.pas    # 搜索操作：BytesIndexOf
+├── fafafa.core.simd.api.pas       # 高级 API 封装
+└── fafafa.core.simd.neon.pas      # NEON 实现占位符（规划中）
+```
+
+### 支持的指令集
+
+#### x86_64 架构
+- **当前支持**：SSE2, AVX2, POPCNT
+- **规划支持**：AVX-512F, AVX-512VL, AVX-512BW
+
+#### AArch64 架构
+- **当前支持**：NEON (占位符阶段)
+- **规划支持**：CRC32, AES, PMULL, SVE
+
+### 性能等级
+
+| 等级 | x86_64 | AArch64 | 描述 |
+|------|--------|---------|------|
+| LEVEL_0 | SCALAR | SCALAR | 无 SIMD，纯标量实现 |
+| LEVEL_1 | SSE2 | NEON | 基线 SIMD 支持 |
+| LEVEL_2 | AVX2 | NEON+CRC/AES | 增强 SIMD 支持 |
+| LEVEL_3 | AVX-512 | SVE/SVE2 | 高端 SIMD 支持（规划中） |
+
+## API 参考
+
+### 内存操作 (Memory Operations)
+
+#### MemEqual
+```pascal
+function MemEqual(a, b: Pointer; len: SizeUInt): LongBool;
+```
+**功能**：比较两个内存区域是否相等
+**参数**：
+- `a`, `b`: 要比较的内存区域指针
+- `len`: 比较的字节数
+
+**返回值**：相等返回 `True`，否则返回 `False`
+**优化**：x86_64 使用 SSE2/AVX2，AArch64 使用 NEON
+
+#### MemFindByte
+```pascal
+function MemFindByte(p: Pointer; len: SizeUInt; value: Byte): PtrInt;
+```
+**功能**：在内存区域中查找指定字节的首次出现位置
+**参数**：
+- `p`: 搜索的内存区域指针
+- `len`: 搜索的字节数
+- `value`: 要查找的字节值
+
+**返回值**：找到返回位置索引（0-based），未找到返回 -1
+**优化**：x86_64 使用 SSE2/AVX2，AArch64 使用 NEON
+
+#### MemDiffRange
+```pascal
+function MemDiffRange(a, b: Pointer; len: SizeUInt): TDiffRange;
+```
+**功能**：找出两个内存区域的差异范围
+**参数**：
+- `a`, `b`: 要比较的内存区域指针
+- `len`: 比较的字节数
+
+**返回值**：`TDiffRange` 记录，包含 `First` 和 `Last` 字段
+- 完全相同时：`First = -1, Last = -1`
+- 有差异时：`First` 为首个差异位置，`Last` 为最后差异位置
+
+**优化**：x86_64 使用 SSE2/AVX2，AArch64 使用 NEON
+
+### 文本操作 (Text Operations)
+
+#### Utf8Validate
+```pascal
+function Utf8Validate(p: Pointer; len: SizeUInt): LongBool;
+```
+**功能**：验证内存区域是否为有效的 UTF-8 编码
+**参数**：
+- `p`: 要验证的内存区域指针
+- `len`: 验证的字节数
+
+**返回值**：有效 UTF-8 返回 `True`，否则返回 `False`
+**优化**：x86_64 使用 SSE2 ASCII 快路径 + 标量回退，AArch64 使用 NEON ASCII 快路径
+
+#### ToLowerAscii
+```pascal
+procedure ToLowerAscii(p: Pointer; len: SizeUInt);
+```
+**功能**：将 ASCII 字符转换为小写（就地修改）
+**参数**：
+- `p`: 要转换的内存区域指针
+- `len`: 转换的字节数
+
+**说明**：只转换 ASCII 字母 A-Z，非 ASCII 字节保持不变
+**优化**：x86_64 使用 SSE2/AVX2，AArch64 使用 NEON
+
+#### ToUpperAscii
+```pascal
+procedure ToUpperAscii(p: Pointer; len: SizeUInt);
+```
+**功能**：将 ASCII 字符转换为大写（就地修改）
+**参数**：
+- `p`: 要转换的内存区域指针
+- `len`: 转换的字节数
+
+**说明**：只转换 ASCII 字母 a-z，非 ASCII 字节保持不变
+**优化**：x86_64 使用 SSE2/AVX2，AArch64 使用 NEON
+
+#### AsciiIEqual
+```pascal
+function AsciiIEqual(a, b: Pointer; len: SizeUInt): LongBool;
+```
+**功能**：ASCII 字符串忽略大小写比较
+**参数**：
+- `a`, `b`: 要比较的内存区域指针
+- `len`: 比较的字节数
+
+**返回值**：忽略大小写相等返回 `True`，否则返回 `False`
+**说明**：只对 ASCII 字母进行大小写转换，非 ASCII 字节直接比较
+**优化**：x86_64 使用 SSE2/AVX2，AArch64 使用 NEON
 - 初始化阶段：
   - 检测 CPU/OS 能力（x86：CPUID + OSXSAVE + XGETBV；ARM64：特征寄存器/操作系统导出），决定可用 ISA 集。
   - 为每个原语选择最佳实现，绑定函数指针。

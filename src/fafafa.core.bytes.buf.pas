@@ -212,9 +212,15 @@ begin
   // 仅 owner 且视图对齐时允许扩容
   if (FOffset <> 0) or (FLen <> Length(FBuf)) then
     raise EOutOfRange.Create('Cannot grow non-root view');
-  // 简单增长策略 *1.5
-  if need < Length(FBuf) + (Length(FBuf) shr 1) then
-    need := Length(FBuf) + (Length(FBuf) shr 1);
+  // 优化增长策略：与 TBytesBuilder 保持一致
+  if Length(FBuf) < 64 then
+    need := Length(FBuf) * 2  // 小容量时翻倍
+  else if Length(FBuf) < 1024 then
+    need := Length(FBuf) + (Length(FBuf) shr 1)  // 中等容量时 1.5x
+  else
+    need := Length(FBuf) + (Length(FBuf) shr 2);  // 大容量时 1.25x
+
+  // 确保满足最小需求
   if need < FW + N then
     need := FW + N;
   SetLength(FBuf, need);

@@ -73,6 +73,7 @@ var
   base: PByte;
   needMiddleCheck: Boolean;
   midStart: SizeUInt;
+  baseIdx: SizeUInt;
 begin
   if nlen = 0 then Exit(0);
   if (len = 0) or (nlen > len) then Exit(-1);
@@ -91,7 +92,14 @@ begin
     rel := MemFindByte_SSE2(@h[searchPos], len - searchPos, last);
     if rel < 0 then Exit(-1);
     i := searchPos + SizeUInt(rel); // 候选匹配的“尾”位置
-    base := @h[i - (nlen-1)];
+
+    // 安全边界检查：确保 base 指向有效的起始位置
+    if i < nlen - 1 then
+    begin
+      searchPos := i + 1; Continue;
+    end;
+    baseIdx := i - (nlen - 1);
+    base := @h[baseIdx];
 
     // 快速预检查：首/尾 16B（当长度足够）
     if nlen >= 16 then
@@ -124,7 +132,7 @@ begin
 
     // 最终完整比较（去除已比较的块可减少长度，但为清晰保持一次 CompareByte）
     if CompareByte(base^, n^, nlen) = 0 then
-      Exit(PtrInt(i - (nlen-1)));
+      Exit(PtrInt(baseIdx));
 
     // 下一次从 i+1 的尾部继续
     searchPos := i + 1;
@@ -142,6 +150,7 @@ var
   base: PByte;
   needMid32: Boolean;
   midStart32: SizeUInt;
+  baseIdx: SizeUInt;
 begin
   if nlen = 0 then Exit(0);
   if (len = 0) or (nlen > len) then Exit(-1);
@@ -156,7 +165,14 @@ begin
     rel := MemFindByte_AVX2(@h[searchPos], len - searchPos, last);
     if rel < 0 then Exit(-1);
     i := searchPos + SizeUInt(rel);
-    base := @h[i - (nlen-1)];
+
+    // 安全边界检查：确保 base 指向有效的起始位置
+    if i < nlen - 1 then
+    begin
+      searchPos := i + 1; Continue;
+    end;
+    baseIdx := i - (nlen - 1);
+    base := @h[baseIdx];
 
     // AVX2 快速预检查：优先 32B，其次 16B
     if nlen >= 32 then
@@ -197,7 +213,7 @@ begin
     end;
 
     if CompareByte(base^, n^, nlen) = 0 then
-      Exit(PtrInt(i - (nlen-1)));
+      Exit(PtrInt(baseIdx));
 
     searchPos := i + 1;
 
@@ -215,6 +231,7 @@ var
   i: SizeUInt;
   base: PByte;
   needMid16: Boolean;
+  baseIdx: SizeUInt;
 begin
   if nlen = 0 then Exit(0);
   if (len = 0) or (nlen > len) then Exit(-1);
@@ -226,7 +243,14 @@ begin
     rel := MemFindByte_NEON(@h[searchPos], len - searchPos, last);
     if rel < 0 then Exit(-1);
     i := searchPos + SizeUInt(rel);
-    base := @h[i - (nlen-1)];
+
+    // 安全边界检查：确保 base 指向有效的起始位置
+    if i < nlen - 1 then
+    begin
+      searchPos := i + 1; Continue;
+    end;
+    baseIdx := i - (nlen - 1);
+    base := @h[baseIdx];
 
     // 预检查：首/尾 16B（当长度足够）
     if nlen >= 16 then
@@ -257,7 +281,7 @@ begin
 
     // 最终完整比较
     if CompareByte(base^, n^, nlen) = 0 then
-      Exit(PtrInt(i - (nlen-1)));
+      Exit(PtrInt(baseIdx));
 
     searchPos := i + 1;
   end;

@@ -58,3 +58,24 @@
 ### 后续建议
 - 整理 Windows 宽字符路径与隐式字符串转换警告（保持 UTF-8/Unicode 一致性）。
 - 跨平台回归：在 Linux/macOS 上运行同组测试，观察 os_timezone/os_os_version_detailed 软断言表现。
+
+
+## 本轮审阅更新（2025-08-27）
+- 在线调研（MCP）：对标 Rust std::env/std::process、Go os/filepath、Java System/Files；确认 Windows 时区 StandardName→IANA 的行业映射策略为“最佳努力”，Unix 以 TZ 和 /etc/localtime 为主。
+- 现状评审：模块接口面完整，Windows/Unix 平台实现较全，具备缓存策略与并发保护；tests/examples/docs 结构符合仓库规范。
+- 发现问题：源码中存在“内联变量/for var”写法（例如 unix.inc 的 os_lookupenv/os_os_version_detailed 等），与项目“不得编写内联变量”的规范冲突；在旧版 FPC 上可能编译失败。
+- 验证受限：当前工作环境未预装 lazbuild/fpc，无法即时本地构建（命令返回未找到）。保留“安全回退”策略：先提交规范化改动，再由 CI/本地带工具链环境验证。
+
+### 计划与影响评估
+- 拟进行代码规范化重构（不改 API/语义）：
+  - 去除所有“for var i := …”、“var x := …”与块内晚声明，统一搬至函数头部 var 区；必要时做平台条件化声明。
+  - 修正 macOS 分支 os_exe_path 内部的临时变量声明（改为函数 var 段），避免非标准位置声明。
+- 影响面：仅语法层与声明位置调整；不改变返回值与错误回退逻辑；风险低。
+- 回归策略：
+  - Windows/Linux/macOS 各平台运行 tests/fafafa.core.os/ 现有用例（软断言为主）。
+  - 对时区/版本探测路径做抽样人工核对。
+
+### 下一步
+1) 代码规范化（unix.inc 为主，必要时覆盖 windows.inc 与主单元）
+2) 在未安装 lazbuild 的环境补充 Bash 构建脚本说明（已存在 examples 的 fallback，用于 tests 目录复用）
+3) 补充一条 os_lookupenv 行为边界用例（区分未定义 vs 定义为空）

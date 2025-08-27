@@ -8,7 +8,7 @@
 
 ```
 # fafafa.core.mem.slabPool v2.0 (nginx页面合并版本)
-
+# 此单元已经废弃
 ## Abstract 摘要
 
 Simplified nginx-inspired slab allocator with page-based memory management.

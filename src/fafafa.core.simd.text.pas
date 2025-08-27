@@ -76,7 +76,7 @@ begin
 end;
 
 {$IFDEF CPUX86_64}
-function Utf8Validate_SSE2(p: Pointer; len: SizeUInt): LongBool; assembler; nostackframe;
+function Utf8Validate_SSE2(p: Pointer; len: SizeUInt): LongBool; assembler;
 asm
   // r8 = p, r9 = len
   mov     r8,  qword ptr [p]
@@ -129,7 +129,7 @@ end;
 
 {$IFDEF CPUX86_64}
 // SSE2：ASCII 忽略大小写比较（16B 块 + 尾部）
-function AsciiEqualIgnoreCase_SSE2(a, b: Pointer; len: SizeUInt): LongBool; assembler; nostackframe;
+function AsciiEqualIgnoreCase_SSE2(a, b: Pointer; len: SizeUInt): LongBool; assembler;
 asm
   // r8=a, r9=b, r10=len
   mov     r8,  qword ptr [a]
@@ -227,7 +227,7 @@ end;
 
 {$IFDEF CPUX86_64}
 // AVX2：ASCII 忽略大小写比较（32B 块）
-function AsciiEqualIgnoreCase_AVX2(a, b: Pointer; len: SizeUInt): LongBool; assembler; nostackframe;
+function AsciiEqualIgnoreCase_AVX2(a, b: Pointer; len: SizeUInt): LongBool; assembler;
 asm
   mov     r8,  qword ptr [a]
   mov     r9,  qword ptr [b]
@@ -369,6 +369,7 @@ var
   i: SizeUInt;
   pb: PByte;
 begin
+  if len = 0 then Exit;
   pb := PByte(p);
   for i := 0 to len-1 do
   begin
@@ -382,6 +383,7 @@ function AsciiEqualIgnoreCase_Scalar(a, b: Pointer; len: SizeUInt): LongBool;
 var
   i: SizeUInt; pa, pb: PByte; xa, xb: Byte;
 begin
+  if len = 0 then Exit(True);
   pa := PByte(a); pb := PByte(b);
   for i:=0 to len-1 do
   begin
@@ -400,10 +402,8 @@ var
   i: SizeUInt;
   pb: PByte;
 begin
+  if len = 0 then Exit;
   pb := PByte(p);
-
-
-
   for i := 0 to len-1 do
   begin
     if (pb[i] >= Ord('a')) and (pb[i] <= Ord('z')) then

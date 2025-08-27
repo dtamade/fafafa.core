@@ -75,6 +75,18 @@ type
     {$ENDIF}
     procedure Test_env_join_paths_with_relative_and_dots_roundtrip;
 
+    // Additional edge case tests for improved coverage
+    procedure Test_env_functions_with_empty_names;
+    procedure Test_env_vars_with_nil_destination;
+    procedure Test_env_expand_with_nil_resolver;
+    procedure Test_env_expand_with_very_long_string;
+    procedure Test_env_split_paths_with_empty_string;
+
+    // Security helper tests
+    procedure Test_env_is_sensitive_name;
+    procedure Test_env_mask_value;
+    procedure Test_env_validate_name;
+
   end;
 
 implementation
@@ -600,6 +612,118 @@ begin
 end;
 {$ENDIF}
 
+// Additional edge case tests for improved coverage
+procedure TTestCase_Global.Test_env_functions_with_empty_names;
+var result_str: string; result_bool: Boolean;
+begin
+  // Test that functions handle empty names gracefully
+  result_str := env_get('');
+  AssertEquals('', result_str);
+
+  result_str := env_get_or('', 'default');
+  AssertEquals('default', result_str);
+
+  result_bool := env_set('', 'value');
+  AssertFalse(result_bool);
+
+  result_bool := env_unset('');
+  AssertFalse(result_bool);
+
+  result_bool := env_has('');
+  AssertFalse(result_bool);
+end;
+
+procedure TTestCase_Global.Test_env_vars_with_nil_destination;
+begin
+  // Test that env_vars handles nil destination gracefully
+  env_vars(nil); // Should not crash
+  AssertTrue(True); // If we get here, the test passed
+end;
+
+procedure TTestCase_Global.Test_env_expand_with_nil_resolver;
+var s: string;
+begin
+  // Test that env_expand_with handles nil resolver gracefully
+  s := env_expand_with('$HOME', nil);
+  // Should return empty expansion for all variables
+  AssertEquals('', s);
+end;
+
+procedure TTestCase_Global.Test_env_expand_with_very_long_string;
+var s, input: string; i: Integer;
+begin
+  // Test performance with a very long string
+  input := '';
+  for i := 1 to 1000 do
+    input := input + 'text';
+
+  s := env_expand(input);
+  AssertEquals(input, s); // Should return unchanged since no variables
+end;
+
+procedure TTestCase_Global.Test_env_split_paths_with_empty_string;
+var arr: TStringArray;
+begin
+  // Test that env_split_paths handles empty string gracefully
+  arr := env_split_paths('');
+  AssertEquals(0, Length(arr));
+end;
+
+// Security helper tests
+procedure TTestCase_Global.Test_env_is_sensitive_name;
+begin
+  // Test sensitive name detection
+  AssertTrue(env_is_sensitive_name('PASSWORD'));
+  AssertTrue(env_is_sensitive_name('API_KEY'));
+  AssertTrue(env_is_sensitive_name('SECRET_TOKEN'));
+  AssertTrue(env_is_sensitive_name('DB_PASSWORD'));
+  AssertTrue(env_is_sensitive_name('PRIVATE_KEY'));
+  AssertTrue(env_is_sensitive_name('SSL_CERT'));
+  AssertTrue(env_is_sensitive_name('AUTH_TOKEN'));
+
+  // Test non-sensitive names
+  AssertFalse(env_is_sensitive_name('PATH'));
+  AssertFalse(env_is_sensitive_name('HOME'));
+  AssertFalse(env_is_sensitive_name('USER'));
+  AssertFalse(env_is_sensitive_name('TEMP'));
+  AssertFalse(env_is_sensitive_name(''));
+end;
+
+procedure TTestCase_Global.Test_env_mask_value;
+var masked: string;
+begin
+  // Test value masking
+  masked := env_mask_value('');
+  AssertEquals('', masked);
+
+  masked := env_mask_value('abc');
+  AssertEquals('***', masked);
+
+  masked := env_mask_value('abcd');
+  AssertEquals('***', masked);
+
+  masked := env_mask_value('abcde');
+  AssertEquals('ab*de', masked);
+
+  masked := env_mask_value('secret123456');
+  AssertEquals('se******56', masked);
+end;
+
+procedure TTestCase_Global.Test_env_validate_name;
+begin
+  // Test valid names
+  AssertTrue(env_validate_name('PATH'));
+  AssertTrue(env_validate_name('_PRIVATE'));
+  AssertTrue(env_validate_name('VAR123'));
+  AssertTrue(env_validate_name('MY_VAR_NAME'));
+
+  // Test invalid names
+  AssertFalse(env_validate_name(''));
+  AssertFalse(env_validate_name('123VAR')); // starts with digit
+  AssertFalse(env_validate_name('VAR-NAME')); // contains hyphen
+  AssertFalse(env_validate_name('VAR.NAME')); // contains dot
+  AssertFalse(env_validate_name('VAR NAME')); // contains space
+end;
 
 
 initialization

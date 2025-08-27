@@ -136,6 +136,10 @@ type
     procedure AppendString(const S: RawByteString);
     // 严格：S 必须是偶数且只包含 [0-9a-fA-F]
     procedure AppendHex(const S: string);
+    // 高性能批量填充
+    procedure AppendFill(Value: Byte; Count: SizeInt);
+    // 高性能批量复制（重复模式）
+    procedure AppendRepeat(const Pattern: TBytes; Times: SizeInt);
 
     // extraction / borrowing
     function ToBytes: TBytes;                 // copy
@@ -223,11 +227,11 @@ begin
   ok := TryHexToBytesStrict(S, tmp);
   if not ok then
   begin
-    // 区分两类错误：奇数长度 -> EInvalidArgument；非法字符 -> EConvertError
+    // 区分两类错误：奇数长度 -> EInvalidArgument；非法字符 -> EInvalidArgument（统一异常类型）
     if (Length(S) and 1) <> 0 then
       raise EInvalidArgument.Create('Hex string must have even length')
     else
-      raise EConvertError.Create('Invalid hex digit');
+      raise EInvalidArgument.Create('Invalid hex digit');
   end;
   Result := tmp;
 end;
@@ -638,11 +642,18 @@ begin
   if (need < FLen) or (need < 0) then raise EOverflow.Create('length overflow');
   if AMinAdd <= cap - FLen then Exit;
 
-  // grow by ~1.5x
-  if cap < 16 then newcap := 32 else newcap := cap + (cap shr 1);
-  // guard and ensure enough
-  if (newcap < cap) or (newcap < need) then newcap := need;
-  if (newcap < need) then raise EOverflow.Create('capacity overflow');
+  // 优化增长策略：小容量时快速增长，大容量时保守增长
+  if cap < 64 then
+    newcap := cap * 2  // 小容量时翻倍
+  else if cap < 1024 then
+    newcap := cap + (cap shr 1)  // 中等容量时 1.5x
+  else
+    newcap := cap + (cap shr 2);  // 大容量时 1.25x，减少内存浪费
+
+  // 确保满足最小需求
+  if newcap < need then newcap := need;
+  // 溢出检查
+  if (newcap < cap) or (newcap < need) then raise EOverflow.Create('capacity overflow');
 
   SetLength(FBuf, newcap);
 end;
@@ -788,7 +799,7 @@ begin
   Inc(FLen, n);
 end;
 
-procedure TBytesBuilder.AppendByte(Value: Byte);
+procedure TBytesBuilder.AppendByte(Value: Byte); {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
 begin
   Grow(1);
   FBuf[FLen] := Value;
@@ -954,6 +965,35 @@ begin
     Inc(i);
   end;
   Inc(FLen, count);
+end;
+
+procedure TBytesBuilder.AppendFill(Value: Byte; Count: SizeInt);
+begin
+  if Count < 0 then raise EInvalidArgument.Create('negative count');
+  if Count = 0 then Exit;
+  Grow(Count);
+  FillChar(FBuf[FLen], Count, Value);
+  Inc(FLen, Count);
+end;
+
+procedure TBytesBuilder.AppendRepeat(const Pattern: TBytes; Times: SizeInt);
+var i, patLen, totalLen: SizeInt;
+begin
+  if Times < 0 then raise EInvalidArgument.Create('negative times');
+  patLen := Length(Pattern);
+  if (Times = 0) or (patLen = 0) then Exit;
+
+  totalLen := patLen * Times;
+  // 检查溢出
+  if (Times > 0) and (totalLen div Times <> patLen) then
+    raise EOverflow.Create('repeat size overflow');
+
+  Grow(totalLen);
+  for i := 0 to Times - 1 do
+  begin
+    Move(Pattern[0], FBuf[FLen + i * patLen], patLen);
+  end;
+  Inc(FLen, totalLen);
 end;
 
 function TBytesBuilder.ToBytes: TBytes;

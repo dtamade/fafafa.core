@@ -1,16 +1,18 @@
-# fafafa.core.bytes — 通用字节序列工具（v0）
+# fafafa.core.bytes — 通用字节序列工具（v0.1）
 
 目标
 - Hex 编解码（严格/宽松）
 - 基础切片/拼接/清零
 - 端序读写（LE/BE，u16/u32/u64）
 - TBytesBuilder（累加器，近似 Go bytes.Buffer / 简化 ByteBuf）
+- 高性能批量操作
 
 设计要点
 - 接口优先，异常统一到 fafafa.core.base（EInvalidArgument/EOutOfRange）
 - 不依赖 crypto 子系统；与平台无关
 - 零分配优先：读操作不分配；写操作尽量原位，越界抛错
 - 统一类型：TBytes 由 fafafa.core.base 统一定义并全仓复用
+- 优化内存增长策略：小容量快速增长，大容量保守增长
 
 主要 API
 - Hex
@@ -23,12 +25,18 @@
   - BytesZero(var A)
 - 端序读写（越界抛 EOutOfRange）
   - Read/Write U16/U32/U64 的 LE/BE 变体
-- TBytesBuilder（Init/Append/AppendByte/AppendUxx/AppendHex/ToBytes/EnsureCapacity）
+- TBytesBuilder（Init/Append/AppendByte/AppendUxx/AppendHex/AppendFill/AppendRepeat/ToBytes/EnsureCapacity）
 
 竞品参考
 - Rust bytes/BytesMut：Buf/BufMut trait 的端序读写与按需扩容
 - Go bytes.Buffer：简单累加器模型
 - Java ByteBuffer/Netty ByteBuf：读写索引 + 丰富端序 API（v1 可考虑演进）
+
+性能优化（v0.1）
+- 优化内存增长策略：小容量（<64）翻倍增长，中等容量（64-1024）1.5x增长，大容量（>1024）1.25x增长
+- 统一异常处理：所有错误使用框架统一的异常类型（EInvalidArgument/EOutOfRange）
+- 新增高性能批量操作：AppendFill（填充）、AppendRepeat（重复模式）
+- 关键路径内联优化：AppendByte等高频方法支持内联
 
 已知限制
 - 未提供 readerIndex/writeIndex 零拷贝视图（后续 v1）

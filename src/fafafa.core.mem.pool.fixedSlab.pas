@@ -66,7 +66,10 @@ type
     destructor Destroy; override;
 
     function Acquire(out AUnit: Pointer): Boolean;
+    function TryAcquire(out AUnit: Pointer): Boolean; inline;
+    function AcquireN(out AUnits: array of Pointer; aCount: Integer): Integer; inline;
     procedure Release(AUnit: Pointer);
+    procedure ReleaseN(const AUnits: array of Pointer; aCount: Integer); inline;
     procedure Reset;
 
     function GetCapacity: SizeUInt;
@@ -993,9 +996,33 @@ begin
   Result := AUnit <> nil;
 end;
 
+function TFixedSlabPool.TryAcquire(out AUnit: Pointer): Boolean;
+begin
+  Result := Acquire(AUnit);
+end;
+
+function TFixedSlabPool.AcquireN(out AUnits: array of Pointer; aCount: Integer): Integer;
+var i: Integer; p: Pointer;
+begin
+  Result := 0;
+  for i := 0 to aCount-1 do begin
+    p := GetMem(SizeOf(Pointer));
+    if p = nil then Exit;
+    AUnits[i] := p;
+    Inc(Result);
+  end;
+end;
+
 procedure TFixedSlabPool.Release(AUnit: Pointer);
 begin
   FreeMem(AUnit);
+end;
+
+procedure TFixedSlabPool.ReleaseN(const AUnits: array of Pointer; aCount: Integer);
+var i: Integer;
+begin
+  for i := 0 to aCount-1 do
+    FreeMem(AUnits[i]);
 end;
 
 function TFixedSlabPool.ChunkSizeOf(APtr: Pointer): SizeUInt;

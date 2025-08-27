@@ -34,7 +34,7 @@ function GetMimallocAllocator: IAllocator;
 implementation
 
 uses
-  fafafa.core.sync;
+  syncobjs;
 
 {$IFDEF FAFAFA_CORE_MIMALLOC_STATIC}
   {$LINKLIB mimalloc}
@@ -59,7 +59,7 @@ uses
     _mi_calloc: function(aCount, aSize: SizeUInt): Pointer; cdecl = nil;
     _mi_realloc: function(aPtr: Pointer; aNewSize: SizeUInt): Pointer; cdecl = nil;
     _mi_free: procedure(aPtr: Pointer); cdecl = nil;
-    GLoadLock: ILock;
+    GLoadLock: TCriticalSection;
 
   function TryLoadMimallocLibrary: TLibHandle;
   var
@@ -82,10 +82,9 @@ uses
   function EnsureMimallocLoaded: Boolean;
   var
     LLib: TLibHandle;
-    LAuto: TAutoLock;
   begin
     if _miLoaded then Exit(True);
-    LAuto := TAutoLock.Create(GLoadLock);
+    GLoadLock.Acquire;
     try
       if _miLoaded then Exit(True);
       // try load
@@ -104,7 +103,7 @@ uses
       end;
       Result := _miLoaded;
     finally
-      LAuto.Free;
+      GLoadLock.Release;
     end;
   end;
 {$ENDIF}
@@ -112,7 +111,7 @@ uses
 var
   _MimallocAllocatorObj: TAllocator = nil;
   _MimallocAllocatorIntf: IAllocator = nil;
-  GAllocatorLock: ILock;
+  GAllocatorLock: TCriticalSection;
 
 function TMimallocAllocator.DoGetMem(aSize: SizeUInt): Pointer;
 begin
@@ -158,7 +157,7 @@ function GetMimallocAllocator: IAllocator;
 begin
   if _MimallocAllocatorObj = nil then
   begin
-    with TAutoLock.Create(GAllocatorLock) do
+    GAllocatorLock.Acquire;
     try
       if _MimallocAllocatorObj = nil then
       begin
@@ -166,7 +165,7 @@ begin
         _MimallocAllocatorIntf := _MimallocAllocatorObj as IAllocator; // anchor lifetime
       end;
     finally
-      Free;
+      GAllocatorLock.Release;
     end;
   end;
   Result := _MimallocAllocatorIntf;
@@ -183,9 +182,11 @@ begin
 end;
 
 initialization
-  GLoadLock := TMutex.Create;
-  GAllocatorLock := TMutex.Create;
+  GLoadLock := TCriticalSection.Create;
+  GAllocatorLock := TCriticalSection.Create;
 finalization
+  FreeAndNil(GAllocatorLock);
+  FreeAndNil(GLoadLock);
   _MimallocAllocatorIntf := nil;
   _MimallocAllocatorObj := nil;
   {$IFNDEF FAFAFA_CORE_MIMALLOC_STATIC}

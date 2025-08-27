@@ -8,6 +8,7 @@ uses
   fpcunit, testregistry, consoletestrunner,
   fafafa.core.simd.testcase,
   fafafa.core.simd.search.testcase,
+  fafafa.core.simd.search.edge.testcase,
   fafafa.core.simd.text.testcase,
   fafafa.core.simd.bit.testcase,
   fafafa.core.simd.memfindbyte.testcase;

@@ -31,12 +31,12 @@ function TryGetRtlAllocator(out A: IAllocator): Boolean;
 implementation
 
 uses
-  fafafa.core.sync;
+  syncobjs;
 
 var
   _RTLAllocatorObj: TAllocator = nil;
   _RTLAllocatorIntf: IAllocator = nil;
-  GRtlAllocLock: ILock;
+  GRtlAllocLock: TCriticalSection;
 
 function TRtlAllocator.DoGetMem(aSize: SizeUInt): Pointer;
 begin
@@ -74,7 +74,7 @@ function GetRtlAllocator: IAllocator;
 begin
   if _RTLAllocatorObj = nil then
   begin
-    with TAutoLock.Create(GRtlAllocLock) do
+    GRtlAllocLock.Acquire;
     try
       if _RTLAllocatorObj = nil then
       begin
@@ -82,7 +82,7 @@ begin
         _RTLAllocatorIntf := _RTLAllocatorObj as IAllocator; // anchor lifetime via interface
       end;
     finally
-      Free;
+      GRtlAllocLock.Release;
     end;
   end;
   Result := _RTLAllocatorIntf;
@@ -100,8 +100,9 @@ begin
 end;
 
 initialization
-  GRtlAllocLock := TMutex.Create;
+  GRtlAllocLock := TCriticalSection.Create;
 finalization
+  FreeAndNil(GRtlAllocLock);
   _RTLAllocatorIntf := nil; // release anchor; object will be freed by interface refcount
   _RTLAllocatorObj := nil;
 

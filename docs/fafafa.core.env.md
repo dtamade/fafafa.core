@@ -31,6 +31,11 @@
 - function env_user_config_dir: string;
 - function env_user_cache_dir: string;
 
+### 安全辅助函数（新增）
+- function env_is_sensitive_name(const AName: string): Boolean; // 检查环境变量名是否可能包含敏感信息
+- function env_mask_value(const AValue: string): string; // 为日志记录屏蔽敏感值
+- function env_validate_name(const AName: string): Boolean; // 验证环境变量名格式
+
 
 ### Result 风格 API（新增）
 为便于与 Rust/Go 语义对齐，新增 Result 风格包装函数（原 C 风格 API 保持不变）：
@@ -87,6 +92,8 @@ end;
 - 不抛异常，遵循模块通用“C 风格”约定：失败返回空或 False。
 
 ## 用例示例
+
+### 基本使用
 ```pascal
 var s: string; arr: TStringArray; cfg: string;
 begin
@@ -94,6 +101,34 @@ begin
   s := env_expand('HOME=$HOME, HELLO=${HELLO}');
   arr := env_split_paths(env_get('PATH'));
   cfg := env_user_config_dir;
+end;
+```
+
+### 安全使用示例
+```pascal
+var
+  envName, envValue, logValue: string;
+  isSensitive: Boolean;
+begin
+  envName := 'API_SECRET';
+
+  // 检查环境变量名是否敏感
+  isSensitive := env_is_sensitive_name(envName);
+
+  // 验证环境变量名格式
+  if not env_validate_name(envName) then
+    raise Exception.Create('Invalid environment variable name');
+
+  // 安全地记录日志
+  if env_has(envName) then
+  begin
+    envValue := env_get(envName);
+    if isSensitive then
+      logValue := env_mask_value(envValue)
+    else
+      logValue := envValue;
+    WriteLn('Environment variable ', envName, ' = ', logValue);
+  end;
 end;
 ```
 
@@ -161,11 +196,27 @@ AssertEquals('a' + env_path_list_separator + 'b', env_join_paths(['a','','b']));
 
 
 ## 最佳实践
+
+### 基本使用原则
 - 库代码避免修改全局环境变量，优先在进程构建时指定环境：
   - 使用 `fafafa.core.process` 的 `Env/SetEnv/UnsetEnv/ClearEnv/InheritEnv` 管理子进程环境。
 - 测试中修改环境需回滚：
   - 推荐使用 `env_override` 守卫；批量修改使用 `env_overrides`，显式取消使用 `env_override_unset`。
   - 避免跨测试共享环境污染，始终在 try/finally 中调用 Done 回滚。
+
+### 安全最佳实践（2024）
+- **避免敏感信息**：不要在环境变量中存储密码、API密钥、私钥等敏感信息
+  - 优先使用专门的密钥管理系统（如 HashiCorp Vault、AWS Secrets Manager）
+  - 如必须使用环境变量，确保运行环境的安全性和访问控制
+- **输入验证**：对从环境变量读取的值进行验证和清理
+  - 验证格式、长度和字符集
+  - 防止注入攻击（特别是在构建命令行或SQL时）
+- **最小权限原则**：只暴露必要的环境变量给子进程
+  - 使用 `fafafa.core.process` 的 `ClearEnv()` 清空继承的环境
+  - 显式设置需要的环境变量
+- **日志安全**：避免在日志中记录敏感的环境变量值
+  - 使用 `env_has()` 检查存在性而不是 `env_get()` 获取值
+  - 记录日志时对敏感值进行脱敏处理
 
 ## 与 fafafa.core.os 的关系
 - env_* 作为更聚焦的“环境”门面；os_* 提供更广泛的系统信息能力。

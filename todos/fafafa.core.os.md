@@ -23,3 +23,12 @@
 - [ ] 环境变量快照/差异与合并工具
 - [ ] 与 process 模块的更紧密集成（继承/覆盖 env 策略）
 
+
+
+## 本轮审阅补充（2025-08-27）
+- 规范化任务：去除所有内联变量/for var 写法，统一至函数 var 段（不改 API/行为）。
+- 构建限制：当前环境无 lazbuild/fpc；建议在具备工具链的环境进行一次 Linux/macOS 回归。
+- 测试补充计划：
+  - [ ] os_lookupenv 边界：未定义 vs 定义为空（Windows/Unix 各 1 条）
+  - [ ] os_exe_path macOS 分支最小用例（_NSGetExecutablePath 回退路径）
+- 里程碑：完成规范化后，标记 report/fafafa.core.os.md 并附构建/运行日志。

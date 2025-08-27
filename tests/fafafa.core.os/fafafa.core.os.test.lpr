@@ -5,6 +5,7 @@ program tests_os;
 {$I ../../src/fafafa.core.settings.inc}
 
 uses
+  {$IFDEF UNIX} cthreads, {$ENDIF}
   {$IFDEF WINDOWS} Windows, {$ENDIF}
   Classes, SysUtils, fpcunit, testregistry, testreport, consoletestrunner,
   fafafa.core.os,

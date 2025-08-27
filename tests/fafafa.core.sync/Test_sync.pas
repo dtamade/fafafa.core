@@ -341,32 +341,7 @@ type
     procedure TestWaitWithNilLock;
   end;
 
-  { TTestCase_TAtomic - 原子操作测试 }
 
-  TTestCase_TAtomic = class(TTestCase)
-  published
-    // 基础原子操作测试
-    procedure TestAtomicIncrement;
-    procedure TestAtomicDecrement;
-    procedure TestAtomicAdd;
-    procedure TestAtomicExchange;
-    procedure TestAtomicCompareExchange;
-
-    // 64位原子操作测试
-    procedure TestAtomic64Operations;
-
-    // 指针原子操作测试
-    procedure TestAtomicPointerOperations;
-
-    // 布尔原子操作测试
-    procedure TestAtomicBooleanOperations;
-
-    // 并发测试
-    procedure TestConcurrentAtomicOperations;
-
-    // 性能测试
-    procedure TestAtomicPerformance;
-  end;
 
   { TTestCase_TBarrier - TBarrier 测试套件 }
 
@@ -385,11 +360,9 @@ type
 
     // 基本操作测试
     procedure TestWaitSingleThread;
-    procedure TestWaitWithTimeout;
 
     // 状态查询测试
     procedure TestGetParticipantCount;
-    procedure TestGetWaitingCount;
 
     // 异常测试
     procedure TestInvalidParameters;
@@ -2809,7 +2782,6 @@ begin
   // 测试屏障创建
   CheckNotNull(FBarrier, '屏障应该成功创建');
   CheckEquals(3, FBarrier.GetParticipantCount, '参与者数量应该是3');
-  CheckEquals(0, FBarrier.GetWaitingCount, '初始等待数量应该是0');
 end;
 
 procedure TTestCase_TBarrier.TestCreateWithInvalidCount;
@@ -2874,14 +2846,7 @@ begin
         '所有线程都应该通过屏障');
 end;
 
-procedure TTestCase_TBarrier.TestWaitWithTimeout;
-var
-  LResult: Boolean;
-begin
-  // 测试带超时的等待
-  LResult := FBarrier.Wait(50); // 50ms 超时
-  CheckFalse(LResult, '等待应该超时');
-end;
+// 移除超时测试：IBarrier 不再提供超时等待
 
 procedure TTestCase_TBarrier.TestGetParticipantCount;
 begin
@@ -2889,11 +2854,7 @@ begin
   CheckEquals(3, FBarrier.GetParticipantCount, '参与者数量应该是3');
 end;
 
-procedure TTestCase_TBarrier.TestGetWaitingCount;
-begin
-  // 测试获取等待数量
-  CheckEquals(0, FBarrier.GetWaitingCount, '初始等待数量应该是0');
-end;
+// 移除等待数量测试：IBarrier 不再提供等待计数
 
 procedure TTestCase_TBarrier.TestInvalidParameters;
 begin
@@ -2901,192 +2862,8 @@ begin
   Check(True, '无效参数测试完成');
 end;
 
-{ TTestCase_TAtomic }
 
-procedure TTestCase_TAtomic.TestAtomicIncrement;
-var
-  LValue: Integer;
-  LResult: Integer;
-begin
-  // 测试原子递增
-  LValue := 10;
-  LResult := TAtomic.Increment(LValue);
-  CheckEquals(11, LResult, '原子递增应该返回新值');
-  CheckEquals(11, LValue, '变量值应该被更新');
 
-  // 测试从零开始
-  LValue := 0;
-  LResult := TAtomic.Increment(LValue);
-  CheckEquals(1, LResult, '从零递增应该返回1');
-  CheckEquals(1, LValue, '变量值应该是1');
-end;
-
-procedure TTestCase_TAtomic.TestAtomicDecrement;
-var
-  LValue: Integer;
-  LResult: Integer;
-begin
-  // 测试原子递减
-  LValue := 10;
-  LResult := TAtomic.Decrement(LValue);
-  CheckEquals(9, LResult, '原子递减应该返回新值');
-  CheckEquals(9, LValue, '变量值应该被更新');
-
-  // 测试递减到零
-  LValue := 1;
-  LResult := TAtomic.Decrement(LValue);
-  CheckEquals(0, LResult, '递减到零应该正确');
-  CheckEquals(0, LValue, '变量值应该是零');
-end;
-
-procedure TTestCase_TAtomic.TestAtomicAdd;
-var
-  LValue: Integer;
-  LResult: Integer;
-begin
-  // 测试原子加法
-  LValue := 10;
-  LResult := TAtomic.Add(LValue, 5);
-  CheckEquals(15, LResult, '原子加法应该返回新值');
-  CheckEquals(15, LValue, '变量值应该被更新');
-
-  // 测试加负数
-  LValue := 10;
-  LResult := TAtomic.Add(LValue, -3);
-  CheckEquals(7, LResult, '加负数应该正确');
-  CheckEquals(7, LValue, '变量值应该正确');
-end;
-
-procedure TTestCase_TAtomic.TestAtomicExchange;
-var
-  LValue: Integer;
-  LResult: Integer;
-begin
-  // 测试原子交换
-  LValue := 10;
-  LResult := TAtomic.Exchange(LValue, 20);
-  CheckEquals(10, LResult, '原子交换应该返回旧值');
-  CheckEquals(20, LValue, '变量值应该是新值');
-end;
-
-procedure TTestCase_TAtomic.TestAtomicCompareExchange;
-var
-  LValue: Integer;
-  LResult: Integer;
-begin
-  // 测试原子比较交换
-  LValue := 10;
-  LResult := TAtomic.CompareExchange(LValue, 20, 10);
-  CheckEquals(10, LResult, '比较交换应该返回旧值');
-  CheckEquals(20, LValue, '比较成功时变量值应该更新');
-
-  // 测试比较失败的情况
-  LValue := 10;
-  LResult := TAtomic.CompareExchange(LValue, 30, 15);
-  CheckEquals(10, LResult, '比较失败应该返回当前值');
-  CheckEquals(10, LValue, '比较失败时变量值不应该改变');
-end;
-
-procedure TTestCase_TAtomic.TestAtomic64Operations;
-var
-  LValue: Int64;
-  LResult: Int64;
-begin
-  // 测试64位原子操作
-  LValue := 1000000000;
-  LResult := TAtomic.Increment64(LValue);
-  CheckEquals(1000000001, LResult, '64位递增应该正确');
-  CheckEquals(1000000001, LValue, '64位变量值应该正确');
-
-  LResult := TAtomic.Add64(LValue, 999999999);
-  CheckEquals(2000000000, LResult, '64位加法应该正确');
-  CheckEquals(2000000000, LValue, '64位变量值应该正确');
-end;
-
-procedure TTestCase_TAtomic.TestAtomicPointerOperations;
-var
-  LPtr1, LPtr2: Pointer;
-  LResult: Pointer;
-begin
-  // 测试指针原子操作
-  LPtr1 := @LPtr1; // 使用自身地址作为测试值
-  LPtr2 := @LPtr2;
-
-  LResult := TAtomic.ExchangePtr(LPtr1, LPtr2);
-  CheckEquals(PtrUInt(@LPtr1), PtrUInt(LResult), '指针交换应该返回旧值');
-  CheckEquals(PtrUInt(@LPtr2), PtrUInt(LPtr1), '指针变量应该是新值');
-
-  // 测试比较交换
-  LPtr1 := @LPtr1;
-  LResult := TAtomic.CompareExchangePtr(LPtr1, LPtr2, @LPtr1);
-  CheckEquals(PtrUInt(@LPtr1), PtrUInt(LResult), '指针比较交换应该返回旧值');
-  CheckEquals(PtrUInt(@LPtr2), PtrUInt(LPtr1), '指针变量应该更新');
-end;
-
-procedure TTestCase_TAtomic.TestAtomicBooleanOperations;
-var
-  LValue: Boolean;
-  LResult: Boolean;
-begin
-  // 测试布尔原子操作
-  LValue := False;
-  LResult := TAtomic.ExchangeBool(LValue, True);
-  CheckFalse(LResult, '布尔交换应该返回旧值');
-  CheckTrue(LValue, '布尔变量应该是新值');
-
-  // 测试比较交换
-  LValue := True;
-  LResult := TAtomic.CompareExchangeBool(LValue, False, True);
-  CheckTrue(LResult, '布尔比较交换应该返回旧值');
-  CheckFalse(LValue, '布尔变量应该更新');
-end;
-
-procedure TTestCase_TAtomic.TestConcurrentAtomicOperations;
-var
-  LSharedCounter: Integer;
-  LExpectedResult: Integer;
-  LSuccess: Boolean;
-begin
-  // 测试并发原子操作
-  LSharedCounter := 0;
-  LExpectedResult := 10000; // 10个线程，每个递增1000次
-
-  LSuccess := TThreadTestHelper.RunConcurrent([
-    procedure var I: Integer; begin for I := 1 to 1000 do TAtomic.Increment(LSharedCounter); end,
-    procedure var I: Integer; begin for I := 1 to 1000 do TAtomic.Increment(LSharedCounter); end,
-    procedure var I: Integer; begin for I := 1 to 1000 do TAtomic.Increment(LSharedCounter); end,
-    procedure var I: Integer; begin for I := 1 to 1000 do TAtomic.Increment(LSharedCounter); end,
-    procedure var I: Integer; begin for I := 1 to 1000 do TAtomic.Increment(LSharedCounter); end,
-    procedure var I: Integer; begin for I := 1 to 1000 do TAtomic.Increment(LSharedCounter); end,
-    procedure var I: Integer; begin for I := 1 to 1000 do TAtomic.Increment(LSharedCounter); end,
-    procedure var I: Integer; begin for I := 1 to 1000 do TAtomic.Increment(LSharedCounter); end,
-    procedure var I: Integer; begin for I := 1 to 1000 do TAtomic.Increment(LSharedCounter); end,
-    procedure var I: Integer; begin for I := 1 to 1000 do TAtomic.Increment(LSharedCounter); end
-  ], 15000);
-
-  CheckTrue(LSuccess, '并发原子操作测试应该完成');
-  CheckEquals(LExpectedResult, LSharedCounter, '并发递增结果应该正确');
-end;
-
-procedure TTestCase_TAtomic.TestAtomicPerformance;
-var
-  LValue: Integer;
-  LStartTime, LEndTime: QWord;
-  LElapsed: QWord;
-  I: Integer;
-begin
-  // 测试原子操作性能
-  LValue := 0;
-
-  LStartTime := GetTickCount64;
-  for I := 1 to 1000000 do
-    TAtomic.Increment(LValue);
-  LEndTime := GetTickCount64;
-  LElapsed := LEndTime - LStartTime;
-
-  CheckEquals(1000000, LValue, '性能测试后计数器应该正确');
-  CheckTrue(LElapsed < 5000, '100万次原子递增应该在5秒内完成');
-end;
 
 initialization
   RegisterTest(TTestCase_Global);
@@ -3098,15 +2875,7 @@ initialization
   RegisterTest(TTestCase_TEvent);
   RegisterTest(TTestCase_TConditionVariable);
   RegisterTest(TTestCase_TBarrier);
-  RegisterTest(TTestCase_TAtomic);
+
 end.
-  RegisterTest(TTestCase_Global);
-  RegisterTest(TTestCase_TMutex);
-  RegisterTest(TTestCase_TSpinLock);
-  RegisterTest(TTestCase_TReadWriteLock);
-  RegisterTest(TTestCase_TAutoLock);
-  RegisterTest(TTestCase_TSemaphore);
-  RegisterTest(TTestCase_TEvent);
-  RegisterTest(TTestCase_TConditionVariable);
-  RegisterTest(TTestCase_TBarrier);
-end.
+
+

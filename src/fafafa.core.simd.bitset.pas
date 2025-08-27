@@ -22,6 +22,7 @@ var
   pb: PByte;
   v: Byte;
   count: SizeUInt;
+  tailMask: Byte;
 const
   // 预计算 0..255 的 bitcount 表
   LUT: array[0..255] of Byte = (
@@ -43,16 +44,34 @@ const
     4,5,5,6,5,6,6,7,5,6,6,7,6,7,7,8
   );
 begin
+  if bitLen = 0 then Exit(0);
+
   byteLen := (bitLen + 7) div 8;
   pb := PByte(p);
   count := 0;
-  for i := 0 to byteLen-1 do
+
+  // 处理完整字节
+  if byteLen > 1 then
   begin
-    v := pb[i];
-    if (i = byteLen-1) and (bitLen mod 8 <> 0) then
-      v := v and (Byte($FF) shr (8 - (bitLen mod 8)));
+    for i := 0 to byteLen - 2 do
+    begin
+      Inc(count, LUT[pb[i]]);
+    end;
+  end;
+
+  // 处理最后一个字节（可能需要掩码）
+  if byteLen > 0 then
+  begin
+    v := pb[byteLen - 1];
+    if (bitLen mod 8) <> 0 then
+    begin
+      // 创建掩码，只保留有效位
+      tailMask := Byte($FF) shr (8 - (bitLen mod 8));
+      v := v and tailMask;
+    end;
     Inc(count, LUT[v]);
   end;
+
   Result := count;
 end;
 
@@ -67,7 +86,11 @@ var
   t: QWord;
   b: Byte;
   tmp: QWord;
+  tailMask: Byte;
 begin
+  if bitLen = 0 then Exit(0);
+  if p = nil then Exit(0);
+
   acc := 0;
   byteLen := bitLen div 8;
   tailBits := bitLen and 7;
@@ -77,6 +100,9 @@ begin
   qCount := byteLen div 8;
   for i := 0 to qCount-1 do
   begin
+    // 确保有足够的字节可读
+    if PtrUInt(ptr) + 8 > PtrUInt(p) + byteLen then
+      break;
     t := PQWord(ptr)^;
     {$IFNDEF DISABLE_X86_ASM}
     asm
@@ -86,7 +112,7 @@ begin
     end;
     acc := acc + tmp;
     {$ELSE}
-    acc := acc + {%H-}PopCnt(QWord(PQWord(ptr)^));
+    acc := acc + {%H-}PopCnt(t);
     {$ENDIF}
     Inc(ptr, 8);
   end;
@@ -96,8 +122,12 @@ begin
   if remBytes <> 0 then
   begin
     t := 0;
+    // 安全地读取剩余字节
     for i := 0 to remBytes-1 do
-      t := t or (QWord(ptr[i]) shl (i*8));
+    begin
+      if PtrUInt(ptr) + i < PtrUInt(p) + byteLen then
+        t := t or (QWord(ptr[i]) shl (i*8));
+    end;
     {$IFNDEF DISABLE_X86_ASM}
     asm
       mov     rax, t
@@ -114,7 +144,11 @@ begin
   // 处理最后不足 8 的尾部位
   if tailBits <> 0 then
   begin
-    b := ptr^ and (Byte($FF) shr (8 - tailBits));
+    b := ptr^;
+    // 创建掩码，只保留有效位
+    tailMask := Byte($FF) shr (8 - tailBits);
+    b := b and tailMask;
+
     {$IFNDEF DISABLE_X86_ASM}
     asm
       movzx   rax, b

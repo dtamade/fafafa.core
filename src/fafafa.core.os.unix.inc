@@ -30,55 +30,78 @@ begin
 end;
 {$ENDIF}
 
-function os_setenv(const AName, AValue: string): Boolean;
+{$IFDEF UNIX}
+function c_getenv(name: PChar): PChar; cdecl; external 'c' name 'getenv';
+function c_setenv(name, value: PChar; replace: LongInt): LongInt; cdecl; external 'c' name 'setenv';
+function c_unsetenv(name: PChar): LongInt; cdecl; external 'c' name 'unsetenv';
+function c_gethostname(name: PChar; len: LongInt): LongInt; cdecl; external 'c' name 'gethostname';
+var environ: PPChar; cvar; external;
+{$ENDIF}
+
+function _unix_getenv(const AName: string): string;
+var p: PChar;
 begin
-  if AValue = '' then
-    Result := (fpunsetenv(PChar(AName)) = 0)
+  p := c_getenv(PChar(AName));
+  if p <> nil then
+    Result := StrPas(p)
   else
-    Result := (fpsetenv(PChar(AnsiString(AName + '=' + AValue))) = 0);
+    Result := '';
+end;
+
+
+function os_setenv(const AName, AValue: string): Boolean;
+var rc: LongInt;
+begin
+  // Use POSIX setenv
+  rc := c_setenv(PChar(AName), PChar(AValue), 1);
+  Result := (rc = 0);
 end;
 
 function os_unsetenv(const AName: string): Boolean;
+var rc: LongInt;
 begin
-  Result := (fpunsetenv(PChar(AName)) = 0);
+  // Use POSIX unsetenv
+  rc := c_unsetenv(PChar(AName));
+  Result := (rc = 0);
 end;
 
 procedure os_environ(const ADest: TStrings);
 var
-  I, Cnt: Integer;
-  PEnv: PChar;
+  P: PPChar;
 begin
   if ADest = nil then Exit;
   ADest.Clear;
-  Cnt := SysUtils.GetEnvironmentVariableCount;
-  for I := 0 to Cnt - 1 do
+  P := environ;
+  if P = nil then Exit;
+  while (P^ <> nil) do
   begin
-    PEnv := SysUtils.GetEnvironmentString(I);
-    if PEnv <> nil then
-      ADest.Add(string(PEnv));
+    ADest.Add(StrPas(P^));
+    Inc(P);
   end;
 end;
 function os_lookupenv(const AName: string; out AValue: string): Boolean;
+var
+  p: PChar;
+  cnt, i, posEq: Integer;
+  s, name: string;
 begin
-  // 优先使用 fpgetenv（常量时间），否则回退扫描环境块
+  // Prefer getenv (O(1)); fallback to scanning environment block
   AValue := '';
-  {$IFDEF UNIX}
-  var p := fpgetenv(PChar(AName));
-  if p <> nil then begin
+  p := c_getenv(PChar(AName));
+  if p <> nil then
+  begin
     AValue := StrPas(p);
     Exit(True);
   end;
-  {$ENDIF}
   Result := False;
-  var cnt := SysUtils.GetEnvironmentVariableCount;
-  for var i := 0 to cnt - 1 do
+  cnt := SysUtils.GetEnvironmentVariableCount;
+  for i := 0 to cnt - 1 do
   begin
-    var q := SysUtils.GetEnvironmentString(i);
-    if q = nil then Continue;
-    var s := string(q);
-    var posEq := System.Pos('=', s);
+    s := SysUtils.GetEnvironmentString(i);
+    if s = '' then Continue;
+    posEq := System.Pos('=', s);
     if posEq <= 0 then Continue;
-    var name := Copy(s, 1, posEq - 1);
+    name := Copy(s, 1, posEq - 1);
     if name = AName then
     begin
       AValue := Copy(s, posEq + 1, MaxInt);
@@ -92,59 +115,28 @@ function os_hostname: string;
 var
   Buf: array[0..255] of Char;
 begin
-  if fpgethostname(@Buf[0], SizeOf(Buf)) = 0 then
+  if c_gethostname(@Buf[0], SizeOf(Buf)) = 0 then
     Result := StrPas(@Buf[0])
   else
     Result := '';
 end;
 
 function os_username: string;
-{$IFDEF UNIX}
-var
-  pw: PPasswd;
 begin
-  pw := fpgetpwuid(fpgeteuid);
-  if (pw <> nil) and (pw^.pw_name <> nil) then
-    Result := StrPas(pw^.pw_name)
-  else
-  begin
-    Result := os_getenv('USER');
-    if Result = '' then
-      Result := os_getenv('USERNAME');
-  end;
-end;
-{$ELSE}
-begin
+  // Prefer environment variables to avoid libc passwd/ppasswd dependencies
   Result := os_getenv('USER');
   if Result = '' then
     Result := os_getenv('USERNAME');
 end;
-{$ENDIF}
 
 function os_home_dir: string;
-{$IFDEF UNIX}
-var
-  pw: PPasswd;
 begin
   Result := os_getenv('HOME');
   if Result = '' then
-  begin
-    pw := fpgetpwuid(fpgeteuid);
-    if (pw <> nil) and (pw^.pw_dir <> nil) then
-      Result := StrPas(pw^.pw_dir)
-    else
-      Result := '';
-  end;
+    Result := os_temp_dir;
   if Result <> '' then
     Result := ExcludeTrailingPathDelimiter(Result);
 end;
-{$ELSE}
-begin
-  Result := os_getenv('HOME');
-  if Result <> '' then
-    Result := ExcludeTrailingPathDelimiter(Result);
-end;
-{$ENDIF}
 
 function os_temp_dir: string;
 begin
@@ -195,18 +187,21 @@ begin
 end;
 
 function os_kernel_version: string;
-{$IFDEF FAFAFA_OS_CACHE_PROBES}
-begin
-  _cache_lock_unix;
-  try
-    if g_unix_cached_kernel_ver_inited then Exit(g_unix_cached_kernel_ver);
-  finally
-    _cache_unlock_unix;
-  end;
-{$ENDIF}
 var
   uts: UtsName;
 begin
+  {$IFDEF FAFAFA_OS_CACHE_PROBES}
+  _cache_lock_unix;
+  try
+    if g_unix_cached_kernel_ver_inited then
+    begin
+      Result := g_unix_cached_kernel_ver;
+      Exit;
+    end;
+  finally
+    _cache_unlock_unix;
+  end;
+  {$ENDIF}
   if fpUname(uts) = 0 then
     Result := StrPas(@uts.release[0])
   else
@@ -464,25 +459,28 @@ begin
             (os_getenv('JENKINS_URL') <> '');
 end;
 function os_os_version_detailed: TOSVersionDetailed;
-{$IFDEF FAFAFA_OS_CACHE_PROBES}
+var
+  f: Text; s, k, v: string; p: Integer;
+  un: UtsName;
+  rel: AnsiString;
+  dot, major: Integer;
 begin
+  {$IFDEF FAFAFA_OS_CACHE_PROBES}
   _cache_lock_unix;
   try
-    if g_unix_cached_osver_inited then Exit(g_unix_cached_osver);
+    if g_unix_cached_osver_inited then
+    begin
+      Result := g_unix_cached_osver;
+      Exit;
+    end;
   finally
     _cache_unlock_unix;
   end;
-{$ENDIF}
-var
-  f: Text; s, k, v: string; p: Integer;
-begin
+  {$ENDIF}
   FillChar(Result, SizeOf(Result), 0);
   {$IFDEF DARWIN}
   // macOS: map Darwin kernel major to macOS version (best-effort)
   // uname -r returns like: 23.4.0 for macOS 14.x (Sonoma), 24.x for macOS 15 (Sequoia)
-  var un: utsname;
-  var rel: AnsiString;
-  var dot, major: Integer;
   if fpUname(un) = 0 then
   begin
     rel := StrPas(@un.release[0]);
@@ -539,7 +537,6 @@ begin
   // Fallback: if still mostly empty, try uname sysname/release to fill basics
   if (Result.Name = '') and (Result.VersionString = '') and (Result.PrettyName = '') then
   begin
-    var un: utsname;
     if fpUname(un) = 0 then
     begin
       Result.Name := StrPas(@un.sysname[0]);
