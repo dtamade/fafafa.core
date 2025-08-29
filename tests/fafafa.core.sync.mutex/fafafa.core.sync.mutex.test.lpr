@@ -10,7 +10,10 @@ uses
   fafafa.core.sync.mutex.advanced.testcase,
   fafafa.core.sync.mutex.extreme.testcase,
   fafafa.core.sync.mutex.concurrency.testcase,
-  fafafa.core.sync.mutex.perf.testcase;
+  fafafa.core.sync.mutex.perf.testcase,
+  fafafa.core.sync.recMutex.testcase,
+  fafafa.core.sync.spinMutex.testcase,
+  fafafa.core.sync.mutex.strict.testcase;
 
 {$IFDEF UNIX}
 {$linklib pthread}

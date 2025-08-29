@@ -107,6 +107,14 @@
         <Filename Value="fafafa.core.sync.event.advanced.testcase.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit>
+      <Unit>
+        <Filename Value="fafafa.core.sync.event.stress.testcase.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="fafafa.core.sync.event.platform.testcase.pas"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

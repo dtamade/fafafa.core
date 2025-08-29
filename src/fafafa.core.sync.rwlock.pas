@@ -27,18 +27,50 @@ type
   {$ENDIF}
 
 // 创建平台特定的 RWLock 实例
-function CreateRWLock: IRWLock;
+function MakeRWLock: IRWLock;
+function MakeRWLock(const Options: TRWLockOptions): IRWLock; overload;
+
+// 配置选项工厂函数
+function DefaultRWLockOptions: TRWLockOptions;
+function FairRWLockOptions: TRWLockOptions;
+function WriterPriorityRWLockOptions: TRWLockOptions;
 
 implementation
 
-function CreateRWLock: IRWLock;
+function MakeRWLock: IRWLock;
+begin
+  Result := MakeRWLock(DefaultRWLockOptions);
+end;
+
+function MakeRWLock(const Options: TRWLockOptions): IRWLock;
 begin
   {$IFDEF UNIX}
-  Result := fafafa.core.sync.rwlock.unix.TRWLock.Create;
+  Result := fafafa.core.sync.rwlock.unix.TRWLock.Create(Options);
   {$ENDIF}
   {$IFDEF WINDOWS}
-  Result := fafafa.core.sync.rwlock.windows.TRWLock.Create;
+  Result := fafafa.core.sync.rwlock.windows.TRWLock.Create(Options);
   {$ENDIF}
+end;
+
+function DefaultRWLockOptions: TRWLockOptions;
+begin
+  Result.AllowReentrancy := True;
+  Result.FairMode := False;
+  Result.WriterPriority := False;
+  Result.MaxReaders := 1024;
+  Result.SpinCount := 4000;
+end;
+
+function FairRWLockOptions: TRWLockOptions;
+begin
+  Result := DefaultRWLockOptions;
+  Result.FairMode := True;
+end;
+
+function WriterPriorityRWLockOptions: TRWLockOptions;
+begin
+  Result := DefaultRWLockOptions;
+  Result.WriterPriority := True;
 end;
 
 end.

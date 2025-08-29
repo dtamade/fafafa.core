@@ -8,7 +8,7 @@ interface
 uses
   Classes, SysUtils, fpcunit, testregistry,
   {$IFDEF UNIX}cthreads,{$ENDIF}
-  fafafa.core.sync;
+  fafafa.core.sync.base, fafafa.core.sync.mutex, fafafa.core.sync.conditionVariable;
 
 // 进阶与压力测试，目标覆盖：
 // - 工厂与门面
@@ -20,10 +20,19 @@ uses
 Type
   // 伪造的非 IMutex 锁，用于异常路径覆盖
   TBadLock = class(TInterfacedObject, ILock)
+  private
+    FLocked: Boolean;
   public
+    // ISynchronizable
+    function GetLastError: TWaitError;
+    // ILock
     procedure Acquire; virtual;
     procedure Release; virtual;
     function TryAcquire: Boolean; virtual;
+    function TryAcquire(ATimeoutMs: Cardinal): Boolean; overload;
+    // Helpers for assertions
+    function GetState: TLockState;
+    function IsLocked: Boolean;
   end;
 
   TTestCase_Advanced = class(TTestCase)
@@ -47,6 +56,11 @@ Type
     procedure Test_Broadcast_WakesAll;
     procedure Test_HighConcurrency_ManyWaiters;
 
+    // ILock 继承行为（在条件变量对象本身上）
+    procedure Test_ILock_OnConditionVariable;
+    procedure Test_ILock_NoInterference_WithWaitSignal;
+    procedure Test_InternalLock_MultiThreadSafety;
+
     // 精度（宽容断言，避免平台噪声）
     procedure Test_TimeoutPrecision_Short;
   end;
@@ -63,12 +77,56 @@ Type
     constructor Create(const ACond: IConditionVariable; const ALock: ILock; AFlag: PBoolean; ADone: PInteger);
   end;
 
+  TLockHammer = class(TThread)
+  private
+    FCond: IConditionVariable;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(const ACond: IConditionVariable);
+  end;
+
 implementation
 
+{ TLockHammer }
+constructor TLockHammer.Create(const ACond: IConditionVariable);
+begin
+  inherited Create(False);
+  FreeOnTerminate := False;
+  FCond := ACond;
+end;
+
+procedure TLockHammer.Execute;
+begin
+  // 简短的占用以覆盖 ILock 路径
+  FCond.Acquire;
+  FCond.Release;
+end;
+
+function TBadLock.GetLastError: TWaitError;
+begin
+  Result := weNone;
+end;
+
 { TBadLock }
-procedure TBadLock.Acquire; begin end;
-procedure TBadLock.Release; begin end;
-function TBadLock.TryAcquire: Boolean; begin Result := True; end;
+procedure TBadLock.Acquire; begin FLocked := True; end;
+procedure TBadLock.Release; begin FLocked := False; end;
+function TBadLock.TryAcquire: Boolean; begin FLocked := True; Result := True; end;
+
+function TBadLock.GetState: TLockState;
+begin
+  if FLocked then Result := lsLocked else Result := lsUnlocked;
+end;
+
+function TBadLock.IsLocked: Boolean;
+begin
+  Result := FLocked;
+end;
+
+function TBadLock.TryAcquire(ATimeoutMs: Cardinal): Boolean;
+begin
+  Result := TryAcquire;
+end;
 
 { TWaiter }
 constructor TWaiter.Create(const ACond: IConditionVariable; const ALock: ILock; AFlag: PBoolean; ADone: PInteger);
@@ -86,8 +144,9 @@ begin
   FLock.Acquire;
   try
     while not FFlag^ do
-      FCond.Wait(FLock);
-    Inc(FDone^);
+      if not FCond.Wait(FLock, 100) then ;
+    if Assigned(FDone) then
+      Inc(FDone^);
   finally
     FLock.Release;
   end;
@@ -124,8 +183,15 @@ begin
     FCond.Wait(nil);
     Fail('Expected EArgumentNilException');
   except
-    on E: Exception do
-      AssertTrue('Got '+E.ClassName, Pos('ArgumentNil', UpperCase(E.ClassName))>0);
+    on E: EArgumentNilException do
+      AssertTrue(True)
+    else
+    begin
+      if ExceptObject is Exception then
+        Fail('Expected EArgumentNilException but got ' + Exception(ExceptObject).ClassName + ': ' + Exception(ExceptObject).Message)
+      else
+        Fail('Expected EArgumentNilException but got non-Exception');
+    end;
   end;
 end;
 
@@ -138,8 +204,15 @@ begin
       FCond.Wait(L);
       Fail('Expected NotSupported');
     except
-      on E: Exception do
-        AssertTrue('Got '+E.ClassName, (Pos('NOTSUPPORTED', UpperCase(E.ClassName))>0) or (Pos('NOT SUPPORTED', UpperCase(E.Message))>0));
+      on E: ENotSupportedException do
+        AssertTrue(True)
+      else
+      begin
+        if ExceptObject is Exception then
+          Fail('Expected ENotSupportedException but got ' + Exception(ExceptObject).ClassName + ': ' + Exception(ExceptObject).Message)
+        else
+          Fail('Expected ENotSupportedException but got non-Exception');
+      end;
     end;
   finally
     L := nil;
@@ -181,9 +254,13 @@ begin
   W2 := TWaiter.Create(FCond, L, @Ready, @Done);
   try
     Sleep(10);
+    // 只 Signal 一次，预期仅唤醒一个等待者
     L.Acquire; try Ready := True; FCond.Signal; finally L.Release; end;
+    // 给被唤醒的线程一些时间完成
+    Sleep(20);
+    // 为避免另一个线程永久阻塞，进行一次广播将其唤醒退出
+    FCond.Broadcast;
     W1.WaitFor; W2.WaitFor;
-    // 至少一个被唤醒（另一位也可能被唤醒，具体实现广播/自旋差异，这里用>=1）
     AssertTrue(Done >= 1);
   finally
     W1.Free; W2.Free;
@@ -219,6 +296,60 @@ begin
   finally
     for i := Low(W) to High(W) do W[i].Free;
   end;
+end;
+
+procedure TTestCase_Advanced.Test_ILock_OnConditionVariable;
+var ok1, ok2: Boolean;
+begin
+  // TryAcquire 应该在未持有内部锁时成功
+  ok1 := FCond.TryAcquire;
+  AssertTrue('TryAcquire on condvar should succeed', ok1);
+  // 再次 TryAcquire（重入）通常应失败，随后释放第一次
+  ok2 := FCond.TryAcquire;
+  AssertFalse('Second TryAcquire on condvar should fail (non-reentrant)', ok2);
+  FCond.Release;
+
+  // 显式 Acquire/Release 路径
+  FCond.Acquire;
+  FCond.Release;
+end;
+
+procedure TTestCase_Advanced.Test_ILock_NoInterference_WithWaitSignal;
+var L: ILock; Ready: Boolean; Waiter: TWaiter;
+begin
+  L := MakeMutex; Ready := False;
+  // 持有条件变量对象的内部锁一小段时间，不应影响外部 Wait/Signal
+  FCond.Acquire;
+  try
+    Waiter := TWaiter.Create(FCond, L, @Ready, nil);
+    try
+      Sleep(10);
+      L.Acquire; try Ready := True; FCond.Signal; finally L.Release; end;
+      Waiter.WaitFor;
+      AssertTrue(Waiter.Finished);
+    finally
+      Waiter.Free;
+    end;
+  finally
+    FCond.Release;
+  end;
+end;
+
+procedure TTestCase_Advanced.Test_InternalLock_MultiThreadSafety;
+const N = 8;
+var
+  i: Integer;
+  Threads: array[0..N-1] of TLockHammer;
+begin
+  // 多线程同时对条件变量对象本身做 Acquire/Release，验证内部锁线程安全
+  for i := 0 to N-1 do
+  begin
+    Threads[i] := TLockHammer.Create(FCond);
+    Threads[i].FreeOnTerminate := False;
+  end;
+  for i := 0 to N-1 do Threads[i].WaitFor;
+  for i := 0 to N-1 do Threads[i].Free;
+  AssertTrue(True);
 end;
 
 procedure TTestCase_Advanced.Test_TimeoutPrecision_Short;

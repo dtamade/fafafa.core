@@ -6,7 +6,7 @@ interface
 
 uses
   // 基于已存在的对外稳定类型与全局函数变量
-  fafafa.core.simd,
+  fafafa.core.simd.types,
   fafafa.core.mem; // 复用已落地的 Fill/Copy/Zero 等安全实现（先落地，后替换为 SIMD）
 
 type

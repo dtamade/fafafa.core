@@ -1,6 +1,8 @@
 unit fafafa.core.base;
 
 {$MODE OBJFPC}{$H+}
+{$modeswitch advancedrecords}
+
 {$I fafafa.core.settings.inc}
 
 interface
@@ -73,6 +75,28 @@ type
    *   当一个操作的结果不可接受, 但又没有更具体的异常类型可以描述时抛出.
    *}
   EInvalidResult = class(ECore) end;
+
+  {**
+   * ETimeoutError
+   *
+   * @desc
+   *   Raised when an operation times out.
+   *   当操作超时时抛出.
+   *}
+  ETimeoutError = class(ECore) end;
+
+  {**
+   * EInvalidState
+   *
+   * @desc
+   *   Raised when an object is in an invalid state for the requested operation.
+   *   当对象处于无效状态无法执行请求的操作时抛出.
+   *}
+  EInvalidState = class(ECore) end;
+
+
+
+
 
   {**
    * EOutOfRange
@@ -190,6 +214,8 @@ type
   {$ENDIF}
 
 implementation
+
+
 
 function XmlEscape(const S: string): string;
 begin

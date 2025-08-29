@@ -214,7 +214,7 @@ begin
   {$ENDIF}
   pa := PByte(a); pb := PByte(b);
   first := -1; last := -1;
-  if len = 0 then begin Result.First := -1; Result.Last := -1; Exit; end;
+  if len = 0 then begin Result.First := High(SizeUInt); Result.Last := High(SizeUInt); Exit; end;
   for i := 0 to len-1 do
   begin
     if pa[i] <> pb[i] then
@@ -223,8 +223,16 @@ begin
       last := PtrInt(i);
     end;
   end;
-  Result.First := first;
-  Result.Last := last;
+  if first = -1 then
+  begin
+    Result.First := High(SizeUInt);
+    Result.Last := High(SizeUInt);
+  end
+  else
+  begin
+    Result.First := SizeUInt(first);
+    Result.Last := SizeUInt(last);
+  end;
 end;
 
 

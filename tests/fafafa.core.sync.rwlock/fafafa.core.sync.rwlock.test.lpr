@@ -7,7 +7,10 @@ uses
   cthreads,
   {$ENDIF}
   Classes, consoletestrunner,
-  fafafa.core.sync.rwlock.testcase.simple;
+  fafafa.core.sync.rwlock.testcase.simple,
+  fafafa.core.sync.rwlock.testcase.full,
+  fafafa.core.sync.rwlock.testcase.safety,
+  fafafa.core.sync.rwlock.testcase.reentrancy;
 
 type
 

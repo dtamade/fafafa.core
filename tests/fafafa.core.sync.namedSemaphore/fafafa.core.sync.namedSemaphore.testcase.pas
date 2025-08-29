@@ -1,0 +1,420 @@
+unit fafafa.core.sync.namedSemaphore.testcase;
+
+{$mode objfpc}{$H+}
+{$CODEPAGE UTF8}
+
+interface
+
+uses
+  Classes, SysUtils, fpcunit, testregistry,
+  fafafa.core.base, fafafa.core.sync.namedSemaphore, fafafa.core.sync.base;
+
+type
+  // 测试全局函数
+  TTestCase_Global = class(TTestCase)
+  published
+    procedure Test_MakeNamedSemaphore;
+    procedure Test_MakeNamedSemaphore_InitialCount_MaxCount;
+    procedure Test_MakeGlobalNamedSemaphore;
+    procedure Test_TryOpenNamedSemaphore;
+  end;
+
+  // 测试 INamedSemaphore 接口
+  TTestCase_INamedSemaphore = class(TTestCase)
+  private
+    FSemaphore: INamedSemaphore;
+    FTestName: string;
+  protected
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    // 测试基本功能
+    procedure Test_GetName;
+    procedure Test_GetMaxCount;
+    procedure Test_GetCurrentCount;
+    
+    // 测试核心信号量操作
+    procedure Test_Wait_Release;
+    procedure Test_TryWait;
+    procedure Test_TryWaitFor;
+    procedure Test_Release_Multiple;
+    
+    // 测试 RAII 守卫
+    procedure Test_Guard_AutoRelease;
+    procedure Test_Guard_GetName;
+    procedure Test_Guard_GetCount;
+    
+    // 测试错误处理
+    procedure Test_InvalidName;
+    procedure Test_InvalidCount;
+    procedure Test_Release_InvalidCount;
+    
+    // 综合测试
+    procedure Test_MultipleInstances;
+    procedure Test_CountingSemaphore_Behavior;
+    procedure Test_BinarySemaphore_Behavior;
+    procedure Test_CrossProcess_Basic;
+  end;
+
+implementation
+
+{ TTestCase_Global }
+
+procedure TTestCase_Global.Test_MakeNamedSemaphore;
+var
+  LSemaphore: INamedSemaphore;
+begin
+  LSemaphore := MakeNamedSemaphore('test_semaphore_1');
+  CheckNotNull(LSemaphore, '应该成功创建命名信号量');
+  CheckEquals('test_semaphore_1', LSemaphore.GetName, '名称应该匹配');
+end;
+
+procedure TTestCase_Global.Test_MakeNamedSemaphore_InitialCount_MaxCount;
+var
+  LSemaphore: INamedSemaphore;
+begin
+  LSemaphore := MakeNamedSemaphore('test_semaphore_2', 3, 5);
+  CheckNotNull(LSemaphore, '应该成功创建带计数的命名信号量');
+  CheckEquals('test_semaphore_2', LSemaphore.GetName, '名称应该匹配');
+  CheckEquals(5, LSemaphore.GetMaxCount, '最大计数应该匹配');
+end;
+
+procedure TTestCase_Global.Test_MakeGlobalNamedSemaphore;
+var
+  LSemaphore: INamedSemaphore;
+begin
+  LSemaphore := MakeGlobalNamedSemaphore('test_global_semaphore');
+  CheckNotNull(LSemaphore, '应该成功创建全局命名信号量');
+  {$IFDEF WINDOWS}
+  CheckTrue(Pos('Global\', LSemaphore.GetName) = 1, 'Windows 上应该包含 Global\ 前缀');
+  {$ELSE}
+  CheckEquals('test_global_semaphore', LSemaphore.GetName, 'Unix 上名称应该保持不变');
+  {$ENDIF}
+end;
+
+
+
+procedure TTestCase_Global.Test_TryOpenNamedSemaphore;
+var
+  LSemaphore1, LSemaphore2: INamedSemaphore;
+begin
+  // 首先创建一个命名信号量
+  LSemaphore1 := MakeNamedSemaphore('test_semaphore_4');
+  CheckNotNull(LSemaphore1, '应该成功创建命名信号量');
+
+  // 然后尝试打开现有的
+  LSemaphore2 := TryOpenNamedSemaphore('test_semaphore_4');
+  CheckNotNull(LSemaphore2, '应该成功打开现有的命名信号量');
+  CheckEquals('test_semaphore_4', LSemaphore2.GetName, '名称应该匹配');
+end;
+
+{ TTestCase_INamedSemaphore }
+
+procedure TTestCase_INamedSemaphore.SetUp;
+begin
+  inherited SetUp;
+  FTestName := 'test_semaphore_' + IntToStr(Random(10000));
+  FSemaphore := MakeNamedSemaphore(FTestName, 2, 5); // 初始计数2，最大计数5
+end;
+
+procedure TTestCase_INamedSemaphore.TearDown;
+begin
+  FSemaphore := nil;
+  inherited TearDown;
+end;
+
+procedure TTestCase_INamedSemaphore.Test_GetName;
+begin
+  CheckEquals(FTestName, FSemaphore.GetName, '名称应该匹配');
+end;
+
+procedure TTestCase_INamedSemaphore.Test_GetMaxCount;
+begin
+  CheckEquals(5, FSemaphore.GetMaxCount, '最大计数应该匹配');
+end;
+
+procedure TTestCase_INamedSemaphore.Test_GetCurrentCount;
+var
+  LCurrentCount: Integer;
+begin
+  LCurrentCount := FSemaphore.GetCurrentCount;
+  // 某些平台可能不支持查询当前计数，返回 -1
+  if LCurrentCount >= 0 then
+    CheckTrue(LCurrentCount <= 5, '当前计数应该不超过最大计数');
+end;
+
+procedure TTestCase_INamedSemaphore.Test_Wait_Release;
+var
+  LGuard: INamedSemaphoreGuard;
+begin
+  // 等待信号量
+  LGuard := FSemaphore.Wait;
+  CheckNotNull(LGuard, '应该成功获取信号量守卫');
+  CheckEquals(FTestName, LGuard.GetName, '守卫名称应该匹配');
+  
+  // 守卫会在作用域结束时自动释放
+  LGuard := nil;
+  
+  // 手动释放一个计数
+  FSemaphore.Release;
+end;
+
+procedure TTestCase_INamedSemaphore.Test_TryWait;
+var
+  LGuard: INamedSemaphoreGuard;
+begin
+  // 非阻塞尝试
+  LGuard := FSemaphore.TryWait;
+  CheckNotNull(LGuard, '应该成功获取信号量守卫（非阻塞）');
+  
+  LGuard := nil; // 自动释放
+end;
+
+procedure TTestCase_INamedSemaphore.Test_TryWaitFor;
+var
+  LGuard: INamedSemaphoreGuard;
+begin
+  // 带超时尝试
+  LGuard := FSemaphore.TryWaitFor(1000); // 1秒超时
+  CheckNotNull(LGuard, '应该成功获取信号量守卫（带超时）');
+  
+  LGuard := nil; // 自动释放
+end;
+
+procedure TTestCase_INamedSemaphore.Test_Release_Multiple;
+var
+  LGuard1, LGuard2: INamedSemaphoreGuard;
+begin
+  // 释放多个计数
+  FSemaphore.Release(2);
+
+  // 验证可以获取多个守卫
+  LGuard1 := FSemaphore.TryWait;
+  LGuard2 := FSemaphore.TryWait;
+
+  CheckNotNull(LGuard1, '应该成功获取第一个守卫');
+  CheckNotNull(LGuard2, '应该成功获取第二个守卫');
+
+  LGuard1 := nil;
+  LGuard2 := nil;
+end;
+
+procedure TTestCase_INamedSemaphore.Test_Guard_AutoRelease;
+var
+  LGuard1, LGuard2, LGuard3: INamedSemaphoreGuard;
+begin
+  // 获取所有可用的信号量
+  LGuard1 := FSemaphore.TryWait;
+  LGuard2 := FSemaphore.TryWait;
+
+  CheckNotNull(LGuard1, '应该成功获取第一个守卫');
+  CheckNotNull(LGuard2, '应该成功获取第二个守卫');
+
+  // 现在应该没有可用的信号量了
+  LGuard3 := FSemaphore.TryWait;
+  CheckNull(LGuard3, '不应该能获取第三个守卫');
+
+  // 释放一个守卫
+  LGuard1 := nil;
+
+  // 现在应该能获取一个守卫
+  LGuard3 := FSemaphore.TryWait;
+  CheckNotNull(LGuard3, '释放后应该能获取守卫');
+
+  LGuard2 := nil;
+  LGuard3 := nil;
+end;
+
+procedure TTestCase_INamedSemaphore.Test_Guard_GetName;
+var
+  LGuard: INamedSemaphoreGuard;
+begin
+  LGuard := FSemaphore.Wait;
+  CheckEquals(FTestName, LGuard.GetName, '守卫名称应该匹配');
+  LGuard := nil;
+end;
+
+procedure TTestCase_INamedSemaphore.Test_Guard_GetCount;
+var
+  LGuard: INamedSemaphoreGuard;
+  LCount: Integer;
+begin
+  LGuard := FSemaphore.Wait;
+  LCount := LGuard.GetCount;
+  // 某些平台可能不支持查询计数，返回 -1
+  if LCount >= 0 then
+    CheckTrue(LCount <= 5, '守卫计数应该不超过最大计数');
+  LGuard := nil;
+end;
+
+procedure TTestCase_INamedSemaphore.Test_InvalidName;
+begin
+  // 测试空名称
+  try
+    MakeNamedSemaphore('');
+    Fail('空名称应该抛出异常');
+  except
+    on E: EInvalidArgument do
+      CheckTrue(True, '应该抛出 EInvalidArgument 异常');
+  end;
+end;
+
+procedure TTestCase_INamedSemaphore.Test_InvalidCount;
+begin
+  // 测试无效计数
+  try
+    MakeNamedSemaphore('test_invalid', -1, 5);
+    Fail('负初始计数应该抛出异常');
+  except
+    on E: EInvalidArgument do
+      CheckTrue(True, '应该抛出 EInvalidArgument 异常');
+  end;
+
+  try
+    MakeNamedSemaphore('test_invalid', 1, 0);
+    Fail('零最大计数应该抛出异常');
+  except
+    on E: EInvalidArgument do
+      CheckTrue(True, '应该抛出 EInvalidArgument 异常');
+  end;
+
+  try
+    MakeNamedSemaphore('test_invalid', 5, 3);
+    Fail('初始计数大于最大计数应该抛出异常');
+  except
+    on E: EInvalidArgument do
+      CheckTrue(True, '应该抛出 EInvalidArgument 异常');
+  end;
+end;
+
+procedure TTestCase_INamedSemaphore.Test_Release_InvalidCount;
+begin
+  try
+    FSemaphore.Release(0);
+    Fail('释放零计数应该抛出异常');
+  except
+    on E: EInvalidArgument do
+      CheckTrue(True, '应该抛出 EInvalidArgument 异常');
+  end;
+  
+  try
+    FSemaphore.Release(-1);
+    Fail('释放负计数应该抛出异常');
+  except
+    on E: EInvalidArgument do
+      CheckTrue(True, '应该抛出 EInvalidArgument 异常');
+  end;
+end;
+
+procedure TTestCase_INamedSemaphore.Test_MultipleInstances;
+var
+  LSemaphore1, LSemaphore2: INamedSemaphore;
+  LGuard1, LGuard2: INamedSemaphoreGuard;
+begin
+  // 创建两个相同名称的信号量实例
+  LSemaphore1 := MakeNamedSemaphore('test_multi_instance', 1, 1);
+  LSemaphore2 := MakeNamedSemaphore('test_multi_instance', 1, 1);
+  
+  // 第一个实例获取信号量
+  LGuard1 := LSemaphore1.TryWait;
+  CheckNotNull(LGuard1, '第一个实例应该成功获取信号量');
+  
+  // 第二个实例应该无法获取
+  LGuard2 := LSemaphore2.TryWait;
+  CheckNull(LGuard2, '第二个实例不应该能获取信号量');
+  
+  // 释放第一个实例的信号量
+  LGuard1 := nil;
+  
+  // 现在第二个实例应该能获取
+  LGuard2 := LSemaphore2.TryWait;
+  CheckNotNull(LGuard2, '释放后第二个实例应该能获取信号量');
+  
+  LGuard2 := nil;
+end;
+
+procedure TTestCase_INamedSemaphore.Test_CountingSemaphore_Behavior;
+var
+  LSemaphore: INamedSemaphore;
+  LGuards: array[1..3] of INamedSemaphoreGuard;
+  LGuard4: INamedSemaphoreGuard;
+  I: Integer;
+begin
+  // 创建计数信号量：初始计数3，最大计数3
+  LSemaphore := MakeNamedSemaphore('test_counting_behavior', 3, 3);
+
+  // 应该能获取3个守卫
+  for I := 1 to 3 do
+  begin
+    LGuards[I] := LSemaphore.TryWait;
+    CheckNotNull(LGuards[I], Format('应该成功获取第%d个守卫', [I]));
+  end;
+
+  // 第4个应该失败
+  LGuard4 := LSemaphore.TryWait;
+  CheckNull(LGuard4, '不应该能获取第4个守卫');
+
+  // 释放一个守卫
+  LGuards[1] := nil;
+
+  // 现在应该能获取一个守卫
+  LGuard4 := LSemaphore.TryWait;
+  CheckNotNull(LGuard4, '释放后应该能获取守卫');
+
+  // 清理
+  for I := 2 to 3 do
+    LGuards[I] := nil;
+  LGuard4 := nil;
+end;
+
+procedure TTestCase_INamedSemaphore.Test_BinarySemaphore_Behavior;
+var
+  LSemaphore: INamedSemaphore;
+  LGuard1, LGuard2: INamedSemaphoreGuard;
+begin
+  // 创建二进制信号量（初始有信号）
+  LSemaphore := MakeNamedSemaphore('test_binary_behavior', 1, 1);
+  
+  // 应该能获取一个守卫
+  LGuard1 := LSemaphore.TryWait;
+  CheckNotNull(LGuard1, '应该成功获取守卫');
+  
+  // 第二个应该失败
+  LGuard2 := LSemaphore.TryWait;
+  CheckNull(LGuard2, '不应该能获取第二个守卫');
+  
+  // 释放守卫
+  LGuard1 := nil;
+  
+  // 现在应该能获取守卫
+  LGuard2 := LSemaphore.TryWait;
+  CheckNotNull(LGuard2, '释放后应该能获取守卫');
+  
+  LGuard2 := nil;
+end;
+
+procedure TTestCase_INamedSemaphore.Test_CrossProcess_Basic;
+var
+  LSemaphore1, LSemaphore2: INamedSemaphore;
+  LGuard, LGuard2: INamedSemaphoreGuard;
+begin
+  // 这是一个基础的跨进程测试（在同一进程中模拟）
+  LSemaphore1 := MakeNamedSemaphore('test_cross_process', 1, 1);
+  LSemaphore2 := MakeNamedSemaphore('test_cross_process', 1, 1);
+
+  // 第一个实例获取信号量
+  LGuard := LSemaphore1.TryWait;
+  CheckNotNull(LGuard, '第一个实例应该成功获取信号量');
+
+  // 第二个实例应该无法获取（模拟另一个进程）
+  LGuard2 := LSemaphore2.TryWait;
+  CheckNull(LGuard2, '第二个实例不应该能获取信号量（跨进程同步）');
+
+  LGuard := nil;
+end;
+
+initialization
+  RegisterTest(TTestCase_Global);
+  RegisterTest(TTestCase_INamedSemaphore);
+
+end.

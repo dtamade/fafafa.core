@@ -3,7 +3,9 @@
 
 {$MACRO ON}  // enable simple value-style macros like {$DEFINE NAME := value}
 
-{$DEFINE FAFAFA_OS_CACHE_PROBES}
+{$IFNDEF DEBUG}
+  {$DEFINE FAFAFA_OS_CACHE_PROBES}
+{$ENDIF}
 
 
 
@@ -298,6 +300,24 @@
 {.$DEFINE FAFAFA_LOCKFREE_BACKOFF}                { 在高冲突 CAS 重试时进行轻量退避 }
 
 { 可选：退避参数（仅在启用 FAFAFA_LOCKFREE_BACKOFF 时生效） }
+
+{ Sync module toggles 同步模块开关 }
+{ Barrier configuration 屏障配置：Windows 默认使用原生，可选运行时回退；Unix 可选 POSIX 原生 }
+{$IFDEF WINDOWS}
+  { Use native Windows SynchronizationBarrier (default ON). If disabled, always use fallback (condvar+generation). }
+  {$DEFINE FAFAFA_SYNC_USE_WIN_BARRIER}
+  { Optional: runtime fallback. When defined, try to resolve APIs at runtime; if missing, fallback automatically. Default OFF }
+  {.$DEFINE FAFAFA_SYNC_WIN_RUNTIME_FALLBACK}
+
+  { Optional: spin count passed to InitializeSynchronizationBarrier (DWORD). Default 0 }
+  {$DEFINE FAFAFA_SYNC_WIN_BARRIER_SPIN := 0}
+{$ENDIF}
+
+{$IFDEF UNIX}
+  { Optional: use pthread_barrier_* on platforms that provide it (e.g., Linux/glibc). Default OFF for portability. }
+  {.$DEFINE FAFAFA_SYNC_USE_POSIX_BARRIER}
+{$ENDIF}
+
 {.$DEFINE FAFAFA_LOCKFREE_BACKOFF_EVERY := 64}    { 每多少次失败执行一次退避 }
 
 { 在 Release 构建中默认启用无锁退避策略，减少高冲突尾延迟（DEBUG 下保持关闭便于定位问题） }

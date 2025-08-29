@@ -26,6 +26,12 @@ procedure ToUpperAscii_Scalar(p: Pointer; len: SizeUInt);
 // 标量：ASCII 无大小写等价比较（'A'..'Z' -> 加 32 与 'a'..'z' 比较；非字母直接比较）
 function AsciiEqualIgnoreCase_Scalar(a, b: Pointer; len: SizeUInt): LongBool;
 
+// === 主要接口函数（动态派发）===
+function Utf8Validate(p: Pointer; len: SizeUInt): LongBool;
+function AsciiIEqual(a, b: Pointer; len: SizeUInt): LongBool;
+procedure ToLowerAscii(p: Pointer; len: SizeUInt);
+procedure ToUpperAscii(p: Pointer; len: SizeUInt);
+
 
 implementation
 
@@ -51,6 +57,8 @@ begin
       end
       else if (b and $E0) = $C0 then
       begin
+        // 拒绝过长编码 $C0 和 $C1
+        if b < $C2 then Exit(False);
         need := 1;
       end
       else if (b and $F0) = $E0 then
@@ -388,6 +396,10 @@ begin
   for i:=0 to len-1 do
   begin
     xa := pa[i]; xb := pb[i];
+
+    // 拒绝非ASCII字节
+    if (xa > 127) or (xb > 127) then Exit(False);
+
     if (xa >= Ord('A')) and (xa <= Ord('Z')) then Inc(xa, 32);
     if (xb >= Ord('A')) and (xb <= Ord('Z')) then Inc(xb, 32);
     if xa <> xb then Exit(False);
@@ -409,6 +421,52 @@ begin
     if (pb[i] >= Ord('a')) and (pb[i] <= Ord('z')) then
       pb[i] := pb[i] - 32;
   end;
+end;
+
+// === 主要接口函数实现（动态派发）===
+
+function Utf8Validate(p: Pointer; len: SizeUInt): LongBool;
+begin
+  {$IFDEF CPUX86_64}
+  // TODO: 添加指令集检测和动态派发
+  // 暂时使用标量实现
+  Result := Utf8Validate_Scalar(p, len);
+  {$ELSE}
+  Result := Utf8Validate_Scalar(p, len);
+  {$ENDIF}
+end;
+
+function AsciiIEqual(a, b: Pointer; len: SizeUInt): LongBool;
+begin
+  {$IFDEF CPUX86_64}
+  // TODO: 添加指令集检测和动态派发
+  // 暂时使用标量实现
+  Result := AsciiEqualIgnoreCase_Scalar(a, b, len);
+  {$ELSE}
+  Result := AsciiEqualIgnoreCase_Scalar(a, b, len);
+  {$ENDIF}
+end;
+
+procedure ToLowerAscii(p: Pointer; len: SizeUInt);
+begin
+  {$IFDEF CPUX86_64}
+  // TODO: 添加指令集检测和动态派发
+  // 暂时使用标量实现
+  ToLowerAscii_Scalar(p, len);
+  {$ELSE}
+  ToLowerAscii_Scalar(p, len);
+  {$ENDIF}
+end;
+
+procedure ToUpperAscii(p: Pointer; len: SizeUInt);
+begin
+  {$IFDEF CPUX86_64}
+  // TODO: 添加指令集检测和动态派发
+  // 暂时使用标量实现
+  ToUpperAscii_Scalar(p, len);
+  {$ELSE}
+  ToUpperAscii_Scalar(p, len);
+  {$ENDIF}
 end;
 
 end.

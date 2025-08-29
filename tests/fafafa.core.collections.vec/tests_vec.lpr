@@ -33,6 +33,6 @@ begin
   finally
     LApplication.Free;
   end;
-  // Force-release FPCUnit registry to avoid heaptrc call traces in --list mode
-  testregistry.GetTestRegistry.Free;
+  // 注释掉手动释放测试注册表，避免双重释放问题
+  // testregistry.GetTestRegistry.Free;
 end.

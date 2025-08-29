@@ -6,7 +6,7 @@ unit fafafa.core.sync.event;
 interface
 
 uses
-  fafafa.core.sync.base, fafafa.core.sync.event.base
+  fafafa.core.sync.event.base
   {$IFDEF WINDOWS}, fafafa.core.sync.event.windows{$ENDIF}
   {$IFDEF UNIX},    fafafa.core.sync.event.unix{$ENDIF};
 
@@ -24,6 +24,9 @@ type
 // 创建平台特定的事件对象
 function MakeEvent(AManualReset: Boolean = False; AInitialState: Boolean = False): IEvent;
 
+// 兼容性别名
+function CreateEvent(AManualReset: Boolean = False; AInitialState: Boolean = False): IEvent;
+
 implementation
 
 function MakeEvent(AManualReset: Boolean; AInitialState: Boolean): IEvent;
@@ -34,6 +37,11 @@ begin
   {$IFDEF WINDOWS}
   Result := fafafa.core.sync.event.windows.TEvent.Create(AManualReset, AInitialState);
   {$ENDIF}
+end;
+
+function CreateEvent(AManualReset: Boolean; AInitialState: Boolean): IEvent;
+begin
+  Result := MakeEvent(AManualReset, AInitialState);
 end;
 
 end.

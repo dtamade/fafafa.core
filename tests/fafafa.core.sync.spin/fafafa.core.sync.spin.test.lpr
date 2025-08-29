@@ -5,7 +5,7 @@ program fafafa.core.sync.spin.test;
 {$I ../../src/fafafa.core.settings.inc}
 
 uses
-  {$IFDEF UNIX}{$IFDEF UseCThreads}cthreads,{$ENDIF}{$ENDIF}
+  {$IFDEF UNIX}cthreads,{$ENDIF}
   consoletestrunner,
   fafafa.core.sync.spin.testcase;
 

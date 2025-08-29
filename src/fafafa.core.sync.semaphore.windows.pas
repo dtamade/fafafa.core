@@ -16,6 +16,8 @@ type
     FMaxCount: Integer;
     FCurrentCount: Integer;
     FLock: TRTLCriticalSection;
+    FName: string;
+    FLastError: TWaitError;
   protected
     function NowMs: QWord; inline;
   public
@@ -31,9 +33,22 @@ type
     function TryAcquire(ACount: Integer; ATimeoutMs: Cardinal): Boolean; overload;
     function GetAvailableCount: Integer;
     function GetMaxCount: Integer;
+    // ISynchronizable
+    function GetName: string;
+    function GetLastError: TWaitError;
   end;
 
 implementation
+
+function TSemaphore.GetName: string;
+begin
+  if FName = '' then Result := 'Semaphore' else Result := FName;
+end;
+
+function TSemaphore.GetLastError: TWaitError;
+begin
+  Result := FLastError;
+end;
 
 function TSemaphore.NowMs: QWord; inline;
 begin
@@ -55,10 +70,12 @@ begin
   if FHandle = 0 then
   begin
     DeleteCriticalSection(FLock);
+    FLastError := weSystemError;
     raise ELockError.Create('Failed to create semaphore');
   end;
   FMaxCount := AMaxCount;
   FCurrentCount := AInitialCount;
+  FLastError := weNone;
 end;
 
 destructor TSemaphore.Destroy;
@@ -78,15 +95,21 @@ var
   i: Integer;
   rc: DWORD;
 begin
-  if ACount <= 0 then Exit;
+  if ACount < 0 then raise EInvalidArgument.Create('sem: ACount < 0');
+  if ACount = 0 then Exit;
+  if ACount > FMaxCount then raise EInvalidArgument.Create('sem: ACount > MaxCount');
   for i := 1 to ACount do
   begin
     rc := WaitForSingleObject(FHandle, INFINITE);
     if rc <> WAIT_OBJECT_0 then
-      raise ELockError.Create('Failed to acquire semaphore');
+    begin
+      FLastError := weSystemError;
+      raise ELockError.Create('sem: failed to acquire semaphore');
+    end;
     EnterCriticalSection(FLock);
     try
       Dec(FCurrentCount);
+      FLastError := weNone;
     finally
       LeaveCriticalSection(FLock);
     end;
@@ -102,19 +125,17 @@ procedure TSemaphore.Release(ACount: Integer);
 var
   prev: LongInt;
 begin
-  if ACount <= 0 then Exit;
-  EnterCriticalSection(FLock);
-  try
-    if (FCurrentCount + ACount) > FMaxCount then
-      raise ELockError.Create('Semaphore count would exceed maximum');
-  finally
-    LeaveCriticalSection(FLock);
-  end;
+  if ACount < 0 then raise EInvalidArgument.Create('sem: ACount < 0');
+  if ACount = 0 then Exit;
   if not ReleaseSemaphore(FHandle, ACount, @prev) then
-    raise ELockError.Create('Failed to release semaphore');
+  begin
+    FLastError := weSystemError;
+    raise ELockError.Create('sem: failed to release semaphore');
+  end;
   EnterCriticalSection(FLock);
   try
     FCurrentCount := prev + ACount;
+    FLastError := weNone;
   finally
     LeaveCriticalSection(FLock);
   end;
@@ -132,6 +153,13 @@ end;
 
 function TSemaphore.TryAcquire(ACount: Integer): Boolean;
 begin
+  if ACount < 0 then raise EInvalidArgument.Create('sem: ACount < 0');
+  if ACount = 0 then Exit(True);
+  if ACount > FMaxCount then
+  begin
+    FLastError := weResourceExhausted;
+    Exit(False);
+  end;
   Result := TryAcquire(ACount, 0);
 end;
 
@@ -142,7 +170,13 @@ var
   deadline, now: QWord;
   rc: DWORD;
 begin
-  if ACount <= 0 then Exit(True);
+  if ACount < 0 then raise EInvalidArgument.Create('sem: ACount < 0');
+  if ACount = 0 then Exit(True);
+  if ACount > FMaxCount then
+  begin
+    FLastError := weResourceExhausted;
+    Exit(False);
+  end;
   acquired := 0;
   if ATimeoutMs = INFINITE then
     deadline := High(QWord)
@@ -156,6 +190,7 @@ begin
     begin
       // timeout
       if acquired > 0 then Release(acquired); // rollback
+      FLastError := weTimeout;
       Exit(False);
     end;
     if deadline = High(QWord) then
@@ -177,14 +212,17 @@ begin
     else if rc = WAIT_TIMEOUT then
     begin
       if acquired > 0 then Release(acquired);
+      FLastError := weTimeout;
       Exit(False);
     end
     else
     begin
       if acquired > 0 then Release(acquired);
-      raise ELockError.Create('Failed to acquire semaphore');
+      FLastError := weSystemError;
+      raise ELockError.Create('sem: failed to acquire semaphore');
     end;
   end;
+  FLastError := weNone;
   Result := True;
 end;
 

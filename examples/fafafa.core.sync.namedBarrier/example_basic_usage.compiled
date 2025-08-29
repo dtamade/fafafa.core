@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <Compiler Value="/home/dtamade/fpc/fpc/bin/x86_64-linux/fpc.sh" Date="1756300905"/>
+  <Params Value="-MObjFPC -Scghi -Cg -O1 -gw3 -gl -l -vewnhibq -Fi/home/dtamade/fafafa.core/src -Fu/home/dtamade/fafafa.core/examples/fafafa.core.sync.namedBarrier/ -Fu/home/dtamade/fafafa.core/src -o/home/dtamade/fafafa.core/examples/fafafa.core.sync.namedBarrier/example_basic_usage example_basic_usage.pas"/>
+</CONFIG>

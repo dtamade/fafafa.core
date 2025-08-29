@@ -7,8 +7,39 @@ interface
 
 uses
   SysUtils, Classes;
+  // TODO: Re-enable fafafa.core.result when FreePascal compatibility issues are fixed
+  // fafafa.core.result;
 
 // Cross-platform OS helpers inspired by Rust std::env/std::process (info-side) and Go os package
+
+type
+  // OS operation error types (inspired by Rust std::io::ErrorKind)
+  TOSError = (
+    oseSuccess,           // Operation succeeded
+    oseNotFound,          // File, directory, or resource not found
+    osePermissionDenied,  // Permission denied
+    oseInvalidInput,      // Invalid input parameter
+    oseSystemError,       // General system error
+    oseTimeout,           // Operation timed out
+    oseOutOfMemory,       // Out of memory
+    oseNotSupported,      // Operation not supported on this platform
+    oseAlreadyExists,     // Resource already exists
+    oseInterrupted,       // Operation was interrupted
+    oseInvalidData,       // Invalid or corrupted data
+    oseUnexpectedEof,     // Unexpected end of file/stream
+    oseResourceBusy,      // Resource is busy
+    oseNetworkError,      // Network-related error
+    oseOther              // Other unspecified error
+  );
+
+  // TODO: Re-enable Result types when fafafa.core.result compatibility is fixed
+  (*
+  // Result type aliases for common OS operations
+  TOSStringResult = specialize TResult<string, TOSError>;
+  TOSBoolResult = specialize TResult<Boolean, TOSError>;
+  TOSIntResult = specialize TResult<Integer, TOSError>;
+  TOSQWordResult = specialize TResult<QWord, TOSError>;
+  *)
 
 type
   TPlatformInfo = record
@@ -35,6 +66,106 @@ type
     IDLike: string;     // distro family (Linux), else empty
   end;
 
+  // Enhanced system information structures (inspired by Rust/Go/Java)
+
+  // Array type definitions for FreePascal compatibility
+  TStringArray = array of string;
+
+  // Forward declarations for complex types
+  TStorageInfo = record
+    Path: string;            // Mount point or drive letter
+    FileSystem: string;      // File system type (NTFS, ext4, etc.)
+    Total: QWord;            // Total space in bytes
+    Available: QWord;        // Available space in bytes
+    Used: QWord;             // Used space in bytes
+    IsRemovable: Boolean;    // Is removable media
+    IsReadOnly: Boolean;     // Is read-only
+  end;
+
+  TNetworkInterface = record
+    Name: string;            // Interface name (eth0, wlan0, etc.)
+    DisplayName: string;     // Human-readable name
+    HardwareAddress: string; // MAC address
+    IPAddresses: TStringArray; // IP addresses (IPv4 and IPv6)
+    IsUp: Boolean;           // Interface is up
+    IsLoopback: Boolean;     // Is loopback interface
+    IsWireless: Boolean;     // Is wireless interface
+    MTU: Integer;            // Maximum transmission unit
+    Speed: QWord;            // Interface speed in bits per second (0 if unknown)
+    BytesSent: QWord;        // Bytes sent (0 if unknown)
+    BytesReceived: QWord;    // Bytes received (0 if unknown)
+  end;
+
+  TStorageInfoArray = array of TStorageInfo;
+  TNetworkInterfaceArray = array of TNetworkInterface;
+
+  // CPU information structure
+  TCPUInfo = record
+    Model: string;           // CPU model name
+    Vendor: string;          // CPU vendor (Intel, AMD, Apple, etc.)
+    Cores: Integer;          // Physical cores
+    Threads: Integer;        // Logical threads (with hyperthreading)
+    Architecture: string;    // x86_64, arm64, etc.
+    Frequency: QWord;        // Base frequency in Hz (0 if unknown)
+    CacheL1: QWord;          // L1 cache size in bytes (0 if unknown)
+    CacheL2: QWord;          // L2 cache size in bytes (0 if unknown)
+    CacheL3: QWord;          // L3 cache size in bytes (0 if unknown)
+    Features: TStringArray;   // CPU features (SSE, AVX, etc.)
+    Usage: Double;           // Current CPU usage 0.0-1.0 (-1 if unknown)
+  end;
+
+  // Memory information structure
+  TSwapInfo = record
+    Total: QWord;            // Total swap space in bytes
+    Used: QWord;             // Used swap space in bytes
+    Available: QWord;        // Available swap space in bytes
+  end;
+
+  TMemoryInfo = record
+    Total: QWord;            // Total physical memory in bytes
+    Available: QWord;        // Available memory in bytes
+    Used: QWord;             // Used memory in bytes
+    Free: QWord;             // Free memory in bytes
+    Cached: QWord;           // Cached memory in bytes (0 if unknown)
+    Buffers: QWord;          // Buffer memory in bytes (0 if unknown)
+    Swap: TSwapInfo;         // Swap information
+    Pressure: Double;        // Memory pressure 0.0-1.0 (-1 if unknown)
+  end;
+
+
+
+  // System load information (Unix-style)
+  TSystemLoad = record
+    Load1Min: Double;        // 1-minute load average (-1 if unknown)
+    Load5Min: Double;        // 5-minute load average (-1 if unknown)
+    Load15Min: Double;       // 15-minute load average (-1 if unknown)
+    RunningProcesses: Integer; // Number of running processes (-1 if unknown)
+    TotalProcesses: Integer;   // Total number of processes (-1 if unknown)
+  end;
+
+  // Comprehensive system information
+  TSystemInfo = record
+    Platform: TPlatformInfo;     // Basic platform information
+    CPU: TCPUInfo;               // CPU information
+    Memory: TMemoryInfo;         // Memory information
+    Storage: TStorageInfoArray;    // Storage devices
+    Network: TNetworkInterfaceArray; // Network interfaces
+    Load: TSystemLoad;           // System load
+    OSVersion: TOSVersionDetailed; // Detailed OS version
+    BootTime: TDateTime;         // System boot time (0 if unknown)
+    Uptime: QWord;               // System uptime in seconds (0 if unknown)
+  end;
+
+  // TODO: Re-enable Result types when fafafa.core.result compatibility is fixed
+  (*
+  // Result type aliases for new structures
+  TCPUInfoResult = specialize TResult<TCPUInfo, TOSError>;
+  TMemoryInfoResult = specialize TResult<TMemoryInfo, TOSError>;
+  TStorageInfoArrayResult = specialize TResult<TStorageInfoArray, TOSError>;
+  TNetworkInterfaceArrayResult = specialize TResult<TNetworkInterfaceArray, TOSError>;
+  TSystemLoadResult = specialize TResult<TSystemLoad, TOSError>;
+  TSystemInfoResult = specialize TResult<TSystemInfo, TOSError>;
+  *)
 
 // Environment variable helpers
 function os_getenv(const AName: string): string;
@@ -97,6 +228,48 @@ function os_is_container: Boolean;
 function os_is_ci: Boolean;
 
 function os_platform_info: TPlatformInfo;
+
+// TODO: Re-enable Result-based APIs when fafafa.core.result compatibility is fixed
+(*
+// Error handling utilities
+function OSErrorToString(Error: TOSError): string;
+function SystemErrorToOSError(SystemCode: Integer): TOSError;
+
+// New Result-based APIs (统一错误处理版本)
+function os_getenv_result(const AName: string): TOSStringResult;
+function os_lookupenv_result(const AName: string): TOSStringResult;
+function os_setenv_result(const AName, AValue: string): TOSBoolResult;
+function os_unsetenv_result(const AName: string): TOSBoolResult;
+
+function os_hostname_result: TOSStringResult;
+function os_username_result: TOSStringResult;
+function os_home_dir_result: TOSStringResult;
+function os_temp_dir_result: TOSStringResult;
+function os_exe_path_result: TOSStringResult;
+function os_exe_dir_result: TOSStringResult;
+
+function os_kernel_version_result: TOSStringResult;
+function os_timezone_result: TOSStringResult;
+function os_timezone_iana_result: TOSStringResult;
+function os_cpu_model_result: TOSStringResult;
+function os_locale_current_result: TOSStringResult;
+
+// New enhanced system information APIs
+function os_cpu_info: TCPUInfoResult;
+function os_memory_info_detailed: TMemoryInfoResult;
+function os_storage_info: TStorageInfoArrayResult;
+function os_network_interfaces: TNetworkInterfaceArrayResult;
+function os_system_load: TSystemLoadResult;
+function os_system_info: TSystemInfoResult;
+*)
+
+// Enhanced system information APIs (basic versions without Result)
+function os_cpu_info_ex(out Info: TCPUInfo): Boolean;
+function os_memory_info_ex(out Info: TMemoryInfo): Boolean;
+function os_storage_info_ex(out Info: TStorageInfoArray): Boolean;
+function os_network_interfaces_ex(out Info: TNetworkInterfaceArray): Boolean;
+function os_system_load_ex(out Info: TSystemLoad): Boolean;
+function os_system_info_ex(out Info: TSystemInfo): Boolean;
 
 implementation
 
@@ -294,7 +467,286 @@ begin
   Result := (S <> '');
 end;
 
+// Error handling utilities implementation
+function OSErrorToString(Error: TOSError): string;
+begin
+  case Error of
+    oseSuccess: Result := 'Success';
+    oseNotFound: Result := 'Not found';
+    osePermissionDenied: Result := 'Permission denied';
+    oseInvalidInput: Result := 'Invalid input';
+    oseSystemError: Result := 'System error';
+    oseTimeout: Result := 'Timeout';
+    oseOutOfMemory: Result := 'Out of memory';
+    oseNotSupported: Result := 'Not supported';
+    oseAlreadyExists: Result := 'Already exists';
+    oseInterrupted: Result := 'Interrupted';
+    oseInvalidData: Result := 'Invalid data';
+    oseUnexpectedEof: Result := 'Unexpected end of file';
+    oseResourceBusy: Result := 'Resource busy';
+    oseNetworkError: Result := 'Network error';
+    oseOther: Result := 'Other error';
+  else
+    Result := 'Unknown error';
+  end;
+end;
 
+function SystemErrorToOSError(SystemCode: Integer): TOSError;
+begin
+  {$IFDEF WINDOWS}
+  case SystemCode of
+    0: Result := oseSuccess;
+    2, 3: Result := oseNotFound;           // ERROR_FILE_NOT_FOUND, ERROR_PATH_NOT_FOUND
+    5: Result := osePermissionDenied;      // ERROR_ACCESS_DENIED
+    8: Result := oseOutOfMemory;           // ERROR_NOT_ENOUGH_MEMORY
+    87: Result := oseInvalidInput;         // ERROR_INVALID_PARAMETER
+    183: Result := oseAlreadyExists;       // ERROR_ALREADY_EXISTS
+    1223: Result := osePermissionDenied;   // ERROR_CANCELLED (user cancelled UAC)
+  else
+    Result := oseSystemError;
+  end;
+  {$ELSE}
+  case SystemCode of
+    0: Result := oseSuccess;
+    1: Result := osePermissionDenied;      // EPERM
+    2: Result := oseNotFound;              // ENOENT
+    4: Result := oseInterrupted;           // EINTR
+    12: Result := oseOutOfMemory;          // ENOMEM
+    13: Result := osePermissionDenied;     // EACCES
+    17: Result := oseAlreadyExists;        // EEXIST
+    22: Result := oseInvalidInput;         // EINVAL
+    16: Result := oseResourceBusy;         // EBUSY
+    110: Result := oseTimeout;             // ETIMEDOUT
+  else
+    Result := oseSystemError;
+  end;
+  {$ENDIF}
+end;
+
+// TODO: Re-enable Result-based implementations when fafafa.core.result compatibility is fixed
+(*
+function SystemErrorToOSError(SystemCode: Integer): TOSError;
+begin
+  case SystemCode of
+    0: Result := oseSuccess;
+    2, 3: Result := oseNotFound;        // File not found, Path not found
+    5: Result := osePermissionDenied;   // Access denied
+    8: Result := oseOutOfMemory;        // Not enough memory
+    32: Result := oseResourceBusy;      // Sharing violation
+    else Result := oseSystemError;
+  end;
+end;
+
+// New Result-based APIs implementation
+function os_getenv_result(const AName: string): TOSStringResult;
+var
+  Value: string;
+begin
+  try
+    Value := os_getenv(AName);
+    // 注意：os_getenv 返回空字符串可能表示变量不存在或值为空
+    // 我们需要用 os_lookupenv 来区分
+    if os_lookupenv(AName, Value) then
+      Result := TOSStringResult.Ok(Value)
+    else
+      Result := TOSStringResult.Err(oseNotFound);
+  except
+    on E: Exception do
+      Result := TOSStringResult.Err(oseSystemError);
+  end;
+end;
+
+function os_lookupenv_result(const AName: string): TOSStringResult;
+var
+  Value: string;
+begin
+  try
+    if os_lookupenv(AName, Value) then
+      Result := TOSStringResult.Ok(Value)
+    else
+      Result := TOSStringResult.Err(oseNotFound);
+  except
+    on E: Exception do
+      Result := TOSStringResult.Err(oseSystemError);
+  end;
+end;
+
+function os_setenv_result(const AName, AValue: string): TOSBoolResult;
+begin
+  try
+    if os_setenv(AName, AValue) then
+      Result := TOSBoolResult.Ok(True)
+    else
+      Result := TOSBoolResult.Err(oseSystemError);
+  except
+    on E: Exception do
+      Result := TOSBoolResult.Err(oseSystemError);
+  end;
+end;
+
+function os_unsetenv_result(const AName: string): TOSBoolResult;
+begin
+  try
+    if os_unsetenv(AName) then
+      Result := TOSBoolResult.Ok(True)
+    else
+      Result := TOSBoolResult.Err(oseSystemError);
+  except
+    on E: Exception do
+      Result := TOSBoolResult.Err(oseSystemError);
+  end;
+end;
+*)
+
+// Enhanced system information APIs implementation (basic versions without Result)
+
+function os_cpu_info_ex(out Info: TCPUInfo): Boolean;
+begin
+  try
+    // Initialize with default values
+    FillChar(Info, SizeOf(Info), 0);
+    Info.Usage := -1; // Unknown
+
+    // Get basic CPU information from existing APIs
+    Info.Model := os_cpu_model;
+    Info.Cores := os_cpu_count;
+    Info.Threads := os_cpu_count; // Assume no hyperthreading for now
+    Info.Architecture := os_platform_info.Architecture;
+
+    // Extract vendor from model string (basic heuristic)
+    if Pos('Intel', Info.Model) > 0 then
+      Info.Vendor := 'Intel'
+    else if Pos('AMD', Info.Model) > 0 then
+      Info.Vendor := 'AMD'
+    else if Pos('Apple', Info.Model) > 0 then
+      Info.Vendor := 'Apple'
+    else if Pos('ARM', Info.Model) > 0 then
+      Info.Vendor := 'ARM'
+    else
+      Info.Vendor := 'Unknown';
+
+    // TODO: Implement platform-specific CPU feature detection
+    // TODO: Implement CPU frequency detection
+    // TODO: Implement cache size detection
+    // TODO: Implement CPU usage monitoring
+
+    Result := True;
+  except
+    FillChar(Info, SizeOf(Info), 0);
+    Result := False;
+  end;
+end;
+
+function os_memory_info_ex(out Info: TMemoryInfo): Boolean;
+var
+  totalBytes, freeBytes: QWord;
+begin
+  try
+    // Initialize with default values
+    FillChar(Info, SizeOf(Info), 0);
+    Info.Pressure := -1; // Unknown
+
+    // Get basic memory information from existing API
+    if os_memory_info(totalBytes, freeBytes) then
+    begin
+      Info.Total := totalBytes;
+      Info.Available := freeBytes;
+      Info.Used := totalBytes - freeBytes;
+      Info.Free := freeBytes;
+
+      // TODO: Implement platform-specific detailed memory information
+      // TODO: Get cached, buffers, swap information
+      // TODO: Calculate memory pressure
+
+      Result := True;
+    end
+    else
+    begin
+      FillChar(Info, SizeOf(Info), 0);
+      Result := False;
+    end;
+  except
+    FillChar(Info, SizeOf(Info), 0);
+    Result := False;
+  end;
+end;
+
+function os_storage_info_ex(out Info: TStorageInfoArray): Boolean;
+begin
+  try
+    // TODO: Implement platform-specific storage enumeration
+    // For now, return empty array as placeholder
+    SetLength(Info, 0);
+    Result := True;
+  except
+    SetLength(Info, 0);
+    Result := False;
+  end;
+end;
+
+function os_network_interfaces_ex(out Info: TNetworkInterfaceArray): Boolean;
+begin
+  try
+    // TODO: Implement platform-specific network interface enumeration
+    // For now, return empty array as placeholder
+    SetLength(Info, 0);
+    Result := True;
+  except
+    SetLength(Info, 0);
+    Result := False;
+  end;
+end;
+
+function os_system_load_ex(out Info: TSystemLoad): Boolean;
+begin
+  try
+    // Initialize with unknown values
+    FillChar(Info, SizeOf(Info), 0);
+    Info.Load1Min := -1;
+    Info.Load5Min := -1;
+    Info.Load15Min := -1;
+    Info.RunningProcesses := -1;
+    Info.TotalProcesses := -1;
+
+    // TODO: Implement platform-specific system load information
+    // Unix: read /proc/loadavg
+    // Windows: use performance counters
+
+    Result := True;
+  except
+    FillChar(Info, SizeOf(Info), 0);
+    Result := False;
+  end;
+end;
+
+function os_system_info_ex(out Info: TSystemInfo): Boolean;
+begin
+  try
+    // Initialize with default values
+    FillChar(Info, SizeOf(Info), 0);
+
+    // Get platform information
+    Info.Platform := os_platform_info;
+
+    // Get detailed OS version
+    Info.OSVersion := os_os_version_detailed;
+
+    // Get boot time and uptime
+    Info.BootTime := os_boot_time;
+    Info.Uptime := os_uptime;
+
+    // Get enhanced information
+    os_cpu_info_ex(Info.CPU);
+    os_memory_info_ex(Info.Memory);
+    os_storage_info_ex(Info.Storage);
+    os_network_interfaces_ex(Info.Network);
+    os_system_load_ex(Info.Load);
+
+    Result := True;
+  except
+    FillChar(Info, SizeOf(Info), 0);
+    Result := False;
+  end;
+end;
 
 end.
-

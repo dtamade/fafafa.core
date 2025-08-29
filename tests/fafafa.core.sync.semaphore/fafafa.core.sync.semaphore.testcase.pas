@@ -39,7 +39,7 @@ type
   // 测试全局工厂函数
   TTestCase_Global = class(TTestCase)
   published
-    procedure Test_MakeSemaphore_Factory;
+    procedure Test_CreateSemaphore_Factory;
   end;
 
   // 测试 ISemaphore 接口
@@ -68,11 +68,19 @@ type
     procedure Test_Timeout_TryAcquireCount_WithTimeout;
     procedure Test_Timeout_TryAcquireCount_PartialReleaseFails;
 
+    // 回滚一致性（跨平台期望：失败不改变可用计数）
+    procedure Test_Rollback_TryAcquireCount_Timeout_NoRelease;
+    procedure Test_Rollback_TryAcquireCount_Timeout_WithSingleDelayedRelease;
+
     // 状态查询
     procedure Test_StateQueries;
 
     // 错误条件
     procedure Test_Error_ReleaseBeyondMax;
+    procedure Test_ParamValidation_AcquireRelease_Invalid;
+    procedure Test_ParamValidation_TryAcquire_Invalid;
+    procedure Test_TryAcquire_GreaterThanMax_ReturnsFalse;
+    procedure Test_LastError_SuccessAndTimeout;
 
     // 边界条件
     procedure Test_Edge_ZeroCountsAndNoops;
@@ -81,8 +89,40 @@ type
     procedure Test_Concurrent_BlockingAcquireAndRelease;
 
     // 多态性（ILock）
+    // 压力测试
+    procedure Test_Stress_Interleaved_MultiThread;
+
     procedure Test_Polymorphism_ILock;
   end;
+
+  // 压力测试线程：循环获取/释放
+  TWorkerThread = class(TThread)
+  private
+    FSem: ISemaphore;
+    FLoops: Integer;
+    FBulkCount: Integer;
+    FUseTimeout: Boolean;
+    FTimeoutMs: Cardinal;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(const ASem: ISemaphore; ALoops, ABulkCount: Integer; AUseTimeout: Boolean = False; ATimeoutMs: Cardinal = 0);
+  end;
+
+  // 取样线程：在并发过程中持续检查计数边界是否被破坏
+  TSamplerThread = class(TThread)
+  private
+    FSem: ISemaphore;
+    FStop: Boolean;
+    FViolations: Integer;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(const ASem: ISemaphore);
+    procedure Stop;
+    property Violations: Integer read FViolations;
+  end;
+
 
 implementation
 
@@ -114,6 +154,91 @@ begin
   FSem.Release(FCount);
 end;
 
+constructor TWorkerThread.Create(const ASem: ISemaphore; ALoops, ABulkCount: Integer; AUseTimeout: Boolean; ATimeoutMs: Cardinal);
+begin
+  inherited Create(True);
+  FreeOnTerminate := False;
+  FSem := ASem;
+  FLoops := ALoops;
+  FBulkCount := ABulkCount;
+  FUseTimeout := AUseTimeout;
+  FTimeoutMs := ATimeoutMs;
+  Start;
+end;
+
+procedure TWorkerThread.Execute;
+var i, k: Integer; ok: Boolean;
+begin
+  for i := 1 to FLoops do
+  begin
+    // 可选：批量获取
+    if FBulkCount <= 1 then
+    begin
+      if FUseTimeout then
+      begin
+        ok := FSem.TryAcquire(1, FTimeoutMs);
+        if ok then FSem.Release;
+      end
+      else
+      begin
+        FSem.Acquire;
+        FSem.Release;
+      end;
+    end
+    else
+    begin
+      // 尝试批量；失败则降级为逐个（避免长时间等待）
+      ok := False;
+      if FUseTimeout then
+        ok := FSem.TryAcquire(FBulkCount, FTimeoutMs)
+      else
+        ok := FSem.TryAcquire(FBulkCount);
+      if ok then
+        FSem.Release(FBulkCount)
+      else
+      begin
+        for k := 1 to FBulkCount do
+        begin
+          if FUseTimeout then
+          begin
+            if FSem.TryAcquire(1, FTimeoutMs) then FSem.Release;
+          end
+          else
+          begin
+            if FSem.TryAcquire then FSem.Release;
+          end;
+        end;
+      end;
+    end;
+  end;
+end;
+
+constructor TSamplerThread.Create(const ASem: ISemaphore);
+begin
+  inherited Create(True);
+  FreeOnTerminate := False;
+  FSem := ASem;
+  FStop := False;
+  FViolations := 0;
+  Start;
+end;
+
+procedure TSamplerThread.Stop;
+begin
+  FStop := True;
+end;
+
+procedure TSamplerThread.Execute;
+begin
+  while not FStop do
+  begin
+    if (FSem.GetAvailableCount < 0) or (FSem.GetAvailableCount > FSem.GetMaxCount) then
+      Inc(FViolations);
+    Sleep(1);
+  end;
+end;
+
+
 procedure TBlockingAcquireThread.Execute;
 begin
   try
@@ -128,11 +253,11 @@ end;
 
 { TTestCase_Global }
 
-procedure TTestCase_Global.Test_MakeSemaphore_Factory;
+procedure TTestCase_Global.Test_CreateSemaphore_Factory;
 var
   S: ISemaphore;
 begin
-  S := MakeSemaphore(1, 3);
+  S := fafafa.core.sync.semaphore.MakeSemaphore(1, 3);
   AssertNotNull('MakeSemaphore should return non-nil', S);
   AssertEquals('GetMaxCount should reflect input', 3, S.GetMaxCount);
 end;
@@ -142,7 +267,7 @@ end;
 procedure TTestCase_ISemaphore.SetUp;
 begin
   inherited SetUp;
-  FSem := MakeSemaphore(1, 3);
+  FSem := fafafa.core.sync.semaphore.MakeSemaphore(1, 3);
 end;
 
 procedure TTestCase_ISemaphore.TearDown;
@@ -155,11 +280,11 @@ procedure TTestCase_ISemaphore.Test_Constructors_Valid;
 var
   S: ISemaphore;
 begin
-  S := MakeSemaphore(0, 1);
+  S := fafafa.core.sync.semaphore.MakeSemaphore(0, 1);
   AssertEquals('Initial=0 should set available to 0', 0, S.GetAvailableCount);
   AssertEquals('Max=1 should be stored', 1, S.GetMaxCount);
 
-  S := MakeSemaphore(2, 5);
+  S := fafafa.core.sync.semaphore.MakeSemaphore(2, 5);
   AssertEquals('Initial=2 should set available to 2', 2, S.GetAvailableCount);
   AssertEquals('Max=5 should be stored', 5, S.GetMaxCount);
 end;
@@ -167,7 +292,7 @@ end;
 procedure TTestCase_ISemaphore.Test_Constructors_Invalid_MaxLEZero;
 begin
   try
-    MakeSemaphore(0, 0);
+    fafafa.core.sync.semaphore.MakeSemaphore(0, 0);
     Fail('AMaxCount<=0 should raise EInvalidArgument');
   except
     on E: EInvalidArgument do ;
@@ -177,7 +302,7 @@ end;
 procedure TTestCase_ISemaphore.Test_Constructors_Invalid_InitialNegative;
 begin
   try
-    MakeSemaphore(-1, 1);
+    fafafa.core.sync.semaphore.MakeSemaphore(-1, 1);
     Fail('AInitialCount<0 should raise EInvalidArgument');
   except
     on E: EInvalidArgument do ;
@@ -187,7 +312,7 @@ end;
 procedure TTestCase_ISemaphore.Test_Constructors_Invalid_InitialGreaterThanMax;
 begin
   try
-    MakeSemaphore(2, 1);
+    fafafa.core.sync.semaphore.MakeSemaphore(2, 1);
     Fail('AInitialCount>AMaxCount should raise EInvalidArgument');
   except
     on E: EInvalidArgument do ;
@@ -253,6 +378,69 @@ begin
   FSem.Release;
 end;
 
+procedure TTestCase_ISemaphore.Test_ParamValidation_AcquireRelease_Invalid;
+begin
+  // Acquire with negative
+  try
+    FSem.Acquire(-1);
+    Fail('Acquire(-1) should raise EInvalidArgument');
+  except on E: EInvalidArgument do ; end;
+
+  // Acquire with > Max
+  try
+    FSem.Acquire(FSem.GetMaxCount + 1);
+    Fail('Acquire(>Max) should raise EInvalidArgument');
+  except on E: EInvalidArgument do ; end;
+
+  // Release with negative
+  try
+    FSem.Release(-1);
+    Fail('Release(-1) should raise EInvalidArgument');
+  except on E: EInvalidArgument do ; end;
+end;
+
+procedure TTestCase_ISemaphore.Test_ParamValidation_TryAcquire_Invalid;
+var ok: Boolean;
+begin
+  // TryAcquire with negative
+  try
+    ok := FSem.TryAcquire(-1);
+    Fail('TryAcquire(-1) should raise EInvalidArgument');
+  except on E: EInvalidArgument do ; end;
+
+  try
+    ok := FSem.TryAcquire(-1, 10);
+    Fail('TryAcquire(-1,10) should raise EInvalidArgument');
+  except on E: EInvalidArgument do ; end;
+end;
+
+procedure TTestCase_ISemaphore.Test_TryAcquire_GreaterThanMax_ReturnsFalse;
+var ok: Boolean; nmax: Integer;
+begin
+  nmax := FSem.GetMaxCount;
+  ok := FSem.TryAcquire(nmax+1, 0);
+  AssertFalse('TryAcquire(>Max) should return False', ok);
+  ok := FSem.TryAcquire(nmax+1, 20);
+  AssertFalse('TryAcquire(>Max,timeout) should return False', ok);
+end;
+
+procedure TTestCase_ISemaphore.Test_LastError_SuccessAndTimeout;
+var ok: Boolean; err: TWaitError;
+begin
+  // Success should clear LastError
+  ok := FSem.TryAcquire; AssertTrue('TryAcquire should succeed initially', ok);
+  err := FSem.GetLastError; AssertEquals('LastError after success should be weNone', Ord(weNone), Ord(err));
+  FSem.Release;
+
+  // Force timeout: empty then try with short timeout
+  FSem.Acquire;
+  ok := FSem.TryAcquire(Cardinal(10));
+  AssertFalse('TryAcquire(10) should timeout', ok);
+  err := FSem.GetLastError;
+  AssertEquals('LastError after timeout should be weTimeout', Ord(weTimeout), Ord(err));
+  FSem.Release;
+end;
+
 procedure TTestCase_ISemaphore.Test_Timeout_TryAcquireCount_WithTimeout;
 var ok: Boolean; t0, t1: QWord; RelThread: TDelayedReleaseThread;
 begin
@@ -292,6 +480,41 @@ begin
   FSem.Release; // 现在应为1
 end;
 
+procedure TTestCase_ISemaphore.Test_Rollback_TryAcquireCount_Timeout_NoRelease;
+begin
+  // 初始 available=1, max=3（SetUp 中创建了 1/3）
+  // 申请 2 个许可，超时失败后，应保持计数不变
+  FSem.Acquire; // available=0
+  try
+    AssertEquals('available should be 0 before try', 0, FSem.GetAvailableCount);
+    AssertFalse('TryAcquire(2, 50) should timeout', FSem.TryAcquire(2, 50));
+    AssertEquals('after timeout, available unchanged (rollback)', 0, FSem.GetAvailableCount);
+  finally
+    FSem.Release; // 恢复为1
+  end;
+end;
+
+procedure TTestCase_ISemaphore.Test_Rollback_TryAcquireCount_Timeout_WithSingleDelayedRelease;
+var RelThread: TDelayedReleaseThread; t0,t1: QWord; ok: Boolean;
+begin
+  // 申请 2 个，期间仅释放 1 个，最终仍应超时失败，计数保持不变
+  FSem.Acquire; // available=0
+  RelThread := TDelayedReleaseThread.Create(FSem, 40, 1);
+  try
+    t0 := GetTickCount64;
+    ok := FSem.TryAcquire(2, 100);
+    t1 := GetTickCount64;
+    AssertFalse('TryAcquire(2,100) should still timeout (only 1 released)', ok);
+    AssertTrue('should have waited at least ~40ms', (t1 - t0) >= 30);
+    // 外部释放的1个许可应当保留，尝试获取的“已获取部分”会被回滚
+    AssertEquals('after timeout, available should reflect external release (rollback preserves state)', 1, FSem.GetAvailableCount);
+  finally
+    Sleep(10);
+    FSem.Release; // 恢复为1
+  end;
+end;
+
+
 procedure TTestCase_ISemaphore.Test_StateQueries;
 begin
   AssertEquals('GetAvailableCount initial=1', 1, FSem.GetAvailableCount);
@@ -308,13 +531,19 @@ begin
     Fail('Releasing beyond max should raise ELockError');
   except
     on E: ELockError do ;
+
+    else
+      raise;
   end;
+
 end;
+
+
 
 procedure TTestCase_ISemaphore.Test_Edge_ZeroCountsAndNoops;
 var ok: Boolean; S: ISemaphore;
 begin
-  S := MakeSemaphore(0, 2);
+  S := fafafa.core.sync.semaphore.MakeSemaphore(0, 2);
   AssertEquals('Initial zero available', 0, S.GetAvailableCount);
 
   // Acquire(0)/Release(0) 为 no-op
@@ -361,6 +590,61 @@ begin
   finally
     L.Release;
   end;
+end;
+
+procedure TTestCase_ISemaphore.Test_Stress_Interleaved_MultiThread;
+var
+  Sampler: TSamplerThread;
+
+
+  Threads: array of TWorkerThread;
+  i, N, Loops: Integer;
+  ViolCount: Integer;
+begin
+  // 基线：初始化 2 个可用，最大 3
+  FSem := fafafa.core.sync.semaphore.MakeSemaphore(2, 3);
+
+  N := 8;      // 线程数
+  Sampler := TSamplerThread.Create(FSem);
+
+  Loops := 200; // 每线程循环次数（保持较短，稳定）
+  SetLength(Threads, N);
+
+  for i := 0 to N-1 do
+  begin
+    if (i mod 3) = 0 then
+      Threads[i] := TWorkerThread.Create(FSem, Loops, 2, True, 5) // 带超时的批量
+    else if (i mod 3) = 1 then
+      Threads[i] := TWorkerThread.Create(FSem, Loops, 1, True, 5) // 带超时的单个
+    else
+      Threads[i] := TWorkerThread.Create(FSem, Loops, 1, False, 0); // 非超时单个
+  end;
+
+  // 先等待工作线程结束
+  for i := 0 to N-1 do
+    Threads[i].WaitFor;
+  // 回收工作线程
+  for i := 0 to N-1 do
+  begin
+    Threads[i].Free;
+    Threads[i] := nil;
+  end;
+
+  // 再停止采样线程并读取采样结果
+
+
+
+
+  Sampler.Stop;
+  Sampler.WaitFor;
+  // 先取值再释放对象，避免释放后访问内存
+  ViolCount := Sampler.Violations;
+  Sampler.Free;
+
+  // 断言：计数范围与无违规
+  AssertTrue('Available count within [0..Max] after stress',
+    (FSem.GetAvailableCount >= 0) and (FSem.GetAvailableCount <= FSem.GetMaxCount));
+  AssertEquals('Sampler should not detect boundary violations', 0, ViolCount);
 end;
 
 initialization

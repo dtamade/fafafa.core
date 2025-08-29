@@ -11,7 +11,9 @@ uses
   {$IFDEF UNIX},    fafafa.core.sync.barrier.unix{$ENDIF};
 
 type
-  // Map TBarrier to platform-specific implementation (same pattern as mutex)
+
+  IBarrier = fafafa.core.sync.barrier.base.IBarrier;
+
   {$IFDEF WINDOWS}
   TBarrier = fafafa.core.sync.barrier.windows.TBarrier;
   {$ENDIF}
@@ -20,7 +22,6 @@ type
   TBarrier = fafafa.core.sync.barrier.unix.TBarrier;
   {$ENDIF}
 
-// Factory function: create platform-specific barrier instance
 function MakeBarrier(AParticipantCount: Integer): IBarrier;
 
 implementation

@@ -18,12 +18,13 @@ uses
   fafafa.core.collections.vecdeque;
 
 type
+  TVecDequeInt = specialize TVecDeque<Integer>;
 
   { TTestCase_VecDeque - VecDeque 完整测试套件
     按照 VecDeque 的所有接口方法命名测试过程 }
   TTestCase_VecDeque = class(TTestCase)
   private
-    FVecDeque: specialize TVecDeque<Integer>;
+    FVecDeque: TVecDequeInt;
     // 测试辅助方法（方法指针版本）
     function EqualsIntMethod(const aLeft, aRight: Integer; aData: Pointer): Boolean;
     function PredicateEvenMethod(const aValue: Integer; aData: Pointer): Boolean;
@@ -288,6 +289,10 @@ type
     procedure Test_TryPeekCopy_Pointer_Wrap_CrossSegment;
     procedure Test_TryGet_TryRemove_Wrap_Small;
     procedure Test_PeekRange;
+    procedure Test_PopFrontRange;
+    procedure Test_PopBackRange;
+    procedure Test_PopFrontRange_ToCollection;
+    procedure Test_PopBackRange_ToCollection;
     procedure Test_Append_Queue;
     procedure Test_SplitOff;
     procedure Test_FillWith;
@@ -550,19 +555,16 @@ var
   LData: Pointer;
 begin
   LAllocator := TRtlAllocator.Create;
+  LData := Pointer($12345678);
+  LVecDeque := TVecDequeInt.Create(LAllocator, LData);
   try
-    LData := Pointer($12345678);
-    LVecDeque := specialize TVecDeque<Integer>.Create(LAllocator, LData);
-    try
-      AssertTrue('Create with allocator and data should work', LVecDeque <> nil);
-      AssertTrue('VecDeque should use provided allocator', LVecDeque.GetAllocator = LAllocator);
-      AssertTrue('VecDeque should store provided data', LVecDeque.GetData = LData);
-      AssertTrue('VecDeque should be empty', LVecDeque.IsEmpty);
-    finally
-      LVecDeque.Free;
-    end;
+    AssertTrue('Create with allocator and data should work', LVecDeque <> nil);
+    AssertTrue('VecDeque should use provided allocator', LVecDeque.GetAllocator = LAllocator);
+    AssertTrue('VecDeque should store provided data', LVecDeque.GetData = LData);
+    AssertTrue('VecDeque should be empty', LVecDeque.IsEmpty);
   finally
-    LAllocator.Free;
+    LVecDeque.Free;
+    // 接口类型会自动释放，不需要手动 Free
   end;
 end;
 
@@ -1292,6 +1294,104 @@ begin
   AssertTrue('PeekRange should return nil when non-contiguous', p = nil);
 end;
 
+procedure TTestCase_VecDeque.Test_PopFrontRange;
+var
+  LResult: SizeUInt;
+begin
+  // 测试空队列
+  FVecDeque.Clear;
+  LResult := FVecDeque.PopFrontRange(3);
+  AssertEquals('PopFrontRange on empty should return 0', 0, LResult);
+
+  // 测试正常情况
+  FVecDeque.Append([1, 2, 3, 4, 5]);
+  LResult := FVecDeque.PopFrontRange(3);
+  AssertEquals('PopFrontRange should return actual count', 3, LResult);
+  AssertEquals('Count should be reduced', 2, FVecDeque.Count);
+  AssertEquals('Remaining front should be 4', 4, FVecDeque.Front);
+  AssertEquals('Remaining back should be 5', 5, FVecDeque.Back);
+
+  // 测试超出范围
+  LResult := FVecDeque.PopFrontRange(10);
+  AssertEquals('PopFrontRange beyond count should return actual count', 2, LResult);
+  AssertEquals('Should be empty after popping all', 0, FVecDeque.Count);
+end;
+
+procedure TTestCase_VecDeque.Test_PopBackRange;
+var
+  LResult: SizeUInt;
+begin
+  // 测试空队列
+  FVecDeque.Clear;
+  LResult := FVecDeque.PopBackRange(3);
+  AssertEquals('PopBackRange on empty should return 0', 0, LResult);
+
+  // 测试正常情况
+  FVecDeque.Append([1, 2, 3, 4, 5]);
+  LResult := FVecDeque.PopBackRange(3);
+  AssertEquals('PopBackRange should return actual count', 3, LResult);
+  AssertEquals('Count should be reduced', 2, FVecDeque.Count);
+  AssertEquals('Remaining front should be 1', 1, FVecDeque.Front);
+  AssertEquals('Remaining back should be 2', 2, FVecDeque.Back);
+
+  // 测试超出范围
+  LResult := FVecDeque.PopBackRange(10);
+  AssertEquals('PopBackRange beyond count should return actual count', 2, LResult);
+  AssertEquals('Should be empty after popping all', 0, FVecDeque.Count);
+end;
+
+procedure TTestCase_VecDeque.Test_PopFrontRange_ToCollection;
+var
+  LTarget: TVecDequeInt;
+begin
+  LTarget := TVecDequeInt.Create;
+  try
+    // 测试弹出到目标容器
+    FVecDeque.Clear;
+    FVecDeque.Append([10, 20, 30, 40, 50]);
+
+    FVecDeque.PopFrontRange(3, LTarget);
+
+    // 验证源容器
+    AssertEquals('Source count should be reduced', 2, FVecDeque.Count);
+    AssertEquals('Source front should be 40', 40, FVecDeque.Front);
+
+    // 验证目标容器
+    AssertEquals('Target should have 3 elements', 3, LTarget.Count);
+    AssertEquals('Target[0] should be 10', 10, LTarget.Get(0));
+    AssertEquals('Target[1] should be 20', 20, LTarget.Get(1));
+    AssertEquals('Target[2] should be 30', 30, LTarget.Get(2));
+  finally
+    LTarget.Free;
+  end;
+end;
+
+procedure TTestCase_VecDeque.Test_PopBackRange_ToCollection;
+var
+  LTarget: TVecDequeInt;
+begin
+  LTarget := TVecDequeInt.Create;
+  try
+    // 测试弹出到目标容器
+    FVecDeque.Clear;
+    FVecDeque.Append([10, 20, 30, 40, 50]);
+
+    FVecDeque.PopBackRange(3, LTarget);
+
+    // 验证源容器
+    AssertEquals('Source count should be reduced', 2, FVecDeque.Count);
+    AssertEquals('Source back should be 20', 20, FVecDeque.Back);
+
+    // 验证目标容器
+    AssertEquals('Target should have 3 elements', 3, LTarget.Count);
+    AssertEquals('Target[0] should be 30', 30, LTarget.Get(0));
+    AssertEquals('Target[1] should be 40', 40, LTarget.Get(1));
+    AssertEquals('Target[2] should be 50', 50, LTarget.Get(2));
+  finally
+    LTarget.Free;
+  end;
+end;
+
 procedure TTestCase_VecDeque.Test_Append_Queue;
 var
   Q: specialize TVecDeque<Integer>;
@@ -1323,11 +1423,11 @@ begin
   AssertEquals(2, FVecDeque.Get(2));
   // 新队列应为 [3,4,5]
   AssertTrue(Q <> nil);
-  AssertEquals(3, Q.GetCount);
-  // 逐个 Dequeue 验证
-  AssertEquals(3, Q.Dequeue);
-  AssertEquals(4, Q.Dequeue);
-  AssertEquals(5, Q.Dequeue);
+  AssertEquals(3, Q.Count);
+  // 逐个 Pop 验证
+  AssertEquals(3, Q.Pop);
+  AssertEquals(4, Q.Pop);
+  AssertEquals(5, Q.Pop);
 end;
 procedure TTestCase_VecDeque.Test_FillWith; begin { TODO: 实现 } end;
 procedure TTestCase_VecDeque.Test_ClearAndReserve; begin { TODO: 实现 } end;

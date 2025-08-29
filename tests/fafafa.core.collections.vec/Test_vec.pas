@@ -5096,18 +5096,14 @@ begin
     LStrategyI := LVec.GetGrowStrategy;
     AssertTrue('Default interface grow strategy should not be nil', LStrategyI <> nil);
 
-    // 设置一个具体策略（以对象形式设置，生命周期由测试用例手动管理；通过接口访问器读取）
-    LGrowObj := TFixedGrowStrategy.Create(8);
-    try
-      LVec.SetGrowStrategy(LGrowObj);
-      LStrategyI := LVec.GetGrowStrategy;
-      AssertTrue('Interface grow strategy after SetGrowStrategy should not be nil', LStrategyI <> nil);
-    finally
-      // 释放顺序：先释放接口视图，再恢复默认策略，最后释放底层对象
-      LStrategyI := nil;
-      LVec.SetGrowStrategy(nil);
-      LGrowObj.Free;
-    end;
+    // 设置一个具体策略（通过接口自动管理生命周期）
+    LStrategyI := TFixedGrowStrategy.Create(8);  // 自动转换为接口，引用计数管理生命周期
+    LVec.SetGrowStrategy(LStrategyI);
+    AssertTrue('Interface grow strategy after SetGrowStrategy should not be nil', LVec.GetGrowStrategy <> nil);
+
+    // 测试恢复默认策略
+    LVec.SetGrowStrategy(nil);
+    AssertTrue('Should restore default strategy', LVec.GetGrowStrategy <> nil);
   finally
     LVec.Free;
   end;
@@ -5137,7 +5133,7 @@ begin
     end;
 
     // 设置为 nil 应恢复默认策略（仍然非空）
-    LVec.SetGrowStrategy(nil);
+    LVec.SetGrowStrategy(IGrowthStrategy(nil));
     LStrategyI2 := LVec.GetGrowStrategy;
     AssertTrue('After SetGrowStrategyI(nil), should fallback to default non-nil', LStrategyI2 <> nil);
   finally
@@ -5177,26 +5173,23 @@ end;
 procedure TTestCase_Vec.Test_SetGrowStrategy;
 var
   LVec: specialize TVec<Integer>;
-  LStrategy1, LStrategy2: TGrowthStrategy;
+  LStrategy1, LStrategy2: IGrowthStrategy;
 begin
-  { 测试设置增长策略 }
-  LStrategy1 := TFixedGrowStrategy.Create(5);
-  LStrategy2 := TDoublingGrowStrategy.Create;
+  LVec := specialize TVec<Integer>.Create;
   try
-    LVec := specialize TVec<Integer>.Create;
-    try
-      LVec.SetGrowStrategy(LStrategy1);
-      AssertTrue('Should use first strategy', LVec.GetGrowStrategy = IGrowthStrategy(LStrategy1));
+    { 测试设置第一个策略 }
+    LStrategy1 := TFixedGrowStrategy.Create(5);  // 自动转换为接口
+    LVec.SetGrowStrategy(LStrategy1);
+    AssertTrue('Should use first strategy', LVec.GetGrowStrategy <> nil);
+    AssertEquals('Should use first strategy calc', 15, LVec.GetGrowStrategy.GetGrowSize(10, 15));
 
-      { 测试通过属性设置 }
-      LVec.GrowStrategy := LStrategy2;
-      AssertTrue('Should use second strategy', LVec.GetGrowStrategy = IGrowthStrategy(LStrategy2));
-    finally
-      LVec.Free;
-    end;
+    { 测试通过属性设置第二个策略 }
+    LStrategy2 := TDoublingGrowStrategy.Create;  // 自动转换为接口
+    LVec.GrowStrategy := LStrategy2;
+    AssertTrue('Should use second strategy', LVec.GetGrowStrategy <> nil);
+    AssertEquals('Should use second strategy calc', 20, LVec.GetGrowStrategy.GetGrowSize(10, 15));
   finally
-    LStrategy1.Free;
-    LStrategy2.Free;
+    LVec.Free;
   end;
 end;
 

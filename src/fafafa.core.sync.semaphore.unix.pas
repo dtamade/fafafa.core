@@ -16,6 +16,8 @@ type
     FCond: pthread_cond_t;
     FCount: Integer;
     FMaxCount: Integer;
+    FName: string;
+    FLastError: TWaitError;
   public
     constructor Create(AInitialCount: Integer = 1; AMaxCount: Integer = 1);
     destructor Destroy; override;
@@ -29,11 +31,24 @@ type
     function TryAcquire(ACount: Integer; ATimeoutMs: Cardinal): Boolean; overload;
     function GetAvailableCount: Integer;
     function GetMaxCount: Integer;
+    // ISynchronizable
+    function GetName: string;
+    function GetLastError: TWaitError;
   end;
 
 implementation
 
 { TSemaphore }
+
+function TSemaphore.GetName: string;
+begin
+  if FName = '' then Result := 'Semaphore' else Result := FName;
+end;
+
+function TSemaphore.GetLastError: TWaitError;
+begin
+  Result := FLastError;
+end;
 
 constructor TSemaphore.Create(AInitialCount: Integer; AMaxCount: Integer);
 begin
@@ -42,14 +57,19 @@ begin
   if (AInitialCount < 0) or (AInitialCount > AMaxCount) then
     raise EInvalidArgument.Create('Invalid initial count');
   if pthread_mutex_init(@FMutex, nil) <> 0 then
+  begin
+    FLastError := weSystemError;
     raise ELockError.Create('sem: mutex init failed');
+  end;
   if pthread_cond_init(@FCond, nil) <> 0 then
   begin
     pthread_mutex_destroy(@FMutex);
+    FLastError := weSystemError;
     raise ELockError.Create('sem: cond init failed');
   end;
   FMaxCount := AMaxCount;
   FCount := AInitialCount;
+  FLastError := weNone;
 end;
 
 destructor TSemaphore.Destroy;
@@ -66,13 +86,19 @@ end;
 
 procedure TSemaphore.Acquire(ACount: Integer);
 begin
-  if ACount <= 0 then Exit;
+  if ACount < 0 then raise EInvalidArgument.Create('sem: ACount < 0');
+  if ACount = 0 then Exit;
+  if ACount > FMaxCount then raise EInvalidArgument.Create('sem: ACount > MaxCount');
   if pthread_mutex_lock(@FMutex) <> 0 then
+  begin
+    FLastError := weSystemError;
     raise ELockError.Create('sem: lock failed');
+  end;
   try
     while FCount < ACount do
       pthread_cond_wait(@FCond, @FMutex);
     Dec(FCount, ACount);
+    FLastError := weNone;
   finally
     pthread_mutex_unlock(@FMutex);
   end;
@@ -87,15 +113,28 @@ procedure TSemaphore.Release(ACount: Integer);
 var
   i: Integer;
 begin
-  if ACount <= 0 then Exit;
+  if ACount < 0 then raise EInvalidArgument.Create('sem: ACount < 0');
+  if ACount = 0 then Exit;
   if pthread_mutex_lock(@FMutex) <> 0 then
+  begin
+    FLastError := weSystemError;
     raise ELockError.Create('sem: lock failed');
+  end;
   try
     for i := 1 to ACount do
     begin
-      if FCount < FMaxCount then Inc(FCount) else raise ELockError.Create('sem: count exceeds max');
-      pthread_cond_signal(@FCond);
+      if FCount < FMaxCount then
+      begin
+        Inc(FCount);
+        pthread_cond_signal(@FCond);
+      end
+      else
+      begin
+        FLastError := weSystemError;
+        raise ELockError.Create('sem: count exceeds max');
+      end;
     end;
+    FLastError := weNone;
   finally
     pthread_mutex_unlock(@FMutex);
   end;
@@ -113,6 +152,13 @@ end;
 
 function TSemaphore.TryAcquire(ACount: Integer): Boolean;
 begin
+  if ACount < 0 then raise EInvalidArgument.Create('sem: ACount < 0');
+  if ACount = 0 then Exit(True);
+  if ACount > FMaxCount then
+  begin
+    FLastError := weResourceExhausted;
+    Exit(False);
+  end;
   Result := TryAcquire(ACount, 0);
 end;
 
@@ -122,23 +168,41 @@ var
   ts: timespec;
   rc: Integer;
 begin
-  if ACount <= 0 then Exit(True);
+  if ACount < 0 then raise EInvalidArgument.Create('sem: ACount < 0');
+  if ACount = 0 then Exit(True);
+  if ACount > FMaxCount then
+  begin
+    FLastError := weResourceExhausted;
+    Exit(False);
+  end;
   if pthread_mutex_lock(@FMutex) <> 0 then
+  begin
+    FLastError := weSystemError;
     raise ELockError.Create('sem: lock failed');
+  end;
   try
     if ATimeoutMs = 0 then
     begin
       if FCount >= ACount then
       begin
         Dec(FCount, ACount);
+        FLastError := weNone;
         Exit(True);
       end
       else
+      begin
+        // zero-timeout immediate failure: resource currently unavailable (no wait)
+        FLastError := weResourceExhausted;
         Exit(False);
+      end;
     end
     else
     begin
-      if fpgettimeofday(@tv, nil) <> 0 then Exit(False);
+      if fpgettimeofday(@tv, nil) <> 0 then
+      begin
+        FLastError := weSystemError;
+        Exit(False);
+      end;
       ts.tv_sec := tv.tv_sec + (ATimeoutMs div 1000);
       ts.tv_nsec := (tv.tv_usec * 1000) + (ATimeoutMs mod 1000) * 1000000;
       if ts.tv_nsec >= 1000000000 then
@@ -149,10 +213,25 @@ begin
       while FCount < ACount do
       begin
         rc := pthread_cond_timedwait(@FCond, @FMutex, @ts);
-        if rc = ESysETIMEDOUT then Exit(False)
-        else if rc <> 0 then Exit(False);
+        if rc = ESysETIMEDOUT then
+        begin
+          // waited until deadline: real timeout
+          FLastError := weTimeout;
+          Exit(False);
+        end
+        else if rc = ESysEINTR then
+        begin
+          // interrupted by signal: continue waiting until condition or timeout
+          continue;
+        end
+        else if rc <> 0 then
+        begin
+          FLastError := weSystemError;
+          Exit(False);
+        end;
       end;
       Dec(FCount, ACount);
+      FLastError := weNone;
       Exit(True);
     end;
   finally
@@ -162,12 +241,24 @@ end;
 
 function TSemaphore.GetAvailableCount: Integer;
 begin
-  Result := FCount;
+  if pthread_mutex_lock(@FMutex) <> 0 then
+    raise ELockError.Create('sem: lock failed');
+  try
+    Result := FCount;
+  finally
+    pthread_mutex_unlock(@FMutex);
+  end;
 end;
 
 function TSemaphore.GetMaxCount: Integer;
 begin
-  Result := FMaxCount;
+  if pthread_mutex_lock(@FMutex) <> 0 then
+    raise ELockError.Create('sem: lock failed');
+  try
+    Result := FMaxCount;
+  finally
+    pthread_mutex_unlock(@FMutex);
+  end;
 end;
 
 end.

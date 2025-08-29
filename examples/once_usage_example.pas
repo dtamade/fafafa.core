@@ -1,213 +1,249 @@
-program OnceUsageExample;
+program once_usage_example_new;
 
+{$CODEPAGE UTF8}
 {$mode objfpc}{$H+}
+{$I ../src/fafafa.core.settings.inc}
 
 uses
-  SysUtils,
+  {$IFDEF UNIX}
+  cthreads,
+  {$ENDIF}
+  SysUtils, Classes,
+  fafafa.core.sync.base,
   fafafa.core.sync.once;
 
 var
-  GlobalInitCount: Integer = 0;
-  GlobalResource: TObject = nil;
+  GlobalCounter: Integer = 0;
+  GlobalInitialized: Boolean = False;
 
-// 示例1：简单的初始化过程
-procedure InitializeGlobalResource;
+// 示例1：简单的全局初始化
+procedure GlobalInitProc;
 begin
-  Inc(GlobalInitCount);
-  GlobalResource := TStringList.Create;
-  WriteLn('全局资源已初始化，计数: ', GlobalInitCount);
+  WriteLn('执行全局初始化...');
+  GlobalInitialized := True;
+  Inc(GlobalCounter);
 end;
 
-// 示例2：使用 MakeOnce 的不同方式
-procedure DemonstrateBasicUsage;
+procedure TestBasicUsage;
 var
   Once: IOnce;
 begin
-  WriteLn('=== 基本用法演示 ===');
+  WriteLn('=== 示例1：基础使用 ===');
   
-  // 方式1：构造时传入过程，使用 Execute
-  WriteLn('方式1：构造时传入过程');
-  Once := MakeOnce(@InitializeGlobalResource);
-  Once.Execute; // 执行初始化
-  Once.Execute; // 不会重复执行
+  // 创建 Once 实例并传入回调
+  Once := MakeOnce(@GlobalInitProc);
   
-  // 重置用于演示
-  GlobalInitCount := 0;
-  if Assigned(GlobalResource) then
-    FreeAndNil(GlobalResource);
+  WriteLn('第一次调用 Execute:');
+  Once.Execute;
   
-  // 方式2：使用匿名过程
-  WriteLn('方式2：使用匿名过程');
+  WriteLn('第二次调用 Execute (应该被忽略):');
+  Once.Execute;
+  
+  WriteLn('第三次调用 Execute (应该被忽略):');
+  Once.Execute;
+  
+  WriteLn('全局初始化状态: ', GlobalInitialized);
+  WriteLn('回调执行次数: ', GlobalCounter);
+  WriteLn('是否已完成: ', Once.Completed);
+  WriteLn;
+end;
+
+// 示例2：对象方法回调
+type
+  TExampleClass = class
+  private
+    FValue: Integer;
+  public
+    constructor Create;
+    procedure InitializeMethod;
+    property Value: Integer read FValue;
+  end;
+
+constructor TExampleClass.Create;
+begin
+  inherited Create;
+  FValue := 0;
+end;
+
+procedure TExampleClass.InitializeMethod;
+begin
+  WriteLn('执行对象方法初始化...');
+  FValue := 42;
+end;
+
+procedure TestMethodCallback;
+var
+  Once: IOnce;
+  Obj: TExampleClass;
+begin
+  WriteLn('=== 示例2：对象方法回调 ===');
+  
+  Obj := TExampleClass.Create;
+  try
+    // 使用对象方法作为回调
+    Once := MakeOnce(@Obj.InitializeMethod);
+    
+    WriteLn('初始值: ', Obj.Value);
+    
+    WriteLn('第一次调用 Execute:');
+    Once.Execute;
+    WriteLn('值: ', Obj.Value);
+    
+    WriteLn('第二次调用 Execute (应该被忽略):');
+    Once.Execute;
+    WriteLn('值: ', Obj.Value);
+    
+    WriteLn('是否已完成: ', Once.Completed);
+  finally
+    Obj.Free;
+  end;
+  WriteLn;
+end;
+
+{$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
+// 示例3：匿名过程
+procedure TestAnonymousProc;
+var
+  Once: IOnce;
+  LocalValue: string;
+begin
+  WriteLn('=== 示例3：匿名过程 ===');
+  
+  LocalValue := '未初始化';
+  
+  // 使用匿名过程，可以捕获局部变量
   Once := MakeOnce(
     procedure
     begin
-      Inc(GlobalInitCount);
-      WriteLn('匿名过程执行，计数: ', GlobalInitCount);
+      WriteLn('执行匿名过程初始化...');
+      LocalValue := '已初始化';
     end
   );
-  Once.Execute;
-  Once.Execute; // 不会重复执行
   
-  // 方式3：使用 ILock 接口
-  WriteLn('方式3：使用 ILock 接口');
-  GlobalInitCount := 0;
-  if Assigned(GlobalResource) then
-    FreeAndNil(GlobalResource);
-
-  Once := MakeOnce(@InitializeGlobalResource);
-  Once.Acquire; // 等同于 Execute
-  Once.Acquire; // 不会重复执行
+  WriteLn('初始值: ', LocalValue);
+  
+  WriteLn('第一次调用 Execute:');
+  Once.Execute;
+  WriteLn('值: ', LocalValue);
+  
+  WriteLn('第二次调用 Execute (应该被忽略):');
+  Once.Execute;
+  WriteLn('值: ', LocalValue);
+  
+  WriteLn('是否已完成: ', Once.Completed);
+  WriteLn;
 end;
+{$ENDIF}
 
-// 示例3：单例模式实现
+// 示例4：单例模式实现
 type
   TExampleSingleton = class
   private
     class var FInstance: TExampleSingleton;
     class var FOnce: IOnce;
-    FValue: String;
+    FValue: string;
+    class procedure CreateInstanceProc;
   public
     constructor Create;
     class constructor CreateClass;
     class function GetInstance: TExampleSingleton;
-    property Value: String read FValue write FValue;
+    function GetValue: string;
   end;
 
 constructor TExampleSingleton.Create;
 begin
   inherited Create;
-  FValue := 'Singleton Instance Created at ' + DateTimeToStr(Now);
-  WriteLn('单例实例已创建');
+  FValue := 'Singleton Instance Created';
 end;
 
 class constructor TExampleSingleton.CreateClass;
 begin
-  // 构造时传入创建实例的匿名过程
-  FOnce := MakeOnce(
-    procedure
-    begin
-      FInstance := TExampleSingleton.Create;
-    end
-  );
+  FOnce := MakeOnce(@CreateInstanceProc);
+end;
+
+class procedure TExampleSingleton.CreateInstanceProc;
+begin
+  WriteLn('创建单例实例...');
+  FInstance := TExampleSingleton.Create;
+end;
+
+function TExampleSingleton.GetValue: string;
+begin
+  Result := FValue;
 end;
 
 class function TExampleSingleton.GetInstance: TExampleSingleton;
 begin
-  FOnce.Execute; // 执行一次性初始化
+  FOnce.Execute;
   Result := FInstance;
 end;
 
-procedure DemonstrateSingleton;
+procedure TestSingletonPattern;
 var
   Instance1, Instance2: TExampleSingleton;
 begin
-  WriteLn('=== 单例模式演示 ===');
+  WriteLn('=== 示例4：单例模式 ===');
   
+  WriteLn('获取第一个实例:');
   Instance1 := TExampleSingleton.GetInstance;
+  WriteLn('实例值: ', Instance1.GetValue);
+
+  WriteLn('获取第二个实例:');
   Instance2 := TExampleSingleton.GetInstance;
+  WriteLn('实例值: ', Instance2.GetValue);
   
-  WriteLn('Instance1 = Instance2: ', Instance1 = Instance2);
-  WriteLn('Instance1.Value: ', Instance1.Value);
-  WriteLn('Instance2.Value: ', Instance2.Value);
+  WriteLn('两个实例是否相同: ', Instance1 = Instance2);
+  WriteLn;
 end;
 
-// 示例4：多线程安全初始化
-procedure DemonstrateThreadSafety;
+// 示例5：ILock 接口兼容性
+procedure TestILockInterface;
 var
   Once: IOnce;
-  ThreadCount: Integer;
-  
-  procedure ThreadProc;
-  begin
-    Once.Execute; // 线程安全的一次性执行
-    InterlockedIncrement(ThreadCount);
-  end;
-  
-var
-  Threads: array[0..4] of TThread;
-  i: Integer;
+  Lock: ILock;
 begin
-  WriteLn('=== 多线程安全演示 ===');
+  WriteLn('=== 示例5：ILock 接口兼容性 ===');
   
-  GlobalInitCount := 0;
-  ThreadCount := 0;
-  if Assigned(GlobalResource) then
-    FreeAndNil(GlobalResource);
+  Once := MakeOnce(@GlobalInitProc);
+  Lock := Once; // IOnce 继承自 ILock
   
-  Once := MakeOnce(@InitializeGlobalResource);
+  WriteLn('TryAcquire (未执行): ', Lock.TryAcquire);
   
-  // 创建多个线程同时调用 Execute
-  for i := 0 to High(Threads) do
-  begin
-    Threads[i] := TThread.CreateAnonymousThread(@ThreadProc);
-    Threads[i].Start;
-  end;
+  WriteLn('调用 Acquire (等同于 Execute):');
+  Lock.Acquire;
   
-  // 等待所有线程完成
-  for i := 0 to High(Threads) do
-  begin
-    Threads[i].WaitFor;
-    Threads[i].Free;
-  end;
+  WriteLn('TryAcquire (已执行): ', Lock.TryAcquire);
   
-  WriteLn('线程数量: ', Length(Threads));
-  WriteLn('完成的线程: ', ThreadCount);
-  WriteLn('初始化次数: ', GlobalInitCount, ' (应该为 1)');
+  WriteLn('调用 Release (无操作):');
+  Lock.Release;
+  
+  WriteLn('TryAcquire (仍然已执行): ', Lock.TryAcquire);
+  WriteLn;
 end;
 
-// 示例5：状态查询
-procedure DemonstrateStateQuery;
-var
-  Once: IOnce;
-begin
-  WriteLn('=== 状态查询演示 ===');
-  
-  Once := MakeOnce(@InitializeGlobalResource);
-  
-  WriteLn('执行前状态: ', Ord(Once.GetState));
-  WriteLn('是否已完成: ', Once.IsCompleted);
-  
-  Once.Execute;
-  
-  WriteLn('执行后状态: ', Ord(Once.GetState));
-  WriteLn('是否已完成: ', Once.IsCompleted);
-  
-  // 使用 TryAcquire
-  if Once.TryAcquire then
-    WriteLn('TryAcquire 成功（已完成状态）')
-  else
-    WriteLn('TryAcquire 失败');
-end;
-
-// 主程序
 begin
   try
-    WriteLn('fafafa.core.sync.once 使用示例');
-    WriteLn('================================');
-    
-    DemonstrateBasicUsage;
+    WriteLn('fafafa.core.sync.once Usage Examples');
+    WriteLn('===================================');
     WriteLn;
     
-    DemonstrateSingleton;
-    WriteLn;
+    TestBasicUsage;
+    TestMethodCallback;
     
-    DemonstrateThreadSafety;
-    WriteLn;
+    {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
+    TestAnonymousProc;
+    {$ENDIF}
     
-    DemonstrateStateQuery;
-    WriteLn;
+    TestSingletonPattern;
+    TestILockInterface;
     
-    WriteLn('所有示例执行完成！');
+    WriteLn('所有示例完成！');
     
   except
     on E: Exception do
       WriteLn('错误: ', E.Message);
   end;
   
-  // 清理资源
-  if Assigned(GlobalResource) then
-    FreeAndNil(GlobalResource);
-    
   WriteLn('按回车键退出...');
   ReadLn;
 end.

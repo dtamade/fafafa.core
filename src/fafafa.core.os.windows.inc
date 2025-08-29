@@ -24,6 +24,7 @@ var
 
 procedure _cache_lock;
 begin
+  // 延迟初始化临界区，确保线程安全
   if not g_cache_cs_inited then
   begin
     InitCriticalSection(g_cache_cs);
@@ -34,6 +35,7 @@ end;
 
 procedure _cache_unlock;
 begin
+  // 安全释放临界区锁
   if g_cache_cs_inited then
     LeaveCriticalSection(g_cache_cs);
 end;
@@ -704,7 +706,8 @@ begin
       end;
       Result.VersionString := Format('%d.%d', [major, minor]);
       Result.Build := IntToStr(buildNum);
-      // Name/PrettyName: prefer ProductName + DisplayVersion (or ReleaseId fallback)
+
+      // Enhanced Name/PrettyName construction
       if productName <> '' then
       begin
         verLabel := displayVersion;
@@ -719,15 +722,32 @@ begin
           Result.Name := productName;
           Result.PrettyName := Result.Name;
         end;
+
+        // Add edition information if available
+        if editionId <> '' then
+        begin
+          Result.Codename := editionId;
+          if Pos(editionId, Result.Name) = 0 then
+            Result.PrettyName := Result.Name + ' (' + editionId + ')';
+        end;
       end
       else
       begin
         Result.Name := 'Windows';
-        if Result.PrettyName = '' then Result.PrettyName := Result.Name;
+        Result.PrettyName := Result.Name;
       end;
-      // ID: windows + optional qualifiers (informative)
+
+      // Enhanced ID construction
       Result.ID := 'windows';
-      // Optionally, we could add suffixes like '-servercore' if InstallationType indicates 'Server Core'
+      if installationType <> '' then
+      begin
+        if SameText(installationType, 'Server Core') then
+          Result.IDLike := 'windows-server-core'
+        else if SameText(installationType, 'Server') then
+          Result.IDLike := 'windows-server'
+        else if SameText(installationType, 'Client') then
+          Result.IDLike := 'windows-client';
+      end;
     finally
       RegCloseKey(reg);
     end;
@@ -742,22 +762,105 @@ begin
       buildNum := vi.dwBuildNumber;
       Result.VersionString := Format('%d.%d', [vi.dwMajorVersion, vi.dwMinorVersion]);
       Result.Build := IntToStr(buildNum);
+
+      // Enhanced version detection based on build numbers
       if vi.dwMajorVersion = 10 then
       begin
-        if buildNum >= 26100 then Result.Name := 'Windows 11 24H2'
-        else if buildNum >= 22631 then Result.Name := 'Windows 11 23H2'
-        else if buildNum >= 22621 then Result.Name := 'Windows 11 22H2'
-        else if buildNum >= 22000 then Result.Name := 'Windows 11 21H2'
-        else if buildNum >= 19045 then Result.Name := 'Windows 10 22H2'
-        else if buildNum >= 19044 then Result.Name := 'Windows 10 21H2'
-        else if buildNum >= 19043 then Result.Name := 'Windows 10 21H1'
-        else if buildNum >= 19042 then Result.Name := 'Windows 10 20H2'
-        else if buildNum >= 19041 then Result.Name := 'Windows 10 2004'
-        else Result.Name := 'Windows 10';
+        // Windows 11 detection (build 22000+)
+        if buildNum >= 26100 then begin
+          Result.Name := 'Windows 11 24H2';
+          Result.Codename := '24H2';
+        end
+        else if buildNum >= 22631 then begin
+          Result.Name := 'Windows 11 23H2';
+          Result.Codename := '23H2';
+        end
+        else if buildNum >= 22621 then begin
+          Result.Name := 'Windows 11 22H2';
+          Result.Codename := '22H2';
+        end
+        else if buildNum >= 22000 then begin
+          Result.Name := 'Windows 11 21H2';
+          Result.Codename := '21H2';
+        end
+        // Windows 10 versions
+        else if buildNum >= 19045 then begin
+          Result.Name := 'Windows 10 22H2';
+          Result.Codename := '22H2';
+        end
+        else if buildNum >= 19044 then begin
+          Result.Name := 'Windows 10 21H2';
+          Result.Codename := '21H2';
+        end
+        else if buildNum >= 19043 then begin
+          Result.Name := 'Windows 10 21H1';
+          Result.Codename := '21H1';
+        end
+        else if buildNum >= 19042 then begin
+          Result.Name := 'Windows 10 20H2';
+          Result.Codename := '20H2';
+        end
+        else if buildNum >= 19041 then begin
+          Result.Name := 'Windows 10 2004';
+          Result.Codename := '2004';
+        end
+        else if buildNum >= 18363 then begin
+          Result.Name := 'Windows 10 1909';
+          Result.Codename := '1909';
+        end
+        else if buildNum >= 18362 then begin
+          Result.Name := 'Windows 10 1903';
+          Result.Codename := '1903';
+        end
+        else if buildNum >= 17763 then begin
+          Result.Name := 'Windows 10 1809';
+          Result.Codename := '1809';
+        end
+        else if buildNum >= 17134 then begin
+          Result.Name := 'Windows 10 1803';
+          Result.Codename := '1803';
+        end
+        else if buildNum >= 16299 then begin
+          Result.Name := 'Windows 10 1709';
+          Result.Codename := '1709';
+        end
+        else if buildNum >= 15063 then begin
+          Result.Name := 'Windows 10 1703';
+          Result.Codename := '1703';
+        end
+        else if buildNum >= 14393 then begin
+          Result.Name := 'Windows 10 1607';
+          Result.Codename := '1607';
+        end
+        else if buildNum >= 10586 then begin
+          Result.Name := 'Windows 10 1511';
+          Result.Codename := '1511';
+        end
+        else begin
+          Result.Name := 'Windows 10 1507';
+          Result.Codename := '1507';
+        end;
+      end
+      else if vi.dwMajorVersion = 6 then
+      begin
+        if vi.dwMinorVersion = 3 then Result.Name := 'Windows 8.1'
+        else if vi.dwMinorVersion = 2 then Result.Name := 'Windows 8'
+        else if vi.dwMinorVersion = 1 then Result.Name := 'Windows 7'
+        else if vi.dwMinorVersion = 0 then Result.Name := 'Windows Vista'
+        else Result.Name := 'Windows NT 6.' + IntToStr(vi.dwMinorVersion);
+      end
+      else if vi.dwMajorVersion = 5 then
+      begin
+        if vi.dwMinorVersion = 2 then Result.Name := 'Windows Server 2003'
+        else if vi.dwMinorVersion = 1 then Result.Name := 'Windows XP'
+        else if vi.dwMinorVersion = 0 then Result.Name := 'Windows 2000'
+        else Result.Name := 'Windows NT 5.' + IntToStr(vi.dwMinorVersion);
       end
       else
-        Result.Name := 'Windows';
+        Result.Name := 'Windows NT ' + IntToStr(vi.dwMajorVersion) + '.' + IntToStr(vi.dwMinorVersion);
+
       Result.PrettyName := Result.Name;
+      Result.ID := 'windows';
     end;
   end;
   {$IFDEF FAFAFA_OS_CACHE_PROBES}
@@ -780,24 +883,68 @@ var
   wideBuf: array[0..255] of WideChar;
   envVal: string;
 begin
+  // Fast path: check cache without lock
   if g_cached_cpu_model_inited then Exit(g_cached_cpu_model);
-  g_cached_cpu_model := '';
-  if RegOpenKeyExW(HKEY_LOCAL_MACHINE, 'HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0', 0, KEY_READ, reg) = ERROR_SUCCESS then
-  begin
-    try
-      dataType := 0; dataSize := SizeOf(wideBuf);
-      if RegQueryValueExW(reg, 'ProcessorNameString', nil, @dataType, @wideBuf[0], @dataSize) = ERROR_SUCCESS then
-        g_cached_cpu_model := UTF8Encode(WideString(@wideBuf[0]));
-    finally
-      RegCloseKey(reg);
+
+  // Slow path: acquire lock and double-check
+  _cache_lock;
+  try
+    if g_cached_cpu_model_inited then Exit(g_cached_cpu_model);
+    g_cached_cpu_model := '';
+
+    // Primary method: Registry ProcessorNameString
+    if RegOpenKeyExW(HKEY_LOCAL_MACHINE, 'HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0', 0, KEY_READ, reg) = ERROR_SUCCESS then
+    begin
+      try
+        dataType := 0; dataSize := SizeOf(wideBuf);
+        if RegQueryValueExW(reg, 'ProcessorNameString', nil, @dataType, @wideBuf[0], @dataSize) = ERROR_SUCCESS then
+          g_cached_cpu_model := Trim(UTF8Encode(WideString(@wideBuf[0])));
+      finally
+        RegCloseKey(reg);
+      end;
     end;
+
+    // Fallback 1: PROCESSOR_IDENTIFIER environment variable
+    if g_cached_cpu_model = '' then
+    begin
+      envVal := os_getenv('PROCESSOR_IDENTIFIER');
+      if envVal <> '' then g_cached_cpu_model := Trim(envVal);
+    end;
+
+    // Fallback 2: Try alternative registry keys
+    if g_cached_cpu_model = '' then
+    begin
+      if RegOpenKeyExW(HKEY_LOCAL_MACHINE, 'HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0', 0, KEY_READ, reg) = ERROR_SUCCESS then
+      begin
+        try
+          // Try Identifier field
+          dataType := 0; dataSize := SizeOf(wideBuf);
+          if RegQueryValueExW(reg, 'Identifier', nil, @dataType, @wideBuf[0], @dataSize) = ERROR_SUCCESS then
+            g_cached_cpu_model := Trim(UTF8Encode(WideString(@wideBuf[0])));
+        finally
+          RegCloseKey(reg);
+        end;
+      end;
+    end;
+
+    // Fallback 3: PROCESSOR_ARCHITECTURE + PROCESSOR_LEVEL
+    if g_cached_cpu_model = '' then
+    begin
+      envVal := os_getenv('PROCESSOR_ARCHITECTURE');
+      if envVal <> '' then
+      begin
+        g_cached_cpu_model := envVal;
+        envVal := os_getenv('PROCESSOR_LEVEL');
+        if envVal <> '' then
+          g_cached_cpu_model := g_cached_cpu_model + ' Level ' + envVal;
+      end;
+    end;
+
+    g_cached_cpu_model_inited := True;
+  finally
+    _cache_unlock;
   end;
-  if g_cached_cpu_model = '' then
-  begin
-    envVal := os_getenv('PROCESSOR_IDENTIFIER');
-    if envVal <> '' then g_cached_cpu_model := envVal;
-  end;
-  g_cached_cpu_model_inited := True;
+
   Result := g_cached_cpu_model;
 end;
 {$ELSE}
@@ -806,21 +953,58 @@ var
   dataType: DWORD;
   dataSize: DWORD;
   wideBuf: array[0..255] of WideChar;
-  model: string;
+  model, envVal: string;
 begin
   model := '';
+
+  // Primary method: Registry ProcessorNameString
   if RegOpenKeyExW(HKEY_LOCAL_MACHINE, 'HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0', 0, KEY_READ, reg) = ERROR_SUCCESS then
   begin
     try
       dataType := 0; dataSize := SizeOf(wideBuf);
       if RegQueryValueExW(reg, 'ProcessorNameString', nil, @dataType, @wideBuf[0], @dataSize) = ERROR_SUCCESS then
-        model := UTF8Encode(WideString(@wideBuf[0]));
+        model := Trim(UTF8Encode(WideString(@wideBuf[0])));
     finally
       RegCloseKey(reg);
     end;
   end;
+
+  // Fallback 1: PROCESSOR_IDENTIFIER environment variable
   if model = '' then
-    model := os_getenv('PROCESSOR_IDENTIFIER');
+  begin
+    envVal := os_getenv('PROCESSOR_IDENTIFIER');
+    if envVal <> '' then model := Trim(envVal);
+  end;
+
+  // Fallback 2: Try alternative registry keys
+  if model = '' then
+  begin
+    if RegOpenKeyExW(HKEY_LOCAL_MACHINE, 'HARDWARE\\DESCRIPTION\\System\\CentralProcessor\\0', 0, KEY_READ, reg) = ERROR_SUCCESS then
+    begin
+      try
+        // Try Identifier field
+        dataType := 0; dataSize := SizeOf(wideBuf);
+        if RegQueryValueExW(reg, 'Identifier', nil, @dataType, @wideBuf[0], @dataSize) = ERROR_SUCCESS then
+          model := Trim(UTF8Encode(WideString(@wideBuf[0])));
+      finally
+        RegCloseKey(reg);
+      end;
+    end;
+  end;
+
+  // Fallback 3: PROCESSOR_ARCHITECTURE + PROCESSOR_LEVEL
+  if model = '' then
+  begin
+    envVal := os_getenv('PROCESSOR_ARCHITECTURE');
+    if envVal <> '' then
+    begin
+      model := envVal;
+      envVal := os_getenv('PROCESSOR_LEVEL');
+      if envVal <> '' then
+        model := model + ' Level ' + envVal;
+    end;
+  end;
+
   Result := model;
 end;
 {$ENDIF}
@@ -875,24 +1059,58 @@ end;
 procedure os_cache_reset;
 begin
   {$IFDEF FAFAFA_OS_CACHE_PROBES}
-  g_cached_cpu_model_inited := False; g_cached_cpu_model := '';
-  g_cached_timezone_inited := False; g_cached_timezone := '';
-  g_cached_tz_iana_inited := False; g_cached_tz_iana := '';
-  g_cached_is_admin_inited := False; g_cached_is_admin := False;
-  g_cached_kernel_ver_inited := False; g_cached_kernel_ver := '';
-  g_cached_osver_inited := False; FillChar(g_cached_osver, SizeOf(g_cached_osver), 0);
+  _cache_lock;
+  try
+    g_cached_cpu_model_inited := False;
+    g_cached_cpu_model := '';
+    g_cached_timezone_inited := False;
+    g_cached_timezone := '';
+    g_cached_tz_iana_inited := False;
+    g_cached_tz_iana := '';
+    g_cached_is_admin_inited := False;
+    g_cached_is_admin := False;
+    g_cached_kernel_ver_inited := False;
+    g_cached_kernel_ver := '';
+    g_cached_osver_inited := False;
+    FillChar(g_cached_osver, SizeOf(g_cached_osver), 0);
+  finally
+    _cache_unlock;
+  end;
   {$ENDIF}
 end;
 
 procedure os_cache_reset_ex(const flags: TOSCacheFlags);
 begin
   {$IFDEF FAFAFA_OS_CACHE_PROBES}
-  if oscCpuModel in flags then begin g_cached_cpu_model_inited := False; g_cached_cpu_model := ''; end;
-  if oscTimezone in flags then begin g_cached_timezone_inited := False; g_cached_timezone := ''; end;
-  if oscTimezoneIana in flags then begin g_cached_tz_iana_inited := False; g_cached_tz_iana := ''; end;
-  if oscIsAdmin in flags then begin g_cached_is_admin_inited := False; g_cached_is_admin := False; end;
-  if oscKernelVersion in flags then begin g_cached_kernel_ver_inited := False; g_cached_kernel_ver := ''; end;
-  if oscOSVersionDetailed in flags then begin g_cached_osver_inited := False; FillChar(g_cached_osver, SizeOf(g_cached_osver), 0); end;
+  _cache_lock;
+  try
+    if oscCpuModel in flags then begin
+      g_cached_cpu_model_inited := False;
+      g_cached_cpu_model := '';
+    end;
+    if oscTimezone in flags then begin
+      g_cached_timezone_inited := False;
+      g_cached_timezone := '';
+    end;
+    if oscTimezoneIana in flags then begin
+      g_cached_tz_iana_inited := False;
+      g_cached_tz_iana := '';
+    end;
+    if oscIsAdmin in flags then begin
+      g_cached_is_admin_inited := False;
+      g_cached_is_admin := False;
+    end;
+    if oscKernelVersion in flags then begin
+      g_cached_kernel_ver_inited := False;
+      g_cached_kernel_ver := '';
+    end;
+    if oscOSVersionDetailed in flags then begin
+      g_cached_osver_inited := False;
+      FillChar(g_cached_osver, SizeOf(g_cached_osver), 0);
+    end;
+  finally
+    _cache_unlock;
+  end;
   {$ENDIF}
 end;
 

@@ -90,7 +90,7 @@ begin
   WriteLn;
   
   // 创建读写锁
-  RWLock := CreateReadWriteLock;
+  RWLock := CreateRWLock;
   
   WriteLn('初始状态:');
   WriteLn('  共享数据: ', SharedData);

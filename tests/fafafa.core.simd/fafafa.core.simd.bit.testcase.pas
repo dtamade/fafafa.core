@@ -188,7 +188,11 @@ begin
 
   // Test with non-byte-aligned length
   result := BitsetPopCount(@data[0], 1024 * 8 - 3);
-  expected := 1024 * 4 - 3; // Last byte contributes only 1 bit instead of 4
+  // 8189 bits = 1023 complete bytes + 5 bits
+  // Each complete byte ($0F) has 4 set bits: 1023 * 4 = 4092
+  // Last byte ($0F) masked to 5 bits: $0F & $1F = $0F, still 4 set bits
+  // Total: 4092 + 4 = 4096
+  expected := 1023 * 4 + 4; // 正确的期望值
   AssertTrue('Large buffer non-aligned', result = expected);
 end;
 

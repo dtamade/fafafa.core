@@ -55,7 +55,10 @@ type
 
 // ==== Vec / VecDeque (capacity-based) ====
 
-generic function MakeVec<T>(aCapacity: SizeUInt = 0; aAllocator: IAllocator = nil; aGrowStrategy: TGrowthStrategy = nil): specialize IVec<T>;
+generic function MakeVec<T>(aCapacity: SizeUInt = 0; aAllocator: IAllocator = nil; aGrowStrategy: TGrowthStrategy = nil): specialize IVec<T>; overload;
+generic function MakeVec<T>(const aSrc: array of T; aAllocator: IAllocator = nil; aGrowStrategy: TGrowthStrategy = nil): specialize IVec<T>; overload;
+generic function MakeVec<T>(const aSrcCollection: TCollection; aAllocator: IAllocator = nil; aGrowStrategy: TGrowthStrategy = nil): specialize IVec<T>; overload;
+generic function MakeVec<T>(aSrc: Pointer; aElementCount: SizeUInt; aAllocator: IAllocator = nil; aGrowStrategy: TGrowthStrategy = nil): specialize IVec<T>; overload;
 
 
 
@@ -167,6 +170,21 @@ implementation
 generic function MakeVec<T>(aCapacity: SizeUInt; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy): specialize IVec<T>;
 begin
   Exit(specialize TVec<T>.Create(aCapacity, aAllocator, aGrowStrategy));
+end;
+
+generic function MakeVec<T>(const aSrc: array of T; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy): specialize IVec<T>;
+begin
+  Exit(specialize TVec<T>.Create(aSrc, aAllocator, aGrowStrategy));
+end;
+
+generic function MakeVec<T>(const aSrcCollection: TCollection; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy): specialize IVec<T>;
+begin
+  Exit(specialize TVec<T>.Create(aSrcCollection, aAllocator, aGrowStrategy));
+end;
+
+generic function MakeVec<T>(aSrc: Pointer; aElementCount: SizeUInt; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy): specialize IVec<T>;
+begin
+  Exit(specialize TVec<T>.Create(aSrc, aElementCount, aAllocator, aGrowStrategy));
 end;
 
 

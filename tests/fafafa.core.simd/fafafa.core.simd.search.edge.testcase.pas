@@ -44,30 +44,30 @@ begin
     haySize := powerSizes[ps] + 16; // Slightly larger than boundary
     SetLength(hay, haySize);
     
-    // Fill with predictable pattern
+    // Fill with predictable pattern (使用0-199范围，避免与针模式冲突)
     for i := 0 to haySize - 1 do
-      hay[i] := Byte(i mod 251); // Use prime to avoid simple patterns
-    
+      hay[i] := Byte(i mod 200); // 限制在0-199范围
+
     // Test needles of various sizes around the boundary
     for needleSize := 1 to 33 do
     begin
       if needleSize > haySize then Continue;
-      
+
       SetLength(ned, needleSize);
       for i := 0 to needleSize - 1 do
-        ned[i] := Byte((i + 200) mod 251);
+        ned[i] := Byte(200 + (i mod 51)); // 使用200-250范围，不会与干草堆冲突
       
       // Place needle at boundary - 1
       if powerSizes[ps] >= needleSize then
       begin
         Move(ned[0], hay[powerSizes[ps] - needleSize], needleSize);
         idx := BytesIndexOf(@hay[0], haySize, @ned[0], needleSize);
-        AssertTrue(Format('Boundary test: haySize=%d needleSize=%d at boundary-needle', 
+        AssertTrue(Format('Boundary test: haySize=%d needleSize=%d at boundary-needle',
           [haySize, needleSize]), idx = PtrInt(powerSizes[ps] - needleSize));
         
         // Restore pattern
         for i := 0 to needleSize - 1 do
-          hay[powerSizes[ps] - needleSize + i] := Byte((powerSizes[ps] - needleSize + i) mod 251);
+          hay[powerSizes[ps] - needleSize + i] := Byte((powerSizes[ps] - needleSize + i) mod 200);
       end;
       
       // Place needle at boundary
@@ -203,16 +203,16 @@ begin
   SetLength(baseHay, 1024 + 64); // Extra space for alignment testing
   SetLength(ned, 20);
   
-  for i := 0 to 19 do ned[i] := Byte(i + 100);
-  
+  for i := 0 to 19 do ned[i] := Byte((i * 13 + 200) mod 256); // Unique pattern
+
   // Test different alignment offsets
   for offset := 0 to 15 do
   begin
     SetLength(hay, 1024);
-    
-    // Fill with pattern
+
+    // Fill with pattern (避免与针模式冲突)
     for i := 0 to 1023 do
-      hay[i] := Byte(i mod 256);
+      hay[i] := Byte((i * 3 + 50) mod 256);
     
     // Place needle at position 500
     Move(ned[0], hay[500], 20);

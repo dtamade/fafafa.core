@@ -6,7 +6,8 @@ program fafafa.core.sync.conditionVariable.test;
 uses
   {$IFDEF UNIX}cthreads,{$ENDIF}
   consoletestrunner, fpcunit, testregistry,
-  fafafa.core.sync.conditionVariable.testcase;
+  fafafa.core.sync.conditionVariable.testcase,
+  fafafa.core.sync.conditionVariable.advanced.testcase;
 
 var
   App: TTestRunner;

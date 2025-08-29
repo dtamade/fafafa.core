@@ -10,24 +10,32 @@ uses
   fafafa.core.base,
   fafafa.core.sync.base,
   fafafa.core.sync.mutex,
+  fafafa.core.sync.spin.base,
   fafafa.core.sync.spin,
+  fafafa.core.sync.rwlock,
   fafafa.core.sync.once,
   fafafa.core.sync.conditionVariable,
   fafafa.core.sync.barrier,
   fafafa.core.sync.semaphore,
-  fafafa.core.sync.event
-  {$IFDEF WINDOWS}, fafafa.core.sync.windows {$ENDIF}
-  {$IFDEF UNIX},    fafafa.core.sync.unix    {$ENDIF};
+  fafafa.core.sync.event;
 
 type
   // Re-export core interfaces and enums for backward compatibility
   TLockState = fafafa.core.sync.base.TLockState;
   TWaitResult = fafafa.core.sync.base.TWaitResult;
+  TWaitError = fafafa.core.sync.base.TWaitError;
+  TLockResult = fafafa.core.sync.rwlock.TLockResult;
+  ISynchronizable = fafafa.core.sync.base.ISynchronizable;
   ILock = fafafa.core.sync.base.ILock;
   IMutex = fafafa.core.sync.mutex.IMutex;
   ISpinLock = fafafa.core.sync.spin.ISpinLock;
+  TSpinBackoffStrategy = fafafa.core.sync.spin.base.TSpinBackoffStrategy;
+  TSpinLockPolicy = fafafa.core.sync.spin.base.TSpinLockPolicy;
   IOnce = fafafa.core.sync.once.IOnce;
   IReadWriteLock = fafafa.core.sync.base.IReadWriteLock;
+  IRWLock = fafafa.core.sync.rwlock.IRWLock;
+  IRWLockReadGuard = fafafa.core.sync.rwlock.IRWLockReadGuard;
+  IRWLockWriteGuard = fafafa.core.sync.rwlock.IRWLockWriteGuard;
   ISemaphore = fafafa.core.sync.semaphore.base.ISemaphore;
   IEvent = fafafa.core.sync.event.base.IEvent;
   IConditionVariable = fafafa.core.sync.conditionVariable.base.IConditionVariable;
@@ -81,10 +89,28 @@ const
   wrTimeout = fafafa.core.sync.base.wrTimeout;
   wrAbandoned = fafafa.core.sync.base.wrAbandoned;
   wrError = fafafa.core.sync.base.wrError;
+  wrInterrupted = fafafa.core.sync.base.wrInterrupted;
+
+  // TWaitError constants
+  weNone = fafafa.core.sync.base.weNone;
+  weInvalidHandle = fafafa.core.sync.base.weInvalidHandle;
+  weResourceExhausted = fafafa.core.sync.base.weResourceExhausted;
+  weAccessDenied = fafafa.core.sync.base.weAccessDenied;
+  weDeadlock = fafafa.core.sync.base.weDeadlock;
+  weSystemError = fafafa.core.sync.base.weSystemError;
+
+  // TSpinBackoffStrategy constants
+  sbsLinear = fafafa.core.sync.spin.base.sbsLinear;
+  sbsExponential = fafafa.core.sync.spin.base.sbsExponential;
+  sbsAdaptive = fafafa.core.sync.spin.base.sbsAdaptive;
 
 // Re-export factory functions
 function MakeMutex: IMutex; inline;
-function MakeSpinLock: ISpinLock; inline;
+function MakeSpinLock: ISpinLock; overload; inline;
+function MakeSpinLock(const APolicy: TSpinLockPolicy): ISpinLock; overload; inline;
+function DefaultSpinLockPolicy: TSpinLockPolicy; inline;
+function MakeRWLock: IRWLock; inline;
+function CreateRWLock: IRWLock; inline;  // Alias for compatibility
 function MakeConditionVariable: IConditionVariable; inline;
 function MakeBarrier(AParticipantCount: Integer): IBarrier; inline;
 function MakeSemaphore(AInitialCount: Integer = 1; AMaxCount: Integer = 1): ISemaphore; inline;
@@ -100,6 +126,26 @@ end;
 function MakeSpinLock: ISpinLock;
 begin
   Result := fafafa.core.sync.spin.MakeSpinLock;
+end;
+
+function MakeSpinLock(const APolicy: TSpinLockPolicy): ISpinLock;
+begin
+  Result := fafafa.core.sync.spin.MakeSpinLock(APolicy);
+end;
+
+function DefaultSpinLockPolicy: TSpinLockPolicy;
+begin
+  Result := fafafa.core.sync.spin.base.DefaultSpinLockPolicy;
+end;
+
+function MakeRWLock: IRWLock;
+begin
+  Result := fafafa.core.sync.rwlock.MakeRWLock;
+end;
+
+function CreateRWLock: IRWLock;
+begin
+  Result := fafafa.core.sync.rwlock.MakeRWLock;
 end;
 
 function MakeConditionVariable: IConditionVariable;

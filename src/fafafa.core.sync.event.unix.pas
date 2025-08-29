@@ -8,7 +8,18 @@ interface
 uses
   SysUtils, BaseUnix, Unix, UnixType, pthreads,
   {$IFDEF HAS_CLOCK_GETTIME}cthreads,{$ENDIF}
-  fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.event.base;
+  fafafa.core.sync.base, fafafa.core.sync.event.base;
+
+{$IFDEF LINUX}
+const
+  CLOCK_MONOTONIC = 1;
+
+// clock_gettime 函数声明
+function clock_gettime(clk_id: Integer; tp: Ptimespec): Integer; cdecl; external 'c';
+{$ENDIF}
+
+const
+  ESysEINTR = 4;  // 信号中断
 
 type
   { TEvent
@@ -23,37 +34,113 @@ type
     FCond: pthread_cond_t;
     FSignaled: Boolean;
     FManualReset: Boolean;
+    FLastError: TWaitError;
+    FWaitingCount: Integer;  // 等待线程计数
+    FAtomicSignaled: Integer; // 原子状态标志，用于快速路径优化 (0=未信号, 1=已信号)
+    FAtomicInterrupted: Integer; // 原子中断标志 (0=未中断, 1=已中断)
   public
     constructor Create(AManualReset: Boolean = False; AInitialState: Boolean = False);
     destructor Destroy; override;
-    // IEvent
+
+    // ISynchronizable
+    function GetLastError: TWaitError;
+
+    // IEvent - 基础操作
     procedure SetEvent;
     procedure ResetEvent;
     function WaitFor: TWaitResult; overload;
     function WaitFor(ATimeoutMs: Cardinal): TWaitResult; overload;
     function IsSignaled: Boolean;
-    // ILock
-    procedure Acquire;
-    procedure Release;
-    function TryAcquire: Boolean;
+
+    // IEvent - 扩展操作
+    function TryWait: Boolean;
+    procedure Pulse;
+    function IsManualReset: Boolean;
+    function GetWaitingThreadCount: Integer;
+
+    // IEvent - 增强的错误处理
+    function GetLastErrorMessage: string;
+    procedure ClearLastError;
+
+    // IEvent - RAII 守卫方法
+    function WaitGuard: IEventGuard;
+    function WaitGuard(ATimeoutMs: Cardinal): IEventGuard;
+    function TryWaitGuard: IEventGuard;
+
+    // IEvent - 中断支持
+    function WaitForInterruptible(ATimeoutMs: Cardinal): TWaitResult;
+    procedure Interrupt;
+    function IsInterrupted: Boolean;
+
+
+
+    // 已移除兼容性方法 - 事件不是锁
   end;
 
 implementation
+
+{ 辅助函数：获取单调时间 - 使用 CLOCK_MONOTONIC 避免时间跳变 }
+function GetTimeForTimeout(out ts: timespec): Boolean;
+{$IFDEF LINUX}
+begin
+  // Linux: 使用 CLOCK_MONOTONIC 获取单调时间，不受系统时间调整影响
+  Result := clock_gettime(CLOCK_MONOTONIC, @ts) = 0;
+end;
+{$ELSE}
+var
+  tv: timeval;
+begin
+  // 其他 Unix 系统：回退到 gettimeofday
+  // 注意：这仍然受系统时间跳变影响，但保证兼容性
+  if fpgettimeofday(@tv, nil) = 0 then
+  begin
+    ts.tv_sec := tv.tv_sec;
+    ts.tv_nsec := tv.tv_usec * 1000;
+    Result := True;
+  end
+  else
+    Result := False;
+end;
+{$ENDIF}
+
+function AddMillisecondsToTimespec(const base: timespec; ms: Cardinal): timespec;
+begin
+  Result.tv_sec := base.tv_sec + (ms div 1000);
+  Result.tv_nsec := base.tv_nsec + (ms mod 1000) * 1000000;
+
+  // 处理纳秒溢出
+  if Result.tv_nsec >= 1000000000 then
+  begin
+    Inc(Result.tv_sec, Result.tv_nsec div 1000000000);
+    Result.tv_nsec := Result.tv_nsec mod 1000000000;
+  end;
+end;
 
 { TEvent }
 
 constructor TEvent.Create(AManualReset: Boolean; AInitialState: Boolean);
 begin
   inherited Create;
+  FLastError := weNone;
+  FWaitingCount := 0;
+
   if pthread_mutex_init(@FMutex, nil) <> 0 then
+  begin
+    FLastError := weResourceExhausted;
     raise ELockError.Create('event: mutex init failed');
+  end;
+
   if pthread_cond_init(@FCond, nil) <> 0 then
   begin
     pthread_mutex_destroy(@FMutex);
+    FLastError := weResourceExhausted;
     raise ELockError.Create('event: cond init failed');
   end;
+
   FManualReset := AManualReset;
   FSignaled := AInitialState;
+  FAtomicSignaled := Ord(AInitialState); // 初始化原子状态用于快速路径
+  FAtomicInterrupted := 0; // 初始化原子中断标志
 end;
 
 destructor TEvent.Destroy;
@@ -65,10 +152,15 @@ end;
 
 procedure TEvent.SetEvent;
 begin
+  // 对于手动重置事件，如果已经是信号状态，可以快速返回
+  if FManualReset and (InterlockedCompareExchange(FAtomicSignaled, 0, 0) <> 0) then
+    Exit; // 已经是信号状态，无需重复设置
+
   if pthread_mutex_lock(@FMutex) <> 0 then
     raise ELockError.Create('event: lock failed');
   try
     FSignaled := True;
+    InterlockedExchange(FAtomicSignaled, 1); // 原子更新状态用于快速路径
     if FManualReset then
       pthread_cond_broadcast(@FCond)
     else
@@ -84,6 +176,7 @@ begin
     raise ELockError.Create('event: lock failed');
   try
     FSignaled := False;
+    InterlockedExchange(FAtomicSignaled, 0); // 原子更新状态用于快速路径
   finally
     pthread_mutex_unlock(@FMutex);
   end;
@@ -98,7 +191,7 @@ function TEvent.WaitFor(ATimeoutMs: Cardinal): TWaitResult;
 var
   ts: timespec;
   rc: Integer;
-  tv: TTimeVal;
+  current_time: timespec;
 begin
   if pthread_mutex_lock(@FMutex) <> 0 then
     Exit(wrError);
@@ -108,7 +201,10 @@ begin
       if FSignaled then
       begin
         if not FManualReset then
+        begin
           FSignaled := False;
+          InterlockedExchange(FAtomicSignaled, 0); // 原子更新：自动重置消费信号
+        end;
         Exit(wrSignaled);
       end
       else
@@ -116,35 +212,62 @@ begin
     end
     else if ATimeoutMs = High(Cardinal) then
     begin
-      while not FSignaled do
-        pthread_cond_wait(@FCond, @FMutex);
-      if not FManualReset then
-        FSignaled := False;
-      Exit(wrSignaled);
+      Inc(FWaitingCount);
+      try
+        while not FSignaled do
+          pthread_cond_wait(@FCond, @FMutex);
+        if not FManualReset then
+        begin
+          FSignaled := False;
+          InterlockedExchange(FAtomicSignaled, 0); // 原子更新：自动重置消费信号
+        end;
+        Exit(wrSignaled);
+      finally
+        Dec(FWaitingCount);
+      end;
     end
     else
     begin
-      // 暂时回退到 gettimeofday (REALTIME) - CLOCK_MONOTONIC 需要额外配置
-      if fpgettimeofday(@tv, nil) <> 0 then
+      // 使用改进的时间处理进行超时计算
+      if not GetTimeForTimeout(ts) then
+      begin
+        FLastError := weSystemError;
         Exit(wrError);
-      ts.tv_sec := tv.tv_sec + (ATimeoutMs div 1000);
-      ts.tv_nsec := (tv.tv_usec * 1000) + (ATimeoutMs mod 1000) * 1000000;
-      if ts.tv_nsec >= 1000000000 then
-      begin
-        Inc(ts.tv_sec, ts.tv_nsec div 1000000000);
-        ts.tv_nsec := ts.tv_nsec mod 1000000000;
       end;
-      while not FSignaled do
-      begin
-        rc := pthread_cond_timedwait(@FCond, @FMutex, @ts);
-        if rc = ESysETIMEDOUT then
-          Exit(wrTimeout)
-        else if rc <> 0 then
-          Exit(wrError);
+
+      ts := AddMillisecondsToTimespec(ts, ATimeoutMs);
+
+      Inc(FWaitingCount);
+      try
+        while not FSignaled do
+        begin
+          rc := pthread_cond_timedwait(@FCond, @FMutex, @ts);
+          if rc = ESysETIMEDOUT then
+            Exit(wrTimeout)
+          else if rc = ESysEINTR then
+          begin
+            // 信号中断 - 继续等待，但检查是否超时
+            if GetTimeForTimeout(current_time) then
+            begin
+              // 检查是否已经超时
+              if (current_time.tv_sec > ts.tv_sec) or
+                 ((current_time.tv_sec = ts.tv_sec) and (current_time.tv_nsec >= ts.tv_nsec)) then
+                Exit(wrTimeout);
+              // 否则继续等待
+            end;
+          end
+          else if rc <> 0 then
+          begin
+            FLastError := weSystemError;
+            Exit(wrError);
+          end;
+        end;
+        if not FManualReset then
+          FSignaled := False;
+        Exit(wrSignaled);
+      finally
+        Dec(FWaitingCount);
       end;
-      if not FManualReset then
-        FSignaled := False;
-      Exit(wrSignaled);
     end;
   finally
     pthread_mutex_unlock(@FMutex);
@@ -153,33 +276,248 @@ end;
 
 function TEvent.IsSignaled: Boolean;
 begin
-  if pthread_mutex_lock(@FMutex) <> 0 then
-    Exit(False);
-  try
-    if FManualReset then
-      Result := FSignaled
+  if FManualReset then
+  begin
+    // 手动重置事件：使用无锁快速路径读取原子状态
+    // 这避免了昂贵的互斥锁操作，显著提升高频调用性能
+    Result := InterlockedCompareExchange(FAtomicSignaled, 0, 0) <> 0;
+  end
+  else
+  begin
+    // 自动重置事件：与 Windows 语义对齐，固定返回 False
+    // 避免副作用（消耗信号），请使用 TryWait() 进行探测
+    Result := False;
+  end;
+end;
+
+{ 已移除的兼容性方法实现 - 事件不是锁
+  如需这些功能，请使用：
+  - WaitFor() 替代 Acquire()
+  - TryWait() 替代 TryAcquire()
+  - SetEvent()/ResetEvent() 替代 Release()
+}
+
+{ ISynchronizable 实现 }
+function TEvent.GetLastError: TWaitError;
+begin
+  Result := FLastError;
+end;
+
+{ IEvent 扩展方法实现 }
+function TEvent.TryWait: Boolean;
+begin
+  if FManualReset then
+  begin
+    // 手动重置事件：使用无锁快速路径检查
+    // 如果原子状态显示已信号，直接返回成功，避免系统调用
+    if InterlockedCompareExchange(FAtomicSignaled, 0, 0) <> 0 then
+    begin
+      FLastError := weNone;
+      Result := True;
+    end
     else
-      Result := False; // 与 Windows 语义对齐：自动重置不提供非破坏式 IsSignaled
+      Result := WaitFor(0) = wrSignaled; // 回退到完整检查
+  end
+  else
+  begin
+    // 自动重置事件：必须使用完整的 WaitFor 以正确消费信号
+    Result := WaitFor(0) = wrSignaled;
+  end;
+end;
+
+procedure TEvent.Pulse;
+begin
+  if pthread_mutex_lock(@FMutex) <> 0 then
+  begin
+    FLastError := weSystemError;
+    Exit;
+  end;
+  try
+    FSignaled := True;
+    pthread_cond_broadcast(@FCond); // 唤醒所有等待者
+    if not FManualReset then
+      FSignaled := False; // 立即重置
   finally
     pthread_mutex_unlock(@FMutex);
   end;
 end;
 
-procedure TEvent.Acquire;
+function TEvent.IsManualReset: Boolean;
 begin
-  if WaitFor(High(Cardinal)) <> wrSignaled then
-    raise ELockError.Create('Event acquire (wait) failed');
+  Result := FManualReset;
 end;
 
-procedure TEvent.Release;
+function TEvent.GetWaitingThreadCount: Integer;
 begin
-  // Event 不是互斥量，Release 不应改变状态；使用 ResetEvent 控制手动重置
+  if pthread_mutex_lock(@FMutex) <> 0 then
+  begin
+    FLastError := weSystemError;
+    Exit(0);
+  end;
+  try
+    FLastError := weNone;
+    Result := FWaitingCount;
+  finally
+    pthread_mutex_unlock(@FMutex);
+  end;
 end;
 
-function TEvent.TryAcquire: Boolean;
+{ IEvent 增强的错误处理实现 }
+function TEvent.GetLastErrorMessage: string;
 begin
-  Result := WaitFor(0) = wrSignaled;
+  case FLastError of
+    weNone:              Result := 'No error';
+    weTimeout:           Result := 'Operation timed out';
+    weInvalidHandle:     Result := 'Invalid handle';
+    weResourceExhausted: Result := 'System resources exhausted';
+    weAccessDenied:      Result := 'Access denied';
+    weDeadlock:          Result := 'Deadlock detected';
+    weNotSupported:      Result := 'Operation not supported on this platform';
+    weSystemError:       Result := 'System error';
+  else
+    Result := 'Unknown error';
+  end;
 end;
+
+procedure TEvent.ClearLastError;
+begin
+  FLastError := weNone;
+end;
+
+{ IEvent RAII 守卫方法实现 }
+function TEvent.WaitGuard: IEventGuard;
+begin
+  Result := WaitGuard(High(Cardinal));
+end;
+
+function TEvent.WaitGuard(ATimeoutMs: Cardinal): IEventGuard;
+var
+  WaitResult: TWaitResult;
+begin
+  WaitResult := WaitFor(ATimeoutMs);
+  Result := TEventGuard.Create(Self, WaitResult = wrSignaled);
+end;
+
+function TEvent.TryWaitGuard: IEventGuard;
+begin
+  Result := WaitGuard(0);
+end;
+
+{ IEvent 中断支持实现 }
+function TEvent.WaitForInterruptible(ATimeoutMs: Cardinal): TWaitResult;
+var
+  ts: timespec;
+  rc: Integer;
+  current_time: timespec;
+begin
+  if pthread_mutex_lock(@FMutex) <> 0 then
+    Exit(wrError);
+
+  try
+    Inc(FWaitingCount);
+    try
+      // 使用原子操作检查中断状态，确保内存可见性
+      if InterlockedCompareExchange(FAtomicInterrupted, 0, 0) <> 0 then
+        Exit(wrAbandoned); // 使用 wrAbandoned 表示中断
+
+      // 检查初始状态
+      if FSignaled then
+      begin
+        if not FManualReset then
+        begin
+          FSignaled := False;
+          InterlockedExchange(FAtomicSignaled, 0);
+        end;
+        Exit(wrSignaled);
+      end;
+
+      if ATimeoutMs = 0 then
+        Exit(wrTimeout);
+
+      if ATimeoutMs = High(Cardinal) then
+      begin
+        // 无限等待，但可中断
+        while not FSignaled do
+        begin
+          // 在每次循环中检查中断状态
+          if InterlockedCompareExchange(FAtomicInterrupted, 0, 0) <> 0 then
+            Exit(wrAbandoned);
+
+          pthread_cond_wait(@FCond, @FMutex);
+        end;
+
+        if not FManualReset then
+        begin
+          FSignaled := False;
+          InterlockedExchange(FAtomicSignaled, 0);
+        end;
+        Exit(wrSignaled);
+      end
+      else
+      begin
+        // 带超时的可中断等待
+        if not GetTimeForTimeout(current_time) then
+          Exit(wrError);
+
+        ts.tv_sec := current_time.tv_sec + (ATimeoutMs div 1000);
+        ts.tv_nsec := current_time.tv_nsec + ((ATimeoutMs mod 1000) * 1000000);
+        if ts.tv_nsec >= 1000000000 then
+        begin
+          Inc(ts.tv_sec);
+          Dec(ts.tv_nsec, 1000000000);
+        end;
+
+        while not FSignaled do
+        begin
+          // 在每次循环中检查中断状态
+          if InterlockedCompareExchange(FAtomicInterrupted, 0, 0) <> 0 then
+            Exit(wrAbandoned);
+
+          rc := pthread_cond_timedwait(@FCond, @FMutex, @ts);
+          if rc = ESysETIMEDOUT then
+            Exit(wrTimeout);
+          if rc <> 0 then
+            Exit(wrError);
+        end;
+
+        if not FManualReset then
+        begin
+          FSignaled := False;
+          InterlockedExchange(FAtomicSignaled, 0);
+        end;
+        Exit(wrSignaled);
+      end;
+    finally
+      Dec(FWaitingCount);
+    end;
+  finally
+    pthread_mutex_unlock(@FMutex);
+  end;
+end;
+
+procedure TEvent.Interrupt;
+begin
+  // 首先原子性地设置中断标志，确保所有线程立即可见
+  InterlockedExchange(FAtomicInterrupted, 1);
+
+  // 然后获取锁并唤醒所有等待的线程
+  if pthread_mutex_lock(@FMutex) <> 0 then
+    Exit;
+  try
+    // 唤醒所有等待的线程
+    pthread_cond_broadcast(@FCond);
+  finally
+    pthread_mutex_unlock(@FMutex);
+  end;
+end;
+
+function TEvent.IsInterrupted: Boolean;
+begin
+  // 使用无锁快速路径检查中断状态
+  Result := InterlockedCompareExchange(FAtomicInterrupted, 0, 0) <> 0;
+end;
+
+
 
 end.
 

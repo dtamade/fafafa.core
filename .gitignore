@@ -3,19 +3,25 @@ examples/*/*/bin/
 examples/*/*.exe
 examples/*/*.o
 examples/*/*.ppu
+examples/*/lib/
+examples/*/bin/
+examples/fafafa.core.sync.namedEvent/*.dbg
 
 plays/*/*/lib/
 plays/*/*/bin/
 plays/*/*.exe
 plays/*/*.o
 plays/*/*.ppu
+plays/lib/
+plays/bin/
 
 tests/*/bin/
 tests/*/lib/
 tests/*/*.exe
 tests/*/*.o
 tests/*/*.ppu
-
+tests/*/*/lib
+tests/*/*/bin
 release
 
 tests/*/backup/
@@ -24,3 +30,19 @@ tests/fafafa.core.csv/*.csv
 tests/fafafa.core.collections/fafafa.core.collections.vec/bin
 tests/fafafa.core.mem.pool.fixedSlab/build/
 tests/lib/x86_64-linux/
+tests/*/*/lib
+tests/*/*/bin
+
+
+src/*.o
+src/*.ppu
+benchmarks/*/*.exe
+benchmarks/*/*.o
+benchmarks/*/*.ppu
+benchmarks/*/bin
+benchmarks/*/lib
+
+
+
+src/tests/lib
+src/tests/bin

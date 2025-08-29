@@ -46,19 +46,75 @@ type
     function Read(P: Pointer; Count: SizeInt): SizeInt;
   end;
 
+  // TODO: 在后续版本中添加标准 Reader/Writer 接口
+  // 参考 Go io.Reader/Writer 和 Rust std::io 设计
+
+  // ---- Immutable Bytes 类型（参考 Rust bytes::Bytes）------------------------
+  // TODO: 在后续版本中实现完整的 Immutable Bytes 支持
+
+  {
+  // 不可变字节序列 - 支持零拷贝切片和共享
+  IBytes = interface
+    ['{E5F6A7B8-C9D0-1234-EF56-789012345678}']
+    // 基础属性
+    function Length: SizeInt;
+    function IsEmpty: Boolean;
+
+    // 数据访问（只读）
+    function GetByte(Index: SizeInt): Byte;
+    function ToArray: TBytes; // 复制到新数组
+    procedure CopyTo(Dest: Pointer; DestOffset: SizeInt = 0);
+
+    // 零拷贝切片
+    function Slice(Start: SizeInt): IBytes; overload;
+    function Slice(Start, Count: SizeInt): IBytes; overload;
+
+    // 比较和查找
+    function Equals(const Other: IBytes): Boolean;
+    function StartsWith(const Prefix: IBytes): Boolean;
+    function EndsWith(const Suffix: IBytes): Boolean;
+    function IndexOf(const Pattern: IBytes): SizeInt;
+
+    // 转换
+    function ToHex: string;
+    function ToString(Encoding: TEncoding = nil): string;
+
+    // 属性访问器
+    property Bytes[Index: SizeInt]: Byte read GetByte; default;
+  end;
+
+  // Immutable Bytes 工厂
+  TImmutableBytes = class
+  public
+    // 从现有数据创建（复制）
+    class function FromArray(const Data: array of Byte): IBytes; static;
+    class function FromBytes(const Data: TBytes): IBytes; static;
+    class function FromHex(const HexStr: string): IBytes; static;
+    class function FromString(const Str: string; Encoding: TEncoding = nil): IBytes; static;
+
+    // 零拷贝创建（共享底层数据）
+    class function Wrap(const Data: TBytes): IBytes; static;
+
+    // 空实例
+    class function Empty: IBytes; static;
+  end;
+  }
+
 // ---- Hex 编解码 ------------------------------------------------------------
 function BytesToHex(const A: TBytes): string;
 function BytesToHexUpper(const A: TBytes): string;
-function HexFromBytes(const A: TBytes): string; inline; // 别名：更直观
 // 严格：仅接受偶数长度 [0-9a-fA-F]，其它报错
 function HexToBytes(const S: string): TBytes;
-function BytesFromHex(const S: string): TBytes; inline; // 别名：更直观
+
+// 兼容性别名（标记为废弃，将在未来版本中移除）
+function HexFromBytes(const A: TBytes): string; inline; deprecated 'Use BytesToHex instead';
+function BytesFromHex(const S: string): TBytes; inline; deprecated 'Use HexToBytes instead';
 // 非异常的严格解码：偶数长度且仅 [0-9a-fA-F]，否则返回 False
 function TryHexToBytesStrict(const S: string; out B: TBytes): Boolean;
-// 宽松：忽略空白与常见前缀（0x/#），非法返回 False（语义同 TryHexToBytesLoose）
+// 宽松：忽略空白与常见前缀（0x/#），非法返回 False
 function TryParseHexLoose(const S: string; out B: TBytes): Boolean;
-// 兼容旧名（建议新代码使用 TryParseHexLoose）
-function TryHexToBytesLoose(const S: string; out B: TBytes): Boolean; inline;
+// 兼容性别名（标记为废弃，将在未来版本中移除）
+function TryHexToBytesLoose(const S: string; out B: TBytes): Boolean; inline; deprecated 'Use TryParseHexLoose instead';
 
 // ---- 基础操作 --------------------------------------------------------------
 function BytesSlice(const A: TBytes; AIndex, ACount: SizeInt): TBytes;
@@ -977,10 +1033,10 @@ begin
 end;
 
 procedure TBytesBuilder.AppendRepeat(const Pattern: TBytes; Times: SizeInt);
-var i, patLen, totalLen: SizeInt;
+var patLen, totalLen, copied, toCopy: SizeInt;
 begin
   if Times < 0 then raise EInvalidArgument.Create('negative times');
-  patLen := Length(Pattern);
+  patLen := System.Length(Pattern);
   if (Times = 0) or (patLen = 0) then Exit;
 
   totalLen := patLen * Times;
@@ -989,10 +1045,22 @@ begin
     raise EOverflow.Create('repeat size overflow');
 
   Grow(totalLen);
-  for i := 0 to Times - 1 do
+
+  // 优化策略：先复制一次模式，然后通过倍增复制来填充剩余部分
+  // 这比逐个复制快得多，特别是对于大的重复次数
+  Move(Pattern[0], FBuf[FLen], patLen);
+  copied := patLen;
+
+  // 使用倍增策略复制剩余部分
+  while copied < totalLen do
   begin
-    Move(Pattern[0], FBuf[FLen + i * patLen], patLen);
+    toCopy := copied;
+    if toCopy > totalLen - copied then
+      toCopy := totalLen - copied;
+    Move(FBuf[FLen], FBuf[FLen + copied], toCopy);
+    Inc(copied, toCopy);
   end;
+
   Inc(FLen, totalLen);
 end;
 

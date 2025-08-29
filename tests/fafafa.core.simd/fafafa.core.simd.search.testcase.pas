@@ -257,17 +257,17 @@ begin
 
   SetLength(hay, 2048);
 
-  // Fill haystack with pattern
+  // Fill haystack with pattern (避免与针模式冲突)
   for i := 0 to 2047 do
-    hay[i] := Byte(i mod 256);
+    hay[i] := Byte((i * 3 + 7) mod 256);
 
   for ns := 0 to High(needleSizes) do
   begin
     SetLength(ned, needleSizes[ns]);
 
-    // Create needle pattern
+    // Create unique needle pattern (不会在原始干草堆中自然出现)
     for i := 0 to needleSizes[ns] - 1 do
-      ned[i] := Byte((i + 100) mod 256);
+      ned[i] := Byte((i * 5 + 200) mod 256);
 
     // Place needle at position 500
     if 500 + needleSizes[ns] <= 2048 then
@@ -278,7 +278,7 @@ begin
 
       // Restore original pattern
       for i := 0 to needleSizes[ns] - 1 do
-        hay[500 + i] := Byte((500 + i) mod 256);
+        hay[500 + i] := Byte(((500 + i) * 3 + 7) mod 256);
     end;
 
     // Test not found case

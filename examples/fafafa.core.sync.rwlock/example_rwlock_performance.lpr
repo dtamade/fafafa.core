@@ -224,7 +224,7 @@ end;
 
 begin
   // 创建读写锁
-  RWLock := CreateReadWriteLock;
+  RWLock := CreateRWLock;
   
   try
     // 演示基础功能

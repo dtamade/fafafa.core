@@ -146,34 +146,35 @@ end;
 procedure TTestCase_Event_Basic.Test_LockMethods_AutoReset;
 var r: TWaitResult;
 begin
-  // TryAcquire 先失败
-  AssertFalse('TryAcquire should fail initially', FEvent.TryAcquire);
-  // Set 后 Acquire 应成功返回
+  // TryWait 先失败
+  AssertFalse('TryWait should fail initially', FEvent.TryWait);
+  // Set 后 WaitFor 应成功返回
   FEvent.SetEvent;
-  FEvent.Acquire; // 等价 WaitFor(INFINITE)
+  r := FEvent.WaitFor(100); // 替代 Acquire
+  AssertEquals('WaitFor should succeed after SetEvent', Ord(wrSignaled), Ord(r));
   // 自动重置已消费，此时再零等待应超时
   r := FEvent.WaitFor(0);
-  AssertEquals('Auto-reset consumed after Acquire', Ord(wrTimeout), Ord(r));
-  // Release 为 no-op，不改变状态
-  FEvent.Release;
+  AssertEquals('Auto-reset consumed after WaitFor', Ord(wrTimeout), Ord(r));
+  // 测试重新设置事件
+  FEvent.SetEvent;
   r := FEvent.WaitFor(0);
-  AssertEquals('Release is no-op', Ord(wrTimeout), Ord(r));
+  AssertEquals('Event can be set again', Ord(wrSignaled), Ord(r));
 end;
 
 procedure TTestCase_Event_Basic.Test_LockMethods_ManualReset;
 var E: IEvent; r: TWaitResult;
 begin
   E := MakeEvent(True, False);
-  AssertFalse('TryAcquire should fail initially', E.TryAcquire);
+  AssertFalse('TryWait should fail initially', E.TryWait);
   E.SetEvent;
-  AssertTrue('TryAcquire should succeed after SetEvent', E.TryAcquire);
-  E.Acquire;
+  AssertTrue('TryWait should succeed after SetEvent', E.TryWait);
+  r := E.WaitFor(100); // 替代 Acquire
+  AssertEquals('WaitFor should succeed', Ord(wrSignaled), Ord(r));
   // 手动重置仍保持信号
   r := E.WaitFor(0);
-  AssertEquals('ManualReset remains signaled after Acquire', Ord(wrSignaled), Ord(r));
-  E.Release; // no-op
-  r := E.WaitFor(0);
-  AssertEquals('Release is no-op (still signaled)', Ord(wrSignaled), Ord(r));
+  AssertEquals('ManualReset remains signaled after WaitFor', Ord(wrSignaled), Ord(r));
+  // 测试 IsSignaled 方法
+  AssertTrue('IsSignaled should return true', E.IsSignaled);
   // 恢复未信号
   E.ResetEvent;
   r := E.WaitFor(0);

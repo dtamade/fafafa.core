@@ -23,11 +23,17 @@ type
   TOnce = fafafa.core.sync.once.unix.TOnce;
   {$ENDIF}
 
-// 创建平台特定的一次性执行实例
+// 创建平台特定的一次性执行实例（Go/Rust 风格：无状态构造）
 function MakeOnce: IOnce; overload;
+
+// 构造时传入回调的工厂函数（现代语言风格）
 function MakeOnce(const AProc: TOnceProc): IOnce; overload;
 function MakeOnce(const AMethod: TOnceMethod): IOnce; overload;
+{$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
 function MakeOnce(const AAnonymousProc: TOnceAnonymousProc): IOnce; overload;
+{$ENDIF}
+
+
 
 implementation
 
@@ -61,6 +67,7 @@ begin
   {$ENDIF}
 end;
 
+{$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
 function MakeOnce(const AAnonymousProc: TOnceAnonymousProc): IOnce;
 begin
   {$IFDEF UNIX}
@@ -70,5 +77,8 @@ begin
   Result := fafafa.core.sync.once.windows.TOnce.Create(AAnonymousProc);
   {$ENDIF}
 end;
+{$ENDIF}
+
+
 
 end.

@@ -6,7 +6,9 @@ program fafafa.core.sync.event.test;
 uses
   {$IFDEF UNIX}cthreads,{$ENDIF}
   consoletestrunner, fpcunit, testregistry,
-  fafafa.core.sync.event.testcase;
+  fafafa.core.sync.event.testcase,
+  fafafa.core.sync.event.advanced.testcase,
+  fafafa.core.sync.event.quick.stress.testcase;
 
 var
   App: TTestRunner;

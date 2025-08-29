@@ -905,6 +905,152 @@ type
      *}
     function RemoveSwap(aIndex: SizeUInt): T; overload;
 
+    {**
+     * Filter
+     *
+     * @desc 根据谓词函数过滤元素，返回包含满足条件元素的新向量
+     *
+     * @param aPredicate 谓词函数，返回 True 的元素将被保留
+     * @param aData 传递给谓词函数的额外数据指针
+     * @return 包含满足条件元素的新向量
+     *
+     * @remark
+     *   这是函数式编程的核心操作之一
+     *   返回的新向量使用相同的分配器和增长策略
+     *}
+    function Filter(aPredicate: specialize TPredicateFunc<T>; aData: Pointer): specialize IVec<T>; overload;
+    function Filter(aPredicate: specialize TPredicateMethod<T>; aData: Pointer): specialize IVec<T>; overload;
+    {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
+    function Filter(aPredicate: specialize TPredicateRefFunc<T>): specialize IVec<T>; overload;
+    {$ENDIF}
+
+    {**
+     * Any
+     *
+     * @desc 检查是否存在至少一个元素满足谓词条件
+     *
+     * @param aPredicate 谓词函数
+     * @param aData 传递给谓词函数的额外数据指针
+     * @return 如果存在满足条件的元素返回 True，否则返回 False
+     *
+     * @remark
+     *   如果向量为空，返回 False
+     *   一旦找到满足条件的元素就立即返回，具有短路特性
+     *}
+    function Any(aPredicate: specialize TPredicateFunc<T>; aData: Pointer): Boolean; overload;
+    function Any(aPredicate: specialize TPredicateMethod<T>; aData: Pointer): Boolean; overload;
+    {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
+    function Any(aPredicate: specialize TPredicateRefFunc<T>): Boolean; overload;
+    {$ENDIF}
+
+    {**
+     * All
+     *
+     * @desc 检查是否所有元素都满足谓词条件
+     *
+     * @param aPredicate 谓词函数
+     * @param aData 传递给谓词函数的额外数据指针
+     * @return 如果所有元素都满足条件返回 True，否则返回 False
+     *
+     * @remark
+     *   如果向量为空，返回 True
+     *   一旦找到不满足条件的元素就立即返回，具有短路特性
+     *}
+    function All(aPredicate: specialize TPredicateFunc<T>; aData: Pointer): Boolean; overload;
+    function All(aPredicate: specialize TPredicateMethod<T>; aData: Pointer): Boolean; overload;
+    {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
+    function All(aPredicate: specialize TPredicateRefFunc<T>): Boolean; overload;
+    {$ENDIF}
+
+    {**
+     * Retain
+     *
+     * @desc 就地过滤，保留满足谓词条件的元素，删除不满足条件的元素
+     *
+     * @param aPredicate 谓词函数，返回 True 的元素将被保留
+     * @param aData 传递给谓词函数的额外数据指针
+     *
+     * @remark
+     *   这是高性能的就地操作，不会分配新的向量
+     *   比 Filter 更高效，因为避免了内存分配和元素拷贝
+     *   操作后向量大小可能会改变
+     *}
+    procedure Retain(aPredicate: specialize TPredicateFunc<T>; aData: Pointer); overload;
+    procedure Retain(aPredicate: specialize TPredicateMethod<T>; aData: Pointer); overload;
+    {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
+    procedure Retain(aPredicate: specialize TPredicateRefFunc<T>); overload;
+    {$ENDIF}
+
+    {**
+     * Drain
+     *
+     * @desc 高效的范围删除，返回被删除的元素组成的新向量
+     *
+     * @param aStart 开始索引
+     * @param aCount 要删除的元素数量
+     * @return 包含被删除元素的新向量
+     *
+     * @remark
+     *   这是高性能的范围删除操作
+     *   比逐个删除更高效，因为只需要一次内存移动
+     *   返回的向量包含被删除的元素，可用于撤销操作
+     *}
+    function Drain(aStart, aCount: SizeUInt): specialize IVec<T>;
+
+    {**
+     * ToArray
+     *
+     * @desc 将向量转换为动态数组
+     *
+     * @return 包含向量所有元素的动态数组
+     *
+     * @remark
+     *   这是一个便利方法，等价于手动复制所有元素
+     *   返回的数组是独立的副本，修改不会影响原向量
+     *}
+    function ToArray: specialize TGenericArray<T>; override;
+
+    {**
+     * Clone
+     *
+     * @desc 创建当前向量的深拷贝
+     *
+     * @return 包含相同元素的新向量
+     *
+     * @remark
+     *   新向量使用相同的分配器和增长策略
+     *   这是一个便利方法，等价于拷贝构造函数
+     *}
+    function Clone: TCollection; override;
+
+
+
+    {**
+     * First
+     *
+     * @desc 获取第一个元素
+     *
+     * @return 第一个元素的值
+     *
+     * @remark
+     *   如果向量为空会抛出异常
+     *   这是一个便利方法，等价于 Get(0)
+     *}
+    function First: T;
+
+    {**
+     * Last
+     *
+     * @desc 获取最后一个元素
+     *
+     * @return 最后一个元素的值
+     *
+     * @remark
+     *   如果向量为空会抛出异常
+     *   这是一个便利方法，等价于 Get(Count-1)
+     *}
+    function Last: T;
+
     property Capacity:     SizeUint        read GetCapacity     write SetCapacity;
     property GrowStrategy: IGrowthStrategy read GetGrowStrategy write SetGrowStrategy;
   end;
@@ -1380,6 +1526,43 @@ type
     procedure RemoveArraySwap(aIndex: SizeUInt; var aElements: specialize TGenericArray<T>; aCount: SizeUInt); overload; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
     procedure RemoveSwap(aIndex: SizeUInt; var aElement: T); overload; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
     function  RemoveSwap(aIndex: SizeUInt): T; overload; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+
+    { 函数式编程方法 }
+    function Filter(aPredicate: specialize TPredicateFunc<T>; aData: Pointer): specialize IVec<T>; overload; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+    function Filter(aPredicate: specialize TPredicateMethod<T>; aData: Pointer): specialize IVec<T>; overload; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+    {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
+    function Filter(aPredicate: specialize TPredicateRefFunc<T>): specialize IVec<T>; overload; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+    {$ENDIF}
+
+    function Any(aPredicate: specialize TPredicateFunc<T>; aData: Pointer): Boolean; overload; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+    function Any(aPredicate: specialize TPredicateMethod<T>; aData: Pointer): Boolean; overload; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+    {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
+    function Any(aPredicate: specialize TPredicateRefFunc<T>): Boolean; overload; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+    {$ENDIF}
+
+    function All(aPredicate: specialize TPredicateFunc<T>; aData: Pointer): Boolean; overload; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+    function All(aPredicate: specialize TPredicateMethod<T>; aData: Pointer): Boolean; overload; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+    {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
+    function All(aPredicate: specialize TPredicateRefFunc<T>): Boolean; overload; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+    {$ENDIF}
+
+    { 就地操作方法 }
+    procedure Retain(aPredicate: specialize TPredicateFunc<T>; aData: Pointer); overload; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+    procedure Retain(aPredicate: specialize TPredicateMethod<T>; aData: Pointer); overload; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+    {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
+    procedure Retain(aPredicate: specialize TPredicateRefFunc<T>); overload; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+    {$ENDIF}
+
+    function Drain(aStart, aCount: SizeUInt): specialize IVec<T>; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+
+    { 便利方法 }
+    function ToArray: specialize TGenericArray<T>; override;
+    function Clone: TCollection; override;
+    function First: T; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+    function Last: T; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+
+    { 高性能无检查方法 }
+    procedure PushUnChecked(const aElement: T); {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
 
     { UnChecked 算法方法 - 跳过边界检查，追求极致性能 }
 
@@ -1939,6 +2122,8 @@ begin
     FGrowStrategy := aGrowStrategy;
 end;
 
+
+
 function TVec.TryReserve(aAdditional: SizeUint): Boolean;
 var
   LCapacity: SizeUint;
@@ -2058,9 +2243,9 @@ procedure TVec.DisableAlignedGrowth;
 begin
   // 恢复先前的非对齐策略，并释放包装对象
   if FPrevNonAlignedStrategy <> nil then
-    SetGrowStrategy(FPrevNonAlignedStrategy)
+    SetGrowStrategy(IGrowthStrategy(FPrevNonAlignedStrategy))
   else
-    SetGrowStrategy(nil);
+    SetGrowStrategy(IGrowthStrategy(nil));
 
   FreeAndNil(FAlignedAdapterObj);
   FreeAndNil(FAlignedWrapperObj);
@@ -2717,6 +2902,286 @@ end;
 function TVec.RemoveSwap(aIndex: SizeUInt): T;
 begin
   RemoveCopySwap(aIndex, @Result);
+end;
+
+{ 函数式编程方法实现 }
+
+function TVec.Filter(aPredicate: specialize TPredicateFunc<T>; aData: Pointer): specialize IVec<T>;
+var
+  LResult: specialize TVec<T>;
+  i: SizeUInt;
+begin
+  // 预分配最大可能容量，避免重分配
+  LResult := specialize TVec<T>.Create(FCount, GetAllocator, nil);
+  try
+    // 复制增长策略
+    LResult.SetGrowStrategy(GetGrowStrategy);
+
+    for i := 0 to FCount - 1 do
+      if aPredicate(GetUnChecked(i), aData) then  // 直接使用引用，避免拷贝
+        LResult.PushUnChecked(GetUnChecked(i));   // 无边界检查版本
+
+    // 收缩到实际大小
+    LResult.ShrinkToFit;
+    Result := LResult;
+  except
+    LResult.Free;
+    raise;
+  end;
+end;
+
+function TVec.Filter(aPredicate: specialize TPredicateMethod<T>; aData: Pointer): specialize IVec<T>;
+var
+  LResult: specialize TVec<T>;
+  i: SizeUInt;
+begin
+  // 预分配最大可能容量，避免重分配
+  LResult := specialize TVec<T>.Create(FCount, GetAllocator, nil);
+  try
+    // 复制增长策略
+    LResult.SetGrowStrategy(GetGrowStrategy);
+
+    for i := 0 to FCount - 1 do
+      if aPredicate(GetUnChecked(i), aData) then  // 直接使用引用，避免拷贝
+        LResult.PushUnChecked(GetUnChecked(i));   // 无边界检查版本
+
+    // 收缩到实际大小
+    LResult.ShrinkToFit;
+    Result := LResult;
+  except
+    LResult.Free;
+    raise;
+  end;
+end;
+
+{$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
+function TVec.Filter(aPredicate: specialize TPredicateRefFunc<T>): specialize IVec<T>;
+var
+  LResult: specialize TVec<T>;
+  i: SizeUInt;
+begin
+  // 预分配最大可能容量，避免重分配
+  LResult := specialize TVec<T>.Create(FCount, GetAllocator, nil);
+  try
+    // 复制增长策略
+    LResult.SetGrowStrategy(GetGrowStrategy);
+
+    for i := 0 to FCount - 1 do
+      if aPredicate(GetUnChecked(i)) then         // 直接使用引用，避免拷贝
+        LResult.PushUnChecked(GetUnChecked(i));   // 无边界检查版本
+
+    // 收缩到实际大小
+    LResult.ShrinkToFit;
+    Result := LResult;
+  except
+    LResult.Free;
+    raise;
+  end;
+end;
+{$ENDIF}
+
+function TVec.Any(aPredicate: specialize TPredicateFunc<T>; aData: Pointer): Boolean;
+var
+  i: SizeUInt;
+begin
+  for i := 0 to FCount - 1 do
+    if aPredicate(GetUnChecked(i), aData) then
+      Exit(True);
+  Result := False;
+end;
+
+function TVec.Any(aPredicate: specialize TPredicateMethod<T>; aData: Pointer): Boolean;
+var
+  i: SizeUInt;
+begin
+  for i := 0 to FCount - 1 do
+    if aPredicate(GetUnChecked(i), aData) then
+      Exit(True);
+  Result := False;
+end;
+
+{$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
+function TVec.Any(aPredicate: specialize TPredicateRefFunc<T>): Boolean;
+var
+  i: SizeUInt;
+begin
+  for i := 0 to FCount - 1 do
+    if aPredicate(GetUnChecked(i)) then
+      Exit(True);
+  Result := False;
+end;
+{$ENDIF}
+
+function TVec.All(aPredicate: specialize TPredicateFunc<T>; aData: Pointer): Boolean;
+var
+  i: SizeUInt;
+begin
+  for i := 0 to FCount - 1 do
+    if not aPredicate(GetUnChecked(i), aData) then
+      Exit(False);
+  Result := True;
+end;
+
+function TVec.All(aPredicate: specialize TPredicateMethod<T>; aData: Pointer): Boolean;
+var
+  i: SizeUInt;
+begin
+  for i := 0 to FCount - 1 do
+    if not aPredicate(GetUnChecked(i), aData) then
+      Exit(False);
+  Result := True;
+end;
+
+{$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
+function TVec.All(aPredicate: specialize TPredicateRefFunc<T>): Boolean;
+var
+  i: SizeUInt;
+begin
+  for i := 0 to FCount - 1 do
+    if not aPredicate(GetUnChecked(i)) then
+      Exit(False);
+  Result := True;
+end;
+{$ENDIF}
+
+{ 就地操作方法实现 }
+
+procedure TVec.Retain(aPredicate: specialize TPredicateFunc<T>; aData: Pointer);
+var
+  i, j: SizeUInt;
+begin
+  j := 0;
+  for i := 0 to FCount - 1 do
+    if aPredicate(GetUnChecked(i), aData) then
+    begin
+      if i <> j then
+        PutUnChecked(j, GetUnChecked(i));
+      Inc(j);
+    end;
+  // 调整大小，自动处理托管类型清理
+  Resize(j);
+end;
+
+procedure TVec.Retain(aPredicate: specialize TPredicateMethod<T>; aData: Pointer);
+var
+  i, j: SizeUInt;
+begin
+  j := 0;
+  for i := 0 to FCount - 1 do
+    if aPredicate(GetUnChecked(i), aData) then
+    begin
+      if i <> j then
+        PutUnChecked(j, GetUnChecked(i));
+      Inc(j);
+    end;
+  // 调整大小，自动处理托管类型清理
+  Resize(j);
+end;
+
+{$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
+procedure TVec.Retain(aPredicate: specialize TPredicateRefFunc<T>);
+var
+  i, j: SizeUInt;
+begin
+  j := 0;
+  for i := 0 to FCount - 1 do
+    if aPredicate(GetUnChecked(i)) then
+    begin
+      if i <> j then
+        PutUnChecked(j, GetUnChecked(i));
+      Inc(j);
+    end;
+  // 调整大小，自动处理托管类型清理
+  Resize(j);
+end;
+{$ENDIF}
+
+function TVec.Drain(aStart, aCount: SizeUInt): specialize IVec<T>;
+var
+  LResult: specialize TVec<T>;
+  i: SizeUInt;
+begin
+  // 边界检查
+  if aStart >= FCount then
+    raise EArgumentOutOfRangeException.Create('Drain: start index out of range');
+  if aStart + aCount > FCount then
+    aCount := FCount - aStart;
+
+  // 创建结果向量并复制要删除的元素
+  LResult := specialize TVec<T>.Create(aCount, GetAllocator, nil);
+  try
+    // 复制增长策略
+    LResult.SetGrowStrategy(GetGrowStrategy);
+
+    for i := 0 to aCount - 1 do
+      LResult.PushUnChecked(GetUnChecked(aStart + i));
+
+    // 移动后续元素（如果有的话）
+    if aStart + aCount < FCount then
+    begin
+      for i := aStart + aCount to FCount - 1 do
+        PutUnChecked(aStart + i - aCount, GetUnChecked(i));
+    end;
+
+    // 调整大小
+    Resize(FCount - aCount);
+    Result := LResult;
+  except
+    LResult.Free;
+    raise;
+  end;
+end;
+
+{ 便利方法实现 }
+
+function TVec.ToArray: specialize TGenericArray<T>;
+var
+  i: SizeUInt;
+begin
+  SetLength(Result, FCount);
+  for i := 0 to FCount - 1 do
+    Result[i] := GetUnChecked(i);
+end;
+
+function TVec.Clone: TCollection;
+var
+  LResult: specialize TVec<T>;
+begin
+  LResult := specialize TVec<T>.Create(FCount, GetAllocator, nil);
+  try
+    // 复制增长策略，保持完整配置
+    LResult.SetGrowStrategy(GetGrowStrategy);
+
+    if FCount > 0 then
+      LResult.OverWriteUnChecked(0, GetMemory, FCount);
+    LResult.FCount := FCount;
+    Result := LResult;
+  except
+    LResult.Free;
+    raise;
+  end;
+end;
+
+function TVec.First: T;
+begin
+  if FCount = 0 then
+    raise EArgumentOutOfRangeException.Create('Vector is empty');
+  Result := GetUnChecked(0);
+end;
+
+function TVec.Last: T;
+begin
+  if FCount = 0 then
+    raise EArgumentOutOfRangeException.Create('Vector is empty');
+  Result := GetUnChecked(FCount - 1);
+end;
+
+{ 高性能无检查方法实现 }
+
+procedure TVec.PushUnChecked(const aElement: T);
+begin
+  PutUnChecked(FCount, aElement);
+  Inc(FCount);
 end;
 
 procedure TVec.OverWrite(aIndex: SizeUInt; const aSrc: Pointer; aCount: SizeUInt);
@@ -5080,3 +5545,4 @@ finalization
     _VecDefaultFactorStrategy.Free;
     _VecDefaultFactorStrategy := nil;
   end;
+用

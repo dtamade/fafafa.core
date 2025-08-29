@@ -50,7 +50,7 @@ function HashOfUInt64(x: QWord): UInt32;
 function HashOfAnsiString(const s: AnsiString): UInt32;
 function HashOfUnicodeString(const s: UnicodeString): UInt32;
 
-
+type
   // HashSet：语义为包含关系，基于 HashMap<K,Byte> 的薄封装
   generic IHashSet<K> = interface(specialize IGenericCollection<K>)
   ['{4E6B9CD0-2D7E-4E7D-A7A7-7B0E9D6ABF1A}']
@@ -63,7 +63,6 @@ function HashOfUnicodeString(const s: UnicodeString): UInt32;
     procedure Reserve(aCapacity: SizeUInt);
     property Capacity: SizeUInt read GetCapacity;
   end;
-type
   // 最小占位实现骨架（后续填充开放寻址引擎）
   generic THashMap<K,V> = class(specialize TGenericCollection<specialize TMapEntry<K,V>>, specialize IHashMap<K,V>)
   public

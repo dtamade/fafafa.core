@@ -24,17 +24,23 @@ type
   {$ENDIF}
 
 // 创建平台特定的自旋锁实例
-function MakeSpinLock: ISpinLock;
+function MakeSpinLock: ISpinLock; overload;
+function MakeSpinLock(const APolicy: TSpinLockPolicy): ISpinLock; overload;
 
 implementation
 
 function MakeSpinLock: ISpinLock;
 begin
+  Result := MakeSpinLock(DefaultSpinLockPolicy);
+end;
+
+function MakeSpinLock(const APolicy: TSpinLockPolicy): ISpinLock;
+begin
   {$IFDEF UNIX}
-  Result := fafafa.core.sync.spin.unix.TSpinLock.Create;
+  Result := fafafa.core.sync.spin.unix.TSpinLock.Create(APolicy);
   {$ENDIF}
   {$IFDEF WINDOWS}
-  Result := fafafa.core.sync.spin.windows.TSpinLock.Create;
+  Result := fafafa.core.sync.spin.windows.TSpinLock.Create(APolicy);
   {$ENDIF}
 end;
 

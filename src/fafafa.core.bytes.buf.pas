@@ -51,6 +51,11 @@ type
     procedure WriteBytes(const B: TBytes);
     function ReadBytes(Count: SizeInt): TBytes;
 
+    // 高效批量操作（减少边界检查）
+    procedure WriteBytesUnchecked(const B: TBytes); // 假设已调用 EnsureWritable
+    procedure ReadBytesInto(Dest: Pointer; Count: SizeInt); // 直接读取到目标内存
+    procedure WriteBytesFrom(Src: Pointer; Count: SizeInt); // 从源内存直接写入
+
     // 维护
     procedure Compact; // owner-only：移动未读数据到起始，FR:=0, FW:=Readable
     procedure DiscardReadBytes; // alias to Compact
@@ -112,6 +117,11 @@ type
 
     procedure WriteBytes(const B: TBytes);
     function ReadBytes(Count: SizeInt): TBytes;
+
+    // 高效批量操作
+    procedure WriteBytesUnchecked(const B: TBytes);
+    procedure ReadBytesInto(Dest: Pointer; Count: SizeInt);
+    procedure WriteBytesFrom(Src: Pointer; Count: SizeInt);
 
     procedure Compact;
     procedure DiscardReadBytes;

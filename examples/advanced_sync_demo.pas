@@ -1,4 +1,4 @@
-program AdvancedSyncDemo;
+program advanced_sync_demo;
 
 {$CODEPAGE UTF8}
 {$mode objfpc}{$H+}
@@ -102,17 +102,16 @@ procedure DemoBarrier;
 begin
   WriteLn('=== 屏障演示 ===');
   
-  // 创建3个参与者的屏障
-  GBarrier := TBarrier.Create(3);
-  
+  // 创建3个参与者的屏障（基础 Barrier 无超时/计数查询 API）
+  GBarrier := MakeBarrier(3);
+
   WriteLn('创建屏障，参与者数量: ', GBarrier.GetParticipantCount);
-  WriteLn('当前等待数量: ', GBarrier.GetWaitingCount);
-  
-  WriteLn('模拟单线程等待（应该超时）...');
-  if GBarrier.Wait(100) then
-    WriteLn('意外成功！')
+
+  WriteLn('单线程等待不会通过（需要 3 个参与者），下面仅演示一次调用并说明语义');
+  if GBarrier.Wait then
+    WriteLn('当前线程是串行线程（仅一条线程每轮返回 True）')
   else
-    WriteLn('正确超时 - 需要3个参与者');
+    WriteLn('当前线程是非串行线程（False 并非失败）');
   
   WriteLn('屏障演示完成');
   WriteLn;

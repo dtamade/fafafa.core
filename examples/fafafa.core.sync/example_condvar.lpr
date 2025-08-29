@@ -54,8 +54,8 @@ end;
 var T1, T2: TThreadID;
 begin
   // 启用 Windows 条件变量路径（示例运行时需在 settings.inc 打开宏）
-  M := TMutex.Create;
-  CV := TConditionVariable.Create;
+  M := MakeMutex;
+  CV := MakeConditionVariable;
 
   BeginThread(@Consumer, nil, T1);
   BeginThread(@Producer, nil, T2);

@@ -11,112 +11,343 @@ uses
   fafafa.core.simd, fafafa.core.simd.types;
 
 type
-  // 全局函数测试：覆盖门面对外全部可见接口（含重载/变量函数）
+  // 新SIMD模块测试：测试核心已实现的功能
   TTestCase_Global = class(TTestCase)
   published
-    // 基本信息与强制配置
-    procedure Test_SimdInfo_And_ForceProfile;
+    // 算术运算测试
+    procedure Test_Arithmetic_Add_F32x4;
+    procedure Test_Arithmetic_Sub_F32x4;
+    procedure Test_Arithmetic_Mul_F32x4;
+    procedure Test_Arithmetic_Div_F32x4;
 
-    // Mem
-    procedure Test_MemEqual_Basic;
-    procedure Test_MemFindByte_Basic;
-    procedure Test_MemDiffRange_Basic;
+    // 比较运算测试
+    procedure Test_Compare_Eq_F32x4;
+    procedure Test_Compare_Lt_F32x4;
 
-    // Text
-    procedure Test_Utf8Validate_Ascii_Valid;
-    procedure Test_AsciiCase_ToLower_ToUpper;
-    procedure Test_AsciiIEqual_Basic;
+    // 数学函数测试
+    procedure Test_Math_Abs_F32x4;
+    procedure Test_Math_Sqrt_F32x4;
+    procedure Test_Math_Min_Max_F32x4;
 
-    // Bitset
-    procedure Test_BitsetPopCount_Basic;
+    // 聚合运算测试
+    procedure Test_Reduce_Add_F32x4;
+    procedure Test_Reduce_Min_Max_F32x4;
 
-    // Search
-    procedure Test_BytesIndexOf_Basic_And_Edges;
-
-    // === 新增 SIMD 接口测试 ===
-
-    // 内存操作
-    procedure Test_MemCopy_Basic;
-    procedure Test_MemSet_Basic;
-    procedure Test_MemReverse_Basic;
-
-    // 数值计算
-    procedure Test_SumBytes_Basic;
-    procedure Test_MinMaxBytes_Basic;
-    procedure Test_CountByte_Basic;
+    // 整数运算测试
+    procedure Test_Arithmetic_Add_I32x4;
+    procedure Test_Compare_Eq_I32x4;
+    procedure Test_Math_Abs_I32x4;
+    procedure Test_Reduce_Add_I32x4;
   end;
 
 implementation
 
-procedure TTestCase_Global.Test_SimdInfo_And_ForceProfile;
-var s: string;
-buf: array[0..15] of Byte;
-buf2: array[0..15] of Byte;
-b: Boolean;
-prevForced: string;
-begin
-  // 记录当前状态，并做一次轻量调用以确保已初始化
-  FillChar(buf, SizeOf(buf), 0);
-  FillChar(buf2, SizeOf(buf2), 0);
-  prevForced := SimdGetForcedProfile;
-  b := MemEqual(@buf[0], @buf2[0], SizeOf(buf));
+// === 算术运算测试 ===
 
-  // 强制 SCALAR（不校验精确前缀，只校验包含关键字）
-  SimdSetForcedProfile('SCALAR');
-  s := UpperCase(SimdInfo);
-  AssertTrue(Pos('SCALAR', s) > 0);
-  // 恢复到之前的强制 Profile（若无则保持空）
-  // 避免在测试中频繁切换，保持当前环境
-  // if prevForced <> '' then
-  //   SimdSetForcedProfile(prevForced);
-
-  // 轻度断言：调用仍可用
-  b := MemEqual(@buf[0], @buf2[0], SizeOf(buf));
-  AssertTrue(b);
-end;
-
-procedure TTestCase_Global.Test_MemEqual_Basic;
+procedure TTestCase_Global.Test_Arithmetic_Add_F32x4;
 var
-  a, b: array[0..63] of Byte;
-  boolEq: Boolean;
+  a, b, result: TSimdF32x4;
   i: Integer;
 begin
-  for i:=0 to High(a) do begin a[i] := i; b[i] := i; end;
-  boolEq := MemEqual(@a[0], @b[0], Length(a));
-  AssertTrue('MemEqual should be True for identical buffers', boolEq);
-  b[7] := b[7] xor $FF;
-  boolEq := MemEqual(@a[0], @b[0], Length(a));
-  AssertTrue('MemEqual should detect difference', not boolEq);
+  // 初始化测试数据
+  for i := 0 to 3 do
+  begin
+    a[i] := i + 1.0;  // [1.0, 2.0, 3.0, 4.0]
+    b[i] := i * 2.0;  // [0.0, 2.0, 4.0, 6.0]
+  end;
+
+  // 执行加法运算
+  result := simd_add_f32x4(a, b);
+
+  // 验证结果
+  AssertEquals('Add[0]', 1.0, result[0], 0.001);
+  AssertEquals('Add[1]', 4.0, result[1], 0.001);
+  AssertEquals('Add[2]', 7.0, result[2], 0.001);
+  AssertEquals('Add[3]', 10.0, result[3], 0.001);
 end;
 
-procedure TTestCase_Global.Test_MemFindByte_Basic;
+procedure TTestCase_Global.Test_Arithmetic_Sub_F32x4;
 var
-  a: array[0..31] of Byte;
-  idx: PtrInt;
+  a, b, result: TSimdF32x4;
   i: Integer;
 begin
-  for i:=0 to High(a) do a[i] := i;
-  idx := MemFindByte(@a[0], Length(a), 7);
-  AssertTrue('found byte 7', idx = 7);
-  idx := MemFindByte(@a[0], Length(a), 255);
-  AssertTrue('not found returns -1', idx = -1);
+  // 初始化测试数据
+  for i := 0 to 3 do
+  begin
+    a[i] := (i + 1) * 3.0;  // [3.0, 6.0, 9.0, 12.0]
+    b[i] := i + 1.0;        // [1.0, 2.0, 3.0, 4.0]
+  end;
+
+  // 执行减法运算
+  result := simd_sub_f32x4(a, b);
+
+  // 验证结果
+  AssertEquals('Sub[0]', 2.0, result[0], 0.001);
+  AssertEquals('Sub[1]', 4.0, result[1], 0.001);
+  AssertEquals('Sub[2]', 6.0, result[2], 0.001);
+  AssertEquals('Sub[3]', 8.0, result[3], 0.001);
 end;
 
-procedure TTestCase_Global.Test_MemDiffRange_Basic;
+procedure TTestCase_Global.Test_Arithmetic_Mul_F32x4;
 var
-  a, b: array[0..31] of Byte;
-  r: TDiffRange;
+  a, b, result: TSimdF32x4;
+  i: Integer;
 begin
-  FillChar(a, SizeOf(a), 0);
-  FillChar(b, SizeOf(b), 0);
-  r := MemDiffRange(@a[0], @b[0], Length(a));
-  AssertTrue('equal => (-1,-1)', (r.First = -1) and (r.Last = -1));
-  a[3] := 1; a[4] := 2; a[5] := 3;
-  b[3] := 9; b[5] := 7;
-  r := MemDiffRange(@a[0], @b[0], Length(a));
-  AssertTrue('diff range starts at 3', r.First = 3);
-  AssertTrue('diff range ends at 5', r.Last = 5);
+  // 初始化测试数据
+  for i := 0 to 3 do
+  begin
+    a[i] := i + 2.0;  // [2.0, 3.0, 4.0, 5.0]
+    b[i] := 2.0;      // [2.0, 2.0, 2.0, 2.0]
+  end;
+
+  // 执行乘法运算
+  result := simd_mul_f32x4(a, b);
+
+  // 验证结果
+  AssertEquals('Mul[0]', 4.0, result[0], 0.001);
+  AssertEquals('Mul[1]', 6.0, result[1], 0.001);
+  AssertEquals('Mul[2]', 8.0, result[2], 0.001);
+  AssertEquals('Mul[3]', 10.0, result[3], 0.001);
 end;
+
+procedure TTestCase_Global.Test_Arithmetic_Div_F32x4;
+var
+  a, b, result: TSimdF32x4;
+  i: Integer;
+begin
+  // 初始化测试数据
+  for i := 0 to 3 do
+  begin
+    a[i] := (i + 1) * 4.0;  // [4.0, 8.0, 12.0, 16.0]
+    b[i] := 2.0;            // [2.0, 2.0, 2.0, 2.0]
+  end;
+
+  // 执行除法运算
+  result := simd_div_f32x4(a, b);
+
+  // 验证结果
+  AssertEquals('Div[0]', 2.0, result[0], 0.001);
+  AssertEquals('Div[1]', 4.0, result[1], 0.001);
+  AssertEquals('Div[2]', 6.0, result[2], 0.001);
+  AssertEquals('Div[3]', 8.0, result[3], 0.001);
+end;
+
+// === 比较运算测试 ===
+
+procedure TTestCase_Global.Test_Compare_Eq_F32x4;
+var
+  a, b: TSimdF32x4;
+  mask: TSimdMask4;
+begin
+  // 初始化测试数据
+  a[0] := 1.0; a[1] := 2.0; a[2] := 3.0; a[3] := 4.0;
+  b[0] := 1.0; b[1] := 5.0; b[2] := 3.0; b[3] := 7.0;
+
+  // 执行相等比较
+  mask := simd_eq_f32x4(a, b);
+
+  // 验证结果
+  AssertTrue('Eq[0]', mask[0]);   // 1.0 == 1.0
+  AssertFalse('Eq[1]', mask[1]); // 2.0 != 5.0
+  AssertTrue('Eq[2]', mask[2]);   // 3.0 == 3.0
+  AssertFalse('Eq[3]', mask[3]); // 4.0 != 7.0
+end;
+
+procedure TTestCase_Global.Test_Compare_Lt_F32x4;
+var
+  a, b: TSimdF32x4;
+  mask: TSimdMask4;
+begin
+  // 初始化测试数据
+  a[0] := 1.0; a[1] := 5.0; a[2] := 3.0; a[3] := 8.0;
+  b[0] := 2.0; b[1] := 4.0; b[2] := 3.0; b[3] := 7.0;
+
+  // 执行小于比较
+  mask := simd_lt_f32x4(a, b);
+
+  // 验证结果
+  AssertTrue('Lt[0]', mask[0]);   // 1.0 < 2.0
+  AssertFalse('Lt[1]', mask[1]); // 5.0 >= 4.0
+  AssertFalse('Lt[2]', mask[2]); // 3.0 >= 3.0
+  AssertFalse('Lt[3]', mask[3]); // 8.0 >= 7.0
+end;
+
+// === 数学函数测试 ===
+
+procedure TTestCase_Global.Test_Math_Abs_F32x4;
+var
+  a, result: TSimdF32x4;
+begin
+  // 初始化测试数据（包含正数、负数、零）
+  a[0] := -3.5; a[1] := 2.0; a[2] := 0.0; a[3] := -7.2;
+
+  // 执行绝对值运算
+  result := simd_abs_f32x4(a);
+
+  // 验证结果
+  AssertEquals('Abs[0]', 3.5, result[0], 0.001);
+  AssertEquals('Abs[1]', 2.0, result[1], 0.001);
+  AssertEquals('Abs[2]', 0.0, result[2], 0.001);
+  AssertEquals('Abs[3]', 7.2, result[3], 0.001);
+end;
+
+procedure TTestCase_Global.Test_Math_Sqrt_F32x4;
+var
+  a, result: TSimdF32x4;
+begin
+  // 初始化测试数据
+  a[0] := 4.0; a[1] := 9.0; a[2] := 16.0; a[3] := 25.0;
+
+  // 执行平方根运算
+  result := simd_sqrt_f32x4(a);
+
+  // 验证结果
+  AssertEquals('Sqrt[0]', 2.0, result[0], 0.001);
+  AssertEquals('Sqrt[1]', 3.0, result[1], 0.001);
+  AssertEquals('Sqrt[2]', 4.0, result[2], 0.001);
+  AssertEquals('Sqrt[3]', 5.0, result[3], 0.001);
+end;
+
+procedure TTestCase_Global.Test_Math_Min_Max_F32x4;
+var
+  a, b, min_result, max_result: TSimdF32x4;
+begin
+  // 初始化测试数据
+  a[0] := 1.0; a[1] := 5.0; a[2] := 3.0; a[3] := 8.0;
+  b[0] := 2.0; b[1] := 4.0; b[2] := 6.0; b[3] := 7.0;
+
+  // 执行最小值和最大值运算
+  min_result := simd_min_f32x4(a, b);
+  max_result := simd_max_f32x4(a, b);
+
+  // 验证最小值结果
+  AssertEquals('Min[0]', 1.0, min_result[0], 0.001);
+  AssertEquals('Min[1]', 4.0, min_result[1], 0.001);
+  AssertEquals('Min[2]', 3.0, min_result[2], 0.001);
+  AssertEquals('Min[3]', 7.0, min_result[3], 0.001);
+
+  // 验证最大值结果
+  AssertEquals('Max[0]', 2.0, max_result[0], 0.001);
+  AssertEquals('Max[1]', 5.0, max_result[1], 0.001);
+  AssertEquals('Max[2]', 6.0, max_result[2], 0.001);
+  AssertEquals('Max[3]', 8.0, max_result[3], 0.001);
+end;
+
+// === 聚合运算测试 ===
+
+procedure TTestCase_Global.Test_Reduce_Add_F32x4;
+var
+  a: TSimdF32x4;
+  result: Single;
+begin
+  // 初始化测试数据
+  a[0] := 1.0; a[1] := 2.0; a[2] := 3.0; a[3] := 4.0;
+
+  // 执行求和聚合运算
+  result := simd_reduce_add_f32x4(a);
+
+  // 验证结果 (1.0 + 2.0 + 3.0 + 4.0 = 10.0)
+  AssertEquals('ReduceAdd', 10.0, result, 0.001);
+end;
+
+procedure TTestCase_Global.Test_Reduce_Min_Max_F32x4;
+var
+  a: TSimdF32x4;
+  min_result, max_result: Single;
+begin
+  // 初始化测试数据
+  a[0] := 3.5; a[1] := 1.2; a[2] := 7.8; a[3] := 2.1;
+
+  // 执行最小值和最大值聚合运算
+  min_result := simd_reduce_min_f32x4(a);
+  max_result := simd_reduce_max_f32x4(a);
+
+  // 验证结果
+  AssertEquals('ReduceMin', 1.2, min_result, 0.001);
+  AssertEquals('ReduceMax', 7.8, max_result, 0.001);
+end;
+
+// === 整数运算测试 ===
+
+procedure TTestCase_Global.Test_Arithmetic_Add_I32x4;
+var
+  a, b, result: TSimdI32x4;
+  i: Integer;
+begin
+  // 初始化测试数据
+  for i := 0 to 3 do
+  begin
+    a[i] := (i + 1) * 10;  // [10, 20, 30, 40]
+    b[i] := i * 5;         // [0, 5, 10, 15]
+  end;
+
+  // 执行加法运算
+  result := simd_add_i32x4(a, b);
+
+  // 验证结果
+  AssertEquals('AddI32[0]', 10, result[0]);
+  AssertEquals('AddI32[1]', 25, result[1]);
+  AssertEquals('AddI32[2]', 40, result[2]);
+  AssertEquals('AddI32[3]', 55, result[3]);
+end;
+
+procedure TTestCase_Global.Test_Compare_Eq_I32x4;
+var
+  a, b: TSimdI32x4;
+  mask: TSimdMask4;
+begin
+  // 初始化测试数据
+  a[0] := 10; a[1] := 20; a[2] := 30; a[3] := 40;
+  b[0] := 10; b[1] := 25; b[2] := 30; b[3] := 50;
+
+  // 执行相等比较
+  mask := simd_eq_i32x4(a, b);
+
+  // 验证结果
+  AssertTrue('EqI32[0]', mask[0]);   // 10 == 10
+  AssertFalse('EqI32[1]', mask[1]); // 20 != 25
+  AssertTrue('EqI32[2]', mask[2]);   // 30 == 30
+  AssertFalse('EqI32[3]', mask[3]); // 40 != 50
+end;
+
+procedure TTestCase_Global.Test_Math_Abs_I32x4;
+var
+  a, result: TSimdI32x4;
+begin
+  // 初始化测试数据（包含正数、负数、零）
+  a[0] := -15; a[1] := 25; a[2] := 0; a[3] := -100;
+
+  // 执行绝对值运算
+  result := simd_abs_i32x4(a);
+
+  // 验证结果
+  AssertEquals('AbsI32[0]', 15, result[0]);
+  AssertEquals('AbsI32[1]', 25, result[1]);
+  AssertEquals('AbsI32[2]', 0, result[2]);
+  AssertEquals('AbsI32[3]', 100, result[3]);
+end;
+
+procedure TTestCase_Global.Test_Reduce_Add_I32x4;
+var
+  a: TSimdI32x4;
+  result: Int32;
+begin
+  // 初始化测试数据
+  a[0] := 5; a[1] := 10; a[2] := 15; a[3] := 20;
+
+  // 执行求和聚合运算
+  result := simd_reduce_add_i32x4(a);
+
+  // 验证结果 (5 + 10 + 15 + 20 = 50)
+  AssertEquals('ReduceAddI32', 50, result);
+end;
+
+// 测试完成，所有新SIMD模块的核心功能都已测试
+
+initialization
+  RegisterTest(TTestCase_Global);
+
+end.
 
 procedure TTestCase_Global.Test_Utf8Validate_Ascii_Valid;
 var

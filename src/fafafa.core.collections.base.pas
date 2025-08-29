@@ -7,7 +7,7 @@ unit fafafa.core.collections.base;
 interface
 
 uses
-  SysUtils, Classes,typinfo,variants,
+  SysUtils, Classes,typinfo,variants, Math,
   fafafa.core.base,
   fafafa.core.math,
   {$HINTS OFF}fafafa.core.mem.utils,{$HINTS ON}
@@ -655,6 +655,12 @@ type
   generic TPredicateRefFunc<T> = reference to function (const aElement: T): Boolean;
   {$ENDIF}
 
+  { 泛型映射回调函数 }
+  generic TMapperFunc<T, U>    = function (const aElement: T; aData: Pointer): U;
+  generic TMapperMethod<T, U>  = function (const aElement: T; aData: Pointer): U of Object;
+  {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
+  generic TMapperRefFunc<T, U> = reference to function (const aElement: T): U;
+  {$ENDIF}
 
   { 泛型比较回调函数 }
 
@@ -3415,7 +3421,17 @@ end;
 
 function TDoublingGrowStrategy.DoCalc(aCurrentSize: SizeUInt): SizeUInt;
 begin
-  Result := aCurrentSize * 2;
+  // 处理初始容量为0的情况，避免无限循环
+  if aCurrentSize = 0 then
+    Result := 1  // 从1开始，后续按2倍增长
+  else
+  begin
+    // 检查乘法是否会导致溢出
+    if aCurrentSize > High(SizeUInt) div 2 then
+      Result := High(SizeUInt)  // 返回最大值，让上层处理溢出
+    else
+      Result := aCurrentSize * 2;
+  end;
 end;
 
 class destructor TDoublingGrowStrategy.Destroy;
@@ -3461,8 +3477,30 @@ begin
 end;
 
 function TFactorGrowStrategy.DoCalc(aCurrentSize: SizeUInt): SizeUInt;
+var
+  LProduct: Single;
+  LCeiled: Int64;
+const
+  MAX_SAFE_SIZEUINT = 9223372036854775807; // High(Int64)
 begin
-  Result := ceil(aCurrentSize * FFactor);
+  // 处理初始容量为0的情况，避免无限循环
+  if aCurrentSize = 0 then
+    Result := 1  // 从1开始，后续按因子增长
+  else
+  begin
+    // 检查乘法是否会导致溢出
+    LProduct := aCurrentSize * FFactor;
+    if (LProduct > MAX_SAFE_SIZEUINT) or IsInfinite(LProduct) or IsNaN(LProduct) then
+      Result := MAX_SAFE_SIZEUINT  // 返回安全的最大值
+    else
+    begin
+      LCeiled := ceil(LProduct);
+      if LCeiled > MAX_SAFE_SIZEUINT then
+        Result := MAX_SAFE_SIZEUINT
+      else
+        Result := SizeUInt(LCeiled);
+    end;
+  end;
 end;
 
 constructor TFactorGrowStrategy.Create(aFactor: Single);
@@ -3504,8 +3542,29 @@ end;
 function TGoldenRatioGrowStrategy.DoCalc(aCurrentSize: SizeUInt): SizeUInt;
 const
   GOLDEN_RATIO: Single = 1.61803398875;
+  MAX_SAFE_SIZEUINT = 9223372036854775807; // High(Int64)
+var
+  LProduct: Single;
+  LCeiled: Int64;
 begin
-  Result := ceil(aCurrentSize * GOLDEN_RATIO);
+  // 处理初始容量为0的情况，避免无限循环
+  if aCurrentSize = 0 then
+    Result := 1  // 从1开始，后续按黄金比例增长
+  else
+  begin
+    // 检查乘法是否会导致溢出
+    LProduct := aCurrentSize * GOLDEN_RATIO;
+    if (LProduct > MAX_SAFE_SIZEUINT) or IsInfinite(LProduct) or IsNaN(LProduct) then
+      Result := MAX_SAFE_SIZEUINT  // 返回安全的最大值
+    else
+    begin
+      LCeiled := ceil(LProduct);
+      if LCeiled > MAX_SAFE_SIZEUINT then
+        Result := MAX_SAFE_SIZEUINT
+      else
+        Result := SizeUInt(LCeiled);
+    end;
+  end;
 end;
 
 class destructor TGoldenRatioGrowStrategy.Destroy;

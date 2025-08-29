@@ -16,14 +16,17 @@ function BytesIndexOf_AVX2(hay: Pointer; len: SizeUInt; ned: Pointer; nlen: Size
 function BytesIndexOf_NEON(hay: Pointer; len: SizeUInt; ned: Pointer; nlen: SizeUInt): PtrInt;
 {$ENDIF}
 
+// === 主要接口函数（动态派发）===
+function BytesIndexOf(hay: Pointer; len: SizeUInt; ned: Pointer; nlen: SizeUInt): PtrInt;
+
 // 解析器常用助手（先标量实现，后续可切 SIMD）
 // 返回 CRLF ("\r\n") 的起始索引；若仅有 '\n'，返回其索引；未找到返回 -1
 function FindEOL_Scalar(hay: Pointer; len: SizeUInt): PtrInt;
 // 返回第一个不属于集合 set[0..setLen-1] 的位置；未找到返回 -1
 function FindFirstNotOf_Scalar(hay: Pointer; len: SizeUInt; setPtr: Pointer; setLen: SizeUInt): PtrInt;
-  // 前缀判断：StartsWith/StartsWithI（标量原型）
-  function StartsWith_Scalar(hay: Pointer; len: SizeUInt; ned: Pointer; nlen: SizeUInt): Boolean;
-  function StartsWithI_Scalar(hay: Pointer; len: SizeUInt; ned: Pointer; nlen: SizeUInt): Boolean;
+// 前缀判断：StartsWith/StartsWithI（标量原型）
+function StartsWith_Scalar(hay: Pointer; len: SizeUInt; ned: Pointer; nlen: SizeUInt): Boolean;
+function StartsWithI_Scalar(hay: Pointer; len: SizeUInt; ned: Pointer; nlen: SizeUInt): Boolean;
 
 
 
@@ -33,33 +36,30 @@ uses
   fafafa.core.simd.mem,
   fafafa.core.simd.text;
 
-// 简单 BMH（Boyer–Moore–Horspool）字节搜索，适合一般场景
+// 简单朴素字节搜索，确保正确性
 function BytesIndexOf_Scalar(hay: Pointer; len: SizeUInt; ned: Pointer; nlen: SizeUInt): PtrInt;
 var
-  h: PByte; n: PByte; i: SizeUInt; last: Byte; skip: array[0..255] of SizeUInt;
-  pos: SizeUInt; j: SizeUInt;
+  h: PByte; n: PByte; i, j: SizeUInt;
 begin
   if nlen = 0 then Exit(0);
   if (len = 0) or (nlen > len) then Exit(-1);
-  h := PByte(hay); n := PByte(ned);
-  last := n[nlen-1];
-  for i := 0 to 255 do skip[i] := nlen;
-  if nlen >= 2 then
-    for i := 0 to nlen-2 do
-      skip[n[i]] := nlen-1-i;
-  pos := 0;
-  while pos <= len - nlen do
+
+  h := PByte(hay);
+  n := PByte(ned);
+
+  // 朴素搜索算法 - 简单但正确
+  for i := 0 to len - nlen do
   begin
-    if h[pos + nlen - 1] = last then
-    begin
-      // 比较其余部分
-      j := 0;
-      while (j < nlen-1) and (h[pos + j] = n[j]) do Inc(j);
-      if j = nlen-1 then Exit(PtrInt(pos));
-    end;
-    pos += skip[h[pos + nlen - 1]];
+    // 检查从位置 i 开始是否匹配
+    j := 0;
+    while (j < nlen) and (h[i + j] = n[j]) do
+      Inc(j);
+
+    if j = nlen then
+      Exit(PtrInt(i)); // 找到匹配
   end;
-  Result := -1;
+
+  Result := -1; // 未找到
 end;
 
 {$IFDEF CPUX86_64}
@@ -347,6 +347,19 @@ end;
 
 
 {$ENDIF}
+
+// === 主要接口函数实现（动态派发）===
+
+function BytesIndexOf(hay: Pointer; len: SizeUInt; ned: Pointer; nlen: SizeUInt): PtrInt;
+begin
+  {$IFDEF CPUX86_64}
+  // TODO: 添加指令集检测和动态派发
+  // 暂时使用标量实现
+  Result := BytesIndexOf_Scalar(hay, len, ned, nlen);
+  {$ELSE}
+  Result := BytesIndexOf_Scalar(hay, len, ned, nlen);
+  {$ENDIF}
+end;
 
 end.
 

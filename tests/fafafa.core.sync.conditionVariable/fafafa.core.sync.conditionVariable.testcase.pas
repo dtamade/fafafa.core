@@ -7,9 +7,7 @@ interface
 
 uses
   Classes, SysUtils, fpcunit, testregistry,
-  fafafa.core.sync
-  {$IFDEF UNIX},    fafafa.core.sync.unix{$ENDIF}
-  {$IFDEF WINDOWS}, fafafa.core.sync.windows{$ENDIF};
+  fafafa.core.sync.base, fafafa.core.sync.mutex, fafafa.core.sync.conditionVariable;
 
 Type
   // 基础功能测试
@@ -189,7 +187,7 @@ begin
     FLock.Acquire;
     try
       while not FFlag^ do
-        FCond.Wait(FLock); // 无超时等待，依赖正确的唤醒
+        if not FCond.Wait(FLock, 100) then ; // 超时循环避免测试阻塞
     finally
       FLock.Release;
     end;

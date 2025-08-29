@@ -14,6 +14,9 @@ function BitsetPopCount_Scalar(p: Pointer; bitLen: SizeUInt): SizeUInt;
 function BitsetPopCount_Popcnt(p: Pointer; bitLen: SizeUInt): SizeUInt; // 64-bit POPCNT 快路径
 {$ENDIF}
 
+// 主要的 BitsetPopCount 函数（动态派发）
+function BitsetPopCount(p: Pointer; bitLen: SizeUInt): SizeUInt;
+
 implementation
 
 function BitsetPopCount_Scalar(p: Pointer; bitLen: SizeUInt): SizeUInt;
@@ -65,8 +68,8 @@ begin
     v := pb[byteLen - 1];
     if (bitLen mod 8) <> 0 then
     begin
-      // 创建掩码，只保留有效位
-      tailMask := Byte($FF) shr (8 - (bitLen mod 8));
+      // 创建掩码，只保留低位的有效位
+      tailMask := Byte((1 shl (bitLen mod 8)) - 1);
       v := v and tailMask;
     end;
     Inc(count, LUT[v]);
@@ -145,8 +148,8 @@ begin
   if tailBits <> 0 then
   begin
     b := ptr^;
-    // 创建掩码，只保留有效位
-    tailMask := Byte($FF) shr (8 - tailBits);
+    // 创建掩码，只保留低位的有效位
+    tailMask := Byte((1 shl tailBits) - 1);
     b := b and tailMask;
 
     {$IFNDEF DISABLE_X86_ASM}
@@ -164,6 +167,18 @@ begin
   Result := acc;
 end;
 {$ENDIF}
+
+// 主要的 BitsetPopCount 函数实现（动态派发）
+function BitsetPopCount(p: Pointer; bitLen: SizeUInt): SizeUInt;
+begin
+  {$IFDEF CPUX86_64}
+  // TODO: 添加 POPCNT 指令检测
+  // 暂时使用标量实现
+  Result := BitsetPopCount_Scalar(p, bitLen);
+  {$ELSE}
+  Result := BitsetPopCount_Scalar(p, bitLen);
+  {$ENDIF}
+end;
 
 end.
 

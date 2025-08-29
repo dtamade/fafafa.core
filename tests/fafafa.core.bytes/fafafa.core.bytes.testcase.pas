@@ -100,6 +100,12 @@ type
     procedure Test_ReserveExact_Shrink_TrimsLen;
     procedure Test_ReserveExact_Grow_KeepLen;
     procedure Test_ReserveExact_Peek_ThenAppend;
+
+    // 新增的测试方法
+    procedure Test_ToBytes_AlwaysCopy_PointerDiff;
+    procedure Test_IntoBytes_ZeroCopy_PointerEquality;
+    procedure Test_DetachNoTrim_ZeroCopy_PointerEquality;
+    procedure Test_DetachTrim_MayCopy_BuilderReset;
   end;
 
 implementation
@@ -272,7 +278,7 @@ begin
   bb.Init(1);
   bb.AppendU16BE($0102);
   bb.AppendU32LE($A0B0C0D0);
-  AssertTrue(bb.Length >= 6);
+  AssertTrue(bb.Length() >= 6);
   outB := bb.ToBytes;
   AssertEquals(Byte($01), outB[0]);
   AssertEquals(Byte($02), outB[1]);
@@ -344,7 +350,7 @@ begin
   bb.ShrinkToFit;
   capAfter := bb.Capacity;
   AssertTrue('capacity shrunk or equal', capAfter <= capBefore);
-  AssertEquals(2, bb.Length);
+  AssertEquals(2, bb.Length());
 end;
 
 procedure TTestCase_TBytesBuilder.Test_AppendString_And_Grow;
@@ -399,7 +405,7 @@ begin
   AssertEquals(3, used);
   AssertEquals(3, Length(buf));
   // bb reset
-  AssertEquals(0, bb.Length);
+  AssertEquals(0, bb.Length());
   // Append after detach should still work
   bb.AppendHex('AABB');
   outB := bb.ToBytes;
@@ -434,10 +440,10 @@ begin
   outB := bb.IntoBytes;
   AssertEquals(4, Length(outB));
   // bb should be reset
-  AssertEquals(0, bb.Length);
+  AssertEquals(0, bb.Length());
   // further writes still work
   bb.AppendByte($01);
-  AssertEquals(1, bb.Length);
+  AssertEquals(1, bb.Length());
 end;
 
 procedure TTestCase_TBytesBuilder.Test_IntoBytes_CopyPath_NoReset;
@@ -450,12 +456,12 @@ begin
   B1 := bb.IntoBytes; // copy path
   AssertEquals(2, Length(B1));
   // copy path should NOT reset builder (only zero-copy resets)
-  AssertEquals(2, bb.Length);
+  AssertEquals(2, bb.Length());
   // Another IntoBytes now with perfect capacity (after ShrinkToFit)
   bb.ShrinkToFit;
   B2 := bb.IntoBytes;
   AssertEquals(2, Length(B2));
-  AssertEquals(0, bb.Length);
+  AssertEquals(0, bb.Length());
 end;
 
 procedure TTestCase_TBytesBuilder.Test_Peek_ReadOnly_Borrow;
@@ -488,7 +494,7 @@ begin
   AssertEquals(2, used);
   // buf length equals capacity at transfer time; we cannot assert exact Length(buf) here,
   // but we can assert builder is reset and buf[0..1] hold data
-  AssertEquals(0, bb.Length);
+  AssertEquals(0, bb.Length());
   AssertTrue(Length(buf) >= 2);
   AssertEquals(Byte($AA), buf[0]);
   AssertEquals(Byte($BB), buf[1]);
@@ -525,9 +531,9 @@ var bb: TBytesBuilder; P: Pointer; N: SizeInt;
 begin
   bb.Init(0);
   bb.AppendHex('AABBCCDD'); // len=4
-  AssertEquals(4, bb.Length);
+  AssertEquals(4, bb.Length());
   bb.ReserveExact(2); // shrink capacity to 2 -> FLen trimmed to 2
-  AssertEquals(2, bb.Length);
+  AssertEquals(2, bb.Length());
   // data correctness of first 2 bytes
   bb.Peek(P, N);
   AssertEquals(2, N);
@@ -535,7 +541,7 @@ begin
   AssertEquals(Byte($BB), PByte(PByte(P)+1)^);
   // can continue appending
   bb.AppendHex('EE');
-  AssertEquals(3, bb.Length);
+  AssertEquals(3, bb.Length());
 end;
 
 procedure TTestCase_TBytesBuilder.Test_ReserveExact_Grow_KeepLen;
@@ -543,12 +549,12 @@ var bb: TBytesBuilder; oldLen: SizeInt;
 begin
   bb.Init(0);
   bb.AppendHex('AABB'); // len=2
-  oldLen := bb.Length;
+  oldLen := bb.Length();
   bb.ReserveExact(16); // grow capacity to 16 -> length unchanged
-  AssertEquals(oldLen, bb.Length);
+  AssertEquals(oldLen, bb.Length());
   // subsequent operations still work
   bb.AppendHex('CC');
-  AssertEquals(oldLen+1, bb.Length);
+  AssertEquals(oldLen+1, bb.Length());
 end;
 
 procedure TTestCase_TBytesBuilder.Test_ReserveExact_Peek_ThenAppend;
@@ -629,7 +635,7 @@ begin
   AssertEquals(Byte($A1), buf[0]);
   AssertEquals(Byte($B2), buf[1]);
   AssertEquals(Byte($C3), buf[2]);
-  AssertEquals(0, bb.Length);
+  AssertEquals(0, bb.Length());
 end;
 
 procedure TTestCase_TBytesBuilder.Test_ShortReadWrite_Zero_One_Byte_Loops;
@@ -670,7 +676,7 @@ begin
   // ToBytes must copy; pointer should differ from borrowed pointer
   AssertTrue(NativeUInt(P) <> NativeUInt(@outB[0]));
   // builder unchanged
-  AssertEquals(3, bb.Length);
+  AssertEquals(3, bb.Length());
 end;
 
 procedure TTestCase_TBytesBuilder.Test_IntoBytes_ZeroCopy_PointerEquality;
@@ -687,7 +693,7 @@ begin
   // zero-copy expected: same pointer
   AssertEquals(NativeUInt(P), NativeUInt(@outB[0]));
   // builder reset
-  AssertEquals(0, bb.Length);
+  AssertEquals(0, bb.Length());
 end;
 
 procedure TTestCase_TBytesBuilder.Test_DetachNoTrim_ZeroCopy_PointerEquality;
@@ -703,7 +709,7 @@ begin
   // zero-copy expected: same pointer
   AssertEquals(NativeUInt(P), NativeUInt(@outB[0]));
   // builder reset
-  AssertEquals(0, bb.Length);
+  AssertEquals(0, bb.Length());
 end;
 
 
@@ -719,7 +725,7 @@ begin
   AssertEquals(3, used);
   AssertEquals(3, Length(buf));
   // DetachTrim may copy (shrink), pointer equality无法保证；仅验证 builder 被 reset
-  AssertEquals(0, bb.Length);
+  AssertEquals(0, bb.Length());
 end;
 
 

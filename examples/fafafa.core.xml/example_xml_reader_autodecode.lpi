@@ -29,6 +29,7 @@
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir);../../src"/>
             <OtherUnitFiles Value="../../src"/>
+            <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <Parsing>
             <SyntaxOptions>
@@ -56,6 +57,7 @@
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir);../../src"/>
       <OtherUnitFiles Value="../../src"/>
+      <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
   </CompilerOptions>
 </CONFIG>

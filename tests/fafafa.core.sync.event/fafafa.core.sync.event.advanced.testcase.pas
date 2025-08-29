@@ -34,6 +34,15 @@ type
     // 同步与超时边界
     procedure Test_InfiniteWait_SignaledByOtherThread;
     procedure Test_Timeout_Bounds_ZeroAndShort;
+    procedure Test_Timeout_Precision;
+
+    // ILock 接口高级测试
+    procedure Test_TryWait_Timing;
+    procedure Test_WaitFor_Timeout_Behavior;
+
+    // 异常和错误处理
+    procedure Test_Multiple_Threads_Same_Operations;
+    procedure Test_Rapid_State_Changes;
 
     // 压力与性能
     procedure Test_Perf_ProducerConsumer_Throughput;
@@ -142,6 +151,109 @@ begin
   // 打印性能数据（由测试框架输出）
   WriteLn(Format('[Perf] AutoReset Set/Wait: %d ops in %.0f ms'
     , [Iters, StopTimerMs(Timer)]));
+end;
+
+procedure TTestCase_Event_Advanced.Test_Timeout_Precision;
+var E: IEvent; StartTime: QWord; r: TWaitResult; ElapsedMs: QWord;
+begin
+  E := fafafa.core.sync.event.CreateEvent(False, False);
+
+  // 测试100ms超时的精度
+  StartTime := GetTickCount64;
+  r := E.WaitFor(100);
+  ElapsedMs := GetTickCount64 - StartTime;
+
+  AssertEquals('Should timeout', Ord(wrTimeout), Ord(r));
+  AssertTrue(Format('Timeout should be ~100ms, got %d ms', [ElapsedMs]),
+    (ElapsedMs >= 90) and (ElapsedMs <= 150)); // 允许±50ms误差
+end;
+
+procedure TTestCase_Event_Advanced.Test_TryWait_Timing;
+var E: IEvent; StartTime: QWord; Success: Boolean; ElapsedMs: QWord;
+begin
+  E := fafafa.core.sync.event.CreateEvent(False, False);
+
+  // TryWait 应该立即返回
+  StartTime := GetTickCount64;
+  Success := E.TryWait;
+  ElapsedMs := GetTickCount64 - StartTime;
+
+  AssertFalse('TryWait should fail on non-signaled event', Success);
+  AssertTrue(Format('TryWait should be fast, took %d ms', [ElapsedMs]), ElapsedMs < 10);
+
+  // 设置信号后应该成功
+  E.SetEvent;
+  StartTime := GetTickCount64;
+  Success := E.TryWait;
+  ElapsedMs := GetTickCount64 - StartTime;
+
+  AssertTrue('TryWait should succeed on signaled event', Success);
+  AssertTrue(Format('TryWait should be fast, took %d ms', [ElapsedMs]), ElapsedMs < 10);
+end;
+
+procedure TTestCase_Event_Advanced.Test_WaitFor_Timeout_Behavior;
+var E: IEvent; T: TSignalThread; StartTime: QWord; ElapsedMs: QWord; Result: TWaitResult;
+begin
+  E := fafafa.core.sync.event.CreateEvent(False, False);
+
+  // 启动线程在50ms后设置信号
+  T := TSignalThread.Create(E, 50);
+  try
+    StartTime := GetTickCount64;
+    Result := E.WaitFor(200); // 应该在~50ms后成功，给200ms超时
+    ElapsedMs := GetTickCount64 - StartTime;
+
+    AssertEquals('WaitFor should succeed', Ord(wrSignaled), Ord(Result));
+    AssertTrue(Format('WaitFor should complete in ~50ms, took %d ms', [ElapsedMs]),
+      (ElapsedMs >= 40) and (ElapsedMs <= 100));
+  finally
+    T.WaitFor; T.Free;
+  end;
+end;
+
+procedure TTestCase_Event_Advanced.Test_Multiple_Threads_Same_Operations;
+const ThreadCount = 4; // 减少线程数，简化测试
+var
+  E: IEvent;
+  Threads: array[0..ThreadCount-1] of TSignalThread;
+  i: Integer;
+begin
+  E := fafafa.core.sync.event.CreateEvent(True, False); // manual reset
+
+  // 创建多个线程同时设置事件
+  for i := 0 to ThreadCount-1 do
+  begin
+    Threads[i] := TSignalThread.Create(E, 10 + i * 5); // 不同延迟
+    Threads[i].Start;
+  end;
+
+  // 等待所有线程完成
+  for i := 0 to ThreadCount-1 do
+  begin
+    Threads[i].WaitFor;
+    Threads[i].Free;
+  end;
+
+  // 验证事件最终状态
+  AssertTrue('Event should be signaled after all threads', E.IsSignaled);
+end;
+
+procedure TTestCase_Event_Advanced.Test_Rapid_State_Changes;
+var E: IEvent; i: Integer; r: TWaitResult;
+begin
+  E := fafafa.core.sync.event.CreateEvent(True, False); // manual reset
+
+  // 快速状态变化测试 - 减少迭代次数
+  for i := 1 to 100 do
+  begin
+    E.SetEvent;
+    r := E.WaitFor(0);
+    AssertEquals(Format('Iteration %d: should be signaled', [i]), Ord(wrSignaled), Ord(r));
+
+    E.ResetEvent;
+    r := E.WaitFor(0);
+    AssertEquals(Format('Iteration %d: should timeout after reset', [i]), Ord(wrTimeout), Ord(r));
+  end;
 end;
 
 initialization

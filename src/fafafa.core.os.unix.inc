@@ -15,6 +15,7 @@ var
 
 procedure _cache_lock_unix;
 begin
+  // 延迟初始化临界区，确保线程安全
   if not g_unix_cache_cs_inited then
   begin
     InitCriticalSection(g_unix_cache_cs);
@@ -25,6 +26,7 @@ end;
 
 procedure _cache_unlock_unix;
 begin
+  // 安全释放临界区锁
   if g_unix_cache_cs_inited then
     LeaveCriticalSection(g_unix_cache_cs);
 end;
@@ -148,11 +150,15 @@ begin
 end;
 
 function os_page_size: Integer;
+{$IFDEF DARWIN}
+var
+  ps: cint;
+  sz: size_t;
+{$ENDIF}
 begin
   {$IFDEF DARWIN}
   // macOS: sysctl hw.pagesize
-  var ps: cint;
-  var sz: size_t = SizeOf(ps);
+  sz := SizeOf(ps);
   if fpSysCtlByName('hw.pagesize', @ps, @sz, nil, 0) = 0 then
     Result := ps
   else
@@ -168,21 +174,47 @@ end;
 procedure os_cache_reset;
 begin
   {$IFDEF FAFAFA_OS_CACHE_PROBES}
-  g_unix_cached_cpu_model_inited := False; g_unix_cached_cpu_model := '';
-  g_unix_cached_timezone_inited := False; g_unix_cached_timezone := '';
-  g_unix_cached_kernel_ver_inited := False; g_unix_cached_kernel_ver := '';
-  g_unix_cached_osver_inited := False; FillChar(g_unix_cached_osver, SizeOf(g_unix_cached_osver), 0);
+  _cache_lock_unix;
+  try
+    g_unix_cached_cpu_model_inited := False;
+    g_unix_cached_cpu_model := '';
+    g_unix_cached_timezone_inited := False;
+    g_unix_cached_timezone := '';
+    g_unix_cached_kernel_ver_inited := False;
+    g_unix_cached_kernel_ver := '';
+    g_unix_cached_osver_inited := False;
+    FillChar(g_unix_cached_osver, SizeOf(g_unix_cached_osver), 0);
+  finally
+    _cache_unlock_unix;
+  end;
   {$ENDIF}
 end;
 
 procedure os_cache_reset_ex(const flags: TOSCacheFlags);
 begin
   {$IFDEF FAFAFA_OS_CACHE_PROBES}
-  if oscCpuModel in flags then begin g_unix_cached_cpu_model_inited := False; g_unix_cached_cpu_model := ''; end;
-  if oscTimezone in flags then begin g_unix_cached_timezone_inited := False; g_unix_cached_timezone := ''; end;
-  if oscKernelVersion in flags then begin g_unix_cached_kernel_ver_inited := False; g_unix_cached_kernel_ver := ''; end;
-  if oscOSVersionDetailed in flags then begin g_unix_cached_osver_inited := False; FillChar(g_unix_cached_osver, SizeOf(g_unix_cached_osver), 0); end;
-  // Unix: timezone_iana 等于 timezone，无需单独分组
+  _cache_lock_unix;
+  try
+    if oscCpuModel in flags then begin
+      g_unix_cached_cpu_model_inited := False;
+      g_unix_cached_cpu_model := '';
+    end;
+    if oscTimezone in flags then begin
+      g_unix_cached_timezone_inited := False;
+      g_unix_cached_timezone := '';
+    end;
+    if oscKernelVersion in flags then begin
+      g_unix_cached_kernel_ver_inited := False;
+      g_unix_cached_kernel_ver := '';
+    end;
+    if oscOSVersionDetailed in flags then begin
+      g_unix_cached_osver_inited := False;
+      FillChar(g_unix_cached_osver, SizeOf(g_unix_cached_osver), 0);
+    end;
+    // Unix: timezone_iana 等于 timezone，无需单独分组
+  finally
+    _cache_unlock_unix;
+  end;
   {$ENDIF}
 end;
 
@@ -191,29 +223,28 @@ var
   uts: UtsName;
 begin
   {$IFDEF FAFAFA_OS_CACHE_PROBES}
+  // Fast path: check cache without lock
+  if g_unix_cached_kernel_ver_inited then Exit(g_unix_cached_kernel_ver);
+
+  // Slow path: acquire lock and double-check
   _cache_lock_unix;
   try
-    if g_unix_cached_kernel_ver_inited then
-    begin
-      Result := g_unix_cached_kernel_ver;
-      Exit;
-    end;
+    if g_unix_cached_kernel_ver_inited then Exit(g_unix_cached_kernel_ver);
+
+    if fpUname(uts) = 0 then
+      g_unix_cached_kernel_ver := StrPas(@uts.release[0])
+    else
+      g_unix_cached_kernel_ver := '';
+    g_unix_cached_kernel_ver_inited := True;
+    Result := g_unix_cached_kernel_ver;
   finally
     _cache_unlock_unix;
   end;
-  {$ENDIF}
+  {$ELSE}
   if fpUname(uts) = 0 then
     Result := StrPas(@uts.release[0])
   else
     Result := '';
-  {$IFDEF FAFAFA_OS_CACHE_PROBES}
-  _cache_lock_unix;
-  try
-    g_unix_cached_kernel_ver := Result;
-    g_unix_cached_kernel_ver_inited := True;
-  finally
-    _cache_unlock_unix;
-  end;
   {$ENDIF}
 end;
 
@@ -292,10 +323,16 @@ var
   pagesize: vm_size_t;
   ret: kern_return_t;
 begin
-  totalBytes := 0; freeBytes := 0;
+  // 初始化输出参数
+  totalBytes := 0;
+  freeBytes := 0;
+
+  // 获取总内存大小
   memsizeLen := SizeOf(memsize);
   if fpSysCtlByName('hw.memsize', @memsize, @memsizeLen, nil, 0) = 0 then
     totalBytes := memsize;
+
+  // 获取内存统计信息
   host := mach_host_self();
   count := SizeOf(vmstat) div SizeOf(integer);
   ret := host_page_size(host, pagesize);
@@ -304,6 +341,7 @@ begin
     ret := host_statistics64(host, HOST_VM_INFO64, vmstat, count);
     if ret = 0 then
     begin
+      // 计算可用内存：空闲页面 + 非活跃页面
       freeBytes := (QWord(vmstat.free_count) + QWord(vmstat.inactive_count)) * QWord(pagesize);
     end;
   end;
@@ -466,16 +504,13 @@ var
   dot, major: Integer;
 begin
   {$IFDEF FAFAFA_OS_CACHE_PROBES}
+  // Fast path: check cache without lock
+  if g_unix_cached_osver_inited then Exit(g_unix_cached_osver);
+
+  // Slow path: acquire lock and double-check
   _cache_lock_unix;
   try
-    if g_unix_cached_osver_inited then
-    begin
-      Result := g_unix_cached_osver;
-      Exit;
-    end;
-  finally
-    _cache_unlock_unix;
-  end;
+    if g_unix_cached_osver_inited then Exit(g_unix_cached_osver);
   {$ENDIF}
   FillChar(Result, SizeOf(Result), 0);
   {$IFDEF DARWIN}
@@ -551,59 +586,88 @@ begin
     Result.ID := LowerCase(Result.Name);
 
   {$IFDEF FAFAFA_OS_CACHE_PROBES}
-  _cache_lock_unix; try g_unix_cached_osver := Result; g_unix_cached_osver_inited := True; finally _cache_unlock_unix; end;
+    g_unix_cached_osver := Result;
+    g_unix_cached_osver_inited := True;
+  finally
+    _cache_unlock_unix;
+  end;
   {$ENDIF}
 end;
 
 function os_cpu_model: string;
 {$IFDEF FAFAFA_OS_CACHE_PROBES}
-var f: Text; s: string; p: Integer;
-begin
-  if g_unix_cached_cpu_model_inited then Exit(g_unix_cached_cpu_model);
-  g_unix_cached_cpu_model := '';
+var
+  f: Text;
+  s: string;
+  p: Integer;
   {$IFDEF DARWIN}
-  // macOS: sysctl machdep.cpu.brand_string
-  var fpcmd: cint; // avoid name clash
-  var name: PChar = 'machdep.cpu.brand_string';
-  var buf: array[0..255] of Char;
-  var size: size_t = SizeOf(buf);
-  if fpSysCtlByName(name, @buf[0], @size, nil, 0) = 0 then
-    g_unix_cached_cpu_model := Trim(StrPas(@buf[0]));
-  {$ELSE}
-  if FileExists('/proc/cpuinfo') then
-  begin
-    Assign(f, '/proc/cpuinfo'); {$I-} Reset(f); {$I+}
-    if IOResult = 0 then
+  fpcmd: cint; // avoid name clash
+  name: PChar;
+  buf: array[0..255] of Char;
+  size: size_t;
+  {$ENDIF}
+begin
+  // Fast path: check cache without lock
+  if g_unix_cached_cpu_model_inited then Exit(g_unix_cached_cpu_model);
+
+  // Slow path: acquire lock and double-check
+  _cache_lock_unix;
+  try
+    if g_unix_cached_cpu_model_inited then Exit(g_unix_cached_cpu_model);
+
+    g_unix_cached_cpu_model := '';
+    {$IFDEF DARWIN}
+    // macOS: sysctl machdep.cpu.brand_string
+    name := 'machdep.cpu.brand_string';
+    size := SizeOf(buf);
+    if fpSysCtlByName(name, @buf[0], @size, nil, 0) = 0 then
+      g_unix_cached_cpu_model := Trim(StrPas(@buf[0]));
+    {$ELSE}
+    if FileExists('/proc/cpuinfo') then
     begin
-      try
-        while not EOF(f) do begin
-          ReadLn(f, s);
-          p := Pos(':', s);
-          if (p > 0) and (Pos('model name', s) = 1) then
-          begin
-            g_unix_cached_cpu_model := Trim(Copy(s, p+1, MaxInt));
-            Break;
+      Assign(f, '/proc/cpuinfo'); {$I-} Reset(f); {$I+}
+      if IOResult = 0 then
+      begin
+        try
+          while not EOF(f) do begin
+            ReadLn(f, s);
+            p := Pos(':', s);
+            if (p > 0) and (Pos('model name', s) = 1) then
+            begin
+              g_unix_cached_cpu_model := Trim(Copy(s, p+1, MaxInt));
+              Break;
+            end;
           end;
+        finally
+          Close(f);
         end;
-      finally
-        Close(f);
       end;
     end;
+    {$ENDIF}
+    g_unix_cached_cpu_model_inited := True;
+    Result := g_unix_cached_cpu_model;
+  finally
+    _cache_unlock_unix;
   end;
-  {$ENDIF}
-  g_unix_cached_cpu_model_inited := True;
-  Result := g_unix_cached_cpu_model;
 end;
 {$ELSE}
-var f: Text; s: string; p: Integer; model: string;
+var
+  f: Text;
+  s: string;
+  p: Integer;
+  model: string;
+  {$IFDEF DARWIN}
+  fpcmd: cint; // avoid name clash
+  name: PChar;
+  buf: array[0..255] of Char;
+  size: size_t;
+  {$ENDIF}
 begin
   model := '';
   {$IFDEF DARWIN}
   // macOS: sysctl machdep.cpu.brand_string
-  var fpcmd: cint; // avoid name clash
-  var name: PChar = 'machdep.cpu.brand_string';
-  var buf: array[0..255] of Char;
-  var size: size_t = SizeOf(buf);
+  name := 'machdep.cpu.brand_string';
+  size := SizeOf(buf);
   if fpSysCtlByName(name, @buf[0], @size, nil, 0) = 0 then
     model := Trim(StrPas(@buf[0]));
   {$ELSE}

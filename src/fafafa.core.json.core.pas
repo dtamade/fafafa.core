@@ -161,17 +161,17 @@ type
   TJsonDocument = class
   private
     FRoot: PJsonValue;
-    FAllocator: TAllocator;
+    FAllocator: IAllocator;
     FBytesRead: SizeUInt;
     FValuesRead: SizeUInt;
     FValueBuffer: PJsonValue;  // 指向分配的值缓冲区开始位置
     FInputBuffer: PByte;       // 解析时复制的可写输入缓冲区
   public
-    constructor Create(AAllocator: TAllocator);
+    constructor Create(AAllocator: IAllocator);
     destructor Destroy; override;
 
     property Root: PJsonValue read FRoot;
-    property Allocator: TAllocator read FAllocator;
+    property Allocator: IAllocator read FAllocator;
     property BytesRead: SizeUInt read FBytesRead;
     property ValuesRead: SizeUInt read FValuesRead;
   end;
@@ -304,14 +304,14 @@ type
   TJsonMutDocument = class
   private
     FRoot: PJsonMutValue;
-    FAllocator: TAllocator;
+    FAllocator: IAllocator;
     FValueCount: SizeUInt;
   public
-    constructor Create(AAllocator: TAllocator);
+    constructor Create(AAllocator: IAllocator);
     destructor Destroy; override;
 
     property Root: PJsonMutValue read FRoot write FRoot;
-    property Allocator: TAllocator read FAllocator;
+    property Allocator: IAllocator read FAllocator;
     property ValueCount: SizeUInt read FValueCount write FValueCount;
   end;
 
@@ -323,9 +323,9 @@ type
   end;
 
 // 文档解析函数 (严格对应 yyjson)
-function ReadRootSingle(AHdr, ACur, AEnd: PByte; AAlc: TAllocator;
+function ReadRootSingle(AHdr, ACur, AEnd: PByte; AAlc: IAllocator;
   AFlg: TJsonReadFlags; var AErr: TJsonError): TJsonDocument;
-function ReadRootMinify(AHdr, ACur, AEnd: PByte; AAlc: TAllocator;
+function ReadRootMinify(AHdr, ACur, AEnd: PByte; AAlc: IAllocator;
   AFlg: TJsonReadFlags; var AErr: TJsonError): TJsonDocument;
 
 // JSON 序列化函数 (严格对应 yyjson 写入器)
@@ -422,7 +422,7 @@ function JsonRead(const AData: PChar; ALen: SizeUInt; AFlags: TJsonReadFlags): T
 function JsonReadOpts(const AData: PChar; ALen: SizeUInt; AFlags: TJsonReadFlags;
   AAllocator: TAllocator; var AError: TJsonError): TJsonDocument; inline;
 function JsonReadFile(const APath: String; AFlags: TJsonReadFlags;
-  AAllocator: TAllocator; var AError: TJsonError): TJsonDocument; inline;
+  AAllocator: IAllocator; var AError: TJsonError): TJsonDocument; inline;
 function JsonReadMaxMemoryUsage(ALen: SizeUInt; AFlags: TJsonReadFlags): SizeUInt; inline;
 function JsonReadNumber(const AData: PChar; ALen: SizeUInt): Double; inline;
 
@@ -435,7 +435,7 @@ function JsonWriteToString(ADoc: TJsonDocument; AFlags: TJsonWriteFlags = []): S
 function JsonWriteOpts(ADoc: TJsonDocument; AFlags: TJsonWriteFlags; AAllocator: TAllocator;
   var ALen: SizeUInt; var AError: TJsonWriteError): PChar;
 function JsonWriteFile(const APath: String; ADoc: TJsonDocument; AFlags: TJsonWriteFlags;
-  AAllocator: TAllocator; var AError: TJsonWriteError): Boolean;
+  AAllocator: IAllocator; var AError: TJsonWriteError): Boolean;
 
 
 function JsonWriteNumber(AVal: PJsonValue; ABuf: PChar): PChar;
@@ -443,7 +443,7 @@ function JsonWriteNumber(AVal: PJsonValue; ABuf: PChar): PChar;
 function JsonWriteToStream(ADoc: TJsonDocument; AStream: TStream; AFlags: TJsonWriteFlags = []): Boolean;
 
 // 可变文档 API (严格对应 yyjson_mut_doc_* 函数)
-function JsonMutDocNew(AAllocator: TAllocator): TJsonMutDocument;
+function JsonMutDocNew(AAllocator: IAllocator): TJsonMutDocument;
 procedure JsonMutDocFree(ADoc: TJsonMutDocument);
 function JsonMutDocGetRoot(ADoc: TJsonMutDocument): PJsonMutValue;
 procedure JsonMutDocSetRoot(ADoc: TJsonMutDocument; ARoot: PJsonMutValue);
@@ -2213,7 +2213,7 @@ end;
 function JsonRead(const AData: PChar; ALen: SizeUInt; AFlags: TJsonReadFlags): TJsonDocument; inline;
 var
   LError: TJsonError;
-  LAllocator: TAllocator;
+  LAllocator: IAllocator;
 begin
   LAllocator := GetRtlAllocator();
   LError := Default(TJsonError);
@@ -2221,7 +2221,7 @@ begin
 end;
 
 function JsonReadOpts(const AData: PChar; ALen: SizeUInt; AFlags: TJsonReadFlags;
-  AAllocator: TAllocator; var AError: TJsonError): TJsonDocument; inline;
+  AAllocator: IAllocator; var AError: TJsonError): TJsonDocument; inline;
 var
   LHdr, LCur, LEnd: PByte;
   LBuf: PByte;
@@ -2351,7 +2351,7 @@ begin
 end;
 
 function JsonReadFile(const APath: String; AFlags: TJsonReadFlags;
-  AAllocator: TAllocator; var AError: TJsonError): TJsonDocument; inline;
+  AAllocator: IAllocator; var AError: TJsonError): TJsonDocument; inline;
 var
   LFileStream: TFileStream;
   LData: RawByteString; // use raw bytes to avoid implicit codepage conversions
@@ -2760,7 +2760,7 @@ end;
 function JsonWrite(ADoc: TJsonDocument; AFlags: TJsonWriteFlags; var ALen: SizeUInt): PChar;
 var
   LError: TJsonWriteError;
-  LAllocator: TAllocator;
+  LAllocator: IAllocator;
 begin
   LAllocator := GetRtlAllocator();
   LError := Default(TJsonWriteError);
@@ -2801,7 +2801,7 @@ begin
   end;
 end;
 
-function JsonWriteOpts(ADoc: TJsonDocument; AFlags: TJsonWriteFlags; AAllocator: TAllocator;
+function JsonWriteOpts(ADoc: TJsonDocument; AFlags: TJsonWriteFlags; AAllocator: IAllocator;
   var ALen: SizeUInt; var AError: TJsonWriteError): PChar;
 var
   LRoot: PJsonValue;
@@ -2918,7 +2918,7 @@ begin
 end;
 
 function JsonWriteFile(const APath: String; ADoc: TJsonDocument; AFlags: TJsonWriteFlags;
-  AAllocator: TAllocator; var AError: TJsonWriteError): Boolean;
+  AAllocator: IAllocator; var AError: TJsonWriteError): Boolean;
 var
   LFileStream: TFileStream;
   LData: PChar;
@@ -2989,7 +2989,7 @@ begin
 end;
 
 // ReadRootSingle 实现 (严格对应 yyjson read_root_single)
-function ReadRootSingle(AHdr, ACur, AEnd: PByte; AAlc: TAllocator;
+function ReadRootSingle(AHdr, ACur, AEnd: PByte; AAlc: IAllocator;
   AFlg: TJsonReadFlags; var AErr: TJsonError): TJsonDocument;
 var
   LHdrLen: SizeUInt;
@@ -3162,7 +3162,7 @@ begin
 end;
 
 // ReadRootMinify 实现 (严格对应 yyjson read_root_minify)
-function ReadRootMinify(AHdr, ACur, AEnd: PByte; AAlc: TAllocator;
+function ReadRootMinify(AHdr, ACur, AEnd: PByte; AAlc: IAllocator;
   AFlg: TJsonReadFlags; var AErr: TJsonError): TJsonDocument;
 var
   LDatLen: SizeUInt;        // data length in bytes, hint for allocator
@@ -3801,7 +3801,7 @@ if not LParsedVal then
 end;
 
 // TJsonDocument 实现
-constructor TJsonDocument.Create(AAllocator: TAllocator);
+constructor TJsonDocument.Create(AAllocator: IAllocator);
 begin
   inherited Create;
   FAllocator := AAllocator;
@@ -3821,7 +3821,7 @@ begin
 end;
 
 // TJsonMutDocument 实现
-constructor TJsonMutDocument.Create(AAllocator: TAllocator);
+constructor TJsonMutDocument.Create(AAllocator: IAllocator);
 begin
   inherited Create;
   FAllocator := AAllocator;
@@ -3836,7 +3836,7 @@ begin
 end;
 
 // 可变 API 实现 (严格对应 yyjson_mut_* 函数)
-function JsonMutDocNew(AAllocator: TAllocator): TJsonMutDocument;
+function JsonMutDocNew(AAllocator: IAllocator): TJsonMutDocument;
 begin
   if Assigned(AAllocator) then
     Result := TJsonMutDocument.Create(AAllocator)
@@ -5276,7 +5276,7 @@ end.
 
 
 // 增量读取器 API 实现 (最小骨架，对齐 yyjson_incr_*)
-function JsonIncrNew(ABuf: PChar; ABufLen: SizeUInt; AFlags: TJsonReadFlags; AAllocator: TAllocator): PJsonIncrState; inline;
+function JsonIncrNew(ABuf: PChar; ABufLen: SizeUInt; AFlags: TJsonReadFlags; AAllocator: IAllocator): PJsonIncrState; inline;
 begin
   Result := nil;
   if (ABuf = nil) or (ABufLen = 0) then Exit;
@@ -5728,7 +5728,7 @@ end;
 
 // 剩余的写入器 API 函数实现
 function JsonWriteFile(const APath: String; ADoc: TJsonDocument; AFlags: TJsonWriteFlags;
-  AAllocator: TAllocator; var AError: TJsonWriteError): Boolean; inline;
+  AAllocator: IAllocator; var AError: TJsonWriteError): Boolean; inline;
 var
   LFileStream: TFileStream;
   LData: PChar;

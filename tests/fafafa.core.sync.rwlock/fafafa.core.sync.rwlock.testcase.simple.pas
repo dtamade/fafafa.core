@@ -49,7 +49,7 @@ procedure TTestCase_Global.Test_CreateRWLock;
 var
   L: IRWLock;
 begin
-  L := CreateRWLock;
+  L := MakeRWLock;
   AssertNotNull(L);
   AssertEquals(0, L.GetReaderCount);
   AssertFalse(L.IsWriteLocked);
@@ -61,7 +61,7 @@ end;
 procedure TTestCase_TRWLock.SetUp;
 begin
   inherited SetUp;
-  FRWLock := CreateRWLock;
+  FRWLock := MakeRWLock;
 end;
 
 procedure TTestCase_TRWLock.TearDown;

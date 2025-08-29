@@ -93,11 +93,13 @@ type
     function CalculateOptimalCapacity(aRequiredSize: SizeUInt): SizeUInt;
     procedure OptimizeCapacity;
 
-    { 批量移除操作 }
+    { 批量移除操作 - 使用 Range 命名范式 }
     procedure RemoveRange(aIndex, aCount: SizeUInt);
     procedure RemoveRangeUnChecked(aIndex, aCount: SizeUInt);
-    function PopFrontN(aCount: SizeUInt): SizeUInt;
-    function PopBackN(aCount: SizeUInt): SizeUInt;
+    function PopFrontRange(aCount: SizeUInt): SizeUInt;
+    function PopBackRange(aCount: SizeUInt): SizeUInt;
+    procedure PopFrontRange(aCount: SizeUInt; const aTarget: TCollection);
+    procedure PopBackRange(aCount: SizeUInt; const aTarget: TCollection);
     procedure TrimFront(aCount: SizeUInt);
     procedure TrimBack(aCount: SizeUInt);
     procedure TrimToSize(aNewSize: SizeUInt);
@@ -170,6 +172,7 @@ type
     procedure Clear; override;
     procedure SerializeToArrayBuffer(aDst: Pointer; aCount: SizeUInt); override;
     procedure AppendUnChecked(const aSrc: Pointer; aElementCount: SizeUInt); override;
+    procedure AppendUnChecked(const aSrc: TCollection); override;
     procedure AppendToUnChecked(const aDst: TCollection); override;
 
     { IGenericCollection<T> 接口实现 }
@@ -280,7 +283,7 @@ type
     function Peek: T; overload;
     function Dequeue(var aElement: T): Boolean; overload;
     function Pop(out aElement: T): Boolean; overload;
-    function Peek(var aElement: T): Boolean; overload;
+    function Peek(out aElement: T): Boolean; overload;  // ✅ 统一为 out 参数
     function TryPeek(out aElement: T): Boolean; overload; // 新 IQueue 兼容
     function Count: SizeUInt; // 新 IQueue 兼容
     function Front: T; overload;
@@ -290,6 +293,7 @@ type
     function TryGet(aIndex: SizeUInt; var aElement: T): Boolean;
     function TryRemove(aIndex: SizeUInt; var aElement: T): Boolean;
     procedure Resize(aNewSize: SizeUInt; const aValue: T);
+    // IDeque<T> 接口要求的方法
     procedure Append(const aOther: TQueueIntf);
     function SplitOff(aAt: SizeUInt): TQueueIntf;
 
@@ -305,9 +309,9 @@ type
     function PopBack: T; overload;
     function PopBack(var aElement: T): Boolean; overload;
     function PeekFront: T; overload;
-    function PeekFront(var aElement: T): Boolean; overload;
+    function PeekFront(out aElement: T): Boolean; overload;  // ✅ 统一为 out 参数
     function PeekBack: T; overload;
-    function PeekBack(var aElement: T): Boolean; overload;
+    function PeekBack(out aElement: T): Boolean; overload;   // ✅ 统一为 out 参数
 
     { IArray<T> 接口实现 - 所有必需的方法声明 }
 
@@ -665,6 +669,24 @@ type
 
     // PeekRange 方法
     function PeekRange(aCount: SizeUInt): PElement;
+    function PeekRangeContiguous(aCount: SizeUInt): PElement;  // 强制连续化版本
+
+    // 批量插入操作 - Range 命名范式
+    procedure InsertRange(aIndex: SizeUInt; const aElements: array of T);
+    procedure InsertRange(aIndex: SizeUInt; const aOther: TCollection);
+    procedure PushFrontRange(const aElements: array of T);
+    procedure PushFrontRange(const aPtr: Pointer; aCount: SizeUInt);
+    procedure PushBackRange(const aElements: array of T);
+    procedure PushBackRange(const aPtr: Pointer; aCount: SizeUInt);
+
+    // 统一的 RemoveRange 重载系列
+    procedure RemoveRange(aIndex, aCount: SizeUInt; aPtr: Pointer); overload;
+    procedure RemoveRange(aIndex, aCount: SizeUInt; var aArray: TInternalArray); overload;
+    procedure RemoveRange(aIndex, aCount: SizeUInt; const aTarget: TCollection); overload;
+
+    // 现代化便利方法 - Java ArrayDeque 风格
+    function RemoveFirstOccurrence(const aElement: T): Boolean;
+    function RemoveLastOccurrence(const aElement: T): Boolean;
 
     // Delete 系列方法
     procedure Delete(aIndex: SizeUInt; aCount: SizeUInt);
@@ -1441,6 +1463,39 @@ begin
   if LLen2 > 0 then aDst.AppendUnChecked(LPtr2, LLen2);
 end;
 
+procedure TVecDeque.AppendUnChecked(const aSrc: TCollection);
+var
+  LSrcVecDeque: TVecDeque;
+  LSrcArray: TInternalArray;
+  LPtr1, LPtr2: PElement;
+  LLen1, LLen2: SizeUInt;
+begin
+  if (aSrc = nil) or aSrc.IsEmpty then
+    Exit;
+
+  // 类型优化：同类型 VecDeque 的高效复制
+  if aSrc is TVecDeque then
+  begin
+    LSrcVecDeque := TVecDeque(aSrc);
+    // 获取源的两段切片并批量复制
+    LSrcVecDeque.GetTwoSlices(LPtr1, LLen1, LPtr2, LLen2);
+    if LLen1 > 0 then PushBack(LPtr1, LLen1);
+    if LLen2 > 0 then PushBack(LPtr2, LLen2);
+  end
+  // 类型优化：数组类型的高效复制
+  else if aSrc is TInternalArray then
+  begin
+    LSrcArray := TInternalArray(aSrc);
+    if LSrcArray.GetCount > 0 then
+      PushBack(LSrcArray.GetMemory, LSrcArray.GetCount);
+  end
+  else
+  begin
+    // 通用路径：使用祖先类的默认实现
+    inherited AppendUnChecked(aSrc);
+  end;
+end;
+
 procedure TVecDeque.MakeContiguous(out aPtr: PElement; out aLen: SizeUInt);
 var
   P1, P2: PElement;
@@ -1464,9 +1519,10 @@ begin
   GetTwoSlices(P1, L1, P2, L2);
   LElementSize := GetElementSize;
 
+  // ✅ 优化：使用携带分配器，只分配实际需要的大小
   Tmp := TInternalArray.Create(FBuffer.GetAllocator);
   try
-    Tmp.Resize(FBuffer.GetCount);
+    Tmp.Resize(FCount);  // ✅ 只分配 FCount 而不是 FBuffer.GetCount
     LDst := PByte(Tmp.GetPtr(0));
     if L1 > 0 then begin Move(P1^, LDst^, L1 * LElementSize); Inc(LDst, L1 * LElementSize); end;
     if L2 > 0 then begin Move(P2^, LDst^, L2 * LElementSize); end;
@@ -2562,7 +2618,7 @@ begin
   Result := PopFront(aElement);
 end;
 
-function TVecDeque.Peek(var aElement: T): Boolean;
+function TVecDeque.Peek(out aElement: T): Boolean;
 begin
   Result := PeekFront(aElement);
 end;
@@ -2860,7 +2916,7 @@ begin
   Result := FBuffer.GetUnChecked(FHead);
 end;
 
-function TVecDeque.PeekFront(var aElement: T): Boolean;
+function TVecDeque.PeekFront(out aElement: T): Boolean;
 begin
   if FCount = 0 then
   begin
@@ -2881,7 +2937,7 @@ begin
   Result := FBuffer.GetUnChecked(WrapSub(FTail, 1));
 end;
 
-function TVecDeque.PeekBack(var aElement: T): Boolean;
+function TVecDeque.PeekBack(out aElement: T): Boolean;
 begin
   if FCount = 0 then
   begin
@@ -3039,7 +3095,7 @@ begin
     OptimizeCapacity;
 end;
 
-function TVecDeque.PopFrontN(aCount: SizeUInt): SizeUInt;
+function TVecDeque.PopFrontRange(aCount: SizeUInt): SizeUInt;
 begin
   Result := Min(aCount, FCount);
   if Result > 0 then
@@ -3052,16 +3108,73 @@ begin
   end;
 end;
 
-function TVecDeque.PopBackN(aCount: SizeUInt): SizeUInt;
+function TVecDeque.PopBackRange(aCount: SizeUInt): SizeUInt;
 begin
   Result := Min(aCount, FCount);
   if Result > 0 then
   begin
     Dec(FCount, Result);
+    FTail := WrapSub(FTail, Result);  // ✅ 修复：正确更新 FTail 指针
 
     if ShouldShrink then
       OptimizeCapacity;
   end;
+end;
+
+procedure TVecDeque.PopFrontRange(aCount: SizeUInt; const aTarget: TCollection);
+var
+  LActualCount: SizeUInt;
+  LPtr1, LPtr2: PElement;
+  LLen1, LLen2: SizeUInt;
+begin
+  if aTarget = nil then
+    raise EArgumentNil.Create('aTarget cannot be nil');
+
+  LActualCount := Min(aCount, FCount);
+  if LActualCount = 0 then Exit;
+
+  // 获取前端的双切片
+  GetTwoSlices(0, LActualCount, LPtr1, LLen1, LPtr2, LLen2);
+
+  // 批量添加到目标容器
+  if LLen1 > 0 then aTarget.AppendUnChecked(LPtr1, LLen1);
+  if LLen2 > 0 then aTarget.AppendUnChecked(LPtr2, LLen2);
+
+  // 更新状态
+  FHead := WrapAdd(FHead, LActualCount);
+  Dec(FCount, LActualCount);
+
+  if ShouldShrink then
+    OptimizeCapacity;
+end;
+
+procedure TVecDeque.PopBackRange(aCount: SizeUInt; const aTarget: TCollection);
+var
+  LActualCount: SizeUInt;
+  LStartIndex: SizeUInt;
+  LPtr1, LPtr2: PElement;
+  LLen1, LLen2: SizeUInt;
+begin
+  if aTarget = nil then
+    raise EArgumentNil.Create('aTarget cannot be nil');
+
+  LActualCount := Min(aCount, FCount);
+  if LActualCount = 0 then Exit;
+
+  // 从后端开始的索引
+  LStartIndex := FCount - LActualCount;
+  GetTwoSlices(LStartIndex, LActualCount, LPtr1, LLen1, LPtr2, LLen2);
+
+  // 批量添加到目标容器
+  if LLen1 > 0 then aTarget.AppendUnChecked(LPtr1, LLen1);
+  if LLen2 > 0 then aTarget.AppendUnChecked(LPtr2, LLen2);
+
+  // 更新状态
+  FTail := WrapSub(FTail, LActualCount);
+  Dec(FCount, LActualCount);
+
+  if ShouldShrink then
+    OptimizeCapacity;
 end;
 
 procedure TVecDeque.TrimFront(aCount: SizeUInt);
@@ -3069,7 +3182,7 @@ var
   LActualCount: SizeUInt;
 begin
   LActualCount := Min(aCount, FCount);
-  PopFrontN(LActualCount);
+  PopFrontRange(LActualCount);
 end;
 
 procedure TVecDeque.TrimBack(aCount: SizeUInt);
@@ -3077,7 +3190,7 @@ var
   LActualCount: SizeUInt;
 begin
   LActualCount := Min(aCount, FCount);
-  PopBackN(LActualCount);
+  PopBackRange(LActualCount);
 end;
 
 procedure TVecDeque.TrimToSize(aNewSize: SizeUInt);
@@ -6408,6 +6521,29 @@ begin
     Result := nil;
 end;
 
+function TVecDeque.PeekRangeContiguous(aCount: SizeUInt): PElement;
+var
+  LPtr: PElement;
+  LLen: SizeUInt;
+begin
+  if (aCount = 0) or (aCount > FCount) then
+    Exit(nil);
+
+  // 先尝试快速路径
+  Result := PeekRange(aCount);
+  if Result <> nil then
+    Exit;
+
+  // 非连续时强制连续化
+  MakeContiguous(LPtr, LLen);
+
+  // 返回尾部 aCount 元素的指针
+  if aCount <= LLen then
+    Result := PElement(PByte(LPtr) + (LLen - aCount) * GetElementSize)
+  else
+    Result := nil;
+end;
+
 
 function TVecDeque.TryPeekFront(out aElement: T): Boolean;
 begin
@@ -6517,9 +6653,10 @@ end;
 // Remove 系列方法实现
 procedure TVecDeque.RemoveCopy(aIndex: SizeUInt; aPtr: Pointer; aCount: SizeUInt);
 var
-  i: SizeUInt;
-  LPtr: PByte;
-  LPhysicalIndex: SizeUInt;
+  LPtr1, LPtr2: PElement;
+  LLen1, LLen2: SizeUInt;
+  LDstPtr: PByte;
+  LElementSize: SizeUInt;
 begin
   if aPtr = nil then
     raise EArgumentNil.Create('TVecDeque.RemoveCopy: aPtr is nil');
@@ -6529,14 +6666,19 @@ begin
     raise EOutOfRange.CreateFmt('TVecDeque.RemoveCopy: range [%d..%d] out of bounds [0..%d]',
       [aIndex, aIndex + aCount - 1, FCount - 1]);
 
-  // 复制到目标指针
-  LPtr := PByte(aPtr);
-  for i := 0 to aCount - 1 do
+  // ✅ 优化：使用双切片批量复制，避免逐个元素操作
+  GetTwoSlices(aIndex, aCount, LPtr1, LLen1, LPtr2, LLen2);
+  LElementSize := GetElementSize;
+  LDstPtr := PByte(aPtr);
+
+  // 批量内存复制 - O(1) 或 O(log n)
+  if LLen1 > 0 then
   begin
-    LPhysicalIndex := GetPhysicalIndex(aIndex + i);
-    Move(FBuffer.GetPtrUnChecked(LPhysicalIndex)^, LPtr^, SizeOf(T));
-    Inc(LPtr, SizeOf(T));
+    Move(LPtr1^, LDstPtr^, LLen1 * LElementSize);
+    Inc(LDstPtr, LLen1 * LElementSize);
   end;
+  if LLen2 > 0 then
+    Move(LPtr2^, LDstPtr^, LLen2 * LElementSize);
 
   // 删除该范围（保持顺序）
   Delete(aIndex, aCount);
@@ -7539,9 +7681,11 @@ procedure TVecDeque.Append(const aOther: TQueueIntf);
 var
   LElement: T;
 begin
-  // 将另一个队列的所有元素移动到当前队列尾部
-  // 注意：这里我们只能读取元素，无法真正"移动"
-  // 实际的移动操作需要源队列支持
+  if aOther = nil then
+    Exit;
+
+  // 简单实现：逐个弹出并添加
+  // 注意：这是为了满足接口要求，性能不是最优的
   while aOther.Count > 0 do
   begin
     LElement := aOther.Pop;
@@ -7617,7 +7761,7 @@ begin
   FCount := aAt;
   FTail  := WrapAdd(FHead, FCount);
 
-  // 返回接口（TVecDeque 实现 IQueue<T>）
+  // 返回接口类型，明确所有权转移给调用方
   Result := LNewDeque as TQueueIntf;
 end;
 
@@ -8015,5 +8159,100 @@ begin
   end;
 end;
 {$ENDIF}
+
+// 删除重复的 RotateLeft/RotateRight 实现 - 已在上面实现
+
+{ Range 命名范式方法实现 }
+
+procedure TVecDeque.InsertRange(aIndex: SizeUInt; const aElements: array of T);
+begin
+  Insert(aIndex, aElements);  // 复用现有实现
+end;
+
+procedure TVecDeque.InsertRange(aIndex: SizeUInt; const aOther: TCollection);
+begin
+  Insert(aIndex, aOther, 0);  // 复用现有实现，从索引0开始
+end;
+
+procedure TVecDeque.PushFrontRange(const aElements: array of T);
+begin
+  PushFront(aElements);  // 复用现有实现
+end;
+
+procedure TVecDeque.PushFrontRange(const aPtr: Pointer; aCount: SizeUInt);
+begin
+  PushFront(aPtr, aCount);  // 复用现有实现
+end;
+
+procedure TVecDeque.PushBackRange(const aElements: array of T);
+begin
+  PushBack(aElements);  // 复用现有实现
+end;
+
+procedure TVecDeque.PushBackRange(const aPtr: Pointer; aCount: SizeUInt);
+begin
+  PushBack(aPtr, aCount);  // 复用现有实现
+end;
+
+procedure TVecDeque.RemoveRange(aIndex, aCount: SizeUInt; aPtr: Pointer);
+begin
+  RemoveCopy(aIndex, aPtr, aCount);  // 复用现有优化实现
+end;
+
+procedure TVecDeque.RemoveRange(aIndex, aCount: SizeUInt; var aArray: TInternalArray);
+begin
+  RemoveArray(aIndex, aArray, aCount);  // 复用现有实现
+end;
+
+procedure TVecDeque.RemoveRange(aIndex, aCount: SizeUInt; const aTarget: TCollection);
+var
+  LPtr1, LPtr2: PElement;
+  LLen1, LLen2: SizeUInt;
+begin
+  if aTarget = nil then
+    raise EArgumentNil.Create('aTarget cannot be nil');
+  if aCount = 0 then Exit;
+  if aIndex + aCount > FCount then
+    raise EOutOfRange.CreateFmt('RemoveRange: range [%d..%d] out of bounds [0..%d]',
+      [aIndex, aIndex + aCount - 1, FCount - 1]);
+
+  // 使用双切片高效复制到目标容器
+  GetTwoSlices(aIndex, aCount, LPtr1, LLen1, LPtr2, LLen2);
+  if LLen1 > 0 then aTarget.AppendUnChecked(LPtr1, LLen1);
+  if LLen2 > 0 then aTarget.AppendUnChecked(LPtr2, LLen2);
+
+  // 删除该范围
+  Delete(aIndex, aCount);
+end;
+
+{ 现代化便利方法实现 }
+
+function TVecDeque.RemoveFirstOccurrence(const aElement: T): Boolean;
+var
+  LIndex: SizeInt;
+begin
+  LIndex := IndexOf(aElement);
+  if LIndex >= 0 then
+  begin
+    Delete(SizeUInt(LIndex));
+    Result := True;
+  end
+  else
+    Result := False;
+end;
+
+function TVecDeque.RemoveLastOccurrence(const aElement: T): Boolean;
+var
+  LIndex: SizeInt;
+begin
+  LIndex := LastIndexOf(aElement);
+  if LIndex >= 0 then
+  begin
+    Delete(SizeUInt(LIndex));
+    Result := True;
+  end
+  else
+    Result := False;
+end;
 
 end.

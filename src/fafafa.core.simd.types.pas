@@ -1,17 +1,229 @@
 unit fafafa.core.simd.types;
 
 {$mode objfpc}{$H+}
+{$modeswitch advancedrecords}
+{$I fafafa.core.settings.inc}
 
 interface
 
+// === 核心类型系统（对标 Rust std::simd）===
+
 type
-  // 范围差异结果：First/Last 索引，均为 -1 表示完全相同
-  TDiffRange = record
-    First: PtrInt;
-    Last: PtrInt;
+  // SIMD 向量长度（编译时常量）
+  TSimdLanes = (
+    simd2   = 2,    // 2 lanes
+    simd4   = 4,    // 4 lanes  
+    simd8   = 8,    // 8 lanes
+    simd16  = 16,   // 16 lanes
+    simd32  = 32,   // 32 lanes (AVX-512)
+    simd64  = 64    // 64 lanes (AVX-512 bytes)
+  );
+
+  // 数据类型标识
+  TSimdElementType = (
+    setF32, setF64,                    // 浮点
+    setI8, setI16, setI32, setI64,     // 有符号整数
+    setU8, setU16, setU32, setU64      // 无符号整数
+  );
+
+  // 指令集能力
+  TSimdISA = (
+    isaScalar,
+    isaSSE2, isaSSE3, isaSSSE3, isaSSE41, isaSSE42,
+    isaAVX, isaAVX2, 
+    isaAVX512F, isaAVX512VL, isaAVX512BW, isaAVX512DQ,
+    isaAVX512CD, isaAVX512ER, isaAVX512PF, isaAVX512VBMI,
+    isaNEON, isaSVE, isaSVE2
+  );
+
+  // 指令集能力集合
+  TSimdISASet = set of TSimdISA;
+
+  // 错误处理
+  TSimdError = record
+    Code: Integer;
+    Message: String;
+    ISA: TSimdISA;
   end;
+
+  // 性能上下文
+  TSimdContext = record
+    ActiveISA: TSimdISA;
+    Capabilities: TSimdISASet;
+    PerfMultiplier: array[TSimdISA] of Single;
+    FallbackChain: array[0..7] of TSimdISA;
+  end;
+
+  // === 向量类型定义（遵循平面命名）===
+
+  // 32位浮点向量
+  TSimdF32x2  = array[0..1] of Single;
+  TSimdF32x4  = array[0..3] of Single;
+  TSimdF32x8  = array[0..7] of Single;
+  TSimdF32x16 = array[0..15] of Single;
+
+  // 64位浮点向量
+  TSimdF64x2  = array[0..1] of Double;
+  TSimdF64x4  = array[0..3] of Double;
+  TSimdF64x8  = array[0..7] of Double;
+
+  // 32位整数向量
+  TSimdI32x2  = array[0..1] of Int32;
+  TSimdI32x4  = array[0..3] of Int32;
+  TSimdI32x8  = array[0..7] of Int32;
+  TSimdI32x16 = array[0..15] of Int32;
+
+  // 8位整数向量
+  TSimdI8x16  = array[0..15] of Int8;
+  TSimdI8x32  = array[0..31] of Int8;
+  TSimdI8x64  = array[0..63] of Int8;
+
+  // 16位整数向量
+  TSimdI16x8  = array[0..7] of Int16;
+  TSimdI16x16 = array[0..15] of Int16;
+  TSimdI16x32 = array[0..31] of Int16;
+
+  // 64位整数向量
+  TSimdI64x2  = array[0..1] of Int64;
+  TSimdI64x4  = array[0..3] of Int64;
+  TSimdI64x8  = array[0..7] of Int64;
+
+  // 8位无符号整数向量
+  TSimdU8x16  = array[0..15] of Byte;
+  TSimdU8x32  = array[0..31] of Byte;
+  TSimdU8x64  = array[0..63] of Byte;
+
+  // 16位无符号整数向量
+  TSimdU16x8  = array[0..7] of UInt16;
+  TSimdU16x16 = array[0..15] of UInt16;
+  TSimdU16x32 = array[0..31] of UInt16;
+
+  // 32位无符号整数向量
+  TSimdU32x4  = array[0..3] of UInt32;
+  TSimdU32x8  = array[0..7] of UInt32;
+  TSimdU32x16 = array[0..15] of UInt32;
+
+  // 64位无符号整数向量
+  TSimdU64x2  = array[0..1] of UInt64;
+  TSimdU64x4  = array[0..3] of UInt64;
+  TSimdU64x8  = array[0..7] of UInt64;
+
+  // === 掩码类型（用于比较和条件选择）===
+  TSimdMask2  = array[0..1] of Boolean;
+  TSimdMask4  = array[0..3] of Boolean;
+  TSimdMask8  = array[0..7] of Boolean;
+  TSimdMask16 = array[0..15] of Boolean;
+  TSimdMask32 = array[0..31] of Boolean;
+  TSimdMask64 = array[0..63] of Boolean;
+
+  // === 兼容性类型（保持向后兼容）===
+
+  // 差异范围类型（用于 MemDiffRange）
+  TDiffRange = record
+    First: SizeUInt;    // 兼容旧接口
+    Last: SizeUInt;     // 兼容旧接口
+    StartPos: SizeUInt; // 新接口
+    EndPos: SizeUInt;   // 新接口
+  end;
+
+// === 全局上下文 ===
+var
+  GSimdContext: TSimdContext;
+
+// === 上下文管理 ===
+function simd_init_context: TSimdContext;
+procedure simd_set_context(const ctx: TSimdContext);
+function simd_get_context: TSimdContext;
+function simd_detect_capabilities: TSimdISASet;
+function simd_get_best_isa(elementType: TSimdElementType; lanes: TSimdLanes): TSimdISA;
+
+// === 错误处理 ===
+function simd_make_error(code: Integer; const msg: String; isa: TSimdISA): TSimdError;
 
 implementation
 
-end.
+function simd_init_context: TSimdContext;
+begin
+  Result.Capabilities := simd_detect_capabilities;
+  Result.ActiveISA := isaScalar;
+  // 初始化性能倍数
+  FillChar(Result.PerfMultiplier, SizeOf(Result.PerfMultiplier), 0);
+  Result.PerfMultiplier[isaScalar] := 1.0;
+  Result.PerfMultiplier[isaSSE2] := 2.0;
+  Result.PerfMultiplier[isaAVX2] := 4.0;
+  Result.PerfMultiplier[isaAVX512F] := 8.0;
+  Result.PerfMultiplier[isaNEON] := 2.5;
+  
+  // 初始化回退链
+  Result.FallbackChain[0] := isaAVX512F;
+  Result.FallbackChain[1] := isaAVX2;
+  Result.FallbackChain[2] := isaAVX;
+  Result.FallbackChain[3] := isaSSE42;
+  Result.FallbackChain[4] := isaSSE41;
+  Result.FallbackChain[5] := isaSSE2;
+  Result.FallbackChain[6] := isaNEON;
+  Result.FallbackChain[7] := isaScalar;
+end;
 
+function simd_detect_capabilities: TSimdISASet;
+begin
+  Result := [isaScalar];
+  
+  {$IFDEF CPUX86_64}
+  // TODO: 实现真正的CPUID检测
+  // 暂时假设支持基础指令集
+  Result := Result + [isaSSE2];
+  {$ENDIF}
+  
+  {$IFDEF CPUAARCH64}
+  // ARM64 默认支持 NEON
+  Result := Result + [isaNEON];
+  {$ENDIF}
+end;
+
+function simd_get_best_isa(elementType: TSimdElementType; lanes: TSimdLanes): TSimdISA;
+var
+  i: Integer;
+  isa: TSimdISA;
+begin
+  // 按优先级顺序查找最佳ISA
+  for i := 0 to 7 do
+  begin
+    isa := GSimdContext.FallbackChain[i];
+    if isa in GSimdContext.Capabilities then
+    begin
+      // 检查ISA是否支持指定的元素类型和向量长度
+      case isa of
+        isaAVX512F: if lanes in [simd16, simd8, simd4] then Exit(isa);
+        isaAVX2: if lanes in [simd8, simd4] then Exit(isa);
+        isaSSE2: if lanes in [simd4, simd2] then Exit(isa);
+        isaNEON: if lanes in [simd4, simd2] then Exit(isa);
+        isaScalar: Exit(isa); // 标量总是支持
+      end;
+    end;
+  end;
+  
+  Result := isaScalar; // 默认回退
+end;
+
+procedure simd_set_context(const ctx: TSimdContext);
+begin
+  GSimdContext := ctx;
+end;
+
+function simd_get_context: TSimdContext;
+begin
+  Result := GSimdContext;
+end;
+
+function simd_make_error(code: Integer; const msg: String; isa: TSimdISA): TSimdError;
+begin
+  Result.Code := code;
+  Result.Message := msg;
+  Result.ISA := isa;
+end;
+
+initialization
+  GSimdContext := simd_init_context;
+
+end.

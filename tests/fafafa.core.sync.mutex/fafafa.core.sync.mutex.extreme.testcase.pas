@@ -518,9 +518,11 @@ end;
 procedure TTestCase_ExtremeBoundary.Test_CPUStarvationResilience;
 var
   Mutex: IMutex;
-  i: Integer;
+  i, j: Integer;
   StartTime, EndTime: QWord;
   MaxDelay, TotalDelay: QWord;
+  Sum: Double;
+  Delay: QWord;
 begin
   LogResult('开始 CPU 饥饿恢复能力测试...');
   
@@ -533,17 +535,18 @@ begin
   begin
     StartTime := GetTickCount64;
     
-    // CPU 密集计算
-    var Sum: Double := 0;
-    for var j := 1 to 10000 do
+    // CPU 密集计算（兼容 FPC 语法：提前声明变量）
+    // 声明位于过程顶部：Sum: Double; j: Integer; Delay: QWord;
+    Sum := 0;
+    for j := 1 to 10000 do
       Sum := Sum + Sqrt(j);
-    
+
     // 互斥锁操作
     Mutex.Acquire;
     Mutex.Release;
-    
+
     EndTime := GetTickCount64;
-    var Delay := EndTime - StartTime;
+    Delay := EndTime - StartTime;
     TotalDelay := TotalDelay + Delay;
     if Delay > MaxDelay then
       MaxDelay := Delay;

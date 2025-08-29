@@ -37,6 +37,7 @@ type
     procedure Test_cache_flags_kernel_osver_tziana_soft;
     procedure Test_cache_concurrency_smoke;
     procedure Test_cache_concurrency_multithread_smoke;
+    procedure Test_os_environ_concurrency_soft;
 
     procedure Test_os_exe_path_ex;
     procedure Test_os_home_dir_ex;
@@ -53,6 +54,34 @@ type
     procedure Test_unix_locale_normalize;
     procedure Test_unix_timezone_cache_reset_tz_env;
     {$ENDIF}
+
+    // TODO: Re-enable Result-based API tests when fafafa.core.result compatibility is fixed
+    (*
+    // New Result-based API tests
+    procedure Test_os_getenv_result;
+    procedure Test_os_lookupenv_result;
+    procedure Test_os_setenv_result;
+    procedure Test_os_unsetenv_result;
+    procedure Test_os_hostname_result;
+    procedure Test_os_username_result;
+    procedure Test_os_home_dir_result;
+    procedure Test_os_temp_dir_result;
+    procedure Test_os_exe_path_result;
+    procedure Test_os_exe_dir_result;
+    procedure Test_os_kernel_version_result;
+    procedure Test_os_timezone_result;
+    procedure Test_os_timezone_iana_result;
+    procedure Test_os_cpu_model_result;
+    procedure Test_os_locale_current_result;
+    *)
+
+    // New enhanced system information API tests
+    procedure Test_os_cpu_info_ex;
+    procedure Test_os_memory_info_ex;
+    procedure Test_os_storage_info_ex;
+    procedure Test_os_network_interfaces_ex;
+    procedure Test_os_system_load_ex;
+    procedure Test_os_system_info_ex;
   end;
 
 type
@@ -63,6 +92,25 @@ type
     procedure Execute; override;
   public
     constructor Create(iterations: Integer);
+  end;
+
+  TEnvEnvironReaderThread = class(TThread)
+  private
+    FIterations: Integer;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(iterations: Integer);
+  end;
+
+  TEnvVarWriterThread = class(TThread)
+  private
+    FIterations: Integer;
+    FName: string;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(const AName: string; iterations: Integer);
   end;
 
 implementation
@@ -84,6 +132,61 @@ begin
     os_kernel_version;
     v := os_os_version_detailed;
     if (i and 15) = 0 then Sleep(1);
+  end;
+end;
+
+constructor TEnvEnvironReaderThread.Create(iterations: Integer);
+begin
+  inherited Create(True);
+  FreeOnTerminate := False;
+  FIterations := iterations;
+end;
+
+procedure TEnvEnvironReaderThread.Execute;
+var
+  i: Integer;
+  L: TStringList;
+begin
+  for i := 1 to FIterations do
+  begin
+    L := TStringList.Create;
+    try
+      os_environ(L);
+      // soft: do nothing, just ensure no crash
+    finally
+      L.Free;
+    end;
+    if (i and 7) = 0 then Sleep(1);
+  end;
+end;
+
+constructor TEnvVarWriterThread.Create(const AName: string; iterations: Integer);
+begin
+  inherited Create(True);
+  FreeOnTerminate := False;
+  FIterations := iterations;
+  FName := AName;
+end;
+
+procedure TEnvVarWriterThread.Execute;
+var
+  i: Integer;
+  v: string;
+begin
+  for i := 1 to FIterations do
+  begin
+    case (i mod 4) of
+      0: v := 'A';
+      1: v := 'B';
+      2: v := '';
+    else
+      v := '';
+    end;
+    if (i mod 3) = 2 then
+      os_unsetenv(FName)
+    else
+      os_setenv(FName, v);
+    if (i and 7) = 0 then Sleep(1);
   end;
 end;
 
@@ -362,6 +465,45 @@ begin
   AssertTrue('multithread smoke soft', True);
 end;
 
+procedure TTestCase_Global.Test_os_environ_concurrency_soft;
+const
+  WRITERS = 2;
+  READERS = 2;
+  ITERS   = 150;
+var
+  name: string;
+  ws: array[0..WRITERS-1] of TEnvVarWriterThread;
+  rs: array[0..READERS-1] of TEnvEnvironReaderThread;
+  i: Integer;
+begin
+  name := 'FAFAFA_ENV_CONCUR_TEST';
+  // spawn writers and readers
+  for i := 0 to WRITERS-1 do
+  begin
+    ws[i] := TEnvVarWriterThread.Create(name, ITERS);
+    ws[i].Start;
+  end;
+  for i := 0 to READERS-1 do
+  begin
+    rs[i] := TEnvEnvironReaderThread.Create(ITERS);
+    rs[i].Start;
+  end;
+  // join
+  for i := 0 to WRITERS-1 do
+  begin
+    ws[i].WaitFor;
+    ws[i].Free;
+  end;
+  for i := 0 to READERS-1 do
+  begin
+    rs[i].WaitFor;
+    rs[i].Free;
+  end;
+  // cleanup best-effort
+  os_unsetenv(name);
+  AssertTrue('os_environ concurrency soft', True);
+end;
+
 
 
 
@@ -548,7 +690,300 @@ begin
   {$ENDIF}
 end;
 
+// TODO: Re-enable Result-based API tests when fafafa.core.result compatibility is fixed
+(*
+// New Result-based API tests implementation
+procedure TTestCase_Global.Test_os_getenv_result;
+var
+  result: TOSStringResult;
+  testVar: string;
+begin
+  testVar := 'FAFAFA_TEST_VAR_' + IntToStr(Random(10000));
 
+  // Test getting non-existent variable
+  result := os_getenv_result(testVar);
+  AssertTrue('Should return error for non-existent variable', result.IsErr);
+  AssertEquals('Should be oseNotFound', Ord(oseNotFound), Ord(result.UnwrapErr));
+
+  // Set a test variable and get it
+  AssertTrue('Should be able to set test variable', os_setenv(testVar, 'test_value'));
+  result := os_getenv_result(testVar);
+  AssertTrue('Should return success for existing variable', result.IsOk);
+  AssertEquals('Should return correct value', 'test_value', result.Unwrap);
+
+  // Clean up
+  os_unsetenv(testVar);
+end;
+
+procedure TTestCase_Global.Test_os_lookupenv_result;
+var
+  result: TOSStringResult;
+  testVar: string;
+begin
+  testVar := 'FAFAFA_TEST_VAR_' + IntToStr(Random(10000));
+
+  // Test looking up non-existent variable
+  result := os_lookupenv_result(testVar);
+  AssertTrue('Should return error for non-existent variable', result.IsErr);
+  AssertEquals('Should be oseNotFound', Ord(oseNotFound), Ord(result.UnwrapErr));
+
+  // Set a test variable and look it up
+  AssertTrue('Should be able to set test variable', os_setenv(testVar, 'lookup_value'));
+  result := os_lookupenv_result(testVar);
+  AssertTrue('Should return success for existing variable', result.IsOk);
+  AssertEquals('Should return correct value', 'lookup_value', result.Unwrap);
+
+  // Test empty value
+  AssertTrue('Should be able to set empty value', os_setenv(testVar, ''));
+  result := os_lookupenv_result(testVar);
+  AssertTrue('Should return success for empty value', result.IsOk);
+  AssertEquals('Should return empty string', '', result.Unwrap);
+
+  // Clean up
+  os_unsetenv(testVar);
+end;
+
+procedure TTestCase_Global.Test_os_setenv_result;
+var
+  result: TOSBoolResult;
+  testVar: string;
+  value: string;
+begin
+  testVar := 'FAFAFA_TEST_VAR_' + IntToStr(Random(10000));
+
+  // Test setting a variable
+  result := os_setenv_result(testVar, 'set_test_value');
+  AssertTrue('Should return success', result.IsOk);
+  AssertTrue('Should return true', result.Unwrap);
+
+  // Verify it was set
+  AssertTrue('Variable should exist', os_lookupenv(testVar, value));
+  AssertEquals('Should have correct value', 'set_test_value', value);
+
+  // Clean up
+  os_unsetenv(testVar);
+end;
+
+procedure TTestCase_Global.Test_os_unsetenv_result;
+var
+  result: TOSBoolResult;
+  testVar: string;
+  value: string;
+begin
+  testVar := 'FAFAFA_TEST_VAR_' + IntToStr(Random(10000));
+
+  // Set a variable first
+  AssertTrue('Should be able to set test variable', os_setenv(testVar, 'unset_test'));
+  AssertTrue('Variable should exist', os_lookupenv(testVar, value));
+
+  // Test unsetting the variable
+  result := os_unsetenv_result(testVar);
+  AssertTrue('Should return success', result.IsOk);
+  AssertTrue('Should return true', result.Unwrap);
+
+  // Verify it was unset
+  AssertFalse('Variable should not exist', os_lookupenv(testVar, value));
+end;
+
+procedure TTestCase_Global.Test_os_hostname_result;
+var
+  result: TOSStringResult;
+begin
+  result := os_hostname_result;
+  AssertTrue('Should return success', result.IsOk);
+  AssertTrue('Hostname should not be empty', result.Unwrap <> '');
+  // Compare with legacy API
+  AssertEquals('Should match legacy API', os_hostname, result.Unwrap);
+end;
+
+procedure TTestCase_Global.Test_os_username_result;
+var
+  result: TOSStringResult;
+begin
+  result := os_username_result;
+  AssertTrue('Should return success', result.IsOk);
+  AssertTrue('Username should not be empty', result.Unwrap <> '');
+  // Compare with legacy API
+  AssertEquals('Should match legacy API', os_username, result.Unwrap);
+end;
+
+procedure TTestCase_Global.Test_os_home_dir_result;
+var
+  result: TOSStringResult;
+begin
+  result := os_home_dir_result;
+  AssertTrue('Should return success', result.IsOk);
+  AssertTrue('Home directory should not be empty', result.Unwrap <> '');
+  // Compare with legacy API
+  AssertEquals('Should match legacy API', os_home_dir, result.Unwrap);
+end;
+
+procedure TTestCase_Global.Test_os_temp_dir_result;
+var
+  result: TOSStringResult;
+begin
+  result := os_temp_dir_result;
+  AssertTrue('Should return success', result.IsOk);
+  AssertTrue('Temp directory should not be empty', result.Unwrap <> '');
+  // Compare with legacy API
+  AssertEquals('Should match legacy API', os_temp_dir, result.Unwrap);
+end;
+
+procedure TTestCase_Global.Test_os_exe_path_result;
+var
+  result: TOSStringResult;
+begin
+  result := os_exe_path_result;
+  AssertTrue('Should return success', result.IsOk);
+  AssertTrue('Exe path should not be empty', result.Unwrap <> '');
+  // Compare with legacy API
+  AssertEquals('Should match legacy API', os_exe_path, result.Unwrap);
+end;
+
+procedure TTestCase_Global.Test_os_exe_dir_result;
+var
+  result: TOSStringResult;
+begin
+  result := os_exe_dir_result;
+  AssertTrue('Should return success', result.IsOk);
+  AssertTrue('Exe directory should not be empty', result.Unwrap <> '');
+  // Compare with legacy API
+  AssertEquals('Should match legacy API', os_exe_dir, result.Unwrap);
+end;
+
+procedure TTestCase_Global.Test_os_kernel_version_result;
+var
+  result: TOSStringResult;
+begin
+  result := os_kernel_version_result;
+  AssertTrue('Should return success', result.IsOk);
+  AssertTrue('Kernel version should not be empty', result.Unwrap <> '');
+  // Compare with legacy API
+  AssertEquals('Should match legacy API', os_kernel_version, result.Unwrap);
+end;
+
+procedure TTestCase_Global.Test_os_timezone_result;
+var
+  result: TOSStringResult;
+begin
+  result := os_timezone_result;
+  AssertTrue('Should return success', result.IsOk);
+  // Timezone can be empty, so we don't check for non-empty
+  // Compare with legacy API
+  AssertEquals('Should match legacy API', os_timezone, result.Unwrap);
+end;
+
+procedure TTestCase_Global.Test_os_timezone_iana_result;
+var
+  result: TOSStringResult;
+begin
+  result := os_timezone_iana_result;
+  AssertTrue('Should return success', result.IsOk);
+  // IANA timezone can be empty, so we don't check for non-empty
+  // Compare with legacy API
+  AssertEquals('Should match legacy API', os_timezone_iana, result.Unwrap);
+end;
+
+procedure TTestCase_Global.Test_os_cpu_model_result;
+var
+  result: TOSStringResult;
+begin
+  result := os_cpu_model_result;
+  AssertTrue('Should return success', result.IsOk);
+  AssertTrue('CPU model should not be empty', result.Unwrap <> '');
+  // Compare with legacy API
+  AssertEquals('Should match legacy API', os_cpu_model, result.Unwrap);
+end;
+
+procedure TTestCase_Global.Test_os_locale_current_result;
+var
+  result: TOSStringResult;
+begin
+  result := os_locale_current_result;
+  AssertTrue('Should return success', result.IsOk);
+  AssertTrue('Locale should not be empty', result.Unwrap <> '');
+  // Compare with legacy API
+  AssertEquals('Should match legacy API', os_locale_current, result.Unwrap);
+end;
+*)
+
+// New enhanced system information API tests implementation
+procedure TTestCase_Global.Test_os_cpu_info_ex;
+var
+  Info: TCPUInfo;
+begin
+  AssertTrue('Should return success', os_cpu_info_ex(Info));
+  AssertTrue('CPU model should not be empty', Info.Model <> '');
+  AssertTrue('CPU vendor should not be empty', Info.Vendor <> '');
+  AssertTrue('CPU cores should be positive', Info.Cores > 0);
+  AssertTrue('CPU threads should be positive', Info.Threads > 0);
+  AssertTrue('CPU architecture should not be empty', Info.Architecture <> '');
+  // Usage can be -1 (unknown) so we don't check for positive
+end;
+
+procedure TTestCase_Global.Test_os_memory_info_ex;
+var
+  Info: TMemoryInfo;
+begin
+  AssertTrue('Should return success', os_memory_info_ex(Info));
+  AssertTrue('Total memory should be positive', Info.Total > 0);
+  AssertTrue('Available memory should be non-negative', Info.Available >= 0);
+  AssertTrue('Used memory should be non-negative', Info.Used >= 0);
+  AssertTrue('Free memory should be non-negative', Info.Free >= 0);
+  // Available should be <= Total
+  AssertTrue('Available memory should not exceed total', Info.Available <= Info.Total);
+end;
+
+procedure TTestCase_Global.Test_os_storage_info_ex;
+var
+  Info: TStorageInfoArray;
+begin
+  AssertTrue('Should return success', os_storage_info_ex(Info));
+  // Storage info can be empty array, so we just check it doesn't crash
+  // TODO: Add more specific tests when storage enumeration is implemented
+end;
+
+procedure TTestCase_Global.Test_os_network_interfaces_ex;
+var
+  Info: TNetworkInterfaceArray;
+begin
+  AssertTrue('Should return success', os_network_interfaces_ex(Info));
+  // Network interfaces can be empty array, so we just check it doesn't crash
+  // TODO: Add more specific tests when network interface enumeration is implemented
+end;
+
+procedure TTestCase_Global.Test_os_system_load_ex;
+var
+  Info: TSystemLoad;
+begin
+  AssertTrue('Should return success', os_system_load_ex(Info));
+  // Load values can be -1 (unknown) so we don't check for specific values
+  // TODO: Add more specific tests when system load monitoring is implemented
+end;
+
+procedure TTestCase_Global.Test_os_system_info_ex;
+var
+  Info: TSystemInfo;
+begin
+  AssertTrue('Should return success', os_system_info_ex(Info));
+
+  // Check platform information
+  AssertTrue('OS should not be empty', Info.Platform.OS <> '');
+  AssertTrue('Architecture should not be empty', Info.Platform.Architecture <> '');
+  AssertTrue('CPU count should be positive', Info.Platform.CPUCount > 0);
+
+  // Check CPU information
+  AssertTrue('CPU model should not be empty', Info.CPU.Model <> '');
+  AssertTrue('CPU cores should be positive', Info.CPU.Cores > 0);
+
+  // Check memory information
+  AssertTrue('Total memory should be positive', Info.Memory.Total > 0);
+
+  // Check OS version
+  AssertTrue('OS name should not be empty', Info.OSVersion.Name <> '');
+
+  // Boot time and uptime can be 0 if unknown, so we don't check for positive values
+end;
 
 initialization
   RegisterTest('TTestCase_Global', TTestCase_Global);

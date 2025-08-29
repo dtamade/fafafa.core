@@ -30,26 +30,24 @@ unit fafafa.core.sync.barrier.base;
     transient waiting counts.
 
   Notes:
-  - This interface inherits from ILock to stay consistent with the hierarchy used
-    across fafafa.core.sync primitives. Typical barrier implementations may simply
-    forward ILock methods to an internal mutex as an implementation detail.
+  - This interface inherits from ISynchronizable to stay consistent with the
+    hierarchy used across fafafa.core.sync primitives.
+  - Wait() returning False indicates a non-serial thread success (not an error).
+  - The base barrier deliberately provides no timeout/reset/interruption semantics;
+    use higher-level constructs (e.g., namedBarrier or a CyclicBarrier-style API)
+    if such features are required.
 }
 
 interface
 
 uses
-  fafafa.core.sync.base; // for ILock
+  fafafa.core.sync.base;
 
 type
-  // Barrier interface (greatest common denominator across platforms)
-  IBarrier = interface(ILock)
-    ['{7C2A5B11-6E15-4D6B-9C6B-AB9A20E9F4A3}']
-    { Arrive and wait until all participants have reached the barrier for the
-      current phase. Exactly one thread per phase should receive True (the
-      "serial" thread). Others receive False. }
-    function Wait: Boolean;
 
-    { Return the configured participant count for this barrier. }
+  IBarrier = interface(ISynchronizable)
+    ['{7C2A5B11-6E15-4D6B-9C6B-AB9A20E9F4A3}']
+    function Wait: Boolean;
     function GetParticipantCount: Integer;
   end;
 
