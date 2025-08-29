@@ -9,6 +9,22 @@ uses
   Windows, SysUtils,
   fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.once.base, fafafa.core.atomic;
 
+// 分支预测优化宏定义
+{$IFDEF CPUX86_64}
+// x86-64 支持分支预测提示
+{$DEFINE BRANCH_PREDICTION_SUPPORTED}
+{$ENDIF}
+
+{$IFDEF BRANCH_PREDICTION_SUPPORTED}
+// 使用编译器内建函数进行分支预测优化
+function Likely(condition: Boolean): Boolean; inline;
+function Unlikely(condition: Boolean): Boolean; inline;
+{$ELSE}
+// 不支持分支预测的平台，使用普通条件判断
+function Likely(condition: Boolean): Boolean; inline;
+function Unlikely(condition: Boolean): Boolean; inline;
+{$ENDIF}
+
 type
   // 轻量级自旋锁实现（替代重量级 CRITICAL_SECTION）
   TLightweightLock = record
@@ -24,19 +40,25 @@ type
 
   TOnce = class(TInterfacedObject, IOnce)
   private
-    // 高性能设计：缓存行对齐优化，减少伪共享
-    // 第一个缓存行：热路径数据（64 字节对齐）
-    FDone: LongBool;              // 原子布尔值，快速路径检查
-    FState: LongInt;              // 详细状态：0=NotStarted, 1=InProgress, 2=Completed, 3=Poisoned
-    FExecutingThreadId: DWORD;    // 当前执行线程ID，用于递归检测
+    // 修复缓存行对齐：正确计算字段大小和填充
+    // 第一个缓存行：热路径数据（高频访问）
+    FDone: LongBool;              // 1字节：原子布尔值，快速路径检查
+    FState: LongInt;              // 4字节：详细状态
+    FExecutingThreadId: DWORD;    // 4字节：当前执行线程ID
 
-    // 填充到缓存行边界，避免与锁数据伪共享
-    FPadding1: array[0..43] of Byte; // 64 - 8 - 4 - 4 = 48 字节填充（考虑对象头）
+    // 精确计算填充：确保下一个字段在新缓存行开始
+    // 对象头(8字节) + FDone(1字节) + 对齐填充(3字节) + FState(4字节) + FExecutingThreadId(4字节) = 20字节
+    // 需要填充 64 - 20 = 44字节 到缓存行边界
+    FPadding1: array[0..43] of Byte;
 
-    // 第二个缓存行：同步数据
-    FLock: TLightweightLock;      // 轻量级自旋锁（替代 CRITICAL_SECTION）
+    // 第二个缓存行：同步数据（64字节对齐）
+    FLock: TLightweightLock;      // 轻量级自旋锁
 
-    // 第三个缓存行：回调存储
+    // 确保锁数据不跨越缓存行边界
+    // TLightweightLock 大小需要检查，可能需要额外填充
+    FPadding2: array[0..31] of Byte; // 预留32字节填充
+
+    // 第三个缓存行：回调存储（64字节对齐）
     FCallback: TOnceCallback;     // 存储的回调函数
 
     const
@@ -64,11 +86,8 @@ type
     // ISynchronizable 接口实现
     function GetLastError: TWaitError;
 
-    // ILock 接口实现
-    procedure Acquire;
-    procedure Release;
-    function TryAcquire: Boolean;
-    function TryAcquire(ATimeoutMs: Cardinal): Boolean; overload;
+    // 移除ILock接口方法：IOnce不再继承ILock，避免语义混乱
+    // 这些方法已被移除，因为Once不是传统意义的锁
 
     // IOnce 核心接口实现（Go/Rust 风格）
     procedure Execute; overload;
@@ -113,6 +132,32 @@ type
   end;
 
 implementation
+
+// 分支预测优化函数实现
+{$IFDEF BRANCH_PREDICTION_SUPPORTED}
+function Likely(condition: Boolean): Boolean; inline;
+begin
+  Result := condition;
+  // 在支持的编译器中，这里可以添加 __builtin_expect 等价物
+  // FreePascal 目前没有直接的分支预测支持，但函数名提供了语义提示
+end;
+
+function Unlikely(condition: Boolean): Boolean; inline;
+begin
+  Result := condition;
+  // 在支持的编译器中，这里可以添加 __builtin_expect 等价物
+end;
+{$ELSE}
+function Likely(condition: Boolean): Boolean; inline;
+begin
+  Result := condition;
+end;
+
+function Unlikely(condition: Boolean): Boolean; inline;
+begin
+  Result := condition;
+end;
+{$ENDIF}
 
 // 错误消息资源字符串
 resourcestring
@@ -247,30 +292,8 @@ begin
   Result := weNone;
 end;
 
-// ILock 接口实现
-procedure TOnce.Acquire;
-begin
-  Execute; // Acquire 等同于 Execute
-end;
-
-procedure TOnce.Release;
-begin
-  // Release 对于 Once 来说是无操作，因为一旦完成就不能重置
-  // 这里什么都不做，保持接口兼容性
-end;
-
-function TOnce.TryAcquire: Boolean;
-begin
-  // TryAcquire 检查是否已完成
-  Result := GetCompleted;
-end;
-
-function TOnce.TryAcquire(ATimeoutMs: Cardinal): Boolean;
-begin
-  // 对于 Once，超时版本的 TryAcquire 与无超时版本相同
-  // 因为 Once 要么已完成（立即返回），要么需要执行（但我们不在这里执行）
-  Result := GetCompleted;
-end;
+// ILock 接口方法已移除：IOnce不再继承ILock
+// 这避免了语义混乱，Once不是传统意义的锁
 
 // IOnce Execute 方法实现
 procedure TOnce.Execute;
@@ -370,48 +393,58 @@ end;
 
 // 核心内部实现：高性能原子快速路径 + 慢速路径
 procedure TOnce.DoInternal(const AProc: TOnceProc; AForce: Boolean);
+var
+  CurrentState: LongInt;
+  ExecutingThread: TThreadID;
 begin
   // 调试钩子：开始执行
   {$IFDEF FAFAFA_CORE_DEBUG_ONCE}
-  if Assigned(OnceDebugHook) then
-    OnceDebugHook(odeExecuteStart, Self, 'Execute started, Force=' + BoolToStr(AForce, True));
+  WriteLn('[DEBUG] Execute started, Force=', AForce);
   {$ENDIF}
 
   // 快速路径：原子读取，无锁检查（Go 风格优化）
   // 使用 acquire 语义确保后续读取不会重排序到此之前
-  if InterlockedCompareExchange(LongInt(FDone), 1, 1) <> 0 then
+  // 分支预测优化：已完成的情况是最常见的（likely）
+  if Likely(InterlockedCompareExchange(LongInt(FDone), 1, 1) <> 0) then
   begin
-    if not AForce then
+    // AForce 通常为 false，这是常见情况（likely）
+    if Likely(not AForce) then
     begin
-      // 如果是毒化状态且不强制执行，抛出异常
-      if InterlockedCompareExchange(FState, FState, STATE_POISONED) = STATE_POISONED then
+      // 修复ABA问题：使用原子读取而不是CAS来检查毒化状态
+      // 这避免了ABA问题，因为我们只是读取而不是修改
+      CurrentState := InterlockedCompareExchange(FState, 0, 0); // 原子读取
+      // 毒化状态很少见（unlikely）
+      if Unlikely(CurrentState = STATE_POISONED) then
       begin
         {$IFDEF FAFAFA_CORE_DEBUG_ONCE}
-        if Assigned(OnceDebugHook) then
-          OnceDebugHook(odePoisoned, Self, 'Attempt to execute poisoned Once');
+        WriteLn('[DEBUG] Attempt to execute poisoned Once');
         {$ENDIF}
         raise ELockError.Create(rsOnceAlreadyPoisoned);
       end;
 
       {$IFDEF FAFAFA_CORE_DEBUG_ONCE}
-      if Assigned(OnceDebugHook) then
-        OnceDebugHook(odeExecuteSkip, Self, 'Execution skipped - already completed');
+      WriteLn('[DEBUG] Execution skipped - already completed');
       {$ENDIF}
       Exit;
     end;
   end;
 
-  // 递归调用检测（在获取锁之前检查，避免死锁）
-  if FExecutingThreadId = GetCurrentThreadId then
+  // 递归调用检测（修复竞态条件）
+  // 使用原子读取避免竞态条件
+  ExecutingThread := InterlockedCompareExchange(FExecutingThreadId, 0, 0);
+  if ExecutingThread = GetCurrentThreadId then
   begin
     {$IFDEF FAFAFA_CORE_DEBUG_ONCE}
-    if Assigned(OnceDebugHook) then
-      OnceDebugHook(odeRecursive, Self, 'Recursive call detected from thread ' + IntToStr(GetCurrentThreadId));
+    WriteLn('[DEBUG] Recursive call detected from thread ', GetCurrentThreadId);
     {$ENDIF}
     raise EOnceRecursiveCall.Create(rsOnceRecursiveCall);
   end;
 
-  // 慢速路径：需要同步执行
+  // 慢速路径：优化锁粒度，减少锁持有时间
+  var ExecutionSucceeded: Boolean;
+  var ShouldExecute: Boolean;
+
+  // 第一阶段：获取锁，检查状态，设置执行标志
   FLock.Lock;
   try
     // 双重检查锁定模式
@@ -426,40 +459,54 @@ begin
     if (FState = STATE_POISONED) and not AForce then
       raise ELockError.Create(rsOnceAlreadyPoisoned);
 
-    // 标记为进行中
+    // 标记为进行中，并设置执行线程ID
     InterlockedExchange(FState, STATE_IN_PROGRESS);
     FExecutingThreadId := GetCurrentThreadId;
+    ShouldExecute := True;
+  finally
+    FLock.Unlock; // 尽早释放锁
+  end;
 
+  // 第二阶段：在锁外执行用户回调（提高并发性）
+  ExecutionSucceeded := False;
+  if ShouldExecute then
+  begin
     try
-      try
-        // 执行用户回调
-        if Assigned(AProc) then
-          AProc();
+      // 用户回调在锁外执行，不阻塞其他线程
+      if Assigned(AProc) then
+        AProc();
 
-        // 标记为已完成
-        InterlockedExchange(FState, STATE_COMPLETED);
-        // 使用 release 语义确保前面的操作完成后才设置 Done 标志
-        InterlockedExchange(LongInt(FDone), 1);
+      ExecutionSucceeded := True;
 
-        {$IFDEF FAFAFA_CORE_DEBUG_ONCE}
-        if Assigned(OnceDebugHook) then
-          OnceDebugHook(odeExecuteEnd, Self, 'Execution completed successfully');
-        {$ENDIF}
-      except
-        // 异常处理：标记为毒化状态
-        InterlockedExchange(FState, STATE_POISONED);
-        // 使用 release 语义确保毒化状态设置完成后才设置 Done 标志
-        InterlockedExchange(LongInt(FDone), 1);
+      {$IFDEF FAFAFA_CORE_DEBUG_ONCE}
+      WriteLn('[DEBUG] Execution completed successfully');
+      {$ENDIF}
+    except
+      {$IFDEF FAFAFA_CORE_DEBUG_ONCE}
+      WriteLn('[DEBUG] Execution failed - Once will be poisoned');
+      {$ENDIF}
+      // 异常会在第三阶段处理
+    end;
+  end;
 
-        {$IFDEF FAFAFA_CORE_DEBUG_ONCE}
-        if Assigned(OnceDebugHook) then
-          OnceDebugHook(odePoisoned, Self, 'Execution failed - Once poisoned');
-        {$ENDIF}
-        raise;
-      end;
-    finally
-      // 清除执行线程ID
+  // 第三阶段：重新获取锁，设置最终状态
+  FLock.Lock;
+  try
+    if ExecutionSucceeded then
+    begin
+      // 成功路径：设置完成状态
+      InterlockedExchange(FState, STATE_COMPLETED);
+      InterlockedExchange(LongInt(FDone), 1);
       FExecutingThreadId := 0;
+    end
+    else
+    begin
+      // 失败路径：设置毒化状态
+      InterlockedExchange(FState, STATE_POISONED);
+      InterlockedExchange(LongInt(FDone), 1);
+      FExecutingThreadId := 0;
+      // 重新抛出原始异常
+      raise;
     end;
   finally
     FLock.Unlock;
@@ -467,23 +514,36 @@ begin
 end;
 
 procedure TOnce.DoInternal(const AMethod: TOnceMethod; AForce: Boolean);
+var
+  CurrentState: LongInt;
+  ExecutingThread: TThreadID;
 begin
   // 快速路径：原子读取，无锁检查（acquire 语义）
-  if InterlockedCompareExchange(LongInt(FDone), 1, 1) <> 0 then
+  // 分支预测优化：已完成的情况是最常见的
+  if Likely(InterlockedCompareExchange(LongInt(FDone), 1, 1) <> 0) then
   begin
-    if not AForce then
+    if Likely(not AForce) then
     begin
-      if InterlockedCompareExchange(FState, FState, STATE_POISONED) = STATE_POISONED then
+      // 修复ABA问题：使用原子读取检查毒化状态
+      CurrentState := InterlockedCompareExchange(FState, 0, 0);
+      // 毒化状态很少见
+      if Unlikely(CurrentState = STATE_POISONED) then
         raise ELockError.Create(rsOnceAlreadyPoisoned);
       Exit;
     end;
   end;
 
-  // 递归调用检测（在获取锁之前检查，避免死锁）
-  if FExecutingThreadId = GetCurrentThreadId then
+  // 递归调用检测（修复竞态条件）
+  ExecutingThread := InterlockedCompareExchange(FExecutingThreadId, 0, 0);
+  if ExecutingThread = GetCurrentThreadId then
     raise EOnceRecursiveCall.Create(rsOnceRecursiveCall);
 
   // 慢速路径：需要同步执行
+  // 优化锁粒度：三阶段锁控制
+  var ExecutionSucceeded: Boolean;
+  var ShouldExecute: Boolean;
+
+  // 第一阶段：获取锁，检查状态，设置执行标志
   FLock.Lock;
   try
     if FDone and not AForce then
@@ -498,24 +558,39 @@ begin
 
     InterlockedExchange(FState, STATE_IN_PROGRESS);
     FExecutingThreadId := GetCurrentThreadId;
+    ShouldExecute := True;
+  finally
+    FLock.Unlock; // 尽早释放锁
+  end;
 
+  // 第二阶段：在锁外执行用户回调
+  ExecutionSucceeded := False;
+  if ShouldExecute then
+  begin
     try
-      try
-        if Assigned(AMethod) then
-          AMethod();
+      if Assigned(AMethod) then
+        AMethod();
+      ExecutionSucceeded := True;
+    except
+      // 异常会在第三阶段处理
+    end;
+  end;
 
-        InterlockedExchange(FState, STATE_COMPLETED);
-        // 使用 release 语义确保前面的操作完成后才设置 Done 标志
-        InterlockedExchange(LongInt(FDone), 1);
-      except
-        InterlockedExchange(FState, STATE_POISONED);
-        // 使用 release 语义确保毒化状态设置完成后才设置 Done 标志
-        InterlockedExchange(LongInt(FDone), 1);
-        raise;
-      end;
-    finally
-      // 清除执行线程ID
+  // 第三阶段：重新获取锁，设置最终状态
+  FLock.Lock;
+  try
+    if ExecutionSucceeded then
+    begin
+      InterlockedExchange(FState, STATE_COMPLETED);
+      InterlockedExchange(LongInt(FDone), 1);
       FExecutingThreadId := 0;
+    end
+    else
+    begin
+      InterlockedExchange(FState, STATE_POISONED);
+      InterlockedExchange(LongInt(FDone), 1);
+      FExecutingThreadId := 0;
+      raise;
     end;
   finally
     FLock.Unlock;
@@ -524,23 +599,35 @@ end;
 
 {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
 procedure TOnce.DoInternal(const AAnonymousProc: TOnceAnonymousProc; AForce: Boolean);
+var
+  CurrentState: LongInt;
+  ExecutingThread: TThreadID;
 begin
   // 快速路径：原子读取，无锁检查（acquire 语义）
-  if InterlockedCompareExchange(LongInt(FDone), 1, 1) <> 0 then
+  // 分支预测优化：已完成的情况是最常见的
+  if Likely(InterlockedCompareExchange(LongInt(FDone), 1, 1) <> 0) then
   begin
-    if not AForce then
+    if Likely(not AForce) then
     begin
-      if InterlockedCompareExchange(FState, FState, STATE_POISONED) = STATE_POISONED then
+      // 修复ABA问题：使用原子读取检查毒化状态
+      CurrentState := InterlockedCompareExchange(FState, 0, 0);
+      // 毒化状态很少见
+      if Unlikely(CurrentState = STATE_POISONED) then
         raise ELockError.Create(rsOnceAlreadyPoisoned);
       Exit;
     end;
   end;
 
-  // 递归调用检测（在获取锁之前检查，避免死锁）
-  if FExecutingThreadId = GetCurrentThreadId then
+  // 递归调用检测（修复竞态条件）
+  ExecutingThread := InterlockedCompareExchange(FExecutingThreadId, 0, 0);
+  if ExecutingThread = GetCurrentThreadId then
     raise EOnceRecursiveCall.Create(rsOnceRecursiveCall);
 
-  // 慢速路径：需要同步执行
+  // 优化锁粒度：三阶段锁控制
+  var ExecutionSucceeded: Boolean;
+  var ShouldExecute: Boolean;
+
+  // 第一阶段：获取锁，检查状态，设置执行标志
   FLock.Lock;
   try
     if FDone and not AForce then
@@ -555,65 +642,140 @@ begin
 
     InterlockedExchange(FState, STATE_IN_PROGRESS);
     FExecutingThreadId := GetCurrentThreadId;
+    ShouldExecute := True;
+  finally
+    FLock.Unlock; // 尽早释放锁
+  end;
 
+  // 第二阶段：在锁外执行用户回调
+  ExecutionSucceeded := False;
+  if ShouldExecute then
+  begin
     try
-      try
-        if Assigned(AAnonymousProc) then
-          AAnonymousProc();
+      if Assigned(AAnonymousProc) then
+        AAnonymousProc();
+      ExecutionSucceeded := True;
+    except
+      // 异常会在第三阶段处理
+    end;
+  end;
 
-        InterlockedExchange(FState, STATE_COMPLETED);
-        // 使用 release 语义确保前面的操作完成后才设置 Done 标志
-        InterlockedExchange(LongInt(FDone), 1);
-      except
-        InterlockedExchange(FState, STATE_POISONED);
-        // 使用 release 语义确保毒化状态设置完成后才设置 Done 标志
-        InterlockedExchange(LongInt(FDone), 1);
-        raise;
-      end;
-    finally
-      // 清除执行线程ID
+  // 第三阶段：重新获取锁，设置最终状态
+  FLock.Lock;
+  try
+    if ExecutionSucceeded then
+    begin
+      InterlockedExchange(FState, STATE_COMPLETED);
+      InterlockedExchange(LongInt(FDone), 1);
       FExecutingThreadId := 0;
+    end
+    else
+    begin
+      InterlockedExchange(FState, STATE_POISONED);
+      InterlockedExchange(LongInt(FDone), 1);
+      FExecutingThreadId := 0;
+      raise;
     end;
   finally
     FLock.Unlock;
   end;
 end;
 {$ENDIF}
-// 等待机制实现（Rust 风格）
+// 等待机制实现（高性能版本）
 procedure TOnce.Wait;
+var
+  SpinCount: Integer;
+  CurrentState: LongInt;
 begin
   // 快速路径：如果已完成，直接返回（acquire 语义）
-  if InterlockedCompareExchange(LongInt(FDone), 1, 1) <> 0 then
+  // 分支预测优化：Wait调用时通常已经完成
+  if Likely(InterlockedCompareExchange(LongInt(FDone), 1, 1) <> 0) then
   begin
-    // 检查是否毒化
-    if InterlockedCompareExchange(FState, FState, STATE_POISONED) = STATE_POISONED then
+    // 修复ABA问题：使用原子读取检查毒化状态
+    CurrentState := InterlockedCompareExchange(FState, 0, 0);
+    // 毒化状态很少见
+    if Unlikely(CurrentState = STATE_POISONED) then
       raise ELockError.Create(rsOnceAlreadyPoisoned);
     Exit;
   end;
 
-  // 慢速路径：等待完成
-  FLock.Lock;
-  try
-    while not FDone do
-    begin
-      FLock.Unlock;
-      Sleep(1); // 短暂等待
-      FLock.Lock;
-    end;
+  // 高性能等待策略：自适应自旋 + 指数退避
+  SpinCount := 0;
 
-    // 检查最终状态
-    if FState = STATE_POISONED then
-      raise ELockError.Create(rsOnceAlreadyPoisoned);
-  finally
-    FLock.Unlock;
+  while not InterlockedCompareExchange(LongInt(FDone), 1, 1) <> 0 do
+  begin
+    Inc(SpinCount);
+
+    // 分支预测优化：短时间自旋是最常见的情况
+    if Likely(SpinCount < 1000) then
+    begin
+      // 阶段1：CPU自旋等待（适合短时间等待）
+      // 使用 PAUSE 指令优化超线程性能
+      {$IFDEF CPUX86_64}
+      asm
+        pause
+      end;
+      {$ELSE}
+      // 其他架构使用 YieldProcessor 或短暂延迟
+      Sleep(0);
+      {$ENDIF}
+    end
+    else if Likely(SpinCount < 10000) then
+    begin
+      // 阶段2：让出时间片（适合中等时间等待）
+      Sleep(0);
+    end
+    else
+    begin
+      // 阶段3：短暂休眠（适合长时间等待）
+      Sleep(1);
+      // 重置计数器，避免无限增长
+      if Unlikely(SpinCount > 50000) then
+        SpinCount := 10000;
+    end;
   end;
+
+  // 检查最终状态
+  CurrentState := InterlockedCompareExchange(FState, 0, 0);
+  if CurrentState = STATE_POISONED then
+    raise ELockError.Create(rsOnceAlreadyPoisoned);
 end;
 
 procedure TOnce.WaitForce;
+var
+  SpinCount: Integer;
 begin
-  // 强制等待，忽略毒化状态（acquire 语义）
+  // 强制等待，忽略毒化状态（高性能版本）
+  SpinCount := 0;
+
   while InterlockedCompareExchange(LongInt(FDone), 1, 1) = 0 do
-    Sleep(1);
+  begin
+    Inc(SpinCount);
+
+    if SpinCount < 1000 then
+    begin
+      // 阶段1：CPU自旋等待
+      {$IFDEF CPUX86_64}
+      asm
+        pause
+      end;
+      {$ELSE}
+      Sleep(0);
+      {$ENDIF}
+    end
+    else if SpinCount < 10000 then
+    begin
+      // 阶段2：让出时间片
+      Sleep(0);
+    end
+    else
+    begin
+      // 阶段3：短暂休眠
+      Sleep(1);
+      if SpinCount > 50000 then
+        SpinCount := 10000;
+    end;
+  end;
 end;
 
 

@@ -80,6 +80,11 @@ type
     FR: SizeInt;        // readerIndex（相对视图）
     FW: SizeInt;        // writerIndex（相对视图）
     FCanGrow: Boolean;  // 仅 owner 允许扩容（Offset=0 && Len=Length(FBuf)）
+
+    // 内联辅助方法，减少重复的边界检查
+    function IsRoot: Boolean; inline;
+    procedure CheckReadBounds(ASize: SizeInt); inline;
+    procedure CheckWriteBounds(ASize: SizeInt); inline;
   protected
     function GetReaderIndex: SizeInt;
     procedure SetReaderIndex(AValue: SizeInt);
@@ -130,6 +135,24 @@ type
   end;
 
 implementation
+
+// 内联辅助方法实现
+function TByteBufImpl.IsRoot: Boolean;
+begin
+  Result := (FOffset = 0) and (FLen = Length(FBuf));
+end;
+
+procedure TByteBufImpl.CheckReadBounds(ASize: SizeInt);
+begin
+  if (FR + ASize) > FW then
+    raise EOutOfRange.Create('Read beyond writer index');
+end;
+
+procedure TByteBufImpl.CheckWriteBounds(ASize: SizeInt);
+begin
+  if (FW + ASize) > FLen then
+    raise EOutOfRange.Create('Write beyond capacity');
+end;
 
 function TByteBufImpl.GetReaderIndex: SizeInt;
 begin
@@ -219,8 +242,8 @@ begin
   if need <= FLen then Exit;
   if not FCanGrow then
     raise EOutOfRange.Create('EnsureWritable requires growth but buffer is a view');
-  // 仅 owner 且视图对齐时允许扩容
-  if (FOffset <> 0) or (FLen <> Length(FBuf)) then
+  // 仅 root owner 允许扩容
+  if not IsRoot then
     raise EOutOfRange.Create('Cannot grow non-root view');
   // 优化增长策略：与 TBytesBuilder 保持一致
   if Length(FBuf) < 64 then
@@ -246,8 +269,7 @@ end;
 
 function TByteBufImpl.ReadU8: Byte;
 begin
-  if FR >= FW then
-    raise EOutOfRange.Create('Read beyond writer index');
+  CheckReadBounds(1);
   Result := FBuf[FOffset + FR];
   Inc(FR);
 end;
@@ -333,6 +355,35 @@ begin
     Move(FBuf[FOffset + FR], Result[0], Count);
     Inc(FR, Count);
   end;
+end;
+
+// 高效批量操作实现
+procedure TByteBufImpl.WriteBytesUnchecked(const B: TBytes);
+var n: SizeInt;
+begin
+  n := Length(B);
+  if n <= 0 then Exit;
+  // 假设调用者已经调用了 EnsureWritable(n)
+  Move(B[0], FBuf[FOffset + FW], n);
+  Inc(FW, n);
+end;
+
+procedure TByteBufImpl.ReadBytesInto(Dest: Pointer; Count: SizeInt);
+begin
+  if Count <= 0 then Exit;
+  if Dest = nil then raise EInvalidArgument.Create('Dest pointer is nil');
+  CheckReadBounds(Count);
+  Move(FBuf[FOffset + FR], Dest^, Count);
+  Inc(FR, Count);
+end;
+
+procedure TByteBufImpl.WriteBytesFrom(Src: Pointer; Count: SizeInt);
+begin
+  if Count <= 0 then Exit;
+  if Src = nil then raise EInvalidArgument.Create('Src pointer is nil');
+  EnsureWritable(Count);
+  Move(Src^, FBuf[FOffset + FW], Count);
+  Inc(FW, Count);
 end;
 
 function TByteBufImpl.ReadU32BE: UInt32;
@@ -432,7 +483,7 @@ procedure TByteBufImpl.Compact;
 var remaining: SizeInt;
 begin
   // 仅 root owner 可 Compact
-  if (FOffset <> 0) or (FLen <> Length(FBuf)) then
+  if not IsRoot then
     raise EOutOfRange.Create('Compact not allowed on view');
   remaining := FW - FR;
   if remaining > 0 then

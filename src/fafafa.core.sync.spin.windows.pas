@@ -15,42 +15,29 @@ type
   // 前向声明
   TSpinLock = class;
 
-  // RAII 自旋锁守卫实现
-  TSpinLockGuard = class(TInterfacedObject, ISpinLockGuard)
-  private
-    FSpinLock: ISpinLock;
-    FIsValid: Boolean;
-    FReleased: Boolean;
-  public
-    constructor Create(ASpinLock: ISpinLock; AIsValid: Boolean);
-    destructor Destroy; override;
-
-    // ISpinLockGuard 接口实现
-    function IsValid: Boolean;
-    function GetSpinLock: ISpinLock;
-    procedure Release;
-  end;
-
-  // 增强的自旋锁结构，支持统计和调试功能
+  // 优化的自旋锁结构，考虑缓存行对齐和性能
   TSpinLock = class(TInterfacedObject, ISpinLock, ISpinLockWithStats, ISpinLockDebug)
   private
-    // 核心数据
-    FFlag: atomic_flag;                   // 1 byte - 原子标志
-    FMaxSpins: Integer;                   // 4 bytes - 最大自旋次数
-    FPolicy: TSpinLockPolicy;             // ~20 bytes - 策略配置
-
-    // 错误处理
-    FLastError: TWaitError;               // 4 bytes - 最后错误
+    // ===== 热路径数据（第一缓存行，64字节）=====
+    FFlag: atomic_flag;                   // 1 byte - 原子标志（最关键）
+    FMaxSpins: Integer;                   // 4 bytes - 最大自旋次数（热路径）
+    FStatsEnabled: Boolean;               // 1 byte - 统计开关（热路径判断）
     FErrorTracking: Boolean;              // 1 byte - 错误跟踪开关
+    FLastError: TWaitError;               // 4 bytes - 最后错误
 
-    // 统计数据（原子操作保证线程安全）
-    FStats: TSpinLockStats;               // 统计信息
-    FStatsEnabled: Boolean;               // 统计开关
-    FLastAcquireSpins: Integer;           // 上次获取自旋次数
-    FLastAcquireTimeUs: QWord;            // 上次获取耗时
+    // 填充到缓存行边界（确保下面的数据在新缓存行）
+    FPadding1: array[0..CACHE_LINE_SIZE-14] of Byte;  // 填充剩余空间到缓存行边界
+
+    // ===== 策略和配置数据（第二缓存行）=====
+    FPolicy: TSpinLockPolicy;             // ~20 bytes - 策略配置
+    FLastAcquireSpins: Integer;           // 4 bytes - 上次获取自旋次数
+    FLastAcquireTimeUs: QWord;            // 8 bytes - 上次获取耗时
+
+    // ===== 统计数据（冷路径，可能跨缓存行）=====
+    FStats: TSpinLockStats;               // 统计信息（64字节）
 
     {$IFDEF DEBUG}
-    // Debug 数据（使用原子操作保证线程安全）
+    // ===== Debug 数据（最冷路径）=====
     FOwnerThread: TThreadID;              // 8 bytes - 拥有者线程（原子读写）
     FHoldCount: Integer;                  // 4 bytes - 持有计数（原子操作）
     FAcquireTime: QWord;                  // 8 bytes - 获取时间戳（原子读写）
@@ -115,6 +102,9 @@ type
     // 内部统计辅助方法
     procedure UpdateStats(ASpinCount: Integer; AWaitTimeUs: QWord);
     function GetTickCountUs: QWord;
+
+    // 优化的退避策略实现
+    procedure PerformBackoff(ASpinCount: Integer; var ABackoffState: Integer);
   end;
 
 implementation
@@ -159,7 +149,7 @@ end;
 procedure TSpinLock.Acquire;
 var
   spins: Integer;
-  backoffMs: Integer;
+  backoffState: Integer;
   startTimeUs, endTimeUs: QWord;
   {$IFDEF DEBUG}
   currentThread: TThreadID;
@@ -190,67 +180,15 @@ begin
   end;
   {$ENDIF}
 
-  // 使用策略配置的退避策略
+  // 优化的自旋循环
   spins := 0;
-  backoffMs := 1; // 初始退避时间
+  backoffState := 0;
 
+  // 优化的自旋循环：使用更轻量的内存序和统一的退避策略
   while atomic_flag_test_and_set(FFlag, memory_order_acquire) do
   begin
     Inc(spins);
-
-    if spins <= FMaxSpins then
-    begin
-      // 阶段1: CPU pause 指令，减少总线争用
-      asm pause end;
-    end
-    else if spins <= FMaxSpins * 2 then
-    begin
-      // 阶段2: 让出当前线程时间片
-      Windows.SwitchToThread;
-    end
-    else if spins <= FMaxSpins * 3 then
-    begin
-      // 阶段3: 让出时间片给其他线程
-      Sleep(0);
-    end
-    else
-    begin
-      // 阶段4: 根据策略进行退避
-      case FPolicy.BackoffStrategy of
-        sbsLinear: begin
-          // 线性退避：每次增加1ms，最大到 MaxBackoffMs
-          if backoffMs < FPolicy.MaxBackoffMs then
-            Inc(backoffMs);
-          Sleep(backoffMs);
-        end;
-        sbsExponential: begin
-          // 指数退避：每次翻倍，最大到 MaxBackoffMs
-          if backoffMs < FPolicy.MaxBackoffMs then
-            backoffMs := backoffMs * 2;
-          if backoffMs > FPolicy.MaxBackoffMs then
-            backoffMs := FPolicy.MaxBackoffMs;
-          Sleep(backoffMs);
-        end;
-        sbsAdaptive: begin
-          // 自适应：前期指数，后期线性
-          if spins < FMaxSpins * 5 then
-          begin
-            // 前期指数退避
-            if backoffMs < FPolicy.MaxBackoffMs div 2 then
-              backoffMs := backoffMs * 2;
-          end
-          else
-          begin
-            // 后期线性退避
-            if backoffMs < FPolicy.MaxBackoffMs then
-              Inc(backoffMs);
-          end;
-          if backoffMs > FPolicy.MaxBackoffMs then
-            backoffMs := FPolicy.MaxBackoffMs;
-          Sleep(backoffMs);
-        end;
-      end;
-    end;
+    PerformBackoff(spins, backoffState);
   end;
 
   {$IFDEF DEBUG}
@@ -738,6 +676,81 @@ begin
     Result := GetTickCount64 * 1000; // 降级到毫秒精度
 end;
 
+// ===== 优化的退避策略实现 =====
+
+procedure TSpinLock.PerformBackoff(ASpinCount: Integer; var ABackoffState: Integer);
+var
+  sleepMs: Integer;
+begin
+  if ASpinCount <= SPIN_PHASE1_THRESHOLD then
+  begin
+    // 阶段1: 纯自旋，最高效
+    // 什么都不做，让CPU继续尝试
+  end
+  else if ASpinCount <= SPIN_PHASE2_THRESHOLD then
+  begin
+    // 阶段2: CPU pause 指令，减少功耗和总线争用
+    asm pause end;
+  end
+  else if ASpinCount <= SPIN_PHASE3_THRESHOLD then
+  begin
+    // 阶段3: 让出时间片给同优先级线程
+    {$IFDEF WINDOWS}
+    Windows.SwitchToThread;
+    {$ELSE}
+    Sleep(0);
+    {$ENDIF}
+  end
+  else
+  begin
+    // 阶段4: 策略退避，使用状态变量避免重复计算
+    case FPolicy.BackoffStrategy of
+      sbsNone: begin
+        // 无退避，继续自旋
+      end;
+      sbsLinear: begin
+        // 线性退避：1, 2, 3, 4, ... 最大到 MaxBackoffMs
+        sleepMs := (ASpinCount - SPIN_PHASE3_THRESHOLD) div 32 + 1;
+        if sleepMs > FPolicy.MaxBackoffMs then
+          sleepMs := FPolicy.MaxBackoffMs;
+        Sleep(sleepMs);
+      end;
+      sbsExponential: begin
+        // 指数退避：1, 2, 4, 8, 16, ... 最大到 MaxBackoffMs
+        if ABackoffState = 0 then ABackoffState := 1;
+        sleepMs := ABackoffState;
+        if sleepMs > FPolicy.MaxBackoffMs then
+          sleepMs := FPolicy.MaxBackoffMs
+        else if ASpinCount mod 32 = 0 then // 每32次自旋翻倍一次
+          ABackoffState := ABackoffState * 2;
+        Sleep(sleepMs);
+      end;
+      sbsAdaptive: begin
+        // 自适应：前期指数，后期线性
+        if ASpinCount < SPIN_PHASE3_THRESHOLD * 2 then
+        begin
+          // 前期指数退避
+          if ABackoffState = 0 then ABackoffState := 1;
+          sleepMs := ABackoffState;
+          if sleepMs < FPolicy.MaxBackoffMs div 2 then
+          begin
+            if ASpinCount mod 16 = 0 then
+              ABackoffState := ABackoffState * 2;
+          end;
+        end
+        else
+        begin
+          // 后期线性退避
+          sleepMs := (ASpinCount - SPIN_PHASE3_THRESHOLD * 2) div 64 + 1;
+          if sleepMs > FPolicy.MaxBackoffMs then
+            sleepMs := FPolicy.MaxBackoffMs;
+        end;
+        Sleep(sleepMs);
+      end;
+    end;
+  end;
+end;
+
 // ===== RAII 方法实现 =====
 
 function TSpinLock.Lock: ISpinLockGuard;
@@ -754,42 +767,6 @@ end;
 function TSpinLock.TryLock(ATimeoutMs: Cardinal): ISpinLockGuard;
 begin
   Result := TSpinLockGuard.Create(Self, TryAcquire(ATimeoutMs));
-end;
-
-// ===== TSpinLockGuard 实现 =====
-
-constructor TSpinLockGuard.Create(ASpinLock: ISpinLock; AIsValid: Boolean);
-begin
-  inherited Create;
-  FSpinLock := ASpinLock;
-  FIsValid := AIsValid;
-  FReleased := False;
-end;
-
-destructor TSpinLockGuard.Destroy;
-begin
-  if FIsValid and not FReleased then
-    FSpinLock.Release;
-  inherited Destroy;
-end;
-
-function TSpinLockGuard.IsValid: Boolean;
-begin
-  Result := FIsValid and not FReleased;
-end;
-
-function TSpinLockGuard.GetSpinLock: ISpinLock;
-begin
-  Result := FSpinLock;
-end;
-
-procedure TSpinLockGuard.Release;
-begin
-  if FIsValid and not FReleased then
-  begin
-    FSpinLock.Release;
-    FReleased := True;
-  end;
 end;
 
 end.

@@ -30,6 +30,10 @@ type
     procedure Test_Mixed_Slice_Duplicate_Nesting;
     procedure Test_ReadBytes_OutOfRange;
     procedure Test_WriteBytes_Zero_NoOp;
+
+    // 新增：批量操作测试
+    procedure Test_BatchOperations_ReadBytesInto_WriteBytesFrom;
+    procedure Test_WriteBytesUnchecked_Performance;
   end;
 
 implementation
@@ -274,6 +278,48 @@ begin
   before := b.ReadableBytes;
   b.WriteBytes(nil);
   AssertEquals(before, b.ReadableBytes);
+end;
+
+procedure TTestCase_ByteBuf.Test_BatchOperations_ReadBytesInto_WriteBytesFrom;
+var buf: IByteBuf; srcData: array[0..3] of Byte; destData: array[0..3] of Byte; i: Integer;
+begin
+  buf := TByteBufImpl.New(10);
+
+  // 准备源数据
+  srcData[0] := $AA; srcData[1] := $BB; srcData[2] := $CC; srcData[3] := $DD;
+
+  // 使用 WriteBytesFrom 写入数据
+  buf.WriteBytesFrom(@srcData[0], 4);
+  AssertEquals(4, buf.ReadableBytes);
+
+  // 使用 ReadBytesInto 读取数据
+  FillChar(destData, SizeOf(destData), 0);
+  buf.ReadBytesInto(@destData[0], 4);
+
+  // 验证数据正确性
+  for i := 0 to 3 do
+    AssertEquals(srcData[i], destData[i]);
+
+  AssertEquals(0, buf.ReadableBytes);
+end;
+
+procedure TTestCase_ByteBuf.Test_WriteBytesUnchecked_Performance;
+var buf: IByteBuf; testData: TBytes; i: Integer;
+begin
+  buf := TByteBufImpl.New(0);
+  SetLength(testData, 4);
+  testData[0] := $11; testData[1] := $22; testData[2] := $33; testData[3] := $44;
+
+  // 预先确保有足够容量
+  buf.EnsureWritable(4);
+
+  // 使用 WriteBytesUnchecked（假设容量已足够）
+  buf.WriteBytesUnchecked(testData);
+  AssertEquals(4, buf.ReadableBytes);
+
+  // 验证数据正确性
+  for i := 0 to 3 do
+    AssertEquals(testData[i], buf.ReadU8);
 end;
 
 initialization

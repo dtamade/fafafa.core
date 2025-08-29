@@ -7,7 +7,7 @@ interface
 
 uses
   SysUtils, BaseUnix, Unix, UnixType, pthreads,
-  fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.rwlock.base;
+  fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.rwlock.base, fafafa.core.atomic;
 
 const
   ETIMEDOUT = 110;  // Connection timed out
@@ -106,6 +106,12 @@ type
     // 第二个缓存行：性能统计数据（较少访问）
     FContentionCount: Integer;    // 竞争计数
     FSpinCount: Integer;          // 自适应自旋次数
+    FSuccessCount: Integer;       // 成功获取锁的次数
+    FLastAdjustTime: QWord;       // 上次调整自旋次数的时间
+    FAdaptiveWindow: Integer;     // 自适应调整窗口大小
+
+    // 详细性能统计
+    FPerfStats: TLockPerformanceStats;
 
     // 第三个缓存行：管理对象（最少访问）
     FReentryManager: TThreadReentryManager;  // 线程重入管理器
@@ -121,6 +127,13 @@ type
     // 可重入性检查辅助方法
     function CheckReentrancy(AThreadId: TThreadID; out ARecord: PThreadReentryRecord): Boolean;
     procedure UpdateReentryRecord(ARecord: PThreadReentryRecord; AIsRead: Boolean; AIncrement: Boolean);
+
+    // ===== 自适应自旋优化 =====
+    procedure UpdateSpinStatistics(Success: Boolean; SpinCount: Integer);
+    procedure AdjustSpinCount;
+    function CalculateOptimalSpinCount: Integer;
+    function TryAcquireReadLockWithSpin: Boolean;
+    function TryAcquireWriteLockWithSpin: Boolean;
   public
     constructor Create; overload;
     constructor Create(const Options: TRWLockOptions); overload;
@@ -167,6 +180,17 @@ type
     function ValidateState: Boolean;
     procedure RecoverState;
     function IsHealthy: Boolean;
+
+    // ===== 性能监控接口实现 =====
+    function GetPerformanceStats: TLockPerformanceStats;
+    procedure ResetPerformanceStats;
+    function GetContentionRate: Double;
+    function GetAverageWaitTime: Double;
+    function GetThroughput: Double;
+    function GetSpinEfficiency: Double;
+
+    // ===== 性能统计辅助方法 =====
+    procedure UpdatePerformanceStats(IsRead: Boolean; IsAcquire: Boolean; WaitTime: QWord; SpinCount: Integer);
   end;
 
 implementation
@@ -521,9 +545,15 @@ begin
   // 初始化版本化原子计数器
   AtomicStoreCounter(FReaderCount, 0);
   FWriterThread := 0;
-  FContentionCount := 0;
-  FSpinCount := FOptions.SpinCount;  // 使用配置的自旋次数
+  atomic_store(FContentionCount, 0);
+  atomic_store(FSpinCount, FOptions.SpinCount);  // 使用配置的自旋次数
+  atomic_store(FSuccessCount, 0);
+  FLastAdjustTime := GetTickCount64;
+  FAdaptiveWindow := 100;  // 每100次操作调整一次
   FLastLockResult := lrSuccess;
+
+  // 初始化性能统计
+  ResetPerformanceStats;
 
   // 根据配置初始化重入管理器
   if FOptions.AllowReentrancy then
@@ -613,7 +643,9 @@ var
   CurrentThreadId: TThreadID;
   ReentryRecord: PThreadReentryRecord;
   NeedSystemLock: Boolean;
+  StartTime: QWord;
 begin
+  StartTime := GetTickCount64;
   CurrentThreadId := GetCurrentThreadId;
   NeedSystemLock := True;
 
@@ -649,7 +681,8 @@ begin
     Exit;
 
   // 第二阶段：获取系统锁（在管理器锁外部）
-  if pthread_rwlock_rdlock(@FRWLock) <> 0 then
+  // 使用自适应自旋优化
+  if not TryAcquireReadLockWithSpin then
     raise ELockError.Create('Failed to acquire read lock');
 
   // 第三阶段：更新重入记录
@@ -668,6 +701,9 @@ begin
   finally
     FReentryManager.Unlock;
   end;
+
+  // 更新性能统计
+  UpdatePerformanceStats(True, True, GetTickCount64 - StartTime, 0);
 end;
 
 procedure TRWLock.ReleaseRead;
@@ -753,7 +789,8 @@ begin
     Exit;
 
   // 第二阶段：获取系统锁（在管理器锁外部）
-  if pthread_rwlock_wrlock(@FRWLock) <> 0 then
+  // 使用自适应自旋优化
+  if not TryAcquireWriteLockWithSpin then
     raise ELockError.Create('Failed to acquire write lock');
 
   // 第三阶段：更新重入记录
@@ -1180,12 +1217,12 @@ end;
 
 function TRWLock.GetContentionCount: Integer;
 begin
-  Result := FContentionCount;
+  Result := atomic_load(FContentionCount);
 end;
 
 function TRWLock.GetSpinCount: Integer;
 begin
-  Result := FSpinCount;
+  Result := atomic_load(FSpinCount);
 end;
 
 // ===== 错误信息 =====
@@ -1356,6 +1393,259 @@ end;
 function TRWLock.IsHealthy: Boolean;
 begin
   Result := ValidateState and (FLastLockResult <> lrError);
+end;
+
+// ===== 自适应自旋优化实现 =====
+
+procedure TRWLock.UpdateSpinStatistics(Success: Boolean; SpinCount: Integer);
+begin
+  // 更新统计信息
+  if Success then
+  begin
+    atomic_increment(FSuccessCount);
+    // 成功获取锁，可能减少竞争计数
+    if atomic_load(FContentionCount) > 0 then
+      atomic_decrement(FContentionCount);
+  end
+  else
+  begin
+    // 失败或需要自旋，增加竞争计数
+    atomic_increment(FContentionCount);
+  end;
+
+  // 定期调整自旋次数
+  if (atomic_load(FSuccessCount) + atomic_load(FContentionCount)) mod FAdaptiveWindow = 0 then
+    AdjustSpinCount;
+end;
+
+procedure TRWLock.AdjustSpinCount;
+var
+  CurrentTime: QWord;
+  TimeDelta: QWord;
+  ContentionRate: Double;
+  NewSpinCount: Integer;
+begin
+  CurrentTime := GetTickCount64;
+  TimeDelta := CurrentTime - FLastAdjustTime;
+
+  // 至少间隔100ms才调整
+  if TimeDelta < 100 then
+    Exit;
+
+  // 计算竞争率
+  if (atomic_load(FSuccessCount) + atomic_load(FContentionCount)) > 0 then
+    ContentionRate := atomic_load(FContentionCount) / (atomic_load(FSuccessCount) + atomic_load(FContentionCount))
+  else
+    ContentionRate := 0.0;
+
+  NewSpinCount := CalculateOptimalSpinCount;
+
+  // 平滑调整，避免剧烈变化
+  if NewSpinCount > atomic_load(FSpinCount) then
+    atomic_store(FSpinCount, atomic_load(FSpinCount) + ((NewSpinCount - atomic_load(FSpinCount)) div 4))
+  else if NewSpinCount < atomic_load(FSpinCount) then
+    atomic_store(FSpinCount, atomic_load(FSpinCount) - ((atomic_load(FSpinCount) - NewSpinCount) div 4));
+
+  // 限制范围
+  if atomic_load(FSpinCount) < 100 then
+    atomic_store(FSpinCount, 100)
+  else if atomic_load(FSpinCount) > 16000 then
+    atomic_store(FSpinCount, 16000);
+
+  FLastAdjustTime := CurrentTime;
+
+  // 重置计数器，开始新的统计周期
+  atomic_store(FSuccessCount, 0);
+  atomic_store(FContentionCount, 0);
+end;
+
+function TRWLock.CalculateOptimalSpinCount: Integer;
+var
+  ContentionRate: Double;
+  TotalOperations: Integer;
+begin
+  TotalOperations := atomic_load(FSuccessCount) + atomic_load(FContentionCount);
+
+  if TotalOperations = 0 then
+  begin
+    Result := FOptions.SpinCount;  // 返回默认值
+    Exit;
+  end;
+
+  ContentionRate := atomic_load(FContentionCount) / TotalOperations;
+
+  // 基于竞争率调整自旋次数
+  if ContentionRate < 0.1 then
+    // 低竞争：增加自旋次数，减少系统调用
+    Result := Round(FOptions.SpinCount * 1.5)
+  else if ContentionRate < 0.3 then
+    // 中等竞争：使用默认值
+    Result := FOptions.SpinCount
+  else if ContentionRate < 0.6 then
+    // 高竞争：减少自旋次数
+    Result := Round(FOptions.SpinCount * 0.7)
+  else
+    // 极高竞争：大幅减少自旋次数
+    Result := Round(FOptions.SpinCount * 0.4);
+
+  // 确保最小值
+  if Result < 50 then
+    Result := 50;
+end;
+
+function TRWLock.TryAcquireReadLockWithSpin: Boolean;
+var
+  SpinCount: Integer;
+  i: Integer;
+  Success: Boolean;
+begin
+  SpinCount := 0;
+
+  // 第一阶段：自适应自旋
+  for i := 1 to atomic_load(FSpinCount) do
+  begin
+    if pthread_rwlock_tryrdlock(@FRWLock) = 0 then
+    begin
+      UpdateSpinStatistics(True, SpinCount);
+      Result := True;
+      Exit;
+    end;
+
+    Inc(SpinCount);
+
+    // CPU 暂停指令，减少功耗和总线竞争
+    {$IFDEF CPUX86_64}
+    asm pause; end;
+    {$ENDIF}
+  end;
+
+  // 第二阶段：阻塞等待
+  Success := pthread_rwlock_rdlock(@FRWLock) = 0;
+  UpdateSpinStatistics(Success, SpinCount);
+  Result := Success;
+end;
+
+function TRWLock.TryAcquireWriteLockWithSpin: Boolean;
+var
+  SpinCount: Integer;
+  i: Integer;
+  Success: Boolean;
+begin
+  SpinCount := 0;
+
+  // 第一阶段：自适应自旋
+  for i := 1 to atomic_load(FSpinCount) do
+  begin
+    if pthread_rwlock_trywrlock(@FRWLock) = 0 then
+    begin
+      UpdateSpinStatistics(True, SpinCount);
+      Result := True;
+      Exit;
+    end;
+
+    Inc(SpinCount);
+
+    // CPU 暂停指令，减少功耗和总线竞争
+    {$IFDEF CPUX86_64}
+    asm pause; end;
+    {$ENDIF}
+  end;
+
+  // 第二阶段：阻塞等待
+  Success := pthread_rwlock_wrlock(@FRWLock) = 0;
+  UpdateSpinStatistics(Success, SpinCount);
+  Result := Success;
+end;
+
+// ===== 性能监控接口实现 =====
+
+function TRWLock.GetPerformanceStats: TLockPerformanceStats;
+begin
+  Result := FPerfStats;
+end;
+
+procedure TRWLock.ResetPerformanceStats;
+begin
+  FillChar(FPerfStats, SizeOf(FPerfStats), 0);
+  FPerfStats.StartTime := GetTickCount64;
+  FPerfStats.LastResetTime := FPerfStats.StartTime;
+  FPerfStats.MinWaitTime := High(Int64);
+end;
+
+function TRWLock.GetContentionRate: Double;
+begin
+  if FPerfStats.TotalAcquireAttempts > 0 then
+    Result := FPerfStats.ContentionEvents / FPerfStats.TotalAcquireAttempts
+  else
+    Result := 0.0;
+end;
+
+function TRWLock.GetAverageWaitTime: Double;
+begin
+  if FPerfStats.SuccessfulAcquires > 0 then
+    Result := FPerfStats.TotalWaitTime / FPerfStats.SuccessfulAcquires
+  else
+    Result := 0.0;
+end;
+
+function TRWLock.GetThroughput: Double;
+var
+  ElapsedTime: QWord;
+begin
+  ElapsedTime := GetTickCount64 - FPerfStats.StartTime;
+  if ElapsedTime > 0 then
+    Result := (FPerfStats.SuccessfulAcquires * 1000.0) / ElapsedTime
+  else
+    Result := 0.0;
+end;
+
+function TRWLock.GetSpinEfficiency: Double;
+begin
+  if FPerfStats.TotalSpinCount > 0 then
+    Result := FPerfStats.SpinSuccesses / FPerfStats.TotalSpinCount
+  else
+    Result := 0.0;
+end;
+
+procedure TRWLock.UpdatePerformanceStats(IsRead: Boolean; IsAcquire: Boolean; WaitTime: QWord; SpinCount: Integer);
+begin
+  if IsAcquire then
+  begin
+    atomic_increment_64(FPerfStats.TotalAcquireAttempts);
+    if IsRead then
+      atomic_increment_64(FPerfStats.ReadAcquireAttempts)
+    else
+      atomic_increment_64(FPerfStats.WriteAcquireAttempts);
+
+    atomic_increment_64(FPerfStats.SuccessfulAcquires);
+    if IsRead then
+      atomic_increment_64(FPerfStats.ReadSuccesses)
+    else
+      atomic_increment_64(FPerfStats.WriteSuccesses);
+
+    // 更新等待时间统计
+    atomic_fetch_add_64(FPerfStats.TotalWaitTime, Int64(WaitTime));
+
+    // 更新最大等待时间
+    if WaitTime > QWord(atomic_load_64(FPerfStats.MaxWaitTime)) then
+      atomic_store_64(FPerfStats.MaxWaitTime, Int64(WaitTime));
+
+    // 更新最小等待时间
+    if (WaitTime < QWord(atomic_load_64(FPerfStats.MinWaitTime))) and (WaitTime > 0) then
+      atomic_store_64(FPerfStats.MinWaitTime, Int64(WaitTime));
+
+    // 更新自旋统计
+    if SpinCount > 0 then
+    begin
+      atomic_fetch_add_64(FPerfStats.TotalSpinCount, SpinCount);
+      atomic_increment_64(FPerfStats.SpinSuccesses);
+    end;
+  end
+  else
+  begin
+    // 释放操作
+    atomic_increment_64(FPerfStats.TotalReleases);
+  end;
 end;
 
 end.

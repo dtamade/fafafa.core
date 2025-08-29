@@ -7,8 +7,11 @@ interface
 
 uses
   Windows, SysUtils,
-  fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.mutex.base,
-  fafafa.core.sync.semaphore.base, fafafa.core.sync.conditionVariable.base;
+  fafafa.core.base,
+  fafafa.core.sync.base,
+  fafafa.core.sync.mutex.base,
+  fafafa.core.sync.semaphore.base,
+  fafafa.core.sync.conditionVariable.base;
 
 type
   TConditionVariable = class(TInterfacedObject, IConditionVariable)
@@ -23,23 +26,15 @@ type
     FSignalEvent: IEvent;
     FStateCS: TRTLCriticalSection; // 保护 FWaitingCount/FPendingCount 状态
     {$ENDIF}
-    FInternalCS: TRTLCriticalSection; // for ILock semantics on the condvar object itself
     FLastError: TWaitError;
   public
     constructor Create;
     destructor Destroy; override;
-    // ILock
-    procedure Acquire;
-    procedure Release;
-    function TryAcquire: Boolean; overload;
-    function TryAcquire(ATimeoutMs: Cardinal): Boolean; overload;
     // ISynchronizable
     function GetLastError: TWaitError;
-    // Condvar ops
+    // IConditionVariable
     procedure Wait(const ALock: ILock); overload;
     function Wait(const ALock: ILock; ATimeoutMs: Cardinal): Boolean; overload;
-    procedure Wait(const AMutex: IMutex); overload;
-    function Wait(const AMutex: IMutex; ATimeoutMs: Cardinal): Boolean; overload;
     procedure Signal;
     procedure Broadcast;
   end;
@@ -51,7 +46,6 @@ implementation
 constructor TConditionVariable.Create;
 begin
   inherited Create;
-  InitializeCriticalSection(FInternalCS);
   FLastError := weNone;
   {$IFDEF FAFAFA_SYNC_USE_CONDVAR}
   InitializeConditionVariable(FCond);
@@ -74,7 +68,6 @@ begin
   FSignalEvent := nil;
   DeleteCriticalSection(FStateCS);
   {$ENDIF}
-  DeleteCriticalSection(FInternalCS);
   inherited Destroy;
 end;
 
@@ -133,19 +126,7 @@ begin
   {$ENDIF}
 end;
 
-procedure TConditionVariable.Wait(const AMutex: IMutex);
-begin
-  if AMutex = nil then
-    raise EArgumentNilException.Create('Mutex cannot be nil');
-  Wait(ILock(AMutex));
-end;
 
-function TConditionVariable.Wait(const AMutex: IMutex; ATimeoutMs: Cardinal): Boolean;
-begin
-  if AMutex = nil then
-    raise EArgumentNilException.Create('Mutex cannot be nil');
-  Result := Wait(ILock(AMutex), ATimeoutMs);
-end;
 
 function TConditionVariable.Wait(const ALock: ILock; ATimeoutMs: Cardinal): Boolean;
 var
@@ -213,34 +194,7 @@ begin
   {$ENDIF}
 end;
 
-// ILock methods for the condition variable object
-procedure TConditionVariable.Acquire;
-begin
-  EnterCriticalSection(FInternalCS);
-end;
 
-procedure TConditionVariable.Release;
-begin
-  LeaveCriticalSection(FInternalCS);
-end;
-
-function TConditionVariable.TryAcquire: Boolean;
-begin
-  Result := TryEnterCriticalSection(FInternalCS);
-  if Result then FLastError := weNone;
-end;
-
-function TConditionVariable.TryAcquire(ATimeoutMs: Cardinal): Boolean;
-var startTick: QWord;
-begin
-  if ATimeoutMs = 0 then Exit(TryAcquire);
-  startTick := GetTickCount64;
-  repeat
-    if TryAcquire then Exit(True);
-    if GetTickCount64 - startTick >= ATimeoutMs then Exit(False);
-    Sleep(0);
-  until False;
-end;
 
 function TConditionVariable.GetLastError: TWaitError;
 begin

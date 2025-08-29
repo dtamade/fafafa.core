@@ -23,11 +23,10 @@ type
 // ===== 工厂函数 =====
 
 { 创建命名读写锁 - 推荐的现代化 API }
-function CreateNamedRWLock(const AName: string; const AConfig: TNamedRWLockConfig): INamedRWLock; overload;
-function CreateNamedRWLock(const AName: string): INamedRWLock; overload;
+function MakeNamedRWLock(const AName: string; const AConfig: TNamedRWLockConfig): INamedRWLock; overload;
+function MakeNamedRWLock(const AName: string): INamedRWLock; overload;
 
 { 便利函数 - 简化常用场景 }
-function MakeNamedRWLock(const AName: string): INamedRWLock; inline;
 function MakeNamedRWLock(const AName: string; AInitialOwner: Boolean): INamedRWLock; overload;
 function MakeGlobalNamedRWLock(const AName: string): INamedRWLock;
 function TryOpenNamedRWLock(const AName: string): INamedRWLock;
@@ -39,7 +38,7 @@ function GlobalNamedRWLockConfig: TNamedRWLockConfig; inline;
 
 implementation
 
-function CreateNamedRWLock(const AName: string; const AConfig: TNamedRWLockConfig): INamedRWLock;
+function MakeNamedRWLock(const AName: string; const AConfig: TNamedRWLockConfig): INamedRWLock;
 var
   LActualName: string;
 begin
@@ -62,14 +61,9 @@ begin
   {$ENDIF}
 end;
 
-function CreateNamedRWLock(const AName: string): INamedRWLock;
-begin
-  Result := CreateNamedRWLock(AName, DefaultNamedRWLockConfig);
-end;
-
 function MakeNamedRWLock(const AName: string): INamedRWLock;
 begin
-  Result := CreateNamedRWLock(AName);
+  Result := MakeNamedRWLock(AName, DefaultNamedRWLockConfig);
 end;
 
 function MakeNamedRWLock(const AName: string; AInitialOwner: Boolean): INamedRWLock;
@@ -78,19 +72,19 @@ var
 begin
   LConfig := DefaultNamedRWLockConfig;
   LConfig.InitialOwner := AInitialOwner;
-  Result := CreateNamedRWLock(AName, LConfig);
+  Result := MakeNamedRWLock(AName, LConfig);
 end;
 
 function MakeGlobalNamedRWLock(const AName: string): INamedRWLock;
 begin
-  Result := CreateNamedRWLock(AName, GlobalNamedRWLockConfig);
+  Result := MakeNamedRWLock(AName, GlobalNamedRWLockConfig);
 end;
 
 function TryOpenNamedRWLock(const AName: string): INamedRWLock;
 begin
   try
     // 尝试创建/打开现有的命名读写锁
-    Result := CreateNamedRWLock(AName);
+    Result := MakeNamedRWLock(AName);
   except
     // 如果失败，返回 nil
     Result := nil;

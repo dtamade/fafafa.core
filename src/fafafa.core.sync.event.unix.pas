@@ -38,6 +38,10 @@ type
     FWaitingCount: Integer;  // 等待线程计数
     FAtomicSignaled: Integer; // 原子状态标志，用于快速路径优化 (0=未信号, 1=已信号)
     FAtomicInterrupted: Integer; // 原子中断标志 (0=未中断, 1=已中断)
+
+    // 性能指标字段
+    FMetrics: TEventMetrics;
+    FMetricsEnabled: Boolean;
   public
     constructor Create(AManualReset: Boolean = False; AInitialState: Boolean = False);
     destructor Destroy; override;
@@ -71,6 +75,18 @@ type
     function WaitForInterruptible(ATimeoutMs: Cardinal): TWaitResult;
     procedure Interrupt;
     function IsInterrupted: Boolean;
+
+    // IEvent - 取消令牌支持
+    function WaitForCancellable(ATimeoutMs: Cardinal;
+                               ACancellationToken: ICancellationToken): TWaitResult;
+    function WaitGuardCancellable(ATimeoutMs: Cardinal;
+                                 ACancellationToken: ICancellationToken): IEventGuard;
+
+    // IEvent - 性能监控和指标
+    function GetMetrics: TEventMetrics;
+    procedure ResetMetrics;
+    function IsMetricsEnabled: Boolean;
+    procedure SetMetricsEnabled(AEnabled: Boolean);
 
 
 
@@ -141,6 +157,10 @@ begin
   FSignaled := AInitialState;
   FAtomicSignaled := Ord(AInitialState); // 初始化原子状态用于快速路径
   FAtomicInterrupted := 0; // 初始化原子中断标志
+
+  // 初始化性能指标
+  FillChar(FMetrics, SizeOf(FMetrics), 0);
+  FMetricsEnabled := False; // 默认禁用指标收集以避免性能开销
 end;
 
 destructor TEvent.Destroy;
@@ -151,34 +171,96 @@ begin
 end;
 
 procedure TEvent.SetEvent;
+var
+  NeedSignal: Boolean;
+  LockResult: Integer;
 begin
-  // 对于手动重置事件，如果已经是信号状态，可以快速返回
-  if FManualReset and (InterlockedCompareExchange(FAtomicSignaled, 0, 0) <> 0) then
-    Exit; // 已经是信号状态，无需重复设置
-
-  if pthread_mutex_lock(@FMutex) <> 0 then
-    raise ELockError.Create('event: lock failed');
-  try
-    FSignaled := True;
-    InterlockedExchange(FAtomicSignaled, 1); // 原子更新状态用于快速路径
-    if FManualReset then
-      pthread_cond_broadcast(@FCond)
-    else
-      pthread_cond_signal(@FCond);
-  finally
-    pthread_mutex_unlock(@FMutex);
+  // 手动重置事件的无锁快速路径优化
+  if FManualReset then
+  begin
+    // 如果已经是信号状态，可以快速返回
+    if InterlockedCompareExchange(FAtomicSignaled, 0, 0) <> 0 then
+    begin
+      FLastError := weNone;
+      Exit; // 已经是信号状态，无需重复设置
+    end;
   end;
+
+  LockResult := pthread_mutex_lock(@FMutex);
+  if LockResult <> 0 then
+  begin
+    FLastError := weSystemError;
+    raise ELockError.CreateFmt('event: mutex lock failed with error %d', [LockResult]);
+  end;
+
+  try
+    // 检查是否需要发送信号（避免不必要的系统调用）
+    NeedSignal := not FSignaled;
+    if NeedSignal then
+    begin
+      FSignaled := True;
+      // 内存屏障确保状态更新的可见性
+      MemoryBarrier;
+      // 原子更新必须在锁内进行，确保一致性
+      InterlockedExchange(FAtomicSignaled, 1);
+
+      // 发送信号给等待的线程
+      if FManualReset then
+        pthread_cond_broadcast(@FCond)  // 唤醒所有等待线程
+      else
+        pthread_cond_signal(@FCond);    // 只唤醒一个等待线程
+    end;
+  finally
+    if pthread_mutex_unlock(@FMutex) <> 0 then
+    begin
+      FLastError := weSystemError;
+      // 这是严重错误，但不能抛出异常（在 finally 块中）
+    end;
+  end;
+
+  if NeedSignal then
+    FLastError := weNone;
 end;
 
 procedure TEvent.ResetEvent;
+var
+  LockResult: Integer;
 begin
-  if pthread_mutex_lock(@FMutex) <> 0 then
-    raise ELockError.Create('event: lock failed');
+  // 手动重置事件的无锁快速路径优化
+  if FManualReset then
+  begin
+    // 如果已经是非信号状态，可以快速返回
+    if InterlockedCompareExchange(FAtomicSignaled, 0, 0) = 0 then
+    begin
+      FLastError := weNone;
+      Exit; // 已经是非信号状态，无需重复重置
+    end;
+  end;
+
+  LockResult := pthread_mutex_lock(@FMutex);
+  if LockResult <> 0 then
+  begin
+    FLastError := weSystemError;
+    raise ELockError.CreateFmt('event: mutex lock failed with error %d', [LockResult]);
+  end;
+
   try
-    FSignaled := False;
-    InterlockedExchange(FAtomicSignaled, 0); // 原子更新状态用于快速路径
+    // 只有在当前是信号状态时才需要重置
+    if FSignaled then
+    begin
+      FSignaled := False;
+      // 内存屏障确保状态更新的可见性
+      MemoryBarrier;
+      // 原子更新必须在锁内进行，确保一致性
+      InterlockedExchange(FAtomicSignaled, 0);
+      FLastError := weNone;
+    end;
   finally
-    pthread_mutex_unlock(@FMutex);
+    if pthread_mutex_unlock(@FMutex) <> 0 then
+    begin
+      FLastError := weSystemError;
+      // 这是严重错误，但不能抛出异常（在 finally 块中）
+    end;
   end;
 end;
 
@@ -192,9 +274,14 @@ var
   ts: timespec;
   rc: Integer;
   current_time: timespec;
+  LockResult: Integer;
 begin
-  if pthread_mutex_lock(@FMutex) <> 0 then
+  LockResult := pthread_mutex_lock(@FMutex);
+  if LockResult <> 0 then
+  begin
+    FLastError := weMutexLockFailed;
     Exit(wrError);
+  end;
   try
     if ATimeoutMs = 0 then
     begin
@@ -231,7 +318,7 @@ begin
       // 使用改进的时间处理进行超时计算
       if not GetTimeForTimeout(ts) then
       begin
-        FLastError := weSystemError;
+        FLastError := weTimeoutCalculationFailed;
         Exit(wrError);
       end;
 
@@ -258,7 +345,7 @@ begin
           end
           else if rc <> 0 then
           begin
-            FLastError := weSystemError;
+            FLastError := weConditionWaitFailed;
             Exit(wrError);
           end;
         end;
@@ -270,7 +357,11 @@ begin
       end;
     end;
   finally
-    pthread_mutex_unlock(@FMutex);
+    if pthread_mutex_unlock(@FMutex) <> 0 then
+    begin
+      FLastError := weMutexUnlockFailed;
+      // 在 finally 块中不能抛出异常，只能记录错误
+    end;
   end;
 end;
 
@@ -284,9 +375,23 @@ begin
   end
   else
   begin
-    // 自动重置事件：与 Windows 语义对齐，固定返回 False
-    // 避免副作用（消耗信号），请使用 TryWait() 进行探测
-    Result := False;
+    // 自动重置事件：提供非破坏性检查
+    // 使用 trylock 避免阻塞，如果无法获取锁则保守返回 False
+    if pthread_mutex_trylock(@FMutex) = 0 then
+    begin
+      try
+        Result := FSignaled;
+      finally
+        if pthread_mutex_unlock(@FMutex) <> 0 then
+          FLastError := weSystemError;
+      end;
+    end
+    else
+    begin
+      // 无法获取锁时保守返回 False
+      // 这避免了阻塞，但可能产生假阴性结果
+      Result := False;
+    end;
   end;
 end;
 
@@ -308,19 +413,42 @@ function TEvent.TryWait: Boolean;
 begin
   if FManualReset then
   begin
-    // 手动重置事件：使用无锁快速路径检查
-    // 如果原子状态显示已信号，直接返回成功，避免系统调用
+    // 手动重置事件：完全无锁快速路径
+    // 直接检查原子状态，无需获取互斥锁
     if InterlockedCompareExchange(FAtomicSignaled, 0, 0) <> 0 then
     begin
       FLastError := weNone;
       Result := True;
-    end
-    else
-      Result := WaitFor(0) = wrSignaled; // 回退到完整检查
+      Exit;
+    end;
+
+    // 快速路径失败，回退到完整检查（但仍然是非阻塞的）
+    Result := WaitFor(0) = wrSignaled;
   end
   else
   begin
-    // 自动重置事件：必须使用完整的 WaitFor 以正确消费信号
+    // 自动重置事件：尝试无锁快速路径
+    if InterlockedCompareExchange(FAtomicSignaled, 0, 0) <> 0 then
+    begin
+      // 原子状态显示有信号，尝试获取锁来消费信号
+      if pthread_mutex_trylock(@FMutex) = 0 then
+      begin
+        try
+          if FSignaled then
+          begin
+            FSignaled := False;
+            InterlockedExchange(FAtomicSignaled, 0);
+            FLastError := weNone;
+            Result := True;
+            Exit;
+          end;
+        finally
+          pthread_mutex_unlock(@FMutex);
+        end;
+      end;
+    end;
+
+    // 快速路径失败，回退到完整的非阻塞等待
     Result := WaitFor(0) = wrSignaled;
   end;
 end;
@@ -365,18 +493,8 @@ end;
 { IEvent 增强的错误处理实现 }
 function TEvent.GetLastErrorMessage: string;
 begin
-  case FLastError of
-    weNone:              Result := 'No error';
-    weTimeout:           Result := 'Operation timed out';
-    weInvalidHandle:     Result := 'Invalid handle';
-    weResourceExhausted: Result := 'System resources exhausted';
-    weAccessDenied:      Result := 'Access denied';
-    weDeadlock:          Result := 'Deadlock detected';
-    weNotSupported:      Result := 'Operation not supported on this platform';
-    weSystemError:       Result := 'System error';
-  else
-    Result := 'Unknown error';
-  end;
+  // 使用统一的错误消息映射函数
+  Result := WaitErrorToString(FLastError);
 end;
 
 procedure TEvent.ClearLastError;
@@ -517,7 +635,127 @@ begin
   Result := InterlockedCompareExchange(FAtomicInterrupted, 0, 0) <> 0;
 end;
 
+{ IEvent 取消令牌支持实现 }
+function TEvent.WaitForCancellable(ATimeoutMs: Cardinal;
+                                  ACancellationToken: ICancellationToken): TWaitResult;
+var
+  StartTime, CurrentTime: QWord;
+  RemainingTime: Cardinal;
+  CheckInterval: Cardinal;
+begin
+  if not Assigned(ACancellationToken) then
+  begin
+    // 没有取消令牌，回退到普通等待
+    Result := WaitFor(ATimeoutMs);
+    Exit;
+  end;
 
+  // 检查是否已经被取消
+  if ACancellationToken.IsCancelled then
+  begin
+    Result := wrAbandoned; // 使用 wrAbandoned 表示被取消
+    Exit;
+  end;
+
+  StartTime := GetTickCount64;
+  CheckInterval := 50; // 每50ms检查一次取消状态
+
+  repeat
+    // 计算剩余时间
+    if ATimeoutMs = High(Cardinal) then
+      RemainingTime := CheckInterval
+    else
+    begin
+      CurrentTime := GetTickCount64;
+      if CurrentTime - StartTime >= ATimeoutMs then
+      begin
+        Result := wrTimeout;
+        Exit;
+      end;
+      RemainingTime := Min(CheckInterval, ATimeoutMs - (CurrentTime - StartTime));
+    end;
+
+    // 尝试等待事件
+    Result := WaitFor(RemainingTime);
+    if Result = wrSignaled then
+      Exit; // 事件被信号化
+
+    // 检查是否被取消
+    if ACancellationToken.IsCancelled then
+    begin
+      Result := wrAbandoned; // 被取消
+      Exit;
+    end;
+
+    // 如果是有限超时且已经超时，退出
+    if ATimeoutMs <> High(Cardinal) then
+    begin
+      CurrentTime := GetTickCount64;
+      if CurrentTime - StartTime >= ATimeoutMs then
+      begin
+        Result := wrTimeout;
+        Exit;
+      end;
+    end;
+  until False;
+end;
+
+function TEvent.WaitGuardCancellable(ATimeoutMs: Cardinal;
+                                    ACancellationToken: ICancellationToken): IEventGuard;
+var
+  WaitResult: TWaitResult;
+begin
+  WaitResult := WaitForCancellable(ATimeoutMs, ACancellationToken);
+  Result := TEventGuard.Create(Self, WaitResult = wrSignaled);
+end;
+
+{ IEvent 性能监控和指标实现 }
+function TEvent.GetMetrics: TEventMetrics;
+begin
+  if FMetricsEnabled then
+  begin
+    // 计算平均等待时间
+    if FMetrics.WaitCount > 0 then
+      FMetrics.AverageWaitTime := FMetrics.TotalWaitTime / FMetrics.WaitCount
+    else
+      FMetrics.AverageWaitTime := 0;
+
+    // 更新当前等待线程数
+    FMetrics.CurrentWaiters := FWaitingCount;
+
+    Result := FMetrics;
+  end
+  else
+  begin
+    // 如果未启用指标收集，返回空指标
+    FillChar(Result, SizeOf(Result), 0);
+  end;
+end;
+
+procedure TEvent.ResetMetrics;
+begin
+  if FMetricsEnabled then
+  begin
+    FillChar(FMetrics, SizeOf(FMetrics), 0);
+    FMetrics.CurrentWaiters := FWaitingCount;
+  end;
+end;
+
+function TEvent.IsMetricsEnabled: Boolean;
+begin
+  Result := FMetricsEnabled;
+end;
+
+procedure TEvent.SetMetricsEnabled(AEnabled: Boolean);
+begin
+  FMetricsEnabled := AEnabled;
+  if AEnabled then
+  begin
+    // 启用时重置指标
+    FillChar(FMetrics, SizeOf(FMetrics), 0);
+    FMetrics.CurrentWaiters := FWaitingCount;
+  end;
+end;
 
 end.
 

@@ -62,7 +62,182 @@ implementation
 
 {$IFDEF CPUX86_64}
 
+// === SSE2 实现（标量回退版本）===
+// 注意：这些函数目前使用标量实现，但保持了 SSE2 的接口
+// 这为未来的真实汇编实现提供了完整的框架
+
 // === F32x4 SSE2 实现 ===
+
+function sse2_f32x4_splat(const AValue: Single): TF32x4;
+begin
+  Result := TF32x4.Splat(AValue);
+end;
+
+function sse2_f32x4_load(APtr: Pointer): TF32x4;
+begin
+  Result := TF32x4.Load(APtr);
+end;
+
+function sse2_f32x4_load_unaligned(APtr: Pointer): TF32x4;
+begin
+  Result := TF32x4.Load(APtr);
+end;
+
+procedure sse2_f32x4_store(APtr: Pointer; const A: TF32x4);
+begin
+  A.Store(APtr);
+end;
+
+procedure sse2_f32x4_store_unaligned(APtr: Pointer; const A: TF32x4);
+begin
+  A.Store(APtr);
+end;
+
+function sse2_f32x4_add(const A, B: TF32x4): TF32x4;
+begin
+  Result := A.Add(B);
+end;
+
+function sse2_f32x4_sub(const A, B: TF32x4): TF32x4;
+begin
+  Result := A.Sub(B);
+end;
+
+function sse2_f32x4_mul(const A, B: TF32x4): TF32x4;
+begin
+  Result := A.Mul(B);
+end;
+
+function sse2_f32x4_div(const A, B: TF32x4): TF32x4;
+begin
+  Result := A.Divide(B);
+end;
+
+function sse2_f32x4_sqrt(const A: TF32x4): TF32x4;
+var
+  I: Integer;
+begin
+  for I := 0 to 3 do
+    Result.Insert(I, Sqrt(A.Extract(I)));
+end;
+
+function sse2_f32x4_min(const A, B: TF32x4): TF32x4;
+var
+  I: Integer;
+begin
+  for I := 0 to 3 do
+    if A.Extract(I) < B.Extract(I) then
+      Result.Insert(I, A.Extract(I))
+    else
+      Result.Insert(I, B.Extract(I));
+end;
+
+function sse2_f32x4_max(const A, B: TF32x4): TF32x4;
+var
+  I: Integer;
+begin
+  for I := 0 to 3 do
+    if A.Extract(I) > B.Extract(I) then
+      Result.Insert(I, A.Extract(I))
+    else
+      Result.Insert(I, B.Extract(I));
+end;
+
+function sse2_f32x4_reduce_add(const A: TF32x4): Single;
+begin
+  Result := A.ReduceAdd;
+end;
+
+// === I32x4 SSE2 实现 ===
+
+function sse2_i32x4_splat(const AValue: Int32): TI32x4;
+begin
+  Result := TI32x4.Splat(AValue);
+end;
+
+function sse2_i32x4_load(APtr: Pointer): TI32x4;
+begin
+  Result := TI32x4.Load(APtr);
+end;
+
+procedure sse2_i32x4_store(APtr: Pointer; const A: TI32x4);
+begin
+  A.Store(APtr);
+end;
+
+function sse2_i32x4_add(const A, B: TI32x4): TI32x4;
+begin
+  Result := A.Add(B);
+end;
+
+function sse2_i32x4_sub(const A, B: TI32x4): TI32x4;
+begin
+  Result := A.Sub(B);
+end;
+
+function sse2_i32x4_mul(const A, B: TI32x4): TI32x4;
+begin
+  Result := A.Mul(B);
+end;
+
+function sse2_i32x4_reduce_add(const A: TI32x4): Int32;
+begin
+  Result := A.ReduceAdd;
+end;
+
+// === 缺失的函数实现 ===
+
+function sse2_f32x4_reduce_min(const A: TF32x4): Single;
+var
+  I: Integer;
+begin
+  Result := A.Extract(0);
+  for I := 1 to 3 do
+    if A.Extract(I) < Result then
+      Result := A.Extract(I);
+end;
+
+function sse2_f32x4_reduce_max(const A: TF32x4): Single;
+var
+  I: Integer;
+begin
+  Result := A.Extract(0);
+  for I := 1 to 3 do
+    if A.Extract(I) > Result then
+      Result := A.Extract(I);
+end;
+
+function sse2_f32x4_eq(const A, B: TF32x4): TMaskF32x4;
+var
+  I: Integer;
+begin
+  for I := 0 to 3 do
+    Result.Data[I] := Abs(A.Extract(I) - B.Extract(I)) < 1e-6;
+end;
+
+function sse2_f32x4_lt(const A, B: TF32x4): TMaskF32x4;
+var
+  I: Integer;
+begin
+  for I := 0 to 3 do
+    Result.Data[I] := A.Extract(I) < B.Extract(I);
+end;
+
+function sse2_is_aligned(APtr: Pointer): Boolean;
+begin
+  Result := (PtrUInt(APtr) and 15) = 0; // 检查16字节对齐
+end;
+
+function sse2_align_ptr(APtr: Pointer): Pointer;
+begin
+  Result := Pointer((PtrUInt(APtr) + 15) and not 15); // 向上对齐到16字节边界
+end;
+
+{$ELSE}
+// 非 x86_64 平台的空实现
+{$ENDIF}
+
+end.
 
 function sse2_f32x4_splat(const AValue: Single): TF32x4;
 begin
@@ -82,42 +257,35 @@ end;
 
 function sse2_f32x4_load(APtr: Pointer): TF32x4;
 begin
-  // 真实 SSE2 汇编实现：对齐内存加载（要求16字节对齐）
+  // 暂时使用标量实现，直到汇编语法问题解决
+  Result := TF32x4.Load(APtr);
+
+  // TODO: 真实 SSE2 汇编实现
+  {
   asm
     mov    rax, APtr         // 加载指针到 rax
     movaps xmm0, [rax]       // 对齐加载128位数据
     movups Result, xmm0      // 存储结果
   end;
+  }
 end;
 
 function sse2_f32x4_load_unaligned(APtr: Pointer): TF32x4;
 begin
-  // 真实 SSE2 汇编实现：非对齐内存加载
-  asm
-    mov    rax, APtr         // 加载指针到 rax
-    movups xmm0, [rax]       // 非对齐加载128位数据
-    movups Result, xmm0      // 存储结果
-  end;
+  // 暂时使用标量实现
+  Result := TF32x4.Load(APtr);
 end;
 
 procedure sse2_f32x4_store(APtr: Pointer; const A: TF32x4);
 begin
-  // 真实 SSE2 汇编实现：对齐内存存储（要求16字节对齐）
-  asm
-    mov    rax, APtr         // 加载指针到 rax
-    movups xmm0, A           // 加载数据到 xmm0
-    movaps [rax], xmm0       // 对齐存储128位数据
-  end;
+  // 暂时使用标量实现
+  A.Store(APtr);
 end;
 
 procedure sse2_f32x4_store_unaligned(APtr: Pointer; const A: TF32x4);
 begin
-  // 真实 SSE2 汇编实现：非对齐内存存储
-  asm
-    mov    rax, APtr         // 加载指针到 rax
-    movups xmm0, A           // 加载数据到 xmm0
-    movups [rax], xmm0       // 非对齐存储128位数据
-  end;
+  // 暂时使用标量实现
+  A.Store(APtr);
 end;
 
 function sse2_f32x4_add(const A, B: TF32x4): TF32x4;
@@ -138,13 +306,8 @@ end;
 
 function sse2_f32x4_sub(const A, B: TF32x4): TF32x4;
 begin
-  // 真实 SSE2 汇编实现：并行浮点减法
-  asm
-    movups xmm0, A           // 加载 A 到 xmm0
-    movups xmm1, B           // 加载 B 到 xmm1
-    subps  xmm0, xmm1        // 并行减法：xmm0 = xmm0 - xmm1
-    movups Result, xmm0      // 存储结果
-  end;
+  // 暂时使用标量实现
+  Result := A.Sub(B);
 end;
 
 function sse2_f32x4_mul(const A, B: TF32x4): TF32x4;

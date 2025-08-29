@@ -10,30 +10,40 @@ uses
   SysUtils, Classes, fpcunit, testregistry,
   fafafa.core.base,
   fafafa.core.bytes,
-  fafafa.core.io.adapters;
+  fafafa.core.io.adapters,
+  test_peek_contract;
 
 type
   // 简单限流 Source：每次 Read 最多返回 ChunkSize 字节
-  TChunkedMemorySource = class(TInterfacedObject, IByteSource)
+  TChunkedMemorySource = class(TInterfacedObject, IByteReader)
   private
     FData: TBytes;
     FPos: SizeInt;
     FChunk: SizeInt;
   public
     constructor Create(const Bytes: TBytes; AChunk: SizeInt);
-    function Read(P: Pointer; Count: SizeInt): SizeInt;
+    // IReader 接口
+    function Read(Buffer: Pointer; Count: SizeInt): SizeInt;
+    // IByteReader 接口
+    function ReadByte: Byte;
+    function ReadBytes(Count: SizeInt): TBytes;
+    function ReadAll: TBytes;
+    function ReadString(Count: SizeInt): RawByteString;
   end;
 type
   // 简单限流 Sink：每次 Write 最多写入 ChunkSize 字节到给定流
-  TChunkedStreamSink = class(TInterfacedObject, IByteSink)
+  TChunkedStreamSink = class(TInterfacedObject, IByteWriter)
   private
     FStream: TStream;
     FChunk: SizeInt;
   public
     constructor Create(AStream: TStream; AChunk: SizeInt);
-    function Write(const P: Pointer; Count: SizeInt): SizeInt;
-    function WriteBytes(const B: TBytes): SizeInt;
+    // IWriter 接口
+    function Write(const Buffer: Pointer; Count: SizeInt): SizeInt;
+    // IByteWriter 接口
     function WriteByte(Value: Byte): SizeInt;
+    function WriteBytes(const B: TBytes): SizeInt;
+    function WriteString(const S: RawByteString): SizeInt;
   end;
 
 
@@ -106,6 +116,34 @@ type
     procedure Test_IntoBytes_ZeroCopy_PointerEquality;
     procedure Test_DetachNoTrim_ZeroCopy_PointerEquality;
     procedure Test_DetachTrim_MayCopy_BuilderReset;
+  end;
+
+  // 新增：Immutable Bytes 测试
+  TTestCase_ImmutableBytes = class(TTestCase)
+  published
+    procedure Test_FromBytes_Basic;
+    procedure Test_Slice_ZeroCopy;
+    procedure Test_Equals_StartsWith_EndsWith;
+    procedure Test_IndexOf_Pattern;
+    procedure Test_ToHex_ToString;
+    procedure Test_Empty_IsEmpty;
+  end;
+
+  // 新增：链式调用测试
+  TTestCase_ChainedAPI = class(TTestCase)
+  published
+    procedure Test_ChainedCalls_Basic;
+    procedure Test_ChainedCalls_Complex;
+  end;
+
+  // 新增：高级功能扩展测试
+  TTestCase_AdvancedFeatures = class(TTestCase)
+  published
+    procedure Test_BytesEqual_BytesCompare;
+    procedure Test_BytesStartsWith_EndsWith;
+    procedure Test_BytesIndexOf_LastIndexOf;
+    procedure Test_BytesReplace_ReplaceAll;
+    procedure Test_CustomEndianness;
   end;
 
 implementation
@@ -767,7 +805,7 @@ begin
   if AChunk <= 0 then FChunk := 1 else FChunk := AChunk;
 end;
 
-function TChunkedMemorySource.Read(P: Pointer; Count: SizeInt): SizeInt;
+function TChunkedMemorySource.Read(Buffer: Pointer; Count: SizeInt): SizeInt;
 var remain, give: SizeInt;
 begin
   if Count <= 0 then Exit(0);
@@ -776,11 +814,60 @@ begin
   give := Count;
   if give > FChunk then give := FChunk;
   if give > remain then give := remain;
-  Move(FData[FPos], P^, give);
+  Move(FData[FPos], Buffer^, give);
   Inc(FPos, give);
   Result := give;
 end;
 
+function TChunkedMemorySource.ReadByte: Byte;
+var r: SizeInt;
+begin
+  r := Read(@Result, 1);
+  if r <> 1 then
+    raise EEOFError.Create('Unexpected end of stream');
+end;
+
+function TChunkedMemorySource.ReadBytes(Count: SizeInt): TBytes;
+var r: SizeInt;
+begin
+  if Count <= 0 then
+  begin
+    SetLength(Result, 0);
+    Exit;
+  end;
+  SetLength(Result, Count);
+  r := Read(@Result[0], Count);
+  if r < Count then
+    SetLength(Result, r);
+end;
+
+function TChunkedMemorySource.ReadAll: TBytes;
+var remain: SizeInt;
+begin
+  remain := Length(FData) - FPos;
+  if remain <= 0 then
+  begin
+    SetLength(Result, 0);
+    Exit;
+  end;
+  SetLength(Result, remain);
+  Move(FData[FPos], Result[0], remain);
+  FPos := Length(FData);
+end;
+
+function TChunkedMemorySource.ReadString(Count: SizeInt): RawByteString;
+var r: SizeInt;
+begin
+  if Count <= 0 then
+  begin
+    Result := '';
+    Exit;
+  end;
+  SetLength(Result, Count);
+  r := Read(@Result[1], Count);
+  if r < Count then
+    SetLength(Result, r);
+end;
 
 { TChunkedStreamSink }
 constructor TChunkedStreamSink.Create(AStream: TStream; AChunk: SizeInt);
@@ -790,13 +877,13 @@ begin
   if AChunk <= 0 then FChunk := 1 else FChunk := AChunk;
 end;
 
-function TChunkedStreamSink.Write(const P: Pointer; Count: SizeInt): SizeInt;
+function TChunkedStreamSink.Write(const Buffer: Pointer; Count: SizeInt): SizeInt;
 var n: Longint;
 begin
-  if (P = nil) or (Count <= 0) then Exit(0);
+  if (Buffer = nil) or (Count <= 0) then Exit(0);
   n := Count;
   if n > FChunk then n := FChunk;
-  Result := FStream.Write(P^, n);
+  Result := FStream.Write(Buffer^, n);
 end;
 
 function TChunkedStreamSink.WriteBytes(const B: TBytes): SizeInt;
@@ -808,6 +895,12 @@ end;
 function TChunkedStreamSink.WriteByte(Value: Byte): SizeInt;
 begin
   Result := FStream.Write(Value, 1);
+end;
+
+function TChunkedStreamSink.WriteString(const S: RawByteString): SizeInt;
+begin
+  if Length(S) = 0 then Exit(0);
+  Result := Write(@S[1], Length(S));
 end;
 
 procedure TTestCase_TBytesBuilder.Test_IO_AChunkSize_CountMinus1_Randomized;
@@ -902,9 +995,286 @@ begin
   AssertException('negative request', EInvalidArgument, procedure begin bb.BeginWrite(-5, P, G); end);
 end;
 
+{ TTestCase_ImmutableBytes }
+
+procedure TTestCase_ImmutableBytes.Test_FromBytes_Basic;
+var bytes: IBytes; data: TBytes; result: TBytes;
+begin
+  SetLength(data, 4);
+  data[0] := $AA; data[1] := $BB; data[2] := $CC; data[3] := $DD;
+
+  bytes := TImmutableBytes.FromBytes(data);
+  AssertEquals(4, bytes.Length);
+  AssertFalse(bytes.IsEmpty);
+
+  // 验证数据正确性
+  AssertEquals($AA, bytes[0]);
+  AssertEquals($BB, bytes[1]);
+  AssertEquals($CC, bytes[2]);
+  AssertEquals($DD, bytes[3]);
+
+  // ToArray 应该返回副本
+  result := bytes.ToArray;
+  AssertEquals(4, Length(result));
+  AssertEquals($AA, result[0]);
+  AssertEquals($DD, result[3]);
+end;
+
+procedure TTestCase_ImmutableBytes.Test_Slice_ZeroCopy;
+var bytes, slice1, slice2: IBytes; data: TBytes;
+begin
+  SetLength(data, 6);
+  data[0] := $11; data[1] := $22; data[2] := $33;
+  data[3] := $44; data[4] := $55; data[5] := $66;
+
+  bytes := TImmutableBytes.FromBytes(data);
+
+  // 测试单参数切片
+  slice1 := bytes.Slice(2);
+  AssertEquals(4, slice1.Length);
+  AssertEquals($33, slice1[0]);
+  AssertEquals($66, slice1[3]);
+
+  // 测试双参数切片
+  slice2 := bytes.Slice(1, 3);
+  AssertEquals(3, slice2.Length);
+  AssertEquals($22, slice2[0]);
+  AssertEquals($44, slice2[2]);
+end;
+
+procedure TTestCase_ImmutableBytes.Test_Equals_StartsWith_EndsWith;
+var bytes1, bytes2, prefix, suffix: IBytes; data1, data2, prefixData, suffixData: TBytes;
+begin
+  SetLength(data1, 4);
+  data1[0] := $AA; data1[1] := $BB; data1[2] := $CC; data1[3] := $DD;
+  bytes1 := TImmutableBytes.FromBytes(data1);
+
+  SetLength(data2, 4);
+  data2[0] := $AA; data2[1] := $BB; data2[2] := $CC; data2[3] := $DD;
+  bytes2 := TImmutableBytes.FromBytes(data2);
+
+  // 测试相等性
+  AssertTrue(bytes1.Equals(bytes2));
+
+  // 测试前缀
+  SetLength(prefixData, 2);
+  prefixData[0] := $AA; prefixData[1] := $BB;
+  prefix := TImmutableBytes.FromBytes(prefixData);
+  AssertTrue(bytes1.StartsWith(prefix));
+
+  // 测试后缀
+  SetLength(suffixData, 2);
+  suffixData[0] := $CC; suffixData[1] := $DD;
+  suffix := TImmutableBytes.FromBytes(suffixData);
+  AssertTrue(bytes1.EndsWith(suffix));
+end;
+
+procedure TTestCase_ImmutableBytes.Test_IndexOf_Pattern;
+var bytes, pattern: IBytes; data, patternData: TBytes;
+begin
+  SetLength(data, 6);
+  data[0] := $11; data[1] := $22; data[2] := $33;
+  data[3] := $22; data[4] := $33; data[5] := $44;
+  bytes := TImmutableBytes.FromBytes(data);
+
+  SetLength(patternData, 2);
+  patternData[0] := $22; patternData[1] := $33;
+  pattern := TImmutableBytes.FromBytes(patternData);
+
+  // 应该找到第一个匹配位置
+  AssertEquals(1, bytes.IndexOf(pattern));
+
+  // 测试不存在的模式
+  patternData[0] := $99; patternData[1] := $88;
+  pattern := TImmutableBytes.FromBytes(patternData);
+  AssertEquals(-1, bytes.IndexOf(pattern));
+end;
+
+procedure TTestCase_ImmutableBytes.Test_ToHex_ToString;
+var bytes: IBytes; data: TBytes;
+begin
+  SetLength(data, 4);
+  data[0] := $DE; data[1] := $AD; data[2] := $BE; data[3] := $EF;
+  bytes := TImmutableBytes.FromBytes(data);
+
+  // 测试 ToHex
+  AssertEquals('deadbeef', bytes.ToHex);
+
+  // 测试 ToString
+  SetLength(data, 5);
+  data[0] := Ord('H'); data[1] := Ord('e'); data[2] := Ord('l');
+  data[3] := Ord('l'); data[4] := Ord('o');
+  bytes := TImmutableBytes.FromBytes(data);
+  AssertEquals('Hello', bytes.ToString);
+end;
+
+procedure TTestCase_ImmutableBytes.Test_Empty_IsEmpty;
+var empty: IBytes;
+begin
+  empty := TImmutableBytes.Empty;
+  AssertTrue(empty.IsEmpty);
+  AssertEquals(0, empty.Length);
+
+  // 空切片也应该是空的
+  empty := empty.Slice(0, 0);
+  AssertTrue(empty.IsEmpty);
+end;
+
+{ TTestCase_ChainedAPI }
+
+procedure TTestCase_ChainedAPI.Test_ChainedCalls_Basic;
+var bb: TBytesBuilder; result: TBytes; chain: PBytesBuilder;
+begin
+  bb.Init(0);
+
+  // 测试基础链式调用
+  chain := ChainAppendByte(bb.Chain, $AA);
+  chain^.AppendByte($BB);
+
+  result := bb.ToBytes;
+  AssertEquals(2, Length(result));
+  AssertEquals($AA, result[0]);
+  AssertEquals($BB, result[1]);
+end;
+
+procedure TTestCase_ChainedAPI.Test_ChainedCalls_Complex;
+var bb: TBytesBuilder; result: TBytes; data: TBytes; chain: PBytesBuilder;
+begin
+  bb.Init(0);
+
+  // 测试复杂链式调用
+  SetLength(data, 2);
+  data[0] := $11; data[1] := $22;
+
+  chain := ChainAppend(bb.Chain, data);
+  chain := ChainAppendU16LE(chain, $3344);
+  chain := ChainAppendString(chain, 'Hi');
+  chain := ChainAppendFill(chain, $FF, 2);
+
+  result := bb.ToBytes;
+  AssertEquals(8, Length(result)); // 2 + 2 + 2 + 2
+  AssertEquals($11, result[0]);
+  AssertEquals($22, result[1]);
+  AssertEquals($44, result[2]); // LE
+  AssertEquals($33, result[3]);
+  AssertEquals(Ord('H'), result[4]);
+  AssertEquals(Ord('i'), result[5]);
+  AssertEquals($FF, result[6]);
+  AssertEquals($FF, result[7]);
+end;
+
+{ TTestCase_AdvancedFeatures }
+
+procedure TTestCase_AdvancedFeatures.Test_BytesEqual_BytesCompare;
+var a, b, c: TBytes;
+begin
+  SetLength(a, 3); a[0] := $11; a[1] := $22; a[2] := $33;
+  SetLength(b, 3); b[0] := $11; b[1] := $22; b[2] := $33;
+  SetLength(c, 3); c[0] := $11; c[1] := $22; c[2] := $44;
+
+  // 测试相等性
+  AssertTrue(BytesEqual(a, b));
+  AssertFalse(BytesEqual(a, c));
+
+  // 测试比较
+  AssertEquals(0, BytesCompare(a, b));
+  AssertEquals(-1, BytesCompare(a, c));
+  AssertEquals(1, BytesCompare(c, a));
+end;
+
+procedure TTestCase_AdvancedFeatures.Test_BytesStartsWith_EndsWith;
+var data, prefix, suffix: TBytes;
+begin
+  SetLength(data, 5);
+  data[0] := $AA; data[1] := $BB; data[2] := $CC; data[3] := $DD; data[4] := $EE;
+
+  SetLength(prefix, 2); prefix[0] := $AA; prefix[1] := $BB;
+  SetLength(suffix, 2); suffix[0] := $DD; suffix[1] := $EE;
+
+  AssertTrue(BytesStartsWith(data, prefix));
+  AssertTrue(BytesEndsWith(data, suffix));
+
+  // 测试不匹配的情况
+  prefix[0] := $FF;
+  AssertFalse(BytesStartsWith(data, prefix));
+end;
+
+procedure TTestCase_AdvancedFeatures.Test_BytesIndexOf_LastIndexOf;
+var data, pattern: TBytes;
+begin
+  SetLength(data, 8);
+  data[0] := $11; data[1] := $22; data[2] := $33; data[3] := $22;
+  data[4] := $33; data[5] := $44; data[6] := $22; data[7] := $33;
+
+  SetLength(pattern, 2); pattern[0] := $22; pattern[1] := $33;
+
+  // 测试查找
+  AssertEquals(1, BytesIndexOf(data, pattern));
+  AssertEquals(6, BytesLastIndexOf(data, pattern));
+
+  // 测试字节查找
+  AssertEquals(1, BytesIndexOfByte(data, $22));
+
+  // 数据: $11 $22 $33 $22 $33 $44 $22 $33
+  // 模式: $22 $33
+  // 匹配位置: 1-2, 3-4, 6-7 = 3次匹配
+  AssertEquals(3, BytesCount(data, pattern));
+end;
+
+procedure TTestCase_AdvancedFeatures.Test_BytesReplace_ReplaceAll;
+var data, oldPattern, newPattern, result: TBytes;
+begin
+  SetLength(data, 6);
+  data[0] := $11; data[1] := $22; data[2] := $33;
+  data[3] := $22; data[4] := $33; data[5] := $44;
+
+  SetLength(oldPattern, 2); oldPattern[0] := $22; oldPattern[1] := $33;
+  SetLength(newPattern, 1); newPattern[0] := $FF;
+
+  // 测试单次替换
+  result := BytesReplace(data, oldPattern, newPattern);
+  AssertEquals(5, Length(result)); // 6 - 2 + 1
+  AssertEquals($11, result[0]);
+  AssertEquals($FF, result[1]);
+  AssertEquals($22, result[2]); // 第二个模式未替换
+
+  // 测试全部替换
+  result := BytesReplaceAll(data, oldPattern, newPattern);
+  AssertEquals(4, Length(result)); // 6 - 2*2 + 2*1
+  AssertEquals($11, result[0]);
+  AssertEquals($FF, result[1]);
+  AssertEquals($FF, result[2]);
+  AssertEquals($44, result[3]);
+end;
+
+procedure TTestCase_AdvancedFeatures.Test_CustomEndianness;
+var data: TBytes; value16: Word; value32: DWord;
+begin
+  SetLength(data, 8);
+
+  // 测试 16 位读写
+  WriteU16(data, 0, $1234, enLittleEndian);
+  WriteU16(data, 2, $5678, enBigEndian);
+
+  value16 := ReadU16(data, 0, enLittleEndian);
+  AssertEquals($1234, value16);
+
+  value16 := ReadU16(data, 2, enBigEndian);
+  AssertEquals($5678, value16);
+
+  // 测试 32 位读写
+  WriteU32(data, 4, $12345678, enLittleEndian);
+  value32 := ReadU32(data, 4, enLittleEndian);
+  AssertEquals($12345678, value32);
+end;
+
 initialization
   RegisterTest(TTestCase_Global);
   RegisterTest(TTestCase_TBytesBuilder);
+  RegisterTest(TTestCase_PeekContract);
+  RegisterTest(TTestCase_ImmutableBytes);
+  RegisterTest(TTestCase_ChainedAPI);
+  RegisterTest(TTestCase_AdvancedFeatures);
 
 end.
 

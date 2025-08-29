@@ -274,18 +274,8 @@ end;
 { IEvent 增强的错误处理实现 }
 function TEvent.GetLastErrorMessage: string;
 begin
-  case FLastError of
-    weNone:              Result := 'No error';
-    weTimeout:           Result := 'Operation timed out';
-    weInvalidHandle:     Result := 'Invalid handle';
-    weResourceExhausted: Result := 'System resources exhausted';
-    weAccessDenied:      Result := 'Access denied';
-    weDeadlock:          Result := 'Deadlock detected';
-    weNotSupported:      Result := 'Operation not supported on this platform';
-    weSystemError:       Result := 'System error';
-  else
-    Result := 'Unknown error';
-  end;
+  // 使用统一的错误消息映射函数
+  Result := WaitErrorToString(FLastError);
 end;
 
 procedure TEvent.ClearLastError;

@@ -7,7 +7,7 @@ interface
 
 uses
   Windows,
-  fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.rwlock.base;
+  fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.rwlock.base, fafafa.core.atomic;
 
 type
   // ===== 可重入性支持 =====

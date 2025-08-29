@@ -21,6 +21,7 @@ type
   TTestCase_ISpinMutex = class(TTestCase)
   private
     FMutex: ISpinMutex;
+    FTestName: string;
   protected
     procedure SetUp; override;
     procedure TearDown; override;
@@ -31,13 +32,46 @@ type
     procedure Test_TryAcquire_WithTimeout;
     procedure Test_GetLastError;
     procedure Test_GetConfig;
+    procedure Test_UpdateConfig;
 
-    // 测试自旋行为
+    // 测试 RAII 接口
+    procedure Test_Lock_RAII;
+    procedure Test_TryLock_RAII;
+    procedure Test_TryLockFor_RAII;
+    procedure Test_SpinLock_RAII;
+    procedure Test_TrySpinLock_RAII;
+
+    // 测试自旋行为和性能
     procedure Test_SpinBehavior;
+    procedure Test_SpinEfficiency;
+    procedure Test_BackoffStrategy;
+    procedure Test_SpinStats;
     procedure Test_MultipleAcquire;
 
-    // 错误处理测试
+    // 超时和错误处理测试
+    procedure Test_TryLockFor_Timeout;
     procedure Test_ErrorHandling;
+    procedure Test_InvalidName;
+    procedure Test_ConfigValidation;
+
+    // 兼容性测试
+    procedure Test_Acquire_Release_Deprecated;
+    procedure Test_TryAcquire_Deprecated;
+
+    // 高级功能测试
+    procedure Test_MultipleInstances;
+    procedure Test_CrossProcess_Basic;
+  end;
+
+  // 测试配置辅助函数
+  TTestCase_Config = class(TTestCase)
+  published
+    procedure Test_DefaultSpinMutexConfig;
+    procedure Test_SpinMutexConfigWithTimeout;
+    procedure Test_GlobalSpinMutexConfig;
+    procedure Test_HighPerformanceSpinMutexConfig;
+    procedure Test_LowLatencySpinMutexConfig;
+    procedure Test_EmptySpinMutexStats;
   end;
 
 implementation
@@ -68,7 +102,8 @@ end;
 procedure TTestCase_ISpinMutex.SetUp;
 begin
   inherited SetUp;
-  FMutex := MakeSpinMutex;
+  FTestName := 'test_spinmutex_' + IntToStr(Random(100000));
+  FMutex := CreateSpinMutex(FTestName);
 end;
 
 procedure TTestCase_ISpinMutex.TearDown;
@@ -197,6 +232,7 @@ begin
   LConfig := FMutex.GetConfig;
   CheckTrue(LConfig.MaxSpinCount > 0, '自旋次数应该大于0');
   CheckTrue(LConfig.DefaultTimeoutMs > 0, '默认超时应该大于0');
+  CheckEquals(sbsAdaptive, LConfig.BackoffStrategy, '默认应该使用自适应退避策略');
 end;
 
 procedure TTestCase_ISpinMutex.Test_UpdateConfig;

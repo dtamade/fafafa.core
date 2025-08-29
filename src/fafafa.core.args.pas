@@ -2,43 +2,126 @@ unit fafafa.core.args;
 
 {$mode objfpc}{$H+}
 {$modeswitch advancedrecords}
+{$modeswitch typehelpers}
 {$I fafafa.core.settings.inc}
 
 interface
 
 uses
-  SysUtils, Classes
+  SysUtils, Classes, SyncObjs
   {$IFDEF Windows}
   , Windows, ShellApi
   {$ENDIF}
+  , fafafa.core.result
+  , fafafa.core.option
   ;
 
 type
   TStringArray = array of string;
 
-  TArgsOptions = record
-    CaseInsensitiveKeys: boolean;
-    AllowShortFlagsCombo: boolean;    // -abc => -a -b -c
-    AllowShortKeyValue: boolean;      // -o=out or -o out
-    StopAtDoubleDash: boolean;        // "--" stops parsing
-    TreatNegativeNumbersAsPositionals: boolean; // -1.23 not short flags
-    EnableNoPrefixNegation: boolean;  // --no-xxx maps to key=FALSE
+  // 现代化错误处理
+  TArgsErrorKind = (
+    aekSuccess,
+    aekUnknownOption,
+    aekMissingValue,
+    aekInvalidValue,
+    aekDuplicateOption,
+    aekMutuallyExclusive,
+    aekRequiredMissing,
+    aekTooManyPositionals,
+    aekTooFewPositionals,
+    aekParseError,
+    aekValidationError
+  );
+
+  TArgsError = record
+    Kind: TArgsErrorKind;
+    Position: Integer;
+    OptionName: string;
+    Message: string;
+    Suggestion: string;
+    Context: string;
+
+    class function Success: TArgsError; static;
+    class function UnknownOption(const OptName: string; Pos: Integer = -1): TArgsError; static;
+    class function MissingValue(const OptName: string; Pos: Integer = -1): TArgsError; static;
+    class function InvalidValue(const OptName, ExpectedType, ActualValue: string; Pos: Integer = -1): TArgsError; static;
+
+    function IsSuccess: Boolean; inline;
+    function ToString: string;
+    function ToDetailedString: string;
   end;
 
-  function ArgsOptionsDefault: TArgsOptions;
-  function ArgsOptionsGetDefault: TArgsOptions;
-  procedure ArgsOptionsSetDefault(const Opts: TArgsOptions);
+  TArgsResult = specialize TResult<string, TArgsError>;
+  TArgsResultInt = specialize TResult<Int64, TArgsError>;
+  TArgsResultDouble = specialize TResult<Double, TArgsError>;
+  TArgsResultBool = specialize TResult<Boolean, TArgsError>;
 
-type
+  // 高性能解析选项
+  TArgsOptions = record
+    CaseInsensitiveKeys: Boolean;
+    AllowShortFlagsCombo: Boolean;    // -abc => -a -b -c
+    AllowShortKeyValue: Boolean;      // -o=out or -o out
+    StopAtDoubleDash: Boolean;        // "--" stops parsing
+    TreatNegativeNumbersAsPositionals: Boolean; // -1.23 not short flags
+    EnableNoPrefixNegation: Boolean;  // --no-xxx maps to key=FALSE
+    EnableCaching: Boolean;           // 启用解析结果缓存
+    MaxCacheSize: Integer;            // 最大缓存条目数
+
+    class function Default: TArgsOptions; static;
+    class function HighPerformance: TArgsOptions; static;
+    class function Strict: TArgsOptions; static;
+  end;
+
+  // 高性能缓存系统
+  TArgsCacheEntry = record
+    Hash: Cardinal;
+    Args: TStringArray;
+    Options: TArgsOptions;
+    Context: TArgsContext;
+    Timestamp: TDateTime;
+  end;
+
+  TArgsCache = class
+  private
+    class var FInstance: TArgsCache;
+    class var FLock: TCriticalSection;
+    FEntries: array of TArgsCacheEntry;
+    FMaxSize: Integer;
+    FCurrentSize: Integer;
+
+    function ComputeHash(const Args: array of string; const Options: TArgsOptions): Cardinal;
+    function FindEntry(Hash: Cardinal): Integer;
+    procedure AddEntry(Hash: Cardinal; const Args: array of string; const Options: TArgsOptions; const Context: TArgsContext);
+    procedure EvictOldest;
+  public
+    class constructor Create;
+    class destructor Destroy;
+    class function Instance: TArgsCache;
+
+    constructor Create(MaxSize: Integer = 100);
+    destructor Destroy; override;
+
+    function TryGet(const Args: array of string; const Options: TArgsOptions; out Context: TArgsContext): Boolean;
+    procedure Put(const Args: array of string; const Options: TArgsOptions; const Context: TArgsContext);
+    procedure Clear;
+  end;
+
   TArgKind = (akArg, akOptionShort, akOptionLong);
 
   TArgItem = record
     Name: string;
     Value: string;
-    HasValue: boolean;
+    HasValue: Boolean;
     Kind: TArgKind;
+    Position: Integer;  // 在原始参数中的位置
+
+    function IsFlag: Boolean; inline;
+    function IsOption: Boolean; inline;
+    function IsPositional: Boolean; inline;
   end;
 
+  // 高性能上下文结构
   TArgsContext = record
   private
     FFlags: TStringArray;      // normalized names (no leading '-'/'/')
@@ -47,54 +130,107 @@ type
     FPositionals: TStringArray;// raw
     FItemNames: TStringArray;
     FItemValues: TStringArray;
-    FItemHasValue: array of boolean;
+    FItemHasValue: array of Boolean;
     FItemKinds: array of TArgKind;
+    FItemPositions: array of Integer;
+    FKeyLookup: array of record Key: string; Index: Integer; end; // 快速查找
+    FFlagLookup: array of record Key: string; Value: Boolean; end; // 快速标志查找
+    FKeyCount: Integer;
+    FFlagCount: Integer;
   public
+    procedure Initialize;
+    procedure Finalize;
+
     function Flags: TStringArray; inline;
     function Keys: TStringArray; inline;
     function Values: TStringArray; inline;
     function Positionals: TStringArray; inline;
     function ItemsCount: Integer; inline;
     function ItemAt(Index: Integer): TArgItem; inline;
+
+    // 高性能查找方法
+    function HasFlagFast(const Name: string): Boolean; inline;
+    function TryGetValueFast(const Key: string; out Value: string): Boolean; inline;
   end;
 
-// Pure parsing over provided args
-procedure ParseArgs(const Args: array of string; const Opts: TArgsOptions; out Ctx: TArgsContext);
+// 现代化解析函数 - 支持缓存和错误处理
+function ParseArgs(const Args: array of string; const Opts: TArgsOptions; out Ctx: TArgsContext): TArgsError;
+function ParseArgsWithCache(const Args: array of string; const Opts: TArgsOptions; out Ctx: TArgsContext): TArgsError;
 
-// Convenience API based on current process argv
-function ArgsHasFlag(const Flag: string): boolean;                    // e.g., '--no-console' or 'no-console'
-function ArgsTryGetValue(const Key: string; out Value: string): boolean; // e.g., '--json'
-function ArgsGetAll(const Key: string): TStringArray;                 // collect all values for repeated keys
-function ArgsPositionals: TStringArray;
-function ArgsIsHelpRequested: boolean;                                // checks help|h|?
+// 现代化 Result 风格 API
+function ArgsGetValue(const Key: string): TArgsResult;
+function ArgsGetInt(const Key: string): TArgsResultInt;
+function ArgsGetDouble(const Key: string): TArgsResultDouble;
+function ArgsGetBool(const Key: string): TArgsResultBool;
 
-function ArgsTryGetBool(const Key: string; out V: boolean): boolean;
-function ArgsGetStringDefault(const Key, Default: string): string;
-function ArgsGetInt64Default(const Key: string; const Default: Int64): Int64;
-function ArgsGetDoubleDefault(const Key: string; const Default: Double): Double;
-function ArgsGetBoolDefault(const Key: string; const Default: boolean): boolean;
+// 兼容性 API (标记为 deprecated)
+{$IFDEF FAFAFA_ARGS_LEGACY_API}
+function ArgsHasFlag(const Flag: string): Boolean; deprecated 'Use ArgsGetBool instead';
+function ArgsTryGetValue(const Key: string; out Value: string): Boolean; deprecated 'Use ArgsGetValue instead';
+function ArgsGetAll(const Key: string): TStringArray; deprecated 'Use modern API';
+function ArgsPositionals: TStringArray; deprecated 'Use modern API';
+function ArgsIsHelpRequested: Boolean; deprecated 'Use ArgsGetBool(''help'') instead';
+function ArgsGetStringDefault(const Key, Default: string): string; deprecated 'Use ArgsGetValue(Key).UnwrapOr(Default)';
+function ArgsGetInt64Default(const Key: string; const Default: Int64): Int64; deprecated 'Use ArgsGetInt(Key).UnwrapOr(Default)';
+function ArgsGetDoubleDefault(const Key: string; const Default: Double): Double; deprecated 'Use ArgsGetDouble(Key).UnwrapOr(Default)';
+function ArgsGetBoolDefault(const Key: string; const Default: Boolean): Boolean; deprecated 'Use ArgsGetBool(Key).UnwrapOr(Default)';
+{$ENDIF}
 
-// OO API
+// 现代化接口设计
 type
+  // 核心参数接口 - 高性能、类型安全
   IArgs = interface
     ['{E4F6A76C-4A13-4D4E-9D3A-7E8A3F2F3C21}']
+    // 基础查询
     function Count: Integer;
     function Items(Index: Integer): TArgItem;
     function Positionals: TStringArray;
-    // queries
-    function HasFlag(const Name: string): boolean;
-    function TryGetValue(const Key: string; out Value: string): boolean;
+
+    // 现代化 Result 风格查询
+    function GetValue(const Key: string): TArgsResult;
+    function GetInt(const Key: string): TArgsResultInt;
+    function GetDouble(const Key: string): TArgsResultDouble;
+    function GetBool(const Key: string): TArgsResultBool;
     function GetAll(const Key: string): TStringArray;
-    // typed getters
-    function TryGetInt64(const Key: string; out V: Int64): boolean;
-    function TryGetDouble(const Key: string; out V: Double): boolean;
-    function TryGetBool(const Key: string; out V: boolean): boolean;
-    function GetStringDefault(const Key, Default: string): string;
-    function GetInt64Default(const Key: string; const Default: Int64): Int64;
-    function GetDoubleDefault(const Key: string; const Default: Double): Double;
-    function GetBoolDefault(const Key: string; const Default: boolean): boolean;
+
+    // 快速查询 (性能优化)
+    function HasFlag(const Name: string): Boolean;
+    function TryGetValueFast(const Key: string; out Value: string): Boolean;
+
+    // 兼容性方法 (deprecated)
+    {$IFDEF FAFAFA_ARGS_LEGACY_API}
+    function TryGetValue(const Key: string; out Value: string): Boolean; deprecated;
+    function TryGetInt64(const Key: string; out V: Int64): Boolean; deprecated;
+    function TryGetDouble(const Key: string; out V: Double): Boolean; deprecated;
+    function TryGetBool(const Key: string; out V: Boolean): Boolean; deprecated;
+    function GetStringDefault(const Key, Default: string): string; deprecated;
+    function GetInt64Default(const Key: string; const Default: Int64): Int64; deprecated;
+    function GetDoubleDefault(const Key: string; const Default: Double): Double; deprecated;
+    function GetBoolDefault(const Key: string; const Default: Boolean): Boolean; deprecated;
+    {$ENDIF}
   end;
 
+  // Fluent API 接口
+  IArgsBuilder = interface
+    ['{B2C3D4E5-F6A7-4B8C-9D0E-1F2A3B4C5D6E}']
+    function WithOption(const Name, Description: string; Required: Boolean = False): IArgsBuilder;
+    function WithFlag(const Name, Description: string): IArgsBuilder;
+    function WithPositional(const Name, Description: string; Required: Boolean = True): IArgsBuilder;
+    function WithSubCommand(const Name, Description: string): IArgsBuilder;
+    function WithValidation(const Key: string; Validator: TArgsValidator): IArgsBuilder;
+    function Parse(const Args: array of string): IArgs;
+    function ParseProcess: IArgs;
+  end;
+
+  // 验证器接口
+  TArgsValidator = function(const Value: string): TArgsError;
+
+  // 现代化构建器
+  function NewArgsBuilder: IArgsBuilder;
+  function Args: IArgsBuilder; // 简短入口
+
+type
+  // 高性能参数解析器实现
   TArgs = class(TInterfacedObject, IArgs)
   private
     FCtx: TArgsContext;

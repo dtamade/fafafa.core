@@ -358,7 +358,10 @@ end;
 procedure TNamedMutex.Acquire;
 begin
   // 直接调用 pthread_mutex_lock，不使用 RAII 守卫
-  if pthread_mutex_lock(FMutex) <> 0 then
+  if FMutex = nil then
+    raise ELockError.CreateFmt('Named mutex "%s" not initialized', [FOriginalName]);
+
+  if pthread_mutex_lock(@FMutex^) <> 0 then
     raise ELockError.CreateFmt('Failed to acquire named mutex "%s": %s',
       [FOriginalName, SysErrorMessage(fpGetErrno)]);
 end;
@@ -367,7 +370,10 @@ procedure TNamedMutex.Release;
 begin
   // 兼容性实现：直接释放互斥锁
   // 注意：这不是线程安全的，仅为向后兼容
-  if pthread_mutex_unlock(FMutex) <> 0 then
+  if FMutex = nil then
+    raise ELockError.CreateFmt('Named mutex "%s" not initialized', [FOriginalName]);
+
+  if pthread_mutex_unlock(@FMutex^) <> 0 then
     raise ELockError.CreateFmt('Failed to release named mutex "%s": %s',
       [FOriginalName, SysErrorMessage(fpGetErrno)]);
 end;
@@ -375,7 +381,10 @@ end;
 function TNamedMutex.TryAcquire: Boolean;
 begin
   // 直接调用 pthread_mutex_trylock，不使用 RAII 守卫
-  Result := pthread_mutex_trylock(FMutex) = 0;
+  if FMutex = nil then
+    raise ELockError.CreateFmt('Named mutex "%s" not initialized', [FOriginalName]);
+
+  Result := pthread_mutex_trylock(@FMutex^) = 0;
 end;
 
 function TNamedMutex.TryAcquire(ATimeoutMs: Cardinal): Boolean;
@@ -393,8 +402,11 @@ begin
   end;
 
   // 使用 pthread_mutex_timedlock，不使用 RAII 守卫
+  if FMutex = nil then
+    raise ELockError.CreateFmt('Named mutex "%s" not initialized', [FOriginalName]);
+
   LTimespec := TimeoutToTimespec(ATimeoutMs);
-  LResult := pthread_mutex_timedlock(FMutex, @LTimespec);
+  LResult := pthread_mutex_timedlock(@FMutex^, @LTimespec);
 
   if LResult = 0 then
     Result := True

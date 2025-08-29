@@ -8,9 +8,20 @@ interface
 uses
   fafafa.core.base, fafafa.core.sync.base;
 
+const
+  // ===== 性能优化常量 =====
+  CACHE_LINE_SIZE = 64;                    // 缓存行大小（字节）
+
+  // 退避策略阶段阈值（跨平台统一）
+  SPIN_PHASE1_THRESHOLD = 8;               // 纯自旋阶段
+  SPIN_PHASE2_THRESHOLD = 32;              // 轻量让步阶段
+  SPIN_PHASE3_THRESHOLD = 128;             // 线程让步阶段
+  // 第4阶段：策略退避
+
 type
   // ===== 自旋锁策略配置 =====
   TSpinBackoffStrategy = (
+    sbsNone,        // 无退避，纯自旋
     sbsLinear,      // 线性退避
     sbsExponential, // 指数退避
     sbsAdaptive     // 自适应退避（默认）
@@ -122,6 +133,23 @@ type
 
 
 
+// ===== 公共 RAII 守卫实现 =====
+type
+  TSpinLockGuard = class(TInterfacedObject, ISpinLockGuard)
+  private
+    FSpinLock: ISpinLock;
+    FIsValid: Boolean;
+    FReleased: Boolean;
+  public
+    constructor Create(ASpinLock: ISpinLock; AIsValid: Boolean);
+    destructor Destroy; override;
+
+    // ISpinLockGuard 接口实现
+    function IsValid: Boolean;
+    function GetSpinLock: ISpinLock;
+    procedure Release;
+  end;
+
 // ===== 策略工厂函数 =====
 function DefaultSpinLockPolicy: TSpinLockPolicy;
 
@@ -162,6 +190,40 @@ begin
   Result.DeadlockTimeoutMs := 5000;
 end;
 
+// ===== TSpinLockGuard 实现 =====
 
+constructor TSpinLockGuard.Create(ASpinLock: ISpinLock; AIsValid: Boolean);
+begin
+  inherited Create;
+  FSpinLock := ASpinLock;
+  FIsValid := AIsValid;
+  FReleased := False;
+end;
+
+destructor TSpinLockGuard.Destroy;
+begin
+  if FIsValid and not FReleased then
+    FSpinLock.Release;
+  inherited Destroy;
+end;
+
+function TSpinLockGuard.IsValid: Boolean;
+begin
+  Result := FIsValid and not FReleased;
+end;
+
+function TSpinLockGuard.GetSpinLock: ISpinLock;
+begin
+  Result := FSpinLock;
+end;
+
+procedure TSpinLockGuard.Release;
+begin
+  if FIsValid and not FReleased then
+  begin
+    FSpinLock.Release;
+    FReleased := True;
+  end;
+end;
 
 end.

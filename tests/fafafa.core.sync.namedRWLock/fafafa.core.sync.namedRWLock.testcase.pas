@@ -17,7 +17,7 @@ type
     procedure Test_MakeNamedRWLock_InitialOwner;
     procedure Test_TryOpenNamedRWLock;
     procedure Test_MakeGlobalNamedRWLock;
-    procedure Test_CreateNamedRWLock_WithConfig;
+    procedure Test_MakeNamedRWLock_WithConfig;
   end;
 
   // 测试 INamedRWLock 接口
@@ -121,13 +121,13 @@ begin
   {$ENDIF}
 end;
 
-procedure TTestCase_Global.Test_CreateNamedRWLock_WithConfig;
+procedure TTestCase_Global.Test_MakeNamedRWLock_WithConfig;
 var
   LRWLock: INamedRWLock;
   LConfig: TNamedRWLockConfig;
 begin
   LConfig := NamedRWLockConfigWithTimeout(1000);
-  LRWLock := CreateNamedRWLock('test_rwlock_config', LConfig);
+  LRWLock := MakeNamedRWLock('test_rwlock_config', LConfig);
   CheckNotNull(LRWLock, '应该成功创建带配置的命名读写锁');
   CheckEquals('test_rwlock_config', LRWLock.GetName, '名称应该匹配');
 end;
@@ -309,30 +309,34 @@ begin
 end;
 
 procedure TTestCase_INamedRWLock.Test_GetReaderCount;
+var
+  LReadGuard1, LReadGuard2: INamedRWLockReadGuard;
 begin
   CheckEquals(0, FRWLock.GetReaderCount, '初始读者计数应该为0');
-  
-  FRWLock.AcquireRead;
+
+  LReadGuard1 := FRWLock.ReadLock;
   CheckEquals(1, FRWLock.GetReaderCount, '获取读锁后计数应该为1');
-  
-  FRWLock.AcquireRead;
+
+  LReadGuard2 := FRWLock.ReadLock;
   CheckEquals(2, FRWLock.GetReaderCount, '获取第二个读锁后计数应该为2');
-  
-  FRWLock.ReleaseRead;
+
+  LReadGuard1 := nil; // 释放第一个读锁
   CheckEquals(1, FRWLock.GetReaderCount, '释放一个读锁后计数应该为1');
-  
-  FRWLock.ReleaseRead;
+
+  LReadGuard2 := nil; // 释放第二个读锁
   CheckEquals(0, FRWLock.GetReaderCount, '释放所有读锁后计数应该为0');
 end;
 
 procedure TTestCase_INamedRWLock.Test_IsWriteLocked;
+var
+  LWriteGuard: INamedRWLockWriteGuard;
 begin
   CheckFalse(FRWLock.IsWriteLocked, '初始状态不应该有写锁');
-  
-  FRWLock.AcquireWrite;
+
+  LWriteGuard := FRWLock.WriteLock;
   CheckTrue(FRWLock.IsWriteLocked, '获取写锁后应该处于写锁状态');
-  
-  FRWLock.ReleaseWrite;
+
+  LWriteGuard := nil; // 释放写锁
   CheckFalse(FRWLock.IsWriteLocked, '释放写锁后不应该处于写锁状态');
 end;
 
@@ -357,14 +361,16 @@ begin
 end;
 
 procedure TTestCase_INamedRWLock.Test_DoubleRelease;
+var
+  LReadGuard: INamedRWLockReadGuard;
 begin
-  // 获取读锁
-  FRWLock.AcquireRead;
-  FRWLock.ReleaseRead;
+  // 获取读锁并自动释放
+  LReadGuard := FRWLock.ReadLock;
+  LReadGuard := nil; // 释放读锁
 
-  // 注意：双重释放的行为取决于平台实现
-  // 这个测试主要验证基本的获取/释放功能
-  CheckTrue(True, '基本的获取/释放功能正常');
+  // RAII 模式下不会有双重释放问题
+  // 这个测试主要验证 RAII 的安全性
+  CheckTrue(True, 'RAII 模式下锁管理是安全的');
 end;
 
 procedure TTestCase_INamedRWLock.Test_MultipleReaders;
@@ -433,6 +439,7 @@ procedure TTestCase_INamedRWLock.Test_MultipleInstances;
 var
   LRWLock1, LRWLock2: INamedRWLock;
   LTestName: string;
+  LWriteGuard1, LWriteGuard2: INamedRWLockWriteGuard;
 begin
   // 使用独立的名称，避免与 SetUp 中的实例冲突
   LTestName := 'multi_test_' + IntToStr(Random(100000));
@@ -450,28 +457,26 @@ begin
   CheckEquals(LTestName, LRWLock2.GetName, '第二个实例名称应该匹配');
   
   // 测试跨实例的锁互斥
-  LRWLock1.AcquireWrite;
-  try
-    CheckFalse(LRWLock2.TryAcquireWrite, '第二个实例不应该能获取写锁');
-  finally
-    LRWLock1.ReleaseWrite;
-  end;
-  
+  LWriteGuard1 := LRWLock1.WriteLock;
+  LWriteGuard2 := LRWLock2.TryWriteLock;
+  CheckNull(LWriteGuard2, '第二个实例不应该能获取写锁');
+
   // 释放后应该能获取
-  CheckTrue(LRWLock2.TryAcquireWrite, '释放后第二个实例应该能获取写锁');
-  LRWLock2.ReleaseWrite;
+  LWriteGuard1 := nil; // 释放第一个写锁
+  LWriteGuard2 := LRWLock2.TryWriteLock;
+  CheckNotNull(LWriteGuard2, '释放后第二个实例应该能获取写锁');
+  LWriteGuard2 := nil; // 释放第二个写锁
 end;
 
 procedure TTestCase_INamedRWLock.Test_CrossProcess_Basic;
+var
+  LReadGuard: INamedRWLockReadGuard;
 begin
   // 这个测试验证基本的跨进程功能
   // 实际的跨进程测试需要启动子进程，这里只做基本验证
-  FRWLock.AcquireRead;
-  try
-    CheckTrue(True, '跨进程读写锁基本功能正常');
-  finally
-    FRWLock.ReleaseRead;
-  end;
+  LReadGuard := FRWLock.ReadLock;
+  CheckTrue(True, '跨进程读写锁基本功能正常');
+  LReadGuard := nil; // 释放读锁
 end;
 
 initialization

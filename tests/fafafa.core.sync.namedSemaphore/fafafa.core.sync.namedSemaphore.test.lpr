@@ -1,7 +1,7 @@
 program fafafa.core.sync.namedSemaphore.test;
 
-{$mode objfpc}{$H+}
 {$CODEPAGE UTF8}
+{$mode objfpc}{$H+}
 
 uses
   {$IFDEF UNIX}

@@ -7,7 +7,19 @@
   {$DEFINE FAFAFA_OS_CACHE_PROBES}
 {$ENDIF}
 
+///
+/// fafafa.core.sync
+///
 
+{$IFDEF MSWINDOWS}
+{ 启用 Windows 现代的低开销 Mutex 实现（差距大约20%，默认开启，要兼容xp及xp以下请关闭） }
+{$DEFINE FAFAFA_CORE_USE_SRWLOCK}
+{$ENDIF}
+
+{$IFDEF UNIX}
+{ 启用 Linux/FreeBSD 现代的低开销 Mutex 实现（差距大约 5~10 倍，默认开启,如果目标os不支持请关闭） }
+{$DEFINE FAFAFA_CORE_USE_FUTEX}
+{$ENDIF}
 
 
 { Result: method-style API is macro-gated; default OFF }
@@ -335,7 +347,7 @@
 
 { Sync module optional Windows toggles 同步模块 Windows 可选开关 }
 { 使用 Windows 条件变量（CONDITION_VARIABLE）与 CRITICAL_SECTION 严格语义实现 CondVar.Wait* }
-{.$DEFINE FAFAFA_SYNC_USE_CONDVAR}
+{$DEFINE FAFAFA_SYNC_USE_CONDVAR}
 { 使用 SRWLOCK 优化读写锁（写锁非递归），默认关闭以避免影响现有行为 }
 {.$DEFINE FAFAFA_SYNC_USE_SRWLOCK}
 

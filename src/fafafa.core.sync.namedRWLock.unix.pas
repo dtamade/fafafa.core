@@ -7,7 +7,8 @@ interface
 
 uses
   SysUtils, BaseUnix, Unix, cthreads,
-  fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.namedRWLock.base;
+  fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.namedRWLock.base,
+  fafafa.core.atomic;
 
 {$LINKLIB pthread}
 {$LINKLIB rt}
@@ -117,10 +118,13 @@ type
       PSharedRWLockData = ^TSharedRWLockData;
       TSharedRWLockData = record
         RWLock: pthread_rwlock_t; // pthread 读写锁
-        ReaderCount: Integer;     // 读者计数
-        WriterThread: TThreadID;  // 写者线程ID
+        ReaderCount: Integer;     // 读者计数（原子操作保护）
+        WriterThread: Int64;      // 写者线程ID（原子操作保护）
         MaxReaders: Integer;      // 最大读者数量
-        Initialized: Boolean;     // 初始化标志
+        Initialized: Boolean;     // 初始化标志（原子操作保护）
+        ProcessCount: Integer;    // 进程引用计数（用于清理）
+        CreatorPID: Integer;      // 创建者进程ID
+        LastAccessTime: Int64;    // 最后访问时间（用于清理检测）
       end;
     
     function ValidateName(const AName: string): string;
@@ -265,22 +269,35 @@ end;
 destructor TNamedRWLock.Destroy;
 var
   LData: PSharedRWLockData;
+  LProcessCount: Integer;
+  LShouldCleanup: Boolean;
 begin
   if Assigned(FSharedData) then
   begin
     LData := GetSharedData;
+    LShouldCleanup := False;
 
-    // 如果是创建者，销毁 pthread_rwlock 并删除共享内存对象
-    if FIsCreator and Assigned(LData) then
+    if Assigned(LData) then
     begin
-      pthread_rwlock_destroy(@LData^.RWLock);
-      // 删除共享内存对象（最后一个进程负责清理）
-      shm_unlink(PAnsiChar(FShmPath));
+      // 原子递减进程引用计数
+      LProcessCount := atomic_decrement(LData^.ProcessCount);
+
+      // 如果是最后一个进程，需要清理共享资源
+      if LProcessCount = 0 then
+      begin
+        LShouldCleanup := True;
+        // 销毁 pthread_rwlock
+        pthread_rwlock_destroy(@LData^.RWLock);
+      end;
     end;
 
     // 解除内存映射
     munmap(FSharedData, FShmSize);
     FSharedData := nil;
+
+    // 如果是最后一个进程，删除共享内存对象
+    if LShouldCleanup then
+      shm_unlink(PAnsiChar(FShmPath));
   end;
 
   // 关闭文件描述符
@@ -298,6 +315,7 @@ var
   LFlags: cint;
   LMode: mode_t;
   LCreated: Boolean;
+  LData: PSharedRWLockData;
 begin
   Result := False;
   FShmSize := SizeOf(TSharedRWLockData);
@@ -346,7 +364,17 @@ begin
 
     // 如果是创建者，初始化共享数据
     if FIsCreator then
-      InitializeSharedData;
+      InitializeSharedData
+    else
+    begin
+      // 非创建者需要增加进程引用计数
+      LData := GetSharedData;
+      if Assigned(LData) then
+      begin
+        atomic_increment(LData^.ProcessCount);
+        atomic_store_64(LData^.LastAccessTime, Int64(GetTickCount64()));
+      end;
+    end;
 
     Result := True;
   except
@@ -394,11 +422,17 @@ begin
     if pthread_rwlock_init(@LData^.RWLock, @LAttr) <> 0 then
       raise ELockError.Create('Failed to initialize pthread rwlock');
 
-    // 初始化其他字段
-    LData^.ReaderCount := 0;
-    LData^.WriterThread := 0;
+    // 初始化其他字段（使用原子操作保护）
+    atomic_store(LData^.ReaderCount, 0);
+    atomic_store_64(LData^.WriterThread, 0);
     LData^.MaxReaders := 1024;
-    LData^.Initialized := True;
+    atomic_store(LData^.ProcessCount, 1);  // 创建者是第一个进程
+    LData^.CreatorPID := fpgetpid();
+    atomic_store_64(LData^.LastAccessTime, Int64(GetTickCount64()));
+
+    // 内存屏障确保所有初始化完成后再设置 Initialized 标志
+    atomic_thread_fence(memory_order_seq_cst);
+    atomic_store(PInteger(@LData^.Initialized)^, 1);
   finally
     pthread_rwlockattr_destroy(@LAttr);
   end;
@@ -517,7 +551,15 @@ begin
   LResult := pthread_rwlock_rdlock(@LData^.RWLock);
   if LResult = 0 then
   begin
-    InterlockedIncrement(LData^.ReaderCount);
+    // 使用原子操作增加读者计数
+    atomic_increment(LData^.ReaderCount);
+
+    // 更新最后访问时间
+    atomic_store_64(LData^.LastAccessTime, Int64(GetTickCount64()));
+
+    // 内存屏障确保所有更新完成
+    atomic_thread_fence(memory_order_seq_cst);
+
     FLastError := weNone;
   end
   else
@@ -533,7 +575,15 @@ begin
   if not Assigned(LData) then
     raise ELockError.Create('Shared data not available');
 
-  InterlockedDecrement(LData^.ReaderCount);
+  // 使用原子操作递减读者计数
+  atomic_decrement(LData^.ReaderCount);
+
+  // 更新最后访问时间
+  atomic_store_64(LData^.LastAccessTime, Int64(GetTickCount64()));
+
+  // 内存屏障确保计数更新在锁释放之前完成
+  atomic_thread_fence(memory_order_seq_cst);
+
   LResult := pthread_rwlock_unlock(@LData^.RWLock);
   if LResult <> 0 then
     raise ELockError.CreateFmt('Failed to release read lock: %s', [SysErrorMessage(LResult)]);
@@ -551,7 +601,15 @@ begin
   LResult := pthread_rwlock_wrlock(@LData^.RWLock);
   if LResult = 0 then
   begin
-    LData^.WriterThread := GetCurrentThreadId;
+    // 使用原子操作设置写者线程ID
+    atomic_store_64(LData^.WriterThread, Int64(GetCurrentThreadId));
+
+    // 更新最后访问时间
+    atomic_store_64(LData^.LastAccessTime, Int64(GetTickCount64()));
+
+    // 内存屏障确保所有更新完成
+    atomic_thread_fence(memory_order_seq_cst);
+
     FLastError := weNone;
   end
   else
@@ -567,7 +625,15 @@ begin
   if not Assigned(LData) then
     raise ELockError.Create('Shared data not available');
 
-  LData^.WriterThread := 0;
+  // 使用原子操作清除写者线程ID
+  atomic_store_64(LData^.WriterThread, 0);
+
+  // 更新最后访问时间
+  atomic_store_64(LData^.LastAccessTime, Int64(GetTickCount64()));
+
+  // 内存屏障确保状态更新在锁释放之前完成
+  atomic_thread_fence(memory_order_seq_cst);
+
   LResult := pthread_rwlock_unlock(@LData^.RWLock);
   if LResult <> 0 then
     raise ELockError.CreateFmt('Failed to release write lock: %s', [SysErrorMessage(LResult)]);

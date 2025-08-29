@@ -41,6 +41,10 @@ type
     FSharedState: PSharedCondVarState; // 共享状态指针
     FShmName: AnsiString;             // 共享内存名称
     
+    // 错误处理辅助方法
+    function MapSystemErrorToWaitError(ASystemError: cint): TWaitError;
+    function GetDetailedErrorMessage(AError: TWaitError; ASystemError: cint): string;
+
     function ValidateName(const AName: string): string;
     function CreateShmPath(const AName: string): string;
     function CreateSharedObjects(const AName: string): Boolean;
@@ -66,8 +70,6 @@ type
     // IConditionVariable 接口
     procedure Wait(const ALock: ILock); overload;
     function Wait(const ALock: ILock; ATimeoutMs: Cardinal): Boolean; overload;
-    procedure Wait(const AMutex: IMutex); overload;
-    function Wait(const AMutex: IMutex; ATimeoutMs: Cardinal): Boolean; overload;
     procedure Signal;
     procedure Broadcast;
     
@@ -88,6 +90,7 @@ function ftruncate(fd: cint; length: off_t): cint; cdecl; external 'c';
 function mmap(addr: Pointer; len: size_t; prot: cint; flags: cint; fd: cint; offset: off_t): Pointer; cdecl; external 'c';
 function munmap(addr: Pointer; len: size_t): cint; cdecl; external 'c';
 function clock_gettime(clk_id: cint; tp: PTimeSpec): cint; cdecl; external 'rt';
+function pthread_condattr_setclock(attr: Ppthread_condattr_t; clock_id: cint): cint; cdecl; external 'pthread';
 
 const
   O_CREAT = $40;
@@ -138,8 +141,8 @@ begin
   begin
     // 创建失败，尝试打开现有的
     if not OpenSharedObjects(LValidatedName) then
-      raise ELockError.CreateFmt('Failed to create or open named condition variable "%s": %s', 
-        [AName, SysErrorMessage(fpGetErrno)]);
+      raise ELockError.CreateFmt('Failed to create or open named condition variable "%s": %s',
+        [AName, GetDetailedErrorMessage(FLastError, fpGetErrno)]);
   end;
 end;
 
@@ -149,18 +152,58 @@ begin
   inherited Destroy;
 end;
 
+// 错误处理辅助函数
+function TNamedConditionVariable.MapSystemErrorToWaitError(ASystemError: cint): TWaitError;
+begin
+  case ASystemError of
+    0: Result := weNone;
+    ESysEACCES: Result := weAccessDenied;
+    ESysEEXIST: Result := weInvalidState;  // 对象已存在
+    ESysENOENT: Result := weInvalidHandle; // 对象不存在
+    ESysEINVAL: Result := weInvalidParameter;
+    ESysENOMEM: Result := weResourceExhausted;
+    ESysENOSPC: Result := weResourceExhausted; // 磁盘空间不足
+    ESysEMFILE: Result := weResourceExhausted; // 文件描述符耗尽
+    ESysENFILE: Result := weResourceExhausted; // 系统文件表满
+    ESysEPERM: Result := weAccessDenied;
+    ESysETIMEDOUT: Result := weTimeout;
+    ESysEDEADLK: Result := weDeadlock;
+    ESysEINTR: Result := weInterrupted;
+    ESysEAGAIN: Result := weResourceExhausted;
+    {$IF ESysEWOULDBLOCK <> ESysEAGAIN}
+    ESysEWOULDBLOCK: Result := weResourceExhausted;
+    {$ENDIF}
+    ESysEBUSY: Result := weInvalidState; // 资源忙
+    {$IFDEF ESysENOTSUP}
+    ESysENOTSUP: Result := weNotSupported;
+    {$ENDIF}
+    {$IFDEF ESysEOPNOTSUPP}
+    ESysEOPNOTSUPP: Result := weNotSupported;
+    {$ENDIF}
+  else
+    Result := weSystemError;
+  end;
+end;
+
+function TNamedConditionVariable.GetDetailedErrorMessage(AError: TWaitError; ASystemError: cint): string;
+begin
+  Result := WaitErrorToString(AError);
+  if (AError = weSystemError) and (ASystemError <> 0) then
+    Result := Result + Format(' (errno=%d: %s)', [ASystemError, SysErrorMessage(ASystemError)]);
+end;
+
 function TNamedConditionVariable.ValidateName(const AName: string): string;
 begin
   if AName = '' then
     raise EInvalidArgument.Create('Named condition variable name cannot be empty');
-    
+
   if Length(AName) > 255 then
     raise EInvalidArgument.Create('Named condition variable name too long (max 255 characters)');
-    
+
   // Unix 不允许名称中包含额外的 '/' 字符
   if Pos('/', AName) > 0 then
     raise EInvalidArgument.Create('Invalid character in named condition variable name');
-    
+
   Result := AName;
 end;
 
@@ -188,11 +231,13 @@ var
   LCurrentTime: TTimeSpec;
   LTotalNs: QWord;
 begin
-  if clock_gettime(CLOCK_REALTIME, @LCurrentTime) <> 0 then
-    raise ELockError.Create('Failed to get current time');
-    
+  // 重要：使用 CLOCK_MONOTONIC 保持与 GetTickCount64 一致，避免系统时间调整影响
+  // 注意：pthread_cond_timedwait 默认使用 CLOCK_REALTIME，但我们可以通过 pthread_condattr_setclock 设置
+  if clock_gettime(CLOCK_MONOTONIC, @LCurrentTime) <> 0 then
+    raise ELockError.Create('Failed to get monotonic time');
+
   LTotalNs := QWord(LCurrentTime.tv_sec) * 1000000000 + QWord(LCurrentTime.tv_nsec) + QWord(ATimeoutMs) * 1000000;
-  
+
   Result.tv_sec := LTotalNs div 1000000000;
   Result.tv_nsec := LTotalNs mod 1000000000;
 end;
@@ -216,7 +261,7 @@ begin
         Exit // 对象已存在，稍后尝试打开
       else
       begin
-        FLastError := weSystemError;
+        FLastError := MapSystemErrorToWaitError(fpGetErrno);
         Exit;
       end;
     end;
@@ -226,7 +271,7 @@ begin
     // 设置共享内存大小
     if ftruncate(FShmFd, SizeOf(TSharedCondVarState)) <> 0 then
     begin
-      FLastError := weSystemError;
+      FLastError := MapSystemErrorToWaitError(fpGetErrno);
       Exit;
     end;
 
@@ -236,7 +281,7 @@ begin
     if FSharedState = MAP_FAILED then
     begin
       FSharedState := nil;
-      FLastError := weSystemError;
+      FLastError := MapSystemErrorToWaitError(fpGetErrno);
       Exit;
     end;
 
@@ -248,7 +293,7 @@ begin
     LRC := pthread_condattr_init(@LCondAttr);
     if LRC <> 0 then
     begin
-      FLastError := weSystemError;
+      FLastError := MapSystemErrorToWaitError(LRC);
       Exit;
     end;
 
@@ -256,7 +301,16 @@ begin
     if LRC <> 0 then
     begin
       pthread_condattr_destroy(@LCondAttr);
-      FLastError := weSystemError;
+      FLastError := MapSystemErrorToWaitError(LRC);
+      Exit;
+    end;
+
+    // 设置条件变量使用 CLOCK_MONOTONIC，与 TimeoutToTimespec 保持一致
+    LRC := pthread_condattr_setclock(@LCondAttr, CLOCK_MONOTONIC);
+    if LRC <> 0 then
+    begin
+      pthread_condattr_destroy(@LCondAttr);
+      FLastError := MapSystemErrorToWaitError(LRC);
       Exit;
     end;
 
@@ -265,7 +319,7 @@ begin
     pthread_condattr_destroy(@LCondAttr);
     if LRC <> 0 then
     begin
-      FLastError := weSystemError;
+      FLastError := MapSystemErrorToWaitError(LRC);
       Exit;
     end;
 
@@ -273,7 +327,7 @@ begin
     LRC := pthread_mutexattr_init(@LMutexAttr);
     if LRC <> 0 then
     begin
-      FLastError := weSystemError;
+      FLastError := MapSystemErrorToWaitError(LRC);
       Exit;
     end;
 
@@ -281,7 +335,7 @@ begin
     if LRC <> 0 then
     begin
       pthread_mutexattr_destroy(@LMutexAttr);
-      FLastError := weSystemError;
+      FLastError := MapSystemErrorToWaitError(LRC);
       Exit;
     end;
 
@@ -290,7 +344,7 @@ begin
     pthread_mutexattr_destroy(@LMutexAttr);
     if LRC <> 0 then
     begin
-      FLastError := weSystemError;
+      FLastError := MapSystemErrorToWaitError(LRC);
       Exit;
     end;
 
@@ -315,7 +369,7 @@ begin
     FShmFd := shm_open(PAnsiChar(FShmName), O_RDWR, 0);
     if FShmFd = -1 then
     begin
-      FLastError := weSystemError;
+      FLastError := MapSystemErrorToWaitError(fpGetErrno);
       Exit;
     end;
 
@@ -325,7 +379,7 @@ begin
     if FSharedState = MAP_FAILED then
     begin
       FSharedState := nil;
-      FLastError := weSystemError;
+      FLastError := MapSystemErrorToWaitError(fpGetErrno);
       Exit;
     end;
 
@@ -451,6 +505,9 @@ begin
   if LUserMutex = nil then
     raise EInvalidArgument.Create('Lock handle is invalid');
 
+  // 重要：调用者必须已经持有这个互斥锁！
+  // pthread_cond_wait 要求调用时互斥锁已被当前线程锁定
+
   // 获取条件变量的内部锁
   if pthread_mutex_lock(@FSharedState^.Mutex) <> 0 then
   begin
@@ -511,46 +568,45 @@ end;
 
 procedure TNamedConditionVariable.Signal;
 begin
-  // 获取内部锁
-  if pthread_mutex_lock(@FSharedState^.Mutex) <> 0 then
-  begin
-    FLastError := weSystemError;
-    Exit;
-  end;
+  // 注意：根据 POSIX 标准，pthread_cond_signal 应该在持有与 pthread_cond_wait
+  // 相同的互斥锁时调用。但是这里我们无法访问用户的互斥锁。
+  //
+  // 这是一个设计问题：命名条件变量应该要求调用者在持有正确的锁时调用 Signal。
+  // 为了向后兼容，我们先使用内部锁，但这可能导致跨进程同步问题。
 
-  try
-    // 如果有等待者，发送信号
-    if FSharedState^.WaitingCount > 0 then
+  // 直接发送信号，不使用内部锁
+  if pthread_cond_signal(@FSharedState^.Cond) = 0 then
+  begin
+    // 更新统计信息需要内部锁保护
+    if pthread_mutex_lock(@FSharedState^.Mutex) = 0 then
     begin
-      pthread_cond_signal(@FSharedState^.Cond);
       UpdateStats('signal');
+      pthread_mutex_unlock(@FSharedState^.Mutex);
     end;
-  finally
-    pthread_mutex_unlock(@FSharedState^.Mutex);
-  end;
+    FLastError := weNone;
+  end
+  else
+    FLastError := weSystemError;
 end;
 
 procedure TNamedConditionVariable.Broadcast;
 begin
-  // 获取内部锁
-  if pthread_mutex_lock(@FSharedState^.Mutex) <> 0 then
-  begin
-    FLastError := weSystemError;
-    Exit;
-  end;
+  // 注意：同样的问题，理想情况下应该在持有用户互斥锁时调用
 
-  try
-    // 如果有等待者，广播信号
-    if FSharedState^.WaitingCount > 0 then
+  // 直接广播信号
+  if pthread_cond_broadcast(@FSharedState^.Cond) = 0 then
+  begin
+    // 更新统计信息和广播代数需要内部锁保护
+    if pthread_mutex_lock(@FSharedState^.Mutex) = 0 then
     begin
-      pthread_cond_broadcast(@FSharedState^.Cond);
-      // 增加广播代数，防止虚假唤醒
       InterlockedIncrement(FSharedState^.BroadcastGeneration);
       UpdateStats('broadcast');
+      pthread_mutex_unlock(@FSharedState^.Mutex);
     end;
-  finally
-    pthread_mutex_unlock(@FSharedState^.Mutex);
-  end;
+    FLastError := weNone;
+  end
+  else
+    FLastError := weSystemError;
 end;
 
 // INamedConditionVariable 特有方法
@@ -594,21 +650,6 @@ begin
   Result := FIsCreator;
 end;
 
-// IMutex 版本的 Wait 方法（从 IConditionVariable 继承）
-procedure TNamedConditionVariable.Wait(const AMutex: IMutex);
-begin
-  if AMutex = nil then
-    raise EArgumentNilException.Create('Mutex cannot be nil');
-  // 转换为 ILock 并调用现有实现
-  Wait(ILock(AMutex));
-end;
 
-function TNamedConditionVariable.Wait(const AMutex: IMutex; ATimeoutMs: Cardinal): Boolean;
-begin
-  if AMutex = nil then
-    raise EArgumentNilException.Create('Mutex cannot be nil');
-  // 转换为 ILock 并调用现有实现
-  Result := Wait(ILock(AMutex), ATimeoutMs);
-end;
 
 end.

@@ -6,12 +6,12 @@ unit fafafa.core.sync.conditionVariable;
 interface
 
 uses
-  fafafa.core.sync.base, fafafa.core.sync.conditionVariable.base
+  fafafa.core.sync.base,
+  fafafa.core.sync.conditionVariable.base
   {$IFDEF WINDOWS}, fafafa.core.sync.conditionVariable.windows{$ENDIF}
   {$IFDEF UNIX},    fafafa.core.sync.conditionVariable.unix{$ENDIF};
 
 type
-  // 接口转发，保持与 mutex 模块一致的分层结构
   IConditionVariable = fafafa.core.sync.conditionVariable.base.IConditionVariable;
 
   {$IFDEF WINDOWS}

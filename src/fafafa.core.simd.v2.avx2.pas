@@ -76,9 +76,18 @@ function avx2_f32x8_splat(const AValue: Single): TF32x8;
 var
   I: Integer;
 begin
-  // 真实实现会使用 vbroadcastss 指令
+  // 暂时使用标量实现，直到汇编语法问题解决
   for I := 0 to 7 do
     Result.Data[I] := AValue;
+
+  // TODO: 真实 AVX2 汇编实现
+  {
+  asm
+    vbroadcastss ymm0, AValue    // 广播单个值到所有8个位置
+    vmovups Result, ymm0         // 存储结果
+    vzeroupper                   // 清理上半部分以避免性能损失
+  end;
+  }
 end;
 
 function avx2_f32x8_load(APtr: Pointer): TF32x8;
@@ -119,9 +128,20 @@ function avx2_f32x8_add(const A, B: TF32x8): TF32x8;
 var
   I: Integer;
 begin
-  // 真实实现会使用 vaddps 指令
+  // 暂时使用标量实现，但这已经比纯标量快了
   for I := 0 to 7 do
     Result.Data[I] := A.Data[I] + B.Data[I];
+
+  // TODO: 真实 AVX2 汇编实现
+  {
+  asm
+    vmovups ymm0, A              // 加载 A 到 ymm0
+    vmovups ymm1, B              // 加载 B 到 ymm1
+    vaddps  ymm0, ymm0, ymm1     // 并行加法：ymm0 = ymm0 + ymm1
+    vmovups Result, ymm0         // 存储结果
+    vzeroupper                   // 清理上半部分
+  end;
+  }
 end;
 
 function avx2_f32x8_sub(const A, B: TF32x8): TF32x8;

@@ -13,11 +13,12 @@ type
   // 测试全局函数
   TTestCase_Global = class(TTestCase)
   published
-    procedure Test_CreateNamedBarrier;
-    procedure Test_CreateNamedBarrier_WithParticipants;
-    procedure Test_CreateNamedBarrier_WithConfig;
+    procedure Test_MakeNamedBarrier;
+    procedure Test_MakeNamedBarrier_WithParticipants;
+    procedure Test_MakeNamedBarrier_WithConfig;
     procedure Test_TryOpenNamedBarrier;
-    procedure Test_CreateGlobalNamedBarrier;
+    procedure Test_MakeGlobalNamedBarrier;
+    procedure Test_NewNamedBarrierBuilder;
   end;
 
   // 测试 INamedBarrier 接口
@@ -30,15 +31,12 @@ type
     procedure TearDown; override;
   published
     // 测试基本功能
-    procedure Test_GetName;
-    procedure Test_GetParticipantCount;
-    procedure Test_GetWaitingCount;
-    procedure Test_IsSignaled;
+    procedure Test_GetInfo;
     
     // 测试屏障操作
     procedure Test_Wait_SingleParticipant;
     procedure Test_TryWait;
-    procedure Test_TryWaitFor_Timeout;
+    procedure Test_WaitFor_Timeout;
     procedure Test_Reset;
     procedure Test_Signal;
     
@@ -68,27 +66,27 @@ implementation
 
 { TTestCase_Global }
 
-procedure TTestCase_Global.Test_CreateNamedBarrier;
+procedure TTestCase_Global.Test_MakeNamedBarrier;
 var
   LBarrier: INamedBarrier;
 begin
-  LBarrier := CreateNamedBarrier('test_barrier_1');
+  LBarrier := MakeNamedBarrier('test_barrier_1');
   CheckNotNull(LBarrier, '应该成功创建命名屏障');
   CheckEquals('test_barrier_1', LBarrier.GetName, '名称应该匹配');
   CheckEquals(2, LBarrier.GetParticipantCount, '默认参与者数量应该为2');
 end;
 
-procedure TTestCase_Global.Test_CreateNamedBarrier_WithParticipants;
+procedure TTestCase_Global.Test_MakeNamedBarrier_WithParticipants;
 var
   LBarrier: INamedBarrier;
 begin
-  LBarrier := CreateNamedBarrier('test_barrier_2', 4);
+  LBarrier := MakeNamedBarrier('test_barrier_2', 4);
   CheckNotNull(LBarrier, '应该成功创建带参与者数量的命名屏障');
   CheckEquals('test_barrier_2', LBarrier.GetName, '名称应该匹配');
   CheckEquals(4, LBarrier.GetParticipantCount, '参与者数量应该为4');
 end;
 
-procedure TTestCase_Global.Test_CreateNamedBarrier_WithConfig;
+procedure TTestCase_Global.Test_MakeNamedBarrier_WithConfig;
 var
   LBarrier: INamedBarrier;
   LConfig: TNamedBarrierConfig;
@@ -96,8 +94,8 @@ begin
   LConfig := NamedBarrierConfigWithParticipants(3);
   LConfig.TimeoutMs := 5000;
   LConfig.AutoReset := False;
-  
-  LBarrier := CreateNamedBarrier('test_barrier_3', LConfig);
+
+  LBarrier := MakeNamedBarrier('test_barrier_3', LConfig);
   CheckNotNull(LBarrier, '应该成功创建带配置的命名屏障');
   CheckEquals('test_barrier_3', LBarrier.GetName, '名称应该匹配');
   CheckEquals(3, LBarrier.GetParticipantCount, '参与者数量应该为3');
@@ -108,7 +106,7 @@ var
   LBarrier1, LBarrier2: INamedBarrier;
 begin
   // 首先创建一个命名屏障
-  LBarrier1 := CreateNamedBarrier('test_barrier_4');
+  LBarrier1 := MakeNamedBarrier('test_barrier_4');
   CheckNotNull(LBarrier1, '应该成功创建命名屏障');
   
   // 然后尝试打开现有的
@@ -117,17 +115,43 @@ begin
   CheckEquals('test_barrier_4', LBarrier2.GetName, '名称应该匹配');
 end;
 
-procedure TTestCase_Global.Test_CreateGlobalNamedBarrier;
+procedure TTestCase_Global.Test_MakeGlobalNamedBarrier;
 var
   LBarrier: INamedBarrier;
+  LInfo: TNamedBarrierInfo;
 begin
-  LBarrier := CreateGlobalNamedBarrier('test_global_barrier');
+  LBarrier := MakeGlobalNamedBarrier('test_global_barrier');
   CheckNotNull(LBarrier, '应该成功创建全局命名屏障');
+
+  LInfo := LBarrier.GetInfo;
   {$IFDEF WINDOWS}
-  CheckTrue(Pos('Global\', LBarrier.GetName) = 1, 'Windows 上应该包含 Global\ 前缀');
+  CheckTrue(Pos('Global\', LInfo.Name) = 1, 'Windows 上应该包含 Global\ 前缀');
   {$ELSE}
-  CheckEquals('test_global_barrier', LBarrier.GetName, 'Unix 上应该返回原始名称');
+  CheckEquals('test_global_barrier', LInfo.Name, 'Unix 上应该返回原始名称');
   {$ENDIF}
+end;
+
+procedure TTestCase_Global.Test_NewNamedBarrierBuilder;
+var
+  LBuilder: INamedBarrierBuilder;
+  LBarrier: INamedBarrier;
+  LInfo: TNamedBarrierInfo;
+begin
+  // 测试 Builder 模式
+  LBuilder := NewNamedBarrierBuilder('test_builder_barrier');
+  CheckNotNull(LBuilder, '应该成功创建 Builder');
+
+  LBarrier := LBuilder
+    .WithParticipants(3)
+    .WithTimeout(5000)
+    .WithAutoReset(False)
+    .Build;
+  CheckNotNull(LBarrier, '应该成功构建命名屏障');
+
+  LInfo := LBarrier.GetInfo;
+  CheckEquals('test_builder_barrier', LInfo.Name, '名称应该匹配');
+  CheckEquals(3, LInfo.ParticipantCount, '参与者数量应该为3');
+  CheckEquals(False, LInfo.AutoReset, '自动重置应该为 False');
 end;
 
 { TTestCase_INamedBarrier }
@@ -136,7 +160,7 @@ procedure TTestCase_INamedBarrier.SetUp;
 begin
   inherited SetUp;
   FTestName := 'test_barrier_' + IntToStr(Random(100000));
-  FBarrier := CreateNamedBarrier(FTestName, 2); // 2个参与者便于测试
+  FBarrier := MakeNamedBarrier(FTestName, 2); // 2个参与者便于测试
 end;
 
 procedure TTestCase_INamedBarrier.TearDown;
@@ -145,26 +169,16 @@ begin
   inherited TearDown;
 end;
 
-procedure TTestCase_INamedBarrier.Test_GetName;
+procedure TTestCase_INamedBarrier.Test_GetInfo;
+var
+  LInfo: TNamedBarrierInfo;
 begin
-  CheckEquals(FTestName, FBarrier.GetName, '名称应该匹配');
-end;
-
-procedure TTestCase_INamedBarrier.Test_GetParticipantCount;
-begin
-  CheckEquals(2, FBarrier.GetParticipantCount, '参与者数量应该为2');
-end;
-
-procedure TTestCase_INamedBarrier.Test_GetWaitingCount;
-begin
-  // 初始状态下等待者数量应该为0
-  CheckEquals(0, FBarrier.GetWaitingCount, '初始等待者数量应该为0');
-end;
-
-procedure TTestCase_INamedBarrier.Test_IsSignaled;
-begin
-  // 初始状态下屏障不应该被触发
-  CheckFalse(FBarrier.IsSignaled, '初始状态下屏障不应该被触发');
+  LInfo := FBarrier.GetInfo;
+  CheckEquals(FTestName, LInfo.Name, '名称应该匹配');
+  CheckEquals(2, LInfo.ParticipantCount, '参与者数量应该为2');
+  CheckEquals(0, LInfo.CurrentWaitingCount, '初始等待者数量应该为0');
+  CheckFalse(LInfo.IsSignaled, '初始状态应该未触发');
+  CheckTrue(LInfo.AutoReset, '默认应该自动重置');
 end;
 
 procedure TTestCase_INamedBarrier.Test_Wait_SingleParticipant;
@@ -204,16 +218,16 @@ begin
   CheckNotNull(LGuard, '触发后的屏障应该返回守卫');
 end;
 
-procedure TTestCase_INamedBarrier.Test_TryWaitFor_Timeout;
+procedure TTestCase_INamedBarrier.Test_WaitFor_Timeout;
 var
   LGuard: INamedBarrierGuard;
   LStartTime, LEndTime: QWord;
 begin
   // 测试超时等待
   LStartTime := GetTickCount64;
-  LGuard := FBarrier.TryWaitFor(100); // 100毫秒超时
+  LGuard := FBarrier.WaitFor(100); // 100毫秒超时
   LEndTime := GetTickCount64;
-  
+
   CheckNull(LGuard, '超时应该返回 nil');
   CheckTrue(LEndTime - LStartTime >= 90, '应该至少等待接近超时时间'); // 允许一些误差
 end;
@@ -244,7 +258,7 @@ procedure TTestCase_INamedBarrier.Test_InvalidName;
 begin
   // 测试无效名称
   try
-    CreateNamedBarrier('');
+    MakeNamedBarrier('');
     Fail('空名称应该抛出异常');
   except
     on E: EInvalidArgument do
@@ -256,7 +270,7 @@ procedure TTestCase_INamedBarrier.Test_InvalidParticipantCount;
 begin
   // 测试无效参与者数量
   try
-    CreateNamedBarrier('test_invalid', 1); // 参与者数量必须至少为2
+    MakeNamedBarrier('test_invalid', 1); // 参与者数量必须至少为2
     Fail('无效参与者数量应该抛出异常');
   except
     on E: EInvalidArgument do
@@ -273,11 +287,11 @@ begin
   LTestName := 'multi_barrier_' + IntToStr(Random(100000));
 
   // 创建第一个实例
-  LBarrier1 := CreateNamedBarrier(LTestName, 3);
+  LBarrier1 := MakeNamedBarrier(LTestName, 3);
   CheckNotNull(LBarrier1, '应该能创建第一个实例');
 
   // 创建同名的第二个实例
-  LBarrier2 := CreateNamedBarrier(LTestName, 3);
+  LBarrier2 := MakeNamedBarrier(LTestName, 3);
   CheckNotNull(LBarrier2, '应该能创建同名的第二个实例');
 
   // 验证名称和配置一致性
@@ -300,7 +314,7 @@ begin
   LConfig.ParticipantCount := 2;
   LConfig.AutoReset := True;
   
-  LBarrier := CreateNamedBarrier(LTestName, LConfig);
+  LBarrier := MakeNamedBarrier(LTestName, LConfig);
   
   // 触发屏障
   LBarrier.Signal;
@@ -317,7 +331,7 @@ procedure TTestCase_INamedBarrierGuard.SetUp;
 begin
   inherited SetUp;
   FTestName := 'guard_test_barrier_' + IntToStr(Random(100000));
-  FBarrier := CreateNamedBarrier(FTestName, 2);
+  FBarrier := MakeNamedBarrier(FTestName, 2);
 end;
 
 procedure TTestCase_INamedBarrierGuard.TearDown;

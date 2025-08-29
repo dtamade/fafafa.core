@@ -14,23 +14,15 @@ type
   TConditionVariable = class(TInterfacedObject, IConditionVariable)
   private
     FCond: pthread_cond_t;
-    FInternalMutex: pthread_mutex_t; // for ILock semantics on the condvar object itself
     FLastError: TWaitError;
   public
     constructor Create;
     destructor Destroy; override;
-    // ILock
-    procedure Acquire;
-    procedure Release;
-    function TryAcquire: Boolean; overload;
-    function TryAcquire(ATimeoutMs: Cardinal): Boolean; overload;
     // ISynchronizable
     function GetLastError: TWaitError;
-    // Condvar ops
+    // IConditionVariable
     procedure Wait(const ALock: ILock); overload;
     function Wait(const ALock: ILock; ATimeoutMs: Cardinal): Boolean; overload;
-    procedure Wait(const AMutex: IMutex); overload;
-    function Wait(const AMutex: IMutex; ATimeoutMs: Cardinal): Boolean; overload;
     procedure Signal;
     procedure Broadcast;
   end;
@@ -57,35 +49,32 @@ var
   Attr: pthread_condattr_t;
 begin
   inherited Create;
-  // init internal mutex for ILock semantics
-  if pthread_mutex_init(@FInternalMutex, nil) <> 0 then
-    raise ELockError.Create('Failed to initialize condvar internal mutex');
-
   FLastError := weNone;
+
   if pthread_condattr_init(@Attr) <> 0 then
   begin
-    pthread_mutex_destroy(@FInternalMutex);
     FLastError := weSystemError;
     raise ELockError.Create('Failed to initialize condvar attributes');
   end;
+
   {$IFDEF HAS_CLOCK_MONOTONIC}
   // Prefer MONOTONIC if available
   pthread_condattr_setclock(@Attr, CLOCK_MONOTONIC);
   {$ENDIF}
+
   if pthread_cond_init(@FCond, @Attr) <> 0 then
   begin
     pthread_condattr_destroy(@Attr);
-    pthread_mutex_destroy(@FInternalMutex);
     FLastError := weSystemError;
     raise ELockError.Create('Failed to initialize condition variable');
   end;
+
   pthread_condattr_destroy(@Attr);
 end;
 
-Destructor TConditionVariable.Destroy;
+destructor TConditionVariable.Destroy;
 begin
   pthread_cond_destroy(@FCond);
-  pthread_mutex_destroy(@FInternalMutex);
   inherited Destroy;
 end;
 
@@ -117,20 +106,7 @@ begin
     FLastError := weNone;
 end;
 
-procedure TConditionVariable.Wait(const AMutex: IMutex);
-begin
-  if AMutex = nil then
-    raise EArgumentNilException.Create('Mutex cannot be nil');
-  // 直接复用 ILock 版本
-  Wait(ILock(AMutex));
-end;
 
-function TConditionVariable.Wait(const AMutex: IMutex; ATimeoutMs: Cardinal): Boolean;
-begin
-  if AMutex = nil then
-    raise EArgumentNilException.Create('Mutex cannot be nil');
-  Result := Wait(ILock(AMutex), ATimeoutMs);
-end;
 
 function TConditionVariable.Wait(const ALock: ILock; ATimeoutMs: Cardinal): Boolean;
 var
@@ -216,37 +192,7 @@ begin
     FLastError := weNone;
 end;
 
-// ILock methods for the condition variable object
-procedure TConditionVariable.Acquire;
-begin
-  if pthread_mutex_lock(@FInternalMutex) <> 0 then
-    raise ELockError.Create('Failed to acquire condvar internal mutex');
-end;
 
-procedure TConditionVariable.Release;
-begin
-  if pthread_mutex_unlock(@FInternalMutex) <> 0 then
-    raise ELockError.Create('Failed to release condvar internal mutex');
-end;
-
-function TConditionVariable.TryAcquire: Boolean;
-begin
-  Result := pthread_mutex_trylock(@FInternalMutex) = 0;
-  if Result then FLastError := weNone;
-end;
-
-function TConditionVariable.TryAcquire(ATimeoutMs: Cardinal): Boolean;
-var
-  startTick: QWord;
-begin
-  if ATimeoutMs = 0 then Exit(TryAcquire);
-  startTick := GetTickCount64;
-  repeat
-    if TryAcquire then Exit(True);
-    if GetTickCount64 - startTick >= ATimeoutMs then Exit(False);
-    Sleep(0);
-  until False;
-end;
 
 function TConditionVariable.GetLastError: TWaitError;
 begin

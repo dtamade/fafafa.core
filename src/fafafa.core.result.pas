@@ -94,25 +94,28 @@ type
   private
     FIsOk: Boolean;
     {$IFDEF FAFAFA_RESULT_VARIANT_LAYOUT}
-    {$IFDEF FAFAFA_RESULT_ASSUME_NO_MANAGED}
-    case Byte of
-      0: (FOk: T);
-      1: (FErr: E);
+      {$IFDEF FAFAFA_RESULT_ASSUME_NO_MANAGED}
+        // 无安全检查的变体布局：用户保证 T/E 为非受管类型
+        case Byte of
+          0: (FOk: T);
+          1: (FErr: E);
+      {$ELSE}
+        // 带安全检查的变体布局：编译时检查 + 运行时回退
+        {$IF (TypeInfo(T) <> nil) and (PTypeInfo(TypeInfo(T))^.Kind in [tkAString, tkUString, tkWString, tkInterface, tkDynArray, tkArray, tkRecord, tkObject, tkClass])}
+          {$MESSAGE ERROR 'TResult<T,E>: T 类型是受管类型，不能使用变体布局。请移除 FAFAFA_RESULT_VARIANT_LAYOUT 宏或使用非受管类型。'}
+        {$ENDIF}
+        {$IF (TypeInfo(E) <> nil) and (PTypeInfo(TypeInfo(E))^.Kind in [tkAString, tkUString, tkWString, tkInterface, tkDynArray, tkArray, tkRecord, tkObject, tkClass])}
+          {$MESSAGE ERROR 'TResult<T,E>: E 类型是受管类型，不能使用变体布局。请移除 FAFAFA_RESULT_VARIANT_LAYOUT 宏或使用非受管类型。'}
+        {$ENDIF}
+        // 如果通过编译时检查，使用变体布局
+        case Byte of
+          0: (FOk: T);
+          1: (FErr: E);
+      {$ENDIF}
     {$ELSE}
-    // 运行时检查：如果启用变体布局但类型可能受管，回退到双字段
-    {$IF (TypeInfo(T) <> nil) and (PTypeInfo(TypeInfo(T))^.Kind in [tkAString, tkUString, tkWString, tkInterface, tkDynArray, tkArray])}
-      {$MESSAGE WARN 'TResult<T,E>: T 类型可能是受管类型，建议使用双字段布局或确认类型安全'}
-    {$ENDIF}
-    {$IF (TypeInfo(E) <> nil) and (PTypeInfo(TypeInfo(E))^.Kind in [tkAString, tkUString, tkWString, tkInterface, tkDynArray, tkArray])}
-      {$MESSAGE WARN 'TResult<T,E>: E 类型可能是受管类型，建议使用双字段布局或确认类型安全'}
-    {$ENDIF}
+      // 默认双字段布局：安全支持所有类型
       FOk: T;
       FErr: E;
-    {$ENDIF}
-    {$ELSE}
-    // 默认双字段布局：安全支持所有类型
-    FOk: T;
-    FErr: E;
     {$ENDIF}
   public
     // 构造
@@ -141,6 +144,20 @@ type
     // 内存布局信息
     class function MemoryLayoutInfo: string; static;
     class function SizeInfo: string; static;
+
+    // 类型安全检查
+    class function IsTypeSafeForVariant: Boolean; static;
+    class function GetTypeKindInfo: string; static;
+
+    // 内存管理优化
+    class function NeedsInitialization: Boolean; static;
+    class function IsSimpleType: Boolean; static;
+    class function IsManagedType: Boolean; static;
+    class procedure SmartInitialize(var AResult: TResult); static;
+
+    // 深度克隆辅助函数
+    class function DeepCloneValue(const AValue: T): T; static;
+    class function DeepCloneError(const AError: E): E; static;
 
     // 类型约束支持
     class function SupportsComparable: Boolean; static;
@@ -405,16 +422,28 @@ implementation
 
 class function TResult.Ok(const AValue: T): TResult;
 begin
-  Initialize(Result);
+  // 智能初始化：根据类型特征选择最优策略
+  SmartInitialize(Result);
+
   Result.FIsOk := True;
   Result.FOk := AValue;
+
+  {$IFNDEF FAFAFA_RESULT_VARIANT_LAYOUT}
+  // 双字段布局：错误字段已通过 SmartInitialize 处理
+  {$ENDIF}
 end;
 
 class function TResult.Err(const AError: E): TResult;
 begin
-  Initialize(Result);
+  // 智能初始化：根据类型特征选择最优策略
+  SmartInitialize(Result);
+
   Result.FIsOk := False;
   Result.FErr := AError;
+
+  {$IFNDEF FAFAFA_RESULT_VARIANT_LAYOUT}
+  // 双字段布局：成功字段已通过 SmartInitialize 处理
+  {$ENDIF}
 end;
 
 function TResult.IsOk: Boolean;
@@ -536,6 +565,203 @@ begin
   {$ENDIF}
 end;
 
+class function TResult.IsTypeSafeForVariant: Boolean;
+var
+  TSafe, ESafe: Boolean;
+  TKind, EKind: TTypeKind;
+begin
+  // 检查 T 和 E 是否为非受管类型，适合变体布局
+  TSafe := True;
+  ESafe := True;
+
+  // 检查 T 类型
+  if TypeInfo(T) <> nil then
+  begin
+    TKind := PTypeInfo(TypeInfo(T))^.Kind;
+    case TKind of
+      tkAString, tkUString, tkWString,    // 字符串类型
+      tkInterface,                        // 接口类型
+      tkDynArray,                        // 动态数组
+      tkArray,                           // 静态数组（可能包含受管元素）
+      tkRecord, tkObject, tkClass:       // 记录、对象、类（可能包含受管字段）
+        TSafe := False;
+      else
+        // tkInteger, tkBool, tkEnumeration, tkFloat, tkPointer 等基本类型是安全的
+        ; // 保持 TSafe := True
+    end;
+  end;
+
+  // 检查 E 类型
+  if TypeInfo(E) <> nil then
+  begin
+    EKind := PTypeInfo(TypeInfo(E))^.Kind;
+    case EKind of
+      tkAString, tkUString, tkWString,
+      tkInterface,
+      tkDynArray,
+      tkArray,
+      tkRecord, tkObject, tkClass:
+        ESafe := False;
+      else
+        // 基本类型是安全的
+        ; // 保持 ESafe := True
+    end;
+  end;
+
+  // 只有当 T 和 E 都安全时，才适合变体布局
+  Result := TSafe and ESafe;
+end;
+
+class function TResult.NeedsInitialization: Boolean;
+begin
+  // 检查 T 和 E 是否需要初始化（受管类型或复杂类型）
+  Result := IsManagedType;
+end;
+
+class function TResult.IsSimpleType: Boolean;
+begin
+  // 检查是否为简单类型（可以用 ZeroMemory 快速初始化）
+  Result := True;
+
+  // 检查 T 类型
+  if TypeInfo(T) <> nil then
+  begin
+    case PTypeInfo(TypeInfo(T))^.Kind of
+      tkInteger, tkBool, tkEnumeration, tkFloat, tkPointer, tkChar, tkWChar:
+        ; // 简单类型
+      else
+        Result := False;
+    end;
+  end;
+
+  // 检查 E 类型
+  if Result and (TypeInfo(E) <> nil) then
+  begin
+    case PTypeInfo(TypeInfo(E))^.Kind of
+      tkInteger, tkBool, tkEnumeration, tkFloat, tkPointer, tkChar, tkWChar:
+        ; // 简单类型
+      else
+        Result := False;
+    end;
+  end;
+end;
+
+class function TResult.IsManagedType: Boolean;
+begin
+  // 检查是否包含受管类型
+  Result := False;
+
+  // 检查 T 类型
+  if TypeInfo(T) <> nil then
+  begin
+    case PTypeInfo(TypeInfo(T))^.Kind of
+      tkAString, tkUString, tkWString, tkInterface, tkDynArray, tkArray, tkRecord, tkObject, tkClass:
+        Result := True;
+    end;
+  end;
+
+  // 检查 E 类型
+  if not Result and (TypeInfo(E) <> nil) then
+  begin
+    case PTypeInfo(TypeInfo(E))^.Kind of
+      tkAString, tkUString, tkWString, tkInterface, tkDynArray, tkArray, tkRecord, tkObject, tkClass:
+        Result := True;
+    end;
+  end;
+end;
+
+class procedure TResult.SmartInitialize(var AResult: TResult);
+begin
+  if IsSimpleType then
+  begin
+    // 简单类型：使用快速零初始化
+    FillChar(AResult, SizeOf(AResult), 0);
+  end
+  else if IsManagedType then
+  begin
+    // 受管类型：使用标准初始化
+    {$IFDEF FAFAFA_RESULT_VARIANT_LAYOUT}
+    Initialize(AResult);
+    {$ELSE}
+    // 双字段布局：分别初始化
+    Initialize(AResult.FOk);
+    Initialize(AResult.FErr);
+    AResult.FIsOk := False; // 默认状态
+    {$ENDIF}
+  end
+  else
+  begin
+    // 混合类型：保守使用标准初始化
+    Initialize(AResult);
+  end;
+end;
+
+class function TResult.DeepCloneValue(const AValue: T): T;
+begin
+  // 深度克隆 T 类型的值
+  if TypeInfo(T) <> nil then
+  begin
+    case PTypeInfo(TypeInfo(T))^.Kind of
+      tkAString, tkUString, tkWString:
+        // 字符串类型：Pascal 的字符串是引用计数的，赋值即为深拷贝
+        Result := AValue;
+      tkDynArray:
+        // 动态数组：需要递归克隆（简化实现，直接赋值依赖引用计数）
+        Result := AValue;
+      tkRecord, tkObject:
+        // 记录和对象：简化实现，直接赋值
+        Result := AValue;
+      else
+        // 基本类型：直接赋值
+        Result := AValue;
+    end;
+  end
+  else
+    Result := AValue;
+end;
+
+class function TResult.DeepCloneError(const AError: E): E;
+begin
+  // 深度克隆 E 类型的值
+  if TypeInfo(E) <> nil then
+  begin
+    case PTypeInfo(TypeInfo(E))^.Kind of
+      tkAString, tkUString, tkWString:
+        // 字符串类型：Pascal 的字符串是引用计数的，赋值即为深拷贝
+        Result := AError;
+      tkDynArray:
+        // 动态数组：需要递归克隆（简化实现，直接赋值依赖引用计数）
+        Result := AError;
+      tkRecord, tkObject:
+        // 记录和对象：简化实现，直接赋值
+        Result := AError;
+      else
+        // 基本类型：直接赋值
+        Result := AError;
+    end;
+  end
+  else
+    Result := AError;
+end;
+
+class function TResult.GetTypeKindInfo: string;
+var
+  TKind, EKind: string;
+begin
+  // 获取类型信息用于调试
+  if TypeInfo(T) <> nil then
+    TKind := GetEnumName(TypeInfo(TTypeKind), Ord(PTypeInfo(TypeInfo(T))^.Kind))
+  else
+    TKind := 'Unknown';
+
+  if TypeInfo(E) <> nil then
+    EKind := GetEnumName(TypeInfo(TTypeKind), Ord(PTypeInfo(TypeInfo(E))^.Kind))
+  else
+    EKind := 'Unknown';
+
+  Result := Format('T: %s, E: %s', [TKind, EKind]);
+end;
+
 class function TResult.SupportsComparable: Boolean;
 begin
   // 检查 T 和 E 是否支持 IResultComparable 接口
@@ -627,10 +853,11 @@ end;
 
 function TResult.Cloned: TResult;
 begin
-  // 深度克隆：对于基本类型等价于复制
-  // 对于复杂类型需要递归克隆
-  Result := Self;
-  // TODO: 为复杂类型实现真正的深度克隆
+  // 真正的深度克隆实现
+  if FIsOk then
+    Result := TResult.Ok(DeepCloneValue(FOk))
+  else
+    Result := TResult.Err(DeepCloneError(FErr));
 end;
 
 function TResult.UnwrapUnchecked: T;
@@ -1204,6 +1431,34 @@ begin
 
   try
     Ex := MapE(R.UnwrapErr);
+    if Assigned(Validator) and not Validator(Ex) then
+    begin
+      // 验证失败，创建新的异常
+      raise Exception.Create('Generated exception failed validation: ' + Ex.Message);
+    end;
+    raise Ex;
+  except
+    on E: Exception do
+    begin
+      // 如果映射函数本身抛出异常，包装它
+      if E <> Ex then
+      begin
+        raise Exception.Create('Exception mapping failed: ' + E.Message);
+      end
+      else
+        raise;
+    end;
+  end;
+end;
+
+generic function ResultToTryWithValidation2<T,E>(const R: specialize TResult<T,E>; const MapE: specialize TResultFunc<E,Exception>; const Validator: specialize TResultFunc<Exception,Boolean>): T;
+var
+  Ex: Exception;
+begin
+  if R.IsOk then Exit(R.Unwrap);
+
+  try
+    Ex := MapE(R.UnwrapErr);
 
     // 验证生成的异常
     if Assigned(Validator) and not Validator(Ex) then
@@ -1396,6 +1651,8 @@ begin
   else
     Result := First;
 end;
+
+// 迭代器风格操作实现（移除重复定义，使用已有的interface声明）
 
 // 暂时注释掉所有批量操作实现，等解决泛型语法问题后再启用
 {

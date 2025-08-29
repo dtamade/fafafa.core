@@ -56,6 +56,38 @@ type
     procedure Test_CrossProcess_Basic;
   end;
 
+  // 测试新增功能
+  TTestCase_NewFeatures = class(TTestCase)
+  private
+    FSemaphore: INamedSemaphore;
+    FTestName: string;
+  protected
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    // 测试新的 TryOpen 功能
+    procedure Test_TryOpenNamedSemaphore_Success;
+    procedure Test_TryOpenNamedSemaphore_NotExists;
+    procedure Test_TryOpenGlobalNamedSemaphore;
+
+    // 测试守卫手动释放功能
+    procedure Test_Guard_ManualRelease;
+    procedure Test_Guard_IsReleased;
+    procedure Test_Guard_DoubleRelease;
+
+    // 测试错误恢复
+    procedure Test_ErrorRecovery_InvalidName;
+    procedure Test_ErrorRecovery_InvalidCount;
+    procedure Test_ErrorRecovery_ReleaseAfterDestroy;
+  end;
+
+  // 测试并发安全（简化版）
+  TTestCase_ConcurrencyBasic = class(TTestCase)
+  published
+    procedure Test_MultipleThreads_BasicSafety;
+    procedure Test_GuardLifetime_ThreadSafety;
+  end;
+
 implementation
 
 { TTestCase_Global }
@@ -413,8 +445,182 @@ begin
   LGuard := nil;
 end;
 
+{ TTestCase_NewFeatures }
+
+procedure TTestCase_NewFeatures.SetUp;
+begin
+  inherited SetUp;
+  FTestName := 'test_new_features_' + IntToStr(Random(10000));
+  FSemaphore := MakeNamedSemaphore(FTestName, 2, 3);
+end;
+
+procedure TTestCase_NewFeatures.TearDown;
+begin
+  FSemaphore := nil;
+  inherited TearDown;
+end;
+
+procedure TTestCase_NewFeatures.Test_TryOpenNamedSemaphore_Success;
+var
+  LOpenedSemaphore: INamedSemaphore;
+begin
+  // 首先创建一个信号量
+  FSemaphore := MakeNamedSemaphore('test_try_open_success', 1, 1);
+
+  // 然后尝试打开它
+  LOpenedSemaphore := TryOpenNamedSemaphore('test_try_open_success');
+  CheckNotNull(LOpenedSemaphore, '应该成功打开现有信号量');
+  CheckEquals('test_try_open_success', LOpenedSemaphore.GetName, '名称应该匹配');
+end;
+
+procedure TTestCase_NewFeatures.Test_TryOpenNamedSemaphore_NotExists;
+var
+  LOpenedSemaphore: INamedSemaphore;
+begin
+  // 尝试打开不存在的信号量
+  LOpenedSemaphore := TryOpenNamedSemaphore('test_nonexistent_semaphore');
+  CheckNull(LOpenedSemaphore, '不应该能打开不存在的信号量');
+end;
+
+procedure TTestCase_NewFeatures.Test_TryOpenGlobalNamedSemaphore;
+var
+  LGlobalSemaphore, LOpenedSemaphore: INamedSemaphore;
+begin
+  // 创建全局信号量
+  LGlobalSemaphore := MakeGlobalNamedSemaphore('test_global_try_open');
+
+  // 尝试打开全局信号量
+  LOpenedSemaphore := TryOpenGlobalNamedSemaphore('test_global_try_open');
+  CheckNotNull(LOpenedSemaphore, '应该成功打开现有全局信号量');
+end;
+
+procedure TTestCase_NewFeatures.Test_Guard_ManualRelease;
+var
+  LGuard: INamedSemaphoreGuard;
+begin
+  LGuard := FSemaphore.Wait;
+  CheckNotNull(LGuard, '应该成功获取守卫');
+  CheckFalse(LGuard.IsReleased, '守卫初始状态应该是未释放');
+
+  // 手动释放
+  LGuard.Release;
+  CheckTrue(LGuard.IsReleased, '手动释放后应该标记为已释放');
+end;
+
+procedure TTestCase_NewFeatures.Test_Guard_IsReleased;
+var
+  LGuard: INamedSemaphoreGuard;
+begin
+  LGuard := FSemaphore.TryWait;
+  CheckNotNull(LGuard, '应该成功获取守卫');
+  CheckFalse(LGuard.IsReleased, '新获取的守卫应该是未释放状态');
+
+  LGuard.Release;
+  CheckTrue(LGuard.IsReleased, '释放后应该是已释放状态');
+end;
+
+procedure TTestCase_NewFeatures.Test_Guard_DoubleRelease;
+var
+  LGuard: INamedSemaphoreGuard;
+begin
+  LGuard := FSemaphore.Wait;
+  LGuard.Release;
+
+  // 第二次释放应该是安全的（不抛出异常）
+  LGuard.Release;
+  CheckTrue(LGuard.IsReleased, '多次释放后仍应该是已释放状态');
+end;
+
+procedure TTestCase_NewFeatures.Test_ErrorRecovery_InvalidName;
+begin
+  try
+    MakeNamedSemaphore('');
+    Fail('空名称应该抛出异常');
+  except
+    on E: EInvalidArgument do
+      CheckTrue(True, '应该抛出 EInvalidArgument 异常');
+  end;
+end;
+
+procedure TTestCase_NewFeatures.Test_ErrorRecovery_InvalidCount;
+begin
+  try
+    MakeNamedSemaphore('test_invalid', -1, 5);
+    Fail('负初始计数应该抛出异常');
+  except
+    on E: EInvalidArgument do
+      CheckTrue(True, '应该抛出 EInvalidArgument 异常');
+  end;
+end;
+
+procedure TTestCase_NewFeatures.Test_ErrorRecovery_ReleaseAfterDestroy;
+var
+  LGuard: INamedSemaphoreGuard;
+  LSemaphore: INamedSemaphore;
+begin
+  LSemaphore := MakeNamedSemaphore('test_release_after_destroy', 1, 1);
+  LGuard := LSemaphore.Wait;
+
+  // 销毁信号量
+  LSemaphore := nil;
+
+  // 守卫应该仍然可以安全释放
+  LGuard.Release;
+  CheckTrue(LGuard.IsReleased, '即使信号量已销毁，守卫也应该能安全释放');
+end;
+
+{ TTestCase_ConcurrencyBasic }
+
+procedure TTestCase_ConcurrencyBasic.Test_MultipleThreads_BasicSafety;
+var
+  LSemaphore: INamedSemaphore;
+  LGuard1, LGuard2: INamedSemaphoreGuard;
+begin
+  // 创建计数为1的信号量
+  LSemaphore := MakeNamedSemaphore('test_thread_safety', 1, 1);
+
+  // 获取信号量
+  LGuard1 := LSemaphore.TryWait;
+  CheckNotNull(LGuard1, '应该成功获取第一个守卫');
+
+  // 第二次尝试应该失败
+  LGuard2 := LSemaphore.TryWait;
+  CheckNull(LGuard2, '第二次获取应该失败');
+
+  // 释放后应该能再次获取
+  LGuard1 := nil;
+  LGuard2 := LSemaphore.TryWait;
+  CheckNotNull(LGuard2, '释放后应该能再次获取');
+
+  LGuard2 := nil;
+end;
+
+procedure TTestCase_ConcurrencyBasic.Test_GuardLifetime_ThreadSafety;
+var
+  LSemaphore: INamedSemaphore;
+  LGuard: INamedSemaphoreGuard;
+begin
+  LSemaphore := MakeNamedSemaphore('test_guard_lifetime', 2, 2);
+
+  // 测试守卫的生命周期管理
+  LGuard := LSemaphore.Wait;
+  CheckNotNull(LGuard, '应该成功获取守卫');
+  CheckFalse(LGuard.IsReleased, '新守卫应该是未释放状态');
+
+  // 手动释放
+  LGuard.Release;
+  CheckTrue(LGuard.IsReleased, '手动释放后应该是已释放状态');
+
+  // 析构时不应该再次释放
+  LGuard := nil;
+end;
+
+
+
 initialization
   RegisterTest(TTestCase_Global);
   RegisterTest(TTestCase_INamedSemaphore);
+  RegisterTest(TTestCase_NewFeatures);
+  RegisterTest(TTestCase_ConcurrencyBasic);
 
 end.

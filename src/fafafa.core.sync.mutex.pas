@@ -11,59 +11,34 @@ uses
   {$IFDEF UNIX},    fafafa.core.sync.mutex.unix{$ENDIF};
 
 type
-  // 标准可重入互斥锁接口（主流标准）
+  // 标准互斥锁接口（不可重入）
   IMutex = fafafa.core.sync.mutex.base.IMutex;
 
-  // 非重入互斥锁接口（特殊用途）
-  INonReentrantMutex = fafafa.core.sync.mutex.base.INonReentrantMutex;
-
-  // RAII 互斥锁守护接口
-  IMutexGuard = fafafa.core.sync.mutex.base.IMutexGuard;
-
+  // 平台特定实现
   {$IFDEF WINDOWS}
-  TMutex = fafafa.core.sync.mutex.windows.TMutex;
-  TNonReentrantMutex = fafafa.core.sync.mutex.windows.TNonReentrantMutex;
+  TMutex = fafafa.core.sync.mutex.windows.TMutex;  // Windows SRWLOCK 实现
   {$ENDIF}
-
   {$IFDEF UNIX}
-  TMutex = fafafa.core.sync.mutex.unix.TMutex;
-  TNonReentrantMutex = fafafa.core.sync.mutex.unix.TNonReentrantMutex;
+  TMutex = fafafa.core.sync.mutex.unix.TMutex;     // Unix 统一实现（futex/pthread）
   {$ENDIF}
 
-// 工厂函数
-function MakeMutex: IMutex; overload;  // 标准可重入互斥锁
-function MakeNonReentrantMutex: INonReentrantMutex; overload;  // 非重入互斥锁
+function MakeMutex: IMutex;
+function MutexGuard: ILockGuard;
 
 implementation
 
 function MakeMutex: IMutex;
 begin
-  {$IFDEF UNIX}
-  Result := fafafa.core.sync.mutex.unix.TMutex.Create;
-  {$ENDIF}
-  {$IFDEF WINDOWS}
-  Result := fafafa.core.sync.mutex.windows.TMutex.Create;
-  {$ENDIF}
-end;
-
-function MakeNonReentrantMutex: INonReentrantMutex;
-begin
-  {$IFDEF UNIX}
-  Result := fafafa.core.sync.mutex.unix.TNonReentrantMutex.Create;
-  {$ENDIF}
-  {$IFDEF WINDOWS}
-  Result := fafafa.core.sync.mutex.windows.TNonReentrantMutex.Create;
+  {$IFDEF MSWINDOWS}
+    Result := fafafa.core.sync.mutex.windows.MakeMutex();
+  {$ELSE}
+    Result := fafafa.core.sync.mutex.unix.MakeMutex();
   {$ENDIF}
 end;
 
-{$IFDEF WINDOWS}
-function MakeMutex(ASpinCount: DWORD): IMutex;
+function MutexGuard: ILockGuard;
 begin
-  // 注意：新的 TMutex 使用 CRITICAL_SECTION，不再支持 SpinCount 参数
-  // 这里忽略 ASpinCount 参数，使用默认构造函数
-  Result := fafafa.core.sync.mutex.windows.TMutex.Create;
+  Result := MakeLockGuard(MakeMutex);
 end;
-{$ENDIF}
 
 end.
-

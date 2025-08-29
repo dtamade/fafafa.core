@@ -6,54 +6,34 @@ unit fafafa.core.sync.namedBarrier;
 interface
 
 uses
-  SysUtils, fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.namedBarrier.base;
+  fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.namedBarrier.base;
 
 // ===== 类型别名 =====
 type
   INamedBarrier = fafafa.core.sync.namedBarrier.base.INamedBarrier;
   INamedBarrierGuard = fafafa.core.sync.namedBarrier.base.INamedBarrierGuard;
+  INamedBarrierBuilder = fafafa.core.sync.namedBarrier.base.INamedBarrierBuilder;
   TNamedBarrierConfig = fafafa.core.sync.namedBarrier.base.TNamedBarrierConfig;
   TNamedBarrierError = fafafa.core.sync.namedBarrier.base.TNamedBarrierError;
-  TNamedBarrierResult = fafafa.core.sync.namedBarrier.base.TNamedBarrierResult;
-  TNamedBarrierGuardResult = fafafa.core.sync.namedBarrier.base.TNamedBarrierGuardResult;
-  TNamedBarrierBoolResult = fafafa.core.sync.namedBarrier.base.TNamedBarrierBoolResult;
-  TNamedBarrierCardinalResult = fafafa.core.sync.namedBarrier.base.TNamedBarrierCardinalResult;
-  TNamedBarrierVoidResult = fafafa.core.sync.namedBarrier.base.TNamedBarrierVoidResult;
+  TNamedBarrierErrorInfo = fafafa.core.sync.namedBarrier.base.TNamedBarrierErrorInfo;
+  TNamedBarrierInfo = fafafa.core.sync.namedBarrier.base.TNamedBarrierInfo;
 
 // ===== 现代化工厂函数 =====
 
 { 创建命名屏障 - 推荐使用的现代化接口 }
-function CreateNamedBarrier(const AName: string; const AConfig: TNamedBarrierConfig): INamedBarrier; overload;
-function CreateNamedBarrier(const AName: string): INamedBarrier; overload;
-function CreateNamedBarrier(const AName: string; AParticipantCount: Cardinal): INamedBarrier; overload;
+function MakeNamedBarrier(const AName: string; const AConfig: TNamedBarrierConfig): INamedBarrier; overload;
+function MakeNamedBarrier(const AName: string): INamedBarrier; overload;
+function MakeNamedBarrier(const AName: string; AParticipantCount: Cardinal): INamedBarrier; overload;
 
 { 尝试打开现有的命名屏障 }
 function TryOpenNamedBarrier(const AName: string): INamedBarrier;
 
-// ===== 增量接口：基于 TResult 的现代化工厂函数 =====
-
-{ 创建命名屏障 - 返回 TResult 包装的结果 }
-function CreateNamedBarrierResult(const AName: string; const AConfig: TNamedBarrierConfig): TNamedBarrierResult; overload;
-function CreateNamedBarrierResult(const AName: string): TNamedBarrierResult; overload;
-function CreateNamedBarrierResult(const AName: string; AParticipantCount: Cardinal): TNamedBarrierResult; overload;
-
-{ 尝试打开现有的命名屏障 - 返回 TResult 包装的结果 }
-function TryOpenNamedBarrierResult(const AName: string): TNamedBarrierResult;
-
-{ 创建全局命名屏障 - 返回 TResult 包装的结果 }
-function CreateGlobalNamedBarrierResult(const AName: string): TNamedBarrierResult;
-function CreateGlobalNamedBarrierResult(const AName: string; AParticipantCount: Cardinal): TNamedBarrierResult; overload;
-
-// ===== 便利函数 =====
-
-{ 创建命名屏障 - 兼容性接口 }
-function MakeNamedBarrier(const AName: string): INamedBarrier; deprecated 'Use CreateNamedBarrier instead';
-function MakeNamedBarrier(const AName: string; AParticipantCount: Cardinal): INamedBarrier; overload; deprecated 'Use CreateNamedBarrier instead';
-
 { 创建全局命名屏障 }
-function MakeGlobalNamedBarrier(const AName: string): INamedBarrier; deprecated 'Use CreateNamedBarrier with GlobalNamedBarrierConfig instead';
-function CreateGlobalNamedBarrier(const AName: string): INamedBarrier;
-function CreateGlobalNamedBarrier(const AName: string; AParticipantCount: Cardinal): INamedBarrier; overload;
+function MakeGlobalNamedBarrier(const AName: string): INamedBarrier;
+function MakeGlobalNamedBarrier(const AName: string; AParticipantCount: Cardinal): INamedBarrier; overload;
+
+{ Builder 模式工厂函数 - 现代化推荐方式 }
+function NewNamedBarrierBuilder(const AName: string): INamedBarrierBuilder;
 
 // ===== 配置函数重新导出 =====
 function DefaultNamedBarrierConfig: TNamedBarrierConfig;
@@ -64,16 +44,35 @@ function GlobalNamedBarrierConfig: TNamedBarrierConfig;
 implementation
 
 uses
+  SysUtils
   {$IFDEF UNIX}
-  fafafa.core.sync.namedBarrier.unix;
+  , fafafa.core.sync.namedBarrier.unix
   {$ENDIF}
   {$IFDEF WINDOWS}
-  fafafa.core.sync.namedBarrier.windows;
-  {$ENDIF}
+  , fafafa.core.sync.namedBarrier.windows
+  {$ENDIF};
+
+type
+  // 门面层的 Builder 实现，避免循环引用
+  TFacadeNamedBarrierBuilder = class(TInterfacedObject, INamedBarrierBuilder)
+  private
+    FName: string;
+    FConfig: TNamedBarrierConfig;
+  public
+    constructor Create(const AName: string);
+
+    // INamedBarrierBuilder 接口
+    function WithParticipants(ACount: Cardinal): INamedBarrierBuilder;
+    function WithTimeout(ATimeoutMs: Cardinal): INamedBarrierBuilder;
+    function WithAutoReset(AAutoReset: Boolean): INamedBarrierBuilder;
+    function WithGlobalNamespace(AUseGlobal: Boolean): INamedBarrierBuilder;
+    function WithRetryPolicy(AMaxRetries: Integer; AIntervalMs: Cardinal): INamedBarrierBuilder;
+    function Build: INamedBarrier;
+  end;
 
 // ===== 现代化工厂函数实现 =====
 
-function CreateNamedBarrier(const AName: string; const AConfig: TNamedBarrierConfig): INamedBarrier;
+function MakeNamedBarrier(const AName: string; const AConfig: TNamedBarrierConfig): INamedBarrier;
 var
   LActualName: string;
 begin
@@ -96,62 +95,47 @@ begin
   {$ENDIF}
 end;
 
-function CreateNamedBarrier(const AName: string): INamedBarrier;
+function MakeNamedBarrier(const AName: string): INamedBarrier;
 begin
-  Result := CreateNamedBarrier(AName, DefaultNamedBarrierConfig);
+  Result := MakeNamedBarrier(AName, DefaultNamedBarrierConfig);
 end;
 
-function CreateNamedBarrier(const AName: string; AParticipantCount: Cardinal): INamedBarrier;
+function MakeNamedBarrier(const AName: string; AParticipantCount: Cardinal): INamedBarrier;
 var
   LConfig: TNamedBarrierConfig;
 begin
   LConfig := DefaultNamedBarrierConfig;
   LConfig.ParticipantCount := AParticipantCount;
-  Result := CreateNamedBarrier(AName, LConfig);
+  Result := MakeNamedBarrier(AName, LConfig);
 end;
 
 function TryOpenNamedBarrier(const AName: string): INamedBarrier;
 begin
   try
     // 尝试创建/打开屏障，如果失败返回 nil
-    Result := CreateNamedBarrier(AName);
+    Result := MakeNamedBarrier(AName);
   except
     Result := nil;
   end;
 end;
 
-// ===== 便利函数实现 =====
 
-function MakeNamedBarrier(const AName: string): INamedBarrier;
-begin
-  Result := CreateNamedBarrier(AName);
-end;
-
-function MakeNamedBarrier(const AName: string; AParticipantCount: Cardinal): INamedBarrier;
-begin
-  Result := CreateNamedBarrier(AName, AParticipantCount);
-end;
 
 function MakeGlobalNamedBarrier(const AName: string): INamedBarrier;
-begin
-  Result := CreateGlobalNamedBarrier(AName);
-end;
-
-function CreateGlobalNamedBarrier(const AName: string): INamedBarrier;
 var
   LConfig: TNamedBarrierConfig;
 begin
   LConfig := GlobalNamedBarrierConfig;
-  Result := CreateNamedBarrier(AName, LConfig);
+  Result := MakeNamedBarrier(AName, LConfig);
 end;
 
-function CreateGlobalNamedBarrier(const AName: string; AParticipantCount: Cardinal): INamedBarrier;
+function MakeGlobalNamedBarrier(const AName: string; AParticipantCount: Cardinal): INamedBarrier;
 var
   LConfig: TNamedBarrierConfig;
 begin
   LConfig := GlobalNamedBarrierConfig;
   LConfig.ParticipantCount := AParticipantCount;
-  Result := CreateNamedBarrier(AName, LConfig);
+  Result := MakeNamedBarrier(AName, LConfig);
 end;
 
 // ===== 配置函数重新导出 =====
@@ -176,67 +160,56 @@ begin
   Result := fafafa.core.sync.namedBarrier.base.GlobalNamedBarrierConfig;
 end;
 
-// ===== 增量接口实现：基于 TResult 的现代化工厂函数 =====
+// ===== Builder 模式工厂函数实现 =====
 
-function CreateNamedBarrierResult(const AName: string; const AConfig: TNamedBarrierConfig): TNamedBarrierResult;
+function NewNamedBarrierBuilder(const AName: string): INamedBarrierBuilder;
 begin
-  try
-    Result := TNamedBarrierResult.Ok(CreateNamedBarrier(AName, AConfig));
-  except
-    on E: EInvalidArgument do
-      Result := TNamedBarrierResult.Err(nbeInvalidArgument);
-    on E: ELockError do
-      Result := TNamedBarrierResult.Err(nbeSystemError);
-    on E: ETimeoutError do
-      Result := TNamedBarrierResult.Err(nbeTimeout);
-    on E: Exception do
-      Result := TNamedBarrierResult.Err(nbeUnknownError);
-  end;
+  Result := TFacadeNamedBarrierBuilder.Create(AName);
 end;
 
-function CreateNamedBarrierResult(const AName: string): TNamedBarrierResult;
+{ TFacadeNamedBarrierBuilder }
+
+constructor TFacadeNamedBarrierBuilder.Create(const AName: string);
 begin
-  Result := CreateNamedBarrierResult(AName, DefaultNamedBarrierConfig);
+  inherited Create;
+  FName := AName;
+  FConfig := DefaultNamedBarrierConfig;
 end;
 
-function CreateNamedBarrierResult(const AName: string; AParticipantCount: Cardinal): TNamedBarrierResult;
-var
-  LConfig: TNamedBarrierConfig;
+function TFacadeNamedBarrierBuilder.WithParticipants(ACount: Cardinal): INamedBarrierBuilder;
 begin
-  LConfig := DefaultNamedBarrierConfig;
-  LConfig.ParticipantCount := AParticipantCount;
-  Result := CreateNamedBarrierResult(AName, LConfig);
+  FConfig.ParticipantCount := ACount;
+  Result := Self;
 end;
 
-function TryOpenNamedBarrierResult(const AName: string): TNamedBarrierResult;
+function TFacadeNamedBarrierBuilder.WithTimeout(ATimeoutMs: Cardinal): INamedBarrierBuilder;
 begin
-  try
-    Result := TNamedBarrierResult.Ok(CreateNamedBarrier(AName));
-  except
-    on E: EInvalidArgument do
-      Result := TNamedBarrierResult.Err(nbeInvalidArgument);
-    on E: ELockError do
-      Result := TNamedBarrierResult.Err(nbeNotFound);
-    on E: Exception do
-      Result := TNamedBarrierResult.Err(nbeUnknownError);
-  end;
+  FConfig.TimeoutMs := ATimeoutMs;
+  Result := Self;
 end;
 
-function CreateGlobalNamedBarrierResult(const AName: string): TNamedBarrierResult;
-var
-  LConfig: TNamedBarrierConfig;
+function TFacadeNamedBarrierBuilder.WithAutoReset(AAutoReset: Boolean): INamedBarrierBuilder;
 begin
-  LConfig := GlobalNamedBarrierConfig;
-  Result := CreateNamedBarrierResult(AName, LConfig);
+  FConfig.AutoReset := AAutoReset;
+  Result := Self;
 end;
 
-function CreateGlobalNamedBarrierResult(const AName: string; AParticipantCount: Cardinal): TNamedBarrierResult;
-var
-  LConfig: TNamedBarrierConfig;
+function TFacadeNamedBarrierBuilder.WithGlobalNamespace(AUseGlobal: Boolean): INamedBarrierBuilder;
 begin
-  LConfig := GlobalNamedBarrierConfig;
-  LConfig.ParticipantCount := AParticipantCount;
-  Result := CreateNamedBarrierResult(AName, LConfig);
+  FConfig.UseGlobalNamespace := AUseGlobal;
+  Result := Self;
+end;
+
+function TFacadeNamedBarrierBuilder.WithRetryPolicy(AMaxRetries: Integer; AIntervalMs: Cardinal): INamedBarrierBuilder;
+begin
+  FConfig.MaxRetries := AMaxRetries;
+  FConfig.RetryIntervalMs := AIntervalMs;
+  Result := Self;
+end;
+
+function TFacadeNamedBarrierBuilder.Build: INamedBarrier;
+begin
+  Result := MakeNamedBarrier(FName, FConfig);
 end;
 
 end.

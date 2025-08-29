@@ -143,14 +143,14 @@ begin
   WriteLn('');
 end;
 
-// 示例4：非重入锁
-procedure Example4_NonReentrantLock;
+// 示例4：标准互斥锁（不可重入）
+procedure Example4_StandardMutex;
 var
-  mutex: INonReentrantMutex;
+  mutex: IMutex;
 begin
-  WriteLn('=== 示例4：非重入锁 ===');
-  
-  mutex := MakeNonReentrantMutex;
+  WriteLn('=== 示例4：标准互斥锁（不可重入）===');
+
+  mutex := MakeMutex;
   
   mutex.Acquire;
   try
@@ -300,7 +300,7 @@ begin
   Example1_BasicUsage;
   Example2_ReentrantLock;
   Example3_RAIILocking;
-  Example4_NonReentrantLock;
+  Example4_StandardMutex;
   Example5_TimeoutAcquisition;
   Example6_ConcurrentAccess;
   Example7_ExceptionSafety;

@@ -186,7 +186,6 @@ function simd_max_f32x4(const A, B: TF32x4): TF32x4; inline;
 function simd_splat_f32x4(const Value: Single): TF32x4; inline;
 function simd_load_f32x4(Ptr: Pointer): TF32x4; inline;
 function simd_store_f32x4(Ptr: Pointer; const A: TF32x4): Boolean; inline;
-function simd_reverse_f32x4(const A: TF32x4): TF32x4; inline;
 
 // === 系统管理函数 ===
 function simd_detect_capabilities: TSimdISASet; inline;
@@ -743,10 +742,7 @@ begin
   end;
 end;
 
-function simd_reverse_f32x4(const A: TF32x4): TF32x4;
-begin
-  Result := A.Reverse;
-end;
+
 
 // === 系统管理函数实现 ===
 

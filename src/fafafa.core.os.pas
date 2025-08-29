@@ -6,7 +6,7 @@ unit fafafa.core.os;
 interface
 
 uses
-  SysUtils, Classes;
+  SysUtils, Classes, fafafa.core.result;
   // TODO: Re-enable fafafa.core.result when FreePascal compatibility issues are fixed
   // fafafa.core.result;
 
@@ -32,14 +32,9 @@ type
     oseOther              // Other unspecified error
   );
 
-  // TODO: Re-enable Result types when fafafa.core.result compatibility is fixed
-  (*
   // Result type aliases for common OS operations
   TOSStringResult = specialize TResult<string, TOSError>;
   TOSBoolResult = specialize TResult<Boolean, TOSError>;
-  TOSIntResult = specialize TResult<Integer, TOSError>;
-  TOSQWordResult = specialize TResult<QWord, TOSError>;
-  *)
 
 type
   TPlatformInfo = record
@@ -220,6 +215,13 @@ type
 
 procedure os_cache_reset;               // reset all process-level caches for OS probes
 procedure os_cache_reset_ex(const flags: TOSCacheFlags); // reset selected caches
+
+  // Result-based env APIs (partial re-enable)
+  function os_getenv_result(const AName: string): TOSStringResult;
+  function os_lookupenv_result(const AName: string): TOSStringResult;
+  function os_setenv_result(const AName, AValue: string): TOSBoolResult;
+  function os_unsetenv_result(const AName: string): TOSBoolResult;
+
 
 // Capability probes (best-effort)
 function os_is_admin: Boolean;
@@ -521,6 +523,66 @@ begin
     Result := oseSystemError;
   end;
   {$ENDIF}
+end;
+
+// Result-based env APIs implementation (partial)
+function os_getenv_result(const AName: string): TOSStringResult;
+var
+  Value: string;
+begin
+  try
+    Value := os_getenv(AName);
+    // 注意：os_getenv 返回空字符串可能表示变量不存在或值为空
+    // 我们需要用 os_lookupenv 来区分
+    if os_lookupenv(AName, Value) then
+      Result := TOSStringResult.Ok(Value)
+    else
+      Result := TOSStringResult.Err(oseNotFound);
+  except
+    on E: Exception do
+      Result := TOSStringResult.Err(oseSystemError);
+  end;
+end;
+
+function os_lookupenv_result(const AName: string): TOSStringResult;
+var
+  Value: string;
+begin
+  try
+    if os_lookupenv(AName, Value) then
+      Result := TOSStringResult.Ok(Value)
+    else
+      Result := TOSStringResult.Err(oseNotFound);
+  except
+    on E: Exception do
+      Result := TOSStringResult.Err(oseSystemError);
+  end;
+end;
+
+function os_setenv_result(const AName, AValue: string): TOSBoolResult;
+begin
+  try
+    if os_setenv(AName, AValue) then
+      Result := TOSBoolResult.Ok(True)
+    else
+      Result := TOSBoolResult.Err(oseSystemError);
+  except
+    on E: Exception do
+      Result := TOSBoolResult.Err(oseSystemError);
+  end;
+end;
+
+function os_unsetenv_result(const AName: string): TOSBoolResult;
+begin
+  try
+    if os_unsetenv(AName) then
+      Result := TOSBoolResult.Ok(True)
+    else
+      Result := TOSBoolResult.Err(oseSystemError);
+  except
+    on E: Exception do
+      Result := TOSBoolResult.Err(oseSystemError);
+  end;
 end;
 
 // TODO: Re-enable Result-based implementations when fafafa.core.result compatibility is fixed

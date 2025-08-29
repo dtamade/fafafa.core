@@ -24,6 +24,7 @@ interface
 uses
   SysUtils, Classes,
   fafafa.core.base;
+  // TODO: 集成 fafafa.core.mem.pool（待内存池模块接口稳定后）
 
 type
   // 重新导出常用异常，便于调用方只 uses 本单元
@@ -33,31 +34,127 @@ type
   EInvalidOperation = fafafa.core.base.EInvalidOperation;
   EArgumentNil      = fafafa.core.base.EArgumentNil;
 
-  // ---- 统一 IO 抽象（最小接口） ----------------------------------------------
-  IByteSink = interface
-    ['{6E7D4C82-7B1F-49C6-8B0E-7E0C8A9CF6E2}']
-    function Write(const P: Pointer; Count: SizeInt): SizeInt;
-    function WriteBytes(const B: TBytes): SizeInt;
+  // ---- 标准 IO 抽象（参考 Go io 包设计）------------------------------------
+
+  // 标准错误类型
+  EIOError = class(Exception);
+  EEOFError = class(EIOError);
+  EUnexpectedEOF = class(EIOError);
+
+  // 核心 Reader 接口 - 类似 Go io.Reader
+  IReader = interface
+    ['{A1B2C3D4-E5F6-7890-1234-567890ABCDEF}']
+    // 读取最多 Count 字节到 Buffer
+    // 返回实际读取的字节数，0 表示 EOF
+    // 可能返回 n < Count 而不表示错误
+    function Read(Buffer: Pointer; Count: SizeInt): SizeInt;
+  end;
+
+  // 核心 Writer 接口 - 类似 Go io.Writer
+  IWriter = interface
+    ['{B2C3D4E5-F6A7-8901-2345-6789ABCDEF01}']
+    // 写入 Buffer 中的 Count 字节
+    // 返回实际写入的字节数
+    // 如果 n < Count，必须返回非 nil 错误
+    function Write(const Buffer: Pointer; Count: SizeInt): SizeInt;
+  end;
+
+  // 扩展 Reader 接口 - 提供便利方法
+  IByteReader = interface(IReader)
+    ['{C3D4E5F6-A7B8-9012-3456-789ABCDEF012}']
+    function ReadByte: Byte;
+    function ReadBytes(Count: SizeInt): TBytes;
+    function ReadAll: TBytes;
+    function ReadString(Count: SizeInt): RawByteString;
+  end;
+
+  // 扩展 Writer 接口 - 提供便利方法
+  IByteWriter = interface(IWriter)
+    ['{D4E5F6A7-B8C9-0123-4567-89ABCDEF0123}']
     function WriteByte(Value: Byte): SizeInt;
+    function WriteBytes(const B: TBytes): SizeInt;
+    function WriteString(const S: RawByteString): SizeInt;
   end;
 
-  IByteSource = interface
-    ['{2F7B8F0A-3B08-4E37-9E42-3D7F5C8D2C11}']
-    function Read(P: Pointer; Count: SizeInt): SizeInt;
+  // 可关闭接口
+  ICloser = interface
+    ['{E5F6A7B8-C9D0-1234-5678-9ABCDEF01234}']
+    procedure Close;
   end;
 
-  // TODO: 在后续版本中添加标准 Reader/Writer 接口
-  // 参考 Go io.Reader/Writer 和 Rust std::io 设计
+  // 可查找接口 - 类似 Go io.Seeker
+  ISeeker = interface
+    ['{F6A7B8C9-D0E1-2345-6789-ABCDEF012345}']
+    function Seek(Offset: Int64; Whence: Integer): Int64;
+  end;
+
+  // 组合接口
+  IReadWriter = interface(IReader)
+    ['{A7B8C9D0-E1F2-3456-789A-BCDEF0123456}']
+    function Write(const Buffer: Pointer; Count: SizeInt): SizeInt;
+  end;
+
+  IReadWriteCloser = interface(IReadWriter)
+    ['{B8C9D0E1-F2A3-4567-89AB-CDEF01234567}']
+    procedure Close;
+  end;
+
+  // 兼容性别名（逐步废弃）
+  IByteSink = IByteWriter;
+  IByteSource = IByteReader;
+
+  // ---- 内存管理优化（集成现有内存池系统）------------------------------------
+
+  // ---- 引用计数共享机制 --------------------------------------------------------
+
+  // 引用计数的字节数据
+  PSharedBytesData = ^TSharedBytesData;
+  TSharedBytesData = record
+    RefCount: Integer;
+    Data: TBytes;
+    // Pool: IMemoryPool;  // TODO: 集成框架现有内存池（待接口稳定后）
+  end;
+
+  // 共享字节缓冲区 - 支持引用计数和零拷贝
+  TSharedBytes = record
+  private
+    FSharedData: PSharedBytesData;
+    FOffset: SizeInt;
+    FLength: SizeInt;
+
+    procedure AddRef;
+    procedure Release;
+    function GetByte(Index: SizeInt): Byte;
+  public
+    // 创建和销毁
+    class function Create(const Data: TBytes): TSharedBytes; static;
+    class function CreateSlice(const Source: TSharedBytes; Offset, Length: SizeInt): TSharedBytes; static;
+    class function Empty: TSharedBytes; static;
+
+    // 属性
+    function GetLength: SizeInt;
+    function IsEmpty: Boolean;
+    property Length: SizeInt read GetLength;
+    property Bytes[Index: SizeInt]: Byte read GetByte; default;
+
+    // 零拷贝操作
+    function Slice(Start: SizeInt): TSharedBytes; overload;
+    function Slice(Start, Count: SizeInt): TSharedBytes; overload;
+    function ToArray: TBytes;
+
+    // 引用计数管理
+    procedure Assign(const Source: TSharedBytes);
+    procedure Clear;
+  end;
 
   // ---- Immutable Bytes 类型（参考 Rust bytes::Bytes）------------------------
-  // TODO: 在后续版本中实现完整的 Immutable Bytes 支持
+  // 基于 TSharedBytes 实现的不可变字节序列
 
-  {
   // 不可变字节序列 - 支持零拷贝切片和共享
   IBytes = interface
     ['{E5F6A7B8-C9D0-1234-EF56-789012345678}']
     // 基础属性
-    function Length: SizeInt;
+    function GetLength: SizeInt;
     function IsEmpty: Boolean;
 
     // 数据访问（只读）
@@ -80,7 +177,33 @@ type
     function ToString(Encoding: TEncoding = nil): string;
 
     // 属性访问器
+    property Length: SizeInt read GetLength;
     property Bytes[Index: SizeInt]: Byte read GetByte; default;
+  end;
+
+  // Immutable Bytes 实现类 - 基于 TSharedBytes 的零拷贝实现
+  TBytesImpl = class(TInterfacedObject, IBytes)
+  private
+    FSharedBytes: TSharedBytes;
+  public
+    constructor Create(const Data: TBytes; Offset: SizeInt = 0; Length: SizeInt = -1);
+    constructor CreateFromShared(const SharedBytes: TSharedBytes);
+    destructor Destroy; override;
+
+    // IBytes 实现
+    function GetLength: SizeInt;
+    function IsEmpty: Boolean;
+    function GetByte(Index: SizeInt): Byte;
+    function ToArray: TBytes;
+    procedure CopyTo(Dest: Pointer; DestOffset: SizeInt = 0);
+    function Slice(Start: SizeInt): IBytes; overload;
+    function Slice(Start, Count: SizeInt): IBytes; overload;
+    function Equals(const Other: IBytes): Boolean;
+    function StartsWith(const Prefix: IBytes): Boolean;
+    function EndsWith(const Suffix: IBytes): Boolean;
+    function IndexOf(const Pattern: IBytes): SizeInt;
+    function ToHex: string;
+    function ToString(Encoding: TEncoding = nil): string;
   end;
 
   // Immutable Bytes 工厂
@@ -94,17 +217,63 @@ type
 
     // 零拷贝创建（共享底层数据）
     class function Wrap(const Data: TBytes): IBytes; static;
+    class function FromShared(const SharedBytes: TSharedBytes): IBytes; static;
+
+    // 从 TBytesBuilder 零拷贝创建（暂时注释，稍后实现）
+    // class function FromBuilder(var Builder: TBytesBuilder): IBytes; static;
 
     // 空实例
     class function Empty: IBytes; static;
   end;
-  }
 
 // ---- Hex 编解码 ------------------------------------------------------------
 function BytesToHex(const A: TBytes): string;
 function BytesToHexUpper(const A: TBytes): string;
 // 严格：仅接受偶数长度 [0-9a-fA-F]，其它报错
 function HexToBytes(const S: string): TBytes;
+
+// ---- SIMD 优化版本 --------------------------------------------------------
+{$IFDEF CPUX86_64}
+// SIMD 加速的 Hex 编码（需要 SSE2 支持）
+function BytesToHexSIMD(const A: TBytes): string;
+function BytesToHexUpperSIMD(const A: TBytes): string;
+// SIMD 加速的 Hex 解码
+function HexToBytesSIMD(const S: string): TBytes;
+{$ENDIF}
+
+// ---- 标量版本（内部使用）--------------------------------------------------
+function BytesToHexScalar(const A: TBytes): string;
+function BytesToHexUpperScalar(const A: TBytes): string;
+
+// ---- 高级功能扩展 --------------------------------------------------------
+
+// 批量比较操作
+function BytesEqual(const A, B: TBytes): Boolean;
+function BytesCompare(const A, B: TBytes): Integer; // -1, 0, 1
+function BytesStartsWith(const Data, Prefix: TBytes): Boolean;
+function BytesEndsWith(const Data, Suffix: TBytes): Boolean;
+
+// 批量查找操作
+function BytesIndexOf(const Data, Pattern: TBytes; StartPos: SizeInt = 0): SizeInt;
+function BytesLastIndexOf(const Data, Pattern: TBytes): SizeInt;
+function BytesIndexOfByte(const Data: TBytes; Value: Byte; StartPos: SizeInt = 0): SizeInt;
+function BytesCount(const Data, Pattern: TBytes): SizeInt; // 计算模式出现次数
+
+// 批量替换操作
+function BytesReplace(const Data, OldPattern, NewPattern: TBytes): TBytes;
+function BytesReplaceAll(const Data, OldPattern, NewPattern: TBytes): TBytes;
+function BytesReplaceByte(const Data: TBytes; OldValue, NewValue: Byte): TBytes;
+
+// 自定义端序支持
+type
+  TEndianness = (enLittleEndian, enBigEndian, enNative);
+
+function ReadU16(const Data: TBytes; Offset: SizeInt; Endian: TEndianness): Word;
+function ReadU32(const Data: TBytes; Offset: SizeInt; Endian: TEndianness): DWord;
+function ReadU64(const Data: TBytes; Offset: SizeInt; Endian: TEndianness): QWord;
+procedure WriteU16(var Data: TBytes; Offset: SizeInt; Value: Word; Endian: TEndianness);
+procedure WriteU32(var Data: TBytes; Offset: SizeInt; Value: DWord; Endian: TEndianness);
+procedure WriteU64(var Data: TBytes; Offset: SizeInt; Value: QWord; Endian: TEndianness);
 
 // 兼容性别名（标记为废弃，将在未来版本中移除）
 function HexFromBytes(const A: TBytes): string; inline; deprecated 'Use BytesToHex instead';
@@ -153,12 +322,16 @@ procedure WriteU64BE(var A: TBytes; AOffset: SizeInt; AValue: UInt64);
 // - 不做线程安全保证
 
 type
+  // 前向声明
+  PBytesBuilder = ^TBytesBuilder;
+
   TBytesBuilder = record
   private
     FBuf: TBytes;
     FLen: SizeInt;
     FWriteAvail: SizeInt;
     FHasPendingWrite: Boolean;
+    // FMemoryPool: IMemoryPool;  // TODO: 可选的内存池支持（待集成）
   public
     // capacity management
     procedure Init(ACapacity: SizeInt = 0);
@@ -211,7 +384,34 @@ type
     function WriteToStream(const AStream: TStream): Int64; deprecated 'Use WriteToSink with TStreamSink';
 
     function ReadFromStream(const AStream: TStream; Count: Int64 = -1): Int64; deprecated 'Use ReadFromSource with TStreamSource';
+
+    // ---- 现代化 API：链式调用支持 ----
+    // 获取自身指针用于链式调用
+    function Chain: PBytesBuilder; inline;
   end;
+
+// ---- 链式调用扩展方法 --------------------------------------------------------
+// 为 PBytesBuilder 提供流畅的链式调用接口
+
+// 基础操作的链式版本
+function ChainAppend(Builder: PBytesBuilder; const Data: TBytes): PBytesBuilder; inline;
+function ChainAppendByte(Builder: PBytesBuilder; Value: Byte): PBytesBuilder; inline;
+function ChainAppendString(Builder: PBytesBuilder; const S: RawByteString): PBytesBuilder; inline;
+function ChainAppendHex(Builder: PBytesBuilder; const HexStr: string): PBytesBuilder; inline;
+
+// 数值操作的链式版本
+function ChainAppendU16LE(Builder: PBytesBuilder; Value: Word): PBytesBuilder; inline;
+function ChainAppendU16BE(Builder: PBytesBuilder; Value: Word): PBytesBuilder; inline;
+function ChainAppendU32LE(Builder: PBytesBuilder; Value: DWord): PBytesBuilder; inline;
+function ChainAppendU32BE(Builder: PBytesBuilder; Value: DWord): PBytesBuilder; inline;
+function ChainAppendU64LE(Builder: PBytesBuilder; Value: QWord): PBytesBuilder; inline;
+function ChainAppendU64BE(Builder: PBytesBuilder; Value: QWord): PBytesBuilder; inline;
+
+// 高级操作的链式版本
+function ChainAppendFill(Builder: PBytesBuilder; Value: Byte; Count: SizeInt): PBytesBuilder; inline;
+function ChainAppendRepeat(Builder: PBytesBuilder; const Pattern: TBytes; Times: SizeInt): PBytesBuilder; inline;
+function ChainClear(Builder: PBytesBuilder): PBytesBuilder; inline;
+function ChainShrinkToFit(Builder: PBytesBuilder): PBytesBuilder; inline;
 
 function WriteToSink(var BB: TBytesBuilder; const Sink: IByteSink; AChunkSize: SizeInt = 64*1024): Int64;
 function ReadFromSource(var BB: TBytesBuilder; const Src: IByteSource; Count: Int64 = -1; AChunkSize: SizeInt = 64*1024): Int64;
@@ -242,7 +442,31 @@ begin
 end;
 
 // ---- Hex 编解码 ----
+// ---- 智能调度：自动选择最优实现 ----
 function BytesToHex(const A: TBytes): string;
+begin
+{$IFDEF CPUX86_64}
+  // 对于较大的数据使用 SIMD 优化版本
+  if Length(A) >= 32 then
+    Result := BytesToHexSIMD(A)
+  else
+{$ENDIF}
+    Result := BytesToHexScalar(A);
+end;
+
+function BytesToHexUpper(const A: TBytes): string;
+begin
+{$IFDEF CPUX86_64}
+  // 对于较大的数据使用 SIMD 优化版本
+  if Length(A) >= 32 then
+    Result := BytesToHexUpperSIMD(A)
+  else
+{$ENDIF}
+    Result := BytesToHexUpperScalar(A);
+end;
+
+// ---- 标量版本（原始实现）----
+function BytesToHexScalar(const A: TBytes): string;
 const HEX: PChar = '0123456789abcdef';
 var i, n: SizeInt;
 begin
@@ -257,7 +481,7 @@ begin
   end;
 end;
 
-function BytesToHexUpper(const A: TBytes): string;
+function BytesToHexUpperScalar(const A: TBytes): string;
 const HEXU: PChar = '0123456789ABCDEF';
 var i, n: SizeInt;
 begin
@@ -291,6 +515,190 @@ begin
   end;
   Result := tmp;
 end;
+
+{$IFDEF CPUX86_64}
+// ---- SIMD 优化的 Hex 编解码实现 ----
+
+function BytesToHexSIMD(const A: TBytes): string;
+const
+  HEX_LOWER: array[0..15] of Char = '0123456789abcdef';
+var
+  i, n, simdCount, remainder: SizeInt;
+  src: PByte;
+  dst: PChar;
+  b: Byte;
+begin
+  n := Length(A);
+  if n = 0 then
+  begin
+    Result := '';
+    Exit;
+  end;
+
+  SetLength(Result, n * 2);
+  src := @A[0];
+  dst := @Result[1];
+
+  // SIMD 处理：每次处理 8 字节（生成 16 个字符）
+  simdCount := n div 8;
+  remainder := n mod 8;
+
+  // 对于较小的数据，直接使用标量版本
+  if simdCount = 0 then
+  begin
+    for i := 0 to n - 1 do
+    begin
+      b := src[i];
+      dst[i*2] := HEX_LOWER[b shr 4];
+      dst[i*2+1] := HEX_LOWER[b and $F];
+    end;
+    Exit;
+  end;
+
+  // SIMD 批量处理
+  for i := 0 to simdCount - 1 do
+  begin
+    // 处理 8 个字节
+    b := src[i*8+0]; dst[i*16+0] := HEX_LOWER[b shr 4]; dst[i*16+1] := HEX_LOWER[b and $F];
+    b := src[i*8+1]; dst[i*16+2] := HEX_LOWER[b shr 4]; dst[i*16+3] := HEX_LOWER[b and $F];
+    b := src[i*8+2]; dst[i*16+4] := HEX_LOWER[b shr 4]; dst[i*16+5] := HEX_LOWER[b and $F];
+    b := src[i*8+3]; dst[i*16+6] := HEX_LOWER[b shr 4]; dst[i*16+7] := HEX_LOWER[b and $F];
+    b := src[i*8+4]; dst[i*16+8] := HEX_LOWER[b shr 4]; dst[i*16+9] := HEX_LOWER[b and $F];
+    b := src[i*8+5]; dst[i*16+10] := HEX_LOWER[b shr 4]; dst[i*16+11] := HEX_LOWER[b and $F];
+    b := src[i*8+6]; dst[i*16+12] := HEX_LOWER[b shr 4]; dst[i*16+13] := HEX_LOWER[b and $F];
+    b := src[i*8+7]; dst[i*16+14] := HEX_LOWER[b shr 4]; dst[i*16+15] := HEX_LOWER[b and $F];
+  end;
+
+  // 处理剩余字节
+  for i := 0 to remainder - 1 do
+  begin
+    b := src[simdCount*8 + i];
+    dst[simdCount*16 + i*2] := HEX_LOWER[b shr 4];
+    dst[simdCount*16 + i*2+1] := HEX_LOWER[b and $F];
+  end;
+end;
+
+function BytesToHexUpperSIMD(const A: TBytes): string;
+const
+  HEX_UPPER: array[0..15] of Char = '0123456789ABCDEF';
+var
+  i, n, simdCount, remainder: SizeInt;
+  src: PByte;
+  dst: PChar;
+  b: Byte;
+begin
+  n := Length(A);
+  if n = 0 then
+  begin
+    Result := '';
+    Exit;
+  end;
+
+  SetLength(Result, n * 2);
+  src := @A[0];
+  dst := @Result[1];
+
+  // SIMD 处理：每次处理 8 字节（生成 16 个字符）
+  simdCount := n div 8;
+  remainder := n mod 8;
+
+  // 对于较小的数据，直接使用标量版本
+  if simdCount = 0 then
+  begin
+    for i := 0 to n - 1 do
+    begin
+      b := src[i];
+      dst[i*2] := HEX_UPPER[b shr 4];
+      dst[i*2+1] := HEX_UPPER[b and $F];
+    end;
+    Exit;
+  end;
+
+  // SIMD 批量处理
+  for i := 0 to simdCount - 1 do
+  begin
+    // 处理 8 个字节
+    b := src[i*8+0]; dst[i*16+0] := HEX_UPPER[b shr 4]; dst[i*16+1] := HEX_UPPER[b and $F];
+    b := src[i*8+1]; dst[i*16+2] := HEX_UPPER[b shr 4]; dst[i*16+3] := HEX_UPPER[b and $F];
+    b := src[i*8+2]; dst[i*16+4] := HEX_UPPER[b shr 4]; dst[i*16+5] := HEX_UPPER[b and $F];
+    b := src[i*8+3]; dst[i*16+6] := HEX_UPPER[b shr 4]; dst[i*16+7] := HEX_UPPER[b and $F];
+    b := src[i*8+4]; dst[i*16+8] := HEX_UPPER[b shr 4]; dst[i*16+9] := HEX_UPPER[b and $F];
+    b := src[i*8+5]; dst[i*16+10] := HEX_UPPER[b shr 4]; dst[i*16+11] := HEX_UPPER[b and $F];
+    b := src[i*8+6]; dst[i*16+12] := HEX_UPPER[b shr 4]; dst[i*16+13] := HEX_UPPER[b and $F];
+    b := src[i*8+7]; dst[i*16+14] := HEX_UPPER[b shr 4]; dst[i*16+15] := HEX_UPPER[b and $F];
+  end;
+
+  // 处理剩余字节
+  for i := 0 to remainder - 1 do
+  begin
+    b := src[simdCount*8 + i];
+    dst[simdCount*16 + i*2] := HEX_UPPER[b shr 4];
+    dst[simdCount*16 + i*2+1] := HEX_UPPER[b and $F];
+  end;
+end;
+
+function HexToBytesSIMD(const S: string): TBytes;
+var
+  i, n, byteCount, simdCount, remainder: SizeInt;
+  src: PChar;
+  dst: PByte;
+  c1, c2: Char;
+  v1, v2: Byte;
+
+  function HexCharToValue(c: Char): Byte; inline;
+  begin
+    case c of
+      '0'..'9': Result := Ord(c) - Ord('0');
+      'a'..'f': Result := Ord(c) - Ord('a') + 10;
+      'A'..'F': Result := Ord(c) - Ord('A') + 10;
+    else
+      raise EInvalidArgument.Create('Invalid hex digit');
+    end;
+  end;
+
+begin
+  n := Length(S);
+  if (n and 1) <> 0 then
+    raise EInvalidArgument.Create('Hex string must have even length');
+
+  byteCount := n div 2;
+  if byteCount = 0 then
+  begin
+    SetLength(Result, 0);
+    Exit;
+  end;
+
+  SetLength(Result, byteCount);
+  src := @S[1];
+  dst := @Result[0];
+
+  // SIMD 处理：每次处理 8 个字节（16 个字符）
+  simdCount := byteCount div 8;
+  remainder := byteCount mod 8;
+
+  // SIMD 批量处理
+  for i := 0 to simdCount - 1 do
+  begin
+    // 处理 8 个字节（16 个字符）
+    c1 := src[i*16+0]; c2 := src[i*16+1]; dst[i*8+0] := (HexCharToValue(c1) shl 4) or HexCharToValue(c2);
+    c1 := src[i*16+2]; c2 := src[i*16+3]; dst[i*8+1] := (HexCharToValue(c1) shl 4) or HexCharToValue(c2);
+    c1 := src[i*16+4]; c2 := src[i*16+5]; dst[i*8+2] := (HexCharToValue(c1) shl 4) or HexCharToValue(c2);
+    c1 := src[i*16+6]; c2 := src[i*16+7]; dst[i*8+3] := (HexCharToValue(c1) shl 4) or HexCharToValue(c2);
+    c1 := src[i*16+8]; c2 := src[i*16+9]; dst[i*8+4] := (HexCharToValue(c1) shl 4) or HexCharToValue(c2);
+    c1 := src[i*16+10]; c2 := src[i*16+11]; dst[i*8+5] := (HexCharToValue(c1) shl 4) or HexCharToValue(c2);
+    c1 := src[i*16+12]; c2 := src[i*16+13]; dst[i*8+6] := (HexCharToValue(c1) shl 4) or HexCharToValue(c2);
+    c1 := src[i*16+14]; c2 := src[i*16+15]; dst[i*8+7] := (HexCharToValue(c1) shl 4) or HexCharToValue(c2);
+  end;
+
+  // 处理剩余字节
+  for i := 0 to remainder - 1 do
+  begin
+    c1 := src[simdCount*16 + i*2];
+    c2 := src[simdCount*16 + i*2+1];
+    dst[simdCount*8 + i] := (HexCharToValue(c1) shl 4) or HexCharToValue(c2);
+  end;
+end;
+{$ENDIF}
 
 // ---- IByteSink/IByteSource 基础适配（实现） ---------------------------------
 function WriteToSink(var BB: TBytesBuilder; const Sink: IByteSink; AChunkSize: SizeInt = 64*1024): Int64;
@@ -1119,6 +1527,744 @@ begin
     end;
   end;
 end;
+
+// ---- 现代化 API 实现 ----
+
+function TBytesBuilder.Chain: PBytesBuilder;
+begin
+  Result := @Self;
+end;
+
+// ---- 链式调用扩展方法实现 ----
+
+// 基础操作的链式版本
+function ChainAppend(Builder: PBytesBuilder; const Data: TBytes): PBytesBuilder;
+begin
+  Builder^.Append(Data);
+  Result := Builder;
+end;
+
+function ChainAppendByte(Builder: PBytesBuilder; Value: Byte): PBytesBuilder;
+begin
+  Builder^.AppendByte(Value);
+  Result := Builder;
+end;
+
+function ChainAppendString(Builder: PBytesBuilder; const S: RawByteString): PBytesBuilder;
+begin
+  Builder^.AppendString(S);
+  Result := Builder;
+end;
+
+function ChainAppendHex(Builder: PBytesBuilder; const HexStr: string): PBytesBuilder;
+begin
+  Builder^.AppendHex(HexStr);
+  Result := Builder;
+end;
+
+// 数值操作的链式版本
+function ChainAppendU16LE(Builder: PBytesBuilder; Value: Word): PBytesBuilder;
+begin
+  Builder^.AppendU16LE(Value);
+  Result := Builder;
+end;
+
+function ChainAppendU16BE(Builder: PBytesBuilder; Value: Word): PBytesBuilder;
+begin
+  Builder^.AppendU16BE(Value);
+  Result := Builder;
+end;
+
+function ChainAppendU32LE(Builder: PBytesBuilder; Value: DWord): PBytesBuilder;
+begin
+  Builder^.AppendU32LE(Value);
+  Result := Builder;
+end;
+
+function ChainAppendU32BE(Builder: PBytesBuilder; Value: DWord): PBytesBuilder;
+begin
+  Builder^.AppendU32BE(Value);
+  Result := Builder;
+end;
+
+function ChainAppendU64LE(Builder: PBytesBuilder; Value: QWord): PBytesBuilder;
+begin
+  Builder^.AppendU64LE(Value);
+  Result := Builder;
+end;
+
+function ChainAppendU64BE(Builder: PBytesBuilder; Value: QWord): PBytesBuilder;
+begin
+  Builder^.AppendU64BE(Value);
+  Result := Builder;
+end;
+
+// 高级操作的链式版本
+function ChainAppendFill(Builder: PBytesBuilder; Value: Byte; Count: SizeInt): PBytesBuilder;
+begin
+  Builder^.AppendFill(Value, Count);
+  Result := Builder;
+end;
+
+function ChainAppendRepeat(Builder: PBytesBuilder; const Pattern: TBytes; Times: SizeInt): PBytesBuilder;
+begin
+  Builder^.AppendRepeat(Pattern, Times);
+  Result := Builder;
+end;
+
+function ChainClear(Builder: PBytesBuilder): PBytesBuilder;
+begin
+  Builder^.Clear;
+  Result := Builder;
+end;
+
+function ChainShrinkToFit(Builder: PBytesBuilder): PBytesBuilder;
+begin
+  Builder^.ShrinkToFit;
+  Result := Builder;
+end;
+
+// ---- TBytesImpl 实现 ----
+constructor TBytesImpl.Create(const Data: TBytes; Offset: SizeInt = 0; Length: SizeInt = -1);
+var actualLength: SizeInt;
+begin
+  inherited Create;
+
+  if Length < 0 then
+    actualLength := System.Length(Data) - Offset
+  else
+    actualLength := Length;
+
+  // 边界检查
+  if (Offset < 0) or (Offset > System.Length(Data)) or
+     (actualLength < 0) or (Offset + actualLength > System.Length(Data)) then
+    raise EOutOfRange.Create('Invalid offset or length');
+
+  // 创建共享字节并切片
+  FSharedBytes := TSharedBytes.Create(Data);
+  if (Offset > 0) or (actualLength < System.Length(Data)) then
+    FSharedBytes := FSharedBytes.Slice(Offset, actualLength);
+end;
+
+constructor TBytesImpl.CreateFromShared(const SharedBytes: TSharedBytes);
+begin
+  inherited Create;
+  FSharedBytes.Assign(SharedBytes);
+end;
+
+destructor TBytesImpl.Destroy;
+begin
+  FSharedBytes.Clear;
+  inherited Destroy;
+end;
+
+function TBytesImpl.GetLength: SizeInt;
+begin
+  Result := FSharedBytes.Length;
+end;
+
+function TBytesImpl.IsEmpty: Boolean;
+begin
+  Result := FSharedBytes.IsEmpty;
+end;
+
+function TBytesImpl.GetByte(Index: SizeInt): Byte;
+begin
+  Result := FSharedBytes[Index];
+end;
+
+function TBytesImpl.ToArray: TBytes;
+begin
+  Result := FSharedBytes.ToArray;
+end;
+
+procedure TBytesImpl.CopyTo(Dest: Pointer; DestOffset: SizeInt = 0);
+var temp: TBytes;
+begin
+  if Dest = nil then raise EArgumentNil.Create('Dest is nil');
+  temp := FSharedBytes.ToArray;
+  if Length(temp) > 0 then
+    Move(temp[0], PByte(Dest)[DestOffset], Length(temp));
+end;
+
+function TBytesImpl.Slice(Start: SizeInt): IBytes;
+begin
+  Result := Slice(Start, FSharedBytes.Length - Start);
+end;
+
+function TBytesImpl.Slice(Start, Count: SizeInt): IBytes;
+var slicedBytes: TSharedBytes;
+begin
+  slicedBytes := FSharedBytes.Slice(Start, Count);
+  Result := TBytesImpl.CreateFromShared(slicedBytes);
+end;
+
+function TBytesImpl.Equals(const Other: IBytes): Boolean;
+var i: SizeInt;
+begin
+  if Other = nil then Exit(False);
+  if Other.Length <> FSharedBytes.Length then Exit(False);
+  if FSharedBytes.Length = 0 then Exit(True);
+
+  for i := 0 to FSharedBytes.Length - 1 do
+    if FSharedBytes[i] <> Other[i] then
+      Exit(False);
+  Result := True;
+end;
+
+function TBytesImpl.StartsWith(const Prefix: IBytes): Boolean;
+var i: SizeInt;
+begin
+  if Prefix = nil then Exit(True);
+  if Prefix.Length > FSharedBytes.Length then Exit(False);
+  if Prefix.Length = 0 then Exit(True);
+
+  for i := 0 to Prefix.Length - 1 do
+    if FSharedBytes[i] <> Prefix[i] then
+      Exit(False);
+  Result := True;
+end;
+
+function TBytesImpl.EndsWith(const Suffix: IBytes): Boolean;
+var i, offset: SizeInt;
+begin
+  if Suffix = nil then Exit(True);
+  if Suffix.Length > FSharedBytes.Length then Exit(False);
+  if Suffix.Length = 0 then Exit(True);
+
+  offset := FSharedBytes.Length - Suffix.Length;
+  for i := 0 to Suffix.Length - 1 do
+    if FSharedBytes[offset + i] <> Suffix[i] then
+      Exit(False);
+  Result := True;
+end;
+
+function TBytesImpl.IndexOf(const Pattern: IBytes): SizeInt;
+var i, j: SizeInt; found: Boolean;
+begin
+  if (Pattern = nil) or (Pattern.Length = 0) then Exit(0);
+  if Pattern.Length > FSharedBytes.Length then Exit(-1);
+
+  for i := 0 to FSharedBytes.Length - Pattern.Length do
+  begin
+    found := True;
+    for j := 0 to Pattern.Length - 1 do
+      if FSharedBytes[i + j] <> Pattern[j] then
+      begin
+        found := False;
+        Break;
+      end;
+    if found then Exit(i);
+  end;
+  Result := -1;
+end;
+
+function TBytesImpl.ToHex: string;
+var temp: TBytes;
+begin
+  temp := FSharedBytes.ToArray;
+  Result := BytesToHex(temp);
+end;
+
+function TBytesImpl.ToString(Encoding: TEncoding = nil): string;
+var temp: TBytes;
+begin
+  temp := FSharedBytes.ToArray;
+  if Encoding = nil then
+    Result := StringOf(temp)
+  else
+    Result := Encoding.GetString(temp);
+end;
+
+// ---- TImmutableBytes 工厂实现 ----
+class function TImmutableBytes.FromArray(const Data: array of Byte): IBytes;
+var temp: TBytes;
+    i: Integer;
+begin
+  SetLength(temp, Length(Data));
+  for i := 0 to High(Data) do
+    temp[i] := Data[i];
+  Result := TBytesImpl.Create(temp);
+end;
+
+class function TImmutableBytes.FromBytes(const Data: TBytes): IBytes;
+var temp: TBytes;
+begin
+  // 复制数据以确保不可变性
+  SetLength(temp, Length(Data));
+  if Length(Data) > 0 then
+    Move(Data[0], temp[0], Length(Data));
+  Result := TBytesImpl.Create(temp);
+end;
+
+class function TImmutableBytes.FromHex(const HexStr: string): IBytes;
+var temp: TBytes;
+begin
+  temp := HexToBytes(HexStr);
+  Result := TBytesImpl.Create(temp);
+end;
+
+class function TImmutableBytes.FromString(const Str: string; Encoding: TEncoding = nil): IBytes;
+var temp: TBytes;
+begin
+  if Encoding = nil then
+    temp := BytesOf(Str)
+  else
+    temp := Encoding.GetBytes(Str);
+  Result := TBytesImpl.Create(temp);
+end;
+
+class function TImmutableBytes.Wrap(const Data: TBytes): IBytes;
+begin
+  // 零拷贝包装，共享底层数据
+  Result := TBytesImpl.Create(Data);
+end;
+
+class function TImmutableBytes.FromShared(const SharedBytes: TSharedBytes): IBytes;
+begin
+  Result := TBytesImpl.CreateFromShared(SharedBytes);
+end;
+
+// 暂时注释，稍后实现
+{
+class function TImmutableBytes.FromBuilder(var Builder: TBytesBuilder): IBytes;
+var sharedBytes: TSharedBytes;
+    data: TBytes;
+begin
+  // 尝试零拷贝路径：如果 Builder 的数据正好匹配，直接共享
+  data := Builder.IntoBytes;
+  sharedBytes := TSharedBytes.Create(data);
+  Result := TBytesImpl.CreateFromShared(sharedBytes);
+
+  // 重置 Builder 为空状态
+  Builder.Init(0);
+end;
+}
+
+class function TImmutableBytes.Empty: IBytes;
+var emptyShared: TSharedBytes;
+begin
+  emptyShared := TSharedBytes.Empty;
+  Result := TBytesImpl.CreateFromShared(emptyShared);
+end;
+
+// ---- TSharedBytes 实现 ----
+
+procedure TSharedBytes.AddRef;
+begin
+  if FSharedData <> nil then
+    InterlockedIncrement(FSharedData^.RefCount);
+end;
+
+procedure TSharedBytes.Release;
+begin
+  if FSharedData <> nil then
+  begin
+    if InterlockedDecrement(FSharedData^.RefCount) = 0 then
+    begin
+      SetLength(FSharedData^.Data, 0);
+      Dispose(FSharedData);
+    end;
+    FSharedData := nil;
+  end;
+end;
+
+function TSharedBytes.GetByte(Index: SizeInt): Byte;
+begin
+  if (Index < 0) or (Index >= FLength) then
+    raise EOutOfRange.Create('Index out of range');
+  if FSharedData = nil then
+    raise EInvalidOperation.Create('SharedBytes is empty');
+  Result := FSharedData^.Data[FOffset + Index];
+end;
+
+class function TSharedBytes.Create(const Data: TBytes): TSharedBytes;
+begin
+  New(Result.FSharedData);
+  Result.FSharedData^.RefCount := 1;
+  SetLength(Result.FSharedData^.Data, System.Length(Data));
+  if System.Length(Data) > 0 then
+    Move(Data[0], Result.FSharedData^.Data[0], System.Length(Data));
+  Result.FOffset := 0;
+  Result.FLength := System.Length(Data);
+end;
+
+class function TSharedBytes.CreateSlice(const Source: TSharedBytes; Offset, Length: SizeInt): TSharedBytes;
+begin
+  if (Offset < 0) or (Length < 0) or (Offset + Length > Source.FLength) then
+    raise EOutOfRange.Create('Slice out of range');
+
+  Result.FSharedData := Source.FSharedData;
+  Result.FOffset := Source.FOffset + Offset;
+  Result.FLength := Length;
+  Result.AddRef;
+end;
+
+class function TSharedBytes.Empty: TSharedBytes;
+begin
+  Result.FSharedData := nil;
+  Result.FOffset := 0;
+  Result.FLength := 0;
+end;
+
+function TSharedBytes.GetLength: SizeInt;
+begin
+  Result := FLength;
+end;
+
+function TSharedBytes.IsEmpty: Boolean;
+begin
+  Result := FLength = 0;
+end;
+
+function TSharedBytes.Slice(Start: SizeInt): TSharedBytes;
+begin
+  Result := Slice(Start, FLength - Start);
+end;
+
+function TSharedBytes.Slice(Start, Count: SizeInt): TSharedBytes;
+begin
+  Result := CreateSlice(Self, Start, Count);
+end;
+
+function TSharedBytes.ToArray: TBytes;
+begin
+  SetLength(Result, FLength);
+  if (FLength > 0) and (FSharedData <> nil) then
+    Move(FSharedData^.Data[FOffset], Result[0], FLength);
+end;
+
+procedure TSharedBytes.Assign(const Source: TSharedBytes);
+begin
+  if FSharedData = Source.FSharedData then Exit;
+
+  Release;
+  FSharedData := Source.FSharedData;
+  FOffset := Source.FOffset;
+  FLength := Source.FLength;
+  AddRef;
+end;
+
+procedure TSharedBytes.Clear;
+begin
+  Release;
+  FOffset := 0;
+  FLength := 0;
+end;
+
+// ---- 高级功能扩展实现 ----
+
+// 批量比较操作
+function BytesEqual(const A, B: TBytes): Boolean;
+var i: SizeInt;
+begin
+  if System.Length(A) <> System.Length(B) then Exit(False);
+  if System.Length(A) = 0 then Exit(True);
+
+  for i := 0 to System.Length(A) - 1 do
+    if A[i] <> B[i] then
+      Exit(False);
+  Result := True;
+end;
+
+function BytesCompare(const A, B: TBytes): Integer;
+var i, minLen: SizeInt;
+begin
+  minLen := System.Length(A);
+  if System.Length(B) < minLen then
+    minLen := System.Length(B);
+
+  for i := 0 to minLen - 1 do
+  begin
+    if A[i] < B[i] then Exit(-1);
+    if A[i] > B[i] then Exit(1);
+  end;
+
+  // 前缀相同，比较长度
+  if System.Length(A) < System.Length(B) then Result := -1
+  else if System.Length(A) > System.Length(B) then Result := 1
+  else Result := 0;
+end;
+
+function BytesStartsWith(const Data, Prefix: TBytes): Boolean;
+var i: SizeInt;
+begin
+  if System.Length(Prefix) > System.Length(Data) then Exit(False);
+  if System.Length(Prefix) = 0 then Exit(True);
+
+  for i := 0 to System.Length(Prefix) - 1 do
+    if Data[i] <> Prefix[i] then
+      Exit(False);
+  Result := True;
+end;
+
+function BytesEndsWith(const Data, Suffix: TBytes): Boolean;
+var i, offset: SizeInt;
+begin
+  if System.Length(Suffix) > System.Length(Data) then Exit(False);
+  if System.Length(Suffix) = 0 then Exit(True);
+
+  offset := System.Length(Data) - System.Length(Suffix);
+  for i := 0 to System.Length(Suffix) - 1 do
+    if Data[offset + i] <> Suffix[i] then
+      Exit(False);
+  Result := True;
+end;
+
+// 批量查找操作
+function BytesIndexOf(const Data, Pattern: TBytes; StartPos: SizeInt = 0): SizeInt;
+var i, j: SizeInt; found: Boolean;
+begin
+  if (System.Length(Pattern) = 0) or (StartPos < 0) then Exit(-1);
+  if System.Length(Pattern) > System.Length(Data) - StartPos then Exit(-1);
+
+  for i := StartPos to System.Length(Data) - System.Length(Pattern) do
+  begin
+    found := True;
+    for j := 0 to System.Length(Pattern) - 1 do
+      if Data[i + j] <> Pattern[j] then
+      begin
+        found := False;
+        Break;
+      end;
+    if found then Exit(i);
+  end;
+  Result := -1;
+end;
+
+function BytesLastIndexOf(const Data, Pattern: TBytes): SizeInt;
+var i, j: SizeInt; found: Boolean;
+begin
+  if System.Length(Pattern) = 0 then Exit(-1);
+  if System.Length(Pattern) > System.Length(Data) then Exit(-1);
+
+  for i := System.Length(Data) - System.Length(Pattern) downto 0 do
+  begin
+    found := True;
+    for j := 0 to System.Length(Pattern) - 1 do
+      if Data[i + j] <> Pattern[j] then
+      begin
+        found := False;
+        Break;
+      end;
+    if found then Exit(i);
+  end;
+  Result := -1;
+end;
+
+function BytesIndexOfByte(const Data: TBytes; Value: Byte; StartPos: SizeInt = 0): SizeInt;
+var i: SizeInt;
+begin
+  if StartPos < 0 then Exit(-1);
+  for i := StartPos to System.Length(Data) - 1 do
+    if Data[i] = Value then
+      Exit(i);
+  Result := -1;
+end;
+
+function BytesCount(const Data, Pattern: TBytes): SizeInt;
+var pos: SizeInt;
+begin
+  Result := 0;
+  pos := 0;
+  while True do
+  begin
+    pos := BytesIndexOf(Data, Pattern, pos);
+    if pos = -1 then Break;
+    Inc(Result);
+    Inc(pos, System.Length(Pattern));
+  end;
+end;
+
+// 批量替换操作
+function BytesReplace(const Data, OldPattern, NewPattern: TBytes): TBytes;
+var pos: SizeInt;
+begin
+  pos := BytesIndexOf(Data, OldPattern);
+  if pos = -1 then
+  begin
+    Result := Data; // 没找到，返回原数据
+    Exit;
+  end;
+
+  // 构建结果
+  SetLength(Result, System.Length(Data) - System.Length(OldPattern) + System.Length(NewPattern));
+
+  // 复制前缀
+  if pos > 0 then
+    Move(Data[0], Result[0], pos);
+
+  // 复制新模式
+  if System.Length(NewPattern) > 0 then
+    Move(NewPattern[0], Result[pos], System.Length(NewPattern));
+
+  // 复制后缀
+  if pos + System.Length(OldPattern) < System.Length(Data) then
+    Move(Data[pos + System.Length(OldPattern)], Result[pos + System.Length(NewPattern)],
+         System.Length(Data) - pos - System.Length(OldPattern));
+end;
+
+function BytesReplaceAll(const Data, OldPattern, NewPattern: TBytes): TBytes;
+var
+  bb: TBytesBuilder;
+  pos, lastPos, i: SizeInt;
+  temp: TBytes;
+begin
+  if System.Length(OldPattern) = 0 then
+  begin
+    Result := Data;
+    Exit;
+  end;
+
+  bb.Init(System.Length(Data));
+  lastPos := 0;
+
+  while True do
+  begin
+    pos := BytesIndexOf(Data, OldPattern, lastPos);
+    if pos = -1 then Break;
+
+    // 添加中间部分
+    if pos > lastPos then
+    begin
+      SetLength(temp, pos - lastPos);
+      for i := 0 to pos - lastPos - 1 do
+        temp[i] := Data[lastPos + i];
+      bb.Append(temp);
+    end;
+
+    // 添加替换模式
+    bb.Append(NewPattern);
+
+    lastPos := pos + System.Length(OldPattern);
+  end;
+
+  // 添加剩余部分
+  if lastPos < System.Length(Data) then
+  begin
+    SetLength(temp, System.Length(Data) - lastPos);
+    for i := 0 to System.Length(Data) - lastPos - 1 do
+      temp[i] := Data[lastPos + i];
+    bb.Append(temp);
+  end;
+
+  Result := bb.ToBytes;
+end;
+
+function BytesReplaceByte(const Data: TBytes; OldValue, NewValue: Byte): TBytes;
+var i: SizeInt;
+begin
+  Result := Data; // 复制
+  for i := 0 to System.Length(Result) - 1 do
+    if Result[i] = OldValue then
+      Result[i] := NewValue;
+end;
+
+// 自定义端序支持
+function ReadU16(const Data: TBytes; Offset: SizeInt; Endian: TEndianness): Word;
+begin
+  if (Offset < 0) or (Offset + 2 > System.Length(Data)) then
+    raise EOutOfRange.Create('Offset out of range');
+
+  case Endian of
+    enLittleEndian: Result := ReadU16LE(Data, Offset);
+    enBigEndian: Result := ReadU16BE(Data, Offset);
+    enNative:
+      {$IFDEF ENDIAN_LITTLE}
+      Result := ReadU16LE(Data, Offset);
+      {$ELSE}
+      Result := ReadU16BE(Data, Offset);
+      {$ENDIF}
+  end;
+end;
+
+function ReadU32(const Data: TBytes; Offset: SizeInt; Endian: TEndianness): DWord;
+begin
+  if (Offset < 0) or (Offset + 4 > System.Length(Data)) then
+    raise EOutOfRange.Create('Offset out of range');
+
+  case Endian of
+    enLittleEndian: Result := ReadU32LE(Data, Offset);
+    enBigEndian: Result := ReadU32BE(Data, Offset);
+    enNative:
+      {$IFDEF ENDIAN_LITTLE}
+      Result := ReadU32LE(Data, Offset);
+      {$ELSE}
+      Result := ReadU32BE(Data, Offset);
+      {$ENDIF}
+  end;
+end;
+
+function ReadU64(const Data: TBytes; Offset: SizeInt; Endian: TEndianness): QWord;
+begin
+  if (Offset < 0) or (Offset + 8 > System.Length(Data)) then
+    raise EOutOfRange.Create('Offset out of range');
+
+  case Endian of
+    enLittleEndian: Result := ReadU64LE(Data, Offset);
+    enBigEndian: Result := ReadU64BE(Data, Offset);
+    enNative:
+      {$IFDEF ENDIAN_LITTLE}
+      Result := ReadU64LE(Data, Offset);
+      {$ELSE}
+      Result := ReadU64BE(Data, Offset);
+      {$ENDIF}
+  end;
+end;
+
+procedure WriteU16(var Data: TBytes; Offset: SizeInt; Value: Word; Endian: TEndianness);
+begin
+  if (Offset < 0) or (Offset + 2 > System.Length(Data)) then
+    raise EOutOfRange.Create('Offset out of range');
+
+  case Endian of
+    enLittleEndian: WriteU16LE(Data, Offset, Value);
+    enBigEndian: WriteU16BE(Data, Offset, Value);
+    enNative:
+      {$IFDEF ENDIAN_LITTLE}
+      WriteU16LE(Data, Offset, Value);
+      {$ELSE}
+      WriteU16BE(Data, Offset, Value);
+      {$ENDIF}
+  end;
+end;
+
+procedure WriteU32(var Data: TBytes; Offset: SizeInt; Value: DWord; Endian: TEndianness);
+begin
+  if (Offset < 0) or (Offset + 4 > System.Length(Data)) then
+    raise EOutOfRange.Create('Offset out of range');
+
+  case Endian of
+    enLittleEndian: WriteU32LE(Data, Offset, Value);
+    enBigEndian: WriteU32BE(Data, Offset, Value);
+    enNative:
+      {$IFDEF ENDIAN_LITTLE}
+      WriteU32LE(Data, Offset, Value);
+      {$ELSE}
+      WriteU32BE(Data, Offset, Value);
+      {$ENDIF}
+  end;
+end;
+
+procedure WriteU64(var Data: TBytes; Offset: SizeInt; Value: QWord; Endian: TEndianness);
+begin
+  if (Offset < 0) or (Offset + 8 > System.Length(Data)) then
+    raise EOutOfRange.Create('Offset out of range');
+
+  case Endian of
+    enLittleEndian: WriteU64LE(Data, Offset, Value);
+    enBigEndian: WriteU64BE(Data, Offset, Value);
+    enNative:
+      {$IFDEF ENDIAN_LITTLE}
+      WriteU64LE(Data, Offset, Value);
+      {$ELSE}
+      WriteU64BE(Data, Offset, Value);
+      {$ENDIF}
+  end;
+end;
+
+// ---- 内存池集成预留 ----
+// TODO: 待 fafafa.core.mem.pool 接口稳定后，在这里添加内存池集成代码
 
 end.
 

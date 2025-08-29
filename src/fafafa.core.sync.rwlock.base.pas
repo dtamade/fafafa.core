@@ -6,8 +6,8 @@ unit fafafa.core.sync.rwlock.base;
 interface
 
 uses
-  SysUtils, DateUtils,
-  fafafa.core.base, fafafa.core.sync.base;
+  SysUtils,
+  fafafa.core.base, fafafa.core.sync.base, fafafa.core.atomic;
 
 type
   // ===== 类型定义 =====
@@ -20,6 +20,38 @@ type
   end;
 
   PAtomicCounter = ^TAtomicCounter;
+
+  // ===== 性能监控数据结构 =====
+  TLockPerformanceStats = record
+    // 基础计数器
+    TotalAcquireAttempts: Int64;      // 总获取尝试次数
+    SuccessfulAcquires: Int64;        // 成功获取次数
+    FailedAcquires: Int64;            // 失败获取次数
+    TotalReleases: Int64;             // 总释放次数
+
+    // 读写分离统计
+    ReadAcquireAttempts: Int64;       // 读锁获取尝试
+    WriteAcquireAttempts: Int64;      // 写锁获取尝试
+    ReadSuccesses: Int64;             // 读锁成功次数
+    WriteSuccesses: Int64;            // 写锁成功次数
+
+    // 时间统计（微秒）
+    TotalWaitTime: Int64;             // 总等待时间
+    MaxWaitTime: Int64;               // 最大等待时间
+    MinWaitTime: Int64;               // 最小等待时间
+
+    // 自旋统计
+    TotalSpinCount: Int64;            // 总自旋次数
+    SpinSuccesses: Int64;             // 自旋成功次数
+
+    // 竞争统计
+    ContentionEvents: Int64;          // 竞争事件次数
+    DeadlockDetections: Int64;        // 死锁检测次数
+
+    // 时间戳
+    StartTime: QWord;                 // 统计开始时间
+    LastResetTime: QWord;             // 上次重置时间
+  end;
 
   // ===== 锁配置选项 =====
   TRWLockOptions = record
@@ -235,6 +267,14 @@ type
     function ValidateState: Boolean;
     procedure RecoverState;
     function IsHealthy: Boolean;
+
+    // ===== 性能监控接口 =====
+    function GetPerformanceStats: TLockPerformanceStats; virtual; abstract;
+    procedure ResetPerformanceStats; virtual; abstract;
+    function GetContentionRate: Double; virtual; abstract;
+    function GetAverageWaitTime: Double; virtual; abstract;
+    function GetThroughput: Double; virtual; abstract;
+    function GetSpinEfficiency: Double; virtual; abstract;
   end;
 
 // ===== 原子计数器操作函数 =====
@@ -278,8 +318,8 @@ implementation
 
 function AtomicLoadCounter(var Counter: TAtomicCounter): Integer;
 begin
-  // 使用内存屏障确保读取的一致性
-  Result := InterlockedCompareExchange(Counter.Count, 0, 0);
+  // 使用框架的原子操作确保读取的一致性
+  Result := atomic_load(Counter.Count, memory_order_acquire);
 end;
 
 function AtomicIncrementCounter(var Counter: TAtomicCounter): Integer;
@@ -287,14 +327,14 @@ var
   OldCounter, NewCounter: TAtomicCounter;
 begin
   repeat
-    OldCounter.Count := Counter.Count;
-    OldCounter.Version := Counter.Version;
+    OldCounter.Count := atomic_load(Counter.Count, memory_order_relaxed);
+    OldCounter.Version := atomic_load(Counter.Version, memory_order_relaxed);
 
     NewCounter.Count := OldCounter.Count + 1;
     NewCounter.Version := OldCounter.Version + 1;
 
     // 尝试原子地更新整个结构
-    if InterlockedCompareExchange64(PInt64(@Counter)^, PInt64(@NewCounter)^, PInt64(@OldCounter)^) = PInt64(@OldCounter)^ then
+    if atomic_compare_exchange_strong_64(PInt64(@Counter)^, PInt64(@OldCounter)^, PInt64(@NewCounter)^, memory_order_acq_rel) then
     begin
       Result := NewCounter.Count;
       Exit;
@@ -308,14 +348,14 @@ var
   OldCounter, NewCounter: TAtomicCounter;
 begin
   repeat
-    OldCounter.Count := Counter.Count;
-    OldCounter.Version := Counter.Version;
+    OldCounter.Count := atomic_load(Counter.Count, memory_order_relaxed);
+    OldCounter.Version := atomic_load(Counter.Version, memory_order_relaxed);
 
     NewCounter.Count := OldCounter.Count - 1;
     NewCounter.Version := OldCounter.Version + 1;
 
     // 尝试原子地更新整个结构
-    if InterlockedCompareExchange64(PInt64(@Counter)^, PInt64(@NewCounter)^, PInt64(@OldCounter)^) = PInt64(@OldCounter)^ then
+    if atomic_compare_exchange_strong_64(PInt64(@Counter)^, PInt64(@OldCounter)^, PInt64(@NewCounter)^, memory_order_acq_rel) then
     begin
       Result := NewCounter.Count;
       Exit;
@@ -329,14 +369,14 @@ var
   OldCounter, NewCounter: TAtomicCounter;
 begin
   repeat
-    OldCounter.Count := Counter.Count;
-    OldCounter.Version := Counter.Version;
+    OldCounter.Count := atomic_load(Counter.Count, memory_order_relaxed);
+    OldCounter.Version := atomic_load(Counter.Version, memory_order_relaxed);
 
     NewCounter.Count := Value;
     NewCounter.Version := OldCounter.Version + 1;
 
     // 尝试原子地更新整个结构
-    if InterlockedCompareExchange64(PInt64(@Counter)^, PInt64(@NewCounter)^, PInt64(@OldCounter)^) = PInt64(@OldCounter)^ then
+    if atomic_compare_exchange_strong_64(PInt64(@Counter)^, PInt64(@OldCounter)^, PInt64(@NewCounter)^, memory_order_release) then
       Exit;
     // 如果失败，重试
   until False;
@@ -347,8 +387,8 @@ function AtomicCompareExchangeCounter(var Counter: TAtomicCounter;
 var
   OldCounter, NewCounter: TAtomicCounter;
 begin
-  OldCounter.Count := Counter.Count;
-  OldCounter.Version := Counter.Version;
+  OldCounter.Count := atomic_load(Counter.Count, memory_order_relaxed);
+  OldCounter.Version := atomic_load(Counter.Version, memory_order_relaxed);
 
   // 只有当前计数值匹配时才进行交换
   if OldCounter.Count <> ExpectedCount then
@@ -361,7 +401,7 @@ begin
   NewCounter.Version := OldCounter.Version + 1;
 
   // 尝试原子地更新整个结构
-  Result := InterlockedCompareExchange64(PInt64(@Counter)^, PInt64(@NewCounter)^, PInt64(@OldCounter)^) = PInt64(@OldCounter)^;
+  Result := atomic_compare_exchange_strong_64(PInt64(@Counter)^, PInt64(@OldCounter)^, PInt64(@NewCounter)^, memory_order_acq_rel);
 end;
 
 // ===== 内存屏障操作实现 =====

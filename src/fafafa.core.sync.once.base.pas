@@ -45,7 +45,9 @@ type
 
 
   // ===== 一次性执行接口 =====
-  IOnce = interface(ILock)
+  // 修复接口设计：IOnce不再继承ILock，避免语义混乱
+  // Once不是传统意义的锁，不应该有Lock/Unlock语义
+  IOnce = interface
     ['{A1B2C3D4-E5F6-4789-9012-123456789ABC}']
 
     // 核心方法：执行回调（Go/Rust 风格）

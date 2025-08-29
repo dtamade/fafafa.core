@@ -6,14 +6,15 @@ unit fafafa.core.sync.namedBarrier.base;
 interface
 
 uses
-  fafafa.core.base, fafafa.core.sync.base, fafafa.core.result;
+  SysUtils, fafafa.core.base, fafafa.core.sync.base, fafafa.core.result;
 
 type
   // Forward declarations
   INamedBarrier = interface;
   INamedBarrierGuard = interface;
+  INamedBarrierBuilder = interface;
 
-  // Error type for namedBarrier operations
+  // Enhanced error type for namedBarrier operations
   TNamedBarrierError = (
     nbeNone,
     nbeInvalidArgument,
@@ -21,17 +22,33 @@ type
     nbeSystemError,
     nbeNotFound,
     nbeInvalidState,
+    nbeResourceExhausted,    // 资源耗尽
+    nbePermissionDenied,     // 权限拒绝
+    nbeInterrupted,          // 操作被中断
     nbeUnknownError
   );
 
-  // Specialized Result types using fafafa.core.result
-  TNamedBarrierResult = specialize TResult<INamedBarrier, TNamedBarrierError>;
-  TNamedBarrierGuardResult = specialize TResult<INamedBarrierGuard, TNamedBarrierError>;
-  TNamedBarrierBoolResult = specialize TResult<Boolean, TNamedBarrierError>;
-  TNamedBarrierCardinalResult = specialize TResult<Cardinal, TNamedBarrierError>;
-  TNamedBarrierVoidResult = specialize TResult<Boolean, TNamedBarrierError>; // 使用 Boolean 作为 void 的替代
+  // 详细的错误信息结构
+  TNamedBarrierErrorInfo = record
+    Code: TNamedBarrierError;
+    Message: string;
+    SystemCode: Integer;
+    Context: string;
+  end;
+
+
 
 type
+  // ===== 屏障信息结构（只读快照）=====
+  TNamedBarrierInfo = record
+    Name: string;
+    ParticipantCount: Cardinal;
+    CurrentWaitingCount: Cardinal;
+    Generation: Cardinal;
+    IsSignaled: Boolean;
+    AutoReset: Boolean;
+  end;
+
   // ===== 配置结构 =====
   TNamedBarrierConfig = record
     TimeoutMs: Cardinal;           // 默认超时时间（毫秒）
@@ -48,61 +65,72 @@ function NamedBarrierConfigWithTimeout(ATimeoutMs: Cardinal): TNamedBarrierConfi
 function NamedBarrierConfigWithParticipants(AParticipantCount: Cardinal): TNamedBarrierConfig;
 function GlobalNamedBarrierConfig: TNamedBarrierConfig;
 
+// Builder 模式工厂函数
+function NewNamedBarrierBuilder(const AName: string): INamedBarrierBuilder;
+
 type
-  // ===== RAII 模式的屏障守卫 =====
-  INamedBarrierGuard = interface
-    ['{B2C3D4E5-6F78-9012-CDEF-123456789ABC}']
-    function GetName: string;           // 获取屏障名称
-    function GetParticipantCount: Cardinal; // 获取参与者数量
-    function GetWaitingCount: Cardinal; // 获取当前等待者数量
-    function IsLastParticipant: Boolean; // 是否为最后一个参与者
-    // 析构时自动处理屏障状态，无需手动调用
+  // ===== Builder 模式的配置接口 =====
+  INamedBarrierBuilder = interface
+    ['{A1B2C3D4-5E6F-7890-ABCD-EF1234567890}']
+    function WithParticipants(ACount: Cardinal): INamedBarrierBuilder;
+    function WithTimeout(ATimeoutMs: Cardinal): INamedBarrierBuilder;
+    function WithAutoReset(AAutoReset: Boolean): INamedBarrierBuilder;
+    function WithGlobalNamespace(AUseGlobal: Boolean): INamedBarrierBuilder;
+    function WithRetryPolicy(AMaxRetries: Integer; AIntervalMs: Cardinal): INamedBarrierBuilder;
+    function Build: INamedBarrier;
   end;
 
-  // ===== 现代化的命名屏障接口 =====
+  // ===== 真正的 RAII 模式屏障守卫 =====
+  INamedBarrierGuard = interface
+    ['{B2C3D4E5-6F78-9012-CDEF-123456789ABC}']
+    function IsLastParticipant: Boolean; // 是否为最后一个参与者
+    function GetGeneration: Cardinal;   // 获取屏障代数
+    function GetWaitTime: Cardinal;     // 获取等待时间（毫秒）
+    // RAII: 析构时自动处理屏障状态变更，确保资源正确释放
+    // 守卫不再提供查询功能，专注于生命周期管理
+  end;
+
+  // ===== 简化的现代化命名屏障接口 =====
   INamedBarrier = interface
     ['{C3D4E5F6-7890-1234-ABCD-EF123456789D}']
     // 核心屏障操作 - 返回 RAII 守卫
     function Wait: INamedBarrierGuard;                              // 阻塞等待
-    function TryWait: INamedBarrierGuard;                          // 非阻塞尝试
-    function TryWaitFor(ATimeoutMs: Cardinal): INamedBarrierGuard; // 带超时等待
+    function TryWait: INamedBarrierGuard;                          // 非阻塞尝试，立即返回
+    function WaitFor(ATimeoutMs: Cardinal): INamedBarrierGuard;    // 带超时等待
 
-    // 查询操作
-    function GetName: string;                    // 获取屏障名称
-    function GetParticipantCount: Cardinal;      // 获取参与者数量
-    function GetWaitingCount: Cardinal;          // 获取当前等待者数量
-    function IsSignaled: Boolean;                // 屏障是否已触发
+    // 查询操作（线程安全的快照）- 职责分离
+    function GetInfo: TNamedBarrierInfo;         // 获取完整的屏障信息快照
 
-    // 控制操作
-    procedure Reset;                             // 重置屏障
+    // 控制操作（仅限管理用途）
+    procedure Reset;                             // 重置屏障到初始状态
     procedure Signal;                            // 手动触发屏障（紧急情况）
-
-    // ===== 增量接口：基于 TResult 的现代化错误处理 =====
-    // Modern error handling with TResult (incremental interface)
-
-    // 核心屏障操作 - 返回 TResult 包装的守卫
-    function WaitResult: TNamedBarrierGuardResult;                              // 阻塞等待
-    function TryWaitResult: TNamedBarrierGuardResult;                          // 非阻塞尝试
-    function TryWaitForResult(ATimeoutMs: Cardinal): TNamedBarrierGuardResult; // 带超时等待
-
-    // 查询操作 - 返回 TResult 包装的值
-    function GetWaitingCountResult: TNamedBarrierCardinalResult;     // 获取当前等待者数量
-    function IsSignaledResult: TNamedBarrierBoolResult;              // 屏障是否已触发
-
-    // 控制操作 - 返回操作结果
-    function ResetResult: TNamedBarrierVoidResult;                   // 重置屏障
-    function SignalResult: TNamedBarrierVoidResult;                  // 手动触发屏障
-
-    // 兼容性方法（向后兼容，但不推荐使用）
-    procedure Arrive; deprecated 'Use Wait() instead';
-    function TryArrive: Boolean; deprecated 'Use TryWait() instead';
-    function TryArrive(ATimeoutMs: Cardinal): Boolean; overload; deprecated 'Use TryWaitFor() instead';
-    procedure Arrive(ATimeoutMs: Cardinal); overload; deprecated 'Use TryWaitFor() instead';
-    function GetHandle: Pointer; deprecated 'Implementation detail';
-    function IsCreator: Boolean; deprecated 'Implementation detail';
   end;
 
 implementation
+
+type
+  // Builder 模式的具体实现
+  TNamedBarrierBuilder = class(TInterfacedObject, INamedBarrierBuilder)
+  private
+    FName: string;
+    FConfig: TNamedBarrierConfig;
+  public
+    constructor Create(const AName: string);
+
+    // INamedBarrierBuilder 接口
+    function WithParticipants(ACount: Cardinal): INamedBarrierBuilder;
+    function WithTimeout(ATimeoutMs: Cardinal): INamedBarrierBuilder;
+    function WithAutoReset(AAutoReset: Boolean): INamedBarrierBuilder;
+    function WithGlobalNamespace(AUseGlobal: Boolean): INamedBarrierBuilder;
+    function WithRetryPolicy(AMaxRetries: Integer; AIntervalMs: Cardinal): INamedBarrierBuilder;
+    function Build: INamedBarrier;
+  end;
+
+// Builder 工厂函数实现
+function NewNamedBarrierBuilder(const AName: string): INamedBarrierBuilder;
+begin
+  Result := TNamedBarrierBuilder.Create(AName);
+end;
 
 function DefaultNamedBarrierConfig: TNamedBarrierConfig;
 begin
@@ -130,6 +158,52 @@ function GlobalNamedBarrierConfig: TNamedBarrierConfig;
 begin
   Result := DefaultNamedBarrierConfig;
   Result.UseGlobalNamespace := True;
+end;
+
+{ TNamedBarrierBuilder }
+
+constructor TNamedBarrierBuilder.Create(const AName: string);
+begin
+  inherited Create;
+  FName := AName;
+  FConfig := DefaultNamedBarrierConfig;
+end;
+
+function TNamedBarrierBuilder.WithParticipants(ACount: Cardinal): INamedBarrierBuilder;
+begin
+  FConfig.ParticipantCount := ACount;
+  Result := Self;
+end;
+
+function TNamedBarrierBuilder.WithTimeout(ATimeoutMs: Cardinal): INamedBarrierBuilder;
+begin
+  FConfig.TimeoutMs := ATimeoutMs;
+  Result := Self;
+end;
+
+function TNamedBarrierBuilder.WithAutoReset(AAutoReset: Boolean): INamedBarrierBuilder;
+begin
+  FConfig.AutoReset := AAutoReset;
+  Result := Self;
+end;
+
+function TNamedBarrierBuilder.WithGlobalNamespace(AUseGlobal: Boolean): INamedBarrierBuilder;
+begin
+  FConfig.UseGlobalNamespace := AUseGlobal;
+  Result := Self;
+end;
+
+function TNamedBarrierBuilder.WithRetryPolicy(AMaxRetries: Integer; AIntervalMs: Cardinal): INamedBarrierBuilder;
+begin
+  FConfig.MaxRetries := AMaxRetries;
+  FConfig.RetryIntervalMs := AIntervalMs;
+  Result := Self;
+end;
+
+function TNamedBarrierBuilder.Build: INamedBarrier;
+begin
+  // 这里需要调用门面层的实现，避免循环引用
+  raise Exception.Create('TNamedBarrierBuilder.Build must be implemented in facade layer');
 end;
 
 end.

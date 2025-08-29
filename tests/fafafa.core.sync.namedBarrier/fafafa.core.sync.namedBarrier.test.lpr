@@ -16,7 +16,7 @@ var
 begin
   WriteLn('测试基本创建功能...');
   try
-    LBarrier := CreateNamedBarrier('test_barrier_1');
+    LBarrier := MakeNamedBarrier('test_barrier_1');
     if Assigned(LBarrier) then
     begin
       WriteLn('  ✓ 基本创建成功');
@@ -41,7 +41,7 @@ begin
   WriteLn('测试配置创建功能...');
   try
     LConfig := NamedBarrierConfigWithParticipants(3);
-    LBarrier := CreateNamedBarrier('test_barrier_2', LConfig);
+    LBarrier := MakeNamedBarrier('test_barrier_2', LConfig);
     if Assigned(LBarrier) then
     begin
       WriteLn('  ✓ 配置创建成功');
@@ -63,7 +63,7 @@ var
 begin
   WriteLn('测试信号和重置功能...');
   try
-    LBarrier := CreateNamedBarrier('test_barrier_3', 2);
+    LBarrier := MakeNamedBarrier('test_barrier_3', 2);
     if Assigned(LBarrier) then
     begin
       WriteLn('  - 初始状态: ', BoolToStr(LBarrier.IsSignaled, True));
@@ -92,7 +92,7 @@ var
 begin
   WriteLn('测试非阻塞等待功能...');
   try
-    LBarrier := CreateNamedBarrier('test_barrier_4', 2);
+    LBarrier := MakeNamedBarrier('test_barrier_4', 2);
     if Assigned(LBarrier) then
     begin
       // 测试未触发状态
@@ -129,7 +129,7 @@ begin
 
   // 测试无效名称
   try
-    CreateNamedBarrier('');
+    MakeNamedBarrier('');
     WriteLn('  ✗ 应该抛出无效名称异常');
   except
     on E: EInvalidArgument do
@@ -140,7 +140,7 @@ begin
 
   // 测试无效参与者数量
   try
-    CreateNamedBarrier('test_invalid', 1);
+    MakeNamedBarrier('test_invalid', 1);
     WriteLn('  ✗ 应该抛出无效参与者数量异常');
   except
     on E: EInvalidArgument do

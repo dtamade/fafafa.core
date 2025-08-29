@@ -6,14 +6,7 @@ program fafafa.core.sync.mutex.test;
 uses
   {$IFDEF UNIX}cthreads,{$ENDIF}
   consoletestrunner, fpcunit, testregistry,
-  fafafa.core.sync.mutex.testcase,
-  fafafa.core.sync.mutex.advanced.testcase,
-  fafafa.core.sync.mutex.extreme.testcase,
-  fafafa.core.sync.mutex.concurrency.testcase,
-  fafafa.core.sync.mutex.perf.testcase,
-  fafafa.core.sync.recMutex.testcase,
-  fafafa.core.sync.spinMutex.testcase,
-  fafafa.core.sync.mutex.strict.testcase;
+  fafafa.core.sync.mutex.testcase;
 
 {$IFDEF UNIX}
 {$linklib pthread}

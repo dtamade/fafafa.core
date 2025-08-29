@@ -21,21 +21,24 @@ var
 procedure RunProducer;
 begin
   WriteLn('[Producer] 启动生产者进程');
-  
-  LMutex := MakeNamedMutex(TEST_MUTEX_NAME);
+
+  LMutex := CreateNamedMutex(TEST_MUTEX_NAME);
   LCondVar := MakeNamedConditionVariable(TEST_CONDVAR_NAME);
-  
+
+  WriteLn('[Producer] 互斥锁句柄: ', IntToHex(PtrUInt(LMutex.GetHandle), 16));
+  WriteLn('[Producer] 条件变量句柄: ', IntToHex(PtrUInt(LCondVar.GetHandle), 16));
+  WriteLn('[Producer] 条件变量名称: ', LCondVar.GetName);
+  WriteLn('[Producer] 是否为创建者: ', LCondVar.IsCreator);
+
   WriteLn('[Producer] 等待2秒后发送信号...');
   Sleep(2000);
-  
-  LGuard := LMutex.Lock;
-  try
-    WriteLn('[Producer] 发送信号给消费者');
-    LCondVar.Signal;
-  finally
-    LGuard := nil;
-  end;
-  
+
+  // 注意：对于条件变量的 Signal，我们不需要持有用户互斥锁
+  // 这是因为我们修改了 Signal 实现，直接调用 pthread_cond_signal
+  WriteLn('[Producer] 发送信号给消费者');
+  LCondVar.Signal;
+  WriteLn('[Producer] 信号已发送');
+
   WriteLn('[Producer] 生产者完成');
 end;
 
@@ -45,17 +48,24 @@ var
   LResult: Boolean;
 begin
   WriteLn('[Consumer] 启动消费者进程');
-  
-  LMutex := MakeNamedMutex(TEST_MUTEX_NAME);
+
+  LMutex := CreateNamedMutex(TEST_MUTEX_NAME);
   LCondVar := MakeNamedConditionVariable(TEST_CONDVAR_NAME);
-  
+
+  WriteLn('[Consumer] 互斥锁句柄: ', IntToHex(PtrUInt(LMutex.GetHandle), 16));
+  WriteLn('[Consumer] 条件变量句柄: ', IntToHex(PtrUInt(LCondVar.GetHandle), 16));
+  WriteLn('[Consumer] 条件变量名称: ', LCondVar.GetName);
+  WriteLn('[Consumer] 是否为创建者: ', LCondVar.IsCreator);
+
   LStartTime := GetTickCount64;
-  
-  LGuard := LMutex.Lock;
+
+  // 使用传统的 Acquire/Release 方式，而不是 RAII 守卫
+  // 这是因为 pthread_cond_wait 需要在持有锁的状态下调用，并且会自动释放和重新获取锁
+  LMutex.Acquire;
   try
-    WriteLn('[Consumer] 等待生产者信号...');
+    WriteLn('[Consumer] 获取锁成功，开始等待生产者信号...');
     LResult := LCondVar.Wait(LMutex as ILock, 5000); // 5秒超时
-    
+
     if LResult then
     begin
       WriteLn('[Consumer] ✓ 成功接收到信号，用时: ', GetTickCount64 - LStartTime, 'ms');
@@ -63,11 +73,12 @@ begin
     end
     else
     begin
-      WriteLn('[Consumer] ✗ 等待超时，未收到信号');
+      WriteLn('[Consumer] ✗ 等待超时，未收到信号，用时: ', GetTickCount64 - LStartTime, 'ms');
       ExitCode := 1;
     end;
   finally
-    LGuard := nil;
+    LMutex.Release;
+    WriteLn('[Consumer] 锁已释放');
   end;
 end;
 
@@ -97,10 +108,11 @@ begin
       
       WriteLn('启动消费者进程...');
       LConsumerProcess.Execute;
-      
-      // 稍等一下确保消费者先启动
-      Sleep(500);
-      
+
+      // 等待更长时间确保消费者完全启动并创建了共享对象
+      WriteLn('等待消费者启动...');
+      Sleep(1000);
+
       WriteLn('启动生产者进程...');
       LProducerProcess.Execute;
       

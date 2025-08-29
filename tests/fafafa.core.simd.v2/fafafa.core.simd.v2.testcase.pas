@@ -347,17 +347,61 @@ end;
 procedure TTestCase_SimdV2_Performance.Test_Performance_Profiling;
 var
   Stats: String;
+  Context: TSimdContext;
+  StartTime, EndTime: QWord;
+  A, B, C: TF32x4;
+  I: Integer;
+  Iterations: Integer;
+  Performance, ScalarPerf: Double;
+  ScalarTime, SIMDTime: QWord;
+  Speedup: Double;
 begin
   simd_enable_profiling(True);
-  
-  // 执行一些操作
-  simd_add_f32x4(simd_splat_f32x4(1.0), simd_splat_f32x4(2.0));
-  
+
+  Context := simd_get_context;
+  Iterations := 500000; // 适中的迭代次数
+
+  WriteLn('=== 性能基准测试 ===');
+  WriteLn('迭代次数: ', Iterations);
+  WriteLn('当前 ISA: ', Ord(Context.ActiveISA), ' (0=Scalar, 1=SSE2, 2=AVX2)');
+
+  // 标量性能基准
+  StartTime := GetTickCount64;
+  for I := 0 to Iterations - 1 do
+  begin
+    // 模拟标量操作
+    Performance := 2.0 + 3.0; // 简单的标量操作
+  end;
+  EndTime := GetTickCount64;
+  ScalarTime := EndTime - StartTime + 1; // 避免除零
+  ScalarPerf := Iterations / ((ScalarTime) / 1000.0);
+
+  // SIMD 性能测试
+  A := simd_splat_f32x4(1.0);
+  B := simd_splat_f32x4(2.0);
+
+  StartTime := GetTickCount64;
+  for I := 0 to Iterations - 1 do
+    C := simd_add_f32x4(A, B);
+  EndTime := GetTickCount64;
+
+  SIMDTime := EndTime - StartTime + 1; // 避免除零
+  Performance := Iterations / ((SIMDTime) / 1000.0);
+  Speedup := Performance / ScalarPerf;
+
+  WriteLn('标量性能: ', ScalarPerf:0:0, ' ops/sec (', ScalarTime, ' ms)');
+  WriteLn('SIMD 性能: ', Performance:0:0, ' ops/sec (', SIMDTime, ' ms)');
+  WriteLn('加速比: ', Speedup:0:2, 'x');
+  WriteLn('基准性能: ', (Performance / 1000000):0:2, 'M ops/sec');
+
   Stats := simd_get_performance_stats;
-  AssertTrue('Performance stats should not be empty', Stats <> '');
-  
   WriteLn('Performance Stats: ', Stats);
-  
+
+  // 验证结果正确性
+  AssertEquals('Performance test result', 3.0, C.Extract(0), 0.001);
+  AssertTrue('Performance > 0', Performance > 0);
+  AssertTrue('Scalar performance > 0', ScalarPerf > 0);
+
   simd_enable_profiling(False);
 end;
 

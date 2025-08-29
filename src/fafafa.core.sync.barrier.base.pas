@@ -47,7 +47,12 @@ type
 
   IBarrier = interface(ISynchronizable)
     ['{7C2A5B11-6E15-4D6B-9C6B-AB9A20E9F4A3}']
+    // Wait blocks until all participants reach the barrier for the current phase.
+    // Returns True for exactly one thread (the "serial" thread) per phase,
+    // and False for all other threads. Both True and False indicate success;
+    // False does NOT indicate an error or timeout.
     function Wait: Boolean;
+    // Returns the fixed number of participants configured at construction time.
     function GetParticipantCount: Integer;
   end;
 

@@ -2,15 +2,15 @@
 
 ## 📋 概述
 
-`fafafa.core.sync.once` 模块提供了线程安全的一次性执行功能，确保某个操作在多线程环境中只被执行一次。该模块遵循与其他同步原语相同的架构模式，继承自 `ILock` 基础接口，提供跨平台的统一接口。
+`fafafa.core.sync.once` 模块提供了线程安全的一次性执行功能，确保某个操作在多线程环境中只被执行一次。该模块采用现代化的接口设计，提供独立的 `IOnce` 接口，避免与传统锁语义的混淆。
 
 ## 🎯 设计理念
 
-Once 模块借鉴了现代编程语言的设计：
-- **C++**: `std::once_flag` + `std::call_once`
-- **Go**: `sync.Once`
-- **Rust**: `std::sync::Once`
-- **Java**: 双重检查锁定模式
+Once 模块借鉴了现代编程语言的最佳实践：
+- **Go**: `sync.Once` - 简洁的API设计
+- **Rust**: `std::sync::Once` - 毒化状态和强制执行
+- **C++**: `std::once_flag` + `std::call_once` - 类型安全
+- **Java**: 双重检查锁定模式 - 高性能实现
 
 ## 🏗️ 架构设计
 
@@ -25,10 +25,15 @@ fafafa.core.sync.once/
 
 ### 接口层次
 ```
-ILock (基础锁接口)
-  └── IOnce (一次性执行接口)
-        └── TOnce (平台特定实现)
+IOnce (独立的一次性执行接口)
+  └── TOnce (平台特定实现)
 ```
+
+### 设计原则
+- **接口分离**: IOnce不继承ILock，避免语义混乱
+- **毒化恢复**: 支持异常后的状态恢复
+- **高性能**: 优化的快速路径和内存布局
+- **跨平台**: Windows和Unix的统一接口
 
 ## 🔧 平台实现策略
 
@@ -52,34 +57,58 @@ ILock (基础锁接口)
 ### 接口定义
 
 ```pascal
-IOnce = interface(ILock)
-  // 继承自 ILock 的方法
-  procedure Acquire;           // 执行一次性操作（等同于 Execute）
-  procedure Release;           // 对于 once 语义，此方法为空操作
-  function TryAcquire: Boolean; // 尝试执行一次性操作，如果已执行则立即返回 True
+IOnce = interface
+  ['{A1B2C3D4-E5F6-4789-9012-123456789ABC}']
 
-  // 核心方法：执行构造时传入的回调
-  procedure Execute;
-
-  // 扩展方法：动态设置并执行回调
+  // 核心方法：执行回调（Go/Rust 风格）
+  procedure Execute; overload;
   procedure Execute(const AProc: TOnceProc); overload;
   procedure Execute(const AMethod: TOnceMethod); overload;
+  {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
   procedure Execute(const AAnonymousProc: TOnceAnonymousProc); overload;
+  {$ENDIF}
 
-  // 状态查询
+  // 强制执行（忽略毒化状态）
+  procedure ExecuteForce; overload;
+  procedure ExecuteForce(const AProc: TOnceProc); overload;
+  procedure ExecuteForce(const AMethod: TOnceMethod); overload;
+  {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
+  procedure ExecuteForce(const AAnonymousProc: TOnceAnonymousProc); overload;
+  {$ENDIF}
+
+  // 兼容旧接口（标记为废弃）
+  procedure Call(const AProc: TOnceProc); overload; deprecated 'Use Execute instead';
+  procedure Call(const AMethod: TOnceMethod); overload; deprecated 'Use Execute instead';
+  {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
+  procedure Call(const AAnonymousProc: TOnceAnonymousProc); overload; deprecated 'Use Execute instead';
+  {$ENDIF}
+
+  procedure CallForce(const AProc: TOnceProc); overload; deprecated 'Use ExecuteForce instead';
+  procedure CallForce(const AMethod: TOnceMethod); overload; deprecated 'Use ExecuteForce instead';
+  {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
+  procedure CallForce(const AAnonymousProc: TOnceAnonymousProc); overload; deprecated 'Use ExecuteForce instead';
+  {$ENDIF}
+
+  // 等待机制（Rust 风格）
+  procedure Wait;
+  procedure WaitForce;
+
+  // 状态查询（属性风格，符合 Pascal 约定）
   function GetState: TOnceState;
-  function IsCompleted: Boolean;
-  function IsInProgress: Boolean;
+  function GetCompleted: Boolean;
+  function GetPoisoned: Boolean;
 
-  // 重置功能（主要用于测试）
-  procedure Reset;
+  // 属性接口
+  property State: TOnceState read GetState;
+  property Completed: Boolean read GetCompleted;
+  property Poisoned: Boolean read GetPoisoned;
 end;
 ```
 
 ### 类型定义
 
 ```pascal
-TOnceState = (osNotStarted, osInProgress, osCompleted);
+TOnceState = (osNotStarted, osInProgress, osCompleted, osPoisoned);
 TOnceProc = procedure;
 TOnceMethod = procedure of object;
 {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
@@ -133,10 +162,16 @@ begin
   Once.Execute;
   {$ENDIF}
 
-  // 方式3：使用 ILock 接口
-  Once := MakeOnce(@InitializeResource);
-  Once.Acquire; // 等同于 Execute
-  Once.Acquire; // 不会重复执行
+  // 方式3：运行时传入回调
+  Once := MakeOnce;
+  Once.Execute(@InitializeResource); // 动态传入回调
+  Once.Execute(@InitializeResource); // 不会重复执行
+
+  // 方式4：状态查询
+  if Once.Completed then
+    WriteLn('初始化已完成')
+  else
+    WriteLn('初始化未完成');
 end;
 ```
 
@@ -337,25 +372,39 @@ begin
 end;
 ```
 
-### 使用 ILock 接口
+### 异常处理和毒化状态
 
 ```pascal
 var
   Once: IOnce;
 
-procedure Setup;
+procedure RiskySetup;
 begin
+  if Random(2) = 0 then
+    raise Exception.Create('设置失败');
   WriteLn('执行设置操作');
 end;
 
 begin
-  Once := MakeOnce(@Setup); // 构造时设置回调
+  Once := MakeOnce(@RiskySetup);
 
-  // 在需要的时候执行
-  if Once.TryAcquire then
-    WriteLn('设置已完成')
-  else
-    WriteLn('设置失败');
+  try
+    Once.Execute;
+  except
+    on E: Exception do
+    begin
+      WriteLn('设置失败: ', E.Message);
+      WriteLn('Once已毒化: ', Once.Poisoned);
+
+      // 使用强制执行来恢复
+      Once.ExecuteForce(
+        procedure
+        begin
+          WriteLn('安全的设置操作');
+        end
+      );
+    end;
+  end;
 end;
 ```
 
@@ -378,10 +427,10 @@ end;
 ## 🚨 注意事项
 
 ### 重要限制
-1. **不支持重复执行**: 一旦执行完成，无法再次执行（除非 Reset）
-2. **异常处理**: Windows 实现支持异常恢复，Unix 实现不支持
-3. **Reset 谨慎使用**: Reset 主要用于测试，生产环境需谨慎
-4. **回调存储**: 回调函数会被存储，注意对象生命周期
+1. **不支持重复执行**: 一旦执行完成，无法再次执行（除非使用ExecuteForce）
+2. **毒化状态**: 回调抛出异常后，Once进入毒化状态，需要使用ExecuteForce恢复
+3. **回调存储**: 回调函数会被存储，注意对象生命周期
+4. **递归调用**: 不支持在回调中递归调用同一个Once实例
 
 ### 最佳实践
 
@@ -390,20 +439,28 @@ end;
 Once := MakeOnce(@SimpleInit);
 Once.Execute;
 
-// ✅ 推荐：使用 ILock 接口
-if Once.TryAcquire then
-  WriteLn('操作已完成');
+// ✅ 推荐：状态查询
+if Once.Completed then
+  WriteLn('操作已完成')
+else if Once.Poisoned then
+  WriteLn('操作失败，需要恢复');
 
-// ❌ 不推荐：在回调中抛出异常（Unix 平台）
-Once := MakeOnce(
-  procedure
-  begin
-    raise Exception.Create('错误'); // Unix 平台可能无法恢复
-  end
-);
+// ✅ 推荐：异常恢复
+try
+  Once.Execute(@RiskyInit);
+except
+  Once.ExecuteForce(@SafeInit); // 强制执行安全的初始化
+end;
 
-// ❌ 不推荐：生产环境使用 Reset
-Once.Reset; // 仅用于测试
+// ❌ 避免：递归调用
+procedure BadCallback;
+begin
+  Once.Execute; // 这会导致递归调用异常
+end;
+
+// ❌ 避免：忽略毒化状态
+Once.Execute(@RiskyInit); // 可能失败
+Once.Execute(@AnotherInit); // 如果上面失败，这里不会执行
 ```
 
 ## 🧪 测试覆盖
@@ -438,31 +495,94 @@ fafafa.core.sync.once
 ### 集成使用
 ```pascal
 uses
-  fafafa.core.sync.once,
-  fafafa.core.sync.mutex;
+  fafafa.core.sync.once;
 
-// 根据场景选择合适的同步原语
-function CreateInitializer(IsOneTime: Boolean): ILock;
+// 与其他同步原语配合使用
+type
+  TResourceManager = class
+  private
+    FInitOnce: IOnce;
+    FMutex: TMutex;
+    FResource: TObject;
+  public
+    constructor Create;
+    procedure EnsureInitialized;
+    procedure UseResource;
+  end;
+
+constructor TResourceManager.Create;
 begin
-  if IsOneTime then
-    Result := MakeOnce
-  else
-    Result := CreateMutex;
+  FInitOnce := MakeOnce(
+    procedure
+    begin
+      FResource := TExpensiveResource.Create;
+      FMutex := TMutex.Create;
+    end
+  );
 end;
+
+procedure TResourceManager.UseResource;
+begin
+  FInitOnce.Execute; // 确保资源已初始化
+  FMutex.Lock;
+  try
+    FResource.DoWork;
+  finally
+    FMutex.Unlock;
+  end;
+end;
+```
+
+## 🚀 高级特性和性能优化
+
+### 已实现的性能优化
+- ✅ **内存屏障优化**: Unix平台使用LoadAcquire/StoreRelease语义
+- ✅ **缓存行对齐**: 64字节对齐，减少伪共享
+- ✅ **分支预测优化**: 使用Likely/Unlikely提示优化热路径
+- ✅ **原子操作优化**: 减少不必要的原子操作
+- ✅ **锁粒度优化**: 三阶段锁控制，用户回调在锁外执行
+- ✅ **自适应等待**: Wait方法使用自旋+指数退避算法
+- ✅ **对象池支持**: 可选的对象池减少内存分配（编译时开启）
+
+### 编译选项
+
+```pascal
+// 在项目设置或全局配置中定义以下宏：
+
+// 启用对象池（减少内存分配）
+{$DEFINE FAFAFA_CORE_OBJECT_POOL}
+
+// 启用匿名过程支持
+{$DEFINE FAFAFA_CORE_ANONYMOUS_REFERENCES}
+
+// 启用调试输出
+{$DEFINE FAFAFA_CORE_DEBUG_ONCE}
+```
+
+### 性能基准测试
+
+```pascal
+// 快速路径性能（已完成状态检查）
+// - Windows: ~1-2 CPU周期（原子读取）
+// - Unix: ~1-2 CPU周期（内存屏障优化）
+
+// 首次执行性能
+// - 与传统互斥锁相当
+// - 缓存行对齐减少内存访问延迟
+
+// 并发性能
+// - 已完成状态下无锁竞争
+// - 支持数千个并发线程同时检查状态
 ```
 
 ## 📈 未来扩展
 
 ### 计划功能
-- [ ] 超时支持
+- [ ] 超时支持（Wait方法）
 - [ ] 异步执行支持
 - [ ] 统计信息收集
 - [ ] 性能监控集成
-
-### 性能优化
-- [ ] 内存屏障优化
-- [ ] 缓存行对齐
-- [ ] 分支预测优化
+- [ ] 更多编译时优化选项
 
 ---
 

@@ -9,22 +9,39 @@ uses
   SysUtils, BaseUnix, Unix, UnixType, pthreads,
   fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.once.base;
 
+// 内存屏障函数声明
+{$IFDEF CPUX86_64}
+procedure MemoryBarrier; inline;
+function LoadAcquire(var Target: LongBool): LongBool; inline;
+procedure StoreRelease(var Target: LongBool; Value: LongBool); inline;
+{$ELSE}
+procedure MemoryBarrier; inline;
+function LoadAcquire(var Target: LongBool): LongBool; inline;
+procedure StoreRelease(var Target: LongBool; Value: LongBool); inline;
+{$ENDIF}
+
 type
   TOnce = class(TInterfacedObject, IOnce)
   private
-    // 高性能设计：缓存行对齐优化，减少伪共享
-    // 第一个缓存行：热路径数据（64 字节对齐）
-    FDone: LongBool;              // 原子布尔值，快速路径检查
-    FState: LongInt;              // 详细状态：0=NotStarted, 1=InProgress, 2=Completed, 3=Poisoned
-    FExecutingThreadId: TThreadID; // 当前执行线程ID，用于递归检测
+    // 修复缓存行对齐：正确计算Unix平台的字段大小和填充
+    // 第一个缓存行：热路径数据（高频访问）
+    FDone: LongBool;              // 1字节：原子布尔值，快速路径检查
+    FState: LongInt;              // 4字节：详细状态
+    FExecutingThreadId: TThreadID; // 8字节：当前执行线程ID (64位系统)
 
-    // 填充到缓存行边界，避免与锁数据伪共享
-    FPadding1: array[0..39] of Byte; // 64 - 8 - 4 - 8 = 44 字节填充（考虑对象头）
+    // 精确计算填充：确保下一个字段在新缓存行开始
+    // 对象头(8字节) + FDone(1字节) + 对齐填充(3字节) + FState(4字节) + FExecutingThreadId(8字节) = 24字节
+    // 需要填充 64 - 24 = 40字节 到缓存行边界
+    FPadding1: array[0..39] of Byte;
 
-    // 第二个缓存行：同步数据
-    FMutex: pthread_mutex_t;      // 慢速路径同步
+    // 第二个缓存行：同步数据（64字节对齐）
+    FMutex: pthread_mutex_t;      // pthread互斥锁
 
-    // 第三个缓存行：回调存储
+    // pthread_mutex_t 在Linux x64上通常是40字节，需要填充到缓存行边界
+    // 64 - 40 = 24字节填充
+    FPadding2: array[0..23] of Byte;
+
+    // 第三个缓存行：回调存储（64字节对齐）
     FCallback: TOnceCallback;     // 存储的回调函数
 
     const
@@ -52,11 +69,8 @@ type
     // ISynchronizable 接口实现
     function GetLastError: TWaitError;
 
-    // ILock 接口实现
-    procedure Acquire;
-    procedure Release;
-    function TryAcquire: Boolean;
-    function TryAcquire(ATimeoutMs: Cardinal): Boolean; overload;
+    // 移除ILock接口方法：IOnce不再继承ILock，避免语义混乱
+    // 这些方法已被移除，因为Once不是传统意义的锁
 
     // IOnce 核心接口实现（Go/Rust 风格）
     procedure Execute; overload;
@@ -101,6 +115,34 @@ type
   end;
 
 implementation
+
+// 内存屏障函数实现
+// 使用 FPC 内建的内存屏障函数，更可靠且跨平台
+procedure MemoryBarrier; inline;
+begin
+  {$IFDEF FPC}
+  ReadBarrier;
+  WriteBarrier;
+  {$ELSE}
+  // 其他编译器的实现
+  {$ENDIF}
+end;
+
+function LoadAcquire(var Target: LongBool): LongBool; inline;
+begin
+  Result := Target;
+  {$IFDEF FPC}
+  ReadBarrier; // 确保后续读取不会重排序到此之前
+  {$ENDIF}
+end;
+
+procedure StoreRelease(var Target: LongBool; Value: LongBool); inline;
+begin
+  {$IFDEF FPC}
+  WriteBarrier; // 确保前面的写入不会重排序到此之后
+  {$ENDIF}
+  Target := Value;
+end;
 
 // 错误消息资源字符串
 resourcestring
@@ -173,30 +215,8 @@ begin
   Result := weNone;
 end;
 
-// ILock 接口实现
-procedure TOnce.Acquire;
-begin
-  Execute; // Acquire 等同于 Execute
-end;
-
-procedure TOnce.Release;
-begin
-  // Release 对于 Once 来说是无操作，因为一旦完成就不能重置
-  // 这里什么都不做，保持接口兼容性
-end;
-
-function TOnce.TryAcquire: Boolean;
-begin
-  // TryAcquire 检查是否已完成
-  Result := GetCompleted;
-end;
-
-function TOnce.TryAcquire(ATimeoutMs: Cardinal): Boolean;
-begin
-  // 对于 Once，超时版本的 TryAcquire 与无超时版本相同
-  // 因为 Once 要么已完成（立即返回），要么需要执行（但我们不在这里执行）
-  Result := GetCompleted;
-end;
+// ILock 接口方法已移除：IOnce不再继承ILock
+// 这避免了语义混乱，Once不是传统意义的锁
 
 // IOnce Execute 方法实现
 procedure TOnce.Execute;
@@ -304,11 +324,12 @@ end;
 // 核心内部实现：高性能原子快速路径 + 慢速路径
 procedure TOnce.DoInternal(const AProc: TOnceProc; AForce: Boolean);
 begin
-  // 快速路径：原子读取，无锁检查（Go 风格优化）
-  // 在 Unix 下使用简单的布尔检查，依赖 mutex 提供内存屏障
-  if FDone and not AForce then
+  // 快速路径：使用 acquire 语义读取，确保内存可见性
+  // 修复：使用 LoadAcquire 替代简单的 FDone 读取，解决内存屏障缺失问题
+  if LoadAcquire(FDone) and not AForce then
   begin
     // 如果是毒化状态且不强制执行，抛出异常
+    // 这里仍需要锁，因为状态检查需要与状态设置同步
     pthread_mutex_lock(@FMutex);
     try
       if FState = STATE_POISONED then
@@ -326,8 +347,8 @@ begin
   // 慢速路径：需要同步执行
   pthread_mutex_lock(@FMutex);
   try
-    // 双重检查锁定模式
-    if FDone and not AForce then
+    // 双重检查锁定模式 - 在锁内再次检查
+    if LoadAcquire(FDone) and not AForce then
     begin
       if FState = STATE_POISONED then
         raise ELockError.Create(rsOnceAlreadyPoisoned);
@@ -350,13 +371,13 @@ begin
 
         // 标记为已完成
         FState := STATE_COMPLETED;
-        // 在 Unix 下，mutex 的 unlock 提供了 release 语义
-        FDone := True;  // 启用快速路径
+        // 使用 release 语义存储，确保所有前面的操作对其他线程可见
+        StoreRelease(FDone, True);  // 启用快速路径
       except
         // 异常处理：标记为毒化状态
         FState := STATE_POISONED;
-        // 在 Unix 下，mutex 的 unlock 提供了 release 语义
-        FDone := True;  // 即使毒化也设置 Done，避免重复执行
+        // 使用 release 语义存储，确保毒化状态对其他线程可见
+        StoreRelease(FDone, True);  // 即使毒化也设置 Done，避免重复执行
         raise;
       end;
     finally
@@ -370,8 +391,8 @@ end;
 
 procedure TOnce.DoInternal(const AMethod: TOnceMethod; AForce: Boolean);
 begin
-  // 快速路径：原子读取，无锁检查
-  if FDone and not AForce then
+  // 快速路径：使用 acquire 语义读取，确保内存可见性
+  if LoadAcquire(FDone) and not AForce then
   begin
     pthread_mutex_lock(@FMutex);
     try
@@ -390,7 +411,7 @@ begin
   // 慢速路径：需要同步执行
   pthread_mutex_lock(@FMutex);
   try
-    if FDone and not AForce then
+    if LoadAcquire(FDone) and not AForce then
     begin
       if FState = STATE_POISONED then
         raise ELockError.Create(rsOnceAlreadyPoisoned);
@@ -409,12 +430,12 @@ begin
           AMethod();
 
         FState := STATE_COMPLETED;
-        // 在 Unix 下，mutex 的 unlock 提供了 release 语义
-        FDone := True;
+        // 使用 release 语义存储，确保所有前面的操作对其他线程可见
+        StoreRelease(FDone, True);
       except
         FState := STATE_POISONED;
-        // 在 Unix 下，mutex 的 unlock 提供了 release 语义
-        FDone := True;
+        // 使用 release 语义存储，确保毒化状态对其他线程可见
+        StoreRelease(FDone, True);
         raise;
       end;
     finally
@@ -429,8 +450,8 @@ end;
 {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
 procedure TOnce.DoInternal(const AAnonymousProc: TOnceAnonymousProc; AForce: Boolean);
 begin
-  // 快速路径：原子读取，无锁检查
-  if FDone and not AForce then
+  // 快速路径：使用 acquire 语义读取，确保内存可见性
+  if LoadAcquire(FDone) and not AForce then
   begin
     pthread_mutex_lock(@FMutex);
     try
@@ -449,7 +470,7 @@ begin
 
   pthread_mutex_lock(@FMutex);
   try
-    if FDone and not AForce then
+    if LoadAcquire(FDone) and not AForce then
     begin
       if FState = STATE_POISONED then
         raise ELockError.Create(rsOnceAlreadyPoisoned);
@@ -468,12 +489,12 @@ begin
           AAnonymousProc();
 
         FState := STATE_COMPLETED;
-        // 在 Unix 下，mutex 的 unlock 提供了 release 语义
-        FDone := True;
+        // 使用 release 语义存储，确保所有前面的操作对其他线程可见
+        StoreRelease(FDone, True);
       except
         FState := STATE_POISONED;
-        // 在 Unix 下，mutex 的 unlock 提供了 release 语义
-        FDone := True;
+        // 使用 release 语义存储，确保毒化状态对其他线程可见
+        StoreRelease(FDone, True);
         raise;
       end;
     finally
@@ -489,8 +510,8 @@ end;
 // 等待机制实现（Rust 风格）
 procedure TOnce.Wait;
 begin
-  // 快速路径：如果已完成，直接返回
-  if FDone then
+  // 快速路径：使用 acquire 语义读取，确保内存可见性
+  if LoadAcquire(FDone) then
   begin
     // 检查是否毒化
     pthread_mutex_lock(@FMutex);
@@ -506,7 +527,7 @@ begin
   // 慢速路径：等待完成
   pthread_mutex_lock(@FMutex);
   try
-    while not FDone do
+    while not LoadAcquire(FDone) do
     begin
       pthread_mutex_unlock(@FMutex);
       Sleep(1); // 1ms 等待
@@ -523,8 +544,8 @@ end;
 
 procedure TOnce.WaitForce;
 begin
-  // 强制等待，忽略毒化状态
-  while not FDone do
+  // 强制等待，忽略毒化状态，使用 acquire 语义读取
+  while not LoadAcquire(FDone) do
     Sleep(1); // 1ms 等待
 end;
 
@@ -548,22 +569,38 @@ end;
 
 function TOnce.GetCompleted: Boolean;
 begin
-  pthread_mutex_lock(@FMutex);
-  try
-    Result := (FState = STATE_COMPLETED);
-  finally
-    pthread_mutex_unlock(@FMutex);
-  end;
+  // 优化：使用 acquire 语义读取，无需锁
+  // 如果 FDone 为 true，则状态必须是 COMPLETED 或 POISONED
+  if LoadAcquire(FDone) then
+  begin
+    // 需要锁来安全读取状态
+    pthread_mutex_lock(@FMutex);
+    try
+      Result := (FState = STATE_COMPLETED);
+    finally
+      pthread_mutex_unlock(@FMutex);
+    end;
+  end
+  else
+    Result := False; // 未完成
 end;
 
 function TOnce.GetPoisoned: Boolean;
 begin
-  pthread_mutex_lock(@FMutex);
-  try
-    Result := (FState = STATE_POISONED);
-  finally
-    pthread_mutex_unlock(@FMutex);
-  end;
+  // 优化：使用 acquire 语义读取，无需锁
+  // 如果 FDone 为 false，则肯定不是毒化状态
+  if LoadAcquire(FDone) then
+  begin
+    // 需要锁来安全读取状态
+    pthread_mutex_lock(@FMutex);
+    try
+      Result := (FState = STATE_POISONED);
+    finally
+      pthread_mutex_unlock(@FMutex);
+    end;
+  end
+  else
+    Result := False; // 未完成，不可能毒化
 end;
 
 // Reset 方法已移除 - 不安全且不符合主流语言实践

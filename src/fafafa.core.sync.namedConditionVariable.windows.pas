@@ -56,10 +56,8 @@ type
     function GetLastError: TWaitError;
     
     // INamedConditionVariable 接口
-    procedure Wait(const AMutex: ILock); overload;
-    function Wait(const AMutex: ILock; ATimeoutMs: Cardinal): Boolean; overload;
-    procedure Wait(const AMutex: IMutex); overload;
-    function Wait(const AMutex: IMutex; ATimeoutMs: Cardinal): Boolean; overload;
+    procedure Wait(const ALock: ILock); overload;
+    function Wait(const ALock: ILock; ATimeoutMs: Cardinal): Boolean; overload;
     procedure Signal;
     procedure Broadcast;
     
@@ -503,21 +501,6 @@ begin
   Result := FIsCreator;
 end;
 
-// IMutex 版本的 Wait 方法（从 IConditionVariable 继承）
-procedure TNamedConditionVariable.Wait(const AMutex: IMutex);
-begin
-  if AMutex = nil then
-    raise EArgumentNilException.Create('Mutex cannot be nil');
-  // 转换为 ILock 并调用现有实现
-  Wait(ILock(AMutex));
-end;
 
-function TNamedConditionVariable.Wait(const AMutex: IMutex; ATimeoutMs: Cardinal): Boolean;
-begin
-  if AMutex = nil then
-    raise EArgumentNilException.Create('Mutex cannot be nil');
-  // 转换为 ILock 并调用现有实现
-  Result := Wait(ILock(AMutex), ATimeoutMs);
-end;
 
 end.

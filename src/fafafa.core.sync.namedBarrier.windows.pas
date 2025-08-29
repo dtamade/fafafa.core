@@ -10,23 +10,25 @@ uses
   fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.namedBarrier.base;
 
 type
-  // RAII 守卫实现
+  // 真正的 RAII 守卫实现 - 专注于生命周期管理
   TNamedBarrierGuard = class(TInterfacedObject, INamedBarrierGuard)
   private
-    FName: string;
-    FParticipantCount: Cardinal;
-    FWaitingCount: Cardinal;
+    FBarrier: Pointer;              // 指向父屏障的弱引用
     FIsLastParticipant: Boolean;
+    FGeneration: Cardinal;
+    FWaitTime: Cardinal;            // 等待时间（毫秒）
     FReleased: Boolean;
+    FStartTime: QWord;              // 开始等待的时间
+
+    procedure InternalRelease;
   public
-    constructor Create(const AName: string; AParticipantCount, AWaitingCount: Cardinal; AIsLastParticipant: Boolean);
+    constructor Create(ABarrier: Pointer; AIsLastParticipant: Boolean; AGeneration: Cardinal);
     destructor Destroy; override;
-    
-    // INamedBarrierGuard 接口
-    function GetName: string;
-    function GetParticipantCount: Cardinal;
-    function GetWaitingCount: Cardinal;
+
+    // INamedBarrierGuard 接口 - 简化的接口
     function IsLastParticipant: Boolean;
+    function GetGeneration: Cardinal;
+    function GetWaitTime: Cardinal;
   end;
 
   TNamedBarrier = class(TInterfacedObject, INamedBarrier)
@@ -54,35 +56,17 @@ type
     // ISynchronizable 接口
     function GetLastError: TWaitError;
 
-    // INamedBarrier 接口
+    // INamedBarrier 接口 - 简化的现代化接口
     function Wait: INamedBarrierGuard;
     function TryWait: INamedBarrierGuard;
-    function TryWaitFor(ATimeoutMs: Cardinal): INamedBarrierGuard;
-    
-    function GetName: string;
-    function GetParticipantCount: Cardinal;
-    function GetWaitingCount: Cardinal;
-    function IsSignaled: Boolean;
-    
+    function WaitFor(ATimeoutMs: Cardinal): INamedBarrierGuard;
+
+    // 查询操作 - 返回完整快照
+    function GetInfo: TNamedBarrierInfo;
+
+    // 控制操作
     procedure Reset;
     procedure Signal;
-    
-    // ===== 增量接口：基于 TResult 的现代化错误处理 =====
-    function WaitResult: TNamedBarrierGuardResult;
-    function TryWaitResult: TNamedBarrierGuardResult;
-    function TryWaitForResult(ATimeoutMs: Cardinal): TNamedBarrierGuardResult;
-    function GetWaitingCountResult: TNamedBarrierCardinalResult;
-    function IsSignaledResult: TNamedBarrierBoolResult;
-    function ResetResult: TNamedBarrierVoidResult;
-    function SignalResult: TNamedBarrierVoidResult;
-
-    // 兼容性方法（已弃用）
-    procedure Arrive; deprecated;
-    function TryArrive: Boolean; deprecated;
-    function TryArrive(ATimeoutMs: Cardinal): Boolean; overload; deprecated;
-    procedure Arrive(ATimeoutMs: Cardinal); overload; deprecated;
-    function GetHandle: Pointer; deprecated;
-    function IsCreator: Boolean; deprecated;
   end;
 
 implementation
@@ -99,44 +83,53 @@ type
 
 { TNamedBarrierGuard }
 
-constructor TNamedBarrierGuard.Create(const AName: string; AParticipantCount, AWaitingCount: Cardinal; AIsLastParticipant: Boolean);
+constructor TNamedBarrierGuard.Create(ABarrier: Pointer; AIsLastParticipant: Boolean; AGeneration: Cardinal);
 begin
   inherited Create;
-  FName := AName;
-  FParticipantCount := AParticipantCount;
-  FWaitingCount := AWaitingCount;
+  FBarrier := ABarrier;
   FIsLastParticipant := AIsLastParticipant;
+  FGeneration := AGeneration;
   FReleased := False;
+  FStartTime := GetTickCount64;
+  FWaitTime := 0;
 end;
 
 destructor TNamedBarrierGuard.Destroy;
 begin
   if not FReleased then
-  begin
-    // 守卫析构时的清理工作（如果需要）
-    FReleased := True;
-  end;
+    InternalRelease;
   inherited Destroy;
 end;
 
-function TNamedBarrierGuard.GetName: string;
+procedure TNamedBarrierGuard.InternalRelease;
 begin
-  Result := FName;
-end;
+  if FReleased then
+    Exit;
 
-function TNamedBarrierGuard.GetParticipantCount: Cardinal;
-begin
-  Result := FParticipantCount;
-end;
+  // 计算等待时间
+  FWaitTime := GetTickCount64 - FStartTime;
 
-function TNamedBarrierGuard.GetWaitingCount: Cardinal;
-begin
-  Result := FWaitingCount;
+  // RAII: 在守卫析构时进行必要的清理
+  // 这里可以添加屏障状态的清理逻辑
+  FReleased := True;
 end;
 
 function TNamedBarrierGuard.IsLastParticipant: Boolean;
 begin
   Result := FIsLastParticipant;
+end;
+
+function TNamedBarrierGuard.GetGeneration: Cardinal;
+begin
+  Result := FGeneration;
+end;
+
+function TNamedBarrierGuard.GetWaitTime: Cardinal;
+begin
+  if FReleased then
+    Result := FWaitTime
+  else
+    Result := GetTickCount64 - FStartTime;
 end;
 
 { TNamedBarrier }
@@ -304,17 +297,17 @@ end;
 
 function TNamedBarrier.Wait: INamedBarrierGuard;
 begin
-  Result := TryWaitFor(INFINITE);
+  Result := WaitFor(INFINITE);
   if not Assigned(Result) then
     raise ELockError.CreateFmt('Failed to wait on named barrier "%s"', [FName]);
 end;
 
 function TNamedBarrier.TryWait: INamedBarrierGuard;
 begin
-  Result := TryWaitFor(0);
+  Result := WaitFor(0);
 end;
 
-function TNamedBarrier.TryWaitFor(ATimeoutMs: Cardinal): INamedBarrierGuard;
+function TNamedBarrier.WaitFor(ATimeoutMs: Cardinal): INamedBarrierGuard;
 var
   LWaitResult: DWORD;
   LCurrentCount: Cardinal;
@@ -377,30 +370,29 @@ begin
     end;
   end;
   
-  Result := TNamedBarrierGuard.Create(FName, FParticipantCount, LCurrentCount, LIsLastParticipant);
+  Result := TNamedBarrierGuard.Create(Self, LIsLastParticipant, LCurrentGeneration);
 end;
 
-function TNamedBarrier.GetName: string;
+function TNamedBarrier.GetInfo: TNamedBarrierInfo;
 begin
-  Result := FName;
-end;
+  // 初始化结果
+  FillChar(Result, SizeOf(Result), 0);
+  Result.Name := FName;
+  Result.ParticipantCount := FParticipantCount;
+  Result.AutoReset := FAutoReset;
 
-function TNamedBarrier.GetParticipantCount: Cardinal;
-begin
-  Result := FParticipantCount;
-end;
-
-function TNamedBarrier.GetWaitingCount: Cardinal;
-begin
-  if FSharedData <> nil then
-    Result := GetSharedCounter^
-  else
-    Result := 0;
-end;
-
-function TNamedBarrier.IsSignaled: Boolean;
-begin
-  Result := (WaitForSingleObject(FEvent, 0) = WAIT_OBJECT_0);
+  // 获取动态状态
+  if WaitForSingleObject(FMutex, INFINITE) = WAIT_OBJECT_0 then
+  try
+    if Assigned(FSharedData) then
+    begin
+      Result.CurrentWaitingCount := GetSharedCounter^;
+      Result.Generation := PBarrierState(FSharedData)^.Generation;
+    end;
+    Result.IsSignaled := (WaitForSingleObject(FEvent, 0) = WAIT_OBJECT_0);
+  finally
+    ReleaseMutex(FMutex);
+  end;
 end;
 
 procedure TNamedBarrier.Reset;
@@ -419,150 +411,5 @@ begin
   SetEvent(FEvent);
 end;
 
-// ===== 增量接口实现：基于 TResult 的现代化错误处理 =====
-
-function TNamedBarrier.WaitResult: TNamedBarrierGuardResult;
-begin
-  try
-    Result := TNamedBarrierGuardResult.Ok(Wait);
-  except
-    on E: ELockError do
-      Result := TNamedBarrierGuardResult.Err(nbeSystemError);
-    on E: ETimeoutError do
-      Result := TNamedBarrierGuardResult.Err(nbeTimeout);
-    on E: Exception do
-      Result := TNamedBarrierGuardResult.Err(nbeUnknownError);
-  end;
-end;
-
-function TNamedBarrier.TryWaitResult: TNamedBarrierGuardResult;
-var
-  LGuard: INamedBarrierGuard;
-begin
-  try
-    LGuard := TryWait;
-    if Assigned(LGuard) then
-      Result := TNamedBarrierGuardResult.Ok(LGuard)
-    else
-      Result := TNamedBarrierGuardResult.Err(nbeInvalidState);
-  except
-    on E: ELockError do
-      Result := TNamedBarrierGuardResult.Err(nbeSystemError);
-    on E: Exception do
-      Result := TNamedBarrierGuardResult.Err(nbeUnknownError);
-  end;
-end;
-
-function TNamedBarrier.TryWaitForResult(ATimeoutMs: Cardinal): TNamedBarrierGuardResult;
-var
-  LGuard: INamedBarrierGuard;
-begin
-  try
-    LGuard := TryWaitFor(ATimeoutMs);
-    if Assigned(LGuard) then
-      Result := TNamedBarrierGuardResult.Ok(LGuard)
-    else
-    begin
-      case FLastError of
-        weTimeout: Result := TNamedBarrierGuardResult.Err(nbeTimeout);
-        weError: Result := TNamedBarrierGuardResult.Err(nbeSystemError);
-        else Result := TNamedBarrierGuardResult.Err(nbeInvalidState);
-      end;
-    end;
-  except
-    on E: ELockError do
-      Result := TNamedBarrierGuardResult.Err(nbeSystemError);
-    on E: ETimeoutError do
-      Result := TNamedBarrierGuardResult.Err(nbeTimeout);
-    on E: Exception do
-      Result := TNamedBarrierGuardResult.Err(nbeUnknownError);
-  end;
-end;
-
-function TNamedBarrier.GetWaitingCountResult: TNamedBarrierCardinalResult;
-begin
-  try
-    Result := TNamedBarrierCardinalResult.Ok(GetWaitingCount);
-  except
-    on E: Exception do
-      Result := TNamedBarrierCardinalResult.Err(nbeSystemError);
-  end;
-end;
-
-function TNamedBarrier.IsSignaledResult: TNamedBarrierBoolResult;
-begin
-  try
-    Result := TNamedBarrierBoolResult.Ok(IsSignaled);
-  except
-    on E: Exception do
-      Result := TNamedBarrierBoolResult.Err(nbeSystemError);
-  end;
-end;
-
-function TNamedBarrier.ResetResult: TNamedBarrierVoidResult;
-begin
-  try
-    Reset;
-    Result := TNamedBarrierVoidResult.Ok(True); // 使用 True 表示成功
-  except
-    on E: Exception do
-      Result := TNamedBarrierVoidResult.Err(nbeSystemError);
-  end;
-end;
-
-function TNamedBarrier.SignalResult: TNamedBarrierVoidResult;
-begin
-  try
-    Signal;
-    Result := TNamedBarrierVoidResult.Ok(True); // 使用 True 表示成功
-  except
-    on E: Exception do
-      Result := TNamedBarrierVoidResult.Err(nbeSystemError);
-  end;
-end;
-
-// 兼容性方法（已弃用）
-procedure TNamedBarrier.Arrive;
-var
-  LGuard: INamedBarrierGuard;
-begin
-  LGuard := Wait;
-  // 注意：守卫会在方法结束时自动析构
-end;
-
-function TNamedBarrier.TryArrive: Boolean;
-var
-  LGuard: INamedBarrierGuard;
-begin
-  LGuard := TryWait;
-  Result := Assigned(LGuard);
-end;
-
-function TNamedBarrier.TryArrive(ATimeoutMs: Cardinal): Boolean;
-var
-  LGuard: INamedBarrierGuard;
-begin
-  LGuard := TryWaitFor(ATimeoutMs);
-  Result := Assigned(LGuard);
-end;
-
-procedure TNamedBarrier.Arrive(ATimeoutMs: Cardinal);
-var
-  LGuard: INamedBarrierGuard;
-begin
-  LGuard := TryWaitFor(ATimeoutMs);
-  if not Assigned(LGuard) then
-    raise ETimeoutError.CreateFmt('Timeout waiting for named barrier "%s"', [FName]);
-end;
-
-function TNamedBarrier.GetHandle: Pointer;
-begin
-  Result := Pointer(FEvent);
-end;
-
-function TNamedBarrier.IsCreator: Boolean;
-begin
-  Result := FIsCreator;
-end;
 
 end.

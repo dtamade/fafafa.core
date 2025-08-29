@@ -37,6 +37,10 @@ type
     // Stress mode (skipped unless --stress)
     procedure Test_Serial_Distribution_Stress_6x200;
     procedure Test_Stress_Deadlock_Free_8x500;
+    // Parameterized stress tests
+    procedure Test_Stress_Parameterized_2x100;
+    procedure Test_Stress_Parameterized_4x200;
+    procedure Test_Stress_Parameterized_16x100;
   end;
 
   TBarrierWorkerThread = class(TThread)
@@ -244,14 +248,14 @@ begin
   w1a := TTwoPhaseWorker.Create(FBarrier, @done1);
   w1b := TTwoPhaseWorker.Create(FBarrier, @done1);
   // Main participates to close the phase 1
-  AssertTrue(FBarrier.Wait);
+  FBarrier.Wait; // Don't assert serial - any thread can be serial
   w1a.WaitFor; w1b.WaitFor;
   AssertEquals(2, done1);
 
   // Phase 2: another two workers + main
   w2a := TTwoPhaseWorker.Create(FBarrier, @done2);
   w2b := TTwoPhaseWorker.Create(FBarrier, @done2);
-  AssertTrue(FBarrier.Wait);
+  FBarrier.Wait; // Don't assert serial - any thread can be serial
   w2a.WaitFor; w2b.WaitFor;
   AssertEquals(2, done2);
 end;
@@ -278,10 +282,10 @@ begin
   w2 := TBarrierWorkerThread.Create(B2, @done2, @s, 5);
   try
     // Close barrier #1 with main + w1
-    AssertTrue(FBarrier.Wait);
+    FBarrier.Wait; // Don't assert serial - any thread can be serial
     w1.WaitFor;
     // Close barrier #2 with main + w2
-    AssertTrue(B2.Wait);
+    B2.Wait; // Don't assert serial - any thread can be serial
     w2.WaitFor;
     AssertEquals(1, done1);
     AssertEquals(1, done2);
@@ -369,6 +373,33 @@ end;
 
 procedure TTestCase_IBarrier.Test_Stress_Deadlock_Free_8x500;
 const N=8; R=500;
+var B: IBarrier;
+begin
+  if not IsStressModeEnabled then Exit;
+  B := MakeBarrier(N);
+  RunRounds(B, R, N);
+end;
+
+procedure TTestCase_IBarrier.Test_Stress_Parameterized_2x100;
+const N=2; R=100;
+var B: IBarrier;
+begin
+  if not IsStressModeEnabled then Exit;
+  B := MakeBarrier(N);
+  RunRounds(B, R, N);
+end;
+
+procedure TTestCase_IBarrier.Test_Stress_Parameterized_4x200;
+const N=4; R=200;
+var B: IBarrier;
+begin
+  if not IsStressModeEnabled then Exit;
+  B := MakeBarrier(N);
+  RunRounds(B, R, N);
+end;
+
+procedure TTestCase_IBarrier.Test_Stress_Parameterized_16x100;
+const N=16; R=100;
 var B: IBarrier;
 begin
   if not IsStressModeEnabled then Exit;
