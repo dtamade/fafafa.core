@@ -1,12 +1,12 @@
 unit fafafa.core.sync.base;
 
-{$mode objfpc}{$H+}
 {$I fafafa.core.settings.inc}
 
 interface
 
 uses
-  SysUtils;
+  SysUtils,
+  fafafa.core.time.cpu;
 
 type
   // ===== Exceptions =====
@@ -82,6 +82,7 @@ type
   TLockGuard = class(TInterfacedObject, ILockGuard)
   private
     FLock: ILock;
+    FReleased: Boolean;
   public
     constructor Create(ALock: ILock);                    // 阻塞获取锁
     constructor CreateFromAcquired(ALock: ILock);        // 从已获取的锁创建
@@ -89,15 +90,21 @@ type
     procedure Release; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
   end;
 
-function MakeLockGuard(ALock: ILock): ILockGuard; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function MutexGuard(ALock: ILock): ILockGuard; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function MakeLockGuard(ALock: ILock): ILockGuard; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF} // 向后兼容
 function MakeLockGuardFromAcquired(ALock: ILock): ILockGuard; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
 
 implementation
 
 
-function MakeLockGuard(ALock: ILock): ILockGuard;
+function MutexGuard(ALock: ILock): ILockGuard;
 begin
   Result := TLockGuard.Create(ALock);
+end;
+
+function MakeLockGuard(ALock: ILock): ILockGuard;
+begin
+  Result := MutexGuard(ALock); // 向后兼容，调用新函数
 end;
 
 function MakeLockGuardFromAcquired(ALock: ILock): ILockGuard;
@@ -111,6 +118,7 @@ constructor TLockGuard.Create(ALock: ILock);
 begin
   inherited Create;
   FLock := ALock;
+  FReleased := False;
   FLock.Acquire;
 end;
 
@@ -118,6 +126,7 @@ constructor TLockGuard.CreateFromAcquired(ALock: ILock);
 begin
   inherited Create;
   FLock := ALock;
+  FReleased := False;
 end;
 
 destructor TLockGuard.Destroy;
@@ -128,7 +137,11 @@ end;
 
 procedure TLockGuard.Release;
 begin
-  FLock.Release;
+  if not FReleased and Assigned(FLock) then
+  begin
+    FLock.Release;
+    FReleased := True;
+  end;
 end;
 
 
@@ -155,24 +168,40 @@ end;
 
 function TTryLock.TryAcquire(ATimeoutMs: Cardinal): Boolean;
 var
-  StartTime: QWord;
+  EndTime: QWord;
+  SpinCount: Cardinal;
+  YieldCount: Cardinal;
 begin
-  // 默认实现：轮询 TryAcquire 直到超时
+  // 零超时，立即尝试
   if ATimeoutMs = 0 then
-    Exit(TryAcquire);
+    Exit(TryAcquire());
 
-  StartTime := GetTickCount64;
+  // 预计算结束时间，避免重复计算
+  EndTime := GetTickCount64 + ATimeoutMs;
+
+  // 阶段1: 紧密自旋（0延迟，适合短期竞争）
+  for SpinCount := 1 to 2000 do
+  begin
+    if TryAcquire() then Exit(True);
+    CpuRelax;  // 使用跨平台 CPU 暂停指令
+  end;
+
+  // 阶段2: 继续优化自旋（适合中期竞争）
+  for YieldCount := 1 to 50 do
+  begin
+    if TryAcquire() then Exit(True);
+    if GetTickCount64 >= EndTime then Exit(False);
+
+    CpuRelax;  // 继续使用 CPU 暂停指令
+  end;
+
+  // 阶段3: 渐进式延迟（适合长期竞争）
   repeat
-    if TryAcquire then
-      Exit(True);
+    if GetTickCount64 >= EndTime then Exit(False);
+    if TryAcquire() then Exit(True);
 
-    if GetTickCount64 - StartTime >= ATimeoutMs then
-      Break;
-
-    Sleep(1);
+    Sleep(1);  // 最小延迟，真正让出 CPU
   until False;
-
-  Result := False;
 end;
 
 end.

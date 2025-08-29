@@ -1,6 +1,5 @@
 unit fafafa.core.sync;
 
-{$mode objfpc}{$H+}
 {$I fafafa.core.settings.inc}
 
 interface

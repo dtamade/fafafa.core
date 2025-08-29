@@ -1,599 +1,446 @@
 unit fafafa.core.simd.scalar;
 
-{$mode objfpc}{$H+}
 {$I fafafa.core.settings.inc}
 
 interface
 
 uses
-  fafafa.core.simd.types;
+  fafafa.core.simd.types,
+  fafafa.core.simd.dispatch;
 
-// === 标量参考实现（性能基准和正确性验证）===
-// 所有函数使用 simd_*_scalar 后缀
+// === Scalar Backend Implementation ===
+// This provides the reference implementation for all SIMD operations
+// using pure scalar code. It serves as:
+// 1. Fallback when no SIMD hardware is available
+// 2. Reference for correctness testing
+// 3. Performance baseline
 
-// === 1. 向量算术运算 ===
-
-// 加法运算
-function simd_add_f32x4_scalar(const a, b: TSimdF32x4): TSimdF32x4;
-function simd_add_f32x8_scalar(const a, b: TSimdF32x8): TSimdF32x8;
-function simd_add_f64x2_scalar(const a, b: TSimdF64x2): TSimdF64x2;
-function simd_add_i32x4_scalar(const a, b: TSimdI32x4): TSimdI32x4;
-
-// 减法运算
-function simd_sub_f32x4_scalar(const a, b: TSimdF32x4): TSimdF32x4;
-function simd_sub_f32x8_scalar(const a, b: TSimdF32x8): TSimdF32x8;
-function simd_sub_f64x2_scalar(const a, b: TSimdF64x2): TSimdF64x2;
-function simd_sub_i32x4_scalar(const a, b: TSimdI32x4): TSimdI32x4;
-
-// 乘法运算
-function simd_mul_f32x4_scalar(const a, b: TSimdF32x4): TSimdF32x4;
-function simd_mul_f32x8_scalar(const a, b: TSimdF32x8): TSimdF32x8;
-function simd_mul_f64x2_scalar(const a, b: TSimdF64x2): TSimdF64x2;
-function simd_mul_i32x4_scalar(const a, b: TSimdI32x4): TSimdI32x4;
-
-// 除法运算
-function simd_div_f32x4_scalar(const a, b: TSimdF32x4): TSimdF32x4;
-function simd_div_f32x8_scalar(const a, b: TSimdF32x8): TSimdF32x8;
-function simd_div_f64x2_scalar(const a, b: TSimdF64x2): TSimdF64x2;
-
-// === 2. 比较运算 ===
-
-function simd_eq_f32x4_scalar(const a, b: TSimdF32x4): TSimdMask4;
-function simd_eq_f64x2_scalar(const a, b: TSimdF64x2): TSimdMask2;
-function simd_eq_i32x4_scalar(const a, b: TSimdI32x4): TSimdMask4;
-
-function simd_lt_f32x4_scalar(const a, b: TSimdF32x4): TSimdMask4;
-function simd_lt_f64x2_scalar(const a, b: TSimdF64x2): TSimdMask2;
-function simd_lt_i32x4_scalar(const a, b: TSimdI32x4): TSimdMask4;
-
-function simd_le_f32x4_scalar(const a, b: TSimdF32x4): TSimdMask4;
-function simd_le_f64x2_scalar(const a, b: TSimdF64x2): TSimdMask2;
-function simd_le_i32x4_scalar(const a, b: TSimdI32x4): TSimdMask4;
-
-// === 3. 数学函数 ===
-
-function simd_abs_f32x4_scalar(const a: TSimdF32x4): TSimdF32x4;
-function simd_abs_f64x2_scalar(const a: TSimdF64x2): TSimdF64x2;
-function simd_abs_i32x4_scalar(const a: TSimdI32x4): TSimdI32x4;
-
-function simd_sqrt_f32x4_scalar(const a: TSimdF32x4): TSimdF32x4;
-function simd_sqrt_f64x2_scalar(const a: TSimdF64x2): TSimdF64x2;
-
-function simd_min_f32x4_scalar(const a, b: TSimdF32x4): TSimdF32x4;
-function simd_min_f64x2_scalar(const a, b: TSimdF64x2): TSimdF64x2;
-function simd_min_i32x4_scalar(const a, b: TSimdI32x4): TSimdI32x4;
-
-function simd_max_f32x4_scalar(const a, b: TSimdF32x4): TSimdF32x4;
-function simd_max_f64x2_scalar(const a, b: TSimdF64x2): TSimdF64x2;
-function simd_max_i32x4_scalar(const a, b: TSimdI32x4): TSimdI32x4;
-
-// === 4. 聚合运算 ===
-
-function simd_reduce_add_f32x4_scalar(const a: TSimdF32x4): Single;
-function simd_reduce_add_f32x8_scalar(const a: TSimdF32x8): Single;
-function simd_reduce_add_f64x2_scalar(const a: TSimdF64x2): Double;
-function simd_reduce_add_i32x4_scalar(const a: TSimdI32x4): Int32;
-
-function simd_reduce_mul_f32x4_scalar(const a: TSimdF32x4): Single;
-function simd_reduce_mul_f64x2_scalar(const a: TSimdF64x2): Double;
-function simd_reduce_mul_i32x4_scalar(const a: TSimdI32x4): Int32;
-
-function simd_reduce_min_f32x4_scalar(const a: TSimdF32x4): Single;
-function simd_reduce_min_f64x2_scalar(const a: TSimdF64x2): Double;
-function simd_reduce_min_i32x4_scalar(const a: TSimdI32x4): Int32;
-
-function simd_reduce_max_f32x4_scalar(const a: TSimdF32x4): Single;
-function simd_reduce_max_f64x2_scalar(const a: TSimdF64x2): Double;
-function simd_reduce_max_i32x4_scalar(const a: TSimdI32x4): Int32;
-
-// === 5. 内存操作 ===
-
-function simd_load_f32x4_scalar(p: PSingle): TSimdF32x4;
-function simd_load_f64x2_scalar(p: PDouble): TSimdF64x2;
-function simd_load_i32x4_scalar(p: PInt32): TSimdI32x4;
-
-procedure simd_store_f32x4_scalar(p: PSingle; const a: TSimdF32x4);
-procedure simd_store_f64x2_scalar(p: PDouble; const a: TSimdF64x2);
-procedure simd_store_i32x4_scalar(p: PInt32; const a: TSimdI32x4);
-
-// === 6. 重排和混洗 ===
-
-function simd_splat_f32x4_scalar(value: Single): TSimdF32x4;
-function simd_splat_f32x8_scalar(value: Single): TSimdF32x8;
-function simd_splat_i32x4_scalar(value: Int32): TSimdI32x4;
-
-function simd_extract_f32x4_scalar(const a: TSimdF32x4; index: Integer): Single;
-function simd_extract_i32x4_scalar(const a: TSimdI32x4; index: Integer): Int32;
-
-function simd_insert_f32x4_scalar(const a: TSimdF32x4; value: Single; index: Integer): TSimdF32x4;
-function simd_insert_i32x4_scalar(const a: TSimdI32x4; value: Int32; index: Integer): TSimdI32x4;
-
-// === 7. 条件选择 ===
-
-function simd_select_f32x4_scalar(const mask: TSimdMask4; const a, b: TSimdF32x4): TSimdF32x4;
-function simd_select_i32x4_scalar(const mask: TSimdMask4; const a, b: TSimdI32x4): TSimdI32x4;
+// Register the scalar backend
+procedure RegisterScalarBackend;
 
 implementation
 
 uses
-  Math;
+  Math,
+  SysUtils;
 
-// === 1. 向量算术运算实现 ===
+// === Vector Type Implementations ===
+// These are the actual data structures for vectors
 
-function simd_add_f32x4_scalar(const a, b: TSimdF32x4): TSimdF32x4;
+type
+  // 32-bit float vectors
+  TVecF32x4Data = array[0..3] of Single;
+  TVecF32x8Data = array[0..7] of Single;
+
+  // 64-bit float vectors
+  TVecF64x2Data = array[0..1] of Double;
+  TVecF64x4Data = array[0..3] of Double;
+
+  // 32-bit integer vectors
+  TVecI32x4Data = array[0..3] of Int32;
+  TVecI32x8Data = array[0..7] of Int32;
+
+// Redefine the vector types with actual data
+{$PUSH}
+{$WARNINGS OFF} // Suppress redefinition warnings
+type
+  TVecF32x4 = record
+    Data: TVecF32x4Data;
+  end;
+
+  TVecF32x8 = record
+    Data: TVecF32x8Data;
+  end;
+
+  TVecF64x2 = record
+    Data: TVecF64x2Data;
+  end;
+
+  TVecF64x4 = record
+    Data: TVecF64x4Data;
+  end;
+
+  TVecI32x4 = record
+    Data: TVecI32x4Data;
+  end;
+
+  TVecI32x8 = record
+    Data: TVecI32x8Data;
+  end;
+{$POP}
+
+// === Arithmetic Operations ===
+
+function ScalarAddF32x4(const a, b: TVecF32x4): TVecF32x4;
 var i: Integer;
 begin
   for i := 0 to 3 do
-    Result[i] := a[i] + b[i];
+    Result.Data[i] := a.Data[i] + b.Data[i];
 end;
 
-function simd_add_f32x8_scalar(const a, b: TSimdF32x8): TSimdF32x8;
+function ScalarSubF32x4(const a, b: TVecF32x4): TVecF32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.Data[i] := a.Data[i] - b.Data[i];
+end;
+
+function ScalarMulF32x4(const a, b: TVecF32x4): TVecF32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.Data[i] := a.Data[i] * b.Data[i];
+end;
+
+function ScalarDivF32x4(const a, b: TVecF32x4): TVecF32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.Data[i] := a.Data[i] / b.Data[i];
+end;
+
+function ScalarAddF32x8(const a, b: TVecF32x8): TVecF32x8;
 var i: Integer;
 begin
   for i := 0 to 7 do
-    Result[i] := a[i] + b[i];
+    Result.Data[i] := a.Data[i] + b.Data[i];
 end;
 
-function simd_add_f64x2_scalar(const a, b: TSimdF64x2): TSimdF64x2;
-var i: Integer;
-begin
-  for i := 0 to 1 do
-    Result[i] := a[i] + b[i];
-end;
-
-function simd_add_i32x4_scalar(const a, b: TSimdI32x4): TSimdI32x4;
-var i: Integer;
-begin
-  for i := 0 to 3 do
-    Result[i] := a[i] + b[i];
-end;
-
-function simd_sub_f32x4_scalar(const a, b: TSimdF32x4): TSimdF32x4;
-var i: Integer;
-begin
-  for i := 0 to 3 do
-    Result[i] := a[i] - b[i];
-end;
-
-function simd_sub_f32x8_scalar(const a, b: TSimdF32x8): TSimdF32x8;
+function ScalarSubF32x8(const a, b: TVecF32x8): TVecF32x8;
 var i: Integer;
 begin
   for i := 0 to 7 do
-    Result[i] := a[i] - b[i];
+    Result.Data[i] := a.Data[i] - b.Data[i];
 end;
 
-function simd_sub_f64x2_scalar(const a, b: TSimdF64x2): TSimdF64x2;
-var i: Integer;
-begin
-  for i := 0 to 1 do
-    Result[i] := a[i] - b[i];
-end;
-
-function simd_sub_i32x4_scalar(const a, b: TSimdI32x4): TSimdI32x4;
-var i: Integer;
-begin
-  for i := 0 to 3 do
-    Result[i] := a[i] - b[i];
-end;
-
-function simd_mul_f32x4_scalar(const a, b: TSimdF32x4): TSimdF32x4;
-var i: Integer;
-begin
-  for i := 0 to 3 do
-    Result[i] := a[i] * b[i];
-end;
-
-function simd_mul_f32x8_scalar(const a, b: TSimdF32x8): TSimdF32x8;
+function ScalarMulF32x8(const a, b: TVecF32x8): TVecF32x8;
 var i: Integer;
 begin
   for i := 0 to 7 do
-    Result[i] := a[i] * b[i];
+    Result.Data[i] := a.Data[i] * b.Data[i];
 end;
 
-function simd_mul_f64x2_scalar(const a, b: TSimdF64x2): TSimdF64x2;
-var i: Integer;
-begin
-  for i := 0 to 1 do
-    Result[i] := a[i] * b[i];
-end;
-
-function simd_mul_i32x4_scalar(const a, b: TSimdI32x4): TSimdI32x4;
-var i: Integer;
-begin
-  for i := 0 to 3 do
-    Result[i] := a[i] * b[i];
-end;
-
-function simd_div_f32x4_scalar(const a, b: TSimdF32x4): TSimdF32x4;
-var i: Integer;
-begin
-  for i := 0 to 3 do
-    Result[i] := a[i] / b[i];
-end;
-
-function simd_div_f32x8_scalar(const a, b: TSimdF32x8): TSimdF32x8;
+function ScalarDivF32x8(const a, b: TVecF32x8): TVecF32x8;
 var i: Integer;
 begin
   for i := 0 to 7 do
-    Result[i] := a[i] / b[i];
+    Result.Data[i] := a.Data[i] / b.Data[i];
 end;
 
-function simd_div_f64x2_scalar(const a, b: TSimdF64x2): TSimdF64x2;
+function ScalarAddF64x2(const a, b: TVecF64x2): TVecF64x2;
 var i: Integer;
 begin
   for i := 0 to 1 do
-    Result[i] := a[i] / b[i];
+    Result.Data[i] := a.Data[i] + b.Data[i];
 end;
 
-// === 4. 聚合运算实现 ===
-
-function simd_reduce_add_f32x4_scalar(const a: TSimdF32x4): Single;
+function ScalarSubF64x2(const a, b: TVecF64x2): TVecF64x2;
 var i: Integer;
 begin
-  Result := 0.0;
+  for i := 0 to 1 do
+    Result.Data[i] := a.Data[i] - b.Data[i];
+end;
+
+function ScalarMulF64x2(const a, b: TVecF64x2): TVecF64x2;
+var i: Integer;
+begin
+  for i := 0 to 1 do
+    Result.Data[i] := a.Data[i] * b.Data[i];
+end;
+
+function ScalarDivF64x2(const a, b: TVecF64x2): TVecF64x2;
+var i: Integer;
+begin
+  for i := 0 to 1 do
+    Result.Data[i] := a.Data[i] / b.Data[i];
+end;
+
+function ScalarAddI32x4(const a, b: TVecI32x4): TVecI32x4;
+var i: Integer;
+begin
   for i := 0 to 3 do
-    Result := Result + a[i];
+    Result.Data[i] := a.Data[i] + b.Data[i];
 end;
 
-function simd_reduce_add_f32x8_scalar(const a: TSimdF32x8): Single;
+function ScalarSubI32x4(const a, b: TVecI32x4): TVecI32x4;
 var i: Integer;
 begin
-  Result := 0.0;
-  for i := 0 to 7 do
-    Result := Result + a[i];
+  for i := 0 to 3 do
+    Result.Data[i] := a.Data[i] - b.Data[i];
 end;
 
-function simd_reduce_add_f64x2_scalar(const a: TSimdF64x2): Double;
+function ScalarMulI32x4(const a, b: TVecI32x4): TVecI32x4;
 var i: Integer;
 begin
-  Result := 0.0;
-  for i := 0 to 1 do
-    Result := Result + a[i];
+  for i := 0 to 3 do
+    Result.Data[i] := a.Data[i] * b.Data[i];
 end;
 
-function simd_reduce_add_i32x4_scalar(const a: TSimdI32x4): Int32;
+// === Comparison Operations ===
+
+function ScalarCmpEqF32x4(const a, b: TVecF32x4): TMask4;
 var i: Integer;
 begin
   Result := 0;
   for i := 0 to 3 do
-    Result := Result + a[i];
+    if a.Data[i] = b.Data[i] then
+      Result := Result or (1 shl i);
 end;
 
-// === 6. 重排和混洗实现 ===
+function ScalarCmpLtF32x4(const a, b: TVecF32x4): TMask4;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 3 do
+    if a.Data[i] < b.Data[i] then
+      Result := Result or (1 shl i);
+end;
 
-function simd_splat_f32x4_scalar(value: Single): TSimdF32x4;
+function ScalarCmpLeF32x4(const a, b: TVecF32x4): TMask4;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 3 do
+    if a.Data[i] <= b.Data[i] then
+      Result := Result or (1 shl i);
+end;
+
+function ScalarCmpGtF32x4(const a, b: TVecF32x4): TMask4;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 3 do
+    if a.Data[i] > b.Data[i] then
+      Result := Result or (1 shl i);
+end;
+
+function ScalarCmpGeF32x4(const a, b: TVecF32x4): TMask4;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 3 do
+    if a.Data[i] >= b.Data[i] then
+      Result := Result or (1 shl i);
+end;
+
+function ScalarCmpNeF32x4(const a, b: TVecF32x4): TMask4;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 3 do
+    if a.Data[i] <> b.Data[i] then
+      Result := Result or (1 shl i);
+end;
+
+// === Math Functions ===
+
+function ScalarAbsF32x4(const a: TVecF32x4): TVecF32x4;
 var i: Integer;
 begin
   for i := 0 to 3 do
-    Result[i] := value;
+    Result.Data[i] := Abs(a.Data[i]);
 end;
 
-function simd_splat_f32x8_scalar(value: Single): TSimdF32x8;
-var i: Integer;
-begin
-  for i := 0 to 7 do
-    Result[i] := value;
-end;
-
-function simd_splat_i32x4_scalar(value: Int32): TSimdI32x4;
+function ScalarSqrtF32x4(const a: TVecF32x4): TVecF32x4;
 var i: Integer;
 begin
   for i := 0 to 3 do
-    Result[i] := value;
+    Result.Data[i] := Sqrt(a.Data[i]);
 end;
 
-function simd_extract_f32x4_scalar(const a: TSimdF32x4; index: Integer): Single;
-begin
-  if (index >= 0) and (index <= 3) then
-    Result := a[index]
-  else
-    Result := 0.0;
-end;
-
-function simd_extract_i32x4_scalar(const a: TSimdI32x4; index: Integer): Int32;
-begin
-  if (index >= 0) and (index <= 3) then
-    Result := a[index]
-  else
-    Result := 0;
-end;
-
-function simd_insert_f32x4_scalar(const a: TSimdF32x4; value: Single; index: Integer): TSimdF32x4;
-begin
-  Result := a;
-  if (index >= 0) and (index <= 3) then
-    Result[index] := value;
-end;
-
-function simd_insert_i32x4_scalar(const a: TSimdI32x4; value: Int32; index: Integer): TSimdI32x4;
-begin
-  Result := a;
-  if (index >= 0) and (index <= 3) then
-    Result[index] := value;
-end;
-
-// === 5. 内存操作实现 ===
-
-function simd_load_f32x4_scalar(p: PSingle): TSimdF32x4;
+function ScalarMinF32x4(const a, b: TVecF32x4): TVecF32x4;
 var i: Integer;
 begin
   for i := 0 to 3 do
-    Result[i] := p[i];
+    Result.Data[i] := Min(a.Data[i], b.Data[i]);
 end;
 
-function simd_load_f64x2_scalar(p: PDouble): TSimdF64x2;
-var i: Integer;
-begin
-  for i := 0 to 1 do
-    Result[i] := p[i];
-end;
-
-function simd_load_i32x4_scalar(p: PInt32): TSimdI32x4;
+function ScalarMaxF32x4(const a, b: TVecF32x4): TVecF32x4;
 var i: Integer;
 begin
   for i := 0 to 3 do
-    Result[i] := p[i];
+    Result.Data[i] := Max(a.Data[i], b.Data[i]);
 end;
 
-procedure simd_store_f32x4_scalar(p: PSingle; const a: TSimdF32x4);
+// === Reduction Operations ===
+
+function ScalarReduceAddF32x4(const a: TVecF32x4): Single;
 var i: Integer;
 begin
+  Result := 0.0;
   for i := 0 to 3 do
-    p[i] := a[i];
+    Result := Result + a.Data[i];
 end;
 
-procedure simd_store_f64x2_scalar(p: PDouble; const a: TSimdF64x2);
+function ScalarReduceMinF32x4(const a: TVecF32x4): Single;
 var i: Integer;
 begin
-  for i := 0 to 1 do
-    p[i] := a[i];
+  Result := a.Data[0];
+  for i := 1 to 3 do
+    Result := Min(Result, a.Data[i]);
 end;
 
-procedure simd_store_i32x4_scalar(p: PInt32; const a: TSimdI32x4);
+function ScalarReduceMaxF32x4(const a: TVecF32x4): Single;
 var i: Integer;
 begin
-  for i := 0 to 3 do
-    p[i] := a[i];
+  Result := a.Data[0];
+  for i := 1 to 3 do
+    Result := Max(Result, a.Data[i]);
 end;
 
-// === 7. 条件选择实现 ===
-
-function simd_select_f32x4_scalar(const mask: TSimdMask4; const a, b: TSimdF32x4): TSimdF32x4;
-var i: Integer;
-begin
-  for i := 0 to 3 do
-    if mask[i] then
-      Result[i] := a[i]
-    else
-      Result[i] := b[i];
-end;
-
-function simd_select_i32x4_scalar(const mask: TSimdMask4; const a, b: TSimdI32x4): TSimdI32x4;
-var i: Integer;
-begin
-  for i := 0 to 3 do
-    if mask[i] then
-      Result[i] := a[i]
-    else
-      Result[i] := b[i];
-end;
-
-// === 2. 比较运算实现 ===
-
-function simd_eq_f32x4_scalar(const a, b: TSimdF32x4): TSimdMask4;
-var i: Integer;
-begin
-  for i := 0 to 3 do
-    Result[i] := a[i] = b[i];
-end;
-
-function simd_eq_f64x2_scalar(const a, b: TSimdF64x2): TSimdMask2;
-var i: Integer;
-begin
-  for i := 0 to 1 do
-    Result[i] := a[i] = b[i];
-end;
-
-function simd_eq_i32x4_scalar(const a, b: TSimdI32x4): TSimdMask4;
-var i: Integer;
-begin
-  for i := 0 to 3 do
-    Result[i] := a[i] = b[i];
-end;
-
-function simd_lt_f32x4_scalar(const a, b: TSimdF32x4): TSimdMask4;
-var i: Integer;
-begin
-  for i := 0 to 3 do
-    Result[i] := a[i] < b[i];
-end;
-
-function simd_lt_f64x2_scalar(const a, b: TSimdF64x2): TSimdMask2;
-var i: Integer;
-begin
-  for i := 0 to 1 do
-    Result[i] := a[i] < b[i];
-end;
-
-function simd_lt_i32x4_scalar(const a, b: TSimdI32x4): TSimdMask4;
-var i: Integer;
-begin
-  for i := 0 to 3 do
-    Result[i] := a[i] < b[i];
-end;
-
-function simd_le_f32x4_scalar(const a, b: TSimdF32x4): TSimdMask4;
-var i: Integer;
-begin
-  for i := 0 to 3 do
-    Result[i] := a[i] <= b[i];
-end;
-
-function simd_le_f64x2_scalar(const a, b: TSimdF64x2): TSimdMask2;
-var i: Integer;
-begin
-  for i := 0 to 1 do
-    Result[i] := a[i] <= b[i];
-end;
-
-function simd_le_i32x4_scalar(const a, b: TSimdI32x4): TSimdMask4;
-var i: Integer;
-begin
-  for i := 0 to 3 do
-    Result[i] := a[i] <= b[i];
-end;
-
-// === 3. 数学函数实现 ===
-
-function simd_abs_f32x4_scalar(const a: TSimdF32x4): TSimdF32x4;
-var i: Integer;
-begin
-  for i := 0 to 3 do
-    Result[i] := Abs(a[i]);
-end;
-
-function simd_abs_f64x2_scalar(const a: TSimdF64x2): TSimdF64x2;
-var i: Integer;
-begin
-  for i := 0 to 1 do
-    Result[i] := Abs(a[i]);
-end;
-
-function simd_abs_i32x4_scalar(const a: TSimdI32x4): TSimdI32x4;
-var i: Integer;
-begin
-  for i := 0 to 3 do
-    Result[i] := Abs(a[i]);
-end;
-
-function simd_sqrt_f32x4_scalar(const a: TSimdF32x4): TSimdF32x4;
-var i: Integer;
-begin
-  for i := 0 to 3 do
-    Result[i] := Sqrt(a[i]);
-end;
-
-function simd_sqrt_f64x2_scalar(const a: TSimdF64x2): TSimdF64x2;
-var i: Integer;
-begin
-  for i := 0 to 1 do
-    Result[i] := Sqrt(a[i]);
-end;
-
-function simd_min_f32x4_scalar(const a, b: TSimdF32x4): TSimdF32x4;
-var i: Integer;
-begin
-  for i := 0 to 3 do
-    Result[i] := Min(a[i], b[i]);
-end;
-
-function simd_min_f64x2_scalar(const a, b: TSimdF64x2): TSimdF64x2;
-var i: Integer;
-begin
-  for i := 0 to 1 do
-    Result[i] := Min(a[i], b[i]);
-end;
-
-function simd_min_i32x4_scalar(const a, b: TSimdI32x4): TSimdI32x4;
-var i: Integer;
-begin
-  for i := 0 to 3 do
-    Result[i] := Min(a[i], b[i]);
-end;
-
-function simd_max_f32x4_scalar(const a, b: TSimdF32x4): TSimdF32x4;
-var i: Integer;
-begin
-  for i := 0 to 3 do
-    Result[i] := Max(a[i], b[i]);
-end;
-
-function simd_max_f64x2_scalar(const a, b: TSimdF64x2): TSimdF64x2;
-var i: Integer;
-begin
-  for i := 0 to 1 do
-    Result[i] := Max(a[i], b[i]);
-end;
-
-function simd_max_i32x4_scalar(const a, b: TSimdI32x4): TSimdI32x4;
-var i: Integer;
-begin
-  for i := 0 to 3 do
-    Result[i] := Max(a[i], b[i]);
-end;
-
-// === 4. 聚合运算实现（剩余部分）===
-
-function simd_reduce_mul_f32x4_scalar(const a: TSimdF32x4): Single;
+function ScalarReduceMulF32x4(const a: TVecF32x4): Single;
 var i: Integer;
 begin
   Result := 1.0;
   for i := 0 to 3 do
-    Result := Result * a[i];
+    Result := Result * a.Data[i];
 end;
 
-function simd_reduce_mul_f64x2_scalar(const a: TSimdF64x2): Double;
-var i: Integer;
-begin
-  Result := 1.0;
-  for i := 0 to 1 do
-    Result := Result * a[i];
-end;
+// === Memory Operations ===
 
-function simd_reduce_mul_i32x4_scalar(const a: TSimdI32x4): Int32;
+function ScalarLoadF32x4(p: PSingle): TVecF32x4;
 var i: Integer;
 begin
-  Result := 1;
   for i := 0 to 3 do
-    Result := Result * a[i];
+    Result.Data[i] := p[i];
 end;
 
-function simd_reduce_min_f32x4_scalar(const a: TSimdF32x4): Single;
-var i: Integer;
+function ScalarLoadF32x4Aligned(p: PSingle): TVecF32x4;
 begin
-  Result := a[0];
-  for i := 1 to 3 do
-    Result := Min(Result, a[i]);
+  // For scalar implementation, aligned and unaligned are the same
+  Result := ScalarLoadF32x4(p);
 end;
 
-function simd_reduce_min_f64x2_scalar(const a: TSimdF64x2): Double;
+procedure ScalarStoreF32x4(p: PSingle; const a: TVecF32x4);
 var i: Integer;
 begin
-  Result := a[0];
-  for i := 1 to 1 do
-    Result := Min(Result, a[i]);
+  for i := 0 to 3 do
+    p[i] := a.Data[i];
 end;
 
-function simd_reduce_min_i32x4_scalar(const a: TSimdI32x4): Int32;
-var i: Integer;
+procedure ScalarStoreF32x4Aligned(p: PSingle; const a: TVecF32x4);
 begin
-  Result := a[0];
-  for i := 1 to 3 do
-    Result := Min(Result, a[i]);
+  // For scalar implementation, aligned and unaligned are the same
+  ScalarStoreF32x4(p, a);
 end;
 
-function simd_reduce_max_f32x4_scalar(const a: TSimdF32x4): Single;
+// === Utility Operations ===
+
+function ScalarSplatF32x4(value: Single): TVecF32x4;
 var i: Integer;
 begin
-  Result := a[0];
-  for i := 1 to 3 do
-    Result := Max(Result, a[i]);
+  for i := 0 to 3 do
+    Result.Data[i] := value;
 end;
 
-function simd_reduce_max_f64x2_scalar(const a: TSimdF64x2): Double;
+function ScalarZeroF32x4: TVecF32x4;
 var i: Integer;
 begin
-  Result := a[0];
-  for i := 1 to 1 do
-    Result := Max(Result, a[i]);
+  for i := 0 to 3 do
+    Result.Data[i] := 0.0;
 end;
 
-function simd_reduce_max_i32x4_scalar(const a: TSimdI32x4): Int32;
+function ScalarSelectF32x4(const mask: TMask4; const a, b: TVecF32x4): TVecF32x4;
 var i: Integer;
 begin
-  Result := a[0];
-  for i := 1 to 3 do
-    Result := Max(Result, a[i]);
+  for i := 0 to 3 do
+    if (mask and (1 shl i)) <> 0 then
+      Result.Data[i] := a.Data[i]
+    else
+      Result.Data[i] := b.Data[i];
 end;
+
+function ScalarExtractF32x4(const a: TVecF32x4; index: Integer): Single;
+begin
+  {$IFDEF SIMD_BOUNDS_CHECK}
+  if (index < 0) or (index > 3) then
+    raise EArgumentOutOfRangeException.CreateFmt('Index %d out of range [0..3]', [index]);
+  {$ENDIF}
+  Result := a.Data[index];
+end;
+
+function ScalarInsertF32x4(const a: TVecF32x4; value: Single; index: Integer): TVecF32x4;
+begin
+  {$IFDEF SIMD_BOUNDS_CHECK}
+  if (index < 0) or (index > 3) then
+    raise EArgumentOutOfRangeException.CreateFmt('Index %d out of range [0..3]', [index]);
+  {$ENDIF}
+  Result := a;
+  Result.Data[index] := value;
+end;
+
+// === Backend Registration ===
+
+procedure RegisterScalarBackend;
+var
+  dispatchTable: TSimdDispatchTable;
+begin
+  // Initialize dispatch table
+  FillChar(dispatchTable, SizeOf(dispatchTable), 0);
+
+  // Set backend info
+  dispatchTable.Backend := sbScalar;
+  dispatchTable.BackendInfo := GetBackendInfo(sbScalar);
+
+  // Register arithmetic operations
+  dispatchTable.AddF32x4 := @ScalarAddF32x4;
+  dispatchTable.SubF32x4 := @ScalarSubF32x4;
+  dispatchTable.MulF32x4 := @ScalarMulF32x4;
+  dispatchTable.DivF32x4 := @ScalarDivF32x4;
+
+  dispatchTable.AddF32x8 := @ScalarAddF32x8;
+  dispatchTable.SubF32x8 := @ScalarSubF32x8;
+  dispatchTable.MulF32x8 := @ScalarMulF32x8;
+  dispatchTable.DivF32x8 := @ScalarDivF32x8;
+
+  dispatchTable.AddF64x2 := @ScalarAddF64x2;
+  dispatchTable.SubF64x2 := @ScalarSubF64x2;
+  dispatchTable.MulF64x2 := @ScalarMulF64x2;
+  dispatchTable.DivF64x2 := @ScalarDivF64x2;
+
+  dispatchTable.AddI32x4 := @ScalarAddI32x4;
+  dispatchTable.SubI32x4 := @ScalarSubI32x4;
+  dispatchTable.MulI32x4 := @ScalarMulI32x4;
+
+  // Register comparison operations
+  dispatchTable.CmpEqF32x4 := @ScalarCmpEqF32x4;
+  dispatchTable.CmpLtF32x4 := @ScalarCmpLtF32x4;
+  dispatchTable.CmpLeF32x4 := @ScalarCmpLeF32x4;
+  dispatchTable.CmpGtF32x4 := @ScalarCmpGtF32x4;
+  dispatchTable.CmpGeF32x4 := @ScalarCmpGeF32x4;
+  dispatchTable.CmpNeF32x4 := @ScalarCmpNeF32x4;
+
+  // Register math functions
+  dispatchTable.AbsF32x4 := @ScalarAbsF32x4;
+  dispatchTable.SqrtF32x4 := @ScalarSqrtF32x4;
+  dispatchTable.MinF32x4 := @ScalarMinF32x4;
+  dispatchTable.MaxF32x4 := @ScalarMaxF32x4;
+
+  // Register reduction operations
+  dispatchTable.ReduceAddF32x4 := @ScalarReduceAddF32x4;
+  dispatchTable.ReduceMinF32x4 := @ScalarReduceMinF32x4;
+  dispatchTable.ReduceMaxF32x4 := @ScalarReduceMaxF32x4;
+  dispatchTable.ReduceMulF32x4 := @ScalarReduceMulF32x4;
+
+  // Register memory operations
+  dispatchTable.LoadF32x4 := @ScalarLoadF32x4;
+  dispatchTable.LoadF32x4Aligned := @ScalarLoadF32x4Aligned;
+  dispatchTable.StoreF32x4 := @ScalarStoreF32x4;
+  dispatchTable.StoreF32x4Aligned := @ScalarStoreF32x4Aligned;
+
+  // Register utility operations
+  dispatchTable.SplatF32x4 := @ScalarSplatF32x4;
+  dispatchTable.ZeroF32x4 := @ScalarZeroF32x4;
+  dispatchTable.SelectF32x4 := @ScalarSelectF32x4;
+  dispatchTable.ExtractF32x4 := @ScalarExtractF32x4;
+  dispatchTable.InsertF32x4 := @ScalarInsertF32x4;
+
+  // Register the backend
+  RegisterBackend(sbScalar, dispatchTable);
+end;
+
+initialization
+  // Register scalar backend on unit initialization
+  RegisterScalarBackend;
 
 end.

@@ -434,15 +434,58 @@ function mach_wait_until(deadline: QWord): LongInt; cdecl; external name 'mach_w
 
 
 
-{$IFDEF CPUX86_64}
-procedure CpuRelax; inline; assembler; nostackframe;
+{$IF defined(CPUX86_64) or defined(CPUI386)}
+procedure CpuRelax; assembler; nostackframe;
 asm
   pause
 end;
+
+{$ELSEIF defined(CPUARM) or defined(CPUAARCH64)}
+procedure CpuRelax; assembler; nostackframe;
+asm
+  // ARM 建议使用 YIELD，若编译器不支持，可改为 NOP
+  yield
+end;
+
+{$ELSEIF defined(CPUPOWERPC) or defined(CPUPOWERPC64)}
+procedure CpuRelax; assembler; nostackframe;
+asm
+  // PowerPC 推荐自旋提示：or 27,27,27
+  or 27,27,27
+end;
+
+{$ELSEIF defined(CPUMIPS) or defined(CPUMIPS64)}
+procedure CpuRelax; assembler; nostackframe;
+asm
+  // MIPS 推荐 ssnop（safe nop），比普通 nop 更适合自旋
+  ssnop
+end;
+
+{$ELSEIF defined(CPURISCV32) or defined(CPURISCV64)}
+procedure CpuRelax; assembler; nostackframe;
+asm
+  // RISC-V 目前没有标准 pause，使用 nop
+  nop
+end;
+
+{$ELSEIF defined(CPUSPARC) or defined(CPUSPARC64)}
+procedure CpuRelax; assembler; nostackframe;
+asm
+  // SPARC 使用内存屏障，比单纯 nop 更有意义
+  membar #LoadLoad
+end;
+
 {$ELSE}
-procedure CpuRelax; inline;
+procedure CpuRelax;
 begin
-  // no-op on non-x86
+  // 未知架构的后备方案
+  {$IFDEF MSWINDOWS}
+  SwitchToThread();
+  {$ELSEIF defined(UNIX)}
+  fpSleep(0);  // FPC 的 Unix 让出时间片函数
+  {$ELSE}
+  // 最后的后备方案：什么都不做
+  {$ENDIF}
 end;
 {$ENDIF}
 

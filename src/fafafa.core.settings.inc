@@ -1,11 +1,43 @@
 { fafafa.core.settings.inc 框架配置文件 }
-{ Macro hygiene: Use BOOL defines for IFDEF; use *_VALUE for value macros; never shadow API names }
 
-{$MACRO ON}  // enable simple value-style macros like {$DEFINE NAME := value}
+{ Enable inline 开启内联 }
+{$DEFINE FAFAFA_CORE_INLINE}
 
-{$IFNDEF DEBUG}
-  {$DEFINE FAFAFA_OS_CACHE_PROBES}
+{ 开启匿名函数/匿名引用 仅限 fpc 3.3.1 及以上 }
+{$IFDEF FPC}
+  {$IF FPC_FULLVERSION >= 030301}
+    {$IFNDEF FAFAFA_FORCE_NO_ANON}
+      {$DEFINE FAFAFA_CORE_ANONYMOUS_REFERENCES}
+    {$ENDIF}
+  {$ENDIF}
 {$ENDIF}
+
+{$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
+  {$ModeSwitch functionreferences}
+  {$ModeSwitch anonymousfunctions}
+{$ENDIF}
+
+///
+/// fafafa.core.collections
+///
+
+{ 启用预定义的常用泛型类型, 这会带来代码膨胀, 但直接用预定义的泛型类型, 是件省心的事情. }
+{.$DEFINE FAFAFA_CORE_TYPE_ALIASES}
+
+{
+  启用 crt memcpy, memmove.
+  在linux下,优先使用 libc, windows mscrt.
+  在linux下,开启此选项意味着要链接libc库.
+}
+{.$DEFINE FAFAFA_CORE_CRT_MEMCPY}
+{.$DEFINE FAFAFA_CORE_CRT_MEMMOVE}
+
+{
+  启用 crt 分配器, 使用 malloc, calloc, realloc, free 等函数.
+  在linux下,开启此选项意味着要链接libc库.
+}
+{$DEFINE FAFAFA_CORE_CRT_ALLOCATOR}
+
 
 ///
 /// fafafa.core.sync
@@ -22,104 +54,24 @@
 {$ENDIF}
 
 
-{ Result: method-style API is macro-gated; default OFF }
-{.$DEFINE FAFAFA_CORE_RESULT_METHODS}
+///
+/// fafafa.core.mem
+///
 
-{ Environment module Result-style API support; default ON for consistency with tests }
-{$DEFINE FAFAFA_ENV_ENABLE_RESULT}
-
-
-{$DEFINE FAFAFA_COLOR_ENABLE_LOWL_HUE_SNAPPING}
-
-{$DEFINE FAFAFA_COLOR_ENABLE_BRUTE_HUE_LOCK}
-
-
-
-{ Use COM-style interfaces globally for reference-counted lifetimes across the framework }
-{$interfaces COM}
-
-
-{ Auto-drain stdout/stderr when waiting on a process to avoid pipe-buffer deadlocks }
-{$DEFINE FAFAFA_PROCESS_AUTO_DRAIN_ON_WAIT}
-
-{ Enable inline 开启内联 }
-{.$DEFINE FAFAFA_CORE_INLINE}
-{$DEFINE FAFAFA_CORE_INLINE}
-
-{$IFDEF FAFAFA_CORE_INLINE}
-  {$INLINE ON}
-{$ENDIF}
-
-
-{ Strict range checks for EraseAfter: enable reachability check in non-DEBUG builds too }
-{ 在非 DEBUG 构建下也启用 EraseAfter 的可达性严格检查 }
-{.$DEFINE FAFAFA_CORE_STRICT_ERASEAFTER}
-
-{
-  Enable crt memcpy, memmove, etc.
-  Priority to using libc under linux, Performance of windows crt is not good, so it is not used.
-  in linux, you need to link the libc library.
-  启用 crt memcpy, memmove.
-  在linux下,优先使用 libc, windows crt 性能表现不佳,无所谓.
-  在linux下,开启此选项意味着要链接libc库.
-}
-{.$DEFINE FAFAFA_CORE_CRT_MEMCPY}
-{.$DEFINE FAFAFA_CORE_CRT_MEMMOVE}
-
-{
-  Enable predefined common generic types,
-  which may lead to code bloat but allows for worry-free use of these types directly.
-  启用预定义的常用泛型类型, 这会带来代码膨胀, 但直接用预定义的泛型类型, 是件省心的事情.
-}
-{.$DEFINE FAFAFA_CORE_TYPE_ALIASES} // Predefine common generic types 预定义常用泛型类型
-
-{
-  Enable crt allocator, use malloc, calloc, realloc, free, etc.
-  in linux, if you want to use the crt allocator, you need to link the libc library.
-  启用 crt 分配器, 使用 malloc, calloc, realloc, free 等函数.
-  在linux下,开启此选项意味着要链接libc库.
-}
-{$DEFINE FAFAFA_CORE_CRT_ALLOCATOR}
-
-{
-  Enable mimalloc allocator (dynamic library required at runtime).
-  启用 mimalloc 分配器（运行期需提供 mimalloc 动态库）。
-}
+{ 启用 mimalloc 分配器（运行期需提供 mimalloc 动态库）。 }
 {$DEFINE FAFAFA_CORE_MIMALLOC_ALLOCATOR}
 
-
-{
-  Enable static link/import for mimalloc.
-  When enabled, allocator.mimalloc binds to symbols at link time (no delayed loading).
-  启用 mimalloc 静态链接/导入。开启后 mimalloc 通过 external 在链接期绑定，不再延迟加载。
-}
+{ 启用 mimalloc 静态链接/导入。开启后 mimalloc 通过 external 在链接期绑定，不再延迟加载。 }
 {.$DEFINE FAFAFA_CORE_MIMALLOC_STATIC}
 
-{
-  Anonymous functions/references are only supported in fpc 3.3.1 and above.
-  开启匿名函数/匿名引用 仅限 fpc 3.3.1 及以上
-}
-{$IF FPC_FULLVERSION >= 030301}
-  {$IFNDEF FAFAFA_FORCE_NO_ANON}
-    {$DEFINE FAFAFA_CORE_ANONYMOUS_REFERENCES}
-  {$ENDIF}
-{$ENDIF}
 
-{$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
-  {$ModeSwitch functionreferences}
-  {$ModeSwitch anonymousfunctions}
-{$ENDIF}
+
+///
+/// fafafa.core.process
+///
+
 
 {
-  Process module configuration 进程模块配置
-  Controls the implementation mode for the process module.
-  控制进程模块的实现模式。
-}
-
-{
-  Enable real process implementation instead of mock implementation.
-  Comment out to use mock implementation (default for development/testing).
-  Uncomment to enable real platform implementation (for production).
   启用真实进程实现而不是模拟实现。
   注释掉以使用模拟实现（开发/测试默认）。
   取消注释以启用真实平台实现（生产环境）。
@@ -134,26 +86,24 @@
   {$DEFINE FAFAFA_PROCESS_VERBOSE_LOGGING}
 {$ENDIF}
 
-{
-  Optional feature flags for process module
-  进程模块可选特性开关（默认关闭，避免破坏现有行为）
-}
+{ 进程模块可选特性开关（默认关闭，避免破坏现有行为） }
 
-{ Enable minimal ShellExecuteEx support on Windows (no redirection or custom env)
-  启用最小的 ShellExecuteEx 支持（Windows，仅“打开”类场景，禁用重定向与自定义环境） }
+{ 启用最小的 ShellExecuteEx 支持（Windows，仅“打开”类场景，禁用重定向与自定义环境） }
 {.$DEFINE FAFAFA_PROCESS_SHELLEXECUTE_MINIMAL}
 
-{ Enable process groups / job objects support (KillTree/TerminateGroup)
-  启用进程组/作业对象支持（KillTree/TerminateGroup 功能） }
+{ 启用进程组/作业对象支持（KillTree/TerminateGroup 功能） }
 {.$DEFINE FAFAFA_PROCESS_GROUPS}
 
 
-{ Thread module debug diagnostics 线程模块调试诊断（仅 DEBUG 构建） }
+///
+/// fafafa.core.thread
+///
+
+{ 线程模块调试诊断（仅 DEBUG 构建） }
 {$IFDEF DEBUG}
   {$DEFINE FAFAFA_THREAD_DEBUG}
   {$DEFINE FAFAFA_CORE_SOCKET_DEBUG_GUARD}
 {$ENDIF}
-
 
 { Thread Select mode 线程 Select 模式（默认：非轮询，匿名引用可用时生效） }
 { 若需强制回退到轮询实现，请定义 FAFAFA_THREAD_SELECT_FORCE_POLLING }
@@ -348,10 +298,140 @@
 { Sync module optional Windows toggles 同步模块 Windows 可选开关 }
 { 使用 Windows 条件变量（CONDITION_VARIABLE）与 CRITICAL_SECTION 严格语义实现 CondVar.Wait* }
 {$DEFINE FAFAFA_SYNC_USE_CONDVAR}
-{ 使用 SRWLOCK 优化读写锁（写锁非递归），默认关闭以避免影响现有行为 }
-{.$DEFINE FAFAFA_SYNC_USE_SRWLOCK}
 
 { Unix 平台支持 CLOCK_MONOTONIC 定时等待（避免系统时间跳变影响） }
 {$IFDEF UNIX}
   {$DEFINE HAS_CLOCK_GETTIME}
 {$ENDIF}
+
+///
+/// fafafa.core.simd SIMD 框架配置
+///
+
+{ === Core Framework Settings === }
+
+{ Enable aggressive inlining for performance-critical functions }
+{$DEFINE SIMD_AGGRESSIVE_INLINE}
+
+{ Enable runtime CPU feature detection }
+{$DEFINE SIMD_RUNTIME_DETECTION}
+
+{ Enable debug assertions in debug builds }
+{$IFDEF DEBUG}
+  {$DEFINE SIMD_DEBUG_ASSERTIONS}
+{$ENDIF}
+
+{ Enable bounds checking in debug builds }
+{$IFDEF DEBUG}
+  {$DEFINE SIMD_BOUNDS_CHECK}
+{$ENDIF}
+
+{ === Platform Detection === }
+
+{$IFDEF CPUX86_64}
+  {$DEFINE SIMD_X86_64}
+  {$DEFINE SIMD_LITTLE_ENDIAN}
+{$ENDIF}
+
+{$IFDEF CPUI386}
+  {$DEFINE SIMD_X86_32}
+  {$DEFINE SIMD_LITTLE_ENDIAN}
+{$ENDIF}
+
+{$IFDEF CPUAARCH64}
+  {$DEFINE SIMD_AARCH64}
+  {$DEFINE SIMD_LITTLE_ENDIAN}
+{$ENDIF}
+
+{$IFDEF CPUARM}
+  {$DEFINE SIMD_ARM32}
+  {$DEFINE SIMD_LITTLE_ENDIAN}
+{$ENDIF}
+
+{ === Backend Feature Flags === }
+
+{ Always enable scalar backend as fallback }
+{$DEFINE SIMD_BACKEND_SCALAR}
+
+{ Enable x86 SIMD backends }
+{$IF DEFINED(SIMD_X86_64) OR DEFINED(SIMD_X86_32)}
+  {$DEFINE SIMD_X86_AVAILABLE}
+  {$DEFINE SIMD_BACKEND_SSE2}
+  {$DEFINE SIMD_BACKEND_AVX2}
+  { AVX-512 support (experimental) }
+  {.$DEFINE SIMD_BACKEND_AVX512}
+{$ENDIF}
+
+{ Enable ARM SIMD backends }
+{$IF DEFINED(SIMD_AARCH64) OR DEFINED(SIMD_ARM32)}
+  {$DEFINE SIMD_ARM_AVAILABLE}
+  {$DEFINE SIMD_BACKEND_NEON}
+{$ENDIF}
+
+{ === Performance Tuning === }
+
+{ Enable fast math optimizations (may affect precision) }
+{.$DEFINE SIMD_FAST_MATH}
+
+{ Enable unsafe optimizations (skip some safety checks) }
+{.$DEFINE SIMD_UNSAFE_OPTIMIZATIONS}
+
+{ Prefer speed over code size }
+{$DEFINE SIMD_OPTIMIZE_SPEED}
+
+
+
+{ === Debug and Testing === }
+
+{$IFDEF SIMD_DEBUG_ASSERTIONS}
+  {$ASSERTIONS ON}
+{$ELSE}
+  {$ASSERTIONS OFF}
+{$ENDIF}
+
+{$IFDEF SIMD_BOUNDS_CHECK}
+  {$RANGECHECKS ON}
+  {$OVERFLOWCHECKS ON}
+{$ELSE}
+  {$RANGECHECKS OFF}
+  {$OVERFLOWCHECKS OFF}
+{$ENDIF}
+
+{ === Feature Availability Macros === }
+
+{ Check if any x86 backend is available }
+{$IF DEFINED(SIMD_BACKEND_SSE2) OR DEFINED(SIMD_BACKEND_AVX2) OR DEFINED(SIMD_BACKEND_AVX512)}
+  {$DEFINE SIMD_X86_AVAILABLE}
+{$ENDIF}
+
+{ Check if any ARM backend is available }
+{$IF DEFINED(SIMD_BACKEND_NEON)}
+  {$DEFINE SIMD_ARM_AVAILABLE}
+{$ENDIF}
+
+{ Check if any hardware acceleration is available }
+{$IF DEFINED(SIMD_X86_AVAILABLE) OR DEFINED(SIMD_ARM_AVAILABLE)}
+  {$DEFINE SIMD_HARDWARE_ACCELERATION}
+{$ENDIF}
+
+
+
+///
+/// 框架配置文件
+///
+
+{$IFDEF FPC}
+  { FreePascal 特定设置 }
+  {$MODE OBJFPC}
+  {$H+}
+  //{$J-}
+{$IFDEF FAFAFA_CORE_INLINE}
+  {$INLINE ON}
+{$ENDIF}
+
+  { 启用高级记录特性 }
+  {$MODESWITCH ADVANCEDRECORDS}
+  {$MODESWITCH TYPEHELPERS}
+  {$MACRO ON}  // 开始启用简单值风格宏 like {$DEFINE NAME := value}
+{$ENDIF}
+

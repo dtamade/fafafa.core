@@ -1,229 +1,285 @@
 unit fafafa.core.simd.types;
 
-{$mode objfpc}{$H+}
-{$modeswitch advancedrecords}
 {$I fafafa.core.settings.inc}
 
 interface
 
-// === 核心类型系统（对标 Rust std::simd）===
+uses
+  SysUtils;
 
+// === Forward Declarations ===
 type
-  // SIMD 向量长度（编译时常量）
-  TSimdLanes = (
-    simd2   = 2,    // 2 lanes
-    simd4   = 4,    // 4 lanes  
-    simd8   = 8,    // 8 lanes
-    simd16  = 16,   // 16 lanes
-    simd32  = 32,   // 32 lanes (AVX-512)
-    simd64  = 64    // 64 lanes (AVX-512 bytes)
+  // Vector types
+  TVecF32x4 = record end;
+  TVecF32x8 = record end;
+  TVecF64x2 = record end;
+  TVecF64x4 = record end;
+  TVecI32x4 = record end;
+  TVecI32x8 = record end;
+  TVecI16x8 = record end;
+  TVecI16x16 = record end;
+  TVecI8x16 = record end;
+  TVecI8x32 = record end;
+
+// === Mask Types (Bit Masks) ===
+type
+  // Bit masks for conditional operations
+  TMask2 = type Byte;    // 2 bits: bit0, bit1
+  TMask4 = type Byte;    // 4 bits: bit0..bit3
+  TMask8 = type Byte;    // 8 bits: bit0..bit7
+  TMask16 = type Word;   // 16 bits: bit0..bit15
+  TMask32 = type DWord;  // 32 bits: bit0..bit31
+
+// === Backend Types ===
+type
+  // Available SIMD backends
+  TSimdBackend = (
+    sbScalar,    // Pure scalar implementation (always available)
+    sbSSE2,      // x86 SSE2 (128-bit)
+    sbAVX2,      // x86 AVX2 (256-bit)
+    sbAVX512,    // x86 AVX-512 (512-bit)
+    sbNEON       // ARM NEON (128-bit)
   );
 
-  // 数据类型标识
-  TSimdElementType = (
-    setF32, setF64,                    // 浮点
-    setI8, setI16, setI32, setI64,     // 有符号整数
-    setU8, setU16, setU32, setU64      // 无符号整数
+  // Backend capability flags
+  TSimdCapability = (
+    scBasicArithmetic,    // +, -, *, /
+    scComparison,         // =, <, <=, >, >=
+    scMathFunctions,      // abs, sqrt, min, max
+    scReduction,          // horizontal add, min, max
+    scShuffle,            // permute, blend, zip
+    scFMA,                // fused multiply-add
+    scFastMath,           // reciprocal, rsqrt approximations
+    scIntegerOps,         // integer arithmetic and bitwise
+    scLoadStore,          // aligned/unaligned memory access
+    scGather,             // gather/scatter operations
+    scMaskedOps           // masked operations
   );
+  TSimdCapabilities = set of TSimdCapability;
 
-  // 指令集能力
-  TSimdISA = (
-    isaScalar,
-    isaSSE2, isaSSE3, isaSSSE3, isaSSE41, isaSSE42,
-    isaAVX, isaAVX2, 
-    isaAVX512F, isaAVX512VL, isaAVX512BW, isaAVX512DQ,
-    isaAVX512CD, isaAVX512ER, isaAVX512PF, isaAVX512VBMI,
-    isaNEON, isaSVE, isaSVE2
-  );
+// === Function Pointer Types for Dispatch ===
+type
+  // Arithmetic operations
+  TSimdAddF32x4Func = function(const a, b: TVecF32x4): TVecF32x4;
+  TSimdAddF32x8Func = function(const a, b: TVecF32x8): TVecF32x8;
+  TSimdAddF64x2Func = function(const a, b: TVecF64x2): TVecF64x2;
+  TSimdAddI32x4Func = function(const a, b: TVecI32x4): TVecI32x4;
 
-  // 指令集能力集合
-  TSimdISASet = set of TSimdISA;
+  // Comparison operations
+  TSimdCmpEqF32x4Func = function(const a, b: TVecF32x4): TMask4;
+  TSimdCmpLtF32x4Func = function(const a, b: TVecF32x4): TMask4;
 
-  // 错误处理
-  TSimdError = record
-    Code: Integer;
-    Message: String;
-    ISA: TSimdISA;
+  // Math functions
+  TSimdAbsF32x4Func = function(const a: TVecF32x4): TVecF32x4;
+  TSimdSqrtF32x4Func = function(const a: TVecF32x4): TVecF32x4;
+
+  // Reduction operations
+  TSimdReduceAddF32x4Func = function(const a: TVecF32x4): Single;
+  TSimdReduceMinF32x4Func = function(const a: TVecF32x4): Single;
+
+  // Memory operations
+  TSimdLoadF32x4Func = function(p: PSingle): TVecF32x4;
+  TSimdStoreF32x4Proc = procedure(p: PSingle; const a: TVecF32x4);
+
+  // Utility operations
+  TSimdSplatF32x4Func = function(value: Single): TVecF32x4;
+  TSimdSelectF32x4Func = function(const mask: TMask4; const a, b: TVecF32x4): TVecF32x4;
+
+// === Backend Information ===
+type
+  TSimdBackendInfo = record
+    Backend: TSimdBackend;
+    Name: string;
+    Description: string;
+    Capabilities: TSimdCapabilities;
+    Available: Boolean;
+    Priority: Integer;  // Higher priority = preferred backend
   end;
 
-  // 性能上下文
-  TSimdContext = record
-    ActiveISA: TSimdISA;
-    Capabilities: TSimdISASet;
-    PerfMultiplier: array[TSimdISA] of Single;
-    FallbackChain: array[0..7] of TSimdISA;
+// === CPU Feature Detection ===
+type
+  // x86 CPU features
+  TX86Features = record
+    HasSSE: Boolean;
+    HasSSE2: Boolean;
+    HasSSE3: Boolean;
+    HasSSSE3: Boolean;
+    HasSSE41: Boolean;
+    HasSSE42: Boolean;
+    HasAVX: Boolean;
+    HasAVX2: Boolean;
+    HasAVX512F: Boolean;
+    HasAVX512DQ: Boolean;
+    HasAVX512BW: Boolean;
+    HasFMA: Boolean;
   end;
 
-  // === 向量类型定义（遵循平面命名）===
-
-  // 32位浮点向量
-  TSimdF32x2  = array[0..1] of Single;
-  TSimdF32x4  = array[0..3] of Single;
-  TSimdF32x8  = array[0..7] of Single;
-  TSimdF32x16 = array[0..15] of Single;
-
-  // 64位浮点向量
-  TSimdF64x2  = array[0..1] of Double;
-  TSimdF64x4  = array[0..3] of Double;
-  TSimdF64x8  = array[0..7] of Double;
-
-  // 32位整数向量
-  TSimdI32x2  = array[0..1] of Int32;
-  TSimdI32x4  = array[0..3] of Int32;
-  TSimdI32x8  = array[0..7] of Int32;
-  TSimdI32x16 = array[0..15] of Int32;
-
-  // 8位整数向量
-  TSimdI8x16  = array[0..15] of Int8;
-  TSimdI8x32  = array[0..31] of Int8;
-  TSimdI8x64  = array[0..63] of Int8;
-
-  // 16位整数向量
-  TSimdI16x8  = array[0..7] of Int16;
-  TSimdI16x16 = array[0..15] of Int16;
-  TSimdI16x32 = array[0..31] of Int16;
-
-  // 64位整数向量
-  TSimdI64x2  = array[0..1] of Int64;
-  TSimdI64x4  = array[0..3] of Int64;
-  TSimdI64x8  = array[0..7] of Int64;
-
-  // 8位无符号整数向量
-  TSimdU8x16  = array[0..15] of Byte;
-  TSimdU8x32  = array[0..31] of Byte;
-  TSimdU8x64  = array[0..63] of Byte;
-
-  // 16位无符号整数向量
-  TSimdU16x8  = array[0..7] of UInt16;
-  TSimdU16x16 = array[0..15] of UInt16;
-  TSimdU16x32 = array[0..31] of UInt16;
-
-  // 32位无符号整数向量
-  TSimdU32x4  = array[0..3] of UInt32;
-  TSimdU32x8  = array[0..7] of UInt32;
-  TSimdU32x16 = array[0..15] of UInt32;
-
-  // 64位无符号整数向量
-  TSimdU64x2  = array[0..1] of UInt64;
-  TSimdU64x4  = array[0..3] of UInt64;
-  TSimdU64x8  = array[0..7] of UInt64;
-
-  // === 掩码类型（用于比较和条件选择）===
-  TSimdMask2  = array[0..1] of Boolean;
-  TSimdMask4  = array[0..3] of Boolean;
-  TSimdMask8  = array[0..7] of Boolean;
-  TSimdMask16 = array[0..15] of Boolean;
-  TSimdMask32 = array[0..31] of Boolean;
-  TSimdMask64 = array[0..63] of Boolean;
-
-  // === 兼容性类型（保持向后兼容）===
-
-  // 差异范围类型（用于 MemDiffRange）
-  TDiffRange = record
-    First: SizeUInt;    // 兼容旧接口
-    Last: SizeUInt;     // 兼容旧接口
-    StartPos: SizeUInt; // 新接口
-    EndPos: SizeUInt;   // 新接口
+  // ARM CPU features
+  TARMFeatures = record
+    HasNEON: Boolean;
+    HasFP: Boolean;
+    HasAdvSIMD: Boolean;
+    HasSVE: Boolean;
+    HasCrypto: Boolean;
   end;
 
-// === 全局上下文 ===
-var
-  GSimdContext: TSimdContext;
+  // x86 Cache information
+  TX86CacheInfo = record
+    L1DataCache: Integer;        // KB
+    L1InstructionCache: Integer; // KB
+    L2Cache: Integer;            // KB
+    L3Cache: Integer;            // KB
+  end;
 
-// === 上下文管理 ===
-function simd_init_context: TSimdContext;
-procedure simd_set_context(const ctx: TSimdContext);
-function simd_get_context: TSimdContext;
-function simd_detect_capabilities: TSimdISASet;
-function simd_get_best_isa(elementType: TSimdElementType; lanes: TSimdLanes): TSimdISA;
+  // ARM Processor information
+  TARMProcessorInfo = record
+    Architecture: string;        // AArch32, AArch64
+    InstructionSet: string;      // ARMv7-A, ARMv8-A, etc.
+    CoreType: string;            // Cortex-A, Cortex-R, etc.
+  end;
 
-// === 错误处理 ===
-function simd_make_error(code: Integer; const msg: String; isa: TSimdISA): TSimdError;
+  // Combined CPU information
+  TCPUInfo = record
+    Vendor: string;
+    Model: string;
+    {$IFDEF SIMD_X86_AVAILABLE}
+    X86: TX86Features;
+    {$ENDIF}
+    {$IFDEF SIMD_ARM_AVAILABLE}
+    ARM: TARMFeatures;
+    {$ENDIF}
+  end;
+
+// === Constants ===
+const
+  // Mask bit manipulation helpers
+  MASK2_ALL_SET: TMask2 = $03;      // 11b
+  MASK4_ALL_SET: TMask4 = $0F;      // 1111b
+  MASK8_ALL_SET: TMask8 = $FF;      // 11111111b
+  MASK16_ALL_SET: TMask16 = $FFFF;  // 16 ones
+  MASK32_ALL_SET: TMask32 = $FFFFFFFF; // 32 ones
+
+  MASK2_NONE_SET: TMask2 = $00;
+  MASK4_NONE_SET: TMask4 = $00;
+  MASK8_NONE_SET: TMask8 = $00;
+  MASK16_NONE_SET: TMask16 = $0000;
+  MASK32_NONE_SET: TMask32 = $00000000;
+
+// === Utility Functions ===
+
+// Mask manipulation
+function MaskGetBit(mask: TMask4; index: Integer): Boolean; inline;
+function MaskSetBit(mask: TMask4; index: Integer; value: Boolean): TMask4; inline;
+function MaskAny(mask: TMask4): Boolean; inline;
+function MaskAll(mask: TMask4): Boolean; inline;
+function MaskNone(mask: TMask4): Boolean; inline;
+function MaskCount(mask: TMask4): Integer; inline;
+
+// Mask conversion (for debugging/testing)
+type
+  TBoolArray4 = array[0..3] of Boolean;
+
+function MaskToBoolArray4(mask: TMask4): TBoolArray4;
+function BoolArrayToMask4(const arr: TBoolArray4): TMask4;
+
+// Backend information
+function GetBackendName(backend: TSimdBackend): string;
+function GetBackendDescription(backend: TSimdBackend): string;
 
 implementation
 
-function simd_init_context: TSimdContext;
+// === Mask Utility Functions ===
+
+function MaskGetBit(mask: TMask4; index: Integer): Boolean;
 begin
-  Result.Capabilities := simd_detect_capabilities;
-  Result.ActiveISA := isaScalar;
-  // 初始化性能倍数
-  FillChar(Result.PerfMultiplier, SizeOf(Result.PerfMultiplier), 0);
-  Result.PerfMultiplier[isaScalar] := 1.0;
-  Result.PerfMultiplier[isaSSE2] := 2.0;
-  Result.PerfMultiplier[isaAVX2] := 4.0;
-  Result.PerfMultiplier[isaAVX512F] := 8.0;
-  Result.PerfMultiplier[isaNEON] := 2.5;
-  
-  // 初始化回退链
-  Result.FallbackChain[0] := isaAVX512F;
-  Result.FallbackChain[1] := isaAVX2;
-  Result.FallbackChain[2] := isaAVX;
-  Result.FallbackChain[3] := isaSSE42;
-  Result.FallbackChain[4] := isaSSE41;
-  Result.FallbackChain[5] := isaSSE2;
-  Result.FallbackChain[6] := isaNEON;
-  Result.FallbackChain[7] := isaScalar;
+  {$IFDEF SIMD_BOUNDS_CHECK}
+  if (index < 0) or (index > 3) then
+    raise EArgumentOutOfRangeException.CreateFmt('Mask index %d out of range [0..3]', [index]);
+  {$ENDIF}
+  Result := (mask and (1 shl index)) <> 0;
 end;
 
-function simd_detect_capabilities: TSimdISASet;
+function MaskSetBit(mask: TMask4; index: Integer; value: Boolean): TMask4;
 begin
-  Result := [isaScalar];
-  
-  {$IFDEF CPUX86_64}
-  // TODO: 实现真正的CPUID检测
-  // 暂时假设支持基础指令集
-  Result := Result + [isaSSE2];
+  {$IFDEF SIMD_BOUNDS_CHECK}
+  if (index < 0) or (index > 3) then
+    raise EArgumentOutOfRangeException.CreateFmt('Mask index %d out of range [0..3]', [index]);
   {$ENDIF}
-  
-  {$IFDEF CPUAARCH64}
-  // ARM64 默认支持 NEON
-  Result := Result + [isaNEON];
-  {$ENDIF}
+  if value then
+    Result := mask or (1 shl index)
+  else
+    Result := mask and not (1 shl index);
 end;
 
-function simd_get_best_isa(elementType: TSimdElementType; lanes: TSimdLanes): TSimdISA;
-var
-  i: Integer;
-  isa: TSimdISA;
+function MaskAny(mask: TMask4): Boolean;
 begin
-  // 按优先级顺序查找最佳ISA
-  for i := 0 to 7 do
-  begin
-    isa := GSimdContext.FallbackChain[i];
-    if isa in GSimdContext.Capabilities then
-    begin
-      // 检查ISA是否支持指定的元素类型和向量长度
-      case isa of
-        isaAVX512F: if lanes in [simd16, simd8, simd4] then Exit(isa);
-        isaAVX2: if lanes in [simd8, simd4] then Exit(isa);
-        isaSSE2: if lanes in [simd4, simd2] then Exit(isa);
-        isaNEON: if lanes in [simd4, simd2] then Exit(isa);
-        isaScalar: Exit(isa); // 标量总是支持
-      end;
-    end;
+  Result := mask <> 0;
+end;
+
+function MaskAll(mask: TMask4): Boolean;
+begin
+  Result := (mask and MASK4_ALL_SET) = MASK4_ALL_SET;
+end;
+
+function MaskNone(mask: TMask4): Boolean;
+begin
+  Result := mask = 0;
+end;
+
+function MaskCount(mask: TMask4): Integer;
+begin
+  Result := 0;
+  if (mask and $01) <> 0 then Inc(Result);
+  if (mask and $02) <> 0 then Inc(Result);
+  if (mask and $04) <> 0 then Inc(Result);
+  if (mask and $08) <> 0 then Inc(Result);
+end;
+
+// === Mask Conversion Functions ===
+
+function MaskToBoolArray4(mask: TMask4): TBoolArray4;
+begin
+  Result[0] := (mask and $01) <> 0;
+  Result[1] := (mask and $02) <> 0;
+  Result[2] := (mask and $04) <> 0;
+  Result[3] := (mask and $08) <> 0;
+end;
+
+function BoolArrayToMask4(const arr: TBoolArray4): TMask4;
+begin
+  Result := 0;
+  if arr[0] then Result := Result or $01;
+  if arr[1] then Result := Result or $02;
+  if arr[2] then Result := Result or $04;
+  if arr[3] then Result := Result or $08;
+end;
+
+// === Backend Information Functions ===
+
+function GetBackendName(backend: TSimdBackend): string;
+begin
+  case backend of
+    sbScalar: Result := 'Scalar';
+    sbSSE2: Result := 'SSE2';
+    sbAVX2: Result := 'AVX2';
+    sbAVX512: Result := 'AVX-512';
+    sbNEON: Result := 'NEON';
+  else
+    Result := 'Unknown';
   end;
-  
-  Result := isaScalar; // 默认回退
 end;
 
-procedure simd_set_context(const ctx: TSimdContext);
+function GetBackendDescription(backend: TSimdBackend): string;
 begin
-  GSimdContext := ctx;
+  case backend of
+    sbScalar: Result := 'Pure scalar implementation (portable fallback)';
+    sbSSE2: Result := 'x86 SSE2 128-bit SIMD';
+    sbAVX2: Result := 'x86 AVX2 256-bit SIMD';
+    sbAVX512: Result := 'x86 AVX-512 512-bit SIMD';
+    sbNEON: Result := 'ARM NEON 128-bit SIMD';
+  else
+    Result := 'Unknown backend';
+  end;
 end;
-
-function simd_get_context: TSimdContext;
-begin
-  Result := GSimdContext;
-end;
-
-function simd_make_error(code: Integer; const msg: String; isa: TSimdISA): TSimdError;
-begin
-  Result.Code := code;
-  Result.Message := msg;
-  Result.ISA := isa;
-end;
-
-initialization
-  GSimdContext := simd_init_context;
 
 end.

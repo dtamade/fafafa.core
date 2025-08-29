@@ -1,13 +1,15 @@
 unit fafafa.core.sync.mutex.unix;
 
-{$mode objfpc}{$H+}
 {$I fafafa.core.settings.inc}
 
 interface
 
 uses
   SysUtils, BaseUnix, Unix, UnixType, pthreads,
-  fafafa.core.sync.base, fafafa.core.sync.mutex.base;
+  fafafa.core.atomic,
+  fafafa.core.sync.base,
+  fafafa.core.sync.mutex.base,
+  fafafa.core.time.cpu;
 
 {$IFDEF LINUX}
 const
@@ -23,8 +25,7 @@ type
   TMutex = class(TTryLock, IMutex)
   private
     FMutex: pthread_mutex_t;
-    FOwnerThreadId: TThreadID;
-    FIsLocked: Boolean;
+    FOwnerThreadId: LongInt; // 原子变量：0=未锁定，非0=持有锁的线程ID
   public
     constructor Create;
     destructor Destroy; override;
@@ -33,6 +34,7 @@ type
     procedure Acquire; override;
     procedure Release; override;
     function TryAcquire: Boolean; override;
+    function TryAcquire(ATimeoutMs: Cardinal): Boolean; override;  // 重写超时版本
 
     // IMutex 特有方法
     function GetHandle: Pointer;
@@ -58,8 +60,8 @@ type
   { 现代互斥锁实现 - 使用 futex（Linux/FreeBSD）}
   TFutexMutex = class(TTryLock, IMutex)
   private
-    FFutex: LongInt;
-    FOwnerTid: pid_t;
+    FFutex: Int32;  // 使用 Int32 以配合 fafafa.core.atomic
+    FOwnerTid: Int32;  // 使用 Int32 以配合 fafafa.core.atomic
 
     // futex 系统调用封装
     function FutexWait(ExpectedValue: LongInt; TimeoutMs: Cardinal = High(Cardinal)): Boolean;
@@ -74,6 +76,7 @@ type
     procedure Acquire; override;
     procedure Release; override;
     function TryAcquire: Boolean; override;
+    function TryAcquire(ATimeoutMs: Cardinal): Boolean; override;  // 重写超时版本
 
     // IMutex 特有方法
     function GetHandle: Pointer;
@@ -100,8 +103,7 @@ var
   Attr: pthread_mutexattr_t;
 begin
   inherited Create;
-  FOwnerThreadId := 0;
-  FIsLocked := False;
+  atomic_store(FOwnerThreadId, 0); // 0 表示未锁定
 
   // 初始化互斥锁属性
   if pthread_mutexattr_init(@Attr) <> 0 then
@@ -128,23 +130,27 @@ end;
 
 procedure TMutex.Acquire;
 var
-  CurrentThreadId: TThreadID;
+  CurrentThreadId: LongInt;
 begin
-  CurrentThreadId := GetCurrentThreadId;
+  CurrentThreadId := LongInt(GetCurrentThreadId);
 
-  // 使用 pthread_mutex + 重入检查
+  // 先检查重入（原子读取）
+  if atomic_load(FOwnerThreadId) = CurrentThreadId then
+    raise ELockError.Create('Non-reentrant mutex: reentrancy detected');
+
+  // 使用 pthread_mutex 获取锁
   if pthread_mutex_lock(@FMutex) <> 0 then
     raise ELockError.Create('Failed to acquire mutex');
 
   try
-    if FIsLocked and (FOwnerThreadId = CurrentThreadId) then
+    // 再次检查重入（防止竞态条件）
+    if atomic_load(FOwnerThreadId) = CurrentThreadId then
     begin
-      // 检测到重入，需要先释放锁再抛异常
       pthread_mutex_unlock(@FMutex);
       raise ELockError.Create('Non-reentrant mutex: reentrancy detected');
     end;
-    FOwnerThreadId := CurrentThreadId;
-    FIsLocked := True;
+    // 原子设置所有权
+    atomic_store(FOwnerThreadId, CurrentThreadId);
   except
     pthread_mutex_unlock(@FMutex);
     raise;
@@ -152,39 +158,48 @@ begin
 end;
 
 procedure TMutex.Release;
+var
+  CurrentThreadId: LongInt;
 begin
-  // 检查所有权（不需要额外锁保护，因为锁已经被当前线程持有）
-  if not FIsLocked or (FOwnerThreadId <> GetCurrentThreadId) then
+  CurrentThreadId := LongInt(GetCurrentThreadId);
+
+  // 检查所有权（原子读取）
+  if atomic_load(FOwnerThreadId) <> CurrentThreadId then
     raise ELockError.Create('Mutex not owned by current thread');
 
-  FOwnerThreadId := 0;
-  FIsLocked := False;
+  // 原子清除所有权信息
+  atomic_store(FOwnerThreadId, 0);
 
-  // 直接释放锁
+  // 释放 pthread_mutex
   if pthread_mutex_unlock(@FMutex) <> 0 then
     raise ELockError.Create('Failed to release mutex');
 end;
 
 function TMutex.TryAcquire: Boolean;
 var
-  CurrentThreadId: TThreadID;
+  CurrentThreadId: LongInt;
 begin
-  CurrentThreadId := GetCurrentThreadId;
+  CurrentThreadId := LongInt(GetCurrentThreadId);
 
-  // 使用 pthread_mutex_trylock + 重入检查
+  // 先检查重入（原子读取）
+  if atomic_load(FOwnerThreadId) = CurrentThreadId then
+    Exit(False);
+
+  // 使用 pthread_mutex_trylock
   if pthread_mutex_trylock(@FMutex) = 0 then
   begin
     try
-      if FIsLocked and (FOwnerThreadId = CurrentThreadId) then
+      // 再次检查重入（防止竞态条件）
+      if atomic_load(FOwnerThreadId) = CurrentThreadId then
       begin
-        // 检测到重入
+        // 检测到重入，释放刚获取的锁并返回失败
         pthread_mutex_unlock(@FMutex);
         Result := False;
       end
       else
       begin
-        FOwnerThreadId := CurrentThreadId;
-        FIsLocked := True;
+        // 原子设置所有权
+        atomic_store(FOwnerThreadId, CurrentThreadId);
         Result := True;
       end;
     except
@@ -198,6 +213,21 @@ begin
   end;
 end;
 
+function TMutex.TryAcquire(ATimeoutMs: Cardinal): Boolean;
+var
+  CurrentThreadId: LongInt;
+begin
+  CurrentThreadId := LongInt(GetCurrentThreadId);
+
+  // 对于不可重入锁，检查重入（原子读取）
+  // 如果是重入，直接返回失败，不进行等待（因为同一线程永远不会释放自己持有的锁）
+  if atomic_load(FOwnerThreadId) = CurrentThreadId then
+    Exit(False);
+
+  // 调用基类的优化超时实现
+  Result := inherited TryAcquire(ATimeoutMs);
+end;
+
 function TMutex.GetHandle: Pointer;
 begin
   Result := @FMutex;
@@ -209,8 +239,8 @@ end;
 constructor TFutexMutex.Create;
 begin
   inherited Create;
-  FFutex := FUTEX_UNLOCKED;
-  FOwnerTid := 0;
+  atomic_store(FFutex, FUTEX_UNLOCKED);
+  atomic_store(FOwnerTid, 0);
 end;
 
 destructor TFutexMutex.Destroy;
@@ -224,7 +254,10 @@ end;
 function TFutexMutex.GetCurrentTid: pid_t;
 begin
   {$IFDEF LINUX}
-  Result := fpgettid;
+  // 使用更兼容的方式获取线程ID
+  // 在某些交叉编译环境中，fpgettid 可能不可用
+  // 使用 GetCurrentThreadId 作为替代方案
+  Result := pid_t(GetCurrentThreadId);
   {$ELSE}
   Result := GetThreadID;
   {$ENDIF}
@@ -283,23 +316,23 @@ end;
 function TFutexMutex.SpinTryAcquire(MaxSpins: Integer): Boolean;
 var
   SpinCount: Integer;
-  CurrentTid: pid_t;
+  CurrentTid: Int32;
+  Expected: Int32;
 begin
-  CurrentTid := GetCurrentTid;
+  CurrentTid := Int32(GetCurrentTid);
 
   for SpinCount := 1 to MaxSpins do
   begin
-    // 尝试原子获取锁
-    if InterlockedCompareExchange(FFutex, FUTEX_LOCKED, FUTEX_UNLOCKED) = FUTEX_UNLOCKED then
+    // 尝试原子获取锁（使用框架的原子操作）
+    Expected := FUTEX_UNLOCKED;
+    if atomic_compare_exchange_strong(FFutex, Expected, FUTEX_LOCKED) then
     begin
-      FOwnerTid := CurrentTid;
+      atomic_store(FOwnerTid, CurrentTid);
       Exit(True);
     end;
 
-    // CPU 暂停指令，减少功耗和总线竞争
-    asm
-      pause;
-    end;
+    // 使用跨平台的 CPU 暂停指令
+    CpuRelax;
   end;
 
   Result := False;
@@ -307,21 +340,19 @@ end;
 
 procedure TFutexMutex.Acquire;
 var
-  CurrentTid: pid_t;
-  OldValue: LongInt;
+  CurrentTid: Int32;
+  OldValue: Int32;
+  Expected: Int32;
 begin
-  CurrentTid := GetCurrentTid;
+  CurrentTid := Int32(GetCurrentTid);
 
-  // 快速路径：尝试直接获取未锁定的锁
-  if InterlockedCompareExchange(FFutex, FUTEX_LOCKED, FUTEX_UNLOCKED) = FUTEX_UNLOCKED then
+  // 快速路径：尝试直接获取未锁定的锁（使用框架的原子操作）
+  Expected := FUTEX_UNLOCKED;
+  if atomic_compare_exchange_strong(FFutex, Expected, FUTEX_LOCKED) then
   begin
-    FOwnerTid := CurrentTid;
+    atomic_store(FOwnerTid, CurrentTid);
     Exit;
   end;
-
-  // 检查重入（在快速路径失败后检查，避免竞态条件）
-  if FOwnerTid = CurrentTid then
-    raise ELockError.Create('Non-reentrant mutex: reentrancy detected');
 
   // 慢速路径：自旋 + futex 等待
   if SpinTryAcquire then
@@ -329,10 +360,14 @@ begin
 
   // 设置等待者标志并进入 futex 等待
   repeat
-    OldValue := InterlockedExchange(FFutex, FUTEX_LOCKED_WITH_WAITERS);
+    // 在设置等待者标志前检查重入（使用原子读取）
+    if atomic_load(FOwnerTid) = CurrentTid then
+      raise ELockError.Create('Non-reentrant mutex: reentrancy detected');
+
+    OldValue := atomic_exchange(FFutex, FUTEX_LOCKED_WITH_WAITERS);
     if OldValue = FUTEX_UNLOCKED then
     begin
-      FOwnerTid := CurrentTid;
+      atomic_store(FOwnerTid, CurrentTid);
       Exit;
     end;
 
@@ -343,19 +378,20 @@ end;
 
 procedure TFutexMutex.Release;
 var
-  CurrentTid: pid_t;
-  OldValue: LongInt;
+  CurrentTid: Int32;
+  OldValue: Int32;
 begin
-  CurrentTid := GetCurrentTid;
+  CurrentTid := Int32(GetCurrentTid);
 
-  // 检查所有权
-  if FOwnerTid <> CurrentTid then
+  // 检查所有权（使用原子读取）
+  if atomic_load(FOwnerTid) <> CurrentTid then
     raise ELockError.Create('Mutex not owned by current thread');
 
-  FOwnerTid := 0;
+  // 清除所有权（使用原子写入）
+  atomic_store(FOwnerTid, 0);
 
-  // 原子释放锁
-  OldValue := InterlockedExchange(FFutex, FUTEX_UNLOCKED);
+  // 原子释放锁（使用框架的原子操作）
+  OldValue := atomic_exchange(FFutex, FUTEX_UNLOCKED);
 
   // 如果有等待者，唤醒一个
   if OldValue = FUTEX_LOCKED_WITH_WAITERS then
@@ -364,24 +400,45 @@ end;
 
 function TFutexMutex.TryAcquire: Boolean;
 var
-  CurrentTid: pid_t;
+  CurrentTid: Int32;
+  Expected: Int32;
 begin
-  CurrentTid := GetCurrentTid;
+  CurrentTid := Int32(GetCurrentTid);
 
-  // 尝试原子获取锁
-  if InterlockedCompareExchange(FFutex, FUTEX_LOCKED, FUTEX_UNLOCKED) = FUTEX_UNLOCKED then
+  // 先检查重入（原子读取）
+  if atomic_load(FOwnerTid) = CurrentTid then
   begin
-    FOwnerTid := CurrentTid;
+    // 检测到重入，直接返回失败
+    Result := False;
+    Exit;
+  end;
+
+  // 尝试原子获取锁（使用框架的原子操作）
+  Expected := FUTEX_UNLOCKED;
+  if atomic_compare_exchange_strong(FFutex, Expected, FUTEX_LOCKED) then
+  begin
+    atomic_store(FOwnerTid, CurrentTid);
     Result := True;
   end
   else
   begin
-    // 检查重入（在获取失败后检查，避免竞态条件）
-    if FOwnerTid = CurrentTid then
-      Result := False  // 重入检测，返回失败
-    else
-      Result := False; // 锁被其他线程持有
+    Result := False; // 锁被其他线程持有
   end;
+end;
+
+function TFutexMutex.TryAcquire(ATimeoutMs: Cardinal): Boolean;
+var
+  CurrentTid: Int32;
+begin
+  CurrentTid := Int32(GetCurrentTid);
+
+  // 对于不可重入锁，检查重入
+  // 如果是重入，直接返回失败，不进行等待（因为同一线程永远不会释放自己持有的锁）
+  if atomic_load(FOwnerTid) = CurrentTid then
+    Exit(False);
+
+  // 调用基类的优化超时实现
+  Result := inherited TryAcquire(ATimeoutMs);
 end;
 
 function TFutexMutex.GetHandle: Pointer;

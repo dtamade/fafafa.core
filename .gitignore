@@ -46,3 +46,4 @@ benchmarks/*/lib
 
 src/tests/lib
 src/tests/bin
+bin/*

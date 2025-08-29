@@ -9,7 +9,7 @@
         <MainUnitHasScaledStatement Value="False"/>
       </Flags>
       <SessionStorage Value="InProjectDir"/>
-      <Title Value="fafafa.core.sync.mutex.test"/>
+      <Title Value="example_advanced_patterns"/>
       <UseAppBundle Value="False"/>
       <ResourceType Value="res"/>
     </General>
@@ -22,22 +22,13 @@
     </PublishOptions>
     <RunParams>
       <FormatVersion Value="2"/>
+      <Modes>
+        <Mode Name="default"/>
+      </Modes>
     </RunParams>
-    <RequiredPackages>
-      <Item>
-        <PackageName Value="FCL"/>
-      </Item>
-      <Item>
-        <PackageName Value="FPCUnitConsoleRunner"/>
-      </Item>
-    </RequiredPackages>
     <Units>
       <Unit>
-        <Filename Value="fafafa.core.sync.mutex.test.lpr"/>
-        <IsPartOfProject Value="True"/>
-      </Unit>
-      <Unit>
-        <Filename Value="fafafa.core.sync.mutex.testcase.pas"/>
+        <Filename Value="example_advanced_patterns.lpr"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>
@@ -45,13 +36,18 @@
   <CompilerOptions>
     <Version Value="11"/>
     <Target>
-      <Filename Value="bin/fafafa.core.sync.mutex.test"/>
+      <Filename Value="bin/example_advanced_patterns"/>
     </Target>
     <SearchPaths>
-      <IncludeFiles Value="../../src"/>
+      <IncludeFiles Value="$(ProjOutDir);../../src"/>
       <OtherUnitFiles Value="../../src"/>
       <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
+    <Parsing>
+      <SyntaxOptions>
+        <SyntaxMode Value="Delphi"/>
+      </SyntaxOptions>
+    </Parsing>
     <CodeGeneration>
       <Checks>
         <IOChecks Value="True"/>
@@ -60,8 +56,6 @@
         <StackChecks Value="True"/>
       </Checks>
       <VerifyObjMethodCallValidity Value="True"/>
-      <TargetCPU Value="x86_64"/>
-      <TargetOS Value="win64"/>
     </CodeGeneration>
     <Linking>
       <Debugging>
@@ -71,13 +65,18 @@
         <UseExternalDbgSyms Value="True"/>
       </Debugging>
     </Linking>
-    <Other>
-      <Verbosity>
-        <ShowWarn Value="True"/>
-        <ShowNotes Value="True"/>
-        <ShowHints Value="True"/>
-        <ShowLineNum Value="True"/>
-      </Verbosity>
-    </Other>
   </CompilerOptions>
+  <Debugging>
+    <Exceptions>
+      <Item>
+        <Name Value="EAbort"/>
+      </Item>
+      <Item>
+        <Name Value="ECodetoolError"/>
+      </Item>
+      <Item>
+        <Name Value="EFOpenError"/>
+      </Item>
+    </Exceptions>
+  </Debugging>
 </CONFIG>

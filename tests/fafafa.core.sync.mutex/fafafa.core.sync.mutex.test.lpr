@@ -1,12 +1,13 @@
 program fafafa.core.sync.mutex.test;
 
-{$mode objfpc}{$H+}
-{$CODEPAGE UTF8}
+{$IFDEF WINDOWS}{$CODEPAGE UTF8}{$ENDIF}
+{$I fafafa.core.settings.inc}
 
 uses
   {$IFDEF UNIX}cthreads,{$ENDIF}
   consoletestrunner, fpcunit, testregistry,
-  fafafa.core.sync.mutex.testcase;
+  fafafa.core.sync.mutex.testcase,
+  fafafa.core.sync.mutex.stress;
 
 {$IFDEF UNIX}
 {$linklib pthread}
@@ -16,6 +17,8 @@ var
   App: TTestRunner;
 
 begin
+  DefaultRunAllTests := true;
+  DefaultFormat := fPlain;
   App := TTestRunner.Create(nil);
   try
     App.Initialize;
