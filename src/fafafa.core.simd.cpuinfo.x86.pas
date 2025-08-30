@@ -1,6 +1,7 @@
 unit fafafa.core.simd.cpuinfo.x86;
 
 {$I fafafa.core.settings.inc}
+{$ASMMODE INTEL}
 
 interface
 
@@ -62,125 +63,93 @@ asm
 end;
 {$ENDIF}
 
-procedure CPUID(EAX: DWord; var EAX_Out, EBX_Out, ECX_Out, EDX_Out: DWord);
+// 直接复制成功的实现
+type
+  TCPUIDResult = array[0..3] of DWord;
+
+function ActualCPUID(leaf: DWord): TCPUIDResult;
+{$IFDEF CPUX86_64}
+var
+  result_eax, result_ebx, result_ecx, result_edx: DWord;
 begin
-  if not HasCPUID then
-  begin
-    EAX_Out := 0;
-    EBX_Out := 0;
-    ECX_Out := 0;
-    EDX_Out := 0;
-    Exit;
+  asm
+    push rbx
+    mov eax, leaf
+    cpuid
+    mov result_eax, eax
+    mov result_ebx, ebx
+    mov result_ecx, ecx
+    mov result_edx, edx
+    pop rbx
   end;
 
-  try
-    {$IFDEF CPUX86_64}
-    // Use external assembly or simplified approach for FreePascal
-    // FreePascal's inline assembly syntax is different
-    // For now, use a fallback implementation
-    EAX_Out := 0;
-    EBX_Out := 0;
-    ECX_Out := 0;
-    EDX_Out := 0;
-
-    // TODO: Implement proper CPUID for FreePascal x64
-    {$ELSE}
-    asm
-      push ebx
-      push edi
-      push esi
-      
-      // Execute CPUID
-      cpuid
-      
-      // Store results using parameter addresses
-      mov esi, EAX_Out
-      mov [esi], eax
-      
-      mov esi, EBX_Out
-      mov [esi], ebx
-      
-      mov esi, ECX_Out
-      mov [esi], ecx
-      
-      mov esi, EDX_Out
-      mov [esi], edx
-      
-      pop esi
-      pop edi
-      pop ebx
-    end;
-    {$ENDIF}
-  except
-    // If CPUID fails, return zeros
-    EAX_Out := 0;
-    EBX_Out := 0;
-    ECX_Out := 0;
-    EDX_Out := 0;
+  Result[0] := result_eax;
+  Result[1] := result_ebx;
+  Result[2] := result_ecx;
+  Result[3] := result_edx;
+end;
+{$ELSE}
+var
+  result_eax, result_ebx, result_ecx, result_edx: DWord;
+begin
+  asm
+    push ebx
+    push edi
+    mov eax, leaf
+    cpuid
+    mov result_eax, eax
+    mov result_ebx, ebx
+    mov result_ecx, ecx
+    mov result_edx, edx
+    pop edi
+    pop ebx
   end;
+
+  Result[0] := result_eax;
+  Result[1] := result_ebx;
+  Result[2] := result_ecx;
+  Result[3] := result_edx;
+end;
+{$ENDIF}
+
+procedure CPUID(EAX: DWord; var EAX_Out, EBX_Out, ECX_Out, EDX_Out: DWord);
+var
+  result: TCPUIDResult;
+begin
+  result := ActualCPUID(EAX);
+  EAX_Out := result[0];
+  EBX_Out := result[1];
+  ECX_Out := result[2];
+  EDX_Out := result[3];
 end;
 
 procedure CPUIDEX(EAX, ECX_In: DWord; var EAX_Out, EBX_Out, ECX_Out, EDX_Out: DWord);
 begin
-  if not HasCPUID then
-  begin
-    EAX_Out := 0;
-    EBX_Out := 0;
-    ECX_Out := 0;
-    EDX_Out := 0;
-    Exit;
-  end;
-
-  try
-    {$IFDEF CPUX86_64}
-    // Use fallback implementation for FreePascal x64
-    EAX_Out := 0;
-    EBX_Out := 0;
-    ECX_Out := 0;
-    EDX_Out := 0;
-
-    // TODO: Implement proper CPUIDEX for FreePascal x64
-    {$ELSE}
-    asm
-      push ebx
-      push edi
-      push esi
-      
-      // Set inputs
-      mov esi, eax      // Save EAX input
-      mov edi, ECX_In   // Get ECX input
-      
-      mov eax, esi
-      mov ecx, edi
-      
-      // Execute CPUID
-      cpuid
-      
-      // Store results
-      mov esi, EAX_Out
-      mov [esi], eax
-      
-      mov esi, EBX_Out
-      mov [esi], ebx
-      
-      mov esi, ECX_Out
-      mov [esi], ecx
-      
-      mov esi, EDX_Out
-      mov [esi], edx
-      
-      pop esi
-      pop edi
-      pop ebx
-    end;
-    {$ENDIF}
-  except
-    // If CPUIDEX fails, return zeros
-    EAX_Out := 0;
-    EBX_Out := 0;
-    ECX_Out := 0;
-    EDX_Out := 0;
-  end;
+{$IFDEF CPUX86_64}
+asm
+  push rbx
+  mov eax, EAX
+  mov ecx, ECX_In
+  cpuid
+  mov EAX_Out, eax
+  mov EBX_Out, ebx
+  mov ECX_Out, ecx
+  mov EDX_Out, edx
+  pop rbx
+end;
+{$ELSE}
+asm
+  push ebx
+  mov eax, EAX
+  mov ecx, ECX_In
+  cpuid
+  mov EAX_Out, eax
+  mov EBX_Out, ebx
+  mov ECX_Out, ecx
+  mov EDX_Out, edx
+  pop ebx
+end;
+{$ENDIF}
 end;
 
 // === XGETBV Implementation for AVX OS Support ===

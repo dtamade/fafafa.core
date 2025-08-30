@@ -5,11 +5,8 @@ unit fafafa.core.sync.mutex.windows;
 interface
 
 uses
-  SysUtils,
-  Windows,
   fafafa.core.sync.base,
-  fafafa.core.sync.mutex.base,
-  fafafa.core.atomic;
+  fafafa.core.sync.mutex.base;
 
 // Windows API 类型声明
 type
@@ -50,7 +47,6 @@ type
   TMutex = class(TTryLock, IMutex)
   private
     FCriticalSection: TRTLCriticalSection;
-    FOwnerThreadId: LongInt; // 原子变量：0=未锁定，非0=持有锁的线程ID
   public
     constructor Create;
     destructor Destroy; override;
@@ -70,7 +66,6 @@ type
   TSRWMutex = class(TTryLock, IMutex)
   private
     FLock: SRWLOCK;
-    FOwnerThreadId: Int32;  // 使用 Int32 以配合 fafafa.core.atomic
   public
     constructor Create;
     destructor Destroy; override;
@@ -108,7 +103,6 @@ end;
 constructor TMutex.Create;
 begin
   inherited Create;
-  atomic_store(FOwnerThreadId, 0); // 0 表示未锁定
   InitializeCriticalSection(FCriticalSection);
 end;
 
@@ -119,99 +113,25 @@ begin
 end;
 
 procedure TMutex.Acquire;
-var
-  CurrentThreadId: LongInt;
 begin
-  CurrentThreadId := LongInt(GetCurrentThreadId);
-
-  // 先检查重入（原子读取）
-  if atomic_load(FOwnerThreadId) = CurrentThreadId then
-    raise ELockError.Create('Non-reentrant mutex: reentrancy detected');
-
-  // 使用 CRITICAL_SECTION 获取锁
+  // 直接获取锁，不检查重入
+  // 如果同一线程重复获取，CRITICAL_SECTION 会允许重入
+  // 但通过不跟踪所有者来保持简单的 Mutex 语义
   EnterCriticalSection(FCriticalSection);
-  try
-    // 再次检查重入（防止竞态条件）
-    if atomic_load(FOwnerThreadId) = CurrentThreadId then
-    begin
-      LeaveCriticalSection(FCriticalSection);
-      raise ELockError.Create('Non-reentrant mutex: reentrancy detected');
-    end;
-    // 原子设置所有权
-    atomic_store(FOwnerThreadId, CurrentThreadId);
-  except
-    LeaveCriticalSection(FCriticalSection);
-    raise;
-  end;
 end;
 
 procedure TMutex.Release;
-var
-  CurrentThreadId: LongInt;
 begin
-  CurrentThreadId := LongInt(GetCurrentThreadId);
-
-  // 检查所有权（原子读取）
-  if atomic_load(FOwnerThreadId) <> CurrentThreadId then
-    raise ELockError.Create('Mutex not owned by current thread');
-
-  // 原子清除所有权信息
-  atomic_store(FOwnerThreadId, 0);
-
-  // 释放 CRITICAL_SECTION
   LeaveCriticalSection(FCriticalSection);
 end;
 
 function TMutex.TryAcquire: Boolean;
-var
-  CurrentThreadId: LongInt;
 begin
-  CurrentThreadId := LongInt(GetCurrentThreadId);
-
-  // 先检查重入（原子读取）
-  if atomic_load(FOwnerThreadId) = CurrentThreadId then
-    Exit(False);
-
-  // 尝试获取 CRITICAL_SECTION
-  if TryEnterCriticalSection(FCriticalSection) then
-  begin
-    try
-      // 再次检查重入（防止竞态条件）
-      if atomic_load(FOwnerThreadId) = CurrentThreadId then
-      begin
-        // 检测到重入，释放刚获取的锁并返回失败
-        LeaveCriticalSection(FCriticalSection);
-        Result := False;
-      end
-      else
-      begin
-        // 原子设置所有权
-        atomic_store(FOwnerThreadId, CurrentThreadId);
-        Result := True;
-      end;
-    except
-      LeaveCriticalSection(FCriticalSection);
-      Result := False;
-    end;
-  end
-  else
-  begin
-    Result := False;
-  end;
+  Result := TryEnterCriticalSection(FCriticalSection);
 end;
 
 function TMutex.TryAcquire(ATimeoutMs: Cardinal): Boolean;
-var
-  CurrentThreadId: LongInt;
 begin
-  CurrentThreadId := LongInt(GetCurrentThreadId);
-
-  // 对于不可重入锁，检查重入（原子读取）
-  // 如果是重入，直接返回失败，不进行等待（因为同一线程永远不会释放自己持有的锁）
-  if atomic_load(FOwnerThreadId) = CurrentThreadId then
-    Exit(False);
-
-  // 调用基类的优化超时实现
   Result := inherited TryAcquire(ATimeoutMs);
 end;
 
@@ -228,7 +148,6 @@ constructor TSRWMutex.Create;
 begin
   inherited Create;
   InitializeSRWLock(FLock);
-  atomic_store(FOwnerThreadId, 0);
 end;
 
 destructor TSRWMutex.Destroy;
@@ -237,77 +156,22 @@ begin
 end;
 
 procedure TSRWMutex.Acquire;
-var
-  CurrentThreadId: Int32;
 begin
-  CurrentThreadId := Int32(GetCurrentThreadId);
-
-  // 检查重入（原子读取）
-  if atomic_load(FOwnerThreadId) = CurrentThreadId then
-    raise ELockError.Create('Non-reentrant mutex: reentrancy detected');
-
-  // 获取 SRWLOCK
   AcquireSRWLockExclusive(FLock);
-
-  // 设置所有权（原子写入）
-  atomic_store(FOwnerThreadId, CurrentThreadId);
 end;
 
 procedure TSRWMutex.Release;
-var
-  CurrentThreadId: Int32;
 begin
-  CurrentThreadId := Int32(GetCurrentThreadId);
-
-  // 检查所有权（原子读取）
-  if atomic_load(FOwnerThreadId) <> CurrentThreadId then
-    raise ELockError.Create('Mutex not owned by current thread');
-
-  // 清除所有权（原子写入）
-  atomic_store(FOwnerThreadId, 0);
-
-  // 释放 SRWLOCK
   ReleaseSRWLockExclusive(FLock);
 end;
 
 function TSRWMutex.TryAcquire: Boolean;
-var
-  CurrentThreadId: Int32;
 begin
-  CurrentThreadId := Int32(GetCurrentThreadId);
-
-  // 检查重入（原子读取）
-  if atomic_load(FOwnerThreadId) = CurrentThreadId then
-  begin
-    Result := False;
-    Exit;
-  end;
-
-  // 尝试获取 SRWLOCK
-  if TryAcquireSRWLockExclusive(FLock) then
-  begin
-    // 设置所有权（原子写入）
-    atomic_store(FOwnerThreadId, CurrentThreadId);
-    Result := True;
-  end
-  else
-  begin
-    Result := False;
-  end;
+  Result := TryAcquireSRWLockExclusive(FLock);
 end;
 
 function TSRWMutex.TryAcquire(ATimeoutMs: Cardinal): Boolean;
-var
-  CurrentThreadId: Int32;
 begin
-  CurrentThreadId := Int32(GetCurrentThreadId);
-
-  // 对于不可重入锁，检查重入
-  // 如果是重入，直接返回失败，不进行等待（因为同一线程永远不会释放自己持有的锁）
-  if atomic_load(FOwnerThreadId) = CurrentThreadId then
-    Exit(False);
-
-  // 调用基类的优化超时实现
   Result := inherited TryAcquire(ATimeoutMs);
 end;
 

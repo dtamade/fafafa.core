@@ -368,6 +368,18 @@
   {$DEFINE SIMD_BACKEND_NEON}
 {$ENDIF}
 
+{ Enable RISC-V SIMD backends }
+{$IFDEF CPURISCV64}
+  {$DEFINE SIMD_RISCV64}
+  {$DEFINE SIMD_RISCV_AVAILABLE}
+  {$DEFINE SIMD_BACKEND_RISCVV}
+{$ENDIF}
+{$IFDEF CPURISCV32}
+  {$DEFINE SIMD_RISCV32}
+  {$DEFINE SIMD_RISCV_AVAILABLE}
+  {$DEFINE SIMD_BACKEND_RISCVV}
+{$ENDIF}
+
 { === Performance Tuning === }
 
 { Enable fast math optimizations (may affect precision) }

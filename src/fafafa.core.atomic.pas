@@ -64,16 +64,19 @@ type
 function atomic_load(var obj: Int32; order: memory_order = memory_order_seq_cst): Int32; inline;
 function atomic_load_64(var obj: Int64; order: memory_order = memory_order_seq_cst): Int64; inline;
 function atomic_load_ptr(var obj: Pointer; order: memory_order = memory_order_seq_cst): Pointer; inline;
+function atomic_load(var obj: PtrUInt; order: memory_order = memory_order_seq_cst): PtrUInt; inline;
 
 // atomic_store - atomic write
 procedure atomic_store(var obj: Int32; desired: Int32; order: memory_order = memory_order_seq_cst); inline;
 procedure atomic_store_64(var obj: Int64; desired: Int64; order: memory_order = memory_order_seq_cst); inline;
 procedure atomic_store_ptr(var obj: Pointer; desired: Pointer; order: memory_order = memory_order_seq_cst); inline;
+procedure atomic_store(var obj: PtrUInt; desired: PtrUInt; order: memory_order = memory_order_seq_cst); inline;
 
 // atomic_exchange - atomic exchange
 function atomic_exchange(var obj: Int32; desired: Int32; order: memory_order = memory_order_seq_cst): Int32; inline;
 function atomic_exchange_64(var obj: Int64; desired: Int64; order: memory_order = memory_order_seq_cst): Int64; inline;
 function atomic_exchange_ptr(var obj: Pointer; desired: Pointer; order: memory_order = memory_order_seq_cst): Pointer; inline;
+function atomic_exchange(var obj: PtrUInt; desired: PtrUInt; order: memory_order = memory_order_seq_cst): PtrUInt; inline;
 
 // atomic_compare_exchange_strong - strong compare exchange
 function atomic_compare_exchange_strong(var obj: Int32; var expected: Int32; desired: Int32;
@@ -81,6 +84,8 @@ function atomic_compare_exchange_strong(var obj: Int32; var expected: Int32; des
 function atomic_compare_exchange_strong_64(var obj: Int64; var expected: Int64; desired: Int64;
   order: memory_order = memory_order_seq_cst): Boolean; inline;
 function atomic_compare_exchange_strong_ptr(var obj: Pointer; var expected: Pointer; desired: Pointer;
+  order: memory_order = memory_order_seq_cst): Boolean; inline;
+function atomic_compare_exchange_strong(var obj: PtrUInt; var expected: PtrUInt; desired: PtrUInt;
   order: memory_order = memory_order_seq_cst): Boolean; inline;
 
 // atomic_compare_exchange_weak - weak compare exchange
@@ -509,6 +514,57 @@ end;
 function atomic_is_lock_free_ptr: Boolean;
 begin
   Result := True;
+end;
+
+// === PtrUInt atomic operations implementation ===
+
+function atomic_load(var obj: PtrUInt; order: memory_order): PtrUInt;
+begin
+{$IFDEF CPU64}
+  Result := PtrUInt(atomic_load_64(PInt64(@obj)^, order));
+{$ELSE}
+  Result := PtrUInt(atomic_load(PInt32(@obj)^, order));
+{$ENDIF}
+end;
+
+procedure atomic_store(var obj: PtrUInt; desired: PtrUInt; order: memory_order);
+begin
+{$IFDEF CPU64}
+  atomic_store_64(PInt64(@obj)^, Int64(desired), order);
+{$ELSE}
+  atomic_store(PInt32(@obj)^, Int32(desired), order);
+{$ENDIF}
+end;
+
+function atomic_exchange(var obj: PtrUInt; desired: PtrUInt; order: memory_order): PtrUInt;
+begin
+{$IFDEF CPU64}
+  Result := PtrUInt(atomic_exchange_64(PInt64(@obj)^, Int64(desired), order));
+{$ELSE}
+  Result := PtrUInt(atomic_exchange(PInt32(@obj)^, Int32(desired), order));
+{$ENDIF}
+end;
+
+function atomic_compare_exchange_strong(var obj: PtrUInt; var expected: PtrUInt; desired: PtrUInt; order: memory_order): Boolean;
+{$IFDEF CPU64}
+var
+  ExpectedInt64: Int64;
+{$ELSE}
+var
+  ExpectedInt32: Int32;
+{$ENDIF}
+begin
+{$IFDEF CPU64}
+  ExpectedInt64 := Int64(expected);
+  Result := atomic_compare_exchange_strong_64(PInt64(@obj)^, ExpectedInt64, Int64(desired), order);
+  if not Result then
+    expected := PtrUInt(ExpectedInt64);
+{$ELSE}
+  ExpectedInt32 := Int32(expected);
+  Result := atomic_compare_exchange_strong(PInt32(@obj)^, ExpectedInt32, Int32(desired), order);
+  if not Result then
+    expected := PtrUInt(ExpectedInt32);
+{$ENDIF}
 end;
 
 

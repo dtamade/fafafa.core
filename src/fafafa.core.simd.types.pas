@@ -30,15 +30,31 @@ type
   TMask16 = type Word;   // 16 bits: bit0..bit15
   TMask32 = type DWord;  // 32 bits: bit0..bit31
 
-// === Backend Types ===
+// === Element Types ===
 type
+  // SIMD element types
+  TSimdElementType = (
+    setFloat32,   // 32-bit floating point
+    setFloat64,   // 64-bit floating point
+    setInt8,      // 8-bit signed integer
+    setInt16,     // 16-bit signed integer
+    setInt32,     // 32-bit signed integer
+    setInt64,     // 64-bit signed integer
+    setUInt8,     // 8-bit unsigned integer
+    setUInt16,    // 16-bit unsigned integer
+    setUInt32,    // 32-bit unsigned integer
+    setUInt64     // 64-bit unsigned integer
+  );
+
+// === Backend Types ===
   // Available SIMD backends
   TSimdBackend = (
     sbScalar,    // Pure scalar implementation (always available)
     sbSSE2,      // x86 SSE2 (128-bit)
     sbAVX2,      // x86 AVX2 (256-bit)
     sbAVX512,    // x86 AVX-512 (512-bit)
-    sbNEON       // ARM NEON (128-bit)
+    sbNEON,      // ARM NEON (128-bit)
+    sbRISCVV     // RISC-V Vector Extension
   );
 
   // Backend capability flags
@@ -56,6 +72,7 @@ type
     scMaskedOps           // masked operations
   );
   TSimdCapabilities = set of TSimdCapability;
+  TSimdCapabilitySet = TSimdCapabilities; // 别名，用于接口
 
 // === Function Pointer Types for Dispatch ===
 type
@@ -123,12 +140,25 @@ type
     HasCrypto: Boolean;
   end;
 
+  // RISC-V CPU features
+  TRISCVFeatures = record
+    HasRV32I: Boolean;    // RV32I base integer instruction set
+    HasRV64I: Boolean;    // RV64I base integer instruction set
+    HasM: Boolean;        // Integer multiplication and division
+    HasA: Boolean;        // Atomic instructions
+    HasF: Boolean;        // Single-precision floating-point
+    HasD: Boolean;        // Double-precision floating-point
+    HasC: Boolean;        // Compressed instructions
+    HasV: Boolean;        // Vector extension
+  end;
+
   // x86 Cache information
   TX86CacheInfo = record
     L1DataCache: Integer;        // KB
     L1InstructionCache: Integer; // KB
     L2Cache: Integer;            // KB
     L3Cache: Integer;            // KB
+    CacheLineSize: Integer;      // Cache line size in bytes
   end;
 
   // ARM Processor information
@@ -136,6 +166,13 @@ type
     Architecture: string;        // AArch32, AArch64
     InstructionSet: string;      // ARMv7-A, ARMv8-A, etc.
     CoreType: string;            // Cortex-A, Cortex-R, etc.
+  end;
+
+  // RISC-V Processor information
+  TRISCVProcessorInfo = record
+    Architecture: string;        // RV32, RV64
+    ISA: string;                 // Full ISA string
+    XLEN: Integer;               // Register width (32 or 64)
   end;
 
   // Combined CPU information
@@ -147,6 +184,9 @@ type
     {$ENDIF}
     {$IFDEF SIMD_ARM_AVAILABLE}
     ARM: TARMFeatures;
+    {$ENDIF}
+    {$IFDEF SIMD_RISCV_AVAILABLE}
+    RISCV: TRISCVFeatures;
     {$ENDIF}
   end;
 
@@ -264,6 +304,7 @@ begin
     sbAVX2: Result := 'AVX2';
     sbAVX512: Result := 'AVX-512';
     sbNEON: Result := 'NEON';
+    sbRISCVV: Result := 'RISC-V Vector';
   else
     Result := 'Unknown';
   end;
@@ -277,6 +318,7 @@ begin
     sbAVX2: Result := 'x86 AVX2 256-bit SIMD';
     sbAVX512: Result := 'x86 AVX-512 512-bit SIMD';
     sbNEON: Result := 'ARM NEON 128-bit SIMD';
+    sbRISCVV: Result := 'RISC-V Vector Extension variable-width SIMD';
   else
     Result := 'Unknown backend';
   end;

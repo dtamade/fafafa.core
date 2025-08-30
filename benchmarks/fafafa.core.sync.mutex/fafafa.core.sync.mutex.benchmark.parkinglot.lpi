@@ -2,6 +2,7 @@
 <CONFIG>
   <ProjectOptions>
     <Version Value="12"/>
+    <PathDelim Value="\"/>
     <General>
       <Flags>
         <MainUnitHasCreateFormStatements Value="False"/>
@@ -9,7 +10,7 @@
         <MainUnitHasScaledStatement Value="False"/>
       </Flags>
       <SessionStorage Value="InProjectDir"/>
-      <Title Value="fafafa.core.sync.mutex.test"/>
+      <Title Value="fafafa.core.sync.mutex.benchmark.parkinglot"/>
       <UseAppBundle Value="False"/>
       <ResourceType Value="res"/>
     </General>
@@ -27,57 +28,54 @@
       <Item>
         <PackageName Value="FCL"/>
       </Item>
-      <Item>
-        <PackageName Value="FPCUnitConsoleRunner"/>
-      </Item>
     </RequiredPackages>
     <Units>
       <Unit>
-        <Filename Value="fafafa.core.sync.mutex.test.lpr"/>
-        <IsPartOfProject Value="True"/>
-      </Unit>
-      <Unit>
-        <Filename Value="fafafa.core.sync.mutex.testcase.pas"/>
+        <Filename Value="fafafa.core.sync.mutex.benchmark.parkinglot.lpr"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
     <Version Value="11"/>
+    <PathDelim Value="\"/>
     <Target>
-      <Filename Value="bin/fafafa.core.sync.mutex.test"/>
+      <Filename Value="bin\fafafa.core.sync.mutex.benchmark.parkinglot"/>
     </Target>
     <SearchPaths>
-      <IncludeFiles Value="../../src"/>
-      <OtherUnitFiles Value="../../src"/>
-      <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
+      <IncludeFiles Value="..\..\src"/>
+      <OtherUnitFiles Value="..\..\src"/>
+      <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <CodeGeneration>
+      <SmartLinkUnit Value="True"/>
+      <Optimizations>
+        <OptimizationLevel Value="3"/>
+      </Optimizations>
       <Checks>
-        <IOChecks Value="True"/>
-        <RangeChecks Value="True"/>
-        <OverflowChecks Value="True"/>
-        <StackChecks Value="True"/>
+        <IOChecks Value="False"/>
+        <RangeChecks Value="False"/>
+        <OverflowChecks Value="False"/>
+        <StackChecks Value="False"/>
       </Checks>
-      <VerifyObjMethodCallValidity Value="True"/>
-      <TargetCPU Value="x86_64"/>
-      <TargetOS Value="win64"/>
+      <VerifyObjMethodCallValidity Value="False"/>
     </CodeGeneration>
     <Linking>
       <Debugging>
-        <DebugInfoType Value="dsDwarf3"/>
-        <UseHeaptrc Value="True"/>
-        <TrashVariables Value="True"/>
-        <UseExternalDbgSyms Value="True"/>
+        <GenerateDebugInfo Value="False"/>
+        <UseHeaptrc Value="False"/>
+        <StripSymbols Value="True"/>
       </Debugging>
+      <LinkSmart Value="True"/>
     </Linking>
     <Other>
       <Verbosity>
-        <ShowWarn Value="True"/>
-        <ShowNotes Value="True"/>
-        <ShowHints Value="True"/>
-        <ShowLineNum Value="True"/>
+        <ShowWarn Value="False"/>
+        <ShowNotes Value="False"/>
+        <ShowHints Value="False"/>
+        <ShowGenInfo Value="False"/>
       </Verbosity>
+      <CustomOptions Value="-O3 -CX -XX -Xs"/>
     </Other>
   </CompilerOptions>
 </CONFIG>
