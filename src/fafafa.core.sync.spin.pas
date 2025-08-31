@@ -1,47 +1,43 @@
 unit fafafa.core.sync.spin;
 
-{$mode objfpc}{$H+}
 {$I fafafa.core.settings.inc}
 
 interface
 
 uses
-  fafafa.core.sync.base,
-  fafafa.core.sync.spin.base
-  {$IFDEF WINDOWS}, fafafa.core.sync.spin.windows{$ENDIF}
-  {$IFDEF UNIX},    fafafa.core.sync.spin.unix{$ENDIF};
+  fafafa.core.sync.spin.base;
 
 type
+  // 导出主要类型
+  ISpin = fafafa.core.sync.spin.base.ISpin;
+  ISpinLock = ISpin;  // 兼容性别名
 
-  ISpinLock = fafafa.core.sync.spin.base.ISpinLock;
+// 统一工厂函数
+function MakeSpin: ISpin;
 
-  {$IFDEF WINDOWS}
-  TSpinLock = fafafa.core.sync.spin.windows.TSpinLock;
-  {$ENDIF}
-
-  {$IFDEF UNIX}
-  TSpinLock = fafafa.core.sync.spin.unix.TSpinLock;
-  {$ENDIF}
-
-// 创建平台特定的自旋锁实例
-function MakeSpinLock: ISpinLock; overload;
-function MakeSpinLock(const APolicy: TSpinLockPolicy): ISpinLock; overload;
+// 兼容性函数
+function MakeSpinLock: ISpinLock; inline;
 
 implementation
 
+uses
+  {$IFDEF WINDOWS}
+  fafafa.core.sync.spin.windows
+  {$ELSE}
+  fafafa.core.sync.spin.unix
+  {$ENDIF};
+
+function MakeSpin: ISpin;
+begin
+  {$IFDEF WINDOWS}
+  Result := fafafa.core.sync.spin.windows.MakeSpin;
+  {$ELSE}
+  Result := fafafa.core.sync.spin.unix.MakeSpin;
+  {$ENDIF}
+end;
+
 function MakeSpinLock: ISpinLock;
 begin
-  Result := MakeSpinLock(DefaultSpinLockPolicy);
+  Result := MakeSpin;
 end;
-
-function MakeSpinLock(const APolicy: TSpinLockPolicy): ISpinLock;
-begin
-  {$IFDEF UNIX}
-  Result := fafafa.core.sync.spin.unix.TSpinLock.Create(APolicy);
-  {$ENDIF}
-  {$IFDEF WINDOWS}
-  Result := fafafa.core.sync.spin.windows.TSpinLock.Create(APolicy);
-  {$ENDIF}
-end;
-
 end.

@@ -1,5 +1,7 @@
 { fafafa.core.settings.inc 框架配置文件 }
 
+{$MACRO ON}  // 开始启用简单值风格宏 like {$DEFINE NAME := value}
+
 { Enable inline 开启内联 }
 {$DEFINE FAFAFA_CORE_INLINE}
 
@@ -272,7 +274,7 @@
   {.$DEFINE FAFAFA_SYNC_WIN_RUNTIME_FALLBACK}
 
   { Optional: spin count passed to InitializeSynchronizationBarrier (DWORD). Default 0 }
-  {$DEFINE FAFAFA_SYNC_WIN_BARRIER_SPIN := 0}
+  {$DEFINE FAFAFA_SYNC_WIN_BARRIER_SPIN_COUNT := 0}
 {$ENDIF}
 
 {$IFDEF UNIX}
@@ -434,7 +436,7 @@
 
 {$IFDEF FPC}
   { FreePascal 特定设置 }
-  {$MODE OBJFPC}
+  { 注意：MODE 指令应该在主单元中设置，不在 include 文件中 }
   {$H+}
   //{$J-}
 {$IFDEF FAFAFA_CORE_INLINE}
@@ -444,6 +446,5 @@
   { 启用高级记录特性 }
   {$MODESWITCH ADVANCEDRECORDS}
   {$MODESWITCH TYPEHELPERS}
-  {$MACRO ON}  // 开始启用简单值风格宏 like {$DEFINE NAME := value}
 {$ENDIF}
 

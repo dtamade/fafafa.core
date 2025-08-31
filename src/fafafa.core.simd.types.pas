@@ -7,28 +7,113 @@ interface
 uses
   SysUtils;
 
-// === Forward Declarations ===
+// === Vector Type Definitions ===
 type
-  // Vector types
-  TVecF32x4 = record end;
-  TVecF32x8 = record end;
-  TVecF64x2 = record end;
-  TVecF64x4 = record end;
-  TVecI32x4 = record end;
-  TVecI32x8 = record end;
-  TVecI16x8 = record end;
-  TVecI16x16 = record end;
-  TVecI8x16 = record end;
-  TVecI8x32 = record end;
+  // 128-bit vector types
+  TVecF32x4 = record
+    case Integer of
+      0: (f: array[0..3] of Single);
+      1: (raw: array[0..15] of Byte);
+  end;
+
+  TVecF64x2 = record
+    case Integer of
+      0: (d: array[0..1] of Double);
+      1: (raw: array[0..15] of Byte);
+  end;
+
+  TVecI32x4 = record
+    case Integer of
+      0: (i: array[0..3] of Int32);
+      1: (raw: array[0..15] of Byte);
+  end;
+
+  TVecI64x2 = record
+    case Integer of
+      0: (i: array[0..1] of Int64);
+      1: (raw: array[0..15] of Byte);
+  end;
+
+  TVecI16x8 = record
+    case Integer of
+      0: (i: array[0..7] of Int16);
+      1: (raw: array[0..15] of Byte);
+  end;
+
+  TVecI8x16 = record
+    case Integer of
+      0: (i: array[0..15] of Int8);
+      1: (raw: array[0..15] of Byte);
+  end;
+
+  // 256-bit vector types (AVX)
+  TVecF32x8 = record
+    case Integer of
+      0: (f: array[0..7] of Single);
+      1: (lo, hi: TVecF32x4);  // 两个 128-bit 部分
+      2: (raw: array[0..31] of Byte);
+  end;
+
+  TVecF64x4 = record
+    case Integer of
+      0: (d: array[0..3] of Double);
+      1: (lo, hi: TVecF64x2);  // 两个 128-bit 部分
+      2: (raw: array[0..31] of Byte);
+  end;
+
+  TVecI32x8 = record
+    case Integer of
+      0: (i: array[0..7] of Int32);
+      1: (lo, hi: TVecI32x4);  // 两个 128-bit 部分
+      2: (raw: array[0..31] of Byte);
+  end;
+
+  TVecI16x16 = record
+    case Integer of
+      0: (i: array[0..15] of Int16);
+      1: (lo, hi: TVecI16x8);  // 两个 128-bit 部分
+      2: (raw: array[0..31] of Byte);
+  end;
+
+  TVecI8x32 = record
+    case Integer of
+      0: (i: array[0..31] of Int8);
+      1: (lo, hi: TVecI8x16);  // 两个 128-bit 部分
+      2: (raw: array[0..31] of Byte);
+  end;
 
 // === Mask Types (Bit Masks) ===
 type
   // Bit masks for conditional operations
-  TMask2 = type Byte;    // 2 bits: bit0, bit1
-  TMask4 = type Byte;    // 4 bits: bit0..bit3
-  TMask8 = type Byte;    // 8 bits: bit0..bit7
-  TMask16 = type Word;   // 16 bits: bit0..bit15
-  TMask32 = type DWord;  // 32 bits: bit0..bit31
+  TMask2 = record
+    case Integer of
+      0: (m: array[0..1] of Boolean);
+      1: (raw: Byte);
+  end;
+
+  TMask4 = record
+    case Integer of
+      0: (m: array[0..3] of Boolean);
+      1: (raw: Byte);
+  end;
+
+  TMask8 = record
+    case Integer of
+      0: (m: array[0..7] of Boolean);
+      1: (raw: Byte);
+  end;
+
+  TMask16 = record
+    case Integer of
+      0: (m: array[0..15] of Boolean);
+      1: (raw: Word);
+  end;
+
+  TMask32 = record
+    case Integer of
+      0: (m: array[0..31] of Boolean);
+      1: (raw: DWord);
+  end;
 
 // === Element Types ===
 type
@@ -117,18 +202,41 @@ type
 type
   // x86 CPU features
   TX86Features = record
+    // Basic SIMD features
+    HasMMX: Boolean;
     HasSSE: Boolean;
     HasSSE2: Boolean;
     HasSSE3: Boolean;
     HasSSSE3: Boolean;
     HasSSE41: Boolean;
     HasSSE42: Boolean;
+
+    // Advanced Vector Extensions
     HasAVX: Boolean;
     HasAVX2: Boolean;
-    HasAVX512F: Boolean;
-    HasAVX512DQ: Boolean;
-    HasAVX512BW: Boolean;
-    HasFMA: Boolean;
+    HasAVX512F: Boolean;      // Foundation
+    HasAVX512DQ: Boolean;     // Doubleword and Quadword
+    HasAVX512BW: Boolean;     // Byte and Word
+    HasAVX512VL: Boolean;     // Vector Length Extensions
+    HasAVX512VBMI: Boolean;   // Vector Bit Manipulation Instructions
+
+    // Arithmetic and Math
+    HasFMA: Boolean;          // Fused Multiply-Add
+    HasFMA4: Boolean;         // 4-operand FMA (AMD)
+
+    // Bit Manipulation
+    HasBMI1: Boolean;         // Bit Manipulation Instructions 1
+    HasBMI2: Boolean;         // Bit Manipulation Instructions 2
+
+    // Cryptography
+    HasAES: Boolean;          // AES instructions
+    HasPCLMULQDQ: Boolean;    // Carry-less multiplication
+    HasSHA: Boolean;          // SHA extensions
+
+    // Other features
+    HasRDRAND: Boolean;       // Hardware random number generator
+    HasRDSEED: Boolean;       // Hardware random seed generator
+    HasF16C: Boolean;         // Half-precision floating-point conversion
   end;
 
   // ARM CPU features

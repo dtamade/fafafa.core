@@ -1,705 +1,1327 @@
 unit fafafa.core.atomic;
 
-{**
- * fafafa.core.atomic - C/C++ compatible atomic operations
- *
- * @desc Atomic operations module designed to be 100% compatible with C/C++ std::atomic
- *       Provides consistent interface, naming and semantics with C/C++
- *       Designed for porting C/C++ lock-free algorithms
- *
- * @author fafafa.collections5 team
- * @version 2.0.0
- * @since 2025-08-08
- *
- * @note Design goals:
- *       - 100% compatible with C/C++ std::atomic interface
- *       - Support all standard memory orders
- *       - Ready for porting Boost.Lockfree and other libraries
- *       - Can be used as standalone component in other projects
- *}
+{
+──────────────────────────────────────────────────────────────
+   ______   ______     ______   ______     ______   ______
+  /\  ___\ /\  __ \   /\  ___\ /\  __ \   /\  ___\ /\  __ \
+  \ \  __\ \ \  __ \  \ \  __\ \ \  __ \  \ \  __\ \ \  __ \
+   \ \_\    \ \_\ \_\  \ \_\    \ \_\ \_\  \ \_\    \ \_\ \_\
+    \/_/     \/_/\/_/   \/_/     \/_/\/_/   \/_/     \/_/\/_/
+                          Studio
+──────────────────────────────────────────────────────────────
+📦 项目：fafafa.core.atomic - 高性能原子操作实现
 
-{$mode objfpc}{$H+}
-{$modeswitch advancedrecords}
+📖 概述：
+  现代化、跨平台的 FreePascal 原子操作（Atomic Operations）实现，
+  提供无锁的线程安全数据操作。支持 Windows（Interlocked*）和 Unix
+  （GCC builtin/LLVM intrinsics）平台，具有优异的性能和可靠性。
+
+🔧 特性：
+  • 跨平台支持：Windows、Linux、macOS、FreeBSD 等
+  • 高性能实现：使用平台原生原子指令优化
+  • 无锁设计：避免传统锁的开销和竞争
+  • 内存序控制：支持多种内存排序语义
+  • 类型安全：泛型封装确保类型一致性
+  • CAS 操作：Compare-And-Swap 原语支持
+  • 调试友好：详细的错误信息和诊断
+
+⚠️  重要说明：
+  原子操作仅保证单个操作的原子性，复合操作仍需要额外的同步机制。
+  请根据具体场景选择合适的内存序语义以确保正确性。
+
+🧵 线程安全性：
+  所有原子操作都是线程安全的，可以从多个线程同时调用。
+
+📜 声明：
+  转发或用于个人/商业项目时，请保留本项目的版权声明。
+
+👤 author  : fafafaStudio
+📧 Email   : dtamade@gmail.com
+💬 QQGroup : 685403987
+💬 QQ      : 179033731
+──────────────────────────────────────────────────────────────
+
+}
+
+{$i fafafa.core.settings.inc}
 
 interface
 
 type
-  {**
-   * C/C++ standard memory order enumeration
-   *
-   * @desc Defined exactly according to C++11 std::memory_order standard
-   *}
-  memory_order = (
-    memory_order_relaxed,   // Weakest: only guarantees atomicity
-    memory_order_consume,   // Consume: read-dependent synchronization (deprecated, maps to acquire)
-    memory_order_acquire,   // Acquire: read operation synchronization point
-    memory_order_release,   // Release: write operation synchronization point
-    memory_order_acq_rel,   // Acquire-release: read-modify-write operations
-    memory_order_seq_cst    // Sequential consistency: strongest ordering (default)
+
+  memory_order_t = (
+    mo_relaxed,   // 只保证原子性
+    mo_consume,   // acquire 语义（读依赖同步）
+    mo_acquire,   // acquire 语义
+    mo_release,   // store 用
+    mo_acq_rel,   // RMW 用，load 部分当 acquire
+    mo_seq_cst    // 最强顺序
   );
 
-  {**
-   * Tagged Pointer - ABA problem solution
-   *
-   * @desc Packs pointer and version tag together for lock-free data structures
-   *}
-  tagged_ptr = record
-  {$IFDEF CPU64}
-    combined: UInt64;
-  {$ELSE}
-    ptr: Pointer;
-    tag: UInt32;
-  {$ENDIF}
-  end;
 
-  // Atomic flag for basic spin primitives (0 = clear, 1 = set)
-  atomic_flag = record
-    v: Int32;
-  end;
+///
+/// atomic_load
+///
 
+function atomic_load(var aObj: Int32; aOrder: memory_order_t): Int32; overload; inline;
+function atomic_load(var aObj: Int32): Int32; overload; inline;
 
-// === C/C++ standard compatible atomic operation functions ===
+function atomic_load(var aObj: UInt32; aOrder: memory_order_t): UInt32; overload; inline;
+function atomic_load(var aObj: UInt32): UInt32; overload; inline;
 
-// atomic_load - atomic read
-function atomic_load(var obj: Int32; order: memory_order = memory_order_seq_cst): Int32; inline;
-function atomic_load_64(var obj: Int64; order: memory_order = memory_order_seq_cst): Int64; inline;
-function atomic_load_ptr(var obj: Pointer; order: memory_order = memory_order_seq_cst): Pointer; inline;
-function atomic_load(var obj: PtrUInt; order: memory_order = memory_order_seq_cst): PtrUInt; inline;
+function atomic_load(var aObj: PtrUInt; aOrder: memory_order_t): PtrUInt; overload; inline;
+function atomic_load(var aObj: PtrUInt): PtrUInt; overload; inline;
 
-// atomic_store - atomic write
-procedure atomic_store(var obj: Int32; desired: Int32; order: memory_order = memory_order_seq_cst); inline;
-procedure atomic_store_64(var obj: Int64; desired: Int64; order: memory_order = memory_order_seq_cst); inline;
-procedure atomic_store_ptr(var obj: Pointer; desired: Pointer; order: memory_order = memory_order_seq_cst); inline;
-procedure atomic_store(var obj: PtrUInt; desired: PtrUInt; order: memory_order = memory_order_seq_cst); inline;
+function atomic_load(var aObj: PtrInt; aOrder: memory_order_t): PtrInt; overload; inline;
+function atomic_load(var aObj: PtrInt): PtrInt; overload; inline;
 
-// atomic_exchange - atomic exchange
-function atomic_exchange(var obj: Int32; desired: Int32; order: memory_order = memory_order_seq_cst): Int32; inline;
-function atomic_exchange_64(var obj: Int64; desired: Int64; order: memory_order = memory_order_seq_cst): Int64; inline;
-function atomic_exchange_ptr(var obj: Pointer; desired: Pointer; order: memory_order = memory_order_seq_cst): Pointer; inline;
-function atomic_exchange(var obj: PtrUInt; desired: PtrUInt; order: memory_order = memory_order_seq_cst): PtrUInt; inline;
+{$IFDEF CPU64}
+function atomic_load(var aObj: Int64; aOrder: memory_order_t): Int64; overload; inline;
+function atomic_load(var aObj: Int64): Int64; overload; inline;
 
-// atomic_compare_exchange_strong - strong compare exchange
-function atomic_compare_exchange_strong(var obj: Int32; var expected: Int32; desired: Int32;
-  order: memory_order = memory_order_seq_cst): Boolean; inline;
-function atomic_compare_exchange_strong_64(var obj: Int64; var expected: Int64; desired: Int64;
-  order: memory_order = memory_order_seq_cst): Boolean; inline;
-function atomic_compare_exchange_strong_ptr(var obj: Pointer; var expected: Pointer; desired: Pointer;
-  order: memory_order = memory_order_seq_cst): Boolean; inline;
-function atomic_compare_exchange_strong(var obj: PtrUInt; var expected: PtrUInt; desired: PtrUInt;
-  order: memory_order = memory_order_seq_cst): Boolean; inline;
+function atomic_load(var aObj: UInt64; aOrder: memory_order_t): UInt64; overload; inline;
+function atomic_load(var aObj: UInt64): UInt64; overload; inline;
+{$ENDIF}
 
-// atomic_compare_exchange_weak - weak compare exchange
-function atomic_compare_exchange_weak(var obj: Int32; var expected: Int32; desired: Int32;
-  order: memory_order = memory_order_seq_cst): Boolean; inline;
-function atomic_compare_exchange_weak_64(var obj: Int64; var expected: Int64; desired: Int64;
-  order: memory_order = memory_order_seq_cst): Boolean; inline;
-function atomic_compare_exchange_weak_ptr(var obj: Pointer; var expected: Pointer; desired: Pointer;
-  order: memory_order = memory_order_seq_cst): Boolean; inline;
+function atomic_load(var aObj: Pointer; aOrder: memory_order_t): Pointer; overload; inline;
+function atomic_load(var aObj: Pointer): Pointer; overload; inline;
 
-// atomic_fetch_add - atomic addition
-function atomic_fetch_add(var obj: Int32; arg: Int32; order: memory_order = memory_order_seq_cst): Int32; inline;
+///
+/// atomic_store
+///
 
-  // atomic_fetch_and/or/xor - bitwise RMW operations
-  function atomic_fetch_and(var obj: Int32; arg: Int32; order: memory_order = memory_order_seq_cst): Int32; inline;
-  function atomic_fetch_or(var obj: Int32; arg: Int32; order: memory_order = memory_order_seq_cst): Int32; inline;
-  function atomic_fetch_xor(var obj: Int32; arg: Int32; order: memory_order = memory_order_seq_cst): Int32; inline;
-  function atomic_fetch_and_64(var obj: Int64; arg: Int64; order: memory_order = memory_order_seq_cst): Int64; inline;
-  function atomic_fetch_or_64(var obj: Int64; arg: Int64; order: memory_order = memory_order_seq_cst): Int64; inline;
-  function atomic_fetch_xor_64(var obj: Int64; arg: Int64; order: memory_order = memory_order_seq_cst): Int64; inline;
+procedure atomic_store(var aObj: Int32; aDesired: Int32; aOrder: memory_order_t); overload; inline;
+procedure atomic_store(var aObj: Int32; aDesired: Int32); overload; inline;
 
-  // pointer arithmetic (byte-based)
-  function atomic_fetch_add_ptr_bytes(var obj: Pointer; byteOffset: PtrInt; order: memory_order = memory_order_seq_cst): Pointer; inline;
-  function atomic_fetch_sub_ptr_bytes(var obj: Pointer; byteOffset: PtrInt; order: memory_order = memory_order_seq_cst): Pointer; inline;
+procedure atomic_store(var aObj: UInt32; aDesired: UInt32; aOrder: memory_order_t); overload; inline;
+procedure atomic_store(var aObj: UInt32; aDesired: UInt32); overload; inline;
 
-  // atomic_flag primitives
-  function atomic_flag_test_and_set(var flag: atomic_flag; order: memory_order = memory_order_seq_cst): Boolean; inline;
-  procedure atomic_flag_clear(var flag: atomic_flag; order: memory_order = memory_order_seq_cst); inline;
+procedure atomic_store(var aObj: PtrInt; aDesired: PtrInt; aOrder: memory_order_t); overload; inline;
+procedure atomic_store(var aObj: PtrInt; aDesired: PtrInt); overload; inline;
 
-  // lock-free capability queries
+procedure atomic_store(var aObj: PtrUInt; aDesired: PtrUInt; aOrder: memory_order_t); overload; inline;
+procedure atomic_store(var aObj: PtrUInt; aDesired: PtrUInt); overload; inline;
+
+{$IFDEF CPU64}
+procedure atomic_store(var aObj: Int64; aDesired: Int64; aOrder: memory_order_t); overload; inline;
+procedure atomic_store(var aObj: Int64; aDesired: Int64); overload; inline;
+
+procedure atomic_store(var aObj: UInt64; aDesired: UInt64; aOrder: memory_order_t); overload; inline;
+procedure atomic_store(var aObj: UInt64; aDesired: UInt64); overload; inline;
+{$ENDIF}
+
+procedure atomic_store(var aObj: Pointer; aDesired: Pointer; aOrder: memory_order_t); overload; inline;
+procedure atomic_store(var aObj: Pointer; aDesired: Pointer); overload; inline;
+
+///
+/// atomic_exchange
+///
+
+function atomic_exchange(var aObj: Int32; aDesired: Int32): Int32; overload; inline;
+function atomic_exchange(var aObj: UInt32; aDesired: UInt32): UInt32; overload; inline;
+
+function atomic_exchange(var aObj: PtrInt; aDesired: PtrInt): PtrInt; overload; inline;
+function atomic_exchange(var aObj: PtrUInt; aDesired: PtrUInt): PtrUInt; overload; inline;
+
+{$IFDEF CPU64}
+function atomic_exchange(var aObj: Int64; aDesired: Int64): Int64; overload; inline;
+function atomic_exchange(var aObj: UInt64; aDesired: UInt64): UInt64; overload; inline;
+{$ENDIF}
+function atomic_exchange(var aObj: Pointer; aDesired: Pointer): Pointer; overload; inline;
+
+///
+/// atomic_compare_exchange
+///
+
+function atomic_compare_exchange(var aObj: Int32; var aExpected: Int32; aDesired: Int32): Boolean; overload; inline;
+function atomic_compare_exchange(var aObj: UInt32; var aExpected: UInt32; aDesired: UInt32): Boolean; overload; inline;
+
+function atomic_compare_exchange(var aObj: PtrInt; var aExpected: PtrInt; aDesired: PtrInt): Boolean; overload; inline;
+function atomic_compare_exchange(var aObj: PtrUInt; var aExpected: PtrUInt; aDesired: PtrUInt): Boolean; overload; inline;
+
+{$IFDEF CPU64}
+function atomic_compare_exchange(var aObj: Int64; var aExpected: Int64; aDesired: Int64): Boolean; overload; inline;
+function atomic_compare_exchange(var aObj: UInt64; var aExpected: UInt64; aDesired: UInt64): Boolean; overload; inline;
+{$ENDIF}
+function atomic_compare_exchange(var aObj: Pointer; var aExpected: Pointer; aDesired: Pointer): Boolean; overload; inline;
+
+function atomic_compare_exchange_strong(var aObj: Int32; var aExpected: Int32; aDesired: Int32): Boolean; overload; inline;
+function atomic_compare_exchange_strong(var aObj: UInt32; var aExpected: UInt32; aDesired: UInt32): Boolean; overload; inline;
+function atomic_compare_exchange_strong(var aObj: PtrInt; var aExpected: PtrInt; aDesired: PtrInt): Boolean; overload; inline;
+function atomic_compare_exchange_strong(var aObj: PtrUInt; var aExpected: PtrUInt; aDesired: PtrUInt): Boolean; overload; inline;
+
+{$IFDEF CPU64}
+function atomic_compare_exchange_strong(var aObj: Int64; var aExpected: Int64; aDesired: Int64): Boolean; overload; inline;
+function atomic_compare_exchange_strong(var aObj: UInt64; var aExpected: UInt64; aDesired: UInt64): Boolean; overload; inline;
+{$ENDIF}
+
+function atomic_compare_exchange_strong(var aObj: Pointer; var aExpected: Pointer; aDesired: Pointer): Boolean; inline;
+
+function atomic_compare_exchange_weak(var aObj: Int32; var aExpected: Int32; aDesired: Int32): Boolean; overload; inline;
+function atomic_compare_exchange_weak(var aObj: UInt32; var aExpected: UInt32; aDesired: UInt32): Boolean; overload; inline;
+
+function atomic_compare_exchange_weak(var aObj: PtrInt; var aExpected: PtrInt; aDesired: PtrInt): Boolean; overload; inline;
+function atomic_compare_exchange_weak(var aObj: PtrUInt; var aExpected: PtrUInt; aDesired: PtrUInt): Boolean; overload; inline;
+
+{$IFDEF CPU64}
+function atomic_compare_exchange_weak(var aObj: Int64; var aExpected: Int64; aDesired: Int64): Boolean; overload; inline;
+function atomic_compare_exchange_weak(var aObj: UInt64; var aExpected: UInt64; aDesired: UInt64): Boolean; overload; inline;
+{$ENDIF}
+function atomic_compare_exchange_weak(var aObj: Pointer; var aExpected: Pointer; aDesired: Pointer): Boolean; overload; inline;
+
+///
+/// atomic_increment
+///
+
+function atomic_increment(var aObj: Int32): Int32; overload; inline;
+function atomic_increment(var aObj: UInt32): UInt32; overload; inline;
+function atomic_increment(var aObj: PtrInt): PtrInt; overload; inline;
+function atomic_increment(var aObj: PtrUInt): PtrUInt; overload; inline;
+{$IFDEF CPU64}
+function atomic_increment(var aObj: Int64): Int64; overload; inline;
+function atomic_increment(var aObj: UInt64): UInt64; overload; inline;
+{$ENDIF}
+function atomic_increment(var aObj: Pointer): Pointer; overload; inline;
+
+///
+/// atomic_decrement
+///
+
+function atomic_decrement(var aObj: Int32): Int32; overload; inline;
+function atomic_decrement(var aObj: UInt32): UInt32; overload; inline;
+function atomic_decrement(var aObj: PtrInt): PtrInt; overload; inline;
+function atomic_decrement(var aObj: PtrUInt): PtrUInt; overload; inline;
+{$IFDEF CPU64}
+function atomic_decrement(var aObj: Int64): Int64; overload; inline;
+function atomic_decrement(var aObj: UInt64): UInt64; overload; inline;
+{$ENDIF}
+function atomic_decrement(var aObj: Pointer): Pointer; overload; inline;
+
+///
+/// atomic_fetch_add
+///
+
+function atomic_fetch_add(var aObj: Int32; aArg: Int32): Int32; overload;inline;
+function atomic_fetch_add(var aObj: UInt32; aArg: UInt32): UInt32; overload; inline;
+function atomic_fetch_add(var aObj: PtrInt; aArg: PtrInt): PtrInt; overload; inline;
+function atomic_fetch_add(var aObj: PtrUInt; aArg: PtrUInt): PtrUInt; overload; inline;
+function atomic_fetch_add(var aObj: Pointer; aArg: Pointer): Pointer; overload; inline;
+function atomic_fetch_add(var aObj: Pointer; aOffset: PtrInt): Pointer; overload; inline;
+
+{$IFDEF CPU64}
+function atomic_fetch_add(var aObj: Int64; aArg: Int64): Int64; overload;inline;
+function atomic_fetch_add(var aObj: UInt64; aArg: UInt64): UInt64; overload; inline;
+{$ENDIF}
+
+///
+/// atomic_fetch_sub
+///
+
+function atomic_fetch_sub(var aObj: Int32; aArg: Int32): Int32; overload; inline;
+function atomic_fetch_sub(var aObj: UInt32; aArg: UInt32): UInt32; overload; inline;
+function atomic_fetch_sub(var aObj: PtrInt; aArg: PtrInt): PtrInt; overload; inline;
+function atomic_fetch_sub(var aObj: PtrUInt; aArg: PtrUInt): PtrUInt; overload; inline;
+function atomic_fetch_sub(var aObj: Pointer; aArg: Pointer): Pointer; overload; inline;
+
+{$IFDEF CPU64}
+function atomic_fetch_sub(var aObj: Int64; aArg: Int64): Int64; overload; inline;
+function atomic_fetch_sub(var aObj: UInt64; aArg: UInt64): UInt64; overload; inline;
+{$ENDIF}
+
+///
+/// atomic_fetch_and
+///
+
+function atomic_fetch_and(var aObj: Int32; aArg: Int32): Int32; overload; inline;
+function atomic_fetch_and(var aObj: UInt32; aArg: UInt32): UInt32; overload; inline;
+function atomic_fetch_and(var aObj: PtrInt; aArg: PtrInt): PtrInt; overload; inline;
+function atomic_fetch_and(var aObj: PtrUInt; aArg: PtrUInt): PtrUInt; overload; inline;
+function atomic_fetch_and(var aObj: Pointer; aArg: Pointer): Pointer; overload; inline;
+
+{$IFDEF CPU64}
+function atomic_fetch_and(var aObj: Int64; aArg: Int64): Int64; overload; inline;
+function atomic_fetch_and(var aObj: UInt64; aArg: UInt64): UInt64; overload; inline;
+{$ENDIF}
+
+///
+/// atomic_fetch_or
+///
+
+function atomic_fetch_or(var aObj: Int32; aArg: Int32): Int32; overload; inline;
+function atomic_fetch_or(var aObj: UInt32; aArg: UInt32): UInt32; overload; inline;
+function atomic_fetch_or(var aObj: PtrInt; aArg: PtrInt): PtrInt; overload; inline;
+function atomic_fetch_or(var aObj: PtrUInt; aArg: PtrUInt): PtrUInt; overload; inline;
+function atomic_fetch_or(var aObj: Pointer; aArg: Pointer): Pointer; overload; inline;
+
+{$IFDEF CPU64}
+function atomic_fetch_or(var aObj: Int64; aArg: Int64): Int64; overload; inline;
+function atomic_fetch_or(var aObj: UInt64; aArg: UInt64): UInt64; overload; inline;
+{$ENDIF}
+
+///
+/// atomic_fetch_xor
+///
+
+function atomic_fetch_xor(var aObj: Int32; aArg: Int32): Int32; overload; inline;
+function atomic_fetch_xor(var aObj: UInt32; aArg: UInt32): UInt32; overload; inline;
+function atomic_fetch_xor(var aObj: PtrInt; aArg: PtrInt): PtrInt; overload; inline;
+function atomic_fetch_xor(var aObj: PtrUInt; aArg: PtrUInt): PtrUInt; overload; inline;
+function atomic_fetch_xor(var aObj: Pointer; aArg: Pointer): Pointer; overload; inline;
+
+{$IFDEF CPU64}
+function atomic_fetch_xor(var aObj: Int64; aArg: Int64): Int64; overload; inline;
+function atomic_fetch_xor(var aObj: UInt64; aArg: UInt64): UInt64; overload; inline;
+{$ENDIF}
+
+type
+
+  atomic_flag_t = type Int32;
+
+  function atomic_flag_test_and_set(var aFlag: atomic_flag_t): Boolean; inline;
+  procedure atomic_flag_clear(var aFlag: atomic_flag_t); inline;
+
   function atomic_is_lock_free_32: Boolean; inline;
+  {$IFDEF CPU64}
   function atomic_is_lock_free_64: Boolean; inline;
+  {$ENDIF}
   function atomic_is_lock_free_ptr: Boolean; inline;
 
-  // tagged_ptr additional ops
-  function atomic_exchange_tagged_ptr(var obj: tagged_ptr; desired: tagged_ptr; order: memory_order = memory_order_seq_cst): tagged_ptr; inline;
-  function atomic_compare_exchange_weak_tagged_ptr(var obj: tagged_ptr; var expected: tagged_ptr; desired: tagged_ptr; order: memory_order = memory_order_seq_cst): Boolean; inline;
+type
 
-  // optional compiler fence placeholder
-  // procedure atomic_signal_fence(order: memory_order); inline;
-function atomic_fetch_add_64(var obj: Int64; arg: Int64; order: memory_order = memory_order_seq_cst): Int64; inline;
+  atomic_tagged_ptr_t = type UInt64;
 
-// atomic_fetch_sub - atomic subtraction
-function atomic_fetch_sub(var obj: Int32; arg: Int32; order: memory_order = memory_order_seq_cst): Int32; inline;
-function atomic_fetch_sub_64(var obj: Int64; arg: Int64; order: memory_order = memory_order_seq_cst): Int64; inline;
+function  atomic_tagged_ptr(aPtr: Pointer; aTag: {$IFDEF CPU64}UInt16{$ELSE}UInt32{$ENDIF}): atomic_tagged_ptr_t; inline;
+function  atomic_tagged_ptr_get_ptr(const aTaggedPtr: atomic_tagged_ptr_t): Pointer; inline;
+function  atomic_tagged_ptr_get_tag(const aTaggedPtr: atomic_tagged_ptr_t): {$IFDEF CPU64}UInt16{$ELSE}UInt32{$ENDIF}; inline;
+function  atomic_tagged_ptr_load(var aObj: atomic_tagged_ptr_t): atomic_tagged_ptr_t; inline;
+procedure atomic_tagged_ptr_store(var aObj: atomic_tagged_ptr_t; aDesired: atomic_tagged_ptr_t); inline;
+function  atomic_tagged_ptr_exchange(var aObj: atomic_tagged_ptr_t; aDesired: atomic_tagged_ptr_t): atomic_tagged_ptr_t; inline;
+function  atomic_tagged_ptr_compare_exchange_strong(var aObj: atomic_tagged_ptr_t; var aExpected: atomic_tagged_ptr_t; aDesired: atomic_tagged_ptr_t): Boolean; inline;
+function  atomic_tagged_ptr_compare_exchange_weak(var aObj: atomic_tagged_ptr_t; var aExpected: atomic_tagged_ptr_t; aDesired: atomic_tagged_ptr_t): Boolean; inline;
+function  atomic_tagged_ptr_next(const aTaggedPtr: atomic_tagged_ptr_t): {$IFDEF CPU64}UInt16{$ELSE}UInt32{$ENDIF}; inline;
+procedure atomic_tagged_ptr_update(var aObj: atomic_tagged_ptr_t; aPtr: Pointer); inline;
 
-// === Tagged Pointer specific operations ===
-function atomic_load_tagged_ptr(var obj: tagged_ptr; order: memory_order = memory_order_seq_cst): tagged_ptr; inline;
-procedure atomic_store_tagged_ptr(var obj: tagged_ptr; desired: tagged_ptr; order: memory_order = memory_order_seq_cst); inline;
-function atomic_compare_exchange_strong_tagged_ptr(var obj: tagged_ptr; var expected: tagged_ptr; desired: tagged_ptr;
-  order: memory_order = memory_order_seq_cst): Boolean; inline;
-
-// === Memory barrier operations ===
-procedure atomic_thread_fence(order: memory_order); inline;
-
-// === Convenience functions (for compatibility with existing code) ===
-function atomic_increment(var obj: Int32): Int32; inline;
-function atomic_decrement(var obj: Int32): Int32; inline;
-function atomic_increment_64(var obj: Int64): Int64; inline;
-function atomic_decrement_64(var obj: Int64): Int64; inline;
-
-// === Tagged Pointer helper functions ===
-function make_tagged_ptr(ptr: Pointer; tag: {$IFDEF CPU64}UInt16{$ELSE}UInt32{$ENDIF}): tagged_ptr; inline;
-function get_ptr(const tp: tagged_ptr): Pointer; inline;
-function get_tag(const tp: tagged_ptr): {$IFDEF CPU64}UInt16{$ELSE}UInt32{$ENDIF}; inline;
-function next_tag(const tp: tagged_ptr): {$IFDEF CPU64}UInt16{$ELSE}UInt32{$ENDIF}; inline;
+procedure atomic_thread_fence(aOrder: memory_order_t); inline;
 
 implementation
 
-// === Memory barrier implementation ===
-
-// Portable barrier fallback: define ReadWriteBarrier if not provided by RTL/CPU
-{$if not declared(ReadWriteBarrier)}
-procedure ReadWriteBarrier; inline;
+function atomic_load(var aObj: Int32; aOrder: memory_order_t): Int32;
 begin
-  {$if declared(System.MemoryBarrier)}
-    System.MemoryBarrier;
-  {$elseif declared(MemoryBarrier)}
-    MemoryBarrier;
-  {$else}
-    // Fallback no-op; on strong memory models this may be acceptable for our use.
-    // Platforms requiring a real fence should provide MemoryBarrier in RTL.
-  {$endif}
-end;
-{$endif}
+  case aOrder of
+    mo_relaxed:
+      Result := aObj;
 
+    mo_consume:
+      begin
+        Result := aObj;
+        ReadDependencyBarrier;  // 依赖同步
+      end;
 
-procedure atomic_thread_fence(order: memory_order);
-begin
-  case order of
-    memory_order_relaxed: ; // No operation
-    memory_order_consume,
-    memory_order_acquire,
-    memory_order_release,
-    memory_order_acq_rel,
-    memory_order_seq_cst: ReadWriteBarrier;
+    mo_acquire, mo_acq_rel:
+      begin
+        Result := aObj;
+        ReadBarrier;            // Acquire load
+      end;
+
+    mo_release:
+      begin
+        // 对 load 没意义，直接当 relaxed
+        Result := aObj;
+      end;
+
+    mo_seq_cst:
+      begin
+        Result := aObj;
+        ReadWriteBarrier;       // Seq_cst 全序
+      end;
   end;
 end;
 
-// === 32-bit atomic operations implementation ===
-
-function atomic_load(var obj: Int32; order: memory_order): Int32;
+function atomic_load(var aObj: Int32): Int32;
 begin
-  Result := obj;
-  if order in [memory_order_acquire, memory_order_acq_rel, memory_order_seq_cst] then
-    atomic_thread_fence(memory_order_acquire);
+  {$IF DEFINED(CPUX86_64) OR DEFINED(CPUX86)}
+    Result := atomic_load(aObj, mo_relaxed);
+  {$ELSE}
+    Result := atomic_load(aObj, mo_acquire);
+  {$ENDIF}
 end;
 
-procedure atomic_store(var obj: Int32; desired: Int32; order: memory_order);
+function atomic_load(var aObj: UInt32; aOrder: memory_order_t): UInt32;
 begin
-  if order in [memory_order_release, memory_order_acq_rel, memory_order_seq_cst] then
-    atomic_thread_fence(memory_order_release);
-  obj := desired;
-  if order = memory_order_seq_cst then
-    atomic_thread_fence(memory_order_seq_cst);
+  Result := UInt32(atomic_load(Int32(aObj), aOrder));
 end;
 
-function atomic_exchange(var obj: Int32; desired: Int32; order: memory_order): Int32;
+function atomic_load(var aObj: UInt32): UInt32;
 begin
-  Result := InterlockedExchange(obj, desired);
-  if order in [memory_order_acquire, memory_order_acq_rel, memory_order_seq_cst] then
-    atomic_thread_fence(memory_order_acquire);
+  Result := UInt32(atomic_load(Int32(aObj)));
 end;
 
-function atomic_compare_exchange_strong(var obj: Int32; var expected: Int32; desired: Int32; order: memory_order): Boolean;
+
+{$IFDEF CPU64}
+function atomic_load(var aObj: Int64; aOrder: memory_order_t): Int64;
+begin
+ case aOrder of
+    mo_relaxed:
+      Result := aObj;
+
+    mo_consume:
+      begin
+        Result := aObj;
+        ReadDependencyBarrier;
+      end;
+
+    mo_acquire, mo_acq_rel:
+      begin
+        Result := aObj;
+        ReadBarrier;
+      end;
+
+    mo_release:
+      Result := aObj;
+
+    mo_seq_cst:
+      begin
+        Result := aObj;
+        ReadWriteBarrier;
+      end;
+  end;
+end;
+
+function atomic_load(var aObj: Int64): Int64;
+begin
+  {$IF DEFINED(CPUX86_64)}
+    Result := atomic_load(aObj, mo_relaxed);
+  {$ELSE}
+    Result := atomic_load_64(aObj, mo_acquire);
+  {$ENDIF}
+end;
+
+function atomic_load(var aObj: UInt64; aOrder: memory_order_t): UInt64;
+begin
+  Result := UInt64(atomic_load(Int64(aObj), aOrder));
+end;
+
+function atomic_load(var aObj: UInt64):UInt64;
+begin
+  Result := UInt64(atomic_load(Int64(aObj)));
+end;
+
+{$ENDIF}
+
+function atomic_load(var aObj: Pointer; aOrder: memory_order_t): Pointer;
+begin
+  {$IF sizeof(Pointer) = 4}
+    Result := Pointer(atomic_load(Int32(aObj), order));
+  {$ELSE}
+    Result := Pointer(atomic_load(Int64(aObj), aOrder));
+  {$ENDIF}
+end;
+
+function atomic_load(var aObj: Pointer): Pointer;
+begin
+  {$IF DEFINED(CPUX86_64) OR DEFINED(CPUX86)}
+    Result := atomic_load(aObj, mo_relaxed);
+  {$ELSE}
+    Result := atomic_load_ptr(aObj, mo_acquire);
+  {$ENDIF}  
+end;
+
+function atomic_load(var aObj: PtrInt; aOrder: memory_order_t): PtrInt;
+begin
+  {$IF sizeof(PtrInt) = 4}
+    Result := PtrInt(atomic_load(Int32(aObj), order));
+  {$ELSE}
+    Result := PtrInt(atomic_load(Int64(aObj), aOrder));
+  {$ENDIF}
+end;
+
+function atomic_load(var aObj: PtrInt): PtrInt;
+begin
+  {$IF DEFINED(CPUX86_64) OR DEFINED(CPUX86)}
+    Result := atomic_load(aObj, mo_relaxed);
+  {$ELSE}
+    Result := atomic_load(aObj, mo_acquire);
+  {$ENDIF}
+end;
+
+
+function atomic_load(var aObj: PtrUInt; aOrder: memory_order_t): PtrUInt;
+begin
+  Result:= PtrUInt(atomic_load(PtrInt(aObj), aOrder));
+end;
+
+function atomic_load(var aObj: PtrUInt): PtrUInt;
+begin
+  Result:= PtrUInt(atomic_load(PtrInt(aObj)));
+end;
+
+procedure atomic_store(var aObj: Int32; aDesired: Int32; aOrder: memory_order_t);
+begin
+  case aOrder of
+    mo_relaxed, mo_consume, mo_acquire:
+      aObj := aDesired;  // store 不需要 acquire/consume
+
+    mo_release, mo_acq_rel:
+      begin
+        WriteBarrier;   // Release store
+        aObj := aDesired;
+      end;
+
+    mo_seq_cst:
+      begin
+        ReadWriteBarrier; // Seq_cst 全序
+        aObj := aDesired;
+      end;
+  end; 
+end;
+
+procedure atomic_store(var aObj: Int32; aDesired: Int32);
+begin
+  {$IF DEFINED(CPUX86_64) OR DEFINED(CPUX86)}
+    atomic_store(aObj, aDesired, mo_relaxed);
+  {$ELSE}
+    atomic_store(aObj, aDesired, mo_release);
+  {$ENDIF}  
+end;
+
+procedure atomic_store(var aObj: UInt32; aDesired: UInt32; aOrder: memory_order_t);
+begin
+  atomic_store(Int32(aObj), Int32(aDesired), aOrder);
+end;
+
+procedure atomic_store(var aObj: UInt32; aDesired: UInt32);
+begin
+  atomic_store(Int32(aObj), Int32(aDesired));
+end;
+
+{$IFDEF CPU64}
+procedure atomic_store(var aObj: Int64; aDesired: Int64; aOrder: memory_order_t);
+begin
+  case aOrder of
+    mo_relaxed, mo_consume, mo_acquire:
+      aObj := aDesired;
+
+    mo_release, mo_acq_rel:
+      begin
+        WriteBarrier;
+        aObj := aDesired;
+      end;
+
+    mo_seq_cst:
+      begin
+        ReadWriteBarrier;
+        aObj := aDesired;
+      end;
+  end;
+end;
+
+procedure atomic_store(var aObj: Int64; aDesired: Int64);
+begin
+  {$IF DEFINED(CPUX86_64)}
+    atomic_store(aObj, aDesired, mo_relaxed);
+  {$ELSE}
+    atomic_store_64(aObj, aDesired, mo_release);
+  {$ENDIF}
+end;
+
+procedure atomic_store(var aObj: UInt64; aDesired: UInt64; aOrder: memory_order_t);
+begin
+  atomic_store(Int64(aObj), Int64(aDesired), aOrder);
+end;
+
+procedure atomic_store(var aObj: UInt64; aDesired: UInt64);
+begin
+  atomic_store(Int64(aObj), Int64(aDesired));
+end;
+{$ENDIF}
+
+procedure atomic_store(var aObj: Pointer; aDesired: Pointer; aOrder: memory_order_t);
+begin
+  {$IF sizeof(Pointer) = 4}
+    atomic_store(Int32(aObj), Int32(aDesired), aOrder);
+  {$ELSE}
+    atomic_store(Int64(aObj), Int64(aDesired), aOrder);
+  {$ENDIF}
+end;
+
+procedure atomic_store(var aObj: Pointer; aDesired: Pointer);
+begin
+  {$IF DEFINED(CPUX86_64) OR DEFINED(CPUX86)}
+    atomic_store(aObj, aDesired, mo_relaxed);
+  {$ELSE}
+    atomic_store_ptr(aObj, aDesired, mo_release);
+  {$ENDIF}  
+end;
+
+
+procedure atomic_store(var aObj: PtrInt; aDesired: PtrInt; aOrder: memory_order_t);
+begin
+  {$IF sizeof(PtrInt) = 4}
+    atomic_store(Int32(aObj), Int32(aDesired), order);
+  {$ELSE}
+    atomic_store(Int64(aObj), Int64(aDesired), aOrder);
+  {$ENDIF} 
+end;
+
+procedure atomic_store(var aObj: PtrInt; aDesired: PtrInt);
+begin
+  {$IF DEFINED(CPUX86_64) OR DEFINED(CPUX86)}
+    atomic_store(aObj, aDesired, mo_relaxed);
+  {$ELSE}
+    atomic_store(aObj, aDesired, mo_release);
+  {$ENDIF}  
+end;
+
+procedure atomic_store(var aObj: PtrUInt; aDesired: PtrUInt; aOrder: memory_order_t);
+begin
+  atomic_store(PtrInt(aObj), PtrInt(aDesired), aOrder);
+end;
+
+procedure atomic_store(var aObj: PtrUInt; aDesired: PtrUInt);
+begin
+  atomic_store(PtrInt(aObj), PtrInt(aDesired));
+end;
+
+
+function atomic_exchange(var aObj: Int32; aDesired: Int32): Int32;
+begin
+  Result := InterlockedExchange(aObj, aDesired);
+end;
+
+function atomic_exchange(var aObj: UInt32; aDesired: UInt32): UInt32;
+begin
+  Result := UInt32(atomic_exchange(Int32(aObj), Int32(aDesired)));
+end;
+
+function atomic_exchange(var aObj: PtrInt; aDesired: PtrInt): PtrInt;
+begin
+  {$IF sizeof(PtrInt) = 4}
+    Result := PtrInt(InterlockedExchange(Int32(aObj), Int32(aDesired)));
+  {$ELSE}
+    Result := PtrInt(InterlockedExchange64(Int64(aObj), Int64(aDesired)));
+  {$ENDIF}
+end;
+
+function atomic_exchange(var aObj: PtrUInt; aDesired: PtrUInt): PtrUInt;
+begin
+  Result := PtrUInt(atomic_exchange(PtrInt(aObj), PtrInt(aDesired)));
+end;
+
+{$IF DEFINED(cpu64)}
+function atomic_exchange(var aObj: Int64; aDesired: Int64): Int64;
+begin
+  Result := InterlockedExchange64(aObj, aDesired);
+end;
+
+function atomic_exchange(var aObj: UInt64; aDesired: UInt64): UInt64;
+begin
+  Result := UInt64(atomic_exchange(Int64(aObj), Int64(aDesired)));
+end;
+{$ENDIF}
+
+function atomic_exchange(var aObj: Pointer; aDesired: Pointer): Pointer;
+begin
+  {$IF sizeof(Pointer) = 4}
+    Result := Pointer(InterlockedExchange(Int32(aObj), Int32(aDesired)));
+  {$ELSE}
+    Result := Pointer(InterlockedExchange64(Int64(aObj), Int64(aDesired)));
+  {$ENDIF}
+end;
+
+function atomic_compare_exchange(var aObj: Int32; var aExpected: Int32; aDesired: Int32): Boolean;
 var
-  LOriginal: Int32;
+  LOld: Int32;
 begin
-  LOriginal := InterlockedCompareExchange(obj, desired, expected);
-  Result := LOriginal = expected;
+  LOld := InterlockedCompareExchange(aObj, aDesired, aExpected);
+  Result := (LOld = aExpected);
+
   if not Result then
-    expected := LOriginal;
-  if order in [memory_order_acquire, memory_order_acq_rel, memory_order_seq_cst] then
-    atomic_thread_fence(memory_order_acquire);
+    aExpected := LOld;
 end;
 
-function atomic_compare_exchange_weak(var obj: Int32; var expected: Int32; desired: Int32; order: memory_order): Boolean;
+function atomic_compare_exchange(var aObj: UInt32; var aExpected: UInt32; aDesired: UInt32): Boolean;
 begin
-  // On x86/x64, weak and strong versions are the same
-  Result := atomic_compare_exchange_strong(obj, expected, desired, order);
+  Result := atomic_compare_exchange(Int32(aObj), Int32(aExpected), Int32(aDesired));
 end;
 
-function atomic_fetch_and(var obj: Int32; arg: Int32; order: memory_order): Int32;
-var
-  oldValue, newValue: Int32;
+function atomic_compare_exchange(var aObj: PtrInt; var aExpected: PtrInt; aDesired: PtrInt): Boolean;
 begin
-  repeat
-    oldValue := obj;
-    newValue := oldValue and arg;
-  until InterlockedCompareExchange(obj, newValue, oldValue) = oldValue;
-  Result := oldValue;
-  if order in [memory_order_acquire, memory_order_acq_rel, memory_order_seq_cst] then
-    atomic_thread_fence(memory_order_acquire);
+  {$IF sizeof(Pointer) = 4}
+    Result := Pointer(atomic_compare_exchange(Int32(aObj), Int32(aExpected), Int32(aDesired)));
+  {$ELSE}
+    Result := Pointer(atomic_compare_exchange(Int64(aObj), Int64(aExpected), Int64(aDesired)));
+  {$ENDIF}
 end;
 
-function atomic_fetch_or(var obj: Int32; arg: Int32; order: memory_order): Int32;
-var
-  oldValue, newValue: Int32;
+function atomic_compare_exchange(var aObj: PtrUInt; var aExpected: PtrUInt; aDesired: PtrUInt): Boolean;
 begin
-  repeat
-    oldValue := obj;
-    newValue := oldValue or arg;
-  until InterlockedCompareExchange(obj, newValue, oldValue) = oldValue;
-  Result := oldValue;
-  if order in [memory_order_acquire, memory_order_acq_rel, memory_order_seq_cst] then
-    atomic_thread_fence(memory_order_acquire);
+  Result := atomic_compare_exchange(PtrInt(aObj), PtrInt(aExpected), PtrInt(aDesired));
 end;
 
-function atomic_fetch_xor(var obj: Int32; arg: Int32; order: memory_order): Int32;
-var
-  oldValue, newValue: Int32;
-begin
-  repeat
-    oldValue := obj;
-    newValue := oldValue xor arg;
-  until InterlockedCompareExchange(obj, newValue, oldValue) = oldValue;
-  Result := oldValue;
-  if order in [memory_order_acquire, memory_order_acq_rel, memory_order_seq_cst] then
-    atomic_thread_fence(memory_order_acquire);
-end;
-
-
-function atomic_fetch_add(var obj: Int32; arg: Int32; order: memory_order): Int32;
-begin
-  Result := InterlockedExchangeAdd(obj, arg);
-  if order in [memory_order_acquire, memory_order_acq_rel, memory_order_seq_cst] then
-    atomic_thread_fence(memory_order_acquire);
-end;
-
-function atomic_fetch_and_64(var obj: Int64; arg: Int64; order: memory_order): Int64;
-var
-  oldValue, newValue: Int64;
-begin
-  repeat
-    oldValue := obj;
-    newValue := oldValue and arg;
-  until InterlockedCompareExchange64(obj, newValue, oldValue) = oldValue;
-  Result := oldValue;
-  if order in [memory_order_acquire, memory_order_acq_rel, memory_order_seq_cst] then
-    atomic_thread_fence(memory_order_acquire);
-end;
-
-function atomic_fetch_or_64(var obj: Int64; arg: Int64; order: memory_order): Int64;
-var
-  oldValue, newValue: Int64;
-begin
-  repeat
-    oldValue := obj;
-    newValue := oldValue or arg;
-  until InterlockedCompareExchange64(obj, newValue, oldValue) = oldValue;
-  Result := oldValue;
-  if order in [memory_order_acquire, memory_order_acq_rel, memory_order_seq_cst] then
-    atomic_thread_fence(memory_order_acquire);
-end;
-
-function atomic_fetch_xor_64(var obj: Int64; arg: Int64; order: memory_order): Int64;
-var
-  oldValue, newValue: Int64;
-begin
-  repeat
-    oldValue := obj;
-    newValue := oldValue xor arg;
-  until InterlockedCompareExchange64(obj, newValue, oldValue) = oldValue;
-  Result := oldValue;
-  if order in [memory_order_acquire, memory_order_acq_rel, memory_order_seq_cst] then
-    atomic_thread_fence(memory_order_acquire);
-end;
-
-
-function atomic_fetch_sub(var obj: Int32; arg: Int32; order: memory_order): Int32;
-begin
-  Result := InterlockedExchangeAdd(obj, -arg);
-  if order in [memory_order_acquire, memory_order_acq_rel, memory_order_seq_cst] then
-    atomic_thread_fence(memory_order_acquire);
-end;
-
-// === 64-bit atomic operations implementation ===
-
-function atomic_load_64(var obj: Int64; order: memory_order): Int64;
-begin
 {$IFDEF CPU64}
-  Result := obj;
-  if order in [memory_order_acquire, memory_order_acq_rel, memory_order_seq_cst] then
-    atomic_thread_fence(memory_order_acquire);
-{$ELSE}
-  // On 32-bit systems, need atomic operation
-  Result := InterlockedExchange64(obj, obj);
-{$ENDIF}
-end;
-
-procedure atomic_store_64(var obj: Int64; desired: Int64; order: memory_order);
-begin
-{$IFDEF CPU64}
-  if order in [memory_order_release, memory_order_acq_rel, memory_order_seq_cst] then
-    atomic_thread_fence(memory_order_release);
-  obj := desired;
-  if order = memory_order_seq_cst then
-    atomic_thread_fence(memory_order_seq_cst);
-{$ELSE}
-  InterlockedExchange64(obj, desired);
-{$ENDIF}
-end;
-
-function atomic_exchange_64(var obj: Int64; desired: Int64; order: memory_order): Int64;
-begin
-  Result := InterlockedExchange64(obj, desired);
-  if order in [memory_order_acquire, memory_order_acq_rel, memory_order_seq_cst] then
-    atomic_thread_fence(memory_order_acquire);
-end;
-
-function atomic_compare_exchange_strong_64(var obj: Int64; var expected: Int64; desired: Int64; order: memory_order): Boolean;
+function atomic_compare_exchange(var aObj: Int64; var aExpected: Int64; aDesired: Int64): Boolean;
 var
-  LOriginal: Int64;
+  LOld: Int64;
 begin
-  LOriginal := InterlockedCompareExchange64(obj, desired, expected);
-  Result := LOriginal = expected;
+  LOld := InterlockedCompareExchange64(aObj, aDesired, aExpected);
+  Result := (LOld = aExpected);
+
   if not Result then
-    expected := LOriginal;
-  if order in [memory_order_acquire, memory_order_acq_rel, memory_order_seq_cst] then
-    atomic_thread_fence(memory_order_acquire);
+    aExpected := LOld;
 end;
 
-function atomic_compare_exchange_weak_64(var obj: Int64; var expected: Int64; desired: Int64; order: memory_order): Boolean;
+function atomic_compare_exchange(var aObj: UInt64; var aExpected: UInt64; aDesired: UInt64): Boolean;
 begin
-  Result := atomic_compare_exchange_strong_64(obj, expected, desired, order);
+  Result := atomic_compare_exchange(Int64(aObj), Int64(aExpected), Int64(aDesired));
 end;
-
-
-{$PUSH}{$WARN 4055 OFF}
-
-{$IFDEF CPU64}
-function PtrAsI64(p: Pointer): Int64; inline; begin Result := Int64(PtrUInt(p)); end;
-function I64AsPtr(v: Int64): Pointer; inline; begin Result := Pointer(PtrUInt(v)); end;
-{$ELSE}
-function PtrAsI32(p: Pointer): Longint; inline; begin Result := Longint(PtrUInt(p)); end;
-function I32AsPtr(v: Longint): Pointer; inline; begin Result := Pointer(PtrUInt(v)); end;
 {$ENDIF}
-{$POP}
 
-
-function atomic_fetch_add_64(var obj: Int64; arg: Int64; order: memory_order): Int64;
-begin
-  Result := InterlockedExchangeAdd64(obj, arg);
-  if order in [memory_order_acquire, memory_order_acq_rel, memory_order_seq_cst] then
-    atomic_thread_fence(memory_order_acquire);
-end;
-
-function atomic_fetch_sub_64(var obj: Int64; arg: Int64; order: memory_order): Int64;
-begin
-  Result := InterlockedExchangeAdd64(obj, -arg);
-  if order in [memory_order_acquire, memory_order_acq_rel, memory_order_seq_cst] then
-    atomic_thread_fence(memory_order_acquire);
-end;
-
-// === Pointer atomic operations implementation ===
-
-function atomic_load_ptr(var obj: Pointer; order: memory_order): Pointer;
-begin
-{$IFDEF CPU64}
-  Result := obj;
-  if order in [memory_order_acquire, memory_order_acq_rel, memory_order_seq_cst] then
-    atomic_thread_fence(memory_order_acquire);
-{$ELSE}
-  // Use alias to perform an atomic read via Exchange on 32-bit
-  Result := I32AsPtr(InterlockedExchange(PLongint(@obj)^, PLongint(@obj)^));
-{$ENDIF}
-end;
-
-procedure atomic_store_ptr(var obj: Pointer; desired: Pointer; order: memory_order);
-begin
-{$IFDEF CPU64}
-  if order in [memory_order_release, memory_order_acq_rel, memory_order_seq_cst] then
-    atomic_thread_fence(memory_order_release);
-  // Use atomic exchange to store the pointer value
-  InterlockedExchange64(PInt64(@obj)^, PtrAsI64(desired));
-  if order = memory_order_seq_cst then
-    atomic_thread_fence(memory_order_seq_cst);
-{$ELSE}
-  InterlockedExchange(PLongint(@obj)^, PtrAsI32(desired));
-{$ENDIF}
-end;
-
-function atomic_exchange_ptr(var obj: Pointer; desired: Pointer; order: memory_order): Pointer;
-begin
-{$IFDEF CPU64}
-  Result := I64AsPtr(InterlockedExchange64(PInt64(@obj)^, PtrAsI64(desired)));
-{$ELSE}
-  Result := I32AsPtr(InterlockedExchange(PLongint(@obj)^, PtrAsI32(desired)));
-{$ENDIF}
-  if order in [memory_order_acquire, memory_order_acq_rel, memory_order_seq_cst] then
-    atomic_thread_fence(memory_order_acquire);
-end;
-
-function atomic_compare_exchange_strong_ptr(var obj: Pointer; var expected: Pointer; desired: Pointer; order: memory_order): Boolean;
+function atomic_compare_exchange(var aObj: Pointer; var aExpected: Pointer; aDesired: Pointer): Boolean;
 var
-  LOriginal: Pointer;
+  LOld: Pointer;
 begin
-{$IFDEF CPU64}
-  LOriginal := I64AsPtr(InterlockedCompareExchange64(PInt64(@obj)^, PtrAsI64(desired), PtrAsI64(expected)));
-{$ELSE}
-  LOriginal := I32AsPtr(InterlockedCompareExchange(PLongint(@obj)^, PtrAsI32(desired), PtrAsI32(expected)));
-{$ENDIF}
-  Result := LOriginal = expected;
+  LOld := InterlockedCompareExchangePointer(aObj, aDesired, aExpected);
+  Result := (LOld = aExpected);
+
   if not Result then
-    expected := LOriginal;
-  if order in [memory_order_acquire, memory_order_acq_rel, memory_order_seq_cst] then
-    atomic_thread_fence(memory_order_acquire);
+    aExpected := LOld;
 end;
 
-function atomic_compare_exchange_weak_ptr(var obj: Pointer; var expected: Pointer; desired: Pointer; order: memory_order): Boolean;
+function atomic_compare_exchange_strong(var aObj: Int32; var aExpected: Int32; aDesired: Int32): Boolean;
 begin
-  Result := atomic_compare_exchange_strong_ptr(obj, expected, desired, order);
+  Result := atomic_compare_exchange(aObj, aExpected, aDesired);
 end;
 
-function atomic_fetch_add_ptr_bytes(var obj: Pointer; byteOffset: PtrInt; order: memory_order): Pointer;
+function atomic_compare_exchange_strong(var aObj: UInt32; var aExpected: UInt32; aDesired: UInt32): Boolean;
+begin
+  Result := atomic_compare_exchange(Int32(aObj), Int32(aExpected), Int32(aDesired));
+end;
+
+function atomic_compare_exchange_strong(var aObj: PtrInt; var aExpected: PtrInt; aDesired: PtrInt): Boolean;
+begin
+  Result := atomic_compare_exchange(PtrInt(aObj), PtrInt(aExpected), PtrInt(aDesired));
+end;
+
+function atomic_compare_exchange_strong(var aObj: PtrUInt; var aExpected: PtrUInt; aDesired: PtrUInt): Boolean;
+begin
+  Result := atomic_compare_exchange(aObj, aExpected, aDesired);
+end;
+
+{$IFDEF CPU64}
+function atomic_compare_exchange_strong(var aObj: UInt64; var aExpected: UInt64; aDesired: UInt64): Boolean;
+begin
+  Result := atomic_compare_exchange(Int64(aObj), Int64(aExpected), Int64(aDesired));
+end;
+
+function atomic_compare_exchange_strong(var aObj: Int64; var aExpected: Int64; aDesired: Int64): Boolean;
+begin
+  Result := atomic_compare_exchange(aObj, aExpected, aDesired);
+end;
+{$ENDIF}
+
+function atomic_compare_exchange_strong(var aObj: Pointer; var aExpected: Pointer; aDesired: Pointer): Boolean;
+begin
+  Result := atomic_compare_exchange(aObj, aExpected, aDesired);
+end;
+
+function atomic_compare_exchange_weak(var aObj: Int32; var aExpected: Int32; aDesired: Int32): Boolean;
+begin
+  Result := atomic_compare_exchange(aObj, aExpected, aDesired);
+end;
+
+function atomic_compare_exchange_weak(var aObj: UInt32; var aExpected: UInt32; aDesired: UInt32): Boolean;
+begin
+  Result := atomic_compare_exchange(Int32(aObj), Int32(aExpected), Int32(aDesired));
+end;
+
+function atomic_compare_exchange_weak(var aObj: PtrInt; var aExpected: PtrInt; aDesired: PtrInt): Boolean;
+begin
+  Result := atomic_compare_exchange(PtrInt(aObj), PtrInt(aExpected), PtrInt(aDesired));
+end;
+
+function atomic_compare_exchange_weak(var aObj: PtrUInt; var aExpected: PtrUInt; aDesired: PtrUInt): Boolean;
+begin
+  Result := atomic_compare_exchange(PtrInt(aObj), PtrInt(aExpected), PtrInt(aDesired));
+end;
+
+{$IFDEF CPU64}
+function atomic_compare_exchange_weak(var aObj: Int64; var aExpected: Int64; aDesired: Int64): Boolean;
+begin
+  Result := atomic_compare_exchange(aObj, aExpected, aDesired);
+end;
+
+function atomic_compare_exchange_weak(var aObj: UInt64; var aExpected: UInt64; aDesired: UInt64): Boolean;
+begin
+  Result := atomic_compare_exchange(Int64(aObj), Int64(aExpected), Int64(aDesired));
+end;
+{$ENDIF}
+
+function atomic_compare_exchange_weak(var aObj: Pointer; var aExpected: Pointer; aDesired: Pointer): Boolean;
+begin
+  Result := atomic_compare_exchange(aObj, aExpected, aDesired);
+end;
+
+function atomic_increment(var aObj: Int32): Int32;
+begin
+  Result := InterlockedIncrement(aObj);
+end;
+
+function atomic_increment(var aObj: UInt32): UInt32;
+begin
+  Result := UInt32(atomic_increment(Int32(aObj)));
+end;
+
+function atomic_increment(var aObj: PtrInt): PtrInt;
+begin
+  {$IF SIZEOF(PtrInt) = 4}
+    Result := PtrInt(atomic_increment(Int32(aObj)));
+  {$ELSE}
+    Result := PtrInt(atomic_increment(Int64(aObj)));
+  {$ENDIF}
+end;
+
+function atomic_increment(var aObj: PtrUInt): PtrUInt;
+begin
+  Result := PtrUInt(atomic_increment(PtrInt(aObj)));
+end;
+
+{$IFDEF CPU64}
+function atomic_increment(var aObj: Int64): Int64;
+begin
+  Result := InterlockedIncrement64(aObj);
+end;
+
+function atomic_increment(var aObj: UInt64): UInt64;
+begin
+  Result := UInt64(atomic_increment(Int64(aObj)));
+end;
+{$ENDIF}
+
+function atomic_increment(var aObj: Pointer): Pointer;
+begin
+  {$IF SIZEOF(Pointer) = 4}
+    Result := Pointer(atomic_increment(Int32(aObj)));
+  {$ELSE}
+    Result := Pointer(atomic_increment(Int64(aObj)));
+  {$ENDIF}
+end;
+
+function atomic_decrement(var aObj: Int32): Int32;
+begin
+  Result := InterlockedDecrement(aObj);
+end;
+
+function atomic_decrement(var aObj: UInt32): UInt32;
+begin
+  Result := UInt32(atomic_decrement(Int32(aObj)));
+end;
+
+function atomic_decrement(var aObj: PtrInt): PtrInt;
+begin
+  {$IF SIZEOF(PtrInt) = 4}
+    Result := PtrInt(atomic_decrement(Int32(aObj)));
+  {$ELSE}
+    Result := PtrInt(atomic_decrement(Int64(aObj)));
+  {$ENDIF}
+end;
+
+function atomic_decrement(var aObj: PtrUInt): PtrUInt;
+begin
+  Result := PtrUInt(atomic_decrement(PtrInt(aObj)));
+end;
+
+{$IFDEF CPU64}
+function atomic_decrement(var aObj: Int64): Int64;
+begin
+  Result := InterlockedDecrement64(aObj);
+end;
+
+function atomic_decrement(var aObj: UInt64): UInt64;
+begin
+  Result := UInt64(atomic_decrement(Int64(aObj)));
+end;
+{$ENDIF}
+
+function atomic_decrement(var aObj: Pointer): Pointer;
+begin
+  {$IF SIZEOF(Pointer) = 4}
+    Result := Pointer(atomic_decrement(Int32(aObj)));
+  {$ELSE}
+    Result := Pointer(atomic_decrement(Int64(aObj)));
+  {$ENDIF}
+end;
+
+function atomic_fetch_add(var aObj: Int32; aArg: Int32): Int32;
+begin
+  Result := InterlockedExchangeAdd(aObj, aArg);
+end;
+
+function atomic_fetch_add(var aObj: UInt32; aArg: UInt32): UInt32;
+begin
+  Result := UInt32(atomic_fetch_add(Int32(aObj), Int32(aArg)));
+end;
+
+function atomic_fetch_add(var aObj: PtrInt; aArg: PtrInt): PtrInt;
+begin
+  {$IF SIZEOF(PtrInt) = 4}
+    Result := PtrInt(atomic_fetch_add(Int32(aObj), Int32(aArg)));
+  {$ELSE}
+    Result := PtrInt(atomic_fetch_add(Int64(aObj), Int64(aArg)));
+  {$ENDIF}
+end;
+
+function atomic_fetch_add(var aObj: PtrUInt; aArg: PtrUInt): PtrUInt;
+begin
+  Result := PtrUInt(atomic_fetch_add(PtrInt(aObj), PtrInt(aArg)));
+end;
+
+function atomic_fetch_add(var aObj: Pointer; aArg: Pointer): Pointer;
+begin
+  {$IF SIZEOF(Pointer) = 4}
+    Result := Pointer(atomic_fetch_add(Int32(aObj), Int32(aArg)));
+  {$ELSE}
+    Result := Pointer(atomic_fetch_add(Int64(aObj), Int64(aArg)));
+  {$ENDIF}
+end;
+
+
+function atomic_fetch_add(var aObj: Pointer; aOffset: PtrInt): Pointer;
+begin
+  {$IF SIZEOF(Pointer) = 4}
+    Result := Pointer(atomic_fetch_add(Int32(aObj), Int32(aOffset)));
+  {$ELSE}
+    Result := Pointer(atomic_fetch_add(Int64(aObj), Int64(aOffset)));
+  {$ENDIF}
+end;
+
+{$IFDEF CPU64}
+function atomic_fetch_add(var aObj: Int64; aArg: Int64): Int64;
+begin
+  Result := InterlockedExchangeAdd64(aObj, aArg);
+end;
+
+function atomic_fetch_add(var aObj: UInt64; aArg: UInt64): UInt64;
+begin
+  Result := UInt64(atomic_fetch_add(Int64(aObj), Int64(aArg)));
+end;
+{$ENDIF}
+
+function atomic_fetch_sub(var aObj: Int32; aArg: Int32): Int32;
+begin
+  Result := atomic_fetch_add(aObj, -aArg);
+end;
+
+function atomic_fetch_sub(var aObj: UInt32; aArg: UInt32): UInt32;
+begin
+  Result := UInt32(atomic_fetch_sub(Int32(aObj), Int32(aArg)));
+end;
+
+function atomic_fetch_sub(var aObj: PtrInt; aArg: PtrInt): PtrInt;
+begin
+  {$IF SIZEOF(PtrInt) = 4}
+    Result := PtrInt(atomic_fetch_sub(Int32(aObj), Int32(aArg)));
+  {$ELSE}
+    Result := PtrInt(atomic_fetch_sub(Int64(aObj), Int64(aArg)));
+  {$ENDIF}
+end;
+
+function atomic_fetch_sub(var aObj: PtrUInt; aArg: PtrUInt): PtrUInt;
+begin
+  Result := PtrUInt(atomic_fetch_sub(PtrInt(aObj), PtrInt(aArg)));
+end;
+
+function atomic_fetch_sub(var aObj: Pointer; aArg: Pointer): Pointer;
+begin
+  {$IF SIZEOF(Pointer) = 4}
+    Result := Pointer(atomic_fetch_sub(Int32(aObj), Int32(aArg)));
+  {$ELSE}
+    Result := Pointer(atomic_fetch_sub(Int64(aObj), Int64(aArg)));
+  {$ENDIF}
+end;
+
+{$IFDEF CPU64}
+function atomic_fetch_sub(var aObj: Int64; aArg: Int64): Int64;
+begin
+  Result := atomic_fetch_add(aObj, -aArg);
+end;
+
+function atomic_fetch_sub(var aObj: UInt64; aArg: UInt64): UInt64;
+begin
+  Result := UInt64(atomic_fetch_sub(Int64(aObj), Int64(aArg)));
+end;
+{$ENDIF}
+
+function atomic_fetch_and(var aObj: Int32; aArg: Int32): Int32;
 var
-  expected, desired: Pointer;
+  LOld, LNew: Int32;
 begin
   repeat
-    expected := atomic_load_ptr(obj, memory_order_relaxed);
-    desired := Pointer(PtrUInt(expected) + PtrUInt(byteOffset));
-  until atomic_compare_exchange_strong_ptr(obj, expected, desired, order);
-  Result := expected;
-  if order in [memory_order_acquire, memory_order_acq_rel, memory_order_seq_cst] then
-    atomic_thread_fence(memory_order_acquire);
+    LOld := aObj;
+    LNew := LOld and aArg;
+  until InterlockedCompareExchange(aObj, LNew, LOld) = LOld;
+  Result := LOld;
 end;
 
-function atomic_fetch_sub_ptr_bytes(var obj: Pointer; byteOffset: PtrInt; order: memory_order): Pointer;
+function atomic_fetch_and(var aObj: UInt32; aArg: UInt32): UInt32;
 begin
-  Result := atomic_fetch_add_ptr_bytes(obj, -byteOffset, order);
+  Result := UInt32(atomic_fetch_and(Int32(aObj), Int32(aArg)));
 end;
 
-function atomic_flag_test_and_set(var flag: atomic_flag; order: memory_order): Boolean;
+function atomic_fetch_and(var aObj: PtrInt; aArg: PtrInt): PtrInt;
+begin
+  {$IF SIZEOF(PtrInt) = 4}
+    Result := PtrInt(atomic_fetch_and(Int32(aObj), Int32(aArg)));
+  {$ELSE}
+    Result := PtrInt(atomic_fetch_and(Int64(aObj), Int64(aArg)));
+  {$ENDIF}
+end;
+
+function atomic_fetch_and(var aObj: PtrUInt; aArg: PtrUInt): PtrUInt;
+begin
+  Result := PtrUInt(atomic_fetch_and(PtrInt(aObj), PtrInt(aArg)));
+end;
+
+function atomic_fetch_and(var aObj: Pointer; aArg: Pointer): Pointer;
+begin
+  Result := Pointer(atomic_fetch_and(PtrInt(aObj), PtrInt(aArg)));
+end;
+
+{$IFDEF CPU64}
+function atomic_fetch_and(var aObj: Int64; aArg: Int64): Int64;
 var
-  prev: Int32;
+  LOld, LNew: Int64;
 begin
-  prev := InterlockedExchange(flag.v, 1);
-  Result := prev <> 0;
-  if order in [memory_order_acquire, memory_order_acq_rel, memory_order_seq_cst] then
-    atomic_thread_fence(memory_order_acquire);
+  repeat
+    LOld := aObj;
+    LNew := LOld and aArg;
+  until InterlockedCompareExchange64(aObj, LNew, LOld) = LOld;
+  Result := LOld;
 end;
 
-procedure atomic_flag_clear(var flag: atomic_flag; order: memory_order);
+function atomic_fetch_and(var aObj: UInt64; aArg: UInt64): UInt64;
 begin
-  if order in [memory_order_release, memory_order_acq_rel, memory_order_seq_cst] then
-    atomic_thread_fence(memory_order_release);
-  InterlockedExchange(flag.v, 0);
-  if order = memory_order_seq_cst then
-    atomic_thread_fence(memory_order_seq_cst);
+  Result := UInt64(atomic_fetch_and(Int64(aObj), Int64(aArg)));
+end;
+{$ENDIF}
+
+
+function atomic_fetch_or(var aObj: Int32; aArg: Int32): Int32;
+var
+  LOld, LNew: Int32;
+begin
+  repeat
+    LOld := aObj;
+    LNew := LOld or aArg;
+  until InterlockedCompareExchange(aObj, LNew, LOld) = LOld;
+  Result := LOld;
+end;
+
+function atomic_fetch_or(var aObj: UInt32; aArg: UInt32): UInt32;
+begin
+  Result := UInt32(atomic_fetch_or(Int32(aObj), Int32(aArg)));
+end;
+
+function atomic_fetch_or(var aObj: PtrInt; aArg: PtrInt): PtrInt;
+begin
+  {$IF SIZEOF(PtrInt) = 4}
+    Result := PtrInt(atomic_fetch_or(Int32(aObj), Int32(aArg)));
+  {$ELSE}
+    Result := PtrInt(atomic_fetch_or(Int64(aObj), Int64(aArg)));
+  {$ENDIF}
+end;
+
+function atomic_fetch_or(var aObj: PtrUInt; aArg: PtrUInt): PtrUInt;
+begin
+  Result := PtrUInt(atomic_fetch_or(PtrInt(aObj), PtrInt(aArg)));
+end;
+
+function atomic_fetch_or(var aObj: Pointer; aArg: Pointer): Pointer;
+begin
+  Result := Pointer(atomic_fetch_or(PtrInt(aObj), PtrInt(aArg)));
+end;
+
+{$IFDEF CPU64}
+function atomic_fetch_or(var aObj: Int64; aArg: Int64): Int64;
+var
+  LOld, LNew: Int64;
+begin
+  repeat
+    LOld := aObj;
+    LNew := LOld or aArg;
+  until InterlockedCompareExchange64(aObj, LNew, LOld) = LOld;
+  Result := LOld;
+end;
+
+function atomic_fetch_or(var aObj: UInt64; aArg: UInt64): UInt64;
+begin
+  Result := UInt64(atomic_fetch_or(Int64(aObj), Int64(aArg)));
+end;
+{$ENDIF}
+
+function atomic_fetch_xor(var aObj: Int32; aArg: Int32): Int32;
+var
+  LOld, LNew: Int32;
+begin
+  repeat
+    LOld := aObj;
+    LNew := LOld xor aArg;
+  until InterlockedCompareExchange(aObj, LNew, LOld) = LOld;
+  Result := LOld;
+end;
+
+function atomic_fetch_xor(var aObj: UInt32; aArg: UInt32): UInt32;
+begin
+  Result := UInt32(atomic_fetch_xor(Int32(aObj), Int32(aArg)));
+end;
+
+function atomic_fetch_xor(var aObj: PtrInt; aArg: PtrInt): PtrInt;
+begin
+  {$IF SIZEOF(PtrInt) = 4}
+    Result := PtrInt(atomic_fetch_xor(Int32(aObj), Int32(aArg)));
+  {$ELSE}
+    Result := PtrInt(atomic_fetch_xor(Int64(aObj), Int64(aArg)));
+  {$ENDIF}
+end;
+
+function atomic_fetch_xor(var aObj: PtrUInt; aArg: PtrUInt): PtrUInt;
+begin
+  Result := PtrUInt(atomic_fetch_xor(PtrInt(aObj), PtrInt(aArg)));
+end;
+
+function atomic_fetch_xor(var aObj: Pointer; aArg: Pointer): Pointer;
+begin
+  Result := Pointer(atomic_fetch_xor(PtrInt(aObj), PtrInt(aArg)));
+end;
+
+{$IFDEF CPU64}
+function atomic_fetch_xor(var aObj: Int64; aArg: Int64): Int64;
+var
+  LOld, LNew: Int64;
+begin
+  repeat
+    LOld := aObj;
+    LNew := LOld xor aArg;
+  until InterlockedCompareExchange64(aObj, LNew, LOld) = LOld;
+  Result := LOld;
+end;
+
+function atomic_fetch_xor(var aObj: UInt64; aArg: UInt64): UInt64;
+begin
+  Result := UInt64(atomic_fetch_xor(Int64(aObj), Int64(aArg)));
+end;
+{$ENDIF}
+
+
+function atomic_flag_test_and_set(var aFlag: atomic_flag_t): Boolean;
+begin
+  Result := (InterlockedExchange(Int32(aFlag), 1) <> 0);
+end;
+
+procedure atomic_flag_clear(var aFlag: atomic_flag_t);
+begin
+  InterlockedExchange(Int32(aFlag), 0);
 end;
 
 function atomic_is_lock_free_32: Boolean;
 begin
-  Result := True;
+  {$IF DEFINED(CPUI386) OR DEFINED(CPUX86_64) 
+     OR DEFINED(CPUARM) OR DEFINED(CPUAARCH64)
+     OR DEFINED(CPUMIPS) OR DEFINED(CPUMIPSEL)
+     OR DEFINED(CPUMIPS64) OR DEFINED(CPUMIPS64EL)
+     OR DEFINED(CPURISCV32) OR DEFINED(CPURISCV64)
+     OR DEFINED(CPUPPC) OR DEFINED(CPUPPC64)}
+    Result := True;
+  {$ELSE}
+    Result := False;
+  {$ENDIF}
+
 end;
 
+{$IFDEF CPU64}
 function atomic_is_lock_free_64: Boolean;
 begin
-  {$IFDEF CPU64}
-  Result := True;
+  {$IF DEFINED(CPUX86_64) OR DEFINED(CPUAARCH64)
+     OR DEFINED(CPUMIPS64) OR DEFINED(CPUMIPS64EL)
+     OR DEFINED(CPURISCV64) OR DEFINED(CPUPPC64)}
+    Result := True;
   {$ELSE}
-  Result := False;
+    Result := False;
   {$ENDIF}
+
 end;
+{$ENDIF}
 
 function atomic_is_lock_free_ptr: Boolean;
 begin
+  {$IF SIZEOF(Pointer) = 4}
+    Result := atomic_is_lock_free_32;
+  {$ELSE}
+    Result := atomic_is_lock_free_64;
+  {$ENDIF}
+end;
+
+{$IFDEF CPU64}
+const
+  PTR_MASK: UInt64 = $0000FFFFFFFFFFFF; // 低 48 位存指针，高 16 位存 tag
+{$ELSE}
+const
+  PTR_MASK: UInt64 = $00000000FFFFFFFF; // 低 32 位存指针，高 32 位存 tag
+{$ENDIF}
+
+function atomic_tagged_ptr(aPtr: Pointer; aTag: {$IFDEF CPU64}UInt16{$ELSE}UInt32{$ENDIF}): atomic_tagged_ptr_t;
+begin
+  Result := (UInt64(PtrUInt(aPtr)) and PTR_MASK) or (UInt64(aTag) shl (64 - 32));
+end;
+
+function atomic_tagged_ptr_get_ptr(const aTaggedPtr: atomic_tagged_ptr_t): Pointer;
+begin
+  Result := Pointer(aTaggedPtr and PTR_MASK);
+end;
+
+function atomic_tagged_ptr_get_tag(const aTaggedPtr: atomic_tagged_ptr_t): {$IFDEF CPU64}UInt16{$ELSE}UInt32{$ENDIF};
+begin
+  Result := {$IFDEF CPU64}UInt16(aTaggedPtr shr 48){$ELSE}UInt32(aTaggedPtr shr 32){$ENDIF};
+end;
+
+{$IFDEF CPU64}
+function atomic_tagged_ptr_load(var aObj: atomic_tagged_ptr_t): atomic_tagged_ptr_t;
+begin
+  Result := aObj;
+end;
+
+procedure atomic_tagged_ptr_store(var aObj: atomic_tagged_ptr_t; aDesired: atomic_tagged_ptr_t);
+begin
+  InterlockedExchange64(Int64(aObj), Int64(aDesired));
+end;
+
+function atomic_tagged_ptr_exchange(var aObj: atomic_tagged_ptr_t; aDesired: atomic_tagged_ptr_t): atomic_tagged_ptr_t;
+begin
+  Result := atomic_tagged_ptr_t(InterlockedExchange64(Int64(aObj), Int64(aDesired)));
+end;
+
+function atomic_tagged_ptr_compare_exchange_strong(var aObj: atomic_tagged_ptr_t; var aExpected: atomic_tagged_ptr_t; aDesired: atomic_tagged_ptr_t): Boolean;
+var
+  LOld: Int64;
+begin
+  LOld := InterlockedCompareExchange64(Int64(aObj), Int64(aDesired), Int64(aExpected));
+  Result := LOld = Int64(aExpected);
+
+  if not Result then
+    aExpected := atomic_tagged_ptr_t(LOld);
+end;
+
+function atomic_tagged_ptr_compare_exchange_weak(var aObj: atomic_tagged_ptr_t; var aExpected: atomic_tagged_ptr_t; aDesired: atomic_tagged_ptr_t): Boolean;
+begin
+  Result := atomic_tagged_ptr_compare_exchange_strong(aObj, aExpected, aDesired);
+end;
+
+{$ELSE}
+// 32位平台，无锁 CAS 循环实现，拆低高 32位
+function atomic_tagged_ptr_load(var aObj: atomic_tagged_ptr_t): atomic_tagged_ptr_t;
+var
+  LLow1, LLow2, LHigh: UInt32;
+begin
+  repeat
+    LLow1 := UInt32(aObj and PTR_MASK);
+    LHigh := UInt32(aObj shr 32);
+    LLow2 := UInt32(aObj and PTR_MASK);
+  until LLow1 = LLow2;
+  Result := (UInt64(LHigh) shl 32) or UInt64(LLow1);
+end;
+
+procedure atomic_tagged_ptr_store(var aObj: atomic_tagged_ptr_t; aDesired: atomic_tagged_ptr_t);
+var
+  LOld: atomic_tagged_ptr_t;
+begin
+  repeat
+    LOld := atomic_load_tagged_ptr(aObj);
+  until atomic_tagged_ptr_compare_exchange_strong(aObj, LOld, aDesired);
+end;
+
+function atomic_tagged_ptr_exchange(var aObj: atomic_tagged_ptr_t; aDesired: atomic_tagged_ptr_t): atomic_tagged_ptr_t;
+var
+  LOld: atomic_tagged_ptr_t;
+begin
+  repeat
+    LOld := atomic_load_tagged_ptr(aObj);
+  until atomic_tagged_ptr_compare_exchange_strong(aObj, LOld, aDesired);
+  Result := LOld;
+end;
+
+function atomic_tagged_ptr_compare_exchange_strong(var aObj: atomic_tagged_ptr_t; var expected: atomic_tagged_ptr_t; aDesired: atomic_tagged_ptr_t): Boolean;
+var
+  LOld, LNewv: atomic_tagged_ptr_t;
+  LOldLow, LOldHigh, LNewLow, LNewHigh: UInt32;
+begin
+  repeat
+    LOld := aObj;
+    if LOld <> expected then
+    begin
+      expected := LOld;
+      Exit(False);
+    end;
+
+    LOldLow := UInt32(LOld and PTR_MASK);
+    LOldHigh := UInt32(LOld shr 32);
+    LNewv := desired;
+    LNewLow := UInt32(LNewv and PTR_MASK);
+    LNewHigh := UInt32(LNewv shr 32);
+
+    // CAS低32位
+    if InterlockedCompareExchange(UInt32(Pointer(@aObj)^), LNewLow, LOldLow) <> LOldLow then
+      continue;
+
+    // CAS高32位
+    if InterlockedCompareExchange(UInt32(Pointer(@aObj)^ + 4), LNewHigh, LOldHigh) <> LOldHigh then
+      continue;
+
+    Break;
+  until False;
+
   Result := True;
 end;
 
-// === PtrUInt atomic operations implementation ===
-
-function atomic_load(var obj: PtrUInt; order: memory_order): PtrUInt;
+function atomic_tagged_ptr_compare_exchange_weak(var aObj: atomic_tagged_ptr_t; var aExpected: atomic_tagged_ptr_t; aDesired: atomic_tagged_ptr_t): Boolean;
 begin
-{$IFDEF CPU64}
-  Result := PtrUInt(atomic_load_64(PInt64(@obj)^, order));
-{$ELSE}
-  Result := PtrUInt(atomic_load(PInt32(@obj)^, order));
+  Result := atomic_tagged_ptr_compare_exchange_strong(aObj, aExpected, aDesired);
+end;
 {$ENDIF}
+
+// ------------------- memory fence -------------------
+procedure atomic_thread_fence(aOrder: memory_order_t);
+begin
+ case aOrder of
+    mo_relaxed:;                       // 不产生任何屏障
+    mo_consume: ReadDependencyBarrier; // 消费依赖屏障
+    mo_acquire: ReadBarrier;           // 读取屏障，防止 acquire 后续读取重排到前面
+    mo_release: WriteBarrier;          // 写入屏障，防止 release 前写入重排到后面
+    mo_acq_rel: ReadWriteBarrier;      // 同时防止前后读取和写入重排
+    mo_seq_cst: ReadWriteBarrier;      // 最强顺序，保证全序
+  end;
 end;
 
-procedure atomic_store(var obj: PtrUInt; desired: PtrUInt; order: memory_order);
-begin
-{$IFDEF CPU64}
-  atomic_store_64(PInt64(@obj)^, Int64(desired), order);
-{$ELSE}
-  atomic_store(PInt32(@obj)^, Int32(desired), order);
-{$ENDIF}
-end;
+const
+  MAX_TAG: {$IFDEF CPU64}UInt16{$ELSE}UInt32{$ENDIF} = {$IFDEF CPU64}$FFFF{$ELSE}$FFFFFFFF{$ENDIF};
 
-function atomic_exchange(var obj: PtrUInt; desired: PtrUInt; order: memory_order): PtrUInt;
-begin
-{$IFDEF CPU64}
-  Result := PtrUInt(atomic_exchange_64(PInt64(@obj)^, Int64(desired), order));
-{$ELSE}
-  Result := PtrUInt(atomic_exchange(PInt32(@obj)^, Int32(desired), order));
-{$ENDIF}
-end;
-
-function atomic_compare_exchange_strong(var obj: PtrUInt; var expected: PtrUInt; desired: PtrUInt; order: memory_order): Boolean;
-{$IFDEF CPU64}
+function atomic_tagged_ptr_next(const aTaggedPtr: atomic_tagged_ptr_t): {$IFDEF CPU64}UInt16{$ELSE}UInt32{$ENDIF};
 var
-  ExpectedInt64: Int64;
-{$ELSE}
-var
-  ExpectedInt32: Int32;
-{$ENDIF}
+  LTag: {$IFDEF CPU64}UInt16{$ELSE}UInt32{$ENDIF};
 begin
-{$IFDEF CPU64}
-  ExpectedInt64 := Int64(expected);
-  Result := atomic_compare_exchange_strong_64(PInt64(@obj)^, ExpectedInt64, Int64(desired), order);
-  if not Result then
-    expected := PtrUInt(ExpectedInt64);
-{$ELSE}
-  ExpectedInt32 := Int32(expected);
-  Result := atomic_compare_exchange_strong(PInt32(@obj)^, ExpectedInt32, Int32(desired), order);
-  if not Result then
-    expected := PtrUInt(ExpectedInt32);
-{$ENDIF}
-end;
-
-
-
-function atomic_exchange_tagged_ptr(var obj: tagged_ptr; desired: tagged_ptr; order: memory_order): tagged_ptr;
-begin
-{$IFDEF CPU64}
-  Result.combined := UInt64(InterlockedExchange64(PInt64(@obj.combined)^, Int64(desired.combined)));
-  if order in [memory_order_acquire, memory_order_acq_rel, memory_order_seq_cst] then
-    atomic_thread_fence(memory_order_acquire);
-{$ELSE}
-  // Simplified non-atomic fallback on 32-bit
-  Result := obj;
-  obj := desired;
-{$ENDIF}
-end;
-
-function atomic_compare_exchange_weak_tagged_ptr(var obj: tagged_ptr; var expected: tagged_ptr; desired: tagged_ptr; order: memory_order): Boolean;
-var
-  LExpectedInt64, LDesiredInt64: Int64;
-begin
-{$IFDEF CPU64}
-  LExpectedInt64 := Int64(expected.combined);
-  LDesiredInt64 := Int64(desired.combined);
-  Result := atomic_compare_exchange_strong_64(PInt64(@obj.combined)^, LExpectedInt64, LDesiredInt64, order);
-  if not Result then
-    expected.combined := UInt64(LExpectedInt64);
-{$ELSE}
-  Result := (obj.ptr = expected.ptr) and (obj.tag = expected.tag);
-  if Result then obj := desired else expected := obj;
-{$ENDIF}
-end;
-
-
-// === Tagged Pointer operations implementation ===
-
-function atomic_load_tagged_ptr(var obj: tagged_ptr; order: memory_order): tagged_ptr;
-begin
-{$IFDEF CPU64}
-  Result.combined := UInt64(atomic_load_64(PInt64(@obj.combined)^, order));
-{$ELSE}
-  // On 32-bit systems, need lock protection (simplified implementation)
-  Result := obj;
-{$ENDIF}
-end;
-
-procedure atomic_store_tagged_ptr(var obj: tagged_ptr; desired: tagged_ptr; order: memory_order);
-begin
-{$IFDEF CPU64}
-  atomic_store_64(PInt64(@obj.combined)^, Int64(desired.combined), order);
-{$ELSE}
-  // On 32-bit systems, need lock protection (simplified implementation)
-  obj := desired;
-{$ENDIF}
-end;
-
-function atomic_compare_exchange_strong_tagged_ptr(var obj: tagged_ptr; var expected: tagged_ptr; desired: tagged_ptr; order: memory_order): Boolean;
-var
-  LExpectedInt64, LDesiredInt64: Int64;
-begin
-{$IFDEF CPU64}
-  LExpectedInt64 := Int64(expected.combined);
-  LDesiredInt64 := Int64(desired.combined);
-  Result := atomic_compare_exchange_strong_64(PInt64(@obj.combined)^, LExpectedInt64, LDesiredInt64, order);
-  if not Result then
-    expected.combined := UInt64(LExpectedInt64);
-{$ELSE}
-  // On 32-bit systems, need lock protection (simplified implementation)
-  Result := (obj.ptr = expected.ptr) and (obj.tag = expected.tag);
-  if Result then
-    obj := desired
+  LTag := atomic_tagged_ptr_get_tag(aTaggedPtr);
+  if LTag = MAX_TAG then
+    Result := 1
   else
-    expected := obj;
-{$ENDIF}
+    Result := LTag + 1;
 end;
 
-// === Convenience functions implementation ===
-
-function atomic_increment(var obj: Int32): Int32;
+procedure atomic_tagged_ptr_update(var aObj: atomic_tagged_ptr_t; aPtr: Pointer); inline;
+var
+  LOld, LNewV: atomic_tagged_ptr_t;
 begin
-  Result := InterlockedIncrement(obj);
-end;
-
-function atomic_decrement(var obj: Int32): Int32;
-begin
-  Result := InterlockedDecrement(obj);
-end;
-
-function atomic_increment_64(var obj: Int64): Int64;
-begin
-  Result := InterlockedIncrement64(obj);
-end;
-
-function atomic_decrement_64(var obj: Int64): Int64;
-begin
-  Result := InterlockedDecrement64(obj);
-end;
-
-// === Tagged Pointer helper functions implementation ===
-
-function make_tagged_ptr(ptr: Pointer; tag: {$IFDEF CPU64}UInt16{$ELSE}UInt32{$ENDIF}): tagged_ptr;
-begin
-{$IFDEF CPU64}
-  Result.combined := (UInt64(tag) shl 48) or (UInt64(PtrUInt(ptr)) and $0000FFFFFFFFFFFF);
-{$ELSE}
-  Result.ptr := ptr;
-  Result.tag := tag;
-{$ENDIF}
-end;
-
-function get_ptr(const tp: tagged_ptr): Pointer;
-begin
-{$IFDEF CPU64}
-  Result := Pointer(PtrUInt(tp.combined and $0000FFFFFFFFFFFF));
-{$ELSE}
-  Result := tp.ptr;
-{$ENDIF}
-end;
-
-function get_tag(const tp: tagged_ptr): {$IFDEF CPU64}UInt16{$ELSE}UInt32{$ENDIF};
-begin
-{$IFDEF CPU64}
-  Result := UInt16(tp.combined shr 48);
-{$ELSE}
-  Result := tp.tag;
-{$ENDIF}
-end;
-
-function next_tag(const tp: tagged_ptr): {$IFDEF CPU64}UInt16{$ELSE}UInt32{$ENDIF};
-begin
-{$IFDEF CPU64}
-  Result := UInt16(get_tag(tp) + 1);
-{$ELSE}
-  Result := tp.tag + 1;
-{$ENDIF}
+  repeat
+    LOld := atomic_tagged_ptr_load(aObj);
+    LNewV := atomic_tagged_ptr(aPtr, atomic_tagged_ptr_next(LOld));
+  until atomic_tagged_ptr_compare_exchange_weak(aObj, LOld, LNewV);
 end;
 
 end.

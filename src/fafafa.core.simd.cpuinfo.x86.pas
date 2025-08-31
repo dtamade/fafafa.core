@@ -123,43 +123,104 @@ begin
   EDX_Out := result[3];
 end;
 
-procedure CPUIDEX(EAX, ECX_In: DWord; var EAX_Out, EBX_Out, ECX_Out, EDX_Out: DWord);
-begin
+function ActualCPUIDEX(leaf, ecx_in: DWord): TCPUIDResult;
 {$IFDEF CPUX86_64}
-asm
-  push rbx
-  mov eax, EAX
-  mov ecx, ECX_In
-  cpuid
-  mov EAX_Out, eax
-  mov EBX_Out, ebx
-  mov ECX_Out, ecx
-  mov EDX_Out, edx
-  pop rbx
+var
+  result_eax, result_ebx, result_ecx, result_edx: DWord;
+begin
+  asm
+    push rbx
+    mov eax, leaf
+    mov ecx, ecx_in
+    cpuid
+    mov result_eax, eax
+    mov result_ebx, ebx
+    mov result_ecx, ecx
+    mov result_edx, edx
+    pop rbx
+  end;
+
+  Result[0] := result_eax;
+  Result[1] := result_ebx;
+  Result[2] := result_ecx;
+  Result[3] := result_edx;
 end;
 {$ELSE}
-asm
-  push ebx
-  mov eax, EAX
-  mov ecx, ECX_In
-  cpuid
-  mov EAX_Out, eax
-  mov EBX_Out, ebx
-  mov ECX_Out, ecx
-  mov EDX_Out, edx
-  pop ebx
+var
+  result_eax, result_ebx, result_ecx, result_edx: DWord;
+begin
+  asm
+    push ebx
+    push edi
+    mov eax, leaf
+    mov ecx, ecx_in
+    cpuid
+    mov result_eax, eax
+    mov result_ebx, ebx
+    mov result_ecx, ecx
+    mov result_edx, edx
+    pop edi
+    pop ebx
+  end;
+
+  Result[0] := result_eax;
+  Result[1] := result_ebx;
+  Result[2] := result_ecx;
+  Result[3] := result_edx;
 end;
 {$ENDIF}
+
+procedure CPUIDEX(EAX, ECX_In: DWord; var EAX_Out, EBX_Out, ECX_Out, EDX_Out: DWord);
+var
+  result: TCPUIDResult;
+begin
+  result := ActualCPUIDEX(EAX, ECX_In);
+  EAX_Out := result[0];
+  EBX_Out := result[1];
+  ECX_Out := result[2];
+  EDX_Out := result[3];
 end;
 
 // === XGETBV Implementation for AVX OS Support ===
 
 function XGETBV(ECX: DWord): UInt64;
+{$IFDEF CPUX86_64}
+var
+  result_eax, result_edx: DWord;
 begin
-  // Fallback implementation - assume AVX is supported by OS
-  // TODO: Implement proper XGETBV for FreePascal
-  Result := $06; // XCR0 with AVX state saving enabled
+  try
+    asm
+      mov ecx, ECX
+      xgetbv
+      mov result_eax, eax
+      mov result_edx, edx
+    end;
+
+    Result := (UInt64(result_edx) shl 32) or result_eax;
+  except
+    // If XGETBV fails, return 0 (no extended state support)
+    Result := 0;
+  end;
 end;
+{$ELSE}
+var
+  result_eax, result_edx: DWord;
+begin
+  try
+    asm
+      mov ecx, ECX
+      xgetbv
+      mov result_eax, eax
+      mov result_edx, edx
+    end;
+
+    Result := (UInt64(result_edx) shl 32) or result_eax;
+  except
+    // If XGETBV fails, return 0 (no extended state support)
+    Result := 0;
+  end;
+end;
+{$ENDIF}
 
 function IsAVXSupportedByOS: Boolean;
 var
@@ -206,19 +267,22 @@ begin
     // Get basic feature information (Leaf 1)
     CPUID(1, eax, ebx, ecx, edx);
 
-    // Check SSE features (EDX register)
+    // Check basic features (EDX register)
+    Result.HasMMX := (edx and (1 shl 23)) <> 0;
     Result.HasSSE := (edx and (1 shl 25)) <> 0;
     Result.HasSSE2 := (edx and (1 shl 26)) <> 0;
 
-    // Check SSE3+ features (ECX register)
+    // Check SSE3+ and other features (ECX register)
     Result.HasSSE3 := (ecx and (1 shl 0)) <> 0;
+    Result.HasPCLMULQDQ := (ecx and (1 shl 1)) <> 0;
     Result.HasSSSE3 := (ecx and (1 shl 9)) <> 0;
+    Result.HasFMA := (ecx and (1 shl 12)) <> 0;
     Result.HasSSE41 := (ecx and (1 shl 19)) <> 0;
     Result.HasSSE42 := (ecx and (1 shl 20)) <> 0;
-
-    // Check AVX features
+    Result.HasAES := (ecx and (1 shl 25)) <> 0;
     Result.HasAVX := (ecx and (1 shl 28)) <> 0;
-    Result.HasFMA := (ecx and (1 shl 12)) <> 0;
+    Result.HasF16C := (ecx and (1 shl 29)) <> 0;
+    Result.HasRDRAND := (ecx and (1 shl 30)) <> 0;
 
     // Verify OS support for AVX
     if Result.HasAVX then
@@ -230,25 +294,51 @@ begin
       CPUIDEX(7, 0, eax, ebx, ecx, edx);
 
       // EBX register features
-      Result.HasAVX2 := (ebx and (1 shl 5)) <> 0;
-      Result.HasAVX512F := (ebx and (1 shl 16)) <> 0;
-      Result.HasAVX512DQ := (ebx and (1 shl 17)) <> 0;
-      Result.HasAVX512BW := (ebx and (1 shl 30)) <> 0;
+      Result.HasBMI1 := (ebx and (1 shl 3)) <> 0;      // Bit Manipulation Instructions 1
+      Result.HasAVX2 := (ebx and (1 shl 5)) <> 0;      // Advanced Vector Extensions 2
+      Result.HasBMI2 := (ebx and (1 shl 8)) <> 0;      // Bit Manipulation Instructions 2
+      Result.HasAVX512F := (ebx and (1 shl 16)) <> 0;  // AVX-512 Foundation
+      Result.HasAVX512DQ := (ebx and (1 shl 17)) <> 0; // AVX-512 Doubleword and Quadword
+      Result.HasAVX512BW := (ebx and (1 shl 30)) <> 0; // AVX-512 Byte and Word
+      Result.HasAVX512VL := (ebx and (1 shl 31)) <> 0; // AVX-512 Vector Length Extensions
+
+      // ECX register features
+      Result.HasAVX512VBMI := (ecx and (1 shl 1)) <> 0; // AVX-512 Vector Bit Manipulation Instructions
+      Result.HasSHA := (ebx and (1 shl 29)) <> 0;       // SHA extensions
+
+      // EDX register features
+      Result.HasRDSEED := (ecx and (1 shl 18)) <> 0;    // Hardware random seed generator
 
       // Validate feature hierarchy
       if not Result.HasAVX then
+      begin
         Result.HasAVX2 := False;
+        Result.HasFMA := False;  // FMA requires AVX
+      end;
 
       if not Result.HasAVX2 then
       begin
         Result.HasAVX512F := False;
         Result.HasAVX512DQ := False;
         Result.HasAVX512BW := False;
+        Result.HasAVX512VL := False;
+        Result.HasAVX512VBMI := False;
       end;
     end;
 
     // Check extended function availability
     CPUID($80000000, maxExtLeaf, ebx, ecx, edx);
+
+    // Check AMD extended features if available
+    if maxExtLeaf >= $80000001 then
+    begin
+      CPUID($80000001, eax, ebx, ecx, edx);
+
+      // AMD-specific features (ECX register)
+      Result.HasFMA4 := (ecx and (1 shl 16)) <> 0;  // FMA4 (AMD)
+
+      // Additional AMD features can be added here
+    end;
 
   except
     // If any CPUID call fails, return conservative defaults

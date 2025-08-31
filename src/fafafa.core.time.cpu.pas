@@ -42,8 +42,16 @@ interface
     end;
 }
 procedure CpuRelax;
+procedure SchedYield; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
 
 implementation
+
+
+{$IFDEF UNIX}
+  {$IFNDEF LINUX}
+  function libc_sched_yield: cint; cdecl; external 'c' name 'sched_yield';
+  {$ENDIF}
+{$ENDIF}
 
 {$IFDEF WINDOWS}
 // Windows API 函数声明
@@ -92,7 +100,7 @@ asm
 end;
 
 {$ELSE}
-procedure CpuRelax;
+procedure CpuRelax; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
 begin
   // 未知架构的后备方案
   {$IFDEF WINDOWS}
@@ -102,6 +110,28 @@ begin
   {$ELSE}
   // 最后的后备方案：什么都不做
   {$ENDIF}
+end;
+{$ENDIF}
+
+procedure SchedYield;
+begin
+{$IFDEF UNIX}
+  {$IFDEF LINUX}
+  sched_yield;
+  {$ELSE}
+  libc_sched_yield;
+  {$ENDIF}
+{$ELSE}
+  {$IFDEF WINDOWS}
+  SwitchToThread;
+  {$ENDIF}
+{$ENDIF}
+end;
+
+{$IFDEF MSWINDOWS}
+procedure SchedYield;
+begin
+  SwitchToThread; // Windows 等价 sched_yield
 end;
 {$ENDIF}
 

@@ -10,28 +10,21 @@ uses
   , BaseUnix
   {$ENDIF};
 
+const
+  LOCKED_BIT = $01;  // 0b01 - 锁定位
+  PARKED_BIT = $02;  // 0b10 - 有线程等待位
+
 type
   // 直接移植 Rust parking_lot 的 RawMutex 实现
-  TParkingLotMutex = class(TInterfacedObject, ITryLock)
+  TParkingLotMutex = class(TTryLock, ITryLock)
   private
-    // 原子状态，使用 32 位 (FreePascal 限制)
+    // 原子状态
     FState: LongWord;
 
-    // 数据指针 (ISynchronizable 接口需要)
-    FData: Pointer;
-
-    // 常量定义 (直接移植 Rust 的位掩码)
-    const
-      LOCKED_BIT = $01;  // 0b01 - 锁定位
-      PARKED_BIT = $02;  // 0b10 - 有线程等待位
-    
-    // 直接移植 Rust parking_lot 的方法
-    function TryLockFast: Boolean; inline;
+    function  TryLockFast: Boolean; {$IFDEF FAFAFA_CORE_INLINE}inline{$ENDIF};
     procedure LockSlow(ATimeoutMs: Cardinal = INFINITE);
     procedure UnlockSlow(AForceFair: Boolean);
-
-    // 自旋等待辅助
-    function ShouldSpin(var ASpinCount: Integer): Boolean; inline;
+    function  ShouldSpin(var ASpinCount: Integer): Boolean; inline;
 
     // parking_lot_core 的简化实现
     procedure ParkThread(ATimeoutMs: Cardinal = INFINITE);
@@ -39,11 +32,7 @@ type
     
   public
     constructor Create;
-    
-    // ISynchronizable 接口实现
-    function GetData: Pointer;
-    procedure SetData(aData: Pointer);
-    
+
     // ILock 接口实现
     procedure Acquire;
     procedure Release;
@@ -122,8 +111,8 @@ end;
 constructor TParkingLotMutex.Create;
 begin
   inherited Create;
-  FState := 0; // 初始状态：未锁定，无等待者
-  FData := nil;
+  FState := 0;
+  FData  := nil;
 end;
 
 function TParkingLotMutex.GetData: Pointer;
@@ -165,6 +154,11 @@ begin
 end;
 
 procedure TParkingLotMutex.ParkThread(ATimeoutMs: Cardinal);
+{$IFNDEF WINDOWS}
+var
+  TimeSpec: TTimeSpec;
+  TimeSpecPtr: PTimeSpec;
+{$ENDIF}
 begin
   // 简化的 parking_lot_core::park 实现
   // 验证状态：确保我们应该等待
@@ -173,20 +167,12 @@ begin
 
   {$IFDEF WINDOWS}
   if HasWaitOnAddress then
-  begin
-    // 使用 Windows 8.1+ 的 WaitOnAddress
-    WaitOnAddressFunc(@FState, @FState, SizeOf(LongWord), ATimeoutMs);
-  end
+    WaitOnAddressFunc(@FState, @FState, SizeOf(LongWord), ATimeoutMs) // 使用 Windows 8.1+ 的 WaitOnAddress
   else
-  begin
-    // 回退到简单的等待
-    Sleep(1);
-  end;
+    SchedYield; // 回退到简单的等待
   {$ELSE}
   // 使用 Linux futex 带超时
-  var
-    TimeSpec: TTimeSpec;
-    TimeSpecPtr: PTimeSpec;
+
   begin
     if ATimeoutMs = INFINITE then
       TimeSpecPtr := nil
@@ -224,7 +210,6 @@ var
   State: LongWord;
   SpinCount: Integer;
 begin
-  // 直接移植 Rust 的 lock_slow 逻辑
   SpinCount := 0;
   State := FState;
 
@@ -257,11 +242,7 @@ begin
       end;
     end;
 
-    // Park our thread until we are woken up by an unlock
-    // 这里简化实现，使用系统原语
     ParkThread(ATimeoutMs);
-
-    // Loop back and try locking again
     SpinCount := 0;
     State := FState;
   until False;
@@ -269,13 +250,8 @@ end;
 
 procedure TParkingLotMutex.Acquire;
 begin
-  // 直接移植 Rust 的 lock() 方法:
-  // if self.state.compare_exchange_weak(0, LOCKED_BIT, Acquire, Relaxed).is_err()
   if not TryLockFast then
-  begin
-    // self.lock_slow(None);
     LockSlow(INFINITE);
-  end;
 end;
 
 function TParkingLotMutex.TryAcquire: Boolean;
@@ -291,17 +267,15 @@ var
   ElapsedMs: DWORD;
   RemainingMs: Cardinal;
 begin
-  // 先尝试快速获取
   if TryLockFast then
     Exit(True);
 
   if ATimeoutMs = 0 then
     Exit(False);
 
-  // 使用高精度计时
   StartTime := GetTickCount;
   SpinCount := 0;
-  State := FState;
+  State     := FState;
 
   // 带超时的精确获取循环 - 复用 LockSlow 的逻辑但加入超时检查
   repeat
@@ -310,7 +284,6 @@ begin
     if ElapsedMs >= ATimeoutMs then
       Exit(False);
 
-    // Grab the lock if it isn't locked, even if there is a queue on it
     if (State and LOCKED_BIT) = 0 then
     begin
       if InterlockedCompareExchange(FState, State or LOCKED_BIT, State) = State then
@@ -319,14 +292,12 @@ begin
       Continue;
     end;
 
-    // If there is no queue, try spinning a few times
     if ((State and PARKED_BIT) = 0) and ShouldSpin(SpinCount) then
     begin
       State := FState;
       Continue;
     end;
 
-    // Set the parked bit
     if (State and PARKED_BIT) = 0 then
     begin
       if InterlockedCompareExchange(FState, State or PARKED_BIT, State) = State then
@@ -338,14 +309,11 @@ begin
       end;
     end;
 
-    // Park our thread with remaining timeout
     RemainingMs := ATimeoutMs - ElapsedMs;
     if RemainingMs = 0 then
       Exit(False);
 
     ParkThread(RemainingMs);
-
-    // Loop back and try locking again
     SpinCount := 0;
     State := FState;
   until False;
@@ -355,12 +323,9 @@ end;
 
 procedure TParkingLotMutex.Release;
 begin
-  // 直接移植 Rust 的 unlock() 方法:
-  // if self.state.compare_exchange(LOCKED_BIT, 0, Release, Relaxed).is_ok()
   if InterlockedCompareExchange(FState, 0, LOCKED_BIT) = LOCKED_BIT then
     Exit; // 快速路径：没有等待者
 
-  // self.unlock_slow(false);
   UnlockSlow(False);
 end;
 
@@ -368,7 +333,6 @@ procedure TParkingLotMutex.UnlockSlow(AForceFair: Boolean);
 var
   HasMoreThreads: Boolean;
 begin
-  // 直接移植 Rust 的 unlock_slow 逻辑
   // 尝试唤醒一个等待的线程
   HasMoreThreads := UnparkOneThread;
 
