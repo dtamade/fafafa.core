@@ -12,7 +12,7 @@ uses
   SysUtils;
 
 
-// Utilities
+
 function XmlEscape(const S: string): string;
 
 

@@ -73,5 +73,187 @@
     "deque": "cpp",
     "string": "cpp",
     "vector": "cpp"
+  },
+  "commentbars.commentDelimsFallback": {
+    "ObjectPascal": {
+            "start": "{",
+            "end": "}"
+        },
+    "Pascal": {
+    "start": "{",
+    "end": "}"
+    },
+    "javascript": {
+      "start": "// ",
+      "end": " //"
+    },
+    "batch": {
+      "start": "REM "
+    },
+    "c": {
+      "start": "/* ",
+      "end": " */"
+    },
+    "csharp": {
+      "start": "// ",
+      "end": " //"
+    },
+    "cpp": {
+      "start": "// ",
+      "end": " //"
+    },
+    "css": {
+      "start": "/* ",
+      "end": " */"
+    },
+    "clojure": {
+      "start": "; "
+    },
+    "coffeescript": {
+      "start": "# "
+    },
+    "dockerfile": {
+      "start": "# ",
+      "end": " #"
+    },
+    "fsharp": {
+      "start": "// "
+    },
+    "go": {
+      "start": "// "
+    },
+    "groovy": {
+      "start": "// "
+    },
+    "hlsl": {
+      "start": "// ",
+      "end": " //"
+    },
+    "html": {
+      "start": "<!--",
+      "end": "-->"
+    },
+    "handlebars": {
+      "start": "{{!-- ",
+      "end": " --}}"
+    },
+    "ignore": {
+      "start": "#",
+      "end": "#"
+    },
+    "ini": {
+      "start": "# ",
+      "end": " #"
+    },
+    "jsonc": {
+      "start": "// "
+    },
+    "java": {
+      "start": "// ",
+      "end": " //"
+    },
+    "javascriptreact": {
+      "start": "// ",
+      "end": " //"
+    },
+    "jinja": {
+      "start": "{# ",
+      "end": " #}"
+    },
+    "less": {
+      "start": "// ",
+      "end": " //"
+    },
+    "lua": {
+      "start": "-- "
+    },
+    "makefile": {
+      "start": "# ",
+      "end": " #"
+    },
+    "markdown": {
+      "start": "<!--",
+      "end": "-->"
+    },
+    "objective-c": {
+      "start": "// ",
+      "end": " //"
+    },
+    "objective-cpp": {
+      "start": "// ",
+      "end": " //"
+    },
+    "php": {
+      "start": "// ",
+      "end": " //"
+    },
+    "perl": {
+      "start": "# "
+    },
+    "powershell": {
+      "start": "<# ",
+      "end": " #>"
+    },
+    "jade": {
+      "start": "//- ",
+      "emd": " -//"
+    },
+    "python": {
+      "start": "# ",
+      "end": " #"
+    },
+    "r": {
+      "start": "# "
+    },
+    "razor": {
+      "start": "@* ",
+      "end": " *@"
+    },
+    "ruby": {
+      "start": "# ",
+      "end": " #"
+    },
+    "rust": {
+      "start": "// "
+    },
+    "scss": {
+      "start": "// ",
+      "end": " //"
+    },
+    "shaderlab": {
+      "start": "// ",
+      "end": " //"
+    },
+    "shellscript": {
+      "start": "# ",
+      "end": " #"
+    },
+    "swift": {
+      "start": "// ",
+      "end": " //"
+    },
+    "typescript": {
+      "start": "// ",
+      "end": " //"
+    },
+    "typescriptreact": {
+      "start": "// ",
+      "end": " //"
+    },
+    "vb": {
+      "start": "'"
+    },
+    "xml": {
+      "start": "<!--",
+      "end": "-->"
+    },
+    "yaml": {
+      "start": "# ",
+      "emd": " #"
+    },
+    "pip-requirements": {
+      "start": "# ",
+      "end": " #"
+    }
   }
 }
