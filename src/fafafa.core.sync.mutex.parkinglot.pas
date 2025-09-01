@@ -171,20 +171,16 @@ begin
   else
     SchedYield; // 回退到简单的等待
   {$ELSE}
-  // 使用 Linux futex 带超时
-
+  if ATimeoutMs = INFINITE then
+    TimeSpecPtr := nil
+  else
   begin
-    if ATimeoutMs = INFINITE then
-      TimeSpecPtr := nil
-    else
-    begin
-      TimeSpec.tv_sec := ATimeoutMs div 1000;
-      TimeSpec.tv_nsec := (ATimeoutMs mod 1000) * 1000000;
-      TimeSpecPtr := @TimeSpec;
-    end;
-
-    futex(PLongWord(@FState), FUTEX_WAIT, LOCKED_BIT or PARKED_BIT, TimeSpecPtr, nil, 0);
+    TimeSpec.tv_sec  := ATimeoutMs div 1000;
+    TimeSpec.tv_nsec := (ATimeoutMs mod 1000) * 1000000;
+    TimeSpecPtr      := @TimeSpec;
   end;
+
+  futex(PLongWord(@FState), FUTEX_WAIT, LOCKED_BIT or PARKED_BIT, TimeSpecPtr, nil, 0);
   {$ENDIF}
 end;
 
@@ -214,7 +210,6 @@ begin
   State := FState;
 
   repeat
-    // Grab the lock if it isn't locked, even if there is a queue on it
     if (State and LOCKED_BIT) = 0 then
     begin
       if InterlockedCompareExchange(FState, State or LOCKED_BIT, State) = State then
@@ -223,14 +218,12 @@ begin
       Continue;
     end;
 
-    // If there is no queue, try spinning a few times
     if ((State and PARKED_BIT) = 0) and ShouldSpin(SpinCount) then
     begin
       State := FState;
       Continue;
     end;
 
-    // Set the parked bit
     if (State and PARKED_BIT) = 0 then
     begin
       if InterlockedCompareExchange(FState, State or PARKED_BIT, State) = State then

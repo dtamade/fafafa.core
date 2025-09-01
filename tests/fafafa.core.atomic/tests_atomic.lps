@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <ProjectSession>
+    <PathDelim Value="\"/>
+    <Version Value="12"/>
+    <BuildModes Active="Debug"/>
+    <Units>
+      <Unit>
+        <Filename Value="tests_atomic.lpr"/>
+        <IsPartOfProject Value="True"/>
+        <CursorPos Y="2"/>
+        <UsageCount Value="22"/>
+        <Loaded Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="Test_fafafa.core.atomic.pas"/>
+        <IsPartOfProject Value="True"/>
+        <EditorIndex Value="1"/>
+        <TopLine Value="92"/>
+        <CursorPos X="14" Y="124"/>
+        <UsageCount Value="22"/>
+        <Loaded Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\src\fafafa.core.atomic.pas"/>
+        <IsVisibleTab Value="True"/>
+        <EditorIndex Value="2"/>
+        <TopLine Value="617"/>
+        <CursorPos X="9" Y="653"/>
+        <UsageCount Value="11"/>
+        <Loaded Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="D:\devtools\lazarus\trunk\fpcsrc\rtl\inc\systemh.inc"/>
+        <EditorIndex Value="3"/>
+        <TopLine Value="1606"/>
+        <CursorPos X="10" Y="1644"/>
+        <UsageCount Value="10"/>
+        <Loaded Value="True"/>
+      </Unit>
+    </Units>
+    <JumpHistory HistoryIndex="29">
+      <Position>
+        <Filename Value="..\..\src\fafafa.core.atomic.pas"/>
+        <Caret Line="1108" Column="81" TopLine="1080"/>
+      </Position>
+      <Position>
+        <Filename Value="..\..\src\fafafa.core.atomic.pas"/>
+        <Caret Line="1113" Column="65" TopLine="1081"/>
+      </Position>
+      <Position>
+        <Filename Value="..\..\src\fafafa.core.atomic.pas"/>
+        <Caret Line="1125" Column="21" TopLine="1093"/>
+      </Position>
+      <Position>
+        <Filename Value="..\..\src\fafafa.core.atomic.pas"/>
+        <Caret Line="1113" Column="65" TopLine="1081"/>
+      </Position>
+      <Position>
+        <Filename Value="..\..\src\fafafa.core.atomic.pas"/>
+        <Caret Line="1112" Column="46" TopLine="1081"/>
+      </Position>
+      <Position>
+        <Filename Value="..\..\src\fafafa.core.atomic.pas"/>
+        <Caret Line="1106" Column="74" TopLine="1074"/>
+      </Position>
+      <Position>
+        <Filename Value="..\..\src\fafafa.core.atomic.pas"/>
+        <Caret Line="1113" Column="49" TopLine="1081"/>
+      </Position>
+      <Position>
+        <Filename Value="..\..\src\fafafa.core.atomic.pas"/>
+        <Caret Line="1111" TopLine="1081"/>
+      </Position>
+      <Position>
+        <Filename Value="..\..\src\fafafa.core.atomic.pas"/>
+        <Caret Line="1118" Column="54" TopLine="1081"/>
+      </Position>
+      <Position>
+        <Filename Value="..\..\src\fafafa.core.atomic.pas"/>
+        <Caret Line="1119" Column="20" TopLine="1081"/>
+      </Position>
+      <Position>
+        <Filename Value="..\..\src\fafafa.core.atomic.pas"/>
+        <Caret Line="1106" Column="74" TopLine="1074"/>
+      </Position>
+      <Position>
+        <Filename Value="..\..\src\fafafa.core.atomic.pas"/>
+        <Caret Line="1131" Column="60" TopLine="1074"/>
+      </Position>
+      <Position>
+        <Filename Value="..\..\src\fafafa.core.atomic.pas"/>
+        <Caret Line="1064" Column="21" TopLine="1032"/>
+      </Position>
+      <Position>
+        <Filename Value="..\..\src\fafafa.core.atomic.pas"/>
+        <Caret Line="1106" Column="74" TopLine="1074"/>
+      </Position>
+      <Position>
+        <Filename Value="..\..\src\fafafa.core.atomic.pas"/>
+        <Caret Line="1064" Column="21" TopLine="1032"/>
+      </Position>
+      <Position>
+        <Filename Value="..\..\src\fafafa.core.atomic.pas"/>
+        <Caret Line="1106" Column="68" TopLine="1059"/>
+      </Position>
+      <Position>
+        <Filename Value="..\..\src\fafafa.core.atomic.pas"/>
+        <Caret Line="1064" Column="21" TopLine="1032"/>
+      </Position>
+      <Position>
+        <Filename Value="..\..\src\fafafa.core.atomic.pas"/>
+        <Caret Line="1081" TopLine="1029"/>
+      </Position>
+      <Position>
+        <Filename Value="..\..\src\fafafa.core.atomic.pas"/>
+        <Caret Line="1059" Column="21" TopLine="1027"/>
+      </Position>
+      <Position>
+        <Filename Value="..\..\src\fafafa.core.atomic.pas"/>
+        <Caret Line="1138" Column="56" TopLine="1087"/>
+      </Position>
+      <Position>
+        <Filename Value="..\..\src\fafafa.core.atomic.pas"/>
+        <Caret Line="1064" Column="21" TopLine="1032"/>
+      </Position>
+      <Position>
+        <Filename Value="..\..\src\fafafa.core.atomic.pas"/>
+        <Caret Line="1048" Column="9" TopLine="1023"/>
+      </Position>
+      <Position>
+        <Filename Value="..\..\src\fafafa.core.atomic.pas"/>
+        <Caret Line="1010" Column="21" TopLine="978"/>
+      </Position>
+      <Position>
+        <Filename Value="..\..\src\fafafa.core.atomic.pas"/>
+        <Caret Line="994" Column="9" TopLine="960"/>
+      </Position>
+      <Position>
+        <Filename Value="..\..\src\fafafa.core.atomic.pas"/>
+        <Caret Line="957" Column="23" TopLine="925"/>
+      </Position>
+      <Position>
+        <Filename Value="..\..\src\fafafa.core.atomic.pas"/>
+        <Caret Line="938" Column="9" TopLine="901"/>
+      </Position>
+      <Position>
+        <Filename Value="..\..\src\fafafa.core.atomic.pas"/>
+        <Caret Line="874" Column="9" TopLine="841"/>
+      </Position>
+      <Position>
+        <Filename Value="..\..\src\fafafa.core.atomic.pas"/>
+        <Caret Line="843" Column="58" TopLine="811"/>
+      </Position>
+      <Position>
+        <Filename Value="..\..\src\fafafa.core.atomic.pas"/>
+        <Caret Line="829" Column="16" TopLine="796"/>
+      </Position>
+      <Position>
+        <Filename Value="..\..\src\fafafa.core.atomic.pas"/>
+        <Caret Line="784" Column="17" TopLine="753"/>
+      </Position>
+    </JumpHistory>
+    <RunParams>
+      <FormatVersion Value="2"/>
+      <Modes ActiveMode=""/>
+    </RunParams>
+  </ProjectSession>
+</CONFIG>

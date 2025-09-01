@@ -181,27 +181,39 @@ end;
 // === 向量比较 ===
 
 function Scalar_VecF32x4_Equal(const a, b: TVecF32x4): TMask4;
+var
+  m: Byte;
 begin
-  Result.m[0] := a.f[0] = b.f[0];
-  Result.m[1] := a.f[1] = b.f[1];
-  Result.m[2] := a.f[2] = b.f[2];
-  Result.m[3] := a.f[3] = b.f[3];
+  m := 0;
+  if a.f[0] = b.f[0] then m := m or (1 shl 0);
+  if a.f[1] = b.f[1] then m := m or (1 shl 1);
+  if a.f[2] = b.f[2] then m := m or (1 shl 2);
+  if a.f[3] = b.f[3] then m := m or (1 shl 3);
+  Result := TMask4(m);
 end;
 
 function Scalar_VecF32x4_Less(const a, b: TVecF32x4): TMask4;
+var
+  m: Byte;
 begin
-  Result.m[0] := a.f[0] < b.f[0];
-  Result.m[1] := a.f[1] < b.f[1];
-  Result.m[2] := a.f[2] < b.f[2];
-  Result.m[3] := a.f[3] < b.f[3];
+  m := 0;
+  if a.f[0] < b.f[0] then m := m or (1 shl 0);
+  if a.f[1] < b.f[1] then m := m or (1 shl 1);
+  if a.f[2] < b.f[2] then m := m or (1 shl 2);
+  if a.f[3] < b.f[3] then m := m or (1 shl 3);
+  Result := TMask4(m);
 end;
 
 function Scalar_VecF32x4_Greater(const a, b: TVecF32x4): TMask4;
+var
+  m: Byte;
 begin
-  Result.m[0] := a.f[0] > b.f[0];
-  Result.m[1] := a.f[1] > b.f[1];
-  Result.m[2] := a.f[2] > b.f[2];
-  Result.m[3] := a.f[3] > b.f[3];
+  m := 0;
+  if a.f[0] > b.f[0] then m := m or (1 shl 0);
+  if a.f[1] > b.f[1] then m := m or (1 shl 1);
+  if a.f[2] > b.f[2] then m := m or (1 shl 2);
+  if a.f[3] > b.f[3] then m := m or (1 shl 3);
+  Result := TMask4(m);
 end;
 
 // === 向量数学函数 ===

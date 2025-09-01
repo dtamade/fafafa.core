@@ -84,36 +84,12 @@ type
 
 // === Mask Types (Bit Masks) ===
 type
-  // Bit masks for conditional operations
-  TMask2 = record
-    case Integer of
-      0: (m: array[0..1] of Boolean);
-      1: (raw: Byte);
-  end;
-
-  TMask4 = record
-    case Integer of
-      0: (m: array[0..3] of Boolean);
-      1: (raw: Byte);
-  end;
-
-  TMask8 = record
-    case Integer of
-      0: (m: array[0..7] of Boolean);
-      1: (raw: Byte);
-  end;
-
-  TMask16 = record
-    case Integer of
-      0: (m: array[0..15] of Boolean);
-      1: (raw: Word);
-  end;
-
-  TMask32 = record
-    case Integer of
-      0: (m: array[0..31] of Boolean);
-      1: (raw: DWord);
-  end;
+  // 简化为基础整数类型，便于常量定义与互操作
+  TMask2 = type Byte;    // 使用低 2 位
+  TMask4 = type Byte;    // 使用低 4 位
+  TMask8 = type Byte;    // 使用低 8 位
+  TMask16 = type Word;   // 使用低 16 位
+  TMask32 = type DWord;  // 使用低 32 位
 
 // === Element Types ===
 type

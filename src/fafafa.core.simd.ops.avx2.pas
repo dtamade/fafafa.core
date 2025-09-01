@@ -31,6 +31,8 @@ implementation
 uses
   fafafa.core.simd.cpuinfo.x86;
 
+{$asmmode intel}
+
 function AVX2_VecI32x8_Add(const a, b: TVecI32x8): TVecI32x8;
 begin
   if HasAVX2 then

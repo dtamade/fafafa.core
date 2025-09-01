@@ -535,7 +535,7 @@ begin
   {$IF DEFINED(CPUX86_64)}
     atomic_store_64(aObj, aDesired, mo_relaxed);
   {$ELSE}
-    atomic_store_64(aObj, aDesired, mo_release);
+    atomic_store(aObj, aDesired, mo_release);
   {$ENDIF}
 end;
 
@@ -934,7 +934,7 @@ end;
 
 function atomic_fetch_sub_64(var aObj: UInt64; aArg: UInt64): UInt64;
 begin
-  Result := UInt64(atomic_fetch_sub_64(PInt64(@aObj)^, PInt64(@aArg)^));
+  Result := UInt64(atomic_fetch_sub_64(Int64(aObj), Int64(aArg)));
 end;
 {$ENDIF}
 
@@ -953,7 +953,7 @@ begin
   {$IF SIZEOF(PtrInt) = 4}
     Result := PtrInt(atomic_fetch_sub(Int32(aObj), Int32(aArg)));
   {$ELSE}
-    Result := PtrInt(atomic_fetch_sub_64(PInt64(@aObj)^, PInt64(@aArg)^));
+    Result := PtrInt(atomic_fetch_sub_64(Int64(aObj), Int64(aArg)));
   {$ENDIF}
 end;
 
@@ -967,7 +967,7 @@ begin
   {$IF SIZEOF(Pointer) = 4}
     Result := Pointer(atomic_fetch_sub(Int32(aObj), Int32(aArg)));
   {$ELSE}
-    Result := Pointer(atomic_fetch_sub_64(PInt64(@aObj)^, PInt64(@aArg)^));
+    Result := Pointer(atomic_fetch_sub(Int64(aObj), Int64(aArg)));
   {$ENDIF}
 end;
 
@@ -990,7 +990,7 @@ end;
 
 function atomic_fetch_and_64(var aObj: UInt64; aArg: UInt64): UInt64;
 begin
-  Result := UInt64(atomic_fetch_and_64(PInt64(@aObj)^, PInt64(@aArg)^));
+  Result := UInt64(atomic_fetch_and_64(Int64(aObj), Int64(aArg)));
 end;
 {$ENDIF}
 
@@ -1015,7 +1015,7 @@ begin
   {$IF SIZEOF(PtrInt) = 4}
     Result := PtrInt(atomic_fetch_and(Int32(aObj), Int32(aArg)));
   {$ELSE}
-    Result := PtrInt(atomic_fetch_and_64(PInt64(@aObj)^, PInt64(@aArg)^));
+    Result := PtrInt(atomic_fetch_and_64(Int64(aObj), Int64(aArg)));
   {$ENDIF}
 end;
 
@@ -1044,7 +1044,7 @@ end;
 
 function atomic_fetch_or_64(var aObj: UInt64; aArg: UInt64): UInt64;
 begin
-  Result := UInt64(atomic_fetch_or_64(PInt64(@aObj)^, PInt64(@aArg)^));
+  Result := UInt64(atomic_fetch_or_64(Int64(aObj), Int64(aArg)));
 end;
 {$ENDIF}
 
@@ -1069,7 +1069,7 @@ begin
   {$IF SIZEOF(PtrInt) = 4}
     Result := PtrInt(atomic_fetch_or(Int32(aObj), Int32(aArg)));
   {$ELSE}
-    Result := PtrInt(atomic_fetch_or_64(PInt64(@aObj)^, PInt64(@aArg)^));
+    Result := PtrInt(atomic_fetch_or_64(Int64(aObj), Int64(aArg)));
   {$ENDIF}
 end;
 
@@ -1097,7 +1097,7 @@ end;
 
 function atomic_fetch_xor_64(var aObj: UInt64; aArg: UInt64): UInt64;
 begin
-  Result := UInt64(atomic_fetch_xor_64(PInt64(@aObj)^, PInt64(@aArg)^));
+  Result := UInt64(atomic_fetch_xor_64(Int64(aObj), Int64(aArg)));
 end;
 {$ENDIF}
 
@@ -1122,7 +1122,7 @@ begin
   {$IF SIZEOF(PtrInt) = 4}
     Result := PtrInt(atomic_fetch_xor(Int32(aObj), Int32(aArg)));
   {$ELSE}
-    Result := PtrInt(atomic_fetch_xor_64(PInt64(@aObj)^, PInt64(@aArg)^));
+    Result := PtrInt(atomic_fetch_xor_64(Int64(aObj), Int64(aArg)));
   {$ENDIF}
 end;
 
@@ -1136,7 +1136,7 @@ begin
  {$IF SIZEOF(Pointer) = 4}
    Result := Pointer(atomic_fetch_xor(Int32(aObj), Int32(aArg)));
  {$ELSE}
-   Result := Pointer(atomic_fetch_xor_64(PInt64(@aObj)^, PInt64(@aArg)^));
+   Result := Pointer(atomic_fetch_xor_64(PInt64(@aObj)^, Int64(aArg)));
  {$ENDIF}
 end;
 

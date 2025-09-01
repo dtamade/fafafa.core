@@ -35,6 +35,8 @@ function X86_VecF32x4_Max(const a, b: TVecF32x4): TVecF32x4;
 
 implementation
 
+{$asmmode intel}
+
 uses
   fafafa.core.simd.cpuinfo.x86;
 

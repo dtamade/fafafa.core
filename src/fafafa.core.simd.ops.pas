@@ -80,13 +80,16 @@ implementation
 uses
   {$IFDEF SIMD_X86_AVAILABLE}
   fafafa.core.simd.ops.x86,
-  fafafa.core.simd.ops.avx,
-  fafafa.core.simd.ops.avx2,
   {$ENDIF}
   {$IFDEF SIMD_ARM_AVAILABLE}
   fafafa.core.simd.ops.arm,
   {$ENDIF}
   fafafa.core.simd.ops.scalar;
+
+  {$IFDEF SIMD_X86_AVAILABLE}
+  fafafa.core.simd.ops.avx,
+  fafafa.core.simd.ops.avx2,
+  {$ENDIF}
 
 // === 实现选择器 ===
 

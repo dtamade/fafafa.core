@@ -22,7 +22,7 @@ type
   TParkingLotMutex = class(TTryLock, IParkingLotMutex)
   protected
     FState: LongWord;  // 原子状态
-  
+
     function  TryLockFast: Boolean; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
     procedure LockSlow(ATimeoutMs: Cardinal = INFINITE); virtual;
     procedure UnlockSlow(AForceFair: Boolean);

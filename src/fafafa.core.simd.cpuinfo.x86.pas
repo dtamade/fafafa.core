@@ -34,9 +34,53 @@ function IsAVXSupportedByOS: Boolean;
 // Get x86 cache information
 function GetX86CacheInfo: TX86CacheInfo;
 
+// === Simple feature query helpers (exposed for other units) ===
+function HasSSE: Boolean;
+function HasSSE2: Boolean;
+function HasAVX: Boolean;
+function HasAVX2: Boolean;
+function HasFMA: Boolean;
+
+
 implementation
 
 // === CPUID Instruction Implementation ===
+
+// Simple feature helpers (no caching yet; can be optimized later)
+function HasSSE: Boolean;
+var f: TX86Features;
+begin
+  f := DetectX86Features;
+  Result := f.HasSSE;
+end;
+
+function HasSSE2: Boolean;
+var f: TX86Features;
+begin
+  f := DetectX86Features;
+  Result := f.HasSSE2;
+end;
+
+function HasAVX: Boolean;
+var f: TX86Features;
+begin
+  f := DetectX86Features;
+  Result := f.HasAVX;
+end;
+
+function HasAVX2: Boolean;
+var f: TX86Features;
+begin
+  f := DetectX86Features;
+  Result := f.HasAVX2;
+end;
+
+function HasFMA: Boolean;
+var f: TX86Features;
+begin
+  f := DetectX86Features;
+  Result := f.HasFMA;
+end;
 
 function HasCPUID: Boolean;
 {$IFDEF CPUX86_64}
@@ -228,16 +272,16 @@ var
   xcr0: UInt64;
 begin
   Result := False;
-  
+
   try
     // Check if OSXSAVE is supported
     CPUID(1, eax, ebx, ecx, edx);
     if (ecx and (1 shl 27)) = 0 then
       Exit; // OSXSAVE not supported
-    
+
     // Check XCR0 register for AVX state saving
     xcr0 := XGETBV(0);
-    
+
     // Check if OS saves AVX state (bits 1 and 2 must be set)
     Result := (xcr0 and $06) = $06;
   except

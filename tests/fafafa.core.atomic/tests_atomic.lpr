@@ -1,7 +1,5 @@
 program tests_atomic;
 
-{$CODEPAGE UTF8}
-{$mode objfpc}{$H+}
 {$I ../../src/fafafa.core.settings.inc}
 
 uses

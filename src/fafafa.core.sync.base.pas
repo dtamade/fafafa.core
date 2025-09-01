@@ -9,21 +9,208 @@ uses
   fafafa.core.time.cpu;
 
 type
-  // ===== Exceptions =====
+
+  {**
+   * ESyncError - 同步操作基础异常类
+   *
+   * @desc
+   *   所有同步相关异常的基类。提供统一的异常处理接口，
+   *   便于捕获和处理各种同步操作错误。
+   *
+   * @inheritance
+   *   继承自标准的 Exception 类，具备完整的异常处理能力。
+   *
+   * @usage
+   *   try
+   *     // 同步操作
+   *   except
+   *     on E: ESyncError do
+   *       // 处理所有同步相关异常
+   *   end;
+   *}
   ESyncError = class(Exception);
+
+  {**
+   * ELockError - 锁操作异常类
+   *
+   * @desc
+   *   锁相关操作的异常基类，包括获取锁失败、释放锁错误等。
+   *   继承自 ESyncError，专门处理锁操作中的错误情况。
+   *
+   * @scenarios
+   *   - 尝试释放未持有的锁
+   *   - 锁状态不一致
+   *   - 锁操作系统调用失败
+   *}
   ELockError = class(ESyncError);
+
+  {**
+   * ETimeoutError - 超时异常类
+   *
+   * @desc
+   *   当同步操作超过指定的超时时间时抛出的异常。
+   *   用于区分超时和其他类型的失败。
+   *
+   * @scenarios
+   *   - 带超时的锁获取操作超时
+   *   - 等待信号量超时
+   *   - 条件变量等待超时
+   *}
   ETimeoutError = class(ESyncError);
+
+  {**
+   * EDeadlockError - 死锁检测异常类
+   *
+   * @desc
+   *   当检测到潜在的死锁情况时抛出的异常。
+   *   某些锁实现可能包含死锁检测机制。
+   *
+   * @scenarios
+   *   - 检测到循环等待
+   *   - 同一线程重复获取非重入锁
+   *   - 锁获取顺序导致的死锁
+   *}
   EDeadlockError = class(ESyncError);
+
+  {**
+   * EInvalidArgument - 无效参数异常类
+   *
+   * @desc
+   *   当传递给同步操作的参数无效时抛出的异常。
+   *   用于参数验证和错误处理。
+   *
+   * @scenarios
+   *   - 传递 nil 指针
+   *   - 超时值为负数
+   *   - 无效的锁状态参数
+   *}
   EInvalidArgument = class(ESyncError);
+
+  {**
+   * EOnceRecursiveCall - 一次性调用递归异常类
+   *
+   * @desc
+   *   当一次性执行的操作被递归调用时抛出的异常。
+   *   继承自 ELockError，专门处理 Once 模式的递归调用错误。
+   *
+   * @scenarios
+   *   - Once 初始化函数中递归调用 Once
+   *   - 单例模式中的递归初始化
+   *   - 一次性资源的重复初始化
+   *}
   EOnceRecursiveCall = class(ELockError);
 
 
+  {**
+   * TWaitResult - 等待操作结果枚举
+   *
+   * @desc
+   *   定义同步等待操作的各种可能结果。这个枚举提供了
+   *   统一的方式来表示不同类型的等待结果，便于调用者
+   *   根据结果采取相应的处理措施。
+   *
+   * @cross_platform
+   *   设计时考虑了跨平台兼容性，包含了 Windows 和 Unix 系统
+   *   中可能出现的各种等待结果。
+   *
+   * @usage
+   *   case WaitResult of
+   *     wrSignaled: // 成功获取到信号
+   *     wrTimeout: // 等待超时
+   *     wrAbandoned: // 处理异常情况
+   *     wrError: // 处理错误
+   *     wrInterrupted: // 处理中断（主要在 Unix 系统）
+   *   end;
+   *}
   TWaitResult = (
-    wrSignaled,     // 信号状态
-    wrTimeout,      // 超时
-    wrAbandoned,    // 被放弃 (拥有者异常终止)
-    wrError,        // 一般错误
-    wrInterrupted   // 被信号中断 (Unix)
+    {**
+     * wrSignaled - 信号状态
+     *
+     * @desc
+     *   等待操作成功完成，获取到了期望的信号或资源。
+     *   这是正常的成功结果，表示可以继续执行后续操作。
+     *
+     * @scenarios
+     *   - 成功获取到锁
+     *   - 信号量计数大于零
+     *   - 条件变量被正确信号
+     *   - 事件对象被设置为信号状态
+     *}
+    wrSignaled,
+
+    {**
+     * wrTimeout - 超时
+     *
+     * @desc
+     *   等待操作在指定的超时时间内未能完成。
+     *   这通常不是错误，而是一种预期的结果。
+     *
+     * @scenarios
+     *   - 锁在超时时间内未被释放
+     *   - 信号量在超时时间内计数仍为零
+     *   - 条件变量在超时时间内未被信号
+     *
+     * @handling
+     *   调用者应该根据业务逻辑决定是重试、放弃还是采取其他措施。
+     *}
+    wrTimeout,
+
+    {**
+     * wrAbandoned - 被放弃（拥有者异常终止）
+     *
+     * @desc
+     *   等待的资源被其拥有者异常放弃，通常是因为拥有者线程
+     *   或进程异常终止而未能正常释放资源。
+     *
+     * @scenarios
+     *   - 持有锁的线程异常终止
+     *   - 拥有信号量的进程崩溃
+     *   - 互斥对象的拥有者异常退出
+     *
+     * @handling
+     *   这种情况下资源状态可能不一致，需要特别小心处理。
+     *   可能需要重新初始化或清理相关状态。
+     *}
+    wrAbandoned,
+
+    {**
+     * wrError - 一般错误
+     *
+     * @desc
+     *   等待操作遇到了一般性错误，无法继续执行。
+     *   这通常表示系统级别的问题或参数错误。
+     *
+     * @scenarios
+     *   - 系统资源不足
+     *   - 无效的句柄或参数
+     *   - 权限不足
+     *   - 系统调用失败
+     *
+     * @handling
+     *   应该检查具体的错误原因，可能需要抛出异常或记录错误日志。
+     *}
+    wrError,
+
+    {**
+     * wrInterrupted - 被信号中断（主要用于 Unix 系统）
+     *
+     * @desc
+     *   等待操作被系统信号中断。这主要在 Unix 系统中出现，
+     *   当进程收到信号时，阻塞的系统调用可能被中断。
+     *
+     * @unix_specific
+     *   这个结果主要针对 Unix 系统的信号处理机制。
+     *   在 Windows 系统中较少使用。
+     *
+     * @scenarios
+     *   - 收到 SIGINT、SIGTERM 等信号
+     *   - 用户按 Ctrl+C 中断程序
+     *   - 系统发送的其他信号
+     *
+     * @handling
+     *   通常需要检查是否应该重新开始等待，或者优雅地退出程序。
+     *}
+    wrInterrupted
   );
 
 
@@ -317,14 +504,86 @@ type
     function  LockGuard: ILockGuard;
   end;
 
-  TLock =class(TSynchronizable, ILock)
+  {**
+   * TLock - 基础锁抽象类
+   *
+   * @desc
+   *   实现 ILock 接口的抽象基类，提供锁的基本框架。
+   *   继承自 TSynchronizable，具备用户数据关联能力。
+   *   子类必须实现具体的 Acquire 和 Release 方法。
+   *
+   * @abstract
+   *   这是一个抽象类，不能直接实例化。
+   *   Acquire 和 Release 方法必须由子类实现。
+   *
+   * @inheritance_hierarchy
+   *   TLock -> TTryLock -> 具体锁实现（如 TMutex, TSpinLock 等）
+   *
+   * @provided_functionality
+   *   - 用户数据关联（继承自 TSynchronizable）
+   *   - RAII 锁守卫创建（LockGuard 方法）
+   *   - 接口实现框架
+   *
+   * @subclass_responsibility
+   *   子类必须实现：
+   *   - Acquire: 获取锁的具体逻辑
+   *   - Release: 释放锁的具体逻辑
+   *}
+  TLock = class(TSynchronizable, ILock)
   public
-    // ILock 接口实现
+    {**
+     * Acquire - 获取锁（抽象方法）
+     *
+     * @desc
+     *   抽象方法，子类必须实现具体的锁获取逻辑。
+     *   通常是阻塞式操作，直到成功获取锁为止。
+     *
+     * @abstract
+     *   必须由子类重写实现。
+     *}
     procedure Acquire; virtual; abstract;
+
+    {**
+     * Release - 释放锁（抽象方法）
+     *
+     * @desc
+     *   抽象方法，子类必须实现具体的锁释放逻辑。
+     *   必须由持有锁的线程调用。
+     *
+     * @abstract
+     *   必须由子类重写实现。
+     *}
     procedure Release; virtual; abstract;
+
+    {**
+     * LockGuard - 创建 RAII 锁守卫
+     *
+     * @return 锁守卫接口，自动管理锁的生命周期
+     *
+     * @desc
+     *   创建一个 RAII 风格的锁守卫，提供便利的锁管理方式。
+     *   内部调用全局函数 MakeLockGuard。
+     *
+     *}
     function  LockGuard: ILockGuard; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
   end;
 
+  {**
+   * TLockClass - 锁类的类引用类型
+   *
+   * @desc
+   *   TLock 类的类引用类型，用于动态创建锁实例。
+   *   支持工厂模式和插件化的锁实现选择。
+   *
+   * @usage
+   *   var
+   *     LockClass: TLockClass;
+   *     Lock: TLock;
+   *   begin
+   *     LockClass := TMutex; // 或其他锁实现
+   *     Lock := LockClass.Create;
+   *   end;
+   *}
   TLockClass = class of TLock;
 
   { ITryLock 支持三段式优化超时尝试的互斥锁接口 }
@@ -563,7 +822,7 @@ type
      * @remark
      *   设置为 `0` 则禁用阻塞自旋阶段，直接进入最终的睡眠阶段。
      *}
-    property BlockSpin:                    UInt32 read GetBlockSpin write SetBlockSpin;
+    property BlockSpin: UInt32 read GetBlockSpin write SetBlockSpin;
 
     {**
      * BlockTimeCheckIntervalSpin - 阻塞阶段的超时检查间隔
@@ -625,15 +884,88 @@ type
     FBlockTimeCheckIntervalSpin:   UInt32;
     FBlockSleepIntervalMs:         UInt32;
   protected
+    {**
+     * GetDefaultTightSpin - 获取紧密自旋阶段的默认最大自旋次数
+     *
+     * @return 默认的紧密自旋次数，通常为 2000
+     *
+     * @desc
+     *   返回紧密自旋阶段的默认配置值。子类可以重写此方法
+     *   来提供针对特定锁类型优化的默认值。
+     *
+     * @virtual
+     *   虚方法，允许子类根据锁的特性提供不同的默认值。
+     *   例如，自旋锁可能使用更大的值，而互斥锁使用较小的值。
+     *}
     function GetDefaultTightSpin: UInt32; virtual;
+
+    {**
+     * GetDefaultTightTimeCheckIntervalSpin - 获取紧密自旋阶段的默认超时检查间隔
+     *
+     * @return 默认的超时检查间隔，通常为 1023 (1024-1)
+     *
+     * @desc
+     *   返回紧密自旋阶段超时检查的默认间隔。使用 2^n-1 的值
+     *   可以利用位运算优化取模操作。
+     *}
     function GetDefaultTightTimeCheckIntervalSpin: UInt32; virtual;
 
+    {**
+     * GetDefaultBackOffSpin - 获取退避阶段的默认最大自旋次数
+     *
+     * @return 默认的退避自旋次数，通常为 50
+     *
+     * @desc
+     *   返回退避阶段的默认配置值。这个阶段的自旋次数通常
+     *   比紧密自旋阶段少，以减少 CPU 占用。
+     *}
     function GetDefaultBackOffSpin: UInt32; virtual;
+
+    {**
+     * GetDefaultBackOffTimeCheckIntervalSpin - 获取退避阶段的默认超时检查间隔
+     *
+     * @return 默认的超时检查间隔，通常为 1023 (1024-1)
+     *}
     function GetDefaultBackOffTimeCheckIntervalSpin: UInt32; virtual;
+
+    {**
+     * GetDefaultBackOffYieldIntervalSpin - 获取退避阶段的默认 CPU 让出间隔
+     *
+     * @return 默认的 CPU 让出间隔，通常为 8191 (8192-1)
+     *
+     * @desc
+     *   返回退避阶段 CPU 让出操作的默认间隔。较大的值意味着
+     *   较少的 CPU 让出，可能提高性能但增加系统负载。
+     *}
     function GetDefaultBackOffYieldIntervalSpin: UInt32; virtual;
 
+    {**
+     * GetDefaultBlockSpin - 获取阻塞阶段的默认最大自旋次数
+     *
+     * @return 默认的阻塞自旋次数，通常为 1000
+     *
+     * @desc
+     *   返回阻塞阶段的默认配置值。这个阶段主要依赖睡眠，
+     *   自旋只是睡眠间隙的补充尝试。
+     *}
     function GetDefaultBlockSpin: UInt32; virtual;
+
+    {**
+     * GetDefaultBlockTimeCheckIntervalSpin - 获取阻塞阶段的默认超时检查间隔
+     *
+     * @return 默认的超时检查间隔，通常为 1023 (1024-1)
+     *}
     function GetDefaultBlockTimeCheckIntervalSpin: UInt32; virtual;
+
+    {**
+     * GetDefaultBlockSleepIntervalMs - 获取阻塞阶段的默认睡眠间隔
+     *
+     * @return 默认的睡眠间隔（毫秒），通常为 1
+     *
+     * @desc
+     *   返回阻塞阶段睡眠操作的默认间隔。1毫秒是一个平衡的选择，
+     *   既保证了合理的响应性，又有效减少了 CPU 占用。
+     *}
     function GetDefaultBlockSleepIntervalMs: UInt32; virtual;
 
     function DoTight: Boolean; overload; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
@@ -693,32 +1025,146 @@ type
   end;
 
 
+  {**
+   * TLockGuard - RAII 风格的锁守卫实现
+   *
+   * @desc
+   *   实现 ILockGuard 接口的具体类，提供 RAII (Resource Acquisition Is Initialization)
+   *   风格的锁管理。锁守卫在创建时自动获取锁，在析构时自动释放锁，
+   *   确保即使在异常情况下锁也能被正确释放。
+   *
+   * @raii_pattern
+   *   RAII 模式的核心优势：
+   *   - 自动资源管理：构造时获取，析构时释放
+   *   - 异常安全：即使发生异常也能正确释放资源
+   *   - 作用域绑定：资源生命周期与对象作用域绑定
+   *   - 减少错误：避免忘记释放资源的问题
+   *
+   * @thread_safety
+   *   线程安全，但每个守卫实例只能在创建它的线程中使用。
+   *   不要在多个线程间传递守卫对象。
+   *
+   * @usage_pattern
+   *   // 推荐用法 - with 语句
+   *   with Lock.LockGuard do
+   *   begin
+   *     // 临界区代码
+   *   end; // 锁在此处自动释放
+   *
+   *   // 变量用法 - 更灵活的控制
+   *   var Guard: ILockGuard;
+   *   begin
+   *     Guard := TLockGuard.Create(Lock);
+   *     try
+   *       // 临界区代码
+   *     finally
+   *       Guard := nil; // 触发析构，释放锁
+   *     end;
+   *   end;
+   *}
   TLockGuard = class(TInterfacedObject, ILockGuard)
   private
-    FLock: ILock;
-    FReleased: Boolean;
+    FLock: ILock;        // 被守卫的锁对象
+    FReleased: Boolean;  // 标记锁是否已被释放，防止重复释放
   public
+    {**
+     * Create - 创建锁守卫并获取锁
+     *
+     * @param ALock 要守卫的锁对象
+     *
+     * @desc
+     *   创建锁守卫并立即获取指定的锁。这是标准的 RAII 构造方式，
+     *   适用于大多数场景。
+     *
+     * @blocking
+     *   此构造函数会阻塞直到成功获取锁。
+     *
+     * @exception
+     *   如果锁获取失败，可能抛出相应的异常。
+     *}
     constructor Create(ALock: ILock);
+
+    {**
+     * CreateFromAcquired - 从已获取的锁创建守卫
+     *
+     * @param ALock 已经获取的锁对象
+     *
+     * @desc
+     *   从已经获取的锁创建守卫。这种方式适用于锁已经通过其他方式获取，
+     *   但希望使用 RAII 模式管理其释放的场景。
+     *
+     * @precondition
+     *   调用前 ALock 必须已经被当前线程获取。
+     *
+     * @responsibility
+     *   守卫将负责在析构时释放锁，即使锁不是由守卫获取的。
+     *}
     constructor CreateFromAcquired(ALock: ILock);
+
+    {**
+     * Destroy - 析构函数，自动释放锁
+     *
+     * @desc
+     *   析构时自动调用 Release 方法释放锁。这是 RAII 模式的核心，
+     *   确保锁在守卫对象销毁时被正确释放。
+     *
+     * @automatic
+     *   通常不需要手动调用，当守卫对象超出作用域或被设为 nil 时自动调用。
+     *}
     destructor Destroy; override;
+
+    {**
+     * Release - 手动释放锁
+     *
+     * @desc
+     *   手动释放守卫持有的锁。通常情况下锁会在析构时自动释放，
+     *   但此方法允许提前手动释放。
+     *
+     * @idempotent
+     *   多次调用是安全的，重复释放不会产生副作用。
+     *
+     * @inline
+     *   使用内联优化，确保最佳性能。
+     *}
     procedure Release; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
   end;
 
-function MutexGuard(ALock: ILock): ILockGuard; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+{**
+ * MakeLockGuard - 创建锁守卫的向后兼容函数
+ *
+ * @param ALock 要守卫的锁对象
+ * @return 锁守卫接口
+ *}
 function MakeLockGuard(ALock: ILock): ILockGuard; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF} // 向后兼容
+
+{**
+ * MakeLockGuardFromAcquired - 从已获取的锁创建守卫
+ *
+ * @param ALock 已经获取的锁对象
+ * @return 锁守卫接口
+ *
+ * @desc
+ *   从已经获取的锁创建守卫。适用于锁已经通过其他方式获取，
+ *   但希望使用 RAII 模式管理其释放的场景。
+ *
+ * @precondition
+ *   调用前 ALock 必须已经被当前线程获取。
+ *
+ * @usage
+ *   Lock.Acquire;
+ *   var Guard := MakeLockGuardFromAcquired(Lock);
+ *   // 守卫将负责释放锁
+ *
+ * @inline
+ *   使用内联优化，确保最佳性能。
+ *}
 function MakeLockGuardFromAcquired(ALock: ILock): ILockGuard; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
 
 implementation
 
-
-function MutexGuard(ALock: ILock): ILockGuard;
-begin
-  Result := TLockGuard.Create(ALock);
-end;
-
 function MakeLockGuard(ALock: ILock): ILockGuard;
 begin
-  Result := MutexGuard(ALock); // 向后兼容，调用新函数
+  Result := TLockGuard.Create(ALock);
 end;
 
 function MakeLockGuardFromAcquired(ALock: ILock): ILockGuard;
@@ -800,50 +1246,93 @@ end;
 
 { TTryLock - 扩展锁实现 }
 
+{**
+ * TTryLock.TryAcquire - 带超时的三段式等待策略实现
+ *
+ * @param ATimeoutMs 超时时间（毫秒），0 表示立即返回
+ * @return True 如果在超时时间内成功获取锁，False 如果超时
+ *
+ * @desc
+ *   实现了高度优化的三段式等待策略：
+ *   1. 紧密自旋阶段：纯 CPU 自旋，适合短期锁竞争
+ *   2. 退避自旋阶段：自旋 + CPU 让出，适合中期竞争
+ *   3. 阻塞等待阶段：睡眠为主，适合长期竞争
+ *
+ * @algorithm
+ *   三段式策略的设计理念：
+ *   - 快速响应：优先使用高性能的自旋等待
+ *   - 渐进退避：逐步降低 CPU 占用
+ *   - 系统友好：长期等待时让出 CPU 资源
+ *
+ * @performance
+ *   - 短期锁（微秒级）：主要在紧密自旋阶段完成，性能最优
+ *   - 中期锁（毫秒级）：在退避阶段完成，平衡性能和资源占用
+ *   - 长期锁（秒级）：在阻塞阶段完成，最小化系统影响
+ *
+ * @configuration
+ *   每个阶段都可以通过属性进行精细调优：
+ *   - TightSpin, TightTimeCheckIntervalSpin
+ *   - BackOffSpin, BackOffTimeCheckIntervalSpin, BackOffYieldIntervalSpin
+ *   - BlockSpin, BlockTimeCheckIntervalSpin, BlockSleepIntervalMs
+ *}
 function TTryLock.TryAcquire(ATimeoutMs: Cardinal): Boolean;
 var
-  EndTime:   UInt64;
-  i:         UInt32;
+  EndTime:   UInt64;  // 超时时间点（绝对时间）
+  i:         UInt32;  // 循环计数器
 begin
-   // 快速路径
+  // 快速路径：立即尝试获取锁，避免不必要的计算开销
   if TryAcquire then
     Exit(True);
 
+  // 零超时：立即返回，不进行任何等待
   if ATimeoutMs = 0 then
     Exit(False);
 
-  EndTime   := GetTickCount64 + ATimeoutMs; // 超时时间点
+  // 计算绝对超时时间点，避免在循环中重复计算
+  EndTime := GetTickCount64 + ATimeoutMs;
 
-  // 阶段1: 紧密自旋
+  // ===== 阶段1: 紧密自旋 =====
+  // 使用纯 CPU 自旋，适合短期锁竞争（微秒级）
   if FTightSpin > 0 then
   begin
     if FTightTimeCheckIntervalSpin = 0 then
     begin
-      if DoTight() then // 无超时检查,将自旋次数旋完为止
+      // 无超时检查模式：将配置的自旋次数全部用完
+      // 适合确信锁会很快释放的场景，避免时间检查开销
+      if DoTight() then
         Exit(True);
     end
     else
     begin
+      // 带超时检查模式：定期检查是否超时
+      // 提供更精确的超时控制，但增加时间检查开销
       if DoTight(EndTime) then
         Exit(True);
     end;
-  end;  
+  end;
 
+  // 紧密自旋阶段结束后检查超时
   if GetTickCount64 >= EndTime then
     Exit(False);
 
-  // 阶段2: 退避优化自旋
+  // ===== 阶段2: 退避自旋 =====
+  // 使用更温和的自旋策略，适合中期锁竞争（毫秒级）
+  // 可能包含 CPU 让出操作，减少对系统的影响
   if FBackOffSpin > 0 then
   begin
     if FBackOffTimeCheckIntervalSpin = 0 then
     begin
       if FBackOffYieldIntervalSpin = 0 then
       begin
+        // 无超时检查，无 CPU 让出：纯自旋模式
+        // 适合确信锁会在短时间内释放的场景
         if DoBackOffNoCheckNoYield() then
-          Exit(True); 
+          Exit(True);
       end
       else
       begin
+        // 无超时检查，有 CPU 让出：系统友好的自旋
+        // 定期让出 CPU，减少对其他线程的影响
         if DoBackOffNoCheck() then
           exit(True);
       end;
@@ -852,83 +1341,98 @@ begin
     begin
       if FBackOffYieldIntervalSpin = 0 then
       begin
+        // 有超时检查，无 CPU 让出：精确控制的自旋
+        // 提供精确的超时控制，但不让出 CPU
         if DoBackOffNoYield(EndTime) then
           exit(True);
       end
       else
       begin
+        // 有超时检查，有 CPU 让出：完整的退避策略
+        // 既提供超时控制，又保持系统友好性
         if DoBackOff(EndTime) then
           exit(True);
       end;
     end;
   end;
 
+  // 退避自旋阶段结束后检查超时
   if GetTickCount64 >= EndTime then
     Exit(False);
 
-  // 阶段3: 睡眠式自旋
+  // ===== 阶段3: 阻塞等待 =====
+  // 使用睡眠为主的等待策略，适合长期锁竞争（秒级）
+  // 最小化 CPU 占用，对系统最友好
   if FBlockSpin > 0 then
   begin
     if FBlockTimeCheckIntervalSpin = 0 then
     begin
+      // 无超时检查模式：依赖睡眠间隔来控制超时
+      // 适合对超时精度要求不高的场景
       if DoBlock() then
         Exit(True);
     end
     else
     begin
+      // 有超时检查模式：在睡眠间隙检查超时
+      // 提供更精确的超时控制
       if DoBlock(EndTime) then
         Exit(True);
     end;
   end;
 
-  // 消费掉剩余的超时时间(如果有)
+  // ===== 最终处理 =====
+  // 如果还有剩余的超时时间，进行最后的等待
+  // 这确保了即使所有阶段都完成，也会等待到完整的超时时间
   if GetTickCount64 < EndTime then
-    Sleep(EndTime - GetTickCount64); // 到这里不精确也没办法  
+    Sleep(EndTime - GetTickCount64); // 精度不高但确保超时时间的完整性
 
+  // 最后一次尝试：在超时边界进行最终的获取尝试
+  // 这可能捕获到在睡眠期间释放的锁
   Result := TryAcquire();
 end;
 
 
 function TTryLock.GetDefaultTightSpin: UInt32;
 begin
-  Result := 2000;  // 紧密自旋次数
+  Result := 2000;
 end;
 
 function TTryLock.GetDefaultTightTimeCheckIntervalSpin: UInt32;
 begin
-  Result := 1024-1;  // 紧密自旋检查时间间隔
+  Result := 1024-1;
 end;
 
 
 function TTryLock.GetDefaultBackOffSpin: UInt32;
 begin
-  Result := 50;  // 退避自旋次数
+  Result := 50;
 end;
 
 function TTryLock.GetDefaultBackOffTimeCheckIntervalSpin: UInt32;
 begin
-  Result := 1024-1;  // 退避自旋检查时间间隔
+  Result := 1024-1;
 end;
 
 function TTryLock.GetDefaultBackOffYieldIntervalSpin: UInt32;
 begin
-  Result := 8192-1;  // 每 8192 次循环调用 SchedYield
+  Result := 8192-1;
 end;
 
 
 function TTryLock.GetDefaultBlockSpin: UInt32;
 begin
-  Result := 1000;  // 阻塞自旋次数
+  Result := 1000;
 end;
 
 function TTryLock.GetDefaultBlockTimeCheckIntervalSpin: UInt32;
 begin
-  Result := 1024-1;  // 每 1024 次循环检查一次时间
+  Result := 1024-1;
 end;
 
 function TTryLock.GetDefaultBlockSleepIntervalMs: UInt32;
 begin
-  Result := 1;  // 每次睡眠1毫秒
+  Result := 1;
 end;
 
 
