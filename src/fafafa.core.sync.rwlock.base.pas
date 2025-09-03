@@ -231,6 +231,23 @@ type
     procedure Release; // 手动释放（可选）
   end;
 
+
+  // ===== 传统的读写锁基础接口（为兼容而保留）=====
+  IReadWriteLock = interface
+    ['{9E8D7C6B-5A4F-3E2D-1C0B-A9F8E7D6C5B4}']
+    // 阻塞式获取/释放
+    procedure AcquireRead;
+    procedure ReleaseRead;
+    procedure AcquireWrite;
+    procedure ReleaseWrite;
+    // 非阻塞/带超时尝试
+    function TryAcquireRead(ATimeoutMs: Cardinal = 0): Boolean; overload;
+    function TryAcquireWrite(ATimeoutMs: Cardinal = 0): Boolean; overload;
+    // 状态查询
+    function GetReaderCount: Integer;
+    function IsWriteLocked: Boolean;
+  end;
+
   // ===== RWLock 扩展接口 =====
   IRWLock = interface(IReadWriteLock)
     ['{C3D4E5F6-A7B8-9012-CDEF-123456789012}']
@@ -319,7 +336,7 @@ implementation
 function AtomicLoadCounter(var Counter: TAtomicCounter): Integer;
 begin
   // 使用框架的原子操作确保读取的一致性
-  Result := atomic_load(Counter.Count, memory_order_acquire);
+  Result := atomic_load(Counter.Count, mo_acquire);
 end;
 
 function AtomicIncrementCounter(var Counter: TAtomicCounter): Integer;
@@ -327,14 +344,18 @@ var
   OldCounter, NewCounter: TAtomicCounter;
 begin
   repeat
-    OldCounter.Count := atomic_load(Counter.Count, memory_order_relaxed);
-    OldCounter.Version := atomic_load(Counter.Version, memory_order_relaxed);
+    OldCounter.Count := atomic_load(Counter.Count, mo_relaxed);
+    OldCounter.Version := atomic_load(Counter.Version, mo_relaxed);
 
     NewCounter.Count := OldCounter.Count + 1;
     NewCounter.Version := OldCounter.Version + 1;
 
     // 尝试原子地更新整个结构
-    if atomic_compare_exchange_strong_64(PInt64(@Counter)^, PInt64(@OldCounter)^, PInt64(@NewCounter)^, memory_order_acq_rel) then
+    {$IFDEF CPU64}
+    if atomic_compare_exchange_strong(PInt64(@Counter)^, PInt64(@OldCounter)^, PInt64(@NewCounter)^) then
+    {$ELSE}
+    if atomic_compare_exchange_strong(PInt32(@Counter)^, PInt32(@OldCounter)^, PInt32(@NewCounter)^) then
+    {$ENDIF}
     begin
       Result := NewCounter.Count;
       Exit;
@@ -348,14 +369,18 @@ var
   OldCounter, NewCounter: TAtomicCounter;
 begin
   repeat
-    OldCounter.Count := atomic_load(Counter.Count, memory_order_relaxed);
-    OldCounter.Version := atomic_load(Counter.Version, memory_order_relaxed);
+    OldCounter.Count := atomic_load(Counter.Count, mo_relaxed);
+    OldCounter.Version := atomic_load(Counter.Version, mo_relaxed);
 
     NewCounter.Count := OldCounter.Count - 1;
     NewCounter.Version := OldCounter.Version + 1;
 
     // 尝试原子地更新整个结构
-    if atomic_compare_exchange_strong_64(PInt64(@Counter)^, PInt64(@OldCounter)^, PInt64(@NewCounter)^, memory_order_acq_rel) then
+    {$IFDEF CPU64}
+    if atomic_compare_exchange_strong(PInt64(@Counter)^, PInt64(@OldCounter)^, PInt64(@NewCounter)^) then
+    {$ELSE}
+    if atomic_compare_exchange_strong(PInt32(@Counter)^, PInt32(@OldCounter)^, PInt32(@NewCounter)^) then
+    {$ENDIF}
     begin
       Result := NewCounter.Count;
       Exit;
@@ -369,14 +394,18 @@ var
   OldCounter, NewCounter: TAtomicCounter;
 begin
   repeat
-    OldCounter.Count := atomic_load(Counter.Count, memory_order_relaxed);
-    OldCounter.Version := atomic_load(Counter.Version, memory_order_relaxed);
+    OldCounter.Count := atomic_load(Counter.Count, mo_relaxed);
+    OldCounter.Version := atomic_load(Counter.Version, mo_relaxed);
 
     NewCounter.Count := Value;
     NewCounter.Version := OldCounter.Version + 1;
 
     // 尝试原子地更新整个结构
-    if atomic_compare_exchange_strong_64(PInt64(@Counter)^, PInt64(@OldCounter)^, PInt64(@NewCounter)^, memory_order_release) then
+    {$IFDEF CPU64}
+    if atomic_compare_exchange_strong(PInt64(@Counter)^, PInt64(@OldCounter)^, PInt64(@NewCounter)^) then
+    {$ELSE}
+    if atomic_compare_exchange_strong(PInt32(@Counter)^, PInt32(@OldCounter)^, PInt32(@NewCounter)^) then
+    {$ENDIF}
       Exit;
     // 如果失败，重试
   until False;
@@ -387,8 +416,8 @@ function AtomicCompareExchangeCounter(var Counter: TAtomicCounter;
 var
   OldCounter, NewCounter: TAtomicCounter;
 begin
-  OldCounter.Count := atomic_load(Counter.Count, memory_order_relaxed);
-  OldCounter.Version := atomic_load(Counter.Version, memory_order_relaxed);
+  OldCounter.Count := atomic_load(Counter.Count, mo_relaxed);
+  OldCounter.Version := atomic_load(Counter.Version, mo_relaxed);
 
   // 只有当前计数值匹配时才进行交换
   if OldCounter.Count <> ExpectedCount then
@@ -401,7 +430,11 @@ begin
   NewCounter.Version := OldCounter.Version + 1;
 
   // 尝试原子地更新整个结构
-  Result := atomic_compare_exchange_strong_64(PInt64(@Counter)^, PInt64(@OldCounter)^, PInt64(@NewCounter)^, memory_order_acq_rel);
+  {$IFDEF CPU64}
+  Result := atomic_compare_exchange_strong(PInt64(@Counter)^, PInt64(@OldCounter)^, PInt64(@NewCounter)^);
+  {$ELSE}
+  Result := atomic_compare_exchange_strong(PInt32(@Counter)^, PInt32(@OldCounter)^, PInt32(@NewCounter)^);
+  {$ENDIF}
 end;
 
 // ===== 内存屏障操作实现 =====

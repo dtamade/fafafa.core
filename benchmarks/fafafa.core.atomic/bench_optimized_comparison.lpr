@@ -86,7 +86,7 @@ var
   Dummy: Int32;
 begin
   Value := TestValue32;
-  Dummy := optimized_atomic_load(Value, memory_order_acquire);
+  Dummy := optimized_atomic_load(Value, mo_acquire);
   if Dummy = -999999 then WriteLn('Never');
 end;
 
@@ -143,7 +143,7 @@ var
   Value: Int32;
 begin
   Value := TestValue32;
-  optimized_atomic_store(Value, 42, memory_order_release);
+  optimized_atomic_store(Value, 42, mo_release);
 end;
 
 procedure Test_Fast_Store;

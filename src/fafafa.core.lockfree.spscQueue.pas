@@ -150,13 +150,13 @@ var
 begin
   LPos := FEnqueuePos;
   LNode := @FBuffer[LPos and FMask];
-  LSequence := atomic_load_64(LNode^.Sequence, memory_order_acquire);
+  LSequence := atomic_load_64(LNode^.Sequence, mo_acquire);
 
   // 检查是否可以写入
   if LSequence = LPos then
   begin
     LNode^.Data := AItem;
-    atomic_store_64(LNode^.Sequence, LPos + 1, memory_order_release);
+    atomic_store_64(LNode^.Sequence, LPos + 1, mo_release);
     FEnqueuePos := LPos + 1;
     Result := True;
   end
@@ -172,13 +172,13 @@ var
 begin
   LPos := FDequeuePos;
   LNode := @FBuffer[LPos and FMask];
-  LSequence := atomic_load_64(LNode^.Sequence, memory_order_acquire);
+  LSequence := atomic_load_64(LNode^.Sequence, mo_acquire);
 
   // 检查是否可以读取
   if LSequence = LPos + 1 then
   begin
     AItem := LNode^.Data;
-    atomic_store_64(LNode^.Sequence, LPos + FCapacity, memory_order_release);
+    atomic_store_64(LNode^.Sequence, LPos + FCapacity, mo_release);
     FDequeuePos := LPos + 1;
     Result := True;
   end

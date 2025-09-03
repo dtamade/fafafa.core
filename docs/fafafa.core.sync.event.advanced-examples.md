@@ -50,8 +50,8 @@ var
 begin
   inherited Create;
   FWorkQueue := TThreadList.Create;
-  FWorkAvailable := CreateEvent(False, False); // 自动重置事件
-  FShutdown := CreateEvent(True, False);       // 手动重置事件
+  FWorkAvailable := MakeEvent(False, False); // 自动重置事件
+  FShutdown := MakeEvent(True, False);       // 手动重置事件
   
   // 创建消费者线程
   SetLength(FConsumers, ConsumerCount);
@@ -221,8 +221,8 @@ var
 begin
   inherited Create;
   FTaskQueue := TThreadList.Create;
-  FTaskAvailable := CreateEvent(False, False);
-  FShutdown := CreateEvent(True, False);
+  FTaskAvailable := MakeEvent(False, False);
+  FShutdown := MakeEvent(True, False);
   FActiveThreads := 0;
   
   SetLength(FThreads, ThreadCount);
@@ -377,8 +377,8 @@ implementation
 constructor TInterruptibleOperation.Create;
 begin
   inherited Create;
-  FCancelEvent := CreateEvent(True, False);
-  FProgressEvent := CreateEvent(False, False);
+  FCancelEvent := MakeEvent(True, False);
+  FProgressEvent := MakeEvent(False, False);
   FProgress := 0;
   FMaxProgress := 0;
 end;
@@ -462,8 +462,8 @@ constructor TEventChain.Create;
 begin
   inherited Create;
   FEvents := TList<IEvent>.Create;
-  FCompletionEvent := CreateEvent(True, False);
-  FFailureEvent := CreateEvent(True, False);
+  FCompletionEvent := MakeEvent(True, False);
+  FFailureEvent := MakeEvent(True, False);
 end;
 
 destructor TEventChain.Destroy;
@@ -574,7 +574,7 @@ implementation
 constructor TMonitoredEvent.Create(ManualReset: Boolean; InitialState: Boolean);
 begin
   inherited Create;
-  FInnerEvent := CreateEvent(ManualReset, InitialState);
+  FInnerEvent := MakeEvent(ManualReset, InitialState);
   FillChar(FStatistics, SizeOf(FStatistics), 0);
   InitCriticalSection(FStatsLock);
 end;

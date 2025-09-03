@@ -10,17 +10,12 @@ if not exist %LIB_DIR% mkdir %LIB_DIR%
 
 echo.
 echo Building basic usage example...
-fpc -MObjFPC -Scaghi -Fu%SRC_DIR% -FE%BIN_DIR% -FU%LIB_DIR% example_basic_usage.pas
-if %ERRORLEVEL% neq 0 goto :error
-
-echo.
-echo Building performance benchmark...
-fpc -MObjFPC -Scaghi -Fu%SRC_DIR% -FE%BIN_DIR% -FU%LIB_DIR% benchmark_performance.pas
+lazbuild example_basic_usage.lpi
 if %ERRORLEVEL% neq 0 goto :error
 
 echo.
 echo Building use cases example...
-fpc -MObjFPC -Scaghi -Fu%SRC_DIR% -FE%BIN_DIR% -FU%LIB_DIR% example_use_cases.pas
+lazbuild example_use_cases.lpi
 if %ERRORLEVEL% neq 0 goto :error
 
 echo.
@@ -28,7 +23,6 @@ echo All examples built successfully!
 echo.
 echo To run examples:
 echo   %BIN_DIR%\example_basic_usage.exe
-echo   %BIN_DIR%\benchmark_performance.exe
 echo   %BIN_DIR%\example_use_cases.exe
 goto :end
 

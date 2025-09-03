@@ -1,10 +1,50 @@
 @echo off
-setlocal ENABLEEXTENSIONS ENABLEDELAYEDEXPANSION
+setlocal enabledelayedexpansion
 
-REM Use standard template with overrides
-set "MODULE_NAME=atomic"
+echo ==========================================
+echo fafafa.core.atomic test
+echo ==========================================
+
 set "PROJECT=%~dp0tests_atomic.lpi"
 set "TEST_EXE=%~dp0bin\tests_atomic.exe"
-call "%~dp0..\..\tools\test_template.bat" %*
-exit /b %ERRORLEVEL%
+
+if not exist "%PROJECT%" (
+    echo error: project file is not exist: %PROJECT%
+    pause
+    exit /b 1
+)
+
+echo building...
+lazbuild -B "%PROJECT%"
+
+if %ERRORLEVEL% neq 0 (
+    echo error: build failed, return code %ERRORLEVEL%
+    pause
+    exit /b 1
+)
+
+echo build success!
+
+if not exist "%TEST_EXE%" (
+    echo error: file is not exist: %TEST_EXE%
+    pause
+    exit /b 1
+)
+
+echo testing...
+echo.
+"%TEST_EXE%"
+
+if %ERRORLEVEL% neq 0 (
+    echo.
+    echo error: test failed, return code %ERRORLEVEL%
+    pause
+    exit /b %ERRORLEVEL%
+)
+
+echo.
+echo ==========================================
+echo bye!
+echo ==========================================
+pause
 

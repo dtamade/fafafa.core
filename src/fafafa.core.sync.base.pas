@@ -1,5 +1,6 @@
 unit fafafa.core.sync.base;
 
+{$mode objfpc}{$H+}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -213,6 +214,99 @@ type
     wrInterrupted
   );
 
+  {**
+   * TWaitError - 等待操作错误类型枚举
+   *
+   * @desc
+   *   定义同步等待操作中可能出现的各种错误类型。
+   *   提供比 TWaitResult 更详细的错误分类，便于错误处理和调试。
+   *
+   * @usage
+   *   case LastError of
+   *     weNone: // 无错误
+   *     weTimeout: // 超时
+   *     weInvalidHandle: // 无效句柄
+   *     // ... 其他错误处理
+   *   end;
+   *}
+  TWaitError = (
+    {**
+     * weNone - 无错误
+     *
+     * @desc 操作成功完成，没有发生任何错误
+     *}
+    weNone,
+
+    {**
+     * weTimeout - 超时
+     *
+     * @desc 等待操作在指定时间内未能完成
+     *}
+    weTimeout,
+
+    {**
+     * weInvalidHandle - 无效句柄
+     *
+     * @desc 传递的同步对象句柄无效或已被销毁
+     *}
+    weInvalidHandle,
+
+    {**
+     * weResourceExhausted - 资源耗尽
+     *
+     * @desc 系统资源不足，无法完成操作
+     *}
+    weResourceExhausted,
+
+    {**
+     * weAccessDenied - 访问被拒绝
+     *
+     * @desc 没有足够的权限执行操作
+     *}
+    weAccessDenied,
+
+    {**
+     * weDeadlock - 死锁
+     *
+     * @desc 检测到死锁情况
+     *}
+    weDeadlock,
+
+    {**
+     * weNotSupported - 功能不支持
+     *
+     * @desc 当前平台或配置不支持此功能
+     *}
+    weNotSupported,
+
+    {**
+     * weSystemError - 系统错误
+     *
+     * @desc 底层系统调用失败或其他未分类的错误
+     *}
+    weSystemError,
+
+    {**
+     * weInterrupted - 操作被中断
+     *
+     * @desc 等待操作被信号或其他机制中断
+     *}
+    weInterrupted,
+
+    {**
+     * weInvalidState - 无效状态
+     *
+     * @desc 对象处于不适合执行操作的状态
+     *}
+    weInvalidState,
+
+    {**
+     * weInvalidParameter - 无效参数
+     *
+     * @desc 传递的参数无效
+     *}
+    weInvalidParameter
+  );
 
   { 基础同步原语接口 - 所有同步对象的基础 }
   ISynchronizable = interface
@@ -837,7 +931,7 @@ type
      *   在阻塞阶段，睡眠是主要的等待机制，
      *   自旋只是睡眠间隙的补充尝试。
      *}
-    property BlockTimeCheckIntervalSpin:   UInt32 read GetBlockTimeCheckIntervalSpin write SetBlockTimeCheckIntervalSpin;
+    property BlockTimeCheckIntervalSpin: UInt32 read GetBlockTimeCheckIntervalSpin write SetBlockTimeCheckIntervalSpin;
 
     {**
      * BlockSleepIntervalMs - 阻塞阶段的睡眠间隔（毫秒）
@@ -866,7 +960,7 @@ type
      *   - 一般应用：建议 1-10ms
      *   - 后台任务：可以设置 10-50ms
      *}
-    property BlockSleepIntervalMs:         UInt32 read GetBlockSleepIntervalMs write SetBlockSleepIntervalMs;
+    property BlockSleepIntervalMs: UInt32 read GetBlockSleepIntervalMs write SetBlockSleepIntervalMs;
 
   end;
 
@@ -1277,11 +1371,12 @@ end;
  *}
 function TTryLock.TryAcquire(ATimeoutMs: Cardinal): Boolean;
 var
-  EndTime:   UInt64;  // 超时时间点（绝对时间）
-  i:         UInt32;  // 循环计数器
+  LEndTime: UInt64;  // 超时时间点（绝对时间）
+  i:        UInt32;  // 循环计数器
+  LSleepMs: Cardinal; // 渐进式睡眠间隔
 begin
   // 快速路径：立即尝试获取锁，避免不必要的计算开销
-  if TryAcquire then
+  if TryAcquire() then
     Exit(True);
 
   // 零超时：立即返回，不进行任何等待
@@ -1289,7 +1384,7 @@ begin
     Exit(False);
 
   // 计算绝对超时时间点，避免在循环中重复计算
-  EndTime := GetTickCount64 + ATimeoutMs;
+  LEndTime := GetTickCount64 + ATimeoutMs;
 
   // ===== 阶段1: 紧密自旋 =====
   // 使用纯 CPU 自旋，适合短期锁竞争（微秒级）
@@ -1306,13 +1401,13 @@ begin
     begin
       // 带超时检查模式：定期检查是否超时
       // 提供更精确的超时控制，但增加时间检查开销
-      if DoTight(EndTime) then
+      if DoTight(LEndTime) then
         Exit(True);
     end;
   end;
 
   // 紧密自旋阶段结束后检查超时
-  if GetTickCount64 >= EndTime then
+  if GetTickCount64 >= LEndTime then
     Exit(False);
 
   // ===== 阶段2: 退避自旋 =====
@@ -1343,21 +1438,21 @@ begin
       begin
         // 有超时检查，无 CPU 让出：精确控制的自旋
         // 提供精确的超时控制，但不让出 CPU
-        if DoBackOffNoYield(EndTime) then
+        if DoBackOffNoYield(LEndTime) then
           exit(True);
       end
       else
       begin
         // 有超时检查，有 CPU 让出：完整的退避策略
         // 既提供超时控制，又保持系统友好性
-        if DoBackOff(EndTime) then
+        if DoBackOff(LEndTime) then
           exit(True);
       end;
     end;
   end;
 
   // 退避自旋阶段结束后检查超时
-  if GetTickCount64 >= EndTime then
+  if GetTickCount64 >= LEndTime then
     Exit(False);
 
   // ===== 阶段3: 阻塞等待 =====
@@ -1376,20 +1471,33 @@ begin
     begin
       // 有超时检查模式：在睡眠间隙检查超时
       // 提供更精确的超时控制
-      if DoBlock(EndTime) then
+      if DoBlock(LEndTime) then
         Exit(True);
     end;
   end;
 
   // ===== 最终处理 =====
-  // 如果还有剩余的超时时间，进行最后的等待
-  // 这确保了即使所有阶段都完成，也会等待到完整的超时时间
-  if GetTickCount64 < EndTime then
-    Sleep(EndTime - GetTickCount64); // 精度不高但确保超时时间的完整性
+  // 如果还有剩余的超时时间，使用渐进式退避策略
+  // 这处理所有自旋阶段都被关闭的情况
+  if GetTickCount64 < LEndTime then
+  begin
+    LSleepMs := 1;
+    repeat
+      if TryAcquire() then
+        Exit(True);
 
-  // 最后一次尝试：在超时边界进行最终的获取尝试
-  // 这可能捕获到在睡眠期间释放的锁
-  Result := TryAcquire();
+      Sleep(LSleepMs);
+
+      // 渐进式增加睡眠时间：1ms -> 2ms -> 4ms -> 8ms -> 16ms -> 32ms (最大)
+      // 这样既保证短期锁的响应性，又避免长期等待时的CPU浪费
+      if LSleepMs < 32 then
+        LSleepMs := LSleepMs shl 1;
+
+    until GetTickCount64 >= LEndTime;
+  end;
+
+  // 超时，返回失败
+  Result := False;
 end;
 
 

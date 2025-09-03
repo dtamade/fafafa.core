@@ -15,7 +15,7 @@ uses
   fafafa.core.sync.once,
   fafafa.core.sync.conditionVariable,
   fafafa.core.sync.barrier,
-  fafafa.core.sync.semaphore,
+  fafafa.core.sync.sem,
   fafafa.core.sync.event;
 
 type
@@ -35,7 +35,8 @@ type
   IRWLock = fafafa.core.sync.rwlock.IRWLock;
   IRWLockReadGuard = fafafa.core.sync.rwlock.IRWLockReadGuard;
   IRWLockWriteGuard = fafafa.core.sync.rwlock.IRWLockWriteGuard;
-  ISemaphore = fafafa.core.sync.semaphore.base.ISemaphore;
+  ISem = fafafa.core.sync.sem.base.ISem;
+  ISemGuard = fafafa.core.sync.sem.base.ISemGuard;
   IEvent = fafafa.core.sync.event.base.IEvent;
   IConditionVariable = fafafa.core.sync.conditionVariable.base.IConditionVariable;
   IBarrier = fafafa.core.sync.barrier.base.IBarrier;
@@ -46,11 +47,6 @@ type
   ETimeoutError = fafafa.core.sync.base.ETimeoutError;
   EDeadlockError = fafafa.core.sync.base.EDeadlockError;
 
-  // Re-export RAII helpers
-  TAutoLock      = fafafa.core.sync.base.TAutoLock;
-  TAutoReadLock  = fafafa.core.sync.base.TAutoReadLock;
-  TAutoWriteLock = fafafa.core.sync.base.TAutoWriteLock;
-
   // Back-compat exception alias
   EArgumentOutOfRange = fafafa.core.base.EOutOfRange;
 
@@ -59,8 +55,8 @@ type
   TSpinLock = fafafa.core.sync.unix.TSpinLock;
   TOnce = fafafa.core.sync.once.TOnce;
   TReadWriteLock = fafafa.core.sync.unix.TReadWriteLock;
-  // Use new semaphore module facade for platform selection
-  TSemaphore = fafafa.core.sync.semaphore.TSemaphore;
+  // Use new sem module facade for platform selection
+  TSemaphore = fafafa.core.sync.sem.TSemaphore;
   TEvent = fafafa.core.sync.unix.TEvent;
   TConditionVariable = fafafa.core.sync.conditionVariable.unix.TConditionVariable;
   TBarrier = fafafa.core.sync.barrier.unix.TBarrier;
@@ -69,8 +65,8 @@ type
   TSpinLock = fafafa.core.sync.windows.TSpinLock;
   TOnce = fafafa.core.sync.once.TOnce;
   TReadWriteLock = fafafa.core.sync.windows.TReadWriteLock;
-  // Use new semaphore module facade for platform selection
-  TSemaphore = fafafa.core.sync.semaphore.TSemaphore;
+  // Use new sem module facade for platform selection
+  TSemaphore = fafafa.core.sync.sem.TSemaphore;
   TEvent = fafafa.core.sync.windows.TEvent;
   TConditionVariable = fafafa.core.sync.conditionVariable.windows.TConditionVariable;
   TBarrier = fafafa.core.sync.barrier.windows.TBarrier;
@@ -112,7 +108,7 @@ function MakeRWLock: IRWLock; inline;
 function CreateRWLock: IRWLock; inline;  // Alias for compatibility
 function MakeConditionVariable: IConditionVariable; inline;
 function MakeBarrier(AParticipantCount: Integer): IBarrier; inline;
-function MakeSemaphore(AInitialCount: Integer = 1; AMaxCount: Integer = 1): ISemaphore; inline;
+function MakeSem(AInitialCount: Integer = 1; AMaxCount: Integer = 1): ISem; inline;
 function MakeEvent(AManualReset: Boolean = False; AInitialState: Boolean = False): IEvent; inline;
 
 implementation
@@ -157,10 +153,12 @@ begin
   Result := fafafa.core.sync.barrier.MakeBarrier(AParticipantCount);
 end;
 
-function MakeSemaphore(AInitialCount: Integer; AMaxCount: Integer): ISemaphore;
+function MakeSem(AInitialCount: Integer; AMaxCount: Integer): ISem;
 begin
-  Result := fafafa.core.sync.semaphore.MakeSemaphore(AInitialCount, AMaxCount);
+  Result := fafafa.core.sync.sem.MakeSem(AInitialCount, AMaxCount);
 end;
+
+
 
 function MakeEvent(AManualReset: Boolean; AInitialState: Boolean): IEvent;
 begin

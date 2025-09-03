@@ -2,50 +2,50 @@
 setlocal enabledelayedexpansion
 
 echo ========================================
-echo fafafa.core.sync.spin 单元测试构建脚本
+echo fafafa.core.sync.spin Unit Test Build Script
 echo ========================================
 
 set PROJECT_NAME=fafafa.core.sync.spin.test
 set PROJECT_FILE=%PROJECT_NAME%.lpi
 set EXECUTABLE=bin\%PROJECT_NAME%.exe
 
-:: 检查 lazbuild 是否可用
+:: Check if lazbuild is available
 where lazbuild >nul 2>&1
 if %errorlevel% neq 0 (
-    echo 错误: 找不到 lazbuild 命令，请确保 Lazarus 已正确安装并添加到 PATH
+    echo Error: lazbuild command not found, please ensure Lazarus is properly installed and added to PATH
     exit /b 1
 )
 
-:: 创建输出目录
+:: Create output directories
 if not exist bin mkdir bin
 if not exist lib mkdir lib
 
-:: 构建项目
-echo 正在构建项目...
+:: Build project
+echo Building project...
 lazbuild --build-mode=Debug %PROJECT_FILE%
 if %errorlevel% neq 0 (
-    echo 构建失败！
+    echo Build failed!
     exit /b 1
 )
 
-echo 构建成功！
+echo Build successful!
 
-:: 检查是否需要运行测试
+:: Check if tests should be run
 if "%1"=="test" (
     echo.
-    echo 正在运行测试...
+    echo Running tests...
     if exist %EXECUTABLE% (
         %EXECUTABLE%
         echo.
-        echo 测试完成，退出代码: !errorlevel!
+        echo Tests completed, exit code: !errorlevel!
     ) else (
-        echo 错误: 找不到可执行文件 %EXECUTABLE%
+        echo Error: Executable not found %EXECUTABLE%
         exit /b 1
     )
 ) else (
     echo.
-    echo 要运行测试，请使用: buildOrTest.bat test
+    echo To run tests, use: buildOrTest.bat test
 )
 
 echo.
-echo 完成！
+echo Done!

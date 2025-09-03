@@ -43,19 +43,58 @@ interface
 }
 procedure CpuRelax;
 procedure SchedYield; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
+procedure NanoSleep(const aNS: UInt64); {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
 
 implementation
 
+{$IFDEF MSWINDOWS}
+uses
+  SysUtils;
 
-{$IFDEF UNIX}
-  {$IFNDEF LINUX}
-  function libc_sched_yield: cint; cdecl; external 'c' name 'sched_yield';
-  {$ENDIF}
+// Windows API 函数直接声明
+function GetModuleHandle(lpModuleName: PChar): THandle; stdcall; external 'kernel32.dll' name 'GetModuleHandleA';
+function GetProcAddress(hModule: THandle; lpProcName: PChar): Pointer; stdcall; external 'kernel32.dll' name 'GetProcAddress';
+function Sleep(dwMilliseconds: Cardinal): Cardinal; stdcall; external 'kernel32.dll' name 'Sleep';
+function GetTickCount64: UInt64; stdcall; external 'kernel32.dll' name 'GetTickCount64';
 {$ENDIF}
 
-{$IFDEF WINDOWS}
+{$IFDEF UNIX}
+uses
+  BaseUnix,
+  syscall,
+  Unix;
+
+type
+  TTimespec = record
+    tv_sec: LongInt;
+    tv_nsec: LongInt;
+  end;
+
+const
+  SYS_nanosleep = 35; // Linux x86_64 nanosleep 系统调用号
+
+{$ENDIF}
+
+{$IFDEF MSWINDOWS}
 // Windows API 函数声明
 function SwitchToThread: LongBool; stdcall; external 'kernel32.dll';
+
+type
+  PLargeInteger = ^Int64; // Minimal definition to avoid pulling full Windows unit
+  TNtDelayExecution = function(Alertable: LongBool; DelayInterval: PLargeInteger): LongInt; stdcall;
+
+var
+  NtDelayExecution: TNtDelayExecution = nil;
+
+procedure InitNtDelayExecution;
+var
+  hNtDll: THandle;
+begin
+  if Assigned(NtDelayExecution) then Exit;
+  hNtDll := GetModuleHandle('ntdll.dll');
+  if hNtDll <> 0 then
+    NtDelayExecution := TNtDelayExecution(GetProcAddress(hNtDll, 'NtDelayExecution'));
+end;
 {$ENDIF}
 
 {$IF defined(CPUX86_64) or defined(CPUI386)}
@@ -103,7 +142,7 @@ end;
 procedure CpuRelax; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
 begin
   // 未知架构的后备方案
-  {$IFDEF WINDOWS}
+  {$IFDEF MSWINDOWS}
   SwitchToThread();
   {$ELSEIF defined(UNIX)}
   fpSleep(0);  // FPC 的 Unix 让出时间片函数
@@ -115,24 +154,64 @@ end;
 
 procedure SchedYield;
 begin
-{$IFDEF UNIX}
-  {$IFDEF LINUX}
-  sched_yield;
-  {$ELSE}
-  libc_sched_yield;
-  {$ENDIF}
-{$ELSE}
-  {$IFDEF WINDOWS}
+{$IFDEF MSWINDOWS}
   SwitchToThread;
-  {$ENDIF}
+{$ELSE}
+  Do_SysCall(syscall_nr_sched_yield);
 {$ENDIF}
 end;
 
+
+procedure NanoSleep(const aNS: UInt64);
 {$IFDEF MSWINDOWS}
-procedure SchedYield;
+var
+  LInterval: Int64;
+  LStartTick: UInt64;
 begin
-  SwitchToThread; // Windows 等价 sched_yield
+  // 防止 ns 太大溢出 Int64
+  if aNS > UInt64($7FFFFFFFFFFFFFFF) then
+    LInterval := -Int64($7FFFFFFFFFFFFFFF div 100)
+  else
+    LInterval := -Int64(aNS div 100); // 100ns 单位，负数表示相对时间
+
+  if Assigned(NtDelayExecution) then
+    NtDelayExecution(False, @LInterval)
+  else
+  begin
+    if aNS >= 1000000 then
+      Sleep(aNS div 1000000)
+    else
+    begin
+      LStartTick := GetTickCount64;
+      while (GetTickCount64 - LStartTick) * 1000000 < aNS do
+        Sleep(0);
+    end;
+  end;
 end;
+{$ELSE}
+var
+  LReq, LRem: TTimeSpec;
+begin
+  LReq.tv_sec  := aNS div 1000000000;
+  LReq.tv_nsec := aNS mod 1000000000;
+
+  // 防止 32 位 tv_sec 溢出
+  {$IFDEF CPU32}
+  if LReq.tv_sec > High(LongInt) then
+    LReq.tv_sec := High(LongInt);
+  {$ENDIF}
+
+  LRem.tv_sec := 0;
+  LRem.tv_nsec := 0;
+  Do_SysCall(SYS_nanosleep, PtrInt(@LReq), PtrInt(@LRem));
+end;
+{$ENDIF}
+
+initialization
+
+{$IFDEF MSWINDOWS}
+  InitNtDelayExecution;
+
 {$ENDIF}
 
 end.

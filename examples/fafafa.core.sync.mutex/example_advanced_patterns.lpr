@@ -278,17 +278,20 @@ begin
 end;
 
 procedure DemoRAIIPattern;
+var
+  m: IMutex;
+  Guard: ILockGuard;
 begin
   WriteLn('=== RAII 模式示例 ===');
   
-  // 使用 MutexGuard 的便捷方式
-  begin
-    var Guard: ILockGuard := MutexGuard;
-    WriteLn('✓ 锁已自动获取');
-    Sleep(100);
-    WriteLn('✓ 执行临界区代码');
-    // Guard 超出作用域时自动释放锁
-  end;
+  // 使用 RAII 模式（显式变量）
+  m := MakeMutex;
+  Guard := m.LockGuard;
+  WriteLn('✓ 锁已自动获取');
+  Sleep(100);
+  WriteLn('✓ 执行临界区代码');
+  // Guard 超出作用域时自动释放锁
+  Guard := nil;
   
   WriteLn('✓ 锁已自动释放');
   WriteLn;
@@ -302,6 +305,7 @@ var
   StartTime, EndTime: QWord;
   i: Integer;
   ManualTime, GuardTime: QWord;
+  Guard2: ILockGuard;
 begin
   WriteLn('=== 性能对比示例 ===');
   
@@ -325,8 +329,9 @@ begin
   StartTime := GetTickCount64;
   for i := 1 to ITERATIONS do
   begin
-    var Guard: ILockGuard := MakeLockGuard(Mutex);
+    Guard2 := MakeLockGuard(Mutex);
     // 空操作
+    Guard2 := nil; // 提前释放，避免跨迭代持有
   end;
   EndTime := GetTickCount64;
   GuardTime := EndTime - StartTime;

@@ -76,9 +76,9 @@ var
 begin
   WriteLn(#13#10'=== 工厂函数示例 ===');
   
-  // 直接使用工厂函数创建守护
-  WriteLn('使用 MutexGuard 工厂函数...');
-  Guard := MutexGuard;
+  // 直接使用 RAII 工厂创建守护（MakeLockGuard + MakeMutex）
+  WriteLn('使用 RAII 守护工厂 (MakeLockGuard + MakeMutex)...');
+  Guard := MakeLockGuard(MakeMutex);
   WriteLn('✓ 通过工厂函数创建的守护已获取锁');
   Sleep(100); // 模拟工作
   

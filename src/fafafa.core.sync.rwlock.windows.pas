@@ -6,8 +6,26 @@ unit fafafa.core.sync.rwlock.windows;
 interface
 
 uses
-  Windows,
+  Windows, SysUtils,
   fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.rwlock.base, fafafa.core.atomic;
+
+
+{$IFDEF FAFAFA_CORE_USE_SRWLOCK}
+ type
+  PSRWLOCK = ^SRWLOCK;
+  SRWLOCK = record
+    Ptr: Pointer;
+  end;
+
+ // SRWLOCK API declarations (pointer form to match usage in this unit)
+ procedure InitializeSRWLock(SRWLock: PSRWLOCK); stdcall; external 'kernel32.dll' name 'InitializeSRWLock';
+ procedure AcquireSRWLockExclusive(SRWLock: PSRWLOCK); stdcall; external 'kernel32.dll' name 'AcquireSRWLockExclusive';
+ procedure ReleaseSRWLockExclusive(SRWLock: PSRWLOCK); stdcall; external 'kernel32.dll' name 'ReleaseSRWLockExclusive';
+ function TryAcquireSRWLockExclusive(SRWLock: PSRWLOCK): LongBool; stdcall; external 'kernel32.dll' name 'TryAcquireSRWLockExclusive';
+ procedure AcquireSRWLockShared(SRWLock: PSRWLOCK); stdcall; external 'kernel32.dll' name 'AcquireSRWLockShared';
+ procedure ReleaseSRWLockShared(SRWLock: PSRWLOCK); stdcall; external 'kernel32.dll' name 'ReleaseSRWLockShared';
+ function TryAcquireSRWLockShared(SRWLock: PSRWLOCK): LongBool; stdcall; external 'kernel32.dll' name 'TryAcquireSRWLockShared';
+{$ENDIF}
 
 type
   // ===== 可重入性支持 =====
@@ -149,6 +167,64 @@ type
     // ===== 状态查询 =====
     function GetReaderCount: Integer;
     function IsWriteLocked: Boolean;
+
+{$IFNDEF FAFAFA_CORE_USE_SRWLOCK}
+// 当未启用 SRWLOCK 支持时，提供一个最小的占位实现，避免编译错误。
+// 注意：此实现仅用于占位，不能提供真正的 RWLock 语义。
+// 在 Windows 上建议启用 FAFAFA_CORE_USE_SRWLOCK（settings.inc 已默认开启）。
+
+  type
+    TRWLock = class(TInterfacedObject, IRWLock)
+    private
+      FLast: TLockResult;
+    public
+      constructor Create; overload;
+      constructor Create(const Options: TRWLockOptions); overload;
+      destructor Destroy; override;
+
+      function GetLastError: TWaitError;
+
+      function Read: IRWLockReadGuard; inline;
+      function Write: IRWLockWriteGuard; inline;
+      function TryRead(ATimeoutMs: Cardinal = 0): IRWLockReadGuard; inline;
+      function TryWrite(ATimeoutMs: Cardinal = 0): IRWLockWriteGuard; inline;
+
+      procedure AcquireRead; inline;
+      procedure ReleaseRead; inline;
+      procedure AcquireWrite; inline;
+      procedure ReleaseWrite; inline;
+      function TryAcquireRead: Boolean; inline;
+      function TryAcquireRead(ATimeoutMs: Cardinal): Boolean; inline;
+      function TryAcquireWrite: Boolean; inline;
+      function TryAcquireWrite(ATimeoutMs: Cardinal): Boolean; inline;
+
+      function TryAcquireReadEx(ATimeoutMs: Cardinal): TLockResult; inline;
+      function TryAcquireWriteEx(ATimeoutMs: Cardinal): TLockResult; inline;
+
+      function GetReaderCount: Integer; inline;
+      function IsWriteLocked: Boolean; inline;
+      function IsReadLocked: Boolean; inline;
+      function GetWriterThread: TThreadID; inline;
+      function GetMaxReaders: Integer; inline;
+
+      function GetContentionCount: Integer; inline;
+      function GetSpinCount: Integer; inline;
+
+      function GetLastLockResult: TLockResult; inline;
+
+      function ValidateState: Boolean; inline;
+      procedure RecoverState; inline;
+      function IsHealthy: Boolean; inline;
+
+      function GetPerformanceStats: TLockPerformanceStats; inline;
+      procedure ResetPerformanceStats; inline;
+      function GetContentionRate: Double; inline;
+      function GetAverageWaitTime: Double; inline;
+      function GetThroughput: Double; inline;
+      function GetSpinEfficiency: Double; inline;
+    end;
+{$ENDIF}
+
     function IsReadLocked: Boolean;
     function GetWriterThread: TThreadID;
     function GetMaxReaders: Integer;
@@ -164,6 +240,14 @@ type
     function ValidateState: Boolean;
     procedure RecoverState;
     function IsHealthy: Boolean;
+
+    // 性能监控（满足 IRWLock 接口要求，当前返回最小占位）
+    function GetPerformanceStats: TLockPerformanceStats;
+    procedure ResetPerformanceStats;
+    function GetContentionRate: Double;
+    function GetAverageWaitTime: Double;
+    function GetThroughput: Double;
+    function GetSpinEfficiency: Double;
   end;
 
 implementation
@@ -985,7 +1069,7 @@ var
   ErrorCode: DWORD;
   ErrorMsg: string;
 begin
-  ErrorCode := GetLastError;
+  ErrorCode := Windows.GetLastError;
   case ErrorCode of
     ERROR_TIMEOUT:
       begin
@@ -1009,10 +1093,10 @@ begin
       end;
   else
     FLastLockResult := lrError;
-    ErrorMsg := Format('System error %d', [ErrorCode]);
+    ErrorMsg := 'System error ' + IntToStr(ErrorCode);
   end;
 
-  raise ERWLockSystemError.Create(ErrorCode, ErrorMsg, GetCurrentThreadId);
+  raise ERWLockSystemError.Create(Integer(ErrorCode), ErrorMsg, TThreadID(GetCurrentThreadId));
 end;
 
 procedure TRWLock.HandleTimeout(ATimeoutMs: Cardinal);
@@ -1052,6 +1136,184 @@ begin
   begin
     // 如果有写锁，读者计数应该为0
     if CurrentReaderCount > 0 then
+    begin
+      Result := False;
+      Exit;
+    end;
+
+{$IFNDEF FAFAFA_CORE_USE_SRWLOCK}
+{ Minimal stub implementations }
+constructor TRWLock.Create;
+begin
+  inherited Create;
+  FLast := lrSuccess;
+end;
+
+constructor TRWLock.Create(const Options: TRWLockOptions);
+begin
+  Create;
+end;
+
+destructor TRWLock.Destroy;
+begin
+  inherited Destroy;
+end;
+
+function TRWLock.GetLastError: TWaitError;
+begin
+  Result := weNone;
+end;
+
+function TRWLock.Read: IRWLockReadGuard;
+begin
+  Result := nil;
+end;
+
+function TRWLock.Write: IRWLockWriteGuard;
+begin
+  Result := nil;
+end;
+
+function TRWLock.TryRead(ATimeoutMs: Cardinal): IRWLockReadGuard;
+begin
+  Result := nil;
+end;
+
+function TRWLock.TryWrite(ATimeoutMs: Cardinal): IRWLockWriteGuard;
+begin
+  Result := nil;
+end;
+
+procedure TRWLock.AcquireRead;
+begin
+end;
+
+procedure TRWLock.ReleaseRead;
+begin
+end;
+
+procedure TRWLock.AcquireWrite;
+begin
+end;
+
+procedure TRWLock.ReleaseWrite;
+begin
+end;
+
+function TRWLock.TryAcquireRead: Boolean;
+begin
+  Result := False;
+end;
+
+function TRWLock.TryAcquireRead(ATimeoutMs: Cardinal): Boolean;
+begin
+  Result := False;
+end;
+
+function TRWLock.TryAcquireWrite: Boolean;
+begin
+  Result := False;
+end;
+
+function TRWLock.TryAcquireWrite(ATimeoutMs: Cardinal): Boolean;
+begin
+  Result := False;
+end;
+
+function TRWLock.TryAcquireReadEx(ATimeoutMs: Cardinal): TLockResult;
+begin
+  Result := lrWouldBlock;
+end;
+
+function TRWLock.TryAcquireWriteEx(ATimeoutMs: Cardinal): TLockResult;
+begin
+  Result := lrWouldBlock;
+end;
+
+function TRWLock.GetReaderCount: Integer;
+begin
+  Result := 0;
+end;
+
+function TRWLock.IsWriteLocked: Boolean;
+begin
+  Result := False;
+end;
+
+function TRWLock.IsReadLocked: Boolean;
+begin
+  Result := False;
+end;
+
+function TRWLock.GetWriterThread: TThreadID;
+begin
+  Result := 0;
+end;
+
+function TRWLock.GetMaxReaders: Integer;
+begin
+  Result := 0;
+end;
+
+function TRWLock.GetContentionCount: Integer;
+begin
+  Result := 0;
+end;
+
+function TRWLock.GetSpinCount: Integer;
+begin
+  Result := 0;
+end;
+
+function TRWLock.GetLastLockResult: TLockResult;
+begin
+  Result := FLast;
+end;
+
+function TRWLock.ValidateState: Boolean;
+begin
+  Result := True;
+end;
+
+procedure TRWLock.RecoverState;
+begin
+end;
+
+function TRWLock.IsHealthy: Boolean;
+begin
+  Result := ValidateState and (FLastLockResult <> lrError);
+end;
+
+function TRWLock.GetPerformanceStats: TLockPerformanceStats;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+end;
+
+procedure TRWLock.ResetPerformanceStats;
+begin
+end;
+
+function TRWLock.GetContentionRate: Double;
+begin
+  Result := 0.0;
+end;
+
+function TRWLock.GetAverageWaitTime: Double;
+begin
+  Result := 0.0;
+end;
+
+function TRWLock.GetThroughput: Double;
+begin
+  Result := 0.0;
+end;
+
+function TRWLock.GetSpinEfficiency: Double;
+begin
+  Result := 1.0;
+end;
+{$ENDIF}
+
     begin
       Result := False;
       Exit;
@@ -1135,5 +1397,41 @@ function TRWLock.IsHealthy: Boolean;
 begin
   Result := ValidateState and (FLastLockResult <> lrError);
 end;
+
+
+{$IFDEF FAFAFA_CORE_USE_SRWLOCK}
+function TRWLock.GetPerformanceStats: TLockPerformanceStats;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+  Result.ContentionEvents := FContentionCount;
+  Result.TotalSpinCount := FSpinCount;
+end;
+
+procedure TRWLock.ResetPerformanceStats;
+begin
+  FContentionCount := 0;
+  // 不重置自旋配置
+end;
+
+function TRWLock.GetContentionRate: Double;
+begin
+  Result := FContentionCount;
+end;
+
+function TRWLock.GetAverageWaitTime: Double;
+begin
+  Result := 0.0;
+end;
+
+function TRWLock.GetThroughput: Double;
+begin
+  Result := 0.0;
+end;
+
+function TRWLock.GetSpinEfficiency: Double;
+begin
+  Result := 1.0;
+end;
+{$ENDIF}
 
 end.

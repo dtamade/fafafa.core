@@ -45,7 +45,7 @@ begin
 end;
 
 initialization
-  WorkAvailable := CreateEvent(False, False); // 自动重置
+  WorkAvailable := MakeEvent(False, False); // 自动重置
 ```
 
 ### 手动重置事件 (Manual-Reset Event)
@@ -84,7 +84,7 @@ begin
 end;
 
 initialization
-  ShutdownEvent := CreateEvent(True, False); // 手动重置
+  ShutdownEvent := MakeEvent(True, False); // 手动重置
 ```
 
 ## 资源管理最佳实践
@@ -136,7 +136,7 @@ end;
 var
   Event: IEvent;
 begin
-  Event := CreateEvent(False, False);
+  Event := MakeEvent(False, False);
   // 接口引用自动管理内存
   // 无需手动释放
 end;
@@ -438,12 +438,12 @@ end;
 // ❌ 反模式：为每个操作创建事件
 for i := 1 to 1000 do
 begin
-  Event := CreateEvent(False, False);
+  Event := MakeEvent(False, False);
   // 使用事件...
 end;
 
 // ✅ 解决方案：重用事件对象
-Event := CreateEvent(False, False);
+Event := MakeEvent(False, False);
 for i := 1 to 1000 do
 begin
   // 重用同一个事件

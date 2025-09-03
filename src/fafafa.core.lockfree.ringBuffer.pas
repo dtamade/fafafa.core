@@ -128,10 +128,10 @@ begin
   InitializeBuffer;
   
   // Initialize sequences
-  atomic_store_64(FProducerSequence.Value, 0, memory_order_relaxed);
-  atomic_store_64(FConsumerSequence.Value, 0, memory_order_relaxed);
-  atomic_store_64(FCachedConsumerSequence.Value, 0, memory_order_relaxed);
-  atomic_store_64(FCachedProducerSequence.Value, 0, memory_order_relaxed);
+  atomic_store_64(FProducerSequence.Value, 0, mo_relaxed);
+  atomic_store_64(FConsumerSequence.Value, 0, mo_relaxed);
+  atomic_store_64(FCachedConsumerSequence.Value, 0, mo_relaxed);
+  atomic_store_64(FCachedProducerSequence.Value, 0, mo_relaxed);
 end;
 
 destructor TLockFreeRingBuffer.Destroy;
@@ -158,7 +158,7 @@ begin
   for I := 0 to FCapacity - 1 do
   begin
     FillChar(FBuffer[I].Data, SizeOf(T), 0);
-    atomic_store_64(FBuffer[I].Sequence, I, memory_order_relaxed);
+    atomic_store_64(FBuffer[I].Sequence, I, mo_relaxed);
   end;
 end;
 
@@ -173,22 +173,22 @@ var
   LEntry: PEntry;
   LExpectedSeq: Int64;
 begin
-  LProducerSeq := atomic_load_64(FProducerSequence.Value, memory_order_relaxed);
+  LProducerSeq := atomic_load_64(FProducerSequence.Value, mo_relaxed);
   LIndex := LProducerSeq and FMask;
   LEntry := @FBuffer[LIndex];
   
   // Check if slot is available
   LExpectedSeq := LProducerSeq;
-  if atomic_load_64(LEntry^.Sequence, memory_order_acquire) <> LExpectedSeq then
+  if atomic_load_64(LEntry^.Sequence, mo_acquire) <> LExpectedSeq then
   begin
     // Slot not available, check if buffer is full
-    LCachedConsumerSeq := atomic_load_64(FCachedConsumerSequence.Value, memory_order_relaxed);
+    LCachedConsumerSeq := atomic_load_64(FCachedConsumerSequence.Value, mo_relaxed);
     
     if LProducerSeq - LCachedConsumerSeq >= FCapacity then
     begin
       // Update cached consumer sequence
-      LConsumerSeq := atomic_load_64(FConsumerSequence.Value, memory_order_acquire);
-      atomic_store_64(FCachedConsumerSequence.Value, LConsumerSeq, memory_order_relaxed);
+      LConsumerSeq := atomic_load_64(FConsumerSequence.Value, mo_acquire);
+      atomic_store_64(FCachedConsumerSequence.Value, LConsumerSeq, mo_relaxed);
       
       if LProducerSeq - LConsumerSeq >= FCapacity then
         Exit(False); // Buffer is full
@@ -201,10 +201,10 @@ begin
   LEntry^.Data := AItem;
   
   // Release the slot with release semantics
-  atomic_store_64(LEntry^.Sequence, LProducerSeq + 1, memory_order_release);
-  
+  atomic_store_64(LEntry^.Sequence, LProducerSeq + 1, mo_release);
+
   // Advance producer sequence
-  atomic_store_64(FProducerSequence.Value, LProducerSeq + 1, memory_order_relaxed);
+  atomic_store_64(FProducerSequence.Value, LProducerSeq + 1, mo_relaxed);
   
   Result := True;
 end;
@@ -231,22 +231,22 @@ var
   LEntry: PEntry;
   LExpectedSeq: Int64;
 begin
-  LConsumerSeq := atomic_load_64(FConsumerSequence.Value, memory_order_relaxed);
+  LConsumerSeq := atomic_load_64(FConsumerSequence.Value, mo_relaxed);
   LIndex := LConsumerSeq and FMask;
   LEntry := @FBuffer[LIndex];
   
   // Check if data is available
   LExpectedSeq := LConsumerSeq + 1;
-  if atomic_load_64(LEntry^.Sequence, memory_order_acquire) <> LExpectedSeq then
+  if atomic_load_64(LEntry^.Sequence, mo_acquire) <> LExpectedSeq then
   begin
     // Data not available, check if buffer is empty
-    LCachedProducerSeq := atomic_load_64(FCachedProducerSequence.Value, memory_order_relaxed);
-    
+    LCachedProducerSeq := atomic_load_64(FCachedProducerSequence.Value, mo_relaxed);
+
     if LConsumerSeq >= LCachedProducerSeq then
     begin
       // Update cached producer sequence
-      LProducerSeq := atomic_load_64(FProducerSequence.Value, memory_order_acquire);
-      atomic_store_64(FCachedProducerSequence.Value, LProducerSeq, memory_order_relaxed);
+      LProducerSeq := atomic_load_64(FProducerSequence.Value, mo_acquire);
+      atomic_store_64(FCachedProducerSequence.Value, LProducerSeq, mo_relaxed);
       
       if LConsumerSeq >= LProducerSeq then
         Exit(False); // Buffer is empty
@@ -259,10 +259,10 @@ begin
   AItem := LEntry^.Data;
   
   // Release the slot with release semantics
-  atomic_store_64(LEntry^.Sequence, LConsumerSeq + FCapacity, memory_order_release);
+  atomic_store_64(LEntry^.Sequence, LConsumerSeq + FCapacity, mo_release);
   
   // Advance consumer sequence
-  atomic_store_64(FConsumerSequence.Value, LConsumerSeq + 1, memory_order_relaxed);
+  atomic_store_64(FConsumerSequence.Value, LConsumerSeq + 1, mo_relaxed);
   
   Result := True;
 end;
@@ -284,8 +284,8 @@ function TLockFreeRingBuffer.empty: Boolean;
 var
   LProducerSeq, LConsumerSeq: Int64;
 begin
-  LConsumerSeq := atomic_load_64(FConsumerSequence.Value, memory_order_relaxed);
-  LProducerSeq := atomic_load_64(FProducerSequence.Value, memory_order_relaxed);
+  LConsumerSeq := atomic_load_64(FConsumerSequence.Value, mo_relaxed);
+  LProducerSeq := atomic_load_64(FProducerSequence.Value, mo_relaxed);
   Result := LConsumerSeq >= LProducerSeq;
 end;
 
@@ -293,8 +293,8 @@ function TLockFreeRingBuffer.full: Boolean;
 var
   LProducerSeq, LConsumerSeq: Int64;
 begin
-  LProducerSeq := atomic_load_64(FProducerSequence.Value, memory_order_relaxed);
-  LConsumerSeq := atomic_load_64(FConsumerSequence.Value, memory_order_relaxed);
+  LProducerSeq := atomic_load_64(FProducerSequence.Value, mo_relaxed);
+  LConsumerSeq := atomic_load_64(FConsumerSequence.Value, mo_relaxed);
   Result := (LProducerSeq - LConsumerSeq) >= FCapacity;
 end;
 
@@ -302,8 +302,8 @@ function TLockFreeRingBuffer.size: Int64;
 var
   LProducerSeq, LConsumerSeq: Int64;
 begin
-  LProducerSeq := atomic_load_64(FProducerSequence.Value, memory_order_relaxed);
-  LConsumerSeq := atomic_load_64(FConsumerSequence.Value, memory_order_relaxed);
+  LProducerSeq := atomic_load_64(FProducerSequence.Value, mo_relaxed);
+  LConsumerSeq := atomic_load_64(FConsumerSequence.Value, mo_relaxed);
   Result := LProducerSeq - LConsumerSeq;
   if Result < 0 then
     Result := 0;

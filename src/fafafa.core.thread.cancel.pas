@@ -6,7 +6,10 @@ unit fafafa.core.thread.cancel;
 interface
 
 uses
-  SysUtils, fafafa.core.sync;
+  SysUtils,
+  fafafa.core.sync.mutex,
+  fafafa.core.sync.event,
+  fafafa.core.sync.event.base;
 
 type
   ICancellationToken = interface
@@ -29,7 +32,7 @@ type
   private
     FCancelled: Boolean;
     FEvent: IEvent;
-    FLock: ILock;
+    FLock: IMutex;
   public
     constructor Create;
     function IsCancellationRequested: Boolean;

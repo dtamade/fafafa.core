@@ -1,7 +1,6 @@
 unit Test_fafafa.core.atomic;
 
-{$CODEPAGE UTF8}
-{$mode objfpc}{$H+}
+{$IFDEF WINDOWS}{$CODEPAGE UTF8}{$ENDIF}
 {$I ../../src/fafafa.core.settings.inc}
 
 interface
@@ -13,6 +12,8 @@ uses
 procedure RegisterAtomicTests;
 
 implementation
+ {$PUSH}
+ {$WARN 4055 OFF}
 
 // 全局函数族测试
 // 位操作 RMW、指针字节加减、atomic_flag、is_lock_free、tagged_ptr
@@ -74,8 +75,11 @@ type
     procedure Test_ptruint_pointer_fetch_smoke;
     {$IFDEF CPU64}
     procedure Test_uint64_add_sub_fetch_paths;
+    procedure Test_uint64_bitwise_boundary_extremes;
     {$ENDIF}
 
+    procedure Test_compare_exchange_expected_writeback_consistency;
+    procedure Test_pointer_fetch_add_negative_boundary;
     procedure Test_tagged_ptr_weak_and_exchange;
     procedure Test_tagged_ptr_tag_wraparound;
     procedure Test_atomic_compare_exchange_loops_32;
@@ -422,9 +426,9 @@ end;
 procedure TTestCase_Global.Test_atomic_uint64_fetch_ops;
 var u, r: UInt64;
 begin
-  u := $FFFF000000000000; r := atomic_fetch_and_64(u, $0F0F0F0F0F0F0F0F); AssertEquals(QWord($FFFF000000000000), QWord(r)); AssertEquals(QWord($0F0F000000000000), QWord(u));
-  r := atomic_fetch_or_64(u, $F0); AssertEquals(QWord($0F0F000000000000), QWord(r)); AssertEquals(QWord($0F0F0000000000F0), QWord(u));
-  r := atomic_fetch_xor_64(u, $FF); AssertEquals(QWord($0F0F0000000000F0), QWord(r)); AssertEquals(QWord($0F0F00000000000F), QWord(u));
+  u := QWord($FFFF000000000000); r := atomic_fetch_and_64(u, QWord($0F0F0F0F0F0F0F0F)); AssertEquals(QWord($FFFF000000000000), QWord(r)); AssertEquals(QWord($0F0F000000000000), QWord(u));
+  r := atomic_fetch_or_64(u, QWord($F0)); AssertEquals(QWord($0F0F000000000000), QWord(r)); AssertEquals(QWord($0F0F0000000000F0), QWord(u));
+  r := atomic_fetch_xor_64(u, QWord($FF)); AssertEquals(QWord($0F0F0000000000F0), QWord(r)); AssertEquals(QWord($0F0F00000000000F), QWord(u));
 end;
 {$ENDIF}
 
@@ -461,11 +465,10 @@ begin
 end;
 
 procedure TTestCase_Global.Test_tagged_ptr_tag_wraparound;
-var tp: atomic_tagged_ptr_t; initTag, i: UInt32; last: UInt32;
+var tp: atomic_tagged_ptr_t; i: UInt32; last: UInt32;
 begin
   // 从接近最大 tag 开始，触发一次回卷
   tp := atomic_tagged_ptr(nil, {$IFDEF CPU64}UInt16($FFFE){$ELSE}UInt32($FFFFFFFE){$ENDIF});
-  initTag := atomic_tagged_ptr_get_tag(tp);
   for i := 1 to 3 do begin
     tp := atomic_tagged_ptr(atomic_tagged_ptr_get_ptr(tp), atomic_tagged_ptr_next(tp));
   end;
@@ -756,8 +759,92 @@ begin
   u := 1; r := atomic_fetch_add_64(u, 2); AssertEquals(QWord(1), QWord(r)); AssertEquals(QWord(3), QWord(u));
   r := atomic_fetch_sub_64(u, 1); AssertEquals(QWord(3), QWord(r)); AssertEquals(QWord(2), QWord(u));
 end;
+
+{$IFDEF CPU64}
+procedure TTestCase_Global.Test_uint64_bitwise_boundary_extremes;
+var u, r: UInt64;
+begin
+  // All 1s -> All 0s via AND
+  u := QWord($FFFFFFFFFFFFFFFF); r := atomic_fetch_and_64(u, QWord(0));
+  AssertEquals(QWord($FFFFFFFFFFFFFFFF), QWord(r)); AssertEquals(QWord(0), QWord(u));
+
+  // All 0s -> All 1s via OR
+  u := QWord(0); r := atomic_fetch_or_64(u, QWord($FFFFFFFFFFFFFFFF));
+  AssertEquals(QWord(0), QWord(r)); AssertEquals(QWord($FFFFFFFFFFFFFFFF), QWord(u));
+
+  // All 1s -> All 0s via XOR
+  u := QWord($FFFFFFFFFFFFFFFF); r := atomic_fetch_xor_64(u, QWord($FFFFFFFFFFFFFFFF));
+  AssertEquals(QWord($FFFFFFFFFFFFFFFF), QWord(r)); AssertEquals(QWord(0), QWord(u));
+
+  // Sign bit flip: 0x8000... <-> 0x7FFF...
+  u := QWord($8000000000000000); r := atomic_fetch_xor_64(u, QWord($FFFFFFFFFFFFFFFF));
+  AssertEquals(QWord($8000000000000000), QWord(r)); AssertEquals(QWord($7FFFFFFFFFFFFFFF), QWord(u));
+
+  // High/Low boundary: High(Int64) AND with Low mask
+  u := QWord($7FFFFFFFFFFFFFFF); r := atomic_fetch_and_64(u, QWord($00000000FFFFFFFF));
+  AssertEquals(QWord($7FFFFFFFFFFFFFFF), QWord(r)); AssertEquals(QWord($00000000FFFFFFFF), QWord(u));
+end;
 {$ENDIF}
 
+procedure TTestCase_Global.Test_compare_exchange_expected_writeback_consistency;
+var
+  pi: PtrInt; exp_pi: PtrInt;
+  pu: PtrUInt; exp_pu: PtrUInt;
+  pp: Pointer; exp_pp: Pointer;
+  success: Boolean;
+begin
+  // PtrInt: Success -> Fail -> Success sequence, check expected writeback
+  pi := 100; exp_pi := 100; success := atomic_compare_exchange_strong(pi, exp_pi, 200);
+  AssertTrue(success); AssertEquals(100, exp_pi); AssertEquals(200, pi);
+
+  exp_pi := 999; success := atomic_compare_exchange_strong(pi, exp_pi, 300); // should fail
+  AssertFalse(success); AssertEquals(200, exp_pi); AssertEquals(200, pi); // expected written back
+
+  exp_pi := 200; success := atomic_compare_exchange_strong(pi, exp_pi, 400);
+  AssertTrue(success); AssertEquals(200, exp_pi); AssertEquals(400, pi);
+
+  // PtrUInt: similar sequence
+  pu := PtrUInt(500); exp_pu := PtrUInt(500); success := atomic_compare_exchange_strong(pu, exp_pu, PtrUInt(600));
+  AssertTrue(success); AssertEquals(PtrUInt(500), exp_pu); AssertEquals(PtrUInt(600), pu);
+
+  exp_pu := PtrUInt(777); success := atomic_compare_exchange_strong(pu, exp_pu, PtrUInt(700));
+  AssertFalse(success); AssertEquals(PtrUInt(600), exp_pu); AssertEquals(PtrUInt(600), pu);
+
+  // Pointer: cast through PtrUInt for comparison
+  pp := Pointer(PtrUInt(1000)); exp_pp := Pointer(PtrUInt(1000));
+  success := atomic_compare_exchange_strong(pp, exp_pp, Pointer(PtrUInt(2000)));
+  AssertTrue(success); AssertEquals(PtrUInt(1000), PtrUInt(exp_pp)); AssertEquals(PtrUInt(2000), PtrUInt(pp));
+
+  exp_pp := Pointer(PtrUInt(3333)); success := atomic_compare_exchange_strong(pp, exp_pp, Pointer(PtrUInt(4000)));
+  AssertFalse(success); AssertEquals(PtrUInt(2000), PtrUInt(exp_pp)); AssertEquals(PtrUInt(2000), PtrUInt(pp));
+end;
+
+procedure TTestCase_Global.Test_pointer_fetch_add_negative_boundary;
+var p, r: Pointer; offset: PtrInt;
+begin
+  // Start at a "high" address, subtract to approach zero (but not cross)
+  p := Pointer(PtrUInt(10000)); offset := -5000;
+  r := atomic_fetch_add(p, offset);
+  AssertEquals(PtrUInt(10000), PtrUInt(r)); AssertEquals(PtrUInt(5000), PtrUInt(p));
+
+  // Subtract more to approach zero boundary
+  offset := -4999;
+  r := atomic_fetch_add(p, offset);
+  AssertEquals(PtrUInt(5000), PtrUInt(r)); AssertEquals(PtrUInt(1), PtrUInt(p));
+
+  // Add back to verify bidirectional
+  offset := 999;
+  r := atomic_fetch_add(p, offset);
+  AssertEquals(PtrUInt(1), PtrUInt(r)); AssertEquals(PtrUInt(1000), PtrUInt(p));
+
+  // Test pointer subtraction variant (fetch_sub)
+  r := atomic_fetch_sub(p, PtrInt(500));
+  AssertEquals(PtrUInt(1000), PtrUInt(r)); AssertEquals(PtrUInt(500), PtrUInt(p));
+end;
+{$ENDIF}
+
+// 内存序对照与桥接余缺
 
 
+{$POP}
 end.

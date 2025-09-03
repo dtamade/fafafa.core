@@ -41,11 +41,11 @@ type
 
 implementation
 
+{$IFDEF UNIX}
 uses
-  {$IFDEF UNIX}
-  cthreads,
-  {$ENDIF}
-  fafafa.core.sync.guard;
+  cthreads;
+{$ENDIF}
+// 删除无意义的 MutexGuard 单元，改用 base 提供的 MakeLockGuard
 
 { TTestCase_Global }
 
@@ -71,9 +71,9 @@ procedure TTestCase_Global.Test_MutexGuard;
 var
   Guard: ILockGuard;
 begin
-  // 测试 RAII 守护工厂函数
-  Guard := MutexGuard;
-  AssertNotNull('MutexGuard 应该返回有效的守护实例', Guard);
+  // 测试 RAII 守护工厂：使用 MakeLockGuard + MakeMutex 组合
+  Guard := MakeLockGuard(MakeMutex);
+  AssertNotNull('MakeLockGuard 应该返回有效的守护实例', Guard);
   
   // 守护应该自动管理锁的生命周期
   // 当 Guard 超出作用域时会自动释放锁

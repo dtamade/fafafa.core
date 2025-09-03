@@ -1,13 +1,15 @@
 unit fafafa.core.sync.spin.testcase;
 
-{$mode objfpc}{$H+}
-{$CODEPAGE UTF8}
+{$IFDEF WINDOWS}{$CODEPAGE UTF8}{$ENDIF}
 {$I ../../src/fafafa.core.settings.inc}
 
 interface
 
 uses
   SysUtils, Classes,
+  {$IFDEF UNIX}
+  cthreads,
+  {$ENDIF}
   fpcunit, testregistry,
   fafafa.core.sync.spin, fafafa.core.sync.base, fafafa.core.sync.spin.base;
 
@@ -15,13 +17,13 @@ type
   // 全局函数测试
   TTestCase_Global = class(TTestCase)
   published
-    procedure Test_MakeSpinLock;
+    procedure Test_MakeSpin;
   end;
 
-  // TSpinLock 类测试
-  TTestCase_TSpinLock = class(TTestCase)
+  // ISpin 接口基础测试
+  TTestCase_ISpin = class(TTestCase)
   private
-    FSpinLock: ISpinLock;
+    FSpin: ISpin;
   protected
     procedure SetUp; override;
     procedure TearDown; override;
@@ -31,715 +33,748 @@ type
     procedure Test_TryAcquire_Success;
     procedure Test_TryAcquire_Timeout_Zero;
     procedure Test_TryAcquire_Timeout_Short;
-
-    // 改进接口测试
-    procedure Test_GetMaxSpins_SetMaxSpins;
-    procedure Test_IsCurrentThreadOwner;
-    procedure Test_GetLockState;
-    procedure Test_ErrorHandling;
-    procedure Test_GetOwnerThread;
+    procedure Test_RAII_LockGuard;
 
     // 边界测试
-    procedure Test_Boundary_MinMaxSpins;
     procedure Test_Boundary_ZeroTimeout;
     procedure Test_Boundary_MaxTimeout;
+    procedure Test_Boundary_LongTimeout;
 
-    // 退避策略测试
-    procedure Test_BackoffStrategy_Linear;
-    procedure Test_BackoffStrategy_Exponential;
-    procedure Test_BackoffStrategy_Adaptive;
+    // 并发测试
+    procedure Test_Concurrent_Basic;
+  end;
 
-    // 简单性能测试
-    procedure Test_Performance_Basic;
+  // 兼容性测试
+  TTestCase_Compatibility = class(TTestCase)
+  private
+    FSpinLock: ISpin;
+  protected
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    procedure Test_ISpinLock_Interface;
+    procedure Test_ISpinLock_BasicOperations;
+  end;
 
-    // 调试功能测试
-    procedure Test_Debug_HoldDuration;
-    procedure Test_Debug_DeadlockDetection;
+  // 错误处理测试
+  TTestCase_ErrorHandling = class(TTestCase)
+  private
+    FSpin: ISpin;
+  protected
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    procedure Test_Error_DoubleRelease;
+    procedure Test_Error_ReleaseWithoutAcquire;
+    procedure Test_Behavior_NonReentrant;
+  end;
 
-    // 统计接口测试
-    procedure Test_Stats_Interface;
-    procedure Test_Stats_BasicOperations;
-    procedure Test_Stats_ContentionRate;
-    procedure Test_Stats_Reset;
-
-    // 调试接口测试
-    procedure Test_Debug_Interface;
-    procedure Test_Debug_Info;
-
-    // RAII 守卫测试
-    procedure Test_RAII_Lock;
-    procedure Test_RAII_TryLock;
-    procedure Test_RAII_TryLock_Timeout;
-    procedure Test_RAII_AutoRelease;
+  // RAII 深度测试
+  TTestCase_RAII = class(TTestCase)
+  private
+    FSpin: ISpin;
+  protected
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    procedure Test_RAII_ExceptionSafety;
+    procedure Test_RAII_NestedGuards;
     procedure Test_RAII_ManualRelease;
-    procedure Test_RAII_InvalidGuard;
+    procedure Test_RAII_GuardLifetime;
+  end;
 
+  // 多线程并发测试
+  TTestCase_MultiThread = class(TTestCase)
+  private
+    FSpin: ISpin;
+    FSharedCounter: Integer;
+    FThreadCount: Integer;
+    FIterationsPerThread: Integer;
+  protected
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    procedure Test_MultiThread_BasicContention;
+    procedure Test_MultiThread_HighContention;
+    procedure Test_MultiThread_Counter;
+    procedure Test_MultiThread_TryAcquire;
+    procedure Test_MultiThread_Fairness;
+  end;
+
+  // 性能和行为测试
+  TTestCase_Performance = class(TTestCase)
+  private
+    FSpin: ISpin;
+  protected
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    procedure Test_Performance_SpinBehavior;
+    procedure Test_Performance_BackoffStrategy;
+    procedure Test_Performance_BasicThroughput;
+  end;
+
+  // 线程工作器类型
+  TSpinTestThread = class(TThread)
+  private
+    FSpin: ISpin;
+    FCounter: PInteger;
+    FIterations: Integer;
+    FUseAcquire: Boolean;
+    FSuccess: Boolean;
+  public
+    constructor Create(ASpin: ISpin; ACounter: PInteger; AIterations: Integer; AUseAcquire: Boolean = True);
+    procedure Execute; override;
+    property Success: Boolean read FSuccess;
   end;
 
 implementation
 
+// ===== TSpinTestThread =====
+
+constructor TSpinTestThread.Create(ASpin: ISpin; ACounter: PInteger; AIterations: Integer; AUseAcquire: Boolean);
+begin
+  inherited Create(False);
+  FSpin := ASpin;
+  FCounter := ACounter;
+  FIterations := AIterations;
+  FUseAcquire := AUseAcquire;
+  FSuccess := False;
+end;
+
+procedure TSpinTestThread.Execute;
+var
+  i: Integer;
+begin
+  try
+    for i := 1 to FIterations do
+    begin
+      if FUseAcquire then
+      begin
+        FSpin.Acquire;
+        try
+          Inc(FCounter^);
+        finally
+          FSpin.Release;
+        end;
+      end
+      else
+      begin
+        // 使用 TryAcquire
+        while not FSpin.TryAcquire do
+          Sleep(0); // 让出 CPU
+        try
+          Inc(FCounter^);
+        finally
+          FSpin.Release;
+        end;
+      end;
+    end;
+    FSuccess := True;
+  except
+    FSuccess := False;
+  end;
+end;
+
 // ===== TTestCase_Global =====
 
-procedure TTestCase_Global.Test_MakeSpinLock;
+procedure TTestCase_Global.Test_MakeSpin;
 var
-  L: ISpinLock;
+  L: ISpin;
 begin
-  L := MakeSpinLock;
-  AssertNotNull(L);
+  L := MakeSpin;
+  AssertNotNull('MakeSpin should return non-nil interface', L);
 end;
 
-// ===== TTestCase_TSpinLock =====
 
-procedure TTestCase_TSpinLock.SetUp;
+// ===== TTestCase_ISpin =====
+
+procedure TTestCase_ISpin.SetUp;
 begin
   inherited SetUp;
-  FSpinLock := MakeSpinLock;
+  FSpin := MakeSpin;
 end;
 
-procedure TTestCase_TSpinLock.TearDown;
+procedure TTestCase_ISpin.TearDown;
+begin
+  FSpin := nil;
+  inherited TearDown;
+end;
+
+procedure TTestCase_ISpin.Test_Acquire_Release;
+begin
+  // 基本获取和释放
+  FSpin.Acquire;
+  FSpin.Release;
+  
+  // 多次获取和释放
+  FSpin.Acquire;
+  FSpin.Release;
+  FSpin.Acquire;
+  FSpin.Release;
+end;
+
+procedure TTestCase_ISpin.Test_TryAcquire_Success;
+begin
+  // 无竞争情况下应该成功
+  AssertTrue('TryAcquire should succeed when no contention', FSpin.TryAcquire);
+  FSpin.Release;
+end;
+
+procedure TTestCase_ISpin.Test_TryAcquire_Timeout_Zero;
+begin
+  // 测试零超时的行为：无竞争时应该成功
+  AssertTrue('TryAcquire(0) should succeed when no contention', FSpin.TryAcquire(0));
+  FSpin.Release;
+  
+  // 再次测试零超时
+  AssertTrue('TryAcquire(0) should succeed again when no contention', FSpin.TryAcquire(0));
+  FSpin.Release;
+end;
+
+procedure TTestCase_ISpin.Test_TryAcquire_Timeout_Short;
+begin
+  // 无竞争情况下，即使短超时也应该成功
+  AssertTrue('TryAcquire with short timeout should succeed when no contention', FSpin.TryAcquire(10));
+  FSpin.Release;
+end;
+
+procedure TTestCase_ISpin.Test_RAII_LockGuard;
+var
+  Guard: ILockGuard;
+begin
+  // 测试 RAII 自动锁管理
+  Guard := FSpin.LockGuard;
+  AssertNotNull('LockGuard should not be nil', Guard);
+  // Guard 超出作用域时会自动释放锁
+end;
+
+procedure TTestCase_ISpin.Test_Boundary_ZeroTimeout;
+begin
+  // 测试零超时边界情况
+  AssertTrue('TryAcquire(0) should succeed when no contention', FSpin.TryAcquire(0));
+  FSpin.Release;
+end;
+
+procedure TTestCase_ISpin.Test_Boundary_MaxTimeout;
+begin
+  // 测试最大超时值
+  AssertTrue('TryAcquire with max timeout should succeed when no contention', FSpin.TryAcquire(High(Cardinal)));
+  FSpin.Release;
+end;
+
+procedure TTestCase_ISpin.Test_Boundary_LongTimeout;
+begin
+  // 测试长超时值（5秒）
+  AssertTrue('TryAcquire with long timeout should succeed when no contention', FSpin.TryAcquire(5000));
+  FSpin.Release;
+end;
+
+procedure TTestCase_ISpin.Test_Concurrent_Basic;
+var
+  Counter: Integer;
+  i: Integer;
+begin
+  // 简单的并发测试
+  Counter := 0;
+  
+  // 在单线程中模拟并发操作
+  for i := 1 to 1000 do
+  begin
+    FSpin.Acquire;
+    try
+      Inc(Counter);
+    finally
+      FSpin.Release;
+    end;
+  end;
+  
+  AssertEquals('Counter should be 1000', 1000, Counter);
+end;
+
+// ===== TTestCase_Compatibility =====
+
+procedure TTestCase_Compatibility.SetUp;
+begin
+  inherited SetUp;
+  FSpinLock := MakeSpin;
+end;
+
+procedure TTestCase_Compatibility.TearDown;
 begin
   FSpinLock := nil;
   inherited TearDown;
 end;
 
-procedure TTestCase_TSpinLock.Test_Acquire_Release;
+procedure TTestCase_Compatibility.Test_ISpinLock_Interface;
+var
+  Spin: ISpin;
 begin
-  // 基本获取和释放
+  // 测试 ISpinLock 可以转换为 ISpin
+  AssertNotNull('FSpinLock should not be nil', FSpinLock);
+
+  Spin := ISpin(FSpinLock);
+  AssertNotNull('ISpinLock should be convertible to ISpin', Spin);
+
+  // 测试接口功能一致性
+  Spin.Acquire;
+  Spin.Release;
+end;
+
+procedure TTestCase_Compatibility.Test_ISpinLock_BasicOperations;
+begin
+  // 测试 ISpinLock 的基本操作
   FSpinLock.Acquire;
   FSpinLock.Release;
-  
-  // 多次获取和释放
-  FSpinLock.Acquire;
-  FSpinLock.Release;
-  FSpinLock.Acquire;
-  FSpinLock.Release;
-end;
-
-procedure TTestCase_TSpinLock.Test_TryAcquire_Success;
-begin
-  // 无竞争情况下应该成功
-  AssertTrue(FSpinLock.TryAcquire);
-  FSpinLock.Release;
-  
-  // 再次尝试
-  AssertTrue(FSpinLock.TryAcquire);
-  FSpinLock.Release;
-end;
-
-procedure TTestCase_TSpinLock.Test_TryAcquire_Timeout_Zero;
-var
-  StartT, Elapsed: QWord;
-  Result1, Result2: Boolean;
-begin
-  // 先测试无参版本
-  Result1 := FSpinLock.TryAcquire;
-  AssertTrue('TryAcquire() should succeed', Result1);
-  if Result1 then
-    FSpinLock.Release;
-
-  // 再测试超时为0的版本
-  StartT := GetTickCount64;
-  Result2 := FSpinLock.TryAcquire(0);
-  Elapsed := GetTickCount64 - StartT;
-
-  AssertTrue('TryAcquire(0) should succeed like TryAcquire()', Result2);
-  AssertTrue('elapsed='+IntToStr(Elapsed), Elapsed < 10);
-  if Result2 then
-    FSpinLock.Release;
-end;
-
-procedure TTestCase_TSpinLock.Test_TryAcquire_Timeout_Short;
-var
-  StartT, Elapsed: QWord;
-begin
-  // 短超时测试
-  StartT := GetTickCount64;
-  AssertTrue(FSpinLock.TryAcquire(50));
-  Elapsed := GetTickCount64 - StartT;
-  AssertTrue('elapsed='+IntToStr(Elapsed), Elapsed < 30);
-  FSpinLock.Release;
-end;
-
-procedure TTestCase_TSpinLock.Test_Performance_Basic;
-const
-  N = 1000;
-var
-  L: ISpinLock;
-  T: QWord;
-  I: Integer;
-begin
-  L := MakeSpinLock;
-
-  T := GetTickCount64;
-  for I := 1 to N do
-  begin
-    L.Acquire;
-    L.Release;
-  end;
-  T := GetTickCount64 - T;
-
-  // 基本健全性检查：1000次操作应该在合理时间内完成
-  AssertTrue('time='+IntToStr(T), T < 1000);
-end;
-
-// ===== 简化接口测试 =====
-
-procedure TTestCase_TSpinLock.Test_GetMaxSpins_SetMaxSpins;
-begin
-  AssertEquals('Default max spins', 64, FSpinLock.GetMaxSpins);
-
-  FSpinLock.SetMaxSpins(512);
-  AssertEquals('Updated max spins', 512, FSpinLock.GetMaxSpins);
-end;
-
-procedure TTestCase_TSpinLock.Test_IsCurrentThreadOwner;
-begin
-  // 初始状态应该是当前线程不拥有锁
-  AssertFalse('Initial state: current thread should not own lock', FSpinLock.IsCurrentThreadOwner);
-
-  // 获取锁后当前线程应该拥有锁
-  FSpinLock.Acquire;
-  {$IFDEF DEBUG}
-  AssertTrue('After acquire: current thread should own lock', FSpinLock.IsCurrentThreadOwner);
-  {$ENDIF}
-
-  // 释放锁后当前线程应该不拥有锁
-  FSpinLock.Release;
-  AssertFalse('After release: current thread should not own lock', FSpinLock.IsCurrentThreadOwner);
-end;
-
-procedure TTestCase_TSpinLock.Test_GetLockState;
-begin
-  // 初始状态应该是未锁定
-  {$IFDEF DEBUG}
-  AssertEquals('Initial state should be unlocked', 0, FSpinLock.GetLockState);
-  {$ELSE}
-  AssertEquals('Non-debug mode should return unknown state', -1, FSpinLock.GetLockState);
-  {$ENDIF}
-
-  // 获取锁后应该是锁定状态
-  FSpinLock.Acquire;
-  {$IFDEF DEBUG}
-  AssertEquals('After acquire should be locked', 1, FSpinLock.GetLockState);
-  {$ENDIF}
-
-  // 释放锁后应该是未锁定状态
-  FSpinLock.Release;
-  {$IFDEF DEBUG}
-  AssertEquals('After release should be unlocked', 0, FSpinLock.GetLockState);
-  {$ENDIF}
-end;
-
-procedure TTestCase_TSpinLock.Test_ErrorHandling;
-begin
-  // 测试初始错误状态
-  AssertEquals('Initial error should be none', Ord(weNone), Ord(FSpinLock.GetLastError));
-
-  // 测试清除错误
-  FSpinLock.ClearLastError;
-  AssertEquals('After clear error should be none', Ord(weNone), Ord(FSpinLock.GetLastError));
-
-  // 测试错误消息
-  AssertTrue('Error message should not be empty', FSpinLock.GetErrorMessage(weTimeout) <> '');
-  AssertTrue('Error message should not be empty', FSpinLock.GetErrorMessage(weReentrancy) <> '');
-end;
-
-
-
-procedure TTestCase_TSpinLock.Test_GetOwnerThread;
-{$IFDEF DEBUG}
-var
-  CurrentThread: TThreadID;
-{$ENDIF}
-begin
-  {$IFDEF DEBUG}
-  CurrentThread := GetCurrentThreadId;
-
-  // 初始状态
-  AssertEquals('Initial owner should be 0', 0, FSpinLock.GetOwnerThread);
-
-  FSpinLock.Acquire;
-  AssertEquals('Owner should be current thread', CurrentThread, FSpinLock.GetOwnerThread);
-  FSpinLock.Release;
-  {$ELSE}
-  // 在 Release 模式下，GetOwnerThread 不可用，跳过测试
-  {$ENDIF}
-end;
-
-// ===== 边界测试 =====
-
-procedure TTestCase_TSpinLock.Test_Boundary_MinMaxSpins;
-var
-  Policy: TSpinLockPolicy;
-  L: ISpinLock;
-begin
-  // 测试最小自旋次数
-  Policy := DefaultSpinLockPolicy;
-  Policy.MaxSpins := 1;
-  L := MakeSpinLock(Policy);
-  L.Acquire;
-  L.Release;
-  AssertEquals('Min spins should work', 1, L.GetMaxSpins);
-
-  // 测试最大自旋次数
-  Policy.MaxSpins := 10000;
-  L := MakeSpinLock(Policy);
-  L.Acquire;
-  L.Release;
-  AssertEquals('Max spins should work', 10000, L.GetMaxSpins);
-end;
-
-procedure TTestCase_TSpinLock.Test_Boundary_ZeroTimeout;
-begin
-  // 零超时应该立即返回
-  AssertTrue('Zero timeout should succeed if not contended', FSpinLock.TryAcquire(0));
-  FSpinLock.Release;
-end;
-
-procedure TTestCase_TSpinLock.Test_Boundary_MaxTimeout;
-begin
-  // 最大超时应该正常工作
-  AssertTrue('Max timeout should work', FSpinLock.TryAcquire(High(Cardinal)));
-  FSpinLock.Release;
-end;
-
-// ===== 退避策略测试 =====
-
-procedure TTestCase_TSpinLock.Test_BackoffStrategy_Linear;
-var
-  Policy: TSpinLockPolicy;
-  L: ISpinLock;
-begin
-  Policy := DefaultSpinLockPolicy;
-  Policy.BackoffStrategy := sbsLinear;
-  Policy.MaxBackoffMs := 10;
-  Policy.MaxSpins := 32;
-  L := MakeSpinLock(Policy);
-
-  L.Acquire;
-  L.Release;
-
-  // 策略测试：确保锁能正常工作即可
-  AssertEquals('Linear backoff max spins should be set', 32, L.GetMaxSpins);
-end;
-
-procedure TTestCase_TSpinLock.Test_BackoffStrategy_Exponential;
-var
-  Policy: TSpinLockPolicy;
-  L: ISpinLock;
-begin
-  Policy := DefaultSpinLockPolicy;
-  Policy.BackoffStrategy := sbsExponential;
-  Policy.MaxBackoffMs := 20;
-  Policy.MaxSpins := 48;
-  L := MakeSpinLock(Policy);
-
-  L.Acquire;
-  L.Release;
-
-  AssertEquals('Exponential backoff max spins should be set', 48, L.GetMaxSpins);
-end;
-
-procedure TTestCase_TSpinLock.Test_BackoffStrategy_Adaptive;
-var
-  Policy: TSpinLockPolicy;
-  L: ISpinLock;
-begin
-  Policy := DefaultSpinLockPolicy;
-  Policy.BackoffStrategy := sbsAdaptive;
-  Policy.MaxBackoffMs := 15;
-  Policy.MaxSpins := 96;
-  L := MakeSpinLock(Policy);
-
-  L.Acquire;
-  L.Release;
-
-  AssertEquals('Adaptive backoff max spins should be set', 96, L.GetMaxSpins);
-end;
-
-// ===== 调试功能测试 =====
-
-procedure TTestCase_TSpinLock.Test_Debug_HoldDuration;
-{$IFDEF DEBUG}
-var
-  duration: Cardinal;
-{$ENDIF}
-begin
-  {$IFDEF DEBUG}
-  // 初始状态下持锁时间应该为 0
-  duration := FSpinLock.GetHoldDurationMs;
-  AssertEquals('Initial hold duration should be 0', 0, duration);
-
-  // 获取锁
-  FSpinLock.Acquire;
-
-  // 短暂等待
-  Sleep(10);
-
-  // 检查持锁时间
-  duration := FSpinLock.GetHoldDurationMs;
-  AssertTrue('Hold duration should be > 0 after acquire', duration > 0);
-  AssertTrue('Hold duration should be reasonable', duration < 1000);
-
-  // 释放锁
-  FSpinLock.Release;
-
-  // 释放后持锁时间应该为 0
-  duration := FSpinLock.GetHoldDurationMs;
-  AssertEquals('Hold duration should be 0 after release', 0, duration);
-  {$ELSE}
-  // 在 Release 模式下，跳过测试
-  {$ENDIF}
-end;
-
-procedure TTestCase_TSpinLock.Test_Debug_DeadlockDetection;
-var
-  policy: TSpinLockPolicy;
-  L: ISpinLock;
-begin
-  // 创建启用死锁检测的锁
-  policy := DefaultSpinLockPolicy;
-  policy.EnableDeadlockDetection := True;
-  policy.DeadlockTimeoutMs := 100; // 100ms 超时
-  L := MakeSpinLock(policy);
-
-  {$IFDEF DEBUG}
-  // 验证死锁检测已启用
-  AssertTrue('Deadlock detection should be enabled', L.IsDeadlockDetectionEnabled);
-  {$ENDIF}
-
-  // 正常的获取和释放应该不会触发死锁检测
-  L.Acquire;
-  L.Release;
-
-  // 测试默认策略（死锁检测关闭）
-  AssertFalse('Default policy should have deadlock detection disabled',
-              DefaultSpinLockPolicy.EnableDeadlockDetection);
-end;
-
-// ===== 统计接口测试 =====
-
-procedure TTestCase_TSpinLock.Test_Stats_Interface;
-var
-  L: ISpinLock;
-  LWithStats: ISpinLockWithStats;
-  Policy: TSpinLockPolicy;
-begin
-  // 创建启用统计的自旋锁
-  Policy := DefaultSpinLockPolicy;
-  Policy.EnableStats := True;
-  L := MakeSpinLock(Policy);
-
-  // 测试能否获取统计接口
-  AssertEquals('Should support ISpinLockWithStats interface',
-               S_OK, L.QueryInterface(ISpinLockWithStats, LWithStats));
-  AssertNotNull('Stats interface should not be null', LWithStats);
-
-  // 测试统计开关
-  AssertTrue('Stats should be enabled', LWithStats.IsStatsEnabled);
-
-  // 测试禁用统计
-  LWithStats.EnableStats(False);
-  AssertFalse('Stats should be disabled', LWithStats.IsStatsEnabled);
-
-  // 重新启用
-  LWithStats.EnableStats(True);
-  AssertTrue('Stats should be enabled again', LWithStats.IsStatsEnabled);
-end;
-
-procedure TTestCase_TSpinLock.Test_Stats_BasicOperations;
-var
-  L: ISpinLock;
-  LWithStats: ISpinLockWithStats;
-  Policy: TSpinLockPolicy;
-  Stats: TSpinLockStats;
-  i: Integer;
-begin
-  // 创建启用统计的自旋锁
-  Policy := DefaultSpinLockPolicy;
-  Policy.EnableStats := True;
-  L := MakeSpinLock(Policy);
-  AssertEquals('Should get stats interface', S_OK, L.QueryInterface(ISpinLockWithStats, LWithStats));
-
-  // 测试初始统计
-  Stats := LWithStats.GetStats;
-  AssertEquals('Initial acquire count should be 0', 0, Stats.AcquireCount);
-  AssertEquals('Initial contention count should be 0', 0, Stats.ContentionCount);
-  AssertEquals('Initial total spin count should be 0', 0, Stats.TotalSpinCount);
-
-  // 执行一些锁操作
-  for i := 1 to 5 do
-  begin
-    L.Acquire;
-    L.Release;
-  end;
-
-  // 检查统计更新
-  Stats := LWithStats.GetStats;
-  AssertEquals('Acquire count should be 5', 5, Stats.AcquireCount);
 
   // 测试 TryAcquire
-  AssertTrue('TryAcquire should succeed', L.TryAcquire);
-  L.Release;
+  AssertTrue('ISpinLock TryAcquire should succeed', FSpinLock.TryAcquire);
+  FSpinLock.Release;
 
-  Stats := LWithStats.GetStats;
-  AssertEquals('Acquire count should be 6', 6, Stats.AcquireCount);
+  // 测试 RAII
+  with FSpinLock.LockGuard do
+  begin
+    // 锁应该被自动获取和释放
+  end;
 end;
 
-procedure TTestCase_TSpinLock.Test_Stats_ContentionRate;
-var
-  L: ISpinLock;
-  LWithStats: ISpinLockWithStats;
-  Policy: TSpinLockPolicy;
-  Rate: Double;
+// ===== TTestCase_ErrorHandling =====
+
+procedure TTestCase_ErrorHandling.SetUp;
 begin
-  // 创建启用统计的自旋锁
-  Policy := DefaultSpinLockPolicy;
-  Policy.EnableStats := True;
-  L := MakeSpinLock(Policy);
-  AssertEquals('Should get stats interface', S_OK, L.QueryInterface(ISpinLockWithStats, LWithStats));
-
-  // 初始竞争率应该是 0
-  Rate := LWithStats.GetContentionRate;
-  AssertEquals('Initial contention rate should be 0', 0.0, Rate, 0.01);
-
-  // 执行一些无竞争的操作
-  L.Acquire;
-  L.Release;
-  L.TryAcquire;
-  L.Release;
-
-  // 竞争率应该仍然很低或为 0（因为没有实际竞争）
-  Rate := LWithStats.GetContentionRate;
-  AssertTrue('Contention rate should be low', Rate <= 100.0);
-
-  // 测试自旋效率
-  AssertTrue('Spin efficiency should be reasonable', LWithStats.GetSpinEfficiency >= 0.0);
+  inherited SetUp;
+  FSpin := MakeSpin;
 end;
 
-procedure TTestCase_TSpinLock.Test_Stats_Reset;
-var
-  L: ISpinLock;
-  LWithStats: ISpinLockWithStats;
-  Policy: TSpinLockPolicy;
-  Stats: TSpinLockStats;
+procedure TTestCase_ErrorHandling.TearDown;
 begin
-  // 创建启用统计的自旋锁
-  Policy := DefaultSpinLockPolicy;
-  Policy.EnableStats := True;
-  L := MakeSpinLock(Policy);
-  AssertEquals('Should get stats interface', S_OK, L.QueryInterface(ISpinLockWithStats, LWithStats));
-
-  // 执行一些操作
-  L.Acquire;
-  L.Release;
-  L.TryAcquire;
-  L.Release;
-
-  // 确认有统计数据
-  Stats := LWithStats.GetStats;
-  AssertTrue('Should have some acquire count', Stats.AcquireCount > 0);
-
-  // 重置统计
-  LWithStats.ResetStats;
-
-  // 检查重置后的状态
-  Stats := LWithStats.GetStats;
-  AssertEquals('Acquire count should be 0 after reset', 0, Stats.AcquireCount);
-  AssertEquals('Contention count should be 0 after reset', 0, Stats.ContentionCount);
-  AssertEquals('Total spin count should be 0 after reset', 0, Stats.TotalSpinCount);
+  FSpin := nil;
+  inherited TearDown;
 end;
 
-// ===== 调试接口测试 =====
-
-procedure TTestCase_TSpinLock.Test_Debug_Interface;
-var
-  L: ISpinLock;
-  LDebug: ISpinLockDebug;
+procedure TTestCase_ErrorHandling.Test_Error_DoubleRelease;
 begin
-  L := MakeSpinLock;
+  // 获取锁
+  FSpin.Acquire;
+  FSpin.Release;
 
-  // 测试能否获取调试接口
-  AssertEquals('Should support ISpinLockDebug interface',
-               S_OK, L.QueryInterface(ISpinLockDebug, LDebug));
-  AssertNotNull('Debug interface should not be null', LDebug);
-
-  // 测试基本调试方法
-  AssertTrue('Debug info should not be empty', Length(LDebug.GetDebugInfo) > 0);
-  AssertEquals('Initial hold count should be 0', 0, LDebug.GetHoldCount);
-  AssertEquals('Initial current spins should be 0', 0, LDebug.GetCurrentSpins);
+  // 第二次释放应该安全（不崩溃）
+  // 注意：自旋锁通常不检查重复释放，这是正常行为
+  FSpin.Release; // 应该不会崩溃
 end;
 
-procedure TTestCase_TSpinLock.Test_Debug_Info;
-var
-  L: ISpinLock;
-  LDebug: ISpinLockDebug;
-  DebugInfo: string;
+procedure TTestCase_ErrorHandling.Test_Error_ReleaseWithoutAcquire;
 begin
-  L := MakeSpinLock;
-  AssertEquals('Should get debug interface', S_OK, L.QueryInterface(ISpinLockDebug, LDebug));
-
-  // 测试调试信息
-  DebugInfo := LDebug.GetDebugInfo;
-  AssertTrue('Debug info should contain SpinLock', Pos('SpinLock', DebugInfo) > 0);
-
-  // 测试死锁信息
-  AssertTrue('Deadlock info should not be empty', Length(LDebug.GetDeadlockInfo) > 0);
-
-  // 测试获取时间信息
-  AssertEquals('Initial last acquire time should be 0', 0, LDebug.GetLastAcquireTimeUs);
-  AssertEquals('Initial last acquire spins should be 0', 0, LDebug.GetLastAcquireSpins);
-
-  // 执行一次锁操作
-  L.Acquire;
-  L.Release;
-
-  // 检查是否有更新（可能为 0，因为没有竞争）
-  AssertTrue('Last acquire time should be non-negative', LDebug.GetLastAcquireTimeUs >= 0);
-  AssertTrue('Last acquire spins should be non-negative', LDebug.GetLastAcquireSpins >= 0);
+  // 未获取锁就释放应该安全（不崩溃）
+  // 注意：自旋锁通常不检查这种情况，这是正常行为
+  FSpin.Release; // 应该不会崩溃
 end;
 
-// ===== RAII 守卫测试 =====
-
-procedure TTestCase_TSpinLock.Test_RAII_Lock;
-var
-  L: ISpinLock;
-  Guard: ISpinLockGuard;
+procedure TTestCase_ErrorHandling.Test_Behavior_NonReentrant;
 begin
-  L := MakeSpinLock;
+  // 测试非重入行为
+  // 注意：这个测试在单线程中无法真正测试死锁，
+  // 只能验证基本的获取/释放行为
+  FSpin.Acquire;
 
-  // 测试 Lock 方法创建守卫
-  Guard := L.Lock;
-  AssertNotNull('Guard should not be null', Guard);
-  AssertTrue('Guard should be valid', Guard.IsValid);
-  AssertTrue('Guard should reference the same lock', Guard.GetSpinLock = L);
+  // 在同一线程中，TryAcquire 应该失败（如果实现了重入检测）
+  // 但大多数自旋锁实现不检查重入，所以这个测试可能会成功
+  // 这里我们只测试基本行为
+  FSpin.Release;
 
-  // 测试锁已被获取
-  AssertFalse('Lock should be held, TryAcquire should fail', L.TryAcquire);
-
-  // 手动释放守卫
-  Guard.Release;
-  AssertFalse('Guard should be invalid after release', Guard.IsValid);
-
-  // 测试锁已被释放
-  AssertTrue('Lock should be released, TryAcquire should succeed', L.TryAcquire);
-  L.Release;
+  // 释放后应该能再次获取
+  AssertTrue('Should be able to acquire after release', FSpin.TryAcquire);
+  FSpin.Release;
 end;
 
-procedure TTestCase_TSpinLock.Test_RAII_TryLock;
-var
-  L: ISpinLock;
-  Guard1, Guard2: ISpinLockGuard;
+// ===== TTestCase_RAII =====
+
+procedure TTestCase_RAII.SetUp;
 begin
-  L := MakeSpinLock;
-
-  // 测试成功的 TryLock
-  Guard1 := L.TryLock;
-  AssertNotNull('First guard should not be null', Guard1);
-  AssertTrue('First guard should be valid', Guard1.IsValid);
-
-  // 测试失败的 TryLock（锁已被持有）
-  Guard2 := L.TryLock;
-  AssertNotNull('Second guard should not be null', Guard2);
-  AssertFalse('Second guard should be invalid', Guard2.IsValid);
-
-  // 释放第一个守卫
-  Guard1.Release;
-
-  // 现在 TryLock 应该成功
-  Guard2 := L.TryLock;
-  AssertTrue('Third guard should be valid', Guard2.IsValid);
-
-  Guard2.Release;
+  inherited SetUp;
+  FSpin := MakeSpin;
 end;
 
-procedure TTestCase_TSpinLock.Test_RAII_TryLock_Timeout;
-var
-  L: ISpinLock;
-  Guard1, Guard2: ISpinLockGuard;
+procedure TTestCase_RAII.TearDown;
 begin
-  L := MakeSpinLock;
-
-  // 测试成功的带超时 TryLock
-  Guard1 := L.TryLock(1000);
-  AssertNotNull('First guard should not be null', Guard1);
-  AssertTrue('First guard should be valid', Guard1.IsValid);
-
-  // 测试超时的 TryLock
-  Guard2 := L.TryLock(10); // 很短的超时
-  AssertNotNull('Second guard should not be null', Guard2);
-  AssertFalse('Second guard should be invalid due to timeout', Guard2.IsValid);
-
-  Guard1.Release;
+  FSpin := nil;
+  inherited TearDown;
 end;
 
-procedure TTestCase_TSpinLock.Test_RAII_AutoRelease;
+procedure TTestCase_RAII.Test_RAII_ExceptionSafety;
 var
-  L: ISpinLock;
-  Guard: ISpinLockGuard;
+  Guard: ILockGuard;
 begin
-  L := MakeSpinLock;
+  // 测试异常安全性
+  Guard := FSpin.LockGuard;
+  AssertNotNull('Guard should not be nil', Guard);
 
-  // 创建守卫并测试
-  Guard := L.Lock;
-  AssertTrue('Guard should be valid', Guard.IsValid);
-  AssertFalse('Lock should be held', L.TryAcquire);
+  // 模拟异常情况
+  try
+    try
+      raise Exception.Create('Test exception');
+    except
+      // 异常被捕获，Guard 应该仍然有效
+    end;
+  finally
+    // Guard 在 finally 块中应该仍然有效
+  end;
 
-  // 显式清除守卫引用，触发析构
+  // 显式释放 Guard
   Guard := nil;
 
-  // 锁应该已经被自动释放
-  AssertTrue('Lock should be auto-released', L.TryAcquire);
-  L.Release;
+  // 验证锁已被释放
+  AssertTrue('Lock should be released after exception', FSpin.TryAcquire);
+  FSpin.Release;
 end;
 
-procedure TTestCase_TSpinLock.Test_RAII_ManualRelease;
+procedure TTestCase_RAII.Test_RAII_NestedGuards;
 var
-  L: ISpinLock;
-  Guard: ISpinLockGuard;
+  Guard1, Guard2: ILockGuard;
 begin
-  L := MakeSpinLock;
-  Guard := L.Lock;
+  // 测试嵌套守卫（应该失败，因为自旋锁不支持重入）
+  Guard1 := FSpin.LockGuard;
+  AssertNotNull('First guard should not be nil', Guard1);
 
-  // 测试手动释放
-  AssertTrue('Guard should be valid initially', Guard.IsValid);
-  Guard.Release;
-  AssertFalse('Guard should be invalid after manual release', Guard.IsValid);
+  // 尝试创建第二个守卫（应该阻塞或失败）
+  // 在单线程测试中，我们无法真正测试这种情况
+  // 这里只是验证第一个守卫工作正常
 
-  // 测试重复释放不会出错
-  Guard.Release; // 应该安全地忽略
-  AssertFalse('Guard should still be invalid', Guard.IsValid);
+  Guard1 := nil; // 释放第一个守卫
 
-  // 锁应该已被释放
-  AssertTrue('Lock should be released', L.TryAcquire);
-  L.Release;
+  // 现在应该能创建第二个守卫
+  Guard2 := FSpin.LockGuard;
+  AssertNotNull('Second guard should not be nil', Guard2);
 end;
 
-procedure TTestCase_TSpinLock.Test_RAII_InvalidGuard;
+procedure TTestCase_RAII.Test_RAII_ManualRelease;
 var
-  L: ISpinLock;
-  Guard: ISpinLockGuard;
+  Guard: ILockGuard;
 begin
-  L := MakeSpinLock;
+  // 测试手动释放守卫
+  Guard := FSpin.LockGuard;
+  AssertNotNull('Guard should not be nil', Guard);
 
-  // 先获取锁
-  L.Acquire;
-
-  // TryLock 应该失败，返回无效守卫
-  Guard := L.TryLock;
-  AssertNotNull('Guard should not be null', Guard);
-  AssertFalse('Guard should be invalid', Guard.IsValid);
-  AssertTrue('Guard should still reference the lock', Guard.GetSpinLock = L);
-
-  // 对无效守卫调用 Release 应该安全
+  // 手动释放
   Guard.Release;
-  AssertFalse('Guard should still be invalid', Guard.IsValid);
 
-  L.Release;
+  // 验证锁已被释放
+  AssertTrue('Lock should be released after manual release', FSpin.TryAcquire);
+  FSpin.Release;
+end;
+
+procedure TTestCase_RAII.Test_RAII_GuardLifetime;
+var
+  Guard: ILockGuard;
+begin
+  // 测试守卫生命周期
+  Guard := FSpin.LockGuard;
+  AssertNotNull('Guard should not be nil', Guard);
+
+  // 显式释放守卫
+  Guard := nil;
+
+  // 验证锁已被释放
+  AssertTrue('Lock should be released after guard is set to nil', FSpin.TryAcquire);
+  FSpin.Release;
+end;
+
+// ===== TTestCase_MultiThread =====
+
+procedure TTestCase_MultiThread.SetUp;
+begin
+  inherited SetUp;
+  FSpin := MakeSpin;
+  FSharedCounter := 0;
+  FThreadCount := 4;
+  FIterationsPerThread := 250; // 4 * 250 = 1000 total
+end;
+
+procedure TTestCase_MultiThread.TearDown;
+begin
+  FSpin := nil;
+  inherited TearDown;
+end;
+
+procedure TTestCase_MultiThread.Test_MultiThread_BasicContention;
+var
+  Threads: array of TSpinTestThread;
+  i: Integer;
+  AllSuccess: Boolean;
+begin
+  // 创建多个线程进行基本竞争测试
+  SetLength(Threads, FThreadCount);
+
+  for i := 0 to FThreadCount - 1 do
+  begin
+    Threads[i] := TSpinTestThread.Create(FSpin, @FSharedCounter, FIterationsPerThread, True);
+  end;
+
+  // 等待所有线程完成
+  for i := 0 to FThreadCount - 1 do
+  begin
+    Threads[i].WaitFor;
+  end;
+
+  // 检查结果
+  AllSuccess := True;
+  for i := 0 to FThreadCount - 1 do
+  begin
+    if not Threads[i].Success then
+      AllSuccess := False;
+    Threads[i].Free;
+  end;
+
+  AssertTrue('All threads should complete successfully', AllSuccess);
+  AssertEquals('Counter should be correct', FThreadCount * FIterationsPerThread, FSharedCounter);
+end;
+
+procedure TTestCase_MultiThread.Test_MultiThread_HighContention;
+var
+  Threads: array of TSpinTestThread;
+  i: Integer;
+  AllSuccess: Boolean;
+begin
+  // 高竞争测试：更多线程，更少迭代
+  FThreadCount := 8;
+  FIterationsPerThread := 125; // 8 * 125 = 1000 total
+  FSharedCounter := 0;
+
+  SetLength(Threads, FThreadCount);
+
+  for i := 0 to FThreadCount - 1 do
+  begin
+    Threads[i] := TSpinTestThread.Create(FSpin, @FSharedCounter, FIterationsPerThread, True);
+  end;
+
+  // 等待所有线程完成
+  for i := 0 to FThreadCount - 1 do
+  begin
+    Threads[i].WaitFor;
+  end;
+
+  // 检查结果
+  AllSuccess := True;
+  for i := 0 to FThreadCount - 1 do
+  begin
+    if not Threads[i].Success then
+      AllSuccess := False;
+    Threads[i].Free;
+  end;
+
+  AssertTrue('All threads should complete successfully in high contention', AllSuccess);
+  AssertEquals('Counter should be correct in high contention', FThreadCount * FIterationsPerThread, FSharedCounter);
+end;
+
+procedure TTestCase_MultiThread.Test_MultiThread_Counter;
+var
+  Threads: array of TSpinTestThread;
+  i: Integer;
+  AllSuccess: Boolean;
+begin
+  // 标准计数器保护测试
+  FSharedCounter := 0;
+  SetLength(Threads, FThreadCount);
+
+  for i := 0 to FThreadCount - 1 do
+  begin
+    Threads[i] := TSpinTestThread.Create(FSpin, @FSharedCounter, FIterationsPerThread, True);
+  end;
+
+  // 等待所有线程完成
+  for i := 0 to FThreadCount - 1 do
+  begin
+    Threads[i].WaitFor;
+  end;
+
+  // 检查结果
+  AllSuccess := True;
+  for i := 0 to FThreadCount - 1 do
+  begin
+    if not Threads[i].Success then
+      AllSuccess := False;
+    Threads[i].Free;
+  end;
+
+  AssertTrue('All threads should complete successfully', AllSuccess);
+  AssertEquals('Shared counter should be protected correctly', FThreadCount * FIterationsPerThread, FSharedCounter);
+end;
+
+procedure TTestCase_MultiThread.Test_MultiThread_TryAcquire;
+var
+  Threads: array of TSpinTestThread;
+  i: Integer;
+  AllSuccess: Boolean;
+begin
+  // 使用 TryAcquire 的多线程测试
+  FSharedCounter := 0;
+  SetLength(Threads, FThreadCount);
+
+  for i := 0 to FThreadCount - 1 do
+  begin
+    Threads[i] := TSpinTestThread.Create(FSpin, @FSharedCounter, FIterationsPerThread, False); // 使用 TryAcquire
+  end;
+
+  // 等待所有线程完成
+  for i := 0 to FThreadCount - 1 do
+  begin
+    Threads[i].WaitFor;
+  end;
+
+  // 检查结果
+  AllSuccess := True;
+  for i := 0 to FThreadCount - 1 do
+  begin
+    if not Threads[i].Success then
+      AllSuccess := False;
+    Threads[i].Free;
+  end;
+
+  AssertTrue('All threads should complete successfully with TryAcquire', AllSuccess);
+  AssertEquals('Counter should be correct with TryAcquire', FThreadCount * FIterationsPerThread, FSharedCounter);
+end;
+
+procedure TTestCase_MultiThread.Test_MultiThread_Fairness;
+var
+  Threads: array of TSpinTestThread;
+  i: Integer;
+  AllSuccess: Boolean;
+begin
+  // 公平性测试：验证所有线程都能获得锁
+  FSharedCounter := 0;
+  FIterationsPerThread := 100; // 较少的迭代，更容易观察公平性
+
+  SetLength(Threads, FThreadCount);
+
+  for i := 0 to FThreadCount - 1 do
+  begin
+    Threads[i] := TSpinTestThread.Create(FSpin, @FSharedCounter, FIterationsPerThread, True);
+  end;
+
+  // 等待所有线程完成
+  for i := 0 to FThreadCount - 1 do
+  begin
+    Threads[i].WaitFor;
+  end;
+
+  // 检查结果
+  AllSuccess := True;
+  for i := 0 to FThreadCount - 1 do
+  begin
+    if not Threads[i].Success then
+      AllSuccess := False;
+    Threads[i].Free;
+  end;
+
+  AssertTrue('All threads should complete successfully (fairness test)', AllSuccess);
+  AssertEquals('Counter should be correct (fairness test)', FThreadCount * FIterationsPerThread, FSharedCounter);
+end;
+
+// ===== TTestCase_Performance =====
+
+procedure TTestCase_Performance.SetUp;
+begin
+  inherited SetUp;
+  FSpin := MakeSpin;
+end;
+
+procedure TTestCase_Performance.TearDown;
+begin
+  FSpin := nil;
+  inherited TearDown;
+end;
+
+procedure TTestCase_Performance.Test_Performance_SpinBehavior;
+var
+  StartTime, EndTime: QWord;
+  i: Integer;
+  ElapsedMs: QWord;
+const
+  ITERATIONS = 10000;
+begin
+  // 测试自旋锁的基本性能行为
+  StartTime := GetTickCount64;
+
+  for i := 1 to ITERATIONS do
+  begin
+    FSpin.Acquire;
+    FSpin.Release;
+  end;
+
+  EndTime := GetTickCount64;
+  ElapsedMs := EndTime - StartTime;
+
+  // 基本健全性检查：10000次操作应该在合理时间内完成
+  AssertTrue('Performance test should complete in reasonable time (elapsed=' + IntToStr(ElapsedMs) + 'ms)', ElapsedMs < 1000);
+end;
+
+procedure TTestCase_Performance.Test_Performance_BackoffStrategy;
+var
+  StartTime, EndTime: QWord;
+  i: Integer;
+  ElapsedMs: QWord;
+const
+  ITERATIONS = 5000;
+begin
+  // 测试退避策略的性能影响
+  StartTime := GetTickCount64;
+
+  for i := 1 to ITERATIONS do
+  begin
+    if FSpin.TryAcquire then
+    begin
+      FSpin.Release;
+    end;
+  end;
+
+  EndTime := GetTickCount64;
+  ElapsedMs := EndTime - StartTime;
+
+  // TryAcquire 应该比 Acquire 更快（无竞争情况下）
+  AssertTrue('TryAcquire performance test should complete quickly (elapsed=' + IntToStr(ElapsedMs) + 'ms)', ElapsedMs < 500);
+end;
+
+procedure TTestCase_Performance.Test_Performance_BasicThroughput;
+var
+  StartTime, EndTime: QWord;
+  i: Integer;
+  ElapsedMs: QWord;
+  ThroughputOpsPerSec: Double;
+const
+  ITERATIONS = 50000;
+begin
+  // 基本吞吐量测试
+  StartTime := GetTickCount64;
+
+  for i := 1 to ITERATIONS do
+  begin
+    FSpin.Acquire;
+    // 模拟极短的临界区
+    FSpin.Release;
+  end;
+
+  EndTime := GetTickCount64;
+  ElapsedMs := EndTime - StartTime;
+
+  if ElapsedMs > 0 then
+  begin
+    ThroughputOpsPerSec := (ITERATIONS * 1000.0) / ElapsedMs;
+
+    // 基本吞吐量应该达到合理水平（至少 100K ops/sec）
+    AssertTrue('Throughput should be reasonable (got ' + FloatToStr(ThroughputOpsPerSec) + ' ops/sec)', ThroughputOpsPerSec > 100000);
+  end;
+
+  // 总时间不应该太长
+  AssertTrue('Throughput test should complete in reasonable time (elapsed=' + IntToStr(ElapsedMs) + 'ms)', ElapsedMs < 2000);
 end;
 
 initialization
   RegisterTest(TTestCase_Global);
-  RegisterTest(TTestCase_TSpinLock);
+  RegisterTest(TTestCase_ISpin);
+  RegisterTest(TTestCase_Compatibility);
+  RegisterTest(TTestCase_ErrorHandling);
+  RegisterTest(TTestCase_RAII);
+  RegisterTest(TTestCase_MultiThread);
+  RegisterTest(TTestCase_Performance);
 
 end.

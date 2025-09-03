@@ -43,7 +43,7 @@ const
   ITERATIONS = 1000000;
 
 begin
-  Event := CreateEvent(True, True);
+  Event := MakeEvent(True, True);
   
   // 基准测试
   BenchmarkOperation('IsSignaled', ITERATIONS, 
@@ -88,7 +88,7 @@ type
 constructor TOptimizedProducerConsumer.Create;
 begin
   // 使用自动重置事件，避免手动重置开销
-  FWorkEvent := CreateEvent(False, False);
+  FWorkEvent := MakeEvent(False, False);
   FWorkQueue := TThreadList.Create;
 end;
 
@@ -129,7 +129,7 @@ var
   i: Integer;
 begin
   // 手动重置事件用于广播
-  FShutdownEvent := CreateEvent(True, False);
+  FShutdownEvent := MakeEvent(True, False);
   
   SetLength(FWorkerThreads, ThreadCount);
   for i := 0 to ThreadCount - 1 do
@@ -251,7 +251,7 @@ begin
   
   // 预分配事件对象
   for i := 0 to PoolSize - 1 do
-    FPool[i] := CreateEvent(False, False);
+    FPool[i] := MakeEvent(False, False);
     
   FNextIndex := 0;
   InitCriticalSection(FLock);
@@ -270,7 +270,7 @@ begin
     else
     begin
       // 池已空，创建新对象
-      Result := CreateEvent(False, False);
+      Result := MakeEvent(False, False);
     end;
   finally
     LeaveCriticalSection(FLock);
@@ -304,7 +304,7 @@ begin
   
   // 批量创建，提高缓存局部性
   for i := 0 to Count - 1 do
-    FEvents[i] := CreateEvent(True, False);
+    FEvents[i] := MakeEvent(True, False);
 end;
 
 procedure TCacheAlignedEventArray.SetAllEvents;
@@ -576,8 +576,8 @@ end;
 // 使用 Windows 特定的高性能 API
 function CreateHighPerformanceEvent(ManualReset: Boolean): IEvent;
 begin
-  // 可以考虑使用 CreateEventEx 等高级 API
-  Result := CreateEvent(ManualReset, False);
+  // 可以考虑使用 MakeEvent 等高级 API
+  Result := MakeEvent(ManualReset, False);
 end;
 
 // 设置线程优先级

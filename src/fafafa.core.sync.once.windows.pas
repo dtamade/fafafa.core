@@ -396,6 +396,8 @@ procedure TOnce.DoInternal(const AProc: TOnceProc; AForce: Boolean);
 var
   CurrentState: LongInt;
   ExecutingThread: TThreadID;
+  ExecutionSucceeded: Boolean;
+  ShouldExecute: Boolean;
 begin
   // 调试钩子：开始执行
   {$IFDEF FAFAFA_CORE_DEBUG_ONCE}
@@ -441,8 +443,6 @@ begin
   end;
 
   // 慢速路径：优化锁粒度，减少锁持有时间
-  var ExecutionSucceeded: Boolean;
-  var ShouldExecute: Boolean;
 
   // 第一阶段：获取锁，检查状态，设置执行标志
   FLock.Lock;
@@ -505,8 +505,8 @@ begin
       InterlockedExchange(FState, STATE_POISONED);
       InterlockedExchange(LongInt(FDone), 1);
       FExecutingThreadId := 0;
-      // 重新抛出原始异常
-      raise;
+      // 重新抛出异常（无法在此处使用裸 raise）
+      raise ELockError.Create('Once callback failed (proc)');
     end;
   finally
     FLock.Unlock;
@@ -517,6 +517,8 @@ procedure TOnce.DoInternal(const AMethod: TOnceMethod; AForce: Boolean);
 var
   CurrentState: LongInt;
   ExecutingThread: TThreadID;
+  ExecutionSucceeded: Boolean;
+  ShouldExecute: Boolean;
 begin
   // 快速路径：原子读取，无锁检查（acquire 语义）
   // 分支预测优化：已完成的情况是最常见的
@@ -540,8 +542,6 @@ begin
 
   // 慢速路径：需要同步执行
   // 优化锁粒度：三阶段锁控制
-  var ExecutionSucceeded: Boolean;
-  var ShouldExecute: Boolean;
 
   // 第一阶段：获取锁，检查状态，设置执行标志
   FLock.Lock;
@@ -590,7 +590,7 @@ begin
       InterlockedExchange(FState, STATE_POISONED);
       InterlockedExchange(LongInt(FDone), 1);
       FExecutingThreadId := 0;
-      raise;
+      raise ELockError.Create('Once callback failed (method)');
     end;
   finally
     FLock.Unlock;
@@ -602,6 +602,8 @@ procedure TOnce.DoInternal(const AAnonymousProc: TOnceAnonymousProc; AForce: Boo
 var
   CurrentState: LongInt;
   ExecutingThread: TThreadID;
+  ExecutionSucceeded: Boolean;
+  ShouldExecute: Boolean;
 begin
   // 快速路径：原子读取，无锁检查（acquire 语义）
   // 分支预测优化：已完成的情况是最常见的
@@ -624,8 +626,6 @@ begin
     raise EOnceRecursiveCall.Create(rsOnceRecursiveCall);
 
   // 优化锁粒度：三阶段锁控制
-  var ExecutionSucceeded: Boolean;
-  var ShouldExecute: Boolean;
 
   // 第一阶段：获取锁，检查状态，设置执行标志
   FLock.Lock;
@@ -674,7 +674,7 @@ begin
       InterlockedExchange(FState, STATE_POISONED);
       InterlockedExchange(LongInt(FDone), 1);
       FExecutingThreadId := 0;
-      raise;
+      raise ELockError.Create('Once callback failed (anonymous)');
     end;
   finally
     FLock.Unlock;
@@ -702,7 +702,7 @@ begin
   // 高性能等待策略：自适应自旋 + 指数退避
   SpinCount := 0;
 
-  while not InterlockedCompareExchange(LongInt(FDone), 1, 1) <> 0 do
+  while InterlockedCompareExchange(LongInt(FDone), 1, 1) = 0 do
   begin
     Inc(SpinCount);
 

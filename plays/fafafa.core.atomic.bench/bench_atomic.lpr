@@ -205,6 +205,7 @@ begin
   t1 := GetTicks;
   ns := (t1 - t0) * NsPerTick / iters;
   Writeln(Format('%-28s %-10s iters=%10d  ns/op=%.2f  v=%d', [name, impl, iters, ns, v]));
+end;
 
 procedure BenchBinop32(const name, impl: AnsiString; iters: QWord; mask: Int32; func: TBinop32);
 var i: QWord; t0,t1: Int64; v, r: Int32; ns: Double;
@@ -246,6 +247,13 @@ procedure BenchXadd64Delta(const name, impl: AnsiString; iters: QWord; delta: In
 var i: QWord; t0,t1: Int64; v: Int64; ns: Double;
 begin
   v := 0; for i := 1 to 1000 do func(v, delta);
+  t0 := GetTicks;
+  v := 0;
+  for i := 1 to iters do func(v, delta);
+  t1 := GetTicks;
+  ns := (t1 - t0) * NsPerTick / iters;
+  Writeln(Format('%-28s %-10s iters=%10d  ns/op=%.2f  v=%d', [name, impl, iters, ns, v]));
+end;
 
 // Global bitwise RMW wrappers (RTL via CAS loops)
 function rtl_and32(var v: Int32; m: Int32): Int32; inline;
@@ -321,16 +329,6 @@ begin
   t1 := GetTicks;
   ns := (t1 - t0) * NsPerTick / iters;
   Writeln(Format('%-28s %-10s iters=%10d  ns/op=%.2f  p=%d  r=%d', [name, impl, iters, ns, PtrUInt(p), PtrUInt(r)]));
-end;
-
-  t0 := GetTicks;
-  v := 0;
-  for i := 1 to iters do func(v, delta);
-  t1 := GetTicks;
-  ns := (t1 - t0) * NsPerTick / iters;
-  Writeln(Format('%-28s %-10s iters=%10d  ns/op=%.2f  v=%d', [name, impl, iters, ns, v]));
-end;
-
 end;
 
 procedure BenchCasLoop32(const name, impl: AnsiString; iters: QWord; casFunc: TCas32);
@@ -448,6 +446,20 @@ type
     constructor CreateShared(var Counter: Int32; Iters: QWord; Mode: Integer; UseOur: Boolean; var StartFlag: LongInt);
   end;
 
+  TWorkerBitwise32 = class(TThread)
+  private
+    FCounter: PInt32;
+    FIters: QWord;
+    FMode: Integer; // 0=and,1=or,2=xor
+    FUseOur: Boolean;
+    FStartFlag: PLongInt;
+    FMask: Int32;
+  protected
+    procedure Execute; override;
+  public
+    constructor CreateShared(var Counter: Int32; Iters: QWord; Mode: Integer; UseOur: Boolean; var StartFlag: LongInt; Mask: Int32);
+  end;
+
 constructor TWorker32.CreateShared(var Counter: Int32; Iters: QWord; Mode: Integer; UseOur: Boolean; var StartFlag: LongInt);
 begin
   inherited Create(True);
@@ -537,11 +549,132 @@ begin
   Writeln;
 end;
 
-var iters: QWord;
+constructor TWorkerBitwise32.CreateShared(var Counter: Int32; Iters: QWord; Mode: Integer; UseOur: Boolean; var StartFlag: LongInt; Mask: Int32);
 begin
+  inherited Create(True);
+  FreeOnTerminate := False;
+  FCounter := @Counter;
+  FIters := Iters;
+  FMode := Mode;
+  FUseOur := UseOur;
+  FStartFlag := @StartFlag;
+  FMask := Mask;
+end;
+
+procedure TWorkerBitwise32.Execute;
+var i: QWord; v: Int32;
+begin
+  while InterlockedCompareExchange(FStartFlag^, 1, 1) <> 1 do Sleep(0);
+  case FMode of
+    0: begin // and
+      if FUseOur then for i := 1 to FIters do v := atomic_fetch_and(FCounter^, FMask)
+                  else for i := 1 to FIters do v := rtl_and32(FCounter^, FMask);
+    end;
+    1: begin // or
+      if FUseOur then for i := 1 to FIters do v := atomic_fetch_or(FCounter^, FMask)
+                  else for i := 1 to FIters do v := rtl_or32(FCounter^, FMask);
+    end;
+    2: begin // xor
+      if FUseOur then for i := 1 to FIters do v := atomic_fetch_xor(FCounter^, FMask)
+                  else for i := 1 to FIters do v := rtl_xor32(FCounter^, FMask);
+    end;
+  end;
+end;
+
+// Multi-thread bitwise convergence
+procedure RunMultiThreadBitwise(itersPerThread: QWord; threads: Integer);
+var i: Integer; startFlag: LongInt; t0,t1: Int64; ns: Double;
+    counter32: Int32; counter64: Int64; workers: array of TWorkerBitwise32;
+begin
+  Writeln('--- Multi-thread Bitwise (threads=', threads, ', iters/thread=', itersPerThread, ') ---');
+  SetLength(workers, threads);
+
+  // Bitwise OR convergence (32-bit): each thread ORs a unique bit pattern
+  counter32 := 0; startFlag := 0;
+  for i := 0 to threads-1 do begin
+    workers[i] := TWorkerBitwise32.CreateShared(counter32, itersPerThread, 1, True, startFlag, Int32(1 shl (i mod 16))); // OR mode, unique bit per thread
+    workers[i].Start;
+  end;
+  t0 := GetTicks; InterlockedExchange(startFlag, 1);
+  for i := 0 to threads-1 do begin workers[i].WaitFor; workers[i].Free; end; t1 := GetTicks;
+  ns := (t1-t0) * NsPerTick / (itersPerThread*threads);
+  Writeln(Format('%-28s %-10s ns/op=%.2f final=0x%x', ['bitwise_or32', 'our', ns, counter32]));
+
+  // Bitwise AND convergence (32-bit): start with all 1s, each thread ANDs with ~(unique bit)
+  counter32 := Int32($FFFFFFFF); startFlag := 0;
+  for i := 0 to threads-1 do begin
+    workers[i] := TWorkerBitwise32.CreateShared(counter32, itersPerThread, 0, True, startFlag, Int32(not (1 shl (i mod 16)))); // AND mode
+    workers[i].Start;
+  end;
+  t0 := GetTicks; InterlockedExchange(startFlag, 1);
+  for i := 0 to threads-1 do begin workers[i].WaitFor; workers[i].Free; end; t1 := GetTicks;
+  ns := (t1-t0) * NsPerTick / (itersPerThread*threads);
+  Writeln(Format('%-28s %-10s ns/op=%.2f final=0x%x', ['bitwise_and32', 'our', ns, counter32]));
+
+  Writeln;
+end;
+
+// Command line argument parsing
+function ParseArgs(var iters: QWord; var threads: Integer; var duration_ms: Integer): Boolean;
+var i, pos: Integer; arg, key, val: String;
+begin
+  Result := True;
+  iters := 100000000; // default 1e8
+  threads := 4;       // default 4 threads
+  duration_ms := 0;   // default: use iters, not duration
+
+  for i := 1 to ParamCount do begin
+    arg := ParamStr(i);
+    if (arg = '--help') or (arg = '-h') then begin
+      Writeln('Usage: bench_atomic [options]');
+      Writeln('Options:');
+      Writeln('  --iters=N        Number of iterations per single-thread test (default: 100000000)');
+      Writeln('  --threads=N      Number of threads for multi-thread tests (default: 4)');
+      Writeln('  --duration_ms=N  Run for fixed duration instead of fixed iterations (default: 0=disabled)');
+      Writeln('  --help, -h       Show this help');
+      Result := False;
+      Exit;
+    end;
+
+    pos := System.Pos('=', arg);
+    if pos > 0 then begin
+      key := Copy(arg, 1, pos-1);
+      val := Copy(arg, pos+1, Length(arg));
+
+      if key = '--iters' then begin
+        try iters := StrToQWord(val); except Result := False; Writeln('Invalid --iters value: ', val); Exit; end;
+      end else if key = '--threads' then begin
+        try threads := StrToInt(val); except Result := False; Writeln('Invalid --threads value: ', val); Exit; end;
+      end else if key = '--duration_ms' then begin
+        try duration_ms := StrToInt(val); except Result := False; Writeln('Invalid --duration_ms value: ', val); Exit; end;
+      end else begin
+        Writeln('Unknown option: ', key);
+        Result := False;
+        Exit;
+      end;
+    end else begin
+      Writeln('Invalid argument format: ', arg);
+      Result := False;
+      Exit;
+    end;
+  end;
+end;
+
+var iters: QWord; threads, duration_ms: Integer;
+begin
+  if not ParseArgs(iters, threads, duration_ms) then Exit;
+
   PrintHeader;
-  iters := 100000000; // 1e8
+  if duration_ms > 0 then begin
+    Writeln('Duration-based mode: ', duration_ms, 'ms per test (threads=', threads, ')');
+    // TODO: Implement duration-based benchmarking
+    Writeln('Duration mode not yet implemented, falling back to iteration mode.');
+  end else begin
+    Writeln('Iteration-based mode: iters=', iters, ', threads=', threads);
+  end;
+
   RunSingleThread(iters);
-  RunMultiThread(25000000, 4); // 25M per thread, 4 threads
+  RunMultiThread(iters div 4, threads); // Scale down multi-thread iters
+  RunMultiThreadBitwise(iters div 8, threads); // Even lighter for bitwise
 end.
 

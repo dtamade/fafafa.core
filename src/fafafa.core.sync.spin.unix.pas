@@ -1,26 +1,47 @@
-{**
- * fafafa.core.sync.spin.unix - Unix 平台自旋锁实现
- *
- * @desc
- *   基于 pthread_spinlock_t 的高性能自旋锁实现，专为 Unix 平台优化。
- *   利用系统原生的自旋锁实现，提供最佳的性能和兼容性。
- *
- * @implementation_details
- *   - 底层实现：pthread_spinlock_t
- *   - 初始化：PTHREAD_PROCESS_PRIVATE（进程内共享）
- *   - 自旋策略：系统原生 + 继承的三段式等待策略
- *   - 异常处理：使用同步专用异常类型
- *
- * @advantages
- *   - 系统原生实现，性能最优
- *   - 自动适应不同的 Unix 系统
- *   - 内核级优化的自旋策略
- *   - 良好的多核扩展性
- *
- * @thread_safety
- *   线程安全，非重入。基于 pthread 标准，具有良好的可移植性。
- *}
 unit fafafa.core.sync.spin.unix;
+
+{
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                                                                              │
+│          ______   ______     ______   ______     ______   ______             │
+│         /\  ___\ /\  __ \   /\  ___\ /\  __ \   /\  ___\ /\  __ \            │
+│         \ \  __\ \ \  __ \  \ \  __\ \ \  __ \  \ \  __\ \ \  __ \           │
+│          \ \_\    \ \_\ \_\  \ \_\    \ \_\ \_\  \ \_\    \ \_\ \_\          │
+│           \/_/     \/_/\/_/   \/_/     \/_/\/_/   \/_/     \/_/\/_/          │
+│                                                                              │
+│                                Studio                                        │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+📦 项目：fafafa.core.sync.spin.unix - Unix 平台自旋锁实现
+
+📖 概述：
+  Unix/Linux 平台的高性能自旋锁实现，使用 pthread 和原子操作优化。
+
+🔧 特性：
+  • Unix 平台优化：针对 Linux、macOS、FreeBSD 等 Unix 系统
+  • 高性能实现：使用 pthread_spin_lock 和原子指令
+  • 自适应退避：智能退避策略减少 CPU 占用
+  • 超时支持：可配置的获取超时机制
+  • 统计信息：详细的性能统计和调试信息
+  • RAII 支持：自动锁管理和异常安全
+  • 死锁检测：调试模式下的死锁检测
+
+⚠️  重要说明：
+  自旋锁适用于短时间持锁场景，长时间持锁会导致 CPU 资源浪费。
+  请根据具体场景选择合适的锁类型和退避策略。
+
+🧵 线程安全性：
+  所有自旋锁操作都是线程安全的，支持多线程并发访问。
+
+📜 声明：
+  转发或用于个人/商业项目时，请保留本项目的版权声明。
+
+👤 author  : fafafaStudio
+📧 Email   : dtamade@gmail.com
+💬 QQGroup : 685403987
+💬 QQ      : 179033731
+
+}
 
 {$I fafafa.core.settings.inc}
 
@@ -32,44 +53,12 @@ uses
   fafafa.core.sync.spin.base;
 
 type
-  {**
-   * TSpin - Unix 平台自旋锁实现
-   *
-   * @desc
-   *   基于 pthread_spinlock_t 的自旋锁实现，继承 TTryLock 以获得
-   *   三段式等待策略的优化。使用系统原生的自旋锁提供最佳性能。
-   *
-   * @pthread_spinlock
-   *   pthread_spinlock_t 是 POSIX 标准的自旋锁实现：
-   *   - 内核级优化的自旋策略
-   *   - 自动适应不同的硬件架构
-   *   - 良好的多核性能扩展
-   *
-   * @inheritance
-   *   继承自 TTryLock，在超时场景下可以利用三段式等待策略，
-   *   但基本操作（Acquire/Release/TryAcquire）直接使用系统调用。
-   *
-   * @error_handling
-   *   使用同步专用的异常类型，提供更精确的错误信息。
-   *}
+
   TSpin = class(TTryLock, ISpin)
   private
-    FSpinLock: pthread_spinlock_t;  // 系统原生自旋锁
-
+    FSpinLock: pthread_spinlock_t; // 系统原生自旋锁
   public
-    {**
-     * Create - 构造函数
-     *
-     * @desc 初始化 pthread 自旋锁
-     * @exception ELockError 如果初始化失败
-     *}
     constructor Create;
-
-    {**
-     * Destroy - 析构函数
-     *
-     * @desc 销毁 pthread 自旋锁，释放系统资源
-     *}
     destructor Destroy; override;
 
     {**
@@ -80,8 +69,11 @@ type
      *   系统会自动使用最优的自旋策略。
      *
      * @blocking 会阻塞直到成功获取锁
-     * @exception ELockError 如果获取失败
+     *
+     * @exception 
+     *   ELockError 如果获取失败
      *}
+
     procedure Acquire; override;
 
     {**
@@ -92,7 +84,9 @@ type
      *   必须由持有锁的线程调用。
      *
      * @precondition 当前线程必须持有锁
-     * @exception ELockError 如果释放失败
+     *
+     * @exception
+     *  ELockError 如果释放失败
      *}
     procedure Release; override;
 
@@ -111,7 +105,9 @@ type
     {**
      * TryAcquire - 带超时的尝试获取锁
      *
-     * @param ATimeoutMs 超时时间（毫秒）
+     * @params
+     *  ATimeoutMs 超时时间（毫秒）
+     *
      * @return True 如果在超时时间内成功获取锁，False 如果超时
      *
      * @desc
@@ -138,52 +134,44 @@ uses
   fafafa.core.time.cpu;
 
 
-
 { TSpin }
 
 constructor TSpin.Create;
 begin
   inherited Create;
-  // 初始化 pthread 自旋锁
   if pthread_spin_init(@FSpinLock, PTHREAD_PROCESS_PRIVATE) <> 0 then
     raise ELockError.Create('Failed to initialize pthread spinlock');
 end;
 
 destructor TSpin.Destroy;
 begin
-  // 销毁 pthread 自旋锁
   pthread_spin_destroy(@FSpinLock);
   inherited Destroy;
 end;
 
 procedure TSpin.Acquire;
 begin
-  // 使用 pthread 自旋锁获取
   if pthread_spin_lock(@FSpinLock) <> 0 then
     raise ELockError.Create('Failed to acquire pthread spinlock');
 end;
 
 procedure TSpin.Release;
 begin
-  // 使用 pthread 自旋锁释放
-  if pthread_spin_unlock(@FSpinLock) <> 0 then
+  if (pthread_spin_unlock(@FSpinLock) <> 0) then
     raise ELockError.Create('Failed to release pthread spinlock');
 end;
 
 function TSpin.TryAcquire: Boolean;
 begin
-  // 使用 pthread 非阻塞尝试获取
-  Result := pthread_spin_trylock(@FSpinLock) = 0;
+  Result := (pthread_spin_trylock(@FSpinLock) = 0);
 end;
 
 function TSpin.TryAcquire(ATimeoutMs: Cardinal): Boolean;
 begin
   // 使用继承的三段式等待策略，这比自定义实现更优化且更一致
-  // TTryLock.TryAcquire 会调用我们的 TryAcquire() 方法
   Result := inherited TryAcquire(ATimeoutMs);
 end;
 
-// 工厂函数
 function MakeSpin: ISpin;
 begin
   Result := TSpin.Create;

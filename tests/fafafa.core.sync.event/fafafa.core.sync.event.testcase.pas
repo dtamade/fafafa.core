@@ -26,7 +26,7 @@ type
     procedure Test_Wait_TimeoutShort;
     procedure Test_AutoReset_Behavior;
     procedure Test_ManualReset_Behavior;
-    // ILock 继承方法
+    // ISynchronizable 继承方法
     procedure Test_LockMethods_AutoReset;
     procedure Test_LockMethods_ManualReset;
   end;
@@ -66,23 +66,26 @@ begin
 end;
 
 procedure TTestCase_Event_Basic.Test_Create_Default;
+var r: TWaitResult;
 begin
   AssertNotNull('CreateEvent should return non-nil', FEvent);
-  AssertFalse('Default event should be non-signaled', FEvent.IsSignaled);
+  r := FEvent.WaitFor(0);
+  AssertEquals('Default event should be non-signaled', Ord(wrTimeout), Ord(r));
 end;
 
 procedure TTestCase_Event_Basic.Test_Create_ManualReset_Initial;
-var E: IEvent;
+var E: IEvent; r: TWaitResult;
 begin
   E := MakeEvent(True, True);
   AssertNotNull('MakeEvent(manual,initial) non-nil', E);
-  AssertTrue('ManualReset initial True should be signaled', E.IsSignaled);
+  r := E.WaitFor(0);
+  AssertEquals('ManualReset initial True should be signaled', Ord(wrSignaled), Ord(r));
 end;
 
 procedure TTestCase_Event_Basic.Test_Set_Reset;
 var r: TWaitResult;
 begin
-  // 对自动重置事件，不使用 IsSignaled（不可非破坏式观察）
+  // 对自动重置事件，使用 WaitFor(0) 进行探测
   r := FEvent.WaitFor(0);
   AssertEquals('Initially should timeout', Ord(wrTimeout), Ord(r));
   FEvent.SetEvent;
@@ -128,19 +131,18 @@ begin
 end;
 
 procedure TTestCase_Event_Basic.Test_ManualReset_Behavior;
-var E: IEvent; r1, r2: TWaitResult;
+var E: IEvent; r1, r2, r3: TWaitResult;
 begin
   E := MakeEvent(True, False);
   E.SetEvent;
-  AssertTrue(E.IsSignaled);
   r1 := E.WaitFor(1000);
   AssertEquals(Ord(wrSignaled), Ord(r1));
   // 手动重置：等待后仍旧保持信号
-  AssertTrue(E.IsSignaled);
   r2 := E.WaitFor(0);
   AssertEquals(Ord(wrSignaled), Ord(r2));
   E.ResetEvent;
-  AssertFalse(E.IsSignaled);
+  r3 := E.WaitFor(0);
+  AssertEquals('After ResetEvent should timeout', Ord(wrTimeout), Ord(r3));
 end;
 
 procedure TTestCase_Event_Basic.Test_LockMethods_AutoReset;
@@ -173,8 +175,6 @@ begin
   // 手动重置仍保持信号
   r := E.WaitFor(0);
   AssertEquals('ManualReset remains signaled after WaitFor', Ord(wrSignaled), Ord(r));
-  // 测试 IsSignaled 方法
-  AssertTrue('IsSignaled should return true', E.IsSignaled);
   // 恢复未信号
   E.ResetEvent;
   r := E.WaitFor(0);

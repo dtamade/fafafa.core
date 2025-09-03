@@ -308,14 +308,14 @@ begin
   Header^.Mask := aCapacity - 1;
   Header^.ElementSize := aElementSize;
   // 初始化序号计数器（双向）
-  atomic_store_64(Header^.ProducerSeq_AB, 0, memory_order_relaxed);
-  atomic_store_64(Header^.ConsumerSeq_AB, 0, memory_order_relaxed);
-  atomic_store_64(Header^.CachedConsumerSeq_AB, 0, memory_order_relaxed);
-  atomic_store_64(Header^.CachedProducerSeq_AB, 0, memory_order_relaxed);
-  atomic_store_64(Header^.ProducerSeq_BA, 0, memory_order_relaxed);
-  atomic_store_64(Header^.ConsumerSeq_BA, 0, memory_order_relaxed);
-  atomic_store_64(Header^.CachedConsumerSeq_BA, 0, memory_order_relaxed);
-  atomic_store_64(Header^.CachedProducerSeq_BA, 0, memory_order_relaxed);
+  atomic_store_64(Header^.ProducerSeq_AB, 0, mo_relaxed);
+  atomic_store_64(Header^.ConsumerSeq_AB, 0, mo_relaxed);
+  atomic_store_64(Header^.CachedConsumerSeq_AB, 0, mo_relaxed);
+  atomic_store_64(Header^.CachedProducerSeq_AB, 0, mo_relaxed);
+  atomic_store_64(Header^.ProducerSeq_BA, 0, mo_relaxed);
+  atomic_store_64(Header^.ConsumerSeq_BA, 0, mo_relaxed);
+  atomic_store_64(Header^.CachedConsumerSeq_BA, 0, mo_relaxed);
+  atomic_store_64(Header^.CachedProducerSeq_BA, 0, mo_relaxed);
   // 计算并写入双向偏移（基于规范化后的容量）
   Header^.OffSeq_AB := HEADER_SIZE;
   Header^.OffData_AB := Header^.OffSeq_AB + aCapacity * SizeOf(Int64);
@@ -325,9 +325,9 @@ begin
   for i := 0 to aCapacity - 1 do
   begin
     SeqPtr := PInt64(PByte(FHeader) + Header^.OffSeq_AB + i * SizeOf(Int64));
-    atomic_store_64(SeqPtr^, i, memory_order_relaxed);
+    atomic_store_64(SeqPtr^, i, mo_relaxed);
     SeqPtr := PInt64(PByte(FHeader) + Header^.OffSeq_BA + i * SizeOf(Int64));
-    atomic_store_64(SeqPtr^, i, memory_order_relaxed);
+    atomic_store_64(SeqPtr^, i, mo_relaxed);
   end;
 end;
 
@@ -353,34 +353,34 @@ begin
   if FHeader = nil then Exit(0);
   // 仅用于旧语义的估算：返回当前方向的序号
   if FIsCreator then
-    Result := atomic_load_64(PMappedRingBufferHeader(FHeader)^.ProducerSeq_AB, memory_order_relaxed)
+    Result := atomic_load_64(PMappedRingBufferHeader(FHeader)^.ProducerSeq_AB, mo_relaxed)
   else
-    Result := atomic_load_64(PMappedRingBufferHeader(FHeader)^.ProducerSeq_BA, memory_order_relaxed);
+    Result := atomic_load_64(PMappedRingBufferHeader(FHeader)^.ProducerSeq_BA, mo_relaxed);
 end;
 
 function TMappedRingBuffer.GetReadIndex: UInt64;
 begin
   if FHeader = nil then Exit(0);
   if FIsCreator then
-    Result := atomic_load_64(PMappedRingBufferHeader(FHeader)^.ConsumerSeq_AB, memory_order_relaxed)
+    Result := atomic_load_64(PMappedRingBufferHeader(FHeader)^.ConsumerSeq_AB, mo_relaxed)
   else
-    Result := atomic_load_64(PMappedRingBufferHeader(FHeader)^.ConsumerSeq_BA, memory_order_relaxed);
+    Result := atomic_load_64(PMappedRingBufferHeader(FHeader)^.ConsumerSeq_BA, mo_relaxed);
 end;
 
 procedure TMappedRingBuffer.SetWriteIndex(const Value: UInt64);
 begin
   if FIsCreator then
-    atomic_store_64(PMappedRingBufferHeader(FHeader)^.ProducerSeq_AB, Value, memory_order_relaxed)
+    atomic_store_64(PMappedRingBufferHeader(FHeader)^.ProducerSeq_AB, Value, mo_relaxed)
   else
-    atomic_store_64(PMappedRingBufferHeader(FHeader)^.ProducerSeq_BA, Value, memory_order_relaxed);
+    atomic_store_64(PMappedRingBufferHeader(FHeader)^.ProducerSeq_BA, Value, mo_relaxed);
 end;
 
 procedure TMappedRingBuffer.SetReadIndex(const Value: UInt64);
 begin
   if FIsCreator then
-    atomic_store_64(PMappedRingBufferHeader(FHeader)^.ConsumerSeq_AB, Value, memory_order_relaxed)
+    atomic_store_64(PMappedRingBufferHeader(FHeader)^.ConsumerSeq_AB, Value, mo_relaxed)
   else
-    atomic_store_64(PMappedRingBufferHeader(FHeader)^.ConsumerSeq_BA, Value, memory_order_relaxed);
+    atomic_store_64(PMappedRingBufferHeader(FHeader)^.ConsumerSeq_BA, Value, mo_relaxed);
 end;
 
 function TMappedRingBuffer.GetAvailableSpace: UInt64;
@@ -646,9 +646,9 @@ begin
   Header := PMappedRingBufferHeader(FHeader);
   // 发送方向选择：Creator端使用AB，Open端使用BA
   if FIsCreator then
-    LProdSeq := atomic_load_64(Header^.ProducerSeq_AB, memory_order_relaxed)
+    LProdSeq := atomic_load_64(Header^.ProducerSeq_AB, mo_relaxed)
   else
-    LProdSeq := atomic_load_64(Header^.ProducerSeq_BA, memory_order_relaxed);
+    LProdSeq := atomic_load_64(Header^.ProducerSeq_BA, mo_relaxed);
   Index := UInt64(LProdSeq) and Header^.Mask;
   if FIsCreator then
     SeqPtr := PInt64(PByte(FHeader) + Header^.OffSeq_AB + Index * SizeOf(Int64))
@@ -657,23 +657,23 @@ begin
 
   // 槽位可用性检查：期望等于 LProdSeq
   ExpectedSeq := LProdSeq;
-  if atomic_load_64(SeqPtr^, memory_order_acquire) <> ExpectedSeq then
+  if atomic_load_64(SeqPtr^, mo_acquire) <> ExpectedSeq then
   begin
     // 检查是否满：Prod - CachedCons >= Capacity
     if FIsCreator then
-      LCachedCons := atomic_load_64(Header^.CachedConsumerSeq_AB, memory_order_relaxed)
+      LCachedCons := atomic_load_64(Header^.CachedConsumerSeq_AB, mo_relaxed)
     else
-      LCachedCons := atomic_load_64(Header^.CachedConsumerSeq_BA, memory_order_relaxed);
+      LCachedCons := atomic_load_64(Header^.CachedConsumerSeq_BA, mo_relaxed);
     if (LProdSeq - LCachedCons) >= Int64(Header^.Capacity) then
     begin
       if FIsCreator then
-        LConsSeq := atomic_load_64(Header^.ConsumerSeq_AB, memory_order_acquire)
+        LConsSeq := atomic_load_64(Header^.ConsumerSeq_AB, mo_acquire)
       else
-        LConsSeq := atomic_load_64(Header^.ConsumerSeq_BA, memory_order_acquire);
+        LConsSeq := atomic_load_64(Header^.ConsumerSeq_BA, mo_acquire);
       if FIsCreator then
-        atomic_store_64(Header^.CachedConsumerSeq_AB, LConsSeq, memory_order_relaxed)
+        atomic_store_64(Header^.CachedConsumerSeq_AB, LConsSeq, mo_relaxed)
       else
-        atomic_store_64(Header^.CachedConsumerSeq_BA, LConsSeq, memory_order_relaxed);
+        atomic_store_64(Header^.CachedConsumerSeq_BA, LConsSeq, mo_relaxed);
       if (LProdSeq - LConsSeq) >= Int64(Header^.Capacity) then Exit(False);
     end
     else
@@ -685,12 +685,12 @@ begin
   Move(aData^, DataPtr^, FElementSize);
 
   // 发布槽位：sequence = LProdSeq + 1（release）
-  atomic_store_64(SeqPtr^, LProdSeq + 1, memory_order_release);
+  atomic_store_64(SeqPtr^, LProdSeq + 1, mo_release);
   // 推进生产者序号（relaxed）
   if FIsCreator then
-    atomic_store_64(Header^.ProducerSeq_AB, LProdSeq + 1, memory_order_relaxed)
+    atomic_store_64(Header^.ProducerSeq_AB, LProdSeq + 1, mo_relaxed)
   else
-    atomic_store_64(Header^.ProducerSeq_BA, LProdSeq + 1, memory_order_relaxed);
+    atomic_store_64(Header^.ProducerSeq_BA, LProdSeq + 1, mo_relaxed);
 
   Result := True;
 end;
@@ -712,9 +712,9 @@ begin
   Header := PMappedRingBufferHeader(FHeader);
   // 接收方向选择：Creator端读取AB，Open端读取BA
   if FIsCreator then
-    LConsSeq := atomic_load_64(Header^.ConsumerSeq_AB, memory_order_relaxed)
+    LConsSeq := atomic_load_64(Header^.ConsumerSeq_AB, mo_relaxed)
   else
-    LConsSeq := atomic_load_64(Header^.ConsumerSeq_BA, memory_order_relaxed);
+    LConsSeq := atomic_load_64(Header^.ConsumerSeq_BA, mo_relaxed);
   Index := UInt64(LConsSeq) and Header^.Mask;
   if FIsCreator then
     SeqPtr := PInt64(PByte(FHeader) + Header^.OffSeq_AB + Index * SizeOf(Int64))
@@ -723,23 +723,23 @@ begin
 
   // 槽位可读性检查：期望等于 LConsSeq + 1
   ExpectedSeq := LConsSeq + 1;
-  if atomic_load_64(SeqPtr^, memory_order_acquire) <> ExpectedSeq then
+  if atomic_load_64(SeqPtr^, mo_acquire) <> ExpectedSeq then
   begin
     // 检查是否空：CachedProd - Cons <= 0
     if FIsCreator then
-      LCachedProd := atomic_load_64(Header^.CachedProducerSeq_AB, memory_order_relaxed)
+      LCachedProd := atomic_load_64(Header^.CachedProducerSeq_AB, mo_relaxed)
     else
-      LCachedProd := atomic_load_64(Header^.CachedProducerSeq_BA, memory_order_relaxed);
+      LCachedProd := atomic_load_64(Header^.CachedProducerSeq_BA, mo_relaxed);
     if (LCachedProd - LConsSeq) <= 0 then
     begin
       if FIsCreator then
-        LProdSeq := atomic_load_64(Header^.ProducerSeq_AB, memory_order_acquire)
+        LProdSeq := atomic_load_64(Header^.ProducerSeq_AB, mo_acquire)
       else
-        LProdSeq := atomic_load_64(Header^.ProducerSeq_BA, memory_order_acquire);
+        LProdSeq := atomic_load_64(Header^.ProducerSeq_BA, mo_acquire);
       if FIsCreator then
-        atomic_store_64(Header^.CachedProducerSeq_AB, LProdSeq, memory_order_relaxed)
+        atomic_store_64(Header^.CachedProducerSeq_AB, LProdSeq, mo_relaxed)
       else
-        atomic_store_64(Header^.CachedProducerSeq_BA, LProdSeq, memory_order_relaxed);
+        atomic_store_64(Header^.CachedProducerSeq_BA, LProdSeq, mo_relaxed);
       if (LProdSeq - LConsSeq) <= 0 then Exit(False);
     end
     else
@@ -751,12 +751,12 @@ begin
   Move(DataPtr^, aData^, FElementSize);
 
   // 释放槽位：sequence = LConsSeq + Capacity（release）
-  atomic_store_64(SeqPtr^, LConsSeq + Int64(Header^.Capacity), memory_order_release);
+  atomic_store_64(SeqPtr^, LConsSeq + Int64(Header^.Capacity), mo_release);
   // 推进消费者序号
   if FIsCreator then
-    atomic_store_64(Header^.ConsumerSeq_AB, LConsSeq + 1, memory_order_relaxed)
+    atomic_store_64(Header^.ConsumerSeq_AB, LConsSeq + 1, mo_relaxed)
   else
-    atomic_store_64(Header^.ConsumerSeq_BA, LConsSeq + 1, memory_order_relaxed);
+    atomic_store_64(Header^.ConsumerSeq_BA, LConsSeq + 1, mo_relaxed);
 
   Result := True;
 end;
@@ -779,9 +779,9 @@ begin
 
   Header := PMappedRingBufferHeader(FHeader);
   if FIsCreator then
-    LConsSeq := atomic_load_64(Header^.ConsumerSeq_AB, memory_order_relaxed)
+    LConsSeq := atomic_load_64(Header^.ConsumerSeq_AB, mo_relaxed)
   else
-    LConsSeq := atomic_load_64(Header^.ConsumerSeq_BA, memory_order_relaxed);
+    LConsSeq := atomic_load_64(Header^.ConsumerSeq_BA, mo_relaxed);
   Index := UInt64(LConsSeq) and Header^.Mask;
   if FIsCreator then
     SeqPtr := PInt64(PByte(FHeader) + Header^.OffSeq_AB + Index * SizeOf(Int64))
@@ -789,22 +789,22 @@ begin
     SeqPtr := PInt64(PByte(FHeader) + Header^.OffSeq_BA + Index * SizeOf(Int64));
 
   ExpectedSeq := LConsSeq + 1;
-  if atomic_load_64(SeqPtr^, memory_order_acquire) <> ExpectedSeq then
+  if atomic_load_64(SeqPtr^, mo_acquire) <> ExpectedSeq then
   begin
     if FIsCreator then
-      LCachedProd := atomic_load_64(Header^.CachedProducerSeq_AB, memory_order_relaxed)
+      LCachedProd := atomic_load_64(Header^.CachedProducerSeq_AB, mo_relaxed)
     else
-      LCachedProd := atomic_load_64(Header^.CachedProducerSeq_BA, memory_order_relaxed);
+      LCachedProd := atomic_load_64(Header^.CachedProducerSeq_BA, mo_relaxed);
     if (LCachedProd - LConsSeq) <= 0 then
     begin
       if FIsCreator then
-        LProdSeq := atomic_load_64(Header^.ProducerSeq_AB, memory_order_acquire)
+        LProdSeq := atomic_load_64(Header^.ProducerSeq_AB, mo_acquire)
       else
-        LProdSeq := atomic_load_64(Header^.ProducerSeq_BA, memory_order_acquire);
+        LProdSeq := atomic_load_64(Header^.ProducerSeq_BA, mo_acquire);
       if FIsCreator then
-        atomic_store_64(Header^.CachedProducerSeq_AB, LProdSeq, memory_order_relaxed)
+        atomic_store_64(Header^.CachedProducerSeq_AB, LProdSeq, mo_relaxed)
       else
-        atomic_store_64(Header^.CachedProducerSeq_BA, LProdSeq, memory_order_relaxed);
+        atomic_store_64(Header^.CachedProducerSeq_BA, LProdSeq, mo_relaxed);
       if (LProdSeq - LConsSeq) <= 0 then Exit(False);
     end
     else

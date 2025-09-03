@@ -12,6 +12,8 @@ uses
 var
   Application: TTestRunner;
 begin
+  DefaultRunAllTests := true;
+  DefaultFormat := fPlain;
   Application := TTestRunner.Create(nil);
   Application.Initialize;
   Application.Title := 'fafafa.core.sync.spin 单元测试';

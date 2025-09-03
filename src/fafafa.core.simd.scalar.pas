@@ -18,6 +18,33 @@ uses
 // Register the scalar backend
 procedure RegisterScalarBackend;
 
+// === 标量门面函数声明 ===
+
+// 内存操作函数
+function MemEqual_Scalar(a, b: Pointer; len: SizeUInt): LongBool;
+function MemFindByte_Scalar(p: Pointer; len: SizeUInt; value: Byte): PtrInt;
+function MemDiffRange_Scalar(a, b: Pointer; len: SizeUInt; out firstDiff, lastDiff: SizeUInt): Boolean;
+procedure MemCopy_Scalar(src, dst: Pointer; len: SizeUInt);
+procedure MemSet_Scalar(dst: Pointer; len: SizeUInt; value: Byte);
+procedure MemReverse_Scalar(p: Pointer; len: SizeUInt);
+
+// 统计函数
+function SumBytes_Scalar(p: Pointer; len: SizeUInt): UInt64;
+procedure MinMaxBytes_Scalar(p: Pointer; len: SizeUInt; out minVal, maxVal: Byte);
+function CountByte_Scalar(p: Pointer; len: SizeUInt; value: Byte): SizeUInt;
+
+// 文本处理函数
+function Utf8Validate_Scalar(p: Pointer; len: SizeUInt): Boolean;
+function AsciiIEqual_Scalar(a, b: Pointer; len: SizeUInt): Boolean;
+procedure ToLowerAscii_Scalar(p: Pointer; len: SizeUInt);
+procedure ToUpperAscii_Scalar(p: Pointer; len: SizeUInt);
+
+// 搜索函数
+function BytesIndexOf_Scalar(haystack: Pointer; haystackLen: SizeUInt; needle: Pointer; needleLen: SizeUInt): PtrInt;
+
+// 位集函数
+function BitsetPopCount_Scalar(p: Pointer; byteLen: SizeUInt): SizeUInt;
+
 implementation
 
 uses
@@ -437,6 +464,417 @@ begin
 
   // Register the backend
   RegisterBackend(sbScalar, dispatchTable);
+end;
+
+// === 标量门面函数实现 ===
+
+// 内存操作函数
+function MemEqual_Scalar(a, b: Pointer; len: SizeUInt): LongBool;
+var
+  pa, pb: PByte;
+  i: SizeUInt;
+begin
+  if len = 0 then
+  begin
+    Result := True;
+    Exit;
+  end;
+
+  if (a = nil) or (b = nil) then
+  begin
+    Result := (a = b);
+    Exit;
+  end;
+
+  pa := PByte(a);
+  pb := PByte(b);
+
+  for i := 0 to len - 1 do
+  begin
+    if pa[i] <> pb[i] then
+    begin
+      Result := False;
+      Exit;
+    end;
+  end;
+
+  Result := True;
+end;
+
+function MemFindByte_Scalar(p: Pointer; len: SizeUInt; value: Byte): PtrInt;
+var
+  pb: PByte;
+  i: SizeUInt;
+begin
+  if (len = 0) or (p = nil) then
+  begin
+    Result := -1;
+    Exit;
+  end;
+
+  pb := PByte(p);
+
+  for i := 0 to len - 1 do
+  begin
+    if pb[i] = value then
+    begin
+      Result := PtrInt(i);
+      Exit;
+    end;
+  end;
+
+  Result := -1;
+end;
+
+function MemDiffRange_Scalar(a, b: Pointer; len: SizeUInt; out firstDiff, lastDiff: SizeUInt): Boolean;
+var
+  pa, pb: PByte;
+  i: SizeUInt;
+  foundFirst: Boolean;
+begin
+  firstDiff := 0;
+  lastDiff := 0;
+
+  if len = 0 then
+  begin
+    Result := False;
+    Exit;
+  end;
+
+  if (a = nil) or (b = nil) then
+  begin
+    if a <> b then
+    begin
+      firstDiff := 0;
+      lastDiff := len - 1;
+      Result := True;
+    end
+    else
+      Result := False;
+    Exit;
+  end;
+
+  pa := PByte(a);
+  pb := PByte(b);
+  foundFirst := False;
+
+  for i := 0 to len - 1 do
+  begin
+    if pa[i] <> pb[i] then
+    begin
+      if not foundFirst then
+      begin
+        firstDiff := i;
+        foundFirst := True;
+      end;
+      lastDiff := i;
+    end;
+  end;
+
+  Result := foundFirst;
+end;
+
+procedure MemCopy_Scalar(src, dst: Pointer; len: SizeUInt);
+begin
+  if (len = 0) or (src = nil) or (dst = nil) then
+    Exit;
+
+  Move(src^, dst^, len);
+end;
+
+procedure MemSet_Scalar(dst: Pointer; len: SizeUInt; value: Byte);
+begin
+  if (len = 0) or (dst = nil) then
+    Exit;
+
+  FillChar(dst^, len, value);
+end;
+
+procedure MemReverse_Scalar(p: Pointer; len: SizeUInt);
+var
+  pb: PByte;
+  i: SizeUInt;
+  temp: Byte;
+begin
+  if (len <= 1) or (p = nil) then
+    Exit;
+
+  pb := PByte(p);
+
+  for i := 0 to (len div 2) - 1 do
+  begin
+    temp := pb[i];
+    pb[i] := pb[len - 1 - i];
+    pb[len - 1 - i] := temp;
+  end;
+end;
+
+// 统计函数
+function SumBytes_Scalar(p: Pointer; len: SizeUInt): UInt64;
+var
+  pb: PByte;
+  i: SizeUInt;
+begin
+  Result := 0;
+
+  if (len = 0) or (p = nil) then
+    Exit;
+
+  pb := PByte(p);
+
+  for i := 0 to len - 1 do
+    Result := Result + pb[i];
+end;
+
+procedure MinMaxBytes_Scalar(p: Pointer; len: SizeUInt; out minVal, maxVal: Byte);
+var
+  pb: PByte;
+  i: SizeUInt;
+begin
+  minVal := 255;
+  maxVal := 0;
+
+  if (len = 0) or (p = nil) then
+    Exit;
+
+  pb := PByte(p);
+  minVal := pb[0];
+  maxVal := pb[0];
+
+  for i := 1 to len - 1 do
+  begin
+    if pb[i] < minVal then
+      minVal := pb[i];
+    if pb[i] > maxVal then
+      maxVal := pb[i];
+  end;
+end;
+
+function CountByte_Scalar(p: Pointer; len: SizeUInt; value: Byte): SizeUInt;
+var
+  pb: PByte;
+  i: SizeUInt;
+begin
+  Result := 0;
+
+  if (len = 0) or (p = nil) then
+    Exit;
+
+  pb := PByte(p);
+
+  for i := 0 to len - 1 do
+  begin
+    if pb[i] = value then
+      Inc(Result);
+  end;
+end;
+
+// 文本处理函数
+function Utf8Validate_Scalar(p: Pointer; len: SizeUInt): Boolean;
+var
+  pb: PByte;
+  i: SizeUInt;
+  b: Byte;
+  seqLen: Integer;
+  j: Integer;
+begin
+  Result := True;
+
+  if (len = 0) or (p = nil) then
+    Exit;
+
+  pb := PByte(p);
+  i := 0;
+
+  while i < len do
+  begin
+    b := pb[i];
+
+    // ASCII (0xxxxxxx)
+    if (b and $80) = 0 then
+    begin
+      Inc(i);
+      Continue;
+    end;
+
+    // Multi-byte sequence
+    if (b and $E0) = $C0 then
+      seqLen := 2
+    else if (b and $F0) = $E0 then
+      seqLen := 3
+    else if (b and $F8) = $F0 then
+      seqLen := 4
+    else
+    begin
+      Result := False;
+      Exit;
+    end;
+
+    // Check if we have enough bytes
+    if i + seqLen > len then
+    begin
+      Result := False;
+      Exit;
+    end;
+
+    // Check continuation bytes
+    for j := 1 to seqLen - 1 do
+    begin
+      if (pb[i + j] and $C0) <> $80 then
+      begin
+        Result := False;
+        Exit;
+      end;
+    end;
+
+    Inc(i, seqLen);
+  end;
+end;
+
+function AsciiIEqual_Scalar(a, b: Pointer; len: SizeUInt): Boolean;
+var
+  pa, pb: PByte;
+  i: SizeUInt;
+  ca, cb: Byte;
+begin
+  if len = 0 then
+  begin
+    Result := True;
+    Exit;
+  end;
+
+  if (a = nil) or (b = nil) then
+  begin
+    Result := (a = b);
+    Exit;
+  end;
+
+  pa := PByte(a);
+  pb := PByte(b);
+
+  for i := 0 to len - 1 do
+  begin
+    ca := pa[i];
+    cb := pb[i];
+
+    // Convert to lowercase for comparison
+    if (ca >= Ord('A')) and (ca <= Ord('Z')) then
+      ca := ca + 32;
+    if (cb >= Ord('A')) and (cb <= Ord('Z')) then
+      cb := cb + 32;
+
+    if ca <> cb then
+    begin
+      Result := False;
+      Exit;
+    end;
+  end;
+
+  Result := True;
+end;
+
+procedure ToLowerAscii_Scalar(p: Pointer; len: SizeUInt);
+var
+  pb: PByte;
+  i: SizeUInt;
+begin
+  if (len = 0) or (p = nil) then
+    Exit;
+
+  pb := PByte(p);
+
+  for i := 0 to len - 1 do
+  begin
+    if (pb[i] >= Ord('A')) and (pb[i] <= Ord('Z')) then
+      pb[i] := pb[i] + 32;
+  end;
+end;
+
+procedure ToUpperAscii_Scalar(p: Pointer; len: SizeUInt);
+var
+  pb: PByte;
+  i: SizeUInt;
+begin
+  if (len = 0) or (p = nil) then
+    Exit;
+
+  pb := PByte(p);
+
+  for i := 0 to len - 1 do
+  begin
+    if (pb[i] >= Ord('a')) and (pb[i] <= Ord('z')) then
+      pb[i] := pb[i] - 32;
+  end;
+end;
+
+// 搜索函数
+function BytesIndexOf_Scalar(haystack: Pointer; haystackLen: SizeUInt; needle: Pointer; needleLen: SizeUInt): PtrInt;
+var
+  ph, pn: PByte;
+  i, j: SizeUInt;
+  found: Boolean;
+begin
+  Result := -1;
+
+  if (haystackLen = 0) or (needleLen = 0) or (haystack = nil) or (needle = nil) then
+    Exit;
+
+  if needleLen > haystackLen then
+    Exit;
+
+  ph := PByte(haystack);
+  pn := PByte(needle);
+
+  for i := 0 to haystackLen - needleLen do
+  begin
+    found := True;
+    for j := 0 to needleLen - 1 do
+    begin
+      if ph[i + j] <> pn[j] then
+      begin
+        found := False;
+        Break;
+      end;
+    end;
+
+    if found then
+    begin
+      Result := PtrInt(i);
+      Exit;
+    end;
+  end;
+end;
+
+// 位集函数
+function BitsetPopCount_Scalar(p: Pointer; byteLen: SizeUInt): SizeUInt;
+var
+  pb: PByte;
+  i: SizeUInt;
+  b: Byte;
+  count: Integer;
+begin
+  Result := 0;
+
+  if (byteLen = 0) or (p = nil) then
+    Exit;
+
+  pb := PByte(p);
+
+  for i := 0 to byteLen - 1 do
+  begin
+    b := pb[i];
+    count := 0;
+
+    // Count bits in byte
+    while b <> 0 do
+    begin
+      if (b and 1) <> 0 then
+        Inc(count);
+      b := b shr 1;
+    end;
+
+    Result := Result + SizeUInt(count);
+  end;
 end;
 
 initialization

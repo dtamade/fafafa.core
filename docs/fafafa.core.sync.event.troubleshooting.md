@@ -83,7 +83,7 @@ var
   Threads: array[0..7] of TThread;
   i: Integer;
 begin
-  FEvent := CreateEvent(True, False);
+  FEvent := MakeEvent(True, False);
   FSharedData := 0;
   FExpectedValue := 0;
   FInconsistencyCount := 0;
@@ -222,7 +222,7 @@ end;
 var
   Event: IEvent;
 begin
-  Event := CreateEvent(True, False);
+  Event := MakeEvent(True, False);
   // 使用 Event...
   // 忘记设置 Event := nil
 end;
@@ -231,7 +231,7 @@ end;
 var
   Event: IEvent;
 begin
-  Event := CreateEvent(True, False);
+  Event := MakeEvent(True, False);
   try
     // 使用 Event...
   finally
@@ -242,14 +242,13 @@ end;
 
 2. **使用 RAII 守卫**
 ```pascal
-// 自动资源管理
+// 自动资源管理（通过接口引用）
 var
   Event: IEvent;
-  Guard: IEventGuard;
 begin
-  Event := CreateEvent(True, True);
-  Guard := Event.WaitGuard; // 自动管理生命周期
-  // Guard 会在作用域结束时自动释放
+  Event := MakeEvent(True, True);
+  // 接口引用会在超出作用域时自动释放
+  // 无需手动管理内存
 end;
 ```
 
@@ -287,8 +286,8 @@ var
 begin
   GProfiler.StartOperation;
   StartTime := GetTickCount64;
-  
-  Event := CreateEvent(True, False);
+
+  Event := MakeEvent(True, False);
   try
     Event.SetEvent;
     Event.WaitFor(1000);
@@ -305,10 +304,10 @@ end;
 1. **选择合适的事件类型**
 ```pascal
 // 对于一对一通知，使用自动重置事件
-Event := CreateEvent(False, False); // 更高效
+Event := MakeEvent(False, False); // 更高效
 
 // 对于一对多广播，使用手动重置事件
-Event := CreateEvent(True, False);
+Event := MakeEvent(True, False);
 ```
 
 2. **避免不必要的系统调用**
@@ -337,7 +336,7 @@ var
   WaitingCount: Integer;
   LastError: TWaitError;
 begin
-  Event := CreateEvent(True, False);
+  Event := MakeEvent(True, False);
   
   // 测试平台特定功能
   WaitingCount := Event.GetWaitingThreadCount;
@@ -359,15 +358,15 @@ end;
 // 跨平台兼容的代码
 var
   Event: IEvent;
-  Count: Integer;
 begin
-  Event := CreateEvent(True, False);
-  Count := Event.GetWaitingThreadCount;
-  
-  if Event.GetLastError = weNotSupported then
-    WriteLn('Waiting thread count not supported on this platform')
+  Event := MakeEvent(True, False);
+
+  // 测试基础功能
+  Event.SetEvent;
+  if Event.TryWait then
+    WriteLn('Event is signaled')
   else
-    WriteLn(Format('Waiting threads: %d', [Count]));
+    WriteLn('Event is not signaled');
 end;
 ```
 

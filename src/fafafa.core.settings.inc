@@ -446,5 +446,8 @@
   { 启用高级记录特性 }
   {$MODESWITCH ADVANCEDRECORDS}
   {$MODESWITCH TYPEHELPERS}
+
+  { 启用 Intel 汇编语法 }
+  {$ASMMODE INTEL}
 {$ENDIF}
 

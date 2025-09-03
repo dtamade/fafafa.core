@@ -2,6 +2,7 @@ unit fafafa.core.sync.conditionVariable.windows;
 
 {$mode objfpc}{$H+}
 {$I fafafa.core.settings.inc}
+{$UNDEF FAFAFA_SYNC_USE_CONDVAR}  // Fallback to portable implementation when WinAPI condvar types are unavailable
 
 interface
 
@@ -11,10 +12,13 @@ uses
   fafafa.core.sync.base,
   fafafa.core.sync.mutex.base,
   fafafa.core.sync.semaphore.base,
+  fafafa.core.sync.semaphore,
+  fafafa.core.sync.event.base,
+  fafafa.core.sync.event,
   fafafa.core.sync.conditionVariable.base;
 
 type
-  TConditionVariable = class(TInterfacedObject, IConditionVariable)
+  TConditionVariable = class(TSynchronizable, IConditionVariable)
   private
     {$IFDEF FAFAFA_SYNC_USE_CONDVAR}
     FCond: CONDITION_VARIABLE;
@@ -74,10 +78,12 @@ end;
 procedure TConditionVariable.Wait(const ALock: ILock);
 var
   M: IMutex;
+  {$IFDEF FAFAFA_SYNC_USE_CONDVAR}
   PS: PSRWLOCK;
-{$IFNDEF FAFAFA_SYNC_USE_CONDVAR}
+  {$ENDIF}
+  {$IFNDEF FAFAFA_SYNC_USE_CONDVAR}
   ok: Boolean;
-{$ENDIF}
+  {$ENDIF}
 begin
   if ALock = nil then
     raise EArgumentNilException.Create('Lock cannot be nil');
@@ -117,7 +123,7 @@ begin
 
   ALock.Release;
   try
-    if FWaitSemaphore = nil then FWaitSemaphore := CreateSemaphore(0, MaxInt);
+    if FWaitSemaphore = nil then FWaitSemaphore := MakeSemaphore(0, MaxInt);
     FWaitSemaphore.Acquire;
   finally
     ALock.Acquire;
@@ -131,8 +137,10 @@ end;
 function TConditionVariable.Wait(const ALock: ILock; ATimeoutMs: Cardinal): Boolean;
 var
   M: IMutex;
+  {$IFDEF FAFAFA_SYNC_USE_CONDVAR}
   PS: PSRWLOCK;
   ok: BOOL;
+  {$ENDIF}
 begin
   if ALock = nil then
     raise EArgumentNilException.Create('Lock cannot be nil');
@@ -182,7 +190,7 @@ begin
 
   ALock.Release;
   try
-    if FWaitSemaphore = nil then FWaitSemaphore := CreateSemaphore(0, MaxInt);
+    if FWaitSemaphore = nil then FWaitSemaphore := MakeSemaphore(0, MaxInt);
     if ATimeoutMs = INFINITE then
       FWaitSemaphore.Acquire
     else

@@ -112,9 +112,6 @@ type
  *}
 function MakeMutex: IMutex;
 
-// 注意：MutexGuard 函数已移至 fafafa.core.sync.base 模块
-// 新的签名：function MutexGuard(ALock: ILock): ILockGuard;
-// 使用方式：Guard := MutexGuard(MakeMutex);
 
 implementation
 
@@ -128,7 +125,5 @@ begin
     {$ERROR 'Unsupported platform for fafafa.core.sync.mutex'}
   {$ENDIF}
 end;
-
-// MutexGuard 函数已移至 fafafa.core.sync.base 模块
 
 end.

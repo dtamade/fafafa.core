@@ -1,9 +1,12 @@
-program fafafa_core_sync_spin_benchmark;
+program fafafa.core.sync.spin.benchmark;
 
 {$I fafafa.core.settings.inc}
-{$CODEPAGE UTF8}
+{$IFDEF WINDOWS}{$CODEPAGE UTF8}{$ENDIF}
 
 uses
+  {$IFDEF UNIX}
+  cthreads, BaseUnix, Unix,
+  {$ENDIF}
   SysUtils, Classes,
   {$IFDEF WINDOWS}
   Windows,

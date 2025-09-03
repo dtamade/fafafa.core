@@ -65,7 +65,7 @@ var
   Dummy: Int32;
 begin
   Value := TestValue32;
-  Dummy := atomic_load(Value, memory_order_relaxed);
+  Dummy := atomic_load(Value, mo_relaxed);
   if Dummy = -999999 then WriteLn('Never');
 end;
 
@@ -75,7 +75,7 @@ var
   Dummy: Int32;
 begin
   Value := TestValue32;
-  Dummy := atomic_load(Value, memory_order_acquire);
+  Dummy := atomic_load(Value, mo_acquire);
   if Dummy = -999999 then WriteLn('Never');
 end;
 
@@ -85,7 +85,7 @@ var
   Dummy: Int32;
 begin
   Value := TestValue32;
-  Dummy := atomic_load(Value, memory_order_seq_cst);
+  Dummy := atomic_load(Value, mo_seq_cst);
   if Dummy = -999999 then WriteLn('Never');
 end;
 
@@ -106,7 +106,7 @@ var
   Value: Int32;
 begin
   Value := TestValue32;
-  atomic_store(Value, 42, memory_order_relaxed);
+  atomic_store(Value, 42, mo_relaxed);
 end;
 
 procedure Test_Store_Release;
@@ -114,7 +114,7 @@ var
   Value: Int32;
 begin
   Value := TestValue32;
-  atomic_store(Value, 42, memory_order_release);
+  atomic_store(Value, 42, mo_release);
 end;
 
 procedure Test_Store_SeqCst;
@@ -122,7 +122,7 @@ var
   Value: Int32;
 begin
   Value := TestValue32;
-  atomic_store(Value, 42, memory_order_seq_cst);
+  atomic_store(Value, 42, mo_seq_cst);
 end;
 
 procedure Test_Store_Default;
@@ -141,7 +141,7 @@ var
   Dummy: Int32;
 begin
   Value := TestValue32;
-  Dummy := atomic_exchange(Value, 42, memory_order_relaxed);
+  Dummy := atomic_exchange(Value, 42, mo_relaxed);
   if Dummy = -999999 then WriteLn('Never');
 end;
 
@@ -151,7 +151,7 @@ var
   Dummy: Int32;
 begin
   Value := TestValue32;
-  Dummy := atomic_exchange(Value, 42, memory_order_acq_rel);
+  Dummy := atomic_exchange(Value, 42, mo_acq_rel);
   if Dummy = -999999 then WriteLn('Never');
 end;
 
@@ -161,7 +161,7 @@ var
   Dummy: Int32;
 begin
   Value := TestValue32;
-  Dummy := atomic_exchange(Value, 42, memory_order_seq_cst);
+  Dummy := atomic_exchange(Value, 42, mo_seq_cst);
   if Dummy = -999999 then WriteLn('Never');
 end;
 
@@ -183,7 +183,7 @@ var
   Dummy: Int32;
 begin
   Value := TestValue32;
-  Dummy := atomic_fetch_add(Value, 1, memory_order_relaxed);
+  Dummy := atomic_fetch_add(Value, 1, mo_relaxed);
   if Dummy = -999999 then WriteLn('Never');
 end;
 
@@ -193,7 +193,7 @@ var
   Dummy: Int32;
 begin
   Value := TestValue32;
-  Dummy := atomic_fetch_add(Value, 1, memory_order_acq_rel);
+  Dummy := atomic_fetch_add(Value, 1, mo_acq_rel);
   if Dummy = -999999 then WriteLn('Never');
 end;
 
@@ -203,7 +203,7 @@ var
   Dummy: Int32;
 begin
   Value := TestValue32;
-  Dummy := atomic_fetch_add(Value, 1, memory_order_seq_cst);
+  Dummy := atomic_fetch_add(Value, 1, mo_seq_cst);
   if Dummy = -999999 then WriteLn('Never');
 end;
 

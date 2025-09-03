@@ -49,3 +49,6 @@ src/tests/bin
 bin/*
 
 lib/
+*.o
+*.exe
+*.ppu

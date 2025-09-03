@@ -11,7 +11,7 @@ uses
 
 type
 
-  TBarrier = class(TInterfacedObject, IBarrier)
+  TBarrier = class(TSynchronizable, IBarrier)
   private
     FParticipantCount: Integer;
     {$IFDEF FAFAFA_SYNC_USE_POSIX_BARRIER}
@@ -22,12 +22,10 @@ type
     FMutex: pthread_mutex_t;
     FCond: pthread_cond_t;
     {$ENDIF}
-    FLastError: TWaitError;
   public
     constructor Create(AParticipantCount: Integer);
     destructor Destroy; override;
-    // ISynchronizable
-    function GetLastError: TWaitError;
+
     // IBarrier
     function Wait: Boolean;
     function GetParticipantCount: Integer;
@@ -55,8 +53,6 @@ begin
     raise ELockError.Create('barrier: cond init failed');
   end;
   {$ENDIF}
-
-  FLastError := weNone;
 end;
 
 destructor TBarrier.Destroy;
@@ -76,10 +72,10 @@ var rc: Integer;
 begin
   rc := pthread_barrier_wait(@FBarrier);
   case rc of
-    0: begin FLastError := weNone; Result := False; end; // non-serial
-    PTHREAD_BARRIER_SERIAL_THREAD: begin FLastError := weNone; Result := True; end; // serial
+    0: Result := False; // non-serial
+    PTHREAD_BARRIER_SERIAL_THREAD: Result := True; // serial
   else
-    FLastError := weSystemError; Result := False;
+    Result := False;
   end;
 end;
 {$ELSE}
@@ -90,7 +86,6 @@ begin
   // Emulate serial-thread semantics: return True for one thread per phase.
   if pthread_mutex_lock(@FMutex) <> 0 then
   begin
-    FLastError := weSystemError;
     Exit(False);
   end;
   try
@@ -102,7 +97,6 @@ begin
       FWaitingCount := 0;
       // Wake all waiters and designate current as serial thread
       rc := pthread_cond_broadcast(@FCond);
-      if rc <> 0 then FLastError := weSystemError else FLastError := weNone;
       Result := True;
       Exit;
     end
@@ -110,7 +104,6 @@ begin
     begin
       while (myGen = FGeneration) do
         pthread_cond_wait(@FCond, @FMutex);
-      FLastError := weNone;
       Result := False; // non-serial
       Exit;
     end;
@@ -125,12 +118,6 @@ end;
 function TBarrier.GetParticipantCount: Integer;
 begin
   Result := FParticipantCount;
-end;
-
-// ISynchronizable
-function TBarrier.GetLastError: TWaitError;
-begin
-  Result := FLastError;
 end;
 
 

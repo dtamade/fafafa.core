@@ -8,8 +8,8 @@ unit fafafa.core.atomic;
 │         \ \  __\ \ \  __ \  \ \  __\ \ \  __ \  \ \  __\ \ \  __ \           │
 │          \ \_\    \ \_\ \_\  \ \_\    \ \_\ \_\  \ \_\    \ \_\ \_\          │
 │           \/_/     \/_/\/_/   \/_/     \/_/\/_/   \/_/     \/_/\/_/          │
-│                                Studio                                        │
 │                                                                              │
+│                                Studio                                        │
 └──────────────────────────────────────────────────────────────────────────────┘
 
 📦 项目：fafafa.core.atomic - 高性能原子操作实现
@@ -20,11 +20,11 @@ unit fafafa.core.atomic;
 🔧 特性：
   • 跨平台支持：Windows、Linux、macOS、FreeBSD 等
   • 高性能实现：使用平台原生原子指令优化
-  • 无锁设计：  避免传统锁的开销和竞争
+  • 无锁设计：避免传统锁的开销和竞争
   • 内存序控制：支持多种内存排序语义
-  • 类型安全：  泛型封装确保类型一致性
-  • CAS 操作：  Compare-And-Swap 原语支持
-  • 移植友好：  
+  • 类型安全：泛型封装确保类型一致性
+  • CAS 操作：Compare-And-Swap 原语支持
+  • 移植友好：支持 Windows、Linux、macOS、FreeBSD 等平台
 
 ⚠️  重要说明：
   原子操作仅保证单个操作的原子性，复合操作仍需要额外的同步机制。
@@ -43,7 +43,7 @@ unit fafafa.core.atomic;
 
 }
 
-{$i fafafa.core.settings.inc}
+{$I fafafa.core.settings.inc}
 
 interface
 
@@ -154,7 +154,7 @@ function atomic_compare_exchange_strong_64(var aObj: Int64; var aExpected: Int64
 function atomic_compare_exchange_strong_64(var aObj: UInt64; var aExpected: UInt64; aDesired: UInt64): Boolean; overload; inline;
 {$ENDIF}
 
-function atomic_compare_exchange_strong(var aObj: Pointer; var aExpected: Pointer; aDesired: Pointer): Boolean; inline;
+function atomic_compare_exchange_strong(var aObj: Pointer; var aExpected: Pointer; aDesired: Pointer): Boolean; overload; inline;
 
 function atomic_compare_exchange_weak(var aObj: Int32; var aExpected: Int32; aDesired: Int32): Boolean; overload; inline;
 function atomic_compare_exchange_weak(var aObj: UInt32; var aExpected: UInt32; aDesired: UInt32): Boolean; overload; inline;
@@ -282,26 +282,25 @@ type
 
   atomic_flag_t = type Int32;
 
-  function atomic_flag_test_and_set(var aFlag: atomic_flag_t): Boolean; inline;
-  function atomic_flag_test(var aFlag: atomic_flag_t): Boolean; inline;
-  procedure atomic_flag_clear(var aFlag: atomic_flag_t); inline;
+function atomic_flag_test_and_set(var aFlag: atomic_flag_t): Boolean; inline;
+function atomic_flag_test(var aFlag: atomic_flag_t): Boolean; inline;
+procedure atomic_flag_clear(var aFlag: atomic_flag_t); inline;
 
 //┌────────────────────────────────────────────────────────────────────────────┐
 //│                            atomic_is_lock_free                             │
 //└────────────────────────────────────────────────────────────────────────────┘
 
-  function atomic_is_lock_free_32: Boolean; inline;
-  {$IFDEF CPU64}
-  function atomic_is_lock_free_64: Boolean; inline;
-  {$ENDIF}
-  function atomic_is_lock_free_ptr: Boolean; inline;
+function atomic_is_lock_free_32: Boolean; inline;
+{$IFDEF CPU64}
+function atomic_is_lock_free_64: Boolean; inline;
+{$ENDIF}
+function atomic_is_lock_free_ptr: Boolean; inline;
 
 //┌────────────────────────────────────────────────────────────────────────────┐
 //│                             atomic_tagged_ptr                              │
 //└────────────────────────────────────────────────────────────────────────────┘
 
 type
-
   atomic_tagged_ptr_t = type PtrUInt;
 
 function  atomic_tagged_ptr(aPtr: Pointer; aTag: {$IFDEF CPU64}UInt16{$ELSE}UInt32{$ENDIF}): atomic_tagged_ptr_t; inline;
@@ -363,12 +362,18 @@ end;
 
 function atomic_load(var aObj: UInt32; aOrder: memory_order_t): UInt32;
 begin
+  {$PUSH}
+  {$WARN 4055 OFF} // Conversion between ordinals and pointers is not portable
   Result := UInt32(atomic_load(PInt32(@aObj)^, aOrder));
+  {$POP}
 end;
 
 function atomic_load(var aObj: UInt32): UInt32;
 begin
+  {$PUSH}
+  {$WARN 4055 OFF}
   Result := UInt32(atomic_load(PInt32(@aObj)^));
+  {$POP}
 end;
 
 
@@ -413,23 +418,32 @@ end;
 
 function atomic_load_64(var aObj: UInt64; aOrder: memory_order_t): UInt64;
 begin
+  {$PUSH}
+  {$WARN 4055 OFF}
   Result := UInt64(atomic_load_64(PInt64(@aObj)^, aOrder));
+  {$POP}
 end;
 
 function atomic_load_64(var aObj: UInt64):UInt64;
 begin
+  {$PUSH}
+  {$WARN 4055 OFF}
   Result := UInt64(atomic_load_64(PInt64(@aObj)^));
+  {$POP}
 end;
 
 {$ENDIF}
 
 function atomic_load(var aObj: Pointer; aOrder: memory_order_t): Pointer;
 begin
+  {$PUSH}
+  {$WARN 4055 OFF}
   {$IF sizeof(Pointer) = 4}
     Result := Pointer(atomic_load(PInt32(@aObj)^, aOrder));
   {$ELSE}
     Result := Pointer(atomic_load_64(PInt64(@aObj)^, aOrder));
   {$ENDIF}
+  {$POP}
 end;
 
 function atomic_load(var aObj: Pointer): Pointer;
@@ -443,11 +457,14 @@ end;
 
 function atomic_load(var aObj: PtrInt; aOrder: memory_order_t): PtrInt;
 begin
+  {$PUSH}
+  {$WARN 4055 OFF}
   {$IF sizeof(PtrInt) = 4}
     Result := PtrInt(atomic_load(PInt32(@aObj)^, aOrder));
   {$ELSE}
     Result := PtrInt(atomic_load_64(PInt64(@aObj)^, aOrder));
   {$ENDIF}
+  {$POP}
 end;
 
 function atomic_load(var aObj: PtrInt): PtrInt;
@@ -501,12 +518,18 @@ end;
 
 procedure atomic_store(var aObj: UInt32; aDesired: UInt32; aOrder: memory_order_t);
 begin
+  {$PUSH}
+  {$WARN 4055 OFF}
   atomic_store(PInt32(@aObj)^, PInt32(@aDesired)^, aOrder);
+  {$POP}
 end;
 
 procedure atomic_store(var aObj: UInt32; aDesired: UInt32);
 begin
+  {$PUSH}
+  {$WARN 4055 OFF}
   atomic_store(PInt32(@aObj)^, PInt32(@aDesired)^);
+  {$POP}
 end;
 
 {$IFDEF CPU64}
@@ -541,22 +564,31 @@ end;
 
 procedure atomic_store_64(var aObj: UInt64; aDesired: UInt64; aOrder: memory_order_t);
 begin
+  {$PUSH}
+  {$WARN 4055 OFF}
   atomic_store_64(PInt64(@aObj)^, PInt64(@aDesired)^, aOrder);
+  {$POP}
 end;
 
 procedure atomic_store_64(var aObj: UInt64; aDesired: UInt64);
 begin
+  {$PUSH}
+  {$WARN 4055 OFF}
   atomic_store_64(PInt64(@aObj)^, PInt64(@aDesired)^);
+  {$POP}
 end;
 {$ENDIF}
 
 procedure atomic_store(var aObj: Pointer; aDesired: Pointer; aOrder: memory_order_t);
 begin
+  {$PUSH}
+  {$WARN 4055 OFF}
   {$IF sizeof(Pointer) = 4}
     atomic_store(PInt32(@aObj)^, PInt32(@aDesired)^, aOrder);
   {$ELSE}
     atomic_store_64(PInt64(@aObj)^, PInt64(@aDesired)^, aOrder);
   {$ENDIF}
+  {$POP}
 end;
 
 procedure atomic_store(var aObj: Pointer; aDesired: Pointer);
@@ -571,11 +603,14 @@ end;
 
 procedure atomic_store(var aObj: PtrInt; aDesired: PtrInt; aOrder: memory_order_t);
 begin
+  {$PUSH}
+  {$WARN 4055 OFF}
   {$IF sizeof(PtrInt) = 4}
     atomic_store(PInt32(@aObj)^, PInt32(@aDesired)^, aOrder);
   {$ELSE}
     atomic_store_64(PInt64(@aObj)^, PInt64(@aDesired)^, aOrder);
   {$ENDIF}
+  {$POP}
 end;
 
 procedure atomic_store(var aObj: PtrInt; aDesired: PtrInt);
@@ -605,16 +640,22 @@ end;
 
 function atomic_exchange(var aObj: UInt32; aDesired: UInt32): UInt32;
 begin
+  {$PUSH}
+  {$WARN 4055 OFF}
   Result := UInt32(atomic_exchange(PInt32(@aObj)^, PInt32(@aDesired)^));
+  {$POP}
 end;
 
 function atomic_exchange(var aObj: PtrInt; aDesired: PtrInt): PtrInt;
 begin
+  {$PUSH}
+  {$WARN 4055 OFF}
   {$IF sizeof(PtrInt) = 4}
     Result := PtrInt(InterlockedExchange(PInt32(@aObj)^, PInt32(@aDesired)^));
   {$ELSE}
     Result := PtrInt(InterlockedExchange64(PInt64(@aObj)^, PInt64(@aDesired)^));
   {$ENDIF}
+  {$POP}
 end;
 
 function atomic_exchange(var aObj: PtrUInt; aDesired: PtrUInt): PtrUInt;
@@ -630,7 +671,10 @@ end;
 
 function atomic_exchange_64(var aObj: UInt64; aDesired: UInt64): UInt64;
 begin
+  {$PUSH}
+  {$WARN 4055 OFF}
   Result := UInt64(atomic_exchange_64(PInt64(@aObj)^, PInt64(@aDesired)^));
+  {$POP}
 end;
 {$ENDIF}
 
@@ -648,17 +692,23 @@ end;
 
 function atomic_compare_exchange_64(var aObj: UInt64; var aExpected: UInt64; aDesired: UInt64): Boolean;
 begin
+  {$PUSH}
+  {$WARN 4055 OFF}
   Result := atomic_compare_exchange_64(PInt64(@aObj)^, PInt64(@aExpected)^, PInt64(@aDesired)^);
+  {$POP}
 end;
 {$ENDIF}
 
 function atomic_exchange(var aObj: Pointer; aDesired: Pointer): Pointer;
 begin
+  {$PUSH}
+  {$WARN 4055 OFF}
   {$IF sizeof(Pointer) = 4}
     Result := Pointer(InterlockedExchange(PInt32(@aObj)^, PInt32(@aDesired)^));
   {$ELSE}
     Result := Pointer(InterlockedExchange64(PInt64(@aObj)^, PInt64(@aDesired)^));
   {$ENDIF}
+  {$POP}
 end;
 
 function atomic_compare_exchange(var aObj: Int32; var aExpected: Int32; aDesired: Int32): Boolean;
@@ -674,16 +724,22 @@ end;
 
 function atomic_compare_exchange(var aObj: UInt32; var aExpected: UInt32; aDesired: UInt32): Boolean;
 begin
+  {$PUSH}
+  {$WARN 4055 OFF}
   Result := atomic_compare_exchange(PInt32(@aObj)^, PInt32(@aExpected)^, PInt32(@aDesired)^);
+  {$POP}
 end;
 
 function atomic_compare_exchange(var aObj: PtrInt; var aExpected: PtrInt; aDesired: PtrInt): Boolean;
 begin
+  {$PUSH}
+  {$WARN 4055 OFF}
   {$IF SIZEOF(PtrInt) = 4}
     Result := atomic_compare_exchange(PInt32(@aObj)^, PInt32(@aExpected)^, PInt32(@aDesired)^);
   {$ELSE}
     Result := atomic_compare_exchange_64(PInt64(@aObj)^, PInt64(@aExpected)^, PInt64(@aDesired)^);
   {$ENDIF}
+  {$POP}
 end;
 
 function atomic_compare_exchange(var aObj: PtrUInt; var aExpected: PtrUInt; aDesired: PtrUInt): Boolean;
@@ -709,7 +765,10 @@ end;
 
 function atomic_compare_exchange_strong(var aObj: UInt32; var aExpected: UInt32; aDesired: UInt32): Boolean;
 begin
+  {$PUSH}
+  {$WARN 4055 OFF}
   Result := atomic_compare_exchange(PInt32(@aObj)^, PInt32(@aExpected)^, PInt32(@aDesired)^);
+  {$POP}
 end;
 
 function atomic_compare_exchange_strong(var aObj: PtrInt; var aExpected: PtrInt; aDesired: PtrInt): Boolean;
@@ -725,7 +784,10 @@ end;
 {$IFDEF CPU64}
 function atomic_compare_exchange_strong_64(var aObj: UInt64; var aExpected: UInt64; aDesired: UInt64): Boolean;
 begin
+  {$PUSH}
+  {$WARN 4055 OFF}
   Result := atomic_compare_exchange_64(PInt64(@aObj)^, PInt64(@aExpected)^, PInt64(@aDesired)^);
+  {$POP}
 end;
 
 function atomic_compare_exchange_strong_64(var aObj: Int64; var aExpected: Int64; aDesired: Int64): Boolean;
@@ -746,7 +808,10 @@ end;
 
 function atomic_compare_exchange_weak(var aObj: UInt32; var aExpected: UInt32; aDesired: UInt32): Boolean;
 begin
+  {$PUSH}
+  {$WARN 4055 OFF}
   Result := atomic_compare_exchange(PInt32(@aObj)^, PInt32(@aExpected)^, PInt32(@aDesired)^);
+  {$POP}
 end;
 
 function atomic_compare_exchange_weak(var aObj: PtrInt; var aExpected: PtrInt; aDesired: PtrInt): Boolean;
@@ -767,7 +832,10 @@ end;
 
 function atomic_compare_exchange_weak_64(var aObj: UInt64; var aExpected: UInt64; aDesired: UInt64): Boolean;
 begin
+  {$PUSH}
+  {$WARN 4055 OFF}
   Result := atomic_compare_exchange_64(PInt64(@aObj)^, PInt64(@aExpected)^, PInt64(@aDesired)^);
+  {$POP}
 end;
 {$ENDIF}
 
@@ -779,7 +847,10 @@ end;
 
 function atomic_increment_64(var aObj: UInt64): UInt64;
 begin
+  {$PUSH}
+  {$WARN 4055 OFF}
   Result := UInt64(atomic_increment_64(PInt64(@aObj)^));
+  {$POP}
 end;
 {$ENDIF}
 
@@ -795,25 +866,34 @@ end;
 
 function atomic_increment(var aObj: UInt32): UInt32;
 begin
+  {$PUSH}
+  {$WARN 4055 OFF}
   Result := UInt32(atomic_increment(PInt32(@aObj)^));
+  {$POP}
 end;
 
 function atomic_increment(var aObj: PtrInt): PtrInt;
 begin
+  {$PUSH}
+  {$WARN 4055 OFF}
   {$IF SIZEOF(PtrInt) = 4}
     Result := PtrInt(atomic_increment(PInt32(@aObj)^));
   {$ELSE}
     Result := PtrInt(atomic_increment_64(PInt64(@aObj)^));
   {$ENDIF}
+  {$POP}
 end;
 
 function atomic_increment(var aObj: PtrUInt): PtrUInt;
 begin
+  {$PUSH}
+  {$WARN 4055 OFF}
   {$IF SIZEOF(PtrInt) = 4}
     Result := PtrUInt(atomic_increment(PInt32(@aObj)^));
   {$ELSE}
     Result := PtrUInt(atomic_increment_64(PInt64(@aObj)^));
   {$ENDIF}
+  {$POP}
 end;
 
 
@@ -825,17 +905,23 @@ end;
 
 function atomic_decrement_64(var aObj: UInt64): UInt64;
 begin
+  {$PUSH}
+  {$WARN 4055 OFF}
   Result := UInt64(atomic_decrement_64(PInt64(@aObj)^));
+  {$POP}
 end;
 {$ENDIF}
 
 function atomic_increment(var aObj: Pointer): Pointer;
 begin
+  {$PUSH}
+  {$WARN 4055 OFF} // Conversion between ordinals and pointers is not portable
   {$IF SIZEOF(Pointer) = 4}
     Result := Pointer(atomic_increment(PInt32(@aObj)^));
   {$ELSE}
     Result := Pointer(atomic_increment_64(PInt64(@aObj)^));
   {$ENDIF}
+  {$POP}
 end;
 
 function atomic_decrement(var aObj: Int32): Int32;
@@ -845,21 +931,30 @@ end;
 
 function atomic_decrement(var aObj: UInt32): UInt32;
 begin
+  {$PUSH}
+  {$WARN 4055 OFF}
   Result := UInt32(atomic_decrement(PInt32(@aObj)^));
+  {$POP}
 end;
 
 function atomic_decrement(var aObj: PtrInt): PtrInt;
 begin
+  {$PUSH}
+  {$WARN 4055 OFF}
   {$IF SIZEOF(PtrInt) = 4}
     Result := PtrInt(atomic_decrement(PInt32(@aObj)^));
   {$ELSE}
     Result := PtrInt(atomic_decrement_64(PInt64(@aObj)^));
   {$ENDIF}
+  {$POP}
 end;
 
 function atomic_decrement(var aObj: PtrUInt): PtrUInt;
 begin
+  {$PUSH}
+  {$WARN 4055 OFF}
   Result := PtrUInt(atomic_decrement(PPtrInt(@aObj)^));
+  {$POP}
 end;
 
 {$IFDEF CPU64}
@@ -870,17 +965,23 @@ end;
 
 function atomic_fetch_add_64(var aObj: UInt64; aArg: UInt64): UInt64;
 begin
+  {$PUSH}
+  {$WARN 4055 OFF}
   Result := UInt64(atomic_fetch_add_64(PInt64(@aObj)^, PInt64(@aArg)^));
+  {$POP}
 end;
 {$ENDIF}
 
 function atomic_decrement(var aObj: Pointer): Pointer;
 begin
+  {$PUSH}
+  {$WARN 4055 OFF} // Conversion between ordinals and pointers is not portable
   {$IF SIZEOF(Pointer) = 4}
     Result := Pointer(atomic_decrement(PInt32(@aObj)^));
   {$ELSE}
     Result := Pointer(atomic_decrement_64(PInt64(@aObj)^));
   {$ENDIF}
+  {$POP}
 end;
 
 function atomic_fetch_add(var aObj: Int32; aArg: Int32): Int32;
@@ -890,40 +991,55 @@ end;
 
 function atomic_fetch_add(var aObj: UInt32; aArg: UInt32): UInt32;
 begin
+  {$PUSH}
+  {$WARN 4055 OFF}
   Result := UInt32(atomic_fetch_add(PInt32(@aObj)^, PInt32(@aArg)^));
+  {$POP}
 end;
 
 function atomic_fetch_add(var aObj: PtrInt; aArg: PtrInt): PtrInt;
 begin
+  {$PUSH}
+  {$WARN 4055 OFF}
   {$IF SIZEOF(PtrInt) = 4}
     Result := PtrInt(atomic_fetch_add(PInt32(@aObj)^, PInt32(@aArg)^));
   {$ELSE}
     Result := PtrInt(atomic_fetch_add_64(PInt64(@aObj)^, PInt64(@aArg)^));
   {$ENDIF}
+  {$POP}
 end;
 
 function atomic_fetch_add(var aObj: PtrUInt; aArg: PtrUInt): PtrUInt;
 begin
+  {$PUSH}
+  {$WARN 4055 OFF}
   Result := PtrUInt(atomic_fetch_add(PPtrInt(@aObj)^, PPtrInt(@aArg)^));
+  {$POP}
 end;
 
 function atomic_fetch_add(var aObj: Pointer; aArg: Pointer): Pointer;
 begin
+  {$PUSH}
+  {$WARN 4055 OFF}
   {$IF SIZEOF(Pointer) = 4}
     Result := Pointer(atomic_fetch_add(PInt32(@aObj)^, PInt32(@aArg)^));
   {$ELSE}
     Result := Pointer(atomic_fetch_add_64(PInt64(@aObj)^, PInt64(@aArg)^));
   {$ENDIF}
+  {$POP}
 end;
 
 
 function atomic_fetch_add(var aObj: Pointer; aOffset: PtrInt): Pointer;
 begin
+  {$PUSH}
+  {$WARN 4055 OFF} // Conversion between ordinals and pointers is not portable
   {$IF SIZEOF(Pointer) = 4}
     Result := Pointer(atomic_fetch_add(PInt32(@aObj)^, PInt32(@aOffset)^));
   {$ELSE}
     Result := Pointer(atomic_fetch_add_64(PInt64(@aObj)^, PInt64(@aOffset)^));
   {$ENDIF}
+  {$POP}
 end;
 
 {$IFDEF CPU64}
@@ -964,11 +1080,14 @@ end;
 
 function atomic_fetch_sub(var aObj: Pointer; aArg: Pointer): Pointer;
 begin
+  {$PUSH}
+  {$WARN 4055 OFF} // Conversion between ordinals and pointers is not portable
   {$IF SIZEOF(Pointer) = 4}
     Result := Pointer(atomic_fetch_sub(Int32(aObj), Int32(aArg)));
   {$ELSE}
     Result := Pointer(atomic_fetch_sub_64(PInt64(@aObj)^, PInt64(@aArg)^));
   {$ENDIF}
+  {$POP}
 end;
 
 function atomic_fetch_sub(var aObj: Pointer; aOffset: PtrInt): Pointer;
@@ -1021,12 +1140,15 @@ end;
 
 function atomic_fetch_and(var aObj: PtrUInt; aArg: PtrUInt): PtrUInt;
 begin
-  Result := PtrUInt(atomic_fetch_and(PtrInt(aObj), PtrInt(aArg)));
+  Result := PtrUInt(atomic_fetch_and(PPtrInt(@aObj)^, PtrInt(aArg)));
 end;
 
 function atomic_fetch_and(var aObj: Pointer; aArg: Pointer): Pointer;
 begin
+  {$PUSH}
+  {$WARN 4055 OFF} // Conversion between ordinals and pointers is not portable
   Result := Pointer(atomic_fetch_and(PtrInt(aObj), PtrInt(aArg)));
+  {$POP}
 end;
 
 
@@ -1075,12 +1197,15 @@ end;
 
 function atomic_fetch_or(var aObj: PtrUInt; aArg: PtrUInt): PtrUInt;
 begin
-  Result := PtrUInt(atomic_fetch_or(PtrInt(aObj), PtrInt(aArg)));
+  Result := PtrUInt(atomic_fetch_or(PPtrInt(@aObj)^, PtrInt(aArg)));
 end;
 
 function atomic_fetch_or(var aObj: Pointer; aArg: Pointer): Pointer;
 begin
+  {$PUSH}
+  {$WARN 4055 OFF} // Conversion between ordinals and pointers is not portable
   Result := Pointer(atomic_fetch_or(PtrInt(aObj), PtrInt(aArg)));
+  {$POP}
 end;
 
 {$IFDEF CPU64}
@@ -1128,16 +1253,19 @@ end;
 
 function atomic_fetch_xor(var aObj: PtrUInt; aArg: PtrUInt): PtrUInt;
 begin
-  Result := PtrUInt(atomic_fetch_xor(PtrInt(aObj), PtrInt(aArg)));
+  Result := PtrUInt(atomic_fetch_xor(PPtrInt(@aObj)^, PtrInt(aArg)));
 end;
 
 function atomic_fetch_xor(var aObj: Pointer; aArg: Pointer): Pointer;
 begin
+ {$PUSH}
+ {$WARN 4055 OFF}
  {$IF SIZEOF(Pointer) = 4}
    Result := Pointer(atomic_fetch_xor(Int32(aObj), Int32(aArg)));
  {$ELSE}
    Result := Pointer(atomic_fetch_xor_64(PInt64(@aObj)^, PInt64(@aArg)^));
  {$ENDIF}
+ {$POP}
 end;
 
 
@@ -1213,20 +1341,26 @@ const
 
 function atomic_tagged_ptr(aPtr: Pointer; aTag: {$IFDEF CPU64}UInt16{$ELSE}UInt32{$ENDIF}): atomic_tagged_ptr_t;
 begin
+  {$PUSH}
+  {$WARN 4055 OFF}
   {$IFDEF CPU64}
   Result := (UInt64(PtrUInt(aPtr)) and PTR_MASK) or (UInt64(aTag) shl 48);
   {$ELSE}
   Result := (PtrUInt(aPtr) and PTR_MASK) or (PtrUInt(aTag) and TAG_MASK);
   {$ENDIF}
+  {$POP}
 end;
 
 function atomic_tagged_ptr_get_ptr(const aTaggedPtr: atomic_tagged_ptr_t): Pointer;
 begin
+  {$PUSH}
+  {$WARN 4055 OFF} // Conversion between ordinals and pointers is not portable
   {$IFDEF CPU64}
   Result := Pointer(aTaggedPtr and PTR_MASK);
   {$ELSE}
   Result := Pointer(PtrUInt(aTaggedPtr) and PTR_MASK);
   {$ENDIF}
+  {$POP}
 end;
 
 function atomic_tagged_ptr_get_tag(const aTaggedPtr: atomic_tagged_ptr_t): {$IFDEF CPU64}UInt16{$ELSE}UInt32{$ENDIF};

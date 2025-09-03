@@ -1,12 +1,13 @@
 program example_use_cases;
 
 {$mode objfpc}{$H+}
+{$IFDEF WINDOWS}
 {$CODEPAGE UTF8}
+{$ENDIF}
 
 uses
   {$IFDEF UNIX}cthreads,{$ENDIF}
   SysUtils, Classes,
-  fafafa.core.sync.spin.base,
   fafafa.core.sync.spin;
 
 // ===== 使用场景1: 共享计数器 =====
@@ -14,7 +15,7 @@ type
   TSharedCounter = class
   private
     FValue: Integer;
-    FLock: ISpinLock;
+    FLock: ISpin;
   public
     constructor Create;
     procedure Increment;
@@ -24,19 +25,10 @@ type
   end;
 
 constructor TSharedCounter.Create;
-var
-  Policy: TSpinLockPolicy;
 begin
   inherited Create;
   FValue := 0;
-  
-  // 对于计数器，使用较少的自旋次数和快速退避
-  Policy := DefaultSpinLockPolicy;
-  Policy.MaxSpins := 16;
-  Policy.BackoffStrategy := sbsLinear;
-  Policy.MaxBackoffMs := 2;
-  
-  FLock := MakeSpinLock(Policy);
+  FLock := MakeSpin;
 end;
 
 procedure TSharedCounter.Increment;

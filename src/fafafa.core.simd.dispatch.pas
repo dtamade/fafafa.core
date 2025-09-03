@@ -87,6 +87,10 @@ type
     InsertF32x4: function(const a: TVecF32x4; value: Single; index: Integer): TVecF32x4;
   end;
 
+// Pointer to dispatch table
+type
+  PSimdDispatchTable = ^TSimdDispatchTable;
+
 // Get current dispatch table
 function GetDispatchTable: PSimdDispatchTable;
 

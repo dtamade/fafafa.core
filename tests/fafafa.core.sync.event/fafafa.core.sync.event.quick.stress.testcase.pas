@@ -52,7 +52,7 @@ var
   r: TWaitResult;
 begin
   WriteLn('Testing rapid zero timeout operations...');
-  E := fafafa.core.sync.event.CreateEvent(False, False);
+  E := fafafa.core.sync.event.MakeEvent(False, False);
   
   // 快速零超时测试
   for i := 1 to 10000 do
@@ -73,15 +73,17 @@ var
   i: Integer;
 begin
   WriteLn('Testing rapid set/reset operations...');
-  E := fafafa.core.sync.event.CreateEvent(True, False); // manual reset
+  E := fafafa.core.sync.event.MakeEvent(True, False); // manual reset
   
   // 快速设置/重置循环
   for i := 1 to 20000 do
   begin
     E.SetEvent;
-    AssertTrue(Format('Should be signaled after set %d', [i]), E.IsSignaled);
+    // 手动重置事件：设置后应该能立即等待成功
+    AssertEquals(Format('Should be signaled after set %d', [i]), Ord(wrSignaled), Ord(E.WaitFor(0)));
     E.ResetEvent;
-    AssertFalse(Format('Should be reset after reset %d', [i]), E.IsSignaled);
+    // 重置后应该超时
+    AssertEquals(Format('Should be reset after reset %d', [i]), Ord(wrTimeout), Ord(E.WaitFor(0)));
     
     if i mod 5000 = 0 then
       WriteLn(Format('Set/reset test: %d/20000 completed', [i]));
@@ -100,7 +102,7 @@ begin
   // 快速创建/销毁循环
   for i := 1 to 5000 do
   begin
-    E := fafafa.core.sync.event.CreateEvent(i mod 2 = 0, i mod 3 = 0);
+    E := fafafa.core.sync.event.MakeEvent(i mod 2 = 0, i mod 3 = 0);
     E.SetEvent;
     E.WaitFor(0);
     E.ResetEvent;
@@ -120,7 +122,7 @@ var
   r: TWaitResult;
 begin
   WriteLn('Testing fast mixed operations...');
-  E := fafafa.core.sync.event.CreateEvent(True, False); // manual reset
+  E := fafafa.core.sync.event.MakeEvent(True, False); // manual reset
   
   // 混合操作测试
   for i := 1 to 10000 do
@@ -132,7 +134,7 @@ begin
         r := E.WaitFor(0);
         // 不检查结果，只要不崩溃即可
       end;
-      3: E.IsSignaled;
+      3: E.TryWait; // 替代 IsSignaled
     end;
     
     if i mod 2000 = 0 then
@@ -149,7 +151,7 @@ var
   i, TotalCompleted: Integer;
 begin
   WriteLn('Testing simple concurrency...');
-  E := fafafa.core.sync.event.CreateEvent(True, False); // manual reset
+  E := fafafa.core.sync.event.MakeEvent(True, False); // manual reset
   
   // 创建5个简单工作线程
   for i := 0 to 4 do
@@ -184,30 +186,23 @@ var
   i: Integer; 
   r: TWaitResult;
 begin
-  WriteLn('Testing error handling consistency...');
-  E := fafafa.core.sync.event.CreateEvent(True, False);
+  WriteLn('Testing basic operations consistency...');
+  E := fafafa.core.sync.event.MakeEvent(True, False);
   
-  // 测试各种操作的错误状态一致性
+  // 测试各种操作的基本功能
   for i := 1 to 1000 do
   begin
     // 正常操作序列
-    AssertEquals('Initial error should be none', Ord(weNone), Ord(E.GetLastError));
-    
     E.SetEvent;
-    AssertEquals('After SetEvent error should be none', Ord(weNone), Ord(E.GetLastError));
-    
     r := E.WaitFor(0);
-    AssertEquals('After WaitFor error should be none', Ord(weNone), Ord(E.GetLastError));
     AssertEquals('WaitFor should succeed', Ord(wrSignaled), Ord(r));
-    
     E.ResetEvent;
-    AssertEquals('After ResetEvent error should be none', Ord(weNone), Ord(E.GetLastError));
-    
+
     if i mod 200 = 0 then
-      WriteLn(Format('Error handling test: %d/1000 completed', [i]));
+      WriteLn(Format('Basic operations test: %d/1000 completed', [i]));
   end;
   
-  WriteLn('Error handling consistency test completed successfully');
+  WriteLn('Basic operations consistency test completed successfully');
 end;
 
 { TSimpleWorker }

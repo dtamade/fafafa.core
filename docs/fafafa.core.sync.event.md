@@ -2,79 +2,62 @@
 
 ## 概述
 
-fafafa.core.sync.event 模块提供了高性能、线程安全的事件同步原语，支持手动重置和自动重置两种模式。该模块经过全面优化，提供了现代化的 API 设计，包括取消令牌支持、性能监控、批量操作等高级特性。
+fafafa.core.sync.event 模块提供了高性能、线程安全的事件同步原语，支持手动重置和自动重置两种模式。该模块采用跨平台设计，在 Windows 和 Unix 系统上提供一致的 API 接口。
 
 ## 核心特性
 
-### ✅ 已完成的核心功能
+### ✅ 核心功能
 - **双模式支持**: 手动重置和自动重置事件
 - **跨平台兼容**: Windows 和 Unix/Linux 平台
 - **线程安全**: 完全线程安全的实现
-- **高性能优化**: 无锁快速路径，减少系统调用
-- **RAII 支持**: 自动资源管理守卫
-- **详细错误处理**: 统一的错误分类和消息
-- **现代化特性**: 取消令牌、批量操作、性能监控
+- **高性能**: 基于平台原生 API 的高效实现
+- **简洁接口**: 专注核心功能，避免过度设计
+- **自动资源管理**: 基于接口引用的自动内存管理
 
-### 🚀 性能优化
-- **无锁快速路径**: 手动重置事件的高频操作使用原子操作
-- **内存屏障**: 确保多核环境下的内存一致性
-- **智能锁竞争**: 减少不必要的互斥锁获取
-- **批量操作**: 高效的多事件等待机制
+### 🚀 性能特点
+- **Windows**: 基于内核事件对象，零用户态开销
+- **Unix**: 基于 pthread 条件变量，标准 POSIX 实现
+- **时间复杂度**: 所有操作都是 O(1) 常数时间
+- **内存效率**: 最小化内存占用和分配
 
 ## API 参考
 
-### 基础接口
+### 工厂函数
 
 ```pascal
 // 创建事件
-function CreateEvent(AManualReset: Boolean; AInitialState: Boolean): IEvent;
+function MakeEvent(AManualReset: Boolean = False;
+                  AInitialState: Boolean = False): IEvent;
+```
 
-// 事件接口
-IEvent = interface
-  // 基础操作
-  procedure SetEvent;                    // 设置事件为信号状态
-  procedure ResetEvent;                  // 重置事件为非信号状态
-  function WaitFor(ATimeoutMs: Cardinal): TWaitResult; // 等待事件
-  function TryWait: Boolean;             // 非阻塞等待
-  function IsSignaled: Boolean;          // 检查信号状态
-  
-  // 现代化特性
-  function WaitForCancellable(ATimeoutMs: Cardinal; 
-                             ACancellationToken: ICancellationToken): TWaitResult;
-  function GetMetrics: TEventMetrics;    // 获取性能指标
-  procedure SetMetricsEnabled(AEnabled: Boolean); // 启用性能监控
+### 核心接口
+
+```pascal
+IEvent = interface(ISynchronizable)
+  ['{E8B9D5C6-7F6A-4D3E-8B9C-6A5D4E3F2B18}']
+
+  { 基础事件操作 }
+  procedure SetEvent;                              // 设置事件为信号状态
+  procedure ResetEvent;                            // 重置事件为非信号状态
+  function WaitFor: TWaitResult; overload;         // 无限等待事件信号
+  function WaitFor(ATimeoutMs: Cardinal): TWaitResult; overload; // 带超时等待
+
+  { 扩展操作 }
+  function TryWait: Boolean;                       // 非阻塞等待
+  function IsManualReset: Boolean;                 // 是否手动重置事件
 end;
 ```
 
-### 批量操作
+### 等待结果
 
 ```pascal
-// 等待多个事件
-function WaitForMultiple(const Events: array of IEvent; 
-                        WaitAll: Boolean; 
-                        TimeoutMs: Cardinal): TWaitMultipleResult;
-
-// 等待任意一个事件
-function WaitForAny(const Events: array of IEvent; 
-                   TimeoutMs: Cardinal): TWaitMultipleResult;
-
-// 等待所有事件
-function WaitForAll(const Events: array of IEvent; 
-                   TimeoutMs: Cardinal): TWaitResult;
-```
-
-### 取消令牌
-
-```pascal
-// 创建取消令牌
-function CreateCancellationToken: ICancellationToken;
-
-// 取消令牌接口
-ICancellationToken = interface
-  function IsCancelled: Boolean;         // 检查是否已取消
-  procedure Cancel;                      // 取消操作
-  procedure Reset;                       // 重置取消状态
-end;
+TWaitResult = (
+  wrSignaled,   // 事件被信号化
+  wrTimeout,    // 等待超时
+  wrAbandoned,  // 事件被放弃（中断）
+  wrError,      // 发生错误
+  wrInterrupted // 被信号中断（Unix）
+);
 ```
 
 ## 使用指南
@@ -87,15 +70,15 @@ var
   Event: IEvent;
 begin
   // 创建手动重置事件，初始为非信号状态
-  Event := CreateEvent(True, False);
-  
+  Event := MakeEvent(True, False);
+
   // 设置信号
   Event.SetEvent;
-  
+
   // 多个线程可以同时通过
   if Event.WaitFor(1000) = wrSignaled then
     WriteLn('Event signaled');
-  
+
   // 手动重置
   Event.ResetEvent;
 end;
@@ -107,11 +90,11 @@ var
   Event: IEvent;
 begin
   // 创建自动重置事件
-  Event := CreateEvent(False, False);
-  
+  Event := MakeEvent(False, False);
+
   // 设置信号
   Event.SetEvent;
-  
+
   // 只有一个线程能通过，事件自动重置
   if Event.WaitFor(1000) = wrSignaled then
     WriteLn('Got the signal');
@@ -120,65 +103,88 @@ end;
 
 ### 高级用法
 
-#### 1. 使用取消令牌
+#### 1. 非阻塞检查
 ```pascal
 var
   Event: IEvent;
-  CancelToken: ICancellationToken;
-  Result: TWaitResult;
 begin
-  Event := CreateEvent(True, False);
-  CancelToken := CreateCancellationToken;
-  
-  // 在另一个线程中可以调用 CancelToken.Cancel
-  Result := Event.WaitForCancellable(5000, CancelToken);
-  
-  case Result of
-    wrSignaled: WriteLn('Event signaled');
-    wrTimeout: WriteLn('Timeout');
-    wrAbandoned: WriteLn('Cancelled');
+  Event := MakeEvent(False, False);
+
+  // 非阻塞检查事件状态
+  if Event.TryWait then
+    WriteLn('Event is signaled')
+  else
+    WriteLn('Event is not signaled');
+end;
+```
+
+#### 2. 生产者-消费者模式
+```pascal
+var
+  WorkAvailable: IEvent;
+
+procedure Producer;
+begin
+  // 生产工作项
+  ProduceWorkItem;
+
+  // 通知消费者
+  WorkAvailable.SetEvent;
+end;
+
+procedure Consumer;
+begin
+  while True do
+  begin
+    // 等待工作可用
+    if WorkAvailable.WaitFor(5000) = wrSignaled then
+    begin
+      ProcessWorkItem;
+    end
+    else
+    begin
+      WriteLn('等待工作超时');
+    end;
   end;
 end;
-```
 
-#### 2. 批量等待
-```pascal
-var
-  Events: array[0..2] of IEvent;
-  Result: TWaitMultipleResult;
-  i: Integer;
 begin
-  // 创建多个事件
-  for i := 0 to High(Events) do
-    Events[i] := CreateEvent(True, False);
-  
-  // 等待任意一个事件
-  Result := WaitForAny(Events, 3000);
-  if Result.Result = wrSignaled then
-    WriteLn('Event ', Result.Index, ' was signaled');
+  // 创建自动重置事件用于生产者-消费者通信
+  WorkAvailable := MakeEvent(False, False);
+
+  // 启动生产者和消费者线程...
 end;
 ```
 
-#### 3. 性能监控
+#### 3. 多线程广播
 ```pascal
 var
-  Event: IEvent;
-  Metrics: TEventMetrics;
+  ShutdownEvent: IEvent;
+
+procedure WorkerThread;
 begin
-  Event := CreateEvent(True, False);
-  
-  // 启用性能监控
-  Event.SetMetricsEnabled(True);
-  
-  // 执行一些操作...
-  Event.SetEvent;
-  Event.WaitFor(100);
-  
-  // 获取性能指标
-  Metrics := Event.GetMetrics;
-  WriteLn('SetEvent calls: ', Metrics.SetEventCount);
-  WriteLn('Average wait time: ', Metrics.AverageWaitTime:0:2, ' ms');
-  WriteLn('Fast path hits: ', Metrics.FastPathHits);
+  while True do
+  begin
+    // 检查是否需要关闭
+    if ShutdownEvent.TryWait then
+    begin
+      WriteLn('Worker thread shutting down');
+      Break;
+    end;
+
+    // 执行工作...
+    Sleep(100);
+  end;
+end;
+
+begin
+  // 创建手动重置事件用于广播关闭信号
+  ShutdownEvent := MakeEvent(True, False);
+
+  // 启动多个工作线程...
+
+  // 广播关闭信号（所有线程都会收到）
+  ShutdownEvent.SetEvent;
 end;
 ```
 
@@ -190,34 +196,30 @@ end;
 - **手动重置事件**: 适用于广播场景，多个线程需要同时响应
 - **自动重置事件**: 适用于工作队列场景，只有一个线程处理
 
-#### 2. 利用快速路径优化
+#### 2. 使用非阻塞检查
 ```pascal
-// ✅ 好的做法：对于手动重置事件，IsSignaled 使用无锁快速路径
-if Event.IsSignaled then
-  // 快速检查，无需系统调用
-  ProcessSignaledState;
-
-// ✅ 好的做法：TryWait 对于已信号的手动重置事件也是无锁的
+// ✅ 好的做法：使用 TryWait 进行非阻塞检查
 if Event.TryWait then
-  ProcessEvent;
+  ProcessEvent
+else
+  DoOtherWork;
 ```
 
-#### 3. 避免不必要的操作
+#### 3. 合理设置超时
 ```pascal
-// ❌ 避免：重复设置已经是信号状态的事件
-Event.SetEvent;
-Event.SetEvent; // 第二次调用会使用快速路径，但仍有开销
-
-// ✅ 好的做法：检查状态后再操作
-if not Event.IsSignaled then
-  Event.SetEvent;
+// ✅ 好的做法：设置合理的超时时间
+case Event.WaitFor(5000) of
+  wrSignaled: ProcessEvent;
+  wrTimeout:  HandleTimeout;
+  wrError:    HandleError;
+end;
 ```
 
 ### 🔒 线程安全建议
 
 #### 1. 正确的同步模式
 ```pascal
-// ✅ 生产者-消费者模式
+// ✅ 自动重置事件：生产者-消费者模式
 procedure Producer;
 begin
   PrepareData;
@@ -226,152 +228,132 @@ end;
 
 procedure Consumer;
 begin
-  if Event.WaitFor(INFINITE) = wrSignaled then
+  if Event.WaitFor(High(Cardinal)) = wrSignaled then
   begin
-    ProcessData;
-    Event.ResetEvent; // 手动重置事件需要显式重置
+    ProcessData; // 自动重置，无需手动重置
   end;
 end;
 ```
 
 #### 2. 避免竞态条件
 ```pascal
-// ❌ 错误：检查和等待之间的竞态条件
-if not Event.IsSignaled then
-  Event.WaitFor(1000); // 可能在检查后、等待前被信号化
-
-// ✅ 正确：直接等待
-Event.WaitFor(1000);
-```
-
-### 📊 监控和调试
-
-#### 1. 启用性能监控
-```pascal
-// 开发和测试阶段启用监控
-{$IFDEF DEBUG}
-Event.SetMetricsEnabled(True);
-{$ENDIF}
-
-// 定期检查性能指标
-procedure CheckPerformance;
-var
-  Metrics: TEventMetrics;
-begin
-  Metrics := Event.GetMetrics;
-  if Metrics.AverageWaitTime > 100 then
-    WriteLn('Warning: High average wait time');
-  if Metrics.TimeoutCount > Metrics.SignaledCount * 0.1 then
-    WriteLn('Warning: High timeout rate');
+// ✅ 正确：直接等待，避免检查和等待之间的竞态
+case Event.WaitFor(1000) of
+  wrSignaled: ProcessEvent;
+  wrTimeout:  HandleTimeout;
 end;
 ```
 
-#### 2. 错误处理
+### 📊 错误处理
+
+#### 1. 检查等待结果
 ```pascal
-// 检查和处理错误
+// 完整的错误处理
 Result := Event.WaitFor(1000);
-if Result = wrError then
-begin
-  WriteLn('Error: ', Event.GetLastErrorMessage);
-  // 根据错误类型采取相应措施
-  case Event.GetLastError of
-    weTimeout: HandleTimeout;
-    weSystemError: HandleSystemError;
-    weResourceExhausted: HandleResourceExhaustion;
-  end;
+case Result of
+  wrSignaled:
+    begin
+      WriteLn('事件信号化成功');
+      ProcessEvent;
+    end;
+  wrTimeout:
+    begin
+      WriteLn('等待超时');
+      HandleTimeout;
+    end;
+  wrError:
+    begin
+      WriteLn('发生错误');
+      HandleError;
+    end;
+  wrAbandoned:
+    begin
+      WriteLn('事件被放弃');
+      HandleAbandoned;
+    end;
 end;
 ```
 
-### ⚡ 高级优化技巧
-
-#### 1. 批量操作优化
+#### 2. 异常处理
 ```pascal
-// ✅ 对于多个相关事件，使用批量操作
-Result := WaitForAny([Event1, Event2, Event3], 1000);
-
-// ❌ 避免：轮询多个事件
-repeat
-  if Event1.TryWait then Exit;
-  if Event2.TryWait then Exit;
-  if Event3.TryWait then Exit;
-  Sleep(1);
-until Timeout;
-```
-
-#### 2. 内存和资源管理
-```pascal
-// ✅ 使用 RAII 守卫自动管理
-var
-  Guard: IEventGuard;
-begin
-  Guard := Event.WaitGuard(1000);
-  if Guard.IsValid then
+// 处理创建事件时的异常
+try
+  Event := MakeEvent(True, False);
+except
+  on E: ELockError do
   begin
-    // 处理事件
-    ProcessEvent;
-    // Guard 会在作用域结束时自动释放
+    WriteLn('创建事件失败: ', E.Message);
+    // 处理资源不足等情况
   end;
 end;
 ```
 
-## 性能基准
+## 性能特性
 
-### 典型性能指标 (在现代多核 CPU 上)
+### 典型性能指标
 
-| 操作 | 手动重置事件 | 自动重置事件 | 说明 |
-|------|-------------|-------------|------|
-| SetEvent (快速路径) | > 2M ops/sec | > 1M ops/sec | 已信号状态的重复设置 |
-| ResetEvent (快速路径) | > 2M ops/sec | N/A | 已重置状态的重复重置 |
-| IsSignaled | > 5M ops/sec | > 500K ops/sec | 无锁原子操作 vs trylock |
-| TryWait (信号状态) | > 3M ops/sec | > 1M ops/sec | 无锁快速路径 |
-| WaitFor (立即返回) | > 1M ops/sec | > 500K ops/sec | 包含锁操作 |
+| 操作 | Windows | Unix | 说明 |
+|------|---------|------|------|
+| SetEvent | O(1) | O(1) | 常数时间操作 |
+| ResetEvent | O(1) | O(1) | 常数时间操作 |
+| TryWait | O(1) | O(1) | 非阻塞检查 |
+| WaitFor | 阻塞 | 阻塞 | 等待直到信号或超时 |
 
 ### 内存使用
-- 每个事件对象: ~200 bytes (包含性能指标)
-- 无额外堆分配 (除了接口对象本身)
-- 零拷贝操作
+- **Windows**: 每个事件对象约 64 bytes
+- **Unix**: 每个事件对象约 128 bytes (包含 mutex + cond)
+- **接口开销**: 最小化，基于引用计数
 
 ## 故障排除
 
 ### 常见问题
 
-#### 1. 性能问题
-**症状**: 事件操作比预期慢
+#### 1. 等待超时
+**症状**: WaitFor 总是返回 wrTimeout
 **解决方案**:
-- 检查是否启用了性能监控 (会有轻微开销)
-- 确认使用了正确的事件类型
-- 检查是否存在锁竞争
+- 检查是否有其他线程调用了 SetEvent
+- 确认事件类型是否正确（自动 vs 手动重置）
+- 检查超时时间是否合理
 
-#### 2. 死锁问题
-**症状**: 线程永久等待
+#### 2. 自动重置事件行为异常
+**症状**: 多个线程都收到了信号
 **解决方案**:
-- 使用超时等待而不是无限等待
-- 检查事件设置和重置的逻辑
-- 使用取消令牌提供退出机制
+- 确认使用的是自动重置事件 (AManualReset = False)
+- 检查是否有多次调用 SetEvent
 
-#### 3. 内存泄漏
+#### 3. 手动重置事件无法重置
+**症状**: ResetEvent 后事件仍然是信号状态
+**解决方案**:
+- 确认使用的是手动重置事件 (AManualReset = True)
+- 检查是否有其他线程在 ResetEvent 后又调用了 SetEvent
+
+#### 4. 资源管理
 **症状**: 内存使用持续增长
 **解决方案**:
-- 确保事件接口正确释放
-- 检查循环引用
-- 使用 RAII 守卫自动管理资源
+- 事件对象通过接口引用自动管理，无需手动释放
+- 避免循环引用导致的内存泄漏
+- 确保接口变量在适当时机设为 nil
 
-## 版本历史
+## 平台兼容性
 
-### v2.0 (当前版本)
-- ✅ 完整的线程安全重构
-- ✅ 无锁快速路径优化
-- ✅ 现代化 API (取消令牌、批量操作)
-- ✅ 性能监控和指标收集
-- ✅ 统一的错误处理机制
-- ✅ 内存屏障确保正确性
-- ✅ 全面的单元测试覆盖
+### Windows 平台
+- **最低要求**: Windows 7 或更高版本
+- **实现**: 基于 Windows 内核事件对象
+- **特点**: 高性能，零用户态开销
 
-### 下一步计划
-- 异步/await 支持 (Future 版本)
-- 更多高级同步模式
-- 分布式事件支持
+### Unix 平台
+- **最低要求**: 支持 POSIX 线程的 Unix 系统
+- **实现**: 基于 pthread_mutex + pthread_cond
+- **特点**: 标准兼容，跨平台可移植
 
----
+## 总结
 
-**注意**: 本文档反映了模块的最新状态。所有核心功能已完成并经过测试验证。
+fafafa.core.sync.event 模块提供了简洁而强大的事件同步原语：
+
+- ✅ **简单易用**: 清晰的 API 设计，易于理解和使用
+- ✅ **高性能**: 基于平台原生 API 的高效实现
+- ✅ **线程安全**: 完全线程安全，支持多线程并发访问
+- ✅ **跨平台**: Windows 和 Unix 平台一致的行为
+- ✅ **可靠性**: 经过全面测试，生产环境可用
+
+该模块专注于核心功能，避免了过度设计，为开发者提供了可靠的同步工具。
