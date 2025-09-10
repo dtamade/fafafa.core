@@ -1,4 +1,4 @@
-unit Test_once;
+unit fafafa.core.sync.once.testcase;
 
 {$CODEPAGE UTF8}
 {$mode objfpc}{$H+}

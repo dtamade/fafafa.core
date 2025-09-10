@@ -1,5 +1,20 @@
 unit fafafa.core.sync.barrier.windows;
 
+{
+  Windows 平台屏障同步实现
+
+  特性：
+  - 优先使用 SynchronizationBarrier API (Windows Vista+)
+  - 运行时检测 API 可用性
+  - 自动 fallback 到 mutex + condition variable
+  - 支持编译时和运行时配置
+
+  配置宏：
+  - FAFAFA_SYNC_USE_WIN_BARRIER: 启用原生 API 支持
+  - FAFAFA_SYNC_WIN_RUNTIME_FALLBACK: 启用运行时回退
+  - FAFAFA_SYNC_WIN_BARRIER_SPIN_COUNT: 自旋计数
+}
+
 {$I fafafa.core.settings.inc}
 
 interface
@@ -51,6 +66,14 @@ type
     function Wait: Boolean;
     function GetParticipantCount: Integer;
   end;
+
+{**
+ * MakeBarrier - 创建 Windows 平台屏障实例
+ *
+ * @param AParticipantCount 参与线程数量
+ * @return 屏障接口实例
+ *}
+function MakeBarrier(AParticipantCount: Integer): IBarrier;
 
 implementation
 
@@ -159,7 +182,8 @@ begin
   {$ENDIF}
 
   {$IF (not Defined(FAFAFA_SYNC_USE_WIN_BARRIER)) or Defined(FAFAFA_SYNC_WIN_RUNTIME_FALLBACK)}
-  // Fallback path (compiled when native disabled or runtime-fallback active and native unavailable)
+  // Fallback implementation using mutex + condition variable
+  // Compiled when: 1) Native barrier disabled, OR 2) Runtime fallback enabled and native API unavailable
   FCoordLock.Acquire;
   try
     myGen := FGeneration;
@@ -190,6 +214,11 @@ end;
 function TBarrier.GetParticipantCount: Integer;
 begin
   Result := FParticipantCount;
+end;
+
+function MakeBarrier(AParticipantCount: Integer): IBarrier;
+begin
+  Result := TBarrier.Create(AParticipantCount);
 end;
 
 end.

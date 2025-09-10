@@ -10,31 +10,28 @@ uses
   fafafa.core.test.core,   // IClock
   fafafa.core.time.tick;   // ITick / CreateDefaultTick (new namespace)
 
-// High-resolution clock adapter that wraps fafafa.core.tick as IClock.
-// NowUTC uses SysUtils.Now (same as TSystemClock); NowMonotonicMs uses ITick.
+// High-resolution clock adapter that wraps record-based TTick as IClock.
+// NowUTC uses SysUtils.Now (same as TSystemClock); NowMonotonicMs uses TTick.
 
 type
   TTickClock = class(TInterfacedObject, IClock)
   private
-    FTick: ITick;
+    FTick: TTick; // record-based clock
   public
-    constructor Create(const ATick: ITick);
+    constructor Create; reintroduce;
     function NowUTC: TDateTime;
     function NowMonotonicMs: QWord;
   end;
 
-// Convenience factory: create a high-resolution clock using default provider
+// Convenience factory: create a high-resolution clock using BestTick
 function CreateHighResClock: IClock;
 
 implementation
 
-constructor TTickClock.Create(const ATick: ITick);
+constructor TTickClock.Create;
 begin
   inherited Create;
-  if ATick = nil then
-    FTick := CreateDefaultTick
-  else
-    FTick := ATick;
+  FTick := BestTick;
 end;
 
 function TTickClock.NowUTC: TDateTime;
@@ -44,16 +41,16 @@ end;
 
 function TTickClock.NowMonotonicMs: QWord;
 var
-  t: UInt64;
+  t0, dt: UInt64;
 begin
-  t := FTick.GetCurrentTick;
-  // convert to milliseconds using the tick's resolution
-  Result := Round(FTick.TicksToMilliSeconds(t));
+  t0 := FTick.Now;
+  dt := FTick.Elapsed(t0);
+  Result := FTick.TicksToDuration(dt).AsMs;
 end;
 
 function CreateHighResClock: IClock;
 begin
-  Result := TTickClock.Create(CreateDefaultTick);
+  Result := TTickClock.Create;
 end;
 
 end.

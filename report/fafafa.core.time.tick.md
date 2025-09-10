@@ -13,14 +13,12 @@
 
 ### 2. 测试用例开发
 - ✅ **TTestCase_Global**: 全局函数测试
-  - CreateTick 系列函数测试
   - IsTickTypeAvailable 测试
   - GetTickTypeName 测试
   - GetAvailableTickTypes 测试
-  - 便捷函数测试 (DefaultTick, HighPrecisionTick, SystemTick)
-  - QuickMeasure 函数测试
+  - 便捷函数测试 (BestTick/TTick.From/QuickMeasure)
 
-- ✅ **TTestCase_ITick**: 接口实现测试
+- ❌ （已移除）ITick 接口相关测试，统一迁移至记录式 TTick 用法
   - 基础 Tick 操作测试
   - 时间转换测试
   - 时钟特性查询测试
@@ -36,7 +34,6 @@
 - ✅ **TTestCase_Types**: 类型定义测试
   - TTickType 枚举测试
   - TTickTypeArray 测试
-  - ITick GUID 验证
   - 常量定义测试
 
 - ✅ **TTestCase_Performance**: 性能和精度测试
@@ -75,23 +72,19 @@
 
 ## 🎯 测试统计
 
-### 测试用例数量
-- **TTestCase_Global**: 12 个测试方法
-- **TTestCase_ITick**: 11 个测试方法
-- **TTestCase_TTick**: 1 个测试方法
-- **TTestCase_Exceptions**: 4 个测试方法
-- **TTestCase_Types**: 4 个测试方法
-- **TTestCase_Performance**: 4 个测试方法
-- **TTestCase_CrossPlatform**: 3 个测试方法
+### 测试用例数量（记录式 API）
+- **TTestCase_Global**: 适配记录式 API 的全局函数测试
+- **TTestCase_Exceptions**: 异常行为测试
+- **TTestCase_Types**: 类型定义测试
+- **TTestCase_Performance**: 性能与精度测试
+- **TTestCase_CrossPlatform**: 跨平台兼容性测试
 
-**总计**: 39 个测试方法，覆盖所有公共接口
+（说明：原 ITick 相关测试已删除）
 
 ### 覆盖的功能模块
-- ✅ 工厂函数 (CreateTick 系列)
 - ✅ 类型查询函数 (IsTickTypeAvailable, GetTickTypeName 等)
-- ✅ 便捷访问函数 (DefaultTick, HighPrecisionTick 等)
-- ✅ ITick 接口的所有 14 个方法
-- ✅ 异常类型的完整层次结构
+- ✅ 便捷访问函数 (BestTick/TTick.From/QuickMeasure)
+- ✅ 异常类型
 - ✅ 类型定义和常量
 - ✅ 性能和精度特征
 - ✅ 跨平台兼容性
@@ -166,7 +159,21 @@
 
 ---
 
-**状态**: ✅ 已完成  
-**质量**: 🌟 优秀  
-**覆盖率**: 📊 100% 公共接口  
+**状态**: ✅ 已完成
+**质量**: 🌟 优秀
+**覆盖率**: 📊 100% 公共接口
 **文档**: 📚 完整详细
+
+## ▶ 运行方式与常见问题（补充）
+
+- 推荐运行脚本：`tests/fafafa.core.time.tick/buildOrTest.bat`
+  - 自动使用 lazbuild 构建 Debug 模式
+  - 构建成功后固定运行 `bin/fafafa.core.time.tick.test.exe --format=plain --all`
+  - 控制台输出测试结果（plain 格式），失败时显示退出码
+- 匿名函数开关：各测试单元均启用 `{$modeswitch anonymousfunctions}`；传入匿名过程时，直接 `procedure ... end`，不需要 `@`。
+- 计时来源说明（Windows）
+  - HighPrecision 使用 QPC（QueryPerformanceCounter）
+  - System 使用 GetTickCount64（毫秒级）
+  - 调度裕量：测试断言均给出下限与容忍范围（如 ±10ms），保证跨平台稳定
+- TSC 路径：记录式 API 暂不直接启用（ttTSC 将回退为可用实现），后续按方案评估再开放
+

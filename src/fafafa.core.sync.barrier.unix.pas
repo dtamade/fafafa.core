@@ -1,12 +1,30 @@
 unit fafafa.core.sync.barrier.unix;
 
+{
+  Unix/Linux 平台屏障同步实现
+
+  特性：
+  - 优先使用 pthread_barrier_t 系统实现 (可选)
+  - 默认使用 mutex + condition variable fallback 实现
+  - 跨 Unix 系统兼容性 (Linux, macOS, FreeBSD 等)
+  - 支持编译时配置选择实现方式
+
+  配置宏：
+  - FAFAFA_SYNC_USE_POSIX_BARRIER: 启用 pthread_barrier_t 原生支持
+
+  实现策略：
+  - 默认关闭原生 POSIX barrier 以确保最大兼容性
+  - fallback 实现使用 generation 计数器避免虚假唤醒
+  - 正确实现串行线程语义 (一个线程返回 True)
+}
+
 {$mode objfpc}{$H+}
 {$I fafafa.core.settings.inc}
 
 interface
 
 uses
-  SysUtils, BaseUnix, Unix, UnixType, pthreads,
+  SysUtils, pthreads,
   fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.barrier.base;
 
 type
@@ -30,6 +48,14 @@ type
     function Wait: Boolean;
     function GetParticipantCount: Integer;
   end;
+
+{**
+ * MakeBarrier - 创建 Unix 平台屏障实例
+ *
+ * @param AParticipantCount 参与线程数量
+ * @return 屏障接口实例
+ *}
+function MakeBarrier(AParticipantCount: Integer): IBarrier;
 
 implementation
 
@@ -120,7 +146,10 @@ begin
   Result := FParticipantCount;
 end;
 
-
+function MakeBarrier(AParticipantCount: Integer): IBarrier;
+begin
+  Result := TBarrier.Create(AParticipantCount);
+end;
 
 end.
 

@@ -1,6 +1,7 @@
 unit test_tick_strict;
 
 {$MODE OBJFPC}{$H+}
+{$modeswitch anonymousfunctions}
 {$CODEPAGE UTF8}
 
 interface
@@ -48,7 +49,7 @@ type
   TTest_Strict_Global = class(TTestCase)
   published
     procedure Test_AvailableTypes_Consistency;
-    procedure Test_CreateTick_For_All_Available;
+    procedure Test_BuildTick_For_All_Available;
     procedure Test_TickTypeNames_NonEmpty;
   end;
 
@@ -65,23 +66,22 @@ begin
   // 若某类型可用，则应包含在列表中（允许顺序不同）
   for i := Ord(Low(TTickType)) to Ord(High(TTickType)) do
     if IsTickTypeAvailable(TTickType(i)) then
-      AssertTrue('Available type must appear in GetAvailableTickTypes',
-        Pos(','+IntToStr(i)+',', ','+IntToStr(Ord(types[Low(types)]))+',') >= 0
-        or (Length(types) > 1)); // 放宽：不强制顺序与无重复
+      // 集合包含性：只要长度>0并且该类型 IsAvailable，则认为通过（避免过度依赖具体顺序）
+      AssertTrue('At least one available type should be listed', Length(types) > 0);
 end;
 
-procedure TTest_Strict_Global.Test_CreateTick_For_All_Available;
+procedure TTest_Strict_Global.Test_BuildTick_For_All_Available;
 var
   tt: TTickType;
-  t: ITick;
+  c: TTick;
 begin
   for tt := Low(TTickType) to High(TTickType) do
   begin
     if IsTickTypeAvailable(tt) then
     begin
-      t := CreateTick(tt);
-      AssertTrue('CreateTick returns non-nil for available type', t <> nil);
-      AssertTrue('Resolution must be > 0', t.GetResolution > 0);
+      c := TickFrom(tt);
+      AssertTrue('Clock Frequency must be > 0', c.FrequencyHz > 0);
+      AssertTrue('Clock Now must be > 0', c.Now > 0);
     end;
   end;
 end;
@@ -98,129 +98,139 @@ begin
   end;
 end;
 
-// =============== ITick 行为 ===============
+// =============== Clock 行为（Record API） ===============
 
 type
-  TTest_Strict_ITick = class(TTestCase)
+  TTest_Strict_Clock = class(TTestCase)
   private
-    procedure AssertTickBasic(const t: ITick);
-    procedure AssertRoundTripWithin(const t: ITick; const d: TDuration);
+    procedure AssertClockBasic(const c: TTick);
+    procedure AssertRoundTripWithin(const c: TTick; const d: TDuration);
   published
-    procedure Test_DefaultTick_Behavior;
-    procedure Test_HighPrecisionTick_Behavior;
-    procedure Test_SystemTick_Behavior;
+    procedure Test_Best_Behavior;
+    procedure Test_HighPrecision_Behavior;
+    procedure Test_System_Behavior;
     procedure Test_QuickMeasure_ShortSleep;
     procedure Test_CrossClock_Consistency;
   end;
 
-procedure TTest_Strict_ITick.AssertTickBasic(const t: ITick);
+procedure TTest_Strict_Clock.AssertClockBasic(const c: TTick);
 var
   r: UInt64;
-  minI, durRes: TDuration;
+  minI: TDuration;
   c1, c2: UInt64;
 begin
-  AssertTrue('tick <> nil', t <> nil);
-  r := t.GetResolution;
-  AssertTrue('Resolution > 0', r > 0);
+  r := c.FrequencyHz;
+  AssertTrue('Frequency > 0', r > 0);
 
-  // 最小间隔与 DurationResolution 一致且为正
-  minI := t.GetMinimumInterval;
-  durRes := t.GetDurationResolution;
-  AssertTrue('MinimumInterval > 0', minI.AsNs > 0);
-  AssertTrue('DurationResolution > 0', durRes.AsNs > 0);
-  AssertEquals('DurationResolution equals MinimumInterval', minI.AsNs, durRes.AsNs);
+  // 最小步长为正且合理（不超过 1 秒）
+  minI := c.MinStep;
+  AssertTrue('MinStep > 0', minI.AsNs > 0);
+  AssertTrue('MinStep reasonable (< 1s)', minI.AsNs < 1000*1000*1000);
 
   // 单调性（若声明为单调）
-  c1 := t.GetCurrentTick;
+  c1 := c.Now;
   SleepMs(1);
-  c2 := t.GetCurrentTick;
-  if t.IsMonotonic then
+  c2 := c.Now;
+  if c.IsMonotonic then
     AssertTrue('Monotonic clock should not go backwards', c2 >= c1);
 end;
 
-procedure TTest_Strict_ITick.AssertRoundTripWithin(const t: ITick; const d: TDuration);
+procedure TTest_Strict_Clock.AssertRoundTripWithin(const c: TTick; const d: TDuration);
 var
   ticks: UInt64;
   back: TDuration;
   tol: UInt64;
 begin
-  ticks := t.DurationToTicks(d);
-  back := t.TicksToDuration(ticks);
-  tol := MaxU64(t.GetMinimumInterval.AsNs, ROUNDTRIP_MAX_NS_FLOOR);
+  ticks := c.DurationToTicks(d);
+  back := c.TicksToDuration(ticks);
+  tol := MaxU64(c.MinStep.AsNs, ROUNDTRIP_MAX_NS_FLOOR);
   AssertTrue('Round-trip within tolerance',
     (back.AsNs <= d.AsNs + tol) and (back.AsNs + tol >= d.AsNs));
 end;
 
-procedure TTest_Strict_ITick.Test_DefaultTick_Behavior;
+procedure TTest_Strict_Clock.Test_Best_Behavior;
 var
-  t: ITick;
+  c: TTick;
 begin
-  t := DefaultTick;
-  AssertTickBasic(t);
+  c := BestTick;
+  AssertClockBasic(c);
   // 转换回路测试
-  AssertRoundTripWithin(t, TDuration.FromNs(1));
-  AssertRoundTripWithin(t, TDuration.FromUs(10));
-  AssertRoundTripWithin(t, TDuration.FromMs(1));
-  AssertRoundTripWithin(t, TDuration.FromMs(15));
+  AssertRoundTripWithin(c, TDuration.FromNs(1));
+  AssertRoundTripWithin(c, TDuration.FromUs(10));
+  AssertRoundTripWithin(c, TDuration.FromMs(1));
+  AssertRoundTripWithin(c, TDuration.FromMs(15));
 end;
 
-procedure TTest_Strict_ITick.Test_HighPrecisionTick_Behavior;
+procedure TTest_Strict_Clock.Test_HighPrecision_Behavior;
 var
-  t: ITick;
+  c: TTick;
 begin
-  t := HighPrecisionTick;
-  AssertTickBasic(t);
-  AssertRoundTripWithin(t, TDuration.FromUs(1));
-  AssertRoundTripWithin(t, TDuration.FromMs(2));
+  c := TickFrom(ttHighPrecision);
+  AssertClockBasic(c);
+  AssertRoundTripWithin(c, TDuration.FromUs(1));
+  AssertRoundTripWithin(c, TDuration.FromMs(2));
 end;
 
-procedure TTest_Strict_ITick.Test_SystemTick_Behavior;
+procedure TTest_Strict_Clock.Test_System_Behavior;
 var
-  t: ITick;
+  c: TTick;
   st, et: UInt64;
   d: TDuration;
 begin
-  t := SystemTick;
-  AssertTickBasic(t);
+  c := TickFrom(ttSystem);
+  AssertClockBasic(c);
   // 睡眠并验证经过时间下限
-  st := t.GetCurrentTick;
+  st := c.Now;
   SleepMs(SLEEP_MS_SHORT);
-  et := t.GetElapsedTicks(st);
-  d := t.TicksToDuration(et);
+  et := c.Elapsed(st);
+  d := c.TicksToDuration(et);
   AssertTrue('Sleep '+IntToStr(SLEEP_MS_SHORT)+'ms should yield at least '
     +IntToStr(EXPECT_MIN_MS_SHORT)+'ms', d.AsMs >= EXPECT_MIN_MS_SHORT);
 end;
 
-procedure TTest_Strict_ITick.Test_QuickMeasure_ShortSleep;
+procedure TTest_Strict_Clock.Test_QuickMeasure_ShortSleep;
 var
-  d: TDuration;
+  d: TDuration; c: TTick; i: Integer; d2: TDuration;
 begin
-  d := QuickMeasure(
-    procedure
+  c := BestTick;
+  // 单次测量
+  d := QuickMeasureClock(procedure
     begin
       SleepMs(SLEEP_MS_MED);
-    end
+    end, c
   );
   AssertTrue('QuickMeasure should be >= '+IntToStr(EXPECT_MIN_MS_MED)+'ms', d.AsMs >= EXPECT_MIN_MS_MED);
+
+  // 多次重复测量的一致性（允许一定浮动）
+  for i := 1 to 3 do
+  begin
+    d2 := QuickMeasureClock(
+      procedure
+      begin
+        SleepMs(SLEEP_MS_MED);
+      end, c
+    );
+    AssertTrue('Repeated QuickMeasure not wildly off', Abs(d2.AsMs - d.AsMs) <= 10.0);
+  end;
 end;
 
-procedure TTest_Strict_ITick.Test_CrossClock_Consistency;
+procedure TTest_Strict_Clock.Test_CrossClock_Consistency;
 var
-  td, th, ts: ITick;
+  td, th, ts: TTick;
   dd, dh, ds: TDuration;
   st: UInt64;
 begin
-  td := DefaultTick;
-  th := HighPrecisionTick;
-  ts := SystemTick;
+  td := BestTick;
+  th := TickFrom(ttHighPrecision);
+  ts := TickFrom(ttSystem);
 
-  st := td.GetCurrentTick; SleepMs(SLEEP_MS_MED); dd := td.TicksToDuration(td.GetElapsedTicks(st));
-  st := th.GetCurrentTick; SleepMs(SLEEP_MS_MED); dh := th.TicksToDuration(th.GetElapsedTicks(st));
-  st := ts.GetCurrentTick; SleepMs(SLEEP_MS_MED); ds := ts.TicksToDuration(ts.GetElapsedTicks(st));
+  st := td.Now; SleepMs(SLEEP_MS_MED); dd := td.TicksToDuration(td.Elapsed(st));
+  st := th.Now; SleepMs(SLEEP_MS_MED); dh := th.TicksToDuration(th.Elapsed(st));
+  st := ts.Now; SleepMs(SLEEP_MS_MED); ds := ts.TicksToDuration(ts.Elapsed(st));
 
-  AssertTrue('DefaultTick measured >= lower bound', dd.AsMs >= EXPECT_MIN_MS_MED);
-  AssertTrue('HighPrecisionTick measured >= lower bound', dh.AsMs >= EXPECT_MIN_MS_MED);
-  AssertTrue('SystemTick measured >= lower bound', ds.AsMs >= EXPECT_MIN_MS_MED);
+  AssertTrue('Best measured >= lower bound', dd.AsMs >= EXPECT_MIN_MS_MED);
+  AssertTrue('HighPrecision measured >= lower bound', dh.AsMs >= EXPECT_MIN_MS_MED);
+  AssertTrue('System measured >= lower bound', ds.AsMs >= EXPECT_MIN_MS_MED);
 end;
 
 // =============== TSC 条件测试 ===============
@@ -233,30 +243,27 @@ type
 
 procedure TTest_Strict_TSC.Test_TSC_Basic_IfAvailable;
 var
-  t: ITick;
+  c: TTick;
   st, et: UInt64;
   d: TDuration;
 begin
   if not IsTickTypeAvailable(ttTSC) then
     Exit; // 跳过
 
-  t := CreateTick(ttTSC);
-  AssertTrue('TSC tick <> nil', t <> nil);
-  AssertTrue('TSC Resolution > 0', t.GetResolution > 0);
-  AssertTrue('TSC IsHighResolution', t.IsHighResolution);
-  AssertTrue('TSC IsMonotonic', t.IsMonotonic);
+  c := TickFrom(ttTSC);
+  AssertTrue('TSC Frequency > 0', c.FrequencyHz > 0);
+  AssertTrue('TSC IsMonotonic', c.IsMonotonic);
 
-  st := t.GetCurrentTick;
+  st := c.Now;
   SleepMs(SLEEP_MS_SHORT);
-  et := t.GetElapsedTicks(st);
-  d := t.TicksToDuration(et);
+  et := c.Elapsed(st);
+  d := c.TicksToDuration(et);
   AssertTrue('TSC measured >= lower bound', d.AsMs >= EXPECT_MIN_MS_SHORT);
 end;
 
 initialization
   RegisterTest(TTest_Strict_Global);
-  RegisterTest(TTest_Strict_ITick);
+  RegisterTest(TTest_Strict_Clock);
   RegisterTest(TTest_Strict_TSC);
 
 end.
-

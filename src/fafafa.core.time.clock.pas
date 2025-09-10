@@ -43,6 +43,8 @@ uses
   SysUtils,
   DateUtils,
   fafafa.core.time.base,
+  fafafa.core.time.duration,
+  fafafa.core.time.instant,
   fafafa.core.thread.cancel;
 
 type
@@ -176,11 +178,6 @@ function NowLocal: TDateTime; inline;
 function NowUnixMs: Int64; inline;
 function NowUnixNs: Int64; inline;
 
-// 高级睡眠函数
-procedure SleepUntilWithSlack(const T: TInstant; const Slack: TDuration);
-function SleepForCancelable(const D: TDuration; const Token: ICancellationToken): Boolean;
-function SleepUntilCancelable(const T: TInstant; const Token: ICancellationToken): Boolean;
-
 // 时间测量便捷函数
 function TimeIt(const P: TProc): TDuration;
 
@@ -197,7 +194,8 @@ uses
   {$IFDEF DARWIN}
   , MacOSAll
   {$ENDIF}
-  {$ENDIF};
+  {$ENDIF},
+  fafafa.core.time.cpu;
 
 type
   // 平台相关的单调时钟实现
@@ -268,7 +266,7 @@ type
   end;
 
   // 固定时钟实现（用于测试）
-  TFixedClock = class(TInterfacedObject, IFixedClock)
+  TFixedClock = class(TInterfacedObject, IFixedClock, ISystemClock, IMonotonicClock)
   private
     FFixedInstant: TInstant;
     FFixedDateTime: TDateTime;
@@ -293,8 +291,18 @@ type
     function NowLocal: TDateTime;
     function NowUnixMs: Int64;
     function NowUnixNs: Int64;
+    function GetTimeZoneOffset: TDuration;
+    function GetTimeZoneName: string;
     function GetMonotonicClock: IMonotonicClock;
     function GetSystemClock: ISystemClock;
+    // 显式 ISystemClock 实现（与上方 IClock 别名同名，类型系统需要在类中实现）
+    function ISystemClock.NowUTC = NowUTC;
+    function ISystemClock.NowLocal = NowLocal;
+    function ISystemClock.NowUnixMs = NowUnixMs;
+    function ISystemClock.NowUnixNs = NowUnixNs;
+    function ISystemClock.GetTimeZoneOffset = GetTimeZoneOffset;
+    function ISystemClock.GetTimeZoneName = GetTimeZoneName;
+    function ISystemClock.GetName = GetName;
     
     // IFixedClock
     procedure SetInstant(const T: TInstant);
@@ -417,6 +425,427 @@ begin
   Result := NowInstant.Diff(startTime);
 end;
 
-// 实现细节将在后续添加...
+{ TMonotonicClock }
+
+{$IFDEF MSWINDOWS}
+class procedure TMonotonicClock.EnsureQPCFreq;
+var
+  li: Int64;
+begin
+  if FFreqInited then Exit;
+  if QueryPerformanceFrequency(li) then
+    FQPCFreq := li
+  else
+    FQPCFreq := 0;
+  FFreqInited := True;
+end;
+
+class function TMonotonicClock.QpcNowNs: UInt64;
+var
+  li: Int64;
+begin
+  EnsureQPCFreq;
+  if (FQPCFreq <= 0) or (not QueryPerformanceCounter(li)) then
+    Exit(UInt64(GetTickCount64) * 1000 * 1000);
+  Result := (UInt64(li) * 1000000000) div UInt64(FQPCFreq);
+end;
+{$ENDIF}
+
+{$IFDEF DARWIN}
+class procedure TMonotonicClock.EnsureTimebase;
+var
+  info: mach_timebase_info_data_t;
+begin
+  if FTBInited then Exit;
+  mach_timebase_info(info);
+  FTBNumer := info.numer;
+  FTBDenom := info.denom;
+  if FTBDenom = 0 then FTBDenom := 1;
+  FTBInited := True;
+end;
+
+class function TMonotonicClock.DarwinNowNs: UInt64;
+var
+  t: UInt64;
+begin
+  EnsureTimebase;
+  t := mach_absolute_time;
+  Result := (t * FTBNumer) div FTBDenom;
+end;
+{$ENDIF}
+
+{$IF (not defined(MSWINDOWS)) and (not defined(DARWIN))}
+class function TMonotonicClock.MonoNowNs: UInt64;
+var
+  ts: timespec;
+begin
+  if fpclock_gettime(CLOCK_MONOTONIC, @ts) = 0 then
+    Result := UInt64(ts.tv_sec) * 1000000000 + UInt64(ts.tv_nsec)
+  else
+    Result := UInt64(GetTickCount64) * 1000 * 1000;
+end;
+{$ENDIF}
+
+function TMonotonicClock.NowInstant: TInstant;
+var
+  ns: UInt64;
+begin
+  {$IFDEF MSWINDOWS}
+  ns := QpcNowNs;
+  {$ELSE}
+    {$IFDEF DARWIN}
+    ns := DarwinNowNs;
+    {$ELSE}
+    ns := MonoNowNs;
+    {$ENDIF}
+  {$ENDIF}
+  Result := TInstant.FromNsSinceEpoch(ns);
+end;
+
+procedure TMonotonicClock.SleepFor(const D: TDuration);
+var
+  ns: Int64;
+begin
+  ns := D.AsNs;
+  if ns <= 0 then Exit;
+  NanoSleep(UInt64(ns));
+end;
+
+procedure TMonotonicClock.SleepUntil(const T: TInstant);
+var
+  nowI: TInstant;
+  d: TDuration;
+begin
+  nowI := NowInstant;
+  d := T.Diff(nowI);
+  if d.AsNs > 0 then
+    SleepFor(d);
+end;
+
+function TMonotonicClock.WaitFor(const D: TDuration; const Token: ICancellationToken): Boolean;
+const
+  CHUNK_NS = 5 * 1000 * 1000; // 5ms
+var
+  remaining: Int64;
+  step: Int64;
+begin
+  if (Token <> nil) and Token.IsCancellationRequested then
+    Exit(False);
+  remaining := D.AsNs;
+  while remaining > 0 do
+  begin
+    if (Token <> nil) and Token.IsCancellationRequested then
+      Exit(False);
+    step := remaining;
+    if step > CHUNK_NS then step := CHUNK_NS;
+    NanoSleep(UInt64(step));
+    Dec(remaining, step);
+  end;
+  Result := True;
+end;
+
+function TMonotonicClock.WaitUntil(const T: TInstant; const Token: ICancellationToken): Boolean;
+var
+  nowI: TInstant;
+  d: TDuration;
+begin
+  nowI := NowInstant;
+  d := T.Diff(nowI);
+  if d.AsNs <= 0 then Exit(True);
+  Result := WaitFor(d, Token);
+end;
+
+function TMonotonicClock.GetResolution: TDuration;
+var
+  ns: UInt64;
+begin
+  {$IFDEF MSWINDOWS}
+  EnsureQPCFreq;
+  if FQPCFreq > 0 then
+    ns := (1000000000 + UInt64(FQPCFreq) - 1) div UInt64(FQPCFreq)
+  else
+    ns := 1000000; // 1ms 退化
+  {$ELSE}
+    {$IFDEF DARWIN}
+    EnsureTimebase;
+    ns := (FTBNumer + FTBDenom - 1) div FTBDenom; // 粗略：1 tick 的 ns
+    {$ELSE}
+    ns := 1; // CLOCK_MONOTONIC 视作 1ns 级别（近似）
+    {$ENDIF}
+  {$ENDIF}
+  Result := TDuration.FromNs(Int64(ns));
+end;
+
+function TMonotonicClock.GetName: string;
+begin
+  {$IFDEF MSWINDOWS}
+  Result := 'MonotonicClock(Windows QPC)';
+  {$ELSE}
+    {$IFDEF DARWIN}
+    Result := 'MonotonicClock(Darwin mach_absolute_time)';
+    {$ELSE}
+    Result := 'MonotonicClock(POSIX CLOCK_MONOTONIC)';
+    {$ENDIF}
+  {$ENDIF}
+end;
+
+{ TSystemClock }
+
+function TSystemClock.NowUTC: TDateTime;
+begin
+  Result := DateUtils.LocalTimeToUniversal(Now);
+end;
+
+function TSystemClock.NowLocal: TDateTime;
+begin
+  Result := Now;
+end;
+
+function TSystemClock.NowUnixMs: Int64;
+var
+  dt: TDateTime;
+begin
+  dt := NowUTC;
+  Result := Int64(DateUtils.DateTimeToUnix(dt)) * 1000 + DateUtils.MilliSecondOfTheSecond(dt);
+end;
+
+function TSystemClock.NowUnixNs: Int64;
+begin
+  Result := NowUnixMs * 1000000;
+end;
+
+function TSystemClock.GetTimeZoneOffset: TDuration;
+var
+  mins: Int64;
+begin
+  mins := DateUtils.MinutesBetween(NowLocal, NowUTC);
+  Result := TDuration.FromSec(mins * 60);
+end;
+
+function TSystemClock.GetTimeZoneName: string;
+begin
+  // 简化：返回空或占位
+  Result := '';
+end;
+
+function TSystemClock.GetName: string;
+begin
+  Result := 'SystemClock';
+end;
+
+{ TDefaultClock }
+
+constructor TDefaultClock.Create(const AMono: IMonotonicClock; const ASys: ISystemClock);
+begin
+  inherited Create;
+  FMono := AMono;
+  FSys := ASys;
+end;
+
+function TDefaultClock.NowInstant: TInstant;
+begin
+  Result := FMono.NowInstant;
+end;
+
+procedure TDefaultClock.SleepFor(const D: TDuration);
+begin
+  FMono.SleepFor(D);
+end;
+
+procedure TDefaultClock.SleepUntil(const T: TInstant);
+begin
+  FMono.SleepUntil(T);
+end;
+
+function TDefaultClock.WaitFor(const D: TDuration; const Token: ICancellationToken): Boolean;
+begin
+  Result := FMono.WaitFor(D, Token);
+end;
+
+function TDefaultClock.WaitUntil(const T: TInstant; const Token: ICancellationToken): Boolean;
+begin
+  Result := FMono.WaitUntil(T, Token);
+end;
+
+function TDefaultClock.GetResolution: TDuration;
+begin
+  Result := FMono.GetResolution;
+end;
+
+function TDefaultClock.GetName: string;
+begin
+  Result := 'DefaultClock';
+end;
+
+function TDefaultClock.NowUTC: TDateTime;
+begin
+  Result := FSys.NowUTC;
+end;
+
+function TDefaultClock.NowLocal: TDateTime;
+begin
+  Result := FSys.NowLocal;
+end;
+
+function TDefaultClock.NowUnixMs: Int64;
+begin
+  Result := FSys.NowUnixMs;
+end;
+
+function TDefaultClock.NowUnixNs: Int64;
+begin
+  Result := FSys.NowUnixNs;
+end;
+
+function TDefaultClock.GetMonotonicClock: IMonotonicClock;
+begin
+  Result := FMono;
+end;
+
+function TDefaultClock.GetSystemClock: ISystemClock;
+begin
+  Result := FSys;
+end;
+
+{ TFixedClock }
+
+constructor TFixedClock.Create;
+begin
+  inherited Create;
+  FFixedInstant := TInstant.Zero;
+  FFixedDateTime := 0;
+  InitCriticalSection(FLock);
+end;
+
+constructor TFixedClock.Create(const AInitialTime: TInstant);
+begin
+  Create;
+  FFixedInstant := AInitialTime;
+end;
+
+constructor TFixedClock.Create(const AInitialTime: TDateTime);
+begin
+  Create;
+  FFixedDateTime := AInitialTime;
+end;
+
+destructor TFixedClock.Destroy;
+begin
+  DoneCriticalSection(FLock);
+  inherited Destroy;
+end;
+
+function TFixedClock.NowInstant: TInstant;
+begin
+  Result := FFixedInstant;
+end;
+
+procedure TFixedClock.SleepFor(const D: TDuration);
+begin
+  // 固定时钟不推进时间；此处不操作
+end;
+
+procedure TFixedClock.SleepUntil(const T: TInstant);
+begin
+  // 固定时钟不推进时间；此处不操作
+end;
+
+function TFixedClock.WaitFor(const D: TDuration; const Token: ICancellationToken): Boolean;
+begin
+  Result := (Token = nil) or (not Token.IsCancellationRequested);
+end;
+
+function TFixedClock.WaitUntil(const T: TInstant; const Token: ICancellationToken): Boolean;
+begin
+  Result := (Token = nil) or (not Token.IsCancellationRequested);
+end;
+
+function TFixedClock.GetResolution: TDuration;
+begin
+  Result := TDuration.FromNs(1);
+end;
+
+function TFixedClock.GetName: string;
+begin
+  Result := 'FixedClock';
+end;
+
+function TFixedClock.NowUTC: TDateTime;
+begin
+  Result := FFixedDateTime;
+end;
+
+function TFixedClock.NowLocal: TDateTime;
+begin
+  Result := FFixedDateTime;
+end;
+
+function TFixedClock.NowUnixMs: Int64;
+begin
+  Result := Int64(DateUtils.DateTimeToUnix(FFixedDateTime)) * 1000 + DateUtils.MilliSecondOfTheSecond(FFixedDateTime);
+end;
+
+function TFixedClock.NowUnixNs: Int64;
+begin
+  Result := NowUnixMs * 1000000;
+end;
+
+function TFixedClock.GetTimeZoneOffset: TDuration;
+begin
+  // 固定时钟不处理时区，返回 0 偏移
+  Result := TDuration.Zero;
+end;
+
+function TFixedClock.GetTimeZoneName: string;
+begin
+  Result := '';
+end;
+
+function TFixedClock.GetMonotonicClock: IMonotonicClock;
+begin
+  Result := Self;
+end;
+
+function TFixedClock.GetSystemClock: ISystemClock;
+begin
+  Result := Self;
+end;
+
+procedure TFixedClock.SetInstant(const T: TInstant);
+begin
+  FFixedInstant := T;
+end;
+
+procedure TFixedClock.SetDateTime(const DT: TDateTime);
+begin
+  FFixedDateTime := DT;
+end;
+
+procedure TFixedClock.AdvanceBy(const D: TDuration);
+begin
+  FFixedInstant := FFixedInstant.Add(D);
+  FFixedDateTime := DateUtils.IncMilliSecond(FFixedDateTime, D.AsMs);
+end;
+
+procedure TFixedClock.AdvanceTo(const T: TInstant);
+begin
+  FFixedInstant := T;
+end;
+
+function TFixedClock.GetFixedInstant: TInstant;
+begin
+  Result := FFixedInstant;
+end;
+
+function TFixedClock.GetFixedDateTime: TDateTime;
+begin
+  Result := FFixedDateTime;
+end;
+
+procedure TFixedClock.Reset;
+begin
+  FFixedInstant := TInstant.Zero;
+  FFixedDateTime := 0;
+end;
 
 end.

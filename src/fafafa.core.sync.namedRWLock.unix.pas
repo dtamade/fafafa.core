@@ -103,7 +103,7 @@ type
     function GetName: string;
   end;
 
-  TNamedRWLock = class(TInterfacedObject, INamedRWLock)
+  TNamedRWLock = class(TSynchronizable, INamedRWLock)
   private
     FShmFile: cint;             // 共享内存文件描述符
     FShmPath: AnsiString;       // 共享内存路径

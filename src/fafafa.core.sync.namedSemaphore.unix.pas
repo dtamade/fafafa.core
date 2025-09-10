@@ -7,7 +7,6 @@ unit fafafa.core.sync.namedSemaphore.unix;
 interface
 
 uses
-  SysUtils, BaseUnix, Unix, UnixType,
   fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.namedSemaphore.base;
 
 type
@@ -29,7 +28,7 @@ type
     procedure Release;
   end;
 
-  TNamedSemaphore = class(TInterfacedObject, INamedSemaphore)
+  TNamedSemaphore = class(TSynchronizable, INamedSemaphore)
   private
     FSemaphore: PSem;           // POSIX 信号量句柄
     FSemName: AnsiString;       // POSIX 信号量名称（使用 AnsiString 减少转换开销）

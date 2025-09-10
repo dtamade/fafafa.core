@@ -30,177 +30,169 @@ uses
 
 procedure DemoBasicUsage;
 var
-  LTick: ITick;
-  LStartTick: UInt64;
-  LElapsedNS: Double;
+  C: TTick;
+  T0, Elapsed: UInt64;
+  D: TDuration;
   LI: Integer;
   LSum: Int64; // 使用Int64避免溢出
 begin
   WriteLn('=== 基本使用演示 ===');
-  
-  // 创建默认时间测量实例
-  LTick := CreateDefaultTick;
-  WriteLn('时间分辨率: ', LTick.GetResolution, ' ticks/秒');
-  
+
+  // 创建默认时间测量实例（BestTick）
+  C := BestTick;
+  WriteLn('时间分辨率: ', C.FrequencyHz, ' ticks/秒');
+
   // 测量一个简单计算的耗时
-  LStartTick := LTick.GetCurrentTick;
-  
+  T0 := C.Now;
+
   LSum := 0;
   for LI := 1 to 100000 do // 减少循环次数避免溢出
     LSum := LSum + LI;
-  
-  LElapsedNS := LTick.MeasureElapsed(LStartTick);
-  
-  WriteLn('计算1到100000的和耗时: ', Format('%.2f', [LElapsedNS / 1000]), ' 微秒');
+
+  Elapsed := C.Elapsed(T0);
+  D := C.TicksToDuration(Elapsed);
+
+  WriteLn('计算1到100000的和耗时: ', Format('%.2f', [D.AsUs]), ' 微秒');
   WriteLn('计算结果: ', LSum);
   WriteLn;
 end;
 
 procedure DemoProviderComparison;
 var
-  LProviders: TTickProviderTypeArray;
-  LProvider: ITickProvider;
-  LTick: ITick;
+  types: TTickTypeArray;
+  tt: TTickType;
+  C: TTick;
   LI, LJ: Integer;
-  LStartTick: UInt64;
-  LElapsedNS: Double;
-  LSum: Int64; // 使用Int64避免溢出
+  T0, Elapsed: UInt64;
+  D: TDuration;
+  LSum: Int64;
 begin
-  WriteLn('=== 不同提供者比较 ===');
-  
-  // 获取所有可用的提供者
-  LProviders := GetAvailableProviders;
-  WriteLn('可用的时间提供者数量: ', Length(LProviders));
-  
-  for LI := 0 to High(LProviders) do
+  WriteLn('=== 不同计时源比较 ===');
+
+  types := GetAvailableTickTypes;
+  WriteLn('可用的计时源数量: ', Length(types));
+
+  for LI := 0 to High(types) do
   begin
-    try
-      LProvider := CreateTickProvider(LProviders[LI]);
-      WriteLn('提供者: ', LProvider.GetProviderName);
-      WriteLn('  类型: ', Ord(LProvider.GetProviderType));
-      WriteLn('  可用: ', LProvider.IsAvailable);
-      
-      if LProvider.IsAvailable then
-      begin
-        LTick := LProvider.CreateTick;
-        WriteLn('  分辨率: ', LTick.GetResolution, ' ticks/秒');
-        
-        // 测试性能
-        LStartTick := LTick.GetCurrentTick;
-        LSum := 0;
-        for LJ := 1 to 100000 do
-          LSum := LSum + LJ;
-        LElapsedNS := LTick.MeasureElapsed(LStartTick);
-        
-        WriteLn('  测试耗时: ', Format('%.2f', [LElapsedNS / 1000]), ' 微秒');
-      end;
-      
-      WriteLn;
-    except
-      on E: Exception do
-        WriteLn('提供者创建失败: ', E.Message);
-    end;
+    tt := types[LI];
+    C := TTick.From(tt);
+    WriteLn('计时源: ', GetTickTypeName(tt));
+    WriteLn('  频率: ', C.FrequencyHz, ' Hz');
+    WriteLn('  单调性: ', C.IsMonotonic);
+
+    // 简单性能测试
+    T0 := C.Now;
+    LSum := 0;
+    for LJ := 1 to 100000 do
+      LSum := LSum + LJ;
+    Elapsed := C.Elapsed(T0);
+    D := C.TicksToDuration(Elapsed);
+    WriteLn('  测试耗时: ', Format('%.2f', [D.AsUs]), ' 微秒');
+    WriteLn;
   end;
 end;
 
 procedure DemoTimeConversion;
 var
-  LTick: ITick;
-  LTicks: UInt64;
+  C: TTick;
+  OneSecTicks: UInt64;
+  D: TDuration;
 begin
   WriteLn('=== 时间转换演示 ===');
-  
-  LTick := CreateDefaultTick;
-  LTicks := LTick.GetResolution; // 1秒的时间戳数
-  
-  WriteLn('1秒的时间戳数: ', LTicks);
-  WriteLn('转换为纳秒: ', Format('%.0f', [LTick.TicksToNanoSeconds(LTicks)]), ' ns');
-  WriteLn('转换为微秒: ', Format('%.0f', [LTick.TicksToMicroSeconds(LTicks)]), ' μs');
-  WriteLn('转换为毫秒: ', Format('%.0f', [LTick.TicksToMilliSeconds(LTicks)]), ' ms');
-  
-  // 测试小时间间隔的转换
-  LTicks := LTick.GetResolution div 1000; // 1毫秒的时间戳数
+
+  C := BestTick;
+  OneSecTicks := C.FrequencyHz; // 1秒的tick数
+
+  D := C.TicksToDuration(OneSecTicks);
+  WriteLn('1秒的时间戳数: ', OneSecTicks);
+  WriteLn('转换为纳秒: ', Format('%.0f', [D.AsNs:0:0]), ' ns');
+  WriteLn('转换为微秒: ', Format('%.0f', [D.AsUs:0:0]), ' μs');
+  WriteLn('转换为毫秒: ', Format('%.0f', [D.AsMs:0:0]), ' ms');
+
+  // 测试小时间间隔的转换（1毫秒）
+  D := TDuration.FromMs(1);
   WriteLn;
-  WriteLn('1毫秒的时间戳数: ', LTicks);
-  WriteLn('转换为纳秒: ', Format('%.0f', [LTick.TicksToNanoSeconds(LTicks)]), ' ns');
-  WriteLn('转换为微秒: ', Format('%.2f', [LTick.TicksToMicroSeconds(LTicks)]), ' μs');
+  WriteLn('1毫秒的时间戳数: ', C.DurationToTicks(D));
+  WriteLn('转换为纳秒: ', Format('%.0f', [D.AsNs:0:0]), ' ns');
+  WriteLn('转换为微秒: ', Format('%.2f', [D.AsUs]), ' μs');
   WriteLn;
 end;
 
 procedure DemoBenchmarkScenario;
 var
-  LTick: ITick;
-  LStartTick, LPhaseStart: UInt64;
-  LTotalTime, LPhase1, LPhase2, LPhase3: Double;
+  C: TTick;
+  TStart, TPhase: UInt64;
+  DTotal, D1, D2, D3: TDuration;
   LData: array[0..9999] of Integer;
   LI: Integer;
   LSum: Int64;
 begin
   WriteLn('=== 基准测试场景演示 ===');
-  
-  LTick := CreateDefaultTick;
-  LStartTick := LTick.GetCurrentTick;
-  
+
+  C := BestTick;
+  TStart := C.Now;
+
   // 阶段1：数据初始化
-  LPhaseStart := LTick.GetCurrentTick;
+  TPhase := C.Now;
   for LI := 0 to 9999 do
     LData[LI] := LI;
-  LPhase1 := LTick.MeasureElapsed(LPhaseStart);
-  
+  D1 := C.TicksToDuration(C.Elapsed(TPhase));
+
   // 阶段2：数据处理
-  LPhaseStart := LTick.GetCurrentTick;
+  TPhase := C.Now;
   LSum := 0;
   for LI := 0 to 9999 do
     LSum := LSum + Int64(LData[LI]) * 2;
-  LPhase2 := LTick.MeasureElapsed(LPhaseStart);
-  
+  D2 := C.TicksToDuration(C.Elapsed(TPhase));
+
   // 阶段3：结果验证
-  LPhaseStart := LTick.GetCurrentTick;
+  TPhase := C.Now;
   if LSum <> 99990000 then
     WriteLn('错误：计算结果不正确');
-  LPhase3 := LTick.MeasureElapsed(LPhaseStart);
-  
-  LTotalTime := LTick.MeasureElapsed(LStartTick);
-  
+  D3 := C.TicksToDuration(C.Elapsed(TPhase));
+
+  DTotal := C.TicksToDuration(C.Elapsed(TStart));
+
   WriteLn('基准测试结果:');
-  WriteLn('  总耗时: ', Format('%.2f', [LTotalTime / 1000]), ' 微秒');
-  WriteLn('  阶段1 (初始化): ', Format('%.2f', [LPhase1 / 1000]), ' 微秒');
-  WriteLn('  阶段2 (处理): ', Format('%.2f', [LPhase2 / 1000]), ' 微秒');
-  WriteLn('  阶段3 (验证): ', Format('%.2f', [LPhase3 / 1000]), ' 微秒');
+  WriteLn('  总耗时: ', Format('%.2f', [DTotal.AsUs]), ' 微秒');
+  WriteLn('  阶段1 (初始化): ', Format('%.2f', [D1.AsUs]), ' 微秒');
+  WriteLn('  阶段2 (处理): ', Format('%.2f', [D2.AsUs]), ' 微秒');
+  WriteLn('  阶段3 (验证): ', Format('%.2f', [D3.AsUs]), ' 微秒');
   WriteLn('  计算结果: ', LSum);
   WriteLn;
 end;
 
 procedure DemoHighFrequencyMeasurement;
 var
-  LTick: ITick;
-  LStartTick: UInt64;
-  LMeasurements: array[0..99] of UInt64;
-  LI, LMonotonicCount: Integer;
-  LTotalTime: Double;
+  C: TTick;
+  TStart: UInt64;
+  Measurements: array[0..99] of UInt64;
+  LI, MonotonicCount: Integer;
+  DTotal, DAvg: TDuration;
 begin
   WriteLn('=== 高频测量演示 ===');
-  
-  LTick := CreateDefaultTick;
-  LStartTick := LTick.GetCurrentTick;
-  LMonotonicCount := 0;
-  
+
+  C := BestTick;
+  TStart := C.Now;
+  MonotonicCount := 0;
+
   // 进行100次连续测量
   for LI := 0 to 99 do
   begin
-    LMeasurements[LI] := LTick.GetCurrentTick;
-    if (LI > 0) and (LMeasurements[LI] >= LMeasurements[LI-1]) then
-      Inc(LMonotonicCount);
+    Measurements[LI] := C.Now;
+    if (LI > 0) and (Measurements[LI] >= Measurements[LI-1]) then
+      Inc(MonotonicCount);
   end;
-  
-  LTotalTime := LTick.MeasureElapsed(LStartTick);
-  
+
+  DTotal := C.TicksToDuration(C.Elapsed(TStart));
+  DAvg := TDuration.FromNs(DTotal.AsNs div 100);
+
   WriteLn('高频测量结果:');
   WriteLn('  测量次数: 100');
-  WriteLn('  单调递增次数: ', LMonotonicCount, '/99');
-  WriteLn('  单调性: ', Format('%.1f', [LMonotonicCount / 99 * 100]), '%');
-  WriteLn('  总耗时: ', Format('%.2f', [LTotalTime / 1000]), ' 微秒');
-  WriteLn('  平均每次测量: ', Format('%.2f', [LTotalTime / 100]), ' 纳秒');
+  WriteLn('  单调递增次数: ', MonotonicCount, '/99');
+  WriteLn('  单调性: ', Format('%.1f', [MonotonicCount / 99 * 100]), '%');
+  WriteLn('  总耗时: ', Format('%.2f', [DTotal.AsUs]), ' 微秒');
+  WriteLn('  平均每次测量: ', Format('%.2f', [DAvg.AsNs]), ' 纳秒');
   WriteLn;
 end;
 

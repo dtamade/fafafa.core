@@ -479,6 +479,7 @@ begin
     WaitForThreadTerminate(Threads[i], 10000);
 
   EndTime := GetTickCount64;
+  if EndTime = StartTime then Inc(EndTime);
   OpsPerSec := FReadCount * 1000.0 / (EndTime - StartTime);
 
   WriteLn('读锁性能: ', FReadCount, ' ops, ', EndTime - StartTime, 'ms, ', Round(OpsPerSec), ' ops/sec');
@@ -509,6 +510,7 @@ begin
     WaitForThreadTerminate(Threads[i], 10000);
 
   EndTime := GetTickCount64;
+  if EndTime = StartTime then Inc(EndTime);
   OpsPerSec := FWriteCount * 1000.0 / (EndTime - StartTime);
 
   WriteLn('写锁性能: ', FWriteCount, ' ops, ', EndTime - StartTime, 'ms, ', Round(OpsPerSec), ' ops/sec');

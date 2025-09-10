@@ -1,283 +1,166 @@
 unit fafafa.core.time.tick.unix;
 
 {
-──────────────────────────────────────────────────────────────
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                                                                              │
+│          ______   ______     ______   ______     ______   ______             │
+│         /\  ___\ /\  __ \   /\  ___\ /\  __ \   /\  ___\ /\  __ \            │
+│         \ \  __\ \ \  __ \  \ \  __\ \ \  __ \  \ \  __\ \ \  __ \           │
+│          \ \_\    \ \_\ \_\  \ \_\    \ \_\ \_\  \ \_\    \ \_\ \_\          │
+│           \/_/     \/_/\/_/   \/_/     \/_/\/_/   \/_/     \/_/\/_/          │
+│                                                                              │
+│                                   Studio                                     │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+────────────────────────────────────────────────────────────────────────────────
 📦 项目：fafafa.core.time.tick.unix - Unix Tick 实现
-
+────────────────────────────────────────────────────────────────────────────────
 📖 概述：
-  Unix 系统（Linux、macOS、FreeBSD 等）的高精度时间测量实现。
-  支持 clock_gettime、mach_absolute_time 等平台特定 API。
-
+  提供 Unix/Linux 平台下高精度与标准计时器（Tick）实现，支持 CLOCK_MONOTONIC
+  及 gettimeofday，适用于高精度计时与通用时间测量场景。
+────────────────────────────────────────────────────────────────────────────────
 🔧 特性：
-  • Linux: clock_gettime(CLOCK_MONOTONIC)
-  • macOS: mach_absolute_time()
-  • FreeBSD: clock_gettime(CLOCK_MONOTONIC)
-  • 自动选择最佳可用实现
-
+  • 支持 CLOCK_MONOTONIC（高精度，纳秒级，单调递增）
+  • 支持 gettimeofday（微秒级，非单调）
+  • 兼容 ITick 接口，便于跨平台替换
+  • 线程安全，适合多线程环境
+────────────────────────────────────────────────────────────────────────────────
 📜 声明：
   转发或用于个人/商业项目时，请保留本项目的版权声明。
-
+────────────────────────────────────────────────────────────────────────────────
 👤 author  : fafafaStudio
 📧 Email   : dtamade@gmail.com
 💬 QQGroup : 685403987
 💬 QQ      : 179033731
-──────────────────────────────────────────────────────────────
-}
+────────────────────────────────────────────────────────────────────────────────
 
-{$MODE OBJFPC}{$H+}
-{$modeswitch advancedrecords}
+}
 
 {$I fafafa.core.settings.inc}
 
 interface
 
-{$IFNDEF MSWINDOWS}
-
 uses
-  {$IFDEF DARWIN}
-  MacOSAll,
-  {$ELSE}
-  BaseUnix, Unix,
-  {$ENDIF}
-  fafafa.core.time.tick.base,
-  fafafa.core.time.tick.tsc;
+  fafafa.core.time.tick.base;
 
 type
-  {$IFDEF DARWIN}
-  // macOS mach_absolute_time 实现
-  TDarwinHighPrecisionTick = class(TTick)
-  private
-    FTimebaseInfo: mach_timebase_info_data_t;
+
+  TTick = class(TTick)
   protected
-    // 实现抽象方法
-    function DoGetCurrentTick: UInt64; override;
-    function DoGetResolution: UInt64; override;
-    function DoTicksToDuration(const ATicks: UInt64): TDuration; override;
-    function DoDurationToTicks(const D: TDuration): UInt64; override;
-    function DoIsMonotonic: Boolean; override;
-    function DoIsHighResolution: Boolean; override;
-    function DoGetMinimumInterval: TDuration; override;
+    procedure Initialize(out aResolution: UInt64; out aIsMonotonic: Boolean; out aTickType: TTickType); override;
   public
-    constructor Create; override;
+    function Tick: UInt64; override;
   end;
-  {$ELSE}
-  // Linux/Unix clock_gettime 实现
-  TUnixHighPrecisionTick = class(TTick)
+
+  THDTick = class(TTick)
   protected
-    // 实现抽象方法
-    function DoGetCurrentTick: UInt64; override;
-    function DoGetResolution: UInt64; override;
-    function DoTicksToDuration(const ATicks: UInt64): TDuration; override;
-    function DoDurationToTicks(const D: TDuration): UInt64; override;
-    function DoIsMonotonic: Boolean; override;
-    function DoIsHighResolution: Boolean; override;
-    function DoGetMinimumInterval: TDuration; override;
-  end;
-  {$ENDIF}
-
-  // Unix 标准实现（gettimeofday）
-  TUnixStandardTick = class(TTick)
-  protected
-    // 实现抽象方法
-    function DoGetCurrentTick: UInt64; override;
-    function DoGetResolution: UInt64; override;
-    function DoTicksToDuration(const ATicks: UInt64): TDuration; override;
-    function DoDurationToTicks(const D: TDuration): UInt64; override;
-    function DoIsMonotonic: Boolean; override;
-    function DoIsHighResolution: Boolean; override;
-    function DoGetMinimumInterval: TDuration; override;
+    procedure Initialize(out aResolution: UInt64; out aIsMonotonic: Boolean; out aTickType: TTickType); override;
+  public
+    function Tick: UInt64; override;
   end;
 
-// Unix 平台工厂函数
-function CreateUnixTick(const AType: TTickType): ITick;
-function IsUnixTickTypeAvailable(const AType: TTickType): Boolean;
-
-{$ENDIF} // NOT MSWINDOWS
+  function GetResolution: UInt64; {$IFDEF FAFAFA_CORE_INLINING}inline;{$ENDIF}
+  function GetTick: UInt64; {$IFDEF FAFAFA_CORE_INLINING}inline;{$ENDIF}
+  function MakeTick: ITick; {$IFDEF FAFAFA_CORE_INLINING}inline;{$ENDIF}
+  
+  function GetHDResolution: UInt64; {$IFDEF FAFAFA_CORE_INLINING}inline;{$ENDIF}
+  function GetHDTick: UInt64; {$IFDEF FAFAFA_CORE_INLINING}inline;{$ENDIF}
+  function MakeHDTick: ITick; {$IFDEF FAFAFA_CORE_INLINING}inline;{$ENDIF}
 
 implementation
 
-{$IFNDEF MSWINDOWS}
-
 uses
-  SysUtils;
+  BaseUnix, Unix
+  {$IFDEF LINUX},Linux{$ENDIF}
+  ;
 
-{$IFDEF DARWIN}
-{ TDarwinHighPrecisionTick }
-
-constructor TDarwinHighPrecisionTick.Create;
+function GetResolution: UInt64;
 begin
-  inherited Create;
-  mach_timebase_info(@FTimebaseInfo);
+  Result := MICROSECONDS_PER_SECOND;
 end;
 
-function TDarwinHighPrecisionTick.DoGetCurrentTick: UInt64;
-begin
-  Result := mach_absolute_time();
-end;
-
-function TDarwinHighPrecisionTick.DoGetResolution: UInt64;
-begin
-  // 返回每秒的 tick 数
-  Result := 1000000000 * FTimebaseInfo.denom div FTimebaseInfo.numer;
-end;
-
-function TDarwinHighPrecisionTick.DoTicksToDuration(const ATicks: UInt64): TDuration;
+function GetTick: UInt64;
 var
-  nanos: UInt64;
+  LTV: TTimeVal;
 begin
-  // 转换为纳秒
-  nanos := ATicks * FTimebaseInfo.numer div FTimebaseInfo.denom;
-  Result := TDuration.FromNs(nanos);
+  gettimeofday(@LTV, nil);
+  Result := UInt64(LTV.tv_sec) * GetResolution + UInt64(LTV.tv_usec);
 end;
 
-function TDarwinHighPrecisionTick.DoDurationToTicks(const D: TDuration): UInt64;
+function MakeTick: ITick;
 begin
-  Result := D.AsNs * FTimebaseInfo.denom div FTimebaseInfo.numer;
+  Result := TTick.Create;
 end;
 
-function TDarwinHighPrecisionTick.DoIsMonotonic: Boolean;
+
+function GetHDResolution: UInt64;
 begin
-  Result := True;
+  Result := NANOSECONDS_PER_SECOND;
 end;
 
-function TDarwinHighPrecisionTick.DoIsHighResolution: Boolean;
-begin
-  Result := True;
-end;
-
-function TDarwinHighPrecisionTick.DoGetMinimumInterval: TDuration;
-begin
-  Result := DoTicksToDuration(1);
-end;
-
-{$ELSE}
-{ TUnixHighPrecisionTick }
-
-function TUnixHighPrecisionTick.DoGetCurrentTick: UInt64;
+function GetHDTick: UInt64;
 var
-  ts: timespec;
+  LTS: TTimeSpec;
+  LTV: TTimeVal;
 begin
-  clock_gettime(CLOCK_MONOTONIC, @ts);
-  Result := UInt64(ts.tv_sec) * 1000000000 + UInt64(ts.tv_nsec);
-end;
-
-function TUnixHighPrecisionTick.DoGetResolution: UInt64;
-begin
-  Result := 1000000000; // 纳秒精度，每秒 10^9 ticks
-end;
-
-function TUnixHighPrecisionTick.DoTicksToDuration(const ATicks: UInt64): TDuration;
-begin
-  // tick 就是纳秒
-  Result := TDuration.FromNs(ATicks);
-end;
-
-function TUnixHighPrecisionTick.DoDurationToTicks(const D: TDuration): UInt64;
-begin
-  Result := D.AsNs;
-end;
-
-function TUnixHighPrecisionTick.DoIsMonotonic: Boolean;
-begin
-  Result := True;
-end;
-
-function TUnixHighPrecisionTick.DoIsHighResolution: Boolean;
-begin
-  Result := True;
-end;
-
-function TUnixHighPrecisionTick.DoGetMinimumInterval: TDuration;
-begin
-  Result := TDuration.Nanosecond;
-end;
-{$ENDIF}
-
-{ TUnixStandardTick }
-
-function TUnixStandardTick.DoGetCurrentTick: UInt64;
-var
-  tv: timeval;
-begin
-  fpgettimeofday(@tv, nil);
-  Result := UInt64(tv.tv_sec) * 1000000 + UInt64(tv.tv_usec);
-end;
-
-function TUnixStandardTick.DoGetResolution: UInt64;
-begin
-  Result := 1000000; // 微秒精度，每秒 10^6 ticks
-end;
-
-function TUnixStandardTick.DoTicksToDuration(const ATicks: UInt64): TDuration;
-begin
-  // tick 是微秒
-  Result := TDuration.FromUs(ATicks);
-end;
-
-function TUnixStandardTick.DoDurationToTicks(const D: TDuration): UInt64;
-begin
-  Result := D.AsUs;
-end;
-
-function TUnixStandardTick.DoIsMonotonic: Boolean;
-begin
-  Result := False; // gettimeofday 不是单调的
-end;
-
-function TUnixStandardTick.DoIsHighResolution: Boolean;
-begin
-  Result := False;
-end;
-
-function TUnixStandardTick.DoGetMinimumInterval: TDuration;
-begin
-  Result := TDuration.Microsecond;
-end;
-
-// Unix 工厂函数
-
-function CreateUnixTick(const AType: TTickType): ITick;
-begin
-  case AType of
-    ttBest:
-      // 优先选择 TSC，如果不可用则使用平台默认高精度实现
-      if IsTSCAvailable then
-        Result := CreateTSCTick
-      else
-      begin
-        {$IFDEF DARWIN}
-        Result := TDarwinHighPrecisionTick.Create;
-        {$ELSE}
-        Result := TUnixHighPrecisionTick.Create;
-        {$ENDIF}
-      end;
-    ttHighPrecision:
-      {$IFDEF DARWIN}
-      Result := TDarwinHighPrecisionTick.Create;
-      {$ELSE}
-      Result := TUnixHighPrecisionTick.Create;
-      {$ENDIF}
-    ttStandard, ttSystem:
-      Result := TUnixStandardTick.Create;
-    ttTSC:
-      Result := CreateTSCTick;
+  if clock_gettime(CLOCK_MONOTONIC, @LTS) = 0 then
+    Result := UInt64(LTS.tv_sec) * GetHDResolution + UInt64(LTS.tv_nsec)
   else
-    raise ETickInvalidArgument.CreateFmt('Unsupported tick type: %d', [Ord(AType)]);
+  begin
+    // 回退到 gettimeofday
+    gettimeofday(@LTV, nil);
+    // gettimeofday 返回微秒，需要转换为纳秒
+    Result := UInt64(LTV.tv_sec) * GetHDResolution + UInt64(LTV.tv_usec) * 1000;
   end;
 end;
 
-function IsUnixTickTypeAvailable(const AType: TTickType): Boolean;
+function MakeHDTick: ITick;
 begin
-  case AType of
-    ttBest, ttStandard, ttHighPrecision, ttSystem:
-      Result := True;
-    ttTSC:
-      Result := IsTSCAvailable;
+  Result := THDTick.Create;
+end;
+
+
+{ THDTick }
+
+procedure THDTick.Initialize(out aResolution: UInt64; out aIsMonotonic: Boolean; out aTickType: TTickType);
+begin
+  aResolution  := NANOSECONDS_PER_SECOND;
+  aIsMonotonic := True;
+  aTickType    := ttHighPrecision;
+end;
+
+function THDTick.Tick: UInt64;
+var
+  LTS: TTimeSpec;
+  LTV: TTimeVal;
+begin
+  if clock_gettime(CLOCK_MONOTONIC, @LTS) = 0 then
+    Result := UInt64(LTS.tv_sec) * FResolution + UInt64(LTS.tv_nsec)
   else
-    Result := False;
+  begin
+    // 回退到 gettimeofday
+    gettimeofday(@LTV, nil);
+    // gettimeofday 返回微秒，需要转换为纳秒
+    Result := UInt64(LTV.tv_sec) * FResolution + UInt64(LTV.tv_usec) * 1000;
   end;
 end;
 
-{$ENDIF} // NOT MSWINDOWS
+{ TTick }
+
+procedure TTick.Initialize(out aResolution: UInt64; out aIsMonotonic: Boolean; out aTickType: TTickType);
+begin
+  aResolution  := MICROSECONDS_PER_SECOND;
+  aIsMonotonic := False;
+  aTickType    := ttStandard;
+end;
+
+function TTick.Tick: UInt64;
+var
+  LTV: TTimeVal;
+begin
+  gettimeofday(@LTV, nil);
+  Result := UInt64(LTV.tv_sec) * FResolution + UInt64(LTV.tv_usec);
+end;
+
 
 end.

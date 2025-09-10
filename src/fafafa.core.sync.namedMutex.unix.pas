@@ -7,7 +7,6 @@ unit fafafa.core.sync.namedMutex.unix;
 interface
 
 uses
-  SysUtils, BaseUnix, Unix, UnixType,
   fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.namedMutex.base;
 
 type
@@ -37,7 +36,7 @@ type
     function GetName: string;
   end;
 
-  TNamedMutex = class(TInterfacedObject, INamedMutex)
+  TNamedMutex = class(TSynchronizable, INamedMutex)
   private
     FMutex: PPThreadMutex;      // pthread_mutex_t 指针
     FShmFile: cint;             // 共享内存文件描述符
@@ -65,6 +64,8 @@ type
     function TryLock: INamedMutexGuard;
     function TryLockFor(ATimeoutMs: Cardinal): INamedMutexGuard;
     function GetName: string;
+    // ILock 接口补充：RAII 锁守卫
+    function LockGuard: ILockGuard;
 
     // 兼容性接口（已弃用）
     procedure Acquire; deprecated;
@@ -352,6 +353,11 @@ end;
 function TNamedMutex.GetName: string;
 begin
   Result := FOriginalName;
+end;
+
+function TNamedMutex.LockGuard: ILockGuard;
+begin
+  Result := MakeLockGuard(Self as ILock);
 end;
 
 // 兼容性方法（已弃用）

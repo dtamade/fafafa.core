@@ -1,0 +1,250 @@
+{$CODEPAGE UTF8}
+unit fafafa.core.sync.namedEvent.testcase;
+
+{$mode objfpc}{$H+}
+
+interface
+
+uses
+  Classes, SysUtils, fpcunit, testregistry,
+  fafafa.core.sync.namedEvent, fafafa.core.sync.base;
+
+type
+  // 全局函数测试
+  TTestCase_Global = class(TTestCase)
+  published
+    procedure Test_CreateNamedEvent;
+    procedure Test_CreateNamedEvent_WithConfig;
+    procedure Test_CreateManualResetNamedEvent;
+    procedure Test_CreateAutoResetNamedEvent;
+    procedure Test_CreateGlobalNamedEvent;
+    procedure Test_MakeNamedEvent;
+    procedure Test_MakeGlobalNamedEvent;
+    procedure Test_ConfigHelpers;
+  end;
+
+  // INamedEvent 接口测试
+  TTestCase_INamedEvent = class(TTestCase)
+  private
+    FEvent: INamedEvent;
+    FEventName: string;
+  protected
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    // 现代�?RAII 方法测试
+    procedure Test_Wait;
+    procedure Test_TryWait;
+    procedure Test_TryWaitFor;
+    procedure Test_TryWaitFor_Timeout;
+    procedure Test_TryWaitFor_Zero;
+    
+    // 事件控制操作测试
+    procedure Test_SetEvent;
+    procedure Test_ResetEvent;
+    procedure Test_PulseEvent;
+    
+    // 查询操作测试
+    procedure Test_GetName;
+    procedure Test_IsManualReset;
+    procedure Test_IsSignaled;
+    
+    // 兼容性方法测�?
+    procedure Test_WaitFor_Deprecated;
+    procedure Test_WaitFor_WithTimeout_Deprecated;
+    procedure Test_Acquire_Deprecated;
+    procedure Test_Release_Deprecated;
+    procedure Test_TryAcquire_Deprecated;
+    procedure Test_TryAcquire_WithTimeout_Deprecated;
+    procedure Test_GetHandle_Deprecated;
+    procedure Test_IsCreator_Deprecated;
+  end;
+
+  // 手动重置事件测试
+  TTestCase_ManualResetEvent = class(TTestCase)
+  private
+    FEvent: INamedEvent;
+    FEventName: string;
+  protected
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    procedure Test_ManualReset_SetAndWait;
+    procedure Test_ManualReset_MultipleWaiters;
+    procedure Test_ManualReset_ResetAfterSet;
+    procedure Test_ManualReset_IsSignaled;
+    procedure Test_ManualReset_PulseEvent;
+  end;
+
+  // 自动重置事件测试
+  TTestCase_AutoResetEvent = class(TTestCase)
+  private
+    FEvent: INamedEvent;
+    FEventName: string;
+  protected
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    procedure Test_AutoReset_SetAndWait;
+    procedure Test_AutoReset_SingleWaiter;
+    procedure Test_AutoReset_IsSignaled;
+    procedure Test_AutoReset_PulseEvent;
+  end;
+
+  // 错误处理测试
+  TTestCase_ErrorHandling = class(TTestCase)
+  published
+    procedure Test_InvalidName_Empty;
+    procedure Test_InvalidName_TooLong;
+    procedure Test_InvalidName_InvalidChars;
+  end;
+
+  // 超时机制测试
+  TTestCase_Timeout = class(TTestCase)
+  private
+    FEvent: INamedEvent;
+    FEventName: string;
+  protected
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    procedure Test_TryWaitFor_ShortTimeout;
+    procedure Test_TryWaitFor_LongTimeout;
+    procedure Test_TryWaitFor_ZeroTimeout;
+    procedure Test_TryWaitFor_InfiniteTimeout;
+  end;
+
+implementation
+
+uses
+  fafafa.core.base;
+
+{ TTestCase_Global }
+
+procedure TTestCase_Global.Test_CreateNamedEvent;
+var
+  LEvent: INamedEvent;
+begin
+  LEvent := CreateNamedEvent('TestEvent');
+  AssertNotNull('Event should be created', LEvent);
+  AssertEquals('Event name should match', 'TestEvent', LEvent.GetName);
+  AssertFalse('Default should be auto-reset', LEvent.IsManualReset);
+end;
+
+procedure TTestCase_Global.Test_CreateNamedEvent_WithConfig;
+var
+  LEvent: INamedEvent;
+  LConfig: TNamedEventConfig;
+begin
+  LConfig := ManualResetNamedEventConfig;
+  LConfig.InitialState := True;
+  
+  LEvent := CreateNamedEventWithConfig('TestEventConfig', LConfig);
+  AssertNotNull('Event should be created', LEvent);
+  AssertEquals('Event name should match', 'TestEventConfig', LEvent.GetName);
+  AssertTrue('Should be manual reset', LEvent.IsManualReset);
+  AssertTrue('Should be initially signaled', LEvent.IsSignaled);
+end;
+
+procedure TTestCase_Global.Test_CreateManualResetNamedEvent;
+var
+  LEvent: INamedEvent;
+begin
+  LEvent := CreateNamedEvent('TestManual', True, True);
+  AssertNotNull('Event should be created', LEvent);
+  AssertTrue('Should be manual reset', LEvent.IsManualReset);
+  AssertTrue('Should be initially signaled', LEvent.IsSignaled);
+end;
+
+procedure TTestCase_Global.Test_CreateAutoResetNamedEvent;
+var
+  LEvent: INamedEvent;
+begin
+  LEvent := CreateNamedEvent('TestAuto', False, False);
+  AssertNotNull('Event should be created', LEvent);
+  AssertFalse('Should be auto reset', LEvent.IsManualReset);
+end;
+
+procedure TTestCase_Global.Test_CreateGlobalNamedEvent;
+var
+  LEvent: INamedEvent;
+begin
+  LEvent := CreateGlobalNamedEvent('TestGlobal', True, False);
+  AssertNotNull('Event should be created', LEvent);
+  AssertTrue('Should be manual reset', LEvent.IsManualReset);
+end;
+
+procedure TTestCase_Global.Test_MakeNamedEvent;
+var
+  LEvent: INamedEvent;
+begin
+  LEvent := CreateNamedEvent('TestMake');
+  AssertNotNull('Event should be created', LEvent);
+  AssertEquals('Event name should match', 'TestMake', LEvent.GetName);
+
+  LEvent := CreateNamedEvent('TestMake2', True);
+  AssertTrue('Should be manual reset', LEvent.IsManualReset);
+
+  LEvent := CreateNamedEvent('TestMake3', False, True);
+  AssertFalse('Should be auto reset', LEvent.IsManualReset);
+end;
+
+procedure TTestCase_Global.Test_MakeGlobalNamedEvent;
+var
+  LEvent: INamedEvent;
+begin
+  LEvent := CreateGlobalNamedEvent('TestGlobalMake');
+  AssertNotNull('Event should be created', LEvent);
+
+  LEvent := CreateGlobalNamedEvent('TestGlobalMake2', True);
+  AssertTrue('Should be manual reset', LEvent.IsManualReset);
+
+  LEvent := CreateGlobalNamedEvent('TestGlobalMake3', False, True);
+  AssertFalse('Should be auto reset', LEvent.IsManualReset);
+end;
+
+procedure TTestCase_Global.Test_ConfigHelpers;
+var
+  LConfig: TNamedEventConfig;
+begin
+  LConfig := DefaultNamedEventConfig;
+  AssertEquals('Default timeout should be 5000', 5000, LConfig.TimeoutMs);
+  AssertFalse('Default should not use global namespace', LConfig.UseGlobalNamespace);
+  AssertFalse('Default should be auto reset', LConfig.ManualReset);
+  AssertFalse('Default should not be initially signaled', LConfig.InitialState);
+  
+  LConfig := NamedEventConfigWithTimeout(10000);
+  AssertEquals('Timeout should be 10000', 10000, LConfig.TimeoutMs);
+  
+  LConfig := GlobalNamedEventConfig;
+  AssertTrue('Should use global namespace', LConfig.UseGlobalNamespace);
+  
+  LConfig := ManualResetNamedEventConfig;
+  AssertTrue('Should be manual reset', LConfig.ManualReset);
+  
+  LConfig := AutoResetNamedEventConfig;
+  AssertFalse('Should be auto reset', LConfig.ManualReset);
+end;
+
+{ TTestCase_INamedEvent }
+
+procedure TTestCase_INamedEvent.SetUp;
+begin
+  inherited SetUp;
+  FEventName := 'TestEvent_' + IntToStr(Random(100000));
+  FEvent := CreateNamedEvent(FEventName);
+end;
+
+procedure TTestCase_INamedEvent.TearDown;
+begin
+  FEvent := nil;
+  inherited TearDown;
+end;
+
+procedure TTestCase_INamedEvent.Test_Wait;
+var
+  LGuard: INamedEventGuard;
+begin
+  // 先设置事�?
+  FEvent.Signal;
+

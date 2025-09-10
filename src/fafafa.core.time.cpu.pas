@@ -48,8 +48,9 @@ procedure NanoSleep(const aNS: UInt64); {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDI
 implementation
 
 {$IFDEF MSWINDOWS}
-uses
-  SysUtils;
+// Windows 平台：基础类型定义与 API 声明
+type
+  THandle = PtrUInt;
 
 // Windows API 函数直接声明
 function GetModuleHandle(lpModuleName: PChar): THandle; stdcall; external 'kernel32.dll' name 'GetModuleHandleA';
@@ -60,18 +61,7 @@ function GetTickCount64: UInt64; stdcall; external 'kernel32.dll' name 'GetTickC
 
 {$IFDEF UNIX}
 uses
-  BaseUnix,
-  syscall,
-  Unix;
-
-type
-  TTimespec = record
-    tv_sec: LongInt;
-    tv_nsec: LongInt;
-  end;
-
-const
-  SYS_nanosleep = 35; // Linux x86_64 nanosleep 系统调用号
+  BaseUnix;
 
 {$ENDIF}
 
@@ -80,7 +70,7 @@ const
 function SwitchToThread: LongBool; stdcall; external 'kernel32.dll';
 
 type
-  PLargeInteger = ^Int64; // Minimal definition to avoid pulling full Windows unit
+  PLargeInteger = ^Int64; // 最小化定义，避免引入完整 Windows 单元
   TNtDelayExecution = function(Alertable: LongBool; DelayInterval: PLargeInteger): LongInt; stdcall;
 
 var
@@ -157,7 +147,7 @@ begin
 {$IFDEF MSWINDOWS}
   SwitchToThread;
 {$ELSE}
-  Do_SysCall(syscall_nr_sched_yield);
+  FpSched_Yield;
 {$ENDIF}
 end;
 
@@ -167,12 +157,14 @@ procedure NanoSleep(const aNS: UInt64);
 var
   LInterval: Int64;
   LStartTick: UInt64;
+  LUnits: UInt64;
 begin
-  // 防止 ns 太大溢出 Int64
-  if aNS > UInt64($7FFFFFFFFFFFFFFF) then
-    LInterval := -Int64($7FFFFFFFFFFFFFFF div 100)
+  // 以 100ns 为单位进行饱和，负数表示相对时间
+  LUnits := aNS div 100;
+  if LUnits > UInt64(High(Int64)) then
+    LInterval := -High(Int64)
   else
-    LInterval := -Int64(aNS div 100); // 100ns 单位，负数表示相对时间
+    LInterval := -Int64(LUnits);
 
   if Assigned(NtDelayExecution) then
     NtDelayExecution(False, @LInterval)
@@ -184,13 +176,13 @@ begin
     begin
       LStartTick := GetTickCount64;
       while (GetTickCount64 - LStartTick) * 1000000 < aNS do
-        Sleep(0);
+        SwitchToThread;
     end;
   end;
 end;
 {$ELSE}
 var
-  LReq, LRem: TTimeSpec;
+  LReq, LRem: BaseUnix.TTimeSpec;
 begin
   LReq.tv_sec  := aNS div 1000000000;
   LReq.tv_nsec := aNS mod 1000000000;
@@ -203,7 +195,9 @@ begin
 
   LRem.tv_sec := 0;
   LRem.tv_nsec := 0;
-  Do_SysCall(SYS_nanosleep, PtrInt(@LReq), PtrInt(@LRem));
+  // 可能被信号中断，按需重试
+  while (FpNanoSleep(LReq, LRem) <> 0) and (fpgeterrno = ESysEINTR) do
+    LReq := LRem;
 end;
 {$ENDIF}
 

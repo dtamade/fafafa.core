@@ -7,7 +7,6 @@ unit fafafa.core.sync.namedBarrier.unix;
 interface
 
 uses
-  SysUtils, BaseUnix, Unix, UnixType,
   fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.namedBarrier.base;
 
 type
@@ -53,7 +52,7 @@ type
     function GetWaitTime: Cardinal;
   end;
 
-  TNamedBarrier = class(TInterfacedObject, INamedBarrier)
+  TNamedBarrier = class(TSynchronizable, INamedBarrier)
   private
     FSharedData: Pointer;           // 共享内存指针
     FShmFile: cint;                 // 共享内存文件描述符

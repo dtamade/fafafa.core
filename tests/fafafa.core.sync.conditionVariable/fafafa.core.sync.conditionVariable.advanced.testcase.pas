@@ -22,14 +22,18 @@ Type
   TBadLock = class(TInterfacedObject, ILock)
   private
     FLocked: Boolean;
+    FData: Pointer;
   public
     // ISynchronizable
     function GetLastError: TWaitError;
+    function GetData: Pointer;
+    procedure SetData(aData: Pointer);
     // ILock
     procedure Acquire; virtual;
     procedure Release; virtual;
     function TryAcquire: Boolean; virtual;
     function TryAcquire(ATimeoutMs: Cardinal): Boolean; overload;
+    function LockGuard: ILockGuard;
     // Helpers for assertions
     function GetState: TLockState;
     function IsLocked: Boolean;
@@ -108,10 +112,25 @@ begin
   Result := weNone;
 end;
 
+function TBadLock.GetData: Pointer;
+begin
+  Result := FData;
+end;
+
+procedure TBadLock.SetData(aData: Pointer);
+begin
+  FData := aData;
+end;
+
 { TBadLock }
 procedure TBadLock.Acquire; begin FLocked := True; end;
 procedure TBadLock.Release; begin FLocked := False; end;
 function TBadLock.TryAcquire: Boolean; begin FLocked := True; Result := True; end;
+
+function TBadLock.LockGuard: ILockGuard;
+begin
+  Result := MakeLockGuard(Self);
+end;
 
 function TBadLock.GetState: TLockState;
 begin

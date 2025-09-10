@@ -21,7 +21,10 @@ uses
   test_vec_aligned_growth,
   test_vec_shrink_edges,
   test_vec_aligned_toggle,
-  test_ring_buffer_basic;
+  test_ring_buffer_basic,
+  test_stopwatch_basic,
+  test_stopwatch_edges,
+  test_timer_scheduler_basic;
 
 
 
@@ -41,6 +44,9 @@ begin
   test_vec_shrink_edges.RegisterVecShrinkEdgeTests;
   test_vec_aligned_toggle.RegisterVecAlignedToggleTests;
   test_ring_buffer_basic.RegisterRingBufferTests;
+  test_stopwatch_basic.RegisterStopwatchTests;
+  test_stopwatch_edges.RegisterStopwatchEdgeTests;
+  test_timer_scheduler_basic.RegisterTimerSchedulerBasicTests;
   {$IFDEF FAFAFA_ENABLE_TOML_TESTS}
   test_toml_basic.RegisterTomlBasicTests;
   {$ENDIF}

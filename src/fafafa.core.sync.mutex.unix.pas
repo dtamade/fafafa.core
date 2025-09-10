@@ -1,5 +1,6 @@
 unit fafafa.core.sync.mutex.unix;
 
+{$mode objfpc}{$H+}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -27,6 +28,8 @@ type
   TMutex = class(TTryLock, IMutex)
   private
     FMutex: pthread_mutex_t;
+    FHasOwner: Boolean;
+    FOwner: pthread_t;
   public
     constructor Create;
     destructor Destroy; override;
@@ -104,15 +107,16 @@ var
   Attr: pthread_mutexattr_t;
 begin
   inherited Create;
+  FHasOwner := False;
 
   // 初始化互斥锁属性
   if pthread_mutexattr_init(@Attr) <> 0 then
     raise ELockError.Create('Failed to initialize mutex attributes');
 
   try
-    // 设置为标准互斥锁（不可重入）
-    if pthread_mutexattr_settype(@Attr, PTHREAD_MUTEX_NORMAL) <> 0 then
-      raise ELockError.Create('Failed to set mutex type to normal');
+    // 设置为 error-checking 互斥锁（检测同线程重复获取），避免死锁
+    if pthread_mutexattr_settype(@Attr, PTHREAD_MUTEX_ERRORCHECK) <> 0 then
+      raise ELockError.Create('Failed to set mutex type to error-check');
 
     // 初始化互斥锁
     if pthread_mutex_init(@FMutex, @Attr) <> 0 then
@@ -129,20 +133,42 @@ begin
 end;
 
 procedure TMutex.Acquire;
+var
+  Cur: pthread_t;
 begin
+  // 非重入：同一线程重复获取直接抛异常
+  Cur := pthread_self();
+  if FHasOwner and (pthread_equal(FOwner, Cur) <> 0) then
+    raise EDeadlockError.Create('Re-entrant acquire on non-reentrant mutex');
+
   if pthread_mutex_lock(@FMutex) <> 0 then
     raise ELockError.Create('Failed to acquire mutex');
+
+  FOwner := Cur;
+  FHasOwner := True;
 end;
 
 procedure TMutex.Release;
 begin
+  FHasOwner := False;
   if pthread_mutex_unlock(@FMutex) <> 0 then
     raise ELockError.Create('Failed to release mutex');
 end;
 
 function TMutex.TryAcquire: Boolean;
+var
+  Cur: pthread_t;
 begin
+  Cur := pthread_self();
+  if FHasOwner and (pthread_equal(FOwner, Cur) <> 0) then
+    raise EDeadlockError.Create('Re-entrant try-acquire on non-reentrant mutex');
+
   Result := pthread_mutex_trylock(@FMutex) = 0;
+  if Result then
+  begin
+    FOwner := Cur;
+    FHasOwner := True;
+  end;
 end;
 
 function TMutex.TryAcquire(ATimeoutMs: Cardinal): Boolean;

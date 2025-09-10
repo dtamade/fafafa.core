@@ -7,6 +7,7 @@ unit fafafa.core.time.timeout;
   \ \  __\ \ \  __ \  \ \  __\ \ \  __ \  \ \  __\ \ \  __ \
    \ \_\    \ \_\ \_\  \ \_\    \ \_\ \_\  \ \_\    \ \_\ \_\
     \/_/     \/_/\/_/   \/_/     \/_/\/_/   \/_/     \/_/\/_/
+
                           Studio
 ──────────────────────────────────────────────────────────────
 📦 项目：fafafa.core.time.timeout - 超时处理
@@ -43,6 +44,8 @@ uses
   SysUtils,
   Classes,
   fafafa.core.time.base,
+  fafafa.core.time.duration,
+  fafafa.core.time.instant,
   fafafa.core.time.clock,
   fafafa.core.thread.cancel;
 
@@ -113,14 +116,6 @@ type
     function Equal(const AOther: TDeadline): Boolean; inline;
     function LessThan(const AOther: TDeadline): Boolean; inline;
     function GreaterThan(const AOther: TDeadline): Boolean; inline;
-    
-    // 运算符重载
-    class operator =(const A, B: TDeadline): Boolean; inline;
-    class operator <>(const A, B: TDeadline): Boolean; inline;
-    class operator <(const A, B: TDeadline): Boolean; inline;
-    class operator >(const A, B: TDeadline): Boolean; inline;
-    class operator <=(const A, B: TDeadline): Boolean; inline;
-    class operator >=(const A, B: TDeadline): Boolean; inline;
     
     // 字符串表示
     function ToString: string;
@@ -245,7 +240,7 @@ type
     class function Manual: TTimeoutOptions; static;
   end;
 
-// 工厂函数
+// 工厂函数（声明保留，具体实现另行提供）
 function CreateTimeout(const ADuration: TDuration; const AName: string = ''): ITimeout; overload;
 function CreateTimeout(const ADeadline: TDeadline; const AName: string = ''): ITimeout; overload;
 function CreateTimeout(const ADuration: TDuration; const AOptions: TTimeoutOptions): ITimeout; overload;

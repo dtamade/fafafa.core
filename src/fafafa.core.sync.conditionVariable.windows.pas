@@ -11,10 +11,12 @@ uses
   fafafa.core.base,
   fafafa.core.sync.base,
   fafafa.core.sync.mutex.base,
-  fafafa.core.sync.semaphore.base,
-  fafafa.core.sync.semaphore,
+  fafafa.core.sync.sem.base,
+  fafafa.core.sync.sem,
   fafafa.core.sync.event.base,
   fafafa.core.sync.event,
+  fafafa.core.sync.mutex,
+  fafafa.core.atomic,
   fafafa.core.sync.conditionVariable.base;
 
 type
@@ -23,7 +25,7 @@ type
     {$IFDEF FAFAFA_SYNC_USE_CONDVAR}
     FCond: CONDITION_VARIABLE;
     {$ELSE}
-    FWaitSemaphore: ISemaphore;
+    FWaitSemaphore: ISem;
     FWaitingCount: Integer;
     FPendingCount: Integer; // 记录未被消费的 Signal，避免丢唤醒
     FLock: ILock;
@@ -36,6 +38,12 @@ type
     destructor Destroy; override;
     // ISynchronizable
     function GetLastError: TWaitError;
+    // ILock（委托给内部互斥）
+    procedure Acquire;
+    procedure Release;
+    function TryAcquire: Boolean; overload;
+    function TryAcquire(ATimeoutMs: Cardinal): Boolean; overload;
+    function LockGuard: ILockGuard;
     // IConditionVariable
     procedure Wait(const ALock: ILock); overload;
     function Wait(const ALock: ILock; ATimeoutMs: Cardinal): Boolean; overload;
@@ -58,7 +66,7 @@ begin
   FWaitSemaphore := nil; // 延迟创建
   FWaitingCount := 0;
   FPendingCount := 0;
-  FLock := nil;
+  FLock := MakeMutex;
   FSignalEvent := nil;
   InitializeCriticalSection(FStateCS);
   {$ENDIF}
@@ -116,18 +124,18 @@ begin
       FLastError := weNone;
       Exit;
     end;
-    InterlockedIncrement(FWaitingCount);
+    atomic_increment(FWaitingCount);
   finally
     LeaveCriticalSection(FStateCS);
   end;
 
   ALock.Release;
   try
-    if FWaitSemaphore = nil then FWaitSemaphore := MakeSemaphore(0, MaxInt);
+    if FWaitSemaphore = nil then FWaitSemaphore := MakeSem(0, MaxInt);
     FWaitSemaphore.Acquire;
   finally
     ALock.Acquire;
-    InterlockedDecrement(FWaitingCount);
+    atomic_decrement(FWaitingCount);
   end;
   {$ENDIF}
 end;
@@ -183,21 +191,21 @@ begin
       FLastError := weNone;
       Exit(True);
     end;
-    InterlockedIncrement(FWaitingCount);
+    atomic_increment(FWaitingCount);
   finally
     LeaveCriticalSection(FStateCS);
   end;
 
   ALock.Release;
   try
-    if FWaitSemaphore = nil then FWaitSemaphore := MakeSemaphore(0, MaxInt);
+    if FWaitSemaphore = nil then FWaitSemaphore := MakeSem(0, MaxInt);
     if ATimeoutMs = INFINITE then
       FWaitSemaphore.Acquire
     else
       Result := FWaitSemaphore.TryAcquire(ATimeoutMs);
   finally
     ALock.Acquire;
-    InterlockedDecrement(FWaitingCount);
+    atomic_decrement(FWaitingCount);
   end;
   {$ENDIF}
 end;
@@ -207,6 +215,47 @@ end;
 function TConditionVariable.GetLastError: TWaitError;
 begin
   Result := FLastError;
+end;
+
+// ILock 委托实现
+procedure TConditionVariable.Acquire;
+begin
+  if Assigned(FLock) then FLock.Acquire;
+end;
+
+procedure TConditionVariable.Release;
+begin
+  if Assigned(FLock) then FLock.Release;
+end;
+
+function TConditionVariable.TryAcquire: Boolean;
+var
+  TL: ITryLock;
+begin
+  if Assigned(FLock) then
+  begin
+    if Supports(FLock, ITryLock, TL) then
+      Exit(TL.TryAcquire);
+  end;
+  Result := False;
+end;
+
+function TConditionVariable.TryAcquire(ATimeoutMs: Cardinal): Boolean;
+var
+  TL: ITryLock;
+begin
+  if Assigned(FLock) then
+  begin
+    if Supports(FLock, ITryLock, TL) then
+      Exit(TL.TryAcquire(ATimeoutMs));
+  end;
+  Result := False;
+end;
+
+function TConditionVariable.LockGuard: ILockGuard;
+begin
+  if Assigned(FLock) then Exit(FLock.LockGuard);
+  Result := nil;
 end;
 
 

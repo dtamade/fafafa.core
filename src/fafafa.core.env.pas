@@ -165,9 +165,7 @@ begin
   Result := TEnvOverrideGuard.New(AName, AValue);
 end;
 
-{$IFDEF FAFAFA_ENV_ENABLE_RESULT}
-// Result-enabled section
-
+// Always-available resolver and RAII helpers
 function env_resolve_os(const Key: string; out Value: string): Boolean;
 begin
   Result := env_lookup(Key, Value);
@@ -268,6 +266,9 @@ begin
     Seen.Free;
   end;
 end;
+
+{$IFDEF FAFAFA_ENV_ENABLE_RESULT}
+// Result-enabled section
 
 function env_get_result(const AName: string): TResultString_VarError;
 var

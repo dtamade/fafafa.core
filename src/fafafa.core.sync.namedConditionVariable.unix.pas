@@ -28,7 +28,7 @@ type
     Stats: TNamedConditionVariableStats; // 统计信息
   end;
 
-  TNamedConditionVariable = class(TInterfacedObject, INamedConditionVariable)
+  TNamedConditionVariable = class(TSynchronizable, INamedConditionVariable)
   private
     FName: string;
     FOriginalName: string;

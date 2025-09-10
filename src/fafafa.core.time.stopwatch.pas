@@ -53,7 +53,7 @@ type
    *   支持启动、停止、重置和累计计时等操作。
    *
    * @precision
-   *   基于底层 ITick 实现的精度，通常为纳秒级。
+   *   基于记录式 TTick 的实现，通常为纳秒级。
    *
    * @thread_safety
    *   非线程安全，需要外部同步。
@@ -69,49 +69,50 @@ type
    *}
   TStopwatch = record
   private
-    FTick: ITick;
+    FClock: TTick;
+    FHasClock: Boolean;
     FStartTick: UInt64;
     FElapsedTicks: UInt64;
     FIsRunning: Boolean;
-    
-    procedure EnsureTick;
+
+    procedure EnsureClock;
   public
     // 构造和工厂方法
     class function Create: TStopwatch; static;
-    class function Create(const ATick: ITick): TStopwatch; static;
+    class function CreateWithClock(const AClock: TTick): TStopwatch; static;
     class function StartNew: TStopwatch; static;
-    class function StartNew(const ATick: ITick): TStopwatch; static;
-    
+    class function StartNewWithClock(const AClock: TTick): TStopwatch; static;
+
     // 控制方法
     procedure Start;
     procedure Stop;
     procedure Reset;
     procedure Restart;
-    
+
     // 状态查询
     function IsRunning: Boolean; inline;
-    
+
     // 时间获取（原始 ticks）
     function ElapsedTicks: UInt64;
-    
+
     // 时间获取（纳秒）
     function ElapsedNs: UInt64;
-    
+
     // 时间获取（常用单位）
     function ElapsedUs: UInt64; inline;
     function ElapsedMs: UInt64; inline;
     function ElapsedSec: Double; inline;
-    
+
     // TDuration 集成
     function ElapsedDuration: TDuration;
-    
+
     // 便捷方法
     function ToString: string;
     function ToStringPrecise: string; // 包含纳秒精度
-    
+
     // 静态工具方法
     class function Measure(const AProc: TProc): TDuration; static;
-    class function Measure(const AProc: TProc; const ATick: ITick): TDuration; static;
+    class function MeasureWithClock(const AProc: TProc; const AClock: TTick): TDuration; static;
     class function MeasureMs(const AProc: TProc): UInt64; static;
     class function MeasureNs(const AProc: TProc): UInt64; static;
   end;
@@ -143,8 +144,8 @@ type
   public
     // 构造方法
     class function Create(const AName: string = ''; AAutoOutput: Boolean = True): TStopwatchScope; static;
-    class function Create(const AName: string; const ATick: ITick; AAutoOutput: Boolean = True): TStopwatchScope; static;
-    
+    class function CreateWithClock(const AName: string; const AClock: TTick; AAutoOutput: Boolean = True): TStopwatchScope; static;
+
     // 控制方法
     procedure Finish;
     procedure Cancel;
@@ -164,29 +165,23 @@ function MeasureTime(const AProc: TProc): TDuration; inline;
 function MeasureTimeMs(const AProc: TProc): UInt64; inline;
 function MeasureTimeNs(const AProc: TProc): UInt64; inline;
 
-// 全局默认实例相关
-procedure SetDefaultStopwatchTick(const ATick: ITick);
-function GetDefaultStopwatchTick: ITick;
-
 implementation
-
-var
-  GDefaultTick: ITick = nil;
 
 { TStopwatch }
 
 class function TStopwatch.Create: TStopwatch;
 begin
-  Result.FTick := nil;
+  Result.FHasClock := False;
   Result.FStartTick := 0;
   Result.FElapsedTicks := 0;
   Result.FIsRunning := False;
 end;
 
-class function TStopwatch.Create(const ATick: ITick): TStopwatch;
+class function TStopwatch.CreateWithClock(const AClock: TTick): TStopwatch;
 begin
   Result := Create;
-  Result.FTick := ATick;
+  Result.FClock := AClock;
+  Result.FHasClock := True;
 end;
 
 class function TStopwatch.StartNew: TStopwatch;
@@ -195,34 +190,39 @@ begin
   Result.Start;
 end;
 
-class function TStopwatch.StartNew(const ATick: ITick): TStopwatch;
+class function TStopwatch.StartNewWithClock(const AClock: TTick): TStopwatch;
 begin
-  Result := Create(ATick);
+  Result := CreateWithClock(AClock);
   Result.Start;
 end;
 
-procedure TStopwatch.EnsureTick;
+procedure TStopwatch.EnsureClock;
 begin
-  if FTick = nil then
-    FTick := GetDefaultStopwatchTick;
+  if not FHasClock then
+  begin
+    FClock := BestTick;
+    FHasClock := True;
+  end;
 end;
 
 procedure TStopwatch.Start;
 begin
   if not FIsRunning then
   begin
-    EnsureTick;
-    FStartTick := FTick.GetCurrentTick;
+    EnsureClock;
+    FStartTick := FClock.Now;
     FIsRunning := True;
   end;
 end;
 
 procedure TStopwatch.Stop;
+var dt: UInt64;
 begin
   if FIsRunning then
   begin
-    EnsureTick;
-    FElapsedTicks := FElapsedTicks + FTick.GetElapsedTicks(FStartTick);
+    EnsureClock;
+    dt := FClock.Elapsed(FStartTick);
+    FElapsedTicks := FElapsedTicks + dt;
     FIsRunning := False;
   end;
 end;
@@ -249,15 +249,17 @@ begin
   Result := FElapsedTicks;
   if FIsRunning then
   begin
-    EnsureTick;
-    Result := Result + FTick.GetElapsedTicks(FStartTick);
+    EnsureClock;
+    Result := Result + FClock.Elapsed(FStartTick);
   end;
 end;
 
 function TStopwatch.ElapsedNs: UInt64;
+var d: TDuration;
 begin
-  EnsureTick;
-  Result := FTick.MeasureElapsedNs(0) * ElapsedTicks div FTick.GetResolution;
+  EnsureClock;
+  d := FClock.TicksToDuration(ElapsedTicks);
+  Result := d.AsNs;
 end;
 
 function TStopwatch.ElapsedUs: UInt64;
@@ -277,8 +279,8 @@ end;
 
 function TStopwatch.ElapsedDuration: TDuration;
 begin
-  EnsureTick;
-  Result := FTick.TicksToDuration(ElapsedTicks);
+  EnsureClock;
+  Result := FClock.TicksToDuration(ElapsedTicks);
 end;
 
 function TStopwatch.ToString: string;
@@ -312,11 +314,11 @@ begin
   Result := sw.ElapsedDuration;
 end;
 
-class function TStopwatch.Measure(const AProc: TProc; const ATick: ITick): TDuration;
+class function TStopwatch.MeasureWithClock(const AProc: TProc; const AClock: TTick): TDuration;
 var
   sw: TStopwatch;
 begin
-  sw := StartNew(ATick);
+  sw := StartNewWithClock(AClock);
   try
     AProc();
   finally
@@ -361,9 +363,9 @@ begin
   Result.FStarted := True;
 end;
 
-class function TStopwatchScope.Create(const AName: string; const ATick: ITick; AAutoOutput: Boolean): TStopwatchScope;
+class function TStopwatchScope.CreateWithClock(const AName: string; const AClock: TTick; AAutoOutput: Boolean): TStopwatchScope;
 begin
-  Result.FStopwatch := TStopwatch.StartNew(ATick);
+  Result.FStopwatch := TStopwatch.StartNewWithClock(AClock);
   Result.FName := AName;
   Result.FAutoOutput := AAutoOutput;
   Result.FStarted := True;
@@ -430,18 +432,6 @@ end;
 function MeasureTimeNs(const AProc: TProc): UInt64;
 begin
   Result := TStopwatch.MeasureNs(AProc);
-end;
-
-procedure SetDefaultStopwatchTick(const ATick: ITick);
-begin
-  GDefaultTick := ATick;
-end;
-
-function GetDefaultStopwatchTick: ITick;
-begin
-  if GDefaultTick = nil then
-    GDefaultTick := fafafa.core.time.tick.DefaultTick;
-  Result := GDefaultTick;
 end;
 
 end.

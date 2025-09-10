@@ -10,7 +10,7 @@ uses
   Classes, SysUtils, CustApp, fpcunit, testregistry, consoletestrunner,
   fafafa.core.base,
   fafafa.core.sync,
-  Test_sync;
+  Test_sync_modern;
 
 type
 

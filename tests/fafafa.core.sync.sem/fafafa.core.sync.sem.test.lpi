@@ -36,7 +36,7 @@
         <CompilerOptions>
           <Version Value="11"/>
           <Target>
-            <Filename Value="bin\fafafa.core.sync.semaphore.test"/>
+            <Filename Value="bin\fafafa.core.sync.sem.test.exe"/>
           </Target>
           <SearchPaths>
             <OtherUnitFiles Value="..\..\src"/>
@@ -66,7 +66,7 @@
     <Version Value="11"/>
     <PathDelim Value="\"/>
     <Target>
-      <Filename Value="bin\fafafa.core.sync.semaphore.test"/>
+      <Filename Value="bin\fafafa.core.sync.sem.test.exe"/>
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir);..\..\src"/>

@@ -1,12 +1,35 @@
 unit fafafa.core.sync.once.unix;
 
+{
+  Unix/Linux 平台一次性执行实现
+
+  特性：
+  - 基于 pthread_once_t 系统实现 (可选)
+  - 默认使用原子操作 + 互斥锁 fallback 实现
+  - 跨 Unix 系统兼容性 (Linux, macOS, FreeBSD 等)
+  - 支持异常恢复和毒化状态管理
+  - 内存屏障和缓存行对齐优化
+
+  实现策略：
+  - 快速路径：无锁原子操作检查完成状态
+  - 慢速路径：使用 pthread_mutex_t 进行同步执行
+  - 异常处理：失败时标记为毒化状态
+  - 递归检测：防止同一线程递归调用
+  - 内存模型：正确的 acquire/release 语义
+}
+
 {$mode objfpc}{$H+}
 {$I fafafa.core.settings.inc}
 
 interface
 
 uses
-  SysUtils, BaseUnix, Unix, UnixType, pthreads,
+  SysUtils,
+  {$IFDEF UNIX}
+  {$IFNDEF FPC_CROSSCOMPILING}
+  pthreads,
+  {$ENDIF}
+  {$ENDIF}
   fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.once.base;
 
 // 内存屏障函数声明
@@ -21,7 +44,7 @@ procedure StoreRelease(var Target: LongBool; Value: LongBool); inline;
 {$ENDIF}
 
 type
-  TOnce = class(TInterfacedObject, IOnce)
+  TOnce = class(TSynchronizable, IOnce)
   private
     // 修复缓存行对齐：正确计算Unix平台的字段大小和填充
     // 第一个缓存行：热路径数据（高频访问）
@@ -35,7 +58,15 @@ type
     FPadding1: array[0..39] of Byte;
 
     // 第二个缓存行：同步数据（64字节对齐）
+    {$IFDEF UNIX}
+    {$IFNDEF FPC_CROSSCOMPILING}
     FMutex: pthread_mutex_t;      // pthread互斥锁
+    {$ELSE}
+    FMutex: array[0..39] of Byte; // pthread_mutex_t 占位符（40字节）
+    {$ENDIF}
+    {$ELSE}
+    FMutex: array[0..39] of Byte; // 非Unix平台占位符
+    {$ENDIF}
 
     // pthread_mutex_t 在Linux x64上通常是40字节，需要填充到缓存行边界
     // 64 - 40 = 24字节填充
@@ -88,19 +119,7 @@ type
     procedure ExecuteForce(const AAnonymousProc: TOnceAnonymousProc); overload;
     {$ENDIF}
 
-    // 兼容旧接口（标记为废弃）
-    procedure Call(const AProc: TOnceProc); overload; deprecated 'Use Execute instead';
-    procedure Call(const AMethod: TOnceMethod); overload; deprecated 'Use Execute instead';
-    {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
-    procedure Call(const AAnonymousProc: TOnceAnonymousProc); overload; deprecated 'Use Execute instead';
-    {$ENDIF}
 
-    // 兼容旧接口（标记为废弃）
-    procedure CallForce(const AProc: TOnceProc); overload; deprecated 'Use ExecuteForce instead';
-    procedure CallForce(const AMethod: TOnceMethod); overload; deprecated 'Use ExecuteForce instead';
-    {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
-    procedure CallForce(const AAnonymousProc: TOnceAnonymousProc); overload; deprecated 'Use ExecuteForce instead';
-    {$ENDIF}
 
     // 等待机制
     procedure Wait;
@@ -220,9 +239,15 @@ end;
 
 // IOnce Execute 方法实现
 procedure TOnce.Execute;
+var
+  NilProc: TOnceProc;
 begin
   case FCallback.CallbackType of
-    octNone: ; // 无回调，什么都不做
+    octNone:
+    begin
+      NilProc := nil;
+      DoInternal(NilProc, False); // 无回调，但仍需标记为完成
+    end;
     octProc: DoInternal(FCallback.Proc, False);
     octMethod: DoInternal(FCallback.Method, False);
     {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
@@ -250,9 +275,15 @@ end;
 
 // ExecuteForce 方法实现
 procedure TOnce.ExecuteForce;
+var
+  NilProc: TOnceProc;
 begin
   case FCallback.CallbackType of
-    octNone: ; // 无回调，什么都不做
+    octNone:
+    begin
+      NilProc := nil;
+      DoInternal(NilProc, True); // 无回调，但仍需标记为完成
+    end;
     octProc: DoInternal(FCallback.Proc, True);
     octMethod: DoInternal(FCallback.Method, True);
     {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
@@ -278,41 +309,7 @@ begin
 end;
 {$ENDIF}
 
-// 兼容旧接口（标记为废弃）
-// 高性能核心实现：Go 风格的快速路径 + 慢速路径
-procedure TOnce.Call(const AProc: TOnceProc);
-begin
-  DoInternal(AProc, False);
-end;
 
-procedure TOnce.Call(const AMethod: TOnceMethod);
-begin
-  DoInternal(AMethod, False);
-end;
-
-{$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
-procedure TOnce.Call(const AAnonymousProc: TOnceAnonymousProc);
-begin
-  DoInternal(AAnonymousProc, False);
-end;
-{$ENDIF}
-
-procedure TOnce.CallForce(const AProc: TOnceProc);
-begin
-  DoInternal(AProc, True);
-end;
-
-procedure TOnce.CallForce(const AMethod: TOnceMethod);
-begin
-  DoInternal(AMethod, True);
-end;
-
-{$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
-procedure TOnce.CallForce(const AAnonymousProc: TOnceAnonymousProc);
-begin
-  DoInternal(AAnonymousProc, True);
-end;
-{$ENDIF}
 
 destructor TOnce.Destroy;
 begin
@@ -355,13 +352,53 @@ begin
       Exit;
     end;
 
-    // 如果是毒化状态且不强制执行，抛出异常
-    if (FState = STATE_POISONED) and not AForce then
-      raise ELockError.Create(rsOnceAlreadyPoisoned);
+    // 检查当前状态，确保并发安全
+    case FState of
+      STATE_NOT_STARTED:
+      begin
+        // 只有第一个线程能进入这里
+        FState := STATE_IN_PROGRESS;
+        FExecutingThreadId := GetCurrentThreadId;
+      end;
 
-    // 标记为进行中
-    FState := STATE_IN_PROGRESS;
-    FExecutingThreadId := GetCurrentThreadId;
+      STATE_IN_PROGRESS:
+      begin
+        // 其他线程：正在执行中，不强制执行则直接返回
+        if not AForce then
+          Exit
+        else
+        begin
+          // 强制执行：重置状态
+          FState := STATE_IN_PROGRESS;
+          FExecutingThreadId := GetCurrentThreadId;
+        end;
+      end;
+
+      STATE_COMPLETED:
+      begin
+        // 已完成，强制执行时重新执行
+        if AForce then
+        begin
+          FState := STATE_IN_PROGRESS;
+          FExecutingThreadId := GetCurrentThreadId;
+        end
+        else
+          Exit;
+      end;
+
+      STATE_POISONED:
+      begin
+        // 毒化状态
+        if not AForce then
+          raise ELockError.Create(rsOnceAlreadyPoisoned)
+        else
+        begin
+          // 强制执行：从毒化状态恢复
+          FState := STATE_IN_PROGRESS;
+          FExecutingThreadId := GetCurrentThreadId;
+        end;
+      end;
+    end;
 
     try
       try
@@ -418,11 +455,47 @@ begin
       Exit;
     end;
 
-    if (FState = STATE_POISONED) and not AForce then
-      raise ELockError.Create(rsOnceAlreadyPoisoned);
+    // 检查当前状态，确保并发安全
+    case FState of
+      STATE_NOT_STARTED:
+      begin
+        FState := STATE_IN_PROGRESS;
+        FExecutingThreadId := GetCurrentThreadId;
+      end;
 
-    FState := STATE_IN_PROGRESS;
-    FExecutingThreadId := GetCurrentThreadId;
+      STATE_IN_PROGRESS:
+      begin
+        if not AForce then
+          Exit
+        else
+        begin
+          FState := STATE_IN_PROGRESS;
+          FExecutingThreadId := GetCurrentThreadId;
+        end;
+      end;
+
+      STATE_COMPLETED:
+      begin
+        if AForce then
+        begin
+          FState := STATE_IN_PROGRESS;
+          FExecutingThreadId := GetCurrentThreadId;
+        end
+        else
+          Exit;
+      end;
+
+      STATE_POISONED:
+      begin
+        if not AForce then
+          raise ELockError.Create(rsOnceAlreadyPoisoned)
+        else
+        begin
+          FState := STATE_IN_PROGRESS;
+          FExecutingThreadId := GetCurrentThreadId;
+        end;
+      end;
+    end;
 
     try
       try
@@ -477,11 +550,47 @@ begin
       Exit;
     end;
 
-    if (FState = STATE_POISONED) and not AForce then
-      raise ELockError.Create(rsOnceAlreadyPoisoned);
+    // 检查当前状态，确保并发安全
+    case FState of
+      STATE_NOT_STARTED:
+      begin
+        FState := STATE_IN_PROGRESS;
+        FExecutingThreadId := GetCurrentThreadId;
+      end;
 
-    FState := STATE_IN_PROGRESS;
-    FExecutingThreadId := GetCurrentThreadId;
+      STATE_IN_PROGRESS:
+      begin
+        if not AForce then
+          Exit
+        else
+        begin
+          FState := STATE_IN_PROGRESS;
+          FExecutingThreadId := GetCurrentThreadId;
+        end;
+      end;
+
+      STATE_COMPLETED:
+      begin
+        if AForce then
+        begin
+          FState := STATE_IN_PROGRESS;
+          FExecutingThreadId := GetCurrentThreadId;
+        end
+        else
+          Exit;
+      end;
+
+      STATE_POISONED:
+      begin
+        if not AForce then
+          raise ELockError.Create(rsOnceAlreadyPoisoned)
+        else
+        begin
+          FState := STATE_IN_PROGRESS;
+          FExecutingThreadId := GetCurrentThreadId;
+        end;
+      end;
+    end;
 
     try
       try

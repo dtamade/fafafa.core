@@ -21,7 +21,7 @@ type
     function IsSignaled: Boolean;
   end;
 
-  TNamedEvent = class(TInterfacedObject, INamedEvent)
+  TNamedEvent = class(TSynchronizable, INamedEvent)
   private
     FHandle: THandle;
     FName: string;
@@ -110,11 +110,11 @@ begin
   begin
     FLastError := weSystemError;
     raise ELockError.CreateFmt('Failed to create named event "%s": %s',
-      [AName, SysErrorMessage(GetLastError)]);
+      [AName, SysErrorMessage(Windows.GetLastError)]);
   end;
   
   // 检查是否为创建者
-  FIsCreator := GetLastError <> ERROR_ALREADY_EXISTS;
+  FIsCreator := Windows.GetLastError <> ERROR_ALREADY_EXISTS;
 end;
 
 destructor TNamedEvent.Destroy;
@@ -127,16 +127,16 @@ end;
 function TNamedEvent.ValidateName(const AName: string): string;
 begin
   if AName = '' then
-    raise EInvalidArgument.Create('Named event name cannot be empty');
+    raise fafafa.core.sync.base.EInvalidArgument.Create('Named event name cannot be empty');
     
   if Length(AName) > 260 then
-    raise EInvalidArgument.CreateFmt('Named event name too long: %d characters (max 260)', [Length(AName)]);
+    raise fafafa.core.sync.base.EInvalidArgument.CreateFmt('Named event name too long: %d characters (max 260)', [Length(AName)]);
     
   // Windows 命名事件不能包含反斜杠（除了 Global\ 或 Local\ 前缀）
   if (Pos('\', AName) > 0) and 
      (Pos('Global\', AName) <> 1) and 
      (Pos('Local\', AName) <> 1) then
-    raise EInvalidArgument.CreateFmt('Invalid character in named event name: "%s"', [AName]);
+    raise fafafa.core.sync.base.EInvalidArgument.CreateFmt('Invalid character in named event name: "%s"', [AName]);
     
   Result := AName;
 end;
@@ -158,7 +158,7 @@ begin
       begin
         FLastError := weSystemError;
         raise ELockError.CreateFmt('Failed to wait for named event "%s": %s',
-          [FName, SysErrorMessage(GetLastError)]);
+          [FName, SysErrorMessage(Windows.GetLastError)]);
       end;
   else
     FLastError := weSystemError;
@@ -185,7 +185,7 @@ begin
       begin
         FLastError := weSystemError;
         raise ELockError.CreateFmt('Failed to wait for named event "%s": %s',
-          [FName, SysErrorMessage(GetLastError)]);
+          [FName, SysErrorMessage(Windows.GetLastError)]);
       end;
   else
     FLastError := weSystemError;
@@ -199,7 +199,7 @@ begin
   begin
     FLastError := weSystemError;
     raise ELockError.CreateFmt('Failed to signal named event "%s": %s',
-      [FName, SysErrorMessage(GetLastError)]);
+      [FName, SysErrorMessage(Windows.GetLastError)]);
   end;
 end;
 
@@ -209,7 +209,7 @@ begin
   begin
     FLastError := weSystemError;
     raise ELockError.CreateFmt('Failed to reset named event "%s": %s',
-      [FName, SysErrorMessage(GetLastError)]);
+      [FName, SysErrorMessage(Windows.GetLastError)]);
   end;
 end;
 
@@ -223,21 +223,19 @@ begin
   begin
     FLastError := weSystemError;
     raise ELockError.CreateFmt('Failed to set named event "%s" during pulse: %s',
-      [FName, SysErrorMessage(GetLastError)]);
+      [FName, SysErrorMessage(Windows.GetLastError)]);
   end;
 
-  // 对于自动重置事件，SetEvent 后会自动重置，无需手动重置
-  // 对于手动重置事件，我们需要立即重置
-  if FManualReset then
+  // 语义调整：
+  // 手动重置事件：保持触发（等同于 SetEvent）。
+  // 自动重置事件：瞬时触发后立即恢复为未触发（若无等待者则无效果）。
+  if not FManualReset then
   begin
-    // 给等待的线程一个很短的时间窗口来响应信号
-    Sleep(0); // 让出时间片
-
     if not Windows.ResetEvent(FHandle) then
     begin
       FLastError := weSystemError;
       raise ELockError.CreateFmt('Failed to reset named event "%s" during pulse: %s',
-        [FName, SysErrorMessage(GetLastError)]);
+        [FName, SysErrorMessage(Windows.GetLastError)]);
     end;
   end;
 end;

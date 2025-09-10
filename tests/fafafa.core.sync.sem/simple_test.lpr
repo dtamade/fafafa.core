@@ -1,6 +1,8 @@
 {$CODEPAGE UTF8}
 program simple_test;
 
+{$mode objfpc}{$H+}
+
 uses
   fafafa.core.sync.sem;
 

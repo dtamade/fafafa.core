@@ -1,26 +1,25 @@
-unit fafafa.core.sync.namedConditionVariable.windows;
+﻿unit fafafa.core.sync.namedConditionVariable.windows;
 
 {$mode objfpc}{$H+}
 {$I fafafa.core.settings.inc}
 
 interface
 
-uses
-  Windows, SysUtils,
+uses`n  Windows, SysUtils,`n  fafafa.core.atomic,
   fafafa.core.base, fafafa.core.sync.base,
   fafafa.core.sync.namedConditionVariable.base, fafafa.core.sync.mutex.base;
 
 type
-  // 共享状态结构（存储在共享内存中）
+  // 鍏变韩鐘舵€佺粨鏋勶紙瀛樺偍鍦ㄥ叡浜唴瀛樹腑锛?
   PSharedCondVarState = ^TSharedCondVarState;
   TSharedCondVarState = record
-    WaitingCount: LongInt;            // 当前等待者数量
-    SignalCount: LongInt;             // 待处理的信号数量
-    BroadcastGeneration: LongInt;     // 广播代数，防止虚假唤醒
-    Stats: TNamedConditionVariableStats; // 统计信息
+    WaitingCount: LongInt;            // 褰撳墠绛夊緟鑰呮暟閲?
+    SignalCount: LongInt;             // 寰呭鐞嗙殑淇″彿鏁伴噺
+    BroadcastGeneration: LongInt;     // 骞挎挱浠ｆ暟锛岄槻姝㈣櫄鍋囧敜閱?
+    Stats: TNamedConditionVariableStats; // 缁熻淇℃伅
   end;
 
-  TNamedConditionVariable = class(TInterfacedObject, INamedConditionVariable)
+  TNamedConditionVariable = class(TSynchronizable, INamedConditionVariable)
   private
     FName: string;
     FOriginalName: string;
@@ -28,12 +27,12 @@ type
     FLastError: TWaitError;
     FConfig: TNamedConditionVariableConfig;
     
-    // Windows 同步对象
-    FFileMapping: THandle;            // 共享内存映射
-    FSharedState: PSharedCondVarState; // 共享状态指针
-    FWaitSemaphore: THandle;          // 等待信号量
-    FSignalEvent: THandle;            // 信号事件
-    FStateMutex: THandle;             // 状态保护互斥锁
+    // Windows 鍚屾瀵硅薄
+    FFileMapping: THandle;            // 鍏变韩鍐呭瓨鏄犲皠
+    FSharedState: PSharedCondVarState; // 鍏变韩鐘舵€佹寚閽?
+    FWaitSemaphore: THandle;          // 绛夊緟淇″彿閲?
+    FSignalEvent: THandle;            // 淇″彿浜嬩欢
+    FStateMutex: THandle;             // 鐘舵€佷繚鎶や簰鏂ラ攣
     
     function ValidateName(const AName: string): string;
     function CreateSharedObjects(const AName: string): Boolean;
@@ -45,32 +44,33 @@ type
     constructor Create(const AName: string); overload;
     constructor Create(const AName: string; const AConfig: TNamedConditionVariableConfig); overload;
     destructor Destroy; override;
-    
-    // ILock 接口（条件变量本身的锁定）
+
+    // ILock 鎺ュ彛锛堟潯浠跺彉閲忔湰韬殑閿佸畾锛?
     procedure Acquire;
     procedure Release;
     function TryAcquire: Boolean; overload;
     function TryAcquire(ATimeoutMs: Cardinal): Boolean; overload;
-    
-    // ISynchronizable 接口
+
+    // ISynchronizable 鎺ュ彛
     function GetLastError: TWaitError;
-    
-    // INamedConditionVariable 接口
+    // GetData/SetData 鐢?TSynchronizable 鎻愪緵
+
+    // INamedConditionVariable 鎺ュ彛
     procedure Wait(const ALock: ILock); overload;
     function Wait(const ALock: ILock; ATimeoutMs: Cardinal): Boolean; overload;
     procedure Signal;
     procedure Broadcast;
     
-    // 查询操作
+    // 鏌ヨ鎿嶄綔
     function GetName: string;
     function GetConfig: TNamedConditionVariableConfig;
     procedure UpdateConfig(const AConfig: TNamedConditionVariableConfig);
     
-    // 统计信息
+    // 缁熻淇℃伅
     function GetStats: TNamedConditionVariableStats;
     procedure ResetStats;
     
-    // 兼容性方法
+    // 鍏煎鎬ф柟娉?
     function GetHandle: Pointer;
     function IsCreator: Boolean;
   end;
@@ -95,29 +95,29 @@ begin
   FLastError := weNone;
   FIsCreator := False;
   
-  // 初始化句柄
+  // 鍒濆鍖栧彞鏌?
   FFileMapping := 0;
   FSharedState := nil;
   FWaitSemaphore := 0;
   FSignalEvent := 0;
   FStateMutex := 0;
   
-  // 验证并处理名称
+  // 楠岃瘉骞跺鐞嗗悕绉?
   LActualName := ValidateName(AName);
   
-  // 处理全局命名空间
+  // 澶勭悊鍏ㄥ眬鍛藉悕绌洪棿
   if AConfig.UseGlobalNamespace and (Pos('Global\', LActualName) <> 1) then
     LActualName := 'Global\' + LActualName;
     
   FName := LActualName;
   
-  // 尝试创建共享对象
+  // 灏濊瘯鍒涘缓鍏变韩瀵硅薄
   if not CreateSharedObjects(LActualName) then
   begin
-    // 创建失败，尝试打开现有的
+    // 鍒涘缓澶辫触锛屽皾璇曟墦寮€鐜版湁鐨?
     if not OpenSharedObjects(LActualName) then
       raise ELockError.CreateFmt('Failed to create or open named condition variable "%s": %s', 
-        [AName, SysErrorMessage(GetLastError)]);
+        [AName, SysErrorMessage(Windows.GetLastError)]);
   end;
 end;
 
@@ -135,7 +135,7 @@ begin
   if Length(AName) > 260 then
     raise EInvalidArgument.Create('Named condition variable name too long (max 260 characters)');
     
-  // Windows 不允许名称中包含反斜杠（除了命名空间前缀）
+  // Windows 涓嶅厑璁稿悕绉颁腑鍖呭惈鍙嶆枩鏉狅紙闄や簡鍛藉悕绌洪棿鍓嶇紑锛?
   if (Pos('\', AName) > 0) and (Pos('Global\', AName) <> 1) and (Pos('Local\', AName) <> 1) then
     raise EInvalidArgument.Create('Invalid character in named condition variable name');
     
@@ -150,45 +150,45 @@ begin
   Result := False;
   LSecurityAttributes := nil;
   
-  // 构造各个对象的名称
+  // 鏋勯€犲悇涓璞＄殑鍚嶇О
   LMappingName := AName + '_mapping';
   LSemaphoreName := AName + '_semaphore';
   LEventName := AName + '_event';
   LMutexName := AName + '_mutex';
   
   try
-    // 创建共享内存映射
-    FFileMapping := CreateFileMappingA(INVALID_HANDLE_VALUE, LSecurityAttributes, 
+    // 鍒涘缓鍏变韩鍐呭瓨鏄犲皠
+    FFileMapping := CreateFileMappingW(INVALID_HANDLE_VALUE, LSecurityAttributes, 
                                       PAGE_READWRITE, 0, SizeOf(TSharedCondVarState), 
-                                      PAnsiChar(AnsiString(LMappingName)));
+                                      PWideChar(UnicodeString(LMappingName)));
     if FFileMapping = 0 then Exit;
     
-    FIsCreator := (GetLastError <> ERROR_ALREADY_EXISTS);
+    FIsCreator := (Windows.GetLastError <> ERROR_ALREADY_EXISTS);
     
-    // 映射共享内存
+    // 鏄犲皠鍏变韩鍐呭瓨
     FSharedState := MapViewOfFile(FFileMapping, FILE_MAP_ALL_ACCESS, 0, 0, 0);
     if FSharedState = nil then Exit;
     
-    // 如果是创建者，初始化共享状态
+    // 濡傛灉鏄垱寤鸿€咃紝鍒濆鍖栧叡浜姸鎬?
     if FIsCreator then
     begin
       FillChar(FSharedState^, SizeOf(TSharedCondVarState), 0);
       FSharedState^.BroadcastGeneration := 1;
     end;
     
-    // 创建信号量（用于等待）
-    FWaitSemaphore := CreateSemaphoreA(LSecurityAttributes, 0, FConfig.MaxWaiters, 
-                                      PAnsiChar(AnsiString(LSemaphoreName)));
+    // 鍒涘缓淇″彿閲忥紙鐢ㄤ簬绛夊緟锛?
+    FWaitSemaphore := CreateSemaphoreW(LSecurityAttributes, 0, FConfig.MaxWaiters, 
+                                      PWideChar(UnicodeString(LSemaphoreName)));
     if FWaitSemaphore = 0 then Exit;
     
-    // 创建事件（用于信号通知）
-    FSignalEvent := CreateEventA(LSecurityAttributes, False, False, 
-                                PAnsiChar(AnsiString(LEventName)));
+    // 鍒涘缓浜嬩欢锛堢敤浜庝俊鍙烽€氱煡锛?
+    FSignalEvent := CreateEventW(LSecurityAttributes, False, False, 
+                                PWideChar(UnicodeString(LEventName)));
     if FSignalEvent = 0 then Exit;
     
-    // 创建互斥锁（保护共享状态）
-    FStateMutex := CreateMutexA(LSecurityAttributes, False, 
-                               PAnsiChar(AnsiString(LMutexName)));
+    // 鍒涘缓浜掓枼閿侊紙淇濇姢鍏变韩鐘舵€侊級
+    FStateMutex := CreateMutexW(LSecurityAttributes, False, 
+                               PWideChar(UnicodeString(LMutexName)));
     if FStateMutex = 0 then Exit;
     
     Result := True;
@@ -209,33 +209,33 @@ var
 begin
   Result := False;
 
-  // 构造各个对象的名称
+  // 鏋勯€犲悇涓璞＄殑鍚嶇О
   LMappingName := AName + '_mapping';
   LSemaphoreName := AName + '_semaphore';
   LEventName := AName + '_event';
   LMutexName := AName + '_mutex';
 
   try
-    // 打开现有的共享内存映射
-    FFileMapping := OpenFileMappingA(FILE_MAP_ALL_ACCESS, False,
-                                    PAnsiChar(AnsiString(LMappingName)));
+    // 鎵撳紑鐜版湁鐨勫叡浜唴瀛樻槧灏?
+    FFileMapping := OpenFileMappingW(FILE_MAP_ALL_ACCESS, False,
+                                    PWideChar(UnicodeString(LMappingName)));
     if FFileMapping = 0 then Exit;
 
-    // 映射共享内存
+    // 鏄犲皠鍏变韩鍐呭瓨
     FSharedState := MapViewOfFile(FFileMapping, FILE_MAP_ALL_ACCESS, 0, 0, 0);
     if FSharedState = nil then Exit;
 
-    // 打开现有的同步对象
-    FWaitSemaphore := OpenSemaphoreA(SEMAPHORE_ALL_ACCESS, False,
-                                    PAnsiChar(AnsiString(LSemaphoreName)));
+    // 鎵撳紑鐜版湁鐨勫悓姝ュ璞?
+    FWaitSemaphore := OpenSemaphoreW(SEMAPHORE_ALL_ACCESS, False,
+                                    PWideChar(UnicodeString(LSemaphoreName)));
     if FWaitSemaphore = 0 then Exit;
 
-    FSignalEvent := OpenEventA(EVENT_ALL_ACCESS, False,
-                              PAnsiChar(AnsiString(LEventName)));
+    FSignalEvent := OpenEventW(EVENT_ALL_ACCESS, False,
+                              PWideChar(UnicodeString(LEventName)));
     if FSignalEvent = 0 then Exit;
 
-    FStateMutex := OpenMutexA(MUTEX_ALL_ACCESS, False,
-                             PAnsiChar(AnsiString(LMutexName)));
+    FStateMutex := OpenMutexW(MUTEX_ALL_ACCESS, False,
+                             PWideChar(UnicodeString(LMutexName)));
     if FStateMutex = 0 then Exit;
 
     Result := True;
@@ -292,23 +292,23 @@ procedure TNamedConditionVariable.UpdateStats(AOperation: string; AWaitTimeUs: Q
 begin
   if not FConfig.EnableStats then Exit;
 
-  // 更新统计信息（在共享内存中）
+  // 鏇存柊缁熻淇℃伅锛堝湪鍏变韩鍐呭瓨涓級
   if AOperation = 'wait' then
   begin
-    InterlockedIncrement64(FSharedState^.Stats.WaitCount);
-    InterlockedAdd64(FSharedState^.Stats.TotalWaitTimeUs, AWaitTimeUs);
+    Inc(FSharedState^.Stats.WaitCount);
+    FSharedState^.Stats.TotalWaitTimeUs := FSharedState^.Stats.TotalWaitTimeUs + AWaitTimeUs;
     if AWaitTimeUs > FSharedState^.Stats.MaxWaitTimeUs then
       FSharedState^.Stats.MaxWaitTimeUs := AWaitTimeUs;
   end
   else if AOperation = 'signal' then
-    InterlockedIncrement64(FSharedState^.Stats.SignalCount)
+    Inc(FSharedState^.Stats.SignalCount)
   else if AOperation = 'broadcast' then
-    InterlockedIncrement64(FSharedState^.Stats.BroadcastCount)
+    Inc(FSharedState^.Stats.BroadcastCount)
   else if AOperation = 'timeout' then
-    InterlockedIncrement64(FSharedState^.Stats.TimeoutCount);
+    Inc(FSharedState^.Stats.TimeoutCount);
 end;
 
-// ILock 接口实现（条件变量本身的锁定）
+// ILock 鎺ュ彛瀹炵幇锛堟潯浠跺彉閲忔湰韬殑閿佸畾锛?
 procedure TNamedConditionVariable.Acquire;
 begin
   if WaitForSingleObject(FStateMutex, INFINITE) <> WAIT_OBJECT_0 then
@@ -336,14 +336,14 @@ begin
   Result := FLastError;
 end;
 
-// 核心条件变量操作
-procedure TNamedConditionVariable.Wait(const AMutex: ILock);
+// 鏍稿績鏉′欢鍙橀噺鎿嶄綔
+procedure TNamedConditionVariable.Wait(const ALock: ILock);
 begin
-  if not Wait(AMutex, INFINITE) then
+  if not Wait(ALock, INFINITE) then
     raise ELockError.Create('Infinite wait should not fail');
 end;
 
-function TNamedConditionVariable.Wait(const AMutex: ILock; ATimeoutMs: Cardinal): Boolean;
+function TNamedConditionVariable.Wait(const ALock: ILock; ATimeoutMs: Cardinal): Boolean;
 var
   LStartTime: QWord;
   LCurrentGeneration: LongInt;
@@ -351,12 +351,12 @@ var
 begin
   Result := False;
 
-  if AMutex = nil then
+  if ALock = nil then
     raise EInvalidArgument.Create('Mutex cannot be nil');
 
   LStartTime := GetTickCount64;
 
-  // 获取状态锁
+  // 鑾峰彇鐘舵€侀攣
   if WaitForSingleObject(FStateMutex, ATimeoutMs) <> WAIT_OBJECT_0 then
   begin
     UpdateStats('timeout');
@@ -364,11 +364,11 @@ begin
   end;
 
   try
-    // 增加等待者计数
+    // 澧炲姞绛夊緟鑰呰鏁?
     InterlockedIncrement(FSharedState^.WaitingCount);
     LCurrentGeneration := FSharedState^.BroadcastGeneration;
 
-    // 更新统计
+    // 鏇存柊缁熻
     if FSharedState^.WaitingCount > FSharedState^.Stats.MaxWaiters then
       FSharedState^.Stats.MaxWaiters := FSharedState^.WaitingCount;
     FSharedState^.Stats.CurrentWaiters := FSharedState^.WaitingCount;
@@ -377,11 +377,11 @@ begin
     ReleaseMutex(FStateMutex);
   end;
 
-  // 释放用户互斥锁
-  AMutex.Release;
+  // 閲婃斁鐢ㄦ埛浜掓枼閿?
+  ALock.Release;
 
   try
-    // 等待信号量或超时
+    // 绛夊緟淇″彿閲忔垨瓒呮椂
     LWaitResult := WaitForSingleObject(FWaitSemaphore, ATimeoutMs);
 
     case LWaitResult of
@@ -398,13 +398,13 @@ begin
     end;
 
   finally
-    // 重新获取用户互斥锁
-    AMutex.Acquire;
+    // 閲嶆柊鑾峰彇鐢ㄦ埛浜掓枼閿?
+    ALock.Acquire;
 
-    // 减少等待者计数
+    // 鍑忓皯绛夊緟鑰呰鏁?
     if WaitForSingleObject(FStateMutex, 1000) = WAIT_OBJECT_0 then
     begin
-      InterlockedDecrement(FSharedState^.WaitingCount);
+      atomic_decrement(PInt32(@FSharedState^.WaitingCount)^);
       FSharedState^.Stats.CurrentWaiters := FSharedState^.WaitingCount;
       ReleaseMutex(FStateMutex);
     end;
@@ -413,7 +413,7 @@ end;
 
 procedure TNamedConditionVariable.Signal;
 begin
-  // 获取状态锁
+  // 鑾峰彇鐘舵€侀攣
   if WaitForSingleObject(FStateMutex, 1000) <> WAIT_OBJECT_0 then
   begin
     FLastError := weSystemError;
@@ -421,7 +421,7 @@ begin
   end;
 
   try
-    // 如果有等待者，释放一个信号量
+    // 濡傛灉鏈夌瓑寰呰€咃紝閲婃斁涓€涓俊鍙烽噺
     if FSharedState^.WaitingCount > 0 then
     begin
       ReleaseSemaphore(FWaitSemaphore, 1, nil);
@@ -436,7 +436,7 @@ procedure TNamedConditionVariable.Broadcast;
 var
   LWaitingCount: LongInt;
 begin
-  // 获取状态锁
+  // 鑾峰彇鐘舵€侀攣
   if WaitForSingleObject(FStateMutex, 1000) <> WAIT_OBJECT_0 then
   begin
     FLastError := weSystemError;
@@ -447,10 +447,10 @@ begin
     LWaitingCount := FSharedState^.WaitingCount;
     if LWaitingCount > 0 then
     begin
-      // 释放所有等待者
+      // 閲婃斁鎵€鏈夌瓑寰呰€?
       ReleaseSemaphore(FWaitSemaphore, LWaitingCount, nil);
-      // 增加广播代数，防止虚假唤醒
-      InterlockedIncrement(FSharedState^.BroadcastGeneration);
+      // 澧炲姞骞挎挱浠ｆ暟锛岄槻姝㈣櫄鍋囧敜閱?
+      atomic_increment(PInt32(@FSharedState^.BroadcastGeneration)^);
       UpdateStats('broadcast');
     end;
   finally
@@ -458,7 +458,7 @@ begin
   end;
 end;
 
-// 查询操作
+// 鏌ヨ鎿嶄綔
 function TNamedConditionVariable.GetName: string;
 begin
   Result := FOriginalName;
@@ -472,10 +472,10 @@ end;
 procedure TNamedConditionVariable.UpdateConfig(const AConfig: TNamedConditionVariableConfig);
 begin
   FConfig := AConfig;
-  // 注意：不能更改 UseGlobalNamespace，因为对象已经创建
+  // 娉ㄦ剰锛氫笉鑳芥洿鏀?UseGlobalNamespace锛屽洜涓哄璞″凡缁忓垱寤?
 end;
 
-// 统计信息
+// 缁熻淇℃伅
 function TNamedConditionVariable.GetStats: TNamedConditionVariableStats;
 begin
   if FSharedState <> nil then
@@ -490,7 +490,7 @@ begin
     FillChar(FSharedState^.Stats, SizeOf(TNamedConditionVariableStats), 0);
 end;
 
-// 兼容性方法
+// 鍏煎鎬ф柟娉?
 function TNamedConditionVariable.GetHandle: Pointer;
 begin
   Result := Pointer(FFileMapping);
@@ -504,3 +504,4 @@ end;
 
 
 end.
+

@@ -28,6 +28,110 @@
 - 本模块独立实现高精度单调时钟，不再依赖 fafafa.core.tick。
 - 计划：稳定后逐步迁移调用点，最终废弃 fafafa.core.tick。
 
+### 迁移与适配（与 time.tick 的关系补充）
+- 迁移策略：新代码优先使用 core.time（Duration/Instant/Deadline），渐进迁移旧有直接使用 GetTickCount64 的路径。
+- 与 time.tick 共存：迁移期允许 coexist；记录式 TTick 的 ttTSC 目前在稳定版中回退为可用实现，以避免跨模块类型冲突。
+- 测试注意：匿名函数需启用 `{$modeswitch anonymousfunctions}`，传入匿名过程时直接 `procedure ... end`，无需 `@`。
+- Windows 说明：HighPrecision 通常基于 QPC；System 为 GetTickCount64（ms 粒度）。测试断言遵循“下限 + 宽容差”原则，避免不同平台调度器下的误报。
+
+
+### Stopwatch 与记录式 TTick（推荐用法）
+
+- 基本测量
+```
+uses fafafa.core.time.stopwatch;
+var sw: TStopwatch; d: TDuration;
+begin
+  sw := TStopwatch.StartNew;
+  // ... workload ...
+  sw.Stop;
+  d := sw.ElapsedDuration;
+  Writeln('耗时(ms)=', d.AsMs:0:3);
+end.
+```
+
+- 注入指定时钟（WithClock）
+```
+uses fafafa.core.time.tick, fafafa.core.time.stopwatch;
+var clk: TTick; sw: TStopwatch;
+begin
+  clk := TTick.From(ttHighPrecision); // 或 BestTick
+  sw := TStopwatch.StartNewWithClock(clk);
+  // ... workload ...
+  sw.Stop;
+  Writeln('ns=', sw.ElapsedDuration.AsNs);
+end.
+```
+
+- 直接测量过程
+```
+var d: TDuration;
+begin
+  d := TStopwatch.Measure(procedure begin
+    // ... workload ...
+  end);
+end.
+```
+
+## 记录式 TTick（core.time.tick）
+
+- 统一计时入口：TTick；跨平台高精度实现，避免接口分发成本
+- 高层 API 摘要：
+  - BestTick、TTick.From(ttHighPrecision/ttSystem/...)
+  - Now/Elapsed/TicksToDuration/DurationToTicks
+  - FrequencyHz/IsMonotonic/MinStep
+  - QuickMeasure/QuickMeasureClock
+
+快速开始：
+```
+uses fafafa.core.time.tick;
+var c: TTick; t0, dt: QWord; d: TDuration;
+begin
+  c := BestTick;
+  t0 := c.Now;
+  // ... workload ...
+  dt := c.Elapsed(t0);
+  d := c.TicksToDuration(dt);
+end.
+```
+
+选择计时源：
+```
+var c: TTick;
+begin
+  c := TTick.From(ttHighPrecision);
+  // 或 TickFrom(ttSystem)
+end.
+```
+
+便捷测量：
+```
+var d: TDuration;
+begin
+  d := QuickMeasure(procedure begin
+    // ... workload ...
+  end);
+end.
+```
+
+平台说明：
+- Windows：HighPrecision 使用 QPC；不可用时回退到 GetTickCount64
+- Unix：HighPrecision 使用 CLOCK_MONOTONIC；失败时回退到毫秒计数并换算
+- TSC：当前统一判定为不可用（回退）
+
+最佳实践：
+- 性能测量/超时：优先 HighPrecision/Best；输出用 TDuration.As*
+- 测试断言用“下限 + 容差”（如 Sleep(1) 期望 >=0.5ms）
+- 将固定时长转 tick：DurationToTicks(TDuration.FromMs(1))
+
+迁移指引（从 ITick 到 TTick）：
+- CreateDefaultTick → BestTick
+- CreateTickProvider/GetAvailableProviders → TTick.From/GetAvailableTickTypes
+- GetCurrentTick/GetElapsedTicks/GetResolution → Now/Elapsed/FrequencyHz
+- TicksTo*Seconds/MeasureElapsed → TicksToDuration(...).AsNs/AsUs/AsMs
+
+
+
 ## 示例
 ```pascal
 var c: IMonotonicClock; t0, t1: TInstant; d: TDuration;
@@ -208,6 +312,33 @@ Writeln(FormatDurationHuman(TDuration.FromNs(1500000000))); // "1.500s"
 ```pascal
 // 默认节能
 ### 策略 × 平台 × 行为（速览表）
+
+
+## 定时器/调度器（Timer/Scheduler）行为与策略（补充）
+
+- 固定频率（FixedRate）：按期望节奏对齐周期；落后时允许“追赶”（可配置最大追赶步数）
+- 固定延迟（FixedDelay）：每次回调结束后再延迟一段时间开始下一次
+- 建议：
+  - 周期性采样、渲染动画：FixedRate（对齐节奏）
+  - 任务队列、轮询：FixedDelay（避免积压）
+- 线程安全：回调在调度器线程上执行，请注意共享数据同步
+- 取消：ITimer/ITicker.Stop；Scheduler.Shutdown 有序停止
+- 典型用例
+```
+var sch: ITimerScheduler; t: ITimer;
+begin
+  sch := CreateTimerScheduler;
+  t := sch.ScheduleAtFixedRate(TDuration.FromMs(10), TDuration.FromMs(16), procedure begin
+    // 渲染帧/刷新
+  end);
+  // ...
+  t.Cancel;
+end.
+```
+- 基准建议：
+  - 报告：平均回调间隔、抖动（p50/p90/p99）、丢帧（FixedRate 追赶步数统计）
+  - 场景：1ms/5ms/16ms 周期，空回调与轻载回调对比
+  - 平台：Windows（QPC）/Linux（CLOCK_MONOTONIC）
 
 推荐默认参数（可按 workload 调整）：
 - Windows

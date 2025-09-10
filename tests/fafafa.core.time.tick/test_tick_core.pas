@@ -1,6 +1,7 @@
 unit test_tick_core;
 
 {$MODE OBJFPC}{$H+}
+{$modeswitch anonymousfunctions}
 {$CODEPAGE UTF8}
 
 interface
@@ -16,10 +17,10 @@ type
   TTest_Tick_API = class(TTestCase)
   published
     procedure Test_GetTickTypeName_All;
-    procedure Test_DefaultTick_Basic;
-    procedure Test_HighPrecisionTick_Basic;
-    procedure Test_SystemTick_Basic;
+    procedure Test_BestTick_Basic;
+    procedure Test_TickFrom_Basic;
     procedure Test_QuickMeasure_Basic;
+    procedure Test_SystemTick_Basic; // updated to record style
   end;
 
 implementation
@@ -36,40 +37,39 @@ begin
   end;
 end;
 
-procedure TTest_Tick_API.Test_DefaultTick_Basic;
+procedure TTest_Tick_API.Test_BestTick_Basic;
 var
-  tick: ITick;
+  c: TTick;
 begin
-  tick := DefaultTick;
-  AssertTrue('DefaultTick should return non-nil', tick <> nil);
-  AssertTrue('Resolution must be > 0', tick.GetResolution > 0);
-  AssertTrue('Current tick must be > 0', tick.GetCurrentTick > 0);
+  c := BestTick;
+  AssertTrue('Now > 0', c.Now > 0);
+  AssertTrue('Frequency > 0', c.FrequencyHz > 0);
+  AssertTrue('MinStep > 0', c.MinStep.AsNs > 0);
 end;
 
-procedure TTest_Tick_API.Test_HighPrecisionTick_Basic;
+procedure TTest_Tick_API.Test_TickFrom_Basic;
 var
-  tick: ITick;
+  c: TTick;
 begin
-  tick := HighPrecisionTick;
-  AssertTrue('HighPrecisionTick should return non-nil', tick <> nil);
-  AssertTrue('Resolution must be > 0', tick.GetResolution > 0);
+  c := TickFrom(ttHighPrecision);
+  AssertTrue('Now > 0', c.Now > 0);
+  AssertTrue('Frequency > 0', c.FrequencyHz > 0);
 end;
 
 procedure TTest_Tick_API.Test_SystemTick_Basic;
 var
-  tick: ITick;
+  c: TTick;
 begin
-  tick := SystemTick;
-  AssertTrue('SystemTick should return non-nil', tick <> nil);
-  AssertTrue('Resolution must be > 0', tick.GetResolution > 0);
+  c := TTick.From(ttSystem);
+  AssertTrue('Now > 0', c.Now > 0);
+  AssertTrue('MinStep must be > 0', c.MinStep.AsNs > 0);
 end;
 
 procedure TTest_Tick_API.Test_QuickMeasure_Basic;
 var
   d: TDuration;
 begin
-  d := QuickMeasure(
-    procedure
+  d := QuickMeasure(procedure
     begin
       // 空过程，测量框架运行开销
     end
@@ -82,4 +82,3 @@ initialization
   RegisterTest(TTest_Tick_API);
 
 end.
-

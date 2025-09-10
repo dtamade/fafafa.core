@@ -1,5 +1,6 @@
 unit fafafa.core.sync.mutex.windows;
 
+{$mode objfpc}{$H+}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -8,8 +9,12 @@ uses
   fafafa.core.sync.base,
   fafafa.core.sync.mutex.base;
 
-// Windows API 类型声明
+// 基础 Windows 类型（避免直接 uses Windows 单元导致符号冲突）
 type
+  DWORD  = Cardinal;
+  THandle = PtrUInt;
+
+// Windows API 类型声明
   TRTLCriticalSection = record
     DebugInfo: Pointer;
     LockCount: LongInt;
@@ -33,6 +38,7 @@ procedure DeleteCriticalSection(var lpCriticalSection: TRTLCriticalSection); std
 procedure EnterCriticalSection(var lpCriticalSection: TRTLCriticalSection); stdcall; external 'kernel32.dll';
 procedure LeaveCriticalSection(var lpCriticalSection: TRTLCriticalSection); stdcall; external 'kernel32.dll';
 function TryEnterCriticalSection(var lpCriticalSection: TRTLCriticalSection): LongBool; stdcall; external 'kernel32.dll';
+function GetCurrentThreadId: DWORD; stdcall; external 'kernel32.dll';
 
 {$IFDEF FAFAFA_CORE_USE_SRWLOCK}
 // SRWLOCK API 声明
@@ -47,6 +53,7 @@ type
   TMutex = class(TTryLock, IMutex)
   private
     FCriticalSection: TRTLCriticalSection;
+    FOwnerThreadId: DWORD; // 非重入检测：记录持有者线程
   public
     constructor Create;
     destructor Destroy; override;
@@ -66,6 +73,7 @@ type
   TSRWMutex = class(TTryLock, IMutex)
   private
     FLock: SRWLOCK;
+    FOwnerThreadId: DWORD; // 非重入检测
   public
     constructor Create;
     destructor Destroy; override;
@@ -103,6 +111,7 @@ end;
 constructor TMutex.Create;
 begin
   inherited Create;
+  FOwnerThreadId := 0;
   InitializeCriticalSection(FCriticalSection);
 end;
 
@@ -113,21 +122,38 @@ begin
 end;
 
 procedure TMutex.Acquire;
+var
+  Cur: DWORD;
 begin
-  // 直接获取锁，不检查重入
-  // 如果同一线程重复获取，CRITICAL_SECTION 会允许重入
-  // 但通过不跟踪所有者来保持简单的 Mutex 语义
+  // 非重入：同一线程重复获取直接抛异常
+  Cur := GetCurrentThreadId;
+  if FOwnerThreadId = Cur then
+    raise EDeadlockError.Create('Re-entrant acquire on non-reentrant mutex');
+
   EnterCriticalSection(FCriticalSection);
+  // 进入后登记所有者
+  FOwnerThreadId := Cur;
 end;
 
 procedure TMutex.Release;
 begin
+  // 清理所有者再释放，避免新线程进入时短暂误判
+  FOwnerThreadId := 0;
   LeaveCriticalSection(FCriticalSection);
 end;
 
 function TMutex.TryAcquire: Boolean;
+var
+  Cur: DWORD;
 begin
+  // 非重入快速检查
+  Cur := GetCurrentThreadId;
+  if FOwnerThreadId = Cur then
+    raise EDeadlockError.Create('Re-entrant try-acquire on non-reentrant mutex');
+
   Result := TryEnterCriticalSection(FCriticalSection);
+  if Result then
+    FOwnerThreadId := Cur;
 end;
 
 function TMutex.TryAcquire(ATimeoutMs: Cardinal): Boolean;
@@ -147,6 +173,7 @@ end;
 constructor TSRWMutex.Create;
 begin
   inherited Create;
+  FOwnerThreadId := 0;
   InitializeSRWLock(FLock);
 end;
 
@@ -156,18 +183,34 @@ begin
 end;
 
 procedure TSRWMutex.Acquire;
+var
+  Cur: DWORD;
 begin
+  Cur := GetCurrentThreadId;
+  if FOwnerThreadId = Cur then
+    raise EDeadlockError.Create('Re-entrant acquire on non-reentrant mutex');
+
   AcquireSRWLockExclusive(FLock);
+  FOwnerThreadId := Cur;
 end;
 
 procedure TSRWMutex.Release;
 begin
+  FOwnerThreadId := 0;
   ReleaseSRWLockExclusive(FLock);
 end;
 
 function TSRWMutex.TryAcquire: Boolean;
+var
+  Cur: DWORD;
 begin
+  Cur := GetCurrentThreadId;
+  if FOwnerThreadId = Cur then
+    raise EDeadlockError.Create('Re-entrant try-acquire on non-reentrant mutex');
+
   Result := TryAcquireSRWLockExclusive(FLock);
+  if Result then
+    FOwnerThreadId := Cur;
 end;
 
 function TSRWMutex.TryAcquire(ATimeoutMs: Cardinal): Boolean;

@@ -12,16 +12,18 @@ uses
 procedure TestBasicCreation;
 var
   LBarrier: INamedBarrier;
+  LInfo: TNamedBarrierInfo;
 begin
   WriteLn('Testing basic creation...');
   try
-    LBarrier := CreateNamedBarrier('test_barrier_1');
+    LBarrier := MakeNamedBarrier('test_barrier_1');
     if Assigned(LBarrier) then
     begin
       WriteLn('  ✓ Basic creation successful');
-      WriteLn('  - Name: ', LBarrier.GetName);
-      WriteLn('  - Participant count: ', LBarrier.GetParticipantCount);
-      WriteLn('  - Waiting count: ', LBarrier.GetWaitingCount);
+      LInfo := LBarrier.GetInfo;
+      WriteLn('  - Name: ', LInfo.Name);
+      WriteLn('  - Participant count: ', LInfo.ParticipantCount);
+      WriteLn('  - Waiting count: ', LInfo.CurrentWaitingCount);
     end
     else
       WriteLn('  ✗ Basic creation failed');
@@ -36,16 +38,18 @@ procedure TestConfiguredCreation;
 var
   LBarrier: INamedBarrier;
   LConfig: TNamedBarrierConfig;
+  LInfo: TNamedBarrierInfo;
 begin
   WriteLn('Testing configured creation...');
   try
     LConfig := NamedBarrierConfigWithParticipants(3);
-    LBarrier := CreateNamedBarrier('test_barrier_2', LConfig);
+    LBarrier := MakeNamedBarrier('test_barrier_2', LConfig);
     if Assigned(LBarrier) then
     begin
       WriteLn('  ✓ Configured creation successful');
-      WriteLn('  - Name: ', LBarrier.GetName);
-      WriteLn('  - Participant count: ', LBarrier.GetParticipantCount);
+      LInfo := LBarrier.GetInfo;
+      WriteLn('  - Name: ', LInfo.Name);
+      WriteLn('  - Participant count: ', LInfo.ParticipantCount);
     end
     else
       WriteLn('  ✗ Configured creation failed');
@@ -59,19 +63,23 @@ end;
 procedure TestSignalAndReset;
 var
   LBarrier: INamedBarrier;
+  LInfo: TNamedBarrierInfo;
 begin
   WriteLn('Testing signal and reset...');
   try
-    LBarrier := CreateNamedBarrier('test_barrier_3', 2);
+    LBarrier := MakeNamedBarrier('test_barrier_3', 2);
     if Assigned(LBarrier) then
     begin
-      WriteLn('  - Initial state: ', BoolToStr(LBarrier.IsSignaled, True));
+      LInfo := LBarrier.GetInfo;
+      WriteLn('  - Initial state: ', BoolToStr(LInfo.IsSignaled, True));
       
       LBarrier.Signal;
-      WriteLn('  - After signal: ', BoolToStr(LBarrier.IsSignaled, True));
+      LInfo := LBarrier.GetInfo;
+      WriteLn('  - After signal: ', BoolToStr(LInfo.IsSignaled, True));
       
       LBarrier.Reset;
-      WriteLn('  - After reset: ', BoolToStr(LBarrier.IsSignaled, True));
+      LInfo := LBarrier.GetInfo;
+      WriteLn('  - After reset: ', BoolToStr(LInfo.IsSignaled, True));
       
       WriteLn('  ✓ Signal and reset working correctly');
     end
@@ -91,7 +99,7 @@ var
 begin
   WriteLn('Testing non-blocking wait...');
   try
-    LBarrier := CreateNamedBarrier('test_barrier_4', 2);
+    LBarrier := MakeNamedBarrier('test_barrier_4', 2);
     if Assigned(LBarrier) then
     begin
       // Test unsignaled state
@@ -107,8 +115,9 @@ begin
       if Assigned(LGuard) then
       begin
         WriteLn('  ✓ Signaled state correctly returns guard');
-        WriteLn('  - Guard name: ', LGuard.GetName);
-        WriteLn('  - Guard participant count: ', LGuard.GetParticipantCount);
+        WriteLn('  - Is last participant: ', BoolToStr(LGuard.IsLastParticipant, True));
+        WriteLn('  - Generation: ', LGuard.GetGeneration);
+        WriteLn('  - WaitTime(ms): ', LGuard.GetWaitTime);
       end
       else
         WriteLn('  ✗ Signaled state incorrectly returns nil');
@@ -130,12 +139,12 @@ var
 begin
   WriteLn('Testing timeout functionality...');
   try
-    LBarrier := CreateNamedBarrier('test_barrier_5', 3);
+    LBarrier := MakeNamedBarrier('test_barrier_5', 3);
     if Assigned(LBarrier) then
     begin
       WriteLn('  Testing 100ms timeout...');
       LStartTime := GetTickCount64;
-      LGuard := LBarrier.TryWaitFor(100);
+      LGuard := LBarrier.WaitFor(100);
       LEndTime := GetTickCount64;
       
       if not Assigned(LGuard) then
@@ -161,7 +170,7 @@ begin
   
   // Test invalid name
   try
-    CreateNamedBarrier('');
+    MakeNamedBarrier('');
     WriteLn('  ✗ Should have thrown invalid name exception');
   except
     on E: EInvalidArgument do
@@ -172,7 +181,7 @@ begin
   
   // Test invalid participant count
   try
-    CreateNamedBarrier('test_invalid', 1);
+    MakeNamedBarrier('test_invalid', 1);
     WriteLn('  ✗ Should have thrown invalid participant count exception');
   except
     on E: EInvalidArgument do
@@ -188,29 +197,33 @@ procedure TestMultipleInstances;
 var
   LBarrier1, LBarrier2: INamedBarrier;
   LBarrierName: string;
+  LInfo1, LInfo2: TNamedBarrierInfo;
 begin
   WriteLn('Testing multiple instances...');
   try
     LBarrierName := 'shared_barrier_test';
     
     // Create first instance
-    LBarrier1 := CreateNamedBarrier(LBarrierName, 2);
-    WriteLn('  Created first instance: ', LBarrier1.GetName);
+    LBarrier1 := MakeNamedBarrier(LBarrierName, 2);
+    LInfo1 := LBarrier1.GetInfo;
+    WriteLn('  Created first instance: ', LInfo1.Name);
     
     // Create second instance (should connect to same barrier)
-    LBarrier2 := CreateNamedBarrier(LBarrierName, 2);
-    WriteLn('  Created second instance: ', LBarrier2.GetName);
+    LBarrier2 := MakeNamedBarrier(LBarrierName, 2);
+    LInfo2 := LBarrier2.GetInfo;
+    WriteLn('  Created second instance: ', LInfo2.Name);
     
     // Verify they reference the same barrier
     WriteLn('  Same participant count: ', 
-      BoolToStr(LBarrier1.GetParticipantCount = LBarrier2.GetParticipantCount, True));
+      BoolToStr(LInfo1.ParticipantCount = LInfo2.ParticipantCount, True));
     
     // Signal from first instance
     WriteLn('  Signaling from first instance...');
     LBarrier1.Signal;
     
     // Check state from second instance
-    WriteLn('  Second instance sees signaled state: ', BoolToStr(LBarrier2.IsSignaled, True));
+    LInfo2 := LBarrier2.GetInfo;
+    WriteLn('  Second instance sees signaled state: ', BoolToStr(LInfo2.IsSignaled, True));
     
     WriteLn('  ✓ Multiple instances working correctly');
   except

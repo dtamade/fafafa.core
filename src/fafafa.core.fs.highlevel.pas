@@ -308,6 +308,9 @@ function GetFileModificationTime(const aPath: string): TDateTime;
 
 implementation
 
+uses
+  fafafa.core.fs.copyaccel;
+
 function FsDefaultCopyOptions: TFsCopyOptions;
 begin
   Result.Overwrite := True;
@@ -1618,9 +1621,17 @@ var
   UR: Integer;
   Flags: Integer;
   Stat: TfsStat;
+  AccelUsed: Boolean;
+  AccelRes: Integer;
 begin
   // Overwrite=false → 使用 EXCL 标志；Overwtite=true → 覆盖
-  Flags := 0;
+  // 优先尝试内核加速复制（若可用）
+  AccelUsed := False;
+  AccelRes := FsCopyAccelTryCopyFile(aSrc, aDst, aOpts.Overwrite, AccelUsed);
+  // 常规路径准备（加速失败或未使用时）
+  if not (AccelUsed and (AccelRes = 0)) then
+  begin
+    Flags := 0;
   if not aOpts.Overwrite then
     Flags := Flags or UV_FS_COPYFILE_EXCL
   else
@@ -1630,6 +1641,7 @@ begin
       CheckFsResultEx(UR, 'pre-unlink before copy overwrite', aDst, '');
   end;
   CheckFsResultEx(fs_copyfile(aSrc, aDst, Flags), 'copyfile', aSrc, aDst);
+  end;
   // PreserveTimes/Perms：共用一次 stat 结果，避免重复触盘
   if aOpts.PreserveTimes or aOpts.PreservePerms then
   begin
@@ -1663,6 +1675,12 @@ begin
   CopyOpts.Overwrite := aOpts.Overwrite;
   CopyOpts.PreserveTimes := aOpts.PreserveTimes;
   CopyOpts.PreservePerms := aOpts.PreservePerms;
+  // 在复制回退前，尝试系统替换（可跨卷）以提升性能
+  if aOpts.Overwrite then
+  begin
+    R := fs_replace(aSrc, aDst);
+    if R = 0 then Exit;
+  end;
   FsCopyFileEx(aSrc, aDst, CopyOpts);
   // 使用原子替换确保幂等（若覆盖）已在 FsCopyFileEx 中处理；此处删除源
   CheckFsResultEx(fs_unlink(aSrc), 'unlink source after move', aSrc, '');

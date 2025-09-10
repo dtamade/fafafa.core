@@ -25,7 +25,7 @@ type
     procedure Release;
   end;
 
-  TNamedSemaphore = class(TInterfacedObject, INamedSemaphore)
+  TNamedSemaphore = class(TSynchronizable, INamedSemaphore)
   private
     FHandle: THandle;
     FName: string;
@@ -128,7 +128,7 @@ begin
       FReleased := True
     else
       raise ELockError.CreateFmt('Failed to release semaphore guard "%s": %s',
-        [FName, SysErrorMessage(GetLastError)]);
+        [FName, SysErrorMessage(Windows.GetLastError)]);
   end;
 end;
 
@@ -188,14 +188,14 @@ begin
   FTotalWaitTime := 0.0;
   
   // 创建或打开命名信号量
-  FHandle := CreateSemaphoreA(nil, AInitialCount, AMaxCount, PAnsiChar(AnsiString(LName)));
+  FHandle := CreateSemaphoreW(nil, AInitialCount, AMaxCount, PWideChar(UnicodeString(LName)));
   
   if FHandle = 0 then
     raise ELockError.CreateFmt('Failed to create named semaphore "%s": %s', 
-      [LName, SysErrorMessage(GetLastError)]);
+      [LName, SysErrorMessage(Windows.GetLastError)]);
       
   // 检查是否为创建者
-  LLastError := GetLastError;
+  LLastError := Windows.GetLastError;
   FIsCreator := (LLastError <> ERROR_ALREADY_EXISTS);
 end;
 
@@ -232,7 +232,7 @@ begin
       Exit;
 
     // 尝试打开现有信号量（不创建新的）
-    LHandle := OpenSemaphoreA(SEMAPHORE_ALL_ACCESS, False, PAnsiChar(AnsiString(LName)));
+    LHandle := OpenSemaphoreW(SEMAPHORE_ALL_ACCESS, False, PWideChar(UnicodeString(LName)));
 
     if LHandle = 0 then
       Exit; // 信号量不存在或无法打开
@@ -294,7 +294,7 @@ begin
       Result := TNamedSemaphoreGuard.Create(FHandle, FName);
     WAIT_FAILED:
       raise ELockError.CreateFmt('Failed to wait for named semaphore "%s": %s',
-        [FName, SysErrorMessage(GetLastError)]);
+        [FName, SysErrorMessage(Windows.GetLastError)]);
   else
     raise ELockError.CreateFmt('Unexpected result from WaitForSingleObject: %d', [LResult]);
   end;
@@ -321,7 +321,7 @@ begin
       Result := nil;
     WAIT_FAILED:
       raise ELockError.CreateFmt('Failed to try wait for named semaphore "%s": %s',
-        [FName, SysErrorMessage(GetLastError)]);
+        [FName, SysErrorMessage(Windows.GetLastError)]);
   else
     raise ELockError.CreateFmt('Unexpected result from WaitForSingleObject: %d', [LResult]);
   end;
@@ -343,7 +343,7 @@ begin
 
   if not ReleaseSemaphore(FHandle, ACount, nil) then
     raise ELockError.CreateFmt('Failed to release named semaphore "%s": %s',
-      [FName, SysErrorMessage(GetLastError)]);
+      [FName, SysErrorMessage(Windows.GetLastError)]);
 
   // 性能监控：记录释放次数
   if FEnablePerformanceMonitoring then
@@ -360,6 +360,7 @@ var
   LResult: DWORD;
   LCount: Integer;
   LPreviousCount: LONG;
+  I: Integer;
 begin
   // 检查句柄有效性
   if FHandle = 0 then
@@ -385,7 +386,7 @@ begin
     if not ReleaseSemaphore(FHandle, LCount, @LPreviousCount) then
     begin
       // 如果恢复失败，尝试逐个恢复
-      for var I := 1 to LCount do
+      for I := 1 to LCount do
         ReleaseSemaphore(FHandle, 1, nil);
     end;
   end;
@@ -409,7 +410,7 @@ begin
       ; // 成功获取
     WAIT_FAILED:
       raise ELockError.CreateFmt('Failed to acquire named semaphore "%s": %s',
-        [FName, SysErrorMessage(GetLastError)]);
+        [FName, SysErrorMessage(Windows.GetLastError)]);
   else
     raise ELockError.CreateFmt('Unexpected result from WaitForSingleObject: %d', [LResult]);
   end;
@@ -427,7 +428,7 @@ begin
       Result := False;
     WAIT_FAILED:
       raise ELockError.CreateFmt('Failed to try acquire named semaphore "%s": %s',
-        [FName, SysErrorMessage(GetLastError)]);
+        [FName, SysErrorMessage(Windows.GetLastError)]);
   else
     raise ELockError.CreateFmt('Unexpected result from WaitForSingleObject: %d', [LResult]);
   end;
@@ -445,7 +446,7 @@ begin
       Result := False;
     WAIT_FAILED:
       raise ELockError.CreateFmt('Failed to try acquire named semaphore "%s" with timeout: %s',
-        [FName, SysErrorMessage(GetLastError)]);
+        [FName, SysErrorMessage(Windows.GetLastError)]);
   else
     raise ELockError.CreateFmt('Unexpected result from WaitForSingleObject: %d', [LResult]);
   end;
@@ -517,7 +518,7 @@ begin
         Result := TNamedSemaphoreGuardResult.Success(TNamedSemaphoreGuard.Create(FHandle, FName));
       WAIT_FAILED:
         Result := TNamedSemaphoreGuardResult.Failure(
-          TNamedSemaphoreError.SystemError('Failed to wait for named semaphore', GetLastError));
+          TNamedSemaphoreError.SystemError('Failed to wait for named semaphore', Windows.GetLastError));
     else
       Result := TNamedSemaphoreGuardResult.Failure(
         TNamedSemaphoreError.Unknown(Format('Unexpected result from WaitForSingleObject: %d', [LResult])));
@@ -553,7 +554,7 @@ begin
           TNamedSemaphoreError.Timeout(Format('Timeout waiting for semaphore after %d ms', [ATimeoutMs])));
       WAIT_FAILED:
         Result := TNamedSemaphoreGuardResult.Failure(
-          TNamedSemaphoreError.SystemError('Failed to try wait for named semaphore', GetLastError));
+          TNamedSemaphoreError.SystemError('Failed to try wait for named semaphore', Windows.GetLastError));
     else
       Result := TNamedSemaphoreGuardResult.Failure(
         TNamedSemaphoreError.Unknown(Format('Unexpected result from WaitForSingleObject: %d', [LResult])));

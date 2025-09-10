@@ -6,8 +6,6 @@ unit fafafa.core.sync.namedEvent.unix;
 interface
 
 uses
-  SysUtils, BaseUnix, Unix, UnixType, pthreads,
-  {$IFDEF HAS_CLOCK_GETTIME}cthreads,{$ENDIF}
   fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.namedEvent.base;
 
 const
@@ -51,7 +49,7 @@ type
     function IsSignaled: Boolean;
   end;
 
-  TNamedEvent = class(TInterfacedObject, INamedEvent)
+  TNamedEvent = class(TSynchronizable, INamedEvent)
   private
     FEventState: PEventState;   // 指向共享内存中的事件状态
     FShmFile: cint;             // 共享内存文件描述符

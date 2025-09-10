@@ -37,4 +37,3 @@ if %ERRORLEVEL% EQU 0 (
 
 echo.
 echo Test completed.
-pause

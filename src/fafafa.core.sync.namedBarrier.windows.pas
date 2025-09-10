@@ -7,7 +7,8 @@ interface
 
 uses
   Windows, SysUtils,
-  fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.namedBarrier.base;
+  fafafa.core.base, fafafa.core.sync.base, fafafa.core.atomic,
+  fafafa.core.sync.namedBarrier.base;
 
 type
   // 真正的 RAII 守卫实现 - 专注于生命周期管理
@@ -31,7 +32,7 @@ type
     function GetWaitTime: Cardinal;
   end;
 
-  TNamedBarrier = class(TInterfacedObject, INamedBarrier)
+  TNamedBarrier = class(TSynchronizable, INamedBarrier)
   private
     FEvent: THandle;                // Windows Event 句柄
     FMutex: THandle;                // 保护共享状态的互斥锁
@@ -146,6 +147,22 @@ begin
   if Length(Result) > 260 then
     raise EInvalidArgument.Create('Named barrier name too long (max 260 characters)');
 
+  // 允许 Global\ / Local\ 前缀；其余情况不允许反斜杠
+  if Pos('Global\', Result) = 1 then
+  begin
+    for i := 8 to Length(Result) do
+      if Result[i] in ['\', '/', ':', '*', '?', '"', '<', '>', '|'] then
+        raise EInvalidArgument.Create('Named barrier name contains invalid characters');
+    Exit;
+  end
+  else if Pos('Local\', Result) = 1 then
+  begin
+    for i := 7 to Length(Result) do
+      if Result[i] in ['\', '/', ':', '*', '?', '"', '<', '>', '|'] then
+        raise EInvalidArgument.Create('Named barrier name contains invalid characters');
+    Exit;
+  end;
+
   // 检查 Windows 对象名称的非法字符
   for i := 1 to Length(Result) do
   begin
@@ -164,11 +181,11 @@ begin
   LSize := SizeOf(TBarrierState);
   
   // 创建或打开共享内存
-  FSharedMemory := CreateFileMappingA(INVALID_HANDLE_VALUE, nil, PAGE_READWRITE, 0, LSize, PAnsiChar(AnsiString(LMemoryName)));
+  FSharedMemory := CreateFileMappingW(INVALID_HANDLE_VALUE, nil, PAGE_READWRITE, 0, LSize, PWideChar(UnicodeString(LMemoryName)));
   if FSharedMemory = 0 then
     Exit;
     
-  FIsCreator := (GetLastError <> ERROR_ALREADY_EXISTS);
+  FIsCreator := (Windows.GetLastError <> ERROR_ALREADY_EXISTS);
   
   // 映射共享内存
   FSharedData := MapViewOfFile(FSharedMemory, FILE_MAP_ALL_ACCESS, 0, 0, LSize);
@@ -207,19 +224,19 @@ end;
 
 procedure TNamedBarrier.IncrementCounter;
 begin
-  InterlockedIncrement(GetSharedCounter^);
+  atomic_increment(PUInt32(GetSharedCounter)^);
 end;
 
 function TNamedBarrier.DecrementCounter: Cardinal;
 begin
-  Result := InterlockedDecrement(GetSharedCounter^);
+  Result := atomic_decrement(PUInt32(GetSharedCounter)^);
 end;
 
 procedure TNamedBarrier.ResetCounter;
 begin
-  InterlockedExchange(GetSharedCounter^, 0);
-  with PBarrierState(FSharedData)^ do
-    InterlockedIncrement(Generation);
+  atomic_exchange(PUInt32(GetSharedCounter)^, 0);
+  // increase generation atomically
+  atomic_increment(PUInt32(@PBarrierState(FSharedData)^.Generation)^);
 end;
 
 constructor TNamedBarrier.Create(const AName: string; const AConfig: TNamedBarrierConfig);
@@ -249,20 +266,20 @@ begin
   // 创建共享内存
   if not CreateSharedMemory(LName) then
     raise ELockError.CreateFmt('Failed to create shared memory for named barrier "%s": %s', 
-      [AName, SysErrorMessage(GetLastError)]);
+      [AName, SysErrorMessage(Windows.GetLastError)]);
   
   try
     // 创建事件对象（手动重置）
-    FEvent := CreateEventA(nil, True, False, PAnsiChar(AnsiString(LEventName)));
+    FEvent := CreateEventW(nil, True, False, PWideChar(UnicodeString(LEventName)));
     if FEvent = 0 then
       raise ELockError.CreateFmt('Failed to create event for named barrier "%s": %s', 
-        [AName, SysErrorMessage(GetLastError)]);
+        [AName, SysErrorMessage(Windows.GetLastError)]);
     
     // 创建互斥锁保护共享状态
-    FMutex := CreateMutexA(nil, False, PAnsiChar(AnsiString(LMutexName)));
+    FMutex := CreateMutexW(nil, False, PWideChar(UnicodeString(LMutexName)));
     if FMutex = 0 then
       raise ELockError.CreateFmt('Failed to create mutex for named barrier "%s": %s', 
-        [AName, SysErrorMessage(GetLastError)]);
+        [AName, SysErrorMessage(Windows.GetLastError)]);
         
   except
     if FSharedData <> nil then
@@ -324,7 +341,7 @@ begin
     if LWaitResult = WAIT_TIMEOUT then
       FLastError := weTimeout
     else
-      FLastError := weError;
+      FLastError := weSystemError;
     Exit;
   end;
   
@@ -365,7 +382,7 @@ begin
       if LWaitResult = WAIT_TIMEOUT then
         FLastError := weTimeout
       else
-        FLastError := weError;
+        FLastError := weSystemError;
       Exit;
     end;
   end;

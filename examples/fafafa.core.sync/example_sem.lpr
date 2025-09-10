@@ -8,7 +8,7 @@ uses
   cthreads,
   {$ENDIF}
   Classes, SysUtils,
-  fafafa.core.sync;
+  fafafa.core.sync.sem;
 
 procedure DemoSemaphoreBasic;
 var
@@ -16,7 +16,7 @@ var
   ok: Boolean;
 begin
   WriteLn('=== 信号量基础演示 ===');
-  S := TSemaphore.Create(1, 3); // 初始1，可达3
+  S := MakeSem(1, 3); // 初始1，可达3
 
   // 获取一次（应成功，剩余0）
   S.Acquire;

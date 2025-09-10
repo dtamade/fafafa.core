@@ -11,17 +11,20 @@ procedure BasicBarrierExample;
 var
   LBarrier: INamedBarrier;
   LGuard: INamedBarrierGuard;
+  Info: TNamedBarrierInfo;
 begin
   WriteLn('=== 基本屏障使用示例 ===');
   
   // 创建一个命名屏障，2个参与者
-  LBarrier := CreateNamedBarrier('example_barrier', 2);
-  WriteLn('创建屏障: ', LBarrier.GetName);
-  WriteLn('参与者数量: ', LBarrier.GetParticipantCount);
+  LBarrier := MakeNamedBarrier('example_barrier', 2);
+  Info := LBarrier.GetInfo;
+  WriteLn('创建屏障: ', Info.Name);
+  WriteLn('参与者数量: ', Info.ParticipantCount);
   
   // 显示初始状态
-  WriteLn('初始等待者数量: ', LBarrier.GetWaitingCount);
-  WriteLn('初始是否触发: ', BoolToStr(LBarrier.IsSignaled, True));
+  Info := LBarrier.GetInfo;
+  WriteLn('初始等待者数量: ', Info.CurrentWaitingCount);
+  WriteLn('初始是否触发: ', BoolToStr(Info.IsSignaled, True));
   
   // 手动触发屏障（模拟所有参与者到达）
   WriteLn('手动触发屏障...');
@@ -32,10 +35,9 @@ begin
   if Assigned(LGuard) then
   begin
     WriteLn('成功通过屏障！');
-    WriteLn('  - 屏障名称: ', LGuard.GetName);
-    WriteLn('  - 参与者数量: ', LGuard.GetParticipantCount);
-    WriteLn('  - 等待者数量: ', LGuard.GetWaitingCount);
     WriteLn('  - 是否最后参与者: ', BoolToStr(LGuard.IsLastParticipant, True));
+    WriteLn('  - 屏障代数: ', LGuard.GetGeneration);
+    WriteLn('  - 等待耗时(ms): ', LGuard.GetWaitTime);
   end
   else
     WriteLn('未能通过屏障');
@@ -43,7 +45,8 @@ begin
   // 重置屏障
   WriteLn('重置屏障...');
   LBarrier.Reset;
-  WriteLn('重置后是否触发: ', BoolToStr(LBarrier.IsSignaled, True));
+  Info := LBarrier.GetInfo;
+  WriteLn('重置后是否触发: ', BoolToStr(Info.IsSignaled, True));
   
   WriteLn('基本示例完成');
   WriteLn;
@@ -58,13 +61,13 @@ begin
   WriteLn('=== 超时等待示例 ===');
   
   // 创建屏障
-  LBarrier := CreateNamedBarrier('timeout_barrier', 3);
+  LBarrier := MakeNamedBarrier('timeout_barrier', 3);
   WriteLn('创建屏障，需要3个参与者');
   
   // 测试超时等待
   WriteLn('测试1秒超时等待...');
   LStartTime := GetTickCount64;
-  LGuard := LBarrier.TryWaitFor(1000);
+  LGuard := LBarrier.WaitFor(1000);
   LEndTime := GetTickCount64;
   
   if Assigned(LGuard) then
@@ -95,6 +98,7 @@ procedure ConfigurationExample;
 var
   LConfig: TNamedBarrierConfig;
   LBarrier: INamedBarrier;
+  Info: TNamedBarrierInfo;
 begin
   WriteLn('=== 配置示例 ===');
   
@@ -112,15 +116,17 @@ begin
   LConfig.TimeoutMs := 10000;  // 10秒超时
   LConfig.AutoReset := False;  // 手动重置
   
-  LBarrier := CreateNamedBarrier('config_barrier', LConfig);
-  WriteLn('  - 屏障名称: ', LBarrier.GetName);
-  WriteLn('  - 参与者数量: ', LBarrier.GetParticipantCount);
+  LBarrier := MakeNamedBarrier('config_barrier', LConfig);
+  Info := LBarrier.GetInfo;
+  WriteLn('  - 屏障名称: ', Info.Name);
+  WriteLn('  - 参与者数量: ', Info.ParticipantCount);
   
   // 全局屏障示例
   WriteLn('全局屏障:');
-  LBarrier := CreateGlobalNamedBarrier('global_barrier', 4);
-  WriteLn('  - 屏障名称: ', LBarrier.GetName);
-  WriteLn('  - 参与者数量: ', LBarrier.GetParticipantCount);
+  LBarrier := MakeGlobalNamedBarrier('global_barrier', 4);
+  Info := LBarrier.GetInfo;
+  WriteLn('  - 屏障名称: ', Info.Name);
+  WriteLn('  - 参与者数量: ', Info.ParticipantCount);
   
   WriteLn('配置示例完成');
   WriteLn;
@@ -130,36 +136,41 @@ procedure MultipleInstanceExample;
 var
   LBarrier1, LBarrier2: INamedBarrier;
   LBarrierName: string;
+  Info, Info2: TNamedBarrierInfo;
 begin
   WriteLn('=== 多实例示例 ===');
   
   LBarrierName := 'shared_barrier';
   
   // 创建第一个实例
-  LBarrier1 := CreateNamedBarrier(LBarrierName, 2);
-  WriteLn('创建第一个实例: ', LBarrier1.GetName);
+  LBarrier1 := MakeNamedBarrier(LBarrierName, 2);
+  Info := LBarrier1.GetInfo;
+  WriteLn('创建第一个实例: ', Info.Name);
   
   // 创建第二个实例（应该连接到同一个屏障）
-  LBarrier2 := CreateNamedBarrier(LBarrierName, 2);
-  WriteLn('创建第二个实例: ', LBarrier2.GetName);
+  LBarrier2 := MakeNamedBarrier(LBarrierName, 2);
+  Info2 := LBarrier2.GetInfo;
+  WriteLn('创建第二个实例: ', Info2.Name);
   
   // 验证它们引用同一个屏障
   WriteLn('两个实例参与者数量相同: ', 
-    BoolToStr(LBarrier1.GetParticipantCount = LBarrier2.GetParticipantCount, True));
+    BoolToStr(Info.ParticipantCount = Info2.ParticipantCount, True));
   
   // 从一个实例触发屏障
   WriteLn('从第一个实例触发屏障...');
   LBarrier1.Signal;
   
   // 从另一个实例检查状态
-  WriteLn('第二个实例看到的状态: ', BoolToStr(LBarrier2.IsSignaled, True));
+  Info2 := LBarrier2.GetInfo;
+  WriteLn('第二个实例看到的状态: ', BoolToStr(Info2.IsSignaled, True));
   
   // 从第二个实例重置
   WriteLn('从第二个实例重置屏障...');
   LBarrier2.Reset;
   
   // 从第一个实例检查状态
-  WriteLn('第一个实例看到的状态: ', BoolToStr(LBarrier1.IsSignaled, True));
+  Info := LBarrier1.GetInfo;
+  WriteLn('第一个实例看到的状态: ', BoolToStr(Info.IsSignaled, True));
   
   WriteLn('多实例示例完成');
   WriteLn;
@@ -173,7 +184,7 @@ begin
   
   // 测试无效名称
   try
-    LBarrier := CreateNamedBarrier('');
+  LBarrier := MakeNamedBarrier('');
     WriteLn('错误：应该抛出异常');
   except
     on E: EInvalidArgument do
@@ -184,7 +195,7 @@ begin
   
   // 测试无效参与者数量
   try
-    LBarrier := CreateNamedBarrier('test_barrier', 1);
+  LBarrier := MakeNamedBarrier('test_barrier', 1);
     WriteLn('错误：应该抛出异常');
   except
     on E: EInvalidArgument do
@@ -196,7 +207,7 @@ begin
   // 测试尝试打开不存在的屏障
   LBarrier := TryOpenNamedBarrier('nonexistent_barrier');
   if Assigned(LBarrier) then
-    WriteLn('成功打开屏障: ', LBarrier.GetName)
+    WriteLn('成功打开屏障: ', LBarrier.GetInfo.Name)
   else
     WriteLn('屏障不存在或无法打开');
   

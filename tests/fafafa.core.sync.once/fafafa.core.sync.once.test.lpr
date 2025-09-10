@@ -2,13 +2,14 @@ program fafafa_core_sync_once_test;
 
 {$CODEPAGE UTF8}
 {$mode objfpc}{$H+}
+{$I ../../src/fafafa.core.settings.inc}
 
 uses
   {$IFDEF UNIX}
   cthreads,
   {$ENDIF}
   Classes, SysUtils, fpcunit, testregistry, consoletestrunner,
-  Test_once;
+  fafafa.core.sync.once.testcase;
 
 var
   Application: TTestRunner;

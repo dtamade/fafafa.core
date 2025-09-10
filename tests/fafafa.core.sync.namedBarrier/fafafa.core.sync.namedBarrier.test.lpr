@@ -13,6 +13,7 @@ uses
 procedure TestBasicCreation;
 var
   LBarrier: INamedBarrier;
+  LInfo: TNamedBarrierInfo;
 begin
   WriteLn('测试基本创建功能...');
   try
@@ -20,9 +21,10 @@ begin
     if Assigned(LBarrier) then
     begin
       WriteLn('  ✓ 基本创建成功');
-      WriteLn('  - 名称: ', LBarrier.GetName);
-      WriteLn('  - 参与者数量: ', LBarrier.GetParticipantCount);
-      WriteLn('  - 等待者数量: ', LBarrier.GetWaitingCount);
+      LInfo := LBarrier.GetInfo;
+      WriteLn('  - 名称: ', LInfo.Name);
+      WriteLn('  - 参与者数量: ', LInfo.ParticipantCount);
+      WriteLn('  - 等待者数量: ', LInfo.CurrentWaitingCount);
     end
     else
       WriteLn('  ✗ 基本创建失败');
@@ -36,6 +38,7 @@ end;
 procedure TestConfiguredCreation;
 var
   LBarrier: INamedBarrier;
+  LInfo: TNamedBarrierInfo;
   LConfig: TNamedBarrierConfig;
 begin
   WriteLn('测试配置创建功能...');
@@ -45,8 +48,9 @@ begin
     if Assigned(LBarrier) then
     begin
       WriteLn('  ✓ 配置创建成功');
-      WriteLn('  - 名称: ', LBarrier.GetName);
-      WriteLn('  - 参与者数量: ', LBarrier.GetParticipantCount);
+      LInfo := LBarrier.GetInfo;
+      WriteLn('  - 名称: ', LInfo.Name);
+      WriteLn('  - 参与者数量: ', LInfo.ParticipantCount);
     end
     else
       WriteLn('  ✗ 配置创建失败');
@@ -60,19 +64,23 @@ end;
 procedure TestSignalAndReset;
 var
   LBarrier: INamedBarrier;
+  LInfo: TNamedBarrierInfo;
 begin
   WriteLn('测试信号和重置功能...');
   try
     LBarrier := MakeNamedBarrier('test_barrier_3', 2);
     if Assigned(LBarrier) then
     begin
-      WriteLn('  - 初始状态: ', BoolToStr(LBarrier.IsSignaled, True));
+      LInfo := LBarrier.GetInfo;
+      WriteLn('  - 初始状态: ', BoolToStr(LInfo.IsSignaled, True));
 
       LBarrier.Signal;
-      WriteLn('  - 触发后状态: ', BoolToStr(LBarrier.IsSignaled, True));
+      LInfo := LBarrier.GetInfo;
+      WriteLn('  - 触发后状态: ', BoolToStr(LInfo.IsSignaled, True));
 
       LBarrier.Reset;
-      WriteLn('  - 重置后状态: ', BoolToStr(LBarrier.IsSignaled, True));
+      LInfo := LBarrier.GetInfo;
+      WriteLn('  - 重置后状态: ', BoolToStr(LInfo.IsSignaled, True));
 
       WriteLn('  ✓ 信号和重置功能正常');
     end
@@ -108,8 +116,9 @@ begin
       if Assigned(LGuard) then
       begin
         WriteLn('  ✓ 触发后正确返回守卫');
-        WriteLn('  - 守卫名称: ', LGuard.GetName);
-        WriteLn('  - 守卫参与者数量: ', LGuard.GetParticipantCount);
+        WriteLn('  - 守卫是否为最后参与者: ', BoolToStr(LGuard.IsLastParticipant, True));
+        WriteLn('  - 守卫代数: ', LGuard.GetGeneration);
+        WriteLn('  - 守卫等待耗时(ms): ', LGuard.GetWaitTime);
       end
       else
         WriteLn('  ✗ 触发后错误返回 nil');

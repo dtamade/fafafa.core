@@ -9,15 +9,22 @@ uses
   SysUtils, BaseUnix, Unix, UnixType, pthreads,
   fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.sem.base;
 
+{$IFDEF HAS_CLOCK_GETTIME}
+// POSIX 时钟函数声明
+function clock_gettime(clk_id: cint; tp: PTimeSpec): cint; cdecl; external 'rt';
+
+const
+  CLOCK_MONOTONIC = 1;  // 单调时钟
+{$ENDIF}
+
 type
-  TSemaphore = class(TInterfacedObject, ISem)
+  TSemaphore = class(TTryLock, ISem)
   private
     FMutex: pthread_mutex_t;
     FCond: pthread_cond_t;
     FCount: Integer;
     FMaxCount: Integer;
     FName: string;
-    FLastError: TWaitError;
   public
     constructor Create(AInitialCount: Integer = 1; AMaxCount: Integer = 1);
     destructor Destroy; override;
@@ -29,10 +36,32 @@ type
     function TryAcquire(ATimeoutMs: Cardinal): Boolean; overload;
     function TryAcquire(ACount: Integer): Boolean; overload;
     function TryAcquire(ACount: Integer; ATimeoutMs: Cardinal): Boolean; overload;
+    function TryRelease: Boolean; overload;
+    function TryRelease(ACount: Integer): Boolean; overload;
     function GetAvailableCount: Integer;
     function GetMaxCount: Integer;
     // ISynchronizable
     function GetName: string;
+    // ILock
+    function LockGuard: ILockGuard;
+    // ISem RAII helpers
+    function AcquireGuard: ISemGuard; overload;
+    function AcquireGuard(ACount: Integer): ISemGuard; overload;
+    function TryAcquireGuard: ISemGuard; overload;
+    function TryAcquireGuard(ATimeoutMs: Cardinal): ISemGuard; overload;
+    function TryAcquireGuard(ACount: Integer): ISemGuard; overload;
+    function TryAcquireGuard(ACount: Integer; ATimeoutMs: Cardinal): ISemGuard; overload;
+  end;
+
+  TSemGuard = class(TInterfacedObject, ISemGuard)
+  private
+    FSem: ISem;
+    FCount: Integer;
+  public
+    constructor Create(const ASem: ISem; ACount: Integer);
+    destructor Destroy; override;
+    function GetCount: Integer;
+    procedure Release;  // ILockGuard.Release
   end;
 
 implementation
@@ -44,10 +73,7 @@ begin
   if FName = '' then Result := 'Semaphore' else Result := FName;
 end;
 
-function TSemaphore.GetLastError: TWaitError;
-begin
-  Result := FLastError;
-end;
+
 
 constructor TSemaphore.Create(AInitialCount: Integer; AMaxCount: Integer);
 begin
@@ -57,18 +83,15 @@ begin
     raise EInvalidArgument.Create('Invalid initial count');
   if pthread_mutex_init(@FMutex, nil) <> 0 then
   begin
-    FLastError := weSystemError;
     raise ELockError.Create('sem: mutex init failed');
   end;
   if pthread_cond_init(@FCond, nil) <> 0 then
   begin
     pthread_mutex_destroy(@FMutex);
-    FLastError := weSystemError;
     raise ELockError.Create('sem: cond init failed');
   end;
   FMaxCount := AMaxCount;
   FCount := AInitialCount;
-  FLastError := weNone;
 end;
 
 destructor TSemaphore.Destroy;
@@ -90,14 +113,13 @@ begin
   if ACount > FMaxCount then raise EInvalidArgument.Create('sem: ACount > MaxCount');
   if pthread_mutex_lock(@FMutex) <> 0 then
   begin
-    FLastError := weSystemError;
     raise ELockError.Create('sem: lock failed');
   end;
   try
     while FCount < ACount do
       pthread_cond_wait(@FCond, @FMutex);
     Dec(FCount, ACount);
-    FLastError := weNone;
+
   finally
     pthread_mutex_unlock(@FMutex);
   end;
@@ -116,7 +138,6 @@ begin
   if ACount = 0 then Exit;
   if pthread_mutex_lock(@FMutex) <> 0 then
   begin
-    FLastError := weSystemError;
     raise ELockError.Create('sem: lock failed');
   end;
   try
@@ -129,11 +150,47 @@ begin
       end
       else
       begin
-        FLastError := weSystemError;
         raise ELockError.Create('sem: count exceeds max');
       end;
     end;
-    FLastError := weNone;
+
+  finally
+    pthread_mutex_unlock(@FMutex);
+  end;
+end;
+
+function TSemaphore.TryRelease: Boolean;
+begin
+  Result := TryRelease(1);
+end;
+
+function TSemaphore.TryRelease(ACount: Integer): Boolean;
+begin
+  if ACount < 0 then raise EInvalidArgument.Create('sem: ACount < 0');
+  if ACount = 0 then Exit(True);
+
+  if pthread_mutex_lock(@FMutex) <> 0 then
+  begin
+    Exit(False);
+  end;
+
+  try
+    // 检查是否会超出最大值
+    if FCount + ACount > FMaxCount then
+    begin
+      Exit(False);
+    end;
+
+    // 执行释放
+    Inc(FCount, ACount);
+
+    // 通知等待的线程
+    if pthread_cond_broadcast(@FCond) <> 0 then
+    begin
+      Exit(False);
+    end;
+
+    Result := True;
   finally
     pthread_mutex_unlock(@FMutex);
   end;
@@ -155,7 +212,6 @@ begin
   if ACount = 0 then Exit(True);
   if ACount > FMaxCount then
   begin
-    FLastError := weResourceExhausted;
     Exit(False);
   end;
   Result := TryAcquire(ACount, 0);
@@ -163,7 +219,11 @@ end;
 
 function TSemaphore.TryAcquire(ACount: Integer; ATimeoutMs: Cardinal): Boolean;
 var
+  {$IFDEF HAS_CLOCK_GETTIME}
+  nowTs: timespec;
+  {$ELSE}
   tv: TTimeVal;
+  {$ENDIF}
   ts: timespec;
   rc: Integer;
 begin
@@ -171,12 +231,10 @@ begin
   if ACount = 0 then Exit(True);
   if ACount > FMaxCount then
   begin
-    FLastError := weResourceExhausted;
     Exit(False);
   end;
   if pthread_mutex_lock(@FMutex) <> 0 then
   begin
-    FLastError := weSystemError;
     raise ELockError.Create('sem: lock failed');
   end;
   try
@@ -185,21 +243,37 @@ begin
       if FCount >= ACount then
       begin
         Dec(FCount, ACount);
-        FLastError := weNone;
+
         Exit(True);
       end
       else
       begin
         // zero-timeout immediate failure: resource currently unavailable (no wait)
-        FLastError := weResourceExhausted;
+
         Exit(False);
       end;
     end
     else
     begin
+      // 使用单调时钟计算超时，避免系统时间调整的影响
+      {$IFDEF HAS_CLOCK_GETTIME}
+      if clock_gettime(CLOCK_MONOTONIC, @nowTs) <> 0 then
+      begin
+
+        Exit(False);
+      end;
+      ts.tv_sec := nowTs.tv_sec + (ATimeoutMs div 1000);
+      ts.tv_nsec := nowTs.tv_nsec + Int64(ATimeoutMs mod 1000) * 1000000;
+      if ts.tv_nsec >= 1000000000 then
+      begin
+        Inc(ts.tv_sec);
+        Dec(ts.tv_nsec, 1000000000);
+      end;
+      {$ELSE}
+      // 回退到 gettimeofday（在不支持 CLOCK_MONOTONIC 的系统上）
       if fpgettimeofday(@tv, nil) <> 0 then
       begin
-        FLastError := weSystemError;
+
         Exit(False);
       end;
       ts.tv_sec := tv.tv_sec + (ATimeoutMs div 1000);
@@ -209,13 +283,15 @@ begin
         Inc(ts.tv_sec, ts.tv_nsec div 1000000000);
         ts.tv_nsec := ts.tv_nsec mod 1000000000;
       end;
+      {$ENDIF}
+
       while FCount < ACount do
       begin
         rc := pthread_cond_timedwait(@FCond, @FMutex, @ts);
         if rc = ESysETIMEDOUT then
         begin
           // waited until deadline: real timeout
-          FLastError := weTimeout;
+
           Exit(False);
         end
         else if rc = ESysEINTR then
@@ -225,12 +301,12 @@ begin
         end
         else if rc <> 0 then
         begin
-          FLastError := weSystemError;
+
           Exit(False);
         end;
       end;
       Dec(FCount, ACount);
-      FLastError := weNone;
+
       Exit(True);
     end;
   finally
@@ -258,6 +334,87 @@ begin
   finally
     pthread_mutex_unlock(@FMutex);
   end;
+end;
+
+
+
+function TSemaphore.LockGuard: ILockGuard;
+begin
+  Result := AcquireGuard;
+end;
+
+{ TSemGuard }
+
+constructor TSemGuard.Create(const ASem: ISem; ACount: Integer);
+begin
+  inherited Create;
+  FSem := ASem;
+  FCount := ACount;
+end;
+
+destructor TSemGuard.Destroy;
+begin
+  if Assigned(FSem) and (FCount > 0) then
+    FSem.Release(FCount);
+  inherited Destroy;
+end;
+
+function TSemGuard.GetCount: Integer;
+begin
+  Result := FCount;
+end;
+
+procedure TSemGuard.Release;
+begin
+  if Assigned(FSem) and (FCount > 0) then
+  begin
+    FSem.Release(FCount);
+    FCount := 0;  // 防止重复释放
+  end;
+end;
+
+function TSemaphore.AcquireGuard: ISemGuard;
+begin
+  Acquire(1);
+  Result := TSemGuard.Create(Self, 1);
+end;
+
+function TSemaphore.AcquireGuard(ACount: Integer): ISemGuard;
+begin
+  Acquire(ACount);
+  Result := TSemGuard.Create(Self, ACount);
+end;
+
+function TSemaphore.TryAcquireGuard: ISemGuard;
+begin
+  if TryAcquire(1) then
+    Result := TSemGuard.Create(Self, 1)
+  else
+    Result := nil;
+end;
+
+function TSemaphore.TryAcquireGuard(ATimeoutMs: Cardinal): ISemGuard;
+begin
+  if TryAcquire(1, ATimeoutMs) then
+    Result := TSemGuard.Create(Self, 1)
+  else
+    Result := nil;
+end;
+
+function TSemaphore.TryAcquireGuard(ACount: Integer): ISemGuard;
+begin
+  if TryAcquire(ACount) then
+    Result := TSemGuard.Create(Self, ACount)
+  else
+    Result := nil;
+end;
+
+function TSemaphore.TryAcquireGuard(ACount: Integer; ATimeoutMs: Cardinal): ISemGuard;
+begin
+  if TryAcquire(ACount, ATimeoutMs) then
+    Result := TSemGuard.Create(Self, ACount)
+  else
+    Result := nil;
 end;
 
 end.

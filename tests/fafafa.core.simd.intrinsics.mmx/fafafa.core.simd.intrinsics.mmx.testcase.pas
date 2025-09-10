@@ -7,7 +7,7 @@ interface
 
 uses
   Classes, SysUtils, fpcunit, testutils, testregistry,
-  fafafa.core.simd.intrinsics.mmx in '../../src/fafafa.core.simd.intrinsics.mmx.pas';
+  fafafa.core.simd.intrinsics.mmx;
 
 type
   // 全局函数测试（MMX 模块中没有全局函数，所以这个类为空）
@@ -219,7 +219,7 @@ begin
 
   // 测试负数
   result := mmx_set1_pi8(-10);
-  AssertTM64ByteArray([Byte(-10), Byte(-10), Byte(-10), Byte(-10), Byte(-10), Byte(-10), Byte(-10), Byte(-10)], result, 'set1_pi8(-10)');
+  AssertTM64ByteArray([246, 246, 246, 246, 246, 246, 246, 246], result, 'set1_pi8(-10)');
 end;
 
 procedure TTestCase_TM64.Test_mmx_set1_pi16;
@@ -344,7 +344,7 @@ begin
   a := mmx_set1_pi8(-100);
   b := mmx_set1_pi8(-50);
   result := mmx_paddsb(a, b);
-  AssertTM64ByteArray([Byte(-128), Byte(-128), Byte(-128), Byte(-128), Byte(-128), Byte(-128), Byte(-128), Byte(-128)], result, 'paddsb negative saturation');
+  AssertTM64ByteArray([128, 128, 128, 128, 128, 128, 128, 128], result, 'paddsb negative saturation');
 end;
 
 procedure TTestCase_TM64.Test_mmx_paddsw;
@@ -568,7 +568,7 @@ begin
   a.mm_u64 := UInt64(17361641481138401520);  // $F0F0F0F0F0F0F0F0
   b.mm_u64 := UInt64(12297829382473034410); // $AAAAAAAAAAAAAAAA
   result := mmx_por(a, b);
-  AssertEquals('por', UInt64(18077129492005502970), result.mm_u64); // $FAFAFAFAFAFAFAFAFA
+  AssertEquals('por', UInt64(18085043209519168250), result.mm_u64); // $FAFAFAFAFAFAFAFA
 end;
 
 procedure TTestCase_TM64.Test_mmx_pxor;
@@ -935,7 +935,7 @@ begin
   a := mmx_set_pi16(300, -300, 127, -128);
   b := mmx_set_pi16(1000, -1000, 50, -50);
   result := mmx_packsswb(a, b);
-  AssertTM64ByteArray([Byte(-128), 127, Byte(-128), 127, Byte(-50), 50, Byte(-128), 127], result, 'packsswb saturation');
+  AssertTM64ByteArray([128, 127, 128, 127, 206, 50, 128, 127], result, 'packsswb saturation');
 end;
 
 procedure TTestCase_TM64.Test_mmx_packssdw;
@@ -1048,8 +1048,6 @@ begin
 end;
 
 initialization
-  RegisterTest(TTestCase_Global);
-  // 只注册基本测试
-  RegisterTest('TTestCase_TM64', TTestCase_TM64.Suite);
+  RegisterTest(TTestCase_TM64);
 
 end.

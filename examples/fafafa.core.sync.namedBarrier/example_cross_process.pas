@@ -35,6 +35,7 @@ var
   LBarrier: INamedBarrier;
   LGuard: INamedBarrierGuard;
   LStartTime: TDateTime;
+  Info: TNamedBarrierInfo;
 begin
   WriteLn('参与者 ', AParticipantId, ' 启动');
   WriteLn('屏障名称: ', BARRIER_NAME);
@@ -43,12 +44,13 @@ begin
   
   try
     // 创建或连接到命名屏障
-    LBarrier := CreateNamedBarrier(BARRIER_NAME, PARTICIPANT_COUNT);
+    LBarrier := MakeNamedBarrier(BARRIER_NAME, PARTICIPANT_COUNT);
     WriteLn('成功连接到屏障');
     
     // 显示当前状态
-    WriteLn('当前等待者数量: ', LBarrier.GetWaitingCount);
-    WriteLn('屏障是否已触发: ', BoolToStr(LBarrier.IsSignaled, True));
+    Info := LBarrier.GetInfo;
+    WriteLn('当前等待者数量: ', Info.CurrentWaitingCount);
+    WriteLn('屏障是否已触发: ', BoolToStr(Info.IsSignaled, True));
     WriteLn;
     
     // 模拟一些工作
@@ -68,8 +70,9 @@ begin
       WriteLn('*** 所有参与者已到达屏障！***');
       WriteLn('等待时间: ', FormatDateTime('ss.zzz', Now - LStartTime), ' 秒');
       WriteLn('参与者 ', AParticipantId, ' 的屏障信息:');
-      WriteLn('  - 等待者数量: ', LGuard.GetWaitingCount);
       WriteLn('  - 是否最后参与者: ', BoolToStr(LGuard.IsLastParticipant, True));
+      WriteLn('  - 屏障代数: ', LGuard.GetGeneration);
+      WriteLn('  - 等待耗时(ms): ', LGuard.GetWaitTime);
       WriteLn;
       
       // 屏障后的工作
@@ -108,7 +111,7 @@ begin
   
   try
     // 创建屏障
-    LBarrier := CreateNamedBarrier(BARRIER_NAME, PARTICIPANT_COUNT);
+    LBarrier := MakeNamedBarrier(BARRIER_NAME, PARTICIPANT_COUNT);
     WriteLn('屏障已创建，等待参与者...');
     WriteLn('按 Ctrl+C 退出监控');
     WriteLn;
@@ -118,7 +121,7 @@ begin
     // 监控循环
     while True do
     begin
-      LCurrentWaitingCount := LBarrier.GetWaitingCount;
+      LCurrentWaitingCount := LBarrier.GetInfo.CurrentWaitingCount;
       
       if LCurrentWaitingCount <> LLastWaitingCount then
       begin

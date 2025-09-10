@@ -44,12 +44,11 @@ function GlobalNamedBarrierConfig: TNamedBarrierConfig;
 implementation
 
 uses
-  SysUtils
   {$IFDEF UNIX}
-  , fafafa.core.sync.namedBarrier.unix
+  fafafa.core.sync.namedBarrier.unix
   {$ENDIF}
   {$IFDEF WINDOWS}
-  , fafafa.core.sync.namedBarrier.windows
+  fafafa.core.sync.namedBarrier.windows
   {$ENDIF};
 
 type

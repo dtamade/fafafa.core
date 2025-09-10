@@ -1,9 +1,28 @@
 { fafafa.core.settings.inc 框架配置文件 }
 
-{$MACRO ON}  // 开始启用简单值风格宏 like {$DEFINE NAME := value}
+{$IF DEFINED(MSWINDOWS) OR DEFINED(WINDOWS)}
+  {$DEFINE WINDOWS}
+
+{$ENDIF}
+
+{$IF DEFINED(ANDROID)}
+  {$DEFINE UNIX}
+  {$DEFINE LINUX}
+{$ENDIF}
+
+{$IF DEFINED(DARWIN)}
+  {$DEFINE MACOS}
+{$ENDIF}
+
+
+{$MACRO ON}      // 开始启用简单值风格宏 like {$DEFINE NAME := value}
+{$ASMMODE INTEL} // 开始启用 Intel 汇编语法
 
 { Enable inline 开启内联 }
 {$DEFINE FAFAFA_CORE_INLINE}
+
+{ Enable Result-based APIs for env module and others 默认启用 Result 风格 API }
+{$DEFINE FAFAFA_ENV_ENABLE_RESULT}
 
 { 开启匿名函数/匿名引用 仅限 fpc 3.3.1 及以上 }
 {$IFDEF FPC}

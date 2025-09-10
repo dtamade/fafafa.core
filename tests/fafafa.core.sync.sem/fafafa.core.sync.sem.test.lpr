@@ -6,7 +6,7 @@ program fafafa.core.sync.sem.test;
 uses
   {$IFDEF UNIX}cthreads,{$ENDIF}
   consoletestrunner, fpcunit, testregistry,
-  fafafa.core.sync.sem.testcase;
+  fafafa.core.sync.sem.testcase.assert;
 
 {$IFDEF UNIX}
 {$linklib pthread}
@@ -24,4 +24,5 @@ begin
     App.Free;
   end;
 end.
+
 

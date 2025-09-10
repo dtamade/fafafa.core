@@ -10,7 +10,19 @@ uses
   fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.namedMutex.base;
 
 type
-  TNamedMutex = class(TInterfacedObject, INamedMutex)
+  // RAII 守卫：在析构时自动释放互斥锁
+  TNamedMutexGuard = class(TInterfacedObject, INamedMutexGuard)
+  private
+    FHandle: THandle;
+    FName: string;
+    FReleased: Boolean;
+  public
+    constructor Create(AHandle: THandle; const AName: string);
+    destructor Destroy; override;
+    function GetName: string;
+  end;
+
+  TNamedMutex = class(TSynchronizable, INamedMutex)
   private
     FHandle: THandle;
     FName: string;
@@ -27,21 +39,51 @@ type
     // ISynchronizable 接口
     function GetLastError: TWaitError;
 
-    // IMutex 接口
+    // ILock 接口
     procedure Acquire;
     procedure Release;
+    function LockGuard: ILockGuard;
     function TryAcquire: Boolean;
     function GetHandle: Pointer;
     
-    // INamedMutex 接口
+    // INamedMutex 接口（现代化）
+    function Lock: INamedMutexGuard;
+    function TryLock: INamedMutexGuard;
+    function TryLockFor(ATimeoutMs: Cardinal): INamedMutexGuard;
     function GetName: string;
     function IsCreator: Boolean;
     function IsAbandoned: Boolean;
+    // 兼容性方法
     function TryAcquire(ATimeoutMs: Cardinal): Boolean; overload;
     procedure Acquire(ATimeoutMs: Cardinal); overload;
   end;
 
 implementation
+
+{ TNamedMutexGuard }
+
+constructor TNamedMutexGuard.Create(AHandle: THandle; const AName: string);
+begin
+  inherited Create;
+  FHandle := AHandle;
+  FName := AName;
+  FReleased := False;
+end;
+
+destructor TNamedMutexGuard.Destroy;
+begin
+  if (FHandle <> 0) and (not FReleased) then
+  begin
+    ReleaseMutex(FHandle);
+    FReleased := True;
+  end;
+  inherited Destroy;
+end;
+
+function TNamedMutexGuard.GetName: string;
+begin
+  Result := FName;
+end;
 
 { TNamedMutex }
 
@@ -84,13 +126,13 @@ begin
   FLastError := weNone;
   
   // 创建或打开命名互斥锁
-  FHandle := CreateMutexA(nil, AInitialOwner, PAnsiChar(AnsiString(LName)));
+  FHandle := CreateMutexW(nil, AInitialOwner, PWideChar(UnicodeString(LName)));
   
   if FHandle = 0 then
     raise ELockError.CreateFmt('Failed to create named mutex "%s": %s', 
-      [LName, SysErrorMessage(GetLastError)]);
+      [LName, SysErrorMessage(Windows.GetLastError)]);
   
-  LLastError := GetLastError;
+  LLastError := Windows.GetLastError;
   FIsCreator := (LLastError <> ERROR_ALREADY_EXISTS);
   
   // 检查是否为遗弃状态
@@ -128,7 +170,7 @@ begin
       FIsAbandoned := True; // 成功获取，但之前的拥有者异常退出
     WAIT_FAILED:
       raise ELockError.CreateFmt('Failed to acquire named mutex "%s": %s',
-        [FName, SysErrorMessage(GetLastError)]);
+        [FName, SysErrorMessage(Windows.GetLastError)]);
   else
     raise ELockError.CreateFmt('Unexpected result from WaitForSingleObject: %d', [LResult]);
   end;
@@ -138,12 +180,17 @@ procedure TNamedMutex.Release;
 begin
   if not ReleaseMutex(FHandle) then
     raise ELockError.CreateFmt('Failed to release named mutex "%s": %s', 
-      [FName, SysErrorMessage(GetLastError)]);
+      [FName, SysErrorMessage(Windows.GetLastError)]);
 end;
 
 function TNamedMutex.TryAcquire: Boolean;
 begin
   Result := TryAcquire(0);
+end;
+
+function TNamedMutex.LockGuard: ILockGuard;
+begin
+  Result := MakeLockGuard(Self as ILock);
 end;
 
 function TNamedMutex.TryAcquire(ATimeoutMs: Cardinal): Boolean;
@@ -166,7 +213,7 @@ begin
       Result := False;
     WAIT_FAILED:
       raise ELockError.CreateFmt('Failed to try acquire named mutex "%s": %s', 
-        [FName, SysErrorMessage(GetLastError)]);
+        [FName, SysErrorMessage(Windows.GetLastError)]);
   else
     raise ELockError.CreateFmt('Unexpected result from WaitForSingleObject: %d', [LResult]);
   end;
@@ -201,6 +248,74 @@ end;
 function TNamedMutex.IsAbandoned: Boolean;
 begin
   Result := FIsAbandoned;
+end;
+
+// 现代化 INamedMutex 方法实现
+function TNamedMutex.Lock: INamedMutexGuard;
+var
+  LResult: DWORD;
+begin
+  LResult := WaitForSingleObject(FHandle, INFINITE);
+  case LResult of
+    WAIT_OBJECT_0:
+      begin
+        FIsAbandoned := False;
+        FLastError := weNone;
+        Result := TNamedMutexGuard.Create(FHandle, FName);
+      end;
+    WAIT_ABANDONED:
+      begin
+        FIsAbandoned := True;
+        FLastError := weNone;
+        Result := TNamedMutexGuard.Create(FHandle, FName);
+      end;
+    WAIT_FAILED:
+      begin
+        FLastError := weSystemError;
+        raise ELockError.CreateFmt('Failed to lock named mutex "%s": %s',
+          [FName, SysErrorMessage(Windows.GetLastError)]);
+      end;
+  else
+    FLastError := weSystemError;
+    raise ELockError.CreateFmt('Unexpected result from WaitForSingleObject: %d', [LResult]);
+  end;
+end;
+
+function TNamedMutex.TryLock: INamedMutexGuard;
+begin
+  Result := TryLockFor(0);
+end;
+
+function TNamedMutex.TryLockFor(ATimeoutMs: Cardinal): INamedMutexGuard;
+var
+  LResult: DWORD;
+begin
+  LResult := WaitForSingleObject(FHandle, ATimeoutMs);
+  case LResult of
+    WAIT_OBJECT_0:
+      begin
+        FIsAbandoned := False;
+        FLastError := weNone;
+        Result := TNamedMutexGuard.Create(FHandle, FName);
+      end;
+    WAIT_ABANDONED:
+      begin
+        FIsAbandoned := True;
+        FLastError := weNone;
+        Result := TNamedMutexGuard.Create(FHandle, FName);
+      end;
+    WAIT_TIMEOUT:
+      Result := nil;
+    WAIT_FAILED:
+      begin
+        FLastError := weSystemError;
+        raise ELockError.CreateFmt('Failed to try-lock named mutex "%s": %s',
+          [FName, SysErrorMessage(Windows.GetLastError)]);
+      end;
+  else
+    FLastError := weSystemError;
+    raise ELockError.CreateFmt('Unexpected result from WaitForSingleObject: %d', [LResult]);
+  end;
 end;
 
 end.

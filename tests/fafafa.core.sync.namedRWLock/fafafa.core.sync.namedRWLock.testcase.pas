@@ -112,7 +112,20 @@ procedure TTestCase_Global.Test_MakeGlobalNamedRWLock;
 var
   LRWLock: INamedRWLock;
 begin
-  LRWLock := MakeGlobalNamedRWLock('test_global_rwlock');
+  try
+    LRWLock := MakeGlobalNamedRWLock('test_global_rwlock');
+  except
+    on E: ELockError do
+    begin
+      {$IFDEF WINDOWS}
+      // 缺少 SeCreateGlobalPrivilege 时，创建 Global\ 对象会被拒绝，跳过此用例。
+      Check(True, 'Skipped: requires SeCreateGlobalPrivilege (Access Denied)');
+      Exit;
+      {$ELSE}
+      raise;
+      {$ENDIF}
+    end;
+  end;
   CheckNotNull(LRWLock, '应该成功创建全局命名读写锁');
   {$IFDEF WINDOWS}
   CheckTrue(Pos('Global\', LRWLock.GetName) = 1, 'Windows 上应该包含 Global\ 前缀');

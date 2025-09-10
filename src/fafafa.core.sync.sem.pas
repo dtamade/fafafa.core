@@ -6,9 +6,7 @@ unit fafafa.core.sync.sem;
 interface
 
 uses
-  fafafa.core.sync.base, fafafa.core.sync.sem.base
-  {$IFDEF WINDOWS}, fafafa.core.sync.sem.windows{$ENDIF}
-  {$IFDEF UNIX},    fafafa.core.sync.sem.unix{$ENDIF};
+  fafafa.core.sync.base, fafafa.core.sync.sem.base;
 
 type
   ISem = fafafa.core.sync.sem.base.ISem;
@@ -23,17 +21,19 @@ function MakeSem(AInitialCount: Integer = 1; AMaxCount: Integer = 1): ISem;
 
 implementation
 
+uses
+  {$IFDEF MSWINDOWS}
+  fafafa.core.sync.sem.windows
+  {$ELSE}
+  fafafa.core.sync.sem.unix
+  {$ENDIF};
+
 function MakeSem(AInitialCount: Integer; AMaxCount: Integer): ISem;
 begin
-  {$IFDEF UNIX}
-  Result := fafafa.core.sync.sem.unix.TSemaphore.Create(AInitialCount, AMaxCount);
+  {$IFDEF MSWINDOWS}
+  Result := fafafa.core.sync.sem.windows.TSem.Create(AInitialCount, AMaxCount);
   {$ELSE}
-    {$IFDEF WINDOWS}
-    Result := fafafa.core.sync.sem.windows.TSemaphore.Create(AInitialCount, AMaxCount);
-    {$ELSE}
-      {$WARNING Platform not supported by MakeSem}
-      raise ESyncError.Create('MakeSem: unsupported platform');
-    {$ENDIF}
+  Result := fafafa.core.sync.sem.unix.TSemaphore.Create(AInitialCount, AMaxCount);
   {$ENDIF}
 end;
 

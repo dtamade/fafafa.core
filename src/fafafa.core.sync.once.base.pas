@@ -1,5 +1,33 @@
 unit fafafa.core.sync.once.base;
 
+{
+  IOnce - Cross-platform once execution interface (base unit)
+
+  Design goals:
+  - Follow the same modular pattern as other sync primitives (e.g., mutex, barrier):
+    define the interface in a dedicated *base* unit, keep factories/platform
+    implementations in their own units.
+  - Greatest common denominator API between Windows and Unix/Linux native once:
+    * Windows:   InterlockedCompareExchange + CRITICAL_SECTION with exception recovery
+    * Unix/POSIX: pthread_once_t (pthread_once) with system-level guarantees
+  - Modern language semantics: Go sync.Once, Rust std::sync::Once, C++ std::once_flag
+
+  Contract:
+  - Execute() ensures the callback is called exactly once across all threads
+  - First successful execution marks the once as "completed"
+  - Failed execution (exception) marks the once as "poisoned"
+  - Subsequent Execute() calls on completed once are no-ops
+  - Subsequent Execute() calls on poisoned once throw exception (unless using ExecuteForce)
+  - ExecuteForce() ignores poisoned state and allows re-execution
+
+  Notes:
+  - This interface does NOT inherit from ISynchronizable to avoid semantic confusion
+  - Once is not a traditional lock and should not have Lock/Unlock semantics
+  - Wait() provides Rust-style waiting for completion without execution
+  - State queries allow inspection of current execution state
+  - No Reset() functionality by design (matches Go/Rust/Java behavior)
+}
+
 {$mode objfpc}{$H+}
 {$I fafafa.core.settings.inc}
 
@@ -45,9 +73,9 @@ type
 
 
   // ===== 一次性执行接口 =====
-  // 修复接口设计：IOnce不再继承ILock，避免语义混乱
-  // Once不是传统意义的锁，不应该有Lock/Unlock语义
-  IOnce = interface
+  // 修复接口设计：IOnce继承ISynchronizable以保持架构一致性
+  // Once不是传统意义的锁，但作为同步原语应该继承基础接口
+  IOnce = interface(ISynchronizable)
     ['{A1B2C3D4-E5F6-4789-9012-123456789ABC}']
 
     // 核心方法：执行回调（Go/Rust 风格）
@@ -58,12 +86,7 @@ type
     procedure Execute(const AAnonymousProc: TOnceAnonymousProc); overload;
     {$ENDIF}
 
-    // 兼容旧接口（标记为废弃）
-    procedure Call(const AProc: TOnceProc); overload; deprecated 'Use Execute instead';
-    procedure Call(const AMethod: TOnceMethod); overload; deprecated 'Use Execute instead';
-    {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
-    procedure Call(const AAnonymousProc: TOnceAnonymousProc); overload; deprecated 'Use Execute instead';
-    {$ENDIF}
+
 
     // 强制执行（忽略毒化状态）
     procedure ExecuteForce; overload;
@@ -73,12 +96,7 @@ type
     procedure ExecuteForce(const AAnonymousProc: TOnceAnonymousProc); overload;
     {$ENDIF}
 
-    // 兼容旧接口（标记为废弃）
-    procedure CallForce(const AProc: TOnceProc); overload; deprecated 'Use ExecuteForce instead';
-    procedure CallForce(const AMethod: TOnceMethod); overload; deprecated 'Use ExecuteForce instead';
-    {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
-    procedure CallForce(const AAnonymousProc: TOnceAnonymousProc); overload; deprecated 'Use ExecuteForce instead';
-    {$ENDIF}
+
 
     // 等待机制（Rust 风格）
     procedure Wait;

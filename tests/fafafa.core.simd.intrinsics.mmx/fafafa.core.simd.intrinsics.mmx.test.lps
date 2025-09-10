@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <ProjectSession>
+    <PathDelim Value="\"/>
+    <Version Value="12"/>
+    <BuildModes Active="Default"/>
+    <Units>
+      <Unit>
+        <Filename Value="fafafa.core.simd.intrinsics.mmx.test.lpr"/>
+        <IsPartOfProject Value="True"/>
+        <UsageCount Value="125"/>
+        <Loaded Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="fafafa.core.simd.intrinsics.mmx.testcase.pas"/>
+        <IsPartOfProject Value="True"/>
+        <UsageCount Value="125"/>
+      </Unit>
+      <Unit>
+        <Filename Value="..\..\src\fafafa.core.simd.intrinsics.mmx.pas"/>
+        <EditorIndex Value="1"/>
+        <TopLine Value="1452"/>
+        <CursorPos X="104" Y="1490"/>
+        <UsageCount Value="62"/>
+        <Loaded Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="D:\devtools\lazarus\trunk\fpcsrc\compiler\fpcdefs.inc"/>
+        <EditorIndex Value="2"/>
+        <TopLine Value="182"/>
+        <CursorPos Y="214"/>
+        <UsageCount Value="44"/>
+        <Loaded Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="D:\devtools\lazarus\trunk\fpcsrc\packages\libffi\src\ffi.pp"/>
+        <EditorIndex Value="3"/>
+        <TopLine Value="146"/>
+        <CursorPos X="22" Y="178"/>
+        <UsageCount Value="44"/>
+        <Loaded Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="D:\devtools\lazarus\trunk\fpcsrc\compiler\arm\cpuinfo.pas"/>
+        <UnitName Value="CPUInfo"/>
+        <IsVisibleTab Value="True"/>
+        <EditorIndex Value="4"/>
+        <TopLine Value="1106"/>
+        <CursorPos X="92" Y="1137"/>
+        <UsageCount Value="44"/>
+        <Loaded Value="True"/>
+      </Unit>
+    </Units>
+    <JumpHistory HistoryIndex="4">
+      <Position>
+        <Filename Value="fafafa.core.simd.intrinsics.mmx.test.lpr"/>
+      </Position>
+      <Position>
+        <Filename Value="..\..\src\fafafa.core.simd.intrinsics.mmx.pas"/>
+        <Caret Line="1490" Column="104" TopLine="1452"/>
+      </Position>
+      <Position>
+        <Filename Value="D:\devtools\lazarus\trunk\fpcsrc\compiler\fpcdefs.inc"/>
+        <Caret Line="76" Column="9" TopLine="44"/>
+      </Position>
+      <Position>
+        <Filename Value="D:\devtools\lazarus\trunk\fpcsrc\compiler\fpcdefs.inc"/>
+        <Caret Line="214" TopLine="182"/>
+      </Position>
+      <Position>
+        <Filename Value="D:\devtools\lazarus\trunk\fpcsrc\packages\libffi\src\ffi.pp"/>
+        <Caret Line="178" Column="22" TopLine="146"/>
+      </Position>
+    </JumpHistory>
+    <RunParams>
+      <FormatVersion Value="2"/>
+      <Modes ActiveMode="default"/>
+    </RunParams>
+  </ProjectSession>
+</CONFIG>

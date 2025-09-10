@@ -1,7 +1,44 @@
-# fafafa.core.tick 模块文档
-> 本模块已迁移至 `fafafa.core.time.tick`，建议新代码直接使用新命名空间。以下内容保留做兼容期参考。
+# fafafa.core.tick 模块文档（已切换到记录式 TTick）
 
+本模块已统一切换为记录式 API（TTick）。历史上的 ITick/ITickProvider/ProviderType 等接口与工厂方法均已废弃并从代码中移除。请使用记录式 TTick 进行时间测量。
 
+## 快速上手（推荐）
+
+```pascal
+uses
+  fafafa.core.tick;
+
+var
+  C: TTick;
+  T0, Elapsed: QWord;
+begin
+  C := BestTick;
+  T0 := C.Now;
+  // ... workload ...
+  Elapsed := C.Elapsed(T0);
+  WriteLn('耗时(µs)=', C.TicksToDuration(Elapsed).AsUs:0:2);
+end.
+```
+
+## 常用 API
+- BestTick: TTick
+- TTick.From(ttHighPrecision/ttSystem/ttBest/ttStandard/ttTSC[回退])
+- Now/Elapsed/TicksToDuration/DurationToTicks
+- FrequencyHz/IsMonotonic/MinStep
+- QuickMeasure/QuickMeasureClock（匿名过程直接 procedure…end，无需 @）
+
+## 注意事项
+- Windows：HighPrecision 使用 QPC；System 使用 GetTickCount64。测试断言采用“下限+裕量”策略，避免调度抖动导致误报。
+- TSC：记录式 API 当前统一回退（ttTSC 标记不可用），后续再按方案评估开放。
+- 代码页：示例/测试建议开启 {$CODEPAGE UTF8}
+
+## 迁移指引（从 ITick 到 TTick）
+- CreateDefaultTick -> BestTick
+- CreateTickProvider/GetAvailableProviders -> TTick.From/GetAvailableTickTypes
+- ITick.GetCurrentTick/GetResolution/GetElapsedTicks -> TTick.Now/FrequencyHz/Elapsed
+- ITick.TicksTo*Seconds/MeasureElapsed -> TTick.TicksToDuration(...).AsNs/AsUs/AsMs
+
+以上映射可直接替换，无需改外部接口文件，仅调整 uses 与调用点。
 
 ## 概述
 

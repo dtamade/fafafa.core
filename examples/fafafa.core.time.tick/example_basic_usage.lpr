@@ -18,27 +18,31 @@ uses
   fafafa.core.time.tick,
   fafafa.core.time.duration;
 
-procedure PrintTickInfo(const name: string; const tick: ITick);
+type
+  TClockPrinter = record
+    class procedure Print(const name: string; const c: TTick); static;
+  end;
+
+class procedure TClockPrinter.Print(const name: string; const c: TTick);
 var
   start, elapsed: QWord;
   d: TDuration;
 begin
   WriteLn('--- ', name, ' ---');
-  WriteLn('Resolution (ticks/sec): ', tick.GetResolution);
-  WriteLn('IsMonotonic: ', tick.IsMonotonic);
-  WriteLn('IsHighResolution: ', tick.IsHighResolution);
-  WriteLn('Min interval: ', tick.GetMinimumInterval.AsNs, ' ns');
+  WriteLn('Frequency (ticks/sec): ', c.FrequencyHz);
+  WriteLn('IsMonotonic: ', c.IsMonotonic);
+  WriteLn('Min step: ', c.MinStep.AsNs, ' ns');
 
-  start := tick.GetCurrentTick;
+  start := c.Now;
   Sleep(50);
-  elapsed := tick.GetElapsedTicks(start);
-  d := tick.TicksToDuration(elapsed);
-  WriteLn('Slept ~50ms, measured: ', d.AsMs, ' ms (', d.AsNs, ' ns)');
+  elapsed := c.Elapsed(start);
+  d := c.TicksToDuration(elapsed);
+  WriteLn('Slept ~50ms, measured: ', d.AsMs:0:3, ' ms (', d.AsNs, ' ns)');
   WriteLn;
 end;
 
 var
-  t: ITick;
+  c: TTick;
   tt: TTickType;
   types: TTickTypeArray;
   i: Integer;
@@ -57,17 +61,17 @@ begin
   end;
   WriteLn;
 
-  // Default tick
-  t := DefaultTick;
-  PrintTickInfo('DefaultTick', t);
+  // Best clock
+  c := BestTick;
+  TClockPrinter.Print('BestTick', c);
 
-  // High precision tick
-  t := HighPrecisionTick;
-  PrintTickInfo('HighPrecisionTick', t);
+  // High precision clock
+  c := TTick.From(ttHighPrecision);
+  TClockPrinter.Print('HighPrecision', c);
 
-  // System tick
-  t := SystemTick;
-  PrintTickInfo('SystemTick', t);
+  // System clock
+  c := TTick.From(ttSystem);
+  TClockPrinter.Print('System', c);
 
   WriteLn('Done.');
 end.

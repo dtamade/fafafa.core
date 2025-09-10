@@ -1,176 +1,171 @@
 unit fafafa.core.time.tick.windows;
 
-{$MODE OBJFPC}{$H+}
-{$modeswitch advancedrecords}
+{
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                                                                              │
+│          ______   ______     ______   ______     ______   ______             │
+│         /\  ___\ /\  __ \   /\  ___\ /\  __ \   /\  ___\ /\  __ \            │
+│         \ \  __\ \ \  __ \  \ \  __\ \ \  __ \  \ \  __\ \ \  __ \           │
+│          \ \_\    \ \_\ \_\  \ \_\    \ \_\ \_\  \ \_\    \ \_\ \_\          │
+│           \/_/     \/_/\/_/   \/_/     \/_/\/_/   \/_/     \/_/\/_/          │
+│                                                                              │
+│                                   Studio                                     │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+────────────────────────────────────────────────────────────────────────────────
+📦 项目：fafafa.core.time.tick.windows - Windows Tick 实现
+────────────────────────────────────────────────────────────────────────────────
+📖 概述：
+  提供 Windows 平台下高精度与标准计时器（Tick）实现，支持 QueryPerformanceCounter
+  及 GetTickCount64，适用于高精度计时与通用时间测量场景。
+────────────────────────────────────────────────────────────────────────────────
+🔧 特性：
+  • 支持 QueryPerformanceCounter（高精度，单调递增）
+  • 支持 GetTickCount64（标准，毫秒级，单调递增）
+  • 兼容 ITick 接口，便于跨平台替换
+  • 线程安全，适合多线程环境
+────────────────────────────────────────────────────────────────────────────────
+📜 声明：
+  转发或用于个人/商业项目时，请保留本项目的版权声明。
+────────────────────────────────────────────────────────────────────────────────
+👤 author  : fafafaStudio
+📧 Email   : dtamade@gmail.com
+💬 QQGroup : 685403987
+────────────────────────────────────────────────────────────────────────────────
+}
 
 {$I fafafa.core.settings.inc}
 
 interface
 
-{$IFDEF MSWINDOWS}
-
 uses
-  Windows,
-  fafafa.core.time.tick.base,
-  fafafa.core.time.tick.tsc;
+  fafafa.core.time.tick.base;
 
 type
-  // Windows QueryPerformanceCounter 实现
-  TWindowsHighPrecisionTick = class(TTick)
-  private
-    FFrequency: Int64;
+
+  TTick = class(TTick)
   protected
-    // 实现抽象方法
-    function DoGetCurrentTick: UInt64; override;
-    function DoGetResolution: UInt64; override;
-    function DoTicksToDuration(const ATicks: UInt64): TDuration; override;
-    function DoDurationToTicks(const D: TDuration): UInt64; override;
-    function DoIsMonotonic: Boolean; override;
-    function DoIsHighResolution: Boolean; override;
+    procedure Initialize(out aResolutionNs: UInt64; out aIsMonotonic: Boolean; out aTickType: TTickType); override;
   public
-    constructor Create; override;
+    function Tick: UInt64; override;
   end;
 
-  // Windows GetTickCount64 标准实现
-  TWindowsStandardTick = class(TTick)
+  THDTick = class(TTick)
   protected
-    // 实现抽象方法
-    function DoGetCurrentTick: UInt64; override;
-    function DoGetResolution: UInt64; override;
-    function DoTicksToDuration(const ATicks: UInt64): TDuration; override;
-    function DoDurationToTicks(const D: TDuration): UInt64; override;
-    function DoIsMonotonic: Boolean; override;
-    function DoIsHighResolution: Boolean; override;
-    function DoGetMinimumInterval: TDuration; override;
+    procedure Initialize(out aResolutionNs: UInt64; out aIsMonotonic: Boolean; out aTickType: TTickType); override;
+  public
+    function Tick: UInt64; override;
   end;
 
-// Windows 平台工厂函数
-function CreateWindowsTick(const AType: TTickType): ITick;
-function IsWindowsTickTypeAvailable(const AType: TTickType): Boolean;
 
-{$ENDIF} // MSWINDOWS
+function GetResolution: UInt64; {$IFDEF FAFAFA_CORE_INLINING}inline;{$ENDIF}
+function GetTick: UInt64; {$IFDEF FAFAFA_CORE_INLINING}inline;{$ENDIF}
+function MakeTick: ITick; {$IFDEF FAFAFA_CORE_INLINING}inline;{$ENDIF}
+
+function GetHDResolution: UInt64; {$IFDEF FAFAFA_CORE_INLINING}inline;{$ENDIF}
+function GetHDTick: UInt64; {$IFDEF FAFAFA_CORE_INLINING}inline;{$ENDIF}
+function MakeHDTick: ITick; {$IFDEF FAFAFA_CORE_INLINING}inline;{$ENDIF}
 
 implementation
 
-{$IFDEF MSWINDOWS}
+uses
+  fafafa.core.atomic,
+  fafafa.core.time.cpu;
 
-{ TWindowsHighPrecisionTick }
+const
 
-constructor TWindowsHighPrecisionTick.Create;
+  Kernel32Dll = 'kernel32.dll';
+
+function QueryPerformanceCounter(out lpPerformanceCount: UInt64): LongBool; stdcall; external Kernel32Dll;
+function QueryPerformanceFrequency(out lpFrequency: UInt64): LongBool; stdcall; external Kernel32Dll;
+function GetTickCount64: UInt64; stdcall; external Kernel32Dll;
+
+
+function GetResolution: UInt64;
 begin
-  QueryPerformanceFrequency(FFrequency);
-  inherited Create;
+  Result := MILLISECONDS_PER_SECOND;
 end;
 
-function TWindowsHighPrecisionTick.DoGetCurrentTick: UInt64;
-var
-  counter: Int64;
-begin
-  QueryPerformanceCounter(counter);
-  Result := UInt64(counter);
-end;
-
-function TWindowsHighPrecisionTick.DoGetResolution: UInt64;
-begin
-  Result := UInt64(FFrequency);
-end;
-
-function TWindowsHighPrecisionTick.DoTicksToDuration(const ATicks: UInt64): TDuration;
-var
-  nanos: UInt64;
-begin
-  // 转换为纳秒
-  nanos := (ATicks * 1000000000) div UInt64(FFrequency);
-  Result := TDuration.FromNs(nanos);
-end;
-
-function TWindowsHighPrecisionTick.DoDurationToTicks(const D: TDuration): UInt64;
-begin
-  Result := (D.AsNs * UInt64(FFrequency)) div 1000000000;
-end;
-
-function TWindowsHighPrecisionTick.DoIsMonotonic: Boolean;
-begin
-  Result := True;
-end;
-
-function TWindowsHighPrecisionTick.DoIsHighResolution: Boolean;
-begin
-  Result := True;
-end;
-
-{ TWindowsStandardTick }
-
-function TWindowsStandardTick.DoGetCurrentTick: UInt64;
+function GetTick: UInt64;
 begin
   Result := GetTickCount64;
 end;
 
-function TWindowsStandardTick.DoGetResolution: UInt64;
+function MakeTick: ITick;
 begin
-  Result := 1000; // 1000 ticks per second (millisecond resolution)
+  Result := TTick.Create;
 end;
 
-function TWindowsStandardTick.DoTicksToDuration(const ATicks: UInt64): TDuration;
-begin
-  // GetTickCount64 返回毫秒
-  Result := TDuration.FromMs(ATicks);
-end;
+var
+  GQpcResolution:     UInt64 = 0;
+  GQpcResolutionOnce: Int32  = 0; // 0=未开始,1=进行中,2=完成
 
-function TWindowsStandardTick.DoDurationToTicks(const D: TDuration): UInt64;
+function GetHDResolution: UInt64;
+var
+  LState, LExpected: Int32;
 begin
-  Result := D.AsMs;
-end;
+  // 快路径：已初始化（对 state 用 acquire）
+  LState := atomic_load(GQpcResolutionOnce, mo_acquire);
+  if LState = 2 then
+    Exit(GQpcResolution);
 
-function TWindowsStandardTick.DoIsMonotonic: Boolean;
-begin
-  Result := True;
-end;
+  LExpected := 0;
+  if atomic_compare_exchange(GQpcResolutionOnce, LExpected, 1) then
+  begin
+    if not QueryPerformanceFrequency(GQpcResolution) then
+      GQpcResolution := 0;
 
-function TWindowsStandardTick.DoIsHighResolution: Boolean;
-begin
-  Result := False;
-end;
-
-function TWindowsStandardTick.DoGetMinimumInterval: TDuration;
-begin
-  Result := TDuration.Millisecond;
-end;
-
-// Windows 工厂函数
-
-function CreateWindowsTick(const AType: TTickType): ITick;
-begin
-  case AType of
-    ttBest:
-      // 优先选择 TSC，如果不可用则使用 QueryPerformanceCounter
-      if IsTSCAvailable then
-        Result := CreateTSCTick
-      else
-        Result := TWindowsHighPrecisionTick.Create;
-    ttHighPrecision:
-      Result := TWindowsHighPrecisionTick.Create;
-    ttStandard, ttSystem:
-      Result := TWindowsStandardTick.Create;
-    ttTSC:
-      Result := CreateTSCTick;
+    atomic_store(GQpcResolutionOnce, 2, mo_release);
+    Result := GQpcResolution;
+  end
   else
-    raise ETickInvalidArgument.CreateFmt('Unsupported tick type: %d', [Ord(AType)]);
+  begin
+    // 等待初始化线程完成
+    while atomic_load(GQpcResolutionOnce, mo_acquire) <> 2 do
+      CpuRelax;
+
+    Result := GQpcResolution;
   end;
 end;
 
-function IsWindowsTickTypeAvailable(const AType: TTickType): Boolean;
+function GetHDTick: UInt64;
 begin
-  case AType of
-    ttBest, ttStandard, ttHighPrecision, ttSystem:
-      Result := True;
-    ttTSC:
-      Result := IsTSCAvailable;
-  else
-    Result := False;
-  end;
+  if not QueryPerformanceCounter(Result) then
+    Result := 0;
 end;
 
-{$ENDIF} // MSWINDOWS
+function MakeHDTick: ITick;
+begin
+  Result := THDTick.Create;
+end;
+
+
+{ THDTick }
+procedure THDTick.Initialize(out aResolution: UInt64; out aIsMonotonic: Boolean; out aTickType: TTickType);
+begin
+  aResolution := GetHDResolution;
+  aIsMonotonic := True;
+  aTickType    := ttHighPrecision;
+end;
+
+function THDTick.Tick: UInt64;
+begin
+  if (not QueryPerformanceCounter(Result)) then
+    Result := 0;
+end;
+
+{ TTick }
+
+procedure TTick.Initialize(out aResolution: UInt64; out aIsMonotonic: Boolean; out aTickType: TTickType);
+begin
+  aResolution  := MILLISECONDS_PER_SECOND;
+  aIsMonotonic := True;
+  aTickType    := ttStandard;
+end;
+
+function TTick.Tick: UInt64;
+begin
+  Result := GetTickCount64;
+end;
 
 end.

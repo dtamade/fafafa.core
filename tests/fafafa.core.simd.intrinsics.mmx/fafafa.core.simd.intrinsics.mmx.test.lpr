@@ -4,17 +4,13 @@ program fafafa.core.simd.intrinsics.mmx.test;
 {$mode objfpc}{$H+}
 
 uses
-  {$IFDEF UNIX}
-  cthreads,
-  {$ENDIF}
-  Classes, SysUtils,
+  SysUtils,
   fpcunit, testregistry,
   fafafa.core.simd.intrinsics.mmx.testcase;
 
 var
   TestSuite: TTestSuite;
   TestResult: TTestResult;
-  i: Integer;
 
 begin
   WriteLn('MMX Intrinsics Unit Test');
@@ -46,20 +42,6 @@ begin
     begin
       WriteLn('');
       WriteLn('Some tests failed!');
-
-      // 输出失败详情
-      if TestResult.NumberOfFailures > 0 then
-      begin
-        WriteLn('');
-        WriteLn('Failures detected - check individual test results');
-      end;
-
-      if TestResult.NumberOfErrors > 0 then
-      begin
-        WriteLn('');
-        WriteLn('Errors detected - check individual test results');
-      end;
-
       ExitCode := 1;
     end;
 
