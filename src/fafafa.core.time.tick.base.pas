@@ -35,6 +35,9 @@ unit fafafa.core.time.tick.base;
 
 interface
 
+uses
+  SysUtils;
+
 const
   NANOSECONDS_PER_SECOND  = 1000000000;
   MICROSECONDS_PER_SECOND = 1000000;
@@ -78,9 +81,9 @@ type
     procedure Initialize(out aResolution: UInt64; out aIsMonotonic: Boolean; out aTickType: TTickType); virtual; abstract;
   public
     constructor Create; virtual;
-    function GetResolution: UInt64; {$IFDEF FAFAFA_CORE_INLINING}inline;{$ENDIF}
-    function GetIsMonotonic: Boolean; {$IFDEF FAFAFA_CORE_INLINING}inline;{$ENDIF}
-    function GetTickType: TTickType; {$IFDEF FAFAFA_CORE_INLINING}inline;{$ENDIF}
+    function GetResolution: UInt64; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
+    function GetIsMonotonic: Boolean; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
+    function GetTickType: TTickType; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
     function Tick: UInt64; virtual; abstract;
 
     property Resolution:  UInt64    read GetResolution;
@@ -88,31 +91,8 @@ type
     property TickType:    TTickType read GetTickType;
   end;
 
-type
 
-  TTick = record
-  private
-    FResolution:  UInt64;
-    FIsMonotonic: Boolean;
-    FTickType:    TTickType;
-  private
-    InitCallback: procedure (out aResolution: UInt64; out aIsMonotonic: Boolean; out aTickType: TTickType);
-    TickCallback: function: UInt64;
-  public
-
-    function GetResolution: UInt64; {$IFDEF FAFAFA_CORE_INLINING}inline;{$ENDIF}
-    function GetIsMonotonic: Boolean; {$IFDEF FAFAFA_CORE_INLINING}inline;{$ENDIF}
-    function GetTickType: TTickType; {$IFDEF FAFAFA_CORE_INLINING}inline;{$ENDIF}
-
-    function Tick: UInt64; {$IFDEF FAFAFA_CORE_INLINING}inline;{$ENDIF}
-
-    property Resolution:  UInt64    read GetResolution;
-    property IsMonotonic: Boolean   read GetIsMonotonic;
-    property TickType:    TTickType read GetTickType;
-  end;
-
-
-function GetTickTypeName(const aType: TTickType): string; {$IFDEF FAFAFA_CORE_INLINING}inline;{$ENDIF}
+function GetTickTypeName(const aType: TTickType): string; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
 
 implementation
 

@@ -68,11 +68,13 @@ function atomic_load(var aObj: Int32): Int32; overload; inline;
 function atomic_load(var aObj: UInt32; aOrder: memory_order_t): UInt32; overload; inline;
 function atomic_load(var aObj: UInt32): UInt32; overload; inline;
 
+{$IFDEF CPU64}
 function atomic_load(var aObj: PtrUInt; aOrder: memory_order_t): PtrUInt; overload; inline;
 function atomic_load(var aObj: PtrUInt): PtrUInt; overload; inline;
 
 function atomic_load(var aObj: PtrInt; aOrder: memory_order_t): PtrInt; overload; inline;
 function atomic_load(var aObj: PtrInt): PtrInt; overload; inline;
+{$ENDIF}
 
 {$IFDEF CPU64}
 function atomic_load_64(var aObj: Int64; aOrder: memory_order_t): Int64; overload; inline;
@@ -95,11 +97,13 @@ procedure atomic_store(var aObj: Int32; aDesired: Int32); overload; inline;
 procedure atomic_store(var aObj: UInt32; aDesired: UInt32; aOrder: memory_order_t); overload; inline;
 procedure atomic_store(var aObj: UInt32; aDesired: UInt32); overload; inline;
 
+{$IFDEF CPU64}
 procedure atomic_store(var aObj: PtrInt; aDesired: PtrInt; aOrder: memory_order_t); overload; inline;
 procedure atomic_store(var aObj: PtrInt; aDesired: PtrInt); overload; inline;
 
 procedure atomic_store(var aObj: PtrUInt; aDesired: PtrUInt; aOrder: memory_order_t); overload; inline;
 procedure atomic_store(var aObj: PtrUInt; aDesired: PtrUInt); overload; inline;
+{$ENDIF}
 
 {$IFDEF CPU64}
 procedure atomic_store_64(var aObj: Int64; aDesired: Int64; aOrder: memory_order_t); overload; inline;
@@ -119,9 +123,10 @@ procedure atomic_store(var aObj: Pointer; aDesired: Pointer); overload; inline;
 function atomic_exchange(var aObj: Int32; aDesired: Int32): Int32; overload; inline;
 function atomic_exchange(var aObj: UInt32; aDesired: UInt32): UInt32; overload; inline;
 
+{$IFDEF CPU64}
 function atomic_exchange(var aObj: PtrInt; aDesired: PtrInt): PtrInt; overload; inline;
 function atomic_exchange(var aObj: PtrUInt; aDesired: PtrUInt): PtrUInt; overload; inline;
-
+{$ENDIF}
 {$IFDEF CPU64}
 function atomic_exchange_64(var aObj: Int64; aDesired: Int64): Int64; overload; inline;
 function atomic_exchange_64(var aObj: UInt64; aDesired: UInt64): UInt64; overload; inline;
@@ -135,9 +140,10 @@ function atomic_exchange(var aObj: Pointer; aDesired: Pointer): Pointer; overloa
 function atomic_compare_exchange(var aObj: Int32; var aExpected: Int32; aDesired: Int32): Boolean; overload; inline;
 function atomic_compare_exchange(var aObj: UInt32; var aExpected: UInt32; aDesired: UInt32): Boolean; overload; inline;
 
+{$IFDEF CPU64}
 function atomic_compare_exchange(var aObj: PtrInt; var aExpected: PtrInt; aDesired: PtrInt): Boolean; overload; inline;
 function atomic_compare_exchange(var aObj: PtrUInt; var aExpected: PtrUInt; aDesired: PtrUInt): Boolean; overload; inline;
-
+{$ENDIF}
 {$IFDEF CPU64}
 function atomic_compare_exchange_64(var aObj: Int64; var aExpected: Int64; aDesired: Int64): Boolean; overload; inline;
 function atomic_compare_exchange_64(var aObj: UInt64; var aExpected: UInt64; aDesired: UInt64): Boolean; overload; inline;
@@ -146,8 +152,12 @@ function atomic_compare_exchange(var aObj: Pointer; var aExpected: Pointer; aDes
 
 function atomic_compare_exchange_strong(var aObj: Int32; var aExpected: Int32; aDesired: Int32): Boolean; overload; inline;
 function atomic_compare_exchange_strong(var aObj: UInt32; var aExpected: UInt32; aDesired: UInt32): Boolean; overload; inline;
+{$IFDEF CPU64}
+{$IFDEF CPU64}
 function atomic_compare_exchange_strong(var aObj: PtrInt; var aExpected: PtrInt; aDesired: PtrInt): Boolean; overload; inline;
 function atomic_compare_exchange_strong(var aObj: PtrUInt; var aExpected: PtrUInt; aDesired: PtrUInt): Boolean; overload; inline;
+{$ENDIF}
+{$ENDIF}
 
 {$IFDEF CPU64}
 function atomic_compare_exchange_strong_64(var aObj: Int64; var aExpected: Int64; aDesired: Int64): Boolean; overload; inline;
@@ -159,8 +169,10 @@ function atomic_compare_exchange_strong(var aObj: Pointer; var aExpected: Pointe
 function atomic_compare_exchange_weak(var aObj: Int32; var aExpected: Int32; aDesired: Int32): Boolean; overload; inline;
 function atomic_compare_exchange_weak(var aObj: UInt32; var aExpected: UInt32; aDesired: UInt32): Boolean; overload; inline;
 
+{$IFDEF CPU64}
 function atomic_compare_exchange_weak(var aObj: PtrInt; var aExpected: PtrInt; aDesired: PtrInt): Boolean; overload; inline;
 function atomic_compare_exchange_weak(var aObj: PtrUInt; var aExpected: PtrUInt; aDesired: PtrUInt): Boolean; overload; inline;
+{$ENDIF}
 
 {$IFDEF CPU64}
 function atomic_compare_exchange_weak_64(var aObj: Int64; var aExpected: Int64; aDesired: Int64): Boolean; overload; inline;
@@ -174,8 +186,10 @@ function atomic_compare_exchange_weak(var aObj: Pointer; var aExpected: Pointer;
 
 function atomic_increment(var aObj: Int32): Int32; overload; inline;
 function atomic_increment(var aObj: UInt32): UInt32; overload; inline;
+{$IFDEF CPU64}
 function atomic_increment(var aObj: PtrInt): PtrInt; overload; inline;
 function atomic_increment(var aObj: PtrUInt): PtrUInt; overload; inline;
+{$ENDIF}
 {$IFDEF CPU64}
 function atomic_increment_64(var aObj: Int64): Int64; overload; inline;
 function atomic_increment_64(var aObj: UInt64): UInt64; overload; inline;
@@ -188,8 +202,10 @@ function atomic_increment(var aObj: Pointer): Pointer; overload; inline;
 
 function atomic_decrement(var aObj: Int32): Int32; overload; inline;
 function atomic_decrement(var aObj: UInt32): UInt32; overload; inline;
+{$IFDEF CPU64}
 function atomic_decrement(var aObj: PtrInt): PtrInt; overload; inline;
 function atomic_decrement(var aObj: PtrUInt): PtrUInt; overload; inline;
+{$ENDIF}
 {$IFDEF CPU64}
 function atomic_decrement_64(var aObj: Int64): Int64; overload; inline;
 function atomic_decrement_64(var aObj: UInt64): UInt64; overload; inline;
@@ -202,8 +218,12 @@ function atomic_decrement(var aObj: Pointer): Pointer; overload; inline;
 
 function atomic_fetch_add(var aObj: Int32; aArg: Int32): Int32; overload;inline;
 function atomic_fetch_add(var aObj: UInt32; aArg: UInt32): UInt32; overload; inline;
+{$IFDEF CPU64}
+{$IFDEF CPU64}
 function atomic_fetch_add(var aObj: PtrInt; aArg: PtrInt): PtrInt; overload; inline;
 function atomic_fetch_add(var aObj: PtrUInt; aArg: PtrUInt): PtrUInt; overload; inline;
+{$ENDIF}
+{$ENDIF}
 function atomic_fetch_add(var aObj: Pointer; aArg: Pointer): Pointer; overload; inline;
 function atomic_fetch_add(var aObj: Pointer; aOffset: PtrInt): Pointer; overload; inline;
 
@@ -218,8 +238,12 @@ function atomic_fetch_add_64(var aObj: UInt64; aArg: UInt64): UInt64; overload; 
 
 function atomic_fetch_sub(var aObj: Int32; aArg: Int32): Int32; overload; inline;
 function atomic_fetch_sub(var aObj: UInt32; aArg: UInt32): UInt32; overload; inline;
+{$IFDEF CPU64}
+{$IFDEF CPU64}
 function atomic_fetch_sub(var aObj: PtrInt; aArg: PtrInt): PtrInt; overload; inline;
 function atomic_fetch_sub(var aObj: PtrUInt; aArg: PtrUInt): PtrUInt; overload; inline;
+{$ENDIF}
+{$ENDIF}
 function atomic_fetch_sub(var aObj: Pointer; aArg: Pointer): Pointer; overload; inline;
 function atomic_fetch_sub(var aObj: Pointer; aOffset: PtrInt): Pointer; overload; inline;
 
@@ -235,8 +259,12 @@ function atomic_fetch_sub_64(var aObj: UInt64; aArg: UInt64): UInt64; overload; 
 
 function atomic_fetch_and(var aObj: Int32; aArg: Int32): Int32; overload; inline;
 function atomic_fetch_and(var aObj: UInt32; aArg: UInt32): UInt32; overload; inline;
+{$IFDEF CPU64}
+{$IFDEF CPU64}
 function atomic_fetch_and(var aObj: PtrInt; aArg: PtrInt): PtrInt; overload; inline;
 function atomic_fetch_and(var aObj: PtrUInt; aArg: PtrUInt): PtrUInt; overload; inline;
+{$ENDIF}
+{$ENDIF}
 function atomic_fetch_and(var aObj: Pointer; aArg: Pointer): Pointer; overload; inline;
 
 {$IFDEF CPU64}
@@ -250,8 +278,12 @@ function atomic_fetch_and_64(var aObj: UInt64; aArg: UInt64): UInt64; overload; 
 
 function atomic_fetch_or(var aObj: Int32; aArg: Int32): Int32; overload; inline;
 function atomic_fetch_or(var aObj: UInt32; aArg: UInt32): UInt32; overload; inline;
+{$IFDEF CPU64}
+{$IFDEF CPU64}
 function atomic_fetch_or(var aObj: PtrInt; aArg: PtrInt): PtrInt; overload; inline;
 function atomic_fetch_or(var aObj: PtrUInt; aArg: PtrUInt): PtrUInt; overload; inline;
+{$ENDIF}
+{$ENDIF}
 function atomic_fetch_or(var aObj: Pointer; aArg: Pointer): Pointer; overload; inline;
 
 {$IFDEF CPU64}
@@ -265,8 +297,12 @@ function atomic_fetch_or_64(var aObj: UInt64; aArg: UInt64): UInt64; overload; i
 
 function atomic_fetch_xor(var aObj: Int32; aArg: Int32): Int32; overload; inline;
 function atomic_fetch_xor(var aObj: UInt32; aArg: UInt32): UInt32; overload; inline;
+{$IFDEF CPU64}
+{$IFDEF CPU64}
 function atomic_fetch_xor(var aObj: PtrInt; aArg: PtrInt): PtrInt; overload; inline;
 function atomic_fetch_xor(var aObj: PtrUInt; aArg: PtrUInt): PtrUInt; overload; inline;
+{$ENDIF}
+{$ENDIF}
 function atomic_fetch_xor(var aObj: Pointer; aArg: Pointer): Pointer; overload; inline;
 
 {$IFDEF CPU64}
@@ -455,6 +491,7 @@ begin
   {$ENDIF}  
 end;
 
+{$IFDEF CPU64}
 function atomic_load(var aObj: PtrInt; aOrder: memory_order_t): PtrInt;
 begin
   {$PUSH}
@@ -486,6 +523,7 @@ function atomic_load(var aObj: PtrUInt): PtrUInt;
 begin
   Result:= PtrUInt(atomic_load(PtrInt(aObj)));
 end;
+{$ENDIF}
 
 procedure atomic_store(var aObj: Int32; aDesired: Int32; aOrder: memory_order_t);
 begin
@@ -601,6 +639,7 @@ begin
 end;
 
 
+{$IFDEF CPU64}
 procedure atomic_store(var aObj: PtrInt; aDesired: PtrInt; aOrder: memory_order_t);
 begin
   {$PUSH}
@@ -631,6 +670,7 @@ procedure atomic_store(var aObj: PtrUInt; aDesired: PtrUInt);
 begin
   atomic_store(PtrInt(aObj), PtrInt(aDesired));
 end;
+{$ENDIF}
 
 
 function atomic_exchange(var aObj: Int32; aDesired: Int32): Int32;
@@ -646,6 +686,7 @@ begin
   {$POP}
 end;
 
+{$IFDEF CPU64}
 function atomic_exchange(var aObj: PtrInt; aDesired: PtrInt): PtrInt;
 begin
   {$PUSH}
@@ -662,6 +703,7 @@ function atomic_exchange(var aObj: PtrUInt; aDesired: PtrUInt): PtrUInt;
 begin
   Result := PtrUInt(atomic_exchange(PPtrInt(@aObj)^, PPtrInt(@aDesired)^));
 end;
+{$ENDIF}
 
 {$IFDEF CPU64}
 function atomic_exchange_64(var aObj: Int64; aDesired: Int64): Int64;
@@ -730,6 +772,7 @@ begin
   {$POP}
 end;
 
+{$IFDEF CPU64}
 function atomic_compare_exchange(var aObj: PtrInt; var aExpected: PtrInt; aDesired: PtrInt): Boolean;
 begin
   {$PUSH}
@@ -746,6 +789,7 @@ function atomic_compare_exchange(var aObj: PtrUInt; var aExpected: PtrUInt; aDes
 begin
   Result := atomic_compare_exchange(PPtrInt(@aObj)^, PPtrInt(@aExpected)^, PPtrInt(@aDesired)^);
 end;
+{$ENDIF}
 
 function atomic_compare_exchange(var aObj: Pointer; var aExpected: Pointer; aDesired: Pointer): Boolean;
 var
@@ -771,6 +815,7 @@ begin
   {$POP}
 end;
 
+{$IFDEF CPU64}
 function atomic_compare_exchange_strong(var aObj: PtrInt; var aExpected: PtrInt; aDesired: PtrInt): Boolean;
 begin
   Result := atomic_compare_exchange(aObj, aExpected, aDesired);
@@ -780,6 +825,7 @@ function atomic_compare_exchange_strong(var aObj: PtrUInt; var aExpected: PtrUIn
 begin
   Result := atomic_compare_exchange(PPtrInt(@aObj)^, PPtrInt(@aExpected)^, PPtrInt(@aDesired)^);
 end;
+{$ENDIF}
 
 {$IFDEF CPU64}
 function atomic_compare_exchange_strong_64(var aObj: UInt64; var aExpected: UInt64; aDesired: UInt64): Boolean;
@@ -814,6 +860,7 @@ begin
   {$POP}
 end;
 
+{$IFDEF CPU64}
 function atomic_compare_exchange_weak(var aObj: PtrInt; var aExpected: PtrInt; aDesired: PtrInt): Boolean;
 begin
   Result := atomic_compare_exchange(aObj, aExpected, aDesired);
@@ -823,6 +870,7 @@ function atomic_compare_exchange_weak(var aObj: PtrUInt; var aExpected: PtrUInt;
 begin
   Result := atomic_compare_exchange(PPtrInt(@aObj)^, PPtrInt(@aExpected)^, PPtrInt(@aDesired)^);
 end;
+{$ENDIF}
 
 {$IFDEF CPU64}
 function atomic_compare_exchange_weak_64(var aObj: Int64; var aExpected: Int64; aDesired: Int64): Boolean;
@@ -872,6 +920,7 @@ begin
   {$POP}
 end;
 
+{$IFDEF CPU64}
 function atomic_increment(var aObj: PtrInt): PtrInt;
 begin
   {$PUSH}
@@ -895,7 +944,7 @@ begin
   {$ENDIF}
   {$POP}
 end;
-
+{$ENDIF}
 
 {$IFDEF CPU64}
 function atomic_decrement_64(var aObj: Int64): Int64;
@@ -937,6 +986,7 @@ begin
   {$POP}
 end;
 
+{$IFDEF CPU64}
 function atomic_decrement(var aObj: PtrInt): PtrInt;
 begin
   {$PUSH}
@@ -956,6 +1006,7 @@ begin
   Result := PtrUInt(atomic_decrement(PPtrInt(@aObj)^));
   {$POP}
 end;
+{$ENDIF}
 
 {$IFDEF CPU64}
 function atomic_fetch_add_64(var aObj: Int64; aArg: Int64): Int64;
@@ -997,16 +1048,14 @@ begin
   {$POP}
 end;
 
+{$IFDEF CPU64}
 function atomic_fetch_add(var aObj: PtrInt; aArg: PtrInt): PtrInt;
 begin
-  {$PUSH}
-  {$WARN 4055 OFF}
   {$IF SIZEOF(PtrInt) = 4}
-    Result := PtrInt(atomic_fetch_add(PInt32(@aObj)^, PInt32(@aArg)^));
+    Result := PtrInt(atomic_fetch_add(Int32(aObj), Int32(aArg)));
   {$ELSE}
     Result := PtrInt(atomic_fetch_add_64(PInt64(@aObj)^, PInt64(@aArg)^));
   {$ENDIF}
-  {$POP}
 end;
 
 function atomic_fetch_add(var aObj: PtrUInt; aArg: PtrUInt): PtrUInt;
@@ -1016,6 +1065,7 @@ begin
   Result := PtrUInt(atomic_fetch_add(PPtrInt(@aObj)^, PPtrInt(@aArg)^));
   {$POP}
 end;
+{$ENDIF}
 
 function atomic_fetch_add(var aObj: Pointer; aArg: Pointer): Pointer;
 begin
@@ -1064,6 +1114,7 @@ begin
   Result := UInt32(atomic_fetch_sub(Int32(aObj), Int32(aArg)));
 end;
 
+{$IFDEF CPU64}
 function atomic_fetch_sub(var aObj: PtrInt; aArg: PtrInt): PtrInt;
 begin
   {$IF SIZEOF(PtrInt) = 4}
@@ -1077,6 +1128,7 @@ function atomic_fetch_sub(var aObj: PtrUInt; aArg: PtrUInt): PtrUInt;
 begin
   Result := PtrUInt(atomic_fetch_sub(PtrInt(aObj), PtrInt(aArg)));
 end;
+{$ENDIF}
 
 function atomic_fetch_sub(var aObj: Pointer; aArg: Pointer): Pointer;
 begin
@@ -1129,6 +1181,7 @@ begin
   Result := UInt32(atomic_fetch_and(Int32(aObj), Int32(aArg)));
 end;
 
+{$IFDEF CPU64}
 function atomic_fetch_and(var aObj: PtrInt; aArg: PtrInt): PtrInt;
 begin
   {$IF SIZEOF(PtrInt) = 4}
@@ -1142,6 +1195,7 @@ function atomic_fetch_and(var aObj: PtrUInt; aArg: PtrUInt): PtrUInt;
 begin
   Result := PtrUInt(atomic_fetch_and(PPtrInt(@aObj)^, PtrInt(aArg)));
 end;
+{$ENDIF}
 
 function atomic_fetch_and(var aObj: Pointer; aArg: Pointer): Pointer;
 begin
@@ -1186,6 +1240,7 @@ begin
   Result := UInt32(atomic_fetch_or(Int32(aObj), Int32(aArg)));
 end;
 
+{$IFDEF CPU64}
 function atomic_fetch_or(var aObj: PtrInt; aArg: PtrInt): PtrInt;
 begin
   {$IF SIZEOF(PtrInt) = 4}
@@ -1199,6 +1254,7 @@ function atomic_fetch_or(var aObj: PtrUInt; aArg: PtrUInt): PtrUInt;
 begin
   Result := PtrUInt(atomic_fetch_or(PPtrInt(@aObj)^, PtrInt(aArg)));
 end;
+{$ENDIF}
 
 function atomic_fetch_or(var aObj: Pointer; aArg: Pointer): Pointer;
 begin
@@ -1242,6 +1298,7 @@ begin
   Result := UInt32(atomic_fetch_xor(Int32(aObj), Int32(aArg)));
 end;
 
+{$IFDEF CPU64}
 function atomic_fetch_xor(var aObj: PtrInt; aArg: PtrInt): PtrInt;
 begin
   {$IF SIZEOF(PtrInt) = 4}
@@ -1255,6 +1312,7 @@ function atomic_fetch_xor(var aObj: PtrUInt; aArg: PtrUInt): PtrUInt;
 begin
   Result := PtrUInt(atomic_fetch_xor(PPtrInt(@aObj)^, PtrInt(aArg)));
 end;
+{$ENDIF}
 
 function atomic_fetch_xor(var aObj: Pointer; aArg: Pointer): Pointer;
 begin

@@ -43,28 +43,28 @@ uses
 
 type
 
-  TTick = class(TTick)
+  TStdTick = class(TTick)
   protected
-    procedure Initialize(out aResolutionNs: UInt64; out aIsMonotonic: Boolean; out aTickType: TTickType); override;
+    procedure Initialize(out aResolution: UInt64; out aIsMonotonic: Boolean; out aTickType: TTickType); override;
   public
     function Tick: UInt64; override;
   end;
 
   THDTick = class(TTick)
   protected
-    procedure Initialize(out aResolutionNs: UInt64; out aIsMonotonic: Boolean; out aTickType: TTickType); override;
+    procedure Initialize(out aResolution: UInt64; out aIsMonotonic: Boolean; out aTickType: TTickType); override;
   public
     function Tick: UInt64; override;
   end;
 
 
-function GetResolution: UInt64; {$IFDEF FAFAFA_CORE_INLINING}inline;{$ENDIF}
-function GetTick: UInt64; {$IFDEF FAFAFA_CORE_INLINING}inline;{$ENDIF}
-function MakeTick: ITick; {$IFDEF FAFAFA_CORE_INLINING}inline;{$ENDIF}
+function GetResolution: UInt64; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
+function GetTick: UInt64; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
+function MakeTick: ITick; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
 
-function GetHDResolution: UInt64; {$IFDEF FAFAFA_CORE_INLINING}inline;{$ENDIF}
-function GetHDTick: UInt64; {$IFDEF FAFAFA_CORE_INLINING}inline;{$ENDIF}
-function MakeHDTick: ITick; {$IFDEF FAFAFA_CORE_INLINING}inline;{$ENDIF}
+function GetHDResolution: UInt64; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
+function GetHDTick: UInt64; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
+function MakeHDTick: ITick; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
 
 implementation
 
@@ -93,7 +93,7 @@ end;
 
 function MakeTick: ITick;
 begin
-  Result := TTick.Create;
+  Result := TStdTick.Create;
 end;
 
 var
@@ -140,10 +140,26 @@ begin
 end;
 
 
+
+
+{ TStdTick }
+
+procedure TStdTick.Initialize(out aResolution: UInt64; out aIsMonotonic: Boolean; out aTickType: TTickType);
+begin
+  aResolution  := MILLISECONDS_PER_SECOND;
+  aIsMonotonic := True;
+  aTickType    := ttStandard;
+end;
+
+function TStdTick.Tick: UInt64;
+begin
+  Result := GetTickCount64;
+end;
+
 { THDTick }
 procedure THDTick.Initialize(out aResolution: UInt64; out aIsMonotonic: Boolean; out aTickType: TTickType);
 begin
-  aResolution := GetHDResolution;
+  aResolution  := GetHDResolution;
   aIsMonotonic := True;
   aTickType    := ttHighPrecision;
 end;
@@ -152,20 +168,6 @@ function THDTick.Tick: UInt64;
 begin
   if (not QueryPerformanceCounter(Result)) then
     Result := 0;
-end;
-
-{ TTick }
-
-procedure TTick.Initialize(out aResolution: UInt64; out aIsMonotonic: Boolean; out aTickType: TTickType);
-begin
-  aResolution  := MILLISECONDS_PER_SECOND;
-  aIsMonotonic := True;
-  aTickType    := ttStandard;
-end;
-
-function TTick.Tick: UInt64;
-begin
-  Result := GetTickCount64;
 end;
 
 end.

@@ -4,9 +4,9 @@ program fafafa.core.time.tick.test;
 {$CODEPAGE UTF8}
 
 uses
-  {$IFDEF UNIX}{$IFDEF UseCThreads}cthreads,{$ENDIF}{$ENDIF}
+  {$IFDEF UNIX}cthreads,{$ENDIF}
   Classes, SysUtils, consoletestrunner,
-  test_tick_core, test_tick_strict;
+  fafafa.core.time.tick.test.testcase;
 
 var
   Application: TTestRunner;

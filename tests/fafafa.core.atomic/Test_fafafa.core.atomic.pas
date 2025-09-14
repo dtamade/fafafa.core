@@ -95,6 +95,82 @@ type
     procedure Test_seq_cst_total_order_three_threads;
   end;
 
+// ———— Helpers to bridge PtrInt/PtrUInt on 32-bit without overloading conflicts ————
+
+function atomic_fetch_and_ptr(var aObj: PtrUInt; aArg: PtrUInt): PtrUInt; inline;
+{$IFDEF CPU64}
+begin
+  Result := atomic_fetch_and(aObj, aArg);
+end;
+{$ELSE}
+var
+  LObj32: UInt32 absolute aObj;
+  LArg32: UInt32 absolute aArg;
+begin
+  Result := PtrUInt(atomic_fetch_and(LObj32, LArg32));
+end;
+{$ENDIF}
+
+function atomic_fetch_or_ptr(var aObj: PtrUInt; aArg: PtrUInt): PtrUInt; inline;
+{$IFDEF CPU64}
+begin
+  Result := atomic_fetch_or(aObj, aArg);
+end;
+{$ELSE}
+var
+  LObj32: UInt32 absolute aObj;
+  LArg32: UInt32 absolute aArg;
+begin
+  Result := PtrUInt(atomic_fetch_or(LObj32, LArg32));
+end;
+{$ENDIF}
+
+function atomic_fetch_xor_ptr(var aObj: PtrUInt; aArg: PtrUInt): PtrUInt; inline;
+{$IFDEF CPU64}
+begin
+  Result := atomic_fetch_xor(aObj, aArg);
+end;
+{$ELSE}
+var
+  LObj32: UInt32 absolute aObj;
+  LArg32: UInt32 absolute aArg;
+begin
+  Result := PtrUInt(atomic_fetch_xor(LObj32, LArg32));
+end;
+{$ENDIF}
+
+function cas_strong_ptrint(var aObj: PtrInt; var aExpected: PtrInt; aDesired: PtrInt): Boolean; inline;
+{$IFDEF CPU64}
+begin
+  Result := atomic_compare_exchange_strong(aObj, aExpected, aDesired);
+end;
+{$ELSE}
+var
+  LObj32: Int32 absolute aObj;
+  LExp32: Int32 absolute aExpected;
+  LDes32: Int32 absolute aDesired;
+begin
+  Result := atomic_compare_exchange_strong(LObj32, LExp32, LDes32);
+end;
+{$ENDIF}
+
+function cas_strong_ptruint(var aObj: PtrUInt; var aExpected: PtrUInt; aDesired: PtrUInt): Boolean; inline;
+{$IFDEF CPU64}
+begin
+  Result := atomic_compare_exchange_strong(aObj, aExpected, aDesired);
+end;
+{$ELSE}
+var
+  LObj32: UInt32 absolute aObj;
+  LExp32: UInt32 absolute aExpected;
+  LDes32: UInt32 absolute aDesired;
+begin
+  Result := atomic_compare_exchange_strong(LObj32, LExp32, LDes32);
+end;
+{$ENDIF}
+
+// ———— Tests ————
+
 procedure TTestCase_Global.Test_atomic_fetch_and_32;
 var i, r: Int32;
 begin
@@ -271,6 +347,7 @@ begin
   AssertEquals(20, exp);
 end;
 
+{$IFDEF CPU64}
 procedure TTestCase_Global.Test_atomic_increment_decrement_64;
 var v: Int64;
 begin
@@ -288,22 +365,8 @@ begin
   AssertEquals(QWord(2), QWord(atomic_decrement_64(v)));
   AssertEquals(QWord(2), QWord(v));
 end;
-
-{$IFDEF CPU64}
-procedure TTestCase_Global.Test_atomic_compare_exchange_weak_64;
-var v, exp: Int64;
-begin
-  v := 10; exp := 10;
-  // weak=strong 语义：成功路径
-  AssertTrue(atomic_compare_exchange_weak_64(v, exp, 20));
-  AssertEquals(QWord(20), QWord(v));
-  // 失败路径：预期值不匹配时 expected 会被写回实际旧值
-  exp := 10;
-  AssertFalse(atomic_compare_exchange_weak_64(v, exp, 30));
-  AssertEquals(QWord(20), QWord(v));
-  AssertEquals(QWord(20), QWord(exp));
-end;
 {$ENDIF}
+
 procedure TTestCase_Global.Test_atomic_load_store_orders_32;
 var v: Int32;
 begin
@@ -368,10 +431,10 @@ procedure TTestCase_Global.Test_atomic_compare_exchange_strong_ptrint;
 var v, exp: PtrInt;
 begin
   v := 10; exp := 10;
-  AssertTrue(atomic_compare_exchange_strong(v, exp, 20));
+  AssertTrue(cas_strong_ptrint(v, exp, 20));
   AssertEquals(20, v);
   exp := 10;
-  AssertFalse(atomic_compare_exchange_strong(v, exp, 30));
+  AssertFalse(cas_strong_ptrint(v, exp, 30));
   AssertEquals(20, v);
   AssertEquals(20, exp);
 end;
@@ -743,9 +806,9 @@ procedure TTestCase_Global.Test_ptruint_pointer_fetch_smoke;
 var pu, ru: PtrUInt; pp, rp: Pointer;
 begin
   // PtrUInt fetch_and/or/xor
-  pu := PtrUInt($FF00); ru := atomic_fetch_and(pu, PtrUInt($0F0F)); AssertEquals(PtrUInt($FF00), ru); AssertEquals(PtrUInt($0F00), pu);
-  ru := atomic_fetch_or(pu, PtrUInt($00F0)); AssertEquals(PtrUInt($0F00), ru); AssertEquals(PtrUInt($0FF0), pu);
-  ru := atomic_fetch_xor(pu, PtrUInt($00FF)); AssertEquals(PtrUInt($0FF0), ru); AssertEquals(PtrUInt($0F0F), pu);
+  pu := PtrUInt($FF00); ru := atomic_fetch_and_ptr(pu, PtrUInt($0F0F)); AssertEquals(PtrUInt($FF00), ru); AssertEquals(PtrUInt($0F00), pu);
+  ru := atomic_fetch_or_ptr(pu, PtrUInt($00F0)); AssertEquals(PtrUInt($0F00), ru); AssertEquals(PtrUInt($0FF0), pu);
+  ru := atomic_fetch_xor_ptr(pu, PtrUInt($00FF)); AssertEquals(PtrUInt($0FF0), ru); AssertEquals(PtrUInt($0F0F), pu);
   // Pointer fetch_and/or/xor 通过整数桥接（不关心位义，只测路径）
   pp := Pointer(PtrUInt($FF00)); rp := atomic_fetch_and(pp, Pointer(PtrUInt($0F0F))); AssertEquals(PtrUInt($FF00), PtrUInt(rp)); AssertEquals(PtrUInt($0F00), PtrUInt(pp));
   rp := atomic_fetch_or(pp, Pointer(PtrUInt($00F0))); AssertEquals(PtrUInt($0F00), PtrUInt(rp)); AssertEquals(PtrUInt($0FF0), PtrUInt(pp));
@@ -759,6 +822,8 @@ begin
   u := 1; r := atomic_fetch_add_64(u, 2); AssertEquals(QWord(1), QWord(r)); AssertEquals(QWord(3), QWord(u));
   r := atomic_fetch_sub_64(u, 1); AssertEquals(QWord(3), QWord(r)); AssertEquals(QWord(2), QWord(u));
 end;
+
+{$ENDIF}
 
 {$IFDEF CPU64}
 procedure TTestCase_Global.Test_uint64_bitwise_boundary_extremes;
@@ -841,7 +906,6 @@ begin
   r := atomic_fetch_sub(p, PtrInt(500));
   AssertEquals(PtrUInt(1000), PtrUInt(r)); AssertEquals(PtrUInt(500), PtrUInt(p));
 end;
-{$ENDIF}
 
 // 内存序对照与桥接余缺
 

@@ -1,207 +1,281 @@
-unit fafafa.core.time.tick.tsc.x86_64;
+unit fafafa.core.time.tick.hardware.x86_64;
 
 {
 ──────────────────────────────────────────────────────────────
-📦 项目：fafafa.core.time.tick.tsc.x86_64 - x86_64 TSC 实现（ITick）
+📦 项目：fafafa.core.time.tick.hardware.x86_64 - x86_64 硬件计时器
 
 📖 概述：
-  x86_64 平台的 TSC (Time Stamp Counter) 纯计数实现，遵循 ITick 接口。
-  仅提供计数与频率信息，不涉及 TDuration。
+  64位 x86_64 硬件计时器聚合单元。引入基础实现与平台校准器，
+  并导出统一的检测/频率查询与 ITick 实例工厂。
 
 🔧 特性：
-  • RDTSC/RDTSCP 指令
-  • CPUID 检测 Invariant TSC
-  • 通过 QPC/clock_gettime 校准频率
+  • RDTSC/RDTSCP 指令支持（自动选择最佳序列化路径）
+  • Invariant TSC 检测
+  • 自动频率校准（参考高精度时钟）
+  • 并发安全的一次性初始化
 
 }
 
 {$I fafafa.core.settings.inc}
 
+{$if not (defined(CPUX64) or defined(CPUX86_64))}
+  {$MESSAGE ERROR 'This unit is for 64-bit x86_64 only. Use fafafa.core.time.tick.hardware.x86.pas for 32-bit.'}
+{$ifend}
+
 interface
 
+{$IFNDEF FPC}
+  {$MESSAGE ERROR 'Delphi/Win64 不支持 inline asm，请改用外部 .obj/.o 或无汇编实现'}
+{$ENDIF}
+
 uses
-  fafafa.core.time.tick.base
-  {$IFDEF LINUX}, Linux{$ENDIF}
-  {$IFNDEF MSWINDOWS}, BaseUnix, Unix{$ENDIF}
-  ;
+  fafafa.core.time.tick.base;
 
 type
-  TX86_64TSCTick = class(TInterfacedObject, ITick)
-  strict private
-    class var FAvailable: Boolean;
-    class var FFrequency: UInt64;
-    class var FInitialized: Boolean;
-  private
-    class procedure Initialize; static;
+  { TX86_64HardwareTick }
+  TX86_64HardwareTick = class(TTick)
+  protected
+    procedure Initialize(out aResolution: UInt64; out aIsMonotonic: Boolean; out aTickType: TTickType); override;
   public
-    // ITick
-    function GetFrequencyHz: UInt64; {$IFDEF FAFAFA_CORE_INLINING}inline;{$ENDIF}
-    function GetIsMonotonic: Boolean; {$IFDEF FAFAFA_CORE_INLINING}inline;{$ENDIF}
-    function GetTickType: TTickType; {$IFDEF FAFAFA_CORE_INLINING}inline;{$ENDIF}
-    function Tick: UInt64; {$IFDEF FAFAFA_CORE_INLINING}inline;{$ENDIF}
-
-    class function IsAvailable: Boolean; static;
-    class function Frequency: UInt64; static;
+    function Tick: UInt64; override;
   end;
 
-function IsX86_64TSCAvailable: Boolean;
-function GetX86_64TSCFrequency: UInt64;
+function GetHardwareResolution: UInt64; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
+function GetTick: UInt64; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
+function MakeTick: ITick; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
 
 implementation
 
-{$IFDEF MSWINDOWS}
+uses
+  fafafa.core.atomic,
+  fafafa.core.time.cpu,
+  fafafa.core.simd.cpuinfo.x86
+  {$IFDEF MSWINDOWS}
+  , fafafa.core.time.tick.windows
+  {$ELSEIF DEFINED(DARWIN)}
+  , fafafa.core.time.tick.darwin
+  {$ELSEIF DEFINED(UNIX)}
+  , fafafa.core.time.tick.unix
+  {$ELSE}
+    {$MESSAGE ERROR 'Unsupported platform for fafafa.core.time.tick.hardware.x86_64'}
+  {$ENDIF};
+
+var
+  GHardwareResolution:     UInt64 = 0;
+  GHardwareResolutionOnce: Int32 = 0; // 0=未开始,1=进行中,2=完成
+
 type
-  BOOL = LongBool;
-  PDWORD = ^Cardinal;
+  TReadTscFn = function: UInt64;
 
-function QueryPerformanceCounter(out lpPerformanceCount: Int64): BOOL; stdcall; external 'kernel32' name 'QueryPerformanceCounter';
-function QueryPerformanceFrequency(out lpFrequency: Int64): BOOL; stdcall; external 'kernel32' name 'QueryPerformanceFrequency';
-procedure Sleep(dwMilliseconds: Cardinal); stdcall; external 'kernel32' name 'Sleep';
-{$ENDIF}
+var
+  GReadTscFn:   TReadTscFn = nil;
+  GReadTscOnce: Int32 = 0; // 0=未开始,1=进行中,2=完成
 
-// ============ 汇编：读取 TSC ============
-function RDTSC: UInt64; assembler; nostackframe;
-asm
-  rdtsc
-  shl rdx, 32
-  or rax, rdx
-end;
+{========================  底层指令路径  ========================}
 
-// 可选：RDTSCP（序列化）
-function RDTSCP: UInt64; assembler; nostackframe;
+function ReadTSC_RDTSCP: UInt64; assembler; nostackframe;
 asm
   rdtscp
   shl rdx, 32
-  or rax, rdx
+  or  rax, rdx
+  lfence
 end;
 
-// ============ CPUID 检测 ============
-procedure CPUID(leaf: UInt32; out eax, ebx, ecx, edx: UInt32); assembler;
+function ReadTSC_LFENCE_RDTSC: UInt64; assembler; nostackframe;
+asm
+  lfence
+  rdtsc
+  shl rdx, 32
+  or  rax, rdx
+  lfence
+end;
+
+function ReadTSC_CPUID_RDTSC: UInt64; assembler; nostackframe;
 asm
   push rbx
-  mov eax, leaf
+  xor eax, eax
   cpuid
-  mov [eax], eax
-  mov [ebx], ebx
-  mov [ecx], ecx
-  mov [edx], edx
+  rdtsc
+  shl rdx, 32
+  or  rax, rdx
   pop rbx
 end;
 
-function InternalDetectInvariantTSC: Boolean;
+{========================  CPU 能力检测  ========================}
+
+function CpuHasRDTSCP: Boolean;
 var
-  eax, ebx, ecx, edx: UInt32;
+  LA, LB, LC, LD, LMaxExt: DWord;
 begin
-  try
-    CPUID($80000007, eax, ebx, ecx, edx);
-    Result := (edx and $100) <> 0; // bit 8: Invariant TSC
-  except
-    Result := False;
-  end;
+  Result := False;
+  if not HasCPUID then Exit;
+  CPUID($80000000, LMaxExt, LB, LC, LD);
+  if LMaxExt < $80000001 then Exit;
+  CPUID($80000001, LA, LB, LC, LD);
+  Result := (LD and (1 shl 27)) <> 0; // RDTSCP support
 end;
 
-function InternalCalibrateFrequency: UInt64;
+function CpuHasInvariantTSC: Boolean;
 var
-  start_tsc, end_tsc: UInt64;
-  elapsed_tsc, elapsed_ns: UInt64;
+  LA, LB, LC, LD, LMaxExt: DWord;
 begin
-  Result := 0;
-  try
-    {$IFDEF MSWINDOWS}
-    var freq, qpc0, qpc1: Int64;
-    if not QueryPerformanceFrequency(freq) then Exit;
-    start_tsc := RDTSC;
-    QueryPerformanceCounter(qpc0);
-    Sleep(10);
-    end_tsc := RDTSC;
-    QueryPerformanceCounter(qpc1);
-    elapsed_tsc := end_tsc - start_tsc;
-    elapsed_ns := ((qpc1 - qpc0) * 1000000000) div freq;
-    if elapsed_ns > 0 then
-      Result := (elapsed_tsc * 1000000000) div elapsed_ns;
-    {$ELSE}
-    var ts0, ts1: TTimeSpec;
-    start_tsc := RDTSC;
-    clock_gettime(CLOCK_MONOTONIC, @ts0);
-    // 睡眠 10ms 以放大测量窗口
-    var req, rem: TTimeSpec;
-    req.tv_sec := 0; req.tv_nsec := 10 * 1000 * 1000;
-    rem.tv_sec := 0; rem.tv_nsec := 0;
-    while (FpNanoSleep(req, rem) <> 0) and (fpgeterrno = ESysEINTR) do
-      req := rem;
-    end_tsc := RDTSC;
-    clock_gettime(CLOCK_MONOTONIC, @ts1);
-    elapsed_tsc := end_tsc - start_tsc;
-    elapsed_ns := (UInt64(ts1.tv_sec - ts0.tv_sec) * 1000000000) + UInt64(ts1.tv_nsec - ts0.tv_nsec);
-    if elapsed_ns > 0 then
-      Result := (elapsed_tsc * 1000000000) div elapsed_ns;
-    {$ENDIF}
-  except
-    Result := 0;
-  end;
+  Result := False;
+  if not HasCPUID then Exit;
+  CPUID($80000000, LMaxExt, LB, LC, LD);
+  if LMaxExt < $80000007 then Exit;
+  CPUID($80000007, LA, LB, LC, LD);
+  Result := (LD and (1 shl 8)) <> 0; // Invariant TSC
 end;
 
-class procedure TX86_64TSCTick.Initialize;
+{========================  读 TSC 选择器  ========================}
+
+function ReadTSC: UInt64;
+var
+  LExpected: Int32;
 begin
-  if FInitialized then Exit;
-  FAvailable := InternalDetectInvariantTSC;
-  if FAvailable then
+  if Assigned(GReadTscFn) then
+    Exit(GReadTscFn());
+
+  LExpected := 0;
+  if atomic_compare_exchange(GReadTscOnce, LExpected, 1) then
   begin
-    FFrequency := InternalCalibrateFrequency;
-    FAvailable := FFrequency > 0;
+    if CpuHasRDTSCP then
+      GReadTscFn := @ReadTSC_RDTSCP
+    else
+      GReadTscFn := @ReadTSC_LFENCE_RDTSC; // x86_64 基线具备 SSE2
+    atomic_store(GReadTscOnce, 2, mo_release);
+  end
+  else
+  begin
+    while atomic_load(GReadTscOnce, mo_acquire) <> 2 do
+      CpuRelax;
   end;
-  FInitialized := True;
+
+  Result := GReadTscFn();
 end;
 
-// ============ ITick ============
-function TX86_64TSCTick.GetFrequencyHz: UInt64;
+{========================  频率校准  ========================}
+
+function CalibrateHardwareResolutionHz: UInt64;
+var
+  LStartTsc, LEndTsc: UInt64;
+  LStartRef, LEndRef: UInt64;
+  LDeltaTsc, LDeltaRef: UInt64;
+  LRefResolution, LQuotient, LRemainder: UInt64;
+  LTargetRef: UInt64;
 begin
-  Initialize;
-  Result := FFrequency;
+  // 参考时钟参数
+  LRefResolution := GetHDResolution;
+  if LRefResolution = 0 then
+    Exit(0);
+
+  // 目标窗口 ~10ms（以参考时钟 tick 计）
+  LTargetRef := LRefResolution div 100;
+  if LTargetRef = 0 then
+    LTargetRef := 1;
+
+  LStartRef := GetHDTick;
+  LStartTsc := ReadTSC;
+  if (LStartRef = 0) or (LStartTsc = 0) then
+    Exit(0);
+
+  repeat
+    LEndRef := GetHDTick;
+    LEndTsc := ReadTSC;
+    CpuRelax;
+  until (LEndRef - LStartRef) >= LTargetRef;
+
+  LDeltaRef := LEndRef - LStartRef;
+  LDeltaTsc := LEndTsc - LStartTsc;
+  if (LDeltaRef = 0) or (LDeltaTsc = 0) then
+    Exit(0);
+
+  // 频率：deltaTsc / (deltaRef / res) = deltaTsc * res / deltaRef
+  LQuotient  := LDeltaTsc div LDeltaRef;
+  LRemainder := LDeltaTsc - LQuotient * LDeltaRef;
+  Result := LQuotient * LRefResolution + (LRemainder * LRefResolution) div LDeltaRef;
 end;
 
-function TX86_64TSCTick.GetIsMonotonic: Boolean;
+{========================  一次性获取频率  ========================}
+
+function GetHardwareResolution: UInt64;
+var
+  LState, LExpected: Int32;
 begin
-  Initialize;
-  Result := FAvailable;
+  // 快路径
+  LState := atomic_load(GHardwareResolutionOnce, mo_acquire);
+  if LState = 2 then
+    Exit(GHardwareResolution);
+
+  LExpected := 0;
+  if atomic_compare_exchange(GHardwareResolutionOnce, LExpected, 1) then
+  begin
+    Result := CalibrateHardwareResolutionHz;
+    if Result = 0 then
+    begin
+      // 回滚状态，允许其他线程或下次调用重试
+      atomic_store(GHardwareResolutionOnce, 0, mo_release);
+      Exit(0);
+    end;
+    GHardwareResolution := Result;
+    atomic_store(GHardwareResolutionOnce, 2, mo_release);
+  end
+  else
+  begin
+    // 等待其他线程完成；若发现回滚为 0，则尝试接手
+    while True do
+    begin
+      LState := atomic_load(GHardwareResolutionOnce, mo_acquire);
+      case LState of
+        2: Exit(GHardwareResolution);
+        0:
+          begin
+            LExpected := 0;
+            if atomic_compare_exchange(GHardwareResolutionOnce, LExpected, 1) then
+            begin
+              Result := CalibrateHardwareResolutionHz;
+              if Result = 0 then
+              begin
+                atomic_store(GHardwareResolutionOnce, 0, mo_release);
+                Exit(0);
+              end;
+              GHardwareResolution := Result;
+              atomic_store(GHardwareResolutionOnce, 2, mo_release);
+              Exit(Result);
+            end;
+          end;
+      else
+        CpuRelax; // =1 进行中
+      end;
+    end;
+  end;
 end;
 
-function TX86_64TSCTick.GetTickType: TTickType;
+{========================  ITick 接口实现  ========================}
+
+function GetTick: UInt64;
 begin
-  Result := ttTSC;
+  Result := ReadTSC;
 end;
 
-function TX86_64TSCTick.Tick: UInt64;
+function MakeTick: ITick;
 begin
-  Result := RDTSC;
+  Result := TX86_64HardwareTick.Create;
 end;
 
-class function TX86_64TSCTick.IsAvailable: Boolean;
+procedure TX86_64HardwareTick.Initialize(out aResolution: UInt64; out aIsMonotonic: Boolean; out aTickType: TTickType);
 begin
-  Initialize;
-  Result := FAvailable;
+  aIsMonotonic := CpuHasInvariantTSC; // 保守：仅在 invariant TSC 才宣称单调
+  aTickType    := ttHardware;
+  aResolution  := GetHardwareResolution;
+  // 可选兜底：若 aResolution=0，可视需要回退到 GetHDResolution
+  // if aResolution = 0 then aResolution := GetHDResolution;
 end;
 
-class function TX86_64TSCTick.Frequency: UInt64;
+function TX86_64HardwareTick.Tick: UInt64;
 begin
-  Initialize;
-  Result := FFrequency;
+  Result := GetTick;
 end;
-
-function IsX86_64TSCAvailable: Boolean;
-begin
-  Result := TX86_64TSCTick.IsAvailable;
-end;
-
-function GetX86_64TSCFrequency: UInt64;
-begin
-  Result := TX86_64TSCTick.Frequency;
-end;
-
-initialization
-  TX86_64TSCTick.FInitialized := False;
-  TX86_64TSCTick.FAvailable := False;
-  TX86_64TSCTick.FFrequency := 0;
 
 end.
 

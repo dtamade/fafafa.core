@@ -2,141 +2,233 @@ unit fafafa.core.time.tick.hardware.aarch64;
 
 {
 ──────────────────────────────────────────────────────────────
-📦 项目：fafafa.core.time.tick.hardware.aarch64 - ARM64 硬件计时器实现
+📦 项目：fafafa.core.time.tick.hardware.aarch64 - AArch64 硬件计时器
 
 📖 概述：
-  ARM64 平台的硬件计时器实现（基于 Architected System Counter）。
-  使用 CNTVCT_EL0 / CNTFRQ_EL0 提供高精度、单调递增的计数。
-
-⚠️ 重要：
-  - 大多数主流 Linux/Android 内核默认允许 EL0 读取 CNTVCT_EL0/CNTFRQ_EL0。
-    若目标系统禁用 EL0 访问，本单元不做“探测式读取”（try..except 无效），
-    请在更高层做能力选择与回退（例如改用 clock_gettime）。
-  - 本单元为“严格版”：仅在 CPUAARCH64 下可编译。非 AArch64 直接报错，避免误链接。
+  64位 ARM（AArch64）硬件计时器聚合单元。优先使用架构通用计时器：
+  - CNTVCT_EL0：单调递增计数器（virtual count）
+  - CNTFRQ_EL0：计数器频率（Hz）
+  若频率寄存器不可用，则回退到参考高精度时钟进行校准。
 
 🔧 特性：
-  • 读取 CNTVCT_EL0（64-bit 单调计数）
-  • 读取 CNTFRQ_EL0（频率 Hz）
-  • 读取前使用 ISB 序列化测量点
-  • 无需校准
+  • 读取 CNTVCT_EL0 获取 Ticks（用户态可读，通常不陷阱）
+  • 读取 CNTFRQ_EL0 获取频率；失败则自动校准
+  • 并发安全的一次性初始化（CAS + acquire/release）
+  • 平台分支与前述 x86/x86_64 单元一致（DARWIN 优先于 UNIX）
 
-👤 author  : fafafaStudio
-📧 Email   : dtamade@gmail.com
-💬 QQGroup : 685403987
-💬 QQ      : 179033731
+⚠️ 说明：
+  - 本单元使用 FPC 的内联汇编。Delphi/ARM64 默认不支持内联汇编，
+    将在编译期提示使用外部 .o/.obj 或无汇编实现。
 ──────────────────────────────────────────────────────────────
 }
 
 {$I fafafa.core.settings.inc}
 
-{$IFNDEF CPUAARCH64}
-  {$MESSAGE ERROR 'fafafa.core.time.tick.hardware.aarch64 仅支持 AArch64 (CPUAARCH64)。'}
-{$ENDIF}
+{$if not (defined(CPUAARCH64) or defined(CPUARM64))}
+  {$MESSAGE ERROR 'This unit is for 64-bit AArch64 only.'}
+{$ifend}
 
 interface
 
+{$IFNDEF FPC}
+  {$MESSAGE ERROR 'Delphi/ARM64 不支持 inline asm，请改用外部 .o/.obj 或无汇编实现（例如通过系统 API 读取计时器）'}
+{$ENDIF}
+
 uses
-  fafafa.core.time.tick.base,
-  fafafa.core.time.tick.hardware.base;
+  fafafa.core.time.tick.base;
 
 type
-  TAARCH64HardwareTick = class(THardwareTick)
-  strict private
-    class var FAvailable: Boolean;
-    class var FFrequency: UInt64;
-    class var FInitialized: Boolean;
-    class procedure EnsureInit; static;
+  { TAArch64HardwareTick }
+  TAArch64HardwareTick = class(TTick)
   protected
-    function GetHardwareResolution: UInt64; override;
+    procedure Initialize(out aResolution: UInt64; out aIsMonotonic: Boolean; out aTickType: TTickType); override;
   public
-    function Tick: UInt64; {$IFDEF FAFAFA_CORE_INLINING}inline;{$ENDIF}
-
-    class function IsAvailable: Boolean; static;
-    class function Frequency: UInt64; static;
+    function Tick: UInt64; override;
   end;
 
-// ARM64 硬件计时器帮助函数（轻便转发）
-function IsAvailable: Boolean;
-function GetHardwareFrequency: UInt64;
-function MakeTick: ITick;
+function GetHardwareResolution: UInt64; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
+function GetTick: UInt64; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
+function MakeTick: ITick; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
 
 implementation
 
-{$IFDEF CPUAARCH64}
-// 读取 CNTVCT_EL0（当前计数，64-bit）
-// 在读取前使用 ISB 以获得更稳定的测量点。
-// 返回值通过 x0（64-bit）传回，ABI 自然对齐。
-function ReadCNTVCT_EL0: UInt64; assembler; nostackframe;
-asm
-  isb                           // 指令同步屏障
-  mrs x0, cntvct_el0            // x0 = CNTVCT_EL0
-end;
+uses
+  fafafa.core.atomic,
+  fafafa.core.time.cpu
+  {$IFDEF MSWINDOWS}
+  , fafafa.core.time.tick.windows
+  {$ELSEIF DEFINED(DARWIN)}
+  , fafafa.core.time.tick.darwin
+  {$ELSEIF DEFINED(UNIX)}
+  , fafafa.core.time.tick.unix
+  {$ELSE}
+    {$MESSAGE ERROR 'Unsupported platform for fafafa.core.time.tick.hardware.aarch64'}
+  {$ENDIF};
 
-// 读取 CNTFRQ_EL0（频率 Hz，规范为 32-bit，但用 64-bit 返回）
-// 读取前也加 ISB（可选，保持一致性）。
-function ReadCNTFRQ_EL0: UInt64; assembler; nostackframe;
-asm
-  isb
-  mrs x0, cntfrq_el0            // x0 = zero-extended CNTFRQ_EL0
-end;
+{$IFDEF FPC}
+  {$asmmode default} // AArch64 下使用 FPC 默认汇编语法
 {$ENDIF}
 
-{ TAARCH64HardwareTick }
+var
+  GHardwareResolution:     UInt64 = 0; // 频率（Hz）
+  GHardwareResolutionOnce: Int32  = 0; // 0=未开始,1=进行中,2=完成
 
-class procedure TAARCH64HardwareTick.EnsureInit;
-begin
-  if FInitialized then Exit;
-  FAvailable := False;
-  FFrequency := 0;
-  FFrequency := ReadCNTFRQ_EL0;
-  FAvailable := (FFrequency <> 0);
-  FInitialized := True;
+{========================  低层寄存器读取  ========================}
+
+{$IF DEFINED(FPC) AND DEFINED(FAFAFA_USE_ARCH_TIMER)}
+function ReadCNTVCT: UInt64; assembler; nostackframe;
+asm
+  isb                     // 确保之前的状态变化对本次读取可见
+  mrs x0, cntvct_el0      // x0 <- 当前计数 (EL0 可见)
+  // 可选更保守：在读后再序列化一次（默认不需要以降低开销）
+  // isb
 end;
 
-function TAARCH64HardwareTick.GetHardwareResolution: UInt64;
-begin
-  EnsureInit;
-  Result := FFrequency;
+function ReadCNTFRQ: UInt64; assembler; nostackframe;
+asm
+  // 频率通常不变；严格场景可在读前 isb（通过编译期开关启用）
+  {$IFDEF FAFAFA_ARM_ISB_BEFORE_CNTFRQ}
+  isb                     // 可选序列化（默认关闭以减少开销）
+  {$ENDIF}
+  mrs x0, cntfrq_el0      // x0 <- 频率（Hz）
 end;
+{$ELSE}
+function ReadCNTVCT: UInt64; inline; begin Result := 0; end;
+function ReadCNTFRQ: UInt64; inline; begin Result := 0; end;
+{$ENDIF}
 
-function TAARCH64HardwareTick.Tick: UInt64;
+{========================  频率获取与校准  ========================}
+
+function CalibrateHardwareResolutionHz: UInt64;
+var
+  LStartCnt, LEndCnt: UInt64;
+  LStartRef, LEndRef: UInt64;
+  LDeltaCnt, LDeltaRef: UInt64;
+  LRefResolution, LQuotient, LRemainder: UInt64;
+  LTargetRef: UInt64;
 begin
-  EnsureInit;
-  if not FAvailable then
+  // 参考时钟分辨率（Hz）
+  LRefResolution := GetHDResolution;
+  if LRefResolution = 0 then
     Exit(0);
-  Result := ReadCNTVCT_EL0;
+
+  // 约 10ms 采样窗口（以参考时钟 tick 计）
+  LTargetRef := LRefResolution div 100;
+  if LTargetRef = 0 then
+    LTargetRef := 1;
+
+  // 对称采样：Ref→CNT / Ref→CNT
+  LStartRef := GetHDTick;
+  LStartCnt := ReadCNTVCT;
+  if (LStartRef = 0) or (LStartCnt = 0) then
+    Exit(0);
+
+  repeat
+    LEndRef := GetHDTick;
+    LEndCnt := ReadCNTVCT;
+    CpuRelax;
+  until (LEndRef - LStartRef) >= LTargetRef;
+
+  LDeltaRef := LEndRef - LStartRef;
+  LDeltaCnt := LEndCnt - LStartCnt;
+  if (LDeltaRef = 0) or (LDeltaCnt = 0) then
+    Exit(0);
+
+  // 频率：deltaCnt / (deltaRef / refHz) = deltaCnt * refHz / deltaRef
+  LQuotient  := LDeltaCnt div LDeltaRef;
+  LRemainder := LDeltaCnt - LQuotient * LDeltaRef;
+  Result := LQuotient * LRefResolution + (LRemainder * LRefResolution) div LDeltaRef;
 end;
 
-class function TAARCH64HardwareTick.IsAvailable: Boolean;
+function GetHardwareResolution: UInt64;
+var
+  LState, LExpected: Int32;
+  LHz: UInt64;
 begin
-  EnsureInit;
-  Result := FAvailable;
+  // 快路径
+  LState := atomic_load(GHardwareResolutionOnce, mo_acquire);
+  if LState = 2 then
+    Exit(GHardwareResolution);
+
+  // 竞争初始化
+  LExpected := 0;
+  if atomic_compare_exchange(GHardwareResolutionOnce, LExpected, 1) then
+  begin
+    // 先尝试从 CNTFRQ_EL0 直接读取
+    LHz := ReadCNTFRQ;
+    if LHz = 0 then
+      LHz := CalibrateHardwareResolutionHz;
+
+    if LHz = 0 then
+    begin
+      // 失败回滚，让其他线程或下次调用重试
+      atomic_store(GHardwareResolutionOnce, 0, mo_release);
+      Exit(0);
+    end;
+
+    GHardwareResolution := LHz;
+    atomic_store(GHardwareResolutionOnce, 2, mo_release);
+    Result := LHz;
+  end
+  else
+  begin
+    // 等待；若中途回滚为 0，则尝试接手
+    while True do
+    begin
+      LState := atomic_load(GHardwareResolutionOnce, mo_acquire);
+      case LState of
+        2: Exit(GHardwareResolution);
+        0:
+          begin
+            LExpected := 0;
+            if atomic_compare_exchange(GHardwareResolutionOnce, LExpected, 1) then
+            begin
+              LHz := ReadCNTFRQ;
+              if LHz = 0 then
+                LHz := CalibrateHardwareResolutionHz;
+
+              if LHz = 0 then
+              begin
+                atomic_store(GHardwareResolutionOnce, 0, mo_release);
+                Exit(0);
+              end;
+
+              GHardwareResolution := LHz;
+              atomic_store(GHardwareResolutionOnce, 2, mo_release);
+              Exit(LHz);
+            end;
+          end;
+      else
+        CpuRelax; // =1 进行中
+      end;
+    end;
+  end;
 end;
 
-class function TAARCH64HardwareTick.Frequency: UInt64;
-begin
-  EnsureInit;
-  Result := FFrequency;
-end;
+{========================  ITick 接口实现  ========================}
 
-function IsAvailable: Boolean;
+function GetTick: UInt64;
 begin
-  Result := TAARCH64HardwareTick.IsAvailable;
-end;
-
-function GetHardwareFrequency: UInt64;
-begin
-  Result := TAARCH64HardwareTick.Frequency;
+  Result := ReadCNTVCT;
 end;
 
 function MakeTick: ITick;
 begin
-  Result := TAARCH64HardwareTick.Create;
+  Result := TAArch64HardwareTick.Create;
 end;
 
-initialization
-  TAARCH64HardwareTick.FAvailable := False;
-  TAARCH64HardwareTick.FFrequency := 0;
-  TAARCH64HardwareTick.FInitialized := False;
+procedure TAArch64HardwareTick.Initialize(out aResolution: UInt64; out aIsMonotonic: Boolean; out aTickType: TTickType);
+begin
+  aIsMonotonic := True;             // AArch64 通用计时器单调递增（EL0 可见）
+  aTickType    := ttHardware;  // 硬件计时器
+  aResolution  := GetHardwareResolution;
+  // 可选兜底：若 aResolution=0，可回退到参考时钟
+  // if aResolution = 0 then aResolution := GetHDResolution;
+end;
+
+function TAArch64HardwareTick.Tick: UInt64;
+begin
+  Result := GetTick;
+end;
 
 end.

@@ -30,16 +30,18 @@ interface
 
 uses
   fafafa.core.time.tick.base
-  {$IF DEFINED(CPUX86_64) OR DEFINED(CPUI386)}
+  {$IF DEFINED(CPUI386) OR DEFINED(CPUX86)}
   , fafafa.core.time.tick.hardware.x86
-  {$ELSEIF DEFINED(CPUAARCH64)}
+  {$ELSEIF DEFINED(CPUX86_64)}
+  , fafafa.core.time.tick.hardware.x86_64
+  {$ELSEIF DEFINED(CPUAARCH64) AND DEFINED(FAFAFA_USE_ARCH_TIMER)}
   , fafafa.core.time.tick.hardware.aarch64
-  {$ELSEIF DEFINED(CPURISCV)}
-  , fafafa.core.time.tick.hardware.riscv
-  {$ELSEIF DEFINED(CPUARM) OR DEFINED(ARMV7A) OR DEFINED(USE_ARCH_TIMER)}
+  {$ELSEIF DEFINED(CPURISCV64)}
+  , fafafa.core.time.tick.hardware.riscv64
+  {$ELSEIF DEFINED(CPURISCV32)}
+  , fafafa.core.time.tick.hardware.riscv32
+  {$ELSEIF DEFINED(CPUARM) AND DEFINED(ARMV7A)}
   , fafafa.core.time.tick.hardware.armv7a
-  {$ELSE}
-    {$MESSAGE ERROR 'Unsupported architecture'}
   {$ENDIF}
   ;
 
@@ -51,27 +53,53 @@ implementation
 
 function IsAvailable: Boolean;
 begin
-  {$IF DEFINED(CPUX86_64) OR DEFINED(CPUI386) OR
-   DEFINED(CPUAARCH64)  OR DEFINED(CPURISCV) OR
-   DEFINED(CPUARM) OR DEFINED(ARMV7A) OR DEFINED(USE_ARCH_TIMER)}
-  Result := True;
+  {$IF DEFINED(CPUX86_64) OR DEFINED(CPUI386)}
+    Result := True;
+  {$ELSEIF DEFINED(CPUAARCH64) AND DEFINED(FAFAFA_USE_ARCH_TIMER)}
+    Result := True;
+  {$ELSEIF DEFINED(CPUARM) AND DEFINED(ARMV7A) AND DEFINED(FAFAFA_USE_ARCH_TIMER)}
+    Result := True;
+  {$ELSEIF DEFINED(CPURISCV32) AND (DEFINED(FAFAFA_CORE_USE_RISCV_TIME_CSR) OR DEFINED(FAFAFA_CORE_USE_RISCV_CYCLE_CSR))}
+    Result := True;
+  {$ELSEIF DEFINED(CPURISCV64) AND (DEFINED(FAFAFA_CORE_USE_RISCV_TIME_CSR) OR DEFINED(FAFAFA_CORE_USE_RISCV_CYCLE_CSR))}
+    Result := True;
   {$ELSE}
-  Result := False;
+    Result := False;
   {$ENDIF}
 end;
 
 function MakeTick: ITick;
 begin
-  {$IF DEFINED(CPUX86_64) OR DEFINED(CPUI386)}
-  Result := fafafa.core.time.tick.hardware.x86.MakeTick;
+  {$IF DEFINED(CPUI386) OR DEFINED(CPUX86)}
+    Result := fafafa.core.time.tick.hardware.x86.MakeTick;
+  {$ELSEIF DEFINED(CPUX86_64)}
+    Result := fafafa.core.time.tick.hardware.x86_64.MakeTick;
   {$ELSEIF DEFINED(CPUAARCH64)}
-  Result := fafafa.core.time.tick.hardware.aarch64.MakeTick;
-  {$ELSEIF DEFINED(CPURISCV)}
-  Result := fafafa.core.time.tick.hardware.riscv.MakeTick;
-  {$ELSEIF DEFINED(CPUARM) OR DEFINED(ARMV7A) OR DEFINED(USE_ARCH_TIMER)}
-  Result := fafafa.core.time.tick.hardware.armv7a.MakeTick;
+    {$IFDEF FAFAFA_USE_ARCH_TIMER}
+      Result := fafafa.core.time.tick.hardware.aarch64.MakeTick;
+    {$ELSE}
+      raise ETickNotAvailable.Create('AArch64 hardware tick requires FAFAFA_USE_ARCH_TIMER');
+    {$ENDIF}
+  {$ELSEIF DEFINED(CPURISCV64)}
+    {$IF DEFINED(FAFAFA_CORE_USE_RISCV_TIME_CSR) OR DEFINED(FAFAFA_CORE_USE_RISCV_CYCLE_CSR)}
+      Result := fafafa.core.time.tick.hardware.riscv64.MakeTick;
+    {$ELSE}
+      raise ETickNotAvailable.Create('RISC-V 64 hardware tick requires FAFAFA_CORE_USE_RISCV_TIME_CSR or FAFAFA_CORE_USE_RISCV_CYCLE_CSR');
+    {$ENDIF}
+  {$ELSEIF DEFINED(CPURISCV32)}
+    {$IF DEFINED(FAFAFA_CORE_USE_RISCV_TIME_CSR) OR DEFINED(FAFAFA_CORE_USE_RISCV_CYCLE_CSR)}
+      Result := fafafa.core.time.tick.hardware.riscv32.MakeTick;
+    {$ELSE}
+      raise ETickNotAvailable.Create('RISC-V 32 hardware tick requires FAFAFA_CORE_USE_RISCV_TIME_CSR or FAFAFA_CORE_USE_RISCV_CYCLE_CSR');
+    {$ENDIF}
+  {$ELSEIF DEFINED(CPUARM) AND DEFINED(ARMV7A)}
+    {$IFDEF FAFAFA_USE_ARCH_TIMER}
+      Result := fafafa.core.time.tick.hardware.armv7a.MakeTick;
+    {$ELSE}
+      raise ETickNotAvailable.Create('ARMv7-A hardware tick requires FAFAFA_USE_ARCH_TIMER');
+    {$ENDIF}
   {$ELSE}
-  raise ETickNotAvailable.Create('Hardware tick is not supported on this architecture');
+    raise ETickNotAvailable.Create('Hardware tick is not supported on this architecture');
   {$ENDIF}
 end;
 

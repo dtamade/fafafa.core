@@ -147,7 +147,8 @@ begin
 {$IFDEF MSWINDOWS}
   SwitchToThread;
 {$ELSE}
-  FpSched_Yield;
+  // 某些平台头文件并不导出 fpsched_yield；使用更通用的让出方案
+  fpSleep(0);
 {$ENDIF}
 end;
 
@@ -196,7 +197,7 @@ begin
   LRem.tv_sec := 0;
   LRem.tv_nsec := 0;
   // 可能被信号中断，按需重试
-  while (FpNanoSleep(LReq, LRem) <> 0) and (fpgeterrno = ESysEINTR) do
+  while (FpNanoSleep(@LReq, @LRem) <> 0) and (fpgeterrno = ESysEINTR) do
     LReq := LRem;
 end;
 {$ENDIF}

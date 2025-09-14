@@ -43,6 +43,29 @@ uses
   fafafa.core.time.tick.base;
 
 type
+
+  THDTick = class(TTick)
+  protected
+    procedure Initialize(out aResolution: UInt64; out aIsMonotonic: Boolean; out aTickType: TTickType); override;
+  public
+    function Tick: UInt64; override;
+  end;
+
+function GetResolution: UInt64; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
+function GetTick: UInt64; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
+function MakeTick: ITick; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
+
+function GetHDResolution: UInt64; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
+function GetHDTick: UInt64; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
+function MakeHDTick: ITick; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
+
+
+implementation
+
+uses
+  fafafa.core.time.tick.unix;
+
+type
   mach_timebase_info_data_t = record
     numer: UInt32;
     denom: UInt32;
@@ -55,44 +78,55 @@ const
 function mach_absolute_time: UInt64; cdecl; external LibSystemDll;
 function mach_timebase_info(info: pmach_timebase_info_data_t): Integer; cdecl; external LibSystemDll;
 
-type
-  TDarwinTick = class(TTick)
-  protected
-    procedure Initialize(out aResolution: UInt64; out aIsMonotonic: Boolean; out aTickType: TTickType); override;
-  private
-    FNumer, FDenom: UInt64; // timebase: ns = ticks * numer / denom
-  public
-    function Tick: UInt64; override;
-  end;
 
-function MakeTick: ITick;
+function GetResolution: UInt64;
+begin
+  Result := fafafa.core.time.tick.unix.GetResolution;
+end;
 
-implementation
+function GetTick: UInt64;
+begin
+  Result := fafafa.core.time.tick.unix.GetTick;
+end;
 
 function MakeTick: ITick;
 begin
-  Result := TDarwinTick.Create;
+  Result := fafafa.core.time.tick.unix.MakeTick;
 end;
 
-{ TDarwinTick }
-
-procedure TDarwinTick.Initialize(out aResolution: UInt64; out aIsMonotonic: Boolean; out aTickType: TTickType);
+function GetHDResolution: UInt64;
 var
   info: mach_timebase_info_data_t;
 begin
-  aIsMonotonic := True;
-  aTickType := ttHighPrecision;
-
   // Apple 文档：返回 0 表示成功
   if (mach_timebase_info(@info) <> 0) or (info.denom = 0) or (info.numer = 0) then
-    aResolution := 0
+    Result := 0
   else
-    aResolution := (NANOSECONDS_PER_SECOND * info.denom) div info.numer;
+    Result := (NANOSECONDS_PER_SECOND * info.denom) div info.numer;
 end;
 
-function TDarwinTick.Tick: UInt64;
+function GetHDTick: UInt64;
 begin
   Result := mach_absolute_time();
+end;
+
+function MakeHDTick: ITick;
+begin
+  Result := THDTick.Create;
+end;
+
+{ THDTick }
+
+procedure THDTick.Initialize(out aResolution: UInt64; out aIsMonotonic: Boolean; out aTickType: TTickType);
+begin
+  aIsMonotonic := True;
+  aTickType    := ttHighPrecision;
+  aResolution  := GetHDResolution;
+end;
+
+function THDTick.Tick: UInt64;
+begin
+  Result := GetHDTick();
 end;
 
 

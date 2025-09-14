@@ -89,6 +89,7 @@ begin
   Result := True;
 end;
 {$ELSE}
+assembler; nostackframe;
 asm
   // Try to flip ID bit (bit 21) in EFLAGS
   pushfd

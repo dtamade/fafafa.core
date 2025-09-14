@@ -19,7 +19,7 @@
         <CompilerOptions>
           <Version Value="11"/>
           <Target>
-            <Filename Value="bin/fafafa.core.time.tick.test"/>
+            <Filename Value="bin/$(TargetCPU)-$(TargetOS)/fafafa.core.time.tick.test"/>
           </Target>
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir)"/>
@@ -57,6 +57,48 @@
           </Linking>
         </CompilerOptions>
       </Item>
+      <Item Name="Release">
+        <CompilerOptions>
+          <Version Value="11"/>
+          <Target>
+            <Filename Value="bin/$(TargetCPU)-$(TargetOS)/fafafa.core.time.tick.test"/>
+          </Target>
+          <SearchPaths>
+            <IncludeFiles Value="$(ProjOutDir)"/>
+            <OtherUnitFiles Value="../../src"/>
+            <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
+          </SearchPaths>
+          <Parsing>
+            <SyntaxOptions>
+              <SyntaxMode Value="ObjFPC"/>
+              <CStyleOperator Value="False"/>
+              <IncludeAssertionCode Value="True"/>
+              <AllowLabel Value="False"/>
+              <CPPInline Value="False"/>
+            </SyntaxOptions>
+          </Parsing>
+          <CodeGeneration>
+            <Checks>
+              <IOChecks Value="True"/>
+              <RangeChecks Value="True"/>
+              <OverflowChecks Value="True"/>
+              <StackChecks Value="True"/>
+            </Checks>
+            <VerifyObjMethodCallValidity Value="True"/>
+            <Optimizations>
+              <OptimizationLevel Value="2"/>
+            </Optimizations>
+          </CodeGeneration>
+          <Linking>
+            <Debugging>
+              <DebugInfoType Value="dsDwarf3"/>
+              <UseHeaptrc Value="False"/>
+              <TrashVariables Value="False"/>
+              <UseExternalDbgSyms Value="False"/>
+            </Debugging>
+          </Linking>
+        </CompilerOptions>
+      </Item>
     </BuildModes>
     <PublishOptions>
       <Version Value="2"/>
@@ -64,6 +106,80 @@
     </PublishOptions>
     <RunParams>
       <FormatVersion Value="2"/>
+      <Modes Count="12">
+        <Mode0 Name="win32-i386">
+          <local>
+            <FormatVersion Value="1"/>
+            <CommandLineParams Value="--all --format=plain"/>
+          </local>
+        </Mode0>
+        <Mode1 Name="win64-x86_64">
+          <local>
+            <FormatVersion Value="1"/>
+            <CommandLineParams Value="--all --format=plain"/>
+          </local>
+        </Mode1>
+        <Mode2 Name="win32-arm">
+          <local>
+            <FormatVersion Value="1"/>
+            <CommandLineParams Value="--all --format=plain"/>
+          </local>
+        </Mode2>
+        <Mode3 Name="win64-aarch64">
+          <local>
+            <FormatVersion Value="1"/>
+            <CommandLineParams Value="--all --format=plain"/>
+          </local>
+        </Mode3>
+        <Mode4 Name="win32-riscv32">
+          <local>
+            <FormatVersion Value="1"/>
+            <CommandLineParams Value="--all --format=plain"/>
+          </local>
+        </Mode4>
+        <Mode5 Name="win64-riscv64">
+          <local>
+            <FormatVersion Value="1"/>
+            <CommandLineParams Value="--all --format=plain"/>
+          </local>
+        </Mode5>
+        <Mode6 Name="linux-i386">
+          <local>
+            <FormatVersion Value="1"/>
+            <CommandLineParams Value="--all --format=plain"/>
+          </local>
+        </Mode6>
+        <Mode7 Name="linux-x86_64">
+          <local>
+            <FormatVersion Value="1"/>
+            <CommandLineParams Value="--all --format=plain"/>
+          </local>
+        </Mode7>
+        <Mode8 Name="linux-arm">
+          <local>
+            <FormatVersion Value="1"/>
+            <CommandLineParams Value="--all --format=plain"/>
+          </local>
+        </Mode8>
+        <Mode9 Name="linux-aarch64">
+          <local>
+            <FormatVersion Value="1"/>
+            <CommandLineParams Value="--all --format=plain"/>
+          </local>
+        </Mode9>
+        <Mode10 Name="linux-riscv32">
+          <local>
+            <FormatVersion Value="1"/>
+            <CommandLineParams Value="--all --format=plain"/>
+          </local>
+        </Mode10>
+        <Mode11 Name="linux-riscv64">
+          <local>
+            <FormatVersion Value="1"/>
+            <CommandLineParams Value="--all --format=plain"/>
+          </local>
+        </Mode11>
+      </Modes>
     </RunParams>
     <Units>
       <Unit>
@@ -71,11 +187,7 @@
         <IsPartOfProject Value="True"/>
       </Unit>
       <Unit>
-        <Filename Value="test_tick_core.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit>
-      <Unit>
-        <Filename Value="test_tick_strict.pas"/>
+        <Filename Value="fafafa.core.time.tick.test.testcase.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>
@@ -83,7 +195,7 @@
   <CompilerOptions>
     <Version Value="11"/>
     <Target>
-      <Filename Value="bin/fafafa.core.time.tick.test"/>
+      <Filename Value="bin/$(TargetCPU)-$(TargetOS)/fafafa.core.time.tick.test"/>
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>

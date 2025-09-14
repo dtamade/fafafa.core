@@ -45,7 +45,7 @@ uses
 
 type
 
-  TTick = class(TTick)
+  TStdTick = class(TTick)
   protected
     procedure Initialize(out aResolution: UInt64; out aIsMonotonic: Boolean; out aTickType: TTickType); override;
   public
@@ -59,13 +59,13 @@ type
     function Tick: UInt64; override;
   end;
 
-  function GetResolution: UInt64; {$IFDEF FAFAFA_CORE_INLINING}inline;{$ENDIF}
-  function GetTick: UInt64; {$IFDEF FAFAFA_CORE_INLINING}inline;{$ENDIF}
-  function MakeTick: ITick; {$IFDEF FAFAFA_CORE_INLINING}inline;{$ENDIF}
+  function GetResolution: UInt64; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
+  function GetTick: UInt64; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
+  function MakeTick: ITick; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
   
-  function GetHDResolution: UInt64; {$IFDEF FAFAFA_CORE_INLINING}inline;{$ENDIF}
-  function GetHDTick: UInt64; {$IFDEF FAFAFA_CORE_INLINING}inline;{$ENDIF}
-  function MakeHDTick: ITick; {$IFDEF FAFAFA_CORE_INLINING}inline;{$ENDIF}
+  function GetHDResolution: UInt64; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
+  function GetHDTick: UInt64; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
+  function MakeHDTick: ITick; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
 
 implementation
 
@@ -83,13 +83,13 @@ function GetTick: UInt64;
 var
   LTV: TTimeVal;
 begin
-  gettimeofday(@LTV, nil);
+  fpgettimeofday(@LTV, nil);
   Result := UInt64(LTV.tv_sec) * GetResolution + UInt64(LTV.tv_usec);
 end;
 
 function MakeTick: ITick;
 begin
-  Result := TTick.Create;
+  Result := TStdTick.Create;
 end;
 
 
@@ -108,7 +108,7 @@ begin
   else
   begin
     // 回退到 gettimeofday
-    gettimeofday(@LTV, nil);
+    fpgettimeofday(@LTV, nil);
     // gettimeofday 返回微秒，需要转换为纳秒
     Result := UInt64(LTV.tv_sec) * GetHDResolution + UInt64(LTV.tv_usec) * 1000;
   end;
@@ -135,31 +135,31 @@ var
   LTV: TTimeVal;
 begin
   if clock_gettime(CLOCK_MONOTONIC, @LTS) = 0 then
-    Result := UInt64(LTS.tv_sec) * FResolution + UInt64(LTS.tv_nsec)
+    Result := UInt64(LTS.tv_sec) * GetHDResolution + UInt64(LTS.tv_nsec)
   else
   begin
     // 回退到 gettimeofday
-    gettimeofday(@LTV, nil);
+    fpgettimeofday(@LTV, nil);
     // gettimeofday 返回微秒，需要转换为纳秒
-    Result := UInt64(LTV.tv_sec) * FResolution + UInt64(LTV.tv_usec) * 1000;
+    Result := UInt64(LTV.tv_sec) * GetHDResolution + UInt64(LTV.tv_usec) * 1000;
   end;
 end;
 
-{ TTick }
+{ TStdTick }
 
-procedure TTick.Initialize(out aResolution: UInt64; out aIsMonotonic: Boolean; out aTickType: TTickType);
+procedure TStdTick.Initialize(out aResolution: UInt64; out aIsMonotonic: Boolean; out aTickType: TTickType);
 begin
   aResolution  := MICROSECONDS_PER_SECOND;
   aIsMonotonic := False;
   aTickType    := ttStandard;
 end;
 
-function TTick.Tick: UInt64;
+function TStdTick.Tick: UInt64;
 var
   LTV: TTimeVal;
 begin
-  gettimeofday(@LTV, nil);
-  Result := UInt64(LTV.tv_sec) * FResolution + UInt64(LTV.tv_usec);
+  fpgettimeofday(@LTV, nil);
+  Result := UInt64(LTV.tv_sec) * GetResolution + UInt64(LTV.tv_usec);
 end;
 
 

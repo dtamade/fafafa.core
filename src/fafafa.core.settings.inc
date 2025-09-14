@@ -16,7 +16,13 @@
 
 
 {$MACRO ON}      // 开始启用简单值风格宏 like {$DEFINE NAME := value}
-{$ASMMODE INTEL} // 开始启用 Intel 汇编语法
+{$IFDEF FPC}
+  {$if defined(CPUX86) or defined(CPUI386) or defined(CPUX64) or defined(CPUX86_64)}
+    {$ASMMODE INTEL}   // x86/x64 使用 Intel 汇编语法
+  {$else}
+    {$ASMMODE DEFAULT} // 其它架构使用默认语法
+  {$endif}
+{$ENDIF}
 
 { Enable inline 开启内联 }
 {$DEFINE FAFAFA_CORE_INLINE}
@@ -278,6 +284,21 @@
   {$DEFINE FAFAFA_LOCKFREE_CACHELINE_PAD}
 {$ENDIF}
 
+
+{ ARM/AArch64 通用计时器读频率的可选屏障（默认关闭） }
+{ 启用后在 ReadCNTFRQ 前插入 isb 序列化，适用于极少数虚拟化/热插拔严格场景 }
+{.$DEFINE FAFAFA_ARM_ISB_BEFORE_CNTFRQ}
+
+{ RISC-V: 是否启用 U 模式读取 time/timeh CSR（默认关闭以避免 SIGILL） }
+{$IFDEF CPURISCV32}
+  {.$DEFINE FAFAFA_CORE_USE_RISCV_TIME_CSR}
+  {.$DEFINE FAFAFA_CORE_USE_RISCV_CYCLE_CSR}
+{$ENDIF}
+{$IFDEF CPURISCV64}
+  {.$DEFINE FAFAFA_CORE_USE_RISCV_TIME_CSR}
+  {.$DEFINE FAFAFA_CORE_USE_RISCV_CYCLE_CSR}
+{$ENDIF}
+
 { Lock-free module optional performance toggles 无锁模块可选性能开关（默认关闭） }
 {.$DEFINE FAFAFA_LOCKFREE_CACHELINE_PAD}          { 在关键状态字段间加入缓存行填充以降低伪共享 }
 {.$DEFINE FAFAFA_LOCKFREE_BACKOFF}                { 在高冲突 CAS 重试时进行轻量退避 }
@@ -466,7 +487,7 @@
   {$MODESWITCH ADVANCEDRECORDS}
   {$MODESWITCH TYPEHELPERS}
 
-  { 启用 Intel 汇编语法 }
-  {$ASMMODE INTEL}
 {$ENDIF}
 
+
+{.$DEFINE FAFAFA_USE_ARCH_TIMER}
