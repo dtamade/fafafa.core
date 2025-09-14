@@ -35,7 +35,7 @@
 - Windows 说明：HighPrecision 通常基于 QPC；System 为 GetTickCount64（ms 粒度）。测试断言遵循“下限 + 宽容差”原则，避免不同平台调度器下的误报。
 
 
-### Stopwatch 与记录式 TTick（推荐用法）
+### Stopwatch 与 ITick（推荐用法）
 
 - 基本测量
 ```
@@ -53,9 +53,9 @@ end.
 - 注入指定时钟（WithClock）
 ```
 uses fafafa.core.time.tick, fafafa.core.time.stopwatch;
-var clk: TTick; sw: TStopwatch;
+var clk: ITick; sw: TStopwatch;
 begin
-  clk := TTick.From(ttHighPrecision); // 或 BestTick
+  clk := MakeHDTick; // 或 MakeBestTick/MakeStdTick/MakeHWTick（若可用）
   sw := TStopwatch.StartNewWithClock(clk);
   // ... workload ...
   sw.Stop;
@@ -73,51 +73,34 @@ begin
 end.
 ```
 
-## 记录式 TTick（core.time.tick）
+## ITick（core.time.tick）
 
-- 统一计时入口：TTick；跨平台高精度实现，避免接口分发成本
-- 高层 API 摘要：
-  - BestTick、TTick.From(ttHighPrecision/ttSystem/...)
-  - Now/Elapsed/TicksToDuration/DurationToTicks
-  - FrequencyHz/IsMonotonic/MinStep
-  - QuickMeasure/QuickMeasureClock
+- 统一计时入口：`ITick` 接口；工厂：`MakeStdTick`、`MakeHDTick`、`MakeHWTick`、`MakeBestTick`
+- 接口摘要：`Resolution`、`IsMonotonic`、`TickType`、`Tick()`
 
 快速开始：
 ```
 uses fafafa.core.time.tick;
-var c: TTick; t0, dt: QWord; d: TDuration;
+var c: ITick; t0, t1, dt: QWord;
 begin
-  c := BestTick;
-  t0 := c.Now;
+  c := MakeBestTick;
+  t0 := c.Tick;
   // ... workload ...
-  dt := c.Elapsed(t0);
-  d := c.TicksToDuration(dt);
-end.
-```
-
-选择计时源：
-```
-var c: TTick;
-begin
-  c := TTick.From(ttHighPrecision);
-  // 或 TickFrom(ttSystem)
-end.
-```
-
-便捷测量：
-```
-var d: TDuration;
-begin
-  d := QuickMeasure(procedure begin
-    // ... workload ...
-  end);
+  t1 := c.Tick;
+  dt := t1 - t0; // 时间差（单位见 c.Resolution）
 end.
 ```
 
 平台说明：
 - Windows：HighPrecision 使用 QPC；不可用时回退到 GetTickCount64
-- Unix：HighPrecision 使用 CLOCK_MONOTONIC；失败时回退到毫秒计数并换算
-- TSC：当前统一判定为不可用（回退）
+- Unix：HighPrecision 使用 CLOCK_MONOTONIC；失败时回退到 gettimeofday（换算 ns）
+- x86/x86_64 硬件计时器：TSC（RDTSCP/LFENCE;RDTSC/CPUID;RDTSC），10ms 对称校准；仅在 invariant TSC 时宣称单调
+- AArch64/ARMv7‑A 硬件计时器：架构通用计时器 CNTVCT/CNTPCT + CNTFRQ，按平台权限决定可用性
+- RISC‑V 硬件计时器：time/timeh 或 cycle/cycleh（优先 time；cycle 可能受 DVFS 影响）
+
+硬件计时器编译开关：
+- AArch64/ARMv7‑A：`FAFAFA_USE_ARCH_TIMER`
+- RISC‑V：`FAFAFA_CORE_USE_RISCV_TIME_CSR`、`FAFAFA_CORE_USE_RISCV_CYCLE_CSR`
 
 最佳实践：
 - 性能测量/超时：优先 HighPrecision/Best；输出用 TDuration.As*

@@ -6,7 +6,8 @@ program simple_demo;
 uses
   SysUtils,
   fafafa.core.time.tick,
-  fafafa.core.time.duration;
+  fafafa.core.time.duration,
+  fafafa.core.time.stopwatch;
 
 procedure DoWorkload;
 begin
@@ -14,27 +15,27 @@ begin
   Sleep(10);
 end;
 
-procedure ShowClockInfo(const name: string; t: TTick);
+procedure ShowClockInfo(const name: string; c: ITick);
 var
-  start, ticks: QWord;
+  sw: TStopwatch;
   d: TDuration;
 begin
-  start := t.Now;
+  sw := TStopwatch.StartNewWithClock(c);
   DoWorkload;
-  ticks := t.Elapsed(start);
-  d := t.TicksToDuration(ticks);
+  sw.Stop;
+  d := sw.ElapsedDuration;
   WriteLn('[', name, '] 用时: ', FormatFloat('0.000', d.AsMs), ' ms',
-          '  频率=', t.FrequencyHz, ' Hz',
-          '  最小步长≈', t.MinStep.AsNs, ' ns');
+          '  单调=', c.GetIsMonotonic,
+          '  分辨率=', c.GetResolution, ' ticks/sec');
 end;
 
 var
-  best, high, sys: TTick;
+  best, high, sys: ITick;
 begin
   Writeln('演示：对比 Best / HighPrecision / System 三种计时源');
-  best := BestTick;
-  high := TTick.From(ttHighPrecision);
-  sys  := TTick.From(ttSystem);
+  best := MakeBestTick;
+  high := MakeHDTick;
+  sys  := MakeStdTick;
 
   ShowClockInfo('Best', best);
   ShowClockInfo('HighPrecision', high);

@@ -1,1 +1,0 @@
-schema=2;decimals=2;sep=,;schema_in_column=1;counters_tabular=1;missing=0

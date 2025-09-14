@@ -19,7 +19,7 @@ unit fafafa.core.time.tick.hardware.x86_64;
 {$I fafafa.core.settings.inc}
 
 {$if not (defined(CPUX64) or defined(CPUX86_64))}
-  {$MESSAGE ERROR 'This unit is for 64-bit x86_64 only. Use fafafa.core.time.tick.hardware.x86.pas for 32-bit.'}
+  {$MESSAGE ERROR 'This unit is for 64-bit x86_64 only. Use fafafa.core.time.tick.hardware.i386.pas for 32-bit.'}
 {$ifend}
 
 interface
@@ -48,8 +48,7 @@ implementation
 
 uses
   fafafa.core.atomic,
-  fafafa.core.time.cpu,
-  fafafa.core.simd.cpuinfo.x86
+  fafafa.core.time.cpu
   {$IFDEF MSWINDOWS}
   , fafafa.core.time.tick.windows
   {$ELSEIF DEFINED(DARWIN)}
@@ -103,9 +102,36 @@ end;
 
 {========================  CPU 能力检测  ========================}
 
+// -- 本地极简 CPUID 支持，避免依赖 simd.cpuinfo.x86 --
+function HasCPUID: Boolean; inline;
+begin
+  // 在 x86_64 上 CPUID 必然可用
+  Result := True;
+end;
+
+procedure CPUID(EAX: LongWord; var EAX_Out, EBX_Out, ECX_Out, EDX_Out: LongWord);
+var
+  result_eax, result_ebx, result_ecx, result_edx: LongWord;
+begin
+  asm
+    push rbx
+    mov eax, EAX
+    cpuid
+    mov result_eax, eax
+    mov result_ebx, ebx
+    mov result_ecx, ecx
+    mov result_edx, edx
+    pop rbx
+  end;
+  EAX_Out := result_eax;
+  EBX_Out := result_ebx;
+  ECX_Out := result_ecx;
+  EDX_Out := result_edx;
+end;
+
 function CpuHasRDTSCP: Boolean;
 var
-  LA, LB, LC, LD, LMaxExt: DWord;
+  LA, LB, LC, LD, LMaxExt: LongWord;
 begin
   Result := False;
   if not HasCPUID then Exit;
@@ -117,7 +143,7 @@ end;
 
 function CpuHasInvariantTSC: Boolean;
 var
-  LA, LB, LC, LD, LMaxExt: DWord;
+  LA, LB, LC, LD, LMaxExt: LongWord;
 begin
   Result := False;
   if not HasCPUID then Exit;

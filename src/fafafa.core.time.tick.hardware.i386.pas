@@ -1,11 +1,11 @@
-unit fafafa.core.time.tick.hardware.x86;
+unit fafafa.core.time.tick.hardware.i386;
 
 {
 ──────────────────────────────────────────────────────────────
-📦 项目：fafafa.core.time.tick.hardware.x86 - x86 32-bit 硬件计时器
+📦 项目：fafafa.core.time.tick.hardware.i386 - i386 32-bit 硬件计时器
 
 📖 概述：
-  32位 x86 硬件计时器聚合单元。引入基础实现与平台校准器，
+  32位 i386 硬件计时器聚合单元。引入基础实现与平台校准器，
   并导出统一的检测/频率查询与 ITick 实例工厂。
 
 🔧 特性：
@@ -27,7 +27,7 @@ unit fafafa.core.time.tick.hardware.x86;
 {$I fafafa.core.settings.inc}
 
 {$if not (defined(CPUX86) or defined(CPUI386))}
-  {$MESSAGE ERROR 'This unit is for 32-bit x86 only. Use fafafa.core.time.tick.hardware.x86_64.pas for 64-bit.'}
+  {$MESSAGE ERROR 'This unit is for 32-bit i386 only. Use fafafa.core.time.tick.hardware.x86_64.pas for 64-bit.'}
 {$ifend}
 
 interface
@@ -36,8 +36,8 @@ uses
   fafafa.core.time.tick.base;
 
 type
-  { TX86HardwareTick }
-  TX86HardwareTick = class(TTick)
+  { TI386HardwareTick }
+  TI386HardwareTick = class(TTick)
   protected
     procedure Initialize(out aResolution: UInt64; out aIsMonotonic: Boolean; out aTickType: TTickType); override;
   public
@@ -52,8 +52,7 @@ implementation
 
 uses
   fafafa.core.atomic,
-  fafafa.core.time.cpu,
-  fafafa.core.simd.cpuinfo.x86
+  fafafa.core.time.cpu
   {$IFDEF MSWINDOWS}
   , fafafa.core.time.tick.windows
   {$ELSEIF DEFINED(DARWIN)}
@@ -61,7 +60,7 @@ uses
   {$ELSEIF DEFINED(UNIX)}
   , fafafa.core.time.tick.unix
   {$ELSE}
-    {$MESSAGE ERROR 'Unsupported platform for fafafa.core.time.tick.hardware.x86'}
+    {$MESSAGE ERROR 'Unsupported platform for fafafa.core.time.tick.hardware.i386'}
   {$ENDIF};
 
 var
@@ -115,9 +114,51 @@ end;
 
 {========================  CPU 能力检测  ========================}
 
+// -- 本地极简 CPUID 支持，避免依赖 simd.cpuinfo.x86 --
+function HasCPUID: Boolean;
+assembler; nostackframe;
+asm
+  // 通过翻转 EFLAGS.ID 位(21)来检测 CPUID 支持
+  pushfd
+  pop eax
+  mov ecx, eax
+  xor eax, $200000
+  push eax
+  popfd
+  pushfd
+  pop eax
+  xor eax, ecx
+  shr eax, 21
+  and eax, 1
+  push ecx
+  popfd
+end;
+
+procedure CPUID(EAX: LongWord; var EAX_Out, EBX_Out, ECX_Out, EDX_Out: LongWord);
+var
+  result_eax, result_ebx, result_ecx, result_edx: LongWord;
+begin
+  asm
+    push ebx
+    push edi
+    mov eax, EAX
+    cpuid
+    mov result_eax, eax
+    mov result_ebx, ebx
+    mov result_ecx, ecx
+    mov result_edx, edx
+    pop edi
+    pop ebx
+  end;
+  EAX_Out := result_eax;
+  EBX_Out := result_ebx;
+  ECX_Out := result_ecx;
+  EDX_Out := result_edx;
+end;
+
 function CpuHasRDTSCP: Boolean;
 var
-  LA, LB, LC, LD, LMaxExt: DWord;
+  LA, LB, LC, LD, LMaxExt: LongWord;
 begin
   Result := False;
   if not HasCPUID then Exit;
@@ -129,7 +170,7 @@ end;
 
 function CpuHasInvariantTSC: Boolean;
 var
-  LA, LB, LC, LD, LMaxExt: DWord;
+  LA, LB, LC, LD, LMaxExt: LongWord;
 begin
   Result := False;
   if not HasCPUID then Exit;
@@ -141,7 +182,7 @@ end;
 
 function CpuHasSSE2: Boolean;
 var
-  LA, LB, LC, LD, LMax: DWord;
+  LA, LB, LC, LD, LMax: LongWord;
 begin
   Result := False;
   if not HasCPUID then Exit;
@@ -301,10 +342,10 @@ end;
 
 function MakeTick: ITick;
 begin
-  Result := TX86HardwareTick.Create;
+  Result := TI386HardwareTick.Create;
 end;
 
-procedure TX86HardwareTick.Initialize(out aResolution: UInt64; out aIsMonotonic: Boolean; out aTickType: TTickType);
+procedure TI386HardwareTick.Initialize(out aResolution: UInt64; out aIsMonotonic: Boolean; out aTickType: TTickType);
 begin
   aIsMonotonic := CpuHasInvariantTSC; // 保守：仅在 invariant TSC 才宣称单调
   aTickType    := ttHardware;
@@ -313,9 +354,11 @@ begin
   // if aResolution = 0 then aResolution := GetHDResolution;
 end;
 
-function TX86HardwareTick.Tick: UInt64;
+function TI386HardwareTick.Tick: UInt64;
 begin
   Result := GetTick;
 end;
 
 end.
+
+

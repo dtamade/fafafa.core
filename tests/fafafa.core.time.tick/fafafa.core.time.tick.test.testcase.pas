@@ -126,7 +126,11 @@ begin
   res := c.GetResolution;
   AssertTrue('Resolution > 0', res > 0);
   t0 := c.Tick;
-  SleepMs(1);
+  // Windows 下标准计时器粒度较粗，1ms 可能偶发不前进
+  if c.GetTickType = ttStandard then
+    SleepMs(2)
+  else
+    SleepMs(1);
   t1 := c.Tick;
   AssertTrue('Tick must advance', t1 > t0);
 end;

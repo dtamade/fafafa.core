@@ -31,7 +31,7 @@ interface
 uses
   fafafa.core.time.tick.base
   {$IF DEFINED(CPUI386) OR DEFINED(CPUX86)}
-  , fafafa.core.time.tick.hardware.x86
+  , fafafa.core.time.tick.hardware.i386
   {$ELSEIF DEFINED(CPUX86_64)}
   , fafafa.core.time.tick.hardware.x86_64
   {$ELSEIF DEFINED(CPUAARCH64) AND DEFINED(FAFAFA_USE_ARCH_TIMER)}
@@ -71,7 +71,7 @@ end;
 function MakeTick: ITick;
 begin
   {$IF DEFINED(CPUI386) OR DEFINED(CPUX86)}
-    Result := fafafa.core.time.tick.hardware.x86.MakeTick;
+    Result := fafafa.core.time.tick.hardware.i386.MakeTick;
   {$ELSEIF DEFINED(CPUX86_64)}
     Result := fafafa.core.time.tick.hardware.x86_64.MakeTick;
   {$ELSEIF DEFINED(CPUAARCH64)}

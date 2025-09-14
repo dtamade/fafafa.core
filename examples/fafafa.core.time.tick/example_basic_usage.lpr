@@ -16,36 +16,35 @@ program example_basic_usage;
 uses
   SysUtils,
   fafafa.core.time.tick,
-  fafafa.core.time.duration;
+  fafafa.core.time.duration,
+  fafafa.core.time.stopwatch;
 
-type
-  TClockPrinter = record
-    class procedure Print(const name: string; const c: TTick); static;
-  end;
-
-class procedure TClockPrinter.Print(const name: string; const c: TTick);
+procedure PrintClock(const name: string; const c: ITick);
 var
-  start, elapsed: QWord;
+  sw: TStopwatch;
   d: TDuration;
+  res, minStepNs: QWord;
 begin
   WriteLn('--- ', name, ' ---');
-  WriteLn('Frequency (ticks/sec): ', c.FrequencyHz);
-  WriteLn('IsMonotonic: ', c.IsMonotonic);
-  WriteLn('Min step: ', c.MinStep.AsNs, ' ns');
+  res := c.GetResolution;
+  if res = 0 then res := 1;
+  minStepNs := (NANOSECONDS_PER_SECOND + res - 1) div res;
+  WriteLn('Resolution (ticks/sec): ', res);
+  WriteLn('IsMonotonic: ', c.GetIsMonotonic);
+  WriteLn('Min step (approx): ', minStepNs, ' ns');
 
-  start := c.Now;
+  sw := TStopwatch.StartNewWithClock(c);
   Sleep(50);
-  elapsed := c.Elapsed(start);
-  d := c.TicksToDuration(elapsed);
+  sw.Stop;
+  d := sw.ElapsedDuration;
   WriteLn('Slept ~50ms, measured: ', d.AsMs:0:3, ' ms (', d.AsNs, ' ns)');
   WriteLn;
 end;
 
 var
-  c: TTick;
+  c: ITick;
   tt: TTickType;
-  types: TTickTypeArray;
-  i: Integer;
+  types: TTickTypes;
 begin
   WriteLn('fafafa.core.time.tick - Basic Usage');
   WriteLn('===================================');
@@ -54,24 +53,22 @@ begin
   // List available types
   types := GetAvailableTickTypes;
   WriteLn('Available tick types:');
-  for i := 0 to High(types) do
-  begin
-    tt := types[i];
-    WriteLn('  * ', GetTickTypeName(tt), ' (', Ord(tt), ')');
-  end;
+  for tt := Low(TTickType) to High(TTickType) do
+    if tt in types then
+      WriteLn('  * ', GetTickTypeName(tt), ' (', Ord(tt), ')');
   WriteLn;
 
   // Best clock
-  c := BestTick;
-  TClockPrinter.Print('BestTick', c);
+  c := MakeBestTick;
+  PrintClock('BestTick', c);
 
   // High precision clock
-  c := TTick.From(ttHighPrecision);
-  TClockPrinter.Print('HighPrecision', c);
+  c := MakeHDTick;
+  PrintClock('HighPrecision', c);
 
   // System clock
-  c := TTick.From(ttSystem);
-  TClockPrinter.Print('System', c);
+  c := MakeStdTick;
+  PrintClock('System', c);
 
   WriteLn('Done.');
 end.
