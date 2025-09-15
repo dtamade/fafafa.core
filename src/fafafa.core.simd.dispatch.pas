@@ -153,16 +153,30 @@ begin
   end
   else
   begin
+    // Use explicit priority order independent of enumeration order
+    const PRIORITY: array[0..5] of TSimdBackend = (
+      // Highest to lowest
+      sbAVX512, sbAVX2, sbSSE2, sbNEON, sbRISCVV, sbScalar
+    );
     backends := GetAvailableBackends;
     bestBackend := sbScalar; // Default fallback
-    
-    // Find best registered backend
-    for i := 0 to Length(backends) - 1 do
+
+    // Helper to check availability
+    function IsAvailable(b: TSimdBackend): Boolean;
+    var j: Integer;
     begin
-      if IsBackendRegistered(backends[i]) then
+      Result := False;
+      for j := 0 to Length(backends) - 1 do
+        if backends[j] = b then Exit(True);
+    end;
+
+    // Pick highest priority that is both registered and available
+    for i := Low(PRIORITY) to High(PRIORITY) do
+    begin
+      if IsBackendRegistered(PRIORITY[i]) and IsAvailable(PRIORITY[i]) then
       begin
-        bestBackend := backends[i];
-        Break; // First one is best (sorted by priority)
+        bestBackend := PRIORITY[i];
+        Break;
       end;
     end;
   end;
@@ -244,3 +258,5 @@ initialization
   InitializeDispatch;
 
 end.
+
+
