@@ -1,6 +1,5 @@
-﻿unit fafafa.core.sync.conditionVariable.base;
+unit fafafa.core.sync.condvar.base;
 
-{$mode objfpc}{$H+}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -10,12 +9,12 @@ uses
 
 type
 
-  IConditionVariable = interface(ILock)
+  ICondVar = interface(ISynchronizable)
     ['{F9CAE7D8-8A7B-4E5F-9C8D-7B6A5E4D3C2B}']
-    // 绛夊緟鏂规硶 - 鎺ュ彈浠讳綍 ILock 瀹炵幇锛堝寘鎷?IMutex锛?
+    // 绛夊緟鏂规硶 - 鎺ュ彈浠讳綍 ILock 瀹炵幇锛堝寘�?IMutex�?
     procedure Wait(const ALock: ILock); overload;
     function Wait(const ALock: ILock; ATimeoutMs: Cardinal): Boolean; overload;
-    // 閫氱煡
+    // 閫氱�?
     procedure Signal;
     procedure Broadcast;
   end;

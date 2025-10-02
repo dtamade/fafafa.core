@@ -1,6 +1,5 @@
-unit fafafa.core.sync.conditionVariable.unix;
+unit fafafa.core.sync.condvar.unix;
 
-{$mode objfpc}{$H+}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -8,10 +7,10 @@ interface
 uses
   SysUtils, BaseUnix, Unix, UnixType, pthreads,
   fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.mutex.base,
-  fafafa.core.sync.conditionVariable.base;
+  fafafa.core.sync.condvar.base,
 
 type
-  TConditionVariable = class(TInterfacedObject, IConditionVariable)
+  TCondVar = class(TSynchronizable, ICondVar)
   private
     FCond: pthread_cond_t;
     FLastError: TWaitError;
@@ -20,7 +19,7 @@ type
     destructor Destroy; override;
     // ISynchronizable
     function GetLastError: TWaitError;
-    // IConditionVariable
+    // ICondVar
     procedure Wait(const ALock: ILock); overload;
     function Wait(const ALock: ILock; ATimeoutMs: Cardinal): Boolean; overload;
     procedure Signal;
@@ -42,9 +41,9 @@ begin
 end;
 
 
-{ TConditionVariable }
+{ TCondVar }
 
-constructor TConditionVariable.Create;
+constructor TCondVar.Create;
 var
   Attr: pthread_condattr_t;
 begin
@@ -72,13 +71,13 @@ begin
   pthread_condattr_destroy(@Attr);
 end;
 
-destructor TConditionVariable.Destroy;
+destructor TCondVar.Destroy;
 begin
   pthread_cond_destroy(@FCond);
   inherited Destroy;
 end;
 
-procedure TConditionVariable.Wait(const ALock: ILock);
+procedure TCondVar.Wait(const ALock: ILock);
 var
   M: IMutex;
   PMutex: Ppthread_mutex_t;
@@ -88,14 +87,14 @@ begin
     raise EArgumentNilException.Create('Lock cannot be nil');
   try
     if not Supports(ALock, IMutex, M) then
-      raise ENotSupportedException.Create('Not supported: ConditionVariable.Wait requires IMutex');
+      raise ENotSupportedException.Create('Not supported: CondVar.Wait requires IMutex');
     PMutex := Ppthread_mutex_t(M.GetHandle);
   except
     on E: EAccessViolation do
-      raise ENotSupportedException.Create('Not supported: ConditionVariable.Wait requires IMutex');
+      raise ENotSupportedException.Create('Not supported: CondVar.Wait requires IMutex');
   end;
   if PMutex = nil then
-    raise ELockError.Create('ConditionVariable: mutex handle is nil');
+    raise ELockError.Create('CondVar: mutex handle is nil');
   RC := pthread_cond_wait(@FCond, PMutex);
   if RC <> 0 then
   begin
@@ -108,7 +107,7 @@ end;
 
 
 
-function TConditionVariable.Wait(const ALock: ILock; ATimeoutMs: Cardinal): Boolean;
+function TCondVar.Wait(const ALock: ILock; ATimeoutMs: Cardinal): Boolean;
 var
   M: IMutex;
   PMutex: Ppthread_mutex_t;
@@ -123,10 +122,14 @@ begin
   if ALock = nil then
     raise EArgumentNilException.Create('Lock cannot be nil');
   if not Supports(ALock, IMutex, M) then
-    raise ENotSupportedException.Create('Not supported: ConditionVariable.Wait requires IMutex');
+    raise ENotSupportedException.Create('Not supported: CondVar.Wait requires IMutex');
 
   PMutex := Ppthread_mutex_t(M.GetHandle);
-  if PMutex = nil then Exit(False);
+  if PMutex = nil then
+  begin
+    FLastError := weInvalidHandle;
+    Exit(False);
+  end;
 
   if ATimeoutMs = 0 then
     Exit(False);
@@ -170,7 +173,7 @@ begin
 
 end;
 
-procedure TConditionVariable.Signal;
+procedure TCondVar.Signal;
 begin
   if pthread_cond_signal(@FCond) <> 0 then
   begin
@@ -181,7 +184,7 @@ begin
     FLastError := weNone;
 end;
 
-procedure TConditionVariable.Broadcast;
+procedure TCondVar.Broadcast;
 begin
   if pthread_cond_broadcast(@FCond) <> 0 then
   begin
@@ -194,7 +197,7 @@ end;
 
 
 
-function TConditionVariable.GetLastError: TWaitError;
+function TCondVar.GetLastError: TWaitError;
 begin
   Result := FLastError;
 end;
