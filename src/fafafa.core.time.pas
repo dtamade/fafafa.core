@@ -58,6 +58,15 @@ type
   TTimeoutStrategy = fafafa.core.time.timeout.TTimeoutStrategy;
   TTimeoutState    = fafafa.core.time.timeout.TTimeoutState;
   {$ENDIF}
+
+const
+  // Module version information
+  TIME_MODULE_VERSION = '1.0.0';
+  TIME_MODULE_VERSION_MAJOR = 1;
+  TIME_MODULE_VERSION_MINOR = 0;
+  TIME_MODULE_VERSION_PATCH = 0;
+  TIME_MODULE_BUILD_DATE = '2025-10-02';
+
 function DefaultMonotonicClock: IMonotonicClock; inline;
 function DefaultSystemClock: ISystemClock; inline;
 function DefaultClock: IClock; inline;

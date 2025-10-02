@@ -18,6 +18,8 @@ type
     class function Second: TDuration; static; inline;
     class function Minute: TDuration; static; inline;
     class function Hour: TDuration; static; inline;
+    class function Day: TDuration; static; inline;
+    class function Week: TDuration; static; inline;
     // TryFrom 构造（检测溢出）
     class function TryFromNs(const ANs: Int64; out D: TDuration): Boolean; static; inline;
     class function TryFromUs(const AUs: Int64; out D: TDuration): Boolean; static; inline;
@@ -31,6 +33,10 @@ type
     class function FromMs(const AMs: Int64): TDuration; static; inline;
     class function FromSec(const ASec: Int64): TDuration; static; inline;
     class function FromSecF(const ASec: Double): TDuration; static; inline;
+    class function FromMinutes(const AMin: Int64): TDuration; static; inline;
+    class function FromHours(const AHrs: Int64): TDuration; static; inline;
+    class function FromDays(const ADays: Int64): TDuration; static; inline;
+    class function FromWeeks(const AWeeks: Int64): TDuration; static; inline;
 
     // 访问
     function AsNs: Int64; inline;
@@ -187,6 +193,18 @@ begin
   Result.FNs := 3600000000000;
 end;
 
+class function TDuration.Day: TDuration;
+begin
+  // 24 hours = 86400 seconds = 86400000000000 ns
+  Result.FNs := 86400000000000;
+end;
+
+class function TDuration.Week: TDuration;
+begin
+  // 7 days = 604800 seconds = 604800000000000 ns
+  Result.FNs := 604800000000000;
+end;
+
 class function TDuration.Zero: TDuration;
 begin
   Result.FNs := 0;
@@ -280,6 +298,30 @@ begin
     else r := Round(v);
   end;
   Result.FNs := r;
+end;
+
+class function TDuration.FromMinutes(const AMin: Int64): TDuration;
+begin
+  // 1 minute = 60 seconds
+  Result := FromSec(AMin * 60);
+end;
+
+class function TDuration.FromHours(const AHrs: Int64): TDuration;
+begin
+  // 1 hour = 3600 seconds
+  Result := FromSec(AHrs * 3600);
+end;
+
+class function TDuration.FromDays(const ADays: Int64): TDuration;
+begin
+  // 1 day = 86400 seconds
+  Result := FromSec(ADays * 86400);
+end;
+
+class function TDuration.FromWeeks(const AWeeks: Int64): TDuration;
+begin
+  // 1 week = 604800 seconds
+  Result := FromSec(AWeeks * 604800);
 end;
 
 function TDuration.AsNs: Int64; begin Result := FNs; end;

@@ -8,7 +8,7 @@ interface
 
 uses
   Classes, SysUtils, fpcunit, testregistry,
-  fafafa.core.time, fafafa.core.time.consts;
+  fafafa.core.time;
 
 type
   TTestCase_TimeFormatExt = class(TTestCase)

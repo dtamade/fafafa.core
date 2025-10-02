@@ -18,10 +18,14 @@ type
   public
     // 构造
     class function FromNsSinceEpoch(const A: UInt64): TInstant; static; inline;
+    class function FromUnixMs(const AUnixMs: Int64): TInstant; static; inline;
+    class function FromUnixSec(const AUnixSec: Int64): TInstant; static; inline;
     class function Zero: TInstant; static; inline;
 
     // 访问
     function AsNsSinceEpoch: UInt64; inline;
+    function AsUnixMs: Int64; inline;
+    function AsUnixSec: Int64; inline;
 
     // 算术
     function Add(const D: TDuration): TInstant; inline;
@@ -68,6 +72,26 @@ begin
   Result.FNsSinceEpoch := A;
 end;
 
+class function TInstant.FromUnixMs(const AUnixMs: Int64): TInstant;
+begin
+  // Unix epoch: 1970-01-01 00:00:00 UTC
+  // Convert milliseconds to nanoseconds
+  if AUnixMs >= 0 then
+    Result.FNsSinceEpoch := UInt64(AUnixMs) * 1000000
+  else
+    Result.FNsSinceEpoch := 0; // Saturate to zero for negative timestamps
+end;
+
+class function TInstant.FromUnixSec(const AUnixSec: Int64): TInstant;
+begin
+  // Unix epoch: 1970-01-01 00:00:00 UTC
+  // Convert seconds to nanoseconds
+  if AUnixSec >= 0 then
+    Result.FNsSinceEpoch := UInt64(AUnixSec) * 1000000000
+  else
+    Result.FNsSinceEpoch := 0; // Saturate to zero for negative timestamps
+end;
+
 class function TInstant.Zero: TInstant;
 begin
   Result.FNsSinceEpoch := 0;
@@ -76,6 +100,28 @@ end;
 function TInstant.AsNsSinceEpoch: UInt64;
 begin
   Result := FNsSinceEpoch;
+end;
+
+function TInstant.AsUnixMs: Int64;
+const
+  MaxNsForMs = 9223372036854775807;  // High(Int64)
+begin
+  // Convert nanoseconds to milliseconds
+  // Check if result would overflow Int64
+  if FNsSinceEpoch div 1000000 <= UInt64(High(Int64)) then
+    Result := Int64(FNsSinceEpoch div 1000000)
+  else
+    Result := High(Int64); // Saturate on overflow
+end;
+
+function TInstant.AsUnixSec: Int64;
+begin
+  // Convert nanoseconds to seconds
+  // Check if result would overflow Int64
+  if FNsSinceEpoch div 1000000000 <= UInt64(High(Int64)) then
+    Result := Int64(FNsSinceEpoch div 1000000000)
+  else
+    Result := High(Int64); // Saturate on overflow
 end;
 
 function TInstant.Add(const D: TDuration): TInstant;
