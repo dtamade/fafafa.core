@@ -13,7 +13,7 @@ uses
 
 var
   M: ILock;
-  CV: IConditionVariable;
+  CV: ICondVar;
   Ready: Boolean = False;
 
 function Producer(P: Pointer): PtrInt;
@@ -55,7 +55,7 @@ var T1, T2: TThreadID;
 begin
   // 启用 Windows 条件变量路径（示例运行时需在 settings.inc 打开宏）
   M := MakeMutex;
-  CV := MakeConditionVariable;
+  CV := MakeCondVar;
 
   BeginThread(@Consumer, nil, T1);
   BeginThread(@Producer, nil, T2);
