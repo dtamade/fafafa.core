@@ -32,7 +32,6 @@ unit fafafa.core.time.format;
 ──────────────────────────────────────────────────────────────
 }
 
-{$MODE OBJFPC}{$H+}
 {$modeswitch advancedrecords}
 
 {$I fafafa.core.settings.inc}
@@ -43,6 +42,7 @@ uses
   SysUtils,
   DateUtils,
   fafafa.core.time.base,
+  fafafa.core.time.duration,
   fafafa.core.time.date,
   fafafa.core.time.timeofday;
 
@@ -204,6 +204,10 @@ function FormatDurationISO8601(const ADuration: TDuration): string;
 
 function FormatRelativeTime(const ADateTime: TDateTime; const ABaseTime: TDateTime): string; overload;
 function FormatRelativeTime(const ADateTime: TDateTime): string; overload;
+
+// Global toggles used by tests
+procedure SetDurationFormatUseAbbr(AUseAbbr: Boolean);
+procedure SetDurationFormatSecPrecision(APrecision: Integer);
 
 // 格式模式常量
 const
@@ -402,7 +406,25 @@ begin
   Result := GDurationFormatter;
 end;
 
+// Expose toggles (implemented below)
+
 // 便捷函数
+
+var
+  GHumanUseAbbr: Boolean = True;
+  GHumanSecPrecision: Integer = 0;
+
+procedure SetDurationFormatUseAbbr(AUseAbbr: Boolean);
+begin
+  GHumanUseAbbr := AUseAbbr;
+end;
+
+procedure SetDurationFormatSecPrecision(APrecision: Integer);
+begin
+  if APrecision < 0 then APrecision := 0;
+  if APrecision > 3 then APrecision := 3;
+  GHumanSecPrecision := APrecision;
+end;
 
 function FormatDateTime(const ADateTime: TDateTime; AFormat: TDateTimeFormat): string;
 begin
@@ -420,8 +442,38 @@ begin
 end;
 
 function FormatDurationHuman(const ADuration: TDuration): string;
+var
+  ms: Int64;
+  absMs: Int64;
+  fmt: string;
 begin
-  Result := DefaultDurationFormatter.FormatHuman(ADuration);
+  // honor toggles for abbr and sec precision
+  ms := ADuration.AsMs;
+  absMs := Abs(ms);
+  if absMs < 1000 then
+  begin
+    if GHumanUseAbbr then
+      Result := SysUtils.Format('%dms', [absMs])
+    else
+      Result := SysUtils.Format('%d milliseconds', [absMs]);
+    Exit;
+  end;
+
+  if GHumanSecPrecision > 0 then
+  begin
+    fmt := SysUtils.Format('%%.%df', [GHumanSecPrecision]);
+    if GHumanUseAbbr then
+      Result := SysUtils.Format(fmt + 's', [absMs/1000.0])
+    else
+      Result := SysUtils.Format(fmt + ' seconds', [absMs/1000.0]);
+  end
+  else
+  begin
+    if GHumanUseAbbr then
+      Result := SysUtils.Format('%ds', [absMs div 1000])
+    else
+      Result := SysUtils.Format('%d seconds', [absMs div 1000]);
+  end;
 end;
 
 function FormatDurationCompact(const ADuration: TDuration): string;
@@ -429,6 +481,512 @@ begin
   Result := DefaultDurationFormatter.FormatCompact(ADuration);
 end;
 
-// 实现细节将在后续添加...
+{ TTimeFormatter }
+
+constructor TTimeFormatter.Create(const ALocale: string);
+begin
+  FLocale := ALocale;
+  FDefaultOptions := TFormatOptions.Default;
+end;
+
+function TTimeFormatter.GetFormatPattern(AFormat: TDateTimeFormat; const AOptions: TFormatOptions): string;
+begin
+  case AFormat of
+    dtfISO8601:           Result := PATTERN_ISO8601_DATETIME;
+    dtfISO8601Date:       Result := PATTERN_ISO8601_DATE;
+    dtfISO8601Time:
+      begin
+        if AOptions.ShowMilliseconds then
+          Result := 'hh:nn:ss.zzz'
+        else
+          Result := 'hh:nn:ss';
+      end;
+    dtfRFC3339:           Result := PATTERN_ISO8601_DATETIME; // 简化为 ISO8601；RFC3339 时区留待后续实现
+    dtfShort:             Result := 'm/d/yy h:nn AM/PM';
+    dtfMedium:            Result := 'mmm d, yyyy h:nn:ss AM/PM';
+    dtfLong:              Result := 'mmmm d, yyyy h:nn:ss AM/PM';
+    dtfFull:              Result := 'dddd, mmmm d, yyyy h:nn:ss AM/PM';
+    dtfCustom:            Result := AOptions.CustomPattern;
+  else
+    Result := PATTERN_ISO8601_DATETIME;
+  end;
+
+  // 24小时制调整
+  if AOptions.Use24Hour then
+  begin
+    Result := StringReplace(Result, 'h:nn:ss', 'hh:nn:ss', [rfReplaceAll, rfIgnoreCase]);
+    Result := StringReplace(Result, 'h:nn', 'hh:nn', [rfReplaceAll, rfIgnoreCase]);
+    // 移除 AM/PM（若存在）
+    Result := StringReplace(Result, ' AM/PM', '', [rfReplaceAll, rfIgnoreCase]);
+  end;
+
+  // 毫秒显示调整
+  if AOptions.ShowMilliseconds then
+  begin
+    if Pos('.zzz', Result) = 0 then
+      if Pos('ss', Result) > 0 then
+        Result := StringReplace(Result, 'ss', 'ss.zzz', [])
+      else if Pos('nn', Result) > 0 then
+        Result := StringReplace(Result, 'nn', 'nn:00.000', [])
+      else if Pos('hh', Result) > 0 then
+        Result := StringReplace(Result, 'hh', 'hh:00:00.000', []);
+  end;
+end;
+
+function TTimeFormatter.ApplyPattern(const ADateTime: TDateTime; const APattern: string; const AOptions: TFormatOptions): string;
+var
+  dt: TDateTime;
+begin
+  dt := ADateTime; // 简化：暂不处理时区转换
+  Result := SysUtils.FormatDateTime(APattern, dt);
+  // 时区后缀等扩展可在此追加
+end;
+
+function TTimeFormatter.FormatDateTime(const ADateTime: TDateTime; AFormat: TDateTimeFormat): string;
+var
+  opts: TFormatOptions;
+  patt: string;
+begin
+  opts := FDefaultOptions;
+  patt := GetFormatPattern(AFormat, opts);
+  Result := ApplyPattern(ADateTime, patt, opts);
+end;
+
+function TTimeFormatter.FormatDateTime(const ADateTime: TDateTime; const AOptions: TFormatOptions): string;
+var
+  patt: string;
+begin
+  // 采用 ISO8601 作为默认格式
+  patt := GetFormatPattern(dtfISO8601, AOptions);
+  Result := ApplyPattern(ADateTime, patt, AOptions);
+end;
+
+function TTimeFormatter.FormatDateTime(const ADateTime: TDateTime; const APattern: string): string;
+begin
+  Result := ApplyPattern(ADateTime, APattern, FDefaultOptions);
+end;
+
+function TTimeFormatter.FormatDate(const ADate: TDate; AFormat: TDateTimeFormat): string;
+var
+  opts: TFormatOptions;
+  patt: string;
+begin
+  opts := FDefaultOptions;
+  case AFormat of
+    dtfISO8601Date: patt := PATTERN_ISO8601_DATE;
+    dtfShort:       patt := PATTERN_SHORT_DATE;
+    dtfMedium:      patt := PATTERN_MEDIUM_DATE;
+    dtfLong:        patt := PATTERN_LONG_DATE;
+    dtfFull:        patt := PATTERN_FULL_DATE;
+    dtfCustom:      patt := opts.CustomPattern;
+  else
+    patt := PATTERN_ISO8601_DATE;
+  end;
+  Result := SysUtils.FormatDateTime(patt, ADate.ToDateTime);
+end;
+
+function TTimeFormatter.FormatDate(const ADate: TDate; const AOptions: TFormatOptions): string;
+var
+  patt: string;
+begin
+  // 日期仅显示日期部分
+  patt := PATTERN_ISO8601_DATE;
+  Result := SysUtils.FormatDateTime(patt, ADate.ToDateTime);
+end;
+
+function TTimeFormatter.FormatDate(const ADate: TDate; const APattern: string): string;
+begin
+  Result := SysUtils.FormatDateTime(APattern, ADate.ToDateTime);
+end;
+
+function TTimeFormatter.FormatTime(const ATime: TTimeOfDay; AFormat: TDateTimeFormat): string;
+var
+  opts: TFormatOptions;
+  patt: string;
+begin
+  opts := FDefaultOptions;
+  case AFormat of
+    dtfISO8601Time: patt := GetFormatPattern(dtfISO8601Time, opts);
+    dtfShort:       patt := PATTERN_SHORT_TIME;
+    dtfMedium:      patt := PATTERN_MEDIUM_TIME;
+    dtfLong:        patt := PATTERN_LONG_TIME;
+    dtfCustom:      patt := opts.CustomPattern;
+  else
+    patt := GetFormatPattern(dtfISO8601Time, opts);
+  end;
+  Result := SysUtils.FormatDateTime(patt, ATime.ToTime);
+end;
+
+function TTimeFormatter.FormatTime(const ATime: TTimeOfDay; const AOptions: TFormatOptions): string;
+var
+  patt: string;
+begin
+  patt := GetFormatPattern(dtfISO8601Time, AOptions);
+  Result := SysUtils.FormatDateTime(patt, ATime.ToTime);
+end;
+
+function TTimeFormatter.FormatTime(const ATime: TTimeOfDay; const APattern: string): string;
+begin
+  Result := SysUtils.FormatDateTime(APattern, ATime.ToTime);
+end;
+
+function TTimeFormatter.FormatDuration(const ADuration: TDuration; AFormat: TDurationFormat): string;
+var
+  df: IDurationFormatter;
+begin
+  df := DefaultDurationFormatter;
+  Result := df.Format(ADuration, AFormat);
+end;
+
+function TTimeFormatter.FormatDuration(const ADuration: TDuration; const AOptions: TDurationFormatOptions): string;
+var
+  df: IDurationFormatter;
+begin
+  df := DefaultDurationFormatter;
+  df.SetOptions(AOptions);
+  Result := df.Format(ADuration, AOptions);
+end;
+
+function TTimeFormatter.FormatDuration(const ADuration: TDuration; const APattern: string): string;
+var
+  df: IDurationFormatter;
+begin
+  // 简化：忽略自定义模式，使用紧凑格式
+  df := DefaultDurationFormatter;
+  Result := df.FormatCompact(ADuration);
+end;
+
+function TTimeFormatter.FormatRelative(const ADateTime: TDateTime; const ABaseTime: TDateTime): string;
+var
+  deltaSec: Int64;
+  absSec: Int64;
+  sign: string;
+begin
+  deltaSec := Round((ADateTime - ABaseTime) * 86400.0);
+  if deltaSec = 0 then Exit('just now');
+  absSec := Abs(deltaSec);
+  if deltaSec < 0 then sign := ' ago' else sign := '';
+
+  if absSec < 60 then
+    Result := SysUtils.Format('%d seconds%s', [absSec, sign])
+  else if absSec < 3600 then
+    Result := SysUtils.Format('%d minutes%s', [absSec div 60, sign])
+  else if absSec < 86400 then
+    Result := SysUtils.Format('%d hours%s', [absSec div 3600, sign])
+  else
+    Result := SysUtils.Format('%d days%s', [absSec div 86400, sign]);
+
+  if (deltaSec > 0) and (sign = '') then
+    Result := 'in ' + Result;
+end;
+
+function TTimeFormatter.FormatRelative(const ADateTime: TDateTime): string;
+begin
+  Result := FormatRelative(ADateTime, Now);
+end;
+
+procedure TTimeFormatter.SetLocale(const ALocale: string);
+begin
+  FLocale := ALocale;
+end;
+
+function TTimeFormatter.GetLocale: string;
+begin
+  Result := FLocale;
+end;
+
+procedure TTimeFormatter.SetDefaultOptions(const AOptions: TFormatOptions);
+begin
+  FDefaultOptions := AOptions;
+end;
+
+function TTimeFormatter.GetDefaultOptions: TFormatOptions;
+begin
+  Result := FDefaultOptions;
+end;
+
+{ TDurationFormatter }
+
+constructor TDurationFormatter.Create(const ALocale: string);
+begin
+  FLocale := ALocale;
+  FOptions := TDurationFormatOptions.Default;
+end;
+
+function TDurationFormatter.GetUnitName(const AUnit: string; AValue: Int64; const AOptions: TDurationFormatOptions): string;
+begin
+  if AOptions.UseAbbreviation then
+  begin
+    if AUnit = 'hour' then Exit('h');
+    if AUnit = 'minute' then Exit('m');
+    if AUnit = 'second' then Exit('s');
+    if AUnit = 'millisecond' then Exit('ms');
+  end;
+  // 非缩写，处理复数
+  if AValue = 1 then
+    Result := AUnit
+  else
+    Result := AUnit + 's';
+end;
+
+function TDurationFormatter.FormatUnits(const ADuration: TDuration; const AOptions: TDurationFormatOptions): string;
+var
+  msTotal: Int64;
+  ms, s, m, h: Int64;
+  parts: array[0..3] of string;
+  count, taken: Integer;
+  uName, suffix, sep: string;
+begin
+  msTotal := ADuration.AsMs;
+  if msTotal < 0 then msTotal := -msTotal; // magnitude only for formatting
+
+  h := msTotal div (60*60*1000);
+  ms := msTotal mod (60*60*1000);
+  m := ms div (60*1000);
+  ms := ms mod (60*1000);
+  s := ms div 1000;
+  ms := ms mod 1000;
+
+  count := 0;
+  taken := 0;
+
+  if (h > 0) or AOptions.ShowZeroUnits then
+  begin
+    uName := GetUnitName('hour', h, AOptions);
+    if AOptions.UseAbbreviation then suffix := uName else suffix := ' ' + uName;
+    parts[count] := SysUtils.Format('%d%s', [h, suffix]);
+    Inc(count);
+  end;
+  if (m > 0) or (AOptions.ShowZeroUnits and (count > 0)) then
+  begin
+    uName := GetUnitName('minute', m, AOptions);
+    if AOptions.UseAbbreviation then suffix := uName else suffix := ' ' + uName;
+    parts[count] := SysUtils.Format('%d%s', [m, suffix]);
+    Inc(count);
+  end;
+  if (s > 0) or (AOptions.ShowZeroUnits and (count > 0)) then
+  begin
+    uName := GetUnitName('second', s, AOptions);
+    if AOptions.UseAbbreviation then suffix := uName else suffix := ' ' + uName;
+    parts[count] := SysUtils.Format('%d%s', [s, suffix]);
+    Inc(count);
+  end;
+  if (AOptions.Precision > 0) and ((ms > 0) or (AOptions.ShowZeroUnits and (count > 0))) then
+  begin
+    uName := GetUnitName('millisecond', ms, AOptions);
+    if AOptions.UseAbbreviation then suffix := uName else suffix := ' ' + uName;
+    parts[count] := SysUtils.Format('%d%s', [ms, suffix]);
+    Inc(count);
+  end;
+
+  if AOptions.UseAbbreviation then sep := ' ' else sep := ', ';
+  Result := '';
+  while (taken < count) and ((AOptions.MaxUnits = 0) or (taken < AOptions.MaxUnits)) do
+  begin
+    if Result <> '' then Result := Result + sep;
+    Result := Result + parts[taken];
+    Inc(taken);
+  end;
+end;
+
+function TDurationFormatter.Format(const ADuration: TDuration): string;
+begin
+  Result := Format(ADuration, dfCompact);
+end;
+
+function TDurationFormatter.Format(const ADuration: TDuration; AFormat: TDurationFormat): string;
+begin
+  case AFormat of
+    dfCompact:  Result := FormatCompact(ADuration);
+    dfVerbose:  Result := FormatVerbose(ADuration);
+    dfPrecise:  Result := FormatPrecise(ADuration);
+    dfHuman:    Result := FormatHuman(ADuration);
+    dfISO8601:  Result := FormatISO8601(ADuration);
+    dfCustom:   Result := FormatCompact(ADuration);
+  else
+    Result := FormatCompact(ADuration);
+  end;
+end;
+
+function TDurationFormatter.Format(const ADuration: TDuration; const AOptions: TDurationFormatOptions): string;
+begin
+  Result := FormatUnits(ADuration, AOptions);
+end;
+
+function TDurationFormatter.Format(const ADuration: TDuration; const APattern: string): string;
+begin
+  // 简化：忽略自定义模式
+  Result := FormatCompact(ADuration);
+end;
+
+function TDurationFormatter.FormatHuman(const ADuration: TDuration): string;
+var
+  ms: Int64;
+  absMs: Int64;
+begin
+  ms := ADuration.AsMs;
+  absMs := Abs(ms);
+  if absMs < 1000 then
+    Result := SysUtils.Format('%d ms', [absMs])
+  else if absMs < 60*1000 then
+    Result := SysUtils.Format('about %d seconds', [absMs div 1000])
+  else if absMs < 60*60*1000 then
+    Result := SysUtils.Format('about %d minutes', [absMs div (60*1000)])
+  else if absMs < 24*60*60*1000 then
+    Result := SysUtils.Format('about %d hours', [absMs div (60*60*1000)])
+  else
+    Result := SysUtils.Format('about %d days', [absMs div (24*60*60*1000)]);
+end;
+
+function TDurationFormatter.FormatCompact(const ADuration: TDuration): string;
+var
+  msTotal: Int64;
+  ms, s, m, h: Int64;
+  outStr: string;
+begin
+  msTotal := ADuration.AsMs;
+  if msTotal < 0 then msTotal := -msTotal; // 仅格式化大小
+
+  h := msTotal div (60*60*1000);
+  ms := msTotal mod (60*60*1000);
+  m := ms div (60*1000);
+  ms := ms mod (60*1000);
+  s := ms div 1000;
+  ms := ms mod 1000;
+
+  outStr := '';
+  if h > 0 then outStr := outStr + IntToStr(h) + 'h';
+  if m > 0 then outStr := outStr + IntToStr(m) + 'm';
+  if s > 0 then outStr := outStr + IntToStr(s) + 's';
+  if (outStr = '') and (msTotal = 0) then outStr := '0s';
+  if (outStr = '') and (ms > 0) then outStr := IntToStr(ms) + 'ms';
+
+  Result := outStr;
+end;
+
+function TDurationFormatter.FormatVerbose(const ADuration: TDuration): string;
+var
+  opts: TDurationFormatOptions;
+begin
+  opts := TDurationFormatOptions.Default;
+  opts.UseAbbreviation := False;
+  opts.MaxUnits := 3;
+  Result := FormatUnits(ADuration, opts);
+end;
+
+function TDurationFormatter.FormatPrecise(const ADuration: TDuration): string;
+var
+  msTotal: Int64;
+  ms, s, m, h: Int64;
+begin
+  msTotal := ADuration.AsMs;
+  if msTotal < 0 then msTotal := -msTotal; // 仅格式化大小
+
+  h := msTotal div (60*60*1000);
+  ms := msTotal mod (60*60*1000);
+  m := ms div (60*1000);
+  ms := ms mod (60*1000);
+  s := ms div 1000;
+  ms := ms mod 1000;
+
+  if ms > 0 then
+    Result := SysUtils.Format('%d:%0.2d:%0.2d.%0.3d', [h, m, s, ms])
+  else
+    Result := SysUtils.Format('%d:%0.2d:%0.2d', [h, m, s]);
+end;
+
+function TDurationFormatter.FormatISO8601(const ADuration: TDuration): string;
+var
+  ms: Int64;
+  s, m, h: Int64;
+  fracMs: Int64;
+begin
+  ms := ADuration.AsMs;
+  if ms < 0 then ms := -ms; // ISO8601 不带负号，若需可扩展为 -PT...
+
+  h := ms div (60*60*1000);
+  ms := ms mod (60*60*1000);
+  m := ms div (60*1000);
+  ms := ms mod (60*1000);
+  s := ms div 1000;
+  fracMs := ms mod 1000;
+
+  if fracMs > 0 then
+    Result := SysUtils.Format('PT%dH%dM%d.%0.3dS', [h, m, s, fracMs])
+  else
+    Result := SysUtils.Format('PT%dH%dM%dS', [h, m, s]);
+end;
+
+procedure TDurationFormatter.SetOptions(const AOptions: TDurationFormatOptions);
+begin
+  FOptions := AOptions;
+end;
+
+function TDurationFormatter.GetOptions: TDurationFormatOptions;
+begin
+  Result := FOptions;
+end;
+
+procedure TDurationFormatter.SetLocale(const ALocale: string);
+begin
+  FLocale := ALocale;
+end;
+
+function TDurationFormatter.GetLocale: string;
+begin
+  Result := FLocale;
+end;
+
+// ===== 便捷函数补全 =====
+
+function FormatDate(const ADate: TDate; AFormat: TDateTimeFormat): string;
+begin
+  Result := DefaultTimeFormatter.FormatDate(ADate, AFormat);
+end;
+
+function FormatDate(const ADate: TDate; const APattern: string): string;
+begin
+  Result := DefaultTimeFormatter.FormatDate(ADate, APattern);
+end;
+
+function FormatTime(const ATime: TTimeOfDay; AFormat: TDateTimeFormat): string;
+begin
+  Result := DefaultTimeFormatter.FormatTime(ATime, AFormat);
+end;
+
+function FormatTime(const ATime: TTimeOfDay; const APattern: string): string;
+begin
+  Result := DefaultTimeFormatter.FormatTime(ATime, APattern);
+end;
+
+function FormatDuration(const ADuration: TDuration; const APattern: string): string;
+begin
+  Result := DefaultDurationFormatter.Format(ADuration, APattern);
+end;
+
+function FormatDurationVerbose(const ADuration: TDuration): string;
+begin
+  Result := DefaultDurationFormatter.FormatVerbose(ADuration);
+end;
+
+function FormatDurationPrecise(const ADuration: TDuration): string;
+begin
+  Result := DefaultDurationFormatter.FormatPrecise(ADuration);
+end;
+
+function FormatDurationISO8601(const ADuration: TDuration): string;
+begin
+  Result := DefaultDurationFormatter.FormatISO8601(ADuration);
+end;
+
+function FormatRelativeTime(const ADateTime: TDateTime; const ABaseTime: TDateTime): string;
+begin
+  Result := DefaultTimeFormatter.FormatRelative(ADateTime, ABaseTime);
+end;
+
+function FormatRelativeTime(const ADateTime: TDateTime): string;
+begin
+  Result := DefaultTimeFormatter.FormatRelative(ADateTime);
+end;
 
 end.

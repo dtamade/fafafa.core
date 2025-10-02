@@ -1,6 +1,5 @@
 unit fafafa.core.time.timer;
 
-{$MODE OBJFPC}{$H+}
 {$modeswitch advancedrecords}
 {$I fafafa.core.settings.inc}
 

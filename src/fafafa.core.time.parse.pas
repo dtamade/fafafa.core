@@ -32,7 +32,6 @@ unit fafafa.core.time.parse;
 ──────────────────────────────────────────────────────────────
 }
 
-{$MODE OBJFPC}{$H+}
 {$modeswitch advancedrecords}
 
 {$I fafafa.core.settings.inc}
@@ -41,14 +40,20 @@ interface
 
 uses
   SysUtils,
+  Classes,
   DateUtils,
   RegExpr,
+  StrUtils,
   fafafa.core.time.base,
+  fafafa.core.time.duration,
   fafafa.core.time.date,
   fafafa.core.time.timeofday,
   fafafa.core.time.format;
 
 type
+  // 动态字符串数组
+  TStringArray = array of string;
+
   // 解析模式
   TParseMode = (
     pmStrict,     // 严格模式，必须完全匹配格式
@@ -123,7 +128,7 @@ type
     
     // 格式检测
     function DetectFormat(const ATimeStr: string): string;
-    function GetSupportedFormats: TArray<string>;
+    function GetSupportedFormats: TStringArray;
     
     // 配置
     procedure SetDefaultOptions(const AOptions: TParseOptions);
@@ -202,7 +207,7 @@ function ParseDurationStrict(const ADurationStr: string; const AFormat: string):
 
 // 格式检测
 function DetectTimeFormat(const ATimeStr: string): string;
-function GetSupportedTimeFormats: TArray<string>;
+function GetSupportedTimeFormats: TStringArray;
 
 // 常用格式常量
 const
@@ -271,7 +276,7 @@ type
     function SmartParse(const ATimeStr: string; out ADuration: TDuration): TParseResult; overload;
     
     function DetectFormat(const ATimeStr: string): string;
-    function GetSupportedFormats: TArray<string>;
+    function GetSupportedFormats: TStringArray;
     
     procedure SetDefaultOptions(const AOptions: TParseOptions);
     function GetDefaultOptions: TParseOptions;
@@ -402,48 +407,146 @@ end;
 
 function ParseDateTime(const ADateTimeStr: string; out ADateTime: TDateTime): Boolean;
 var
-  result: TParseResult;
+  res: TParseResult;
 begin
-  result := DefaultTimeParser.ParseDateTime(ADateTimeStr, ADateTime);
-  Result := result.Success;
+  res := DefaultTimeParser.ParseDateTime(ADateTimeStr, ADateTime);
+  Result := res.Success;
+end;
+
+function ParseDateTime(const ADateTimeStr: string; const AFormat: string; out ADateTime: TDateTime): Boolean;
+var
+  res: TParseResult;
+begin
+  res := DefaultTimeParser.ParseDateTime(ADateTimeStr, AFormat, ADateTime);
+  Result := res.Success;
 end;
 
 function ParseDate(const ADateStr: string; out ADate: TDate): Boolean;
 var
-  result: TParseResult;
+  res: TParseResult;
 begin
-  result := DefaultTimeParser.ParseDate(ADateStr, ADate);
-  Result := result.Success;
+  res := DefaultTimeParser.ParseDate(ADateStr, ADate);
+  Result := res.Success;
+end;
+
+function ParseDate(const ADateStr: string; const AFormat: string; out ADate: TDate): Boolean;
+var
+  res: TParseResult;
+begin
+  res := DefaultTimeParser.ParseDate(ADateStr, AFormat, ADate);
+  Result := res.Success;
 end;
 
 function ParseTime(const ATimeStr: string; out ATime: TTimeOfDay): Boolean;
 var
-  result: TParseResult;
+  res: TParseResult;
 begin
-  result := DefaultTimeParser.ParseTime(ATimeStr, ATime);
-  Result := result.Success;
+  res := DefaultTimeParser.ParseTime(ATimeStr, ATime);
+  Result := res.Success;
+end;
+
+function ParseTime(const ATimeStr: string; const AFormat: string; out ATime: TTimeOfDay): Boolean;
+var
+  res: TParseResult;
+begin
+  res := DefaultTimeParser.ParseTime(ATimeStr, AFormat, ATime);
+  Result := res.Success;
 end;
 
 function ParseDuration(const ADurationStr: string; out ADuration: TDuration): Boolean;
 var
-  result: TParseResult;
+  res: TParseResult;
 begin
-  result := DefaultDurationParser.Parse(ADurationStr, ADuration);
-  Result := result.Success;
+  res := DefaultDurationParser.Parse(ADurationStr, ADuration);
+  Result := res.Success;
+end;
+
+function ParseDuration(const ADurationStr: string; const AFormat: string; out ADuration: TDuration): Boolean;
+var
+  res: TParseResult;
+begin
+  res := DefaultDurationParser.Parse(ADurationStr, AFormat, ADuration);
+  Result := res.Success;
 end;
 
 function SmartParseDateTime(const ATimeStr: string; out ADateTime: TDateTime): Boolean;
 var
-  result: TParseResult;
+  res: TParseResult;
 begin
-  result := DefaultTimeParser.SmartParse(ATimeStr, ADateTime);
-  Result := result.Success;
+  res := DefaultTimeParser.SmartParse(ATimeStr, ADateTime);
+  Result := res.Success;
 end;
 
-function ParseDateTimeStrict(const ADateTimeStr: string): TDateTime;
+function SmartParseDate(const ATimeStr: string; out ADate: TDate): Boolean;
+var
+  outRes: TParseResult;
+begin
+  outRes := DefaultTimeParser.SmartParse(ATimeStr, ADate);
+  Result := outRes.Success;
+end;
+
+function SmartParseTime(const ATimeStr: string; out ATime: TTimeOfDay): Boolean;
+var
+  outRes: TParseResult;
+begin
+  outRes := DefaultTimeParser.SmartParse(ATimeStr, ATime);
+  Result := outRes.Success;
+end;
+
+function SmartParseDuration(const ATimeStr: string; out ADuration: TDuration): Boolean;
+var
+  outRes: TParseResult;
+begin
+  outRes := DefaultDurationParser.SmartParse(ATimeStr, ADuration);
+  Result := outRes.Success;
+end;
+
+function ParseDateTimeStrict(const ADateTimeStr: string): TDateTime; overload;
 begin
   if not ParseDateTime(ADateTimeStr, Result) then
     raise EInvalidTimeFormat.CreateFmt('Invalid date/time format: %s', [ADateTimeStr]);
+end;
+
+function ParseDateTimeStrict(const ADateTimeStr: string; const AFormat: string): TDateTime; overload;
+begin
+  if not ParseDateTime(ADateTimeStr, AFormat, Result) then
+    raise EInvalidTimeFormat.CreateFmt('Invalid date/time format: %s', [ADateTimeStr]);
+end;
+
+function ParseDateStrict(const ADateStr: string): TDate; overload;
+begin
+  if not ParseDate(ADateStr, Result) then
+    raise EInvalidTimeFormat.CreateFmt('Invalid date format: %s', [ADateStr]);
+end;
+
+function ParseDateStrict(const ADateStr: string; const AFormat: string): TDate; overload;
+begin
+  if not ParseDate(ADateStr, AFormat, Result) then
+    raise EInvalidTimeFormat.CreateFmt('Invalid date format: %s', [ADateStr]);
+end;
+
+function ParseTimeStrict(const ATimeStr: string): TTimeOfDay; overload;
+begin
+  if not ParseTime(ATimeStr, Result) then
+    raise EInvalidTimeFormat.CreateFmt('Invalid time format: %s', [ATimeStr]);
+end;
+
+function ParseTimeStrict(const ATimeStr: string; const AFormat: string): TTimeOfDay; overload;
+begin
+  if not ParseTime(ATimeStr, AFormat, Result) then
+    raise EInvalidTimeFormat.CreateFmt('Invalid time format: %s', [ATimeStr]);
+end;
+
+function ParseDurationStrict(const ADurationStr: string): TDuration; overload;
+begin
+  if not ParseDuration(ADurationStr, Result) then
+    raise EInvalidTimeFormat.CreateFmt('Invalid duration format: %s', [ADurationStr]);
+end;
+
+function ParseDurationStrict(const ADurationStr: string; const AFormat: string): TDuration; overload;
+begin
+  if not ParseDuration(ADurationStr, AFormat, Result) then
+    raise EInvalidTimeFormat.CreateFmt('Invalid duration format: %s', [ADurationStr]);
 end;
 
 function DetectTimeFormat(const ATimeStr: string): string;
@@ -451,6 +554,339 @@ begin
   Result := DefaultTimeParser.DetectFormat(ATimeStr);
 end;
 
-// 实现细节将在后续添加...
+function GetSupportedTimeFormats: TStringArray;
+begin
+  Result := DefaultTimeParser.GetSupportedFormats;
+end;
+
+{ TTimeParser }
+
+constructor TTimeParser.Create(const ALocale: string);
+begin
+  FLocale := ALocale;
+  FDefaultOptions := TParseOptions.Default;
+  FRegexCache := nil;
+end;
+
+destructor TTimeParser.Destroy;
+begin
+  FreeAndNil(FRegexCache);
+  inherited Destroy;
+end;
+
+// Stubbed helpers for minimal compile
+function TTimeParser.BuildRegexPattern(const AFormat: string): string;
+begin
+  Result := AFormat;
+end;
+
+function TTimeParser.MatchPattern(const AInput, APattern: string; out AMatches: TStringArray): Boolean;
+begin
+  SetLength(AMatches, 0);
+  Result := False;
+end;
+
+function TTimeParser.ExtractComponents(const AMatches: TStringArray; const AFormat: string;
+  out AYear, AMonth, ADay, AHour, AMinute, ASecond, AMillisecond: Integer): Boolean;
+begin
+  AYear := 0; AMonth := 0; ADay := 0; AHour := 0; AMinute := 0; ASecond := 0; AMillisecond := 0;
+  Result := False;
+end;
+
+function TTimeParser.ParseDateTime(const ADateTimeStr: string; out ADateTime: TDateTime): TParseResult;
+var
+  ok: Boolean;
+begin
+  ok := TryStrToDateTime(ADateTimeStr, ADateTime);
+  if ok then
+    Exit(TParseResult.CreateSuccess(Length(ADateTimeStr), 'auto'))
+  else
+    Exit(TParseResult.CreateError('Invalid date/time', 0));
+end;
+
+function TTimeParser.ParseDateTime(const ADateTimeStr: string; const AFormat: string; out ADateTime: TDateTime): TParseResult;
+begin
+  // 简化：忽略格式，调用基本解析
+  Result := ParseDateTime(ADateTimeStr, ADateTime);
+end;
+
+function TTimeParser.ParseDateTime(const ADateTimeStr: string; const AOptions: TParseOptions; out ADateTime: TDateTime): TParseResult;
+begin
+  // 简化：忽略选项，调用基本解析
+  Result := ParseDateTime(ADateTimeStr, ADateTime);
+end;
+
+function TTimeParser.ParseDate(const ADateStr: string; out ADate: TDate): TParseResult;
+var
+  ok: Boolean;
+begin
+  ok := TDate.TryParse(ADateStr, ADate);
+  if ok then
+    Exit(TParseResult.CreateSuccess(Length(ADateStr), FORMAT_ISO8601_DATE))
+  else
+    Exit(TParseResult.CreateError('Invalid date', 0));
+end;
+
+function TTimeParser.ParseDate(const ADateStr: string; const AFormat: string; out ADate: TDate): TParseResult;
+begin
+  // 简化：忽略格式，调用基本解析
+  Result := ParseDate(ADateStr, ADate);
+end;
+
+function TTimeParser.ParseDate(const ADateStr: string; const AOptions: TParseOptions; out ADate: TDate): TParseResult;
+begin
+  // 简化：忽略选项，调用基本解析
+  Result := ParseDate(ADateStr, ADate);
+end;
+
+function TTimeParser.ParseTime(const ATimeStr: string; out ATime: TTimeOfDay): TParseResult;
+var
+  ok: Boolean;
+begin
+  ok := TTimeOfDay.TryParse(ATimeStr, ATime);
+  if ok then
+    Exit(TParseResult.CreateSuccess(Length(ATimeStr), FORMAT_ISO8601_TIME))
+  else
+    Exit(TParseResult.CreateError('Invalid time', 0));
+end;
+
+function TTimeParser.ParseTime(const ATimeStr: string; const AFormat: string; out ATime: TTimeOfDay): TParseResult;
+begin
+  Result := ParseTime(ATimeStr, ATime);
+end;
+
+function TTimeParser.ParseTime(const ATimeStr: string; const AOptions: TParseOptions; out ATime: TTimeOfDay): TParseResult;
+begin
+  Result := ParseTime(ATimeStr, ATime);
+end;
+
+function TTimeParser.DetectFormat(const ATimeStr: string): string;
+begin
+  if Pos('T', ATimeStr) > 0 then
+    Exit(FORMAT_ISO8601_DATETIME)
+  else if Pos(':', ATimeStr) > 0 then
+    Exit(FORMAT_ISO8601_TIME)
+  else
+    Exit(FORMAT_ISO8601_DATE);
+end;
+
+function TTimeParser.GetSupportedFormats: TStringArray;
+begin
+  SetLength(Result, 6);
+  Result[0] := FORMAT_ISO8601_DATE;
+  Result[1] := FORMAT_ISO8601_TIME;
+  Result[2] := FORMAT_ISO8601_DATETIME;
+  Result[3] := FORMAT_ISO8601_DATETIME_MS;
+  Result[4] := FORMAT_RFC3339;
+  Result[5] := FORMAT_RFC2822;
+end;
+
+function TTimeParser.SmartParse(const ATimeStr: string; out ADateTime: TDateTime): TParseResult;
+var
+  dt: TDateTime;
+  d: TDate;
+  t: TTimeOfDay;
+begin
+  if TryStrToDateTime(ATimeStr, dt) then
+    Exit(TParseResult.CreateSuccess(Length(ATimeStr), 'auto'))
+  else if TDate.TryParse(ATimeStr, d) then
+  begin
+    ADateTime := d.ToDateTime;
+    Exit(TParseResult.CreateSuccess(Length(ATimeStr), FORMAT_ISO8601_DATE));
+  end
+  else if TTimeOfDay.TryParse(ATimeStr, t) then
+  begin
+    ADateTime := EncodeDate(1970,1,1) + Frac(t.ToTime);
+    Exit(TParseResult.CreateSuccess(Length(ATimeStr), FORMAT_ISO8601_TIME));
+  end
+  else
+    Exit(TParseResult.CreateError('Cannot detect time format', 0));
+end;
+
+function TTimeParser.SmartParse(const ATimeStr: string; out ADate: TDate): TParseResult;
+var
+  d: TDate;
+  dt: TDateTime;
+begin
+  if TDate.TryParse(ATimeStr, d) then
+  begin
+    ADate := d;
+    Exit(TParseResult.CreateSuccess(Length(ATimeStr), FORMAT_ISO8601_DATE));
+  end
+  else if TryStrToDateTime(ATimeStr, dt) then
+  begin
+    ADate := TDate.FromDateTime(dt);
+    Exit(TParseResult.CreateSuccess(Length(ATimeStr), 'auto'));
+  end
+  else
+    Exit(TParseResult.CreateError('Invalid date', 0));
+end;
+
+function TTimeParser.SmartParse(const ATimeStr: string; out ATime: TTimeOfDay): TParseResult;
+var
+  t: TTimeOfDay;
+  dt: TDateTime;
+begin
+  if TTimeOfDay.TryParse(ATimeStr, t) then
+  begin
+    ATime := t;
+    Exit(TParseResult.CreateSuccess(Length(ATimeStr), FORMAT_ISO8601_TIME));
+  end
+  else if TryStrToDateTime(ATimeStr, dt) then
+  begin
+    ATime := TTimeOfDay.FromTime(Frac(dt));
+    Exit(TParseResult.CreateSuccess(Length(ATimeStr), 'auto'));
+  end
+  else
+    Exit(TParseResult.CreateError('Invalid time', 0));
+end;
+
+function TTimeParser.ParseDuration(const ADurationStr: string; out ADuration: TDuration): TParseResult;
+var
+  s: string;
+  v32: LongInt;
+begin
+  s := Trim(LowerCase(ADurationStr));
+  if (s = '') then Exit(TParseResult.CreateError('Empty duration', 0));
+
+  // 简化：仅支持纯毫秒数字、尾随 h/m/s/ms
+  if (RightStr(s,2) = 'ms') and TryStrToInt(Copy(s,1,Length(s)-2), v32) then
+  begin
+    ADuration := TDuration.FromMs(v32);
+    Exit(TParseResult.CreateSuccess(Length(ADurationStr), FORMAT_DURATION_PRECISE));
+  end
+  else if (RightStr(s,1) = 's') and TryStrToInt(Copy(s,1,Length(s)-1), v32) then
+  begin
+    ADuration := TDuration.FromSec(v32);
+    Exit(TParseResult.CreateSuccess(Length(ADurationStr), FORMAT_DURATION_COMPACT));
+  end
+  else if (RightStr(s,1) = 'm') and TryStrToInt(Copy(s,1,Length(s)-1), v32) then
+  begin
+    ADuration := TDuration.FromSec(v32*60);
+    Exit(TParseResult.CreateSuccess(Length(ADurationStr), FORMAT_DURATION_COMPACT));
+  end
+  else if (RightStr(s,1) = 'h') and TryStrToInt(Copy(s,1,Length(s)-1), v32) then
+  begin
+    ADuration := TDuration.FromSec(v32*3600);
+    Exit(TParseResult.CreateSuccess(Length(ADurationStr), FORMAT_DURATION_COMPACT));
+  end
+  else
+    Exit(TParseResult.CreateError('Invalid duration', 0));
+end;
+
+function TTimeParser.ParseDuration(const ADurationStr: string; const AFormat: string; out ADuration: TDuration): TParseResult;
+begin
+  Result := ParseDuration(ADurationStr, ADuration);
+end;
+
+function TTimeParser.ParseDuration(const ADurationStr: string; const AOptions: TParseOptions; out ADuration: TDuration): TParseResult;
+begin
+  Result := ParseDuration(ADurationStr, ADuration);
+end;
+
+function TTimeParser.SmartParse(const ATimeStr: string; out ADuration: TDuration): TParseResult;
+begin
+  Result := ParseDuration(ATimeStr, ADuration);
+end;
+
+procedure TTimeParser.SetDefaultOptions(const AOptions: TParseOptions);
+begin
+  FDefaultOptions := AOptions;
+end;
+
+function TTimeParser.GetDefaultOptions: TParseOptions;
+begin
+  Result := FDefaultOptions;
+end;
+
+procedure TTimeParser.SetLocale(const ALocale: string);
+begin
+  FLocale := ALocale;
+end;
+
+function TTimeParser.GetLocale: string;
+begin
+  Result := FLocale;
+end;
+
+{ TDurationParser }
+
+constructor TDurationParser.Create(const ALocale: string);
+begin
+  FOptions := TParseOptions.Default;
+end;
+
+// Stubbed internals for minimal compile
+function TDurationParser.ParseISO8601Internal(const ADurationStr: string; out ADuration: TDuration): Boolean;
+begin
+  Result := False;
+end;
+
+function TDurationParser.ParseHumanInternal(const ADurationStr: string; out ADuration: TDuration): Boolean;
+begin
+  Result := False;
+end;
+
+function TDurationParser.ParseCompactInternal(const ADurationStr: string; out ADuration: TDuration): Boolean;
+begin
+  Result := False;
+end;
+
+function TDurationParser.ParsePreciseInternal(const ADurationStr: string; out ADuration: TDuration): Boolean;
+begin
+  Result := False;
+end;
+
+function TDurationParser.Parse(const ADurationStr: string; out ADuration: TDuration): TParseResult;
+begin
+  // 直接复用 TTimeParser 的简单逻辑
+  Result := TTimeParser.Create('').ParseDuration(ADurationStr, ADuration);
+end;
+
+function TDurationParser.Parse(const ADurationStr: string; const AFormat: string; out ADuration: TDuration): TParseResult;
+begin
+  Result := Parse(ADurationStr, ADuration);
+end;
+
+function TDurationParser.Parse(const ADurationStr: string; const AOptions: TParseOptions; out ADuration: TDuration): TParseResult;
+begin
+  Result := Parse(ADurationStr, ADuration);
+end;
+
+function TDurationParser.ParseISO8601(const ADurationStr: string; out ADuration: TDuration): TParseResult;
+begin
+  // 简化：复用通用解析
+  Result := Parse(ADurationStr, ADuration);
+end;
+
+function TDurationParser.ParseHuman(const ADurationStr: string; out ADuration: TDuration): TParseResult;
+begin
+  Result := Parse(ADurationStr, ADuration);
+end;
+
+function TDurationParser.ParseCompact(const ADurationStr: string; out ADuration: TDuration): TParseResult;
+begin
+  Result := Parse(ADurationStr, ADuration);
+end;
+
+function TDurationParser.ParsePrecise(const ADurationStr: string; out ADuration: TDuration): TParseResult;
+begin
+  Result := Parse(ADurationStr, ADuration);
+end;
+
+function TDurationParser.SmartParse(const ADurationStr: string; out ADuration: TDuration): TParseResult;
+begin
+  Result := Parse(ADurationStr, ADuration);
+end;
+
+procedure TDurationParser.SetOptions(const AOptions: TParseOptions);
+begin
+  FOptions := AOptions;
+end;
+
+function TDurationParser.GetOptions: TParseOptions;
+begin
+  Result := FOptions;
+end;
 
 end.

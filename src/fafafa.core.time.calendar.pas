@@ -32,7 +32,6 @@ unit fafafa.core.time.calendar;
 ──────────────────────────────────────────────────────────────
 }
 
-{$MODE OBJFPC}{$H+}
 {$modeswitch advancedrecords}
 
 {$I fafafa.core.settings.inc}
@@ -198,7 +197,7 @@ type
     procedure SetWorkdayMode(AMode: TWorkdayMode);
     function GetWorkdayMode: TWorkdayMode;
     procedure SetCustomWorkdays(const AWorkdays: array of TDayOfWeek);
-    function GetCustomWorkdays: TArray<TDayOfWeek>;
+    function GetCustomWorkdays: array of TDayOfWeek;
   end;
 
   {**
@@ -223,7 +222,7 @@ type
     function CreateHebrewCalendar(const ALocale: string = ''): ICalendar;
     
     // 查询功能
-    function GetSupportedTypes: TArray<TCalendarType>;
+    function GetSupportedTypes: array of TCalendarType;
     function IsTypeSupported(AType: TCalendarType): Boolean;
     function GetDefaultType: TCalendarType;
     function GetSystemLocale: string;
@@ -267,8 +266,8 @@ type
   private
     FLocale: string;
     FWorkdayMode: TWorkdayMode;
-    FCustomWorkdays: TArray<TDayOfWeek>;
-    FHolidays: TArray<THoliday>;
+    FCustomWorkdays: array of TDayOfWeek;
+    FHolidays: array of THoliday;
     
     function InternalIsWorkday(ADayOfWeek: TDayOfWeek): Boolean;
   public

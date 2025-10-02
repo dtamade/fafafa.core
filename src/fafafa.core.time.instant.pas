@@ -1,6 +1,5 @@
 unit fafafa.core.time.instant;
 
-{$MODE OBJFPC}{$H+}
 {$modeswitch advancedrecords}
 {$I fafafa.core.settings.inc}
 
@@ -40,12 +39,21 @@ type
     function IsBefore(const Other: TInstant): Boolean; inline;
     function IsAfter(const Other: TInstant): Boolean; inline;
     function Clamp(const MinV, MaxV: TInstant): TInstant; inline;
+    function Between(const MinV, MaxV: TInstant): TInstant; inline;
     class function Min(const A, B: TInstant): TInstant; static; inline;
     class function Max(const A, B: TInstant): TInstant; static; inline;
 
     // 安全算术
     function CheckedAdd(const D: TDuration; out R: TInstant): Boolean; inline;
     function CheckedSub(const D: TDuration; out R: TInstant): Boolean; inline;
+
+    // 运算符
+    class operator =(const A, B: TInstant): Boolean; inline;
+    class operator <>(const A, B: TInstant): Boolean; inline;
+    class operator <(const A, B: TInstant): Boolean; inline;
+    class operator >(const A, B: TInstant): Boolean; inline;
+    class operator <=(const A, B: TInstant): Boolean; inline;
+    class operator >=(const A, B: TInstant): Boolean; inline;
 
     // 字符串
     function ToString: string;
@@ -71,23 +79,70 @@ begin
 end;
 
 function TInstant.Add(const D: TDuration): TInstant;
+var val: Int64; base: UInt64; addv: Int64; tmp: UInt64;
 begin
-  Result.FNsSinceEpoch := FNsSinceEpoch + UInt64(D.AsNs);
+  base := FNsSinceEpoch;
+  addv := D.AsNs;
+  if addv = 0 then Exit(Self);
+  if addv > 0 then
+  begin
+    // positive add with saturation at High(QWord)
+    tmp := High(QWord) - base;
+    if UInt64(addv) > tmp then
+      Result.FNsSinceEpoch := High(QWord)
+    else
+      Result.FNsSinceEpoch := base + UInt64(addv);
+  end
+  else
+  begin
+    // negative add => subtract with floor at 0
+    val := -addv; // positive magnitude
+    if UInt64(val) > base then
+      Result.FNsSinceEpoch := 0
+    else
+      Result.FNsSinceEpoch := base - UInt64(val);
+  end;
 end;
 
 function TInstant.Sub(const D: TDuration): TInstant;
+var v: Int64;
 begin
-  Result.FNsSinceEpoch := FNsSinceEpoch - UInt64(D.AsNs);
+  // subtract D == add (-D)
+  v := -D.AsNs;
+  Result := Add(TDuration.FromNs(v));
 end;
 
 function TInstant.Diff(const Older: TInstant): TDuration;
+var a,b: UInt64; diff: UInt64; neg: Boolean; outNs: Int64;
 begin
-  Result := TDuration.FromNs(Int64(FNsSinceEpoch) - Int64(Older.FNsSinceEpoch));
+  a := FNsSinceEpoch; b := Older.FNsSinceEpoch;
+  if a >= b then
+  begin
+    diff := a - b;
+    if diff > UInt64(High(Int64)) then outNs := High(Int64) else outNs := Int64(diff);
+  end
+  else
+  begin
+    diff := b - a; neg := True;
+    if diff > UInt64(High(Int64)) then outNs := Low(Int64) else outNs := -Int64(diff);
+  end;
+  Result := TDuration.FromNs(outNs);
 end;
 
 function TInstant.Since(const Older: TInstant): TDuration;
 begin
   Result := Diff(Older);
+end;
+
+// 非负差值（若 Older 更大则返回 0）
+function TInstant.NonNegativeDiff(const Older: TInstant): TDuration;
+var d: TDuration;
+begin
+  d := Diff(Older);
+  if d.IsNegative then
+    Result := TDuration.Zero
+  else
+    Result := d;
 end;
 
 function TInstant.Compare(const B: TInstant): Integer;
@@ -134,6 +189,12 @@ begin
   Result := Self;
 end;
 
+function TInstant.Between(const MinV, MaxV: TInstant): TInstant;
+begin
+  // Alias of Clamp for semantic readability in tests
+  Result := Clamp(MinV, MaxV);
+end;
+
 class function TInstant.Min(const A, B: TInstant): TInstant;
 begin
   if A.LessThan(B) then Result := A else Result := B;
@@ -144,20 +205,59 @@ begin
   if A.GreaterThan(B) then Result := A else Result := B;
 end;
 
-function TInstant.CheckedAdd(const D: TDuration; out R: TInstant): Boolean;
-var ns: Int64;
+class operator TInstant.=(const A, B: TInstant): Boolean;
 begin
-  ns := Int64(FNsSinceEpoch) + D.AsNs;
-  Result := ns >= 0;
-  if Result then R.FNsSinceEpoch := UInt64(ns);
+  Result := A.Equal(B);
+end;
+
+class operator TInstant.<>(const A, B: TInstant): Boolean;
+begin
+  Result := not A.Equal(B);
+end;
+
+class operator TInstant.<(const A, B: TInstant): Boolean;
+begin
+  Result := A.LessThan(B);
+end;
+
+class operator TInstant.>(const A, B: TInstant): Boolean;
+begin
+  Result := A.GreaterThan(B);
+end;
+
+class operator TInstant.<=(const A, B: TInstant): Boolean;
+begin
+  Result := not A.GreaterThan(B);
+end;
+
+class operator TInstant.>=(const A, B: TInstant): Boolean;
+begin
+  Result := not A.LessThan(B);
+end;
+
+function TInstant.CheckedAdd(const D: TDuration; out R: TInstant): Boolean;
+var base: UInt64; addv: Int64; tmp: UInt64;
+begin
+  base := FNsSinceEpoch;
+  addv := D.AsNs;
+  if addv >= 0 then
+  begin
+    tmp := High(QWord) - base;
+    if UInt64(addv) > tmp then Exit(False);
+    R.FNsSinceEpoch := base + UInt64(addv);
+    Exit(True);
+  end
+  else
+  begin
+    if UInt64(-addv) > base then Exit(False);
+    R.FNsSinceEpoch := base - UInt64(-addv);
+    Exit(True);
+  end;
 end;
 
 function TInstant.CheckedSub(const D: TDuration; out R: TInstant): Boolean;
-var ns: Int64;
 begin
-  ns := Int64(FNsSinceEpoch) - D.AsNs;
-  Result := ns >= 0;
-  if Result then R.FNsSinceEpoch := UInt64(ns);
+  Result := CheckedAdd(TDuration.FromNs(-D.AsNs), R);
 end;
 
 function TInstant.ToString: string;
@@ -166,4 +266,3 @@ begin
 end;
 
 end.
-

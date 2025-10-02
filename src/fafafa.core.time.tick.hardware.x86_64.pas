@@ -1,5 +1,6 @@
 unit fafafa.core.time.tick.hardware.x86_64;
 
+
 {
 ──────────────────────────────────────────────────────────────
 📦 项目：fafafa.core.time.tick.hardware.x86_64 - x86_64 硬件计时器
@@ -304,5 +305,3 @@ begin
 end;
 
 end.
-
-

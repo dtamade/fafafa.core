@@ -1,9 +1,6 @@
 unit fafafa.core.time;
 
-{$MODE OBJFPC}{$H+}
-{$modeswitch advancedrecords}
 {$I fafafa.core.settings.inc}
-
 {*
   fafafa.core.time - 时间模块门面单元（统一出口）
 
@@ -24,9 +21,9 @@ uses
   fafafa.core.time.instant,
   // 时钟与便捷函数
   fafafa.core.time.clock,
-  // 其他功能模块（按需扩展）
+  // 其他功能模块
   fafafa.core.time.timer,
-  fafafa.core.time.calendar,
+  fafafa.core.time.stopwatch,
   fafafa.core.time.date,
   fafafa.core.time.timeofday,
   fafafa.core.time.format,
@@ -45,7 +42,8 @@ type
   IFixedClock     = fafafa.core.time.clock.IFixedClock;
 
   // 便捷过程类型
-  TProc = fafafa.core.time.base.TProc;
+  // TProc alias not available in base; define a local fallback
+  TProc = procedure;
 
   // 异常别名
   ETimeError         = fafafa.core.time.base.ETimeError;
@@ -57,8 +55,6 @@ type
   TTimeoutStrategy = fafafa.core.time.timeout.TTimeoutStrategy;
   TTimeoutState    = fafafa.core.time.timeout.TTimeoutState;
   TDeadline        = fafafa.core.time.timeout.TDeadline;
-
-// 工厂函数转出（时钟）
 function DefaultMonotonicClock: IMonotonicClock; inline;
 function DefaultSystemClock: ISystemClock; inline;
 function DefaultClock: IClock; inline;
@@ -75,7 +71,22 @@ function NowUnixNs: Int64; inline;
 // 计时便捷函数
 function TimeIt(const P: TProc): TDuration; inline;
 
+// Formatting helpers exposed via facade
+function FormatDurationHuman(const ADuration: TDuration): string; inline;
+procedure SetDurationFormatUseAbbr(AUseAbbr: Boolean); inline;
+procedure SetDurationFormatSecPrecision(APrecision: Integer); inline;
+
+// 便捷扩展：通过类型帮助器补充额外 API
+type
+  TInstantHelper = type helper for TInstant
+  public
+    // 非负差值：如果 Older 更大则返回 0
+    function NonNegativeDiff(const Older: TInstant): TDuration; inline;
+  end;
+
 implementation
+
+var
 
 function DefaultMonotonicClock: IMonotonicClock; inline;
 begin
@@ -132,7 +143,76 @@ begin
   Result := fafafa.core.time.clock.TimeIt(P);
 end;
 
+function FormatDurationHuman(const ADuration: TDuration): string; inline;
+begin
+  Result := fafafa.core.time.format.FormatDurationHuman(ADuration);
+end;
+
+procedure SetDurationFormatUseAbbr(AUseAbbr: Boolean); inline;
+begin
+  fafafa.core.time.format.SetDurationFormatUseAbbr(AUseAbbr);
+end;
+
+procedure SetDurationFormatSecPrecision(APrecision: Integer); inline;
+begin
+  fafafa.core.time.format.SetDurationFormatSecPrecision(APrecision);
+end;
+
+{ TDurationHelper }
+
+class function TDurationHelper.TryFromNs(const ANs: Int64; out D: TDuration): Boolean;
+begin
+  D := TDuration.FromNs(ANs);
+  Result := True;
+end;
+
+class function TDurationHelper.TryFromUs(const AUs: Int64; out D: TDuration): Boolean;
+var t: Int64; ok: Boolean;
+begin
+  ok := (not ((AUs > 0) and (AUs > High(Int64) div 1000))) and (not ((AUs < 0) and (AUs < Low(Int64) div 1000)));
+  if ok then t := AUs * 1000 else if AUs >= 0 then t := High(Int64) else t := Low(Int64);
+  D := TDuration.FromNs(t);
+  Result := ok;
+end;
+
+class function TDurationHelper.TryFromMs(const AMs: Int64; out D: TDuration): Boolean;
+var t: Int64; ok: Boolean;
+begin
+  ok := (AMs <= High(Int64) div 1000000) and (AMs >= Low(Int64) div 1000000);
+  if ok then t := AMs * 1000000 else if AMs >= 0 then t := High(Int64) else t := Low(Int64);
+  D := TDuration.FromNs(t);
+  Result := ok;
+end;
+
+class function TDurationHelper.TryFromSec(const ASec: Int64; out D: TDuration): Boolean;
+var t: Int64; ok: Boolean;
+begin
+  ok := (ASec <= High(Int64) div 1000000000) and (ASec >= Low(Int64) div 1000000000);
+  if ok then t := ASec * 1000000000 else if ASec >= 0 then t := High(Int64) else t := Low(Int64);
+  D := TDuration.FromNs(t);
+  Result := ok;
+end;
+
+function TDurationHelper.Neg: TDuration;
+begin
+  if Self.AsNs = Low(Int64) then
+    Result := TDuration.FromNs(High(Int64))
+  else
+    Result := TDuration.FromNs(-Self.AsNs);
+end;
+
+{ TInstantHelper }
+
+function TInstantHelper.NonNegativeDiff(const Older: TInstant): TDuration;
+var d: TDuration;
+begin
+  d := Self.Diff(Older);
+  if d.IsNegative then Result := TDuration.Zero else Result := d;
+end;
+
 end.
+
+
 
 
 

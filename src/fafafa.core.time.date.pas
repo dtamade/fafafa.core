@@ -1,5 +1,6 @@
 unit fafafa.core.time.date;
 
+
 {
 ──────────────────────────────────────────────────────────────
    ______   ______     ______   ______     ______   ______
@@ -39,6 +40,7 @@ interface
 uses
   SysUtils,
   DateUtils,
+  StrUtils,
   fafafa.core.time.base;
 
 type
@@ -171,6 +173,20 @@ type
     function ToLongString: string; // 详细格式
   end;
 
+  // 日期范围枚举器（避免对 TDateRange 的类型依赖，直接保存起止日期）
+  TDateRangeEnumerator = record
+  private
+    FStart: TDate;
+    FEnd: TDate;
+    FCurrent: TDate;
+    FStarted: Boolean;
+  public
+    constructor Create(const AStart, AEnd: TDate);
+    function MoveNext: Boolean;
+    function GetCurrent: TDate; inline;
+    property Current: TDate read GetCurrent;
+  end;
+
   {**
    * TDateRange - 日期范围
    *
@@ -217,19 +233,6 @@ type
     function ToString: string;
   end;
 
-  // 日期范围枚举器
-  TDateRangeEnumerator = record
-  private
-    FRange: TDateRange;
-    FCurrent: TDate;
-    FStarted: Boolean;
-  public
-    constructor Create(const ARange: TDateRange);
-    function MoveNext: Boolean;
-    function GetCurrent: TDate; inline;
-    property Current: TDate read GetCurrent;
-  end;
-
 // 便捷函数
 function DateOf(AYear, AMonth, ADay: Integer): TDate; inline;
 function Today: TDate; inline;
@@ -258,6 +261,11 @@ const
   // 每月天数（非闰年）
   DAYS_IN_MONTH: array[1..12] of Integer = (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31);
 
+function IsLeapYearI(AYear: Integer): Boolean; inline;
+begin
+  Result := (AYear mod 4 = 0) and ((AYear mod 100 <> 0) or (AYear mod 400 = 0));
+end;
+
 { TDate }
 
 class function TDate.IsValidDate(AYear, AMonth, ADay: Integer): Boolean;
@@ -270,7 +278,7 @@ begin
   begin
     if AMonth = 2 then
     begin
-      if IsLeapYear(AYear) then
+      if IsLeapYearI(AYear) then
         Result := ADay <= 29
       else
         Result := ADay <= 28;
@@ -410,6 +418,164 @@ begin
   Result := Format('%04d-%02d-%02d', [year, month, day]);
 end;
 
+function TDate.GetWeekOfYear: Integer;
+var
+  doy: Integer;
+begin
+  // 简单规则：每7天为一周，从年第一天开始
+  doy := GetDayOfYear;
+  Result := ((doy - 1) div 7) + 1;
+end;
+
+function TDate.GetQuarter: Integer;
+var
+  m: Integer;
+begin
+  m := GetMonth;
+  Result := ((m - 1) div 3) + 1;
+end;
+
+function TDate.DaysInMonth: Integer;
+var
+  y, m, d: Integer;
+begin
+  JulianDayToDate(FJulianDay, y, m, d);
+  if m = 2 then
+  begin
+    if IsLeapYearI(y) then Result := 29 else Result := 28;
+  end
+  else
+    Result := DAYS_IN_MONTH[m];
+end;
+
+function TDate.DaysInYear: Integer;
+var
+  y, m, d: Integer;
+begin
+  JulianDayToDate(FJulianDay, y, m, d);
+  if IsLeapYearI(y) then Result := 366 else Result := 365;
+end;
+
+function TDate.IsWeekend: Boolean;
+var
+  dow: Integer;
+begin
+  dow := GetDayOfWeek; // 1=Sun .. 7=Sat
+  Result := (dow = 1) or (dow = 7);
+end;
+
+function TDate.IsFirstDayOfMonth: Boolean;
+begin
+  Result := GetDay = 1;
+end;
+
+function TDate.IsLastDayOfMonth: Boolean;
+begin
+  Result := GetDay = DaysInMonth;
+end;
+
+function TDate.IsFirstDayOfYear: Boolean;
+begin
+  Result := GetDayOfYear = 1;
+end;
+
+function TDate.IsLastDayOfYear: Boolean;
+begin
+  Result := GetDayOfYear = DaysInYear;
+end;
+
+function TDate.StartOfWeek: TDate;
+var
+  dow: Integer;
+begin
+  dow := GetDayOfWeek; // 1=Sun..7=Sat
+  Result := SubtractDays(dow - 1);
+end;
+
+function TDate.EndOfWeek: TDate;
+begin
+  Result := StartOfWeek.AddDays(6);
+end;
+
+function TDate.StartOfMonth: TDate;
+var
+  y, m, d: Integer;
+begin
+  JulianDayToDate(FJulianDay, y, m, d);
+  Result := TDate.Create(y, m, 1);
+end;
+
+function TDate.EndOfMonth: TDate;
+var
+  y, m, d: Integer;
+  dim: Integer;
+begin
+  JulianDayToDate(FJulianDay, y, m, d);
+  if m = 2 then
+  begin
+    if IsLeapYearI(y) then dim := 29 else dim := 28;
+  end
+  else
+    dim := DAYS_IN_MONTH[m];
+  Result := TDate.Create(y, m, dim);
+end;
+
+function TDate.StartOfQuarter: TDate;
+var
+  y, m, d, qm: Integer;
+begin
+  JulianDayToDate(FJulianDay, y, m, d);
+  qm := ((m - 1) div 3) * 3 + 1;
+  Result := TDate.Create(y, qm, 1);
+end;
+
+function TDate.EndOfQuarter: TDate;
+var
+  y, m, d, qm, em, dim: Integer;
+begin
+  JulianDayToDate(FJulianDay, y, m, d);
+  qm := ((m - 1) div 3) * 3 + 1;
+  em := qm + 2;
+  if em = 2 then
+  begin
+    if IsLeapYearI(y) then dim := 29 else dim := 28;
+  end
+  else
+    dim := DAYS_IN_MONTH[em];
+  Result := TDate.Create(y, em, dim);
+end;
+
+function TDate.StartOfYear: TDate;
+var
+  y, m, d: Integer;
+begin
+  JulianDayToDate(FJulianDay, y, m, d);
+  Result := TDate.Create(y, 1, 1);
+end;
+
+function TDate.EndOfYear: TDate;
+var
+  y, m, d: Integer;
+begin
+  JulianDayToDate(FJulianDay, y, m, d);
+  Result := TDate.Create(y, 12, 31);
+end;
+
+function TDate.ToString(const AFormat: string): string;
+begin
+  Result := SysUtils.FormatDateTime(AFormat, ToDateTime);
+end;
+
+function TDate.ToShortString: string;
+begin
+  Result := SysUtils.FormatDateTime('yyyy-mm-dd', ToDateTime);
+end;
+
+function TDate.ToLongString: string;
+begin
+  Result := SysUtils.FormatDateTime('dddd, mmmm d, yyyy', ToDateTime);
+end;
+
 function TDate.GetYear: Integer;
 var
   month, day: Integer;
@@ -522,6 +688,11 @@ begin
   Result := A.Equal(B);
 end;
 
+class operator TDate.<>(const A, B: TDate): Boolean;
+begin
+  Result := not (A = B);
+end;
+
 class operator TDate.<(const A, B: TDate): Boolean;
 begin
   Result := A.LessThan(B);
@@ -530,6 +701,181 @@ end;
 class operator TDate.>(const A, B: TDate): Boolean;
 begin
   Result := A.GreaterThan(B);
+end;
+
+class operator TDate.<=(const A, B: TDate): Boolean;
+begin
+  Result := A.LessOrEqual(B);
+end;
+
+class operator TDate.>=(const A, B: TDate): Boolean;
+begin
+  Result := A.GreaterOrEqual(B);
+end;
+
+function TDate.LessOrEqual(const AOther: TDate): Boolean;
+begin
+  Result := FJulianDay <= AOther.FJulianDay;
+end;
+
+function TDate.GreaterOrEqual(const AOther: TDate): Boolean;
+begin
+  Result := FJulianDay >= AOther.FJulianDay;
+end;
+
+function TDate.IsBetween(const AStart, AEnd: TDate): Boolean;
+begin
+  Result := (FJulianDay >= AStart.FJulianDay) and (FJulianDay <= AEnd.FJulianDay);
+end;
+
+function TDate.Clamp(const AMin, AMax: TDate): TDate;
+begin
+  if FJulianDay < AMin.FJulianDay then
+    Result := AMin
+  else if FJulianDay > AMax.FJulianDay then
+    Result := AMax
+  else
+    Result := Self;
+end;
+
+class function TDate.Min(const A, B: TDate): TDate;
+begin
+  if A.FJulianDay <= B.FJulianDay then
+    Result := A
+  else
+    Result := B;
+end;
+
+class function TDate.Max(const A, B: TDate): TDate;
+begin
+  if A.FJulianDay >= B.FJulianDay then
+    Result := A
+  else
+    Result := B;
+end;
+
+function TDate.AddMonths(AMonths: Integer): TDate;
+var
+  Year, Month, Day: Integer;
+  NewYear, NewMonth: Integer;
+begin
+  JulianDayToDate(FJulianDay, Year, Month, Day);
+  
+  NewMonth := Month + AMonths;
+  NewYear := Year;
+  
+  // 处理月份溢出
+  while NewMonth > 12 do
+  begin
+    NewMonth := NewMonth - 12;
+    Inc(NewYear);
+  end;
+  
+  while NewMonth < 1 do
+  begin
+    NewMonth := NewMonth + 12;
+    Dec(NewYear);
+  end;
+  
+  // 处理天数溢出（例如：1月31日 + 1月 = 2月31日 -> 2月28日）
+  if NewMonth = 2 then
+  begin
+    if IsLeapYearI(NewYear) and (Day > 29) then
+      Day := 29
+    else if not IsLeapYearI(NewYear) and (Day > 28) then
+      Day := 28;
+  end
+  else if (NewMonth in [4, 6, 9, 11]) and (Day > 30) then
+    Day := 30;
+    
+  Result := TDate.Create(NewYear, NewMonth, Day);
+end;
+
+function TDate.AddYears(AYears: Integer): TDate;
+var
+  Year, Month, Day: Integer;
+begin
+  JulianDayToDate(FJulianDay, Year, Month, Day);
+  
+  // 特殊处理闰年的2月29日
+  if (Month = 2) and (Day = 29) and not IsLeapYearI(Year + AYears) then
+    Day := 28;
+    
+  Result := TDate.Create(Year + AYears, Month, Day);
+end;
+
+function TDate.SubtractDays(ADays: Integer): TDate;
+begin
+  Result := AddDays(-ADays);
+end;
+
+function TDate.SubtractWeeks(AWeeks: Integer): TDate;
+begin
+  Result := AddWeeks(-AWeeks);
+end;
+
+function TDate.SubtractMonths(AMonths: Integer): TDate;
+begin
+  Result := AddMonths(-AMonths);
+end;
+
+function TDate.SubtractYears(AYears: Integer): TDate;
+begin
+  Result := AddYears(-AYears);
+end;
+
+function TDate.WeeksBetween(const AOther: TDate): Integer;
+begin
+  Result := DaysBetween(AOther) div 7;
+end;
+
+function TDate.MonthsBetween(const AOther: TDate): Integer;
+var
+  Y1, M1, D1, Y2, M2, D2: Integer;
+begin
+  JulianDayToDate(FJulianDay, Y1, M1, D1);
+  JulianDayToDate(AOther.FJulianDay, Y2, M2, D2);
+  
+  Result := (Y2 - Y1) * 12 + (M2 - M1);
+  
+  // 如果目标日期的天数小于起始日期，则月数减1
+  if D2 < D1 then
+    Dec(Result);
+end;
+
+function TDate.YearsBetween(const AOther: TDate): Integer;
+var
+  Y1, M1, D1, Y2, M2, D2: Integer;
+begin
+  JulianDayToDate(FJulianDay, Y1, M1, D1);
+  JulianDayToDate(AOther.FJulianDay, Y2, M2, D2);
+  
+  Result := Y2 - Y1;
+  
+  // 如果还没到生日，则年数减1
+  if (M2 < M1) or ((M2 = M1) and (D2 < D1)) then
+    Dec(Result);
+end;
+
+function TDate.GetDayOfYear: Integer;
+var
+  Year, Month, Day, I: Integer;
+begin
+  JulianDayToDate(FJulianDay, Year, Month, Day);
+  Result := Day;
+  
+  for I := 1 to Month - 1 do
+  begin
+    if I = 2 then
+    begin
+      if IsLeapYearI(Year) then
+        Result := Result + 29
+      else
+        Result := Result + 28;
+    end
+    else
+      Result := Result + DAYS_IN_MONTH[I];
+  end;
 end;
 
 // 便捷函数
@@ -554,6 +900,227 @@ begin
   Result := TDate.Tomorrow;
 end;
 
-// 实现细节将在后续添加...
+// 解析与格式化
+
+class function TDate.TryParse(const ADateStr: string; out ADate: TDate): Boolean;
+var
+  s: string;
+  y, m, d: Integer;
+  p1, p2: SizeInt;
+  n1, n2, n3: string;
+begin
+  s := Trim(ADateStr);
+  ADate := TDate.MinValue;
+  Result := False;
+  if s = '' then Exit;
+
+  // 统一分隔符为 '-'
+  s := StringReplace(s, '/', '-', [rfReplaceAll]);
+  s := StringReplace(s, '.', '-', [rfReplaceAll]);
+
+  p1 := Pos('-', s);
+  if p1 = 0 then Exit;
+  p2 := PosEx('-', s, p1 + 1);
+  if p2 = 0 then Exit;
+
+  n1 := Copy(s, 1, p1 - 1);
+  n2 := Copy(s, p1 + 1, p2 - p1 - 1);
+  n3 := Copy(s, p2 + 1, MaxInt);
+
+  if TryStrToInt(n1, y) and TryStrToInt(n2, m) and TryStrToInt(n3, d) then
+  begin
+    if TDate.IsValidDate(y, m, d) then
+    begin
+      ADate := TDate.Create(y, m, d);
+      Exit(True);
+    end;
+  end;
+
+  Result := False;
+end;
+
+class function TDate.TryParseISO(const ADateStr: string; out ADate: TDate): Boolean;
+var
+  s: string;
+  y, m, d: Integer;
+  n1, n2, n3: string;
+begin
+  s := Trim(ADateStr);
+  ADate := TDate.MinValue;
+  Result := False;
+  if Length(s) <> 10 then Exit; // YYYY-MM-DD
+  if (s[5] <> '-') or (s[8] <> '-') then Exit;
+
+  n1 := Copy(s, 1, 4);
+  n2 := Copy(s, 6, 2);
+  n3 := Copy(s, 9, 2);
+
+  if TryStrToInt(n1, y) and TryStrToInt(n2, m) and TryStrToInt(n3, d) then
+  begin
+    if TDate.IsValidDate(y, m, d) then
+    begin
+      ADate := TDate.Create(y, m, d);
+      Exit(True);
+    end;
+  end;
+  Result := False;
+end;
+
+function ParseDate(const ADateStr: string): TDate;
+begin
+  if not TDate.TryParse(ADateStr, Result) then
+    raise EInvalidTimeFormat.CreateFmt('Invalid date string: %s', [ADateStr]);
+end;
+
+function ParseDateISO(const ADateStr: string): TDate;
+begin
+  if not TDate.TryParseISO(ADateStr, Result) then
+    raise EInvalidTimeFormat.CreateFmt('Invalid ISO date string: %s', [ADateStr]);
+end;
+
+function TryParseDate(const ADateStr: string; out ADate: TDate): Boolean;
+begin
+  Result := TDate.TryParse(ADateStr, ADate);
+end;
+
+function TryParseDateISO(const ADateStr: string; out ADate: TDate): Boolean;
+begin
+  Result := TDate.TryParseISO(ADateStr, ADate);
+end;
+
+function FormatDate(const ADate: TDate; const AFormat: string): string;
+begin
+  Result := SysUtils.FormatDateTime(AFormat, ADate.ToDateTime);
+end;
+
+{ TDateRange }
+
+class function TDateRange.Create(const AStart, AEnd: TDate): TDateRange;
+begin
+  Result.FStartDate := AStart;
+  Result.FEndDate := AEnd;
+end;
+
+class function TDateRange.CreateDays(const AStart: TDate; ADays: Integer): TDateRange;
+begin
+  Result.FStartDate := AStart;
+  Result.FEndDate := AStart.AddDays(ADays);
+end;
+
+class function TDateRange.CreateWeeks(const AStart: TDate; AWeeks: Integer): TDateRange;
+begin
+  Result := CreateDays(AStart, AWeeks * 7);
+end;
+
+class function TDateRange.CreateMonths(const AStart: TDate; AMonths: Integer): TDateRange;
+begin
+  Result.FStartDate := AStart;
+  Result.FEndDate := AStart.AddMonths(AMonths);
+end;
+
+class function TDateRange.CreateYears(const AStart: TDate; AYears: Integer): TDateRange;
+begin
+  Result.FStartDate := AStart;
+  Result.FEndDate := AStart.AddYears(AYears);
+end;
+
+function TDateRange.GetStartDate: TDate;
+begin
+  Result := FStartDate;
+end;
+
+function TDateRange.GetEndDate: TDate;
+begin
+  Result := FEndDate;
+end;
+
+function TDateRange.GetDuration: Integer;
+begin
+  Result := FStartDate.DaysUntil(FEndDate);
+end;
+
+function TDateRange.Contains(const ADate: TDate): Boolean;
+begin
+  Result := (ADate.GreaterOrEqual(FStartDate)) and (ADate.LessOrEqual(FEndDate));
+end;
+
+function TDateRange.Overlaps(const AOther: TDateRange): Boolean;
+begin
+  Result := (FStartDate.LessOrEqual(AOther.FEndDate)) and (FEndDate.GreaterOrEqual(AOther.FStartDate));
+end;
+
+function TDateRange.IsEmpty: Boolean;
+begin
+  Result := FStartDate.GreaterThan(FEndDate);
+end;
+
+function TDateRange.IsValid: Boolean;
+begin
+  Result := FStartDate.LessOrEqual(FEndDate);
+end;
+
+function TDateRange.Union(const AOther: TDateRange): TDateRange;
+begin
+  Result.FStartDate := TDate.Min(FStartDate, AOther.FStartDate);
+  Result.FEndDate := TDate.Max(FEndDate, AOther.FEndDate);
+end;
+
+function TDateRange.Intersection(const AOther: TDateRange): TDateRange;
+begin
+  Result.FStartDate := TDate.Max(FStartDate, AOther.FStartDate);
+  Result.FEndDate := TDate.Min(FEndDate, AOther.FEndDate);
+end;
+
+function TDateRange.Extend(ADays: Integer): TDateRange;
+begin
+  Result.FStartDate := FStartDate.AddDays(-ADays);
+  Result.FEndDate := FEndDate.AddDays(ADays);
+end;
+
+function TDateRange.Shift(ADays: Integer): TDateRange;
+begin
+  Result.FStartDate := FStartDate.AddDays(ADays);
+  Result.FEndDate := FEndDate.AddDays(ADays);
+end;
+
+function TDateRange.GetEnumerator: TDateRangeEnumerator;
+begin
+  Result := TDateRangeEnumerator.Create(FStartDate, FEndDate);
+end;
+
+function TDateRange.ToString: string;
+begin
+  Result := Format('%s to %s', [FStartDate.ToString, FEndDate.ToString]);
+end;
+
+{ TDateRangeEnumerator }
+
+constructor TDateRangeEnumerator.Create(const AStart, AEnd: TDate);
+begin
+  FStart := AStart;
+  FEnd := AEnd;
+  FCurrent := AStart;
+  FStarted := False;
+end;
+
+function TDateRangeEnumerator.MoveNext: Boolean;
+begin
+  if not FStarted then
+  begin
+    FStarted := True;
+    FCurrent := FStart;
+    Result := not (FStart.GreaterThan(FEnd));
+  end
+  else
+  begin
+    FCurrent := FCurrent.AddDays(1);
+    Result := FCurrent.LessOrEqual(FEnd);
+  end;
+end;
+
+function TDateRangeEnumerator.GetCurrent: TDate;
+begin
+  Result := FCurrent;
+end;
 
 end.

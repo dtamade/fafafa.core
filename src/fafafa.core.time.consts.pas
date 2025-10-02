@@ -1,6 +1,6 @@
 unit fafafa.core.time.consts;
 
-{$MODE OBJFPC}{$H+}
+{$I fafafa.core.settings.inc}
 
 interface
 

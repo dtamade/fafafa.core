@@ -32,7 +32,6 @@ unit fafafa.core.time.timeofday;
 ──────────────────────────────────────────────────────────────
 }
 
-{$MODE OBJFPC}{$H+}
 {$modeswitch advancedrecords}
 
 {$I fafafa.core.settings.inc}
@@ -253,20 +252,20 @@ function FormatTime12Hour(const ATime: TTimeOfDay): string;
 function FormatTime24Hour(const ATime: TTimeOfDay): string;
 
 // 时间常量
-const
-  MILLISECONDS_PER_SECOND = 1000;
-  MILLISECONDS_PER_MINUTE = 60000;
-  MILLISECONDS_PER_HOUR = 3600000;
-  MILLISECONDS_PER_DAY = 86400000;
-
-  SECONDS_PER_MINUTE = 60;
-  SECONDS_PER_HOUR = 3600;
-  SECONDS_PER_DAY = 86400;
-
-  MINUTES_PER_HOUR = 60;
-  MINUTES_PER_DAY = 1440;
-
-  HOURS_PER_DAY = 24;
+  const
+    MILLISECONDS_PER_SECOND = fafafa.core.time.base.MILLISECONDS_PER_SECOND;
+    MILLISECONDS_PER_MINUTE = fafafa.core.time.base.MILLISECONDS_PER_MINUTE;
+    MILLISECONDS_PER_HOUR   = fafafa.core.time.base.MILLISECONDS_PER_HOUR;
+    MILLISECONDS_PER_DAY    = fafafa.core.time.base.MILLISECONDS_PER_DAY;
+  
+    SECONDS_PER_MINUTE = fafafa.core.time.base.SECONDS_PER_MINUTE;
+    SECONDS_PER_HOUR   = fafafa.core.time.base.SECONDS_PER_HOUR;
+    SECONDS_PER_DAY    = fafafa.core.time.base.SECONDS_PER_DAY;
+  
+    MINUTES_PER_HOUR = fafafa.core.time.base.MINUTES_PER_HOUR;
+    MINUTES_PER_DAY  = fafafa.core.time.base.MINUTES_PER_DAY;
+  
+    HOURS_PER_DAY = fafafa.core.time.base.HOURS_PER_DAY;
 
 implementation
 

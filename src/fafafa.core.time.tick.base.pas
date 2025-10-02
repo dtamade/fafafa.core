@@ -1,5 +1,6 @@
 unit fafafa.core.time.tick.base;
 
+
 {
 ──────────────────────────────────────────────────────────────
    ______   ______     ______   ______     ______   ______
@@ -36,12 +37,13 @@ unit fafafa.core.time.tick.base;
 interface
 
 uses
-  SysUtils;
+  SysUtils,
+  fafafa.core.time.consts;
 
 const
-  NANOSECONDS_PER_SECOND  = 1000000000;
-  MICROSECONDS_PER_SECOND = 1000000;
-  MILLISECONDS_PER_SECOND = 1000;
+  NANOSECONDS_PER_SECOND  = fafafa.core.time.consts.NANOSECONDS_PER_SECOND;
+  MICROSECONDS_PER_SECOND = fafafa.core.time.consts.MICROSECONDS_PER_SECOND;
+  MILLISECONDS_PER_SECOND = fafafa.core.time.consts.MILLISECONDS_PER_SECOND;
 
 type
 

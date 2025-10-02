@@ -1,5 +1,7 @@
 unit fafafa.core.time.tick.hardware;
 
+{$MODE OBJFPC}{$H+}
+
 {
 ──────────────────────────────────────────────────────────────
 📦 项目：fafafa.core.time.tick.hardware - 硬件计时器门面

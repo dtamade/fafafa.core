@@ -33,7 +33,6 @@ unit fafafa.core.time.timeout;
 ──────────────────────────────────────────────────────────────
 }
 
-{$MODE OBJFPC}{$H+}
 {$modeswitch advancedrecords}
 
 {$I fafafa.core.settings.inc}
@@ -72,6 +71,9 @@ type
   // 超时回调类型
   TTimeoutCallback = procedure(const ATimeout: ITimeout) of object;
   TTimeoutCallbackProc = procedure(const ATimeout: ITimeout);
+  
+  // 简单数组别名，避免外部依赖泛型，供管理器返回列表使用
+  TTimeoutArray = array of ITimeout;
 
   {**
    * TDeadline - 截止时间（从 base 模块移动到这里）
@@ -91,14 +93,16 @@ type
     class function Now: TDeadline; static; inline;
     class function After(const D: TDuration): TDeadline; static; inline;
     class function At(const T: TInstant): TDeadline; static; inline;
+    class function FromInstant(const T: TInstant): TDeadline; static; inline;
     class function FromNow(const D: TDuration): TDeadline; static; inline;
     
     // 查询操作
     function GetInstant: TInstant; inline;
-    function Remaining: TDuration; inline;
-    function Remaining(const ANow: TInstant): TDuration; inline;
-    function HasExpired: Boolean; inline;
-    function HasExpired(const ANow: TInstant): Boolean; inline;
+    function Remaining: TDuration; overload; inline;
+    function Remaining(const ANow: TInstant): TDuration; overload; inline;
+    function RemainingClampedZero(const ANow: TInstant): TDuration; inline;
+    function HasExpired: Boolean; overload; inline;
+    function HasExpired(const ANow: TInstant): Boolean; overload; inline;
     function Expired: Boolean; inline; // alias for HasExpired
     function IsNever: Boolean; inline;
     
@@ -116,6 +120,11 @@ type
     function Equal(const AOther: TDeadline): Boolean; inline;
     function LessThan(const AOther: TDeadline): Boolean; inline;
     function GreaterThan(const AOther: TDeadline): Boolean; inline;
+    
+    // 运算符
+    class operator =(const A, B: TDeadline): Boolean;
+    class operator <(const A, B: TDeadline): Boolean;
+    class operator >(const A, B: TDeadline): Boolean;
     
     // 字符串表示
     function ToString: string;
@@ -194,8 +203,8 @@ type
     procedure RemoveTimeout(const ATimeout: ITimeout); overload;
     procedure RemoveTimeout(const ATimeoutId: string); overload;
     function GetTimeout(const ATimeoutId: string): ITimeout;
-    function GetTimeouts: TArray<ITimeout>; overload;
-    function GetTimeouts(AState: TTimeoutState): TArray<ITimeout>; overload;
+    function GetTimeouts: TTimeoutArray; overload;
+    function GetTimeouts(AState: TTimeoutState): TTimeoutArray; overload;
     
     // 批量操作
     procedure CancelAll;
@@ -236,8 +245,8 @@ type
     Name: string;
     
     class function Default: TTimeoutOptions; static;
-    class function AutoStart: TTimeoutOptions; static;
-    class function Manual: TTimeoutOptions; static;
+    class function AutoStartOptions: TTimeoutOptions; static;
+    class function ManualOptions: TTimeoutOptions; static;
   end;
 
 // 工厂函数（声明保留，具体实现另行提供）
@@ -263,15 +272,13 @@ procedure ClearTimeout(const ATimeout: ITimeout);
 procedure ClearAllTimeouts;
 
 // 等待函数（带超时）
-function WaitWithTimeout(const ADuration: TDuration; const ACondition: TFunc<Boolean>): Boolean; overload;
-function WaitWithTimeout(const ADuration: TDuration; const ACondition: TFunc<Boolean>; const AToken: ICancellationToken): Boolean; overload;
-function WaitWithTimeout(const ADeadline: TDeadline; const ACondition: TFunc<Boolean>): Boolean; overload;
+// 使用非泛型回调以提升兼容性（FPC/OBJFPC 模式下避免 specialize 语法）
+ type
+   TBoolFunc = reference to function: Boolean;
 
-// 超时装饰器
-function WithTimeout<T>(const ADuration: TDuration; const AFunc: TFunc<T>): T; overload;
-function WithTimeout<T>(const ADuration: TDuration; const AFunc: TFunc<T>; const AToken: ICancellationToken): T; overload;
-function TryWithTimeout<T>(const ADuration: TDuration; const AFunc: TFunc<T>; out AResult: T): Boolean; overload;
-function TryWithTimeout<T>(const ADuration: TDuration; const AFunc: TFunc<T>; out AResult: T; const AToken: ICancellationToken): Boolean; overload;
+function WaitWithTimeout(const ADuration: TDuration; const ACondition: TBoolFunc): Boolean; overload;
+function WaitWithTimeout(const ADuration: TDuration; const ACondition: TBoolFunc; const AToken: ICancellationToken): Boolean; overload;
+function WaitWithTimeout(const ADeadline: TDeadline; const ACondition: TBoolFunc): Boolean; overload;
 
 implementation
 
@@ -300,6 +307,11 @@ begin
   Result.FInstant := T;
 end;
 
+class function TDeadline.FromInstant(const T: TInstant): TDeadline;
+begin
+  Result := At(T);
+end;
+
 class function TDeadline.FromNow(const D: TDuration): TDeadline;
 begin
   Result := After(D);
@@ -323,6 +335,17 @@ begin
     Result := FInstant.Diff(ANow);
 end;
 
+function TDeadline.RemainingClampedZero(const ANow: TInstant): TDuration;
+var
+  r: TDuration;
+begin
+  r := Remaining(ANow);
+  if r.IsNegative then
+    Result := TDuration.Zero
+  else
+    Result := r;
+end;
+
 function TDeadline.HasExpired: Boolean;
 begin
   Result := HasExpired(fafafa.core.time.clock.NowInstant);
@@ -333,7 +356,7 @@ begin
   if IsNever then
     Result := False
   else
-    Result := ANow.GreaterOrEqual(FInstant);
+    Result := not ANow.LessThan(FInstant);
 end;
 
 function TDeadline.Expired: Boolean;
@@ -353,11 +376,11 @@ end;
 
 function TDeadline.Overdue(const ANow: TInstant): TDuration;
 var
-  remaining: TDuration;
+  remDur: TDuration;
 begin
-  remaining := Remaining(ANow);
-  if remaining.IsNegative then
-    Result := remaining.Neg
+  remDur := Self.Remaining(ANow);
+  if remDur.IsNegative then
+    Result := -remDur
   else
     Result := TDuration.Zero;
 end;
@@ -429,9 +452,9 @@ begin
   if IsNever then
     Result := 'Never'
   else if HasExpired then
-    Result := Format('Expired (%s ago)', [Overdue(fafafa.core.time.clock.NowInstant).ToString])
+    Result := Format('Expired (%d ms ago)', [Overdue(fafafa.core.time.clock.NowInstant).AsMs])
   else
-    Result := Format('In %s', [Remaining.ToString]);
+    Result := Format('In %d ms', [Remaining.AsMs]);
 end;
 
 { TTimeoutOptions }
@@ -444,13 +467,13 @@ begin
   Result.Name := '';
 end;
 
-class function TTimeoutOptions.AutoStart: TTimeoutOptions;
+class function TTimeoutOptions.AutoStartOptions: TTimeoutOptions;
 begin
   Result := Default;
   Result.AutoStart := True;
 end;
 
-class function TTimeoutOptions.Manual: TTimeoutOptions;
+class function TTimeoutOptions.ManualOptions: TTimeoutOptions;
 begin
   Result := Default;
   Result.AutoStart := False;
@@ -486,9 +509,92 @@ end;
 
 procedure ClearAllTimeouts;
 begin
-  DefaultTimeoutManager.CancelAll;
+  // 占位：无全局管理器时无操作
 end;
 
 // 实现细节将在后续添加...
+
+// 占位实现：完整实现将由专用 TimeoutManager 单元提供
+function CreateTimeout(const ADuration: TDuration; const AOptions: TTimeoutOptions): ITimeout; overload;
+begin
+  Result := nil;
+end;
+
+function CreateTimeout(const ADuration: TDuration; const ACallback: TTimeoutCallback; const AName: string): ITimeout; overload;
+begin
+  Result := nil;
+end;
+
+function CreateTimeout(const ADuration: TDuration; const ACallback: TTimeoutCallbackProc; const AName: string): ITimeout; overload;
+begin
+  Result := nil;
+end;
+
+function CreateTimeoutManager: ITimeoutManager; overload;
+begin
+  Result := nil;
+end;
+
+function CreateTimeoutManager(const AClock: IMonotonicClock): ITimeoutManager; overload;
+begin
+  Result := nil;
+end;
+
+function DefaultTimeoutManager: ITimeoutManager;
+begin
+  Result := nil;
+end;
+
+function SetTimeout(const ADuration: TDuration; const ACallback: TTimeoutCallbackProc): ITimeout; overload;
+begin
+  if DefaultTimeoutManager <> nil then
+    Result := DefaultTimeoutManager.CreateTimeout(ADuration, ACallback)
+  else
+    Result := nil;
+end;
+
+function SetTimeout(const AMilliseconds: Integer; const ACallback: TTimeoutCallbackProc): ITimeout; overload;
+begin
+  Result := SetTimeout(TDuration.FromMs(AMilliseconds), ACallback);
+end;
+
+function WaitWithTimeout(const ADuration: TDuration; const ACondition: TBoolFunc): Boolean;
+var
+  dl: TDeadline;
+begin
+  dl := TDeadline.After(ADuration);
+  Result := WaitWithTimeout(dl, ACondition);
+end;
+
+function WaitWithTimeout(const ADuration: TDuration; const ACondition: TBoolFunc; const AToken: ICancellationToken): Boolean;
+var
+  deadline: TDeadline;
+  slice: TDuration;
+begin
+  deadline := TDeadline.After(ADuration);
+  slice := TDuration.FromMs(1);
+  Result := False;
+  while not deadline.HasExpired(fafafa.core.time.clock.NowInstant) do
+  begin
+    if Assigned(ACondition) and ACondition() then Exit(True);
+    if (AToken <> nil) and AToken.IsCancellationRequested then Exit(False);
+    fafafa.core.time.clock.DefaultMonotonicClock.WaitFor(slice, AToken);
+  end;
+end;
+
+function WaitWithTimeout(const ADeadline: TDeadline; const ACondition: TBoolFunc): Boolean;
+var
+  slice: TDuration;
+begin
+  slice := TDuration.FromMs(1);
+  Result := False;
+  while not ADeadline.HasExpired(fafafa.core.time.clock.NowInstant) do
+  begin
+    if Assigned(ACondition) and ACondition() then Exit(True);
+    fafafa.core.time.clock.DefaultMonotonicClock.WaitFor(slice, nil);
+  end;
+end;
+
+end.
 
 end.

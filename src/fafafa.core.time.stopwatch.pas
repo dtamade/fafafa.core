@@ -1,5 +1,6 @@
 unit fafafa.core.time.stopwatch;
 
+
 {
 ──────────────────────────────────────────────────────────────
    ______   ______     ______   ______     ______   ______
@@ -32,9 +33,6 @@ unit fafafa.core.time.stopwatch;
 ──────────────────────────────────────────────────────────────
 }
 
-{$MODE OBJFPC}{$H+}
-{$modeswitch advancedrecords}
-
 {$I fafafa.core.settings.inc}
 
 interface
@@ -42,9 +40,9 @@ interface
 uses
   SysUtils,
   fafafa.core.time.base,
+  fafafa.core.time.duration,
   fafafa.core.time.tick;
 
-type
   {**
    * TStopwatch - 秒表计时器
    *
@@ -69,19 +67,22 @@ type
    *}
   TStopwatch = record
   private
-    FClock: TTick;
+    FClock: ITick;
     FHasClock: Boolean;
     FStartTick: UInt64;
     FElapsedTicks: UInt64;
     FIsRunning: Boolean;
+    FLastLapTick: UInt64;      // 上次 Lap 的时刻
+    FLaps: array of UInt64;     // 存储每次 Lap 的间隔 ticks
 
     procedure EnsureClock;
+    function TicksToNs(ATicks: UInt64): UInt64;
   public
     // 构造和工厂方法
     class function Create: TStopwatch; static;
-    class function CreateWithClock(const AClock: TTick): TStopwatch; static;
+    class function CreateWithClock(const AClock: ITick): TStopwatch; static;
     class function StartNew: TStopwatch; static;
-    class function StartNewWithClock(const AClock: TTick): TStopwatch; static;
+    class function StartNewWithClock(const AClock: ITick): TStopwatch; static;
 
     // 控制方法
     procedure Start;
@@ -106,35 +107,20 @@ type
     // TDuration 集成
     function ElapsedDuration: TDuration;
 
-    // 便捷方法
+    // Lap 功能（分段计时）
+    function Lap: TDuration;           // 记录一个 Lap 并返回距上次 Lap 的时间
+    function LapDuration: TDuration;   // 同 Lap，为兼容测试代码
+    function GetLaps: TArray<TDuration>; // 获取所有 Lap 记录
+    function GetLapCount: Integer;     // 获取 Lap 数量
+    procedure ClearLaps;               // 清除所有 Lap 记录
+
+    // 便捷方法（字符串化）
     function ToString: string;
     function ToStringPrecise: string; // 包含纳秒精度
-
-    // 静态工具方法
-    class function Measure(const AProc: TProc): TDuration; static;
-    class function MeasureWithClock(const AProc: TProc; const AClock: TTick): TDuration; static;
-    class function MeasureMs(const AProc: TProc): UInt64; static;
-    class function MeasureNs(const AProc: TProc): UInt64; static;
   end;
 
-  {**
-   * TStopwatchScope - RAII 风格的秒表
-   *
-   * @desc
-   *   提供 RAII 风格的自动计时功能。
-   *   在作用域开始时自动启动计时，结束时自动停止并可选择性输出结果。
-   *
-   * @thread_safety
-   *   非线程安全，需要外部同步。
-   *
-   * @usage
-   *   var scope: TStopwatchScope;
-   *   begin
-   *     scope := TStopwatchScope.Create('Operation');
-   *     DoWork();
-   *     // 自动析构时输出计时结果
-   *   end;
-   *}
+// 辅助 RAII 秒表
+type
   TStopwatchScope = record
   private
     FStopwatch: TStopwatch;
@@ -142,28 +128,35 @@ type
     FAutoOutput: Boolean;
     FStarted: Boolean;
   public
-    // 构造方法
     class function Create(const AName: string = ''; AAutoOutput: Boolean = True): TStopwatchScope; static;
-    class function CreateWithClock(const AName: string; const AClock: TTick; AAutoOutput: Boolean = True): TStopwatchScope; static;
+    class function CreateWithClock(const AName: string; const AClock: ITick; AAutoOutput: Boolean = True): TStopwatchScope; static;
 
-    // 控制方法
     procedure Finish;
     procedure Cancel;
-    
-    // 结果获取
+
     function GetElapsed: TDuration;
     function GetElapsedMs: UInt64;
     function GetName: string; inline;
-    
-    // 输出控制
+
     procedure SetAutoOutput(AValue: Boolean); inline;
     procedure OutputResult;
   end;
 
 // 便捷函数
-function MeasureTime(const AProc: TProc): TDuration; inline;
-function MeasureTimeMs(const AProc: TProc): UInt64; inline;
-function MeasureTimeNs(const AProc: TProc): UInt64; inline;
+// 自由过程（全局/局部非方法过程）
+function MeasureTime(const AProc: procedure): TDuration; overload;
+function MeasureTimeMs(const AProc: procedure): UInt64; overload;
+function MeasureTimeNs(const AProc: procedure): UInt64; overload;
+
+// 对象方法（procedure of object）
+function MeasureTime(const AProc: TObjProc): TDuration; overload;
+function MeasureTimeMs(const AProc: TObjProc): UInt64; overload;
+function MeasureTimeNs(const AProc: TObjProc): UInt64; overload;
+
+// 匿名过程（reference to procedure）
+function MeasureTime(const AProc: TAnonProc): TDuration; overload;
+function MeasureTimeMs(const AProc: TAnonProc): UInt64; overload;
+function MeasureTimeNs(const AProc: TAnonProc): UInt64; overload;
 
 implementation
 
@@ -175,9 +168,11 @@ begin
   Result.FStartTick := 0;
   Result.FElapsedTicks := 0;
   Result.FIsRunning := False;
+  Result.FLastLapTick := 0;
+  SetLength(Result.FLaps, 0);
 end;
 
-class function TStopwatch.CreateWithClock(const AClock: TTick): TStopwatch;
+class function TStopwatch.CreateWithClock(const AClock: ITick): TStopwatch;
 begin
   Result := Create;
   Result.FClock := AClock;
@@ -190,7 +185,7 @@ begin
   Result.Start;
 end;
 
-class function TStopwatch.StartNewWithClock(const AClock: TTick): TStopwatch;
+class function TStopwatch.StartNewWithClock(const AClock: ITick): TStopwatch;
 begin
   Result := CreateWithClock(AClock);
   Result.Start;
@@ -198,11 +193,24 @@ end;
 
 procedure TStopwatch.EnsureClock;
 begin
-  if not FHasClock then
+  if (not FHasClock) or (FClock = nil) then
   begin
-    FClock := BestTick;
+    FClock := MakeBestTick;
     FHasClock := True;
   end;
+end;
+
+function TStopwatch.TicksToNs(ATicks: UInt64): UInt64;
+var
+  res, q, r: UInt64;
+begin
+  EnsureClock;
+  res := FClock.GetResolution;
+  if res = 0 then Exit(0);
+  // ns = (ticks * 1e9) / res，避免溢出：先做整除与取余
+  q := ATicks div res;
+  r := ATicks - q * res;
+  Result := q * 1000000000 + (r * 1000000000) div res;
 end;
 
 procedure TStopwatch.Start;
@@ -210,7 +218,8 @@ begin
   if not FIsRunning then
   begin
     EnsureClock;
-    FStartTick := FClock.Now;
+    FStartTick := FClock.Tick;
+    FLastLapTick := 0;  // 重置 Lap 起始点
     FIsRunning := True;
   end;
 end;
@@ -221,7 +230,7 @@ begin
   if FIsRunning then
   begin
     EnsureClock;
-    dt := FClock.Elapsed(FStartTick);
+    dt := FClock.Tick - FStartTick;
     FElapsedTicks := FElapsedTicks + dt;
     FIsRunning := False;
   end;
@@ -231,6 +240,8 @@ procedure TStopwatch.Reset;
 begin
   FElapsedTicks := 0;
   FIsRunning := False;
+  FLastLapTick := 0;
+  SetLength(FLaps, 0);
 end;
 
 procedure TStopwatch.Restart;
@@ -250,16 +261,13 @@ begin
   if FIsRunning then
   begin
     EnsureClock;
-    Result := Result + FClock.Elapsed(FStartTick);
+    Result := Result + (FClock.Tick - FStartTick);
   end;
 end;
 
 function TStopwatch.ElapsedNs: UInt64;
-var d: TDuration;
 begin
-  EnsureClock;
-  d := FClock.TicksToDuration(ElapsedTicks);
-  Result := d.AsNs;
+  Result := TicksToNs(ElapsedTicks);
 end;
 
 function TStopwatch.ElapsedUs: UInt64;
@@ -279,8 +287,7 @@ end;
 
 function TStopwatch.ElapsedDuration: TDuration;
 begin
-  EnsureClock;
-  Result := FClock.TicksToDuration(ElapsedTicks);
+  Result := TDuration.FromNs(Int64(ElapsedNs));
 end;
 
 function TStopwatch.ToString: string;
@@ -301,56 +308,58 @@ begin
   Result := Format('%d ns (%.3f ms)', [ElapsedNs, ElapsedNs / 1000000.0]);
 end;
 
-class function TStopwatch.Measure(const AProc: TProc): TDuration;
+function TStopwatch.Lap: TDuration;
 var
-  sw: TStopwatch;
+  currentTick: UInt64;
+  lapTicks: UInt64;
 begin
-  sw := StartNew;
-  try
-    AProc();
-  finally
-    sw.Stop;
-  end;
-  Result := sw.ElapsedDuration;
+  // 如果未运行，返回零
+  if not FIsRunning then
+    Exit(TDuration.Zero);
+  
+  EnsureClock;
+  currentTick := FClock.Tick;
+  
+  // 如果是第一次 Lap，从开始时间计算
+  if FLastLapTick = 0 then
+    FLastLapTick := FStartTick;
+  
+  // 计算距上次 Lap 的时间间隔
+  lapTicks := currentTick - FLastLapTick;
+  FLastLapTick := currentTick;
+  
+  // 保存 Lap 记录
+  SetLength(FLaps, Length(FLaps) + 1);
+  FLaps[High(FLaps)] := lapTicks;
+  
+  // 返回时间间隔
+  Result := TDuration.FromNs(Int64(TicksToNs(lapTicks)));
 end;
 
-class function TStopwatch.MeasureWithClock(const AProc: TProc; const AClock: TTick): TDuration;
-var
-  sw: TStopwatch;
+function TStopwatch.LapDuration: TDuration;
 begin
-  sw := StartNewWithClock(AClock);
-  try
-    AProc();
-  finally
-    sw.Stop;
-  end;
-  Result := sw.ElapsedDuration;
+  // 兼容测试代码，与 Lap 功能相同
+  Result := Lap;
 end;
 
-class function TStopwatch.MeasureMs(const AProc: TProc): UInt64;
+function TStopwatch.GetLaps: TArray<TDuration>;
 var
-  sw: TStopwatch;
+  i: Integer;
 begin
-  sw := StartNew;
-  try
-    AProc();
-  finally
-    sw.Stop;
-  end;
-  Result := sw.ElapsedMs;
+  SetLength(Result, Length(FLaps));
+  for i := 0 to High(FLaps) do
+    Result[i] := TDuration.FromNs(Int64(TicksToNs(FLaps[i])));
 end;
 
-class function TStopwatch.MeasureNs(const AProc: TProc): UInt64;
-var
-  sw: TStopwatch;
+function TStopwatch.GetLapCount: Integer;
 begin
-  sw := StartNew;
-  try
-    AProc();
-  finally
-    sw.Stop;
-  end;
-  Result := sw.ElapsedNs;
+  Result := Length(FLaps);
+end;
+
+procedure TStopwatch.ClearLaps;
+begin
+  SetLength(FLaps, 0);
+  FLastLapTick := 0;
 end;
 
 { TStopwatchScope }
@@ -363,7 +372,7 @@ begin
   Result.FStarted := True;
 end;
 
-class function TStopwatchScope.CreateWithClock(const AName: string; const AClock: TTick; AAutoOutput: Boolean): TStopwatchScope;
+class function TStopwatchScope.CreateWithClock(const AName: string; const AClock: ITick; AAutoOutput: Boolean): TStopwatchScope;
 begin
   Result.FStopwatch := TStopwatch.StartNewWithClock(AClock);
   Result.FName := AName;
@@ -418,20 +427,121 @@ begin
 end;
 
 // 便捷函数实现
-
-function MeasureTime(const AProc: TProc): TDuration;
+function MeasureTime(const AProc: procedure): TDuration;
+var
+  sw: TStopwatch;
 begin
-  Result := TStopwatch.Measure(AProc);
+  sw := TStopwatch.StartNew;
+  try
+    AProc();
+  finally
+    sw.Stop;
+  end;
+  Result := sw.ElapsedDuration;
 end;
 
-function MeasureTimeMs(const AProc: TProc): UInt64;
+function MeasureTimeMs(const AProc: procedure): UInt64;
+var
+  sw: TStopwatch;
 begin
-  Result := TStopwatch.MeasureMs(AProc);
+  sw := TStopwatch.StartNew;
+  try
+    AProc();
+  finally
+    sw.Stop;
+  end;
+  Result := sw.ElapsedMs;
 end;
 
-function MeasureTimeNs(const AProc: TProc): UInt64;
+function MeasureTimeNs(const AProc: procedure): UInt64;
+var
+  sw: TStopwatch;
 begin
-  Result := TStopwatch.MeasureNs(AProc);
+  sw := TStopwatch.StartNew;
+  try
+    AProc();
+  finally
+    sw.Stop;
+  end;
+  Result := sw.ElapsedNs;
+end;
+
+function MeasureTime(const AProc: TObjProc): TDuration;
+var
+  sw: TStopwatch;
+begin
+  sw := TStopwatch.StartNew;
+  try
+    AProc();
+  finally
+    sw.Stop;
+  end;
+  Result := sw.ElapsedDuration;
+end;
+
+function MeasureTimeMs(const AProc: TObjProc): UInt64;
+var
+  sw: TStopwatch;
+begin
+  sw := TStopwatch.StartNew;
+  try
+    AProc();
+  finally
+    sw.Stop;
+  end;
+  Result := sw.ElapsedMs;
+end;
+
+function MeasureTimeNs(const AProc: TObjProc): UInt64;
+var
+  sw: TStopwatch;
+begin
+  sw := TStopwatch.StartNew;
+  try
+    AProc();
+  finally
+    sw.Stop;
+  end;
+  Result := sw.ElapsedNs;
+end;
+
+function MeasureTime(const AProc: TAnonProc): TDuration;
+var
+  sw: TStopwatch;
+begin
+  sw := TStopwatch.StartNew;
+  try
+    AProc();
+  finally
+    sw.Stop;
+  end;
+  Result := sw.ElapsedDuration;
+end;
+
+function MeasureTimeMs(const AProc: TAnonProc): UInt64;
+var
+  sw: TStopwatch;
+begin
+  sw := TStopwatch.StartNew;
+  try
+    AProc();
+  finally
+    sw.Stop;
+  end;
+  Result := sw.ElapsedMs;
+end;
+
+function MeasureTimeNs(const AProc: TAnonProc): UInt64;
+var
+  sw: TStopwatch;
+begin
+  sw := TStopwatch.StartNew;
+  try
+    AProc();
+  finally
+    sw.Stop;
+  end;
+  Result := sw.ElapsedNs;
 end;
 
 end.

@@ -32,7 +32,6 @@ unit fafafa.core.time.clock;
 ──────────────────────────────────────────────────────────────
 }
 
-{$MODE OBJFPC}{$H+}
 {$modeswitch advancedrecords}
 
 {$I fafafa.core.settings.inc}
@@ -42,9 +41,11 @@ interface
 uses
   SysUtils,
   DateUtils,
+  fafafa.core.base,
   fafafa.core.time.base,
   fafafa.core.time.duration,
   fafafa.core.time.instant,
+  fafafa.core.time.config,
   fafafa.core.thread.cancel;
 
 type
@@ -318,6 +319,7 @@ var
   GMonoClock: IMonotonicClock = nil;
   GSysClock: ISystemClock = nil;
   GClock: IClock = nil;
+  GInitLock: TRTLCriticalSection;
 
 // 工厂函数实现
 
@@ -361,23 +363,53 @@ end;
 function DefaultMonotonicClock: IMonotonicClock;
 begin
   if GMonoClock = nil then
-    GMonoClock := CreateMonotonicClock;
+  begin
+    EnterCriticalSection(GInitLock);
+    try
+      if GMonoClock = nil then
+        GMonoClock := CreateMonotonicClock;
+    finally
+      LeaveCriticalSection(GInitLock);
+    end;
+  end;
   Result := GMonoClock;
 end;
 
 function DefaultSystemClock: ISystemClock;
 begin
   if GSysClock = nil then
-    GSysClock := CreateSystemClock;
+  begin
+    EnterCriticalSection(GInitLock);
+    try
+      if GSysClock = nil then
+        GSysClock := CreateSystemClock;
+    finally
+      LeaveCriticalSection(GInitLock);
+    end;
+  end;
   Result := GSysClock;
 end;
 
 function DefaultClock: IClock;
 begin
   if GClock = nil then
-    GClock := CreateClock;
+  begin
+    EnterCriticalSection(GInitLock);
+    try
+      if GClock = nil then
+        GClock := CreateClock;
+    finally
+      LeaveCriticalSection(GInitLock);
+    end;
+  end;
   Result := GClock;
 end;
+
+initialization
+  InitCriticalSection(GInitLock);
+
+finalization
+  DoneCriticalSection(GInitLock);
 
 // 便捷函数
 
@@ -523,23 +555,44 @@ begin
 end;
 
 function TMonotonicClock.WaitFor(const D: TDuration; const Token: ICancellationToken): Boolean;
-const
-  CHUNK_NS = 5 * 1000 * 1000; // 5ms
 var
   remaining: Int64;
   step: Int64;
+  chunkNs: Int64;
+  finalSpinNs: Int64;
+  nowI, deadline: TInstant;
 begin
   if (Token <> nil) and Token.IsCancellationRequested then
     Exit(False);
   remaining := D.AsNs;
+  if remaining <= 0 then Exit(True);
+  nowI := NowInstant;
+  deadline := nowI.Add(D);
+
+  // derive platform slice + final spin threshold
+  chunkNs := Int64(GetSliceSleepMsFor(CurrentPlatformKind)) * 1000 * 1000;
+  if chunkNs <= 0 then chunkNs := 1000 * 100; // 0.1ms minimal slice to avoid busy sleep
+  finalSpinNs := GetFinalSpinThresholdNs;
+
   while remaining > 0 do
   begin
     if (Token <> nil) and Token.IsCancellationRequested then
       Exit(False);
-    step := remaining;
-    if step > CHUNK_NS then step := CHUNK_NS;
-    NanoSleep(UInt64(step));
-    Dec(remaining, step);
+    if remaining <= finalSpinNs then
+    begin
+      // final spin/yield until deadline
+      nowI := NowInstant;
+      remaining := deadline.Diff(nowI).AsNs;
+      if remaining > 0 then SchedYield;
+    end
+    else
+    begin
+      step := remaining;
+      if step > chunkNs then step := chunkNs;
+      NanoSleep(UInt64(step));
+      nowI := NowInstant;
+      remaining := deadline.Diff(nowI).AsNs;
+    end;
   end;
   Result := True;
 end;
@@ -616,10 +669,14 @@ end;
 
 function TSystemClock.GetTimeZoneOffset: TDuration;
 var
-  mins: Int64;
+  localSnap, utcSnap: TDateTime;
+  offsetSeconds: Int64;
 begin
-  mins := DateUtils.MinutesBetween(NowLocal, NowUTC);
-  Result := TDuration.FromSec(mins * 60);
+  // 使用同一时间快照避免分钟边界竞态
+  localSnap := Now;
+  utcSnap := DateUtils.LocalTimeToUniversal(localSnap);
+  offsetSeconds := Round((localSnap - utcSnap) * 24 * 60 * 60);
+  Result := TDuration.FromSec(offsetSeconds);
 end;
 
 function TSystemClock.GetTimeZoneName: string;
@@ -737,7 +794,12 @@ end;
 
 function TFixedClock.NowInstant: TInstant;
 begin
-  Result := FFixedInstant;
+  EnterCriticalSection(FLock);
+  try
+    Result := FFixedInstant;
+  finally
+    LeaveCriticalSection(FLock);
+  end;
 end;
 
 procedure TFixedClock.SleepFor(const D: TDuration);
@@ -772,17 +834,35 @@ end;
 
 function TFixedClock.NowUTC: TDateTime;
 begin
-  Result := FFixedDateTime;
+  EnterCriticalSection(FLock);
+  try
+    Result := FFixedDateTime;
+  finally
+    LeaveCriticalSection(FLock);
+  end;
 end;
 
 function TFixedClock.NowLocal: TDateTime;
 begin
-  Result := FFixedDateTime;
+  EnterCriticalSection(FLock);
+  try
+    Result := FFixedDateTime;
+  finally
+    LeaveCriticalSection(FLock);
+  end;
 end;
 
 function TFixedClock.NowUnixMs: Int64;
+var
+  dt: TDateTime;
 begin
-  Result := Int64(DateUtils.DateTimeToUnix(FFixedDateTime)) * 1000 + DateUtils.MilliSecondOfTheSecond(FFixedDateTime);
+  EnterCriticalSection(FLock);
+  try
+    dt := FFixedDateTime;
+  finally
+    LeaveCriticalSection(FLock);
+  end;
+  Result := Int64(DateUtils.DateTimeToUnix(dt)) * 1000 + DateUtils.MilliSecondOfTheSecond(dt);
 end;
 
 function TFixedClock.NowUnixNs: Int64;
@@ -813,39 +893,74 @@ end;
 
 procedure TFixedClock.SetInstant(const T: TInstant);
 begin
-  FFixedInstant := T;
+  EnterCriticalSection(FLock);
+  try
+    FFixedInstant := T;
+  finally
+    LeaveCriticalSection(FLock);
+  end;
 end;
 
 procedure TFixedClock.SetDateTime(const DT: TDateTime);
 begin
-  FFixedDateTime := DT;
+  EnterCriticalSection(FLock);
+  try
+    FFixedDateTime := DT;
+  finally
+    LeaveCriticalSection(FLock);
+  end;
 end;
 
 procedure TFixedClock.AdvanceBy(const D: TDuration);
 begin
-  FFixedInstant := FFixedInstant.Add(D);
-  FFixedDateTime := DateUtils.IncMilliSecond(FFixedDateTime, D.AsMs);
+  EnterCriticalSection(FLock);
+  try
+    FFixedInstant := FFixedInstant.Add(D);
+    FFixedDateTime := DateUtils.IncMilliSecond(FFixedDateTime, D.AsMs);
+  finally
+    LeaveCriticalSection(FLock);
+  end;
 end;
 
 procedure TFixedClock.AdvanceTo(const T: TInstant);
 begin
-  FFixedInstant := T;
+  EnterCriticalSection(FLock);
+  try
+    FFixedInstant := T;
+  finally
+    LeaveCriticalSection(FLock);
+  end;
 end;
 
 function TFixedClock.GetFixedInstant: TInstant;
 begin
-  Result := FFixedInstant;
+  EnterCriticalSection(FLock);
+  try
+    Result := FFixedInstant;
+  finally
+    LeaveCriticalSection(FLock);
+  end;
 end;
 
 function TFixedClock.GetFixedDateTime: TDateTime;
 begin
-  Result := FFixedDateTime;
+  EnterCriticalSection(FLock);
+  try
+    Result := FFixedDateTime;
+  finally
+    LeaveCriticalSection(FLock);
+  end;
 end;
 
 procedure TFixedClock.Reset;
 begin
-  FFixedInstant := TInstant.Zero;
-  FFixedDateTime := 0;
+  EnterCriticalSection(FLock);
+  try
+    FFixedInstant := TInstant.Zero;
+    FFixedDateTime := 0;
+  finally
+    LeaveCriticalSection(FLock);
+  end;
 end;
 
 end.
