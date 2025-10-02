@@ -46,6 +46,10 @@ function GetHardwareResolution: UInt64; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDI
 function GetTick: UInt64; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
 function MakeTick: ITick; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
 
+// CPU 特性检测（用于测试和诊断）
+function CpuHasRDTSCP: Boolean;
+function CpuHasInvariantTSC: Boolean;
+
 implementation
 
 uses

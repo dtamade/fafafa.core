@@ -6,7 +6,8 @@ program fafafa.core.time.tick.test;
 uses
   {$IFDEF UNIX}cthreads,{$ENDIF}
   Classes, SysUtils, consoletestrunner,
-  fafafa.core.time.tick.test.testcase;
+  fafafa.core.time.tick.test.testcase,
+  Test_hardware_tick_reliability;
 
 var
   Application: TTestRunner;
