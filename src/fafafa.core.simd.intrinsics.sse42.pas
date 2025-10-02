@@ -1,20 +1,19 @@
 unit fafafa.core.simd.intrinsics.sse42;
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 {
   === fafafa.core.simd.intrinsics.sse42 ===
-  SSE4.2 (Streaming SIMD Extensions 4.2) 指令集支持
-  
-  SSE4.2 是 Intel 在 2008 年引入的 SIMD 指令集扩展
-  主要增加了字符串处理和 CRC32 计算指令
+  SSE4.2 (Streaming SIMD Extensions 4.2) 指令集支�?  
+  SSE4.2 �?Intel �?2008 年引入的 SIMD 指令集扩�?  主要增加了字符串处理�?CRC32 计算指令
   
   特性：
-  - 字符串比较指令 (PCMPESTRI, PCMPESTRM, PCMPISTRI, PCMPISTRM)
+  - 字符串比较指�?(PCMPESTRI, PCMPESTRM, PCMPISTRI, PCMPISTRM)
   - CRC32 计算指令
-  - 64位比较指令 (PCMPGTQ)
+  - 64位比较指�?(PCMPGTQ)
   
-  兼容性：大部分现代 x86/x64 处理器都支持
+  兼容性：大部分现�?x86/x64 处理器都支持
 }
 
 interface
@@ -22,7 +21,7 @@ interface
 uses
   fafafa.core.simd.intrinsics.base;
 
-// === SSE4.2 字符串比较指令 ===
+// === SSE4.2 字符串比较指�?===
 // Explicit Length String Compare
 function sse42_cmpestrm(const a: TM128; la: Integer; const b: TM128; lb: Integer; imm8: Byte): TM128;
 function sse42_cmpestri(const a: TM128; la: Integer; const b: TM128; lb: Integer; imm8: Byte): Integer;
@@ -39,7 +38,7 @@ function sse42_cmpistro(const a, b: TM128; imm8: Byte): Boolean;
 function sse42_cmpistrs(const a, b: TM128; imm8: Byte): Boolean;
 function sse42_cmpistrz(const a, b: TM128; imm8: Byte): Boolean;
 
-// === SSE4.2 64位比较 ===
+// === SSE4.2 64位比�?===
 function sse42_cmpgt_epi64(const a, b: TM128): TM128;
 
 // === SSE4.2 CRC32 指令 ===
@@ -50,53 +49,47 @@ function sse42_crc32_u64(crc: UInt64; data: UInt64): UInt64;
 
 implementation
 
-// === 字符串比较指令的简化实现 ===
+// === 字符串比较指令的简化实�?===
 function sse42_cmpestrm(const a: TM128; la: Integer; const b: TM128; lb: Integer; imm8: Byte): TM128;
 begin
-  // 简化实现 - 实际需要复杂的字符串比较逻辑
+  // 简化实�?- 实际需要复杂的字符串比较逻辑
   FillChar(Result, SizeOf(Result), 0);
 end;
 
 function sse42_cmpestri(const a: TM128; la: Integer; const b: TM128; lb: Integer; imm8: Byte): Integer;
 begin
-  // 简化实现 - 返回第一个匹配的索引
-  Result := 16; // 表示未找到
-end;
+  // 简化实�?- 返回第一个匹配的索引
+  Result := 16; // 表示未找�?end;
 
 function sse42_cmpestrc(const a: TM128; la: Integer; const b: TM128; lb: Integer; imm8: Byte): Boolean;
 begin
-  // 简化实现 - 返回是否有匹配
-  Result := False;
+  // 简化实�?- 返回是否有匹�?  Result := False;
 end;
 
 function sse42_cmpestro(const a: TM128; la: Integer; const b: TM128; lb: Integer; imm8: Byte): Boolean;
 begin
-  // 简化实现 - 返回结果的奇偶性
-  Result := False;
+  // 简化实�?- 返回结果的奇偶�?  Result := False;
 end;
 
 function sse42_cmpestrs(const a: TM128; la: Integer; const b: TM128; lb: Integer; imm8: Byte): Boolean;
 begin
-  // 简化实现 - 返回结果的符号
-  Result := False;
+  // 简化实�?- 返回结果的符�?  Result := False;
 end;
 
 function sse42_cmpestrz(const a: TM128; la: Integer; const b: TM128; lb: Integer; imm8: Byte): Boolean;
 begin
-  // 简化实现 - 返回结果是否为零
+  // 简化实�?- 返回结果是否为零
   Result := True;
 end;
 
 function sse42_cmpistrm(const a, b: TM128; imm8: Byte): TM128;
 begin
-  // 简化实现 - 隐式长度字符串比较
-  FillChar(Result, SizeOf(Result), 0);
+  // 简化实�?- 隐式长度字符串比�?  FillChar(Result, SizeOf(Result), 0);
 end;
 
 function sse42_cmpistri(const a, b: TM128; imm8: Byte): Integer;
 begin
-  // 简化实现
-  Result := 16;
+  // 简化实�?  Result := 16;
 end;
 
 function sse42_cmpistrc(const a, b: TM128; imm8: Byte): Boolean;
@@ -119,7 +112,7 @@ begin
   Result := True;
 end;
 
-// === 64位比较实现 ===
+// === 64位比较实�?===
 function sse42_cmpgt_epi64(const a, b: TM128): TM128;
 var
   i: Integer;
@@ -131,7 +124,7 @@ begin
       Result.m128i_u64[i] := $0000000000000000;
 end;
 
-// === CRC32 指令的简化实现 ===
+// === CRC32 指令的简化实�?===
 function sse42_crc32_u8(crc: Cardinal; data: Byte): Cardinal;
 const
   CRC32_POLY = $EDB88320;
@@ -169,3 +162,5 @@ begin
 end;
 
 end.
+
+

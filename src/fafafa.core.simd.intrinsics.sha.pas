@@ -1,18 +1,15 @@
 unit fafafa.core.simd.intrinsics.sha;
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 {
   === fafafa.core.simd.intrinsics.sha ===
-  SHA Extensions 指令集支持
-  
-  SHA Extensions 是 Intel 在 2013 年引入的安全哈希算法指令集扩展
-  提供硬件加速的 SHA-1 和 SHA-256 计算
+  SHA Extensions 指令集支�?  
+  SHA Extensions �?Intel �?2013 年引入的安全哈希算法指令集扩�?  提供硬件加速的 SHA-1 �?SHA-256 计算
   
   特性：
-  - SHA-1 消息调度和轮次操作
-  - SHA-256 消息调度和轮次操作
-  - 高性能哈希计算
+  - SHA-1 消息调度和轮次操�?  - SHA-256 消息调度和轮次操�?  - 高性能哈希计算
   
   兼容性：Intel Goldmont (2016) 及部分处理器
 }
@@ -35,7 +32,7 @@ function sha_sha256rnds2_epu32(const a, b, k: TM128): TM128;
 
 implementation
 
-// === SHA-1 指令的简化实现 ===
+// === SHA-1 指令的简化实�?===
 function sha_sha1msg1_epu32(const a, b: TM128): TM128;
 begin
   // 简化实现：实际应该执行 SHA-1 消息调度
@@ -47,8 +44,7 @@ end;
 
 function sha_sha1msg2_epu32(const a, b: TM128): TM128;
 begin
-  // 简化实现
-  Result.m128i_u32[0] := a.m128i_u32[0] + b.m128i_u32[0];
+  // 简化实�?  Result.m128i_u32[0] := a.m128i_u32[0] + b.m128i_u32[0];
   Result.m128i_u32[1] := a.m128i_u32[1] + b.m128i_u32[1];
   Result.m128i_u32[2] := a.m128i_u32[2] + b.m128i_u32[2];
   Result.m128i_u32[3] := a.m128i_u32[3] + b.m128i_u32[3];
@@ -56,8 +52,7 @@ end;
 
 function sha_sha1nexte_epu32(const a, b: TM128): TM128;
 begin
-  // 简化实现
-  Result := a;
+  // 简化实�?  Result := a;
   Result.m128i_u32[0] := Result.m128i_u32[0] + b.m128i_u32[3];
 end;
 
@@ -70,7 +65,7 @@ begin
   Result.m128i_u32[3] := a.m128i_u32[3] + b.m128i_u32[3] + func;
 end;
 
-// === SHA-256 指令的简化实现 ===
+// === SHA-256 指令的简化实�?===
 function sha_sha256msg1_epu32(const a, b: TM128): TM128;
 begin
   // 简化实现：实际应该执行 SHA-256 消息调度
@@ -82,8 +77,7 @@ end;
 
 function sha_sha256msg2_epu32(const a, b: TM128): TM128;
 begin
-  // 简化实现
-  Result.m128i_u32[0] := a.m128i_u32[0] xor b.m128i_u32[0];
+  // 简化实�?  Result.m128i_u32[0] := a.m128i_u32[0] xor b.m128i_u32[0];
   Result.m128i_u32[1] := a.m128i_u32[1] xor b.m128i_u32[1];
   Result.m128i_u32[2] := a.m128i_u32[2] xor b.m128i_u32[2];
   Result.m128i_u32[3] := a.m128i_u32[3] xor b.m128i_u32[3];
@@ -99,3 +93,5 @@ begin
 end;
 
 end.
+
+

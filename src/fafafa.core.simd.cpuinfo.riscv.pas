@@ -1,5 +1,6 @@
 unit fafafa.core.simd.cpuinfo.riscv;
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -7,21 +8,26 @@ interface
 {$IFDEF SIMD_RISCV_AVAILABLE}
 
 uses
-  fafafa.core.simd.types;
+  fafafa.core.simd.types,
+  fafafa.core.simd.cpuinfo.base;
 
-// === RISC-V 平台特定的 CPU 检测 ===
+type
+  // RISC-V processor information structure
+  TRISCVProcessorInfo = record
+    Architecture: string;
+    ISA: string;
+    XLEN: Integer;
+  end;
 
-// 检测 RISC-V 特性
-function DetectRISCVFeatures: TRISCVFeatures;
+// === RISC-V 平台特定�?CPU 检�?===
 
-// 检测 RISC-V 厂商和型号
-procedure DetectRISCVVendorAndModel(var cpuInfo: TCPUInfo);
+// 检�?RISC-V 特�?function DetectRISCVFeatures: TRISCVFeatures;
 
-// 获取 RISC-V 处理器信息
-function GetRISCVProcessorInfo: TRISCVProcessorInfo;
+// 检�?RISC-V 厂商和型�?procedure DetectRISCVVendorAndModel(var cpuInfo: TCPUInfo);
 
-// 从 /proc/cpuinfo 解析 RISC-V 特性（Linux）
-function ParseRISCVFeaturesFromCpuInfo(const cpuInfo: string): TRISCVFeatures;
+// 获取 RISC-V 处理器信�?function GetRISCVProcessorInfo: TRISCVProcessorInfo;
+
+// �?/proc/cpuinfo 解析 RISC-V 特性（Linux�?function ParseRISCVFeaturesFromCpuInfo(const cpuInfo: string): TRISCVFeatures;
 
 {$ENDIF}
 
@@ -46,8 +52,7 @@ begin
   FillChar(Result, SizeOf(TRISCVFeatures), 0);
   
   {$IFDEF UNIX}
-  // 在 Linux 上，从 /proc/cpuinfo 读取特性
-  try
+  // �?Linux 上，�?/proc/cpuinfo 读取特�?  try
     if FileExists('/proc/cpuinfo') then
     begin
       AssignFile(f, '/proc/cpuinfo');
@@ -62,12 +67,10 @@ begin
       
       CloseFile(f);
       
-      // 解析特性
-      Result := ParseRISCVFeaturesFromCpuInfo(cpuInfoContent);
+      // 解析特�?      Result := ParseRISCVFeaturesFromCpuInfo(cpuInfoContent);
     end;
   except
-    // 如果读取失败，使用默认检测
-  end;
+    // 如果读取失败，使用默认检�?  end;
   {$ENDIF}
 end;
 
@@ -84,8 +87,7 @@ begin
   cpuInfo.Model := 'RISC-V Processor';
   
   {$IFDEF UNIX}
-  // 从 /proc/cpuinfo 读取处理器信息
-  try
+  // �?/proc/cpuinfo 读取处理器信�?  try
     if FileExists('/proc/cpuinfo') then
     begin
       AssignFile(f, '/proc/cpuinfo');
@@ -121,8 +123,7 @@ begin
       CloseFile(f);
     end;
   except
-    // 如果读取失败，使用默认值
-  end;
+    // 如果读取失败，使用默认�?  end;
   {$ENDIF}
 end;
 
@@ -140,8 +141,7 @@ begin
   
   Result.ISA := 'RISC-V';
   
-  // TODO: 实现更详细的处理器信息检测
-end;
+  // TODO: 实现更详细的处理器信息检�?end;
 
 function ParseRISCVFeaturesFromCpuInfo(const cpuInfo: string): TRISCVFeatures;
 var
@@ -165,25 +165,20 @@ begin
       begin
         isa := LowerCase(Trim(Copy(line, colonPos + 1, Length(line))));
         
-        // 检查基础指令集
-        if Pos('rv64', isa) > 0 then
+        // 检查基础指令�?        if Pos('rv64', isa) > 0 then
           Result.HasRV64I := True
         else if Pos('rv32', isa) > 0 then
           Result.HasRV32I := True;
           
-        // 检查扩展
-        if Pos('m', isa) > 0 then
-          Result.HasM := True;  // 乘法和除法
-          
+        // 检查扩�?        if Pos('m', isa) > 0 then
+          Result.HasM := True;  // 乘法和除�?          
         if Pos('a', isa) > 0 then
           Result.HasA := True;  // 原子操作
           
         if Pos('f', isa) > 0 then
-          Result.HasF := True;  // 单精度浮点
-          
+          Result.HasF := True;  // 单精度浮�?          
         if Pos('d', isa) > 0 then
-          Result.HasD := True;  // 双精度浮点
-          
+          Result.HasD := True;  // 双精度浮�?          
         if Pos('c', isa) > 0 then
           Result.HasC := True;  // 压缩指令
           
@@ -196,7 +191,7 @@ end;
 
 {$ELSE}
 
-// === 非 RISC-V 平台的存根实现 ===
+// === �?RISC-V 平台的存根实�?===
 
 function DetectRISCVFeatures: TRISCVFeatures;
 begin
@@ -225,3 +220,5 @@ end;
 {$ENDIF}
 
 end.
+
+

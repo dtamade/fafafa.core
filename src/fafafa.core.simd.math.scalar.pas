@@ -1,5 +1,6 @@
 unit fafafa.core.simd.math.scalar;
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -82,8 +83,7 @@ type
     function GetCapabilities: TSimdCapabilitySet;
   end;
 
-// 创建标量向量的便利函数
-function CreateScalarVector(const Values: array of Single): ISimdVector;
+// 创建标量向量的便利函�?function CreateScalarVector(const Values: array of Single): ISimdVector;
 function CreateScalarVectorF32x4(v0, v1, v2, v3: Single): ISimdVector;
 
 implementation
@@ -408,8 +408,7 @@ var
   resultVec: TScalarVector;
   i: Integer;
 begin
-  // 标量实现中，已经是浮点数，直接返回副本
-  scalarA := A as TScalarVector;
+  // 标量实现中，已经是浮点数，直接返回副�?  scalarA := A as TScalarVector;
   resultVec := TScalarVector.Create(setFloat32, scalarA.ElementCount);
 
   for i := 0 to scalarA.ElementCount - 1 do
@@ -556,3 +555,5 @@ initialization
   RegisterBackendFactory(sbScalar, TScalarBackendFactory.Create);
 
 end.
+
+

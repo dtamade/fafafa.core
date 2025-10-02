@@ -1,12 +1,13 @@
 unit fafafa.core.simd.intrinsics.x86.sse2;
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
 
 // === SSE2 Intrinsics 完整接口 ===
-// SSE2 是 x86-64 的基础指令集，所有 x86-64 CPU 都支持
-// 提供 128-bit 向量操作，是最重要的基础指令集
+// SSE2 �?x86-64 的基础指令集，所�?x86-64 CPU 都支�?
+// 提供 128-bit 向量操作，是最重要的基础指令�?
 // 类型 TM128 对应 __m128i / __m128 / __m128d，前缀统一 simd_
 
 uses
@@ -4011,7 +4012,7 @@ function simd_cvttpd_ps(const a: TM128): TM128; {$IFDEF FPC}assembler; nostackfr
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]; cvttpd2ps xmm0, xmm0  // 截断双精度转单精度
+    movupd xmm0, [rcx]; cvttpd2ps xmm0, xmm0  // 截断双精度转单精�?
   {$ELSE}
     movupd xmm0, [rdi]; cvttpd2ps xmm0, xmm0
   {$ENDIF}
@@ -4278,3 +4279,5 @@ asm
 end;
 
 end.
+
+

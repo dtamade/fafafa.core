@@ -34,6 +34,7 @@ unit fafafa.core.time.clock;
 
 {$modeswitch advancedrecords}
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -45,7 +46,7 @@ uses
   fafafa.core.time.base,
   fafafa.core.time.duration,
   fafafa.core.time.instant,
-  fafafa.core.time.config,
+  // fafafa.core.time.config, // TODO: 该单元尚未实现，暂时注释
   fafafa.core.thread.cancel;
 
 type
@@ -405,12 +406,6 @@ begin
   Result := GClock;
 end;
 
-initialization
-  InitCriticalSection(GInitLock);
-
-finalization
-  DoneCriticalSection(GInitLock);
-
 // 便捷函数
 
 procedure SleepFor(const D: TDuration);
@@ -570,9 +565,9 @@ begin
   deadline := nowI.Add(D);
 
   // derive platform slice + final spin threshold
-  chunkNs := Int64(GetSliceSleepMsFor(CurrentPlatformKind)) * 1000 * 1000;
-  if chunkNs <= 0 then chunkNs := 1000 * 100; // 0.1ms minimal slice to avoid busy sleep
-  finalSpinNs := GetFinalSpinThresholdNs;
+  // TODO: 这些配置值应该来自 fafafa.core.time.config，目前使用默认值
+  chunkNs := 10 * 1000 * 1000; // 10ms default slice
+  finalSpinNs := 50 * 1000; // 50us final spin threshold
 
   while remaining > 0 do
   begin
@@ -962,5 +957,11 @@ begin
     LeaveCriticalSection(FLock);
   end;
 end;
+
+initialization
+  InitCriticalSection(GInitLock);
+
+finalization
+  DoneCriticalSection(GInitLock);
 
 end.

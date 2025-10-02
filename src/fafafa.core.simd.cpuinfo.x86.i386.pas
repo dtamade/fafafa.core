@@ -1,5 +1,6 @@
 unit fafafa.core.simd.cpuinfo.x86.i386;
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 {$ASMMODE INTEL}
 
@@ -9,7 +10,7 @@ uses
   fafafa.core.simd.types,
   fafafa.core.simd.cpuinfo.x86.base;
 
-// 架构实现（i386）：导出与 x86 门面一致的 API
+// 架构实现（i386）：导出�?x86 门面一致的 API
 
 function HasCPUID: Boolean;
 procedure CPUID(EAX: DWord; var EAX_Out, EBX_Out, ECX_Out, EDX_Out: DWord);
@@ -181,7 +182,7 @@ begin
     Result.HasAVX512VBMI := (ecx and (1 shl 1)) <> 0;
     Result.HasSHA := (ebx and (1 shl 29)) <> 0;
     Result.HasRDSEED := (ecx and (1 shl 18)) <> 0;
-    // 按 OS 门槛屏蔽
+    // �?OS 门槛屏蔽
     if not Result.HasAVX then
     begin
       Result.HasAVX2 := False;
@@ -195,8 +196,7 @@ begin
       Result.HasAVX512VL := False;
       Result.HasAVX512VBMI := False;
     end;
-    // AVX-512 还需要 XCR0 的 ZMM 状态保存
-    if not XCR0HasAVX512(xcr0) then
+    // AVX-512 还需�?XCR0 �?ZMM 状态保�?    if not XCR0HasAVX512(xcr0) then
     begin
       Result.HasAVX512F := False;
       Result.HasAVX512DQ := False;
@@ -285,5 +285,7 @@ begin
 end;
 
 end.
+
+
 
 

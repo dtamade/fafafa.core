@@ -33,6 +33,7 @@ unit fafafa.core.time.stopwatch;
 ──────────────────────────────────────────────────────────────
 }
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -42,6 +43,17 @@ uses
   fafafa.core.time.base,
   fafafa.core.time.duration,
   fafafa.core.time.tick;
+
+type
+  // 类型别名
+  TDurationArray = array of TDuration;
+  
+  // 过程类型别名
+  TSimpleProc = procedure;
+  TObjProc = procedure of object;
+  {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
+  TAnonProc = reference to procedure;
+  {$ENDIF}
 
   {**
    * TStopwatch - 秒表计时器
@@ -110,7 +122,7 @@ uses
     // Lap 功能（分段计时）
     function Lap: TDuration;           // 记录一个 Lap 并返回距上次 Lap 的时间
     function LapDuration: TDuration;   // 同 Lap，为兼容测试代码
-    function GetLaps: TArray<TDuration>; // 获取所有 Lap 记录
+    function GetLaps: TDurationArray; // 获取所有 Lap 记录
     function GetLapCount: Integer;     // 获取 Lap 数量
     procedure ClearLaps;               // 清除所有 Lap 记录
 
@@ -144,19 +156,21 @@ type
 
 // 便捷函数
 // 自由过程（全局/局部非方法过程）
-function MeasureTime(const AProc: procedure): TDuration; overload;
-function MeasureTimeMs(const AProc: procedure): UInt64; overload;
-function MeasureTimeNs(const AProc: procedure): UInt64; overload;
+function MeasureTime(const AProc: TSimpleProc): TDuration; overload;
+function MeasureTimeMs(const AProc: TSimpleProc): UInt64; overload;
+function MeasureTimeNs(const AProc: TSimpleProc): UInt64; overload;
 
 // 对象方法（procedure of object）
 function MeasureTime(const AProc: TObjProc): TDuration; overload;
 function MeasureTimeMs(const AProc: TObjProc): UInt64; overload;
 function MeasureTimeNs(const AProc: TObjProc): UInt64; overload;
 
-// 匿名过程（reference to procedure）
+// 匹名过程（reference to procedure）
+{$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
 function MeasureTime(const AProc: TAnonProc): TDuration; overload;
 function MeasureTimeMs(const AProc: TAnonProc): UInt64; overload;
 function MeasureTimeNs(const AProc: TAnonProc): UInt64; overload;
+{$ENDIF}
 
 implementation
 
@@ -342,10 +356,11 @@ begin
   Result := Lap;
 end;
 
-function TStopwatch.GetLaps: TArray<TDuration>;
+function TStopwatch.GetLaps: TDurationArray;
 var
   i: Integer;
 begin
+  Result := nil;  // 显式初始化以消除编译器警告
   SetLength(Result, Length(FLaps));
   for i := 0 to High(FLaps) do
     Result[i] := TDuration.FromNs(Int64(TicksToNs(FLaps[i])));
@@ -427,7 +442,7 @@ begin
 end;
 
 // 便捷函数实现
-function MeasureTime(const AProc: procedure): TDuration;
+function MeasureTime(const AProc: TSimpleProc): TDuration;
 var
   sw: TStopwatch;
 begin
@@ -440,7 +455,7 @@ begin
   Result := sw.ElapsedDuration;
 end;
 
-function MeasureTimeMs(const AProc: procedure): UInt64;
+function MeasureTimeMs(const AProc: TSimpleProc): UInt64;
 var
   sw: TStopwatch;
 begin
@@ -453,7 +468,7 @@ begin
   Result := sw.ElapsedMs;
 end;
 
-function MeasureTimeNs(const AProc: procedure): UInt64;
+function MeasureTimeNs(const AProc: TSimpleProc): UInt64;
 var
   sw: TStopwatch;
 begin
@@ -505,6 +520,7 @@ begin
   Result := sw.ElapsedNs;
 end;
 
+{$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
 function MeasureTime(const AProc: TAnonProc): TDuration;
 var
   sw: TStopwatch;
@@ -543,5 +559,6 @@ begin
   end;
   Result := sw.ElapsedNs;
 end;
+{$ENDIF}
 
 end.

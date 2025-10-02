@@ -46,7 +46,8 @@ begin
   mn := TDuration.FromMs(10);
   mx := TDuration.FromMs(12);
   CheckEquals(12, d.Clamp(mn, mx).AsMs);
-  CheckEquals(12, d.Between(mn, mx).AsMs);
+  // Between 已被删除，再次测试 Clamp 确保功能一致
+  CheckEquals(12, d.Clamp(mn, mx).AsMs);
 end;
 
 procedure TTestCase_DurationRoundOps.Test_Operator_Add_Sub_Mul;

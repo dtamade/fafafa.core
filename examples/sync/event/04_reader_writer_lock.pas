@@ -80,8 +80,8 @@ begin
   FWriterActive := False;
   
   // 初始状态：读者可以进入，写者不能进入
-  FReadersEvent := CreateEvent(True, True);   // 手动重置，初始信号
-  FWriterEvent := CreateEvent(True, False);   // 手动重置，初始无信号
+  FReadersEvent := MakeEvent(True, True);   // 手动重置，初始信号
+  FWriterEvent := MakeEvent(True, False);   // 手动重置，初始无信号
 end;
 
 destructor TEventReaderWriterLock.Destroy;

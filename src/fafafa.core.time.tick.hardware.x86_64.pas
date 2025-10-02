@@ -17,6 +17,7 @@ unit fafafa.core.time.tick.hardware.x86_64;
 
 }
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 {$if not (defined(CPUX64) or defined(CPUX86_64))}

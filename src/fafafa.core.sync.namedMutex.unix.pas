@@ -1,6 +1,6 @@
 unit fafafa.core.sync.namedMutex.unix;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 {$LINKLIB pthread}
 
@@ -13,8 +13,8 @@ type
   // pthread_mutex_t 指针类型
   PPThreadMutex = ^TPThreadMutex;
   TPThreadMutex = record
-    // 平台相关的 pthread_mutex_t 结构
-    // 使用 opaque 数组来避免平台差异
+    // 平台相关�?pthread_mutex_t 结构
+    // 使用 opaque 数组来避免平台差�?
     data: array[0..39] of Byte; // 足够大的空间
   end;
 
@@ -39,10 +39,10 @@ type
   TNamedMutex = class(TSynchronizable, INamedMutex)
   private
     FMutex: PPThreadMutex;      // pthread_mutex_t 指针
-    FShmFile: cint;             // 共享内存文件描述符
-    FShmPath: AnsiString;       // 共享内存路径（使用 AnsiString 减少转换开销）
-    FOriginalName: string;      // 保存用户提供的原始名称
-    FIsCreator: Boolean;        // 是否为创建者
+    FShmFile: cint;             // 共享内存文件描述�?
+    FShmPath: AnsiString;       // 共享内存路径（使�?AnsiString 减少转换开销�?
+    FOriginalName: string;      // 保存用户提供的原始名�?
+    FIsCreator: Boolean;        // 是否为创建�?
     FShmSize: csize_t;          // 缓存共享内存大小
     
     function ValidateName(const AName: string): string;
@@ -59,13 +59,11 @@ type
     // ISynchronizable 接口
     function GetLastError: TWaitError;
 
-    // 现代化接口
-    function Lock: INamedMutexGuard;
+    // 现代化接�?    function Lock: INamedMutexGuard;
     function TryLock: INamedMutexGuard;
     function TryLockFor(ATimeoutMs: Cardinal): INamedMutexGuard;
     function GetName: string;
-    // ILock 接口补充：RAII 锁守卫
-    function LockGuard: ILockGuard;
+    // ILock 接口补充：RAII 锁守�?    function LockGuard: ILockGuard;
 
     // 兼容性接口（已弃用）
     procedure Acquire; deprecated;
@@ -78,7 +76,7 @@ type
     function IsAbandoned: Boolean; deprecated;
   end;
 
-// pthread 函数声明 - 现代 Linux 系统中 pthread 函数在 libc 中
+// pthread 函数声明 - 现代 Linux 系统�?pthread 函数�?libc �?
 function pthread_mutex_init(mutex: PPThreadMutex; attr: PPThreadMutexAttr): cint; cdecl; external 'c';
 function pthread_mutex_destroy(mutex: PPThreadMutex): cint; cdecl; external 'c';
 function pthread_mutex_lock(mutex: PPThreadMutex): cint; cdecl; external 'c';
@@ -129,15 +127,15 @@ begin
   if AName = '' then
     raise EInvalidArgument.Create('Named mutex name cannot be empty');
 
-  // 共享内存名称规则：
+  // 共享内存名称规则�?
   // - 不能包含路径分隔符和特殊字符
-  // - 长度限制为 255 字符
+  // - 长度限制�?255 字符
   Result := AName;
 
   if Length(Result) > 255 then
     raise EInvalidArgument.Create('Named mutex name too long (max 255 characters)');
 
-  // 检查是否包含非法字符
+  // 检查是否包含非法字�?
   for i := 1 to Length(Result) do
   begin
     if Result[i] in ['/', '\', ':', '*', '?', '"', '<', '>', '|'] then
@@ -149,8 +147,8 @@ function TNamedMutex.CreateShmPath(const AName: string): string;
 const
   SHM_PREFIX = '/dev/shm/fafafa_mutex_';
 begin
-  // 在 /dev/shm 目录下创建共享内存文件
-  // 使用常量前缀减少字符串分配
+  // �?/dev/shm 目录下创建共享内存文�?
+  // 使用常量前缀减少字符串分�?
   Result := SHM_PREFIX + AName;
 end;
 
@@ -161,7 +159,7 @@ var
 begin
   Result := False;
 
-  // 初始化互斥锁属性
+  // 初始化互斥锁属�?
   LAttrPtr := @LAttr;
   if pthread_mutexattr_init(LAttrPtr) <> 0 then
     Exit;
@@ -228,7 +226,7 @@ begin
   // 缓存共享内存大小（pthread_mutex_t 的大小）
   FShmSize := SizeOf(TPThreadMutex);
 
-  // 转换为 AnsiString 减少后续转换开销
+  // 转换�?AnsiString 减少后续转换开销
   LAnsiPath := FShmPath;
 
   // 尝试创建共享内存文件
@@ -240,7 +238,7 @@ begin
       [AName, SysErrorMessage(fpGetErrno)]);
 
   try
-    // 检查文件是否是新创建的（优化：使用 fstat 而不是 lseek）
+    // 检查文件是否是新创建的（优化：使用 fstat 而不�?lseek�?
     FIsCreator := (fpLSeek(FShmFile, 0, SEEK_END) = 0);
 
     // 设置文件大小
@@ -285,13 +283,13 @@ end;
 
 destructor TNamedMutex.Destroy;
 begin
-  // 清理互斥锁
+  // 清理互斥�?
   if Assigned(FMutex) then
   begin
     if FIsCreator then
       pthread_mutex_destroy(FMutex);
 
-    fpMUnMap(FMutex, FShmSize);  // 使用缓存的大小
+    fpMUnMap(FMutex, FShmSize);  // 使用缓存的大�?
     FMutex := nil;
   end;
 
@@ -337,7 +335,7 @@ begin
   if ATimeoutMs = Cardinal(-1) then
     Exit(Lock);
 
-  // 使用高效的 pthread_mutex_timedlock
+  // 使用高效�?pthread_mutex_timedlock
   LTimespec := TimeoutToTimespec(ATimeoutMs);
   LResult := pthread_mutex_timedlock(FMutex, @LTimespec);
 
@@ -374,7 +372,7 @@ end;
 
 procedure TNamedMutex.Release;
 begin
-  // 兼容性实现：直接释放互斥锁
+  // 兼容性实现：直接释放互斥�?
   // 注意：这不是线程安全的，仅为向后兼容
   if FMutex = nil then
     raise ELockError.CreateFmt('Named mutex "%s" not initialized', [FOriginalName]);
@@ -430,7 +428,7 @@ begin
   LGuard := TryLockFor(ATimeoutMs);
   if not Assigned(LGuard) then
     raise ETimeoutError.CreateFmt('Timeout waiting for named mutex "%s"', [FOriginalName]);
-  // 注意：锁会在方法结束时自动释放
+  // 注意：锁会在方法结束时自动释�?
 end;
 
 function TNamedMutex.GetHandle: Pointer;
@@ -445,7 +443,7 @@ end;
 
 function TNamedMutex.IsAbandoned: Boolean;
 begin
-  // Unix 平台不支持遗弃检测
+  // Unix 平台不支持遗弃检�?
   Result := False;
 end;
 

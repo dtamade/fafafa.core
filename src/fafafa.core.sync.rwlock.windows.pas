@@ -1,6 +1,6 @@
-﻿unit fafafa.core.sync.rwlock.windows;
+unit fafafa.core.sync.rwlock.windows;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -117,7 +117,7 @@ type
     FReleased: Boolean;
   public
     constructor Create(ALock: TRWLock);
-    constructor CreateAcquired(ALock: TRWLock); // 已经获取锁的守卫
+    constructor CreateAcquired(ALock: TRWLock); // 宸茬粡鑾峰彇閿佺殑瀹堝崼
     destructor Destroy; override;
     function IsValid: Boolean;
     procedure Release;
@@ -129,7 +129,7 @@ type
     FReleased: Boolean;
   public
     constructor Create(ALock: TRWLock);
-    constructor CreateAcquired(ALock: TRWLock); // 已经获取锁的守卫
+    constructor CreateAcquired(ALock: TRWLock); // 宸茬粡鑾峰彇閿佺殑瀹堝崼
     destructor Destroy; override;
     function IsValid: Boolean;
     procedure Release;
@@ -234,7 +234,7 @@ begin
   inherited Create;
   FLock := ALock;
   FReleased := False;
-  // 不获取锁：外部已获取
+  // 涓嶈幏鍙栭攣锛氬閮ㄥ凡鑾峰彇
 end;
 
 destructor TRWLockReadGuard.Destroy;
@@ -273,7 +273,7 @@ begin
   inherited Create;
   FLock := ALock;
   FReleased := False;
-  // 不获取锁：外部已获取
+  // 涓嶈幏鍙栭攣锛氬閮ㄥ凡鑾峰彇
 end;
 
 destructor TRWLockWriteGuard.Destroy;
@@ -291,8 +291,8 @@ procedure TRWLockWriteGuard.Release;
 begin
   if (not FReleased) and Assigned(FLock) then
   begin
-    // 仅当当前线程确实持有写锁时才调用释放，避免状态错误
-    if FLock.IsWriteLocked and (FLock.GetWriterThread = GetCurrentThreadId) then
+    // Only release when current thread owns the write lock; prevents invalid state
+        if FLock.IsWriteLocked and (FLock.GetWriterThread = GetCurrentThreadId) then
     begin
       FReleased := True;
       FLock.ReleaseWrite;
@@ -313,7 +313,7 @@ begin
   FRecs := TThreadRecManager.Create;
   FLast := lrSuccess;
   FContention := 0;
-  FSpin := 4000; // 默认自旋配置（用于统计显示）
+  FSpin := 4000; // 榛樿鑷棆閰嶇疆锛堢敤浜庣粺璁℃樉绀猴級
 end;
 
 constructor TRWLock.Create(const Options: TRWLockOptions);

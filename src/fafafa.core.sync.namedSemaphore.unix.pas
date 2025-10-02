@@ -1,6 +1,6 @@
 unit fafafa.core.sync.namedSemaphore.unix;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 {$LINKLIB pthread}
 
@@ -10,7 +10,7 @@ uses
   fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.namedSemaphore.base;
 
 type
-  // POSIX 信号量类型
+  // POSIX 信号量类�?
   PSem = Pointer;
 
   // RAII 守卫实现
@@ -30,11 +30,11 @@ type
 
   TNamedSemaphore = class(TSynchronizable, INamedSemaphore)
   private
-    FSemaphore: PSem;           // POSIX 信号量句柄
-    FSemName: AnsiString;       // POSIX 信号量名称（使用 AnsiString 减少转换开销）
-    FOriginalName: string;      // 保存用户提供的原始名称
-    FIsCreator: Boolean;        // 是否为创建者
-    FMaxCount: Integer;         // 最大计数值
+    FSemaphore: PSem;           // POSIX 信号量句�?
+    FSemName: AnsiString;       // POSIX 信号量名称（使用 AnsiString 减少转换开销�?
+    FOriginalName: string;      // 保存用户提供的原始名�?
+    FIsCreator: Boolean;        // 是否为创建�?
+    FMaxCount: Integer;         // 最大计数�?
 
     // 性能监控字段
     FEnablePerformanceMonitoring: Boolean;
@@ -62,7 +62,7 @@ type
     function TryWait: INamedSemaphoreGuard;
     function TryWaitFor(ATimeoutMs: Cardinal): INamedSemaphoreGuard;
 
-    // 现代化错误处理方法
+    // 现代化错误处理方�?
     function WaitSafe: TNamedSemaphoreGuardResult;
     function TryWaitSafe: TNamedSemaphoreGuardResult;
     function TryWaitForSafe(ATimeoutMs: Cardinal): TNamedSemaphoreGuardResult;
@@ -86,7 +86,7 @@ type
     function IsCreator: Boolean; deprecated;
   end;
 
-// POSIX 信号量函数声明
+// POSIX 信号量函数声�?
 function sem_open(name: PAnsiChar; oflag: cint): PSem; cdecl; varargs; external 'c';
 function sem_close(sem: PSem): cint; cdecl; external 'c';
 function sem_unlink(name: PAnsiChar): cint; cdecl; external 'c';
@@ -123,7 +123,7 @@ var
 begin
   if not FReleased and (FSemaphore <> SEM_FAILED) and (FSemaphore <> nil) then
   begin
-    // 尝试释放信号量
+    // 尝试释放信号�?
     if sem_post(FSemaphore) <> 0 then
     begin
       LErrno := fpGetErrno;
@@ -133,7 +133,7 @@ begin
         ESysEOVERFLOW: ; // 计数溢出，可能是重复释放
       else
         // 其他错误情况下，我们无法抛出异常（在析构函数中）
-        // 但可以通过其他方式记录错误，比如写入日志
+        // 但可以通过其他方式记录错误，比如写入日�?
         // 这里暂时忽略，但在生产环境中应该记录
       end;
     end;
@@ -184,7 +184,7 @@ begin
   if Length(AName) > 255 then  // NAME_MAX
     raise EInvalidArgument.CreateFmt('Semaphore name too long: %d characters (max 255)', [Length(AName)]);
     
-  // POSIX 信号量名称不能包含额外的 '/' 字符（除了前缀）
+  // POSIX 信号量名称不能包含额外的 '/' 字符（除了前缀�?
   if Pos('/', AName) > 0 then
     raise EInvalidArgument.CreateFmt('Invalid character in semaphore name: %s', [AName]);
   
@@ -193,7 +193,7 @@ end;
 
 function TNamedSemaphore.CreateSemName(const AName: string): string;
 begin
-  // POSIX 信号量名称必须以 '/' 开头
+  // POSIX 信号量名称必须以 '/' 开�?
   if AName[1] <> '/' then
     Result := '/' + AName
   else
@@ -250,17 +250,17 @@ begin
   FReleaseCount := 0;
   FTotalWaitTime := 0.0;
 
-  // 优化字符串转换：一次性完成所有转换
+  // 优化字符串转换：一次性完成所有转�?
   LSemName := CreateSemName(LName);
   LSemNameAnsi := AnsiString(LSemName);
   FSemName := LSemNameAnsi; // 避免重复转换
 
-  // 尝试创建新的信号量
+  // 尝试创建新的信号�?
   FSemaphore := sem_open(PAnsiChar(LSemNameAnsi), O_CREAT or O_EXCL, $644, AInitialCount);
 
   if FSemaphore = SEM_FAILED then
   begin
-    // 如果创建失败，尝试打开现有的
+    // 如果创建失败，尝试打开现有�?
     FSemaphore := sem_open(PAnsiChar(LSemNameAnsi), 0);
     FIsCreator := False;
 
@@ -299,13 +299,13 @@ begin
     if Length(LName) > 255 then  // NAME_MAX
       Exit;
 
-    // 创建 POSIX 信号量名称并优化字符串转换
+    // 创建 POSIX 信号量名称并优化字符串转�?
     if LName[1] <> '/' then
       LSemName := '/' + LName
     else
       LSemName := LName;
 
-    // 尝试打开现有信号量（不创建新的）- 优化字符串转换
+    // 尝试打开现有信号量（不创建新的）- 优化字符串转�?
     LSemaphore := sem_open(PAnsiChar(AnsiString(LSemName)), 0);
 
     if LSemaphore = SEM_FAILED then
@@ -317,7 +317,7 @@ begin
     LInstance.FSemName := AnsiString(LSemName);
     LInstance.FOriginalName := LName;
     LInstance.FIsCreator := False;
-    LInstance.FMaxCount := -1; // 无法确定最大计数
+    LInstance.FMaxCount := -1; // 无法确定最大计�?
 
     Result := LInstance;
   except
@@ -327,12 +327,12 @@ end;
 
 destructor TNamedSemaphore.Destroy;
 begin
-  // 关闭信号量
+  // 关闭信号�?
   if FSemaphore <> SEM_FAILED then
   begin
     sem_close(FSemaphore);
     
-    // 如果是创建者，删除信号量
+    // 如果是创建者，删除信号�?
     if FIsCreator then
       sem_unlink(PAnsiChar(FSemName));
       
@@ -368,7 +368,7 @@ var
   LErrno: cint;
   LResult: cint;
 begin
-  // 检查信号量有效性
+  // 检查信号量有效�?
   if FSemaphore = SEM_FAILED then
     raise ELockError.CreateFmt('Named semaphore "%s" is invalid', [FOriginalName]);
 
@@ -378,16 +378,16 @@ begin
   else
   begin
     LErrno := fpGetErrno;
-    // 严格处理错误码，只接受明确的"资源不可用"错误
+    // 严格处理错误码，只接受明确的"资源不可�?错误
     case LErrno of
       ESysEAGAIN:
-        Result := nil; // 信号量不可用，这是正常情况
+        Result := nil; // 信号量不可用，这是正常情�?
       ESysEINVAL:
         raise ELockError.CreateFmt('Invalid semaphore "%s"', [FOriginalName]);
       ESysEINTR:
         raise ELockError.CreateFmt('Operation interrupted for semaphore "%s"', [FOriginalName]);
     else
-      // 检查是否是 EWOULDBLOCK（可能与 EAGAIN 相同）
+      // 检查是否是 EWOULDBLOCK（可能与 EAGAIN 相同�?
       if LErrno = ESysEWOULDBLOCK then
         Result := nil
       else
@@ -444,11 +444,11 @@ begin
   if ACount <= 0 then
     raise EInvalidArgument.CreateFmt('Release count must be positive: %d', [ACount]);
 
-  // 检查信号量有效性
+  // 检查信号量有效�?
   if FSemaphore = SEM_FAILED then
     raise ELockError.CreateFmt('Named semaphore "%s" is invalid', [FOriginalName]);
 
-  // 检查是否会超过最大计数（仅在已知最大计数时）
+  // 检查是否会超过最大计数（仅在已知最大计数时�?
   if FMaxCount > 0 then
   begin
     LCurrentCount := GetCurrentCount;
@@ -501,7 +501,7 @@ var
   LGuard: INamedSemaphoreGuard;
 begin
   LGuard := Wait;
-  // 注意：这里会立即释放信号量，因为 LGuard 会在方法结束时析构
+  // 注意：这里会立即释放信号量，因为 LGuard 会在方法结束时析�?
 end;
 
 function TNamedSemaphore.TryAcquire: Boolean;
@@ -558,19 +558,19 @@ begin
     Result := 0.0;
 end;
 
-// 现代化错误处理方法实现
+// 现代化错误处理方法实�?
 function TNamedSemaphore.WaitSafe: TNamedSemaphoreGuardResult;
 var
   LResult: cint;
   LStartTime, LEndTime: TDateTime;
 begin
   try
-    // 检查信号量有效性
+    // 检查信号量有效�?
     if FSemaphore = SEM_FAILED then
       Exit(TNamedSemaphoreGuardResult.Failure(
         TNamedSemaphoreError.SystemError('Named semaphore is invalid', 0)));
 
-    // 性能监控：记录开始时间
+    // 性能监控：记录开始时�?
     if FEnablePerformanceMonitoring then
       LStartTime := Now;
 
@@ -613,7 +613,7 @@ var
   LErrno: cint;
 begin
   try
-    // 检查信号量有效性
+    // 检查信号量有效�?
     if FSemaphore = SEM_FAILED then
       Exit(TNamedSemaphoreGuardResult.Failure(
         TNamedSemaphoreError.SystemError('Named semaphore is invalid', 0)));
@@ -657,7 +657,7 @@ var
   LErrno: cint;
 begin
   try
-    // 检查信号量有效性
+    // 检查信号量有效�?
     if FSemaphore = SEM_FAILED then
       Exit(TNamedSemaphoreGuardResult.Failure(
         TNamedSemaphoreError.SystemError('Named semaphore is invalid', 0)));

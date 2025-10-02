@@ -1,5 +1,6 @@
 unit fafafa.core.simd.ops.avx;
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -11,20 +12,19 @@ uses
 
 // === AVX 256-bit 向量操作 ===
 
-// 单精度浮点向量操作 (256-bit, 8 个元素)
+// 单精度浮点向量操�?(256-bit, 8 个元�?
 function AVX_VecF32x8_Add(const a, b: TVecF32x8): TVecF32x8;
 function AVX_VecF32x8_Sub(const a, b: TVecF32x8): TVecF32x8;
 function AVX_VecF32x8_Mul(const a, b: TVecF32x8): TVecF32x8;
 function AVX_VecF32x8_Div(const a, b: TVecF32x8): TVecF32x8;
 
-// 双精度浮点向量操作 (256-bit, 4 个元素)
+// 双精度浮点向量操�?(256-bit, 4 个元�?
 function AVX_VecF64x4_Add(const a, b: TVecF64x4): TVecF64x4;
 function AVX_VecF64x4_Sub(const a, b: TVecF64x4): TVecF64x4;
 function AVX_VecF64x4_Mul(const a, b: TVecF64x4): TVecF64x4;
 function AVX_VecF64x4_Div(const a, b: TVecF64x4): TVecF64x4;
 
-// 向量加载和存储
-function AVX_VecF32x8_Load(const ptr: Pointer): TVecF32x8;
+// 向量加载和存�?function AVX_VecF32x8_Load(const ptr: Pointer): TVecF32x8;
 procedure AVX_VecF32x8_Store(const vec: TVecF32x8; ptr: Pointer);
 function AVX_VecF32x8_LoadUnaligned(const ptr: Pointer): TVecF32x8;
 procedure AVX_VecF32x8_StoreUnaligned(const vec: TVecF32x8; ptr: Pointer);
@@ -39,7 +39,7 @@ function AVX_VecF32x8_Sqrt(const a: TVecF32x8): TVecF32x8;
 function AVX_VecF32x8_Min(const a, b: TVecF32x8): TVecF32x8;
 function AVX_VecF32x8_Max(const a, b: TVecF32x8): TVecF32x8;
 
-// FMA 操作 (需要 FMA 支持)
+// FMA 操作 (需�?FMA 支持)
 function AVX_VecF32x8_FMA(const a, b, c: TVecF32x8): TVecF32x8; // a * b + c
 
 // 水平操作
@@ -67,7 +67,7 @@ begin
   end
   else
   begin
-    // 回退到两个 128-bit 操作
+    // 回退到两�?128-bit 操作
     Result.lo := X86_VecF32x4_Add(a.lo, b.lo);
     Result.hi := X86_VecF32x4_Add(a.hi, b.hi);
   end;
@@ -266,7 +266,7 @@ begin
   end
   else if HasAVX then
   begin
-    // 回退到 AVX 乘法+加法
+    // 回退�?AVX 乘法+加法
     asm
       vmovups ymm0, a
       vmovups ymm1, b
@@ -293,9 +293,7 @@ begin
     // 使用 AVX 水平加法
     asm
       vmovups ymm0, a
-      vextractf128 xmm1, ymm0, 1  // 提取高128位
-      vaddps xmm0, xmm0, xmm1     // 加到低128位
-      vhaddps xmm0, xmm0, xmm0    // 水平加法
+      vextractf128 xmm1, ymm0, 1  // 提取�?28�?      vaddps xmm0, xmm0, xmm1     // 加到�?28�?      vhaddps xmm0, xmm0, xmm0    // 水平加法
       vhaddps xmm0, xmm0, xmm0    // 再次水平加法
       vmovss Result, xmm0
       vzeroupper
@@ -303,12 +301,11 @@ begin
   end
   else
   begin
-    // 回退到标量加法
-    Result := a.f[0] + a.f[1] + a.f[2] + a.f[3] + a.f[4] + a.f[5] + a.f[6] + a.f[7];
+    // 回退到标量加�?    Result := a.f[0] + a.f[1] + a.f[2] + a.f[3] + a.f[4] + a.f[5] + a.f[6] + a.f[7];
   end;
 end;
 
-// 其他函数的实现...
+// 其他函数的实�?..
 function AVX_VecF32x8_Set(v0, v1, v2, v3, v4, v5, v6, v7: Single): TVecF32x8;
 begin
   Result.f[0] := v0; Result.f[1] := v1; Result.f[2] := v2; Result.f[3] := v3;
@@ -353,8 +350,10 @@ begin
   end;
 end;
 
-// 双精度实现省略...
+// 双精度实现省�?..
 
 {$ENDIF} // SIMD_X86_AVAILABLE
 
 end.
+
+

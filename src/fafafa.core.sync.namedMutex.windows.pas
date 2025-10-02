@@ -10,7 +10,7 @@ uses
   fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.namedMutex.base;
 
 type
-  // RAII 守卫：在析构时自动释放互斥锁
+  // RAII 瀹堝崼锛氬湪鏋愭瀯鏃惰嚜鍔ㄩ噴鏀句簰鏂ラ攣
   TNamedMutexGuard = class(TInterfacedObject, INamedMutexGuard)
   private
     FHandle: THandle;
@@ -36,24 +36,24 @@ type
     constructor Create(const AName: string; AInitialOwner: Boolean); overload;
     destructor Destroy; override;
     
-    // ISynchronizable 接口
+    // ISynchronizable 鎺ュ彛
     function GetLastError: TWaitError;
 
-    // ILock 接口
+    // ILock 鎺ュ彛
     procedure Acquire;
     procedure Release;
     function LockGuard: ILockGuard;
     function TryAcquire: Boolean;
     function GetHandle: Pointer;
     
-    // INamedMutex 接口（现代化）
+    // INamedMutex 鎺ュ彛锛堢幇浠ｅ寲锛?
     function Lock: INamedMutexGuard;
     function TryLock: INamedMutexGuard;
     function TryLockFor(ATimeoutMs: Cardinal): INamedMutexGuard;
     function GetName: string;
     function IsCreator: Boolean;
     function IsAbandoned: Boolean;
-    // 兼容性方法
+    // 鍏煎鎬ф柟娉?
     function TryAcquire(ATimeoutMs: Cardinal): Boolean; overload;
     procedure Acquire(ATimeoutMs: Cardinal); overload;
   end;
@@ -92,17 +92,17 @@ begin
   if AName = '' then
     raise EInvalidArgument.Create('Named mutex name cannot be empty');
   
-  // Windows 命名对象名称规则：
-  // - 不能包含反斜杠 (\)
-  // - 长度限制为 MAX_PATH (260) 字符
-  // - 可以包含 Global\ 或 Local\ 前缀
+  // Windows 鍛藉悕瀵硅薄鍚嶇О瑙勫垯锛?
+  // - 涓嶈兘鍖呭惈鍙嶆枩鏉?(\)
+  // - 闀垮害闄愬埗涓?MAX_PATH (260) 瀛楃
+  // - 鍙互鍖呭惈 Global\ 鎴?Local\ 鍓嶇紑
   Result := AName;
   if Length(Result) > MAX_PATH then
     raise EInvalidArgument.Create('Named mutex name too long (max 260 characters)');
   
   if Pos('\', Result) > 0 then
   begin
-    // 只允许 Global\ 或 Local\ 前缀
+    // 鍙厑璁?Global\ 鎴?Local\ 鍓嶇紑
     if not ((Pos('Global\', Result) = 1) or (Pos('Local\', Result) = 1)) then
       raise EInvalidArgument.Create('Invalid characters in mutex name');
   end;
@@ -125,7 +125,7 @@ begin
   FIsAbandoned := False;
   FLastError := weNone;
   
-  // 创建或打开命名互斥锁
+  // 鍒涘缓鎴栨墦寮€鍛藉悕浜掓枼閿?
   FHandle := CreateMutexW(nil, AInitialOwner, PWideChar(UnicodeString(LName)));
   
   if FHandle = 0 then
@@ -135,15 +135,15 @@ begin
   LLastError := Windows.GetLastError;
   FIsCreator := (LLastError <> ERROR_ALREADY_EXISTS);
   
-  // 检查是否为遗弃状态
+  // 妫€鏌ユ槸鍚︿负閬楀純鐘舵€?
   if AInitialOwner and (LLastError = ERROR_ALREADY_EXISTS) then
   begin
-    // 尝试立即获取以检查遗弃状态
+    // 灏濊瘯绔嬪嵆鑾峰彇浠ユ鏌ラ仐寮冪姸鎬?
     case WaitForSingleObject(FHandle, 0) of
       WAIT_ABANDONED:
         FIsAbandoned := True;
       WAIT_OBJECT_0:
-        ReleaseMutex(FHandle); // 立即释放，因为这只是检查
+        ReleaseMutex(FHandle); // 绔嬪嵆閲婃斁锛屽洜涓鸿繖鍙槸妫€鏌?
     end;
   end;
 end;
@@ -167,7 +167,7 @@ begin
     WAIT_OBJECT_0:
       FIsAbandoned := False;
     WAIT_ABANDONED:
-      FIsAbandoned := True; // 成功获取，但之前的拥有者异常退出
+      FIsAbandoned := True; // 鎴愬姛鑾峰彇锛屼絾涔嬪墠鐨勬嫢鏈夎€呭紓甯搁€€鍑?
     WAIT_FAILED:
       raise ELockError.CreateFmt('Failed to acquire named mutex "%s": %s',
         [FName, SysErrorMessage(Windows.GetLastError)]);
@@ -207,7 +207,7 @@ begin
     WAIT_ABANDONED:
     begin
       FIsAbandoned := True;
-      Result := True; // 成功获取，但之前的拥有者异常退出
+      Result := True; // 鎴愬姛鑾峰彇锛屼絾涔嬪墠鐨勬嫢鏈夎€呭紓甯搁€€鍑?
     end;
     WAIT_TIMEOUT:
       Result := False;
@@ -250,7 +250,7 @@ begin
   Result := FIsAbandoned;
 end;
 
-// 现代化 INamedMutex 方法实现
+// 鐜颁唬鍖?INamedMutex 鏂规硶瀹炵幇
 function TNamedMutex.Lock: INamedMutexGuard;
 var
   LResult: DWORD;
@@ -319,3 +319,5 @@ begin
 end;
 
 end.
+
+

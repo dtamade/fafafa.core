@@ -1,6 +1,6 @@
 unit fafafa.core.sync.sem.base;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -10,10 +10,10 @@ uses
 
 type
 
-  // RAII 守卫：析构时自动释放指定数量的许可
+  // RAII 守卫：析构时自动释放指定数量的许�?
   ISemGuard = interface(ILockGuard)
     ['{8B3E4A75-9C2D-4B6E-8C9F-0D1E2F3A4B5C}']
-    function GetCount: Integer;  // 获取持有的许可数量
+    function GetCount: Integer;  // 获取持有的许可数�?
     // 继承 ILockGuard.Release - 手动释放许可
   end;
 
@@ -30,7 +30,7 @@ type
     function GetAvailableCount: Integer;
     function GetMaxCount: Integer;
 
-    // RAII 友好获取：成功返回守卫，失败返回 nil（Try 系列）
+    // RAII 友好获取：成功返回守卫，失败返回 nil（Try 系列�?
     function AcquireGuard: ISemGuard; overload;                     // 1 permit
     function AcquireGuard(ACount: Integer): ISemGuard; overload;    // ACount permits
     function TryAcquireGuard: ISemGuard; overload;                  // 0ms

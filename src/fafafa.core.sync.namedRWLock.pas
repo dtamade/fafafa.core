@@ -1,6 +1,6 @@
 unit fafafa.core.sync.namedRWLock;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -18,15 +18,15 @@ type
   TNamedRWLockConfig = fafafa.core.sync.namedRWLock.base.TNamedRWLockConfig;
 
   // 注意：TNamedRWLock 具体类型不再公开导出
-  // 用户应该只使用 INamedRWLock 接口和工厂函数
+  // 用户应该只使�?INamedRWLock 接口和工厂函�?
 
 // ===== 工厂函数 =====
 
-{ 创建命名读写锁 - 推荐的现代化 API }
+{ 创建命名读写�?- 推荐的现代化 API }
 function MakeNamedRWLock(const AName: string; const AConfig: TNamedRWLockConfig): INamedRWLock; overload;
 function MakeNamedRWLock(const AName: string): INamedRWLock; overload;
 
-{ 便利函数 - 简化常用场景 }
+{ 便利函数 - 简化常用场�?}
 function MakeNamedRWLock(const AName: string; AInitialOwner: Boolean): INamedRWLock; overload;
 function MakeGlobalNamedRWLock(const AName: string): INamedRWLock;
 function TryOpenNamedRWLock(const AName: string): INamedRWLock;
@@ -86,7 +86,7 @@ begin
     // 尝试创建/打开现有的命名读写锁
     Result := MakeNamedRWLock(AName);
   except
-    // 如果失败，返回 nil
+    // 如果失败，返�?nil
     Result := nil;
   end;
 end;

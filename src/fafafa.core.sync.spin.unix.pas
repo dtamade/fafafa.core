@@ -43,6 +43,7 @@ unit fafafa.core.sync.spin.unix;
 
 }
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface

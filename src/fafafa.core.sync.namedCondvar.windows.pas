@@ -1,5 +1,6 @@
 unit fafafa.core.sync.namedCondvar.windows;
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface

@@ -1,39 +1,39 @@
 unit fafafa.core.sync.once;
 
 {
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                                                                              │
-│  fafafa.core.sync.once - 跨平台高性能一次性执行实现                         │
-│                                                                              │
-│  Copyright (c) 2024 fafafaStudio                                            │
-│  All rights reserved.                                                       │
-│                                                                              │
-│  This source code is licensed under the MIT license found in the            │
-│  LICENSE file in the root directory of this source tree.                    │
-│                                                                              │
-└──────────────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────────�?
+�?                                                                             �?
+�? fafafa.core.sync.once - 跨平台高性能一次性执行实�?                        �?
+�?                                                                             �?
+�? Copyright (c) 2024 fafafaStudio                                            �?
+�? All rights reserved.                                                       �?
+�?                                                                             �?
+�? This source code is licensed under the MIT license found in the            �?
+�? LICENSE file in the root directory of this source tree.                    �?
+�?                                                                             �?
+└──────────────────────────────────────────────────────────────────────────────�?
 
-📦 项目：fafafa.core.sync.once - 跨平台高性能一次性执行实现
+📦 项目：fafafa.core.sync.once - 跨平台高性能一次性执行实�?
 
-📖 概述：
-  现代化、跨平台的 FreePascal 一次性执行实现，提供统一的 API 接口。
+📖 概述�?
+  现代化、跨平台�?FreePascal 一次性执行实现，提供统一�?API 接口�?
 
 🔧 特性：
-  • 跨平台支持：Windows、Linux、macOS、FreeBSD 等
-  • 高性能实现：使用平台原生 API 和优化算法
-  • 线程安全：支持多线程并发访问
-  • 异常安全：自动资源管理和毒化状态处理
-  • 现代语义：借鉴 Go sync.Once、Rust std::sync::Once 设计
+  �?跨平台支持：Windows、Linux、macOS、FreeBSD �?
+  �?高性能实现：使用平台原�?API 和优化算�?
+  �?线程安全：支持多线程并发访问
+  �?异常安全：自动资源管理和毒化状态处�?
+  �?现代语义：借鉴 Go sync.Once、Rust std::sync::Once 设计
 
-⚠️  重要说明：
-  一次性执行适用于初始化场景，确保某个操作在多线程环境中只被执行一次。
-  失败的执行会导致毒化状态，需要使用 ExecuteForce 或创建新实例。
+⚠️  重要说明�?
+  一次性执行适用于初始化场景，确保某个操作在多线程环境中只被执行一次�?
+  失败的执行会导致毒化状态，需要使�?ExecuteForce 或创建新实例�?
 
 🧵 线程安全性：
-  所有一次性执行操作都是线程安全的，支持多线程并发访问。
+  所有一次性执行操作都是线程安全的，支持多线程并发访问�?
 
-📜 声明：
-  转发或用于个人/商业项目时，请保留本项目的版权声明。
+📜 声明�?
+  转发或用于个�?商业项目时，请保留本项目的版权声明�?
 
 👤 author  : fafafaStudio
 📧 Email   : dtamade@gmail.com
@@ -42,7 +42,7 @@ unit fafafa.core.sync.once;
 
 }
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -55,7 +55,7 @@ uses
     {$IFNDEF FPC_CROSSCOMPILING}
     , fafafa.core.sync.once.unix
     {$ELSE}
-    , fafafa.core.sync.once.windows  // 交叉编译时使用 Windows 实现作为 fallback
+    , fafafa.core.sync.once.windows  // 交叉编译时使�?Windows 实现作为 fallback
     {$ENDIF}
   {$ENDIF};
 
@@ -71,14 +71,14 @@ type
     {$IFNDEF FPC_CROSSCOMPILING}
     TOnce = fafafa.core.sync.once.unix.TOnce;
     {$ELSE}
-    TOnce = fafafa.core.sync.once.windows.TOnce;  // 交叉编译时使用 Windows 实现
+    TOnce = fafafa.core.sync.once.windows.TOnce;  // 交叉编译时使�?Windows 实现
     {$ENDIF}
   {$ENDIF}
 
 // 创建平台特定的一次性执行实例（Go/Rust 风格：无状态构造）
 function MakeOnce: IOnce; overload;
 
-// 构造时传入回调的工厂函数（现代语言风格）
+// 构造时传入回调的工厂函数（现代语言风格�?
 function MakeOnce(const AProc: TOnceProc): IOnce; overload;
 function MakeOnce(const AMethod: TOnceMethod): IOnce; overload;
 {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
@@ -94,12 +94,12 @@ implementation
 type
   TOncePool = class
   private
-    FPool: array[0..15] of IOnce; // 小型对象池，16个实例
+    FPool: array[0..15] of IOnce; // 小型对象池，16个实�?
     FPoolMask: LongWord;          // 位掩码，标记可用实例
     {$IFDEF WINDOWS}
     FLock: TRTLCriticalSection;   // 池访问锁
     {$ELSE}
-    FLock: TRTLCriticalSection;   // Unix也使用相同的锁类型
+    FLock: TRTLCriticalSection;   // Unix也使用相同的锁类�?
     {$ENDIF}
   public
     constructor Create;
@@ -121,7 +121,7 @@ begin
   {$ELSE}
   InitializeCriticalSection(FLock);
   {$ENDIF}
-  FPoolMask := $FFFF; // 所有16位都设置为1，表示可用
+  FPoolMask := $FFFF; // 所�?6位都设置�?，表示可�?
 
   // 预分配池中的对象
   for i := 0 to High(FPool) do
@@ -139,7 +139,7 @@ destructor TOncePool.Destroy;
 var
   i: Integer;
 begin
-  // 清理池中的对象
+  // 清理池中的对�?
   for i := 0 to High(FPool) do
     FPool[i] := nil;
 
@@ -161,7 +161,7 @@ begin
     // 查找第一个可用的对象
     if FPoolMask <> 0 then
     begin
-      // 使用位操作快速找到第一个设置的位
+      // 使用位操作快速找到第一个设置的�?
       i := 0;
       Mask := FPoolMask;
       while (Mask and 1) = 0 do
@@ -176,7 +176,7 @@ begin
     end
     else
     begin
-      // 池已满，创建新对象
+      // 池已满，创建新对�?
       {$IFDEF UNIX}
       Result := fafafa.core.sync.once.unix.TOnce.Create;
       {$ENDIF}
@@ -200,7 +200,7 @@ begin
     begin
       if FPool[i] = AOnce then
       begin
-        // 标记为可用
+        // 标记为可�?
         FPoolMask := FPoolMask or (1 shl i);
         Break;
       end;
@@ -215,15 +215,15 @@ end;
 function MakeOnce: IOnce;
 begin
   {$IFDEF FAFAFA_CORE_OBJECT_POOL}
-  // 使用对象池减少内存分配
+  // 使用对象池减少内存分�?
   Result := GlobalOncePool.GetOnce;
   {$ELSE}
-  // 直接创建新对象
+  // 直接创建新对�?
   {$IFDEF UNIX}
     {$IFNDEF FPC_CROSSCOMPILING}
     Result := fafafa.core.sync.once.unix.TOnce.Create;
     {$ELSE}
-    Result := fafafa.core.sync.once.windows.TOnce.Create;  // 交叉编译时使用 Windows 实现
+    Result := fafafa.core.sync.once.windows.TOnce.Create;  // 交叉编译时使�?Windows 实现
     {$ENDIF}
   {$ENDIF}
   {$IFDEF WINDOWS}
@@ -241,7 +241,7 @@ begin
     {$IFNDEF FPC_CROSSCOMPILING}
     Result := fafafa.core.sync.once.unix.TOnce.Create(AProc);
     {$ELSE}
-    Result := fafafa.core.sync.once.windows.TOnce.Create(AProc);  // 交叉编译时使用 Windows 实现
+    Result := fafafa.core.sync.once.windows.TOnce.Create(AProc);  // 交叉编译时使�?Windows 实现
     {$ENDIF}
   {$ENDIF}
   {$IFDEF WINDOWS}
@@ -252,7 +252,7 @@ begin
     {$IFNDEF FPC_CROSSCOMPILING}
     Result := fafafa.core.sync.once.unix.TOnce.Create(AProc);
     {$ELSE}
-    Result := fafafa.core.sync.once.windows.TOnce.Create(AProc);  // 交叉编译时使用 Windows 实现
+    Result := fafafa.core.sync.once.windows.TOnce.Create(AProc);  // 交叉编译时使�?Windows 实现
     {$ENDIF}
   {$ENDIF}
   {$IFDEF WINDOWS}
@@ -267,7 +267,7 @@ begin
     {$IFNDEF FPC_CROSSCOMPILING}
     Result := fafafa.core.sync.once.unix.TOnce.Create(AMethod);
     {$ELSE}
-    Result := fafafa.core.sync.once.windows.TOnce.Create(AMethod);  // 交叉编译时使用 Windows 实现
+    Result := fafafa.core.sync.once.windows.TOnce.Create(AMethod);  // 交叉编译时使�?Windows 实现
     {$ENDIF}
   {$ENDIF}
   {$IFDEF WINDOWS}
@@ -282,7 +282,7 @@ begin
     {$IFNDEF FPC_CROSSCOMPILING}
     Result := fafafa.core.sync.once.unix.TOnce.Create(AAnonymousProc);
     {$ELSE}
-    Result := fafafa.core.sync.once.windows.TOnce.Create(AAnonymousProc);  // 交叉编译时使用 Windows 实现
+    Result := fafafa.core.sync.once.windows.TOnce.Create(AAnonymousProc);  // 交叉编译时使�?Windows 实现
     {$ENDIF}
   {$ENDIF}
   {$IFDEF WINDOWS}

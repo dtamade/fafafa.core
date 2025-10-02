@@ -1,5 +1,6 @@
 unit fafafa.core.simd.cpuinfo.x86.asm;
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 {$ASMMODE INTEL}
 
@@ -21,8 +22,7 @@ var
   result_eax, result_ebx, result_ecx, result_edx: DWord;
 begin
   asm
-    // 保存寄存器
-    push rbx
+    // 保存寄存�?    push rbx
 
     // 设置输入
     mov eax, leaf
@@ -30,14 +30,12 @@ begin
     // 执行 CPUID
     cpuid
 
-    // 保存结果到局部变量
-    mov result_eax, eax
+    // 保存结果到局部变�?    mov result_eax, eax
     mov result_ebx, ebx
     mov result_ecx, ecx
     mov result_edx, edx
 
-    // 恢复寄存器
-    pop rbx
+    // 恢复寄存�?    pop rbx
   end;
 
   Result[0] := result_eax;
@@ -126,3 +124,5 @@ end;
 {$ENDIF}
 
 end.
+
+

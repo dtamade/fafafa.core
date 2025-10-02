@@ -1,30 +1,25 @@
 unit fafafa.core.simd.intrinsics.avx512;
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 {
   === fafafa.core.simd.intrinsics.avx512 ===
-  AVX-512 (Advanced Vector Extensions 512) 指令集支持
-  
-  AVX-512 是 Intel 在 2016 年引入的 512-bit SIMD 指令集扩展
-  提供最宽的向量寄存器和掩码操作
+  AVX-512 (Advanced Vector Extensions 512) 指令集支�?  
+  AVX-512 �?Intel �?2016 年引入的 512-bit SIMD 指令集扩�?  提供最宽的向量寄存器和掩码操作
   
   特性：
-  - 512-bit 向量寄存器 (zmm0-zmm31)
-  - 掩码寄存器 (k0-k7)
-  - 掩码操作和条件执行
-  - 嵌入式舍入控制
-  - 冲突检测指令
-  
-  兼容性：Intel Xeon Phi (2016) 及部分服务器处理器
-}
+  - 512-bit 向量寄存�?(zmm0-zmm31)
+  - 掩码寄存�?(k0-k7)
+  - 掩码操作和条件执�?  - 嵌入式舍入控�?  - 冲突检测指�?  
+  兼容性：Intel Xeon Phi (2016) 及部分服务器处理�?}
 
 interface
 
 uses
   fafafa.core.simd.intrinsics.base;
 
-// === AVX-512 基础函数 (占位符) ===
+// === AVX-512 基础函数 (占位�? ===
 // Load/Store
 function avx512_load_ps512(const Ptr: Pointer): TM512;
 function avx512_loadu_ps512(const Ptr: Pointer): TM512;
@@ -41,7 +36,7 @@ function avx512_sub_ps512(const a, b: TM512): TM512;
 function avx512_mul_ps512(const a, b: TM512): TM512;
 function avx512_div_ps512(const a, b: TM512): TM512;
 
-// 掩码操作 (简化版本)
+// 掩码操作 (简化版�?
 function avx512_mask_add_ps512(const src, a, b: TM512; mask: UInt16): TM512;
 function avx512_maskz_add_ps512(const a, b: TM512; mask: UInt16): TM512;
 
@@ -136,3 +131,5 @@ begin
 end;
 
 end.
+
+

@@ -36,6 +36,7 @@ unit fafafa.core.time.tick.darwin;
 ────────────────────────────────────────────────────────────────────────────────
 }
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface

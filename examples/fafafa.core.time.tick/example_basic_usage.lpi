@@ -19,7 +19,7 @@
         <CompilerOptions>
           <Version Value="11"/>
           <Target>
-            <Filename Value="bin/example_basic_usage"/>
+            <Filename Value="bin/$(TargetCPU)-$(TargetOS)/example_basic_usage"/>
           </Target>
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir)"/>
@@ -58,7 +58,7 @@
   <CompilerOptions>
     <Version Value="11"/>
     <Target>
-      <Filename Value="bin/example_basic_usage"/>
+      <Filename Value="bin/$(TargetCPU)-$(TargetOS)/example_basic_usage"/>
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir)"/>

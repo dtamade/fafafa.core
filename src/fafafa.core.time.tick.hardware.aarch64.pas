@@ -23,6 +23,7 @@ unit fafafa.core.time.tick.hardware.aarch64;
 ──────────────────────────────────────────────────────────────
 }
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 {$if not (defined(CPUAARCH64) or defined(CPUARM64))}

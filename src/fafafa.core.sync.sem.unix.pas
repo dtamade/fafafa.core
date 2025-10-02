@@ -1,6 +1,6 @@
 unit fafafa.core.sync.sem.unix;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -175,7 +175,7 @@ begin
   end;
 
   try
-    // 检查是否会超出最大值
+    // 检查是否会超出最大�?
     if FCount + ACount > FMaxCount then
     begin
       Exit(False);
@@ -184,7 +184,7 @@ begin
     // 执行释放
     Inc(FCount, ACount);
 
-    // 通知等待的线程
+    // 通知等待的线�?
     if pthread_cond_broadcast(@FCond) <> 0 then
     begin
       Exit(False);
@@ -270,7 +270,7 @@ begin
         Dec(ts.tv_nsec, 1000000000);
       end;
       {$ELSE}
-      // 回退到 gettimeofday（在不支持 CLOCK_MONOTONIC 的系统上）
+      // 回退�?gettimeofday（在不支�?CLOCK_MONOTONIC 的系统上�?
       if fpgettimeofday(@tv, nil) <> 0 then
       begin
 

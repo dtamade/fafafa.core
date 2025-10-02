@@ -44,6 +44,7 @@ unit fafafa.core.sync.recMutex.windows;
 
 }
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface

@@ -1,6 +1,6 @@
 unit fafafa.core.sync.namedEvent.unix;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -9,7 +9,7 @@ uses
   fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.namedEvent.base;
 
 const
-  ESysETIMEDOUT = 110;  // 超时错误码
+  ESysETIMEDOUT = 110;  // 超时错误�?
   ESysEINTR = 4;        // 信号中断
   CLOCK_REALTIME = 0;   // 实时时钟
 
@@ -24,7 +24,7 @@ function clock_gettime(clk_id: cint; tp: PTimeSpec): cint; cdecl; external 'rt';
 {$ENDIF}
 
 type
-  // 共享内存中的事件状态结构
+  // 共享内存中的事件状态结�?
   PEventState = ^TEventState;
   TEventState = record
     Mutex: pthread_mutex_t;
@@ -35,7 +35,7 @@ type
     WaitingCount: Integer;
     RefCount: Integer;        // 引用计数
     Initialized: Boolean;
-    InitError: Boolean;       // 初始化是否出错
+    InitError: Boolean;       // 初始化是否出�?
   end;
 
   // RAII 守卫实现
@@ -51,11 +51,11 @@ type
 
   TNamedEvent = class(TSynchronizable, INamedEvent)
   private
-    FEventState: PEventState;   // 指向共享内存中的事件状态
-    FShmFile: cint;             // 共享内存文件描述符
+    FEventState: PEventState;   // 指向共享内存中的事件状�?
+    FShmFile: cint;             // 共享内存文件描述�?
     FShmPath: AnsiString;       // 共享内存路径
-    FOriginalName: string;      // 保存用户提供的原始名称
-    FIsCreator: Boolean;        // 是否为创建者
+    FOriginalName: string;      // 保存用户提供的原始名�?
+    FIsCreator: Boolean;        // 是否为创建�?
     FShmSize: csize_t;          // 共享内存大小
     FLastError: TWaitError;
     
@@ -71,7 +71,7 @@ type
     // ISynchronizable 接口
     function GetLastError: TWaitError;
 
-    // INamedEvent 接口 - 现代化方法
+    // INamedEvent 接口 - 现代化方�?
     function Wait: INamedEventGuard;
     function TryWait: INamedEventGuard;
     function TryWaitFor(ATimeoutMs: Cardinal): INamedEventGuard;
@@ -183,7 +183,7 @@ begin
       [AName, SysErrorMessage(fpGetErrno)]);
   end;
   
-  // 检查是否为创建者（通过检查文件是否已存在）
+  // 检查是否为创建者（通过检查文件是否已存在�?
   FIsCreator := (fpGetErrno <> ESysEEXIST);
   
   // 设置共享内存大小
@@ -209,7 +209,7 @@ begin
       [AName, SysErrorMessage(fpGetErrno)]);
   end;
   
-  // 初始化事件状态
+  // 初始化事件状�?
   if not InitializeEventState(AConfig) then
   begin
     fpmunmap(FEventState, FShmSize);
@@ -229,7 +229,7 @@ begin
 
   if FEventState <> nil then
   begin
-    // 减少引用计数并检查是否需要销毁资源
+    // 减少引用计数并检查是否需要销毁资�?
     if FEventState^.Initialized then
     begin
       if pthread_mutex_lock(@FEventState^.Mutex) = 0 then
@@ -240,7 +240,7 @@ begin
       end;
     end;
 
-    // 只有当引用计数为0时才销毁同步原语
+    // 只有当引用计数为0时才销毁同步原�?
     if LShouldDestroy and FEventState^.Initialized then
     begin
       pthread_cond_destroy(@FEventState^.InitCond);
@@ -269,7 +269,7 @@ begin
   if Length(AName) > 255 then
     raise EInvalidArgument.CreateFmt('Named event name too long: %d characters (max 255)', [Length(AName)]);
     
-  // Unix 命名事件不能包含额外的 '/' 字符
+  // Unix 命名事件不能包含额外�?'/' 字符
   if Pos('/', AName) > 0 then
     raise EInvalidArgument.CreateFmt('Invalid character in named event name: "%s"', [AName]);
     
@@ -278,7 +278,7 @@ end;
 
 function TNamedEvent.CreateShmPath(const AName: string): string;
 begin
-  // POSIX 共享内存名称必须以 '/' 开头
+  // POSIX 共享内存名称必须�?'/' 开�?
   Result := '/fafafa_event_' + AName;
 end;
 
@@ -335,14 +335,14 @@ begin
       pthread_condattr_destroy(@LCondAttr);
     end;
 
-    // 设置初始状态
+    // 设置初始状�?
     FEventState^.Signaled := AConfig.InitialState;
     FEventState^.ManualReset := AConfig.ManualReset;
     FEventState^.WaitingCount := 0;
     FEventState^.RefCount := 1;  // 创建者的引用计数
     FEventState^.InitError := False;
 
-    // 标记初始化完成并通知等待者
+    // 标记初始化完成并通知等待�?
     FEventState^.Initialized := True;
     pthread_cond_broadcast(@FEventState^.InitCond);
   end
@@ -357,7 +357,7 @@ begin
     end;
 
     try
-      // 使用条件变量等待初始化完成，避免忙等待
+      // 使用条件变量等待初始化完成，避免忙等�?
       while not FEventState^.Initialized and not FEventState^.InitError do
       begin
         if pthread_cond_wait(@FEventState^.InitCond, @FEventState^.Mutex) <> 0 then
@@ -412,7 +412,7 @@ begin
       while not FEventState^.Signaled do
         pthread_cond_wait(@FEventState^.Cond, @FEventState^.Mutex);
 
-      // 自动重置事件在被等待后自动重置
+      // 自动重置事件在被等待后自动重�?
       if not FEventState^.ManualReset then
         FEventState^.Signaled := False;
 
@@ -437,7 +437,7 @@ var
 begin
   if ATimeoutMs = 0 then
   begin
-    // 非阻塞检查
+    // 非阻塞检�?
     if pthread_mutex_lock(@FEventState^.Mutex) <> 0 then
     begin
       FLastError := weSystemError;
@@ -485,7 +485,7 @@ begin
         end;
 
         if LResult = ESysEINTR then
-          continue; // 信号中断，继续等待
+          continue; // 信号中断，继续等�?
 
         if LResult <> 0 then
         begin
@@ -495,7 +495,7 @@ begin
         end;
       end;
 
-      // 自动重置事件在被等待后自动重置
+      // 自动重置事件在被等待后自动重�?
       if not FEventState^.ManualReset then
         FEventState^.Signaled := False;
 
@@ -530,9 +530,9 @@ begin
   try
     FEventState^.Signaled := True;
     if FEventState^.ManualReset then
-      pthread_cond_broadcast(@FEventState^.Cond)  // 唤醒所有等待者
+      pthread_cond_broadcast(@FEventState^.Cond)  // 唤醒所有等待�?
     else
-      pthread_cond_signal(@FEventState^.Cond);    // 唤醒一个等待者
+      pthread_cond_signal(@FEventState^.Cond);    // 唤醒一个等待�?
   finally
     pthread_mutex_unlock(@FEventState^.Mutex);
   end;
@@ -565,7 +565,7 @@ begin
 
   try
     FEventState^.Signaled := True;
-    pthread_cond_broadcast(@FEventState^.Cond);  // 唤醒所有等待者
+    pthread_cond_broadcast(@FEventState^.Cond);  // 唤醒所有等待�?
     if not FEventState^.ManualReset then
       FEventState^.Signaled := False;  // 立即重置
   finally
@@ -597,8 +597,8 @@ begin
   if LLockResult <> 0 then
   begin
     FLastError := weSystemError;
-    // 对于查询操作，我们返回 False 而不是抛出异常
-    // 但记录错误状态供调用者检查
+    // 对于查询操作，我们返�?False 而不是抛出异�?
+    // 但记录错误状态供调用者检�?
     Exit(False);
   end;
 
@@ -606,7 +606,7 @@ begin
     if FEventState^.ManualReset then
       Result := FEventState^.Signaled
     else
-      Result := False; // 与 Windows 语义对齐：自动重置不提供非破坏式 IsSignaled
+      Result := False; // �?Windows 语义对齐：自动重置不提供非破坏式 IsSignaled
   finally
     if pthread_mutex_unlock(@FEventState^.Mutex) <> 0 then
       FLastError := weSystemError;

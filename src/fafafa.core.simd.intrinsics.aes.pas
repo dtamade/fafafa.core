@@ -1,13 +1,12 @@
 unit fafafa.core.simd.intrinsics.aes;
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 {
   === fafafa.core.simd.intrinsics.aes ===
-  AES-NI (Advanced Encryption Standard New Instructions) 指令集支持
-  
-  AES-NI 是 Intel 在 2010 年引入的加密指令集扩展
-  提供硬件加速的 AES 加密/解密操作
+  AES-NI (Advanced Encryption Standard New Instructions) 指令集支�?  
+  AES-NI �?Intel �?2010 年引入的加密指令集扩�?  提供硬件加速的 AES 加密/解密操作
   
   特性：
   - AES 加密/解密轮次操作
@@ -15,8 +14,7 @@ unit fafafa.core.simd.intrinsics.aes;
   - 逆混合列操作
   - 高性能加密处理
   
-  兼容性：Intel Westmere (2010) 及更新的处理器
-}
+  兼容性：Intel Westmere (2010) 及更新的处理�?}
 
 interface
 
@@ -40,21 +38,18 @@ function aes_aesimc_si128(const data: TM128): TM128;
 
 implementation
 
-// === AES-NI 指令的简化实现 ===
-// 注意：这些是简化的 Pascal 实现，实际的 AES-NI 指令会提供硬件加速
-
+// === AES-NI 指令的简化实�?===
+// 注意：这些是简化的 Pascal 实现，实际的 AES-NI 指令会提供硬件加�?
 function aes_aesenc_si128(const data, round_key: TM128): TM128;
 begin
   // 简化实现：实际应该执行 AES 加密轮次操作
-  // 这里只是简单的异或操作作为占位符
-  Result.m128i_u64[0] := data.m128i_u64[0] xor round_key.m128i_u64[0];
+  // 这里只是简单的异或操作作为占位�?  Result.m128i_u64[0] := data.m128i_u64[0] xor round_key.m128i_u64[0];
   Result.m128i_u64[1] := data.m128i_u64[1] xor round_key.m128i_u64[1];
 end;
 
 function aes_aesenclast_si128(const data, round_key: TM128): TM128;
 begin
-  // 简化实现：最后一轮加密操作
-  Result.m128i_u64[0] := data.m128i_u64[0] xor round_key.m128i_u64[0];
+  // 简化实现：最后一轮加密操�?  Result.m128i_u64[0] := data.m128i_u64[0] xor round_key.m128i_u64[0];
   Result.m128i_u64[1] := data.m128i_u64[1] xor round_key.m128i_u64[1];
 end;
 
@@ -67,8 +62,7 @@ end;
 
 function aes_aesdeclast_si128(const data, round_key: TM128): TM128;
 begin
-  // 简化实现：最后一轮解密操作
-  Result.m128i_u64[0] := data.m128i_u64[0] xor round_key.m128i_u64[0];
+  // 简化实现：最后一轮解密操�?  Result.m128i_u64[0] := data.m128i_u64[0] xor round_key.m128i_u64[0];
   Result.m128i_u64[1] := data.m128i_u64[1] xor round_key.m128i_u64[1];
 end;
 
@@ -86,3 +80,5 @@ begin
 end;
 
 end.
+
+

@@ -1,5 +1,6 @@
 unit fafafa.core.sync;
 
+{$mode objfpc}{$H+}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -13,17 +14,18 @@ uses
   fafafa.core.sync.spin,
   fafafa.core.sync.rwlock,
   fafafa.core.sync.once,
-  fafafa.core.sync.conditionVariable,
+  fafafa.core.sync.once.base,
+  fafafa.core.sync.condvar,
   fafafa.core.sync.barrier,
   fafafa.core.sync.sem,
   fafafa.core.sync.event,
-  fafafa.core.sync.recMutex,
+  // fafafa.core.sync.recMutex, // Temporarily disabled due to compilation issues
   // Named synchronization primitives
   fafafa.core.sync.namedMutex,
   fafafa.core.sync.namedEvent,
   fafafa.core.sync.namedSemaphore,
   fafafa.core.sync.namedBarrier,
-  fafafa.core.sync.namedConditionVariable,
+  // fafafa.core.sync.namedCondvar, // Temporarily disabled due to implementation issues
   fafafa.core.sync.namedRWLock;
 
 type
@@ -35,7 +37,7 @@ type
   ILock              = fafafa.core.sync.base.ILock;
   ILockGuard         = fafafa.core.sync.base.ILockGuard;
   IMutex             = fafafa.core.sync.mutex.IMutex;
-  IRecMutex          = fafafa.core.sync.recMutex.IRecMutex;
+  // IRecMutex          = fafafa.core.sync.recMutex.IRecMutex; // Temporarily disabled
   ISpin              = fafafa.core.sync.spin.ISpin;
   IOnce              = fafafa.core.sync.once.IOnce;
   IRWLock            = fafafa.core.sync.rwlock.IRWLock;
@@ -44,7 +46,7 @@ type
   ISem               = fafafa.core.sync.sem.ISem;
   ISemGuard          = fafafa.core.sync.sem.ISemGuard;
   IEvent             = fafafa.core.sync.event.IEvent;
-  IConditionVariable = fafafa.core.sync.conditionVariable.IConditionVariable;
+  ICondVar = fafafa.core.sync.condvar.ICondVar;
   IBarrier           = fafafa.core.sync.barrier.IBarrier;
 
   // Named synchronization primitives interfaces
@@ -56,7 +58,7 @@ type
   INamedSemaphoreGuard    = fafafa.core.sync.namedSemaphore.INamedSemaphoreGuard;
   INamedBarrier           = fafafa.core.sync.namedBarrier.INamedBarrier;
   INamedBarrierGuard      = fafafa.core.sync.namedBarrier.INamedBarrierGuard;
-  INamedConditionVariable = fafafa.core.sync.namedConditionVariable.INamedConditionVariable;
+  // INamedCondVar = fafafa.core.sync.namedCondvar.INamedCondVar; // Temporarily disabled
   INamedRWLock            = fafafa.core.sync.namedRWLock.INamedRWLock;
   INamedRWLockReadGuard   = fafafa.core.sync.namedRWLock.INamedRWLockReadGuard;
   INamedRWLockWriteGuard  = fafafa.core.sync.namedRWLock.INamedRWLockWriteGuard;
@@ -64,15 +66,23 @@ type
   TLockGuard              = fafafa.core.sync.base.TLockGuard;
 
   TMutex             = fafafa.core.sync.mutex.TMutex;
-  TRecMutex          = fafafa.core.sync.recMutex.TRecMutex;
+  // TRecMutex          = fafafa.core.sync.recMutex.TRecMutex; // Temporarily disabled
   TOnce              = fafafa.core.sync.once.TOnce;
   TRWLock            = fafafa.core.sync.rwlock.TRWLock;
   TEvent             = fafafa.core.sync.event.TEvent;
-  TConditionVariable = fafafa.core.sync.conditionVariable.TConditionVariable;
+  TCondVar = fafafa.core.sync.condvar.TCondVar;
 
   // Backward-compatible aliases (legacy names)
   IReadWriteLock     = IRWLock;
   ISemaphore         = ISem;
+
+
+  // Re-export Once callback types
+  TOnceProc = fafafa.core.sync.once.base.TOnceProc;
+  TOnceMethod = fafafa.core.sync.once.base.TOnceMethod;
+{$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
+  TOnceAnonymousProc = fafafa.core.sync.once.base.TOnceAnonymousProc;
+{$ENDIF}
 
   // Re-export exceptions
   ESyncError          = fafafa.core.sync.base.ESyncError;
@@ -101,13 +111,21 @@ const
 function MakeMutex: IMutex; inline;
 function MakeSpin: ISpin; inline;
 function MakeRWLock: IRWLock; inline;
-function MakeConditionVariable: IConditionVariable; inline;
+function MakeCondVar: ICondVar; inline;
 function MakeBarrier(AParticipantCount: Integer): IBarrier; inline;
 function MakeSem(AInitialCount: Integer = 1; AMaxCount: Integer = 1): ISem; inline;
 function MakeEvent(AManualReset: Boolean = False; AInitialState: Boolean = False): IEvent; inline;
 
-function MakeRecMutex(ASpinCount: DWORD): IRecMutex; overload; inline;
-function MakeRecMutex: IRecMutex; overload;
+// function MakeRecMutex(ASpinCount: DWORD): IRecMutex; overload; inline;
+// function MakeRecMutex: IRecMutex; overload;
+
+// Once factory functions
+function MakeOnce: IOnce; overload; inline;
+function MakeOnce(const AProc: TOnceProc): IOnce; overload; inline;
+function MakeOnce(const AMethod: TOnceMethod): IOnce; overload; inline;
+{$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
+function MakeOnce(const AAnonymousProc: TOnceAnonymousProc): IOnce; overload; inline;
+{$ENDIF}
 
 // Guard 工厂函数
 function MakeLockGuard(ALock: ILock): ILockGuard;
@@ -121,7 +139,7 @@ function MakeNamedEvent(const AName: string; AManualReset: Boolean; AInitialStat
 function MakeNamedSemaphore(const AName: string): INamedSemaphore; overload;
 function MakeNamedSemaphore(const AName: string; AInitialCount: Integer; AMaxCount: Integer): INamedSemaphore; overload;
 function MakeNamedBarrier(const AName: string; AParticipantCount: Integer): INamedBarrier;
-function MakeNamedConditionVariable(const AName: string): INamedConditionVariable;
+// function MakeNamedCondVar(const AName: string): INamedCondVar; // Temporarily disabled
 function MakeNamedRWLock(const AName: string): INamedRWLock;
 
 implementation
@@ -143,9 +161,9 @@ end;
 
 
 
-function MakeConditionVariable: IConditionVariable;
+function MakeCondVar: ICondVar;
 begin
-  Result := fafafa.core.sync.conditionVariable.MakeConditionVariable;
+  Result := fafafa.core.sync.condvar.MakeCondVar;
 end;
 
 function MakeBarrier(AParticipantCount: Integer): IBarrier;
@@ -163,15 +181,37 @@ begin
   Result := fafafa.core.sync.event.MakeEvent(AManualReset, AInitialState);
 end;
 
-function MakeRecMutex: IRecMutex;
+// function MakeRecMutex: IRecMutex;
+// begin
+//   Result := fafafa.core.sync.recMutex.MakeRecMutex;
+// end;
+
+// function MakeRecMutex(ASpinCount: DWORD): IRecMutex;
+// begin
+//   Result := fafafa.core.sync.recMutex.MakeRecMutex(ASpinCount);
+// end;
+
+function MakeOnce: IOnce;
 begin
-  Result := fafafa.core.sync.recMutex.MakeRecMutex;
+  Result := fafafa.core.sync.once.MakeOnce;
 end;
 
-function MakeRecMutex(ASpinCount: DWORD): IRecMutex;
+function MakeOnce(const AProc: TOnceProc): IOnce;
 begin
-  Result := fafafa.core.sync.recMutex.MakeRecMutex(ASpinCount);
+  Result := fafafa.core.sync.once.MakeOnce(AProc);
 end;
+
+function MakeOnce(const AMethod: TOnceMethod): IOnce;
+begin
+  Result := fafafa.core.sync.once.MakeOnce(AMethod);
+end;
+
+{$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
+function MakeOnce(const AAnonymousProc: TOnceAnonymousProc): IOnce;
+begin
+  Result := fafafa.core.sync.once.MakeOnce(AAnonymousProc);
+end;
+{$ENDIF}
 
 function MakeLockGuard(ALock: ILock): ILockGuard;
 begin
@@ -219,10 +259,10 @@ begin
   Result := fafafa.core.sync.namedBarrier.MakeNamedBarrier(AName, AParticipantCount);
 end;
 
-function MakeNamedConditionVariable(const AName: string): INamedConditionVariable;
-begin
-  Result := fafafa.core.sync.namedConditionVariable.MakeNamedConditionVariable(AName);
-end;
+// function MakeNamedCondVar(const AName: string): INamedCondVar;
+// begin
+//   Result := fafafa.core.sync.namedCondvar.MakeNamedCondVar(AName);
+// end;
 
 function MakeNamedRWLock(const AName: string): INamedRWLock;
 begin
@@ -230,4 +270,5 @@ begin
 end;
 
 end.
+
 

@@ -322,8 +322,8 @@ type
      *   这个数据可以是任何类型的指针，由用户自行管理其生命周期。
      *
      * @thread_safety
-     *   线程安全，可以从多个线程同时调用。
-     *   但用户需要确保指向的数据本身的线程安全性。
+     *   非线程安全。多线程并发读写 Data 需要由调用方提供外部同步（例如使用互斥锁）。
+     *   若需要原子可见性，请自行在更高层封装相应同步。
      *
      * @memory_management
      *   同步对象不负责管理指向数据的内存，用户需要自行管理。
@@ -350,8 +350,8 @@ type
      *   这允许用户将任意数据与同步对象绑定，便于在不同上下文中传递信息。
      *
      * @thread_safety
-     *   线程安全，可以从多个线程同时调用。
-     *   但如果多个线程同时设置不同的数据，最后的设置会覆盖之前的。
+     *   非线程安全。多线程并发写入 Data 需要外部同步（例如使用互斥锁）。
+     *   本方法不提供原子性与内存屏障；竞态下的覆盖行为未定义。
      *
      * @memory_management
      *   同步对象不会自动释放之前关联的数据。
@@ -711,7 +711,7 @@ type
      *   else
      *     // 锁不可用，执行替代逻辑
      *}
-    function TryAcquire: Boolean;
+    function TryAcquire: Boolean; overload;
 
     {**
      * TryAcquire - 带超时的尝试获取锁
@@ -752,7 +752,7 @@ type
      *   else
      *     // 超时，执行超时处理逻辑
      *}
-    function TryAcquire(ATimeoutMs: Cardinal): Boolean;
+    function TryAcquire(ATimeoutMs: Cardinal): Boolean; overload;
 
     function  GetTightSpin: UInt32;
     procedure SetTightSpin(Value: UInt32);

@@ -1,6 +1,6 @@
 unit fafafa.core.sync.namedBarrier;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -18,21 +18,21 @@ type
   TNamedBarrierErrorInfo = fafafa.core.sync.namedBarrier.base.TNamedBarrierErrorInfo;
   TNamedBarrierInfo = fafafa.core.sync.namedBarrier.base.TNamedBarrierInfo;
 
-// ===== 现代化工厂函数 =====
+// ===== 现代化工厂函�?=====
 
 { 创建命名屏障 - 推荐使用的现代化接口 }
 function MakeNamedBarrier(const AName: string; const AConfig: TNamedBarrierConfig): INamedBarrier; overload;
 function MakeNamedBarrier(const AName: string): INamedBarrier; overload;
 function MakeNamedBarrier(const AName: string; AParticipantCount: Cardinal): INamedBarrier; overload;
 
-{ 尝试打开现有的命名屏障 }
+{ 尝试打开现有的命名屏�?}
 function TryOpenNamedBarrier(const AName: string): INamedBarrier;
 
 { 创建全局命名屏障 }
 function MakeGlobalNamedBarrier(const AName: string): INamedBarrier;
 function MakeGlobalNamedBarrier(const AName: string; AParticipantCount: Cardinal): INamedBarrier; overload;
 
-{ Builder 模式工厂函数 - 现代化推荐方式 }
+{ Builder 模式工厂函数 - 现代化推荐方�?}
 function NewNamedBarrierBuilder(const AName: string): INamedBarrierBuilder;
 
 // ===== 配置函数重新导出 =====
@@ -52,7 +52,7 @@ uses
   {$ENDIF};
 
 type
-  // 门面层的 Builder 实现，避免循环引用
+  // 门面层的 Builder 实现，避免循环引�?
   TFacadeNamedBarrierBuilder = class(TInterfacedObject, INamedBarrierBuilder)
   private
     FName: string;
@@ -69,7 +69,7 @@ type
     function Build: INamedBarrier;
   end;
 
-// ===== 现代化工厂函数实现 =====
+// ===== 现代化工厂函数实�?=====
 
 function MakeNamedBarrier(const AName: string; const AConfig: TNamedBarrierConfig): INamedBarrier;
 var
@@ -111,7 +111,7 @@ end;
 function TryOpenNamedBarrier(const AName: string): INamedBarrier;
 begin
   try
-    // 尝试创建/打开屏障，如果失败返回 nil
+    // 尝试创建/打开屏障，如果失败返�?nil
     Result := MakeNamedBarrier(AName);
   except
     Result := nil;

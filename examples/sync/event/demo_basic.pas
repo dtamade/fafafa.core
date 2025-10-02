@@ -17,7 +17,7 @@ begin
   
   // 创建自动重置事件
   WriteLn('1. 创建自动重置事件');
-  Event := CreateEvent(False, False);
+  Event := MakeEvent(False, False);
   if Event.IsManualReset then
     WriteLn('   事件类型：手动重置')
   else
@@ -51,7 +51,7 @@ begin
   
   // 测试手动重置事件
   WriteLn('4. 测试手动重置事件');
-  Event := CreateEvent(True, False);
+  Event := MakeEvent(True, False);
   Event.SetEvent;
   WriteLn('   设置后第一次等待：', Ord(Event.WaitFor(0)));
   WriteLn('   第二次等待：', Ord(Event.WaitFor(0)));

@@ -1,14 +1,23 @@
 unit fafafa.core.time.timer;
 
 {$modeswitch advancedrecords}
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
 
 uses
-  Classes, SysUtils, fafafa.core.time, fafafa.core.sync;
+  Classes, SysUtils,
+  fafafa.core.time.duration,
+  fafafa.core.time.instant,
+  fafafa.core.time.clock,
+  fafafa.core.sync,
+  fafafa.core.thread.threadpool;
 
 type
+  // Callback procedure type
+  TProc = procedure;
+
   ITimer = interface
     ['{D9A1B6C6-0C1D-4A6E-9F2B-0AF4B7A3ED1B}']
     procedure Cancel;
@@ -28,6 +37,10 @@ type
     function ScheduleWithFixedDelay(const InitialDelay: TDuration; const Delay: TDuration; const Callback: TProc): ITimer;
     // 控制
     procedure Shutdown;
+    
+    // 异步回调执行支持
+    procedure SetCallbackExecutor(const Pool: IThreadPool);
+    function GetCallbackExecutor: IThreadPool;
   end;
 
   ITicker = interface
@@ -41,7 +54,8 @@ function CreateTickerFixedDelay(const InitialDelay, Delay: TDuration; const Call
 function CreateTickerFixedRateOn(const Scheduler: ITimerScheduler; const InitialDelay, Period: TDuration; const Callback: TProc): ITicker;
 function CreateTickerFixedDelayOn(const Scheduler: ITimerScheduler; const InitialDelay, Delay: TDuration; const Callback: TProc): ITicker;
 
-function CreateTimerScheduler(const Clock: IMonotonicClock = nil): ITimerScheduler;
+function CreateTimerScheduler(const Clock: IMonotonicClock = nil): ITimerScheduler; overload;
+function CreateTimerScheduler(const Clock: IMonotonicClock; const CallbackPool: IThreadPool): ITimerScheduler; overload;
 
   // FixedRate 追赶步数上限（0 表示不限制）
 var
@@ -125,6 +139,16 @@ type
     function IsStopped: Boolean;
   end;
 
+  // 回调上下文：用于异步执行
+  PCallbackContext = ^TCallbackContext;
+  TCallbackContext = record
+    Callback: TProc;
+    Entry: PTimerEntry;
+    Kind: TTimerKind;
+    Delay: TDuration;
+    Scheduler: Pointer; // TTimerSchedulerImpl
+  end;
+
   TTimerSchedulerImpl = class(TInterfacedObject, ITimerScheduler)
   private
     FClock: IMonotonicClock;
@@ -134,6 +158,10 @@ type
     FThread: TThread;
     FShuttingDown: Boolean;
     FWakeup: IEvent; // wake up timer thread on insert/cancel/shutdown
+    
+    // 异步回调执行支持
+    FCallbackPool: IThreadPool; // 用于异步执行定时器回调
+    FUseAsyncCallbacks: Boolean; // 是否启用异步回调
   private
 
 
@@ -146,14 +174,19 @@ type
     procedure HeapifyDown(Index: Integer);
     function  HeapPopMinUnsafe: PTimerEntry; // FLock must be held
     procedure ThreadProc;
+    procedure ExecuteCallbackSync(const cb: TProc; const best: PTimerEntry; const kind: TTimerKind; const delay: TDuration);
+    procedure ExecuteCallbackAsync(const cb: TProc; const best: PTimerEntry; const kind: TTimerKind; const delay: TDuration);
   public
-    constructor Create(const Clock: IMonotonicClock);
+    constructor Create(const Clock: IMonotonicClock); overload;
+    constructor Create(const Clock: IMonotonicClock; const CallbackPool: IThreadPool); overload;
     destructor Destroy; override;
     function ScheduleOnce(const Delay: TDuration; const Callback: TProc): ITimer;
     function ScheduleAt(const Deadline: TInstant; const Callback: TProc): ITimer;
     function ScheduleAtFixedRate(const InitialDelay: TDuration; const Period: TDuration; const Callback: TProc): ITimer;
     function ScheduleWithFixedDelay(const InitialDelay: TDuration; const Delay: TDuration; const Callback: TProc): ITimer;
     procedure Shutdown;
+    procedure SetCallbackExecutor(const Pool: IThreadPool);
+    function GetCallbackExecutor: IThreadPool;
   end;
 
   TTimerThread = class(TThread)
@@ -373,6 +406,21 @@ begin
   SetLength(FHeap, 0); FCount := 0;
   FShuttingDown := False;
   FWakeup := TEvent.Create(True, False); // manual reset, non-signaled
+  FCallbackPool := nil;
+  FUseAsyncCallbacks := False;
+  FThread := TTimerThread.Create(Self);
+end;
+
+constructor TTimerSchedulerImpl.Create(const Clock: IMonotonicClock; const CallbackPool: IThreadPool);
+begin
+  inherited Create;
+  if Clock <> nil then FClock := Clock else FClock := DefaultMonotonicClock;
+  FLock := TMutex.Create;
+  SetLength(FHeap, 0); FCount := 0;
+  FShuttingDown := False;
+  FWakeup := TEvent.Create(True, False);
+  FCallbackPool := CallbackPool;
+  FUseAsyncCallbacks := (CallbackPool <> nil);
   FThread := TTimerThread.Create(Self);
 end;
 
@@ -469,7 +517,6 @@ begin
   end;
 end;
 
-destructor TTimerSchedulerImpl.Destroy;
 
 procedure TTimerSchedulerImpl.HeapRemoveAt(Index: Integer);
 var last: Integer;
@@ -496,6 +543,7 @@ begin
   HeapifyUp(Index);
 end;
 
+destructor TTimerSchedulerImpl.Destroy;
 begin
   Shutdown;
   FThread.Free;
@@ -513,6 +561,7 @@ begin
     FLock.Release;
   end;
   SetLength(FHeap, 0);
+  FCallbackPool := nil; // 释放线程池引用
   inherited Destroy;
 end;
 
@@ -526,10 +575,15 @@ var
   kind: TTimerKind;
   period, delay: TDuration;
   NextDeadline: TInstant;
-  steps: Integer;
   OldE: PTimerEntry;
   elapsedNs, missed: Int64;
 begin
+  // ✅ 显式初始化局部变量，避免未定义行为
+  remain := TDuration.Zero;
+  waitMs := 0;
+  cb := nil;
+  best := nil;
+  
   while not FShuttingDown do
   begin
     // 取堆顶（最早截止）的有效任务
@@ -614,7 +668,6 @@ begin
         begin
           // 未到期：等待 remain 或被唤醒（有更早任务插入/取消/关闭）
           waitMs := remain.AsMs;
-          if waitMs > 2 then waitMs := 2; // slice wait to improve precision and responsiveness
           if waitMs = 0 then waitMs := 1;
           FWakeup.ResetEvent;
         end;
@@ -635,66 +688,11 @@ begin
     // 如果到期，执行回调
     if (remain.IsNegative or remain.IsZero) and Assigned(cb) then
     begin
-      try
-        cb();
-        if GMetricsLock <> nil then GMetricsLock.Acquire;
-        try Inc(GMetrics.FiredTotal); finally if GMetricsLock <> nil then GMetricsLock.Release; end;
-      except
-        on E: Exception do
-        begin
-          if GMetricsLock <> nil then GMetricsLock.Acquire;
-          try Inc(GMetrics.ExceptionTotal); finally if GMetricsLock <> nil then GMetricsLock.Release; end;
-          if Assigned(GTimerExceptionHandler) then
-            GTimerExceptionHandler(E);
-          // 不中断调度线程，继续
-        end;
-      end;
-      // 固定延迟：回调完成后设定下一次触发
-      if (kind = tkFixedDelay) then
-      begin
-        FLock.Acquire;
-        try
-          if not best^.Cancelled then
-          begin
-            best^.Deadline := FClock.NowInstant.Add(delay);
-            HeapInsert(best);
-          end
-          else
-          begin
-            best^.Dead := True;
-            if (best^.RefCount <= 0) and (not best^.InHeap) then Dispose(best);
-          end;
-        finally
-          FLock.Release;
-        end;
-      end
+      // 异步执行回调以提高定时器精度
+      if FUseAsyncCallbacks and Assigned(FCallbackPool) then
+        ExecuteCallbackAsync(cb, best, kind, delay)
       else
-      begin
-        // fixedRate 回收到堆；once 不再回收
-        if kind = tkFixedRate then
-        begin
-          FLock.Acquire;
-          try
-            if not best^.Cancelled then
-            begin
-              HeapInsert(best);
-            end
-            else
-            begin
-              best^.Dead := True;
-              if (best^.RefCount <= 0) and (not best^.InHeap) then Dispose(best);
-            end;
-          finally
-            FLock.Release;
-          end;
-        end
-        else
-        begin
-          // tkOnce：生命周期结束
-          best^.Dead := True;
-          if (best^.RefCount <= 0) and (not best^.InHeap) then Dispose(best);
-        end;
-      end;
+        ExecuteCallbackSync(cb, best, kind, delay);
       Continue;
     end
     else
@@ -710,7 +708,6 @@ end;
 
 function TTimerSchedulerImpl.ScheduleOnce(const Delay: TDuration; const Callback: TProc): ITimer;
 var
-  p: PTimerEntry;
   dl: TInstant;
 begin
   if Delay.IsNegative then
@@ -733,13 +730,21 @@ begin
   p^.RefCount := 0; p^.Dead := False; p^.InHeap := False;
   if GMetricsLock <> nil then GMetricsLock.Acquire;
   try Inc(GMetrics.ScheduledTotal); finally if GMetricsLock <> nil then GMetricsLock.Release; end;
+  
   FLock.Acquire;
   try
+    // ✅ 检查是否已经 shutdown，如果是则拒绝调度
+    if FShuttingDown then
+    begin
+      Dispose(p);
+      Exit(nil);
+    end;
     HeapInsert(p);
     if Assigned(FWakeup) then FWakeup.SetEvent;
   finally
     FLock.Release;
   end;
+  // ✅ 在锁外创建 TTimerRef，因为 TTimerRef.Create 内部会获取锁
   Result := TTimerRef.Create(p, FLock);
 end;
 
@@ -761,13 +766,21 @@ begin
   p^.RefCount := 0; p^.Dead := False; p^.InHeap := False;
   if GMetricsLock <> nil then GMetricsLock.Acquire;
   try Inc(GMetrics.ScheduledTotal); finally if GMetricsLock <> nil then GMetricsLock.Release; end;
+  
   FLock.Acquire;
   try
+    // ✅ 检查是否已经 shutdown
+    if FShuttingDown then
+    begin
+      Dispose(p);
+      Exit(nil);
+    end;
     HeapInsert(p);
     if Assigned(FWakeup) then FWakeup.SetEvent;
   finally
     FLock.Release;
   end;
+  // ✅ 在锁外创建 TTimerRef
   Result := TTimerRef.Create(p, FLock);
 end;
 
@@ -788,29 +801,294 @@ begin
   p^.RefCount := 0; p^.Dead := False; p^.InHeap := False;
   if GMetricsLock <> nil then GMetricsLock.Acquire;
   try Inc(GMetrics.ScheduledTotal); finally if GMetricsLock <> nil then GMetricsLock.Release; end;
+  
   FLock.Acquire;
   try
+    // ✅ 检查是否已经 shutdown
+    if FShuttingDown then
+    begin
+      Dispose(p);
+      Exit(nil);
+    end;
     HeapInsert(p);
     if Assigned(FWakeup) then FWakeup.SetEvent;
   finally
     FLock.Release;
   end;
+  // ✅ 在锁外创建 TTimerRef
   Result := TTimerRef.Create(p, FLock);
 end;
 
 procedure TTimerSchedulerImpl.Shutdown;
+var
+  alreadyShutdown: Boolean;
 begin
-  FShuttingDown := True;
-  if Assigned(FWakeup) then FWakeup.SetEvent; // 唤醒线程尽快退出
+  // ✅ 使用锁保护 FShuttingDown 标志，避免竞态条件
+  FLock.Acquire;
+  try
+    alreadyShutdown := FShuttingDown;
+    if not alreadyShutdown then
+      FShuttingDown := True;
+  finally
+    FLock.Release;
+  end;
+  
+  // ✅ 幂等性：如果已经 shutdown，直接返回
+  if alreadyShutdown then Exit;
+  
+  // 唤醒调度线程，使其尽快退出
+  if Assigned(FWakeup) then 
+    FWakeup.SetEvent;
+  
+  // ✅ 等待线程退出（不再需要超时，因为线程一定会检查 FShuttingDown 并退出）
   if Assigned(FThread) then
-  begin
     FThread.WaitFor;
+end;
+
+procedure TTimerSchedulerImpl.SetCallbackExecutor(const Pool: IThreadPool);
+begin
+  FLock.Acquire;
+  try
+    FCallbackPool := Pool;
+    FUseAsyncCallbacks := (Pool <> nil);
+  finally
+    FLock.Release;
+  end;
+end;
+
+function TTimerSchedulerImpl.GetCallbackExecutor: IThreadPool;
+begin
+  FLock.Acquire;
+  try
+    Result := FCallbackPool;
+  finally
+    FLock.Release;
+  end;
+end;
+
+// 同步执行回调（默认模式，向后兼容）
+procedure TTimerSchedulerImpl.ExecuteCallbackSync(const cb: TProc; const best: PTimerEntry; const kind: TTimerKind; const delay: TDuration);
+begin
+  try
+    cb();
+    if GMetricsLock <> nil then GMetricsLock.Acquire;
+    try Inc(GMetrics.FiredTotal); finally if GMetricsLock <> nil then GMetricsLock.Release; end;
+  except
+    on E: Exception do
+    begin
+      if GMetricsLock <> nil then GMetricsLock.Acquire;
+      try Inc(GMetrics.ExceptionTotal); finally if GMetricsLock <> nil then GMetricsLock.Release; end;
+      if Assigned(GTimerExceptionHandler) then
+        GTimerExceptionHandler(E);
+    end;
+  end;
+  
+  // 固定延迟：回调完成后设定下一次触发
+  if (kind = tkFixedDelay) then
+  begin
+    FLock.Acquire;
+    try
+      if not best^.Cancelled then
+      begin
+        best^.Deadline := FClock.NowInstant.Add(delay);
+        HeapInsert(best);
+        if Assigned(FWakeup) then FWakeup.SetEvent;
+      end
+      else
+      begin
+        best^.Dead := True;
+        if (best^.RefCount <= 0) and (not best^.InHeap) then Dispose(best);
+      end;
+    finally
+      FLock.Release;
+    end;
+  end
+  else
+  begin
+    // fixedRate 回收到堆；once 不再回收
+    if kind = tkFixedRate then
+    begin
+      FLock.Acquire;
+      try
+        if not best^.Cancelled then
+        begin
+          HeapInsert(best);
+          if Assigned(FWakeup) then FWakeup.SetEvent;
+        end
+        else
+        begin
+          best^.Dead := True;
+          if (best^.RefCount <= 0) and (not best^.InHeap) then Dispose(best);
+        end;
+      finally
+        FLock.Release;
+      end;
+    end
+    else
+    begin
+      // tkOnce：生命周期结束
+      best^.Dead := True;
+      if (best^.RefCount <= 0) and (not best^.InHeap) then Dispose(best);
+    end;
+  end;
+end;
+
+// 异步回调任务包装器
+function AsyncCallbackTask(aData: Pointer): Boolean;
+var
+  ctx: PCallbackContext;
+  sch: TTimerSchedulerImpl;
+  entryToDispose: PTimerEntry;
+begin
+  Result := False;
+  if aData = nil then Exit;
+  ctx := PCallbackContext(aData);
+  entryToDispose := nil;
+  
+  try
+    sch := TTimerSchedulerImpl(ctx^.Scheduler);
+    
+    try
+      ctx^.Callback();
+      if GMetricsLock <> nil then GMetricsLock.Acquire;
+      try Inc(GMetrics.FiredTotal); finally if GMetricsLock <> nil then GMetricsLock.Release; end;
+      Result := True;
+    except
+      on E: Exception do
+      begin
+        if GMetricsLock <> nil then GMetricsLock.Acquire;
+        try Inc(GMetrics.ExceptionTotal); finally if GMetricsLock <> nil then GMetricsLock.Release; end;
+        if Assigned(GTimerExceptionHandler) then
+          GTimerExceptionHandler(E);
+      end;
+    end;
+    
+    // 固定延迟：回调完成后设定下一次触发
+    if (ctx^.Kind = tkFixedDelay) then
+    begin
+      sch.FLock.Acquire;
+      try
+        // ✅ 先递减引用计数
+        Dec(ctx^.Entry^.RefCount);
+        
+        if not ctx^.Entry^.Cancelled then
+        begin
+          ctx^.Entry^.Deadline := sch.FClock.NowInstant.Add(ctx^.Delay);
+          sch.HeapInsert(ctx^.Entry);
+          if Assigned(sch.FWakeup) then sch.FWakeup.SetEvent;
+        end
+        else
+        begin
+          ctx^.Entry^.Dead := True;
+          if (ctx^.Entry^.RefCount <= 0) and (not ctx^.Entry^.InHeap) then
+            entryToDispose := ctx^.Entry; // 标记待释放，但在锁外释放
+        end;
+      finally
+        sch.FLock.Release;
+      end;
+    end
+    else
+    begin
+      // fixedRate 回收到堆；once 不再回收
+      if ctx^.Kind = tkFixedRate then
+      begin
+        sch.FLock.Acquire;
+        try
+          // ✅ 先递减引用计数
+          Dec(ctx^.Entry^.RefCount);
+          
+          if not ctx^.Entry^.Cancelled then
+          begin
+            sch.HeapInsert(ctx^.Entry);
+            if Assigned(sch.FWakeup) then sch.FWakeup.SetEvent;
+          end
+          else
+          begin
+            ctx^.Entry^.Dead := True;
+            if (ctx^.Entry^.RefCount <= 0) and (not ctx^.Entry^.InHeap) then
+              entryToDispose := ctx^.Entry; // 标记待释放，但在锁外释放
+          end;
+        finally
+          sch.FLock.Release;
+        end;
+      end
+      else
+      begin
+        // tkOnce：生命周期结束
+        sch.FLock.Acquire;
+        try
+          // ✅ 先递减引用计数
+          Dec(ctx^.Entry^.RefCount);
+          
+          ctx^.Entry^.Dead := True;
+          if (ctx^.Entry^.RefCount <= 0) and (not ctx^.Entry^.InHeap) then
+            entryToDispose := ctx^.Entry; // 标记待释放，但在锁外释放
+        finally
+          sch.FLock.Release;
+        end;
+      end;
+    end;
+    
+    // ✅ 在锁外释放内存，避免在持有锁时调用 Dispose
+    if entryToDispose <> nil then
+      Dispose(entryToDispose);
+      
+  finally
+    // ✅ 保证无论如何都会释放上下文
+    Dispose(ctx);
+  end;
+end;
+
+// 异步执行回调（通过线程池）
+procedure TTimerSchedulerImpl.ExecuteCallbackAsync(const cb: TProc; const best: PTimerEntry; const kind: TTimerKind; const delay: TDuration);
+var
+  ctx: PCallbackContext;
+begin
+  // 增加引用计数，防止回调期间 best 被释放
+  FLock.Acquire;
+  try
+    Inc(best^.RefCount);
+  finally
+    FLock.Release;
+  end;
+  
+  // 创建上下文
+  New(ctx);
+  ctx^.Callback := cb;
+  ctx^.Entry := best;
+  ctx^.Kind := kind;
+  ctx^.Delay := delay;
+  ctx^.Scheduler := Self;
+  
+  // 提交到线程池
+  try
+    FCallbackPool.Submit(@AsyncCallbackTask, ctx);
+  except
+    // 如果提交失败（例如队列满且拒绝策略为 Abort），降级到同步执行
+    on E: Exception do
+    begin
+      // 减少引用计数
+      FLock.Acquire;
+      try
+        Dec(best^.RefCount);
+      finally
+        FLock.Release;
+      end;
+      Dispose(ctx);
+      // 降级到同步执行
+      ExecuteCallbackSync(cb, best, kind, delay);
+    end;
   end;
 end;
 
 function CreateTimerScheduler(const Clock: IMonotonicClock): ITimerScheduler;
 begin
   Result := TTimerSchedulerImpl.Create(Clock);
+end;
+
+function CreateTimerScheduler(const Clock: IMonotonicClock; const CallbackPool: IThreadPool): ITimerScheduler;
+begin
+  Result := TTimerSchedulerImpl.Create(Clock, CallbackPool);
 end;
 
 

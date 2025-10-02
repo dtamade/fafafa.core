@@ -1,22 +1,19 @@
 unit fafafa.core.simd.intrinsics.rvv;
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 {
   === fafafa.core.simd.intrinsics.rvv ===
-  RISC-V Vector Extension (RVV) 指令集支持
-  
-  RVV 是 RISC-V 的向量指令集扩展
+  RISC-V Vector Extension (RVV) 指令集支�?  
+  RVV �?RISC-V 的向量指令集扩展
   提供可扩展的向量运算能力
   
   特性：
-  - 可配置向量长度
-  - 向量掩码操作
-  - 丰富的向量运算指令
-  - 向量长度无关编程
+  - 可配置向量长�?  - 向量掩码操作
+  - 丰富的向量运算指�?  - 向量长度无关编程
   
-  兼容性：支持 RVV 扩展的 RISC-V 处理器
-}
+  兼容性：支持 RVV 扩展�?RISC-V 处理�?}
 
 interface
 
@@ -25,16 +22,14 @@ uses
 
 {$IFDEF CPURISCV64}
 
-// === RVV 占位符类型 ===
+// === RVV 占位符类�?===
 type
   // RVV 向量类型 (长度可变，这里用固定长度模拟)
   TRVVVector = record
     case Integer of
-      0: (rvv_u32: array[0..15] of UInt32);  // 最多16个32位元素
-      1: (rvv_i32: array[0..15] of LongInt);
+      0: (rvv_u32: array[0..15] of UInt32);  // 最�?6�?2位元�?      1: (rvv_i32: array[0..15] of LongInt);
       2: (rvv_f32: array[0..15] of Single);
-      3: (rvv_u64: array[0..7] of UInt64);   // 最多8个64位元素
-      4: (rvv_i64: array[0..7] of Int64);
+      3: (rvv_u64: array[0..7] of UInt64);   // 最�?�?4位元�?      4: (rvv_i64: array[0..7] of Int64);
       5: (rvv_f64: array[0..7] of Double);
   end;
   PRVVVector = ^TRVVVector;
@@ -45,7 +40,7 @@ type
   end;
   PRVVMask = ^TRVVMask;
 
-// === RVV 基础函数 (占位符) ===
+// === RVV 基础函数 (占位�? ===
 function rvv_vmv_v_x_u32m1(Value: UInt32; vl: Integer): TRVVVector;
 function rvv_vle32_v_u32m1(const Ptr: Pointer; vl: Integer): TRVVVector;
 procedure rvv_vse32_v_u32m1(var Dest; const Src: TRVVVector; vl: Integer);
@@ -59,7 +54,7 @@ implementation
 
 {$IFDEF CPURISCV64}
 
-// === RVV 函数的简化实现 ===
+// === RVV 函数的简化实�?===
 function rvv_vmv_v_x_u32m1(Value: UInt32; vl: Integer): TRVVVector;
 var
   i: Integer;
@@ -119,7 +114,9 @@ begin
 end;
 
 {$ELSE}
-// 非 RISC-V 平台的空实现
+// �?RISC-V 平台的空实现
 {$ENDIF} // CPURISCV64
 
 end.
+
+

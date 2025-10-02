@@ -1,5 +1,6 @@
 unit fafafa.core.sync.condvar.unix;
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface

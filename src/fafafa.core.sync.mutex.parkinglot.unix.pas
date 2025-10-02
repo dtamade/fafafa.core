@@ -1,5 +1,6 @@
 unit fafafa.core.sync.mutex.parkinglot.unix;
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface

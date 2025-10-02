@@ -1,6 +1,6 @@
 unit fafafa.core.sync.namedEvent.windows;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -38,7 +38,7 @@ type
     // ISynchronizable 接口
     function GetLastError: TWaitError;
 
-    // INamedEvent 接口 - 现代化方法
+    // INamedEvent 接口 - 现代化方�?
     function Wait: INamedEventGuard;
     function TryWait: INamedEventGuard;
     function TryWaitFor(ATimeoutMs: Cardinal): INamedEventGuard;
@@ -113,7 +113,7 @@ begin
       [AName, SysErrorMessage(Windows.GetLastError)]);
   end;
   
-  // 检查是否为创建者
+  // 检查是否为创建�?
   FIsCreator := Windows.GetLastError <> ERROR_ALREADY_EXISTS;
 end;
 
@@ -132,7 +132,8 @@ begin
   if Length(AName) > 260 then
     raise fafafa.core.sync.base.EInvalidArgument.CreateFmt('Named event name too long: %d characters (max 260)', [Length(AName)]);
     
-  // Windows 命名事件不能包含反斜杠（除了 Global\ 或 Local\ 前缀）
+  // Windows 命名事件不能包含反斜杠（除了 Global\ �?Local\ 前缀�?
+    
   if (Pos('\', AName) > 0) and 
      (Pos('Global\', AName) <> 1) and 
      (Pos('Local\', AName) <> 1) then
@@ -215,9 +216,9 @@ end;
 
 procedure TNamedEvent.Pulse;
 begin
-  // PulseEvent 已被 Microsoft 弃用，因为它有可靠性问题
+  // PulseEvent 已被 Microsoft 弃用，因为它有可靠性问�?
   // 我们使用 SetEvent + ResetEvent 的组合来模拟脉冲行为
-  // 注意：这不是原子操作，但比 PulseEvent 更可靠
+  // 注意：这不是原子操作，但�?PulseEvent 更可�?
 
   if not Windows.SetEvent(FHandle) then
   begin
@@ -226,10 +227,7 @@ begin
       [FName, SysErrorMessage(Windows.GetLastError)]);
   end;
 
-  // 语义调整：
-  // 手动重置事件：保持触发（等同于 SetEvent）。
-  // 自动重置事件：瞬时触发后立即恢复为未触发（若无等待者则无效果）。
-  if not FManualReset then
+  // 语义调整�?  // 手动重置事件：保持触发（等同�?SetEvent）�?  // 自动重置事件：瞬时触发后立即恢复为未触发（若无等待者则无效果）�?  if not FManualReset then
   begin
     if not Windows.ResetEvent(FHandle) then
     begin
@@ -256,14 +254,14 @@ var
 begin
   if FManualReset then
   begin
-    // 手动重置事件：使用非阻塞检查
-    // 注意：这仍然是破坏性的，但这是 Windows Event 的固有限制
+    // 手动重置事件：使用非阻塞检�?
+    // 注意：这仍然是破坏性的，但这是 Windows Event 的固有限�?
     LResult := WaitForSingleObject(FHandle, 0);
     case LResult of
       WAIT_OBJECT_0:
         begin
           Result := True;
-          // 立即重新设置事件状态，减少竞态窗口
+          // 立即重新设置事件状态，减少竞态窗�?
           Windows.SetEvent(FHandle);
         end;
       WAIT_TIMEOUT:
@@ -280,7 +278,7 @@ begin
   else
   begin
     // 自动重置事件：与 Windows 标准行为一致，总是返回 False
-    // 这避免了破坏性检查，符合 Windows Event 的标准语义
+    // 这避免了破坏性检查，符合 Windows Event 的标准语�?
     Result := False;
   end;
 end;

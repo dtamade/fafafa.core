@@ -1,6 +1,7 @@
 unit fafafa.core.time.instant;
 
 {$modeswitch advancedrecords}
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -39,7 +40,6 @@ type
     function IsBefore(const Other: TInstant): Boolean; inline;
     function IsAfter(const Other: TInstant): Boolean; inline;
     function Clamp(const MinV, MaxV: TInstant): TInstant; inline;
-    function Between(const MinV, MaxV: TInstant): TInstant; inline;
     class function Min(const A, B: TInstant): TInstant; static; inline;
     class function Max(const A, B: TInstant): TInstant; static; inline;
 
@@ -113,18 +113,18 @@ begin
 end;
 
 function TInstant.Diff(const Older: TInstant): TDuration;
-var a,b: UInt64; diff: UInt64; neg: Boolean; outNs: Int64;
+var a,b: UInt64; delta: UInt64; outNs: Int64;
 begin
   a := FNsSinceEpoch; b := Older.FNsSinceEpoch;
   if a >= b then
   begin
-    diff := a - b;
-    if diff > UInt64(High(Int64)) then outNs := High(Int64) else outNs := Int64(diff);
+    delta := a - b;
+    if delta > UInt64(High(Int64)) then outNs := High(Int64) else outNs := Int64(delta);
   end
   else
   begin
-    diff := b - a; neg := True;
-    if diff > UInt64(High(Int64)) then outNs := Low(Int64) else outNs := -Int64(diff);
+    delta := b - a;
+    if delta > UInt64(High(Int64)) then outNs := Low(Int64) else outNs := -Int64(delta);
   end;
   Result := TDuration.FromNs(outNs);
 end;
@@ -132,17 +132,6 @@ end;
 function TInstant.Since(const Older: TInstant): TDuration;
 begin
   Result := Diff(Older);
-end;
-
-// 非负差值（若 Older 更大则返回 0）
-function TInstant.NonNegativeDiff(const Older: TInstant): TDuration;
-var d: TDuration;
-begin
-  d := Diff(Older);
-  if d.IsNegative then
-    Result := TDuration.Zero
-  else
-    Result := d;
 end;
 
 function TInstant.Compare(const B: TInstant): Integer;
@@ -187,12 +176,6 @@ begin
   if LessThan(MinV) then Exit(MinV);
   if GreaterThan(MaxV) then Exit(MaxV);
   Result := Self;
-end;
-
-function TInstant.Between(const MinV, MaxV: TInstant): TInstant;
-begin
-  // Alias of Clamp for semantic readability in tests
-  Result := Clamp(MinV, MaxV);
 end;
 
 class function TInstant.Min(const A, B: TInstant): TInstant;

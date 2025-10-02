@@ -594,3 +594,13 @@ ok := TimeoutFor(TDuration.FromMs(5),
   - CreateTickerFixedRate/FixedDelay（可注入 Clock）
   - CreateTickerFixedRateOn/FixedDelayOn（复用外部 Scheduler）
 - 用法：周期执行回调，Stop 后通过 Cancel 停止
+
+
+### 睡眠策略实现说明
+- 策略实现位于 fafafa.core.time.clock，采用切片 + 末段自旋/yield 组合。
+- 默认值由 fafafa.core.time.config 提供，可运行时调整：
+  - EnergySaving: slice=2ms, finalSpin=3ms
+  - Balanced: slice=1ms, finalSpin=2ms
+  - LowLatency: slice=1ms, finalSpin=1ms
+  - UltraLowLatency: slice=0ms, finalSpin=0.5ms
+- Windows 下 UltraLowLatency 可能带来较高占用，建议按需提高 slice 至 0.2~0.5ms。

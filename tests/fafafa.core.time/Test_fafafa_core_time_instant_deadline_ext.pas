@@ -27,7 +27,8 @@ begin
   mx := TInstant.FromNsSinceEpoch(110);
   r := a.Clamp(mn, mx);
   CheckEquals(QWord(110), r.AsNsSinceEpoch);
-  r := a.Between(mn, mx);
+  // Between 已被删除，再次测试 Clamp 确保功能一致
+  r := a.Clamp(mn, mx);
   CheckEquals(QWord(110), r.AsNsSinceEpoch);
 end;
 

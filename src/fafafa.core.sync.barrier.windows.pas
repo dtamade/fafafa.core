@@ -15,6 +15,7 @@ unit fafafa.core.sync.barrier.windows;
   - FAFAFA_SYNC_WIN_BARRIER_SPIN_COUNT: 自旋计数
 }
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -25,7 +26,7 @@ uses
   fafafa.core.sync.base,
   fafafa.core.sync.barrier.base
   {$IFDEF FAFAFA_SYNC_WIN_RUNTIME_FALLBACK}
-  , fafafa.core.sync.conditionVariable.base
+  , fafafa.core.sync.condvar.base
   {$ENDIF}
   ;
 
@@ -49,7 +50,7 @@ type
         FWaitingCount: Integer;
         FGeneration: Integer;
         FCoordLock: ILock;               // Internal coordination lock
-        FCondition: IConditionVariable;  // Internal condition variable
+        FCondition: ICondVar;  // Internal condition variable
         FUseNative: Boolean;             // runtime switch
       {$ENDIF}
     {$ELSE}
@@ -57,7 +58,7 @@ type
       FWaitingCount: Integer;
       FGeneration: Integer;
       FCoordLock: ILock;
-      FCondition: IConditionVariable;
+      FCondition: ICondVar;
     {$ENDIF}
   public
     constructor Create(AParticipantCount: Integer);
@@ -104,7 +105,7 @@ end;
 {$IF (not Defined(FAFAFA_SYNC_USE_WIN_BARRIER)) or Defined(FAFAFA_SYNC_WIN_RUNTIME_FALLBACK)}
 uses
   fafafa.core.sync.mutex,
-  fafafa.core.sync.conditionVariable;
+  fafafa.core.sync.condvar;
 {$ENDIF}
 
 constructor TBarrier.Create(AParticipantCount: Integer);
@@ -127,7 +128,7 @@ begin
         FGeneration := 0;
         // Internal primitives for coordination
         FCoordLock := TMutex.Create;
-        FCondition := TConditionVariable.Create;
+        FCondition := TCondVar.Create;
       end;
     {$ELSE}
       if not ResolveWinBarrierAPIs then
@@ -140,7 +141,7 @@ begin
     FWaitingCount := 0;
     FGeneration := 0;
     FCoordLock := TMutex.Create;
-    FCondition := TConditionVariable.Create;
+    FCondition := TCondVar.Create;
   {$ENDIF}
 end;
 

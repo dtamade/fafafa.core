@@ -18,5 +18,6 @@ fi
 
 echo ""
 echo "All examples built successfully!"
-echo "Run: ./bin/example_basic_usage"
+echo "Built outputs:"
+find bin -maxdepth 2 -type f -name 'example_basic_usage*' -print 2>/dev/null || true
 

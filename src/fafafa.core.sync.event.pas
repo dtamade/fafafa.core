@@ -41,27 +41,38 @@ unit fafafa.core.sync.event;
 
 }
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
 
 uses
+  fafafa.core.sync.base,
   fafafa.core.sync.event.base
-  {$IFDEF MSWINDOWS}
+  {$IFDEF WINDOWS}
   , fafafa.core.sync.event.windows
   {$ELSE}
   , fafafa.core.sync.event.unix
   {$ENDIF};
 
 type
-
+  // Re-export core types
   IEvent = fafafa.core.sync.event.base.IEvent;
+  TWaitResult = fafafa.core.sync.base.TWaitResult;
 
-  {$IFDEF MSWINDOWS}
+  {$IFDEF WINDOWS}
   TEvent = fafafa.core.sync.event.windows.TEvent;
   {$ELSE}
   TEvent = fafafa.core.sync.event.unix.TEvent;
   {$ENDIF}
+
+const
+  // Re-export wait result constants
+  wrSignaled = fafafa.core.sync.base.wrSignaled;
+  wrTimeout = fafafa.core.sync.base.wrTimeout;
+  wrAbandoned = fafafa.core.sync.base.wrAbandoned;
+  wrError = fafafa.core.sync.base.wrError;
+  wrInterrupted = fafafa.core.sync.base.wrInterrupted;
 
 {**
  * MakeEvent - 创建事件实例
@@ -94,6 +105,7 @@ begin
   Result := fafafa.core.sync.event.unix.TEvent.Create(AManualReset, AInitialState);
   {$ENDIF}
 end;
+
 
 end.
 

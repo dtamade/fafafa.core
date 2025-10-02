@@ -1,6 +1,6 @@
 unit fafafa.core.sync.mutex.parkinglot.windows;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -36,7 +36,7 @@ type
     SpinCount: PtrUInt;
   end;
 
-// 为避免与 System.Windows 单元的名称冲突，使用带前缀的声明
+// 为避免与 System.Windows 单元的名称冲突，使用带前缀的声�?
 procedure WinInitializeCriticalSection(var lpCriticalSection: TRTLCriticalSectionX); stdcall; external 'kernel32.dll' name 'InitializeCriticalSection';
 procedure WinEnterCriticalSection(var lpCriticalSection: TRTLCriticalSectionX); stdcall; external 'kernel32.dll' name 'EnterCriticalSection';
 procedure WinLeaveCriticalSection(var lpCriticalSection: TRTLCriticalSectionX); stdcall; external 'kernel32.dll' name 'LeaveCriticalSection';
@@ -44,29 +44,29 @@ procedure WinDeleteCriticalSection(var lpCriticalSection: TRTLCriticalSectionX);
 
 type
   {**
-   * TParkingLotMutex - Windows 平台的 Parking Lot 互斥锁实现
+   * TParkingLotMutex - Windows 平台�?Parking Lot 互斥锁实�?
    *
    * @desc
-   *   使用 Windows 8.1+ 的 WaitOnAddress/WakeByAddressSingle API
-   *   实现高效的线程等待和唤醒机制。对于旧版本 Windows，
-   *   回退到 SwitchToThread + Sleep 的组合策略。
+   *   使用 Windows 8.1+ �?WaitOnAddress/WakeByAddressSingle API
+   *   实现高效的线程等待和唤醒机制。对于旧版本 Windows�?
+   *   回退�?SwitchToThread + Sleep 的组合策略�?
    *
    * @features
    *   - Windows 8.1+: 使用 WaitOnAddress 实现真正的地址等待
-   *   - Windows 7/XP: 使用智能退避策略模拟等待
-   *   - 自动检测系统能力并选择最优实现
+   *   - Windows 7/XP: 使用智能退避策略模拟等�?
+   *   - 自动检测系统能力并选择最优实�?
    *
    * @performance
-   *   在支持 WaitOnAddress 的系统上性能接近内核 futex，
-   *   在旧系统上通过智能退避策略最小化性能损失。
+   *   在支�?WaitOnAddress 的系统上性能接近内核 futex�?
+   *   在旧系统上通过智能退避策略最小化性能损失�?
    *}
   TParkingLotMutex = class(TParkingLotMutexBase)
   private
-    // XP 回退：每锁一个信号量 + 等待者计数
+    // XP 回退：每锁一个信号量 + 等待者计�?
     FSem: THandle;
     FWaiters: Int32;
 
-    // 仅用于旧的 CS 回退（保留以便调试极端长尾）
+    // 仅用于旧�?CS 回退（保留以便调试极端长尾）
     FUsingFallback: Boolean;
     function TryEnterFallbackMode: Boolean;
     procedure ExitFallbackMode;
@@ -92,7 +92,7 @@ type
   TWaitOnAddress       = function(Address: Pointer; CompareAddress: Pointer; AddressSize: SIZE_T; dwMilliseconds: DWORD): BOOL; stdcall;
   TWakeByAddressSingle = procedure(Address: Pointer); stdcall;
 
-  // NTDLL Keyed Events（Vista/7）
+  // NTDLL Keyed Events（Vista/7�?
   LARGE_INTEGER = record
     QuadPart: Int64;
   end;
@@ -110,24 +110,24 @@ const
   KEYEDEVENT_ALL_ACCESS = $001F0003;
 
 var
-  // 全局 WaitOnAddress API 状态
+  // 全局 WaitOnAddress API 状�?
   GWaitOnAddressFunc: Pointer = nil;
   GWakeByAddressSingleFunc: Pointer = nil;
   GHasWaitOnAddress: Boolean = False;
 
-  // NTDLL Keyed Events 状态（Vista/7）
+  // NTDLL Keyed Events 状态（Vista/7�?
   GNtCreateKeyedEvent: TNtCreateKeyedEvent = nil;
   GNtWaitForKeyedEvent: TNtWaitForKeyedEvent = nil;
   GNtReleaseKeyedEvent: TNtReleaseKeyedEvent = nil;
   GHasKeyedEvents: Boolean = False;
   GKeyedEventHandle: THandle = 0;
 
-  // 初始化标志
+  // 初始化标�?
   GInitialized: Boolean = False;
 
-  // 全局回退 CriticalSection（已弃用：仅保留以备极端调试）
+  // 全局回退 CriticalSection（已弃用：仅保留以备极端调试�?
   GFallbackCS: TRTLCriticalSectionX;
-  GFallbackCSInitialized: Int32 = 0;  // 使用 Int32 以支持原子操作
+  GFallbackCSInitialized: Int32 = 0;  // 使用 Int32 以支持原子操�?
 
 // 初始化回退 CriticalSection（线程安全）
 procedure InitializeFallbackCS;
@@ -137,24 +137,24 @@ begin
   // 使用原子操作确保线程安全的初始化
   if atomic_load(GFallbackCSInitialized, mo_acquire) = 0 then
   begin
-    // 双重检查锁定模式
+    // 双重检查锁定模�?
     LExpected := 0;
     if atomic_compare_exchange_strong(GFallbackCSInitialized, LExpected, 1) then
     begin
       WinInitializeCriticalSection(GFallbackCS);
-      // 内存屏障确保初始化完成后才设置标志
-      atomic_store(GFallbackCSInitialized, 2, mo_release);  // 2 表示初始化完成
+      // 内存屏障确保初始化完成后才设置标�?
+      atomic_store(GFallbackCSInitialized, 2, mo_release);  // 2 表示初始化完�?
     end
     else
     begin
-      // 等待其他线程完成初始化
+      // 等待其他线程完成初始�?
       while atomic_load(GFallbackCSInitialized, mo_acquire) < 2 do
         Sleep(0);
     end;
   end;
 end;
 
-// 全局初始化函数
+// 全局初始化函�?
 procedure InitializeWaitOnAddress;
 var
   LKernel32, LNtDll: HMODULE;
@@ -171,7 +171,7 @@ begin
     GHasWaitOnAddress := Assigned(GWaitOnAddressFunc) and Assigned(GWakeByAddressSingleFunc);
   end;
 
-  // 解析 NTDLL Keyed Events（Vista/7）
+  // 解析 NTDLL Keyed Events（Vista/7�?
   LNtDll := GetModuleHandle('ntdll.dll');
   if LNtDll <> 0 then
   begin
@@ -185,7 +185,7 @@ begin
     end;
   end;
 
-  // 初始化回退机制（仅用于极端调试）
+  // 初始化回退机制（仅用于极端调试�?
   InitializeFallbackCS;
 
   GInitialized := True;
@@ -218,7 +218,7 @@ procedure TParkingLotMutex.EnsureSemaphore;
 begin
   if FSem = 0 then
   begin
-    // 初始计数 0，最大计数一个较大值
+    // 初始计数 0，最大计数一个较大�?
     FSem := CreateSemaphoreW(nil, 0, $7FFFFFFF, nil);
   end;
 end;
@@ -227,11 +227,11 @@ function TParkingLotMutex.TryEnterFallbackMode: Boolean;
 var
   LCurrentState, LNewState: Int32;
 begin
-  // 原子地设置 FALLBACK_BIT，表示进入回退模式
+  // 原子地设�?FALLBACK_BIT，表示进入回退模式
   repeat
     LCurrentState := atomic_load(FState, mo_acquire);
 
-    // 如果已经有其他线程在使用回退模式，返回 False
+    // 如果已经有其他线程在使用回退模式，返�?False
     if (LCurrentState and FALLBACK_BIT) <> 0 then
       Exit(False);
 
@@ -239,7 +239,7 @@ begin
     LNewState := LCurrentState or FALLBACK_BIT;
   until atomic_compare_exchange_weak(FState, LCurrentState, LNewState);
 
-  // 成功设置标志位后，进入 CriticalSection
+  // 成功设置标志位后，进�?CriticalSection
   InitializeFallbackCS;
   WinEnterCriticalSection(GFallbackCS);
   FUsingFallback := True;
@@ -253,10 +253,10 @@ begin
   if not FUsingFallback then
     Exit;
 
-  // 先退出 CriticalSection
+  // 先退�?CriticalSection
   WinLeaveCriticalSection(GFallbackCS);
 
-  // 然后原子地清除 FALLBACK_BIT（采用 CAS 循环）
+  // 然后原子地清�?FALLBACK_BIT（采�?CAS 循环�?
   repeat
     LCur := atomic_load(FState, mo_acquire);
     LNew := LCur and (not FALLBACK_BIT);
@@ -274,7 +274,7 @@ begin
   // 验证状态：确保我们应该等待
   LExpectedState := atomic_load(FState, mo_relaxed);
   if (LExpectedState and (LOCKED_BIT or PARKED_BIT)) <> (LOCKED_BIT or PARKED_BIT) then
-    Exit(True); // 状态已改变，不需要等待
+    Exit(True); // 状态已改变，不需要等�?
 
   if HasWaitOnAddressSupport then
   begin
@@ -318,7 +318,7 @@ begin
     Exit;
   end;
 
-  // XP: 若有等待者，释放一个信号量令其醒来；若没有，保持静默（不累积计数以避免误唤醒新来的线程）
+  // XP: 若有等待者，释放一个信号量令其醒来；若没有，保持静默（不累积计数以避免误唤醒新来的线程�?
   if atomic_load(FWaiters, mo_relaxed) > 0 then
   begin
     EnsureSemaphore;

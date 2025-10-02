@@ -42,6 +42,7 @@ unit fafafa.core.sync.spin.atomic;
 
 }
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 

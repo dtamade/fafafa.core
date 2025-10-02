@@ -1,6 +1,6 @@
 unit fafafa.core.sync.namedEvent;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -17,14 +17,14 @@ type
   TNamedEventConfig = fafafa.core.sync.namedEvent.base.TNamedEventConfig;
 
   // 注意：TNamedEvent 具体类型不再公开导出
-  // 用户应该只使用 INamedEvent 接口和工厂函数
+  // 用户应该只使�?INamedEvent 接口和工厂函�?
 
 // ===== 简化的工厂函数（遵循主流框架设计原则） =====
 
 { 创建命名事件 - 主要工厂函数 }
 function CreateNamedEvent(const AName: string; AManualReset: Boolean = False; AInitialState: Boolean = False): INamedEvent;
 
-{ 创建全局命名事件（跨会话共享） }
+{ 创建全局命名事件（跨会话共享�?}
 function CreateGlobalNamedEvent(const AName: string; AManualReset: Boolean = False; AInitialState: Boolean = False): INamedEvent;
 
 { 创建命名事件 - 高级配置版本 }

@@ -399,6 +399,7 @@ type
     FLastShrinkTick: QWord; // 最近一次成功收缩的时间戳，用于限频
 
     procedure CreateWorkerThread;
+    procedure CreateWorkerThreadUnlocked; // 无锁版本，假设调用者已持有 FLock
     procedure CreateCoreThreadsSafely; // 安全地创建核心线程
     procedure EnsureCoreThreads; // 确保核心线程已创建
     procedure RemoveWorkerThread(AThread: TWorkerThread);
@@ -1211,37 +1212,43 @@ begin
   inherited Destroy;
 end;
 
-procedure TThreadPool.CreateWorkerThread;
+// 内部无锁版本 - 假设调用者已持有 FLock
+procedure TThreadPool.CreateWorkerThreadUnlocked;
 var
   LWorkerThread: TWorkerThread;
 begin
+  // 增强的安全检查
+  if FShutdown or not Assigned(FWorkerThreads) then
+    Exit;
+
+  if FWorkerThreads.Count >= FMaxPoolSize then
+    Exit;
+
+  // 创建立即启动的线程
+  LWorkerThread := TWorkerThread.Create(FTaskQueue, FTaskAvailableEvent, FQueueLock, Self);
+  if Assigned(LWorkerThread) and Assigned(FWorkerThreads) then
+  begin
+    try
+      FWorkerThreads.Add(LWorkerThread);
+      Inc(FAliveThreads);
+      {$IFDEF FAFAFA_THREAD_DEBUG}
+      DebugLog(Format('ThreadPool worker added: alive=%d total=%d %s',
+        [FAliveThreads, FWorkerThreads.Count,
+         {$IFDEF FAFAFA_THREAD_DEBUG}LWorkerThread.FWorkerName{$ELSE}''{$ENDIF}]));
+      {$ENDIF}
+    except
+      // 如果添加失败，清理线程
+      LWorkerThread.Free;
+      raise;
+    end;
+  end;
+end;
+
+procedure TThreadPool.CreateWorkerThread;
+begin
   FLock.Acquire;
   try
-    // 增强的安全检查
-    if FShutdown or not Assigned(FWorkerThreads) then
-      Exit;
-
-    if FWorkerThreads.Count >= FMaxPoolSize then
-      Exit;
-
-    // 创建立即启动的线程
-    LWorkerThread := TWorkerThread.Create(FTaskQueue, FTaskAvailableEvent, FQueueLock, Self);
-    if Assigned(LWorkerThread) and Assigned(FWorkerThreads) then
-    begin
-      try
-        FWorkerThreads.Add(LWorkerThread);
-        Inc(FAliveThreads);
-        {$IFDEF FAFAFA_THREAD_DEBUG}
-        DebugLog(Format('ThreadPool worker added: alive=%d total=%d %s',
-          [FAliveThreads, FWorkerThreads.Count,
-           {$IFDEF FAFAFA_THREAD_DEBUG}LWorkerThread.FWorkerName{$ELSE}''{$ENDIF}]));
-        {$ENDIF}
-      except
-        // 如果添加失败，清理线程
-        LWorkerThread.Free;
-        raise;
-      end;
-    end;
+    CreateWorkerThreadUnlocked;
   finally
     FLock.Release;
   end;
@@ -1271,12 +1278,13 @@ begin
       Exit;
 
     // 逐个创建缺少的核心线程，在锁保护下
+    // 使用无锁版本，因为我们已经持有锁
     for I := 1 to LNeededThreads do
     begin
       // 双重检查，确保不超过核心线程数
       if FWorkerThreads.Count < FCorePoolSize then
       begin
-        CreateWorkerThread;
+        CreateWorkerThreadUnlocked;  // 使用无锁版本！
         // 短暂延迟，让线程完全初始化
         Sleep(1);
       end;

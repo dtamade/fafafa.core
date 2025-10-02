@@ -1,22 +1,17 @@
 unit fafafa.core.simd.intrinsics.lasx;
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 {
   === fafafa.core.simd.intrinsics.lasx ===
-  LoongArch LASX (LoongArch Advanced SIMD eXtension) 指令集支持
-  
-  LASX 是龙芯架构的 256-bit SIMD 指令集扩展
-  提供高性能的向量运算能力
-  
+  LoongArch LASX (LoongArch Advanced SIMD eXtension) 指令集支�?  
+  LASX 是龙芯架构的 256-bit SIMD 指令集扩�?  提供高性能的向量运算能�?  
   特性：
-  - 256-bit 向量寄存器 (xr0-xr31)
-  - 整数和浮点运算
-  - 向量加载/存储
-  - 向量置换和重排
-  
-  兼容性：LoongArch 3A5000 及更新的处理器
-}
+  - 256-bit 向量寄存�?(xr0-xr31)
+  - 整数和浮点运�?  - 向量加载/存储
+  - 向量置换和重�?  
+  兼容性：LoongArch 3A5000 及更新的处理�?}
 
 interface
 
@@ -25,25 +20,21 @@ uses
 
 {$IFDEF CPULOONGARCH64}
 
-// === LASX 占位符类型 ===
+// === LASX 占位符类�?===
 type
   // LASX 256-bit 向量类型
   TLASXVector = record
     case Integer of
-      0: (lasx_u32: array[0..7] of UInt32);   // 8个32位元素
-      1: (lasx_i32: array[0..7] of LongInt);
+      0: (lasx_u32: array[0..7] of UInt32);   // 8�?2位元�?      1: (lasx_i32: array[0..7] of LongInt);
       2: (lasx_f32: array[0..7] of Single);
-      3: (lasx_u64: array[0..3] of UInt64);   // 4个64位元素
-      4: (lasx_i64: array[0..3] of Int64);
+      3: (lasx_u64: array[0..3] of UInt64);   // 4�?4位元�?      4: (lasx_i64: array[0..3] of Int64);
       5: (lasx_f64: array[0..3] of Double);
-      6: (lasx_u16: array[0..15] of UInt16);  // 16个16位元素
-      7: (lasx_i16: array[0..15] of SmallInt);
-      8: (lasx_u8: array[0..31] of UInt8);    // 32个8位元素
-      9: (lasx_i8: array[0..31] of ShortInt);
+      6: (lasx_u16: array[0..15] of UInt16);  // 16�?6位元�?      7: (lasx_i16: array[0..15] of SmallInt);
+      8: (lasx_u8: array[0..31] of UInt8);    // 32�?位元�?      9: (lasx_i8: array[0..31] of ShortInt);
   end;
   PLASXVector = ^TLASXVector;
 
-// === LASX 基础函数 (占位符) ===
+// === LASX 基础函数 (占位�? ===
 // Load/Store
 function lasx_xvld(const Ptr: Pointer; offset: Integer): TLASXVector;
 procedure lasx_xvst(var Dest; const Src: TLASXVector; offset: Integer);
@@ -84,7 +75,7 @@ implementation
 
 {$IFDEF CPULOONGARCH64}
 
-// === LASX 函数的简化实现 ===
+// === LASX 函数的简化实�?===
 function lasx_xvld(const Ptr: Pointer; offset: Integer): TLASXVector;
 var
   src: PByte;
@@ -288,7 +279,9 @@ begin
 end;
 
 {$ELSE}
-// 非 LoongArch 平台的空实现
+// �?LoongArch 平台的空实现
 {$ENDIF} // CPULOONGARCH64
 
 end.
+
+

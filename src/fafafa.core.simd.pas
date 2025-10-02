@@ -1,5 +1,6 @@
 unit fafafa.core.simd;
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -350,3 +351,5 @@ begin
 end;
 
 end.
+
+

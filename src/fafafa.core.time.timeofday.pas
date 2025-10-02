@@ -34,6 +34,7 @@ unit fafafa.core.time.timeofday;
 
 {$modeswitch advancedrecords}
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -1102,6 +1103,7 @@ begin
   Result := SysUtils.FormatDateTime(AFormat, t);
 end;
 
+{$PUSH}{$WARN 6018 OFF} // Suppress "Unreachable code" warning - false positive in case-else
 function TTimeOfDay.ToString(ATimeFormat: TTimeFormat): string;
 var
   mm: Integer;
@@ -1120,6 +1122,7 @@ begin
     Result := ToISO8601;
   end;
 end;
+{$POP}
 
 function TTimeOfDay.ToShortString: string;
 begin

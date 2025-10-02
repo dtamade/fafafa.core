@@ -35,6 +35,7 @@ unit fafafa.core.time.timeout;
 
 {$modeswitch advancedrecords}
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -49,6 +50,11 @@ uses
   fafafa.core.thread.cancel;
 
 type
+  {$IFDEF FAFAFA_TIMEOUT_EXPERIMENTAL}
+  // === 实验性功能：超时管理器 ===
+  // 以下接口尚未实现，请勿在生产环境使用。
+  // 要启用这些接口，请在项目中定义 FAFAFA_TIMEOUT_EXPERIMENTAL 宏。
+  
   // 超时状态
   TTimeoutState = (
     tsActive,     // 活动中
@@ -74,6 +80,7 @@ type
   
   // 简单数组别名，避免外部依赖泛型，供管理器返回列表使用
   TTimeoutArray = array of ITimeout;
+  {$ENDIF FAFAFA_TIMEOUT_EXPERIMENTAL}
 
   {**
    * TDeadline - 截止时间（从 base 模块移动到这里）
@@ -103,13 +110,10 @@ type
     function RemainingClampedZero(const ANow: TInstant): TDuration; inline;
     function HasExpired: Boolean; overload; inline;
     function HasExpired(const ANow: TInstant): Boolean; overload; inline;
-    function Expired: Boolean; inline; // alias for HasExpired
     function IsNever: Boolean; inline;
     
     // 时间计算
-    function TimeUntil(const ANow: TInstant): TDuration; inline; // = Remaining
     function Overdue(const ANow: TInstant): TDuration; inline; // max(-Remaining, 0)
-    function IsExpired(const ANow: TInstant): Boolean; inline; // = Expired
     
     // 操作
     function Extend(const D: TDuration): TDeadline; inline;
@@ -130,6 +134,7 @@ type
     function ToString: string;
   end;
 
+  {$IFDEF FAFAFA_TIMEOUT_EXPERIMENTAL}
   {**
    * ITimeout - 超时接口
    *
@@ -179,7 +184,9 @@ type
     // 事件触发
     procedure TriggerTimeout; // 手动触发超时
   end;
+  {$ENDIF FAFAFA_TIMEOUT_EXPERIMENTAL}
 
+  {$IFDEF FAFAFA_TIMEOUT_EXPERIMENTAL}
   {**
    * ITimeoutManager - 超时管理器接口
    *
@@ -231,7 +238,9 @@ type
     procedure SetCheckInterval(const AInterval: TDuration);
     function GetCheckInterval: TDuration;
   end;
+  {$ENDIF FAFAFA_TIMEOUT_EXPERIMENTAL}
 
+  {$IFDEF FAFAFA_TIMEOUT_EXPERIMENTAL}
   {**
    * TTimeoutOptions - 超时选项
    *
@@ -248,7 +257,10 @@ type
     class function AutoStartOptions: TTimeoutOptions; static;
     class function ManualOptions: TTimeoutOptions; static;
   end;
+  {$ENDIF FAFAFA_TIMEOUT_EXPERIMENTAL}
 
+{$IFDEF FAFAFA_TIMEOUT_EXPERIMENTAL}
+// === 实验性工厂函数（未实现） ===
 // 工厂函数（声明保留，具体实现另行提供）
 function CreateTimeout(const ADuration: TDuration; const AName: string = ''): ITimeout; overload;
 function CreateTimeout(const ADeadline: TDeadline; const AName: string = ''): ITimeout; overload;
@@ -279,6 +291,7 @@ procedure ClearAllTimeouts;
 function WaitWithTimeout(const ADuration: TDuration; const ACondition: TBoolFunc): Boolean; overload;
 function WaitWithTimeout(const ADuration: TDuration; const ACondition: TBoolFunc; const AToken: ICancellationToken): Boolean; overload;
 function WaitWithTimeout(const ADeadline: TDeadline; const ACondition: TBoolFunc): Boolean; overload;
+{$ENDIF FAFAFA_TIMEOUT_EXPERIMENTAL}
 
 implementation
 
@@ -359,19 +372,9 @@ begin
     Result := not ANow.LessThan(FInstant);
 end;
 
-function TDeadline.Expired: Boolean;
-begin
-  Result := HasExpired;
-end;
-
 function TDeadline.IsNever: Boolean;
 begin
   Result := FInstant.AsNsSinceEpoch = NEVER_INSTANT;
-end;
-
-function TDeadline.TimeUntil(const ANow: TInstant): TDuration;
-begin
-  Result := Remaining(ANow);
 end;
 
 function TDeadline.Overdue(const ANow: TInstant): TDuration;
@@ -383,11 +386,6 @@ begin
     Result := -remDur
   else
     Result := TDuration.Zero;
-end;
-
-function TDeadline.IsExpired(const ANow: TInstant): Boolean;
-begin
-  Result := HasExpired(ANow);
 end;
 
 function TDeadline.Extend(const D: TDuration): TDeadline;
@@ -457,6 +455,7 @@ begin
     Result := Format('In %d ms', [Remaining.AsMs]);
 end;
 
+{$IFDEF FAFAFA_TIMEOUT_EXPERIMENTAL}
 { TTimeoutOptions }
 
 class function TTimeoutOptions.Default: TTimeoutOptions;
@@ -479,83 +478,79 @@ begin
   Result.AutoStart := False;
 end;
 
-// 工厂函数实现
+// === 未实现的工厂函数 ===
+// 以下函数仅为占位符，实际调用会抛出异常。
 
 function CreateTimeout(const ADuration: TDuration; const AName: string): ITimeout;
 begin
-  Result := DefaultTimeoutManager.CreateTimeout(ADuration, AName);
+  raise ETimeError.Create('CreateTimeout not implemented - enable FAFAFA_TIMEOUT_EXPERIMENTAL');
 end;
 
 function CreateTimeout(const ADeadline: TDeadline; const AName: string): ITimeout;
 begin
-  Result := DefaultTimeoutManager.CreateTimeout(ADeadline, AName);
+  raise ETimeError.Create('CreateTimeout not implemented - enable FAFAFA_TIMEOUT_EXPERIMENTAL');
 end;
 
 function SetTimeout(const ADuration: TDuration; const ACallback: TTimeoutCallback): ITimeout;
 begin
-  Result := DefaultTimeoutManager.CreateTimeout(ADuration, ACallback);
+  raise ETimeError.Create('SetTimeout not implemented - enable FAFAFA_TIMEOUT_EXPERIMENTAL');
 end;
 
 function SetTimeout(const AMilliseconds: Integer; const ACallback: TTimeoutCallback): ITimeout;
 begin
-  Result := SetTimeout(TDuration.FromMs(AMilliseconds), ACallback);
+  raise ETimeError.Create('SetTimeout not implemented - enable FAFAFA_TIMEOUT_EXPERIMENTAL');
 end;
 
 procedure ClearTimeout(const ATimeout: ITimeout);
 begin
   if ATimeout <> nil then
-    DefaultTimeoutManager.RemoveTimeout(ATimeout);
+    raise ETimeError.Create('ClearTimeout not implemented - enable FAFAFA_TIMEOUT_EXPERIMENTAL');
 end;
 
 procedure ClearAllTimeouts;
 begin
-  // 占位：无全局管理器时无操作
+  // 无操作
+  raise ETimeError.Create('ClearAllTimeouts not implemented - enable FAFAFA_TIMEOUT_EXPERIMENTAL');
 end;
 
-// 实现细节将在后续添加...
-
-// 占位实现：完整实现将由专用 TimeoutManager 单元提供
-function CreateTimeout(const ADuration: TDuration; const AOptions: TTimeoutOptions): ITimeout; overload;
+function CreateTimeout(const ADuration: TDuration; const AOptions: TTimeoutOptions): ITimeout;
 begin
-  Result := nil;
+  raise ETimeError.Create('CreateTimeout not implemented - enable FAFAFA_TIMEOUT_EXPERIMENTAL');
 end;
 
-function CreateTimeout(const ADuration: TDuration; const ACallback: TTimeoutCallback; const AName: string): ITimeout; overload;
+function CreateTimeout(const ADuration: TDuration; const ACallback: TTimeoutCallback; const AName: string): ITimeout;
 begin
-  Result := nil;
+  raise ETimeError.Create('CreateTimeout not implemented - enable FAFAFA_TIMEOUT_EXPERIMENTAL');
 end;
 
-function CreateTimeout(const ADuration: TDuration; const ACallback: TTimeoutCallbackProc; const AName: string): ITimeout; overload;
+function CreateTimeout(const ADuration: TDuration; const ACallback: TTimeoutCallbackProc; const AName: string): ITimeout;
 begin
-  Result := nil;
+  raise ETimeError.Create('CreateTimeout not implemented - enable FAFAFA_TIMEOUT_EXPERIMENTAL');
 end;
 
-function CreateTimeoutManager: ITimeoutManager; overload;
+function CreateTimeoutManager: ITimeoutManager;
 begin
-  Result := nil;
+  raise ETimeError.Create('CreateTimeoutManager not implemented - enable FAFAFA_TIMEOUT_EXPERIMENTAL');
 end;
 
-function CreateTimeoutManager(const AClock: IMonotonicClock): ITimeoutManager; overload;
+function CreateTimeoutManager(const AClock: IMonotonicClock): ITimeoutManager;
 begin
-  Result := nil;
+  raise ETimeError.Create('CreateTimeoutManager not implemented - enable FAFAFA_TIMEOUT_EXPERIMENTAL');
 end;
 
 function DefaultTimeoutManager: ITimeoutManager;
 begin
-  Result := nil;
+  raise ETimeError.Create('DefaultTimeoutManager not implemented - enable FAFAFA_TIMEOUT_EXPERIMENTAL');
 end;
 
-function SetTimeout(const ADuration: TDuration; const ACallback: TTimeoutCallbackProc): ITimeout; overload;
+function SetTimeout(const ADuration: TDuration; const ACallback: TTimeoutCallbackProc): ITimeout;
 begin
-  if DefaultTimeoutManager <> nil then
-    Result := DefaultTimeoutManager.CreateTimeout(ADuration, ACallback)
-  else
-    Result := nil;
+  raise ETimeError.Create('SetTimeout not implemented - enable FAFAFA_TIMEOUT_EXPERIMENTAL');
 end;
 
-function SetTimeout(const AMilliseconds: Integer; const ACallback: TTimeoutCallbackProc): ITimeout; overload;
+function SetTimeout(const AMilliseconds: Integer; const ACallback: TTimeoutCallbackProc): ITimeout;
 begin
-  Result := SetTimeout(TDuration.FromMs(AMilliseconds), ACallback);
+  raise ETimeError.Create('SetTimeout not implemented - enable FAFAFA_TIMEOUT_EXPERIMENTAL');
 end;
 
 function WaitWithTimeout(const ADuration: TDuration; const ACondition: TBoolFunc): Boolean;
@@ -594,7 +589,6 @@ begin
     fafafa.core.time.clock.DefaultMonotonicClock.WaitFor(slice, nil);
   end;
 end;
-
-end.
+{$ENDIF FAFAFA_TIMEOUT_EXPERIMENTAL}
 
 end.

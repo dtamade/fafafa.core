@@ -37,6 +37,7 @@ unit fafafa.core.time.tick.unix;
 
 }
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface

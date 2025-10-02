@@ -35,6 +35,7 @@ unit fafafa.core.time.tick.windows;
 ────────────────────────────────────────────────────────────────────────────────
 }
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface

@@ -13,6 +13,7 @@
 }
 unit fafafa.core.time.cpu;
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface

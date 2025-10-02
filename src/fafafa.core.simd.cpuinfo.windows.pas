@@ -1,5 +1,6 @@
 unit fafafa.core.simd.cpuinfo.windows;
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface

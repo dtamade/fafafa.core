@@ -4,13 +4,15 @@ program fafafa.core.simd.cpuinfo.x86.test;
 {$CODEPAGE UTF8}
 
 uses
-  Classes, SysUtils, fpcunit, testreport, testregistry,
+  Classes, SysUtils, fpcunit, consoletestrunner, testregistry,
   fafafa.core.simd.cpuinfo.x86.testcase;
 
 var
   Application: TTestRunner;
 
 begin
+  DefaultFormat := fPlain;
+  DefaultRunAllTests := True;
   Application := TTestRunner.Create(nil);
   try
     Application.Initialize;

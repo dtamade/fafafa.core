@@ -1,6 +1,6 @@
 unit fafafa.core.sync.namedMutex;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -17,9 +17,9 @@ type
   TNamedMutexConfig = fafafa.core.sync.namedMutex.base.TNamedMutexConfig;
 
   // 注意：TNamedMutex 具体类型不再公开导出
-  // 用户应该只使用 INamedMutex 接口和工厂函数
+  // 用户应该只使�?INamedMutex 接口和工厂函�?
 
-// ===== 现代化工厂函数 =====
+// ===== 现代化工厂函�?=====
 // 主要工厂函数：使用配置创建命名互斥锁
 function CreateNamedMutex(const AName: string; const AConfig: TNamedMutexConfig): INamedMutex;
 
@@ -37,7 +37,7 @@ function MakeGlobalNamedMutex(const AName: string; AInitialOwner: Boolean): INam
 
 implementation
 
-// ===== 现代化工厂函数实现 =====
+// ===== 现代化工厂函数实�?=====
 
 function CreateNamedMutex(const AName: string; const AConfig: TNamedMutexConfig): INamedMutex;
 var
@@ -77,7 +77,7 @@ begin
   Result := CreateNamedMutex(AName, GlobalNamedMutexConfig);
 end;
 
-// ===== 兼容性工厂函数实现 =====
+// ===== 兼容性工厂函数实�?=====
 
 function MakeNamedMutex(const AName: string): INamedMutex;
 begin

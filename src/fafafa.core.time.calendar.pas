@@ -34,6 +34,7 @@ unit fafafa.core.time.calendar;
 
 {$modeswitch advancedrecords}
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface

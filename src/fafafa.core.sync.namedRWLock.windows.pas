@@ -1,17 +1,19 @@
-﻿unit fafafa.core.sync.namedRWLock.windows;
+unit fafafa.core.sync.namedRWLock.windows;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
 
-uses`n  Windows, SysUtils,`n  fafafa.core.base, fafafa.core.sync.base, fafafa.core.atomic, fafafa.core.sync.namedRWLock.base;
+uses
+  Windows, SysUtils,
+  fafafa.core.base, fafafa.core.sync.base, fafafa.core.atomic, fafafa.core.sync.namedRWLock.base;
 
 type
-  // ===== RAII 璇婚攣瀹堝崼 =====
+  // ===== RAII Read Lock Guard =====
   TNamedRWLockReadGuard = class(TInterfacedObject, INamedRWLockReadGuard)
   private
-    FRWLock: Pointer;  // 鎸囧悜 TNamedRWLock
+    FRWLock: Pointer;  // Points to TNamedRWLock
     FName: string;
     FReleased: Boolean;
   public
@@ -20,10 +22,10 @@ type
     function GetName: string;
   end;
 
-  // ===== RAII 鍐欓攣瀹堝崼 =====
+  // ===== RAII Write Lock Guard =====
   TNamedRWLockWriteGuard = class(TInterfacedObject, INamedRWLockWriteGuard)
   private
-    FRWLock: Pointer;  // 鎸囧悜 TNamedRWLock
+    FRWLock: Pointer;  // Points to TNamedRWLock
     FName: string;
     FReleased: Boolean;
   public
@@ -32,23 +34,33 @@ type
     function GetName: string;
   end;
 
-  // ===== Windows 鍛藉悕璇诲啓閿侊紙璺ㄨ繘绋嬶級=====
-  // 瀹炵幇鍩轰簬锛?  // - 鍏变韩鍐呭瓨涓殑鐘舵€侊紙娲诲姩璇昏€?绛夊緟鍐欒€?鍐欒€呮爣蹇楋級
-  // - 鍛藉悕浜掓枼閲忥紙淇濇姢鍏变韩鐘舵€侊級
-  // - 鍛藉悕浜嬩欢锛?  //   * ReaderEvent锛堟墜鍔ㄩ噸缃級锛氬厑璁?闃诲鏂扮殑璇昏€?  //   * WriterEvent锛堣嚜鍔ㄩ噸缃級锛氬敜閱掍竴涓瓑寰呯殑鍐欒€?  // 娉ㄦ剰锛氫笉浣跨敤 SRWLOCK/CONDITION_VARIABLE锛堝畠浠粎杩涚▼鍐呮湁鏁堬級
+  // ===== Windows Named RWLock (Cross-Process) =====
+  // Implementation based on:
+  // - Shared memory state (active readers, waiting writers, writer flag)
+  // - Named mutex (protects shared state)
+  // - Named events:
+  //   * ReaderEvent (manual reset): allows/blocks new readers
+  //   * WriterEvent (auto reset): wakes one waiting writer
+  // Note: Not using SRWLOCK/CONDITION_VARIABLE (process-local only)
   TNamedRWLock = class(TSynchronizable, INamedRWLock)
   private
-    FMutex: THandle;          // 淇濇姢鍏变韩鐘舵€?    FReaderEvent: THandle;    // 鍏佽璇昏€呰繘鍏ワ紙鎵嬪姩閲嶇疆锛岄粯璁ゆ湁淇″彿锛?    FWriterEvent: THandle;    // 鍏佽鍐欒€呰繘鍏ワ紙鑷姩閲嶇疆锛?    FFileMapping: THandle;    // 鍏变韩鍐呭瓨
-    FSharedData: Pointer;     // 鎸囧悜鍏变韩鐘舵€?    FName: string;
+    FMutex: THandle;          // Protects shared state
+    FReaderEvent: THandle;    // Allows readers to enter (manual reset, default signaled)
+    FWriterEvent: THandle;    // Allows writer to enter (auto reset)
+    FFileMapping: THandle;    // Shared memory
+    FSharedData: Pointer;     // Points to shared state
+    FName: string;
     FIsCreator: Boolean;
     FLastError: TWaitError;
 
     type
       PSharedRWLockData = ^TSharedRWLockData;
       TSharedRWLockData = record
-        ActiveReaders: LongInt;   // 褰撳墠娲昏穬璇昏€呮暟
-        WaitingWriters: LongInt;  // 绛夊緟鍐欒€呮暟
-        WriterActive: LongInt;    // 鏄惁鏈夊啓鑰呮寔鏈夛紙0/1锛?        MaxReaders: LongInt;      // 鍏煎瀛楁锛堟湭寮哄埗浣跨敤锛?        Initialized: LongBool;    // 鏄惁宸插垵濮嬪寲
+        ActiveReaders: LongInt;   // Current active reader count
+        WaitingWriters: LongInt;  // Waiting writer count
+        WriterActive: LongInt;    // Writer holds lock (0/1)
+        MaxReaders: LongInt;      // Compatibility field (not enforced)
+        Initialized: LongBool;    // Is initialized
       end;
 
     function ValidateName(const AName: string): string;
@@ -58,11 +70,12 @@ type
     function GetSharedData: PSharedRWLockData;
     procedure InitializeSharedData;
 
-    // 鍐呴儴杈呭姪
+    // Internal helpers
     function AcquireMutexWithTimeout(ATimeoutMs: Cardinal): Boolean;
     function RemainingTimeout(const AStart: QWord; ATimeoutMs: Cardinal): Cardinal;
 
-    // 閿佸疄鐜?    procedure InternalAcquireRead;
+    // Lock implementation
+    procedure InternalAcquireRead;
     procedure InternalReleaseRead;
     procedure InternalAcquireWrite;
     procedure InternalReleaseWrite;
@@ -76,7 +89,7 @@ type
     // ISynchronizable
     function GetLastError: TWaitError;
 
-    // 鐜颁唬鍖?API锛堣繑鍥炲畧鍗級
+    // Modern API (returns guards)
     function ReadLock: INamedRWLockReadGuard;
     function WriteLock: INamedRWLockWriteGuard;
     function TryReadLock: INamedRWLockReadGuard;
@@ -84,9 +97,10 @@ type
     function TryReadLockFor(ATimeoutMs: Cardinal): INamedRWLockReadGuard;
     function TryWriteLockFor(ATimeoutMs: Cardinal): INamedRWLockWriteGuard;
 
-    // 鏌ヨ
+    // Query
     function GetName: string;
-    function GetHandle: Pointer; // 璋冭瘯鐢?    function GetReaderCount: Integer;
+    function GetHandle: Pointer; // For debugging
+    function GetReaderCount: Integer;
     function IsWriteLocked: Boolean;
   end;
 
@@ -155,7 +169,8 @@ begin
   if Length(Result) > 260 then
     raise EInvalidArgument.Create('Named RWLock name too long (max 260 characters)');
 
-  // Windows 瀵硅薄鍚嶇О闈炴硶瀛楃妫€鏌ワ紙鍏佽 Global\ / Local\ 鍓嶇紑锛?  for i := 1 to Length(Result) do
+  // Windows object name illegal character check (allowing Global\ / Local\ prefix)
+  for i := 1 to Length(Result) do
   begin
     if Result[i] in ['/', ':', '*', '?', '"', '<', '>', '|'] then
       raise EInvalidArgument.Create('Named RWLock name contains invalid characters');
@@ -185,10 +200,10 @@ begin
 
   if not CreateSharedMemory(LName) then
   begin
-    if (Pos('Global\\', LName) = 1) and (Windows.GetLastError = ERROR_ACCESS_DENIED) then
+    if (Pos('Global\', LName) = 1) and (Windows.GetLastError = ERROR_ACCESS_DENIED) then
     begin
-      // 鏃犲叏灞€鍛藉悕鏉冮檺鏃堕€€鍥炲埌 Local\ 鍛藉悕绌洪棿锛屼絾瀵瑰鍚嶇О淇濇寔涓嶅彉
-      LName := 'Local\\' + Copy(LName, Length('Global\\') + 1, MaxInt);
+      // Fall back to Local\ namespace when lacking global permission
+      LName := 'Local\' + Copy(LName, Length('Global\') + 1, MaxInt);
       if not CreateSharedMemory(LName) then
         raise ELockError.CreateFmt('Failed to create shared memory for named RWLock "%s": %s',
           [AName, SysErrorMessage(Windows.GetLastError)]);
@@ -202,10 +217,10 @@ begin
   begin
     if Assigned(FSharedData) then UnmapViewOfFile(FSharedData);
     if FFileMapping <> 0 then CloseHandle(FFileMapping);
-    // 灏濊瘯鍦ㄧ己灏戝叏灞€鏉冮檺鏃堕€€鍥?Local\ 鍛藉悕绌洪棿
-    if (Pos('Global\\', FName) = 1) and (Windows.GetLastError = ERROR_ACCESS_DENIED) then
+    // Try to fall back to Local\ namespace when lacking global permission
+    if (Pos('Global\', FName) = 1) and (Windows.GetLastError = ERROR_ACCESS_DENIED) then
     begin
-      LName := 'Local\\' + Copy(FName, Length('Global\\') + 1, MaxInt);
+      LName := 'Local\' + Copy(FName, Length('Global\') + 1, MaxInt);
       if CreateSharedMemory(LName) and CreateKernelObjects(LName) then
         ;
     end
@@ -214,8 +229,9 @@ begin
         [AName, SysErrorMessage(Windows.GetLastError)]);
   end;
 
-  // 鍒濆鎷ユ湁鍐欓攣锛氳繖閲屾寜闇€瀹炵幇锛涘綋鍓嶄笉鑷姩鍗犵敤锛堥伩鍏嶅鏉傛椂搴忥級
-  // 璋冪敤鏂瑰彲鍦ㄦ敹鍒版帴鍙ｅ悗绔嬪埢璋冪敤 WriteLock 浠ヨ幏寰楀啓閿?end;
+  // Initial owner for write lock: not auto-acquired to avoid complex timing
+  // Caller can call WriteLock immediately after receiving the interface
+end;
 
 destructor TNamedRWLock.Destroy;
 begin
@@ -290,18 +306,20 @@ begin
   LReaderEvtName := BuildKernelObjectName('fafafa_rwlock_reader_', AName);
   LWriterEvtName := BuildKernelObjectName('fafafa_rwlock_writer_', AName);
 
-  // 浜掓枼閲忥紙闈炲垵濮嬫嫢鏈夛級
+  // Mutex (not initially owned)
   FMutex := CreateMutexW(nil, False, PWideChar(UnicodeString(LMutexName)));
   if FMutex = 0 then Exit;
 
-  // 璇讳簨浠讹細鎵嬪姩閲嶇疆锛岄粯璁ゅ厑璁歌鑰呰繘鍏ワ紙鏂板缓鏃惰涓烘湁淇″彿锛?  FReaderEvent := CreateEventW(nil, True, True, PWideChar(UnicodeString(LReaderEvtName)));
+  // Reader event: manual reset, default allows readers (signaled for new)
+  FReaderEvent := CreateEventW(nil, True, True, PWideChar(UnicodeString(LReaderEvtName)));
   if FReaderEvent = 0 then Exit;
-  // 濡傛灉宸插瓨鍦紝淇濇寔鍏跺綋鍓嶇姸鎬侊紱濡傛灉鏄柊寤猴紝鍒濆涓烘湁淇″彿锛堝厑璁歌鑰咃級
+  // If already exists, keep current state; if new, initialize as signaled (allow readers)
   LExisted := (Windows.GetLastError = ERROR_ALREADY_EXISTS);
   if not LExisted then
     Windows.SetEvent(FReaderEvent);
 
-  // 鍐欎簨浠讹細鑷姩閲嶇疆锛屽垵濮嬩负鏃犱俊鍙?  FWriterEvent := CreateEventW(nil, False, False, PWideChar(UnicodeString(LWriterEvtName)));
+  // Writer event: auto reset, initially non-signaled
+  FWriterEvent := CreateEventW(nil, False, False, PWideChar(UnicodeString(LWriterEvtName)));
   if FWriterEvent = 0 then Exit;
 
   Result := True;
@@ -331,7 +349,7 @@ begin
   Result := FLastError;
 end;
 
-// ===== 鍏叡 API =====
+// ===== Public API =====
 
 function TNamedRWLock.ReadLock: INamedRWLockReadGuard;
 begin
@@ -406,7 +424,7 @@ begin
   Result := Assigned(LData) and (LData^.WriterActive <> 0);
 end;
 
-// ===== 鍐呴儴杈呭姪 =====
+// ===== Internal helpers =====
 
 function TNamedRWLock.AcquireMutexWithTimeout(ATimeoutMs: Cardinal): Boolean;
 var
@@ -441,7 +459,7 @@ begin
     Result := ATimeoutMs - Elapsed;
 end;
 
-// ===== 璇婚攣瀹炵幇 =====
+// ===== Read lock implementation =====
 
 procedure TNamedRWLock.InternalAcquireRead;
 var
@@ -451,20 +469,22 @@ begin
   if not Assigned(LData) then
     raise ELockError.Create('Shared data not available');
 
-  // 闃诲鐩磋嚦鍏佽璇伙紙鏃犺秴鏃讹級
+  // Block until allowed to read (no timeout)
   if not AcquireMutexWithTimeout(INFINITE) then
     raise ELockError.Create('Failed to enter mutex for read lock');
   try
     while (LData^.WriterActive <> 0) or (LData^.WaitingWriters > 0) do
     begin
       ReleaseMutex(FMutex);
-      // 绛夊緟璇昏€呬簨浠讹紝鐩村埌鏃犲啓鑰呴渶姹?      WaitForSingleObject(FReaderEvent, INFINITE);
+      // Wait for reader event until no writer demand
+      WaitForSingleObject(FReaderEvent, INFINITE);
       if not AcquireMutexWithTimeout(INFINITE) then
         raise ELockError.Create('Failed to re-enter mutex for read lock');
     end;
 
     atomic_increment(PInt32(@LData^.ActiveReaders)^);
-    // 鍏佽鍚庣画璇昏€呰繘鍏?    Windows.SetEvent(FReaderEvent);
+    // Allow subsequent readers to enter
+    Windows.SetEvent(FReaderEvent);
   finally
     ReleaseMutex(FMutex);
   end;
@@ -485,15 +505,17 @@ begin
     NewCount := atomic_decrement(PInt32(@LData^.ActiveReaders)^);
     if (NewCount = 0) and (LData^.WaitingWriters > 0) then
     begin
-      // 浼樺厛鍞ら啋鍐欒€?      Windows.SetEvent(FWriterEvent);
-      // 闃绘鏂拌鑰呰繘鍏?      Windows.ResetEvent(FReaderEvent);
+      // Prioritize waking writer
+      Windows.SetEvent(FWriterEvent);
+      // Block new readers
+      Windows.ResetEvent(FReaderEvent);
     end;
   finally
     ReleaseMutex(FMutex);
   end;
 end;
 
-// ===== 鍐欓攣瀹炵幇 =====
+// ===== Write lock implementation =====
 
 procedure TNamedRWLock.InternalAcquireWrite;
 begin
@@ -515,13 +537,15 @@ begin
     LData^.WriterActive := 0;
     if LData^.WaitingWriters > 0 then
     begin
-      // 鍞ら啋涓嬩竴涓啓鑰?      Windows.SetEvent(FWriterEvent);
-      // 缁х画闃绘嫤鏂拌鑰呬互渚垮啓鑰呭厛鑾峰緱
+      // Wake next writer
+      Windows.SetEvent(FWriterEvent);
+      // Continue blocking new readers so writer gets priority
       Windows.ResetEvent(FReaderEvent);
     end
     else
     begin
-      // 娌℃湁鍐欒€呯瓑寰咃紝鍏佽璇昏€呰繘鍏?      Windows.SetEvent(FReaderEvent);
+      // No writers waiting, allow readers to enter
+      Windows.SetEvent(FReaderEvent);
     end;
   finally
     ReleaseMutex(FMutex);
@@ -595,51 +619,60 @@ begin
 
   if not AcquireMutexWithTimeout(TimeLeft) then Exit(False);
   try
-    // 澧炲姞绛夊緟鍐欒€呰鏁帮紝骞跺湪浠?0->1 鏃堕樆姝㈡柊璇昏€呰繘鍏?    FirstWriter := (LData^.WaitingWriters = 0);
+    // Increment waiting writer count, block new readers when going from 0->1
+    FirstWriter := (LData^.WaitingWriters = 0);
     atomic_increment(PInt32(@LData^.WaitingWriters)^);
     if FirstWriter then
       Windows.ResetEvent(FReaderEvent);
 
-    while (LData^.WriterActive <> 0) or (LData^.ActiveReaders > 0) do
+    // Wait until no active readers and no other writer
+    while (LData^.ActiveReaders > 0) or (LData^.WriterActive <> 0) do
     begin
       ReleaseMutex(FMutex);
       TimeLeft := RemainingTimeout(StartTick, ATimeoutMs);
       if TimeLeft = 0 then
       begin
-        // 瓒呮椂锛氭挙閿€绛夊緟鍐欒€呭苟鎭㈠璇昏€呬簨浠讹紙濡傛湁蹇呰锛?        if AcquireMutexWithTimeout(INFINITE) then
-        try
-          atomic_decrement(PInt32(@LData^.WaitingWriters)^);
-          if LData^.WaitingWriters = 0 then
+        // Timeout: decrement waiting writers
+        if AcquireMutexWithTimeout(0) then
+        begin
+          if atomic_decrement(PInt32(@LData^.WaitingWriters)^) = 0 then
             Windows.SetEvent(FReaderEvent);
-        finally
           ReleaseMutex(FMutex);
         end;
         FLastError := weTimeout;
         Exit(False);
       end;
-
       WaitRes := WaitForSingleObject(FWriterEvent, TimeLeft);
       if WaitRes <> WAIT_OBJECT_0 then
       begin
-        if AcquireMutexWithTimeout(INFINITE) then
-        try
-          atomic_decrement(PInt32(@LData^.WaitingWriters)^);
-          if LData^.WaitingWriters = 0 then
+        // Failed to acquire: decrement waiting writers
+        if AcquireMutexWithTimeout(0) then
+        begin
+          if atomic_decrement(PInt32(@LData^.WaitingWriters)^) = 0 then
             Windows.SetEvent(FReaderEvent);
-        finally
           ReleaseMutex(FMutex);
         end;
         if WaitRes = WAIT_TIMEOUT then FLastError := weTimeout
         else FLastError := weSystemError;
         Exit(False);
       end;
-
-      // 琚敜閱掑悗缁х画寰幆锛岀洿鍒板彲浠ヨ幏寰楀啓閿?      if not AcquireMutexWithTimeout(RemainingTimeout(StartTick, ATimeoutMs)) then Exit(False);
+      TimeLeft := RemainingTimeout(StartTick, ATimeoutMs);
+      if not AcquireMutexWithTimeout(TimeLeft) then
+      begin
+        // Timeout: decrement waiting writers
+        if AcquireMutexWithTimeout(0) then
+        begin
+          if atomic_decrement(PInt32(@LData^.WaitingWriters)^) = 0 then
+            Windows.SetEvent(FReaderEvent);
+          ReleaseMutex(FMutex);
+        end;
+        Exit(False);
+      end;
     end;
 
-    // 鑾峰緱鍐欓攣
-    LData^.WriterActive := 1;
+    // Acquired write lock
     atomic_decrement(PInt32(@LData^.WaitingWriters)^);
+    LData^.WriterActive := 1;
     Result := True;
   finally
     ReleaseMutex(FMutex);
@@ -647,4 +680,3 @@ begin
 end;
 
 end.
-

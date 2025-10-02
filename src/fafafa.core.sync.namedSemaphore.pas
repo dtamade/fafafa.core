@@ -1,6 +1,6 @@
 unit fafafa.core.sync.namedSemaphore;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -17,7 +17,7 @@ type
   TNamedSemaphoreConfig = fafafa.core.sync.namedSemaphore.base.TNamedSemaphoreConfig;
 
   // 注意：TNamedSemaphore 具体类型不再公开导出
-  // 用户应该只使用 INamedSemaphore 接口和工厂函数
+  // 用户应该只使�?INamedSemaphore 接口和工厂函�?
 
 // ===== 主要工厂函数 =====
 
@@ -26,7 +26,7 @@ function MakeNamedSemaphore(const AName: string): INamedSemaphore; overload;
 function MakeNamedSemaphore(const AName: string; AInitialCount, AMaxCount: Integer): INamedSemaphore; overload;
 function MakeNamedSemaphore(const AName: string; const AConfig: TNamedSemaphoreConfig): INamedSemaphore; overload;
 
-// 全局信号量
+// 全局信号�?
 function MakeGlobalNamedSemaphore(const AName: string): INamedSemaphore; overload;
 function MakeGlobalNamedSemaphore(const AName: string; AInitialCount, AMaxCount: Integer): INamedSemaphore; overload;
 
@@ -121,7 +121,7 @@ begin
   {$ENDIF}
 end;
 
-// ===== 打开现有信号量函数实现 =====
+// ===== 打开现有信号量函数实�?=====
 
 function TryOpenNamedSemaphore(const AName: string): INamedSemaphore;
 begin
@@ -133,7 +133,7 @@ begin
   Result := InternalTryOpen(AName, GlobalNamedSemaphoreConfig);
 end;
 
-// ===== 兼容性函数实现 =====
+// ===== 兼容性函数实�?=====
 
 function CreateOrOpenNamedSemaphore(const AName: string): INamedSemaphore;
 begin

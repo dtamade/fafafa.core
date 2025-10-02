@@ -1,5 +1,6 @@
 unit fafafa.core.simd.scalar;
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -882,3 +883,4 @@ initialization
   RegisterScalarBackend;
 
 end.
+

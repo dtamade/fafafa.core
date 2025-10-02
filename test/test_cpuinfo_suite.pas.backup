@@ -1,0 +1,908 @@
+{$mode objfpc}{$H+}
+{$modeswitch advancedrecords}
+
+unit test_cpuinfo_suite;
+
+interface
+
+uses
+  SysUtils, Classes,
+  fafafa.core.simd.cpuinfo,
+  // fafafa.core.simd.cpuinfo.lazy,
+  fafafa.core.simd.cpuinfo.diagnostic;
+
+type
+  { Test categories }
+  TTestCategory = (
+    tcBasic,          // Basic functionality tests
+    tcBoundary,       // Boundary and edge cases
+    tcConcurrency,    // Thread safety and concurrency
+    tcPerformance,    // Performance benchmarks
+    tcIntegration     // Integration tests
+  );
+
+  { Test result structure }
+  TTestResult = record
+    TestName: string;
+    Category: TTestCategory;
+    Passed: Boolean;
+    ErrorMessage: string;
+    ExecutionTime: QWord;
+  end;
+
+  { Main test suite class }
+  TCPUInfoTestSuite = class
+  private
+    FResults: array of TTestResult;
+    FVerbose: Boolean;
+    
+    procedure AddResult(const AName: string; ACategory: TTestCategory; 
+                       APassed: Boolean; const AError: string; ATime: QWord);
+    procedure LogTest(const AName: string; ACategory: TTestCategory);
+    procedure LogResult(const AResult: TTestResult);
+    
+  public
+    constructor Create(AVerbose: Boolean = False);
+    destructor Destroy; override;
+    
+    { Basic functionality tests }
+    procedure TestBasicDetection;
+    procedure TestFeatureQueries;
+    procedure TestVendorDetection;
+    procedure TestCacheInfo;
+    
+    { Boundary and edge case tests }
+    procedure TestInvalidQueries;
+    procedure TestUnsupportedFeatures;
+    procedure TestPlatformSpecific;
+    procedure TestFallbackMechanisms;
+    
+    { Concurrency tests }
+    procedure TestThreadSafeDetection;
+    procedure TestConcurrentAccess;
+    procedure TestRaceConditions;
+    procedure TestDeadlockPrevention;
+    
+    { Performance benchmarks }
+    procedure BenchmarkDetectionSpeed;
+    procedure BenchmarkCachedAccess;
+    procedure BenchmarkLazyLoading;
+    procedure BenchmarkMemoryUsage;
+    
+    { Integration tests }
+    procedure TestWithSIMDOperations;
+    procedure TestWithDispatcher;
+    procedure TestCrossModuleConsistency;
+    procedure TestRealWorldScenarios;
+    
+    { Test execution }
+    procedure RunAllTests;
+    procedure RunCategory(ACategory: TTestCategory);
+    procedure GenerateReport(const AFileName: string);
+    function GetPassRate: Double;
+  end;
+
+  { Thread safety test helper }
+  TThreadSafetyTester = class(TThread)
+  private
+    FTestID: Integer;
+    FIterations: Integer;
+    FErrors: TStringList;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(ATestID, AIterations: Integer);
+    destructor Destroy; override;
+    property Errors: TStringList read FErrors;
+  end;
+
+  { Performance measurement helper }
+  TPerformanceTester = class
+  private
+    FStartTime: QWord;
+    FEndTime: QWord;
+    FSamples: array of QWord;
+    
+  public
+    procedure StartMeasurement;
+    procedure StopMeasurement;
+    procedure AddSample(ATime: QWord);
+    function GetAverage: Double;
+    function GetMedian: QWord;
+    function GetStdDev: Double;
+    procedure Reset;
+  end;
+
+implementation
+
+uses
+  {$IFDEF WINDOWS}Windows,{$ENDIF}
+  {$IFDEF UNIX}Unix, BaseUnix,{$ENDIF}
+  fafafa.core.simd.cpuinfo.base,
+  fafafa.core.simd.sync;
+
+{ Utility functions }
+function GetTickCount64: QWord;
+begin
+  {$IFDEF WINDOWS}
+  Result := Windows.GetTickCount64;
+  {$ELSE}
+  Result := GetTickCount;
+  {$ENDIF}
+end;
+
+{ TCPUInfoTestSuite }
+
+constructor TCPUInfoTestSuite.Create(AVerbose: Boolean);
+begin
+  inherited Create;
+  FVerbose := AVerbose;
+  SetLength(FResults, 0);
+end;
+
+destructor TCPUInfoTestSuite.Destroy;
+begin
+  SetLength(FResults, 0);
+  inherited;
+end;
+
+procedure TCPUInfoTestSuite.AddResult(const AName: string; ACategory: TTestCategory;
+  APassed: Boolean; const AError: string; ATime: QWord);
+var
+  Idx: Integer;
+begin
+  Idx := Length(FResults);
+  SetLength(FResults, Idx + 1);
+  FResults[Idx].TestName := AName;
+  FResults[Idx].Category := ACategory;
+  FResults[Idx].Passed := APassed;
+  FResults[Idx].ErrorMessage := AError;
+  FResults[Idx].ExecutionTime := ATime;
+  
+  if FVerbose then
+    LogResult(FResults[Idx]);
+end;
+
+procedure TCPUInfoTestSuite.LogTest(const AName: string; ACategory: TTestCategory);
+const
+  CategoryNames: array[TTestCategory] of string = (
+    'Basic', 'Boundary', 'Concurrency', 'Performance', 'Integration'
+  );
+begin
+  if FVerbose then
+    WriteLn(Format('[%s] Running: %s', [CategoryNames[ACategory], AName]));
+end;
+
+procedure TCPUInfoTestSuite.LogResult(const AResult: TTestResult);
+const
+  CategoryNames: array[TTestCategory] of string = (
+    'Basic', 'Boundary', 'Concurrency', 'Performance', 'Integration'
+  );
+begin
+  if AResult.Passed then
+    WriteLn(Format('[%s] PASS: %s (%d ms)', 
+      [CategoryNames[AResult.Category], AResult.TestName, AResult.ExecutionTime]))
+  else
+    WriteLn(Format('[%s] FAIL: %s - %s', 
+      [CategoryNames[AResult.Category], AResult.TestName, AResult.ErrorMessage]));
+end;
+
+{ Basic functionality tests }
+
+procedure TCPUInfoTestSuite.TestBasicDetection;
+var
+  StartTime: QWord;
+  Info: TCPUInfo;
+begin
+  LogTest('BasicDetection', tcBasic);
+  StartTime := GetTickCount64;
+  
+  try
+    Info := GetCPUInfo;
+    
+    // Verify basic fields are populated
+    if (Info.Vendor = '') or (Info.Model = '') then
+      raise Exception.Create('Basic CPU info fields not populated');
+      
+    AddResult('BasicDetection', tcBasic, True, '', GetTickCount64 - StartTime);
+  except
+    on E: Exception do
+      AddResult('BasicDetection', tcBasic, False, E.Message, GetTickCount64 - StartTime);
+  end;
+end;
+
+procedure TCPUInfoTestSuite.TestFeatureQueries;
+var
+  StartTime: QWord;
+begin
+  LogTest('FeatureQueries', tcBasic);
+  StartTime := GetTickCount64;
+  
+  try
+    // Test various feature queries (generic)
+    HasFeature(gfSimd128);
+    HasFeature(gfSimd256);
+    
+    // Test that queries don't crash
+    AddResult('FeatureQueries', tcBasic, True, '', GetTickCount64 - StartTime);
+  except
+    on E: Exception do
+      AddResult('FeatureQueries', tcBasic, False, E.Message, GetTickCount64 - StartTime);
+  end;
+end;
+
+procedure TCPUInfoTestSuite.TestVendorDetection;
+var
+  StartTime: QWord;
+  Info: TCPUInfo;
+begin
+  LogTest('VendorDetection', tcBasic);
+  StartTime := GetTickCount64;
+  
+  try
+    Info := GetCPUInfo;
+    
+    // Check vendor is one of known values
+    if not (Info.Vendor in ['GenuineIntel', 'AuthenticAMD', 'Unknown']) then
+      raise Exception.Create('Unknown vendor: ' + Info.Vendor);
+      
+    AddResult('VendorDetection', tcBasic, True, '', GetTickCount64 - StartTime);
+  except
+    on E: Exception do
+      AddResult('VendorDetection', tcBasic, False, E.Message, GetTickCount64 - StartTime);
+  end;
+end;
+
+procedure TCPUInfoTestSuite.TestCacheInfo;
+var
+  StartTime: QWord;
+  Info: TCPUInfo;
+begin
+  LogTest('CacheInfo', tcBasic);
+  StartTime := GetTickCount64;
+  
+  try
+    Info := GetCPUInfo;
+    
+    // Verify cache sizes are reasonable (if detected)
+    if Info.Cache.L1DataKB > 0 then
+      if (Info.Cache.L1DataKB < 8) or (Info.Cache.L1DataKB > 256) then
+        raise Exception.Create('Unreasonable L1 cache size');
+        
+    AddResult('CacheInfo', tcBasic, True, '', GetTickCount64 - StartTime);
+  except
+    on E: Exception do
+      AddResult('CacheInfo', tcBasic, False, E.Message, GetTickCount64 - StartTime);
+  end;
+end;
+
+{ Boundary and edge case tests }
+
+procedure TCPUInfoTestSuite.TestInvalidQueries;
+var
+  StartTime: QWord;
+begin
+  LogTest('InvalidQueries', tcBoundary);
+  StartTime := GetTickCount64;
+  
+  try
+    // Test that invalid queries don't crash
+    // This is architecture-specific and may need adjustment
+    
+    AddResult('InvalidQueries', tcBoundary, True, '', GetTickCount64 - StartTime);
+  except
+    on E: Exception do
+      AddResult('InvalidQueries', tcBoundary, False, E.Message, GetTickCount64 - StartTime);
+  end;
+end;
+
+procedure TCPUInfoTestSuite.TestUnsupportedFeatures;
+var
+  StartTime: QWord;
+begin
+  LogTest('UnsupportedFeatures', tcBoundary);
+  StartTime := GetTickCount64;
+  
+  try
+    // Test querying features that may not exist
+    // Should return false, not crash
+    HasFeature(gfSimd512);
+    
+    AddResult('UnsupportedFeatures', tcBoundary, True, '', GetTickCount64 - StartTime);
+  except
+    on E: Exception do
+      AddResult('UnsupportedFeatures', tcBoundary, False, E.Message, GetTickCount64 - StartTime);
+  end;
+end;
+
+procedure TCPUInfoTestSuite.TestPlatformSpecific;
+var
+  StartTime: QWord;
+begin
+  LogTest('PlatformSpecific', tcBoundary);
+  StartTime := GetTickCount64;
+  
+  try
+    {$IFDEF CPUX86_64}
+    // x86-64 specific: SSE2 should always be available
+    if not GetCPUInfo.X86.HasSSE2 then
+      raise Exception.Create('SSE2 not detected on x86-64');
+    {$ENDIF}
+    
+    {$IFDEF CPUARM}
+    // ARM specific tests (presence of NEON is common but not guaranteed)
+    HasFeature(gfSimd128);
+    {$ENDIF}
+    
+    AddResult('PlatformSpecific', tcBoundary, True, '', GetTickCount64 - StartTime);
+  except
+    on E: Exception do
+      AddResult('PlatformSpecific', tcBoundary, False, E.Message, GetTickCount64 - StartTime);
+  end;
+end;
+
+procedure TCPUInfoTestSuite.TestFallbackMechanisms;
+var
+  StartTime: QWord;
+begin
+  LogTest('FallbackMechanisms', tcBoundary);
+  StartTime := GetTickCount64;
+  
+  try
+    // Test that fallback mechanisms work
+    // This is implementation-specific
+    
+    AddResult('FallbackMechanisms', tcBoundary, True, '', GetTickCount64 - StartTime);
+  except
+    on E: Exception do
+      AddResult('FallbackMechanisms', tcBoundary, False, E.Message, GetTickCount64 - StartTime);
+  end;
+end;
+
+{ Concurrency tests }
+
+procedure TCPUInfoTestSuite.TestThreadSafeDetection;
+const
+  ThreadCount = 10;
+  IterationsPerThread = 100;
+var
+  StartTime: QWord;
+  Threads: array[0..ThreadCount-1] of TThreadSafetyTester;
+  i: Integer;
+  HasErrors: Boolean;
+begin
+  LogTest('ThreadSafeDetection', tcConcurrency);
+  StartTime := GetTickCount64;
+  
+  try
+    // Create and start threads
+    for i := 0 to ThreadCount - 1 do
+    begin
+      Threads[i] := TThreadSafetyTester.Create(i, IterationsPerThread);
+      Threads[i].Start;
+    end;
+    
+    // Wait for all threads to complete
+    HasErrors := False;
+    for i := 0 to ThreadCount - 1 do
+    begin
+      Threads[i].WaitFor;
+      if Threads[i].Errors.Count > 0 then
+        HasErrors := True;
+      Threads[i].Free;
+    end;
+    
+    if HasErrors then
+      raise Exception.Create('Thread safety violations detected');
+      
+    AddResult('ThreadSafeDetection', tcConcurrency, True, '', GetTickCount64 - StartTime);
+  except
+    on E: Exception do
+      AddResult('ThreadSafeDetection', tcConcurrency, False, E.Message, GetTickCount64 - StartTime);
+  end;
+end;
+
+procedure TCPUInfoTestSuite.TestConcurrentAccess;
+var
+  StartTime: QWord;
+begin
+  LogTest('ConcurrentAccess', tcConcurrency);
+  StartTime := GetTickCount64;
+  
+  try
+    // Test concurrent access patterns
+    // Implementation needed
+    
+    AddResult('ConcurrentAccess', tcConcurrency, True, '', GetTickCount64 - StartTime);
+  except
+    on E: Exception do
+      AddResult('ConcurrentAccess', tcConcurrency, False, E.Message, GetTickCount64 - StartTime);
+  end;
+end;
+
+procedure TCPUInfoTestSuite.TestRaceConditions;
+var
+  StartTime: QWord;
+begin
+  LogTest('RaceConditions', tcConcurrency);
+  StartTime := GetTickCount64;
+  
+  try
+    // Test for race conditions
+    // Implementation needed
+    
+    AddResult('RaceConditions', tcConcurrency, True, '', GetTickCount64 - StartTime);
+  except
+    on E: Exception do
+      AddResult('RaceConditions', tcConcurrency, False, E.Message, GetTickCount64 - StartTime);
+  end;
+end;
+
+procedure TCPUInfoTestSuite.TestDeadlockPrevention;
+var
+  StartTime: QWord;
+begin
+  LogTest('DeadlockPrevention', tcConcurrency);
+  StartTime := GetTickCount64;
+  
+  try
+    // Test deadlock prevention mechanisms
+    // Implementation needed
+    
+    AddResult('DeadlockPrevention', tcConcurrency, True, '', GetTickCount64 - StartTime);
+  except
+    on E: Exception do
+      AddResult('DeadlockPrevention', tcConcurrency, False, E.Message, GetTickCount64 - StartTime);
+  end;
+end;
+
+{ Performance benchmarks }
+
+procedure TCPUInfoTestSuite.BenchmarkDetectionSpeed;
+const
+  Iterations = 1000;
+var
+  StartTime, TotalTime: QWord;
+  i: Integer;
+  Info: TCPUInfo;
+begin
+  LogTest('DetectionSpeed', tcPerformance);
+  
+  StartTime := GetTickCount64;
+  for i := 1 to Iterations do
+    Info := GetCPUInfo;
+  TotalTime := GetTickCount64 - StartTime;
+  
+  if FVerbose then
+    WriteLn(Format('  Detection speed: %.2f detections/sec', 
+      [Iterations * 1000.0 / TotalTime]));
+    
+  AddResult('DetectionSpeed', tcPerformance, True, '', TotalTime);
+end;
+
+procedure TCPUInfoTestSuite.BenchmarkCachedAccess;
+const
+  Iterations = 100000;
+var
+  StartTime, TotalTime: QWord;
+  i: Integer;
+  FeatureFlag: Boolean;
+begin
+  LogTest('CachedAccess', tcPerformance);
+  
+  // Prime the cache
+  GetCPUInfo;
+  
+  StartTime := GetTickCount64;
+  for i := 1 to Iterations do
+    FeatureFlag := HasFeature(gfSimd128);
+  TotalTime := GetTickCount64 - StartTime;
+  
+  if FVerbose then
+    WriteLn(Format('  Cached access: %.2f queries/sec', 
+      [Iterations * 1000.0 / TotalTime]));
+    
+  AddResult('CachedAccess', tcPerformance, True, '', TotalTime);
+end;
+
+procedure TCPUInfoTestSuite.BenchmarkLazyLoading;
+var
+  StartTime, TotalTime: QWord;
+  Lazy: TLazyCPUInfo;
+  FeatureFlag: Boolean;
+begin
+  LogTest('LazyLoading', tcPerformance);
+  
+  StartTime := GetTickCount64;
+  // Lazy loading test simplified to use main module
+  try
+    // Access various properties to trigger lazy loading
+    {$if defined(CPUX86_64) or defined(CPUI386)}
+    // FeatureFlag := HasSSE2;
+    // FeatureFlag := HasAVX2;
+    {$endif}
+    TotalTime := GetTickCount64 - StartTime;
+    
+    if FVerbose then
+      WriteLn(Format('  Lazy loading time: %d ms', [TotalTime]));
+      
+    AddResult('LazyLoading', tcPerformance, True, '', TotalTime);
+  finally
+    Lazy.Free;
+  end;
+end;
+
+procedure TCPUInfoTestSuite.BenchmarkMemoryUsage;
+var
+  StartTime: QWord;
+begin
+  LogTest('MemoryUsage', tcPerformance);
+  StartTime := GetTickCount64;
+  
+  try
+    // Memory usage benchmark
+    // Implementation needed - would need memory profiling
+    
+    AddResult('MemoryUsage', tcPerformance, True, '', GetTickCount64 - StartTime);
+  except
+    on E: Exception do
+      AddResult('MemoryUsage', tcPerformance, False, E.Message, GetTickCount64 - StartTime);
+  end;
+end;
+
+{ Integration tests }
+
+procedure TCPUInfoTestSuite.TestWithSIMDOperations;
+var
+  StartTime: QWord;
+begin
+  LogTest('WithSIMDOperations', tcIntegration);
+  StartTime := GetTickCount64;
+  
+  try
+    // Test integration with SIMD operations
+    // Implementation needed
+    
+    AddResult('WithSIMDOperations', tcIntegration, True, '', GetTickCount64 - StartTime);
+  except
+    on E: Exception do
+      AddResult('WithSIMDOperations', tcIntegration, False, E.Message, GetTickCount64 - StartTime);
+  end;
+end;
+
+procedure TCPUInfoTestSuite.TestWithDispatcher;
+var
+  StartTime: QWord;
+begin
+  LogTest('WithDispatcher', tcIntegration);
+  StartTime := GetTickCount64;
+  
+  try
+    // Test integration with dispatcher
+    // Implementation needed
+    
+    AddResult('WithDispatcher', tcIntegration, True, '', GetTickCount64 - StartTime);
+  except
+    on E: Exception do
+      AddResult('WithDispatcher', tcIntegration, False, E.Message, GetTickCount64 - StartTime);
+  end;
+end;
+
+procedure TCPUInfoTestSuite.TestCrossModuleConsistency;
+var
+  StartTime: QWord;
+begin
+  LogTest('CrossModuleConsistency', tcIntegration);
+  StartTime := GetTickCount64;
+  
+  try
+    // Test consistency across modules
+    // Implementation needed
+    
+    AddResult('CrossModuleConsistency', tcIntegration, True, '', GetTickCount64 - StartTime);
+  except
+    on E: Exception do
+      AddResult('CrossModuleConsistency', tcIntegration, False, E.Message, GetTickCount64 - StartTime);
+  end;
+end;
+
+procedure TCPUInfoTestSuite.TestRealWorldScenarios;
+var
+  StartTime: QWord;
+begin
+  LogTest('RealWorldScenarios', tcIntegration);
+  StartTime := GetTickCount64;
+  
+  try
+    // Test real-world usage scenarios
+    // Implementation needed
+    
+    AddResult('RealWorldScenarios', tcIntegration, True, '', GetTickCount64 - StartTime);
+  except
+    on E: Exception do
+      AddResult('RealWorldScenarios', tcIntegration, False, E.Message, GetTickCount64 - StartTime);
+  end;
+end;
+
+{ Test execution }
+
+procedure TCPUInfoTestSuite.RunAllTests;
+begin
+  WriteLn('Running CPU Info Test Suite...');
+  WriteLn('==============================');
+  
+  // Basic tests
+  TestBasicDetection;
+  TestFeatureQueries;
+  TestVendorDetection;
+  TestCacheInfo;
+  
+  // Boundary tests
+  TestInvalidQueries;
+  TestUnsupportedFeatures;
+  TestPlatformSpecific;
+  TestFallbackMechanisms;
+  
+  // Concurrency tests
+  TestThreadSafeDetection;
+  TestConcurrentAccess;
+  TestRaceConditions;
+  TestDeadlockPrevention;
+  
+  // Performance benchmarks
+  BenchmarkDetectionSpeed;
+  BenchmarkCachedAccess;
+  BenchmarkLazyLoading;
+  BenchmarkMemoryUsage;
+  
+  // Integration tests
+  TestWithSIMDOperations;
+  TestWithDispatcher;
+  TestCrossModuleConsistency;
+  TestRealWorldScenarios;
+  
+  WriteLn('==============================');
+  WriteLn(Format('Pass rate: %.1f%%', [GetPassRate]));
+end;
+
+procedure TCPUInfoTestSuite.RunCategory(ACategory: TTestCategory);
+begin
+  case ACategory of
+    tcBasic:
+      begin
+        TestBasicDetection;
+        TestFeatureQueries;
+        TestVendorDetection;
+        TestCacheInfo;
+      end;
+    tcBoundary:
+      begin
+        TestInvalidQueries;
+        TestUnsupportedFeatures;
+        TestPlatformSpecific;
+        TestFallbackMechanisms;
+      end;
+    tcConcurrency:
+      begin
+        TestThreadSafeDetection;
+        TestConcurrentAccess;
+        TestRaceConditions;
+        TestDeadlockPrevention;
+      end;
+    tcPerformance:
+      begin
+        BenchmarkDetectionSpeed;
+        BenchmarkCachedAccess;
+        BenchmarkLazyLoading;
+        BenchmarkMemoryUsage;
+      end;
+    tcIntegration:
+      begin
+        TestWithSIMDOperations;
+        TestWithDispatcher;
+        TestCrossModuleConsistency;
+        TestRealWorldScenarios;
+      end;
+  end;
+end;
+
+procedure TCPUInfoTestSuite.GenerateReport(const AFileName: string);
+const
+  CategoryNames: array[TTestCategory] of string = (
+    'Basic', 'Boundary', 'Concurrency', 'Performance', 'Integration'
+  );
+var
+  F: TextFile;
+  i: Integer;
+  PassCount, FailCount: Integer;
+begin
+  AssignFile(F, AFileName);
+  Rewrite(F);
+  try
+    WriteLn(F, 'CPU Info Test Suite Report');
+    WriteLn(F, '==========================');
+    WriteLn(F);
+    
+    PassCount := 0;
+    FailCount := 0;
+    
+    for i := 0 to High(FResults) do
+    begin
+      WriteLn(F, Format('[%s] %s: %s', 
+        [CategoryNames[FResults[i].Category],
+         FResults[i].TestName,
+         IfThen(FResults[i].Passed, 'PASS', 'FAIL')]));
+         
+      if not FResults[i].Passed then
+        WriteLn(F, '  Error: ' + FResults[i].ErrorMessage);
+        
+      if FResults[i].Passed then
+        Inc(PassCount)
+      else
+        Inc(FailCount);
+    end;
+    
+    WriteLn(F);
+    WriteLn(F, Format('Total: %d tests, %d passed, %d failed', 
+      [PassCount + FailCount, PassCount, FailCount]));
+    WriteLn(F, Format('Pass rate: %.1f%%', [GetPassRate]));
+  finally
+    CloseFile(F);
+  end;
+end;
+
+function TCPUInfoTestSuite.GetPassRate: Double;
+var
+  i, PassCount: Integer;
+begin
+  if Length(FResults) = 0 then
+    Exit(0.0);
+    
+  PassCount := 0;
+  for i := 0 to High(FResults) do
+    if FResults[i].Passed then
+      Inc(PassCount);
+      
+  Result := (PassCount * 100.0) / Length(FResults);
+end;
+
+{ TThreadSafetyTester }
+
+constructor TThreadSafetyTester.Create(ATestID, AIterations: Integer);
+begin
+  inherited Create(True);
+  FTestID := ATestID;
+  FIterations := AIterations;
+  FErrors := TStringList.Create;
+  FreeOnTerminate := False;
+end;
+
+destructor TThreadSafetyTester.Destroy;
+begin
+  FErrors.Free;
+  inherited;
+end;
+
+procedure TThreadSafetyTester.Execute;
+var
+  i: Integer;
+  Info: TCPUInfo;
+  FeatureFlag: Boolean;
+begin
+  try
+    for i := 1 to FIterations do
+    begin
+      // Test various operations
+      Info := GetCPUInfo;
+      FeatureFlag := HasFeature(gfSimd128);
+      FeatureFlag := HasFeature(gfSimd256);
+      
+      // Add random delays to increase chance of race conditions
+      Sleep(Random(5));
+      
+      if Terminated then
+        Break;
+    end;
+  except
+    on E: Exception do
+      FErrors.Add(Format('Thread %d: %s', [FTestID, E.Message]));
+  end;
+end;
+
+{ TPerformanceTester }
+
+procedure TPerformanceTester.StartMeasurement;
+begin
+  FStartTime := GetTickCount64;
+end;
+
+procedure TPerformanceTester.StopMeasurement;
+begin
+  FEndTime := GetTickCount64;
+  AddSample(FEndTime - FStartTime);
+end;
+
+procedure TPerformanceTester.AddSample(ATime: QWord);
+var
+  Len: Integer;
+begin
+  Len := Length(FSamples);
+  SetLength(FSamples, Len + 1);
+  FSamples[Len] := ATime;
+end;
+
+function TPerformanceTester.GetAverage: Double;
+var
+  i: Integer;
+  Sum: QWord;
+begin
+  if Length(FSamples) = 0 then
+    Exit(0);
+    
+  Sum := 0;
+  for i := 0 to High(FSamples) do
+    Sum := Sum + FSamples[i];
+    
+  Result := Sum / Length(FSamples);
+end;
+
+function TPerformanceTester.GetMedian: QWord;
+var
+  Sorted: array of QWord;
+  i, j: Integer;
+  Temp: QWord;
+begin
+  if Length(FSamples) = 0 then
+    Exit(0);
+    
+  // Copy and sort samples
+  SetLength(Sorted, Length(FSamples));
+  for i := 0 to High(FSamples) do
+    Sorted[i] := FSamples[i];
+    
+  // Simple bubble sort (fine for small datasets)
+  for i := 0 to High(Sorted) - 1 do
+    for j := i + 1 to High(Sorted) do
+      if Sorted[i] > Sorted[j] then
+      begin
+        Temp := Sorted[i];
+        Sorted[i] := Sorted[j];
+        Sorted[j] := Temp;
+      end;
+      
+  Result := Sorted[Length(Sorted) div 2];
+end;
+
+function TPerformanceTester.GetStdDev: Double;
+var
+  i: Integer;
+  Avg, Sum: Double;
+begin
+  if Length(FSamples) <= 1 then
+    Exit(0);
+    
+  Avg := GetAverage;
+  Sum := 0;
+  
+  for i := 0 to High(FSamples) do
+    Sum := Sum + Sqr(FSamples[i] - Avg);
+    
+  Result := Sqrt(Sum / (Length(FSamples) - 1));
+end;
+
+procedure TPerformanceTester.Reset;
+begin
+  SetLength(FSamples, 0);
+  FStartTime := 0;
+  FEndTime := 0;
+end;
+
+function IfThen(ACondition: Boolean; const ATrue, AFalse: string): string;
+begin
+  if ACondition then
+    Result := ATrue
+  else
+    Result := AFalse;
+end;
+
+end.

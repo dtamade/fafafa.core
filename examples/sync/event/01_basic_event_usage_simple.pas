@@ -23,7 +23,7 @@ begin
   WriteLn('=== 自动重置事件演示 ===');
   
   // 创建自动重置事件，初始状态为未信号
-  Event := CreateEvent(False, False);
+  Event := MakeEvent(False, False);
   WriteLn('创建自动重置事件，初始状态：未信号');
   
   // 尝试等待（应该超时）
@@ -65,7 +65,7 @@ begin
   WriteLn('=== 手动重置事件演示 ===');
   
   // 创建手动重置事件，初始状态为未信号
-  Event := CreateEvent(True, False);
+  Event := MakeEvent(True, False);
   WriteLn('创建手动重置事件，初始状态：未信号');
   
   // 尝试等待（应该超时）
@@ -117,7 +117,7 @@ var
 begin
   WriteLn('=== 事件状态查询演示 ===');
   
-  Event := CreateEvent(True, False); // 手动重置，未信号
+  Event := MakeEvent(True, False); // 手动重置，未信号
   
   WriteLn('初始状态：');
   WriteLn('  是否为信号状态：', Event.IsSignaled);
@@ -144,7 +144,7 @@ var
 begin
   WriteLn('=== TryWait 方法演示 ===');
   
-  Event := CreateEvent(False, False); // 自动重置，未信号
+  Event := MakeEvent(False, False); // 自动重置，未信号
   
   WriteLn('未信号状态下的 TryWait：', Event.TryWait);
   
@@ -162,7 +162,7 @@ var
 begin
   WriteLn('=== 错误处理演示 ===');
   
-  Event := CreateEvent(True, False);
+  Event := MakeEvent(True, False);
   
   // 正常操作
   Event.SetEvent;

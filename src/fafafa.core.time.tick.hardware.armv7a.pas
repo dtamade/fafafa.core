@@ -30,6 +30,7 @@ unit fafafa.core.time.tick.hardware.armv7a;
 ──────────────────────────────────────────────────────────────
 }
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface

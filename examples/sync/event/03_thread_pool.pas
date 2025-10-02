@@ -217,8 +217,8 @@ begin
   inherited Create;
   FWorkerCount := AWorkerCount;
   FTaskQueue := TTaskQueue.Create;
-  FTaskAvailableEvent := CreateEvent(True, False);  // 手动重置
-  FShutdownEvent := CreateEvent(True, False);       // 手动重置
+  FTaskAvailableEvent := MakeEvent(True, False);  // 手动重置
+  FShutdownEvent := MakeEvent(True, False);       // 手动重置
   FIsRunning := False;
   SetLength(FWorkers, FWorkerCount);
 end;

@@ -1,8 +1,7 @@
 unit fafafa.core.base;
 
-{$MODE OBJFPC}{$H+}
+{$mode objfpc}{$H+}
 {$modeswitch advancedrecords}
-
 {$I fafafa.core.settings.inc}
 
 interface
@@ -11,6 +10,14 @@ uses
   classes,
   SysUtils;
 
+
+type
+
+  TProc    = procedure;
+  TObjProc = procedure of object;
+  {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
+  TRefProc = reference to procedure;
+  {$ENDIF}
 
 
 function XmlEscape(const S: string): string;

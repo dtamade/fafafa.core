@@ -244,7 +244,7 @@ begin
   Queue := TSimpleQueue.Create;
   try
     // 使用手动重置事件，这样多个消费者都能收到信号
-    DataAvailableEvent := CreateEvent(True, False);
+    DataAvailableEvent := MakeEvent(True, False);
     
     // 创建生产者线程
     for i := 0 to ProducerCount - 1 do

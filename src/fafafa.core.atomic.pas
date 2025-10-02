@@ -43,6 +43,7 @@ unit fafafa.core.atomic;
 
 }
 
+{$mode objfpc}{$H+}
 {$I fafafa.core.settings.inc}
 
 interface

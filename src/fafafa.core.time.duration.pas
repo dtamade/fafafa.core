@@ -1,5 +1,6 @@
 unit fafafa.core.time.duration;
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -10,6 +11,13 @@ type
   private
     FNs: Int64;
   public
+    // 单位常量（Common unit constants）
+    class function Nanosecond: TDuration; static; inline;
+    class function Microsecond: TDuration; static; inline;
+    class function Millisecond: TDuration; static; inline;
+    class function Second: TDuration; static; inline;
+    class function Minute: TDuration; static; inline;
+    class function Hour: TDuration; static; inline;
     // TryFrom 构造（检测溢出）
     class function TryFromNs(const ANs: Int64; out D: TDuration): Boolean; static; inline;
     class function TryFromUs(const AUs: Int64; out D: TDuration): Boolean; static; inline;
@@ -76,7 +84,6 @@ type
 
     // 约束
     function Clamp(const AMin, AMax: TDuration): TDuration; inline;
-    function Between(const AMin, AMax: TDuration): TDuration; inline;
     class function Min(const A, B: TDuration): TDuration; static; inline;
     class function Max(const A, B: TDuration): TDuration; static; inline;
   end;
@@ -132,7 +139,9 @@ class function TInt64Helper.TryAdd(a, b: Int64; out r: Int64): Boolean;
 var tmp: Int64;
 begin
   tmp := a + b;
-  if (((a xor b) and High(Int64)) = 0) and (((a xor tmp) and High(Int64)) <> 0) then Exit(False);
+  // Overflow if: both same sign AND result different sign
+  // Check sign bit: negative numbers have MSB = 1
+  if ((a >= 0) = (b >= 0)) and ((a >= 0) <> (tmp >= 0)) then Exit(False);
   r := tmp; Result := True;
 end;
 
@@ -140,11 +149,43 @@ class function TInt64Helper.TrySub(a, b: Int64; out r: Int64): Boolean;
 var tmp: Int64;
 begin
   tmp := a - b;
-  if (((a xor (not b)) and High(Int64)) = 0) and (((a xor tmp) and High(Int64)) <> 0) then Exit(False);
+  // Overflow if: a and -b same sign AND result different sign from a
+  if ((a >= 0) = (b < 0)) and ((a >= 0) <> (tmp >= 0)) then Exit(False);
   r := tmp; Result := True;
 end;
 
 { TDuration }
+
+// 单位常量实现
+class function TDuration.Nanosecond: TDuration;
+begin
+  Result.FNs := 1;
+end;
+
+class function TDuration.Microsecond: TDuration;
+begin
+  Result.FNs := 1000;
+end;
+
+class function TDuration.Millisecond: TDuration;
+begin
+  Result.FNs := 1000000;
+end;
+
+class function TDuration.Second: TDuration;
+begin
+  Result.FNs := 1000000000;
+end;
+
+class function TDuration.Minute: TDuration;
+begin
+  Result.FNs := 60000000000;
+end;
+
+class function TDuration.Hour: TDuration;
+begin
+  Result.FNs := 3600000000000;
+end;
 
 class function TDuration.Zero: TDuration;
 begin
@@ -424,11 +465,6 @@ begin
   if FNs < AMin.FNs then Result.FNs := AMin.FNs
   else if FNs > AMax.FNs then Result.FNs := AMax.FNs
   else Result.FNs := FNs;
-end;
-
-function TDuration.Between(const AMin, AMax: TDuration): TDuration;
-begin
-  Result := Clamp(AMin, AMax);
 end;
 
 class function TDuration.Min(const A, B: TDuration): TDuration;

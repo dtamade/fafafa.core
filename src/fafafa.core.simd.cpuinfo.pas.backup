@@ -1,0 +1,492 @@
+unit fafafa.core.simd.cpuinfo;
+
+{$I fafafa.core.settings.inc}
+
+interface
+
+uses
+  fafafa.core.simd.types,
+  fafafa.core.simd.cpuinfo.base;
+
+// === CPU Feature Detection Facade ===
+// 纯门面模式：委托给平台特定的实现模块
+
+type
+  // Array type for backend list
+  TSimdBackendArray = array of TSimdBackend;
+
+// === 公共门面 API ===
+
+// Get comprehensive CPU information (thread-safe)
+function GetCPUInfo: TCPUInfo;
+
+// Check if specific backends are available
+function IsBackendAvailable(backend: TSimdBackend): Boolean;
+
+// Get list of all available backends (sorted by priority)
+function GetAvailableBackends: TSimdBackendArray;
+
+// Get the best available backend for general use
+function GetBestBackend: TSimdBackend;
+
+// Get backend information
+function GetBackendInfo(backend: TSimdBackend): TSimdBackendInfo;
+
+// Reset CPU info cache (for testing)
+procedure ResetCPUInfo;
+
+// === Generic/ISA Queries ===
+function HasFeature(f: TGenericFeature): Boolean;
+{$IFDEF SIMD_X86_AVAILABLE}
+function HasX86(f: TX86ISA): Boolean;
+{$ENDIF}
+{$IFDEF SIMD_ARM_AVAILABLE}
+function HasARM(f: TARMISA): Boolean;
+{$ENDIF}
+{$IFDEF SIMD_RISCV_AVAILABLE}
+function HasRISCV(f: TRISCVISA): Boolean;
+{$ENDIF}
+
+implementation
+
+{$IF DEFINED(SIMD_X86_AVAILABLE) OR DEFINED(SIMD_ARM_AVAILABLE) OR DEFINED(SIMD_RISCV_AVAILABLE)}
+uses
+  {$IFDEF SIMD_X86_AVAILABLE}
+  fafafa.core.simd.cpuinfo.x86{$IFDEF SIMD_ARM_AVAILABLE},{$ENDIF}
+  {$ENDIF}
+  {$IFDEF SIMD_ARM_AVAILABLE}
+  fafafa.core.simd.cpuinfo.arm{$IFDEF SIMD_RISCV_AVAILABLE},{$ENDIF}
+  {$ENDIF}
+  {$IFDEF SIMD_RISCV_AVAILABLE}
+  fafafa.core.simd.cpuinfo.riscv
+  {$ENDIF}
+  , SysUtils
+  , fafafa.core.simd.sync  // 添加同步单元
+  ;
+{$ENDIF}
+
+// === 门面实现：纯委托模式 ===
+
+type
+  TInitState = (isNotInitialized, isInitializing, isInitialized);
+
+var
+  g_CPUInfo: TCPUInfo;
+  g_InitState: TInitState = isNotInitialized;
+  g_InitLock: Integer = 0;  // 使用原子操作的锁，跨平台统一
+
+procedure InitializeCPUInfo;
+{$IFDEF SIMD_X86_AVAILABLE}
+var
+  xc: TX86CacheInfo;
+{$ENDIF}
+begin
+  // 初始??CPU 信息结构
+  FillChar(g_CPUInfo, SizeOf(g_CPUInfo), 0);
+  g_CPUInfo.Vendor := 'Unknown';
+  g_CPUInfo.Model := 'Unknown Processor';
+  // 设定架构`r`n{$IFDEF SIMD_X86_AVAILABLE}
+  g_CPUInfo.Arch := caX86;
+  {$ELSEIF DEFINED(SIMD_ARM_AVAILABLE)}
+  g_CPUInfo.Arch := caARM;
+  {$ELSEIF DEFINED(SIMD_RISCV_AVAILABLE)}
+  g_CPUInfo.Arch := caRISCV;
+  {$ELSE}
+  g_CPUInfo.Arch := caUnknown;
+  {$ENDIF}
+  
+  // 委托给平台特定的检测模块`r`n{$IFDEF SIMD_X86_AVAILABLE}
+  DetectX86VendorAndModel(g_CPUInfo);  // 这里会设置OSXSAVE和XCR0
+  g_CPUInfo.X86 := DetectX86Features;
+  // 通用能力映射（Raw/Usable 简化为一致，x86 检测已考虑 OS 门槛）
+  if g_CPUInfo.X86.HasSSE2 then
+    g_CPUInfo.GenericRaw := g_CPUInfo.GenericRaw + [gfSimd128];
+  if g_CPUInfo.X86.HasAVX2 then
+    g_CPUInfo.GenericRaw := g_CPUInfo.GenericRaw + [gfSimd256];
+  if g_CPUInfo.X86.HasAVX512F then
+    g_CPUInfo.GenericRaw := g_CPUInfo.GenericRaw + [gfSimd512];
+  if g_CPUInfo.X86.HasAES then
+    g_CPUInfo.GenericRaw := g_CPUInfo.GenericRaw + [gfAES];
+  if g_CPUInfo.X86.HasSHA then
+    g_CPUInfo.GenericRaw := g_CPUInfo.GenericRaw + [gfSHA];
+  if g_CPUInfo.X86.HasFMA then
+    g_CPUInfo.GenericRaw := g_CPUInfo.GenericRaw + [gfFMA];
+  g_CPUInfo.GenericUsable := g_CPUInfo.GenericRaw;
+  // Cache 映射
+  xc := GetX86CacheInfo;
+  g_CPUInfo.Cache.L1DataKB := xc.L1DataCache;
+  g_CPUInfo.Cache.L1InstrKB := xc.L1InstructionCache;
+  g_CPUInfo.Cache.L2KB := xc.L2Cache;
+  g_CPUInfo.Cache.L3KB := xc.L3Cache;
+  g_CPUInfo.Cache.LineSize := xc.CacheLineSize;
+  {$ENDIF}
+  
+  {$IFDEF SIMD_ARM_AVAILABLE}
+  DetectARMVendorAndModel(g_CPUInfo);
+  g_CPUInfo.ARM := DetectARMFeatures;
+  // 通用能力（ARM）
+  if g_CPUInfo.ARM.HasNEON or g_CPUInfo.ARM.HasAdvSIMD then
+    g_CPUInfo.GenericRaw := g_CPUInfo.GenericRaw + [gfSimd128];
+  if g_CPUInfo.ARM.HasCrypto then
+  begin
+    g_CPUInfo.GenericRaw := g_CPUInfo.GenericRaw + [gfAES, gfSHA];
+  end;
+  g_CPUInfo.GenericUsable := g_CPUInfo.GenericRaw;
+  {$ENDIF}
+  
+  {$IFDEF SIMD_RISCV_AVAILABLE}
+  DetectRISCVVendorAndModel(g_CPUInfo);
+  g_CPUInfo.RISCV := DetectRISCVFeatures;
+  if g_CPUInfo.RISCV.HasV then
+    g_CPUInfo.GenericRaw := g_CPUInfo.GenericRaw + [gfSimd128]; // 粗粒度：有 V 即至少具备向量基础
+  g_CPUInfo.GenericUsable := g_CPUInfo.GenericRaw;
+  {$ENDIF}
+
+  // Logical cores（尽量不依赖平台 API）
+  try
+    {$IFDEF WINDOWS}
+    g_CPUInfo.LogicalCores := StrToIntDef(GetEnvironmentVariable('NUMBER_OF_PROCESSORS'), 0);
+    {$ELSE}
+    g_CPUInfo.LogicalCores := 0;
+    {$ENDIF}
+  except
+    g_CPUInfo.LogicalCores := 0;
+  end;
+end;
+
+function HasFeature(f: TGenericFeature): Boolean;
+var c: TCPUInfo;
+begin
+  c := GetCPUInfo;
+  case f of
+    gfSimd128:
+      begin
+        Result := False;
+        {$IFDEF SIMD_X86_AVAILABLE}
+        Result := Result or c.X86.HasSSE2;
+        {$ENDIF}
+        {$IFDEF SIMD_ARM_AVAILABLE}
+        Result := Result or c.ARM.HasNEON or c.ARM.HasAdvSIMD;
+        {$ENDIF}
+      end;
+    gfSimd256:
+      begin
+        Result := False;
+        {$IFDEF SIMD_X86_AVAILABLE}
+        Result := Result or c.X86.HasAVX2;
+        {$ENDIF}
+      end;
+    gfSimd512:
+      begin
+        Result := False;
+        {$IFDEF SIMD_X86_AVAILABLE}
+        Result := Result or c.X86.HasAVX512F;
+        {$ENDIF}
+      end;
+    gfAES:
+      begin
+        Result := False;
+        {$IFDEF SIMD_X86_AVAILABLE}
+        Result := Result or c.X86.HasAES;
+        {$ENDIF}
+        {$IFDEF SIMD_ARM_AVAILABLE}
+        Result := Result or c.ARM.HasCrypto;
+        {$ENDIF}
+      end;
+    gfSHA:
+      begin
+        Result := False;
+        {$IFDEF SIMD_X86_AVAILABLE}
+        Result := Result or c.X86.HasSHA;
+        {$ENDIF}
+        {$IFDEF SIMD_ARM_AVAILABLE}
+        Result := Result or c.ARM.HasCrypto; // 粗粒度映??`r`n{$ENDIF}
+      end;
+    gfFMA:
+      begin
+        Result := False;
+        {$IFDEF SIMD_X86_AVAILABLE}
+        Result := Result or c.X86.HasFMA;
+        {$ENDIF}
+      end;
+  else
+    Result := False;
+  end;
+end;
+
+{$IFDEF SIMD_X86_AVAILABLE}
+function HasX86(f: TX86ISA): Boolean;
+var x: TX86Features;
+begin
+  x := GetCPUInfo.X86;
+  case f of
+    xMMX: Result := x.HasMMX;
+    xSSE: Result := x.HasSSE;
+    xSSE2: Result := x.HasSSE2;
+    xSSE3: Result := x.HasSSE3;
+    xSSSE3: Result := x.HasSSSE3;
+    xSSE41: Result := x.HasSSE41;
+    xSSE42: Result := x.HasSSE42;
+    xAVX: Result := x.HasAVX;
+    xAVX2: Result := x.HasAVX2;
+    xAVX512F: Result := x.HasAVX512F;
+    xAVX512DQ: Result := x.HasAVX512DQ;
+    xAVX512BW: Result := x.HasAVX512BW;
+    xAVX512VL: Result := x.HasAVX512VL;
+    xAVX512VBMI: Result := x.HasAVX512VBMI;
+    xAES: Result := x.HasAES;
+    xSHA: Result := x.HasSHA;
+    xPCLMULQDQ: Result := x.HasPCLMULQDQ;
+    xFMA: Result := x.HasFMA;
+    xFMA4: Result := x.HasFMA4;
+    xBMI1: Result := x.HasBMI1;
+    xBMI2: Result := x.HasBMI2;
+    xF16C: Result := x.HasF16C;
+    xRDRAND: Result := x.HasRDRAND;
+    xRDSEED: Result := x.HasRDSEED;
+  else
+    Result := False;
+  end;
+end;
+{$ENDIF}
+
+{$IFDEF SIMD_ARM_AVAILABLE}
+function HasARM(f: TARMISA): Boolean;
+var a: TARMFeatures;
+begin
+  a := GetCPUInfo.ARM;
+  case f of
+    aNEON: Result := a.HasNEON;
+    aAdvSIMD: Result := a.HasAdvSIMD;
+    aSVE: Result := a.HasSVE;
+    aCrypto: Result := a.HasCrypto;
+  else
+    Result := False;
+  end;
+end;
+{$ENDIF}
+
+{$IFDEF SIMD_RISCV_AVAILABLE}
+function HasRISCV(f: TRISCVISA): Boolean;
+var r: TRISCVFeatures;
+begin
+  r := GetCPUInfo.RISCV;
+  case f of
+    rvV: Result := r.HasV;
+    rvF: Result := r.HasF;
+    rvD: Result := r.HasD;
+    rvA: Result := r.HasA;
+    rvC: Result := r.HasC;
+  else
+    Result := False;
+  end;
+end;
+{$ENDIF}
+
+function GetCPUInfo: TCPUInfo;
+var
+  OldValue: Integer;
+begin
+  // 快速路径：已经初始化（内存屏障确保可见性）
+  if g_InitState = isInitialized then
+  begin
+    ReadBarrier;  // 确保读取最新的 g_CPUInfo
+    Result := g_CPUInfo;
+    Exit;
+  end;
+
+  // 双重检查锁定模式，使用原子操作
+  repeat
+    OldValue := InterlockedCompareExchange(g_InitLock, 1, 0);
+    if OldValue = 0 then
+    begin
+      // 获得锁，再次检查状态
+      if g_InitState = isNotInitialized then
+      begin
+        g_InitState := isInitializing;
+        try
+          InitializeCPUInfo;
+          WriteBarrier;  // 确保 g_CPUInfo 写入完成
+          g_InitState := isInitialized;
+        except
+          g_InitState := isNotInitialized;
+          InterlockedExchange(g_InitLock, 0);
+          raise;
+        end;
+      end;
+      InterlockedExchange(g_InitLock, 0);
+      Break;
+    end
+      else
+      begin
+        // 等待初始化完成
+        while g_InitState = isInitializing do
+      begin
+        {$IFDEF WINDOWS}
+        Sleep(0);  // 让出 CPU 时间??`r`n{$ELSE}
+        ThreadSwitch;  // Unix 平台`r`n{$ENDIF}
+      end;
+      if g_InitState = isInitialized then
+        Break;
+    end;
+  until False;
+
+  ReadBarrier;
+  Result := g_CPUInfo;
+end;
+
+function IsBackendAvailable(backend: TSimdBackend): Boolean;
+var
+  cpuInfo: TCPUInfo;
+begin
+  case backend of
+    sbScalar:
+      Result := True; // 标量后端总是可用
+      
+    sbSSE2, sbAVX2, sbAVX512:
+      begin
+        {$IFDEF SIMD_X86_AVAILABLE}
+        cpuInfo := GetCPUInfo;
+        case backend of
+          sbSSE2: Result := cpuInfo.X86.HasSSE2;
+          sbAVX2: Result := cpuInfo.X86.HasAVX2;
+          sbAVX512: Result := cpuInfo.X86.HasAVX512F;
+        else
+          Result := False;
+        end;
+        {$ELSE}
+        Result := False;
+        {$ENDIF}
+      end;
+      
+    sbNEON:
+      begin
+        {$IFDEF SIMD_ARM_AVAILABLE}
+        cpuInfo := GetCPUInfo;
+        Result := cpuInfo.ARM.HasNEON;
+        {$ELSE}
+        Result := False;
+        {$ENDIF}
+      end;
+      
+    sbRISCVV:
+      begin
+        {$IFDEF SIMD_RISCV_AVAILABLE}
+        cpuInfo := GetCPUInfo;
+        Result := cpuInfo.RISCV.HasV;
+        {$ELSE}
+        Result := False;
+        {$ENDIF}
+      end;
+      
+  else
+    Result := False;
+  end;
+end;
+
+function GetAvailableBackends: TSimdBackendArray;
+var
+  backends: array[0..6] of TSimdBackend;
+  count: Integer;
+  backend: TSimdBackend;
+begin
+  count := 0;
+  
+  // 按优先级顺序检查后??  for backend := High(TSimdBackend) downto Low(TSimdBackend) do
+  begin
+    if IsBackendAvailable(backend) then
+    begin
+      backends[count] := backend;
+      Inc(count);
+    end;
+  end;
+  
+  // 复制到动态数??  SetLength(Result, count);
+  if count > 0 then
+    Move(backends[0], Result[0], count * SizeOf(TSimdBackend));
+end;
+
+function GetBestBackend: TSimdBackend;
+var
+  backends: TSimdBackendArray;
+begin
+  backends := GetAvailableBackends;
+  
+  if Length(backends) > 0 then
+    Result := backends[0] // 第一个是最高优先级
+  else
+    Result := sbScalar; // 回退到标量实现
+end;
+
+function GetBackendInfo(backend: TSimdBackend): TSimdBackendInfo;
+begin
+  Result.Backend := backend;
+  Result.Name := GetBackendName(backend);
+  Result.Description := GetBackendDescription(backend);
+  Result.Available := IsBackendAvailable(backend);
+  
+  // 设置优先级（数值越高优先级越高）
+  case backend of
+    sbScalar: Result.Priority := 0;
+    sbSSE2: Result.Priority := 10;
+    sbNEON: Result.Priority := 15;
+    sbAVX2: Result.Priority := 20;
+    sbRISCVV: Result.Priority := 25;
+    sbAVX512: Result.Priority := 30;
+  else
+    Result.Priority := -1;
+  end;
+  
+  // 设置能力??  Result.Capabilities := [];
+  if Result.Available then
+  begin
+    case backend of
+      sbScalar:
+        Result.Capabilities := [scBasicArithmetic, scComparison, scMathFunctions];
+      sbSSE2:
+        Result.Capabilities := [scBasicArithmetic, scComparison, scMathFunctions, 
+                               scShuffle, scIntegerOps, scLoadStore];
+      sbAVX2:
+        Result.Capabilities := [scBasicArithmetic, scComparison, scMathFunctions,
+                               scReduction, scShuffle, scFMA, scIntegerOps, 
+                               scLoadStore, scGather];
+      sbAVX512:
+        Result.Capabilities := [scBasicArithmetic, scComparison, scMathFunctions,
+                               scReduction, scShuffle, scFMA, scIntegerOps,
+                               scLoadStore, scGather, scMaskedOps];
+      sbNEON:
+        Result.Capabilities := [scBasicArithmetic, scComparison, scMathFunctions,
+                               scShuffle, scIntegerOps, scLoadStore];
+      sbRISCVV:
+        Result.Capabilities := [scBasicArithmetic, scComparison, scMathFunctions,
+                               scReduction, scShuffle, scIntegerOps, scLoadStore];
+    end;
+  end;
+end;
+
+procedure ResetCPUInfo;
+var
+  OldValue: Integer;
+begin
+  // 获取??  repeat
+    OldValue := InterlockedCompareExchange(g_InitLock, 1, 0);
+  until OldValue = 0;
+  
+  try
+    g_InitState := isNotInitialized;
+    FillChar(g_CPUInfo, SizeOf(g_CPUInfo), 0);
+  finally
+    InterlockedExchange(g_InitLock, 0);
+  end;
+end;
+
+initialization
+  // 初始化代码已移除，使用原子操作不需要额外初始化
+
+finalization
+  // 清理代码已移除，使用原子操作不需要额外清??
+end.
+
+
+
+

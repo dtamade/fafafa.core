@@ -1,5 +1,6 @@
 unit fafafa.core.simd.ops.x86;
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -11,14 +12,13 @@ uses
 
 // === x86 SIMD 操作实现 ===
 
-// 单精度浮点向量操作 (SSE)
+// 单精度浮点向量操�?(SSE)
 function X86_VecF32x4_Add(const a, b: TVecF32x4): TVecF32x4;
 function X86_VecF32x4_Sub(const a, b: TVecF32x4): TVecF32x4;
 function X86_VecF32x4_Mul(const a, b: TVecF32x4): TVecF32x4;
 function X86_VecF32x4_Div(const a, b: TVecF32x4): TVecF32x4;
 
-// 向量加载和存储
-function X86_VecF32x4_Load(const ptr: Pointer): TVecF32x4;
+// 向量加载和存�?function X86_VecF32x4_Load(const ptr: Pointer): TVecF32x4;
 procedure X86_VecF32x4_Store(const vec: TVecF32x4; ptr: Pointer);
 function X86_VecF32x4_LoadUnaligned(const ptr: Pointer): TVecF32x4;
 procedure X86_VecF32x4_StoreUnaligned(const vec: TVecF32x4; ptr: Pointer);
@@ -170,8 +170,7 @@ function X86_VecF32x4_LoadUnaligned(const ptr: Pointer): TVecF32x4;
 begin
   if HasSSE then
   begin
-    // 使用 SSE movups 指令（非对齐加载）
-    asm
+    // 使用 SSE movups 指令（非对齐加载�?    asm
       mov rax, ptr
       movups xmm0, [rax]
       movups Result, xmm0
@@ -188,8 +187,7 @@ procedure X86_VecF32x4_StoreUnaligned(const vec: TVecF32x4; ptr: Pointer);
 begin
   if HasSSE then
   begin
-    // 使用 SSE movups 指令（非对齐存储）
-    asm
+    // 使用 SSE movups 指令（非对齐存储�?    asm
       movups xmm0, vec
       mov rax, ptr
       movups [rax], xmm0
@@ -204,8 +202,7 @@ end;
 
 function X86_VecF32x4_Set(x, y, z, w: Single): TVecF32x4;
 begin
-  // 直接设置值（标量方式，因为 SSE 的 set 指令比较复杂）
-  Result.f[0] := x;
+  // 直接设置值（标量方式，因�?SSE �?set 指令比较复杂�?  Result.f[0] := x;
   Result.f[1] := y;
   Result.f[2] := z;
   Result.f[3] := w;
@@ -215,8 +212,7 @@ function X86_VecF32x4_SetAll(value: Single): TVecF32x4;
 begin
   if HasSSE then
   begin
-    // 使用 SSE 广播单个值
-    asm
+    // 使用 SSE 广播单个�?    asm
       movss xmm0, value
       shufps xmm0, xmm0, 0  // 广播到所有通道
       movups Result, xmm0
@@ -317,3 +313,5 @@ end;
 {$ENDIF} // SIMD_X86_AVAILABLE
 
 end.
+
+

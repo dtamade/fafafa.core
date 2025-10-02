@@ -1,25 +1,23 @@
 unit fafafa.core.simd.intrinsics;
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 {
   === fafafa.core.simd.intrinsics ===
   SIMD 内联函数统一门面模块
   
-  这个模块作为所有 SIMD 指令集的统一入口，提供：
+  这个模块作为所�?SIMD 指令集的统一入口，提供：
   1. 统一的类型定义和接口
   2. 自动的指令集检测和选择
-  3. 跨平台的兼容性抽象
-  4. 性能优化的函数选择
+  3. 跨平台的兼容性抽�?  4. 性能优化的函数选择
   
-  支持的指令集：
-  - x86/x64: MMX, SSE, SSE2, SSE3, SSE4.1, SSE4.2, AVX, AVX2, AVX-512, AES, SHA, FMA3
+  支持的指令集�?  - x86/x64: MMX, SSE, SSE2, SSE3, SSE4.1, SSE4.2, AVX, AVX2, AVX-512, AES, SHA, FMA3
   - ARM: NEON, SVE, SVE2
   - RISC-V: RVV (Vector Extension)
   - LoongArch: LASX
   
-  使用方式：
-    uses fafafa.core.simd.intrinsics;
+  使用方式�?    uses fafafa.core.simd.intrinsics;
     
     var
       a, b, result: TM128;
@@ -49,7 +47,7 @@ type
   TM512 = fafafa.core.simd.intrinsics.base.TSimd512;
   PTM512 = ^TM512;
 
-// === 指令集检测 ===
+// === 指令集检�?===
 function simd_has_mmx: Boolean;
 function simd_has_sse: Boolean;
 function simd_has_sse2: Boolean;
@@ -63,7 +61,7 @@ function simd_has_aes: Boolean;
 function simd_has_sha: Boolean;
 function simd_has_fma3: Boolean;
 
-// === 基础 SSE2 函数 (最常用，所有 x64 都支持) ===
+// === 基础 SSE2 函数 (最常用，所�?x64 都支�? ===
 // Load/Store
 function simd_load_si128(const Ptr: Pointer): TM128;
 function simd_loadu_si128(const Ptr: Pointer): TM128;
@@ -103,23 +101,21 @@ function simd_slli_epi32(const a: TM128; imm8: Byte): TM128;
 function simd_srli_epi32(const a: TM128; imm8: Byte): TM128;
 function simd_srai_epi32(const a: TM128; imm8: Byte): TM128;
 
-// === 高级函数 (根据可用指令集自动选择最优实现) ===
+// === 高级函数 (根据可用指令集自动选择最优实�? ===
 function simd_max_epi8(const a, b: TM128): TM128;   // SSE4.1 优化，SSE2 兼容
 function simd_min_epi8(const a, b: TM128): TM128;   // SSE4.1 优化，SSE2 兼容
 function simd_max_epi32(const a, b: TM128): TM128;  // SSE4.1 优化，SSE2 兼容
 function simd_min_epi32(const a, b: TM128): TM128;  // SSE4.1 优化，SSE2 兼容
 
 // === 浮点运算 ===
-function simd_add_ps(const a, b: TM128): TM128;     // 单精度浮点
-function simd_add_pd(const a, b: TM128): TM128;     // 双精度浮点
-function simd_mul_ps(const a, b: TM128): TM128;
+function simd_add_ps(const a, b: TM128): TM128;     // 单精度浮�?function simd_add_pd(const a, b: TM128): TM128;     // 双精度浮�?function simd_mul_ps(const a, b: TM128): TM128;
 function simd_mul_pd(const a, b: TM128): TM128;
 
 implementation
 
-// 暂时只提供基础的 Pascal 实现，后续会添加具体指令集模块的调用
+// 暂时只提供基础�?Pascal 实现，后续会添加具体指令集模块的调用
 
-// === 指令集检测实现 ===
+// === 指令集检测实�?===
 var
   g_cpu_features: record
     mmx, sse, sse2, sse3, sse41, sse42: Boolean;
@@ -138,8 +134,7 @@ begin
 
 {$IFDEF CPUX86_64}
   try
-    // 使用 CPUID 检测 x86/x64 特性
-    asm
+    // 使用 CPUID 检�?x86/x64 特�?    asm
       push rbx
       mov eax, 1
       cpuid
@@ -160,7 +155,7 @@ begin
     g_cpu_features.aes := (ecx and (1 shl 25)) <> 0;
     g_cpu_features.fma3 := (ecx and (1 shl 12)) <> 0;
 
-    // 检测 AVX2 和 AVX-512
+    // 检�?AVX2 �?AVX-512
     asm
       push rbx
       mov eax, 7
@@ -173,10 +168,8 @@ begin
 
     g_cpu_features.avx2 := (ebx and (1 shl 5)) <> 0;
     g_cpu_features.avx512f := (ebx and (1 shl 16)) <> 0;
-    g_cpu_features.sha := False; // 需要额外检测
-  except
-    // 如果 CPUID 失败，假设不支持任何特性
-    g_cpu_features.mmx := False;
+    g_cpu_features.sha := False; // 需要额外检�?  except
+    // 如果 CPUID 失败，假设不支持任何特�?    g_cpu_features.mmx := False;
     g_cpu_features.sse := False;
     g_cpu_features.sse2 := False;
     g_cpu_features.sse3 := False;
@@ -190,8 +183,7 @@ begin
     g_cpu_features.fma3 := False;
   end;
 {$ELSE}
-  // 其他架构默认不支持 x86 特性
-  g_cpu_features.mmx := False;
+  // 其他架构默认不支�?x86 特�?  g_cpu_features.mmx := False;
   g_cpu_features.sse := False;
   g_cpu_features.sse2 := False;
   g_cpu_features.sse3 := False;
@@ -280,7 +272,7 @@ begin
   Result := g_cpu_features.fma3;
 end;
 
-// === 基础函数实现 (Pascal 版本，后续会优化为汇编) ===
+// === 基础函数实现 (Pascal 版本，后续会优化为汇�? ===
 function simd_load_si128(const Ptr: Pointer): TM128;
 begin
   Result := PTM128(Ptr)^;
@@ -514,8 +506,7 @@ var
 begin
   shift_count := imm8;
   if shift_count >= 32 then
-    shift_count := 31; // 算术右移最多31位
-
+    shift_count := 31; // 算术右移最�?1�?
   for i := 0 to 3 do
   begin
     value := a.m128i_i32[i];
@@ -606,3 +597,5 @@ begin
 end;
 
 end.
+
+

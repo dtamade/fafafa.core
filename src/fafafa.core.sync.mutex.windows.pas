@@ -1,6 +1,6 @@
 unit fafafa.core.sync.mutex.windows;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -9,7 +9,7 @@ uses
   fafafa.core.sync.base,
   fafafa.core.sync.mutex.base;
 
-// 基础 Windows 类型（避免直接 uses Windows 单元导致符号冲突）
+// 基础 Windows 类型（避免直�?uses Windows 单元导致符号冲突�?
 type
   DWORD  = Cardinal;
   THandle = PtrUInt;
@@ -49,16 +49,16 @@ function TryAcquireSRWLockExclusive(var SRWLock: SRWLOCK): LongBool; stdcall; ex
 {$ENDIF}
 
 type
-  { 传统互斥锁实现 - 使用 CRITICAL_SECTION（兼容 Windows XP+）}
+  { 传统互斥锁实�?- 使用 CRITICAL_SECTION（兼�?Windows XP+）}
   TMutex = class(TTryLock, IMutex)
   private
     FCriticalSection: TRTLCriticalSection;
-    FOwnerThreadId: DWORD; // 非重入检测：记录持有者线程
+    FOwnerThreadId: DWORD; // 非重入检测：记录持有者线�?
   public
     constructor Create;
     destructor Destroy; override;
 
-    // ITryLock 继承的方法
+    // ITryLock 继承的方�?
     procedure Acquire; override;
     procedure Release; override;
     function TryAcquire: Boolean; override;
@@ -69,16 +69,16 @@ type
   end;
 
 {$IFDEF FAFAFA_CORE_USE_SRWLOCK}
-  { 现代互斥锁实现 - 使用 SRWLOCK（要求 Windows Vista+）}
+  { 现代互斥锁实�?- 使用 SRWLOCK（要�?Windows Vista+）}
   TSRWMutex = class(TTryLock, IMutex)
   private
     FLock: SRWLOCK;
-    FOwnerThreadId: DWORD; // 非重入检测
+    FOwnerThreadId: DWORD; // 非重入检�?
   public
     constructor Create;
     destructor Destroy; override;
 
-    // ITryLock 继承的方法
+    // ITryLock 继承的方�?
     procedure Acquire; override;
     procedure Release; override;
     function TryAcquire: Boolean; override;
@@ -125,19 +125,19 @@ procedure TMutex.Acquire;
 var
   Cur: DWORD;
 begin
-  // 非重入：同一线程重复获取直接抛异常
+  // 非重入：同一线程重复获取直接抛异�?
   Cur := GetCurrentThreadId;
   if FOwnerThreadId = Cur then
     raise EDeadlockError.Create('Re-entrant acquire on non-reentrant mutex');
 
   EnterCriticalSection(FCriticalSection);
-  // 进入后登记所有者
+  // 进入后登记所有�?
   FOwnerThreadId := Cur;
 end;
 
 procedure TMutex.Release;
 begin
-  // 清理所有者再释放，避免新线程进入时短暂误判
+  // 清理所有者再释放，避免新线程进入时短暂误�?
   FOwnerThreadId := 0;
   LeaveCriticalSection(FCriticalSection);
 end;
@@ -146,7 +146,7 @@ function TMutex.TryAcquire: Boolean;
 var
   Cur: DWORD;
 begin
-  // 非重入快速检查
+  // 非重入快速检�?
   Cur := GetCurrentThreadId;
   if FOwnerThreadId = Cur then
     raise EDeadlockError.Create('Re-entrant try-acquire on non-reentrant mutex');

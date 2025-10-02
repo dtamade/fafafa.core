@@ -1,5 +1,6 @@
 unit fafafa.core.simd.cpuinfo.arm;
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -8,7 +9,16 @@ interface
 
 uses
   SysUtils,
-  fafafa.core.simd.types;
+  fafafa.core.simd.types,
+  fafafa.core.simd.cpuinfo.base;
+
+type
+  // ARM processor information structure
+  TARMProcessorInfo = record
+    Architecture: string;
+    InstructionSet: string;
+    CoreType: string;
+  end;
 
 // === ARM CPU Detection Interface ===
 
@@ -396,3 +406,5 @@ end;
 {$ENDIF} // SIMD_ARM_AVAILABLE
 
 end.
+
+

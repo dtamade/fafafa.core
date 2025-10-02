@@ -43,6 +43,7 @@ unit fafafa.core.sync.event.windows;
 
 }
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -68,11 +69,13 @@ type
     // IEvent - 基础操作
     procedure SetEvent;
     procedure ResetEvent;
+    function Wait: TWaitResult; overload;
     function WaitFor: TWaitResult; overload;
     function WaitFor(ATimeoutMs: Cardinal): TWaitResult; overload;
 
     // IEvent - 扩展操作
     function TryWait: Boolean;
+    function IsSignaled: Boolean;
     function IsManualReset: Boolean;
   end;
 
@@ -145,6 +148,28 @@ end;
 function TEvent.IsManualReset: Boolean;
 begin
   Result := FManualReset;
+end;
+
+function TEvent.Wait: TWaitResult;
+begin
+  // Wait is an alias for WaitFor with infinite timeout
+  Result := WaitFor(INFINITE);
+end;
+
+function TEvent.IsSignaled: Boolean;
+begin
+  // Non-blocking check if event is signaled
+  // Use WaitForSingleObject with 0 timeout for immediate return
+  Result := WaitForSingleObject(FHandle, 0) = WAIT_OBJECT_0;
+  
+  // For manual reset events, if signaled, restore the signaled state
+  // since WaitForSingleObject would have consumed it for auto-reset events
+  if Result and (not FManualReset) then
+  begin
+    // For auto-reset events, the signal was consumed by the check
+    // We need to re-signal it to maintain state consistency
+    Windows.SetEvent(FHandle);
+  end;
 end;
 
 end.

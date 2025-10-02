@@ -120,7 +120,7 @@ begin
   WriteLn('=== 基础操作性能测试 ===');
   
   // 自动重置事件测试
-  Event := CreateEvent(False, False);
+  Event := MakeEvent(False, False);
   
   Results[0] := RunBenchmark('自动重置-SetEvent', OperationCount, procedure
   var i: Integer;
@@ -155,7 +155,7 @@ begin
   end);
   
   // 手动重置事件测试
-  Event := CreateEvent(True, False);
+  Event := MakeEvent(True, False);
   
   Results[4] := RunBenchmark('手动重置-SetEvent', OperationCount, procedure
   var i: Integer;
@@ -250,7 +250,7 @@ begin
   WriteLn;
   
   // 测试并发 WaitFor
-  Event := CreateEvent(True, True); // 设置为信号状态
+  Event := MakeEvent(True, True); // 设置为信号状态
   
   WriteLn('测试并发 WaitFor...');
   StartTime := GetTickCount64;
@@ -296,7 +296,7 @@ begin
   StartTime := GetTickCount64;
   
   for i := 0 to EventCount - 1 do
-    Events[i] := CreateEvent(i mod 2 = 0, i mod 3 = 0);
+    Events[i] := MakeEvent(i mod 2 = 0, i mod 3 = 0);
     
   EndTime := GetTickCount64;
   

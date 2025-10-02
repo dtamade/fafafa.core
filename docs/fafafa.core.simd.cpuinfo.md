@@ -29,6 +29,24 @@
 - **可用性检查**: 检查特定后端是否可用
 - **优先级排序**: 按性能优先级排列可用后端
 
+## 通用能力与架构映射
+
+通用能力 (TGenericFeature) 到各 ISA 的基线映射：
+
+- gfSimd128：x86(SSE2+) / ARM(NEON/AdvSIMD) / RISC-V(V)
+- gfSimd256：x86(AVX2)
+- gfSimd512：x86(AVX-512F)
+- gfAES：x86(AES-NI) / ARM(Crypto)
+- gfSHA：x86(SHA ext) / ARM(Crypto)
+- gfFMA：x86(FMA3)
+
+注意（x86 OS 门槛）：
+
+- AVX 可用：需 OSXSAVE = 1 且 XCR0[1:0] = 11b（XMM & YMM 上下文）
+- AVX-512 可用：还需 XCR0[7:5] = 111b（ZMM 上下文）
+
+本库已在 x86 实现中纳入上述门槛，`HasFeature/HasX86` 返回“可用”视图。
+
 ## API 参考
 
 ### 主要函数

@@ -1,5 +1,6 @@
 unit fafafa.core.simd.imageproc;
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -23,19 +24,17 @@ type
     DataSize: Integer;
   end;
 
-  TKernel3x3 = array[0..8] of Single;  // 3x3 卷积核
-
+  TKernel3x3 = array[0..8] of Single;  // 3x3 卷积�?
 // === 基础图像操作 ===
 
-// 图像创建和销毁
-function CreateImage(width, height: Integer; format: TImageFormat): TImage;
+// 图像创建和销�?function CreateImage(width, height: Integer; format: TImageFormat): TImage;
 procedure FreeImage(var img: TImage);
 
 // 像素访问
 function GetPixelRGB(const img: TImage; x, y: Integer): TVecF32x4; // 返回 [R,G,B,A]
 procedure SetPixelRGB(var img: TImage; x, y: Integer; const color: TVecF32x4);
 
-// === SIMD 优化的图像处理函数 ===
+// === SIMD 优化的图像处理函�?===
 
 // 基础操作
 procedure ImageAdd(var dest: TImage; const src1, src2: TImage);
@@ -55,8 +54,7 @@ procedure ApplyGamma(var img: TImage; gamma: Single);
 // 卷积操作
 procedure ApplyConvolution3x3(var dest: TImage; const src: TImage; const kernel: TKernel3x3);
 
-// 预定义滤镜
-procedure ApplyGaussianBlur(var dest: TImage; const src: TImage);
+// 预定义滤�?procedure ApplyGaussianBlur(var dest: TImage; const src: TImage);
 procedure ApplySharpen(var dest: TImage; const src: TImage);
 procedure ApplyEdgeDetection(var dest: TImage; const src: TImage);
 
@@ -67,7 +65,7 @@ uses
 
 // === 常量定义 ===
 const
-  // RGB 到灰度转换权重 (ITU-R BT.709)
+  // RGB 到灰度转换权�?(ITU-R BT.709)
   RGB_TO_GRAY_R = 0.2126;
   RGB_TO_GRAY_G = 0.7152;
   RGB_TO_GRAY_B = 0.0722;
@@ -91,7 +89,7 @@ const
     -1, -1, -1
   );
 
-// === 图像创建和管理 ===
+// === 图像创建和管�?===
 
 function CreateImage(width, height: Integer; format: TImageFormat): TImage;
 var
@@ -124,7 +122,7 @@ begin
   img.DataSize := 0;
 end;
 
-// === SIMD 优化的图像处理 ===
+// === SIMD 优化的图像处�?===
 
 procedure ImageAdd(var dest: TImage; const src1, src2: TImage);
 var
@@ -148,10 +146,9 @@ begin
   case src1.Format of
     ifRGBA32:
     begin
-      // 4字节对齐，可以直接使用 SIMD
+      // 4字节对齐，可以直接使�?SIMD
       i := 0;
-      while i < src1.DataSize - 15 do  // 处理16字节块
-      begin
+      while i < src1.DataSize - 15 do  // 处理16字节�?      begin
         vec1 := VecF32x4_LoadUnaligned(@p1[i]);
         vec2 := VecF32x4_LoadUnaligned(@p2[i]);
         result := VecF32x4_Add(vec1, vec2);
@@ -169,8 +166,7 @@ begin
 
     ifRGB24:
     begin
-      // 3字节像素，需要特殊处理
-      for i := 0 to (src1.Width * src1.Height) - 1 do
+      // 3字节像素，需要特殊处�?      for i := 0 to (src1.Width * src1.Height) - 1 do
       begin
         temp1[0] := p1[i * 3 + 0];     // R
         temp1[1] := p1[i * 3 + 1];     // G
@@ -195,8 +191,7 @@ begin
 
     ifGrayscale:
     begin
-      // 单字节像素
-      for i := 0 to src1.DataSize - 1 do
+      // 单字节像�?      for i := 0 to src1.DataSize - 1 do
         pd[i] := p1[i] + p2[i];
     end;
   end;
@@ -224,8 +219,7 @@ begin
 
   for i := 0 to (src.Width * src.Height) - 1 do
   begin
-    // 加载 RGB 值
-    r := ps[i * 3 + 0];
+    // 加载 RGB �?    r := ps[i * 3 + 0];
     g := ps[i * 3 + 1];
     b := ps[i * 3 + 2];
 
@@ -269,8 +263,7 @@ begin
         temp[2] := p[i * 3 + 2] + brightness;
         temp[3] := 0;
 
-        // 限制在 0-255 范围内
-        if temp[0] < 0 then temp[0] := 0 else if temp[0] > 255 then temp[0] := 255;
+        // 限制�?0-255 范围�?        if temp[0] < 0 then temp[0] := 0 else if temp[0] > 255 then temp[0] := 255;
         if temp[1] < 0 then temp[1] := 0 else if temp[1] > 255 then temp[1] := 255;
         if temp[2] < 0 then temp[2] := 0 else if temp[2] > 255 then temp[2] := 255;
 
@@ -311,9 +304,8 @@ begin
   ps := src.Data;
   pd := dest.Data;
 
-  // 简化实现：只处理灰度图像
-  if src.Format <> ifGrayscale then
-    raise Exception.Create('卷积操作目前只支持灰度图像');
+  // 简化实现：只处理灰度图�?  if src.Format <> ifGrayscale then
+    raise Exception.Create('卷积操作目前只支持灰度图�?);
 
   for y := 1 to src.Height - 2 do
   begin
@@ -321,8 +313,7 @@ begin
     begin
       sum := 0.0;
 
-      // 应用 3x3 卷积核
-      for ky := -1 to 1 do
+      // 应用 3x3 卷积�?      for ky := -1 to 1 do
       begin
         for kx := -1 to 1 do
         begin
@@ -341,7 +332,7 @@ begin
   end;
 end;
 
-// 其他函数的简化实现...
+// 其他函数的简化实�?..
 procedure ImageSubtract(var dest: TImage; const src1, src2: TImage);
 begin
   // 实现类似 ImageAdd，但使用减法
@@ -375,8 +366,7 @@ end;
 
 procedure ApplyContrast(var img: TImage; contrast: Single);
 begin
-  // 实现对比度调整
-end;
+  // 实现对比度调�?end;
 
 procedure ApplyGamma(var img: TImage; gamma: Single);
 begin
@@ -384,3 +374,5 @@ begin
 end;
 
 end.
+
+

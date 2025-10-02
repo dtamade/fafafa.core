@@ -33,6 +33,7 @@ unit fafafa.core.time.date;
 ──────────────────────────────────────────────────────────────
 }
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface

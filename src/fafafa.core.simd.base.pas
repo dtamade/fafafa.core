@@ -1,5 +1,6 @@
 unit fafafa.core.simd.base;
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -78,11 +79,9 @@ procedure RegisterBackendFactory(Backend: TSimdBackend; Factory: ISimdBackendFac
 // 获取后端工厂
 function GetBackendFactory(Backend: TSimdBackend): ISimdBackendFactory;
 
-// 获取最佳可用后端工厂
-function GetBestBackendFactory: ISimdBackendFactory;
+// 获取最佳可用后端工�?function GetBestBackendFactory: ISimdBackendFactory;
 
-// 获取所有可用后端工厂
-type
+// 获取所有可用后端工�?type
   TSimdBackendFactoryArray = array of ISimdBackendFactory;
 
 function GetAvailableBackendFactories: TSimdBackendFactoryArray;
@@ -120,8 +119,7 @@ var
 begin
   Result := nil;
   
-  // 按优先级顺序检查后端
-  for backend := High(TSimdBackend) downto Low(TSimdBackend) do
+  // 按优先级顺序检查后�?  for backend := High(TSimdBackend) downto Low(TSimdBackend) do
   begin
     factory := GetBackendFactory(backend);
     if factory <> nil then
@@ -131,8 +129,7 @@ begin
     end;
   end;
   
-  // 如果没有找到任何后端，抛出异常
-  if Result = nil then
+  // 如果没有找到任何后端，抛出异�?  if Result = nil then
     raise Exception.Create('No SIMD backend available');
 end;
 
@@ -162,19 +159,16 @@ begin
   Result := factories;
 end;
 
-// === 自动初始化 ===
+// === 自动初始�?===
 
 procedure InitializeDefaultFactories;
 begin
   if g_FactoriesInitialized then
     Exit;
     
-  // 这里会在各个平台特定模块中注册工厂
-  // 例如：
-  // - fafafa.core.simd.math.x86 会注册 x86 数学工厂
-  // - fafafa.core.simd.math.arm 会注册 ARM 数学工厂
-  // - fafafa.core.simd.math.scalar 会注册标量工厂
-  
+  // 这里会在各个平台特定模块中注册工�?  // 例如�?  // - fafafa.core.simd.math.x86 会注�?x86 数学工厂
+  // - fafafa.core.simd.math.arm 会注�?ARM 数学工厂
+  // - fafafa.core.simd.math.scalar 会注册标量工�?  
   g_FactoriesInitialized := True;
 end;
 
@@ -188,3 +182,5 @@ finalization
     g_BackendFactories[backend] := nil;
 
 end.
+
+

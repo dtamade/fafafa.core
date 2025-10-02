@@ -1,13 +1,12 @@
 unit fafafa.core.simd.intrinsics.avx2;
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 {
   === fafafa.core.simd.intrinsics.avx2 ===
-  AVX2 (Advanced Vector Extensions 2) 指令集支持
-  
-  AVX2 是 Intel 在 2013 年引入的 256-bit SIMD 指令集扩展
-  将大部分 SSE 整数指令扩展到 256-bit
+  AVX2 (Advanced Vector Extensions 2) 指令集支�?  
+  AVX2 �?Intel �?2013 年引入的 256-bit SIMD 指令集扩�?  将大部分 SSE 整数指令扩展�?256-bit
   
   特性：
   - 256-bit 整数运算
@@ -16,8 +15,7 @@ unit fafafa.core.simd.intrinsics.avx2;
   - 广播指令
   - 融合乘加指令 (FMA)
   
-  兼容性：Intel Haswell (2013) 及更新的处理器
-}
+  兼容性：Intel Haswell (2013) 及更新的处理�?}
 
 interface
 
@@ -73,19 +71,19 @@ function avx2_min_epi32(const a, b: TM256): TM256;
 function avx2_min_epi16(const a, b: TM256): TM256;
 function avx2_min_epi8(const a, b: TM256): TM256;
 
-// Variable Shift (AVX2 新特性)
+// Variable Shift (AVX2 新特�?
 function avx2_sllv_epi32(const a, count: TM256): TM256;
 function avx2_sllv_epi64(const a, count: TM256): TM256;
 function avx2_srlv_epi32(const a, count: TM256): TM256;
 function avx2_srlv_epi64(const a, count: TM256): TM256;
 function avx2_srav_epi32(const a, count: TM256): TM256;
 
-// Broadcast (AVX2 新特性)
+// Broadcast (AVX2 新特�?
 function avx2_broadcastss_ps(const a: TM128): TM256;
 function avx2_broadcastsd_pd(const a: TM128): TM256;
 function avx2_broadcastsi128_si256(const a: TM128): TM256;
 
-// Gather (AVX2 新特性)
+// Gather (AVX2 新特�?
 function avx2_gather_epi32(const base_addr: Pointer; const vindex: TM256; scale: Integer): TM256;
 function avx2_gather_epi64(const base_addr: Pointer; const vindex: TM128; scale: Integer): TM256;
 function avx2_gather_ps(const base_addr: Pointer; const vindex: TM256; scale: Integer): TM256;
@@ -413,7 +411,7 @@ begin
       Result.m256i_i8[i] := b.m256i_i8[i];
 end;
 
-// === AVX2 新特性的简化实现 ===
+// === AVX2 新特性的简化实�?===
 function avx2_sllv_epi32(const a, count: TM256): TM256;
 var
   i: Integer;
@@ -525,3 +523,5 @@ function avx2_permutevar8x32_epi32(const a, idx: TM256): TM256; begin Result := 
 function avx2_permutevar8x32_ps(const a: TM256; const idx: TM256): TM256; begin Result := a; end;
 
 end.
+
+

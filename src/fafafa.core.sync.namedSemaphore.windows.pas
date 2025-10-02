@@ -1,6 +1,6 @@
 unit fafafa.core.sync.namedSemaphore.windows;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -57,7 +57,7 @@ type
     function TryWait: INamedSemaphoreGuard;
     function TryWaitFor(ATimeoutMs: Cardinal): INamedSemaphoreGuard;
 
-    // 现代化错误处理方法
+    // 现代化错误处理方�?
     function WaitSafe: TNamedSemaphoreGuardResult;
     function TryWaitSafe: TNamedSemaphoreGuardResult;
     function TryWaitForSafe(ATimeoutMs: Cardinal): TNamedSemaphoreGuardResult;
@@ -111,7 +111,7 @@ end;
 function TNamedSemaphoreGuard.GetCount: Integer;
 begin
   // Windows 不直接支持查询信号量当前计数
-  // 返回 -1 表示不支持
+  // 返回 -1 表示不支�?
   Result := -1;
 end;
 
@@ -142,7 +142,7 @@ begin
   if Length(AName) > 260 then  // MAX_PATH
     raise EInvalidArgument.CreateFmt('Semaphore name too long: %d characters (max 260)', [Length(AName)]);
     
-  // 检查无效字符（除了允许的前缀）
+  // 检查无效字符（除了允许的前缀�?
   if (Pos('Global\', AName) <> 1) and (Pos('Local\', AName) <> 1) then
   begin
     if Pos('\', AName) > 0 then
@@ -187,14 +187,14 @@ begin
   FReleaseCount := 0;
   FTotalWaitTime := 0.0;
   
-  // 创建或打开命名信号量
+  // 创建或打开命名信号�?
   FHandle := CreateSemaphoreW(nil, AInitialCount, AMaxCount, PWideChar(UnicodeString(LName)));
   
   if FHandle = 0 then
     raise ELockError.CreateFmt('Failed to create named semaphore "%s": %s', 
       [LName, SysErrorMessage(Windows.GetLastError)]);
       
-  // 检查是否为创建者
+  // 检查是否为创建�?
   LLastError := Windows.GetLastError;
   FIsCreator := (LLastError <> ERROR_ALREADY_EXISTS);
 end;
@@ -242,7 +242,7 @@ begin
     LInstance.FHandle := LHandle;
     LInstance.FName := LName;
     LInstance.FIsCreator := False;
-    LInstance.FMaxCount := -1; // 无法确定最大计数
+    LInstance.FMaxCount := -1; // 无法确定最大计�?
     LInstance.FLastError := weNone;
 
     Result := LInstance;
@@ -271,11 +271,11 @@ var
   LResult: DWORD;
   LStartTime, LEndTime: TDateTime;
 begin
-  // 检查句柄有效性
+  // 检查句柄有效�?
   if FHandle = 0 then
     raise ELockError.CreateFmt('Named semaphore "%s" handle is invalid', [FName]);
 
-  // 性能监控：记录开始时间
+  // 性能监控：记录开始时�?
   if FEnablePerformanceMonitoring then
     LStartTime := Now;
 
@@ -286,7 +286,7 @@ begin
   begin
     LEndTime := Now;
     Inc(FWaitCount);
-    FTotalWaitTime := FTotalWaitTime + ((LEndTime - LStartTime) * 24 * 60 * 60 * 1000); // 转换为毫秒
+    FTotalWaitTime := FTotalWaitTime + ((LEndTime - LStartTime) * 24 * 60 * 60 * 1000); // 转换为毫�?
   end;
 
   case LResult of
@@ -309,7 +309,7 @@ function TNamedSemaphore.TryWaitFor(ATimeoutMs: Cardinal): INamedSemaphoreGuard;
 var
   LResult: DWORD;
 begin
-  // 检查句柄有效性
+  // 检查句柄有效�?
   if FHandle = 0 then
     raise ELockError.CreateFmt('Named semaphore "%s" handle is invalid', [FName]);
 
@@ -337,7 +337,7 @@ begin
   if ACount <= 0 then
     raise EInvalidArgument.CreateFmt('Release count must be positive: %d', [ACount]);
 
-  // 检查句柄有效性
+  // 检查句柄有效�?
   if FHandle = 0 then
     raise ELockError.CreateFmt('Named semaphore "%s" handle is invalid', [FName]);
 
@@ -345,7 +345,7 @@ begin
     raise ELockError.CreateFmt('Failed to release named semaphore "%s": %s',
       [FName, SysErrorMessage(Windows.GetLastError)]);
 
-  // 性能监控：记录释放次数
+  // 性能监控：记录释放次�?
   if FEnablePerformanceMonitoring then
     Inc(FReleaseCount, ACount);
 end;
@@ -362,7 +362,7 @@ var
   LPreviousCount: LONG;
   I: Integer;
 begin
-  // 检查句柄有效性
+  // 检查句柄有效�?
   if FHandle = 0 then
     Exit(-1);
 
@@ -399,7 +399,7 @@ begin
   Result := FMaxCount;
 end;
 
-// 兼容性方法（已弃用）- 修复 RAII 问题，直接调用 Windows API
+// 兼容性方法（已弃用）- 修复 RAII 问题，直接调�?Windows API
 procedure TNamedSemaphore.Acquire;
 var
   LResult: DWORD;
@@ -487,19 +487,19 @@ begin
     Result := 0.0;
 end;
 
-// 现代化错误处理方法实现
+// 现代化错误处理方法实�?
 function TNamedSemaphore.WaitSafe: TNamedSemaphoreGuardResult;
 var
   LResult: DWORD;
   LStartTime, LEndTime: TDateTime;
 begin
   try
-    // 检查句柄有效性
+    // 检查句柄有效�?
     if FHandle = 0 then
       Exit(TNamedSemaphoreGuardResult.Failure(
         TNamedSemaphoreError.SystemError('Named semaphore handle is invalid', 0)));
 
-    // 性能监控：记录开始时间
+    // 性能监控：记录开始时�?
     if FEnablePerformanceMonitoring then
       LStartTime := Now;
 
@@ -540,7 +540,7 @@ var
   LResult: DWORD;
 begin
   try
-    // 检查句柄有效性
+    // 检查句柄有效�?
     if FHandle = 0 then
       Exit(TNamedSemaphoreGuardResult.Failure(
         TNamedSemaphoreError.SystemError('Named semaphore handle is invalid', 0)));

@@ -1,5 +1,6 @@
 unit fafafa.core.simd.ops.avx2;
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -11,13 +12,12 @@ uses
 
 // === AVX2 256-bit 整数向量操作 ===
 
-// 32位整数向量操作 (256-bit, 8x int32)
+// 32位整数向量操�?(256-bit, 8x int32)
 function AVX2_VecI32x8_Add(const a, b: TVecI32x8): TVecI32x8;
 function AVX2_VecI32x8_Sub(const a, b: TVecI32x8): TVecI32x8;
 function AVX2_VecI32x8_Mul(const a, b: TVecI32x8): TVecI32x8; // vpmulld
 
-// 向量加载和存储
-function AVX2_VecI32x8_Load(const ptr: Pointer): TVecI32x8;
+// 向量加载和存�?function AVX2_VecI32x8_Load(const ptr: Pointer): TVecI32x8;
 procedure AVX2_VecI32x8_Store(const vec: TVecI32x8; ptr: Pointer);
 function AVX2_VecI32x8_LoadUnaligned(const ptr: Pointer): TVecI32x8;
 procedure AVX2_VecI32x8_StoreUnaligned(const vec: TVecI32x8; ptr: Pointer);
@@ -214,3 +214,5 @@ end;
 {$ENDIF} // SIMD_X86_AVAILABLE
 
 end.
+
+

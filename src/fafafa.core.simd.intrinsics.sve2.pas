@@ -1,22 +1,16 @@
 unit fafafa.core.simd.intrinsics.sve2;
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 {
   === fafafa.core.simd.intrinsics.sve2 ===
-  ARM SVE2 (Scalable Vector Extension 2) 指令集支持
-  
-  SVE2 是 ARM SVE 的扩展版本
-  增加了更多的向量操作和数字信号处理指令
-  
+  ARM SVE2 (Scalable Vector Extension 2) 指令集支�?  
+  SVE2 �?ARM SVE 的扩展版�?  增加了更多的向量操作和数字信号处理指�?  
   特性：
-  - 扩展的整数运算
-  - 数字信号处理指令
-  - 加密和哈希指令
-  - 位操作指令
-  
-  兼容性：ARMv9-A 及更新的 ARM 处理器
-}
+  - 扩展的整数运�?  - 数字信号处理指令
+  - 加密和哈希指�?  - 位操作指�?  
+  兼容性：ARMv9-A 及更新的 ARM 处理�?}
 
 interface
 
@@ -26,7 +20,7 @@ uses
 
 {$IFDEF CPUAARCH64}
 
-// === SVE2 扩展函数 (占位符) ===
+// === SVE2 扩展函数 (占位�? ===
 function sve2_addp_u32_z(const pred: TSVEPredicate; const a, b: TSVEVector): TSVEVector;
 function sve2_maxp_u32_z(const pred: TSVEPredicate; const a, b: TSVEVector): TSVEVector;
 function sve2_minp_u32_z(const pred: TSVEPredicate; const a, b: TSVEVector): TSVEVector;
@@ -38,7 +32,7 @@ implementation
 
 {$IFDEF CPUAARCH64}
 
-// === SVE2 函数的简化实现 ===
+// === SVE2 函数的简化实�?===
 function sve2_addp_u32_z(const pred: TSVEPredicate; const a, b: TSVEVector): TSVEVector;
 var
   i: Integer;
@@ -55,8 +49,7 @@ function sve2_maxp_u32_z(const pred: TSVEPredicate; const a, b: TSVEVector): TSV
 var
   i: Integer;
 begin
-  // 简化的成对最大值实现
-  for i := 0 to 7 do
+  // 简化的成对最大值实�?  for i := 0 to 7 do
     if pred.pred_mask[i] then
     begin
       if a.sve_u32[i * 2] > a.sve_u32[i * 2 + 1] then
@@ -72,8 +65,7 @@ function sve2_minp_u32_z(const pred: TSVEPredicate; const a, b: TSVEVector): TSV
 var
   i: Integer;
 begin
-  // 简化的成对最小值实现
-  for i := 0 to 7 do
+  // 简化的成对最小值实�?  for i := 0 to 7 do
     if pred.pred_mask[i] then
     begin
       if a.sve_u32[i * 2] < a.sve_u32[i * 2 + 1] then
@@ -101,7 +93,9 @@ begin
 end;
 
 {$ELSE}
-// 非 AArch64 平台的空实现
+// �?AArch64 平台的空实现
 {$ENDIF} // CPUAARCH64
 
 end.
+
+

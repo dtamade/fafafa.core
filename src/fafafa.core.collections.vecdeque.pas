@@ -681,7 +681,7 @@ type
 
     // 统一的 RemoveRange 重载系列
     procedure RemoveRange(aIndex, aCount: SizeUInt; aPtr: Pointer); overload;
-    procedure RemoveRange(aIndex, aCount: SizeUInt; var aArray: TInternalArray); overload;
+    procedure RemoveRange(aIndex, aCount: SizeUInt; var aArray: specialize TGenericArray<T>); overload;
     procedure RemoveRange(aIndex, aCount: SizeUInt; const aTarget: TCollection); overload;
 
     // 现代化便利方法 - Java ArrayDeque 风格
@@ -744,11 +744,39 @@ type
     {$ENDIF}
 
     // Filter 系列方法
-    function Filter(aPredicate: TPredicateFunc; aData: Pointer): TVecDeque;
-    function Filter(aPredicate: TPredicateMethod; aData: Pointer): TVecDeque;
+    function Filter(aPredicate: TPredicateFunc; aData: Pointer): specialize IVec<T>;
+    function Filter(aPredicate: TPredicateMethod; aData: Pointer): specialize IVec<T>;
     {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
-    function Filter(aPredicate: TPredicateRefFunc): TVecDeque;
+    function Filter(aPredicate: TPredicateRefFunc): specialize IVec<T>;
     {$ENDIF}
+
+    // Any 系列方法
+    function Any(aPredicate: TPredicateFunc; aData: Pointer): Boolean;
+    function Any(aPredicate: TPredicateMethod; aData: Pointer): Boolean;
+    {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
+    function Any(aPredicate: TPredicateRefFunc): Boolean;
+    {$ENDIF}
+
+    // All 系列方法
+    function All(aPredicate: TPredicateFunc; aData: Pointer): Boolean;
+    function All(aPredicate: TPredicateMethod; aData: Pointer): Boolean;
+    {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
+    function All(aPredicate: TPredicateRefFunc): Boolean;
+    {$ENDIF}
+
+    // Retain 系列方法
+    procedure Retain(aPredicate: TPredicateFunc; aData: Pointer);
+    procedure Retain(aPredicate: TPredicateMethod; aData: Pointer);
+    {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
+    procedure Retain(aPredicate: TPredicateRefFunc);
+    {$ENDIF}
+
+    // Drain 方法
+    function Drain(aStart, aCount: SizeUInt): specialize IVec<T>;
+
+    // First / Last 方法
+    function First: T;
+    function Last: T;
 
     property Capacity:     SizeUint        read GetCapacity     write SetCapacity;
     property GrowStrategy: IGrowthStrategy read GetGrowStrategy write SetGrowStrategy;
@@ -8101,7 +8129,7 @@ end;
 
 { Filter 系列方法实现 }
 
-function TVecDeque.Filter(aPredicate: TPredicateFunc; aData: Pointer): TVecDeque;
+function TVecDeque.Filter(aPredicate: TPredicateFunc; aData: Pointer): specialize IVec<T>;
 var
   i: SizeUInt;
   LResult: TVecDeque;
@@ -8120,7 +8148,7 @@ begin
   end;
 end;
 
-function TVecDeque.Filter(aPredicate: TPredicateMethod; aData: Pointer): TVecDeque;
+function TVecDeque.Filter(aPredicate: TPredicateMethod; aData: Pointer): specialize IVec<T>;
 var
   i: SizeUInt;
   LResult: TVecDeque;
@@ -8140,7 +8168,7 @@ begin
 end;
 
 {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
-function TVecDeque.Filter(aPredicate: TPredicateRefFunc): TVecDeque;
+function TVecDeque.Filter(aPredicate: TPredicateRefFunc): specialize IVec<T>;
 var
   i: SizeUInt;
   LResult: TVecDeque;
@@ -8199,9 +8227,28 @@ begin
   RemoveCopy(aIndex, aPtr, aCount);  // 复用现有优化实现
 end;
 
-procedure TVecDeque.RemoveRange(aIndex, aCount: SizeUInt; var aArray: TInternalArray);
+procedure TVecDeque.RemoveRange(aIndex, aCount: SizeUInt; var aArray: specialize TGenericArray<T>);
+var
+  i: SizeUInt;
+  LPtr1, LPtr2: PElement;
+  LLen1, LLen2: SizeUInt;
 begin
-  RemoveArray(aIndex, aArray, aCount);  // 复用现有实现
+  if aCount = 0 then Exit;
+  if aIndex + aCount > FCount then
+    raise EOutOfRange.Create('TVecDeque.RemoveRange: range out of bounds');
+  
+  // 调整数组大小
+  SetLength(aArray, aCount);
+  
+  // 获取两段切片并复制到数组
+  GetTwoSlices(aIndex, aCount, LPtr1, LLen1, LPtr2, LLen2);
+  for i := 0 to LLen1 - 1 do
+    aArray[i] := LPtr1[i];
+  for i := 0 to LLen2 - 1 do
+    aArray[LLen1 + i] := LPtr2[i];
+  
+  // 删除该范围
+  Delete(aIndex, aCount);
 end;
 
 procedure TVecDeque.RemoveRange(aIndex, aCount: SizeUInt; const aTarget: TCollection);
@@ -8231,7 +8278,7 @@ function TVecDeque.RemoveFirstOccurrence(const aElement: T): Boolean;
 var
   LIndex: SizeInt;
 begin
-  LIndex := IndexOf(aElement);
+  LIndex := FastIndexOf(aElement);
   if LIndex >= 0 then
   begin
     Delete(SizeUInt(LIndex));
@@ -8245,7 +8292,7 @@ function TVecDeque.RemoveLastOccurrence(const aElement: T): Boolean;
 var
   LIndex: SizeInt;
 begin
-  LIndex := LastIndexOf(aElement);
+  LIndex := FastLastIndexOf(aElement);
   if LIndex >= 0 then
   begin
     Delete(SizeUInt(LIndex));
@@ -8253,6 +8300,156 @@ begin
   end
   else
     Result := False;
+end;
+
+{ IVec<T> 接口缺失方法实现 }
+
+function TVecDeque.Any(aPredicate: TPredicateFunc; aData: Pointer): Boolean;
+var
+  i: SizeUInt;
+begin
+  for i := 0 to FCount - 1 do
+    if aPredicate(GetUnChecked(i), aData) then
+      Exit(True);
+  Result := False;
+end;
+
+function TVecDeque.Any(aPredicate: TPredicateMethod; aData: Pointer): Boolean;
+var
+  i: SizeUInt;
+begin
+  for i := 0 to FCount - 1 do
+    if aPredicate(GetUnChecked(i), aData) then
+      Exit(True);
+  Result := False;
+end;
+
+{$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
+function TVecDeque.Any(aPredicate: TPredicateRefFunc): Boolean;
+var
+  i: SizeUInt;
+begin
+  for i := 0 to FCount - 1 do
+    if aPredicate(GetUnChecked(i)) then
+      Exit(True);
+  Result := False;
+end;
+{$ENDIF}
+
+function TVecDeque.All(aPredicate: TPredicateFunc; aData: Pointer): Boolean;
+var
+  i: SizeUInt;
+begin
+  for i := 0 to FCount - 1 do
+    if not aPredicate(GetUnChecked(i), aData) then
+      Exit(False);
+  Result := True;
+end;
+
+function TVecDeque.All(aPredicate: TPredicateMethod; aData: Pointer): Boolean;
+var
+  i: SizeUInt;
+begin
+  for i := 0 to FCount - 1 do
+    if not aPredicate(GetUnChecked(i), aData) then
+      Exit(False);
+  Result := True;
+end;
+
+{$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
+function TVecDeque.All(aPredicate: TPredicateRefFunc): Boolean;
+var
+  i: SizeUInt;
+begin
+  for i := 0 to FCount - 1 do
+    if not aPredicate(GetUnChecked(i)) then
+      Exit(False);
+  Result := True;
+end;
+{$ENDIF}
+
+procedure TVecDeque.Retain(aPredicate: TPredicateFunc; aData: Pointer);
+var
+  i, j: SizeUInt;
+begin
+  j := 0;
+  for i := 0 to FCount - 1 do
+    if aPredicate(GetUnChecked(i), aData) then
+    begin
+      if i <> j then
+        PutUnChecked(j, GetUnChecked(i));
+      Inc(j);
+    end;
+  Resize(j);
+end;
+
+procedure TVecDeque.Retain(aPredicate: TPredicateMethod; aData: Pointer);
+var
+  i, j: SizeUInt;
+begin
+  j := 0;
+  for i := 0 to FCount - 1 do
+    if aPredicate(GetUnChecked(i), aData) then
+    begin
+      if i <> j then
+        PutUnChecked(j, GetUnChecked(i));
+      Inc(j);
+    end;
+  Resize(j);
+end;
+
+{$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
+procedure TVecDeque.Retain(aPredicate: TPredicateRefFunc);
+var
+  i, j: SizeUInt;
+begin
+  j := 0;
+  for i := 0 to FCount - 1 do
+    if aPredicate(GetUnChecked(i)) then
+    begin
+      if i <> j then
+        PutUnChecked(j, GetUnChecked(i));
+      Inc(j);
+    end;
+  Resize(j);
+end;
+{$ENDIF}
+
+function TVecDeque.Drain(aStart, aCount: SizeUInt): specialize IVec<T>;
+var
+  LResult: specialize TVec<T>;
+  i: SizeUInt;
+begin
+  if aStart >= FCount then
+    raise EArgumentOutOfRangeException.Create('Drain: start index out of range');
+  if aStart + aCount > FCount then
+    aCount := FCount - aStart;
+
+  LResult := specialize TVec<T>.Create(aCount, GetAllocator, nil);
+  try
+    for i := 0 to aCount - 1 do
+      LResult.PushUnChecked(GetUnChecked(aStart + i));
+    
+    Delete(aStart, aCount);
+    Result := LResult;
+  except
+    LResult.Free;
+    raise;
+  end;
+end;
+
+function TVecDeque.First: T;
+begin
+  if FCount = 0 then
+    raise EInvalidOperation.Create('TVecDeque.First: collection is empty');
+  Result := GetUnChecked(0);
+end;
+
+function TVecDeque.Last: T;
+begin
+  if FCount = 0 then
+    raise EInvalidOperation.Create('TVecDeque.Last: collection is empty');
+  Result := GetUnChecked(FCount - 1);
 end;
 
 end.

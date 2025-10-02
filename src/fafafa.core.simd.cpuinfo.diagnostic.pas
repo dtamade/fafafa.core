@@ -1,5 +1,6 @@
 unit fafafa.core.simd.cpuinfo.diagnostic;
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 {$IFDEF WINDOWS}

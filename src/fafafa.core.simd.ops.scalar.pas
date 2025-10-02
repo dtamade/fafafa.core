@@ -1,5 +1,6 @@
 unit fafafa.core.simd.ops.scalar;
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -8,27 +9,22 @@ uses
   fafafa.core.simd.types;
 
 // === 标量回退实现 ===
-// 当没有 SIMD 支持时使用的纯标量实现
-
-// 单精度浮点向量操作
-function Scalar_VecF32x4_Add(const a, b: TVecF32x4): TVecF32x4;
+// 当没�?SIMD 支持时使用的纯标量实�?
+// 单精度浮点向量操�?function Scalar_VecF32x4_Add(const a, b: TVecF32x4): TVecF32x4;
 function Scalar_VecF32x4_Sub(const a, b: TVecF32x4): TVecF32x4;
 function Scalar_VecF32x4_Mul(const a, b: TVecF32x4): TVecF32x4;
 function Scalar_VecF32x4_Div(const a, b: TVecF32x4): TVecF32x4;
 
-// 双精度浮点向量操作
-function Scalar_VecF64x2_Add(const a, b: TVecF64x2): TVecF64x2;
+// 双精度浮点向量操�?function Scalar_VecF64x2_Add(const a, b: TVecF64x2): TVecF64x2;
 function Scalar_VecF64x2_Sub(const a, b: TVecF64x2): TVecF64x2;
 function Scalar_VecF64x2_Mul(const a, b: TVecF64x2): TVecF64x2;
 function Scalar_VecF64x2_Div(const a, b: TVecF64x2): TVecF64x2;
 
-// 32位整数向量操作
-function Scalar_VecI32x4_Add(const a, b: TVecI32x4): TVecI32x4;
+// 32位整数向量操�?function Scalar_VecI32x4_Add(const a, b: TVecI32x4): TVecI32x4;
 function Scalar_VecI32x4_Sub(const a, b: TVecI32x4): TVecI32x4;
 function Scalar_VecI32x4_Mul(const a, b: TVecI32x4): TVecI32x4;
 
-// 向量加载和存储
-function Scalar_VecF32x4_Load(const ptr: Pointer): TVecF32x4;
+// 向量加载和存�?function Scalar_VecF32x4_Load(const ptr: Pointer): TVecF32x4;
 procedure Scalar_VecF32x4_Store(const vec: TVecF32x4; ptr: Pointer);
 
 // 向量创建
@@ -57,7 +53,7 @@ implementation
 uses
   Math;
 
-// === 单精度浮点向量操作 ===
+// === 单精度浮点向量操�?===
 
 function Scalar_VecF32x4_Add(const a, b: TVecF32x4): TVecF32x4;
 begin
@@ -91,7 +87,7 @@ begin
   Result.f[3] := a.f[3] / b.f[3];
 end;
 
-// === 双精度浮点向量操作 ===
+// === 双精度浮点向量操�?===
 
 function Scalar_VecF64x2_Add(const a, b: TVecF64x2): TVecF64x2;
 begin
@@ -117,7 +113,7 @@ begin
   Result.d[1] := a.d[1] / b.d[1];
 end;
 
-// === 32位整数向量操作 ===
+// === 32位整数向量操�?===
 
 function Scalar_VecI32x4_Add(const a, b: TVecI32x4): TVecI32x4;
 begin
@@ -143,7 +139,7 @@ begin
   Result.i[3] := a.i[3] * b.i[3];
 end;
 
-// === 向量加载和存储 ===
+// === 向量加载和存�?===
 
 function Scalar_VecF32x4_Load(const ptr: Pointer): TVecF32x4;
 begin
@@ -268,3 +264,5 @@ begin
 end;
 
 end.
+
+

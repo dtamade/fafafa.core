@@ -1,5 +1,6 @@
 unit fafafa.core.sync.spin.base;
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface

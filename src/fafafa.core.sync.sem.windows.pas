@@ -1,6 +1,6 @@
 unit fafafa.core.sync.sem.windows;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -64,7 +64,7 @@ implementation
 
 function TSem.LockGuard: ILockGuard;
 begin
-  // 统一风格：委派到 AcquireGuard（ISemGuard 继承自 ILockGuard）
+  // 统一风格：委派到 AcquireGuard（ISemGuard 继承�?ILockGuard�?
   Result := AcquireGuard;
 end;
 
@@ -238,7 +238,7 @@ procedure TSem.Release(ACount: Integer);
 begin
   if ACount < 0 then raise EInvalidArgument.Create('sem: ACount < 0');
   if ACount = 0 then Exit;
-  // 在临界区内先更新本地计数，再释放内核许可，避免采样负值
+  // 在临界区内先更新本地计数，再释放内核许可，避免采样负�?
   EnterCriticalSection(FLock);
   try
     if FCurrentCount + ACount > FMaxCount then
@@ -264,7 +264,7 @@ begin
   if ACount < 0 then raise EInvalidArgument.Create('sem: ACount < 0');
   if ACount = 0 then Exit(True);
 
-  // 在单个临界区内完成检查、更新与内核调用，避免采样到不一致
+  // 在单个临界区内完成检查、更新与内核调用，避免采样到不一�?
   EnterCriticalSection(FLock);
   try
     if FCurrentCount + ACount > FMaxCount then
@@ -324,7 +324,7 @@ begin
 
   while acquired < ACount do
   begin
-    // 对于零超时，使用非阻塞等待
+    // 对于零超时，使用非阻塞等�?
     if ATimeoutMs = 0 then
       waitMs := 0
     else
@@ -332,7 +332,7 @@ begin
       now := NowMs;
       if now >= deadline then
       begin
-        // timeout - 安全回滚（直接释放内核信号量，避免 TryRelease 的前置检查导致漏回滚）
+        // timeout - 安全回滚（直接释放内核信号量，避�?TryRelease 的前置检查导致漏回滚�?
         if acquired > 0 then
         begin
           ReleaseSemaphore(FHandle, acquired, nil);
@@ -364,7 +364,7 @@ begin
     end
     else if rc = WAIT_TIMEOUT then
     begin
-      // 安全回滚（直接释放内核信号量 + 同步本地计数）
+      // 安全回滚（直接释放内核信号量 + 同步本地计数�?
       if acquired > 0 then
       begin
         ReleaseSemaphore(FHandle, acquired, nil);
@@ -379,13 +379,13 @@ begin
     end
     else
     begin
-      // 安全回滚：使用 TryRelease 避免异常
+      // 安全回滚：使�?TryRelease 避免异常
       if acquired > 0 then
       begin
         try
           TryRelease(acquired);
         except
-          // 忽略回滚异常，保持原始系统错误
+          // 忽略回滚异常，保持原始系统错�?
         end;
       end;
       raise ELockError.Create('sem: failed to acquire semaphore');

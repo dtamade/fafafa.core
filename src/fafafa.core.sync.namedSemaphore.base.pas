@@ -1,6 +1,6 @@
 unit fafafa.core.sync.namedSemaphore.base;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface

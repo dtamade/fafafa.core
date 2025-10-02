@@ -26,6 +26,7 @@ if %errorlevel% neq 0 (
 
 echo.
 echo All examples built successfully!
-echo To run:
-echo   bin\example_basic_usage.exe
+echo Built outputs:
+for /f "delims=" %%F in ('dir /b /s bin\*\example_basic_usage.exe 2^>nul') do echo   %%F
+for /f "delims=" %%F in ('dir /b /s bin\*\example_basic_usage 2^>nul') do echo   %%F
 

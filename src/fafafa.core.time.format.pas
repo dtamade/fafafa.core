@@ -32,9 +32,9 @@ unit fafafa.core.time.format;
 ──────────────────────────────────────────────────────────────
 }
 
-{$modeswitch advancedrecords}
-
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
+{$modeswitch advancedrecords}
 
 interface
 
@@ -443,11 +443,41 @@ end;
 
 function FormatDurationHuman(const ADuration: TDuration): string;
 var
+  ns: Int64;
+  us: Int64;
   ms: Int64;
+  absNs: Int64;
+  absUs: Int64;
   absMs: Int64;
   fmt: string;
 begin
   // honor toggles for abbr and sec precision
+  ns := ADuration.AsNs;
+  absNs := Abs(ns);
+  
+  // Handle nanoseconds (< 1000ns)
+  if absNs < 1000 then
+  begin
+    if GHumanUseAbbr then
+      Result := SysUtils.Format('%dns', [absNs])
+    else
+      Result := SysUtils.Format('%d nanoseconds', [absNs]);
+    Exit;
+  end;
+  
+  // Handle microseconds (< 1000us)
+  us := ADuration.AsUs;
+  absUs := Abs(us);
+  if absUs < 1000 then
+  begin
+    if GHumanUseAbbr then
+      Result := SysUtils.Format('%dus', [absUs])
+    else
+      Result := SysUtils.Format('%d microseconds', [absUs]);
+    Exit;
+  end;
+  
+  // Handle milliseconds (< 1000ms)
   ms := ADuration.AsMs;
   absMs := Abs(ms);
   if absMs < 1000 then
@@ -459,6 +489,7 @@ begin
     Exit;
   end;
 
+  // Handle seconds
   if GHumanSecPrecision > 0 then
   begin
     fmt := SysUtils.Format('%%.%df', [GHumanSecPrecision]);
@@ -489,6 +520,7 @@ begin
   FDefaultOptions := TFormatOptions.Default;
 end;
 
+{$PUSH}{$WARN 6018 OFF} // Suppress "Unreachable code" warning - false positive in case-else
 function TTimeFormatter.GetFormatPattern(AFormat: TDateTimeFormat; const AOptions: TFormatOptions): string;
 begin
   case AFormat of
@@ -532,6 +564,7 @@ begin
         Result := StringReplace(Result, 'hh', 'hh:00:00.000', []);
   end;
 end;
+{$POP}
 
 function TTimeFormatter.ApplyPattern(const ADateTime: TDateTime; const APattern: string; const AOptions: TFormatOptions): string;
 var
@@ -794,6 +827,7 @@ begin
   Result := Format(ADuration, dfCompact);
 end;
 
+{$PUSH}{$WARN 6018 OFF} // Suppress "Unreachable code" warning - false positive in case-else
 function TDurationFormatter.Format(const ADuration: TDuration; AFormat: TDurationFormat): string;
 begin
   case AFormat of
@@ -807,6 +841,7 @@ begin
     Result := FormatCompact(ADuration);
   end;
 end;
+{$POP}
 
 function TDurationFormatter.Format(const ADuration: TDuration; const AOptions: TDurationFormatOptions): string;
 begin

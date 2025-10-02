@@ -22,6 +22,7 @@ unit fafafa.core.time.tick.hardware.riscv32;
 ──────────────────────────────────────────────────────────────
 }
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface

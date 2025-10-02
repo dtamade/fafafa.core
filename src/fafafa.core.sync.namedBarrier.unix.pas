@@ -1,6 +1,6 @@
 unit fafafa.core.sync.namedBarrier.unix;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 {$LINKLIB pthread}
 
@@ -31,10 +31,10 @@ type
     data: array[0..3] of Byte;
   end;
 
-  // 真正的 RAII 守卫实现 - 专注于生命周期管理
+  // 真正�?RAII 守卫实现 - 专注于生命周期管�?
   TNamedBarrierGuard = class(TInterfacedObject, INamedBarrierGuard)
   private
-    FBarrier: Pointer;              // 指向父屏障的弱引用
+    FBarrier: Pointer;              // 指向父屏障的弱引�?
     FIsLastParticipant: Boolean;
     FGeneration: Cardinal;
     FWaitTime: Cardinal;            // 等待时间（毫秒）
@@ -55,12 +55,12 @@ type
   TNamedBarrier = class(TSynchronizable, INamedBarrier)
   private
     FSharedData: Pointer;           // 共享内存指针
-    FShmFile: cint;                 // 共享内存文件描述符
+    FShmFile: cint;                 // 共享内存文件描述�?
     FShmPath: AnsiString;           // 共享内存路径
-    FOriginalName: string;          // 保存用户提供的原始名称
-    FIsCreator: Boolean;            // 是否为创建者
+    FOriginalName: string;          // 保存用户提供的原始名�?
+    FIsCreator: Boolean;            // 是否为创建�?
     FShmSize: csize_t;              // 共享内存大小
-    FParticipantCount: Cardinal;    // 参与者数量
+    FParticipantCount: Cardinal;    // 参与者数�?
     FAutoReset: Boolean;            // 是否自动重置
     
     function ValidateName(const AName: string): string;
@@ -75,7 +75,7 @@ type
     // ISynchronizable 接口
     function GetLastError: TWaitError;
 
-    // INamedBarrier 接口 - 简化的现代化接口
+    // INamedBarrier 接口 - 简化的现代化接�?
     function Wait: INamedBarrierGuard;
     function TryWait: INamedBarrierGuard;
     function WaitFor(ATimeoutMs: Cardinal): INamedBarrierGuard;
@@ -113,16 +113,16 @@ const
 implementation
 
 type
-  // 共享内存中的屏障状态
+  // 共享内存中的屏障状�?
   PBarrierState = ^TBarrierState;
   TBarrierState = record
-    Mutex: TPThreadMutex;           // 保护状态的互斥锁
+    Mutex: TPThreadMutex;           // 保护状态的互斥�?
     Cond: TPThreadCond;             // 条件变量
-    WaitingCount: Cardinal;         // 当前等待者数量
+    WaitingCount: Cardinal;         // 当前等待者数�?
     ParticipantCount: Cardinal;     // 参与者总数
     Generation: Cardinal;           // 屏障代数（用于重置）
     AutoReset: Boolean;             // 是否自动重置
-    Signaled: Boolean;              // 是否已触发
+    Signaled: Boolean;              // 是否已触�?
     Initialized: Boolean;           // 是否已初始化
   end;
 
@@ -154,7 +154,7 @@ begin
   // 计算等待时间
   FWaitTime := GetTickCount64 - FStartTime;
 
-  // RAII: 在守卫析构时进行必要的清理
+  // RAII: 在守卫析构时进行必要的清�?
   // 这里可以添加屏障状态的清理逻辑
   FReleased := True;
 end;
@@ -191,7 +191,7 @@ begin
   if Length(Result) > 255 then
     raise EInvalidArgument.Create('Named barrier name too long (max 255 characters)');
 
-  // 检查是否包含非法字符
+  // 检查是否包含非法字�?
   for i := 1 to Length(Result) do
   begin
     if Result[i] in ['/', '\', ':', '*', '?', '"', '<', '>', '|'] then
@@ -217,7 +217,7 @@ begin
   Result := False;
   LBarrierState := PBarrierState(FSharedData);
   
-  // 初始化互斥锁属性
+  // 初始化互斥锁属�?
   LMutexAttrPtr := @LMutexAttr;
   if pthread_mutexattr_init(LMutexAttrPtr) <> 0 then
     Exit;
@@ -231,7 +231,7 @@ begin
     if pthread_mutex_init(@LBarrierState^.Mutex, LMutexAttrPtr) <> 0 then
       Exit;
 
-    // 初始化条件变量属性
+    // 初始化条件变量属�?
     LCondAttrPtr := @LCondAttr;
     if pthread_condattr_init(LCondAttrPtr) <> 0 then
       Exit;
@@ -241,11 +241,11 @@ begin
       if pthread_condattr_setpshared(LCondAttrPtr, PTHREAD_PROCESS_SHARED) <> 0 then
         Exit;
 
-      // 初始化条件变量
+      // 初始化条件变�?
       if pthread_cond_init(@LBarrierState^.Cond, LCondAttrPtr) <> 0 then
         Exit;
 
-      // 初始化屏障状态
+      // 初始化屏障状�?
       LBarrierState^.WaitingCount := 0;
       LBarrierState^.ParticipantCount := FParticipantCount;
       LBarrierState^.Generation := 0;
@@ -307,7 +307,7 @@ begin
   // 缓存共享内存大小
   FShmSize := SizeOf(TBarrierState);
 
-  // 转换为 AnsiString 减少后续转换开销
+  // 转换�?AnsiString 减少后续转换开销
   LAnsiPath := FShmPath;
 
   // 尝试创建共享内存文件
@@ -336,7 +336,7 @@ begin
       raise ELockError.CreateFmt('Failed to map shared memory for named barrier "%s": %s',
         [AName, SysErrorMessage(fpGetErrno)]);
 
-    // 如果是创建者，初始化屏障
+    // 如果是创建者，初始化屏�?
     if FIsCreator then
     begin
       if not InitializeBarrier then
@@ -400,7 +400,7 @@ end;
 
 function TNamedBarrier.GetLastError: TWaitError;
 begin
-  Result := weNone; // Unix 实现中暂时简化错误处理
+  Result := weNone; // Unix 实现中暂时简化错误处�?
 end;
 
 function TNamedBarrier.Wait: INamedBarrierGuard;
@@ -427,7 +427,7 @@ begin
   Result := nil;
   LBarrierState := PBarrierState(FSharedData);
   
-  // 获取互斥锁
+  // 获取互斥�?
   if pthread_mutex_lock(@LBarrierState^.Mutex) <> 0 then
     Exit;
   
@@ -439,7 +439,7 @@ begin
     
     if LIsLastParticipant then
     begin
-      // 最后一个参与者：触发所有等待者
+      // 最后一个参与者：触发所有等待�?
       LBarrierState^.Signaled := True;
       pthread_cond_broadcast(@LBarrierState^.Cond);
       
@@ -452,7 +452,7 @@ begin
     end
     else
     begin
-      // 等待屏障被触发
+      // 等待屏障被触�?
       if ATimeoutMs = 0 then
       begin
         // 非阻塞模式：立即返回
@@ -474,7 +474,7 @@ begin
       end
       else
       begin
-        // 带超时等待
+        // 带超时等�?
         LTimespec := TimeoutToTimespec(ATimeoutMs);
         while (LBarrierState^.Generation = LCurrentGeneration) and not LBarrierState^.Signaled do
         begin
@@ -506,7 +506,7 @@ function TNamedBarrier.GetInfo: TNamedBarrierInfo;
 var
   LBarrierState: PBarrierState;
 begin
-  // 初始化结果
+  // 初始化结�?
   FillChar(Result, SizeOf(Result), 0);
   Result.Name := FOriginalName;
   Result.ParticipantCount := FParticipantCount;

@@ -1,6 +1,6 @@
 unit fafafa.core.sync.rwlock.base;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -13,9 +13,9 @@ type
   // ===== 类型定义 =====
   TThreadIDArray = array of TThreadID;
 
-  // ===== 版本化原子计数器（防止 ABA 问题）=====
+  // ===== 版本化原子计数器（防�?ABA 问题�?====
   TAtomicCounter = record
-    Count: Integer;    // 实际计数值
+    Count: Integer;    // 实际计数�?
     Version: Integer;  // 版本号，每次修改时递增
   end;
 
@@ -23,11 +23,11 @@ type
 
   // ===== 性能监控数据结构 =====
   TLockPerformanceStats = record
-    // 基础计数器
-    TotalAcquireAttempts: Int64;      // 总获取尝试次数
+    // 基础计数�?
+    TotalAcquireAttempts: Int64;      // 总获取尝试次�?
     SuccessfulAcquires: Int64;        // 成功获取次数
     FailedAcquires: Int64;            // 失败获取次数
-    TotalReleases: Int64;             // 总释放次数
+    TotalReleases: Int64;             // 总释放次�?
 
     // 读写分离统计
     ReadAcquireAttempts: Int64;       // 读锁获取尝试
@@ -36,35 +36,35 @@ type
     WriteSuccesses: Int64;            // 写锁成功次数
 
     // 时间统计（微秒）
-    TotalWaitTime: Int64;             // 总等待时间
-    MaxWaitTime: Int64;               // 最大等待时间
-    MinWaitTime: Int64;               // 最小等待时间
+    TotalWaitTime: Int64;             // 总等待时�?
+    MaxWaitTime: Int64;               // 最大等待时�?
+    MinWaitTime: Int64;               // 最小等待时�?
 
     // 自旋统计
-    TotalSpinCount: Int64;            // 总自旋次数
+    TotalSpinCount: Int64;            // 总自旋次�?
     SpinSuccesses: Int64;             // 自旋成功次数
 
     // 竞争统计
     ContentionEvents: Int64;          // 竞争事件次数
-    DeadlockDetections: Int64;        // 死锁检测次数
+    DeadlockDetections: Int64;        // 死锁检测次�?
 
-    // 时间戳
-    StartTime: QWord;                 // 统计开始时间
+    // 时间�?
+    StartTime: QWord;                 // 统计开始时�?
     LastResetTime: QWord;             // 上次重置时间
   end;
 
   // ===== 锁配置选项 =====
   TRWLockOptions = record
-    AllowReentrancy: Boolean;   // 是否允许可重入（默认 True）
-    FairMode: Boolean;          // 公平模式：FIFO 调度（默认 False）
-    WriterPriority: Boolean;    // 写者优先模式（默认 False）
-    MaxReaders: Integer;        // 最大读者数量（默认 1024）
-    SpinCount: Integer;         // 初始自旋次数（默认 4000）
+    AllowReentrancy: Boolean;   // 是否允许可重入（默认 True�?
+    FairMode: Boolean;          // 公平模式：FIFO 调度（默�?False�?
+    WriterPriority: Boolean;    // 写者优先模式（默认 False�?
+    MaxReaders: Integer;        // 最大读者数量（默认 1024�?
+    SpinCount: Integer;         // 初始自旋次数（默�?4000�?
   end;
 
-  // ===== 锁操作结果枚举 =====
+  // ===== 锁操作结果枚�?=====
   TLockResult = (
-    lrSuccess,      // 成功获取锁
+    lrSuccess,      // 成功获取�?
     lrTimeout,      // 超时
     lrWouldBlock,   // 会阻塞（非阻塞调用）
     lrError         // 错误
@@ -87,7 +87,7 @@ type
     property Timestamp: TDateTime read FTimestamp;
   end;
 
-  { 锁获取超时异常 }
+  { 锁获取超时异�?}
   ERWLockTimeoutError = class(ERWLockError)
   private
     FTimeoutMs: Cardinal;
@@ -96,7 +96,7 @@ type
     property TimeoutMs: Cardinal read FTimeoutMs;
   end;
 
-  { 锁状态异常 - 尝试释放未持有的锁 }
+  { 锁状态异�?- 尝试释放未持有的�?}
   ERWLockStateError = class(ERWLockError)
   private
     FExpectedState: string;
@@ -107,7 +107,7 @@ type
     property ActualState: string read FActualState;
   end;
 
-  { 死锁检测异常 }
+  { 死锁检测异�?}
   ERWLockDeadlockError = class(ERWLockError)
   private
     FOwnerThread: TThreadID;
@@ -118,7 +118,7 @@ type
     function GetWaitingThreads: TThreadIDArray;
   end;
 
-  { 资源耗尽异常 - 读者数量超限 }
+  { 资源耗尽异常 - 读者数量超�?}
   ERWLockResourceError = class(ERWLockError)
   private
     FCurrentCount: Integer;
@@ -142,7 +142,7 @@ type
 
   // ===== 扩展异常类型（按照主流标准）=====
 
-  { 操作被中断异常 - 类似 Java InterruptedException }
+  { 操作被中断异�?- 类似 Java InterruptedException }
   ERWLockInterruptedException = class(ERWLockError)
   private
     FInterruptReason: string;
@@ -184,7 +184,7 @@ type
     property ConfigValue: string read FConfigValue;
   end;
 
-  { 版本不匹配异常 - ABA 问题检测 }
+  { 版本不匹配异�?- ABA 问题检�?}
   ERWLockVersionException = class(ERWLockError)
   private
     FExpectedVersion: Integer;
@@ -195,7 +195,7 @@ type
     property ActualVersion: Integer read FActualVersion;
   end;
 
-  { 数据损坏异常 - 内部状态不一致 }
+  { 数据损坏异常 - 内部状态不一�?}
   ERWLockCorruptionException = class(ERWLockError)
   private
     FCorruptionType: string;
@@ -235,15 +235,15 @@ type
   // ===== 传统的读写锁基础接口（为兼容而保留）=====
   IReadWriteLock = interface
     ['{9E8D7C6B-5A4F-3E2D-1C0B-A9F8E7D6C5B4}']
-    // 阻塞式获取/释放
+    // 阻塞式获�?释放
     procedure AcquireRead;
     procedure ReleaseRead;
     procedure AcquireWrite;
     procedure ReleaseWrite;
-    // 非阻塞/带超时尝试
+    // 非阻�?带超时尝�?
     function TryAcquireRead(ATimeoutMs: Cardinal = 0): Boolean; overload;
     function TryAcquireWrite(ATimeoutMs: Cardinal = 0): Boolean; overload;
-    // 状态查询
+    // 状态查�?
     function GetReaderCount: Integer;
     function IsWriteLocked: Boolean;
   end;
@@ -251,14 +251,14 @@ type
   // ===== RWLock 扩展接口 =====
   IRWLock = interface(IReadWriteLock)
     ['{C3D4E5F6-A7B8-9012-CDEF-123456789012}']
-    // ===== 现代化 API（推荐使用）=====
+    // ===== 现代�?API（推荐使用）=====
     function Read: IRWLockReadGuard;
     function Write: IRWLockWriteGuard;
     function TryRead(ATimeoutMs: Cardinal = 0): IRWLockReadGuard;
     function TryWrite(ATimeoutMs: Cardinal = 0): IRWLockWriteGuard;
 
-    // ===== 扩展的传统 API =====
-    // 继承自 IReadWriteLock 的基础方法：
+    // ===== 扩展的传�?API =====
+    // 继承�?IReadWriteLock 的基础方法�?
     // - AcquireRead, ReleaseRead, AcquireWrite, ReleaseWrite
     // - TryAcquireRead, TryAcquireWrite (Boolean 版本)
     // - GetReaderCount, IsWriteLocked
@@ -267,8 +267,8 @@ type
     function TryAcquireReadEx(ATimeoutMs: Cardinal): TLockResult;
     function TryAcquireWriteEx(ATimeoutMs: Cardinal): TLockResult;
 
-    // ===== 扩展状态查询 =====
-    // 继承自 IReadWriteLock：GetReaderCount, IsWriteLocked
+    // ===== 扩展状态查�?=====
+    // 继承�?IReadWriteLock：GetReaderCount, IsWriteLocked
     function IsReadLocked: Boolean;
     function GetWriterThread: TThreadID;
     function GetMaxReaders: Integer;
@@ -294,9 +294,9 @@ type
     function GetSpinEfficiency: Double; virtual; abstract;
   end;
 
-// ===== 原子计数器操作函数 =====
+// ===== 原子计数器操作函�?=====
 
-{ 原子地读取计数器值 }
+{ 原子地读取计数器�?}
 function AtomicLoadCounter(var Counter: TAtomicCounter): Integer;
 
 { 原子地增加计数器 }
@@ -305,7 +305,7 @@ function AtomicIncrementCounter(var Counter: TAtomicCounter): Integer;
 { 原子地减少计数器 }
 function AtomicDecrementCounter(var Counter: TAtomicCounter): Integer;
 
-{ 原子地设置计数器值 }
+{ 原子地设置计数器�?}
 procedure AtomicStoreCounter(var Counter: TAtomicCounter; Value: Integer);
 
 { 原子地比较并交换计数器（CAS 操作）}
@@ -317,25 +317,25 @@ function AtomicCompareExchangeCounter(var Counter: TAtomicCounter;
 { 完整内存屏障 - 确保所有内存操作的顺序 }
 procedure MemoryBarrierFull; inline;
 
-{ 读内存屏障 - 确保读操作的顺序 }
+{ 读内存屏�?- 确保读操作的顺序 }
 procedure MemoryBarrierRead; inline;
 
-{ 写内存屏障 - 确保写操作的顺序 }
+{ 写内存屏�?- 确保写操作的顺序 }
 procedure MemoryBarrierWrite; inline;
 
-{ 获取屏障 - 防止后续操作重排到屏障之前 }
+{ 获取屏障 - 防止后续操作重排到屏障之�?}
 procedure MemoryBarrierAcquire; inline;
 
-{ 释放屏障 - 防止前面操作重排到屏障之后 }
+{ 释放屏障 - 防止前面操作重排到屏障之�?}
 procedure MemoryBarrierRelease; inline;
 
 implementation
 
-// ===== 原子计数器操作实现 =====
+// ===== 原子计数器操作实�?=====
 
 function AtomicLoadCounter(var Counter: TAtomicCounter): Integer;
 begin
-  // 使用框架的原子操作确保读取的一致性
+  // 使用框架的原子操作确保读取的一致�?
   Result := atomic_load(Counter.Count, mo_acquire);
 end;
 
@@ -350,7 +350,7 @@ begin
     NewCounter.Count := OldCounter.Count + 1;
     NewCounter.Version := OldCounter.Version + 1;
 
-    // 尝试原子地更新整个结构
+    // 尝试原子地更新整个结�?
     {$IFDEF CPU64}
     if atomic_compare_exchange_strong(PInt64(@Counter)^, PInt64(@OldCounter)^, PInt64(@NewCounter)^) then
     {$ELSE}
@@ -360,7 +360,7 @@ begin
       Result := NewCounter.Count;
       Exit;
     end;
-    // 如果失败，重试
+    // 如果失败，重�?
   until False;
 end;
 
@@ -375,7 +375,7 @@ begin
     NewCounter.Count := OldCounter.Count - 1;
     NewCounter.Version := OldCounter.Version + 1;
 
-    // 尝试原子地更新整个结构
+    // 尝试原子地更新整个结�?
     {$IFDEF CPU64}
     if atomic_compare_exchange_strong(PInt64(@Counter)^, PInt64(@OldCounter)^, PInt64(@NewCounter)^) then
     {$ELSE}
@@ -385,7 +385,7 @@ begin
       Result := NewCounter.Count;
       Exit;
     end;
-    // 如果失败，重试
+    // 如果失败，重�?
   until False;
 end;
 
@@ -400,14 +400,14 @@ begin
     NewCounter.Count := Value;
     NewCounter.Version := OldCounter.Version + 1;
 
-    // 尝试原子地更新整个结构
+    // 尝试原子地更新整个结�?
     {$IFDEF CPU64}
     if atomic_compare_exchange_strong(PInt64(@Counter)^, PInt64(@OldCounter)^, PInt64(@NewCounter)^) then
     {$ELSE}
     if atomic_compare_exchange_strong(PInt32(@Counter)^, PInt32(@OldCounter)^, PInt32(@NewCounter)^) then
     {$ENDIF}
       Exit;
-    // 如果失败，重试
+    // 如果失败，重�?
   until False;
 end;
 
@@ -419,7 +419,7 @@ begin
   OldCounter.Count := atomic_load(Counter.Count, mo_relaxed);
   OldCounter.Version := atomic_load(Counter.Version, mo_relaxed);
 
-  // 只有当前计数值匹配时才进行交换
+  // 只有当前计数值匹配时才进行交�?
   if OldCounter.Count <> ExpectedCount then
   begin
     Result := False;
@@ -429,7 +429,7 @@ begin
   NewCounter.Count := NewCount;
   NewCounter.Version := OldCounter.Version + 1;
 
-  // 尝试原子地更新整个结构
+  // 尝试原子地更新整个结�?
   {$IFDEF CPU64}
   Result := atomic_compare_exchange_strong(PInt64(@Counter)^, PInt64(@OldCounter)^, PInt64(@NewCounter)^);
   {$ELSE}
@@ -489,7 +489,7 @@ end;
 procedure MemoryBarrierAcquire; inline;
 begin
   {$IFDEF CPUX86_64}
-  // x86_64 有强内存模型，读操作天然有 acquire 语义
+  // x86_64 有强内存模型，读操作天然�?acquire 语义
   asm
     // 编译器屏障，防止指令重排
   end;
@@ -505,7 +505,7 @@ end;
 procedure MemoryBarrierRelease; inline;
 begin
   {$IFDEF CPUX86_64}
-  // x86_64 有强内存模型，写操作天然有 release 语义
+  // x86_64 有强内存模型，写操作天然�?release 语义
   asm
     // 编译器屏障，防止指令重排
   end;
@@ -518,7 +518,7 @@ begin
   {$ENDIF}
 end;
 
-// ===== 异常类实现 =====
+// ===== 异常类实�?=====
 
 { ERWLockError }
 
@@ -577,7 +577,7 @@ var
   i: Integer;
   WaitingList: string;
 begin
-  // 构建等待线程列表字符串
+  // 构建等待线程列表字符�?
   WaitingList := '';
   for i := 0 to High(AWaitingThreads) do
   begin
@@ -641,7 +641,7 @@ begin
   FSystemErrorMessage := ASystemErrorMessage;
 end;
 
-// ===== 扩展异常类实现 =====
+// ===== 扩展异常类实�?=====
 
 { ERWLockInterruptedException }
 

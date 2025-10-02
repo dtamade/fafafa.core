@@ -1,7 +1,5 @@
 unit fafafa.core.sync.mutex;
 
-{$mode objfpc}{$H+}
-
 {
 ──────────────────────────────────────────────────────────────
    ______   ______     ______   ______     ______   ______
@@ -44,6 +42,7 @@ unit fafafa.core.sync.mutex;
 
 }
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface

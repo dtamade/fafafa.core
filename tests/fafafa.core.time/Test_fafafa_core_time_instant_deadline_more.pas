@@ -33,12 +33,12 @@ var dl: TDeadline; nowI: TInstant; d: TDuration;
 begin
   dl := TDeadline.FromInstant(TInstant.FromNsSinceEpoch(100));
   nowI := TInstant.FromNsSinceEpoch(90);
-  d := dl.TimeUntil(nowI);
+  d := dl.Remaining(nowI);  // 使用 Remaining 代替 TimeUntil
   CheckEquals(10, d.AsNs);
   nowI := TInstant.FromNsSinceEpoch(120);
   d := dl.Overdue(nowI);
   CheckEquals(20, d.AsNs);
-  CheckTrue(dl.IsExpired(nowI));
+  CheckTrue(dl.HasExpired(nowI));  // 使用 HasExpired 代替 IsExpired
 end;
 
 initialization

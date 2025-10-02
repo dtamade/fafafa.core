@@ -1,24 +1,24 @@
-﻿unit fafafa.core.sync.once.windows;
+unit fafafa.core.sync.once.windows;
 
 {
-  Windows 骞冲彴涓€娆℃€ф墽琛屽疄鐜?
+  Windows 骞冲彴涓€娆℃€ф墽琛屽疄�?
 
   鐗规€э細
-  - 鍩轰簬 InterlockedCompareExchange + CRITICAL_SECTION 瀹炵幇
-  - 楂樻€ц兘鍘熷瓙蹇€熻矾寰?+ 鎱㈤€熻矾寰勮璁?
+  - 鍩轰�?InterlockedCompareExchange + CRITICAL_SECTION 瀹炵�?
+  - 楂樻€ц兘鍘熷瓙蹇€熻矾�?+ 鎱㈤€熻矾寰勮�?
   - 鏀寔寮傚父鎭㈠鍜屾瘨鍖栫姸鎬佺鐞?
-  - 鍒嗘敮棰勬祴浼樺寲鍜岀紦瀛樿瀵归綈
-  - 鑷€傚簲绛夊緟绛栫暐锛堣嚜鏃?+ 鎸囨暟閫€閬匡級
+  - 鍒嗘敮棰勬祴浼樺寲鍜岀紦瀛樿瀵归�?
+  - 鑷€傚簲绛夊緟绛栫暐锛堣嚜�?+ 鎸囨暟閫€閬匡級
 
-  瀹炵幇绛栫暐锛?
+  瀹炵幇绛栫暐�?
   - 蹇€熻矾寰勶細鏃犻攣鍘熷瓙鎿嶄綔妫€鏌ュ畬鎴愮姸鎬?
   - 鎱㈤€熻矾寰勶細浣跨敤杞婚噺绾ч攣杩涜鍚屾鎵ц
   - 寮傚父澶勭悊锛氬け璐ユ椂鏍囪涓烘瘨鍖栫姸鎬?
-  - 閫掑綊妫€娴嬶細闃叉鍚屼竴绾跨▼閫掑綊璋冪敤
+  - 閫掑綊妫€娴嬶細闃叉鍚屼竴绾跨▼閫掑綊璋冪�?
   - 鎬ц兘浼樺寲锛氬垎鏀娴嬨€佺紦瀛樿瀵归綈銆佽嚜鏃嬬瓑寰?
 }
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -35,7 +35,7 @@ uses
 
 // 鍒嗘敮棰勬祴浼樺寲瀹忓畾涔?
 {$IFDEF CPUX86_64}
-// x86-64 鏀寔鍒嗘敮棰勬祴鎻愮ず
+// x86-64 鏀寔鍒嗘敮棰勬祴鎻愮�?
 {$DEFINE BRANCH_PREDICTION_SUPPORTED}
 {$ENDIF}
 
@@ -44,20 +44,20 @@ uses
 function Likely(condition: Boolean): Boolean; inline;
 function Unlikely(condition: Boolean): Boolean; inline;
 {$ELSE}
-// 涓嶆敮鎸佸垎鏀娴嬬殑骞冲彴锛屼娇鐢ㄦ櫘閫氭潯浠跺垽鏂?
+// 涓嶆敮鎸佸垎鏀娴嬬殑骞冲彴锛屼娇鐢ㄦ櫘閫氭潯浠跺垽�?
 function Likely(condition: Boolean): Boolean; inline;
 function Unlikely(condition: Boolean): Boolean; inline;
 {$ENDIF}
 
-// 璺ㄥ钩鍙伴攣鎿嶄綔 - 浣跨敤鍐呰仈杩囩▼鏇夸唬瀹?
+// 璺ㄥ钩鍙伴攣鎿嶄�?- 浣跨敤鍐呰仈杩囩▼鏇夸唬�?
 {$IFDEF WINDOWS}
-// Windows 骞冲彴浣跨敤杞婚噺绾ч攣
+// Windows 骞冲彴浣跨敤杞婚噺绾ч�?
 {$ELSE}
-// 闈?Windows 骞冲彴浣跨敤鏍囧噯涓寸晫鍖?
+// �?Windows 骞冲彴浣跨敤鏍囧噯涓寸晫�?
 {$ENDIF}
 
 type
-  // 杞婚噺绾ц嚜鏃嬮攣瀹炵幇锛堟浛浠ｉ噸閲忕骇 CRITICAL_SECTION锛?
+  // 杞婚噺绾ц嚜鏃嬮攣瀹炵幇锛堟浛浠ｉ噸閲忕骇 CRITICAL_SECTION�?
   TLightweightLock = record
 private
   FCs: TRTLCriticalSection;
@@ -70,15 +70,15 @@ end;
 
   TOnce = class(TSynchronizable, IOnce)
   private
-    // 淇缂撳瓨琛屽榻愶細姝ｇ‘璁＄畻瀛楁澶у皬鍜屽～鍏?
-    // 绗竴涓紦瀛樿锛氱儹璺緞鏁版嵁锛堥珮棰戣闂級
-    FDone: LongInt;               // 4瀛楄妭锛氬師瀛愭爣蹇楋紝0=鏈畬鎴?1=瀹屾垚/缁堟
+    // 淇缂撳瓨琛屽榻愶細姝ｇ‘璁＄畻瀛楁澶у皬鍜屽～�?
+    // 绗竴涓紦瀛樿锛氱儹璺緞鏁版嵁锛堥珮棰戣闂�?
+    FDone: LongInt;               // 4瀛楄妭锛氬師瀛愭爣蹇楋紝0=鏈畬鎴?1=瀹屾�?缁堟�?
     FState: LongInt;              // 4瀛楄妭锛氳缁嗙姸鎬?
     FExecutingThreadId: DWORD;    // 4瀛楄妭锛氬綋鍓嶆墽琛岀嚎绋婭D
 
     // 绮剧‘璁＄畻濉厖锛氱‘淇濅笅涓€涓瓧娈靛湪鏂扮紦瀛樿寮€濮?
-    // 瀵硅薄澶?8瀛楄妭) + FDone(1瀛楄妭) + 瀵归綈濉厖(3瀛楄妭) + FState(4瀛楄妭) + FExecutingThreadId(4瀛楄妭) = 20瀛楄妭
-    // 闇€瑕佸～鍏?64 - 20 = 44瀛楄妭 鍒扮紦瀛樿杈圭晫
+    // 瀵硅薄澶?8瀛楄�? + FDone(1瀛楄�? + 瀵归綈濉厖(3瀛楄�? + FState(4瀛楄�? + FExecutingThreadId(4瀛楄�? = 20瀛楄�?
+    // 闇€瑕佸～鍏?64 - 20 = 44瀛楄�?鍒扮紦瀛樿杈圭晫
     FPadding1: array[0..43] of Byte;
 
     // 绗簩涓紦瀛樿锛氬悓姝ユ暟鎹紙64瀛楄妭瀵归綈锛?
@@ -88,8 +88,8 @@ end;
     FLock: TCriticalSection;      // 浜ゅ弶缂栬瘧鏃朵娇鐢ㄦ爣鍑嗕复鐣屽尯
     {$ENDIF}
 
-    // 纭繚閿佹暟鎹笉璺ㄨ秺缂撳瓨琛岃竟鐣?
-    // TLightweightLock 澶у皬闇€瑕佹鏌ワ紝鍙兘闇€瑕侀澶栧～鍏?
+    // 纭繚閿佹暟鎹笉璺ㄨ秺缂撳瓨琛岃竟�?
+    // TLightweightLock 澶у皬闇€瑕佹鏌ワ紝鍙兘闇€瑕侀澶栧～�?
     FPadding2: array[0..31] of Byte; // 棰勭暀32瀛楄妭濉厖
 
     // 绗笁涓紦瀛樿锛氬洖璋冨瓨鍌紙64瀛楄妭瀵归綈锛?
@@ -101,7 +101,7 @@ end;
       STATE_COMPLETED = 2;
       STATE_POISONED = 3;
 
-    // 璺ㄥ钩鍙伴攣鎿嶄綔鍐呰仈鏂规硶
+    // 璺ㄥ钩鍙伴攣鎿嶄綔鍐呰仈鏂规�?
     procedure LockAcquire; inline;
     procedure LockRelease; inline;
 
@@ -121,7 +121,7 @@ end;
     {$ENDIF}
     destructor Destroy; override;
 
-    // ISynchronizable 鎺ュ彛瀹炵幇
+    // ISynchronizable 鎺ュ彛瀹炵�?
     function GetLastError: TWaitError;
 
     // 绉婚櫎ILock鎺ュ彛鏂规硶锛欼Once涓嶅啀缁ф壙ILock锛岄伩鍏嶈涔夋贩涔?
@@ -135,7 +135,7 @@ end;
     procedure Execute(const AAnonymousProc: TOnceAnonymousProc); overload;
     {$ENDIF}
 
-    // 寮哄埗鎵ц锛堝拷鐣ユ瘨鍖栫姸鎬侊級
+    // 寮哄埗鎵ц锛堝拷鐣ユ瘨鍖栫姸鎬侊�?
     procedure ExecuteForce; overload;
     procedure ExecuteForce(const AProc: TOnceProc); overload;
     procedure ExecuteForce(const AMethod: TOnceMethod); overload;
@@ -149,17 +149,17 @@ end;
     procedure Wait;
     procedure WaitForce;
 
-    // 鐘舵€佹煡璇紙灞炴€ч鏍硷紝绗﹀悎 Pascal 绾﹀畾锛?
+    // 鐘舵€佹煡璇紙灞炴€ч鏍硷紝绗﹀�?Pascal 绾﹀畾锛?
     function GetState: TOnceState;
     function GetCompleted: Boolean;
     function GetPoisoned: Boolean;
 
-    // Reset 鍔熻兘宸茬Щ闄?- 璇峰垱寤烘柊鐨?Once 瀹炰緥
+    // Reset 鍔熻兘宸茬Щ闄?- 璇峰垱寤烘柊�?Once 瀹炰�?
   end;
 
 implementation
 
-// 璺ㄥ钩鍙伴攣鎿嶄綔鏂规硶瀹炵幇
+// 璺ㄥ钩鍙伴攣鎿嶄綔鏂规硶瀹炵�?
 procedure TOnce.LockAcquire;
 begin
   {$IFDEF WINDOWS}
@@ -178,7 +178,7 @@ begin
   {$ENDIF}
 end;
 
-// 鍒嗘敮棰勬祴浼樺寲鍑芥暟瀹炵幇
+// 鍒嗘敮棰勬祴浼樺寲鍑芥暟瀹炵�?
 {$IFDEF BRANCH_PREDICTION_SUPPORTED}
 function Likely(condition: Boolean): Boolean; inline;
 begin
@@ -205,7 +205,7 @@ end;
 {$ENDIF}
 
 // 閿欒娑堟伅璧勬簮瀛楃涓?
-// 错误消息常量（避免资源表生成带来的潜在问题)
+// 错误消息常量（避免资源表生成带来的潜在问�?
 const
   rsOnceAlreadyPoisoned = 'Once is poisoned due to previous panic';
   rsOnceRecursiveCall = 'Recursive call to Once.Execute() detected from the same thread';
@@ -236,7 +236,7 @@ end;
 constructor TOnce.Create;
 begin
   inherited Create;
-  FDone := 0;                   // 鍘熷瓙鏍囧織鍒濆鍖?  FState := STATE_NOT_STARTED;  // 璇︾粏鐘舵€佸垵濮嬪寲
+  FDone := 0;                   // 鍘熷瓙鏍囧織鍒濆鍖?  FState := STATE_NOT_STARTED;  // 璇︾粏鐘舵€佸垵濮嬪�?
   FExecutingThreadId := 0;      // 鍒濆鍖栨墽琛岀嚎绋婭D
   {$IFDEF WINDOWS}
   FLock.Initialize;             // 鍒濆鍖栬交閲忕骇閿?
@@ -289,22 +289,22 @@ begin
   {$IFDEF WINDOWS}
   // 杞婚噺绾ч攣鏃犻渶鏄惧紡閿€姣?
   {$ELSE}
-  FLock.Free;  // 閲婃斁涓寸晫鍖?
+  FLock.Free;  // 閲婃斁涓寸晫�?
   {$ENDIF}
   inherited Destroy;
 end;
 
-// ISynchronizable 鎺ュ彛瀹炵幇
+// ISynchronizable 鎺ュ彛瀹炵�?
 function TOnce.GetLastError: TWaitError;
 begin
-  // Once 涓嶄娇鐢ㄤ紶缁熺殑绛夊緟閿欒锛屾€绘槸杩斿洖鏃犻敊璇?
+  // Once 涓嶄娇鐢ㄤ紶缁熺殑绛夊緟閿欒锛屾€绘槸杩斿洖鏃犻敊�?
   Result := weNone;
 end;
 
 // ILock 鎺ュ彛鏂规硶宸茬Щ闄わ細IOnce涓嶅啀缁ф壙ILock
 // 杩欓伩鍏嶄簡璇箟娣蜂贡锛孫nce涓嶆槸浼犵粺鎰忎箟鐨勯攣
 
-// IOnce Execute 鏂规硶瀹炵幇
+// IOnce Execute 鏂规硶瀹炵�?
 procedure TOnce.Execute;
 var
   NilProc: TOnceProc;
@@ -340,7 +340,7 @@ begin
 end;
 {$ENDIF}
 
-// ExecuteForce 鏂规硶瀹炵幇
+// ExecuteForce 鏂规硶瀹炵�?
 procedure TOnce.ExecuteForce;
 var
   NilProc: TOnceProc;
@@ -378,7 +378,7 @@ end;
 
 
 
-// 鏍稿績鍐呴儴瀹炵幇锛氶珮鎬ц兘鍘熷瓙蹇€熻矾寰?+ 鎱㈤€熻矾寰?
+// 鏍稿績鍐呴儴瀹炵幇锛氶珮鎬ц兘鍘熷瓙蹇€熻矾�?+ 鎱㈤€熻矾寰?
 procedure TOnce.DoInternal(const AProc: TOnceProc; AForce: Boolean);
 var
   CurrentState: LongInt;
@@ -386,23 +386,23 @@ var
   ExecutionSucceeded: Boolean;
   ShouldExecute: Boolean;
 begin
-  // 璋冭瘯閽╁瓙锛氬紑濮嬫墽琛?
+  // 璋冭瘯閽╁瓙锛氬紑濮嬫墽�?
   {$IFDEF FAFAFA_CORE_DEBUG_ONCE}
   WriteLn('[DEBUG] Execute started, Force=', AForce);
   {$ENDIF}
 
-  // 蹇€熻矾寰勶細鍘熷瓙璇诲彇锛屾棤閿佹鏌ワ紙Go 椋庢牸浼樺寲锛?
-  // 浣跨敤 acquire 璇箟纭繚鍚庣画璇诲彇涓嶄細閲嶆帓搴忓埌姝や箣鍓?
-  // 鍒嗘敮棰勬祴浼樺寲锛氬凡瀹屾垚鐨勬儏鍐垫槸鏈€甯歌鐨勶紙likely锛?
+  // 蹇€熻矾寰勶細鍘熷瓙璇诲彇锛屾棤閿佹鏌ワ紙Go 椋庢牸浼樺寲�?
+  // 浣跨�?acquire 璇箟纭繚鍚庣画璇诲彇涓嶄細閲嶆帓搴忓埌姝や箣�?
+  // 鍒嗘敮棰勬祴浼樺寲锛氬凡瀹屾垚鐨勬儏鍐垫槸鏈€甯歌鐨勶紙likely�?
   if Likely(atomic_load(FDone, mo_acquire) <> 0) then
   begin
-    // AForce 閫氬父涓?false锛岃繖鏄父瑙佹儏鍐碉紙likely锛?
+    // AForce 閫氬父涓?false锛岃繖鏄父瑙佹儏鍐碉紙likely�?
     if Likely(not AForce) then
     begin
       // 淇ABA闂锛氫娇鐢ㄥ師瀛愯鍙栬€屼笉鏄疌AS鏉ユ鏌ユ瘨鍖栫姸鎬?
       // 杩欓伩鍏嶄簡ABA闂锛屽洜涓烘垜浠彧鏄鍙栬€屼笉鏄慨鏀?
       CurrentState := atomic_load(FState, mo_relaxed); // 鍘熷瓙璇诲彇
-      // 姣掑寲鐘舵€佸緢灏戣锛坲nlikely锛?
+      // 姣掑寲鐘舵€佸緢灏戣锛坲nlikely�?
       if Unlikely(CurrentState = STATE_POISONED) then
       begin
         {$IFDEF FAFAFA_CORE_DEBUG_ONCE}
@@ -429,12 +429,12 @@ begin
     raise EOnceRecursiveCall.Create(rsOnceRecursiveCall);
   end;
 
-  // 鎱㈤€熻矾寰勶細浼樺寲閿佺矑搴︼紝鍑忓皯閿佹寔鏈夋椂闂?
+  // 鎱㈤€熻矾寰勶細浼樺寲閿佺矑搴︼紝鍑忓皯閿佹寔鏈夋椂�?
 
-  // 绗竴闃舵锛氳幏鍙栭攣锛屾鏌ョ姸鎬侊紝璁剧疆鎵ц鏍囧織
+  // 绗竴闃舵锛氳幏鍙栭攣锛屾鏌ョ姸鎬侊紝璁剧疆鎵ц鏍囧�?
   LockAcquire;
   try
-    // 鍙岄噸妫€鏌ラ攣瀹氭ā寮?
+    // 鍙岄噸妫€鏌ラ攣瀹氭ā�?
     if (FDone <> 0) and (not AForce) then
     begin
       if FState = STATE_POISONED then
@@ -442,7 +442,7 @@ begin
       Exit;
     end;
 
-    // 妫€鏌ュ綋鍓嶇姸鎬侊紝纭繚骞跺彂瀹夊叏
+    // 妫€鏌ュ綋鍓嶇姸鎬侊紝纭繚骞跺彂瀹夊�?
     case FState of
       STATE_NOT_STARTED:
       begin
@@ -492,7 +492,7 @@ begin
           raise ELockError.Create(rsOnceAlreadyPoisoned)
         else
         begin
-          // 寮哄埗鎵ц锛氫粠姣掑寲鐘舵€佹仮澶?
+          // 寮哄埗鎵ц锛氫粠姣掑寲鐘舵€佹仮�?
           atomic_store(FState, STATE_IN_PROGRESS, mo_release);
           FExecutingThreadId := GetCurrentThreadId;
           ShouldExecute := True;
@@ -500,7 +500,7 @@ begin
       end;
     end;
   finally
-    LockRelease; // 灏芥棭閲婃斁閿?
+    LockRelease; // 灏芥棭閲婃斁�?
   end;
 
   // 绗簩闃舵锛氬湪閿佸鎵ц鐢ㄦ埛鍥炶皟锛堟彁楂樺苟鍙戞€э級
@@ -508,7 +508,7 @@ begin
   if ShouldExecute then
   begin
     try
-      // 鐢ㄦ埛鍥炶皟鍦ㄩ攣澶栨墽琛岋紝涓嶉樆濉炲叾浠栫嚎绋?
+      // 鐢ㄦ埛鍥炶皟鍦ㄩ攣澶栨墽琛岋紝涓嶉樆濉炲叾浠栫嚎�?
       if Assigned(AProc) then
         AProc();
 
@@ -521,11 +521,11 @@ begin
       {$IFDEF FAFAFA_CORE_DEBUG_ONCE}
       WriteLn('[DEBUG] Execution failed - Once will be poisoned');
       {$ENDIF}
-      // 寮傚父浼氬湪绗笁闃舵澶勭悊
+      // 寮傚父浼氬湪绗笁闃舵澶勭�?
     end;
   end;
 
-  // 绗笁闃舵锛氶噸鏂拌幏鍙栭攣锛岃缃渶缁堢姸鎬?
+  // 绗笁闃舵锛氶噸鏂拌幏鍙栭攣锛岃缃渶缁堢姸�?
   LockAcquire;
   try
     if ExecutionSucceeded then
@@ -541,7 +541,7 @@ begin
       atomic_store(FState, STATE_POISONED, mo_release);
       atomic_store(FDone, 1, mo_release);
       FExecutingThreadId := 0;
-      // 閲嶆柊鎶涘嚭寮傚父锛堟棤娉曞湪姝ゅ浣跨敤瑁?raise锛?
+      // 閲嶆柊鎶涘嚭寮傚父锛堟棤娉曞湪姝ゅ浣跨敤瑁?raise�?
       raise ELockError.Create('Once callback failed (proc)');
     end;
   finally
@@ -557,14 +557,14 @@ var
   ShouldExecute: Boolean;
 begin
   // 蹇€熻矾寰勶細鍘熷瓙璇诲彇锛屾棤閿佹鏌ワ紙acquire 璇箟锛?
-  // 鍒嗘敮棰勬祴浼樺寲锛氬凡瀹屾垚鐨勬儏鍐垫槸鏈€甯歌鐨?
+  // 鍒嗘敮棰勬祴浼樺寲锛氬凡瀹屾垚鐨勬儏鍐垫槸鏈€甯歌�?
   if Likely(atomic_load(FDone, mo_acquire) <> 0) then
   begin
     if Likely(not AForce) then
     begin
-      // 淇ABA闂锛氫娇鐢ㄥ師瀛愯鍙栨鏌ユ瘨鍖栫姸鎬?
+      // 淇ABA闂锛氫娇鐢ㄥ師瀛愯鍙栨鏌ユ瘨鍖栫姸�?
       CurrentState := atomic_load(FState, mo_relaxed);
-      // 姣掑寲鐘舵€佸緢灏戣
+      // 姣掑寲鐘舵€佸緢灏戣�?
       if Unlikely(CurrentState = STATE_POISONED) then
         raise ELockError.Create(rsOnceAlreadyPoisoned);
       Exit;
@@ -576,13 +576,13 @@ begin
   if ExecutingThread = GetCurrentThreadId then
     raise EOnceRecursiveCall.Create(rsOnceRecursiveCall);
 
-  // 鎱㈤€熻矾寰勶細闇€瑕佸悓姝ユ墽琛?
-  // 浼樺寲閿佺矑搴︼細涓夐樁娈甸攣鎺у埗
+  // 鎱㈤€熻矾寰勶細闇€瑕佸悓姝ユ墽�?
+  // 浼樺寲閿佺矑搴︼細涓夐樁娈甸攣鎺у�?
 
-  // 绗竴闃舵锛氳幏鍙栭攣锛屾鏌ョ姸鎬侊紝璁剧疆鎵ц鏍囧織
+  // 绗竴闃舵锛氳幏鍙栭攣锛屾鏌ョ姸鎬侊紝璁剧疆鎵ц鏍囧�?
   LockAcquire;
   try
-    // 鍙岄噸妫€鏌ラ攣瀹氭ā寮?
+    // 鍙岄噸妫€鏌ラ攣瀹氭ā�?
     if (FDone <> 0) and (not AForce) then
     begin
       if FState = STATE_POISONED then
@@ -590,7 +590,7 @@ begin
       Exit;
     end;
 
-    // 妫€鏌ュ綋鍓嶇姸鎬侊紝纭繚骞跺彂瀹夊叏
+    // 妫€鏌ュ綋鍓嶇姸鎬侊紝纭繚骞跺彂瀹夊�?
     case FState of
       STATE_NOT_STARTED:
       begin
@@ -640,7 +640,7 @@ begin
           raise ELockError.Create(rsOnceAlreadyPoisoned)
         else
         begin
-          // 寮哄埗鎵ц锛氫粠姣掑寲鐘舵€佹仮澶?
+          // 寮哄埗鎵ц锛氫粠姣掑寲鐘舵€佹仮�?
           atomic_store(FState, STATE_IN_PROGRESS, mo_release);
           FExecutingThreadId := GetCurrentThreadId;
           ShouldExecute := True;
@@ -648,7 +648,7 @@ begin
       end;
     end;
   finally
-    LockRelease; // 灏芥棭閲婃斁閿?
+    LockRelease; // 灏芥棭閲婃斁�?
   end;
 
   // 绗簩闃舵锛氬湪閿佸鎵ц鐢ㄦ埛鍥炶皟
@@ -660,11 +660,11 @@ begin
         AMethod();
       ExecutionSucceeded := True;
     except
-      // 寮傚父浼氬湪绗笁闃舵澶勭悊
+      // 寮傚父浼氬湪绗笁闃舵澶勭�?
     end;
   end;
 
-  // 绗笁闃舵锛氶噸鏂拌幏鍙栭攣锛岃缃渶缁堢姸鎬?
+  // 绗笁闃舵锛氶噸鏂拌幏鍙栭攣锛岃缃渶缁堢姸�?
   LockAcquire;
   try
     if ExecutionSucceeded then
@@ -694,14 +694,14 @@ var
   ShouldExecute: Boolean;
 begin
   // 蹇€熻矾寰勶細鍘熷瓙璇诲彇锛屾棤閿佹鏌ワ紙acquire 璇箟锛?
-  // 鍒嗘敮棰勬祴浼樺寲锛氬凡瀹屾垚鐨勬儏鍐垫槸鏈€甯歌鐨?
+  // 鍒嗘敮棰勬祴浼樺寲锛氬凡瀹屾垚鐨勬儏鍐垫槸鏈€甯歌�?
   if Likely(atomic_load(FDone, mo_acquire) <> 0) then
   begin
     if Likely(not AForce) then
     begin
-      // 淇ABA闂锛氫娇鐢ㄥ師瀛愯鍙栨鏌ユ瘨鍖栫姸鎬?
+      // 淇ABA闂锛氫娇鐢ㄥ師瀛愯鍙栨鏌ユ瘨鍖栫姸�?
       CurrentState := atomic_load(FState, mo_relaxed);
-      // 姣掑寲鐘舵€佸緢灏戣
+      // 姣掑寲鐘舵€佸緢灏戣�?
       if Unlikely(CurrentState = STATE_POISONED) then
         raise ELockError.Create(rsOnceAlreadyPoisoned);
       Exit;
@@ -713,12 +713,12 @@ begin
   if ExecutingThread = GetCurrentThreadId then
     raise EOnceRecursiveCall.Create(rsOnceRecursiveCall);
 
-  // 浼樺寲閿佺矑搴︼細涓夐樁娈甸攣鎺у埗
+  // 浼樺寲閿佺矑搴︼細涓夐樁娈甸攣鎺у�?
 
-  // 绗竴闃舵锛氳幏鍙栭攣锛屾鏌ョ姸鎬侊紝璁剧疆鎵ц鏍囧織
+  // 绗竴闃舵锛氳幏鍙栭攣锛屾鏌ョ姸鎬侊紝璁剧疆鎵ц鏍囧�?
   LockAcquire;
   try
-    // 鍙岄噸妫€鏌ラ攣瀹氭ā寮?
+    // 鍙岄噸妫€鏌ラ攣瀹氭ā�?
     if (FDone <> 0) and (not AForce) then
     begin
       if FState = STATE_POISONED then
@@ -726,7 +726,7 @@ begin
       Exit;
     end;
 
-    // 妫€鏌ュ綋鍓嶇姸鎬侊紝纭繚骞跺彂瀹夊叏
+    // 妫€鏌ュ綋鍓嶇姸鎬侊紝纭繚骞跺彂瀹夊�?
     case FState of
       STATE_NOT_STARTED:
       begin
@@ -776,7 +776,7 @@ begin
           raise ELockError.Create(rsOnceAlreadyPoisoned)
         else
         begin
-          // 寮哄埗鎵ц锛氫粠姣掑寲鐘舵€佹仮澶?
+          // 寮哄埗鎵ц锛氫粠姣掑寲鐘舵€佹仮�?
           atomic_store(FState, STATE_IN_PROGRESS, mo_release);
           FExecutingThreadId := GetCurrentThreadId;
           ShouldExecute := True;
@@ -784,7 +784,7 @@ begin
       end;
     end;
   finally
-    LockRelease; // 灏芥棭閲婃斁閿?
+    LockRelease; // 灏芥棭閲婃斁�?
   end;
 
   // 绗簩闃舵锛氬湪閿佸鎵ц鐢ㄦ埛鍥炶皟
@@ -796,11 +796,11 @@ begin
         AAnonymousProc();
       ExecutionSucceeded := True;
     except
-      // 寮傚父浼氬湪绗笁闃舵澶勭悊
+      // 寮傚父浼氬湪绗笁闃舵澶勭�?
     end;
   end;
 
-  // 绗笁闃舵锛氶噸鏂拌幏鍙栭攣锛岃缃渶缁堢姸鎬?
+  // 绗笁闃舵锛氶噸鏂拌幏鍙栭攣锛岃缃渶缁堢姸�?
   LockAcquire;
   try
     if ExecutionSucceeded then
@@ -828,18 +828,18 @@ var
   CurrentState: LongInt;
 begin
   // 蹇€熻矾寰勶細濡傛灉宸插畬鎴愶紝鐩存帴杩斿洖锛坅cquire 璇箟锛?
-  // 鍒嗘敮棰勬祴浼樺寲锛歐ait璋冪敤鏃堕€氬父宸茬粡瀹屾垚
+  // 鍒嗘敮棰勬祴浼樺寲锛歐ait璋冪敤鏃堕€氬父宸茬粡瀹屾�?
   if Likely(atomic_load(FDone, mo_acquire) <> 0) then
   begin
-    // 淇ABA闂锛氫娇鐢ㄥ師瀛愯鍙栨鏌ユ瘨鍖栫姸鎬?
+    // 淇ABA闂锛氫娇鐢ㄥ師瀛愯鍙栨鏌ユ瘨鍖栫姸�?
     CurrentState := atomic_load(FState, mo_relaxed);
-    // 姣掑寲鐘舵€佸緢灏戣
+    // 姣掑寲鐘舵€佸緢灏戣�?
     if Unlikely(CurrentState = STATE_POISONED) then
       raise ELockError.Create(rsOnceAlreadyPoisoned);
     Exit;
   end;
 
-  // 楂樻€ц兘绛夊緟绛栫暐锛氳嚜閫傚簲鑷棆 + 鎸囨暟閫€閬?
+  // 楂樻€ц兘绛夊緟绛栫暐锛氳嚜閫傚簲鑷�?+ 鎸囨暟閫€閬?
   SpinCount := 0;
 
   while atomic_load(FDone, mo_acquire) = 0 do
@@ -849,25 +849,25 @@ begin
     // 鍒嗘敮棰勬祴浼樺寲锛氱煭鏃堕棿鑷棆鏄渶甯歌鐨勬儏鍐?
     if Likely(SpinCount < 1000) then
     begin
-      // 闃舵1锛欳PU鑷棆绛夊緟锛堥€傚悎鐭椂闂寸瓑寰咃級
-      // 浣跨敤 PAUSE 鎸囦护浼樺寲瓒呯嚎绋嬫€ц兘
+      // 闃舵�?锛欳PU鑷棆绛夊緟锛堥€傚悎鐭椂闂寸瓑寰咃級
+      // 浣跨�?PAUSE 鎸囦护浼樺寲瓒呯嚎绋嬫€ц�?
       {$IFDEF CPUX86_64}
       asm
         pause
       end;
       {$ELSE}
-      // 鍏朵粬鏋舵瀯浣跨敤 YieldProcessor 鎴栫煭鏆傚欢杩?
+      // 鍏朵粬鏋舵瀯浣跨敤 YieldProcessor 鎴栫煭鏆傚欢�?
       Sleep(0);
       {$ENDIF}
     end
     else if Likely(SpinCount < 10000) then
     begin
-      // 闃舵2锛氳鍑烘椂闂寸墖锛堥€傚悎涓瓑鏃堕棿绛夊緟锛?
+      // 闃舵�?锛氳鍑烘椂闂寸墖锛堥€傚悎涓瓑鏃堕棿绛夊緟�?
       Sleep(0);
     end
     else
     begin
-      // 闃舵3锛氱煭鏆備紤鐪狅紙閫傚悎闀挎椂闂寸瓑寰咃級
+      // 闃舵�?锛氱煭鏆備紤鐪狅紙閫傚悎闀挎椂闂寸瓑寰咃級
       Sleep(1);
       // 閲嶇疆璁℃暟鍣紝閬垮厤鏃犻檺澧為暱
       if Unlikely(SpinCount > 50000) then
@@ -875,7 +875,7 @@ begin
     end;
   end;
 
-  // 妫€鏌ユ渶缁堢姸鎬?
+  // 妫€鏌ユ渶缁堢姸�?
   CurrentState := atomic_load(FState, mo_relaxed);
   if CurrentState = STATE_POISONED then
     raise ELockError.Create(rsOnceAlreadyPoisoned);
@@ -894,7 +894,7 @@ begin
 
     if SpinCount < 1000 then
     begin
-      // 闃舵1锛欳PU鑷棆绛夊緟
+      // 闃舵�?锛欳PU鑷棆绛夊緟
       {$IFDEF CPUX86_64}
       asm
         pause
@@ -905,12 +905,12 @@ begin
     end
     else if SpinCount < 10000 then
     begin
-      // 闃舵2锛氳鍑烘椂闂寸墖
+      // 闃舵�?锛氳鍑烘椂闂寸墖
       Sleep(0);
     end
     else
     begin
-      // 闃舵3锛氱煭鏆備紤鐪?
+      // 闃舵�?锛氱煭鏆備紤�?
       Sleep(1);
       if SpinCount > 50000 then
         SpinCount := 10000;
@@ -949,8 +949,8 @@ begin
   Result := atomic_load(FState, mo_relaxed) = STATE_POISONED;
 end;
 
-// Reset 鏂规硶宸茬Щ闄?- 涓嶅畨鍏ㄤ笖涓嶇鍚堜富娴佽瑷€瀹炶返
-// 濡傞渶閲嶆柊鎵ц锛岃鍒涘缓鏂扮殑 Once 瀹炰緥
+// Reset 鏂规硶宸茬Щ闄?- 涓嶅畨鍏ㄤ笖涓嶇鍚堜富娴佽瑷€瀹炶�?
+// 濡傞渶閲嶆柊鎵ц锛岃鍒涘缓鏂扮�?Once 瀹炰�?
 
 end.
 

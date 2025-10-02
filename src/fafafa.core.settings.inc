@@ -1,5 +1,9 @@
 { fafafa.core.settings.inc 框架配置文件 }
 
+// fafafa.core.settings.inc - global toggles and platform defines
+// {$mode objfpc} - FreePascal 限制：mode 指令不能在 include 文件中，必须在主单元文件中声明
+{$H+}
+
 {$IF DEFINED(MSWINDOWS) OR DEFINED(WINDOWS)}
   {$DEFINE WINDOWS}
 
@@ -15,7 +19,7 @@
 {$ENDIF}
 
 
-{$MACRO ON}      // 开始启用简单值风格宏 like {$DEFINE NAME := value}
+{$MACRO ON}      // 开始启用简单值预格式宏 like {$DEFINE NAME := value}
 {$IFDEF FPC}
   {$if defined(CPUX86) or defined(CPUI386) or defined(CPUX64) or defined(CPUX86_64)}
     {$ASMMODE INTEL}   // x86/x64 使用 Intel 汇编语法
@@ -24,13 +28,13 @@
   {$endif}
 {$ENDIF}
 
-{ Enable inline 开启内联 }
+{ Enable inline 开启内联}
 {$DEFINE FAFAFA_CORE_INLINE}
 
 { Enable Result-based APIs for env module and others 默认启用 Result 风格 API }
 {$DEFINE FAFAFA_ENV_ENABLE_RESULT}
 
-{ 开启匿名函数/匿名引用 仅限 fpc 3.3.1 及以上 }
+{ 开启匿名函数&匿名引用 仅限 fpc 3.3.1 及以上}
 {$IFDEF FPC}
   {$IF FPC_FULLVERSION >= 030301}
     {$IFNDEF FAFAFA_FORCE_NO_ANON}
@@ -48,20 +52,20 @@
 /// fafafa.core.collections
 ///
 
-{ 启用预定义的常用泛型类型, 这会带来代码膨胀, 但直接用预定义的泛型类型, 是件省心的事情. }
+{ 启用预定义的常用泛型类型, 这会带来代码膨胀, 但直接用预定义泛型类型, 是件省心的事情 }
 {.$DEFINE FAFAFA_CORE_TYPE_ALIASES}
 
 {
   启用 crt memcpy, memmove.
-  在linux下,优先使用 libc, windows mscrt.
-  在linux下,开启此选项意味着要链接libc库.
+  在Linux中, 优先使用 libc, windows mscrt.
+  在Linux中, 开启选项意味着要链接libc库
 }
 {.$DEFINE FAFAFA_CORE_CRT_MEMCPY}
 {.$DEFINE FAFAFA_CORE_CRT_MEMMOVE}
 
 {
-  启用 crt 分配器, 使用 malloc, calloc, realloc, free 等函数.
-  在linux下,开启此选项意味着要链接libc库.
+  启用 crt 分配器, 使用 malloc, calloc, realloc, free 等函数
+  在Linux中, 开启选项意味着要链接libc库
 }
 {$DEFINE FAFAFA_CORE_CRT_ALLOCATOR}
 
@@ -70,13 +74,13 @@
 /// fafafa.core.sync
 ///
 
-{$IFDEF MSWINDOWS}
-{ 启用 Windows 现代的低开销 Mutex 实现（差距大约20%，默认开启，要兼容xp及xp以下请关闭） }
+{$IFDEF WINDOWS}
+{ 启用 Windows 现代的低开销 Mutex 实现（差距大约40%，默认开启，要兼容xp可改xp以下请关闭） }
 {$DEFINE FAFAFA_CORE_USE_SRWLOCK}
 {$ENDIF}
 
 {$IFDEF UNIX}
-{ 启用 Linux/FreeBSD 现代的低开销 Mutex 实现（差距大约 5~10 倍，默认开启,如果目标os不支持请关闭） }
+{ 启用 Linux/FreeBSD 现代的低开销 Mutex 实现（差距大约5~10 倍，默认开启, 如果目标os不支持请关闭）}
 {$DEFINE FAFAFA_CORE_USE_FUTEX}
 {$ENDIF}
 
@@ -85,10 +89,10 @@
 /// fafafa.core.mem
 ///
 
-{ 启用 mimalloc 分配器（运行期需提供 mimalloc 动态库）。 }
+{ 启用 mimalloc 分配器（运行期需提供 mimalloc 动态库）。}
 {$DEFINE FAFAFA_CORE_MIMALLOC_ALLOCATOR}
 
-{ 启用 mimalloc 静态链接/导入。开启后 mimalloc 通过 external 在链接期绑定，不再延迟加载。 }
+{ 启用 mimalloc 静态链接导入。开启后 mimalloc 通过 external 在链接期绑定，不再延迟加载。}
 {.$DEFINE FAFAFA_CORE_MIMALLOC_STATIC}
 
 
@@ -99,26 +103,22 @@
 
 
 {
-  启用真实进程实现而不是模拟实现。
-  注释掉以使用模拟实现（开发/测试默认）。
-  取消注释以启用真实平台实现（生产环境）。
-}
+  启用真实进程实现而不是模拟实现。  注释掉以使用模拟实现（开发&测试默认）。  取消注释以启用真实平台实现（生产环境）。}
 {$DEFINE FAFAFA_REAL_PROCESS_IMPLEMENTATION}
 
 {
   Enable verbose logging for process module in debug mode.
-  在调试模式下启用进程模块的详细日志。
-}
+  在调试模式下启用进程模块的详细日志。}
 {$IFDEF DEBUG}
   {$DEFINE FAFAFA_PROCESS_VERBOSE_LOGGING}
 {$ENDIF}
 
 { 进程模块可选特性开关（默认关闭，避免破坏现有行为） }
 
-{ 启用最小的 ShellExecuteEx 支持（Windows，仅“打开”类场景，禁用重定向与自定义环境） }
+{ 启用最小的 ShellExecuteEx 支持（Windows，仅"打开"类场景，禁用重定向与自定义环境）}
 {.$DEFINE FAFAFA_PROCESS_SHELLEXECUTE_MINIMAL}
 
-{ 启用进程组/作业对象支持（KillTree/TerminateGroup 功能） }
+{ 启用进程组&作业对象支持（KillTree/TerminateGroup 功能）}
 {.$DEFINE FAFAFA_PROCESS_GROUPS}
 
 
@@ -126,7 +126,7 @@
 /// fafafa.core.thread
 ///
 
-{ 线程模块调试诊断（仅 DEBUG 构建） }
+{ 线程模块调试诊断（仅 DEBUG 构建）}
 {$IFDEF DEBUG}
   {$DEFINE FAFAFA_THREAD_DEBUG}
   {$DEFINE FAFAFA_CORE_SOCKET_DEBUG_GUARD}
@@ -141,30 +141,29 @@
 
 {$DEFINE FAFAFA_SCHEDULER_DEBUG_LOG}
 
-{ GHASH / CLMUL 后端开关：x86_64 Release 默认启用，DEBUG 下需显式 env 开启 }
+{ GHASH / CLMUL 后端开关：x86_64 Release 默认启用，DEBUG 下需显式 env 开启}
 {$IFDEF CPUX86_64}
   {$IFNDEF DEBUG}
     {$DEFINE FAFAFA_CRYPTO_X86_CLMUL}
   {$ENDIF}
 {$ENDIF}
 
-{ Socket module experimental toggles 套接字模块实验性功能开关（默认关闭） }
+{ Socket module experimental toggles 套接字模块实验性功能开关（默认关闭）}
 { 打开这些宏将启用平台特定的高性能轮询器与异步Socket实现 }
 {.$DEFINE FAFAFA_SOCKET_POLLER_EXPERIMENTAL}
 {.$DEFINE FAFAFA_SOCKET_ASYNC_EXPERIMENTAL}
 
 { IOCP debug strict assert (only effective when FAFAFA_SOCKET_POLLER_EXPERIMENTAL and DEBUG) }
-{ IOCP 调试严格断言（仅在启用 IOCP 宏且 DEBUG 时生效；默认关闭） }
+{ IOCP 调试严格断言（仅在启用 IOCP 宏且 DEBUG 时生效；默认关闭）}
 {.$DEFINE FAFAFA_IOCP_DEBUG_STRICT_ASSERT}
 
 { IOCP debug verbose logs (DEBUG only). When enabled, logs per-event details and pending lists. Default OFF }
-{ IOCP 调试详细日志（仅 DEBUG）。开启后输出每次事件与挂起列表，默认关闭以减少噪音 }
+{ IOCP 调试详细日志（仅 DEBUG）。开启后输出每次事件与挂起列表，默认关闭以减少噪音}
 {.$DEFINE FAFAFA_IOCP_DEBUG_VERBOSE}
 
 { Terminal module configuration 终端模块配置 }
 { Controls the implementation mode for the terminal module. }
-{ 控制终端模块的实现模式。 }
-
+{ 控制终端模块的实现模式。}
 
 
 
@@ -174,14 +173,12 @@
 
 {
   Enable wide character input support for terminal module.
-  启用终端模块的宽字符输入支持。
-}
+  启用终端模块的宽字符输入支持。}
 {$DEFINE FAFAFA_TERM_INPUT_WIDE}
 
 {
   Enable inline functions for terminal module.
-  启用终端模块的内联函数。
-}
+  启用终端模块的内联函数。}
 {$DEFINE FAFAFA_TERM_INLINE}
 
 { 如果启用内联,顺便开启rtl内联标记 }
@@ -189,19 +186,18 @@
   {$INLINE ON}
 {$ENDIF}
 
-{ Terminal + SignalCenter integration 开关 }
+{ Terminal + SignalCenter integration 开关}
 { 默认开启：统一由 signal center 分发 SIGWINCH，可在此处注释以回退 }
 {$DEFINE FAFAFA_TERM_USE_SIGNALCENTER_WINCH}
 
 
 
 
-
-{ Collections facade 工厂族：开启门面 Make* 工厂（ForwardList/List/Deque/Queue/Stack）}
+{ Collections facade 工厂族：开启门面&Make* 工厂（ForwardList/List/Deque/Queue/Stack）}
 {$DEFINE FAFAFA_COLLECTIONS_FACADE}
 
 
-{ Args.config module feature toggles 参数配置模块特性开关 }
+{ Args.config module feature toggles 参数配置模块特性开关}
 { 默认启用 TOML（已有最小实现），JSON/YAML 暂不启用 }
 {$DEFINE FAFAFA_ARGS_CONFIG_TOML}
 {$DEFINE FAFAFA_ARGS_CONFIG_JSON}
@@ -238,8 +234,8 @@
 {.$DEFINE FAFAFA_JSON_DISABLE_WRITER}
 
 
-{ Test report JSON cleanup optional fields 测试报告 JSON cleanup 可选字段 }
-{ 默认关闭：保持兼容。若需在 cleanup 项中记录时间戳，取消下一行注释 }
+{ Test report JSON cleanup optional fields 测试报告 JSON cleanup 可选字段}
+{ 默认关闭：保持兼容。若需在 cleanup 项中记录时间戳，取消下一行注释}
 {$DEFINE FAFAFA_TEST_JSON_CLEANUP_TS}
 
 
@@ -249,7 +245,7 @@
 { Test report JSON cleanup timestamp format controls }
 { 精度：取消下一行注释以将 ts 精度降为秒；默认毫秒 }
 {.$DEFINE FAFAFA_TEST_JSON_CLEANUP_TS_PRECISION_SEC}
-{ 时区：取消下一行注释以输出本地偏移（+HH:MM）；默认 UTC Z }
+{ 时区：取消下一行注释以输出本地偏移（±HH:MM）；默认 UTC Z }
 {.$DEFINE FAFAFA_TEST_JSON_CLEANUP_TS_TZ_LOCAL_OFFSET}
 
 { Enforce strict RFC4180 semantics by default (field counts, quoting rules). Can be commented out to relax defaults }
@@ -264,7 +260,7 @@
 
 
 { Report sinks configuration 报告 Sink 配置 }
-{ 默认启用 Console Sink 使用 ITextSink；如需强制退回 WriteLn，请注释下一行 }
+{ 默认启用 Console Sink 使用 ITextSink；如需强制退回 WriteLn，请注释下一行}
 {$DEFINE FAFAFA_REPORT_CONSOLE_USE_ITEXTSINK}
 
 { FS module optional performance toggles (default OFF) }
@@ -272,24 +268,23 @@
 {.$DEFINE FS_USE_OVERLAPPED}   // Windows: alternate overlapped strategy experiments
 
 
-{ FS module behavior toggles 行为开关 }
+{ FS module behavior toggles 行为开关}
 {$DEFINE FS_UNIFIED_ERRORS}         // 统一负错误码（跨平台一致）
-{$DEFINE FAFAFA_CORE_FS_ENABLE_WIN_LONGPATH}    // Windows: 启用长路径（为绝对路径接近上限时追加 \\?\ / \\?\UNC\ 前缀）
+{$DEFINE FAFAFA_CORE_FS_ENABLE_WIN_LONGPATH}    // Windows: 启用长路径（为绝对路径接近上限时追加 \\?\\ / \\?\\UNC\\ 前缀）
 
 
 
-
-{ 在 Release 构建中默认启用缓存行填充以减少伪共享（DEBUG 下关闭以避免布局扰动影响调试） }
+{ 在 Release 构建中默认启用缓存行填充以减少伪共享（DEBUG 下关闭以避免布局扰动影响调试）}
 {$IFNDEF DEBUG}
   {$DEFINE FAFAFA_LOCKFREE_CACHELINE_PAD}
 {$ENDIF}
 
 
-{ ARM/AArch64 通用计时器读频率的可选屏障（默认关闭） }
-{ 启用后在 ReadCNTFRQ 前插入 isb 序列化，适用于极少数虚拟化/热插拔严格场景 }
+{ ARM/AArch64 通用计时器频率的可选屏蔽（默认关闭）}
+{ 启用后在 ReadCNTFRQ 前插入 isb 序列化，适用于极少数虚拟化&热插拔严格场景}
 {.$DEFINE FAFAFA_ARM_ISB_BEFORE_CNTFRQ}
 
-{ RISC-V: 是否启用 U 模式读取 time/timeh CSR（默认关闭以避免 SIGILL） }
+{ RISC-V: 是否启用 U 模式读取 time/timeh CSR（默认关闭以避免 SIGILL）}
 {$IFDEF CPURISCV32}
   {.$DEFINE FAFAFA_CORE_USE_RISCV_TIME_CSR}
   {.$DEFINE FAFAFA_CORE_USE_RISCV_CYCLE_CSR}
@@ -299,13 +294,13 @@
   {.$DEFINE FAFAFA_CORE_USE_RISCV_CYCLE_CSR}
 {$ENDIF}
 
-{ Lock-free module optional performance toggles 无锁模块可选性能开关（默认关闭） }
-{.$DEFINE FAFAFA_LOCKFREE_CACHELINE_PAD}          { 在关键状态字段间加入缓存行填充以降低伪共享 }
-{.$DEFINE FAFAFA_LOCKFREE_BACKOFF}                { 在高冲突 CAS 重试时进行轻量退避 }
+{ Lock-free module optional performance toggles 无锁模块可选性能开关（默认关闭）}
+{.$DEFINE FAFAFA_LOCKFREE_CACHELINE_PAD}          { 在关键状态字段间加入缓存行填充以降低伪共享}
+{.$DEFINE FAFAFA_LOCKFREE_BACKOFF}                { 在高冲突 CAS 重试时进行轻量退避}
 
-{ 可选：退避参数（仅在启用 FAFAFA_LOCKFREE_BACKOFF 时生效） }
+{ 可选：退避参数（仅在启用 FAFAFA_LOCKFREE_BACKOFF 时生效）}
 
-{ Sync module toggles 同步模块开关 }
+{ Sync module toggles 同步模块开关}
 { Barrier configuration 屏障配置：Windows 默认使用原生，可选运行时回退；Unix 可选 POSIX 原生 }
 {$IFDEF WINDOWS}
   { Use native Windows SynchronizationBarrier (default ON). If disabled, always use fallback (condvar+generation). }
@@ -322,9 +317,9 @@
   {.$DEFINE FAFAFA_SYNC_USE_POSIX_BARRIER}
 {$ENDIF}
 
-{.$DEFINE FAFAFA_LOCKFREE_BACKOFF_EVERY := 64}    { 每多少次失败执行一次退避 }
+{.$DEFINE FAFAFA_LOCKFREE_BACKOFF_EVERY := 64}    { 每多少次失败执行一次退避}
 
-{ 在 Release 构建中默认启用无锁退避策略，减少高冲突尾延迟（DEBUG 下保持关闭便于定位问题） }
+{ 在 Release 构建中默认启用无锁退避策略，减少高冲突尾延迟（DEBUG 下保持关闭便于定位问题）}
 {$IFNDEF DEBUG}
   {$DEFINE FAFAFA_LOCKFREE_BACKOFF}
 {$ENDIF}
@@ -332,16 +327,16 @@
 {.$DEFINE FAFAFA_LOCKFREE_BACKOFF_SLEEP_MS := 0}  { 退避的 Sleep 毫秒数，0 表示 Yield 风格 }
 
 
-{ Benchmark module behavior toggles 基准模块行为开关 }
+{ Benchmark module behavior toggles 基准模块行为开关}
 { By default, library code should not write to console. Enable this to auto-report in Bench* helpers }
-{ 默认情况下，库代码不应直接写控制台。启用此宏可在 Bench* 快手接口中自动输出报告 }
+{ 默认情况下，库代码不应直接写控制台。启用此宏可在 Bench* 快手接口中自动输出报告}
 {.$DEFINE FAFAFA_CORE_BENCH_AUTO_REPORT}
 
-{ Sync module optional Windows toggles 同步模块 Windows 可选开关 }
+{ Sync module optional Windows toggles 同步模块 Windows 可选开关}
 { 使用 Windows 条件变量（CONDITION_VARIABLE）与 CRITICAL_SECTION 严格语义实现 CondVar.Wait* }
 {$DEFINE FAFAFA_SYNC_USE_CONDVAR}
 
-{ Unix 平台支持 CLOCK_MONOTONIC 定时等待（避免系统时间跳变影响） }
+{ Unix 平台支持 CLOCK_MONOTONIC 定时等待（避免系统时间跳变影响）}
 {$IFDEF UNIX}
   {$DEFINE HAS_CLOCK_GETTIME}
 {$ENDIF}
@@ -476,16 +471,17 @@
 
 {$IFDEF FPC}
   { FreePascal 特定设置 }
-  { 注意：MODE 指令应该在主单元中设置，不在 include 文件中 }
+  { 注意：MODE 指令应该在主单元中设置，不在 include 文件中}
   {$H+}
   //{$J-}
 {$IFDEF FAFAFA_CORE_INLINE}
   {$INLINE ON}
 {$ENDIF}
 
-  { 启用高级记录特性 }
+  { 启用高级记录特性}
   {$MODESWITCH ADVANCEDRECORDS}
   {$MODESWITCH TYPEHELPERS}
+  {$modeswitch nestedprocvars}
 
 {$ENDIF}
 

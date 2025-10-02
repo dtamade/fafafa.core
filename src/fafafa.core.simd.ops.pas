@@ -1,5 +1,6 @@
 unit fafafa.core.simd.ops;
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -9,19 +10,19 @@ uses
 
 // === 基础向量操作 ===
 
-// 单精度浮点向量操作 (128-bit)
+// 单精度浮点向量操�?(128-bit)
 function VecF32x4_Add(const a, b: TVecF32x4): TVecF32x4;
 function VecF32x4_Sub(const a, b: TVecF32x4): TVecF32x4;
 function VecF32x4_Mul(const a, b: TVecF32x4): TVecF32x4;
 function VecF32x4_Div(const a, b: TVecF32x4): TVecF32x4;
 
-// 双精度浮点向量操作 (128-bit)
+// 双精度浮点向量操�?(128-bit)
 function VecF64x2_Add(const a, b: TVecF64x2): TVecF64x2;
 function VecF64x2_Sub(const a, b: TVecF64x2): TVecF64x2;
 function VecF64x2_Mul(const a, b: TVecF64x2): TVecF64x2;
 function VecF64x2_Div(const a, b: TVecF64x2): TVecF64x2;
 
-// 单精度浮点向量操作 (256-bit)
+// 单精度浮点向量操�?(256-bit)
 function VecF32x8_Add(const a, b: TVecF32x8): TVecF32x8;
 function VecF32x8_Sub(const a, b: TVecF32x8): TVecF32x8;
 function VecF32x8_Mul(const a, b: TVecF32x8): TVecF32x8;
@@ -33,7 +34,7 @@ procedure VecF32x8_StoreUnaligned(const vec: TVecF32x8; ptr: Pointer);
 function VecF32x8_SetAll(value: Single): TVecF32x8;
 function VecF32x8_Zero: TVecF32x8;
 
-// 32位整数向量操作 (256-bit)
+// 32位整数向量操�?(256-bit)
 function VecI32x8_Add(const a, b: TVecI32x8): TVecI32x8;
 function VecI32x8_Sub(const a, b: TVecI32x8): TVecI32x8;
 function VecI32x8_Mul(const a, b: TVecI32x8): TVecI32x8;
@@ -43,13 +44,12 @@ function VecI32x8_SetAll(value: Int32): TVecI32x8;
 function VecI32x8_Zero: TVecI32x8;
 
 
-// 32位整数向量操作 (128-bit)
+// 32位整数向量操�?(128-bit)
 function VecI32x4_Add(const a, b: TVecI32x4): TVecI32x4;
 function VecI32x4_Sub(const a, b: TVecI32x4): TVecI32x4;
 function VecI32x4_Mul(const a, b: TVecI32x4): TVecI32x4;
 
-// 向量加载和存储
-function VecF32x4_Load(const ptr: Pointer): TVecF32x4;
+// 向量加载和存�?function VecF32x4_Load(const ptr: Pointer): TVecF32x4;
 procedure VecF32x4_Store(const vec: TVecF32x4; ptr: Pointer);
 function VecF32x4_LoadUnaligned(const ptr: Pointer): TVecF32x4;
 procedure VecF32x4_StoreUnaligned(const vec: TVecF32x4; ptr: Pointer);
@@ -91,17 +91,16 @@ uses
   fafafa.core.simd.ops.avx2,
   {$ENDIF}
 
-// === 实现选择器 ===
+// === 实现选择�?===
 
 {$IFDEF SIMD_X86_AVAILABLE}
 
-// 使用 x86 SIMD 实现：优先 AVX（若可用）
-function VecF32x4_Add(const a, b: TVecF32x4): TVecF32x4;
+// 使用 x86 SIMD 实现：优�?AVX（若可用�?function VecF32x4_Add(const a, b: TVecF32x4): TVecF32x4;
 begin
-  // 对 128-bit 接口，若 AVX 可用则走 ymm 路径再落回低 128
+  // �?128-bit 接口，若 AVX 可用则走 ymm 路径再落回低 128
   if HasAVX then
   begin
-    // 将 128-bit 拼成 256 的 lo，hi=零；避免跨寄存器拼装，这里直接调用 128-bit 实现
+    // �?128-bit 拼成 256 �?lo，hi=零；避免跨寄存器拼装，这里直接调�?128-bit 实现
     Result := X86_VecF32x4_Add(a, b);
   end
   else
@@ -150,8 +149,7 @@ end;
 
 {$ELSE}
 
-// 回退到标量实现
-function VecF32x4_Add(const a, b: TVecF32x4): TVecF32x4;
+// 回退到标量实�?function VecF32x4_Add(const a, b: TVecF32x4): TVecF32x4;
 begin
   Result := Scalar_VecF32x4_Add(a, b);
 end;
@@ -166,13 +164,13 @@ begin
   Result := Scalar_VecF32x4_Mul(a, b);
 end;
 
-// === 256-bit 路由（x86 平台） ===
+// === 256-bit 路由（x86 平台�?===
 function VecF32x8_Add(const a, b: TVecF32x8): TVecF32x8;
 begin
   {$IFDEF SIMD_X86_AVAILABLE}
   Result := AVX_VecF32x8_Add(a, b);
   {$ELSE}
-  // 非 x86 平台：标量回退
+  // �?x86 平台：标量回退
   Result.lo := Scalar_VecF32x4_Add(a.lo, b.lo);
   Result.hi := Scalar_VecF32x4_Add(a.hi, b.hi);
   {$ENDIF}
@@ -381,7 +379,9 @@ end;
 
 {$ENDIF}
 
-// 其他函数的实现...
-// (为了保持文件长度，这里省略了其他函数的实现)
+// 其他函数的实�?..
+// (为了保持文件长度，这里省略了其他函数的实�?
 
 end.
+
+

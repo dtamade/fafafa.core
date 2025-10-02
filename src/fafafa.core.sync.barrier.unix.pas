@@ -4,21 +4,21 @@ unit fafafa.core.sync.barrier.unix;
   Unix/Linux 平台屏障同步实现
 
   特性：
-  - 优先使用 pthread_barrier_t 系统实现 (可选)
+  - 优先使用 pthread_barrier_t 系统实现 (可�?
   - 默认使用 mutex + condition variable fallback 实现
-  - 跨 Unix 系统兼容性 (Linux, macOS, FreeBSD 等)
+  - �?Unix 系统兼容�?(Linux, macOS, FreeBSD �?
   - 支持编译时配置选择实现方式
 
   配置宏：
   - FAFAFA_SYNC_USE_POSIX_BARRIER: 启用 pthread_barrier_t 原生支持
 
-  实现策略：
-  - 默认关闭原生 POSIX barrier 以确保最大兼容性
-  - fallback 实现使用 generation 计数器避免虚假唤醒
-  - 正确实现串行线程语义 (一个线程返回 True)
+  实现策略�?
+  - 默认关闭原生 POSIX barrier 以确保最大兼容�?
+  - fallback 实现使用 generation 计数器避免虚假唤�?
+  - 正确实现串行线程语义 (一个线程返�?True)
 }
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface

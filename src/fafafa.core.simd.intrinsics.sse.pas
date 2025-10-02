@@ -1,22 +1,20 @@
 unit fafafa.core.simd.intrinsics.sse;
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 {
   === fafafa.core.simd.intrinsics.sse ===
-  SSE (Streaming SIMD Extensions) 指令集支持
-  
-  SSE 是 Intel 在 1999 年引入的 128-bit SIMD 指令集
-  主要用于单精度浮点运算，也包含一些整数操作
-  
+  SSE (Streaming SIMD Extensions) 指令集支�?  
+  SSE �?Intel �?1999 年引入的 128-bit SIMD 指令�?  主要用于单精度浮点运算，也包含一些整数操�?  
   特性：
-  - 128-bit 向量寄存器 (xmm0-xmm7/xmm15)
-  - 单精度浮点运算 (4x32-bit)
+  - 128-bit 向量寄存�?(xmm0-xmm7/xmm15)
+  - 单精度浮点运�?(4x32-bit)
   - 预取指令
   - 流式存储
   - 缓存控制
   
-  兼容性：所有现代 x86/x64 处理器都支持
+  兼容性：所有现�?x86/x64 处理器都支持
 }
 
 interface
@@ -24,7 +22,7 @@ interface
 uses
   fafafa.core.simd.intrinsics.base;
 
-// === SSE 单精度浮点函数 ===
+// === SSE 单精度浮点函�?===
 // Load/Store
 function sse_load_ps(const Ptr: Pointer): TM128;
 function sse_loadu_ps(const Ptr: Pointer): TM128;
@@ -130,13 +128,12 @@ procedure sse_setcsr(Value: Integer);
 
 implementation
 
-// 辅助函数：检查浮点数是否为 NaN
+// 辅助函数：检查浮点数是否�?NaN
 function IsNaN(Value: Single): Boolean;
 var
   IntValue: LongWord absolute Value;
 begin
-  // IEEE 754: NaN 的指数部分全为1，尾数部分非零
-  Result := ((IntValue and $7F800000) = $7F800000) and ((IntValue and $007FFFFF) <> 0);
+  // IEEE 754: NaN 的指数部分全�?，尾数部分非�?  Result := ((IntValue and $7F800000) = $7F800000) and ((IntValue and $007FFFFF) <> 0);
 end;
 
 // === SSE Load/Store 操作 (内联汇编实现) ===
@@ -158,8 +155,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：从内存加载4个未对齐的单精度浮点数
-function sse_loadu_ps(const Ptr: Pointer): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：从内存加载4个未对齐的单精度浮点�?function sse_loadu_ps(const Ptr: Pointer): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -192,8 +188,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：加载单个单精度浮点数并复制到所有4个位置
-function sse_load1_ps(const Ptr: Pointer): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：加载单个单精度浮点数并复制到所�?个位�?function sse_load1_ps(const Ptr: Pointer): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -211,8 +206,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：加载64位整数到低64位，高64位清零
-function sse_movq(const Ptr: Pointer): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：加�?4位整数到�?4位，�?4位清�?function sse_movq(const Ptr: Pointer): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -246,8 +240,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：存储4个对齐的单精度浮点数到内存
-procedure sse_store_ps(var Dest; const Src: TM128); {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：存�?个对齐的单精度浮点数到内�?procedure sse_store_ps(var Dest; const Src: TM128); {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -264,7 +257,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：存储4个未对齐的单精度浮点数到内存
+// 功能：存�?个未对齐的单精度浮点数到内存
 procedure sse_storeu_ps(var Dest; const Src: TM128); {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -282,8 +275,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：存储最低位单精度浮点数到内存
-procedure sse_store_ss(var Dest; const Src: TM128); {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：存储最低位单精度浮点数到内�?procedure sse_store_ss(var Dest; const Src: TM128); {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -300,8 +292,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：存储最低位单精度浮点数到内存的4个位置
-procedure sse_store1_ps(var Dest; const Src: TM128); {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：存储最低位单精度浮点数到内存的4个位�?procedure sse_store1_ps(var Dest; const Src: TM128); {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -330,8 +321,7 @@ asm
   movups [Result], xmm0
 end;
 
-// 功能：将单个值复制到所有4个位置
-function sse_set1_ps(Value: Single): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：将单个值复制到所�?个位�?function sse_set1_ps(Value: Single): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -348,7 +338,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：设置4个单精度浮点数 (e3, e2, e1, e0)
+// 功能：设�?个单精度浮点�?(e3, e2, e1, e0)
 function sse_set_ps(e3, e2, e1, e0: Single): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -373,8 +363,7 @@ asm
   {$ENDIF}
   movups [Result], xmm0
 {$ELSE}
-  // x86: 所有参数通过栈传递
-  movss xmm0, e0
+  // x86: 所有参数通过栈传�?  movss xmm0, e0
   movss xmm1, e1
   movss xmm2, e2
   movss xmm3, e3
@@ -385,8 +374,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：设置最低位为指定值，其他位为零
-function sse_set_ss(Value: Single): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：设置最低位为指定值，其他位为�?function sse_set_ss(Value: Single): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -404,7 +392,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：设置4个单精度浮点数 (反向顺序: e0, e1, e2, e3)
+// 功能：设�?个单精度浮点�?(反向顺序: e0, e1, e2, e3)
 function sse_setr_ps(e0, e1, e2, e3: Single): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -429,8 +417,7 @@ asm
   {$ENDIF}
   movups [Result], xmm0
 {$ELSE}
-  // x86: 所有参数通过栈传递
-  movss xmm0, e0
+  // x86: 所有参数通过栈传�?  movss xmm0, e0
   movss xmm1, e1
   movss xmm2, e2
   movss xmm3, e3
@@ -443,8 +430,7 @@ end;
 
 // === SSE 算术运算操作 (内联汇编实现) ===
 
-// 功能：4个单精度浮点数并行加法
-function sse_add_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能�?个单精度浮点数并行加�?function sse_add_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -485,8 +471,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：4个单精度浮点数并行减法
-function sse_sub_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能�?个单精度浮点数并行减�?function sse_sub_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -527,8 +512,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：4个单精度浮点数并行乘法
-function sse_mul_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能�?个单精度浮点数并行乘�?function sse_mul_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -569,8 +553,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：4个单精度浮点数并行除法
-function sse_div_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能�?个单精度浮点数并行除�?function sse_div_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -613,7 +596,7 @@ end;
 
 // === SSE 数学函数操作 (内联汇编实现) ===
 
-// 功能：4个单精度浮点数并行平方根
+// 功能�?个单精度浮点数并行平方根
 function sse_sqrt_ps(const a: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -631,8 +614,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：最低位单精度浮点数平方根，其他位保持不变
-function sse_sqrt_ss(const a: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：最低位单精度浮点数平方根，其他位保持不�?function sse_sqrt_ss(const a: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -649,7 +631,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：4个单精度浮点数并行平方根倒数近似
+// 功能�?个单精度浮点数并行平方根倒数近似
 function sse_rsqrt_ps(const a: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -685,7 +667,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：4个单精度浮点数并行倒数近似
+// 功能�?个单精度浮点数并行倒数近似
 function sse_rcp_ps(const a: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -721,10 +703,9 @@ asm
 {$ENDIF}
 end;
 
-// === SSE 最值操作 (内联汇编实现) ===
+// === SSE 最值操�?(内联汇编实现) ===
 
-// 功能：4个单精度浮点数并行最小值
-function sse_min_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能�?个单精度浮点数并行最小�?function sse_min_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -744,8 +725,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：最低位单精度浮点数最小值，其他位保持不变
-function sse_min_ss(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：最低位单精度浮点数最小值，其他位保持不�?function sse_min_ss(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -765,8 +745,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：4个单精度浮点数并行最大值
-function sse_max_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能�?个单精度浮点数并行最大�?function sse_max_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -786,8 +765,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：最低位单精度浮点数最大值，其他位保持不变
-function sse_max_ss(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：最低位单精度浮点数最大值，其他位保持不�?function sse_max_ss(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -809,7 +787,7 @@ end;
 
 // === SSE 逻辑运算操作 (内联汇编实现) ===
 
-// 功能：128位按位与
+// 功能�?28位按位与
 function sse_and_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -830,7 +808,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：128位按位与非 (NOT a AND b)
+// 功能�?28位按位与�?(NOT a AND b)
 function sse_andnot_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -851,7 +829,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：128位按位或
+// 功能�?28位按位或
 function sse_or_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -872,8 +850,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：128位按位异或
-function sse_xor_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能�?28位按位异�?function sse_xor_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -895,8 +872,7 @@ end;
 
 // === SSE 比较操作 (内联汇编实现) ===
 
-// 功能：4个单精度浮点数并行相等比较
-function sse_cmpeq_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能�?个单精度浮点数并行相等比�?function sse_cmpeq_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -937,8 +913,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：4个单精度浮点数并行小于比较
-function sse_cmplt_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能�?个单精度浮点数并行小于比�?function sse_cmplt_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -979,8 +954,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：4个单精度浮点数并行小于等于比较
-function sse_cmple_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能�?个单精度浮点数并行小于等于比�?function sse_cmple_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1021,8 +995,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：4个单精度浮点数并行大于比较
-function sse_cmpgt_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能�?个单精度浮点数并行大于比�?function sse_cmpgt_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1063,8 +1036,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：4个单精度浮点数并行大于等于比较
-function sse_cmpge_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能�?个单精度浮点数并行大于等于比�?function sse_cmpge_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1105,7 +1077,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：4个单精度浮点数并行不等于比较
+// 功能�?个单精度浮点数并行不等于比较
 function sse_cmpneq_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1126,8 +1098,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：最低位单精度浮点数不等于比较，其他位保持不变
-function sse_cmpneq_ss(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：最低位单精度浮点数不等于比较，其他位保持不�?function sse_cmpneq_ss(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1149,8 +1120,7 @@ end;
 
 // === SSE Shuffle/Unpack 操作 (内联汇编实现) ===
 
-// 功能：根据立即数重新排列4个单精度浮点数
-function sse_shuffle_ps(const a, b: TM128; imm8: Byte): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：根据立即数重新排列4个单精度浮点�?function sse_shuffle_ps(const a, b: TM128; imm8: Byte): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1161,23 +1131,22 @@ asm
     push rbx
     mov al, r8b
     mov bl, al
-    and bl, 3           // 提取位0-1
+    and bl, 3           // 提取�?-1
     shr al, 2
     mov bh, al
-    and bh, 3           // 提取位2-3
+    and bh, 3           // 提取�?-3
     shr al, 2
     mov cl, al
-    and cl, 3           // 提取位4-5
+    and cl, 3           // 提取�?-5
     shr al, 2
-    and al, 3           // 提取位6-7
+    and al, 3           // 提取�?-7
 
     // 手动构建结果
     sub rsp, 32
     movups [rsp], xmm0      // 保存a
     movups [rsp+16], xmm1   // 保存b
 
-    // 提取元素并重新组合
-    movzx rbx, bl
+    // 提取元素并重新组�?    movzx rbx, bl
     movss xmm2, [rsp + rbx*4]
     movzx rbx, bh
     movss xmm3, [rsp + rbx*4]
@@ -1202,8 +1171,7 @@ asm
     push rax
     push rbx
     mov al, sil
-    // ... 类似的实现
-    pop rbx
+    // ... 类似的实�?    pop rbx
     pop rax
     movups [Result], xmm0
   {$ENDIF}
@@ -1218,8 +1186,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：解包高位单精度浮点数
-function sse_unpackhi_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：解包高位单精度浮点�?function sse_unpackhi_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1239,8 +1206,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：解包低位单精度浮点数
-function sse_unpacklo_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：解包低位单精度浮点�?function sse_unpacklo_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1262,8 +1228,7 @@ end;
 
 // === SSE 数据移动操作 (内联汇编实现) ===
 
-// 功能：移动最低位单精度浮点数，其他位保持a的值
-function sse_move_ss(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：移动最低位单精度浮点数，其他位保持a的�?function sse_move_ss(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1378,7 +1343,7 @@ begin
   // 在实际实现中，这里应该执行相应的预取指令
 end;
 
-// === 缺失函数的实现 ===
+// === 缺失函数的实�?===
 
 function sse_andn_ps(const a, b: TM128): TM128;
 begin
@@ -1439,7 +1404,7 @@ begin
   Result := sse_unpacklo_ps(a, b);
 end;
 
-// 功能：移动4个对齐的单精度浮点数
+// 功能：移�?个对齐的单精度浮点数
 function sse_movaps(const a: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
@@ -1455,8 +1420,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：移动4个未对齐的单精度浮点数
-function sse_movups(const a: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：移�?个未对齐的单精度浮点�?function sse_movups(const a: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1471,8 +1435,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：移动单个单精度浮点数，其他位清零
-function sse_movss(const a: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：移动单个单精度浮点数，其他位清�?function sse_movss(const a: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1500,8 +1463,7 @@ begin
   Result := sse_movelh_ps(a, b);
 end;
 
-// 功能：从32位整数创建128位向量，其他位清零
-function sse_movd(Value: LongInt): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：从32位整数创�?28位向量，其他位清�?function sse_movd(Value: LongInt): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1516,8 +1478,7 @@ asm
 {$ENDIF}
 end;
 
-// 功能：提取128位向量的低32位整数
-function sse_movd_toint(const a: TM128): LongInt; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：提�?28位向量的�?2位整�?function sse_movd_toint(const a: TM128): LongInt; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1534,31 +1495,29 @@ end;
 
 procedure sse_stream_ps(var Dest; const Src: TM128);
 begin
-  // 非时态存储的占位符实现
-  PTM128(@Dest)^ := Src;
+  // 非时态存储的占位符实�?  PTM128(@Dest)^ := Src;
 end;
 
 procedure sse_stream_si64(var Dest; const Src: TM128);
 begin
-  // 非时态存储的占位符实现
-  PUInt64(@Dest)^ := Src.m128i_u64[0];
+  // 非时态存储的占位符实�?  PUInt64(@Dest)^ := Src.m128i_u64[0];
 end;
 
 function sse_getcsr: Integer;
 begin
-  // MXCSR 寄存器读取的占位符实现
-  Result := 0;
+  // MXCSR 寄存器读取的占位符实�?  Result := 0;
 end;
 
 procedure sse_setcsr(Value: Integer);
 begin
-  // MXCSR 寄存器设置的占位符实现
-end;
+  // MXCSR 寄存器设置的占位符实�?end;
 
 procedure sse_sfence;
 begin
   // 存储栅栏指令的占位符实现
-  // 在实际实现中，这里应该执行 SFENCE 指令
+  // 在实际实现中，这里应该执�?SFENCE 指令
 end;
 
 end.
+
+

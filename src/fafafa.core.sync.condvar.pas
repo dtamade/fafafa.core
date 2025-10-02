@@ -1,5 +1,6 @@
 unit fafafa.core.sync.condvar;
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -21,7 +22,7 @@ type
   TCondVar = fafafa.core.sync.condvar.unix.TCondVar;
   {$ENDIF}
 
-// 创建平台特定的条件变量实�?
+// 创建平台特定的条件变量实�?
 function MakeCondVar: ICondVar;
 
 implementation

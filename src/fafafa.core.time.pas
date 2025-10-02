@@ -1,5 +1,6 @@
 unit fafafa.core.time;
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 {*
   fafafa.core.time - 时间模块门面单元（统一出口）
@@ -52,9 +53,11 @@ type
   ETimeOverflow      = fafafa.core.time.base.ETimeOverflow;
 
   // 超时相关
+  TDeadline        = fafafa.core.time.timeout.TDeadline;
+  {$IFDEF FAFAFA_TIMEOUT_EXPERIMENTAL}
   TTimeoutStrategy = fafafa.core.time.timeout.TTimeoutStrategy;
   TTimeoutState    = fafafa.core.time.timeout.TTimeoutState;
-  TDeadline        = fafafa.core.time.timeout.TDeadline;
+  {$ENDIF}
 function DefaultMonotonicClock: IMonotonicClock; inline;
 function DefaultSystemClock: ISystemClock; inline;
 function DefaultClock: IClock; inline;
@@ -85,8 +88,6 @@ type
   end;
 
 implementation
-
-var
 
 function DefaultMonotonicClock: IMonotonicClock; inline;
 begin
@@ -156,49 +157,6 @@ end;
 procedure SetDurationFormatSecPrecision(APrecision: Integer); inline;
 begin
   fafafa.core.time.format.SetDurationFormatSecPrecision(APrecision);
-end;
-
-{ TDurationHelper }
-
-class function TDurationHelper.TryFromNs(const ANs: Int64; out D: TDuration): Boolean;
-begin
-  D := TDuration.FromNs(ANs);
-  Result := True;
-end;
-
-class function TDurationHelper.TryFromUs(const AUs: Int64; out D: TDuration): Boolean;
-var t: Int64; ok: Boolean;
-begin
-  ok := (not ((AUs > 0) and (AUs > High(Int64) div 1000))) and (not ((AUs < 0) and (AUs < Low(Int64) div 1000)));
-  if ok then t := AUs * 1000 else if AUs >= 0 then t := High(Int64) else t := Low(Int64);
-  D := TDuration.FromNs(t);
-  Result := ok;
-end;
-
-class function TDurationHelper.TryFromMs(const AMs: Int64; out D: TDuration): Boolean;
-var t: Int64; ok: Boolean;
-begin
-  ok := (AMs <= High(Int64) div 1000000) and (AMs >= Low(Int64) div 1000000);
-  if ok then t := AMs * 1000000 else if AMs >= 0 then t := High(Int64) else t := Low(Int64);
-  D := TDuration.FromNs(t);
-  Result := ok;
-end;
-
-class function TDurationHelper.TryFromSec(const ASec: Int64; out D: TDuration): Boolean;
-var t: Int64; ok: Boolean;
-begin
-  ok := (ASec <= High(Int64) div 1000000000) and (ASec >= Low(Int64) div 1000000000);
-  if ok then t := ASec * 1000000000 else if ASec >= 0 then t := High(Int64) else t := Low(Int64);
-  D := TDuration.FromNs(t);
-  Result := ok;
-end;
-
-function TDurationHelper.Neg: TDuration;
-begin
-  if Self.AsNs = Low(Int64) then
-    Result := TDuration.FromNs(High(Int64))
-  else
-    Result := TDuration.FromNs(-Self.AsNs);
 end;
 
 { TInstantHelper }

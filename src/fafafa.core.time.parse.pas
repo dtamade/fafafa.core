@@ -34,6 +34,7 @@ unit fafafa.core.time.parse;
 
 {$modeswitch advancedrecords}
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -672,6 +673,7 @@ end;
 
 function TTimeParser.GetSupportedFormats: TStringArray;
 begin
+  Result := nil;  // 显式初始化以消除编译器警告
   SetLength(Result, 6);
   Result[0] := FORMAT_ISO8601_DATE;
   Result[1] := FORMAT_ISO8601_TIME;

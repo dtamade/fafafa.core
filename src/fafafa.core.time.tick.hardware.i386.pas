@@ -25,6 +25,7 @@ unit fafafa.core.time.tick.hardware.i386;
 ──────────────────────────────────────────────────────────────
 }
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 {$if not (defined(CPUX86) or defined(CPUI386))}

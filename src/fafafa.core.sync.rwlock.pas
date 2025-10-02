@@ -1,6 +1,6 @@
 unit fafafa.core.sync.rwlock;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -12,7 +12,7 @@ uses
   {$IFDEF UNIX},    fafafa.core.sync.rwlock.unix{$ENDIF};
 
 type
-  // 重新导出类型，统一命名为 RWLock
+  // 重新导出类型，统一命名�?RWLock
   TLockResult = fafafa.core.sync.rwlock.base.TLockResult;
   IRWLockReadGuard = fafafa.core.sync.rwlock.base.IRWLockReadGuard;
   IRWLockWriteGuard = fafafa.core.sync.rwlock.base.IRWLockWriteGuard;
@@ -26,7 +26,7 @@ type
   TRWLock = fafafa.core.sync.rwlock.unix.TRWLock;
   {$ENDIF}
 
-// 创建平台特定的 RWLock 实例
+// 创建平台特定�?RWLock 实例
 function MakeRWLock: IRWLock;
 function MakeRWLock(const Options: TRWLockOptions): IRWLock; overload;
 

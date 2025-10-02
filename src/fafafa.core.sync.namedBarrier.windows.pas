@@ -1,6 +1,6 @@
 unit fafafa.core.sync.namedBarrier.windows;
 
-{$mode objfpc}{$H+}
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -11,10 +11,10 @@ uses
   fafafa.core.sync.namedBarrier.base;
 
 type
-  // 真正的 RAII 守卫实现 - 专注于生命周期管理
+  // 真正�?RAII 守卫实现 - 专注于生命周期管�?
   TNamedBarrierGuard = class(TInterfacedObject, INamedBarrierGuard)
   private
-    FBarrier: Pointer;              // 指向父屏障的弱引用
+    FBarrier: Pointer;              // 指向父屏障的弱引�?
     FIsLastParticipant: Boolean;
     FGeneration: Cardinal;
     FWaitTime: Cardinal;            // 等待时间（毫秒）
@@ -35,7 +35,7 @@ type
   TNamedBarrier = class(TSynchronizable, INamedBarrier)
   private
     FEvent: THandle;                // Windows Event 句柄
-    FMutex: THandle;                // 保护共享状态的互斥锁
+    FMutex: THandle;                // 保护共享状态的互斥�?
     FSharedMemory: THandle;         // 共享内存句柄
     FSharedData: Pointer;           // 共享数据指针
     FName: string;
@@ -57,7 +57,7 @@ type
     // ISynchronizable 接口
     function GetLastError: TWaitError;
 
-    // INamedBarrier 接口 - 简化的现代化接口
+    // INamedBarrier 接口 - 简化的现代化接�?
     function Wait: INamedBarrierGuard;
     function TryWait: INamedBarrierGuard;
     function WaitFor(ATimeoutMs: Cardinal): INamedBarrierGuard;
@@ -73,10 +73,10 @@ type
 implementation
 
 type
-  // 共享内存中的屏障状态
+  // 共享内存中的屏障状�?
   PBarrierState = ^TBarrierState;
   TBarrierState = record
-    WaitingCount: Cardinal;         // 当前等待者数量
+    WaitingCount: Cardinal;         // 当前等待者数�?
     ParticipantCount: Cardinal;     // 参与者总数
     Generation: Cardinal;           // 屏障代数（用于重置）
     AutoReset: Boolean;             // 是否自动重置
@@ -110,7 +110,7 @@ begin
   // 计算等待时间
   FWaitTime := GetTickCount64 - FStartTime;
 
-  // RAII: 在守卫析构时进行必要的清理
+  // RAII: 在守卫析构时进行必要的清�?
   // 这里可以添加屏障状态的清理逻辑
   FReleased := True;
 end;
@@ -147,7 +147,7 @@ begin
   if Length(Result) > 260 then
     raise EInvalidArgument.Create('Named barrier name too long (max 260 characters)');
 
-  // 允许 Global\ / Local\ 前缀；其余情况不允许反斜杠
+  // Allow Global\\ / Local\\ prefixes; validate remaining characters
   if Pos('Global\', Result) = 1 then
   begin
     for i := 8 to Length(Result) do
@@ -163,7 +163,7 @@ begin
     Exit;
   end;
 
-  // 检查 Windows 对象名称的非法字符
+  // 检�?Windows 对象名称的非法字�?
   for i := 1 to Length(Result) do
   begin
     if Result[i] in ['\', '/', ':', '*', '?', '"', '<', '>', '|'] then
@@ -196,7 +196,7 @@ begin
     Exit;
   end;
   
-  // 如果是创建者，初始化共享数据
+  // 如果是创建者，初始化共享数�?
   if FIsCreator then
   begin
     with PBarrierState(FSharedData)^ do
@@ -275,7 +275,7 @@ begin
       raise ELockError.CreateFmt('Failed to create event for named barrier "%s": %s', 
         [AName, SysErrorMessage(Windows.GetLastError)]);
     
-    // 创建互斥锁保护共享状态
+    // 创建互斥锁保护共享状�?
     FMutex := CreateMutexW(nil, False, PWideChar(UnicodeString(LMutexName)));
     if FMutex = 0 then
       raise ELockError.CreateFmt('Failed to create mutex for named barrier "%s": %s', 
@@ -334,7 +334,7 @@ begin
   Result := nil;
   FLastError := weNone;
   
-  // 获取互斥锁保护共享状态
+  // 获取互斥锁保护共享状�?
   LWaitResult := WaitForSingleObject(FMutex, ATimeoutMs);
   if LWaitResult <> WAIT_OBJECT_0 then
   begin
@@ -365,14 +365,14 @@ begin
   
   if not LIsLastParticipant then
   begin
-    // 等待事件被触发
+    // 等待事件被触�?
     LWaitResult := WaitForSingleObject(FEvent, ATimeoutMs);
     if LWaitResult <> WAIT_OBJECT_0 then
     begin
       // 超时或错误，需要减少计数器
       WaitForSingleObject(FMutex, INFINITE);
       try
-        // 检查代数是否改变（避免ABA问题）
+        // 检查代数是否改变（避免ABA问题�?
         if PBarrierState(FSharedData)^.Generation = LCurrentGeneration then
           DecrementCounter;
       finally
@@ -392,13 +392,13 @@ end;
 
 function TNamedBarrier.GetInfo: TNamedBarrierInfo;
 begin
-  // 初始化结果
+  // 初始化结�?
   FillChar(Result, SizeOf(Result), 0);
   Result.Name := FName;
   Result.ParticipantCount := FParticipantCount;
   Result.AutoReset := FAutoReset;
 
-  // 获取动态状态
+  // 获取动态状�?
   if WaitForSingleObject(FMutex, INFINITE) = WAIT_OBJECT_0 then
   try
     if Assigned(FSharedData) then

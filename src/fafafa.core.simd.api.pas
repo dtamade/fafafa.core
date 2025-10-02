@@ -1,5 +1,6 @@
 unit fafafa.core.simd.api;
 
+{$mode objfpc}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -8,7 +9,7 @@ uses
   SysUtils;
 
 // === SIMD 门面函数 API ===
-// 这些是高级用户接口，提供运行时派发到最优 SIMD 实现
+// 这些是高级用户接口，提供运行时派发到最�?SIMD 实现
 
 // === 内存操作函数 ===
 
@@ -18,8 +19,7 @@ function MemEqual(a, b: Pointer; len: SizeUInt): LongBool; {$IFDEF SIMD_AGGRESSI
 // 字节查找
 function MemFindByte(p: Pointer; len: SizeUInt; value: Byte): PtrInt; {$IFDEF SIMD_AGGRESSIVE_INLINE}inline;{$ENDIF}
 
-// 差异范围检测
-function MemDiffRange(a, b: Pointer; len: SizeUInt; out firstDiff, lastDiff: SizeUInt): Boolean; {$IFDEF SIMD_AGGRESSIVE_INLINE}inline;{$ENDIF}
+// 差异范围检�?function MemDiffRange(a, b: Pointer; len: SizeUInt; out firstDiff, lastDiff: SizeUInt): Boolean; {$IFDEF SIMD_AGGRESSIVE_INLINE}inline;{$ENDIF}
 
 // 内存复制
 procedure MemCopy(src, dst: Pointer; len: SizeUInt); {$IFDEF SIMD_AGGRESSIVE_INLINE}inline;{$ENDIF}
@@ -35,8 +35,7 @@ procedure MemReverse(p: Pointer; len: SizeUInt); {$IFDEF SIMD_AGGRESSIVE_INLINE}
 // 字节求和
 function SumBytes(p: Pointer; len: SizeUInt): UInt64; {$IFDEF SIMD_AGGRESSIVE_INLINE}inline;{$ENDIF}
 
-// 最值查找
-procedure MinMaxBytes(p: Pointer; len: SizeUInt; out minVal, maxVal: Byte); {$IFDEF SIMD_AGGRESSIVE_INLINE}inline;{$ENDIF}
+// 最值查�?procedure MinMaxBytes(p: Pointer; len: SizeUInt; out minVal, maxVal: Byte); {$IFDEF SIMD_AGGRESSIVE_INLINE}inline;{$ENDIF}
 
 // 字节计数
 function CountByte(p: Pointer; len: SizeUInt; value: Byte): SizeUInt; {$IFDEF SIMD_AGGRESSIVE_INLINE}inline;{$ENDIF}
@@ -46,14 +45,11 @@ function CountByte(p: Pointer; len: SizeUInt; value: Byte): SizeUInt; {$IFDEF SI
 // UTF-8 验证
 function Utf8Validate(p: Pointer; len: SizeUInt): Boolean; {$IFDEF SIMD_AGGRESSIVE_INLINE}inline;{$ENDIF}
 
-// ASCII 忽略大小写比较
-function AsciiIEqual(a, b: Pointer; len: SizeUInt): Boolean; {$IFDEF SIMD_AGGRESSIVE_INLINE}inline;{$ENDIF}
+// ASCII 忽略大小写比�?function AsciiIEqual(a, b: Pointer; len: SizeUInt): Boolean; {$IFDEF SIMD_AGGRESSIVE_INLINE}inline;{$ENDIF}
 
-// ASCII 转小写
-procedure ToLowerAscii(p: Pointer; len: SizeUInt); {$IFDEF SIMD_AGGRESSIVE_INLINE}inline;{$ENDIF}
+// ASCII 转小�?procedure ToLowerAscii(p: Pointer; len: SizeUInt); {$IFDEF SIMD_AGGRESSIVE_INLINE}inline;{$ENDIF}
 
-// ASCII 转大写
-procedure ToUpperAscii(p: Pointer; len: SizeUInt); {$IFDEF SIMD_AGGRESSIVE_INLINE}inline;{$ENDIF}
+// ASCII 转大�?procedure ToUpperAscii(p: Pointer; len: SizeUInt); {$IFDEF SIMD_AGGRESSIVE_INLINE}inline;{$ENDIF}
 
 // === 搜索函数 ===
 
@@ -62,8 +58,7 @@ function BytesIndexOf(haystack: Pointer; haystackLen: SizeUInt; needle: Pointer;
 
 // === 位集函数 ===
 
-// 位集合人口计数
-function BitsetPopCount(p: Pointer; byteLen: SizeUInt): SizeUInt; {$IFDEF SIMD_AGGRESSIVE_INLINE}inline;{$ENDIF}
+// 位集合人口计�?function BitsetPopCount(p: Pointer; byteLen: SizeUInt): SizeUInt; {$IFDEF SIMD_AGGRESSIVE_INLINE}inline;{$ENDIF}
 
 implementation
 
@@ -157,3 +152,5 @@ begin
 end;
 
 end.
+
+
