@@ -507,7 +507,7 @@ var
   D: TDuration;
   S: string;
 begin
-  D := TDuration.FromSeconds(45);
+  D := TDuration.FromSec(45);
   S := TISO8601Formatter.FormatDuration(D);
   AssertEquals('Seconds duration', 'PT45S', S);
 end;
@@ -547,7 +547,7 @@ var
   D: TDuration;
   S: string;
 begin
-  D := TDuration.FromHours(2) + TDuration.FromMinutes(30) + TDuration.FromSeconds(45);
+  D := TDuration.FromHours(2) + TDuration.FromMinutes(30) + TDuration.FromSec(45);
   S := TISO8601Formatter.FormatDuration(D);
   AssertTrue('Mixed duration contains PT', Pos('PT', S) = 1);
   AssertTrue('Mixed duration contains H', Pos('H', S) > 0);
@@ -560,7 +560,7 @@ var
   D: TDuration;
   S: string;
 begin
-  D := TDuration.FromSeconds(45) + TDuration.FromMilliseconds(500);
+  D := TDuration.FromSec(45) + TDuration.FromMs(500);
   S := TISO8601Formatter.FormatDuration(D);
   AssertTrue('Duration with fraction contains dot', Pos('.', S) > 0);
 end;
@@ -572,7 +572,7 @@ var
 begin
   Success := TISO8601Parser.ParseDuration('PT0S', D);
   AssertTrue('Parse zero duration success', Success);
-  AssertEquals('Zero duration seconds', Int64(0), D.AsSeconds);
+  AssertEquals('Zero duration seconds', Int64(0), D.AsSec);
 end;
 
 procedure TTestISO8601Duration.Test_ParseDuration_Seconds;
@@ -582,7 +582,7 @@ var
 begin
   Success := TISO8601Parser.ParseDuration('PT45S', D);
   AssertTrue('Parse seconds duration success', Success);
-  AssertEquals('Seconds duration value', Int64(45), D.AsSeconds);
+  AssertEquals('Seconds duration value', Int64(45), D.AsSec);
 end;
 
 procedure TTestISO8601Duration.Test_ParseDuration_Minutes;
@@ -592,7 +592,7 @@ var
 begin
   Success := TISO8601Parser.ParseDuration('PT30M', D);
   AssertTrue('Parse minutes duration success', Success);
-  AssertEquals('Minutes duration value', Int64(30 * 60), D.AsSeconds);
+  AssertEquals('Minutes duration value', Int64(30 * 60), D.AsSec);
 end;
 
 procedure TTestISO8601Duration.Test_ParseDuration_Hours;
@@ -602,7 +602,7 @@ var
 begin
   Success := TISO8601Parser.ParseDuration('PT2H', D);
   AssertTrue('Parse hours duration success', Success);
-  AssertEquals('Hours duration value', Int64(2 * 3600), D.AsSeconds);
+  AssertEquals('Hours duration value', Int64(2 * 3600), D.AsSec);
 end;
 
 procedure TTestISO8601Duration.Test_ParseDuration_Days;
@@ -612,7 +612,7 @@ var
 begin
   Success := TISO8601Parser.ParseDuration('P3D', D);
   AssertTrue('Parse days duration success', Success);
-  AssertEquals('Days duration value', Int64(3 * 86400), D.AsSeconds);
+  AssertEquals('Days duration value', Int64(3 * 86400), D.AsSec);
 end;
 
 procedure TTestISO8601Duration.Test_ParseDuration_Weeks;
@@ -622,7 +622,7 @@ var
 begin
   Success := TISO8601Parser.ParseDuration('P2W', D);
   AssertTrue('Parse weeks duration success', Success);
-  AssertEquals('Weeks duration value', Int64(2 * 7 * 86400), D.AsSeconds);
+  AssertEquals('Weeks duration value', Int64(2 * 7 * 86400), D.AsSec);
 end;
 
 procedure TTestISO8601Duration.Test_ParseDuration_Mixed;
@@ -634,7 +634,7 @@ begin
   Success := TISO8601Parser.ParseDuration('PT2H30M45S', D);
   AssertTrue('Parse mixed duration success', Success);
   Expected := 2 * 3600 + 30 * 60 + 45;
-  AssertEquals('Mixed duration value', Expected, D.AsSeconds);
+  AssertEquals('Mixed duration value', Expected, D.AsSec);
 end;
 
 procedure TTestISO8601Duration.Test_ParseDuration_WithFraction;
@@ -644,7 +644,7 @@ var
 begin
   Success := TISO8601Parser.ParseDuration('PT1.5S', D);
   AssertTrue('Parse fractional duration success', Success);
-  AssertEquals('Fractional duration milliseconds', Int64(1500), D.AsMilliseconds);
+  AssertEquals('Fractional duration milliseconds', Int64(1500), D.AsMs);
 end;
 
 procedure TTestISO8601Duration.Test_ParseDuration_YearsMonths;
@@ -654,7 +654,7 @@ var
 begin
   Success := TISO8601Parser.ParseDuration('P1Y2M3DT4H5M6S', D);
   AssertTrue('Parse complex duration success', Success);
-  AssertTrue('Complex duration is positive', D.AsSeconds > 0);
+  AssertTrue('Complex duration is positive', D.AsSec > 0);
 end;
 
 procedure TTestISO8601Duration.Test_RoundTrip_Duration;
@@ -665,7 +665,7 @@ begin
   D := TDuration.FromHours(2) + TDuration.FromMinutes(30);
   S := TISO8601Formatter.FormatDuration(D);
   TISO8601Parser.ParseDuration(S, D2);
-  AssertEquals('Round trip duration', D.AsSeconds, D2.AsSeconds);
+  AssertEquals('Round trip duration', D.AsSec, D2.AsSec);
 end;
 
 procedure TTestISO8601Duration.Test_RoundTrip_ComplexDuration;
@@ -674,10 +674,10 @@ var
   S: string;
 begin
   D := TDuration.FromDays(1) + TDuration.FromHours(2) + 
-       TDuration.FromMinutes(30) + TDuration.FromSeconds(45);
+       TDuration.FromMinutes(30) + TDuration.FromSec(45);
   S := TISO8601Formatter.FormatDuration(D);
   TISO8601Parser.ParseDuration(S, D2);
-  AssertEquals('Round trip complex duration', D.AsSeconds, D2.AsSeconds);
+  AssertEquals('Round trip complex duration', D.AsSec, D2.AsSec);
 end;
 
 { TTestISO8601EdgeCases }
@@ -753,7 +753,7 @@ var
   D: TDuration;
   S: string;
 begin
-  D := TDuration.FromMilliseconds(1);
+  D := TDuration.FromMs(1);
   S := TISO8601Formatter.FormatDuration(D);
   AssertTrue('Very small duration valid', Length(S) > 0);
   AssertTrue('Very small duration contains S', Pos('S', S) > 0);

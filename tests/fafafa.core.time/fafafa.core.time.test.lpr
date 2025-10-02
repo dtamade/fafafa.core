@@ -35,6 +35,7 @@ uses
   , Test_fafafa_core_time_duration_saturating_ops
   , Test_fafafa_core_time_instant_saturation_bounds
   , Test_fafafa_core_time_duration_constants
+  , Test_iso8601
   {$IFDEF LINUX}, Test_SleepBest_Linux{$ENDIF}
   {$IFDEF DARWIN}, Test_SleepBest_Darwin{$ENDIF}
   ;

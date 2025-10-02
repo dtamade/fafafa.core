@@ -572,7 +572,7 @@ end;
 class function TISO8601Parser.ParseTimeZone(const S: string; 
   out AOffsetMinutes: Integer; out APosition: Integer): Boolean;
 var
-  Len, Pos: Integer;
+  Len, Pos, StartPos: Integer;
   Sign: Integer;
   Hours, Minutes: Integer;
   Ch: Char;
@@ -582,18 +582,35 @@ begin
   APosition := 0;
   Len := Length(S);
   
-  // 从后向前查找时区标记
+  if Len = 0 then
+    Exit;
+  
+  // 查找时区标记的起始位置
+  // 从后向前查找，避免误识别日期中的 '-'
   Pos := Len;
-  while (Pos > 0) and (S[Pos] in ['0'..'9']) do
+  
+  // 从末尾向前找，跳过数字和 ':'
+  while (Pos > 0) and (S[Pos] in ['0'..'9', ':']) do
     Dec(Pos);
   
+  // 现在 Pos 应该指向 'Z', '+', 或 '-'
   if Pos = 0 then
+  begin
+    // 可能是纯时区字符串，从头开始找
+    Pos := 1;
+    if (Pos <= Len) and (S[Pos] in ['+', '-']) then
+      // 找到了
+    else
+      Exit;  // 没找到时区标记
+  end;
+  
+  if Pos > Len then
     Exit;
   
   Ch := S[Pos];
   
   // Z 表示 UTC
-  if (Ch = 'Z') and (Pos = Len) then
+  if Ch = 'Z' then
   begin
     AOffsetMinutes := 0;
     APosition := Pos;
@@ -611,36 +628,33 @@ begin
     Sign := -1;
   
   APosition := Pos;
-  Inc(Pos);
+  StartPos := Pos + 1;
   
   // 解析时区偏移
   // 格式可以是：±HH:MM, ±HHMM, ±HH
-  if Pos + 2 > Len then
+  if StartPos + 1 > Len then
     Exit;
   
-  Hours := StrToIntDef(Copy(S, Pos, 2), -1);
+  Hours := StrToIntDef(Copy(S, StartPos, 2), -1);
   if (Hours < 0) or (Hours > 23) then
     Exit;
   
-  Inc(Pos, 2);
+  Pos := StartPos + 2;
+  Minutes := 0;
   
   // 检查是否有分钟部分
   if Pos <= Len then
   begin
-    if S[Pos] = ':' then
+    if (Pos <= Len) and (S[Pos] = ':') then
       Inc(Pos);
     
     if Pos + 1 <= Len then
     begin
       Minutes := StrToIntDef(Copy(S, Pos, 2), 0);
       if (Minutes < 0) or (Minutes > 59) then
-        Exit;
-    end
-    else
-      Minutes := 0;
-  end
-  else
-    Minutes := 0;
+        Minutes := 0;  // 容错处理
+    end;
+  end;
   
   AOffsetMinutes := Sign * (Hours * 60 + Minutes);
   Result := True;
@@ -696,47 +710,52 @@ class function TISO8601Parser.ParseWeekDate(const S: string;
   out ADate: TDateTime): Boolean;
 var
   Year, Week, DayOfWeek: Integer;
-  Pos: Integer;
+  WPos: Integer;
   YearStr, WeekStr, DayStr: string;
+  IsExtended: Boolean;
 begin
   Result := False;
   
   // YYYY-Www-D 或 YYYYWwwD
-  Pos := System.Pos('W', UpperCase(S));
-  if Pos = 0 then
+  WPos := System.Pos('W', UpperCase(S));
+  if WPos = 0 then
     Exit;
   
-  // 提取年份
-  if (Pos = 5) and (S[5] = '-') then
-    YearStr := Copy(S, 1, 4)  // 扩展格式
-  else if Pos = 5 then
-    YearStr := Copy(S, 1, 4)  // 基本格式
+  // 判断格式类型
+  // 扩展格式：YYYY-Www-D (长度10或11，WPos=6)
+  // 基本格式：YYYYWwwD (长度8，WPos=5)
+  IsExtended := (WPos = 6) and (Length(S) >= 6) and (S[5] = '-');
+  
+  if IsExtended then
+  begin
+    // 扩展格式：YYYY-Www-D
+    if Length(S) < 10 then
+      Exit;
+    YearStr := Copy(S, 1, 4);
+    WeekStr := Copy(S, WPos + 1, 2);
+    if Length(S) >= WPos + 4 then
+      DayStr := Copy(S, WPos + 4, 1)
+    else
+      DayStr := '1';
+  end
+  else if WPos = 5 then
+  begin
+    // 基本格式：YYYYWwwD
+    if Length(S) < 8 then
+      Exit;
+    YearStr := Copy(S, 1, 4);
+    WeekStr := Copy(S, WPos + 1, 2);
+    if Length(S) >= WPos + 3 then
+      DayStr := Copy(S, WPos + 3, 1)
+    else
+      DayStr := '1';
+  end
   else
     Exit;
   
   Year := StrToIntDef(YearStr, 0);
   if (Year < 1) or (Year > 9999) then
     Exit;
-  
-  // 提取周数
-  if S[Pos-1] = '-' then
-  begin
-    // 扩展格式：YYYY-Www-D
-    WeekStr := Copy(S, Pos + 1, 2);
-    if Length(S) >= Pos + 4 then
-      DayStr := Copy(S, Pos + 4, 1)
-    else
-      DayStr := '1';
-  end
-  else
-  begin
-    // 基本格式：YYYYWwwD
-    WeekStr := Copy(S, Pos + 1, 2);
-    if Length(S) >= Pos + 3 then
-      DayStr := Copy(S, Pos + 3, 1)
-    else
-      DayStr := '1';
-  end;
   
   Week := StrToIntDef(WeekStr, 0);
   DayOfWeek := StrToIntDef(DayStr, 1);
