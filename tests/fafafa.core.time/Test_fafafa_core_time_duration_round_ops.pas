@@ -42,12 +42,20 @@ end;
 procedure TTestCase_DurationRoundOps.Test_Clamp_Between;
 var d, mn, mx: TDuration;
 begin
-  d := TDuration.FromMs(15);
   mn := TDuration.FromMs(10);
   mx := TDuration.FromMs(12);
-  CheckEquals(12, d.Clamp(mn, mx).AsMs);
-  // Between 已被删除，再次测试 Clamp 确保功能一致
-  CheckEquals(12, d.Clamp(mn, mx).AsMs);
+  
+  // 测试值大于最大值
+  d := TDuration.FromMs(15);
+  CheckEquals(12, d.Clamp(mn, mx).AsMs, 'Clamp(15, 10, 12) should return 12');
+  
+  // 测试值小于最小值
+  d := TDuration.FromMs(5);
+  CheckEquals(10, d.Clamp(mn, mx).AsMs, 'Clamp(5, 10, 12) should return 10');
+  
+  // 测试值在范围内
+  d := TDuration.FromMs(11);
+  CheckEquals(11, d.Clamp(mn, mx).AsMs, 'Clamp(11, 10, 12) should return 11');
 end;
 
 procedure TTestCase_DurationRoundOps.Test_Operator_Add_Sub_Mul;
