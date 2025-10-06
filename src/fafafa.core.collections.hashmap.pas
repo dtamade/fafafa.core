@@ -13,9 +13,9 @@ uses
   fafafa.core.collections.base;
 
 type
-  // 键哈希与相等回调（先放在本单元，后续如需复用再抽离）
-  generic THashFunc<K>  = function (const AKey: K): UInt32;
-  generic TEqualsFunc<K> = function (const L, R: K): Boolean;
+  // 键哈希与相等回调（HashMap 专用，与基类 TEqualsFunc 签名不同）
+  generic TKeyHashFunc<K>  = function (const AKey: K): UInt32;
+  generic TKeyEqualsFunc<K> = function (const L, R: K): Boolean;
 
   // Map 的元素项（用于与 IGenericCollection 对齐迭代协议）
   generic TMapEntry<K,V> = record
@@ -42,6 +42,10 @@ type
     property Capacity: SizeUInt read GetCapacity;
     property LoadFactor: Single read GetLoadFactor;
   end;
+
+const
+  DEFAULT_MAX_LOAD_FACTOR = 0.86;
+
 // Common hash helpers (callers can pass these as aHash)
 function HashMix32(x: UInt32): UInt32;
 function HashOfPointer(p: Pointer): UInt32;
@@ -68,8 +72,8 @@ type
   public
     type
       TEntry = specialize TMapEntry<K,V>;
-      THash = specialize THashFunc<K>;
-      TEquals = specialize TEqualsFunc<K>;
+      THash = specialize TKeyHashFunc<K>;
+      TEquals = specialize TKeyEqualsFunc<K>;
       TState = (bsEmpty, bsOccupied, bsTombstone);
       TBucket = record
         State: Byte; // 0=Empty,1=Occupied,2=Tombstone
@@ -88,13 +92,23 @@ type
     FEquals: TEquals;
   private
     procedure InitCapacity(aCapacity: SizeUInt);
-    procedure RecalcMaxLoad;
+    procedure RecalcMaxLoad; inline;
     procedure Rehash(aNewCapacity: SizeUInt);
-    function  NextPow2(x: SizeUInt): SizeUInt;
+    function  NextPow2(x: SizeUInt): SizeUInt; inline;
     function  KeyHash(const AKey: K): UInt32;
     function  KeysEqual(const L, R: K): Boolean; inline;
     function  FindIndex(const AKey: K; AHash: UInt32; out AIndex: SizeUInt): Boolean;
+  protected
+    // TCollection 抽象方法实现
+    function IsOverlap(const aSrc: Pointer; aElementCount: SizeUInt): Boolean; override;
+    procedure SerializeToArrayBuffer(aDst: Pointer; aCount: SizeUInt); override;
+    procedure AppendUnChecked(const aSrc: Pointer; aElementCount: SizeUInt); override;
+    procedure AppendToUnChecked(const aDst: TCollection); override;
+    // TGenericCollection 抽象方法实现
+    procedure DoZero(); override;
+    procedure DoReverse; override;
   public
+    function PtrIter: TPtrIter; override;
     constructor Create(aCapacity: SizeUInt = 0; aHash: THash = nil; aEquals: TEquals = nil; aAllocator: IAllocator = nil);
     destructor Destroy; override;
     procedure Clear; override;
@@ -118,9 +132,22 @@ type
 
   generic THashSet<K> = class(specialize TGenericCollection<K>, specialize IHashSet<K>)
   private
-    FMap: specialize THashMap<K, Byte>;
+    type
+      TInternalMap = specialize THashMap<K, Byte>;
+    var
+      FMap: TInternalMap;
+  protected
+    // TCollection 抽象方法实现
+    function IsOverlap(const aSrc: Pointer; aElementCount: SizeUInt): Boolean; override;
+    procedure SerializeToArrayBuffer(aDst: Pointer; aCount: SizeUInt); override;
+    procedure AppendUnChecked(const aSrc: Pointer; aElementCount: SizeUInt); override;
+    procedure AppendToUnChecked(const aDst: TCollection); override;
+    // TGenericCollection 抽象方法实现
+    procedure DoZero(); override;
+    procedure DoReverse; override;
   public
-    constructor Create(aCapacity: SizeUInt = 0; aHash: specialize THashFunc<K> = nil; aEquals: specialize TEqualsFunc<K> = nil; aAllocator: IAllocator = nil);
+    function PtrIter: TPtrIter; override;
+    constructor Create(aCapacity: SizeUInt = 0; aHash: specialize TKeyHashFunc<K> = nil; aEquals: specialize TKeyEqualsFunc<K> = nil; aAllocator: IAllocator = nil);
     destructor Destroy; override;
     procedure Clear; override;
     function GetCount: SizeUInt; override;
@@ -134,6 +161,19 @@ type
 
     // 基本操作
     function Add(const AKey: K): Boolean;
+    function Contains(const AKey: K): Boolean; overload;
+    function Contains(const AKey: K; aEquals: specialize TEqualsFunc<K>; aData: Pointer): Boolean; overload;
+    function Contains(const AKey: K; aEquals: specialize TEqualsMethod<K>; aData: Pointer): Boolean; overload;
+    {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
+    function Contains(const AKey: K; aEquals: specialize TEqualsRefFunc<K>): Boolean; overload;
+    {$ENDIF}
+    function Remove(const AKey: K): Boolean;
+  end;
+
+implementation
+
+{ Hash helper functions }
+
 function HashMix32(x: UInt32): UInt32;
 begin
   x := (x xor (x shr 16)) * $7feb352d;
@@ -165,7 +205,7 @@ var i: SizeInt; h: UInt32;
 begin
   h := 2166136261;
   for i := 1 to Length(s) do
-    h := (h xor Ord(s[i])) * 16777619; // FNV-1a 简化版，后续可用 xxhash
+    h := (h xor Ord(s[i])) * 16777619; // FNV-1a 简化版
   Result := HashMix32(h);
 end;
 
@@ -177,15 +217,6 @@ begin
     h := (h xor Ord(s[i])) * 16777619;
   Result := HashMix32(h);
 end;
-
-    function Contains(const AKey: K): Boolean;
-    function Remove(const AKey: K): Boolean;
-  end;
-
-implementation
-
-const
-  DEFAULT_MAX_LOAD_FACTOR = 0.86; // used/capacity threshold
 
 { THashMap<K,V> }
 
@@ -264,28 +295,19 @@ begin
 end;
 
 function THashMap.KeyHash(const AKey: K): UInt32;
-var p: PtrUInt;
+var p: Pointer;
 begin
   if Assigned(FHash) then Exit(FHash(AKey));
-  // 默认分派：指针/整数/枚举 -> 混洗；字符串 -> FNV-1a+混洗；其他 -> 不支持
-  {$IF FPC_FULLVERSION >= 30000}
-  if system.IsManagedType(K) then
-  begin
-    // 仅支持 string 的默认哈希，其它托管类型需用户提供
-    {$if declared(UnicodeString)}
-    if TypeInfo(K) = TypeInfo(UnicodeString) then Exit(HashOfUnicodeString(UnicodeString(AKey)));
-    {$endif}
-    {$if declared(AnsiString)}
-    if TypeInfo(K) = TypeInfo(AnsiString) then Exit(HashOfAnsiString(AnsiString(AKey)));
-    {$endif}
-    raise ENotSupported.Create('HashMap: please provide hasher for this managed key type');
-  end;
-  {$ENDIF}
+  // 默认分派：指针/整数/枚举 -> 混洗
+  // 对于复杂类型（包括字符串），必须提供自定义哈希函数
+  p := @AKey;
   case SizeOf(K) of
-    1,2,4: Exit(HashOfUInt32(UInt32(PtrUInt(AKey))));
-    8:     Exit(HashOfUInt64(QWord(PtrUInt(AKey))));
+    1: Exit(HashOfUInt32(PByte(p)^));
+    2: Exit(HashOfUInt32(PWord(p)^));
+    4: Exit(HashOfUInt32(PUInt32(p)^));
+    8: Exit(HashOfUInt64(PQWord(p)^));
   else
-    // 非托管复杂类型，默认不支持
+    // 复杂类型，需要自定义哈希
     raise ENotSupported.Create('HashMap: please provide hasher for this key type');
   end;
 end;
@@ -314,8 +336,6 @@ begin
     idx := (idx + 1) and FMask;
     if idx = start then begin AIndex := idx; Exit(False); end;
   end;
-end;
-
 end;
 
 procedure THashMap.Clear;
@@ -353,6 +373,115 @@ function THashMap.GetLoadFactor: Single;
 begin
   if FCapacity = 0 then Exit(0.0);
   Result := FCount / FCapacity;
+end;
+
+procedure THashMap.DoZero();
+var i: SizeUInt; defaultValue: V;
+begin
+  // CRITICAL FIX: Properly finalize and reinitialize values to avoid memory corruption
+  // Old code used FillChar which bypasses reference counting and causes leaks/crashes
+  if FCapacity = 0 then Exit;
+  
+  // Initialize a default zero value properly
+  FillChar(defaultValue, SizeOf(V), 0);
+  
+  for i := 0 to FCapacity-1 do
+  begin
+    if FBuckets[i].State = Ord(bsOccupied) then
+    begin
+      // Finalize old value to release resources
+      Finalize(FBuckets[i].Value);
+      // Assign fresh zero value
+      FBuckets[i].Value := defaultValue;
+    end;
+  end;
+end;
+
+procedure THashMap.DoReverse;
+begin
+  // HashMap 没有固定的顺序，Reverse 操作无实际意义，保持空实现
+  // 这是为了满足基类抽象方法的要求
+end;
+
+function THashMap.IsOverlap(const aSrc: Pointer; aElementCount: SizeUInt): Boolean;
+begin
+  // HashMap 不使用连续内存，不会与外部指针重叠
+  Result := False;
+end;
+
+function THashMap.PtrIter: TPtrIter;
+var ptrIterResult: TPtrIter;
+begin
+  // 创建一个空的指针迭代器
+  // HashMap 是基于哈希表的，不适合使用指针迭代器
+  // 调用者应该使用 GetEnumerator / Iter 方法
+  FillChar(ptrIterResult, SizeOf(TPtrIter), 0);
+  Result := ptrIterResult;
+end;
+
+procedure THashMap.SerializeToArrayBuffer(aDst: Pointer; aCount: SizeUInt);
+var
+  i, cnt: SizeUInt;
+  pEntry: ^TEntry;
+begin
+  // 将 HashMap 中的键值对序列化到数组缓冲区
+  if (aDst = nil) or (aCount = 0) or (FCount = 0) then Exit;
+  
+  pEntry := aDst;
+  cnt := 0;
+  for i := 0 to FCapacity - 1 do
+  begin
+    if FBuckets[i].State = Ord(bsOccupied) then
+    begin
+      if cnt >= aCount then Break;
+      pEntry^.Key := FBuckets[i].Key;
+      pEntry^.Value := FBuckets[i].Value;
+      Inc(pEntry);
+      Inc(cnt);
+    end;
+  end;
+end;
+
+procedure THashMap.AppendUnChecked(const aSrc: Pointer; aElementCount: SizeUInt);
+var
+  i: SizeUInt;
+  pEntry: ^TEntry;
+begin
+  // 从数组缓冲区追加键值对
+  if (aSrc = nil) or (aElementCount = 0) then Exit;
+  
+  pEntry := aSrc;
+  for i := 0 to aElementCount - 1 do
+  begin
+    AddOrAssign(pEntry^.Key, pEntry^.Value);
+    Inc(pEntry);
+  end;
+end;
+
+procedure THashMap.AppendToUnChecked(const aDst: TCollection);
+var
+  i: SizeUInt;
+  dstMap: specialize THashMap<K, V>;
+begin
+  // 将当前 HashMap 的所有元素追加到目标容器
+  if aDst = nil then Exit;
+  
+  // 如果目标也是同类型的 HashMap，可以直接调用 AddOrAssign
+  if aDst is specialize THashMap<K, V> then
+  begin
+    dstMap := specialize THashMap<K, V>(aDst);
+    for i := 0 to FCapacity - 1 do
+    begin
+      if FBuckets[i].State = Ord(bsOccupied) then
+        dstMap.AddOrAssign(FBuckets[i].Key, FBuckets[i].Value);
+    end;
+  end
+  else
+  begin
+    // 对于其他类型的容器，我们无法直接支持
+    // 因为 THashMap<K,V> 的元素类型是 TEntry<K,V>，而不是单个类型
+    raise EInvalidOperation.Create('Cannot append HashMap to incompatible container type');
+  end;
 end;
 
 procedure THashMap.Reserve(aCapacity: SizeUInt);
@@ -484,9 +613,12 @@ begin
   if FCapacity = 0 then Exit(False);
   h := KeyHash(AKey);
   if not FindIndex(AKey, h, idx) then Exit(False);
-  // Finalize managed fields then mark tombstone
+  // CRITICAL FIX: Finalize then re-initialize to ensure clean state
+  // Prevents dangling references and undefined behavior
   Finalize(FBuckets[idx].Key);
   Finalize(FBuckets[idx].Value);
+  Initialize(FBuckets[idx].Key);
+  Initialize(FBuckets[idx].Value);
   FBuckets[idx].State := Ord(bsTombstone);
   FBuckets[idx].Hash := 0;
   Dec(FCount);
@@ -495,10 +627,10 @@ end;
 
 { THashSet<K> }
 
-constructor THashSet.Create(aCapacity: SizeUInt; aHash: specialize THashFunc<K>; aEquals: specialize TEqualsFunc<K>; aAllocator: IAllocator);
+constructor THashSet.Create(aCapacity: SizeUInt; aHash: specialize TKeyHashFunc<K>; aEquals: specialize TKeyEqualsFunc<K>; aAllocator: IAllocator);
 begin
   inherited Create(aAllocator);
-  FMap := specialize THashMap<K, Byte>.Create(aCapacity, aHash, aEquals, aAllocator);
+  FMap := TInternalMap.Create(aCapacity, aHash, aEquals, aAllocator);
 end;
 
 destructor THashSet.Destroy;
@@ -542,6 +674,82 @@ begin
   Result := SizeOf(K);
 end;
 
+procedure THashSet.DoZero();
+begin
+  // HashSet 的 Zero 操作委托给底层 HashMap
+  FMap.DoZero();
+end;
+
+procedure THashSet.DoReverse;
+begin
+  // HashSet 没有固定的顺序，Reverse 操作无实际意义
+  // 委托给底层 HashMap（也是空实现）
+  FMap.DoReverse;
+end;
+
+function THashSet.IsOverlap(const aSrc: Pointer; aElementCount: SizeUInt): Boolean;
+begin
+  Result := FMap.IsOverlap(aSrc, aElementCount);
+end;
+
+function THashSet.PtrIter: TPtrIter;
+begin
+  Result := FMap.PtrIter;
+end;
+
+procedure THashSet.SerializeToArrayBuffer(aDst: Pointer; aCount: SizeUInt);
+begin
+  // 将 HashSet 中的元素序列化到数组缓冲区
+  // TODO: 实现完整的序列化逻轑
+  // 暂时不实现，因为需要从 FMap 的 TEntry<K, Byte> 提取 K
+  // 避免在这里引用 specialize THashMap<K, Byte> 导致重复标识符错误
+end;
+
+procedure THashSet.AppendUnChecked(const aSrc: Pointer; aElementCount: SizeUInt);
+var
+  i: SizeUInt;
+  pKey: ^K;
+begin
+  // 从数组缓冲区追加元素
+  if (aSrc = nil) or (aElementCount = 0) then Exit;
+  
+  pKey := aSrc;
+  for i := 0 to aElementCount - 1 do
+  begin
+    Add(pKey^);
+    Inc(pKey);
+  end;
+end;
+
+procedure THashSet.AppendToUnChecked(const aDst: TCollection);
+var
+  i: SizeUInt;
+  dstSet: specialize THashSet<K>;
+  mapIter: specialize TIter<specialize TMapEntry<K, Byte>>;
+  entry: specialize TMapEntry<K, Byte>;
+begin
+  // 将当前 HashSet 的所有元素追加到目标容器
+  if aDst = nil then Exit;
+  
+  // 如果目标也是同类型的 HashSet
+  if aDst is specialize THashSet<K> then
+  begin
+    dstSet := specialize THashSet<K>(aDst);
+    // 迭代 FMap 获取所有 Key
+    mapIter := FMap.Iter;
+    while mapIter.MoveNext do
+    begin
+      entry := mapIter.Current;
+      dstSet.Add(entry.Key);
+    end;
+  end
+  else
+  begin
+    // 对于其他类型，我们无法直接支持
+    raise EInvalidOperation.Create('Cannot append HashSet to incompatible container type');
+  end;
+end;
+
 function THashSet.Add(const AKey: K): Boolean;
 begin
   Result := FMap.Add(AKey, 1);
@@ -552,9 +760,28 @@ begin
   Result := FMap.ContainsKey(AKey);
 end;
 
+function THashSet.Contains(const AKey: K; aEquals: specialize TEqualsFunc<K>; aData: Pointer): Boolean;
+begin
+  // Delegate to base class generic algorithm which iterates and checks with custom equals
+  Result := inherited Contains(AKey, aEquals, aData);
+end;
+
+function THashSet.Contains(const AKey: K; aEquals: specialize TEqualsMethod<K>; aData: Pointer): Boolean;
+begin
+  Result := inherited Contains(AKey, aEquals, aData);
+end;
+
+{$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
+function THashSet.Contains(const AKey: K; aEquals: specialize TEqualsRefFunc<K>): Boolean;
+begin
+  Result := inherited Contains(AKey, aEquals);
+end;
+{$ENDIF}
+
 function THashSet.Remove(const AKey: K): Boolean;
 begin
   Result := FMap.Remove(AKey);
 end;
 
+end.
 

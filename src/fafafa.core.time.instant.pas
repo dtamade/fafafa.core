@@ -151,11 +151,42 @@ begin
 end;
 
 function TInstant.Sub(const D: TDuration): TInstant;
-var v: Int64;
+var
+  base: UInt64;
+  subv: Int64;
 begin
-  // subtract D == add (-D)
-  v := -D.AsNs;
-  Result := Add(TDuration.FromNs(v));
+  // ISSUE-6 修复：避免对 Low(Int64) 取反导致溢出
+  // 直接根据 D 的符号执行加法或减法
+  base := FNsSinceEpoch;
+  subv := D.AsNs;
+  
+  if subv = 0 then
+    Exit(Self);
+  
+  if subv < 0 then
+  begin
+    // D 是负数，Sub(负数) = Add(正数)
+    // 特殊处理 Low(Int64) 避免溢出
+    if subv = Low(Int64) then
+    begin
+      // Low(Int64) 的绝对值无法表示为 Int64
+      // 直接饱和到 High(UInt64)
+      Result.FNsSinceEpoch := High(UInt64);
+    end
+    else
+    begin
+      // 正常情况：加上绝对值
+      Result := Add(TDuration.FromNs(-subv));
+    end;
+  end
+  else
+  begin
+    // D 是正数，正常减法，饱和到 0
+    if UInt64(subv) > base then
+      Result.FNsSinceEpoch := 0
+    else
+      Result.FNsSinceEpoch := base - UInt64(subv);
+  end;
 end;
 
 function TInstant.Diff(const Older: TInstant): TDuration;

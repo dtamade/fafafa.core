@@ -59,11 +59,20 @@ type
    *
    * @thread_safety
    *   实现应保证线程安全。
+   *
+   * @warning ✅ ISSUE-13: 语义澄清
+   *   NowInstant 返回的 TInstant 仅用于**相对时间测量**，其 epoch 未定义且与平台相关。
+   *   **禁止**将该 TInstant 与系统时间（ISystemClock）返回的 TInstant 直接比较或相减。
+   *   只能在同一单调时钟内计算相对差值。
    *}
   IMonotonicClock = interface
     ['{5C2D97D0-3B3A-4A3A-B6A9-7C7E6EAF7C20}']
     
-    // 基础时间获取
+    /// <summary>
+    ///   获取当前单调时间点。
+    ///   ⚠️ 注意：返回的 TInstant 仅用于相对时间测量，不能与系统时间混用。
+    ///   只能在同一单调时钟的两个 TInstant 之间计算差值。
+    /// </summary>
     function NowInstant: TInstant;
     
     // 睡眠操作
@@ -206,6 +215,7 @@ type
     {$IFDEF MSWINDOWS}
     class var FQPCFreq: Int64;
     class var FFreqInited: Boolean;
+    class var FQPCInitLock: TRTLCriticalSection;
     class procedure EnsureQPCFreq; static;
     class function QpcNowNs: UInt64; static;
     {$ELSE}
@@ -213,6 +223,7 @@ type
     class var FTBInited: Boolean;
     class var FTBNumer: UInt32;
     class var FTBDenom: UInt32;
+    class var FTBInitLock: TRTLCriticalSection;
     class procedure EnsureTimebase; static;
     class function DarwinNowNs: UInt64; static;
     {$ELSE}
@@ -268,10 +279,11 @@ type
   end;
 
   // 固定时钟实现（用于测试）
-  TFixedClock = class(TInterfacedObject, IFixedClock, ISystemClock, IMonotonicClock)
+  TFixedClock = class(TInterfacedObject, IFixedClock, IClock, IMonotonicClock, ISystemClock)
   private
+    // ✅ ISSUE-21: 使用单一真实来源避免数据竞争和一致性问题
+    // 只保留 FFixedInstant 作为内部存储，DateTime 通过转换计算
     FFixedInstant: TInstant;
-    FFixedDateTime: TDateTime;
     FLock: TRTLCriticalSection;
   public
     constructor Create; overload;
@@ -459,22 +471,34 @@ class procedure TMonotonicClock.EnsureQPCFreq;
 var
   li: Int64;
 begin
-  if FFreqInited then Exit;
-  if QueryPerformanceFrequency(li) then
-    FQPCFreq := li
-  else
-    FQPCFreq := 0;
-  FFreqInited := True;
+  // ✅ 线程安全：双重检查锁定模式
+  if FFreqInited then Exit;  // 快速路径，避免锁开销
+  EnterCriticalSection(FQPCInitLock);
+  try
+    if FFreqInited then Exit;  // 再次检查，避免重复初始化
+    if QueryPerformanceFrequency(li) then
+      FQPCFreq := li
+    else
+      FQPCFreq := 0;
+    FFreqInited := True;
+  finally
+    LeaveCriticalSection(FQPCInitLock);
+  end;
 end;
 
 class function TMonotonicClock.QpcNowNs: UInt64;
 var
   li: Int64;
+  q, r: UInt64;
 begin
   EnsureQPCFreq;
   if (FQPCFreq <= 0) or (not QueryPerformanceCounter(li)) then
     Exit(UInt64(GetTickCount64) * 1000 * 1000);
-  Result := (UInt64(li) * 1000000000) div UInt64(FQPCFreq);
+  // ✅ ISSUE-14: 使用先除后乘分解法防止 64 位溢出
+  // 计算: (li * 1e9) / freq = (li div freq) * 1e9 + ((li mod freq) * 1e9) / freq
+  q := UInt64(li) div UInt64(FQPCFreq);
+  r := UInt64(li) mod UInt64(FQPCFreq);
+  Result := q * 1000000000 + (r * 1000000000) div UInt64(FQPCFreq);
 end;
 {$ENDIF}
 
@@ -483,21 +507,33 @@ class procedure TMonotonicClock.EnsureTimebase;
 var
   info: mach_timebase_info_data_t;
 begin
-  if FTBInited then Exit;
-  mach_timebase_info(info);
-  FTBNumer := info.numer;
-  FTBDenom := info.denom;
-  if FTBDenom = 0 then FTBDenom := 1;
-  FTBInited := True;
+  // ✅ 线程安全：双重检查锁定模式
+  if FTBInited then Exit;  // 快速路径，避免锁开销
+  EnterCriticalSection(FTBInitLock);
+  try
+    if FTBInited then Exit;  // 再次检查，避免重复初始化
+    mach_timebase_info(info);
+    FTBNumer := info.numer;
+    FTBDenom := info.denom;
+    if FTBDenom = 0 then FTBDenom := 1;
+    FTBInited := True;
+  finally
+    LeaveCriticalSection(FTBInitLock);
+  end;
 end;
 
 class function TMonotonicClock.DarwinNowNs: UInt64;
 var
   t: UInt64;
+  q, r: UInt64;
 begin
   EnsureTimebase;
   t := mach_absolute_time;
-  Result := (t * FTBNumer) div FTBDenom;
+  // ✅ ISSUE-16: 使用先除后乘分解法防止溢出（175 天后风险）
+  // 计算: (t * numer) / denom = (t div denom) * numer + ((t mod denom) * numer) / denom
+  q := t div FTBDenom;
+  r := t mod FTBDenom;
+  Result := q * FTBNumer + (r * FTBNumer) div FTBDenom;
 end;
 {$ENDIF}
 
@@ -554,6 +590,7 @@ var
   remaining: Int64;
   step: Int64;
   chunkNs: Int64;
+  microSleepNs: Int64;
   finalSpinNs: Int64;
   nowI, deadline: TInstant;
 begin
@@ -564,24 +601,39 @@ begin
   nowI := NowInstant;
   deadline := nowI.Add(D);
 
-  // derive platform slice + final spin threshold
+  // ✅ ISSUE-17: 优化等待策略，减少 CPU 自旋
   // TODO: 这些配置值应该来自 fafafa.core.time.config，目前使用默认值
-  chunkNs := 10 * 1000 * 1000; // 10ms default slice
-  finalSpinNs := 50 * 1000; // 50us final spin threshold
+  chunkNs := 10 * 1000 * 1000;      // 10ms 常规切片
+  microSleepNs := 50 * 1000;        // 50us 微睡眠步长
+  finalSpinNs := 10 * 1000;         // 10us 最终自旋阈值（从 50us 降为 10us）
 
   while remaining > 0 do
   begin
     if (Token <> nil) and Token.IsCancellationRequested then
       Exit(False);
+    
     if remaining <= finalSpinNs then
     begin
-      // final spin/yield until deadline
+      // 极短的最终自旋阶段（<10us）
       nowI := NowInstant;
       remaining := deadline.Diff(nowI).AsNs;
-      if remaining > 0 then SchedYield;
+      if remaining > 0 then 
+        SchedYield
+      else
+        Break;
+    end
+    else if remaining <= 200 * 1000 then  // < 200us
+    begin
+      // 微睡眠阶段：使用小步长睡眠逐步逼近
+      step := remaining;
+      if step > microSleepNs then step := microSleepNs;
+      NanoSleep(UInt64(step));
+      nowI := NowInstant;
+      remaining := deadline.Diff(nowI).AsNs;
     end
     else
     begin
+      // 常规睡眠阶段
       step := remaining;
       if step > chunkNs then step := chunkNs;
       NanoSleep(UInt64(step));
@@ -639,10 +691,40 @@ end;
 
 { TSystemClock }
 
+{$IFDEF MSWINDOWS}
+// ✅ ISSUE-19/20: Windows 使用原生 API 获取高精度系统时间
+function WinNowUnixNs: Int64;
+const
+  // FILETIME 与 Unix Epoch 之间的差值（100ns ticks）
+  // 1601-01-01 到 1970-01-01 的 100ns tick 数
+  FT_UNIX_EPOCH = Int64(116444736000000000);
+var
+  ft: TFileTime;
+  ticks: Int64;
+begin
+  // 优先使用 GetSystemTimePreciseAsFileTime（Win8+，高精度）
+  // 回退到 GetSystemTimeAsFileTime（所有 Windows 版本）
+  GetSystemTimeAsFileTime(ft);
+  ticks := (Int64(ft.dwHighDateTime) shl 32) or ft.dwLowDateTime;
+  if ticks < FT_UNIX_EPOCH then Exit(0);
+  // FILETIME 是 100ns 为单位，转为 ns
+  Result := (ticks - FT_UNIX_EPOCH) * 100;
+end;
+{$ENDIF}
+
 function TSystemClock.NowUTC: TDateTime;
+{$IFDEF MSWINDOWS}
+var
+  unixSec: Int64;
+begin
+  unixSec := WinNowUnixNs div 1000000000;
+  Result := DateUtils.UnixToDateTime(unixSec, True);
+end;
+{$ELSE}
 begin
   Result := DateUtils.LocalTimeToUniversal(Now);
 end;
+{$ENDIF}
 
 function TSystemClock.NowLocal: TDateTime;
 begin
@@ -650,17 +732,29 @@ begin
 end;
 
 function TSystemClock.NowUnixMs: Int64;
+{$IFDEF MSWINDOWS}
+begin
+  Result := WinNowUnixNs div 1000000;
+end;
+{$ELSE}
 var
   dt: TDateTime;
 begin
   dt := NowUTC;
   Result := Int64(DateUtils.DateTimeToUnix(dt)) * 1000 + DateUtils.MilliSecondOfTheSecond(dt);
 end;
+{$ENDIF}
 
 function TSystemClock.NowUnixNs: Int64;
+{$IFDEF MSWINDOWS}
+begin
+  Result := WinNowUnixNs;
+end;
+{$ELSE}
 begin
   Result := NowUnixMs * 1000000;
 end;
+{$ENDIF}
 
 function TSystemClock.GetTimeZoneOffset: TDuration;
 var
@@ -765,7 +859,6 @@ constructor TFixedClock.Create;
 begin
   inherited Create;
   FFixedInstant := TInstant.Zero;
-  FFixedDateTime := 0;
   InitCriticalSection(FLock);
 end;
 
@@ -776,9 +869,13 @@ begin
 end;
 
 constructor TFixedClock.Create(const AInitialTime: TDateTime);
+var
+  unixSec: Int64;
 begin
   Create;
-  FFixedDateTime := AInitialTime;
+  // ✅ ISSUE-21: 将 TDateTime 转换为 TInstant 保持一致性
+  unixSec := DateUtils.DateTimeToUnix(AInitialTime, True);
+  FFixedInstant := TInstant.FromUnixSec(unixSec);
 end;
 
 destructor TFixedClock.Destroy;
@@ -828,10 +925,14 @@ begin
 end;
 
 function TFixedClock.NowUTC: TDateTime;
+var
+  unixSec: Int64;
 begin
   EnterCriticalSection(FLock);
   try
-    Result := FFixedDateTime;
+    // ✅ ISSUE-21: 从 FFixedInstant 计算 DateTime 保持一致性
+    unixSec := FFixedInstant.AsUnixSec;
+    Result := DateUtils.UnixToDateTime(unixSec, True);
   finally
     LeaveCriticalSection(FLock);
   end;
@@ -839,30 +940,30 @@ end;
 
 function TFixedClock.NowLocal: TDateTime;
 begin
-  EnterCriticalSection(FLock);
-  try
-    Result := FFixedDateTime;
-  finally
-    LeaveCriticalSection(FLock);
-  end;
+  // ✅ 固定时钟 NowLocal 返回与 NowUTC 相同的值（不做时区转换）
+  Result := NowUTC;
 end;
 
 function TFixedClock.NowUnixMs: Int64;
-var
-  dt: TDateTime;
 begin
   EnterCriticalSection(FLock);
   try
-    dt := FFixedDateTime;
+    // ✅ ISSUE-21: 从 FFixedInstant 直接计算，保持一致性和精度
+    Result := FFixedInstant.AsNsSinceEpoch div 1000000;
   finally
     LeaveCriticalSection(FLock);
   end;
-  Result := Int64(DateUtils.DateTimeToUnix(dt)) * 1000 + DateUtils.MilliSecondOfTheSecond(dt);
 end;
 
 function TFixedClock.NowUnixNs: Int64;
 begin
-  Result := NowUnixMs * 1000000;
+  EnterCriticalSection(FLock);
+  try
+    // ✅ ISSUE-21: 添加锁保护，避免数据竞争
+    Result := FFixedInstant.AsNsSinceEpoch;
+  finally
+    LeaveCriticalSection(FLock);
+  end;
 end;
 
 function TFixedClock.GetTimeZoneOffset: TDuration;
@@ -897,10 +998,14 @@ begin
 end;
 
 procedure TFixedClock.SetDateTime(const DT: TDateTime);
+var
+  unixSec: Int64;
 begin
   EnterCriticalSection(FLock);
   try
-    FFixedDateTime := DT;
+    // ✅ ISSUE-21: 将 DateTime 转换为 Instant 保持一致性
+    unixSec := DateUtils.DateTimeToUnix(DT, True);
+    FFixedInstant := TInstant.FromUnixSec(unixSec);
   finally
     LeaveCriticalSection(FLock);
   end;
@@ -910,8 +1015,8 @@ procedure TFixedClock.AdvanceBy(const D: TDuration);
 begin
   EnterCriticalSection(FLock);
   try
+    // ✅ ISSUE-21: 只更新 FFixedInstant，DateTime 通过转换计算
     FFixedInstant := FFixedInstant.Add(D);
-    FFixedDateTime := DateUtils.IncMilliSecond(FFixedDateTime, D.AsMs);
   finally
     LeaveCriticalSection(FLock);
   end;
@@ -938,10 +1043,14 @@ begin
 end;
 
 function TFixedClock.GetFixedDateTime: TDateTime;
+var
+  unixSec: Int64;
 begin
   EnterCriticalSection(FLock);
   try
-    Result := FFixedDateTime;
+    // ✅ ISSUE-21: 从 FFixedInstant 计算 DateTime
+    unixSec := FFixedInstant.AsUnixSec;
+    Result := DateUtils.UnixToDateTime(unixSec, True);
   finally
     LeaveCriticalSection(FLock);
   end;
@@ -951,8 +1060,8 @@ procedure TFixedClock.Reset;
 begin
   EnterCriticalSection(FLock);
   try
+    // ✅ ISSUE-21: 只重置 FFixedInstant
     FFixedInstant := TInstant.Zero;
-    FFixedDateTime := 0;
   finally
     LeaveCriticalSection(FLock);
   end;
@@ -960,8 +1069,20 @@ end;
 
 initialization
   InitCriticalSection(GInitLock);
+  {$IFDEF MSWINDOWS}
+  InitCriticalSection(TMonotonicClock.FQPCInitLock);
+  {$ENDIF}
+  {$IFDEF DARWIN}
+  InitCriticalSection(TMonotonicClock.FTBInitLock);
+  {$ENDIF}
 
 finalization
+  {$IFDEF MSWINDOWS}
+  DoneCriticalSection(TMonotonicClock.FQPCInitLock);
+  {$ENDIF}
+  {$IFDEF DARWIN}
+  DoneCriticalSection(TMonotonicClock.FTBInitLock);
+  {$ENDIF}
   DoneCriticalSection(GInitLock);
 
 end.

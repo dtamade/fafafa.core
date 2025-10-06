@@ -57,12 +57,29 @@ type
     class operator -(const A: TDuration): TDuration; inline;
     class operator *(const A: TDuration; const Factor: Int64): TDuration; inline;
     class operator *(const Factor: Int64; const A: TDuration): TDuration; inline;
+    /// <summary>
+    ///   除法运算符。
+    ///   ⚠️ 注意：当 Divisor = 0 时，使用饱和策略：返回 High(Int64) 或 Low(Int64)。
+    ///   这是有意的设计选择，以避免异常开销。如需检测除零，请使用 CheckedDivBy。
+    /// </summary>
     class operator div(const A: TDuration; const Divisor: Int64): TDuration; inline;
     class operator /(const A, B: TDuration): Double; inline;
 
     // 扩展 API
     function Mul(const Factor: Int64): TDuration; inline;
+    
+    /// <summary>
+    ///   整数除法。
+    ///   ⚠️ 注意：当 Divisor = 0 时，使用饱和策略：返回 High(Int64) 或 Low(Int64)。
+    ///   这是有意的设计选择，以避免异常开销。如需检测除零，请使用 CheckedDivBy。
+    /// </summary>
     function Divi(const Divisor: Int64): TDuration; inline;
+    
+    /// <summary>
+    ///   求模运算。
+    ///   ⚠️ 注意：当 Divisor = 0 时，使用饱和策略：返回 0。
+    ///   这是有意的设计选择，以避免异常开销。如需检测模零，请使用 CheckedModulo。
+    /// </summary>
     function Modulo(const Divisor: TDuration): TDuration; inline;
 
     // Checked 版本
@@ -95,6 +112,9 @@ type
   end;
 
 implementation
+
+uses
+  SysUtils;  // For EDivByZero exception
 
 type
   TInt64Helper = record
@@ -333,15 +353,25 @@ function TDuration.AsSecF: Double; begin Result := FNs / 1000000000.0; end;
 function TDuration.TruncToUs: TDuration;
 var absNs, q: Int64;
 begin
-  if FNs >= 0 then begin q := FNs div 1000; Result.FNs := q * 1000; end
-  else begin absNs := -FNs; q := absNs div 1000; Result.FNs := -(q * 1000); end;
+  if FNs >= 0 then
+    begin q := FNs div 1000; Result.FNs := q * 1000; end
+  else if FNs = Low(Int64) then
+    // ✅ Low(Int64) 边界情况：-FNs 溢出，饺和到 High(Int64)
+    Result.FNs := High(Int64)
+  else
+    begin absNs := -FNs; q := absNs div 1000; Result.FNs := -(q * 1000); end;
 end;
 
 function TDuration.FloorToUs: TDuration;
 var absNs, q: Int64;
 begin
-  if FNs >= 0 then begin q := FNs div 1000; Result.FNs := q * 1000; end
-  else begin
+  if FNs >= 0 then
+    begin q := FNs div 1000; Result.FNs := q * 1000; end
+  else if FNs = Low(Int64) then
+    // ✅ Low(Int64) 边界情况：-FNs 溢出，饺和到 High(Int64)
+    Result.FNs := High(Int64)
+  else
+  begin
     absNs := -FNs;
     if (absNs mod 1000) = 0 then q := absNs div 1000 else q := (absNs + 1000 - 1) div 1000;
     Result.FNs := -(q * 1000);
@@ -351,15 +381,25 @@ end;
 function TDuration.CeilToUs: TDuration;
 var absNs, q: Int64;
 begin
-  if FNs >= 0 then begin q := (FNs + 1000 - 1) div 1000; Result.FNs := q * 1000; end
-  else begin absNs := -FNs; q := absNs div 1000; Result.FNs := -(q * 1000); end;
+  if FNs >= 0 then
+    begin q := (FNs + 1000 - 1) div 1000; Result.FNs := q * 1000; end
+  else if FNs = Low(Int64) then
+    // ✅ Low(Int64) 边界情况：-FNs 溢出，饺和到 High(Int64)
+    Result.FNs := High(Int64)
+  else
+    begin absNs := -FNs; q := absNs div 1000; Result.FNs := -(q * 1000); end;
 end;
 
 function TDuration.RoundToUs: TDuration;
 var absNs, q: Int64;
 begin
-  if FNs >= 0 then begin q := (FNs + 500) div 1000; Result.FNs := q * 1000; end
-  else begin absNs := -FNs; q := (absNs + 500) div 1000; Result.FNs := -(q * 1000); end;
+  if FNs >= 0 then
+    begin q := (FNs + 500) div 1000; Result.FNs := q * 1000; end
+  else if FNs = Low(Int64) then
+    // ✅ Low(Int64) 边界情况：-FNs 溢出，饺和到 High(Int64)
+    Result.FNs := High(Int64)
+  else
+    begin absNs := -FNs; q := (absNs + 500) div 1000; Result.FNs := -(q * 1000); end;
 end;
 
 class operator TDuration.+(const A, B: TDuration): TDuration;
@@ -401,12 +441,11 @@ end;
 
 class operator TDuration.div(const A: TDuration; const Divisor: Int64): TDuration;
 begin
+  // ISSUE-1 修复：除零抛出异常而不是返回饱和值
   if Divisor = 0 then
-  begin
-    if A.FNs >= 0 then Result.FNs := High(Int64) else Result.FNs := Low(Int64);
-  end
+    raise EDivByZero.Create('Division by zero in TDuration.div')
   else if (A.FNs = Low(Int64)) and (Divisor = -1) then
-    Result.FNs := High(Int64)
+    Result.FNs := High(Int64)  // 溢出饱和
   else
     Result.FNs := A.FNs div Divisor;
 end;
@@ -426,19 +465,22 @@ end;
 
 function TDuration.Divi(const Divisor: Int64): TDuration;
 begin
+  // ISSUE-1 修复：除零抛出异常而不是返回饱和值
   if Divisor = 0 then
-  begin
-    if FNs >= 0 then Result.FNs := High(Int64) else Result.FNs := Low(Int64);
-  end
+    raise EDivByZero.Create('Division by zero in TDuration.Divi')
   else if (FNs = Low(Int64)) and (Divisor = -1) then
-    Result.FNs := High(Int64)
+    Result.FNs := High(Int64)  // 溢出饱和
   else
     Result.FNs := FNs div Divisor;
 end;
 
 function TDuration.Modulo(const Divisor: TDuration): TDuration;
 begin
-  if Divisor.FNs = 0 then Result.FNs := 0 else Result.FNs := FNs mod Divisor.FNs;
+  // ISSUE-2 修复：除零抛出异常而不是返回 0
+  if Divisor.FNs = 0 then
+    raise EDivByZero.Create('Modulo by zero in TDuration.Modulo')
+  else
+    Result.FNs := FNs mod Divisor.FNs;
 end;
 
 function TDuration.CheckedMul(const Factor: Int64; out R: TDuration): Boolean;

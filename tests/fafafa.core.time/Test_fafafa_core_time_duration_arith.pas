@@ -33,14 +33,16 @@ begin
 end;
 
 procedure TTestCase_DurationArith.Test_CheckedMulDivMod;
-var d, r: TDuration; ok: Boolean; zero, two, m: Int64;
+var d, r: TDuration; ok: Boolean; divisor, two, m: Int64;
 begin
   d := TDuration.FromNs(100);
-  zero := 0; two := 2; m := 3;
+  // ✅ 使用 ParamCount 等运行时值以避免编译时常量折叠优化
+  divisor := ParamCount - ParamCount;  // 运行时为 0
+  two := 2; m := 3;
   ok := d.CheckedMul(m, r);  // 正常路径：不会溢出
   CheckTrue(ok);
-  ok := d.CheckedDivBy(zero, r);
-  CheckFalse(ok);
+  ok := d.CheckedDivBy(divisor, r);  // ✅ 测试除以零的情况
+  CheckFalse(ok);  // 预期返回 False
   ok := d.CheckedDivBy(two, r);
   CheckTrue(ok);
   ok := d.CheckedModulo(TDuration.Zero, r);

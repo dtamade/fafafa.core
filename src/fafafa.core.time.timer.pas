@@ -58,8 +58,9 @@ function CreateTimerScheduler(const Clock: IMonotonicClock = nil): ITimerSchedul
 function CreateTimerScheduler(const Clock: IMonotonicClock; const CallbackPool: IThreadPool): ITimerScheduler; overload;
 
   // FixedRate 追赶步数上限（0 表示不限制）
+  // ✅ ISSUE-24: 默认值改为 3，避免追赶风暴
 var
-  GFixedRateMaxCatchupSteps: Integer = 0;
+  GFixedRateMaxCatchupSteps: Integer = 3;
 
   type
     TTimerExceptionHandler = procedure(const E: Exception);
@@ -91,6 +92,14 @@ implementation
 var
   GMetrics: TTimerMetrics;
   GMetricsLock: ILock;
+  // ✅ ISSUE-23: 为 GTimerExceptionHandler 添加锁保护
+  GTimerExceptionHandlerLock: ILock;
+  
+// ✅ ISSUE-28: 默认异常处理器，输出到 stderr
+procedure DefaultTimerExceptionHandler(const E: Exception);
+begin
+  WriteLn(ErrOutput, '[Timer Exception] ', E.ClassName, ': ', E.Message);
+end;
 
 
 type
@@ -204,23 +213,35 @@ begin
   inherited Create;
   FEntry := AEntry;
   FLock := Lock;
-  if FLock <> nil then FLock.Acquire;
-  try
-    if Assigned(FEntry) then
-      Inc(FEntry^.RefCount);
-  finally
-    if FLock <> nil then FLock.Release;
-  end;
+  // ✅ 不再增加 RefCount，因为 Schedule 方法中已经将初始值设置为 1
+  // 这避免了在 HeapInsert 之后、TTimerRef.Create 之前的竞态条件
+  // 当前 TTimerRef 持有这个引用，数值已经包含在初始值中
 end;
 
 procedure SetTimerExceptionHandler(const H: TTimerExceptionHandler);
 begin
-  GTimerExceptionHandler := H;
+  // ✅ ISSUE-23: 使用锁保护，避免读写竞争
+  if GTimerExceptionHandlerLock <> nil then
+    GTimerExceptionHandlerLock.Acquire;
+  try
+    GTimerExceptionHandler := H;
+  finally
+    if GTimerExceptionHandlerLock <> nil then
+      GTimerExceptionHandlerLock.Release;
+  end;
 end;
 
 function GetTimerExceptionHandler: TTimerExceptionHandler;
 begin
-  Result := GTimerExceptionHandler;
+  // ✅ ISSUE-23: 使用锁保护，避免读写竞争
+  if GTimerExceptionHandlerLock <> nil then
+    GTimerExceptionHandlerLock.Acquire;
+  try
+    Result := GTimerExceptionHandler;
+  finally
+    if GTimerExceptionHandlerLock <> nil then
+      GTimerExceptionHandlerLock.Release;
+  end;
 end;
 procedure TimerResetMetrics;
 begin
@@ -727,7 +748,9 @@ begin
   p^.Callback := Callback;
   p^.Cancelled := False;
   p^.Fired := False;
-  p^.RefCount := 0; p^.Dead := False; p^.InHeap := False;
+  // ✅ 初始 RefCount 为 1，代表即将创建的 TTimerRef 持有的引用
+  // 这避免了在 HeapInsert 之后、TTimerRef.Create 之前的竞态条件
+  p^.RefCount := 1; p^.Dead := False; p^.InHeap := False;
   if GMetricsLock <> nil then GMetricsLock.Acquire;
   try Inc(GMetrics.ScheduledTotal); finally if GMetricsLock <> nil then GMetricsLock.Release; end;
   
@@ -763,7 +786,8 @@ begin
   p^.Callback := Callback;
   p^.Cancelled := False;
   p^.Fired := False;
-  p^.RefCount := 0; p^.Dead := False; p^.InHeap := False;
+  // ✅ 初始 RefCount 为 1，代表即将创建的 TTimerRef 持有的引用
+  p^.RefCount := 1; p^.Dead := False; p^.InHeap := False;
   if GMetricsLock <> nil then GMetricsLock.Acquire;
   try Inc(GMetrics.ScheduledTotal); finally if GMetricsLock <> nil then GMetricsLock.Release; end;
   
@@ -798,7 +822,8 @@ begin
   p^.Callback := Callback;
   p^.Cancelled := False;
   p^.Fired := False;
-  p^.RefCount := 0; p^.Dead := False; p^.InHeap := False;
+  // ✅ 初始 RefCount 为 1，代表即将创建的 TTimerRef 持有的引用
+  p^.RefCount := 1; p^.Dead := False; p^.InHeap := False;
   if GMetricsLock <> nil then GMetricsLock.Acquire;
   try Inc(GMetrics.ScheduledTotal); finally if GMetricsLock <> nil then GMetricsLock.Release; end;
   
@@ -868,6 +893,8 @@ end;
 
 // 同步执行回调（默认模式，向后兼容）
 procedure TTimerSchedulerImpl.ExecuteCallbackSync(const cb: TProc; const best: PTimerEntry; const kind: TTimerKind; const delay: TDuration);
+var
+  handler: TTimerExceptionHandler;
 begin
   try
     cb();
@@ -878,8 +905,23 @@ begin
     begin
       if GMetricsLock <> nil then GMetricsLock.Acquire;
       try Inc(GMetrics.ExceptionTotal); finally if GMetricsLock <> nil then GMetricsLock.Release; end;
-      if Assigned(GTimerExceptionHandler) then
-        GTimerExceptionHandler(E);
+      
+      // ✅ ISSUE-23: 使用局部变量复制 handler，避免在调用时持有锁
+      handler := nil;
+      if GTimerExceptionHandlerLock <> nil then
+        GTimerExceptionHandlerLock.Acquire;
+      try
+        handler := GTimerExceptionHandler;
+      finally
+        if GTimerExceptionHandlerLock <> nil then
+          GTimerExceptionHandlerLock.Release;
+      end;
+      
+      // ✅ ISSUE-28: 如果没有设置 handler，使用默认 handler
+      if Assigned(handler) then
+        handler(E)
+      else
+        DefaultTimerExceptionHandler(E);
     end;
   end;
   
@@ -939,6 +981,7 @@ var
   ctx: PCallbackContext;
   sch: TTimerSchedulerImpl;
   entryToDispose: PTimerEntry;
+  handler: TTimerExceptionHandler; // ✅ ISSUE-23: 局部变量复制 handler
 begin
   Result := False;
   if aData = nil then Exit;
@@ -958,8 +1001,23 @@ begin
       begin
         if GMetricsLock <> nil then GMetricsLock.Acquire;
         try Inc(GMetrics.ExceptionTotal); finally if GMetricsLock <> nil then GMetricsLock.Release; end;
-        if Assigned(GTimerExceptionHandler) then
-          GTimerExceptionHandler(E);
+        
+        // ✅ ISSUE-23: 使用局部变量复制 handler，避免在调用时持有锁
+        handler := nil;
+        if GTimerExceptionHandlerLock <> nil then
+          GTimerExceptionHandlerLock.Acquire;
+        try
+          handler := GTimerExceptionHandler;
+        finally
+          if GTimerExceptionHandlerLock <> nil then
+            GTimerExceptionHandlerLock.Release;
+        end;
+        
+        // ✅ ISSUE-28: 如果没有设置 handler，使用默认 handler
+        if Assigned(handler) then
+          handler(E)
+        else
+          DefaultTimerExceptionHandler(E);
       end;
     end;
     
@@ -1095,6 +1153,8 @@ end;
 initialization
 begin
   GMetricsLock := TMutex.Create;
+  // ✅ ISSUE-23: 初始化异常处理器锁
+  GTimerExceptionHandlerLock := TMutex.Create;
 end;
 
 end.

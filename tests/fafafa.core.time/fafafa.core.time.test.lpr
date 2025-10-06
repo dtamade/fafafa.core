@@ -28,6 +28,7 @@ uses
   Test_fafafa_core_time_operators,
   Test_fafafa_core_time_duration_arith,
   Test_fafafa_core_time_duration_round_ops,
+  Test_fafafa_core_time_duration_round_edge,  // ✅ ISSUE-3 边界测试
   Test_fafafa_core_time_instant_deadline_ext,
   Test_fafafa_core_time_instant_deadline_more,
   // Test_fafafa_core_time_timer_stress, // temporarily disabled to avoid unrelated sync.namedBarrier windows syntax error
@@ -36,6 +37,13 @@ uses
   , Test_fafafa_core_time_instant_saturation_bounds
   , Test_fafafa_core_time_duration_constants
   , Test_iso8601
+  , Test_fafafa_core_time_clock_fixes  // ✅ 验证 Clock 模块修复的测试
+  , Test_fafafa_core_time_instant_sub_fix  // ✅ ISSUE-6: TInstant.Sub Low(Int64) 溢出修复
+  , Test_fafafa_core_time_duration_divmod_fix  // ✅ ISSUE-1/2: div 和 Modulo 除零异常修复
+  , Test_fafafa_core_time_parse_errors  // ✅ ISSUE-38: 错误消息国际化
+  , Test_fafafa_core_time_timezone_mode  // ✅ ISSUE-37: 时区处理冲突修复
+  , Test_fafafa_core_time_scheduler  // ✅ ISSUE-25: 任务调度器
+  , Test_fafafa_core_time_cron_macros  // ✅ Cron 宏支持
   {$IFDEF LINUX}, Test_SleepBest_Linux{$ENDIF}
   {$IFDEF DARWIN}, Test_SleepBest_Darwin{$ENDIF}
   ;

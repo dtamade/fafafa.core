@@ -96,6 +96,53 @@ type
 
   {**
    * ISO 8601 持续时间表示
+   *
+   * ⚠️ **ISSUE-42: 月份/年份转换限制**
+   *
+   * ISO 8601 Duration 支持年份 (Y) 和月份 (M) 单位，但这些单位
+   * **无法精确转换为固定时长** (TDuration)，因为：
+   *
+   * **原因：**
+   * - 1 年 ≠ 365 天 (闰年为 366 天)
+   * - 1 月 ≠ 30 天 (本月 28-31 天不等)
+   * - 无法在不知道具体日期的情况下计算精确时长
+   *
+   * **当前处理策略：**
+   *
+   * 1. **ToTDuration 方法**：
+   *    使用近似转换：
+   *    - 1 年 ≈ 365 天
+   *    - 1 月 ≈ 30 天
+   *    
+   *    ⚠️ **警告**：这是近似值，可能有数天的误差！
+   *
+   * 2. **FromTDuration 方法**：
+   *    只转换天/小时/分钟/秒，**不生成年/月**。
+   *    例如：400 天 -> P400D (而非 P1Y1M5D)
+   *
+   * **建议用法：**
+   *
+   * - **如果需要精确时长**：仅使用 Days/Hours/Minutes/Seconds
+   * - **如果需要年/月**：保持 ISO8601Duration 格式，不转换为 TDuration
+   * - **解析带年/月的 ISO 字符串**：明确告知用户是近似值
+   *
+   * **示例：**
+   * ```pascal
+   * // ✅ 精确转换
+   * dur := TISO8601Duration.FromString('PT24H');  // 24 小时
+   * tdur := dur.ToTDuration;  // 精确
+   *
+   * // ⚠️ 近似转换（误差）
+   * dur := TISO8601Duration.FromString('P1Y2M');  // 1 年 2 月
+   * tdur := dur.ToTDuration;  // 近似为 365+60=425 天，可能有 1-2 天误差
+   *
+   * // ✅ 推荐方式：保持 ISO 格式
+   * dur := TISO8601Duration.FromString('P1Y2M');
+   * // 使用 dur.Years 和 dur.Months 直接计算日期，而不转换为时长
+   * ```
+   *
+   * **未来改进：**
+   * 可考虑添加基准日期参数，基于具体日期计算精确时长。
    *}
   TISO8601Duration = record
     Years: Integer;
@@ -107,7 +154,23 @@ type
     
     class function FromString(const S: string): TISO8601Duration; static;
     function ToString: string;
+    
+    {**
+     * 转换为 TDuration
+     *
+     * ⚠️ **警告**：如果包含 Years 或 Months，使用近似转换：
+     * - 1 年 ≈ 365 天
+     * - 1 月 ≈ 30 天
+     * 
+     * 误差可能达数天！请谨慎使用。
+     *}
     function ToTDuration: TDuration;
+    
+    {**
+     * 从 TDuration 创建
+     *
+     * 注意：只生成 Days/Hours/Minutes/Seconds，**不生成 Years/Months**。
+     *}
     class function FromTDuration(const D: TDuration): TISO8601Duration; static;
   end;
 
@@ -265,14 +328,50 @@ function ISO8601StringToDuration(const S: string): TDuration;
 function TryISO8601StringToDuration(const S: string; out ADuration: TDuration): Boolean;
 
 {**
- * 获取当前本地时区偏移（分钟）
+ * 获取指定日期时间的本地时区偏移（分钟）
+ *
+ * @desc
+ *   根据给定的日期时间计算时区偏移，**自动处理DST（夏令时）**。
+ *   这确保在格式化历史或未来日期时，使用正确的时区偏移。
+ *
+ * @param ADateTime 要计算时区偏移的日期时间
+ * @return 时区偏移（分钟），正值表示东时区，负值表示西时区
+ *
+ * @platform
+ *   - Windows: 使用 SystemTimeToTzSpecificLocalTime API
+ *   - POSIX/Linux/macOS: 使用 localtime_r 和 tm_gmtoff
+ *
+ * @example
+ * <code>
+ *   // 夏令时期间（假设时区为 UTC+8，夏令时 UTC+9）
+ *   offset := GetLocalTimeZoneOffset(EncodeDateTime(2024, 7, 1, 12, 0, 0, 0));
+ *   // offset = 540 (分钟) = +09:00
+ *
+ *   // 冬令时期间
+ *   offset := GetLocalTimeZoneOffset(EncodeDateTime(2024, 1, 1, 12, 0, 0, 0));
+ *   // offset = 480 (分钟) = +08:00
+ * </code>
+ *
+ * @see ISSUE-44 修复：添加DST感知的时区偏移计算
  *}
-function GetLocalTimeZoneOffset: Integer;
+function GetLocalTimeZoneOffset(const ADateTime: TDateTime): Integer; overload;
+
+{**
+ * 获取当前时间的本地时区偏移（分钟）
+ *
+ * @desc
+ *   便捷重载，相当于 GetLocalTimeZoneOffset(Now)。
+ *
+ * @return 当前时间的时区偏移（分钟）
+ *}
+function GetLocalTimeZoneOffset: Integer; overload; inline;
 
 implementation
 
 uses
-  Math;
+  Math
+  {$IFDEF WINDOWS}, Windows{$ENDIF}
+  {$IFDEF UNIX}, BaseUnix, Unix{$ENDIF};
 
 { TISO8601Options }
 
@@ -317,15 +416,86 @@ end;
 
 { 辅助函数 }
 
-function GetLocalTimeZoneOffset: Integer;
+function GetLocalTimeZoneOffset(const ADateTime: TDateTime): Integer;
+{$IFDEF WINDOWS}
+var
+  SysTime, LocalSysTime: TSystemTime;
+  TZI: TTimeZoneInformation;
+  FileTime: TFileTime;
+  LocalFileTime: TFileTime;
+  Int64Time, LocalInt64Time: Int64;
+begin
+  // 转换为 SYSTEMTIME
+  DateTimeToSystemTime(ADateTime, SysTime);
+  
+  // 获取时区信息
+  GetTimeZoneInformation(TZI);
+  
+  // 转换为本地时间（考虑DST）
+  if not SystemTimeToTzSpecificLocalTime(@TZI, @SysTime, @LocalSysTime) then
+  begin
+    // 如果失败，回退到简单方法
+    Result := -(TZI.Bias + TZI.StandardBias);
+    Exit;
+  end;
+  
+  // 计算偏移：转换为FileTime进行精确计算
+  SystemTimeToFileTime(SysTime, FileTime);
+  SystemTimeToFileTime(LocalSysTime, LocalFileTime);
+  
+  Int64Time := Int64(FileTime.dwHighDateTime) shl 32 or FileTime.dwLowDateTime;
+  LocalInt64Time := Int64(LocalFileTime.dwHighDateTime) shl 32 or LocalFileTime.dwLowDateTime;
+  
+  // FileTime 的单位是100纳秒，转换为分钟
+  // 每分钟 = 600,000,000 * 100ns
+  Result := (LocalInt64Time - Int64Time) div 600000000;
+end;
+{$ELSE}
+{$IFDEF UNIX}
+var
+  UnixTime: Int64;
+  TM: TTM;
+  GMTOffset: clong;
+begin
+  // 转换为 Unix 时间戳
+  UnixTime := DateTimeToUnix(ADateTime, False);  // False = 不转换为UTC
+  
+  // 获取本地时间信息（含DST）
+  FillChar(TM, SizeOf(TM), 0);
+  if localtime_r(@UnixTime, @TM) = nil then
+  begin
+    // 如果失败，返回0
+    Result := 0;
+    Exit;
+  end;
+  
+  // tm_gmtoff 是相对UTC的秒数偏移
+  {$IF DEFINED(LINUX) or DEFINED(DARWIN) or DEFINED(FREEBSD)}
+  GMTOffset := TM.__tm_gmtoff;  // 某些系统字段名不同
+  {$ELSE}
+  GMTOffset := TM.tm_gmtoff;
+  {$ENDIF}
+  
+  Result := GMTOffset div 60;  // 转换为分钟
+end;
+{$ELSE}
+// 其他平台的回退实现
 var
   LocalTime, UTCTime: TDateTime;
 begin
-  LocalTime := Now;
-  UTCTime := UniversalTimeToLocal(LocalTime);
+  LocalTime := ADateTime;
+  UTCTime := LocalTimeToUniversal(LocalTime);
   Result := MinutesBetween(LocalTime, UTCTime);
   if LocalTime < UTCTime then
     Result := -Result;
+end;
+{$ENDIF}
+{$ENDIF}
+
+// 重载：便捷函数，使用当前时间
+function GetLocalTimeZoneOffset: Integer;
+begin
+  Result := GetLocalTimeZoneOffset(Now);
 end;
 
 function PadZero(Value: Integer; Width: Integer): string;
@@ -457,7 +627,8 @@ begin
   if AOptions.UseUTC and (AOptions.TimeZoneFormat = itzUTC) then
     TimeZonePart := 'Z'
   else if AOptions.TimeZoneFormat <> itzNone then
-    TimeZonePart := FormatTimeZone(GetLocalTimeZoneOffset, AOptions.TimeZoneFormat)
+    // 使用ADateTime的时区偏移，而不是当前时间的偏移
+    TimeZonePart := FormatTimeZone(GetLocalTimeZoneOffset(ADateTime), AOptions.TimeZoneFormat)
   else
     TimeZonePart := '';
   
@@ -469,14 +640,88 @@ begin
   Result := FormatDateTime(ADateTime, TISO8601Options.Default);
 end;
 
+{**
+ * 根据ISO 8601-1:2019标准计算周数和周内日
+ *
+ * ISO 8601周日期规则：
+ * 1. 一周从周一开始（Monday=1, Sunday=7）
+ * 2. 第一周：包含1月4日的那一周，或包含该年第一个周四的那一周
+ * 3. 边界情况：12月29-31日可能属于下一年W01，1月1-3日可能属于上一年W52/W53
+ *}
+procedure CalculateISOWeekDate(const ADate: TDateTime; out Year, Week, DayOfWeek: Integer);
+var
+  Y, M, D: Word;
+  Jan4: TDateTime;
+  Jan4DayOfWeek: Integer;
+  FirstMondayOfYear: TDateTime;
+  DaysSinceFirstMonday: Integer;
+  ActualDayOfWeek: Integer;
+begin
+  DecodeDate(ADate, Y, M, D);
+  Year := Y;
+  
+  // 计算ISO周内日（周一=1, 周日=7）
+  // Free Pascal: DayOfWeek 返回 1(周日) 到 7(周六)
+  ActualDayOfWeek := DateUtils.DayOfTheWeek(ADate);  // 1=Sunday, 7=Saturday
+  // 转换为ISO：周一=1, 周日=7
+  if ActualDayOfWeek = 1 then  // Sunday
+    DayOfWeek := 7
+  else
+    DayOfWeek := ActualDayOfWeek - 1;
+  
+  // ISO 8601 周数计算：找到包含1月4日的第一周
+  Jan4 := EncodeDate(Year, 1, 4);
+  Jan4DayOfWeek := DateUtils.DayOfTheWeek(Jan4);
+  
+  // 转换为ISO周内日
+  if Jan4DayOfWeek = 1 then
+    Jan4DayOfWeek := 7
+  else
+    Jan4DayOfWeek := Jan4DayOfWeek - 1;
+  
+  // 第一周的周一日期 = 1月4日 - (1月4日的周内日 - 1)
+  FirstMondayOfYear := Jan4 - (Jan4DayOfWeek - 1);
+  
+  // 如果当前日期在第一周之前，属于上一年的最后一周
+  if ADate < FirstMondayOfYear then
+  begin
+    // 递归计算上一年的周数
+    CalculateISOWeekDate(EncodeDate(Year - 1, 12, 31), Year, Week, DayOfWeek);
+    Exit;
+  end;
+  
+  // 计算周数
+  DaysSinceFirstMonday := Trunc(ADate - FirstMondayOfYear);
+  Week := (DaysSinceFirstMonday div 7) + 1;
+  
+  // 检查是否属于下一年的第一周
+  if Week > 52 then
+  begin
+    // 检查下一年的1月4日
+    Jan4 := EncodeDate(Year + 1, 1, 4);
+    Jan4DayOfWeek := DateUtils.DayOfTheWeek(Jan4);
+    if Jan4DayOfWeek = 1 then
+      Jan4DayOfWeek := 7
+    else
+      Jan4DayOfWeek := Jan4DayOfWeek - 1;
+    
+    FirstMondayOfYear := Jan4 - (Jan4DayOfWeek - 1);
+    
+    // 如果当前日期 >= 下一年的第一周开始，属于下一年的W01
+    if ADate >= FirstMondayOfYear then
+    begin
+      Year := Year + 1;
+      Week := 1;
+    end;
+  end;
+end;
+
 class function TISO8601Formatter.FormatWeekDate(const ADate: TDateTime; 
   ABasic: Boolean): string;
 var
-  Year, Week, DayOfWeek: Word;
+  Year, Week, DayOfWeek: Integer;
 begin
-  Year := YearOf(ADate);
-  Week := WeekOfTheYear(ADate);
-  DayOfWeek := DayOfTheWeek(ADate);
+  CalculateISOWeekDate(ADate, Year, Week, DayOfWeek);
   
   if ABasic then
     Result := Format('%.4dW%.2d%d', [Year, Week, DayOfWeek])
@@ -706,6 +951,37 @@ begin
   Result := False;
 end;
 
+{**
+ * 将ISO周日期转换为普通日期
+ *
+ * @param Year ISO年份
+ * @param Week ISO周数 (1-53)
+ * @param DayOfWeek ISO周内日 (1=周一, 7=周日)
+ * @return 普通日期
+ *}
+function ISOWeekDateToDate(Year, Week, DayOfWeek: Integer): TDateTime;
+var
+  Jan4: TDateTime;
+  Jan4DayOfWeek: Integer;
+  FirstMondayOfYear: TDateTime;
+begin
+  // 找到该年的第一周开始日期
+  Jan4 := EncodeDate(Year, 1, 4);
+  Jan4DayOfWeek := DateUtils.DayOfTheWeek(Jan4);
+  
+  // 转换为ISO周内日
+  if Jan4DayOfWeek = 1 then  // Sunday
+    Jan4DayOfWeek := 7
+  else
+    Jan4DayOfWeek := Jan4DayOfWeek - 1;
+  
+  // 第一周的周一 = 1月4日 - (周内日 - 1)
+  FirstMondayOfYear := Jan4 - (Jan4DayOfWeek - 1);
+  
+  // 计算目标日期 = 第一周周一 + (Week-1)周 + (DayOfWeek-1)天
+  Result := FirstMondayOfYear + ((Week - 1) * 7) + (DayOfWeek - 1);
+end;
+
 class function TISO8601Parser.ParseWeekDate(const S: string; 
   out ADate: TDateTime): Boolean;
 var
@@ -765,9 +1041,9 @@ begin
   if (DayOfWeek < 1) or (DayOfWeek > 7) then
     Exit;
   
-  // 转换为日期
+  // 使用ISO标准算法转换为日期
   try
-    ADate := EncodeDateWeek(Year, Week, DayOfWeek);
+    ADate := ISOWeekDateToDate(Year, Week, DayOfWeek);
     Result := True;
   except
     Result := False;

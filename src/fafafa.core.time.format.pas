@@ -70,14 +70,84 @@ type
     dfCustom              // 自定义格式
   );
 
-  // 格式化选项
+  {**
+   * TFormatOptions - 时间格式化选项
+   *
+   * @field UseUTC
+   *   使用 UTC 时间而非本地时间
+   *
+   * @field ShowMilliseconds
+   *   显示毫秒部分
+   *
+   *   ⚠️ **ISSUE-29: TDateTime 精度限制**
+   *   TDateTime 基于 Double 类型，精度约为 **~1 毫秒**。
+   *   ShowMilliseconds 选项可能无法显示精确的毫秒值。
+   *   
+   *   对于高精度时间戳，建议使用：
+   *   - TInstant (纳秒精度)
+   *   - Unix 时间戳 (NowUnixMs, NowUnixNs)
+   *
+   * @field Use24Hour
+   *   使用 24 小时制，False 时使用 12 小时制并显示 AM/PM
+   *
+   * @field ShowTimeZone
+   *   显示时区信息 (UTC+08:00 或 CST)
+   *
+   * @field Locale
+   *   本地化设置，用于月份名称、星期名称等本地化内容。
+   *
+   *   ⚠️ **ISSUE-30: Locale 格式标准化**
+   *   Locale 字符串应遵循 **BCP 47** 标准：
+   *   - 英语（美国）: 'en-US'
+   *   - 中文（简体）: 'zh-CN'
+   *   - 中文（繁体）: 'zh-TW'
+   *   - 日语：'ja-JP'
+   *   - 空字符串或 'default' 使用系统默认 locale
+   *
+   *   不建议使用：'English', 'Chinese', 'cn', 'us' 等不规范格式。
+   *
+   * @field CustomPattern
+   *   自定义格式模式字符串。
+   *
+   *   ⚠️ **ISSUE-31: CustomPattern 模式说明**
+   *   支持的模式标记：
+   *   
+   *   **日期部分：**
+   *   - 'yyyy' : 4 位年份 (2024)
+   *   - 'yy'   : 2 位年份 (24)
+   *   - 'MM'   : 2 位月份 (01-12)
+   *   - 'M'    : 1-2 位月份 (1-12)
+   *   - 'dd'   : 2 位日期 (01-31)
+   *   - 'd'    : 1-2 位日期 (1-31)
+   *   - 'MMM'  : 月份缩写 (Jan, Feb)
+   *   - 'MMMM' : 月份全名 (January, February)
+   *   
+   *   **时间部分：**
+   *   - 'HH'   : 24小时 2 位 (00-23)
+   *   - 'H'    : 24小时 1-2 位 (0-23)
+   *   - 'hh'   : 12小时 2 位 (01-12)
+   *   - 'h'    : 12小时 1-2 位 (1-12)
+   *   - 'mm'   : 分钟 2 位 (00-59)
+   *   - 'm'    : 分钟 1-2 位 (0-59)
+   *   - 'ss'   : 秒 2 位 (00-59)
+   *   - 's'    : 秒 1-2 位 (0-59)
+   *   - 'fff'  : 毫秒 3 位 (000-999)
+   *   - 'tt'   : AM/PM 标记
+   *   
+   *   **示例：**
+   *   - 'yyyy-MM-dd HH:mm:ss'     -> '2024-10-04 14:30:45'
+   *   - 'dd/MM/yyyy hh:mm:ss tt'  -> '04/10/2024 02:30:45 PM'
+   *   - 'MMMM d, yyyy'            -> 'October 4, 2024'
+   *   
+   *   注意：未匹配的字符直接输出（例如 '-', '/', ':' 等分隔符）。
+   *}
   TFormatOptions = record
-    UseUTC: Boolean;              // 使用 UTC 时间
-    ShowMilliseconds: Boolean;    // 显示毫秒
-    Use24Hour: Boolean;           // 使用 24 小时制
-    ShowTimeZone: Boolean;        // 显示时区
-    Locale: string;               // 本地化设置
-    CustomPattern: string;        // 自定义格式模式
+    UseUTC: Boolean;
+    ShowMilliseconds: Boolean;
+    Use24Hour: Boolean;
+    ShowTimeZone: Boolean;
+    Locale: string;
+    CustomPattern: string;
     
     class function Default: TFormatOptions; static;
     class function UTC: TFormatOptions; static;

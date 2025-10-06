@@ -8,7 +8,8 @@ interface
 
 uses
   Classes, SysUtils, fpcunit, testregistry,
-  fafafa.core.time, fafafa.core.thread.cancel, fafafa.core.time.consts
+  fafafa.core.time, fafafa.core.thread.cancel, fafafa.core.time.consts,
+  Test_fafafa_core_time_cron
   {$IFDEF MSWINDOWS}, Windows{$ENDIF};
 
 type
@@ -187,5 +188,6 @@ end;
 initialization
   RegisterTest(TTestCase_Global);
   RegisterTest(TTestCase_SleepBest);
+  // Cron tests are registered in Test_fafafa_core_time_cron unit
 end.
 
