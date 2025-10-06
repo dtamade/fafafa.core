@@ -1,9 +1,9 @@
 # WORKING.md - 工作上下文
 
-**最后更新**: 2025-10-04 00:09  
-**项目**: fafafa.core.time 模块  
-**工作类型**: 代码审查与 Bug 修复  
-**当前状态**: ✅ P1 问题修复进展良好，准备压力测试
+**最后更新**: 2025-10-06 13:38 UTC  
+**项目**: fafafa.core 核心库  
+**工作类型**: 集合类型内存安全验证  
+**当前状态**: ✅ HashMap 内存泄漏检测完成，零泄漏！
 
 ---
 
@@ -51,7 +51,44 @@ D:\projects\Pascal\lazarus\My\libs\fafafa.core\
 
 ---
 
-## ✅ 最近已完成的工作 (2025-10-02 至 2025-10-03)
+## ✅ 最近已完成的工作
+
+### 🎉 HashMap 内存泄漏检测 (2025-10-06) ✅
+
+**重大里程碑**: 使用 Free Pascal HeapTrc 完成 HashMap 深度内存泄漏检测
+
+**检测结果**: ✅ **零内存泄漏**
+
+**HeapTrc 数据**:
+```
+分配的内存块: 3665 (182597 bytes)
+释放的内存块: 3665 (182597 bytes)
+未释放的块:   0
+泄漏字节数:   0 bytes
+```
+
+**测试覆盖场景** (5 个):
+1. ✅ 基本操作（添加、删除、查询）
+2. ✅ Clear 操作
+3. ✅ Rehash 扩容（100 个元素触发多次扩容）
+4. ✅ 键值覆盖（同键多次赋值）
+5. ✅ 压力测试（1000 个元素大规模操作）
+
+**已验证的修复**:
+1. **DoZero 方法**: 修复 FillChar 跳过 Finalize 导致的字符串泄漏
+2. **Remove 方法**: 添加键值的正确 Finalize 和清零逻辑
+
+**生成的文档**:
+- `tests/HASHMAP_HEAPTRC_REPORT.md` - 详细检测报告 (234行)
+- `tests/MEMORY_LEAK_SUMMARY.md` - 集合类型检测总览 (182行)
+- `tests/HEAPTRC_SESSION_2025-10-06.md` - 完整会话记录 (352行)
+- `tests/test_hashmap_leak.pas` - 可复用测试程序 (135行)
+
+**状态**: ✅ HashMap 已可安全用于生产环境
+
+---
+
+### 历史工作 (2025-10-02 至 2025-10-03)
 
 ### 1. ISSUE-6 修复 (P0 - Critical) ✅
 
@@ -196,6 +233,7 @@ class operator div(const A: TDuration; const Divisor: Int64): TDuration;
 | 测试通过率 | 100% | 100% | ✅ 完成 |
 | 测试覆盖 | 110 用例 | 150+ | 🔄 进行中 |
 | 编译警告 | 0 | 0 | ✅ 完成 |
+| **内存泄漏检测** | **HashMap: 0 泄漏** | **所有集合: 0** | **✅ HashMap 完成** |
 
 ### 问题优先级分布
 
@@ -209,21 +247,36 @@ class operator div(const A: TDuration; const Divisor: Int64): TDuration;
 
 ---
 
-## 🎯 明天的工作计划
+## 🎯 下一步工作计划
 
-### 优先级 1: 压力测试与验证 (推荐首先进行) ⏳
+### 优先级 1: 继续集合类型内存泄漏检测 ⏳
 
-1. **Timer 竞态条件压力测试**
-   - 创建 1000+ 并发定时器
-   - 测试极短延迟 (< 1ms)
-   - 验证无内存泄漏
-   - 验证无访问违规
+1. **THashSet 内存泄漏检测**
+   - 基于 HashMap，应继承其内存安全性
+   - 测试方法与 HashMap 类似
+   - 预计时间: 1-2 小时
 
-2. **内存泄漏检测**
-   ```bash
-   # 使用 HeapTrc 或 Valgrind
-   # 方法见下方"如何运行测试"部分
-   ```
+2. **TVecDeque 内存泄漏检测**
+   - 双端队列，管理字符串等类型
+   - 需验证 push/pop/clear 操作
+   - 预计时间: 1-2 小时
+
+3. **TVec 内存泄漏检测**
+   - 动态数组，类似场景
+   - 预计时间: 1-2 小时
+
+**HeapTrc 测试模板**:
+```bash
+# 编译
+fpc -gh -gl -B -FuD:\projects\Pascal\lazarus\My\libs\fafafa.core\src \
+    -FiD:\projects\Pascal\lazarus\My\libs\fafafa.core\src \
+    -otest_collection_leak.exe test_collection_leak.pas
+
+# 运行
+.\test_collection_leak.exe
+
+# 检查输出：应该看到 "0 unfreed memory blocks"
+```
 
 ### 优先级 2: 处理下一批 P1 问题 (待处理)
 
@@ -519,6 +572,21 @@ end.
 
 ### 常见问题
 
+**Q: 如何运行 HashMap 内存泄漏检测？**
+A: 
+```bash
+# 编译
+fpc -gh -gl -B -FuD:\projects\Pascal\lazarus\My\libs\fafafa.core\src \
+    -FiD:\projects\Pascal\lazarus\My\libs\fafafa.core\src \
+    -oD:\projects\Pascal\lazarus\My\libs\fafafa.core\tests\test_hashmap_leak.exe \
+    D:\projects\Pascal\lazarus\My\libs\fafafa.core\tests\test_hashmap_leak.pas
+
+# 运行
+D:\projects\Pascal\lazarus\My\libs\fafafa.core\tests\test_hashmap_leak.exe
+
+# 验证：检查输出中应该有 "0 unfreed memory blocks"
+```
+
 **Q: 编译失败怎么办？**
 A: 检查路径是否正确，确保包含 `-Fi` 和 `-Fu` 参数指向正确的目录
 
@@ -544,11 +612,29 @@ A: 运行完整测试套件，确保 110/110 tests passed，无新增警告
 - 每个修复都要有文档
 - 保持 100% 测试通过率
 - 向后兼容优先
+- **内存安全第一**：所有集合类型必须通过 HeapTrc 检测
 
 ---
 
 **状态**: ✅ 准备就绪  
-**下一步**: 压力测试 → 继续 P1 问题 (ISSUE-16, 19, 20, 17, 21, 14)  
-**预计进度**: 再解决 3-5 个 P1 问题即可达到 50% 目标
+**下一步**: 集合类型内存泄漏检测 (THashSet, TVecDeque, TVec)  
+**当前进度**: HashMap ✅ | HashSet ⏳ | VecDeque ⏳ | Vec ⏳ | List ⏳ | PriorityQueue ⏳
+
+---
+
+## 📊 内存泄漏检测状态速查
+
+| 集合类型 | 状态 | 内存泄漏 | 测试日期 | 报告 |
+|---------|------|---------|---------|------|
+| **THashMap** | ✅ 已检测 | **无** | 2025-10-06 | [HASHMAP_HEAPTRC_REPORT.md](tests/HASHMAP_HEAPTRC_REPORT.md) |
+| THashSet | 🔲 待检测 | - | - | - |
+| TVecDeque | 🔲 待检测 | - | - | - |
+| TVec | 🔲 待检测 | - | - | - |
+| TList | 🔲 待检测 | - | - | - |
+| TPriorityQueue | 🔲 待检测 | - | - | - |
+
+**最近更新**: 2025-10-06 13:38 UTC  
+**Git Commit**: 0c9c45e  
+**总结文档**: [MEMORY_LEAK_SUMMARY.md](tests/MEMORY_LEAK_SUMMARY.md)
 
 祝工作顺利！🚀
