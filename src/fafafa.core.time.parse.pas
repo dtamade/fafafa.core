@@ -503,6 +503,9 @@ type
     FDefaultOptions: TParseOptions;
     FRegexCache: TStringList;
     
+    {** 检查输入字符串长度，防止 DoS 攻击 (ISSUE-47) **}
+    function CheckInputLength(const AInput: string; out AResult: TParseResult): Boolean;
+    
     function BuildRegexPattern(const AFormat: string): string;
     function MatchPattern(const AInput, APattern: string; out AMatches: TStringArray): Boolean;
     function ExtractComponents(const AMatches: TStringArray; const AFormat: string; 
@@ -1223,14 +1226,33 @@ begin
   Result := False;
 end;
 
+{**
+ * 检查输入字符串长度，防止 DoS 攻击
+ * ISSUE-47: 添加输入长度限制
+ *
+ * @param AInput - 输入字符串
+ * @param AResult - 如果超长，返回错误结果
+ * @return True 如果长度合法，False 如果超长
+ *}
+function TTimeParser.CheckInputLength(const AInput: string; out AResult: TParseResult): Boolean;
+begin
+  if Length(AInput) > MAX_INPUT_STRING_LENGTH then
+  begin
+    AResult := TParseResult.CreateError(pecInputTooLong,
+      Format('Input string too long: %d > %d', [Length(AInput), MAX_INPUT_STRING_LENGTH]), 0);
+    Result := False;
+  end
+  else
+    Result := True;
+end;
+
 function TTimeParser.ParseDateTime(const ADateTimeStr: string; out ADateTime: TDateTime): TParseResult;
 var
   ok: Boolean;
 begin
-  // 第3层防护：输入长度限制（防止DoS）
-  if Length(ADateTimeStr) > MAX_INPUT_STRING_LENGTH then
-    Exit(TParseResult.CreateError(pecInputTooLong,
-      Format('输入字符串过长：%d > %d', [Length(ADateTimeStr), MAX_INPUT_STRING_LENGTH]), 0));
+  // ISSUE-47: 输入长度限制（防止DoS）
+  if not CheckInputLength(ADateTimeStr, Result) then
+    Exit;
   
   ok := TryStrToDateTime(ADateTimeStr, ADateTime);
   if ok then
@@ -1265,6 +1287,10 @@ function TTimeParser.ParseDate(const ADateStr: string; out ADate: TDate): TParse
 var
   ok: Boolean;
 begin
+  // ISSUE-47: 输入长度限制（防止DoS）
+  if not CheckInputLength(ADateStr, Result) then
+    Exit;
+  
   ok := TDate.TryParse(ADateStr, ADate);
   if ok then
     Exit(TParseResult.CreateSuccess(Length(ADateStr), FORMAT_ISO8601_DATE))
@@ -1288,6 +1314,10 @@ function TTimeParser.ParseTime(const ATimeStr: string; out ATime: TTimeOfDay): T
 var
   ok: Boolean;
 begin
+  // ISSUE-47: 输入长度限制（防止DoS）
+  if not CheckInputLength(ATimeStr, Result) then
+    Exit;
+  
   ok := TTimeOfDay.TryParse(ATimeStr, ATime);
   if ok then
     Exit(TParseResult.CreateSuccess(Length(ATimeStr), FORMAT_ISO8601_TIME))
@@ -1307,6 +1337,10 @@ end;
 
 function TTimeParser.DetectFormat(const ATimeStr: string): string;
 begin
+  // ISSUE-47: 输入长度限制（防止DoS）
+  if Length(ATimeStr) > MAX_INPUT_STRING_LENGTH then
+    Exit('');  // 返回空字符串表示无法检测
+  
   if Pos('T', ATimeStr) > 0 then
     Exit(FORMAT_ISO8601_DATETIME)
   else if Pos(':', ATimeStr) > 0 then
@@ -1333,6 +1367,10 @@ var
   d: TDate;
   t: TTimeOfDay;
 begin
+  // ISSUE-47: 输入长度限制（防止DoS）
+  if not CheckInputLength(ATimeStr, Result) then
+    Exit;
+  
   if TryStrToDateTime(ATimeStr, dt) then
     Exit(TParseResult.CreateSuccess(Length(ATimeStr), 'auto'))
   else if TDate.TryParse(ATimeStr, d) then
@@ -1354,6 +1392,10 @@ var
   d: TDate;
   dt: TDateTime;
 begin
+  // ISSUE-47: 输入长度限制（防止DoS）
+  if not CheckInputLength(ATimeStr, Result) then
+    Exit;
+  
   if TDate.TryParse(ATimeStr, d) then
   begin
     ADate := d;
@@ -1373,6 +1415,10 @@ var
   t: TTimeOfDay;
   dt: TDateTime;
 begin
+  // ISSUE-47: 输入长度限制（防止DoS）
+  if not CheckInputLength(ATimeStr, Result) then
+    Exit;
+  
   if TTimeOfDay.TryParse(ATimeStr, t) then
   begin
     ATime := t;
@@ -1392,6 +1438,10 @@ var
   s: string;
   v32: LongInt;
 begin
+  // ISSUE-47: 输入长度限制（防止DoS）
+  if not CheckInputLength(ADurationStr, Result) then
+    Exit;
+  
   s := Trim(LowerCase(ADurationStr));
   if (s = '') then Exit(TParseResult.CreateErrorCode(pecEmptyInput, 0));
 

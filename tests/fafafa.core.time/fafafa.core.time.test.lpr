@@ -42,6 +42,7 @@ uses
   , Test_fafafa_core_time_deadline_never_fix  // ✅ ISSUE-2: TDeadline.Never 哨兵冲突修复
   , Test_fafafa_core_time_duration_divmod_fix  // ✅ ISSUE-1/2: div 和 Modulo 除零异常修复（已重新启用）
   , Test_fafafa_core_time_parse_errors  // ✅ ISSUE-38: 错误消息国际化
+  , Test_fafafa_core_time_parse_security  // ✅ ISSUE-40/47: 正则注入防护和输入长度限制
   , Test_fafafa_core_time_timezone_mode  // ✅ ISSUE-37: 时区处理冲突修复
   , Test_fafafa_core_time_scheduler  // ✅ ISSUE-25: 任务调度器
   , Test_fafafa_core_time_cron_macros  // ✅ Cron 宏支持

@@ -60,12 +60,111 @@ type
     dtfCustom             // 自定义格式
   );
 
-  // 持续时间格式类型
+  /// <summary>
+  ///   持续时间格式类型。定义时长的不同输出格式。
+  /// </summary>
+  /// <remarks>
+  ///   <para><b>dfCompact</b>: 紧凑格式，例如 "1h30m45s"</para>
+  ///   <para><b>dfVerbose</b>: 详细格式，例如 "1 hour 30 minutes 45 seconds"</para>
+  ///   <para><b>dfPrecise</b>: 精确格式，例如 "1:30:45.123"</para>
+  ///   <para><b>dfHuman</b>: 人类可读的近似格式，例如 "about 1 hour"</para>
+  ///   <para><b>⚠️ dfHuman 重要说明</b>:</para>
+  ///   <list type="bullet">
+  ///     <item>返回近似值，会丢失精度（例如 "1h 30m 45s" 变成 "about 2 hours"）</item>
+  ///     <item>此格式<b>不可逆</b>：无法从 "about 2 hours" 精确还原原始时长</item>
+  ///     <item>仅用于显示目的，不适合数据存储或序列化</item>
+  ///     <item>适用场景：UI 展示、日志摘要、用户友好输出</item>
+  ///   </list>
+  ///   <para><b>dfISO8601</b>: ISO 8601 标准格式，例如 "PT1H30M45.123S"</para>
+  ///   <para><b>dfCustom</b>: 自定义格式（当前未完全实现）</para>
+  /// </remarks>
+  /// <example>
+  ///   <code>
+  ///   var
+  ///     d: TDuration;
+  ///     s: string;
+  ///   begin
+  ///     d := TDuration.FromSec(5432);  // 1小时30分32秒
+  ///     
+  ///     // ✅ 精确格式（可逆）
+  ///     s := FormatDuration(d, dfPrecise);  // "1:30:32.000"
+  ///     s := FormatDuration(d, dfISO8601);  // "PT1H30M32S"
+  ///     
+  ///     // ⚠️ 近似格式（不可逆，精度损失）
+  ///     s := FormatDuration(d, dfHuman);    // "about 2 hours"
+  ///     // 无法从 "about 2 hours" 还原 5432 秒！
+  ///     
+  ///     // ✅ 推荐：存储使用精确格式
+  ///     s := FormatDuration(d, dfISO8601);  // 存储到数据库
+  ///     WriteLn(FormatDuration(d, dfHuman));  // 仅用于显示
+  ///   end;
+  ///   </code>
+  /// </example>
+  {**
+   * TDurationFormat - 持续时间格式化类型
+   *
+   * ⚠️ **ISSUE-32: dfHuman 格式不可逆性警告**
+   *
+   * @value dfCompact
+   *   紧凑格式：`1h30m45s`
+   *   - 可逆：✅ 可以通过 ParseDuration 解析回 TDuration
+   *   - 用途：日志、命令行输出、配置文件
+   *
+   * @value dfVerbose
+   *   详细格式：`1 hour 30 minutes 45 seconds`
+   *   - 可逆：✅ 可以通过 ParseDuration 解析回 TDuration
+   *   - 用途：用户界面、报告生成
+   *
+   * @value dfPrecise
+   *   精确格式：`1:30:45.123`
+   *   - 可逆：✅ 可以通过 ParseDuration 解析回 TDuration
+   *   - 用途：高精度计时、性能分析
+   *
+   * @value dfHuman
+   *   人性化格式：`about 1 hour`、`约 2 天`
+   *   - 可逆：❌ **不可逆！无法准确解析回原始值**
+   *   - 近似行为：
+   *     - 自动选择最大单位（秒 → 分钟 → 小时 → 天）
+   *     - 舍入到整数（90秒 → "about 2 minutes"）
+   *     - 忽略小单位（1小时30分 → "about 1 hour"）
+   *   - 用途：**仅用于展示**，如社交媒体时间戳、通知消息
+   *
+   *   **警告：**
+   *   - 不要存储 dfHuman 格式的字符串
+   *   - 不要尝试解析 dfHuman 格式的字符串
+   *   - 往返转换会丢失精度：`TDuration.FromHours(1) -> "about 1 hour" -> ???`
+   *
+   *   **示例：**
+   *   ```pascal
+   *   var
+   *     d1: TDuration;
+   *     s1: string;
+   *   begin
+   *     d1 := TDuration.FromSec(90);
+   *     s1 := FormatDuration(d1, dfHuman); // "about 2 minutes"
+   *     // ❌ 错误：无法准确解析回 90 秒
+   *     
+   *     // ✅ 正确：对于需要往返的场景，使用 dfISO8601 或 dfCompact
+   *     s1 := FormatDuration(d1, dfISO8601); // "PT1M30S"
+   *     ParseDurationStrict(s1); // 准确恢复为 90 秒
+   *   end;
+   *   ```
+   *
+   * @value dfISO8601
+   *   ISO 8601 标准格式：`PT1H30M45.123S`
+   *   - 可逆：✅ 完全可逆，精确到毫秒
+   *   - 用途：API 接口、数据交换、国际标准
+   *
+   * @value dfCustom
+   *   自定义格式：根据 CustomPattern 参数
+   *   - 可逆性：取决于自定义模式
+   *   - 用途：特殊需求、自定义报表
+   *}
   TDurationFormat = (
     dfCompact,            // 1h30m45s
     dfVerbose,            // 1 hour 30 minutes 45 seconds
     dfPrecise,            // 1:30:45.123
-    dfHuman,              // about 1 hour
+    dfHuman,              // about 1 hour (近似，不可逆)
     dfISO8601,            // PT1H30M45.123S
     dfCustom              // 自定义格式
   );
@@ -204,7 +303,58 @@ type
     
     // 相对时间格式化
     function FormatRelative(const ADateTime: TDateTime; const ABaseTime: TDateTime): string; overload;
-    function FormatRelative(const ADateTime: TDateTime): string; overload; // 相对于当前时间
+
+    /// <summary>
+    ///   格式化相对时间（基于当前时间）。
+    ///   ⚠️ 基准时间：使用 Now 函数获取当前系统时间作为基准。
+    /// </summary>
+    /// <param name="ADateTime">要格式化的目标时间</param>
+    /// <returns>
+    ///   人性化的相对时间字符串，例如：
+    ///   - "just now" (当前时刻)
+    ///   - "30 seconds ago" (过去)
+    ///   - "in 5 minutes" (未来)
+    ///   - "2 hours ago"
+    ///   - "in 3 days"
+    /// </returns>
+    /// <remarks>
+    ///   <para><b>基准时间说明：</b></para>
+    ///   <para>此重载方法内部调用 Now 函数获取当前系统时间作为基准时间。</para>
+    ///   <para>等价于调用：FormatRelative(ADateTime, Now)</para>
+    ///   <para></para>
+    ///   <para><b>时间精度：</b></para>
+    ///   <para>由于使用 TDateTime 类型，时间差的精度约为 ~1 毫秒。</para>
+    ///   <para>对于更精确的时间测量，建议使用 TInstant 和 TDuration。</para>
+    ///   <para></para>
+    ///   <para><b>使用建议：</b></para>
+    ///   <para>✅ 适用于用户界面显示（"2 hours ago"）</para>
+    ///   <para>✅ 适用于日志和消息提示</para>
+    ///   <para>⚠️ 不适合多次调用且要求一致基准的场景（应使用显式 ABaseTime 参数）</para>
+    /// </remarks>
+    /// <example>
+    ///   <code>
+    ///   var
+    ///     dt: TDateTime;
+    ///     relStr: string;
+    ///   begin
+    ///     // 使用当前时间作为基准（自动调用 Now）
+    ///     dt := Now - 0.5/24;  // 30 分钟前
+    ///     relStr := DefaultTimeFormatter.FormatRelative(dt);
+    ///     WriteLn(relStr);  // 输出: "30 minutes ago"
+    ///
+    ///     // 多次调用时基准时间不同（每次都调用 Now）
+    ///     Sleep(1000);
+    ///     relStr := DefaultTimeFormatter.FormatRelative(dt);
+    ///     WriteLn(relStr);  // 输出: "30 minutes ago" (可能略有不同)
+    ///
+    ///     // 如需一致的基准，使用显式参数版本
+    ///     baseTime := Now;
+    ///     relStr1 := DefaultTimeFormatter.FormatRelative(dt1, baseTime);
+    ///     relStr2 := DefaultTimeFormatter.FormatRelative(dt2, baseTime);
+    ///   end;
+    ///   </code>
+    /// </example>
+    function FormatRelative(const ADateTime: TDateTime): string; overload;
     
     // 配置
     procedure SetLocale(const ALocale: string);
@@ -257,13 +407,122 @@ function DefaultTimeFormatter: ITimeFormatter;
 function DefaultDurationFormatter: IDurationFormatter;
 
 // 便捷格式化函数
+
+/// <summary>
+///   格式化日期时间为字符串。
+/// </summary>
+/// <param name="ADateTime">要格式化的日期时间</param>
+/// <param name="AFormat">格式类型，默认为 dtfISO8601</param>
+/// <returns>格式化后的字符串</returns>
+/// <remarks>
+///   <para><b>默认值说明</b>：此函数默认使用 <c>dtfISO8601</c> 格式，原因如下：</para>
+///   <list type="number">
+///     <item>ISO 8601 是国际标准，适合数据交换和存储</item>
+///     <item>可排序、可解析、无歧义</item>
+///     <item>跨平台、跨语言兼容性好</item>
+///   </list>
+///   <para>⚠️ 注意：<c>FormatDuration</c> 默认使用 <c>dfCompact</c> 而非 ISO 8601。
+///   这是有意的设计差异，因为时长的紧凑格式（如 "2h 30m"）更符合日常使用习惯。</para>
+/// </remarks>
+/// <example>
+///   <code>
+///   var dt: TDateTime;
+///   begin
+///     dt := EncodeDateTime(2024, 1, 15, 14, 30, 0, 0);
+///     WriteLn(FormatDateTime(dt));           // "2024-01-15T14:30:00"
+///     WriteLn(FormatDateTime(dt, dtfShort)); // "1/15/2024 2:30 PM"
+///   end;
+///   </code>
+/// </example>
 function FormatDateTime(const ADateTime: TDateTime; AFormat: TDateTimeFormat = dtfISO8601): string; overload;
 function FormatDateTime(const ADateTime: TDateTime; const APattern: string): string; overload;
+
+/// <summary>
+///   格式化日期为字符串。
+/// </summary>
+/// <param name="ADate">要格式化的日期</param>
+/// <param name="AFormat">格式类型，默认为 dtfISO8601Date</param>
+/// <returns>格式化后的日期字符串</returns>
+/// <remarks>
+///   <para>⚠️ **ISSUE-33: 默认值说明**</para>
+///   <para>此函数默认使用 <c>dtfISO8601Date</c>，与 <c>FormatDateTime</c> 保持一致。</para>
+///   <para>原因：ISO 8601 日期格式（YYYY-MM-DD）是国际标准，无歧义，适合存储和交换。</para>
+/// </remarks>
+/// <example>
+///   <code>
+///   var d: TDate;
+///   begin
+///     d := TDate.Create(2024, 10, 25);
+///     WriteLn(FormatDate(d));           // "2024-10-25"
+///     WriteLn(FormatDate(d, dtfShort)); // "10/25/2024" (locale-dependent)
+///   end;
+///   </code>
+/// </example>
 function FormatDate(const ADate: TDate; AFormat: TDateTimeFormat = dtfISO8601Date): string; overload;
 function FormatDate(const ADate: TDate; const APattern: string): string; overload;
+
+/// <summary>
+///   格式化时间为字符串。
+/// </summary>
+/// <param name="ATime">要格式化的时间</param>
+/// <param name="AFormat">格式类型，默认为 dtfISO8601Time</param>
+/// <returns>格式化后的时间字符串</returns>
+/// <remarks>
+///   <para>⚠️ **ISSUE-33: 默认值说明**</para>
+///   <para>此函数默认使用 <c>dtfISO8601Time</c>，与 <c>FormatDateTime</c> 保持一致。</para>
+///   <para>原因：ISO 8601 时间格式（HH:MM:SS）是国际标准，24小时制，无 AM/PM 歧义。</para>
+/// </remarks>
+/// <example>
+///   <code>
+///   var t: TTimeOfDay;
+///   begin
+///     t := TTimeOfDay.Create(14, 30, 45);
+///     WriteLn(FormatTime(t));           // "14:30:45"
+///     WriteLn(FormatTime(t, dtfShort)); // "2:30 PM" (12-hour format)
+///   end;
+///   </code>
+/// </example>
 function FormatTime(const ATime: TTimeOfDay; AFormat: TDateTimeFormat = dtfISO8601Time): string; overload;
 function FormatTime(const ATime: TTimeOfDay; const APattern: string): string; overload;
 
+/// <summary>
+///   格式化时长为字符串。
+/// </summary>
+/// <param name="ADuration">要格式化的时长</param>
+/// <param name="AFormat">格式类型，默认为 dfCompact</param>
+/// <returns>格式化后的字符串</returns>
+/// <remarks>
+///   <para><b>默认值说明</b>：此函数默认使用 <c>dfCompact</c> 格式，原因如下：</para>
+///   <list type="number">
+///     <item>紧凑格式（如 "2h 30m 15s"）更直观、易读</item>
+///     <item>符合日常表达时长的习惯</item>
+///     <item>节省显示空间，适合 UI 和日志输出</item>
+///   </list>
+///   <para>⚠️ 注意：<c>FormatDateTime</c> 默认使用 <c>dtfISO8601</c> 而非紧凑格式。
+///   这是有意的设计差异，因为日期时间更需要标准化和可交换性。</para>
+///   <para>如需用于数据存储或交换，推荐显式使用 <c>dfISO8601</c>：</para>
+///   <code>s := FormatDuration(d, dfISO8601);  // "PT2H30M15S"</code>
+///   
+///   <para>⚠️ **ISSUE-32: dfHuman 格式警告**</para>
+///   <para><c>dfHuman</c> 格式（"about 2 hours"）是**近似的、不可逆的**：</para>
+///   <list type="bullet">
+///     <item>❌ 不可解析：无法用 ParseDuration 还原为精确值</item>
+///     <item>❌ 不可存储：存储后丢失精度信息</item>
+///     <item>✅ 仅用于显示：适合用户界面、通知消息、社交媒体时间戳</item>
+///   </list>
+///   <para>详见 <see cref="TDurationFormat">TDurationFormat.dfHuman</see> 文档。</para>
+/// </remarks>
+/// <example>
+///   <code>
+///   var d: TDuration;
+///   begin
+///     d := TDuration.FromSec(9015);  // 2h 30m 15s
+///     WriteLn(FormatDuration(d));              // "2h 30m 15s" (默认紧凑)
+///     WriteLn(FormatDuration(d, dfISO8601));   // "PT2H30M15S" (推荐存储)
+///     WriteLn(FormatDuration(d, dfHuman));     // "about 2 hours" (仅显示)
+///   end;
+///   </code>
+/// </example>
 function FormatDuration(const ADuration: TDuration; AFormat: TDurationFormat = dfCompact): string; overload;
 function FormatDuration(const ADuration: TDuration; const APattern: string): string; overload;
 function FormatDurationHuman(const ADuration: TDuration): string;

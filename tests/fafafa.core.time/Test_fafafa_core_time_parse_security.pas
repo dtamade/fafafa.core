@@ -8,7 +8,9 @@ interface
 
 uses
   Classes, SysUtils, fpcunit, testregistry,
-  fafafa.core.time.parse;
+  fafafa.core.time.parse,
+  fafafa.core.time.date,
+  fafafa.core.time.timeofday;
 
 type
   { 
@@ -37,6 +39,12 @@ type
     // DoS 防护测试
     procedure Test_ParseDateTime_RejectTooLongInput;
     procedure Test_ParseDateTime_RejectMaliciousFormat;
+    
+    // ISSUE-47: 输入长度限制测试（扩展）
+    procedure Test_ParseDate_RejectTooLongInput;
+    procedure Test_ParseTime_RejectTooLongInput;
+    procedure Test_SmartParse_RejectTooLongInput;
+    procedure Test_DetectFormat_RejectTooLongInput;
     
     // 已知攻击模式测试
     procedure Test_RejectReDoSPatterns;
@@ -251,6 +259,62 @@ begin
   // 模式 4: 指数级量词
   complexity := EstimateRegexComplexity('(a|a)*');
   CheckTrue(complexity > 50, '指数级量词应被标记为极高复杂度');
+end;
+
+{ ISSUE-47: 输入长度限制测试（扩展）}
+
+procedure TTestParseSecurity.Test_ParseDate_RejectTooLongInput;
+var
+  d: TDate;
+  result: TParseResult;
+  longInput: string;
+begin
+  // 生成超长输入 (4097 字符)
+  longInput := StringOfChar('2', 4097) + '-01-01';
+  
+  result := DefaultTimeParser.ParseDate(longInput, d);
+  CheckFalse(result.Success, '应拒绝超长日期输入');
+  CheckEquals(Ord(pecInputTooLong), Ord(result.ErrorCode), '错误码应为 pecInputTooLong');
+end;
+
+procedure TTestParseSecurity.Test_ParseTime_RejectTooLongInput;
+var
+  t: TTimeOfDay;
+  result: TParseResult;
+  longInput: string;
+begin
+  // 生成超长输入 (4097 字符)
+  longInput := StringOfChar('1', 4097) + ':23:45';
+  
+  result := DefaultTimeParser.ParseTime(longInput, t);
+  CheckFalse(result.Success, '应拒绝超长时间输入');
+  CheckEquals(Ord(pecInputTooLong), Ord(result.ErrorCode), '错误码应为 pecInputTooLong');
+end;
+
+procedure TTestParseSecurity.Test_SmartParse_RejectTooLongInput;
+var
+  dt: TDateTime;
+  result: TParseResult;
+  longInput: string;
+begin
+  // 生成超长输入 (4097 字符)
+  longInput := StringOfChar('2', 4097) + '-01-01T00:00:00';
+  
+  result := DefaultTimeParser.SmartParse(longInput, dt);
+  CheckFalse(result.Success, '应拒绝超长输入（智能解析）');
+  CheckEquals(Ord(pecInputTooLong), Ord(result.ErrorCode), '错误码应为 pecInputTooLong');
+end;
+
+procedure TTestParseSecurity.Test_DetectFormat_RejectTooLongInput;
+var
+  fmt: string;
+  longInput: string;
+begin
+  // 生成超长输入 (4097 字符)
+  longInput := StringOfChar('2', 4097) + '-01-01';
+  
+  fmt := DefaultTimeParser.DetectFormat(longInput);
+  CheckEquals('', fmt, '应返回空字符串表示无法检测');
 end;
 
 initialization
