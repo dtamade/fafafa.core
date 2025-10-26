@@ -220,49 +220,49 @@ end;
 
 function TInstant.LessThan(const B: TInstant): Boolean;
 begin
-  Result := Compare(B) < 0;
+  Result := FNsSinceEpoch < B.FNsSinceEpoch; // ✅ 直接比较，避免函数调用开销 (ISSUE-7)
 end;
 
 function TInstant.GreaterThan(const B: TInstant): Boolean;
 begin
-  Result := Compare(B) > 0;
+  Result := FNsSinceEpoch > B.FNsSinceEpoch; // ✅ 直接比较，避免函数调用开销 (ISSUE-7)
 end;
 
 function TInstant.Equal(const B: TInstant): Boolean;
 begin
-  Result := Compare(B) = 0;
+  Result := FNsSinceEpoch = B.FNsSinceEpoch; // ✅ 直接比较，避免函数调用开销 (ISSUE-7)
 end;
 
 function TInstant.HasPassed(const NowI: TInstant): Boolean;
 begin
-  Result := not LessThan(NowI);
+  Result := FNsSinceEpoch >= NowI.FNsSinceEpoch; // ✅ 直接比较 (ISSUE-7)
 end;
 
 function TInstant.IsBefore(const Other: TInstant): Boolean;
 begin
-  Result := LessThan(Other);
+  Result := FNsSinceEpoch < Other.FNsSinceEpoch; // ✅ 直接比较 (ISSUE-7)
 end;
 
 function TInstant.IsAfter(const Other: TInstant): Boolean;
 begin
-  Result := GreaterThan(Other);
+  Result := FNsSinceEpoch > Other.FNsSinceEpoch; // ✅ 直接比较 (ISSUE-7)
 end;
 
 function TInstant.Clamp(const MinV, MaxV: TInstant): TInstant;
 begin
-  if LessThan(MinV) then Exit(MinV);
-  if GreaterThan(MaxV) then Exit(MaxV);
+  if FNsSinceEpoch < MinV.FNsSinceEpoch then Exit(MinV); // ✅ 直接比较 (ISSUE-7)
+  if FNsSinceEpoch > MaxV.FNsSinceEpoch then Exit(MaxV); // ✅ 直接比较 (ISSUE-7)
   Result := Self;
 end;
 
 class function TInstant.Min(const A, B: TInstant): TInstant;
 begin
-  if A.LessThan(B) then Result := A else Result := B;
+  if A.FNsSinceEpoch < B.FNsSinceEpoch then Result := A else Result := B; // ✅ 直接比较 (ISSUE-7)
 end;
 
 class function TInstant.Max(const A, B: TInstant): TInstant;
 begin
-  if A.GreaterThan(B) then Result := A else Result := B;
+  if A.FNsSinceEpoch > B.FNsSinceEpoch then Result := A else Result := B; // ✅ 直接比较 (ISSUE-7)
 end;
 
 class operator TInstant.=(const A, B: TInstant): Boolean;

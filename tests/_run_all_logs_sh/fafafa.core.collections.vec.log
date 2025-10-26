@@ -1,0 +1,15 @@
+========================================
+Module: fafafa.core.collections.vec
+Script: /home/dtamade/projects/fafafa.core/tests/fafafa.core.collections.vec/BuildOrTest.sh
+Started: 2025-10-27 05:56:03
+========================================
+========================================
+fafafa.core.collections.vec Test Build Script
+========================================
+
+Building test project...
+    Project file: /home/dtamade/projects/fafafa.core/tests/fafafa.core.collections.vec/tests_vec.lpi
+    Output directory: /home/dtamade/projects/fafafa.core/tests/fafafa.core.collections.vec/../../bin
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.collections.vec/BuildOrTest.sh: 行 21: lazbuild: 未找到命令
+Build failed!
+Build failed!

@@ -25,7 +25,13 @@ uses
 
 type
 
-  { IVec 向量接口 }
+  {**
+   * IVec<T>
+   *
+   * @desc Vector interface for dynamic arrays
+   * @param T Element type
+   * @note See docs/README_TVec.md for quick guide
+   *}
   generic IVec<T> = interface(specialize IArray<T>)
   ['{C205D988-F671-4E47-8573-9AF2C85AC749}']
 
@@ -33,137 +39,109 @@ type
     {**
      * GetCapacity
      *
-     * @desc 获取向量的容量
-     *
-     * @return 返回向量的容量
+     * @desc Returns the current capacity of the vector
+     * @return SizeUint The vector's capacity
      *}
     function GetCapacity: SizeUint;
 
     {**
      * SetCapacity
      *
-     * @desc 设置向量的容量
-     *
-     * @params
-     *   aCapacity 要设置的容量
-     *
-     * @remark 如果失败会抛出异常
+     * @desc Sets the vector's capacity
+     * @param aCapacity The capacity to set
+     * @note Throws exception if operation fails
      *}
     procedure SetCapacity(aCapacity: SizeUint);
 
     {**
      * GetGrowStrategy
      *
-     * @desc 获取容器当前的容量增长策略
-     *
-     * @return 返回向量的增长策略
-     *
-     * @remark
-     *   增长策略决定了当容器容量不足需要扩容时, 其内部存储空间应如何扩展.
-     *   这是一个影响性能和内存使用效率的关键参数.
+     * @desc Gets the vector's current growth strategy
+     * @return IGrowthStrategy The growth strategy
+     * @note
+     *   The growth strategy determines how the internal storage expands when
+     *   capacity is insufficient. This is a key parameter affecting performance
+     *   and memory usage efficiency.
      *}
     function GetGrowStrategy: IGrowthStrategy;
 
     {**
      * SetGrowStrategy
      *
-     * @desc 设置容器的容量增长策略.
+     * @desc Sets the vector's capacity growth strategy
+     * @param aGrowStrategy The growth strategy to set
+     * @note
+     *   By changing the growth strategy, you can adjust the container's behavior
+     *   during automatic expansion, trading off between memory usage and
+     *   reallocation frequency (affecting performance).
      *
-     * @params
-     *   aGrowStrategy 要设置的增长策略.
+     *   If set to nil, the container will use the default `TFactorGrowStrategy(1.5)`
+     *   (1.5x factor growth) strategy. The default strategy provides better balance
+     *   between memory usage and reallocation count, suitable for general scenarios.
      *
-     * @remark
-     *   通过改变增长策略,可以调整容器在自动扩容时的行为,
-     *   从而在内存使用和重新分配次数 (影响性能) 之间进行权衡.
+     *   User can create custom strategies and set them to the container. The
+     *   strategy object's lifecycle is managed by the user.
      *
-     *   如果设置为 nil,容器将恢复使用默认的 `TFactorGrowStrategy(1.5)`（1.5x 因子增长）策略.
-     *   默认策略在内存占用与重分配次数之间更均衡，适用于通用场景。
-     *
-     *   用户可创建自定义策略并设置到容器中，但该策略对象的生命周期由用户负责管理.
-     *   框架内置的常用增长策略包括:
-     *     TCustomGrowthStrategy    自定义回调增长策略.通过回调函数精细控制增长行为.
-     *     TDoublingGrowStrategy    指数增长策略(容量 * 2).广泛用于大多数动态容器
-     *     TFixedGrowStrategy       固定线性增长(每次 += fixedSize).内存利用率高,适用于定长批量增长场景.
-     *     TFactorGrowStrategy      因子增长(容量 *= factor).可调整增长幅度.
-     *     TPowerOfTwoGrowStrategy  容量扩展至不小于所需容量的最小 2 的幂次.适用于哈希表、位运算容器
-     *     TGoldenRatioGrowStrategy 黄金比例增长(容量 *= 1.618).空间浪费小,适合高增长频率场景.
-     *     TAlignedWrapperStrategy  对齐包装策略.可包裹任意增长策略,对齐容量至指定字节边界(需为 2 的幂),提升 CPU 预取效率.
-     *     TExactGrowStrategy       精确增长策略.始终将容量扩展到恰好满足需求,不浪费空间.但分配频繁,除非对分配行为有严格控制,否则不推荐使用.
+     *   Built-in growth strategies include:
+     *     TCustomGrowthStrategy    Custom callback growth strategy. Fine control via callback.
+     *     TDoublingGrowStrategy    Exponential growth (capacity * 2). Widely used.
+     *     TFixedGrowStrategy       Fixed linear growth (每次 += fixedSize). High memory efficiency.
+     *     TFactorGrowStrategy      Factor growth (capacity *= factor). Adjustable.
+     *     TPowerOfTwoGrowStrategy  Capacity extended to next power of 2.
+     *     TGoldenRatioGrowStrategy Golden ratio growth (capacity *= 1.618). Low waste.
+     *     TAlignedWrapperStrategy  Alignment wrapper. Align capacity to byte boundary.
+     *     TExactGrowStrategy       Exact growth. Exactly fits requirements, but frequent allocation.
      *}
     procedure SetGrowStrategy(aGrowStrategy: IGrowthStrategy);
 
 	    {**
 	     * GetGrowStrategyI / SetGrowStrategyI
 	     *
-	     * @desc 以接口形式获取/设置增长策略（接口优先）。
-	     *       设置为 nil 表示恢复默认策略（1.5x 因子增长）。
-	     *       提供此对等接口以便解耦实现，便于替换或 A/B。
+	     * @desc Get/set growth strategy via interface (interface-first approach)
+	     *       Set to nil to restore default strategy (1.5x factor growth)
+	     *       Provides this interface variant to decouple implementation
+	     *       and facilitate A/B testing.
 	     *}
 
 
     {**
      * TryReserve
      *
-     * @desc 尝试预留额外的容量 (Count + aAdditional)
-     *
-     * @params
-     *   aAdditional 要预留的额外容量(增加的元素数量,该接口用于确保容量足够)
-     *
-     * @return 如果预留成功返回 True,否则返回 False
-     *
-     * @remark
-     *   如果预留失败不会抛出异常,只是返回 False
-     *   预留的空间可能大于请求的空间,因为会按照增长策略进行分配
-     *   如果当前容量足够,不会进行任何操作
+     * @desc Attempts to reserve additional capacity (Count + aAdditional)
+     * @param aAdditional Additional capacity to reserve
+     * @return Boolean True if successful, False otherwise
+     * @note
+     *   If reservation fails, no exception is thrown (returns False)
+     *   Reserved space may be larger than requested due to growth strategy
+     *   If current capacity is sufficient, no operation is performed
      *}
     function TryReserve(aAdditional: SizeUint): Boolean;
 
-    { 非异常批量导入/追加（指针重载） }
+    { Non-exception bulk import/append (pointer overload) }
     function TryLoadFrom(const aSrc: Pointer; aElementCount: SizeUInt): Boolean;
     function TryAppend(const aSrc: Pointer; aElementCount: SizeUInt): Boolean;
 
     {**
      * Reserve
      *
-     * @desc 预留额外的容量
-     *
-     * @params
-     *   aAdditional 要预留的额外容量
-     *
-     * @remark
-     *   如果预留失败会抛出异常
-     *   预留的空间可能大于请求的空间,因为会按照增长策略进行分配
-     *   如果当前容量足够,不会进行任何操作
+     * @desc Reserves additional capacity
+     * @param aAdditional Additional capacity to reserve
+     * @note Throws exception if operation fails
+     *       Reserved space may be larger than requested due to growth strategy
+     *       If current capacity is sufficient, no operation is performed
      *}
     procedure Reserve(aAdditional: SizeUint);
 
     {**
      * TryReserveExact
      *
-     * @desc 尝试预留精确的容量
-     *
-     * @params
-     *   aAdditional 要预留的精确容量
-     *
-     * @return 如果预留成功返回 True,否则返回 False
-     *
-     * @remark
-     *   如果预留失败不会抛出异常,只是返回 False
-     *   向量预留的空间等于请求的空间,不会按照增长策略进行分配
-     *}
-    function TryReserveExact(aAdditional: SizeUint): Boolean;
-
-    {**
-     * ReserveExact
-     *
-     * @desc 预留精确的容量
-     *
-     * @params
-     *   aAdditional 要预留的精确容量
-     *
-     * @remark
-     *   如果预留失败会抛出异常
-     *   向量预留的容量空间等于请求的空间,不会按照增长策略进行分配
+     * @desc Attempts to reserve exact capacity
+     * @param aAdditional Exact capacity to reserve
+     * @return Boolean True if successful, False otherwise
+     * @note
+     *   If reservation fails, no exception is thrown
+     *   Unlike Reserve, this tries to allocate exactly the requested space
+     *   May fail if allocation is not possible
      *}
     procedure ReserveExact(aAdditional: SizeUint);
 

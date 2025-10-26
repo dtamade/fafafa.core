@@ -1,0 +1,10 @@
+========================================
+Module: fafafa.core.collections.vecdeque
+Script: /home/dtamade/projects/fafafa.core/tests/fafafa.core.collections.vecdeque/BuildOrTest.sh
+Started: 2025-10-27 05:56:03
+========================================
+========================================
+fafafa.core.collections.vecdeque 测试构建脚本
+========================================
+错误: 找不到 lazbuild 命令
+请确保 Lazarus 已正确安装并添加到 PATH 环境变量中

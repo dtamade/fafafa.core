@@ -2,6 +2,7 @@ unit fafafa.core.collections.slice;
 
 {$mode objfpc}{$H+}
 {$modeswitch advancedrecords}
+{$modeswitch coperators}
 
 {$I fafafa.core.settings.inc}
 

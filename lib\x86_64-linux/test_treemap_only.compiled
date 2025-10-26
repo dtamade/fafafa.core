@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <Compiler Value="/home/dtamade/freePascal/fpc/bin/x86_64-linux/fpc.sh" Date="1761279526"/>
+  <Params Value="-MObjFPC -Scgi -Cg -Cirot -O1 -g-h -gt -l -vewnhibq -Fi/home/dtamade/projects/fafafa.core/lib\x86_64-linux -Fi/home/dtamade/projects/fafafa.core/src -Fu/home/dtamade/projects/fafafa.core/ -Fu/home/dtamade/projects/fafafa.core/src -FU/home/dtamade/projects/fafafa.core/lib\x86_64-linux/ -FE/home/dtamade/projects/fafafa.core/bin/ -o/home/dtamade/projects/fafafa.core/bin/test_treemap_only -dDEBUG test_treemap_only.lpr"/>
+</CONFIG>

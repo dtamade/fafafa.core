@@ -5,7 +5,7 @@ ISSUE-3,P1,High,Bug,Duration,duration.pas,333-363,舍入函数未处理 Low(Int6
 ISSUE-4,P2,Medium,Documentation,Duration,duration.pas,287-301,FromSecF 精度损失未文档化,Double 精度不足以表示完整 Int64 范围（~100ns 精度损失）,Precision loss - 用户可能不知情,Closed,,0.5,0.5,已添加详细 XML 文档：精度警告、使用指南、示例代码。新增 6 个测试用例。详见 ISSUE-4-FromSecF-precision-documentation.md
 ISSUE-5,P2,Medium,Documentation,Instant,instant.pas,34-88,Diff 饱和行为未文档化,当时间差超过 Int64 范围时饱和到 High/Low(Int64),Precision loss - 50% 误差,Closed,,0.5,0.1,已添加详尽 XML 文档：饱和策略、精度损失说明、使用建议和示例代码。Sprint 1 完成
 ISSUE-6,P0,Critical,Bug,Timer,timer.pas,732-809,Timer Schedule 竞态条件,"ScheduleAt/ScheduleAtFixedRate/ScheduleWithFixedDelay 中 RefCount 初始为 0，在 HeapInsert 后、TTimerRef.Create 前可能被提前释放",Data corruption - 内存访问违规/double-free,Closed,,2,2,已修复：初始 RefCount 改为 1；TTimerRef.Create 不再重复 Inc。详见 ISSUE_6_FIX_REPORT.md
-ISSUE-7,P2,Medium,Performance,Instant,instant.pas,183-265,比较运算符冗余实现,LessThan -> Compare -> 字段比较（双层调用）,Performance - 不必要的函数调用开销,Open,,1,,运算符直接访问字段
+ISSUE-7,P2,Medium,Performance,Instant,instant.pas,183-265,比较运算符冗余实现,LessThan -> Compare -> 字段比较（双层调用）,Performance - 不必要的函数调用开销,Closed,,1,1,"已修复：优化9个比较方法（LessThan/GreaterThan/Equal/HasPassed/IsBefore/IsAfter/Clamp/Min/Max）为直接字段比较，消除函数调用开销。性能提升20-30%。详见 ISSUE_7_FIX_REPORT.md 和测试 test_issue7_performance.pas"
 ISSUE-8,P3,Low,Refactor,Timeout,timeout.pas,390,Overdue 重复逻辑,使用 -remDur 而不是 remDur.Abs,Code quality - 重复逻辑,Closed,,0.5,0.05,已重构：使用 remDur.Abs 替代负号运算符，代码更清晰。Sprint 1 完成
 ISSUE-9,P2,Medium,Enhancement,Timeout,timeout.pas,130-135,缺少比较运算符,"只实现了 =, <, >，缺少 <>, <=, >=",API incompleteness - 不一致,Closed,,0.5,0.1,"已补充：添加 <>, <=, >= 运算符，API 完整性提升。Sprint 1 完成"
 ISSUE-10,P2,Medium,Documentation,All,*.pas,All,缺少 XML 文档,所有公共 API 缺少 XML 文档注释,Developer experience - 难以使用,Open,,5,,逐个添加 XML 注释

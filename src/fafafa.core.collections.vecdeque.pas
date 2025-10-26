@@ -13,7 +13,6 @@ uses
   fafafa.core.mem.allocator,
   fafafa.core.collections.base,
   fafafa.core.collections.queue,
-  fafafa.core.collections.deque,
   fafafa.core.collections.arr,
   fafafa.core.collections.vec;
 
@@ -34,15 +33,64 @@ type
   { 简化的并行工具类 }
   // TParallelUtils 类已移除
 
-  { IVecDeque 向量双端队列接口 }
-  generic IVecDeque<T> = interface(specialize IDeque<T>)
+  { IVecDeque 向量双端队列接口 - 扩展 IQueue<T> 提供双端/随机访问/容量管理 }
+  generic IVecDeque<T> = interface(specialize IQueue<T>)
   ['{12345678-1234-1234-1234-123456789ABC}']
+    // Front/Back 访问
+    function Front: T; overload;
+    function Front(var aElement: T): Boolean; overload;
+    function Back: T; overload;
+    function Back(var aElement: T): Boolean; overload;
+
+    // 双端 Push/Pop
+    procedure PushFront(const aElement: T); overload;
+    procedure PushFront(const aElements: array of T); overload;
+    procedure PushFront(const aSrc: Pointer; aElementCount: SizeUInt); overload;
+    procedure PushBack(const aElement: T); overload;
+    procedure PushBack(const aElements: array of T); overload;
+    procedure PushBack(const aSrc: Pointer; aElementCount: SizeUInt); overload;
+    function PopFront: T; overload;
+    function PopFront(var aElement: T): Boolean; overload;
+    function PopBack: T; overload;
+    function PopBack(var aElement: T): Boolean; overload;
+
+    // 随机访问与修改
+    procedure Swap(aIndex1, aIndex2: SizeUInt);
+    function Get(aIndex: SizeUInt): T;
+    function TryGet(aIndex: SizeUInt; var aElement: T): Boolean;
+    procedure Insert(aIndex: SizeUInt; const aElement: T);
+    function Remove(aIndex: SizeUInt): T;
+    function TryRemove(aIndex: SizeUInt; var aElement: T): Boolean;
+
+    // 容量与尺寸管理
+    procedure Reserve(aAdditional: SizeUInt);
+    procedure ReserveExact(aAdditional: SizeUInt);
+    procedure ShrinkToFit;
+    procedure ShrinkTo(aMinCapacity: SizeUInt);
+    procedure Truncate(aLen: SizeUInt);
+    procedure Resize(aNewSize: SizeUInt; const aValue: T);
+
+    // 批量与结构操作
+    procedure Append(const aOther: specialize IQueue<T>);
+    function SplitOff(aAt: SizeUInt): specialize IQueue<T>;
+
+    // 批量操作接口 - 性能优化
+    procedure LoadFromPointer(aSrc: PElement; aCount: SizeUInt); inline;
+    procedure LoadFromArray(const aSrc: array of T); inline;
+
+    { AppendFrom: 从指定位置追加数据到容器末尾 }
+    procedure AppendFrom(const aSrc: TVecDeque; aSrcIndex: SizeUInt; aCount: SizeUInt); inline;
+
+    { InsertFrom: 从指定位置插入批量数据 }
+    procedure InsertFrom(aIndex: SizeUInt; aSrc: PElement; aCount: SizeUInt); inline;
+    procedure InsertFrom(aIndex: SizeUInt; const aSrc: array of T); inline;
   end;
 
   { TVecDeque 向量双端队列实现类 - 基于环形缓冲区的高性能实现 }
   generic TVecDeque<T> = class(specialize TGenericCollection<T>,
                                specialize IVec<T>,
-                               specialize IDeque<T>)
+                               specialize IDeque<T>,
+                               specialize IQueue<T>)
   const
     VECDEQUE_DEFAULT_CAPACITY = 16;
   type
@@ -174,6 +222,18 @@ type
     procedure AppendUnChecked(const aSrc: Pointer; aElementCount: SizeUInt); override;
     procedure AppendUnChecked(const aSrc: TCollection); override;
     procedure AppendToUnChecked(const aDst: TCollection); override;
+
+    { 高性能批量操作接口 - 提供更高效的数据转移方式 }
+    { LoadFrom: 直接加载数据到容器（替换当前内容） }
+    procedure LoadFromPointer(aSrc: PElement; aCount: SizeUInt); inline;
+    procedure LoadFromArray(const aSrc: array of T); inline;
+
+    { AppendFrom: 从指定位置追加数据到容器末尾 }
+    procedure AppendFrom(const aSrc: TVecDeque; aSrcIndex: SizeUInt; aCount: SizeUInt); inline;
+
+    { InsertFrom: 从指定位置插入批量数据 }
+    procedure InsertFrom(aIndex: SizeUInt; aSrc: PElement; aCount: SizeUInt); inline;
+    procedure InsertFrom(aIndex: SizeUInt; const aSrc: array of T); inline;
 
     { IGenericCollection<T> 接口实现 }
     procedure SaveToUnChecked(aDst: TCollection); override;
@@ -1522,6 +1582,123 @@ begin
     // 通用路径：使用祖先类的默认实现
     inherited AppendUnChecked(aSrc);
   end;
+end;
+
+{ 高性能批量操作接口实现 }
+
+procedure TVecDeque.LoadFromPointer(aSrc: PElement; aCount: SizeUInt);
+{**
+ * 直接加载数据到容器（替换当前内容）
+ *
+ * 性能优化：
+ * - 清除当前内容
+ * - 确保容量充足
+ * - 批量内存转移
+ *
+ * 等效于: Clear + AppendFromPointer
+ *}
+begin
+  if aCount = 0 then
+  begin
+    Clear;
+    Exit;
+  end;
+
+  // 清空并重置
+  Clear;
+  EnsureCapacity(aCount);
+
+  // 批量转移数据
+  Move(aSrc^, FBuffer[0]^, aCount * SizeOf(T));
+  SetCount(aCount);
+end;
+
+procedure TVecDeque.LoadFromArray(const aSrc: array of T);
+begin
+  LoadFromPointer(@aSrc[0], Length(aSrc));
+end;
+
+procedure TVecDeque.AppendFrom(const aSrc: TVecDeque; aSrcIndex: SizeUInt; aCount: SizeUInt);
+{**
+ * 从指定位置追加数据到容器末尾
+ *
+ * 性能优化：
+ * - 确保容量充足（一次性分配）
+ * - 处理环形缓冲区跨越情况
+ * - 批量内存转移
+ *
+ * 这个方法将由 TArrayDeque.Append 内部调用
+ *}
+var
+  LSrcPtr1, LSrcPtr2: PElement;
+  LSrcLen1, LSrcLen2: SizeUInt;
+  LDstIndex: SizeUInt;
+begin
+  if (aSrc = nil) or (aCount = 0) then Exit;
+
+  // 验证范围
+  if aSrcIndex + aCount > aSrc.Count then
+    raise EArgumentOutOfRangeException.Create('Source index or count out of range');
+
+  // 保存当前末尾位置
+  LDstIndex := FCount;
+
+  // 确保容量充足
+  EnsureCapacity(FCount + aCount);
+
+  // 获取源的两段切片
+  aSrc.GetTwoSlicesAt(aSrcIndex, aCount, LSrcPtr1, LSrcLen1, LSrcPtr2, LSrcLen2);
+
+  // 批量转移第一段
+  if LSrcLen1 > 0 then
+  begin
+    Move(LSrcPtr1^, FBuffer[LDstIndex]^, LSrcLen1 * SizeOf(T));
+    Inc(LDstIndex, LSrcLen1);
+  end;
+
+  // 批量转移第二段
+  if LSrcLen2 > 0 then
+  begin
+    Move(LSrcPtr2^, FBuffer[LDstIndex]^, LSrcLen2 * SizeOf(T));
+    Inc(LDstIndex, LSrcLen2);
+  end;
+
+  // 更新计数
+  SetCount(LDstIndex);
+end;
+
+procedure TVecDeque.InsertFrom(aIndex: SizeUInt; aSrc: PElement; aCount: SizeUInt);
+{**
+ * 从指定位置插入批量数据
+ *
+ * 性能优化：
+ * - 确保容量充足
+ * - 处理插入位置后的元素移动
+ * - 批量内存转移
+ *}
+begin
+  if (aCount = 0) then Exit;
+
+  // 验证位置
+  if aIndex > FCount then
+    raise EArgumentOutOfRangeException.Create('Index out of range');
+
+  // 确保容量充足
+  EnsureCapacity(FCount + aCount);
+
+  // 移动现有元素为新数据腾出空间
+  if aIndex < FCount then
+    MoveElementsRight(aIndex, aCount);
+
+  // 插入新数据
+  Move(aSrc^, FBuffer[aIndex]^, aCount * SizeOf(T));
+  Inc(FCount, aCount);
+end;
+
+procedure TVecDeque.InsertFrom(aIndex: SizeUInt; const aSrc: array of T);
+begin
+  if Length(aSrc) = 0 then Exit;
+  InsertFrom(aIndex, @aSrc[0], Length(aSrc));
 end;
 
 procedure TVecDeque.MakeContiguous(out aPtr: PElement; out aLen: SizeUInt);

@@ -13,33 +13,140 @@ uses
   fafafa.core.collections.base;
 
 type
-  // 键哈希与相等回调（HashMap 专用，与基类 TEqualsFunc 签名不同）
+  {**
+   * TKeyHashFunc<K>
+   *
+   * @desc Hash function for key type K
+   * @param AKey The key to hash
+   * @return UInt32 hash value
+   *}
   generic TKeyHashFunc<K>  = function (const AKey: K): UInt32;
+
+  {**
+   * TKeyEqualsFunc<K>
+   *
+   * @desc Equality comparison function for key type K
+   * @param L Left operand
+   * @param R Right operand
+   * @return Boolean True if L equals R
+   *}
   generic TKeyEqualsFunc<K> = function (const L, R: K): Boolean;
 
-  // Map 的元素项（用于与 IGenericCollection 对齐迭代协议）
+  {**
+   * TMapEntry<K,V>
+   *
+   * @desc Key-value pair for HashMap elements
+   * @param K Key type
+   * @param V Value type
+   *}
   generic TMapEntry<K,V> = record
     Key: K;
     Value: V;
   end;
 
-  // HashMap 接口（开放寻址实现为主；HashSet 将复用 HashMap）
+  {**
+   * IHashMap<K,V>
+   *
+   * @desc Hash map interface with open addressing implementation
+   * @param K Key type
+   * @param V Value type
+   * @note HashSet reuses this implementation
+   *}
   generic IHashMap<K,V> = interface(specialize IGenericCollection<specialize TMapEntry<K,V>>)
   ['{3C7B7B5B-4A29-46F0-9B13-9E5AC2D32E1F}']
-    // 基本查询/修改
+    {**
+     * TryGetValue
+     *
+     * @desc Attempts to retrieve a value for the given key
+     * @param AKey The key to look up
+     * @param AValue Output parameter for the value if found
+     * @return Boolean True if the key exists, False otherwise
+     *}
     function TryGetValue(const AKey: K; out AValue: V): Boolean;
+
+    {**
+     * ContainsKey
+     *
+     * @desc Checks if a key exists in the hash map
+     * @param AKey The key to check
+     * @return Boolean True if the key exists
+     *}
     function ContainsKey(const AKey: K): Boolean;
-    function Add(const AKey: K; const AValue: V): Boolean;           // 仅新增，存在返回 False
-    function AddOrAssign(const AKey: K; const AValue: V): Boolean;    // 存在则覆盖，返回是否为新增
+
+    {**
+     * Add
+     *
+     * @desc Adds a new key-value pair (only if key doesn't exist)
+     * @param AKey The key to add
+     * @param AValue The value to add
+     * @return Boolean True if added, False if key already exists
+     *}
+    function Add(const AKey: K; const AValue: V): Boolean;
+
+    {**
+     * AddOrAssign
+     *
+     * @desc Adds a new key-value pair or assigns new value if key exists
+     * @param AKey The key
+     * @param AValue The value
+     * @return Boolean True if this was a new key, False if key was updated
+     *}
+    function AddOrAssign(const AKey: K; const AValue: V): Boolean;
+
+    {**
+     * Remove
+     *
+     * @desc Removes a key-value pair if it exists
+     * @param AKey The key to remove
+     * @return Boolean True if removed, False if key not found
+     *}
     function Remove(const AKey: K): Boolean;
+
+    {**
+     * Clear
+     *
+     * @desc Removes all elements from the hash map
+     *}
     procedure Clear;
 
-    // 容量/装载因子
+    {**
+     * GetCapacity
+     *
+     * @desc Returns the current capacity of the hash map
+     * @return SizeUInt The number of buckets allocated
+     *}
     function GetCapacity: SizeUInt;
+
+    {**
+     * GetLoadFactor
+     *
+     * @desc Returns the current load factor (count / capacity)
+     * @return Single The load factor
+     *}
     function GetLoadFactor: Single;
+
+    {**
+     * Reserve
+     *
+     * @desc Pre-allocates space for the specified number of elements
+     * @param aCapacity Minimum capacity to reserve
+     *}
     procedure Reserve(aCapacity: SizeUInt);
 
+    {**
+     * Capacity
+     *
+     * @desc Property accessor for GetCapacity
+     * @return SizeUInt Current capacity
+     *}
     property Capacity: SizeUInt read GetCapacity;
+
+    {**
+     * LoadFactor
+     *
+     * @desc Property accessor for GetLoadFactor
+     * @return Single Current load factor
+     *}
     property LoadFactor: Single read GetLoadFactor;
   end;
 
@@ -47,27 +154,138 @@ const
   DEFAULT_MAX_LOAD_FACTOR = 0.86;
 
 // Common hash helpers (callers can pass these as aHash)
+
+{**
+ * HashMix32
+ *
+ * @desc Mixes a 32-bit hash value for better distribution
+ * @param x Input hash value
+ * @return UInt32 Mixed hash value
+ *}
 function HashMix32(x: UInt32): UInt32;
+
+{**
+ * HashOfPointer
+ *
+ * @desc Hash function for Pointer type
+ * @param p Pointer to hash
+ * @return UInt32 Hash value
+ *}
 function HashOfPointer(p: Pointer): UInt32;
+
+{**
+ * HashOfUInt32
+ *
+ * @desc Hash function for UInt32 type
+ * @param x Value to hash
+ * @return UInt32 Hash value
+ *}
 function HashOfUInt32(x: UInt32): UInt32;
+
+{**
+ * HashOfUInt64
+ *
+ * @desc Hash function for UInt64 type
+ * @param x Value to hash
+ * @return UInt32 Hash value
+ *}
 function HashOfUInt64(x: QWord): UInt32;
+
+{**
+ * HashOfAnsiString
+ *
+ * @desc Hash function for AnsiString type
+ * @param s String to hash
+ * @return UInt32 Hash value
+ *}
 function HashOfAnsiString(const s: AnsiString): UInt32;
+
+{**
+ * HashOfUnicodeString
+ *
+ * @desc Hash function for UnicodeString type
+ * @param s String to hash
+ * @return UInt32 Hash value
+ *}
 function HashOfUnicodeString(const s: UnicodeString): UInt32;
 
 type
-  // HashSet：语义为包含关系，基于 HashMap<K,Byte> 的薄封装
+  {**
+   * IHashSet<K>
+   *
+   * @desc Hash set interface for membership testing
+   * @param K Element type
+   * @note Implemented as a thin wrapper over HashMap<K,Byte>
+   *}
   generic IHashSet<K> = interface(specialize IGenericCollection<K>)
   ['{4E6B9CD0-2D7E-4E7D-A7A7-7B0E9D6ABF1A}']
+    {**
+     * Add
+     *
+     * @desc Adds an element to the set (no duplicates)
+     * @param AKey Element to add
+     * @return Boolean True if added, False if already exists
+     *}
     function Add(const AKey: K): Boolean;
+
+    {**
+     * Contains
+     *
+     * @desc Checks if an element is in the set
+     * @param AKey Element to check
+     * @return Boolean True if element exists
+     *}
     function Contains(const AKey: K): Boolean;
+
+    {**
+     * Remove
+     *
+     * @desc Removes an element from the set
+     * @param AKey Element to remove
+     * @return Boolean True if removed, False if not found
+     *}
     function Remove(const AKey: K): Boolean;
+
+    {**
+     * Clear
+     *
+     * @desc Removes all elements from the set
+     *}
     procedure Clear;
 
+    {**
+     * GetCapacity
+     *
+     * @desc Returns the current capacity
+     * @return SizeUInt Capacity value
+     *}
     function GetCapacity: SizeUInt;
+
+    {**
+     * Reserve
+     *
+     * @desc Pre-allocates space for the specified number of elements
+     * @param aCapacity Minimum capacity to reserve
+     *}
     procedure Reserve(aCapacity: SizeUInt);
+
+    {**
+     * Capacity
+     *
+     * @desc Property accessor for GetCapacity
+     * @return SizeUInt Current capacity
+     *}
     property Capacity: SizeUInt read GetCapacity;
   end;
-  // 最小占位实现骨架（后续填充开放寻址引擎）
+  {**
+   * @desc 开放寻址哈希映射实现
+   *
+   * 基于开放寻址的 THashMap<K,V> 实现：
+   * - 支持动态扩容和重新哈希
+   * - 使用墓碑标记处理删除
+   * - 线性探测解决冲突
+   * - 自动负载因子管理
+   *}
   generic THashMap<K,V> = class(specialize TGenericCollection<specialize TMapEntry<K,V>>, specialize IHashMap<K,V>)
   public
     type
@@ -698,11 +916,41 @@ begin
 end;
 
 procedure THashSet.SerializeToArrayBuffer(aDst: Pointer; aCount: SizeUInt);
+{**
+ * 将 HashSet 中的元素序列化到数组缓冲区
+ *
+ * HashSet 内部使用 FMap: THashMap<K, Byte> 存储键值对
+ * 其中 Byte 类型充当占位符（值不重要）
+ * 需要从 FMap 中提取所有键并写入缓冲区
+ *
+ * @param aDst 目标缓冲区指针
+ * @param aCount 期望写入的元素数量（通常为 FCount）
+ *}
+var
+  I, LCopied: SizeUInt;
+  LKey: K;
+  PDst: PK;
 begin
-  // 将 HashSet 中的元素序列化到数组缓冲区
-  // TODO: 实现完整的序列化逻轑
-  // 暂时不实现，因为需要从 FMap 的 TEntry<K, Byte> 提取 K
-  // 避免在这里引用 specialize THashMap<K, Byte> 导致重复标识符错误
+  if (aDst = nil) or (aCount = 0) or (FCount = 0) then Exit;
+
+  PDst := aDst;
+  LCopied := 0;
+
+  // 遍历内部 HashMap 的所有桶
+  for I := 0 to FMap.FCapacity - 1 do
+  begin
+    if FMap.FBuckets[I].State = Ord(bsOccupied) then
+    begin
+      if LCopied >= aCount then Break;
+
+      // 从 TEntry<K, Byte> 中提取键
+      LKey := FMap.FBuckets[I].Key;
+      PDst^ := LKey;
+
+      Inc(PDst);
+      Inc(LCopied);
+    end;
+  end;
 end;
 
 procedure THashSet.AppendUnChecked(const aSrc: Pointer; aElementCount: SizeUInt);

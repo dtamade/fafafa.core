@@ -1,0 +1,7 @@
+========================================
+Run-all summary (2025-10-27 05:56:03)
+Logs dir: /home/dtamade/projects/fafafa.core/tests/_run_all_logs_sh
+========================================
+Total:  22
+Passed: 22
+Failed: 0
