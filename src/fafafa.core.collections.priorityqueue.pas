@@ -39,14 +39,14 @@ type
     
   public
     // 初始化
-    procedure Initialize(AComparer: TComparerFunc);
-    procedure Initialize(AComparer: TComparerFunc; ACapacity: Integer);
+    procedure Init(AComparer: TComparerFunc); overload;  // 使用自定义比较器
+    procedure Initialize(AComparer: TComparerFunc); overload;
+    procedure Initialize(AComparer: TComparerFunc; ACapacity: Integer); overload;
     
     // 基本操作
     procedure Enqueue(constref AItem: T);  // O(log n)
-    function Dequeue: T;                    // O(log n)
-    function Peek: T;                       // O(1)
-    function TryPeek(out AItem: T): Boolean; // O(1)
+    function Dequeue(out AItem: T): Boolean;  // O(log n) - 返回是否成功
+    function Peek(out AItem: T): Boolean;     // O(1) - 返回是否成功
     
     // 容量和状态
     function Count: Integer;
@@ -54,7 +54,9 @@ type
     procedure Clear;
     
     // 查找和删除特定元素
+    function Find(constref AItem: T): Boolean;  // O(n) - 别名 Contains
     function Contains(constref AItem: T): Boolean;  // O(n)
+    function Delete(constref AItem: T): Boolean;    // O(n) + O(log n) - 别名 Remove
     function Remove(constref AItem: T): Boolean;    // O(n) + O(log n)
     
     // 批量操作
@@ -64,6 +66,11 @@ type
 implementation
 
 { TPriorityQueue }
+
+procedure TPriorityQueue.Init(AComparer: TComparerFunc);
+begin
+  Initialize(AComparer, 16);
+end;
 
 procedure TPriorityQueue.Initialize(AComparer: TComparerFunc);
 begin
@@ -168,13 +175,14 @@ begin
   SiftUp(FCount - 1);
 end;
 
-function TPriorityQueue.Dequeue: T;
+function TPriorityQueue.Dequeue(out AItem: T): Boolean;
 begin
-  if FCount = 0 then
-    raise Exception.Create('Priority queue is empty');
+  Result := FCount > 0;
+  if not Result then
+    Exit;
     
   // 取堆顶元素
-  Result := FItems[0];
+  AItem := FItems[0];
   
   // 将最后一个元素移到堆顶
   Dec(FCount);
@@ -185,15 +193,7 @@ begin
   end;
 end;
 
-function TPriorityQueue.Peek: T;
-begin
-  if FCount = 0 then
-    raise Exception.Create('Priority queue is empty');
-    
-  Result := FItems[0];
-end;
-
-function TPriorityQueue.TryPeek(out AItem: T): Boolean;
+function TPriorityQueue.Peek(out AItem: T): Boolean;
 begin
   Result := FCount > 0;
   if Result then
@@ -217,7 +217,7 @@ begin
   // SetLength(FItems, 0);
 end;
 
-function TPriorityQueue.Contains(constref AItem: T): Boolean;
+function TPriorityQueue.Find(constref AItem: T): Boolean;
 var
   i: Integer;
 begin
@@ -232,7 +232,12 @@ begin
   end;
 end;
 
-function TPriorityQueue.Remove(constref AItem: T): Boolean;
+function TPriorityQueue.Contains(constref AItem: T): Boolean;
+begin
+  Result := Find(AItem);
+end;
+
+function TPriorityQueue.Delete(constref AItem: T): Boolean;
 var
   i: Integer;
 begin
@@ -263,10 +268,16 @@ begin
   end;
 end;
 
+function TPriorityQueue.Remove(constref AItem: T): Boolean;
+begin
+  Result := Delete(AItem);
+end;
+
 function TPriorityQueue.ToArray: TArray;
 var
   i: Integer;
 begin
+  Result := nil; // 初始化
   SetLength(Result, FCount);
   for i := 0 to FCount - 1 do
     Result[i] := FItems[i];
