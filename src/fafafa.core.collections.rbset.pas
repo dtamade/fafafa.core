@@ -1,4 +1,4 @@
-unit fafafa.core.collections.set.rb;
+unit fafafa.core.collections.rbset;
 
 {$mode objfpc}{$H+}
 {$I fafafa.core.settings.inc}
@@ -73,6 +73,7 @@ type
 
     // Set API (minimal)
     function Insert(const AValue: T): Boolean; // true if inserted, false if existed
+    function Delete(const AValue: T): Boolean; // true if deleted, false if not found
     function ContainsKey(const AValue: T): Boolean;
 
     // Order queries
@@ -541,6 +542,58 @@ begin
   else Y^.Right := Z;
   InsertFixup(Z);
   Inc(FCount);
+  Result := True;
+end;
+
+function TRBTreeSet.Delete(const AValue: T): Boolean;
+var
+  Z, Y, X, XP: PNode;
+  YOriginalColor: TColor;
+begin
+  Z := FindNode(AValue);
+  if Z = nil then Exit(False);
+  
+  Y := Z;
+  YOriginalColor := Y^.Color;
+  
+  if Z^.Left = @FSentinel then
+  begin
+    X := Z^.Right;
+    XP := Z^.Parent;
+    Transplant(Z, Z^.Right);
+  end
+  else if Z^.Right = @FSentinel then
+  begin
+    X := Z^.Left;
+    XP := Z^.Parent;
+    Transplant(Z, Z^.Left);
+  end
+  else
+  begin
+    Y := MinNode(Z^.Right);
+    YOriginalColor := Y^.Color;
+    X := Y^.Right;
+    if Y^.Parent = Z then
+      XP := Y
+    else
+    begin
+      XP := Y^.Parent;
+      Transplant(Y, Y^.Right);
+      Y^.Right := Z^.Right;
+      if Y^.Right <> @FSentinel then Y^.Right^.Parent := Y;
+    end;
+    Transplant(Z, Y);
+    Y^.Left := Z^.Left;
+    if Y^.Left <> @FSentinel then Y^.Left^.Parent := Y;
+    Y^.Color := Z^.Color;
+  end;
+  
+  FreeNode(Z);
+  Dec(FCount);
+  
+  if YOriginalColor = Black then
+    DeleteFixup(X, XP);
+  
   Result := True;
 end;
 
