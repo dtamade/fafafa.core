@@ -75,15 +75,15 @@ type
     function SplitOff(aAt: SizeUInt): specialize IQueue<T>;
 
     // 批量操作接口 - 性能优化
-    procedure LoadFromPointer(aSrc: PElement; aCount: SizeUInt); inline;
-    procedure LoadFromArray(const aSrc: array of T); inline;
+    procedure LoadFromPointer(aSrc: Pointer; aCount: SizeUInt);
+    procedure LoadFromArray(const aSrc: array of T);
 
     { AppendFrom: 从指定位置追加数据到容器末尾 }
-    procedure AppendFrom(const aSrc: TVecDeque; aSrcIndex: SizeUInt; aCount: SizeUInt); inline;
+    procedure AppendFrom(const aSrc: specialize IVecDeque<T>; aSrcIndex: SizeUInt; aCount: SizeUInt);
 
     { InsertFrom: 从指定位置插入批量数据 }
-    procedure InsertFrom(aIndex: SizeUInt; aSrc: PElement; aCount: SizeUInt); inline;
-    procedure InsertFrom(aIndex: SizeUInt; const aSrc: array of T); inline;
+    procedure InsertFrom(aIndex: SizeUInt; aSrc: Pointer; aCount: SizeUInt);
+    procedure InsertFrom(aIndex: SizeUInt; const aSrc: array of T);
   end;
 
   { TVecDeque 向量双端队列实现类 - 基于环形缓冲区的高性能实现 }

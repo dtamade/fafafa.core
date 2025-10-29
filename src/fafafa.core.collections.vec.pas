@@ -14,7 +14,6 @@ uses
   fafafa.core.mem.utils,
   fafafa.core.collections.base,
   fafafa.core.collections.arr,
-  fafafa.core.collections.stack,
   fafafa.core.collections.slice,
   fafafa.core.mem.allocator;
 
@@ -1037,7 +1036,7 @@ type
 
   { TVec 向量数组实现 }
 
-  generic TVec<T> = class(specialize TGenericCollection<T>, specialize IVec<T>, specialize IStack<T>)
+  generic TVec<T> = class(specialize TGenericCollection<T>, specialize IVec<T>)
   const
     VEC_DEFAULT_CAPACITY = 0;
     DEFAULT_SWAP_BUFFER_SIZE = 4096;
