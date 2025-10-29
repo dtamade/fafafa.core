@@ -352,6 +352,7 @@ type
   private
     type
       TInternalMap = specialize THashMap<K, Byte>;
+      PK = ^K;
     var
       FMap: TInternalMap;
   protected
@@ -924,14 +925,14 @@ procedure THashSet.SerializeToArrayBuffer(aDst: Pointer; aCount: SizeUInt);
  * 需要从 FMap 中提取所有键并写入缓冲区
  *
  * @param aDst 目标缓冲区指针
- * @param aCount 期望写入的元素数量（通常为 FCount）
+ * @param aCount 期望写入的元素数量（通常为 GetCount）
  *}
 var
   I, LCopied: SizeUInt;
   LKey: K;
   PDst: PK;
 begin
-  if (aDst = nil) or (aCount = 0) or (FCount = 0) then Exit;
+  if (aDst = nil) or (aCount = 0) or (GetCount = 0) then Exit;
 
   PDst := aDst;
   LCopied := 0;

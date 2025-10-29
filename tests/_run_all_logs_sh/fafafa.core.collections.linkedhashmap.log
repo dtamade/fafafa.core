@@ -1,0 +1,294 @@
+========================================
+Module: fafafa.core.collections.linkedhashmap
+Script: /home/dtamade/projects/fafafa.core/tests/fafafa.core.collections.linkedhashmap/BuildOrTest.sh
+Started: 2025-10-28 19:36:45
+========================================
+SetPrimaryConfigPath NewValue="/home/dtamade/freePascal/config_lazarus"
+Hint: (lazbuild) Primary config path: "/home/dtamade/freePascal/config_lazarus"
+Hint: (lazarus) [TBuildManager.SetBuildTarget] Old=x86_64-linux--gtk2 New=x86_64-linux--gtk2 Changed: OS/CPU=True LCL=False
+Hint: (lazarus) [TBuildManager.SetBuildTarget] Old=x86_64-linux--gtk2 New=x86_64-linux--gtk2 Changed: OS/CPU=True LCL=False
+Hint: (lazarus) Project needs building: Src has changed Project /home/dtamade/projects/fafafa.core/tests/fafafa.core.collections.linkedhashmap/tests_linkedhashmap.lpr
+Info: (lazarus) Execute Title="Compile Project, Mode: Debug, Target: /home/dtamade/projects/fafafa.core/tests/fafafa.core.collections.linkedhashmap/bin/tests_linkedhashmap"
+Info: (lazarus) Working Directory="/home/dtamade/projects/fafafa.core/tests/fafafa.core.collections.linkedhashmap/"
+Info: (lazarus) Executable="/home/dtamade/freePascal/fpc/bin/x86_64-linux/fpc.sh"
+Info: (lazarus) Param[0]="-MObjFPC"
+Info: (lazarus) Param[1]="-Scaghi"
+Info: (lazarus) Param[2]="-Cg"
+Info: (lazarus) Param[3]="-CirotR"
+Info: (lazarus) Param[4]="-Ch10000000"
+Info: (lazarus) Param[5]="-O1"
+Info: (lazarus) Param[6]="-gw3"
+Info: (lazarus) Param[7]="-gl"
+Info: (lazarus) Param[8]="-gh"
+Info: (lazarus) Param[9]="-Xg"
+Info: (lazarus) Param[10]="-gt"
+Info: (lazarus) Param[11]="-l"
+Info: (lazarus) Param[12]="-vewnhibq"
+Info: (lazarus) Param[13]="-Fi/home/dtamade/projects/fafafa.core/tests/fafafa.core.collections.linkedhashmap/lib/x86_64-linux"
+Info: (lazarus) Param[14]="-Fi/home/dtamade/projects/fafafa.core/src"
+Info: (lazarus) Param[15]="-Fu/home/dtamade/projects/fafafa.core/tests/fafafa.core.collections.linkedhashmap/"
+Info: (lazarus) Param[16]="-Fu/home/dtamade/projects/fafafa.core/src"
+Info: (lazarus) Param[17]="-Fu/home/dtamade/freePascal/lazarus/components/fpcunit/lib/x86_64-linux/gtk2"
+Info: (lazarus) Param[18]="-Fu/home/dtamade/freePascal/lazarus/components/synedit/units/x86_64-linux/gtk2"
+Info: (lazarus) Param[19]="-Fu/home/dtamade/freePascal/lazarus/lcl/units/x86_64-linux/gtk2"
+Info: (lazarus) Param[20]="-Fu/home/dtamade/freePascal/lazarus/components/lazedit/lib/x86_64-linux"
+Info: (lazarus) Param[21]="-Fu/home/dtamade/freePascal/lazarus/lcl/units/x86_64-linux"
+Info: (lazarus) Param[22]="-Fu/home/dtamade/freePascal/lazarus/components/freetype/lib/x86_64-linux"
+Info: (lazarus) Param[23]="-Fu/home/dtamade/freePascal/lazarus/components/lazutils/lib/x86_64-linux"
+Info: (lazarus) Param[24]="-Fu/home/dtamade/freePascal/lazarus/packager/units/x86_64-linux"
+Info: (lazarus) Param[25]="-FU/home/dtamade/projects/fafafa.core/tests/fafafa.core.collections.linkedhashmap/lib/x86_64-linux/"
+Info: (lazarus) Param[26]="-FE/home/dtamade/projects/fafafa.core/tests/fafafa.core.collections.linkedhashmap/bin/"
+Info: (lazarus) Param[27]="-o/home/dtamade/projects/fafafa.core/tests/fafafa.core.collections.linkedhashmap/bin/tests_linkedhashmap"
+Info: (lazarus) Param[28]="-dLCL"
+Info: (lazarus) Param[29]="-dLCLgtk2"
+Info: (lazarus) Param[30]="tests_linkedhashmap.lpr"
+Info: (lazarus) Param[31]="-B"
+Hint: (11030) Start of reading config file /home/dtamade/freePascal/fpc/bin/x86_64-linux/fpc.cfg
+Hint: (11031) End of reading config file /home/dtamade/freePascal/fpc/bin/x86_64-linux/fpc.cfg
+Free Pascal Compiler version 3.3.1-18766-gc75982a639-dirty [2025/10/23] for x86_64
+Copyright (c) 1993-2025 by Florian Klaempfl and others
+(1002) Target OS: Linux for x86-64
+(3104) Compiling tests_linkedhashmap.lpr
+(3104) Compiling test_linkedhashmap.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.collections.linkedhashmap.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.crtAllocator.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.base.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.base.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.instrumentation.pas
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.instrumentation.pas(68,13) Hint: (5058) Variable "S" does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.instrumentation.pas(39,34) Hint: (5024) Parameter "AEnable" not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.instrumentation.pas(40,40) Hint: (5024) Parameter "AN" not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.instrumentation.pas(34,34) Hint: (5024) Parameter "ABytes" not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.instrumentation.pas(35,36) Hint: (5024) Parameter "ABytes" not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.base.pas(73,11) Hint: (4055) Conversion between ordinals and pointers is not portable
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.base.pas(75,13) Hint: (4055) Conversion between ordinals and pointers is not portable
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.base.pas(161,32) Hint: (4055) Conversion between ordinals and pointers is not portable
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.base.pas(161,24) Hint: (4055) Conversion between ordinals and pointers is not portable
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.base.pas(162,25) Hint: (4055) Conversion between ordinals and pointers is not portable
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.base.pas(162,16) Hint: (4055) Conversion between ordinals and pointers is not portable
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.base.pas(172,25) Hint: (4055) Conversion between ordinals and pointers is not portable
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.base.pas(172,16) Hint: (4055) Conversion between ordinals and pointers is not portable
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.base.pas(11,3) Hint: (5023) Unit "fafafa.core.mem.allocator.instrumentation" not used in fafafa.core.mem.allocator.base
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.crtAllocator.pas(10,3) Hint: (5023) Unit "fafafa.core.base" not used in fafafa.core.mem.allocator.crtAllocator
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.mimalloc.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.callbackAllocator.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.rtlAllocator.pas
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.rtlAllocator.pas(10,3) Hint: (5023) Unit "fafafa.core.base" not used in fafafa.core.mem.allocator.rtlAllocator
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.pas(24,3) Hint: (5023) Unit "fafafa.core.base" not used in fafafa.core.mem.allocator
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.collections.elementManager.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.math.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.utils.pas
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.utils.pas(837,13) Note: (6058) Call to subroutine "function IsOverlapUnChecked(aPtr1:Pointer;aSize1:QWord;aPtr2:Pointer;aSize2:QWord):System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.utils.pas(874,3) Note: (6058) Call to subroutine "procedure CopyUnChecked(aSrc:Pointer;aDst:Pointer;aSize:QWord);" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.utils.pas(903,3) Note: (6058) Call to subroutine "procedure CopyNonOverlapUnChecked(aSrc:Pointer;aDst:Pointer;aSize:QWord);" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.utils.pas(917,3) Note: (6058) Call to subroutine "procedure Fill8(aDst:Pointer;aCount:Int64;aValue:Byte);" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.utils.pas(922,3) Note: (6058) Call to subroutine "procedure Fill8(aDst:Pointer;aCount:QWord;aValue:Byte);" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.utils.pas(1119,13) Note: (6058) Call to subroutine "function Compare8(aPtr1:Pointer;aPtr2:Pointer;aCount:QWord):System.LongInt;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.utils.pas(1124,13) Note: (6058) Call to subroutine "function Compare8(aPtr1:Pointer;aPtr2:Pointer;aCount:Int64):System.LongInt;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.utils.pas(1148,16) Note: (6058) Call to subroutine "function Compare8(aPtr1:Pointer;aPtr2:Pointer;aCount:Int64):System.LongInt;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.utils.pas(1187,16) Note: (6058) Call to subroutine "function Compare16(aPtr1:Pointer;aPtr2:Pointer;aCount:Int64):System.LongInt;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.utils.pas(1229,16) Note: (6058) Call to subroutine "function Compare32(aPtr1:Pointer;aPtr2:Pointer;aCount:Int64):System.LongInt;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.utils.pas(1278,10) Note: (6058) Call to subroutine "function IsPowerOfTwo(N:QWord):System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.utils.pas(1281,13) Note: (6058) Call to subroutine "function AlignUpUnChecked(aPtr:Pointer;aAlignment:QWord=`8`):System.Pointer;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.utils.pas(1305,13) Note: (6058) Call to subroutine "function AlignDownUnChecked(aPtr:Pointer;aAlignment:QWord=`8`):System.Pointer;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(1581,13) Note: (6058) Call to subroutine "function compare_u8(const aLeft:Byte;const aRight:Byte):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(1586,13) Note: (6058) Call to subroutine "function compare_u16(const aLeft:Word;const aRight:Word):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(2074,33) Note: (6058) Call to subroutine "function TCollection.GetAllocator:fafafa.core.mem.allocator.base.IAllocator;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(2074,44) Note: (6058) Call to subroutine "function TCollection.GetData:System.Pointer;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(2082,37) Note: (6058) Call to subroutine "function TCollection.GetData:System.Pointer;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(3498,18) Warning: (4044) Comparison might be always false due to range of constant and expression
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(3499,9) Warning: (6018) Unreachable code
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(1398,28) Hint: (5024) Parameter "aCurrentSize" not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(3562,18) Warning: (4044) Comparison might be always false due to range of constant and expression
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(3563,9) Warning: (6018) Unreachable code
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(1464,28) Hint: (5024) Parameter "aCurrentSize" not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(13,15) Hint: (5023) Unit "fafafa.core.mem.utils" not used in fafafa.core.collections.base
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(110,15) Warning: (3057) An inherited method is hidden by "Clear;"
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(238,14) Warning: (3057) An inherited method is hidden by "Contains(const IHashSet$1.K):System.Boolean;"
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(254,15) Warning: (3057) An inherited method is hidden by "Clear;"
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(110,15) Warning: (3057) An inherited method is hidden by "Clear;"
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(322,15) Note: (3250) Virtual method "SerializeToArrayBuffer(Pointer;QWord);" has a lower visibility (protected) than parent class TCollection (public)
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(323,15) Note: (3250) Virtual method "AppendUnChecked(const Pointer;QWord);" has a lower visibility (protected) than parent class TCollection (public)
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(324,15) Note: (3250) Virtual method "AppendToUnChecked(const TCollection);" has a lower visibility (protected) than parent class TCollection (public)
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(238,14) Warning: (3057) An inherited method is hidden by "Contains(const THashSet$1.K):System.Boolean;"
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(254,15) Warning: (3057) An inherited method is hidden by "Clear;"
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(110,15) Warning: (3057) An inherited method is hidden by "Clear;"
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(322,15) Note: (3250) Virtual method "SerializeToArrayBuffer(Pointer;QWord);" has a lower visibility (protected) than parent class TCollection (public)
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(323,15) Note: (3250) Virtual method "AppendUnChecked(const Pointer;QWord);" has a lower visibility (protected) than parent class TCollection (public)
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(324,15) Note: (3250) Virtual method "AppendToUnChecked(const TCollection);" has a lower visibility (protected) than parent class TCollection (public)
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(361,15) Note: (3250) Virtual method "SerializeToArrayBuffer(Pointer;QWord);" has a lower visibility (protected) than parent class TCollection (public)
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(362,15) Note: (3250) Virtual method "AppendUnChecked(const Pointer;QWord);" has a lower visibility (protected) than parent class TCollection (public)
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(363,15) Note: (3250) Virtual method "AppendToUnChecked(const TCollection);" has a lower visibility (protected) than parent class TCollection (public)
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(406,30) Hint: (4055) Conversion between ordinals and pointers is not portable
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(605,24) Hint: (5057) Local variable "defaultValue" does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(637,25) Hint: (5057) Local variable "ptrIterResult" does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(110,15) Warning: (3057) An inherited method is hidden by "Clear;"
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(110,15) Warning: (3057) An inherited method is hidden by "Clear;"
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(110,15) Warning: (3057) An inherited method is hidden by "Clear;"
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(322,15) Note: (3250) Virtual method "SerializeToArrayBuffer(Pointer;QWord);" has a lower visibility (protected) than parent class TCollection (public)
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(323,15) Note: (3250) Virtual method "AppendUnChecked(const Pointer;QWord);" has a lower visibility (protected) than parent class TCollection (public)
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(324,15) Note: (3250) Virtual method "AppendToUnChecked(const TCollection);" has a lower visibility (protected) than parent class TCollection (public)
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(110,15) Warning: (3057) An inherited method is hidden by "Clear;"
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(322,15) Note: (3250) Virtual method "SerializeToArrayBuffer(Pointer;QWord);" has a lower visibility (protected) than parent class TCollection (public)
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(323,15) Note: (3250) Virtual method "AppendUnChecked(const Pointer;QWord);" has a lower visibility (protected) than parent class TCollection (public)
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(324,15) Note: (3250) Virtual method "AppendToUnChecked(const TCollection);" has a lower visibility (protected) than parent class TCollection (public)
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.linkedhashmap.pas(126,15) Warning: (3057) An inherited method is hidden by "Clear;"
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.linkedhashmap.pas(132,14) Warning: (3057) An inherited method is hidden by "GetCount:System.QWord;"
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.linkedhashmap.pas(134,14) Warning: (3057) An inherited method is hidden by "PtrIter:fafafa.core.collections.base.TPtrIter;"
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.linkedhashmap.pas(409,18) Hint: (5060) Function result variable does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.linkedhashmap.pas(485,22) Hint: (5057) Local variable "LZeroValue" does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(110,15) Warning: (3057) An inherited method is hidden by "Clear;"
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(322,15) Note: (3250) Virtual method "SerializeToArrayBuffer(Pointer;QWord);" has a lower visibility (protected) than parent class TCollection (public)
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(323,15) Note: (3250) Virtual method "AppendUnChecked(const Pointer;QWord);" has a lower visibility (protected) than parent class TCollection (public)
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(324,15) Note: (3250) Virtual method "AppendToUnChecked(const TCollection);" has a lower visibility (protected) than parent class TCollection (public)
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(110,15) Warning: (3057) An inherited method is hidden by "Clear;"
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(322,15) Note: (3250) Virtual method "SerializeToArrayBuffer(Pointer;QWord);" has a lower visibility (protected) than parent class TCollection (public)
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(323,15) Note: (3250) Virtual method "AppendUnChecked(const Pointer;QWord);" has a lower visibility (protected) than parent class TCollection (public)
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(324,15) Note: (3250) Virtual method "AppendToUnChecked(const TCollection);" has a lower visibility (protected) than parent class TCollection (public)
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(126,15) Warning: (3057) An inherited method is hidden by "Clear;"
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(132,14) Warning: (3057) An inherited method is hidden by "GetCount:System.QWord;"
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(134,14) Warning: (3057) An inherited method is hidden by "PtrIter:fafafa.core.collections.base.TPtrIter;"
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(2343,12) Note: (6058) Call to subroutine "function TGenericCollection<test_linkedhashmap.TMapEntry<System.AnsiString,System.LongInt>>.Iter:TIter<TEST_LINKEDHASHMAP.TMapEntry<SYSTEM.AnsiString,SYSTEM.LongInt>>;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(2534,12) Note: (6058) Call to subroutine "function TGenericCollection<test_linkedhashmap.TMapEntry<System.AnsiString,System.LongInt>>.Iter:TIter<TEST_LINKEDHASHMAP.TMapEntry<SYSTEM.AnsiString,SYSTEM.LongInt>>;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(2549,13) Note: (6058) Call to subroutine "function TGenericCollection<test_linkedhashmap.TMapEntry<System.AnsiString,System.LongInt>>.Iter:TIter<TEST_LINKEDHASHMAP.TMapEntry<SYSTEM.AnsiString,SYSTEM.LongInt>>;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(2563,13) Note: (6058) Call to subroutine "function TGenericCollection<test_linkedhashmap.TMapEntry<System.AnsiString,System.LongInt>>.Iter:TIter<TEST_LINKEDHASHMAP.TMapEntry<SYSTEM.AnsiString,SYSTEM.LongInt>>;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(2847,16) Note: (6058) Call to subroutine "function TGenericCollection<test_linkedhashmap.TMapEntry<System.AnsiString,System.LongInt>>.GetElementTypeInfo:TypInfo.PTypeInfo;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(3012,13) Note: (6058) Call to subroutine "function TGenericCollection<test_linkedhashmap.TMapEntry<System.AnsiString,System.LongInt>>.Iter:TIter<TEST_LINKEDHASHMAP.TMapEntry<SYSTEM.AnsiString,SYSTEM.LongInt>>;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(483,16) Note: (6058) Call to subroutine "function THashMap<System.AnsiString,System.LongInt>.NextPow2(x:QWord):System.QWord;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(489,3) Note: (6058) Call to subroutine "procedure THashMap<System.AnsiString,System.LongInt>.RecalcMaxLoad;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(321,30) Hint: (5024) Parameter "aSrc" not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(321,45) Hint: (5024) Parameter "aElementCount" not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(605,24) Hint: (5057) Local variable "defaultValue" does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(637,25) Hint: (5057) Local variable "ptrIterResult" does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(2343,12) Note: (6058) Call to subroutine "function TGenericCollection<test_linkedhashmap.TMapEntry<System.AnsiString,test_linkedhashmap.TLinkedHashMap$2$crcABB1CE5E_crc43A57872.PNode>>.Iter:TIter<TEST_LINKEDHASHMAP.TMapEntry<SYSTEM.AnsiString,TEST_LINKEDHASHMAP.TLinkedHashMap$2$crcABB1CE5E_crc43A57872.PNode>>;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(2534,12) Note: (6058) Call to subroutine "function TGenericCollection<test_linkedhashmap.TMapEntry<System.AnsiString,test_linkedhashmap.TLinkedHashMap$2$crcABB1CE5E_crc43A57872.PNode>>.Iter:TIter<TEST_LINKEDHASHMAP.TMapEntry<SYSTEM.AnsiString,TEST_LINKEDHASHMAP.TLinkedHashMap$2$crcABB1CE5E_crc43A57872.PNode>>;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(2549,13) Note: (6058) Call to subroutine "function TGenericCollection<test_linkedhashmap.TMapEntry<System.AnsiString,test_linkedhashmap.TLinkedHashMap$2$crcABB1CE5E_crc43A57872.PNode>>.Iter:TIter<TEST_LINKEDHASHMAP.TMapEntry<SYSTEM.AnsiString,TEST_LINKEDHASHMAP.TLinkedHashMap$2$crcABB1CE5E_crc43A57872.PNode>>;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(2563,13) Note: (6058) Call to subroutine "function TGenericCollection<test_linkedhashmap.TMapEntry<System.AnsiString,test_linkedhashmap.TLinkedHashMap$2$crcABB1CE5E_crc43A57872.PNode>>.Iter:TIter<TEST_LINKEDHASHMAP.TMapEntry<SYSTEM.AnsiString,TEST_LINKEDHASHMAP.TLinkedHashMap$2$crcABB1CE5E_crc43A57872.PNode>>;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(2847,16) Note: (6058) Call to subroutine "function TGenericCollection<test_linkedhashmap.TMapEntry<System.AnsiString,test_linkedhashmap.TLinkedHashMap$2$crcABB1CE5E_crc43A57872.PNode>>.GetElementTypeInfo:TypInfo.PTypeInfo;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(3012,13) Note: (6058) Call to subroutine "function TGenericCollection<test_linkedhashmap.TMapEntry<System.AnsiString,test_linkedhashmap.TLinkedHashMap$2$crcABB1CE5E_crc43A57872.PNode>>.Iter:TIter<TEST_LINKEDHASHMAP.TMapEntry<SYSTEM.AnsiString,TEST_LINKEDHASHMAP.TLinkedHashMap$2$crcABB1CE5E_crc43A57872.PNode>>;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(483,16) Note: (6058) Call to subroutine "function THashMap<System.AnsiString,test_linkedhashmap.TLinkedHashMap$2$crcABB1CE5E_crc43A57872.PNode>.NextPow2(x:QWord):System.QWord;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(489,3) Note: (6058) Call to subroutine "procedure THashMap<System.AnsiString,test_linkedhashmap.TLinkedHashMap$2$crcABB1CE5E_crc43A57872.PNode>.RecalcMaxLoad;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(321,30) Hint: (5024) Parameter "aSrc" not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(321,45) Hint: (5024) Parameter "aElementCount" not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(605,24) Hint: (5057) Local variable "defaultValue" does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(637,25) Hint: (5057) Local variable "ptrIterResult" does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.linkedhashmap.pas(409,18) Hint: (5060) Function result variable does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(146,30) Hint: (5024) Parameter "aSrc" not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(146,45) Hint: (5024) Parameter "aElementCount" not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.linkedhashmap.pas(485,22) Hint: (5057) Local variable "LZeroValue" does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(110,15) Warning: (3057) An inherited method is hidden by "Clear;"
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(322,15) Note: (3250) Virtual method "SerializeToArrayBuffer(Pointer;QWord);" has a lower visibility (protected) than parent class TCollection (public)
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(323,15) Note: (3250) Virtual method "AppendUnChecked(const Pointer;QWord);" has a lower visibility (protected) than parent class TCollection (public)
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(324,15) Note: (3250) Virtual method "AppendToUnChecked(const TCollection);" has a lower visibility (protected) than parent class TCollection (public)
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(110,15) Warning: (3057) An inherited method is hidden by "Clear;"
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(322,15) Note: (3250) Virtual method "SerializeToArrayBuffer(Pointer;QWord);" has a lower visibility (protected) than parent class TCollection (public)
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(323,15) Note: (3250) Virtual method "AppendUnChecked(const Pointer;QWord);" has a lower visibility (protected) than parent class TCollection (public)
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(324,15) Note: (3250) Virtual method "AppendToUnChecked(const TCollection);" has a lower visibility (protected) than parent class TCollection (public)
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(126,15) Warning: (3057) An inherited method is hidden by "Clear;"
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(132,14) Warning: (3057) An inherited method is hidden by "GetCount:System.QWord;"
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(134,14) Warning: (3057) An inherited method is hidden by "PtrIter:fafafa.core.collections.base.TPtrIter;"
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(2343,12) Note: (6058) Call to subroutine "function TGenericCollection<test_linkedhashmap.TMapEntry<System.LongInt,System.AnsiString>>.Iter:TIter<TEST_LINKEDHASHMAP.TMapEntry<SYSTEM.LongInt,SYSTEM.AnsiString>>;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(2534,12) Note: (6058) Call to subroutine "function TGenericCollection<test_linkedhashmap.TMapEntry<System.LongInt,System.AnsiString>>.Iter:TIter<TEST_LINKEDHASHMAP.TMapEntry<SYSTEM.LongInt,SYSTEM.AnsiString>>;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(2549,13) Note: (6058) Call to subroutine "function TGenericCollection<test_linkedhashmap.TMapEntry<System.LongInt,System.AnsiString>>.Iter:TIter<TEST_LINKEDHASHMAP.TMapEntry<SYSTEM.LongInt,SYSTEM.AnsiString>>;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(2563,13) Note: (6058) Call to subroutine "function TGenericCollection<test_linkedhashmap.TMapEntry<System.LongInt,System.AnsiString>>.Iter:TIter<TEST_LINKEDHASHMAP.TMapEntry<SYSTEM.LongInt,SYSTEM.AnsiString>>;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(2847,16) Note: (6058) Call to subroutine "function TGenericCollection<test_linkedhashmap.TMapEntry<System.LongInt,System.AnsiString>>.GetElementTypeInfo:TypInfo.PTypeInfo;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(3012,13) Note: (6058) Call to subroutine "function TGenericCollection<test_linkedhashmap.TMapEntry<System.LongInt,System.AnsiString>>.Iter:TIter<TEST_LINKEDHASHMAP.TMapEntry<SYSTEM.LongInt,SYSTEM.AnsiString>>;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(483,16) Note: (6058) Call to subroutine "function THashMap<System.LongInt,System.AnsiString>.NextPow2(x:QWord):System.QWord;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(489,3) Note: (6058) Call to subroutine "procedure THashMap<System.LongInt,System.AnsiString>.RecalcMaxLoad;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(321,30) Hint: (5024) Parameter "aSrc" not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(321,45) Hint: (5024) Parameter "aElementCount" not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(605,24) Hint: (5091) Local variable "defaultValue" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(637,25) Hint: (5057) Local variable "ptrIterResult" does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(2343,12) Note: (6058) Call to subroutine "function TGenericCollection<test_linkedhashmap.TMapEntry<System.LongInt,test_linkedhashmap.TLinkedHashMap$2$crc389C7D5E_crc43A57872.PNode>>.Iter:TIter<TEST_LINKEDHASHMAP.TMapEntry<SYSTEM.LongInt,TEST_LINKEDHASHMAP.TLinkedHashMap$2$crc389C7D5E_crc43A57872.PNode>>;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(2534,12) Note: (6058) Call to subroutine "function TGenericCollection<test_linkedhashmap.TMapEntry<System.LongInt,test_linkedhashmap.TLinkedHashMap$2$crc389C7D5E_crc43A57872.PNode>>.Iter:TIter<TEST_LINKEDHASHMAP.TMapEntry<SYSTEM.LongInt,TEST_LINKEDHASHMAP.TLinkedHashMap$2$crc389C7D5E_crc43A57872.PNode>>;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(2549,13) Note: (6058) Call to subroutine "function TGenericCollection<test_linkedhashmap.TMapEntry<System.LongInt,test_linkedhashmap.TLinkedHashMap$2$crc389C7D5E_crc43A57872.PNode>>.Iter:TIter<TEST_LINKEDHASHMAP.TMapEntry<SYSTEM.LongInt,TEST_LINKEDHASHMAP.TLinkedHashMap$2$crc389C7D5E_crc43A57872.PNode>>;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(2563,13) Note: (6058) Call to subroutine "function TGenericCollection<test_linkedhashmap.TMapEntry<System.LongInt,test_linkedhashmap.TLinkedHashMap$2$crc389C7D5E_crc43A57872.PNode>>.Iter:TIter<TEST_LINKEDHASHMAP.TMapEntry<SYSTEM.LongInt,TEST_LINKEDHASHMAP.TLinkedHashMap$2$crc389C7D5E_crc43A57872.PNode>>;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(2847,16) Note: (6058) Call to subroutine "function TGenericCollection<test_linkedhashmap.TMapEntry<System.LongInt,test_linkedhashmap.TLinkedHashMap$2$crc389C7D5E_crc43A57872.PNode>>.GetElementTypeInfo:TypInfo.PTypeInfo;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(3012,13) Note: (6058) Call to subroutine "function TGenericCollection<test_linkedhashmap.TMapEntry<System.LongInt,test_linkedhashmap.TLinkedHashMap$2$crc389C7D5E_crc43A57872.PNode>>.Iter:TIter<TEST_LINKEDHASHMAP.TMapEntry<SYSTEM.LongInt,TEST_LINKEDHASHMAP.TLinkedHashMap$2$crc389C7D5E_crc43A57872.PNode>>;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(483,16) Note: (6058) Call to subroutine "function THashMap<System.LongInt,test_linkedhashmap.TLinkedHashMap$2$crc389C7D5E_crc43A57872.PNode>.NextPow2(x:QWord):System.QWord;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(489,3) Note: (6058) Call to subroutine "procedure THashMap<System.LongInt,test_linkedhashmap.TLinkedHashMap$2$crc389C7D5E_crc43A57872.PNode>.RecalcMaxLoad;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(321,30) Hint: (5024) Parameter "aSrc" not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(321,45) Hint: (5024) Parameter "aElementCount" not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(605,24) Hint: (5057) Local variable "defaultValue" does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(637,25) Hint: (5057) Local variable "ptrIterResult" does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.linkedhashmap.pas(409,18) Hint: (5060) Function result variable does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(146,30) Hint: (5024) Parameter "aSrc" not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(146,45) Hint: (5024) Parameter "aElementCount" not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.linkedhashmap.pas(485,22) Hint: (5091) Local variable "LZeroValue" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.collections.linkedhashmap/test_linkedhashmap.pas(131,18) Hint: (5091) Local variable "LKeys" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.collections.linkedhashmap/test_linkedhashmap.pas(237,3) Note: (5027) Local variable "LDummy" is assigned but never used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(110,15) Warning: (3057) An inherited method is hidden by "Clear;"
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(322,15) Note: (3250) Virtual method "SerializeToArrayBuffer(Pointer;QWord);" has a lower visibility (protected) than parent class TCollection (public)
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(323,15) Note: (3250) Virtual method "AppendUnChecked(const Pointer;QWord);" has a lower visibility (protected) than parent class TCollection (public)
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(324,15) Note: (3250) Virtual method "AppendToUnChecked(const TCollection);" has a lower visibility (protected) than parent class TCollection (public)
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(110,15) Warning: (3057) An inherited method is hidden by "Clear;"
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(322,15) Note: (3250) Virtual method "SerializeToArrayBuffer(Pointer;QWord);" has a lower visibility (protected) than parent class TCollection (public)
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(323,15) Note: (3250) Virtual method "AppendUnChecked(const Pointer;QWord);" has a lower visibility (protected) than parent class TCollection (public)
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(324,15) Note: (3250) Virtual method "AppendToUnChecked(const TCollection);" has a lower visibility (protected) than parent class TCollection (public)
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(126,15) Warning: (3057) An inherited method is hidden by "Clear;"
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(132,14) Warning: (3057) An inherited method is hidden by "GetCount:System.QWord;"
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(134,14) Warning: (3057) An inherited method is hidden by "PtrIter:fafafa.core.collections.base.TPtrIter;"
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(2343,12) Note: (6058) Call to subroutine "function TGenericCollection<test_linkedhashmap.TMapEntry<System.LongInt,System.LongInt>>.Iter:TIter<TEST_LINKEDHASHMAP.TMapEntry<SYSTEM.LongInt,SYSTEM.LongInt>>;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(2534,12) Note: (6058) Call to subroutine "function TGenericCollection<test_linkedhashmap.TMapEntry<System.LongInt,System.LongInt>>.Iter:TIter<TEST_LINKEDHASHMAP.TMapEntry<SYSTEM.LongInt,SYSTEM.LongInt>>;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(2549,13) Note: (6058) Call to subroutine "function TGenericCollection<test_linkedhashmap.TMapEntry<System.LongInt,System.LongInt>>.Iter:TIter<TEST_LINKEDHASHMAP.TMapEntry<SYSTEM.LongInt,SYSTEM.LongInt>>;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(2563,13) Note: (6058) Call to subroutine "function TGenericCollection<test_linkedhashmap.TMapEntry<System.LongInt,System.LongInt>>.Iter:TIter<TEST_LINKEDHASHMAP.TMapEntry<SYSTEM.LongInt,SYSTEM.LongInt>>;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(2847,16) Note: (6058) Call to subroutine "function TGenericCollection<test_linkedhashmap.TMapEntry<System.LongInt,System.LongInt>>.GetElementTypeInfo:TypInfo.PTypeInfo;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(3012,13) Note: (6058) Call to subroutine "function TGenericCollection<test_linkedhashmap.TMapEntry<System.LongInt,System.LongInt>>.Iter:TIter<TEST_LINKEDHASHMAP.TMapEntry<SYSTEM.LongInt,SYSTEM.LongInt>>;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(483,16) Note: (6058) Call to subroutine "function THashMap<System.LongInt,System.LongInt>.NextPow2(x:QWord):System.QWord;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(489,3) Note: (6058) Call to subroutine "procedure THashMap<System.LongInt,System.LongInt>.RecalcMaxLoad;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(321,30) Hint: (5024) Parameter "aSrc" not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(321,45) Hint: (5024) Parameter "aElementCount" not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(605,24) Hint: (5057) Local variable "defaultValue" does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(637,25) Hint: (5057) Local variable "ptrIterResult" does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(2343,12) Note: (6058) Call to subroutine "function TGenericCollection<test_linkedhashmap.TMapEntry<System.LongInt,test_linkedhashmap.TLinkedHashMap$2$crcC4CBFB43_crc43A57872.PNode>>.Iter:TIter<TEST_LINKEDHASHMAP.TMapEntry<SYSTEM.LongInt,TEST_LINKEDHASHMAP.TLinkedHashMap$2$crcC4CBFB43_crc43A57872.PNode>>;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(2534,12) Note: (6058) Call to subroutine "function TGenericCollection<test_linkedhashmap.TMapEntry<System.LongInt,test_linkedhashmap.TLinkedHashMap$2$crcC4CBFB43_crc43A57872.PNode>>.Iter:TIter<TEST_LINKEDHASHMAP.TMapEntry<SYSTEM.LongInt,TEST_LINKEDHASHMAP.TLinkedHashMap$2$crcC4CBFB43_crc43A57872.PNode>>;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(2549,13) Note: (6058) Call to subroutine "function TGenericCollection<test_linkedhashmap.TMapEntry<System.LongInt,test_linkedhashmap.TLinkedHashMap$2$crcC4CBFB43_crc43A57872.PNode>>.Iter:TIter<TEST_LINKEDHASHMAP.TMapEntry<SYSTEM.LongInt,TEST_LINKEDHASHMAP.TLinkedHashMap$2$crcC4CBFB43_crc43A57872.PNode>>;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(2563,13) Note: (6058) Call to subroutine "function TGenericCollection<test_linkedhashmap.TMapEntry<System.LongInt,test_linkedhashmap.TLinkedHashMap$2$crcC4CBFB43_crc43A57872.PNode>>.Iter:TIter<TEST_LINKEDHASHMAP.TMapEntry<SYSTEM.LongInt,TEST_LINKEDHASHMAP.TLinkedHashMap$2$crcC4CBFB43_crc43A57872.PNode>>;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(2847,16) Note: (6058) Call to subroutine "function TGenericCollection<test_linkedhashmap.TMapEntry<System.LongInt,test_linkedhashmap.TLinkedHashMap$2$crcC4CBFB43_crc43A57872.PNode>>.GetElementTypeInfo:TypInfo.PTypeInfo;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas(3012,13) Note: (6058) Call to subroutine "function TGenericCollection<test_linkedhashmap.TMapEntry<System.LongInt,test_linkedhashmap.TLinkedHashMap$2$crcC4CBFB43_crc43A57872.PNode>>.Iter:TIter<TEST_LINKEDHASHMAP.TMapEntry<SYSTEM.LongInt,TEST_LINKEDHASHMAP.TLinkedHashMap$2$crcC4CBFB43_crc43A57872.PNode>>;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(483,16) Note: (6058) Call to subroutine "function THashMap<System.LongInt,test_linkedhashmap.TLinkedHashMap$2$crcC4CBFB43_crc43A57872.PNode>.NextPow2(x:QWord):System.QWord;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(489,3) Note: (6058) Call to subroutine "procedure THashMap<System.LongInt,test_linkedhashmap.TLinkedHashMap$2$crcC4CBFB43_crc43A57872.PNode>.RecalcMaxLoad;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(321,30) Hint: (5024) Parameter "aSrc" not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(321,45) Hint: (5024) Parameter "aElementCount" not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(605,24) Hint: (5057) Local variable "defaultValue" does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(637,25) Hint: (5057) Local variable "ptrIterResult" does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.linkedhashmap.pas(409,18) Hint: (5060) Function result variable does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(146,30) Hint: (5024) Parameter "aSrc" not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.hashmap.pas(146,45) Hint: (5024) Parameter "aElementCount" not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.collections.linkedhashmap.pas(485,22) Hint: (5057) Local variable "LZeroValue" does not seem to be initialized
+(9015) Linking /home/dtamade/projects/fafafa.core/tests/fafafa.core.collections.linkedhashmap/bin/tests_linkedhashmap
+(1008) 16210 lines compiled, 1.7 sec, 1407824 bytes code, 1664824 bytes data
+(1021) 33 warning(s) issued
+(1022) 64 hint(s) issued
+(1023) 100 note(s) issued
+Info: (lazarus) [TCompiler.Compile] end
+Running LinkedHashMap tests...
+FPCUnit tests for LinkedHashMap
+0.3
+
+Usage: 
+  --format=FMT        Select output format. FMT is one of:
+    latex            output as latex
+    plain            output as plain ASCII source
+    plainnotiming    output as plain ASCII source, skip timings
+    xml              output as XML source (default)
+    junit            output as JUnit compatible XML source
+  --skiptiming              Do not output timings (useful for diffs of testruns)
+  -r or --sparse            Produce Less output (errors/failures only)
+  -n or --no-addresses      Do not display address info
+  -y or --stylesheet=<reference>   add stylesheet reference
+  --file=<filename>         output results to file
+
+  -l or --list              show a list of registered tests
+  -a or --all               run all tests
+  -p or --progress          show progress
+  -u or --status            show status messages on stderr
+  -s or --suite=MyTestSuiteName   run single test suite class
+  -x or --no-exitcode       do not set exit code on errors
+
+Defaults for long options will be read from ini file /home/dtamade/projects/fafafa.core/tests/fafafa.core.collections.linkedhashmap/bin/testdefaults.ini
+The results can be redirected to a file,
+for example: /home/dtamade/projects/fafafa.core/tests/fafafa.core.collections.linkedhashmap/bin/tests_linkedhashmap --all > results.xml

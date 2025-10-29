@@ -1,10 +1,68 @@
 ========================================
 Module: fafafa.core.sync
 Script: /home/dtamade/projects/fafafa.core/tests/fafafa.core.sync/BuildOrTest.sh
-Started: 2025-10-27 05:56:03
+Started: 2025-10-28 12:29:30
 ========================================
 ========================================
 fafafa.core.sync 测试构建脚本
 ========================================
-错误: 找不到 lazbuild 命令
-请确保 Lazarus 已正确安装并添加到 PATH 环境变量中
+
+正在构建测试项目...
+项目文件: tests_sync.lpi
+输出文件: ../../bin/tests_sync
+
+SetPrimaryConfigPath NewValue="/home/dtamade/freePascal/config_lazarus"
+Hint: (lazbuild) Primary config path: "/home/dtamade/freePascal/config_lazarus"
+Hint: (lazarus) [TBuildManager.SetBuildTarget] Old=x86_64-linux--gtk2 New=x86_64-linux--gtk2 Changed: OS/CPU=True LCL=False
+Hint: (lazarus) [TBuildManager.SetBuildTarget] Old=x86_64-linux--gtk2 New=x86_64-linux--gtk2 Changed: OS/CPU=True LCL=False
+Hint: (lazarus) Project needs building: Compile was incomplete for Project
+Info: (lazarus) Execute Title="Compile Project, Mode: Debug, Target: /home/dtamade/projects/fafafa.core/tests/fafafa.core.sync/bin/tests_sync"
+Info: (lazarus) Working Directory="/home/dtamade/projects/fafafa.core/tests/fafafa.core.sync/"
+Info: (lazarus) Executable="/home/dtamade/freePascal/fpc/bin/x86_64-linux/fpc.sh"
+Info: (lazarus) Param[0]="-MObjFPC"
+Info: (lazarus) Param[1]="-Scaghi"
+Info: (lazarus) Param[2]="-Cg"
+Info: (lazarus) Param[3]="-CirotR"
+Info: (lazarus) Param[4]="-O1"
+Info: (lazarus) Param[5]="-gw3"
+Info: (lazarus) Param[6]="-gl"
+Info: (lazarus) Param[7]="-gh"
+Info: (lazarus) Param[8]="-Xg"
+Info: (lazarus) Param[9]="-gt"
+Info: (lazarus) Param[10]="-l"
+Info: (lazarus) Param[11]="-vewnhibq"
+Info: (lazarus) Param[12]="-Fi/home/dtamade/projects/fafafa.core/tests/fafafa.core.sync/lib/x86_64-linux"
+Info: (lazarus) Param[13]="-Fi/home/dtamade/projects/fafafa.core/src"
+Info: (lazarus) Param[14]="-Fu/home/dtamade/projects/fafafa.core/tests/fafafa.core.sync/"
+Info: (lazarus) Param[15]="-Fu/home/dtamade/projects/fafafa.core/src"
+Info: (lazarus) Param[16]="-Fu/home/dtamade/freePascal/lazarus/packager/units/x86_64-linux"
+Info: (lazarus) Param[17]="-FU/home/dtamade/projects/fafafa.core/tests/fafafa.core.sync/lib/x86_64-linux/"
+Info: (lazarus) Param[18]="-FE/home/dtamade/projects/fafafa.core/tests/fafafa.core.sync/bin/"
+Info: (lazarus) Param[19]="-o/home/dtamade/projects/fafafa.core/tests/fafafa.core.sync/bin/tests_sync"
+Info: (lazarus) Param[20]="-dDEBUG"
+Info: (lazarus) Param[21]="tests_sync.lpr"
+Hint: (11030) Start of reading config file /home/dtamade/freePascal/fpc/bin/x86_64-linux/fpc.cfg
+Compiling Debug Version
+Hint: (11031) End of reading config file /home/dtamade/freePascal/fpc/bin/x86_64-linux/fpc.cfg
+Free Pascal Compiler version 3.3.1-18766-gc75982a639-dirty [2025/10/23] for x86_64
+Copyright (c) 1993-2025 by Florian Klaempfl and others
+(1002) Target OS: Linux for x86-64
+(3104) Compiling tests_sync.lpr
+(3104) Compiling Test_sync_modern.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.namedRWLock.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.namedRWLock.unix.pas
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.namedRWLock.unix.pas(132,54) Hint: (5024) Parameter "AInitialOwner" not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.namedRWLock.unix.pas(434,25) Error: (5000) Identifier not found "memory_order_seq_cst"
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.namedRWLock.unix.pas(561,25) Error: (5000) Identifier not found "memory_order_seq_cst"
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.namedRWLock.unix.pas(585,23) Error: (5000) Identifier not found "memory_order_seq_cst"
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.namedRWLock.unix.pas(611,25) Error: (5000) Identifier not found "memory_order_seq_cst"
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.namedRWLock.unix.pas(635,23) Error: (5000) Identifier not found "memory_order_seq_cst"
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.namedRWLock.unix.pas(723) Fatal: (10026) There were 5 errors compiling module, stopping
+Fatal: (1018) Compilation aborted
+Error: /home/dtamade/freePascal/fpc/bin/x86_64-linux/ppcx64 returned an error exitcode
+Error: (lazarus) Compile Project, Mode: Debug, Target: /home/dtamade/projects/fafafa.core/tests/fafafa.core.sync/bin/tests_sync: stopped with exit code 1
+Info: (lazarus) [TCompiler.Compile] end
+Error: (lazbuild) Failed compiling of project "/home/dtamade/projects/fafafa.core/tests/fafafa.core.sync/tests_sync.lpi"
+
+构建失败！

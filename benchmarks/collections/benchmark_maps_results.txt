@@ -1,0 +1,67 @@
+开始 Maps 性能基准测试...
+
+测试插入 1000 个元素...
+  HashMap: 0.00 ms
+  TreeMap: 0.00 ms
+  LinkedHashMap: 0.00 ms
+
+测试插入 10000 个元素...
+  HashMap: 1.00 ms
+  TreeMap: 2.00 ms
+  LinkedHashMap: 2.00 ms
+
+测试插入 100000 个元素...
+  HashMap: 4.00 ms
+  TreeMap: 18.00 ms
+  LinkedHashMap: 16.00 ms
+
+测试随机查找 10000 次...
+  数据集大小: 1000
+    HashMap: 0.00 ms
+    TreeMap: 1.00 ms
+    LinkedHashMap: 0.00 ms
+
+  数据集大小: 10000
+    HashMap: 0.00 ms
+    TreeMap: 1.00 ms
+    LinkedHashMap: 0.00 ms
+
+  数据集大小: 100000
+    HashMap: 0.00 ms
+    TreeMap: 1.00 ms
+    LinkedHashMap: 1.00 ms
+
+
+╔════════════════════════════════════════════════════════════════╗
+║     Maps 性能基准测试结果（HashMap/TreeMap/LinkedHashMap）       ║
+╚════════════════════════════════════════════════════════════════╝
+
+## 插入性能
+
+| 容器类型 | 元素数量 | 耗时(ms) | Ops/Sec |
+|----------|----------|----------|---------|
+| HashMap       |     1000 |     0.00 |         0 |
+| TreeMap       |     1000 |     0.00 |         0 |
+| LinkedHashMap |     1000 |     0.00 |         0 |
+| HashMap       |    10000 |     1.00 |  10000000 |
+| TreeMap       |    10000 |     2.00 |   5000000 |
+| LinkedHashMap |    10000 |     2.00 |   5000000 |
+| HashMap       |   100000 |     4.00 |  25000000 |
+| TreeMap       |   100000 |    18.00 |   5555556 |
+| LinkedHashMap |   100000 |    16.00 |   6250000 |
+
+## 查找性能 (10000 次查找)
+
+| 容器类型 | 数据集大小 | 耗时(ms) | Ops/Sec |
+|----------|----------|----------|---------|
+| HashMap       |       1000 |     0.00 |         0 |
+| TreeMap       |       1000 |     1.00 |   1000000 |
+| LinkedHashMap |       1000 |     0.00 |         0 |
+| HashMap       |      10000 |     0.00 |         0 |
+| TreeMap       |      10000 |     1.00 |  10000000 |
+| LinkedHashMap |      10000 |     0.00 |         0 |
+| HashMap       |     100000 |     0.00 |         0 |
+| TreeMap       |     100000 |     1.00 | 100000000 |
+| LinkedHashMap |     100000 |     1.00 | 100000000 |
+
+基准测试完成！

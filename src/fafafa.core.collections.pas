@@ -30,8 +30,13 @@ uses
   fafafa.core.collections.orderedmap.rb,
   // 新增：有序容器和缓存
   fafafa.core.collections.treemap,
-  // fafafa.core.collections.treeset,
-  fafafa.core.collections.lrucache;
+  fafafa.core.collections.treeSet,
+  fafafa.core.collections.priorityqueue,
+  fafafa.core.collections.lrucache,
+  // LinkedHashMap (插入顺序保持的哈希映射)
+  fafafa.core.collections.linkedhashmap,
+  // BitSet (高效位集合)
+  fafafa.core.collections.bitset;
 
 type
   // 统一对外导出的关键接口类型（非泛型别名；泛型类型请直接使用其本单元 uses 引入的原始定义）
@@ -85,10 +90,16 @@ generic function MakeArr<T>(aSrc: Pointer; aElementCount: SizeUInt; aAllocator: 
 
 // ==== TreeMap / TreeSet (Ordered containers) ====
 generic function MakeTreeMap<K,V>(aCapacity: SizeUInt = 0; aCompare: specialize TCompareFunc<K> = nil; aAllocator: IAllocator = nil): specialize ITreeMap<K,V>;
-// generic function MakeTreeSet<T>(aCapacity: SizeUInt = 0; aCompare: specialize TCompareFunc<T> = nil; aAllocator: IAllocator = nil): specialize ITreeSet<T>;
+generic function MakeTreeSet<T>(aCapacity: SizeUInt = 0; aCompare: specialize TCompareFunc<T> = nil; aAllocator: IAllocator = nil): specialize ITreeSet<T>;
 
 // ==== LRU Cache (Caching) ====
 generic function MakeLruCache<K,V>(aMaxSize: SizeUInt = 100; aAllocator: IAllocator = nil; aHash: specialize THashFunc<K> = nil; aEquals: specialize TEqualsFunc<K> = nil): specialize ILruCache<K,V>;
+
+// ==== LinkedHashMap (Insertion-order preserving hash map) ====
+generic function MakeLinkedHashMap<K,V>(aCapacity: SizeUInt = 0; aAllocator: IAllocator = nil): specialize ILinkedHashMap<K,V>;
+
+// ==== BitSet (Efficient bit set) ====
+function MakeBitSet(aInitialCapacity: SizeUInt = 64; aAllocator: IAllocator = nil): IBitSet;
 //
 
 
@@ -595,10 +606,13 @@ begin
   Result := specialize TTreeMap<K,V>.Create(aAllocator, aCompare);
 end;
 
-// generic function MakeTreeSet<T>(aCapacity: SizeUInt = 0; aCompare: specialize TCompareFunc<T> = nil; aAllocator: IAllocator = nil): specialize ITreeSet<T>;
-// begin
-//   Result := specialize TTreeSet<T>.Create(aCapacity, aCompare, aAllocator);
-// end;
+generic function MakeTreeSet<T>(aCapacity: SizeUInt = 0; aCompare: specialize TCompareFunc<T> = nil; aAllocator: IAllocator = nil): specialize ITreeSet<T>;
+begin
+  if aAllocator <> nil then
+    Result := specialize TTreeSet<T>.Create(aAllocator)
+  else
+    Result := specialize TTreeSet<T>.Create;
+end;
 
 // ==== LRU Cache factories ====
 
@@ -607,8 +621,25 @@ begin
   Result := specialize TLruCache<K,V>.Create(aMaxSize, aAllocator, aHash, aEquals);
 end;
 
+// ==== LinkedHashMap factories ====
 
+generic function MakeLinkedHashMap<K,V>(aCapacity: SizeUInt; aAllocator: IAllocator): specialize ILinkedHashMap<K,V>;
+begin
+  if aAllocator <> nil then
+    Result := specialize TLinkedHashMap<K,V>.Create(aCapacity, aAllocator)
+  else
+    Result := specialize TLinkedHashMap<K,V>.Create(aCapacity);
+end;
 
+// ==== BitSet factories ====
+
+function MakeBitSet(aInitialCapacity: SizeUInt; aAllocator: IAllocator): IBitSet;
+begin
+  if aAllocator <> nil then
+    Result := TBitSet.Create(aInitialCapacity, aAllocator)
+  else
+    Result := TBitSet.Create(aInitialCapacity);
+end;
 
 // end of capacity-based factories
 

@@ -381,6 +381,176 @@ end;
 
 ---
 
+### TTreeSet<T> - 有序集合（红黑树）
+
+**特点**：
+- ✅ 有序存储，自动排序
+- ✅ 查找/插入/删除 O(log n)
+- ✅ 支持范围查询
+- ✅ 集合操作（并集、交集、差集）
+- ⚠️ 内存开销较大（树节点）
+
+**适用场景**：
+- 需要保持元素有序
+- 范围查询
+- 去重并排序
+- 集合运算
+
+**示例**：
+```pascal
+uses fafafa.core.collections, fafafa.core.collections.treeSet;
+
+var
+  S: specialize ITreeSet<Integer>;
+  Arr: array of Integer;
+begin
+  S := specialize MakeTreeSet<Integer>();
+  
+  // 乱序添加
+  S.Add(5);
+  S.Add(2);
+  S.Add(8);
+  S.Add(1);
+  S.Add(9);
+  S.Add(2);  // 重复，不会添加
+  
+  // 有序遍历
+  Arr := S.ToArray;  // [1, 2, 5, 8, 9]
+  WriteLn('有序输出: ', Arr[0], ', ', Arr[1], ', ...');
+  
+  // 集合操作
+  var S2 := specialize MakeTreeSet<Integer>();
+  S2.Add(1);
+  S2.Add(3);
+  S2.Add(5);
+  
+  var Union := S.Union(S2);  // 并集
+  var Intersect := S.Intersect(S2);  // 交集 [1, 5]
+  var Diff := S.Difference(S2);  // 差集 [2, 8, 9]
+end;
+```
+
+**接口**：
+```pascal
+generic ITreeSet<T> = interface(specialize IGenericCollection<T>)
+  function Add(const AValue: T): Boolean;
+  function Remove(const AValue: T): Boolean;
+  function Contains(const AValue: T): Boolean;
+  function Union(const Other: specialize ITreeSet<T>): specialize ITreeSet<T>;
+  function Intersect(const Other: specialize ITreeSet<T>): specialize ITreeSet<T>;
+  function Difference(const Other: specialize ITreeSet<T>): specialize ITreeSet<T>;
+  function ToArray: specialize TArray<T>;
+  function GetCount: SizeUInt;
+  function IsEmpty: Boolean;
+  procedure Clear;
+end;
+```
+
+**工厂函数**：
+```pascal
+generic function MakeTreeSet<T>(
+  aCapacity: SizeUInt = 0;
+  aCompare: specialize TCompareFunc<T> = nil;
+  aAllocator: IAllocator = nil
+): specialize ITreeSet<T>;
+```
+
+**时间复杂度**：
+- 插入: O(log n)
+- 删除: O(log n)
+- 查找: O(log n)
+- 遍历: O(n)（有序）
+- 集合运算: O(m + n)
+
+---
+
+### TPriorityQueue<T> - 优先队列（最小堆）
+
+**特点**：
+- ✅ 最小元素 O(1) 获取
+- ✅ 插入/删除 O(log n)
+- ✅ 轻量级（record 实现）
+- ✅ 自定义比较器
+- ⚠️ 不支持迭代
+
+**适用场景**：
+- 任务调度（优先级）
+- 路径查找（Dijkstra）
+- 事件驱动系统
+- Top-K 问题
+
+**示例**：
+```pascal
+uses fafafa.core.collections.priorityqueue;
+
+type
+  TTask = record
+    Priority: Integer;  // 越小优先级越高
+    Name: string;
+  end;
+
+function CompareTask(const A, B: TTask): Integer;
+begin
+  Result := A.Priority - B.Priority;
+end;
+
+var
+  PQ: specialize TPriorityQueue<TTask>;
+  Task: TTask;
+begin
+  // 初始化
+  PQ.Initialize(@CompareTask);
+  
+  // 添加任务
+  Task.Priority := 3; Task.Name := '普通任务';
+  PQ.Enqueue(Task);
+  
+  Task.Priority := 1; Task.Name := '紧急任务';
+  PQ.Enqueue(Task);
+  
+  Task.Priority := 5; Task.Name := '低优先级';
+  PQ.Enqueue(Task);
+  
+  // 按优先级处理
+  while PQ.Dequeue(Task) do
+    WriteLn('处理: ', Task.Name);  // 紧急任务 -> 普通任务 -> 低优先级
+end;
+```
+
+**接口**：
+```pascal
+generic TPriorityQueue<T> = record
+  procedure Initialize(AComparer: TComparerFunc); overload;
+  procedure Initialize(AComparer: TComparerFunc; ACapacity: Integer); overload;
+  
+  procedure Enqueue(constref AItem: T);  // O(log n)
+  function Dequeue(out AItem: T): Boolean;  // O(log n)
+  function Peek(out AItem: T): Boolean;  // O(1)
+  
+  function Count: Integer;
+  function IsEmpty: Boolean;
+  procedure Clear;
+  
+  function Contains(constref AItem: T): Boolean;  // O(n)
+  function Remove(constref AItem: T): Boolean;  // O(n)
+  function ToArray: TArray;
+end;
+```
+
+**时间复杂度**：
+- 插入: O(log n)
+- 删除最小: O(log n)
+- 查看最小: O(1)
+- 删除任意: O(n)
+- 查找: O(n)
+
+**注意事项**：
+- TPriorityQueue 是 record，需手动调用 Initialize
+- 必须提供比较器函数
+- 不支持自动内存管理的复杂类型
+
+---
+
 ## 工厂函数
 
 ### MakeVec<T> - 创建 Vec
@@ -856,7 +1026,99 @@ V.Put(0, 20);
 
 ---
 
+## 🔗 LinkedHashMap - 保持插入顺序的哈希映射
+
+### 概述
+
+`LinkedHashMap<K,V>` 结合了哈希表和双向链表，在提供 O(1) 查找性能的同时，保持元素的插入顺序。
+
+### 核心特性
+
+- **插入顺序保持**: 遍历时按照插入顺序返回元素
+- **O(1) 查找**: 继承自 HashMap 的快速查找能力  
+- **双重索引**: 哈希表 + 双向链表
+- **空间开销**: 比 HashMap 多约 16-24 字节/键
+
+### 使用场景
+
+| 场景 | 说明 | 优势 |
+|------|------|------|
+| **LRU 缓存** | 实现最近最少使用缓存 | 可快速移动元素到链表尾部 |
+| **有序配置** | 配置文件键值对保持插入顺序 | 提升可读性和可预测性 |
+| **命令历史** | 保存用户命令历史记录 | 自然的时间顺序 |
+
+### 工厂函数
+
+```pascal
+generic function MakeLinkedHashMap<K,V>(
+  aCapacity: SizeUInt = 0;
+  aAllocator: IAllocator = nil
+): specialize ILinkedHashMap<K,V>;
+```
+
+### 时间复杂度
+
+| 操作 | 平均 | 说明 |
+|------|------|------|
+| Add/TryGetValue/Remove | O(1) | 哈希表操作 |
+| First/Last | O(1) | 链表头尾访问 |
+| 遍历 | O(n) | 按插入顺序 |
+
+---
+
+## 🔢 BitSet - 高效位集合
+
+### 概述
+
+`BitSet` 使用 UInt64 数组存储，每个位占用 1 bit，相比 `HashSet<Integer>` 节省 95%+ 内存。
+
+### 核心特性
+
+- **内存紧凑**: 1 bit/元素
+- **动态扩展**: 自动增长
+- **位运算**: AND, OR, XOR, NOT
+- **快速计数**: PopCount 算法
+
+### 使用场景
+
+| 场景 | 说明 |
+|------|------|
+| **权限管理** | 用户权限位标记 |
+| **布尔标记** | 大量布尔值存储 |
+| **位图索引** | 数据库位图索引 |
+
+### 工厂函数
+
+```pascal
+function MakeBitSet(
+  aInitialCapacity: SizeUInt = 64;
+  aAllocator: IAllocator = nil
+): IBitSet;
+```
+
+### 时间复杂度
+
+| 操作 | 时间 | 说明 |
+|------|------|------|
+| SetBit/ClearBit/Test | O(1) | 位运算 |
+| AndWith/OrWith/XorWith | O(n/64) | 字操作 |
+| Cardinality | O(n/64) | PopCount |
+
+### 内存对比
+
+- BitSet(1000): ~125 bytes
+- HashSet<Integer>(1000): ~16,000 bytes  
+- **节省**: 99.2%
+
+---
+
 ## 版本历史
+
+### v1.1 (2025-10-28) - LinkedHashMap & BitSet
+- ✅ 新增 LinkedHashMap（插入顺序保持）
+- ✅ 新增 BitSet（高效位集合）  
+- ✅ 37/37 测试通过（+25 新测试）
+- ✅ 0 内存泄漏
 
 ### v1.0 (2025-10-27) - Production Ready
 - ✅ 核心容器完整实现
