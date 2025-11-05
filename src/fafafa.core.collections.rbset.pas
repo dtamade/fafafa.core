@@ -36,6 +36,7 @@ type
     // helpers
     function NewNode(const AValue: T): PNode;
     procedure FreeNode(ANode: PNode);
+    procedure ClearSubtree(ANode: PNode);  // Helper for Clear to safely free nodes
 
     function MinNode(N: PNode): PNode; {$IFDEF FAFAFA_CORE_INLINE} inline; {$ENDIF}
     function MaxNode(N: PNode): PNode; {$IFDEF FAFAFA_CORE_INLINE} inline; {$ENDIF}
@@ -405,19 +406,23 @@ begin
 end;
 
 procedure TRBTreeSet.Clear;
-var
-  Cur, Next: PNode;
 begin
-  // iterate in-order and free nodes
-  Cur := MinNode(FRoot);
-  while (Cur <> nil) and (Cur <> @FSentinel) do
-  begin
-    Next := Successor(Cur);
-    FreeNode(Cur);
-    Cur := Next;
-  end;
+  // Use post-order traversal to safely free all nodes
+  ClearSubtree(FRoot);
   FRoot := @FSentinel;
   FCount := 0;
+end;
+
+procedure TRBTreeSet.ClearSubtree(ANode: PNode);
+begin
+  if (ANode = nil) or (ANode = @FSentinel) then Exit;
+
+  // Recursively clear left and right subtrees first
+  ClearSubtree(ANode^.Left);
+  ClearSubtree(ANode^.Right);
+
+  // Then free this node
+  FreeNode(ANode);
 end;
 
 procedure TRBTreeSet.SerializeToArrayBuffer(aDst: Pointer; aCount: SizeUInt);
