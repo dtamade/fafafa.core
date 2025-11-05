@@ -271,19 +271,24 @@ end;
 
 procedure TRedBlackTree.FixInsert(aNode: PNode);
 var
-  LUncle: PNode;
+  LUncle, LGrandparent: PNode;
 begin
-  while (aNode <> FRoot) and (PNode(aNode^.Parent)^.Color = 0) do
+  // Fix red-black tree properties after insertion
+  while (aNode <> FRoot) and (aNode^.Parent <> nil) and (PNode(aNode^.Parent)^.Color = 0) do
   begin
-    if aNode^.Parent = PNode(PNode(aNode^.Parent)^.Parent)^.Left then
+    LGrandparent := PNode(aNode^.Parent)^.Parent;
+    if LGrandparent = nil then
+      Break;  // Parent has no parent, stop
+
+    if aNode^.Parent = LGrandparent^.Left then
     begin
-      LUncle := PNode(PNode(aNode^.Parent)^.Parent)^.Right;
+      LUncle := LGrandparent^.Right;
       if (LUncle <> nil) and (PNode(LUncle)^.Color = 0) then
       begin
         PNode(aNode^.Parent)^.Color := 1;
         PNode(LUncle)^.Color := 1;
-        PNode(PNode(aNode^.Parent)^.Parent)^.Color := 0;
-        aNode := PNode(aNode^.Parent)^.Parent;
+        LGrandparent^.Color := 0;
+        aNode := LGrandparent;
       end
       else
       begin
@@ -293,20 +298,22 @@ begin
           RotateLeft(aNode);
         end;
         PNode(aNode^.Parent)^.Color := 1;
-        PNode(PNode(aNode^.Parent)^.Parent)^.Color := 0;
-        RotateRight(PNode(aNode^.Parent)^.Parent);
+        if PNode(aNode^.Parent)^.Parent <> nil then
+          PNode(PNode(aNode^.Parent)^.Parent)^.Color := 0;
+        if PNode(aNode^.Parent)^.Parent <> nil then
+          RotateRight(PNode(aNode^.Parent)^.Parent);
         aNode := FRoot;
       end;
     end
     else
     begin
-      LUncle := PNode(PNode(aNode^.Parent)^.Parent)^.Left;
+      LUncle := LGrandparent^.Left;
       if (LUncle <> nil) and (PNode(LUncle)^.Color = 0) then
       begin
         PNode(aNode^.Parent)^.Color := 1;
         PNode(LUncle)^.Color := 1;
-        PNode(PNode(aNode^.Parent)^.Parent)^.Color := 0;
-        aNode := PNode(aNode^.Parent)^.Parent;
+        LGrandparent^.Color := 0;
+        aNode := LGrandparent;
       end
       else
       begin
@@ -316,13 +323,16 @@ begin
           RotateRight(aNode);
         end;
         PNode(aNode^.Parent)^.Color := 1;
-        PNode(PNode(aNode^.Parent)^.Parent)^.Color := 0;
-        RotateLeft(PNode(aNode^.Parent)^.Parent);
+        if PNode(aNode^.Parent)^.Parent <> nil then
+          PNode(PNode(aNode^.Parent)^.Parent)^.Color := 0;
+        if PNode(aNode^.Parent)^.Parent <> nil then
+          RotateLeft(PNode(aNode^.Parent)^.Parent);
         aNode := FRoot;
       end;
     end;
   end;
-  PNode(FRoot)^.Color := 1;
+  if FRoot <> nil then
+    PNode(FRoot)^.Color := 1;
 end;
 
 function TRedBlackTree.InsertNode(const aKey: K; const aValue: V; out aExisted: Boolean): PNode;
