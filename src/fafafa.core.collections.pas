@@ -71,7 +71,7 @@ generic function MakeVec<T>(const aSrcCollection: TCollection; aAllocator: IAllo
 generic function MakeVec<T>(aSrc: Pointer; aElementCount: SizeUInt; aAllocator: IAllocator = nil; aGrowStrategy: TGrowthStrategy = nil): specialize IVec<T>;
 
 
-generic function MakeVecDeque<T>(aCapacity: SizeUInt = 0; aAllocator: IAllocator = nil; aGrowStrategy: TGrowthStrategy = nil): specialize IDeque<T>;
+generic function MakeVecDeque<T>(aCapacity: SizeUInt; aAllocator: IAllocator = nil; aGrowStrategy: TGrowthStrategy = nil): specialize IDeque<T>;
 
 generic function MakeArr<T>(aAllocator: IAllocator = nil): specialize IArray<T>;
 generic function MakeArr<T>(const aSrc: array of T; aAllocator: IAllocator = nil): specialize IArray<T>;
@@ -93,7 +93,9 @@ generic function MakeTreeMap<K,V>(aCapacity: SizeUInt = 0; aCompare: specialize 
 generic function MakeTreeSet<T>(aCapacity: SizeUInt = 0; aCompare: specialize TCompareFunc<T> = nil; aAllocator: IAllocator = nil): specialize ITreeSet<T>;
 
 // ==== LRU Cache (Caching) ====
-generic function MakeLruCache<K,V>(aMaxSize: SizeUInt = 100; aAllocator: IAllocator = nil; aHash: specialize THashFunc<K> = nil; aEquals: specialize TEqualsFunc<K> = nil): specialize ILruCache<K,V>;
+generic function MakeLruCache<K,V>(aMaxSize: SizeUInt = 100; aAllocator: IAllocator = nil;
+  aHash: specialize THashFunc<K> = nil; aEquals: specialize TEqualsFunc<K> = nil;
+  aHashData: Pointer = nil; aEqualsData: Pointer = nil): specialize ILruCache<K,V>;
 
 // ==== LinkedHashMap (Insertion-order preserving hash map) ====
 generic function MakeLinkedHashMap<K,V>(aCapacity: SizeUInt = 0; aAllocator: IAllocator = nil): specialize ILinkedHashMap<K,V>;
@@ -109,70 +111,56 @@ function MakeBitSet(aInitialCapacity: SizeUInt = 64; aAllocator: IAllocator = ni
 
 // ==== Deque (source-based) ====
 
-// generic function MakeDeque<T>(const aSrc: array of T; aAllocator: TAllocator = nil; aGrowStrategy: TGrowthStrategy = nil): specialize IDeque<T>; overload;
+generic function MakeVecDeque<T>: ICollection; overload;
 
-// generic function MakeDeque<T>(const aSrcCollection: TCollection; aAllocator: TAllocator = nil; aGrowStrategy: TGrowthStrategy = nil): specialize IDeque<T>; overload;
-
-// generic function MakeDeque<T>(aSrc: Pointer; aElementCount: SizeUInt; aAllocator: TAllocator = nil; aGrowStrategy: TGrowthStrategy = nil): specialize IDeque<T>; overload;
-
-// generic function MakeDeque<T>(const aSrcCollection: TCollection; aAllocator: TAllocator; aGrowStrategy: TGrowthStrategy; aData: Pointer): specialize IDeque<T>; overload;
-
-// generic function MakeDeque<T>(aSrc: Pointer; aElementCount: SizeUInt; aAllocator: TAllocator; aGrowStrategy: TGrowthStrategy; aData: Pointer): specialize IDeque<T>; overload;
+generic function MakeDeque<T>: specialize IDeque<T>; overload;
+generic function MakeDeque<T>(aCapacity: SizeUInt; aAllocator: IAllocator = nil; aGrowStrategy: TGrowthStrategy = nil): specialize IDeque<T>; overload;
+generic function MakeDeque<T>(const aSrc: array of T; aAllocator: IAllocator = nil; aGrowStrategy: TGrowthStrategy = nil): specialize IDeque<T>; overload;
+generic function MakeDeque<T>(const aSrcCollection: TCollection; aAllocator: IAllocator = nil; aGrowStrategy: TGrowthStrategy = nil): specialize IDeque<T>; overload;
+generic function MakeDeque<T>(aSrc: Pointer; aElementCount: SizeUInt; aAllocator: IAllocator = nil; aGrowStrategy: TGrowthStrategy = nil): specialize IDeque<T>; overload;
+generic function MakeDeque<T>(const aSrcCollection: TCollection; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy; aData: Pointer): specialize IDeque<T>; overload;
+generic function MakeDeque<T>(aSrc: Pointer; aElementCount: SizeUInt; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy; aData: Pointer): specialize IDeque<T>; overload;
 
 // ==== Queue (source-based) ====
 
-// generic function MakeQueue<T>(const aSrc: array of T; aAllocator: TAllocator = nil; aGrowStrategy: TGrowthStrategy = nil): specialize IQueue<T>; overload;
-
-// generic function MakeQueue<T>(const aSrcCollection: TCollection; aAllocator: TAllocator = nil; aGrowStrategy: TGrowthStrategy = nil): specialize IQueue<T>; overload;
-
-// generic function MakeQueue<T>(aSrc: Pointer; aElementCount: SizeUInt; aAllocator: TAllocator = nil; aGrowStrategy: TGrowthStrategy = nil): specialize IQueue<T>; overload;
-
-// generic function MakeQueue<T>(const aSrcCollection: TCollection; aAllocator: TAllocator; aGrowStrategy: TGrowthStrategy; aData: Pointer): specialize IQueue<T>; overload;
-
-// generic function MakeQueue<T>(aSrc: Pointer; aElementCount: SizeUInt; aAllocator: TAllocator; aGrowStrategy: TGrowthStrategy; aData: Pointer): specialize IQueue<T>; overload;
+generic function MakeQueue<T>: specialize IQueue<T>; overload;
+generic function MakeQueue<T>(aCapacity: SizeUInt; aAllocator: IAllocator = nil; aGrowStrategy: TGrowthStrategy = nil): specialize IQueue<T>; overload;
+generic function MakeQueue<T>(const aSrc: array of T; aAllocator: IAllocator = nil; aGrowStrategy: TGrowthStrategy = nil): specialize IQueue<T>; overload;
+generic function MakeQueue<T>(const aSrcCollection: TCollection; aAllocator: IAllocator = nil; aGrowStrategy: TGrowthStrategy = nil): specialize IQueue<T>; overload;
+generic function MakeQueue<T>(aSrc: Pointer; aElementCount: SizeUInt; aAllocator: IAllocator = nil; aGrowStrategy: TGrowthStrategy = nil): specialize IQueue<T>; overload;
+generic function MakeQueue<T>(const aSrcCollection: TCollection; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy; aData: Pointer): specialize IQueue<T>; overload;
+generic function MakeQueue<T>(aSrc: Pointer; aElementCount: SizeUInt; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy; aData: Pointer): specialize IQueue<T>; overload;
 
 // ==== Stack (source-based) ====
 
-// generic function MakeStack<T>(aCapacity: SizeUInt = 0; aAllocator: TAllocator = nil; aGrowStrategy: TGrowthStrategy = nil): specialize IStack<T>; overload;
-
-// generic function MakeStack<T>(const aSrc: array of T; aAllocator: TAllocator = nil; aGrowStrategy: TGrowthStrategy = nil): specialize IStack<T>; overload;
-
-// generic function MakeStack<T>(const aSrcCollection: TCollection; aAllocator: TAllocator = nil; aGrowStrategy: TGrowthStrategy = nil): specialize IStack<T>; overload;
-
-// generic function MakeStack<T>(aSrc: Pointer; aElementCount: SizeUInt; aAllocator: TAllocator = nil; aGrowStrategy: TGrowthStrategy = nil): specialize IStack<T>; overload;
-
-// generic function MakeStack<T>(const aSrcCollection: TCollection; aAllocator: TAllocator; aGrowStrategy: TGrowthStrategy; aData: Pointer): specialize IStack<T>; overload;
-
-// generic function MakeStack<T>(aSrc: Pointer; aElementCount: SizeUInt; aAllocator: TAllocator; aGrowStrategy: TGrowthStrategy; aData: Pointer): specialize IStack<T>; overload;
+generic function MakeStack<T>: specialize IStack<T>; overload;
+generic function MakeStack<T>(aCapacity: SizeUInt; aAllocator: IAllocator = nil; aGrowStrategy: TGrowthStrategy = nil): specialize IStack<T>; overload;
+generic function MakeStack<T>(const aSrc: array of T; aAllocator: IAllocator = nil; aGrowStrategy: TGrowthStrategy = nil): specialize IStack<T>; overload;
+generic function MakeStack<T>(const aSrcCollection: TCollection; aAllocator: IAllocator = nil; aGrowStrategy: TGrowthStrategy = nil): specialize IStack<T>; overload;
+generic function MakeStack<T>(aSrc: Pointer; aElementCount: SizeUInt; aAllocator: IAllocator = nil; aGrowStrategy: TGrowthStrategy = nil): specialize IStack<T>; overload;
+generic function MakeStack<T>(const aSrcCollection: TCollection; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy; aData: Pointer): specialize IStack<T>; overload;
+generic function MakeStack<T>(aSrc: Pointer; aElementCount: SizeUInt; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy; aData: Pointer): specialize IStack<T>; overload;
 
 // ==== List (source-based + capacity) ====
 
-// generic function MakeList<T>(aAllocator: TAllocator = nil): specialize IList<T>; overload;
-
-// generic function MakeList<T>(const aSrc: array of T; aAllocator: TAllocator = nil): specialize IList<T>; overload;
-
-// generic function MakeList<T>(aSrc: Pointer; aElementCount: SizeUInt; aAllocator: TAllocator = nil): specialize IList<T>; overload;
-
-// generic function MakeList<T>(aSrc: Pointer; aElementCount: SizeUInt; aAllocator: TAllocator; aData: Pointer): specialize IList<T>; overload;
-
-//  // List (capacity-based)
-// generic function MakeList<T>(aCapacity: SizeUInt = 0; aAllocator: TAllocator = nil; aGrowStrategy: TGrowthStrategy = nil): specialize IList<T>; overload;
+generic function MakeList<T>: specialize IList<T>; overload;
+generic function MakeList<T>(aAllocator: IAllocator): specialize IList<T>; overload;
+generic function MakeList<T>(const aSrc: array of T): specialize IList<T>; overload;
+generic function MakeList<T>(const aSrc: array of T; aAllocator: IAllocator): specialize IList<T>; overload;
+generic function MakeList<T>(aSrc: Pointer; aElementCount: SizeUInt): specialize IList<T>; overload;
+generic function MakeList<T>(aSrc: Pointer; aElementCount: SizeUInt; aAllocator: IAllocator): specialize IList<T>; overload;
+generic function MakeList<T>(aSrc: Pointer; aElementCount: SizeUInt; aAllocator: IAllocator; aData: Pointer): specialize IList<T>; overload;
+generic function MakeList<T>(aCapacity: SizeUInt; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy): specialize IList<T>; overload;
 
 // ==== ForwardList (source-based) ====
 
-// generic function MakeForwardList<T>(aAllocator: TAllocator = nil): specialize IForwardList<T>; overload;
-
-// generic function MakeForwardList<T>(const aSrc: array of T; aAllocator: TAllocator = nil): specialize IForwardList<T>; overload;
-
-// generic function MakeForwardList<T>(const aSrcCollection: TCollection; aAllocator: TAllocator = nil): specialize IForwardList<T>; overload;
-
-// generic function MakeForwardList<T>(aSrc: Pointer; aElementCount: SizeUInt; aAllocator: TAllocator = nil): specialize IForwardList<T>; overload;
-
-// generic function MakeForwardList<T>(const aSrcCollection: TCollection; aAllocator: TAllocator; aData: Pointer): specialize IForwardList<T>; overload;
-
-// generic function MakeForwardList<T>(const aSrc: array of T; aAllocator: TAllocator; aData: Pointer): specialize IForwardList<T>; overload;
-
-// generic function MakeForwardList<T>(aSrc: Pointer; aElementCount: SizeUInt; aAllocator: TAllocator; aData: Pointer): specialize IForwardList<T>; overload;
+generic function MakeForwardList<T>: specialize IForwardList<T>; overload;
+generic function MakeForwardList<T>(aAllocator: IAllocator): specialize IForwardList<T>; overload;
+generic function MakeForwardList<T>(const aSrc: array of T): specialize IForwardList<T>; overload;
+generic function MakeForwardList<T>(const aSrc: array of T; aAllocator: IAllocator): specialize IForwardList<T>; overload;
+generic function MakeForwardList<T>(aSrc: Pointer; aElementCount: SizeUInt): specialize IForwardList<T>; overload;
+generic function MakeForwardList<T>(aSrc: Pointer; aElementCount: SizeUInt; aAllocator: IAllocator): specialize IForwardList<T>; overload;
+generic function MakeForwardList<T>(aSrc: Pointer; aElementCount: SizeUInt; aAllocator: IAllocator; aData: Pointer): specialize IForwardList<T>; overload;
 
 // generic function MakeDeque<T>(aCapacity: SizeUInt = 0; aAllocator: TAllocator = nil; aGrowStrategy: TGrowthStrategy = nil): specialize IDeque<T>;
 
@@ -232,13 +220,32 @@ end;
 
 {$IFDEF FAFAFA_COLLECTIONS_FACADE}
 
+// VecDeque facade helpers
+generic function MakeVecDeque<T>: ICollection;
+var
+  LDeque: specialize TVecDeque<T>;
+begin
+  LDeque := specialize TVecDeque<T>.Create(GetRtlAllocator());
+  Result := LDeque;
+end;
+
 // ForwardList factories
+generic function MakeForwardList<T>: specialize IForwardList<T>;
+begin
+  Result := specialize MakeForwardList<T>(IAllocator(nil));
+end;
+
 generic function MakeForwardList<T>(aAllocator: IAllocator): specialize IForwardList<T>;
 var LI: specialize IForwardList<T>;
 begin
   if aAllocator <> nil then LI := specialize TForwardList<T>.Create(aAllocator)
   else LI := specialize TForwardList<T>.Create;
   Result := LI;
+end;
+
+generic function MakeForwardList<T>(const aSrc: array of T): specialize IForwardList<T>;
+begin
+  Result := specialize MakeForwardList<T>(aSrc, IAllocator(nil));
 end;
 
 generic function MakeForwardList<T>(const aSrc: array of T; aAllocator: IAllocator): specialize IForwardList<T>;
@@ -257,12 +264,14 @@ begin
   Result := LI;
 end;
 
-generic function MakeForwardList<T>(aSrc: Pointer; aElementCount: SizeUInt; aAllocator: IAllocator): specialize IForwardList<T>;
-var LI: specialize IForwardList<T>;
+generic function MakeForwardList<T>(aSrc: Pointer; aElementCount: SizeUInt): specialize IForwardList<T>;
 begin
-  if aAllocator <> nil then LI := specialize TForwardList<T>.Create(aSrc, aElementCount, aAllocator)
-  else LI := specialize TForwardList<T>.Create(aSrc, aElementCount, GetRtlAllocator());
-  Result := LI;
+  Result := specialize MakeForwardList<T>(aSrc, aElementCount, IAllocator(nil));
+end;
+
+generic function MakeForwardList<T>(aSrc: Pointer; aElementCount: SizeUInt; aAllocator: IAllocator): specialize IForwardList<T>;
+begin
+  Result := specialize MakeForwardList<T>(aSrc, aElementCount, aAllocator, nil);
 end;
 
 generic function MakeForwardList<T>(const aSrcCollection: TCollection; aAllocator: IAllocator; aData: Pointer): specialize IForwardList<T>;
@@ -290,12 +299,22 @@ begin
 end;
 
 // List factories
+generic function MakeList<T>: specialize IList<T>;
+begin
+  Result := specialize MakeList<T>(IAllocator(nil));
+end;
+
 generic function MakeList<T>(aAllocator: IAllocator): specialize IList<T>;
 var LObj: specialize TList<T>;
 begin
   if aAllocator <> nil then LObj := specialize TList<T>.Create(aAllocator)
   else LObj := specialize TList<T>.Create;
   Result := LObj;
+end;
+
+generic function MakeList<T>(const aSrc: array of T): specialize IList<T>;
+begin
+  Result := specialize MakeList<T>(aSrc, IAllocator(nil));
 end;
 
 generic function MakeList<T>(const aSrc: array of T; aAllocator: IAllocator): specialize IList<T>;
@@ -306,16 +325,23 @@ begin
   Result := LObj;
 end;
 
-generic function MakeList<T>(aSrc: Pointer; aElementCount: SizeUInt; aAllocator: IAllocator): specialize IList<T>;
-var LObj: specialize TList<T>;
+generic function MakeList<T>(aSrc: Pointer; aElementCount: SizeUInt): specialize IList<T>;
 begin
-  if aAllocator <> nil then LObj := specialize TList<T>.Create(aSrc, aElementCount, aAllocator)
-  else LObj := specialize TList<T>.Create(aSrc, aElementCount, GetRtlAllocator());
-  Result := LObj;
+  Result := specialize MakeList<T>(aSrc, aElementCount, IAllocator(nil));
+end;
+
+generic function MakeList<T>(aSrc: Pointer; aElementCount: SizeUInt; aAllocator: IAllocator): specialize IList<T>;
+begin
+  Result := specialize MakeList<T>(aSrc, aElementCount, aAllocator, nil);
 end;
 
 
 // Deque factories (source-based)
+generic function MakeDeque<T>: specialize IDeque<T>;
+begin
+  Result := specialize MakeDeque<T>(0, IAllocator(nil), TGrowthStrategy(nil));
+end;
+
 generic function MakeDeque<T>(const aSrc: array of T; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy): specialize IDeque<T>;
 begin
   if aAllocator <> nil then
@@ -382,6 +408,11 @@ begin
 end;
 
 // Queue factories (delegate to Deque)
+generic function MakeQueue<T>: specialize IQueue<T>;
+begin
+  Result := specialize MakeQueue<T>(0, IAllocator(nil), TGrowthStrategy(nil));
+end;
+
 generic function MakeQueue<T>(const aSrc: array of T; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy): specialize IQueue<T>;
 begin
   if aAllocator <> nil then
@@ -448,78 +479,91 @@ begin
     Exit(specialize TVecDeque<T>.Create(aSrc, aElementCount, GetRtlAllocator(), aData));
 end;
 
-// Stack factories (based on TVec)
-generic function MakeStack<T>(aCapacity: SizeUInt; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy): specialize IStack<T>;
+// Stack factories (based on TArrayStack)
+generic function MakeStack<T>: specialize IStack<T>;
 begin
-  Exit(specialize TVec<T>.Create(aCapacity, aAllocator, aGrowStrategy));
+  Result := specialize MakeStack<T>(0, IAllocator(nil), TGrowthStrategy(nil));
+end;
+
+generic function MakeStack<T>(aCapacity: SizeUInt; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy): specialize IStack<T>;
+type
+  TStackImpl = specialize TArrayStack<T>;
+var
+  LStack: TStackImpl;
+begin
+  LStack := TStackImpl.Create(aAllocator);
+  Result := LStack;
 end;
 
 generic function MakeStack<T>(const aSrc: array of T; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy): specialize IStack<T>;
+type
+  TStackImpl = specialize TArrayStack<T>;
+var
+  LStack: TStackImpl;
 begin
-  if aAllocator <> nil then
-  begin
-    if aGrowStrategy <> nil then
-      Exit(specialize TVec<T>.Create(aSrc, aAllocator, aGrowStrategy))
-    else
-      Exit(specialize TVec<T>.Create(aSrc, aAllocator));
-  end
-  else
-    Exit(specialize TVec<T>.Create(aSrc));
+  LStack := TStackImpl.Create(aAllocator);
+  try
+    LStack.Push(aSrc);
+    Result := LStack;
+  except
+    LStack.Free;
+    raise;
+  end;
 end;
 
 generic function MakeStack<T>(const aSrcCollection: TCollection; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy): specialize IStack<T>;
+type
+  TStackImpl = specialize TArrayStack<T>;
+var
+  LStack: TStackImpl;
 begin
-  if aAllocator <> nil then
-  begin
-    if aGrowStrategy <> nil then
-      Exit(specialize TVec<T>.Create(aSrcCollection, aAllocator, aGrowStrategy))
-    else
-      Exit(specialize TVec<T>.Create(aSrcCollection, aAllocator));
-  end
-  else
-    Exit(specialize TVec<T>.Create(aSrcCollection));
+  LStack := TStackImpl.Create(aAllocator);
+  Result := LStack;
 end;
 
 generic function MakeStack<T>(aSrc: Pointer; aElementCount: SizeUInt; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy): specialize IStack<T>;
+type
+  TStackImpl = specialize TArrayStack<T>;
+var
+  LStack: TStackImpl;
 begin
-  if aAllocator <> nil then
-  begin
-    if aGrowStrategy <> nil then
-      Exit(specialize TVec<T>.Create(aSrc, aElementCount, aAllocator, aGrowStrategy))
-    else
-      Exit(specialize TVec<T>.Create(aSrc, aElementCount, aAllocator));
-  end
-  else
-    Exit(specialize TVec<T>.Create(aSrc, aElementCount));
+  LStack := TStackImpl.Create(aAllocator);
+  try
+    LStack.Push(aSrc, aElementCount);
+    Result := LStack;
+  except
+    LStack.Free;
+    raise;
+  end;
 end;
 
 generic function MakeStack<T>(const aSrcCollection: TCollection; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy; aData: Pointer): specialize IStack<T>;
+type
+  TStackImpl = specialize TArrayStack<T>;
+var
+  LStack: TStackImpl;
 begin
-  if aAllocator <> nil then
-  begin
-    if aGrowStrategy <> nil then
-      Exit(specialize TVec<T>.Create(aSrcCollection, aAllocator, aGrowStrategy, aData))
-    else
-      Exit(specialize TVec<T>.Create(aSrcCollection, aAllocator, aData));
-  end
-  else
-    Exit(specialize TVec<T>.Create(aSrcCollection, GetRtlAllocator(), aData));
+  LStack := TStackImpl.Create(aAllocator);
+  Result := LStack;
 end;
 
 generic function MakeStack<T>(aSrc: Pointer; aElementCount: SizeUInt; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy; aData: Pointer): specialize IStack<T>;
+type
+  TStackImpl = specialize TArrayStack<T>;
+var
+  LStack: TStackImpl;
 begin
-  if aAllocator <> nil then
-  begin
-    if aGrowStrategy <> nil then
-      Exit(specialize TVec<T>.Create(aSrc, aElementCount, aAllocator, aGrowStrategy, aData))
-    else
-      Exit(specialize TVec<T>.Create(aSrc, aElementCount, aAllocator, aData));
-  end
-  else
-    Exit(specialize TVec<T>.Create(aSrc, aElementCount, GetRtlAllocator(), aData));
+  LStack := TStackImpl.Create(aAllocator);
+  try
+    LStack.Push(aSrc, aElementCount);
+    Result := LStack;
+  except
+    LStack.Free;
+    raise;
+  end;
 end;
 
-generic function MakeList<T>(aSrc: Pointer; aElementCount: SizeUInt; aAllocator: TAllocator; aData: Pointer): specialize IList<T>;
+generic function MakeList<T>(aSrc: Pointer; aElementCount: SizeUInt; aAllocator: IAllocator; aData: Pointer): specialize IList<T>;
 var LObj: specialize TList<T>;
 begin
   if aAllocator <> nil then LObj := specialize TList<T>.Create(aSrc, aElementCount, aAllocator, aData)
@@ -616,9 +660,11 @@ end;
 
 // ==== LRU Cache factories ====
 
-generic function MakeLruCache<K,V>(aMaxSize: SizeUInt; aAllocator: IAllocator; aHash: specialize THashFunc<K>; aEquals: specialize TEqualsFunc<K>): specialize ILruCache<K,V>;
+generic function MakeLruCache<K,V>(aMaxSize: SizeUInt; aAllocator: IAllocator = nil;
+  aHash: specialize THashFunc<K> = nil; aEquals: specialize TEqualsFunc<K> = nil;
+  aHashData: Pointer = nil; aEqualsData: Pointer = nil): specialize ILruCache<K,V>;
 begin
-  Result := specialize TLruCache<K,V>.Create(aMaxSize, aAllocator, aHash, aEquals);
+  Result := specialize TLruCache<K,V>.Create(aMaxSize, aAllocator, aHash, aEquals, aHashData, aEqualsData);
 end;
 
 // ==== LinkedHashMap factories ====

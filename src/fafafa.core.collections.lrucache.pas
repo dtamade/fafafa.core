@@ -16,6 +16,9 @@ uses
   fafafa.core.collections.vecdeque,
   fafafa.core.collections.elementManager;
 
+threadvar
+  GLruCacheActive: TObject;
+
 type
   {** THashFunc - 泛型哈希函数类型 }
   generic THashFunc<T> = function (const aValue: T; aData: Pointer): UInt64;
@@ -200,6 +203,9 @@ type
     FAllocator: IAllocator;
     FHashFunc: specialize THashFunc<K>;
     FEqualsFunc: specialize TEqualsFunc<K>;
+    FHashData: Pointer;
+    FEqualsData: Pointer;
+    FUseCustomLookup: Boolean;
 
     { 链表操作 }
     procedure AddToMRU(aNode: PNode);
@@ -210,10 +216,13 @@ type
     { 辅助方法 }
     function CreateNode(const aKey: K; const aValue: V): PNode;
     procedure DestroyNode(aNode: PNode);
+    class function HashAdapter(const aKey: K): UInt32; static;
+    class function EqualsAdapter(const aLeft, aRight: K): Boolean; static;
 
   public
     constructor Create(aMaxSize: SizeUInt; const aAllocator: IAllocator = nil;
-      const aHash: specialize THashFunc<K> = nil; const aEquals: specialize TEqualsFunc<K> = nil);
+      const aHash: specialize THashFunc<K> = nil; const aEquals: specialize TEqualsFunc<K> = nil;
+      aHashData: Pointer = nil; aEqualsData: Pointer = nil);
     destructor Destroy; override;
 
     { ILruCache 接口实现 }
@@ -238,7 +247,11 @@ implementation
 { TLruCache }
 
 constructor TLruCache.Create(aMaxSize: SizeUInt; const aAllocator: IAllocator;
-  const aHash: specialize THashFunc<K>; const aEquals: specialize TEqualsFunc<K>);
+  const aHash: specialize THashFunc<K>; const aEquals: specialize TEqualsFunc<K>;
+  aHashData: Pointer; aEqualsData: Pointer);
+var
+  LHashAdapter: THashMapNode.THash;
+  LEqualsAdapter: THashMapNode.TEquals;
 begin
   inherited Create;
 
@@ -255,8 +268,21 @@ begin
 
   FHashFunc := aHash;
   FEqualsFunc := aEquals;
+  FHashData := aHashData;
+  FEqualsData := aEqualsData;
+  FUseCustomLookup := Assigned(FHashFunc) or Assigned(FEqualsFunc);
 
-  FMap := THashMapNode.Create(aMaxSize * 2, nil, nil, FAllocator);
+  if Assigned(FHashFunc) then
+    LHashAdapter := @HashAdapter
+  else
+    LHashAdapter := nil;
+
+  if Assigned(FEqualsFunc) then
+    LEqualsAdapter := @EqualsAdapter
+  else
+    LEqualsAdapter := nil;
+
+  FMap := THashMapNode.Create(aMaxSize * 2, LHashAdapter, LEqualsAdapter, FAllocator);
   FHead := nil;
   FTail := nil;
 end;
@@ -280,7 +306,41 @@ end;
 procedure TLruCache.DestroyNode(aNode: PNode);
 begin
   if aNode <> nil then
+  begin
+    Finalize(aNode^.Key);
+    Finalize(aNode^.Value);
     FAllocator.FreeMem(aNode);
+  end;
+end;
+
+class function TLruCache.HashAdapter(const aKey: K): UInt32;
+var
+  LOwner: specialize TLruCache<K, V>;
+  LHash64: UInt64;
+begin
+  if GLruCacheActive <> nil then
+    LOwner := specialize TLruCache<K, V>(GLruCacheActive)
+  else
+    LOwner := nil;
+  if (LOwner = nil) or (not Assigned(LOwner.FHashFunc)) then
+    raise EInvalidOperation.Create('TLruCache.HashAdapter: no active cache scope');
+
+  LHash64 := LOwner.FHashFunc(aKey, LOwner.FHashData);
+  Result := HashMix32(UInt32(LHash64 xor (LHash64 shr 32)));
+end;
+
+class function TLruCache.EqualsAdapter(const aLeft, aRight: K): Boolean;
+var
+  LOwner: specialize TLruCache<K, V>;
+begin
+  if GLruCacheActive <> nil then
+    LOwner := specialize TLruCache<K, V>(GLruCacheActive)
+  else
+    LOwner := nil;
+  if (LOwner = nil) or (not Assigned(LOwner.FEqualsFunc)) then
+    raise EInvalidOperation.Create('TLruCache.EqualsAdapter: no active cache scope');
+
+  Result := LOwner.FEqualsFunc(aLeft, aRight, LOwner.FEqualsData);
 end;
 
 procedure TLruCache.AddToMRU(aNode: PNode);
@@ -375,8 +435,23 @@ end;
 function TLruCache.Get(const aKey: K; out aValue: V): Boolean;
 var
   LNode: PNode;
+  LPrevCtx: TObject;
+  LFound: Boolean;
 begin
-  if FMap.TryGetValue(aKey, LNode) then
+  if FUseCustomLookup then
+  begin
+    LPrevCtx := GLruCacheActive;
+    GLruCacheActive := Self;
+    try
+      LFound := FMap.TryGetValue(aKey, LNode);
+    finally
+      GLruCacheActive := LPrevCtx;
+    end;
+  end
+  else
+    LFound := FMap.TryGetValue(aKey, LNode);
+
+  if LFound then
   begin
     { 命中 }
     aValue := LNode^.Value;
@@ -398,9 +473,24 @@ end;
 procedure TLruCache.Put(const aKey: K; const aValue: V);
 var
   LNode: PNode;
+  LPrevCtx: TObject;
+  LFound: Boolean;
 begin
   { 检查是否已存在 }
-  if FMap.TryGetValue(aKey, LNode) then
+  if FUseCustomLookup then
+  begin
+    LPrevCtx := GLruCacheActive;
+    GLruCacheActive := Self;
+    try
+      LFound := FMap.TryGetValue(aKey, LNode);
+    finally
+      GLruCacheActive := LPrevCtx;
+    end;
+  end
+  else
+    LFound := FMap.TryGetValue(aKey, LNode);
+
+  if LFound then
   begin
     { 更新值并移动到 MRU 端 }
     LNode^.Value := aValue;
@@ -412,7 +502,18 @@ begin
   LNode := CreateNode(aKey, aValue);
 
   { 插入到哈希表 }
-  FMap.Add(aKey, LNode);
+  if FUseCustomLookup then
+  begin
+    LPrevCtx := GLruCacheActive;
+    GLruCacheActive := Self;
+    try
+      FMap.Add(aKey, LNode);
+    finally
+      GLruCacheActive := LPrevCtx;
+    end;
+  end
+  else
+    FMap.Add(aKey, LNode);
 
   { 添加到 MRU 端 }
   AddToMRU(LNode);
@@ -486,12 +587,24 @@ end;
 function TLruCache.Evict: Boolean;
 var
   LNode: PNode;
+  LPrevCtx: TObject;
 begin
   LNode := RemoveFromLRU;
   if LNode <> nil then
   begin
     { 从哈希表中移除 }
-    FMap.Remove(LNode^.Key);
+    if FUseCustomLookup then
+    begin
+    LPrevCtx := GLruCacheActive;
+    GLruCacheActive := Self;
+      try
+        FMap.Remove(LNode^.Key);
+      finally
+      GLruCacheActive := LPrevCtx;
+      end;
+    end
+    else
+      FMap.Remove(LNode^.Key);
 
     { 销毁节点 }
     DestroyNode(LNode);
@@ -520,8 +633,20 @@ end;
 function TLruCache.Peek(const aKey: K; out aValue: V): Boolean;
 var
   LNode: PNode;
+  LPrevCtx: TObject;
 begin
-  Result := FMap.TryGetValue(aKey, LNode);
+  if FUseCustomLookup then
+  begin
+    LPrevCtx := GLruCacheActive;
+    GLruCacheActive := Self;
+    try
+      Result := FMap.TryGetValue(aKey, LNode);
+    finally
+      GLruCacheActive := LPrevCtx;
+    end;
+  end
+  else
+    Result := FMap.TryGetValue(aKey, LNode);
   if Result then
   begin
     aValue := LNode^.Value;
@@ -532,15 +657,38 @@ end;
 function TLruCache.Remove(const aKey: K): Boolean;
 var
   LNode: PNode;
+  LPrevCtx: TObject;
 begin
-  Result := FMap.TryGetValue(aKey, LNode);
+  if FUseCustomLookup then
+  begin
+    LPrevCtx := GLruCacheActive;
+    GLruCacheActive := Self;
+    try
+      Result := FMap.TryGetValue(aKey, LNode);
+    finally
+      GLruCacheActive := LPrevCtx;
+    end;
+  end
+  else
+    Result := FMap.TryGetValue(aKey, LNode);
   if Result then
   begin
     { 从链表中移除 }
     RemoveNode(LNode);
 
     { 从哈希表中移除 }
-    FMap.Remove(aKey);
+    if FUseCustomLookup then
+    begin
+      LPrevCtx := GLruCacheActive;
+      GLruCacheActive := Self;
+      try
+        FMap.Remove(aKey);
+      finally
+        GLruCacheActive := LPrevCtx;
+      end;
+    end
+    else
+      FMap.Remove(aKey);
 
     { 销毁节点 }
     DestroyNode(LNode);
@@ -549,8 +697,21 @@ begin
 end;
 
 function TLruCache.Contains(const aKey: K): Boolean;
+var
+  LPrevCtx: TObject;
 begin
-  Result := FMap.ContainsKey(aKey);
+  if FUseCustomLookup then
+  begin
+    LPrevCtx := GLruCacheActive;
+    GLruCacheActive := Self;
+    try
+      Result := FMap.ContainsKey(aKey);
+    finally
+      GLruCacheActive := LPrevCtx;
+    end;
+  end
+  else
+    Result := FMap.ContainsKey(aKey);
 end;
 
 end.

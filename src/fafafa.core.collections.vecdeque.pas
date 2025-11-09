@@ -1607,10 +1607,7 @@ begin
   // 清空并重置
   Clear;
   EnsureCapacity(aCount);
-
-  // 批量转移数据
-  Move(aSrc^, FBuffer[0]^, aCount * SizeOf(T));
-  SetCount(aCount);
+  PushBack(aSrc, aCount);
 end;
 
 procedure TVecDeque.LoadFromArray(const aSrc: array of T);
@@ -1632,7 +1629,6 @@ procedure TVecDeque.AppendFrom(const aSrc: TVecDeque; aSrcIndex: SizeUInt; aCoun
 var
   LSrcPtr1, LSrcPtr2: PElement;
   LSrcLen1, LSrcLen2: SizeUInt;
-  LDstIndex: SizeUInt;
 begin
   if (aSrc = nil) or (aCount = 0) then Exit;
 
@@ -1640,31 +1636,17 @@ begin
   if aSrcIndex + aCount > aSrc.Count then
     raise EArgumentOutOfRangeException.Create('Source index or count out of range');
 
-  // 保存当前末尾位置
-  LDstIndex := FCount;
-
-  // 确保容量充足
+  // 提前扩容，避免 PushBack 过程中重新分配导致指针失效
   EnsureCapacity(FCount + aCount);
 
   // 获取源的两段切片
-  aSrc.GetTwoSlicesAt(aSrcIndex, aCount, LSrcPtr1, LSrcLen1, LSrcPtr2, LSrcLen2);
+  aSrc.GetTwoSlices(aSrcIndex, aCount, LSrcPtr1, LSrcLen1, LSrcPtr2, LSrcLen2);
 
-  // 批量转移第一段
+  // 批量追加
   if LSrcLen1 > 0 then
-  begin
-    Move(LSrcPtr1^, FBuffer[LDstIndex]^, LSrcLen1 * SizeOf(T));
-    Inc(LDstIndex, LSrcLen1);
-  end;
-
-  // 批量转移第二段
+    PushBack(LSrcPtr1, LSrcLen1);
   if LSrcLen2 > 0 then
-  begin
-    Move(LSrcPtr2^, FBuffer[LDstIndex]^, LSrcLen2 * SizeOf(T));
-    Inc(LDstIndex, LSrcLen2);
-  end;
-
-  // 更新计数
-  SetCount(LDstIndex);
+    PushBack(LSrcPtr2, LSrcLen2);
 end;
 
 procedure TVecDeque.InsertFrom(aIndex: SizeUInt; aSrc: PElement; aCount: SizeUInt);
@@ -1683,16 +1665,7 @@ begin
   if aIndex > FCount then
     raise EArgumentOutOfRangeException.Create('Index out of range');
 
-  // 确保容量充足
-  EnsureCapacity(FCount + aCount);
-
-  // 移动现有元素为新数据腾出空间
-  if aIndex < FCount then
-    MoveElementsRight(aIndex, aCount);
-
-  // 插入新数据
-  Move(aSrc^, FBuffer[aIndex]^, aCount * SizeOf(T));
-  Inc(FCount, aCount);
+  Insert(aIndex, aSrc, aCount);
 end;
 
 procedure TVecDeque.InsertFrom(aIndex: SizeUInt; const aSrc: array of T);

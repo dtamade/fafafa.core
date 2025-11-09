@@ -136,7 +136,7 @@ var
 begin
   LA := FA.Count;
   if aIndex < LA then Exit(FA.Get(aIndex));
-  aIndex -= LA;
+  aIndex := aIndex - LA;
   if aIndex < FB.Count then Exit(FB.Get(aIndex));
   raise fafafa.core.base.EOutOfRange.Create('Span2.Get: index out of range');
 end;
@@ -147,7 +147,7 @@ var
 begin
   LA := FA.Count;
   if aIndex < LA then Exit(FA.TryGet(aIndex, aElement));
-  aIndex -= LA;
+  aIndex := aIndex - LA;
   if aIndex < FB.Count then Exit(FB.TryGet(aIndex, aElement));
   Result := False;
 end;
@@ -158,7 +158,7 @@ var
 begin
   LA := FA.Count;
   if aIndex < LA then Exit(FA.GetPtr(aIndex));
-  aIndex -= LA;
+  aIndex := aIndex - LA;
   if aIndex < FB.Count then Exit(FB.GetPtr(aIndex));
   raise fafafa.core.base.EOutOfRange.Create('Span2.GetPtr: index out of range');
 end;
@@ -174,7 +174,7 @@ begin
     aLen := LA - aIndex; // A 段从 aIndex 到 A 末尾连续
     Exit(True);
   end;
-  aIndex -= LA;
+  aIndex := aIndex - LA;
   if aIndex < FB.Count then
   begin
     aPtr := FB.GetPtr(aIndex);
@@ -214,7 +214,7 @@ begin
   else
   begin
     // 起点在 B 段
-    aIndex -= LA;
+    aIndex := aIndex - LA;
     A1 := TSpan.FromPointer(nil, 0, FA.FElemSize);
     B1 := FB.SubSpan(aIndex, aCount);
     Exit(FromTwo(A1, B1));

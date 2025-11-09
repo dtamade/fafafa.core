@@ -38,8 +38,9 @@ type
   end;
 
   { TArrayStack 基于数组的栈实现 - 使用 TVecDeque 作为底层容器 }
-  generic TArrayStack<T> = class(specialize IStack<T>)
+  generic TArrayStack<T> = class(TInterfacedObject, specialize IStack<T>)
   type
+    PElement = ^T;
     TInternalVecDeque = specialize TVecDeque<T>;
   private
     FStack: TInternalVecDeque;
@@ -66,8 +67,9 @@ type
   end;
 
   { TLinkedStack 基于链表的栈实现 - 使用 TVecDeque 作为底层容器 }
-  generic TLinkedStack<T> = class(specialize IStack<T>)
+  generic TLinkedStack<T> = class(TInterfacedObject, specialize IStack<T>)
   type
+    PElement = ^T;
     TInternalVecDeque = specialize TVecDeque<T>;
   private
     FStack: TInternalVecDeque;
@@ -286,27 +288,33 @@ end;
 { MakeArrayStack 实现 }
 
 generic function MakeArrayStack<T>: specialize IStack<T>;
+type
+  TStackImpl = specialize TArrayStack<T>;
 var
-  LStack: TArrayStack;
+  LStack: TStackImpl;
 begin
-  LStack := TArrayStack.Create;
+  LStack := TStackImpl.Create;
   Result := LStack;
 end;
 
 generic function MakeArrayStack<T>(aAllocator: IAllocator): specialize IStack<T>;
+type
+  TStackImpl = specialize TArrayStack<T>;
 var
-  LStack: TArrayStack;
+  LStack: TStackImpl;
 begin
-  LStack := TArrayStack.Create(aAllocator);
+  LStack := TStackImpl.Create(aAllocator);
   Result := LStack;
 end;
 
 
 generic function MakeArrayStack<T>(const aSrc: array of T): specialize IStack<T>;
+type
+  TStackImpl = specialize TArrayStack<T>;
 var
-  LStack: TArrayStack;
+  LStack: TStackImpl;
 begin
-  LStack := TArrayStack.Create;
+  LStack := TStackImpl.Create;
   try
     LStack.Push(aSrc);
     Result := LStack;
@@ -317,18 +325,22 @@ begin
 end;
 
 generic function MakeLinkedStack<T>: specialize IStack<T>;
+type
+  TStackImpl = specialize TLinkedStack<T>;
 var
-  LStack: TLinkedStack;
+  LStack: TStackImpl;
 begin
-  LStack := TLinkedStack.Create;
+  LStack := TStackImpl.Create;
   Result := LStack;
 end;
 
 generic function MakeLinkedStack<T>(const aSrc: array of T): specialize IStack<T>;
+type
+  TStackImpl = specialize TLinkedStack<T>;
 var
-  LStack: TLinkedStack;
+  LStack: TStackImpl;
 begin
-  LStack := TLinkedStack.Create;
+  LStack := TStackImpl.Create;
   try
     LStack.Push(aSrc);
     Result := LStack;
@@ -339,10 +351,12 @@ begin
 end;
 
 generic function MakeLinkedStack<T>(const aAllocator: IAllocator): specialize IStack<T>;
+type
+  TStackImpl = specialize TLinkedStack<T>;
 var
-  LStack: TLinkedStack;
+  LStack: TStackImpl;
 begin
-  LStack := TLinkedStack.Create(aAllocator);
+  LStack := TStackImpl.Create(aAllocator);
   Result := LStack;
 end;
 

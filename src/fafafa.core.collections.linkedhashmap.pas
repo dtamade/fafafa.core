@@ -98,6 +98,7 @@ type
       TNodeMap = specialize THashMap<K, PNode>;
       TPairType = specialize TPair<K,V>;
       TEntryType = specialize TMapEntry<K,V>;
+      TKeysArray = array of K;  // 定义键数组类型
 
     var
       FMap: TInternalMap;        // Stores key -> value
@@ -138,6 +139,14 @@ type
     function Last: TPairType;
     function TryGetFirst(out aPair: TPairType): Boolean;
     function TryGetLast(out aPair: TPairType): Boolean;
+
+    {**
+     * GetAllKeys
+     * @desc 获取所有键（按插入顺序）
+     * @return 键数组
+     * @Complexity O(n)
+     *}
+    function GetAllKeys: TKeysArray;
 
     // Serialization (override from base)
     procedure SerializeToArrayBuffer(aDst: Pointer; aCount: SizeUInt); override;
@@ -474,6 +483,23 @@ begin
   end
   else
     raise EInvalidOperation.Create('Cannot append LinkedHashMap to incompatible container type');
+end;
+
+function TLinkedHashMap.GetAllKeys: TKeysArray;
+var
+  LCurrent: PNode;
+  i: SizeUInt;
+begin
+  SetLength(Result, GetCount);
+
+  i := 0;
+  LCurrent := FHead;
+  while LCurrent <> nil do
+  begin
+    Result[i] := LCurrent^.Key;
+    Inc(i);
+    LCurrent := PNode(LCurrent^.Next);
+  end;
 end;
 
 procedure TLinkedHashMap.DoZero;

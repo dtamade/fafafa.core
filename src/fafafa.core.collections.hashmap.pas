@@ -346,6 +346,16 @@ type
     function Add(const AKey: K; const AValue: V): Boolean;
     function AddOrAssign(const AKey: K; const AValue: V): Boolean;
     function Remove(const AKey: K): Boolean;
+
+    {**
+     * GetKeys
+     * @desc 获取所有键
+     * @return 键数组
+     * @Complexity O(n)
+     *}
+    type
+      TKeyArray = array of K;
+    function GetKeys: TKeyArray;
   end;
 
   generic THashSet<K> = class(specialize TGenericCollection<K>, specialize IHashSet<K>)
@@ -842,6 +852,28 @@ begin
   FBuckets[idx].Hash := 0;
   Dec(FCount);
   Result := True;
+end;
+
+function THashMap.GetKeys: TKeyArray;
+var
+  i, idx: SizeUInt;
+begin
+  SetLength(Result, FCount);
+
+  // CRITICAL FIX: Check if map is empty or uninitialized
+  if (FCapacity = 0) or (FCount = 0) then
+    Exit;  // Return empty array
+
+  idx := 0;
+
+  for i := 0 to FCapacity - 1 do
+  begin
+    if FBuckets[i].State = Ord(bsOccupied) then
+    begin
+      Result[idx] := FBuckets[i].Key;
+      Inc(idx);
+    end;
+  end;
 end;
 
 { THashSet<K> }

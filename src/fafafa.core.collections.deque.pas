@@ -17,52 +17,13 @@ uses
 
 type
 
-  { IDeque 泛型双端队列接口：在 IQueue 基础上提供双端/随机访问/容量管理等扩展能力 }
-  generic IDeque<T> = interface(specialize IQueue<T>)
-  ['{F1A2B3C4-D5E6-4F78-9A0B-1C2D3E4F5A6B}']
-    // Front/Back 访问
-    function Front: T; overload;
-    function Front(var aElement: T): Boolean; overload;
-    function Back: T; overload;
-    function Back(var aElement: T): Boolean; overload;
-
-    // 双端 Push/Pop
-    procedure PushFront(const aElement: T); overload;
-    procedure PushFront(const aElements: array of T); overload;
-    procedure PushFront(const aSrc: Pointer; aElementCount: SizeUInt); overload;
-    procedure PushBack(const aElement: T); overload;
-    procedure PushBack(const aElements: array of T); overload;
-    procedure PushBack(const aSrc: Pointer; aElementCount: SizeUInt); overload;
-    function PopFront: T; overload;
-    function PopFront(var aElement: T): Boolean; overload;
-    function PopBack: T; overload;
-    function PopBack(var aElement: T): Boolean; overload;
-
-    // 随机访问与修改
-    procedure Swap(aIndex1, aIndex2: SizeUInt);
-    function Get(aIndex: SizeUInt): T;
-    function TryGet(aIndex: SizeUInt; var aElement: T): Boolean;
-    procedure Insert(aIndex: SizeUInt; const aElement: T);
-    function Remove(aIndex: SizeUInt): T;
-    function TryRemove(aIndex: SizeUInt; var aElement: T): Boolean;
-
-    // 容量与尺寸管理
-    procedure Reserve(aAdditional: SizeUInt);
-    procedure ReserveExact(aAdditional: SizeUInt);
-    procedure ShrinkToFit;
-    procedure ShrinkTo(aMinCapacity: SizeUInt);
-    procedure Truncate(aLen: SizeUInt);
-    procedure Resize(aNewSize: SizeUInt; const aValue: T);
-
-    // 批量与结构操作
-    procedure Append(const aOther: specialize IQueue<T>);
-    function SplitOff(aAt: SizeUInt): specialize IQueue<T>;
-  end;
-
   { TArrayDeque 数组双端队列实现 - 基于环形缓冲区的高性能双端队列 }
-  generic TArrayDeque<T> = class(specialize IDeque<T>, specialize IVecDeque<T>)
+  generic TArrayDeque<T> = class(TInterfacedObject, specialize IDeque<T>, specialize IVecDeque<T>)
   type
     TInternalDeque = specialize TVecDeque<T>;
+    TQueueIntf = specialize IQueue<T>;
+    TVecDequeIntf = specialize IVecDeque<T>;
+    PElement = ^T;
   private
     FDeque: TInternalDeque;
     FAllocator: IAllocator;
@@ -120,6 +81,13 @@ type
 
     procedure Append(const aOther: specialize IQueue<T>);
     function SplitOff(aAt: SizeUInt): specialize IQueue<T>;
+
+    { IVecDeque 接口实现 - 批量操作 }
+    procedure LoadFromPointer(aSrc: Pointer; aCount: SizeUInt);
+    procedure LoadFromArray(const aSrc: array of T);
+    procedure AppendFrom(const aSrc: specialize IVecDeque<T>; aSrcIndex: SizeUInt; aCount: SizeUInt);
+    procedure InsertFrom(aIndex: SizeUInt; aSrc: Pointer; aCount: SizeUInt); overload;
+    procedure InsertFrom(aIndex: SizeUInt; const aSrc: array of T); overload;
   end;
 
   { 泛型双端队列工厂函数 }
@@ -408,11 +376,22 @@ begin
 end;
 
 procedure TArrayDeque.Truncate(aLen: SizeUInt);
+var
+  I: SizeUInt;
+  LDefaultVal: T;
 begin
   if aLen < FDeque.Count then
-    FDeque.RemoveRange(aLen, FDeque.Count - aLen)
+  begin
+    // Remove excess elements
+    FDeque.Delete(aLen, FDeque.Count - aLen);
+  end
   else if aLen > FDeque.Count then
-    FDeque.InsertRange(FDeque.Count, aLen - FDeque.Count, Default(T));
+  begin
+    // Add default elements to reach desired length
+    LDefaultVal := Default(T);
+    for I := FDeque.Count to aLen - 1 do
+      FDeque.PushBack(LDefaultVal);
+  end;
 end;
 
 procedure TArrayDeque.Resize(aNewSize: SizeUInt; const aValue: T);
@@ -422,80 +401,129 @@ end;
 
 procedure TArrayDeque.Append(const aOther: specialize IQueue<T>);
 {**
- * 高效批量追加 - 使用批量内存转移替代逐个pop/push
- *
- * 性能优化：
- * - 检查aOther是否为TArrayDeque类型
- * - 如果是，使用新的AppendFrom接口直接转移内部缓冲区
- * - 如果不是，回退到逐个转移（兼容性）
- *
- * 性能提升：100x（取决于数据大小）
- *}
+| * 批量追加元素
+| * 优化要点：
+| *  - 支持 IVecDeque 队列的批量搬移（避免逐元素 Pop/Push）
+| *  - 防御性处理 self-append
+| *  - 其他实现退化到安全的逐元素搬移
+| *}
 var
-  LOther: TArrayDeque;
+  LSelfQueue: TQueueIntf;
   LCount: SizeUInt;
-  LOldCount: SizeUInt;
+  LVecDequeSrc: TVecDequeIntf;
+  LElement: T;
 begin
-  // 尝试类型检查，优化相同类型的批量转移
-  if aOther is TArrayDeque then
-  begin
-    LOther := TArrayDeque(aOther);
-    LCount := LOther.FDeque.Count;
+  if aOther = nil then
+    Exit;
 
-    if LCount > 0 then
-    begin
-      // ✅ 高效方案：使用新的AppendFrom接口直接批量转移
-      FDeque.AppendFrom(LOther.FDeque, 0, LCount);
-    end;
-  end
-  else
+  LSelfQueue := Self as TQueueIntf;
+  if Pointer(aOther) = Pointer(LSelfQueue) then
+    raise EInvalidOperation.Create('TArrayDeque.Append: cannot append deque to itself');
+
+  LCount := aOther.Count;
+  if LCount = 0 then
+    Exit;
+
+  // 快速路径：源实现同样暴露 IVecDeque 接口，可直接批量复制
+  if Supports(aOther, TVecDequeIntf, LVecDequeSrc) then
   begin
-    // 回退方案：对于其他类型的队列，逐个转移
-    // 虽然效率较低，但保持兼容性
-    LCount := aOther.Count;
-    if LCount > 0 then
-    begin
-      FDeque.EnsureCapacity(FDeque.Count + LCount);
-      while not aOther.IsEmpty do
-        FDeque.PushBack(aOther.Pop);
-    end;
+    AppendFrom(LVecDequeSrc, 0, LCount);
+    LVecDequeSrc.Clear;
+    Exit;
   end;
+
+  // 回退：逐个弹出并推入，保持行为一致
+  FDeque.Reserve(LCount);
+  while aOther.Pop(LElement) do
+    FDeque.PushBack(LElement);
 end;
 
 function TArrayDeque.SplitOff(aAt: SizeUInt): specialize IQueue<T>;
 var
+  I: SizeUInt;
+  LElement: T;
+  LCountToMove: SizeUInt;
   LNewDeque: TArrayDeque;
 begin
   if aAt > FDeque.Count then
     raise EArgumentOutOfRangeException.Create('aAt out of range');
 
   LNewDeque := TArrayDeque.Create(FAllocator);
-  try
-    if aAt < FDeque.Count then
-      LNewDeque.FDeque.MoveFrom(FDeque, aAt, FDeque.Count - aAt);
-    FDeque.RemoveRange(aAt, FDeque.Count);
-    Result := LNewDeque;
-  except
-    LNewDeque.Free;
-    raise;
+  Result := LNewDeque as TQueueIntf;  // Cast to interface
+  
+  if aAt < FDeque.Count then
+  begin
+    LCountToMove := FDeque.Count - aAt;
+    LNewDeque.FDeque.Reserve(LCountToMove);
+    // Copy elements from aAt to end to new deque
+    for I := aAt to FDeque.Count - 1 do
+    begin
+      LElement := FDeque.Get(I);
+      LNewDeque.FDeque.PushBack(LElement);
+    end;
+    // Remove moved elements from original deque
+    FDeque.Delete(aAt, LCountToMove);
   end;
+end;
+
+{ IVecDeque 批量操作实现 }
+
+procedure TArrayDeque.LoadFromPointer(aSrc: Pointer; aCount: SizeUInt);
+begin
+  FDeque.LoadFromPointer(aSrc, aCount);
+end;
+
+procedure TArrayDeque.LoadFromArray(const aSrc: array of T);
+begin
+  FDeque.LoadFromArray(aSrc);
+end;
+
+procedure TArrayDeque.AppendFrom(const aSrc: specialize IVecDeque<T>; aSrcIndex: SizeUInt; aCount: SizeUInt);
+var
+  I: SizeUInt;
+  LElement: T;
+begin
+  // Copy element by element from interface
+  if (aSrcIndex + aCount) > aSrc.Count then
+    raise EArgumentOutOfRangeException.Create('Source index and count out of range');
+  
+  FDeque.Reserve(aCount);
+  for I := 0 to aCount - 1 do
+  begin
+    LElement := aSrc.Get(aSrcIndex + I);
+    FDeque.PushBack(LElement);
+  end;
+end;
+
+procedure TArrayDeque.InsertFrom(aIndex: SizeUInt; aSrc: Pointer; aCount: SizeUInt);
+begin
+  FDeque.InsertFrom(aIndex, aSrc, aCount);
+end;
+
+procedure TArrayDeque.InsertFrom(aIndex: SizeUInt; const aSrc: array of T);
+begin
+  FDeque.InsertFrom(aIndex, aSrc);
 end;
 
 { 泛型工厂函数实现 }
 
 generic function MakeDeque<T>(const aAllocator: IAllocator = nil): specialize IDeque<T>;
+type
+  TDequeImpl = specialize TArrayDeque<T>;
 var
-  LDeque: TArrayDeque;
+  LDeque: TDequeImpl;
 begin
-  LDeque := TArrayDeque.Create(aAllocator);
+  LDeque := TDequeImpl.Create(aAllocator);
   Result := LDeque;  // 接口引用
 end;
 
 generic function MakeDeque<T>(const aElements: array of T; const aAllocator: IAllocator = nil): specialize IDeque<T>;
+type
+  TDequeImpl = specialize TArrayDeque<T>;
 var
-  LDeque: TArrayDeque;
+  LDeque: TDequeImpl;
 begin
-  LDeque := TArrayDeque.Create(aElements, aAllocator);
+  LDeque := TDequeImpl.Create(aElements, aAllocator);
   Result := LDeque;  // 接口引用
 end;
 

@@ -142,6 +142,7 @@ type
      *   Unlike Reserve, this tries to allocate exactly the requested space
      *   May fail if allocation is not possible
      *}
+    function TryReserveExact(aAdditional: SizeUint): Boolean;
     procedure ReserveExact(aAdditional: SizeUint);
 
     {**
@@ -2242,8 +2243,27 @@ begin
 end;
 
 procedure TVec.ResizeExact(aNewSize: SizeUint);
+var
+  LCap: SizeUInt;
 begin
-  FBuf.Resize(aNewSize);
+  if aNewSize = FCount then
+    exit;
+  
+  LCap := GetCapacity;
+  
+  // 如果需要扩容，先扩容
+  if aNewSize > LCap then
+    SetCapacity(aNewSize);
+  
+  // 如果需要缩容（减少元素数），处理托管类型
+  if (aNewSize < FCount) and GetIsManagedType then
+    GetElementManager.FinalizeManagedElementsUnChecked(FBuf.GetPtrUnChecked(aNewSize), FCount - aNewSize);
+  
+  // 如果需要扩容（增加元素数），初始化新元素
+  if aNewSize > FCount then
+    GetElementManager.InitializeElementsUnChecked(FBuf.GetPtrUnChecked(FCount), aNewSize - FCount);
+  
+  // 只改变 FCount，不改变容量（除非之前需要扩容）
   FCount := aNewSize;
 end;
 
@@ -2256,15 +2276,35 @@ end;
 procedure TVec.ShrinkToFit;
 var
   UsedElems, CapElems: SizeUInt;
-  RatioThresholdElems, MinKeepElems: SizeUInt;
+  UsedBytes, CapBytes: SizeUInt;
+  RatioThresholdBytes, MinKeepBytes: SizeUInt;
+  ElemSize: SizeUInt;
+  ThresholdBytes: SizeUInt;
 begin
-  // 滞回策略（按元素计），与文档一致：当 Capacity > max(2×Count, 128) 时收缩到 Count
+  // 滞回策略（按字节计）：阈值 = max(2×UsedBytes, 64 KiB)
+  // 当 CapacityBytes > 阈值时，收缩到 Count
   UsedElems := FCount;
   CapElems  := GetCapacity;
-  RatioThresholdElems := UsedElems shl 1;  // 2x
-  MinKeepElems := 128;                     // 最小保留阈值（元素数）
-
-  if CapElems > SizeUInt(Max(RatioThresholdElems, MinKeepElems)) then
+  
+  if CapElems <= UsedElems then
+    exit; // 容量不超过使用量，无需收缩
+  
+  ElemSize := GetElementSize;
+  UsedBytes := UsedElems * ElemSize;
+  CapBytes  := CapElems * ElemSize;
+  
+  // 阈值 = max(2×UsedBytes, 64 KiB)
+  RatioThresholdBytes := UsedBytes shl 1;  // 2×UsedBytes
+  MinKeepBytes := 64 * 1024;               // 64 KiB
+  
+  // 如果容量字节数小于 64 KiB，主要使用 2×UsedBytes 作为阈值
+  // 否则使用 max(2×UsedBytes, 64 KiB)
+  if CapBytes < MinKeepBytes then
+    ThresholdBytes := RatioThresholdBytes
+  else
+    ThresholdBytes := Max(RatioThresholdBytes, MinKeepBytes);
+  
+  if CapBytes > ThresholdBytes then
     SetCapacity(FCount);
 end;
 
@@ -3116,8 +3156,10 @@ var
   i: SizeUInt;
 begin
   SetLength(Result, FCount);
-  for i := 0 to FCount - 1 do
-    Result[i] := GetUnChecked(i);
+  // 空向量直接返回，避免无效索引访问
+  if FCount > 0 then
+    for i := 0 to FCount - 1 do
+      Result[i] := GetUnChecked(i);
 end;
 
 function TVec.Clone: TCollection;
