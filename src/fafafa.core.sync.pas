@@ -19,7 +19,7 @@ uses
   fafafa.core.sync.barrier,
   fafafa.core.sync.sem,
   fafafa.core.sync.event,
-  // fafafa.core.sync.recMutex, // Temporarily disabled due to compilation issues
+  fafafa.core.sync.recMutex,
   // Named synchronization primitives
   fafafa.core.sync.namedMutex,
   fafafa.core.sync.namedEvent,
@@ -37,7 +37,7 @@ type
   ILock              = fafafa.core.sync.base.ILock;
   ILockGuard         = fafafa.core.sync.base.ILockGuard;
   IMutex             = fafafa.core.sync.mutex.IMutex;
-  // IRecMutex          = fafafa.core.sync.recMutex.IRecMutex; // Temporarily disabled
+  IRecMutex          = fafafa.core.sync.recMutex.IRecMutex;
   ISpin              = fafafa.core.sync.spin.ISpin;
   IOnce              = fafafa.core.sync.once.IOnce;
   IRWLock            = fafafa.core.sync.rwlock.IRWLock;
@@ -66,7 +66,7 @@ type
   TLockGuard              = fafafa.core.sync.base.TLockGuard;
 
   TMutex             = fafafa.core.sync.mutex.TMutex;
-  // TRecMutex          = fafafa.core.sync.recMutex.TRecMutex; // Temporarily disabled
+  TRecMutex          = fafafa.core.sync.recMutex.TRecMutex;
   TOnce              = fafafa.core.sync.once.TOnce;
   TRWLock            = fafafa.core.sync.rwlock.TRWLock;
   TEvent             = fafafa.core.sync.event.TEvent;
@@ -116,8 +116,10 @@ function MakeBarrier(AParticipantCount: Integer): IBarrier; inline;
 function MakeSem(AInitialCount: Integer = 1; AMaxCount: Integer = 1): ISem; inline;
 function MakeEvent(AManualReset: Boolean = False; AInitialState: Boolean = False): IEvent; inline;
 
-// function MakeRecMutex(ASpinCount: DWORD): IRecMutex; overload; inline;
-// function MakeRecMutex: IRecMutex; overload;
+function MakeRecMutex: IRecMutex; overload; inline;
+{$IFDEF WINDOWS}
+function MakeRecMutex(ASpinCount: DWORD): IRecMutex; overload; inline;
+{$ENDIF}
 
 // Once factory functions
 function MakeOnce: IOnce; overload; inline;
@@ -181,15 +183,17 @@ begin
   Result := fafafa.core.sync.event.MakeEvent(AManualReset, AInitialState);
 end;
 
-// function MakeRecMutex: IRecMutex;
-// begin
-//   Result := fafafa.core.sync.recMutex.MakeRecMutex;
-// end;
+function MakeRecMutex: IRecMutex;
+begin
+  Result := fafafa.core.sync.recMutex.MakeRecMutex;
+end;
 
-// function MakeRecMutex(ASpinCount: DWORD): IRecMutex;
-// begin
-//   Result := fafafa.core.sync.recMutex.MakeRecMutex(ASpinCount);
-// end;
+{$IFDEF WINDOWS}
+function MakeRecMutex(ASpinCount: DWORD): IRecMutex;
+begin
+  Result := fafafa.core.sync.recMutex.MakeRecMutex(ASpinCount);
+end;
+{$ENDIF}
 
 function MakeOnce: IOnce;
 begin
