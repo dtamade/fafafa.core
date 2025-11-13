@@ -72,14 +72,15 @@ type
   end;
 
   {**
-   * TLinkedNode<K>
+   * TLinkedNode<K,V>
    *
    * @desc Internal doubly-linked list node for maintaining order
+   *       Stores the actual key/value pair for pointer iteration
    *}
-  generic TLinkedNode<K> = record
-    Key: K;
-    Prev: Pointer;  // Points to previous TLinkedNode<K>
-    Next: Pointer;  // Points to next TLinkedNode<K>
+  generic TLinkedNode<K,V> = record
+    Pair: specialize TPair<K,V>;
+    Prev: Pointer;  // Points to previous node
+    Next: Pointer;  // Points to next node
   end;
 
   {**
@@ -92,7 +93,7 @@ type
   generic TLinkedHashMap<K,V> = class(specialize TGenericCollection<specialize TMapEntry<K,V>>, specialize ILinkedHashMap<K,V>)
   private
     type
-      TNode = specialize TLinkedNode<K>;
+      TNode = specialize TLinkedNode<K,V>;
       PNode = ^TNode;
       TInternalMap = specialize THashMap<K,V>;
       TNodeMap = specialize THashMap<K, PNode>;
@@ -108,8 +109,10 @@ type
 
     procedure LinkNode(aNode: PNode);
     procedure UnlinkNode(aNode: PNode);
-    function AllocateNode(const aKey: K): PNode;
+    function AllocateNode(const aKey: K; const aValue: V): PNode;
     procedure FreeNode(aNode: PNode);
+    function DoIterGetCurrent(aIter: PPtrIter): Pointer;
+    function DoIterMoveNext(aIter: PPtrIter): Boolean;
 
   public
     constructor Create; overload;
@@ -200,11 +203,12 @@ begin
   inherited;
 end;
 
-function TLinkedHashMap.AllocateNode(const aKey: K): PNode;
+function TLinkedHashMap.AllocateNode(const aKey: K; const aValue: V): PNode;
 begin
   Result := PNode(Self.FAllocator.GetMem(SizeOf(TNode)));
   Initialize(Result^);  // Initialize managed fields
-  Result^.Key := aKey;
+  Result^.Pair.Key := aKey;
+  Result^.Pair.Value := aValue;
   Result^.Prev := nil;
   Result^.Next := nil;
 end;
@@ -278,7 +282,7 @@ begin
   FMap.Add(aKey, aValue);
 
   // Create and link node
-  LNode := AllocateNode(aKey);
+  LNode := AllocateNode(aKey, aValue);
   LinkNode(LNode);
   FNodeMap.Add(aKey, LNode);
 
@@ -296,7 +300,7 @@ begin
   begin
     // New key - add to hash map and create linked node
     FMap.Add(aKey, aValue);
-    LNode := AllocateNode(aKey);
+    LNode := AllocateNode(aKey, aValue);
     LinkNode(LNode);
     FNodeMap.Add(aKey, LNode);
   end
@@ -304,6 +308,8 @@ begin
   begin
     // Existing key - just update value, don't change order
     FMap.AddOrAssign(aKey, aValue);
+    if FNodeMap.TryGetValue(aKey, LNode) then
+      LNode^.Pair.Value := aValue;
   end;
 end;
 
@@ -376,9 +382,7 @@ begin
   if FHead = nil then
     raise Exception.Create('LinkedHashMap is empty');
 
-  Result.Key := FHead^.Key;
-  if not FMap.TryGetValue(FHead^.Key, Result.Value) then
-    raise Exception.Create('Inconsistent state: key in list but not in map');
+  Result := FHead^.Pair;
 end;
 
 function TLinkedHashMap.Last: TPairType;
@@ -386,36 +390,26 @@ begin
   if FTail = nil then
     raise Exception.Create('LinkedHashMap is empty');
 
-  Result.Key := FTail^.Key;
-  if not FMap.TryGetValue(FTail^.Key, Result.Value) then
-    raise Exception.Create('Inconsistent state: key in list but not in map');
+  Result := FTail^.Pair;
 end;
 
 function TLinkedHashMap.TryGetFirst(out aPair: TPairType): Boolean;
 begin
   Result := FHead <> nil;
   if Result then
-  begin
-    aPair.Key := FHead^.Key;
-    FMap.TryGetValue(FHead^.Key, aPair.Value);
-  end;
+    aPair := FHead^.Pair;
 end;
 
 function TLinkedHashMap.TryGetLast(out aPair: TPairType): Boolean;
 begin
   Result := FTail <> nil;
   if Result then
-  begin
-    aPair.Key := FTail^.Key;
-    FMap.TryGetValue(FTail^.Key, aPair.Value);
-  end;
+    aPair := FTail^.Pair;
 end;
 
 function TLinkedHashMap.PtrIter: TPtrIter;
 begin
-  // LinkedHashMap uses a doubly-linked list structure, not suitable for pointer iteration
-  // Callers should use enumerator/iteration methods instead
-  FillChar(Result, SizeOf(TPtrIter), 0);
+  Result.Init(Self, @DoIterGetCurrent, @DoIterMoveNext, nil);
 end;
 
 procedure TLinkedHashMap.SerializeToArrayBuffer(aDst: Pointer; aCount: SizeUInt);
@@ -432,8 +426,9 @@ begin
   LCurrent := FHead;
   while (LCurrent <> nil) and (i < aCount) do
   begin
-    LEntries[i].Key := LCurrent^.Key;
-    FMap.TryGetValue(LCurrent^.Key, LEntries[i].Value);
+    // ✅ Fix: Manually copy fields from TPair to TMapEntry (type incompatibility)
+    LEntries[i].Key := LCurrent^.Pair.Key;
+    LEntries[i].Value := LCurrent^.Pair.Value;
     Inc(i);
     LCurrent := PNode(LCurrent^.Next);
   end;
@@ -448,16 +443,16 @@ end;
 procedure TLinkedHashMap.AppendUnChecked(const aSrc: Pointer; aElementCount: SizeUInt);
 var
   i: SizeUInt;
-  LEntries: ^TEntryType;
+  LEntry: ^TEntryType;
 begin
   if (aSrc = nil) or (aElementCount = 0) then
     Exit;
 
-  LEntries := aSrc;
+  LEntry := aSrc;
   for i := 0 to aElementCount - 1 do
   begin
-    AddOrAssign(LEntries[i].Key, LEntries[i].Value);
-    Inc(LEntries);
+    AddOrAssign(LEntry^.Key, LEntry^.Value);
+    Inc(LEntry);
   end;
 end;
 
@@ -465,7 +460,6 @@ procedure TLinkedHashMap.AppendToUnChecked(const aDst: TCollection);
 var
   LCurrent: PNode;
   LDstMap: TLinkedHashMap;
-  LValue: V;
 begin
   if aDst = nil then
     Exit;
@@ -476,13 +470,43 @@ begin
     LCurrent := FHead;
     while LCurrent <> nil do
     begin
-      if FMap.TryGetValue(LCurrent^.Key, LValue) then
-        LDstMap.AddOrAssign(LCurrent^.Key, LValue);
+      LDstMap.AddOrAssign(LCurrent^.Pair.Key, LCurrent^.Pair.Value);
       LCurrent := PNode(LCurrent^.Next);
     end;
   end
   else
-    raise EInvalidOperation.Create('Cannot append LinkedHashMap to incompatible container type');
+  begin
+    LCurrent := FHead;
+    while LCurrent <> nil do
+    begin
+      aDst.AppendUnChecked(@LCurrent^.Pair, 1);
+      LCurrent := PNode(LCurrent^.Next);
+    end;
+  end;
+end;
+
+function TLinkedHashMap.DoIterGetCurrent(aIter: PPtrIter): Pointer;
+begin
+  if (aIter = nil) or (aIter^.Data = nil) then
+    Exit(nil);
+  Result := @PNode(aIter^.Data)^.Pair;
+end;
+
+function TLinkedHashMap.DoIterMoveNext(aIter: PPtrIter): Boolean;
+var
+  LNode: PNode;
+begin
+  if not aIter^.Started then
+  begin
+    aIter^.Started := True;
+    aIter^.Data := FHead;
+  end
+  else if aIter^.Data <> nil then
+  begin
+    LNode := PNode(aIter^.Data);
+    aIter^.Data := PNode(LNode^.Next);
+  end;
+  Result := aIter^.Data <> nil;
 end;
 
 function TLinkedHashMap.GetAllKeys: TKeysArray;
@@ -496,7 +520,7 @@ begin
   LCurrent := FHead;
   while LCurrent <> nil do
   begin
-    Result[i] := LCurrent^.Key;
+    Result[i] := LCurrent^.Pair.Key;
     Inc(i);
     LCurrent := PNode(LCurrent^.Next);
   end;
@@ -513,7 +537,8 @@ begin
   LCurrent := FHead;
   while LCurrent <> nil do
   begin
-    FMap.AddOrAssign(LCurrent^.Key, LZeroValue);
+    LCurrent^.Pair.Value := LZeroValue;
+    FMap.AddOrAssign(LCurrent^.Pair.Key, LZeroValue);
     LCurrent := PNode(LCurrent^.Next);
   end;
 end;
@@ -537,5 +562,3 @@ begin
 end;
 
 end.
-
-
