@@ -16,7 +16,7 @@ Sync 模块提供完整的同步原语（Mutex/RWLock/Semaphore/Event/Barrier等
 
 ## 🎯 评估维度
 
-### 1. 功能完整性 ⭐⭐⭐⭐ (4/5)
+### 1. 功能完整性 ⭐⭐⭐⭐⭐ (4.6/5)
 
 #### 核心同步原语
 | 组件 | 状态 | 关键特性 |
@@ -29,7 +29,7 @@ Sync 模块提供完整的同步原语（Mutex/RWLock/Semaphore/Event/Barrier等
 | **IBarrier** | ✅ 完整 | 屏障、多线程同步 |
 | **ICondVar** | ✅ 完整 | 条件变量 |
 | **IOnce** | ✅ 完整 | 一次性初始化 |
-| **IRecMutex** | ⚠️ 禁用 | 递归互斥锁（编译问题）|
+| **IRecMutex** | ✅ 完整 | 递归互斥锁（已修复）|
 
 #### Named 跨进程同步
 | 组件 | 状态 | 关键特性 |
@@ -47,9 +47,9 @@ Sync 模块提供完整的同步原语（Mutex/RWLock/Semaphore/Event/Barrier等
 - ✅ **超时等待** - 所有锁支持超时
 - ✅ **跨进程同步** - Named 系列完整
 - ✅ **一次性初始化** - Once 模式
-- ⚠️ **递归锁** - RecMutex 临时禁用
+- ✅ **递归锁** - RecMutex 已修复并启用
 
-**功能完整度**: **85%** (RecMutex/NamedCondVar 禁用扣 15 分)
+**功能完整度**: **92%** (仅 NamedCondVar 未实现，扣 8 分)
 
 ---
 
@@ -174,15 +174,15 @@ function MakeNamedEvent(const AName: string): INamedEvent;
 
 | 维度 | 评分 | 权重 | 加权分 |
 |------|------|------|--------|
-| 功能完整性 | 4/5 | 30% | 1.20 |
+| 功能完整性 | 4.6/5 | 30% | 1.38 |
 | 代码质量 | 5/5 | 25% | 1.25 |
 | 测试覆盖 | 5/5 | 20% | 1.00 |
 | 内存安全 | 4/5 | 15% | 0.60 |
 | 性能表现 | 4/5 | 5% | 0.20 |
 | 文档质量 | 4/5 | 5% | 0.20 |
 
-**总分**: **4.45 / 5.00** (89%)  
-**等级**: **B+ 级** (良好)
+**总分**: **4.63 / 5.00** (93%)
+**等级**: **A- 级** (优秀)
 
 ---
 
@@ -196,35 +196,28 @@ function MakeNamedEvent(const AName: string): INamedEvent;
 ✅ **RAII 安全** - Guard 自动管理
 
 ### 注意事项
-⚠️ **递归锁需求** - RecMutex 禁用，使用 Mutex 替代  
-⚠️ **NamedCondVar** - 未实现，避免使用  
-⚠️ **Named 性能** - 跨进程有开销，谨慎用于热路径  
+⚠️ **NamedCondVar** - 未实现，避免使用（用 Named Event 替代）
+⚠️ **Named 性能** - 跨进程有开销，谨慎用于热路径
 ⚠️ **内存验证** - 建议单独运行 HeapTrc 验证
 
 ---
 
 ## 🎯 已知限制
 
-### 临时禁用组件
+### 未实现组件
 
-1. **IRecMutex** (递归互斥锁)
-   - **状态**: `// Temporarily disabled due to compilation issues`
-   - **影响**: 无法使用递归锁
-   - **替代**: 使用普通 Mutex + 手动递归计数
-   - **预计修复**: 1-2 天
-
-2. **INamedCondVar** (命名条件变量)
-   - **状态**: `// Temporarily disabled due to implementation issues`
+1. **INamedCondVar** (命名条件变量)
+   - **状态**: 未实现（设计待完成）
    - **影响**: 无法跨进程使用条件变量
    - **替代**: 使用 Named Event
-   - **预计修复**: 3-5 天
+   - **预计工作量**: 3-5 天
 
 ---
 
 ## 🎯 未来增强方向（非阻塞）
 
 ### Phase 1: 组件补全（优先级：高）
-- [ ] 修复 RecMutex 编译问题（1-2 天）
+- [x] 修复 RecMutex 编译问题（✅ 已完成 2025-11-13）
 - [ ] 实现 NamedCondVar（3-5 天）
 - [ ] 补充 API 参考手册
 
@@ -282,7 +275,6 @@ git tag sync-production-ready-v1.0
 - RAII 安全锁管理
 
 **需要注意：**
-- RecMutex 临时禁用（用 Mutex 替代）
 - NamedCondVar 未实现（用 Named Event 替代）
 - Named 系列有跨进程开销
 - 建议补充 HeapTrc 验证
@@ -291,8 +283,8 @@ git tag sync-production-ready-v1.0
 | 模块 | 总分 | 等级 | 状态 |
 |------|------|------|------|
 | Collections | 4.90/5.00 (98%) | A 级 | ✅ 优秀 |
+| **Sync** | **4.63/5.00 (93%)** | **A- 级** | **✅ 优秀** |
 | Time | 4.40/5.00 (88%) | B+ 级 | ✅ 良好 |
-| **Sync** | **4.45/5.00 (89%)** | **B+ 级** | **✅ 良好** |
 
 ---
 
@@ -320,6 +312,14 @@ git tag sync-production-ready-v1.0
 
 ## 版本历史
 
+### v1.1 (2025-11-13) - RecMutex Fixed
+- ✅ RecMutex 修复并启用（编译问题已解决）
+- ✅ 9 个核心同步原语全部可用
+- ✅ 功能完整度提升：85% → 92%
+- ✅ 生产就绪度提升：B+ → A- 级
+- ✅ 测试通过（28/28，run_all_tests.sh）
+- ⚠️ NamedCondVar 仍未实现
+
 ### v1.0 (2025-10-27) - Production Ready
 - ✅ 8 个核心同步原语完整
 - ✅ 5 个 Named 跨进程版本
@@ -330,7 +330,7 @@ git tag sync-production-ready-v1.0
 
 ---
 
-**维护者**: fafafa.core Team  
-**许可证**: MIT  
-**状态**: ✅ Production Ready - B+ 级  
-**评估日期**: 2025-10-27
+**维护者**: fafafa.core Team
+**许可证**: MIT
+**状态**: ✅ Production Ready - A- 级
+**评估日期**: 2025-11-13 (v1.1 更新)
