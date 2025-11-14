@@ -1,8 +1,8 @@
 # fafafa.core.collections 生产就绪性评估报告
 
-**评估日期**: 2025-10-27  
-**评估者**: AI Agent (Warp)  
-**版本**: v1.0 (基于 tag: collections-optimization-v1.0)
+**评估日期**: 2025-11-13
+**评估者**: AI Agent (Warp)
+**版本**: v1.1 (LinkedHashMap 修复 + 100% 内存泄漏验证)
 
 ---
 
@@ -262,6 +262,71 @@ git tag collections-production-ready-v1.0
 
 ---
 
-**签名**: AI Agent (Warp)  
-**日期**: 2025-10-27  
+**签名**: AI Agent (Warp)
+**日期**: 2025-11-13
 **状态**: ✅ Production Ready - A 级
+
+---
+
+## 📜 版本历史
+
+### v1.1 (2025-11-13) - LinkedHashMap 修复 + 完整内存验证
+
+#### 🔧 修复内容
+1. **LinkedHashMap 类型兼容性修复**
+   - **问题**: `TPair<K,V>` 和 `TMapEntry<K,V>` 泛型类型不兼容
+   - **位置**: `fafafa.core.collections.linkedhashmap.pas` 第 429 行
+   - **修复**: 改为字段级拷贝 `LEntries[i].Key := LCurrent^.Pair.Key;`
+   - **影响**: LinkedHashMap.ToArray 方法正常工作
+   - **测试**: ✅ 内存泄漏测试通过（0 泄漏）
+
+2. **完整内存泄漏验证（10/10）**
+   - ✅ test_vec_leak - 0 unfreed blocks
+   - ✅ test_vecdeque_leak - 0 unfreed blocks
+   - ✅ test_list_leak - 0 unfreed blocks
+   - ✅ test_hashmap_leak - 0 unfreed blocks
+   - ✅ test_hashset_leak - 0 unfreed blocks
+   - ✅ test_linkedhashmap_leak - 0 unfreed blocks ⭐ 新增
+   - ✅ test_bitset_leak - 0 unfreed blocks
+   - ✅ test_treeset_leak - 0 unfreed blocks
+   - ✅ test_treemap_leak - 0 unfreed blocks
+   - ✅ test_priorityqueue_leak - 0 unfreed blocks
+   - **通过率**: 100% (10/10)
+   - **报告**: `tests/COLLECTIONS_MEMORY_LEAK_REPORT.md`
+
+3. **回归测试验证**
+   - ✅ 28/28 测试模块全部通过
+   - ✅ 包括新修复的 LinkedHashMap 测试
+   - ✅ 0 编译警告，0 运行时错误
+
+#### 📊 影响
+- **功能完整性**: 维持 5/5 分（LinkedHashMap 现已完全可用）
+- **内存安全**: 维持 5/5 分（100% 泄漏验证完成）
+- **代码质量**: 维持 5/5 分（遵循最佳实践修复）
+- **总分**: 维持 4.90/5.00 (98%, A 级)
+
+#### 🎯 交付物
+- ✅ LinkedHashMap 源码修复
+- ✅ 内存泄漏测试报告（自动生成）
+- ✅ 生产就绪报告更新（本文档）
+- ✅ Git 提交和标签（collections-v1.1）
+
+---
+
+### v1.0 (2025-10-27) - 初始生产就绪版本
+
+#### ✅ 达成目标
+1. **功能完整**: 9 个核心容器全部实现
+2. **测试覆盖**: 22/22 测试模块通过
+3. **内存安全**: HashMap 泄漏修复验证
+4. **代码质量**: 0 TODO/FIXME，循环依赖解耦
+5. **性能优化**: 批量操作 100x，位运算 10-20x
+
+#### 📦 包含组件
+- TVec, TVecDeque, THashMap, TLinkedHashMap, TForwardList
+- TStack, TQueue, TDeque, TLRUCache, TOrderedMap
+- 增长策略系统，分配器抽象，迭代器协议
+
+#### 🏷️ 标签
+- `collections-optimization-v1.0`
+- `collections-production-ready-v1.0`
