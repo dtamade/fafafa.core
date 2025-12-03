@@ -43,6 +43,12 @@ function GetAvailableBackends: TSimdBackendArray; // alias for backward compatib
 // Cache and lifecycle helpers
 procedure ResetCPUInfo; // safe reset for re-initialization
 
+// Quick feature detection (commonly used)
+function HasSSE2: Boolean;
+function HasAVX2: Boolean;
+function HasAVX512: Boolean;
+function HasNEON: Boolean;
+
 {$IFDEF SIMD_X86_AVAILABLE}
 function GetX86CPUInfo: TX86Features;
 {$ENDIF}
@@ -422,6 +428,65 @@ begin
   MemoryBarrier;
   // Reset init state
   G_InitState := 0;
+end;
+
+// === Quick feature detection ===
+
+function HasSSE2: Boolean;
+{$IFDEF SIMD_X86_AVAILABLE}
+var
+  cpuInfo: TCPUInfo;
+{$ENDIF}
+begin
+  {$IFDEF SIMD_X86_AVAILABLE}
+  cpuInfo := GetCPUInfo;
+  Result := (cpuInfo.Arch = caX86) and cpuInfo.X86.HasSSE2;
+  {$ELSE}
+  Result := False;
+  {$ENDIF}
+end;
+
+function HasAVX2: Boolean;
+{$IFDEF SIMD_X86_AVAILABLE}
+var
+  cpuInfo: TCPUInfo;
+{$ENDIF}
+begin
+  {$IFDEF SIMD_X86_AVAILABLE}
+  cpuInfo := GetCPUInfo;
+  Result := (cpuInfo.Arch = caX86) and cpuInfo.X86.HasAVX2 and (gfSimd256 in cpuInfo.GenericUsable);
+  {$ELSE}
+  Result := False;
+  {$ENDIF}
+end;
+
+function HasAVX512: Boolean;
+{$IFDEF SIMD_X86_AVAILABLE}
+var
+  cpuInfo: TCPUInfo;
+{$ENDIF}
+begin
+  {$IFDEF SIMD_X86_AVAILABLE}
+  cpuInfo := GetCPUInfo;
+  // AVX-512 requires: AVX512F + OS support (XCR0 bits 5,6,7 for opmask, ZMM_Hi256, Hi16_ZMM)
+  Result := (cpuInfo.Arch = caX86) and cpuInfo.X86.HasAVX512F and (gfSimd512 in cpuInfo.GenericUsable);
+  {$ELSE}
+  Result := False;
+  {$ENDIF}
+end;
+
+function HasNEON: Boolean;
+{$IFDEF SIMD_ARM_AVAILABLE}
+var
+  cpuInfo: TCPUInfo;
+{$ENDIF}
+begin
+  {$IFDEF SIMD_ARM_AVAILABLE}
+  cpuInfo := GetCPUInfo;
+  Result := (cpuInfo.Arch = caARM) and cpuInfo.ARM.HasNEON;
+  {$ELSE}
+  Result := False;
+  {$ENDIF}
 end;
 
 end.

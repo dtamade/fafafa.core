@@ -16,9 +16,9 @@ uses
 // - 请逐步�?uses 中的 fafafa.core.simd.types 替换�?fafafa.core.simd.base�?
 // =============================================================
 
-// === 向量数据类型（record + variant 部分�?===
+// === 向量数据类型（record + variant 部分）===
 type
-  // 128-bit
+  // 128-bit 有符号向量
   TVecF32x4 = record
     case Integer of
       0: (f: array[0..3] of Single);
@@ -52,6 +52,31 @@ type
   TVecI8x16 = record
     case Integer of
       0: (i: array[0..15] of Int8);
+      1: (raw: array[0..15] of Byte);
+  end;
+
+  // 128-bit 无符号向量 (Phase 1.1)
+  TVecU32x4 = record
+    case Integer of
+      0: (u: array[0..3] of UInt32);
+      1: (raw: array[0..15] of Byte);
+  end;
+
+  TVecU64x2 = record
+    case Integer of
+      0: (u: array[0..1] of UInt64);
+      1: (raw: array[0..15] of Byte);
+  end;
+
+  TVecU16x8 = record
+    case Integer of
+      0: (u: array[0..7] of UInt16);
+      1: (raw: array[0..15] of Byte);
+  end;
+
+  TVecU8x16 = record
+    case Integer of
+      0: (u: array[0..15] of UInt8);
       1: (raw: array[0..15] of Byte);
   end;
 
@@ -91,6 +116,35 @@ type
       2: (raw: array[0..31] of Byte);
   end;
 
+  // 256-bit 无符号向量 (Phase 1.1)
+  TVecU32x8 = record
+    case Integer of
+      0: (u: array[0..7] of UInt32);
+      1: (lo, hi: TVecU32x4);
+      2: (raw: array[0..31] of Byte);
+  end;
+
+  TVecU64x4 = record
+    case Integer of
+      0: (u: array[0..3] of UInt64);
+      1: (lo, hi: TVecU64x2);
+      2: (raw: array[0..31] of Byte);
+  end;
+
+  TVecU16x16 = record
+    case Integer of
+      0: (u: array[0..15] of UInt16);
+      1: (lo, hi: TVecU16x8);
+      2: (raw: array[0..31] of Byte);
+  end;
+
+  TVecU8x32 = record
+    case Integer of
+      0: (u: array[0..31] of UInt8);
+      1: (lo, hi: TVecU8x16);
+      2: (raw: array[0..31] of Byte);
+  end;
+
 // === 掩码类型（位掩码�?===
 type
   TMask2  = type Byte;   // �?2 位有�?
@@ -98,6 +152,29 @@ type
   TMask8  = type Byte;   // �?8 位有�?
   TMask16 = type Word;   // �?16 位有�?
   TMask32 = type DWord;  // �?32 位有�?
+
+// === 运算符重载 (Phase 1.2) ===
+// TVecF32x4 运算符
+operator + (const a, b: TVecF32x4): TVecF32x4; inline;
+operator - (const a, b: TVecF32x4): TVecF32x4; inline;
+operator * (const a, b: TVecF32x4): TVecF32x4; inline;
+operator / (const a, b: TVecF32x4): TVecF32x4; inline;
+operator - (const a: TVecF32x4): TVecF32x4; inline;
+operator * (const a: TVecF32x4; s: Single): TVecF32x4; inline;
+operator * (s: Single; const a: TVecF32x4): TVecF32x4; inline;
+operator / (const a: TVecF32x4; s: Single): TVecF32x4; inline;
+
+// TVecF64x2 运算符
+operator + (const a, b: TVecF64x2): TVecF64x2; inline;
+operator - (const a, b: TVecF64x2): TVecF64x2; inline;
+operator * (const a, b: TVecF64x2): TVecF64x2; inline;
+operator / (const a, b: TVecF64x2): TVecF64x2; inline;
+operator - (const a: TVecF64x2): TVecF64x2; inline;
+
+// TVecI32x4 运算符
+operator + (const a, b: TVecI32x4): TVecI32x4; inline;
+operator - (const a, b: TVecI32x4): TVecI32x4; inline;
+operator - (const a: TVecI32x4): TVecI32x4; inline;
 
 // === 元素类型枚举 ===
 type
@@ -173,5 +250,123 @@ type
   TCPUInfo      = fafafa.core.simd.cpuinfo.base.TCPUInfo;
 
 implementation
+
+// === TVecF32x4 运算符实现 ===
+
+operator + (const a, b: TVecF32x4): TVecF32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.f[i] := a.f[i] + b.f[i];
+end;
+
+operator - (const a, b: TVecF32x4): TVecF32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.f[i] := a.f[i] - b.f[i];
+end;
+
+operator * (const a, b: TVecF32x4): TVecF32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.f[i] := a.f[i] * b.f[i];
+end;
+
+operator / (const a, b: TVecF32x4): TVecF32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.f[i] := a.f[i] / b.f[i];
+end;
+
+operator - (const a: TVecF32x4): TVecF32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.f[i] := -a.f[i];
+end;
+
+operator * (const a: TVecF32x4; s: Single): TVecF32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.f[i] := a.f[i] * s;
+end;
+
+operator * (s: Single; const a: TVecF32x4): TVecF32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.f[i] := s * a.f[i];
+end;
+
+operator / (const a: TVecF32x4; s: Single): TVecF32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.f[i] := a.f[i] / s;
+end;
+
+// === TVecF64x2 运算符实现 ===
+
+operator + (const a, b: TVecF64x2): TVecF64x2;
+var i: Integer;
+begin
+  for i := 0 to 1 do
+    Result.d[i] := a.d[i] + b.d[i];
+end;
+
+operator - (const a, b: TVecF64x2): TVecF64x2;
+var i: Integer;
+begin
+  for i := 0 to 1 do
+    Result.d[i] := a.d[i] - b.d[i];
+end;
+
+operator * (const a, b: TVecF64x2): TVecF64x2;
+var i: Integer;
+begin
+  for i := 0 to 1 do
+    Result.d[i] := a.d[i] * b.d[i];
+end;
+
+operator / (const a, b: TVecF64x2): TVecF64x2;
+var i: Integer;
+begin
+  for i := 0 to 1 do
+    Result.d[i] := a.d[i] / b.d[i];
+end;
+
+operator - (const a: TVecF64x2): TVecF64x2;
+var i: Integer;
+begin
+  for i := 0 to 1 do
+    Result.d[i] := -a.d[i];
+end;
+
+// === TVecI32x4 运算符实现 ===
+
+operator + (const a, b: TVecI32x4): TVecI32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.i[i] := a.i[i] + b.i[i];
+end;
+
+operator - (const a, b: TVecI32x4): TVecI32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.i[i] := a.i[i] - b.i[i];
+end;
+
+operator - (const a: TVecI32x4): TVecI32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.i[i] := -a.i[i];
+end;
 
 end.

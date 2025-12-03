@@ -41,9 +41,19 @@ run_test() {
     fi
     
     echo "Running tests: $EXECUTABLE"
+    echo "Timeout: 60 seconds (will kill if hangs)"
     cd "$PROJECT_ROOT"
-    "$EXECUTABLE" --all --format=plain --progress
-    if [ $? -ne 0 ]; then
+    
+    # 使用timeout命令，60秒超时，超时后发送SIGKILL
+    timeout --kill-after=5 60 "$EXECUTABLE" --all --format=plain --progress
+    local exit_code=$?
+    
+    if [ $exit_code -eq 124 ]; then
+        echo
+        echo "ERROR: Tests timed out after 60 seconds - process was killed!"
+        echo "This indicates a hang or infinite loop in the tests."
+        return 1
+    elif [ $exit_code -ne 0 ]; then
         echo
         echo "Tests failed!"
         return 1

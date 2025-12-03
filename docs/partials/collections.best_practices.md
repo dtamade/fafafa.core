@@ -55,46 +55,28 @@ Quick run examples:
 - Guidance: prefer 64B for general CPU locality; 4KiB for I/O or mmapped buffers; 2MiB only when you have large, long-lived buffers and the OS actually backs them; always profile
 
 ### How to apply policies
-- Object-based strategy injection
-  - Create a base policy, optionally wrap with alignment, then pass into TVecDeque
-- Interface-based strategy injection
-  - Expose TGrowthStrategy via TGrowthStrategyInterfaceView and call SetGrowStrategyI
+- Interface-based strategy injection (recommended)
+  - Use factory functions (e.g., `GoldenRatioGrow`) to get `IGrowthStrategy`
+  - Wrap with `TAlignedWrapperStrategy` for alignment if needed
+  - All strategies are reference-counted via interfaces
 
-Example (object-based):
+Example:
 
 ```pascal
 uses fafafa.core.collections.base, fafafa.core.collections.vecdeque;
 
 var
   D: specialize TVecDeque<Integer>;
-  Base: TGrowthStrategy;
-  Aligned: TAlignedWrapperStrategy;
 begin
-  Base    := TGoldenRatioGrowStrategy.GetGlobal;
-  Aligned := TAlignedWrapperStrategy.Create(Base, 64);
-  D := specialize TVecDeque<Integer>.Create(0, nil, Aligned, nil);
+  D := specialize TVecDeque<Integer>.Create;
   try
+    // TAlignedWrapperStrategy accepts IGrowthStrategy directly
+    // Lifetime is managed by interface reference counting
+    D.SetGrowStrategy(TAlignedWrapperStrategy.Create(GoldenRatioGrow, 64));
     // ... use deque
   finally
     D.Free;
   end;
-end.
-```
-
-Example (interface-based):
-
-```pascal
-uses fafafa.core.collections.base, fafafa.core.collections.vecdeque;
-
-var
-  D: specialize TVecDeque<Integer>;
-  Obj: TGrowthStrategy;
-  Intf: IGrowthStrategy;
-begin
-  D := specialize TVecDeque<Integer>.Create;
-  Obj  := TAlignedWrapperStrategy.Create(TGoldenRatioGrowStrategy.GetGlobal, 64);
-  Intf := TGrowthStrategyInterfaceView.Create(Obj);
-  D.SetGrowStrategyI(Intf);
 end.
 ```
 

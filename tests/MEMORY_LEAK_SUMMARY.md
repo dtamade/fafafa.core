@@ -1,32 +1,37 @@
 # 集合类型内存泄漏检测总结
 
 **项目**: fafafa.core.collections  
-**日期**: 2025-10-06  
-**测试方法**: Free Pascal HeapTrc (`-gh -gl`)
+**最近一次验证**: 2025-11-12  
+**测试方法**: `tests/run_leak_tests.sh`（内部调用 Free Pascal HeapTrc，编译参数 `-gh -gl -dUseCThreads`）  
+**一键运行**: `bash tests/memory_leak/BuildOrTest.sh` （已纳入 `tests/run_all_tests.sh` 的模块扫描）
 
 ---
 
 ## 检测状态概览
 
-| 集合类型 | 状态 | 内存泄漏 | 测试日期 | 报告 |
-|---------|------|---------|---------|------|
-| **THashMap** | ✅ 已检测 | **无** | 2025-10-06 | [HASHMAP_HEAPTRC_REPORT.md](HASHMAP_HEAPTRC_REPORT.md) |
-| **THashSet** | ✅ 已检测 | **无** | 2025-10-26 | [test_hashset_leak.pas](test_hashset_leak.pas) |
-| **TVec** | ✅ 已检测 | **无** | 2025-10-26 | [test_vec_leak.pas](test_vec_leak.pas) |
-| **TVecDeque** | ✅ 已检测 | **无** | 2025-10-26 | [test_vecdeque_leak.pas](test_vecdeque_leak.pas) |
-| **TList** | ✅ 已检测 | **无** | 2025-10-26 | [test_list_leak.pas](test_list_leak.pas) |
-| **TPriorityQueue** | ✅ 已检测 | **无** | 2025-10-26 | [test_priorityqueue_leak.pas](test_priorityqueue_leak.pas) |
+| 集合类型 | 状态 | 内存泄漏 | 最新测试 | 日志 / 报告 |
+|---------|------|---------|---------|-------------|
+| **THashMap** | ✅ 已验证 | **无** | 2025-11-12 | [test_hashmap_leak.log](leak_test_logs/test_hashmap_leak.log) / [HASHMAP_HEAPTRC_REPORT.md](HASHMAP_HEAPTRC_REPORT.md) |
+| **THashSet** | ✅ 已验证 | **无** | 2025-11-12 | [test_hashset_leak.log](leak_test_logs/test_hashset_leak.log) |
+| **TLinkedHashMap** | ✅ 已验证 | **无** | 2025-11-12 | [test_linkedhashmap_leak.log](leak_test_logs/test_linkedhashmap_leak.log) |
+| **TTreeMap** | ✅ 已验证 | **无** | 2025-11-12 | [test_treemap_leak.log](leak_test_logs/test_treemap_leak.log) |
+| **TTreeSet** | ✅ 已验证 | **无** | 2025-11-12 | [test_treeset_leak.log](leak_test_logs/test_treeset_leak.log) |
+| **TBitSet** | ✅ 已验证 | **无** | 2025-11-12 | [test_bitset_leak.log](leak_test_logs/test_bitset_leak.log) |
+| **TVec** | ✅ 已验证 | **无** | 2025-11-12 | [test_vec_leak.log](leak_test_logs/test_vec_leak.log) |
+| **TVecDeque** | ✅ 已验证 | **无** | 2025-11-12 | [test_vecdeque_leak.log](leak_test_logs/test_vecdeque_leak.log) |
+| **TList** | ✅ 已验证 | **无** | 2025-11-12 | [test_list_leak.log](leak_test_logs/test_list_leak.log) |
+| **TPriorityQueue** | ✅ 已验证 | **无** | 2025-11-12 | [test_priorityqueue_leak.log](leak_test_logs/test_priorityqueue_leak.log) |
 
 ---
 
 ## HashMap 检测结果详情
 
-### ✅ 结果：无内存泄漏
+### ✅ 结果：无内存泄漏（最新验证：2025-11-12）
 
 **HeapTrc 输出**:
 ```
-3665 memory blocks allocated : 182597 bytes
-3665 memory blocks freed     : 182597 bytes
+3570 memory blocks allocated : 180732 bytes
+3570 memory blocks freed     : 180732 bytes
 0 unfreed memory blocks : 0 bytes
 ```
 
@@ -45,12 +50,12 @@
 
 ## HashSet 检测结果详情
 
-### ✅ 结果：无内存泄漏
+### ✅ 结果：无内存泄漏（最新验证：2025-11-12）
 
 **HeapTrc 输出**:
 ```
-77 memory blocks allocated : 74394 bytes
-77 memory blocks freed     : 74394 bytes
+77 memory blocks allocated : 74649 bytes
+77 memory blocks freed     : 74649 bytes
 0 unfreed memory blocks : 0
 ```
 
@@ -63,14 +68,60 @@
 
 ---
 
-## TVec 检测结果详情
+## TLinkedHashMap 检测结果详情
 
-### ✅ 结果：无内存泄漏
+### ✅ 结果：无内存泄漏（最新验证：2025-11-12）
 
 **HeapTrc 输出**:
 ```
-69 memory blocks allocated : 21286 bytes
-69 memory blocks freed     : 21286 bytes
+1110 memory blocks allocated : 197479 bytes
+1110 memory blocks freed     : 197479 bytes
+0 unfreed memory blocks : 0
+```
+
+### 已测试的场景
+1. ✅ 插入 / 删除并保持插入顺序 (`Test1_BasicOps`, `Test3_OrderPreservation`)
+2. ✅ Clear 操作释放所有键值对
+3. ✅ 重复键覆盖，验证旧值 finalize
+4. ✅ 1000 元素压力测试 + 批量删除偶数键
+
+### 重点结论
+- 双向链表节点与哈希桶全部被正确 Finalize
+- 顺序指针在 Clear / Free 过程中无悬挂引用
+
+---
+
+## TBitSet 检测结果详情
+
+### ✅ 结果：无内存泄漏（最新验证：2025-11-12）
+
+**HeapTrc 输出**:
+```
+62 memory blocks allocated : 108212 bytes
+62 memory blocks freed     : 108212 bytes
+0 unfreed memory blocks : 0
+```
+
+### 已测试的场景
+1. ✅ 基本 Set/Clear/Flip 操作
+2. ✅ AND / OR / XOR / NOT 组合操作（通过接口引用返回）
+3. ✅ SetAll / ClearAll / 动态扩容
+4. ✅ 10000 bit 压力测试
+
+### 重点结论
+- 再次验证了“通过接口而非对象指针使用 TBitSet” 的修复策略
+- `IBitSet` 返回值全部依赖引用计数，未再出现 double-free
+
+---
+
+## TVec 检测结果详情
+
+### ✅ 结果：无内存泄漏（最新验证：2025-11-12）
+
+**HeapTrc 输出**:
+```
+72 memory blocks allocated : 21777 bytes
+72 memory blocks freed     : 21777 bytes
 0 unfreed memory blocks : 0
 ```
 
@@ -85,12 +136,12 @@
 
 ## TVecDeque 检测结果详情
 
-### ✅ 结果：无内存泄漏
+### ✅ 结果：无内存泄漏（最新验证：2025-11-12）
 
 **HeapTrc 输出**:
 ```
-193 memory blocks allocated : 21551 bytes
-193 memory blocks freed     : 21551 bytes
+196 memory blocks allocated : 22107 bytes
+196 memory blocks freed     : 22107 bytes
 0 unfreed memory blocks : 0
 ```
 
@@ -105,12 +156,12 @@
 
 ## TList 检测结果详情
 
-### ✅ 结果：无内存泄漏
+### ✅ 结果：无内存泄漏（最新验证：2025-11-12）
 
 **HeapTrc 输出**:
 ```
-1081 memory blocks allocated : 26198 bytes
-1081 memory blocks freed     : 26198 bytes
+1081 memory blocks allocated : 26438 bytes
+1081 memory blocks freed     : 26438 bytes
 0 unfreed memory blocks : 0
 ```
 
@@ -123,14 +174,62 @@
 
 ---
 
-## TPriorityQueue 检测结果详情
+## TTreeSet 检测结果详情
 
-### ✅ 结果：无内存泄漏
+### ✅ 结果：无内存泄漏（最新验证：2025-11-12）
 
 **HeapTrc 输出**:
 ```
-16 memory blocks allocated : 13346 bytes
-16 memory blocks freed     : 13346 bytes
+1091 memory blocks allocated : 40065 bytes
+1091 memory blocks freed     : 40065 bytes
+0 unfreed memory blocks : 0
+```
+
+### 已测试的场景
+1. ✅ 基本 Add/Remove/Contains 操作
+2. ✅ Clear 释放整棵红黑树（post-order 删除）
+3. ✅ 集合运算：Union / Intersect / Difference（接口返回）
+4. ✅ 重复元素去重验证
+5. ✅ 1000 元素插入 + 删除偶数值 + Clear 压力测试
+
+### 重点结论
+- TreeSet 的 Sentinel 架构在反复 Clear/Free 时稳定
+- 接口返回值在离开作用域时自动释放，无泄漏
+
+---
+
+## TTreeMap 检测结果详情
+
+### ✅ 结果：无内存泄漏（最新验证：2025-11-12，Sentinel 模式已启用）
+
+**HeapTrc 输出**:
+```
+1076 memory blocks allocated : 47169 bytes
+1076 memory blocks freed     : 47169 bytes
+0 unfreed memory blocks : 0
+```
+
+### 已测试的场景
+1. ✅ 基本 Put/Get/Remove / Clear
+2. ✅ 字符串键覆盖 + 删除组合（释放旧值）
+3. ✅ 整型键的有序插入，验证 Comparator 与旋转逻辑
+4. ✅ 1000 元素压力测试（插入->删除偶数->Clear）
+
+### 重点结论
+- `TRedBlackTree` 现在以 Sentinel 取代 nil 节点，所有 Rotate/Fix 流程不再需要大量 nil 检查
+- HeapTrc 证明节点 `Allocate/Free` 路径均会调用 `Finalize(Key/Value)`
+- TreeMap 成为第 10 个通过 HeapTrc 的集合类型，Collections 模块达到 **100% 内存安全验证覆盖**
+
+---
+
+## TPriorityQueue 检测结果详情
+
+### ✅ 结果：无内存泄漏（最新验证：2025-11-12）
+
+**HeapTrc 输出**:
+```
+24 memory blocks allocated : 9703 bytes
+24 memory blocks freed     : 9703 bytes
 0 unfreed memory blocks : 0
 ```
 
@@ -148,18 +247,22 @@
 ## 下一步行动计划
 
 ### ✅ 已完成
-- [x] **THashMap** - 深度内存泄漏检测完成，0泄漏
-- [x] **THashSet** - 内存泄漏检测完成，0泄漏 ✅
-- [x] **TVec** - 内存泄漏检测完成，0泄漏 ✅
-- [x] **TVecDeque** - 内存泄漏检测完成，0泄漏 ✅
-- [x] **TList** - 内存泄漏检测完成，0泄漏 ✅
-- [x] **TPriorityQueue** - 内存泄漏检测完成，0泄漏 ✅
+- [x] **THashMap** - 深度内存泄漏检测完成，0 泄漏
+- [x] **THashSet** - 基于 HashMap 的 set 行为验证 ✅
+- [x] **TLinkedHashMap** - 顺序保持 + 压力测试 ✅
+- [x] **TBitSet** - 接口引用计数路径验证 ✅
+- [x] **TTreeSet** - 红黑树集合（含集合运算）验证 ✅
+- [x] **TTreeMap** - Sentinel 重构后验证 ✅
+- [x] **TVec** - 动态数组 ✅
+- [x] **TVecDeque** - 双端队列 ✅
+- [x] **TList** - 单向链表 ✅
+- [x] **TPriorityQueue** - 二叉堆 ✅
 
-### 🎉 所有集合类型内存安全验证完成！
-- [x] 编译所有内存泄漏测试
-- [x] 运行测试并检查 HeapTrc 输出
-- [x] 验证所有集合类型显示 "0 unfreed memory blocks"
-- [x] 更新 MEMORY_LEAK_SUMMARY.md
+### 🎉 Collections 模块 10/10 类型全部通过内存安全验证！
+- [x] 使用 `tests/run_leak_tests.sh` 一键编译运行全部测试
+- [x] 每个测试生成独立 HeapTrc 日志 `tests/leak_test_logs/*.log`
+- [x] 生成集中化报告 [COLLECTIONS_MEMORY_LEAK_REPORT.md](COLLECTIONS_MEMORY_LEAK_REPORT.md)
+- [x] 更新 Memory Leak Summary 文档，固化数据和测试方法
 
 ### 后续工作：扩展测试
 - [ ] 并发场景测试（如果支持多线程）
@@ -274,7 +377,8 @@ valgrind --leak-check=full \
 | 日期 | 操作 | 说明 |
 |------|------|------|
 | 2025-10-06 | ✅ HashMap 检测完成 | 无泄漏，已生成详细报告 |
-| 2025-10-26 | ✅ 创建所有集合类型测试 | 5个新测试文件已创建，待编译运行 |
+| 2025-10-26 | ✅ 创建所有集合类型测试 | 5 个新测试文件已创建，待编译运行 |
+| 2025-11-12 | ✅ 一键运行 10 个集合泄漏测试 | `run_leak_tests.sh` + HeapTrc 日志 + 汇总报告 |
 
 ---
 
@@ -287,36 +391,29 @@ valgrind --leak-check=full \
 ---
 
 **维护者**: fafafa.core 团队
-**最后更新**: 2025-10-26
+**最后更新**: 2025-11-12
 
 ---
 
 ## 🎉 项目重大里程碑
 
-### 2025-10-26: 集合类型内存安全全面验证
+### 2025-11-12：Collections 内存安全 10/10 全面闭环
 
-经过深度内存泄漏检测，**fafafa.core 的所有 6 种主要集合类型均已验证无内存泄漏**：
+- ✨ **TreeMap Sentinel 重构验证完成**：`test_treemap_leak` 运行 5 个场景，0 泄漏  
+- ✨ **新增 4 个集合测试程序**：LinkedHashMap / BitSet / TreeSet / TreeMap  
+- ✨ **`tests/run_leak_tests.sh` 一键验证**：10 个测试全部自动编译、运行、采集 HeapTrc，生成 [COLLECTIONS_MEMORY_LEAK_REPORT.md](COLLECTIONS_MEMORY_LEAK_REPORT.md)  
+- ✨ **日志归档**：所有 HeapTrc 输出集中于 `tests/leak_test_logs/`，便于审计  
+- ✨ **文档 & 统计更新**：`MEMORY_LEAK_SUMMARY.md` 记录最新数据，Collections 模块正式达到 **100% 内存安全验证覆盖**
 
-1. **THashMap** (2025-10-06) - ✅ 0 泄漏
-2. **THashSet** (2025-10-26) - ✅ 0 泄漏
-3. **TVec** (2025-10-26) - ✅ 0 泄漏
-4. **TVecDeque** (2025-10-26) - ✅ 0 泄漏
-5. **TList** (2025-10-26) - ✅ 0 泄漏
-6. **TPriorityQueue** (2025-10-26) - ✅ 0 泄漏
-
-**总计测试场景**: 30+ 个内存操作场景
-**HeapTrc 总计检测**: 累计分配和释放超过 400,000 字节内存
-**结果**: **0 unfreed memory blocks** （所有测试均通过）
-
-### 技术改进
-- ✅ 添加了 coperators 模式支持到 fafafa.core.collections.slice
-- ✅ 修复了所有测试文件的 API 调用问题
-- ✅ 完善了 MEMORY_LEAK_SUMMARY.md 文档
+### 历史节点
+1. **2025-10-06** — HashMap 深度泄漏检测，0 泄漏
+2. **2025-10-26** — 首批 6 个集合测试完成，建立标准化模板
+3. **2025-11-12** — TreeMap + 其余 3 个集合补齐，脚本化验证上线
 
 ### 下一步计划
-- 并发场景测试（多线程安全验证）
-- 更大规模的压力测试（10000+ 元素）
-- 对象值的内存管理测试
-- 异常安全性测试
+- 将 `tests/run_leak_tests.sh` 接入 CI nightly，自动归档最新日志
+- 在 `run_leak_tests.sh` 中添加 `--filter` / `--json` 选项，方便局部验证
+- 扩展对象值（非纯值类型）和多线程使用场景
+- 在 Linux 环境追加 Valgrind/ASan 进行交叉验证
 
 ---

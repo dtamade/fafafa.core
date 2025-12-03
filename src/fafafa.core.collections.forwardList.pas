@@ -1170,6 +1170,7 @@ var
   LCurrent: PNode;
   i: SizeUInt;
 begin
+  Result := nil;
   SetLength(Result, FCount);
   if FCount = 0 then
     Exit;

@@ -167,7 +167,7 @@ begin
   LFirstDeleted := -1;
   while LProbeCount < FCapacity do
   begin
-    LState := atomic_load(FBuckets[LIndex].State, memory_order_acquire);
+    LState := atomic_load(FBuckets[LIndex].State, mo_acquire);
     case LState of
       0 {Empty}: begin
         if LFirstDeleted <> -1 then Exit(LFirstDeleted)
@@ -210,21 +210,21 @@ begin
     if LIndex = -1 then Exit(False);
 
     // 读取槽位状态
-    LState := atomic_load(FBuckets[LIndex].State, memory_order_acquire);
+    LState := atomic_load(FBuckets[LIndex].State, mo_acquire);
 
     if LState = 0 {Empty} then
     begin
       // 尝试从 Empty -> Writing
       LExpected := 0;
-      if atomic_compare_exchange_strong(FBuckets[LIndex].State, LExpected, 1 {Writing}, memory_order_acq_rel) then
+      if atomic_compare_exchange_strong(FBuckets[LIndex].State, LExpected, 1 {Writing}) then
       begin
         // 写入 Key/Value/Hash（尚未发布）
         FBuckets[LIndex].Key := AKey;
         FBuckets[LIndex].Value := AValue;
         FBuckets[LIndex].Hash := LHash;
         // 发布占用状态（release）：读侧 acquire 观察到 Occupied 后可见上述写入
-        atomic_store(FBuckets[LIndex].State, 2 {Occupied}, memory_order_release);
-        atomic_fetch_add(FSize, 1, memory_order_relaxed);
+        atomic_store(FBuckets[LIndex].State, 2 {Occupied}, mo_release);
+        atomic_fetch_add(FSize, 1);
         Exit(True);
       end;
       // CAS 失败：继续重试
@@ -249,13 +249,13 @@ begin
     begin
       // 复用墓碑槽位
       LExpected := 3;
-      if atomic_compare_exchange_strong(FBuckets[LIndex].State, LExpected, 1 {Writing}, memory_order_acq_rel) then
+      if atomic_compare_exchange_strong(FBuckets[LIndex].State, LExpected, 1 {Writing}) then
       begin
         FBuckets[LIndex].Key := AKey;
         FBuckets[LIndex].Value := AValue;
         FBuckets[LIndex].Hash := LHash;
-        atomic_store(FBuckets[LIndex].State, 2 {Occupied}, memory_order_release);
-        atomic_fetch_add(FSize, 1, memory_order_relaxed);
+        atomic_store(FBuckets[LIndex].State, 2 {Occupied}, mo_release);
+        atomic_fetch_add(FSize, 1);
         Exit(True);
       end;
     end
@@ -289,7 +289,7 @@ begin
   LProbeCount := 0;
   while LProbeCount < FCapacity do
   begin
-    LState := atomic_load(FBuckets[LIndex].State, memory_order_acquire);
+    LState := atomic_load(FBuckets[LIndex].State, mo_acquire);
     case LState of
       0 {Empty}: Exit(False);
       2 {Occupied}: begin
@@ -322,7 +322,7 @@ begin
   LProbeCount := 0;
   while LProbeCount < FCapacity do
   begin
-    LState := atomic_load(FBuckets[LIndex].State, memory_order_acquire);
+    LState := atomic_load(FBuckets[LIndex].State, mo_acquire);
     case LState of
       0 {Empty}: Exit(False);
       2 {Occupied}: begin
@@ -330,7 +330,7 @@ begin
            (KeysEqual(FBuckets[LIndex].Key, AKey)) then
         begin
           LExpected := 2;
-          if atomic_compare_exchange_strong(FBuckets[LIndex].State, LExpected, 3 {Deleted}, memory_order_acq_rel) then
+          if atomic_compare_exchange_strong(FBuckets[LIndex].State, LExpected, 3 {Deleted}) then
           begin
             {$push}
             {$warn 5057 off}
@@ -338,7 +338,7 @@ begin
             System.Finalize(FBuckets[LIndex].Key);
             System.Finalize(FBuckets[LIndex].Value);
             {$pop}
-            atomic_fetch_sub(FSize, 1, memory_order_relaxed);
+            atomic_fetch_sub(FSize, 1);
             Exit(True);
           end;
         end;
@@ -361,7 +361,7 @@ end;
 
 function TLockFreeHashMap.GetSize: Integer;
 begin
-  Result := atomic_load(FSize, memory_order_relaxed);
+  Result := atomic_load(FSize, mo_relaxed);
 end;
 
 function TLockFreeHashMap.GetCapacity: Integer;
@@ -386,13 +386,13 @@ begin
       System.Finalize(FBuckets[I].Value);
     end;
     {$pop}
-    atomic_store(FBuckets[I].State, 0, memory_order_relaxed);
+    atomic_store(FBuckets[I].State, 0, mo_relaxed);
     // 复位辅助字段
     FillChar(FBuckets[I].Key, SizeOf(K), 0);
     FillChar(FBuckets[I].Value, SizeOf(V), 0);
     FBuckets[I].Hash := 0;
   end;
-  atomic_store(FSize, 0, memory_order_relaxed);
+  atomic_store(FSize, 0, mo_relaxed);
 end;
 
 
@@ -412,18 +412,18 @@ begin
     LIndex := FindSlot(AKey, LHash);
     if LIndex = -1 then Exit(False);
 
-    LState := atomic_load(FBuckets[LIndex].State, memory_order_acquire);
+    LState := atomic_load(FBuckets[LIndex].State, mo_acquire);
 
     if LState = 0 {Empty} then
     begin
       LExpected := 0;
-      if atomic_compare_exchange_strong(FBuckets[LIndex].State, LExpected, 1 {Writing}, memory_order_acq_rel) then
+      if atomic_compare_exchange_strong(FBuckets[LIndex].State, LExpected, 1 {Writing}) then
       begin
         FBuckets[LIndex].Key := AKey;
         FBuckets[LIndex].Value := AValue;
         FBuckets[LIndex].Hash := LHash;
-        atomic_store(FBuckets[LIndex].State, 2 {Occupied}, memory_order_release);
-        atomic_fetch_add(FSize, 1, memory_order_relaxed);
+        atomic_store(FBuckets[LIndex].State, 2 {Occupied}, mo_release);
+        atomic_fetch_add(FSize, 1);
         Exit(True);
       end;
     end
@@ -437,13 +437,13 @@ begin
     begin
       // reuse tombstone slot for insert-only
       LExpected := 3;
-      if atomic_compare_exchange_strong(FBuckets[LIndex].State, LExpected, 1 {Writing}, memory_order_acq_rel) then
+      if atomic_compare_exchange_strong(FBuckets[LIndex].State, LExpected, 1 {Writing}) then
       begin
         FBuckets[LIndex].Key := AKey;
         FBuckets[LIndex].Value := AValue;
         FBuckets[LIndex].Hash := LHash;
-        atomic_store(FBuckets[LIndex].State, 2 {Occupied}, memory_order_release);
-        atomic_fetch_add(FSize, 1, memory_order_relaxed);
+        atomic_store(FBuckets[LIndex].State, 2 {Occupied}, mo_release);
+        atomic_fetch_add(FSize, 1);
         Exit(True);
       end;
     end
@@ -477,8 +477,7 @@ end;
 
 function TLockFreeHashMap.IsEmpty: Boolean;
 begin
-  Result := atomic_load(FSize, memory_order_relaxed) = 0;
+  Result := atomic_load(FSize, mo_relaxed) = 0;
 end;
 
 end.
-

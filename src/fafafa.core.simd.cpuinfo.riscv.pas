@@ -141,7 +141,13 @@ begin
   
   Result.ISA := 'RISC-V';
   
-  // TODO: 实现更详细的处理器信息检�?end;
+  // 需要检测的内容：
+  // 1. 扩展指令集 (M, A, F, D, C, V等)
+  // 2. UARCH微架构信息
+  // 3. 缓存大小和层级
+  // 4. 频率信息
+  // 当前返回基础信息，后续通过/proc/cpuinfo或设备树完善
+end;
 
 function ParseRISCVFeaturesFromCpuInfo(const cpuInfo: string): TRISCVFeatures;
 var

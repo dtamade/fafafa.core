@@ -51,6 +51,44 @@ uses
 
 type
   {**
+   * TSleepStrategy - 睡眠策略枚举
+   *
+   * ✅ ISSUE-49: 可配置的睡眠策略
+   *
+   * 定义 WaitFor/WaitUntil 中等待行为的策略，平衡响应延迟和 CPU/能耗开销。
+   *
+   * @value ssLowLatency - 低延迟优先
+   *   尽可能快地结束等待，但 CPU 占用较高。
+   *   适用于实时交互、音视频处理、游戏等场景。
+   *   - 最终自旋阈值：20us
+   *   - 微睡眠步长：25us
+   *   - 常规睡眠切片：500us
+   *
+   * @value ssBalanced - 平衡模式（默认）
+   *   平衡响应延迟和 CPU 占用，适合大多数场景。
+   *   - 最终自旋阈值：10us
+   *   - 微睡眠步长：50us
+   *   - 常规睡眠切片：1ms
+   *
+   * @value ssLowPower - 低能耗优先
+   *   减少 CPU 唤醒频率，但响应延迟较高。
+   *   适用于后台服务、移动设备等对能耗敏感的场景。
+   *   - 最终自旋阈值：0（不自旋）
+   *   - 微睡眠步长：100us
+   *   - 常规睡眠切片：10ms
+   *
+   * @value ssCustom - 自定义模式
+   *   使用 SetSleepStrategyParams 设置的参数。
+   *   适用于需要精细调优的场景。
+   *}
+  TSleepStrategy = (
+    ssLowLatency,  // 低延迟优先
+    ssBalanced,    // 平衡模式（默认）
+    ssLowPower,    // 低能耗优先
+    ssCustom       // 自定义模式
+  );
+
+  {**
    * IMonotonicClock - 单调时钟接口
    *
    * @desc
@@ -191,6 +229,74 @@ function NowUnixNs: Int64; inline;
 
 // 时间测量便捷函数
 function TimeIt(const P: TProc): TDuration;
+
+// ✅ ISSUE-18: 取消令牌检查频率配置
+/// <summary>
+///   设置 WaitFor/WaitUntil 中取消令牌的检查间隔。
+/// </summary>
+/// <param name="AInterval">检查间隔，建议范围 100us - 10ms</param>
+/// <remarks>
+///   <para>默认值：1ms（平衡响应速度和 CPU 开销）</para>
+///   <para><b>调优建议</b>：</para>
+///   <list type="bullet">
+///     <item>快速响应场景（如 UI）：100us - 500us</item>
+///     <item>普通场景：1ms（默认）</item>
+///     <item>低能耗场景：5ms - 10ms</item>
+///   </list>
+///   <para>警告：过短的间隔会增加 CPU 开销</para>
+/// </remarks>
+procedure SetCancellationCheckInterval(const AInterval: TDuration);
+
+/// <summary>
+///   获取当前取消令牌检查间隔。
+/// </summary>
+function GetCancellationCheckInterval: TDuration;
+
+// ✅ ISSUE-49: 睡眠策略配置 API
+/// <summary>
+///   设置睡眠策略。
+/// </summary>
+/// <param name="AStrategy">睡眠策略枚举值</param>
+/// <remarks>
+///   <para><b>预定义策略</b>：</para>
+///   <list type="bullet">
+///     <item>ssLowLatency: 低延迟（游戏/UI）</item>
+///     <item>ssBalanced: 平衡模式（默认）</item>
+///     <item>ssLowPower: 低能耗（后台服务）</item>
+///     <item>ssCustom: 使用 SetSleepStrategyParams 的参数</item>
+///   </list>
+/// </remarks>
+procedure SetSleepStrategy(AStrategy: TSleepStrategy);
+
+/// <summary>
+///   获取当前睡眠策略。
+/// </summary>
+function GetSleepStrategy: TSleepStrategy;
+
+/// <summary>
+///   设置自定义睡眠策略参数。
+/// </summary>
+/// <param name="AFinalSpinNs">最终自旋阈值（纳秒），低于此值时使用 CPU 自旋</param>
+/// <param name="AMicroSleepNs">微睡眠步长（纳秒），短睡眠阶段的每步时长</param>
+/// <param name="ASliceSleepNs">常规睡眠切片（纳秒），长睡眠的最大切片</param>
+/// <remarks>
+///   <para>调用此函数后自动切换到 ssCustom 策略。</para>
+///   <para><b>参考值</b>：</para>
+///   <list type="bullet">
+///     <item>低延迟: FinalSpin=20us, MicroSleep=25us, Slice=500us</item>
+///     <item>平衡: FinalSpin=10us, MicroSleep=50us, Slice=1ms</item>
+///     <item>低能耗: FinalSpin=0, MicroSleep=100us, Slice=10ms</item>
+///   </list>
+/// </remarks>
+procedure SetSleepStrategyParams(AFinalSpinNs, AMicroSleepNs, ASliceSleepNs: Int64);
+
+/// <summary>
+///   获取当前睡眠策略参数。
+/// </summary>
+/// <param name="AFinalSpinNs">输出：最终自旋阈值（纳秒）</param>
+/// <param name="AMicroSleepNs">输出：微睡眠步长（纳秒）</param>
+/// <param name="ASliceSleepNs">输出：常规睡眠切片（纳秒）</param>
+procedure GetSleepStrategyParams(out AFinalSpinNs, AMicroSleepNs, ASliceSleepNs: Int64);
 
 implementation
 
@@ -333,6 +439,17 @@ var
   GSysClock: ISystemClock = nil;
   GClock: IClock = nil;
   GInitLock: TRTLCriticalSection;
+  
+  // ✅ ISSUE-18: 可配置的取消检查频率
+  // 默认 1ms，可通过 SetCancellationCheckInterval 调整
+  GCancellationCheckIntervalNs: Int64 = 1000000; // 1ms = 1,000,000 ns
+  
+  // ✅ ISSUE-49: 睡眠策略配置
+  GSleepStrategy: TSleepStrategy = ssBalanced;
+  // 策略参数（单位：纳秒）
+  GFinalSpinNs: Int64 = 10000;      // 10us - 最终自旋阈值
+  GMicroSleepNs: Int64 = 50000;     // 50us - 微睡眠步长
+  GSliceSleepNs: Int64 = 1000000;   // 1ms - 常规睡眠切片
 
 // 工厂函数实现
 
@@ -464,6 +581,82 @@ begin
   Result := NowInstant.Diff(startTime);
 end;
 
+// ✅ ISSUE-18: 取消令牌检查间隔配置
+procedure SetCancellationCheckInterval(const AInterval: TDuration);
+var
+  ns: Int64;
+begin
+  ns := AInterval.AsNs;
+  // 限制合理范围：10us - 100ms
+  if ns < 10000 then ns := 10000;           // 最小 10us
+  if ns > 100000000 then ns := 100000000;   // 最大 100ms
+  GCancellationCheckIntervalNs := ns;
+end;
+
+function GetCancellationCheckInterval: TDuration;
+begin
+  Result := TDuration.FromNs(GCancellationCheckIntervalNs);
+end;
+
+// ✅ ISSUE-49: 睡眠策略配置实现
+procedure SetSleepStrategy(AStrategy: TSleepStrategy);
+begin
+  GSleepStrategy := AStrategy;
+  // 应用预定义策略的参数
+  case AStrategy of
+    ssLowLatency:
+      begin
+        GFinalSpinNs := 20000;      // 20us
+        GMicroSleepNs := 25000;     // 25us
+        GSliceSleepNs := 500000;    // 500us
+      end;
+    ssBalanced:
+      begin
+        GFinalSpinNs := 10000;      // 10us
+        GMicroSleepNs := 50000;     // 50us
+        GSliceSleepNs := 1000000;   // 1ms
+      end;
+    ssLowPower:
+      begin
+        GFinalSpinNs := 0;          // 不自旋
+        GMicroSleepNs := 100000;    // 100us
+        GSliceSleepNs := 10000000;  // 10ms
+      end;
+    ssCustom:
+      ; // 保留当前参数
+  end;
+end;
+
+function GetSleepStrategy: TSleepStrategy;
+begin
+  Result := GSleepStrategy;
+end;
+
+procedure SetSleepStrategyParams(AFinalSpinNs, AMicroSleepNs, ASliceSleepNs: Int64);
+begin
+  // 参数边界检查
+  if AFinalSpinNs < 0 then AFinalSpinNs := 0;
+  if AFinalSpinNs > 1000000 then AFinalSpinNs := 1000000; // 最大 1ms
+  
+  if AMicroSleepNs < 1000 then AMicroSleepNs := 1000;     // 最小 1us
+  if AMicroSleepNs > 1000000 then AMicroSleepNs := 1000000; // 最大 1ms
+  
+  if ASliceSleepNs < 10000 then ASliceSleepNs := 10000;   // 最小 10us
+  if ASliceSleepNs > 100000000 then ASliceSleepNs := 100000000; // 最大 100ms
+  
+  GFinalSpinNs := AFinalSpinNs;
+  GMicroSleepNs := AMicroSleepNs;
+  GSliceSleepNs := ASliceSleepNs;
+  GSleepStrategy := ssCustom;  // 自动切换到自定义模式
+end;
+
+procedure GetSleepStrategyParams(out AFinalSpinNs, AMicroSleepNs, ASliceSleepNs: Int64);
+begin
+  AFinalSpinNs := GFinalSpinNs;
+  AMicroSleepNs := GMicroSleepNs;
+  ASliceSleepNs := GSliceSleepNs;
+end;
+
 { TMonotonicClock }
 
 {$IFDEF MSWINDOWS}
@@ -542,7 +735,7 @@ class function TMonotonicClock.MonoNowNs: UInt64;
 var
   ts: timespec;
 begin
-  if fpclock_gettime(CLOCK_MONOTONIC, @ts) = 0 then
+  if clock_gettime(CLOCK_MONOTONIC, @ts) = 0 then
     Result := UInt64(ts.tv_sec) * 1000000000 + UInt64(ts.tv_nsec)
   else
     Result := UInt64(GetTickCount64) * 1000 * 1000;
@@ -592,6 +785,7 @@ var
   chunkNs: Int64;
   microSleepNs: Int64;
   finalSpinNs: Int64;
+  cancelCheckNs: Int64;
   nowI, deadline: TInstant;
 begin
   if (Token <> nil) and Token.IsCancellationRequested then
@@ -602,10 +796,15 @@ begin
   deadline := nowI.Add(D);
 
   // ✅ ISSUE-17: 优化等待策略，减少 CPU 自旋
-  // TODO: 这些配置值应该来自 fafafa.core.time.config，目前使用默认值
-  chunkNs := 10 * 1000 * 1000;      // 10ms 常规切片
-  microSleepNs := 50 * 1000;        // 50us 微睡眠步长
-  finalSpinNs := 10 * 1000;         // 10us 最终自旋阈值（从 50us 降为 10us）
+  // ✅ ISSUE-18: 使用可配置的取消检查间隔
+  // ✅ ISSUE-49: 使用可配置的睡眠策略参数
+  cancelCheckNs := GCancellationCheckIntervalNs;  // 默认 1ms
+  microSleepNs := GMicroSleepNs;    // 默认 50us
+  finalSpinNs := GFinalSpinNs;      // 默认 10us
+  
+  // 常规睡眠切片取策略配置和取消检查间隔中较小者
+  chunkNs := GSliceSleepNs;
+  if cancelCheckNs < chunkNs then chunkNs := cancelCheckNs;
 
   while remaining > 0 do
   begin
@@ -633,7 +832,7 @@ begin
     end
     else
     begin
-      // 常规睡眠阶段
+      // 常规睡眠阶段：使用可配置的取消检查间隔
       step := remaining;
       if step > chunkNs then step := chunkNs;
       NanoSleep(UInt64(step));

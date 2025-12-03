@@ -96,8 +96,8 @@ begin
   FArray := CreateArray(FInitialCapacity);
   
   // Initialize indices
-  atomic_store_64(FTop, 0, memory_order_relaxed);
-  atomic_store_64(FBottom, 0, memory_order_relaxed);
+  atomic_store_64(FTop, 0, mo_relaxed);
+  atomic_store_64(FBottom, 0, mo_relaxed);
 end;
 
 destructor TLockFreeDeque.Destroy;
@@ -133,8 +133,8 @@ var
   I, LIndex: Integer;
 begin
   LCurrentArray := FArray;
-  LTop := atomic_load_64(FTop, memory_order_acquire);
-  LBottom := atomic_load_64(FBottom, memory_order_acquire);
+  LTop := atomic_load_64(FTop, mo_acquire);
+  LBottom := atomic_load_64(FBottom, mo_acquire);
   
   LSize := Integer(LBottom - LTop);
   LNewSize := LCurrentArray^.Size * 2;
@@ -152,11 +152,11 @@ begin
   {$POP}
   
   // Update array pointer atomically
-  atomic_store_ptr(Pointer(FArray), LNewArray, memory_order_release);
+  atomic_store_ptr(Pointer(FArray), LNewArray, mo_release);
   
   // Update indices
-  atomic_store_64(FTop, 0, memory_order_relaxed);
-  atomic_store_64(FBottom, LSize, memory_order_relaxed);
+  atomic_store_64(FTop, 0, mo_relaxed);
+  atomic_store_64(FBottom, LSize, mo_relaxed);
   
   // Dispose old array (should be done safely after grace period)
   DisposeArray(LCurrentArray);
@@ -168,7 +168,7 @@ function TLockFreeDeque.GetCapacity: Integer;
 var
   LArray: PArray;
 begin
-  LArray := atomic_load_ptr(Pointer(FArray), memory_order_relaxed);
+  LArray := atomic_load_ptr(Pointer(FArray), mo_relaxed);
   if LArray <> nil then
     Result := LArray^.Size
   else
@@ -185,9 +185,9 @@ var
   LSize: Integer;
   LIndex: Integer;
 begin
-  LBottom := atomic_load_64(FBottom, memory_order_relaxed);
-  LTop := atomic_load_64(FTop, memory_order_acquire);
-  LArray := atomic_load_ptr(Pointer(FArray), memory_order_relaxed);
+  LBottom := atomic_load_64(FBottom, mo_relaxed);
+  LTop := atomic_load_64(FTop, mo_acquire);
+  LArray := atomic_load_ptr(Pointer(FArray), mo_relaxed);
   
   LSize := Integer(LBottom - LTop);
   
@@ -195,7 +195,7 @@ begin
   if LSize >= LArray^.Size - 1 then
   begin
     LArray := Resize;
-    LBottom := atomic_load_64(FBottom, memory_order_relaxed);
+    LBottom := atomic_load_64(FBottom, mo_relaxed);
   end;
   
   // Store the item (disable range checking for array access)
@@ -206,7 +206,7 @@ begin
   {$POP}
   
   // Update bottom with release semantics to ensure item is visible
-  atomic_store_64(FBottom, LBottom + 1, memory_order_release);
+  atomic_store_64(FBottom, LBottom + 1, mo_release);
 end;
 
 function TLockFreeDeque.pop_bottom(out AItem: T): Boolean;
@@ -217,21 +217,21 @@ var
   LNewBottom: Int64;
   LExpectedTop: Int64;
 begin
-  LBottom := atomic_load_64(FBottom, memory_order_relaxed);
-  LArray := atomic_load_ptr(Pointer(FArray), memory_order_relaxed);
+  LBottom := atomic_load_64(FBottom, mo_relaxed);
+  LArray := atomic_load_ptr(Pointer(FArray), mo_relaxed);
   
   LNewBottom := LBottom - 1;
-  atomic_store_64(FBottom, LNewBottom, memory_order_relaxed);
+  atomic_store_64(FBottom, LNewBottom, mo_relaxed);
   
   // Memory fence to ensure bottom update is visible
-  atomic_thread_fence(memory_order_seq_cst);
+  atomic_thread_fence(mo_seq_cst);
   
-  LTop := atomic_load_64(FTop, memory_order_relaxed);
+  LTop := atomic_load_64(FTop, mo_relaxed);
   
   if LNewBottom < LTop then
   begin
     // Deque is empty, restore bottom
-    atomic_store_64(FBottom, LTop, memory_order_relaxed);
+    atomic_store_64(FBottom, LTop, mo_relaxed);
     Result := False;
     Exit;
   end;
@@ -250,10 +250,10 @@ begin
   end;
   
   // Exactly one item, compete with thieves
-  atomic_store_64(FBottom, LTop + 1, memory_order_relaxed);
+  atomic_store_64(FBottom, LTop + 1, mo_relaxed);
   LExpectedTop := LTop;
   
-  if atomic_compare_exchange_strong_64(FTop, LExpectedTop, LTop + 1, memory_order_seq_cst) then
+  if atomic_compare_exchange_strong_64(FTop, LExpectedTop, LTop + 1) then
   begin
     // Won the race
     Result := True;
@@ -272,12 +272,12 @@ var
   LArray: PArray;
   LExpectedTop: Int64;
 begin
-  LTop := atomic_load_64(FTop, memory_order_acquire);
+  LTop := atomic_load_64(FTop, mo_acquire);
   
   // Memory fence to ensure we see the latest bottom
-  atomic_thread_fence(memory_order_seq_cst);
+  atomic_thread_fence(mo_seq_cst);
   
-  LBottom := atomic_load_64(FBottom, memory_order_acquire);
+  LBottom := atomic_load_64(FBottom, mo_acquire);
   
   if LTop >= LBottom then
   begin
@@ -287,7 +287,7 @@ begin
   end;
   
   // Load array and get item (disable range checking)
-  LArray := atomic_load_ptr(Pointer(FArray), memory_order_consume);
+  LArray := atomic_load_ptr(Pointer(FArray), mo_consume);
   {$PUSH}
   {$R-} // Disable range checking
   AItem := LArray^.Data[LTop and (LArray^.Size - 1)];
@@ -295,7 +295,7 @@ begin
   
   // Try to increment top
   LExpectedTop := LTop;
-  Result := atomic_compare_exchange_strong_64(FTop, LExpectedTop, LTop + 1, memory_order_seq_cst);
+  Result := atomic_compare_exchange_strong_64(FTop, LExpectedTop, LTop + 1);
 end;
 
 // === Utility operations ===
@@ -304,8 +304,8 @@ function TLockFreeDeque.empty: Boolean;
 var
   LTop, LBottom: Int64;
 begin
-  LTop := atomic_load_64(FTop, memory_order_relaxed);
-  LBottom := atomic_load_64(FBottom, memory_order_relaxed);
+  LTop := atomic_load_64(FTop, mo_relaxed);
+  LBottom := atomic_load_64(FBottom, mo_relaxed);
   Result := LTop >= LBottom;
 end;
 
@@ -313,8 +313,8 @@ function TLockFreeDeque.size: Int64;
 var
   LTop, LBottom: Int64;
 begin
-  LBottom := atomic_load_64(FBottom, memory_order_relaxed);
-  LTop := atomic_load_64(FTop, memory_order_relaxed);
+  LBottom := atomic_load_64(FBottom, mo_relaxed);
+  LTop := atomic_load_64(FTop, mo_relaxed);
   Result := LBottom - LTop;
   if Result < 0 then
     Result := 0;

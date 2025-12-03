@@ -15,6 +15,7 @@ tests/fafafa.core.lockfree/
 ├── test_all_lockfree.lpi             # Lazarus project file
 ├── test_improved_lockfree.lpr        # Original improvement tests
 ├── test_improved_lockfree.lpi        # Lazarus project file
+├── test_channel_basic.pas            # Channel/SPSC/MPSC/Select 烟囱测试
 └── lib/                              # Build output directory
     └── x86_64-win64/                 # Platform-specific binaries
 ```
@@ -72,6 +73,15 @@ lazbuild --build-mode=Debug --build-ide-options=" -dFAFAFA_CORE_PERF_TESTS -dFAF
   - 定义：-dFAFAFA_CORE_MAP_INTERFACE（启用 ILockFreeMap 接口与适配器）
   - 运行：一键构建后自动纳入 fpcunit 测试（默认不开启该宏）
 - 性能/压力用例：-dFAFAFA_CORE_PERF_TESTS（默认关闭，建议仅在需要时开启）
+
+## ♻️ Interface/Factories 扩展测试
+
+- Windows：`BuildOrTest.bat` 会自动调用 `build_ifaces_factories_tests.bat`，构建并运行接口/工厂契约扩展。
+- Linux/macOS：`BuildOrTest.sh` 同步调用 `build_ifaces_factories_tests.sh`，实现跨平台一致的扩展用例。
+- 独立调试：可直接运行上述脚本，仅构建/执行该套件；日志输出位于 `tests/fafafa.core.lockfree/logs/latest_ifaces_factories.log`。
+- 交叉编译参数：
+  - `FAFAFA_LOCKFREE_FPC`：可选，自定义 FPC/ppcross 编译器路径（默认尝试 `/home/dtamade/freePascal/fpc/bin/x86_64-linux/ppcrossx64`）
+  - `FAFAFA_LOCKFREE_LAZBUILD_OPTS`：附加传递给 lazbuild 的自定义参数（例如 `--cpu=x86_64 --os=win64`）
 
 
 

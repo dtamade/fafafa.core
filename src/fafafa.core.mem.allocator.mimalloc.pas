@@ -33,9 +33,6 @@ function GetMimallocAllocator: IAllocator;
 
 implementation
 
-uses
-  syncobjs;
-
 {$IFDEF FAFAFA_CORE_MIMALLOC_STATIC}
   {$LINKLIB mimalloc}
   {$IFDEF UNIX}
@@ -59,7 +56,7 @@ uses
     _mi_calloc: function(aCount, aSize: SizeUInt): Pointer; cdecl = nil;
     _mi_realloc: function(aPtr: Pointer; aNewSize: SizeUInt): Pointer; cdecl = nil;
     _mi_free: procedure(aPtr: Pointer); cdecl = nil;
-    GLoadLock: TCriticalSection;
+    GLoadLock: TRTLCriticalSection;
 
   function TryLoadMimallocLibrary: TLibHandle;
   var
@@ -84,7 +81,7 @@ uses
     LLib: TLibHandle;
   begin
     if _miLoaded then Exit(True);
-    GLoadLock.Acquire;
+    EnterCriticalSection(GLoadLock);
     try
       if _miLoaded then Exit(True);
       // try load
@@ -103,7 +100,7 @@ uses
       end;
       Result := _miLoaded;
     finally
-      GLoadLock.Release;
+      LeaveCriticalSection(GLoadLock);
     end;
   end;
 {$ENDIF}
@@ -111,7 +108,7 @@ uses
 var
   _MimallocAllocatorObj: TAllocator = nil;
   _MimallocAllocatorIntf: IAllocator = nil;
-  GAllocatorLock: TCriticalSection;
+  GAllocatorLock: TRTLCriticalSection;
 
 function TMimallocAllocator.DoGetMem(aSize: SizeUInt): Pointer;
 begin
@@ -157,7 +154,7 @@ function GetMimallocAllocator: IAllocator;
 begin
   if _MimallocAllocatorObj = nil then
   begin
-    GAllocatorLock.Acquire;
+    EnterCriticalSection(GAllocatorLock);
     try
       if _MimallocAllocatorObj = nil then
       begin
@@ -165,7 +162,7 @@ begin
         _MimallocAllocatorIntf := _MimallocAllocatorObj as IAllocator; // anchor lifetime
       end;
     finally
-      GAllocatorLock.Release;
+      LeaveCriticalSection(GAllocatorLock);
     end;
   end;
   Result := _MimallocAllocatorIntf;
@@ -182,11 +179,15 @@ begin
 end;
 
 initialization
-  GLoadLock := TCriticalSection.Create;
-  GAllocatorLock := TCriticalSection.Create;
+  {$IFNDEF FAFAFA_CORE_MIMALLOC_STATIC}
+  InitCriticalSection(GLoadLock);
+  {$ENDIF}
+  InitCriticalSection(GAllocatorLock);
 finalization
-  FreeAndNil(GAllocatorLock);
-  FreeAndNil(GLoadLock);
+  DoneCriticalSection(GAllocatorLock);
+  {$IFNDEF FAFAFA_CORE_MIMALLOC_STATIC}
+  DoneCriticalSection(GLoadLock);
+  {$ENDIF}
   _MimallocAllocatorIntf := nil;
   _MimallocAllocatorObj := nil;
   {$IFNDEF FAFAFA_CORE_MIMALLOC_STATIC}
@@ -197,4 +198,3 @@ finalization
 
 
 end.
-

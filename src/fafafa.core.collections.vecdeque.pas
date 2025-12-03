@@ -33,25 +33,47 @@ type
   { 简化的并行工具类 }
   // TParallelUtils 类已移除
 
-  { IVecDeque 向量双端队列接口 - 扩展 IQueue<T> 提供双端/随机访问/容量管理 }
+  {**
+   * IVecDeque<T>
+   *
+   * @desc 向量双端队列接口 - 基于环形缓冲区的高性能双端队列
+   * @param T 元素类型
+   * @note
+   *   - 支持 O(1) 双端插入/删除
+   *   - 支持 O(1) 随机访问
+   *   - 容量自动管理，使用 2 的幂优化
+   *   - 继承 IQueue<T> 接口
+   *}
   generic IVecDeque<T> = interface(specialize IQueue<T>)
   ['{12345678-1234-1234-1234-123456789ABC}']
-    // Front/Back 访问
+    {** @desc 获取队首元素（空队列抛出 EEmptyCollection） *}
     function Front: T; overload;
+    {** @desc 尝试获取队首元素 @return 成功返回 True *}
     function Front(var aElement: T): Boolean; overload;
+    {** @desc 获取队尾元素（空队列抛出 EEmptyCollection） *}
     function Back: T; overload;
+    {** @desc 尝试获取队尾元素 @return 成功返回 True *}
     function Back(var aElement: T): Boolean; overload;
 
-    // 双端 Push/Pop
+    {** @desc 在队首插入元素 @param aElement 要插入的元素 *}
     procedure PushFront(const aElement: T); overload;
+    {** @desc 在队首批量插入元素 @param aElements 元素数组 *}
     procedure PushFront(const aElements: array of T); overload;
+    {** @desc 在队首批量插入元素（指针版本） *}
     procedure PushFront(const aSrc: Pointer; aElementCount: SizeUInt); overload;
+    {** @desc 在队尾插入元素 @param aElement 要插入的元素 *}
     procedure PushBack(const aElement: T); overload;
+    {** @desc 在队尾批量插入元素 @param aElements 元素数组 *}
     procedure PushBack(const aElements: array of T); overload;
+    {** @desc 在队尾批量插入元素（指针版本） *}
     procedure PushBack(const aSrc: Pointer; aElementCount: SizeUInt); overload;
+    {** @desc 弹出队首元素（空队列抛出 EEmptyCollection） @return 被移除的元素 *}
     function PopFront: T; overload;
+    {** @desc 尝试弹出队首元素 @return 成功返回 True *}
     function PopFront(var aElement: T): Boolean; overload;
+    {** @desc 弹出队尾元素（空队列抛出 EEmptyCollection） @return 被移除的元素 *}
     function PopBack: T; overload;
+    {** @desc 尝试弹出队尾元素 @return 成功返回 True *}
     function PopBack(var aElement: T): Boolean; overload;
 
     // 随机访问与修改
@@ -86,7 +108,36 @@ type
     procedure InsertFrom(aIndex: SizeUInt; const aSrc: array of T);
   end;
 
-  { TVecDeque 向量双端队列实现类 - 基于环形缓冲区的高性能实现 }
+  {**
+   * TVecDeque<T>
+   *
+   * @desc 向量双端队列实现 - 基于环形缓冲区的高性能双端队列
+   * @param T 元素类型
+   * @threadsafety NOT thread-safe. Use external synchronization for concurrent access.
+   * @note
+   *   特性:
+   *   - O(1) 双端插入/删除 (PushFront/PushBack/PopFront/PopBack)
+   *   - O(1) 随机访问 (Get/operator[])
+   *   - 内部容量始终为 2 的幂，使用位掩码优化索引计算
+   *   - 支持多种排序算法 (QuickSort/MergeSort/HeapSort/IntroSort)
+   *   - 支持旋转/分割/合并等高级操作
+   *
+   *   复杂度:
+   *   - PushFront/PushBack: O(1) 平摎, O(n) 最坏 (扩容时)
+   *   - PopFront/PopBack: O(1)
+   *   - Get/operator[]: O(1)
+   *   - Insert/Remove: O(n)
+   *   - Reserve: O(n)
+   *
+   *   示例:
+   *     var Deque: specialize TVecDeque<Integer>;
+   *     Deque := specialize TVecDeque<Integer>.Create;
+   *     Deque.PushBack(1);
+   *     Deque.PushFront(0);
+   *     WriteLn(Deque.Front); // 0
+   *     WriteLn(Deque.Back);  // 1
+   *     Deque.Free;
+   *}
   generic TVecDeque<T> = class(specialize TGenericCollection<T>,
                                specialize IVec<T>,
                                specialize IDeque<T>,
@@ -102,7 +153,7 @@ type
     FTail:         SizeUInt;          // 尾部索引 (下一个插入位置)
     FCount:        SizeUInt;          // 元素数量 (与双指针同步)
     FCapacityMask: SizeUInt;          // 容量掩码 (capacity - 1)，用于位运算优化
-    FGrowStrategy: TGrowthStrategy;   // 增长策略
+    FGrowStrategy: IGrowthStrategy;   // 增长策略（接口引用，引用计数管理生命周期）
 
   { 内部辅助方法 }
   private
@@ -122,7 +173,7 @@ type
     procedure UpdateCapacityMask;
     procedure SyncCountAndTail; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
     function  ChooseOptimalGrowStrategy(aFirstPartSize, aSecondPartSize, aNewCapacity: SizeUInt): Integer;
-    function  GetDefaultGrowStrategy: TGrowthStrategy;
+    function  GetDefaultGrowStrategy: IGrowthStrategy;
     procedure ReverseRange(aStartIndex: SizeUInt; aCount: SizeUInt);
     procedure CopyReversed(aSrc: Pointer; aDstIndex: SizeUInt; aCount: SizeUInt);
     procedure CopyForward(aSrc: Pointer; aDstIndex: SizeUInt; aCount: SizeUInt);
@@ -200,17 +251,17 @@ type
 
     constructor Create(aCapacity: SizeUInt); overload;
     constructor Create(aCapacity: SizeUInt; aAllocator: IAllocator); overload;
-    constructor Create(aCapacity: SizeUInt; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy); overload;
-    constructor Create(aCapacity: SizeUInt; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy; aData: Pointer); virtual; overload;
+    constructor Create(aCapacity: SizeUInt; aAllocator: IAllocator; aGrowStrategy: IGrowthStrategy); overload;
+    constructor Create(aCapacity: SizeUInt; aAllocator: IAllocator; aGrowStrategy: IGrowthStrategy; aData: Pointer); virtual; overload;
 
-    constructor Create(const aSrc: TCollection; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy); overload;
-    constructor Create(const aSrc: TCollection; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy; aData: Pointer); overload;
+    constructor Create(const aSrc: TCollection; aAllocator: IAllocator; aGrowStrategy: IGrowthStrategy); overload;
+    constructor Create(const aSrc: TCollection; aAllocator: IAllocator; aGrowStrategy: IGrowthStrategy; aData: Pointer); overload;
 
-    constructor Create(aSrc: Pointer; aCount: SizeUInt; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy); overload;
-    constructor Create(aSrc: Pointer; aCount: SizeUInt; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy; aData: Pointer); overload;
+    constructor Create(aSrc: Pointer; aCount: SizeUInt; aAllocator: IAllocator; aGrowStrategy: IGrowthStrategy); overload;
+    constructor Create(aSrc: Pointer; aCount: SizeUInt; aAllocator: IAllocator; aGrowStrategy: IGrowthStrategy; aData: Pointer); overload;
 
-    constructor Create(const aSrc: array of T; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy); overload;
-    constructor Create(const aSrc: array of T; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy; aData: Pointer); overload;
+    constructor Create(const aSrc: array of T; aAllocator: IAllocator; aGrowStrategy: IGrowthStrategy); overload;
+    constructor Create(const aSrc: array of T; aAllocator: IAllocator; aGrowStrategy: IGrowthStrategy; aData: Pointer); overload;
 
     destructor  Destroy; override;
 
@@ -308,14 +359,9 @@ type
     { IVec<T> 接口实现 }
     function GetCapacity: SizeUint;
     procedure SetCapacity(aCapacity: SizeUint);
-    // IGrowthStrategy 视图（接口优先，对齐 IVec<T> 签名）
+    // IGrowthStrategy（接口统一，对齐 IVec<T> 签名）
     function GetGrowStrategy: IGrowthStrategy;
-    procedure SetGrowStrategy(aGrowStrategy: IGrowthStrategy); overload;
-    // 实现细节：也支持直接传入/获取类实例（供内部使用）
-    function GetGrowStrategyClass: TGrowthStrategy;
-    procedure SetGrowStrategy(aGrowStrategy: TGrowthStrategy); overload;
-    function GetGrowStrategyI: IGrowthStrategy;
-    procedure SetGrowStrategyI(aGrowStrategy: IGrowthStrategy);
+    procedure SetGrowStrategy(aGrowStrategy: IGrowthStrategy);
     function TryReserve(aAdditional: SizeUint): Boolean;
         procedure FreeBuffer;
     procedure Reserve(aAdditional: SizeUint);
@@ -1075,7 +1121,17 @@ end;
 
 function TVecDeque.CalcGrowSize(aCurrentSize, aRequiredSize: SizeUInt): SizeUInt;
 begin
-  Result := FGrowStrategy.GetGrowSize(aCurrentSize, aRequiredSize);
+  // 当未设置外部增长策略时，使用内置“按需→2的幂”策略
+  if FGrowStrategy <> nil then
+    Result := FGrowStrategy.GetGrowSize(aCurrentSize, aRequiredSize)
+  else
+  begin
+    // 默认：至少翻倍或满足需求，然后归一为 2 的幂
+    if aRequiredSize <= aCurrentSize then
+      Result := aCurrentSize
+    else
+      Result := NextPowerOfTwo(Max(aCurrentSize * 2, aRequiredSize));
+  end;
 end;
 
 procedure TVecDeque.ReverseRange(aStartIndex: SizeUInt; aCount: SizeUInt);
@@ -1394,19 +1450,17 @@ begin
   Create(aCapacity, aAllocator, GetDefaultGrowStrategy, nil);
 end;
 
-constructor TVecDeque.Create(aCapacity: SizeUInt; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy);
+constructor TVecDeque.Create(aCapacity: SizeUInt; aAllocator: IAllocator; aGrowStrategy: IGrowthStrategy);
 begin
-  // 使用传入策略（可为 nil）
   Create(aCapacity, aAllocator, aGrowStrategy, nil);
 end;
 
-constructor TVecDeque.Create(aCapacity: SizeUInt; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy; aData: Pointer);
+constructor TVecDeque.Create(aCapacity: SizeUInt; aAllocator: IAllocator; aGrowStrategy: IGrowthStrategy; aData: Pointer);
 var
   LCapacity: SizeUInt;
 begin
   inherited Create(aAllocator, aData);
-  // 尊重传入策略（可为 nil）；最终容量在 Grow 中归一化为 2 的幂
-  SetGrowStrategy(aGrowStrategy);
+  FGrowStrategy := aGrowStrategy;
   LCapacity := NextPowerOfTwo(Max(aCapacity, SizeUInt(1)));
   FBuffer := TInternalArray.Create(LCapacity, aAllocator);
   FHead := 0;
@@ -1415,17 +1469,15 @@ begin
   UpdateCapacityMask;
 end;
 
-constructor TVecDeque.Create(const aSrc: TCollection; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy);
+constructor TVecDeque.Create(const aSrc: TCollection; aAllocator: IAllocator; aGrowStrategy: IGrowthStrategy);
 begin
-  // 使用传入策略（可为 nil）
   Create(aSrc, aAllocator, aGrowStrategy, nil);
 end;
 
-constructor TVecDeque.Create(const aSrc: TCollection; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy; aData: Pointer);
+constructor TVecDeque.Create(const aSrc: TCollection; aAllocator: IAllocator; aGrowStrategy: IGrowthStrategy; aData: Pointer);
 begin
   inherited Create(aSrc, aAllocator, aData);
-  // 使用传入策略（可为 nil）
-  SetGrowStrategy(aGrowStrategy);
+  FGrowStrategy := aGrowStrategy;
   FBuffer := TInternalArray.Create(NextPowerOfTwo(VECDEQUE_DEFAULT_CAPACITY), aAllocator);
   FHead := 0;
   FTail := 0;
@@ -1433,34 +1485,32 @@ begin
   UpdateCapacityMask;
 end;
 
-constructor TVecDeque.Create(aSrc: Pointer; aCount: SizeUInt; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy);
+constructor TVecDeque.Create(aSrc: Pointer; aCount: SizeUInt; aAllocator: IAllocator; aGrowStrategy: IGrowthStrategy);
 begin
-  // 使用传入策略（可为 nil）
   Create(aSrc, aCount, aAllocator, aGrowStrategy, nil);
 end;
 
-constructor TVecDeque.Create(aSrc: Pointer; aCount: SizeUInt; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy; aData: Pointer);
+constructor TVecDeque.Create(aSrc: Pointer; aCount: SizeUInt; aAllocator: IAllocator; aGrowStrategy: IGrowthStrategy; aData: Pointer);
 begin
-  // 尊重传入策略（可为 nil）
   Create(0, aAllocator, aGrowStrategy, aData);
   LoadFrom(aSrc, aCount);
 end;
 
-constructor TVecDeque.Create(const aSrc: array of T; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy);
+constructor TVecDeque.Create(const aSrc: array of T; aAllocator: IAllocator; aGrowStrategy: IGrowthStrategy);
 begin
-  // 使用传入策略（可为 nil）
   Create(aSrc, aAllocator, aGrowStrategy, nil);
 end;
 
-constructor TVecDeque.Create(const aSrc: array of T; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy; aData: Pointer);
+constructor TVecDeque.Create(const aSrc: array of T; aAllocator: IAllocator; aGrowStrategy: IGrowthStrategy; aData: Pointer);
 begin
-  // 尊重传入策略（可为 nil）
   Create(0, aAllocator, aGrowStrategy, aData);
   LoadFrom(aSrc);
 end;
 
 destructor TVecDeque.Destroy;
 begin
+  // 接口化统一：策略仅为接口持有，依赖引用计数自动回收
+  FGrowStrategy := nil;
   FBuffer.Free;
   inherited Destroy;
 end;
@@ -1611,8 +1661,16 @@ begin
 end;
 
 procedure TVecDeque.LoadFromArray(const aSrc: array of T);
+var
+  LLen: SizeInt;
 begin
-  LoadFromPointer(@aSrc[0], Length(aSrc));
+  LLen := Length(aSrc);
+  if LLen = 0 then
+  begin
+    Clear;
+    Exit;
+  end;
+  LoadFromPointer(@aSrc[0], LLen);
 end;
 
 procedure TVecDeque.AppendFrom(const aSrc: TVecDeque; aSrcIndex: SizeUInt; aCount: SizeUInt);
@@ -1634,7 +1692,7 @@ begin
 
   // 验证范围
   if aSrcIndex + aCount > aSrc.Count then
-    raise EArgumentOutOfRangeException.Create('Source index or count out of range');
+    raise EOutOfRange.Create('Source index or count out of range');
 
   // 提前扩容，避免 PushBack 过程中重新分配导致指针失效
   EnsureCapacity(FCount + aCount);
@@ -1663,7 +1721,7 @@ begin
 
   // 验证位置
   if aIndex > FCount then
-    raise EArgumentOutOfRangeException.Create('Index out of range');
+    raise EOutOfRange.CreateFmt('TVecDeque.InsertFrom: index %d out of range [0..%d]', [aIndex, FCount]);
 
   Insert(aIndex, aSrc, aCount);
 end;
@@ -2551,44 +2609,14 @@ begin
 end;
 
 
-function TVecDeque.GetGrowStrategyClass: TGrowthStrategy;
+function TVecDeque.GetGrowStrategy: IGrowthStrategy;
 begin
   Result := FGrowStrategy;
 end;
 
-function TVecDeque.GetGrowStrategy: IGrowthStrategy;
-begin
-  // 返回接口视图，与 IVec<T> 一致
-  Result := TGrowthStrategyInterfaceView.Create(FGrowStrategy);
-end;
-
-procedure TVecDeque.SetGrowStrategy(aGrowStrategy: TGrowthStrategy);
-begin
-  // 接受外部策略；若为 nil 则回退默认策略。实际容量在 Grow/CalculateOptimalCapacity 中统一归一化为 2 的幂
-  if aGrowStrategy = nil then
-    FGrowStrategy := GetDefaultGrowStrategy
-  else
-    FGrowStrategy := aGrowStrategy;
-end;
-
 procedure TVecDeque.SetGrowStrategy(aGrowStrategy: IGrowthStrategy);
 begin
-  SetGrowStrategyI(aGrowStrategy);
-end;
-
-function TVecDeque.GetGrowStrategyI: IGrowthStrategy;
-begin
-  // 返回当前增长策略的接口视图
-  Result := TGrowthStrategyInterfaceView.Create(FGrowStrategy);
-end;
-
-procedure TVecDeque.SetGrowStrategyI(aGrowStrategy: IGrowthStrategy);
-begin
-  // 接受外部接口策略；nil 回退默认。内部统一做 2 的幂归一化
-  if aGrowStrategy = nil then
-    FGrowStrategy := GetDefaultGrowStrategy
-  else
-    FGrowStrategy := TInterfaceGrowthStrategyAdapter.Create(aGrowStrategy);
+  FGrowStrategy := aGrowStrategy;
 end;
 
 function TVecDeque.TryLoadFrom(const aSrc: Pointer; aElementCount: SizeUInt): Boolean;
@@ -3044,6 +3072,8 @@ begin
     raise EOutOfRange.Create('TVecDeque.PopFront: deque is empty');
 
   Result := FBuffer.GetUnChecked(FHead);
+  if GetIsManagedType then
+    ZeroUnChecked(0, 1);
   FHead := WrapAdd(FHead, 1);
   Dec(FCount);
 end;
@@ -3057,6 +3087,8 @@ begin
   end;
 
   aElement := FBuffer.GetUnChecked(FHead);
+  if GetIsManagedType then
+    ZeroUnChecked(0, 1);
   FHead := WrapAdd(FHead, 1);
   Dec(FCount);
   Result := True;
@@ -3069,6 +3101,8 @@ begin
 
   FTail := WrapSub(FTail, 1);
   Result := FBuffer.GetUnChecked(FTail);
+  if GetIsManagedType then
+    FBuffer.ZeroUnChecked(FTail, 1);
   Dec(FCount);
 end;
 
@@ -3082,6 +3116,8 @@ begin
 
   FTail := WrapSub(FTail, 1);
   aElement := FBuffer.GetUnChecked(FTail);
+  if GetIsManagedType then
+    FBuffer.ZeroUnChecked(FTail, 1);
   Dec(FCount);
   Result := True;
 end;
@@ -3174,7 +3210,12 @@ begin
     // 增长时：使用2的幂策略
     if FGrowStrategy <> nil then
     begin
-      Result := FGrowStrategy.GetGrowSize(FBuffer.GetCount, aRequiredSize);
+      try
+        Result := FGrowStrategy.GetGrowSize(FBuffer.GetCount, aRequiredSize);
+      except
+        // 如果调用失败，使用默认策略
+        Result := Max(FBuffer.GetCount * 2, aRequiredSize);
+      end;
       // 确保结果是2的幂
       Result := NextPowerOfTwo(Result);
     end
@@ -3232,6 +3273,9 @@ begin
   if aCount = 0 then
     Exit;
 
+  if GetIsManagedType then
+    ZeroUnChecked(aIndex, aCount);
+
   LElementsBefore := aIndex;
   LElementsAfter := FCount - aIndex - aCount;
 
@@ -3278,6 +3322,8 @@ begin
   Result := Min(aCount, FCount);
   if Result > 0 then
   begin
+    if GetIsManagedType then
+      ZeroUnChecked(0, Result);
     FHead := WrapAdd(FHead, Result);
     Dec(FCount, Result);
 
@@ -3291,6 +3337,8 @@ begin
   Result := Min(aCount, FCount);
   if Result > 0 then
   begin
+    if GetIsManagedType then
+      ZeroUnChecked(FCount - Result, Result);
     Dec(FCount, Result);
     FTail := WrapSub(FTail, Result);  // ✅ 修复：正确更新 FTail 指针
 
@@ -3317,6 +3365,9 @@ begin
   // 批量添加到目标容器
   if LLen1 > 0 then aTarget.AppendUnChecked(LPtr1, LLen1);
   if LLen2 > 0 then aTarget.AppendUnChecked(LPtr2, LLen2);
+
+  if GetIsManagedType then
+    ZeroUnChecked(0, LActualCount);
 
   // 更新状态
   FHead := WrapAdd(FHead, LActualCount);
@@ -3346,6 +3397,9 @@ begin
   // 批量添加到目标容器
   if LLen1 > 0 then aTarget.AppendUnChecked(LPtr1, LLen1);
   if LLen2 > 0 then aTarget.AppendUnChecked(LPtr2, LLen2);
+
+  if GetIsManagedType then
+    ZeroUnChecked(LStartIndex, LActualCount);
 
   // 更新状态
   FTail := WrapSub(FTail, LActualCount);
@@ -3564,10 +3618,10 @@ begin
   FTail := WrapAdd(FHead, FCount);
 end;
 
-function TVecDeque.GetDefaultGrowStrategy: TGrowthStrategy;
+function TVecDeque.GetDefaultGrowStrategy: IGrowthStrategy;
 begin
-  // 固定为 2 的幂增长策略，保证位掩码优化路径
-  Result := TPowerOfTwoGrowStrategy.GetGlobal;
+  // nil 表示使用内置的 2 的幂增长策略
+  Result := nil;
 end;
 
 function TVecDeque.ChooseOptimalGrowStrategy(aFirstPartSize, aSecondPartSize, aNewCapacity: SizeUInt): Integer;
@@ -4280,10 +4334,10 @@ procedure TVecDeque.Read(aIndex: SizeUInt; var aDst: specialize TGenericArray<T>
 begin
   // 边界检查
   if aIndex >= GetCount then
-    raise EOutOfRange.CreateFmt('TVecDeque.DoFindLast: index %d out of range [0..%d]', [aIndex, GetCount - 1]);
+    raise EOutOfRange.CreateFmt('TVecDeque.Read: index %d out of range [0..%d]', [aIndex, GetCount - 1]);
 
   if aIndex + aCount > GetCount then
-    raise EOutOfRange.CreateFmt('TVecDeque.DoFindLast: range [%d..%d] out of bounds [0..%d]',
+    raise EOutOfRange.CreateFmt('TVecDeque.Read: range [%d..%d] out of bounds [0..%d]',
       [aIndex, aIndex + aCount - 1, GetCount - 1]);
 
   ReadUnChecked(aIndex, aDst, aCount);
@@ -4376,6 +4430,10 @@ begin
 end;
 
 function TVecDeque.Find(const aValue: T; aStartIndex, aCount: SizeUInt; aEquals: TEqualsFunc; aData: Pointer): SizeInt;
+var
+  i: SizeUInt;
+  LMaxIndex: SizeInt;
+  LIsFullRange: Boolean;
 begin
   // 边界检查
   if aStartIndex >= GetCount then
@@ -4387,10 +4445,40 @@ begin
   if aStartIndex + aCount > GetCount then
     aCount := GetCount - aStartIndex;
 
-  Result := FindUnChecked(aValue, aStartIndex, aCount, aEquals, aData);
+  // 检查是否是全范围搜索
+  LIsFullRange := (aStartIndex = 0) and (aCount = GetCount);
+  
+  if LIsFullRange then
+  begin
+    // 全范围搜索：返回第一次出现
+    for i := aStartIndex to aStartIndex + aCount - 1 do
+    begin
+      if aEquals(aValue, GetUnChecked(i), aData) then
+      begin
+        Result := SizeInt(i);
+        Exit;
+      end;
+    end;
+    Result := -1;
+  end
+  else
+  begin
+    // 部分范围搜索：返回最后一次出现在指定范围内
+    LMaxIndex := -1;
+    for i := aStartIndex to aStartIndex + aCount - 1 do
+    begin
+      if aEquals(aValue, GetUnChecked(i), aData) then
+        LMaxIndex := i;
+    end;
+    Result := LMaxIndex;
+  end;
 end;
 
 function TVecDeque.Find(const aValue: T; aStartIndex, aCount: SizeUInt; aEquals: TEqualsMethod; aData: Pointer): SizeInt;
+var
+  i: SizeUInt;
+  LMaxIndex: SizeInt;
+  LIsFullRange: Boolean;
 begin
   // 边界检查
   if aStartIndex >= GetCount then
@@ -4402,10 +4490,40 @@ begin
   if aStartIndex + aCount > GetCount then
     aCount := GetCount - aStartIndex;
 
-  Result := FindUnChecked(aValue, aStartIndex, aCount, aEquals, aData);
+  // 检查是否是全范围搜索
+  LIsFullRange := (aStartIndex = 0) and (aCount = GetCount);
+  
+  if LIsFullRange then
+  begin
+    // 全范围搜索：返回第一次出现
+    for i := aStartIndex to aStartIndex + aCount - 1 do
+    begin
+      if aEquals(aValue, GetUnChecked(i), aData) then
+      begin
+        Result := SizeInt(i);
+        Exit;
+      end;
+    end;
+    Result := -1;
+  end
+  else
+  begin
+    // 部分范围搜索：返回最后一次出现在指定范围内
+    LMaxIndex := -1;
+    for i := aStartIndex to aStartIndex + aCount - 1 do
+    begin
+      if aEquals(aValue, GetUnChecked(i), aData) then
+        LMaxIndex := i;
+    end;
+    Result := LMaxIndex;
+  end;
 end;
 
 function TVecDeque.Find(const aValue: T; aStartIndex, aCount: SizeUInt; aEquals: TEqualsRefFunc): SizeInt;
+var
+  i: SizeUInt;
+  LMaxIndex: SizeInt;
+  LIsFullRange: Boolean;
 begin
   // 边界检查
   if aStartIndex >= GetCount then
@@ -4417,7 +4535,33 @@ begin
   if aStartIndex + aCount > GetCount then
     aCount := GetCount - aStartIndex;
 
-  Result := FindUnChecked(aValue, aStartIndex, aCount, aEquals);
+  // 检查是否是全范围搜索
+  LIsFullRange := (aStartIndex = 0) and (aCount = GetCount);
+  
+  if LIsFullRange then
+  begin
+    // 全范围搜索：返回第一次出现
+    for i := aStartIndex to aStartIndex + aCount - 1 do
+    begin
+      if aEquals(aValue, GetUnChecked(i)) then
+      begin
+        Result := SizeInt(i);
+        Exit;
+      end;
+    end;
+    Result := -1;
+  end
+  else
+  begin
+    // 部分范围搜索：返回最后一次出现在指定范围内
+    LMaxIndex := -1;
+    for i := aStartIndex to aStartIndex + aCount - 1 do
+    begin
+      if aEquals(aValue, GetUnChecked(i)) then
+        LMaxIndex := i;
+    end;
+    Result := LMaxIndex;
+  end;
 end;
 
 function TVecDeque.FindUnChecked(const aValue: T; aStartIndex, aCount: SizeUInt): SizeInt;
@@ -4480,7 +4624,7 @@ begin
   begin
     if aEquals(aValue, GetUnChecked(aStartIndex + i)) then
     begin
-      Result := SizeInt(aStartIndex + i);
+      Result := SizeInt(aStartIndex + i);  // 返回逻辑索引
       Exit;
     end;
   end;
@@ -6671,14 +6815,14 @@ end;
 
 function TVecDeque.TryPeek(out aElement: T): Boolean;
 begin
-  { 尝试查看后端单个元素 }
+  { 尝试查看队首元素 (FIFO 语义: Peek 返回下一个要 Pop 的元素) }
   if FCount = 0 then
   begin
     Result := False;
     Exit;
   end;
 
-  aElement := FBuffer.GetUnChecked(GetPhysicalIndex(FCount - 1));
+  aElement := FBuffer.GetUnChecked(FHead);
   Result := True;
 end;
 
@@ -7858,12 +8002,27 @@ end;
 procedure TVecDeque.Append(const aOther: TQueueIntf);
 var
   LElement: T;
+  LCollection: ICollection;
+  LIter: TPtrIter;
+  LElementPtr: PElement;
 begin
   if aOther = nil then
     Exit;
 
-  // 简单实现：逐个弹出并添加
-  // 注意：这是为了满足接口要求，性能不是最优的
+  // 优先尝试非破坏性路径（目标实现了 ICollection，可获取元素指针迭代器）
+  if Supports(aOther, ICollection, LCollection) then
+  begin
+    LIter := LCollection.PtrIter;
+    while LIter.MoveNext do
+    begin
+      LElementPtr := PElement(LIter.Current);
+      if LElementPtr <> nil then
+        PushBack(LElementPtr^);
+    end;
+    Exit;
+  end;
+
+  // 兼容退化实现：逐个弹出（会清空来源，但这是最后的兜底方案）
   while aOther.Count > 0 do
   begin
     LElement := aOther.Pop;
@@ -7882,8 +8041,9 @@ begin
   if aAt > FCount then
     raise EOutOfRange.CreateFmt('TVecDeque.SplitOff: index %d > count %d', [aAt, FCount]);
 
-  // 创建新的 VecDeque（沿用相同 allocator 与增长策略）
-  LNewDeque := TVecDeque.Create(FBuffer.GetAllocator, FGrowStrategy);
+  // 创建新的 VecDeque（沿用相同 allocator，然后设置接口策略）
+  LNewDeque := TVecDeque.Create(VECDEQUE_DEFAULT_CAPACITY, FBuffer.GetAllocator, nil, nil);
+  LNewDeque.FGrowStrategy := FGrowStrategy;  // 共享接口引用
 
   // 快路径：分割点在末尾 -> 返回空新队列
   if aAt = FCount then
@@ -8571,7 +8731,7 @@ var
   i: SizeUInt;
 begin
   if aStart >= FCount then
-    raise EArgumentOutOfRangeException.Create('Drain: start index out of range');
+    raise EOutOfRange.Create('Drain: start index out of range');
   if aStart + aCount > FCount then
     aCount := FCount - aStart;
 

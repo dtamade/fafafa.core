@@ -10,7 +10,11 @@ uses
   fafafa.core.simd.dispatch,
   fafafa.core.simd.cpuinfo,
   fafafa.core.simd.memutils,
-  fafafa.core.simd.scalar;
+  fafafa.core.simd.scalar
+  {$IFDEF SIMD_X86_AVAILABLE}
+  , fafafa.core.simd.sse2
+  {$ENDIF}
+  ;
 
 // === Modern SIMD Framework for FreePascal ===
 // This is the main user interface for the SIMD framework.
@@ -41,6 +45,7 @@ type
   TSimdBackend = fafafa.core.simd.types.TSimdBackend;
   TSimdBackendInfo = fafafa.core.simd.types.TSimdBackendInfo;
   TCPUInfo = fafafa.core.simd.types.TCPUInfo;
+  TSimdBackendArray = fafafa.core.simd.cpuinfo.TSimdBackendArray;
 
 // === High-Level Vector Operations ===
 
@@ -63,6 +68,25 @@ function VecF32x4Abs(const a: TVecF32x4): TVecF32x4; inline;
 function VecF32x4Sqrt(const a: TVecF32x4): TVecF32x4; inline;
 function VecF32x4Min(const a, b: TVecF32x4): TVecF32x4; inline;
 function VecF32x4Max(const a, b: TVecF32x4): TVecF32x4; inline;
+
+// F32x4 extended math
+function VecF32x4Fma(const a, b, c: TVecF32x4): TVecF32x4; inline;    // a*b+c
+function VecF32x4Rcp(const a: TVecF32x4): TVecF32x4; inline;          // 1/x (approximate)
+function VecF32x4Rsqrt(const a: TVecF32x4): TVecF32x4; inline;        // 1/sqrt(x) (approximate)
+function VecF32x4Floor(const a: TVecF32x4): TVecF32x4; inline;
+function VecF32x4Ceil(const a: TVecF32x4): TVecF32x4; inline;
+function VecF32x4Round(const a: TVecF32x4): TVecF32x4; inline;
+function VecF32x4Trunc(const a: TVecF32x4): TVecF32x4; inline;
+function VecF32x4Clamp(const a, minVal, maxVal: TVecF32x4): TVecF32x4; inline;
+
+// 3D/4D Vector math
+function VecF32x4Dot(const a, b: TVecF32x4): Single; inline;          // Dot product (4 elements)
+function VecF32x3Dot(const a, b: TVecF32x4): Single; inline;          // Dot product (3 elements)
+function VecF32x3Cross(const a, b: TVecF32x4): TVecF32x4; inline;     // Cross product
+function VecF32x4Length(const a: TVecF32x4): Single; inline;          // Length (4 elements)
+function VecF32x3Length(const a: TVecF32x4): Single; inline;          // Length (3 elements)
+function VecF32x4Normalize(const a: TVecF32x4): TVecF32x4; inline;    // Normalize (4 elements)
+function VecF32x3Normalize(const a: TVecF32x4): TVecF32x4; inline;    // Normalize (3 elements)
 
 // F32x4 reduction
 function VecF32x4ReduceAdd(const a: TVecF32x4): Single; inline;
@@ -93,7 +117,7 @@ function GetCurrentBackendInfo: TSimdBackendInfo;
 function GetCPUInformation: TCPUInfo;
 
 // Get list of available backends
-function GetAvailableBackendList: array of TSimdBackend;
+function GetAvailableBackendList: TSimdBackendArray;
 
 // Force a specific backend (for testing)
 procedure ForceBackend(backend: TSimdBackend);
@@ -210,6 +234,115 @@ begin
   Result := dispatch^.MaxF32x4(a, b);
 end;
 
+// === Extended Math Functions ===
+
+function VecF32x4Fma(const a, b, c: TVecF32x4): TVecF32x4;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  Result := dispatch^.FmaF32x4(a, b, c);
+end;
+
+function VecF32x4Rcp(const a: TVecF32x4): TVecF32x4;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  Result := dispatch^.RcpF32x4(a);
+end;
+
+function VecF32x4Rsqrt(const a: TVecF32x4): TVecF32x4;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  Result := dispatch^.RsqrtF32x4(a);
+end;
+
+function VecF32x4Floor(const a: TVecF32x4): TVecF32x4;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  Result := dispatch^.FloorF32x4(a);
+end;
+
+function VecF32x4Ceil(const a: TVecF32x4): TVecF32x4;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  Result := dispatch^.CeilF32x4(a);
+end;
+
+function VecF32x4Round(const a: TVecF32x4): TVecF32x4;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  Result := dispatch^.RoundF32x4(a);
+end;
+
+function VecF32x4Trunc(const a: TVecF32x4): TVecF32x4;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  Result := dispatch^.TruncF32x4(a);
+end;
+
+function VecF32x4Clamp(const a, minVal, maxVal: TVecF32x4): TVecF32x4;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  Result := dispatch^.ClampF32x4(a, minVal, maxVal);
+end;
+
+// === 3D/4D Vector Math ===
+
+function VecF32x4Dot(const a, b: TVecF32x4): Single;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  Result := dispatch^.DotF32x4(a, b);
+end;
+
+function VecF32x3Dot(const a, b: TVecF32x4): Single;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  Result := dispatch^.DotF32x3(a, b);
+end;
+
+function VecF32x3Cross(const a, b: TVecF32x4): TVecF32x4;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  Result := dispatch^.CrossF32x3(a, b);
+end;
+
+function VecF32x4Length(const a: TVecF32x4): Single;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  Result := dispatch^.LengthF32x4(a);
+end;
+
+function VecF32x3Length(const a: TVecF32x4): Single;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  Result := dispatch^.LengthF32x3(a);
+end;
+
+function VecF32x4Normalize(const a: TVecF32x4): TVecF32x4;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  Result := dispatch^.NormalizeF32x4(a);
+end;
+
+function VecF32x3Normalize(const a: TVecF32x4): TVecF32x4;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  Result := dispatch^.NormalizeF32x3(a);
+end;
+
 function VecF32x4ReduceAdd(const a: TVecF32x4): Single;
 var dispatch: PSimdDispatchTable;
 begin
@@ -318,7 +451,7 @@ begin
   Result := GetCPUInfo;
 end;
 
-function GetAvailableBackendList: array of TSimdBackend;
+function GetAvailableBackendList: TSimdBackendArray;
 begin
   Result := GetAvailableBackends;
 end;

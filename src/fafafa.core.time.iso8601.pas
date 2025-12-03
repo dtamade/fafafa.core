@@ -150,6 +150,30 @@ type
     Days: Integer;
     Hours: Integer;
     Minutes: Integer;
+    {**
+     * Seconds - 秒数（含小数部分）
+     *
+     * ⚠️ **ISSUE-43: Double 精度限制**
+     *
+     * 使用 Double 存储秒数，包含小数部分（最多 9 位，纳秒级）。
+     *
+     * **精度说明：**
+     * - Double 有效数字约 15-16 位
+     * - 对于 < 100 秒的值，可精确表示纳秒
+     * - 对于更大的值（如 1000 秒），精度约为 ~100 纳秒
+     * - 对于极大值（如 1e9 秒），精度约为 ~100 微秒
+     *
+     * **影响评估：**
+     * - 日常使用（分钟/小时级）：纳秒级精度完全足够
+     * - 高精度场景（纳秒计时）：使用 TDuration（Int64 纳秒）更准确
+     *
+     * **代码已优化：**
+     * - FormatDuration 使用 %.9f 格式，最大限度保留精度
+     * - 尾随零自动移除，输出简洁
+     *
+     * **推荐：**
+     * 如需纳秒精度，优先使用 TDuration 而非 TISO8601Duration。
+     *}
     Seconds: Double;
     
     class function FromString(const S: string): TISO8601Duration; static;

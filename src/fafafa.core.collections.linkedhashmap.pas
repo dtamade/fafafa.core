@@ -100,6 +100,9 @@ type
       TPairType = specialize TPair<K,V>;
       TEntryType = specialize TMapEntry<K,V>;
       TKeysArray = array of K;  // 定义键数组类型
+      // Entry API types
+      TValueSupplier = specialize TValueSupplierFunc<V>;
+      TValueModifier = specialize TValueModifierProc<V>;
 
     var
       FMap: TInternalMap;        // Stores key -> value
@@ -131,6 +134,15 @@ type
     function GetCapacity: SizeUInt;
     function GetLoadFactor: Single;
     procedure Reserve(aCapacity: SizeUInt);
+
+    // API 一致性别名 (与 TreeMap 统一)
+    function Put(const aKey: K; const aValue: V): Boolean; inline;
+    function Get(const aKey: K; out aValue: V): Boolean; inline;
+
+    // Entry API (Rust-style)
+    function GetOrInsert(const aKey: K; const aDefaultValue: V): V;
+    function GetOrInsertWith(const aKey: K; aSupplier: TValueSupplier): V;
+    procedure ModifyOrInsert(const aKey: K; aModifier: TValueModifier; const aDefaultValue: V);
 
     // ICollection interface
     function GetCount: SizeUInt;
@@ -367,6 +379,18 @@ begin
   FNodeMap.Reserve(aCapacity);
 end;
 
+function TLinkedHashMap.Put(const aKey: K; const aValue: V): Boolean;
+begin
+  // Put 是 AddOrAssign 的别名，与 TreeMap API 保持一致
+  Result := AddOrAssign(aKey, aValue);
+end;
+
+function TLinkedHashMap.Get(const aKey: K; out aValue: V): Boolean;
+begin
+  // Get 是 TryGetValue 的别名，与 TreeMap API 保持一致
+  Result := TryGetValue(aKey, aValue);
+end;
+
 function TLinkedHashMap.GetCount: SizeUInt;
 begin
   Result := FMap.GetCount;
@@ -380,7 +404,7 @@ end;
 function TLinkedHashMap.First: TPairType;
 begin
   if FHead = nil then
-    raise Exception.Create('LinkedHashMap is empty');
+    raise EEmptyCollection.Create('TLinkedHashMap.First: collection is empty');
 
   Result := FHead^.Pair;
 end;
@@ -388,7 +412,7 @@ end;
 function TLinkedHashMap.Last: TPairType;
 begin
   if FTail = nil then
-    raise Exception.Create('LinkedHashMap is empty');
+    raise EEmptyCollection.Create('TLinkedHashMap.Last: collection is empty');
 
   Result := FTail^.Pair;
 end;
@@ -514,6 +538,7 @@ var
   LCurrent: PNode;
   i: SizeUInt;
 begin
+  Result := nil;
   SetLength(Result, GetCount);
 
   i := 0;
@@ -558,6 +583,60 @@ begin
     LCurrent^.Next := LCurrent^.Prev;
     LCurrent^.Prev := LNext;
     LCurrent := LNext;
+  end;
+end;
+
+{ Entry API implementation }
+
+function TLinkedHashMap.GetOrInsert(const aKey: K; const aDefaultValue: V): V;
+var
+  LNode: PNode;
+begin
+  if FMap.TryGetValue(aKey, Result) then
+    Exit;
+  
+  // Key doesn't exist - insert default
+  FMap.Add(aKey, aDefaultValue);
+  LNode := AllocateNode(aKey, aDefaultValue);
+  LinkNode(LNode);
+  FNodeMap.Add(aKey, LNode);
+  Result := aDefaultValue;
+end;
+
+function TLinkedHashMap.GetOrInsertWith(const aKey: K; aSupplier: TValueSupplier): V;
+var
+  LNode: PNode;
+begin
+  if FMap.TryGetValue(aKey, Result) then
+    Exit;
+  
+  // Key doesn't exist - call supplier
+  Result := aSupplier();
+  FMap.Add(aKey, Result);
+  LNode := AllocateNode(aKey, Result);
+  LinkNode(LNode);
+  FNodeMap.Add(aKey, LNode);
+end;
+
+procedure TLinkedHashMap.ModifyOrInsert(const aKey: K; aModifier: TValueModifier; const aDefaultValue: V);
+var
+  LNode: PNode;
+  LValue: V;
+begin
+  if FNodeMap.TryGetValue(aKey, LNode) then
+  begin
+    // Key exists - modify in place
+    aModifier(LNode^.Pair.Value);
+    FMap.AddOrAssign(aKey, LNode^.Pair.Value);
+  end
+  else
+  begin
+    // Key doesn't exist - insert default
+    LValue := aDefaultValue;
+    FMap.Add(aKey, LValue);
+    LNode := AllocateNode(aKey, LValue);
+    LinkNode(LNode);
+    FNodeMap.Add(aKey, LNode);
   end;
 end;
 

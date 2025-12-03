@@ -66,8 +66,8 @@ begin
   // 创建平台特定实例（完全隐藏实现细节）
   {$IFDEF UNIX}
   Result := fafafa.core.sync.namedCondvar.unix.TNamedCondVar.Create(LActualName);
-  if Config.EnableStats then
-    Result.UpdateConfig(Config);
+  if AConfig.EnableStats then
+    Result.UpdateConfig(AConfig);
   {$ENDIF}
   {$IFDEF WINDOWS}
   Result := fafafa.core.sync.namedCondvar.windows.TNamedCondVar.Create(LActualName);

@@ -1,7 +1,7 @@
 ========================================
 Module: fafafa.core.json
 Script: /home/dtamade/projects/fafafa.core/tests/fafafa.core.json/BuildOrTest.sh
-Started: 2025-10-28 12:29:31
+Started: 2025-12-01 10:56:57
 ========================================
 [WARN] tools/lazbuild.sh not found or not executable, falling back to lazbuild in PATH
 [BUILD] Project: tests_json.lpi

@@ -8,7 +8,7 @@ interface
 uses
   SysUtils, BaseUnix, Unix, UnixType, pthreads,
   fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.mutex.base,
-  fafafa.core.sync.condvar.base,
+  fafafa.core.sync.condvar.base;
 
 type
   TCondVar = class(TSynchronizable, ICondVar)

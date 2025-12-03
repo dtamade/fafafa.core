@@ -105,16 +105,16 @@ var
   LSequence: Int64;
 begin
   repeat
-    LPos := atomic_load_64(FEnqueuePos, memory_order_relaxed);
+    LPos := atomic_load_64(FEnqueuePos, mo_relaxed);
     LSlot := @FBuffer[LPos and FMask];
-    LSequence := atomic_load_64(LSlot^.Sequence, memory_order_acquire);
+    LSequence := atomic_load_64(LSlot^.Sequence, mo_acquire);
     if LSequence = LPos then
     begin
       // attempt to reserve slot by incrementing enqueue pos
-      if atomic_compare_exchange_strong_64(FEnqueuePos, LPos, LPos + 1, memory_order_acq_rel) then
+      if atomic_compare_exchange_strong_64(FEnqueuePos, LPos, LPos + 1) then
       begin
         LSlot^.Data := AItem;
-        atomic_store_64(LSlot^.Sequence, LPos + 1, memory_order_release);
+        atomic_store_64(LSlot^.Sequence, LPos + 1, mo_release);
         FStats.IncEnqueue(True);
         Exit(True);
       end
@@ -144,16 +144,16 @@ var
   LSequence: Int64;
 begin
   repeat
-    LPos := atomic_load_64(FDequeuePos, memory_order_relaxed);
+    LPos := atomic_load_64(FDequeuePos, mo_relaxed);
     LSlot := @FBuffer[LPos and FMask];
-    LSequence := atomic_load_64(LSlot^.Sequence, memory_order_acquire);
+    LSequence := atomic_load_64(LSlot^.Sequence, mo_acquire);
     if LSequence = LPos + 1 then
     begin
       // attempt to claim slot by incrementing dequeue pos
-      if atomic_compare_exchange_strong_64(FDequeuePos, LPos, LPos + 1, memory_order_acq_rel) then
+      if atomic_compare_exchange_strong_64(FDequeuePos, LPos, LPos + 1) then
       begin
         AItem := LSlot^.Data;
-        atomic_store_64(LSlot^.Sequence, LPos + FCapacity, memory_order_release);
+        atomic_store_64(LSlot^.Sequence, LPos + FCapacity, mo_release);
         FStats.IncDequeue(True);
         Exit(True);
       end
@@ -174,17 +174,17 @@ end;
 
 function TPreAllocMPMCQueue.IsEmpty: Boolean;
 begin
-  Result := atomic_load_64(FEnqueuePos, memory_order_relaxed) = atomic_load_64(FDequeuePos, memory_order_relaxed);
+  Result := atomic_load_64(FEnqueuePos, mo_relaxed) = atomic_load_64(FDequeuePos, mo_relaxed);
 end;
 
 function TPreAllocMPMCQueue.IsFull: Boolean;
 begin
-  Result := (atomic_load_64(FEnqueuePos, memory_order_relaxed) - atomic_load_64(FDequeuePos, memory_order_relaxed)) >= FCapacity;
+  Result := (atomic_load_64(FEnqueuePos, mo_relaxed) - atomic_load_64(FDequeuePos, mo_relaxed)) >= FCapacity;
 end;
 
 function TPreAllocMPMCQueue.GetSize: Integer;
 begin
-  Result := atomic_load_64(FEnqueuePos, memory_order_relaxed) - atomic_load_64(FDequeuePos, memory_order_relaxed);
+  Result := atomic_load_64(FEnqueuePos, mo_relaxed) - atomic_load_64(FDequeuePos, mo_relaxed);
 end;
 
 function TPreAllocMPMCQueue.GetCapacity: Integer;

@@ -11,56 +11,187 @@ uses
   fafafa.core.time.duration;
 
 type
-  // 单调时钟时间点（纳秒自某个单调起点）
+  /// <summary>
+  /// Represents a point in time as nanoseconds since an epoch.
+  /// </summary>
+  /// <remarks>
+  /// <para>TInstant is an immutable value type representing a monotonic timestamp.</para>
+  /// <para>Internal representation uses UInt64 nanoseconds (0 to ~584 years).</para>
+  /// <para>All arithmetic operations use saturation semantics at boundaries.</para>
+  /// <para>Thread-safe: all operations are pure functions on immutable data.</para>
+  /// </remarks>
+  /// <example>
+  /// var Now: TInstant := Clock.Now;
+  /// var Later: TInstant := Now.Add(TDuration.FromSec(60));
+  /// var Elapsed: TDuration := Later.Diff(Now);
+  /// </example>
   TInstant = record
   private
     FNsSinceEpoch: UInt64;
   public
-    // 构造
+    // === Factory Methods ===
+    
+    /// <summary>Creates an instant from raw nanoseconds since epoch.</summary>
+    /// <param name="A">Nanoseconds since epoch (UInt64).</param>
+    /// <returns>A new TInstant representing the specified time point.</returns>
     class function FromNsSinceEpoch(const A: UInt64): TInstant; static; inline;
+    
+    /// <summary>Creates an instant from Unix timestamp in milliseconds.</summary>
+    /// <param name="AUnixMs">Milliseconds since 1970-01-01 00:00:00 UTC.</param>
+    /// <returns>A new TInstant. Negative values saturate to zero.</returns>
     class function FromUnixMs(const AUnixMs: Int64): TInstant; static; inline;
+    
+    /// <summary>Creates an instant from Unix timestamp in seconds.</summary>
+    /// <param name="AUnixSec">Seconds since 1970-01-01 00:00:00 UTC.</param>
+    /// <returns>A new TInstant. Negative values saturate to zero.</returns>
     class function FromUnixSec(const AUnixSec: Int64): TInstant; static; inline;
+    
+    /// <summary>Creates an instant from Unix timestamp in nanoseconds.</summary>
+    /// <param name="AUnixNs">Nanoseconds since 1970-01-01 00:00:00 UTC.</param>
+    /// <returns>A new TInstant. Negative values saturate to zero.</returns>
+    class function FromUnixNs(const AUnixNs: Int64): TInstant; static; inline;
+    
+    /// <summary>Returns the zero instant (epoch).</summary>
+    /// <returns>TInstant with FNsSinceEpoch = 0.</returns>
     class function Zero: TInstant; static; inline;
+    
+    /// <summary>Parses an ISO 8601 UTC timestamp string.</summary>
+    /// <param name="AStr">ISO 8601 string (e.g. "2025-01-15T14:30:45.123456789Z").</param>
+    /// <param name="AInstant">Output: result instant if successful.</param>
+    /// <returns>True if parsing succeeded, False otherwise.</returns>
+    class function TryParseISO8601(const AStr: string; out AInstant: TInstant): Boolean; static;
 
-    // 访问
+    // === Conversion Methods ===
+    
+    /// <summary>Returns the raw nanoseconds since epoch.</summary>
+    /// <returns>UInt64 nanoseconds value.</returns>
     function AsNsSinceEpoch: UInt64; inline;
+    
+    /// <summary>Converts to Unix timestamp in milliseconds.</summary>
+    /// <returns>Milliseconds since Unix epoch. Saturates to High(Int64) on overflow.</returns>
     function AsUnixMs: Int64; inline;
+    
+    /// <summary>Converts to Unix timestamp in seconds.</summary>
+    /// <returns>Seconds since Unix epoch. Saturates to High(Int64) on overflow.</returns>
     function AsUnixSec: Int64; inline;
 
-    // 算术
+    // === Arithmetic Methods ===
+    
+    /// <summary>Adds a duration to this instant.</summary>
+    /// <param name="D">Duration to add (can be negative).</param>
+    /// <returns>New instant. Saturates to 0 or High(UInt64) at boundaries.</returns>
     function Add(const D: TDuration): TInstant; inline;
+    
+    /// <summary>Subtracts a duration from this instant.</summary>
+    /// <param name="D">Duration to subtract (can be negative).</param>
+    /// <returns>New instant. Saturates to 0 or High(UInt64) at boundaries.</returns>
     function Sub(const D: TDuration): TInstant; inline;
+    
+    /// <summary>Calculates the signed difference between two instants.</summary>
+    /// <param name="Older">The reference instant to compare against.</param>
+    /// <returns>Self - Older as TDuration. Saturates at Int64 bounds.</returns>
     function Diff(const Older: TInstant): TDuration; inline;
+    
+    /// <summary>Alias for Diff - calculates elapsed time since another instant.</summary>
+    /// <param name="Older">The earlier instant.</param>
+    /// <returns>Duration from Older to Self.</returns>
     function Since(const Older: TInstant): TDuration; inline;
 
-    // 比较
+    // === Comparison Methods ===
+    
+    /// <summary>Three-way comparison with another instant.</summary>
+    /// <param name="B">Instant to compare against.</param>
+    /// <returns>-1 if Self &lt; B, 0 if equal, +1 if Self &gt; B.</returns>
     function Compare(const B: TInstant): Integer; inline;
+    
+    /// <summary>Tests if this instant is before another.</summary>
+    /// <param name="B">Instant to compare against.</param>
+    /// <returns>True if Self &lt; B.</returns>
     function LessThan(const B: TInstant): Boolean; inline;
+    
+    /// <summary>Tests if this instant is after another.</summary>
+    /// <param name="B">Instant to compare against.</param>
+    /// <returns>True if Self &gt; B.</returns>
     function GreaterThan(const B: TInstant): Boolean; inline;
+    
+    /// <summary>Tests equality with another instant.</summary>
+    /// <param name="B">Instant to compare against.</param>
+    /// <returns>True if nanosecond values are equal.</returns>
     function Equal(const B: TInstant): Boolean; inline;
 
-    // 工具
+    // === Query Methods ===
+    
+    /// <summary>Tests if this instant has passed relative to now.</summary>
+    /// <param name="NowI">The current instant to compare against.</param>
+    /// <returns>True if Self &gt;= NowI.</returns>
     function HasPassed(const NowI: TInstant): Boolean; inline;
+    
+    /// <summary>Tests if this instant is strictly before another.</summary>
+    /// <param name="Other">Instant to compare against.</param>
+    /// <returns>True if Self &lt; Other.</returns>
     function IsBefore(const Other: TInstant): Boolean; inline;
+    
+    /// <summary>Tests if this instant is strictly after another.</summary>
+    /// <param name="Other">Instant to compare against.</param>
+    /// <returns>True if Self &gt; Other.</returns>
     function IsAfter(const Other: TInstant): Boolean; inline;
+    
+    /// <summary>Clamps this instant to the specified range.</summary>
+    /// <param name="MinV">Minimum allowed instant.</param>
+    /// <param name="MaxV">Maximum allowed instant.</param>
+    /// <returns>MinV if Self &lt; MinV, MaxV if Self &gt; MaxV, else Self.</returns>
     function Clamp(const MinV, MaxV: TInstant): TInstant; inline;
+    
+    /// <summary>Returns the earlier of two instants.</summary>
+    /// <param name="A">First instant.</param>
+    /// <param name="B">Second instant.</param>
+    /// <returns>The instant with smaller nanosecond value.</returns>
     class function Min(const A, B: TInstant): TInstant; static; inline;
+    
+    /// <summary>Returns the later of two instants.</summary>
+    /// <param name="A">First instant.</param>
+    /// <param name="B">Second instant.</param>
+    /// <returns>The instant with larger nanosecond value.</returns>
     class function Max(const A, B: TInstant): TInstant; static; inline;
 
-    // 安全算术
+    // === Checked Arithmetic ===
+    
+    /// <summary>Adds a duration with overflow checking.</summary>
+    /// <param name="D">Duration to add.</param>
+    /// <param name="R">Output: result instant if successful.</param>
+    /// <returns>True if no overflow occurred, False otherwise.</returns>
     function CheckedAdd(const D: TDuration; out R: TInstant): Boolean; inline;
+    
+    /// <summary>Subtracts a duration with underflow checking.</summary>
+    /// <param name="D">Duration to subtract.</param>
+    /// <param name="R">Output: result instant if successful.</param>
+    /// <returns>True if no underflow occurred, False otherwise.</returns>
     function CheckedSub(const D: TDuration; out R: TInstant): Boolean; inline;
 
-    // 运算符
+    // === Operators ===
+    
+    /// <summary>Equality operator.</summary>
     class operator =(const A, B: TInstant): Boolean; inline;
+    /// <summary>Inequality operator.</summary>
     class operator <>(const A, B: TInstant): Boolean; inline;
+    /// <summary>Less-than operator.</summary>
     class operator <(const A, B: TInstant): Boolean; inline;
+    /// <summary>Greater-than operator.</summary>
     class operator >(const A, B: TInstant): Boolean; inline;
+    /// <summary>Less-than-or-equal operator.</summary>
     class operator <=(const A, B: TInstant): Boolean; inline;
+    /// <summary>Greater-than-or-equal operator.</summary>
     class operator >=(const A, B: TInstant): Boolean; inline;
 
-    // 字符串
+    // === String Conversion ===
+    
+    /// <summary>Converts to human-readable string representation.</summary>
+    /// <returns>Format: 'Instant(N ns)' where N is nanoseconds.</returns>
     function ToString: string;
+    
+    /// <summary>Converts to ISO 8601 UTC timestamp string.</summary>
+    /// <returns>Format: 'YYYY-MM-DDTHH:MM:SS.nnnnnnnnnZ' (nanosecond precision).</returns>
+    function ToISO8601: string;
   end;
 
 implementation
@@ -88,6 +219,15 @@ begin
   // Convert seconds to nanoseconds
   if AUnixSec >= 0 then
     Result.FNsSinceEpoch := UInt64(AUnixSec) * 1000000000
+  else
+    Result.FNsSinceEpoch := 0; // Saturate to zero for negative timestamps
+end;
+
+class function TInstant.FromUnixNs(const AUnixNs: Int64): TInstant;
+begin
+  // Unix epoch: 1970-01-01 00:00:00 UTC
+  if AUnixNs >= 0 then
+    Result.FNsSinceEpoch := UInt64(AUnixNs)
   else
     Result.FNsSinceEpoch := 0; // Saturate to zero for negative timestamps
 end;
@@ -323,6 +463,183 @@ end;
 function TInstant.ToString: string;
 begin
   Result := Format('Instant(%d ns)', [FNsSinceEpoch]);
+end;
+
+function TInstant.ToISO8601: string;
+const
+  NS_PER_SEC = UInt64(1000000000);
+  NS_PER_MS  = UInt64(1000000);
+  NS_PER_US  = UInt64(1000);
+  SEC_PER_MIN = 60;
+  SEC_PER_HOUR = 3600;
+  SEC_PER_DAY = 86400;
+var
+  totalSec: UInt64;
+  ns: UInt64;
+  days: UInt64;
+  secOfDay: UInt64;
+  hour, minute, second: Integer;
+  year, month, day: Integer;
+  y, m, d, n: Integer;
+  isLeap: Boolean;
+  daysInMonth: array[1..12] of Integer;
+  fracStr: string;
+begin
+  totalSec := FNsSinceEpoch div NS_PER_SEC;
+  ns := FNsSinceEpoch mod NS_PER_SEC;
+  
+  days := totalSec div SEC_PER_DAY;
+  secOfDay := totalSec mod SEC_PER_DAY;
+  
+  hour := Integer(secOfDay div SEC_PER_HOUR);
+  secOfDay := secOfDay mod SEC_PER_HOUR;
+  minute := Integer(secOfDay div SEC_PER_MIN);
+  second := Integer(secOfDay mod SEC_PER_MIN);
+  
+  // Convert days since 1970-01-01 to year/month/day
+  year := 1970;
+  while True do
+  begin
+    isLeap := ((year mod 4 = 0) and (year mod 100 <> 0)) or (year mod 400 = 0);
+    if isLeap then n := 366 else n := 365;
+    if days < UInt64(n) then Break;
+    days := days - UInt64(n);
+    Inc(year);
+  end;
+  
+  isLeap := ((year mod 4 = 0) and (year mod 100 <> 0)) or (year mod 400 = 0);
+  daysInMonth[1] := 31;
+  if isLeap then daysInMonth[2] := 29 else daysInMonth[2] := 28;
+  daysInMonth[3] := 31; daysInMonth[4] := 30; daysInMonth[5] := 31; daysInMonth[6] := 30;
+  daysInMonth[7] := 31; daysInMonth[8] := 31; daysInMonth[9] := 30; daysInMonth[10] := 31;
+  daysInMonth[11] := 30; daysInMonth[12] := 31;
+  
+  month := 1;
+  while (month <= 12) and (days >= UInt64(daysInMonth[month])) do
+  begin
+    days := days - UInt64(daysInMonth[month]);
+    Inc(month);
+  end;
+  day := Integer(days) + 1;
+  
+  // Format fractional seconds
+  if ns = 0 then
+    fracStr := ''
+  else if (ns mod NS_PER_MS) = 0 then
+    fracStr := Format('.%.3d', [ns div NS_PER_MS])
+  else if (ns mod NS_PER_US) = 0 then
+    fracStr := Format('.%.6d', [ns div NS_PER_US])
+  else
+    fracStr := Format('.%.9d', [ns]);
+  
+  Result := Format('%.4d-%.2d-%.2dT%.2d:%.2d:%.2d%sZ',
+    [year, month, day, hour, minute, second, fracStr]);
+end;
+
+class function TInstant.TryParseISO8601(const AStr: string; out AInstant: TInstant): Boolean;
+const
+  NS_PER_SEC = UInt64(1000000000);
+  SEC_PER_MIN = 60;
+  SEC_PER_HOUR = 3600;
+  SEC_PER_DAY = 86400;
+var
+  s: string;
+  p: SizeInt;
+  yearStr, monthStr, dayStr, hourStr, minStr, secStr, fracStr: string;
+  year, month, day, hour, minute, second, nanosecond: Integer;
+  m, daysInYear: Integer;
+  totalDays: UInt64;
+  isLeap: Boolean;
+  daysInMonth: array[1..12] of Integer;
+  fracLen: Integer;
+begin
+  Result := False;
+  AInstant := Zero;
+  
+  s := Trim(AStr);
+  if s = '' then Exit;
+  
+  // Must end with Z (UTC)
+  if (Length(s) < 20) or (s[Length(s)] <> 'Z') then Exit;
+  s := Copy(s, 1, Length(s) - 1); // Remove Z
+  
+  // Parse YYYY-MM-DDTHH:MM:SS(.nnnnnnnnn)?
+  // Minimum: YYYY-MM-DDTHH:MM:SS = 19 chars
+  if Length(s) < 19 then Exit;
+  
+  yearStr := Copy(s, 1, 4);
+  if s[5] <> '-' then Exit;
+  monthStr := Copy(s, 6, 2);
+  if s[8] <> '-' then Exit;
+  dayStr := Copy(s, 9, 2);
+  if s[11] <> 'T' then Exit;
+  hourStr := Copy(s, 12, 2);
+  if s[14] <> ':' then Exit;
+  minStr := Copy(s, 15, 2);
+  if s[17] <> ':' then Exit;
+  secStr := Copy(s, 18, 2);
+  
+  if Length(s) > 19 then
+  begin
+    if s[20] <> '.' then Exit;
+    fracStr := Copy(s, 21, MaxInt);
+  end
+  else
+    fracStr := '';
+  
+  if not TryStrToInt(yearStr, year) then Exit;
+  if not TryStrToInt(monthStr, month) then Exit;
+  if not TryStrToInt(dayStr, day) then Exit;
+  if not TryStrToInt(hourStr, hour) then Exit;
+  if not TryStrToInt(minStr, minute) then Exit;
+  if not TryStrToInt(secStr, second) then Exit;
+  
+  // Validate ranges
+  if (year < 1970) or (month < 1) or (month > 12) or (day < 1) or (day > 31) then Exit;
+  if (hour < 0) or (hour > 23) or (minute < 0) or (minute > 59) or (second < 0) or (second > 59) then Exit;
+  
+  // Parse fractional seconds
+  if fracStr = '' then nanosecond := 0
+  else
+  begin
+    fracLen := Length(fracStr);
+    if (fracLen < 1) or (fracLen > 9) then Exit;
+    if not TryStrToInt(fracStr, nanosecond) then Exit;
+    while fracLen < 9 do
+    begin
+      nanosecond := nanosecond * 10;
+      Inc(fracLen);
+    end;
+  end;
+  
+  // Calculate days since 1970-01-01
+  totalDays := 0;
+  for m := 1970 to year - 1 do
+  begin
+    isLeap := ((m mod 4 = 0) and (m mod 100 <> 0)) or (m mod 400 = 0);
+    if isLeap then totalDays := totalDays + 366 else totalDays := totalDays + 365;
+  end;
+  
+  isLeap := ((year mod 4 = 0) and (year mod 100 <> 0)) or (year mod 400 = 0);
+  daysInMonth[1] := 31;
+  if isLeap then daysInMonth[2] := 29 else daysInMonth[2] := 28;
+  daysInMonth[3] := 31; daysInMonth[4] := 30; daysInMonth[5] := 31; daysInMonth[6] := 30;
+  daysInMonth[7] := 31; daysInMonth[8] := 31; daysInMonth[9] := 30; daysInMonth[10] := 31;
+  daysInMonth[11] := 30; daysInMonth[12] := 31;
+  
+  // Validate day in month
+  if day > daysInMonth[month] then Exit;
+  
+  for m := 1 to month - 1 do
+    totalDays := totalDays + UInt64(daysInMonth[m]);
+  totalDays := totalDays + UInt64(day - 1);
+  
+  AInstant.FNsSinceEpoch := totalDays * SEC_PER_DAY * NS_PER_SEC +
+                            UInt64(hour) * SEC_PER_HOUR * NS_PER_SEC +
+                            UInt64(minute) * SEC_PER_MIN * NS_PER_SEC +
+                            UInt64(second) * NS_PER_SEC +
+                            UInt64(nanosecond);
+  Result := True;
 end;
 
 end.

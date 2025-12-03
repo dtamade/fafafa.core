@@ -80,9 +80,9 @@ var
   oldHead: Pointer;
 begin
   repeat
-    oldHead := atomic_load_ptr(gParticipantsHead, memory_order_relaxed);
+    oldHead := atomic_load_ptr(gParticipantsHead, mo_relaxed);
     node^.next := PParticipant(oldHead);
-  until atomic_compare_exchange_strong_ptr(gParticipantsHead, oldHead, node, memory_order_acq_rel);
+  until atomic_compare_exchange_strong_ptr(gParticipantsHead, oldHead, node);
   Result := True;
 end;
 
@@ -101,7 +101,7 @@ var
 begin
   p := RegisterParticipant;
   p^.active := 1;
-  p^.epoch := atomic_load_64(gEpoch, memory_order_acquire);
+  p^.epoch := atomic_load_64(gEpoch, mo_acquire);
   Result := p;
 end;
 
@@ -121,13 +121,13 @@ begin
   p^.active := 0;
   // 从全局单链表移除（无锁近似：如果失败则保留，后续扫描忽略 active=0 即可）
   prev := nil;
-  cur := PParticipant(atomic_load_ptr(gParticipantsHead, memory_order_acquire));
+  cur := PParticipant(atomic_load_ptr(gParticipantsHead, mo_acquire));
   while cur <> nil do
   begin
     if cur = p then
     begin
       if prev = nil then
-        atomic_compare_exchange_strong_ptr(gParticipantsHead, Pointer(cur), Pointer(cur^.next), memory_order_acq_rel)
+        atomic_compare_exchange_strong_ptr(gParticipantsHead, Pointer(cur), Pointer(cur^.next))
       else
         prev^.next := cur^.next;
       Break;
@@ -139,7 +139,7 @@ end;
 procedure lf_quiescent; inline;
 begin
   // 简单地推进全局 epoch；实际实现可按采样/阈值控制
-  atomic_fetch_add_64(gEpoch, 1, memory_order_acq_rel);
+  atomic_fetch_add_64(gEpoch, 1);
 end;
 
 procedure PushRetired(pp: PParticipant; p: Pointer; disposer: TLFDisposer; e: Int64); inline;
@@ -159,8 +159,8 @@ var
   cur: PParticipant;
   minE: Int64;
 begin
-  minE := atomic_load_64(gEpoch, memory_order_relaxed);
-  cur := PParticipant(atomic_load_ptr(gParticipantsHead, memory_order_acquire));
+  minE := atomic_load_64(gEpoch, mo_relaxed);
+  cur := PParticipant(atomic_load_ptr(gParticipantsHead, mo_acquire));
   while cur <> nil do
   begin
     if cur^.active <> 0 then
@@ -198,7 +198,7 @@ procedure MaybeAdvanceAndCollect(pp: PParticipant); inline;
 begin
   if pp^.retiredCount >= 64 then
   begin
-    atomic_fetch_add_64(gEpoch, 1, memory_order_acq_rel);
+    atomic_fetch_add_64(gEpoch, 1);
     CollectFor(pp);
   end;
 end;
@@ -209,7 +209,7 @@ var
   e: Int64;
 begin
   pp := RegisterParticipant;
-  e := atomic_load_64(gEpoch, memory_order_relaxed);
+  e := atomic_load_64(gEpoch, mo_relaxed);
   PushRetired(pp, p, disposer, e);
   MaybeAdvanceAndCollect(pp);
 end;
@@ -218,7 +218,7 @@ procedure lf_drain; inline;
 var
   cur: PParticipant;
 begin
-  cur := PParticipant(atomic_load_ptr(gParticipantsHead, memory_order_acquire));
+  cur := PParticipant(atomic_load_ptr(gParticipantsHead, mo_acquire));
   while cur <> nil do
   begin
     CollectFor(cur);

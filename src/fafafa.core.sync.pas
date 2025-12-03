@@ -20,6 +20,9 @@ uses
   fafafa.core.sync.sem,
   fafafa.core.sync.event,
   fafafa.core.sync.recMutex,
+  fafafa.core.sync.waitgroup,  // Phase 1.1: Go-style WaitGroup
+  fafafa.core.sync.latch,      // Phase 1.2: CountDownLatch
+  fafafa.core.sync.parker,     // Phase 1.3: Rust-style Parker
   // Named synchronization primitives
   fafafa.core.sync.namedMutex,
   fafafa.core.sync.namedEvent,
@@ -48,6 +51,9 @@ type
   IEvent             = fafafa.core.sync.event.IEvent;
   ICondVar = fafafa.core.sync.condvar.ICondVar;
   IBarrier           = fafafa.core.sync.barrier.IBarrier;
+  IWaitGroup         = fafafa.core.sync.waitgroup.IWaitGroup;  // Phase 1.1
+  ILatch             = fafafa.core.sync.latch.ILatch;          // Phase 1.2
+  IParker            = fafafa.core.sync.parker.IParker;        // Phase 1.3
 
   // Named synchronization primitives interfaces
   INamedMutex             = fafafa.core.sync.namedMutex.INamedMutex;
@@ -115,6 +121,9 @@ function MakeCondVar: ICondVar; inline;
 function MakeBarrier(AParticipantCount: Integer): IBarrier; inline;
 function MakeSem(AInitialCount: Integer = 1; AMaxCount: Integer = 1): ISem; inline;
 function MakeEvent(AManualReset: Boolean = False; AInitialState: Boolean = False): IEvent; inline;
+function MakeWaitGroup: IWaitGroup; inline;  // Phase 1.1: Go-style WaitGroup
+function MakeLatch(ACount: Integer): ILatch; inline;  // Phase 1.2: CountDownLatch
+function MakeParker: IParker; inline;                  // Phase 1.3: Rust-style Parker
 
 function MakeRecMutex: IRecMutex; overload; inline;
 {$IFDEF WINDOWS}
@@ -181,6 +190,21 @@ end;
 function MakeEvent(AManualReset: Boolean; AInitialState: Boolean): IEvent;
 begin
   Result := fafafa.core.sync.event.MakeEvent(AManualReset, AInitialState);
+end;
+
+function MakeWaitGroup: IWaitGroup;
+begin
+  Result := fafafa.core.sync.waitgroup.MakeWaitGroup;
+end;
+
+function MakeLatch(ACount: Integer): ILatch;
+begin
+  Result := fafafa.core.sync.latch.MakeLatch(ACount);
+end;
+
+function MakeParker: IParker;
+begin
+  Result := fafafa.core.sync.parker.MakeParker;
 end;
 
 function MakeRecMutex: IRecMutex;

@@ -13,6 +13,19 @@ uses
   fafafa.core.collections.base;
 
 type
+  {**
+   * TReadOnlySpan<T>
+   *
+   * @desc 只读切片视图 - 对连续内存区域的零拷贝视图
+   * @param T 元素类型
+   * @note
+   *   - 不拥有内存，仅保存指针和长度
+   *   - 零拷贝 O(1) 创建
+   *   - 随机访问 O(1)
+   *   - 适用于函数参数传递，避免复制
+   *
+   *   警告: 原始数据释放后 Span 变为悬空指针!
+   *}
   generic TReadOnlySpan<T> = record
     FPtr: Pointer;      // 起始元素指针（只读视图）
     FCount: SizeUInt;   // 元素数量
@@ -27,6 +40,17 @@ type
     function  SubSpan(aIndex, aCount: SizeUInt): TReadOnlySpan; inline;
   end;
 
+  {**
+   * TReadOnlySpan2<T>
+   *
+   * @desc 双段只读切片 - 两段不连续内存的逻辑视图
+   * @param T 元素类型
+   * @note
+   *   - 用于环形缓冲区的两段视图 (wrap-around)
+   *   - A段 + B段组成逻辑上连续的序列
+   *   - B段可能为空
+   *   - 随机访问自动跨越两段
+   *}
   generic TReadOnlySpan2<T> = record
   public type
     TSpan = specialize TReadOnlySpan<T>;

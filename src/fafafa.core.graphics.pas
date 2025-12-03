@@ -185,7 +185,10 @@ end;
 
 function GetMemoryUsage: NativeUInt;
 begin
-  Result := 0; // Placeholder - would need platform-specific implementation
+  // Basic estimation for bitmap memory (width * height * 4 bytes per pixel)
+  // This is a simplified calculation - actual usage may be higher due to alignment
+  Result := 0; // Returns 0 since this is a global function without bitmap context
+  // For per-bitmap memory usage, use TBitmap32.GetMemorySize instead
 end;
 
 { TBitmap32 }
@@ -662,14 +665,26 @@ end;
 
 procedure TBitmap32.GaussianBlur(Radius: Double);
 begin
-  // Placeholder - would implement Gaussian blur
-  // This is a complex operation that requires convolution
+  // Gaussian blur not yet implemented
+  // This would require:
+  // 1. Convolution kernel generation based on radius
+  // 2. Separable filter implementation for performance
+  // 3. Edge handling (wrap, clamp, or mirror)
+  // Consider using external image processing libraries for now
+  if Radius > 0 then
+    raise ENotSupported.Create('Gaussian blur not yet implemented. Use external image processing library or implement convolution kernel.');
 end;
 
 procedure TBitmap32.Sharpen(Amount: Double);
 begin
-  // Placeholder - would implement sharpening
-  // This typically uses unsharp mask or convolution
+  // Sharpen filter not yet implemented
+  // This would require:
+  // 1. Unsharp mask algorithm or convolution kernel
+  // 2. Edge-preserving considerations
+  // 3. Amount parameter validation and scaling
+  // Consider using external image processing libraries for now
+  if Amount > 0 then
+    raise ENotSupported.Create('Sharpen filter not yet implemented. Use external image processing library or implement unsharp mask algorithm.');
 end;
 
 function TBitmap32.HasAlpha: Boolean;

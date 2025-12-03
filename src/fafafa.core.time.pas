@@ -29,12 +29,27 @@ uses
   fafafa.core.time.timeofday,
   fafafa.core.time.format,
   fafafa.core.time.parse,
-  fafafa.core.time.timeout;
+  fafafa.core.time.timeout,
+  // 新增：时区与日期时间类型 (v1.1.0)
+  fafafa.core.time.offset,
+  fafafa.core.time.zoneddatetime,
+  fafafa.core.time.naivedatetime,
+  fafafa.core.time.isoweek;
 
 type
   // 直接转出常用类型，便于使用方只依赖本门面单元
   TDuration = fafafa.core.time.duration.TDuration;
   TInstant  = fafafa.core.time.instant.TInstant;
+  
+  // 日期与时间组件
+  TDate      = fafafa.core.time.date.TDate;
+  TTimeOfDay = fafafa.core.time.timeofday.TTimeOfDay;
+  
+  // 新增时区与日期时间类型 (v1.1.0)
+  TUtcOffset      = fafafa.core.time.offset.TUtcOffset;
+  TZonedDateTime  = fafafa.core.time.zoneddatetime.TZonedDateTime;
+  TNaiveDateTime  = fafafa.core.time.naivedatetime.TNaiveDateTime;
+  TIsoWeek        = fafafa.core.time.isoweek.TIsoWeek;
 
   // 时钟接口
   IMonotonicClock = fafafa.core.time.clock.IMonotonicClock;
@@ -61,11 +76,11 @@ type
 
 const
   // Module version information
-  TIME_MODULE_VERSION = '1.0.0';
+  TIME_MODULE_VERSION = '1.1.0';
   TIME_MODULE_VERSION_MAJOR = 1;
-  TIME_MODULE_VERSION_MINOR = 0;
+  TIME_MODULE_VERSION_MINOR = 1;
   TIME_MODULE_VERSION_PATCH = 0;
-  TIME_MODULE_BUILD_DATE = '2025-10-02';
+  TIME_MODULE_BUILD_DATE = '2025-12-03';
 
 function DefaultMonotonicClock: IMonotonicClock; inline;
 function DefaultSystemClock: ISystemClock; inline;

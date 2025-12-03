@@ -36,7 +36,6 @@ interface
   uses
     sysutils,
     typinfo,
-    variants,
     fafafa.core.base,
     fafafa.core.math,
     fafafa.core.mem.utils,
@@ -538,7 +537,7 @@ interface
 
   { TElementManager 泛型元素分配器实现 }
 
-  generic TElementManager<T> = class(TInterfacedObject, specialize IElementManager<T>)
+  generic TElementManager<T> = class(TObject)
   type
     PElement = ^T;
   private

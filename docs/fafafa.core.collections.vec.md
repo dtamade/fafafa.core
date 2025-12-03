@@ -24,6 +24,40 @@
 - 内存分配：TAllocator 注入，跨平台
 - UnChecked 合同：批量操作与无检查路径由调用方保证边界
 
+### 批量 LoadFrom/Append 语义
+
+- **指针重载**
+  - `LoadFrom(aSrc: Pointer; aCount)`：`aCount = 0` → Clear；`aSrc = nil` 且 `aCount > 0` → 抛 `EInvalidArgument`。
+  - `Append(aSrc: Pointer; aCount)`：`aCount = 0` 直接返回，`aSrc = nil` 且 `aCount > 0` 抛异常。
+  - `TryLoadFrom/TryAppend` 指针版遵循 `docs/partials/collections.try_apis.collection.md`：`TryLoadFrom(nil,0)` 清空并 True；`TryAppend(nil,>0)` 返回 False；检测到重叠或内部失败亦返回 False。
+
+- **数组/集合重载**
+  - `LoadFrom/Append` 的数组与 `ICollection` 重载语义与指针版一致：`LoadFrom` 成功后 `Count = aCount`，`Append` 末尾扩展。
+  - `TryLoadFrom/TryAppend` 集合重载拒绝 `nil` 或 `Self`，类型不兼容/容量不足返回 False，不抛异常。
+
+- **托管类型保障**
+  - `LoadFrom` 在写入前释放旧元素，`Append` 若扩容过程失败会回滚 `Count`，确保托管类型无泄漏。
+
+上述规则由 `tests/fafafa.core.collections.vec/Test_vec.pas` 与 `Test_vec_reserve_overflow_freebuffer.pas` 中的 `LoadFrom_*`、`Append_*`、`Try*` 用例验证。
+
+### 遍历 & 搜索语义（ForEach / Contains / Find 系列）
+
+- **ForEach / ForEachUnChecked**
+  - 空容器直接返回 `True` 且不触发回调；回调返回 `False` 时立即短路并返回 `False`。
+  - `ForEach(startIndex, ...)` 做边界检查；`ForEachUnChecked(startIndex, count, ...)` 省略检查，由调用方确保范围合法。
+  - `PredicateFunc`/`PredicateMethod`/`PredicateRefFunc` 语义一致，RefFunc 仅在 `FAFAFA_CORE_ANONYMOUS_REFERENCES`（FPC ≥ 3.3.1）启用时可用。
+
+- **Contains / ContainsUnChecked**
+  - `Contains(aValue, aStartIndex, aCount)` 在 `aCount = 0` 时直接返回 `False`。
+  - 支持 `EqualsFunc`/`EqualsMethod`/`EqualsRefFunc`，RefFunc 受上文宏控制。
+  - `ContainsUnChecked` 跳过边界检查，需要调用方保证 `aStartIndex + aCount <= Count`。
+
+- **Find / FindUnChecked**
+  - 命中返回逻辑索引，未命中返回 `-1`；`aCount = 0` 即 `-1`。
+  - 提供 `EqualsFunc`/`EqualsMethod`/`EqualsRefFunc`，UnChecked 版本省略边界检查。
+
+这些遍历/搜索语义通过 `tests/fafafa.core.collections.vec/Test_vec.pas` 与 `tests/fafafa.core.collections.vec/Test_vec_reserve_overflow_freebuffer.pas` 中的 ForEach/Contains/Find 系列测试锁定，可作为 API 行为契约。
+
 ## 常用 API（摘要）
 - Add/Insert/Remove/RemoveSwap
 - Ensure/Reserve/TryReserve/ReserveExact/Shrink/ShrinkToFit

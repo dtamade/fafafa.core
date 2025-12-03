@@ -30,6 +30,7 @@ type
    * @desc Vector interface for dynamic arrays
    * @param T Element type
    * @note See docs/README_TVec.md for quick guide
+   * @threadsafety NOT thread-safe. Use external synchronization for concurrent access.
    *}
   generic IVec<T> = interface(specialize IArray<T>)
   ['{C205D988-F671-4E47-8573-9AF2C85AC749}']
@@ -1049,9 +1050,6 @@ type
     FCount:        SizeUInt;
     FGrowStrategy: IGrowthStrategy;
     FPrevNonAlignedStrategy: IGrowthStrategy; // 保存启用对齐包装前的策略以便恢复
-    // 对齐增长包装所需的类对象（手动管理其生命周期，避免泄漏）
-    FAlignedWrapperObj: TGrowthStrategy;      // TAlignedWrapperStrategy 实例
-    FAlignedAdapterObj: TGrowthStrategy;      // TInterfaceGrowthStrategyAdapter 实例
 
 
   { 迭代器回调}
@@ -1073,22 +1071,22 @@ type
   public
     constructor Create; reintroduce; overload;
     constructor Create(aAllocator: IAllocator; aData: Pointer); override; overload;
-    constructor Create(aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy); overload;
-    constructor Create(aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy; aData: Pointer); overload;
+    constructor Create(aAllocator: IAllocator; aGrowStrategy: IGrowthStrategy); overload;
+    constructor Create(aAllocator: IAllocator; aGrowStrategy: IGrowthStrategy; aData: Pointer); overload;
 
     constructor Create(aCapacity: SizeUInt); overload;
     constructor Create(aCapacity: SizeUInt; aAllocator: IAllocator); overload;
-    constructor Create(aCapacity: SizeUInt; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy); overload;
-    constructor Create(aCapacity: SizeUInt; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy; aData: Pointer); virtual; overload;
+    constructor Create(aCapacity: SizeUInt; aAllocator: IAllocator; aGrowStrategy: IGrowthStrategy); overload;
+    constructor Create(aCapacity: SizeUInt; aAllocator: IAllocator; aGrowStrategy: IGrowthStrategy; aData: Pointer); virtual; overload;
 
-    constructor Create(const aSrc: TCollection; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy); overload;
-    constructor Create(const aSrc: TCollection; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy; aData: Pointer); overload;
+    constructor Create(const aSrc: TCollection; aAllocator: IAllocator; aGrowStrategy: IGrowthStrategy); overload;
+    constructor Create(const aSrc: TCollection; aAllocator: IAllocator; aGrowStrategy: IGrowthStrategy; aData: Pointer); overload;
 
-    constructor Create(aSrc: Pointer; aCount: SizeUInt; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy); overload;
-    constructor Create(aSrc: Pointer; aCount: SizeUInt; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy; aData: Pointer); overload;
+    constructor Create(aSrc: Pointer; aCount: SizeUInt; aAllocator: IAllocator; aGrowStrategy: IGrowthStrategy); overload;
+    constructor Create(aSrc: Pointer; aCount: SizeUInt; aAllocator: IAllocator; aGrowStrategy: IGrowthStrategy; aData: Pointer); overload;
 
-    constructor Create(const aSrc: array of T; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy); overload;
-    constructor Create(const aSrc: array of T; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy; aData: Pointer); overload;
+    constructor Create(const aSrc: array of T; aAllocator: IAllocator; aGrowStrategy: IGrowthStrategy); overload;
+    constructor Create(const aSrc: array of T; aAllocator: IAllocator; aGrowStrategy: IGrowthStrategy; aData: Pointer); overload;
 
     destructor  Destroy; override;
 
@@ -1770,12 +1768,12 @@ begin
   Create(VEC_DEFAULT_CAPACITY, aAllocator, nil, aData);
 end;
 
-constructor TVec.Create(aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy);
+constructor TVec.Create(aAllocator: IAllocator; aGrowStrategy: IGrowthStrategy);
 begin
   Create(VEC_DEFAULT_CAPACITY, aAllocator, aGrowStrategy, nil);
 end;
 
-constructor TVec.Create(aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy;
+constructor TVec.Create(aAllocator: IAllocator; aGrowStrategy: IGrowthStrategy;
   aData: Pointer);
 begin
   Create(VEC_DEFAULT_CAPACITY, aAllocator, aGrowStrategy, aData);
@@ -1791,50 +1789,47 @@ begin
   Create(aCapacity, aAllocator, nil, nil);
 end;
 
-constructor TVec.Create(aCapacity: SizeUInt; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy);
+constructor TVec.Create(aCapacity: SizeUInt; aAllocator: IAllocator; aGrowStrategy: IGrowthStrategy);
 begin
   Create(aCapacity, aAllocator, aGrowStrategy, nil);
 end;
 
-constructor TVec.Create(aCapacity: SizeUInt; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy; aData: Pointer);
+constructor TVec.Create(aCapacity: SizeUInt; aAllocator: IAllocator; aGrowStrategy: IGrowthStrategy; aData: Pointer);
 begin
   inherited Create(aAllocator, aData);
-  if aGrowStrategy = nil then
-    SetGrowStrategy(nil)
-  else
-    SetGrowStrategy(TGrowthStrategyInterfaceView.Create(aGrowStrategy));
+  FGrowStrategy := aGrowStrategy;
   FBuf   := TVecBuf.Create(aCapacity, aAllocator, aData);
   FCount := 0;
 end;
 
-constructor TVec.Create(const aSrc: TCollection; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy);
+constructor TVec.Create(const aSrc: TCollection; aAllocator: IAllocator; aGrowStrategy: IGrowthStrategy);
 begin
   Create(aSrc, aAllocator, aGrowStrategy, nil);
 end;
 
-constructor TVec.Create(const aSrc: TCollection; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy; aData: Pointer);
+constructor TVec.Create(const aSrc: TCollection; aAllocator: IAllocator; aGrowStrategy: IGrowthStrategy; aData: Pointer);
 begin
   Create(0, aAllocator, aGrowStrategy, aData);
   LoadFrom(aSrc);
 end;
 
-constructor TVec.Create(aSrc: Pointer; aCount: SizeUInt; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy);
+constructor TVec.Create(aSrc: Pointer; aCount: SizeUInt; aAllocator: IAllocator; aGrowStrategy: IGrowthStrategy);
 begin
   Create(aSrc, aCount, aAllocator, aGrowStrategy, nil);
 end;
 
-constructor TVec.Create(aSrc: Pointer; aCount: SizeUInt; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy; aData: Pointer);
+constructor TVec.Create(aSrc: Pointer; aCount: SizeUInt; aAllocator: IAllocator; aGrowStrategy: IGrowthStrategy; aData: Pointer);
 begin
   Create(0, aAllocator, aGrowStrategy, aData);
   LoadFrom(aSrc, aCount);
 end;
 
-constructor TVec.Create(const aSrc: array of T; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy);
+constructor TVec.Create(const aSrc: array of T; aAllocator: IAllocator; aGrowStrategy: IGrowthStrategy);
 begin
   Create(aSrc, aAllocator, aGrowStrategy, nil);
 end;
 
-constructor TVec.Create(const aSrc: array of T; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy; aData: Pointer);
+constructor TVec.Create(const aSrc: array of T; aAllocator: IAllocator; aGrowStrategy: IGrowthStrategy; aData: Pointer);
 begin
   Create(0, aAllocator, aGrowStrategy, aData);
   LoadFrom(aSrc);
@@ -2194,45 +2189,38 @@ end;
 
 procedure TVec.EnableAlignedGrowth(aAlignElements: SizeUInt);
 begin
-  // 启用对齐增长：以类策略包装当前接口策略，并以接口形式持有
+  // 启用对齐增长：TAlignedWrapperStrategy 直接接受 IGrowthStrategy
   // aAlignElements 需为 2 的幂；若非法，回退到默认 64
   if aAlignElements = 0 then
     aAlignElements := TAlignedWrapperStrategy.DEFAULT_ALIGN_SIZE;
   if (aAlignElements and (aAlignElements - 1)) <> 0 then
     aAlignElements := TAlignedWrapperStrategy.DEFAULT_ALIGN_SIZE;
 
-  // 若已启用，则先禁用以清理旧对象
+  // 若已启用，则先禁用以恢复原策略
   if IsAlignedGrowthEnabled then
     DisableAlignedGrowth;
 
   // 保存原策略以便恢复
   FPrevNonAlignedStrategy := GetGrowStrategy;
 
-  // 采用类策略包装并以接口形式暴露，避免 I 版本策略引入
-  SetGrowStrategy(TGrowthStrategyInterfaceView.Create(
-    TAlignedWrapperStrategy.Create(
-      TInterfaceGrowthStrategyAdapter.Create(FPrevNonAlignedStrategy),
-      aAlignElements
-    )
-  ));
+  // 直接创建 TAlignedWrapperStrategy，它实现 IGrowthStrategy
+  SetGrowStrategy(TAlignedWrapperStrategy.Create(FPrevNonAlignedStrategy, aAlignElements));
 end;
 
 procedure TVec.DisableAlignedGrowth;
 begin
-  // 恢复先前的非对齐策略，并释放包装对象
+  // 恢复先前的非对齐策略
   if FPrevNonAlignedStrategy <> nil then
-    SetGrowStrategy(IGrowthStrategy(FPrevNonAlignedStrategy))
+    SetGrowStrategy(FPrevNonAlignedStrategy)
   else
-    SetGrowStrategy(IGrowthStrategy(nil));
+    SetGrowStrategy(nil);
 
-  FreeAndNil(FAlignedAdapterObj);
-  FreeAndNil(FAlignedWrapperObj);
   FPrevNonAlignedStrategy := nil;
 end;
 
 function TVec.IsAlignedGrowthEnabled: Boolean;
 begin
-  Result := Assigned(FAlignedWrapperObj);
+  Result := FPrevNonAlignedStrategy <> nil;
 end;
 
 
@@ -3120,7 +3108,7 @@ var
 begin
   // 边界检查
   if aStart >= FCount then
-    raise EArgumentOutOfRangeException.Create('Drain: start index out of range');
+    raise EOutOfRange.Create('TVec.Drain: start index out of range');
   if aStart + aCount > FCount then
     aCount := FCount - aStart;
 
@@ -3155,6 +3143,7 @@ function TVec.ToArray: specialize TGenericArray<T>;
 var
   i: SizeUInt;
 begin
+  Result := nil;
   SetLength(Result, FCount);
   // 空向量直接返回，避免无效索引访问
   if FCount > 0 then
@@ -3184,14 +3173,14 @@ end;
 function TVec.First: T;
 begin
   if FCount = 0 then
-    raise EArgumentOutOfRangeException.Create('Vector is empty');
+    raise EEmptyCollection.Create('TVec: collection is empty');
   Result := GetUnChecked(0);
 end;
 
 function TVec.Last: T;
 begin
   if FCount = 0 then
-    raise EArgumentOutOfRangeException.Create('Vector is empty');
+    raise EEmptyCollection.Create('TVec: collection is empty');
   Result := GetUnChecked(FCount - 1);
 end;
 

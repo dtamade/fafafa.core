@@ -96,26 +96,26 @@ begin
   LNewNode^.HasData := True;
   repeat
     // HB-1: acquire read tail to see newest published tail value
-    LTail := atomic_load_ptr(PPointer(@FTail)^, memory_order_acquire);
+    LTail := atomic_load_ptr(PPointer(@FTail)^, mo_acquire);
     // HB-2: acquire read next to observe enqueuer's release of new node link
-    LNext := PNode(atomic_load_ptr(PPointer(@LTail^.Next)^, memory_order_acquire));
+    LNext := PNode(atomic_load_ptr(PPointer(@LTail^.Next)^, mo_acquire));
     // Re-read tail (acquire) and compare to avoid torn observation
-    if LTail = atomic_load_ptr(PPointer(@FTail)^, memory_order_acquire) then
+    if LTail = atomic_load_ptr(PPointer(@FTail)^, mo_acquire) then
     begin
       if LNext = nil then
       begin
         LExpected := nil;
-        if atomic_compare_exchange_strong_ptr(PPointer(@LTail^.Next)^, LExpected, Pointer(LNewNode), memory_order_acq_rel) then
+        if atomic_compare_exchange_strong_ptr(PPointer(@LTail^.Next)^, LExpected, Pointer(LNewNode)) then
         begin
           LExpected := LTail;
-          atomic_compare_exchange_strong_ptr(PPointer(@FTail)^, LExpected, Pointer(LNewNode), memory_order_acq_rel);
+          atomic_compare_exchange_strong_ptr(PPointer(@FTail)^, LExpected, Pointer(LNewNode));
           Break;
         end;
       end
       else
       begin
         LExpected := LTail;
-        atomic_compare_exchange_strong_ptr(PPointer(@FTail)^, LExpected, Pointer(LNext), memory_order_acq_rel);
+        atomic_compare_exchange_strong_ptr(PPointer(@FTail)^, LExpected, Pointer(LNext));
       end;
     end;
   until False;
@@ -130,10 +130,10 @@ begin
   G := lf_enter;
   try
     repeat
-      LHead := atomic_load_ptr(PPointer(@FHead)^, memory_order_acquire);
-      LTail := atomic_load_ptr(PPointer(@FTail)^, memory_order_acquire);
+      LHead := atomic_load_ptr(PPointer(@FHead)^, mo_acquire);
+      LTail := atomic_load_ptr(PPointer(@FTail)^, mo_acquire);
       // Acquire read of next ensures we see the enqueuer's data published before linking
-      LNext := PNode(atomic_load_ptr(PPointer(@LHead^.Next)^, memory_order_acquire));
+      LNext := PNode(atomic_load_ptr(PPointer(@LHead^.Next)^, mo_acquire));
       if LHead = FHead then
       begin
         if LHead = LTail then
@@ -141,7 +141,7 @@ begin
           if LNext = nil then Exit(False);
           LExpected := LTail;
           // HB-3: acq_rel CAS on tail to help advance tail publishes new tail
-          atomic_compare_exchange_strong_ptr(PPointer(@FTail)^, LExpected, Pointer(LNext), memory_order_acq_rel);
+          atomic_compare_exchange_strong_ptr(PPointer(@FTail)^, LExpected, Pointer(LNext));
         end
         else
         begin
@@ -151,7 +151,7 @@ begin
               AItem := LNext^.Data;
             LExpected := LHead;
             // HB-4: acq_rel CAS moves head to next; publish new head and ensures prior reads of LNext^.Data are visible
-            if atomic_compare_exchange_strong_ptr(PPointer(@FHead)^, LExpected, Pointer(LNext), memory_order_acq_rel) then
+            if atomic_compare_exchange_strong_ptr(PPointer(@FHead)^, LExpected, Pointer(LNext)) then
             begin
               // retire old head after unlink; immediate mode frees it directly
               lf_retire(LHead, @MSQ_DisposeNode);

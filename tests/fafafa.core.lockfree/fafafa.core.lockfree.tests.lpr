@@ -15,7 +15,8 @@ uses
   Test_lockfree,
   test_strict_factories,
   test_oa_record_key_strict,
-  bench_blocking_policy;
+  bench_blocking_policy,
+  test_channel_basic;
 
 type
   { TLockFreeTestRunner }

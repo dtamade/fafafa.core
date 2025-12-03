@@ -13,7 +13,17 @@ uses
 
 type
 
-  { IQueue 泛型队列接口（最小且完整的 FIFO 语义；不继承 IGenericCollection） }
+  {**
+   * IQueue<T>
+   *
+   * @desc 泛型队列接口 - FIFO (先进先出) 语义
+   * @param T 元素类型
+   * @note
+   *   - Push: 入队 O(1)
+   *   - Pop: 出队 O(1)
+   *   - Peek: 查看队首 O(1)
+   *   - 不继承 IGenericCollection，保持最小接口
+   *}
   generic IQueue<T> = interface
   ['{8D2A4A2F-3C7C-4E94-A763-6E2E7D6C5D37}']
     { 入队（同名重载） }
@@ -35,7 +45,18 @@ type
     function  Count: SizeUInt;                                // 精确或最佳努力计数（不支持可返回 0）
   end;
 
-  { IDeque 双端队列接口 - 扩展IQueue支持双端操作 }
+  {**
+   * IDeque<T>
+   *
+   * @desc 双端队列接口 - 支持两端插入/删除
+   * @param T 元素类型
+   * @note
+   *   - 继承 IQueue<T>
+   *   - PushFront/PushBack: O(1)
+   *   - PopFront/PopBack: O(1)
+   *   - 随机访问 Get(i): O(1)
+   *   - 内部插入/删除: O(n)
+   *}
   generic IDeque<T> = interface(specialize IQueue<T>)
   ['{F1A2B3C4-D5E6-4F78-9A0B-1C2D3E4F5A6B}']
     // Front/Back 访问

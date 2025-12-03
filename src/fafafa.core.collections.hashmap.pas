@@ -44,6 +44,10 @@ type
     Value: V;
   end;
 
+  { Entry API 回调类型 }
+  generic TValueSupplierFunc<V> = function: V;
+  generic TValueModifierProc<V> = procedure(var Value: V);
+
   {**
    * IHashMap<K,V>
    *
@@ -134,6 +138,28 @@ type
     procedure Reserve(aCapacity: SizeUInt);
 
     {**
+     * Put
+     *
+     * @desc Adds or updates a key-value pair (alias for AddOrAssign)
+     * @param AKey The key
+     * @param AValue The value
+     * @return Boolean True if new key, False if updated
+     * @note API consistency with TreeMap
+     *}
+    function Put(const AKey: K; const AValue: V): Boolean;
+
+    {**
+     * Get
+     *
+     * @desc Attempts to retrieve a value (alias for TryGetValue)
+     * @param AKey The key to look up
+     * @param AValue Output parameter for the value if found
+     * @return Boolean True if key exists, False otherwise
+     * @note API consistency with TreeMap
+     *}
+    function Get(const AKey: K; out AValue: V): Boolean;
+
+    {**
      * Capacity
      *
      * @desc Property accessor for GetCapacity
@@ -148,6 +174,40 @@ type
      * @return Single Current load factor
      *}
     property LoadFactor: Single read GetLoadFactor;
+    
+    { Entry API - Rust 风格的键值访问模式 }
+    
+    {**
+     * GetOrInsert
+     *
+     * @desc 获取值，如果键不存在则插入默认值
+     * @param AKey 键
+     * @param ADefault 默认值（键不存在时插入）
+     * @return V 值（已存在或新插入的）
+     *}
+    function GetOrInsert(const AKey: K; const ADefault: V): V;
+    
+    {**
+     * GetOrInsertWith
+     *
+     * @desc 获取值，如果键不存在则调用函数生成值
+     * @param AKey 键
+     * @param ASupplier 生成默认值的函数
+     * @return V 值（已存在或新生成的）
+     *}
+    function GetOrInsertWith(const AKey: K; ASupplier: specialize TValueSupplierFunc<V>): V;
+    
+    {**
+     * ModifyOrInsert
+     *
+     * @desc Rust entry().and_modify().or_insert() 模式
+     *       如果键存在，调用 AModifier 修改值
+     *       如果键不存在，插入 ADefault
+     * @param AKey 键
+     * @param AModifier 修改函数（键存在时调用）
+     * @param ADefault 默认值（键不存在时插入）
+     *}
+    procedure ModifyOrInsert(const AKey: K; AModifier: specialize TValueModifierProc<V>; const ADefault: V);
   end;
 
 const
@@ -278,13 +338,17 @@ type
     property Capacity: SizeUInt read GetCapacity;
   end;
   {**
-   * @desc 开放寻址哈希映射实现
+   * THashMap<K,V>
    *
-   * 基于开放寻址的 THashMap<K,V> 实现：
-   * - 支持动态扩容和重新哈希
-   * - 使用墓碑标记处理删除
-   * - 线性探测解决冲突
-   * - 自动负载因子管理
+   * @desc 开放寻址哈希映射实现
+   * @param K 键类型
+   * @param V 值类型
+   * @note
+   *   - 支持动态扩容和重新哈希
+   *   - 使用墓碑标记处理删除
+   *   - 线性探测解决冲突
+   *   - 自动负载因子管理
+   * @threadsafety NOT thread-safe. For concurrent access use TMichaelHashMap from fafafa.core.lockfree.hashmap
    *}
   generic THashMap<K,V> = class(specialize TGenericCollection<specialize TMapEntry<K,V>>, specialize IHashMap<K,V>)
   public
@@ -347,6 +411,10 @@ type
     function AddOrAssign(const AKey: K; const AValue: V): Boolean;
     function Remove(const AKey: K): Boolean;
 
+    // API 一致性别名 (与 TreeMap 统一)
+    function Put(const AKey: K; const AValue: V): Boolean; inline;
+    function Get(const AKey: K; out AValue: V): Boolean; inline;
+
     {**
      * GetKeys
      * @desc 获取所有键
@@ -355,7 +423,14 @@ type
      *}
     type
       TKeyArray = array of K;
+      TValueSupplier = specialize TValueSupplierFunc<V>;
+      TValueModifier = specialize TValueModifierProc<V>;
     function GetKeys: TKeyArray;
+    
+    // Entry API
+    function GetOrInsert(const AKey: K; const ADefault: V): V;
+    function GetOrInsertWith(const AKey: K; ASupplier: TValueSupplier): V;
+    procedure ModifyOrInsert(const AKey: K; AModifier: TValueModifier; const ADefault: V);
   end;
 
   generic THashSet<K> = class(specialize TGenericCollection<K>, specialize IHashSet<K>)
@@ -524,11 +599,25 @@ begin
 end;
 
 function THashMap.KeyHash(const AKey: K): UInt32;
-var p: Pointer;
+var 
+  p: Pointer;
+  ti: PTypeInfo;
 begin
   if Assigned(FHash) then Exit(FHash(AKey));
+  
+  // Auto-detect string types and use content-based hash
+  ti := TypeInfo(K);
+  if ti <> nil then
+  begin
+    case ti^.Kind of
+      tkAString, tkLString:
+        Exit(HashOfAnsiString(AnsiString((@AKey)^)));
+      tkUString, tkWString:
+        Exit(HashOfUnicodeString(UnicodeString((@AKey)^)));
+    end;
+  end;
+  
   // 默认分派：指针/整数/枚举 -> 混洗
-  // 对于复杂类型（包括字符串），必须提供自定义哈希函数
   p := @AKey;
   case SizeOf(K) of
     1: Exit(HashOfUInt32(PByte(p)^));
@@ -537,7 +626,7 @@ begin
     8: Exit(HashOfUInt64(PQWord(p)^));
   else
     // 复杂类型，需要自定义哈希
-    raise ENotSupported.Create('HashMap: please provide hasher for this key type');
+    raise ENotSupported.Create('THashMap.KeyHash: please provide custom hasher for this key type');
   end;
 end;
 
@@ -709,7 +798,7 @@ begin
   begin
     // 对于其他类型的容器，我们无法直接支持
     // 因为 THashMap<K,V> 的元素类型是 TEntry<K,V>，而不是单个类型
-    raise EInvalidOperation.Create('Cannot append HashMap to incompatible container type');
+    raise EInvalidOperation.Create('THashMap.AppendToUnChecked: cannot append to incompatible container type');
   end;
 end;
 
@@ -773,12 +862,18 @@ begin
     st := FBuckets[idx].State;
     if st = Ord(bsEmpty) then
     begin
-      if firstTomb <> SizeUInt(-1) then idx := firstTomb;
+      if firstTomb <> SizeUInt(-1) then
+      begin
+        idx := firstTomb;
+        st := Ord(bsTombstone); // 复用墓碑：不增加 FUsed
+      end;
       FBuckets[idx].State := Ord(bsOccupied);
       FBuckets[idx].Hash := h;
       FBuckets[idx].Key := AKey;
       FBuckets[idx].Value := AValue;
-      Inc(FCount); Inc(FUsed);
+      Inc(FCount);
+      if st = Ord(bsEmpty) then
+        Inc(FUsed);
       Exit(True);
     end
     else if st = Ord(bsTombstone) then
@@ -792,7 +887,7 @@ begin
     end;
     idx := (idx + 1) and FMask;
     if idx = start then
-      raise EInvalidOperation.Create('HashMap is full');
+      raise EInvalidOperation.Create('THashMap.Add: map is full');
   end;
 end;
 
@@ -808,12 +903,18 @@ begin
     st := FBuckets[idx].State;
     if st = Ord(bsEmpty) then
     begin
-      if firstTomb <> SizeUInt(-1) then idx := firstTomb;
+      if firstTomb <> SizeUInt(-1) then
+      begin
+        idx := firstTomb;
+        st := Ord(bsTombstone);
+      end;
       FBuckets[idx].State := Ord(bsOccupied);
       FBuckets[idx].Hash := h;
       FBuckets[idx].Key := AKey;
       FBuckets[idx].Value := AValue;
-      Inc(FCount); Inc(FUsed);
+      Inc(FCount);
+      if st = Ord(bsEmpty) then
+        Inc(FUsed);
       Exit(True);
     end
     else if st = Ord(bsTombstone) then
@@ -832,8 +933,8 @@ begin
     end;
     idx := (idx + 1) and FMask;
     if idx = start then
-      raise EInvalidOperation.Create('HashMap is full');
-  end;
+      raise EInvalidOperation.Create('THashMap.AddOrAssign: map is full');
+end;
 end;
 
 function THashMap.Remove(const AKey: K): Boolean;
@@ -854,10 +955,23 @@ begin
   Result := True;
 end;
 
+function THashMap.Put(const AKey: K; const AValue: V): Boolean;
+begin
+  // Put 是 AddOrAssign 的别名，与 TreeMap API 保持一致
+  Result := AddOrAssign(AKey, AValue);
+end;
+
+function THashMap.Get(const AKey: K; out AValue: V): Boolean;
+begin
+  // Get 是 TryGetValue 的别名，与 TreeMap API 保持一致
+  Result := TryGetValue(AKey, AValue);
+end;
+
 function THashMap.GetKeys: TKeyArray;
 var
   i, idx: SizeUInt;
 begin
+  Result := nil;
   SetLength(Result, FCount);
 
   // CRITICAL FIX: Check if map is empty or uninitialized
@@ -874,6 +988,55 @@ begin
       Inc(idx);
     end;
   end;
+end;
+
+{ Entry API Implementation }
+
+function THashMap.GetOrInsert(const AKey: K; const ADefault: V): V;
+var
+  h: UInt32;
+  idx: SizeUInt;
+begin
+  if FCapacity = 0 then InitCapacity(4);
+  h := KeyHash(AKey);
+  if FindIndex(AKey, h, idx) then
+    Result := FBuckets[idx].Value
+  else
+  begin
+    AddOrAssign(AKey, ADefault);
+    Result := ADefault;
+  end;
+end;
+
+function THashMap.GetOrInsertWith(const AKey: K; ASupplier: TValueSupplier): V;
+var
+  h: UInt32;
+  idx: SizeUInt;
+begin
+  if FCapacity = 0 then InitCapacity(4);
+  h := KeyHash(AKey);
+  if FindIndex(AKey, h, idx) then
+    Result := FBuckets[idx].Value
+  else
+  begin
+    Result := ASupplier();
+    AddOrAssign(AKey, Result);
+  end;
+end;
+
+procedure THashMap.ModifyOrInsert(const AKey: K; AModifier: TValueModifier; const ADefault: V);
+var
+  h: UInt32;
+  idx: SizeUInt;
+begin
+  if FCapacity = 0 then InitCapacity(4);
+  h := KeyHash(AKey);
+  if FindIndex(AKey, h, idx) then
+    // Key exists - modify in place
+    AModifier(FBuckets[idx].Value)
+  else
+    // Key not exists - insert default
+    AddOrAssign(AKey, ADefault);
 end;
 
 { THashSet<K> }
@@ -1027,7 +1190,7 @@ begin
   else
   begin
     // 对于其他类型，我们无法直接支持
-    raise EInvalidOperation.Create('Cannot append HashSet to incompatible container type');
+    raise EInvalidOperation.Create('THashSet.AppendToUnChecked: cannot append to incompatible container type');
   end;
 end;
 
@@ -1065,4 +1228,3 @@ begin
 end;
 
 end.
-

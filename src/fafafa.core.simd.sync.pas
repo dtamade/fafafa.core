@@ -28,7 +28,7 @@ uses
   Windows
   {$ELSE}
   {$IFDEF UNIX}
-  BaseUnix, Unix
+  BaseUnix, Unix, unixtype
   {$ENDIF}
   {$ENDIF};
 
@@ -145,15 +145,19 @@ end;
 
 // === 线程切换 ===
 
+{$IFDEF UNIX}
+function sched_yield: cint; cdecl; external 'c' name 'sched_yield';
+{$ENDIF}
+
 procedure ThreadSwitch;
 begin
   {$IFDEF WINDOWS}
   Windows.Sleep(0);
   {$ELSEIF DEFINED(UNIX)}
   // Unix: sched_yield
-  FpSched_yield;
+  sched_yield;
   {$ELSE}
-  // 通用：短暂延�?
+  // 通用：短暂延迟
   Sleep(0);
   {$ENDIF}
 end;

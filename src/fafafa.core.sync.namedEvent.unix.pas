@@ -6,6 +6,7 @@ unit fafafa.core.sync.namedEvent.unix;
 interface
 
 uses
+  SysUtils, ctypes, BaseUnix, Unix, UnixType, pthreads,
   fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.namedEvent.base;
 
 const

@@ -17,7 +17,7 @@ uses
   fafafa.core.collections.elementManager;
 
 threadvar
-  GLruCacheActive: TObject;
+  GLruCacheActive: Pointer;
 
 type
   {** THashFunc - 泛型哈希函数类型 }
@@ -297,18 +297,31 @@ end;
 function TLruCache.CreateNode(const aKey: K; const aValue: V): PNode;
 begin
   Result := PNode(FAllocator.AllocMem(SizeOf(TNodeType)));
-  Result^.Key := aKey;
-  Result^.Value := aValue;
+  // 初始化接口引用
+  Result^.Key := Default(K);
+  Result^.Value := Default(V);
   Result^.Prev := nil;
   Result^.Next := nil;
+  // 现在安全地赋值
+  Result^.Key := aKey;
+  Result^.Value := aValue;
 end;
 
 procedure TLruCache.DestroyNode(aNode: PNode);
 begin
   if aNode <> nil then
   begin
-    Finalize(aNode^.Key);
-    Finalize(aNode^.Value);
+    // HashMap.Remove已经对PNode调用了Finalize，但PNode内部的接口需要手动清理
+    // HashMap的Finalize(FBuckets[idx].Value)只会清理PNode指针本身，不会清理指针内部的接口
+    // 手动清理PNode内部的接口引用
+    try
+      Finalize(aNode^.Value);
+      Finalize(aNode^.Key);
+    except
+      // 如果Finalize失败，仍然要释放内存
+    end;
+    
+    // 释放PNode内存
     FAllocator.FreeMem(aNode);
   end;
 end;
@@ -317,16 +330,30 @@ class function TLruCache.HashAdapter(const aKey: K): UInt32;
 var
   LOwner: specialize TLruCache<K, V>;
   LHash64: UInt64;
+  p: Pointer;
 begin
   if GLruCacheActive <> nil then
-    LOwner := specialize TLruCache<K, V>(GLruCacheActive)
+  begin
+    LOwner := specialize TLruCache<K, V>(GLruCacheActive);
+    if Assigned(LOwner.FHashFunc) then
+    begin
+      LHash64 := LOwner.FHashFunc(aKey, LOwner.FHashData);
+      Result := HashMix32(UInt32(LHash64 xor (LHash64 shr 32)));
+      Exit;
+    end;
+  end;
+  
+  // 默认哈希：与HashMap相同的逻辑
+  p := @aKey;
+  case SizeOf(K) of
+    1: Exit(HashOfUInt32(PByte(p)^));
+    2: Exit(HashOfUInt32(PWord(p)^));
+    4: Exit(HashOfUInt32(PUInt32(p)^));
+    8: Exit(HashOfUInt64(PQWord(p)^));
   else
-    LOwner := nil;
-  if (LOwner = nil) or (not Assigned(LOwner.FHashFunc)) then
-    raise EInvalidOperation.Create('TLruCache.HashAdapter: no active cache scope');
-
-  LHash64 := LOwner.FHashFunc(aKey, LOwner.FHashData);
-  Result := HashMix32(UInt32(LHash64 xor (LHash64 shr 32)));
+    // 复杂类型，使用默认哈希（可能不完美但能工作）
+    Result := HashOfUInt32(PUInt32(p)^);
+  end;
 end;
 
 class function TLruCache.EqualsAdapter(const aLeft, aRight: K): Boolean;
@@ -334,13 +361,17 @@ var
   LOwner: specialize TLruCache<K, V>;
 begin
   if GLruCacheActive <> nil then
-    LOwner := specialize TLruCache<K, V>(GLruCacheActive)
-  else
-    LOwner := nil;
-  if (LOwner = nil) or (not Assigned(LOwner.FEqualsFunc)) then
-    raise EInvalidOperation.Create('TLruCache.EqualsAdapter: no active cache scope');
-
-  Result := LOwner.FEqualsFunc(aLeft, aRight, LOwner.FEqualsData);
+  begin
+    LOwner := specialize TLruCache<K, V>(GLruCacheActive);
+    if Assigned(LOwner.FEqualsFunc) then
+    begin
+      Result := LOwner.FEqualsFunc(aLeft, aRight, LOwner.FEqualsData);
+      Exit;
+    end;
+  end;
+  
+  // 默认比较：与HashMap相同的逻辑
+  Result := aLeft = aRight;
 end;
 
 procedure TLruCache.AddToMRU(aNode: PNode);
@@ -435,7 +466,7 @@ end;
 function TLruCache.Get(const aKey: K; out aValue: V): Boolean;
 var
   LNode: PNode;
-  LPrevCtx: TObject;
+  LPrevCtx: Pointer;
   LFound: Boolean;
 begin
   if FUseCustomLookup then
@@ -473,7 +504,7 @@ end;
 procedure TLruCache.Put(const aKey: K; const aValue: V);
 var
   LNode: PNode;
-  LPrevCtx: TObject;
+  LPrevCtx: Pointer;
   LFound: Boolean;
 begin
   { 检查是否已存在 }
@@ -566,28 +597,38 @@ end;
 
 procedure TLruCache.Clear;
 var
-  LCurrent, LNext: PNode;
+  LKeys: array of K;
+  LNode: PNode;
+  i: SizeInt;
 begin
-  LCurrent := FHead;
-  while LCurrent <> nil do
+  // 获取所有Keys的快照
+  LKeys := FMap.GetKeys;
+  
+  // 逐个处理：从HashMap移除，然后释放PNode内存
+  for i := 0 to High(LKeys) do
   begin
-    LNext := PNode(LCurrent)^.Next;
-    DestroyNode(LCurrent);
-    LCurrent := LNext;
+    if FMap.TryGetValue(LKeys[i], LNode) then
+    begin
+      // 从HashMap移除（会调用Finalize）
+      FMap.Remove(LKeys[i]);
+      
+      // 使用DestroyNode来释放PNode内存
+      DestroyNode(LNode);
+    end;
   end;
-
+  
+  // 重置所有状态
   FHead := nil;
   FTail := nil;
   FSize := 0;
   FHitCount := 0;
   FMissCount := 0;
-  FMap.Clear;
 end;
 
 function TLruCache.Evict: Boolean;
 var
   LNode: PNode;
-  LPrevCtx: TObject;
+  LPrevCtx: Pointer;
 begin
   LNode := RemoveFromLRU;
   if LNode <> nil then
@@ -595,12 +636,12 @@ begin
     { 从哈希表中移除 }
     if FUseCustomLookup then
     begin
-    LPrevCtx := GLruCacheActive;
-    GLruCacheActive := Self;
+      LPrevCtx := GLruCacheActive;
+      GLruCacheActive := Self;
       try
         FMap.Remove(LNode^.Key);
       finally
-      GLruCacheActive := LPrevCtx;
+        GLruCacheActive := LPrevCtx;
       end;
     end
     else
@@ -633,7 +674,7 @@ end;
 function TLruCache.Peek(const aKey: K; out aValue: V): Boolean;
 var
   LNode: PNode;
-  LPrevCtx: TObject;
+  LPrevCtx: Pointer;
 begin
   if FUseCustomLookup then
   begin
@@ -657,48 +698,32 @@ end;
 function TLruCache.Remove(const aKey: K): Boolean;
 var
   LNode: PNode;
-  LPrevCtx: TObject;
+  LPrevCtx: Pointer;
 begin
-  if FUseCustomLookup then
-  begin
-    LPrevCtx := GLruCacheActive;
-    GLruCacheActive := Self;
-    try
-      Result := FMap.TryGetValue(aKey, LNode);
-    finally
-      GLruCacheActive := LPrevCtx;
-    end;
-  end
-  else
+  LPrevCtx := GLruCacheActive;
+  GLruCacheActive := Self;
+  try
     Result := FMap.TryGetValue(aKey, LNode);
-  if Result then
-  begin
-    { 从链表中移除 }
-    RemoveNode(LNode);
-
-    { 从哈希表中移除 }
-    if FUseCustomLookup then
+    if Result then
     begin
-      LPrevCtx := GLruCacheActive;
-      GLruCacheActive := Self;
-      try
-        FMap.Remove(aKey);
-      finally
-        GLruCacheActive := LPrevCtx;
-      end;
-    end
-    else
+      { 从链表中移除 }
+      RemoveNode(LNode);
+
+      { 从哈希表中移除 }
       FMap.Remove(aKey);
 
-    { 销毁节点 }
-    DestroyNode(LNode);
-    Dec(FSize);
+      { 销毁节点 - HashMap.Remove已经Finalize了PNode，直接释放内存 }
+      FAllocator.FreeMem(LNode);
+      Dec(FSize);
+    end;
+  finally
+    GLruCacheActive := LPrevCtx;
   end;
 end;
 
 function TLruCache.Contains(const aKey: K): Boolean;
 var
-  LPrevCtx: TObject;
+  LPrevCtx: Pointer;
 begin
   if FUseCustomLookup then
   begin

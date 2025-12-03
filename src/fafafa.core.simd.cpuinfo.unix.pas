@@ -11,11 +11,18 @@ function DetectCoreCounts(out Physical, Logical: LongInt): Boolean;
 implementation
 
 uses
-  SysUtils, BaseUnix
+  SysUtils, BaseUnix, unixtype
   {$IFDEF LINUX}
   , Unix
   {$ENDIF}
   ;
+
+{$IFNDEF FPC_HAS_SYSCONF}
+const
+  _SC_NPROCESSORS_ONLN = 84; // Linux x86_64 value
+
+function fpSysConf(name: cint): clong; cdecl; external 'c' name 'sysconf';
+{$ENDIF}
 
 {$IFDEF LINUX}
 // Linux core count detection

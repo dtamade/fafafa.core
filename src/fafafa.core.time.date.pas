@@ -151,6 +151,38 @@ type
     function StartOfYear: TDate; // 本年第一天
     function EndOfYear: TDate; // 本年最后一天
     
+    // TemporalAdjusters - 时间调整器
+    {** 返回下一个指定星期几的日期（不含当天） *}
+    {** @param ADayOfWeek 1=周日, 2=周一, ..., 7=周六 *}
+    function Next(ADayOfWeek: Integer): TDate;
+    
+    {** 返回上一个指定星期几的日期（不含当天） *}
+    function Previous(ADayOfWeek: Integer): TDate;
+    
+    {** 如果当天是指定星期几则返回当天，否则返回下一个 *}
+    function NextOrSame(ADayOfWeek: Integer): TDate;
+    
+    {** 如果当天是指定星期几则返回当天，否则返回上一个 *}
+    function PreviousOrSame(ADayOfWeek: Integer): TDate;
+    
+    {** 返回本月第 N 个指定星期几的日期 *}
+    {** @param AOrdinal 正数=第N个, -1=最后一个 *}
+    {** @param ADayOfWeek 1=周日, 2=周一, ..., 7=周六 *}
+    function DayOfWeekInMonth(AOrdinal: Integer; ADayOfWeek: Integer): TDate;
+    
+    // With* 修改器方法
+    function WithYear(AYear: Integer): TDate;
+    function WithMonth(AMonth: Integer): TDate;
+    function WithDay(ADay: Integer): TDate;
+    
+    // TryWith* 安全版本
+    function TryWithYear(AYear: Integer; out AResult: TDate): Boolean;
+    function TryWithMonth(AMonth: Integer; out AResult: TDate): Boolean;
+    function TryWithDay(ADay: Integer; out AResult: TDate): Boolean;
+    
+    // And* 组合方法在 fafafa.core.time.helpers 单元中提供
+    // 使用 TDateHelper record helper
+    
     // 工具方法
     function Clamp(const AMin, AMax: TDate): TDate; inline;
     class function Min(const A, B: TDate): TDate; static; inline;
@@ -416,7 +448,7 @@ var
   year, month, day: Integer;
 begin
   JulianDayToDate(FJulianDay, year, month, day);
-  Result := Format('%04d-%02d-%02d', [year, month, day]);
+  Result := Format('%.4d-%.2d-%.2d', [year, month, day]);
 end;
 
 function TDate.GetWeekOfYear: Integer;
@@ -560,6 +592,92 @@ var
 begin
   JulianDayToDate(FJulianDay, y, m, d);
   Result := TDate.Create(y, 12, 31);
+end;
+
+function TDate.Next(ADayOfWeek: Integer): TDate;
+var
+  CurrentDow, DaysDiff: Integer;
+begin
+  // ADayOfWeek: 1=周日, 2=周一, ..., 7=周六
+  // GetDayOfWeek 返回: 1=周日, ..., 7=周六
+  CurrentDow := GetDayOfWeek;
+  DaysDiff := ADayOfWeek - CurrentDow;
+  if DaysDiff <= 0 then
+    DaysDiff := DaysDiff + 7;  // 跳到下周
+  Result := AddDays(DaysDiff);
+end;
+
+function TDate.Previous(ADayOfWeek: Integer): TDate;
+var
+  CurrentDow, DaysDiff: Integer;
+begin
+  CurrentDow := GetDayOfWeek;
+  DaysDiff := CurrentDow - ADayOfWeek;
+  if DaysDiff <= 0 then
+    DaysDiff := DaysDiff + 7;  // 跳到上周
+  Result := AddDays(-DaysDiff);
+end;
+
+function TDate.NextOrSame(ADayOfWeek: Integer): TDate;
+begin
+  if GetDayOfWeek = ADayOfWeek then
+    Result := Self
+  else
+    Result := Next(ADayOfWeek);
+end;
+
+function TDate.PreviousOrSame(ADayOfWeek: Integer): TDate;
+begin
+  if GetDayOfWeek = ADayOfWeek then
+    Result := Self
+  else
+    Result := Previous(ADayOfWeek);
+end;
+
+function TDate.DayOfWeekInMonth(AOrdinal: Integer; ADayOfWeek: Integer): TDate;
+var
+  FirstOfMonth, LastOfMonth: TDate;
+  FirstDow, DaysToAdd: Integer;
+  TargetDay: Integer;
+  y, m, d, dim: Integer;
+begin
+  JulianDayToDate(FJulianDay, y, m, d);
+  
+  if AOrdinal > 0 then
+  begin
+    // 正数：第 N 个
+    FirstOfMonth := TDate.Create(y, m, 1);
+    FirstDow := FirstOfMonth.GetDayOfWeek;
+    
+    // 计算从月初到第一个指定星期几的天数
+    DaysToAdd := ADayOfWeek - FirstDow;
+    if DaysToAdd < 0 then
+      DaysToAdd := DaysToAdd + 7;
+    
+    // 加上 (N-1) 周
+    TargetDay := 1 + DaysToAdd + (AOrdinal - 1) * 7;
+    Result := TDate.Create(y, m, TargetDay);
+  end
+  else if AOrdinal = -1 then
+  begin
+    // -1：最后一个
+    // 先获取月末
+    if m = 2 then
+    begin
+      if IsLeapYearI(y) then dim := 29 else dim := 28;
+    end
+    else
+      dim := DAYS_IN_MONTH[m];
+    
+    LastOfMonth := TDate.Create(y, m, dim);
+    // 从月末找上一个指定星期几
+    Result := LastOfMonth.PreviousOrSame(ADayOfWeek);
+  end
+  else
+  begin
+    // 无效的 ordinal，返回月初
+    Result := TDate.Create(y, m, 1);
+  end;
 end;
 
 function TDate.ToString(const AFormat: string): string;
@@ -877,6 +995,118 @@ begin
     else
       Result := Result + DAYS_IN_MONTH[I];
   end;
+end;
+
+// With* 修改器方法
+
+function TDate.WithYear(AYear: Integer): TDate;
+var
+  Year, Month, Day: Integer;
+  MaxDay: Integer;
+begin
+  JulianDayToDate(FJulianDay, Year, Month, Day);
+  
+  // 处理闰年 2月 29日 的特殊情况
+  if (Month = 2) and (Day = 29) and not IsLeapYearI(AYear) then
+    Day := 28;
+  
+  Result := TDate.Create(AYear, Month, Day);
+end;
+
+function TDate.WithMonth(AMonth: Integer): TDate;
+var
+  Year, Month, Day: Integer;
+  MaxDay: Integer;
+begin
+  JulianDayToDate(FJulianDay, Year, Month, Day);
+  
+  // 确定新月份的最大天数
+  if AMonth = 2 then
+  begin
+    if IsLeapYearI(Year) then
+      MaxDay := 29
+    else
+      MaxDay := 28;
+  end
+  else if AMonth in [4, 6, 9, 11] then
+    MaxDay := 30
+  else
+    MaxDay := 31;
+  
+  // 调整天数
+  if Day > MaxDay then
+    Day := MaxDay;
+  
+  Result := TDate.Create(Year, AMonth, Day);
+end;
+
+function TDate.WithDay(ADay: Integer): TDate;
+var
+  Year, Month, Day: Integer;
+begin
+  JulianDayToDate(FJulianDay, Year, Month, Day);
+  Result := TDate.Create(Year, Month, ADay); // 如果无效会抛出异常
+end;
+
+function TDate.TryWithYear(AYear: Integer; out AResult: TDate): Boolean;
+var
+  Year, Month, Day: Integer;
+  NewDay: Integer;
+begin
+  // 验证年份范围
+  if (AYear < 1) or (AYear > 9999) then
+    Exit(False);
+  
+  JulianDayToDate(FJulianDay, Year, Month, Day);
+  NewDay := Day;
+  
+  // 处理闰年 2月 29日 的特殊情况
+  if (Month = 2) and (Day = 29) and not IsLeapYearI(AYear) then
+    NewDay := 28;
+  
+  AResult := TDate.Create(AYear, Month, NewDay);
+  Result := True;
+end;
+
+function TDate.TryWithMonth(AMonth: Integer; out AResult: TDate): Boolean;
+var
+  Year, Month, Day: Integer;
+  MaxDay, NewDay: Integer;
+begin
+  // 验证月份范围
+  if (AMonth < 1) or (AMonth > 12) then
+    Exit(False);
+  
+  JulianDayToDate(FJulianDay, Year, Month, Day);
+  
+  // 确定新月份的最大天数
+  if AMonth = 2 then
+  begin
+    if IsLeapYearI(Year) then
+      MaxDay := 29
+    else
+      MaxDay := 28;
+  end
+  else if AMonth in [4, 6, 9, 11] then
+    MaxDay := 30
+  else
+    MaxDay := 31;
+  
+  // 调整天数
+  NewDay := Day;
+  if NewDay > MaxDay then
+    NewDay := MaxDay;
+  
+  AResult := TDate.Create(Year, AMonth, NewDay);
+  Result := True;
+end;
+
+function TDate.TryWithDay(ADay: Integer; out AResult: TDate): Boolean;
+var
+  Year, Month, Day: Integer;
+begin
+  JulianDayToDate(FJulianDay, Year, Month, Day);
+  Result := TDate.TryCreate(Year, Month, ADay, AResult);
 end;
 
 // 便捷函数

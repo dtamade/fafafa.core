@@ -10,7 +10,8 @@ uses
   fafafa.core.base,
   fafafa.core.collections.base,
   fafafa.core.collections.hashmap,
-  fafafa.core.collections.linkedhashmap;
+  fafafa.core.collections.linkedhashmap,
+  fafafa.core.collections.vec;
 
 type
   TLinkedHashMapTest = class(TTestCase)
@@ -121,29 +122,42 @@ end;
 
 procedure TLinkedHashMapTest.TestIterationOrderMatchesInsertion;
 var
-  LMap: specialize ILinkedHashMap<string, Integer>;
+  LMapObj: specialize TLinkedHashMap<string, Integer>;
   LKeys: array of string;
-  i: Integer;
-  LFirst, LLast: specialize TPair<string, Integer>;
+  i, LIndex: Integer;
+  LFirst, LLast, LPair: specialize TPair<string, Integer>;
 begin
-  LMap := specialize TLinkedHashMap<string, Integer>.Create;
-  
-  SetLength(LKeys, 5);
-  LKeys[0] := 'alpha';
-  LKeys[1] := 'beta';
-  LKeys[2] := 'gamma';
-  LKeys[3] := 'delta';
-  LKeys[4] := 'epsilon';
-  
-  for i := 0 to High(LKeys) do
-    LMap.Add(LKeys[i], i * 10);
-  
-  // Verify first and last match insertion order
-  LFirst := LMap.First;
-  LLast := LMap.Last;
-  
-  AssertEquals('First should be first inserted', LKeys[0], LFirst.Key);
-  AssertEquals('Last should be last inserted', LKeys[4], LLast.Key);
+  LMapObj := specialize TLinkedHashMap<string, Integer>.Create;
+  try
+    SetLength(LKeys, 5);
+    LKeys[0] := 'alpha';
+    LKeys[1] := 'beta';
+    LKeys[2] := 'gamma';
+    LKeys[3] := 'delta';
+    LKeys[4] := 'epsilon';
+
+    for i := 0 to High(LKeys) do
+      LMapObj.Add(LKeys[i], i * 10);
+
+    // Verify first and last match insertion order
+    LFirst := LMapObj.First;
+    LLast := LMapObj.Last;
+
+    AssertEquals('First should be first inserted', LKeys[0], LFirst.Key);
+    AssertEquals('Last should be last inserted', LKeys[High(LKeys)], LLast.Key);
+
+    // Enumerator should walk in insertion order as well
+    LIndex := 0;
+    for LPair in LMapObj do
+    begin
+      AssertTrue('Enumerator index out of range', LIndex <= High(LKeys));
+      AssertEquals('Enumerator should follow insertion order', LKeys[LIndex], LPair.Key);
+      Inc(LIndex);
+    end;
+    AssertEquals('Enumerator should visit all elements', Length(LKeys), LIndex);
+  finally
+    LMapObj.Free;
+  end;
 end;
 
 procedure TLinkedHashMapTest.TestTryGetFirstLast;
@@ -178,20 +192,37 @@ end;
 
 procedure TLinkedHashMapTest.TestClearEmptiesMap;
 var
-  LMap: specialize ILinkedHashMap<Integer, string>;
+  LMapObj: specialize TLinkedHashMap<Integer, string>;
+  LVec: specialize TVec<specialize TPair<Integer, string>>;
+  LPair: specialize TPair<Integer, string>;
 begin
-  LMap := specialize TLinkedHashMap<Integer, string>.Create;
-  
-  LMap.Add(1, 'one');
-  LMap.Add(2, 'two');
-  LMap.Add(3, 'three');
-  
-  AssertEquals('Should have 3 elements', 3, LMap.GetCount);
-  
-  LMap.Clear;
-  
-  AssertEquals('After clear, count should be 0', 0, LMap.GetCount);
-  AssertTrue('After clear, should be empty', LMap.IsEmpty);
+  LMapObj := specialize TLinkedHashMap<Integer, string>.Create;
+  try
+    LMapObj.Add(1, 'one');
+    LMapObj.Add(2, 'two');
+    LMapObj.Add(3, 'three');
+
+    AssertEquals('Should have 3 elements', 3, LMapObj.GetCount);
+
+    // Verify LoadFrom works with other TCollection descendants (e.g., TVec)
+    LVec := specialize TVec<specialize TPair<Integer, string>>.Create;
+    try
+      LVec.LoadFrom(LMapObj);
+      AssertEquals('Vec should copy all entries', LMapObj.GetCount, LVec.GetCount);
+      LPair := LVec.Get(0);
+      AssertEquals('First copied key matches', 1, LPair.Key);
+      AssertEquals('First copied value matches', 'one', LPair.Value);
+    finally
+      LVec.Free;
+    end;
+
+    LMapObj.Clear;
+
+    AssertEquals('After clear, count should be 0', 0, LMapObj.GetCount);
+    AssertTrue('After clear, should be empty', LMapObj.IsEmpty);
+  finally
+    LMapObj.Free;
+  end;
 end;
 
 procedure TLinkedHashMapTest.TestAddOrAssignBehavior;
@@ -199,6 +230,8 @@ var
   LMap: specialize ILinkedHashMap<string, Integer>;
   LIsNew: Boolean;
   LValue: Integer;
+  LConcreteMap: specialize TLinkedHashMap<string, Integer>;
+  LEntries: array[0..1] of specialize TPair<string, Integer>;
 begin
   LMap := specialize TLinkedHashMap<string, Integer>.Create;
   
@@ -214,6 +247,22 @@ begin
   
   LMap.TryGetValue('new', LValue);
   AssertEquals('Value should be updated', 99, LValue);
+
+  // Pointer-based bulk append should preserve order
+  LEntries[0].Key := 'left';
+  LEntries[0].Value := 1;
+  LEntries[1].Key := 'right';
+  LEntries[1].Value := 2;
+
+  LConcreteMap := specialize TLinkedHashMap<string, Integer>.Create;
+  try
+    LConcreteMap.AppendUnChecked(@LEntries[0], Length(LEntries));
+    AssertEquals('Both entries should be appended', Length(LEntries), LConcreteMap.GetCount);
+    AssertEquals('First key preserved', 'left', LConcreteMap.First.Key);
+    AssertEquals('Last key preserved', 'right', LConcreteMap.Last.Key);
+  finally
+    LConcreteMap.Free;
+  end;
 end;
 
 procedure TLinkedHashMapTest.TestRemoveNonExistentKey;
@@ -306,4 +355,3 @@ initialization
   RegisterTest(TLinkedHashMapTest);
 
 end.
-

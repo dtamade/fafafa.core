@@ -514,11 +514,25 @@ end;
 generic function MakeStack<T>(const aSrcCollection: TCollection; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy): specialize IStack<T>;
 type
   TStackImpl = specialize TArrayStack<T>;
+  PT = ^T;
 var
   LStack: TStackImpl;
+  LIter: TPtrIter;
 begin
   LStack := TStackImpl.Create(aAllocator);
-  Result := LStack;
+  try
+    // 从 aSrcCollection 复制元素
+    if (aSrcCollection <> nil) and (not aSrcCollection.IsEmpty) then
+    begin
+      LIter := aSrcCollection.PtrIter;
+      while LIter.MoveNext do
+        LStack.Push(PT(LIter.Current)^);
+    end;
+    Result := LStack;
+  except
+    LStack.Free;
+    raise;
+  end;
 end;
 
 generic function MakeStack<T>(aSrc: Pointer; aElementCount: SizeUInt; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy): specialize IStack<T>;
@@ -540,11 +554,25 @@ end;
 generic function MakeStack<T>(const aSrcCollection: TCollection; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy; aData: Pointer): specialize IStack<T>;
 type
   TStackImpl = specialize TArrayStack<T>;
+  PT = ^T;
 var
   LStack: TStackImpl;
+  LIter: TPtrIter;
 begin
   LStack := TStackImpl.Create(aAllocator);
-  Result := LStack;
+  try
+    // 从 aSrcCollection 复制元素
+    if (aSrcCollection <> nil) and (not aSrcCollection.IsEmpty) then
+    begin
+      LIter := aSrcCollection.PtrIter;
+      while LIter.MoveNext do
+        LStack.Push(PT(LIter.Current)^);
+    end;
+    Result := LStack;
+  except
+    LStack.Free;
+    raise;
+  end;
 end;
 
 generic function MakeStack<T>(aSrc: Pointer; aElementCount: SizeUInt; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy; aData: Pointer): specialize IStack<T>;

@@ -1,6 +1,7 @@
 unit fafafa.core.simd.memutils;
 
 {$mode objfpc}
+{$modeswitch advancedrecords}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -46,7 +47,7 @@ procedure PrefetchNTA(ptr: Pointer); inline;  // Non-temporal (won't pollute cac
 // === Aligned Array Helper ===
 type
   // RAII-style aligned array
-  TAlignedArray<T> = record
+  generic TAlignedArray<T> = record
   private
     FData: Pointer;
     FSize: NativeUInt;
@@ -54,10 +55,10 @@ type
     FOwnsMemory: Boolean;
   public
     // Create aligned array
-    class function Create(count: NativeUInt; alignment: NativeUInt = 32): TAlignedArray<T>; static;
+    class function Create(count: NativeUInt; alignment: NativeUInt = 32): TAlignedArray; static;
     
     // Create from existing aligned memory (doesn't take ownership)
-    class function FromPointer(ptr: Pointer; count: NativeUInt; alignment: NativeUInt): TAlignedArray<T>; static;
+    class function FromPointer(ptr: Pointer; count: NativeUInt; alignment: NativeUInt): TAlignedArray; static;
     
     // Destroy and free memory
     procedure Free;
@@ -87,13 +88,10 @@ const
 
 implementation
 
+{$IFDEF WINDOWS}
 uses
-  {$IFDEF WINDOWS}
-  Windows
-  {$ENDIF}
-  {$IFDEF UNIX}
-  , BaseUnix
-  {$ENDIF};
+  Windows;
+{$ENDIF}
 
 // === Platform-specific aligned allocation ===
 
@@ -268,7 +266,7 @@ end;
 
 // === TAlignedArray Implementation ===
 
-class function TAlignedArray<T>.Create(count: NativeUInt; alignment: NativeUInt): TAlignedArray<T>;
+class function TAlignedArray.Create(count: NativeUInt; alignment: NativeUInt): TAlignedArray;
 begin
   Result.FSize := count;
   Result.FAlignment := alignment;
@@ -280,7 +278,7 @@ begin
     Result.FData := nil;
 end;
 
-class function TAlignedArray<T>.FromPointer(ptr: Pointer; count: NativeUInt; alignment: NativeUInt): TAlignedArray<T>;
+class function TAlignedArray.FromPointer(ptr: Pointer; count: NativeUInt; alignment: NativeUInt): TAlignedArray;
 begin
   Result.FData := ptr;
   Result.FSize := count;
@@ -288,7 +286,7 @@ begin
   Result.FOwnsMemory := False;
 end;
 
-procedure TAlignedArray<T>.Free;
+procedure TAlignedArray.Free;
 begin
   if FOwnsMemory and (FData <> nil) then
   begin
@@ -298,42 +296,46 @@ begin
   FSize := 0;
 end;
 
-function TAlignedArray<T>.GetData: Pointer;
+function TAlignedArray.GetData: Pointer;
 begin
   Result := FData;
 end;
 
-function TAlignedArray<T>.GetItem(index: NativeUInt): T;
+function TAlignedArray.GetItem(index: NativeUInt): T;
+type
+  PT = ^T;
 begin
   {$IFDEF SIMD_BOUNDS_CHECK}
   if index >= FSize then
     raise EArgumentOutOfRangeException.CreateFmt('Index %d out of range [0..%d]', [index, FSize - 1]);
   {$ENDIF}
   
-  Result := (PArray<T>(FData))[index];
+  Result := PT(FData)[index];
 end;
 
-procedure TAlignedArray<T>.SetItem(index: NativeUInt; const value: T);
+procedure TAlignedArray.SetItem(index: NativeUInt; const value: T);
+type
+  PT = ^T;
 begin
   {$IFDEF SIMD_BOUNDS_CHECK}
   if index >= FSize then
     raise EArgumentOutOfRangeException.CreateFmt('Index %d out of range [0..%d]', [index, FSize - 1]);
   {$ENDIF}
   
-  (PArray<T>(FData))[index] := value;
+  PT(FData)[index] := value;
 end;
 
-function TAlignedArray<T>.GetCount: NativeUInt;
+function TAlignedArray.GetCount: NativeUInt;
 begin
   Result := FSize;
 end;
 
-function TAlignedArray<T>.GetAlignment: NativeUInt;
+function TAlignedArray.GetAlignment: NativeUInt;
 begin
   Result := FAlignment;
 end;
 
-function TAlignedArray<T>.IsValid: Boolean;
+function TAlignedArray.IsValid: Boolean;
 begin
   Result := FData <> nil;
 end;

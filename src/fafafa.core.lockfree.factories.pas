@@ -9,6 +9,7 @@ interface
 uses
   SysUtils,
   fafafa.core.lockfree.ifaces,
+  fafafa.core.lockfree.channel,
   fafafa.core.lockfree.spscQueue,
   fafafa.core.lockfree.michaelScottQueue,
   fafafa.core.lockfree.mpmcQueue,
@@ -27,6 +28,10 @@ uses
 generic function NewSpscQueue<T>(Capacity: SizeInt): specialize ILockFreeQueueSPSC<T>;
 generic function NewMpscQueue<T>: specialize ILockFreeQueueMPSC<T>;
 generic function NewMpmcQueue<T>(Capacity: SizeInt): specialize ILockFreeQueueMPMC<T>;
+
+generic function NewChannelSPSC<T>(Capacity: SizeInt = 1024): specialize ILockFreeChannelSPSC<T>;
+generic function NewChannelMPSC<T>: specialize ILockFreeChannelMPSC<T>;
+generic function NewChannelMPMC<T>(Capacity: SizeInt = 1024): specialize ILockFreeChannelMPMC<T>;
 
 generic function NewTreiberStack<T>: specialize ILockFreeStack<T>;
 
@@ -1052,6 +1057,21 @@ begin
   Result := specialize TMpmcQueueAdapter<T>.Create(Capacity);
 end;
 
+generic function NewChannelSPSC<T>(Capacity: SizeInt): specialize ILockFreeChannelSPSC<T>;
+begin
+  Result := specialize TLockFreeChannelSPSC<T>.Create(Capacity);
+end;
+
+generic function NewChannelMPSC<T>: specialize ILockFreeChannelMPSC<T>;
+begin
+  Result := specialize TLockFreeChannelMPSC<T>.Create;
+end;
+
+generic function NewChannelMPMC<T>(Capacity: SizeInt): specialize ILockFreeChannelMPMC<T>;
+begin
+  Result := specialize TLockFreeChannelMPMC<T>.Create(Capacity);
+end;
+
 generic function NewTreiberStack<T>: specialize ILockFreeStack<T>;
 begin
   Result := specialize TTreiberStackAdapter<T>.Create;
@@ -1068,4 +1088,3 @@ end;
 
 
 end.
-

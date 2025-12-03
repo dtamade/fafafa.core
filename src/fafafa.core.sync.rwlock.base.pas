@@ -55,11 +55,13 @@ type
 
   // ===== 锁配置选项 =====
   TRWLockOptions = record
-    AllowReentrancy: Boolean;   // 是否允许可重入（默认 True�?
-    FairMode: Boolean;          // 公平模式：FIFO 调度（默�?False�?
-    WriterPriority: Boolean;    // 写者优先模式（默认 False�?
-    MaxReaders: Integer;        // 最大读者数量（默认 1024�?
-    SpinCount: Integer;         // 初始自旋次数（默�?4000�?
+    AllowReentrancy: Boolean;   // 是否允许可重入（默认 True）
+    FairMode: Boolean;          // 公平模式：FIFO 调度（默认 False）
+    WriterPriority: Boolean;    // 写者优先模式（默认 False）
+    MaxReaders: Integer;        // 最大读者数量（默认 1024）
+    SpinCount: Integer;         // 初始自旋次数（默认 4000）
+    EnablePoisoning: Boolean;   // 是否启用毒化检测（默认 True，类似 Rust）
+    ReaderBiasEnabled: Boolean; // 读偏向优化（默认 True，适合读多写少场景）
   end;
 
   // ===== 锁操作结果枚�?=====
@@ -206,6 +208,17 @@ type
     property CorruptionDetails: string read FCorruptionDetails;
   end;
 
+  { 锁毒化异常 - 类似 Rust PoisonError }
+  ERWLockPoisonError = class(ERWLockError)
+  private
+    FPoisoningThreadId: TThreadID;
+    FPoisoningException: string;
+  public
+    constructor Create(APoisoningThreadId: TThreadID; const APoisoningException: string);
+    property PoisoningThreadId: TThreadID read FPoisoningThreadId;
+    property PoisoningException: string read FPoisoningException;
+  end;
+
   // 兼容性异常类（保持向后兼容）
   ELockError = class(ERWLockError)
   public
@@ -229,6 +242,26 @@ type
     // RAII 写锁守卫，析构时自动释放写锁
     function IsValid: Boolean;
     procedure Release; // 手动释放（可选）
+
+    {**
+     * Downgrade - 写锁降级为读锁
+     *
+     * @return 新的读锁守卫
+     *
+     * @desc
+     *   原子地将写锁降级为读锁。降级后原来的写锁守卫失效，
+     *   返回一个新的读锁守卫。降级过程中不会完全释放锁，
+     *   因此其他写者无法在此期间获取写锁。
+     *
+     * @postcondition
+     *   - 原写锁守卫失效 (IsValid = False)
+     *   - 返回的读锁守卫有效
+     *   - 锁从写模式转换为读模式
+     *
+     * @thread_safety
+     *   线程安全，原子操作。
+     *}
+    function Downgrade: IRWLockReadGuard;
   end;
 
 
@@ -284,6 +317,10 @@ type
     function ValidateState: Boolean;
     procedure RecoverState;
     function IsHealthy: Boolean;
+
+    // ===== 毒化支持 (Rust-style Poisoning) =====
+    function IsPoisoned: Boolean;
+    procedure ClearPoison;
 
     // ===== 性能监控接口 =====
     function GetPerformanceStats: TLockPerformanceStats; virtual; abstract;
@@ -734,6 +771,20 @@ begin
   );
   FCorruptionType := ACorruptionType;
   FCorruptionDetails := ACorruptionDetails;
+end;
+
+{ ERWLockPoisonError }
+
+constructor ERWLockPoisonError.Create(APoisoningThreadId: TThreadID; const APoisoningException: string);
+begin
+  inherited Create(
+    Format('Lock is poisoned: thread %d panicked with "%s"',
+           [APoisoningThreadId, APoisoningException]),
+    lrError,
+    GetCurrentThreadId
+  );
+  FPoisoningThreadId := APoisoningThreadId;
+  FPoisoningException := APoisoningException;
 end;
 
 { ELockError }

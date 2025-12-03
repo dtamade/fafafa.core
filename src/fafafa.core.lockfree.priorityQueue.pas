@@ -37,7 +37,7 @@ type
     Data: T;
     Priority: Int64;
     Level: Integer;
-    Next: array[0..MAX_LEVEL-1] of tagged_ptr;  // ABA-safe forward pointers
+    Next: array[0..MAX_LEVEL-1] of atomic_tagged_ptr_t;  // ABA-safe forward pointers
     IsDeleted: Boolean;
   end;
 
@@ -136,9 +136,9 @@ begin
   
   // 初始化所有前向指针为 nil
   for I := 0 to MAX_LEVEL - 1 do
-    FHead^.Next[I] := make_tagged_ptr(nil, 0);
+    FHead^.Next[I] := make_atomic_tagged_ptr_t(nil, 0);
   
-  atomic_store_64(FSize, 0, memory_order_relaxed);
+  atomic_store_64(FSize, 0, mo_relaxed);
   FMaxLevel := 1;
 end;
 
@@ -173,7 +173,7 @@ begin
   
   // Initialize forward pointers
   for I := 0 to ALevel - 1 do
-    Result^.Next[I] := make_tagged_ptr(nil, 0);
+    Result^.Next[I] := make_atomic_tagged_ptr_t(nil, 0);
 end;
 
 procedure TBoostLockFreePriorityQueue.DisposeNode(ANode: PNode);
@@ -189,7 +189,7 @@ var
   LCurrent: PNode;
   LNext: PNode;
   LLevel: Integer;
-  LNextTagged: tagged_ptr;
+  LNextTagged: atomic_tagged_ptr_t;
 begin
   Result := False;
   
@@ -200,8 +200,8 @@ begin
     for LLevel := FMaxLevel - 1 downto 0 do
     begin
       // Load next pointer with acquire semantics
-      LNextTagged := atomic_load_tagged_ptr(LCurrent^.Next[LLevel], memory_order_acquire);
-      LNext := get_ptr(LNextTagged);
+      LNextTagged := atomic_load_atomic_tagged_ptr_t(LCurrent^.Next[LLevel], mo_acquire);
+      LNext := atomic_tagged_ptr_get_ptr(LNextTagged);
       
       // Find the right position at this level
       while (LNext <> nil) and 
@@ -210,8 +210,8 @@ begin
              ((LNext^.Priority = APriority) and (FComparer(LNext^.Data, AData) < 0))) do
       begin
         LCurrent := LNext;
-        LNextTagged := atomic_load_tagged_ptr(LCurrent^.Next[LLevel], memory_order_acquire);
-        LNext := get_ptr(LNextTagged);
+        LNextTagged := atomic_load_atomic_tagged_ptr_t(LCurrent^.Next[LLevel], mo_acquire);
+        LNext := atomic_tagged_ptr_get_ptr(LNextTagged);
       end;
       
       APreds[LLevel] := LCurrent;
@@ -239,8 +239,8 @@ var
   LLevel: Integer;
   LPreds, LSuccs: array[0..MAX_LEVEL-1] of PNode;
   I: Integer;
-  LExpected: tagged_ptr;
-  LNewTagged: tagged_ptr;
+  LExpected: atomic_tagged_ptr_t;
+  LNewTagged: atomic_tagged_ptr_t;
 begin
   LLevel := GenerateRandomLevel;
   LNewNode := CreateNode(AData, APriority, LLevel);
@@ -259,21 +259,21 @@ begin
     
     // Link new node at all levels
     for I := 0 to LLevel - 1 do
-      LNewNode^.Next[I] := make_tagged_ptr(LSuccs[I], 0);
+      LNewNode^.Next[I] := make_atomic_tagged_ptr_t(LSuccs[I], 0);
     
     // Try to link at level 0 first
-    LExpected := make_tagged_ptr(LSuccs[0], get_tag(LPreds[0]^.Next[0]));
-    LNewTagged := make_tagged_ptr(LNewNode, next_tag(LExpected));
+    LExpected := make_atomic_tagged_ptr_t(LSuccs[0], get_tag(LPreds[0]^.Next[0]));
+    LNewTagged := make_atomic_tagged_ptr_t(LNewNode, atomic_tagged_ptr_next(LExpected));
     
-    if atomic_compare_exchange_strong_tagged_ptr(LPreds[0]^.Next[0], LExpected, LNewTagged, memory_order_release) then
+    if atomic_compare_exchange_strong_atomic_tagged_ptr_t(LPreds[0]^.Next[0], LExpected, LNewTagged) then
     begin
       // Successfully linked at level 0, now link at higher levels
       for I := 1 to LLevel - 1 do
       begin
         repeat
-          LExpected := make_tagged_ptr(LSuccs[I], get_tag(LPreds[I]^.Next[I]));
-          LNewTagged := make_tagged_ptr(LNewNode, next_tag(LExpected));
-        until atomic_compare_exchange_strong_tagged_ptr(LPreds[I]^.Next[I], LExpected, LNewTagged, memory_order_release);
+          LExpected := make_atomic_tagged_ptr_t(LSuccs[I], get_tag(LPreds[I]^.Next[I]));
+          LNewTagged := make_atomic_tagged_ptr_t(LNewNode, atomic_tagged_ptr_next(LExpected));
+        until atomic_compare_exchange_strong_atomic_tagged_ptr_t(LPreds[I]^.Next[I], LExpected, LNewTagged);
       end;
       
       Break; // Successfully inserted
@@ -282,7 +282,7 @@ begin
     // Retry if CAS failed
   until False;
   
-  atomic_fetch_add_64(FSize, 1, memory_order_relaxed);
+  atomic_fetch_add_64(FSize, 1);
   Result := True;
 end;
 
@@ -290,15 +290,15 @@ function TBoostLockFreePriorityQueue.pop(out AData: T): Boolean;
 var
   LCurrent: PNode;
   LNext: PNode;
-  LNextTagged: tagged_ptr;
-  LExpected: tagged_ptr;
-  LNewTagged: tagged_ptr;
+  LNextTagged: atomic_tagged_ptr_t;
+  LExpected: atomic_tagged_ptr_t;
+  LNewTagged: atomic_tagged_ptr_t;
   I: Integer;
 begin
   repeat
     // Load the first real node (skip sentinel)
-    LNextTagged := atomic_load_tagged_ptr(FHead^.Next[0], memory_order_acquire);
-    LCurrent := get_ptr(LNextTagged);
+    LNextTagged := atomic_load_atomic_tagged_ptr_t(FHead^.Next[0], mo_acquire);
+    LCurrent := atomic_tagged_ptr_get_ptr(LNextTagged);
 
     if LCurrent = nil then
       Exit(False); // Queue is empty
@@ -306,10 +306,10 @@ begin
     if LCurrent^.IsDeleted then
     begin
       // Node is marked as deleted, help remove it
-      LNext := get_ptr(atomic_load_tagged_ptr(LCurrent^.Next[0], memory_order_acquire));
+      LNext := atomic_tagged_ptr_get_ptr(atomic_load_atomic_tagged_ptr_t(LCurrent^.Next[0], mo_acquire));
       LExpected := LNextTagged;
-      LNewTagged := make_tagged_ptr(LNext, next_tag(LNextTagged));
-      atomic_compare_exchange_strong_tagged_ptr(FHead^.Next[0], LExpected, LNewTagged, memory_order_release);
+      LNewTagged := make_atomic_tagged_ptr_t(LNext, atomic_tagged_ptr_next(LNextTagged));
+      atomic_compare_exchange_strong_atomic_tagged_ptr_t(FHead^.Next[0], LExpected, LNewTagged);
       Continue;
     end;
 
@@ -322,13 +322,13 @@ begin
       // Try to physically remove the node from all levels
       for I := 0 to LCurrent^.Level - 1 do
       begin
-        LNext := get_ptr(atomic_load_tagged_ptr(LCurrent^.Next[I], memory_order_acquire));
+        LNext := atomic_tagged_ptr_get_ptr(atomic_load_atomic_tagged_ptr_t(LCurrent^.Next[I], mo_acquire));
         LExpected := LNextTagged;
-        LNewTagged := make_tagged_ptr(LNext, next_tag(LNextTagged));
-        atomic_compare_exchange_strong_tagged_ptr(FHead^.Next[I], LExpected, LNewTagged, memory_order_release);
+        LNewTagged := make_atomic_tagged_ptr_t(LNext, atomic_tagged_ptr_next(LNextTagged));
+        atomic_compare_exchange_strong_atomic_tagged_ptr_t(FHead^.Next[I], LExpected, LNewTagged);
       end;
 
-      atomic_fetch_sub_64(FSize, 1, memory_order_relaxed);
+      atomic_fetch_sub_64(FSize, 1);
 
       // **FIX: Actually dispose the node to prevent memory leak**
       DisposeNode(LCurrent);
@@ -342,12 +342,12 @@ end;
 function TBoostLockFreePriorityQueue.top(out AData: T): Boolean;
 var
   LCurrent: PNode;
-  LNextTagged: tagged_ptr;
+  LNextTagged: atomic_tagged_ptr_t;
 begin
   repeat
     // Load the first real node (skip sentinel)
-    LNextTagged := atomic_load_tagged_ptr(FHead^.Next[0], memory_order_acquire);
-    LCurrent := get_ptr(LNextTagged);
+    LNextTagged := atomic_load_atomic_tagged_ptr_t(FHead^.Next[0], mo_acquire);
+    LCurrent := atomic_tagged_ptr_get_ptr(LNextTagged);
 
     if LCurrent = nil then
       Exit(False); // Queue is empty
@@ -367,36 +367,36 @@ end;
 
 function TBoostLockFreePriorityQueue.empty: Boolean;
 begin
-  Result := atomic_load_64(FSize, memory_order_relaxed) = 0;
+  Result := atomic_load_64(FSize, mo_relaxed) = 0;
 end;
 
 function TBoostLockFreePriorityQueue.size: Int64;
 begin
-  Result := atomic_load_64(FSize, memory_order_relaxed);
+  Result := atomic_load_64(FSize, mo_relaxed);
 end;
 
 procedure TBoostLockFreePriorityQueue.clear;
 var
   LCurrent, LNext: PNode;
-  LNextTagged: tagged_ptr;
+  LNextTagged: atomic_tagged_ptr_t;
   I: Integer;
 begin
   // Start from the first real node
-  LNextTagged := atomic_load_tagged_ptr(FHead^.Next[0], memory_order_acquire);
-  LCurrent := get_ptr(LNextTagged);
+  LNextTagged := atomic_load_atomic_tagged_ptr_t(FHead^.Next[0], mo_acquire);
+  LCurrent := atomic_tagged_ptr_get_ptr(LNextTagged);
 
   while LCurrent <> nil do
   begin
-    LNext := get_ptr(atomic_load_tagged_ptr(LCurrent^.Next[0], memory_order_acquire));
+    LNext := atomic_tagged_ptr_get_ptr(atomic_load_atomic_tagged_ptr_t(LCurrent^.Next[0], mo_acquire));
     DisposeNode(LCurrent);
     LCurrent := LNext;
   end;
 
   // Reset head pointers
   for I := 0 to MAX_LEVEL - 1 do
-    atomic_store_tagged_ptr(FHead^.Next[I], make_tagged_ptr(nil, 0), memory_order_release);
+    atomic_store_atomic_tagged_ptr_t(FHead^.Next[I], make_atomic_tagged_ptr_t(nil, 0), mo_release);
 
-  atomic_store_64(FSize, 0, memory_order_relaxed);
+  atomic_store_64(FSize, 0, mo_relaxed);
   FMaxLevel := 1;
 end;
 

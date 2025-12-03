@@ -63,6 +63,49 @@ generic ILockFreeQueueMPMC<T> = interface(specialize ILockFreeQueue<T>)
   ['{2E7C9A1B-5D4F-4A3C-8B1F-7E9D2C4A6B3F}']
 end;
 
+type
+  TLockFreeChannelState = (csOpen, csClosing, csClosed, csFaulted);
+  TLockFreeSendResult   = (srOk, srClosed, srTimedOut, srCanceled);
+  TLockFreeRecvResult   = (rrOk, rrClosed, rrTimedOut, rrCanceled, rrEmpty);
+
+generic ILockFreeChannel<T> = interface
+  ['{89C54A65-5F54-4C8F-9138-3A63E5B9875A}']
+  { 单元素语义 }
+  function Send(constref aItem: T; aTimeoutUs: Int64 = -1): TLockFreeSendResult;
+  function Receive(out aItem: T; aTimeoutUs: Int64 = -1): TLockFreeRecvResult;
+  function TrySend(constref aItem: T): Boolean;
+  function TryReceive(out aItem: T): Boolean;
+
+  { 批量语义 }
+  function SendMany(constref aItems: array of T; out aSent: SizeInt): TLockFreeSendResult;
+  function ReceiveMany(var aBuffer: array of T; out aReceived: SizeInt): TLockFreeRecvResult;
+
+  { 状态控制 }
+  procedure Complete;                  // 正常完成，发送端不可再推送
+  procedure Cancel;                    // 异常终止，唤醒所有等待者
+  function State: TLockFreeChannelState;
+
+  { 等待/选择辅助 }
+  function WaitSendReady(aTimeoutUs: Int64 = -1): Boolean;
+  function WaitReceiveReady(aTimeoutUs: Int64 = -1): Boolean;
+
+  { 诊断（best-effort） }
+  function Count: SizeInt;
+  function Capacity: SizeInt;
+end;
+
+generic ILockFreeChannelSPSC<T> = interface(specialize ILockFreeChannel<T>)
+  ['{E9D71B5F-9F2B-4D7A-8F12-0C1D7AE5B61F}']
+end;
+
+generic ILockFreeChannelMPSC<T> = interface(specialize ILockFreeChannel<T>)
+  ['{C47F9E59-1C73-4A02-9854-BD5F46D77E6A}']
+end;
+
+generic ILockFreeChannelMPMC<T> = interface(specialize ILockFreeChannel<T>)
+  ['{9F12A87C-6B3E-4A5F-8D10-7A5C1B2D3E45}']
+end;
+
 
 generic ILockFreeStack<T> = interface
   ['{A7C5E3D9-1B2F-4C7E-8A9D-0E1F2A3B4C5D}']
@@ -103,4 +146,3 @@ end;
 implementation
 
 end.
-

@@ -2,6 +2,7 @@
 
 // fafafa.core.settings.inc - global toggles and platform defines
 // {$mode objfpc} - FreePascal 限制：mode 指令不能在 include 文件中，必须在主单元文件中声明
+{$CODEPAGE UTF8}
 {$H+}
 
 {$IF DEFINED(MSWINDOWS) OR DEFINED(WINDOWS)}

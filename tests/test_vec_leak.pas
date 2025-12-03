@@ -2,6 +2,9 @@
 program test_vec_leak;
 
 uses
+  {$IFDEF UNIX}
+  cthreads,
+  {$ENDIF}
   SysUtils,
   fafafa.core.collections.vec;
 

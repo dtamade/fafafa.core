@@ -125,6 +125,7 @@ type
    * TBitSet
    *
    * @desc Implementation of IBitSet using UInt64 array
+   * @threadsafety NOT thread-safe. Use external synchronization or atomic operations for concurrent access.
    *}
   TBitSet = class(TCollection, IBitSet)
   private
@@ -239,13 +240,17 @@ end;
 
 function TBitSet.PopCount(aValue: UInt64): SizeUInt; inline;
 begin
-  // Software popcount implementation
-  Result := 0;
-  while aValue <> 0 do
-  begin
-    Result := Result + (aValue and 1);
-    aValue := aValue shr 1;
-  end;
+  // Use FPC built-in PopCnt (compiles to POPCNT instruction on supported CPUs)
+  {$IFDEF CPUX86_64}
+  Result := PopCnt(aValue);
+  {$ELSE}
+  // Optimized software fallback using parallel bit counting (SWAR)
+  // Much faster than naive loop: O(1) vs O(64)
+  aValue := aValue - ((aValue shr 1) and $5555555555555555);
+  aValue := (aValue and $3333333333333333) + ((aValue shr 2) and $3333333333333333);
+  aValue := (aValue + (aValue shr 4)) and $0F0F0F0F0F0F0F0F;
+  Result := (aValue * $0101010101010101) shr 56;
+  {$ENDIF}
 end;
 
 procedure TBitSet.SetBit(aIndex: SizeUInt);
@@ -376,11 +381,9 @@ begin
 end;
 
 procedure TBitSet.SetAll;
-var
-  i: SizeUInt;
 begin
-  for i := 0 to Length(FBits) - 1 do
-    FBits[i] := High(UInt64);
+  if Length(FBits) > 0 then
+    FillQWord(FBits[0], Length(FBits), High(UInt64));
 end;
 
 procedure TBitSet.ClearAll;

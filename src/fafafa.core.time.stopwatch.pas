@@ -121,7 +121,7 @@ type
 
     // Lap 功能（分段计时）
     function Lap: TDuration;           // 记录一个 Lap 并返回距上次 Lap 的时间
-    function LapDuration: TDuration;   // 同 Lap，为兼容测试代码
+    function LapDuration: TDuration; deprecated 'Use Lap instead';   // 已废弃，使用 Lap 代替
     function GetLaps: TDurationArray; // 获取所有 Lap 记录
     function GetLapCount: Integer;     // 获取 Lap 数量
     procedure ClearLaps;               // 清除所有 Lap 记录

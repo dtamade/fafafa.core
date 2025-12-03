@@ -185,7 +185,7 @@ begin
     afTar:
       Result := TTarWriter.Create(LOut, Options.Deterministic, Options.EnforcePathSafety);
     afZip:
-      raise EArchiverError.Create('ZIP writer not implemented yet');
+      raise EArchiverError.Create('ZIP format not yet implemented. Use TAR format with gzip compression for similar functionality.');
   else
     raise EArchiverError.Create('Unknown archive format');
   end;
@@ -231,7 +231,7 @@ begin
         Result := TTarReader.Create(LIn, (LIn <> Source), Options.EnforcePathSafety);
       end;
     afZip:
-      raise EArchiverError.Create('ZIP reader not implemented yet');
+      raise EArchiverError.Create('ZIP format not yet implemented. Use TAR format with gzip compression for similar functionality.');
   else
     raise EArchiverError.Create('Unknown archive format');
   end;

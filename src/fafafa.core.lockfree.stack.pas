@@ -279,14 +279,14 @@ begin
   LFailCount := 0;
   repeat
     // 1. 读取当前栈顶（acquire 确保看到前驱线程对节点内容的发布）
-    LCurrentTop := PNode(atomic_load_ptr(PPointer(@FTop)^, memory_order_acquire));
+    LCurrentTop := PNode(atomic_load_ptr(PPointer(@FTop)^, mo_acquire));
 
     // 2. 设置新节点的next指向当前栈顶
     LNewNode^.Next := LCurrentTop;
 
     // 3. 尝试原子地将栈顶更新为新节点
     // 如果FTop仍然等于LCurrentTop，则更新为LNewNode
-    if atomic_compare_exchange_strong_ptr(PPointer(@FTop)^, Pointer(LCurrentTop), Pointer(LNewNode), memory_order_acq_rel) then
+    if atomic_compare_exchange_strong_ptr(PPointer(@FTop)^, Pointer(LCurrentTop), Pointer(LNewNode)) then
     begin
       atomic_increment(FCount); // best-effort count
       Break;
@@ -310,7 +310,7 @@ begin
   try
     repeat
       // 1. 读取当前栈顶（acquire 确保看到前驱线程对节点内容的发布）
-      LCurrentTop := PNode(atomic_load_ptr(PPointer(@FTop)^, memory_order_acquire));
+      LCurrentTop := PNode(atomic_load_ptr(PPointer(@FTop)^, mo_acquire));
 
       // 2. 检查栈是否为空
       if LCurrentTop = nil then
@@ -321,7 +321,7 @@ begin
 
       // 4. 尝试原子地将栈顶更新为下一个节点
       // 如果FTop仍然等于LCurrentTop，则更新为LNext
-      if atomic_compare_exchange_strong_ptr(PPointer(@FTop)^, Pointer(LCurrentTop), Pointer(LNext), memory_order_acq_rel) then
+      if atomic_compare_exchange_strong_ptr(PPointer(@FTop)^, Pointer(LCurrentTop), Pointer(LNext)) then
       begin
         // 5. 成功！获取数据并将节点退休（由回收层决定何时释放）
         AItem := LCurrentTop^.Data;
@@ -341,7 +341,7 @@ end;
 
 function TTreiberStack.IsEmpty: Boolean;
 begin
-  Result := atomic_load_ptr(PPointer(@FTop)^, memory_order_relaxed) = nil;
+  Result := atomic_load_ptr(PPointer(@FTop)^, mo_relaxed) = nil;
 end;
 
 { TTreiberStack - 扩展接口实现 }
@@ -377,7 +377,7 @@ end;
 function TTreiberStack.GetSize: Integer;
 begin
   // best-effort atomic count
-  Result := atomic_load(FCount, memory_order_acquire);
+  Result := atomic_load(FCount, mo_acquire);
 end;
 
 function TTreiberStack.PushMany(const aElements: array of T): Integer;
@@ -405,15 +405,15 @@ begin
   // Single CAS insert of the whole chain
   FailCount := 0;
   repeat
-    OldTop := PNode(atomic_load_ptr(PPointer(@FTop)^, memory_order_acquire));
+    OldTop := PNode(atomic_load_ptr(PPointer(@FTop)^, mo_acquire));
     Tail^.Next := OldTop;
-    if atomic_compare_exchange_strong_ptr(PPointer(@FTop)^, Pointer(OldTop), Pointer(Head), memory_order_acq_rel) then
+    if atomic_compare_exchange_strong_ptr(PPointer(@FTop)^, Pointer(OldTop), Pointer(Head)) then
       Break;
     BackoffStep(FailCount);
   until False;
 
   // best-effort count (+N)
-  atomic_fetch_add(FCount, N, memory_order_relaxed);
+  atomic_fetch_add(FCount, N);
   Result := N;
 end;
 
@@ -429,7 +429,7 @@ begin
 
   FailCount := 0;
   repeat
-    ExpectedTop := PNode(atomic_load_ptr(PPointer(@FTop)^, memory_order_acquire));
+    ExpectedTop := PNode(atomic_load_ptr(PPointer(@FTop)^, mo_acquire));
     if ExpectedTop = nil then Exit(0);
 
     // Walk up to Want nodes
@@ -444,7 +444,7 @@ begin
     end;
     NextAfter := Tail^.Next; // node after our segment
 
-    if atomic_compare_exchange_strong_ptr(PPointer(@FTop)^, Pointer(ExpectedTop), Pointer(NextAfter), memory_order_acq_rel) then
+    if atomic_compare_exchange_strong_ptr(PPointer(@FTop)^, Pointer(ExpectedTop), Pointer(NextAfter)) then
       Break;
 
     BackoffStep(FailCount);
@@ -461,7 +461,7 @@ begin
     Cur := Tmp;
   end;
 
-  atomic_fetch_sub(FCount, Got, memory_order_relaxed);
+  atomic_fetch_sub(FCount, Got);
   Result := Got;
 end;
 
@@ -556,7 +556,7 @@ begin
   if aCount <= 0 then Exit(0);
   repeat
     // load
-    LOriginalPacked := TPackedHead(atomic_load_64(AHeadInt64, memory_order_acquire));
+    LOriginalPacked := TPackedHead(atomic_load_64(AHeadInt64, mo_acquire));
     UnpackHead(LOriginalPacked, LOriginalIndex, LOriginalABA);
     if LOriginalIndex = -1 then Exit(0);
 
@@ -577,7 +577,7 @@ begin
     // try CAS head to Cur
     LNewABA := LOriginalABA + 1;
     LNewPacked := PackHead(LNextIndex, LNewABA);
-  until atomic_compare_exchange_strong_64(AHeadInt64, Int64(LOriginalPacked), Int64(LNewPacked), memory_order_acq_rel);
+  until atomic_compare_exchange_strong_64(AHeadInt64, Int64(LOriginalPacked), Int64(LNewPacked));
   Result := Taken;
 end;
 
@@ -590,12 +590,12 @@ var
 begin
   if (SegHead = nil) or (SegTail = nil) then Exit;
   repeat
-    LOriginalPacked := TPackedHead(atomic_load_64(AHeadInt64, memory_order_acquire));
+    LOriginalPacked := TPackedHead(atomic_load_64(AHeadInt64, mo_acquire));
     UnpackHead(LOriginalPacked, LOriginalIndex, LOriginalABA);
     SegTail^.Next := GetNodeByIndex(LOriginalIndex);
     LNewABA := LOriginalABA + 1;
     LNewPacked := PackHead(GetNodeIndex(SegHead), LNewABA);
-  until atomic_compare_exchange_strong_64(AHeadInt64, Int64(LOriginalPacked), Int64(LNewPacked), memory_order_acq_rel);
+  until atomic_compare_exchange_strong_64(AHeadInt64, Int64(LOriginalPacked), Int64(LNewPacked));
 end;
 
 
@@ -614,7 +614,7 @@ begin
 
   repeat
     // 1. 原子地读取当前打包的头部
-    LOriginalPacked := TPackedHead(atomic_load_64(AHeadInt64, memory_order_acquire));
+    LOriginalPacked := TPackedHead(atomic_load_64(AHeadInt64, mo_acquire));
 
     // 2. 解包头部信息
     UnpackHead(LOriginalPacked, LOriginalIndex, LOriginalABA);
@@ -630,7 +630,7 @@ begin
     LNewPacked := PackHead(LNewIndex, LNewABA);
 
     // 6. 尝试原子地更新头部（单个64位CAS操作）
-  until atomic_compare_exchange_strong_64(AHeadInt64, Int64(LOriginalPacked), Int64(LNewPacked), memory_order_acq_rel);
+  until atomic_compare_exchange_strong_64(AHeadInt64, Int64(LOriginalPacked), Int64(LNewPacked));
 end;
 
 destructor TPreAllocStack.Destroy;
@@ -651,7 +651,7 @@ begin
   // 使用单个64位CAS来避免ABA问题（注意：通过 absolute 别名传入 var）
   repeat
     // 1. 原子地读取当前打包的头部
-    LOriginalPacked := TPackedHead(atomic_load_64(AHeadInt64, memory_order_acquire));
+    LOriginalPacked := TPackedHead(atomic_load_64(AHeadInt64, mo_acquire));
 
     // 2. 解包头部信息
     UnpackHead(LOriginalPacked, LOriginalIndex, LOriginalABA);
@@ -673,7 +673,7 @@ begin
     LNewPacked := PackHead(LNextIndex, LNewABA);
 
     // 7. 尝试原子地更新头部（单个64位CAS操作）
-  until atomic_compare_exchange_strong_64(AHeadInt64, Int64(LOriginalPacked), Int64(LNewPacked), memory_order_acq_rel);
+  until atomic_compare_exchange_strong_64(AHeadInt64, Int64(LOriginalPacked), Int64(LNewPacked));
 
   Result := LOriginalNode;
 end;
@@ -775,7 +775,7 @@ var
   LNodeIndex: Integer;
   LABA: Cardinal;
 begin
-  LHeadPacked := atomic_load_64(PInt64(@FHead)^, memory_order_acquire);
+  LHeadPacked := atomic_load_64(PInt64(@FHead)^, mo_acquire);
   UnpackHead(LHeadPacked, LNodeIndex, LABA);
   Result := LNodeIndex = -1;
 end;
@@ -786,14 +786,14 @@ var
   LNodeIndex: Integer;
   LABA: Cardinal;
 begin
-  LFreePacked := atomic_load_64(PInt64(@FFree)^, memory_order_acquire);
+  LFreePacked := atomic_load_64(PInt64(@FFree)^, mo_acquire);
   UnpackHead(LFreePacked, LNodeIndex, LABA);
   Result := LNodeIndex = -1;
 end;
 
 function TPreAllocStack.GetSize: Integer;
 begin
-  Result := atomic_load(FSize, memory_order_acquire);
+  Result := atomic_load(FSize, mo_acquire);
 end;
 
 function TPreAllocStack.GetCapacity: Integer;
@@ -922,7 +922,7 @@ var
 begin
   // Weak snapshot: read head with acquire and return current Data if any
   aElement := Default(T);
-  LHeadPacked := TPackedHead(atomic_load_64(PInt64(@FHead)^, memory_order_acquire));
+  LHeadPacked := TPackedHead(atomic_load_64(PInt64(@FHead)^, mo_acquire));
   UnpackHead(LHeadPacked, LIndex, LABA);
   if LIndex = -1 then Exit(False);
   LNode := GetNodeByIndex(LIndex);

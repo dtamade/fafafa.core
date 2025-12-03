@@ -30,13 +30,10 @@ function TryGetRtlAllocator(out A: IAllocator): Boolean;
 
 implementation
 
-uses
-  syncobjs;
-
 var
   _RTLAllocatorObj: TAllocator = nil;
   _RTLAllocatorIntf: IAllocator = nil;
-  GRtlAllocLock: TCriticalSection;
+  GRtlAllocLock: TRTLCriticalSection;
 
 function TRtlAllocator.DoGetMem(aSize: SizeUInt): Pointer;
 begin
@@ -74,7 +71,7 @@ function GetRtlAllocator: IAllocator;
 begin
   if _RTLAllocatorObj = nil then
   begin
-    GRtlAllocLock.Acquire;
+    EnterCriticalSection(GRtlAllocLock);
     try
       if _RTLAllocatorObj = nil then
       begin
@@ -82,7 +79,7 @@ begin
         _RTLAllocatorIntf := _RTLAllocatorObj as IAllocator; // anchor lifetime via interface
       end;
     finally
-      GRtlAllocLock.Release;
+      LeaveCriticalSection(GRtlAllocLock);
     end;
   end;
   Result := _RTLAllocatorIntf;
@@ -100,11 +97,10 @@ begin
 end;
 
 initialization
-  GRtlAllocLock := TCriticalSection.Create;
+  InitCriticalSection(GRtlAllocLock);
 finalization
-  FreeAndNil(GRtlAllocLock);
+  DoneCriticalSection(GRtlAllocLock);
   _RTLAllocatorIntf := nil; // release anchor; object will be freed by interface refcount
   _RTLAllocatorObj := nil;
 
 end.
-

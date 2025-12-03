@@ -16,6 +16,7 @@ plays/lib/
 plays/bin/
 
 tests/*/bin/
+tests/*/.lazarus/
 tests/*/lib/
 tests/*/*.exe
 tests/*/*.o
@@ -32,6 +33,8 @@ tests/fafafa.core.mem.pool.fixedSlab/build/
 tests/lib/x86_64-linux/
 tests/*/*/lib
 tests/*/*/bin
+tests/leak_test_bin/
+tests/leak_test_logs/
 
 
 src/*.o
@@ -52,3 +55,8 @@ lib/
 *.o
 *.exe
 *.ppu
+
+# Editor/backup artifacts
+*.backup
+*.pas.backup*
+*.lpr.backup*

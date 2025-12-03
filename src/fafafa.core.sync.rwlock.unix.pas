@@ -66,6 +66,7 @@ type
     function GetLock: TRWLock; inline;
   public
     constructor Create(ALock: TRWLock);
+    constructor CreateFromDowngrade(ALock: TRWLock);  // 用于 Downgrade，不重新获取锁
     destructor Destroy; override;
 
     // IRWLockReadGuard 接口
@@ -88,6 +89,7 @@ type
     // IRWLockWriteGuard 接口
     function IsValid: Boolean;
     procedure Release;
+    function Downgrade: IRWLockReadGuard;
   end;
 
   // ===== RWLock 主实�?=====
@@ -118,6 +120,11 @@ type
 
     // 配置选项
     FOptions: TRWLockOptions;     // 锁配置选项
+
+    // 毒化状态 (Rust-style Poisoning)
+    FPoisoned: Boolean;           // 锁是否被毒化
+    FPoisoningThreadId: TThreadID; // 导致毒化的线程 ID
+    FPoisoningException: string;   // 导致毒化的异常信息
 
     // 错误处理辅助方法
     procedure HandleSystemError(const AOperation: string);
@@ -181,6 +188,11 @@ type
     procedure RecoverState;
     function IsHealthy: Boolean;
 
+    // ===== 毒化支持 (Rust-style Poisoning) =====
+    function IsPoisoned: Boolean;
+    procedure ClearPoison;
+    procedure MarkPoisoned(const AExceptionMessage: string);
+
     // ===== 性能监控接口实现 =====
     function GetPerformanceStats: TLockPerformanceStats;
     procedure ResetPerformanceStats;
@@ -225,8 +237,42 @@ begin
   end;
 end;
 
-destructor TRWLockReadGuard.Destroy;
+constructor TRWLockReadGuard.CreateFromDowngrade(ALock: TRWLock);
 begin
+  inherited Create;
+  FLock := ALock;
+  FReleased := False;
+  FValid := Assigned(ALock);
+  // 不获取锁 - 假定已经从写锁降级
+  // 锁已经由 Downgrade 处理
+end;
+
+destructor TRWLockReadGuard.Destroy;
+var
+  ExObj: TObject;
+  ExMsg: string;
+  Lock: TRWLock;
+begin
+  // 检测是否在异常展开过程中（Rust-style Poisoning）
+  if IsValid then
+  begin
+    Lock := GetLock;
+    // 只有启用毒化检测时才标记
+    if Lock.FOptions.EnablePoisoning then
+    begin
+      ExObj := ExceptObject;
+      if ExObj <> nil then
+      begin
+        // 有异常且锁有效，标记锁为毒化状态
+        if ExObj is Exception then
+          ExMsg := Exception(ExObj).Message
+        else
+          ExMsg := 'Unknown exception';
+        Lock.MarkPoisoned(ExMsg);
+      end;
+    end;
+  end;
+
   Release;
   inherited Destroy;
 end;
@@ -274,7 +320,31 @@ begin
 end;
 
 destructor TRWLockWriteGuard.Destroy;
+var
+  ExObj: TObject;
+  ExMsg: string;
+  Lock: TRWLock;
 begin
+  // 检测是否在异常展开过程中（Rust-style Poisoning）
+  if IsValid then
+  begin
+    Lock := GetLock;
+    // 只有启用毒化检测时才标记
+    if Lock.FOptions.EnablePoisoning then
+    begin
+      ExObj := ExceptObject;
+      if ExObj <> nil then
+      begin
+        // 有异常且锁有效，标记锁为毒化状态
+        if ExObj is Exception then
+          ExMsg := Exception(ExObj).Message
+        else
+          ExMsg := 'Unknown exception';
+        Lock.MarkPoisoned(ExMsg);
+      end;
+    end;
+  end;
+
   Release;
   inherited Destroy;
 end;
@@ -294,6 +364,54 @@ begin
       FReleased := True;
     end;
   end;
+end;
+
+function TRWLockWriteGuard.Downgrade: IRWLockReadGuard;
+var
+  Lock: TRWLock;
+  CurrentThreadId: TThreadID;
+  ReentryRecord: PThreadReentryRecord;
+begin
+  if not IsValid then
+  begin
+    // 守卫无效，返回一个无效的读守卫
+    Result := TRWLockReadGuard.CreateFromDowngrade(nil);
+    Exit;
+  end;
+
+  Lock := GetLock;
+  CurrentThreadId := GetCurrentThreadId;
+  
+  // 在重入管理器中更新状态：写锁 -> 读锁
+  Lock.FReentryManager.Lock;
+  try
+    ReentryRecord := Lock.FReentryManager.FindRecord(CurrentThreadId);
+    if ReentryRecord <> nil then
+    begin
+      // 完全清除写锁计数
+      ReentryRecord^.WriteCount := 0;
+      // 增加读锁计数
+      Inc(ReentryRecord^.ReadCount);
+    end;
+    
+    // 更新内部状态
+    AtomicIncrementCounter(Lock.FReaderCount);
+    Lock.FWriterThread := 0;
+  finally
+    Lock.FReentryManager.Unlock;
+  end;
+  
+  // 先释放写锁（用原始 pthread 调用，不经过 ReleaseWrite）
+  pthread_rwlock_unlock(@Lock.FRWLock);
+  
+  // 立即获取读锁
+  pthread_rwlock_rdlock(@Lock.FRWLock);
+  
+  // 创建新的读守卫
+  Result := TRWLockReadGuard.CreateFromDowngrade(Lock);
+  
+  // 失效当前写守卫
+  FReleased := True;
 end;
 
 { TThreadReentryManager }
@@ -499,6 +617,8 @@ begin
   Options.WriterPriority := False;
   Options.MaxReaders := 1024;
   Options.SpinCount := 4000;
+  Options.EnablePoisoning := True;   // 默认启用毒化检测（类似 Rust）
+  Options.ReaderBiasEnabled := True; // 默认启用读偏向优化
 
   Create(Options);
 end;
@@ -523,15 +643,16 @@ begin
     raise ELockError.Create('Failed to set rwlock pshared attribute');
   end;
 
-  // 根据配置设置读写锁策�?
-  {$IFDEF LINUX}
-  if FOptions.WriterPriority then
-    pthread_rwlockattr_setkind_np(@Attr, PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP)
-  else if FOptions.FairMode then
-    pthread_rwlockattr_setkind_np(@Attr, PTHREAD_RWLOCK_PREFER_READER_NP)
-  else
-    pthread_rwlockattr_setkind_np(@Attr, PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP);
-  {$ENDIF}
+  // NOTE: setkind_np 禁用以避免 glibc 优先级继承问题
+  // 使用默认的 pthread_rwlock 行为
+  // {$IFDEF LINUX}
+  // if FOptions.WriterPriority then
+  //   pthread_rwlockattr_setkind_np(@Attr, PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP)
+  // else if FOptions.FairMode then
+  //   pthread_rwlockattr_setkind_np(@Attr, PTHREAD_RWLOCK_PREFER_READER_NP)
+  // else
+  //   pthread_rwlockattr_setkind_np(@Attr, PTHREAD_RWLOCK_PREFER_WRITER_NONRECURSIVE_NP);
+  // {$ENDIF}
 
   // 初始化读写锁
   if pthread_rwlock_init(@FRWLock, @Attr) <> 0 then
@@ -603,6 +724,11 @@ var
   Guard: TRWLockReadGuard;
 begin
   Result := nil;
+
+  // 毒化检查 (Rust-style Poisoning) - TryRead 返回 nil 而不是抛异常
+  if FOptions.EnablePoisoning and FPoisoned then
+    Exit;
+
   if TryAcquireReadEx(ATimeoutMs) = lrSuccess then
   begin
     // 创建一个特殊的守卫，不再次获取�?
@@ -620,14 +746,21 @@ end;
 function TRWLock.TryWrite(ATimeoutMs: Cardinal): IRWLockWriteGuard;
 var
   Guard: TRWLockWriteGuard;
+  AcqResult: TLockResult;
 begin
   Result := nil;
-  if TryAcquireWriteEx(ATimeoutMs) = lrSuccess then
+
+  // 毒化检查 (Rust-style Poisoning) - TryWrite 返回 nil 而不是抛异常
+  if FOptions.EnablePoisoning and FPoisoned then
+    Exit;
+
+  AcqResult := TryAcquireWriteEx(ATimeoutMs);
+  if AcqResult = lrSuccess then
   begin
-    // 创建一个特殊的守卫，不再次获取�?
+    // 创建一个特殊的守卫，不再次获取锁
     Guard := TRWLockWriteGuard.Create(nil);
 
-    // 手动设置守卫状态（绕过构造函数的 AcquireWrite 调用�?
+    // 手动设置守卫状态（绕过构造函数的 AcquireWrite 调用）
     Guard.FLock := Self;
     Guard.FValid := True;
     Guard.FReleased := False;
@@ -645,6 +778,10 @@ var
   NeedSystemLock: Boolean;
   StartTime: QWord;
 begin
+  // 毒化检查 (Rust-style Poisoning)
+  if FOptions.EnablePoisoning and FPoisoned then
+    raise ERWLockPoisonError.Create(FPoisoningThreadId, FPoisoningException);
+
   StartTime := GetTickCount64;
   CurrentThreadId := GetCurrentThreadId;
   NeedSystemLock := True;
@@ -758,6 +895,10 @@ var
   ReentryRecord: PThreadReentryRecord;
   NeedSystemLock: Boolean;
 begin
+  // 毒化检查 (Rust-style Poisoning)
+  if FOptions.EnablePoisoning and FPoisoned then
+    raise ERWLockPoisonError.Create(FPoisoningThreadId, FPoisoningException);
+
   CurrentThreadId := GetCurrentThreadId;
   NeedSystemLock := True;
 
@@ -1496,13 +1637,20 @@ end;
 function TRWLock.TryAcquireReadLockWithSpin: Boolean;
 var
   SpinCount: Integer;
+  MaxSpin: Integer;
   i: Integer;
   Success: Boolean;
 begin
+  // 读偏向优化：读锁通常能快速获取，减少自旋次数
+  if FOptions.ReaderBiasEnabled then
+    MaxSpin := atomic_load(FSpinCount) div 4  // 读偏向：只自旋 1/4 次数
+  else
+    MaxSpin := atomic_load(FSpinCount);
+
   SpinCount := 0;
 
   // 第一阶段：自适应自旋
-  for i := 1 to atomic_load(FSpinCount) do
+  for i := 1 to MaxSpin do
   begin
     if pthread_rwlock_tryrdlock(@FRWLock) = 0 then
     begin
@@ -1519,7 +1667,7 @@ begin
     {$ENDIF}
   end;
 
-  // 第二阶段：阻塞等�?
+  // 第二阶段：阻塞等待
   Success := pthread_rwlock_rdlock(@FRWLock) = 0;
   UpdateSpinStatistics(Success, SpinCount);
   Result := Success;
@@ -1626,11 +1774,11 @@ begin
     // 更新等待时间统计
     atomic_fetch_add_64(FPerfStats.TotalWaitTime, Int64(WaitTime));
 
-    // 更新最大等待时�?
+    // 更新最大等待时间
     if WaitTime > QWord(atomic_load_64(FPerfStats.MaxWaitTime)) then
       atomic_store_64(FPerfStats.MaxWaitTime, Int64(WaitTime));
 
-    // 更新最小等待时�?
+    // 更新最小等待时间
     if (WaitTime < QWord(atomic_load_64(FPerfStats.MinWaitTime))) and (WaitTime > 0) then
       atomic_store_64(FPerfStats.MinWaitTime, Int64(WaitTime));
 
@@ -1645,6 +1793,30 @@ begin
   begin
     // 释放操作
     atomic_increment_64(FPerfStats.TotalReleases);
+  end;
+end;
+
+// ===== 毒化支持 (Rust-style Poisoning) =====
+
+function TRWLock.IsPoisoned: Boolean;
+begin
+  Result := FPoisoned;
+end;
+
+procedure TRWLock.ClearPoison;
+begin
+  FPoisoned := False;
+  FPoisoningThreadId := 0;
+  FPoisoningException := '';
+end;
+
+procedure TRWLock.MarkPoisoned(const AExceptionMessage: string);
+begin
+  if not FPoisoned then
+  begin
+    FPoisoned := True;
+    FPoisoningThreadId := GetCurrentThreadId;
+    FPoisoningException := AExceptionMessage;
   end;
 end;
 

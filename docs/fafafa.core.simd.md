@@ -8,7 +8,7 @@
 
 - **性能优化**：在 FPC 缺少稳定 SIMD 内建支持的现实下，以“手写汇编微内核 + 运行时派发 + 标量回退”的方式，为常见热点提供可选加速
 - **API 兼容性**：不改变调用方 API 语义；任何平台/构建环境下均可运行；有 SIMD 则自动用更快实现
-- **跨平台支持**：支持 x86_64 (SSE2/AVX2) 和 AArch64 (NEON) 架构
+- **跨平台支持**：支持 x86_64 (SSE2/AVX2/AVX-512) 和 AArch64 (NEON) 架构
 
 ### 设计原则
 
@@ -24,15 +24,16 @@
 
 ```
 src/
-├── fafafa.core.simd.pas           # 主模块：类型定义、函数指针、运行时派发
-├── fafafa.core.simd.detect.pas    # 能力检测：CPUID/OSXSAVE/XGETBV/NEON 等
-├── fafafa.core.simd.types.pas     # 类型定义和常量
-├── fafafa.core.simd.mem.pas       # 内存操作：MemEqual/MemFindByte/MemDiffRange
-├── fafafa.core.simd.text.pas      # 文本操作：UTF-8 验证、ASCII 大小写转换
-├── fafafa.core.simd.bitset.pas    # 位集操作：PopCount 等
-├── fafafa.core.simd.search.pas    # 搜索操作：BytesIndexOf
-├── fafafa.core.simd.api.pas       # 高级 API 封装
-└── fafafa.core.simd.neon.pas      # NEON 实现占位符（规划中）
+├── fafafa.core.simd.pas           # 主用户入口：向量运算 + 类型重导出
+├── fafafa.core.simd.api.pas       # 门面函数 API：MemEqual/SumBytes/Utf8Validate 等
+├── fafafa.core.simd.types.pas     # 类型定义：TVecF32x4/TMask4 等
+├── fafafa.core.simd.dispatch.pas  # 运行时派发：后端选择和函数表
+├── fafafa.core.simd.cpuinfo.pas   # CPU 能力检测：CPUID/XGETBV 等
+├── fafafa.core.simd.memutils.pas  # 内存工具：对齐分配
+├── fafafa.core.simd.scalar.pas    # 后端：标量回退实现
+├── fafafa.core.simd.sse2.pas      # 后端：SSE2 128-bit 实现
+├── fafafa.core.simd.avx2.pas      # 后端：AVX2 256-bit 实现
+└── fafafa.core.simd.avx512.pas    # 后端：AVX-512 512-bit 实现
 ```
 
 ### 支持的指令集
@@ -53,6 +54,65 @@ src/
 | LEVEL_1 | SSE2 | NEON | 基线 SIMD 支持 |
 | LEVEL_2 | AVX2 | NEON+CRC/AES | 增强 SIMD 支持 |
 | LEVEL_3 | AVX-512 | SVE/SVE2 | 高端 SIMD 支持（规划中） |
+
+### 性能基准 (4096 字节, 1M 次迭代)
+
+| 函数 | Scalar | SSE2 | AVX2 | 加速比 |
+|------|--------|------|------|--------|
+| MemEqual | 3300ms | 743ms (4.4x) | 139ms | **23.7x** |
+| MemFindByte | 161ms | 48ms (3.4x) | 12ms | **13.4x** |
+| SumBytes | 1861ms | 757ms (2.5x) | 99ms | **18.8x** |
+| CountByte | 3117ms | 708ms (4.4x) | 136ms | **22.9x** |
+| MinMaxBytes | 4962ms | - | 121ms | **41.0x** |
+| BitsetPopCount | 26591ms | - | 537ms | **49.5x** |
+| Utf8Validate | 2936ms | - | 318ms | **9.2x** |
+| AsciiIEqual | 5894ms | - | 247ms | **23.9x** |
+
+## 快速入门
+
+### 基本用法
+```pascal
+uses
+  fafafa.core.simd,      // 向量运算
+  fafafa.core.simd.api;  // 门面函数
+
+// 内存比较
+if MemEqual(@buf1[0], @buf2[0], Length(buf1)) then
+  WriteLn('缓冲区相等');
+
+// 字节查找
+pos := MemFindByte(@data[0], Length(data), $FF);
+
+// 字节求和
+total := SumBytes(@data[0], Length(data));
+
+// UTF-8 验证
+if Utf8Validate(@text[0], Length(text)) then
+  WriteLn('UTF-8 有效');
+
+// ASCII 转小写
+ToLowerAscii(@str[1], Length(str));
+```
+
+### 向量运算
+```pascal
+var
+  a, b, result: TVecF32x4;
+begin
+  a := VecF32x4Splat(1.0);  // [1.0, 1.0, 1.0, 1.0]
+  b := VecF32x4Splat(2.0);  // [2.0, 2.0, 2.0, 2.0]
+  result := VecF32x4Add(a, b);  // [3.0, 3.0, 3.0, 3.0]
+  
+  // 归约操作
+  sum := VecF32x4ReduceAdd(result);  // 12.0
+end;
+```
+
+### 查询后端信息
+```pascal
+WriteLn('当前后端: ', GetCurrentBackendInfo.Name);
+// 输出: "AVX2" 或 "SSE2" 或 "Scalar"
+```
 
 ## API 参考
 

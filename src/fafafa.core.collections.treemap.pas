@@ -26,6 +26,10 @@ type
   {** TKeyValueCallback - Callback for key-value pairs }
   generic TKeyValueCallback<K, V> = procedure(const aEntry: specialize TMapEntry<K, V>; aData: Pointer);
 
+  { Entry API 回调类型 }
+  generic TTreeValueSupplierFunc<V> = function: V;
+  generic TTreeValueModifierProc<V> = procedure(var Value: V);
+
   {**
    * ITreeMap<K,V>
    *
@@ -56,6 +60,11 @@ type
     function GetValues: TCollection;
 
     procedure Clear;
+    
+    { Entry API - Rust 风格的键值访问模式 }
+    function GetOrInsert(const AKey: K; const ADefault: V): V;
+    function GetOrInsertWith(const AKey: K; ASupplier: specialize TTreeValueSupplierFunc<V>): V;
+    procedure ModifyOrInsert(const AKey: K; AModifier: specialize TTreeValueModifierProc<V>; const ADefault: V);
   end;
 
   { TRedBlackTree 节点 }
@@ -75,12 +84,17 @@ type
     TMapEntryType = specialize TMapEntry<K, V>;
     TElementManagerType = specialize TElementManager<specialize TMapEntry<K, V>>;
 
-  private
+  public
     FRoot: PNode;
+    FSentinel: specialize TRedBlackTreeNode<K, V>;
+
+  private
     FCount: SizeUInt;
     FAllocator: IAllocator;
     FElementManager: TElementManagerType;
     FCompareMethod: specialize TCompareFunc<K>;
+
+    procedure InitTree; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
 
     { 红黑树操作 }
     procedure RotateLeft(aNode: PNode);
@@ -88,15 +102,12 @@ type
     function InsertNode(const aKey: K; const aValue: V; out aExisted: Boolean): PNode;
     function DeleteNode(const aKey: K): Boolean; deprecated 'Use Remove instead';
     function FindNode(const aKey: K): PNode;
-    function GetMinimum(aNode: PNode): PNode;
     function GetMaximum(aNode: PNode): PNode;
-    function GetSuccessor(aNode: PNode): PNode;
-    function GetPredecessor(aNode: PNode): PNode;
     function GetLowerBoundNode(const aKey: K): PNode;
     function GetUpperBoundNode(const aKey: K): PNode;
 
     procedure FixInsert(aNode: PNode);
-    procedure FixDelete(aNode: PNode);
+    procedure FixDelete(aNode, aParent: PNode);
 
     procedure Transplant(aU, aV: PNode);
     procedure InOrderTraversal(aNode: PNode; const aCallback: specialize TKeyValueCallback<K, V>);
@@ -104,6 +115,11 @@ type
     function AllocateNode(const aKey: K; const aValue: V): PNode;
     procedure DeallocateNode(aNode: PNode);
     procedure FreeNodeAndChildren(aNode: PNode);
+
+  public
+    function GetMinimum(aNode: PNode): PNode;
+    function GetSuccessor(aNode: PNode): PNode;
+    function GetPredecessor(aNode: PNode): PNode;
 
   public
     constructor Create(const aAllocator: IAllocator; const aCompare: specialize TCompareFunc<K>);
@@ -141,16 +157,37 @@ type
     PNode = specialize TRedBlackTreeNode<K, V>;
     PNodeArray = array of PNode;
     TRedBlackTreeType = specialize TRedBlackTree<K, V>;
+    TKeyCompareFunc = specialize TCompareFunc<K>;
 
   private
     FTree: TRedBlackTreeType;
+    FComparer: TKeyCompareFunc;
+
+  type
+    TEntryType = specialize TMapEntry<K, V>;
+    PEntryType = ^TEntryType;
+    // Entry API types
+    TValueSupplier = specialize TTreeValueSupplierFunc<V>;
+    TValueModifier = specialize TTreeValueModifierProc<V>;
 
   protected
     function GetCount: SizeUInt; override;
+    function IsOverlap(const aSrc: Pointer; aElementCount: SizeUInt): Boolean; override;
+    procedure DoZero; override;
+    procedure DoReverse; override;
+    function DoIterGetCurrent(aIter: PPtrIter): Pointer;
+    function DoIterMoveNext(aIter: PPtrIter): Boolean;
 
   public
-    constructor Create(const aAllocator: IAllocator = nil; const aCompare: specialize TCompareFunc<K> = nil);
+    constructor Create(const aAllocator: IAllocator = nil; const aCompare: TKeyCompareFunc = nil); reintroduce; overload;
     destructor Destroy; override;
+    procedure AfterConstruction; override;
+
+    { TCollection abstract methods }
+    function PtrIter: TPtrIter; override;
+    procedure SerializeToArrayBuffer(aDst: Pointer; aCount: SizeUInt); override;
+    procedure AppendUnChecked(const aSrc: Pointer; aElementCount: SizeUInt); override;
+    procedure AppendToUnChecked(const aDst: TCollection); override;
 
     { ITreeMap 接口实现 }
     function GetLowerBound(const aKey: K; out aValue: V): Boolean; overload;
@@ -169,6 +206,11 @@ type
     function GetValues: TCollection;
 
     procedure Clear; override;
+    
+    { Entry API - Rust 风格的键值访问模式 }
+    function GetOrInsert(const AKey: K; const ADefault: V): V;
+    function GetOrInsertWith(const AKey: K; ASupplier: TValueSupplier): V;
+    procedure ModifyOrInsert(const AKey: K; AModifier: TValueModifier; const ADefault: V);
   end;
 
 implementation
@@ -178,18 +220,27 @@ implementation
 constructor TRedBlackTree.Create(const aAllocator: IAllocator; const aCompare: specialize TCompareFunc<K>);
 begin
   inherited Create;
-  FRoot := nil;
-  FCount := 0;
   FAllocator := aAllocator;
   if FAllocator = nil then
     FAllocator := GetRtlAllocator;
 
   FElementManager := TElementManagerType.Create(FAllocator);
+  InitTree;
 
   if Assigned(aCompare) then
     FCompareMethod := aCompare
   else
-    raise EArgumentNil.Create('Compare function cannot be nil');
+    raise EArgumentNil.Create('TRedBlackTree.Create: compare function cannot be nil');
+end;
+
+procedure TRedBlackTree.InitTree;
+begin
+  FSentinel.Left := @FSentinel;
+  FSentinel.Right := @FSentinel;
+  FSentinel.Parent := @FSentinel;
+  FSentinel.Color := 1; // Black
+  FRoot := @FSentinel;
+  FCount := 0;
 end;
 
 destructor TRedBlackTree.Destroy;
@@ -201,40 +252,40 @@ end;
 
 function TRedBlackTree.AllocateNode(const aKey: K; const aValue: V): PNode;
 begin
+  Result := nil;
   Result := FAllocator.AllocMem(SizeOf(Result^));
   Result^.Key := aKey;
   Result^.Value := aValue;
-  Result^.Left := nil;
-  Result^.Right := nil;
-  Result^.Parent := nil;
+  Result^.Left := @FSentinel;
+  Result^.Right := @FSentinel;
+  Result^.Parent := @FSentinel;
   Result^.Color := 0;  // Red
 end;
 
 procedure TRedBlackTree.DeallocateNode(aNode: PNode);
 begin
-  if aNode <> nil then
-  begin
-    { 在释放内存前 Finalize 键值（特别是字符串等引用类型） }
-    Finalize(aNode^.Key);
-    Finalize(aNode^.Value);
-    FAllocator.FreeMem(aNode);
-  end;
+  if (aNode = nil) or (aNode = @FSentinel) then Exit;
+  { 在释放内存前 Finalize 键值（特别是字符串等引用类型） }
+  Finalize(aNode^.Key);
+  Finalize(aNode^.Value);
+  FAllocator.FreeMem(aNode);
 end;
 
 procedure TRedBlackTree.RotateLeft(aNode: PNode);
 var
   LRight: PNode;
 begin
-  if aNode = nil then Exit;
+  if (aNode = nil) or (aNode = @FSentinel) then Exit;
   LRight := PNode(aNode^.Right);
+  if LRight = @FSentinel then Exit;
   aNode^.Right := LRight^.Left;
 
-  if LRight^.Left <> nil then
+  if LRight^.Left <> @FSentinel then
     PNode(LRight^.Left)^.Parent := aNode;
 
   LRight^.Parent := aNode^.Parent;
 
-  if aNode^.Parent = nil then
+  if aNode^.Parent = @FSentinel then
     FRoot := LRight
   else if aNode = PNode(aNode^.Parent)^.Left then
     PNode(aNode^.Parent)^.Left := LRight
@@ -249,16 +300,17 @@ procedure TRedBlackTree.RotateRight(aNode: PNode);
 var
   LLeft: PNode;
 begin
-  if aNode = nil then Exit;
+  if (aNode = nil) or (aNode = @FSentinel) then Exit;
   LLeft := PNode(aNode^.Left);
+  if LLeft = @FSentinel then Exit;
   aNode^.Left := LLeft^.Right;
 
-  if LLeft^.Right <> nil then
+  if LLeft^.Right <> @FSentinel then
     PNode(LLeft^.Right)^.Parent := aNode;
 
   LLeft^.Parent := aNode^.Parent;
 
-  if aNode^.Parent = nil then
+  if aNode^.Parent = @FSentinel then
     FRoot := LLeft
   else if aNode = PNode(aNode^.Parent)^.Left then
     PNode(aNode^.Parent)^.Left := LLeft
@@ -271,86 +323,73 @@ end;
 
 procedure TRedBlackTree.FixInsert(aNode: PNode);
 var
-  LUncle, LGrandparent: PNode;
+  LUncle: PNode;
 begin
-  // Fix red-black tree properties after insertion
-  while (aNode <> FRoot) and (aNode^.Parent <> nil) and (PNode(aNode^.Parent)^.Color = 0) do
+  while (aNode^.Parent <> @FSentinel) and (PNode(aNode^.Parent)^.Color = 0) do
   begin
-    LGrandparent := PNode(aNode^.Parent)^.Parent;
-    if LGrandparent = nil then
-      Break;  // Parent has no parent, stop
-
-    if aNode^.Parent = LGrandparent^.Left then
+    if aNode^.Parent = PNode(PNode(aNode^.Parent)^.Parent)^.Left then
     begin
-      LUncle := LGrandparent^.Right;
-      if (LUncle <> nil) and (PNode(LUncle)^.Color = 0) then
+      LUncle := PNode(PNode(aNode^.Parent)^.Parent)^.Right;
+      if (LUncle <> @FSentinel) and (PNode(LUncle)^.Color = 0) then
       begin
         PNode(aNode^.Parent)^.Color := 1;
         PNode(LUncle)^.Color := 1;
-        LGrandparent^.Color := 0;
-        aNode := LGrandparent;
+        PNode(PNode(aNode^.Parent)^.Parent)^.Color := 0;
+        aNode := PNode(aNode^.Parent)^.Parent;
       end
       else
       begin
         if aNode = PNode(aNode^.Parent)^.Right then
         begin
-          aNode := aNode^.Parent;
+          aNode := PNode(aNode^.Parent);
           RotateLeft(aNode);
         end;
         PNode(aNode^.Parent)^.Color := 1;
-        if PNode(aNode^.Parent)^.Parent <> nil then
-          PNode(PNode(aNode^.Parent)^.Parent)^.Color := 0;
-        if PNode(aNode^.Parent)^.Parent <> nil then
-          RotateRight(PNode(aNode^.Parent)^.Parent);
-        aNode := FRoot;
+        PNode(PNode(aNode^.Parent)^.Parent)^.Color := 0;
+        RotateRight(PNode(aNode^.Parent)^.Parent);
       end;
     end
     else
     begin
-      LUncle := LGrandparent^.Left;
-      if (LUncle <> nil) and (PNode(LUncle)^.Color = 0) then
+      LUncle := PNode(PNode(aNode^.Parent)^.Parent)^.Left;
+      if (LUncle <> @FSentinel) and (PNode(LUncle)^.Color = 0) then
       begin
         PNode(aNode^.Parent)^.Color := 1;
         PNode(LUncle)^.Color := 1;
-        LGrandparent^.Color := 0;
-        aNode := LGrandparent;
+        PNode(PNode(aNode^.Parent)^.Parent)^.Color := 0;
+        aNode := PNode(aNode^.Parent)^.Parent;
       end
       else
       begin
         if aNode = PNode(aNode^.Parent)^.Left then
         begin
-          aNode := aNode^.Parent;
+          aNode := PNode(aNode^.Parent);
           RotateRight(aNode);
         end;
         PNode(aNode^.Parent)^.Color := 1;
-        if PNode(aNode^.Parent)^.Parent <> nil then
-          PNode(PNode(aNode^.Parent)^.Parent)^.Color := 0;
-        if PNode(aNode^.Parent)^.Parent <> nil then
-          RotateLeft(PNode(aNode^.Parent)^.Parent);
-        aNode := FRoot;
+        PNode(PNode(aNode^.Parent)^.Parent)^.Color := 0;
+        RotateLeft(PNode(aNode^.Parent)^.Parent);
       end;
     end;
   end;
-  if FRoot <> nil then
+
+  if FRoot <> @FSentinel then
     PNode(FRoot)^.Color := 1;
 end;
 
 function TRedBlackTree.InsertNode(const aKey: K; const aValue: V; out aExisted: Boolean): PNode;
 var
-  LCurrent, LParent: PNode;
+  LParent, LCurrent: PNode;
   LCompareResult: SizeInt;
 begin
+  LParent := @FSentinel;
   LCurrent := FRoot;
-  LParent := nil;
-
-  while LCurrent <> nil do
+  while LCurrent <> @FSentinel do
   begin
     LParent := LCurrent;
     LCompareResult := FCompareMethod(aKey, LCurrent^.Key, nil);
-
     if LCompareResult = 0 then
     begin
-      { 键已存在，更新值 }
       LCurrent^.Value := aValue;
       aExisted := True;
       Exit(LCurrent);
@@ -361,11 +400,10 @@ begin
       LCurrent := PNode(LCurrent^.Right);
   end;
 
-  { 创建新节点 }
   Result := AllocateNode(aKey, aValue);
   Result^.Parent := LParent;
 
-  if LParent = nil then
+  if LParent = @FSentinel then
     FRoot := Result
   else if FCompareMethod(aKey, LParent^.Key, nil) < 0 then
     LParent^.Left := Result
@@ -374,127 +412,129 @@ begin
 
   aExisted := False;
   Inc(FCount);
-
-  { 修复红黑树性质 }
   FixInsert(Result);
 end;
 
 procedure TRedBlackTree.Transplant(aU, aV: PNode);
 begin
-  if aU^.Parent = nil then
+  if aU^.Parent = @FSentinel then
     FRoot := aV
   else if aU = PNode(aU^.Parent)^.Left then
     PNode(aU^.Parent)^.Left := aV
   else
     PNode(aU^.Parent)^.Right := aV;
 
-  if aV <> nil then
+  if aV <> @FSentinel then
     aV^.Parent := aU^.Parent;
 end;
 
 function TRedBlackTree.GetMinimum(aNode: PNode): PNode;
 begin
   Result := aNode;
-  while Result^.Left <> nil do
+  if Result = nil then Exit(nil);
+  if Result = @FSentinel then Exit(@FSentinel);
+  while Result^.Left <> @FSentinel do
     Result := PNode(Result^.Left);
 end;
 
 function TRedBlackTree.GetMaximum(aNode: PNode): PNode;
 begin
   Result := aNode;
-  while Result^.Right <> nil do
+  if Result = nil then Exit(nil);
+  if Result = @FSentinel then Exit(@FSentinel);
+  while Result^.Right <> @FSentinel do
     Result := PNode(Result^.Right);
 end;
 
-procedure TRedBlackTree.FixDelete(aNode: PNode);
+procedure TRedBlackTree.FixDelete(aNode, aParent: PNode);
 var
   LSibling: PNode;
 begin
-  while (aNode <> FRoot) and (aNode^.Color = 1) do
+  while (aNode <> FRoot) and ((aNode = @FSentinel) or (aNode^.Color = 1)) do
   begin
-    if aNode = PNode(aNode^.Parent)^.Left then
+    if aNode = PNode(aParent)^.Left then
     begin
-      LSibling := PNode(aNode^.Parent)^.Right;
-      if (LSibling <> nil) and (PNode(LSibling)^.Color = 0) then
+      LSibling := PNode(aParent^.Right);
+      if (LSibling <> @FSentinel) and (PNode(LSibling)^.Color = 0) then
       begin
         PNode(LSibling)^.Color := 1;
-        PNode(aNode^.Parent)^.Color := 0;
-        RotateLeft(aNode^.Parent);
-        LSibling := PNode(aNode^.Parent)^.Right;
+        PNode(aParent)^.Color := 0;
+        RotateLeft(aParent);
+        LSibling := PNode(aParent^.Right);
       end;
 
-      if (LSibling <> nil) and
-         (PNode(LSibling)^.Left = nil) and (PNode(LSibling)^.Right = nil) then
+      if ((LSibling = @FSentinel) or (PNode(LSibling)^.Left = @FSentinel) or (PNode(PNode(LSibling)^.Left)^.Color = 1)) and
+         ((LSibling = @FSentinel) or (PNode(LSibling)^.Right = @FSentinel) or (PNode(PNode(LSibling)^.Right)^.Color = 1)) then
       begin
-        PNode(LSibling)^.Color := 0;
-        aNode := aNode^.Parent;
-      end
-      else if (LSibling <> nil) then
-      begin
-        if (PNode(LSibling)^.Right = nil) or
-           (PNode(PNode(LSibling)^.Right)^.Color = 1) then
-        begin
-          if PNode(LSibling)^.Left <> nil then
-            PNode(PNode(LSibling)^.Left)^.Color := 1;
+        if LSibling <> @FSentinel then
           PNode(LSibling)^.Color := 0;
+        aNode := aParent;
+        aParent := PNode(aParent^.Parent);
+      end
+      else
+      begin
+        if (LSibling <> @FSentinel) and ((PNode(LSibling)^.Right = @FSentinel) or (PNode(PNode(LSibling)^.Right)^.Color = 1)) then
+        begin
+          if PNode(LSibling)^.Left <> @FSentinel then
+            PNode(PNode(LSibling)^.Left)^.Color := 1;
+          if LSibling <> @FSentinel then
+            PNode(LSibling)^.Color := 0;
           RotateRight(LSibling);
-          LSibling := PNode(aNode^.Parent)^.Right;
+          LSibling := PNode(aParent^.Right);
         end;
 
-        if LSibling <> nil then
-        begin
-          PNode(LSibling)^.Color := PNode(aNode^.Parent)^.Color;
-          PNode(aNode^.Parent)^.Color := 1;
-          if PNode(LSibling)^.Right <> nil then
-            PNode(PNode(LSibling)^.Right)^.Color := 1;
-          RotateLeft(aNode^.Parent);
-          aNode := FRoot;
-        end;
+        if LSibling <> @FSentinel then
+          PNode(LSibling)^.Color := PNode(aParent)^.Color;
+        PNode(aParent)^.Color := 1;
+        if (LSibling <> @FSentinel) and (PNode(LSibling)^.Right <> @FSentinel) then
+          PNode(PNode(LSibling)^.Right)^.Color := 1;
+        RotateLeft(aParent);
+        aNode := FRoot;
       end;
     end
     else
     begin
-      LSibling := PNode(aNode^.Parent)^.Left;
-      if (LSibling <> nil) and (PNode(LSibling)^.Color = 0) then
+      LSibling := PNode(aParent^.Left);
+      if (LSibling <> @FSentinel) and (PNode(LSibling)^.Color = 0) then
       begin
         PNode(LSibling)^.Color := 1;
-        PNode(aNode^.Parent)^.Color := 0;
-        RotateRight(aNode^.Parent);
-        LSibling := PNode(aNode^.Parent)^.Left;
+        PNode(aParent)^.Color := 0;
+        RotateRight(aParent);
+        LSibling := PNode(aParent^.Left);
       end;
 
-      if (LSibling <> nil) and
-         (PNode(LSibling)^.Right = nil) and (PNode(LSibling)^.Left = nil) then
+      if ((LSibling = @FSentinel) or (PNode(LSibling)^.Right = @FSentinel) or (PNode(PNode(LSibling)^.Right)^.Color = 1)) and
+         ((LSibling = @FSentinel) or (PNode(LSibling)^.Left = @FSentinel) or (PNode(PNode(LSibling)^.Left)^.Color = 1)) then
       begin
-        PNode(LSibling)^.Color := 0;
-        aNode := aNode^.Parent;
-      end
-      else if (LSibling <> nil) then
-      begin
-        if (PNode(LSibling)^.Left = nil) or
-           (PNode(PNode(LSibling)^.Left)^.Color = 1) then
-        begin
-          if PNode(LSibling)^.Right <> nil then
-            PNode(PNode(LSibling)^.Right)^.Color := 1;
+        if LSibling <> @FSentinel then
           PNode(LSibling)^.Color := 0;
+        aNode := aParent;
+        aParent := PNode(aParent^.Parent);
+      end
+      else
+      begin
+        if (LSibling <> @FSentinel) and ((PNode(LSibling)^.Left = @FSentinel) or (PNode(PNode(LSibling)^.Left)^.Color = 1)) then
+        begin
+          if PNode(LSibling)^.Right <> @FSentinel then
+            PNode(PNode(LSibling)^.Right)^.Color := 1;
+          if LSibling <> @FSentinel then
+            PNode(LSibling)^.Color := 0;
           RotateLeft(LSibling);
-          LSibling := PNode(aNode^.Parent)^.Left;
+          LSibling := PNode(aParent^.Left);
         end;
 
-        if LSibling <> nil then
-        begin
-          PNode(LSibling)^.Color := PNode(aNode^.Parent)^.Color;
-          PNode(aNode^.Parent)^.Color := 1;
-          if PNode(LSibling)^.Left <> nil then
-            PNode(PNode(LSibling)^.Left)^.Color := 1;
-          RotateRight(aNode^.Parent);
-          aNode := FRoot;
-        end;
+        if LSibling <> @FSentinel then
+          PNode(LSibling)^.Color := PNode(aParent)^.Color;
+        PNode(aParent)^.Color := 1;
+        if (LSibling <> @FSentinel) and (PNode(LSibling)^.Left <> @FSentinel) then
+          PNode(PNode(LSibling)^.Left)^.Color := 1;
+        RotateRight(aParent);
+        aNode := FRoot;
       end;
     end;
   end;
 
-  if aNode <> nil then
+  if aNode <> @FSentinel then
     aNode^.Color := 1;
 end;
 
@@ -502,14 +542,15 @@ function TRedBlackTree.GetSuccessor(aNode: PNode): PNode;
 var
   LTemp: PNode;
 begin
-  if aNode^.Right <> nil then
+  if (aNode = nil) or (aNode = @FSentinel) then Exit(@FSentinel);
+  if aNode^.Right <> @FSentinel then
   begin
     Result := GetMinimum(PNode(aNode^.Right));
     Exit;
   end;
 
   LTemp := aNode^.Parent;
-  while (LTemp <> nil) and (aNode = PNode(LTemp)^.Right) do
+  while (LTemp <> @FSentinel) and (aNode = PNode(LTemp)^.Right) do
   begin
     aNode := LTemp;
     LTemp := LTemp^.Parent;
@@ -521,14 +562,15 @@ function TRedBlackTree.GetPredecessor(aNode: PNode): PNode;
 var
   LTemp: PNode;
 begin
-  if aNode^.Left <> nil then
+  if (aNode = nil) or (aNode = @FSentinel) then Exit(@FSentinel);
+  if aNode^.Left <> @FSentinel then
   begin
     Result := GetMaximum(PNode(aNode^.Left));
     Exit;
   end;
 
   LTemp := aNode^.Parent;
-  while (LTemp <> nil) and (aNode = PNode(LTemp)^.Left) do
+  while (LTemp <> @FSentinel) and (aNode = PNode(LTemp)^.Left) do
   begin
     aNode := LTemp;
     LTemp := LTemp^.Parent;
@@ -541,7 +583,7 @@ var
   LCompareResult: SizeInt;
 begin
   Result := FRoot;
-  while Result <> nil do
+  while Result <> @FSentinel do
   begin
     LCompareResult := FCompareMethod(aKey, PNode(Result)^.Key, nil);
 
@@ -552,6 +594,7 @@ begin
     else
       Result := PNode(Result)^.Right;
   end;
+  Result := nil;
 end;
 
 function TRedBlackTree.GetLowerBoundNode(const aKey: K): PNode;
@@ -559,10 +602,10 @@ var
   LResult: PNode;
   LCompareResult: SizeInt;
 begin
-  LResult := nil;
+  LResult := @FSentinel;
   Result := FRoot;
 
-  while Result <> nil do
+  while Result <> @FSentinel do
   begin
     LCompareResult := FCompareMethod(aKey, PNode(Result)^.Key, nil);
 
@@ -575,7 +618,10 @@ begin
       Result := PNode(Result)^.Right;
   end;
 
-  Result := LResult;
+  if LResult = @FSentinel then
+    Result := nil
+  else
+    Result := LResult;
 end;
 
 function TRedBlackTree.GetUpperBoundNode(const aKey: K): PNode;
@@ -583,10 +629,10 @@ var
   LResult: PNode;
   LCompareResult: SizeInt;
 begin
-  LResult := nil;
+  LResult := @FSentinel;
   Result := FRoot;
 
-  while Result <> nil do
+  while Result <> @FSentinel do
   begin
     LCompareResult := FCompareMethod(aKey, PNode(Result)^.Key, nil);
 
@@ -599,7 +645,10 @@ begin
       Result := PNode(Result)^.Right;
   end;
 
-  Result := LResult;
+  if LResult = @FSentinel then
+    Result := nil
+  else
+    Result := LResult;
 end;
 
 { API 实现 }
@@ -629,56 +678,53 @@ end;
 
 function TRedBlackTree.Remove(const aKey: K): Boolean;
 var
-  LNode, LTemp, LChild: PNode;
-  LWasBlack: Boolean;
+  LNode, LSuccessor, LChild, LChildParent: PNode;
+  LOriginalColor: UInt8;
 begin
   LNode := FindNode(aKey);
   if LNode = nil then
-  begin
-    Result := False;
-    Exit;
-  end;
+    Exit(False);
 
-  LWasBlack := (LNode^.Color = 1);
-  if LNode^.Left = nil then
+  LSuccessor := LNode;
+  LOriginalColor := LSuccessor^.Color;
+  if LNode^.Left = @FSentinel then
   begin
     LChild := PNode(LNode^.Right);
+    LChildParent := LNode^.Parent;
     Transplant(LNode, LChild);
-    DeallocateNode(LNode);
   end
-  else if LNode^.Right = nil then
+  else if LNode^.Right = @FSentinel then
   begin
     LChild := PNode(LNode^.Left);
+    LChildParent := LNode^.Parent;
     Transplant(LNode, LChild);
-    DeallocateNode(LNode);
   end
   else
   begin
-    LTemp := GetMinimum(PNode(LNode^.Right));
-    LWasBlack := (LTemp^.Color = 1);
-    LChild := PNode(LTemp^.Right);
-    if LTemp^.Parent = LNode then
-    begin
-      if LChild <> nil then
-        PNode(LChild)^.Parent := LTemp;
-    end
+    LSuccessor := GetMinimum(PNode(LNode^.Right));
+    LOriginalColor := LSuccessor^.Color;
+    LChild := PNode(LSuccessor^.Right);
+    if LSuccessor^.Parent = LNode then
+      LChildParent := LSuccessor
     else
     begin
-      Transplant(LTemp, LChild);
-      LTemp^.Right := LNode^.Right;
-      PNode(LTemp^.Right)^.Parent := LTemp;
+      LChildParent := LSuccessor^.Parent;
+      Transplant(LSuccessor, LChild);
+      LSuccessor^.Right := LNode^.Right;
+      PNode(LSuccessor^.Right)^.Parent := LSuccessor;
     end;
-    Transplant(LNode, LTemp);
-    LTemp^.Left := LNode^.Left;
-    PNode(LTemp^.Left)^.Parent := LTemp;
-    LTemp^.Color := LNode^.Color;
+    Transplant(LNode, LSuccessor);
+    LSuccessor^.Left := LNode^.Left;
+    PNode(LSuccessor^.Left)^.Parent := LSuccessor;
+    LSuccessor^.Color := LNode^.Color;
   end;
-
-  if LWasBlack then
-    FixDelete(LChild);
 
   DeallocateNode(LNode);
   Dec(FCount);
+
+  if LOriginalColor = 1 then
+    FixDelete(LChild, LChildParent);
+
   Result := True;
 end;
 
@@ -691,7 +737,7 @@ procedure TRedBlackTree.InOrderTraversal(aNode: PNode; const aCallback: speciali
 var
   LEntry: TMapEntryType;
 begin
-  if aNode = nil then
+  if (aNode = nil) or (aNode = @FSentinel) then
     Exit;
 
   InOrderTraversal(PNode(aNode^.Left), aCallback);
@@ -758,10 +804,10 @@ var
   LStartNode: PNode;
   LCurrent: PNode;
   LEntry: TMapEntryType;
-  LCompareLow, LCompareHigh: SizeInt;
+  LCompareHigh: SizeInt;
 begin
   Result := True;
-  if FRoot = nil then Exit;
+  if FRoot = @FSentinel then Exit;
 
   { 找到范围内的第一个节点 }
   LStartNode := GetLowerBoundNode(aLow);
@@ -782,21 +828,9 @@ begin
     aCallback(LEntry, nil);
 
     { 移动到下一个节点（中序遍历的后继）}
-    if LCurrent^.Right <> nil then
-    begin
-      { 右子树的最左节点 }
-      LCurrent := PNode(LCurrent)^.Right;
-      while LCurrent^.Left <> nil do
-        LCurrent := PNode(LCurrent)^.Left;
-    end
-    else
-    begin
-      { 向上回溯直到找到未访问的父节点 }
-      while (LCurrent^.Parent <> nil) and
-            (PNode(LCurrent^.Parent)^.Right = LCurrent) do
-        LCurrent := PNode(LCurrent)^.Parent;
-      LCurrent := PNode(LCurrent)^.Parent;
-    end;
+    LCurrent := GetSuccessor(LCurrent);
+    if LCurrent = @FSentinel then
+      LCurrent := nil;
   end;
 end;
 
@@ -812,8 +846,8 @@ var
   LCompareResult: SizeInt;
 begin
   LNode := FRoot;
-  LResult := nil;
-  while LNode <> nil do
+  LResult := @FSentinel;
+  while LNode <> @FSentinel do
   begin
     LCompareResult := FCompareMethod(aKey, PNode(LNode)^.Key, nil);
 
@@ -830,7 +864,7 @@ begin
     end;
   end;
 
-  if LResult <> nil then
+  if LResult <> @FSentinel then
   begin
     aValue := LResult^.Value;
     Result := True;
@@ -856,7 +890,7 @@ var
   { 内部递归遍历收集键 }
   procedure CollectKeys(aNode: PNode);
   begin
-    if aNode = nil then Exit;
+    if (aNode = nil) or (aNode = @FSentinel) then Exit;
 
     CollectKeys(PNode(aNode^.Left));
     LKeyArray[LCount] := aNode^.Key;
@@ -865,7 +899,7 @@ var
   end;
 
 begin
-  if FRoot = nil then
+  if FRoot = @FSentinel then
   begin
     { 空树返回空集合 }
     Result := specialize TArray<K>.Create(FAllocator);
@@ -903,7 +937,7 @@ var
   { 内部递归遍历收集值 }
   procedure CollectValues(aNode: PNode);
   begin
-    if aNode = nil then Exit;
+    if (aNode = nil) or (aNode = @FSentinel) then Exit;
 
     CollectValues(PNode(aNode^.Left));
     LValueArray[LCount] := aNode^.Value;
@@ -912,7 +946,7 @@ var
   end;
 
 begin
-  if FRoot = nil then
+  if FRoot = @FSentinel then
   begin
     { 空树返回空集合 }
     Result := specialize TArray<V>.Create(FAllocator);
@@ -935,13 +969,13 @@ end;
 
 procedure TRedBlackTree.FreeNodeAndChildren(aNode: PNode);
 begin
-  if aNode = nil then Exit;
+  if (aNode = nil) or (aNode = @FSentinel) then Exit;
 
   { 递归释放左右子树 }
-  if aNode^.Left <> nil then
+  if aNode^.Left <> @FSentinel then
     FreeNodeAndChildren(PNode(aNode^.Left));
 
-  if aNode^.Right <> nil then
+  if aNode^.Right <> @FSentinel then
     FreeNodeAndChildren(PNode(aNode^.Right));
 
   { 释放当前节点 }
@@ -951,24 +985,39 @@ end;
 procedure TRedBlackTree.Clear;
 begin
   { 递归释放所有节点 }
-  if FRoot <> nil then
+  if FRoot <> @FSentinel then
     FreeNodeAndChildren(FRoot);
 
-  FRoot := nil;
-  FCount := 0;
+  InitTree;
 end;
 
 { TTreeMap }
 
-constructor TTreeMap.Create(const aAllocator: IAllocator; const aCompare: specialize TCompareFunc<K>);
+constructor TTreeMap.Create(const aAllocator: IAllocator; const aCompare: TKeyCompareFunc);
 begin
-  inherited Create;
-  if aAllocator <> nil then
-    FAllocator := aAllocator
+  FComparer := aCompare;
+  inherited Create(aAllocator, nil);
+end;
+
+procedure TTreeMap.AfterConstruction;
+var
+  LCompare: TKeyCompareFunc;
+begin
+  inherited AfterConstruction;
+  if Assigned(FComparer) then
+    LCompare := FComparer
   else
+    LCompare := TKeyCompareFunc(Data);
+
+  if not Assigned(LCompare) then
+    raise EArgumentNil.Create('TTreeMap.AfterConstruction: compare function cannot be nil');
+
+  if FAllocator = nil then
     FAllocator := GetRtlAllocator;
 
-  FTree := TRedBlackTreeType.Create(FAllocator, aCompare);
+  FTree := TRedBlackTreeType.Create(FAllocator, LCompare);
+  FComparer := nil;
+  Data := nil;
 end;
 
 destructor TTreeMap.Destroy;
@@ -1045,6 +1094,187 @@ end;
 procedure TTreeMap.Clear;
 begin
   FTree.Clear;
+end;
+
+function TTreeMap.IsOverlap(const aSrc: Pointer; aElementCount: SizeUInt): Boolean;
+begin
+  // TreeMap uses non-contiguous node-based storage, no overlap possible
+  Result := False;
+end;
+
+function TTreeMap.DoIterGetCurrent(aIter: PPtrIter): Pointer;
+type
+  PNodeType = TRedBlackTreeType.PNode;
+begin
+  if (aIter = nil) or (aIter^.Data = nil) then
+    Exit(nil);
+  // Return pointer to the entry (key-value pair)
+  Result := aIter^.Data;
+end;
+
+function TTreeMap.DoIterMoveNext(aIter: PPtrIter): Boolean;
+type
+  PNodeType = TRedBlackTreeType.PNode;
+var
+  LNode: PNodeType;
+begin
+  if not aIter^.Started then
+  begin
+    aIter^.Started := True;
+    // Start from minimum (leftmost) node
+    if FTree.GetCount = 0 then
+    begin
+      aIter^.Data := nil;
+      Exit(False);
+    end;
+    LNode := FTree.GetMinimum(FTree.FRoot);
+    if (LNode = nil) or (LNode = @FTree.FSentinel) then
+    begin
+      aIter^.Data := nil;
+      Exit(False);
+    end;
+    aIter^.Data := LNode;
+    Result := True;
+  end
+  else if aIter^.Data <> nil then
+  begin
+    LNode := FTree.GetSuccessor(PNodeType(aIter^.Data));
+    if (LNode = nil) or (LNode = @FTree.FSentinel) then
+    begin
+      aIter^.Data := nil;
+      Exit(False);
+    end;
+    aIter^.Data := LNode;
+    Result := True;
+  end
+  else
+    Result := False;
+end;
+
+function TTreeMap.PtrIter: TPtrIter;
+begin
+  Result.Init(Self, @DoIterGetCurrent, @DoIterMoveNext, nil);
+end;
+
+procedure TTreeMap.SerializeToArrayBuffer(aDst: Pointer; aCount: SizeUInt);
+type
+  PNodeType = TRedBlackTreeType.PNode;
+var
+  LDstEntry: PEntryType;
+  LNode: PNodeType;
+  i: SizeUInt;
+begin
+  if (aDst = nil) or (aCount = 0) then
+    Exit;
+
+  LDstEntry := PEntryType(aDst);
+  LNode := FTree.GetMinimum(FTree.FRoot);
+  i := 0;
+
+  while (LNode <> nil) and (LNode <> @FTree.FSentinel) and (i < aCount) do
+  begin
+    LDstEntry^.Key := LNode^.Key;
+    LDstEntry^.Value := LNode^.Value;
+    Inc(LDstEntry);
+    Inc(i);
+    LNode := FTree.GetSuccessor(LNode);
+  end;
+end;
+
+procedure TTreeMap.AppendUnChecked(const aSrc: Pointer; aElementCount: SizeUInt);
+var
+  LSrcEntry: PEntryType;
+  i: SizeUInt;
+begin
+  if (aSrc = nil) or (aElementCount = 0) then
+    Exit;
+
+  LSrcEntry := PEntryType(aSrc);
+  for i := 0 to aElementCount - 1 do
+  begin
+    FTree.Put(LSrcEntry^.Key, LSrcEntry^.Value);
+    Inc(LSrcEntry);
+  end;
+end;
+
+procedure TTreeMap.AppendToUnChecked(const aDst: TCollection);
+type
+  PNodeType = TRedBlackTreeType.PNode;
+var
+  LNode: PNodeType;
+  LEntry: TEntryType;
+begin
+  if aDst = nil then
+    Exit;
+
+  // In-order traversal and append each entry
+  LNode := FTree.GetMinimum(FTree.FRoot);
+  while (LNode <> nil) and (LNode <> @FTree.FSentinel) do
+  begin
+    LEntry.Key := LNode^.Key;
+    LEntry.Value := LNode^.Value;
+    aDst.AppendUnChecked(@LEntry, 1);
+    LNode := FTree.GetSuccessor(LNode);
+  end;
+end;
+
+procedure TTreeMap.DoZero;
+type
+  PNodeType = TRedBlackTreeType.PNode;
+var
+  LNode: PNodeType;
+  LZeroValue: V;
+begin
+  // Zero all values while preserving keys
+  FillChar(LZeroValue, SizeOf(V), 0);
+
+  LNode := FTree.GetMinimum(FTree.FRoot);
+  while (LNode <> nil) and (LNode <> @FTree.FSentinel) do
+  begin
+    LNode^.Value := LZeroValue;
+    LNode := FTree.GetSuccessor(LNode);
+  end;
+end;
+
+procedure TTreeMap.DoReverse;
+begin
+  // TreeMap is ordered by keys, reversing has no meaningful semantic
+  // This is a no-op for ordered containers
+end;
+
+{ Entry API implementation }
+
+function TTreeMap.GetOrInsert(const AKey: K; const ADefault: V): V;
+begin
+  if FTree.Get(AKey, Result) then
+    Exit;
+  // Key doesn't exist - insert default
+  FTree.Put(AKey, ADefault);
+  Result := ADefault;
+end;
+
+function TTreeMap.GetOrInsertWith(const AKey: K; ASupplier: TValueSupplier): V;
+begin
+  if FTree.Get(AKey, Result) then
+    Exit;
+  // Key doesn't exist - call supplier
+  Result := ASupplier();
+  FTree.Put(AKey, Result);
+end;
+
+procedure TTreeMap.ModifyOrInsert(const AKey: K; AModifier: TValueModifier; const ADefault: V);
+type
+  PNodeType = TRedBlackTreeType.PNode;
+var
+  LNode: PNodeType;
+begin
+  LNode := FTree.FindNode(AKey);
+  if LNode <> nil then
+    // Key exists - modify in place
+    AModifier(LNode^.Value)
+  else
+    // Key doesn't exist - insert default
+    FTree.Put(AKey, ADefault);
 end;
 
 end.

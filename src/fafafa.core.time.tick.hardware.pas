@@ -101,7 +101,7 @@ begin
       raise ETickNotAvailable.Create('ARMv7-A hardware tick requires FAFAFA_USE_ARCH_TIMER');
     {$ENDIF}
   {$ELSE}
-    raise ETickNotAvailable.Create('Hardware tick is not supported on this architecture');
+    raise ETickNotAvailable.Create('Hardware tick not supported on this architecture. Use software tick (fafafa.core.time.tick.software) or high-resolution timer instead.');
   {$ENDIF}
 end;
 

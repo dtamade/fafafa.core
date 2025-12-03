@@ -4,17 +4,54 @@ unit fafafa.core.collections.simplemap;
 {$modeswitch advancedrecords}
 {$I fafafa.core.settings.inc}
 
+{**
+ * @unit fafafa.core.collections.simplemap
+ * @desc 轻量级哈希映射表实现
+ * @note
+ *   提供一个简洁、独立的 HashMap 实现，适用于：
+ *   - 不需要完整 collections 框架依赖的场景
+ *   - 简单键值对存储需求
+ *   - 性能敏感的小型数据集
+ *
+ *   特性：
+ *   - 开放寻址法 + 线性探测
+ *   - 容量始终为 2 的幂（位掩码优化）
+ *   - 默认负载因子 0.86
+ *   - 支持自定义哈希和相等函数
+ *}
+
 interface
 
 uses
   SysUtils;
 
 type
-  // 哈希和相等回调
+  {** @desc 键哈希回调函数类型 *}
   generic THashFunc<K> = function (const AKey: K): UInt32;
+  {** @desc 键相等比较回调函数类型 *}
   generic TEqualsFunc<K> = function (const L, R: K): Boolean;
-  
-  // 简单 HashMap 实现
+
+  {**
+   * TSimpleHashMap<K, V>
+   *
+   * @desc 轻量级泛型哈希映射表
+   * @param K 键类型
+   * @param V 值类型
+   * @note
+   *   复杂度：
+   *   - Add/AddOrAssign: O(1) 平均, O(n) 最坏
+   *   - TryGetValue/ContainsKey: O(1) 平均, O(n) 最坏
+   *   - Remove: O(1) 平均, O(n) 最坏
+   *   - Reserve: O(n)
+   *
+   *   示例：
+   *     var Map: specialize TSimpleHashMap<Integer, string>;
+   *     Map := specialize TSimpleHashMap<Integer, string>.Create;
+   *     Map.Add(1, 'one');
+   *     Map.AddOrAssign(2, 'two');
+   *     if Map.ContainsKey(1) then WriteLn('Found');
+   *     Map.Free;
+   *}
   generic TSimpleHashMap<K, V> = class
   public
     type
@@ -45,19 +82,30 @@ type
     function KeysEqual(const L, R: K): Boolean; inline;
     function FindIndex(const AKey: K; AHash: UInt32; out AIndex: SizeUInt): Boolean;
   public
+    {** @desc 创建映射表 @param aCapacity 初始容量 @param aHash 自定义哈希函数 @param aEquals 自定义相等函数 *}
     constructor Create(aCapacity: SizeUInt = 0; aHash: THash = nil; aEquals: TEquals = nil);
     destructor Destroy; override;
-    
+
+    {** @desc 清空所有键值对 *}
     procedure Clear;
+    {** @desc 获取元素数量 @return 当前存储的键值对数量 *}
     function GetCount: SizeUInt; inline;
+    {** @desc 获取容量 @return 当前桶数组大小 *}
     function GetCapacity: SizeUInt; inline;
+    {** @desc 获取负载因子 @return Count / Capacity *}
     function GetLoadFactor: Single;
+    {** @desc 预留容量 @param aCapacity 目标最小容量 *}
     procedure Reserve(aCapacity: SizeUInt);
-    
+
+    {** @desc 尝试获取值 @param AKey 键 @param AValue 输出值 @return 是否找到 *}
     function TryGetValue(const AKey: K; out AValue: V): Boolean;
+    {** @desc 检查键是否存在 @param AKey 键 @return 是否包含该键 *}
     function ContainsKey(const AKey: K): Boolean;
+    {** @desc 添加键值对（键已存在则失败）@param AKey 键 @param AValue 值 @return 是否添加成功 *}
     function Add(const AKey: K; const AValue: V): Boolean;
+    {** @desc 添加或更新键值对 @param AKey 键 @param AValue 值 @return True=新增, False=更新 *}
     function AddOrAssign(const AKey: K; const AValue: V): Boolean;
+    {** @desc 移除键值对 @param AKey 键 @return 是否移除成功 *}
     function Remove(const AKey: K): Boolean;
     
     property Count: SizeUInt read FCount;

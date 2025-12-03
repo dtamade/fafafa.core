@@ -7,6 +7,7 @@ unit fafafa.core.sync.namedMutex.unix;
 interface
 
 uses
+  SysUtils, ctypes, BaseUnix, Unix, UnixType,
   fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.namedMutex.base;
 
 type
@@ -59,11 +60,14 @@ type
     // ISynchronizable 接口
     function GetLastError: TWaitError;
 
-    // 现代化接�?    function Lock: INamedMutexGuard;
+    // 现代化接口
+    function Lock: INamedMutexGuard;
     function TryLock: INamedMutexGuard;
     function TryLockFor(ATimeoutMs: Cardinal): INamedMutexGuard;
     function GetName: string;
-    // ILock 接口补充：RAII 锁守�?    function LockGuard: ILockGuard;
+
+    // ILock 接口补充：RAII 锁守卫
+    function LockGuard: ILockGuard;
 
     // 兼容性接口（已弃用）
     procedure Acquire; deprecated;

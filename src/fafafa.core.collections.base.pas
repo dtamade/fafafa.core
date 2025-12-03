@@ -1414,41 +1414,20 @@ type
   { TAlignedWrapperStrategy 对齐包装增长策略 }
   TAlignedWrapperStrategy = class(TGrowthStrategy)
   private
-    FGrowStrategy: TGrowthStrategy;
+    FGrowStrategy: IGrowthStrategy;
     FAlignSize: SizeUInt;
 
-    function GetGrowStrategy: TGrowthStrategy;
+    function GetGrowStrategy: IGrowthStrategy;
     function GetAlignSize: SizeUInt;
   public
     const
       DEFAULT_ALIGN_SIZE    = 64;
   public
-    constructor Create(aGrowStrategy: TGrowthStrategy; aAlignSize: SizeUInt);
+    constructor Create(const aGrowStrategy: IGrowthStrategy; aAlignSize: SizeUInt);
     function DoGetGrowSize(aCurrentSize, aRequiredSize: SizeUInt): SizeUInt; override;
 
-    property GrowStrategy: TGrowthStrategy read GetGrowStrategy;
+    property GrowStrategy: IGrowthStrategy read GetGrowStrategy;
     property AlignSize: SizeUInt read GetAlignSize;
-  end;
-
-
-  { TInterfaceGrowthStrategyAdapter 将任意 IGrowthStrategy 适配为 TGrowthStrategy }
-  TInterfaceGrowthStrategyAdapter = class(TGrowthStrategy)
-  private
-    FIntf: IGrowthStrategy;
-  protected
-    function DoGetGrowSize(aCurrentSize, aRequiredSize: SizeUInt): SizeUInt; override;
-  public
-    constructor Create(const aIntf: IGrowthStrategy);
-    destructor Destroy; override;
-  end;
-
-  { TGrowthStrategyInterfaceView 将 TGrowthStrategy 以 IGrowthStrategy 形式暴露（弱引用包装） }
-  TGrowthStrategyInterfaceView = class(TInterfacedObject, IGrowthStrategy)
-  private
-    FRef: TGrowthStrategy;
-  public
-    constructor Create(aRef: TGrowthStrategy);
-    function GetGrowSize(aCurrentSize, aRequiredSize: SizeUInt): SizeUInt;
   end;
 
   { TExactGrowStrategy 精确增长策略 }
@@ -3312,45 +3291,10 @@ begin
 
 end;
 
-constructor TInterfaceGrowthStrategyAdapter.Create(const aIntf: IGrowthStrategy);
-begin
-  inherited Create;
-  if aIntf = nil then
-    raise EArgumentNil.Create('TInterfaceGrowthStrategyAdapter.Create: aIntf is nil');
-  FIntf := aIntf;
-end;
-
-destructor TInterfaceGrowthStrategyAdapter.Destroy;
-begin
-  // 显式释放接口引用，确保引用计数归零，避免底层对象泄漏
-  FIntf := nil;
-  inherited Destroy;
-end;
-
-function TInterfaceGrowthStrategyAdapter.DoGetGrowSize(aCurrentSize, aRequiredSize: SizeUInt): SizeUInt;
-begin
-  Result := FIntf.GetGrowSize(aCurrentSize, aRequiredSize);
-end;
-
 function TCustomGrowthStrategy.GetData: Pointer;
 begin
   Result := FData;
 end;
-
-{ TGrowthStrategyInterfaceView }
-constructor TGrowthStrategyInterfaceView.Create(aRef: TGrowthStrategy);
-begin
-  inherited Create;
-  FRef := aRef;
-end;
-
-function TGrowthStrategyInterfaceView.GetGrowSize(aCurrentSize, aRequiredSize: SizeUInt): SizeUInt;
-begin
-  if FRef = nil then
-    Exit(aRequiredSize);
-  Result := FRef.GetGrowSize(aCurrentSize, aRequiredSize);
-end;
-
 
 function TCustomGrowthStrategy.DoGetGrowSizeFunc(aCurrentSize, aRequiredSize: SizeUInt): SizeUInt;
 begin
@@ -3445,10 +3389,8 @@ end;
 
 class function TDoublingGrowStrategy.GetGlobal: TDoublingGrowStrategy;
 begin
-  if FGlobal = nil then
-    FGlobal := TDoublingGrowStrategy.Create;
-
-  Result := FGlobal;
+  // No global: return a fresh instance
+  Result := TDoublingGrowStrategy.Create;
 end;
 
 function TFixedGrowStrategy.GetFixedSize: SizeUInt;
@@ -3524,10 +3466,8 @@ end;
 
 class function TPowerOfTwoGrowStrategy.GetGlobal: TPowerOfTwoGrowStrategy;
 begin
-  if FGlobal = nil then
-    FGlobal := TPowerOfTwoGrowStrategy.Create;
-
-  Result := FGlobal;
+  // No global: return a fresh instance
+  Result := TPowerOfTwoGrowStrategy.Create;
 end;
 
 function TPowerOfTwoGrowStrategy.DoGetGrowSize(aCurrentSize, aRequiredSize: SizeUInt): SizeUInt;
@@ -3578,13 +3518,11 @@ end;
 
 class function TGoldenRatioGrowStrategy.GetGlobal: TGoldenRatioGrowStrategy;
 begin
-  if FGlobal = nil then
-    FGlobal := TGoldenRatioGrowStrategy.Create;
-
-  Result := FGlobal;
+  // No global: return a fresh instance
+  Result := TGoldenRatioGrowStrategy.Create;
 end;
 
-function TAlignedWrapperStrategy.GetGrowStrategy: TGrowthStrategy;
+function TAlignedWrapperStrategy.GetGrowStrategy: IGrowthStrategy;
 begin
   Result := FGrowStrategy;
 end;
@@ -3594,7 +3532,7 @@ begin
   Result := FAlignSize;
 end;
 
-constructor TAlignedWrapperStrategy.Create(aGrowStrategy: TGrowthStrategy; aAlignSize: SizeUInt);
+constructor TAlignedWrapperStrategy.Create(const aGrowStrategy: IGrowthStrategy; aAlignSize: SizeUInt);
 begin
   inherited Create;
 
@@ -3614,7 +3552,7 @@ end;
 function TAlignedWrapperStrategy.DoGetGrowSize(aCurrentSize, aRequiredSize: SizeUInt): SizeUInt;
 begin
   Result := FGrowStrategy.GetGrowSize(aCurrentSize, aRequiredSize);
-  Result :=  ((Result + FAlignSize - 1) div FAlignSize) * FAlignSize;
+  Result := ((Result + FAlignSize - 1) div FAlignSize) * FAlignSize;
 end;
 
 class destructor TExactGrowStrategy.Destroy;
@@ -3629,10 +3567,8 @@ end;
 
 class function TExactGrowStrategy.GetGlobal: TExactGrowStrategy;
 begin
-  if FGlobal = nil then
-    FGlobal := TExactGrowStrategy.Create;
-
-  Result := FGlobal;
+  // No global: return a fresh instance
+  Result := TExactGrowStrategy.Create;
 end;
 
 

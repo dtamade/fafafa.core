@@ -30,9 +30,6 @@ function TryGetCrtAllocator(out A: IAllocator): Boolean;
 
 implementation
 
-uses
-  syncobjs;
-
 {$IFDEF FAFAFA_CORE_CRT_ALLOCATOR}
 function  crt_malloc(aSize: SizeUInt): Pointer; cdecl external {$IFDEF MSWINDOWS}'msvcrt.dll'{$ELSE}'c'{$ENDIF} name 'malloc';
 function  crt_calloc(aNum, aSize: SizeUInt): Pointer; cdecl external {$IFDEF MSWINDOWS}'msvcrt.dll'{$ELSE}'c'{$ENDIF} name 'calloc';
@@ -43,7 +40,7 @@ procedure crt_free(aPtr: Pointer); cdecl external {$IFDEF MSWINDOWS}'msvcrt.dll'
 var
   _CrtAllocatorObj: TAllocator = nil;
   _CrtAllocatorIntf: IAllocator = nil;
-  GCrtAllocLock: TCriticalSection;
+  GCrtAllocLock: TRTLCriticalSection;
 
 function TCrtAllocator.DoGetMem(aSize: SizeUInt): Pointer;
 begin
@@ -81,7 +78,7 @@ function GetCrtAllocator: IAllocator;
 begin
   if _CrtAllocatorObj = nil then
   begin
-    GCrtAllocLock.Acquire;
+    EnterCriticalSection(GCrtAllocLock);
     try
       if _CrtAllocatorObj = nil then
       begin
@@ -89,7 +86,7 @@ begin
         _CrtAllocatorIntf := _CrtAllocatorObj as IAllocator; // anchor lifetime
       end;
     finally
-      GCrtAllocLock.Release;
+      LeaveCriticalSection(GCrtAllocLock);
     end;
   end;
   Result := _CrtAllocatorIntf;
@@ -107,11 +104,10 @@ begin
 end;
 
 initialization
-  GCrtAllocLock := TCriticalSection.Create;
+  InitCriticalSection(GCrtAllocLock);
 finalization
-  FreeAndNil(GCrtAllocLock);
+  DoneCriticalSection(GCrtAllocLock);
   _CrtAllocatorIntf := nil;
   _CrtAllocatorObj := nil;
 
 end.
-

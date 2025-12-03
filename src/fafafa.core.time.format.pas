@@ -631,6 +631,129 @@ type
     function GetLocale: string;
   end;
 
+const
+  // ✅ ISSUE-35: 本地化资源缓存
+  // 月份名称（英文）- 默认缓存
+  MONTH_NAMES_EN_FULL: array[1..12] of string = (
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  );
+  MONTH_NAMES_EN_ABBR: array[1..12] of string = (
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  );
+  
+  // 星期名称（英文）- 默认缓存
+  WEEKDAY_NAMES_EN_FULL: array[1..7] of string = (
+    'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
+  );
+  WEEKDAY_NAMES_EN_ABBR: array[1..7] of string = (
+    'Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'
+  );
+  
+  // 中文月份名称
+  MONTH_NAMES_ZH_FULL: array[1..12] of string = (
+    '一月', '二月', '三月', '四月', '五月', '六月',
+    '七月', '八月', '九月', '十月', '十一月', '十二月'
+  );
+  
+  // 中文星期名称
+  WEEKDAY_NAMES_ZH_FULL: array[1..7] of string = (
+    '星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'
+  );
+  WEEKDAY_NAMES_ZH_ABBR: array[1..7] of string = (
+    '日', '一', '二', '三', '四', '五', '六'
+  );
+  
+  // 日文月份名称
+  MONTH_NAMES_JA_FULL: array[1..12] of string = (
+    '1月', '2月', '3月', '4月', '5月', '6月',
+    '7月', '8月', '9月', '10月', '11月', '12月'
+  );
+  
+  // 日文星期名称
+  WEEKDAY_NAMES_JA_FULL: array[1..7] of string = (
+    '日曜日', '月曜日', '火曜日', '水曜日', '木曜日', '金曜日', '土曜日'
+  );
+  WEEKDAY_NAMES_JA_ABBR: array[1..7] of string = (
+    '日', '月', '火', '水', '木', '金', '土'
+  );
+
+{**
+ * GetCachedMonthName - 获取缓存的月份名称
+ *
+ * ✅ ISSUE-35: 本地化查找性能优化
+ * 使用预缓存的常量数组代替每次查找系统 locale
+ *
+ * @param AMonth - 月份 (1-12)
+ * @param ALocale - 语言环境 (en, zh, ja)
+ * @param AFull - True 返回完整名称，False 返回缩写
+ * @return 月份名称
+ *}
+function GetCachedMonthName(AMonth: Integer; const ALocale: string; AFull: Boolean): string;
+var
+  locale: string;
+begin
+  if (AMonth < 1) or (AMonth > 12) then
+    Exit('');
+    
+  locale := LowerCase(Copy(ALocale, 1, 2));
+  
+  if locale = 'zh' then
+    Result := MONTH_NAMES_ZH_FULL[AMonth]
+  else if locale = 'ja' then
+    Result := MONTH_NAMES_JA_FULL[AMonth]
+  else // 默认英文
+  begin
+    if AFull then
+      Result := MONTH_NAMES_EN_FULL[AMonth]
+    else
+      Result := MONTH_NAMES_EN_ABBR[AMonth];
+  end;
+end;
+
+{**
+ * GetCachedWeekdayName - 获取缓存的星期名称
+ *
+ * ✅ ISSUE-35: 本地化查找性能优化
+ *
+ * @param AWeekday - 星期 (1=Sunday, 7=Saturday)
+ * @param ALocale - 语言环境 (en, zh, ja)
+ * @param AFull - True 返回完整名称，False 返回缩写
+ * @return 星期名称
+ *}
+function GetCachedWeekdayName(AWeekday: Integer; const ALocale: string; AFull: Boolean): string;
+var
+  locale: string;
+begin
+  if (AWeekday < 1) or (AWeekday > 7) then
+    Exit('');
+    
+  locale := LowerCase(Copy(ALocale, 1, 2));
+  
+  if locale = 'zh' then
+  begin
+    if AFull then
+      Result := WEEKDAY_NAMES_ZH_FULL[AWeekday]
+    else
+      Result := WEEKDAY_NAMES_ZH_ABBR[AWeekday];
+  end
+  else if locale = 'ja' then
+  begin
+    if AFull then
+      Result := WEEKDAY_NAMES_JA_FULL[AWeekday]
+    else
+      Result := WEEKDAY_NAMES_JA_ABBR[AWeekday];
+  end
+  else // 默认英文
+  begin
+    if AFull then
+      Result := WEEKDAY_NAMES_EN_FULL[AWeekday]
+    else
+      Result := WEEKDAY_NAMES_EN_ABBR[AWeekday];
+  end;
+end;
+
 var
   GTimeFormatter: ITimeFormatter = nil;
   GDurationFormatter: IDurationFormatter = nil;

@@ -79,7 +79,9 @@ type
     function WaitFor(ATimeoutMs: Cardinal): TWaitResult; overload;
 
     // IEvent - 扩展操作
+    function Wait: TWaitResult;
     function TryWait: Boolean;
+    function IsSignaled: Boolean;
     function IsManualReset: Boolean;
 
   end;
@@ -219,9 +221,25 @@ end;
 
 
 
+function TEvent.Wait: TWaitResult;
+begin
+  Result := WaitFor(High(Cardinal));
+end;
+
 function TEvent.TryWait: Boolean;
 begin
   Result := WaitFor(0) = wrSignaled;
+end;
+
+function TEvent.IsSignaled: Boolean;
+begin
+  if pthread_mutex_lock(@FMutex) <> 0 then
+    Exit(False);
+  try
+    Result := FSignaled;
+  finally
+    pthread_mutex_unlock(@FMutex);
+  end;
 end;
 
 function TEvent.IsManualReset: Boolean;

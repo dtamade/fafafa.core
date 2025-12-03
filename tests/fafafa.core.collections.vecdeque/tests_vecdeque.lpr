@@ -7,7 +7,7 @@ program tests_vecdeque;
 
 uses
   consoletestrunner,
-  Test_fafafa_core_collections_vecdeque_clean;
+  Test_vecdeque_clean;
 
 var
   Application: TTestRunner;

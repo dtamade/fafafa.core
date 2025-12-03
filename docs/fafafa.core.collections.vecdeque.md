@@ -55,7 +55,45 @@ TVecDeque<T>
 - Clear 后必须满足空状态环形缓冲不变式：FCount=0, FHead=0, FTail=0
 - 若需收缩内存，请使用 ShrinkToFit/ShrinkToFitExact
 
+### 批量 LoadFrom/Append 语义
 
+- **指针重载**
+  - `LoadFrom(aSrc: Pointer; aCount)` 会先校验 `aSrc <> nil` 且 `aCount > 0`，否则：`aCount = 0` → Clear；`aSrc = nil, aCount > 0` → 抛 `EInvalidArgument`。
+  - `Append(aSrc: Pointer; aCount)`：`aCount = 0` 直接返回，不修改状态；`aSrc = nil, aCount > 0` 抛异常。
+  - `TryLoadFrom/TryAppend` 指针版遵循 `docs/partials/collections.try_apis.collection.md` 的布尔返回：`TryLoadFrom(nil,0)` 清空并 True；`TryAppend(nil,>0)` 返回 False；内部检测到重叠/不足容量也返回 False。
+
+- **数组/集合重载**
+  - `LoadFrom/Append` 的 `array of T` 与 `ICollection` 重载在语义上与指针版一致：`LoadFrom` 成功后 `Count = aCount`，`Append` 在尾部追加。
+  - `TryLoadFrom/TryAppend` 的集合重载拒绝 `nil` 或 `Self`，并在类型不兼容/容量不足时返回 False，不抛异常。
+
+- **托管类型保证**
+  - LoadFrom 会在写入新元素前先清理旧元素（确保托管类型释放），成功后容器完全由源数据覆盖。
+  - Append 在扩容和搬移期间若发生异常，会回滚到原始 `Count`，避免部分写入。
+
+这些规则通过 `tests/fafafa.core.collections.vecdeque/Test_fafafa_core_collections_vecdeque_clean.pas` 中的 `LoadFrom_*`、`Append_*`、`Try*` 用例验证。
+
+### 遍历 & 搜索语义（ForEach / Contains / Find 系列）
+
+- **ForEach / ForEachUnChecked**
+  - `ForEach(aPredicate)` 在空容器上直接返回 `True`，且不会调用回调。
+  - 当回调返回 `False` 时会立即短路，整体返回 `False`；若遍历完整个区间且回调始终 `True`，则返回 `True`。
+  - `ForEach(aIndex, ...)` 会先做边界检查；`ForEachUnChecked(aIndex, aCount, ...)` 省略检查，只要调用方保证范围合法即可。
+  - 所有 `PredicateFunc`/`PredicateMethod`/`PredicateRefFunc` 重载语义一致；`PredicateRefFunc` 仅在 `FAFAFA_CORE_ANONYMOUS_REFERENCES`（FPC ≥ 3.3.1）开启时可用。
+
+- **Contains / ContainsUnChecked**
+  - `Contains(aValue)` 默认扫描整个容器；`Contains(aValue, aStartIndex)` 从给定逻辑索引起查找；`Contains(aValue, aStartIndex, aCount)` 仅在指定区间内搜索。
+  - `aCount = 0` 时视为不搜索，直接返回 `False`。
+  - 未命中返回 `False`，命中返回 `True`，不会抛异常。
+  - `EqualsFunc`/`EqualsMethod`/`EqualsRefFunc` 重载分别支持函数指针、方法指针与匿名函数；`EqualsRefFunc` 与 ForEach 相同，仅在匿名引用开启时可用。
+  - `ContainsUnChecked` 版本跳过边界检查，调用方需保证 `(aStartIndex + aCount) <= Count`。
+
+- **Find / FindUnChecked**
+  - 返回逻辑索引（`SizeInt`），命中即返回首个位置，否则返回 `-1`。
+  - `Find(aValue, aStartIndex, aCount)` 在 `aCount = 0` 时直接返回 `-1`；`FindUnChecked` 同理但不做边界检查。
+  - 提供 `EqualsFunc`/`EqualsMethod`/`EqualsRefFunc` 重载，语义与 Contains 保持一致。
+  - 与 `Contains` 类似，RefFunc 版本仅在 `FAFAFA_CORE_ANONYMOUS_REFERENCES` 定义时对外可用。
+
+这些语义已经通过 `tests/fafafa.core.collections.vecdeque/Test_fafafa_core_collections_vecdeque_clean.pas` 中的覆盖性用例锁定，可作为 API 行为契约参考。
 
 ### IVecDeque<T>
 

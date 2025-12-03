@@ -9,8 +9,6 @@ uses
 
 var
   D: specialize TVecDeque<Integer>;
-  Base: TGrowthStrategy;
-  Aligned: TGrowthStrategy;
   BeforeCap, AfterCap: SizeUInt;
   i: Integer;
 
@@ -21,14 +19,12 @@ end;
 
 begin
   D := specialize TVecDeque<Integer>.Create;
-  Aligned := nil;
   try
     for i := 1 to 64 do D.PushBack(i);
     BeforeCap := D.GetCapacity;
 
-    Base := TGoldenRatioGrowStrategy.GetGlobal;
-    Aligned := TAlignedWrapperStrategy.Create(Base, 64);
-    D.SetGrowStrategy(Aligned);
+    // TAlignedWrapperStrategy 接受 IGrowthStrategy，生命周期由接口引用计数管理
+    D.SetGrowStrategy(TAlignedWrapperStrategy.Create(GoldenRatioGrow, 64));
 
     for i := 65 to 6000 do D.PushBack(i);
     AfterCap := D.GetCapacity;
@@ -42,7 +38,6 @@ begin
     WriteLn('OK');
   finally
     D.Free;
-    if Assigned(Aligned) then Aligned.Free;
   end;
 end.
 

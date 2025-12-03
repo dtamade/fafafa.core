@@ -24,7 +24,7 @@ unit fafafa.core.sync.barrier.unix;
 interface
 
 uses
-  SysUtils, pthreads,
+  SysUtils, ctypes, BaseUnix, Unix, UnixType, pthreads,
   fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.barrier.base;
 
 type

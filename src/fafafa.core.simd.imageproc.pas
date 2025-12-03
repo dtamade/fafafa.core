@@ -6,8 +6,7 @@ unit fafafa.core.simd.imageproc;
 interface
 
 uses
-  fafafa.core.simd.types,
-  fafafa.core.simd.ops;
+  fafafa.core.simd;
 
 // === 图像处理类型 ===
 type
@@ -149,10 +148,10 @@ begin
       // 4字节对齐，可以直接使�?SIMD
       i := 0;
       while i < src1.DataSize - 15 do  // 处理16字节�?      begin
-        vec1 := VecF32x4_LoadUnaligned(@p1[i]);
-        vec2 := VecF32x4_LoadUnaligned(@p2[i]);
-        result := VecF32x4_Add(vec1, vec2);
-        VecF32x4_StoreUnaligned(result, @pd[i]);
+        vec1 := VecF32x4Load(PSingle(@p1[i]));
+        vec2 := VecF32x4Load(PSingle(@p2[i]));
+        result := VecF32x4Add(vec1, vec2);
+        VecF32x4Store(PSingle(@pd[i]), result);
         Inc(i, 16);
       end;
 
@@ -178,10 +177,10 @@ begin
         temp2[2] := p2[i * 3 + 2];     // B
         temp2[3] := 0;                 // 填充
 
-        vec1 := VecF32x4_LoadUnaligned(@temp1[0]);
-        vec2 := VecF32x4_LoadUnaligned(@temp2[0]);
-        result := VecF32x4_Add(vec1, vec2);
-        VecF32x4_StoreUnaligned(result, @tempResult[0]);
+        vec1 := VecF32x4Load(@temp1[0]);
+        vec2 := VecF32x4Load(@temp2[0]);
+        result := VecF32x4Add(vec1, vec2);
+        VecF32x4Store(@tempResult[0], result);
 
         pd[i * 3 + 0] := Round(tempResult[0]);
         pd[i * 3 + 1] := Round(tempResult[1]);
@@ -215,7 +214,10 @@ begin
   pd := dest.Data;
 
   // 创建权重向量 [R_weight, G_weight, B_weight, 0]
-  vecWeights := VecF32x4_Set(RGB_TO_GRAY_R, RGB_TO_GRAY_G, RGB_TO_GRAY_B, 0.0);
+  vecWeights.f[0] := RGB_TO_GRAY_R;
+  vecWeights.f[1] := RGB_TO_GRAY_G;
+  vecWeights.f[2] := RGB_TO_GRAY_B;
+  vecWeights.f[3] := 0.0;
 
   for i := 0 to (src.Width * src.Height) - 1 do
   begin
@@ -223,9 +225,9 @@ begin
     g := ps[i * 3 + 1];
     b := ps[i * 3 + 2];
 
-    vecRGB := VecF32x4_Set(r, g, b, 0.0);
-    vecGray := VecF32x4_Mul(vecRGB, vecWeights);
-    gray := VecF32x4_HorizontalAdd(vecGray);
+    vecRGB.f[0] := r; vecRGB.f[1] := g; vecRGB.f[2] := b; vecRGB.f[3] := 0.0;
+    vecGray := VecF32x4Mul(vecRGB, vecWeights);
+    gray := VecF32x4ReduceAdd(vecGray);
 
     pd[i] := Round(gray);
   end;
@@ -238,7 +240,7 @@ var
   p: PByte;
   temp, tempResult: array[0..3] of Single;
 begin
-  vecBrightness := VecF32x4_SetAll(brightness);
+  vecBrightness := VecF32x4Splat(brightness);
   p := img.Data;
 
   case img.Format of
@@ -247,9 +249,9 @@ begin
       i := 0;
       while i < img.DataSize - 15 do
       begin
-        vecPixel := VecF32x4_LoadUnaligned(@p[i]);
-        vecResult := VecF32x4_Add(vecPixel, vecBrightness);
-        VecF32x4_StoreUnaligned(vecResult, @p[i]);
+        vecPixel := VecF32x4Load(PSingle(@p[i]));
+        vecResult := VecF32x4Add(vecPixel, vecBrightness);
+        VecF32x4Store(PSingle(@p[i]), vecResult);
         Inc(i, 16);
       end;
     end;
@@ -351,7 +353,7 @@ end;
 function GetPixelRGB(const img: TImage; x, y: Integer): TVecF32x4;
 begin
   // 实现像素读取
-  Result := VecF32x4_Zero;
+  Result := VecF32x4Zero;
 end;
 
 procedure SetPixelRGB(var img: TImage; x, y: Integer; const color: TVecF32x4);

@@ -12,8 +12,6 @@ const
 
 var
   D: specialize TVecDeque<Integer>;
-  Base: TGrowthStrategy;
-  Aligned: TGrowthStrategy;
   BeforeCap, AfterCap: SizeUInt;
   i: Integer;
 
@@ -28,9 +26,8 @@ begin
     for i := 1 to 1024 do D.PushBack(i);
     BeforeCap := D.GetCapacity;
 
-    Base := TGoldenRatioGrowStrategy.GetGlobal;
-    Aligned := TAlignedWrapperStrategy.Create(Base, HUGE_PAGE);
-    D.SetGrowStrategy(Aligned);
+    // TAlignedWrapperStrategy 接受 IGrowthStrategy，生命周期由接口引用计数管理
+    D.SetGrowStrategy(TAlignedWrapperStrategy.Create(GoldenRatioGrow, HUGE_PAGE));
 
     for i := 1025 to (HUGE_PAGE div 2) do D.PushBack(i); // 触发较大扩容
     AfterCap := D.GetCapacity;

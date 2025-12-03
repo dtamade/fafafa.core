@@ -50,6 +50,9 @@ uses
   fafafa.core.lockfree.spscQueue,
   fafafa.core.lockfree.michaelScottQueue,
   fafafa.core.lockfree.mpmcQueue,
+  fafafa.core.lockfree.channel,
+  fafafa.core.lockfree.channel.wait,
+  fafafa.core.lockfree.channel.select,
   fafafa.core.lockfree.hashmap.openAddressing,
   fafafa.core.lockfree.stack
   {$IFDEF FAFAFA_CORE_IFACE_FACTORIES}
@@ -114,6 +117,11 @@ type
   TInt64MPMCQueue = specialize TPreAllocMPMCQueue<Int64>;
   TPtrMPMCQueue = specialize TPreAllocMPMCQueue<Pointer>;
   TDoubleMPMCQueue = specialize TPreAllocMPMCQueue<Double>;
+
+  // Channel (SPSC/MPSC/MPMC)
+  generic TLockFreeChannelSPSC<T> = fafafa.core.lockfree.channel.TLockFreeChannelSPSC<T>;
+  generic TLockFreeChannelMPSC<T> = fafafa.core.lockfree.channel.TLockFreeChannelMPSC<T>;
+  generic TLockFreeChannelMPMC<T> = fafafa.core.lockfree.channel.TLockFreeChannelMPMC<T>;
 
   // HashMap 特化（开放寻址 OA）
   TIntIntOAHashMap = specialize TLockFreeHashMap<Integer, Integer>;
@@ -198,6 +206,11 @@ type
   function CreateStrMPMCQueue(ACapacity: Integer = 1024): TStringMPMCQueue;
   function CreateDoubleMPMCQueue(ACapacity: Integer = 1024): TDoubleMPMCQueue;
 
+  generic function WaitAnyChannelReceiveReady<T>(const aChannels: array of specialize ILockFreeChannel<T>; aTimeoutUs: Int64 = -1): SizeInt;
+  generic function WaitAnyChannelSendReady<T>(const aChannels: array of specialize ILockFreeChannel<T>; aTimeoutUs: Int64 = -1): SizeInt;
+  generic function ChannelSelectReceive<T>(const aChannels: array of specialize ILockFreeChannel<T>; out aValue: T; aTimeoutUs: Int64 = -1): SizeInt;
+  generic function ChannelSelectSend<T>(const aChannels: array of specialize ILockFreeChannel<T>; const aValues: array of T; aTimeoutUs: Int64 = -1): SizeInt;
+
   // Stack 便捷构造
   function CreateIntTreiberStack: TIntTreiberStack;
   function CreateStrTreiberStack: TStringTreiberStack;
@@ -262,6 +275,26 @@ end;
 function CreateDoubleSPSCQueue(ACapacity: Integer): TDoubleSPSCQueue;
 begin
   Result := TDoubleSPSCQueue.Create(ACapacity);
+end;
+
+generic function WaitAnyChannelReceiveReady<T>(const aChannels: array of specialize ILockFreeChannel<T>; aTimeoutUs: Int64): SizeInt;
+begin
+  Result := fafafa.core.lockfree.channel.wait.WaitAnyReceiveReady<T>(aChannels, aTimeoutUs);
+end;
+
+generic function WaitAnyChannelSendReady<T>(const aChannels: array of specialize ILockFreeChannel<T>; aTimeoutUs: Int64): SizeInt;
+begin
+  Result := fafafa.core.lockfree.channel.wait.WaitAnySendReady<T>(aChannels, aTimeoutUs);
+end;
+
+generic function ChannelSelectReceive<T>(const aChannels: array of specialize ILockFreeChannel<T>; out aValue: T; aTimeoutUs: Int64): SizeInt;
+begin
+  Result := fafafa.core.lockfree.channel.select.ChannelSelectReceive<T>(aChannels, aValue, aTimeoutUs);
+end;
+
+generic function ChannelSelectSend<T>(const aChannels: array of specialize ILockFreeChannel<T>; const aValues: array of T; aTimeoutUs: Int64): SizeInt;
+begin
+  Result := fafafa.core.lockfree.channel.select.ChannelSelectSend<T>(aChannels, aValues, aTimeoutUs);
 end;
 
 function CreateInt64MSQueue: TInt64MSQueue;

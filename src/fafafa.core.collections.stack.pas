@@ -15,7 +15,17 @@ uses
   fafafa.core.collections.vecdeque;
 
 type
-  { IStack 泛型栈接口（最小且完整的栈语义；不继承 IGenericCollection） }
+  {**
+   * IStack<T>
+   *
+   * @desc 泛型栈接口 - LIFO (后进先出) 语义
+   * @param T 元素类型
+   * @note
+   *   - Push: 压栈 O(1)
+   *   - Pop: 弹栈 O(1)
+   *   - Peek: 查看栈顶 O(1)
+   *   - 不继承 IGenericCollection，保持最小接口
+   *}
   generic IStack<T> = interface
   ['{b2d0130d-760b-4369-86c8-4ccd5ddac18c}']
     { 基本压栈（同名重载） }
@@ -37,7 +47,23 @@ type
     function  Count: SizeUInt;       // 精确或最佳努力计数
   end;
 
-  { TArrayStack 基于数组的栈实现 - 使用 TVecDeque 作为底层容器 }
+  {**
+   * TArrayStack<T>
+   *
+   * @desc 基于数组的栈实现
+   * @param T 元素类型
+   * @note
+   *   - 内部使用 TVecDeque 作为底层容器
+   *   - 支持接口引用计数
+   *   - 使用 MakeArrayStack<T>() 工厂函数创建
+   *
+   *   示例:
+   *     var Stack: specialize IStack<Integer>;
+   *     Stack := specialize MakeArrayStack<Integer>();
+   *     Stack.Push(1);
+   *     Stack.Push(2);
+   *     WriteLn(Stack.Pop); // 2 (LIFO)
+   *}
   generic TArrayStack<T> = class(TInterfacedObject, specialize IStack<T>)
   type
     PElement = ^T;
@@ -163,7 +189,7 @@ end;
 function TArrayStack.Pop: T;
 begin
   if FStack.IsEmpty then
-    raise EArgumentOutOfRangeException.Create('Stack is empty');
+    raise EEmptyCollection.Create('TArrayStack.Pop: collection is empty');
   Result := FStack.PopBack;
 end;
 
@@ -178,7 +204,7 @@ end;
 function TArrayStack.Peek: T;
 begin
   if FStack.IsEmpty then
-    raise EArgumentOutOfRangeException.Create('Stack is empty');
+    raise EEmptyCollection.Create('TArrayStack.Peek: collection is empty');
   Result := FStack.Back;
 end;
 
@@ -251,7 +277,7 @@ end;
 function TLinkedStack.Pop: T;
 begin
   if FStack.IsEmpty then
-    raise EArgumentOutOfRangeException.Create('Stack is empty');
+    raise EEmptyCollection.Create('TLinkedStack.Pop: collection is empty');
   Result := FStack.PopBack;
 end;
 
@@ -266,7 +292,7 @@ end;
 function TLinkedStack.Peek: T;
 begin
   if FStack.IsEmpty then
-    raise EArgumentOutOfRangeException.Create('Stack is empty');
+    raise EEmptyCollection.Create('TLinkedStack.Peek: collection is empty');
   Result := FStack.Back;
 end;
 

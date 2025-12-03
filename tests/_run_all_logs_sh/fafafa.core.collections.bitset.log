@@ -1,7 +1,7 @@
 ========================================
 Module: fafafa.core.collections.bitset
 Script: /home/dtamade/projects/fafafa.core/tests/fafafa.core.collections.bitset/BuildOrTest.sh
-Started: 2025-10-28 19:36:47
+Started: 2025-12-01 10:56:56
 ========================================
 SetPrimaryConfigPath NewValue="/home/dtamade/freePascal/config_lazarus"
 Hint: (lazbuild) Primary config path: "/home/dtamade/freePascal/config_lazarus"
@@ -113,7 +113,7 @@ Copyright (c) 1993-2025 by Florian Klaempfl and others
 /home/dtamade/projects/fafafa.core/src/fafafa.core.collections.bitset.pas(167,45) Hint: (5024) Parameter "aElementCount" not used
 /home/dtamade/projects/fafafa.core/tests/fafafa.core.collections.bitset/test_bitset.pas(10,3) Hint: (5023) Unit "fafafa.core.base" not used in test_bitset
 (9015) Linking /home/dtamade/projects/fafafa.core/tests/fafafa.core.collections.bitset/bin/tests_bitset
-(1008) 14650 lines compiled, 0.7 sec, 1151536 bytes code, 1611720 bytes data
+(1008) 14642 lines compiled, 0.6 sec, 1145152 bytes code, 1601960 bytes data
 (1021) 7 warning(s) issued
 (1022) 26 hint(s) issued
 (1023) 18 note(s) issued

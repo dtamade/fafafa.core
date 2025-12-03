@@ -24,12 +24,7 @@ unit fafafa.core.sync.once.unix;
 interface
 
 uses
-  SysUtils,
-  {$IFDEF UNIX}
-  {$IFNDEF FPC_CROSSCOMPILING}
-  pthreads,
-  {$ENDIF}
-  {$ENDIF}
+  SysUtils, BaseUnix, Unix, UnixType, pthreads,
   fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.once.base;
 
 // 内存屏障函数声明
@@ -57,16 +52,8 @@ type
     // 需要填�?64 - 24 = 40字节 到缓存行边界
     FPadding1: array[0..39] of Byte;
 
-    // 第二个缓存行：同步数据（64字节对齐�?
-    {$IFDEF UNIX}
-    {$IFNDEF FPC_CROSSCOMPILING}
-    FMutex: pthread_mutex_t;      // pthread互斥�?
-    {$ELSE}
-    FMutex: array[0..39] of Byte; // pthread_mutex_t 占位符（40字节�?
-    {$ENDIF}
-    {$ELSE}
-    FMutex: array[0..39] of Byte; // 非Unix平台占位�?
-    {$ENDIF}
+    // 第二个缓存行：同步数据（64字节对齐）
+    FMutex: pthread_mutex_t;      // pthread互斥锁
 
     // pthread_mutex_t 在Linux x64上通常�?0字节，需要填充到缓存行边�?
     // 64 - 40 = 24字节填充

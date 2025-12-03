@@ -11,17 +11,26 @@ uses
   fafafa.core.base,
   fafafa.core.collections.base,
   fafafa.core.collections.deque,
+  fafafa.core.collections.vecdeque,
   fafafa.core.collections.elementManager,
   fafafa.core.mem.allocator;
 
 type
 
+  generic TTestDeque<T> = class(specialize TVecDeque<T>)
+  public
+    function TryBack(out aElement: T): Boolean;
+    function TryFront(out aElement: T): Boolean;
+    procedure AddRange(const aValues: array of T); reintroduce; overload;
+    procedure AddRange(const aOther: specialize TVecDeque<T>); overload;
+  end;
+
   { TTestCase_TDeque }
 
   TTestCase_TDeque = class(TTestCase)
   private
-    FDeque: specialize TDeque<Integer>;
-    FStringDeque: specialize TDeque<string>;
+    FDeque: specialize TTestDeque<Integer>;
+    FStringDeque: specialize TTestDeque<string>;
     
     // 测试辅助字段
     FForEachCounter: SizeInt;
@@ -95,6 +104,9 @@ type
     procedure Test_TDeque_GetAllocator;
     procedure Test_TDeque_Resize;
     procedure Test_TDeque_Swap;
+    procedure Test_TDeque_Append_BatchMove;
+    procedure Test_TDeque_Append_SelfGuard;
+    procedure Test_TDeque_Append_GenericQueue;
     
     // 异常测试
     procedure Test_TDeque_PopBack_Empty;
@@ -123,6 +135,35 @@ function CompareTestFunc(const aValue1, aValue2: Integer; aData: Pointer): SizeI
 function PredicateTestFunc(const aValue: Integer; aData: Pointer): Boolean;
 
 implementation
+
+{ TTestDeque<T> 辅助方法，用于兼容历史测试接口 }
+
+function TTestDeque.TryBack(out aElement: T): Boolean;
+begin
+  Result := TryPeekBack(aElement);
+end;
+
+function TTestDeque.TryFront(out aElement: T): Boolean;
+begin
+  Result := TryPeekFront(aElement);
+end;
+
+procedure TTestDeque.AddRange(const aValues: array of T);
+begin
+  PushBackRange(aValues);
+end;
+
+procedure TTestDeque.AddRange(const aOther: specialize TVecDeque<T>);
+var
+  LIndex: SizeUInt;
+begin
+  if aOther = nil then
+    Exit;
+
+  Reserve(aOther.GetCount);
+  for LIndex := 0 to aOther.GetCount - 1 do
+    PushBack(aOther.Get(LIndex));
+end;
 
 // 全局测试辅助函数实现
 function ForEachTestFunc(const aValue: Integer; aData: Pointer): Boolean;
@@ -159,8 +200,8 @@ end;
 procedure TTestCase_TDeque.SetUp;
 begin
   inherited SetUp;
-  FDeque := specialize TDeque<Integer>.Create;
-  FStringDeque := specialize TDeque<string>.Create;
+  FDeque := specialize TTestDeque<Integer>.Create;
+  FStringDeque := specialize TTestDeque<string>.Create;
   FForEachCounter := 0;
   FForEachSum := 0;
 end;
@@ -208,11 +249,11 @@ end;
 
 procedure TTestCase_TDeque.Test_TDeque_Create_Capacity;
 var
-  LDeque: specialize TDeque<Integer>;
+  LDeque: specialize TTestDeque<Integer>;
   LCapacity: SizeUInt;
 begin
   LCapacity := 100;
-  LDeque := specialize TDeque<Integer>.Create(LCapacity);
+  LDeque := specialize TTestDeque<Integer>.Create(LCapacity);
   try
     AssertEquals('指定容量创建双端队列计数应为0', 0, Int64(LDeque.GetCount));
     AssertTrue('指定容量创建双端队列应为空', LDeque.IsEmpty);
@@ -224,15 +265,15 @@ end;
 
 procedure TTestCase_TDeque.Test_TDeque_Create_Allocator;
 var
-  LDeque: specialize TDeque<Integer>;
-  LAllocator: IMemoryAllocator;
+  LDeque: specialize TTestDeque<Integer>;
+  LAllocator: IAllocator;
 begin
-  LAllocator := GetDefaultAllocator;
-  LDeque := specialize TDeque<Integer>.Create(LAllocator);
+  LAllocator := GetCrtAllocator;
+  LDeque := specialize TTestDeque<Integer>.Create(LAllocator);
   try
     AssertEquals('使用分配器创建双端队列计数应为0', 0, Int64(LDeque.GetCount));
     AssertTrue('使用分配器创建双端队列应为空', LDeque.IsEmpty);
-    AssertEquals('分配器应正确设置', LAllocator, LDeque.GetAllocator);
+    AssertTrue('分配器应正确设置', LDeque.GetAllocator = LAllocator);
   finally
     LDeque.Free;
   end;
@@ -240,9 +281,9 @@ end;
 
 procedure TTestCase_TDeque.Test_TDeque_Create_Collection;
 var
-  LSourceDeque, LTargetDeque: specialize TDeque<Integer>;
+  LSourceDeque, LTargetDeque: specialize TTestDeque<Integer>;
 begin
-  LSourceDeque := specialize TDeque<Integer>.Create;
+  LSourceDeque := specialize TTestDeque<Integer>.Create;
   try
     // 准备源数据
     LSourceDeque.PushBack(10);
@@ -250,7 +291,7 @@ begin
     LSourceDeque.PushBack(30);
     
     // 从集合创建
-    LTargetDeque := specialize TDeque<Integer>.Create(LSourceDeque);
+    LTargetDeque := specialize TTestDeque<Integer>.Create(LSourceDeque);
     try
       AssertEquals('从集合创建双端队列计数应正确', Int64(LSourceDeque.GetCount), Int64(LTargetDeque.GetCount));
       AssertEquals('第一个元素应正确', 10, LTargetDeque.Front);
@@ -447,7 +488,7 @@ begin
   LOriginalCount := FDeque.GetCount;
 
   // 添加数组范围
-  FDeque.AddRange(LSourceArray, 3);
+  FDeque.AddRange(LSourceArray);
 
   AssertEquals('AddRange后计数应正确', Int64(LOriginalCount + 3), Int64(FDeque.GetCount));
   AssertEquals('添加的最后一个元素应正确', 300, FDeque.Back);
@@ -455,10 +496,10 @@ end;
 
 procedure TTestCase_TDeque.Test_TDeque_AddRange_Collection;
 var
-  LSourceDeque: specialize TDeque<Integer>;
+  LSourceDeque: specialize TTestDeque<Integer>;
   LOriginalCount: SizeUInt;
 begin
-  LSourceDeque := specialize TDeque<Integer>.Create;
+  LSourceDeque := specialize TTestDeque<Integer>.Create;
   try
     LSourceDeque.PushBack(500);
     LSourceDeque.PushBack(600);
@@ -491,26 +532,29 @@ begin
 end;
 
 procedure TTestCase_TDeque.Test_TDeque_InsertRange_Array;
+var
+  LArray: array[0..1] of Integer;
 begin
   // 基本插入范围测试
   FDeque.PushBack(10);
   FDeque.PushBack(30);
 
-  var LArray: array[0..1] of Integer;
   LArray[0] := 15;
   LArray[1] := 25;
 
-  FDeque.InsertRange(1, LArray, 2);
+  FDeque.InsertRange(1, LArray);
   AssertEquals('InsertRange后计数应为4', 4, Int64(FDeque.GetCount));
 end;
 
 procedure TTestCase_TDeque.Test_TDeque_InsertRange_Collection;
+var
+  LSourceDeque: specialize TTestDeque<Integer>;
 begin
   // 基本插入集合测试
   FDeque.PushBack(10);
   FDeque.PushBack(30);
 
-  var LSourceDeque := specialize TDeque<Integer>.Create;
+  LSourceDeque := specialize TTestDeque<Integer>.Create;
   try
     LSourceDeque.PushBack(15);
     LSourceDeque.PushBack(25);
@@ -523,12 +567,14 @@ begin
 end;
 
 procedure TTestCase_TDeque.Test_TDeque_Remove;
+var
+  LRemoved: Boolean;
 begin
   FDeque.PushBack(10);
   FDeque.PushBack(20);
   FDeque.PushBack(10);
 
-  var LRemoved := FDeque.Remove(10);
+  LRemoved := FDeque.Remove(10);
   AssertTrue('Remove应返回True', LRemoved);
   AssertEquals('Remove后计数应减少', 2, Int64(FDeque.GetCount));
 end;
@@ -555,12 +601,14 @@ begin
 end;
 
 procedure TTestCase_TDeque.Test_TDeque_IndexOf;
+var
+  LIndex: SizeInt;
 begin
   FDeque.PushBack(10);
   FDeque.PushBack(20);
   FDeque.PushBack(30);
 
-  var LIndex := FDeque.IndexOf(20);
+  LIndex := FDeque.IndexOf(20);
   AssertEquals('IndexOf应返回正确索引', 1, LIndex);
 
   LIndex := FDeque.IndexOf(999);
@@ -568,13 +616,15 @@ begin
 end;
 
 procedure TTestCase_TDeque.Test_TDeque_LastIndexOf;
+var
+  LIndex: SizeInt;
 begin
   FDeque.PushBack(10);
   FDeque.PushBack(20);
   FDeque.PushBack(20);
   FDeque.PushBack(30);
 
-  var LIndex := FDeque.LastIndexOf(20);
+  LIndex := FDeque.LastIndexOf(20);
   AssertEquals('LastIndexOf应返回最后索引', 2, LIndex);
 end;
 
@@ -588,35 +638,47 @@ begin
 end;
 
 procedure TTestCase_TDeque.Test_TDeque_Find;
+var
+  LIndex: SizeInt;
 begin
   FDeque.PushBack(1);
   FDeque.PushBack(2);
   FDeque.PushBack(3);
 
-  var LIndex := FDeque.Find(@PredicateTestFunc, nil);
+  LIndex := FDeque.Find(@PredicateTestFunc, nil);
   AssertEquals('Find应找到第一个偶数', 1, LIndex);
 end;
 
 procedure TTestCase_TDeque.Test_TDeque_FindLast;
+var
+  LIndex: SizeInt;
 begin
   FDeque.PushBack(1);
   FDeque.PushBack(2);
   FDeque.PushBack(3);
   FDeque.PushBack(4);
 
-  var LIndex := FDeque.FindLast(@PredicateTestFunc, nil);
+  LIndex := FDeque.FindLast(@PredicateTestFunc, nil);
   AssertEquals('FindLast应找到最后偶数', 3, LIndex);
 end;
 
 procedure TTestCase_TDeque.Test_TDeque_FindAll;
+var
+  LIndices: specialize TVecDeque<SizeInt>;
 begin
   FDeque.PushBack(1);
   FDeque.PushBack(2);
   FDeque.PushBack(3);
   FDeque.PushBack(4);
 
-  var LIndices := FDeque.FindAll(@PredicateTestFunc, nil);
-  AssertEquals('FindAll应找到2个偶数', 2, Length(LIndices));
+  LIndices := FDeque.FindAll(@PredicateTestFunc, nil);
+  try
+    AssertEquals('FindAll应返回两个偶数索引', 2, Int64(LIndices.GetCount));
+    AssertEquals('第一个偶数索引应为1', 1, LIndices.Get(0));
+    AssertEquals('第二个偶数索引应为3', 3, LIndices.Get(1));
+  finally
+    LIndices.Free;
+  end;
 end;
 
 procedure TTestCase_TDeque.Test_TDeque_Sort;
@@ -700,7 +762,7 @@ end;
 
 procedure TTestCase_TDeque.Test_TDeque_Assign;
 begin
-  var LSourceDeque := specialize TDeque<Integer>.Create;
+  var LSourceDeque := specialize TTestDeque<Integer>.Create;
   try
     LSourceDeque.PushBack(100);
     LSourceDeque.PushBack(200);
@@ -730,7 +792,7 @@ end;
 
 procedure TTestCase_TDeque.Test_TDeque_Equal;
 begin
-  var LOtherDeque := specialize TDeque<Integer>.Create;
+  var LOtherDeque := specialize TTestDeque<Integer>.Create;
   try
     // 两个空双端队列应相等
     AssertTrue('两个空双端队列应相等', FDeque.Equal(LOtherDeque));
@@ -795,7 +857,7 @@ end;
 
 procedure TTestCase_TDeque.Test_TDeque_Swap;
 begin
-  var LOtherDeque := specialize TDeque<Integer>.Create;
+  var LOtherDeque := specialize TTestDeque<Integer>.Create;
   try
     FDeque.PushBack(10);
     FDeque.PushBack(20);
@@ -809,6 +871,89 @@ begin
     AssertEquals('交换后LOtherDeque计数应为2', 2, Int64(LOtherDeque.GetCount));
   finally
     LOtherDeque.Free;
+  end;
+end;
+
+procedure TTestCase_TDeque.Test_TDeque_Append_BatchMove;
+var
+  LTargetDeque: specialize TArrayDeque<Integer>;
+  LSourceDeque: specialize TArrayDeque<Integer>;
+  LQueue: specialize IQueue<Integer>;
+  LIndex: SizeUInt;
+begin
+  LTargetDeque := specialize TArrayDeque<Integer>.Create;
+  try
+    LTargetDeque.PushBack(-1);
+    LTargetDeque.PushBack(-2);
+
+    LSourceDeque := specialize TArrayDeque<Integer>.Create;
+    try
+      for LIndex := 0 to 511 do
+        LSourceDeque.PushBack(LIndex);
+
+      LQueue := LSourceDeque as specialize IQueue<Integer>;
+      LTargetDeque.Append(LQueue);
+
+      AssertEquals('Append should increase count', Int64(514), Int64(LTargetDeque.Count));
+      AssertTrue('Source deque should be empty after append', LSourceDeque.IsEmpty);
+      AssertEquals('Existing prefix preserved', -1, LTargetDeque.Get(0));
+      AssertEquals('Appended sequence should follow original elements', 0, LTargetDeque.Get(2));
+      AssertEquals('Appended tail should match last element', 511, LTargetDeque.Get(LTargetDeque.Count - 1));
+    finally
+      LSourceDeque.Free;
+    end;
+  finally
+    LTargetDeque.Free;
+  end;
+end;
+
+procedure TTestCase_TDeque.Test_TDeque_Append_SelfGuard;
+var
+  LTargetDeque: specialize TArrayDeque<Integer>;
+  LQueue: specialize IQueue<Integer>;
+begin
+  LTargetDeque := specialize TArrayDeque<Integer>.Create;
+  try
+    LQueue := LTargetDeque as specialize IQueue<Integer>;
+    AssertException(
+      'Appending deque to itself should raise EInvalidOperation',
+      EInvalidOperation,
+      procedure
+      begin
+        LTargetDeque.Append(LQueue);
+      end);
+    AssertEquals('Self append guard should preserve original count', Int64(0), Int64(LTargetDeque.Count));
+  finally
+    LTargetDeque.Free;
+  end;
+end;
+
+procedure TTestCase_TDeque.Test_TDeque_Append_GenericQueue;
+var
+  LTargetDeque: specialize TArrayDeque<Integer>;
+  LVecSource: specialize TVecDeque<Integer>;
+  LQueue: specialize IQueue<Integer>;
+  LIndex: SizeUInt;
+begin
+  LTargetDeque := specialize TArrayDeque<Integer>.Create;
+  try
+    LVecSource := specialize TVecDeque<Integer>.Create(GetCrtAllocator);
+    try
+      for LIndex := 0 to 15 do
+        LVecSource.PushBack(LIndex);
+
+      LQueue := LVecSource as specialize IQueue<Integer>;
+      LTargetDeque.Append(LQueue);
+
+      AssertEquals('Append from generic queue should increase count', Int64(16), Int64(LTargetDeque.Count));
+      AssertTrue('Source IQueue should be empty after append', LVecSource.IsEmpty);
+      AssertEquals('First appended element should be 0', 0, LTargetDeque.Get(0));
+      AssertEquals('Last appended element should be 15', 15, LTargetDeque.Get(LTargetDeque.Count - 1));
+    finally
+      LVecSource.Free;
+    end;
+  finally
+    LTargetDeque.Free;
   end;
 end;
 

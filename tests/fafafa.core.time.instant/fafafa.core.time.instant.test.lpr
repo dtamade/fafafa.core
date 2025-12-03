@@ -1,16 +1,42 @@
-program fafafa.core.time.instant.test;
-
-{$MODE OBJFPC}{$H+}
 {$CODEPAGE UTF8}
-{$I ..\..\src\fafafa.core.settings.inc}
+program fafafa_core_time_instant_test;
+
+{$mode objfpc}{$H+}
 
 uses
-  Interfaces, Forms, GuiTestRunner;
+  {$IFDEF UNIX}
+  cthreads,
+  {$ENDIF}
+  Classes, SysUtils, CustApp,
+  fpcunit, testregistry, consoletestrunner,
+  fafafa.core.time.instant.testcase;
 
+type
+  TTestApp = class(TCustomApplication)
+  protected
+    procedure DoRun; override;
+  end;
+
+procedure TTestApp.DoRun;
+var Runner: TTestRunner;
 begin
-  RequireDerivedFormResource := True;
-  Application.Initialize;
-  Application.CreateForm(TGuiTestRunner, TestRunner);
-  Application.Run;
+  WriteLn('fafafa.core.time.instant 单元测试');
+  WriteLn('===================================');
+  Runner := TTestRunner.Create(nil);
+  try
+    Runner.Initialize;
+    Runner.Run;
+  finally
+    Runner.Free;
+  end;
+  Terminate;
+end;
+
+var App: TTestApp;
+begin
+  App := TTestApp.Create(nil);
+  App.Title := 'fafafa.core.time.instant Tests';
+  App.Run;
+  App.Free;
 end.
 

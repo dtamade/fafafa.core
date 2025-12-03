@@ -461,6 +461,24 @@ function ValidateFormatString(const AFormat: string): TFormatValidationResult;
  *}
 function EstimateRegexComplexity(const APattern: string): Integer;
 
+{**
+ * TryParseMonthName - 跨 locale 月份名称解析
+ *
+ * ✅ ISSUE-46: 支持多语言月份名称解析，不依赖系统 locale
+ *
+ * @param AName - 月份名称（任意语言）
+ * @param AMonth - 输出月份数字 (1-12)
+ * @return 是否成功解析
+ *
+ * 支持的格式：
+ * - 英文：January, Jan, JANUARY, jan
+ * - 中文：一月, 1月
+ * - 日文：1月
+ * - 德文：Januar, Jan, März
+ * - 法文：Janvier, Janv
+ *}
+function TryParseMonthName(const AName: string; out AMonth: Integer): Boolean;
+
 // 常用格式常量
 const
   // ISO 8601 格式
@@ -495,7 +513,51 @@ const
 
 implementation
 
+const
+  // ✅ ISSUE-39: LRU 缓存默认容量
+  DEFAULT_LRU_CACHE_CAPACITY = 64;
+
 type
+  {**
+   * TLRUCacheEntry - LRU 缓存条目
+   * ✅ ISSUE-39: 此结构包含访问时间戳用于 LRU 淘汰
+   *}
+  TLRUCacheEntry = record
+    Key: string;
+    Value: string;
+    LastAccess: Int64;  // 使用 GetTickCount64 时间戳
+  end;
+  PLRUCacheEntry = ^TLRUCacheEntry;
+
+  {**
+   * TLRUCache - 简单 LRU 缓存实现
+   *
+   * ✅ ISSUE-39: 防止正则缓存无限增长导致内存泄漏
+   *
+   * 特性：
+   * - 固定容量（默认 64 条）
+   * - 超出容量时淘汰最久未访问的条目
+   * - O(n) 淘汰（对于小容量可接受）
+   *}
+  TLRUCache = class
+  private
+    FEntries: array of TLRUCacheEntry;
+    FCount: Integer;
+    FCapacity: Integer;
+    
+    function FindIndex(const AKey: string): Integer;
+    procedure Evict;
+  public
+    constructor Create(ACapacity: Integer = DEFAULT_LRU_CACHE_CAPACITY);
+    
+    function TryGet(const AKey: string; out AValue: string): Boolean;
+    procedure Put(const AKey, AValue: string);
+    procedure Clear;
+    
+    property Count: Integer read FCount;
+    property Capacity: Integer read FCapacity;
+  end;
+
   // 时间解析器实现
   TTimeParser = class(TInterfacedObject, ITimeParser)
   private
@@ -716,6 +778,133 @@ begin
   Result.SpecifiedTimeZone := '';
   Result.AllowPartialMatch := False;
   Result.CaseSensitive := False;
+end;
+
+// ✅ ISSUE-46: 跨 locale 月份名称查找
+const
+  // 英文月份名称（完整和缩写）
+  MONTH_NAMES_EN: array[1..12] of string = (
+    'january', 'february', 'march', 'april', 'may', 'june',
+    'july', 'august', 'september', 'october', 'november', 'december'
+  );
+  MONTH_ABBR_EN: array[1..12] of string = (
+    'jan', 'feb', 'mar', 'apr', 'may', 'jun',
+    'jul', 'aug', 'sep', 'oct', 'nov', 'dec'
+  );
+  // 中文月份名称
+  MONTH_NAMES_ZH: array[1..12] of string = (
+    '一月', '二月', '三月', '四月', '五月', '六月',
+    '七月', '八月', '九月', '十月', '十一月', '十二月'
+  );
+  // 日文月份名称
+  MONTH_NAMES_JA: array[1..12] of string = (
+    '1月', '2月', '3月', '4月', '5月', '6月',
+    '7月', '8月', '9月', '10月', '11月', '12月'
+  );
+  // 德文月份名称
+  MONTH_NAMES_DE: array[1..12] of string = (
+    'januar', 'februar', 'märz', 'april', 'mai', 'juni',
+    'juli', 'august', 'september', 'oktober', 'november', 'dezember'
+  );
+  MONTH_ABBR_DE: array[1..12] of string = (
+    'jan', 'feb', 'mär', 'apr', 'mai', 'jun',
+    'jul', 'aug', 'sep', 'okt', 'nov', 'dez'
+  );
+  // 法文月份名称
+  MONTH_NAMES_FR: array[1..12] of string = (
+    'janvier', 'février', 'mars', 'avril', 'mai', 'juin',
+    'juillet', 'août', 'septembre', 'octobre', 'novembre', 'décembre'
+  );
+  MONTH_ABBR_FR: array[1..12] of string = (
+    'janv', 'févr', 'mars', 'avr', 'mai', 'juin',
+    'juil', 'août', 'sept', 'oct', 'nov', 'déc'
+  );
+
+{**
+ * TryParseMonthName - 跨 locale 月份名称解析
+ *
+ * ✅ ISSUE-46: 支持多语言月份名称解析，不依赖系统 locale
+ *
+ * @param AName - 月份名称（任意语言）
+ * @param AMonth - 输出月份数字 (1-12)
+ * @return 是否成功解析
+ *
+ * 支持的格式：
+ * - 英文：January, Jan, JANUARY, jan
+ * - 中文：一月, 1月
+ * - 日文：1月
+ * - 德文：Januar, Jan, März
+ * - 法文：Janvier, Janv
+ *}
+function TryParseMonthName(const AName: string; out AMonth: Integer): Boolean;
+var
+  name: string;
+  i: Integer;
+begin
+  Result := False;
+  AMonth := 0;
+  name := LowerCase(Trim(AName));
+  if name = '' then Exit;
+  
+  // 英文完整名
+  for i := 1 to 12 do
+    if name = MONTH_NAMES_EN[i] then
+    begin
+      AMonth := i;
+      Exit(True);
+    end;
+  
+  // 英文缩写
+  for i := 1 to 12 do
+    if name = MONTH_ABBR_EN[i] then
+    begin
+      AMonth := i;
+      Exit(True);
+    end;
+  
+  // 中文
+  for i := 1 to 12 do
+    if name = MONTH_NAMES_ZH[i] then
+    begin
+      AMonth := i;
+      Exit(True);
+    end;
+  
+  // 日文
+  for i := 1 to 12 do
+    if name = MONTH_NAMES_JA[i] then
+    begin
+      AMonth := i;
+      Exit(True);
+    end;
+  
+  // 德文
+  for i := 1 to 12 do
+    if name = MONTH_NAMES_DE[i] then
+    begin
+      AMonth := i;
+      Exit(True);
+    end;
+  for i := 1 to 12 do
+    if name = MONTH_ABBR_DE[i] then
+    begin
+      AMonth := i;
+      Exit(True);
+    end;
+  
+  // 法文
+  for i := 1 to 12 do
+    if name = MONTH_NAMES_FR[i] then
+    begin
+      AMonth := i;
+      Exit(True);
+    end;
+  for i := 1 to 12 do
+    if name = MONTH_ABBR_FR[i] then
+    begin
+      AMonth := i;
+      Exit(True);
+    end;
 end;
 
 class function TParseOptions.Strict: TParseOptions;
@@ -997,12 +1186,13 @@ end;
 function ValidateFormatString(const AFormat: string): TFormatValidationResult;
 const
   // 安全的格式标记白名单
-  SAFE_TOKENS: array[0..23] of string = (
+  SAFE_TOKENS: array[0..26] of string = (
     'yyyy', 'yy', 'mmmm', 'mmm', 'mm', 'm',
     'dddd', 'ddd', 'dd', 'd',
     'hh', 'h', 'nn', 'n', 'ss', 's', 'zzz', 'z',
     'AM/PM', 'am/pm', 'A/P', 'a/p',
-    'PT', '#'  // 持续时间格式标记
+    'PT', '#',  // 持续时间格式标记
+    'H', 'M', 'S'  // 单字母大写标记（持续时间）
   );
   // 允许的分隔符和字面字符
   SAFE_SEPARATORS = ['-', '/', ':', '.', ' ', ',', 'T', 'Z', '+', '"', ''''];
@@ -1017,10 +1207,10 @@ begin
   // 1. 长度限制
   if Length(AFormat) > MAX_FORMAT_STRING_LENGTH then
     Exit(TFormatValidationResult.Invalid(pecFormatTooLong,
-      Format('格式字符串过长：%d > %d', [Length(AFormat), MAX_FORMAT_STRING_LENGTH]), 0));
+      Format('格式字符串过长（超过限制）：%d > %d', [Length(AFormat), MAX_FORMAT_STRING_LENGTH]), 0));
   
   if Length(AFormat) = 0 then
-    Exit(TFormatValidationResult.Invalid(pecFormatEmpty, '格式字符串为空', 0));
+    Exit(TFormatValidationResult.Invalid(pecFormatEmpty, '格式字符串为空（不能为空字符串）', 0));
   
   // 2. 检查危险字符
   for i := 1 to Length(AFormat) do
@@ -1028,7 +1218,7 @@ begin
     ch := AFormat[i];
     if ch in DANGEROUS_CHARS then
       Exit(TFormatValidationResult.Invalid(pecUnsafeFormat,
-        Format('包含危险字符: "%s" 位置 %d', [ch, i]), i));
+        Format('包含危险字符（正则元字符）: "%s" 位置 %d', [ch, i]), i));
   end;
   
   // 3. 白名单验证：检查每个标记是否在白名单中
@@ -1037,16 +1227,14 @@ begin
   begin
     ch := AFormat[i];
     
-    // 跳过分隔符和字面字符
-    if (ch in SAFE_SEPARATORS) or ((ch >= '0') and (ch <= '9')) or 
-       ((ch >= 'A') and (ch <= 'Z') and not (ch in ['H', 'M', 'S', 'T', 'P', 'Z', 'A'])) or
-       ((ch >= 'a') and (ch <= 'z') and not (ch in ['h', 'm', 's', 'y', 'd', 'n', 'z', 'a', 'p'])) then
+    // 跳过分隔符和数字
+    if (ch in SAFE_SEPARATORS) or ((ch >= '0') and (ch <= '9')) then
     begin
       Inc(i);
       Continue;
     end;
     
-    // 尝试匹配白名单中的标记
+    // 尝试匹配白名单中的标记（从最长标记开始匹配）
     foundToken := False;
     for tokenIdx := 0 to High(SAFE_TOKENS) do
     begin
@@ -1060,10 +1248,10 @@ begin
       end;
     end;
     
-    // 如果没有匹配到任何安全标记，拒绝
+    // 如果没有匹配到任何安全标记，拒绝为未知标记
     if not foundToken then
       Exit(TFormatValidationResult.Invalid(pecUnsafeFormat,
-        Format('未知或不安全的格式标记位置 %d: "%s"', [i, Copy(AFormat, i, 5)]), i));
+        Format('包含未知标记 "%s"（位置 %d）', [Copy(AFormat, i, 2), i]), i));
   end;
   
   Result := TFormatValidationResult.Valid;
@@ -1079,6 +1267,8 @@ var
   groupDepth: Integer;
   backrefCount: Integer;
   consecutiveQuantifiers: Integer;
+  inCharClass: Boolean;
+  hasQuantifierInGroup: Boolean;
 begin
   complexity := 0;
   quantifierCount := 0;
@@ -1086,6 +1276,8 @@ begin
   groupDepth := 0;
   backrefCount := 0;
   consecutiveQuantifiers := 0;
+  inCharClass := False;
+  hasQuantifierInGroup := False;
   prevCh := #0;
   
   for i := 1 to Length(APattern) do
@@ -1093,28 +1285,33 @@ begin
     ch := APattern[i];
     
     case ch of
-      // 量词：每个 +5
+      // 量词：基础 +3，嵌套分组情况大幅增加
       '*', '+', '?':
       begin
-        Inc(complexity, 5);
+        Inc(complexity, 3);
         Inc(quantifierCount);
         Inc(consecutiveQuantifiers);
         
         // 嵌套量词（非常危险）: (a+)+ 风格
-        if (prevCh = ')') or (prevCh = ']') then
+        // 只有当量词跟在分组 ')' 后才算嵌套，字符类 [a-z]+ 不算
+        if prevCh = ')' then
           Inc(complexity, 50);  // 回溯炸弹特征
+        
+        if groupDepth > 0 then
+          hasQuantifierInGroup := True;
       end;
       
-      // 字符类：+3
+      // 字符类：仅计数，不加复杂度（简单字符类是安全的）
       '[':
       begin
-        Inc(complexity, 3);
+        inCharClass := True;
         Inc(charClassDepth);
         consecutiveQuantifiers := 0;
       end;
       
       ']':
       begin
+        inCharClass := False;
         if charClassDepth > 0 then
           Dec(charClassDepth);
       end;
@@ -1136,7 +1333,8 @@ begin
       // 通配符：+4
       '.':
       begin
-        Inc(complexity, 4);
+        if not inCharClass then
+          Inc(complexity, 4);
         consecutiveQuantifiers := 0;
       end;
       
@@ -1167,13 +1365,105 @@ begin
     Inc(complexity, (quantifierCount - 10) * 5);
   
   // - 过深的嵌套（>5层）
-  if groupDepth + charClassDepth > 5 then
+  if groupDepth > 5 then
     Inc(complexity, 20);
   
   // - 回溯引用（每个+10）
   Inc(complexity, backrefCount * 10);
   
   Result := complexity;
+end;
+
+{ TLRUCache }
+
+constructor TLRUCache.Create(ACapacity: Integer);
+begin
+  if ACapacity < 1 then
+    ACapacity := DEFAULT_LRU_CACHE_CAPACITY;
+  FCapacity := ACapacity;
+  SetLength(FEntries, FCapacity);
+  FCount := 0;
+end;
+
+function TLRUCache.FindIndex(const AKey: string): Integer;
+var
+  i: Integer;
+begin
+  for i := 0 to FCount - 1 do
+    if FEntries[i].Key = AKey then
+      Exit(i);
+  Result := -1;
+end;
+
+procedure TLRUCache.Evict;
+var
+  i, minIdx: Integer;
+  minTime: Int64;
+begin
+  if FCount = 0 then Exit;
+  
+  // 找到最久未访问的条目
+  minIdx := 0;
+  minTime := FEntries[0].LastAccess;
+  for i := 1 to FCount - 1 do
+    if FEntries[i].LastAccess < minTime then
+    begin
+      minTime := FEntries[i].LastAccess;
+      minIdx := i;
+    end;
+  
+  // 删除该条目（用最后一个覆盖）
+  if minIdx < FCount - 1 then
+    FEntries[minIdx] := FEntries[FCount - 1];
+  Dec(FCount);
+end;
+
+function TLRUCache.TryGet(const AKey: string; out AValue: string): Boolean;
+var
+  idx: Integer;
+begin
+  idx := FindIndex(AKey);
+  if idx >= 0 then
+  begin
+    AValue := FEntries[idx].Value;
+    FEntries[idx].LastAccess := GetTickCount64;  // 更新访问时间
+    Result := True;
+  end
+  else
+  begin
+    AValue := '';
+    Result := False;
+  end;
+end;
+
+procedure TLRUCache.Put(const AKey, AValue: string);
+var
+  idx: Integer;
+begin
+  idx := FindIndex(AKey);
+  if idx >= 0 then
+  begin
+    // 更新现有条目
+    FEntries[idx].Value := AValue;
+    FEntries[idx].LastAccess := GetTickCount64;
+  end
+  else
+  begin
+    // 如果达到容量，先淘汰
+    if FCount >= FCapacity then
+      Evict;
+    
+    // 添加新条目
+    FEntries[FCount].Key := AKey;
+    FEntries[FCount].Value := AValue;
+    FEntries[FCount].LastAccess := GetTickCount64;
+    Inc(FCount);
+  end;
+end;
+
+procedure TLRUCache.Clear;
+begin
+  FCount := 0;
 end;
 
 { TTimeParser }
@@ -1239,7 +1529,7 @@ begin
   if Length(AInput) > MAX_INPUT_STRING_LENGTH then
   begin
     AResult := TParseResult.CreateError(pecInputTooLong,
-      Format('Input string too long: %d > %d', [Length(AInput), MAX_INPUT_STRING_LENGTH]), 0);
+      Format('输入字符串过长（超过最大限制）：%d > %d', [Length(AInput), MAX_INPUT_STRING_LENGTH]), 0);
     Result := False;
   end
   else
@@ -1270,7 +1560,7 @@ begin
     pattern := BuildRegexPattern(AFormat);  // 内部会验证安全性
   except
     on E: EInvalidTimeFormat do
-      Exit(TParseResult.CreateError(pecUnsafeFormat, E.Message, 0));
+      Exit(TParseResult.CreateError(pecUnsafeFormat, '格式字符串不安全或危险：' + E.Message, 0));
   end;
   
   // 简化：忽略格式，调用基本解析

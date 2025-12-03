@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CONFIG>
+  <Compiler Value="/home/dtamade/freePascal/fpc/bin/x86_64-linux/fpc.sh" Date="1761279526"/>
+  <Params Value="-MObjFPC -Scgi -Cg -O1 -g -gl -l -vewnhibq -Fu/home/dtamade/projects/fafafa.core/ -Fu/home/dtamade/freePascal/lazarus/packager/units/x86_64-linux -o/home/dtamade/projects/fafafa.core/test_new_containers test_new_containers.pas"/>
+  <Complete Value="False"/>
+</CONFIG>

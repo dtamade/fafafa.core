@@ -46,162 +46,138 @@ function BytesIndexOf_Scalar(haystack: Pointer; haystackLen: SizeUInt; needle: P
 // 位集函数
 function BitsetPopCount_Scalar(p: Pointer; byteLen: SizeUInt): SizeUInt;
 
+// 扩展数学函数
+function ScalarFmaF32x4(const a, b, c: TVecF32x4): TVecF32x4;
+function ScalarRcpF32x4(const a: TVecF32x4): TVecF32x4;
+function ScalarRsqrtF32x4(const a: TVecF32x4): TVecF32x4;
+function ScalarFloorF32x4(const a: TVecF32x4): TVecF32x4;
+function ScalarCeilF32x4(const a: TVecF32x4): TVecF32x4;
+function ScalarRoundF32x4(const a: TVecF32x4): TVecF32x4;
+function ScalarTruncF32x4(const a: TVecF32x4): TVecF32x4;
+function ScalarClampF32x4(const a, minVal, maxVal: TVecF32x4): TVecF32x4;
+
+// 3D/4D 向量数学函数
+function ScalarDotF32x4(const a, b: TVecF32x4): Single;
+function ScalarDotF32x3(const a, b: TVecF32x4): Single;
+function ScalarCrossF32x3(const a, b: TVecF32x4): TVecF32x4;
+function ScalarLengthF32x4(const a: TVecF32x4): Single;
+function ScalarLengthF32x3(const a: TVecF32x4): Single;
+function ScalarNormalizeF32x4(const a: TVecF32x4): TVecF32x4;
+function ScalarNormalizeF32x3(const a: TVecF32x4): TVecF32x4;
+
 implementation
 
 uses
   Math,
   SysUtils;
 
-// === Vector Type Implementations ===
-// These are the actual data structures for vectors
-
-type
-  // 32-bit float vectors
-  TVecF32x4Data = array[0..3] of Single;
-  TVecF32x8Data = array[0..7] of Single;
-
-  // 64-bit float vectors
-  TVecF64x2Data = array[0..1] of Double;
-  TVecF64x4Data = array[0..3] of Double;
-
-  // 32-bit integer vectors
-  TVecI32x4Data = array[0..3] of Int32;
-  TVecI32x8Data = array[0..7] of Int32;
-
-// Redefine the vector types with actual data
-{$PUSH}
-{$WARNINGS OFF} // Suppress redefinition warnings
-type
-  TVecF32x4 = record
-    Data: TVecF32x4Data;
-  end;
-
-  TVecF32x8 = record
-    Data: TVecF32x8Data;
-  end;
-
-  TVecF64x2 = record
-    Data: TVecF64x2Data;
-  end;
-
-  TVecF64x4 = record
-    Data: TVecF64x4Data;
-  end;
-
-  TVecI32x4 = record
-    Data: TVecI32x4Data;
-  end;
-
-  TVecI32x8 = record
-    Data: TVecI32x8Data;
-  end;
-{$POP}
-
 // === Arithmetic Operations ===
+// Using types from fafafa.core.simd.types:
+//   TVecF32x4.f[0..3], TVecF64x2.d[0..1], TVecI32x4.i[0..3], etc.
 
 function ScalarAddF32x4(const a, b: TVecF32x4): TVecF32x4;
 var i: Integer;
 begin
   for i := 0 to 3 do
-    Result.Data[i] := a.Data[i] + b.Data[i];
+    Result.f[i] := a.f[i] + b.f[i];
 end;
 
 function ScalarSubF32x4(const a, b: TVecF32x4): TVecF32x4;
 var i: Integer;
 begin
   for i := 0 to 3 do
-    Result.Data[i] := a.Data[i] - b.Data[i];
+    Result.f[i] := a.f[i] - b.f[i];
 end;
 
 function ScalarMulF32x4(const a, b: TVecF32x4): TVecF32x4;
 var i: Integer;
 begin
   for i := 0 to 3 do
-    Result.Data[i] := a.Data[i] * b.Data[i];
+    Result.f[i] := a.f[i] * b.f[i];
 end;
 
 function ScalarDivF32x4(const a, b: TVecF32x4): TVecF32x4;
 var i: Integer;
 begin
   for i := 0 to 3 do
-    Result.Data[i] := a.Data[i] / b.Data[i];
+    Result.f[i] := a.f[i] / b.f[i];
 end;
 
 function ScalarAddF32x8(const a, b: TVecF32x8): TVecF32x8;
 var i: Integer;
 begin
   for i := 0 to 7 do
-    Result.Data[i] := a.Data[i] + b.Data[i];
+    Result.f[i] := a.f[i] + b.f[i];
 end;
 
 function ScalarSubF32x8(const a, b: TVecF32x8): TVecF32x8;
 var i: Integer;
 begin
   for i := 0 to 7 do
-    Result.Data[i] := a.Data[i] - b.Data[i];
+    Result.f[i] := a.f[i] - b.f[i];
 end;
 
 function ScalarMulF32x8(const a, b: TVecF32x8): TVecF32x8;
 var i: Integer;
 begin
   for i := 0 to 7 do
-    Result.Data[i] := a.Data[i] * b.Data[i];
+    Result.f[i] := a.f[i] * b.f[i];
 end;
 
 function ScalarDivF32x8(const a, b: TVecF32x8): TVecF32x8;
 var i: Integer;
 begin
   for i := 0 to 7 do
-    Result.Data[i] := a.Data[i] / b.Data[i];
+    Result.f[i] := a.f[i] / b.f[i];
 end;
 
 function ScalarAddF64x2(const a, b: TVecF64x2): TVecF64x2;
 var i: Integer;
 begin
   for i := 0 to 1 do
-    Result.Data[i] := a.Data[i] + b.Data[i];
+    Result.d[i] := a.d[i] + b.d[i];
 end;
 
 function ScalarSubF64x2(const a, b: TVecF64x2): TVecF64x2;
 var i: Integer;
 begin
   for i := 0 to 1 do
-    Result.Data[i] := a.Data[i] - b.Data[i];
+    Result.d[i] := a.d[i] - b.d[i];
 end;
 
 function ScalarMulF64x2(const a, b: TVecF64x2): TVecF64x2;
 var i: Integer;
 begin
   for i := 0 to 1 do
-    Result.Data[i] := a.Data[i] * b.Data[i];
+    Result.d[i] := a.d[i] * b.d[i];
 end;
 
 function ScalarDivF64x2(const a, b: TVecF64x2): TVecF64x2;
 var i: Integer;
 begin
   for i := 0 to 1 do
-    Result.Data[i] := a.Data[i] / b.Data[i];
+    Result.d[i] := a.d[i] / b.d[i];
 end;
 
 function ScalarAddI32x4(const a, b: TVecI32x4): TVecI32x4;
 var i: Integer;
 begin
   for i := 0 to 3 do
-    Result.Data[i] := a.Data[i] + b.Data[i];
+    Result.i[i] := a.i[i] + b.i[i];
 end;
 
 function ScalarSubI32x4(const a, b: TVecI32x4): TVecI32x4;
 var i: Integer;
 begin
   for i := 0 to 3 do
-    Result.Data[i] := a.Data[i] - b.Data[i];
+    Result.i[i] := a.i[i] - b.i[i];
 end;
 
 function ScalarMulI32x4(const a, b: TVecI32x4): TVecI32x4;
 var i: Integer;
 begin
   for i := 0 to 3 do
-    Result.Data[i] := a.Data[i] * b.Data[i];
+    Result.i[i] := a.i[i] * b.i[i];
 end;
 
 // === Comparison Operations ===
@@ -211,7 +187,7 @@ var i: Integer;
 begin
   Result := 0;
   for i := 0 to 3 do
-    if a.Data[i] = b.Data[i] then
+    if a.f[i] = b.f[i] then
       Result := Result or (1 shl i);
 end;
 
@@ -220,7 +196,7 @@ var i: Integer;
 begin
   Result := 0;
   for i := 0 to 3 do
-    if a.Data[i] < b.Data[i] then
+    if a.f[i] < b.f[i] then
       Result := Result or (1 shl i);
 end;
 
@@ -229,7 +205,7 @@ var i: Integer;
 begin
   Result := 0;
   for i := 0 to 3 do
-    if a.Data[i] <= b.Data[i] then
+    if a.f[i] <= b.f[i] then
       Result := Result or (1 shl i);
 end;
 
@@ -238,7 +214,7 @@ var i: Integer;
 begin
   Result := 0;
   for i := 0 to 3 do
-    if a.Data[i] > b.Data[i] then
+    if a.f[i] > b.f[i] then
       Result := Result or (1 shl i);
 end;
 
@@ -247,7 +223,7 @@ var i: Integer;
 begin
   Result := 0;
   for i := 0 to 3 do
-    if a.Data[i] >= b.Data[i] then
+    if a.f[i] >= b.f[i] then
       Result := Result or (1 shl i);
 end;
 
@@ -256,7 +232,7 @@ var i: Integer;
 begin
   Result := 0;
   for i := 0 to 3 do
-    if a.Data[i] <> b.Data[i] then
+    if a.f[i] <> b.f[i] then
       Result := Result or (1 shl i);
 end;
 
@@ -266,28 +242,154 @@ function ScalarAbsF32x4(const a: TVecF32x4): TVecF32x4;
 var i: Integer;
 begin
   for i := 0 to 3 do
-    Result.Data[i] := Abs(a.Data[i]);
+    Result.f[i] := Abs(a.f[i]);
 end;
 
 function ScalarSqrtF32x4(const a: TVecF32x4): TVecF32x4;
 var i: Integer;
 begin
   for i := 0 to 3 do
-    Result.Data[i] := Sqrt(a.Data[i]);
+    Result.f[i] := Sqrt(a.f[i]);
 end;
 
 function ScalarMinF32x4(const a, b: TVecF32x4): TVecF32x4;
 var i: Integer;
 begin
   for i := 0 to 3 do
-    Result.Data[i] := Min(a.Data[i], b.Data[i]);
+    Result.f[i] := Min(a.f[i], b.f[i]);
 end;
 
 function ScalarMaxF32x4(const a, b: TVecF32x4): TVecF32x4;
 var i: Integer;
 begin
   for i := 0 to 3 do
-    Result.Data[i] := Max(a.Data[i], b.Data[i]);
+    Result.f[i] := Max(a.f[i], b.f[i]);
+end;
+
+// === Extended Math Functions ===
+
+function ScalarFmaF32x4(const a, b, c: TVecF32x4): TVecF32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.f[i] := a.f[i] * b.f[i] + c.f[i];
+end;
+
+function ScalarRcpF32x4(const a: TVecF32x4): TVecF32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.f[i] := 1.0 / a.f[i];
+end;
+
+function ScalarRsqrtF32x4(const a: TVecF32x4): TVecF32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.f[i] := 1.0 / Sqrt(a.f[i]);
+end;
+
+function ScalarFloorF32x4(const a: TVecF32x4): TVecF32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.f[i] := Floor(a.f[i]);
+end;
+
+function ScalarCeilF32x4(const a: TVecF32x4): TVecF32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.f[i] := Ceil(a.f[i]);
+end;
+
+function ScalarRoundF32x4(const a: TVecF32x4): TVecF32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.f[i] := Round(a.f[i]);
+end;
+
+function ScalarTruncF32x4(const a: TVecF32x4): TVecF32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.f[i] := Trunc(a.f[i]);
+end;
+
+function ScalarClampF32x4(const a, minVal, maxVal: TVecF32x4): TVecF32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.f[i] := Max(minVal.f[i], Min(a.f[i], maxVal.f[i]));
+end;
+
+// === 3D/4D Vector Math ===
+
+function ScalarDotF32x4(const a, b: TVecF32x4): Single;
+begin
+  Result := a.f[0] * b.f[0] + a.f[1] * b.f[1] + a.f[2] * b.f[2] + a.f[3] * b.f[3];
+end;
+
+function ScalarDotF32x3(const a, b: TVecF32x4): Single;
+begin
+  Result := a.f[0] * b.f[0] + a.f[1] * b.f[1] + a.f[2] * b.f[2];
+end;
+
+function ScalarCrossF32x3(const a, b: TVecF32x4): TVecF32x4;
+begin
+  Result.f[0] := a.f[1] * b.f[2] - a.f[2] * b.f[1];
+  Result.f[1] := a.f[2] * b.f[0] - a.f[0] * b.f[2];
+  Result.f[2] := a.f[0] * b.f[1] - a.f[1] * b.f[0];
+  Result.f[3] := 0.0;
+end;
+
+function ScalarLengthF32x4(const a: TVecF32x4): Single;
+begin
+  Result := Sqrt(a.f[0] * a.f[0] + a.f[1] * a.f[1] + a.f[2] * a.f[2] + a.f[3] * a.f[3]);
+end;
+
+function ScalarLengthF32x3(const a: TVecF32x4): Single;
+begin
+  Result := Sqrt(a.f[0] * a.f[0] + a.f[1] * a.f[1] + a.f[2] * a.f[2]);
+end;
+
+function ScalarNormalizeF32x4(const a: TVecF32x4): TVecF32x4;
+var
+  len: Single;
+  invLen: Single;
+  i: Integer;
+begin
+  len := ScalarLengthF32x4(a);
+  if len > 0.0 then
+  begin
+    invLen := 1.0 / len;
+    for i := 0 to 3 do
+      Result.f[i] := a.f[i] * invLen;
+  end
+  else
+    Result := a;
+end;
+
+function ScalarNormalizeF32x3(const a: TVecF32x4): TVecF32x4;
+var
+  len: Single;
+  invLen: Single;
+begin
+  len := ScalarLengthF32x3(a);
+  if len > 0.0 then
+  begin
+    invLen := 1.0 / len;
+    Result.f[0] := a.f[0] * invLen;
+    Result.f[1] := a.f[1] * invLen;
+    Result.f[2] := a.f[2] * invLen;
+    Result.f[3] := 0.0;
+  end
+  else
+  begin
+    Result := a;
+    Result.f[3] := 0.0;
+  end;
 end;
 
 // === Reduction Operations ===
@@ -297,23 +399,23 @@ var i: Integer;
 begin
   Result := 0.0;
   for i := 0 to 3 do
-    Result := Result + a.Data[i];
+    Result := Result + a.f[i];
 end;
 
 function ScalarReduceMinF32x4(const a: TVecF32x4): Single;
 var i: Integer;
 begin
-  Result := a.Data[0];
+  Result := a.f[0];
   for i := 1 to 3 do
-    Result := Min(Result, a.Data[i]);
+    Result := Min(Result, a.f[i]);
 end;
 
 function ScalarReduceMaxF32x4(const a: TVecF32x4): Single;
 var i: Integer;
 begin
-  Result := a.Data[0];
+  Result := a.f[0];
   for i := 1 to 3 do
-    Result := Max(Result, a.Data[i]);
+    Result := Max(Result, a.f[i]);
 end;
 
 function ScalarReduceMulF32x4(const a: TVecF32x4): Single;
@@ -321,7 +423,7 @@ var i: Integer;
 begin
   Result := 1.0;
   for i := 0 to 3 do
-    Result := Result * a.Data[i];
+    Result := Result * a.f[i];
 end;
 
 // === Memory Operations ===
@@ -330,7 +432,7 @@ function ScalarLoadF32x4(p: PSingle): TVecF32x4;
 var i: Integer;
 begin
   for i := 0 to 3 do
-    Result.Data[i] := p[i];
+    Result.f[i] := p[i];
 end;
 
 function ScalarLoadF32x4Aligned(p: PSingle): TVecF32x4;
@@ -343,7 +445,7 @@ procedure ScalarStoreF32x4(p: PSingle; const a: TVecF32x4);
 var i: Integer;
 begin
   for i := 0 to 3 do
-    p[i] := a.Data[i];
+    p[i] := a.f[i];
 end;
 
 procedure ScalarStoreF32x4Aligned(p: PSingle; const a: TVecF32x4);
@@ -358,14 +460,14 @@ function ScalarSplatF32x4(value: Single): TVecF32x4;
 var i: Integer;
 begin
   for i := 0 to 3 do
-    Result.Data[i] := value;
+    Result.f[i] := value;
 end;
 
 function ScalarZeroF32x4: TVecF32x4;
 var i: Integer;
 begin
   for i := 0 to 3 do
-    Result.Data[i] := 0.0;
+    Result.f[i] := 0.0;
 end;
 
 function ScalarSelectF32x4(const mask: TMask4; const a, b: TVecF32x4): TVecF32x4;
@@ -373,9 +475,9 @@ var i: Integer;
 begin
   for i := 0 to 3 do
     if (mask and (1 shl i)) <> 0 then
-      Result.Data[i] := a.Data[i]
+      Result.f[i] := a.f[i]
     else
-      Result.Data[i] := b.Data[i];
+      Result.f[i] := b.f[i];
 end;
 
 function ScalarExtractF32x4(const a: TVecF32x4; index: Integer): Single;
@@ -384,7 +486,7 @@ begin
   if (index < 0) or (index > 3) then
     raise EArgumentOutOfRangeException.CreateFmt('Index %d out of range [0..3]', [index]);
   {$ENDIF}
-  Result := a.Data[index];
+  Result := a.f[index];
 end;
 
 function ScalarInsertF32x4(const a: TVecF32x4; value: Single; index: Integer): TVecF32x4;
@@ -394,7 +496,7 @@ begin
     raise EArgumentOutOfRangeException.CreateFmt('Index %d out of range [0..3]', [index]);
   {$ENDIF}
   Result := a;
-  Result.Data[index] := value;
+  Result.f[index] := value;
 end;
 
 // === Backend Registration ===
@@ -408,7 +510,15 @@ begin
 
   // Set backend info
   dispatchTable.Backend := sbScalar;
-  dispatchTable.BackendInfo := GetBackendInfo(sbScalar);
+  with dispatchTable.BackendInfo do
+  begin
+    Backend := sbScalar;
+    Name := 'Scalar';
+    Description := 'Pure scalar reference implementation';
+    Capabilities := [scBasicArithmetic, scComparison, scMathFunctions, scReduction, scLoadStore];
+    Available := True;
+    Priority := 0; // Lowest priority
+  end;
 
   // Register arithmetic operations
   dispatchTable.AddF32x4 := @ScalarAddF32x4;
@@ -444,6 +554,25 @@ begin
   dispatchTable.MinF32x4 := @ScalarMinF32x4;
   dispatchTable.MaxF32x4 := @ScalarMaxF32x4;
 
+  // Register extended math functions
+  dispatchTable.FmaF32x4 := @ScalarFmaF32x4;
+  dispatchTable.RcpF32x4 := @ScalarRcpF32x4;
+  dispatchTable.RsqrtF32x4 := @ScalarRsqrtF32x4;
+  dispatchTable.FloorF32x4 := @ScalarFloorF32x4;
+  dispatchTable.CeilF32x4 := @ScalarCeilF32x4;
+  dispatchTable.RoundF32x4 := @ScalarRoundF32x4;
+  dispatchTable.TruncF32x4 := @ScalarTruncF32x4;
+  dispatchTable.ClampF32x4 := @ScalarClampF32x4;
+
+  // Register 3D/4D vector math
+  dispatchTable.DotF32x4 := @ScalarDotF32x4;
+  dispatchTable.DotF32x3 := @ScalarDotF32x3;
+  dispatchTable.CrossF32x3 := @ScalarCrossF32x3;
+  dispatchTable.LengthF32x4 := @ScalarLengthF32x4;
+  dispatchTable.LengthF32x3 := @ScalarLengthF32x3;
+  dispatchTable.NormalizeF32x4 := @ScalarNormalizeF32x4;
+  dispatchTable.NormalizeF32x3 := @ScalarNormalizeF32x3;
+
   // Register reduction operations
   dispatchTable.ReduceAddF32x4 := @ScalarReduceAddF32x4;
   dispatchTable.ReduceMinF32x4 := @ScalarReduceMinF32x4;
@@ -462,6 +591,23 @@ begin
   dispatchTable.SelectF32x4 := @ScalarSelectF32x4;
   dispatchTable.ExtractF32x4 := @ScalarExtractF32x4;
   dispatchTable.InsertF32x4 := @ScalarInsertF32x4;
+
+  // Register facade functions
+  dispatchTable.MemEqual := @MemEqual_Scalar;
+  dispatchTable.MemFindByte := @MemFindByte_Scalar;
+  dispatchTable.MemDiffRange := @MemDiffRange_Scalar;
+  dispatchTable.MemCopy := @MemCopy_Scalar;
+  dispatchTable.MemSet := @MemSet_Scalar;
+  dispatchTable.MemReverse := @MemReverse_Scalar;
+  dispatchTable.SumBytes := @SumBytes_Scalar;
+  dispatchTable.MinMaxBytes := @MinMaxBytes_Scalar;
+  dispatchTable.CountByte := @CountByte_Scalar;
+  dispatchTable.Utf8Validate := @Utf8Validate_Scalar;
+  dispatchTable.AsciiIEqual := @AsciiIEqual_Scalar;
+  dispatchTable.ToLowerAscii := @ToLowerAscii_Scalar;
+  dispatchTable.ToUpperAscii := @ToUpperAscii_Scalar;
+  dispatchTable.BytesIndexOf := @BytesIndexOf_Scalar;
+  dispatchTable.BitsetPopCount := @BitsetPopCount_Scalar;
 
   // Register the backend
   RegisterBackend(sbScalar, dispatchTable);
@@ -675,7 +821,7 @@ function Utf8Validate_Scalar(p: Pointer; len: SizeUInt): Boolean;
 var
   pb: PByte;
   i: SizeUInt;
-  b: Byte;
+  b, b2: Byte;
   seqLen: Integer;
   j: Integer;
 begin
@@ -699,20 +845,24 @@ begin
     end;
 
     // Multi-byte sequence
-    if (b and $E0) = $C0 then
+    // 2-byte sequences: $C2-$DF (NOT $C0-$C1 which are overlong)
+    if (b >= $C2) and (b <= $DF) then
       seqLen := 2
+    // 3-byte sequences: $E0-$EF
     else if (b and $F0) = $E0 then
       seqLen := 3
-    else if (b and $F8) = $F0 then
+    // 4-byte sequences: $F0-$F4
+    else if (b >= $F0) and (b <= $F4) then
       seqLen := 4
     else
     begin
+      // Invalid leading byte ($C0, $C1, $F5-$FF, or continuation byte)
       Result := False;
       Exit;
     end;
 
     // Check if we have enough bytes
-    if i + seqLen > len then
+    if i + SizeUInt(seqLen) > len then
     begin
       Result := False;
       Exit;
@@ -721,7 +871,41 @@ begin
     // Check continuation bytes
     for j := 1 to seqLen - 1 do
     begin
-      if (pb[i + j] and $C0) <> $80 then
+      if (pb[i + SizeUInt(j)] and $C0) <> $80 then
+      begin
+        Result := False;
+        Exit;
+      end;
+    end;
+
+    // Additional checks for overlong sequences
+    if seqLen = 3 then
+    begin
+      b2 := pb[i + 1];
+      // E0 followed by 80-9F is overlong
+      if (b = $E0) and (b2 < $A0) then
+      begin
+        Result := False;
+        Exit;
+      end;
+      // ED followed by A0-BF is surrogate (invalid in UTF-8)
+      if (b = $ED) and (b2 >= $A0) then
+      begin
+        Result := False;
+        Exit;
+      end;
+    end
+    else if seqLen = 4 then
+    begin
+      b2 := pb[i + 1];
+      // F0 followed by 80-8F is overlong
+      if (b = $F0) and (b2 < $90) then
+      begin
+        Result := False;
+        Exit;
+      end;
+      // F4 followed by 90-BF is beyond Unicode range
+      if (b = $F4) and (b2 >= $90) then
       begin
         Result := False;
         Exit;

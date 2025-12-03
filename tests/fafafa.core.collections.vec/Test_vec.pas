@@ -36,6 +36,9 @@ type
     procedure Test_Resize_Managed_Init_NewRange;
     procedure Test_Ensure_Contract_CountIncreases;
     procedure Test_EnsureCapacity_CapacityOnly;
+    { ===== 容量收敛和别名测试 ===== }
+    procedure Test_ShrinkToFit_Converges_Deterministically;
+    procedure Test_TrimToSize_Delegates_To_ShrinkToFit;
 
     { ===== 构造函数测试 ===== }
     procedure Test_Create;
@@ -5442,13 +5445,22 @@ begin
 
     { 测试容量增长 }
     LCapacityBefore := LVec.GetCapacity;
-    { 推入足够多的元素以触发容量增长 }
-    while LVec.GetCount < LCapacityBefore do
-      LVec.Push(999);
+    { 推入足够多的元素以触发容量增长，但限制最大循环次数避免死循环 }
+    { 如果容量为0或很大，直接Push一个元素即可触发增长 }
+    if (LCapacityBefore > 0) and (LCapacityBefore <= 100) then
+    begin
+      { 仅在容量合理时（不超过100）才填充到容量边界 }
+      while LVec.GetCount < LCapacityBefore do
+        LVec.Push(999);
+    end;
 
     LVec.Push(888);  { 这应该触发容量增长 }
     LCapacityAfter := LVec.GetCapacity;
-    AssertTrue('Capacity should grow when needed', LCapacityAfter > LCapacityBefore);
+    { 如果之前容量为0，增长后容量应该大于0；否则应该大于之前的容量 }
+    if LCapacityBefore > 0 then
+      AssertTrue('Capacity should grow when needed', LCapacityAfter > LCapacityBefore)
+    else
+      AssertTrue('Capacity should be allocated when needed', LCapacityAfter > 0);
     AssertEquals('Last pushed element should be correct', 888, LVec[LVec.GetCount - 1]);
 
   finally
@@ -17051,7 +17063,57 @@ begin
   end;
 end;
 
+{ ===== 追加容量收敛和别名测试 ===== }
+
+procedure TTestCase_Vec.Test_ShrinkToFit_Converges_Deterministically;
+var
+  V: specialize TVec<Integer>;
+  CapBefore, Cap1, Cap2: SizeUInt;
+begin
+  V := specialize TVec<Integer>.Create;
+  try
+    // 预留较大容量，然后降低 Count 以触发收缩
+    V.ResizeExact(0);
+    V.ReserveExact(5000);
+    V.ResizeExact(1000);
+
+    CapBefore := V.GetCapacity; // 5000
+    V.ShrinkToFit;              // 触发收缩策略，预期收缩到 Count（1000）
+    Cap1 := V.GetCapacity;
+    V.ShrinkToFit;              // 再次收缩应不再改变容量（确定性收敛）
+    Cap2 := V.GetCapacity;
+
+    AssertEquals('Precondition: capacity before shrink', Int64(5000), Int64(CapBefore));
+    AssertEquals('First ShrinkToFit should shrink to Count', Int64(1000), Int64(Cap1));
+    AssertEquals('Second ShrinkToFit should keep capacity unchanged', Int64(Cap1), Int64(Cap2));
+  finally
+    V.Free;
+  end;
+end;
+
+procedure TTestCase_Vec.Test_TrimToSize_Delegates_To_ShrinkToFit;
+var
+  V: specialize TVec<Integer>;
+  CapBefore, CapAfter: SizeUInt;
+begin
+  V := specialize TVec<Integer>.Create;
+  try
+    V.ResizeExact(0);
+    V.ReserveExact(5000);
+    V.ResizeExact(1000);
+
+    CapBefore := V.GetCapacity; // 5000
+
+    V.TrimToSize; // 应与 ShrinkToFit 等效
+
+    CapAfter := V.GetCapacity;
+    AssertEquals('TrimToSize should shrink down to Count', Int64(1000), Int64(CapAfter));
+    AssertEquals('Precondition: capacity should be 5000 before shrink', Int64(5000), Int64(CapBefore));
+  finally
+    V.Free;
+  end;
+end;
+
 initialization
   RegisterTest(TTestCase_Vec);
-
 end.

@@ -97,7 +97,7 @@ type
     Key: TKey;
     Value: TValue;
     Hash: QWord;
-    Next: tagged_ptr;  // ABA-safe next pointer
+    Next: atomic_tagged_ptr_t;  // ABA-safe next pointer
     IsDeleted: Boolean;
   end;
 
@@ -124,7 +124,7 @@ type
       TKeyComparer = function(const AKey1, AKey2: TKey): Boolean;
 
   private
-    FBuckets: array of tagged_ptr;  // Array of bucket heads (Tagged Pointers)
+    FBuckets: array of atomic_tagged_ptr_t;  // Array of bucket heads (Tagged Pointers)
     FBucketCount: Integer;
     FHashFunction: THashFunction;
     FKeyComparer: TKeyComparer;
@@ -265,31 +265,31 @@ end;
 procedure TMichaelHashMap.CompactBucket(ABucket: Integer);
 var
   prevIsBucket: Boolean;
-  prevNextTagged, curNextTagged, expectedTagged, desiredTagged: tagged_ptr;
+  prevNextTagged, curNextTagged, expectedTagged, desiredTagged: atomic_tagged_ptr_t;
   prevEntry, curEntry, nextEntry: PEntry;
-  prevNextRef: ^tagged_ptr;
+  prevNextRef: ^atomic_tagged_ptr_t;
 begin
   // Opportunistic physical removal of logically deleted nodes in a bucket
   prevIsBucket := True;
-  prevNextTagged := atomic_load_tagged_ptr(FBuckets[ABucket], memory_order_acquire);
+  prevNextTagged := atomic_load_atomic_tagged_ptr_t(FBuckets[ABucket], mo_acquire);
   prevEntry := nil;
   while True do
   begin
-    curEntry := PEntry(get_ptr(prevNextTagged));
+    curEntry := PEntry(atomic_tagged_ptr_get_ptr(prevNextTagged));
     if curEntry = nil then Exit;
 
     // Load current's next
-    curNextTagged := atomic_load_tagged_ptr(curEntry^.Next, memory_order_acquire);
-    nextEntry := PEntry(get_ptr(curNextTagged));
+    curNextTagged := atomic_load_atomic_tagged_ptr_t(curEntry^.Next, mo_acquire);
+    nextEntry := PEntry(atomic_tagged_ptr_get_ptr(curNextTagged));
 
     if curEntry^.IsDeleted then
     begin
       // Try to unlink curEntry by updating prev->Next from prevNextTagged to next
       expectedTagged := prevNextTagged;
-      desiredTagged := make_tagged_ptr(nextEntry, next_tag(prevNextTagged));
+      desiredTagged := make_atomic_tagged_ptr_t(nextEntry, atomic_tagged_ptr_next(prevNextTagged));
       if prevIsBucket then
       begin
-        if atomic_compare_exchange_strong_tagged_ptr(FBuckets[ABucket], expectedTagged, desiredTagged, memory_order_acq_rel) then
+        if atomic_compare_exchange_strong_atomic_tagged_ptr_t(FBuckets[ABucket], expectedTagged, desiredTagged) then
         begin
           // finalize and retire removed node
           Finalize(curEntry^.Key);
@@ -302,7 +302,7 @@ begin
         else
         begin
           // reload from bucket head on failure
-          prevNextTagged := atomic_load_tagged_ptr(FBuckets[ABucket], memory_order_acquire);
+          prevNextTagged := atomic_load_atomic_tagged_ptr_t(FBuckets[ABucket], mo_acquire);
           Continue;
         end;
       end
@@ -310,7 +310,7 @@ begin
       begin
         // prev is an entry; update its Next
         prevNextRef := @prevEntry^.Next;
-        if atomic_compare_exchange_strong_tagged_ptr(prevNextRef^, expectedTagged, desiredTagged, memory_order_acq_rel) then
+        if atomic_compare_exchange_strong_atomic_tagged_ptr_t(prevNextRef^, expectedTagged, desiredTagged) then
         begin
           Finalize(curEntry^.Key);
           Finalize(curEntry^.Value);
@@ -321,7 +321,7 @@ begin
         else
         begin
           // reload prevNextTagged from prevEntry^.Next and retry
-          prevNextTagged := atomic_load_tagged_ptr(prevEntry^.Next, memory_order_acquire);
+          prevNextTagged := atomic_load_atomic_tagged_ptr_t(prevEntry^.Next, mo_acquire);
           Continue;
         end;
       end;
@@ -354,7 +354,7 @@ begin
 
   // 初始化所有桶为“空”标记指针
   for I := 0 to FBucketCount - 1 do
-    FBuckets[I] := make_tagged_ptr(nil, 0);
+    FBuckets[I] := make_atomic_tagged_ptr_t(nil, 0);
 
   // 设置哈希函数与比较器
   FHashFunction := AHashFunction;
@@ -366,7 +366,7 @@ begin
   if not Assigned(FKeyComparer) then
     raise Exception.Create('MM HashMap: missing key comparer; use facade constructor or pass a comparer');
 
-  atomic_store_64(FSize, 0, memory_order_relaxed);
+  atomic_store_64(FSize, 0, mo_relaxed);
   FLoadFactor := 0.0;
   FMaxLoadFactor := 0.75;
 end;
@@ -389,7 +389,7 @@ end;
 
 function TMichaelHashMap.FindEntry(const AKey: TKey; AHash: QWord; out ABucket: Integer): PEntry;
 var
-  LBucketHead: tagged_ptr;
+  LBucketHead: atomic_tagged_ptr_t;
   LCurrent: PEntry;
 begin
   ABucket := GetBucketIndex(AHash);
@@ -397,13 +397,13 @@ begin
   {**
    * Load bucket head with acquire semantics
    *
-   * @memory_order_acquire ensures that:
+   * @mo_acquire ensures that:
    * - No reads/writes can be reordered before this load
    * - We see all writes that happened-before the release store of this pointer
    * - Critical for seeing consistent linked list structure
    *}
-  LBucketHead := atomic_load_tagged_ptr(FBuckets[ABucket], memory_order_acquire);
-  LCurrent := get_ptr(LBucketHead);
+  LBucketHead := atomic_load_atomic_tagged_ptr_t(FBuckets[ABucket], mo_acquire);
+  LCurrent := atomic_tagged_ptr_get_ptr(LBucketHead);
 
   {**
    * Traverse the bucket's linked list
@@ -427,10 +427,10 @@ begin
     {**
      * Load next pointer with acquire semantics
      *
-     * @memory_order_acquire ensures we see consistent next pointer
+     * @mo_acquire ensures we see consistent next pointer
      * and any updates to the node it points to
      *}
-    LCurrent := get_ptr(atomic_load_tagged_ptr(LCurrent^.Next, memory_order_acquire));
+    LCurrent := atomic_tagged_ptr_get_ptr(atomic_load_atomic_tagged_ptr_t(LCurrent^.Next, mo_acquire));
   end;
 
   Result := nil;
@@ -442,7 +442,7 @@ begin
   Result^.Key := AKey;
   Result^.Value := AValue;
   Result^.Hash := AHash;
-  Result^.Next := make_tagged_ptr(nil, 0);
+  Result^.Next := make_atomic_tagged_ptr_t(nil, 0);
   Result^.IsDeleted := False;
 end;
 
@@ -456,7 +456,7 @@ function TMichaelHashMap.NeedsResize: Boolean;
 var
   LCurrentSize: Int64;
 begin
-  LCurrentSize := atomic_load_64(FSize, memory_order_relaxed);
+  LCurrentSize := atomic_load_64(FSize, mo_relaxed);
   Result := (LCurrentSize / FBucketCount) > FMaxLoadFactor;
 end;
 
@@ -473,7 +473,7 @@ var
   LHash: QWord;
   LBucketIndex: Integer;
   LNewEntry: PEntry;
-  LBucketHead, LNewHead: tagged_ptr;
+  LBucketHead, LNewHead: atomic_tagged_ptr_t;
   LExisting: PEntry;
 begin
   LHash := FHashFunction(AKey);
@@ -490,12 +490,12 @@ begin
 
   {** Insert at bucket head using CAS loop with Tagged Pointers **}
   repeat
-    LBucketHead := atomic_load_tagged_ptr(FBuckets[LBucketIndex], memory_order_acquire);
+    LBucketHead := atomic_load_atomic_tagged_ptr_t(FBuckets[LBucketIndex], mo_acquire);
     LNewEntry^.Next := LBucketHead;
-    LNewHead := make_tagged_ptr(LNewEntry, next_tag(LBucketHead));
-  until atomic_compare_exchange_strong_tagged_ptr(FBuckets[LBucketIndex], LBucketHead, LNewHead, memory_order_release);
+    LNewHead := make_atomic_tagged_ptr_t(LNewEntry, atomic_tagged_ptr_next(LBucketHead));
+  until atomic_compare_exchange_strong_atomic_tagged_ptr_t(FBuckets[LBucketIndex], LBucketHead, LNewHead);
 
-  atomic_fetch_add_64(FSize, 1, memory_order_relaxed);
+  atomic_fetch_add_64(FSize, 1);
 
   if NeedsResize then
     TryResize;
@@ -536,7 +536,7 @@ begin
   begin
     // Logical deletion - mark entry as deleted
     LEntry^.IsDeleted := True;
-    atomic_fetch_sub_64(FSize, 1, memory_order_relaxed);
+    atomic_fetch_sub_64(FSize, 1);
     // Opportunistic physical removal of deleted nodes in this bucket
     CompactBucket(LBucketIndex);
     Result := True;
@@ -607,19 +607,19 @@ end;
 
 function TMichaelHashMap.empty: Boolean;
 begin
-  Result := atomic_load_64(FSize, memory_order_relaxed) = 0;
+  Result := atomic_load_64(FSize, mo_relaxed) = 0;
 end;
 
 function TMichaelHashMap.size: Int64;
 begin
-  Result := atomic_load_64(FSize, memory_order_relaxed);
+  Result := atomic_load_64(FSize, mo_relaxed);
 end;
 
 function TMichaelHashMap.load_factor: Single;
 var
   LCurrentSize: Int64;
 begin
-  LCurrentSize := atomic_load_64(FSize, memory_order_relaxed);
+  LCurrentSize := atomic_load_64(FSize, mo_relaxed);
   if FBucketCount > 0 then
     Result := LCurrentSize / FBucketCount
   else
@@ -629,27 +629,27 @@ end;
 procedure TMichaelHashMap.clear;
 var
   I: Integer;
-  LBucketHead: tagged_ptr;
+  LBucketHead: atomic_tagged_ptr_t;
   LCurrent, LNext: PEntry;
 begin
   for I := 0 to FBucketCount - 1 do
   begin
-    LBucketHead := atomic_load_tagged_ptr(FBuckets[I], memory_order_acquire);
-    LCurrent := get_ptr(LBucketHead);
+    LBucketHead := atomic_load_atomic_tagged_ptr_t(FBuckets[I], mo_acquire);
+    LCurrent := atomic_tagged_ptr_get_ptr(LBucketHead);
 
     while LCurrent <> nil do
     begin
-      LNext := get_ptr(LCurrent^.Next);
+      LNext := atomic_tagged_ptr_get_ptr(LCurrent^.Next);
       // retire entries; immediate mode frees directly
       lf_retire(LCurrent, @MM_DisposeEntry);
       LCurrent := LNext;
     end;
 
     // Reset bucket to empty
-    atomic_store_tagged_ptr(FBuckets[I], make_tagged_ptr(nil, 0), memory_order_release);
+    atomic_store_atomic_tagged_ptr_t(FBuckets[I], make_atomic_tagged_ptr_t(nil, 0), mo_release);
   end;
 
-  atomic_store_64(FSize, 0, memory_order_relaxed);
+  atomic_store_64(FSize, 0, mo_relaxed);
 end;
 
 // === Statistics ===

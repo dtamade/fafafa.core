@@ -1,5 +1,9 @@
 # TODOs
 
+Note: This file is deprecated and kept for historical context.
+Authoritative, active TODOs have been consolidated under `todos/`.
+Please update and track tasks in the corresponding `todos/*.md` files.
+
 - [ ] 评估在下一个小版本将 JSON Writer 默认切换至 V2（结构化 cleanup 数组）
   - 观察期：至少 1 个小版本周期
   - 影响评估：是否存在依赖旧 message 拼接的外部解析器

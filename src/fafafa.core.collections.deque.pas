@@ -17,7 +17,24 @@ uses
 
 type
 
-  { TArrayDeque 数组双端队列实现 - 基于环形缓冲区的高性能双端队列 }
+  {**
+   * TArrayDeque<T>
+   *
+   * @desc 数组双端队列 - 基于 TVecDeque 的接口包装器
+   * @param T 元素类型
+   * @note
+   *   - 实现 IDeque<T> 和 IVecDeque<T> 接口
+   *   - 内部委托给 TVecDeque 实现
+   *   - 支持接口引用计数
+   *   - 使用 MakeDeque<T>() 工厂函数创建
+   *
+   *   示例:
+   *     var Deque: specialize IDeque<Integer>;
+   *     Deque := specialize MakeDeque<Integer>();
+   *     Deque.PushBack(1);
+   *     Deque.PushFront(0);
+   *     // 接口自动释放
+   *}
   generic TArrayDeque<T> = class(TInterfacedObject, specialize IDeque<T>, specialize IVecDeque<T>)
   type
     TInternalDeque = specialize TVecDeque<T>;
@@ -163,7 +180,7 @@ end;
 function TArrayDeque.Pop: T;
 begin
   if FDeque.IsEmpty then
-    raise EArgumentOutOfRangeException.Create('Deque is empty');
+    raise EEmptyCollection.Create('TArrayDeque.Pop: collection is empty');
   Result := FDeque.PopFront;
 end;
 
@@ -178,7 +195,7 @@ end;
 function TArrayDeque.Peek: T;
 begin
   if FDeque.IsEmpty then
-    raise EArgumentOutOfRangeException.Create('Deque is empty');
+    raise EEmptyCollection.Create('TArrayDeque.Peek: collection is empty');
   Result := FDeque.Front;
 end;
 
@@ -202,7 +219,7 @@ end;
 function TArrayDeque.Front: T;
 begin
   if FDeque.IsEmpty then
-    raise EArgumentOutOfRangeException.Create('Deque is empty');
+    raise EEmptyCollection.Create('TArrayDeque.Front: collection is empty');
   Result := FDeque.Front;
 end;
 
@@ -217,7 +234,7 @@ end;
 function TArrayDeque.Back: T;
 begin
   if FDeque.IsEmpty then
-    raise EArgumentOutOfRangeException.Create('Deque is empty');
+    raise EEmptyCollection.Create('TArrayDeque.Back: collection is empty');
   Result := FDeque.Back;
 end;
 
@@ -282,7 +299,7 @@ end;
 function TArrayDeque.PopFront: T;
 begin
   if FDeque.IsEmpty then
-    raise EArgumentOutOfRangeException.Create('Deque is empty');
+    raise EEmptyCollection.Create('TArrayDeque.PopFront: collection is empty');
   Result := FDeque.PopFront;
 end;
 
@@ -297,7 +314,7 @@ end;
 function TArrayDeque.PopBack: T;
 begin
   if FDeque.IsEmpty then
-    raise EArgumentOutOfRangeException.Create('Deque is empty');
+    raise EEmptyCollection.Create('TArrayDeque.PopBack: collection is empty');
   Result := FDeque.PopBack;
 end;
 
@@ -312,16 +329,16 @@ end;
 procedure TArrayDeque.Swap(aIndex1, aIndex2: SizeUInt);
 begin
   if aIndex1 >= FDeque.Count then
-    raise EArgumentOutOfRangeException.Create('aIndex1 out of range');
+    raise EOutOfRange.CreateFmt('TArrayDeque.Swap: aIndex1 %d out of range [0..%d)', [aIndex1, FDeque.Count]);
   if aIndex2 >= FDeque.Count then
-    raise EArgumentOutOfRangeException.Create('aIndex2 out of range');
+    raise EOutOfRange.CreateFmt('TArrayDeque.Swap: aIndex2 %d out of range [0..%d)', [aIndex2, FDeque.Count]);
   FDeque.Swap(aIndex1, aIndex2);
 end;
 
 function TArrayDeque.Get(aIndex: SizeUInt): T;
 begin
   if aIndex >= FDeque.Count then
-    raise EArgumentOutOfRangeException.Create('Index out of range');
+    raise EOutOfRange.CreateFmt('TArrayDeque.Get: index %d out of range [0..%d)', [aIndex, FDeque.Count]);
   Result := FDeque.Get(aIndex);
 end;
 
@@ -336,14 +353,14 @@ end;
 procedure TArrayDeque.Insert(aIndex: SizeUInt; const aElement: T);
 begin
   if aIndex > FDeque.Count then
-    raise EArgumentOutOfRangeException.Create('Index out of range');
+    raise EOutOfRange.CreateFmt('TArrayDeque.Insert: index %d out of range [0..%d]', [aIndex, FDeque.Count]);
   FDeque.Insert(aIndex, aElement);
 end;
 
 function TArrayDeque.Remove(aIndex: SizeUInt): T;
 begin
   if aIndex >= FDeque.Count then
-    raise EArgumentOutOfRangeException.Create('Index out of range');
+    raise EOutOfRange.CreateFmt('TArrayDeque.Remove: index %d out of range [0..%d)', [aIndex, FDeque.Count]);
   Result := FDeque.Remove(aIndex);
 end;
 
@@ -418,7 +435,7 @@ begin
 
   LSelfQueue := Self as TQueueIntf;
   if Pointer(aOther) = Pointer(LSelfQueue) then
-    raise EInvalidOperation.Create('TArrayDeque.Append: cannot append deque to itself');
+    raise EInvalidOperation.Create('TArrayDeque.Append: cannot append to itself');
 
   LCount := aOther.Count;
   if LCount = 0 then
@@ -446,7 +463,7 @@ var
   LNewDeque: TArrayDeque;
 begin
   if aAt > FDeque.Count then
-    raise EArgumentOutOfRangeException.Create('aAt out of range');
+    raise EOutOfRange.CreateFmt('TArrayDeque.SplitOff: aAt %d out of range [0..%d]', [aAt, FDeque.Count]);
 
   LNewDeque := TArrayDeque.Create(FAllocator);
   Result := LNewDeque as TQueueIntf;  // Cast to interface
@@ -485,7 +502,7 @@ var
 begin
   // Copy element by element from interface
   if (aSrcIndex + aCount) > aSrc.Count then
-    raise EArgumentOutOfRangeException.Create('Source index and count out of range');
+    raise EOutOfRange.CreateFmt('TArrayDeque.AppendFrom: range [%d..%d) exceeds source count %d', [aSrcIndex, aSrcIndex + aCount, aSrc.Count]);
   
   FDeque.Reserve(aCount);
   for I := 0 to aCount - 1 do

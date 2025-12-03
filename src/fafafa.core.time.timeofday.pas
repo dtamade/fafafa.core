@@ -62,29 +62,41 @@ type
    * TTimeOfDay - 一天中的时间
    *
    * @desc
-   *   表示一天中的时间，精确到毫秒。
-   *   内部使用自午夜开始的毫秒数存储。
+   *   表示一天中的时间，精确到纳秒。
+   *   内部使用自午夜开始的纳秒数存储。
    *
    * @precision
-   *   毫秒级精度。
+   *   纳秒级精度（9位小数）。
    *
    * @thread_safety
    *   值类型，天然线程安全。
    *
    * @range
-   *   00:00:00.000 到 23:59:59.999
+   *   00:00:00.000000000 到 23:59:59.999999999
    *}
   TTimeOfDay = record
+  public const
+    NS_PER_US   = Int64(1000);
+    NS_PER_MS   = Int64(1000000);
+    NS_PER_SEC  = Int64(1000000000);
+    NS_PER_MIN  = Int64(60000000000);
+    NS_PER_HOUR = Int64(3600000000000);
+    NS_PER_DAY  = Int64(86400000000000);
   private
-    FMilliseconds: Integer; // 自午夜开始的毫秒数 (0-86399999)
+    FNanoseconds: Int64; // 自午夜开始的纳秒数 (0 .. NS_PER_DAY-1)
 
     class function IsValidTime(AHour, AMinute, ASecond, AMillisecond: Integer): Boolean; static;
+    class function IsValidTimeNs(AHour, AMinute, ASecond, ANanosecond: Integer): Boolean; static;
     class function TimeToMilliseconds(AHour, AMinute, ASecond, AMillisecond: Integer): Integer; static;
+    class function TimeToNanoseconds(AHour, AMinute, ASecond, ANanosecond: Integer): Int64; static;
     class procedure MillisecondsToTime(AMilliseconds: Integer; out AHour, AMinute, ASecond, AMillisecond: Integer); static;
+    class procedure NanosecondsToTime(ANanoseconds: Int64; out AHour, AMinute, ASecond, ANanosecond: Integer); static;
   public
     // 构造函数
     class function Create(AHour, AMinute: Integer; ASecond: Integer = 0; AMillisecond: Integer = 0): TTimeOfDay; static;
+    class function CreateNs(AHour, AMinute, ASecond: Integer; ANanosecond: Integer): TTimeOfDay; static;
     class function FromMilliseconds(AMilliseconds: Integer): TTimeOfDay; static;
+    class function FromNanoseconds(ANanoseconds: Int64): TTimeOfDay; static;
     class function FromSeconds(ASeconds: Integer): TTimeOfDay; static;
     class function FromMinutes(AMinutes: Integer): TTimeOfDay; static;
     class function FromHours(AHours: Integer): TTimeOfDay; static;
@@ -109,18 +121,22 @@ type
 
     // 转换函数
     function ToMilliseconds: Integer; inline;
+    function ToNanoseconds: Int64; inline;
     function ToSeconds: Integer; inline;
     function ToMinutes: Integer; inline;
     function ToHours: Double; inline;
     function ToTime: TTime;
     function ToDuration: TDuration;
-    function ToISO8601: string; // HH:MM:SS.mmm 格式
+    function ToISO8601: string; // HH:MM:SS.nnnnnnnnn 格式（纳秒）
 
     // 时间组件
     function GetHour: Integer;
     function GetMinute: Integer;
     function GetSecond: Integer;
     function GetMillisecond: Integer;
+    function GetMicrosecond: Integer;   // 微秒部分 (0-999)
+    function GetNanosecond: Integer;    // 纳秒部分 (0-999)
+    function GetSubsecondNanos: Integer; // 秒以下的全部纳秒 (0-999999999)
     function GetHour12: Integer; // 12小时制的小时 (1-12)
     function GetMeridiem: TMeridiem; // AM/PM
 
@@ -283,12 +299,28 @@ begin
             (AMillisecond >= 0) and (AMillisecond <= 999);
 end;
 
+class function TTimeOfDay.IsValidTimeNs(AHour, AMinute, ASecond, ANanosecond: Integer): Boolean;
+begin
+  Result := (AHour >= 0) and (AHour <= 23) and
+            (AMinute >= 0) and (AMinute <= 59) and
+            (ASecond >= 0) and (ASecond <= 59) and
+            (ANanosecond >= 0) and (ANanosecond <= 999999999);
+end;
+
 class function TTimeOfDay.TimeToMilliseconds(AHour, AMinute, ASecond, AMillisecond: Integer): Integer;
 begin
   Result := AHour * MILLISECONDS_PER_HOUR +
             AMinute * MILLISECONDS_PER_MINUTE +
             ASecond * MILLISECONDS_PER_SECOND +
             AMillisecond;
+end;
+
+class function TTimeOfDay.TimeToNanoseconds(AHour, AMinute, ASecond, ANanosecond: Integer): Int64;
+begin
+  Result := Int64(AHour) * NS_PER_HOUR +
+            Int64(AMinute) * NS_PER_MIN +
+            Int64(ASecond) * NS_PER_SEC +
+            ANanosecond;
 end;
 
 class procedure TTimeOfDay.MillisecondsToTime(AMilliseconds: Integer; out AHour, AMinute, ASecond, AMillisecond: Integer);
@@ -308,19 +340,55 @@ begin
   AMillisecond := AMilliseconds mod MILLISECONDS_PER_SECOND;
 end;
 
+class procedure TTimeOfDay.NanosecondsToTime(ANanoseconds: Int64; out AHour, AMinute, ASecond, ANanosecond: Integer);
+var
+  ns: Int64;
+begin
+  ns := ANanoseconds mod NS_PER_DAY;
+  if ns < 0 then
+    ns := ns + NS_PER_DAY;
+
+  AHour := Integer(ns div NS_PER_HOUR);
+  ns := ns mod NS_PER_HOUR;
+
+  AMinute := Integer(ns div NS_PER_MIN);
+  ns := ns mod NS_PER_MIN;
+
+  ASecond := Integer(ns div NS_PER_SEC);
+  ANanosecond := Integer(ns mod NS_PER_SEC);
+end;
+
 class function TTimeOfDay.Create(AHour, AMinute: Integer; ASecond: Integer; AMillisecond: Integer): TTimeOfDay;
 begin
   if not IsValidTime(AHour, AMinute, ASecond, AMillisecond) then
     raise ETimeError.CreateFmt('Invalid time: %d:%d:%d.%d', [AHour, AMinute, ASecond, AMillisecond]);
 
-  Result.FMilliseconds := TimeToMilliseconds(AHour, AMinute, ASecond, AMillisecond);
+  Result.FNanoseconds := TimeToNanoseconds(AHour, AMinute, ASecond, AMillisecond * Integer(NS_PER_MS));
+end;
+
+class function TTimeOfDay.CreateNs(AHour, AMinute, ASecond: Integer; ANanosecond: Integer): TTimeOfDay;
+begin
+  if not IsValidTimeNs(AHour, AMinute, ASecond, ANanosecond) then
+    raise ETimeError.CreateFmt('Invalid time: %d:%d:%d.%d', [AHour, AMinute, ASecond, ANanosecond]);
+
+  Result.FNanoseconds := TimeToNanoseconds(AHour, AMinute, ASecond, ANanosecond);
 end;
 
 class function TTimeOfDay.FromMilliseconds(AMilliseconds: Integer): TTimeOfDay;
+var
+  ms: Integer;
 begin
-  Result.FMilliseconds := AMilliseconds mod MILLISECONDS_PER_DAY;
-  if Result.FMilliseconds < 0 then
-    Result.FMilliseconds := Result.FMilliseconds + MILLISECONDS_PER_DAY;
+  ms := AMilliseconds mod MILLISECONDS_PER_DAY;
+  if ms < 0 then
+    ms := ms + MILLISECONDS_PER_DAY;
+  Result.FNanoseconds := Int64(ms) * NS_PER_MS;
+end;
+
+class function TTimeOfDay.FromNanoseconds(ANanoseconds: Int64): TTimeOfDay;
+begin
+  Result.FNanoseconds := ANanoseconds mod NS_PER_DAY;
+  if Result.FNanoseconds < 0 then
+    Result.FNanoseconds := Result.FNanoseconds + NS_PER_DAY;
 end;
 
 class function TTimeOfDay.FromTime(const ATime: TTime): TTimeOfDay;
@@ -338,12 +406,12 @@ end;
 
 class function TTimeOfDay.Midnight: TTimeOfDay;
 begin
-  Result.FMilliseconds := 0;
+  Result.FNanoseconds := 0;
 end;
 
 class function TTimeOfDay.Noon: TTimeOfDay;
 begin
-  Result.FMilliseconds := 12 * MILLISECONDS_PER_HOUR;
+  Result.FNanoseconds := 12 * NS_PER_HOUR;
 end;
 
 class function TTimeOfDay.MinValue: TTimeOfDay;
@@ -353,69 +421,104 @@ end;
 
 class function TTimeOfDay.MaxValue: TTimeOfDay;
 begin
-  Result.FMilliseconds := MILLISECONDS_PER_DAY - 1;
+  Result.FNanoseconds := NS_PER_DAY - 1;
 end;
 
 function TTimeOfDay.ToMilliseconds: Integer;
 begin
-  Result := FMilliseconds;
+  Result := Integer(FNanoseconds div NS_PER_MS);
+end;
+
+function TTimeOfDay.ToNanoseconds: Int64;
+begin
+  Result := FNanoseconds;
 end;
 
 function TTimeOfDay.ToSeconds: Integer;
 begin
-  Result := FMilliseconds div MILLISECONDS_PER_SECOND;
+  Result := Integer(FNanoseconds div NS_PER_SEC);
 end;
 
 function TTimeOfDay.ToTime: TTime;
 var
-  hour, minute, second, millisecond: Integer;
+  hour, minute, second, nanosecond: Integer;
 begin
-  MillisecondsToTime(FMilliseconds, hour, minute, second, millisecond);
-  Result := EncodeTime(hour, minute, second, millisecond);
+  NanosecondsToTime(FNanoseconds, hour, minute, second, nanosecond);
+  Result := EncodeTime(hour, minute, second, nanosecond div Integer(NS_PER_MS));
 end;
 
 function TTimeOfDay.ToDuration: TDuration;
 begin
-  Result := TDuration.FromMs(FMilliseconds);
+  Result := TDuration.FromNs(FNanoseconds);
 end;
 
 function TTimeOfDay.ToISO8601: string;
 var
-  hour, minute, second, millisecond: Integer;
+  hour, minute, second, nanosecond: Integer;
+  fracStr: string;
 begin
-  MillisecondsToTime(FMilliseconds, hour, minute, second, millisecond);
-  if millisecond > 0 then
-    Result := Format('%02d:%02d:%02d.%03d', [hour, minute, second, millisecond])
+  NanosecondsToTime(FNanoseconds, hour, minute, second, nanosecond);
+  if nanosecond = 0 then
+    Result := Format('%.2d:%.2d:%.2d', [hour, minute, second])
+  else if (nanosecond mod 1000000) = 0 then
+    // 毫秒级 (3位)
+    Result := Format('%.2d:%.2d:%.2d.%.3d', [hour, minute, second, nanosecond div 1000000])
+  else if (nanosecond mod 1000) = 0 then
+    // 微秒级 (6位)
+    Result := Format('%.2d:%.2d:%.2d.%.6d', [hour, minute, second, nanosecond div 1000])
   else
-    Result := Format('%02d:%02d:%02d', [hour, minute, second]);
+  begin
+    // 纳秒级 (9位)
+    fracStr := Format('%.9d', [nanosecond]);
+    Result := Format('%.2d:%.2d:%.2d.%s', [hour, minute, second, fracStr]);
+  end;
 end;
 
 function TTimeOfDay.GetHour: Integer;
 var
-  minute, second, millisecond: Integer;
+  minute, second, nanosecond: Integer;
 begin
-  MillisecondsToTime(FMilliseconds, Result, minute, second, millisecond);
+  NanosecondsToTime(FNanoseconds, Result, minute, second, nanosecond);
 end;
 
 function TTimeOfDay.GetMinute: Integer;
 var
-  hour, second, millisecond: Integer;
+  hour, second, nanosecond: Integer;
 begin
-  MillisecondsToTime(FMilliseconds, hour, Result, second, millisecond);
+  NanosecondsToTime(FNanoseconds, hour, Result, second, nanosecond);
 end;
 
 function TTimeOfDay.GetSecond: Integer;
 var
-  hour, minute, millisecond: Integer;
+  hour, minute, nanosecond: Integer;
 begin
-  MillisecondsToTime(FMilliseconds, hour, minute, Result, millisecond);
+  NanosecondsToTime(FNanoseconds, hour, minute, Result, nanosecond);
 end;
 
 function TTimeOfDay.GetMillisecond: Integer;
 var
-  hour, minute, second: Integer;
+  subsecNs: Integer;
 begin
-  MillisecondsToTime(FMilliseconds, hour, minute, second, Result);
+  subsecNs := Integer(FNanoseconds mod NS_PER_SEC);
+  Result := subsecNs div Integer(NS_PER_MS);
+end;
+
+function TTimeOfDay.GetMicrosecond: Integer;
+var
+  subsecNs: Integer;
+begin
+  subsecNs := Integer(FNanoseconds mod NS_PER_SEC);
+  Result := (subsecNs div Integer(NS_PER_US)) mod 1000;
+end;
+
+function TTimeOfDay.GetNanosecond: Integer;
+begin
+  Result := Integer(FNanoseconds mod NS_PER_SEC) mod 1000;
+end;
+
+function TTimeOfDay.GetSubsecondNanos: Integer;
+begin
+  Result := Integer(FNanoseconds mod NS_PER_SEC);
 end;
 
 function TTimeOfDay.GetHour12: Integer;
@@ -441,7 +544,7 @@ end;
 
 function TTimeOfDay.AddMilliseconds(AMilliseconds: Integer): TTimeOfDay;
 begin
-  Result := FromMilliseconds(FMilliseconds + AMilliseconds);
+  Result := FromNanoseconds(FNanoseconds + Int64(AMilliseconds) * NS_PER_MS);
 end;
 
 function TTimeOfDay.AddSeconds(ASeconds: Integer): TTimeOfDay;
@@ -461,9 +564,9 @@ end;
 
 function TTimeOfDay.Compare(const AOther: TTimeOfDay): Integer;
 begin
-  if FMilliseconds < AOther.FMilliseconds then
+  if FNanoseconds < AOther.FNanoseconds then
     Result := -1
-  else if FMilliseconds > AOther.FMilliseconds then
+  else if FNanoseconds > AOther.FNanoseconds then
     Result := 1
   else
     Result := 0;
@@ -471,17 +574,17 @@ end;
 
 function TTimeOfDay.Equal(const AOther: TTimeOfDay): Boolean;
 begin
-  Result := FMilliseconds = AOther.FMilliseconds;
+  Result := FNanoseconds = AOther.FNanoseconds;
 end;
 
 function TTimeOfDay.LessThan(const AOther: TTimeOfDay): Boolean;
 begin
-  Result := FMilliseconds < AOther.FMilliseconds;
+  Result := FNanoseconds < AOther.FNanoseconds;
 end;
 
 function TTimeOfDay.GreaterThan(const AOther: TTimeOfDay): Boolean;
 begin
-  Result := FMilliseconds > AOther.FMilliseconds;
+  Result := FNanoseconds > AOther.FNanoseconds;
 end;
 
 function TTimeOfDay.IsAM: Boolean;
@@ -496,12 +599,12 @@ end;
 
 function TTimeOfDay.IsMidnight: Boolean;
 begin
-  Result := FMilliseconds = 0;
+  Result := FNanoseconds = 0;
 end;
 
 function TTimeOfDay.IsNoon: Boolean;
 begin
-  Result := FMilliseconds = 12 * MILLISECONDS_PER_HOUR;
+  Result := FNanoseconds = 12 * NS_PER_HOUR;
 end;
 
 function TTimeOfDay.ToString: string;
@@ -552,10 +655,10 @@ end;
 
 class function TTimeOfDay.FromDuration(const ADuration: TDuration): TTimeOfDay;
 var
-  ms: Int64;
+  ns: Int64;
 begin
-  ms := ADuration.AsMs; // 可能为负，交由 FromMilliseconds 归一化
-  Result := FromMilliseconds(Integer(ms mod MILLISECONDS_PER_DAY));
+  ns := ADuration.AsNs; // 可能为负，交由 FromNanoseconds 归一化
+  Result := FromNanoseconds(ns);
 end;
 
 class function TTimeOfDay.TryCreate(AHour, AMinute, ASecond, AMillisecond: Integer; out ATime: TTimeOfDay): Boolean;
@@ -580,20 +683,20 @@ end;
 
 function TTimeOfDay.ToMinutes: Integer;
 begin
-  Result := FMilliseconds div MILLISECONDS_PER_MINUTE;
+  Result := Integer(FNanoseconds div NS_PER_MIN);
 end;
 
 function TTimeOfDay.ToHours: Double;
 begin
-  Result := FMilliseconds / MILLISECONDS_PER_HOUR;
+  Result := FNanoseconds / NS_PER_HOUR;
 end;
 
 function TTimeOfDay.AddDuration(const ADuration: TDuration): TTimeOfDay;
 var
-  delta: Int64;
+  deltaNs: Int64;
 begin
-  delta := ADuration.AsMs mod MILLISECONDS_PER_DAY; // 归一到 24h 内
-  Result := FromMilliseconds(FMilliseconds + Integer(delta));
+  deltaNs := ADuration.AsNs mod NS_PER_DAY; // 归一到 24h 内
+  Result := FromNanoseconds(FNanoseconds + deltaNs);
 end;
 
 function TTimeOfDay.SubtractHours(AHours: Integer): TTimeOfDay;
@@ -618,59 +721,69 @@ end;
 
 function TTimeOfDay.SubtractDuration(const ADuration: TDuration): TTimeOfDay;
 var
-  delta: Int64;
+  deltaNs: Int64;
 begin
-  delta := ADuration.AsMs mod MILLISECONDS_PER_DAY;
-  Result := FromMilliseconds(FMilliseconds - Integer(delta));
+  deltaNs := ADuration.AsNs mod NS_PER_DAY;
+  Result := FromNanoseconds(FNanoseconds - deltaNs);
 end;
 
 function TTimeOfDay.MillisecondsUntil(const AOther: TTimeOfDay): Integer;
 var
-  diff: Integer;
+  diffNs: Int64;
 begin
-  diff := (AOther.FMilliseconds - FMilliseconds) mod MILLISECONDS_PER_DAY;
-  if diff < 0 then
-    Inc(diff, MILLISECONDS_PER_DAY);
-  Result := diff;
+  diffNs := (AOther.FNanoseconds - FNanoseconds) mod NS_PER_DAY;
+  if diffNs < 0 then
+    diffNs := diffNs + NS_PER_DAY;
+  Result := Integer(diffNs div NS_PER_MS);
 end;
 
 function TTimeOfDay.MillisecondsSince(const AOther: TTimeOfDay): Integer;
 var
-  diff: Integer;
+  diffNs: Int64;
 begin
-  diff := (FMilliseconds - AOther.FMilliseconds) mod MILLISECONDS_PER_DAY;
-  if diff < 0 then
-    Inc(diff, MILLISECONDS_PER_DAY);
-  Result := diff;
+  diffNs := (FNanoseconds - AOther.FNanoseconds) mod NS_PER_DAY;
+  if diffNs < 0 then
+    diffNs := diffNs + NS_PER_DAY;
+  Result := Integer(diffNs div NS_PER_MS);
 end;
 
 function TTimeOfDay.DurationUntil(const AOther: TTimeOfDay): TDuration;
+var
+  diffNs: Int64;
 begin
-  Result := TDuration.FromMs(MillisecondsUntil(AOther));
+  diffNs := (AOther.FNanoseconds - FNanoseconds) mod NS_PER_DAY;
+  if diffNs < 0 then
+    diffNs := diffNs + NS_PER_DAY;
+  Result := TDuration.FromNs(diffNs);
 end;
 
 function TTimeOfDay.DurationSince(const AOther: TTimeOfDay): TDuration;
+var
+  diffNs: Int64;
 begin
-  Result := TDuration.FromMs(MillisecondsSince(AOther));
+  diffNs := (FNanoseconds - AOther.FNanoseconds) mod NS_PER_DAY;
+  if diffNs < 0 then
+    diffNs := diffNs + NS_PER_DAY;
+  Result := TDuration.FromNs(diffNs);
 end;
 
 function TTimeOfDay.LessOrEqual(const AOther: TTimeOfDay): Boolean;
 begin
-  Result := FMilliseconds <= AOther.FMilliseconds;
+  Result := FNanoseconds <= AOther.FNanoseconds;
 end;
 
 function TTimeOfDay.GreaterOrEqual(const AOther: TTimeOfDay): Boolean;
 begin
-  Result := FMilliseconds >= AOther.FMilliseconds;
+  Result := FNanoseconds >= AOther.FNanoseconds;
 end;
 
 function TTimeOfDay.IsBetween(const AStart, AEnd: TTimeOfDay): Boolean;
 var
-  s, e, x: Integer;
+  s, e, x: Int64;
 begin
-  s := AStart.FMilliseconds;
-  e := AEnd.FMilliseconds;
-  x := FMilliseconds;
+  s := AStart.FNanoseconds;
+  e := AEnd.FNanoseconds;
+  x := FNanoseconds;
   if s <= e then
     Result := (x >= s) and (x < e)
   else
@@ -683,9 +796,9 @@ var
   s, e, x: Int64;
   eAdj, xAdj: Int64;
 begin
-  s := AMin.FMilliseconds;
-  e := AMax.FMilliseconds;
-  x := FMilliseconds;
+  s := AMin.FNanoseconds;
+  e := AMax.FNanoseconds;
+  x := FNanoseconds;
   if s <= e then
   begin
     if x < s then Exit(AMin);
@@ -695,9 +808,9 @@ begin
   else
   begin
     // 跨午夜，将区间映射到线性轴 [s, e+day)
-    eAdj := e + MILLISECONDS_PER_DAY;
+    eAdj := e + NS_PER_DAY;
     xAdj := x;
-    if xAdj < s then xAdj := xAdj + MILLISECONDS_PER_DAY;
+    if xAdj < s then xAdj := xAdj + NS_PER_DAY;
 
     if xAdj < s then Exit(AMin);
     if xAdj >= eAdj then Exit(AMax);
@@ -707,12 +820,12 @@ end;
 
 class function TTimeOfDay.Min(const A, B: TTimeOfDay): TTimeOfDay;
 begin
-  if A.FMilliseconds <= B.FMilliseconds then Result := A else Result := B;
+  if A.FNanoseconds <= B.FNanoseconds then Result := A else Result := B;
 end;
 
 class function TTimeOfDay.Max(const A, B: TTimeOfDay): TTimeOfDay;
 begin
-  if A.FMilliseconds >= B.FMilliseconds then Result := A else Result := B;
+  if A.FNanoseconds >= B.FNanoseconds then Result := A else Result := B;
 end;
 
 class operator TTimeOfDay.+(const ATime: TTimeOfDay; const ADuration: TDuration): TTimeOfDay;
@@ -741,16 +854,17 @@ end;
 
 class function TTimeOfDay.TryParse(const ATimeStr: string; out ATime: TTimeOfDay): Boolean;
 var
-  s, hStr, mStr, sStr, msStr, rest: string;
+  s, hStr, mStr, sStr, fracStr, rest: string;
   p, p2, p3: SizeInt;
-  h, m, sec, ms: Integer;
+  h, m, sec, nanosecond: Integer;
+  fracLen: Integer;
 begin
   s := Trim(ATimeStr);
   ATime := Midnight;
   Result := False;
   if s = '' then Exit;
 
-  // 允许：HH:MM | HH:MM:SS | HH:MM:SS.mmm
+  // 允许：HH:MM | HH:MM:SS | HH:MM:SS.nnn (1-9位小数)
   p := Pos(':', s);
   if p = 0 then Exit;
   hStr := Copy(s, 1, p - 1);
@@ -763,17 +877,17 @@ begin
     p3 := Pos('.', sStr);
     if p3 > 0 then
     begin
-      msStr := Copy(sStr, p3 + 1, MaxInt);
+      fracStr := Copy(sStr, p3 + 1, MaxInt);
       sStr := Copy(sStr, 1, p3 - 1);
     end
     else
-      msStr := '';
+      fracStr := '';
   end
   else
   begin
     mStr := rest;
     sStr := '';
-    msStr := '';
+    fracStr := '';
   end;
 
   if (hStr = '') or (mStr = '') then Exit;
@@ -784,15 +898,23 @@ begin
   if sStr = '' then sec := 0
   else if not TryStrToInt(sStr, sec) then Exit;
 
-  if msStr = '' then ms := 0
+  if fracStr = '' then nanosecond := 0
   else
   begin
-    if (Length(msStr) > 3) or (not TryStrToInt(msStr, ms)) then Exit;
+    fracLen := Length(fracStr);
+    if (fracLen < 1) or (fracLen > 9) then Exit;
+    if not TryStrToInt(fracStr, nanosecond) then Exit;
+    // 补齐到9位
+    while fracLen < 9 do
+    begin
+      nanosecond := nanosecond * 10;
+      Inc(fracLen);
+    end;
   end;
 
-  Result := IsValidTime(h, m, sec, ms);
+  Result := IsValidTimeNs(h, m, sec, nanosecond);
   if Result then
-    ATime := Create(h, m, sec, ms);
+    ATime := CreateNs(h, m, sec, nanosecond);
 end;
 
 class function TTimeOfDay.TryParseISO(const ATimeStr: string; out ATime: TTimeOfDay): Boolean;
@@ -843,50 +965,50 @@ end;
 
 function TTimeOfDay.TruncateToSecond: TTimeOfDay;
 var
-  ms: Integer;
+  ns: Int64;
 begin
-  ms := (FMilliseconds div MILLISECONDS_PER_SECOND) * MILLISECONDS_PER_SECOND;
-  Result := FromMilliseconds(ms);
+  ns := (FNanoseconds div NS_PER_SEC) * NS_PER_SEC;
+  Result := FromNanoseconds(ns);
 end;
 
 function TTimeOfDay.TruncateToMinute: TTimeOfDay;
 var
-  ms: Integer;
+  ns: Int64;
 begin
-  ms := (FMilliseconds div MILLISECONDS_PER_MINUTE) * MILLISECONDS_PER_MINUTE;
-  Result := FromMilliseconds(ms);
+  ns := (FNanoseconds div NS_PER_MIN) * NS_PER_MIN;
+  Result := FromNanoseconds(ns);
 end;
 
 function TTimeOfDay.TruncateToHour: TTimeOfDay;
 var
-  ms: Integer;
+  ns: Int64;
 begin
-  ms := (FMilliseconds div MILLISECONDS_PER_HOUR) * MILLISECONDS_PER_HOUR;
-  Result := FromMilliseconds(ms);
+  ns := (FNanoseconds div NS_PER_HOUR) * NS_PER_HOUR;
+  Result := FromNanoseconds(ns);
 end;
 
 function TTimeOfDay.RoundToSecond: TTimeOfDay;
 var
-  ms: Integer;
+  ns: Int64;
 begin
-  ms := ((FMilliseconds + (MILLISECONDS_PER_SECOND div 2)) div MILLISECONDS_PER_SECOND) * MILLISECONDS_PER_SECOND;
-  Result := FromMilliseconds(ms);
+  ns := ((FNanoseconds + (NS_PER_SEC div 2)) div NS_PER_SEC) * NS_PER_SEC;
+  Result := FromNanoseconds(ns);
 end;
 
 function TTimeOfDay.RoundToMinute: TTimeOfDay;
 var
-  ms: Integer;
+  ns: Int64;
 begin
-  ms := ((FMilliseconds + (MILLISECONDS_PER_MINUTE div 2)) div MILLISECONDS_PER_MINUTE) * MILLISECONDS_PER_MINUTE;
-  Result := FromMilliseconds(ms);
+  ns := ((FNanoseconds + (NS_PER_MIN div 2)) div NS_PER_MIN) * NS_PER_MIN;
+  Result := FromNanoseconds(ns);
 end;
 
 function TTimeOfDay.RoundToHour: TTimeOfDay;
 var
-  ms: Integer;
+  ns: Int64;
 begin
-  ms := ((FMilliseconds + (MILLISECONDS_PER_HOUR div 2)) div MILLISECONDS_PER_HOUR) * MILLISECONDS_PER_HOUR;
-  Result := FromMilliseconds(ms);
+  ns := ((FNanoseconds + (NS_PER_HOUR div 2)) div NS_PER_HOUR) * NS_PER_HOUR;
+  Result := FromNanoseconds(ns);
 end;
 
 // ===== P2: TTimeRange 实现 =====
@@ -895,20 +1017,20 @@ class function TTimeRange.Create(const AStart, AEnd: TTimeOfDay): TTimeRange;
 begin
   Result.FStartTime := AStart;
   Result.FEndTime := AEnd;
-  Result.FCrossesmidnight := AStart.FMilliseconds > AEnd.FMilliseconds;
+  Result.FCrossesmidnight := AStart.FNanoseconds > AEnd.FNanoseconds;
 end;
 
 class function TTimeRange.CreateDuration(const AStart: TTimeOfDay; const ADuration: TDuration): TTimeRange;
 var
-  durMs: Int64;
-  endMs: Integer;
+  durNs: Int64;
+  endNs: Int64;
 begin
   Result.FStartTime := AStart;
-  durMs := ADuration.AsMs mod MILLISECONDS_PER_DAY;
-  endMs := (AStart.FMilliseconds + Integer(durMs)) mod MILLISECONDS_PER_DAY;
-  if endMs < 0 then Inc(endMs, MILLISECONDS_PER_DAY);
-  Result.FEndTime := TTimeOfDay.FromMilliseconds(endMs);
-  Result.FCrossesmidnight := AStart.FMilliseconds > endMs;
+  durNs := ADuration.AsNs mod TTimeOfDay.NS_PER_DAY;
+  endNs := (AStart.FNanoseconds + durNs) mod TTimeOfDay.NS_PER_DAY;
+  if endNs < 0 then endNs := endNs + TTimeOfDay.NS_PER_DAY;
+  Result.FEndTime := TTimeOfDay.FromNanoseconds(endNs);
+  Result.FCrossesmidnight := AStart.FNanoseconds > endNs;
 end;
 
 function TTimeRange.GetStartTime: TTimeOfDay;
@@ -923,13 +1045,13 @@ end;
 
 function TTimeRange.GetDuration: TDuration;
 var
-  ms: Integer;
+  ns: Int64;
 begin
   if not CrossesMiddnight then
-    ms := (FEndTime.FMilliseconds - FStartTime.FMilliseconds)
+    ns := (FEndTime.FNanoseconds - FStartTime.FNanoseconds)
   else
-    ms := (MILLISECONDS_PER_DAY - FStartTime.FMilliseconds) + FEndTime.FMilliseconds;
-  Result := TDuration.FromMs(ms);
+    ns := (TTimeOfDay.NS_PER_DAY - FStartTime.FNanoseconds) + FEndTime.FNanoseconds;
+  Result := TDuration.FromNs(ns);
 end;
 
 function TTimeRange.CrossesMiddnight: Boolean;
@@ -939,7 +1061,7 @@ end;
 
 function TTimeRange.IsEmpty: Boolean;
 begin
-  Result := FStartTime.FMilliseconds = FEndTime.FMilliseconds;
+  Result := FStartTime.FNanoseconds = FEndTime.FNanoseconds;
 end;
 
 function TTimeRange.IsValid: Boolean;
@@ -950,11 +1072,11 @@ end;
 
 function TTimeRange.Contains(const ATime: TTimeOfDay): Boolean;
 var
-  s, e, x: Integer;
+  s, e, x: Int64;
 begin
-  s := FStartTime.FMilliseconds;
-  e := FEndTime.FMilliseconds;
-  x := ATime.FMilliseconds;
+  s := FStartTime.FNanoseconds;
+  e := FEndTime.FNanoseconds;
+  x := ATime.FNanoseconds;
   if not CrossesMiddnight then
     Result := (x >= s) and (x < e)
   else
@@ -962,31 +1084,31 @@ begin
 end;
 
 function TTimeRange.Overlaps(const AOther: TTimeRange): Boolean;
-  // 将两段都转换为最多两段的半开区间，在 0..MILLISECONDS_PER_DAY 线性轴上逐对判断
-  function Overlap1(s1,e1,s2,e2: Integer): Boolean;
+  // 将两段都转换为最多两段的半开区间，在 0..NS_PER_DAY 线性轴上逐对判断
+  function Overlap1(s1,e1,s2,e2: Int64): Boolean;
   begin
     Result := (s1 < e2) and (s2 < e1);
   end;
 var
-  s1,e1,s2,e2: Integer;
-  A1s,A1e,A2s,A2e: array[0..1] of Integer;
+  s1,e1,s2,e2: Int64;
+  A1s,A1e,A2s,A2e: array[0..1] of Int64;
   n1,n2,i,j: Integer;
 begin
-  s1 := FStartTime.FMilliseconds; e1 := FEndTime.FMilliseconds;
-  s2 := AOther.FStartTime.FMilliseconds; e2 := AOther.FEndTime.FMilliseconds;
+  s1 := FStartTime.FNanoseconds; e1 := FEndTime.FNanoseconds;
+  s2 := AOther.FStartTime.FNanoseconds; e2 := AOther.FEndTime.FNanoseconds;
 
   // 归一化为线性段集合（每段 s<e）
   if s1 <= e1 then begin
     A1s[0] := s1; A1e[0] := e1; n1 := 1;
   end else begin
-    A1s[0] := s1; A1e[0] := MILLISECONDS_PER_DAY;
+    A1s[0] := s1; A1e[0] := TTimeOfDay.NS_PER_DAY;
     A1s[1] := 0;  A1e[1] := e1; n1 := 2;
   end;
 
   if s2 <= e2 then begin
     A2s[0] := s2; A2e[0] := e2; n2 := 1;
   end else begin
-    A2s[0] := s2; A2e[0] := MILLISECONDS_PER_DAY;
+    A2s[0] := s2; A2e[0] := TTimeOfDay.NS_PER_DAY;
     A2s[1] := 0;  A2e[1] := e2; n2 := 2;
   end;
 
@@ -1000,57 +1122,57 @@ end;
 function TTimeRange.Union(const AOther: TTimeRange): TTimeRange;
 // 合并：以本段起点为基准展开到线性轴，取两段线性并集的最小包络，再折回到 [0,day)。
 var
-  s1,e1,s2,e2: Integer;
-  base: Integer;
-  s1u,e1u,s2u,e2u: Integer;
-  startU,endU: Integer;
+  s1,e1,s2,e2: Int64;
+  base: Int64;
+  s1u,e1u,s2u,e2u: Int64;
+  startU,endU: Int64;
 begin
-  s1 := FStartTime.FMilliseconds; e1 := FEndTime.FMilliseconds;
-  s2 := AOther.FStartTime.FMilliseconds; e2 := AOther.FEndTime.FMilliseconds;
+  s1 := FStartTime.FNanoseconds; e1 := FEndTime.FNanoseconds;
+  s2 := AOther.FStartTime.FNanoseconds; e2 := AOther.FEndTime.FNanoseconds;
 
   base := s1;
 
   // 展开 A
   s1u := s1;
-  e1u := e1; if e1u < s1u then Inc(e1u, MILLISECONDS_PER_DAY);
+  e1u := e1; if e1u < s1u then e1u := e1u + TTimeOfDay.NS_PER_DAY;
 
   // 展开 B 相对 base
-  if s2 >= base then s2u := s2 else s2u := s2 + MILLISECONDS_PER_DAY;
-  e2u := e2; if e2u < s2 then Inc(e2u, MILLISECONDS_PER_DAY);
-  if s2u > e2u then Inc(e2u, MILLISECONDS_PER_DAY);
+  if s2 >= base then s2u := s2 else s2u := s2 + TTimeOfDay.NS_PER_DAY;
+  e2u := e2; if e2u < s2 then e2u := e2u + TTimeOfDay.NS_PER_DAY;
+  if s2u > e2u then e2u := e2u + TTimeOfDay.NS_PER_DAY;
 
   // 线性并集的包络
   if s1u < s2u then begin startU := s1u; endU := Max(e1u, e2u); end
   else begin startU := s2u; endU := Max(e1u, e2u); end;
 
   Result := TTimeRange.Create(
-    TTimeOfDay.FromMilliseconds(startU mod MILLISECONDS_PER_DAY),
-    TTimeOfDay.FromMilliseconds(endU mod MILLISECONDS_PER_DAY)
+    TTimeOfDay.FromNanoseconds(startU mod TTimeOfDay.NS_PER_DAY),
+    TTimeOfDay.FromNanoseconds(endU mod TTimeOfDay.NS_PER_DAY)
   );
 end;
 
 function TTimeRange.Intersection(const AOther: TTimeRange): TTimeRange;
 // 计算交集：将两段各自拆为最多两片段，逐对求交；若有多个交段，仅返回覆盖更长的那一段（简化）。
-  function Inter1(s1,e1,s2,e2: Integer; out rs,re: Integer): Boolean;
+  function Inter1(s1,e1,s2,e2: Int64; out rs,re: Int64): Boolean;
   begin
     rs := Max(s1, s2);
     re := Min(e1, e2);
     Result := rs < re; // 半开区间，相接不算相交
   end;
 var
-  s1,e1,s2,e2: Integer;
-  A1s,A1e,A2s,A2e: array[0..1] of Integer;
+  s1,e1,s2,e2: Int64;
+  A1s,A1e,A2s,A2e: array[0..1] of Int64;
   n1,n2,i,j: Integer;
-  brs,bre,bestLen,tmpS,tmpE: Integer;
+  brs,bre,bestLen,tmpS,tmpE: Int64;
 begin
-  s1 := FStartTime.FMilliseconds; e1 := FEndTime.FMilliseconds;
-  s2 := AOther.FStartTime.FMilliseconds; e2 := AOther.FEndTime.FMilliseconds;
+  s1 := FStartTime.FNanoseconds; e1 := FEndTime.FNanoseconds;
+  s2 := AOther.FStartTime.FNanoseconds; e2 := AOther.FEndTime.FNanoseconds;
 
   if s1 <= e1 then begin A1s[0]:=s1; A1e[0]:=e1; n1:=1; end
-  else begin A1s[0]:=s1; A1e[0]:=MILLISECONDS_PER_DAY; A1s[1]:=0; A1e[1]:=e1; n1:=2; end;
+  else begin A1s[0]:=s1; A1e[0]:=TTimeOfDay.NS_PER_DAY; A1s[1]:=0; A1e[1]:=e1; n1:=2; end;
 
   if s2 <= e2 then begin A2s[0]:=s2; A2e[0]:=e2; n2:=1; end
-  else begin A2s[0]:=s2; A2e[0]:=MILLISECONDS_PER_DAY; A2s[1]:=0; A2e[1]:=e2; n2:=2; end;
+  else begin A2s[0]:=s2; A2e[0]:=TTimeOfDay.NS_PER_DAY; A2s[1]:=0; A2e[1]:=e2; n2:=2; end;
 
   bestLen := -1; brs := 0; bre := 0;
   for i := 0 to n1-1 do
@@ -1063,7 +1185,7 @@ begin
         end;
 
   if bestLen > 0 then
-    Result := TTimeRange.Create(TTimeOfDay.FromMilliseconds(brs), TTimeOfDay.FromMilliseconds(bre mod MILLISECONDS_PER_DAY))
+    Result := TTimeRange.Create(TTimeOfDay.FromNanoseconds(brs), TTimeOfDay.FromNanoseconds(bre mod TTimeOfDay.NS_PER_DAY))
   else
     Result := TTimeRange.Create(FStartTime, FStartTime);
 end;
@@ -1077,7 +1199,7 @@ function TTimeRange.Shift(const ADuration: TDuration): TTimeRange;
 begin
   Result.FStartTime := FStartTime.AddDuration(ADuration);
   Result.FEndTime := FEndTime.AddDuration(ADuration);
-  Result.FCrossesmidnight := Result.FStartTime.FMilliseconds > Result.FEndTime.FMilliseconds;
+  Result.FCrossesmidnight := Result.FStartTime.FNanoseconds > Result.FEndTime.FNanoseconds;
 end;
 
 function TTimeRange.ToString: string;

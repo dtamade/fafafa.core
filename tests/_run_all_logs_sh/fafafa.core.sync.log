@@ -1,7 +1,7 @@
 ========================================
 Module: fafafa.core.sync
 Script: /home/dtamade/projects/fafafa.core/tests/fafafa.core.sync/BuildOrTest.sh
-Started: 2025-10-28 12:29:30
+Started: 2025-12-01 10:56:27
 ========================================
 ========================================
 fafafa.core.sync 测试构建脚本
@@ -52,6 +52,37 @@ Copyright (c) 1993-2025 by Florian Klaempfl and others
 (3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.pas
 (3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.namedRWLock.pas
 (3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.namedRWLock.unix.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.base.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.time.cpu.pas
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.base.pas(1288,3) Note: (6058) Call to subroutine "procedure TLockGuard.Release;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.base.pas(1375,3) Note: (5025) Local variable "i" not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.base.pas(1397,10) Note: (6058) Call to subroutine "function TTryLock.DoTight:System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.base.pas(1404,10) Note: (6058) Call to subroutine "function TTryLock.DoTight(aEndTick:QWord):System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.base.pas(1424,12) Note: (6058) Call to subroutine "function TTryLock.DoBackOffNoCheckNoYield:System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.base.pas(1431,12) Note: (6058) Call to subroutine "function TTryLock.DoBackOffNoCheck:System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.base.pas(1441,12) Note: (6058) Call to subroutine "function TTryLock.DoBackOffNoYield(aEndTick:QWord):System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.base.pas(1448,12) Note: (6058) Call to subroutine "function TTryLock.DoBackOff(aEndTick:QWord):System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.base.pas(1467,10) Note: (6058) Call to subroutine "function TTryLock.DoBlock:System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.base.pas(1474,10) Note: (6058) Call to subroutine "function TTryLock.DoBlock(aEndTick:QWord):System.Boolean;" marked as inline is not inlined
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.namedRWLock.base.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.rwlock.base.pas
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.rwlock.base.pas(457,4) Note: (3123) "assembler" not yet supported inside inline procedure/function
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.rwlock.base.pas(457,4) Hint: (3124) Inlining disabled
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.rwlock.base.pas(472,4) Note: (3123) "assembler" not yet supported inside inline procedure/function
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.rwlock.base.pas(472,4) Hint: (3124) Inlining disabled
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.rwlock.base.pas(487,4) Note: (3123) "assembler" not yet supported inside inline procedure/function
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.rwlock.base.pas(487,4) Hint: (3124) Inlining disabled
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.rwlock.base.pas(503,4) Note: (3123) "assembler" not yet supported inside inline procedure/function
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.rwlock.base.pas(503,4) Hint: (3124) Inlining disabled
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.rwlock.base.pas(519,4) Note: (3123) "assembler" not yet supported inside inline procedure/function
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.rwlock.base.pas(519,4) Hint: (3124) Inlining disabled
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.rwlock.base.pas(605,19) Warning: (5093) Function result variable of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.rwlock.base.pas(10,3) Hint: (5023) Unit "fafafa.core.base" not used in fafafa.core.sync.rwlock.base
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.rwlock.base.pas(10,21) Hint: (5023) Unit "fafafa.core.sync.base" not used in fafafa.core.sync.rwlock.base
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.namedRWLock.base.pas(9,3) Hint: (5023) Unit "fafafa.core.base" not used in fafafa.core.sync.namedRWLock.base
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.namedRWLock.base.pas(9,21) Hint: (5023) Unit "fafafa.core.sync.base" not used in fafafa.core.sync.namedRWLock.base
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.namedRWLock.base.pas(9,44) Hint: (5023) Unit "fafafa.core.sync.rwlock.base" not used in fafafa.core.sync.namedRWLock.base
 /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.namedRWLock.unix.pas(132,54) Hint: (5024) Parameter "AInitialOwner" not used
 /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.namedRWLock.unix.pas(434,25) Error: (5000) Identifier not found "memory_order_seq_cst"
 /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.namedRWLock.unix.pas(561,25) Error: (5000) Identifier not found "memory_order_seq_cst"

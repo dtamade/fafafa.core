@@ -19,7 +19,8 @@ function MemEqual(a, b: Pointer; len: SizeUInt): LongBool; {$IFDEF SIMD_AGGRESSI
 // 字节查找
 function MemFindByte(p: Pointer; len: SizeUInt; value: Byte): PtrInt; {$IFDEF SIMD_AGGRESSIVE_INLINE}inline;{$ENDIF}
 
-// 差异范围检�?function MemDiffRange(a, b: Pointer; len: SizeUInt; out firstDiff, lastDiff: SizeUInt): Boolean; {$IFDEF SIMD_AGGRESSIVE_INLINE}inline;{$ENDIF}
+// 差异范围检测
+function MemDiffRange(a, b: Pointer; len: SizeUInt; out firstDiff, lastDiff: SizeUInt): Boolean; {$IFDEF SIMD_AGGRESSIVE_INLINE}inline;{$ENDIF}
 
 // 内存复制
 procedure MemCopy(src, dst: Pointer; len: SizeUInt); {$IFDEF SIMD_AGGRESSIVE_INLINE}inline;{$ENDIF}
@@ -35,7 +36,8 @@ procedure MemReverse(p: Pointer; len: SizeUInt); {$IFDEF SIMD_AGGRESSIVE_INLINE}
 // 字节求和
 function SumBytes(p: Pointer; len: SizeUInt): UInt64; {$IFDEF SIMD_AGGRESSIVE_INLINE}inline;{$ENDIF}
 
-// 最值查�?procedure MinMaxBytes(p: Pointer; len: SizeUInt; out minVal, maxVal: Byte); {$IFDEF SIMD_AGGRESSIVE_INLINE}inline;{$ENDIF}
+// 最值查找
+procedure MinMaxBytes(p: Pointer; len: SizeUInt; out minVal, maxVal: Byte); {$IFDEF SIMD_AGGRESSIVE_INLINE}inline;{$ENDIF}
 
 // 字节计数
 function CountByte(p: Pointer; len: SizeUInt; value: Byte): SizeUInt; {$IFDEF SIMD_AGGRESSIVE_INLINE}inline;{$ENDIF}
@@ -45,11 +47,14 @@ function CountByte(p: Pointer; len: SizeUInt; value: Byte): SizeUInt; {$IFDEF SI
 // UTF-8 验证
 function Utf8Validate(p: Pointer; len: SizeUInt): Boolean; {$IFDEF SIMD_AGGRESSIVE_INLINE}inline;{$ENDIF}
 
-// ASCII 忽略大小写比�?function AsciiIEqual(a, b: Pointer; len: SizeUInt): Boolean; {$IFDEF SIMD_AGGRESSIVE_INLINE}inline;{$ENDIF}
+// ASCII 忽略大小写比较
+function AsciiIEqual(a, b: Pointer; len: SizeUInt): Boolean; {$IFDEF SIMD_AGGRESSIVE_INLINE}inline;{$ENDIF}
 
-// ASCII 转小�?procedure ToLowerAscii(p: Pointer; len: SizeUInt); {$IFDEF SIMD_AGGRESSIVE_INLINE}inline;{$ENDIF}
+// ASCII 转小写
+procedure ToLowerAscii(p: Pointer; len: SizeUInt); {$IFDEF SIMD_AGGRESSIVE_INLINE}inline;{$ENDIF}
 
-// ASCII 转大�?procedure ToUpperAscii(p: Pointer; len: SizeUInt); {$IFDEF SIMD_AGGRESSIVE_INLINE}inline;{$ENDIF}
+// ASCII 转大写
+procedure ToUpperAscii(p: Pointer; len: SizeUInt); {$IFDEF SIMD_AGGRESSIVE_INLINE}inline;{$ENDIF}
 
 // === 搜索函数 ===
 
@@ -58,97 +63,128 @@ function BytesIndexOf(haystack: Pointer; haystackLen: SizeUInt; needle: Pointer;
 
 // === 位集函数 ===
 
-// 位集合人口计�?function BitsetPopCount(p: Pointer; byteLen: SizeUInt): SizeUInt; {$IFDEF SIMD_AGGRESSIVE_INLINE}inline;{$ENDIF}
+// 位集合人口计数
+function BitsetPopCount(p: Pointer; byteLen: SizeUInt): SizeUInt; {$IFDEF SIMD_AGGRESSIVE_INLINE}inline;{$ENDIF}
 
 implementation
 
 uses
-  fafafa.core.simd.scalar;
+  fafafa.core.simd.dispatch;
 
 // === 内存操作函数实现 ===
+// 通过派发表调用当前活跃后端
 
 function MemEqual(a, b: Pointer; len: SizeUInt): LongBool;
+var dispatch: PSimdDispatchTable;
 begin
-  // 目前使用标量实现，后续会添加 SIMD 派发
-  Result := MemEqual_Scalar(a, b, len);
+  dispatch := GetDispatchTable;
+  Result := dispatch^.MemEqual(a, b, len);
 end;
 
 function MemFindByte(p: Pointer; len: SizeUInt; value: Byte): PtrInt;
+var dispatch: PSimdDispatchTable;
 begin
-  Result := MemFindByte_Scalar(p, len, value);
+  dispatch := GetDispatchTable;
+  Result := dispatch^.MemFindByte(p, len, value);
 end;
 
 function MemDiffRange(a, b: Pointer; len: SizeUInt; out firstDiff, lastDiff: SizeUInt): Boolean;
+var dispatch: PSimdDispatchTable;
 begin
-  Result := MemDiffRange_Scalar(a, b, len, firstDiff, lastDiff);
+  dispatch := GetDispatchTable;
+  Result := dispatch^.MemDiffRange(a, b, len, firstDiff, lastDiff);
 end;
 
 procedure MemCopy(src, dst: Pointer; len: SizeUInt);
+var dispatch: PSimdDispatchTable;
 begin
-  MemCopy_Scalar(src, dst, len);
+  dispatch := GetDispatchTable;
+  dispatch^.MemCopy(src, dst, len);
 end;
 
 procedure MemSet(dst: Pointer; len: SizeUInt; value: Byte);
+var dispatch: PSimdDispatchTable;
 begin
-  MemSet_Scalar(dst, len, value);
+  dispatch := GetDispatchTable;
+  dispatch^.MemSet(dst, len, value);
 end;
 
 procedure MemReverse(p: Pointer; len: SizeUInt);
+var dispatch: PSimdDispatchTable;
 begin
-  MemReverse_Scalar(p, len);
+  dispatch := GetDispatchTable;
+  dispatch^.MemReverse(p, len);
 end;
 
 // === 统计函数实现 ===
 
 function SumBytes(p: Pointer; len: SizeUInt): UInt64;
+var dispatch: PSimdDispatchTable;
 begin
-  Result := SumBytes_Scalar(p, len);
+  dispatch := GetDispatchTable;
+  Result := dispatch^.SumBytes(p, len);
 end;
 
 procedure MinMaxBytes(p: Pointer; len: SizeUInt; out minVal, maxVal: Byte);
+var dispatch: PSimdDispatchTable;
 begin
-  MinMaxBytes_Scalar(p, len, minVal, maxVal);
+  dispatch := GetDispatchTable;
+  dispatch^.MinMaxBytes(p, len, minVal, maxVal);
 end;
 
 function CountByte(p: Pointer; len: SizeUInt; value: Byte): SizeUInt;
+var dispatch: PSimdDispatchTable;
 begin
-  Result := CountByte_Scalar(p, len, value);
+  dispatch := GetDispatchTable;
+  Result := dispatch^.CountByte(p, len, value);
 end;
 
 // === 文本处理函数实现 ===
 
 function Utf8Validate(p: Pointer; len: SizeUInt): Boolean;
+var dispatch: PSimdDispatchTable;
 begin
-  Result := Utf8Validate_Scalar(p, len);
+  dispatch := GetDispatchTable;
+  Result := dispatch^.Utf8Validate(p, len);
 end;
 
 function AsciiIEqual(a, b: Pointer; len: SizeUInt): Boolean;
+var dispatch: PSimdDispatchTable;
 begin
-  Result := AsciiIEqual_Scalar(a, b, len);
+  dispatch := GetDispatchTable;
+  Result := dispatch^.AsciiIEqual(a, b, len);
 end;
 
 procedure ToLowerAscii(p: Pointer; len: SizeUInt);
+var dispatch: PSimdDispatchTable;
 begin
-  ToLowerAscii_Scalar(p, len);
+  dispatch := GetDispatchTable;
+  dispatch^.ToLowerAscii(p, len);
 end;
 
 procedure ToUpperAscii(p: Pointer; len: SizeUInt);
+var dispatch: PSimdDispatchTable;
 begin
-  ToUpperAscii_Scalar(p, len);
+  dispatch := GetDispatchTable;
+  dispatch^.ToUpperAscii(p, len);
 end;
 
 // === 搜索函数实现 ===
 
 function BytesIndexOf(haystack: Pointer; haystackLen: SizeUInt; needle: Pointer; needleLen: SizeUInt): PtrInt;
+var dispatch: PSimdDispatchTable;
 begin
-  Result := BytesIndexOf_Scalar(haystack, haystackLen, needle, needleLen);
+  dispatch := GetDispatchTable;
+  Result := dispatch^.BytesIndexOf(haystack, haystackLen, needle, needleLen);
 end;
 
 // === 位集函数实现 ===
 
 function BitsetPopCount(p: Pointer; byteLen: SizeUInt): SizeUInt;
+var dispatch: PSimdDispatchTable;
 begin
-  Result := BitsetPopCount_Scalar(p, byteLen);
+  dispatch := GetDispatchTable;
+  Result := dispatch^.BitsetPopCount(p, byteLen);
 end;
 
 end.

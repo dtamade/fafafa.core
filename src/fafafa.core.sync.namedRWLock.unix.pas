@@ -431,7 +431,7 @@ begin
     atomic_store_64(LData^.LastAccessTime, Int64(GetTickCount64()));
 
     // 内存屏障确保所有初始化完成后再设置 Initialized 标志
-    atomic_thread_fence(memory_order_seq_cst);
+    atomic_thread_fence(mo_seq_cst);
     atomic_store(PInteger(@LData^.Initialized)^, 1);
   finally
     pthread_rwlockattr_destroy(@LAttr);
@@ -557,8 +557,8 @@ begin
     // 更新最后访问时�?
     atomic_store_64(LData^.LastAccessTime, Int64(GetTickCount64()));
 
-    // 内存屏障确保所有更新完�?
-    atomic_thread_fence(memory_order_seq_cst);
+    // 内存屏障确保所有更新完成
+    atomic_thread_fence(mo_seq_cst);
 
     FLastError := weNone;
   end
@@ -582,7 +582,7 @@ begin
   atomic_store_64(LData^.LastAccessTime, Int64(GetTickCount64()));
 
   // 内存屏障确保计数更新在锁释放之前完成
-  atomic_thread_fence(memory_order_seq_cst);
+  atomic_thread_fence(mo_seq_cst);
 
   LResult := pthread_rwlock_unlock(@LData^.RWLock);
   if LResult <> 0 then
@@ -607,8 +607,8 @@ begin
     // 更新最后访问时�?
     atomic_store_64(LData^.LastAccessTime, Int64(GetTickCount64()));
 
-    // 内存屏障确保所有更新完�?
-    atomic_thread_fence(memory_order_seq_cst);
+    // 内存屏障确保所有更新完成
+    atomic_thread_fence(mo_seq_cst);
 
     FLastError := weNone;
   end
@@ -631,8 +631,8 @@ begin
   // 更新最后访问时�?
   atomic_store_64(LData^.LastAccessTime, Int64(GetTickCount64()));
 
-  // 内存屏障确保状态更新在锁释放之前完�?
-  atomic_thread_fence(memory_order_seq_cst);
+  // 内存屏障确保状态更新在锁释放之前完成
+  atomic_thread_fence(mo_seq_cst);
 
   LResult := pthread_rwlock_unlock(@LData^.RWLock);
   if LResult <> 0 then
