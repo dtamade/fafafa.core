@@ -280,6 +280,250 @@ asm
   str   q0, [x8]
 end;
 
+// === Rounding Operations ===
+
+function NEONFloorF32x4(const a: TVecF32x4): TVecF32x4; assembler; nostackframe;
+asm
+  ldr   q0, [x0]
+  frintm v0.4s, v0.4s       // Round toward -infinity (floor)
+  str   q0, [x8]
+end;
+
+function NEONCeilF32x4(const a: TVecF32x4): TVecF32x4; assembler; nostackframe;
+asm
+  ldr   q0, [x0]
+  frintp v0.4s, v0.4s       // Round toward +infinity (ceil)
+  str   q0, [x8]
+end;
+
+function NEONRoundF32x4(const a: TVecF32x4): TVecF32x4; assembler; nostackframe;
+asm
+  ldr   q0, [x0]
+  frintn v0.4s, v0.4s       // Round to nearest, ties to even
+  str   q0, [x8]
+end;
+
+function NEONTruncF32x4(const a: TVecF32x4): TVecF32x4; assembler; nostackframe;
+asm
+  ldr   q0, [x0]
+  frintz v0.4s, v0.4s       // Round toward zero (truncate)
+  str   q0, [x8]
+end;
+
+function NEONClampF32x4(const a, minVal, maxVal: TVecF32x4): TVecF32x4; assembler; nostackframe;
+asm
+  // x0=@a, x1=@minVal, x2=@maxVal, x8=@result
+  ldr   q0, [x0]            // a
+  ldr   q1, [x1]            // minVal
+  ldr   q2, [x2]            // maxVal
+  fmax  v0.4s, v0.4s, v1.4s // max(a, minVal)
+  fmin  v0.4s, v0.4s, v2.4s // min(result, maxVal)
+  str   q0, [x8]
+end;
+
+// === Vector Math Operations ===
+
+function NEONDotF32x4(const a, b: TVecF32x4): Single; assembler; nostackframe;
+asm
+  ldr   q0, [x0]
+  ldr   q1, [x1]
+  fmul  v0.4s, v0.4s, v1.4s   // Element-wise multiply
+  faddp v0.4s, v0.4s, v0.4s   // Pairwise add: [a*b+c*d, e*f+g*h, ...]
+  faddp s0, v0.2s             // Final add
+  // Result in s0
+end;
+
+function NEONDotF32x3(const a, b: TVecF32x4): Single; assembler; nostackframe;
+asm
+  ldr   q0, [x0]
+  ldr   q1, [x1]
+  fmul  v0.4s, v0.4s, v1.4s   // Element-wise multiply
+  mov   v0.s[3], wzr          // Zero the w component
+  faddp v0.4s, v0.4s, v0.4s
+  faddp s0, v0.2s
+end;
+
+function NEONCrossF32x3(const a, b: TVecF32x4): TVecF32x4; assembler; nostackframe;
+asm
+  // Cross product: (a.y*b.z - a.z*b.y, a.z*b.x - a.x*b.z, a.x*b.y - a.y*b.x, 0)
+  ldr   q0, [x0]              // a = [x, y, z, w]
+  ldr   q1, [x1]              // b = [x, y, z, w]
+  
+  // Shuffle a: [y, z, x, w] = 1,2,0,3
+  mov   v2.s[0], v0.s[1]      // a.y
+  mov   v2.s[1], v0.s[2]      // a.z
+  mov   v2.s[2], v0.s[0]      // a.x
+  mov   v2.s[3], v0.s[3]      // a.w
+  
+  // Shuffle b: [z, x, y, w] = 2,0,1,3
+  mov   v3.s[0], v1.s[2]      // b.z
+  mov   v3.s[1], v1.s[0]      // b.x
+  mov   v3.s[2], v1.s[1]      // b.y
+  mov   v3.s[3], v1.s[3]      // b.w
+  
+  fmul  v4.4s, v2.4s, v3.4s   // [a.y*b.z, a.z*b.x, a.x*b.y, ...]
+  
+  // Shuffle a: [z, x, y, w] = 2,0,1,3
+  mov   v2.s[0], v0.s[2]      // a.z
+  mov   v2.s[1], v0.s[0]      // a.x
+  mov   v2.s[2], v0.s[1]      // a.y
+  
+  // Shuffle b: [y, z, x, w] = 1,2,0,3
+  mov   v3.s[0], v1.s[1]      // b.y
+  mov   v3.s[1], v1.s[2]      // b.z
+  mov   v3.s[2], v1.s[0]      // b.x
+  
+  fmul  v2.4s, v2.4s, v3.4s   // [a.z*b.y, a.x*b.z, a.y*b.x, ...]
+  fsub  v0.4s, v4.4s, v2.4s   // Subtract
+  
+  // Zero w component
+  mov   v0.s[3], wzr
+  str   q0, [x8]
+end;
+
+function NEONLengthF32x4(const a: TVecF32x4): Single; assembler; nostackframe;
+asm
+  ldr   q0, [x0]
+  fmul  v0.4s, v0.4s, v0.4s   // Square each element
+  faddp v0.4s, v0.4s, v0.4s   // Pairwise add
+  faddp s0, v0.2s             // Sum all
+  fsqrt s0, s0                // Square root
+end;
+
+function NEONLengthF32x3(const a: TVecF32x4): Single; assembler; nostackframe;
+asm
+  ldr   q0, [x0]
+  mov   v0.s[3], wzr          // Zero w component
+  fmul  v0.4s, v0.4s, v0.4s   // Square each element
+  faddp v0.4s, v0.4s, v0.4s
+  faddp s0, v0.2s
+  fsqrt s0, s0
+end;
+
+function NEONNormalizeF32x4(const a: TVecF32x4): TVecF32x4; assembler; nostackframe;
+asm
+  ldr   q0, [x0]
+  fmul  v1.4s, v0.4s, v0.4s   // Square each element
+  faddp v1.4s, v1.4s, v1.4s   // Sum squares
+  faddp s1, v1.2s
+  fsqrt s1, s1                // length
+  
+  // Check for zero length
+  fcmp  s1, #0.0
+  beq   .Lzero_len4
+  
+  // Reciprocal length and multiply
+  fmov  s2, #1.0
+  fdiv  s1, s2, s1            // 1/length
+  dup   v1.4s, v1.s[0]        // Broadcast
+  fmul  v0.4s, v0.4s, v1.4s
+  str   q0, [x8]
+  ret
+  
+.Lzero_len4:
+  str   q0, [x8]              // Return original if zero length
+end;
+
+function NEONNormalizeF32x3(const a: TVecF32x4): TVecF32x4; assembler; nostackframe;
+asm
+  ldr   q0, [x0]
+  mov   v0.s[3], wzr          // Zero w for calculation
+  fmul  v1.4s, v0.4s, v0.4s
+  faddp v1.4s, v1.4s, v1.4s
+  faddp s1, v1.2s
+  fsqrt s1, s1
+  
+  fcmp  s1, #0.0
+  beq   .Lzero_len3
+  
+  fmov  s2, #1.0
+  fdiv  s1, s2, s1
+  dup   v1.4s, v1.s[0]
+  ldr   q0, [x0]              // Reload original
+  fmul  v0.4s, v0.4s, v1.4s
+  mov   v0.s[3], wzr          // Ensure w=0
+  str   q0, [x8]
+  ret
+  
+.Lzero_len3:
+  ldr   q0, [x0]
+  mov   v0.s[3], wzr
+  str   q0, [x8]
+end;
+
+// === Selection Operation ===
+
+function NEONSelectF32x4(const mask: TMask4; const a, b: TVecF32x4): TVecF32x4; assembler; nostackframe;
+asm
+  // w0 = mask (4-bit), x1 = @a, x2 = @b, x8 = @result
+  ldr   q0, [x1]              // a
+  ldr   q1, [x2]              // b
+  
+  // Expand 4-bit mask to 128-bit mask
+  // Each bit becomes 32 bits of all 1s or all 0s
+  movi  v2.4s, #0
+  
+  // Bit 0
+  tst   w0, #1
+  beq   .Lbit0_zero
+  movi  v3.4s, #0xFF
+  ins   v2.s[0], v3.s[0]
+.Lbit0_zero:
+  
+  // Bit 1
+  tst   w0, #2
+  beq   .Lbit1_zero
+  movi  v3.4s, #0xFF
+  ins   v2.s[1], v3.s[0]
+.Lbit1_zero:
+  
+  // Bit 2
+  tst   w0, #4
+  beq   .Lbit2_zero
+  movi  v3.4s, #0xFF
+  ins   v2.s[2], v3.s[0]
+.Lbit2_zero:
+  
+  // Bit 3
+  tst   w0, #8
+  beq   .Lbit3_zero
+  movi  v3.4s, #0xFF
+  ins   v2.s[3], v3.s[0]
+.Lbit3_zero:
+  
+  // BSL: bit select - result = (a AND mask) OR (b AND NOT mask)
+  bsl   v2.16b, v0.16b, v1.16b
+  str   q2, [x8]
+end;
+
+function NEONInsertF32x4(const a: TVecF32x4; value: Single; index: Integer): TVecF32x4; assembler; nostackframe;
+asm
+  // x0 = @a, s0 = value (in FP reg), w1 = index, x8 = @result
+  ldr   q1, [x0]              // Load a into v1
+  and   w1, w1, #3            // index & 3
+  
+  cbz   w1, .Lins0
+  cmp   w1, #1
+  beq   .Lins1
+  cmp   w1, #2
+  beq   .Lins2
+  // index = 3
+  ins   v1.s[3], v0.s[0]
+  b     .Lins_done
+  
+.Lins0:
+  ins   v1.s[0], v0.s[0]
+  b     .Lins_done
+.Lins1:
+  ins   v1.s[1], v0.s[0]
+  b     .Lins_done
+.Lins2:
+  ins   v1.s[2], v0.s[0]
+  
+.Lins_done:
+  str   q1, [x8]
+end;
+
 // === Reduction Operations ===
 
 function NEONReduceAddF32x4(const a: TVecF32x4): Single; assembler; nostackframe;
