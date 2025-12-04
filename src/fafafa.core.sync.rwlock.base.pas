@@ -13,11 +13,10 @@ type
   // ===== 类型定义 =====
   TThreadIDArray = array of TThreadID;
 
-  // ===== 版本化原子计数器（防�?ABA 问题�?====
-  TAtomicCounter = record
-    Count: Integer;    // 实际计数�?
-    Version: Integer;  // 版本号，每次修改时递增
-  end;
+  // ===== 版本化原子计数器（防止 ABA 问题）=====
+  // 使用 64 位打包：高 32 位 = Version，低 32 位 = Count
+  // 这样在 32/64 位平台都能使用 Int64 原子 CAS
+  TAtomicCounter = Int64;
 
   PAtomicCounter = ^TAtomicCounter;
 
@@ -98,7 +97,8 @@ type
     property TimeoutMs: Cardinal read FTimeoutMs;
   end;
 
-  { 锁状态异�?- 尝试释放未持有的�?}
+  { 锁状态异常 - 尝试释放未持有的锁 }
+  { @deprecated 使用 ERWLockError 替代 }
   ERWLockStateError = class(ERWLockError)
   private
     FExpectedState: string;
@@ -109,7 +109,8 @@ type
     property ActualState: string read FActualState;
   end;
 
-  { 死锁检测异�?}
+  { 死锁检测异常 }
+  { @deprecated 使用 ERWLockError 替代 }
   ERWLockDeadlockError = class(ERWLockError)
   private
     FOwnerThread: TThreadID;
@@ -120,7 +121,8 @@ type
     function GetWaitingThreads: TThreadIDArray;
   end;
 
-  { 资源耗尽异常 - 读者数量超�?}
+  { 资源耗尽异常 - 读者数量超限 }
+  { @deprecated 使用 ERWLockError 替代 }
   ERWLockResourceError = class(ERWLockError)
   private
     FCurrentCount: Integer;
@@ -143,8 +145,10 @@ type
   end;
 
   // ===== 扩展异常类型（按照主流标准）=====
+  // 以下异常已标记为 deprecated，建议使用核心异常：ERWLockError, ERWLockTimeoutError, ERWLockPoisonError, ERWLockSystemError
 
-  { 操作被中断异�?- 类似 Java InterruptedException }
+  { 操作被中断异常 - 类似 Java InterruptedException }
+  { @deprecated 使用 ERWLockError 替代 }
   ERWLockInterruptedException = class(ERWLockError)
   private
     FInterruptReason: string;
@@ -154,6 +158,7 @@ type
   end;
 
   { 所有权错误异常 - 类似 Java IllegalMonitorStateException }
+  { @deprecated 使用 ERWLockError 替代 }
   ERWLockOwnershipException = class(ERWLockError)
   private
     FExpectedOwner: TThreadID;
@@ -165,6 +170,7 @@ type
   end;
 
   { 容量超限异常 - 类似 Java IllegalStateException }
+  { @deprecated 使用 ERWLockError 替代 }
   ERWLockCapacityException = class(ERWLockError)
   private
     FRequestedCount: Integer;
@@ -176,6 +182,7 @@ type
   end;
 
   { 配置错误异常 - 类似 Java IllegalArgumentException }
+  { @deprecated 使用 ERWLockError 替代 }
   ERWLockConfigurationException = class(ERWLockError)
   private
     FConfigParameter: string;
@@ -186,7 +193,8 @@ type
     property ConfigValue: string read FConfigValue;
   end;
 
-  { 版本不匹配异�?- ABA 问题检�?}
+  { 版本不匹配异常 - ABA 问题检测 }
+  { @deprecated 使用 ERWLockError 替代 }
   ERWLockVersionException = class(ERWLockError)
   private
     FExpectedVersion: Integer;
@@ -197,7 +205,8 @@ type
     property ActualVersion: Integer read FActualVersion;
   end;
 
-  { 数据损坏异常 - 内部状态不一�?}
+  { 数据损坏异常 - 内部状态不一致 }
+  { @deprecated 使用 ERWLockSystemError 替代 }
   ERWLockCorruptionException = class(ERWLockError)
   private
     FCorruptionType: string;
@@ -229,19 +238,19 @@ type
   IRWLock = interface;
 
   // ===== 读锁守卫接口 =====
-  IRWLockReadGuard = interface
+  IRWLockReadGuard = interface(IGuard)
     ['{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}']
     // RAII 读锁守卫，析构时自动释放读锁
-    function IsValid: Boolean;
-    procedure Release; // 手动释放（可选）
+    // 继承 IGuard 的 IsLocked 和 Release
+    function IsValid: Boolean; deprecated 'Use IsLocked instead';  // 为向后兼容保留，等价于 IsLocked
   end;
 
   // ===== 写锁守卫接口 =====
-  IRWLockWriteGuard = interface
+  IRWLockWriteGuard = interface(IGuard)
     ['{B2C3D4E5-F6A7-8901-BCDE-F12345678901}']
     // RAII 写锁守卫，析构时自动释放写锁
-    function IsValid: Boolean;
-    procedure Release; // 手动释放（可选）
+    // 继承 IGuard 的 IsLocked 和 Release
+    function IsValid: Boolean; deprecated 'Use IsLocked instead';  // 为向后兼容保留，等价于 IsLocked
 
     {**
      * Downgrade - 写锁降级为读锁
@@ -321,19 +330,50 @@ type
     // ===== 毒化支持 (Rust-style Poisoning) =====
     function IsPoisoned: Boolean;
     procedure ClearPoison;
-
-    // ===== 性能监控接口 =====
-    function GetPerformanceStats: TLockPerformanceStats; virtual; abstract;
-    procedure ResetPerformanceStats; virtual; abstract;
-    function GetContentionRate: Double; virtual; abstract;
-    function GetAverageWaitTime: Double; virtual; abstract;
-    function GetThroughput: Double; virtual; abstract;
-    function GetSpinEfficiency: Double; virtual; abstract;
   end;
 
-// ===== 原子计数器操作函�?=====
+  { IRWLockDiagnostics - 性能诊断接口（从 IRWLock 分离）
+    
+    此接口包含用于调试和性能分析的方法，与核心锁功能分离。
+    生产代码通常不需要此接口，仅在需要性能监控时使用。
+    
+    获取方式：
+      var Diagnostics: IRWLockDiagnostics;
+      if Supports(MyRWLock, IRWLockDiagnostics, Diagnostics) then
+        WriteLn('Contention rate: ', Diagnostics.GetContentionRate:0:2);
+    
+    @experimental 此接口可能在未来版本中更改
+  }
+  IRWLockDiagnostics = interface
+    ['{E7F8A9B0-C1D2-E3F4-A5B6-789012345678}']
+    { 获取详细性能统计信息 }
+    function GetPerformanceStats: TLockPerformanceStats;
+    { 重置性能统计计数器 }
+    procedure ResetPerformanceStats;
+    { 获取竞争率（竞争次数/总获取次数）}
+    function GetContentionRate: Double;
+    { 获取平均等待时间（毫秒）}
+    function GetAverageWaitTime: Double;
+    { 获取吞吐量（每秒获取/释放次数）}
+    function GetThroughput: Double;
+    { 获取自旋效率（自旋成功次数/总自旋次数）}
+    function GetSpinEfficiency: Double;
+  end;
 
-{ 原子地读取计数器�?}
+// ===== 原子计数器辅助函数 =====
+
+{ 打包 Count 和 Version 为 TAtomicCounter }
+function PackCounter(Count, Version: Integer): TAtomicCounter; inline;
+
+{ 从 TAtomicCounter 解包 Count }
+function UnpackCount(Counter: TAtomicCounter): Integer; inline;
+
+{ 从 TAtomicCounter 解包 Version }
+function UnpackVersion(Counter: TAtomicCounter): Integer; inline;
+
+// ===== 原子计数器操作函数 =====
+
+{ 原子地读取计数器值 }
 function AtomicLoadCounter(var Counter: TAtomicCounter): Integer;
 
 { 原子地增加计数器 }
@@ -342,7 +382,7 @@ function AtomicIncrementCounter(var Counter: TAtomicCounter): Integer;
 { 原子地减少计数器 }
 function AtomicDecrementCounter(var Counter: TAtomicCounter): Integer;
 
-{ 原子地设置计数器�?}
+{ 原子地设置计数器值 }
 procedure AtomicStoreCounter(var Counter: TAtomicCounter; Value: Integer);
 
 { 原子地比较并交换计数器（CAS 操作）}
@@ -368,110 +408,115 @@ procedure MemoryBarrierRelease; inline;
 
 implementation
 
-// ===== 原子计数器操作实�?=====
+// ===== 原子计数器辅助函数实现 =====
+
+function PackCounter(Count, Version: Integer): TAtomicCounter; inline;
+begin
+  // 高 32 位 = Version，低 32 位 = Count
+  Result := (Int64(Cardinal(Version)) shl 32) or Int64(Cardinal(Count));
+end;
+
+function UnpackCount(Counter: TAtomicCounter): Integer; inline;
+begin
+  Result := Integer(Counter and $FFFFFFFF);
+end;
+
+function UnpackVersion(Counter: TAtomicCounter): Integer; inline;
+begin
+  Result := Integer(Counter shr 32);
+end;
+
+// ===== 原子计数器操作实现 =====
 
 function AtomicLoadCounter(var Counter: TAtomicCounter): Integer;
+var
+  Value: Int64;
 begin
-  // 使用框架的原子操作确保读取的一致�?
-  Result := atomic_load(Counter.Count, mo_acquire);
+  // 原子读取整个 64 位值，然后解包 Count
+  Value := atomic_load(Counter, mo_acquire);
+  Result := UnpackCount(Value);
 end;
 
 function AtomicIncrementCounter(var Counter: TAtomicCounter): Integer;
 var
-  OldCounter, NewCounter: TAtomicCounter;
+  OldValue, NewValue: Int64;
+  OldCount, OldVersion: Integer;
 begin
   repeat
-    OldCounter.Count := atomic_load(Counter.Count, mo_relaxed);
-    OldCounter.Version := atomic_load(Counter.Version, mo_relaxed);
+    OldValue := atomic_load(Counter, mo_relaxed);
+    OldCount := UnpackCount(OldValue);
+    OldVersion := UnpackVersion(OldValue);
 
-    NewCounter.Count := OldCounter.Count + 1;
-    NewCounter.Version := OldCounter.Version + 1;
+    NewValue := PackCounter(OldCount + 1, OldVersion + 1);
 
-    // 尝试原子地更新整个结�?
-    {$IFDEF CPU64}
-    if atomic_compare_exchange_strong(PInt64(@Counter)^, PInt64(@OldCounter)^, PInt64(@NewCounter)^) then
-    {$ELSE}
-    if atomic_compare_exchange_strong(PInt32(@Counter)^, PInt32(@OldCounter)^, PInt32(@NewCounter)^) then
-    {$ENDIF}
+    // 使用 Int64 CAS，32/64 位平台统一
+    if atomic_compare_exchange_strong(Counter, OldValue, NewValue) then
     begin
-      Result := NewCounter.Count;
+      Result := OldCount + 1;
       Exit;
     end;
-    // 如果失败，重�?
   until False;
 end;
 
 function AtomicDecrementCounter(var Counter: TAtomicCounter): Integer;
 var
-  OldCounter, NewCounter: TAtomicCounter;
+  OldValue, NewValue: Int64;
+  OldCount, OldVersion: Integer;
 begin
   repeat
-    OldCounter.Count := atomic_load(Counter.Count, mo_relaxed);
-    OldCounter.Version := atomic_load(Counter.Version, mo_relaxed);
+    OldValue := atomic_load(Counter, mo_relaxed);
+    OldCount := UnpackCount(OldValue);
+    OldVersion := UnpackVersion(OldValue);
 
-    NewCounter.Count := OldCounter.Count - 1;
-    NewCounter.Version := OldCounter.Version + 1;
+    NewValue := PackCounter(OldCount - 1, OldVersion + 1);
 
-    // 尝试原子地更新整个结�?
-    {$IFDEF CPU64}
-    if atomic_compare_exchange_strong(PInt64(@Counter)^, PInt64(@OldCounter)^, PInt64(@NewCounter)^) then
-    {$ELSE}
-    if atomic_compare_exchange_strong(PInt32(@Counter)^, PInt32(@OldCounter)^, PInt32(@NewCounter)^) then
-    {$ENDIF}
+    // 使用 Int64 CAS，32/64 位平台统一
+    if atomic_compare_exchange_strong(Counter, OldValue, NewValue) then
     begin
-      Result := NewCounter.Count;
+      Result := OldCount - 1;
       Exit;
     end;
-    // 如果失败，重�?
   until False;
 end;
 
 procedure AtomicStoreCounter(var Counter: TAtomicCounter; Value: Integer);
 var
-  OldCounter, NewCounter: TAtomicCounter;
+  OldValue, NewValue: Int64;
+  OldVersion: Integer;
 begin
   repeat
-    OldCounter.Count := atomic_load(Counter.Count, mo_relaxed);
-    OldCounter.Version := atomic_load(Counter.Version, mo_relaxed);
+    OldValue := atomic_load(Counter, mo_relaxed);
+    OldVersion := UnpackVersion(OldValue);
 
-    NewCounter.Count := Value;
-    NewCounter.Version := OldCounter.Version + 1;
+    NewValue := PackCounter(Value, OldVersion + 1);
 
-    // 尝试原子地更新整个结�?
-    {$IFDEF CPU64}
-    if atomic_compare_exchange_strong(PInt64(@Counter)^, PInt64(@OldCounter)^, PInt64(@NewCounter)^) then
-    {$ELSE}
-    if atomic_compare_exchange_strong(PInt32(@Counter)^, PInt32(@OldCounter)^, PInt32(@NewCounter)^) then
-    {$ENDIF}
+    // 使用 Int64 CAS，32/64 位平台统一
+    if atomic_compare_exchange_strong(Counter, OldValue, NewValue) then
       Exit;
-    // 如果失败，重�?
   until False;
 end;
 
 function AtomicCompareExchangeCounter(var Counter: TAtomicCounter;
   NewCount: Integer; ExpectedCount: Integer): Boolean;
 var
-  OldCounter, NewCounter: TAtomicCounter;
+  OldValue, NewValue: Int64;
+  OldCount, OldVersion: Integer;
 begin
-  OldCounter.Count := atomic_load(Counter.Count, mo_relaxed);
-  OldCounter.Version := atomic_load(Counter.Version, mo_relaxed);
+  OldValue := atomic_load(Counter, mo_relaxed);
+  OldCount := UnpackCount(OldValue);
+  OldVersion := UnpackVersion(OldValue);
 
-  // 只有当前计数值匹配时才进行交�?
-  if OldCounter.Count <> ExpectedCount then
+  // 只有当前计数值匹配时才进行交换
+  if OldCount <> ExpectedCount then
   begin
     Result := False;
     Exit;
   end;
 
-  NewCounter.Count := NewCount;
-  NewCounter.Version := OldCounter.Version + 1;
+  NewValue := PackCounter(NewCount, OldVersion + 1);
 
-  // 尝试原子地更新整个结�?
-  {$IFDEF CPU64}
-  Result := atomic_compare_exchange_strong(PInt64(@Counter)^, PInt64(@OldCounter)^, PInt64(@NewCounter)^);
-  {$ELSE}
-  Result := atomic_compare_exchange_strong(PInt32(@Counter)^, PInt32(@OldCounter)^, PInt32(@NewCounter)^);
-  {$ENDIF}
+  // 使用 Int64 CAS，32/64 位平台统一
+  Result := atomic_compare_exchange_strong(Counter, OldValue, NewValue);
 end;
 
 // ===== 内存屏障操作实现 =====

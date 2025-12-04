@@ -48,7 +48,7 @@ type
     procedure Remove(AThread: TThreadID);
   end;
 
-  TRWLock = class(TInterfacedObject, IRWLock)
+  TRWLock = class(TInterfacedObject, IRWLock, IRWLockDiagnostics)
   private
     FSRW: SRWLOCK;
     FReaders: Integer;
@@ -57,6 +57,7 @@ type
     FLast: TLockResult;
     FContention: Integer;
     FSpin: Integer;
+    FPoisoned: Boolean;
   public
     constructor Create; overload;
     constructor Create(const Options: TRWLockOptions); overload;
@@ -102,7 +103,11 @@ type
     procedure RecoverState;
     function IsHealthy: Boolean;
 
-    // Perf (minimal placeholders)
+    // Poisoning (Rust-style)
+    function IsPoisoned: Boolean;
+    procedure ClearPoison;
+
+    // Perf (minimal placeholders - IRWLockDiagnostics)
     function GetPerformanceStats: TLockPerformanceStats;
     procedure ResetPerformanceStats;
     function GetContentionRate: Double;
@@ -726,7 +731,17 @@ end;
 
 function TRWLock.IsHealthy: Boolean;
 begin
-  Result := ValidateState and (FLast <> lrError);
+  Result := ValidateState and (FLast <> lrError) and (not FPoisoned);
+end;
+
+function TRWLock.IsPoisoned: Boolean;
+begin
+  Result := FPoisoned;
+end;
+
+procedure TRWLock.ClearPoison;
+begin
+  FPoisoned := False;
 end;
 
 function TRWLock.GetPerformanceStats: TLockPerformanceStats;

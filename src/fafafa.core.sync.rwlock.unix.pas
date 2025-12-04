@@ -69,8 +69,9 @@ type
     constructor CreateFromDowngrade(ALock: TRWLock);  // 用于 Downgrade，不重新获取锁
     destructor Destroy; override;
 
-    // IRWLockReadGuard 接口
-    function IsValid: Boolean;
+    // IRWLockReadGuard 接口 (继承自 IGuard)
+    function IsLocked: Boolean;
+    function IsValid: Boolean;  // 向后兼容，等价于 IsLocked
     procedure Release;
   end;
 
@@ -86,14 +87,15 @@ type
     constructor Create(ALock: TRWLock);
     destructor Destroy; override;
 
-    // IRWLockWriteGuard 接口
-    function IsValid: Boolean;
+    // IRWLockWriteGuard 接口 (继承自 IGuard)
+    function IsLocked: Boolean;
+    function IsValid: Boolean;  // 向后兼容，等价于 IsLocked
     procedure Release;
     function Downgrade: IRWLockReadGuard;
   end;
 
-  // ===== RWLock 主实�?=====
-  TRWLock = class(TInterfacedObject, IRWLock)
+  // ===== RWLock 主实现 =====
+  TRWLock = class(TInterfacedObject, IRWLock, IRWLockDiagnostics)
   private
     // 第一个缓存行：核心锁数据（热路径�?
     FRWLock: pthread_rwlock_t;
@@ -277,9 +279,14 @@ begin
   inherited Destroy;
 end;
 
-function TRWLockReadGuard.IsValid: Boolean;
+function TRWLockReadGuard.IsLocked: Boolean;
 begin
   Result := FValid and not FReleased;
+end;
+
+function TRWLockReadGuard.IsValid: Boolean;
+begin
+  Result := IsLocked;  // IsValid 为向后兼容的别名
 end;
 
 procedure TRWLockReadGuard.Release;
@@ -349,9 +356,14 @@ begin
   inherited Destroy;
 end;
 
-function TRWLockWriteGuard.IsValid: Boolean;
+function TRWLockWriteGuard.IsLocked: Boolean;
 begin
   Result := FValid and not FReleased;
+end;
+
+function TRWLockWriteGuard.IsValid: Boolean;
+begin
+  Result := IsLocked;  // IsValid 为向后兼容的别名
 end;
 
 procedure TRWLockWriteGuard.Release;
@@ -777,16 +789,33 @@ var
   ReentryRecord: PThreadReentryRecord;
   NeedSystemLock: Boolean;
   StartTime: QWord;
+  CurrentReaders: Integer;
 begin
   // 毒化检查 (Rust-style Poisoning)
   if FOptions.EnablePoisoning and FPoisoned then
     raise ERWLockPoisonError.Create(FPoisoningThreadId, FPoisoningException);
 
+  // ===== 快速路径：非重入模式 =====
+  // 当禁用重入支持时，直接使用 pthread_rwlock，避免管理器锁开销
+  if not FOptions.AllowReentrancy then
+  begin
+    // MaxReaders 检查
+    CurrentReaders := AtomicLoadCounter(FReaderCount);
+    if CurrentReaders >= FOptions.MaxReaders then
+      raise ERWLockCapacityException.Create(1, FOptions.MaxReaders, GetCurrentThreadId);
+
+    if not TryAcquireReadLockWithSpin then
+      raise ELockError.Create('Failed to acquire read lock');
+    AtomicIncrementCounter(FReaderCount);
+    Exit;
+  end;
+
+  // ===== 慢路径：支持重入 =====
   StartTime := GetTickCount64;
   CurrentThreadId := GetCurrentThreadId;
   NeedSystemLock := True;
 
-  // 第一阶段：快速检查可重入�?
+  // 第一阶段：快速检查可重入性
   FReentryManager.Lock;
   try
     ReentryRecord := FReentryManager.FindRecord(CurrentThreadId);
@@ -803,7 +832,7 @@ begin
       end
       else if ReentryRecord^.ReadCount > 0 then
       begin
-        // 该线程已经持有读锁，可重�?
+        // 该线程已经持有读锁，可重入
         Inc(ReentryRecord^.ReadCount);
         AtomicIncrementCounter(FReaderCount);
         NeedSystemLock := False;
@@ -813,16 +842,21 @@ begin
     FReentryManager.Unlock;
   end;
 
-  // 如果不需要系统锁，直接返�?
+  // 如果不需要系统锁，直接返回
   if not NeedSystemLock then
     Exit;
 
-  // 第二阶段：获取系统锁（在管理器锁外部�?
+  // MaxReaders 检查（在获取系统锁之前）
+  CurrentReaders := AtomicLoadCounter(FReaderCount);
+  if CurrentReaders >= FOptions.MaxReaders then
+    raise ERWLockCapacityException.Create(1, FOptions.MaxReaders, GetCurrentThreadId);
+
+  // 第二阶段：获取系统锁（在管理器锁外部）
   // 使用自适应自旋优化
   if not TryAcquireReadLockWithSpin then
     raise ELockError.Create('Failed to acquire read lock');
 
-  // 第三阶段：更新重入记�?
+  // 第三阶段：更新重入记录
   FReentryManager.Lock;
   try
     // 重新查找记录（可能在等待期间被其他操作修改）
@@ -833,7 +867,7 @@ begin
     Inc(ReentryRecord^.ReadCount);
     AtomicIncrementCounter(FReaderCount);
 
-    // 确保读锁获取的内存可见�?
+    // 确保读锁获取的内存可见性
     MemoryBarrierAcquire;
   finally
     FReentryManager.Unlock;
@@ -849,6 +883,16 @@ var
   ReentryRecord: PThreadReentryRecord;
   ShouldUnlock: Boolean;
 begin
+  // ===== 快速路径：非重入模式 =====
+  if not FOptions.AllowReentrancy then
+  begin
+    AtomicDecrementCounter(FReaderCount);
+    if pthread_rwlock_unlock(@FRWLock) <> 0 then
+      raise ELockError.Create('Failed to release read lock');
+    Exit;
+  end;
+
+  // ===== 慢路径：支持重入 =====
   CurrentThreadId := GetCurrentThreadId;
   ShouldUnlock := False;
 
@@ -899,6 +943,16 @@ begin
   if FOptions.EnablePoisoning and FPoisoned then
     raise ERWLockPoisonError.Create(FPoisoningThreadId, FPoisoningException);
 
+  // ===== 快速路径：非重入模式 =====
+  if not FOptions.AllowReentrancy then
+  begin
+    if not TryAcquireWriteLockWithSpin then
+      raise ELockError.Create('Failed to acquire write lock');
+    FWriterThread := GetCurrentThreadId;
+    Exit;
+  end;
+
+  // ===== 慢路径：支持重入 =====
   CurrentThreadId := GetCurrentThreadId;
   NeedSystemLock := True;
 
@@ -958,6 +1012,17 @@ var
   ReentryRecord: PThreadReentryRecord;
   ShouldUnlock: Boolean;
 begin
+  // ===== 快速路径：非重入模式 =====
+  if not FOptions.AllowReentrancy then
+  begin
+    MemoryBarrierRelease;
+    FWriterThread := 0;
+    if pthread_rwlock_unlock(@FRWLock) <> 0 then
+      raise ELockError.Create('Failed to release write lock');
+    Exit;
+  end;
+
+  // ===== 慢路径：支持重入 =====
   CurrentThreadId := GetCurrentThreadId;
   ShouldUnlock := False;
 
@@ -1003,12 +1068,18 @@ var
   CurrentThreadId: TThreadID;
   ReentryRecord: PThreadReentryRecord;
   NeedSystemLock: Boolean;
+  CurrentReaders: Integer;
 begin
   CurrentThreadId := GetCurrentThreadId;
   Result := False;
   NeedSystemLock := True;
 
-  // 第一阶段：快速检查可重入�?
+  // MaxReaders 检查
+  CurrentReaders := AtomicLoadCounter(FReaderCount);
+  if CurrentReaders >= FOptions.MaxReaders then
+    Exit(False);  // TryAcquire 返回 False 而不是抛异常
+
+  // 第一阶段：快速检查可重入性
   FReentryManager.Lock;
   try
     ReentryRecord := FReentryManager.FindRecord(CurrentThreadId);
@@ -1350,8 +1421,8 @@ end;
 
 function TRWLock.GetMaxReaders: Integer;
 begin
-  // pthread_rwlock_t 理论上支持的最大读者数�?
-  Result := High(Integer);
+  // 返回配置的最大读者数量
+  Result := FOptions.MaxReaders;
 end;
 
 // ===== 性能统计 =====

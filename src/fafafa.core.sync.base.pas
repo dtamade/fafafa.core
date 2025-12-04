@@ -308,74 +308,49 @@ type
     weInvalidParameter
   );
 
-  { 基础同步原语接口 - 所有同步对象的基础 }
+  {**
+   * ISynchronizable - 基础同步原语接口
+   *
+   * @desc
+   *   所有同步对象的基础接口。
+   *
+   * @warning
+   *   Data 属性已标记为 deprecated，不建议在新代码中使用。
+   *   如需关联用户数据，建议使用注解或外部映射。
+   *}
   ISynchronizable = interface
     ['{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}']
     
     {**
      * GetData - 获取同步对象关联的用户数据
      *
+     * @deprecated 此方法已废弃。裸指针非线程安全，且无生命周期管理。
+     *   仅建议用于调试或初始化阶段的一次性设置。
+     *
      * @return 当前关联的用户数据指针，如果未设置则返回 nil
      *
-     * @desc
-     *   返回与此同步对象关联的用户自定义数据指针。
-     *   这个数据可以是任何类型的指针，由用户自行管理其生命周期。
-     *
      * @thread_safety
-     *   非线程安全。多线程并发读写 Data 需要由调用方提供外部同步（例如使用互斥锁）。
-     *   若需要原子可见性，请自行在更高层封装相应同步。
+     *   非线程安全。多线程并发读写需由调用方提供外部同步。
      *
      * @memory_management
-     *   同步对象不负责管理指向数据的内存，用户需要自行管理。
-     *   在销毁同步对象前，确保相关数据已正确释放。
-     *
-     * @usage
-     *   var
-     *     UserData: PMyData;
-     *   begin
-     *     UserData := PMyData(Lock.GetData);
-     *     if Assigned(UserData) then
-     *       // 使用用户数据
-     *   end;
+     *   同步对象不负责管理指向数据的内存，用户需自行管理。
      *}
-    function  GetData: Pointer;
+    function  GetData: Pointer; deprecated 'Unsafe raw pointer, use external mapping instead';
 
     {**
      * SetData - 设置同步对象关联的用户数据
      *
-     * @param aData 要关联的用户数据指针，可以为 nil
+     * @deprecated 此方法已废弃。裸指针非线程安全，且无生命周期管理。
+     *   仅建议用于调试或初始化阶段的一次性设置。
      *
-     * @desc
-     *   设置与此同步对象关联的用户自定义数据指针。
-     *   这允许用户将任意数据与同步对象绑定，便于在不同上下文中传递信息。
+     * @param aData 要关联的用户数据指针
      *
      * @thread_safety
-     *   非线程安全。多线程并发写入 Data 需要外部同步（例如使用互斥锁）。
-     *   本方法不提供原子性与内存屏障；竞态下的覆盖行为未定义。
-     *
-     * @memory_management
-     *   同步对象不会自动释放之前关联的数据。
-     *   如果需要替换数据，用户应先释放旧数据再设置新数据。
-     *
-     * @use_cases
-     *   - 关联锁的拥有者信息
-     *   - 存储调试或统计数据
-     *   - 传递上下文相关信息
-     *   - 实现自定义的锁管理策略
-     *
-     * @usage
-     *   var
-     *     MyData: PMyData;
-     *   begin
-     *     New(MyData);
-     *     MyData^.Info := 'Lock context';
-     *     Lock.SetData(MyData);
-     *     // ... 使用锁
-     *     // 记住在适当时候释放数据
-     *     Dispose(MyData);
-     *   end;
+     *   非线程安全。多线程并发写入需外部同步。
      *}
-    procedure SetData(aData: Pointer);
+    procedure SetData(aData: Pointer); deprecated 'Unsafe raw pointer, use external mapping instead';
+
+    { @deprecated 裸指针属性，非线程安全，建议使用外部映射 }
     property  Data: Pointer read GetData write SetData;
   end;
 
@@ -388,37 +363,48 @@ type
     procedure SetData(aData: Pointer); {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
   end;
 
-  ILockGuard = interface
-    ['{A8F5A2E1-4C3D-4F2A-9B1E-8D7C6A5F4E3D}']
+  {**
+   * IGuard - 通用守护接口（所有 Guard 的基接口）
+   *
+   * @desc
+   *   为所有同步原语提供统一的 RAII 守护机制基接口。
+   *   所有具体 Guard（如 ILockGuard, IRWLockReadGuard 等）都继承此接口。
+   *
+   * @rust_equivalent
+   *   类似 Rust 各种 Guard 类型的公共 trait
+   *
+   * @usage
+   *   var
+   *     Guards: array of IGuard;
+   *   begin
+   *     // 支持多态：不同类型 Guard 可以存储在 IGuard 数组中
+   *     SetLength(Guards, 2);
+   *     Guards[0] := Mutex.Lock as IGuard;
+   *     Guards[1] := RWLock.Read as IGuard;
+   *   end;
+   *}
+  IGuard = interface
+    ['{F1E2D3C4-B5A6-9780-CDEF-123456789ABC}']
 
     {**
-     * Release - 释放锁守卫
+     * IsLocked - 检查守护是否仍持有锁
+     *
+     * @return True 如果锁仍被持有，False 如果已释放
+     *}
+    function IsLocked: Boolean;
+
+    {**
+     * Release - 释放守护持有的锁
      *
      * @desc
-     *   手动释放锁守卫持有的锁。
-     *   通常情况下锁守卫会在析构时自动释放锁，
-     *   但此方法允许提前手动释放。
-     *
-     * @thread_safety
-     *   线程安全，但应该只从持有锁的线程调用。
-     *
-     * @idempotent
-     *   多次调用是安全的，重复释放不会产生副作用。
-     *
-     * @usage
-     *   var Guard: ILockGuard;
-     *   begin
-     *     Guard := Lock.LockGuard;
-     *     try
-     *       // 临界区代码
-     *       if SomeCondition then
-     *         Guard.Release;  // 提前释放
-     *     finally
-     *       // Guard 析构时会检查是否已释放
-     *     end;
-     *   end;
+     *   手动释放锁。多次调用是安全的（幂等）。
      *}
     procedure Release;
+  end;
+
+  ILockGuard = interface(IGuard)
+    ['{A8F5A2E1-4C3D-4F2A-9B1E-8D7C6A5F4E3D}']
+    // 继承 IGuard 的 IsLocked 和 Release
   end;
 
   {**
@@ -440,7 +426,18 @@ type
    *   - 自旋锁 (SpinLock): 适合短期持有的高性能锁
    *   - 读写锁 (RWLock): 支持多读单写的锁
    *
+   * @modern_api
+   *   推荐使用现代化 API（Rust 风格）：
+   *   - Lock() / TryLock() / TryLockFor() 返回 Guard
+   *   - 使用 RAII 模式自动管理锁的生命周期
+   *
    * @usage_pattern
+   *   // 现代用法 - 推荐
+   *   var Guard := Lock.Lock;
+   *   // 临界区代码
+   *   // Guard 超出作用域时自动释放
+   *
+   *   // 传统用法 - 仍然支持
    *   Lock.Acquire;
    *   try
    *     // 临界区代码
@@ -451,8 +448,63 @@ type
   ILock = interface(ISynchronizable)
     ['{B8F5A2E1-4C3D-4F2A-9B1E-8D7C6A5F4E3D}']
 
+    // ===== 现代化 API（Rust 风格）- 推荐使用 =====
+
     {**
-     * Acquire - 获取锁
+     * Lock - 阻塞获取锁并返回 RAII 守卫
+     *
+     * @return 锁守卫接口，超出作用域时自动释放锁
+     *
+     * @desc
+     *   阻塞式获取锁，返回 RAII 风格的守卫对象。
+     *   这是推荐的锁获取方式，比 Acquire/Release 更安全。
+     *
+     * @blocking
+     *   这是一个阻塞操作。如需非阻塞，使用 TryLock。
+     *
+     * @thread_safety
+     *   线程安全。
+     *
+     * @rust_equivalent
+     *   类似 Rust 的 Mutex::lock()
+     *
+     * @usage
+     *   var Guard := Lock.Lock;
+     *   // 临界区代码
+     *   // Guard 超出作用域时自动释放
+     *}
+    function Lock: ILockGuard;
+
+    {**
+     * TryLock - 非阻塞尝试获取锁
+     *
+     * @return 成功返回锁守卫，失败返回 nil
+     *
+     * @desc
+     *   尝试立即获取锁，不阻塞。成功返回 Guard，失败返回 nil。
+     *
+     * @nonblocking
+     *   立即返回，不会阻塞线程。
+     *
+     * @rust_equivalent
+     *   类似 Rust 的 Mutex::try_lock()
+     *
+     * @usage
+     *   var Guard := Lock.TryLock;
+     *   if Assigned(Guard) then
+     *   begin
+     *     // 成功获取锁
+     *     // 临界区代码
+     *   end
+     *   else
+     *     // 锁不可用，执行替代逻辑
+     *}
+    function TryLock: ILockGuard;
+
+    // ===== 传统 API - 为兼容性保留 =====
+
+    {**
+     * Acquire - 获取锁（传统 API）
      *
      * @desc
      *   阻塞式获取锁。如果锁当前被其他线程持有，
@@ -488,11 +540,14 @@ type
      *   finally
      *     Lock.Release;  // 确保锁被释放
      *   end;
+     *
+     * @deprecated_hint
+     *   推荐使用 Lock() 方法代替，它返回 RAII 守卫更安全。
      *}
     procedure Acquire;
 
     {**
-     * Release - 释放锁
+     * Release - 释放锁（传统 API）
      *
      * @desc
      *   释放当前线程持有的锁，允许其他等待的线程获取锁。
@@ -527,37 +582,24 @@ type
      *
      * @best_practice
      *   总是在 try-finally 块中使用，确保异常情况下锁也能被释放。
-     *   或者使用 RAII 模式的 LockGuard。
+     *   或者使用 RAII 模式的 Lock() 方法。
+     *
+     * @deprecated_hint
+     *   推荐使用 Lock() 返回的 Guard，它会自动释放锁。
      *}
     procedure Release;
   
     {**
-     * LockGuard - 创建 RAII 锁守卫
+     * LockGuard - 创建 RAII 锁守卫（兼容别名）
      *
      * @return 锁守卫接口，自动管理锁的生命周期
      *
      * @desc
-     *   创建一个 RAII (Resource Acquisition Is Initialization) 风格的锁守卫。
-     *   锁守卫在创建时自动获取锁，在析构时自动释放锁，
-     *   确保即使在异常情况下锁也能被正确释放。
+     *   等同于 Lock() 方法，为向后兼容保留。
+     *   推荐使用 Lock() 方法，命名更符合现代风格。
      *
-     * @raii_pattern
-     *   这是推荐的锁使用模式，比手动 Acquire/Release 更安全：
-     *   - 自动获取：创建时立即获取锁
-     *   - 自动释放：超出作用域时自动释放锁
-     *   - 异常安全：即使发生异常也能正确释放锁
-     *
-     * @thread_safety
-     *   线程安全，可以从多个线程同时调用。
-     *   但每个锁守卫只能在创建它的线程中使用。
-     *
-     * @performance
-     *   相比手动管理，RAII 模式几乎没有性能开销，
-     *   但提供了更好的安全性和代码简洁性。
-     *
-     * @lifetime
-     *   返回的锁守卫对象的生命周期决定了锁的持有时间。
-     *   当守卫对象被销毁时（超出作用域或显式设为 nil），锁被释放。
+     * @rust_equivalent
+     *   类似 Rust 的 Mutex::lock()
      *
      * @usage_simple
      *   // 简单用法 - 推荐
@@ -650,16 +692,38 @@ type
     procedure Release; virtual; abstract;
 
     {**
-     * LockGuard - 创建 RAII 锁守卫
+     * Lock - 阻塞获取锁并返回 RAII 守卫
+     *
+     * @return 锁守卫接口，超出作用域时自动释放锁
+     *
+     * @desc
+     *   阻塞式获取锁，返回 RAII 风格的守卫对象。
+     *   这是推荐的锁获取方式。
+     *}
+    function Lock: ILockGuard; virtual;
+
+    {**
+     * TryLock - 非阻塞尝试获取锁
+     *
+     * @return 成功返回锁守卫，失败返回 nil
+     *
+     * @desc
+     *   基类实现总是返回 nil（表示不支持）。
+     *   子类（如 TTryLock）应重写此方法提供实际实现。
+     *}
+    function TryLock: ILockGuard; virtual;
+
+    {**
+     * LockGuard - 创建 RAII 锁守卫（兼容别名）
      *
      * @return 锁守卫接口，自动管理锁的生命周期
      *
      * @desc
-     *   创建一个 RAII 风格的锁守卫，提供便利的锁管理方式。
-     *   内部调用全局函数 MakeLockGuard。
+     *   等同于 Lock() 方法，为向后兼容保留。
      *
+     * @deprecated 使用 Lock() 方法代替
      *}
-    function  LockGuard: ILockGuard; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+    function  LockGuard: ILockGuard; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF} deprecated 'Use Lock() instead';
   end;
 
   {**
@@ -680,36 +744,32 @@ type
    *}
   TLockClass = class of TLock;
 
-  { ITryLock 支持三段式优化超时尝试的互斥锁接口 }
+  {**
+   * ITryLock - 支持超时尝试的锁接口
+   *
+   * @desc
+   *   提供非阻塞和带超时的锁获取方法。
+   *   内部使用三段式等待策略（紧密自旋 → 退避 → 阻塞）。
+   *
+   * @tuning
+   *   如需调整等待策略参数，请使用 ITryLockTuning 接口：
+   *   (Lock as ITryLockTuning).TightSpin := 5000;
+   *}
   ITryLock = interface(ILock)
     ['{C8F5A2E1-4C3D-4F2A-9B1E-8D7C6A5F4E3D}']
+
+    {**
+     * TryLockFor - 带超时的尝试获取锁
+     *
+     * @param ATimeoutMs 超时时间（毫秒）
+     * @return 成功返回锁守卫，超时返回 nil
+     *}
+    function TryLockFor(ATimeoutMs: Cardinal): ILockGuard;
 
     {**
      * TryAcquire - 非阻塞尝试获取锁
      *
      * @return True 如果成功获取锁，False 如果锁当前被其他线程持有
-     *
-     * @desc
-     *   尝试立即获取锁，不会阻塞当前线程。
-     *   如果锁当前可用，则获取锁并返回 True；
-     *   如果锁被其他线程持有，则立即返回 False。
-     *
-     * @thread_safety
-     *   线程安全，可以从多个线程同时调用。
-     *
-     * @performance
-     *   这是最快的获取方式，通常只需要一次原子操作。
-     *   适用于不希望阻塞的场景，如轮询检查或条件获取。
-     *
-     * @usage
-     *   if Lock.TryAcquire then
-     *   try
-     *     // 临界区代码
-     *   finally
-     *     Lock.Release;
-     *   end
-     *   else
-     *     // 锁不可用，执行替代逻辑
      *}
     function TryAcquire: Boolean; overload;
 
@@ -717,255 +777,68 @@ type
      * TryAcquire - 带超时的尝试获取锁
      *
      * @param ATimeoutMs 超时时间（毫秒），0 表示立即返回
-     *
      * @return True 如果在超时时间内成功获取锁，False 如果超时
-     *
-     * @desc
-     *   在指定的超时时间内尝试获取锁。
-     *   如果在超时时间内获取到锁，返回 True；
-     *   如果超时仍未获取到锁，返回 False。
-     *
-     * @timeout_behavior
-     *   - ATimeoutMs = 0: 等同于 TryAcquire()，立即返回
-     *   - ATimeoutMs > 0: 在超时时间内使用智能等待策略
-     *
-     * @wait_strategy
-     *   使用渐进式等待策略：
-     *   1. 初期：纯自旋等待（高性能）
-     *   2. 中期：自旋 + CPU 让出（平衡性能）
-     *   3. 后期：退避算法（减少 CPU 占用）
-     *
-     * @precision
-     *   超时精度取决于 CheckTimeoutSpin 属性设置。
-     *   较小的检查间隔提供更高的超时精度，但增加时间检查开销。
-     *
-     * @thread_safety
-     *   线程安全，可以从多个线程同时调用。
-     *
-     * @usage
-     *   if Lock.TryAcquire(1000) then  // 等待最多1秒
-     *   try
-     *     // 临界区代码
-     *   finally
-     *     Lock.Release;
-     *   end
-     *   else
-     *     // 超时，执行超时处理逻辑
      *}
     function TryAcquire(ATimeoutMs: Cardinal): Boolean; overload;
+  end;
+
+  {**
+   * ITryLockTuning - 三段式等待策略调优接口
+   *
+   * @desc
+   *   提供对 ITryLock 内部三段式等待策略的精细调优控制。
+   *   大多数用户不需要使用此接口，默认参数适合大多数场景。
+   *
+   * @usage
+   *   var Lock: ITryLock := MakeMutex;
+   *   // 如需调优：
+   *   var Tuning: ITryLockTuning;
+   *   if Supports(Lock, ITryLockTuning, Tuning) then
+   *   begin
+   *     Tuning.TightSpin := 5000;
+   *     Tuning.BlockSleepIntervalMs := 2;
+   *   end;
+   *}
+  ITryLockTuning = interface
+    ['{D9E5A3F2-5B4C-4F3A-AB2E-9D8C7B6A5E4F}']
 
     function  GetTightSpin: UInt32;
     procedure SetTightSpin(Value: UInt32);
-
     function  GetTightTimeCheckIntervalSpin: UInt32;
     procedure SetTightTimeCheckIntervalSpin(Value: UInt32);
-
     function  GetBackOffSpin: UInt32;
     procedure SetBackOffSpin(Value: UInt32);
-
     function  GetBackOffTimeCheckIntervalSpin: UInt32;
     procedure SetBackOffTimeCheckIntervalSpin(Value: UInt32);
-
     function  GetBackOffYieldIntervalSpin: UInt32;
     procedure SetBackOffYieldIntervalSpin(Value: UInt32);
-
     function  GetBlockSpin: UInt32;
     procedure SetBlockSpin(Value: UInt32);
-
     function  GetBlockTimeCheckIntervalSpin: UInt32;
     procedure SetBlockTimeCheckIntervalSpin(Value: UInt32);
-
     function  GetBlockSleepIntervalMs: UInt32;
     procedure SetBlockSleepIntervalMs(Value: UInt32);
 
-    {**
-     * TightSpin - 紧密自旋阶段的最大自旋次数
-     *
-     * @desc
-     *   在三段式等待策略的第一阶段（紧密自旋）中，
-     *   连续尝试获取锁的最大次数。这个阶段使用纯 CPU 自旋，
-     *   适合锁持有时间很短的场景。
-     *
-     * @default 2000
-     *
-     * @performance
-     *   - 较大值：提高短期锁竞争的响应速度，但增加 CPU 占用
-     *   - 较小值：减少 CPU 占用，但可能降低短期锁的获取效率
-     *
-     * @tuning
-     *   根据锁的典型持有时间调整：
-     *   - 微秒级持有：可设置为 5000-10000
-     *   - 毫秒级持有：建议 1000-3000
-     *   - 更长持有：建议 500-1000
-     *
-     * @remark
-     *   这个值对同步性能影响最大，应根据实际场景调整。设置为 `0` 则禁用紧密自旋阶段。
-     *}
+    { TightSpin - 紧密自旋阶段的最大自旋次数 (默认 2000) }
     property TightSpin: UInt32 read GetTightSpin write SetTightSpin;
-
-    {**
-     * TightTimeCheckIntervalSpin - 紧密自旋阶段的超时检查间隔
-     *
-     * @desc
-     *   在紧密自旋阶段，每隔多少次自旋检查一次是否超时。
-     *   较小的值提供更精确的超时控制，但增加时间检查开销。
-     *
-     * @default 1023 (1024-1，利用位运算优化取模操作)
-     *
-     * @precision
-     *   影响超时精度：
-     *   - 值越小：超时检查越频繁，精度越高，但开销越大
-     *   - 值越大：减少检查开销，但超时精度降低
-     *
-     * @optimization
-     *   建议使用 2^n-1 的值（如 1023, 2047, 4095），
-     *   可以利用位运算优化取模操作。
-     *
-     * @remark
-     *   设置为 `0` 则禁用超时检查，仅在 TightSpin 结束时检查一次。
-     *}
+    { TightTimeCheckIntervalSpin - 紧密自旋阶段的超时检查间隔 (默认 1023) }
     property TightTimeCheckIntervalSpin: UInt32 read GetTightTimeCheckIntervalSpin write SetTightTimeCheckIntervalSpin;
-
-    {**
-     * BackOffSpin - 退避阶段的最大自旋次数
-     *
-     * @desc
-     *   在三段式等待策略的第二阶段（退避自旋）中，
-     *   继续尝试获取锁的最大次数。这个阶段在紧密自旋失败后执行，
-     *   使用更温和的自旋策略，适合中等竞争强度的场景。
-     *
-     * @default 50
-     *
-     * @strategy
-     *   相比紧密自旋，退避阶段：
-     *   - 自旋次数更少，减少 CPU 占用
-     *   - 可能包含 CPU 让出操作
-     *   - 为进入阻塞阶段做准备
-     *
-     * @tuning
-     *   根据系统负载和竞争强度调整：
-     *   - 高竞争环境：建议 20-50
-     *   - 中等竞争：建议 50-100
-     *   - 低竞争：可以设置更大值
-     *
-     * @remark
-     *   设置为 `0` 则禁用退避自旋阶段，直接进入阻塞阶段。
-     *}
+    { BackOffSpin - 退避阶段的最大自旋次数 (默认 50) }
     property BackOffSpin: UInt32 read GetBackOffSpin write SetBackOffSpin;
-
-    {**
-     * BackOffTimeCheckIntervalSpin - 退避阶段的超时检查间隔
-     *
-     * @desc
-     *   在退避自旋阶段，每隔多少次自旋检查一次是否超时。
-     *   由于退避阶段自旋次数较少，通常可以设置较小的检查间隔。
-     *
-     * @default 1023 (1024-1)
-     *
-     * @consideration
-     *   退避阶段的特点：
-     *   - 自旋次数相对较少
-     *   - 可以承受更频繁的时间检查
-     *   - 需要更精确的超时控制
-     * @remark
-     *   设置为 `0` 则禁用超时检查，仅在 BackOff 结束时检查一次。
-     *}
+    { BackOffTimeCheckIntervalSpin - 退避阶段的超时检查间隔 (默认 1023) }
     property BackOffTimeCheckIntervalSpin: UInt32 read GetBackOffTimeCheckIntervalSpin write SetBackOffTimeCheckIntervalSpin;
-
-    {**
-     * BackOffYieldIntervalSpin - 退避阶段的 CPU 让出间隔
-     *
-     * @desc
-     *   在退避自旋阶段，每隔多少次自旋调用一次 CPU 让出操作。
-     *   CPU 让出允许其他线程运行，减少对系统的影响。
-     *
-     * @default 8191 (8192-1)
-     *
-     * @cpu_yield
-     *   CPU 让出的作用：
-     *   - 允许操作系统调度其他线程
-     *   - 减少对系统整体性能的影响
-     *   - 在高竞争环境下提高公平性
-     *
-     * @balance
-     *   需要在响应性和系统友好性之间平衡：
-     *   - 较小值：更频繁让出，系统友好但可能影响响应性
-     *   - 较大值：减少让出开销，但可能影响其他线程
-     *}
+    { BackOffYieldIntervalSpin - 退避阶段的 CPU 让出间隔 (默认 8191) }
     property BackOffYieldIntervalSpin: UInt32 read GetBackOffYieldIntervalSpin write SetBackOffYieldIntervalSpin;
-
-    {**
-     * BlockSpin - 阻塞阶段的最大自旋次数
-     *
-     * @desc
-     *   在三段式等待策略的第三阶段（阻塞等待）中，
-     *   在进入睡眠前的最后自旋尝试次数。这个阶段适合长期竞争的场景，
-     *   主要通过睡眠来减少 CPU 占用。
-     *
-     * @default 1000
-     *
-     * @purpose
-     *   阻塞阶段的设计目标：
-     *   - 最小化 CPU 占用
-     *   - 通过睡眠让出 CPU 时间
-     *   - 适合长时间等待的场景
-     *
-     * @sleep_strategy
-     *   与前两个阶段不同，这个阶段主要依赖睡眠而非自旋。
-     *
-     * @remark
-     *   设置为 `0` 则禁用阻塞自旋阶段，直接进入最终的睡眠阶段。
-     *}
+    { BlockSpin - 阻塞阶段的最大自旋次数 (默认 1000) }
     property BlockSpin: UInt32 read GetBlockSpin write SetBlockSpin;
-
-    {**
-     * BlockTimeCheckIntervalSpin - 阻塞阶段的超时检查间隔
-     *
-     * @desc
-     *   在阻塞等待阶段，每隔多少次自旋检查一次是否超时。
-     *   由于这个阶段主要依赖睡眠，时间检查相对不那么频繁。
-     *
-     * @default 1023 (1024-1)
-     *
-     * @sleep_priority
-     *   在阻塞阶段，睡眠是主要的等待机制，
-     *   自旋只是睡眠间隙的补充尝试。
-     *}
+    { BlockTimeCheckIntervalSpin - 阻塞阶段的超时检查间隔 (默认 1023) }
     property BlockTimeCheckIntervalSpin: UInt32 read GetBlockTimeCheckIntervalSpin write SetBlockTimeCheckIntervalSpin;
-
-    {**
-     * BlockSleepIntervalMs - 阻塞阶段的睡眠间隔（毫秒）
-     *
-     * @desc
-     *   在阻塞等待阶段，每次睡眠的时间长度（毫秒）。
-     *   这是三段式等待策略中最重要的参数之一，
-     *   直接影响长期等待的 CPU 占用和响应性。
-     *
-     * @default 1 毫秒
-     *
-     * @trade_off
-     *   睡眠时间的权衡：
-     *   - 较短睡眠（1-5ms）：更好的响应性，但可能增加 CPU 占用
-     *   - 较长睡眠（10-50ms）：更低的 CPU 占用，但响应性下降
-     *
-     * @system_impact
-     *   1毫秒是一个平衡的选择：
-     *   - 足够短，保证合理的响应性
-     *   - 足够长，有效减少 CPU 占用
-     *   - 符合大多数操作系统的调度粒度
-     *
-     * @tuning_guide
-     *   根据应用场景调整：
-     *   - 实时系统：建议 1-2ms
-     *   - 一般应用：建议 1-10ms
-     *   - 后台任务：可以设置 10-50ms
-     *}
+    { BlockSleepIntervalMs - 阻塞阶段的睡眠间隔毫秒 (默认 1) }
     property BlockSleepIntervalMs: UInt32 read GetBlockSleepIntervalMs write SetBlockSleepIntervalMs;
-
   end;
 
 
-  TTryLock = class(TLock, ITryLock)
+  TTryLock = class(TLock, ITryLock, ITryLockTuning)
   private
     FTightSpin:                    UInt32;
     FTightTimeCheckIntervalSpin:   UInt32;
@@ -977,6 +850,23 @@ type
     FBlockSpin:                    UInt32;
     FBlockTimeCheckIntervalSpin:   UInt32;
     FBlockSleepIntervalMs:         UInt32;
+  public
+    // ===== 现代化 API 实现 =====
+
+    {**
+     * TryLock - 非阻塞尝试获取锁（重写基类）
+     *
+     * @return 成功返回锁守卫，失败返回 nil
+     *}
+    function TryLock: ILockGuard; override;
+
+    {**
+     * TryLockFor - 带超时的尝试获取锁
+     *
+     * @param ATimeoutMs 超时时间（毫秒）
+     * @return 成功返回锁守卫，超时返回 nil
+     *}
+    function TryLockFor(ATimeoutMs: Cardinal): ILockGuard; virtual;
   protected
     {**
      * GetDefaultTightSpin - 获取紧密自旋阶段的默认最大自旋次数
@@ -1161,6 +1051,7 @@ type
     FLock: ILock;        // 被守卫的锁对象
     FReleased: Boolean;  // 标记锁是否已被释放，防止重复释放
   public
+    function IsLocked: Boolean;
     {**
      * Create - 创建锁守卫并获取锁
      *
@@ -1289,6 +1180,11 @@ begin
   inherited Destroy;
 end;
 
+function TLockGuard.IsLocked: Boolean;
+begin
+  Result := (not FReleased) and Assigned(FLock);
+end;
+
 procedure TLockGuard.Release;
 begin
   if not FReleased and Assigned(FLock) then
@@ -1333,12 +1229,40 @@ end;
 
 { TLock - 基础锁抽象类实现 }
 
-function TLock.LockGuard: ILockGuard;
+function TLock.Lock: ILockGuard;
 begin
   Result := MakeLockGuard(Self);
 end;
 
+function TLock.TryLock: ILockGuard;
+begin
+  // 基类不支持非阻塞尝试，返回 nil
+  // 子类（TTryLock）应重写此方法
+  Result := nil;
+end;
+
+function TLock.LockGuard: ILockGuard;
+begin
+  Result := Lock;
+end;
+
 { TTryLock - 扩展锁实现 }
+
+function TTryLock.TryLock: ILockGuard;
+begin
+  if TryAcquire then
+    Result := MakeLockGuardFromAcquired(Self)
+  else
+    Result := nil;
+end;
+
+function TTryLock.TryLockFor(ATimeoutMs: Cardinal): ILockGuard;
+begin
+  if TryAcquire(ATimeoutMs) then
+    Result := MakeLockGuardFromAcquired(Self)
+  else
+    Result := nil;
+end;
 
 {**
  * TTryLock.TryAcquire - 带超时的三段式等待策略实现
