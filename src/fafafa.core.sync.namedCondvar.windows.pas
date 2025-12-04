@@ -236,7 +236,12 @@ begin
     SetEvent(FBroadcastEvent);
     Inc(FStats.WakeupCount, WaiterCount);
     
-    // Wait for all waiters to wake up, then reset
+    // LIMITATION: This heuristic has a theoretical race condition.
+    // A more robust solution would use a generation counter to ensure
+    // all waiters that were waiting at the time of Broadcast() are woken,
+    // while new waiters after Broadcast() wait for the next signal.
+    // Current approach: short delay then reset the manual-reset event.
+    // In high-contention scenarios, consider using Signal() in a loop instead.
     Sleep(1); // Give threads time to wake
     ResetEvent(FBroadcastEvent);
   end;
