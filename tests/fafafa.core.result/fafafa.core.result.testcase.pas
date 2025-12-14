@@ -62,6 +62,9 @@ type
     procedure Test_IsOkAnd;
     procedure Test_IsErrAnd;
     procedure Test_Chain;
+    procedure Test_Equals;
+    procedure Test_MapBoth;
+    procedure Test_Fold;
   end;
 
   { 异常桥接测试 }
@@ -772,6 +775,74 @@ begin
   A := TIntResult.Err('first');
   C := specialize ResultChain<Integer, string>(A, B);
   CheckTrue(C.IsErr);
+end;
+
+procedure TTestCase_TResult_Combinators.Test_Equals;
+var
+  A, B: TIntResult;
+begin
+  // Ok vs Ok (equal)
+  A := TIntResult.Ok(42);
+  B := TIntResult.Ok(42);
+  CheckTrue(A.Equals(B, @IntEq, @StrEq));
+
+  // Ok vs Ok (not equal)
+  B := TIntResult.Ok(99);
+  CheckFalse(A.Equals(B, @IntEq, @StrEq));
+
+  // Err vs Err (equal)
+  A := TIntResult.Err('error');
+  B := TIntResult.Err('error');
+  CheckTrue(A.Equals(B, @IntEq, @StrEq));
+
+  // Err vs Err (not equal)
+  B := TIntResult.Err('other');
+  CheckFalse(A.Equals(B, @IntEq, @StrEq));
+
+  // Ok vs Err
+  A := TIntResult.Ok(42);
+  B := TIntResult.Err('e');
+  CheckFalse(A.Equals(B, @IntEq, @StrEq));
+
+  // Err vs Ok
+  A := TIntResult.Err('e');
+  B := TIntResult.Ok(42);
+  CheckFalse(A.Equals(B, @IntEq, @StrEq));
+end;
+
+procedure TTestCase_TResult_Combinators.Test_MapBoth;
+var
+  R: TIntResult;
+  R2: specialize TResult<string, Integer>;
+begin
+  // Ok path: map value
+  R := TIntResult.Ok(42);
+  R2 := specialize ResultMapBoth<Integer, string, string, Integer>(R, @IntToStrFunc, @StrLen);
+  CheckTrue(R2.IsOk);
+  CheckEquals('42', R2.Unwrap);
+
+  // Err path: map error
+  R := TIntResult.Err('hello');
+  R2 := specialize ResultMapBoth<Integer, string, string, Integer>(R, @IntToStrFunc, @StrLen);
+  CheckTrue(R2.IsErr);
+  CheckEquals(5, R2.UnwrapErr);
+end;
+
+procedure TTestCase_TResult_Combinators.Test_Fold;
+var
+  ROk, RErr: TIntResult;
+  FOk: specialize TResultFunc<Integer, string>;
+  FErr: specialize TResultFunc<string, string>;
+begin
+  ROk := TIntResult.Ok(42);
+  RErr := TIntResult.Err('fail');
+
+  FOk := function(const X: Integer): string begin Result := 'val:' + IntToStr(X); end;
+  FErr := function(const S: string): string begin Result := 'err:' + S; end;
+
+  // ResultFold should behave same as ResultMatch
+  CheckEquals('val:42', specialize ResultFold<Integer, string, string>(ROk, FOk, FErr));
+  CheckEquals('err:fail', specialize ResultFold<Integer, string, string>(RErr, FOk, FErr));
 end;
 
 { TTestCase_TResult_ExceptionBridge }
