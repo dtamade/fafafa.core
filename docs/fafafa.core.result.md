@@ -134,7 +134,7 @@ R2 := specialize ResultFilterOrElse<Integer, String>(R, @IsPositive, @MakeErr);
 // Chain (类似 OrElse，但直接提供备用值)
 R := specialize ResultChain<Integer, String>(First, Second);
 
-// Transpose: Result<Option<T>,E> <-> Option<Result<T,E>>
+// ResultTranspose: Result<Option<T>,E> -> Option<Result<T,E>>
 //   Ok(Some(v)) -> Some(Ok(v))
 //   Ok(None)    -> None
 //   Err(e)      -> Some(Err(e))
@@ -144,13 +144,26 @@ R := specialize TResult<specialize TOption<Integer>, string>.Ok(
        specialize TOption<Integer>.Some(42));
 O := specialize ResultTranspose<Integer, string>(R);
 // O = Some(Ok(42))
+
+// OptionTransposeResult (逆操作，定义在 fafafa.core.option):
+//   Option<Result<T,E>> -> Result<Option<T>,E>
+//   None        -> Ok(None)
+//   Some(Ok(v)) -> Ok(Some(v))
+//   Some(Err(e))-> Err(e)
+uses fafafa.core.option;
+var O2: specialize TOption<specialize TResult<Integer, string>>;
+var R2: specialize TResult<specialize TOption<Integer>, string>;
+O2 := specialize TOption<specialize TResult<Integer, string>>.Some(
+        specialize TResult<Integer, string>.Ok(42));
+R2 := specialize OptionTransposeResult<Integer, string>(O2);
+// R2 = Ok(Some(42))
 ```
 
 ### 快速接口（Ensure / FromBool / Zip）
 
 ```pascal
 // ResultEnsure: 条件为真 -> Ok(Unit)；否则 -> Err(E)
-// 其中 Unit 为 fafafa.core.result.TUnit
+// 其中 TUnit 为 fafafa.core.result.TUnit（空 record）
 var Guard: specialize TResult<TUnit, string>;
 Guard := specialize ResultEnsure<string>(X > 0, 'X must be positive');
 
@@ -175,7 +188,8 @@ ROpt := specialize ResultFromOptionElse<Integer, string>(O,
 // ROpt = Err('none')
 
 // ResultZip: (Ok(T1), Ok(T2)) -> Ok(TTuple2<T1,T2>)，否则返回首个 Err
-// TTuple2 字段：First / Second
+// TTuple2<TFirst,TSecond> 字段：First / Second
+// 注意：fafafa.core.option 定义了等价的 TPair<TFirst,TSecond>，两者结构相同
 var A: specialize TResult<Integer, string>;
 var B: specialize TResult<string, string>;
 var Z: specialize TResult< specialize TTuple2<Integer, string>, string>;
@@ -306,9 +320,20 @@ end;
 ## 实现要点
 
 - 单元路径：`src/fafafa.core.result.pas`
-- 依赖：`SysUtils`
+- 依赖：`SysUtils`、`fafafa.core.option.base`
 - 使用泛型 record + 标志位布局（FIsOk + FOk + FErr）
 - 组合子为顶层泛型函数
+
+### 默认初始化语义
+
+未显式初始化的 `TResult<T,E>` 变量默认为 `Err(Default(E))`：
+
+```pascal
+var R: specialize TResult<Integer, string>;
+// R.IsErr = True, R.UnwrapErr = '' (空字符串，即 Default(string))
+```
+
+这是为了防止未初始化变量被误认为 `Ok`。与 Rust 不同（Rust 没有默认值），Pascal 必须处理未初始化情况。
 
 ## 最佳实践
 

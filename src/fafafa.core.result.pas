@@ -369,7 +369,7 @@ end;
 function TResult.ExpectErr(const AMsg: string): E;
 begin
   if FIsOk then
-    raise EResultUnwrapError.Create('ExpectErr on Ok: ' + AMsg);
+    raise EResultUnwrapError.Create(AMsg);
   Result := FErr;
 end;
 

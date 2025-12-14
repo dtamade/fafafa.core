@@ -236,8 +236,9 @@ begin
   Result := X < 0;
 end;
 
-function MakeNegError(const X: Integer): string;
+function MakeNegError(const AValue: Integer): string;
 begin
+  if AValue = AValue then; // suppress hint
   Result := 'not positive';
 end;
 
@@ -248,6 +249,7 @@ end;
 
 function WorkFail: Integer;
 begin
+  Result := 0; // never reached, but silences warning
   raise Exception.Create('work failed');
 end;
 
@@ -1570,8 +1572,8 @@ end;
 
 procedure TTestCase_TResult_FastAPI.Test_TResult_CollectPtrIntoArray_Empty_ReturnsOkAndOutEmpty;
 var
-  Items: array of TIntResult;
-  OutValues: specialize TValueArray<Integer>;
+  Items: array of TIntResult = nil;
+  OutValues: specialize TValueArray<Integer> = nil;
   FirstErr: string;
   Success: Boolean;
 begin
@@ -1593,7 +1595,7 @@ end;
 procedure TTestCase_TResult_FastAPI.Test_TryCollectPtrIntoArray_AllOk_ReturnsTrue;
 var
   Items: array[0..2] of TIntResult;
-  OutValues: specialize TValueArray<Integer>;
+  OutValues: specialize TValueArray<Integer> = nil;
   FirstErr: string;
   Success: Boolean;
 begin
@@ -1614,7 +1616,7 @@ end;
 procedure TTestCase_TResult_FastAPI.Test_TryCollectPtrIntoArray_FirstErr_ReturnsFalse;
 var
   Items: array[0..2] of TIntResult;
-  OutValues: specialize TValueArray<Integer>;
+  OutValues: specialize TValueArray<Integer> = nil;
   FirstErr: string;
   Success: Boolean;
 begin
@@ -1636,7 +1638,7 @@ end;
 procedure TTestCase_TResult_FastAPI.Test_TryCollectPtrIntoArray_MixedWithErr_ReturnsFalseWithFirstErr;
 var
   Items: array[0..2] of TIntResult;
-  OutValues: specialize TValueArray<Integer>;
+  OutValues: specialize TValueArray<Integer> = nil;
   FirstErr: string;
   Success: Boolean;
 begin
@@ -1662,7 +1664,7 @@ end;
 procedure TTestCase_TResult_FastAPI.Test_Facade_TryCollect_Works;
 var
   Items: array[0..1] of TIntResult;
-  OutValues: specialize TValueArray<Integer>;
+  OutValues: specialize TValueArray<Integer> = nil;
   FirstErr: string;
   Success: Boolean;
 begin
