@@ -646,12 +646,21 @@ var
   Outer: specialize TResult<TIntResult, string>;
   Flat: TIntResult;
 begin
+  // Ok(Ok(v)) -> Ok(v)
   Inner := TIntResult.Ok(99);
   Outer := specialize TResult<TIntResult, string>.Ok(Inner);
   Flat := specialize ResultFlatten<Integer, string>(Outer);
   CheckTrue(Flat.IsOk);
   CheckEquals(99, Flat.Unwrap);
 
+  // Ok(Err(e)) -> Err(e) (inner error propagates)
+  Inner := TIntResult.Err('inner err');
+  Outer := specialize TResult<TIntResult, string>.Ok(Inner);
+  Flat := specialize ResultFlatten<Integer, string>(Outer);
+  CheckTrue(Flat.IsErr);
+  CheckEquals('inner err', Flat.UnwrapErr);
+
+  // Err(e) -> Err(e) (outer error)
   Outer := specialize TResult<TIntResult, string>.Err('outer err');
   Flat := specialize ResultFlatten<Integer, string>(Outer);
   CheckTrue(Flat.IsErr);
