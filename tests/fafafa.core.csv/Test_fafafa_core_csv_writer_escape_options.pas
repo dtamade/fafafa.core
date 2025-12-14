@@ -23,15 +23,14 @@ var
   D: TCSVDialect; W: ICSVWriter; OutFile: string; FS: TFileStream; Raw, Expected: RawByteString;
 begin
   D := DefaultRFC4180;
-  D.Escape := '\\'; // backslash as escape
+  D.Escape := '\'; // backslash as escape
   D.DoubleQuote := False; // prefer escape over doubling
   OutFile := 'tmp_writer_escape_only.csv'; if FileExists(OutFile) then DeleteFile(OutFile);
   W := OpenCSVWriter(OutFile, D);
-  W.WriteRow(['a"b','c']);
+  W.WriteRow(['a\"b','c']);
   W.Flush; W.Close;
-  Expected := '"a\\""b",c' + #13#10; // " inside quotes; note: Pascal string needs escaping
-  // Build expected precisely using bytes
-  Expected := '"a' + RawByteString('\') + '"' + '"b",c' + #13#10;
+  // Expected: backslash escapes the quote; no doubling when DoubleQuote=False
+  Expected := '"a\\\"b",c' + #13#10;
   FS := TFileStream.Create(OutFile, fmOpenRead or fmShareDenyNone);
   try
     SetLength(Raw, FS.Size);
@@ -39,7 +38,7 @@ begin
   finally
     FS.Free;
   end;
-  AssertTrue('Writer should use Escape for quotes when DoubleQuote=False', Raw = Expected);
+  AssertTrue('Writer should escape backslash and quote when DoubleQuote=False', Raw = Expected);
   if FileExists(OutFile) then DeleteFile(OutFile);
 end;
 
@@ -48,7 +47,7 @@ var
   D: TCSVDialect; W: ICSVWriter; OutFile: string; FS: TFileStream; Raw, Expected: RawByteString;
 begin
   D := DefaultRFC4180;
-  D.Escape := '\\';
+  D.Escape := '\';
   D.DoubleQuote := True; // precedence: double-quote wins
   OutFile := 'tmp_writer_escape_and_double.csv'; if FileExists(OutFile) then DeleteFile(OutFile);
   W := OpenCSVWriter(OutFile, D);
@@ -71,16 +70,14 @@ var
   D: TCSVDialect; W: ICSVWriter; OutFile: string; FS: TFileStream; Raw, Expected: RawByteString;
 begin
   D := DefaultRFC4180;
-  D.Escape := '\\';
+  D.Escape := '\';
   D.DoubleQuote := True; // still allow escape for backslash itself
   OutFile := 'tmp_writer_escape_backslash.csv'; if FileExists(OutFile) then DeleteFile(OutFile);
   W := OpenCSVWriter(OutFile, D);
-  // field requires quotes due to leading/trailing spaces; contains a backslash which should be escaped to \\
-  W.WriteRow([' a\\b ','c']);
+  // field requires quotes due to leading/trailing spaces; contains a single backslash which should be escaped to \\
+  W.WriteRow([' a\b ','c']);
   W.Flush; W.Close;
-  Expected := '" a\\\\b ",c' + #13#10; // becomes " a\\b " in CSV bytes
-  // Build expected to avoid confusion
-  Expected := '" a' + RawByteString('\\') + 'b ",c' + #13#10;
+  Expected := '" a\\b ",c' + #13#10;
   FS := TFileStream.Create(OutFile, fmOpenRead or fmShareDenyNone);
   try
     SetLength(Raw, FS.Size);

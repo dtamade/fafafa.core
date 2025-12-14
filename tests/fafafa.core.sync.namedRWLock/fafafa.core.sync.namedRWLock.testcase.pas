@@ -16,6 +16,7 @@ type
     procedure Test_MakeNamedRWLock;
     procedure Test_MakeNamedRWLock_InitialOwner;
     procedure Test_TryOpenNamedRWLock;
+    procedure Test_TryOpenNamedRWLock_InvalidName_Propagates;
     procedure Test_MakeGlobalNamedRWLock;
     procedure Test_MakeNamedRWLock_WithConfig;
   end;
@@ -102,10 +103,22 @@ begin
   LRWLock1 := MakeNamedRWLock('test_rwlock_3');
   CheckNotNull(LRWLock1, '应该成功创建命名读写锁');
   
-  // 然后尝试打开现有的
+  // 然后尝试打开现有的（当前语义仍是“打开或创建”，但不得吞掉异常）
   LRWLock2 := TryOpenNamedRWLock('test_rwlock_3');
   CheckNotNull(LRWLock2, '应该成功打开现有的命名读写锁');
   CheckEquals('test_rwlock_3', LRWLock2.GetName, '名称应该匹配');
+end;
+
+procedure TTestCase_Global.Test_TryOpenNamedRWLock_InvalidName_Propagates;
+begin
+  // TryOpen 不应该静默吞掉参数错误，保持与 MakeNamedRWLock 一致
+  try
+    TryOpenNamedRWLock('');
+    Fail('空名称应该抛出异常');
+  except
+    on E: EInvalidArgument do
+      Check(True, '应抛出 EInvalidArgument，不能静默返回 nil');
+  end;
 end;
 
 procedure TTestCase_Global.Test_MakeGlobalNamedRWLock;

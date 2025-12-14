@@ -6,7 +6,7 @@ unit fafafa.core.simd.scalar;
 interface
 
 uses
-  fafafa.core.simd.types,
+  fafafa.core.simd.base,
   fafafa.core.simd.dispatch;
 
 // === Scalar Backend Implementation ===
@@ -46,6 +46,60 @@ function BytesIndexOf_Scalar(haystack: Pointer; haystackLen: SizeUInt; needle: P
 // 位集函数
 function BitsetPopCount_Scalar(p: Pointer; byteLen: SizeUInt): SizeUInt;
 
+// === 基础向量/数值参考实现（供其他后端回退使用） ===
+// Arithmetic
+function ScalarAddF32x4(const a, b: TVecF32x4): TVecF32x4;
+function ScalarSubF32x4(const a, b: TVecF32x4): TVecF32x4;
+function ScalarMulF32x4(const a, b: TVecF32x4): TVecF32x4;
+function ScalarDivF32x4(const a, b: TVecF32x4): TVecF32x4;
+
+function ScalarAddF32x8(const a, b: TVecF32x8): TVecF32x8;
+function ScalarSubF32x8(const a, b: TVecF32x8): TVecF32x8;
+function ScalarMulF32x8(const a, b: TVecF32x8): TVecF32x8;
+function ScalarDivF32x8(const a, b: TVecF32x8): TVecF32x8;
+
+function ScalarAddF64x2(const a, b: TVecF64x2): TVecF64x2;
+function ScalarSubF64x2(const a, b: TVecF64x2): TVecF64x2;
+function ScalarMulF64x2(const a, b: TVecF64x2): TVecF64x2;
+function ScalarDivF64x2(const a, b: TVecF64x2): TVecF64x2;
+
+function ScalarAddI32x4(const a, b: TVecI32x4): TVecI32x4;
+function ScalarSubI32x4(const a, b: TVecI32x4): TVecI32x4;
+function ScalarMulI32x4(const a, b: TVecI32x4): TVecI32x4;
+
+// Comparison
+function ScalarCmpEqF32x4(const a, b: TVecF32x4): TMask4;
+function ScalarCmpLtF32x4(const a, b: TVecF32x4): TMask4;
+function ScalarCmpLeF32x4(const a, b: TVecF32x4): TMask4;
+function ScalarCmpGtF32x4(const a, b: TVecF32x4): TMask4;
+function ScalarCmpGeF32x4(const a, b: TVecF32x4): TMask4;
+function ScalarCmpNeF32x4(const a, b: TVecF32x4): TMask4;
+
+// Math
+function ScalarAbsF32x4(const a: TVecF32x4): TVecF32x4;
+function ScalarSqrtF32x4(const a: TVecF32x4): TVecF32x4;
+function ScalarMinF32x4(const a, b: TVecF32x4): TVecF32x4;
+function ScalarMaxF32x4(const a, b: TVecF32x4): TVecF32x4;
+
+// Reduction
+function ScalarReduceAddF32x4(const a: TVecF32x4): Single;
+function ScalarReduceMinF32x4(const a: TVecF32x4): Single;
+function ScalarReduceMaxF32x4(const a: TVecF32x4): Single;
+function ScalarReduceMulF32x4(const a: TVecF32x4): Single;
+
+// Load/Store
+function ScalarLoadF32x4(p: PSingle): TVecF32x4;
+function ScalarLoadF32x4Aligned(p: PSingle): TVecF32x4;
+procedure ScalarStoreF32x4(p: PSingle; const a: TVecF32x4);
+procedure ScalarStoreF32x4Aligned(p: PSingle; const a: TVecF32x4);
+
+// Utility
+function ScalarSplatF32x4(value: Single): TVecF32x4;
+function ScalarZeroF32x4: TVecF32x4;
+function ScalarSelectF32x4(const mask: TMask4; const a, b: TVecF32x4): TVecF32x4;
+function ScalarExtractF32x4(const a: TVecF32x4; index: Integer): Single;
+function ScalarInsertF32x4(const a: TVecF32x4; value: Single; index: Integer): TVecF32x4;
+
 // 扩展数学函数
 function ScalarFmaF32x4(const a, b, c: TVecF32x4): TVecF32x4;
 function ScalarRcpF32x4(const a: TVecF32x4): TVecF32x4;
@@ -68,7 +122,7 @@ function ScalarNormalizeF32x3(const a: TVecF32x4): TVecF32x4;
 implementation
 
 uses
-  Math,
+  fafafa.core.math,
   SysUtils;
 
 // === Arithmetic Operations ===

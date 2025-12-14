@@ -161,7 +161,9 @@ begin
   // Alignment: 默认 max(pointer,16)；必须为 2 的幂
   if AAlignment = 0 then
   begin
-    if SizeOf(Pointer) >= 16 then FAlignment := SizeOf(Pointer) else FAlignment := 16;
+    // SizeOf(Pointer) is a compile-time constant; on supported targets it's <= 16,
+    // so max(SizeOf(Pointer), 16) is always 16. Keep it branch-free to avoid FPC 6018.
+    FAlignment := 16;
   end
   else
     FAlignment := AAlignment;

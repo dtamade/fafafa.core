@@ -119,34 +119,47 @@ end;
 
 {$ELSE} // UNIX/Linux
 
+// On UNIX-like systems we emulate aligned allocation by over-allocating and
+// storing a small header immediately before the aligned pointer. The header
+// layout is:
+//   [ originalPtr : Pointer ][ allocSize : NativeUInt ][ aligned data ... ]
+// This allows AlignedFree and AlignedRealloc to recover both the original
+// pointer returned by GetMem and the originally requested size.
+
 function AlignedAlloc(size: NativeUInt; alignment: NativeUInt): Pointer;
 var
   originalPtr: Pointer;
   alignedPtr: Pointer;
-  offset: NativeUInt;
+  headerOffset: NativeUInt;
+  headerBase: NativeUInt;
 begin
-  // Allocate extra space for alignment and storing original pointer
-  originalPtr := GetMem(size + alignment + SizeOf(Pointer));
+  // Reserve extra space for alignment plus our header (pointer + size)
+  headerOffset := SizeOf(Pointer) + SizeOf(NativeUInt);
+  originalPtr := GetMem(size + alignment + headerOffset);
   if originalPtr = nil then
     raise EOutOfMemory.CreateFmt('Failed to allocate %d bytes with %d alignment', [size, alignment]);
-    
-  // Calculate aligned address
-  alignedPtr := AlignUp(Pointer(NativeUInt(originalPtr) + SizeOf(Pointer)), alignment);
-  
-  // Store original pointer just before aligned memory
-  PPointer(NativeUInt(alignedPtr) - SizeOf(Pointer))^ := originalPtr;
-  
+
+  // Calculate aligned address, leaving room for the header just before it
+  alignedPtr := AlignUp(Pointer(NativeUInt(originalPtr) + headerOffset), alignment);
+
+  // Store header immediately before the aligned pointer
+  headerBase := NativeUInt(alignedPtr) - headerOffset;
+  PPointer(headerBase)^ := originalPtr;
+  PNativeUInt(headerBase + SizeOf(Pointer))^ := size;
+
   Result := alignedPtr;
 end;
 
 procedure AlignedFree(ptr: Pointer);
 var
   originalPtr: Pointer;
+  headerBase: NativeUInt;
 begin
   if ptr <> nil then
   begin
-    // Retrieve original pointer
-    originalPtr := PPointer(NativeUInt(ptr) - SizeOf(Pointer))^;
+    // Retrieve original pointer from header and free whole block
+    headerBase := NativeUInt(ptr) - (SizeOf(Pointer) + SizeOf(NativeUInt));
+    originalPtr := PPointer(headerBase)^;
     FreeMem(originalPtr);
   end;
 end;
@@ -154,32 +167,44 @@ end;
 function AlignedRealloc(ptr: Pointer; newSize: NativeUInt; alignment: NativeUInt): Pointer;
 var
   newPtr: Pointer;
-  oldSize: NativeUInt;
+  oldSize, copySize: NativeUInt;
+  headerBase: NativeUInt;
 begin
+  // Behave like malloc when ptr = nil
   if ptr = nil then
   begin
+    if newSize = 0 then
+      Exit(nil);
     Result := AlignedAlloc(newSize, alignment);
     Exit;
   end;
-  
+
+  // Behave like free when newSize = 0
   if newSize = 0 then
   begin
     AlignedFree(ptr);
     Result := nil;
     Exit;
   end;
-  
+
+  // Recover the originally requested size from the header
+  headerBase := NativeUInt(ptr) - (SizeOf(Pointer) + SizeOf(NativeUInt));
+  oldSize := PNativeUInt(headerBase + SizeOf(Pointer))^;
+
   // Allocate new aligned memory
   newPtr := AlignedAlloc(newSize, alignment);
-  
-  // Copy old data (we don't know the old size, so copy conservatively)
-  // In a real implementation, you'd want to track allocation sizes
-  oldSize := newSize; // Simplified - assume same size for now
-  Move(ptr^, newPtr^, oldSize);
-  
+
+  // Copy the overlapping part only
+  if oldSize < newSize then
+    copySize := oldSize
+  else
+    copySize := newSize;
+  if copySize > 0 then
+    Move(ptr^, newPtr^, copySize);
+
   // Free old memory
   AlignedFree(ptr);
-  
+
   Result := newPtr;
 end;
 

@@ -138,6 +138,8 @@ end;
 procedure ArchiverShutdown;
 begin
   if gProviders <> nil then begin gProviders.Free; gProviders := nil; end;
+  if gDefaults  <> nil then begin gDefaults.Free;  gDefaults  := nil; end;
+end;
 
 function DefaultArchiveOptions: TArchiveOptions;
 begin
@@ -150,9 +152,6 @@ begin
   Result.StoreUnixPermissions := False;
   Result.StoreTimestampsUtc := True;
   Result.FollowSymlinks := False;
-end;
-
-  if gDefaults  <> nil then begin gDefaults.Free;  gDefaults  := nil; end;
 end;
 
 procedure RegisterBuiltInProviders;

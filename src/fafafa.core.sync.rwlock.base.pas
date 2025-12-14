@@ -88,49 +88,13 @@ type
     property Timestamp: TDateTime read FTimestamp;
   end;
 
-  { 锁获取超时异�?}
+  { 锁获取超时异常 }
   ERWLockTimeoutError = class(ERWLockError)
   private
     FTimeoutMs: Cardinal;
   public
     constructor Create(ATimeoutMs: Cardinal; AThreadId: TThreadID = 0);
     property TimeoutMs: Cardinal read FTimeoutMs;
-  end;
-
-  { 锁状态异常 - 尝试释放未持有的锁 }
-  { @deprecated 使用 ERWLockError 替代 }
-  ERWLockStateError = class(ERWLockError)
-  private
-    FExpectedState: string;
-    FActualState: string;
-  public
-    constructor Create(const AExpectedState, AActualState: string; AThreadId: TThreadID = 0);
-    property ExpectedState: string read FExpectedState;
-    property ActualState: string read FActualState;
-  end;
-
-  { 死锁检测异常 }
-  { @deprecated 使用 ERWLockError 替代 }
-  ERWLockDeadlockError = class(ERWLockError)
-  private
-    FOwnerThread: TThreadID;
-    FWaitingThreads: array of TThreadID;
-  public
-    constructor Create(AOwnerThread: TThreadID; const AWaitingThreads: array of TThreadID);
-    property OwnerThread: TThreadID read FOwnerThread;
-    function GetWaitingThreads: TThreadIDArray;
-  end;
-
-  { 资源耗尽异常 - 读者数量超限 }
-  { @deprecated 使用 ERWLockError 替代 }
-  ERWLockResourceError = class(ERWLockError)
-  private
-    FCurrentCount: Integer;
-    FMaxCount: Integer;
-  public
-    constructor Create(ACurrentCount, AMaxCount: Integer; AThreadId: TThreadID = 0);
-    property CurrentCount: Integer read FCurrentCount;
-    property MaxCount: Integer read FMaxCount;
   end;
 
   { 系统错误异常 - 底层系统调用失败 }
@@ -146,76 +110,6 @@ type
 
   // ===== 扩展异常类型（按照主流标准）=====
   // 以下异常已标记为 deprecated，建议使用核心异常：ERWLockError, ERWLockTimeoutError, ERWLockPoisonError, ERWLockSystemError
-
-  { 操作被中断异常 - 类似 Java InterruptedException }
-  { @deprecated 使用 ERWLockError 替代 }
-  ERWLockInterruptedException = class(ERWLockError)
-  private
-    FInterruptReason: string;
-  public
-    constructor Create(const AInterruptReason: string; AThreadId: TThreadID = 0);
-    property InterruptReason: string read FInterruptReason;
-  end;
-
-  { 所有权错误异常 - 类似 Java IllegalMonitorStateException }
-  { @deprecated 使用 ERWLockError 替代 }
-  ERWLockOwnershipException = class(ERWLockError)
-  private
-    FExpectedOwner: TThreadID;
-    FActualOwner: TThreadID;
-  public
-    constructor Create(AExpectedOwner, AActualOwner: TThreadID);
-    property ExpectedOwner: TThreadID read FExpectedOwner;
-    property ActualOwner: TThreadID read FActualOwner;
-  end;
-
-  { 容量超限异常 - 类似 Java IllegalStateException }
-  { @deprecated 使用 ERWLockError 替代 }
-  ERWLockCapacityException = class(ERWLockError)
-  private
-    FRequestedCount: Integer;
-    FMaxCapacity: Integer;
-  public
-    constructor Create(ARequestedCount, AMaxCapacity: Integer; AThreadId: TThreadID = 0);
-    property RequestedCount: Integer read FRequestedCount;
-    property MaxCapacity: Integer read FMaxCapacity;
-  end;
-
-  { 配置错误异常 - 类似 Java IllegalArgumentException }
-  { @deprecated 使用 ERWLockError 替代 }
-  ERWLockConfigurationException = class(ERWLockError)
-  private
-    FConfigParameter: string;
-    FConfigValue: string;
-  public
-    constructor Create(const AConfigParameter, AConfigValue: string);
-    property ConfigParameter: string read FConfigParameter;
-    property ConfigValue: string read FConfigValue;
-  end;
-
-  { 版本不匹配异常 - ABA 问题检测 }
-  { @deprecated 使用 ERWLockError 替代 }
-  ERWLockVersionException = class(ERWLockError)
-  private
-    FExpectedVersion: Integer;
-    FActualVersion: Integer;
-  public
-    constructor Create(AExpectedVersion, AActualVersion: Integer; AThreadId: TThreadID = 0);
-    property ExpectedVersion: Integer read FExpectedVersion;
-    property ActualVersion: Integer read FActualVersion;
-  end;
-
-  { 数据损坏异常 - 内部状态不一致 }
-  { @deprecated 使用 ERWLockSystemError 替代 }
-  ERWLockCorruptionException = class(ERWLockError)
-  private
-    FCorruptionType: string;
-    FCorruptionDetails: string;
-  public
-    constructor Create(const ACorruptionType, ACorruptionDetails: string; AThreadId: TThreadID = 0);
-    property CorruptionType: string read FCorruptionType;
-    property CorruptionDetails: string read FCorruptionDetails;
-  end;
 
   { 锁毒化异常 - 类似 Rust PoisonError }
   ERWLockPoisonError = class(ERWLockError)
@@ -242,7 +136,6 @@ type
     ['{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}']
     // RAII 读锁守卫，析构时自动释放读锁
     // 继承 IGuard 的 IsLocked 和 Release
-    function IsValid: Boolean; deprecated 'Use IsLocked instead';  // 为向后兼容保留，等价于 IsLocked
   end;
 
   // ===== 写锁守卫接口 =====
@@ -250,7 +143,6 @@ type
     ['{B2C3D4E5-F6A7-8901-BCDE-F12345678901}']
     // RAII 写锁守卫，析构时自动释放写锁
     // 继承 IGuard 的 IsLocked 和 Release
-    function IsValid: Boolean; deprecated 'Use IsLocked instead';  // 为向后兼容保留，等价于 IsLocked
 
     {**
      * Downgrade - 写锁降级为读锁
@@ -635,77 +527,6 @@ begin
   FTimeoutMs := ATimeoutMs;
 end;
 
-{ ERWLockStateError }
-
-constructor ERWLockStateError.Create(const AExpectedState, AActualState: string; AThreadId: TThreadID);
-begin
-  if AThreadId = 0 then
-    AThreadId := GetCurrentThreadId;
-
-  inherited Create(
-    Format('Invalid lock state: expected "%s", actual "%s" (Thread: %d)',
-           [AExpectedState, AActualState, AThreadId]),
-    lrError,
-    AThreadId
-  );
-  FExpectedState := AExpectedState;
-  FActualState := AActualState;
-end;
-
-{ ERWLockDeadlockError }
-
-constructor ERWLockDeadlockError.Create(AOwnerThread: TThreadID; const AWaitingThreads: array of TThreadID);
-var
-  i: Integer;
-  WaitingList: string;
-begin
-  // 构建等待线程列表字符�?
-  WaitingList := '';
-  for i := 0 to High(AWaitingThreads) do
-  begin
-    if i > 0 then
-      WaitingList := WaitingList + ', ';
-    WaitingList := WaitingList + IntToStr(AWaitingThreads[i]);
-  end;
-
-  inherited Create(
-    Format('Potential deadlock detected: Owner=%d, Waiting=[%s]', [AOwnerThread, WaitingList]),
-    lrError,
-    GetCurrentThreadId
-  );
-
-  FOwnerThread := AOwnerThread;
-  SetLength(FWaitingThreads, Length(AWaitingThreads));
-  for i := 0 to High(AWaitingThreads) do
-    FWaitingThreads[i] := AWaitingThreads[i];
-end;
-
-function ERWLockDeadlockError.GetWaitingThreads: TThreadIDArray;
-var
-  i: Integer;
-begin
-  SetLength(Result, Length(FWaitingThreads));
-  for i := 0 to High(FWaitingThreads) do
-    Result[i] := FWaitingThreads[i];
-end;
-
-{ ERWLockResourceError }
-
-constructor ERWLockResourceError.Create(ACurrentCount, AMaxCount: Integer; AThreadId: TThreadID);
-begin
-  if AThreadId = 0 then
-    AThreadId := GetCurrentThreadId;
-
-  inherited Create(
-    Format('Resource limit exceeded: current=%d, max=%d (Thread: %d)',
-           [ACurrentCount, AMaxCount, AThreadId]),
-    lrError,
-    AThreadId
-  );
-  FCurrentCount := ACurrentCount;
-  FMaxCount := AMaxCount;
-end;
-
 { ERWLockSystemError }
 
 constructor ERWLockSystemError.Create(ASystemErrorCode: Integer; const ASystemErrorMessage: string; AThreadId: TThreadID);
@@ -722,102 +543,9 @@ begin
   FSystemErrorCode := ASystemErrorCode;
   FSystemErrorMessage := ASystemErrorMessage;
 end;
+// ===== 扩展异常类实现 =====
 
-// ===== 扩展异常类实�?=====
-
-{ ERWLockInterruptedException }
-
-constructor ERWLockInterruptedException.Create(const AInterruptReason: string; AThreadId: TThreadID);
-begin
-  if AThreadId = 0 then
-    AThreadId := GetCurrentThreadId;
-
-  inherited Create(
-    Format('Operation interrupted: %s (Thread: %d)', [AInterruptReason, AThreadId]),
-    lrError,
-    AThreadId
-  );
-  FInterruptReason := AInterruptReason;
-end;
-
-{ ERWLockOwnershipException }
-
-constructor ERWLockOwnershipException.Create(AExpectedOwner, AActualOwner: TThreadID);
-begin
-  inherited Create(
-    Format('Lock ownership violation: expected owner %d, actual owner %d',
-           [AExpectedOwner, AActualOwner]),
-    lrError,
-    AActualOwner
-  );
-  FExpectedOwner := AExpectedOwner;
-  FActualOwner := AActualOwner;
-end;
-
-{ ERWLockCapacityException }
-
-constructor ERWLockCapacityException.Create(ARequestedCount, AMaxCapacity: Integer; AThreadId: TThreadID);
-begin
-  if AThreadId = 0 then
-    AThreadId := GetCurrentThreadId;
-
-  inherited Create(
-    Format('Capacity exceeded: requested %d, maximum %d (Thread: %d)',
-           [ARequestedCount, AMaxCapacity, AThreadId]),
-    lrError,
-    AThreadId
-  );
-  FRequestedCount := ARequestedCount;
-  FMaxCapacity := AMaxCapacity;
-end;
-
-{ ERWLockConfigurationException }
-
-constructor ERWLockConfigurationException.Create(const AConfigParameter, AConfigValue: string);
-begin
-  inherited Create(
-    Format('Invalid configuration: parameter "%s" = "%s"', [AConfigParameter, AConfigValue]),
-    lrError,
-    GetCurrentThreadId
-  );
-  FConfigParameter := AConfigParameter;
-  FConfigValue := AConfigValue;
-end;
-
-{ ERWLockVersionException }
-
-constructor ERWLockVersionException.Create(AExpectedVersion, AActualVersion: Integer; AThreadId: TThreadID);
-begin
-  if AThreadId = 0 then
-    AThreadId := GetCurrentThreadId;
-
-  inherited Create(
-    Format('Version mismatch detected: expected %d, actual %d (Thread: %d)',
-           [AExpectedVersion, AActualVersion, AThreadId]),
-    lrError,
-    AThreadId
-  );
-  FExpectedVersion := AExpectedVersion;
-  FActualVersion := AActualVersion;
-end;
-
-{ ERWLockCorruptionException }
-
-constructor ERWLockCorruptionException.Create(const ACorruptionType, ACorruptionDetails: string; AThreadId: TThreadID);
-begin
-  if AThreadId = 0 then
-    AThreadId := GetCurrentThreadId;
-
-  inherited Create(
-    Format('Data corruption detected: %s - %s (Thread: %d)',
-           [ACorruptionType, ACorruptionDetails, AThreadId]),
-    lrError,
-    AThreadId
-  );
-  FCorruptionType := ACorruptionType;
-  FCorruptionDetails := ACorruptionDetails;
-end;
-
+{ ERWLockPoisonError }
 { ERWLockPoisonError }
 
 constructor ERWLockPoisonError.Create(APoisoningThreadId: TThreadID; const APoisoningException: string);

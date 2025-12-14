@@ -117,12 +117,10 @@ begin
     Sleep(100); // 确保等待线程开始等待
     
     // 发送信号
-    FMutex.Acquire;
-    try
+    with FMutex.Lock do
+    begin
       FCondition := True;
       FCondVar.Signal;
-    finally
-      FMutex.Release;
     end;
     
     // 等待线程完成
@@ -149,12 +147,10 @@ begin
     Sleep(100); // 确保所有等待线程开始等待
     
     // 广播信号
-    FMutex.Acquire;
-    try
+    with FMutex.Lock do
+    begin
       FCondition := True;
       FCondVar.Broadcast;
-    finally
-      FMutex.Release;
     end;
     
     // 等待所有线程完成
@@ -226,12 +222,10 @@ begin
     Sleep(100);
     
     // 只发送一个信号
-    FMutex.Acquire;
-    try
+    with FMutex.Lock do
+    begin
       FCondition := True;
       FCondVar.Signal; // 只唤醒一个
-    finally
-      FMutex.Release;
     end;
     
     Sleep(200);
@@ -285,12 +279,10 @@ begin
     AssertFalse('Waiter should still be waiting', Waiter.WaitCompleted);
     
     // 现在真正满足条件
-    FMutex.Acquire;
-    try
+    with FMutex.Lock do
+    begin
       FCondition := True;
       FCondVar.Signal;
-    finally
-      FMutex.Release;
     end;
     
     Waiter.WaitFor;
@@ -304,22 +296,18 @@ end;
 procedure TCondVarTest.TestSignalBeforeWait;
 begin
   // 先发送信号
-  FMutex.Acquire;
-  try
+  with FMutex.Lock do
+  begin
     FCondition := True;
     FCondVar.Signal;
-  finally
-    FMutex.Release;
   end;
   
   // 然后等待（应该立即返回，因为条件已满足）
-  FMutex.Acquire;
-  try
+  with FMutex.Lock do
+  begin
     if not FCondition then
       FCondVar.Wait(FMutex);
     AssertTrue('Condition should be true', FCondition);
-  finally
-    FMutex.Release;
   end;
 end;
 
@@ -327,12 +315,10 @@ procedure TCondVarTest.TestTimeoutZero;
 var
   Result: Boolean;
 begin
-  FMutex.Acquire;
-  try
+  with FMutex.Lock do
+  begin
     Result := FCondVar.Wait(FMutex, 0);
     AssertFalse('Wait with zero timeout should return false', Result);
-  finally
-    FMutex.Release;
   end;
 end;
 
@@ -341,12 +327,10 @@ var
   i: Integer;
 begin
   // 发送多个信号（不应该造成问题）
-  FMutex.Acquire;
-  try
+  with FMutex.Lock do
+  begin
     for i := 1 to 5 do
       FCondVar.Signal;
-  finally
-    FMutex.Release;
   end;
   
   // 应该正常工作
@@ -360,7 +344,7 @@ var
 begin
   // 创建命名条件变量
   NamedCondVar1 := MakeNamedCondVar('TestCondVar');
-  NamedMutex := MakeNamedMutex('TestMutex');
+  NamedMutex := Sync.MakeNamedMutex('TestMutex');
   
   AssertNotNull('Named CondVar should not be nil', NamedCondVar1);
   AssertNotNull('Named Mutex should not be nil', NamedMutex);
@@ -398,12 +382,10 @@ var
 begin
   for i := 1 to FProduceCount do
   begin
-    FMutex.Acquire;
-    try
+    with FMutex.Lock do
+    begin
       Inc(FSharedData^);
       FCondVar.Signal;
-    finally
-      FMutex.Release;
     end;
     Sleep(10); // 模拟生产延迟
   end;
@@ -426,15 +408,13 @@ procedure TConsumerThread.Execute;
 begin
   while FConsumedCount < FExpectedCount do
   begin
-    FMutex.Acquire;
-    try
+    with FMutex.Lock do
+    begin
       while FSharedData^ = 0 do
         FCondVar.Wait(FMutex);
       
       Dec(FSharedData^);
       Inc(FConsumedCount);
-    finally
-      FMutex.Release;
     end;
   end;
 end;
@@ -455,8 +435,8 @@ end;
 
 procedure TWaiterThread.Execute;
 begin
-  FMutex.Acquire;
-  try
+  with FMutex.Lock do
+  begin
     if FTimeoutMs = INFINITE then
     begin
       while not FCondition^ and not Terminated do
@@ -476,8 +456,6 @@ begin
     
     if FCondition^ then
       FWaitCompleted := True;
-  finally
-    FMutex.Release;
   end;
 end;
 

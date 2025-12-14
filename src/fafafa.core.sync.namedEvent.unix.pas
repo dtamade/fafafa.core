@@ -24,6 +24,10 @@ function ftruncate(fd: cint; length: off_t): cint; cdecl; external 'c';
 function clock_gettime(clk_id: cint; tp: PTimeSpec): cint; cdecl; external 'rt';
 {$ENDIF}
 
+// Direct errno access for Linux - fpGetErrno doesn't work with libc functions
+function __errno_location: pcint; cdecl; external 'c';
+function GetCErrno: cint; inline;
+
 type
   // 共享内存中的事件状态结�?
   PEventState = ^TEventState;
@@ -87,6 +91,11 @@ type
   end;
 
 implementation
+
+function GetCErrno: cint; inline;
+begin
+  Result := __errno_location^;
+end;
 
 { 辅助函数 }
 
@@ -181,11 +190,11 @@ begin
   begin
     FLastError := weSystemError;
     raise ELockError.CreateFmt('Failed to create shared memory for named event "%s": %s',
-      [AName, SysErrorMessage(fpGetErrno)]);
+      [AName, SysErrorMessage(GetCErrno)]);
   end;
   
   // 检查是否为创建者（通过检查文件是否已存在�?
-  FIsCreator := (fpGetErrno <> ESysEEXIST);
+  FIsCreator := (GetCErrno <> ESysEEXIST);
   
   // 设置共享内存大小
   if ftruncate(FShmFile, FShmSize) = -1 then
@@ -195,7 +204,7 @@ begin
       shm_unlink(PAnsiChar(FShmPath));
     FLastError := weSystemError;
     raise ELockError.CreateFmt('Failed to set shared memory size for named event "%s": %s',
-      [AName, SysErrorMessage(fpGetErrno)]);
+      [AName, SysErrorMessage(GetCErrno)]);
   end;
   
   // 映射共享内存
@@ -207,7 +216,7 @@ begin
       shm_unlink(PAnsiChar(FShmPath));
     FLastError := weSystemError;
     raise ELockError.CreateFmt('Failed to map shared memory for named event "%s": %s',
-      [AName, SysErrorMessage(fpGetErrno)]);
+      [AName, SysErrorMessage(GetCErrno)]);
   end;
   
   // 初始化事件状�?
@@ -404,7 +413,7 @@ begin
   begin
     FLastError := weSystemError;
     raise ELockError.CreateFmt('Failed to lock mutex for named event "%s": %s',
-      [FOriginalName, SysErrorMessage(fpGetErrno)]);
+      [FOriginalName, SysErrorMessage(GetCErrno)]);
   end;
 
   try
@@ -525,7 +534,7 @@ begin
   begin
     FLastError := weSystemError;
     raise ELockError.CreateFmt('Failed to lock mutex for named event "%s": error=%d, errno=%d, msg=%s',
-      [FOriginalName, LLockResult, fpGetErrno, SysErrorMessage(LLockResult)]);
+      [FOriginalName, LLockResult, GetCErrno, SysErrorMessage(LLockResult)]);
   end;
 
   try
@@ -545,7 +554,7 @@ begin
   begin
     FLastError := weSystemError;
     raise ELockError.CreateFmt('Failed to lock mutex for named event "%s": %s',
-      [FOriginalName, SysErrorMessage(fpGetErrno)]);
+      [FOriginalName, SysErrorMessage(GetCErrno)]);
   end;
 
   try
@@ -561,7 +570,7 @@ begin
   begin
     FLastError := weSystemError;
     raise ELockError.CreateFmt('Failed to lock mutex for named event "%s": %s',
-      [FOriginalName, SysErrorMessage(fpGetErrno)]);
+      [FOriginalName, SysErrorMessage(GetCErrno)]);
   end;
 
   try

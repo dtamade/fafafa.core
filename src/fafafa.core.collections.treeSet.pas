@@ -20,14 +20,11 @@ type
     ['{9F7A8B6C-1D2E-4F3A-8B9C-0D1E2F3A4B5C}']
     function Add(const AValue: T): Boolean;
     function Remove(const AValue: T): Boolean;
-    function Contains(const AValue: T): Boolean;
+
+    // Set operations
     function Union(const Other: specialize ITreeSet<T>): specialize ITreeSet<T>;
     function Intersect(const Other: specialize ITreeSet<T>): specialize ITreeSet<T>;
     function Difference(const Other: specialize ITreeSet<T>): specialize ITreeSet<T>;
-    function ToArray: specialize TArray<T>;
-    function GetCount: SizeUInt;
-    function IsEmpty: Boolean;
-    procedure Clear;
   end;
 
   // TreeSet 实现 - 封装 TRBTreeSet

@@ -78,17 +78,13 @@ type
     function GetReleaseCount: Int64;
     function GetAverageWaitTime: Double;
 
-    // 兼容性方法（已弃用）
-    procedure Acquire; deprecated;
-    function TryAcquire: Boolean; deprecated;
-    function TryAcquire(ATimeoutMs: Cardinal): Boolean; overload; deprecated;
-    procedure Acquire(ATimeoutMs: Cardinal); overload; deprecated;
-    function GetHandle: Pointer; deprecated;
-    function IsCreator: Boolean; deprecated;
   end;
 
-// POSIX 信号量函数声�?
-function sem_open(name: PAnsiChar; oflag: cint): PSem; cdecl; varargs; external 'c';
+// POSIX semaphore function declarations
+// Note: sem_open is a variadic function. We always use the 4-argument form.
+// The mode parameter must be mode_t (unsigned 32-bit) for correct ABI on x86_64.
+// When O_CREAT is not set, the mode and value arguments are ignored by the kernel.
+function sem_open(name: PAnsiChar; oflag: cint; mode: cuint32; value: cuint): PSem; cdecl; external 'c';
 function sem_close(sem: PSem): cint; cdecl; external 'c';
 function sem_unlink(name: PAnsiChar): cint; cdecl; external 'c';
 function sem_wait(sem: PSem): cint; cdecl; external 'c';
@@ -100,13 +96,30 @@ function sem_getvalue(sem: PSem; sval: pcint): cint; cdecl; external 'c';
 // 时间函数声明
 function clock_gettime(clk_id: cint; tp: PTimeSpec): cint; cdecl; external 'c';
 
+// Direct errno access for Linux - GetCErrno doesn't work with libc functions
+function __errno_location: pcint; cdecl; external 'c';
+function GetCErrno: cint; inline;
+procedure SetCErrno(AValue: cint); inline;
+
 const
   O_CREAT = $40;
   O_EXCL = $80;
-  SEM_FAILED = PSem(-1);
+  // Note: On Linux (glibc), SEM_FAILED is defined as ((sem_t*) 0) i.e. NULL
+  // This is different from some other POSIX implementations that use (sem_t*)-1
+  SEM_FAILED: PSem = nil;
   CLOCK_REALTIME = 0;
 
 implementation
+
+function GetCErrno: cint; inline;
+begin
+  Result := __errno_location^;
+end;
+
+procedure SetCErrno(AValue: cint); inline;
+begin
+  __errno_location^ := AValue;
+end;
 
 { TNamedSemaphoreGuard }
 
@@ -122,12 +135,12 @@ destructor TNamedSemaphoreGuard.Destroy;
 var
   LErrno: cint;
 begin
-  if not FReleased and (FSemaphore <> SEM_FAILED) and (FSemaphore <> nil) then
+  if not FReleased and (FSemaphore <> SEM_FAILED) then
   begin
     // 尝试释放信号�?
     if sem_post(FSemaphore) <> 0 then
     begin
-      LErrno := fpGetErrno;
+      LErrno := GetCErrno;
       // 只在特定错误情况下忽略，其他情况记录错误
       case LErrno of
         ESysEINVAL: ; // 信号量无效，可能已被关闭
@@ -165,13 +178,13 @@ end;
 
 procedure TNamedSemaphoreGuard.Release;
 begin
-  if not FReleased and (FSemaphore <> SEM_FAILED) and (FSemaphore <> nil) then
+  if not FReleased and (FSemaphore <> SEM_FAILED) then
   begin
     if sem_post(FSemaphore) = 0 then
       FReleased := True
     else
       raise ELockError.CreateFmt('Failed to release semaphore guard "%s": %s',
-        [FName, SysErrorMessage(fpGetErrno)]);
+        [FName, SysErrorMessage(GetCErrno)]);
   end;
 end;
 
@@ -236,6 +249,7 @@ var
   LName: string;
   LSemName: string;
   LSemNameAnsi: AnsiString;
+  LErrno: cint;
 begin
   inherited Create;
 
@@ -251,23 +265,32 @@ begin
   FReleaseCount := 0;
   FTotalWaitTime := 0.0;
 
-  // 优化字符串转换：一次性完成所有转�?
+  // 优化字符串转换：一次性完成所有转换
   LSemName := CreateSemName(LName);
   LSemNameAnsi := AnsiString(LSemName);
   FSemName := LSemNameAnsi; // 避免重复转换
 
-  // 尝试创建新的信号�?
-  FSemaphore := sem_open(PAnsiChar(LSemNameAnsi), O_CREAT or O_EXCL, $644, AInitialCount);
+  // Try to create new semaphore
+  // Note: Permission 0644 (octal) = $1A4 (hex) = 420 (decimal)
+  FSemaphore := sem_open(PAnsiChar(LSemNameAnsi), O_CREAT or O_EXCL, $1A4, cuint(AInitialCount));
 
   if FSemaphore = SEM_FAILED then
   begin
-    // 如果创建失败，尝试打开现有�?
-    FSemaphore := sem_open(PAnsiChar(LSemNameAnsi), 0);
+    LErrno := GetCErrno;
+
+    // If creation fails, try to open existing one
+    // Note: We pass dummy mode/value args because sem_open is variadic and
+    // calling with only 2 args may fail on some platforms due to ABI issues.
+    // These args are ignored when O_CREAT is not set.
+    FSemaphore := sem_open(PAnsiChar(LSemNameAnsi), 0, 0, 0);
     FIsCreator := False;
 
     if FSemaphore = SEM_FAILED then
-      raise ELockError.CreateFmt('Failed to create or open named semaphore "%s": %s',
-        [LName, SysErrorMessage(fpGetErrno)]);
+    begin
+      LErrno := GetCErrno;
+      raise ELockError.CreateFmt('Failed to create or open named semaphore "%s": %s (errno=%d)',
+        [LName, SysErrorMessage(LErrno), LErrno]);
+    end;
   end
   else
     FIsCreator := True;
@@ -306,11 +329,12 @@ begin
     else
       LSemName := LName;
 
-    // 尝试打开现有信号量（不创建新的）- 优化字符串转�?
-    LSemaphore := sem_open(PAnsiChar(AnsiString(LSemName)), 0);
+    // Try to open existing semaphore (don't create new one)
+    // Note: We pass dummy mode/value args because sem_open is variadic
+    LSemaphore := sem_open(PAnsiChar(AnsiString(LSemName)), 0, 0, 0);
 
     if LSemaphore = SEM_FAILED then
-      Exit; // 信号量不存在或无法打开
+      Exit; // Semaphore doesn't exist or cannot be opened
 
     // 创建包装实例
     LInstance := TNamedSemaphore.Create;
@@ -346,7 +370,7 @@ end;
 function TNamedSemaphore.GetLastError: TWaitError;
 begin
   // 简化的错误映射
-  case fpGetErrno of
+  case GetCErrno of
     ESysETIMEDOUT: Result := weTimeout;
     ESysEACCES: Result := weAccessDenied;
     ESysEINVAL: Result := weInvalidHandle;
@@ -359,7 +383,7 @@ function TNamedSemaphore.Wait: INamedSemaphoreGuard;
 begin
   if sem_wait(FSemaphore) <> 0 then
     raise ELockError.CreateFmt('Failed to wait for named semaphore "%s": %s',
-      [FOriginalName, SysErrorMessage(fpGetErrno)]);
+      [FOriginalName, SysErrorMessage(GetCErrno)]);
 
   Result := TNamedSemaphoreGuard.Create(FSemaphore, FOriginalName);
 end;
@@ -369,7 +393,7 @@ var
   LErrno: cint;
   LResult: cint;
 begin
-  // 检查信号量有效�?
+  // 检查信号量有效性 (SEM_FAILED = nil on Linux)
   if FSemaphore = SEM_FAILED then
     raise ELockError.CreateFmt('Named semaphore "%s" is invalid', [FOriginalName]);
 
@@ -378,7 +402,7 @@ begin
     Result := TNamedSemaphoreGuard.Create(FSemaphore, FOriginalName)
   else
   begin
-    LErrno := fpGetErrno;
+    LErrno := GetCErrno;
     // 严格处理错误码，只接受明确的"资源不可�?错误
     case LErrno of
       ESysEAGAIN:
@@ -411,7 +435,7 @@ begin
     Exit(Wait);
 
   // 清除之前的错误码
-  fpSetErrno(0);
+  SetCErrno(0);
 
   // 使用 sem_timedwait
   LTimespec := TimeoutToTimespec(ATimeoutMs);
@@ -421,7 +445,7 @@ begin
     Result := TNamedSemaphoreGuard.Create(FSemaphore, FOriginalName)
   else
   begin
-    LErrno := fpGetErrno;
+    LErrno := GetCErrno;
     if (LErrno = ESysETIMEDOUT) or ((LResult = -1) and (LErrno = 0)) then
       Result := nil
     else
@@ -465,7 +489,7 @@ begin
     if sem_post(FSemaphore) <> 0 then
     begin
       LFailedAt := I;
-      LErrno := fpGetErrno;
+      LErrno := GetCErrno;
       Break;
     end;
   end;
@@ -496,49 +520,6 @@ begin
   Result := FMaxCount;
 end;
 
-// 兼容性方法（已弃用）
-procedure TNamedSemaphore.Acquire;
-var
-  LGuard: INamedSemaphoreGuard;
-begin
-  LGuard := Wait;
-  // 注意：这里会立即释放信号量，因为 LGuard 会在方法结束时析�?
-end;
-
-function TNamedSemaphore.TryAcquire: Boolean;
-var
-  LGuard: INamedSemaphoreGuard;
-begin
-  LGuard := TryWait;
-  Result := Assigned(LGuard);
-end;
-
-function TNamedSemaphore.TryAcquire(ATimeoutMs: Cardinal): Boolean;
-var
-  LGuard: INamedSemaphoreGuard;
-begin
-  LGuard := TryWaitFor(ATimeoutMs);
-  Result := Assigned(LGuard);
-end;
-
-procedure TNamedSemaphore.Acquire(ATimeoutMs: Cardinal);
-var
-  LGuard: INamedSemaphoreGuard;
-begin
-  LGuard := TryWaitFor(ATimeoutMs);
-  if not Assigned(LGuard) then
-    raise ETimeoutError.CreateFmt('Timeout waiting for named semaphore "%s"', [FOriginalName]);
-end;
-
-function TNamedSemaphore.GetHandle: Pointer;
-begin
-  Result := FSemaphore;
-end;
-
-function TNamedSemaphore.IsCreator: Boolean;
-begin
-  Result := FIsCreator;
-end;
 
 // 性能监控方法实现
 function TNamedSemaphore.GetWaitCount: Int64;
@@ -589,7 +570,7 @@ begin
       Result := TNamedSemaphoreGuardResult.Success(TNamedSemaphoreGuard.Create(FSemaphore, FOriginalName))
     else
     begin
-      case fpGetErrno of
+      case GetCErrno of
         ESysEINTR:
           Result := TNamedSemaphoreGuardResult.Failure(
             TNamedSemaphoreError.SystemError('Operation interrupted', ESysEINTR));
@@ -598,7 +579,7 @@ begin
             TNamedSemaphoreError.InvalidArgument('Invalid semaphore'));
       else
         Result := TNamedSemaphoreGuardResult.Failure(
-          TNamedSemaphoreError.SystemError('Failed to wait for named semaphore', fpGetErrno));
+          TNamedSemaphoreError.SystemError('Failed to wait for named semaphore', GetCErrno));
       end;
     end;
   except
@@ -624,7 +605,7 @@ begin
       Result := TNamedSemaphoreGuardResult.Success(TNamedSemaphoreGuard.Create(FSemaphore, FOriginalName))
     else
     begin
-      LErrno := fpGetErrno;
+      LErrno := GetCErrno;
       case LErrno of
         ESysEAGAIN:
           Result := TNamedSemaphoreGuardResult.Failure(
@@ -670,7 +651,7 @@ begin
       Result := TNamedSemaphoreGuardResult.Success(TNamedSemaphoreGuard.Create(FSemaphore, FOriginalName))
     else
     begin
-      LErrno := fpGetErrno;
+      LErrno := GetCErrno;
       case LErrno of
         ESysETIMEDOUT:
           Result := TNamedSemaphoreGuardResult.Failure(

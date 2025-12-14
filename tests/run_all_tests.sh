@@ -43,9 +43,16 @@ run_one() {
   } >"$log_file"
 
   TOTAL=$((TOTAL+1))
-  ( set -e; cd "$dir"; bash -lc "'$script'" ) >>"$log_file" 2>&1 || true
-  local rc
-  rc=$?
+  local rc=0
+  local action="${RUN_ACTION:-test}"
+
+  # Run module script from within its directory so relative paths work.
+  # Capture failures without letting `set -e` abort the whole run.
+  if ( cd "$dir"; bash "./$(basename "$script")" "$action" ) >>"$log_file" 2>&1; then
+    rc=0
+  else
+    rc=$?
+  fi
 
   if [ $rc -eq 0 ]; then
     PASSED=$((PASSED+1))

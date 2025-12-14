@@ -41,7 +41,23 @@ uses
 
 type
 
-  { IList 双向链表接口 }
+  {**
+   * IList<T>
+   *
+   * @desc 双向链表接口，提供 O(1) 双端操作
+   *
+   * @param T 元素类型
+   *
+   * @note 核心操作复杂度：
+   *   - PushFront/PushBack: O(1)
+   *   - PopFront/PopBack: O(1)
+   *   - Front/Back: O(1)
+   *   - 随机访问: O(n)
+   *
+   * @threadsafety 非线程安全
+   * @see TList 具体实现
+   * @see TVecDeque 高性能双端队列替代方案
+   *}
   generic IList<T> = interface(specialize IGenericCollection<T>)
   ['{B2C3D4E5-F6A7-8901-BCDE-F23456789012}']
 
@@ -51,11 +67,11 @@ type
      * @desc 在链表头部插入一个元素
      *
      * @params
-     *   aElement 要插入的元素
+     *   aElement  要插入的元素
      *
-     * @remark
-     *   此操作的时间复杂度为 O(1)
-     *   插入后，新元素成为链表的第一个元素
+     * @postcondition Front = aElement, Count 增加 1
+     *
+     * @complexity O(1)
      *}
     procedure PushFront(const aElement: T);
 
@@ -65,11 +81,11 @@ type
      * @desc 在链表尾部插入一个元素
      *
      * @params
-     *   aElement 要插入的元素
+     *   aElement  要插入的元素
      *
-     * @remark
-     *   此操作的时间复杂度为 O(1)
-     *   插入后，新元素成为链表的最后一个元素
+     * @postcondition Back = aElement, Count 增加 1
+     *
+     * @complexity O(1)
      *}
     procedure PushBack(const aElement: T);
 
@@ -80,8 +96,12 @@ type
      *
      * @return 被移除的头部元素
      *
-     * @remark
-     *   此操作的时间复杂度为 O(1)
+     * @exceptions
+     *   EInvalidOperation  链表为空
+     *
+     * @postcondition Count 减少 1
+     *
+     * @complexity O(1)
      *}
     function PopFront: T;
 
@@ -92,8 +112,12 @@ type
      *
      * @return 被移除的尾部元素
      *
-     * @remark
-     *   此操作的时间复杂度为 O(1)
+     * @exceptions
+     *   EInvalidOperation  链表为空
+     *
+     * @postcondition Count 减少 1
+     *
+     * @complexity O(1)
      *}
     function PopBack: T;
 
@@ -102,7 +126,12 @@ type
      *
      * @desc 获取链表头部元素（不移除）
      *
-     * @return 头部元素的引用
+     * @return 头部元素
+     *
+     * @exceptions
+     *   EInvalidOperation  链表为空
+     *
+     * @complexity O(1)
      *}
     function Front: T;
 
@@ -111,18 +140,18 @@ type
      *
      * @desc 获取链表尾部元素（不移除）
      *
-     * @return 尾部元素的引用
+     * @return 尾部元素
+     *
+     * @exceptions
+     *   EInvalidOperation  链表为空
+     *
+     * @complexity O(1)
      *}
     function Back: T;
 
     {**
      * TryFront
      *
-
-    { 非异常批量导入/追加（指针重载） }
-    function TryLoadFrom(const aSrc: Pointer; aElementCount: SizeUInt): Boolean;
-    function TryAppend(const aSrc: Pointer; aElementCount: SizeUInt): Boolean;
-
      * @desc 安全地获取头部元素
      *
      * @params
@@ -130,12 +159,11 @@ type
      *
      * @return 如果链表非空返回 True，否则返回 False
      *}
+    function TryFront(out aElement: T): Boolean;
 
     { 非异常批量导入/追加（集合重载） }
     function TryLoadFrom(const aSrc: TCollection): Boolean;
     function TryAppend(const aSrc: TCollection): Boolean;
-
-    function TryFront(out aElement: T): Boolean;
 
     {**
      * TryBack
@@ -226,12 +254,44 @@ type
 
   end;
 
-  { TList 双向链表实现 - 基于优化的 TDoubleLinkedNode<T> }
+  {**
+   * TList<T>
+   *
+   * @desc 双向链表实现，提供 O(1) 双端插入/删除
+   *
+   * @param T 元素类型
+   *
+   * @note
+   *   - 基于优化的 TDoubleLinkedNode<T> 实现
+   *   - 使用 TNodeManager 管理节点内存
+   *   - 适合频繁头尾操作、中间插入的场景
+   *   - 不支持高效随机访问（O(n)）
+   *
+   * @threadsafety 非线程安全
+   *
+   * @example
+   *   var List: specialize TList<Integer>;
+   *   List := specialize TList<Integer>.Create;
+   *   try
+   *     List.PushBack(1);
+   *     List.PushFront(0);
+   *     WriteLn(List.Front);  // 0
+   *     WriteLn(List.PopBack);  // 1
+   *   finally
+   *     List.Free;
+   *   end;
+   *
+   * @see IList 接口定义
+   * @see TVecDeque 高性能双端队列替代方案
+   *}
   generic TList<T> = class(specialize TGenericCollection<T>, specialize IList<T>)
   public
     type
+      {** 节点管理器类型 *}
       TNodeManager = specialize TNodeManager<T>;
+      {** 双向节点指针类型 *}
       PDoubleNode = TNodeManager.PDoubleNode;
+      {** 双向节点类型 *}
       TDoubleNode = TNodeManager.TDoubleNode;
 
   private

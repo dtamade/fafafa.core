@@ -107,11 +107,20 @@ function pthread_condattr_init(attr: PPThreadCondAttr): cint; cdecl; external 'c
 function pthread_condattr_destroy(attr: PPThreadCondAttr): cint; cdecl; external 'c';
 function pthread_condattr_setpshared(attr: PPThreadCondAttr; pshared: cint): cint; cdecl; external 'c';
 
+// Direct errno access for Linux - fpGetErrno doesn't work with libc functions
+function __errno_location: pcint; cdecl; external 'c';
+function GetCErrno: cint; inline;
+
 const
   PTHREAD_PROCESS_SHARED = 1;
   PTHREAD_PROCESS_PRIVATE = 0;
 
 implementation
+
+function GetCErrno: cint; inline;
+begin
+  Result := __errno_location^;
+end;
 
 type
   // 共享内存中的屏障状�?
@@ -317,7 +326,7 @@ begin
 
   if FShmFile = -1 then
     raise ELockError.CreateFmt('Failed to create shared memory for named barrier "%s": %s',
-      [AName, SysErrorMessage(fpGetErrno)]);
+      [AName, SysErrorMessage(GetCErrno)]);
 
   try
     // 检查文件是否是新创建的
@@ -328,14 +337,14 @@ begin
     begin
       if fpFTruncate(FShmFile, FShmSize) <> 0 then
         raise ELockError.CreateFmt('Failed to set shared memory size for named barrier "%s": %s',
-          [AName, SysErrorMessage(fpGetErrno)]);
+          [AName, SysErrorMessage(GetCErrno)]);
     end;
 
     // 映射共享内存
     FSharedData := fpMMap(nil, FShmSize, PROT_READ or PROT_WRITE, MAP_SHARED, FShmFile, 0);
     if FSharedData = Pointer(-1) then
       raise ELockError.CreateFmt('Failed to map shared memory for named barrier "%s": %s',
-        [AName, SysErrorMessage(fpGetErrno)]);
+        [AName, SysErrorMessage(GetCErrno)]);
 
     // 如果是创建者，初始化屏�?
     if FIsCreator then

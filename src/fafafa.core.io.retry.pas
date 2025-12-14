@@ -85,10 +85,8 @@ end;
 function TRetryReader.Read(Buf: Pointer; Count: SizeInt): SizeInt;
 var
   Attempt: Integer;
-  LastError: EIOError;
 begin
   Attempt := 0;
-  LastError := nil;
   
   while Attempt < FMaxAttempts do
   begin

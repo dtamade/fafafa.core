@@ -13,7 +13,7 @@ unit fafafa.core.color;
 interface
 
 uses
-  SysUtils, Math, Classes, fafafa.core.stringBuilder;
+  SysUtils, Classes, fafafa.core.math, fafafa.core.stringBuilder;
 
 type
   // 与 term 模块保持一致的取值范围定义

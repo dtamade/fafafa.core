@@ -25,7 +25,7 @@ unit fafafa.core.simd.neon;
 interface
 
 uses
-  fafafa.core.simd.types,
+  fafafa.core.simd.base,
   fafafa.core.simd.dispatch;
 
 // Register the NEON backend
@@ -61,9 +61,9 @@ function BitsetPopCount_NEON(p: Pointer; byteLen: SizeUInt): SizeUInt;
 implementation
 
 uses
-  Math,
+  fafafa.core.math,
   SysUtils,
-  fafafa.core.simd.scalar;  // For shared scalar implementations
+  fafafa.core.simd.scalar;
 
 // === NEON Vector Type ===
 {$IFDEF CPUAARCH64}

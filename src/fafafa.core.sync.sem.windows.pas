@@ -55,6 +55,7 @@ type
     constructor Create(const ASem: ISem; ACount: Integer);
     destructor Destroy; override;
     function GetCount: Integer;
+    function IsLocked: Boolean;  // ILockGuard.IsLocked
     procedure Release;  // ILockGuard.Release
   end;
 
@@ -85,6 +86,11 @@ end;
 function TSemGuard.GetCount: Integer;
 begin
   Result := FCount;
+end;
+
+function TSemGuard.IsLocked: Boolean;
+begin
+  Result := Assigned(FSem) and (FCount > 0);
 end;
 
 procedure TSemGuard.Release;

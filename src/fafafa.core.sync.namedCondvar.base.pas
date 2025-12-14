@@ -18,7 +18,7 @@ type
   end;
 
 // Configuration helper functions
-function DefaulTNamedCondVarConfig: TNamedCondVarConfig;
+function DefaultNamedCondVarConfig: TNamedCondVarConfig;
 function NamedCondVarConfigWithTimeout(ATimeoutMs: Cardinal): TNamedCondVarConfig;
 function GlobalNamedCondVarConfig: TNamedCondVarConfig;
 
@@ -33,7 +33,7 @@ type
     WakeupCount: QWord;               // Wake up count
     CurrentWaiters: Integer;          // Current number of waiters
     MaxWaiters: Integer;              // Historical maximum waiters
-    TotalWaitTime: QWord;             // Total wait time (milliseconds)
+    TotalWaitTimeUs: QWord;           // Total wait time (microseconds)
     MaxWaitTimeUs: QWord;             // Maximum single wait time (microseconds)
   end;
 
@@ -41,7 +41,14 @@ type
 function EmptyNamedCondVarStats: TNamedCondVarStats;
 
 type
-  // ===== Named Condition Variable Interface =====
+  {**
+   * INamedCondVar - 跨进程条件变量接口
+   *
+   * @experimental
+   *   此 API 为实验性状态。Windows 平台的 Broadcast 语义
+   *   在极端竞争场景下有理论风险。生产环境建议优先考虑
+   *   INamedMutex + INamedEvent 组合实现类似功能。
+   *}
   INamedCondVar = interface(ICondVar)
     ['{D4E5F6A7-8B9C-1DEF-2345-6789ABCDEF01}']
 
@@ -64,15 +71,11 @@ type
     // Statistics (if enabled)
     function GetStats: TNamedCondVarStats;                            // Get statistics
     procedure ResetStats;                                             // Reset statistics
-
-    // Compatibility methods (backward compatible, but deprecated)
-    function GetHandle: Pointer; deprecated 'Implementation detail';
-    function IsCreator: Boolean; deprecated 'Implementation detail';
   end;
 
 implementation
 
-function DefaulTNamedCondVarConfig: TNamedCondVarConfig;
+function DefaultNamedCondVarConfig: TNamedCondVarConfig;
 begin
   Result.TimeoutMs := 30000;          // 30 second default timeout
   Result.UseGlobalNamespace := False; // Don't use global namespace by default
@@ -82,13 +85,13 @@ end;
 
 function NamedCondVarConfigWithTimeout(ATimeoutMs: Cardinal): TNamedCondVarConfig;
 begin
-  Result := DefaulTNamedCondVarConfig;
+  Result := DefaultNamedCondVarConfig;
   Result.TimeoutMs := ATimeoutMs;
 end;
 
 function GlobalNamedCondVarConfig: TNamedCondVarConfig;
 begin
-  Result := DefaulTNamedCondVarConfig;
+  Result := DefaultNamedCondVarConfig;
   Result.UseGlobalNamespace := True;
 end;
 

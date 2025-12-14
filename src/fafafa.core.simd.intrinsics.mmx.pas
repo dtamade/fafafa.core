@@ -132,16 +132,21 @@ procedure mmx_emms;
 
 // === 🆕 补充的真正MMX指令 ===
 
-// 额外的数据传输指�?function mmx_movd_r32(mm: TM64): LongWord;        // 从MMX�?2位寄存器
+// 额外的数据传输指�
+function mmx_movd_r32(mm: TM64): LongWord;        // 从MMX�?2位寄存器
 function mmx_movd_r32_to_mm(r32: LongWord): TM64; // �?2位寄存器到MMX
 
-// 额外的移位指令变�?function mmx_psllw_mm(a, count: TM64): TM64;      // 16位左�?MMX寄存器计�?
+// 额外的移位指令变�
+function mmx_psllw_mm(a, count: TM64): TM64;      // 16位左�?MMX寄存器计�?
 function mmx_psrlw_mm(a, count: TM64): TM64;      // 16位右�?MMX寄存器计�?
 function mmx_psraw_mm(a, count: TM64): TM64;      // 16位算术右�?MMX寄存器计�?
 
-// 额外的打包指�?function mmx_packusdw(a, b: TM64): TM64;          // 32位到16位无符号打包
+// 额外的打包指�
+function mmx_packusdw(a, b: TM64): TM64;          // 32位到16位无符号打包
 
-// 额外的解包指令变�?function mmx_punpcklbw_mem(a: TM64; mem: Pointer): TM64; // 从内存解包低位字�?function mmx_punpcklwd_mem(a: TM64; mem: Pointer): TM64; // 从内存解包低位字
+// 额外的解包指令变�
+function mmx_punpcklbw_mem(a: TM64; mem: Pointer): TM64; // 从内存解包低位字�
+function mmx_punpcklwd_mem(a: TM64; mem: Pointer): TM64; // 从内存解包低位字
 function mmx_punpckldq_mem(a: TM64; mem: Pointer): TM64; // 从内存解包低位双�?
 implementation
 
@@ -150,7 +155,7 @@ implementation
 // 功能：从内存加载32位整数到MMX寄存器低位，高位清零
 // 输入：Ptr - 指向32位整数的内存地址
 // 输出：TM64 - �?2位为加载的整数，�?2位为0
-function mmx_movd_mm(const Ptr: Pointer): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+function mmx_movd_mm(const Ptr: Pointer): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -172,7 +177,8 @@ asm
 end;
 
 // 功能：将MMX寄存器的�?2位整数存储到内存
-// 输入：Dest - 目标内存地址；Src - MMX寄存�?procedure mmx_movd_mm_store(var Dest: LongInt; const Src: TM64); {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 输入：Dest - 目标内存地址；Src - MMX寄存�
+procedure mmx_movd_mm_store(var Dest: LongInt; const Src: TM64); {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -192,7 +198,8 @@ asm
 end;
 
 // 功能：从内存加载64位数据到MMX寄存�?// 输入：Ptr - 指向64位数据的内存地址
-// 输出：TM64 - 包含加载�?4位数�?function mmx_movq_mm(const Ptr: Pointer): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 输出：TM64 - 包含加载�?4位数�
+function mmx_movq_mm(const Ptr: Pointer): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -216,7 +223,8 @@ asm
 end;
 
 // 功能：将MMX寄存器的64位数据存储到内存
-// 输入：Dest - 目标内存地址；Src - MMX寄存�?procedure mmx_movq_mm_store(var Dest; const Src: TM64); {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 输入：Dest - 目标内存地址；Src - MMX寄存�
+procedure mmx_movq_mm_store(var Dest; const Src: TM64); {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -238,7 +246,7 @@ end;
 // === 2️⃣ Set / Zero 实现 ===
 
 // 功能：将MMX寄存器清�?// 输出：TM64 - 全零�?4位寄存器
-function mmx_setzero_si64: TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+function mmx_setzero_si64: TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   pxor mm0, mm0
@@ -253,7 +261,8 @@ asm
 end;
 
 // 功能：将所�?�?位整数设置为指定值（广播�?// 输入：Value - 8位有符号整数
-// 输出：TM64 - 包含8个相同Value�?位整�?function mmx_set1_pi8(Value: ShortInt): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 输出：TM64 - 包含8个相同Value�?位整�
+function mmx_set1_pi8(Value: ShortInt): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -282,7 +291,8 @@ asm
 end;
 
 // 功能：将所�?�?6位整数设置为指定值（广播�?// 输入：Value - 16位有符号整数
-// 输出：TM64 - 包含4个相同Value�?6位整�?function mmx_set1_pi16(Value: SmallInt): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 输出：TM64 - 包含4个相同Value�?6位整�
+function mmx_set1_pi16(Value: SmallInt): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -307,7 +317,8 @@ asm
 end;
 
 // 功能：将所�?�?2位整数设置为指定值（广播�?// 输入：Value - 32位有符号整数
-// 输出：TM64 - 包含2个相同Value�?2位整�?function mmx_set1_pi32(Value: LongInt): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 输出：TM64 - 包含2个相同Value�?2位整�
+function mmx_set1_pi32(Value: LongInt): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -330,7 +341,8 @@ asm
 end;
 
 // 功能：设�?�?位整数到MMX寄存器（从高到低�?// 输入：a7-a0 - 8�?位有符号整数
-// 输出：TM64 - 包含指定�?�?位整�?function mmx_set_pi8(a7, a6, a5, a4, a3, a2, a1, a0: ShortInt): TM64;
+// 输出：TM64 - 包含指定�?�?位整�
+function mmx_set_pi8(a7, a6, a5, a4, a3, a2, a1, a0: ShortInt): TM64;
 begin
   Result.mm_i8[0] := a0;
   Result.mm_i8[1] := a1;
@@ -340,11 +352,11 @@ begin
   Result.mm_i8[5] := a5;
   Result.mm_i8[6] := a6;
   Result.mm_i8[7] := a7;
-{$ENDIF}
 end;
 
 // 功能：设�?�?6位整数到MMX寄存器（从高到低�?// 输入：a3-a0 - 4�?6位有符号整数
-// 输出：TM64 - 包含指定�?�?6位整�?function mmx_set_pi16(a3, a2, a1, a0: SmallInt): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 输出：TM64 - 包含指定�?�?6位整�
+function mmx_set_pi16(a3, a2, a1, a0: SmallInt): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -398,7 +410,8 @@ asm
 end;
 
 // 功能：设�?�?2位整数到MMX寄存器（从高到低�?// 输入：a1, a0 - 2�?2位有符号整数
-// 输出：TM64 - 包含指定�?�?2位整�?function mmx_set_pi32(a1, a0: LongInt): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 输出：TM64 - 包含指定�?�?2位整�
+function mmx_set_pi32(a1, a0: LongInt): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -429,7 +442,8 @@ end;
 // === 3️⃣ Integer Arithmetic 实现 ===
 
 // 功能：对8�?位整数执行加法（无饱和）
-// 输入：a, b - 两个TM64寄存器，各包�?�?位整�?// 输出：TM64 - 包含8个加法结�?function mmx_paddb(a, b: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 输入：a, b - 两个TM64寄存器，各包�?�?位整�?// 输出：TM64 - 包含8个加法结�
+function mmx_paddb(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -459,7 +473,8 @@ asm
 end;
 
 // 功能：对4�?6位整数执行加法（无饱和）
-// 输入：a, b - 两个TM64寄存器，各包�?�?6位整�?// 输出：TM64 - 包含4个加法结�?function mmx_paddw(a, b: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 输入：a, b - 两个TM64寄存器，各包�?�?6位整�?// 输出：TM64 - 包含4个加法结�
+function mmx_paddw(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -487,7 +502,8 @@ asm
 end;
 
 // 功能：对2�?2位整数执行加法（无饱和）
-// 输入：a, b - 两个TM64寄存器，各包�?�?2位整�?// 输出：TM64 - 包含2个加法结�?function mmx_paddd(a, b: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 输入：a, b - 两个TM64寄存器，各包�?�?2位整�?// 输出：TM64 - 包含2个加法结�
+function mmx_paddd(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -515,7 +531,8 @@ asm
 end;
 
 // 功能：对1�?4位整数执行加法（无饱和）
-// 输入：a, b - 两个TM64寄存器，各包�?�?4位整�?// 输出：TM64 - 包含1个加法结�?function mmx_paddq(a, b: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 输入：a, b - 两个TM64寄存器，各包�?�?4位整�?// 输出：TM64 - 包含1个加法结�
+function mmx_paddq(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -544,7 +561,8 @@ end;
 
 // 功能：对8�?位有符号整数执行饱和加法
 // 输入：a, b - 两个TM64寄存器，各包�?�?位有符号整数
-// 输出：TM64 - 包含8个饱和加法结�?function mmx_paddsb(a, b: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 输出：TM64 - 包含8个饱和加法结�
+function mmx_paddsb(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -573,7 +591,8 @@ end;
 
 // 功能：对4�?6位有符号整数执行饱和加法
 // 输入：a, b - 两个TM64寄存器，各包�?�?6位有符号整数
-// 输出：TM64 - 包含4个饱和加法结�?function mmx_paddsw(a, b: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 输出：TM64 - 包含4个饱和加法结�
+function mmx_paddsw(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -602,7 +621,8 @@ end;
 
 // 功能：对8�?位无符号整数执行饱和加法
 // 输入：a, b - 两个TM64寄存器，各包�?�?位无符号整数
-// 输出：TM64 - 包含8个饱和加法结�?function mmx_paddusb(a, b: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 输出：TM64 - 包含8个饱和加法结�
+function mmx_paddusb(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -631,7 +651,8 @@ end;
 
 // 功能：对4�?6位无符号整数执行饱和加法
 // 输入：a, b - 两个TM64寄存器，各包�?�?6位无符号整数
-// 输出：TM64 - 包含4个饱和加法结�?function mmx_paddusw(a, b: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 输出：TM64 - 包含4个饱和加法结�
+function mmx_paddusw(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -659,7 +680,8 @@ asm
 end;
 
 // 功能：对8�?位整数执行减法（无饱和）
-// 输入：a, b - 两个TM64寄存器，各包�?�?位整�?// 输出：TM64 - 包含8个减法结�?function mmx_psubb(a, b: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 输入：a, b - 两个TM64寄存器，各包�?�?位整�?// 输出：TM64 - 包含8个减法结�
+function mmx_psubb(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -687,7 +709,8 @@ asm
 end;
 
 // 功能：对4�?6位整数执行减法（无饱和）
-// 输入：a, b - 两个TM64寄存器，各包�?�?6位整�?// 输出：TM64 - 包含4个减法结�?function mmx_psubw(a, b: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 输入：a, b - 两个TM64寄存器，各包�?�?6位整�?// 输出：TM64 - 包含4个减法结�
+function mmx_psubw(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -715,7 +738,8 @@ asm
 end;
 
 // 功能：对2�?2位整数执行减法（无饱和）
-// 输入：a, b - 两个TM64寄存器，各包�?�?2位整�?// 输出：TM64 - 包含2个减法结�?function mmx_psubd(a, b: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 输入：a, b - 两个TM64寄存器，各包�?�?2位整�?// 输出：TM64 - 包含2个减法结�
+function mmx_psubd(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -743,7 +767,8 @@ asm
 end;
 
 // 功能：对1�?4位整数执行减法（无饱和）
-// 输入：a, b - 两个TM64寄存器，各包�?�?4位整�?// 输出：TM64 - 包含1个减法结�?function mmx_psubq(a, b: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 输入：a, b - 两个TM64寄存器，各包�?�?4位整�?// 输出：TM64 - 包含1个减法结�
+function mmx_psubq(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -771,7 +796,7 @@ asm
 end;
 
 // 功能：对8�?位有符号整数执行饱和减法
-function mmx_psubsb(a, b: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+function mmx_psubsb(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -799,7 +824,7 @@ asm
 end;
 
 // 功能：对4�?6位有符号整数执行饱和减法
-function mmx_psubsw(a, b: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+function mmx_psubsw(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -827,7 +852,7 @@ asm
 end;
 
 // 功能：对8�?位无符号整数执行饱和减法
-function mmx_psubusb(a, b: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+function mmx_psubusb(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -855,7 +880,7 @@ asm
 end;
 
 // 功能：对4�?6位无符号整数执行饱和减法
-function mmx_psubusw(a, b: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+function mmx_psubusw(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -882,7 +907,8 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对4�?6位整数执行乘法，保留�?6位结�?function mmx_pmullw(a, b: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：对4�?6位整数执行乘法，保留�?6位结�
+function mmx_pmullw(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -909,7 +935,8 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对4�?6位整数执行乘法，保留�?6位结�?function mmx_pmulhw(a, b: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：对4�?6位整数执行乘法，保留�?6位结�
+function mmx_pmulhw(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -936,7 +963,8 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对4�?6位整数执行乘法，成对相加得到2�?2位结�?function mmx_pmaddwd(a, b: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：对4�?6位整数执行乘法，成对相加得到2�?2位结�
+function mmx_pmaddwd(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -966,7 +994,7 @@ end;
 // === 5️⃣ Logical Operations 实现 ===
 
 // 功能：对64位寄存器执行按位AND操作
-function mmx_pand(a, b: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+function mmx_pand(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -993,7 +1021,8 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对64位寄存器执行按位AND NOT操作（~a & b�?function mmx_pandn(a, b: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：对64位寄存器执行按位AND NOT操作（~a & b�
+function mmx_pandn(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1021,7 +1050,7 @@ asm
 end;
 
 // 功能：对64位寄存器执行按位OR操作
-function mmx_por(a, b: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+function mmx_por(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1049,7 +1078,7 @@ asm
 end;
 
 // 功能：对64位寄存器执行按位XOR操作
-function mmx_pxor(a, b: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+function mmx_pxor(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1079,7 +1108,7 @@ end;
 // === 6️⃣ Compare 实现 ===
 
 // 功能：比�?�?位整数，等于则置1�?xFF），否则�?
-function mmx_pcmpeqb(a, b: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+function mmx_pcmpeqb(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1107,7 +1136,7 @@ asm
 end;
 
 // 功能：比�?�?6位整数，等于则置1�?xFFFF），否则�?
-function mmx_pcmpeqw(a, b: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+function mmx_pcmpeqw(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1135,7 +1164,7 @@ asm
 end;
 
 // 功能：比�?�?2位整数，等于则置1�?xFFFFFFFF），否则�?
-function mmx_pcmpeqd(a, b: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+function mmx_pcmpeqd(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1163,7 +1192,7 @@ asm
 end;
 
 // 功能：比�?�?位有符号整数，大于则�?�?xFF），否则�?
-function mmx_pcmpgtb(a, b: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+function mmx_pcmpgtb(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1191,7 +1220,7 @@ asm
 end;
 
 // 功能：比�?�?6位有符号整数，大于则�?�?xFFFF），否则�?
-function mmx_pcmpgtw(a, b: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+function mmx_pcmpgtw(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1219,7 +1248,7 @@ asm
 end;
 
 // 功能：比�?�?2位有符号整数，大于则�?�?xFFFFFFFF），否则�?
-function mmx_pcmpgtd(a, b: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+function mmx_pcmpgtd(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1248,7 +1277,8 @@ end;
 
 // === 7️⃣ Shift 实现 ===
 
-// 功能：对4�?6位整数执行左移（逻辑移位�?function mmx_psllw(a: TM64; count: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：对4�?6位整数执行左移（逻辑移位�
+function mmx_psllw(a: TM64; count: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1275,7 +1305,8 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对2�?2位整数执行左移（逻辑移位�?function mmx_pslld(a: TM64; count: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：对2�?2位整数执行左移（逻辑移位�
+function mmx_pslld(a: TM64; count: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1302,7 +1333,8 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对1�?4位整数执行左移（逻辑移位�?function mmx_psllq(a: TM64; count: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：对1�?4位整数执行左移（逻辑移位�
+function mmx_psllq(a: TM64; count: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1329,7 +1361,8 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对4�?6位整数执行左移（逻辑移位，使用立即数�?function mmx_psllw_imm(a: TM64; imm8: Byte): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：对4�?6位整数执行左移（逻辑移位，使用立即数�
+function mmx_psllw_imm(a: TM64; imm8: Byte): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1357,7 +1390,8 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对2�?2位整数执行左移（逻辑移位，使用立即数�?function mmx_pslld_imm(a: TM64; imm8: Byte): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：对2�?2位整数执行左移（逻辑移位，使用立即数�
+function mmx_pslld_imm(a: TM64; imm8: Byte): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1385,7 +1419,8 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对1�?4位整数执行左移（逻辑移位，使用立即数�?function mmx_psllq_imm(a: TM64; imm8: Byte): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：对1�?4位整数执行左移（逻辑移位，使用立即数�
+function mmx_psllq_imm(a: TM64; imm8: Byte): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1415,7 +1450,7 @@ end;
 
 // 逻辑右移
 // 功能：对4�?6位整数执行逻辑右移
-function mmx_psrlw(a: TM64; count: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+function mmx_psrlw(a: TM64; count: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1443,7 +1478,7 @@ asm
 end;
 
 // 功能：对2�?2位整数执行逻辑右移
-function mmx_psrld(a: TM64; count: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+function mmx_psrld(a: TM64; count: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1471,7 +1506,7 @@ asm
 end;
 
 // 功能：对1�?4位整数执行逻辑右移
-function mmx_psrlq(a: TM64; count: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+function mmx_psrlq(a: TM64; count: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1498,7 +1533,8 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对4�?6位整数执行逻辑右移（使用立即数�?function mmx_psrlw_imm(a: TM64; imm8: Byte): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：对4�?6位整数执行逻辑右移（使用立即数�
+function mmx_psrlw_imm(a: TM64; imm8: Byte): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1526,7 +1562,8 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对2�?2位整数执行逻辑右移（使用立即数�?function mmx_psrld_imm(a: TM64; imm8: Byte): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：对2�?2位整数执行逻辑右移（使用立即数�
+function mmx_psrld_imm(a: TM64; imm8: Byte): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1554,7 +1591,8 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对1�?4位整数执行逻辑右移（使用立即数�?function mmx_psrlq_imm(a: TM64; imm8: Byte): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：对1�?4位整数执行逻辑右移（使用立即数�
+function mmx_psrlq_imm(a: TM64; imm8: Byte): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1583,7 +1621,7 @@ asm
 end;
 
 // 功能：对4�?6位有符号整数执行算术右移
-function mmx_psraw(a: TM64; count: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+function mmx_psraw(a: TM64; count: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1611,7 +1649,7 @@ asm
 end;
 
 // 功能：对2�?2位有符号整数执行算术右移
-function mmx_psrad(a: TM64; count: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+function mmx_psrad(a: TM64; count: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1638,7 +1676,8 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对4�?6位有符号整数执行算术右移（使用立即数�?function mmx_psraw_imm(a: TM64; imm8: Byte): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：对4�?6位有符号整数执行算术右移（使用立即数�
+function mmx_psraw_imm(a: TM64; imm8: Byte): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1666,7 +1705,8 @@ asm
 {$ENDIF}
 end;
 
-// 功能：对2�?2位有符号整数执行算术右移（使用立即数�?function mmx_psrad_imm(a: TM64; imm8: Byte): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：对2�?2位有符号整数执行算术右移（使用立即数�
+function mmx_psrad_imm(a: TM64; imm8: Byte): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1696,7 +1736,8 @@ end;
 
 // === 10️⃣ Pack / Unpack 实现 ===
 
-// 功能：将8�?6位有符号整数打包�?�?位有符号整数（带饱和�?function mmx_packsswb(a, b: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：将8�?6位有符号整数打包�?�?位有符号整数（带饱和�
+function mmx_packsswb(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1723,7 +1764,8 @@ asm
 {$ENDIF}
 end;
 
-// 功能：将4�?2位有符号整数打包�?�?6位有符号整数（带饱和�?function mmx_packssdw(a, b: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：将4�?2位有符号整数打包�?�?6位有符号整数（带饱和�
+function mmx_packssdw(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1750,7 +1792,8 @@ asm
 {$ENDIF}
 end;
 
-// 功能：将8�?6位有符号整数打包�?�?位无符号整数（带饱和�?function mmx_packuswb(a, b: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：将8�?6位有符号整数打包�?�?位无符号整数（带饱和�
+function mmx_packuswb(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1777,7 +1820,8 @@ asm
 {$ENDIF}
 end;
 
-// 功能：解包高�?位整数（从两个寄存器交织�?function mmx_punpckhbw(a, b: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：解包高�?位整数（从两个寄存器交织�
+function mmx_punpckhbw(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1804,7 +1848,8 @@ asm
 {$ENDIF}
 end;
 
-// 功能：解包高�?6位整数（从两个寄存器交织�?function mmx_punpckhwd(a, b: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：解包高�?6位整数（从两个寄存器交织�
+function mmx_punpckhwd(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1831,7 +1876,8 @@ asm
 {$ENDIF}
 end;
 
-// 功能：解包高�?2位整数（从两个寄存器交织�?function mmx_punpckhdq(a, b: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：解包高�?2位整数（从两个寄存器交织�
+function mmx_punpckhdq(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1858,7 +1904,8 @@ asm
 {$ENDIF}
 end;
 
-// 功能：解包低�?位整数（从两个寄存器交织�?function mmx_punpcklbw(a, b: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：解包低�?位整数（从两个寄存器交织�
+function mmx_punpcklbw(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1885,7 +1932,8 @@ asm
 {$ENDIF}
 end;
 
-// 功能：解包低�?6位整数（从两个寄存器交织�?function mmx_punpcklwd(a, b: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：解包低�?6位整数（从两个寄存器交织�
+function mmx_punpcklwd(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1912,7 +1960,8 @@ asm
 {$ENDIF}
 end;
 
-// 功能：解包低�?2位整数（从两个寄存器交织�?function mmx_punpckldq(a, b: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：解包低�?2位整数（从两个寄存器交织�
+function mmx_punpckldq(a, b: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1941,14 +1990,16 @@ end;
 
 // === 11️⃣ Miscellaneous 实现 ===
 
-// 功能：清空MMX状态，恢复FPU寄存器可用�?// 重要：在MMX代码和FPU代码之间必须调用此函�?procedure mmx_emms; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：清空MMX状态，恢复FPU寄存器可用�?// 重要：在MMX代码和FPU代码之间必须调用此函�
+procedure mmx_emms; {$IFDEF FPC}assembler;{$ENDIF}
 asm
   emms
 end;
 
 // === 🆕 补充的真正MMX指令实现 ===
 
-// 功能：从MMX寄存器到32位通用寄存�?function mmx_movd_r32(mm: TM64): LongWord; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：从MMX寄存器到32位通用寄存�
+function mmx_movd_r32(mm: TM64): LongWord; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1963,7 +2014,8 @@ asm
 {$ENDIF}
 end;
 
-// 功能：从32位通用寄存器到MMX寄存�?function mmx_movd_r32_to_mm(r32: LongWord): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：从32位通用寄存器到MMX寄存�
+function mmx_movd_r32_to_mm(r32: LongWord): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -1984,7 +2036,7 @@ asm
 end;
 
 // 功能�?6位左�?MMX寄存器计�? - 这实际上就是我们已有的psllw
-function mmx_psllw_mm(a, count: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+function mmx_psllw_mm(a, count: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -2012,7 +2064,7 @@ asm
 end;
 
 // 功能�?6位右�?MMX寄存器计�? - 这实际上就是我们已有的psrlw
-function mmx_psrlw_mm(a, count: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+function mmx_psrlw_mm(a, count: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -2040,7 +2092,7 @@ asm
 end;
 
 // 功能�?6位算术右�?MMX寄存器计�? - 这实际上就是我们已有的psraw
-function mmx_psraw_mm(a, count: TM64): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+function mmx_psraw_mm(a, count: TM64): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -2089,7 +2141,7 @@ begin
 end;
 
 // 功能：从内存解包低位字节
-function mmx_punpcklbw_mem(a: TM64; mem: Pointer): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+function mmx_punpcklbw_mem(a: TM64; mem: Pointer): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -2113,7 +2165,8 @@ asm
 {$ENDIF}
 end;
 
-// 功能：从内存解包低位�?function mmx_punpcklwd_mem(a: TM64; mem: Pointer): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// 功能：从内存解包低位�
+function mmx_punpcklwd_mem(a: TM64; mem: Pointer): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -2138,7 +2191,7 @@ asm
 end;
 
 // 功能：从内存解包低位双字
-function mmx_punpckldq_mem(a: TM64; mem: Pointer): TM64; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+function mmx_punpckldq_mem(a: TM64; mem: Pointer): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}

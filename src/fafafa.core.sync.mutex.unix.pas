@@ -24,17 +24,21 @@ function fpgettid: pid_t; cdecl; external name 'gettid';
 
 type
 
-  { 传统互斥锁实�?- 使用 pthread（兼容所�?Unix 系统）}
+  { 传统互斥锁实现 - 使用 pthread（兼容所有 Unix 系统）}
   TMutex = class(TTryLock, IMutex)
   private
     FMutex: pthread_mutex_t;
     FHasOwner: Boolean;
     FOwner: pthread_t;
+    // Poisoning 状态
+    FPoisoned: Boolean;
+    FPoisoningThreadId: TThreadID;
+    FPoisoningException: string;
   public
     constructor Create;
     destructor Destroy; override;
 
-    // ITryLock 继承的方�?
+    // ITryLock 继承的方法
     procedure Acquire; override;
     procedure Release; override;
     function TryAcquire: Boolean; override;
@@ -42,6 +46,11 @@ type
 
     // IMutex 特有方法
     function GetHandle: Pointer;
+
+    // Poisoning 支持
+    function IsPoisoned: Boolean;
+    procedure ClearPoison;
+    procedure MarkPoisoned(const AExceptionMessage: string);
   end;
 
 {$IFDEF FAFAFA_CORE_USE_FUTEX}
@@ -61,10 +70,16 @@ const
 
 type
 
-  { 现代互斥锁实�?- 使用 futex（Linux/FreeBSD）}
+  { 现代互斥锁实现 - 使用 futex（Linux/FreeBSD）}
   TFutexMutex = class(TTryLock, IMutex)
   private
-    FFutex: Int32;  // 使用 Int32 以配�?fafafa.core.atomic
+    FFutex: Int32;  // 使用 Int32 以配置 fafafa.core.atomic
+    FHasOwner: Boolean;  // 是否有持有者
+    FOwner: pthread_t;   // 当前持有者线程 ID
+    // Poisoning 状态
+    FPoisoned: Boolean;
+    FPoisoningThreadId: TThreadID;
+    FPoisoningException: string;
 
     // futex 系统调用封装
     function FutexWait(ExpectedValue: LongInt; TimeoutMs: Cardinal = High(Cardinal)): Boolean;
@@ -74,7 +89,7 @@ type
     constructor Create;
     destructor Destroy; override;
 
-    // ITryLock 继承的方�?
+    // ITryLock 继承的方法
     procedure Acquire; override;
     procedure Release; override;
     function TryAcquire: Boolean; override;
@@ -82,6 +97,11 @@ type
 
     // IMutex 特有方法
     function GetHandle: Pointer;
+
+    // Poisoning 支持
+    function IsPoisoned: Boolean;
+    procedure ClearPoison;
+    procedure MarkPoisoned(const AExceptionMessage: string);
   end;
 {$ENDIF}
 
@@ -91,12 +111,12 @@ implementation
 
 function MakeMutex: IMutex;
 begin
-  // 暂时使用 pthread_mutex 实现，因�?futex 实现在多线程下性能不佳
-  // TODO: 修复 futex 实现后再启用
-  Result := TMutex.Create;
-
   {$IFDEF FAFAFA_CORE_USE_FUTEX}
-  // Result := TFutexMutex.Create;  // 暂时禁用
+  // 使用现代 futex 实现（高性能）
+  Result := TFutexMutex.Create;
+  {$ELSE}
+  // 回退到 pthread_mutex 实现
+  Result := TMutex.Create;
   {$ENDIF}
 end;
 
@@ -108,6 +128,9 @@ var
 begin
   inherited Create;
   FHasOwner := False;
+  FPoisoned := False;
+  FPoisoningThreadId := 0;
+  FPoisoningException := '';
 
   // 初始化互斥锁属�?
   if pthread_mutexattr_init(@Attr) <> 0 then
@@ -136,7 +159,7 @@ procedure TMutex.Acquire;
 var
   Cur: pthread_t;
 begin
-  // 非重入：同一线程重复获取直接抛异�?
+  // 非重入：同一线程重复获取直接抛异常
   Cur := pthread_self();
   if FHasOwner and (pthread_equal(FOwner, Cur) <> 0) then
     raise EDeadlockError.Create('Re-entrant acquire on non-reentrant mutex');
@@ -146,6 +169,15 @@ begin
 
   FOwner := Cur;
   FHasOwner := True;
+
+  // Poisoning 检查：获取锁后检查是否被毒化
+  if FPoisoned then
+  begin
+    // 释放锁后再抛异常，避免死锁
+    FHasOwner := False;
+    pthread_mutex_unlock(@FMutex);
+    raise EMutexPoisonError.Create(FPoisoningThreadId, FPoisoningException);
+  end;
 end;
 
 procedure TMutex.Release;
@@ -168,6 +200,14 @@ begin
   begin
     FOwner := Cur;
     FHasOwner := True;
+    // Poisoning 检查：获取锁后检查是否被毒化
+    if FPoisoned then
+    begin
+      // 释放锁后再抛异常，避免死锁
+      FHasOwner := False;
+      pthread_mutex_unlock(@FMutex);
+      raise EMutexPoisonError.Create(FPoisoningThreadId, FPoisoningException);
+    end;
   end;
 end;
 
@@ -181,6 +221,25 @@ begin
   Result := @FMutex;
 end;
 
+function TMutex.IsPoisoned: Boolean;
+begin
+  Result := FPoisoned;
+end;
+
+procedure TMutex.ClearPoison;
+begin
+  FPoisoned := False;
+  FPoisoningThreadId := 0;
+  FPoisoningException := '';
+end;
+
+procedure TMutex.MarkPoisoned(const AExceptionMessage: string);
+begin
+  FPoisoned := True;
+  FPoisoningThreadId := GetThreadID;
+  FPoisoningException := AExceptionMessage;
+end;
+
 {$IFDEF FAFAFA_CORE_USE_FUTEX}
 { TFutexMutex - 现代 futex 实现 }
 
@@ -188,6 +247,10 @@ constructor TFutexMutex.Create;
 begin
   inherited Create;
   atomic_store(FFutex, FUTEX_UNLOCKED);
+  FHasOwner := False;
+  FPoisoned := False;
+  FPoisoningThreadId := 0;
+  FPoisoningException := '';
 end;
 
 destructor TFutexMutex.Destroy;
@@ -288,48 +351,125 @@ end;
 
 procedure TFutexMutex.Acquire;
 var
-  OldValue: Int32;
-  Expected: Int32;
+  C: Int32;
+  Cur: pthread_t;
 begin
-  // 快速路径：尝试直接获取未锁定的�?
-  Expected := FUTEX_UNLOCKED;
-  if atomic_compare_exchange_strong(FFutex, Expected, FUTEX_LOCKED) then
+  // 非重入检查：同一线程重复获取抛异常
+  Cur := pthread_self();
+  if FHasOwner and (pthread_equal(FOwner, Cur) <> 0) then
+    raise EDeadlockError.Create('Re-entrant acquire on non-reentrant mutex');
+
+  // 快速路径：尝试 CAS 获取锁 (UNLOCKED -> LOCKED)
+  C := InterlockedCompareExchange(FFutex, FUTEX_LOCKED, FUTEX_UNLOCKED);
+  if C = FUTEX_UNLOCKED then
+  begin
+    FOwner := Cur;
+    FHasOwner := True;
+    // Poisoning 检查
+    if FPoisoned then
+    begin
+      FHasOwner := False;
+      if InterlockedDecrement(FFutex) <> FUTEX_UNLOCKED then
+      begin
+        atomic_store(FFutex, FUTEX_UNLOCKED, mo_release);
+        FutexWake(1);
+      end;
+      raise EMutexPoisonError.Create(FPoisoningThreadId, FPoisoningException);
+    end;
+    Exit;  // 成功获取
+  end;
+
+  // 慢速路径：短自旋
+  if SpinTryAcquire(40) then
+  begin
+    FOwner := Cur;
+    FHasOwner := True;
+    // Poisoning 检查
+    if FPoisoned then
+    begin
+      FHasOwner := False;
+      if InterlockedDecrement(FFutex) <> FUTEX_UNLOCKED then
+      begin
+        atomic_store(FFutex, FUTEX_UNLOCKED, mo_release);
+        FutexWake(1);
+      end;
+      raise EMutexPoisonError.Create(FPoisoningThreadId, FPoisoningException);
+    end;
     Exit;
+  end;
 
-  // 慢速路径：自旋 + futex 等待
-  if SpinTryAcquire(8000) then  // 大幅增加自旋次数，减�?futex 系统调用
-    Exit;
+  // Futex 等待循环 - 使用简化的算法
+  // 如果锁已被持有，设为 LOCKED_WITH_WAITERS 并等待
+  if C <> FUTEX_LOCKED_WITH_WAITERS then
+    C := InterlockedExchange(FFutex, FUTEX_LOCKED_WITH_WAITERS);
 
-  // 设置等待者标志并进入 futex 等待
-  repeat
-    OldValue := atomic_exchange(FFutex, FUTEX_LOCKED_WITH_WAITERS);
-    if OldValue = FUTEX_UNLOCKED then
-      Exit;
-
+  while C <> FUTEX_UNLOCKED do
+  begin
     // 等待 futex 唤醒
     FutexWait(FUTEX_LOCKED_WITH_WAITERS);
-  until False;
+    // 被唤醒后设为 LOCKED_WITH_WAITERS 并获取旧值
+    C := InterlockedExchange(FFutex, FUTEX_LOCKED_WITH_WAITERS);
+  end;
+  // C = FUTEX_UNLOCKED 且我们已设为 LOCKED_WITH_WAITERS，成功获取锁
+  FOwner := Cur;
+  FHasOwner := True;
+
+  // Poisoning 检查：获取锁后检查是否被毒化
+  if FPoisoned then
+  begin
+    // 释放锁后再抛异常，避免死锁
+    FHasOwner := False;
+    if InterlockedDecrement(FFutex) <> FUTEX_UNLOCKED then
+    begin
+      atomic_store(FFutex, FUTEX_UNLOCKED, mo_release);
+      FutexWake(1);
+    end;
+    raise EMutexPoisonError.Create(FPoisoningThreadId, FPoisoningException);
+  end;
 end;
 
 procedure TFutexMutex.Release;
-var
-  OldValue: Int32;
 begin
-  // 原子释放�?
-  OldValue := atomic_exchange(FFutex, FUTEX_UNLOCKED);
-
-  // 如果有等待者，唤醒一�?
-  if OldValue = FUTEX_LOCKED_WITH_WAITERS then
+  FHasOwner := False;
+  // 原子减 1
+  if InterlockedDecrement(FFutex) <> FUTEX_UNLOCKED then
+  begin
+    // 之前是 LOCKED_WITH_WAITERS，现在是 LOCKED，需要设为 UNLOCKED 并唤醒
+    atomic_store(FFutex, FUTEX_UNLOCKED, mo_release);
     FutexWake(1);
+  end;
 end;
 
 function TFutexMutex.TryAcquire: Boolean;
 var
   Expected: Int32;
+  Cur: pthread_t;
 begin
-  // 尝试原子获取�?
+  // 非重入检查：同一线程重复获取抛异常
+  Cur := pthread_self();
+  if FHasOwner and (pthread_equal(FOwner, Cur) <> 0) then
+    raise EDeadlockError.Create('Re-entrant try-acquire on non-reentrant mutex');
+
+  // 尝试原子获取锁
   Expected := FUTEX_UNLOCKED;
   Result := atomic_compare_exchange_strong(FFutex, Expected, FUTEX_LOCKED);
+  if Result then
+  begin
+    FOwner := Cur;
+    FHasOwner := True;
+    // Poisoning 检查：获取锁后检查是否被毒化
+    if FPoisoned then
+    begin
+      // 释放锁后再抛异常，避免死锁
+      FHasOwner := False;
+      if InterlockedDecrement(FFutex) <> FUTEX_UNLOCKED then
+      begin
+        atomic_store(FFutex, FUTEX_UNLOCKED, mo_release);
+        FutexWake(1);
+      end;
+      raise EMutexPoisonError.Create(FPoisoningThreadId, FPoisoningException);
+    end;
+  end;
 end;
 
 function TFutexMutex.TryAcquire(ATimeoutMs: Cardinal): Boolean;
@@ -341,6 +481,25 @@ end;
 function TFutexMutex.GetHandle: Pointer;
 begin
   Result := @FFutex;
+end;
+
+function TFutexMutex.IsPoisoned: Boolean;
+begin
+  Result := FPoisoned;
+end;
+
+procedure TFutexMutex.ClearPoison;
+begin
+  FPoisoned := False;
+  FPoisoningThreadId := 0;
+  FPoisoningException := '';
+end;
+
+procedure TFutexMutex.MarkPoisoned(const AExceptionMessage: string);
+begin
+  FPoisoned := True;
+  FPoisoningThreadId := GetThreadID;
+  FPoisoningException := AExceptionMessage;
 end;
 
 {$ENDIF}

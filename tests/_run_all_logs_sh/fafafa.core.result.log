@@ -1,6 +1,161 @@
 ========================================
 Module: fafafa.core.result
 Script: /home/dtamade/projects/fafafa.core/tests/fafafa.core.result/BuildOrTest.sh
-Started: 2025-12-01 10:58:15
+Started: 2025-12-12 11:12:05
 ========================================
-bash: 行 1: /home/dtamade/projects/fafafa.core/tests/fafafa.core.result/BuildOrTest.sh: 权限不够
+Building project: /home/dtamade/projects/fafafa.core/tests/fafafa.core.result/tests_result.lpi (Debug)
+SetPrimaryConfigPath NewValue="/home/dtamade/freePascal/config_lazarus"
+Hint: (lazbuild) Primary config path: "/home/dtamade/freePascal/config_lazarus"
+Hint: (lazarus) [TBuildManager.SetBuildTarget] Old=x86_64-linux--gtk2 New=x86_64-linux--gtk2 Changed: OS/CPU=True LCL=False
+Hint: (lazarus) [TBuildManager.SetBuildTarget] Old=x86_64-linux--gtk2 New=x86_64-linux--gtk2 Changed: OS/CPU=True LCL=False
+TProject.DoLoadStateFile Statefile not found: /home/dtamade/projects/fafafa.core/tests/fafafa.core.result/lib/x86_64-linux/tests_result.compiled
+Hint: (lazarus) Project needs building: No state file for Project
+Info: (lazarus) Execute Title="Compile Project, Target: /home/dtamade/projects/fafafa.core/tests/fafafa.core.result/bin/tests"
+Info: (lazarus) Working Directory="/home/dtamade/projects/fafafa.core/tests/fafafa.core.result/"
+Info: (lazarus) Executable="/home/dtamade/freePascal/fpc/bin/x86_64-linux/fpc.sh"
+Info: (lazarus) Param[0]="-MObjFPC"
+Info: (lazarus) Param[1]="-Scaghi"
+Info: (lazarus) Param[2]="-Cg"
+Info: (lazarus) Param[3]="-O1"
+Info: (lazarus) Param[4]="-gw3"
+Info: (lazarus) Param[5]="-gl"
+Info: (lazarus) Param[6]="-Xg"
+Info: (lazarus) Param[7]="-gt"
+Info: (lazarus) Param[8]="-l"
+Info: (lazarus) Param[9]="-vewnhibq"
+Info: (lazarus) Param[10]="-Fi/home/dtamade/projects/fafafa.core/tests/fafafa.core.result/lib/x86_64-linux"
+Info: (lazarus) Param[11]="-Fi/home/dtamade/projects/fafafa.core/src"
+Info: (lazarus) Param[12]="-Fu/home/dtamade/projects/fafafa.core/tests/fafafa.core.result/"
+Info: (lazarus) Param[13]="-Fu/home/dtamade/projects/fafafa.core/src"
+Info: (lazarus) Param[14]="-Fu/home/dtamade/freePascal/lazarus/components/fpcunit/lib/x86_64-linux/gtk2"
+Info: (lazarus) Param[15]="-Fu/home/dtamade/freePascal/lazarus/components/synedit/units/x86_64-linux/gtk2"
+Info: (lazarus) Param[16]="-Fu/home/dtamade/freePascal/lazarus/lcl/units/x86_64-linux/gtk2"
+Info: (lazarus) Param[17]="-Fu/home/dtamade/freePascal/lazarus/components/lazedit/lib/x86_64-linux"
+Info: (lazarus) Param[18]="-Fu/home/dtamade/freePascal/lazarus/lcl/units/x86_64-linux"
+Info: (lazarus) Param[19]="-Fu/home/dtamade/freePascal/lazarus/components/freetype/lib/x86_64-linux"
+Info: (lazarus) Param[20]="-Fu/home/dtamade/freePascal/lazarus/components/lazutils/lib/x86_64-linux"
+Info: (lazarus) Param[21]="-Fu/home/dtamade/freePascal/lazarus/packager/units/x86_64-linux"
+Info: (lazarus) Param[22]="-FU/home/dtamade/projects/fafafa.core/tests/fafafa.core.result/lib/x86_64-linux/"
+Info: (lazarus) Param[23]="-FE/home/dtamade/projects/fafafa.core/tests/fafafa.core.result/bin/"
+Info: (lazarus) Param[24]="-o/home/dtamade/projects/fafafa.core/tests/fafafa.core.result/bin/tests"
+Info: (lazarus) Param[25]="-dLCL"
+Info: (lazarus) Param[26]="-dLCLgtk2"
+Info: (lazarus) Param[27]="tests_result.lpr"
+Info: (lazarus) Param[28]="-B"
+Hint: (11030) Start of reading config file /home/dtamade/freePascal/fpc/bin/x86_64-linux/fpc.cfg
+Hint: (11031) End of reading config file /home/dtamade/freePascal/fpc/bin/x86_64-linux/fpc.cfg
+Free Pascal Compiler version 3.3.1-18766-gc75982a639-dirty [2025/10/23] for x86_64
+Copyright (c) 1993-2025 by Florian Klaempfl and others
+(1002) Target OS: Linux for x86-64
+(3104) Compiling tests_result.lpr
+(3104) Compiling fafafa.core.result.testcase.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.option.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.option.base.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.result.pas
+/home/dtamade/projects/fafafa.core/src/fafafa.core.result.pas(179,47) Warning: (2005) Comment level 2 found
+/home/dtamade/projects/fafafa.core/src/fafafa.core.result.pas(186,47) Warning: (2005) Comment level 2 found
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.result/fafafa.core.result.testcase.pas(192,29) Hint: (5024) Parameter "X" not used
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.result/fafafa.core.result.testcase.pas(202,10) Warning: (5033) Function result does not seem to be set
+(9015) Linking /home/dtamade/projects/fafafa.core/tests/fafafa.core.result/bin/tests
+(1008) 4441 lines compiled, 2.2 sec, 1094160 bytes code, 1602720 bytes data
+(1021) 3 warning(s) issued
+(1022) 3 hint(s) issued
+Info: (lazarus) [TCompiler.Compile] end
+
+Build successful.
+Running tests...
+............................................................................... Time:00.001 N:79 E:0 F:0 I:0
+  TTestCase_TResult_Basic Time:00.000 N:15 E:0 F:0 I:0
+    00.000  Test_Ok_Construct_And_Query
+    00.000  Test_Err_Construct_And_Query
+    00.000  Test_Unwrap_On_Ok
+    00.000  Test_Unwrap_On_Err_Raises
+    00.000  Test_UnwrapOr
+    00.000  Test_Expect_On_Ok
+    00.000  Test_Expect_On_Err_Raises
+    00.000  Test_UnwrapErr_On_Err
+    00.000  Test_UnwrapErr_On_Ok_Raises
+    00.000  Test_ExpectErr_On_Err
+    00.000  Test_ExpectErr_On_Ok_Raises
+    00.000  Test_TryUnwrap
+    00.000  Test_TryUnwrapErr
+    00.000  Test_UnwrapUnchecked
+    00.000  Test_Default_Initialization
+  TTestCase_TResult_ToString Time:00.001 N:2 E:0 F:0 I:0
+    00.000  Test_ToString_Basic
+    00.001  Test_ToString_Formatted
+  TTestCase_TResult_Combinators Time:00.000 N:21 E:0 F:0 I:0
+    00.000  Test_Map_On_Ok
+    00.000  Test_Map_On_Err
+    00.000  Test_MapErr_On_Ok
+    00.000  Test_MapErr_On_Err
+    00.000  Test_AndThen_On_Ok
+    00.000  Test_AndThen_On_Err
+    00.000  Test_OrElse_On_Ok
+    00.000  Test_OrElse_On_Err
+    00.000  Test_MapOr
+    00.000  Test_MapOrElse
+    00.000  Test_Match
+    00.000  Test_Swap
+    00.000  Test_Flatten
+    00.000  Test_And_
+    00.000  Test_Or_
+    00.000  Test_Contains
+    00.000  Test_ContainsErr
+    00.000  Test_FilterOrElse
+    00.000  Test_IsOkAnd
+    00.000  Test_IsErrAnd
+    00.000  Test_Chain
+  TTestCase_TResult_ExceptionBridge Time:00.000 N:4 E:0 F:0 I:0
+    00.000  Test_ResultToTry_On_Ok
+    00.000  Test_ResultToTry_On_Err_Raises
+    00.000  Test_ResultFromTry_Success
+    00.000  Test_ResultFromTry_Exception
+  TTestCase_TResult_Inspect Time:00.000 N:4 E:0 F:0 I:0
+    00.000  Test_Inspect_On_Ok
+    00.000  Test_Inspect_On_Err
+    00.000  Test_InspectErr_On_Ok
+    00.000  Test_InspectErr_On_Err
+  TTestCase_TResult_NewAPI Time:00.000 N:12 E:0 F:0 I:0
+    00.000  Test_UnwrapOrElse_On_Ok
+    00.000  Test_UnwrapOrElse_On_Err
+    00.000  Test_UnwrapOrDefault_On_Ok
+    00.000  Test_UnwrapOrDefault_On_Err
+    00.000  Test_OkOption_On_Ok
+    00.000  Test_OkOption_On_Err
+    00.000  Test_ErrOption_On_Ok
+    00.000  Test_ErrOption_On_Err
+    00.000  Test_ToDebugString
+    00.000  Test_UnwrapErrUnchecked
+    00.000  Test_OrElseThunk_On_Ok
+    00.000  Test_OrElseThunk_On_Err
+  TTestCase_TOption_NewAPI Time:00.000 N:11 E:0 F:0 I:0
+    00.000  Test_UnwrapOrElse_On_Some
+    00.000  Test_UnwrapOrElse_On_None
+    00.000  Test_UnwrapOrDefault_On_Some
+    00.000  Test_UnwrapOrDefault_On_None
+    00.000  Test_IsSomeAnd
+    00.000  Test_Contains
+    00.000  Test_Or
+    00.000  Test_And
+    00.000  Test_Xor
+    00.000  Test_Flatten
+    00.000  Test_Zip
+  TTestCase_TResult_Context Time:00.000 N:10 E:0 F:0 I:0
+    00.000  Test_ResultContext_On_Ok
+    00.000  Test_ResultContext_On_Err
+    00.000  Test_ResultWithContext_On_Ok
+    00.000  Test_ResultWithContext_On_Err
+    00.000  Test_TErrorCtx_Create_And_Fields
+    00.000  Test_TErrorCtx_ToDebugString
+    00.000  Test_ResultContextE_On_Ok
+    00.000  Test_ResultContextE_On_Err
+    00.000  Test_ResultWithContextE_On_Ok
+    00.000  Test_ResultWithContextE_On_Err
+
+Number of run tests: 79
+Number of errors:    0
+Number of failures:  0
+
+
+

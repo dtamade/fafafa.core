@@ -32,6 +32,9 @@ type
     procedure Test_ReleaseWithoutAcquire;
     procedure Test_MismatchedRelease;
     
+    // 非重入配置（AllowReentrancy = False）
+    procedure Test_NonReentrantMode_TryReadWrite_BasicUsage;
+    
     // 性能测试
     procedure Test_Reentrancy_Performance;
   end;
@@ -311,6 +314,33 @@ begin
   finally
     FRWLock.ReleaseRead;  // 正确释放读锁
   end;
+end;
+
+procedure TTestCase_Reentrancy.Test_NonReentrantMode_TryReadWrite_BasicUsage;
+var
+  Options: TRWLockOptions;
+  Lock: IRWLock;
+  ReadGuard: IRWLockReadGuard;
+  WriteGuard: IRWLockWriteGuard;
+begin
+  WriteLn('测试: 非重入模式下 TryRead/TryWrite 的基础用法');
+
+  // 配置为非重入模式
+  Options := DefaultRWLockOptions;
+  Options.AllowReentrancy := False;
+  Lock := MakeRWLock(Options);
+
+  // TryRead 在无竞争场景应能成功返回一个读守卫
+  ReadGuard := Lock.TryRead(10);
+  AssertTrue('非重入模式下 TryRead 应返回有效守卫', Assigned(ReadGuard));
+  AssertTrue(ReadGuard.IsLocked);
+  ReadGuard.Release;
+
+  // TryWrite 在无竞争场景应能成功返回一个写守卫
+  WriteGuard := Lock.TryWrite(10);
+  AssertTrue('非重入模式下 TryWrite 应返回有效守卫', Assigned(WriteGuard));
+  AssertTrue(WriteGuard.IsLocked);
+  WriteGuard.Release;
 end;
 
 // ===== 性能测试 =====

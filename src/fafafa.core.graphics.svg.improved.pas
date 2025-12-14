@@ -18,7 +18,7 @@ unit fafafa.core.graphics.svg.improved;
 interface
 
 uses
-  SysUtils, Classes, Math, Types,
+  SysUtils, Classes, fafafa.core.math, Types,
   fafafa.core.graphics;
 
 type

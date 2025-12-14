@@ -7,7 +7,7 @@ unit fafafa.core.simd.cpuinfo.x86.x86_64;
 interface
 
 uses
-  fafafa.core.simd.types,
+  fafafa.core.simd.cpuinfo.base,
   fafafa.core.simd.cpuinfo.x86.base;
 
 // 架构实现（x86_64）：导出�?x86 门面一致的 API

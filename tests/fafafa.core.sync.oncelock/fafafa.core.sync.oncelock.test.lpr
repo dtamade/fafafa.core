@@ -215,6 +215,9 @@ end;
 
 // ===== Tests for new Rust-style methods =====
 
+type
+  ETestInitError = class(Exception);
+
 var
   G_TryInitCount: Integer = 0;
   G_TryInitShouldFail: Boolean = False;
@@ -223,7 +226,7 @@ function TryInitializer: Integer;
 begin
   Inc(G_TryInitCount);
   if G_TryInitShouldFail then
-    raise Exception.Create('Intentional initialization failure');
+    raise ETestInitError.Create('Intentional initialization failure');
   Result := 456;
 end;
 
@@ -268,6 +271,7 @@ begin
     
     // Assert
     AssertTrue(Err <> nil, 'GetOrTryInit 失败时应有错误');
+    AssertTrue(Err is ETestInitError, 'GetOrTryInit 返回的错误类型应与初始化器抛出的异常类型一致');
     AssertTrue(not Lock.IsSet, '初始化失败后 OnceLock 应保持为空');
     if Err <> nil then Err.Free;
   finally

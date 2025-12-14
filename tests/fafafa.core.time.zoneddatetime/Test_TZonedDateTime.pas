@@ -12,6 +12,7 @@ uses
   fpcunit,
   testregistry,
   fafafa.core.time.offset,
+  fafafa.core.time.tz,
   fafafa.core.time.zoneddatetime,
   fafafa.core.time.date,
   fafafa.core.time.timeofday;
@@ -86,6 +87,13 @@ type
     procedure Test_NotEqual_DifferentInstant;
     procedure Test_LessThan_DifferentInstant;
     procedure Test_Compare_CrossTimezone;
+    
+    // ═════════════════════════════════════════════════════════════════
+    // TTimeZone 集成测试
+    // ═════════════════════════════════════════════════════════════════
+    procedure Test_FromTimeZone_UTC;
+    procedure Test_FromTimeZone_Shanghai;
+    procedure Test_WithTimeZone_ConvertToShanghai;
   end;
 
 implementation
@@ -509,6 +517,48 @@ begin
   A := TZonedDateTime.Create(2024, 6, 15, 12, 0, 0, TUtcOffset.UTC);
   B := TZonedDateTime.Create(2024, 6, 15, 12, 0, 0, TUtcOffset.FromHours(8));
   AssertTrue(A > B);
+end;
+
+// ═════════════════════════════════════════════════════════════════
+// TTimeZone 集成测试
+// ═════════════════════════════════════════════════════════════════
+
+procedure TTestTZonedDateTime.Test_FromTimeZone_UTC;
+var
+  Tz: TTimeZone;
+  Dt: TZonedDateTime;
+begin
+  Tz := TTimeZone.UTC;
+  Dt := TZonedDateTime.FromTimeZone(2024, 6, 15, 12, 30, 45, Tz);
+  AssertEquals(12, Dt.Hour);
+  AssertEquals(30, Dt.Minute);
+  AssertEquals(45, Dt.Second);
+  AssertTrue(Dt.Offset.IsUTC);
+end;
+
+procedure TTestTZonedDateTime.Test_FromTimeZone_Shanghai;
+var
+  Tz: TTimeZone;
+  Dt: TZonedDateTime;
+begin
+  TTimeZone.TryFromId('Asia/Shanghai', Tz);
+  Dt := TZonedDateTime.FromTimeZone(2024, 6, 15, 20, 0, 0, Tz);
+  AssertEquals(20, Dt.Hour);
+  AssertEquals(8 * 3600, Dt.Offset.TotalSeconds);  // UTC+8
+end;
+
+procedure TTestTZonedDateTime.Test_WithTimeZone_ConvertToShanghai;
+var
+  UtcDt: TZonedDateTime;
+  Shanghai: TTimeZone;
+  Converted: TZonedDateTime;
+begin
+  // UTC 04:00 -> Shanghai 12:00
+  UtcDt := TZonedDateTime.Create(2024, 6, 15, 4, 0, 0, TUtcOffset.UTC);
+  TTimeZone.TryFromId('Asia/Shanghai', Shanghai);
+  Converted := UtcDt.WithTimeZone(Shanghai);
+  AssertEquals(12, Converted.Hour);
+  AssertEquals(8 * 3600, Converted.Offset.TotalSeconds);
 end;
 
 initialization

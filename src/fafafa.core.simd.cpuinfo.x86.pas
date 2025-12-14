@@ -6,7 +6,7 @@ unit fafafa.core.simd.cpuinfo.x86;
 interface
 
 uses
-  fafafa.core.simd.types;
+  fafafa.core.simd.cpuinfo.base;
 
 {$IFDEF SIMD_X86_AVAILABLE}
 

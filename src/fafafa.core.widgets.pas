@@ -15,7 +15,7 @@ unit fafafa.core.widgets;
 interface
 
 uses
-  Classes, SysUtils, Math,
+  Classes, SysUtils, fafafa.core.math,
   fafafa.core.term;
 
 type

@@ -20,6 +20,7 @@ unit fafafa.core.simd.intrinsics.avx2;
 interface
 
 uses
+  SysUtils,
   fafafa.core.simd.intrinsics.base;
 
 // === AVX2 256-bit 整数运算 ===
@@ -501,26 +502,98 @@ begin
 end;
 
 // 其他复杂函数的占位符实现
-function avx2_gather_epi32(const base_addr: Pointer; const vindex: TM256; scale: Integer): TM256; begin FillChar(Result, SizeOf(Result), 0); end;
-function avx2_gather_epi64(const base_addr: Pointer; const vindex: TM128; scale: Integer): TM256; begin FillChar(Result, SizeOf(Result), 0); end;
-function avx2_gather_ps(const base_addr: Pointer; const vindex: TM256; scale: Integer): TM256; begin FillChar(Result, SizeOf(Result), 0); end;
-function avx2_gather_pd(const base_addr: Pointer; const vindex: TM128; scale: Integer): TM256; begin FillChar(Result, SizeOf(Result), 0); end;
+// 说明：以下 AVX2 intrinsics 目前尚未提供正确实现。为了避免被误用导致
+// 静默错误结果，这些函数会在调用时抛出 ENotImplemented 异常。
 
-function avx2_packs_epi32(const a, b: TM256): TM256; begin Result := a; end;
-function avx2_packs_epi16(const a, b: TM256): TM256; begin Result := a; end;
-function avx2_packus_epi32(const a, b: TM256): TM256; begin Result := a; end;
-function avx2_packus_epi16(const a, b: TM256): TM256; begin Result := a; end;
-function avx2_unpackhi_epi32(const a, b: TM256): TM256; begin Result := a; end;
-function avx2_unpackhi_epi16(const a, b: TM256): TM256; begin Result := a; end;
-function avx2_unpackhi_epi8(const a, b: TM256): TM256; begin Result := a; end;
-function avx2_unpacklo_epi32(const a, b: TM256): TM256; begin Result := a; end;
-function avx2_unpacklo_epi16(const a, b: TM256): TM256; begin Result := a; end;
-function avx2_unpacklo_epi8(const a, b: TM256): TM256; begin Result := a; end;
+function avx2_gather_epi32(const base_addr: Pointer; const vindex: TM256; scale: Integer): TM256;
+begin
+  raise ENotImplemented.Create('avx2_gather_epi32 is not implemented yet');
+end;
 
-function avx2_permute4x64_epi64(const a: TM256; imm8: Byte): TM256; begin Result := a; end;
-function avx2_permute4x64_pd(const a: TM256; imm8: Byte): TM256; begin Result := a; end;
-function avx2_permutevar8x32_epi32(const a, idx: TM256): TM256; begin Result := a; end;
-function avx2_permutevar8x32_ps(const a: TM256; const idx: TM256): TM256; begin Result := a; end;
+function avx2_gather_epi64(const base_addr: Pointer; const vindex: TM128; scale: Integer): TM256;
+begin
+  raise ENotImplemented.Create('avx2_gather_epi64 is not implemented yet');
+end;
+
+function avx2_gather_ps(const base_addr: Pointer; const vindex: TM256; scale: Integer): TM256;
+begin
+  raise ENotImplemented.Create('avx2_gather_ps is not implemented yet');
+end;
+
+function avx2_gather_pd(const base_addr: Pointer; const vindex: TM128; scale: Integer): TM256;
+begin
+  raise ENotImplemented.Create('avx2_gather_pd is not implemented yet');
+end;
+
+function avx2_packs_epi32(const a, b: TM256): TM256;
+begin
+  raise ENotImplemented.Create('avx2_packs_epi32 is not implemented yet');
+end;
+
+function avx2_packs_epi16(const a, b: TM256): TM256;
+begin
+  raise ENotImplemented.Create('avx2_packs_epi16 is not implemented yet');
+end;
+
+function avx2_packus_epi32(const a, b: TM256): TM256;
+begin
+  raise ENotImplemented.Create('avx2_packus_epi32 is not implemented yet');
+end;
+
+function avx2_packus_epi16(const a, b: TM256): TM256;
+begin
+  raise ENotImplemented.Create('avx2_packus_epi16 is not implemented yet');
+end;
+
+function avx2_unpackhi_epi32(const a, b: TM256): TM256;
+begin
+  raise ENotImplemented.Create('avx2_unpackhi_epi32 is not implemented yet');
+end;
+
+function avx2_unpackhi_epi16(const a, b: TM256): TM256;
+begin
+  raise ENotImplemented.Create('avx2_unpackhi_epi16 is not implemented yet');
+end;
+
+function avx2_unpackhi_epi8(const a, b: TM256): TM256;
+begin
+  raise ENotImplemented.Create('avx2_unpackhi_epi8 is not implemented yet');
+end;
+
+function avx2_unpacklo_epi32(const a, b: TM256): TM256;
+begin
+  raise ENotImplemented.Create('avx2_unpacklo_epi32 is not implemented yet');
+end;
+
+function avx2_unpacklo_epi16(const a, b: TM256): TM256;
+begin
+  raise ENotImplemented.Create('avx2_unpacklo_epi16 is not implemented yet');
+end;
+
+function avx2_unpacklo_epi8(const a, b: TM256): TM256;
+begin
+  raise ENotImplemented.Create('avx2_unpacklo_epi8 is not implemented yet');
+end;
+
+function avx2_permute4x64_epi64(const a: TM256; imm8: Byte): TM256;
+begin
+  raise ENotImplemented.Create('avx2_permute4x64_epi64 is not implemented yet');
+end;
+
+function avx2_permute4x64_pd(const a: TM256; imm8: Byte): TM256;
+begin
+  raise ENotImplemented.Create('avx2_permute4x64_pd is not implemented yet');
+end;
+
+function avx2_permutevar8x32_epi32(const a, idx: TM256): TM256;
+begin
+  raise ENotImplemented.Create('avx2_permutevar8x32_epi32 is not implemented yet');
+end;
+
+function avx2_permutevar8x32_ps(const a: TM256; const idx: TM256): TM256;
+begin
+  raise ENotImplemented.Create('avx2_permutevar8x32_ps is not implemented yet');
+end;
 
 end.
 

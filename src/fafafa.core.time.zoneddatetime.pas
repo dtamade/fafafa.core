@@ -42,6 +42,7 @@ uses
   SysUtils,
   DateUtils,
   fafafa.core.time.offset,
+  fafafa.core.time.tz,
   fafafa.core.time.date,
   fafafa.core.time.timeofday,
   fafafa.core.time.instant;
@@ -82,7 +83,12 @@ type
     /// <summary>获取当前本地时间</summary>
     class function NowLocal: TZonedDateTime; static;
     
-    // ═══════════════════════════════════════════════════════════════
+    /// <summary>从 TTimeZone 创建日期时间</summary>
+    /// <remarks>在指定时区中创建日期时间，使用该时刻的时区偏移</remarks>
+    class function FromTimeZone(AYear, AMonth, ADay, AHour, AMinute, ASecond: Integer;
+      const ATimeZone: TTimeZone): TZonedDateTime; static;
+    
+    // ═════════════════════════════════════════════════════════════════
     // 访问器
     // ═══════════════════════════════════════════════════════════════
     
@@ -116,7 +122,11 @@ type
     /// <summary>转换到指定时区</summary>
     function WithOffset(const ANewOffset: TUtcOffset): TZonedDateTime;
     
-    // ═══════════════════════════════════════════════════════════════
+    /// <summary>转换到指定 IANA 时区</summary>
+    /// <remarks>使用 TTimeZone 获取该时刻的偏移量并转换</remarks>
+    function WithTimeZone(const ATimeZone: TTimeZone): TZonedDateTime;
+    
+    // ═════════════════════════════════════════════════════════════════
     // Unix 时间戳
     // ═══════════════════════════════════════════════════════════════
     
@@ -250,6 +260,28 @@ begin
   Result := TZonedDateTime.Create(LYear, LMonth, LDay, LHour, LMinute, LSecond, TUtcOffset.Local);
 end;
 
+class function TZonedDateTime.FromTimeZone(AYear, AMonth, ADay, AHour, AMinute, ASecond: Integer;
+  const ATimeZone: TTimeZone): TZonedDateTime;
+var
+  LTempResult: TZonedDateTime;
+  LInstant: TInstant;
+  LOffset: TUtcOffset;
+begin
+  // 先创建临时结果（使用 UTC 估算 instant）
+  LTempResult.FDate := TDate.Create(AYear, AMonth, ADay);
+  LTempResult.FTime := TTimeOfDay.Create(AHour, AMinute, ASecond);
+  LTempResult.FOffset := TUtcOffset.UTC;  // 临时 UTC
+  
+  // 获取该时刻的时区偏移
+  LInstant := LTempResult.ToInstant;
+  LOffset := ATimeZone.GetOffsetAt(LInstant);
+  
+  // 返回带正确偏移的结果
+  Result.FDate := LTempResult.FDate;
+  Result.FTime := LTempResult.FTime;
+  Result.FOffset := LOffset;
+end;
+
 function TZonedDateTime.GetDate: TDate;
 begin
   Result := FDate;
@@ -307,6 +339,19 @@ begin
   Result := FromUnixTimestamp(GetUnixTimestampInternal, ANewOffset);
 end;
 
+function TZonedDateTime.WithTimeZone(const ATimeZone: TTimeZone): TZonedDateTime;
+var
+  LInstant: TInstant;
+  LOffset: TUtcOffset;
+begin
+  // 获取当前时刻的 UTC 时间点
+  LInstant := Self.ToInstant;
+  // 获取目标时区在该时刻的偏移
+  LOffset := ATimeZone.GetOffsetAt(LInstant);
+  // 转换到该偏移
+  Result := WithOffset(LOffset);
+end;
+
 function TZonedDateTime.ToUnixTimestamp: Int64;
 begin
   Result := GetUnixTimestampInternal;
@@ -343,23 +388,36 @@ begin
   LDatePart := Copy(AStr, 1, LTPos - 1);
   
   // 查找时区偏移开始位置
+  // 支持三种格式：Z、+HH:MM、-HH:MM
+  // 如果没有时区信息，默认使用 UTC
   LOffsetPos := 0;
+  LOffsetPart := '';
+  
   if Pos('Z', AStr) > LTPos then
     LOffsetPos := Pos('Z', AStr)
   else if Pos('+', AStr) > LTPos then
     LOffsetPos := Pos('+', AStr)
   else
   begin
-    // 查找最后一个 '-'（排除日期中的 '-'）
+    // 查找时间部分后的 '-'（排除日期中的 '-'）
+    // 时间格式是 HH:MM:SS，所以 '-' 必须在 LTPos+8 之后
     LOffsetPos := Length(AStr);
-    while (LOffsetPos > LTPos) and (AStr[LOffsetPos] <> '-') do
+    while (LOffsetPos > LTPos + 8) and (AStr[LOffsetPos] <> '-') do
       Dec(LOffsetPos);
-    if LOffsetPos <= LTPos then
-      Exit; // 没有找到时区偏移
+    if (LOffsetPos <= LTPos + 8) or (AStr[LOffsetPos] <> '-') then
+      LOffsetPos := 0; // 没有找到时区偏移，将使用默认 UTC
   end;
   
-  LTimePart := Copy(AStr, LTPos + 1, LOffsetPos - LTPos - 1);
-  LOffsetPart := Copy(AStr, LOffsetPos, Length(AStr) - LOffsetPos + 1);
+  if LOffsetPos > 0 then
+  begin
+    LTimePart := Copy(AStr, LTPos + 1, LOffsetPos - LTPos - 1);
+    LOffsetPart := Copy(AStr, LOffsetPos, Length(AStr) - LOffsetPos + 1);
+  end
+  else
+  begin
+    // 没有时区信息，时间部分是 T 之后的所有内容
+    LTimePart := Copy(AStr, LTPos + 1, Length(AStr) - LTPos);
+  end;
   
   // 解析日期 YYYY-MM-DD
   if Length(LDatePart) < 10 then

@@ -16,7 +16,7 @@ unit fafafa.core.json.core;
 interface
 
 uses
-  SysUtils, Classes, Math,
+  SysUtils, Classes, fafafa.core.math,
   fafafa.core.mem.allocator;
 
 // 字符常量 (严格对应 yyjson)

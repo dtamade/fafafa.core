@@ -21,7 +21,7 @@ interface
 
 uses
   SysUtils,
-  Math,
+  fafafa.core.math,
   fafafa.core.base,
   fafafa.core.crypto.interfaces;
 

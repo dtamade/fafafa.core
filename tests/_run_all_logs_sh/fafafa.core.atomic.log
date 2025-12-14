@@ -1,6 +1,51 @@
 ========================================
 Module: fafafa.core.atomic
 Script: /home/dtamade/projects/fafafa.core/tests/fafafa.core.atomic/BuildOrTest.sh
-Started: 2025-12-01 10:58:15
+Started: 2025-12-12 10:25:22
 ========================================
-bash: 行 1: /home/dtamade/projects/fafafa.core/tests/fafafa.core.atomic/BuildOrTest.sh: 权限不够
+Building project: /home/dtamade/projects/fafafa.core/tests/fafafa.core.atomic/tests_atomic.lpi ...
+SetPrimaryConfigPath NewValue="/home/dtamade/freePascal/config_lazarus"
+Hint: (lazbuild) Primary config path: "/home/dtamade/freePascal/config_lazarus"
+Hint: (lazarus) [TBuildManager.SetBuildTarget] Old=x86_64-linux--gtk2 New=x86_64-linux--gtk2 Changed: OS/CPU=True LCL=False
+Hint: (lazarus) [TBuildManager.SetBuildTarget] Old=x86_64-linux--gtk2 New=x86_64-linux--gtk2 Changed: OS/CPU=True LCL=False
+TProject.DoLoadStateFile Statefile not found: /home/dtamade/projects/fafafa.core/tests/fafafa.core.atomic/lib/x86_64-linux/tests_atomic.compiled
+Hint: (lazarus) Project needs building: No state file for Project
+Info: (lazarus) Execute Title="Compile Project, Target: /home/dtamade/projects/fafafa.core/tests/fafafa.core.atomic/bin/tests_atomic"
+Info: (lazarus) Working Directory="/home/dtamade/projects/fafafa.core/tests/fafafa.core.atomic/"
+Info: (lazarus) Executable="/home/dtamade/freePascal/fpc/bin/x86_64-linux/fpc.sh"
+Info: (lazarus) Param[0]="-MObjFPC"
+Info: (lazarus) Param[1]="-Scghi"
+Info: (lazarus) Param[2]="-Cg"
+Info: (lazarus) Param[3]="-O1"
+Info: (lazarus) Param[4]="-g"
+Info: (lazarus) Param[5]="-gl"
+Info: (lazarus) Param[6]="-l"
+Info: (lazarus) Param[7]="-vewnhibq"
+Info: (lazarus) Param[8]="-Fi/home/dtamade/projects/fafafa.core/tests/fafafa.core.atomic/lib/x86_64-linux"
+Info: (lazarus) Param[9]="-Fi/home/dtamade/projects/fafafa.core/tests"
+Info: (lazarus) Param[10]="-Fi/home/dtamade/projects/fafafa.core/src"
+Info: (lazarus) Param[11]="-Fu/home/dtamade/projects/fafafa.core/tests/fafafa.core.atomic/"
+Info: (lazarus) Param[12]="-Fu/home/dtamade/projects/fafafa.core/tests"
+Info: (lazarus) Param[13]="-Fu/home/dtamade/projects/fafafa.core/src"
+Info: (lazarus) Param[14]="-Fu/home/dtamade/projects/fafafa.core/src/ui"
+Info: (lazarus) Param[15]="-Fu/home/dtamade/projects/fafafa.core/src/tests"
+Info: (lazarus) Param[16]="-FU/home/dtamade/projects/fafafa.core/tests/fafafa.core.atomic/lib/x86_64-linux/"
+Info: (lazarus) Param[17]="-FE/home/dtamade/projects/fafafa.core/tests/fafafa.core.atomic/bin/"
+Info: (lazarus) Param[18]="-o/home/dtamade/projects/fafafa.core/tests/fafafa.core.atomic/bin/tests_atomic"
+Info: (lazarus) Param[19]="tests_atomic.lpr"
+Info: (lazarus) Param[20]="-B"
+Hint: (11030) Start of reading config file /home/dtamade/freePascal/fpc/bin/x86_64-linux/fpc.cfg
+Hint: (11031) End of reading config file /home/dtamade/freePascal/fpc/bin/x86_64-linux/fpc.cfg
+Free Pascal Compiler version 3.3.1-18766-gc75982a639-dirty [2025/10/23] for x86_64
+Copyright (c) 1993-2025 by Florian Klaempfl and others
+(1002) Target OS: Linux for x86-64
+(3104) Compiling tests_atomic.lpr
+(3104) Compiling Test_fafafa.core.atomic.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.atomic/Test_fafafa.core.atomic.pas(48,15) Error: (5005) Forward declaration not solved "Test_atomic_compare_exchange_weak_64;"
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.atomic/Test_fafafa.core.atomic.pas(915) Fatal: (10026) There were 1 errors compiling module, stopping
+Fatal: (1018) Compilation aborted
+Error: /home/dtamade/freePascal/fpc/bin/x86_64-linux/ppcx64 returned an error exitcode
+Error: (lazarus) Compile Project, Target: /home/dtamade/projects/fafafa.core/tests/fafafa.core.atomic/bin/tests_atomic: stopped with exit code 1
+Info: (lazarus) [TCompiler.Compile] end
+Error: (lazbuild) Failed compiling of project "/home/dtamade/projects/fafafa.core/tests/fafafa.core.atomic/tests_atomic.lpi"

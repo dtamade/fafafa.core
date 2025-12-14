@@ -1,6 +1,6 @@
 # fafafa.core.csv
 <!-- Current module version -->
-> 当前版本：v0.2.0
+> 当前版本：v0.3.0
 
 
 > 高性能、跨平台、接口优先的 CSV 读写库。对齐 RFC 4180，支持按块流式读取与可配置方言（Go/Rust/Java 风格）。
@@ -33,6 +33,17 @@ TCSVDialect = record（实现字段）
 - StrictUTF8: Boolean (默认 False；严格 UTF‑8，遇非法序列抛错)
 - ReplaceInvalidUTF8: Boolean (默认 False；遇非法序列以 U+FFFD 替换)
 - NameMatchMode: csvNameExact | csvNameAsciiCI（默认 csvNameAsciiCI；见下文名称匹配）
+- TrimMode: TECSVTrimMode（默认 csvTrimNone；细粒度 trim 控制，见下文）
+
+### TrimMode（细粒度 Trim 控制）
+- TECSVTrimMode 枚举：csvTrimNone | csvTrimHeaders | csvTrimFields | csvTrimAll
+- 行为：
+  - csvTrimNone：不 trim 任何内容（默认）
+  - csvTrimHeaders：仅 trim 表头字段（HasHeader=True 时）
+  - csvTrimFields：仅 trim 数据字段（不含表头）
+  - csvTrimAll：同时 trim 表头和数据字段
+- 向后兼容：TrimSpaces=True 等效于 csvTrimFields（仅 trim 数据字段）
+- 注意：仅 trim 未引号包裹的字段；引号包裹的字段保留原始空格
 
 预设：
 - DefaultRFC4180
@@ -40,6 +51,45 @@ TCSVDialect = record（实现字段）
 - UnixDialect（LF 换行）
 
 ## API
+
+### Rust csv crate API 对照表
+
+对齐目标：Rust `csv` crate 0.1.x（<https://docs.rs/csv/latest/csv/>）
+
+Reader 配置方法：
+- `delimiter(Ch)` → `Delimiter(Ch)` ✓
+- `quote(Ch)` → `Quote(Ch)` ✓
+- `escape(Ch)` → `Escape(Ch)` ✓
+- `has_headers(Bool)` → `HasHeaders(Bool)` / `HasHeader(Bool)` ✓
+- `flexible(Bool)` → `Flexible(Bool)` ✓
+- `trim(TrimMode)` → `Trim(TECSVTrimMode)` ✓
+- `comment(Ch)` → `Comment(Ch)` ✓
+- `double_quote(Bool)` → `DoubleQuote(Bool)` ✓
+- `quoting(Bool)` → `Quoting(Bool)` ✓
+
+Writer 配置方法：
+- `delimiter(Ch)` → `Delimiter(Ch)` ✓
+- `quote(Ch)` → `Quote(Ch)` ✓
+- `escape(Ch)` → `Escape(Ch)` ✓
+- `double_quote(Bool)` → `DoubleQuote(Bool)` ✓
+- `quote_style(Mode)` → `QuoteMode(TECSVQuoteMode)` ✓
+  - QuoteNecessary → csvQuoteMinimal
+  - QuoteAlways → csvQuoteAll
+  - QuoteNonNumeric → csvQuoteNonNumeric
+  - QuoteNever → csvQuoteNone
+- `terminator(Term)` → `Terminator(TECSVTerminator)` / `UseCRLF(Bool)` ✓
+
+便捷创建（对齐 Rust `csv::Reader::from_path` / `csv::Writer::from_path`）：
+- `CreateCSVReader(FileName)` ✓
+- `CreateCSVReader(Stream, OwnsStream)` ✓
+- `CreateCSVWriter(FileName)` ✓
+- `CreateCSVWriter(Stream, OwnsStream)` ✓
+
+行为差异：
+- Trim 枚举：Rust 支持 Headers/Fields/All/None，Pascal 对应 csvTrimHeaders/csvTrimFields/csvTrimAll/csvTrimNone
+- Quoting(False) 行为：禁用引号特殊处理，引号被视为普通字符
+- csvQuoteNonNumeric：非数字字段总是加引号（与 Python csv 模块对齐）
+
 - 错误类型
   - ECSVError.CreatePos(Msg, Line, Column)
   - ECSVError.CreatePosEx(Msg, Line, Column, Code) // 带错误码
@@ -47,7 +97,8 @@ TCSVDialect = record（实现字段）
   - ICSVRecord: Count, Field(Index), FieldU(Index), TryGetByName(Name, out Value), TryGetByNameU(NameU, out ValueU), AsArray
 - 读取
   - ICSVReader: Dialect, Headers, ReadNext(out Rec):Boolean, ReadAll:TCSVTable, Reset, Line, Column
-  - ICSVReaderBuilder: FromStream/FromFile/Dialect/BufferSize/ReuseRecord/MaxRecordBytes/StrictUTF8/ReplaceInvalidUTF8/Build
+  - ICSVReaderBuilder: FromStream/FromFile/FromString/Dialect/BufferSize/ReuseRecord/MaxRecordBytes/StrictUTF8/ReplaceInvalidUTF8/RecordKind/Delimiter/Quote/HasHeader/Flexible/TrimSpaces/Comment/DoubleQuote/Escape/LazyQuotes/Build
+  - 快捷别名：Flexible(Bool) = AllowVariableFields, LazyQuotes(Bool) = AllowLazyQuotes
   - OpenCSVReader(FileName, Dialect)
 
 - 名称匹配（计划项）：NameMatchMode = Exact | AsciiCaseInsensitive（默认 AsciiCI）；非 ASCII 列名建议用 Exact；当前版本中 TryGetByName 的大小写不敏感仅对 ASCII 列名可靠，非 ASCII 列名建议使用 TryGetByNameU（精确匹配）。

@@ -337,6 +337,9 @@ type
     procedure Test_Progress_Writer_FiresCallback;
     procedure Test_Progress_WithTotal_ReportsPercent;
     procedure Test_Progress_UnknownTotal_PercentNegative;
+    // 边界条件测试
+    procedure Test_Progress_ZeroRead_NoCallback;
+    procedure Test_Progress_MultipleReads_AccumulatesBytes;
   end;
 
   { TTestPeek - 测试窃视读取 }
@@ -346,6 +349,9 @@ type
     procedure Test_Peek_ThenRead_ReturnsData;
     procedure Test_Peek_BuffersData;
     procedure Test_Peek_EOF_ReturnsZero;
+    // 边界条件测试
+    procedure Test_Peek_LargerThanData_ReturnsAvailable;
+    procedure Test_Peek_ZeroBytes_ReturnsZero;
   end;
 
   { TTestChecksum - 测试校验和计算 }
@@ -354,6 +360,9 @@ type
     procedure Test_ChecksumReader_ComputesHash;
     procedure Test_ChecksumWriter_ComputesHash;
     procedure Test_ChecksumReader_Reset;
+    // 边界条件测试
+    procedure Test_ChecksumReader_EmptyData_ValidHash;
+    procedure Test_ChecksumWriter_MultipleWrites_CombinedHash;
   end;
 
   { TTestTimeout - 测试超时包装器 }
@@ -362,6 +371,9 @@ type
     procedure Test_TimeoutReader_FastRead_Succeeds;
     procedure Test_TimeoutWriter_FastWrite_Succeeds;
     procedure Test_TimeoutReader_SlowRead_RaisesTimeout;
+    // 边界条件测试
+    procedure Test_TimeoutReader_ExactTimeout_Succeeds;
+    procedure Test_TimeoutWriter_SlowWrite_RaisesTimeout;
   end;
 
   { TTestRetry - 测试自动重试 }
@@ -370,6 +382,9 @@ type
     procedure Test_Retry_NoError_SucceedsImmediately;
     procedure Test_Retry_RetryableError_Retries;
     procedure Test_Retry_NonRetryableError_FailsImmediately;
+    // 边界条件测试
+    procedure Test_Retry_ExceedsMaxAttempts_RaisesLastError;
+    procedure Test_Retry_InterruptedError_Retries;
   end;
 
 implementation
@@ -401,6 +416,15 @@ type
   public
     constructor Create(const AData: TBytes; ADelayMs: Integer);
     function Read(Buf: Pointer; Count: SizeInt): SizeInt;
+  end;
+
+  { TSlowWriter - 测试用 Writer，每次写入都 Sleep 一段时间 }
+  TSlowWriter = class(TInterfacedObject, IWriter)
+  private
+    FDelayMs: Integer;
+  public
+    constructor Create(ADelayMs: Integer);
+    function Write(Buf: Pointer; Count: SizeInt): SizeInt;
   end;
 
   { TFailNTimesReader - 测试用 Reader，前 N 次读取抛出指定错误 }
@@ -456,6 +480,20 @@ begin
   Move(FData[FPos], Buf^, Count);
   Inc(FPos, Count);
   Result := Count;
+end;
+
+{ TSlowWriter }
+
+constructor TSlowWriter.Create(ADelayMs: Integer);
+begin
+  inherited Create;
+  FDelayMs := ADelayMs;
+end;
+
+function TSlowWriter.Write(Buf: Pointer; Count: SizeInt): SizeInt;
+begin
+  Sleep(FDelayMs);
+  Result := Count;  // 假装写成功
 end;
 
 { TFailNTimesReader }
@@ -3942,6 +3980,256 @@ begin
 
   AssertTrue('Should raise immediately', Raised);
   AssertEquals('Only called once', 1, FailingReader.CallCount);
+end;
+
+{ TTestProgress - 边界条件测试 }
+
+procedure TTestProgress.Test_Progress_ZeroRead_NoCallback;
+var
+  Data: TBytes;
+  R: IReader;
+  Buf: array[0..63] of Byte;
+  CallbackFired: Boolean;
+begin
+  // Arrange - EOF 时读取返回 0
+  SetLength(Data, 0);  // 空数据
+  CallbackFired := False;
+
+  R := IO.Progress(IO.Cursor(Data) as IReader, procedure(const AEvent: TProgressEvent)
+  begin
+    CallbackFired := True;
+  end);
+
+  // Act - 读取空数据
+  R.Read(@Buf[0], 64);
+
+  // Assert - 0 字节读取不应触发回调
+  AssertFalse('Callback should not fire on zero read', CallbackFired);
+end;
+
+procedure TTestProgress.Test_Progress_MultipleReads_AccumulatesBytes;
+var
+  Data: TBytes;
+  R: IReader;
+  Buf: array[0..4] of Byte;
+  TotalBytes: Int64;
+begin
+  // Arrange - 10 字节数据
+  SetLength(Data, 10);
+  FillChar(Data[0], 10, $AA);
+  TotalBytes := 0;
+
+  R := IO.Progress(IO.Cursor(Data) as IReader, procedure(const AEvent: TProgressEvent)
+  begin
+    TotalBytes := AEvent.BytesProcessed;
+  end);
+
+  // Act - 多次读取
+  R.Read(@Buf[0], 3);   // 读取 3 字节
+  AssertEquals('After first read', 3, TotalBytes);
+
+  R.Read(@Buf[0], 4);   // 读取 4 字节
+  AssertEquals('After second read', 7, TotalBytes);
+
+  R.Read(@Buf[0], 5);   // 读取剩余 3 字节
+  AssertEquals('After third read', 10, TotalBytes);
+end;
+
+{ TTestPeek - 边界条件测试 }
+
+procedure TTestPeek.Test_Peek_LargerThanData_ReturnsAvailable;
+var
+  Data: TBytes;
+  PR: IPeekReader;
+  Buf: array[0..99] of Byte;
+  N: SizeInt;
+begin
+  // Arrange - 只有 5 字节数据
+  Data := TEncoding.UTF8.GetBytes('Hello');
+  PR := IO.Peekable(IO.Cursor(Data) as IReader);
+
+  // Act - 请求 100 字节
+  N := PR.Peek(@Buf[0], 100);
+
+  // Assert - 只返回可用的 5 字节
+  AssertEquals('Should return available bytes only', 5, N);
+  AssertEquals('Byte 0', Ord('H'), Buf[0]);
+  AssertEquals('Byte 4', Ord('o'), Buf[4]);
+end;
+
+procedure TTestPeek.Test_Peek_ZeroBytes_ReturnsZero;
+var
+  Data: TBytes;
+  PR: IPeekReader;
+  Buf: array[0..9] of Byte;
+  N: SizeInt;
+begin
+  // Arrange
+  Data := TEncoding.UTF8.GetBytes('Hello');
+  PR := IO.Peekable(IO.Cursor(Data) as IReader);
+
+  // Act - 请求 0 字节
+  N := PR.Peek(@Buf[0], 0);
+
+  // Assert
+  AssertEquals('Peek 0 bytes should return 0', 0, N);
+
+  // 确保数据仍然可读
+  N := PR.Peek(@Buf[0], 5);
+  AssertEquals('Data still available', 5, N);
+end;
+
+{ TTestChecksum - 边界条件测试 }
+
+procedure TTestChecksum.Test_ChecksumReader_EmptyData_ValidHash;
+var
+  Data: TBytes;
+  CR: IChecksumReader;
+  Buf: array[0..63] of Byte;
+  Hash: TBytes;
+begin
+  // Arrange - 空数据
+  SetLength(Data, 0);
+  CR := IO.Checksum(IO.Cursor(Data) as IReader);
+
+  // Act - 读取（返回 0）
+  CR.Read(@Buf[0], 64);
+  Hash := CR.Checksum;
+
+  // Assert - SHA-256 of empty string is well-known
+  // SHA-256("") = e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+  AssertEquals('Hash length', 32, Length(Hash));
+  AssertEquals('First byte of empty SHA-256', $E3, Hash[0]);
+  AssertEquals('Second byte', $B0, Hash[1]);
+end;
+
+procedure TTestChecksum.Test_ChecksumWriter_MultipleWrites_CombinedHash;
+var
+  Cursor: TIOCursor;
+  CW: IChecksumWriter;
+  Data1, Data2: TBytes;
+  Hash: TBytes;
+begin
+  // Arrange
+  Cursor := TIOCursor.Create;
+  CW := IO.Checksum(Cursor as IWriter);
+
+  // Act - 多次写入 "Hello" + " World" = "Hello World"
+  Data1 := TEncoding.UTF8.GetBytes('Hello');
+  Data2 := TEncoding.UTF8.GetBytes(' World');
+  CW.Write(@Data1[0], Length(Data1));
+  CW.Write(@Data2[0], Length(Data2));
+  Hash := CW.Checksum;
+
+  // Assert - 应该等于 SHA-256("Hello World")
+  // SHA-256("Hello World") = A591A6D40BF420404A011733CFB7B190D62C65BF0BCDA32B57B277D9AD9F146E
+  AssertEquals('Hash length', 32, Length(Hash));
+  AssertEquals('First byte', $A5, Hash[0]);
+  AssertEquals('Second byte', $91, Hash[1]);
+end;
+
+{ TTestTimeout - 边界条件测试 }
+
+procedure TTestTimeout.Test_TimeoutReader_ExactTimeout_Succeeds;
+var
+  Data: TBytes;
+  Slow: IReader;
+  TR: IReader;
+  Buf: array[0..63] of Byte;
+  N: SizeInt;
+begin
+  // Arrange - 读取延迟 20ms，超时 100ms（宽松）
+  Data := TEncoding.UTF8.GetBytes('Hello');
+  Slow := TSlowReader.Create(Data, 20);
+  TR := IO.Timeout(Slow, 100);
+
+  // Act - 应该在超时前完成
+  N := TR.Read(@Buf[0], 64);
+
+  // Assert
+  AssertEquals('Should succeed', 5, N);
+end;
+
+procedure TTestTimeout.Test_TimeoutWriter_SlowWrite_RaisesTimeout;
+var
+  SlowWriter: IWriter;
+  TW: IWriter;
+  Data: TBytes;
+  Raised: Boolean;
+begin
+  // Arrange - TSlowWriter 每次写入 Sleep 100ms
+  SlowWriter := TSlowWriter.Create(100);
+  // 设置 50ms 超时，应该触发超时
+  TW := IO.Timeout(SlowWriter, 50);
+
+  Data := TEncoding.UTF8.GetBytes('Hello');
+
+  // Act & Assert
+  Raised := False;
+  try
+    TW.Write(@Data[0], Length(Data));
+  except
+    on E: EIOError do
+      if E.Kind = ekTimedOut then
+        Raised := True;
+  end;
+
+  AssertTrue('Should raise timeout', Raised);
+end;
+
+{ TTestRetry - 边界条件测试 }
+
+procedure TTestRetry.Test_Retry_ExceedsMaxAttempts_RaisesLastError;
+var
+  Data: TBytes;
+  Inner: IReader;
+  FailingReader: TFailNTimesReader;
+  RR: IReader;
+  Buf: array[0..63] of Byte;
+  Raised: Boolean;
+begin
+  // Arrange - 失败 10 次，但只允许重试 3 次
+  Data := TEncoding.UTF8.GetBytes('Hello');
+  Inner := IO.Cursor(Data) as IReader;
+  FailingReader := TFailNTimesReader.Create(Inner, 10, ekTimedOut);
+  RR := IO.Retry(FailingReader, 3, 0);  // 最多 3 次尝试
+
+  // Act
+  Raised := False;
+  try
+    RR.Read(@Buf[0], 64);
+  except
+    on E: EIOError do
+      if E.Kind = ekTimedOut then
+        Raised := True;
+  end;
+
+  // Assert - 应该在 3 次尝试后放弃
+  AssertTrue('Should raise after max attempts', Raised);
+  AssertEquals('Called exactly 3 times', 3, FailingReader.CallCount);
+end;
+
+procedure TTestRetry.Test_Retry_InterruptedError_Retries;
+var
+  Data: TBytes;
+  Inner: IReader;
+  FailingReader: TFailNTimesReader;
+  RR: IReader;
+  Buf: array[0..63] of Byte;
+  N: SizeInt;
+begin
+  // Arrange - ekInterrupted 也是可重试的错误
+  Data := TEncoding.UTF8.GetBytes('Hello');
+  Inner := IO.Cursor(Data) as IReader;
+  FailingReader := TFailNTimesReader.Create(Inner, 2, ekInterrupted);
+  RR := IO.Retry(FailingReader, 5, 0);
+
+  // Act
+  N := RR.Read(@Buf[0], 64);
+
+  // Assert
+  AssertEquals('Should succeed after retries', 5, N);
+  AssertEquals('Called 3 times', 3, FailingReader.CallCount);
 end;
 
 initialization

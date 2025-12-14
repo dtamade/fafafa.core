@@ -17,9 +17,14 @@ type
   TNamedMutexConfig = fafafa.core.sync.namedMutex.base.TNamedMutexConfig;
 
   // 注意：TNamedMutex 具体类型不再公开导出
-  // 用户应该只使�?INamedMutex 接口和工厂函�?
+  // 用户应该只使用 INamedMutex 接口和工厂函数
 
-// ===== 现代化工厂函�?=====
+// 配置辅助函数
+function DefaultNamedMutexConfig: TNamedMutexConfig;
+function NamedMutexConfigWithTimeout(ATimeoutMs: Cardinal): TNamedMutexConfig;
+function GlobalNamedMutexConfig: TNamedMutexConfig;
+
+// ===== 现代化工厂函数 =====
 // 主要工厂函数：使用配置创建命名互斥锁
 function CreateNamedMutex(const AName: string; const AConfig: TNamedMutexConfig): INamedMutex;
 
@@ -28,16 +33,26 @@ function CreateNamedMutex(const AName: string): INamedMutex; overload;
 function CreateNamedMutex(const AName: string; ATimeoutMs: Cardinal): INamedMutex; overload;
 function CreateGlobalNamedMutex(const AName: string): INamedMutex;
 
-// ===== 兼容性工厂函数（已弃用） =====
-function MakeNamedMutex(const AName: string): INamedMutex; overload; deprecated 'Use CreateNamedMutex instead';
-function MakeNamedMutex(const AName: string; AInitialOwner: Boolean): INamedMutex; overload; deprecated 'Use CreateNamedMutex instead';
-function TryOpenNamedMutex(const AName: string): INamedMutex; deprecated 'Use CreateNamedMutex instead';
-function MakeGlobalNamedMutex(const AName: string): INamedMutex; overload; deprecated 'Use CreateGlobalNamedMutex instead';
-function MakeGlobalNamedMutex(const AName: string; AInitialOwner: Boolean): INamedMutex; overload; deprecated 'Use CreateGlobalNamedMutex instead';
-
 implementation
 
-// ===== 现代化工厂函数实�?=====
+// ===== 配置辅助函数实现 =====
+
+function DefaultNamedMutexConfig: TNamedMutexConfig;
+begin
+  Result := fafafa.core.sync.namedMutex.base.DefaultNamedMutexConfig;
+end;
+
+function NamedMutexConfigWithTimeout(ATimeoutMs: Cardinal): TNamedMutexConfig;
+begin
+  Result := fafafa.core.sync.namedMutex.base.NamedMutexConfigWithTimeout(ATimeoutMs);
+end;
+
+function GlobalNamedMutexConfig: TNamedMutexConfig;
+begin
+  Result := fafafa.core.sync.namedMutex.base.GlobalNamedMutexConfig;
+end;
+
+// ===== 现代化工厂函数实现 =====
 
 function CreateNamedMutex(const AName: string; const AConfig: TNamedMutexConfig): INamedMutex;
 var
@@ -71,45 +86,9 @@ function CreateNamedMutex(const AName: string; ATimeoutMs: Cardinal): INamedMute
 begin
   Result := CreateNamedMutex(AName, NamedMutexConfigWithTimeout(ATimeoutMs));
 end;
-
 function CreateGlobalNamedMutex(const AName: string): INamedMutex;
 begin
   Result := CreateNamedMutex(AName, GlobalNamedMutexConfig);
-end;
-
-// ===== 兼容性工厂函数实�?=====
-
-function MakeNamedMutex(const AName: string): INamedMutex;
-begin
-  Result := CreateNamedMutex(AName);
-end;
-
-function MakeNamedMutex(const AName: string; AInitialOwner: Boolean): INamedMutex;
-var
-  LConfig: TNamedMutexConfig;
-begin
-  LConfig := DefaultNamedMutexConfig;
-  LConfig.InitialOwner := AInitialOwner;
-  Result := CreateNamedMutex(AName, LConfig);
-end;
-
-function TryOpenNamedMutex(const AName: string): INamedMutex;
-begin
-  Result := CreateNamedMutex(AName);
-end;
-
-function MakeGlobalNamedMutex(const AName: string): INamedMutex;
-begin
-  Result := CreateGlobalNamedMutex(AName);
-end;
-
-function MakeGlobalNamedMutex(const AName: string; AInitialOwner: Boolean): INamedMutex;
-var
-  LConfig: TNamedMutexConfig;
-begin
-  LConfig := GlobalNamedMutexConfig;
-  LConfig.InitialOwner := AInitialOwner;
-  Result := CreateNamedMutex(AName, LConfig);
 end;
 
 end.

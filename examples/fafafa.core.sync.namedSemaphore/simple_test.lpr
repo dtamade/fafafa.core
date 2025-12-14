@@ -21,7 +21,7 @@ begin
   try
     // 创建计数信号量：初始计数3，最大计数3
     WriteLn('创建信号量...');
-    LSemaphore := MakeNamedSemaphore('SimpleTest', 3, 3);
+    LSemaphore := CreateNamedSemaphore('SimpleTest', 3, 3);
     WriteLn('信号量创建成功: ', LSemaphore.GetName);
     WriteLn('最大计数: ', LSemaphore.GetMaxCount);
 

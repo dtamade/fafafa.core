@@ -7,8 +7,10 @@ interface
 
 // === SIMD Intrinsics 基础定义模块 ===
 // 这个模块包含所有基础类型定义、常量和核心接口
-// 不包含具体实现，只有类型和接口声�?// 不使用宏包裹，保持简�?
-// === 跨平台向量类型定�?===
+// 不包含具体实现，只有类型和接口声明
+// 不使用宏包裹，保持简洁
+
+// === 跨平台向量类型定义 ===
 type
   // 128-bit 统一向量类型 (对应 __m128i / __m128 / __m128d)
   TM128 = record
@@ -25,7 +27,8 @@ type
       9: (m128d_f64: array[0..1] of Double);
   end;
 
-  // 兼容性别�?  TSimd128 = TM128;
+  // 兼容性别名
+  TSimd128 = TM128;
 
   // 指针类型
   PTM128 = ^TM128;
@@ -43,7 +46,7 @@ type
       7: (m256i_i64: array[0..3] of Int64);
       8: (m256_f32: array[0..7] of Single);
       9: (m256_f64: array[0..3] of Double);
-      10: (m256_m128: array[0..1] of TM128);  // 可以用两�?128-bit 表示
+      10: (m256_m128: array[0..1] of TM128);  // 可以用两个 128-bit 表示
   end;
   TSimd256 = TM256;
   PTM256 = ^TM256;
@@ -61,8 +64,8 @@ type
       7: (m512i_i64: array[0..7] of Int64);
       8: (m512_f32: array[0..15] of Single);
       9: (m512_f64: array[0..7] of Double);
-      10: (m512_m256: array[0..1] of TM256);  // 可以用两�?256-bit 表示
-      11: (m512_m128: array[0..3] of TM128);  // 可以用四�?128-bit 表示
+      10: (m512_m256: array[0..1] of TM256);  // 可以用两个 256-bit 表示
+      11: (m512_m128: array[0..3] of TM128);  // 可以用四个 128-bit 表示
   end;
   TSimd512 = TM512;
   PTM512 = ^TM512;
@@ -99,7 +102,7 @@ type
     u64: array[0..1] of QWord;
   end;
 
-// === 跨平�?Intrinsics 函数指针类型 ===
+// === 跨平台 Intrinsics 函数指针类型 ===
 type
   // 128-bit 操作函数指针
   TSimdLoad128Func = function(p: Pointer): TSimd128;
@@ -135,12 +138,13 @@ type
   TSimdCmpeqEpi8_256Func = function(a, b: TSimd256): TSimd256;
   TSimdMovemaskEpi8_256Func = function(a: TSimd256): Integer;
 
-// === 跨平�?Intrinsics 接口声明 ===
+// === 跨平台 Intrinsics 接口声明 ===
 // 这些函数的实现在以下模块中：
 // - fafafa.core.simd.intrinsics.scalar (标量实现)
 // - 平台特定模块 (SIMD 优化实现)
 
-// 注意：这里只做类型定义，具体的函数实现在其他模块�?
+// 注意：这里只做类型定义，具体的函数实现在其他模块中
+
 // === 常量定义 ===
 const
   SIMD_ALIGNMENT_128 = 16;
@@ -157,7 +161,8 @@ const
 implementation
 
 // 这个模块只包含类型定义和接口声明
-// 具体实现在以下模块中�?// - fafafa.core.simd.intrinsics.scalar (标量回退实现)
+// 具体实现在以下模块中：
+// - fafafa.core.simd.intrinsics.scalar (标量回退实现)
 // - fafafa.core.simd.intrinsics.x86.* (x86 SIMD 实现)
 // - fafafa.core.simd.intrinsics.arm.* (ARM SIMD 实现)
 

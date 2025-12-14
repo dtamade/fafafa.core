@@ -11,7 +11,6 @@ interface
 
 uses
   Classes, SysUtils,
-  fafafa.core.simd.types,
   fafafa.core.simd.cpuinfo,
   fafafa.core.simd.cpuinfo.base;
 

@@ -157,10 +157,10 @@ type
     function GetBitCapacity: SizeUInt;
 
     // ICollection interface
-    function GetCount: SizeUInt;
-    function IsEmpty: Boolean;
-    procedure Clear;
-    function PtrIter: TPtrIter;
+    function GetCount: SizeUInt; override;
+    // IsEmpty is implemented in base TCollection (GetCount = 0)
+    procedure Clear; override;
+    function PtrIter: TPtrIter; override;
     procedure SerializeToArrayBuffer(aDst: Pointer; aCount: SizeUInt); override;
     function GetElementSize: SizeUInt;
     
@@ -300,8 +300,9 @@ end;
 function TBitSet.AndWith(const aOther: IBitSet): IBitSet;
 var
   LResult: TBitSet;
-  LMinWords, i: SizeUInt;
+  LMinWords, i, LBlocks: SizeUInt;
   LOtherBitSet: TBitSet;
+  pSrc1, pSrc2, pDst: PUInt64;
 begin
   LOtherBitSet := aOther as TBitSet;
   LMinWords := Length(FBits);
@@ -309,7 +310,35 @@ begin
     LMinWords := Length(LOtherBitSet.FBits);
 
   LResult := TBitSet.Create(FBitCapacity, FAllocator);
-  for i := 0 to LMinWords - 1 do
+  
+  if LMinWords = 0 then
+  begin
+    Result := LResult;
+    Exit;
+  end;
+  
+  // 4-way loop unrolling for better performance
+  pSrc1 := @FBits[0];
+  pSrc2 := @LOtherBitSet.FBits[0];
+  pDst := @LResult.FBits[0];
+  LBlocks := LMinWords div 4;
+  
+  if LBlocks > 0 then
+  begin
+    for i := 0 to LBlocks - 1 do
+    begin
+      pDst[0] := pSrc1[0] and pSrc2[0];
+      pDst[1] := pSrc1[1] and pSrc2[1];
+      pDst[2] := pSrc1[2] and pSrc2[2];
+      pDst[3] := pSrc1[3] and pSrc2[3];
+      Inc(pSrc1, 4);
+      Inc(pSrc2, 4);
+      Inc(pDst, 4);
+    end;
+  end;
+  
+  // Handle remaining words
+  for i := LBlocks * 4 to LMinWords - 1 do
     LResult.FBits[i] := FBits[i] and LOtherBitSet.FBits[i];
 
   Result := LResult;
@@ -373,10 +402,34 @@ end;
 
 function TBitSet.Cardinality: SizeUInt;
 var
-  i: SizeUInt;
+  i, LLen, LBlocks: SizeUInt;
+  c0, c1, c2, c3: SizeUInt;
+  pBits: PUInt64;
 begin
+  LLen := Length(FBits);
+  if LLen = 0 then
+    Exit(0);
+  
   Result := 0;
-  for i := 0 to Length(FBits) - 1 do
+  pBits := @FBits[0];
+  LBlocks := LLen div 4;
+  
+  // 4-way loop unrolling to reduce loop overhead
+  if LBlocks > 0 then
+  begin
+    for i := 0 to LBlocks - 1 do
+    begin
+      c0 := PopCount(pBits[0]);
+      c1 := PopCount(pBits[1]);
+      c2 := PopCount(pBits[2]);
+      c3 := PopCount(pBits[3]);
+      Result := Result + c0 + c1 + c2 + c3;
+      Inc(pBits, 4);
+    end;
+  end;
+  
+  // Handle remaining words
+  for i := LBlocks * 4 to LLen - 1 do
     Result := Result + PopCount(FBits[i]);
 end;
 
@@ -400,11 +453,6 @@ end;
 function TBitSet.GetCount: SizeUInt;
 begin
   Result := Cardinality;
-end;
-
-function TBitSet.IsEmpty: Boolean;
-begin
-  Result := Cardinality = 0;
 end;
 
 procedure TBitSet.Clear;

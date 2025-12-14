@@ -143,6 +143,11 @@ type
     function GetOrInsert(const aKey: K; const aDefaultValue: V): V;
     function GetOrInsertWith(const aKey: K; aSupplier: TValueSupplier): V;
     procedure ModifyOrInsert(const aKey: K; aModifier: TValueModifier; const aDefaultValue: V);
+    
+    // Retain API
+    type
+      TEntryPredicate = specialize TPredicateFunc<TEntryType>;
+    procedure Retain(aPredicate: TEntryPredicate; aData: Pointer);
 
     // ICollection interface
     function GetCount: SizeUInt;
@@ -637,6 +642,33 @@ begin
     LNode := AllocateNode(aKey, LValue);
     LinkNode(LNode);
     FNodeMap.Add(aKey, LNode);
+  end;
+end;
+
+procedure TLinkedHashMap.Retain(aPredicate: TEntryPredicate; aData: Pointer);
+var
+  LCurrent, LNext: PNode;
+  LEntry: TEntryType;
+begin
+  LCurrent := FHead;
+  while LCurrent <> nil do
+  begin
+    LNext := PNode(LCurrent^.Next);
+    
+    // 构建 entry 用于谓词判断
+    LEntry.Key := LCurrent^.Pair.Key;
+    LEntry.Value := LCurrent^.Pair.Value;
+    
+    // 如果谓词返回 False，删除这个元素
+    if not aPredicate(LEntry, aData) then
+    begin
+      UnlinkNode(LCurrent);
+      FNodeMap.Remove(LCurrent^.Pair.Key);
+      FMap.Remove(LCurrent^.Pair.Key);
+      FreeNode(LCurrent);
+    end;
+    
+    LCurrent := LNext;
   end;
 end;
 

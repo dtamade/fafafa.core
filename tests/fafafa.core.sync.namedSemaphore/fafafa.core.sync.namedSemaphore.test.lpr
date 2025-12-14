@@ -47,7 +47,4 @@ begin
     LTestSuite.Free;
   end;
 
-  WriteLn;
-  WriteLn('按回车键退出...');
-  ReadLn;
 end.

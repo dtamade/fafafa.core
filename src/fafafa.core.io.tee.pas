@@ -1,43 +1,147 @@
 unit fafafa.core.io.tee;
 
 {$mode objfpc}{$H+}
+{$modeswitch advancedrecords}
 {$I fafafa.core.settings.inc}
+
+{
+  fafafa.core.io.tee - Tee 和广播流
+
+  提供：
+  - TTeeReader: 读取时同时写入另一个流
+  - TMultiWriter: 写入时同时写入多个流（广播）
+
+  参考: Go io.TeeReader, io.MultiWriter
+}
 
 interface
 
 uses
-  fafafa.core.io;
+  SysUtils,
+  fafafa.core.io.base;
 
 type
-  // Fan-out sink: writes to two sinks
-  TTeeSink = class(TInterfacedObject, ITextSink)
+  { TTeeReader - 读取时同时写入
+
+    从 Inner 读取数据时，同时写入到 Writer。
+    适用于读取时需要保留副本的场景。
+
+    用法：
+      Tee := TeeReader(Src, Copy);
+      while Tee.Read(@Buf, N) > 0 do
+        // 处理数据，同时 Copy 也收到相同数据
+  }
+  TTeeReader = class(TInterfacedObject, IReader)
   private
-    FA, FB: ITextSink;
+    FInner: IReader;
+    FWriter: IWriter;
   public
-    constructor Create(const S1, S2: ITextSink);
-    procedure WriteLine(const S: string);
-    procedure Flush;
+    constructor Create(AInner: IReader; AWriter: IWriter);
+
+    { IReader }
+    function Read(Buf: Pointer; Count: SizeInt): SizeInt;
   end;
+
+  { TMultiWriter - 广播写入
+
+    写入数据时同时写入所有 Writers。
+    如果某个 Writer 写入失败（返回值小于 Count），立即返回该值。
+
+    用法：
+      MW := MultiWriter([File, Console, Log]);
+      MW.Write(@Data, N);  // 同时写入三个目标
+  }
+  TMultiWriter = class(TInterfacedObject, IWriter)
+  private
+    FWriters: array of IWriter;
+  public
+    constructor Create(const AWriters: array of IWriter);
+
+    { IWriter }
+    function Write(Buf: Pointer; Count: SizeInt): SizeInt;
+  end;
+
+{ 工厂函数 }
+function TeeReader(AInner: IReader; AWriter: IWriter): IReader;
+function MultiWriter(const AWriters: array of IWriter): IWriter;
 
 implementation
 
-constructor TTeeSink.Create(const S1, S2: ITextSink);
+{ TTeeReader }
+
+constructor TTeeReader.Create(AInner: IReader; AWriter: IWriter);
 begin
   inherited Create;
-  FA := S1; FB := S2;
+  if AInner = nil then
+    raise EIOError.Create('TTeeReader: inner reader is nil');
+  if AWriter = nil then
+    raise EIOError.Create('TTeeReader: writer is nil');
+  FInner := AInner;
+  FWriter := AWriter;
 end;
 
-procedure TTeeSink.WriteLine(const S: string);
+function TTeeReader.Read(Buf: Pointer; Count: SizeInt): SizeInt;
+var
+  Written: SizeInt;
 begin
-  if FA <> nil then FA.WriteLine(S);
-  if FB <> nil then FB.WriteLine(S);
+  Result := 0;
+  if (Buf = nil) or (Count <= 0) then
+    Exit;
+
+  // 从内部读取器读取
+  Result := FInner.Read(Buf, Count);
+  if Result > 0 then
+  begin
+    // 将读取的数据写入 Writer，要求全写成功，否则视为错误
+    Written := FWriter.Write(Buf, Result);
+    if Written <> Result then
+      raise EIOError.Create(ekWriteZero, 'TTeeReader: short write on tee target');
+  end;
 end;
 
-procedure TTeeSink.Flush;
+{ TMultiWriter }
+
+constructor TMultiWriter.Create(const AWriters: array of IWriter);
+var
+  I: Integer;
 begin
-  if FA <> nil then FA.Flush;
-  if FB <> nil then FB.Flush;
+  inherited Create;
+  SetLength(FWriters, Length(AWriters));
+  for I := 0 to High(AWriters) do
+    FWriters[I] := AWriters[I];
+end;
+
+function TMultiWriter.Write(Buf: Pointer; Count: SizeInt): SizeInt;
+var
+  I: Integer;
+  N: SizeInt;
+begin
+  Result := Count;
+  if (Buf = nil) or (Count <= 0) then
+    Exit;
+
+  for I := 0 to High(FWriters) do
+  begin
+    if FWriters[I] <> nil then
+    begin
+      N := FWriters[I].Write(Buf, Count);
+      if N <> Count then
+        raise EIOError.Create(ekWriteZero,
+          'TMultiWriter: short write on target index ' + IntToStr(I));
+    end;
+  end;
+end;
+
+{ 工厂函数 }
+
+function TeeReader(AInner: IReader; AWriter: IWriter): IReader;
+begin
+  Result := TTeeReader.Create(AInner, AWriter);
+end;
+
+function MultiWriter(const AWriters: array of IWriter): IWriter;
+begin
+  Result := TMultiWriter.Create(AWriters);
 end;
 
 end.
-

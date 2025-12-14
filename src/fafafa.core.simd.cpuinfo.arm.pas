@@ -9,7 +9,6 @@ interface
 
 uses
   SysUtils,
-  fafafa.core.simd.types,
   fafafa.core.simd.cpuinfo.base;
 
 type

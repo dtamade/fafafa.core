@@ -39,12 +39,49 @@ interface
 uses
   SysUtils,
   fafafa.core.base,
+  fafafa.core.result,
   fafafa.core.time.consts,
   fafafa.core.time.duration,
   fafafa.core.time.instant;
 
 type
 
+  {**
+   * TTimeErrorKind - 时间领域统一错误分类
+   *
+   * @desc
+   *   供 Result/Option 风格 API 使用的错误枚举。
+   *   目前先覆盖核心场景，后续可按需扩展。
+   *}
+  TTimeErrorKind = (
+    tekOverflow,      // 算术溢出
+    tekUnderflow,     // 算术下溢
+    tekInvalidFormat, // 文本/解析格式错误
+    tekSystemError,   // 系统调用失败（clock_nanosleep 等）
+    tekCancelled      // 操作被取消（配合取消令牌）
+  );
+
+  { Result 类型别名，便于在时间模块中统一使用 }
+  TDurationResult = specialize TResult<TDuration, TTimeErrorKind>;
+  TInstantResult  = specialize TResult<TInstant, TTimeErrorKind>;
+
+{ Result 风格构造器（顶层函数），避免单元循环依赖 }
+function TryDurationFromSec(const ASec: Int64): TDurationResult; inline;
+function TryDurationFromMs(const AMs: Int64): TDurationResult; inline;
+function TryDurationFromNs(const ANs: Int64): TDurationResult; inline;
+function TryDurationFromUs(const AUs: Int64): TDurationResult; inline;
+
+{ TInstant Result 风格算术 }
+function TryInstantAdd(const AInstant: TInstant; const ADur: TDuration): TInstantResult; inline;
+function TryInstantSub(const AInstant: TInstant; const ADur: TDuration): TInstantResult; inline;
+
+{ TDuration Result 风格算术 (v1.3.0) }
+function TryDurationAdd(const A, B: TDuration): TDurationResult; inline;
+function TryDurationSub(const A, B: TDuration): TDurationResult; inline;
+function TryDurationMul(const A: TDuration; const Factor: Int64): TDurationResult; inline;
+function TryDurationDiv(const A: TDuration; const Divisor: Int64): TDurationResult; inline;
+
+type
   {**
    * ETimeError - 时间操作基础异常类
    *
@@ -137,8 +174,105 @@ const
   HOURS_PER_DAY = 24;
 implementation
 
-// TDuration 实现将在后续添加
-// TInstant 实现将在后续添加
+function TryDurationFromSec(const ASec: Int64): TDurationResult;
+var
+  tmp: TDuration;
+begin
+  if TDuration.TryFromSec(ASec, tmp) then
+    Result := TDurationResult.Ok(tmp)
+  else
+    Result := TDurationResult.Err(tekOverflow);
+end;
+
+function TryDurationFromMs(const AMs: Int64): TDurationResult;
+var
+  tmp: TDuration;
+begin
+  if TDuration.TryFromMs(AMs, tmp) then
+    Result := TDurationResult.Ok(tmp)
+  else
+    Result := TDurationResult.Err(tekOverflow);
+end;
+
+function TryDurationFromNs(const ANs: Int64): TDurationResult;
+var
+  tmp: TDuration;
+begin
+  if TDuration.TryFromNs(ANs, tmp) then
+    Result := TDurationResult.Ok(tmp)
+  else
+    Result := TDurationResult.Err(tekOverflow);
+end;
+
+function TryDurationFromUs(const AUs: Int64): TDurationResult;
+var
+  tmp: TDuration;
+begin
+  if TDuration.TryFromUs(AUs, tmp) then
+    Result := TDurationResult.Ok(tmp)
+  else
+    Result := TDurationResult.Err(tekOverflow);
+end;
+
+function TryInstantAdd(const AInstant: TInstant; const ADur: TDuration): TInstantResult;
+var
+  tmp: TInstant;
+begin
+  if AInstant.CheckedAdd(ADur, tmp) then
+    Result := TInstantResult.Ok(tmp)
+  else
+    Result := TInstantResult.Err(tekOverflow);
+end;
+
+function TryInstantSub(const AInstant: TInstant; const ADur: TDuration): TInstantResult;
+var
+  tmp: TInstant;
+begin
+  if AInstant.CheckedSub(ADur, tmp) then
+    Result := TInstantResult.Ok(tmp)
+  else
+    Result := TInstantResult.Err(tekUnderflow);
+end;
+
+function TryDurationAdd(const A, B: TDuration): TDurationResult;
+var
+  tmp: TDuration;
+begin
+  if A.CheckedAdd(B, tmp) then
+    Result := TDurationResult.Ok(tmp)
+  else
+    Result := TDurationResult.Err(tekOverflow);
+end;
+
+function TryDurationSub(const A, B: TDuration): TDurationResult;
+var
+  tmp: TDuration;
+begin
+  if A.CheckedSub(B, tmp) then
+    Result := TDurationResult.Ok(tmp)
+  else
+    Result := TDurationResult.Err(tekUnderflow);
+end;
+
+function TryDurationMul(const A: TDuration; const Factor: Int64): TDurationResult;
+var
+  tmp: TDuration;
+begin
+  if A.CheckedMul(Factor, tmp) then
+    Result := TDurationResult.Ok(tmp)
+  else
+    Result := TDurationResult.Err(tekOverflow);
+end;
+
+function TryDurationDiv(const A: TDuration; const Divisor: Int64): TDurationResult;
+var
+  tmp: TDuration;
+begin
+  if A.CheckedDiv(Divisor, tmp) then
+    Result := TDurationResult.Ok(tmp)
+  else
+    Result := TDurationResult.Err(tekOverflow);
+end;
 
 end.
 

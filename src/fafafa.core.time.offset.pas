@@ -287,8 +287,9 @@ begin
   Result := False;
   AOffset.FSeconds := 0;
   
+  // 空字符串默认为 UTC（支持无时区的日期时间格式）
   if AStr = '' then
-    Exit;
+    Exit(True);
     
   // Handle 'Z' for UTC
   if (AStr = 'Z') or (AStr = 'z') then

@@ -92,6 +92,10 @@ function munmap(addr: Pointer; len: size_t): cint; cdecl; external 'c';
 function clock_gettime(clk_id: cint; tp: PTimeSpec): cint; cdecl; external 'rt';
 function pthread_condattr_setclock(attr: Ppthread_condattr_t; clock_id: cint): cint; cdecl; external 'pthread';
 
+// Direct errno access for Linux - fpGetErrno doesn't work with libc functions
+function __errno_location: pcint; cdecl; external 'c';
+function GetCErrno: cint; inline;
+
 const
   O_CREAT = $40;
   O_EXCL = $80;
@@ -108,6 +112,11 @@ const
   CLOCK_MONOTONIC = 1;
 
 implementation
+
+function GetCErrno: cint; inline;
+begin
+  Result := __errno_location^;
+end;
 
 { TNamedCondVar }
 
@@ -142,7 +151,7 @@ begin
     // 创建失败，尝试打开现有�?
     if not OpenSharedObjects(LValidatedName) then
       raise ELockError.CreateFmt('Failed to create or open Named condition variable "%s": %s',
-        [AName, GetDetailedErrorMessage(FLastError, fpGetErrno)]);
+        [AName, GetDetailedErrorMessage(FLastError, GetCErrno)]);
   end;
 end;
 
@@ -186,8 +195,16 @@ begin
 end;
 
 function TNamedCondVar.GetDetailedErrorMessage(AError: TWaitError; ASystemError: cint): string;
+const
+  // weNone, weTimeout, weInvalidHandle, weResourceExhausted, weAccessDenied,
+  // weDeadlock, weNotSupported, weSystemError, weInterrupted, weInvalidState, weInvalidParameter
+  CWaitErrorStrings: array[TWaitError] of string = (
+    'None', 'Timeout', 'Invalid Handle', 'Resource Exhausted', 'Access Denied',
+    'Deadlock', 'Not Supported', 'System Error', 'Interrupted', 'Invalid State',
+    'Invalid Parameter'
+  );
 begin
-  Result := WaitErrorToString(AError);
+  Result := CWaitErrorStrings[AError];
   if (AError = weSystemError) and (ASystemError <> 0) then
     Result := Result + Format(' (errno=%d: %s)', [ASystemError, SysErrorMessage(ASystemError)]);
 end;
@@ -257,11 +274,11 @@ begin
 
     if FShmFd = -1 then
     begin
-      if fpGetErrno = ESysEEXIST then
+      if GetCErrno = ESysEEXIST then
         Exit // 对象已存在，稍后尝试打开
       else
       begin
-        FLastError := MapSystemErrorToWaitError(fpGetErrno);
+        FLastError := MapSystemErrorToWaitError(GetCErrno);
         Exit;
       end;
     end;
@@ -271,7 +288,7 @@ begin
     // 设置共享内存大小
     if ftruncate(FShmFd, SizeOf(TSharedCondVarState)) <> 0 then
     begin
-      FLastError := MapSystemErrorToWaitError(fpGetErrno);
+      FLastError := MapSystemErrorToWaitError(GetCErrno);
       Exit;
     end;
 
@@ -281,7 +298,7 @@ begin
     if FSharedState = MAP_FAILED then
     begin
       FSharedState := nil;
-      FLastError := MapSystemErrorToWaitError(fpGetErrno);
+      FLastError := MapSystemErrorToWaitError(GetCErrno);
       Exit;
     end;
 
@@ -369,7 +386,7 @@ begin
     FShmFd := shm_open(PAnsiChar(FShmName), O_RDWR, 0);
     if FShmFd = -1 then
     begin
-      FLastError := MapSystemErrorToWaitError(fpGetErrno);
+      FLastError := MapSystemErrorToWaitError(GetCErrno);
       Exit;
     end;
 
@@ -379,7 +396,7 @@ begin
     if FSharedState = MAP_FAILED then
     begin
       FSharedState := nil;
-      FLastError := MapSystemErrorToWaitError(fpGetErrno);
+      FLastError := MapSystemErrorToWaitError(GetCErrno);
       Exit;
     end;
 

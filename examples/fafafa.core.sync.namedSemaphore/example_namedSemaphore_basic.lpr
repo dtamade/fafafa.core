@@ -18,7 +18,7 @@ begin
   WriteLn('=== Basic Usage Demo ===');
 
   // Create named semaphore (default config: initial count 1, max count 1)
-  LSemaphore := MakeNamedSemaphore('BasicSemaphoreDemo');
+  LSemaphore := CreateNamedSemaphore('BasicSemaphoreDemo');
   WriteLn('Created semaphore: ', LSemaphore.GetName);
   WriteLn('Max count: ', LSemaphore.GetMaxCount);
 
@@ -48,7 +48,7 @@ begin
   WriteLn('=== 计数信号量演示 ===');
 
   // 创建计数信号量：初始计数3，最大计数5
-  LSemaphore := MakeCountingSemaphore('CountingSemaphoreDemo', 3, 5);
+  LSemaphore := CreateNamedSemaphore('CountingSemaphoreDemo', 3, 5);
   WriteLn('创建计数信号量: ', LSemaphore.GetName);
   WriteLn('最大计数: ', LSemaphore.GetMaxCount);
 
@@ -103,7 +103,7 @@ begin
   WriteLn('=== 二进制信号量演示 ===');
   
   // 创建二进制信号量（类似互斥锁，但允许多次释放）
-  LSemaphore := MakeBinarySemaphore('BinarySemaphoreDemo', True);
+  LSemaphore := CreateNamedSemaphore('BinarySemaphoreDemo', 1, 1);
   WriteLn('创建二进制信号量: ', LSemaphore.GetName);
   WriteLn('最大计数: ', LSemaphore.GetMaxCount);
   
@@ -147,7 +147,7 @@ begin
   WriteLn('=== 超时操作演示 ===');
 
   // 创建二进制信号量
-  LSemaphore := MakeBinarySemaphore('TimeoutDemo', True);
+  LSemaphore := CreateNamedSemaphore('TimeoutDemo', 1, 1);
   WriteLn('创建信号量用于超时测试');
 
   // 先获取信号量
@@ -196,7 +196,7 @@ begin
 
   // 测试无效名称
   try
-    MakeNamedSemaphore('');
+    CreateNamedSemaphore('');
     WriteLn('错误：应该抛出异常');
   except
     on E: Exception do
@@ -205,7 +205,7 @@ begin
 
   // 测试无效计数
   try
-    MakeNamedSemaphore('InvalidCount', -1, 5);
+    CreateNamedSemaphore('InvalidCount', -1, 5);
     WriteLn('错误：应该抛出异常');
   except
     on E: Exception do
@@ -214,7 +214,7 @@ begin
 
   // 测试无效释放计数
   try
-    LSemaphore := MakeNamedSemaphore('ValidSemaphore');
+    LSemaphore := CreateNamedSemaphore('ValidSemaphore');
     LSemaphore.Release(0);
     WriteLn('错误：应该抛出异常');
   except
@@ -235,7 +235,7 @@ begin
   WriteLn('=== 多重释放演示 ===');
 
   // 创建计数信号量，初始计数为0
-  LSemaphore := MakeCountingSemaphore('MultiReleaseDemo', 0, 5);
+  LSemaphore := CreateNamedSemaphore('MultiReleaseDemo', 0, 5);
   WriteLn('创建计数信号量（初始计数0，最大计数5）');
 
   // 尝试获取（应该失败）

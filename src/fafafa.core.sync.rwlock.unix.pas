@@ -7,52 +7,14 @@ interface
 
 uses
   SysUtils, BaseUnix, Unix, UnixType, pthreads,
-  fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.rwlock.base, fafafa.core.atomic;
+  fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.rwlock.base, fafafa.core.atomic,
+  fafafa.core.sync.rwlock.reentry.unix;
 
 const
   ETIMEDOUT = 110;  // Connection timed out
   EBUSY = 16;       // Device or resource busy
 
 type
-  // ===== 可重入性支�?=====
-
-  { 线程重入记录 }
-  PThreadReentryRecord = ^TThreadReentryRecord;
-  TThreadReentryRecord = record
-    ThreadId: TThreadID;
-    ReadCount: Integer;     // 该线程的读锁重入次数
-    WriteCount: Integer;    // 该线程的写锁重入次数 (0 �?1)
-    Next: PThreadReentryRecord;  // 链表指针
-  end;
-
-  { 线程重入管理�?- 优化版本使用 TLS 缓存 }
-  TThreadReentryManager = class
-  private
-    FHead: PThreadReentryRecord;
-    FLock: pthread_mutex_t;  // 保护链表的互斥锁
-
-    // 性能统计
-    FCacheHits: Integer;     // TLS 缓存命中次数
-    FCacheMisses: Integer;   // TLS 缓存未命中次�?
-
-    // 内部方法
-    function FindRecordInList(AThreadId: TThreadID): PThreadReentryRecord;
-    procedure UpdateTLSCache(ARecord: PThreadReentryRecord);
-  public
-    constructor Create;
-    destructor Destroy; override;
-
-    function GetOrCreateRecord(AThreadId: TThreadID): PThreadReentryRecord;
-    function FindRecord(AThreadId: TThreadID): PThreadReentryRecord;
-    procedure RemoveRecord(AThreadId: TThreadID);
-    procedure Lock;
-    procedure Unlock;
-
-    // 性能统计
-    function GetCacheHitRate: Double;
-    procedure ResetStats;
-  end;
-
   // 前向声明
   TRWLock = class;
 
@@ -71,7 +33,6 @@ type
 
     // IRWLockReadGuard 接口 (继承自 IGuard)
     function IsLocked: Boolean;
-    function IsValid: Boolean;  // 向后兼容，等价于 IsLocked
     procedure Release;
   end;
 
@@ -89,7 +50,6 @@ type
 
     // IRWLockWriteGuard 接口 (继承自 IGuard)
     function IsLocked: Boolean;
-    function IsValid: Boolean;  // 向后兼容，等价于 IsLocked
     procedure Release;
     function Downgrade: IRWLockReadGuard;
   end;
@@ -209,11 +169,6 @@ type
 
 implementation
 
-// ===== 线程本地存储缓存 =====
-threadvar
-  // TLS 缓存：每个线程缓存自己的重入记录指针
-  ThreadReentryCache: PThreadReentryRecord;
-
 { TRWLockReadGuard }
 
 function TRWLockReadGuard.GetLock: TRWLock;
@@ -256,7 +211,7 @@ var
   Lock: TRWLock;
 begin
   // 检测是否在异常展开过程中（Rust-style Poisoning）
-  if IsValid then
+  if IsLocked then
   begin
     Lock := GetLock;
     // 只有启用毒化检测时才标记
@@ -284,14 +239,9 @@ begin
   Result := FValid and not FReleased;
 end;
 
-function TRWLockReadGuard.IsValid: Boolean;
-begin
-  Result := IsLocked;  // IsValid 为向后兼容的别名
-end;
-
 procedure TRWLockReadGuard.Release;
 begin
-  if IsValid then
+  if IsLocked then
   begin
     try
       GetLock.ReleaseRead;
@@ -333,7 +283,7 @@ var
   Lock: TRWLock;
 begin
   // 检测是否在异常展开过程中（Rust-style Poisoning）
-  if IsValid then
+  if IsLocked then
   begin
     Lock := GetLock;
     // 只有启用毒化检测时才标记
@@ -361,14 +311,9 @@ begin
   Result := FValid and not FReleased;
 end;
 
-function TRWLockWriteGuard.IsValid: Boolean;
-begin
-  Result := IsLocked;  // IsValid 为向后兼容的别名
-end;
-
 procedure TRWLockWriteGuard.Release;
 begin
-  if IsValid then
+  if IsLocked then
   begin
     try
       GetLock.ReleaseWrite;
@@ -384,7 +329,7 @@ var
   CurrentThreadId: TThreadID;
   ReentryRecord: PThreadReentryRecord;
 begin
-  if not IsValid then
+  if not IsLocked then
   begin
     // 守卫无效，返回一个无效的读守卫
     Result := TRWLockReadGuard.CreateFromDowngrade(nil);
@@ -424,154 +369,6 @@ begin
   
   // 失效当前写守卫
   FReleased := True;
-end;
-
-{ TThreadReentryManager }
-
-constructor TThreadReentryManager.Create;
-begin
-  inherited Create;
-  FHead := nil;
-  FCacheHits := 0;
-  FCacheMisses := 0;
-  if pthread_mutex_init(@FLock, nil) <> 0 then
-    raise ELockError.Create('Failed to initialize reentry manager mutex');
-end;
-
-destructor TThreadReentryManager.Destroy;
-var
-  Current, Next: PThreadReentryRecord;
-begin
-  // 清理所有记�?
-  Current := FHead;
-  while Current <> nil do
-  begin
-    Next := Current^.Next;
-    Dispose(Current);
-    Current := Next;
-  end;
-
-  pthread_mutex_destroy(@FLock);
-  inherited Destroy;
-end;
-
-procedure TThreadReentryManager.Lock;
-begin
-  pthread_mutex_lock(@FLock);
-end;
-
-procedure TThreadReentryManager.Unlock;
-begin
-  pthread_mutex_unlock(@FLock);
-end;
-
-// 优化�?FindRecord 方法：首先检�?TLS 缓存
-function TThreadReentryManager.FindRecord(AThreadId: TThreadID): PThreadReentryRecord;
-begin
-  // 第一步：检�?TLS 缓存
-  if (ThreadReentryCache <> nil) and (ThreadReentryCache^.ThreadId = AThreadId) then
-  begin
-    Result := ThreadReentryCache;
-    InterlockedIncrement(FCacheHits);
-    Exit;
-  end;
-
-  // 第二步：在链表中查找
-  Result := FindRecordInList(AThreadId);
-  InterlockedIncrement(FCacheMisses);
-
-  // 第三步：更新 TLS 缓存
-  if Result <> nil then
-    UpdateTLSCache(Result);
-end;
-
-// 在链表中查找记录（原始实现）
-function TThreadReentryManager.FindRecordInList(AThreadId: TThreadID): PThreadReentryRecord;
-var
-  Current: PThreadReentryRecord;
-begin
-  Result := nil;
-  Current := FHead;
-  while Current <> nil do
-  begin
-    if Current^.ThreadId = AThreadId then
-    begin
-      Result := Current;
-      Exit;
-    end;
-    Current := Current^.Next;
-  end;
-end;
-
-// 更新 TLS 缓存
-procedure TThreadReentryManager.UpdateTLSCache(ARecord: PThreadReentryRecord);
-begin
-  ThreadReentryCache := ARecord;
-end;
-
-function TThreadReentryManager.GetOrCreateRecord(AThreadId: TThreadID): PThreadReentryRecord;
-begin
-  Result := FindRecord(AThreadId);
-  if Result = nil then
-  begin
-    // 创建新记�?
-    New(Result);
-    Result^.ThreadId := AThreadId;
-    Result^.ReadCount := 0;
-    Result^.WriteCount := 0;
-    Result^.Next := FHead;
-    FHead := Result;
-
-    // 立即更新 TLS 缓存
-    UpdateTLSCache(Result);
-  end;
-end;
-
-procedure TThreadReentryManager.RemoveRecord(AThreadId: TThreadID);
-var
-  Current, Prev: PThreadReentryRecord;
-begin
-  Current := FHead;
-  Prev := nil;
-
-  while Current <> nil do
-  begin
-    if Current^.ThreadId = AThreadId then
-    begin
-      // 清理 TLS 缓存
-      if ThreadReentryCache = Current then
-        ThreadReentryCache := nil;
-
-      // 找到要删除的记录
-      if Prev = nil then
-        FHead := Current^.Next
-      else
-        Prev^.Next := Current^.Next;
-
-      Dispose(Current);
-      Exit;
-    end;
-    Prev := Current;
-    Current := Current^.Next;
-  end;
-end;
-
-// 性能统计方法
-function TThreadReentryManager.GetCacheHitRate: Double;
-var
-  Total: Integer;
-begin
-  Total := FCacheHits + FCacheMisses;
-  if Total = 0 then
-    Result := 0.0
-  else
-    Result := FCacheHits / Total;
-end;
-
-procedure TThreadReentryManager.ResetStats;
-begin
-  FCacheHits := 0;
-  FCacheMisses := 0;
 end;
 
 { TRWLock }
@@ -802,7 +599,7 @@ begin
     // MaxReaders 检查
     CurrentReaders := AtomicLoadCounter(FReaderCount);
     if CurrentReaders >= FOptions.MaxReaders then
-      raise ERWLockCapacityException.Create(1, FOptions.MaxReaders, GetCurrentThreadId);
+      raise ERWLockError.Create(Format('Resource limit exceeded: current=%d, max=%d', [CurrentReaders, FOptions.MaxReaders]), lrError);
 
     if not TryAcquireReadLockWithSpin then
       raise ELockError.Create('Failed to acquire read lock');
@@ -849,7 +646,7 @@ begin
   // MaxReaders 检查（在获取系统锁之前）
   CurrentReaders := AtomicLoadCounter(FReaderCount);
   if CurrentReaders >= FOptions.MaxReaders then
-    raise ERWLockCapacityException.Create(1, FOptions.MaxReaders, GetCurrentThreadId);
+    raise ERWLockError.Create(Format('Resource limit exceeded: current=%d, max=%d', [CurrentReaders, FOptions.MaxReaders]), lrError);
 
   // 第二阶段：获取系统锁（在管理器锁外部）
   // 使用自适应自旋优化
@@ -901,10 +698,10 @@ begin
     ReentryRecord := FReentryManager.FindRecord(CurrentThreadId);
 
     if ReentryRecord = nil then
-      raise ERWLockStateError.Create('Read lock not held', 'Released', CurrentThreadId);
+      raise ERWLockError.Create(Format('Read lock not held (Released), Thread: %d', [CurrentThreadId]), lrError);
 
     if ReentryRecord^.ReadCount <= 0 then
-      raise ERWLockStateError.Create('Read lock not held', 'Released', CurrentThreadId);
+      raise ERWLockError.Create(Format('Read lock not held (Released), Thread: %d', [CurrentThreadId]), lrError);
 
     // 确保释放前的内存操作完成
     MemoryBarrierRelease;
@@ -971,8 +768,8 @@ begin
       end
       else if ReentryRecord^.ReadCount > 0 then
       begin
-        // 该线程持有读锁，不能升级为写锁（避免死锁�?
-        raise ERWLockDeadlockError.Create(CurrentThreadId, [CurrentThreadId]);
+        // 该线程持有读锁，不能升级为写锁（避免死锁）
+        raise ERWLockError.Create(Format('Potential deadlock detected: upgrade not allowed, Thread: %d', [CurrentThreadId]), lrError);
       end;
     end;
   finally
@@ -1031,10 +828,10 @@ begin
     ReentryRecord := FReentryManager.FindRecord(CurrentThreadId);
 
     if ReentryRecord = nil then
-      raise ERWLockStateError.Create('Write lock not held', 'Released', CurrentThreadId);
+      raise ERWLockError.Create(Format('Write lock not held (Released), Thread: %d', [CurrentThreadId]), lrError);
 
     if ReentryRecord^.WriteCount <= 0 then
-      raise ERWLockStateError.Create('Write lock not held', 'Released', CurrentThreadId);
+      raise ERWLockError.Create(Format('Write lock not held (Released), Thread: %d', [CurrentThreadId]), lrError);
 
     // 减少重入计数
     Dec(ReentryRecord^.WriteCount);
@@ -1070,6 +867,26 @@ var
   NeedSystemLock: Boolean;
   CurrentReaders: Integer;
 begin
+  // ===== 快速路径：非重入模式 =====
+  if not FOptions.AllowReentrancy then
+  begin
+    Result := False;
+
+    // MaxReaders 检查
+    CurrentReaders := AtomicLoadCounter(FReaderCount);
+    if CurrentReaders >= FOptions.MaxReaders then
+      Exit(False);  // TryAcquire 返回 False 而不是抛异常
+
+    // 直接尝试获取系统读锁，不使用重入管理器
+    if pthread_rwlock_tryrdlock(@FRWLock) = 0 then
+    begin
+      AtomicIncrementCounter(FReaderCount);
+      Result := True;
+    end;
+    Exit;
+  end;
+
+  // ===== 慢路径：支持重入 =====
   CurrentThreadId := GetCurrentThreadId;
   Result := False;
   NeedSystemLock := True;
@@ -1097,7 +914,7 @@ begin
       end
       else if ReentryRecord^.ReadCount > 0 then
       begin
-        // 该线程已经持有读锁，可重�?
+        // 该线程已经持有读锁，可重入
         Inc(ReentryRecord^.ReadCount);
         AtomicIncrementCounter(FReaderCount);
         Result := True;
@@ -1108,14 +925,14 @@ begin
     FReentryManager.Unlock;
   end;
 
-  // 如果不需要系统锁，直接返�?
+  // 如果不需要系统锁，直接返回
   if not NeedSystemLock then
     Exit;
 
   // 第二阶段：尝试获取系统锁
   if pthread_rwlock_tryrdlock(@FRWLock) = 0 then
   begin
-    // 第三阶段：更新重入记�?
+    // 第三阶段：更新重入记录
     FReentryManager.Lock;
     try
       ReentryRecord := FReentryManager.FindRecord(CurrentThreadId);
@@ -1145,7 +962,64 @@ var
   NanoSecs: Int64;
   LockResult: Integer;
   NeedSystemLock: Boolean;
+  CurrentReaders: Integer;
 begin
+  // ===== 快速路径：非重入模式 =====
+  if not FOptions.AllowReentrancy then
+  begin
+    if ATimeoutMs = 0 then
+    begin
+      if TryAcquireRead then
+      begin
+        Result := lrSuccess;
+        FLastLockResult := lrSuccess;
+      end
+      else
+      begin
+        Result := lrWouldBlock;
+        FLastLockResult := lrWouldBlock;
+      end;
+      Exit;
+    end;
+
+    // MaxReaders 检查（在获取系统锁之前）
+    CurrentReaders := AtomicLoadCounter(FReaderCount);
+    if CurrentReaders >= FOptions.MaxReaders then
+    begin
+      Result := lrWouldBlock;
+      FLastLockResult := lrWouldBlock;
+      Exit;
+    end;
+
+    // 计算绝对超时时间并获取系统锁（不使用重入管理器）
+    fpgettimeofday(@CurrentTime, nil);
+    NanoSecs := (CurrentTime.tv_sec * 1000000000) + (CurrentTime.tv_usec * 1000) + (ATimeoutMs * 1000000);
+    AbsTime.tv_sec := NanoSecs div 1000000000;
+    AbsTime.tv_nsec := NanoSecs mod 1000000000;
+
+    LockResult := pthread_rwlock_timedrdlock(@FRWLock, @AbsTime);
+    case LockResult of
+      0: begin
+        AtomicIncrementCounter(FReaderCount);
+        Result := lrSuccess;
+        FLastLockResult := lrSuccess;
+      end;
+      ETIMEDOUT: begin
+        Result := lrTimeout;
+        FLastLockResult := lrTimeout;
+      end;
+      EBUSY: begin
+        Result := lrWouldBlock;
+        FLastLockResult := lrWouldBlock;
+      end;
+    else
+      Result := lrError;
+      FLastLockResult := lrError;
+    end;
+    Exit;
+  end;
+
+  // ===== 慢路径：支持重入 =====
   CurrentThreadId := GetCurrentThreadId;
 
   if ATimeoutMs = 0 then
@@ -1165,7 +1039,7 @@ begin
 
   NeedSystemLock := True;
 
-  // 第一阶段：快速检查可重入�?
+  // 第一阶段：快速检查可重入性
   FReentryManager.Lock;
   try
     ReentryRecord := FReentryManager.FindRecord(CurrentThreadId);
@@ -1184,7 +1058,7 @@ begin
       end
       else if ReentryRecord^.ReadCount > 0 then
       begin
-        // 该线程已经持有读锁，可重�?
+        // 该线程已经持有读锁，可重入
         Inc(ReentryRecord^.ReadCount);
         AtomicIncrementCounter(FReaderCount);
         Result := lrSuccess;
@@ -1196,11 +1070,11 @@ begin
     FReentryManager.Unlock;
   end;
 
-  // 如果不需要系统锁，直接返�?
+  // 如果不需要系统锁，直接返回
   if not NeedSystemLock then
     Exit;
 
-  // 第二阶段：计算绝对超时时间并获取系统�?
+  // 第二阶段：计算绝对超时时间并获取系统锁
   fpgettimeofday(@CurrentTime, nil);
   NanoSecs := (CurrentTime.tv_sec * 1000000000) + (CurrentTime.tv_usec * 1000) + (ATimeoutMs * 1000000);
   AbsTime.tv_sec := NanoSecs div 1000000000;
@@ -1209,7 +1083,7 @@ begin
   LockResult := pthread_rwlock_timedrdlock(@FRWLock, @AbsTime);
   case LockResult of
     0: begin
-      // 第三阶段：更新重入记�?
+      // 第三阶段：更新重入记录
       FReentryManager.Lock;
       try
         ReentryRecord := FReentryManager.FindRecord(CurrentThreadId);
@@ -1232,10 +1106,9 @@ begin
       Result := lrWouldBlock;
       FLastLockResult := lrWouldBlock;
     end;
-    else begin
-      Result := lrError;
-      FLastLockResult := lrError;
-    end;
+  else
+    Result := lrError;
+    FLastLockResult := lrError;
   end;
 end;
 
@@ -1245,6 +1118,21 @@ var
   ReentryRecord: PThreadReentryRecord;
   NeedSystemLock: Boolean;
 begin
+  // ===== 快速路径：非重入模式 =====
+  if not FOptions.AllowReentrancy then
+  begin
+    // 直接尝试获取写锁，不使用重入管理器
+    if pthread_rwlock_trywrlock(@FRWLock) = 0 then
+    begin
+      FWriterThread := GetCurrentThreadId;
+      Result := True;
+    end
+    else
+      Result := False;
+    Exit;
+  end;
+
+  // ===== 慢路径：支持重入 =====
   CurrentThreadId := GetCurrentThreadId;
   Result := False;
   NeedSystemLock := True;
@@ -1258,14 +1146,14 @@ begin
     begin
       if ReentryRecord^.WriteCount > 0 then
       begin
-        // 该线程已经持有写锁，可重�?
+        // 该线程已经持有写锁，可重入
         Inc(ReentryRecord^.WriteCount);
         Result := True;
         NeedSystemLock := False;
       end
       else if ReentryRecord^.ReadCount > 0 then
       begin
-        // 该线程持有读锁，不能升级为写�?
+        // 该线程持有读锁，不能升级为写锁
         Result := False;
         NeedSystemLock := False;
       end;
@@ -1274,14 +1162,14 @@ begin
     FReentryManager.Unlock;
   end;
 
-  // 如果不需要系统锁，直接返�?
+  // 如果不需要系统锁，直接返回
   if not NeedSystemLock then
     Exit;
 
   // 第二阶段：尝试获取系统锁
   if pthread_rwlock_trywrlock(@FRWLock) = 0 then
   begin
-    // 第三阶段：更新重入记�?
+    // 第三阶段：更新重入记录
     FReentryManager.Lock;
     try
       ReentryRecord := FReentryManager.FindRecord(CurrentThreadId);
@@ -1312,6 +1200,53 @@ var
   LockResult: Integer;
   NeedSystemLock: Boolean;
 begin
+  // ===== 快速路径：非重入模式 =====
+  if not FOptions.AllowReentrancy then
+  begin
+    if ATimeoutMs = 0 then
+    begin
+      if TryAcquireWrite then
+      begin
+        Result := lrSuccess;
+        FLastLockResult := lrSuccess;
+      end
+      else
+      begin
+        Result := lrWouldBlock;
+        FLastLockResult := lrWouldBlock;
+      end;
+      Exit;
+    end;
+
+    // 非重入模式下直接基于 pthread_rwlock_timedwrlock 实现超时逻辑
+    fpgettimeofday(@CurrentTime, nil);
+    NanoSecs := (CurrentTime.tv_sec * 1000000000) + (CurrentTime.tv_usec * 1000) + (ATimeoutMs * 1000000);
+    AbsTime.tv_sec := NanoSecs div 1000000000;
+    AbsTime.tv_nsec := NanoSecs mod 1000000000;
+
+    LockResult := pthread_rwlock_timedwrlock(@FRWLock, @AbsTime);
+    case LockResult of
+      0: begin
+        FWriterThread := GetCurrentThreadId;
+        Result := lrSuccess;
+        FLastLockResult := lrSuccess;
+      end;
+      ETIMEDOUT: begin
+        Result := lrTimeout;
+        FLastLockResult := lrTimeout;
+      end;
+      EBUSY: begin
+        Result := lrWouldBlock;
+        FLastLockResult := lrWouldBlock;
+      end;
+    else
+      Result := lrError;
+      FLastLockResult := lrError;
+    end;
+    Exit;
+  end;
+
+  // ===== 慢路径：支持重入 =====
   CurrentThreadId := GetCurrentThreadId;
 
   if ATimeoutMs = 0 then
@@ -1340,15 +1275,15 @@ begin
     begin
       if ReentryRecord^.WriteCount > 0 then
       begin
-        // 该线程已经持有写锁，可重�?
+        // 该线程已经持有写锁，可重入
         Inc(ReentryRecord^.WriteCount);
         Result := lrSuccess;
         FLastLockResult := lrSuccess;
-        Exit;  // 直接返回，不需要调用系�?API
+        Exit;  // 直接返回，不需要调用系统API
       end
       else if ReentryRecord^.ReadCount > 0 then
       begin
-        // 该线程持有读锁，不能升级为写�?
+        // 该线程持有读锁，不能升级为写锁
         Result := lrWouldBlock;
         FLastLockResult := lrWouldBlock;
         Exit;  // 直接返回
@@ -1358,7 +1293,7 @@ begin
     FReentryManager.Unlock;
   end;
 
-  // 第二阶段：计算绝对超时时间并获取系统�?
+  // 第二阶段：计算绝对超时时间并获取系统锁
   fpgettimeofday(@CurrentTime, nil);
   NanoSecs := (CurrentTime.tv_sec * 1000000000) + (CurrentTime.tv_usec * 1000) + (ATimeoutMs * 1000000);
   AbsTime.tv_sec := NanoSecs div 1000000000;
@@ -1390,10 +1325,9 @@ begin
       Result := lrWouldBlock;
       FLastLockResult := lrWouldBlock;
     end;
-    else begin
-      Result := lrError;
-      FLastLockResult := lrError;
-    end;
+  else
+    Result := lrError;
+    FLastLockResult := lrError;
   end;
 end;
 
@@ -1495,7 +1429,8 @@ end;
 procedure TRWLock.HandleStateError(const AExpectedState, AActualState: string);
 begin
   FLastLockResult := lrError;
-  raise ERWLockStateError.Create(AExpectedState, AActualState, GetCurrentThreadId);
+  raise ERWLockError.Create(Format('Invalid lock state: expected "%s", actual "%s" (Thread: %d)',
+           [AExpectedState, AActualState, GetCurrentThreadId]), lrError);
 end;
 
 // ===== 状态验证和恢复 =====
@@ -1609,6 +1544,7 @@ end;
 
 // ===== 自适应自旋优化实现 =====
 
+{$IFDEF FAFAFA_SYNC_RWLOCK_ADAPTIVE_SPIN}
 procedure TRWLock.UpdateSpinStatistics(Success: Boolean; SpinCount: Integer);
 begin
   // 更新统计信息
@@ -1775,9 +1711,41 @@ begin
   UpdateSpinStatistics(Success, SpinCount);
   Result := Success;
 end;
+{$ELSE}
+procedure TRWLock.UpdateSpinStatistics(Success: Boolean; SpinCount: Integer);
+begin
+  // 当关闭自适应自旋时，不做复杂统计；保留最小竞争计数以便调试
+  if not Success then
+    atomic_increment(FContentionCount);
+end;
+
+procedure TRWLock.AdjustSpinCount;
+begin
+  // 自适应自旋被关闭时不调整 FSpinCount
+end;
+
+function TRWLock.CalculateOptimalSpinCount: Integer;
+begin
+  // 返回配置的基础自旋次数
+  Result := FOptions.SpinCount;
+end;
+
+function TRWLock.TryAcquireReadLockWithSpin: Boolean;
+begin
+  // 关闭自适应自旋时，直接阻塞式获取读锁
+  Result := pthread_rwlock_rdlock(@FRWLock) = 0;
+end;
+
+function TRWLock.TryAcquireWriteLockWithSpin: Boolean;
+begin
+  // 关闭自适应自旋时，直接阻塞式获取写锁
+  Result := pthread_rwlock_wrlock(@FRWLock) = 0;
+end;
+{$ENDIF}
 
 // ===== 性能监控接口实现 =====
 
+{$IFDEF FAFAFA_SYNC_RWLOCK_DIAGNOSTICS}
 function TRWLock.GetPerformanceStats: TLockPerformanceStats;
 begin
   Result := FPerfStats;
@@ -1866,6 +1834,43 @@ begin
     atomic_increment_64(FPerfStats.TotalReleases);
   end;
 end;
+{$ELSE}
+function TRWLock.GetPerformanceStats: TLockPerformanceStats;
+begin
+  // 关闭诊断时返回零填充的统计信息
+  FillChar(Result, SizeOf(Result), 0);
+end;
+
+procedure TRWLock.ResetPerformanceStats;
+begin
+  // 诊断关闭时不维护详细统计，仅保持 API 存在
+end;
+
+function TRWLock.GetContentionRate: Double;
+begin
+  Result := 0.0;
+end;
+
+function TRWLock.GetAverageWaitTime: Double;
+begin
+  Result := 0.0;
+end;
+
+function TRWLock.GetThroughput: Double;
+begin
+  Result := 0.0;
+end;
+
+function TRWLock.GetSpinEfficiency: Double;
+begin
+  Result := 0.0;
+end;
+
+procedure TRWLock.UpdatePerformanceStats(IsRead: Boolean; IsAcquire: Boolean; WaitTime: QWord; SpinCount: Integer);
+begin
+  // 诊断关闭时不记录统计
+end;
+{$ENDIF}
 
 // ===== 毒化支持 (Rust-style Poisoning) =====
 

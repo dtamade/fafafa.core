@@ -7,7 +7,7 @@ unit fafafa.core.simd.avx2;
 interface
 
 uses
-  fafafa.core.simd.types,
+  fafafa.core.simd.base,
   fafafa.core.simd.dispatch;
 
 // === AVX2 Backend Implementation ===
@@ -57,8 +57,8 @@ uses
 function AVX2AddF32x4(const a, b: TVecF32x4): TVecF32x4;
 begin
   asm
-    mov    rax, a
-    mov    rdx, b
+    lea    rax, a
+    lea    rdx, b
     vmovups xmm0, [rax]
     vaddps xmm0, xmm0, [rdx]
     vmovups [result], xmm0
@@ -68,8 +68,8 @@ end;
 function AVX2SubF32x4(const a, b: TVecF32x4): TVecF32x4;
 begin
   asm
-    mov    rax, a
-    mov    rdx, b
+    lea    rax, a
+    lea    rdx, b
     vmovups xmm0, [rax]
     vsubps xmm0, xmm0, [rdx]
     vmovups [result], xmm0
@@ -79,8 +79,8 @@ end;
 function AVX2MulF32x4(const a, b: TVecF32x4): TVecF32x4;
 begin
   asm
-    mov    rax, a
-    mov    rdx, b
+    lea    rax, a
+    lea    rdx, b
     vmovups xmm0, [rax]
     vmulps xmm0, xmm0, [rdx]
     vmovups [result], xmm0
@@ -90,8 +90,8 @@ end;
 function AVX2DivF32x4(const a, b: TVecF32x4): TVecF32x4;
 begin
   asm
-    mov    rax, a
-    mov    rdx, b
+    lea    rax, a
+    lea    rdx, b
     vmovups xmm0, [rax]
     vdivps xmm0, xmm0, [rdx]
     vmovups [result], xmm0
@@ -101,8 +101,8 @@ end;
 function AVX2AddF64x2(const a, b: TVecF64x2): TVecF64x2;
 begin
   asm
-    mov    rax, a
-    mov    rdx, b
+    lea    rax, a
+    lea    rdx, b
     vmovupd xmm0, [rax]
     vaddpd xmm0, xmm0, [rdx]
     vmovupd [result], xmm0
@@ -112,8 +112,8 @@ end;
 function AVX2SubF64x2(const a, b: TVecF64x2): TVecF64x2;
 begin
   asm
-    mov    rax, a
-    mov    rdx, b
+    lea    rax, a
+    lea    rdx, b
     vmovupd xmm0, [rax]
     vsubpd xmm0, xmm0, [rdx]
     vmovupd [result], xmm0
@@ -123,8 +123,8 @@ end;
 function AVX2MulF64x2(const a, b: TVecF64x2): TVecF64x2;
 begin
   asm
-    mov    rax, a
-    mov    rdx, b
+    lea    rax, a
+    lea    rdx, b
     vmovupd xmm0, [rax]
     vmulpd xmm0, xmm0, [rdx]
     vmovupd [result], xmm0
@@ -134,8 +134,8 @@ end;
 function AVX2DivF64x2(const a, b: TVecF64x2): TVecF64x2;
 begin
   asm
-    mov    rax, a
-    mov    rdx, b
+    lea    rax, a
+    lea    rdx, b
     vmovupd xmm0, [rax]
     vdivpd xmm0, xmm0, [rdx]
     vmovupd [result], xmm0
@@ -145,8 +145,8 @@ end;
 function AVX2AddI32x4(const a, b: TVecI32x4): TVecI32x4;
 begin
   asm
-    mov    rax, a
-    mov    rdx, b
+    lea    rax, a
+    lea    rdx, b
     vmovdqu xmm0, [rax]
     vpaddd xmm0, xmm0, [rdx]
     vmovdqu [result], xmm0
@@ -156,8 +156,8 @@ end;
 function AVX2SubI32x4(const a, b: TVecI32x4): TVecI32x4;
 begin
   asm
-    mov    rax, a
-    mov    rdx, b
+    lea    rax, a
+    lea    rdx, b
     vmovdqu xmm0, [rax]
     vpsubd xmm0, xmm0, [rdx]
     vmovdqu [result], xmm0
@@ -168,8 +168,8 @@ end;
 function AVX2MulI32x4(const a, b: TVecI32x4): TVecI32x4;
 begin
   asm
-    mov    rax, a
-    mov    rdx, b
+    lea    rax, a
+    lea    rdx, b
     vmovdqu xmm0, [rax]
     vpmulld xmm0, xmm0, [rdx]
     vmovdqu [result], xmm0
@@ -182,8 +182,8 @@ function AVX2CmpEqF32x4(const a, b: TVecF32x4): TMask4;
 var mask: Integer;
 begin
   asm
-    mov      rax, a
-    mov      rdx, b
+    lea      rax, a
+    lea      rdx, b
     vmovups  xmm0, [rax]
     vcmpeqps xmm0, xmm0, [rdx]
     vmovmskps eax, xmm0
@@ -196,8 +196,8 @@ function AVX2CmpLtF32x4(const a, b: TVecF32x4): TMask4;
 var mask: Integer;
 begin
   asm
-    mov      rax, a
-    mov      rdx, b
+    lea      rax, a
+    lea      rdx, b
     vmovups  xmm0, [rax]
     vcmpltps xmm0, xmm0, [rdx]
     vmovmskps eax, xmm0
@@ -210,8 +210,8 @@ function AVX2CmpLeF32x4(const a, b: TVecF32x4): TMask4;
 var mask: Integer;
 begin
   asm
-    mov      rax, a
-    mov      rdx, b
+    lea      rax, a
+    lea      rdx, b
     vmovups  xmm0, [rax]
     vcmpleps xmm0, xmm0, [rdx]
     vmovmskps eax, xmm0
@@ -225,8 +225,8 @@ var mask: Integer;
 begin
   // GT: swap operands and use LT
   asm
-    mov      rax, b
-    mov      rdx, a
+    lea      rax, b
+    lea      rdx, a
     vmovups  xmm0, [rax]
     vcmpltps xmm0, xmm0, [rdx]
     vmovmskps eax, xmm0
@@ -240,8 +240,8 @@ var mask: Integer;
 begin
   // GE: swap operands and use LE
   asm
-    mov      rax, b
-    mov      rdx, a
+    lea      rax, b
+    lea      rdx, a
     vmovups  xmm0, [rax]
     vcmpleps xmm0, xmm0, [rdx]
     vmovmskps eax, xmm0
@@ -254,8 +254,8 @@ function AVX2CmpNeF32x4(const a, b: TVecF32x4): TMask4;
 var mask: Integer;
 begin
   asm
-    mov       rax, a
-    mov       rdx, b
+    lea       rax, a
+    lea       rdx, b
     vmovups   xmm0, [rax]
     vcmpneqps xmm0, xmm0, [rdx]
     vmovmskps eax, xmm0
@@ -269,7 +269,7 @@ end;
 function AVX2AbsF32x4(const a: TVecF32x4): TVecF32x4;
 begin
   asm
-    mov      rax, a
+    lea      rax, a
     vmovups  xmm0, [rax]
     vpcmpeqd xmm1, xmm1, xmm1     // all 1s
     vpsrld   xmm1, xmm1, 1        // shift right to get 0x7FFFFFFF
@@ -281,7 +281,7 @@ end;
 function AVX2SqrtF32x4(const a: TVecF32x4): TVecF32x4;
 begin
   asm
-    mov     rax, a
+    lea     rax, a
     vmovups xmm0, [rax]
     vsqrtps xmm0, xmm0
     vmovups [result], xmm0
@@ -291,8 +291,8 @@ end;
 function AVX2MinF32x4(const a, b: TVecF32x4): TVecF32x4;
 begin
   asm
-    mov     rax, a
-    mov     rdx, b
+    lea     rax, a
+    lea     rdx, b
     vmovups xmm0, [rax]
     vminps  xmm0, xmm0, [rdx]
     vmovups [result], xmm0
@@ -302,8 +302,8 @@ end;
 function AVX2MaxF32x4(const a, b: TVecF32x4): TVecF32x4;
 begin
   asm
-    mov     rax, a
-    mov     rdx, b
+    lea     rax, a
+    lea     rdx, b
     vmovups xmm0, [rax]
     vmaxps  xmm0, xmm0, [rdx]
     vmovups [result], xmm0
@@ -315,7 +315,7 @@ end;
 function AVX2ReduceAddF32x4(const a: TVecF32x4): Single;
 begin
   asm
-    mov      rax, a
+    lea      rax, a
     vmovups  xmm0, [rax]
     vhaddps  xmm0, xmm0, xmm0     // horizontal add
     vhaddps  xmm0, xmm0, xmm0
@@ -326,7 +326,7 @@ end;
 function AVX2ReduceMinF32x4(const a: TVecF32x4): Single;
 begin
   asm
-    mov      rax, a
+    lea      rax, a
     vmovups  xmm0, [rax]
     vshufps  xmm1, xmm0, xmm0, $4E
     vminps   xmm0, xmm0, xmm1
@@ -339,7 +339,7 @@ end;
 function AVX2ReduceMaxF32x4(const a: TVecF32x4): Single;
 begin
   asm
-    mov      rax, a
+    lea      rax, a
     vmovups  xmm0, [rax]
     vshufps  xmm1, xmm0, xmm0, $4E
     vmaxps   xmm0, xmm0, xmm1
@@ -352,7 +352,7 @@ end;
 function AVX2ReduceMulF32x4(const a: TVecF32x4): Single;
 begin
   asm
-    mov      rax, a
+    lea      rax, a
     vmovups  xmm0, [rax]
     vshufps  xmm1, xmm0, xmm0, $4E
     vmulps   xmm0, xmm0, xmm1
@@ -386,7 +386,7 @@ procedure AVX2StoreF32x4(p: PSingle; const a: TVecF32x4);
 begin
   asm
     mov     rax, p
-    mov     rdx, a
+    lea     rdx, a
     vmovups xmm0, [rdx]
     vmovups [rax], xmm0
   end;
@@ -396,7 +396,7 @@ procedure AVX2StoreF32x4Aligned(p: PSingle; const a: TVecF32x4);
 begin
   asm
     mov     rax, p
-    mov     rdx, a
+    lea     rdx, a
     vmovups xmm0, [rdx]
     vmovaps [rax], xmm0
   end;
@@ -406,10 +406,10 @@ end;
 
 function AVX2SplatF32x4(value: Single): TVecF32x4;
 begin
-  // value comes in xmm0
   asm
+    movss       xmm0, value
     vbroadcastss xmm0, xmm0
-    vmovups [result], xmm0
+    vmovups     [result], xmm0
   end;
 end;
 
@@ -447,8 +447,8 @@ end;
 function AVX2AddF32x8(const a, b: TVecF32x8): TVecF32x8;
 begin
   asm
-    mov     rax, a
-    mov     rdx, b
+    lea     rax, a
+    lea     rdx, b
     vmovups ymm0, [rax]
     vaddps  ymm0, ymm0, [rdx]
     vmovups [result], ymm0
@@ -459,8 +459,8 @@ end;
 function AVX2SubF32x8(const a, b: TVecF32x8): TVecF32x8;
 begin
   asm
-    mov     rax, a
-    mov     rdx, b
+    lea     rax, a
+    lea     rdx, b
     vmovups ymm0, [rax]
     vsubps  ymm0, ymm0, [rdx]
     vmovups [result], ymm0
@@ -471,8 +471,8 @@ end;
 function AVX2MulF32x8(const a, b: TVecF32x8): TVecF32x8;
 begin
   asm
-    mov     rax, a
-    mov     rdx, b
+    lea     rax, a
+    lea     rdx, b
     vmovups ymm0, [rax]
     vmulps  ymm0, ymm0, [rdx]
     vmovups [result], ymm0
@@ -483,8 +483,8 @@ end;
 function AVX2DivF32x8(const a, b: TVecF32x8): TVecF32x8;
 begin
   asm
-    mov     rax, a
-    mov     rdx, b
+    lea     rax, a
+    lea     rdx, b
     vmovups ymm0, [rax]
     vdivps  ymm0, ymm0, [rdx]
     vmovups [result], ymm0
@@ -1533,41 +1533,122 @@ begin
     Priority := 20; // Higher than SSE2
   end;
 
-  // Register arithmetic operations
-  dispatchTable.AddF32x4 := @AVX2AddF32x4;
-  dispatchTable.SubF32x4 := @AVX2SubF32x4;
-  dispatchTable.MulF32x4 := @AVX2MulF32x4;
-  dispatchTable.DivF32x4 := @AVX2DivF32x4;
+  // Vector-related operations default to Scalar reference implementations.
+  // You can enable AVX2 vector ops for experimentation via SetVectorAsmEnabled(True)
+  // (note: AVX2 asm path is not yet fully validated under FPC's calling conventions).
 
-  dispatchTable.AddF32x8 := @AVX2AddF32x8;
-  dispatchTable.SubF32x8 := @AVX2SubF32x8;
-  dispatchTable.MulF32x8 := @AVX2MulF32x8;
-  dispatchTable.DivF32x8 := @AVX2DivF32x8;
+  if IsVectorAsmEnabled then
+  begin
+    // Register arithmetic operations
+    dispatchTable.AddF32x4 := @AVX2AddF32x4;
+    dispatchTable.SubF32x4 := @AVX2SubF32x4;
+    dispatchTable.MulF32x4 := @AVX2MulF32x4;
+    dispatchTable.DivF32x4 := @AVX2DivF32x4;
 
-  dispatchTable.AddF64x2 := @AVX2AddF64x2;
-  dispatchTable.SubF64x2 := @AVX2SubF64x2;
-  dispatchTable.MulF64x2 := @AVX2MulF64x2;
-  dispatchTable.DivF64x2 := @AVX2DivF64x2;
+    dispatchTable.AddF32x8 := @AVX2AddF32x8;
+    dispatchTable.SubF32x8 := @AVX2SubF32x8;
+    dispatchTable.MulF32x8 := @AVX2MulF32x8;
+    dispatchTable.DivF32x8 := @AVX2DivF32x8;
 
-  dispatchTable.AddI32x4 := @AVX2AddI32x4;
-  dispatchTable.SubI32x4 := @AVX2SubI32x4;
-  dispatchTable.MulI32x4 := @AVX2MulI32x4;
+    dispatchTable.AddF64x2 := @AVX2AddF64x2;
+    dispatchTable.SubF64x2 := @AVX2SubF64x2;
+    dispatchTable.MulF64x2 := @AVX2MulF64x2;
+    dispatchTable.DivF64x2 := @AVX2DivF64x2;
 
-  // Register comparison operations
-  dispatchTable.CmpEqF32x4 := @AVX2CmpEqF32x4;
-  dispatchTable.CmpLtF32x4 := @AVX2CmpLtF32x4;
-  dispatchTable.CmpLeF32x4 := @AVX2CmpLeF32x4;
-  dispatchTable.CmpGtF32x4 := @AVX2CmpGtF32x4;
-  dispatchTable.CmpGeF32x4 := @AVX2CmpGeF32x4;
-  dispatchTable.CmpNeF32x4 := @AVX2CmpNeF32x4;
+    dispatchTable.AddI32x4 := @AVX2AddI32x4;
+    dispatchTable.SubI32x4 := @AVX2SubI32x4;
+    dispatchTable.MulI32x4 := @AVX2MulI32x4;
 
-  // Register math functions
-  dispatchTable.AbsF32x4 := @AVX2AbsF32x4;
-  dispatchTable.SqrtF32x4 := @AVX2SqrtF32x4;
-  dispatchTable.MinF32x4 := @AVX2MinF32x4;
-  dispatchTable.MaxF32x4 := @AVX2MaxF32x4;
+    // Register comparison operations
+    dispatchTable.CmpEqF32x4 := @AVX2CmpEqF32x4;
+    dispatchTable.CmpLtF32x4 := @AVX2CmpLtF32x4;
+    dispatchTable.CmpLeF32x4 := @AVX2CmpLeF32x4;
+    dispatchTable.CmpGtF32x4 := @AVX2CmpGtF32x4;
+    dispatchTable.CmpGeF32x4 := @AVX2CmpGeF32x4;
+    dispatchTable.CmpNeF32x4 := @AVX2CmpNeF32x4;
 
-  // Register extended math functions (using scalar fallback for now)
+    // Register math functions
+    dispatchTable.AbsF32x4 := @AVX2AbsF32x4;
+    dispatchTable.SqrtF32x4 := @AVX2SqrtF32x4;
+    dispatchTable.MinF32x4 := @AVX2MinF32x4;
+    dispatchTable.MaxF32x4 := @AVX2MaxF32x4;
+
+    // Register reduction operations
+    dispatchTable.ReduceAddF32x4 := @AVX2ReduceAddF32x4;
+    dispatchTable.ReduceMinF32x4 := @AVX2ReduceMinF32x4;
+    dispatchTable.ReduceMaxF32x4 := @AVX2ReduceMaxF32x4;
+    dispatchTable.ReduceMulF32x4 := @AVX2ReduceMulF32x4;
+
+    // Register memory operations
+    dispatchTable.LoadF32x4 := @AVX2LoadF32x4;
+    dispatchTable.LoadF32x4Aligned := @AVX2LoadF32x4Aligned;
+    dispatchTable.StoreF32x4 := @AVX2StoreF32x4;
+    dispatchTable.StoreF32x4Aligned := @AVX2StoreF32x4Aligned;
+
+    // Register utility operations
+    dispatchTable.SplatF32x4 := @AVX2SplatF32x4;
+    dispatchTable.ZeroF32x4 := @AVX2ZeroF32x4;
+    dispatchTable.SelectF32x4 := @AVX2SelectF32x4;
+    dispatchTable.ExtractF32x4 := @AVX2ExtractF32x4;
+    dispatchTable.InsertF32x4 := @AVX2InsertF32x4;
+  end
+  else
+  begin
+    // Register arithmetic operations
+    dispatchTable.AddF32x4 := @ScalarAddF32x4;
+    dispatchTable.SubF32x4 := @ScalarSubF32x4;
+    dispatchTable.MulF32x4 := @ScalarMulF32x4;
+    dispatchTable.DivF32x4 := @ScalarDivF32x4;
+
+    dispatchTable.AddF32x8 := @ScalarAddF32x8;
+    dispatchTable.SubF32x8 := @ScalarSubF32x8;
+    dispatchTable.MulF32x8 := @ScalarMulF32x8;
+    dispatchTable.DivF32x8 := @ScalarDivF32x8;
+
+    dispatchTable.AddF64x2 := @ScalarAddF64x2;
+    dispatchTable.SubF64x2 := @ScalarSubF64x2;
+    dispatchTable.MulF64x2 := @ScalarMulF64x2;
+    dispatchTable.DivF64x2 := @ScalarDivF64x2;
+
+    dispatchTable.AddI32x4 := @ScalarAddI32x4;
+    dispatchTable.SubI32x4 := @ScalarSubI32x4;
+    dispatchTable.MulI32x4 := @ScalarMulI32x4;
+
+    // Register comparison operations
+    dispatchTable.CmpEqF32x4 := @ScalarCmpEqF32x4;
+    dispatchTable.CmpLtF32x4 := @ScalarCmpLtF32x4;
+    dispatchTable.CmpLeF32x4 := @ScalarCmpLeF32x4;
+    dispatchTable.CmpGtF32x4 := @ScalarCmpGtF32x4;
+    dispatchTable.CmpGeF32x4 := @ScalarCmpGeF32x4;
+    dispatchTable.CmpNeF32x4 := @ScalarCmpNeF32x4;
+
+    // Register math functions
+    dispatchTable.AbsF32x4 := @ScalarAbsF32x4;
+    dispatchTable.SqrtF32x4 := @ScalarSqrtF32x4;
+    dispatchTable.MinF32x4 := @ScalarMinF32x4;
+    dispatchTable.MaxF32x4 := @ScalarMaxF32x4;
+
+    // Register reduction operations
+    dispatchTable.ReduceAddF32x4 := @ScalarReduceAddF32x4;
+    dispatchTable.ReduceMinF32x4 := @ScalarReduceMinF32x4;
+    dispatchTable.ReduceMaxF32x4 := @ScalarReduceMaxF32x4;
+    dispatchTable.ReduceMulF32x4 := @ScalarReduceMulF32x4;
+
+    // Register memory operations
+    dispatchTable.LoadF32x4 := @ScalarLoadF32x4;
+    dispatchTable.LoadF32x4Aligned := @ScalarLoadF32x4Aligned;
+    dispatchTable.StoreF32x4 := @ScalarStoreF32x4;
+    dispatchTable.StoreF32x4Aligned := @ScalarStoreF32x4Aligned;
+
+    // Register utility operations
+    dispatchTable.SplatF32x4 := @ScalarSplatF32x4;
+    dispatchTable.ZeroF32x4 := @ScalarZeroF32x4;
+    dispatchTable.SelectF32x4 := @ScalarSelectF32x4;
+    dispatchTable.ExtractF32x4 := @ScalarExtractF32x4;
+    dispatchTable.InsertF32x4 := @ScalarInsertF32x4;
+  end;
+
+  // Register extended math functions (Scalar for now)
   dispatchTable.FmaF32x4 := @ScalarFmaF32x4;
   dispatchTable.RcpF32x4 := @ScalarRcpF32x4;
   dispatchTable.RsqrtF32x4 := @ScalarRsqrtF32x4;
@@ -1577,7 +1658,7 @@ begin
   dispatchTable.TruncF32x4 := @ScalarTruncF32x4;
   dispatchTable.ClampF32x4 := @ScalarClampF32x4;
 
-  // Register 3D/4D vector math (using scalar fallback for now)
+  // Register 3D/4D vector math (Scalar for now)
   dispatchTable.DotF32x4 := @ScalarDotF32x4;
   dispatchTable.DotF32x3 := @ScalarDotF32x3;
   dispatchTable.CrossF32x3 := @ScalarCrossF32x3;
@@ -1585,25 +1666,6 @@ begin
   dispatchTable.LengthF32x3 := @ScalarLengthF32x3;
   dispatchTable.NormalizeF32x4 := @ScalarNormalizeF32x4;
   dispatchTable.NormalizeF32x3 := @ScalarNormalizeF32x3;
-
-  // Register reduction operations
-  dispatchTable.ReduceAddF32x4 := @AVX2ReduceAddF32x4;
-  dispatchTable.ReduceMinF32x4 := @AVX2ReduceMinF32x4;
-  dispatchTable.ReduceMaxF32x4 := @AVX2ReduceMaxF32x4;
-  dispatchTable.ReduceMulF32x4 := @AVX2ReduceMulF32x4;
-
-  // Register memory operations
-  dispatchTable.LoadF32x4 := @AVX2LoadF32x4;
-  dispatchTable.LoadF32x4Aligned := @AVX2LoadF32x4Aligned;
-  dispatchTable.StoreF32x4 := @AVX2StoreF32x4;
-  dispatchTable.StoreF32x4Aligned := @AVX2StoreF32x4Aligned;
-
-  // Register utility operations
-  dispatchTable.SplatF32x4 := @AVX2SplatF32x4;
-  dispatchTable.ZeroF32x4 := @AVX2ZeroF32x4;
-  dispatchTable.SelectF32x4 := @AVX2SelectF32x4;
-  dispatchTable.ExtractF32x4 := @AVX2ExtractF32x4;
-  dispatchTable.InsertF32x4 := @AVX2InsertF32x4;
 
   // Register facade functions (AVX2-accelerated where available)
   dispatchTable.MemEqual := @MemEqual_AVX2;

@@ -4,8 +4,8 @@ program tests_result;
 {$mode objfpc}{$H+}
 
 uses
-  SysUtils, consoletestrunner,
-  Test_fafafa_core_result;
+  SysUtils, consoletestrunner, testregistry,
+  fafafa.core.result.testcase;
 
 var
   Application: TTestRunner;
@@ -16,7 +16,5 @@ begin
   Application.Initialize;
   Application.Run;
   Application.Free;
-  // Avoid heaptrc call traces in --list mode
-  testregistry.GetTestRegistry.Free;
 end.
 

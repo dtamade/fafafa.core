@@ -45,8 +45,7 @@ uses
   fafafa.core.time.duration,
   fafafa.core.time.instant,
   fafafa.core.time.clock,
-  fafafa.core.time.timeofday,
-  fafafa.core.collections.priorityqueue;
+  fafafa.core.time.timeofday;
 
 type
   // 任务状态
@@ -299,14 +298,15 @@ const
 implementation
 
 uses
-  DateUtils;
+  DateUtils,
+  fafafa.core.collections.priorityqueue;
 
 type
-  // 任务优先队列：按执行时间排序（最小堆）
-  TTaskPriorityQueue = specialize TPriorityQueue<IScheduledTask>;
-
+// 任务优先队列：按执行时间排序（最小堆）
+  TTaskPriorityQueue = specialize IPriorityQueue<IScheduledTask>;
+ 
 // 任务比较函数：按 NextRunTime 升序，相同时 Priority 降序
-function CompareTasksByTime(const A, B: IScheduledTask): Integer;
+function CompareTasksByTime(const A, B: IScheduledTask; aData: Pointer): SizeInt;
 var
   timeA, timeB: TInstant;
 begin
@@ -469,8 +469,7 @@ type
   TTaskScheduler = class(TInterfacedObject, ITaskScheduler)
   private
     FClock: IMonotonicClock;
-    FTasks: TList; // list of IScheduledTask
-    FTaskQueue: TTaskPriorityQueue; // 优先队列：按执行时间排序，用于 GetNextTask 优化
+    FTasks: TList; // list of IScheduledTask，按需线性扫描选择下一任务
     
     FMaxThreads: Integer;
     FIsRunning: Boolean;
@@ -486,6 +485,11 @@ type
     procedure WorkerThreadProc;
     procedure ProcessTasks;
     function GetNextTask: IScheduledTask;
+    /// <summary>
+    ///   将目标 Unix 纳秒时间转换为基于当前单调时钟的截止时间。
+    ///   使用系统时钟计算 (ANextUnixNs - NowUnixNs) 的差值，然后加到 FClock.NowInstant 上。
+    /// </summary>
+    function ComputeMonotonicDeadlineFromUnixNs(const ANextUnixNs: Int64): TInstant;
   public
     constructor Create; overload;
     constructor Create(const AClock: IMonotonicClock); overload;
@@ -639,8 +643,8 @@ begin
   FLastRunTime := TInstant.Zero;
   FRunCount := 0;
   FFailureCount := 0;
-  // Convert system clock time to TInstant
-  FCreatedTime := TInstant.FromNsSinceEpoch(DefaultSystemClock.NowUnixNs);
+  // Convert system clock time (Unix ns) to TInstant
+  FCreatedTime := TInstant.FromNsSinceEpoch(UInt64(DefaultSystemClock.NowUnixNs));
   FRetryStrategy := TRetryStrategy.None;
   FCallback := nil;
   FCallbackProc := nil;
@@ -1078,8 +1082,7 @@ begin
   FClock := AClock;
   FTasks := TList.Create; // 保留旧结构用于过渡
   
-  // 初始化优先队列（指定比较函数和初始容量）
-  FTaskQueue.Initialize(@CompareTasksByTime, 32);
+  // 优先队列优化暂时移除，直接在 FTasks 中线性选择最近任务
   
   FMaxThreads := AMaxThreads;
   FIsRunning := False;
@@ -1093,14 +1096,18 @@ begin
 end;
 
 destructor TTaskScheduler.Destroy;
+var
+  i: Integer;
 begin
   if FIsRunning then
     Shutdown(TDuration.FromSec(5));
     
   EnterCriticalSection(FLock);
   try
+    // 释放调度器在 AddTask 中通过 _AddRef 持有的任务引用
+    for i := 0 to FTasks.Count - 1 do
+      IScheduledTask(FTasks[i])._Release;
     FTasks.Free;
-    FTaskQueue.Clear;
   finally
     LeaveCriticalSection(FLock);
   end;
@@ -1138,10 +1145,7 @@ begin
     // 添加到列表
     FTasks.Add(Pointer(ATask));
     
-    // 添加到优先队列用于 GetNextTask 优化
-    FTaskQueue.Enqueue(ATask);
-    
-    // 增加引用计数
+    // 增加引用计数，调度器内部持有一份引用
     ATask._AddRef;
   finally
     LeaveCriticalSection(FLock);
@@ -1158,8 +1162,8 @@ begin
     if idx < 0 then
       Exit; // 不存在
     
+    // 从任务列表中移除并释放调度器持有的引用
     FTasks.Delete(idx);
-    FTaskQueue.Remove(ATask);
     ATask._Release;
   finally
     LeaveCriticalSection(FLock);
@@ -1506,6 +1510,7 @@ procedure TTaskScheduler.ProcessTasks;
 var
   task: IScheduledTask;
   now: TInstant;
+  nextWall: TInstant;
 begin
   now := FClock.NowInstant;
   
@@ -1567,19 +1572,28 @@ begin
           end;
         ssCron:
           begin
-            // Cron 策略：使用 Cron 表达式计算下次执行时间
+            // Cron 策略：使用 Cron 表达式或固定日历间隔计算下次执行时间
             if not task.IsCancelled then
             begin
               if (task as TScheduledTask).FCronExpression <> '' then
               begin
-                // 真正的 Cron 任务：使用 Cron 表达式计算
-                (task as TScheduledTask).FNextRunTime := 
-                  GetNextCronTime((task as TScheduledTask).FCronExpression, FClock.NowInstant);
+                // 真正的 Cron 任务：在系统时间域中计算下次时间点，然后映射到单调时钟域
+                nextWall := GetNextCronTime((task as TScheduledTask).FCronExpression);
+                if nextWall = TInstant.Zero then
+                begin
+                  // 没有下一次执行时间，标记为取消
+                  task.Cancel;
+                end
+                else
+                begin
+                  (task as TScheduledTask).FNextRunTime :=
+                    ComputeMonotonicDeadlineFromUnixNs(Int64(nextWall.AsNsSinceEpoch));
+                end;
               end
               else
               begin
-                // Daily/Weekly/Monthly 任务：使用间隔
-                (task as TScheduledTask).FNextRunTime := 
+                // Daily/Weekly/Monthly 任务：使用固定间隔在单调时钟域中前进
+                (task as TScheduledTask).FNextRunTime :=
                   (task as TScheduledTask).FNextRunTime.Add((task as TScheduledTask).FInterval);
               end;
             end;
@@ -1594,34 +1608,59 @@ end;
 function TTaskScheduler.GetNextTask: IScheduledTask;
 var
   task: IScheduledTask;
+  bestTask: IScheduledTask;
+  bestTime: TInstant;
+  i: Integer;
 begin
   Result := nil;
+  bestTask := nil;
   
   EnterCriticalSection(FLock);
   try
-    // 从队列中取出最早的任务（O(1) Peek）
-    while not FTaskQueue.IsEmpty do
+    // 在线性列表中查找下一个即将到期且仍然处于活动状态的任务
+    for i := 0 to FTasks.Count - 1 do
     begin
-      if not FTaskQueue.TryPeek(task) then
-        Break;
+      task := IScheduledTask(FTasks[i]);
+      if not task.IsActive then
+        Continue;
       
-      // 检查任务是否仍然有效
-      if task.IsActive then
+      if bestTask = nil then
       begin
-        Result := task;
-        Exit;
+        bestTask := task;
+        bestTime := task.GetNextRunTime;
       end
-      else
+      else if task.GetNextRunTime < bestTime then
       begin
-        // 无效任务，移除
-        FTaskQueue.Dequeue;
-        FTasks.Remove(Pointer(task));
-        task._Release;
+        bestTask := task;
+        bestTime := bestTask.GetNextRunTime;
       end;
     end;
+    
+    Result := bestTask;
   finally
     LeaveCriticalSection(FLock);
   end;
+end;
+
+function TTaskScheduler.ComputeMonotonicDeadlineFromUnixNs(const ANextUnixNs: Int64): TInstant;
+var
+  sysClock: ISystemClock;
+  nowUnixNs, deltaNs: Int64;
+  delta: TDuration;
+  nowMono: TInstant;
+begin
+  // 使用系统时钟获取当前 Unix 时间戳
+  sysClock := DefaultSystemClock;
+  nowUnixNs := sysClock.NowUnixNs;
+  
+  // 计算与目标时间的差值（单位：纳秒），过去的时间点被夹到“立刻执行”
+  deltaNs := ANextUnixNs - nowUnixNs;
+  if deltaNs < 0 then
+    deltaNs := 0;
+  
+  delta := TDuration.FromNs(deltaNs);
+  nowMono := FClock.NowInstant;
+  Result := nowMono.Add(delta);
 end;
 
 function TTaskScheduler.ScheduleOnce(const ATask: IScheduledTask; const ADelay: TDuration): Boolean;
@@ -1706,17 +1745,20 @@ end;
 function TTaskScheduler.ScheduleCron(const ATask: IScheduledTask; const ACronExpression: string): Boolean;
 var
   task: TScheduledTask;
-  cron: ICronExpression;
-  nextTime: TInstant;
+  sysClock: ISystemClock;
+  baseUnixNs, nextUnixNs: Int64;
+  nextWall: TInstant;
 begin
   Result := False;
   
-  // 解析 Cron 表达式
-  cron := CreateCronExpression(ACronExpression);
-  if not cron.IsValid then
-  begin
-    Exit;
-  end;
+  // 使用系统时钟计算下一次日历时间点
+  sysClock := DefaultSystemClock;
+  baseUnixNs := sysClock.NowUnixNs;
+  nextWall := GetNextCronTime(ACronExpression, TInstant.FromNsSinceEpoch(UInt64(baseUnixNs)));
+  if nextWall = TInstant.Zero then
+    Exit; // 表达式无效或无法计算下次时间
+  
+  nextUnixNs := Int64(nextWall.AsNsSinceEpoch);
   
   EnterCriticalSection(FLock);
   try
@@ -1726,13 +1768,9 @@ begin
     task := ATask as TScheduledTask;
     task.FStrategy := ssCron;
     
-    // 计算下次执行时间
-    nextTime := cron.GetNextTime;
-    if nextTime = TInstant.Zero then
-      Exit;
-    
-    task.FNextRunTime := nextTime;
-    // 将 Cron 表达式存储到任务
+    // 将下一次日历时间映射到单调时钟截止时间
+    task.FNextRunTime := ComputeMonotonicDeadlineFromUnixNs(nextUnixNs);
+    // 将 Cron 表达式存储到任务，后续重算使用
     task.FCronExpression := ACronExpression;
     task.FDescription := 'Cron: ' + ACronExpression;
     
@@ -1747,13 +1785,32 @@ end;
 function TTaskScheduler.ScheduleDaily(const ATask: IScheduledTask; const ATime: TTimeOfDay): Boolean;
 var
   task: TScheduledTask;
-  now, nextRun: TInstant;
   sysClock: ISystemClock;
   nowDT, nextDT: TDateTime;
   nowHour, nowMin, nowSec, nowMSec: Word;
   targetHour, targetMin, targetSec: Word;
+  nextUnixNs: Int64;
 begin
   Result := False;
+  
+  // 基于系统本地时间计算下一次的日历时间点（每天固定时刻）
+  sysClock := DefaultSystemClock;
+  nowDT := sysClock.NowLocal;
+  DecodeTime(nowDT, nowHour, nowMin, nowSec, nowMSec);
+  
+  targetHour := ATime.GetHour;
+  targetMin := ATime.GetMinute;
+  targetSec := ATime.GetSecond;
+  
+  // 今天的目标时间
+  nextDT := Trunc(nowDT) + EncodeTime(targetHour, targetMin, targetSec, 0);
+  
+  // 如果今天的该时间已经过去，则调度到明天
+  if nextDT <= nowDT then
+    nextDT := nextDT + 1.0; // 加一天
+  
+  // 将下一次本地时间转换为 Unix 纳秒时间
+  nextUnixNs := DateUtils.DateTimeToUnix(nextDT, False) * Int64(1000000000);
   
   EnterCriticalSection(FLock);
   try
@@ -1763,26 +1820,9 @@ begin
     task := ATask as TScheduledTask;
     task.FStrategy := ssCron; // 使用 Cron 策略表示复杂调度
     
-    // 计算下次执行时间
-    sysClock := DefaultSystemClock;
-    nowDT := sysClock.NowLocal;
-    DecodeTime(nowDT, nowHour, nowMin, nowSec, nowMSec);
-    
-    targetHour := ATime.GetHour;
-    targetMin := ATime.GetMinute;
-    targetSec := ATime.GetSecond;
-    
-    // 设置今天的目标时间
-    nextDT := Trunc(nowDT) + EncodeTime(targetHour, targetMin, targetSec, 0);
-    
-    // 如果目标时间已过，则设置为明天
-    if nextDT <= nowDT then
-      nextDT := nextDT + 1.0; // 加一天
-    
-    // 转换为 TInstant
-    nextRun := TInstant.FromNsSinceEpoch(UInt64(DateUtils.DateTimeToUnix(nextDT, False) * 1000000000));
-    task.FNextRunTime := nextRun;
-    task.FInterval := TDuration.FromHours(24); // 24小时间隔
+    // 将本地日历时间映射到单调时钟域
+    task.FNextRunTime := ComputeMonotonicDeadlineFromUnixNs(nextUnixNs);
+    task.FInterval := TDuration.FromHours(24); // 24 小时间隔
     
     task.Start;
     AddTask(ATask);
@@ -1795,14 +1835,38 @@ end;
 function TTaskScheduler.ScheduleWeekly(const ATask: IScheduledTask; ADayOfWeek: Integer; const ATime: TTimeOfDay): Boolean;
 var
   task: TScheduledTask;
-  now, nextRun: TInstant;
   sysClock: ISystemClock;
   nowDT, nextDT: TDateTime;
   nowDayOfWeek: Integer;
   daysToAdd: Integer;
   targetHour, targetMin, targetSec: Word;
+  nextUnixNs: Int64;
 begin
   Result := False;
+  
+  // 计算下次执行时间（基于系统时间）
+  sysClock := DefaultSystemClock;
+  nowDT := sysClock.NowLocal;
+  nowDayOfWeek := DayOfWeek(nowDT); // 1=周日, 2=周一, ..., 7=周六
+  
+  targetHour := ATime.GetHour;
+  targetMin := ATime.GetMinute;
+  targetSec := ATime.GetSecond;
+  
+  // 计算到目标星期几的天数
+  // ADayOfWeek: 0=周日, 1=周一, ..., 6=周六
+  // nowDayOfWeek: 1=周日, 2=周一, ..., 7=周六
+  daysToAdd := (ADayOfWeek + 1 - nowDayOfWeek + 7) mod 7;
+  
+  // 设置目标日期和时间
+  nextDT := Trunc(nowDT) + daysToAdd + EncodeTime(targetHour, targetMin, targetSec, 0);
+  
+  // 如果时间已过，则加七天
+  if nextDT <= nowDT then
+    nextDT := nextDT + 7.0;
+  
+  // 转换为 Unix 纳秒
+  nextUnixNs := DateUtils.DateTimeToUnix(nextDT, False) * Int64(1000000000);
   
   EnterCriticalSection(FLock);
   try
@@ -1812,30 +1876,7 @@ begin
     task := ATask as TScheduledTask;
     task.FStrategy := ssCron;
     
-    // 计算下次执行时间
-    sysClock := DefaultSystemClock;
-    nowDT := sysClock.NowLocal;
-    nowDayOfWeek := DayOfWeek(nowDT); // 1=周日, 2=周一, ..., 7=周六
-    
-    targetHour := ATime.GetHour;
-    targetMin := ATime.GetMinute;
-    targetSec := ATime.GetSecond;
-    
-    // 计算到目标星期几的天数
-    // ADayOfWeek: 0=周日, 1=周一, ..., 6=周六
-    // nowDayOfWeek: 1=周日, 2=周一, ..., 7=周六
-    daysToAdd := (ADayOfWeek + 1 - nowDayOfWeek + 7) mod 7;
-    
-    // 设置目标日期和时间
-    nextDT := Trunc(nowDT) + daysToAdd + EncodeTime(targetHour, targetMin, targetSec, 0);
-    
-    // 如果时间已过，则加七天
-    if nextDT <= nowDT then
-      nextDT := nextDT + 7.0;
-    
-    // 转换为 TInstant
-    nextRun := TInstant.FromNsSinceEpoch(UInt64(DateUtils.DateTimeToUnix(nextDT, False) * 1000000000));
-    task.FNextRunTime := nextRun;
+    task.FNextRunTime := ComputeMonotonicDeadlineFromUnixNs(nextUnixNs);
     task.FInterval := TDuration.FromHours(24 * 7); // 7天间隔
     
     task.Start;
@@ -1849,15 +1890,60 @@ end;
 function TTaskScheduler.ScheduleMonthly(const ATask: IScheduledTask; ADay: Integer; const ATime: TTimeOfDay): Boolean;
 var
   task: TScheduledTask;
-  now, nextRun: TInstant;
   sysClock: ISystemClock;
   nowDT, nextDT: TDateTime;
   nowYear, nowMonth, nowDay: Word;
   targetHour, targetMin, targetSec: Word;
   targetDay: Integer;
   daysInMonth: Integer;
+  nextUnixNs: Int64;
 begin
   Result := False;
+  
+  // 计算下次执行时间（基于系统时间）
+  sysClock := DefaultSystemClock;
+  nowDT := sysClock.NowLocal;
+  DecodeDate(nowDT, nowYear, nowMonth, nowDay);
+  
+  targetHour := ATime.GetHour;
+  targetMin := ATime.GetMinute;
+  targetSec := ATime.GetSecond;
+  
+  // 处理月末特殊情况：如果 ADay 超过该月天数，使用月末
+  daysInMonth := DaysInAMonth(nowYear, nowMonth);
+  if ADay > daysInMonth then
+    targetDay := daysInMonth
+  else if ADay < 1 then
+    targetDay := 1
+  else
+    targetDay := ADay;
+  
+  // 设置目标日期和时间
+  nextDT := EncodeDate(nowYear, nowMonth, targetDay) + EncodeTime(targetHour, targetMin, targetSec, 0);
+  
+  // 如果时间已过，则设置为下个月
+  if nextDT <= nowDT then
+  begin
+    if nowMonth = 12 then
+    begin
+      nowYear := nowYear + 1;
+      nowMonth := 1;
+    end
+    else
+      nowMonth := nowMonth + 1;
+    
+    // 重新检查日期有效性
+    daysInMonth := DaysInAMonth(nowYear, nowMonth);
+    if ADay > daysInMonth then
+      targetDay := daysInMonth
+    else
+      targetDay := ADay;
+    
+    nextDT := EncodeDate(nowYear, nowMonth, targetDay) + EncodeTime(targetHour, targetMin, targetSec, 0);
+  end;
+  
+  // 转换为 Unix 纳秒
+  nextUnixNs := DateUtils.DateTimeToUnix(nextDT, False) * Int64(1000000000);
   
   EnterCriticalSection(FLock);
   try
@@ -1867,51 +1953,7 @@ begin
     task := ATask as TScheduledTask;
     task.FStrategy := ssCron;
     
-    // 计算下次执行时间
-    sysClock := DefaultSystemClock;
-    nowDT := sysClock.NowLocal;
-    DecodeDate(nowDT, nowYear, nowMonth, nowDay);
-    
-    targetHour := ATime.GetHour;
-    targetMin := ATime.GetMinute;
-    targetSec := ATime.GetSecond;
-    
-    // 处理月末特殊情况：如果 ADay 超过该月天数，使用月末
-    daysInMonth := DaysInAMonth(nowYear, nowMonth);
-    if ADay > daysInMonth then
-      targetDay := daysInMonth
-    else if ADay < 1 then
-      targetDay := 1
-    else
-      targetDay := ADay;
-    
-    // 设置目标日期和时间
-    nextDT := EncodeDate(nowYear, nowMonth, targetDay) + EncodeTime(targetHour, targetMin, targetSec, 0);
-    
-    // 如果时间已过，则设置为下个月
-    if nextDT <= nowDT then
-    begin
-      if nowMonth = 12 then
-      begin
-        nowYear := nowYear + 1;
-        nowMonth := 1;
-      end
-      else
-        nowMonth := nowMonth + 1;
-      
-      // 重新检查日期有效性
-      daysInMonth := DaysInAMonth(nowYear, nowMonth);
-      if ADay > daysInMonth then
-        targetDay := daysInMonth
-      else
-        targetDay := ADay;
-      
-      nextDT := EncodeDate(nowYear, nowMonth, targetDay) + EncodeTime(targetHour, targetMin, targetSec, 0);
-    end;
-    
-    // 转换为 TInstant
-    nextRun := TInstant.FromNsSinceEpoch(UInt64(DateUtils.DateTimeToUnix(nextDT, False) * 1000000000));
-    task.FNextRunTime := nextRun;
+    task.FNextRunTime := ComputeMonotonicDeadlineFromUnixNs(nextUnixNs);
     task.FInterval := TDuration.FromHours(24 * 30); // 约30天间隔（近似值）
     
     task.Start;
@@ -2438,7 +2480,7 @@ var
   sysClock: ISystemClock;
 begin
   sysClock := DefaultSystemClock;
-  Result := GetNextTime(TInstant.FromNsSinceEpoch(sysClock.NowUnixNs));
+  Result := GetNextTime(TInstant.FromNsSinceEpoch(UInt64(sysClock.NowUnixNs)));
 end;
 
 function TCronExpression.GetPreviousTime(const AFromTime: TInstant): TInstant;
@@ -2449,7 +2491,7 @@ end;
 
 function TCronExpression.GetPreviousTime: TInstant;
 begin
-  Result := GetPreviousTime(TInstant.FromNsSinceEpoch(DefaultSystemClock.NowUnixNs));
+  Result := GetPreviousTime(TInstant.FromNsSinceEpoch(UInt64(DefaultSystemClock.NowUnixNs)));
 end;
 
 function TCronExpression.Matches(const ATime: TInstant): Boolean;
@@ -2498,7 +2540,7 @@ end;
 
 function TCronExpression.GetNextTimes(ACount: Integer): specialize TArray<TInstant>;
 begin
-  Result := GetNextTimes(TInstant.FromNsSinceEpoch(DefaultSystemClock.NowUnixNs), ACount);
+  Result := GetNextTimes(TInstant.FromNsSinceEpoch(UInt64(DefaultSystemClock.NowUnixNs)), ACount);
 end;
 
 // Cron 工厂函数实现

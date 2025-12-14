@@ -24,7 +24,7 @@ begin
   
   try
     // 测试命名互斥锁
-    NamedMutex := MakeNamedMutex('test_mutex');
+    NamedMutex := CreateNamedMutex('test_mutex');
     WriteLn('✓ namedMutex 模块正常');
     
     // 测试命名事件
@@ -32,7 +32,7 @@ begin
     WriteLn('✓ namedEvent 模块正常');
     
     // 测试命名信号量
-    NamedSem := MakeNamedSemaphore('test_sem');
+    NamedSem := CreateNamedSemaphore('test_sem');
     WriteLn('✓ namedSemaphore 模块正常');
     
     // 测试命名屏障

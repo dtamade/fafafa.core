@@ -6,6 +6,7 @@ unit fafafa.core.sync.mutex.windows;
 interface
 
 uses
+  SysUtils,
   fafafa.core.sync.base,
   fafafa.core.sync.mutex.base;
 
@@ -49,16 +50,20 @@ function TryAcquireSRWLockExclusive(var SRWLock: SRWLOCK): LongBool; stdcall; ex
 {$ENDIF}
 
 type
-  { 传统互斥锁实�?- 使用 CRITICAL_SECTION（兼�?Windows XP+）}
+  { 传统互斥锁实现 - 使用 CRITICAL_SECTION（兼容 Windows XP+）}
   TMutex = class(TTryLock, IMutex)
   private
     FCriticalSection: TRTLCriticalSection;
-    FOwnerThreadId: DWORD; // 非重入检测：记录持有者线�?
+    FOwnerThreadId: DWORD; // 非重入检测：记录持有者线程
+    // Poisoning 状态
+    FPoisoned: Boolean;
+    FPoisoningThreadId: TThreadID;
+    FPoisoningException: string;
   public
     constructor Create;
     destructor Destroy; override;
 
-    // ITryLock 继承的方�?
+    // ITryLock 继承的方法
     procedure Acquire; override;
     procedure Release; override;
     function TryAcquire: Boolean; override;
@@ -66,19 +71,28 @@ type
 
     // IMutex 特有方法
     function GetHandle: Pointer;
+
+    // Poisoning 支持
+    function IsPoisoned: Boolean;
+    procedure ClearPoison;
+    procedure MarkPoisoned(const AExceptionMessage: string);
   end;
 
 {$IFDEF FAFAFA_CORE_USE_SRWLOCK}
-  { 现代互斥锁实�?- 使用 SRWLOCK（要�?Windows Vista+）}
+  { 现代互斥锁实现 - 使用 SRWLOCK（要求 Windows Vista+）}
   TSRWMutex = class(TTryLock, IMutex)
   private
     FLock: SRWLOCK;
-    FOwnerThreadId: DWORD; // 非重入检�?
+    FOwnerThreadId: DWORD; // 非重入检测
+    // Poisoning 状态
+    FPoisoned: Boolean;
+    FPoisoningThreadId: TThreadID;
+    FPoisoningException: string;
   public
     constructor Create;
     destructor Destroy; override;
 
-    // ITryLock 继承的方�?
+    // ITryLock 继承的方法
     procedure Acquire; override;
     procedure Release; override;
     function TryAcquire: Boolean; override;
@@ -86,6 +100,11 @@ type
 
     // IMutex 特有方法
     function GetHandle: Pointer;
+
+    // Poisoning 支持
+    function IsPoisoned: Boolean;
+    procedure ClearPoison;
+    procedure MarkPoisoned(const AExceptionMessage: string);
   end;
 {$ENDIF}
 
@@ -112,6 +131,9 @@ constructor TMutex.Create;
 begin
   inherited Create;
   FOwnerThreadId := 0;
+  FPoisoned := False;
+  FPoisoningThreadId := 0;
+  FPoisoningException := '';
   InitializeCriticalSection(FCriticalSection);
 end;
 
@@ -125,14 +147,23 @@ procedure TMutex.Acquire;
 var
   Cur: DWORD;
 begin
-  // 非重入：同一线程重复获取直接抛异�?
+  // 非重入：同一线程重复获取直接抛异常
   Cur := GetCurrentThreadId;
   if FOwnerThreadId = Cur then
     raise EDeadlockError.Create('Re-entrant acquire on non-reentrant mutex');
 
   EnterCriticalSection(FCriticalSection);
-  // 进入后登记所有�?
+  // 进入后登记所有者
   FOwnerThreadId := Cur;
+
+  // Poisoning 检查：获取锁后检查是否被毒化
+  if FPoisoned then
+  begin
+    // 释放锁后再抛异常，避免死锁
+    FOwnerThreadId := 0;
+    LeaveCriticalSection(FCriticalSection);
+    raise EMutexPoisonError.Create(FPoisoningThreadId, FPoisoningException);
+  end;
 end;
 
 procedure TMutex.Release;
@@ -146,14 +177,24 @@ function TMutex.TryAcquire: Boolean;
 var
   Cur: DWORD;
 begin
-  // 非重入快速检�?
+  // 非重入快速检查
   Cur := GetCurrentThreadId;
   if FOwnerThreadId = Cur then
     raise EDeadlockError.Create('Re-entrant try-acquire on non-reentrant mutex');
 
   Result := TryEnterCriticalSection(FCriticalSection);
   if Result then
+  begin
     FOwnerThreadId := Cur;
+    // Poisoning 检查：获取锁后检查是否被毒化
+    if FPoisoned then
+    begin
+      // 释放锁后再抛异常，避免死锁
+      FOwnerThreadId := 0;
+      LeaveCriticalSection(FCriticalSection);
+      raise EMutexPoisonError.Create(FPoisoningThreadId, FPoisoningException);
+    end;
+  end;
 end;
 
 function TMutex.TryAcquire(ATimeoutMs: Cardinal): Boolean;
@@ -167,6 +208,25 @@ begin
   Result := @FCriticalSection;
 end;
 
+function TMutex.IsPoisoned: Boolean;
+begin
+  Result := FPoisoned;
+end;
+
+procedure TMutex.ClearPoison;
+begin
+  FPoisoned := False;
+  FPoisoningThreadId := 0;
+  FPoisoningException := '';
+end;
+
+procedure TMutex.MarkPoisoned(const AExceptionMessage: string);
+begin
+  FPoisoned := True;
+  FPoisoningThreadId := GetThreadID;
+  FPoisoningException := AExceptionMessage;
+end;
+
 {$IFDEF FAFAFA_CORE_USE_SRWLOCK}
 { TSRWMutex - 现代 SRWLOCK 实现 }
 
@@ -174,6 +234,9 @@ constructor TSRWMutex.Create;
 begin
   inherited Create;
   FOwnerThreadId := 0;
+  FPoisoned := False;
+  FPoisoningThreadId := 0;
+  FPoisoningException := '';
   InitializeSRWLock(FLock);
 end;
 
@@ -192,6 +255,15 @@ begin
 
   AcquireSRWLockExclusive(FLock);
   FOwnerThreadId := Cur;
+
+  // Poisoning 检查：获取锁后检查是否被毒化
+  if FPoisoned then
+  begin
+    // 释放锁后再抛异常，避免死锁
+    FOwnerThreadId := 0;
+    ReleaseSRWLockExclusive(FLock);
+    raise EMutexPoisonError.Create(FPoisoningThreadId, FPoisoningException);
+  end;
 end;
 
 procedure TSRWMutex.Release;
@@ -210,7 +282,17 @@ begin
 
   Result := TryAcquireSRWLockExclusive(FLock);
   if Result then
+  begin
     FOwnerThreadId := Cur;
+    // Poisoning 检查：获取锁后检查是否被毒化
+    if FPoisoned then
+    begin
+      // 释放锁后再抛异常，避免死锁
+      FOwnerThreadId := 0;
+      ReleaseSRWLockExclusive(FLock);
+      raise EMutexPoisonError.Create(FPoisoningThreadId, FPoisoningException);
+    end;
+  end;
 end;
 
 function TSRWMutex.TryAcquire(ATimeoutMs: Cardinal): Boolean;
@@ -221,6 +303,25 @@ end;
 function TSRWMutex.GetHandle: Pointer;
 begin
   Result := @FLock;
+end;
+
+function TSRWMutex.IsPoisoned: Boolean;
+begin
+  Result := FPoisoned;
+end;
+
+procedure TSRWMutex.ClearPoison;
+begin
+  FPoisoned := False;
+  FPoisoningThreadId := 0;
+  FPoisoningException := '';
+end;
+
+procedure TSRWMutex.MarkPoisoned(const AExceptionMessage: string);
+begin
+  FPoisoned := True;
+  FPoisoningThreadId := GetThreadID;
+  FPoisoningException := AExceptionMessage;
 end;
 {$ENDIF}
 

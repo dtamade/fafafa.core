@@ -10,19 +10,34 @@
 - 用户目录：env_home_dir/env_temp_dir/env_user_config_dir/env_user_cache_dir
 
 ## API 概览
+
+### 基本操作
 - function env_get(const AName: string): string;
 - function env_lookup(const AName: string; out AValue: string): Boolean; // 区分未定义 vs 空字符串
+- function env_get_or(const AName, ADefault: string): string; // 带默认值
 - function env_set(const AName, AValue: string): Boolean;
 - function env_unset(const AName: string): Boolean;
+- function env_has(const AName: string): Boolean; // 检查是否存在
 - procedure env_vars(const ADest: TStrings);
-- function env_override(const AName, AValue: string): TEnvOverrideGuard; // RAII 临时覆写
+
+### RAII 临时覆写
+- function env_override(const AName, AValue: string): TEnvOverrideGuard;
+- function env_override_unset(const AName: string): TEnvOverrideGuard; // 临时取消设置
+- function env_overrides(const Pairs: array of TEnvKV): TEnvOverridesGuard; // 批量覆写
+
+### 字符串展开
 - function env_expand(const S: string): string; // 委托 env_expand_env
 - type TEnvResolver = function(const Key: string; out Value: string): Boolean;
 - function env_expand_with(const S: string; Resolver: TEnvResolver): string;
 - function env_expand_env(const S: string): string; // 当前进程环境展开
+
+### PATH 工具
 - function env_path_list_separator: Char;
 - function env_split_paths(const S: string): TStringArray;
 - function env_join_paths(const Paths: array of string): string;
+- function env_join_paths_checked(const Paths: array of string; out ErrIndex: Integer): string;
+
+### 目录与进程
 - function env_current_dir: string;
 - function env_set_current_dir(const APath: string): Boolean;
 - function env_home_dir: string;
@@ -31,11 +46,36 @@
 - function env_user_config_dir: string;
 - function env_user_cache_dir: string;
 
-### 安全辅助函数（新增）
+### 安全辅助函数
 - function env_is_sensitive_name(const AName: string): Boolean; // 检查环境变量名是否可能包含敏感信息
 - function env_mask_value(const AValue: string): string; // 为日志记录屏蔽敏感值
 - function env_validate_name(const AName: string): Boolean; // 验证环境变量名格式
 
+### 高价值便捷 API（对标 Rust std::env）
+- function env_required(const AName: string): string; // 获取必须存在的环境变量，否则抛 EEnvVarNotFound
+- function env_keys: TStringArray; // 获取所有环境变量名（不含值）
+- function env_count: Integer; // 获取环境变量数量
+
+### 平台常量（对标 Rust std::env::consts）
+- function env_os: string; // 当前 OS: Windows/Linux/Darwin/FreeBSD/OpenBSD/NetBSD
+- function env_arch: string; // 当前架构: x86_64/aarch64/i386/arm/powerpc64/riscv64
+- function env_family: string; // OS 家族: unix/windows
+- function env_is_windows: Boolean; // True on Windows
+- function env_is_unix: Boolean; // True on Unix-like (Linux/Darwin/BSD)
+- function env_is_darwin: Boolean; // True on macOS
+
+### 危险操作（沙盒/测试用）
+- procedure env_clear_all; // 清空所有环境变量（危险！仅用于沙盒隔离场景）
+
+### 迭代器 API（对标 Rust std::env::vars()）
+- type TEnvKVPair = record Key, Value: string end;
+- type TEnvVarsEnumerator = record ... end; // 支持 for-in 遍历
+- function env_iter: TEnvVarsEnumerator; // 返回只读迭代器
+
+### 命令行参数 API（对标 Rust std::env::args）
+- function env_args: TStringArray; // 获取所有命令行参数（包括程序名）
+- function env_args_count: Integer; // 获取参数数量（ParamCount + 1）
+- function env_arg(Index: Integer): string; // 按索引获取参数（0 = 程序名）
 
 ### Result 风格 API（新增）
 为便于与 Rust/Go 语义对齐，新增 Result 风格包装函数（原 C 风格 API 保持不变）：
@@ -145,6 +185,68 @@ begin
 end;
 ```
 
+### 必须存在的环境变量（env_required）
+```pascal
+var dbHost: string;
+begin
+  // 若 DATABASE_HOST 未定义，抛 EEnvVarNotFound 异常
+  dbHost := env_required('DATABASE_HOST');
+  WriteLn('Connecting to: ', dbHost);
+end;
+```
+
+### 平台检测与条件逻辑
+```pascal
+begin
+  WriteLn('OS: ', env_os);       // Linux/Windows/Darwin
+  WriteLn('Arch: ', env_arch);   // x86_64/aarch64
+  WriteLn('Family: ', env_family); // unix/windows
+
+  if env_is_windows then
+    WriteLn('Running on Windows')
+  else if env_is_darwin then
+    WriteLn('Running on macOS')
+  else if env_is_unix then
+    WriteLn('Running on Unix-like system');
+end;
+```
+
+### 环境变量枚举
+```pascal
+var keys: TStringArray; i: Integer;
+begin
+  WriteLn('Total env vars: ', env_count);
+  keys := env_keys;
+  for i := 0 to High(keys) do
+    WriteLn('  ', keys[i]);
+end;
+```
+
+### 环境变量迭代器（for-in 遍历）
+```pascal
+var kv: TEnvKVPair;
+begin
+  // 类似 Rust: for (key, value) in std::env::vars()
+  for kv in env_iter do
+    WriteLn(kv.Key, '=', kv.Value);
+end;
+```
+
+### 命令行参数处理
+```pascal
+var args: TStringArray; i: Integer;
+begin
+  // 获取所有参数
+  args := env_args;
+  WriteLn('Program: ', args[0]);
+  WriteLn('Arg count: ', env_args_count);
+  
+  // 按索引访问
+  for i := 1 to env_args_count - 1 do
+    WriteLn('Arg ', i, ': ', env_arg(i));
+end;
+```
+
 ## 平台差异
 - 大小写：
   - Windows 环境变量名通常不区分大小写；env_lookup 和 env_expand_env 会按不区分大小写解析。
@@ -220,8 +322,4 @@ AssertEquals('a' + env_path_list_separator + 'b', env_join_paths(['a','','b']));
 
 ## 与 fafafa.core.os 的关系
 - env_* 作为更聚焦的“环境”门面；os_* 提供更广泛的系统信息能力。
-
-## 后续计划
-- 支持 `env_vars` 的可迭代快照接口（只读迭代器）。
-- env_override: 后续考虑提供多变量批量覆写、作用域嵌套检测与自动析构（析构时自动 Done）。
 

@@ -183,15 +183,8 @@ type
   TIntStringHashMap = specialize TMichaelHashMap<Integer, string>;
   TStringStringHashMap = specialize TMichaelHashMap<string, string>;
 
-// disposer for map entries
+// disposer for retired map entries (Finalize is done by the caller within generic context)
 procedure MM_DisposeEntry(p: Pointer); inline;
-var
-  E: PEntry;
-begin
-  if p = nil then Exit;
-  E := PEntry(p);
-  Dispose(E);
-end;
 
 // Default hash functions
 function DefaultStringHash(const AKey: string): QWord;
@@ -202,6 +195,12 @@ function DefaultStringComparer(const AKey1, AKey2: string): Boolean;
 function DefaultIntegerComparer(const AKey1, AKey2: Integer): Boolean;
 
 implementation
+
+procedure MM_DisposeEntry(p: Pointer); inline;
+begin
+  if p <> nil then
+    FreeMem(p);
+end;
 
 // === Default hash functions ===
 
@@ -640,7 +639,9 @@ begin
     while LCurrent <> nil do
     begin
       LNext := atomic_tagged_ptr_get_ptr(LCurrent^.Next);
-      // retire entries; immediate mode frees directly
+      // retire entries; finalize managed fields in generic context, disposer only frees memory
+      Finalize(LCurrent^.Key);
+      Finalize(LCurrent^.Value);
       lf_retire(LCurrent, @MM_DisposeEntry);
       LCurrent := LNext;
     end;

@@ -183,13 +183,15 @@ type
     function ToArray: TInternalArray;
 
     property OverwriteOldest: Boolean read FOverwriteOldest write FOverwriteOldest;
-  protected
-    // 实现抽象方法（TCollection）
+
+    // ICollection / TCollection
     function PtrIter: TPtrIter; override;
-    function IsOverlap(const aSrc: Pointer; aElementCount: SizeUInt): Boolean; override;
     procedure SerializeToArrayBuffer(aDst: Pointer; aCount: SizeUInt); override;
     procedure AppendUnChecked(const aSrc: Pointer; aElementCount: SizeUInt); override;
     procedure AppendToUnChecked(const aDst: TCollection); override;
+  protected
+    // 实现抽象方法（TCollection）
+    function IsOverlap(const aSrc: Pointer; aElementCount: SizeUInt): Boolean; override;
 
     // 实现抽象方法（TGenericCollection）
     procedure DoZero; override;
@@ -374,6 +376,7 @@ begin
       [aCount, FCount]
     );
 
+  Result := nil;
   SetLength(Result, aCount);
 
   for i := 0 to aCount - 1 do
@@ -384,6 +387,7 @@ function TCircularBuffer.ToArray: TInternalArray;
 var
   i, idx: SizeUInt;
 begin
+  Result := nil;
   SetLength(Result, FCount);
 
   for i := 0 to FCount - 1 do
@@ -398,6 +402,8 @@ end;
 function TCircularBuffer.PtrIter: TPtrIter;
 begin
   // 环形缓冲区不适合用指针迭代器（不连续）
+  // Keep behavior (raise), but initialize Result to satisfy compiler analysis.
+  Result := Default(TPtrIter);
   raise ENotSupported.Create('TCircularBuffer.PtrIter: Not supported for circular buffer');
 end;
 

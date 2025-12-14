@@ -31,9 +31,9 @@
             </SyntaxOptions>
           </Parsing>
           <Linking>
-            <Debugging>
+<Debugging>
               <DebugInfoType Value="dsDwarf3"/>
-              <UseHeaptrc Value="True"/>
+              <UseHeaptrc Value="False"/>
               <TrashVariables Value="True"/>
               <UseExternalDbgSyms Value="True"/>
             </Debugging>
@@ -52,6 +52,9 @@
       </Modes>
     </RunParams>
       <RequiredPackages>
+        <Item>
+          <PackageName Value="fpcunittestrunner"/>
+        </Item>
         <Item>
           <PackageName Value="FCL"/>
         </Item>
@@ -83,9 +86,9 @@
       </SyntaxOptions>
     </Parsing>
     <Linking>
-      <Debugging>
+<Debugging>
         <DebugInfoType Value="dsDwarf3"/>
-        <UseHeaptrc Value="True"/>
+        <UseHeaptrc Value="False"/>
         <TrashVariables Value="True"/>
         <UseExternalDbgSyms Value="True"/>
       </Debugging>

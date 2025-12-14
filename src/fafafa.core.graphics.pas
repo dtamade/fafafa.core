@@ -6,7 +6,7 @@ unit fafafa.core.graphics;
 interface
 
 uses
-  Classes, SysUtils, Math;
+  Classes, SysUtils, fafafa.core.math;
 
 type
   // Basic color type - 32-bit ARGB

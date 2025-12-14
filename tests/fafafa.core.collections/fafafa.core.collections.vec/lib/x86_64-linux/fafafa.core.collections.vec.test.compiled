@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<CONFIG>
-  <Compiler Value="/home/dtamade/fpc/fpc/bin/x86_64-linux/fpc.sh" Date="1756300905"/>
-  <Params Value="-MObjFPC -Scghi -Cg -O1 -gw3 -gl -gh -Xg -gt -l -vewnhibq -Fi/home/dtamade/fafafa.core/tests/fafafa.core.collections/fafafa.core.collections.vec/lib/x86_64-linux -Fi/home/dtamade/fafafa.core -Fi/home/dtamade/fafafa.core/src -Fu/home/dtamade/fafafa.core/tests/fafafa.core.collections/fafafa.core.collections.vec/ -Fu/home/dtamade/fafafa.core -Fu/home/dtamade/fafafa.core/src -Fu/home/dtamade/fafafa.core/tests/fafafa.core.collections.vec -Fu/home/dtamade/fpc/lazarus/packager/units/x86_64-linux -FU/home/dtamade/fafafa.core/tests/fafafa.core.collections/fafafa.core.collections.vec/lib/x86_64-linux/ -FE/home/dtamade/fafafa.core/tests/fafafa.core.collections/fafafa.core.collections.vec/bin/ -o/home/dtamade/fafafa.core/tests/fafafa.core.collections/fafafa.core.collections.vec/bin/fafafa.core.collections.vec.test fafafa.core.collections.vec.test.lpr"/>
-</CONFIG>

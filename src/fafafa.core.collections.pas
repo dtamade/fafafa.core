@@ -62,6 +62,39 @@ type
 // 为减少调用方对实现细节的耦合，返回接口类型
 // 约定：Capacity=0 表示按实现默认容量策略；GrowStrategy=nil 则使用默认策略
 
+// ==== 简洁快捷构造函数 ====
+// 类似 Rust/C++ 风格的泛型工厂函数，避免冗长的 Make* 前缀
+// 用法：V := specialize Vec<Integer>(100);  // 创建容量为100的向量
+//       M := specialize Map<String, Integer>;  // 创建空 HashMap
+
+// Vec<T> - 动态数组向量
+generic function Vec<T>: specialize IVec<T>;
+generic function Vec<T>(aCapacity: SizeUInt): specialize IVec<T>;
+generic function Vec<T>(const aSrc: array of T): specialize IVec<T>;
+
+// Deque<T> - 双端队列
+generic function Deque<T>: specialize IDeque<T>;
+generic function Deque<T>(aCapacity: SizeUInt): specialize IDeque<T>;
+generic function Deque<T>(const aSrc: array of T): specialize IDeque<T>;
+
+{$IFNDEF FAFAFA_COLLECTIONS_DISABLE_HASH}
+// Map<K,V> - 哈希映射表 (HashMap)
+generic function Map<K,V>: specialize IHashMap<K,V>;
+generic function Map<K,V>(aCapacity: SizeUInt): specialize IHashMap<K,V>;
+
+// Set_<K> - 哈希集合 (HashSet)，使用 Set_ 避免与 Pascal 关键字冲突
+generic function Set_<K>: specialize IHashSet<K>;
+generic function Set_<K>(aCapacity: SizeUInt): specialize IHashSet<K>;
+{$ENDIF}
+
+// OrdMap<K,V> - 有序映射表 (TreeMap)
+generic function OrdMap<K,V>: specialize ITreeMap<K,V>;
+generic function OrdMap<K,V>(aCompare: specialize TCompareFunc<K>): specialize ITreeMap<K,V>;
+
+// OrdSet<K> - 有序集合 (TreeSet)
+// 注意：TTreeSet 当前不支持自定义比较器，因此移除了 aCompare 参数的重载
+generic function OrdSet<K>: specialize ITreeSet<K>;
+
 // ==== Vec / VecDeque (capacity-based) ====
 
 // 简化的工厂函数（避免泛型函数参数默认值问题）
@@ -90,7 +123,8 @@ generic function MakeArr<T>(aSrc: Pointer; aElementCount: SizeUInt; aAllocator: 
 
 // ==== TreeMap / TreeSet (Ordered containers) ====
 generic function MakeTreeMap<K,V>(aCapacity: SizeUInt = 0; aCompare: specialize TCompareFunc<K> = nil; aAllocator: IAllocator = nil): specialize ITreeMap<K,V>;
-generic function MakeTreeSet<T>(aCapacity: SizeUInt = 0; aCompare: specialize TCompareFunc<T> = nil; aAllocator: IAllocator = nil): specialize ITreeSet<T>;
+// 注意：MakeTreeSet 移除了 aCapacity 和 aCompare 参数，因为 TTreeSet 当前不支持这些参数
+generic function MakeTreeSet<T>(aAllocator: IAllocator = nil): specialize ITreeSet<T>;
 
 // ==== LRU Cache (Caching) ====
 generic function MakeLruCache<K,V>(aMaxSize: SizeUInt = 100; aAllocator: IAllocator = nil;
@@ -132,14 +166,12 @@ generic function MakeQueue<T>(const aSrcCollection: TCollection; aAllocator: IAl
 generic function MakeQueue<T>(aSrc: Pointer; aElementCount: SizeUInt; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy; aData: Pointer): specialize IQueue<T>; overload;
 
 // ==== Stack (source-based) ====
-
+// 注意：MakeStack 移除了 aCapacity 和 aGrowStrategy 参数，因为 TArrayStack 当前不支持这些参数
 generic function MakeStack<T>: specialize IStack<T>; overload;
-generic function MakeStack<T>(aCapacity: SizeUInt; aAllocator: IAllocator = nil; aGrowStrategy: TGrowthStrategy = nil): specialize IStack<T>; overload;
-generic function MakeStack<T>(const aSrc: array of T; aAllocator: IAllocator = nil; aGrowStrategy: TGrowthStrategy = nil): specialize IStack<T>; overload;
-generic function MakeStack<T>(const aSrcCollection: TCollection; aAllocator: IAllocator = nil; aGrowStrategy: TGrowthStrategy = nil): specialize IStack<T>; overload;
-generic function MakeStack<T>(aSrc: Pointer; aElementCount: SizeUInt; aAllocator: IAllocator = nil; aGrowStrategy: TGrowthStrategy = nil): specialize IStack<T>; overload;
-generic function MakeStack<T>(const aSrcCollection: TCollection; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy; aData: Pointer): specialize IStack<T>; overload;
-generic function MakeStack<T>(aSrc: Pointer; aElementCount: SizeUInt; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy; aData: Pointer): specialize IStack<T>; overload;
+generic function MakeStack<T>(aAllocator: IAllocator): specialize IStack<T>; overload;
+generic function MakeStack<T>(const aSrc: array of T; aAllocator: IAllocator = nil): specialize IStack<T>; overload;
+generic function MakeStack<T>(const aSrcCollection: TCollection; aAllocator: IAllocator = nil): specialize IStack<T>; overload;
+generic function MakeStack<T>(aSrc: Pointer; aElementCount: SizeUInt; aAllocator: IAllocator = nil): specialize IStack<T>; overload;
 
 // ==== List (source-based + capacity) ====
 
@@ -480,12 +512,13 @@ begin
 end;
 
 // Stack factories (based on TArrayStack)
+// 注意：移除了 aCapacity 和 aGrowStrategy 参数，因为 TArrayStack 当前不支持这些参数
 generic function MakeStack<T>: specialize IStack<T>;
 begin
-  Result := specialize MakeStack<T>(0, IAllocator(nil), TGrowthStrategy(nil));
+  Result := specialize MakeStack<T>(IAllocator(nil));
 end;
 
-generic function MakeStack<T>(aCapacity: SizeUInt; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy): specialize IStack<T>;
+generic function MakeStack<T>(aAllocator: IAllocator): specialize IStack<T>;
 type
   TStackImpl = specialize TArrayStack<T>;
 var
@@ -495,7 +528,7 @@ begin
   Result := LStack;
 end;
 
-generic function MakeStack<T>(const aSrc: array of T; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy): specialize IStack<T>;
+generic function MakeStack<T>(const aSrc: array of T; aAllocator: IAllocator): specialize IStack<T>;
 type
   TStackImpl = specialize TArrayStack<T>;
 var
@@ -511,7 +544,7 @@ begin
   end;
 end;
 
-generic function MakeStack<T>(const aSrcCollection: TCollection; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy): specialize IStack<T>;
+generic function MakeStack<T>(const aSrcCollection: TCollection; aAllocator: IAllocator): specialize IStack<T>;
 type
   TStackImpl = specialize TArrayStack<T>;
   PT = ^T;
@@ -535,47 +568,7 @@ begin
   end;
 end;
 
-generic function MakeStack<T>(aSrc: Pointer; aElementCount: SizeUInt; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy): specialize IStack<T>;
-type
-  TStackImpl = specialize TArrayStack<T>;
-var
-  LStack: TStackImpl;
-begin
-  LStack := TStackImpl.Create(aAllocator);
-  try
-    LStack.Push(aSrc, aElementCount);
-    Result := LStack;
-  except
-    LStack.Free;
-    raise;
-  end;
-end;
-
-generic function MakeStack<T>(const aSrcCollection: TCollection; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy; aData: Pointer): specialize IStack<T>;
-type
-  TStackImpl = specialize TArrayStack<T>;
-  PT = ^T;
-var
-  LStack: TStackImpl;
-  LIter: TPtrIter;
-begin
-  LStack := TStackImpl.Create(aAllocator);
-  try
-    // 从 aSrcCollection 复制元素
-    if (aSrcCollection <> nil) and (not aSrcCollection.IsEmpty) then
-    begin
-      LIter := aSrcCollection.PtrIter;
-      while LIter.MoveNext do
-        LStack.Push(PT(LIter.Current)^);
-    end;
-    Result := LStack;
-  except
-    LStack.Free;
-    raise;
-  end;
-end;
-
-generic function MakeStack<T>(aSrc: Pointer; aElementCount: SizeUInt; aAllocator: IAllocator; aGrowStrategy: TGrowthStrategy; aData: Pointer): specialize IStack<T>;
+generic function MakeStack<T>(aSrc: Pointer; aElementCount: SizeUInt; aAllocator: IAllocator): specialize IStack<T>;
 type
   TStackImpl = specialize TArrayStack<T>;
 var
@@ -678,7 +671,7 @@ begin
   Result := specialize TTreeMap<K,V>.Create(aAllocator, aCompare);
 end;
 
-generic function MakeTreeSet<T>(aCapacity: SizeUInt = 0; aCompare: specialize TCompareFunc<T> = nil; aAllocator: IAllocator = nil): specialize ITreeSet<T>;
+generic function MakeTreeSet<T>(aAllocator: IAllocator = nil): specialize ITreeSet<T>;
 begin
   if aAllocator <> nil then
     Result := specialize TTreeSet<T>.Create(aAllocator)
@@ -715,6 +708,83 @@ begin
     Result := TBitSet.Create(aInitialCapacity);
 end;
 
-// end of capacity-based factories
+// ==== 简洁快捷构造函数实现 ====
+
+// Vec<T> 实现
+generic function Vec<T>: specialize IVec<T>;
+begin
+  Result := specialize TVec<T>.Create;
+end;
+
+generic function Vec<T>(aCapacity: SizeUInt): specialize IVec<T>;
+begin
+  Result := specialize TVec<T>.Create(aCapacity);
+end;
+
+generic function Vec<T>(const aSrc: array of T): specialize IVec<T>;
+begin
+  Result := specialize TVec<T>.Create(aSrc, nil, nil);
+end;
+
+// Deque<T> 实现
+generic function Deque<T>: specialize IDeque<T>;
+begin
+  Result := specialize TVecDeque<T>.Create;
+end;
+
+generic function Deque<T>(aCapacity: SizeUInt): specialize IDeque<T>;
+begin
+  Result := specialize TVecDeque<T>.Create(aCapacity, nil, nil);
+end;
+
+generic function Deque<T>(const aSrc: array of T): specialize IDeque<T>;
+begin
+  Result := specialize TVecDeque<T>.Create(aSrc);
+end;
+
+{$IFNDEF FAFAFA_COLLECTIONS_DISABLE_HASH}
+// Map<K,V> 实现
+generic function Map<K,V>: specialize IHashMap<K,V>;
+begin
+  Result := specialize THashMap<K,V>.Create(0, nil, nil, nil);
+end;
+
+generic function Map<K,V>(aCapacity: SizeUInt): specialize IHashMap<K,V>;
+begin
+  Result := specialize THashMap<K,V>.Create(aCapacity, nil, nil, nil);
+end;
+
+// Set_<K> 实现
+generic function Set_<K>: specialize IHashSet<K>;
+begin
+  Result := specialize THashSet<K>.Create(0, nil, nil, nil);
+end;
+
+generic function Set_<K>(aCapacity: SizeUInt): specialize IHashSet<K>;
+begin
+  Result := specialize THashSet<K>.Create(aCapacity, nil, nil, nil);
+end;
+{$ENDIF}
+
+// OrdMap<K,V> 实现
+generic function OrdMap<K,V>: specialize ITreeMap<K,V>;
+begin
+  Result := specialize TTreeMap<K,V>.Create(nil, nil);
+end;
+
+generic function OrdMap<K,V>(aCompare: specialize TCompareFunc<K>): specialize ITreeMap<K,V>;
+begin
+  Result := specialize TTreeMap<K,V>.Create(nil, aCompare);
+end;
+
+// OrdSet<K> 实现
+generic function OrdSet<K>: specialize ITreeSet<K>;
+begin
+  Result := specialize TTreeSet<K>.Create;
+end;
+
+// OrdSet<K>(aCompare) 已移除，因为 TTreeSet 当前不支持自定义比较器
+
+// end of factories
 
 end.

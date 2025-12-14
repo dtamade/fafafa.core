@@ -1,5 +1,23 @@
 unit fafafa.core.sync.namedCondvar;
 
+{
+  ============================================================================
+  ⚠️  EXPERIMENTAL / 实验性 API
+  ============================================================================
+  
+  INamedCondVar 是跨进程条件变量实现。当前状态:
+  - Unix/Linux: 基于 POSIX shm + pthread_cond，功能完善
+  - Windows: Broadcast 语义在极端竞争场景下有理论风险
+  
+  生产使用建议:
+  - Unix 平台: 可用于生产环境
+  - Windows 平台: 建议仅用于开发/测试，或评估风险后使用
+  
+  替代方案:
+  - 跨进程同步推荐使用 INamedMutex + INamedEvent 组合
+  ============================================================================
+}
+
 {$mode objfpc}
 {$I fafafa.core.settings.inc}
 
@@ -53,26 +71,26 @@ function MakeNamedCondVar(const AName: string; const AConfig: TNamedCondVarConfi
 var
   LActualName: string;
 begin
-  // 处理全局命名空间（平台特定逻辑内部化）
+  // Handle global namespace (platform-specific logic internalized)
   LActualName := AName;
   {$IFDEF WINDOWS}
   if AConfig.UseGlobalNamespace and (Pos('Global\', AName) <> 1) then
     LActualName := 'Global\' + AName;
   {$ENDIF}
   {$IFDEF UNIX}
-  // Unix 平台：命名条件变量默认就是全局的，无需特殊处理
+  // Unix platform: named condition variables are global by default, no special handling needed
   {$ENDIF}
 
-  // 创建平台特定实例（完全隐藏实现细节）
+  // Create platform-specific instance (completely hiding implementation details)
   {$IFDEF UNIX}
   Result := fafafa.core.sync.namedCondvar.unix.TNamedCondVar.Create(LActualName);
-  if AConfig.EnableStats then
-    Result.UpdateConfig(AConfig);
+  // Always apply config to ensure timeout and other settings take effect
+  Result.UpdateConfig(AConfig);
   {$ENDIF}
   {$IFDEF WINDOWS}
   Result := fafafa.core.sync.namedCondvar.windows.TNamedCondVar.Create(LActualName);
-  if AConfig.EnableStats then
-    Result.UpdateConfig(AConfig);
+  // Always apply config to ensure timeout and other settings take effect
+  Result.UpdateConfig(AConfig);
   {$ENDIF}
 end;
 

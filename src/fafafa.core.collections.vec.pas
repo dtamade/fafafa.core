@@ -17,20 +17,24 @@ uses
   fafafa.core.collections.slice,
   fafafa.core.mem.allocator;
 
-
-  // Forward declaration for default growth strategy accessor to avoid
-  // generic template referencing an implementation-only symbol.
-  function GetVecDefaultFactorStrategy: IGrowthStrategy; deprecated 'Use default FactorGrow(1.5) or GetGrowStrategy on instances';
-
 type
 
   {**
    * IVec<T>
    *
-   * @desc Vector interface for dynamic arrays
-   * @param T Element type
-   * @note See docs/README_TVec.md for quick guide
-   * @threadsafety NOT thread-safe. Use external synchronization for concurrent access.
+   * @desc 动态向量接口，连续内存的可变长度数组
+   *
+   * @param T 元素类型
+   *
+   * @note 核心操作复杂度：
+   *   - Push/Pop: O(1) 摊销
+   *   - Get/Put: O(1)
+   *   - Insert/Delete: O(n)
+   *   - DeleteSwap: O(1)
+   *
+   * @threadsafety 非线程安全，并发访问需外部同步
+   * @see TVec 具体实现
+   * @see docs/README_TVec.md 快速指南
    *}
   generic IVec<T> = interface(specialize IArray<T>)
   ['{C205D988-F671-4E47-8573-9AF2C85AC749}']
@@ -39,8 +43,11 @@ type
     {**
      * GetCapacity
      *
-     * @desc Returns the current capacity of the vector
-     * @return SizeUint The vector's capacity
+     * @desc 获取当前容量
+     *
+     * @return SizeUint 当前容量
+     *
+     * @complexity O(1)
      *}
     function GetCapacity: SizeUint;
 
@@ -118,17 +125,23 @@ type
     function TryReserve(aAdditional: SizeUint): Boolean;
 
     { Non-exception bulk import/append (pointer overload) }
-    function TryLoadFrom(const aSrc: Pointer; aElementCount: SizeUInt): Boolean;
-    function TryAppend(const aSrc: Pointer; aElementCount: SizeUInt): Boolean;
+    function TryLoadFrom(const aSrc: Pointer; aElementCount: SizeUInt): Boolean; overload;
+    function TryAppend(const aSrc: Pointer; aElementCount: SizeUInt): Boolean; overload;
 
     {**
      * Reserve
      *
-     * @desc Reserves additional capacity
-     * @param aAdditional Additional capacity to reserve
-     * @note Throws exception if operation fails
-     *       Reserved space may be larger than requested due to growth strategy
-     *       If current capacity is sufficient, no operation is performed
+     * @desc 预留额外容量
+     *
+     * @params
+     *   aAdditional  需要预留的额外容量
+     *
+     * @exceptions
+     *   EOutOfMemory  内存分配失败
+     *
+     * @complexity O(n) 最坏（需要复制现有元素）
+     *
+     * @note 实际容量可能大于请求值（受增长策略影响）
      *}
     procedure Reserve(aAdditional: SizeUint);
 
@@ -258,13 +271,14 @@ type
      * @desc 在指定位置插入一个元素
      *
      * @params
-     *   aIndex   要插入的位置
-     *   aElement 要插入的元素
+     *   aIndex    要插入的位置（0 <= aIndex <= Count）
+     *   aElement  要插入的元素
      *
-     * @remark
-     *   如果插入失败会抛出异�?
-     *   索引必须小于等于当前元素数量(<= Count)
-     *   插入成功后指定索引处的元素会向后移动(低效)
+     * @exceptions
+     *   EOutOfRange   索引越界
+     *   EOutOfMemory  内存分配失败
+     *
+     * @complexity O(n) 需要移动后续元素
      *}
     procedure Insert(aIndex: SizeUInt; const aElement: T); overload;
 
@@ -511,10 +525,12 @@ type
     {**
      * Push
      *
-     * @desc 在末尾添加一个元�?
+     * @desc 在末尾添加一个元素
      *
      * @params
-     *   aElement 元素
+     *   aElement  要添加的元素
+     *
+     * @complexity O(1) 摊销，O(n) 最坏（触发扩容时）
      *}
     procedure Push(const aElement: T); overload;
 
@@ -568,7 +584,10 @@ type
      *
      * @return 返回移除的元素
      *
-     * @remark 如果容器为空会抛出异常
+     * @exceptions
+     *   EOutOfRange  容器为空
+     *
+     * @complexity O(1)
      *}
     function Pop: T; overload;
 
@@ -658,16 +677,17 @@ type
     {**
      * Delete
      *
-     * @desc 删除指定位置的元素(低效操作)
+     * @desc 删除指定位置的元素
      *
      * @params
-     *   aIndex 要删除的元素位置
+     *   aIndex  要删除的元素位置
      *
-     * @remark
-     *   如果指定位置后有元素,则这些元素会向前移动,在大量数据下非常低效,如果不介意元素顺序,请使用 DeleteSwap
-     *   如果删除失败会抛出异常
-     *   如果删除的元素数量大于容器数量会抛出异常
-     *   如果删除的元素数量小于0会抛出异常
+     * @exceptions
+     *   EOutOfRange  索引越界
+     *
+     * @complexity O(n) 需要移动后续元素
+     *
+     * @note 如不关心元素顺序，建议使用 DeleteSwap (O(1))
      *}
     procedure Delete(aIndex: SizeUInt); overload;
 
@@ -691,16 +711,17 @@ type
     {**
      * DeleteSwap
      *
-     * @desc 删除指定位置的元素并用最后一个元素填充删除的位置(交换)
+     * @desc 交换删除：用末尾元素替换被删除位置
      *
      * @params
-     *   aIndex 要删除的元素位置
+     *   aIndex  要删除的元素位置
      *
-     * @remark
-     *   此函数是一种高效的删除操作,可以避免元素的移动但会破坏元素的顺序适合不敏感的场合
-     *   如果删除失败会抛出异常
-     *   如果删除的元素数量大于容器数量会抛出异常
-     *   如果删除的元素数量小于0会抛出异常
+     * @exceptions
+     *   EOutOfRange  索引越界
+     *
+     * @complexity O(1) 不需要移动元素
+     *
+     * @note 会破坏元素顺序，适用于不关心顺序的场景
      *}
     procedure DeleteSwap(aIndex: SizeUInt); overload;
 
@@ -977,33 +998,68 @@ type
     function Drain(aStart, aCount: SizeUInt): specialize IVec<T>;
 
     {**
-     * ToArray
+     * SplitOff
      *
-     * @desc 将向量转换为动态数组
+     * @desc 从指定位置分割向量，返回分离出的后半部分
      *
-     * @return 包含向量所有元素的动态数组
+     * @param aIndex 分割位置（包含该位置的元素将移入新向量）
+     * @return 包含从 aIndex 到末尾所有元素的新向量
      *
      * @remark
-     *   这是一个便利方法，等价于手动复制所有元素
-     *   返回的数组是独立的副本，修改不会影响原向量
+     *   类似 Rust 的 Vec::split_off
+     *   原向量保留 [0, aIndex) 范围的元素
+     *   新向量包含 [aIndex, Count) 范围的元素
+     *   如果 aIndex > Count 会抛出 EOutOfRange 异常
      *}
-    function ToArray: specialize TGenericArray<T>; override;
+    function SplitOff(aIndex: SizeUInt): specialize IVec<T>;
 
     {**
-     * Clone
+     * Splice
      *
-     * @desc 创建当前向量的深拷贝
+     * @desc 在指定位置移除指定数量的元素，并用新元素替换
      *
-     * @return 包含相同元素的新向量
+     * @param aIndex 开始位置
+     * @param aRemoveCount 要移除的元素数量
+     * @param aInsert 要插入的新元素数组
      *
      * @remark
-     *   新向量使用相同的分配器和增长策略
-     *   这是一个便利方法，等价于拷贝构造函数
+     *   类似 Rust 的 Vec::splice 和 JavaScript 的 Array.splice
+     *   如果 aRemoveCount = 0，相当于纯插入
+     *   如果 aInsert 为空，相当于纯删除
+     *   如果两者都非空，则先删除后插入
      *}
-    function Clone: TCollection; override;
+    procedure Splice(aIndex, aRemoveCount: SizeUInt; const aInsert: array of T);
 
+    {**
+     * Dedup
+     *
+     * @desc 移除相邻重复元素
+     *
+     * @return 被移除的元素数量
+     *
+     * @remark
+     *   类似 Rust 的 Vec::dedup
+     *   只移除相邻的重复元素，如果想移除所有重复需要先排序
+     *   使用默认的内存比较来判断元素是否相等
+     *}
+    function Dedup: SizeUInt;
 
+    {**
+     * DedupBy
+     *
+     * @desc 使用自定义比较器移除相邻重复元素
+     *
+     * @param aEquals 比较函数，返回 True 表示两个元素相等
+     * @param aData 传递给比较函数的额外数据指针
+     * @return 被移除的元素数量
+     *
+     * @remark
+     *   类似 Rust 的 Vec::dedup_by
+     *   只移除相邻的重复元素，保留第一个出现的元素
+     *}
+    function DedupBy(aEquals: specialize TEqualsFunc<T>; aData: Pointer): SizeUInt;
 
+    // ToArray and Clone are inherited (IGenericCollection<T> / ICollection).
     {**
      * First
      *
@@ -1036,12 +1092,60 @@ type
 
 
 
-  { TVec 向量数组实现 }
-
+  {**
+   * TVec<T>
+   *
+   * @desc 动态向量实现，连续内存的可变长度数组
+   *
+   * @param T 元素类型
+   *
+   * @note
+   *   - 底层使用 TArray<T> 存储，保证内存连续
+   *   - 支持可配置的增长策略（默认 1.5x）
+   *   - 提供栈操作（Push/Pop）、函数式操作（Filter/Retain）
+   *   - 支持 O(1) 的交换删除（DeleteSwap）
+   *
+   * @threadsafety 非线程安全
+   *
+   * @example
+   *   var Vec: specialize TVec<Integer>;
+   *   Vec := specialize TVec<Integer>.Create;
+   *   try
+   *     Vec.Push(1);
+   *     Vec.Push(2);
+   *     WriteLn(Vec.Pop);  // 2
+   *   finally
+   *     Vec.Free;
+   *   end;
+   *
+   * @see IVec 接口定义
+   * @see TVecDeque 双端队列替代方案
+   *}
   generic TVec<T> = class(specialize TGenericCollection<T>, specialize IVec<T>)
   const
+    {** 默认初始容量（0 表示延迟分配） *}
     VEC_DEFAULT_CAPACITY = 0;
+    {** 交换缓冲区默认大小 *}
     DEFAULT_SWAP_BUFFER_SIZE = 4096;
+  public type
+    IVecT = specialize IVec<T>;
+    {**
+     * TDrainIter - Drain 迭代器
+     *
+     * @desc 消费式范围迭代器，迭代被 drain 的元素
+     *       调用 Drain 时立即从原容器移除元素，迭代器逐个返回
+     *}
+    TDrainIter = record
+    private
+      FDrained: IVecT;
+      FIndex: SizeUInt;
+      FCurrent: T;
+    public
+      procedure Init(const aDrained: IVecT);
+      function MoveNext: Boolean;
+      function GetCurrent: T; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+      property Current: T read GetCurrent;
+    end;
   type
     TVecBuf = specialize TArray<T>;
     TSpan   = specialize TReadOnlySpan<T>;
@@ -1429,10 +1533,6 @@ type
     procedure ReserveExact(aAdditional: SizeUint); {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
     procedure EnsureCapacity(aCapacity: SizeUint); {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
 
-    // Non-throwing bulk ops (pointer overloads), forwarding to TCollection.Try*
-    function  TryLoadFrom(const aSrc: Pointer; aElementCount: SizeUInt): Boolean; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
-    function  TryAppend(const aSrc: Pointer; aElementCount: SizeUInt): Boolean; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
-
     procedure Shrink;
     procedure ShrinkTo(aCapacity: SizeUint);
     procedure ShrinkToFit;
@@ -1530,6 +1630,14 @@ type
     {$ENDIF}
 
     function Drain(aStart, aCount: SizeUInt): specialize IVec<T>; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+    function DrainRange(aStart, aEnd: SizeUInt): TDrainIter;
+
+    function SplitOff(aIndex: SizeUInt): specialize IVec<T>;
+    procedure Splice(aIndex, aRemoveCount: SizeUInt; const aInsert: array of T);
+
+    { 去重方法 }
+    function Dedup: SizeUInt;
+    function DedupBy(aEquals: specialize TEqualsFunc<T>; aData: Pointer): SizeUInt;
 
     { 便利方法 }
     function ToArray: specialize TGenericArray<T>; override;
@@ -1744,17 +1852,6 @@ type
 
 
 implementation
-
-var
-  _VecDefaultFactorStrategy: IGrowthStrategy = nil;
-
-function GetVecDefaultFactorStrategy: IGrowthStrategy;
-begin
-  if _VecDefaultFactorStrategy = nil then
-    _VecDefaultFactorStrategy := TFactorGrowStrategy.Create(1.5);
-  Result := _VecDefaultFactorStrategy;
-end;
-
 
 { TVec<T> }
 constructor TVec.Create;
@@ -2697,16 +2794,6 @@ begin
   WriteExactUnChecked(aIndex, @aSrc[0], Length(aSrc));
 end;
 
-function TVec.TryLoadFrom(const aSrc: Pointer; aElementCount: SizeUInt): Boolean;
-begin
-  Result := (Self as TCollection).TryLoadFrom(aSrc, aElementCount);
-end;
-
-function TVec.TryAppend(const aSrc: Pointer; aElementCount: SizeUInt): Boolean;
-begin
-  Result := (Self as TCollection).TryAppend(aSrc, aElementCount);
-end;
-
 procedure TVec.WriteExact(aIndex: SizeUint; const aSrc: TCollection);
 begin
   if aSrc = nil then
@@ -3055,6 +3142,8 @@ procedure TVec.Retain(aPredicate: specialize TPredicateFunc<T>; aData: Pointer);
 var
   i, j: SizeUInt;
 begin
+  if FCount = 0 then Exit;
+  
   j := 0;
   for i := 0 to FCount - 1 do
     if aPredicate(GetUnChecked(i), aData) then
@@ -3071,6 +3160,8 @@ procedure TVec.Retain(aPredicate: specialize TPredicateMethod<T>; aData: Pointer
 var
   i, j: SizeUInt;
 begin
+  if FCount = 0 then Exit;
+  
   j := 0;
   for i := 0 to FCount - 1 do
     if aPredicate(GetUnChecked(i), aData) then
@@ -3088,6 +3179,8 @@ procedure TVec.Retain(aPredicate: specialize TPredicateRefFunc<T>);
 var
   i, j: SizeUInt;
 begin
+  if FCount = 0 then Exit;
+  
   j := 0;
   for i := 0 to FCount - 1 do
     if aPredicate(GetUnChecked(i)) then
@@ -3125,7 +3218,7 @@ begin
     if aStart + aCount < FCount then
     begin
       for i := aStart + aCount to FCount - 1 do
-        PutUnChecked(aStart + i - aCount, GetUnChecked(i));
+        PutUnChecked(i - aCount, GetUnChecked(i));
     end;
 
     // 调整大小
@@ -3135,6 +3228,176 @@ begin
     LResult.Free;
     raise;
   end;
+end;
+
+function TVec.DrainRange(aStart, aEnd: SizeUInt): TDrainIter;
+var
+  LCount: SizeUInt;
+  LDrained: IVecT;
+begin
+  // 半开区间 [aStart, aEnd) 转换为 (start, count) 格式
+  if aEnd <= aStart then
+    LCount := 0
+  else
+    LCount := aEnd - aStart;
+
+  // 空范围特殊处理
+  if LCount = 0 then
+  begin
+    LDrained := specialize TVec<T>.Create;
+    Result.Init(LDrained);
+    Exit;
+  end;
+
+  // 使用原有 Drain 方法获取被移除的元素
+  LDrained := Drain(aStart, LCount);
+  Result.Init(LDrained);
+end;
+
+{ TVec.TDrainIter }
+
+procedure TVec.TDrainIter.Init(const aDrained: IVecT);
+begin
+  FDrained := aDrained;
+  FIndex := 0;
+  FCurrent := Default(T);
+end;
+
+function TVec.TDrainIter.MoveNext: Boolean;
+begin
+  if FIndex < FDrained.Count then
+  begin
+    FCurrent := FDrained.Get(FIndex);
+    Inc(FIndex);
+    Result := True;
+  end
+  else
+    Result := False;
+end;
+
+function TVec.TDrainIter.GetCurrent: T;
+begin
+  Result := FCurrent;
+end;
+
+function TVec.SplitOff(aIndex: SizeUInt): specialize IVec<T>;
+var
+  LResult: specialize TVec<T>;
+  LSplitCount: SizeUInt;
+  i: SizeUInt;
+begin
+  // 边界检查
+  if aIndex > FCount then
+    raise EOutOfRange.Create('TVec.SplitOff: index out of range');
+
+  // 计算分割出去的元素数量
+  LSplitCount := FCount - aIndex;
+
+  // 创建结果向量
+  LResult := specialize TVec<T>.Create(LSplitCount, GetAllocator, nil);
+  try
+    // 复制增长策略
+    LResult.SetGrowStrategy(GetGrowStrategy);
+
+    // 复制 [aIndex, Count) 范围的元素到新向量
+    // 注意：使用 LSplitCount > 0 检查避免无符号整数下溢
+    if LSplitCount > 0 then
+      for i := 0 to LSplitCount - 1 do
+        LResult.PushUnChecked(GetUnChecked(aIndex + i));
+
+    // 截断原向量到 [0, aIndex)
+    Truncate(aIndex);
+
+    Result := LResult;
+  except
+    LResult.Free;
+    raise;
+  end;
+end;
+
+procedure TVec.Splice(aIndex, aRemoveCount: SizeUInt; const aInsert: array of T);
+var
+  LInsertLen: SizeInt;
+begin
+  // 边界检查
+  if aIndex > FCount then
+    raise EOutOfRange.Create('TVec.Splice: index out of range');
+
+  // 调整 aRemoveCount，确保不超出边界
+  if aRemoveCount > FCount - aIndex then
+    aRemoveCount := FCount - aIndex;
+
+  LInsertLen := Length(aInsert);
+
+  // 先删除元素
+  if aRemoveCount > 0 then
+    Delete(aIndex, aRemoveCount);
+
+  // 再插入新元素
+  if LInsertLen > 0 then
+    Insert(aIndex, aInsert);
+end;
+
+{ 去重方法实现 }
+
+function TVec.Dedup: SizeUInt;
+var
+  i, j: SizeUInt;
+begin
+  // 空向量或单元素向量无需去重
+  if FCount < 2 then
+    Exit(0);
+
+  // 使用就地压缩算法，保留第一个出现的元素
+  j := 1; // 写入位置，从第二个元素开始
+  for i := 1 to FCount - 1 do
+  begin
+    // 使用内存比较判断是否相等
+    if not CompareMem(GetPtrUnChecked(i), GetPtrUnChecked(j - 1), GetElementSize) then
+    begin
+      // 元素不同，保留
+      if i <> j then
+        PutUnChecked(j, GetUnChecked(i));
+      Inc(j);
+    end;
+  end;
+
+  // 计算被移除的元素数量
+  Result := FCount - j;
+
+  // 调整大小，自动处理托管类型清理
+  if Result > 0 then
+    Resize(j);
+end;
+
+function TVec.DedupBy(aEquals: specialize TEqualsFunc<T>; aData: Pointer): SizeUInt;
+var
+  i, j: SizeUInt;
+begin
+  // 空向量或单元素向量无需去重
+  if FCount < 2 then
+    Exit(0);
+
+  // 使用就地压缩算法，保留第一个出现的元素
+  j := 1; // 写入位置，从第二个元素开始
+  for i := 1 to FCount - 1 do
+  begin
+    // 使用自定义比较函数判断是否相等
+    if not aEquals(GetUnChecked(i), GetUnChecked(j - 1), aData) then
+    begin
+      // 元素不同，保留
+      if i <> j then
+        PutUnChecked(j, GetUnChecked(i));
+      Inc(j);
+    end;
+  end;
+
+  // 计算被移除的元素数量
+  Result := FCount - j;
+
+  // 调整大小，自动处理托管类型清理
+  if Result > 0 then
+    Resize(j);
 end;
 
 { 便利方法实现 }

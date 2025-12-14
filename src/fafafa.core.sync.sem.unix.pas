@@ -57,10 +57,12 @@ type
   private
     FSem: ISem;
     FCount: Integer;
+    FReleased: Boolean;
   public
     constructor Create(const ASem: ISem; ACount: Integer);
     destructor Destroy; override;
     function GetCount: Integer;
+    function IsLocked: Boolean;  // IGuard.IsLocked
     procedure Release;  // ILockGuard.Release
   end;
 
@@ -350,11 +352,12 @@ begin
   inherited Create;
   FSem := ASem;
   FCount := ACount;
+  FReleased := False;
 end;
 
 destructor TSemGuard.Destroy;
 begin
-  if Assigned(FSem) and (FCount > 0) then
+  if (not FReleased) and Assigned(FSem) and (FCount > 0) then
     FSem.Release(FCount);
   inherited Destroy;
 end;
@@ -364,12 +367,17 @@ begin
   Result := FCount;
 end;
 
+function TSemGuard.IsLocked: Boolean;
+begin
+  Result := (not FReleased) and Assigned(FSem) and (FCount > 0);
+end;
+
 procedure TSemGuard.Release;
 begin
-  if Assigned(FSem) and (FCount > 0) then
+  if (not FReleased) and Assigned(FSem) and (FCount > 0) then
   begin
     FSem.Release(FCount);
-    FCount := 0;  // 防止重复释放
+    FReleased := True;
   end;
 end;
 

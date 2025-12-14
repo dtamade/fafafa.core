@@ -54,20 +54,32 @@ procedure TTestCase_Writer_Extremes.Test_Writer_Very_Long_Unicode_Field_ReadBack
 var
   D: TCSVDialect; W: ICSVWriter; R: ICSVReader; Rec: ICSVRecord; OutFile: string;
   S: UnicodeString; I: Integer; E, A: RawByteString;
+  mismatchIdx: Integer;
+  readField: UnicodeString;
+  k: Integer;
 begin
   D := DefaultRFC4180; OutFile := 'tmp_writer_long.csv'; if FileExists(OutFile) then DeleteFile(OutFile);
   W := OpenCSVWriter(OutFile, D);
   AssertTrue('Writer should be created', W <> nil);
   SetLength(S, 100000);
   for I := 1 to Length(S) do S[I] := '你'; // multibyte UTF-8 char
-  W.WriteRow([S, 'end']);
+  W.WriteRowU([S, 'end']);
   W.Flush; W.Close;
   R := OpenCSVReader(OutFile, D);
   AssertTrue('ReadNext should succeed', R.ReadNext(Rec));
   AssertEquals(2, Rec.Count);
   // Compare Unicode semantics with FieldU accessor
   AssertEquals('unicode length mismatch', Length(S), Length(Rec.FieldU(0)));
-  AssertTrue('long field unicode content mismatch', Rec.FieldU(0) = S);
+  // Debug: find first mismatch position
+  if Rec.FieldU(0) <> S then
+  begin
+    mismatchIdx := -1;
+    readField := Rec.FieldU(0);
+    for k := 1 to Length(S) do
+      if (k > Length(readField)) or (readField[k] <> S[k]) then begin mismatchIdx := k; Break; end;
+    Fail(Format('long field unicode content mismatch at position %d (expected char %d, got %d)',
+      [mismatchIdx, Ord(S[mismatchIdx]), Ord(readField[mismatchIdx])]));
+  end;
   AssertEquals('end', Rec.Field(1));
   if FileExists(OutFile) then DeleteFile(OutFile);
 end;

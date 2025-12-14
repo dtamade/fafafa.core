@@ -124,7 +124,6 @@ type
     constructor Create(ALock: TRWLock);
     constructor CreateAcquired(ALock: TRWLock); // 宸茬粡鑾峰彇閿佺殑瀹堝崼
     destructor Destroy; override;
-    function IsValid: Boolean;
     procedure Release;
   end;
 
@@ -136,7 +135,6 @@ type
     constructor Create(ALock: TRWLock);
     constructor CreateAcquired(ALock: TRWLock); // 宸茬粡鑾峰彇閿佺殑瀹堝崼
     destructor Destroy; override;
-    function IsValid: Boolean;
     procedure Release;
   end;
 
@@ -248,11 +246,6 @@ begin
   inherited Destroy;
 end;
 
-function TRWLockReadGuard.IsValid: Boolean;
-begin
-  Result := Assigned(FLock) and (not FReleased);
-end;
-
 procedure TRWLockReadGuard.Release;
 begin
   if (not FReleased) and Assigned(FLock) then
@@ -285,11 +278,6 @@ destructor TRWLockWriteGuard.Destroy;
 begin
   Release;
   inherited Destroy;
-end;
-
-function TRWLockWriteGuard.IsValid: Boolean;
-begin
-  Result := Assigned(FLock) and (not FReleased);
 end;
 
 procedure TRWLockWriteGuard.Release;
@@ -414,7 +402,7 @@ begin
   try
     rec := FRecs.Find(id);
     if (rec = nil) or (rec^.ReadCount <= 0) then
-      raise ERWLockStateError.Create('Read lock not held', 'Released', id);
+      raise ERWLockError.Create(Format('Read lock not held (Released), Thread: %d', [id]), lrError);
 
     Dec(rec^.ReadCount);
     atomic_decrement(FReaders);
@@ -453,7 +441,7 @@ begin
       else if rec^.ReadCount > 0 then
       begin
         // Upgrade not allowed: would deadlock
-        raise ERWLockDeadlockError.Create(id, []);
+        raise ERWLockError.Create(Format('Potential deadlock detected: upgrade not allowed, Thread: %d', [id]), lrError);
       end;
     end;
   finally
@@ -485,7 +473,7 @@ begin
   try
     rec := FRecs.Find(id);
     if (rec = nil) or (rec^.WriteCount <= 0) then
-      raise ERWLockStateError.Create('Write lock not held', 'Released', id);
+      raise ERWLockError.Create(Format('Write lock not held (Released), Thread: %d', [id]), lrError);
 
     Dec(rec^.WriteCount);
     if rec^.WriteCount = 0 then

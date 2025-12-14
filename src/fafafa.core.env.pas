@@ -14,158 +14,255 @@ uses
   {$IFDEF FAFAFA_ENV_ENABLE_RESULT}
   , fafafa.core.result
   {$ENDIF}
-  , fafafa.core.stringBuilder
   ;
 
 // Modern, cross-platform environment helpers inspired by Rust std::env and Go os
 // Keep a C-style facade like fs_*: expose env_* functions for consistency.
 
+{ ============================================================================ }
+{ === Type Declarations ====================================================== }
+{ ============================================================================ }
+
 type
+  // Basic types
   TStringArray = array of string;
+  TEnvResolver = function(const Key: string; out Value: string): Boolean;
 
+  // Key-Value pair for iteration
+  TEnvKVPair = record
+    Key: string;
+    Value: string;
+  end;
 
-  // RAII-style temporary environment override for tests/tools
-  type
-    TEnvOverrideGuard = record
-    private
-      FName: string;
-      FHadOriginal: Boolean;
-      FOriginalValue: string;
-      FActive: Boolean;
-    public
-      class function New(const AName, AValue: string): TEnvOverrideGuard; static;
-      procedure Done; inline;
-    end;
+  // Key-Value for batch operations
+  TEnvKV = record
+    Name: string;
+    Value: string;
+    HasValue: Boolean; // False -> unset; True -> set Value (can be empty string)
+  end;
 
-  // Batch override support
-  type
-    TEnvKV = record
-      Name: string;
-      Value: string;
-      HasValue: Boolean; // False -> unset; True -> set Value (can be empty string)
-    end;
+  // Scoped override guard for a single variable.
+  // IMPORTANT: FreePascal records have no auto-destructor. You MUST call Done
+  // manually when the override scope ends (e.g., in a try/finally block).
+  TEnvOverrideGuard = record
+  private
+    FName: string;
+    FHadOriginal: Boolean;
+    FOriginalValue: string;
+    FActive: Boolean;
+  public
+    class function New(const AName, AValue: string): TEnvOverrideGuard; static;
+    procedure Done; inline;
+  end;
 
-    TEnvOverridesGuard = record
-    private
-      type
-        TSnapshot = record
+  // Scoped override guard for multiple variables.
+  // IMPORTANT: FreePascal records have no auto-destructor. You MUST call Done
+  // manually when the override scope ends (e.g., in a try/finally block).
+  TEnvOverridesGuard = record
+  private
+    type
+      TSnapshot = record
+        Name: string;
+        HadOriginal: Boolean;
+        OriginalValue: string;
+      end;
+  private
+    FSnaps: array of TSnapshot;
+    FActive: Boolean;
+  public
+    class function BeginBatch(const Pairs: array of TEnvKV): TEnvOverridesGuard; static;
+    procedure Done; inline;
+  end;
 
-          Name: string;
-          HadOriginal: Boolean;
-          OriginalValue: string;
-        end;
-    private
-      FSnaps: array of TSnapshot;
-      FActive: Boolean;
-    public
-      class function BeginBatch(const Pairs: array of TEnvKV): TEnvOverridesGuard; static;
-      procedure Done; inline;
-    end;
+  // Iterator for environment variables.
+  // Resource lifecycle: The iterator allocates a TStringList internally.
+  // - Normal for-in loops: auto-freed when MoveNext returns False.
+  // - Early exit (break/exception): you MUST call Free manually.
+  // Example:
+  //   iter := env_iter;
+  //   try
+  //     for kv in iter do if kv.Key = 'STOP' then Break;
+  //   finally
+  //     iter.Free; // Safe even if already freed by MoveNext
+  //   end;
+  TEnvVarsEnumerator = record
+  private
+    FList: TStringList;
+    FIndex: Integer;
+    FCurrent: TEnvKVPair;
+  public
+    function GetEnumerator: TEnvVarsEnumerator;
+    function MoveNext: Boolean;
+    property Current: TEnvKVPair read FCurrent;
+    procedure Free; // Safe to call multiple times; call if loop exits early
+  end;
 
+  // Error types (for Result API)
+  EVarError = record
+    Name: string;
+    Msg: string;
+  end;
 
-// Basic environment variable operations
+  EPathJoinError = record
+    Index: Integer;
+    Segment: string;
+    Msg: string;
+  end;
+
+  EIOError = record
+    Op: string; // 'getcwd' or 'chdir'
+    Path: string;
+    Msg: string;
+  end;
+
+  // Exception
+  EEnvVarNotFound = class(Exception);
+
+{$IFDEF FAFAFA_ENV_ENABLE_RESULT}
+  // Result types
+  TResultString_VarError = specialize TResult<string, EVarError>;
+  TResultString_PathJoinError = specialize TResult<string, EPathJoinError>;
+  TResultString_IOError = specialize TResult<string, EIOError>;
+  TResultUnit_IOError = specialize TResult<Boolean, EIOError>;
+{$ENDIF}
+
+{ ============================================================================ }
+{ === Basic Operations ======================================================= }
+{ ============================================================================ }
+
 function env_get(const AName: string): string; inline;
-function env_lookup(const AName: string; out AValue: string): Boolean; inline; // distinguish undefined vs empty
-
+function env_lookup(const AName: string; out AValue: string): Boolean; inline;
 function env_get_or(const AName, ADefault: string): string; inline;
-
 function env_set(const AName, AValue: string): Boolean; inline;
 function env_unset(const AName: string): Boolean; inline;
 function env_has(const AName: string): Boolean; inline;
+procedure env_vars(const ADest: TStrings); inline;
+function env_required(const AName: string): string;
+function env_keys: TStringArray;
+function env_count: Integer; inline;
 
-procedure env_vars(const ADest: TStrings); inline; // NAME=VALUE pairs snapshot
+{ ============================================================================ }
+{ === Scoped Override Guards (Manual Cleanup) ================================ }
+{ ============================================================================ }
 
-  // RAII helper: create a guard that sets AName to AValue (or unsets if AValue='')
-  function env_override(const AName, AValue: string): TEnvOverrideGuard; inline;
-
-// Expand with custom resolver, and env-based convenience
-type
-  TEnvResolver = function(const Key: string; out Value: string): Boolean;
+function env_override(const AName, AValue: string): TEnvOverrideGuard; inline;
+function env_override_unset(const AName: string): TEnvOverrideGuard; inline;
 function env_overrides(const Pairs: array of TEnvKV): TEnvOverridesGuard; inline;
 
+{ ============================================================================ }
+{ === String Expansion ======================================================= }
+{ ============================================================================ }
+
+function env_expand(const S: string): string;
 function env_expand_with(const S: string; Resolver: TEnvResolver): string;
 function env_expand_env(const S: string): string;
 
+{ ============================================================================ }
+{ === PATH Handling ========================================================== }
+{ ============================================================================ }
 
-
-// Expansion: replace $VAR / ${VAR} (Unix-style); on Windows also %VAR%
-function env_expand(const S: string): string;
-
-  // Explicit unset helper for tests/tools
-  function env_override_unset(const AName: string): TEnvOverrideGuard; inline;
-
-// PATH helpers (platform-aware list separator)
 function env_path_list_separator: Char; inline;
-function env_split_paths(const S: string): TStringArray; // split PATH-like var
-function env_join_paths_checked(const Paths: array of string; out ErrIndex: Integer): string; // returns '' on error
+function env_split_paths(const S: string): TStringArray;
+function env_join_paths(const Paths: array of string): string;
+function env_join_paths_checked(const Paths: array of string; out ErrIndex: Integer): string;
 
-function env_join_paths(const Paths: array of string): string; // join with sep
-
-// Directories and process info
-  // Result-style error types
-  type
-    EVarError = record
-      Name: string;
-      Msg: string;
-    end;
-
-    EPathJoinError = record
-      Index: Integer;
-      Segment: string;
-      Msg: string;
-    end;
-
-    EIOError = record
-      Op: string; // 'getcwd' or 'chdir'
-      Path: string;
-      Msg: string;
-    end;
-
-  {$IFDEF FAFAFA_ENV_ENABLE_RESULT}
-  // Result-style wrappers
-  type
-    TResultString_VarError = specialize TResult<string, EVarError>;
-    TResultString_PathJoinError = specialize TResult<string, EPathJoinError>;
-    TResultString_IOError = specialize TResult<string, EIOError>;
-    TResultUnit_IOError = specialize TResult<Boolean, EIOError>; // use True as unit-ok; Err carries EIOError
-
-  function env_get_result(const AName: string): TResultString_VarError;
-  function env_join_paths_result(const Paths: array of string): TResultString_PathJoinError;
-  function env_current_dir_result: TResultString_IOError;
-  function env_set_current_dir_result(const APath: string): TResultUnit_IOError;
-  // Additional query wrappers
-  function env_home_dir_result: TResultString_IOError;
-  function env_temp_dir_result: TResultString_IOError;
-  function env_executable_path_result: TResultString_IOError;
-  function env_user_config_dir_result: TResultString_IOError;
-  function env_user_cache_dir_result: TResultString_IOError;
-  {$ENDIF}
+{ ============================================================================ }
+{ === Directories & Process ================================================== }
+{ ============================================================================ }
 
 function env_current_dir: string; inline;
 function env_set_current_dir(const APath: string): Boolean; inline;
 function env_home_dir: string; inline;
-
 function env_temp_dir: string; inline;
 function env_executable_path: string; inline;
+function env_user_config_dir: string;
+function env_user_cache_dir: string;
 
-// User directories (best-effort)
-function env_user_config_dir: string; // XDG/APPDATA
-function env_user_cache_dir: string;  // XDG/LOCALAPPDATA/~/Library/Caches
+{ ============================================================================ }
+{ === Security Helpers ======================================================= }
+{ ============================================================================ }
 
-// Security helpers (2024 best practices)
-function env_is_sensitive_name(const AName: string): Boolean; // Check if env var name suggests sensitive content
-function env_mask_value(const AValue: string): string; // Mask sensitive values for logging
-function env_validate_name(const AName: string): Boolean; // Validate env var name format
+function env_is_sensitive_name(const AName: string): Boolean;
+function env_mask_value(const AValue: string): string;
+function env_validate_name(const AName: string): Boolean;
+
+{ ============================================================================ }
+{ === Platform Constants ===================================================== }
+{ ============================================================================ }
+
+function env_os: string; inline;
+function env_arch: string; inline;
+function env_family: string; inline;
+function env_is_windows: Boolean; inline;
+function env_is_unix: Boolean; inline;
+function env_is_darwin: Boolean; inline;
+
+{ ============================================================================ }
+{ === Iterator API =========================================================== }
+{ ============================================================================ }
+
+function env_iter: TEnvVarsEnumerator;
+
+{ ============================================================================ }
+{ === Command-line Arguments ================================================= }
+{ ============================================================================ }
+
+function env_args: TStringArray;
+function env_args_count: Integer; inline;
+function env_arg(Index: Integer): string; inline;
+
+{ ============================================================================ }
+{ === Sandbox Operations ===================================================== }
+{ ============================================================================ }
+
+procedure env_clear_all; // WARNING: Removes ALL environment variables!
+
+{ ============================================================================ }
+{ === Result API (Conditional) =============================================== }
+{ ============================================================================ }
+// To enable Result-based APIs, define FAFAFA_ENV_ENABLE_RESULT in your project
+// or in fafafa.core.settings.inc (enabled by default in settings.inc).
+// These functions return TResult<T, E> instead of raising exceptions.
+
+{$IFDEF FAFAFA_ENV_ENABLE_RESULT}
+function env_get_result(const AName: string): TResultString_VarError;
+function env_join_paths_result(const Paths: array of string): TResultString_PathJoinError;
+function env_current_dir_result: TResultString_IOError;
+function env_set_current_dir_result(const APath: string): TResultUnit_IOError;
+function env_home_dir_result: TResultString_IOError;
+function env_temp_dir_result: TResultString_IOError;
+function env_executable_path_result: TResultString_IOError;
+function env_user_config_dir_result: TResultString_IOError;
+function env_user_cache_dir_result: TResultString_IOError;
+{$ENDIF}
 
 implementation
 
-// Core RAII functions (always available)
+// Internal helper: parse NAME=VALUE line
+procedure ParseEnvLine(const Line: string; out Key, Value: string); inline;
+var
+  EqPos: Integer;
+begin
+  EqPos := Pos('=', Line);
+  if EqPos > 0 then
+  begin
+    Key := Copy(Line, 1, EqPos - 1);
+    Value := Copy(Line, EqPos + 1, Length(Line) - EqPos);
+  end
+  else
+  begin
+    Key := Line;
+    Value := '';
+  end;
+end;
+
+// Core override guard functions (always available)
 function env_override(const AName, AValue: string): TEnvOverrideGuard; inline;
 begin
   Result := TEnvOverrideGuard.New(AName, AValue);
 end;
 
-// Always-available resolver and RAII helpers
+// Internal: OS-based resolver for env_expand_env
 function env_resolve_os(const Key: string; out Value: string): Boolean;
 begin
   Result := env_lookup(Key, Value);
@@ -177,7 +274,7 @@ begin
   Result.FOriginalValue := '';
   Result.FHadOriginal := env_lookup(AName, Result.FOriginalValue);
   // New semantics: empty string is a valid value; do not treat as unset
-  if env_set(AName, AValue) then ;
+  env_set(AName, AValue);
   Result.FActive := True;
 end;
 
@@ -478,7 +575,7 @@ end;
 
 function env_expand_with(const S: string; Resolver: TEnvResolver): string;
 var
-  I, L: Integer;
+  I, L, NameStart: Integer;
   C: Char;
   Name, Val: string;
   Builder: TStringBuilder;
@@ -509,20 +606,20 @@ begin
         end;
         if (I <= L) and (S[I] = '{') then
         begin
-          Inc(I); Name := '';
-          while (I <= L) and (S[I] <> '}') do begin Name := Name + S[I]; Inc(I); end;
+          Inc(I);
+          NameStart := I;
+          while (I <= L) and (S[I] <> '}') do Inc(I);
+          Name := Copy(S, NameStart, I - NameStart);
           if (I <= L) and (S[I] = '}') then Inc(I);
           AppendResolved(Name);
         end
         else
         begin
-          Name := '';
           if (I <= L) and (S[I] in ['A'..'Z','a'..'z','_']) then
           begin
-            while (I <= L) and (S[I] in ['A'..'Z','a'..'z','0'..'9','_']) do
-            begin
-              Name := Name + S[I]; Inc(I);
-            end;
+            NameStart := I;
+            while (I <= L) and (S[I] in ['A'..'Z','a'..'z','0'..'9','_']) do Inc(I);
+            Name := Copy(S, NameStart, I - NameStart);
             AppendResolved(Name);
           end
           else
@@ -539,16 +636,18 @@ begin
           Continue;
         end;
         // %NAME%
-        Name := '';
         Inc(I);
-        while (I <= L) and (S[I] <> '%') do begin Name := Name + S[I]; Inc(I); end;
+        NameStart := I;
+        while (I <= L) and (S[I] <> '%') do Inc(I);
         if (I <= L) and (S[I] = '%') then
         begin
+          Name := Copy(S, NameStart, I - NameStart);
           Inc(I);
           AppendResolved(Name);
           Continue;
         end;
         // unmatched: treat literally
+        Name := Copy(S, NameStart, I - NameStart);
         Builder.Append('%').Append(Name);
       end
       {$ENDIF}
@@ -683,104 +782,6 @@ begin
   Result := env_join_paths_checked(Paths, ErrIndex);
   // if error, we still return '' to keep compatibility
 end;
-{$IFDEF FAFAFA_CORE_ENV_KEEP_REFERENCE_IMPL}
-
-
-function env_expand_unix_like(const S: string): string;
-var
-  I, L: Integer;
-  C: Char;
-  Name: string;
-begin
-  Result := '';
-  I := 1; L := Length(S);
-  while I <= L do
-  begin
-    C := S[I];
-    if C = '$' then
-    begin
-      Inc(I); // look at the char after '$'
-      if (I <= L) and (S[I] = '$') then
-      begin
-        // $$ -> literal $
-        Result := Result + '$';
-        Inc(I);
-        Continue;
-      end;
-      if (I <= L) and (S[I] = '{') then
-      begin
-        // ${VAR}
-        Inc(I); Name := '';
-        while (I <= L) and (S[I] <> '}') do
-        begin
-          Name := Name + S[I]; Inc(I);
-        end;
-        if (I <= L) and (S[I] = '}') then Inc(I);
-        Result := Result + env_get(Name);
-      end
-      else
-      begin
-        // $VAR: first char must be letter or '_', then letters/digits/_
-        Name := '';
-        if (I <= L) and (S[I] in ['A'..'Z','a'..'z','_']) then
-        begin
-          while (I <= L) and (S[I] in ['A'..'Z','a'..'z','0'..'9','_']) do
-          begin
-            Name := Name + S[I]; Inc(I);
-          end;
-          Result := Result + env_get(Name);
-        end
-        else
-        begin
-          // Not a valid variable start, treat '$' as literal
-          Result := Result + '$';
-        end;
-      end;
-    end
-    else
-    begin
-      Result := Result + C;
-      Inc(I);
-    end;
-  end;
-end;
-
-function env_expand_windows_percent(const S: string): string;
-var
-  I, L, J: Integer;
-  Name: string;
-begin
-  Result := '';
-  I := 1; L := Length(S);
-  while I <= L do
-  begin
-    if S[I] = '%' then
-    begin
-      // Handle literal %% -> '%'
-      if (I+1 <= L) and (S[I+1] = '%') then
-      begin
-        Result := Result + '%';
-        Inc(I, 2);
-        Continue;
-      end;
-      J := I + 1; Name := '';
-      while (J <= L) and (S[J] <> '%') do
-      begin
-        Name := Name + S[J]; Inc(J);
-      end;
-      if (J <= L) and (S[J] = '%') then
-      begin
-        // %NAME%
-        Result := Result + env_get(Name);
-        I := J + 1;
-        Continue;
-      end;
-    end;
-    Result := Result + S[I];
-    Inc(I);
-  end;
-end;
-{$ENDIF // FAFAFA_CORE_ENV_KEEP_REFERENCE_IMPL}
 
 
 function env_expand(const S: string): string;
@@ -910,6 +911,195 @@ begin
   end;
 
   Result := True;
+end;
+
+function env_required(const AName: string): string;
+var
+  V: string;
+begin
+  if not env_lookup(AName, V) then
+    raise EEnvVarNotFound.CreateFmt('Environment variable "%s" is required but not defined', [AName]);
+  Result := V;
+end;
+
+function env_keys: TStringArray;
+var
+  Lst: TStringList;
+  I, Cnt: Integer;
+  Key, Value: string;
+begin
+  Result := nil;
+  Lst := TStringList.Create;
+  try
+    os_environ(Lst);
+    Cnt := Lst.Count;
+    SetLength(Result, Cnt);
+    for I := 0 to Cnt - 1 do
+    begin
+      ParseEnvLine(Lst[I], Key, Value);
+      Result[I] := Key;
+    end;
+  finally
+    Lst.Free;
+  end;
+end;
+
+function env_count: Integer; inline;
+var
+  Lst: TStringList;
+begin
+  Lst := TStringList.Create;
+  try
+    os_environ(Lst);
+    Result := Lst.Count;
+  finally
+    Lst.Free;
+  end;
+end;
+
+function env_os: string; inline;
+begin
+  {$IFDEF WINDOWS}
+  Result := 'Windows';
+  {$ELSEIF DEFINED(DARWIN)}
+  Result := 'Darwin';
+  {$ELSEIF DEFINED(LINUX)}
+  Result := 'Linux';
+  {$ELSEIF DEFINED(FREEBSD)}
+  Result := 'FreeBSD';
+  {$ELSEIF DEFINED(OPENBSD)}
+  Result := 'OpenBSD';
+  {$ELSEIF DEFINED(NETBSD)}
+  Result := 'NetBSD';
+  {$ELSE}
+  Result := 'Unknown';
+  {$ENDIF}
+end;
+
+function env_arch: string; inline;
+begin
+  {$IFDEF CPUX86_64}
+  Result := 'x86_64';
+  {$ELSEIF DEFINED(CPUAARCH64)}
+  Result := 'aarch64';
+  {$ELSEIF DEFINED(CPUI386) OR DEFINED(CPU386)}
+  Result := 'i386';
+  {$ELSEIF DEFINED(CPUARM)}
+  Result := 'arm';
+  {$ELSEIF DEFINED(CPUPOWERPC64)}
+  Result := 'powerpc64';
+  {$ELSEIF DEFINED(CPURISCV64)}
+  Result := 'riscv64';
+  {$ELSE}
+  Result := 'unknown';
+  {$ENDIF}
+end;
+
+function env_family: string; inline;
+begin
+  {$IFDEF WINDOWS}
+  Result := 'windows';
+  {$ELSE}
+  Result := 'unix';
+  {$ENDIF}
+end;
+
+function env_is_windows: Boolean; inline;
+begin
+  {$IFDEF WINDOWS}
+  Result := True;
+  {$ELSE}
+  Result := False;
+  {$ENDIF}
+end;
+
+function env_is_unix: Boolean; inline;
+begin
+  {$IFDEF UNIX}
+  Result := True;
+  {$ELSE}
+  Result := False;
+  {$ENDIF}
+end;
+
+function env_is_darwin: Boolean; inline;
+begin
+  {$IFDEF DARWIN}
+  Result := True;
+  {$ELSE}
+  Result := False;
+  {$ENDIF}
+end;
+
+procedure env_clear_all;
+var
+  Keys: TStringArray;
+  I: Integer;
+begin
+  // Get all keys first, then unset each
+  Keys := env_keys;
+  for I := 0 to High(Keys) do
+    env_unset(Keys[I]);
+end;
+
+function env_iter: TEnvVarsEnumerator;
+begin
+  Result.FList := TStringList.Create;
+  os_environ(Result.FList);
+  Result.FIndex := -1;
+  Result.FCurrent.Key := '';
+  Result.FCurrent.Value := '';
+end;
+
+function TEnvVarsEnumerator.GetEnumerator: TEnvVarsEnumerator;
+begin
+  Result := Self;
+end;
+
+function TEnvVarsEnumerator.MoveNext: Boolean;
+begin
+  Inc(FIndex);
+  if FIndex >= FList.Count then
+  begin
+    // Auto-free when iteration completes
+    FList.Free;
+    FList := nil;
+    Exit(False);
+  end;
+  ParseEnvLine(FList[FIndex], FCurrent.Key, FCurrent.Value);
+  Result := True;
+end;
+
+procedure TEnvVarsEnumerator.Free;
+begin
+  if Assigned(FList) then
+  begin
+    FList.Free;
+    FList := nil;
+  end;
+end;
+
+function env_args: TStringArray;
+var
+  I: Integer;
+begin
+  Result := nil; // Initialize managed type
+  SetLength(Result, ParamCount + 1);
+  for I := 0 to ParamCount do
+    Result[I] := ParamStr(I);
+end;
+
+function env_args_count: Integer; inline;
+begin
+  Result := ParamCount + 1;
+end;
+
+function env_arg(Index: Integer): string; inline;
+begin
+  if (Index < 0) or (Index > ParamCount) then
+    Result := ''
+  else
+    Result := ParamStr(Index);
 end;
 
 end.

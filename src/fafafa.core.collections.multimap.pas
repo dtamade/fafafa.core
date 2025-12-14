@@ -288,11 +288,10 @@ var
   Vec: TValueVec;
   i: SizeUInt;
 begin
+  Result := nil;
+
   if not FMap.TryGetValue(aKey, Vec) then
-  begin
-    SetLength(Result, 0);
     Exit;
-  end;
 
   SetLength(Result, Vec.Count);
   for i := 0 to Vec.Count - 1 do
@@ -331,13 +330,14 @@ var
   Keys: TInternalMap.TKeyArray;
   i: SizeUInt;
 begin
+  Result := nil;
   Keys := FMap.GetKeys;
-  SetLength(Result, Length(Keys));
 
   // CRITICAL FIX: Check if Keys array is empty to avoid High() underflow
   if Length(Keys) = 0 then
     Exit;  // Return empty array
 
+  SetLength(Result, Length(Keys));
   for i := 0 to High(Keys) do
     Result[i] := Keys[i];
 end;

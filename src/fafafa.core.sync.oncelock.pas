@@ -276,6 +276,7 @@ end;
 function TOnceLock.GetOrInit(AInitializer: TInitFunc): T;
 var
   OldState: LongInt;
+  State: TOnceLockState;
 begin
   // 快速路径：已经设置
   if IsSet then  // IsSet 已经包含了 ReadBarrier
@@ -291,21 +292,35 @@ begin
     FValue := AInitializer();
     WriteBarrier;  // Release 语义
     InterlockedExchange(FState, LongInt(olsSet));
+    ReadBarrier;
+    Result := FValue;
   end
   else if TOnceLockState(OldState) = olsSetting then
   begin
     // 另一个线程正在初始化，等待完成
     WaitForSet;
+    // 等待完成后验证并读取
+    State := TOnceLockState(InterlockedCompareExchange(FState, 0, 0));
+    if State = olsSet then
+    begin
+      ReadBarrier;  // Acquire 语义
+      Result := FValue;
+    end
+    else
+      Result := Default(T);  // 初始化失败，返回默认值
+  end
+  else
+  begin
+    // olsSet：其他线程已经设置了值
+    ReadBarrier;  // Acquire 语义
+    Result := FValue;
   end;
-  // 否则 olsSet：其他线程已经设置了值
-
-  ReadBarrier;  // Acquire 语义
-  Result := FValue;
 end;
 
 function TOnceLock.GetOrTryInit(AInitializer: TInitFunc; out AError: Exception): T;
 var
   OldState: LongInt;
+  State: TOnceLockState;
 begin
   AError := nil;
   Result := Default(T);
@@ -314,7 +329,7 @@ begin
   if IsSet then  // IsSet 已经包含了 ReadBarrier
     Exit(FValue);
 
-  // 慢路径：尝试初始化
+  // 慢速路径：尝试初始化
   OldState := InterlockedCompareExchange(FState, LongInt(olsSetting), LongInt(olsUnset));
   
   if TOnceLockState(OldState) = olsUnset then
@@ -330,7 +345,8 @@ begin
       begin
         // 初始化失败，恢复状态
         InterlockedExchange(FState, LongInt(olsUnset));
-        AError := Exception.Create(E.Message);
+        // 保留原始异常对象（调用者负责释放）
+        AError := Exception(AcquireExceptionObject);
       end;
     end;
   end
@@ -338,8 +354,14 @@ begin
   begin
     // 另一个线程正在初始化，等待完成
     WaitForSet;
-    ReadBarrier;
-    Result := FValue;
+    // 验证状态确实是 Set（可能初始化失败导致状态变回 Unset）
+    State := TOnceLockState(InterlockedCompareExchange(FState, 0, 0));
+    if State = olsSet then
+    begin
+      ReadBarrier;
+      Result := FValue;
+    end;
+    // 如果状态不是 Set，返回默认值（AError 仍为 nil，调用者应检查 IsSet）
   end
   else
   begin

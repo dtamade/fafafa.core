@@ -104,6 +104,56 @@ generic procedure RotateLeft<T>(var aArr: array of T; aCount: SizeUInt);
  *}
 generic procedure RotateRight<T>(var aArr: array of T; aCount: SizeUInt);
 
+{ === Phase 4: 新算法扩展 === }
+
+{**
+ * IsSorted<T> - 检查数组是否已排序
+ *}
+generic function IsSorted<T>(const aArr: array of T;
+  aCompare: specialize TAlgoCompareFunc<T>; aData: Pointer): Boolean;
+
+{**
+ * MinElement<T> - 查找最小元素索引
+ *}
+generic function MinElement<T>(const aArr: array of T;
+  aCompare: specialize TAlgoCompareFunc<T>; aData: Pointer; out aIndex: SizeInt): Boolean;
+
+{**
+ * MaxElement<T> - 查找最大元素索引
+ *}
+generic function MaxElement<T>(const aArr: array of T;
+  aCompare: specialize TAlgoCompareFunc<T>; aData: Pointer; out aIndex: SizeInt): Boolean;
+
+{**
+ * AllOf<T> - 检查所有元素是否都满足谓词
+ *}
+generic function AllOf<T>(const aArr: array of T;
+  aPredicate: specialize TAlgoPredicateFunc<T>; aData: Pointer): Boolean;
+
+{**
+ * AnyOf<T> - 检查是否有任一元素满足谓词
+ *}
+generic function AnyOf<T>(const aArr: array of T;
+  aPredicate: specialize TAlgoPredicateFunc<T>; aData: Pointer): Boolean;
+
+{**
+ * NoneOf<T> - 检查是否没有元素满足谓词
+ *}
+generic function NoneOf<T>(const aArr: array of T;
+  aPredicate: specialize TAlgoPredicateFunc<T>; aData: Pointer): Boolean;
+
+{**
+ * StableSort<T> - 稳定排序算法 (MergeSort)
+ *}
+generic procedure StableSort<T>(var aArr: array of T; 
+  aCompare: specialize TAlgoCompareFunc<T>; aData: Pointer);
+
+{**
+ * Merge<T> - 合并两个有序数组
+ *}
+generic function Merge<T>(const aFirst, aSecond: array of T;
+  aCompare: specialize TAlgoCompareFunc<T>; aData: Pointer): specialize TGenericArray<T>;
+
 { Internal helpers - do not use directly }
 generic procedure _Swap<T>(var A, B: T); inline;
 generic procedure _ReverseRange<T>(var aArr: array of T; aLo, aHi: SizeInt);
@@ -305,6 +355,138 @@ begin
   
   // Rotate right by N = Rotate left by (Len - N)
   specialize RotateLeft<T>(aArr, SizeUInt(Len) - EffectiveCount);
+end;
+
+{ Phase 4: IsSorted<T> }
+generic function IsSorted<T>(const aArr: array of T;
+  aCompare: specialize TAlgoCompareFunc<T>; aData: Pointer): Boolean;
+var
+  i: SizeInt;
+begin
+  if Length(aArr) <= 1 then Exit(True);
+  for i := 0 to High(aArr) - 1 do
+    if aCompare(aArr[i], aArr[i + 1], aData) > 0 then Exit(False);
+  Result := True;
+end;
+
+{ Phase 4: MinElement<T> }
+generic function MinElement<T>(const aArr: array of T;
+  aCompare: specialize TAlgoCompareFunc<T>; aData: Pointer; out aIndex: SizeInt): Boolean;
+var
+  i, MinIdx: SizeInt;
+begin
+  aIndex := -1;
+  if Length(aArr) = 0 then Exit(False);
+  MinIdx := 0;
+  for i := 1 to High(aArr) do
+    if aCompare(aArr[i], aArr[MinIdx], aData) < 0 then MinIdx := i;
+  aIndex := MinIdx;
+  Result := True;
+end;
+
+{ Phase 4: MaxElement<T> }
+generic function MaxElement<T>(const aArr: array of T;
+  aCompare: specialize TAlgoCompareFunc<T>; aData: Pointer; out aIndex: SizeInt): Boolean;
+var
+  i, MaxIdx: SizeInt;
+begin
+  aIndex := -1;
+  if Length(aArr) = 0 then Exit(False);
+  MaxIdx := 0;
+  for i := 1 to High(aArr) do
+    if aCompare(aArr[i], aArr[MaxIdx], aData) > 0 then MaxIdx := i;
+  aIndex := MaxIdx;
+  Result := True;
+end;
+
+{ Phase 4: AllOf<T> }
+generic function AllOf<T>(const aArr: array of T;
+  aPredicate: specialize TAlgoPredicateFunc<T>; aData: Pointer): Boolean;
+var
+  i: SizeInt;
+begin
+  for i := 0 to High(aArr) do
+    if not aPredicate(aArr[i], aData) then Exit(False);
+  Result := True;
+end;
+
+{ Phase 4: AnyOf<T> }
+generic function AnyOf<T>(const aArr: array of T;
+  aPredicate: specialize TAlgoPredicateFunc<T>; aData: Pointer): Boolean;
+var
+  i: SizeInt;
+begin
+  for i := 0 to High(aArr) do
+    if aPredicate(aArr[i], aData) then Exit(True);
+  Result := False;
+end;
+
+{ Phase 4: NoneOf<T> }
+generic function NoneOf<T>(const aArr: array of T;
+  aPredicate: specialize TAlgoPredicateFunc<T>; aData: Pointer): Boolean;
+var
+  i: SizeInt;
+begin
+  for i := 0 to High(aArr) do
+    if aPredicate(aArr[i], aData) then Exit(False);
+  Result := True;
+end;
+
+{ Phase 4: StableSort<T> - MergeSort }
+generic procedure StableSort<T>(var aArr: array of T; 
+  aCompare: specialize TAlgoCompareFunc<T>; aData: Pointer);
+
+  procedure MergeSort(var aArr: array of T; aLo, aHi: SizeInt; var aTmp: array of T);
+  var
+    Mid, i, j, k: SizeInt;
+  begin
+    if aLo >= aHi then Exit;
+    Mid := aLo + (aHi - aLo) div 2;
+    MergeSort(aArr, aLo, Mid, aTmp);
+    MergeSort(aArr, Mid + 1, aHi, aTmp);
+    if aCompare(aArr[Mid], aArr[Mid + 1], aData) <= 0 then Exit;
+    for i := aLo to aHi do aTmp[i] := aArr[i];
+    i := aLo; j := Mid + 1; k := aLo;
+    while (i <= Mid) and (j <= aHi) do
+    begin
+      if aCompare(aTmp[i], aTmp[j], aData) <= 0 then
+      begin aArr[k] := aTmp[i]; Inc(i); end
+      else
+      begin aArr[k] := aTmp[j]; Inc(j); end;
+      Inc(k);
+    end;
+    while i <= Mid do begin aArr[k] := aTmp[i]; Inc(i); Inc(k); end;
+  end;
+
+var
+  Tmp: array of T;
+begin
+  if Length(aArr) <= 1 then Exit;
+  SetLength(Tmp, Length(aArr));
+  MergeSort(aArr, 0, High(aArr), Tmp);
+end;
+
+{ Phase 4: Merge<T> }
+generic function Merge<T>(const aFirst, aSecond: array of T;
+  aCompare: specialize TAlgoCompareFunc<T>; aData: Pointer): specialize TGenericArray<T>;
+var
+  LenA, LenB, i, j, k: SizeInt;
+begin
+  Result := nil;
+  LenA := Length(aFirst); LenB := Length(aSecond);
+  if LenA + LenB = 0 then Exit;
+  SetLength(Result, LenA + LenB);
+  i := 0; j := 0; k := 0;
+  while (i < LenA) and (j < LenB) do
+  begin
+    if aCompare(aFirst[i], aSecond[j], aData) <= 0 then
+    begin Result[k] := aFirst[i]; Inc(i); end
+    else
+    begin Result[k] := aSecond[j]; Inc(j); end;
+    Inc(k);
+  end;
+  while i < LenA do begin Result[k] := aFirst[i]; Inc(i); Inc(k); end;
+  while j < LenB do begin Result[k] := aSecond[j]; Inc(j); Inc(k); end;
 end;
 
 end.

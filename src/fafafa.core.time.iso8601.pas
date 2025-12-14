@@ -393,7 +393,7 @@ function GetLocalTimeZoneOffset: Integer; overload; inline;
 implementation
 
 uses
-  Math
+  fafafa.core.math
   {$IFDEF WINDOWS}, Windows{$ENDIF}
   {$IFDEF UNIX}, BaseUnix, Unix{$ENDIF};
 
@@ -477,30 +477,13 @@ end;
 {$ELSE}
 {$IFDEF UNIX}
 var
-  UnixTime: Int64;
-  TM: TTM;
-  GMTOffset: clong;
+  LocalTime, UTCTime: TDateTime;
 begin
-  // 转换为 Unix 时间戳
-  UnixTime := DateTimeToUnix(ADateTime, False);  // False = 不转换为UTC
-  
-  // 获取本地时间信息（含DST）
-  FillChar(TM, SizeOf(TM), 0);
-  if localtime_r(@UnixTime, @TM) = nil then
-  begin
-    // 如果失败，返回0
-    Result := 0;
-    Exit;
-  end;
-  
-  // tm_gmtoff 是相对UTC的秒数偏移
-  {$IF DEFINED(LINUX) or DEFINED(DARWIN) or DEFINED(FREEBSD)}
-  GMTOffset := TM.__tm_gmtoff;  // 某些系统字段名不同
-  {$ELSE}
-  GMTOffset := TM.tm_gmtoff;
-  {$ENDIF}
-  
-  Result := GMTOffset div 60;  // 转换为分钟
+  // 使用跨平台的方法计算时区偏移
+  // 通过比较本地时间和 UTC 时间的差异
+  LocalTime := ADateTime;
+  UTCTime := LocalTimeToUniversal(LocalTime);
+  Result := Round((LocalTime - UTCTime) * MinsPerDay);
 end;
 {$ELSE}
 // 其他平台的回退实现
@@ -1308,14 +1291,84 @@ end;
 { TISO8601Duration }
 
 class function TISO8601Duration.FromString(const S: string): TISO8601Duration;
+var
+  Str: string;
+  Pos, StartPos: Integer;
+  InTimePart: Boolean;
+  Ch: Char;
+  Value: Double;
+  ValueStr: string;
 begin
-  // 简化实现
+  // 初始化所有字段为 0
   Result.Years := 0;
   Result.Months := 0;
   Result.Days := 0;
   Result.Hours := 0;
   Result.Minutes := 0;
   Result.Seconds := 0;
+  
+  // 基本格式验证
+  if (Length(S) < 2) or (S[1] <> 'P') then
+    Exit;  // 无效格式，返回零值
+  
+  Str := UpperCase(S);
+  Pos := 2;
+  InTimePart := False;
+  
+  while Pos <= Length(Str) do
+  begin
+    Ch := Str[Pos];
+    
+    // 'T' 标记时间部分的开始
+    if Ch = 'T' then
+    begin
+      InTimePart := True;
+      Inc(Pos);
+      Continue;
+    end;
+    
+    // 读取数值（支持小数和逗号作为小数分隔符）
+    StartPos := Pos;
+    while (Pos <= Length(Str)) and 
+          (Str[Pos] in ['0'..'9', '.', ',']) do
+      Inc(Pos);
+    
+    if Pos > StartPos then
+    begin
+      ValueStr := Copy(Str, StartPos, Pos - StartPos);
+      ValueStr := StringReplace(ValueStr, ',', '.', [rfReplaceAll]);
+      Value := StrToFloatDef(ValueStr, 0);
+      
+      if Pos <= Length(Str) then
+      begin
+        Ch := Str[Pos];
+        
+        if InTimePart then
+        begin
+          // 时间部分：H = 小时，M = 分钟，S = 秒
+          case Ch of
+            'H': Result.Hours := Result.Hours + Round(Value);
+            'M': Result.Minutes := Result.Minutes + Round(Value);
+            'S': Result.Seconds := Result.Seconds + Value;  // 秒保留小数
+          end;
+        end
+        else
+        begin
+          // 日期部分：Y = 年，M = 月，W = 周，D = 日
+          case Ch of
+            'Y': Result.Years := Result.Years + Round(Value);
+            'M': Result.Months := Result.Months + Round(Value);
+            'W': Result.Days := Result.Days + Round(Value * 7);  // 周转换为天
+            'D': Result.Days := Result.Days + Round(Value);
+          end;
+        end;
+        
+        Inc(Pos);
+      end;
+    end
+    else
+      Inc(Pos);
+  end;
 end;
 
 function TISO8601Duration.ToString: string;

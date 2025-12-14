@@ -7,7 +7,7 @@ unit fafafa.core.simd.avx512;
 interface
 
 uses
-  fafafa.core.simd.types,
+  fafafa.core.simd.base,
   fafafa.core.simd.dispatch;
 
 // === AVX-512 Backend Implementation ===
@@ -581,34 +581,542 @@ begin
   MemReverse_AVX2(p, len);
 end;
 
-function AsciiIEqual_AVX512(a, b: Pointer; len: SizeUInt): Boolean;
-begin
-  // ASCII 比较使用 AVX2 实现
-  Result := AsciiIEqual_AVX2(a, b, len);
+// AsciiIEqual_AVX512 - 使用 AVX-512 进行大小写不敏感的 ASCII 比较
+// 算法：将两个字符串都转换为小写后比较
+function AsciiIEqual_AVX512(a, b: Pointer; len: SizeUInt): Boolean; assembler; nostackframe;
+// RDI = a, RSI = b, RDX = len
+asm
+  xor eax, eax           // Default result = false
+  test rdx, rdx
+  jz @equal              // Empty = equal
+  test rdi, rdi
+  jz @check_both_nil
+  test rsi, rsi
+  jz @done
+  cmp rdi, rsi
+  je @equal              // Same pointer = equal
+
+  // 广播常量
+  mov r8d, 'A'           // 65
+  vpbroadcastb zmm4, r8d   // zmm4 = all 'A'
+  mov r8d, 'Z'           // 90
+  vpbroadcastb zmm5, r8d   // zmm5 = all 'Z'
+  mov r8d, 32
+  vpbroadcastb zmm6, r8d   // zmm6 = all 32 (大小写差)
+
+  xor rcx, rcx           // i = 0
+
+@loop64:
+  lea r8, [rcx + 64]
+  cmp r8, rdx
+  ja @loop32
+  
+  // 加载两个字符串
+  vmovdqu64 zmm0, [rdi + rcx]  // a
+  vmovdqu64 zmm1, [rsi + rcx]  // b
+  
+  // 将 a 转换为小写
+  vpcmpub k1, zmm0, zmm4, 5    // k1 = (a >= 'A')
+  vpcmpub k2, zmm0, zmm5, 2    // k2 = (a <= 'Z')
+  kandq k1, k1, k2             // k1 = ('A' <= a <= 'Z')
+  vpaddb zmm0 {k1}, zmm0, zmm6 // a = tolower(a)
+  
+  // 将 b 转换为小写
+  vpcmpub k1, zmm1, zmm4, 5    // k1 = (b >= 'A')
+  vpcmpub k2, zmm1, zmm5, 2    // k2 = (b <= 'Z')
+  kandq k1, k1, k2             // k1 = ('A' <= b <= 'Z')
+  vpaddb zmm1 {k1}, zmm1, zmm6 // b = tolower(b)
+  
+  // 比较
+  vpcmpeqb k1, zmm0, zmm1
+  kortestq k1, k1
+  jnc @not_equal_cleanup       // 如果有任何不等字节
+  
+  add rcx, 64
+  jmp @loop64
+
+@loop32:
+  lea r8, [rcx + 32]
+  cmp r8, rdx
+  ja @loop16
+  
+  vmovdqu ymm0, [rdi + rcx]
+  vmovdqu ymm1, [rsi + rcx]
+  
+  // 将 a 转换为小写 (AVX2 方式)
+  mov r8d, 'A' - 1
+  vpbroadcastb ymm7, r8d
+  vpcmpgtb ymm2, ymm0, ymm7    // ymm2 = (a >= 'A')
+  mov r8d, 'Z' + 1
+  vpbroadcastb ymm7, r8d
+  vpcmpgtb ymm7, ymm7, ymm0    // ymm7 = (a <= 'Z')
+  vpand ymm2, ymm2, ymm7       // ymm2 = mask for a
+  vpand ymm2, ymm2, ymm6       // ymm2 = 32 if in range, else 0
+  vpaddb ymm0, ymm0, ymm2      // a = tolower(a)
+  
+  // 将 b 转换为小写
+  mov r8d, 'A' - 1
+  vpbroadcastb ymm7, r8d
+  vpcmpgtb ymm2, ymm1, ymm7
+  mov r8d, 'Z' + 1
+  vpbroadcastb ymm7, r8d
+  vpcmpgtb ymm7, ymm7, ymm1
+  vpand ymm2, ymm2, ymm7
+  vpand ymm2, ymm2, ymm6
+  vpaddb ymm1, ymm1, ymm2
+  
+  // 比较
+  vpcmpeqb ymm0, ymm0, ymm1
+  vpmovmskb r8d, ymm0
+  cmp r8d, $FFFFFFFF
+  jne @not_equal_cleanup
+  
+  add rcx, 32
+  jmp @loop32
+
+@loop16:
+  lea r8, [rcx + 16]
+  cmp r8, rdx
+  ja @remainder
+  
+  vmovdqu xmm0, [rdi + rcx]
+  vmovdqu xmm1, [rsi + rcx]
+  
+  // 将 a 转换为小写
+  mov r8d, 'A' - 1
+  vpbroadcastb xmm7, r8d
+  vpcmpgtb xmm2, xmm0, xmm7
+  mov r8d, 'Z' + 1
+  vpbroadcastb xmm7, r8d
+  vpcmpgtb xmm7, xmm7, xmm0
+  vpand xmm2, xmm2, xmm7
+  vpand xmm2, xmm2, xmm6
+  vpaddb xmm0, xmm0, xmm2
+  
+  // 将 b 转换为小写
+  mov r8d, 'A' - 1
+  vpbroadcastb xmm7, r8d
+  vpcmpgtb xmm2, xmm1, xmm7
+  mov r8d, 'Z' + 1
+  vpbroadcastb xmm7, r8d
+  vpcmpgtb xmm7, xmm7, xmm1
+  vpand xmm2, xmm2, xmm7
+  vpand xmm2, xmm2, xmm6
+  vpaddb xmm1, xmm1, xmm2
+  
+  // 比较
+  vpcmpeqb xmm0, xmm0, xmm1
+  vpmovmskb r8d, xmm0
+  cmp r8d, $FFFF
+  jne @not_equal_cleanup
+  
+  add rcx, 16
+  jmp @loop16
+
+@remainder:
+  cmp rcx, rdx
+  jae @equal_cleanup
+  
+  movzx r8d, byte ptr [rdi + rcx]
+  movzx r9d, byte ptr [rsi + rcx]
+  
+  // tolower(a)
+  cmp r8d, 'A'
+  jb @skip_lower_a
+  cmp r8d, 'Z'
+  ja @skip_lower_a
+  add r8d, 32
+@skip_lower_a:
+  
+  // tolower(b)
+  cmp r9d, 'A'
+  jb @skip_lower_b
+  cmp r9d, 'Z'
+  ja @skip_lower_b
+  add r9d, 32
+@skip_lower_b:
+  
+  cmp r8d, r9d
+  jne @not_equal_cleanup
+  inc rcx
+  jmp @remainder
+
+@check_both_nil:
+  test rsi, rsi
+  jz @equal
+  jmp @done
+
+@not_equal_cleanup:
+  vzeroupper
+  xor eax, eax
+  ret
+
+@equal_cleanup:
+  vzeroupper
+@equal:
+  mov eax, 1
+@done:
 end;
 
-procedure ToLowerAscii_AVX512(p: Pointer; len: SizeUInt);
-begin
-  ToLowerAscii_AVX2(p, len);
+// MemCopy_AVX512 - 使用 AVX-512 复制内存
+// 一次复制 64 字节以获得最大吸吐
+// 注意：应对重叠情况需要处理
+procedure MemCopy_AVX512(src, dst: Pointer; len: SizeUInt); assembler; nostackframe;
+// RDI = src, RSI = dst, RDX = len
+asm
+  test rdx, rdx
+  jz @done
+  test rdi, rdi
+  jz @done
+  test rsi, rsi
+  jz @done
+  cmp rdi, rsi
+  je @done              // src == dst, nothing to do
+
+  // 检查重叠：如果 dst > src && dst < src + len，需要从后向前复制
+  mov rcx, rdi
+  add rcx, rdx          // rcx = src + len
+  cmp rsi, rdi
+  jbe @forward_copy     // dst <= src, forward copy
+  cmp rsi, rcx
+  jae @forward_copy     // dst >= src + len, forward copy
+  
+  // 重叠情况，从后向前复制
+  lea rdi, [rdi + rdx]  // src = src + len
+  lea rsi, [rsi + rdx]  // dst = dst + len
+  mov rcx, rdx          // rcx = remaining len
+
+@backward_loop64:
+  cmp rcx, 64
+  jb @backward_loop32
+  sub rdi, 64
+  sub rsi, 64
+  vmovdqu64 zmm0, [rdi]
+  vmovdqu64 [rsi], zmm0
+  sub rcx, 64
+  jmp @backward_loop64
+
+@backward_loop32:
+  cmp rcx, 32
+  jb @backward_loop16
+  sub rdi, 32
+  sub rsi, 32
+  vmovdqu ymm0, [rdi]
+  vmovdqu [rsi], ymm0
+  sub rcx, 32
+  jmp @backward_loop32
+
+@backward_loop16:
+  cmp rcx, 16
+  jb @backward_loop8
+  sub rdi, 16
+  sub rsi, 16
+  vmovdqu xmm0, [rdi]
+  vmovdqu [rsi], xmm0
+  sub rcx, 16
+  jmp @backward_loop16
+
+@backward_loop8:
+  test rcx, rcx
+  jz @cleanup
+  dec rdi
+  dec rsi
+  movzx eax, byte ptr [rdi]
+  mov [rsi], al
+  dec rcx
+  jmp @backward_loop8
+
+@forward_copy:
+  xor rcx, rcx          // i = 0
+
+@forward_loop64:
+  lea r8, [rcx + 64]
+  cmp r8, rdx
+  ja @forward_loop32
+  vmovdqu64 zmm0, [rdi + rcx]
+  vmovdqu64 [rsi + rcx], zmm0
+  add rcx, 64
+  jmp @forward_loop64
+
+@forward_loop32:
+  lea r8, [rcx + 32]
+  cmp r8, rdx
+  ja @forward_loop16
+  vmovdqu ymm0, [rdi + rcx]
+  vmovdqu [rsi + rcx], ymm0
+  add rcx, 32
+  jmp @forward_loop32
+
+@forward_loop16:
+  lea r8, [rcx + 16]
+  cmp r8, rdx
+  ja @forward_remainder
+  vmovdqu xmm0, [rdi + rcx]
+  vmovdqu [rsi + rcx], xmm0
+  add rcx, 16
+  jmp @forward_loop16
+
+@forward_remainder:
+  cmp rcx, rdx
+  jae @cleanup
+  movzx eax, byte ptr [rdi + rcx]
+  mov [rsi + rcx], al
+  inc rcx
+  jmp @forward_remainder
+
+@cleanup:
+  vzeroupper
+@done:
 end;
 
-procedure ToUpperAscii_AVX512(p: Pointer; len: SizeUInt);
-begin
-  ToUpperAscii_AVX2(p, len);
+// MemSet_AVX512 - 使用 AVX-512 填充内存
+// 一次填充 64 字节
+procedure MemSet_AVX512(dst: Pointer; len: SizeUInt; value: Byte); assembler; nostackframe;
+// RDI = dst, RSI = len, RDX = value
+asm
+  test rsi, rsi
+  jz @done
+  test rdi, rdi
+  jz @done
+
+  // 广播 value 到 zmm0 的所有 64 字节
+  vpbroadcastb zmm0, edx
+
+  xor rcx, rcx          // i = 0
+
+@loop64:
+  lea r8, [rcx + 64]
+  cmp r8, rsi
+  ja @loop32
+  vmovdqu64 [rdi + rcx], zmm0
+  add rcx, 64
+  jmp @loop64
+
+@loop32:
+  lea r8, [rcx + 32]
+  cmp r8, rsi
+  ja @loop16
+  vmovdqu [rdi + rcx], ymm0
+  add rcx, 32
+  jmp @loop32
+
+@loop16:
+  lea r8, [rcx + 16]
+  cmp r8, rsi
+  ja @remainder
+  vmovdqu [rdi + rcx], xmm0
+  add rcx, 16
+  jmp @loop16
+
+@remainder:
+  cmp rcx, rsi
+  jae @cleanup
+  mov [rdi + rcx], dl
+  inc rcx
+  jmp @remainder
+
+@cleanup:
+  vzeroupper
+@done:
 end;
 
-procedure MemCopy_AVX512(src, dst: Pointer; len: SizeUInt);
-begin
-  if (len = 0) or (src = nil) or (dst = nil) then
-    Exit;
-  Move(src^, dst^, len);
+// ToLowerAscii_AVX512 - 使用 AVX-512 将 ASCII 转换为小写
+// 算法：如果字符在 'A'-'Z' 范围，加 32
+procedure ToLowerAscii_AVX512(p: Pointer; len: SizeUInt); assembler; nostackframe;
+// RDI = p, RSI = len
+asm
+  test rsi, rsi
+  jz @done
+  test rdi, rdi
+  jz @done
+
+  // 广播常量
+  mov eax, 'A'          // 65
+  vpbroadcastb zmm1, eax  // zmm1 = all 'A'
+  mov eax, 'Z'          // 90
+  vpbroadcastb zmm2, eax  // zmm2 = all 'Z'
+  mov eax, 32
+  vpbroadcastb zmm3, eax  // zmm3 = all 32 (大小写差)
+
+  xor rcx, rcx          // i = 0
+
+@loop64:
+  lea r8, [rcx + 64]
+  cmp r8, rsi
+  ja @loop32
+  
+  vmovdqu64 zmm0, [rdi + rcx]
+  // 检查 >= 'A'
+  vpcmpub k1, zmm0, zmm1, 5  // k1 = (zmm0 >= zmm1) = (ch >= 'A')
+  // 检查 <= 'Z'
+  vpcmpub k2, zmm0, zmm2, 2  // k2 = (zmm0 <= zmm2) = (ch <= 'Z')
+  // 取交集
+  kandq k1, k1, k2           // k1 = ('A' <= ch <= 'Z')
+  // 条件加法：如果在范围内，加 32
+  vpaddb zmm0 {k1}, zmm0, zmm3
+  vmovdqu64 [rdi + rcx], zmm0
+  
+  add rcx, 64
+  jmp @loop64
+
+@loop32:
+  lea r8, [rcx + 32]
+  cmp r8, rsi
+  ja @loop16
+  
+  vmovdqu ymm0, [rdi + rcx]
+  // AVX2 方式：使用比较和混合
+  vpcmpgtb ymm4, ymm0, ymm1  // ymm4 = (ch > 'A'-1)
+  mov eax, 'A' - 1
+  vpbroadcastb ymm5, eax
+  vpcmpgtb ymm4, ymm0, ymm5  // ymm4 = (ch > 'A'-1) = (ch >= 'A')
+  mov eax, 'Z' + 1
+  vpbroadcastb ymm5, eax
+  vpcmpgtb ymm5, ymm5, ymm0  // ymm5 = ('Z'+1 > ch) = (ch <= 'Z')
+  vpand ymm4, ymm4, ymm5     // ymm4 = ('A' <= ch <= 'Z')
+  vpand ymm4, ymm4, ymm3     // ymm4 = 32 if in range, else 0
+  vpaddb ymm0, ymm0, ymm4
+  vmovdqu [rdi + rcx], ymm0
+  
+  add rcx, 32
+  jmp @loop32
+
+@loop16:
+  lea r8, [rcx + 16]
+  cmp r8, rsi
+  ja @remainder
+  
+  vmovdqu xmm0, [rdi + rcx]
+  mov eax, 'A' - 1
+  vpbroadcastb xmm5, eax
+  vpcmpgtb xmm4, xmm0, xmm5  // xmm4 = (ch >= 'A')
+  mov eax, 'Z' + 1
+  vpbroadcastb xmm5, eax
+  vpcmpgtb xmm5, xmm5, xmm0  // xmm5 = (ch <= 'Z')
+  vpand xmm4, xmm4, xmm5     // xmm4 = ('A' <= ch <= 'Z')
+  vpand xmm4, xmm4, xmm3     // xmm4 = 32 if in range, else 0
+  vpaddb xmm0, xmm0, xmm4
+  vmovdqu [rdi + rcx], xmm0
+  
+  add rcx, 16
+  jmp @loop16
+
+@remainder:
+  cmp rcx, rsi
+  jae @cleanup
+  movzx eax, byte ptr [rdi + rcx]
+  cmp al, 'A'
+  jb @next
+  cmp al, 'Z'
+  ja @next
+  add al, 32
+  mov [rdi + rcx], al
+@next:
+  inc rcx
+  jmp @remainder
+
+@cleanup:
+  vzeroupper
+@done:
 end;
 
-procedure MemSet_AVX512(dst: Pointer; len: SizeUInt; value: Byte);
-begin
-  if (len = 0) or (dst = nil) then
-    Exit;
-  FillChar(dst^, len, value);
+// ToUpperAscii_AVX512 - 使用 AVX-512 将 ASCII 转换为大写
+// 算法：如果字符在 'a'-'z' 范围，减 32
+procedure ToUpperAscii_AVX512(p: Pointer; len: SizeUInt); assembler; nostackframe;
+// RDI = p, RSI = len
+asm
+  test rsi, rsi
+  jz @done
+  test rdi, rdi
+  jz @done
+
+  // 广播常量
+  mov eax, 'a'          // 97
+  vpbroadcastb zmm1, eax  // zmm1 = all 'a'
+  mov eax, 'z'          // 122
+  vpbroadcastb zmm2, eax  // zmm2 = all 'z'
+  mov eax, 32
+  vpbroadcastb zmm3, eax  // zmm3 = all 32 (大小写差)
+
+  xor rcx, rcx          // i = 0
+
+@loop64:
+  lea r8, [rcx + 64]
+  cmp r8, rsi
+  ja @loop32
+  
+  vmovdqu64 zmm0, [rdi + rcx]
+  // 检查 >= 'a'
+  vpcmpub k1, zmm0, zmm1, 5  // k1 = (zmm0 >= zmm1) = (ch >= 'a')
+  // 检查 <= 'z'
+  vpcmpub k2, zmm0, zmm2, 2  // k2 = (zmm0 <= zmm2) = (ch <= 'z')
+  // 取交集
+  kandq k1, k1, k2           // k1 = ('a' <= ch <= 'z')
+  // 条件减法：如果在范围内，减 32
+  vpsubb zmm0 {k1}, zmm0, zmm3
+  vmovdqu64 [rdi + rcx], zmm0
+  
+  add rcx, 64
+  jmp @loop64
+
+@loop32:
+  lea r8, [rcx + 32]
+  cmp r8, rsi
+  ja @loop16
+  
+  vmovdqu ymm0, [rdi + rcx]
+  // AVX2 方式
+  mov eax, 'a' - 1
+  vpbroadcastb ymm5, eax
+  vpcmpgtb ymm4, ymm0, ymm5  // ymm4 = (ch >= 'a')
+  mov eax, 'z' + 1
+  vpbroadcastb ymm5, eax
+  vpcmpgtb ymm5, ymm5, ymm0  // ymm5 = (ch <= 'z')
+  vpand ymm4, ymm4, ymm5     // ymm4 = ('a' <= ch <= 'z')
+  vpand ymm4, ymm4, ymm3     // ymm4 = 32 if in range, else 0
+  vpsubb ymm0, ymm0, ymm4
+  vmovdqu [rdi + rcx], ymm0
+  
+  add rcx, 32
+  jmp @loop32
+
+@loop16:
+  lea r8, [rcx + 16]
+  cmp r8, rsi
+  ja @remainder
+  
+  vmovdqu xmm0, [rdi + rcx]
+  mov eax, 'a' - 1
+  vpbroadcastb xmm5, eax
+  vpcmpgtb xmm4, xmm0, xmm5  // xmm4 = (ch >= 'a')
+  mov eax, 'z' + 1
+  vpbroadcastb xmm5, eax
+  vpcmpgtb xmm5, xmm5, xmm0  // xmm5 = (ch <= 'z')
+  vpand xmm4, xmm4, xmm5     // xmm4 = ('a' <= ch <= 'z')
+  vpand xmm4, xmm4, xmm3     // xmm4 = 32 if in range, else 0
+  vpsubb xmm0, xmm0, xmm4
+  vmovdqu [rdi + rcx], xmm0
+  
+  add rcx, 16
+  jmp @loop16
+
+@remainder:
+  cmp rcx, rsi
+  jae @cleanup
+  movzx eax, byte ptr [rdi + rcx]
+  cmp al, 'a'
+  jb @next
+  cmp al, 'z'
+  ja @next
+  sub al, 32
+  mov [rdi + rcx], al
+@next:
+  inc rcx
+  jmp @remainder
+
+@cleanup:
+  vzeroupper
+@done:
 end;
 
 function MemDiffRange_AVX512(a, b: Pointer; len: SizeUInt; out firstDiff, lastDiff: SizeUInt): Boolean;
@@ -643,27 +1151,104 @@ begin
     Backend := sbAVX512;
     Name := 'AVX-512';
     Description := 'x86-64 AVX-512 SIMD implementation (512-bit)';
-    Capabilities := [scBasicArithmetic, scComparison, scMathFunctions, scReduction, scLoadStore, scMaskedOps];
+    Capabilities := [scBasicArithmetic, scComparison, scMathFunctions, scReduction, 
+                     scLoadStore, scMaskedOps, sc512BitOps];
     Available := True;
     Priority := 30; // Higher than AVX2 (20)
   end;
 
-  // Register facade functions (AVX-512 accelerated)
+  // Vector-related operations currently fall back to Scalar reference implementations.
+  // Reason: this AVX-512 backend currently focuses on facade/memory routines; the vector math
+  // implementations are not yet validated under FPC calling conventions.
+
+  // Register arithmetic operations
+  dispatchTable.AddF32x4 := @ScalarAddF32x4;
+  dispatchTable.SubF32x4 := @ScalarSubF32x4;
+  dispatchTable.MulF32x4 := @ScalarMulF32x4;
+  dispatchTable.DivF32x4 := @ScalarDivF32x4;
+
+  dispatchTable.AddF32x8 := @ScalarAddF32x8;
+  dispatchTable.SubF32x8 := @ScalarSubF32x8;
+  dispatchTable.MulF32x8 := @ScalarMulF32x8;
+  dispatchTable.DivF32x8 := @ScalarDivF32x8;
+
+  dispatchTable.AddF64x2 := @ScalarAddF64x2;
+  dispatchTable.SubF64x2 := @ScalarSubF64x2;
+  dispatchTable.MulF64x2 := @ScalarMulF64x2;
+  dispatchTable.DivF64x2 := @ScalarDivF64x2;
+
+  dispatchTable.AddI32x4 := @ScalarAddI32x4;
+  dispatchTable.SubI32x4 := @ScalarSubI32x4;
+  dispatchTable.MulI32x4 := @ScalarMulI32x4;
+
+  // Register comparison operations
+  dispatchTable.CmpEqF32x4 := @ScalarCmpEqF32x4;
+  dispatchTable.CmpLtF32x4 := @ScalarCmpLtF32x4;
+  dispatchTable.CmpLeF32x4 := @ScalarCmpLeF32x4;
+  dispatchTable.CmpGtF32x4 := @ScalarCmpGtF32x4;
+  dispatchTable.CmpGeF32x4 := @ScalarCmpGeF32x4;
+  dispatchTable.CmpNeF32x4 := @ScalarCmpNeF32x4;
+
+  // Register math functions
+  dispatchTable.AbsF32x4 := @ScalarAbsF32x4;
+  dispatchTable.SqrtF32x4 := @ScalarSqrtF32x4;
+  dispatchTable.MinF32x4 := @ScalarMinF32x4;
+  dispatchTable.MaxF32x4 := @ScalarMaxF32x4;
+
+  // Extended math functions
+  dispatchTable.FmaF32x4 := @ScalarFmaF32x4;
+  dispatchTable.RcpF32x4 := @ScalarRcpF32x4;
+  dispatchTable.RsqrtF32x4 := @ScalarRsqrtF32x4;
+  dispatchTable.FloorF32x4 := @ScalarFloorF32x4;
+  dispatchTable.CeilF32x4 := @ScalarCeilF32x4;
+  dispatchTable.RoundF32x4 := @ScalarRoundF32x4;
+  dispatchTable.TruncF32x4 := @ScalarTruncF32x4;
+  dispatchTable.ClampF32x4 := @ScalarClampF32x4;
+
+  // Vector math functions
+  dispatchTable.DotF32x4 := @ScalarDotF32x4;
+  dispatchTable.DotF32x3 := @ScalarDotF32x3;
+  dispatchTable.CrossF32x3 := @ScalarCrossF32x3;
+  dispatchTable.LengthF32x4 := @ScalarLengthF32x4;
+  dispatchTable.LengthF32x3 := @ScalarLengthF32x3;
+  dispatchTable.NormalizeF32x4 := @ScalarNormalizeF32x4;
+  dispatchTable.NormalizeF32x3 := @ScalarNormalizeF32x3;
+
+  // Register reduction operations
+  dispatchTable.ReduceAddF32x4 := @ScalarReduceAddF32x4;
+  dispatchTable.ReduceMinF32x4 := @ScalarReduceMinF32x4;
+  dispatchTable.ReduceMaxF32x4 := @ScalarReduceMaxF32x4;
+  dispatchTable.ReduceMulF32x4 := @ScalarReduceMulF32x4;
+
+  // Register memory operations
+  dispatchTable.LoadF32x4 := @ScalarLoadF32x4;
+  dispatchTable.LoadF32x4Aligned := @ScalarLoadF32x4Aligned;
+  dispatchTable.StoreF32x4 := @ScalarStoreF32x4;
+  dispatchTable.StoreF32x4Aligned := @ScalarStoreF32x4Aligned;
+
+  // Register utility operations
+  dispatchTable.SplatF32x4 := @ScalarSplatF32x4;
+  dispatchTable.ZeroF32x4 := @ScalarZeroF32x4;
+  dispatchTable.SelectF32x4 := @ScalarSelectF32x4;
+  dispatchTable.ExtractF32x4 := @ScalarExtractF32x4;
+  dispatchTable.InsertF32x4 := @ScalarInsertF32x4;
+
+  // Register facade functions - Native AVX-512 implementations
   dispatchTable.MemEqual := @MemEqual_AVX512;
   dispatchTable.MemFindByte := @MemFindByte_AVX512;
   dispatchTable.SumBytes := @SumBytes_AVX512;
   dispatchTable.CountByte := @CountByte_AVX512;
   dispatchTable.MinMaxBytes := @MinMaxBytes_AVX512;
   dispatchTable.BitsetPopCount := @BitsetPopCount_AVX512;
+  dispatchTable.MemCopy := @MemCopy_AVX512;       // Native AVX-512
+  dispatchTable.MemSet := @MemSet_AVX512;         // Native AVX-512
+  dispatchTable.ToLowerAscii := @ToLowerAscii_AVX512;  // Native AVX-512 with k-register
+  dispatchTable.ToUpperAscii := @ToUpperAscii_AVX512;  // Native AVX-512 with k-register
+  dispatchTable.AsciiIEqual := @AsciiIEqual_AVX512;    // Native AVX-512 with k-register
   
-  // Functions that use AVX2 fallback
+  // Functions using AVX2 fallback (complex algorithms)
   dispatchTable.Utf8Validate := @Utf8Validate_AVX512;
   dispatchTable.MemReverse := @MemReverse_AVX512;
-  dispatchTable.AsciiIEqual := @AsciiIEqual_AVX512;
-  dispatchTable.ToLowerAscii := @ToLowerAscii_AVX512;
-  dispatchTable.ToUpperAscii := @ToUpperAscii_AVX512;
-  dispatchTable.MemCopy := @MemCopy_AVX512;
-  dispatchTable.MemSet := @MemSet_AVX512;
   dispatchTable.MemDiffRange := @MemDiffRange_AVX512;
   dispatchTable.BytesIndexOf := @BytesIndexOf_AVX512;
 

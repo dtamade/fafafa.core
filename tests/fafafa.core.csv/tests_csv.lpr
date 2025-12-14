@@ -38,7 +38,12 @@ uses
   Test_fafafa_core_csv_reader_slice_lifetime,
   Test_fafafa_core_csv_reader_reuse_record,
   Test_fafafa_core_csv_writer_terminator_and_reset,
-  Test_fafafa_core_csv_writer_escape_options;
+  Test_fafafa_core_csv_writer_escape_options,
+  Test_fafafa_core_csv_facade,
+  Test_fafafa_core_csv_trimmode,
+  Test_fafafa_core_csv_quote_nonnumeric,
+  Test_fafafa_core_csv_typed_accessors,
+  Test_fafafa_core_csv_quoting_disabled;
 
 begin
   with TTestRunner.Create(nil) do

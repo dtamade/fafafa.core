@@ -124,7 +124,7 @@ begin
   WriteLn('=== Multi-Thread Stress Test ===');
   
   // 创建共享对象
-  GMutex := CreateNamedMutex(TEST_MUTEX_NAME);
+  GMutex := Sync.MakeNamedMutex(TEST_MUTEX_NAME);
   GCondVar := MakeNamedConditionVariable(TEST_CONDVAR_NAME);
   
   StartTime := GetTickCount64;
@@ -198,7 +198,7 @@ begin
   WriteLn(Format('[Worker %d] Starting work', [AWorkerId]));
 
   // 创建共享对象
-  GMutex := CreateNamedMutex(TEST_MUTEX_NAME);
+  GMutex := Sync.MakeNamedMutex(TEST_MUTEX_NAME);
   GCondVar := MakeNamedConditionVariable(TEST_CONDVAR_NAME);
 
   SuccessCount := 0;

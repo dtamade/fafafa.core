@@ -142,15 +142,15 @@ type
      * TryLockTimeout - 带超时的 TryLock
      *
      * @param ATimeoutMs 超时时间（毫秒）
-     * @return 成功返回数据指针，超时或底层不支持时返回 nil
+     * @return 成功返回数据指针，超时返回 nil
      *
      * @rust_equivalent
      *   Mutex::try_lock_for()
      *
      * @note
      *   此方法需要底层 IMutex 实现 ITryLock 接口。
-     *   如果底层不支持 ITryLock，将立即返回 nil（不等待）。
-     *   调用方无法区分“超时”和“底层不支持”两种情况。
+     *   如果底层不支持 ITryLock，将抛出 EInvalidArgument 异常，
+     *   以避免将“超时”和“实现不支持”混淆在一起。
      *}
     function TryLockTimeout(ATimeoutMs: Cardinal): PT;
 
@@ -295,13 +295,14 @@ var
 begin
   if FLocked then
     Exit(@FValue);  // 已持有锁，直接返回
-    
-  // 尝试获取锁
-  if Supports(FMutex, ITryLock, TryLockIntf) then
-    Acquired := TryLockIntf.TryAcquire(ATimeoutMs)
-  else
-    Acquired := False;
-    
+
+  // 检查底层是否支持 ITryLock/超时语义
+  if not Supports(FMutex, ITryLock, TryLockIntf) then
+    raise EInvalidArgument.Create('TMutexGuard.TryLockTimeout: underlying mutex does not support ITryLock/timeout');
+
+  // 尝试在超时时间内获取锁
+  Acquired := TryLockIntf.TryAcquire(ATimeoutMs);
+
   if Acquired then
   begin
     FLocked := True;

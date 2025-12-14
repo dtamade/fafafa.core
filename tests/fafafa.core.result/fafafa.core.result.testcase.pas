@@ -8,1239 +8,1773 @@ interface
 
 uses
   SysUtils, fpcunit, testregistry,
-  fafafa.core.result, fafafa.core.option;
+  fafafa.core.option.base, fafafa.core.result, fafafa.core.option, fafafa.core.result.facade;
 
 type
-  // 针对 TResult<Integer,String> 的具体测试用例，覆盖所有公开接口
-  TTestCase_TResult_IntStr = class(TTestCase)
+  { 基础构造与查询测试 }
+  TTestCase_TResult_Basic = class(TTestCase)
   published
-    procedure Test_Construct_And_Query;
-    procedure Test_Unwrap_And_Expect;
-    procedure Test_UnwrapErr;
+    procedure Test_Ok_Construct_And_Query;
+    procedure Test_Err_Construct_And_Query;
+    procedure Test_Unwrap_On_Ok;
+    procedure Test_Unwrap_On_Err_Raises;
+    procedure Test_UnwrapOr;
+    procedure Test_Expect_On_Ok;
+    procedure Test_Expect_On_Err_Raises;
+    procedure Test_UnwrapErr_On_Err;
+    procedure Test_UnwrapErr_On_Ok_Raises;
+    procedure Test_ExpectErr_On_Err;
+    procedure Test_ExpectErr_On_Ok_Raises;
+    procedure Test_TryUnwrap;
+    procedure Test_TryUnwrapErr;
+    procedure Test_UnwrapUnchecked;
+    procedure Test_Default_Initialization;
   end;
 
-  TTestCase_Global = class(TTestCase)
+  { 字符串表示测试 }
+  TTestCase_TResult_ToString = class(TTestCase)
   published
-    procedure Test_Combinators_Map_MapErr_AndThen_OrElse;
-    procedure Test_Combinators_MapOr_MapOrElse_Inspect_InspectErr;
+    procedure Test_ToString_Basic;
+    procedure Test_ToString_Formatted;
+  end;
+
+  { 组合子测试 }
+  TTestCase_TResult_Combinators = class(TTestCase)
+  published
+    procedure Test_Map_On_Ok;
+    procedure Test_Map_On_Err;
+    procedure Test_MapErr_On_Ok;
+    procedure Test_MapErr_On_Err;
+    procedure Test_AndThen_On_Ok;
+    procedure Test_AndThen_On_Err;
+    procedure Test_OrElse_On_Ok;
+    procedure Test_OrElse_On_Err;
+    procedure Test_MapOr;
+    procedure Test_MapOrElse;
+    procedure Test_Match;
+    procedure Test_Swap;
+    procedure Test_Flatten;
+    procedure Test_And_;
+    procedure Test_Or_;
+    procedure Test_Contains;
+    procedure Test_ContainsErr;
+    procedure Test_FilterOrElse;
+    procedure Test_IsOkAnd;
+    procedure Test_IsErrAnd;
+    procedure Test_Chain;
+  end;
+
+  { 异常桥接测试 }
+  TTestCase_TResult_ExceptionBridge = class(TTestCase)
+  published
+    procedure Test_ResultToTry_On_Ok;
+    procedure Test_ResultToTry_On_Err_Raises;
+    procedure Test_ResultFromTry_Success;
+    procedure Test_ResultFromTry_Exception;
+  end;
+
+  { Inspect 测试 }
+  TTestCase_TResult_Inspect = class(TTestCase)
+  published
+    procedure Test_Inspect_On_Ok;
+    procedure Test_Inspect_On_Err;
+    procedure Test_InspectErr_On_Ok;
+    procedure Test_InspectErr_On_Err;
+  end;
+
+  { 新增 API 测试 - Phase 2 }
+  TTestCase_TResult_NewAPI = class(TTestCase)
+  published
+    procedure Test_UnwrapOrElse_On_Ok;
+    procedure Test_UnwrapOrElse_On_Err;
+    procedure Test_UnwrapOrDefault_On_Ok;
+    procedure Test_UnwrapOrDefault_On_Err;
+    procedure Test_OkOption_On_Ok;
+    procedure Test_OkOption_On_Err;
+    procedure Test_ErrOption_On_Ok;
+    procedure Test_ErrOption_On_Err;
     procedure Test_ToDebugString;
-    procedure Test_ToString_Enhanced; // 新增：测试增强的 ToString 方法
-    procedure Test_MemoryLayout_Info; // 新增：测试内存布局信息
-    procedure Test_Memory_Management_Optimization; // 新增：测试内存管理优化
-    procedure Test_TypeConstraints_Support; // 新增：测试类型约束支持
-    procedure Test_Exception_Safety_Enhanced; // 新增：测试异常安全增强
-    procedure Test_Serialization_Support; // 新增：测试序列化支持
-    procedure Test_Rust_Core_API; // 新增：测试 Rust 核心 API
-    procedure Test_Iterator_Style_Operations; // 重新启用：Iterator 风格操作测试
-    procedure Test_Batch_Operations; // 新增：测试批量操作
-    procedure Test_Advanced_Functions; // 新增：测试高级全局函数
-    procedure Test_ManagedTypes_StringAndArray; // re-enabled
-    procedure Test_InterfaceErrorChannel;
-    procedure Test_Ext_Swap_Flatten_MapBoth;
-    procedure Test_ExpectErr;
-    // 新增覆盖
-    procedure Test_FromTry_Details;
-    procedure Test_Equals_Boundaries;
-    procedure Test_Complex_Chains_MatchFold; // re-enabled
-    procedure Test_ManagedType_String_Chain;
-    procedure Test_And_Or_Contains_FilterOrElse;
-    procedure Test_Transpose_And_OptionBridge;
-    procedure Test_Equals_Default_And_ToTry;
+    procedure Test_UnwrapErrUnchecked;
+    procedure Test_OrElseThunk_On_Ok;
+    procedure Test_OrElseThunk_On_Err;
   end;
-{$IFDEF FAFAFA_CORE_RESULT_METHODS}
-    procedure Test_Methods_Map_MapErr;
-{$IFDEF FAFAFA_CORE_RESULT_METHODS}
-    procedure Test_Methods_Phase3_MapOr_MapOrElse_Inspect_Opt;
-{$ENDIF}
 
-{$ENDIF}
+  { TOption 新增 API 测试 - Phase 3 }
+  TTestCase_TOption_NewAPI = class(TTestCase)
+  published
+    procedure Test_UnwrapOrElse_On_Some;
+    procedure Test_UnwrapOrElse_On_None;
+    procedure Test_UnwrapOrDefault_On_Some;
+    procedure Test_UnwrapOrDefault_On_None;
+    procedure Test_TryUnwrap_On_None_OverwritesOutParam;
+    procedure Test_IsSomeAnd;
+    procedure Test_Contains;
+    procedure Test_Or;
+    procedure Test_And;
+    procedure Test_Xor;
+    procedure Test_Flatten;
+    procedure Test_Zip;
+  end;
+
+  { 错误上下文测试 - Phase 4 }
+  TTestCase_TResult_Context = class(TTestCase)
+  published
+    procedure Test_ResultContext_On_Ok;
+    procedure Test_ResultContext_On_Err;
+    procedure Test_ResultWithContext_On_Ok;
+    procedure Test_ResultWithContext_On_Err;
+    { 错误链测试 - TErrorCtx 与 ResultContextE/ResultWithContextE }
+    procedure Test_TErrorCtx_Create_And_Fields;
+    procedure Test_TErrorCtx_ToDebugString;
+    procedure Test_ResultContextE_On_Ok;
+    procedure Test_ResultContextE_On_Err;
+    procedure Test_ResultWithContextE_On_Ok;
+    procedure Test_ResultWithContextE_On_Err;
+  end;
+
+  { Transpose 测试 - Phase 6 }
+  TTestCase_TResult_Transpose = class(TTestCase)
+  published
+    { ResultTranspose: Result<Option<T>,E> -> Option<Result<T,E>> }
+    procedure Test_ResultTranspose_OkSome_ReturnsSomeOk;
+    procedure Test_ResultTranspose_OkNone_ReturnsNone;
+    procedure Test_ResultTranspose_Err_ReturnsSomeErr;
+    { OptionTransposeResult: Option<Result<T,E>> -> Result<Option<T>,E> }
+    procedure Test_OptionTranspose_None_ReturnsOkNone;
+    procedure Test_OptionTranspose_SomeOk_ReturnsOkSome;
+    procedure Test_OptionTranspose_SomeErr_ReturnsErr;
+  end;
+
+  { 快速接口测试 - Phase 5 (M3) }
+  TTestCase_TResult_FastAPI = class(TTestCase)
+  published
+    procedure Test_ResultEnsure_When_True_Returns_Ok;
+    procedure Test_ResultEnsure_When_False_Returns_Err;
+    procedure Test_ResultEnsureWith_When_True_DoesNotCallThunk;
+    procedure Test_ResultEnsureWith_When_False_CallsThunk;
+
+    procedure Test_ResultFromBool_When_True_Returns_Ok;
+    procedure Test_ResultFromBool_When_False_Returns_Err;
+
+    procedure Test_ResultZip_OkOk_Returns_Ok;
+    procedure Test_ResultZip_ErrOk_Returns_Err;
+    procedure Test_ResultZip_OkErr_Returns_Err;
+    procedure Test_ResultZip_ErrErr_Returns_FirstErr;
+
+    procedure Test_ResultZipWith_OkOk_Maps;
+    procedure Test_ResultZipWith_Err_DoesNotCallMapper;
+
+    procedure Test_ResultFromOption_Some_Returns_Ok;
+    procedure Test_ResultFromOption_None_Returns_Err;
+    procedure Test_ResultFromOptionElse_None_CallsThunk;
+    procedure Test_ResultFromOptionElse_Some_DoesNotCallThunk;
+
+    procedure Test_TResult_CollectPtrIntoArray_Empty_ReturnsOkAndOutEmpty;
+    procedure Test_TryCollectPtrIntoArray_AllOk_ReturnsTrue;
+    procedure Test_TryCollectPtrIntoArray_FirstErr_ReturnsFalse;
+    procedure Test_TryCollectPtrIntoArray_MixedWithErr_ReturnsFalseWithFirstErr;
+
+    procedure Test_Facade_Ensure_Works;
+    procedure Test_Facade_TryCollect_Works;
+  end;
+
+  { 错误类型测试 - Removed as types were removed }
+  { TTestCase_ErrorTypes removed }
+
+  { 方法式 API 测试 - Merged into Combinators }
 
 
 implementation
 
 type
-  TIntDynArray = array of Integer;
+  TIntResult = specialize TResult<Integer, string>;
+  TStrResult = specialize TResult<string, Integer>;
 
-  IMyErr = interface(IInterface)
-    ['{6C1056B5-4A3D-4D39-9F81-6F3D9B1B9E10}']
-    function MessageText: string;
-  end;
-
-  TMyErr = class(TInterfacedObject, IMyErr)
-  private
-    FMsg: string;
-  public
-    constructor Create(const A: string);
-    function MessageText: string;
-
-  end;
-
-constructor TMyErr.Create(const A: string);
+{ 辅助函数 }
+function IncOne(const X: Integer): Integer;
 begin
-  FMsg := A;
+  Result := X + 1;
 end;
 
-function TMyErr.MessageText: string;
+function DoubleIt(const X: Integer): Integer;
 begin
-  Result := FMsg;
+  Result := X * 2;
 end;
 
+function IntToStrFunc(const X: Integer): string;
+begin
+  Result := IntToStr(X);
+end;
 
+function AppendBang(const S: string): string;
+begin
+  Result := S + '!';
+end;
 
+function StrLen(const S: string): Integer;
+begin
+  Result := Length(S);
+end;
 
+function IntEq(const A, B: Integer): Boolean;
+begin
+  Result := A = B;
+end;
 
-// 全局函数与过程用于测试“函数指针”重载
-function IncOne(const X: Integer): Integer; begin Result := X + 1; end;
-function StrLenI(const S: string): Integer; begin Result := Length(S); end;
-function AppendBang(const S: string): string; begin Result := S + '!'; end;
-function WorkOk: Integer; begin Result := 5; end;
-function WorkFail: Integer; begin raise Exception.Create('X'); end;
-function MapEx(const Ex: Exception): string; begin Result := Ex.Message; end;
-var GTapCount: Integer = 0;
-procedure TapInt(const X: Integer); begin Inc(GTapCount, X); end;
-procedure TapStr(const S: string); begin Inc(GTapCount, Length(S)); end;
+function StrEq(const A, B: string): Boolean;
+begin
+  Result := A = B;
+end;
 
-procedure TTestCase_TResult_IntStr.Test_Construct_And_Query;
+function IsPositive(const X: Integer): Boolean;
+begin
+  Result := X > 0;
+end;
+
+function IsNegative(const X: Integer): Boolean;
+begin
+  Result := X < 0;
+end;
+
+function MakeNegError(const X: Integer): string;
+begin
+  Result := 'not positive';
+end;
+
+function WorkOk: Integer;
+begin
+  Result := 42;
+end;
+
+function WorkFail: Integer;
+begin
+  raise Exception.Create('work failed');
+end;
+
+function MapExToStr(const Ex: Exception): string;
+begin
+  Result := Ex.Message;
+end;
+
+function StrToEx(const S: string): Exception;
+begin
+  Result := Exception.Create(S);
+end;
+
 var
-  R1: specialize TResult<Integer,String>;
-  R2: specialize TResult<Integer,String>;
-begin
-  // Ok 构造与查询
-  R1 := specialize TResult<Integer,String>.Ok(123);
-  CheckTrue(R1.IsOk, 'R1 should be Ok');
-  CheckFalse(R1.IsErr, 'R1 should not be Err');
-  // UnwrapOr 应返回 Ok 值
-  CheckEquals(123, R1.UnwrapOr(0));
+  GInspectCount: Integer = 0;
+  GInspectValue: Integer = 0;
+  GInspectErrValue: string = '';
 
-  // Err 构造与查询
-  R2 := specialize TResult<Integer,String>.Err('e');
-  CheckTrue(R2.IsErr, 'R2 should be Err');
-  CheckFalse(R2.IsOk, 'R2 should not be Ok');
-  // Err 路径 UnwrapOr 返回默认值
-  CheckEquals(0, R2.UnwrapOr(0));
+procedure InspectInt(const X: Integer);
+begin
+  Inc(GInspectCount);
+  GInspectValue := X;
 end;
 
-procedure TTestCase_TResult_IntStr.Test_Unwrap_And_Expect;
-var
-  R: specialize TResult<Integer,String>;
+procedure InspectStr(const S: string);
 begin
-  R := specialize TResult<Integer,String>.Ok(7);
-  CheckEquals(7, R.Unwrap);
+  Inc(GInspectCount);
+  GInspectErrValue := S;
+end;
 
-  // Expect on Err 应抛出 EResultUnwrapError（统一使用 try/except，避免环境差异）
+{ TTestCase_TResult_Basic }
+
+procedure TTestCase_TResult_Basic.Test_Ok_Construct_And_Query;
+var
+  R: TIntResult;
+begin
+  R := TIntResult.Ok(123);
+  CheckTrue(R.IsOk, 'IsOk should be true');
+  CheckFalse(R.IsErr, 'IsErr should be false');
+end;
+
+procedure TTestCase_TResult_Basic.Test_Err_Construct_And_Query;
+var
+  R: TIntResult;
+begin
+  R := TIntResult.Err('error');
+  CheckFalse(R.IsOk, 'IsOk should be false');
+  CheckTrue(R.IsErr, 'IsErr should be true');
+end;
+
+procedure TTestCase_TResult_Basic.Test_Unwrap_On_Ok;
+var
+  R: TIntResult;
+begin
+  R := TIntResult.Ok(42);
+  CheckEquals(42, R.Unwrap);
+end;
+
+procedure TTestCase_TResult_Basic.Test_Unwrap_On_Err_Raises;
+var
+  R: TIntResult;
+begin
+  R := TIntResult.Err('fail');
   try
-    specialize TResult<Integer,String>.Err('boom').Expect('boom');
+    R.Unwrap;
+    Fail('Unwrap on Err should raise');
+  except
+    on E: EResultUnwrapError do
+      ; // expected
+  end;
+end;
+
+procedure TTestCase_TResult_Basic.Test_UnwrapOr;
+var
+  ROk, RErr: TIntResult;
+begin
+  ROk := TIntResult.Ok(10);
+  RErr := TIntResult.Err('x');
+  CheckEquals(10, ROk.UnwrapOr(99));
+  CheckEquals(99, RErr.UnwrapOr(99));
+end;
+
+procedure TTestCase_TResult_Basic.Test_Expect_On_Ok;
+var
+  R: TIntResult;
+begin
+  R := TIntResult.Ok(7);
+  CheckEquals(7, R.Expect('should not fail'));
+end;
+
+procedure TTestCase_TResult_Basic.Test_Expect_On_Err_Raises;
+var
+  R: TIntResult;
+begin
+  R := TIntResult.Err('boom');
+  try
+    R.Expect('custom message');
     Fail('Expect on Err should raise');
   except
-    on E: EResultUnwrapError do ;
+    on E: EResultUnwrapError do
+      CheckEquals('custom message', E.Message);
   end;
 end;
 
-procedure TTestCase_TResult_IntStr.Test_UnwrapErr;
+procedure TTestCase_TResult_Basic.Test_UnwrapErr_On_Err;
 var
-  R: specialize TResult<Integer,String>;
+  R: TIntResult;
 begin
-  R := specialize TResult<Integer,String>.Ok(1);
-  // 统一使用 try/except 分支
+  R := TIntResult.Err('my error');
+  CheckEquals('my error', R.UnwrapErr);
+end;
+
+procedure TTestCase_TResult_Basic.Test_UnwrapErr_On_Ok_Raises;
+var
+  R: TIntResult;
+begin
+  R := TIntResult.Ok(1);
   try
     R.UnwrapErr;
     Fail('UnwrapErr on Ok should raise');
   except
-    on E: EResultUnwrapError do ;
+    on E: EResultUnwrapError do
+      ; // expected
   end;
 end;
 
-procedure TTestCase_Global.Test_Combinators_Map_MapErr_AndThen_OrElse;
+procedure TTestCase_TResult_Basic.Test_ExpectErr_On_Err;
 var
-  ROk, RErr: specialize TResult<Integer,String>;
-  R: specialize TResult<Integer,String>;
-  FPlus1: specialize TResultFunc<Integer,Integer>;
-  FAndThen: specialize TResultFunc<Integer, specialize TResult<Integer,String>>;
-  FOrElse: specialize TResultFunc<String, specialize TResult<Integer,AnsiString>>;
-  RMap, RMapErr, RAndThen, ROrElse: specialize TResult<Integer,AnsiString>;
+  R: TIntResult;
 begin
-  // 准备数据
-  ROk := specialize TResult<Integer,String>.Ok(7);
-  RErr := specialize TResult<Integer,String>.Err('e');
-
-  // FPlus1: Int -> Int（+1）
-  FPlus1 := function (const X: Integer): Integer
-  begin
-    Result := X + 1;
-  end;
-
-  // AndThen：Ok -> Ok(x+1)
-  FAndThen := function (const X: Integer): specialize TResult<Integer,String>
-  begin
-    if X > 0 then
-      Result := specialize TResult<Integer,String>.Ok(X+1)
-    else
-      Result := specialize TResult<Integer,String>.Err('neg');
-  end;
-
-  // 函数指针重载覆盖
-  // 注意：ResultMap 返回 Result<U,E>，此处 U=Int, E=String；R 类型已声明为 TResult<Integer,String>
-  R := specialize ResultMap<Integer,String,Integer>(ROk, @IncOne);
-  CheckEquals(8, R.Unwrap);
-  R := specialize ResultMapErr<Integer,String,String>(RErr, @AppendBang);
-  CheckEquals('e!', R.UnwrapErr);
-  R := specialize ResultAndThen<Integer,String,Integer>(ROk,
-    function (const X: Integer): specialize TResult<Integer,String>
-    begin
-      if X > 0 then
-        Result := specialize TResult<Integer,String>.Ok(X+1)
-      else
-        Result := specialize TResult<Integer,String>.Err('neg');
-    end);
-  CheckEquals(8, R.Unwrap);
-  // OrElse（指针）
-  R := specialize ResultOrElse<Integer,String,String>(RErr, function (const S: string): specialize TResult<Integer,string>
-  begin Result := specialize TResult<Integer,string>.Ok(Length(S)); end);
-  CheckEquals(1, R.Unwrap);
-  // MapOr 指针
-  CheckEquals(8, specialize ResultMapOr<Integer,String,Integer>(ROk, -1, @IncOne));
-  CheckEquals(99, specialize ResultMapOr<Integer,String,Integer>(RErr, 99, @IncOne));
-  // MapOrElse 指针
-  CheckEquals(8, specialize ResultMapOrElse<Integer,String,Integer>(ROk, @StrLenI, @IncOne));
-  CheckEquals(1, specialize ResultMapOrElse<Integer,String,Integer>(RErr, @StrLenI, @IncOne));
-  // Inspect/InspectErr 指针
-  GTapCount := 0;
-  specialize ResultInspect<Integer,String>(ROk, @TapInt);
-  specialize ResultInspectErr<Integer,String>(RErr, @TapStr);
-  CheckEquals(8, GTapCount);
-
-  // OrElse：Err -> Ok(0) with different E2 type AnsiString
-  FOrElse := function (const S: String): specialize TResult<Integer,AnsiString>
-  begin
-    Result := specialize TResult<Integer,AnsiString>.Ok(0);
-  end;
-
-  // Map（Ok->Ok，Err->Err）
-  RMap := specialize ResultMap<Integer,String,Integer>(ROk, FPlus1);
-  CheckTrue(RMap.IsOk);
-  CheckEquals(8, RMap.Unwrap);
-
-  RMap := specialize ResultMap<Integer,String,Integer>(RErr, FPlus1);
-  CheckTrue(RMap.IsErr);
-
-  // MapErr（Ok->Ok 原类型，Err->Err(E2)）
-  RMapErr := specialize ResultMapErr<Integer,String,AnsiString>(ROk,
-    function (const S: String): AnsiString begin Result := AnsiString(S + '!'); end);
-  CheckTrue(RMapErr.IsOk);
-
-  RMapErr := specialize ResultMapErr<Integer,String,AnsiString>(RErr,
-    function (const S: String): AnsiString begin Result := AnsiString(S + '!'); end);
-  CheckTrue(RMapErr.IsErr);
-
-  // AndThen（Ok->F，Err直传）
-  RAndThen := specialize ResultAndThen<Integer,String,Integer>(ROk, FAndThen);
-  CheckTrue(RAndThen.IsOk);
-  CheckEquals(8, RAndThen.Unwrap);
-
-  RAndThen := specialize ResultAndThen<Integer,String,Integer>(RErr, FAndThen);
-  CheckTrue(RAndThen.IsErr);
-
-  // OrElse（Err->F，Ok直传）不同错误类型
-  ROrElse := specialize ResultOrElse<Integer,String,AnsiString>(ROk, FOrElse);
-  CheckTrue(ROrElse.IsOk);
-  CheckEquals(7, ROrElse.Unwrap);
-
-  ROrElse := specialize ResultOrElse<Integer,String,AnsiString>(RErr, FOrElse);
-  CheckTrue(ROrElse.IsOk);
-  CheckEquals(0, ROrElse.Unwrap);
+  R := TIntResult.Err('err');
+  CheckEquals('err', R.ExpectErr('should not fail'));
 end;
 
-procedure TTestCase_Global.Test_Combinators_MapOr_MapOrElse_Inspect_InspectErr;
+procedure TTestCase_TResult_Basic.Test_ExpectErr_On_Ok_Raises;
 var
-  ROk, RErr: specialize TResult<Integer,String>;
-  COk, CErr: Integer;
-  S: Integer;
-  V: Integer;
-  E: String;
-  R: specialize TResult<Integer,String>;
+  R: TIntResult;
 begin
-  ROk := specialize TResult<Integer,String>.Ok(5);
-  RErr := specialize TResult<Integer,String>.Err('e');
-
-  // MapOr: Ok -> f, Err -> default
-  S := specialize ResultMapOr<Integer,String,Integer>(ROk, -1,
-    function (const X: Integer): Integer begin Result := X*2; end);
-  CheckEquals(10, S);
-  S := specialize ResultMapOr<Integer,String,Integer>(RErr, -1,
-    function (const X: Integer): Integer begin Result := X*2; end);
-  CheckEquals(-1, S);
-
-  // MapOrElse: Ok -> f_ok, Err -> f_err
-  S := specialize ResultMapOrElse<Integer,String,Integer>(ROk,
-    function (const E: String): Integer begin Result := -2; end,
-    function (const X: Integer): Integer begin Result := X+3; end);
-  CheckEquals(8, S);
-  S := specialize ResultMapOrElse<Integer,String,Integer>(RErr,
-    function (const E: String): Integer begin Result := -2; end,
-    function (const X: Integer): Integer begin Result := X+3; end);
-  CheckEquals(-2, S);
-
-  // Inspect / InspectErr
-  COk := 0; CErr := 0;
-
-  // 新增：TryUnwrap / TryUnwrapErr / UnwrapOrElse
-  // TryUnwrap
-  R := specialize TResult<Integer,String>.Ok(10);
-  CheckTrue(R.TryUnwrap(V));
-  CheckEquals(10, V);
-  // TryUnwrapErr
-  R := specialize TResult<Integer,String>.Err('x');
-  CheckTrue(R.TryUnwrapErr(E));
-  CheckEquals('x', E);
-  // 暂时注释掉 UnwrapOrElse 测试，等解决泛型语法问题后再启用
-  {
-  // UnwrapOrElse
-  R := specialize TResult<Integer,String>.Err('boom');
-  V := R.UnwrapOrElse(
-    function (const S: String): Integer begin Result := Length(S); end);
-  CheckEquals(4, V);
-  }
-
-  ROk := specialize ResultInspect<Integer,String>(ROk,
-    procedure (const X: Integer) begin Inc(COk, X); end);
-  RErr := specialize ResultInspectErr<Integer,String>(RErr,
-    procedure (const E: String) begin Inc(CErr); end);
-
-  CheckEquals(5, COk);
-  CheckEquals(1, CErr);
-
-  // 返回值应保持原 Result
-  CheckTrue(ROk.IsOk); CheckEquals(5, ROk.Unwrap);
-  CheckTrue(RErr.IsErr); CheckEquals('e', RErr.UnwrapErr);
-end;
-
-procedure TTestCase_Global.Test_ToDebugString;
-var
-  ROk: specialize TResult<Integer,String>;
-  RErr: specialize TResult<Integer,String>;
-  S1, S2: string;
-begin
-  ROk := specialize TResult<Integer,String>.Ok(9);
-  RErr := specialize TResult<Integer,String>.Err('oops');
-  // 暂时注释掉 ToDebugString 测试，等解决泛型语法问题后再启用
-  {
-  S1 := ROk.ToDebugString(
-    function (const V: Integer): string begin Result := IntToStr(V); end,
-    function (const E: String): string begin Result := E; end);
-  S2 := RErr.ToDebugString(
-    function (const V: Integer): string begin Result := IntToStr(V); end,
-    function (const E: String): string begin Result := E; end);
-  CheckEquals('Ok(9)', S1);
-  CheckEquals('Err(oops)', S2);
-  }
-
-  // 使用简单的 ToString 替代测试
-  CheckEquals('Ok', ROk.ToString);
-  CheckEquals('Err', RErr.ToString);
-end;
-
-procedure TTestCase_Global.Test_ToString_Enhanced;
-var
-  ROk: specialize TResult<Integer,String>;
-  RErr: specialize TResult<Integer,String>;
-  RBool: specialize TResult<Boolean,String>;
-  S: string;
-begin
-  // 测试基础 ToString
-  ROk := specialize TResult<Integer,String>.Ok(42);
-  CheckEquals('Ok', ROk.ToString);
-
-  RErr := specialize TResult<Integer,String>.Err('error');
-  CheckEquals('Err', RErr.ToString);
-
-  // 测试带格式的 ToString
-  CheckEquals('Success', ROk.ToString('Success', 'Failed'));
-  CheckEquals('Failed', RErr.ToString('Success', 'Failed'));
-
-  // 测试 ToStringDetailed
-  S := ROk.ToStringDetailed;
-  CheckTrue(Pos('Ok(42)', S) > 0, 'Expected Ok(42) in: ' + S);
-
-  S := RErr.ToStringDetailed;
-  CheckTrue(Pos('Err(error)', S) > 0, 'Expected Err(error) in: ' + S);
-
-  // 测试布尔类型
-  RBool := specialize TResult<Boolean,String>.Ok(True);
-  S := RBool.ToStringDetailed;
-  CheckTrue(Pos('Ok(True)', S) > 0, 'Expected Ok(True) in: ' + S);
-
-  RBool := specialize TResult<Boolean,String>.Ok(False);
-  S := RBool.ToStringDetailed;
-  CheckTrue(Pos('Ok(False)', S) > 0, 'Expected Ok(False) in: ' + S);
-end;
-
-procedure TTestCase_Global.Test_MemoryLayout_Info;
-var
-  RInt: specialize TResult<Integer,String>;
-  LayoutInfo, SizeInfo, TypeInfo: string;
-  IsSafe: Boolean;
-begin
-  // 测试内存布局信息
-  LayoutInfo := specialize TResult<Integer,String>.MemoryLayoutInfo;
-  CheckTrue(Length(LayoutInfo) > 0, 'MemoryLayoutInfo should not be empty');
-  CheckTrue((Pos('Dual-field', LayoutInfo) > 0) or (Pos('Variant', LayoutInfo) > 0),
-            'LayoutInfo should mention layout type: ' + LayoutInfo);
-
-  // 测试大小信息
-  SizeInfo := specialize TResult<Integer,String>.SizeInfo;
-  CheckTrue(Length(SizeInfo) > 0, 'SizeInfo should not be empty');
-  CheckTrue(Pos('bytes', SizeInfo) > 0, 'SizeInfo should mention bytes: ' + SizeInfo);
-  CheckTrue(Pos('Boolean', SizeInfo) > 0, 'SizeInfo should mention Boolean: ' + SizeInfo);
-
-  // 验证实际大小合理性
-  CheckTrue(SizeOf(specialize TResult<Integer,String>) >= SizeOf(Boolean) + SizeOf(Integer),
-            'Result size should be at least Boolean + Integer');
-
-  // 测试新的类型安全检查
-  TypeInfo := specialize TResult<Integer,String>.GetTypeKindInfo;
-  CheckTrue(Length(TypeInfo) > 0, 'TypeKindInfo should not be empty');
-  CheckTrue(Pos('tkInteger', TypeInfo) > 0, 'Should mention tkInteger: ' + TypeInfo);
-
-  IsSafe := specialize TResult<Integer,String>.IsTypeSafeForVariant;
-  // String 应该被识别为受管类型，因此不安全
-  CheckFalse(IsSafe, 'Integer,String should not be safe for variant layout (String is managed): ' + TypeInfo);
-
-  // 测试基本类型组合
-  IsSafe := specialize TResult<Integer,Integer>.IsTypeSafeForVariant;
-  CheckTrue(IsSafe, 'Integer,Integer should be safe for variant layout');
-
-  // 测试其他受管类型
-  IsSafe := specialize TResult<TStringArray,String>.IsTypeSafeForVariant;
-  CheckFalse(IsSafe, 'TStringArray,String should not be safe for variant layout (both are managed)');
-
-  WriteLn('Layout: ', LayoutInfo);
-  WriteLn('Size: ', SizeInfo);
-  WriteLn('TypeInfo: ', TypeInfo);
-  WriteLn('IsSafe for variant: ', IsSafe);
-end;
-
-procedure TTestCase_Global.Test_Memory_Management_Optimization;
-var
-  ROk, RErr, RCloned: specialize TResult<Integer,String>;
-  SimpleResult: specialize TResult<Integer,Integer>;
-  NeedsInit, IsSimple, IsManaged: Boolean;
-begin
-  // 测试类型特征检测
-  NeedsInit := specialize TResult<Integer,String>.NeedsInitialization;
-  CheckTrue(NeedsInit, 'Integer,String should need initialization (String is managed)');
-
-  IsSimple := specialize TResult<Integer,String>.IsSimpleType;
-  CheckFalse(IsSimple, 'Integer,String should not be simple type (String is managed)');
-
-  IsManaged := specialize TResult<Integer,String>.IsManagedType;
-  CheckTrue(IsManaged, 'Integer,String should be managed type (String is managed)');
-
-  // 测试简单类型
-  NeedsInit := specialize TResult<Integer,Integer>.NeedsInitialization;
-  CheckFalse(NeedsInit, 'Integer,Integer should not need initialization (both are simple)');
-
-  IsSimple := specialize TResult<Integer,Integer>.IsSimpleType;
-  CheckTrue(IsSimple, 'Integer,Integer should be simple type');
-
-  IsManaged := specialize TResult<Integer,Integer>.IsManagedType;
-  CheckFalse(IsManaged, 'Integer,Integer should not be managed type');
-
-  // 测试智能初始化和深度克隆
-  ROk := specialize TResult<Integer,String>.Ok(42);
-  RErr := specialize TResult<Integer,String>.Err('test error');
-
-  // 测试深度克隆
-  RCloned := ROk.Cloned;
-  CheckTrue(RCloned.IsOk, 'Cloned Ok result should be Ok');
-  CheckEquals(42, RCloned.Unwrap, 'Cloned value should match original');
-
-  RCloned := RErr.Cloned;
-  CheckTrue(RCloned.IsErr, 'Cloned Err result should be Err');
-  CheckEquals('test error', RCloned.UnwrapErr, 'Cloned error should match original');
-
-  // 测试简单类型的优化
-  SimpleResult := specialize TResult<Integer,Integer>.Ok(100);
-  CheckTrue(SimpleResult.IsOk, 'Simple type result should work correctly');
-  CheckEquals(100, SimpleResult.Unwrap, 'Simple type value should be correct');
-
-  WriteLn('Memory optimization tests passed');
-end;
-
-procedure TTestCase_Global.Test_TypeConstraints_Support;
-var
-  RInt: specialize TResult<Integer,String>;
-  RBool: specialize TResult<Boolean,Integer>;
-  CompareResult: Integer;
-  ClonedResult: specialize TResult<Integer,String>;
-begin
-  // 测试类型约束支持检查
-  CheckFalse(specialize TResult<Integer,String>.SupportsComparable,
-             'Integer/String should not support IResultComparable by default');
-  CheckFalse(specialize TResult<Integer,String>.SupportsSerializable,
-             'Integer/String should not support IResultSerializable by default');
-  CheckFalse(specialize TResult<Integer,String>.SupportsCloneable,
-             'Integer/String should not support IResultCloneable by default');
-
-  // 测试基本类型比较
-  RInt := specialize TResult<Integer,String>.Ok(5);
-  CompareResult := RInt.TryCompareTo(specialize TResult<Integer,String>.Ok(3));
-  CheckTrue(CompareResult > 0, 'Ok(5) should be greater than Ok(3)');
-
-  CompareResult := RInt.TryCompareTo(specialize TResult<Integer,String>.Ok(5));
-  CheckEquals(0, CompareResult, 'Ok(5) should equal Ok(5)');
-
-  CompareResult := RInt.TryCompareTo(specialize TResult<Integer,String>.Err('error'));
-  CheckTrue(CompareResult > 0, 'Ok should be greater than Err');
-
-  // 测试克隆
-  ClonedResult := RInt.TryClone;
-  CheckTrue(ClonedResult.IsOk, 'Cloned result should be Ok');
-  CheckEquals(5, ClonedResult.Unwrap, 'Cloned result should have same value');
-
-  // 测试布尔类型比较
-  RBool := specialize TResult<Boolean,Integer>.Ok(True);
-  CompareResult := RBool.TryCompareTo(specialize TResult<Boolean,Integer>.Ok(False));
-  CheckTrue(CompareResult > 0, 'Ok(True) should be greater than Ok(False)');
-end;
-
-procedure TTestCase_Global.Test_Exception_Safety_Enhanced;
-var
-  RErr: specialize TResult<Integer,String>;
-  Value: Integer;
-  ExceptionRaised: Boolean;
-begin
-  RErr := specialize TResult<Integer,String>.Err('test error');
-
-  // 测试基础 ResultToTry
-  ExceptionRaised := False;
+  R := TIntResult.Ok(1);
   try
-    Value := specialize ResultToTry<Integer,String>(RErr,
-      function (const E: String): Exception
-      begin
-        Result := Exception.Create('Mapped: ' + E);
-      end);
-  except
-    on Ex: Exception do
-    begin
-      ExceptionRaised := True;
-      CheckTrue(Pos('Mapped: test error', Ex.Message) > 0, 'Exception should contain mapped message: ' + Ex.Message);
-    end;
-  end;
-  CheckTrue(ExceptionRaised, 'Exception should have been raised');
-
-  // 测试异常链追踪
-  ExceptionRaised := False;
-  try
-    Value := specialize ResultToTryWithChain<Integer,String>(RErr,
-      function (const E: String): Exception
-      begin
-        Result := Exception.Create('Original: ' + E);
-      end, 'Chain context');
-  except
-    on Ex: Exception do
-    begin
-      ExceptionRaised := True;
-      CheckTrue(Pos('Chain context -> Original: test error', Ex.Message) > 0,
-                'Exception should contain chain message: ' + Ex.Message);
-    end;
-  end;
-  CheckTrue(ExceptionRaised, 'Chained exception should have been raised');
-
-  // 测试异常验证 - 通过验证
-  ExceptionRaised := False;
-  try
-    Value := specialize ResultToTryWithValidation<Integer,String>(RErr,
-      function (const E: String): Exception
-      begin
-        Result := Exception.Create('Valid: ' + E);
-      end,
-      function (const Ex: Exception): Boolean
-      begin
-        Result := Pos('Valid:', Ex.Message) > 0;
-      end);
-  except
-    on Ex: Exception do
-    begin
-      ExceptionRaised := True;
-      CheckTrue(Pos('Valid: test error', Ex.Message) > 0,
-                'Exception should pass validation: ' + Ex.Message);
-    end;
-  end;
-  CheckTrue(ExceptionRaised, 'Validated exception should have been raised');
-
-  // 测试异常验证 - 验证失败
-  ExceptionRaised := False;
-  try
-    Value := specialize ResultToTryWithValidation<Integer,String>(RErr,
-      function (const E: String): Exception
-      begin
-        Result := Exception.Create('Invalid: ' + E);
-      end,
-      function (const Ex: Exception): Boolean
-      begin
-        Result := Pos('Valid:', Ex.Message) > 0; // 这会失败
-      end);
-  except
-    on Ex: Exception do
-    begin
-      ExceptionRaised := True;
-      CheckTrue(Pos('Generated exception failed validation', Ex.Message) > 0,
-                'Should report validation failure: ' + Ex.Message);
-    end;
-  end;
-  CheckTrue(ExceptionRaised, 'Validation failure exception should have been raised');
-end;
-
-procedure TTestCase_Global.Test_Serialization_Support;
-var
-  ROk: specialize TResult<Integer,String>;
-  RErr: specialize TResult<Integer,String>;
-begin
-  ROk := specialize TResult<Integer,String>.Ok(42);
-  RErr := specialize TResult<Integer,String>.Err('test error');
-
-  // 暂时跳过序列化测试，等待 JSON/TOML 模块实现
-  // TODO: 实现 ResultToJSON/ResultFromJSON/ResultToTOML/ResultFromTOML 后启用
-
-  // 基础验证：确保 Result 对象正常工作
-  CheckTrue(ROk.IsOk, 'ROk should be Ok');
-  CheckEquals(42, ROk.Unwrap, 'ROk value should be 42');
-  CheckTrue(RErr.IsErr, 'RErr should be Err');
-  CheckEquals('test error', RErr.UnwrapErr, 'RErr should contain error message');
-end;
-
-procedure TTestCase_Global.Test_Rust_Core_API;
-var
-  ROk: specialize TResult<Integer,String>;
-  RErr: specialize TResult<Integer,String>;
-  Flattened, AsRefResult, CopiedResult, ClonedResult: specialize TResult<Integer,String>;
-  UncheckedValue: Integer;
-  MappedValue: Integer;
-begin
-  ROk := specialize TResult<Integer,String>.Ok(42);
-  RErr := specialize TResult<Integer,String>.Err('error');
-
-  // 测试 Flatten（简化版本）
-  Flattened := ROk.Flatten;
-  CheckTrue(Flattened.IsOk, 'Flattened Ok should remain Ok');
-  CheckEquals(42, Flattened.Unwrap, 'Flattened value should be preserved');
-
-  Flattened := RErr.Flatten;
-  CheckTrue(Flattened.IsErr, 'Flattened Err should remain Err');
-
-  // 测试 AsRef
-  AsRefResult := ROk.AsRef;
-  CheckTrue(AsRefResult.IsOk, 'AsRef should preserve Ok status');
-  CheckEquals(42, AsRefResult.Unwrap, 'AsRef should preserve value');
-
-  // 测试 Copied
-  CopiedResult := ROk.Copied;
-  CheckTrue(CopiedResult.IsOk, 'Copied should preserve Ok status');
-  CheckEquals(42, CopiedResult.Unwrap, 'Copied should preserve value');
-
-  // 测试 Cloned
-  ClonedResult := ROk.Cloned;
-  CheckTrue(ClonedResult.IsOk, 'Cloned should preserve Ok status');
-  CheckEquals(42, ClonedResult.Unwrap, 'Cloned should preserve value');
-
-  // 测试 UnwrapUnchecked（仅在 Ok 状态下安全）
-  UncheckedValue := ROk.UnwrapUnchecked;
-  CheckEquals(42, UncheckedValue, 'UnwrapUnchecked should return value without checks');
-
-  // 暂时注释掉 MapOrDefault 测试，等解决泛型语法问题后再启用
-  {
-  // 测试 MapOrDefault
-  MappedValue := ROk.MapOrDefault(
-    function (const X: Integer): Integer begin Result := X * 2; end,
-    0);
-  CheckEquals(84, MappedValue, 'MapOrDefault should apply function to Ok value');
-
-  MappedValue := RErr.MapOrDefault(
-    function (const X: Integer): Integer begin Result := X * 2; end,
-    99);
-  CheckEquals(99, MappedValue, 'MapOrDefault should return default for Err');
-  }
-end;
-
-procedure TTestCase_Global.Test_Iterator_Style_Operations;
-var
-  ROk, RErr: specialize TResult<Integer,String>;
-  ChainResult: specialize TResult<Integer,String>;
-  Results: array[0..2] of specialize TResult<Integer,String>;
-begin
-  ROk := specialize TResult<Integer,String>.Ok(5);
-  RErr := specialize TResult<Integer,String>.Err('error');
-
-  // 暂时跳过 Filter/FilterMap 测试，因为 Option 类型兼容性问题
-  // TODO: 等 Option 模块完善后启用这些测试
-
-  // 测试 Collect - 使用具体类型实现
-  Results[0] := specialize TResult<Integer,String>.Ok(1);
-  Results[1] := specialize TResult<Integer,String>.Ok(2);
-  Results[2] := specialize TResult<Integer,String>.Ok(3);
-
-  // 暂时跳过 Collect 测试，因为数组类型转换问题
-  // TODO: 实现 ResultCollectInteger 后启用
-
-  // 测试 Chain - 这个可以正常工作
-  ChainResult := specialize ResultChain<Integer,String>(ROk, RErr);
-  CheckTrue(ChainResult.IsErr, 'Chain(Ok, Err) should return Err');
-
-  ChainResult := specialize ResultChain<Integer,String>(RErr, ROk);
-  CheckTrue(ChainResult.IsErr, 'Chain(Err, Ok) should return first Err');
-
-  ChainResult := specialize ResultChain<Integer,String>(ROk,
-    specialize TResult<Integer,String>.Ok(10));
-  CheckTrue(ChainResult.IsOk, 'Chain(Ok, Ok) should return second Ok');
-  CheckEquals(10, ChainResult.Unwrap, 'Chained result should be 10');
-end;
-
-procedure TTestCase_Global.Test_Batch_Operations;
-var
-  Results: array[0..4] of specialize TResult<Integer,String>;
-begin
-  // 准备测试数据
-  Results[0] := specialize TResult<Integer,String>.Ok(1);
-  Results[1] := specialize TResult<Integer,String>.Err('error1');
-  Results[2] := specialize TResult<Integer,String>.Ok(3);
-  Results[3] := specialize TResult<Integer,String>.Err('error2');
-  Results[4] := specialize TResult<Integer,String>.Ok(5);
-
-  // 暂时跳过批量操作测试，因为数组类型转换问题
-  // TODO: 实现以下函数后启用测试：
-  // - ResultPartitionInteger
-  // - ResultAllInteger
-  // - ResultAnyInteger
-  // - ResultFirstOkInteger
-  // - ResultFirstErrInteger
-
-  // 基础验证：确保测试数据正确
-  CheckTrue(Results[0].IsOk, 'Results[0] should be Ok');
-  CheckTrue(Results[1].IsErr, 'Results[1] should be Err');
-  CheckEquals(1, Results[0].Unwrap, 'Results[0] value should be 1');
-  CheckEquals('error1', Results[1].UnwrapErr, 'Results[1] error should be error1');
-end;
-
-// NOTE: 暂时注释管理型类型用例以隔离问题定位（稍后恢复）
-//procedure TTestCase_Global.Test_ManagedTypes_StringAndArray;
-//var
-//  RS: specialize TResult<string,string>;
-//  RA: specialize TResult<TIntDynArray,string>;
-//  A: TIntDynArray;
-//begin
-//  // string as T/E
-//  RS := specialize TResult<string,string>.Ok('ok');
-//  CheckTrue(RS.IsOk); CheckEquals('ok', RS.Unwrap);
-//  RS := specialize TResult<string,string>.Err('e');
-//  CheckTrue(RS.IsErr); CheckEquals('e', RS.UnwrapErr);
-//  RS := specialize ResultMap<string,string,string>(
-//    specialize TResult<string,string>.Ok('ok'),
-//    function (const S: string): string begin Result := S; end
-//  );
-//  CheckEquals('ok', RS.Unwrap);
-//
-//  // dynamic array as T
-//  SetLength(A, 2); A[0]:=1; A[1]:=2;
-//  RA := specialize TResult<TIntDynArray,string>.Ok(A);
-//  CheckTrue(RA.IsOk);
-//  CheckEquals(2, Length(RA.Unwrap));
-//end;
-
-procedure TTestCase_Global.Test_ManagedTypes_StringAndArray;
-var
-  RS: specialize TResult<string,string>;
-  RA: specialize TResult<TIntDynArray,string>;
-  A: TIntDynArray;
-begin
-  // string as T/E
-  RS := specialize TResult<string,string>.Ok('ok');
-  CheckTrue(RS.IsOk); CheckEquals('ok', RS.Unwrap);
-  RS := specialize TResult<string,string>.Err('e');
-  CheckTrue(RS.IsErr); CheckEquals('e', RS.UnwrapErr);
-
-  RS := specialize ResultMap<string,string,string>(RS,
-    function (const S: string): string begin Result := S; end);
-  CheckEquals('ok', RS.UnwrapOr('ok'));
-
-  // dynamic array as T
-  SetLength(A, 2); A[0]:=1; A[1]:=2;
-  RA := specialize TResult<TIntDynArray,string>.Ok(A);
-  CheckTrue(RA.IsOk);
-  CheckEquals(2, Length(RA.Unwrap));
-end;
-
-//procedure TTestCase_Global.Test_Match_Fold_And_Predicates;
-//var
-//  ROk, RErr: specialize TResult<Integer,String>;
-//  U: Integer;
-//begin
-//  ROk := specialize TResult<Integer,String>.Ok(3);
-//  RErr := specialize TResult<Integer,String>.Err('xx');
-//
-//  // Match/Fold
-//  U := specialize ResultMatch<Integer,String,Integer>(ROk,
-//    function (const X: Integer): Integer begin Result := X*10; end,
-//    function (const S: String): Integer begin Result := -1; end);
-//  CheckEquals(30, U);
-//
-//  U := specialize ResultFold<Integer,String,Integer>(RErr,
-//    function (const X: Integer): Integer begin Result := X*10; end,
-//    function (const S: String): Integer begin Result := Length(S); end);
-//  CheckEquals(2, U);
-//
-//  // Predicates
-//  CheckTrue(specialize ResultIsOkAnd<Integer,String>(ROk,
-//    function (const X: Integer): Boolean begin Result := X>0; end));
-//  CheckTrue(specialize ResultIsErrAnd<Integer,String>(RErr,
-//    function (const S: String): Boolean begin Result := S<>''; end));
-//end;
-
-{$IFDEF FAFAFA_CORE_RESULT_METHODS}
-procedure TTestCase_Global.Test_Methods_Map_MapErr;
-var
-  R: specialize TResult<Integer,String>;
-begin
-  // Ok path: Map then AndThen
-  R := specialize TResult<Integer,String>.Ok(7)
-    .Map(function (const X: Integer): Integer begin Result := X+1; end)
-    .AndThen(function (const X: Integer): specialize TResult<Integer,String>
-             begin if X>0 then Result := specialize TResult<Integer,String>.Ok(X) else Result := specialize TResult<Integer,String>.Err('neg'); end)
-    .MapErr(function (const E: String): String begin Result := E + '!'; end);
-  CheckTrue(R.IsOk);
-  CheckEquals(8, R.Unwrap);
-
-  // Err path: OrElse then MapErr
-  R := specialize TResult<Integer,String>.Err('e')
-    .OrElse(function (const E: String): specialize TResult<Integer,String>
-            begin Result := specialize TResult<Integer,String>.Ok(Length(E)); end)
-    .MapErr(function (const E: String): String begin Result := E + '!'; end);
-  CheckTrue(R.IsOk);
-  CheckEquals(1, R.Unwrap);
-end;
-{$ENDIF}
-
-
-// ----------------------------------------------------------------------
-//procedure TTestCase_Global.Test_Complex_Chains_MatchFold;
-//var
-//  ROk, RErr: specialize TResult<Integer,String>;
-//  U: Integer;
-//  function Ten(const X: Integer): Integer; begin Result := X*10; end;
-//  function NegOne(const S: String): Integer; begin Result := -1; end;
-//  function PosInt(const X: Integer): Boolean; begin Result := X>0; end;
-//  function NonEmpty(const S: String): Boolean; begin Result := S<>''; end;
-//begin
-//  ROk := specialize TResult<Integer,String>.Ok(3);
-//  RErr := specialize TResult<Integer,String>.Err('xx');
-{$IFDEF FAFAFA_CORE_RESULT_METHODS}
-procedure TTestCase_Global.Test_Methods_Phase3_MapOr_MapOrElse_Inspect_Opt;
-var
-  R: specialize TResult<Integer,String>;
-  U: Integer;
-  OI: specialize TOption<Integer>;
-  OS: specialize TOption<String>;
-begin
-  // MapOr/MapOrElse
-  R := specialize TResult<Integer,String>.Ok(7);
-  U := R.MapOr(-1, function (const X: Integer): Integer begin Result := X+1; end);
-  CheckEquals(8, U);
-  U := R.MapOrElse(@StrLenI, function (const X: Integer): Integer begin Result := X+1; end);
-  CheckEquals(8, U);
-
-  R := specialize TResult<Integer,String>.Err('xx');
-  U := R.MapOr(99, function (const X: Integer): Integer begin Result := X+1; end);
-  CheckEquals(99, U);
-  U := R.MapOrElse(@StrLenI, function (const X: Integer): Integer begin Result := X+1; end);
-  CheckEquals(2, U);
-
-  // Inspect/InspectErr
-  GTapCount := 0;
-  R := specialize TResult<Integer,String>.Ok(3).Inspect(@TapInt);
-  CheckTrue(R.IsOk);
-  R := specialize TResult<Integer,String>.Err('a').InspectErr(@TapStr);
-  CheckTrue(R.IsErr);
-  CheckEquals(3+1, GTapCount);
-
-  // OkOpt/ErrOpt
-  OI := specialize TResult<Integer,String>.Ok(5).OkOpt;
-  CheckTrue(OI.IsSome); CheckEquals(5, OI.Unwrap);
-  OS := specialize TResult<Integer,String>.Ok(5).ErrOpt;
-  CheckTrue(OS.IsNone);
-  OS := specialize TResult<Integer,String>.Err('e').ErrOpt;
-  CheckTrue(OS.IsSome); CheckEquals('e', OS.Unwrap);
-  OI := specialize TResult<Integer,String>.Err('e').OkOpt;
-  CheckTrue(OI.IsNone);
-end;
-{$ENDIF}
-
-//
-//  // Match/Fold using named local functions
-//  U := specialize ResultMatch<Integer,String,Integer>(ROk, @Ten, @NegOne);
-//  CheckEquals(30, U);
-//
-//  U := specialize ResultFold<Integer,String,Integer>(RErr, @Ten, function (const S: String): Integer begin Result := Length(S); end);
-//  CheckEquals(2, U);
-//
-//  // Predicates
-//  CheckTrue(specialize ResultIsOkAnd<Integer,String>(ROk, @PosInt));
-//  CheckTrue(specialize ResultIsErrAnd<Integer,String>(RErr, @NonEmpty));
-//end;
-
-
-
-
-
-
-procedure TTestCase_Global.Test_ExpectErr;
-var
-  R: specialize TResult<Integer,String>;
-begin
-  R := specialize TResult<Integer,String>.Ok(1);
-  // 统一使用 try/except 分支，避免 AssertException 与匿名过程宏组合差异
-  try
-    R.ExpectErr('should err');
+    R.ExpectErr('ok value');
     Fail('ExpectErr on Ok should raise');
   except
-    on E: EResultUnwrapError do ;
+    on E: EResultUnwrapError do
+      ; // expected
   end;
-
-  R := specialize TResult<Integer,String>.Err('bad');
-  CheckEquals('bad', R.ExpectErr('ignored'));
 end;
 
-procedure TTestCase_Global.Test_InterfaceErrorChannel;
+procedure TTestCase_TResult_Basic.Test_TryUnwrap;
 var
-  E: IMyErr;
-  R: specialize TResult<Integer,IMyErr>;
-  R2: specialize TResult<Integer,string>;
+  ROk, RErr: TIntResult;
+  V: Integer;
 begin
-  E := TMyErr.Create('boom');
-  R := specialize TResult<Integer,IMyErr>.Err(E);
-  CheckTrue(R.IsErr);
-  CheckEquals('boom', R.UnwrapErr.MessageText);
+  ROk := TIntResult.Ok(55);
+  RErr := TIntResult.Err('x');
 
-  // MapErr: IMyErr -> string
-  R2 := specialize ResultMapErr<Integer,IMyErr,string>(R,
-    function (const Ex: IMyErr): string begin Result := Ex.MessageText; end);
+  CheckTrue(ROk.TryUnwrap(V));
+  CheckEquals(55, V);
+
+  CheckFalse(RErr.TryUnwrap(V));
+  CheckEquals(0, V); // default value
+end;
+
+procedure TTestCase_TResult_Basic.Test_TryUnwrapErr;
+var
+  ROk, RErr: TIntResult;
+  E: string;
+begin
+  ROk := TIntResult.Ok(1);
+  RErr := TIntResult.Err('error msg');
+
+  CheckFalse(ROk.TryUnwrapErr(E));
+  CheckEquals('', E); // default
+
+  CheckTrue(RErr.TryUnwrapErr(E));
+  CheckEquals('error msg', E);
+end;
+
+procedure TTestCase_TResult_Basic.Test_UnwrapUnchecked;
+var
+  R: TIntResult;
+begin
+  R := TIntResult.Ok(99);
+  CheckEquals(99, R.UnwrapUnchecked);
+end;
+
+procedure TTestCase_TResult_Basic.Test_Default_Initialization;
+var
+  R: TIntResult;
+begin
+  // R is not explicitly initialized, should be Err(Default(E))
+  // In our case E is string, default is ''
+  CheckTrue(R.IsErr, 'Default initialized result should be Err');
+  CheckFalse(R.IsOk, 'Default initialized result should not be Ok');
+  CheckEquals('', R.UnwrapErr, 'Default error value should be empty string');
+end;
+
+{ TTestCase_TResult_ToString }
+
+procedure TTestCase_TResult_ToString.Test_ToString_Basic;
+var
+  ROk, RErr: TIntResult;
+begin
+  ROk := TIntResult.Ok(1);
+  RErr := TIntResult.Err('e');
+  CheckEquals('Ok', ROk.ToString);
+  CheckEquals('Err', RErr.ToString);
+end;
+
+procedure TTestCase_TResult_ToString.Test_ToString_Formatted;
+var
+  ROk, RErr: TIntResult;
+begin
+  ROk := TIntResult.Ok(1);
+  RErr := TIntResult.Err('e');
+  CheckEquals('success', ROk.ToString('success', 'failure'));
+  CheckEquals('failure', RErr.ToString('success', 'failure'));
+end;
+
+{ TTestCase_TResult_Combinators }
+
+procedure TTestCase_TResult_Combinators.Test_Map_On_Ok;
+var
+  R, R2: TIntResult;
+begin
+  R := TIntResult.Ok(5);
+  R2 := specialize ResultMap<Integer, string, Integer>(R, @IncOne);
+  CheckTrue(R2.IsOk);
+  CheckEquals(6, R2.Unwrap);
+end;
+
+procedure TTestCase_TResult_Combinators.Test_Map_On_Err;
+var
+  R, R2: TIntResult;
+begin
+  R := TIntResult.Err('err');
+  R2 := specialize ResultMap<Integer, string, Integer>(R, @IncOne);
   CheckTrue(R2.IsErr);
-  CheckEquals('boom', R2.UnwrapErr);
+  CheckEquals('err', R2.UnwrapErr);
+end;
 
-  // OrElse: Err -> Ok(0)
-  R2 := specialize ResultOrElse<Integer,IMyErr,string>(R,
-    function (const Ex: IMyErr): specialize TResult<Integer,string>
-    begin
-      Result := specialize TResult<Integer,string>.Ok(0);
-    end);
+procedure TTestCase_TResult_Combinators.Test_MapErr_On_Ok;
+var
+  R: TIntResult;
+  R2: specialize TResult<Integer, Integer>;
+begin
+  R := TIntResult.Ok(10);
+  R2 := specialize ResultMapErr<Integer, string, Integer>(R, @StrLen);
+  CheckTrue(R2.IsOk);
+  CheckEquals(10, R2.Unwrap);
+end;
+
+procedure TTestCase_TResult_Combinators.Test_MapErr_On_Err;
+var
+  R: TIntResult;
+  R2: specialize TResult<Integer, Integer>;
+begin
+  R := TIntResult.Err('hello');
+  R2 := specialize ResultMapErr<Integer, string, Integer>(R, @StrLen);
+  CheckTrue(R2.IsErr);
+  CheckEquals(5, R2.UnwrapErr);
+end;
+
+procedure TTestCase_TResult_Combinators.Test_AndThen_On_Ok;
+var
+  R, R2: TIntResult;
+  F: specialize TResultFunc<Integer, TIntResult>;
+begin
+  R := TIntResult.Ok(5);
+  F := function(const X: Integer): TIntResult
+  begin
+    if X > 0 then
+      Result := TIntResult.Ok(X * 2)
+    else
+      Result := TIntResult.Err('negative');
+  end;
+  R2 := specialize ResultAndThen<Integer, string, Integer>(R, F);
+  CheckTrue(R2.IsOk);
+  CheckEquals(10, R2.Unwrap);
+end;
+
+procedure TTestCase_TResult_Combinators.Test_AndThen_On_Err;
+var
+  R, R2: TIntResult;
+  F: specialize TResultFunc<Integer, TIntResult>;
+begin
+  R := TIntResult.Err('original');
+  F := function(const X: Integer): TIntResult
+  begin
+    Result := TIntResult.Ok(X * 2);
+  end;
+  R2 := specialize ResultAndThen<Integer, string, Integer>(R, F);
+  CheckTrue(R2.IsErr);
+  CheckEquals('original', R2.UnwrapErr);
+end;
+
+procedure TTestCase_TResult_Combinators.Test_OrElse_On_Ok;
+var
+  R: TIntResult;
+  R2: TIntResult;
+  F: specialize TResultFunc<string, TIntResult>;
+begin
+  R := TIntResult.Ok(42);
+  F := function(const S: string): TIntResult
+  begin
+    Result := TIntResult.Ok(Length(S));
+  end;
+  R2 := specialize ResultOrElse<Integer, string, string>(R, F);
+  CheckTrue(R2.IsOk);
+  CheckEquals(42, R2.Unwrap);
+end;
+
+procedure TTestCase_TResult_Combinators.Test_OrElse_On_Err;
+var
+  R: TIntResult;
+  R2: TIntResult;
+  F: specialize TResultFunc<string, TIntResult>;
+begin
+  R := TIntResult.Err('hello');
+  F := function(const S: string): TIntResult
+  begin
+    Result := TIntResult.Ok(Length(S));
+  end;
+  R2 := specialize ResultOrElse<Integer, string, string>(R, F);
+  CheckTrue(R2.IsOk);
+  CheckEquals(5, R2.Unwrap);
+end;
+
+procedure TTestCase_TResult_Combinators.Test_MapOr;
+var
+  ROk, RErr: TIntResult;
+begin
+  ROk := TIntResult.Ok(3);
+  RErr := TIntResult.Err('x');
+
+  CheckEquals(6, specialize ResultMapOr<Integer, string, Integer>(ROk, 0, @DoubleIt));
+  CheckEquals(0, specialize ResultMapOr<Integer, string, Integer>(RErr, 0, @DoubleIt));
+end;
+
+procedure TTestCase_TResult_Combinators.Test_MapOrElse;
+var
+  ROk, RErr: TIntResult;
+  FErr: specialize TResultFunc<string, Integer>;
+  FOk: specialize TResultFunc<Integer, Integer>;
+begin
+  ROk := TIntResult.Ok(5);
+  RErr := TIntResult.Err('abc');
+
+  FErr := function(const S: string): Integer begin Result := Length(S); end;
+  FOk := function(const X: Integer): Integer begin Result := X * 10; end;
+
+  CheckEquals(50, specialize ResultMapOrElse<Integer, string, Integer>(ROk, FErr, FOk));
+  CheckEquals(3, specialize ResultMapOrElse<Integer, string, Integer>(RErr, FErr, FOk));
+end;
+
+procedure TTestCase_TResult_Combinators.Test_Match;
+var
+  ROk, RErr: TIntResult;
+  FOk: specialize TResultFunc<Integer, string>;
+  FErr: specialize TResultFunc<string, string>;
+begin
+  ROk := TIntResult.Ok(42);
+  RErr := TIntResult.Err('fail');
+
+  FOk := function(const X: Integer): string begin Result := 'val:' + IntToStr(X); end;
+  FErr := function(const S: string): string begin Result := 'err:' + S; end;
+
+  CheckEquals('val:42', specialize ResultMatch<Integer, string, string>(ROk, FOk, FErr));
+  CheckEquals('err:fail', specialize ResultMatch<Integer, string, string>(RErr, FOk, FErr));
+end;
+
+procedure TTestCase_TResult_Combinators.Test_Swap;
+var
+  R: TIntResult;
+  RS: specialize TResult<string, Integer>;
+begin
+  R := TIntResult.Ok(42);
+  RS := specialize ResultSwap<Integer, string>(R);
+  CheckTrue(RS.IsErr);
+  CheckEquals(42, RS.UnwrapErr);
+
+  R := TIntResult.Err('e');
+  RS := specialize ResultSwap<Integer, string>(R);
+  CheckTrue(RS.IsOk);
+  CheckEquals('e', RS.Unwrap);
+end;
+
+procedure TTestCase_TResult_Combinators.Test_Flatten;
+var
+  Inner: TIntResult;
+  Outer: specialize TResult<TIntResult, string>;
+  Flat: TIntResult;
+begin
+  Inner := TIntResult.Ok(99);
+  Outer := specialize TResult<TIntResult, string>.Ok(Inner);
+  Flat := specialize ResultFlatten<Integer, string>(Outer);
+  CheckTrue(Flat.IsOk);
+  CheckEquals(99, Flat.Unwrap);
+
+  Outer := specialize TResult<TIntResult, string>.Err('outer err');
+  Flat := specialize ResultFlatten<Integer, string>(Outer);
+  CheckTrue(Flat.IsErr);
+  CheckEquals('outer err', Flat.UnwrapErr);
+end;
+
+procedure TTestCase_TResult_Combinators.Test_And_;
+var
+  A, B, C: TIntResult;
+begin
+  A := TIntResult.Ok(1);
+  B := TIntResult.Ok(2);
+  C := A.And_(B);
+  CheckTrue(C.IsOk);
+  CheckEquals(2, C.Unwrap);
+
+  A := TIntResult.Err('first');
+  C := A.And_(B);
+  CheckTrue(C.IsErr);
+  CheckEquals('first', C.UnwrapErr);
+end;
+
+procedure TTestCase_TResult_Combinators.Test_Or_;
+var
+  A, B, C: TIntResult;
+begin
+  A := TIntResult.Err('e');
+  B := TIntResult.Ok(99);
+  C := A.Or_(B);
+  CheckEquals(99, C.Unwrap);
+
+  A := TIntResult.Ok(1);
+  C := A.Or_(B);
+  CheckEquals(1, C.Unwrap);
+end;
+
+procedure TTestCase_TResult_Combinators.Test_Contains;
+var
+  R: TIntResult;
+begin
+  R := TIntResult.Ok(42);
+  CheckTrue(R.Contains(42, @IntEq));
+  CheckFalse(R.Contains(99, @IntEq));
+
+  R := TIntResult.Err('x');
+  CheckFalse(R.Contains(42, @IntEq));
+end;
+
+procedure TTestCase_TResult_Combinators.Test_ContainsErr;
+var
+  R: TIntResult;
+begin
+  R := TIntResult.Err('error');
+  CheckTrue(R.ContainsErr('error', @StrEq));
+  CheckFalse(R.ContainsErr('other', @StrEq));
+
+  R := TIntResult.Ok(1);
+  CheckFalse(R.ContainsErr('error', @StrEq));
+end;
+
+procedure TTestCase_TResult_Combinators.Test_FilterOrElse;
+var
+  R, R2: TIntResult;
+begin
+  R := TIntResult.Ok(5);
+  R2 := specialize ResultFilterOrElse<Integer, string>(R, @IsPositive, @MakeNegError);
+  CheckTrue(R2.IsOk);
+  CheckEquals(5, R2.Unwrap);
+
+  R := TIntResult.Ok(-3);
+  R2 := specialize ResultFilterOrElse<Integer, string>(R, @IsPositive, @MakeNegError);
+  CheckTrue(R2.IsErr);
+  CheckEquals('not positive', R2.UnwrapErr);
+
+  R := TIntResult.Err('original');
+  R2 := specialize ResultFilterOrElse<Integer, string>(R, @IsPositive, @MakeNegError);
+  CheckTrue(R2.IsErr);
+  CheckEquals('original', R2.UnwrapErr);
+end;
+
+procedure TTestCase_TResult_Combinators.Test_IsOkAnd;
+var
+  R: TIntResult;
+begin
+  R := TIntResult.Ok(5);
+  CheckTrue(R.IsOkAnd(@IsPositive));
+
+  R := TIntResult.Ok(-1);
+  CheckFalse(R.IsOkAnd(@IsPositive));
+
+  R := TIntResult.Err('e');
+  CheckFalse(R.IsOkAnd(@IsPositive));
+end;
+
+procedure TTestCase_TResult_Combinators.Test_IsErrAnd;
+var
+  R: TStrResult;
+  IsNeg: specialize TResultFunc<Integer, Boolean>;
+begin
+  IsNeg := function(const X: Integer): Boolean begin Result := X < 0; end;
+
+  R := TStrResult.Err(-1);
+  CheckTrue(R.IsErrAnd(IsNeg));
+
+  R := TStrResult.Err(1);
+  CheckFalse(R.IsErrAnd(IsNeg));
+
+  R := TStrResult.Ok('ok');
+  CheckFalse(R.IsErrAnd(IsNeg));
+end;
+
+procedure TTestCase_TResult_Combinators.Test_Chain;
+var
+  A, B, C: TIntResult;
+begin
+  A := TIntResult.Ok(1);
+  B := TIntResult.Ok(2);
+  C := specialize ResultChain<Integer, string>(A, B);
+  CheckEquals(2, C.Unwrap);
+
+  A := TIntResult.Err('first');
+  C := specialize ResultChain<Integer, string>(A, B);
+  CheckTrue(C.IsErr);
+end;
+
+{ TTestCase_TResult_ExceptionBridge }
+
+procedure TTestCase_TResult_ExceptionBridge.Test_ResultToTry_On_Ok;
+var
+  R: TIntResult;
+  V: Integer;
+begin
+  R := TIntResult.Ok(42);
+  V := specialize ResultToTry<Integer, string>(R, @StrToEx);
+  CheckEquals(42, V);
+end;
+
+procedure TTestCase_TResult_ExceptionBridge.Test_ResultToTry_On_Err_Raises;
+var
+  R: TIntResult;
+begin
+  R := TIntResult.Err('my error');
+  try
+    specialize ResultToTry<Integer, string>(R, @StrToEx);
+    Fail('ToTry on Err should raise');
+  except
+    on E: Exception do
+      CheckEquals('my error', E.Message);
+  end;
+end;
+
+procedure TTestCase_TResult_ExceptionBridge.Test_ResultFromTry_Success;
+var
+  R: TIntResult;
+begin
+  R := specialize ResultFromTry<Integer, string>(@WorkOk, @MapExToStr);
+  CheckTrue(R.IsOk);
+  CheckEquals(42, R.Unwrap);
+end;
+
+procedure TTestCase_TResult_ExceptionBridge.Test_ResultFromTry_Exception;
+var
+  R: TIntResult;
+begin
+  R := specialize ResultFromTry<Integer, string>(@WorkFail, @MapExToStr);
+  CheckTrue(R.IsErr);
+  CheckEquals('work failed', R.UnwrapErr);
+end;
+
+{ TTestCase_TResult_Inspect }
+
+procedure TTestCase_TResult_Inspect.Test_Inspect_On_Ok;
+var
+  R, R2: TIntResult;
+begin
+  GInspectCount := 0;
+  GInspectValue := 0;
+
+  R := TIntResult.Ok(77);
+  R2 := R.Inspect(@InspectInt);
+
+  CheckEquals(1, GInspectCount);
+  CheckEquals(77, GInspectValue);
   CheckTrue(R2.IsOk);
 end;
 
-procedure TTestCase_Global.Test_Ext_Swap_Flatten_MapBoth;
+procedure TTestCase_TResult_Inspect.Test_Inspect_On_Err;
 var
-  ROk: specialize TResult<Integer,String>;
-  RErr: specialize TResult<Integer,String>;
-  RS: specialize TResult<String,Integer>;
-  RR: specialize TResult< specialize TResult<Integer,String>, String>;
-  RU: specialize TResult<Integer,AnsiString>;
+  R, R2: TIntResult;
 begin
-  // Swap
-  ROk := specialize TResult<Integer,String>.Ok(7);
-  RErr := specialize TResult<Integer,String>.Err('e');
-  RS := specialize ResultSwap<Integer,String>(ROk);
-  CheckTrue(RS.IsErr);
-  CheckEquals(7, RS.UnwrapErr);
-  RS := specialize ResultSwap<Integer,String>(RErr);
-  CheckTrue(RS.IsOk);
-  CheckEquals('e', RS.Unwrap);
+  GInspectCount := 0;
 
-  // Flatten
-  RR := specialize TResult< specialize TResult<Integer,String>, String>.Ok(
-          specialize TResult<Integer,String>.Ok(5));
-  CheckTrue(specialize ResultFlatten<Integer,String>(RR).IsOk);
-  RR := specialize TResult< specialize TResult<Integer,String>, String>.Ok(
-          specialize TResult<Integer,String>.Err('x'));
-  CheckTrue(specialize ResultFlatten<Integer,String>(RR).IsErr);
-  RR := specialize TResult< specialize TResult<Integer,String>, String>.Err('outer');
-  CheckTrue(specialize ResultFlatten<Integer,String>(RR).IsErr);
+  R := TIntResult.Err('e');
+  R2 := R.Inspect(@InspectInt);
 
-  // MapBoth（同时映射 Ok 与 Err）
-  RU := specialize ResultMapBoth<Integer,String,Integer,AnsiString>(RErr,
-    function (const X: Integer): Integer begin Result := X+1; end,
-    function (const S: String): AnsiString begin Result := AnsiString(S + '!'); end);
-  CheckTrue(RU.IsErr);
-  CheckEquals('e!', RU.UnwrapErr);
-
-  RU := specialize ResultMapBoth<Integer,String,Integer,AnsiString>(ROk,
-    function (const X: Integer): Integer begin Result := X+1; end,
-    function (const S: String): AnsiString begin Result := AnsiString(S + '!'); end);
-  CheckTrue(RU.IsOk);
-  CheckEquals(8, RU.Unwrap);
+  CheckEquals(0, GInspectCount);
+  CheckTrue(R2.IsErr);
 end;
 
-
-procedure TTestCase_Global.Test_FromTry_Details;
+procedure TTestCase_TResult_Inspect.Test_InspectErr_On_Ok;
 var
-  R: specialize TResult<Integer,String>;
-  U: Integer;
-  Cnt: Integer = 0;
+  R, R2: TIntResult;
 begin
-  // Ok path: Work increments Cnt and returns 7
-  U := specialize ResultFromTry<Integer,String>(
-    function: Integer begin Inc(Cnt); Result := 7; end,
-    function (const Ex: Exception): String begin Result := Ex.ClassName; end
-  ).Unwrap;
-  CheckEquals(1, Cnt);
-  CheckEquals(7, U);
+  GInspectCount := 0;
 
-  // Err path: Work raises, MapEx maps message
-  R := specialize ResultFromTry<Integer,String>(
-    function: Integer begin raise Exception.Create('boom'); end,
-    function (const Ex: Exception): String begin Result := Ex.Message; end
-  );
-  CheckTrue(R.IsErr);
-  CheckEquals('boom', R.UnwrapErr);
+  R := TIntResult.Ok(1);
+  R2 := R.InspectErr(@InspectStr);
+
+  CheckEquals(0, GInspectCount);
+  CheckTrue(R2.IsOk);
 end;
 
-procedure TTestCase_Global.Test_Equals_Boundaries;
+procedure TTestCase_TResult_Inspect.Test_InspectErr_On_Err;
 var
-  RA, RB: specialize TResult<Integer,String>;
-  RX, RY: specialize TResult<String,AnsiString>;
-  E1, E2: IMyErr;
-  RI1, RI2: specialize TResult<Integer,IMyErr>;
+  R, R2: TIntResult;
 begin
-  RA := specialize TResult<Integer,String>.Ok(10);
-  RB := specialize TResult<Integer,String>.Ok(10);
-  CheckTrue(specialize ResultEquals<Integer,String>(RA, RB,
-    function (const A,B: Integer): Boolean begin Result := A=B; end,
-    function (const A,B: String): Boolean begin Result := A=B; end));
+  GInspectCount := 0;
+  GInspectErrValue := '';
 
-  RB := specialize TResult<Integer,String>.Err('e');
-  CheckFalse(specialize ResultEquals<Integer,String>(RA, RB,
-    function (const A,B: Integer): Boolean begin Result := A=B; end,
-    function (const A,B: String): Boolean begin Result := A=B; end));
+  R := TIntResult.Err('error msg');
+  R2 := R.InspectErr(@InspectStr);
 
-  RX := specialize TResult<String,AnsiString>.Ok('x');
-  RY := specialize TResult<String,AnsiString>.Ok('x');
-  CheckTrue(specialize ResultEquals<String,AnsiString>(RX, RY,
-    function (const A,B: String): Boolean begin Result := A=B; end,
-    function (const A,B: AnsiString): Boolean begin Result := A=B; end));
-
-  // Interface error comparator
-  E1 := TMyErr.Create('m'); E2 := TMyErr.Create('m');
-  RI1 := specialize TResult<Integer,IMyErr>.Err(E1);
-  RI2 := specialize TResult<Integer,IMyErr>.Err(E2);
-  CheckTrue(specialize ResultEquals<Integer,IMyErr>(RI1, RI2,
-    function (const A,B: Integer): Boolean begin Result := A=B; end,
-    function (const A,B: IMyErr): Boolean begin Result := A.MessageText=B.MessageText; end));
-
-  RY := specialize TResult<String,AnsiString>.Err('y');
-  CheckFalse(specialize ResultEquals<String,AnsiString>(RX, RY,
-    function (const A,B: String): Boolean begin Result := A=B; end,
-    function (const A,B: AnsiString): Boolean begin Result := A=B; end));
+  CheckEquals(1, GInspectCount);
+  CheckEquals('error msg', GInspectErrValue);
+  CheckTrue(R2.IsErr);
 end;
 
-procedure TTestCase_Global.Test_Complex_Chains_MatchFold;
-var
-  R: specialize TResult<Integer,String>;
-  U: Integer;
-begin
-  R := specialize TResult<Integer,String>.Ok(2);
-  // Ok -> AndThen(+3) -> AndThen(*2)
-  R := specialize ResultAndThen<Integer,String,Integer>(R,
-    function (const X: Integer): specialize TResult<Integer,String>
-    begin Result := specialize TResult<Integer,String>.Ok(X+3); end);
-  R := specialize ResultAndThen<Integer,String,Integer>(R,
-    function (const X: Integer): specialize TResult<Integer,String>
-    begin Result := specialize TResult<Integer,String>.Ok(X*2); end);
-  U := specialize ResultMatch<Integer,String,Integer>(R,
-    function (const X: Integer): Integer begin Result := X; end,
-    function (const E: String): Integer begin Result := -1; end);
-  CheckEquals(10, U);
+{ TTestCase_ErrorTypes removed }
 
-  // Err -> OrElse(map to Ok(5)) -> Match
-  R := specialize TResult<Integer,String>.Err('bad');
-  R := specialize ResultOrElse<Integer,String,String>(R,
-    function (const E: String): specialize TResult<Integer,String>
-    begin Result := specialize TResult<Integer,String>.Ok(5); end);
-  U := specialize ResultFold<Integer,String,Integer>(R,
-    function (const X: Integer): Integer begin Result := X; end,
-    function (const E: String): Integer begin Result := 0; end);
-  CheckEquals(5, U);
+{ TTestCase_TResult_Methods merged into Combinators }
+
+{ TTestCase_TResult_NewAPI - Phase 2 }
+
+function GetDefaultInt: Integer;
+begin
+  Result := 999;
 end;
 
-procedure TTestCase_Global.Test_ManagedType_String_Chain;
-var
-  RS: specialize TResult<String,String>;
-  S: Integer;
+function IntPrinter(const X: Integer): string;
 begin
-  RS := specialize TResult<String,String>.Ok('foo');
-  // MapOrElse with string length on both paths
-  S := specialize ResultMapOrElse<String,String,Integer>(RS,
-    function (const E: String): Integer begin Result := Length(E); end,
-    function (const V: String): Integer begin Result := Length(V); end);
-  CheckEquals(3, S);
-
-  RS := specialize TResult<String,String>.Err('error');
-  S := specialize ResultMapOrElse<String,String,Integer>(RS,
-    function (const E: String): Integer begin Result := Length(E); end,
-    function (const V: String): Integer begin Result := Length(V); end);
-  CheckEquals(5, S);
-
+  Result := IntToStr(X);
 end;
-procedure TTestCase_Global.Test_And_Or_Contains_FilterOrElse;
-var
-  A, B, R: specialize TResult<Integer,String>;
-  Has: Boolean;
-begin
-  A := specialize TResult<Integer,String>.Ok(1);
-  B := specialize TResult<Integer,String>.Err('x');
-  R := specialize ResultAnd<Integer,String>(A, B);
-  CheckTrue(R.IsErr);
 
-  A := specialize TResult<Integer,String>.Err('e');
-  B := specialize TResult<Integer,String>.Ok(2);
-  R := specialize ResultOr<Integer,String>(A, B);
+function StrPrinter(const S: string): string;
+begin
+  Result := '"' + S + '"';
+end;
+
+procedure TTestCase_TResult_NewAPI.Test_UnwrapOrElse_On_Ok;
+var
+  R: TIntResult;
+begin
+  R := TIntResult.Ok(42);
+  CheckEquals(42, R.UnwrapOrElse(@GetDefaultInt));
+end;
+
+procedure TTestCase_TResult_NewAPI.Test_UnwrapOrElse_On_Err;
+var
+  R: TIntResult;
+begin
+  R := TIntResult.Err('error');
+  CheckEquals(999, R.UnwrapOrElse(@GetDefaultInt));
+end;
+
+procedure TTestCase_TResult_NewAPI.Test_UnwrapOrDefault_On_Ok;
+var
+  R: TIntResult;
+begin
+  R := TIntResult.Ok(42);
+  CheckEquals(42, R.UnwrapOrDefault);
+end;
+
+procedure TTestCase_TResult_NewAPI.Test_UnwrapOrDefault_On_Err;
+var
+  R: TIntResult;
+begin
+  R := TIntResult.Err('error');
+  CheckEquals(0, R.UnwrapOrDefault); // Default(Integer) = 0
+end;
+
+procedure TTestCase_TResult_NewAPI.Test_OkOption_On_Ok;
+var
+  R: TIntResult;
+  Opt: specialize TOption<Integer>;
+begin
+  R := TIntResult.Ok(42);
+  Opt := R.OkOption;
+  CheckTrue(Opt.IsSome);
+  CheckEquals(42, Opt.Unwrap);
+end;
+
+procedure TTestCase_TResult_NewAPI.Test_OkOption_On_Err;
+var
+  R: TIntResult;
+  Opt: specialize TOption<Integer>;
+begin
+  R := TIntResult.Err('error');
+  Opt := R.OkOption;
+  CheckTrue(Opt.IsNone);
+end;
+
+procedure TTestCase_TResult_NewAPI.Test_ErrOption_On_Ok;
+var
+  R: TIntResult;
+  Opt: specialize TOption<string>;
+begin
+  R := TIntResult.Ok(42);
+  Opt := R.ErrOption;
+  CheckTrue(Opt.IsNone);
+end;
+
+procedure TTestCase_TResult_NewAPI.Test_ErrOption_On_Err;
+var
+  R: TIntResult;
+  Opt: specialize TOption<string>;
+begin
+  R := TIntResult.Err('my error');
+  Opt := R.ErrOption;
+  CheckTrue(Opt.IsSome);
+  CheckEquals('my error', Opt.Unwrap);
+end;
+
+procedure TTestCase_TResult_NewAPI.Test_ToDebugString;
+var
+  ROk, RErr: TIntResult;
+begin
+  ROk := TIntResult.Ok(42);
+  RErr := TIntResult.Err('fail');
+  CheckEquals('Ok(42)', ROk.ToDebugString(@IntPrinter, @StrPrinter));
+  CheckEquals('Err("fail")', RErr.ToDebugString(@IntPrinter, @StrPrinter));
+end;
+
+procedure TTestCase_TResult_NewAPI.Test_UnwrapErrUnchecked;
+var
+  R: TIntResult;
+begin
+  R := TIntResult.Err('my error');
+  CheckEquals('my error', R.UnwrapErrUnchecked);
+end;
+
+function GetFallbackResult: TIntResult;
+begin
+  Result := TIntResult.Ok(999);
+end;
+
+procedure TTestCase_TResult_NewAPI.Test_OrElseThunk_On_Ok;
+var
+  R, R2: TIntResult;
+begin
+  R := TIntResult.Ok(42);
+  R2 := R.OrElseThunk(@GetFallbackResult);
+  CheckTrue(R2.IsOk);
+  CheckEquals(42, R2.Unwrap);
+end;
+
+procedure TTestCase_TResult_NewAPI.Test_OrElseThunk_On_Err;
+var
+  R, R2: TIntResult;
+begin
+  R := TIntResult.Err('error');
+  R2 := R.OrElseThunk(@GetFallbackResult);
+  CheckTrue(R2.IsOk);
+  CheckEquals(999, R2.Unwrap);
+end;
+
+{ TTestCase_TOption_NewAPI - Phase 3 }
+
+type
+  TIntOption = specialize TOption<Integer>;
+
+function GetDefaultIntForOption: Integer;
+begin
+  Result := 999;
+end;
+
+function IntEqForOption(const A, B: Integer): Boolean;
+begin
+  Result := A = B;
+end;
+
+procedure TTestCase_TOption_NewAPI.Test_UnwrapOrElse_On_Some;
+var
+  O: TIntOption;
+begin
+  O := TIntOption.Some(42);
+  CheckEquals(42, O.UnwrapOrElse(@GetDefaultIntForOption));
+end;
+
+procedure TTestCase_TOption_NewAPI.Test_UnwrapOrElse_On_None;
+var
+  O: TIntOption;
+begin
+  O := TIntOption.None;
+  CheckEquals(999, O.UnwrapOrElse(@GetDefaultIntForOption));
+end;
+
+procedure TTestCase_TOption_NewAPI.Test_UnwrapOrDefault_On_Some;
+var
+  O: TIntOption;
+begin
+  O := TIntOption.Some(42);
+  CheckEquals(42, O.UnwrapOrDefault);
+end;
+
+procedure TTestCase_TOption_NewAPI.Test_UnwrapOrDefault_On_None;
+var
+  O: TIntOption;
+begin
+  O := TIntOption.None;
+  CheckEquals(0, O.UnwrapOrDefault); // Default(Integer) = 0
+end;
+
+procedure TTestCase_TOption_NewAPI.Test_TryUnwrap_On_None_OverwritesOutParam;
+var
+  O: TIntOption;
+  V: Integer;
+begin
+  O := TIntOption.None;
+  V := 123;
+
+  CheckFalse(O.TryUnwrap(V));
+  CheckEquals(0, V); // must not leak previous value
+end;
+
+procedure TTestCase_TOption_NewAPI.Test_IsSomeAnd;
+var
+  O: TIntOption;
+  Pred: specialize TOptionFunc<Integer, Boolean>;
+begin
+  Pred := function(const X: Integer): Boolean begin Result := X > 0; end;
+  
+  O := TIntOption.Some(5);
+  CheckTrue(O.IsSomeAnd(Pred));
+  
+  O := TIntOption.Some(-1);
+  CheckFalse(O.IsSomeAnd(Pred));
+  
+  O := TIntOption.None;
+  CheckFalse(O.IsSomeAnd(Pred));
+end;
+
+procedure TTestCase_TOption_NewAPI.Test_Contains;
+var
+  O: TIntOption;
+begin
+  O := TIntOption.Some(42);
+  CheckTrue(O.Contains(42, @IntEqForOption));
+  CheckFalse(O.Contains(99, @IntEqForOption));
+  
+  O := TIntOption.None;
+  CheckFalse(O.Contains(42, @IntEqForOption));
+end;
+
+procedure TTestCase_TOption_NewAPI.Test_Or;
+var
+  A, B, C: TIntOption;
+begin
+  A := TIntOption.Some(1);
+  B := TIntOption.Some(2);
+  C := A.Or_(B);
+  CheckTrue(C.IsSome);
+  CheckEquals(1, C.Unwrap); // Some.Or_(*) returns first
+  
+  A := TIntOption.None;
+  C := A.Or_(B);
+  CheckTrue(C.IsSome);
+  CheckEquals(2, C.Unwrap); // None.Or_(Some) returns second
+  
+  A := TIntOption.None;
+  B := TIntOption.None;
+  C := A.Or_(B);
+  CheckTrue(C.IsNone);
+end;
+
+procedure TTestCase_TOption_NewAPI.Test_And;
+var
+  A, B, C: TIntOption;
+begin
+  A := TIntOption.Some(1);
+  B := TIntOption.Some(2);
+  C := A.And_(B);
+  CheckTrue(C.IsSome);
+  CheckEquals(2, C.Unwrap); // Some.And_(Some) returns second
+  
+  A := TIntOption.Some(1);
+  B := TIntOption.None;
+  C := A.And_(B);
+  CheckTrue(C.IsNone); // Some.And_(None) returns None
+  
+  A := TIntOption.None;
+  B := TIntOption.Some(2);
+  C := A.And_(B);
+  CheckTrue(C.IsNone); // None.And_(*) returns None
+end;
+
+procedure TTestCase_TOption_NewAPI.Test_Xor;
+var
+  A, B, C: TIntOption;
+begin
+  A := TIntOption.Some(1);
+  B := TIntOption.None;
+  C := A.Xor_(B);
+  CheckTrue(C.IsSome);
+  CheckEquals(1, C.Unwrap);
+  
+  A := TIntOption.None;
+  B := TIntOption.Some(2);
+  C := A.Xor_(B);
+  CheckTrue(C.IsSome);
+  CheckEquals(2, C.Unwrap);
+  
+  A := TIntOption.Some(1);
+  B := TIntOption.Some(2);
+  C := A.Xor_(B);
+  CheckTrue(C.IsNone); // Both Some -> None
+  
+  A := TIntOption.None;
+  B := TIntOption.None;
+  C := A.Xor_(B);
+  CheckTrue(C.IsNone); // Both None -> None
+end;
+
+procedure TTestCase_TOption_NewAPI.Test_Flatten;
+var
+  Inner: TIntOption;
+  Outer: specialize TOption<TIntOption>;
+  Flat: TIntOption;
+begin
+  Inner := TIntOption.Some(42);
+  Outer := specialize TOption<TIntOption>.Some(Inner);
+  Flat := specialize OptionFlatten<Integer>(Outer);
+  CheckTrue(Flat.IsSome);
+  CheckEquals(42, Flat.Unwrap);
+  
+  Outer := specialize TOption<TIntOption>.None;
+  Flat := specialize OptionFlatten<Integer>(Outer);
+  CheckTrue(Flat.IsNone);
+end;
+
+procedure TTestCase_TOption_NewAPI.Test_Zip;
+var
+  A: TIntOption;
+  B: specialize TOption<string>;
+  Zipped: specialize TOption<specialize TPair<Integer, string>>;
+begin
+  A := TIntOption.Some(42);
+  B := specialize TOption<string>.Some('hello');
+  Zipped := specialize OptionZip<Integer, string>(A, B);
+  CheckTrue(Zipped.IsSome);
+  CheckEquals(42, Zipped.Unwrap.First);
+  CheckEquals('hello', Zipped.Unwrap.Second);
+  
+  A := TIntOption.None;
+  Zipped := specialize OptionZip<Integer, string>(A, B);
+  CheckTrue(Zipped.IsNone);
+end;
+
+{ TTestCase_TResult_Context - Phase 4 }
+
+type
+  TIntErrResult = specialize TResult<Integer, Integer>;
+
+function MakeContextStr(const ErrCode: Integer): string;
+begin
+  Result := 'Error code: ' + IntToStr(ErrCode);
+end;
+
+procedure TTestCase_TResult_Context.Test_ResultContext_On_Ok;
+var
+  R: TIntErrResult;
+  R2: TIntResult;
+begin
+  R := TIntErrResult.Ok(42);
+  R2 := specialize ResultContext<Integer, Integer>(R, 'operation failed');
+  CheckTrue(R2.IsOk);
+  CheckEquals(42, R2.Unwrap);
+end;
+
+procedure TTestCase_TResult_Context.Test_ResultContext_On_Err;
+var
+  R: TIntErrResult;
+  R2: TIntResult;
+begin
+  R := TIntErrResult.Err(404);
+  R2 := specialize ResultContext<Integer, Integer>(R, 'file not found');
+  CheckTrue(R2.IsErr);
+  CheckEquals('file not found', R2.UnwrapErr);
+end;
+
+procedure TTestCase_TResult_Context.Test_ResultWithContext_On_Ok;
+var
+  R: TIntErrResult;
+  R2: TIntResult;
+begin
+  R := TIntErrResult.Ok(100);
+  R2 := specialize ResultWithContext<Integer, Integer>(R, @MakeContextStr);
+  CheckTrue(R2.IsOk);
+  CheckEquals(100, R2.Unwrap);
+end;
+
+procedure TTestCase_TResult_Context.Test_ResultWithContext_On_Err;
+var
+  R: TIntErrResult;
+  R2: TIntResult;
+begin
+  R := TIntErrResult.Err(500);
+  R2 := specialize ResultWithContext<Integer, Integer>(R, @MakeContextStr);
+  CheckTrue(R2.IsErr);
+  CheckEquals('Error code: 500', R2.UnwrapErr);
+end;
+
+{ TErrorCtx 与 ResultContextE/ResultWithContextE 测试 }
+
+type
+  TIntErrorCtx = specialize TErrorCtx<Integer>;
+  TIntCtxResult = specialize TResult<Integer, TIntErrorCtx>;
+
+function IntPrinterForCtx(const X: Integer): string;
+begin
+  Result := IntToStr(X);
+end;
+
+procedure TTestCase_TResult_Context.Test_TErrorCtx_Create_And_Fields;
+var
+  Ctx: TIntErrorCtx;
+begin
+  Ctx := TIntErrorCtx.Create('file not found', 404);
+  CheckEquals('file not found', Ctx.Msg);
+  CheckEquals(404, Ctx.Inner);
+end;
+
+procedure TTestCase_TResult_Context.Test_TErrorCtx_ToDebugString;
+var
+  Ctx: TIntErrorCtx;
+  S: string;
+begin
+  Ctx := TIntErrorCtx.Create('operation failed', 500);
+  S := Ctx.ToDebugString(@IntPrinterForCtx);
+  CheckEquals('operation failed (caused by: 500)', S);
+end;
+
+procedure TTestCase_TResult_Context.Test_ResultContextE_On_Ok;
+var
+  R: TIntErrResult;
+  R2: TIntCtxResult;
+begin
+  R := TIntErrResult.Ok(42);
+  R2 := specialize ResultContextE<Integer, Integer>(R, 'should not appear');
+  CheckTrue(R2.IsOk);
+  CheckEquals(42, R2.Unwrap);
+end;
+
+procedure TTestCase_TResult_Context.Test_ResultContextE_On_Err;
+var
+  R: TIntErrResult;
+  R2: TIntCtxResult;
+  ErrCtx: TIntErrorCtx;
+begin
+  R := TIntErrResult.Err(404);
+  R2 := specialize ResultContextE<Integer, Integer>(R, 'file not found');
+  CheckTrue(R2.IsErr);
+  ErrCtx := R2.UnwrapErr;
+  CheckEquals('file not found', ErrCtx.Msg);
+  CheckEquals(404, ErrCtx.Inner); // 原始错误保留
+  CheckEquals('file not found (caused by: 404)', ErrCtx.ToDebugString(@IntPrinterForCtx));
+end;
+
+procedure TTestCase_TResult_Context.Test_ResultWithContextE_On_Ok;
+var
+  R: TIntErrResult;
+  R2: TIntCtxResult;
+begin
+  R := TIntErrResult.Ok(100);
+  R2 := specialize ResultWithContextE<Integer, Integer>(R, @MakeContextStr);
+  CheckTrue(R2.IsOk);
+  CheckEquals(100, R2.Unwrap);
+end;
+
+procedure TTestCase_TResult_Context.Test_ResultWithContextE_On_Err;
+var
+  R: TIntErrResult;
+  R2: TIntCtxResult;
+  ErrCtx: TIntErrorCtx;
+begin
+  R := TIntErrResult.Err(500);
+  R2 := specialize ResultWithContextE<Integer, Integer>(R, @MakeContextStr);
+  CheckTrue(R2.IsErr);
+  ErrCtx := R2.UnwrapErr;
+  CheckEquals('Error code: 500', ErrCtx.Msg);
+  CheckEquals(500, ErrCtx.Inner); // 原始错误保留
+end;
+
+{ TTestCase_TResult_FastAPI - Phase 5 (M3) }
+
+type
+  TUnitStrResult = specialize TResult<TUnit, string>;
+  TStrStrResult = specialize TResult<string, string>;
+  TTupIntStr = specialize TTuple2<Integer, string>;
+  TTupIntStrResult = specialize TResult<TTupIntStr, string>;
+
+var
+  GEnsureErrThunkCount: Integer = 0;
+  GZipWithMapCount: Integer = 0;
+  GFromOptionErrThunkCount: Integer = 0;
+
+function MakeEnsureErrMsg: string;
+begin
+  Inc(GEnsureErrThunkCount);
+  Result := 'ensure failed';
+end;
+
+function TupIntStrToString(const P: TTupIntStr): string;
+begin
+  Inc(GZipWithMapCount);
+  Result := IntToStr(P.First) + ':' + P.Second;
+end;
+
+function MakeOptionErrMsg: string;
+begin
+  Inc(GFromOptionErrThunkCount);
+  Result := 'none';
+end;
+
+procedure TTestCase_TResult_FastAPI.Test_ResultEnsure_When_True_Returns_Ok;
+var
+  R: TUnitStrResult;
+begin
+  R := specialize ResultEnsure<string>(True, 'bad');
   CheckTrue(R.IsOk);
-  CheckEquals(2, R.Unwrap);
+  R.Unwrap; // should not raise
+end;
 
-  A := specialize TResult<Integer,String>.Ok(10);
-  Has := specialize ResultContains<Integer,String>(A, 10,
-    function (const L,R: Integer): Boolean begin Result := L=R; end);
-  CheckTrue(Has);
-
-  A := specialize TResult<Integer,String>.Err('e');
-  Has := specialize ResultContainsErr<Integer,String>(A, 'e',
-    function (const L,R: String): Boolean begin Result := L=R; end);
-  CheckTrue(Has);
-
-  // FilterOrElse：Ok 但不满足谓词 -> 转 Err
-  A := specialize TResult<Integer,String>.Ok(3);
-  R := specialize ResultFilterOrElse<Integer,String>(A,
-    function (const X: Integer): Boolean begin Result := X mod 2 = 0; end,
-    function (const X: Integer): String begin Result := 'odd'; end);
+procedure TTestCase_TResult_FastAPI.Test_ResultEnsure_When_False_Returns_Err;
+var
+  R: TUnitStrResult;
+begin
+  R := specialize ResultEnsure<string>(False, 'bad');
   CheckTrue(R.IsErr);
-  CheckEquals('odd', R.UnwrapErr);
+  CheckEquals('bad', R.UnwrapErr);
 end;
 
-procedure TTestCase_Global.Test_Transpose_And_OptionBridge;
+procedure TTestCase_TResult_FastAPI.Test_ResultEnsureWith_When_True_DoesNotCallThunk;
 var
-  RO: specialize TResult< specialize TOption<Integer>, String>;
-  ORs: specialize TOption< specialize TResult<Integer,String> >;
-  R2: specialize TResult< specialize TOption<Integer>, String>;
-  OI: specialize TOption<Integer>;
+  R: TUnitStrResult;
 begin
-  // Result<Option<T>,E> -> Option<Result<T,E>>
-  RO := specialize TResult< specialize TOption<Integer>, String>.Ok(specialize TOption<Integer>.Some(5));
-  ORs := specialize ResultTransposeOption<Integer,String>(RO);
-  CheckTrue(ORs.IsSome); CheckTrue(ORs.Unwrap.IsOk); CheckEquals(5, ORs.Unwrap.Unwrap);
-
-  RO := specialize TResult< specialize TOption<Integer>, String>.Ok(specialize TOption<Integer>.None);
-  ORs := specialize ResultTransposeOption<Integer,String>(RO);
-  CheckTrue(ORs.IsNone);
-
-  RO := specialize TResult< specialize TOption<Integer>, String>.Err('e');
-  ORs := specialize ResultTransposeOption<Integer,String>(RO);
-  CheckTrue(ORs.IsSome); CheckTrue(ORs.Unwrap.IsErr); CheckEquals('e', ORs.Unwrap.UnwrapErr);
-
-  // Option<Result<T,E>> -> Result<Option<T>,E>
-  ORs := specialize TOption< specialize TResult<Integer,String> >.Some(specialize TResult<Integer,String>.Ok(7));
-  R2 := specialize OptionTransposeResult<Integer,String>(ORs);
-  CheckTrue(R2.IsOk); CheckTrue(R2.Unwrap.IsSome); CheckEquals(7, R2.Unwrap.Unwrap);
-
-  ORs := specialize TOption< specialize TResult<Integer,String> >.Some(specialize TResult<Integer,String>.Err('x'));
-  R2 := specialize OptionTransposeResult<Integer,String>(ORs);
-  CheckTrue(R2.IsErr); CheckEquals('x', R2.UnwrapErr);
-
-  ORs := specialize TOption< specialize TResult<Integer,String> >.None;
-  R2 := specialize OptionTransposeResult<Integer,String>(ORs);
-  CheckTrue(R2.IsOk); CheckTrue(R2.Unwrap.IsNone);
-
-  // OptionToResult 别名验证（从 Option 单元委托）
-  OI := specialize TOption<Integer>.Some(1);
-  CheckTrue(specialize OptionToResult<Integer,String>(OI, 'e').IsOk);
-  OI := specialize TOption<Integer>.None;
-  CheckTrue(specialize OptionToResult<Integer,String>(OI, 'e').IsErr);
+  GEnsureErrThunkCount := 0;
+  R := specialize ResultEnsureWith<string>(True, @MakeEnsureErrMsg);
+  CheckTrue(R.IsOk);
+  CheckEquals(0, GEnsureErrThunkCount);
 end;
 
-
-procedure TTestCase_Global.Test_Equals_Default_And_ToTry;
+procedure TTestCase_TResult_FastAPI.Test_ResultEnsureWith_When_False_CallsThunk;
 var
-  A, B: specialize TResult<Integer,String>;
-  TVal: Integer;
+  R: TUnitStrResult;
 begin
-  A := specialize TResult<Integer,String>.Ok(5);
-  B := specialize TResult<Integer,String>.Ok(5);
-  CheckTrue(specialize ResultEquals<Integer,String>(A,B));
-
-  A := specialize TResult<Integer,String>.Err('e');
-  B := specialize TResult<Integer,String>.Err('e');
-  CheckTrue(specialize ResultEquals<Integer,String>(A,B));
-
-  // ToTry: Err -> raise mapped exception
-  A := specialize TResult<Integer,String>.Err('bad');
-  try
-    TVal := specialize ResultToTry<Integer,String>(A, function (const E: String): Exception begin Result := Exception.Create('mapped:'+E); end);
-    Fail('ResultToTry on Err should raise');
-  except
-    on Ex: Exception do CheckEquals('mapped:bad', Ex.Message);
-  end;
-
-  // ToTry: Ok -> return value
-  A := specialize TResult<Integer,String>.Ok(9);
-  TVal := specialize ResultToTry<Integer,String>(A, function (const E: String): Exception begin Result := Exception.Create(E); end);
-  CheckEquals(9, TVal);
+  GEnsureErrThunkCount := 0;
+  R := specialize ResultEnsureWith<string>(False, @MakeEnsureErrMsg);
+  CheckTrue(R.IsErr);
+  CheckEquals(1, GEnsureErrThunkCount);
+  CheckEquals('ensure failed', R.UnwrapErr);
 end;
 
-procedure TTestCase_Global.Test_Advanced_Functions;
+procedure TTestCase_TResult_FastAPI.Test_ResultFromBool_When_True_Returns_Ok;
 var
-  ROk: specialize TResult<Integer,String>;
-  RErr: specialize TResult<Integer,String>;
-  MappedValue: Integer;
-  UnwrappedValue: Integer;
-  DebugStr: String;
+  R: TIntResult;
 begin
-  ROk := specialize TResult<Integer,String>.Ok(42);
-  RErr := specialize TResult<Integer,String>.Err('error');
-
-  // 测试 MapOrDefaultInteger
-  MappedValue := MapOrDefaultInteger(ROk,
-    function (const X: Integer): Integer begin Result := X * 2; end,
-    0);
-  CheckEquals(84, MappedValue, 'MapOrDefaultInteger should apply function to Ok value');
-
-  MappedValue := MapOrDefaultInteger(RErr,
-    function (const X: Integer): Integer begin Result := X * 2; end,
-    99);
-  CheckEquals(99, MappedValue, 'MapOrDefaultInteger should return default for Err');
-
-  // 测试 UnwrapOrElseInteger
-  UnwrappedValue := UnwrapOrElseInteger(ROk,
-    function (const E: String): Integer begin Result := Length(E); end);
-  CheckEquals(42, UnwrappedValue, 'UnwrapOrElseInteger should return Ok value');
-
-  UnwrappedValue := UnwrapOrElseInteger(RErr,
-    function (const E: String): Integer begin Result := Length(E); end);
-  CheckEquals(5, UnwrappedValue, 'UnwrapOrElseInteger should return function result for Err');
-
-  // 测试 ToDebugStringInteger
-  DebugStr := ToDebugStringInteger(ROk,
-    function (const X: Integer): String begin Result := IntToStr(X); end,
-    function (const E: String): String begin Result := E; end);
-  CheckEquals('Ok(42)', DebugStr, 'ToDebugStringInteger should format Ok value');
-
-  DebugStr := ToDebugStringInteger(RErr,
-    function (const X: Integer): String begin Result := IntToStr(X); end,
-    function (const E: String): String begin Result := E; end);
-  CheckEquals('Err(error)', DebugStr, 'ToDebugStringInteger should format Err value');
-
-  // 测试 nil 函数指针的默认行为
-  DebugStr := ToDebugStringInteger(ROk, nil, nil);
-  CheckEquals('Ok(42)', DebugStr, 'ToDebugStringInteger should use default formatting when functions are nil');
+  R := specialize ResultFromBool<Integer, string>(True, 7, 'no');
+  CheckTrue(R.IsOk);
+  CheckEquals(7, R.Unwrap);
 end;
 
-// 这些方法已经在文件中实现了，不需要重复添加
+procedure TTestCase_TResult_FastAPI.Test_ResultFromBool_When_False_Returns_Err;
+var
+  R: TIntResult;
+begin
+  R := specialize ResultFromBool<Integer, string>(False, 7, 'no');
+  CheckTrue(R.IsErr);
+  CheckEquals('no', R.UnwrapErr);
+end;
+
+procedure TTestCase_TResult_FastAPI.Test_ResultZip_OkOk_Returns_Ok;
+var
+  A: TIntResult;
+  B: TStrStrResult;
+  Z: TTupIntStrResult;
+begin
+  A := TIntResult.Ok(42);
+  B := TStrStrResult.Ok('hello');
+
+  Z := specialize ResultZip<Integer, string, string>(A, B);
+  CheckTrue(Z.IsOk);
+  CheckEquals(42, Z.Unwrap.First);
+  CheckEquals('hello', Z.Unwrap.Second);
+end;
+
+procedure TTestCase_TResult_FastAPI.Test_ResultZip_ErrOk_Returns_Err;
+var
+  A: TIntResult;
+  B: TStrStrResult;
+  Z: TTupIntStrResult;
+begin
+  A := TIntResult.Err('e1');
+  B := TStrStrResult.Ok('hello');
+
+  Z := specialize ResultZip<Integer, string, string>(A, B);
+  CheckTrue(Z.IsErr);
+  CheckEquals('e1', Z.UnwrapErr);
+end;
+
+procedure TTestCase_TResult_FastAPI.Test_ResultZip_OkErr_Returns_Err;
+var
+  A: TIntResult;
+  B: TStrStrResult;
+  Z: TTupIntStrResult;
+begin
+  A := TIntResult.Ok(42);
+  B := TStrStrResult.Err('e2');
+
+  Z := specialize ResultZip<Integer, string, string>(A, B);
+  CheckTrue(Z.IsErr);
+  CheckEquals('e2', Z.UnwrapErr);
+end;
+
+procedure TTestCase_TResult_FastAPI.Test_ResultZip_ErrErr_Returns_FirstErr;
+var
+  A: TIntResult;
+  B: TStrStrResult;
+  Z: TTupIntStrResult;
+begin
+  A := TIntResult.Err('e1');
+  B := TStrStrResult.Err('e2');
+
+  Z := specialize ResultZip<Integer, string, string>(A, B);
+  CheckTrue(Z.IsErr);
+  CheckEquals('e1', Z.UnwrapErr);
+end;
+
+procedure TTestCase_TResult_FastAPI.Test_ResultZipWith_OkOk_Maps;
+var
+  A: TIntResult;
+  B: TStrStrResult;
+  Z: specialize TResult<string, string>;
+begin
+  GZipWithMapCount := 0;
+
+  A := TIntResult.Ok(42);
+  B := TStrStrResult.Ok('hello');
+
+  Z := specialize ResultZipWith<Integer, string, string, string>(A, B, @TupIntStrToString);
+  CheckTrue(Z.IsOk);
+  CheckEquals(1, GZipWithMapCount);
+  CheckEquals('42:hello', Z.Unwrap);
+end;
+
+procedure TTestCase_TResult_FastAPI.Test_ResultZipWith_Err_DoesNotCallMapper;
+var
+  A: TIntResult;
+  B: TStrStrResult;
+  Z: specialize TResult<string, string>;
+begin
+  GZipWithMapCount := 0;
+
+  A := TIntResult.Err('e1');
+  B := TStrStrResult.Ok('hello');
+
+  Z := specialize ResultZipWith<Integer, string, string, string>(A, B, @TupIntStrToString);
+  CheckTrue(Z.IsErr);
+  CheckEquals(0, GZipWithMapCount);
+  CheckEquals('e1', Z.UnwrapErr);
+end;
+
+procedure TTestCase_TResult_FastAPI.Test_ResultFromOption_Some_Returns_Ok;
+var
+  O: TIntOption;
+  R: TIntResult;
+begin
+  O := TIntOption.Some(42);
+  R := specialize ResultFromOption<Integer, string>(O, 'none');
+  CheckTrue(R.IsOk);
+  CheckEquals(42, R.Unwrap);
+end;
+
+procedure TTestCase_TResult_FastAPI.Test_ResultFromOption_None_Returns_Err;
+var
+  O: TIntOption;
+  R: TIntResult;
+begin
+  O := TIntOption.None;
+  R := specialize ResultFromOption<Integer, string>(O, 'none');
+  CheckTrue(R.IsErr);
+  CheckEquals('none', R.UnwrapErr);
+end;
+
+procedure TTestCase_TResult_FastAPI.Test_ResultFromOptionElse_None_CallsThunk;
+var
+  O: TIntOption;
+  R: TIntResult;
+begin
+  GFromOptionErrThunkCount := 0;
+
+  O := TIntOption.None;
+  R := specialize ResultFromOptionElse<Integer, string>(O, @MakeOptionErrMsg);
+  CheckTrue(R.IsErr);
+  CheckEquals(1, GFromOptionErrThunkCount);
+  CheckEquals('none', R.UnwrapErr);
+end;
+
+procedure TTestCase_TResult_FastAPI.Test_ResultFromOptionElse_Some_DoesNotCallThunk;
+var
+  O: TIntOption;
+  R: TIntResult;
+begin
+  GFromOptionErrThunkCount := 0;
+
+  O := TIntOption.Some(7);
+  R := specialize ResultFromOptionElse<Integer, string>(O, @MakeOptionErrMsg);
+  CheckTrue(R.IsOk);
+  CheckEquals(0, GFromOptionErrThunkCount);
+  CheckEquals(7, R.Unwrap);
+end;
+
+procedure TTestCase_TResult_FastAPI.Test_TResult_CollectPtrIntoArray_Empty_ReturnsOkAndOutEmpty;
+var
+  Items: array of TIntResult;
+  OutValues: specialize TValueArray<Integer>;
+  FirstErr: string;
+  Success: Boolean;
+begin
+  SetLength(Items, 0);
+
+  // Arrange: ensure out array is not empty initially
+  SetLength(OutValues, 1);
+  OutValues[0] := 99;
+  CheckEquals(1, Length(OutValues));
+
+  // Act - use TryCollectPtrIntoArray which returns Boolean
+  Success := specialize TryCollectPtrIntoArray<Integer, string>(nil, Length(Items), OutValues, FirstErr);
+
+  // Assert
+  CheckTrue(Success);
+  CheckEquals(0, Length(OutValues));
+end;
+
+procedure TTestCase_TResult_FastAPI.Test_TryCollectPtrIntoArray_AllOk_ReturnsTrue;
+var
+  Items: array[0..2] of TIntResult;
+  OutValues: specialize TValueArray<Integer>;
+  FirstErr: string;
+  Success: Boolean;
+begin
+  Items[0] := TIntResult.Ok(10);
+  Items[1] := TIntResult.Ok(20);
+  Items[2] := TIntResult.Ok(30);
+
+  Success := specialize TryCollectPtrIntoArray<Integer, string>(@Items[0], Length(Items), OutValues, FirstErr);
+
+  CheckTrue(Success);
+  CheckEquals(3, Length(OutValues));
+  CheckEquals(10, OutValues[0]);
+  CheckEquals(20, OutValues[1]);
+  CheckEquals(30, OutValues[2]);
+  CheckEquals('', FirstErr);
+end;
+
+procedure TTestCase_TResult_FastAPI.Test_TryCollectPtrIntoArray_FirstErr_ReturnsFalse;
+var
+  Items: array[0..2] of TIntResult;
+  OutValues: specialize TValueArray<Integer>;
+  FirstErr: string;
+  Success: Boolean;
+begin
+  Items[0] := TIntResult.Err('error1');
+  Items[1] := TIntResult.Ok(20);
+  Items[2] := TIntResult.Ok(30);
+
+  // Arrange: ensure out array is not empty initially
+  SetLength(OutValues, 1);
+  OutValues[0] := 99;
+
+  Success := specialize TryCollectPtrIntoArray<Integer, string>(@Items[0], Length(Items), OutValues, FirstErr);
+
+  CheckFalse(Success);
+  CheckEquals(0, Length(OutValues));
+  CheckEquals('error1', FirstErr);
+end;
+
+procedure TTestCase_TResult_FastAPI.Test_TryCollectPtrIntoArray_MixedWithErr_ReturnsFalseWithFirstErr;
+var
+  Items: array[0..2] of TIntResult;
+  OutValues: specialize TValueArray<Integer>;
+  FirstErr: string;
+  Success: Boolean;
+begin
+  Items[0] := TIntResult.Ok(10);
+  Items[1] := TIntResult.Err('middle error');
+  Items[2] := TIntResult.Ok(30);
+
+  Success := specialize TryCollectPtrIntoArray<Integer, string>(@Items[0], Length(Items), OutValues, FirstErr);
+
+  CheckFalse(Success);
+  CheckEquals(0, Length(OutValues));
+  CheckEquals('middle error', FirstErr);
+end;
+
+procedure TTestCase_TResult_FastAPI.Test_Facade_Ensure_Works;
+var
+  R: TUnitStrResult;
+begin
+  R := specialize ResultEnsure<string>(True, 'bad');
+  CheckTrue(R.IsOk);
+end;
+
+procedure TTestCase_TResult_FastAPI.Test_Facade_TryCollect_Works;
+var
+  Items: array[0..1] of TIntResult;
+  OutValues: specialize TValueArray<Integer>;
+  FirstErr: string;
+  Success: Boolean;
+begin
+  Items[0] := TIntResult.Ok(1);
+  Items[1] := TIntResult.Ok(2);
+
+  // 使用 facade 的 TryCollect
+  Success := specialize TryCollect<Integer, string>(@Items[0], Length(Items), OutValues, FirstErr);
+
+  CheckTrue(Success);
+  CheckEquals(2, Length(OutValues));
+  CheckEquals(1, OutValues[0]);
+  CheckEquals(2, OutValues[1]);
+end;
+
+{ TTestCase_TResult_Transpose - Phase 6 }
+
+type
+  TIntOptResult = specialize TResult<specialize TOption<Integer>, string>;
+  TOptIntResult = specialize TOption<TIntResult>;
+
+procedure TTestCase_TResult_Transpose.Test_ResultTranspose_OkSome_ReturnsSomeOk;
+var
+  R: TIntOptResult;
+  O: TOptIntResult;
+  Inner: TIntResult;
+begin
+  // Ok(Some(42)) -> Some(Ok(42))
+  R := TIntOptResult.Ok(specialize TOption<Integer>.Some(42));
+  O := specialize ResultTranspose<Integer, string>(R);
+  CheckTrue(O.IsSome, 'Should be Some');
+  Inner := O.Unwrap;
+  CheckTrue(Inner.IsOk, 'Inner should be Ok');
+  CheckEquals(42, Inner.Unwrap);
+end;
+
+procedure TTestCase_TResult_Transpose.Test_ResultTranspose_OkNone_ReturnsNone;
+var
+  R: TIntOptResult;
+  O: TOptIntResult;
+begin
+  // Ok(None) -> None
+  R := TIntOptResult.Ok(specialize TOption<Integer>.None);
+  O := specialize ResultTranspose<Integer, string>(R);
+  CheckTrue(O.IsNone, 'Should be None');
+end;
+
+procedure TTestCase_TResult_Transpose.Test_ResultTranspose_Err_ReturnsSomeErr;
+var
+  R: TIntOptResult;
+  O: TOptIntResult;
+  Inner: TIntResult;
+begin
+  // Err(e) -> Some(Err(e))
+  R := TIntOptResult.Err('failed');
+  O := specialize ResultTranspose<Integer, string>(R);
+  CheckTrue(O.IsSome, 'Should be Some');
+  Inner := O.Unwrap;
+  CheckTrue(Inner.IsErr, 'Inner should be Err');
+  CheckEquals('failed', Inner.UnwrapErr);
+end;
+
+procedure TTestCase_TResult_Transpose.Test_OptionTranspose_None_ReturnsOkNone;
+var
+  O: TOptIntResult;
+  R: TIntOptResult;
+  InnerOpt: specialize TOption<Integer>;
+begin
+  // None -> Ok(None)
+  O := TOptIntResult.None;
+  R := specialize OptionTransposeResult<Integer, string>(O);
+  CheckTrue(R.IsOk, 'Should be Ok');
+  InnerOpt := R.Unwrap;
+  CheckTrue(InnerOpt.IsNone, 'Inner should be None');
+end;
+
+procedure TTestCase_TResult_Transpose.Test_OptionTranspose_SomeOk_ReturnsOkSome;
+var
+  O: TOptIntResult;
+  R: TIntOptResult;
+  InnerOpt: specialize TOption<Integer>;
+begin
+  // Some(Ok(42)) -> Ok(Some(42))
+  O := TOptIntResult.Some(TIntResult.Ok(42));
+  R := specialize OptionTransposeResult<Integer, string>(O);
+  CheckTrue(R.IsOk, 'Should be Ok');
+  InnerOpt := R.Unwrap;
+  CheckTrue(InnerOpt.IsSome, 'Inner should be Some');
+  CheckEquals(42, InnerOpt.Unwrap);
+end;
+
+procedure TTestCase_TResult_Transpose.Test_OptionTranspose_SomeErr_ReturnsErr;
+var
+  O: TOptIntResult;
+  R: TIntOptResult;
+begin
+  // Some(Err(e)) -> Err(e)
+  O := TOptIntResult.Some(TIntResult.Err('failed'));
+  R := specialize OptionTransposeResult<Integer, string>(O);
+  CheckTrue(R.IsErr, 'Should be Err');
+  CheckEquals('failed', R.UnwrapErr);
+end;
 
 initialization
-  RegisterTest(TTestCase_TResult_IntStr);
-  RegisterTest(TTestCase_Global);
+  RegisterTest(TTestCase_TResult_Basic);
+  RegisterTest(TTestCase_TResult_ToString);
+  RegisterTest(TTestCase_TResult_Combinators);
+  RegisterTest(TTestCase_TResult_ExceptionBridge);
+  RegisterTest(TTestCase_TResult_Inspect);
+  RegisterTest(TTestCase_TResult_NewAPI);
+  RegisterTest(TTestCase_TOption_NewAPI);
+  RegisterTest(TTestCase_TResult_Context);
+  RegisterTest(TTestCase_TResult_Transpose);
+  RegisterTest(TTestCase_TResult_FastAPI);
 end.
-

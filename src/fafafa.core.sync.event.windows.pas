@@ -77,6 +77,10 @@ type
     function TryWait: Boolean;
     function IsSignaled: Boolean;
     function IsManualReset: Boolean;
+
+    // IEvent - 跨平台别名
+    procedure Signal;  // SetEvent 别名
+    procedure Clear;   // ResetEvent 别名
   end;
 
 implementation
@@ -170,6 +174,16 @@ begin
     // We need to re-signal it to maintain state consistency
     Windows.SetEvent(FHandle);
   end;
+end;
+
+procedure TEvent.Signal;
+begin
+  SetEvent;
+end;
+
+procedure TEvent.Clear;
+begin
+  ResetEvent;
 end;
 
 end.

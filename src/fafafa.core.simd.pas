@@ -33,6 +33,17 @@ type
   TVecF64x4 = fafafa.core.simd.types.TVecF64x4;
   TVecI32x4 = fafafa.core.simd.types.TVecI32x4;
   TVecI32x8 = fafafa.core.simd.types.TVecI32x8;
+  TVecI64x2 = fafafa.core.simd.types.TVecI64x2;
+  TVecI16x8 = fafafa.core.simd.types.TVecI16x8;
+  TVecI8x16 = fafafa.core.simd.types.TVecI8x16;
+  TVecU32x4 = fafafa.core.simd.types.TVecU32x4;
+  TVecU64x2 = fafafa.core.simd.types.TVecU64x2;
+  TVecU16x8 = fafafa.core.simd.types.TVecU16x8;
+  TVecU8x16 = fafafa.core.simd.types.TVecU8x16;
+  TVecU32x8 = fafafa.core.simd.types.TVecU32x8;
+  TVecF32x16 = fafafa.core.simd.types.TVecF32x16;
+  TVecF64x8 = fafafa.core.simd.types.TVecF64x8;
+  TVecI32x16 = fafafa.core.simd.types.TVecI32x16;
   
   // Mask types
   TMask2 = fafafa.core.simd.types.TMask2;
@@ -46,6 +57,34 @@ type
   TSimdBackendInfo = fafafa.core.simd.types.TSimdBackendInfo;
   TCPUInfo = fafafa.core.simd.types.TCPUInfo;
   TSimdBackendArray = fafafa.core.simd.cpuinfo.TSimdBackendArray;
+
+  // === Rust-Style Short Aliases (portable-simd compatible naming) ===
+  // 128-bit float vectors
+  f32x4 = TVecF32x4;   // Rust: Simd<f32, 4>
+  f64x2 = TVecF64x2;   // Rust: Simd<f64, 2>
+  
+  // 128-bit signed integer vectors
+  i8x16  = TVecI8x16;   // Rust: Simd<i8, 16>
+  i16x8  = TVecI16x8;   // Rust: Simd<i16, 8>
+  i32x4  = TVecI32x4;   // Rust: Simd<i32, 4>
+  i64x2  = TVecI64x2;   // Rust: Simd<i64, 2>
+  
+  // 128-bit unsigned integer vectors
+  u8x16  = TVecU8x16;   // Rust: Simd<u8, 16>
+  u16x8  = TVecU16x8;   // Rust: Simd<u16, 8>
+  u32x4  = TVecU32x4;   // Rust: Simd<u32, 4>
+  u64x2  = TVecU64x2;   // Rust: Simd<u64, 2>
+  
+  // 256-bit vectors (AVX)
+  f32x8  = TVecF32x8;   // Rust: Simd<f32, 8>
+  f64x4  = TVecF64x4;   // Rust: Simd<f64, 4>
+  i32x8  = TVecI32x8;   // Rust: Simd<i32, 8>
+  u32x8  = TVecU32x8;   // Rust: Simd<u32, 8>
+  
+  // 512-bit vectors (AVX-512)
+  f32x16 = TVecF32x16;  // Rust: Simd<f32, 16>
+  f64x8  = TVecF64x8;   // Rust: Simd<f64, 8>
+  i32x16 = TVecI32x16;  // Rust: Simd<i32, 16>
 
 // === High-Level Vector Operations ===
 

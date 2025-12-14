@@ -55,9 +55,6 @@ function TimeoutWriter(AInner: IWriter; ATimeoutMs: Integer): IWriter;
 implementation
 
 uses
-  {$IFDEF UNIX}
-  BaseUnix,
-  {$ENDIF}
   {$IFDEF WINDOWS}
   Windows,
   {$ENDIF}

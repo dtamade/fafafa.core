@@ -37,12 +37,19 @@ type
    * IVecDeque<T>
    *
    * @desc 向量双端队列接口 - 基于环形缓冲区的高性能双端队列
+   *
    * @param T 元素类型
-   * @note
-   *   - 支持 O(1) 双端插入/删除
-   *   - 支持 O(1) 随机访问
-   *   - 容量自动管理，使用 2 的幂优化
-   *   - 继承 IQueue<T> 接口
+   *
+   * @note 核心操作复杂度：
+   *   - PushFront/PushBack: O(1) 摊销
+   *   - PopFront/PopBack: O(1)
+   *   - Front/Back: O(1)
+   *   - Get/Put: O(1) 随机访问
+   *   - Insert/Remove: O(n)
+   *
+   * @threadsafety 非线程安全
+   * @see TVecDeque 具体实现
+   * @see IQueue 父接口
    *}
   generic IVecDeque<T> = interface(specialize IQueue<T>)
   ['{12345678-1234-1234-1234-123456789ABC}']
@@ -112,38 +119,69 @@ type
    * TVecDeque<T>
    *
    * @desc 向量双端队列实现 - 基于环形缓冲区的高性能双端队列
+   *
    * @param T 元素类型
-   * @threadsafety NOT thread-safe. Use external synchronization for concurrent access.
+   *
    * @note
-   *   特性:
+   *   **核心特性**:
    *   - O(1) 双端插入/删除 (PushFront/PushBack/PopFront/PopBack)
-   *   - O(1) 随机访问 (Get/operator[])
+   *   - O(1) 随机访问 (Get/Put)
    *   - 内部容量始终为 2 的幂，使用位掩码优化索引计算
    *   - 支持多种排序算法 (QuickSort/MergeSort/HeapSort/IntroSort)
    *   - 支持旋转/分割/合并等高级操作
    *
-   *   复杂度:
-   *   - PushFront/PushBack: O(1) 平摎, O(n) 最坏 (扩容时)
+   *   **复杂度速查**:
+   *   - PushFront/PushBack: O(1) 摊销, O(n) 最坏（扩容时）
    *   - PopFront/PopBack: O(1)
-   *   - Get/operator[]: O(1)
+   *   - Get/Put: O(1)
    *   - Insert/Remove: O(n)
    *   - Reserve: O(n)
+   *   - Rotate: O(n)
    *
-   *   示例:
-   *     var Deque: specialize TVecDeque<Integer>;
-   *     Deque := specialize TVecDeque<Integer>.Create;
+   * @threadsafety 非线程安全，并发访问需外部同步
+   *
+   * @example
+   *   var Deque: specialize TVecDeque<Integer>;
+   *   Deque := specialize TVecDeque<Integer>.Create;
+   *   try
    *     Deque.PushBack(1);
    *     Deque.PushFront(0);
-   *     WriteLn(Deque.Front); // 0
-   *     WriteLn(Deque.Back);  // 1
+   *     WriteLn(Deque.Front);  // 0
+   *     WriteLn(Deque.Back);   // 1
+   *     WriteLn(Deque[0]);     // 0 (随机访问)
+   *   finally
    *     Deque.Free;
+   *   end;
+   *
+   * @see IVecDeque 接口定义
+   * @see TVec 纯尾部操作替代方案
+   * @see TList 链表替代方案
    *}
   generic TVecDeque<T> = class(specialize TGenericCollection<T>,
-                               specialize IVec<T>,
                                specialize IDeque<T>,
                                specialize IQueue<T>)
   const
+    {** 默认初始容量（始终为 2 的幂） *}
     VECDEQUE_DEFAULT_CAPACITY = 16;
+  public type
+    IVecT = specialize IVec<T>;
+    {**
+     * TDrainIter - Drain 迭代器
+     *
+     * @desc 消费式范围迭代器，迭代被 drain 的元素
+     *       调用 DrainRange 时立即从原容器移除元素，迭代器逐个返回
+     *}
+    TDrainIter = record
+    private
+      FDrained: IVecT;
+      FIndex: SizeUInt;
+      FCurrent: T;
+    public
+      procedure Init(const aDrained: IVecT);
+      function MoveNext: Boolean;
+      function GetCurrent: T; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+      property Current: T read GetCurrent;
+    end;
   type
     TInternalArray = specialize TArray<T>;
     TQueueIntf    = specialize IQueue<T>;
@@ -372,11 +410,6 @@ type
     function RemoveSwap(aIndex: SizeUInt): T;
     function Add(const aElement: T): SizeUInt;
 
-    { 非异常批量导入/追加（指针重载） }
-    function TryLoadFrom(const aSrc: Pointer; aElementCount: SizeUInt): Boolean;
-    function TryAppend(const aSrc: Pointer; aElementCount: SizeUInt): Boolean;
-
-
     { IQueue<T> 队列接口实现 }
     procedure Enqueue(const aElement: T); overload;
     procedure Enqueue(const aElements: array of T); overload;
@@ -402,6 +435,8 @@ type
     // IDeque<T> 接口要求的方法
     procedure Append(const aOther: TQueueIntf);
     function SplitOff(aAt: SizeUInt): TQueueIntf;
+    // IVec<T> 接口要求的 SplitOff（返回 IVec<T>）
+    function SplitOffToVec(aIndex: SizeUInt): specialize IVec<T>;
 
     { IDeque<T> 双端队列接口实现 }
     procedure PushFront(const aElement: T); overload;
@@ -879,6 +914,10 @@ type
 
     // Drain 方法
     function Drain(aStart, aCount: SizeUInt): specialize IVec<T>;
+    function DrainRange(aStart, aEnd: SizeUInt): TDrainIter;
+
+    // Splice 方法（IVec<T> 接口要求）
+    procedure Splice(aIndex, aRemoveCount: SizeUInt; const aInsert: array of T);
 
     // First / Last 方法
     function First: T;
@@ -2617,16 +2656,6 @@ end;
 procedure TVecDeque.SetGrowStrategy(aGrowStrategy: IGrowthStrategy);
 begin
   FGrowStrategy := aGrowStrategy;
-end;
-
-function TVecDeque.TryLoadFrom(const aSrc: Pointer; aElementCount: SizeUInt): Boolean;
-begin
-  Result := (Self as TCollection).TryLoadFrom(aSrc, aElementCount);
-end;
-
-function TVecDeque.TryAppend(const aSrc: Pointer; aElementCount: SizeUInt): Boolean;
-begin
-  Result := (Self as TCollection).TryAppend(aSrc, aElementCount);
 end;
 
 function TVecDeque.TryReserve(aAdditional: SizeUint): Boolean;
@@ -6326,6 +6355,8 @@ begin
   end;
 
   FCount := aNewCount;
+  // 修复：同步更新 FTail 指针，确保 Back() 返回正确值
+  FTail := WrapAdd(FHead, aNewCount);
 end;
 
 procedure TVecDeque.ResizeExact(aNewCount: SizeUInt);
@@ -8442,14 +8473,14 @@ end;
 function TVecDeque.Filter(aPredicate: TPredicateFunc; aData: Pointer): specialize IVec<T>;
 var
   i: SizeUInt;
-  LResult: TVecDeque;
+  LResult: specialize TVec<T>;
 begin
-  LResult := TVecDeque.Create;
+  LResult := specialize TVec<T>.Create;
   try
     for i := 0 to FCount - 1 do
     begin
       if aPredicate(GetUnChecked(i), aData) then
-        LResult.PushBack(GetUnChecked(i));
+        LResult.PushUnChecked(GetUnChecked(i));
     end;
     Result := LResult;
   except
@@ -8461,14 +8492,14 @@ end;
 function TVecDeque.Filter(aPredicate: TPredicateMethod; aData: Pointer): specialize IVec<T>;
 var
   i: SizeUInt;
-  LResult: TVecDeque;
+  LResult: specialize TVec<T>;
 begin
-  LResult := TVecDeque.Create;
+  LResult := specialize TVec<T>.Create;
   try
     for i := 0 to FCount - 1 do
     begin
       if aPredicate(GetUnChecked(i), aData) then
-        LResult.PushBack(GetUnChecked(i));
+        LResult.PushUnChecked(GetUnChecked(i));
     end;
     Result := LResult;
   except
@@ -8481,14 +8512,14 @@ end;
 function TVecDeque.Filter(aPredicate: TPredicateRefFunc): specialize IVec<T>;
 var
   i: SizeUInt;
-  LResult: TVecDeque;
+  LResult: specialize TVec<T>;
 begin
-  LResult := TVecDeque.Create;
+  LResult := specialize TVec<T>.Create;
   try
     for i := 0 to FCount - 1 do
     begin
       if aPredicate(GetUnChecked(i)) then
-        LResult.PushBack(GetUnChecked(i));
+        LResult.PushUnChecked(GetUnChecked(i));
     end;
     Result := LResult;
   except
@@ -8745,6 +8776,112 @@ begin
   except
     LResult.Free;
     raise;
+  end;
+end;
+
+function TVecDeque.DrainRange(aStart, aEnd: SizeUInt): TDrainIter;
+var
+  LCount: SizeUInt;
+  LDrained: IVecT;
+begin
+  // 半开区间 [aStart, aEnd) 转换为 (start, count) 格式
+  if aEnd <= aStart then
+    LCount := 0
+  else
+    LCount := aEnd - aStart;
+
+  // 空范围特殊处理
+  if LCount = 0 then
+  begin
+    LDrained := specialize TVec<T>.Create;
+    Result.Init(LDrained);
+    Exit;
+  end;
+
+  // 使用原有 Drain 方法获取被移除的元素
+  LDrained := Drain(aStart, LCount);
+  Result.Init(LDrained);
+end;
+
+{ TVecDeque.TDrainIter }
+
+procedure TVecDeque.TDrainIter.Init(const aDrained: IVecT);
+begin
+  FDrained := aDrained;
+  FIndex := 0;
+  FCurrent := Default(T);
+end;
+
+function TVecDeque.TDrainIter.MoveNext: Boolean;
+begin
+  if FIndex < FDrained.Count then
+  begin
+    FCurrent := FDrained.Get(FIndex);
+    Inc(FIndex);
+    Result := True;
+  end
+  else
+    Result := False;
+end;
+
+function TVecDeque.TDrainIter.GetCurrent: T;
+begin
+  Result := FCurrent;
+end;
+
+{ SplitOffToVec / Splice 方法实现 }
+
+function TVecDeque.SplitOffToVec(aIndex: SizeUInt): specialize IVec<T>;
+var
+  LResult: specialize TVec<T>;
+  LSplitCount: SizeUInt;
+  i: SizeUInt;
+begin
+  // 边界检查
+  if aIndex > FCount then
+    raise EOutOfRange.CreateFmt('TVecDeque.SplitOffToVec: index %d out of range [0..%d]', [aIndex, FCount]);
+
+  // 计算要分离的元素数量
+  LSplitCount := FCount - aIndex;
+
+  // 创建新的 Vec 保存 [aIndex, Count) 范围的元素
+  LResult := specialize TVec<T>.Create(LSplitCount, GetAllocator, nil);
+  try
+    // 复制元素到新 Vec
+    for i := aIndex to FCount - 1 do
+      LResult.PushUnChecked(GetUnChecked(i));
+
+    // 截断原 VecDeque 到 [0, aIndex)
+    Truncate(aIndex);
+
+    Result := LResult;
+  except
+    LResult.Free;
+    raise;
+  end;
+end;
+
+procedure TVecDeque.Splice(aIndex, aRemoveCount: SizeUInt; const aInsert: array of T);
+var
+  i: SizeUInt;
+begin
+  // 边界检查
+  if aIndex > FCount then
+    raise EOutOfRange.CreateFmt('TVecDeque.Splice: index %d out of range [0..%d]', [aIndex, FCount]);
+
+  // 调整移除数量，避免越界
+  if aIndex + aRemoveCount > FCount then
+    aRemoveCount := FCount - aIndex;
+
+  // 先删除元素
+  if aRemoveCount > 0 then
+    Delete(aIndex, aRemoveCount);
+
+  // 再插入新元素
+  if Length(aInsert) > 0 then
+  begin
+    for i := 0 to High(aInsert) do
+      Insert(aIndex + i, aInsert[i]);
   end;
 end;
 

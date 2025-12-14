@@ -7,7 +7,7 @@ unit fafafa.core.collections.base;
 interface
 
 uses
-  SysUtils, Classes,typinfo,variants, Math,
+  SysUtils, Classes,typinfo,variants,
   fafafa.core.base,
   fafafa.core.math,
   {$HINTS OFF}fafafa.core.mem.utils,{$HINTS ON}
@@ -1126,7 +1126,7 @@ type
     function DoEqualsShortString(const aLeft, aRight: ShortString): Boolean; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
     function DoEqualsAnsiString(const aLeft, aRight: AnsiString): Boolean; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
     function DoEqualsWideString(const aLeft, aRight: WideString): Boolean; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
-    function DoEqualsUnicodeString(const aLeft, aRight: UnicodeString): Boolean; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+    function DoEqualsUnicodeString(const aLeft: UnicodeString; const aRight: UnicodeString): Boolean; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
     function DoEqualsPointer(const aLeft, aRight: Pointer): Boolean; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
     function DoEqualsVariant(const aLeft, aRight: Variant): Boolean; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
     function DoEqualsStr(const aLeft, aRight: String): Boolean; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
@@ -2471,7 +2471,7 @@ begin
   Result := equals_widestring(aLeft, aRight);
 end;
 
-function TGenericCollection.DoEqualsUnicodeString(const aLeft, aRight: UnicodeString): Boolean;
+function TGenericCollection.DoEqualsUnicodeString(const aLeft: UnicodeString; const aRight: UnicodeString): Boolean;
 begin
   Result := equals_unicodestring(aLeft, aRight);
 end;
@@ -3436,11 +3436,10 @@ begin
       Result := MAX_SAFE_SIZEUINT  // 返回安全的最大值
     else
     begin
+      // LCeiled is Int64; after the MAX_SAFE_SIZEUINT / NaN / Inf guard above,
+      // this conversion cannot overflow Int64.
       LCeiled := ceil(LProduct);
-      if LCeiled > MAX_SAFE_SIZEUINT then
-        Result := MAX_SAFE_SIZEUINT
-      else
-        Result := SizeUInt(LCeiled);
+      Result := SizeUInt(LCeiled);
     end;
   end;
 end;
@@ -3498,11 +3497,10 @@ begin
       Result := MAX_SAFE_SIZEUINT  // 返回安全的最大值
     else
     begin
+      // LCeiled is Int64; after the MAX_SAFE_SIZEUINT / NaN / Inf guard above,
+      // this conversion cannot overflow Int64.
       LCeiled := ceil(LProduct);
-      if LCeiled > MAX_SAFE_SIZEUINT then
-        Result := MAX_SAFE_SIZEUINT
-      else
-        Result := SizeUInt(LCeiled);
+      Result := SizeUInt(LCeiled);
     end;
   end;
 end;

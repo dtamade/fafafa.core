@@ -4,39 +4,24 @@ unit fafafa.core.option;
 {$modeswitch advancedrecords}
 {$I fafafa.core.settings.inc}
 
+{
+  fafafa.core.option - Option 类型组合子扩展
+
+  此模块基于 fafafa.core.option.base 提供的 TOption<T> 核心定义，
+  扩展更多全局组合子函数和与 Result 的互转功能。
+
+  用法：
+    uses fafafa.core.option.base, fafafa.core.option;
+
+  TOption<T> 核心类型定义位于 fafafa.core.option.base 模块。
+}
+
 interface
 
 uses
-  SysUtils, fafafa.core.result;
-
-type
-  generic TOptionFunc<TArg, TRes> = reference to function (const Arg: TArg): TRes;
-  generic TOptionProc<TArg> = reference to procedure (const Arg: TArg);
-  generic TOptionThunk<TResult> = reference to function: TResult;
-
-  generic TOption<T> = record
-  private
-    FHas: Boolean;
-    FValue: T;
-  public
-    // 构造
-    class function Some(const AValue: T): TOption; static; inline;
-    class function None: TOption; static; inline;
-
-    // 查询
-    function IsSome: Boolean; inline;
-    function IsNone: Boolean; inline;
-
-    // 取值
-    function Unwrap: T; inline;              // None -> EOptionUnwrapError
-    function UnwrapOr(const ADefault: T): T; inline;
-
-    // 组合子（方法仅保留 Inspect/ToDebugString；Map/AndThen 以顶层组合子提供）
-    function Inspect(const F: specialize TOptionProc<T>): TOption; inline;
-    function ToDebugString(const Printer: specialize TOptionFunc<T,string>): string; inline;
-  end;
-
-  EOptionUnwrapError = class(Exception);
+  SysUtils,
+  fafafa.core.option.base,  // TOption<T> 核心定义
+  fafafa.core.result;
 
 // 顶层组合子（Option）
 // Map: Some(T)->Some(U)  None->None
@@ -49,6 +34,23 @@ generic function OptionMapOr<T,U>(const O: specialize TOption<T>; const ADefault
 generic function OptionMapOrElse<T,U>(const O: specialize TOption<T>; const Fnone: specialize TOptionThunk<U>; const Fok: specialize TOptionFunc<T,U>): U;
 // Filter: Some(T)&Pred(T)->Some(T) else None
 generic function OptionFilter<T>(const O: specialize TOption<T>; const Pred: specialize TOptionFunc<T,Boolean>): specialize TOption<T>;
+
+// Flatten: Option<Option<T>> -> Option<T>
+generic function OptionFlatten<T>(const O: specialize TOption<specialize TOption<T>>): specialize TOption<T>;
+
+// Zip: (Some(T), Some(U)) -> Some((T,U))  else None
+// 返回 TPair 记录，包含 First 和 Second 字段
+type
+  generic TPair<TFirst, TSecond> = record
+    First: TFirst;
+    Second: TSecond;
+  end;
+
+generic function OptionZip<T, U>(const A: specialize TOption<T>; const B: specialize TOption<U>): specialize TOption<specialize TPair<T, U>>;
+
+// ZipWith: (Some(T), Some(U)) -> Some(F(T,U))  else None
+generic function OptionZipWith<T, U, R>(const A: specialize TOption<T>; const B: specialize TOption<U>;
+  const F: specialize TOptionFunc<specialize TPair<T, U>, R>): specialize TOption<R>;
 
 // 与 Result 互转
 // Some(T) -> Ok(T)；None -> Err(E)
@@ -77,41 +79,7 @@ function OptionFromInterface(const V: IInterface): specialize TOption<IInterface
 
 implementation
 
-{ TOption<T> }
-
-class function TOption.Some(const AValue: T): TOption;
-begin
-  Result.FHas := True;
-  Result.FValue := AValue;
-end;
-
-class function TOption.None: TOption;
-begin
-  Result.FHas := False;
-end;
-
-function TOption.IsSome: Boolean;
-begin
-  Result := FHas;
-end;
-
-function TOption.IsNone: Boolean;
-begin
-  Result := not FHas;
-end;
-
-function TOption.Unwrap: T;
-begin
-  if not FHas then raise EOptionUnwrapError.Create('Unwrap on None');
-  Exit(FValue);
-end;
-
-function TOption.UnwrapOr(const ADefault: T): T;
-begin
-  if FHas then Exit(FValue) else Exit(ADefault);
-end;
-
-// 顶层组合子实现
+{ 全局组合子实现 }
 
 generic function OptionMap<T,U>(const O: specialize TOption<T>; const F: specialize TOptionFunc<T,U>): specialize TOption<U>;
 begin
@@ -144,23 +112,46 @@ begin
   if O.IsSome and Pred(O.Unwrap) then Exit(O) else Exit(specialize TOption<T>.None);
 end;
 
-function TOption.Inspect(const F: specialize TOptionProc<T>): TOption;
+generic function OptionFlatten<T>(const O: specialize TOption<specialize TOption<T>>): specialize TOption<T>;
 begin
-  if FHas and Assigned(@F) then F(FValue);
-  Exit(Self);
+  if O.IsSome then
+    Result := O.Unwrap
+  else
+    Result := specialize TOption<T>.None;
 end;
 
-function TOption.ToDebugString(const Printer: specialize TOptionFunc<T,string>): string;
+generic function OptionZip<T, U>(const A: specialize TOption<T>; const B: specialize TOption<U>): specialize TOption<specialize TPair<T, U>>;
+type
+  TResultPair = specialize TPair<T, U>;
+  TResultOption = specialize TOption<TResultPair>;
+var
+  P: TResultPair;
 begin
-  if FHas then
+  if A.IsSome and B.IsSome then
   begin
-    if Assigned(Printer) then
-      Result := 'Some(' + Printer(FValue) + ')'
-    else
-      Result := 'Some';
+    P.First := A.Unwrap;
+    P.Second := B.Unwrap;
+    Result := TResultOption.Some(P);
   end
   else
-    Result := 'None';
+    Result := TResultOption.None;
+end;
+
+generic function OptionZipWith<T, U, R>(const A: specialize TOption<T>; const B: specialize TOption<U>;
+  const F: specialize TOptionFunc<specialize TPair<T, U>, R>): specialize TOption<R>;
+type
+  TPairTU = specialize TPair<T, U>;
+var
+  P: TPairTU;
+begin
+  if A.IsSome and B.IsSome then
+  begin
+    P.First := A.Unwrap;
+    P.Second := B.Unwrap;
+    Result := specialize TOption<R>.Some(F(P));
+  end
+  else
+    Result := specialize TOption<R>.None;
 end;
 
 generic function OptionToResult<T,E>(const O: specialize TOption<T>; const Err: E): specialize TResult<T,E>;

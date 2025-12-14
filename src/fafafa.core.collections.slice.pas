@@ -2,7 +2,6 @@ unit fafafa.core.collections.slice;
 
 {$mode objfpc}{$H+}
 {$modeswitch advancedrecords}
-{$modeswitch coperators}
 
 {$I fafafa.core.settings.inc}
 
@@ -27,10 +26,13 @@ type
    *   警告: 原始数据释放后 Span 变为悬空指针!
    *}
   generic TReadOnlySpan<T> = record
+  public type
+    PElement = ^T;
+  private
     FPtr: Pointer;      // 起始元素指针（只读视图）
     FCount: SizeUInt;   // 元素数量
     FElemSize: SizeUInt;// 元素大小（字节）
-
+  public
     class function FromPointer(aPtr: Pointer; aCount, aElemSize: SizeUInt): TReadOnlySpan; static; inline;
     function  Count: SizeUInt; inline;
     function  IsEmpty: Boolean; inline;
@@ -95,14 +97,14 @@ function TReadOnlySpan.Get(aIndex: SizeUInt): T; inline;
 begin
   if aIndex >= FCount then
     raise fafafa.core.base.EOutOfRange.Create('Span.Get: index out of range');
-  Result := specialize TGenericCollection<T>.PElement(Pointer(PtrUInt(FPtr) + aIndex * FElemSize))^;
+  Result := PElement(Pointer(PtrUInt(FPtr) + aIndex * FElemSize))^;
 end;
 
 function TReadOnlySpan.TryGet(aIndex: SizeUInt; out aElement: T): Boolean; inline;
 begin
   if aIndex < FCount then
   begin
-    aElement := specialize TGenericCollection<T>.PElement(Pointer(PtrUInt(FPtr) + aIndex * FElemSize))^;
+    aElement := PElement(Pointer(PtrUInt(FPtr) + aIndex * FElemSize))^;
     Exit(True);
   end;
   Result := False;

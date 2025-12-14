@@ -1,3 +1,6 @@
+> **⚠️ LEGACY DOCUMENT**: 此文档为历史记录。模块已重命名为 `fafafa.core.sync.condvar`。
+> 最新文档请参阅 `docs/SYNC_API_REFERENCE.md`。
+
 # fafafa.core.sync.conditionVariable 本轮工作总结报告
 
 ## 背景

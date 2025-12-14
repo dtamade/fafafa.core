@@ -14,7 +14,7 @@ type
   TCSVTable = array of TStringArray;
 
   // 额外方言与错误枚举
-  TECSVQuoteMode = (csvQuoteMinimal, csvQuoteAll, csvQuoteNone);
+  TECSVQuoteMode = (csvQuoteMinimal, csvQuoteAll, csvQuoteNone, csvQuoteNonNumeric);
   TECSVTerminator = (csvTermAuto, csvTermCRLF, csvTermLF);
   TECSVErrorCode = (
     csvErrUnknown,
@@ -29,6 +29,8 @@ type
   );
   TCSVNameMatchMode = (csvNameExact, csvNameAsciiCI);
   TCSVRecordKind = (csvRecordUnicode, csvRecordBytes);
+  // Trim 粒度模式（Phase 2 新增）
+  TECSVTrimMode = (csvTrimNone, csvTrimHeaders, csvTrimFields, csvTrimAll);
 
   // CSV 方言配置（接口优先：与 Go/Rust/Java 常见配置对齐）
   TCSVDialect = record
@@ -52,6 +54,10 @@ type
     ReplaceInvalidUTF8: Boolean;// 宽松模式：非法序列替换为 U+FFFD
     // 名称匹配策略（表头映射）
     NameMatchMode: TCSVNameMatchMode; // 默认 csvNameAsciiCI
+    // Trim 粒度模式（Phase 2 新增）
+    TrimMode: TECSVTrimMode; // 默认 csvTrimNone；向后兼容：设置 TrimSpaces=True 等效于 csvTrimFields
+    // 引号处理开关（与 Rust csv crate 对齐）
+    Quoting: Boolean;           // 是否启用引号特殊处理（默认 True）；False 时引号被视为普通字符
   end;
 
   // 错误类型：包含行列定位信息 + 错误码
@@ -82,6 +88,18 @@ type
     function GetFieldSlice(const Index: SizeInt; out Ptr: PAnsiChar; out Len: SizeInt): Boolean; // 零拷贝切片，生命周期同记录
     // P2: 安全 Try 接口（Unicode）
     function TryGetFieldU(const Index: SizeInt; out Value: UnicodeString): Boolean;
+    // P3: 类型转换便捷方法（按索引）
+    function AsStr(const Index: SizeInt): string;
+    function AsInt(const Index: SizeInt; const Default: Integer = 0): Integer;
+    function AsInt64(const Index: SizeInt; const Default: Int64 = 0): Int64;
+    function AsFloat(const Index: SizeInt; const Default: Double = 0): Double;
+    function AsBool(const Index: SizeInt; const Default: Boolean = False): Boolean;
+    // P3: 类型转换便捷方法（按列名）
+    function AsStrByName(const Name: string): string;
+    function AsIntByName(const Name: string; const Default: Integer = 0): Integer;
+    function AsInt64ByName(const Name: string; const Default: Int64 = 0): Int64;
+    function AsFloatByName(const Name: string; const Default: Double = 0): Double;
+    function AsBoolByName(const Name: string; const Default: Boolean = False): Boolean;
   end;
 
   // Reader 接口
@@ -100,14 +118,29 @@ type
     ['{0E1B5C9D-3F2D-4D6E-A57C-49B7E8A10B3A}']
     function FromStream(AStream: TStream): ICSVReaderBuilder;
     function FromFile(const FileName: string): ICSVReaderBuilder;
+    function FromString(const Content: string): ICSVReaderBuilder; // 从字符串读取
     function Dialect(const D: TCSVDialect): ICSVReaderBuilder;
     function BufferSize(const Bytes: SizeUInt): ICSVReaderBuilder; // 默认 65536
     function ReuseRecord(const Enabled: Boolean): ICSVReaderBuilder; // 复用记录以减少分配
-    // 新增：直接通过 Builder 暴露关键读取策略
+    // 直接通过 Builder 暴露关键读取策略
     function MaxRecordBytes(const Bytes: SizeUInt): ICSVReaderBuilder; // 0 表示不限制（不推荐）
     function StrictUTF8(const Enabled: Boolean): ICSVReaderBuilder; // 默认 False
     function ReplaceInvalidUTF8(const Enabled: Boolean): ICSVReaderBuilder; // 默认 False
     function RecordKind(const Kind: TCSVRecordKind): ICSVReaderBuilder; // 默认 Unicode
+    // 快捷配置方法（与 Rust csv crate 对齐）
+    function Delimiter(const Ch: WideChar): ICSVReaderBuilder;
+    function Quote(const Ch: WideChar): ICSVReaderBuilder;
+    function HasHeader(const Enabled: Boolean): ICSVReaderBuilder;
+    function Flexible(const Enabled: Boolean): ICSVReaderBuilder; // alias for AllowVariableFields
+    function TrimSpaces(const Enabled: Boolean): ICSVReaderBuilder;
+    function Comment(const Ch: WideChar): ICSVReaderBuilder;
+    function DoubleQuote(const Enabled: Boolean): ICSVReaderBuilder;
+    function Escape(const Ch: WideChar): ICSVReaderBuilder;
+    function LazyQuotes(const Enabled: Boolean): ICSVReaderBuilder; // alias for AllowLazyQuotes
+    function Quoting(const Enabled: Boolean): ICSVReaderBuilder; // 是否启用引号特殊处理（默认 True）
+    // 别名方法（与 Rust csv crate 命名对齐）
+    function HasHeaders(const Enabled: Boolean): ICSVReaderBuilder; // alias for HasHeader
+    function Trim(const Mode: TECSVTrimMode): ICSVReaderBuilder; // 直接设置 TrimMode
     function Build: ICSVReader;
   end;
 
@@ -130,8 +163,14 @@ type
     function Dialect(const D: TCSVDialect): ICSVWriterBuilder;
     function WithHeaders(const Headers: array of string): ICSVWriterBuilder;
     function WriteBOM(const Enabled: Boolean): ICSVWriterBuilder; // 默认 False
-
     function Terminator(const T: TECSVTerminator): ICSVWriterBuilder; // 默认 Auto
+    // 快捷配置方法（与 Rust csv crate 对齐）
+    function Delimiter(const Ch: WideChar): ICSVWriterBuilder;
+    function Quote(const Ch: WideChar): ICSVWriterBuilder;
+    function DoubleQuote(const Enabled: Boolean): ICSVWriterBuilder;
+    function QuoteMode(const Mode: TECSVQuoteMode): ICSVWriterBuilder;
+    function UseCRLF(const Enabled: Boolean): ICSVWriterBuilder;
+    function Escape(const Ch: WideChar): ICSVWriterBuilder; // 转义字符快捷配置
     function Build: ICSVWriter;
   end;
 
@@ -146,29 +185,83 @@ function OpenCSVWriter(const FileName: string; const D: TCSVDialect): ICSVWriter
 function CSVWriterBuilder: ICSVWriterBuilder;
 function CSVReaderBuilder: ICSVReaderBuilder;
 
+// 便捷静态创建函数（与 Rust csv::Reader/Writer::from_path/from_reader 对齐）
+function CreateCSVReader(const FileName: string): ICSVReader; overload;
+function CreateCSVReader(AStream: TStream; AOwnsStream: Boolean = False): ICSVReader; overload;
+function CreateCSVWriter(const FileName: string): ICSVWriter; overload;
+function CreateCSVWriter(AStream: TStream; AOwnsStream: Boolean = False): ICSVWriter; overload;
 
+// 预设方言（新增）
+function TSVDialect: TCSVDialect;   // Tab 分隔
+function PipeDialect: TCSVDialect; // 管道分隔 '|'
+
+// 门面/快速 API（新增，与 Rust csv crate 对齐）
+function ReadCSVFile(const FileName: string): TCSVTable; overload;
+function ReadCSVFile(const FileName: string; const D: TCSVDialect): TCSVTable; overload;
+procedure WriteCSVFile(const FileName: string; const Table: TCSVTable); overload;
+procedure WriteCSVFile(const FileName: string; const Table: TCSVTable; const D: TCSVDialect); overload;
+function ParseCSVString(const Content: string): TCSVTable; overload;
+function ParseCSVString(const Content: string; const D: TCSVDialect): TCSVTable; overload;
+function ToCSVString(const Table: TCSVTable): string; overload;
+function ToCSVString(const Table: TCSVTable; const D: TCSVDialect): string; overload;
 
 implementation
 
 // UTF-8 helpers (unit-scope)
-function DecodeUTF8(const Bytes: RawByteString): UnicodeString; inline;
+function IsValidUTF8(const R: RawByteString): Boolean;
 var
-  Tmp: RawByteString;
+  i, l, need: SizeInt;
+  b: Byte;
 begin
-  if Length(Bytes) = 0 then Exit('');
-  {$IFDEF FPC}
-  Tmp := Bytes; // local copy to adjust code page without copy
-  SetCodePage(Tmp, CP_UTF8, False);
-  Result := UTF8Decode(Tmp);
-  {$ELSE}
-  Result := UTF8Decode(Bytes);
-  {$ENDIF}
+  l := Length(R);
+  i := 1;
+  while i <= l do
+  begin
+    b := Byte(R[i]);
+    if (b and $80) = 0 then
+    begin
+      Inc(i);
+      Continue;
+    end
+    else if (b and $E0) = $C0 then
+    begin
+      need := 1;
+      if (i+need) > l then Exit(False);
+      if (Byte(R[i+1]) and $C0) <> $80 then Exit(False);
+      if (b = $C0) or (b = $C1) then Exit(False);
+      Inc(i, 2);
+      Continue;
+    end
+    else if (b and $F0) = $E0 then
+    begin
+      need := 2;
+      if (i+need) > l then Exit(False);
+      if ((Byte(R[i+1]) and $C0) <> $80) or ((Byte(R[i+2]) and $C0) <> $80) then Exit(False);
+      if (b = $E0) and (Byte(R[i+1]) < $A0) then Exit(False);
+      Inc(i, 3);
+      Continue;
+    end
+    else if (b and $F8) = $F0 then
+    begin
+      need := 3;
+      if (i+need) > l then Exit(False);
+      if ((Byte(R[i+1]) and $C0) <> $80) or ((Byte(R[i+2]) and $C0) <> $80) or ((Byte(R[i+3]) and $C0) <> $80) then Exit(False);
+      if (b = $F0) and (Byte(R[i+1]) < $90) then Exit(False);
+      if (b > $F4) or ((b = $F4) and (Byte(R[i+1]) > $8F)) then Exit(False);
+      Inc(i, 4);
+      Continue;
+    end
+    else
+      Exit(False);
+  end;
+  Result := True;
 end;
 
 function EncodeUTF8(const U: UnicodeString): RawByteString; inline;
 begin
   Result := UTF8Encode(U);
 end;
+
 
 { ECSVError }
 constructor ECSVError.CreatePos(const Msg: string; const ALine, AColumn: SizeInt);
@@ -187,9 +280,6 @@ begin
   FCode := ACode;
 end;
 
-
-// Internal minimal classes (MVP) declarations
-// Note: concrete Reader/Writer not implemented yet; only builders and record wrapper exist
 
 type
   TCSVRecordImpl = class(TInterfacedObject, ICSVRecord)
@@ -220,7 +310,6 @@ type
     function AsciiLower(const S: RawByteString): RawByteString; inline;
     function HashFNV1a64(const S: RawByteString): QWord; inline;
     function FindHeaderIndexCI_Raw(const NameRaw: RawByteString): SizeInt; inline;
-    function IsValidUTF8(const R: RawByteString): Boolean; inline;
     procedure EnsureFieldDecoded(const Index: SizeInt);
   public
     constructor Create(const AFields, AHeaders: TStringArray; const ARowBuf: RawByteString; const AOffsets, ALengths: array of SizeInt);
@@ -232,11 +321,24 @@ type
     function Count: SizeInt;
     function Field(const Index: SizeInt): string;
     function FieldU(const Index: SizeInt): UnicodeString;
+    function TryGetFieldU(const Index: SizeInt; out Value: UnicodeString): Boolean;
     function TryGetByName(const Name: string; out Value: string): Boolean;
     function TryGetByNameU(const Name: UnicodeString; out Value: UnicodeString): Boolean;
     function AsArray: TStringArray;
     function TryGetFieldBytes(const Index: SizeInt; out Value: RawByteString): Boolean;
     function GetFieldSlice(const Index: SizeInt; out Ptr: PAnsiChar; out Len: SizeInt): Boolean;
+    // P3: 类型转换便捷方法（按索引）
+    function AsStr(const Index: SizeInt): string;
+    function AsInt(const Index: SizeInt; const Default: Integer = 0): Integer;
+    function AsInt64(const Index: SizeInt; const Default: Int64 = 0): Int64;
+    function AsFloat(const Index: SizeInt; const Default: Double = 0): Double;
+    function AsBool(const Index: SizeInt; const Default: Boolean = False): Boolean;
+    // P3: 类型转换便捷方法（按列名）
+    function AsStrByName(const Name: string): string;
+    function AsIntByName(const Name: string; const Default: Integer = 0): Integer;
+    function AsInt64ByName(const Name: string; const Default: Int64 = 0): Int64;
+    function AsFloatByName(const Name: string; const Default: Double = 0): Double;
+    function AsBoolByName(const Name: string; const Default: Boolean = False): Boolean;
   end;
   TCSVReaderImpl = class(TInterfacedObject, ICSVReader)
   private
@@ -244,9 +346,6 @@ type
     FHeaders: TStringArray;
     FOwnsStream: Boolean;
     FStream: TStream;
-    FData: RawByteString;
-    FPos: SizeInt;
-    FLen: SizeInt;
     FLine: SizeInt;
     FCol: SizeInt;
     FRecordStartLine: SizeInt;
@@ -271,16 +370,13 @@ type
     FBufPos: SizeInt;           // 1-based position in buffer
     FBufLen: SizeInt;           // bytes valid in buffer
     FBOMChecked: Boolean;       // BOM skip processed
-    FLastFromData: Boolean;     // last char source (data vs buffer) for UnreadChar
     FChunkSize: SizeUInt;       // streaming read chunk size (default 65536); set by builder
     procedure EnsureBuffered;   // ensure buffer has data for streaming
     procedure BeginRecord;      // mark record start (for streaming)
     procedure EndRecord;        // finalize record (for streaming)
-    procedure FillBufferPlaceholder; inline; // kept for compatibility
-    // character APIs (use FData first; fallback to FBuf streaming)
+    // character APIs
     function GetNextChar(out Ch: Char): Boolean; inline;
     function PeekChar(out Ch: Char): Boolean; inline;
-    procedure UnreadChar; inline;
     procedure SetChunkSize(const Bytes: SizeUInt);
   public
     constructor Create(AStream: TStream; AOwnsStream: Boolean; const ADialect: TCSVDialect);
@@ -306,16 +402,13 @@ type
     FCachedEscape: AnsiChar;
     FLineBuf: RawByteString; // reusable line buffer capacity
     FInitHeaders: TStringArray;
-    FFileName: string; // only set when built via ToFile
     FWriteBOM: Boolean;
     FBOMWritten: Boolean;
 
     procedure RefreshWriterCache;
-    procedure SetDialect(const D: TCSVDialect);
 
-    // Byte-level helpers to preserve original field bytes (UTF-8 or others) without double encoding
+    // Byte-level helpers
     function NeedsQuotingBytes(const S: RawByteString): Boolean;
-    function QuoteAndEscapeBytes(const S: RawByteString): RawByteString;
     // optimized helpers to precompute sizes and write into preallocated buffer
     function CountSpecialForQuote(const S: RawByteString): SizeInt; inline;
     procedure AppendFieldInto(var Dest: RawByteString; var P: SizeInt; const FieldBytes: RawByteString; const DelimB: RawByteString; const IsFirst: Boolean);
@@ -324,7 +417,7 @@ type
     procedure WriteLineBytes(const Line: RawByteString);
     procedure WriteHeadersIfNeeded;
   public
-    constructor Create(AStream: TStream; AOwnsStream: Boolean; const ADialect: TCSVDialect; const AHeaders: TStringArray; const AFileName: string = ''; const AWriteBOM: Boolean = False);
+    constructor Create(AStream: TStream; AOwnsStream: Boolean; const ADialect: TCSVDialect; const AHeaders: TStringArray; const AWriteBOM: Boolean = False);
     destructor Destroy; override;
     function Dialect: TCSVDialect;
     procedure WriteRow(const Fields: array of string);
@@ -348,10 +441,13 @@ type
     FStrictUTF8: Boolean;
     FReplaceInvalidUTF8: Boolean;
     FRecordKind: TCSVRecordKind;
+    FOwnedStringStream: TStringStream; // 用于 FromString 创建的流
   public
     constructor Create;
+    destructor Destroy; override;
     function FromStream(AStream: TStream): ICSVReaderBuilder;
     function FromFile(const FileName: string): ICSVReaderBuilder;
+    function FromString(const Content: string): ICSVReaderBuilder;
     function Dialect(const D: TCSVDialect): ICSVReaderBuilder;
     function BufferSize(const Bytes: SizeUInt): ICSVReaderBuilder;
     function ReuseRecord(const Enabled: Boolean): ICSVReaderBuilder;
@@ -359,6 +455,20 @@ type
     function StrictUTF8(const Enabled: Boolean): ICSVReaderBuilder;
     function ReplaceInvalidUTF8(const Enabled: Boolean): ICSVReaderBuilder;
     function RecordKind(const Kind: TCSVRecordKind): ICSVReaderBuilder;
+    // 快捷配置方法
+    function Delimiter(const Ch: WideChar): ICSVReaderBuilder;
+    function Quote(const Ch: WideChar): ICSVReaderBuilder;
+    function HasHeader(const Enabled: Boolean): ICSVReaderBuilder;
+    function Flexible(const Enabled: Boolean): ICSVReaderBuilder;
+    function TrimSpaces(const Enabled: Boolean): ICSVReaderBuilder;
+    function Comment(const Ch: WideChar): ICSVReaderBuilder;
+    function DoubleQuote(const Enabled: Boolean): ICSVReaderBuilder;
+    function Escape(const Ch: WideChar): ICSVReaderBuilder;
+    function LazyQuotes(const Enabled: Boolean): ICSVReaderBuilder;
+    function Quoting(const Enabled: Boolean): ICSVReaderBuilder;
+    // 别名方法
+    function HasHeaders(const Enabled: Boolean): ICSVReaderBuilder;
+    function Trim(const Mode: TECSVTrimMode): ICSVReaderBuilder;
     function Build: ICSVReader;
   end;
 
@@ -378,6 +488,13 @@ type
     function WithHeaders(const Headers: array of string): ICSVWriterBuilder;
     function WriteBOM(const Enabled: Boolean): ICSVWriterBuilder;
     function Terminator(const T: TECSVTerminator): ICSVWriterBuilder;
+    // 快捷配置方法
+    function Delimiter(const Ch: WideChar): ICSVWriterBuilder;
+    function Quote(const Ch: WideChar): ICSVWriterBuilder;
+    function DoubleQuote(const Enabled: Boolean): ICSVWriterBuilder;
+    function QuoteMode(const Mode: TECSVQuoteMode): ICSVWriterBuilder;
+    function UseCRLF(const Enabled: Boolean): ICSVWriterBuilder;
+    function Escape(const Ch: WideChar): ICSVWriterBuilder;
     function Build: ICSVWriter;
   end;
 
@@ -400,6 +517,8 @@ begin
   Result.StrictUTF8 := False;
   Result.ReplaceInvalidUTF8 := False;
   Result.NameMatchMode := csvNameAsciiCI;
+  Result.TrimMode := csvTrimNone; // 默认不 trim；向后兼容：TrimSpaces=True 等效于 csvTrimFields
+  Result.Quoting := True; // 默认启用引号特殊处理
 end;
 
 function ExcelDialect: TCSVDialect;
@@ -440,6 +559,130 @@ end;
 function CSVWriterBuilder: ICSVWriterBuilder;
 begin
   Result := TCSVWriterBuilder.Create;
+end;
+
+{ 便捷静态创建函数（与 Rust csv::Reader/Writer::from_path/from_reader 对齐） }
+function CreateCSVReader(const FileName: string): ICSVReader;
+begin
+  Result := CSVReaderBuilder.FromFile(FileName).Build;
+end;
+
+function CreateCSVReader(AStream: TStream; AOwnsStream: Boolean = False): ICSVReader;
+var
+  R: TCSVReaderImpl;
+begin
+  R := TCSVReaderImpl.Create(AStream, AOwnsStream, DefaultRFC4180);
+  Result := R;
+end;
+
+function CreateCSVWriter(const FileName: string): ICSVWriter;
+begin
+  Result := CSVWriterBuilder.ToFile(FileName).Build;
+end;
+
+function CreateCSVWriter(AStream: TStream; AOwnsStream: Boolean = False): ICSVWriter;
+var
+  Empty: TStringArray;
+begin
+  SetLength(Empty, 0);
+  Result := TCSVWriterImpl.Create(AStream, AOwnsStream, DefaultRFC4180, Empty, False);
+end;
+
+{ 预设方言 }
+function TSVDialect: TCSVDialect;
+begin
+  Result := DefaultRFC4180;
+  Result.Delimiter := #9; // Tab
+end;
+
+function PipeDialect: TCSVDialect;
+begin
+  Result := DefaultRFC4180;
+  Result.Delimiter := '|';
+end;
+
+{ 门面 API }
+function ReadCSVFile(const FileName: string): TCSVTable;
+begin
+  Result := ReadCSVFile(FileName, DefaultRFC4180);
+end;
+
+function ReadCSVFile(const FileName: string; const D: TCSVDialect): TCSVTable;
+var
+  R: ICSVReader;
+begin
+  R := OpenCSVReader(FileName, D);
+  Result := R.ReadAll;
+end;
+
+procedure WriteCSVFile(const FileName: string; const Table: TCSVTable);
+begin
+  WriteCSVFile(FileName, Table, DefaultRFC4180);
+end;
+
+procedure WriteCSVFile(const FileName: string; const Table: TCSVTable; const D: TCSVDialect);
+var
+  W: ICSVWriter;
+  I: SizeInt;
+begin
+  W := OpenCSVWriter(FileName, D);
+  for I := 0 to High(Table) do
+    W.WriteRowU(Table[I]);
+  W.Close;
+end;
+
+function ParseCSVString(const Content: string): TCSVTable;
+begin
+  Result := ParseCSVString(Content, DefaultRFC4180);
+end;
+
+function ParseCSVString(const Content: string; const D: TCSVDialect): TCSVTable;
+var
+  R: ICSVReader;
+begin
+  R := CSVReaderBuilder
+    .FromString(Content)
+    .Dialect(D)
+    .Build;
+  Result := R.ReadAll;
+end;
+
+function ToCSVString(const Table: TCSVTable): string;
+begin
+  Result := ToCSVString(Table, DefaultRFC4180);
+end;
+
+function ToCSVString(const Table: TCSVTable; const D: TCSVDialect): string;
+var
+  MS: TMemoryStream;
+  W: ICSVWriter;
+  I: SizeInt;
+  Buf: RawByteString;
+begin
+  if Length(Table) = 0 then
+  begin
+    Result := '';
+    Exit;
+  end;
+  MS := TMemoryStream.Create;
+  try
+    W := CSVWriterBuilder
+      .ToStream(MS)
+      .Dialect(D)
+      .Build;
+    for I := 0 to High(Table) do
+      W.WriteRowU(Table[I]);
+    W.Flush;
+    SetLength(Buf, MS.Size);
+    if MS.Size > 0 then
+    begin
+      MS.Position := 0;
+      MS.ReadBuffer(Pointer(Buf)^, MS.Size);
+    end;
+    Result := string(Buf);
+  finally
+    MS.Free;
+  end;
 end;
 
 { TCSVRecordImpl }
@@ -544,6 +787,8 @@ function TCSVRecordImpl.TryGetByName(const Name: string; out Value: string): Boo
 var
   idx: SizeInt;
   raw: RawByteString;
+  I: SizeInt;
+  hdrRaw, nameRaw: RawByteString;
 begin
   Result := False;
   EnsureHeaderMapBuilt;
@@ -558,8 +803,6 @@ begin
     Exit(True);
   end;
   // 兜底：线性扫描（极端退化时），遵循 NameMatchMode
-  var I: SizeInt;
-  var hdrRaw, nameRaw: RawByteString;
   nameRaw := raw; // 已按 UTF-8 编码
   if FNameMatchMode = csvNameAsciiCI then
     nameRaw := AsciiLower(nameRaw);
@@ -585,6 +828,8 @@ function TCSVRecordImpl.TryGetByNameU(const Name: UnicodeString; out Value: Unic
 var
   idx: SizeInt;
   raw: RawByteString;
+  I: SizeInt;
+  LowerName: UnicodeString;
 begin
   Result := False;
   EnsureHeaderMapBuilt;
@@ -599,10 +844,9 @@ begin
     Exit(True);
   end;
   // 兜底：线性扫描（与旧行为一致），遵循 NameMatchMode
-  var I: SizeInt;
   if FNameMatchMode = csvNameAsciiCI then
   begin
-    var LowerName: UnicodeString := LowerCase(Name);
+    LowerName := LowerCase(Name);
     for I := 0 to High(FHeaders) do
     begin
       if LowerCase(UnicodeString(FHeaders[I])) = LowerName then
@@ -633,6 +877,8 @@ begin
       end;
     end;
   end;
+  Result := False;
+end;
 
 function TCSVRecordImpl.AsciiLower(const S: RawByteString): RawByteString; inline;
 var i: SizeInt; b: Byte; c: AnsiChar;
@@ -710,60 +956,6 @@ begin
         // 已存在（重复表头），保留首次的不覆盖
         Break;
       end
-
-function TCSVRecordImpl.IsValidUTF8(const R: RawByteString): Boolean; inline;
-var
-      else
-      begin
-        pos := (pos + 1) and mask;
-      end;
-  i, l, need: SizeInt;
-  b: Byte;
-begin
-  l := Length(R);
-  i := 1;
-  while i <= l do
-  begin
-    b := Byte(R[i]);
-    if (b and $80) = 0 then
-    begin
-      Inc(i);
-      Continue;
-    end
-    else if (b and $E0) = $C0 then
-    begin
-      need := 1;
-      if (i+need) > l then Exit(False);
-      if (Byte(R[i+1]) and $C0) <> $80 then Exit(False);
-      if (b = $C0) or (b = $C1) then Exit(False);
-      Inc(i, 2);
-      Continue;
-    end
-    else if (b and $F0) = $E0 then
-    begin
-      need := 2;
-      if (i+need) > l then Exit(False);
-      if ((Byte(R[i+1]) and $C0) <> $80) or ((Byte(R[i+2]) and $C0) <> $80) then Exit(False);
-      if (b = $E0) and (Byte(R[i+1]) < $A0) then Exit(False);
-      Inc(i, 3);
-      Continue;
-    end
-    else if (b and $F8) = $F0 then
-    begin
-      need := 3;
-      if (i+need) > l then Exit(False);
-      if ((Byte(R[i+1]) and $C0) <> $80) or ((Byte(R[i+2]) and $C0) <> $80) or ((Byte(R[i+3]) and $C0) <> $80) then Exit(False);
-      if (b = $F0) and (Byte(R[i+1]) < $90) then Exit(False);
-      if (b > $F4) or ((b = $F4) and (Byte(R[i+1]) > $8F)) then Exit(False);
-      Inc(i, 4);
-      Continue;
-    end
-    else
-      Exit(False);
-  end;
-  Exit(True);
-end;
-
       else
       begin
         pos := (pos + 1) and mask;
@@ -842,9 +1034,6 @@ begin
   end;
 end;
 
-
-end;
-
 function TCSVRecordImpl.AsArray: TStringArray;
 var
   i: SizeInt;
@@ -901,6 +1090,114 @@ begin
   Result := True;
 end;
 
+{ TCSVRecordImpl - P3: 类型转换便捷方法 }
+function TCSVRecordImpl.AsStr(const Index: SizeInt): string;
+begin
+  if (Index < 0) or (Index >= Length(FFields)) then
+    Exit('');
+  if FRecordKind = csvRecordBytes then EnsureFieldDecoded(Index);
+  Result := UTF8Encode(FFields[Index]);
+end;
+
+function TCSVRecordImpl.AsInt(const Index: SizeInt; const Default: Integer = 0): Integer;
+var
+  S: string;
+  Code: Integer;
+begin
+  S := AsStr(Index);
+  if S = '' then Exit(Default);
+  Val(S, Result, Code);
+  if Code <> 0 then Result := Default;
+end;
+
+function TCSVRecordImpl.AsInt64(const Index: SizeInt; const Default: Int64 = 0): Int64;
+var
+  S: string;
+  Code: Integer;
+begin
+  S := AsStr(Index);
+  if S = '' then Exit(Default);
+  Val(S, Result, Code);
+  if Code <> 0 then Result := Default;
+end;
+
+function TCSVRecordImpl.AsFloat(const Index: SizeInt; const Default: Double = 0): Double;
+var
+  S: string;
+  Code: Integer;
+begin
+  S := AsStr(Index);
+  if S = '' then Exit(Default);
+  Val(S, Result, Code);
+  if Code <> 0 then Result := Default;
+end;
+
+function TCSVRecordImpl.AsBool(const Index: SizeInt; const Default: Boolean = False): Boolean;
+var
+  S: string;
+begin
+  S := LowerCase(AsStr(Index));
+  if (S = 'true') or (S = '1') or (S = 'yes') or (S = 'y') or (S = 'on') then
+    Exit(True);
+  if (S = 'false') or (S = '0') or (S = 'no') or (S = 'n') or (S = 'off') then
+    Exit(False);
+  Result := Default;
+end;
+
+function TCSVRecordImpl.AsStrByName(const Name: string): string;
+var
+  Value: string;
+begin
+  if TryGetByName(Name, Value) then
+    Result := Value
+  else
+    Result := '';
+end;
+
+function TCSVRecordImpl.AsIntByName(const Name: string; const Default: Integer = 0): Integer;
+var
+  S: string;
+  Code: Integer;
+begin
+  S := AsStrByName(Name);
+  if S = '' then Exit(Default);
+  Val(S, Result, Code);
+  if Code <> 0 then Result := Default;
+end;
+
+function TCSVRecordImpl.AsInt64ByName(const Name: string; const Default: Int64 = 0): Int64;
+var
+  S: string;
+  Code: Integer;
+begin
+  S := AsStrByName(Name);
+  if S = '' then Exit(Default);
+  Val(S, Result, Code);
+  if Code <> 0 then Result := Default;
+end;
+
+function TCSVRecordImpl.AsFloatByName(const Name: string; const Default: Double = 0): Double;
+var
+  S: string;
+  Code: Integer;
+begin
+  S := AsStrByName(Name);
+  if S = '' then Exit(Default);
+  Val(S, Result, Code);
+  if Code <> 0 then Result := Default;
+end;
+
+function TCSVRecordImpl.AsBoolByName(const Name: string; const Default: Boolean = False): Boolean;
+var
+  S: string;
+begin
+  S := LowerCase(AsStrByName(Name));
+  if (S = 'true') or (S = '1') or (S = 'yes') or (S = 'y') or (S = 'on') then
+    Exit(True);
+  if (S = 'false') or (S = '0') or (S = 'no') or (S = 'n') or (S = 'off') then
+    Exit(False);
+  Result := Default;
+end;
 
 { TCSVReaderBuilder }
 constructor TCSVReaderBuilder.Create;
@@ -915,6 +1212,101 @@ begin
   FStrictUTF8 := False;
   FReplaceInvalidUTF8 := False;
   FRecordKind := csvRecordUnicode; // 默认 Unicode 模式
+  FOwnedStringStream := nil;
+end;
+
+destructor TCSVReaderBuilder.Destroy;
+begin
+  FreeAndNil(FOwnedStringStream);
+  inherited Destroy;
+end;
+
+function TCSVReaderBuilder.FromString(const Content: string): ICSVReaderBuilder;
+begin
+  FreeAndNil(FOwnedStringStream);
+  FOwnedStringStream := TStringStream.Create(Content);
+  FStream := FOwnedStringStream;
+  FFileName := '';
+  Result := Self;
+end;
+
+function TCSVReaderBuilder.Delimiter(const Ch: WideChar): ICSVReaderBuilder;
+begin
+  FDialect.Delimiter := Ch;
+  Result := Self;
+end;
+
+function TCSVReaderBuilder.Quote(const Ch: WideChar): ICSVReaderBuilder;
+begin
+  FDialect.Quote := Ch;
+  Result := Self;
+end;
+
+function TCSVReaderBuilder.HasHeader(const Enabled: Boolean): ICSVReaderBuilder;
+begin
+  FDialect.HasHeader := Enabled;
+  Result := Self;
+end;
+
+function TCSVReaderBuilder.Flexible(const Enabled: Boolean): ICSVReaderBuilder;
+begin
+  FDialect.AllowVariableFields := Enabled;
+  Result := Self;
+end;
+
+function TCSVReaderBuilder.TrimSpaces(const Enabled: Boolean): ICSVReaderBuilder;
+begin
+  FDialect.TrimSpaces := Enabled;
+  // 向后兼容：TrimSpaces=True 等效于 csvTrimFields（仅 trim 数据字段，不 trim 表头）
+  if Enabled then
+    FDialect.TrimMode := csvTrimFields
+  else if FDialect.TrimMode = csvTrimFields then
+    FDialect.TrimMode := csvTrimNone; // 复位（仅当之前是 csvTrimFields 时）
+  Result := Self;
+end;
+
+function TCSVReaderBuilder.Comment(const Ch: WideChar): ICSVReaderBuilder;
+begin
+  FDialect.Comment := Ch;
+  Result := Self;
+end;
+
+function TCSVReaderBuilder.DoubleQuote(const Enabled: Boolean): ICSVReaderBuilder;
+begin
+  FDialect.DoubleQuote := Enabled;
+  Result := Self;
+end;
+
+function TCSVReaderBuilder.Escape(const Ch: WideChar): ICSVReaderBuilder;
+begin
+  FDialect.Escape := Ch;
+  Result := Self;
+end;
+
+function TCSVReaderBuilder.LazyQuotes(const Enabled: Boolean): ICSVReaderBuilder;
+begin
+  FDialect.AllowLazyQuotes := Enabled;
+  Result := Self;
+end;
+
+function TCSVReaderBuilder.Quoting(const Enabled: Boolean): ICSVReaderBuilder;
+begin
+  FDialect.Quoting := Enabled;
+  Result := Self;
+end;
+
+function TCSVReaderBuilder.HasHeaders(const Enabled: Boolean): ICSVReaderBuilder;
+begin
+  // 别名：与 Rust has_headers 命名对齐
+  Result := HasHeader(Enabled);
+end;
+
+function TCSVReaderBuilder.Trim(const Mode: TECSVTrimMode): ICSVReaderBuilder;
+begin
+  FDialect.TrimMode := Mode;
+  // 同步 TrimSpaces 向后兼容标志
+  FDialect.TrimSpaces := (Mode = csvTrimFields) or (Mode = csvTrimAll);
+  Result := Self;
 end;
 
 { TCSVReaderImpl }
@@ -924,15 +1316,11 @@ begin
   // Parser will consume via GetNextChar/PeekChar which use EnsureBuffered.
   if Assigned(AStream) then
     AStream.Position := 0;
-  // clear single-shot buffer so streaming path is always used
-  SetLength(FData, 0);
-  FPos := 1; FLen := 0;
   // initialize streaming buffer state
   SetLength(FBuf, 0);
   FBufPos := 1;
   FBufLen := 0;
   FBOMChecked := False;
-  FLastFromData := False;
   // position counters
   FLine := 1;
   FCol := 1;
@@ -943,8 +1331,7 @@ var
   N: SizeInt;
   Off: SizeInt;
 begin
-  // If still consuming single-shot buffer, or current buffer not exhausted, do nothing
-  if (FPos <= FLen) then Exit;
+  // If current buffer not exhausted, do nothing
   if (FBufLen > 0) and (FBufPos <= FBufLen) then Exit;
   if not Assigned(FStream) then Exit;
   if FStream.Position >= FStream.Size then Exit;
@@ -1003,11 +1390,6 @@ begin
   // future streaming: finalize/commit any buffered state if needed
 end;
 
-procedure TCSVReaderImpl.FillBufferPlaceholder; inline;
-begin
-  // kept for compatibility; actual filling is in EnsureBuffered
-end;
-
 procedure TCSVReaderImpl.SetChunkSize(const Bytes: SizeUInt);
 begin
   if Bytes > 0 then FChunkSize := Bytes;
@@ -1015,13 +1397,11 @@ end;
 
 function TCSVReaderImpl.GetNextChar(out Ch: Char): Boolean; inline;
 begin
-  // streaming path only
   EnsureBuffered;
   if FBufPos <= FBufLen then
   begin
     Ch := Char(byte(FBuf[FBufPos]));
     Inc(FBufPos); Inc(FCol);
-    FLastFromData := False;
     Exit(True);
   end;
   Exit(False);
@@ -1038,20 +1418,8 @@ begin
   Exit(False);
 end;
 
-procedure TCSVReaderImpl.UnreadChar; inline;
-begin
-  if FLastFromData then
-  begin
-    if FPos > 1 then begin Dec(FPos); if FCol>1 then Dec(FCol); end;
-  end
-  else
-  begin
-    if FBufPos > 1 then begin Dec(FBufPos); if FCol>1 then Dec(FCol); end;
-  end;
-end;
-
 { TCSVWriterImpl }
-constructor TCSVWriterImpl.Create(AStream: TStream; AOwnsStream: Boolean; const ADialect: TCSVDialect; const AHeaders: TStringArray; const AFileName: string = ''; const AWriteBOM: Boolean = False);
+constructor TCSVWriterImpl.Create(AStream: TStream; AOwnsStream: Boolean; const ADialect: TCSVDialect; const AHeaders: TStringArray; const AWriteBOM: Boolean = False);
 begin
   inherited Create;
   FDialect := ADialect;
@@ -1061,7 +1429,6 @@ begin
   FOwnsStream := AOwnsStream;
   FHeadersWritten := False;
   FInitHeaders := AHeaders;
-  FFileName := AFileName;
   FWriteBOM := AWriteBOM;
   FBOMWritten := False;
 end;
@@ -1077,12 +1444,39 @@ begin
   Result := FDialect;
 end;
 
-procedure TCSVWriterImpl.SetDialect(const D: TCSVDialect);
+// 判断字节串是否为数字格式（整数或浮点数）
+function IsNumericBytes(const S: RawByteString): Boolean;
+var
+  I, L: SizeInt;
+  Ch: Byte;
+  HasDigit, HasDot: Boolean;
 begin
-  FDialect := D;
-  RefreshWriterCache;
+  L := Length(S);
+  if L = 0 then Exit(False);
+  HasDigit := False;
+  HasDot := False;
+  I := 1;
+  // 允许前导正负号
+  if (S[1] = '+') or (S[1] = '-') then
+    Inc(I);
+  // 仅正负号不算数字
+  if I > L then Exit(False);
+  while I <= L do
+  begin
+    Ch := Byte(S[I]);
+    if (Ch >= Ord('0')) and (Ch <= Ord('9')) then
+      HasDigit := True
+    else if Ch = Ord('.') then
+    begin
+      if HasDot then Exit(False); // 多个小数点
+      HasDot := True;
+    end
+    else
+      Exit(False); // 非数字字符
+    Inc(I);
+  end;
+  Result := HasDigit;
 end;
-
 
 function TCSVWriterImpl.NeedsQuotingBytes(const S: RawByteString): Boolean;
 var
@@ -1092,6 +1486,14 @@ var
 begin
   if FDialect.QuoteMode = csvQuoteAll then Exit(True);
   if Length(S) = 0 then Exit(False);
+
+  // csvQuoteNonNumeric：非数字字段总是加引号
+  if FDialect.QuoteMode = csvQuoteNonNumeric then
+  begin
+    if not IsNumericBytes(S) then Exit(True);
+    // 数字字段仍需检查特殊字符
+  end;
+
   DelimB := Byte(Ord(FDialect.Delimiter) and $FF);
   QuoteB := Byte(Ord(FDialect.Quote) and $FF);
   CommentB := Byte(Ord(FDialect.Comment) and $FF);
@@ -1117,53 +1519,6 @@ begin
   end;
 
   Result := HasSpecial;
-end;
-
-function TCSVWriterImpl.QuoteAndEscapeBytes(const S: RawByteString): RawByteString;
-var
-  Q, E: AnsiChar;
-  I, J: SizeInt;
-  CountSpecial, L: SizeInt;
-begin
-  Q := AnsiChar(Byte(Ord(FDialect.Quote) and $FF));
-  E := AnsiChar(Byte(Ord(FDialect.Escape) and $FF));
-  L := Length(S);
-  // 统计需要扩展的字符数量
-  CountSpecial := 0;
-  for I := 1 to L do
-  begin
-    if FDialect.DoubleQuote and (S[I] = Q) then Inc(CountSpecial)
-    else if (FDialect.Escape <> #0) and (S[I] = Q) then Inc(CountSpecial)
-    else if (FDialect.Escape <> #0) and (S[I] = E) then Inc(CountSpecial);
-  end;
-  // 预分配：（原长度 + 特殊字符额外 + 包裹引号2）
-  SetLength(Result, L + CountSpecial + 2);
-  J := 1;
-  Result[J] := Q; Inc(J);
-  for I := 1 to L do
-  begin
-    if (FDialect.DoubleQuote) and (S[I] = Q) then
-    begin
-      // " -> ""
-      Result[J] := Q; Inc(J); Result[J] := Q; Inc(J);
-    end
-    else if (FDialect.Escape <> #0) and (S[I] = Q) then
-    begin
-      // 使用 Escape 引号： \"
-      Result[J] := E; Inc(J); Result[J] := Q; Inc(J);
-    end
-    else if (FDialect.Escape <> #0) and (S[I] = E) then
-    begin
-      // 转义反斜杠：\\
-      Result[J] := E; Inc(J); Result[J] := E; Inc(J);
-    end
-    else
-    begin
-      Result[J] := S[I]; Inc(J);
-    end;
-  end;
-  Result[J] := Q;
-  SetLength(Result, J);
 end;
 
 function TCSVWriterImpl.CountSpecialForQuote(const S: RawByteString): SizeInt;
@@ -1202,26 +1557,33 @@ begin
     E := FCachedEscape;
     // write opening quote
     PAnsiChar(@Dest[P])^ := Q; Inc(P);
-    for I := 1 to Length(FieldBytes) do
+    I := 1;
+    while I <= Length(FieldBytes) do
     begin
       if (FDialect.DoubleQuote) and (FieldBytes[I] = Q) then
       begin
         PAnsiChar(@Dest[P])^ := Q; Inc(P);
         PAnsiChar(@Dest[P])^ := Q; Inc(P);
+        Inc(I);
       end
-      else if (FDialect.Escape <> #0) and (FieldBytes[I] = Q) then
+      else if (not FDialect.DoubleQuote) and (FDialect.Escape <> #0) and (FieldBytes[I] = Q) then
       begin
+        // Escape mode: quote -> E+Q
         PAnsiChar(@Dest[P])^ := E; Inc(P);
         PAnsiChar(@Dest[P])^ := Q; Inc(P);
+        Inc(I);
       end
       else if (FDialect.Escape <> #0) and (FieldBytes[I] = E) then
       begin
+        // Escape the escape itself: E -> E+E
         PAnsiChar(@Dest[P])^ := E; Inc(P);
         PAnsiChar(@Dest[P])^ := E; Inc(P);
+        Inc(I);
       end
       else
       begin
         PAnsiChar(@Dest[P])^ := AnsiChar(FieldBytes[I]); Inc(P);
+        Inc(I);
       end;
     end;
     // closing quote
@@ -1253,26 +1615,33 @@ begin
     Q := FCachedQuote;
     E := FCachedEscape;
     PAnsiChar(@Dest[P])^ := Q; Inc(P);
-    for I := 1 to Length(FieldBytes) do
+    I := 1;
+    while I <= Length(FieldBytes) do
     begin
       if (FDialect.DoubleQuote) and (FieldBytes[I] = Q) then
       begin
         PAnsiChar(@Dest[P])^ := Q; Inc(P);
         PAnsiChar(@Dest[P])^ := Q; Inc(P);
+        Inc(I);
       end
-      else if (FDialect.Escape <> #0) and (FieldBytes[I] = Q) then
+      else if (not FDialect.DoubleQuote) and (FDialect.Escape <> #0) and (FieldBytes[I] = Q) then
       begin
+        // Escape mode: quote -> E+Q
         PAnsiChar(@Dest[P])^ := E; Inc(P);
         PAnsiChar(@Dest[P])^ := Q; Inc(P);
+        Inc(I);
       end
       else if (FDialect.Escape <> #0) and (FieldBytes[I] = E) then
       begin
+        // Escape the escape itself: E -> E+E
         PAnsiChar(@Dest[P])^ := E; Inc(P);
         PAnsiChar(@Dest[P])^ := E; Inc(P);
+        Inc(I);
       end
       else
       begin
         PAnsiChar(@Dest[P])^ := AnsiChar(FieldBytes[I]); Inc(P);
+        Inc(I);
       end;
     end;
     PAnsiChar(@Dest[P])^ := Q; Inc(P);
@@ -1359,6 +1728,8 @@ begin
     FieldBytes := EncodeUTF8(UnicodeString(FInitHeaders[I]));
     AppendFieldInto(FLineBuf, P, FieldBytes, DelimB, I=0);
   end;
+  // shrink to actual size written
+  if P > 1 then SetLength(FLineBuf, P-1) else SetLength(FLineBuf, 0);
   Line := FLineBuf;
   WriteLineBytes(Line);
   FHeadersWritten := True;
@@ -1409,6 +1780,7 @@ begin
     FieldBytes := FieldsB[I];
     AppendFieldIntoPlanned(FLineBuf, P, FieldBytes, DelimB, I=0, NeedsQ[I]);
   end;
+  if P > 1 then SetLength(FLineBuf, P-1) else SetLength(FLineBuf, 0);
   WriteLineBytes(FLineBuf);
 end;
 
@@ -1457,6 +1829,7 @@ begin
     FieldBytes := FieldsB[I];
     AppendFieldIntoPlanned(FLineBuf, P, FieldBytes, DelimB, I=0, NeedsQ[I]);
   end;
+  if P > 1 then SetLength(FLineBuf, P-1) else SetLength(FLineBuf, 0);
   WriteLineBytes(FLineBuf);
 end;
 
@@ -1529,7 +1902,27 @@ begin
 end;
 
 function TCSVReaderImpl.Headers: TStringArray;
+var
+  tmp: TStringArray;
+  i: SizeInt;
+  ShouldTrimHeaders: Boolean;
 begin
+  if (not FHeadersParsed) and FDialect.HasHeader then
+  begin
+    if ParseRecord(tmp) then
+    begin
+      // Apply TrimMode for headers
+      ShouldTrimHeaders := (FDialect.TrimMode = csvTrimHeaders) or (FDialect.TrimMode = csvTrimAll);
+      if ShouldTrimHeaders then
+        for i := 0 to High(tmp) do
+          tmp[i] := Trim(tmp[i]);
+      FHeaders := tmp;
+      FHeadersParsed := True;
+      FSkipStrict := True;
+    end
+    else
+      FHeadersParsed := True;
+  end;
   Result := FHeaders;
 end;
 
@@ -1548,12 +1941,9 @@ begin
   // reset positions and buffered state for streaming
   if Assigned(FStream) then
     FStream.Position := 0;
-  SetLength(FData, 0);
-  FPos := 1; FLen := 0;
   SetLength(FBuf, 0);
   FBufPos := 1; FBufLen := 0;
   FBOMChecked := False;
-  FLastFromData := False;
   // logical parser state
   FLine := 1;
   FCol := 1;
@@ -1567,7 +1957,7 @@ function TCSVReaderImpl.ParseRecord(out Fields: TStringArray): Boolean;
 var
   InQuotes: Boolean;
   WasQuoted: Boolean;
-  C, NextCh, NextNext: Char;
+  C, NextCh: Char;
   FieldBuilder: RawByteString;
   FieldCount: SizeInt;
   EmittedOnBreak: Boolean;
@@ -1576,59 +1966,12 @@ var
   BufLen, BufCap: SizeInt;
   BytesCount: SizeUInt;
   procedure EmitField;
-    function IsValidUTF8(const R: RawByteString): Boolean;
-    var
-      i, l, need: SizeInt;
-      b: Byte;
-    begin
-      l := Length(R);
-      i := 1;
-      while i <= l do
-      begin
-        b := Byte(R[i]);
-        if (b and $80) = 0 then
-        begin
-          Inc(i);
-          Continue;
-        end
-        else if (b and $E0) = $C0 then
-        begin
-          need := 1;
-          if (i+need) > l then Exit(False);
-          if (Byte(R[i+1]) and $C0) <> $80 then Exit(False);
-          if (b = $C0) or (b = $C1) then Exit(False);
-          Inc(i, 2);
-          Continue;
-        end
-        else if (b and $F0) = $E0 then
-        begin
-          need := 2;
-          if (i+need) > l then Exit(False);
-          if ((Byte(R[i+1]) and $C0) <> $80) or ((Byte(R[i+2]) and $C0) <> $80) then Exit(False);
-          if (b = $E0) and (Byte(R[i+1]) < $A0) then Exit(False);
-          Inc(i, 3);
-          Continue;
-        end
-        else if (b and $F8) = $F0 then
-        begin
-          need := 3;
-          if (i+need) > l then Exit(False);
-          if ((Byte(R[i+1]) and $C0) <> $80) or ((Byte(R[i+2]) and $C0) <> $80) or ((Byte(R[i+3]) and $C0) <> $80) then Exit(False);
-          if (b = $F0) and (Byte(R[i+1]) < $90) then Exit(False);
-          if (b > $F4) or ((b = $F4) and (Byte(R[i+1]) > $8F)) then Exit(False);
-          Inc(i, 4);
-          Continue;
-        end
-        else
-          Exit(False);
-      end;
-      Exit(True);
-    end;
-
   var
     S: UnicodeString;
     Tmp: RawByteString;
     idx: SizeInt;
+    CurLen, Need, Cap, Start, L: SizeInt;
+    NewCap: SizeInt;
   begin
     Tmp := Copy(FieldBuilder, 1, BufLen);
     // 总是保留原始字节到 FRowBuf，配合 offsets/lengths
@@ -1648,11 +1991,14 @@ var
       begin
         S := UTF8Decode(Tmp);
       end;
-      if FDialect.TrimSpaces and (not WasQuoted) then
-      S := Trim(S);
+      // TrimMode 控制：不在 EmitField 里做 trim，由上层 (Headers/ReadNext) 根据上下文决定
+      // 这里只记录 WasQuoted，上层会检查
     SetLength(Fields, Length(Fields)+1);
     idx := High(Fields);
     Fields[idx] := S;
+    // 设置 WasQuoted 供上层 TrimMode 检查
+    if Length(FWasQuoted) < Length(Fields) then SetLength(FWasQuoted, Length(Fields));
+    FWasQuoted[idx] := WasQuoted;
     end
     else
     begin
@@ -1660,9 +2006,7 @@ var
       SetLength(Fields, Length(Fields)+1);
       idx := High(Fields);
       Fields[idx] := '';
-      if Length(FDecoded) < Length(Fields) then SetLength(FDecoded, Length(Fields));
       if Length(FWasQuoted) < Length(Fields) then SetLength(FWasQuoted, Length(Fields));
-      FDecoded[idx] := False;
       FWasQuoted[idx] := WasQuoted;
     end;
     // 追加到单行缓冲，并记录 offset/len（避免重复拼接导致的 O(n^2) 拷贝）
@@ -1672,13 +2016,13 @@ var
     if Length(Tmp) > 0 then
     begin
       // 采用倍增策略管理 FRowBuf 容量，避免频繁重分配
-      var CurLen := Length(FRowBuf);
-      var Need  := CurLen + Length(Tmp);
-      var Cap   := Length(FRowBuf);
+      CurLen := Length(FRowBuf);
+      Need  := CurLen + Length(Tmp);
+      Cap   := Length(FRowBuf);
       // RawByteString 的 SetLength 既控制逻辑长度也控制容量，这里用一次扩容再回填
       if Cap < Need then
       begin
-        var NewCap := Cap;
+        NewCap := Cap;
         if NewCap < 16 then NewCap := 16;
         while NewCap < Need do NewCap := NewCap * 2;
         // 扩容到 NewCap，再回填逻辑长度
@@ -1687,8 +2031,8 @@ var
         SetLength(FRowBuf, CurLen);
       end;
       // 将 Tmp 附加到 FRowBuf 末尾（一次 Move，O(n) 累计摊销 O(1)）
-      var Start := CurLen + 1;
-      var L := Length(Tmp);
+      Start := CurLen + 1;
+      L := Length(Tmp);
       if L > 0 then
       begin
         SetLength(FRowBuf, Need);
@@ -1750,11 +2094,14 @@ begin
     // 注释行：仅在记录开始位置且未在引号内
     if (not InQuotes) and (FieldCount = 0) and (BufLen = 0) and (FDialect.Comment <> #0) and (C = Char(FDialect.Comment)) then
     begin
-      // 跳过到行尾
+      // 跳过到行尾并消费换行，避免产生空记录
       repeat
-        GetNextChar(C);
-        if not PeekChar(C) then Break;
+        if not GetNextChar(C) then Break; // consume until we hit EOL or EOF
       until (C = #10) or (C = #13);
+      // 若是 CRLF，额外消费 LF
+      if (C = #13) and PeekChar(NextCh) and (NextCh = #10) then GetNextChar(NextCh);
+      Inc(FLine); FCol := 1;
+      // 继续下一行起始
       Continue;
     end;
 
@@ -1762,9 +2109,11 @@ begin
     if not InQuotes then
     begin
       // 快路径：批量消费普通字节，直到遇到分隔符/引号/CR/LF
+      // 当 Quoting=False 时，引号被视为普通字符
       while True do
       begin
-        if (C = #13) or (C = #10) or (C = Char(FDialect.Delimiter)) or (C = Char(FDialect.Quote)) then Break;
+        if (C = #13) or (C = #10) or (C = Char(FDialect.Delimiter)) then Break;
+        if FDialect.Quoting and (C = Char(FDialect.Quote)) then Break;
         GetNextChar(C);
         AppendByte(Byte(C));
         if not PeekChar(C) then Break;
@@ -1805,8 +2154,9 @@ begin
         GetNextChar(C);
         EmitField; Continue;
       end
-      else if C = Char(FDialect.Quote) then
+      else if FDialect.Quoting and (C = Char(FDialect.Quote)) then
       begin
+        // 仅当 Quoting=True 时处理引号
         if BufLen = 0 then
         begin
           GetNextChar(C);
@@ -1974,6 +2324,7 @@ end;
 function TCSVReaderImpl.ReadNext(out Rec: ICSVRecord): Boolean;
 var
   Fields: TStringArray;
+  i: SizeInt;
 begin
   // parse headers once
   if (not FHeadersParsed) and FDialect.HasHeader then
@@ -1982,6 +2333,10 @@ begin
     FHeadersParsed := True;
     // header should not determine strict field count
     FSkipStrict := True;
+    // Apply TrimMode for headers (csvTrimHeaders or csvTrimAll)
+    if (FDialect.TrimMode = csvTrimHeaders) or (FDialect.TrimMode = csvTrimAll) then
+      for i := 0 to High(FHeaders) do
+        FHeaders[i] := Trim(FHeaders[i]);
   end
   else if (not FHeadersParsed) then
   begin
@@ -1995,6 +2350,15 @@ begin
   SetLength(FLengths, 0);
   SetLength(FWasQuoted, 0);
   if not ParseRecord(Fields) then Exit(False);
+  // TrimMode 控制：数据字段 trim（csvTrimFields 或 csvTrimAll）
+  // 同时支持向后兼容：如果 TrimSpaces=True 但 TrimMode=csvTrimNone，也 trim 数据字段
+  if (FDialect.TrimMode = csvTrimFields) or (FDialect.TrimMode = csvTrimAll)
+     or ((FDialect.TrimSpaces) and (FDialect.TrimMode = csvTrimNone)) then
+  begin
+    for i := 0 to High(Fields) do
+      if (i >= Length(FWasQuoted)) or (not FWasQuoted[i]) then
+        Fields[i] := Trim(Fields[i]);
+  end;
   if FReuseRecord and Assigned(FCurrentRecord) then
   begin
     (FCurrentRecord as TCSVRecordImpl).AssignParsedEx(Fields, FHeaders, FRowBuf, FOffsets, FLengths, FWasQuoted,
@@ -2024,6 +2388,8 @@ function TCSVReaderImpl.ReadAll: TCSVTable;
 var
   L: SizeInt;
   Fields: TStringArray;
+  i: SizeInt;
+  Tmp: RawByteString;
 begin
   SetLength(Result, 0);
   // consume header if present
@@ -2047,8 +2413,6 @@ begin
       // 构造一个临时记录视图以复用 EnsureFieldDecoded 逻辑较重，不值得
       // 简化：直接在此处逐字段手动解码（复用解析阶段 UTF-8 策略与 TrimSpaces/WasQuoted）
       // 当前 ParseRecord 已把 FRowBuf/FOffsets/FLengths/WasQuoted 填好，可以直接逐字段解码
-      var i: SizeInt;
-      var Tmp: RawByteString;
       for i := 0 to High(Fields) do
       begin
         if (i < Length(FOffsets)) and (i < Length(FLengths)) then
@@ -2073,6 +2437,19 @@ begin
           if FDialect.TrimSpaces and (not (i < Length(FWasQuoted)) or (not FWasQuoted[i])) then
             Fields[i] := Trim(Fields[i]);
         end;
+      end;
+    end
+    else
+    begin
+      // Unicode 模式：应用 TrimMode/TrimSpaces
+      // TrimMode 控制：数据字段 trim（csvTrimFields 或 csvTrimAll）
+      // 同时支持向后兼容：如果 TrimSpaces=True 但 TrimMode=csvTrimNone，也 trim 数据字段
+      if (FDialect.TrimMode = csvTrimFields) or (FDialect.TrimMode = csvTrimAll)
+         or ((FDialect.TrimSpaces) and (FDialect.TrimMode = csvTrimNone)) then
+      begin
+        for i := 0 to High(Fields) do
+          if (i >= Length(FWasQuoted)) or (not FWasQuoted[i]) then
+            Fields[i] := Trim(Fields[i]);
       end;
     end;
     L := Length(Result);
@@ -2155,10 +2532,8 @@ begin
   begin
     R := TCSVReaderImpl.Create(FStream, False, D);
     R.SetChunkSize(FBufferSize);
-    // 传递复用开关
     R.FReuseRecord := FReuseRecord;
-    (R as TCSVReaderImpl).FReuseRecord := FReuseRecord;
-    (R as TCSVReaderImpl).FRecordKind := FRecordKind;
+    R.FRecordKind := FRecordKind;
     Result := R;
     Exit;
   end;
@@ -2230,6 +2605,42 @@ begin
   Result := Self;
 end;
 
+function TCSVWriterBuilder.Delimiter(const Ch: WideChar): ICSVWriterBuilder;
+begin
+  FDialect.Delimiter := Ch;
+  Result := Self;
+end;
+
+function TCSVWriterBuilder.Quote(const Ch: WideChar): ICSVWriterBuilder;
+begin
+  FDialect.Quote := Ch;
+  Result := Self;
+end;
+
+function TCSVWriterBuilder.DoubleQuote(const Enabled: Boolean): ICSVWriterBuilder;
+begin
+  FDialect.DoubleQuote := Enabled;
+  Result := Self;
+end;
+
+function TCSVWriterBuilder.QuoteMode(const Mode: TECSVQuoteMode): ICSVWriterBuilder;
+begin
+  FDialect.QuoteMode := Mode;
+  Result := Self;
+end;
+
+function TCSVWriterBuilder.UseCRLF(const Enabled: Boolean): ICSVWriterBuilder;
+begin
+  FDialect.UseCRLF := Enabled;
+  Result := Self;
+end;
+
+function TCSVWriterBuilder.Escape(const Ch: WideChar): ICSVWriterBuilder;
+begin
+  FDialect.Escape := Ch;
+  Result := Self;
+end;
+
 function TCSVWriterBuilder.Build: ICSVWriter;
 var
   LStream: TStream;
@@ -2239,7 +2650,7 @@ begin
     FDialect.Terminator := FTerminator;
 
   if Assigned(FStream) then
-    Exit(TCSVWriterImpl.Create(FStream, False, FDialect, FHeaders, '', FWriteBOM));
+    Exit(TCSVWriterImpl.Create(FStream, False, FDialect, FHeaders, FWriteBOM));
 
   if FFileName <> '' then
   begin
@@ -2261,7 +2672,7 @@ begin
       FreeAndNil(LStream);
       LStream := TFileStream.Create(FFileName, fmOpenReadWrite or fmShareDenyNone);
     end;
-    Exit(TCSVWriterImpl.Create(LStream, True, FDialect, FHeaders, '', FWriteBOM));
+    Exit(TCSVWriterImpl.Create(LStream, True, FDialect, FHeaders, FWriteBOM));
   end;
   Result := nil;
 end;

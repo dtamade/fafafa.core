@@ -10,9 +10,11 @@ uses
   fafafa.core.base,
   fafafa.core.sync.base,
   fafafa.core.sync.mutex,
+  fafafa.core.sync.mutex.guard,   // Phase 4: Rust-style TMutexGuard<T>
   fafafa.core.sync.spin.base,
   fafafa.core.sync.spin,
   fafafa.core.sync.rwlock,
+  fafafa.core.sync.rwlock.guard,  // Phase 4: Rust-style TRwLockGuard<T>
   fafafa.core.sync.once,
   fafafa.core.sync.once.base,
   fafafa.core.sync.condvar,
@@ -23,12 +25,15 @@ uses
   fafafa.core.sync.waitgroup,  // Phase 1.1: Go-style WaitGroup
   fafafa.core.sync.latch,      // Phase 1.2: CountDownLatch
   fafafa.core.sync.parker,     // Phase 1.3: Rust-style Parker
+  fafafa.core.sync.builder,    // Phase 2: Builder pattern for sync primitives
+  fafafa.core.sync.oncelock,   // Phase 3.1: Rust-style OnceLock<T>
+  fafafa.core.sync.lazylock,   // Phase 3.2: Rust-style LazyLock<T>
   // Named synchronization primitives
   fafafa.core.sync.namedMutex,
   fafafa.core.sync.namedEvent,
   fafafa.core.sync.namedSemaphore,
   fafafa.core.sync.namedBarrier,
-  // fafafa.core.sync.namedCondvar, // Temporarily disabled due to implementation issues
+  fafafa.core.sync.namedCondvar,
   fafafa.core.sync.namedRWLock;
 
 type
@@ -64,12 +69,26 @@ type
   INamedSemaphoreGuard    = fafafa.core.sync.namedSemaphore.INamedSemaphoreGuard;
   INamedBarrier           = fafafa.core.sync.namedBarrier.INamedBarrier;
   INamedBarrierGuard      = fafafa.core.sync.namedBarrier.INamedBarrierGuard;
-  // INamedCondVar = fafafa.core.sync.namedCondvar.INamedCondVar; // Temporarily disabled
+  INamedCondVar           = fafafa.core.sync.namedCondvar.INamedCondVar;
   INamedRWLock            = fafafa.core.sync.namedRWLock.INamedRWLock;
   INamedRWLockReadGuard   = fafafa.core.sync.namedRWLock.INamedRWLockReadGuard;
   INamedRWLockWriteGuard  = fafafa.core.sync.namedRWLock.INamedRWLockWriteGuard;
 
   TLockGuard              = fafafa.core.sync.base.TLockGuard;
+
+  // Builder pattern types (Phase 2)
+  TMutexBuilder      = fafafa.core.sync.builder.TMutexBuilder;
+  TSemBuilder        = fafafa.core.sync.builder.TSemBuilder;
+  TRWLockBuilder     = fafafa.core.sync.builder.TRWLockBuilder;
+  TCondVarBuilder    = fafafa.core.sync.builder.TCondVarBuilder;
+  TBarrierBuilder    = fafafa.core.sync.builder.TBarrierBuilder;
+  TOnceBuilder       = fafafa.core.sync.builder.TOnceBuilder;
+  TEventBuilder      = fafafa.core.sync.builder.TEventBuilder;
+  TWaitGroupBuilder  = fafafa.core.sync.builder.TWaitGroupBuilder;
+  TLatchBuilder      = fafafa.core.sync.builder.TLatchBuilder;
+  TSpinBuilder       = fafafa.core.sync.builder.TSpinBuilder;       // Phase 2.1
+  TParkerBuilder     = fafafa.core.sync.builder.TParkerBuilder;     // Phase 2.1
+  TRecMutexBuilder   = fafafa.core.sync.builder.TRecMutexBuilder;   // Phase 2.1
 
   TMutex             = fafafa.core.sync.mutex.TMutex;
   TRecMutex          = fafafa.core.sync.recMutex.TRecMutex;
@@ -79,8 +98,9 @@ type
   TCondVar = fafafa.core.sync.condvar.TCondVar;
 
   // Backward-compatible aliases (legacy names)
-  IReadWriteLock     = IRWLock;
-  ISemaphore         = ISem;
+  // 这些别名为向后兼容保留，推荐使用新名称
+  IReadWriteLock     = IRWLock     deprecated 'Use IRWLock instead';
+  ISemaphore         = ISem        deprecated 'Use ISem instead';
 
 
   // Re-export Once callback types
@@ -89,6 +109,11 @@ type
 {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
   TOnceAnonymousProc = fafafa.core.sync.once.base.TOnceAnonymousProc;
 {$ENDIF}
+
+  // OnceLock exceptions (Phase 3.1)
+  EOnceLockError      = fafafa.core.sync.oncelock.EOnceLockError;
+  EOnceLockEmpty      = fafafa.core.sync.oncelock.EOnceLockEmpty;
+  EOnceLockAlreadySet = fafafa.core.sync.oncelock.EOnceLockAlreadySet;
 
   // Re-export exceptions
   ESyncError          = fafafa.core.sync.base.ESyncError;
@@ -125,6 +150,20 @@ function MakeWaitGroup: IWaitGroup; inline;  // Phase 1.1: Go-style WaitGroup
 function MakeLatch(ACount: Integer): ILatch; inline;  // Phase 1.2: CountDownLatch
 function MakeParker: IParker; inline;                  // Phase 1.3: Rust-style Parker
 
+// Builder pattern factory functions (Phase 2)
+function MutexBuilder: TMutexBuilder; inline;
+function SemBuilder: TSemBuilder; inline;
+function RWLockBuilder: TRWLockBuilder; inline;
+function CondVarBuilder: TCondVarBuilder; inline;
+function BarrierBuilder: TBarrierBuilder; inline;
+function OnceBuilder: TOnceBuilder; inline;
+function EventBuilder: TEventBuilder; inline;
+function WaitGroupBuilder: TWaitGroupBuilder; inline;
+function LatchBuilder: TLatchBuilder; inline;
+function SpinBuilder: TSpinBuilder; inline;           // Phase 2.1
+function ParkerBuilder: TParkerBuilder; inline;       // Phase 2.1
+function RecMutexBuilder: TRecMutexBuilder; inline;   // Phase 2.1
+
 function MakeRecMutex: IRecMutex; overload; inline;
 {$IFDEF WINDOWS}
 function MakeRecMutex(ASpinCount: DWORD): IRecMutex; overload; inline;
@@ -142,18 +181,140 @@ function MakeOnce(const AAnonymousProc: TOnceAnonymousProc): IOnce; overload; in
 function MakeLockGuard(ALock: ILock): ILockGuard;
 function MakeLockGuardFromAcquired(ALock: ILock): ILockGuard; inline;
 
+// 便捷范式：WithLock/TryWithLock
+type
+  TLockProc = reference to procedure;
+
+{**
+ * WithLock - 在持有锁的情况下执行过程
+ *
+ * @param ALock 要获取的锁
+ * @param AProc 要执行的过程
+ *
+ * @desc
+ *   阻塞获取锁，执行过程，然后自动释放锁。
+ *   即使过程抛出异常，锁也会被释放。
+ *
+ * @usage
+ *   WithLock(Mutex, procedure
+ *   begin
+ *     // 临界区代码
+ *   end);
+ *}
+procedure WithLock(const ALock: ILock; const AProc: TLockProc);
+
+{**
+ * TryWithLock - 尝试在持有锁的情况下执行过程
+ *
+ * @param ALock 要获取的锁（必须支持 ITryLock）
+ * @param AProc 要执行的过程
+ * @return True 如果成功获取锁并执行过程，False 如果无法立即获取锁
+ *
+ * @desc
+ *   非阻塞尝试获取锁。如果成功，执行过程并释放锁。
+ *   如果无法立即获取锁，立即返回 False，不执行过程。
+ *
+ * @usage
+ *   if TryWithLock(Mutex, procedure
+ *   begin
+ *     // 临界区代码
+ *   end) then
+ *     // 成功执行
+ *   else
+ *     // 锁不可用
+ *}
+function TryWithLock(const ALock: ITryLock; const AProc: TLockProc): Boolean;
+
+{**
+ * WithReadLock - 在持有读锁的情况下执行过程
+ *
+ * @param ARWLock 读写锁
+ * @param AProc 要执行的过程
+ *
+ * @desc
+ *   阻塞获取读锁，执行过程，然后自动释放读锁。
+ *   即使过程抛出异常，锁也会被释放。
+ *   适合只读访问共享数据的场景。
+ *
+ * @usage
+ *   WithReadLock(RWLock, procedure
+ *   begin
+ *     // 只读访问共享数据
+ *   end);
+ *}
+procedure WithReadLock(const ARWLock: IRWLock; const AProc: TLockProc);
+
+{**
+ * WithWriteLock - 在持有写锁的情况下执行过程
+ *
+ * @param ARWLock 读写锁
+ * @param AProc 要执行的过程
+ *
+ * @desc
+ *   阻塞获取写锁，执行过程，然后自动释放写锁。
+ *   即使过程抛出异常，锁也会被释放。
+ *   适合需要修改共享数据的场景。
+ *
+ * @usage
+ *   WithWriteLock(RWLock, procedure
+ *   begin
+ *     // 修改共享数据
+ *   end);
+ *}
+procedure WithWriteLock(const ARWLock: IRWLock; const AProc: TLockProc);
+
+{**
+ * TryWithReadLock - 尝试在持有读锁的情况下执行过程
+ *
+ * @param ARWLock 读写锁
+ * @param AProc 要执行的过程
+ * @param ATimeoutMs 超时时间（毫秒），默认 0 表示不等待
+ * @return True 如果成功获取锁并执行过程，False 如果无法获取锁
+ *
+ * @usage
+ *   if TryWithReadLock(RWLock, procedure
+ *   begin
+ *     // 只读访问
+ *   end) then
+ *     // 成功
+ *}
+function TryWithReadLock(const ARWLock: IRWLock; const AProc: TLockProc;
+  ATimeoutMs: Cardinal = 0): Boolean;
+
+{**
+ * TryWithWriteLock - 尝试在持有写锁的情况下执行过程
+ *
+ * @param ARWLock 读写锁
+ * @param AProc 要执行的过程
+ * @param ATimeoutMs 超时时间（毫秒），默认 0 表示不等待
+ * @return True 如果成功获取锁并执行过程，False 如果无法获取锁
+ *
+ * @usage
+ *   if TryWithWriteLock(RWLock, procedure
+ *   begin
+ *     // 修改数据
+ *   end) then
+ *     // 成功
+ *}
+function TryWithWriteLock(const ARWLock: IRWLock; const AProc: TLockProc;
+  ATimeoutMs: Cardinal = 0): Boolean;
+
 // Named synchronization primitives factory functions
 function MakeNamedMutex(const AName: string): INamedMutex; overload;
-function MakeNamedMutex(const AName: string; AInitialOwner: Boolean): INamedMutex; overload;
+function MakeNamedMutex(const AName: string; ATimeoutMs: Cardinal): INamedMutex; overload;
+function MakeGlobalNamedMutex(const AName: string): INamedMutex;
 function MakeNamedEvent(const AName: string): INamedEvent; overload;
 function MakeNamedEvent(const AName: string; AManualReset: Boolean; AInitialState: Boolean): INamedEvent; overload;
 function MakeNamedSemaphore(const AName: string): INamedSemaphore; overload;
 function MakeNamedSemaphore(const AName: string; AInitialCount: Integer; AMaxCount: Integer): INamedSemaphore; overload;
 function MakeNamedBarrier(const AName: string; AParticipantCount: Integer): INamedBarrier;
-// function MakeNamedCondVar(const AName: string): INamedCondVar; // Temporarily disabled
+function MakeNamedCondVar(const AName: string): INamedCondVar;
 function MakeNamedRWLock(const AName: string): INamedRWLock;
 
 implementation
+
+uses
+  fafafa.core.sync.rwlock.base;
 
 function MakeMutex: IMutex;
 begin
@@ -207,6 +368,67 @@ begin
   Result := fafafa.core.sync.parker.MakeParker;
 end;
 
+// Builder pattern implementations
+function MutexBuilder: TMutexBuilder;
+begin
+  Result := fafafa.core.sync.builder.MutexBuilder;
+end;
+
+function SemBuilder: TSemBuilder;
+begin
+  Result := fafafa.core.sync.builder.SemBuilder;
+end;
+
+function RWLockBuilder: TRWLockBuilder;
+begin
+  Result := fafafa.core.sync.builder.RWLockBuilder;
+end;
+
+function CondVarBuilder: TCondVarBuilder;
+begin
+  Result := fafafa.core.sync.builder.CondVarBuilder;
+end;
+
+function BarrierBuilder: TBarrierBuilder;
+begin
+  Result := fafafa.core.sync.builder.BarrierBuilder;
+end;
+
+function OnceBuilder: TOnceBuilder;
+begin
+  Result := fafafa.core.sync.builder.OnceBuilder;
+end;
+
+function EventBuilder: TEventBuilder;
+begin
+  Result := fafafa.core.sync.builder.EventBuilder;
+end;
+
+function WaitGroupBuilder: TWaitGroupBuilder;
+begin
+  Result := fafafa.core.sync.builder.WaitGroupBuilder;
+end;
+
+function LatchBuilder: TLatchBuilder;
+begin
+  Result := fafafa.core.sync.builder.LatchBuilder;
+end;
+
+function SpinBuilder: TSpinBuilder;
+begin
+  Result := fafafa.core.sync.builder.SpinBuilder;
+end;
+
+function ParkerBuilder: TParkerBuilder;
+begin
+  Result := fafafa.core.sync.builder.ParkerBuilder;
+end;
+
+function RecMutexBuilder: TRecMutexBuilder;
+begin
+  Result := fafafa.core.sync.builder.RecMutexBuilder;
+end;
+
 function MakeRecMutex: IRecMutex;
 begin
   Result := fafafa.core.sync.recMutex.MakeRecMutex;
@@ -251,15 +473,123 @@ begin
   Result := fafafa.core.sync.base.MakeLockGuardFromAcquired(ALock);
 end;
 
-// Named synchronization primitives implementations
-function MakeNamedMutex(const AName: string): INamedMutex;
+procedure WithLock(const ALock: ILock; const AProc: TLockProc);
+var
+  Guard: ILockGuard;
 begin
-  Result := fafafa.core.sync.namedMutex.MakeNamedMutex(AName);
+  Guard := ALock.Lock;
+  try
+    AProc();
+  finally
+    Guard := nil;  // 触发释放
+  end;
 end;
 
-function MakeNamedMutex(const AName: string; AInitialOwner: Boolean): INamedMutex;
+function TryWithLock(const ALock: ITryLock; const AProc: TLockProc): Boolean;
+var
+  Guard: ILockGuard;
 begin
-  Result := fafafa.core.sync.namedMutex.MakeNamedMutex(AName, AInitialOwner);
+  Guard := ALock.TryLock;
+  if Assigned(Guard) then
+  begin
+    try
+      AProc();
+      Result := True;
+    finally
+      Guard := nil;
+    end;
+  end
+  else
+    Result := False;
+end;
+
+procedure WithReadLock(const ARWLock: IRWLock; const AProc: TLockProc);
+var
+  Guard: IRWLockReadGuard;
+begin
+  Guard := ARWLock.Read;
+  try
+    AProc();
+  finally
+    Guard := nil;  // 触发释放
+  end;
+end;
+
+procedure WithWriteLock(const ARWLock: IRWLock; const AProc: TLockProc);
+var
+  Guard: IRWLockWriteGuard;
+begin
+  Guard := ARWLock.Write;
+  try
+    AProc();
+  finally
+    Guard := nil;  // 触发释放
+  end;
+end;
+
+function TryWithReadLock(const ARWLock: IRWLock; const AProc: TLockProc;
+  ATimeoutMs: Cardinal): Boolean;
+var
+  Guard: IRWLockReadGuard;
+begin
+  Guard := ARWLock.TryRead(ATimeoutMs);
+  if Assigned(Guard) and Guard.IsLocked then
+  begin
+    try
+      AProc();
+      Result := True;
+    finally
+      Guard := nil;
+    end;
+  end
+  else
+  begin
+    // 如果启用了毒化语义且锁已被标记为 Poisoned，则显式抛出异常
+    if ARWLock.IsPoisoned then
+      raise ERWLockPoisonError.Create(0, 'Lock is poisoned');
+    Result := False;
+  end;
+end;
+
+function TryWithWriteLock(const ARWLock: IRWLock; const AProc: TLockProc;
+  ATimeoutMs: Cardinal): Boolean;
+var
+  Guard: IRWLockWriteGuard;
+begin
+  Guard := ARWLock.TryWrite(ATimeoutMs);
+  if Assigned(Guard) and Guard.IsLocked then
+  begin
+    try
+      AProc();
+      Result := True;
+    finally
+      Guard := nil;
+    end;
+  end
+  else
+  begin
+    if ARWLock.IsPoisoned then
+      raise ERWLockPoisonError.Create(0, 'Lock is poisoned');
+    Result := False;
+  end;
+end;
+
+// Named synchronization primitives implementations
+// === 统一命名 API (推荐使用) ===
+
+function MakeNamedMutex(const AName: string): INamedMutex;
+begin
+  Result := fafafa.core.sync.namedMutex.CreateNamedMutex(AName);
+end;
+
+function MakeNamedMutex(const AName: string; ATimeoutMs: Cardinal): INamedMutex;
+begin
+  Result := fafafa.core.sync.namedMutex.CreateNamedMutex(AName, ATimeoutMs);
+end;
+
+function MakeGlobalNamedMutex(const AName: string): INamedMutex;
+begin
+  Result := fafafa.core.sync.namedMutex.CreateGlobalNamedMutex(AName);
 end;
 
 function MakeNamedEvent(const AName: string): INamedEvent;
@@ -274,12 +604,12 @@ end;
 
 function MakeNamedSemaphore(const AName: string): INamedSemaphore;
 begin
-  Result := fafafa.core.sync.namedSemaphore.MakeNamedSemaphore(AName);
+  Result := fafafa.core.sync.namedSemaphore.CreateNamedSemaphore(AName);
 end;
 
 function MakeNamedSemaphore(const AName: string; AInitialCount: Integer; AMaxCount: Integer): INamedSemaphore;
 begin
-  Result := fafafa.core.sync.namedSemaphore.MakeNamedSemaphore(AName, AInitialCount, AMaxCount);
+  Result := fafafa.core.sync.namedSemaphore.CreateNamedSemaphore(AName, AInitialCount, AMaxCount);
 end;
 
 function MakeNamedBarrier(const AName: string; AParticipantCount: Integer): INamedBarrier;
@@ -287,10 +617,10 @@ begin
   Result := fafafa.core.sync.namedBarrier.MakeNamedBarrier(AName, AParticipantCount);
 end;
 
-// function MakeNamedCondVar(const AName: string): INamedCondVar;
-// begin
-//   Result := fafafa.core.sync.namedCondvar.MakeNamedCondVar(AName);
-// end;
+function MakeNamedCondVar(const AName: string): INamedCondVar;
+begin
+  Result := fafafa.core.sync.namedCondvar.MakeNamedCondVar(AName);
+end;
 
 function MakeNamedRWLock(const AName: string): INamedRWLock;
 begin

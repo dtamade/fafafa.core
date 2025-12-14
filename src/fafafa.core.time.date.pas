@@ -124,11 +124,11 @@ type
     
     // 比较操作
     function Compare(const AOther: TDate): Integer; inline;
-    function Equal(const AOther: TDate): Boolean; inline;
-    function LessThan(const AOther: TDate): Boolean; inline;
-    function LessOrEqual(const AOther: TDate): Boolean; inline;
-    function GreaterThan(const AOther: TDate): Boolean; inline;
-    function GreaterOrEqual(const AOther: TDate): Boolean; inline;
+    function Equal(const AOther: TDate): Boolean; inline; deprecated 'Use operator = instead';
+    function LessThan(const AOther: TDate): Boolean; inline; deprecated 'Use operator < instead';
+    function LessOrEqual(const AOther: TDate): Boolean; inline; deprecated 'Use operator <= instead';
+    function GreaterThan(const AOther: TDate): Boolean; inline; deprecated 'Use operator > instead';
+    function GreaterOrEqual(const AOther: TDate): Boolean; inline; deprecated 'Use operator >= instead';
     function IsBetween(const AStart, AEnd: TDate): Boolean; inline;
     
     // 工具函数
@@ -759,17 +759,17 @@ end;
 
 function TDate.Equal(const AOther: TDate): Boolean;
 begin
-  Result := FJulianDay = AOther.FJulianDay;
+  Result := Self = AOther;  // 弃用方法调用运算符
 end;
 
 function TDate.LessThan(const AOther: TDate): Boolean;
 begin
-  Result := FJulianDay < AOther.FJulianDay;
+  Result := Self < AOther;  // 弃用方法调用运算符
 end;
 
 function TDate.GreaterThan(const AOther: TDate): Boolean;
 begin
-  Result := FJulianDay > AOther.FJulianDay;
+  Result := Self > AOther;  // 弃用方法调用运算符
 end;
 
 function TDate.IsLeapYear: Boolean;
@@ -804,42 +804,42 @@ end;
 
 class operator TDate.=(const A, B: TDate): Boolean;
 begin
-  Result := A.Equal(B);
+  Result := A.FJulianDay = B.FJulianDay;  // 直接比较
 end;
 
 class operator TDate.<>(const A, B: TDate): Boolean;
 begin
-  Result := not (A = B);
+  Result := A.FJulianDay <> B.FJulianDay;  // 直接比较
 end;
 
 class operator TDate.<(const A, B: TDate): Boolean;
 begin
-  Result := A.LessThan(B);
+  Result := A.FJulianDay < B.FJulianDay;  // 直接比较
 end;
 
 class operator TDate.>(const A, B: TDate): Boolean;
 begin
-  Result := A.GreaterThan(B);
+  Result := A.FJulianDay > B.FJulianDay;  // 直接比较
 end;
 
 class operator TDate.<=(const A, B: TDate): Boolean;
 begin
-  Result := A.LessOrEqual(B);
+  Result := A.FJulianDay <= B.FJulianDay;  // 直接比较
 end;
 
 class operator TDate.>=(const A, B: TDate): Boolean;
 begin
-  Result := A.GreaterOrEqual(B);
+  Result := A.FJulianDay >= B.FJulianDay;  // 直接比较
 end;
 
 function TDate.LessOrEqual(const AOther: TDate): Boolean;
 begin
-  Result := FJulianDay <= AOther.FJulianDay;
+  Result := Self <= AOther;  // 弃用方法调用运算符
 end;
 
 function TDate.GreaterOrEqual(const AOther: TDate): Boolean;
 begin
-  Result := FJulianDay >= AOther.FJulianDay;
+  Result := Self >= AOther;  // 弃用方法调用运算符
 end;
 
 function TDate.IsBetween(const AStart, AEnd: TDate): Boolean;

@@ -160,11 +160,11 @@ type
 
     // 比较操作
     function Compare(const AOther: TTimeOfDay): Integer; inline;
-    function Equal(const AOther: TTimeOfDay): Boolean; inline;
-    function LessThan(const AOther: TTimeOfDay): Boolean; inline;
-    function LessOrEqual(const AOther: TTimeOfDay): Boolean; inline;
-    function GreaterThan(const AOther: TTimeOfDay): Boolean; inline;
-    function GreaterOrEqual(const AOther: TTimeOfDay): Boolean; inline;
+    function Equal(const AOther: TTimeOfDay): Boolean; inline; deprecated 'Use operator = instead';
+    function LessThan(const AOther: TTimeOfDay): Boolean; inline; deprecated 'Use operator < instead';
+    function LessOrEqual(const AOther: TTimeOfDay): Boolean; inline; deprecated 'Use operator <= instead';
+    function GreaterThan(const AOther: TTimeOfDay): Boolean; inline; deprecated 'Use operator > instead';
+    function GreaterOrEqual(const AOther: TTimeOfDay): Boolean; inline; deprecated 'Use operator >= instead';
     function IsBetween(const AStart, AEnd: TTimeOfDay): Boolean;
 
     // 状态查询
@@ -286,7 +286,8 @@ function FormatTime24Hour(const ATime: TTimeOfDay): string;
 
 implementation
 
-uses Math;
+uses
+  fafafa.core.math;
 
 
 { TTimeOfDay }

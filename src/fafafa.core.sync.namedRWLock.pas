@@ -82,13 +82,10 @@ end;
 
 function TryOpenNamedRWLock(const AName: string): INamedRWLock;
 begin
-  try
-    // 尝试创建/打开现有的命名读写锁
-    Result := MakeNamedRWLock(AName);
-  except
-    // 如果失败，返�?nil
-    Result := nil;
-  end;
+  // 语义：尝试打开（实际上是“打开或创建”）命名读写锁，但不再吞掉所有异常
+  // - 参数错误（空名称、非法字符等）应直接向上传播
+  // - 资源或系统错误同样不应伪装成“打开失败”
+  Result := MakeNamedRWLock(AName);
 end;
 
 function DefaultNamedRWLockConfig: TNamedRWLockConfig;

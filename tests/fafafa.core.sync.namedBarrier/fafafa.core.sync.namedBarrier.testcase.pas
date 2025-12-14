@@ -17,6 +17,7 @@ type
     procedure Test_MakeNamedBarrier_WithParticipants;
     procedure Test_MakeNamedBarrier_WithConfig;
     procedure Test_TryOpenNamedBarrier;
+    procedure Test_TryOpenNamedBarrier_InvalidName_Propagates;
     procedure Test_MakeGlobalNamedBarrier;
     procedure Test_NewNamedBarrierBuilder;
   end;
@@ -116,11 +117,23 @@ begin
   LBarrier1 := MakeNamedBarrier('test_barrier_4');
   CheckNotNull(LBarrier1, '应该成功创建命名屏障');
   
-  // 然后尝试打开现有的
+  // 然后尝试打开现有的（目前实现为“打开或创建”，但不得吞掉异常）
   LBarrier2 := TryOpenNamedBarrier('test_barrier_4');
   CheckNotNull(LBarrier2, '应该成功打开现有的命名屏障');
   LInfo2 := LBarrier2.GetInfo;
   CheckEquals('test_barrier_4', LInfo2.Name, '名称应该匹配');
+end;
+
+procedure TTestCase_Global.Test_TryOpenNamedBarrier_InvalidName_Propagates;
+begin
+  // TryOpen 不应该静默吞掉参数错误，保持与 MakeNamedBarrier 一致
+  try
+    TryOpenNamedBarrier('');
+    Fail('空名称应该抛出异常');
+  except
+    on E: EInvalidArgument do
+      Check(True, '应抛出 EInvalidArgument，不能静默返回 nil');
+  end;
 end;
 
 procedure TTestCase_Global.Test_MakeGlobalNamedBarrier;

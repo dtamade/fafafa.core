@@ -24,6 +24,7 @@ begin
   end;
   // 主动清理全局注册表，助力 heaptrc 0 block
   ArchiverShutdown;
-  testregistry.GetTestRegistry.Free;
+  // 注：手动 Free TestRegistry 在部分 FPCUnit/Lazarus 组合下会触发双重释放
+  // testregistry.GetTestRegistry.Free;
 end.
 

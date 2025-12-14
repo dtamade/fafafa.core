@@ -24,6 +24,10 @@ uses
   fafafa.core.collections.treemap,
   fafafa.core.collections.bitset,
   fafafa.core.collections.vecdeque,
+  fafafa.core.collections.list,
+  fafafa.core.collections.treeSet,
+  fafafa.core.collections.priorityqueue,
+  fafafa.core.collections.linkedhashmap,
   fafafa.core.mem.allocator;
 
 type
@@ -101,7 +105,104 @@ type
     procedure Test_VecDeque_WrapAround_PushPopBack;
   end;
 
+  { TTestCase_Boundary_TreeMap }
+  TTestCase_Boundary_TreeMap = class(TTestCase)
+  private
+    type
+      TIntIntTreeMap = specialize TTreeMap<Integer, Integer>;
+  published
+    // 空 TreeMap 边界
+    procedure Test_TreeMap_Empty_Count_IsZero;
+    procedure Test_TreeMap_Empty_ContainsKey_ReturnsFalse;
+    procedure Test_TreeMap_Empty_Remove_ReturnsFalse;
+    procedure Test_TreeMap_Empty_Clear_NoEffect;
+    
+    // 单元素边界
+    procedure Test_TreeMap_SingleElement_AddRemove;
+    procedure Test_TreeMap_SingleElement_GetValue;
+    
+    // 有序性边界
+    procedure Test_TreeMap_OrderPreserved_AfterInserts;
+  end;
+
+  { TTestCase_Boundary_List }
+  TTestCase_Boundary_List = class(TTestCase)
+  private
+    type
+      TIntList = specialize TList<Integer>;
+  published
+    // 空 List 边界
+    procedure Test_List_Empty_Count_IsZero;
+    procedure Test_List_Empty_IsEmpty_ReturnsTrue;
+    procedure Test_List_Empty_Clear_NoEffect;
+    
+    // 单元素边界
+    procedure Test_List_SingleElement_PushPopFront;
+    procedure Test_List_SingleElement_PushPopBack;
+  end;
+
+  { TTestCase_Boundary_TreeSet }
+  TTestCase_Boundary_TreeSet = class(TTestCase)
+  private
+    type
+      TIntTreeSet = specialize TTreeSet<Integer>;
+  published
+    // 空 TreeSet 边界
+    procedure Test_TreeSet_Empty_Count_IsZero;
+    procedure Test_TreeSet_Empty_Contains_ReturnsFalse;
+    procedure Test_TreeSet_Empty_Clear_NoEffect;
+    
+    // 单元素边界  
+    procedure Test_TreeSet_SingleElement_AddRemove;
+    
+    // 有序性边界
+    procedure Test_TreeSet_OrderPreserved_AfterInserts;
+  end;
+
+  { TTestCase_Boundary_PriorityQueue }
+  TTestCase_Boundary_PriorityQueue = class(TTestCase)
+  private
+    type
+      TIntPQ = specialize TPriorityQueueClass<Integer>;
+  published
+    // 空 PQ 边界
+    procedure Test_PriorityQueue_Empty_Count_IsZero;
+    procedure Test_PriorityQueue_Empty_IsEmpty_ReturnsTrue;
+    
+    // 单元素边界
+    procedure Test_PriorityQueue_SingleElement_EnqueueDequeue;
+    
+    // 优先级边界
+    procedure Test_PriorityQueue_OrderCorrect_MinHeap;
+  end;
+
+  { TTestCase_Boundary_LinkedHashMap }
+  TTestCase_Boundary_LinkedHashMap = class(TTestCase)
+  private
+    type
+      TIntIntLHM = specialize TLinkedHashMap<Integer, Integer>;
+  published
+    // 空 LinkedHashMap 边界
+    procedure Test_LinkedHashMap_Empty_Count_IsZero;
+    procedure Test_LinkedHashMap_Empty_ContainsKey_ReturnsFalse;
+    
+    // 单元素边界
+    procedure Test_LinkedHashMap_SingleElement_AddRemove;
+    
+    // 插入顺序保持
+    procedure Test_LinkedHashMap_InsertionOrderPreserved;
+  end;
+
 implementation
+
+{ Comparator functions for TreeMap and PriorityQueue }
+
+function IntCompare(const A, B: Integer; aData: Pointer): SizeInt;
+begin
+  if A < B then Result := -1
+  else if A > B then Result := 1
+  else Result := 0;
+end;
 
 { TTestCase_Boundary_Vec }
 
@@ -512,10 +613,407 @@ begin
   end;
 end;
 
+{ TTestCase_Boundary_TreeMap }
+
+procedure TTestCase_Boundary_TreeMap.Test_TreeMap_Empty_Count_IsZero;
+var
+  M: TIntIntTreeMap;
+begin
+  M := TIntIntTreeMap.Create(nil, @IntCompare);
+  try
+    AssertEquals('Empty treemap count should be 0', 0, M.Count);
+  finally
+    M.Free;
+  end;
+end;
+
+procedure TTestCase_Boundary_TreeMap.Test_TreeMap_Empty_ContainsKey_ReturnsFalse;
+var
+  M: TIntIntTreeMap;
+begin
+  M := TIntIntTreeMap.Create(nil, @IntCompare);
+  try
+    AssertFalse('ContainsKey on empty treemap should return False', M.ContainsKey(42));
+  finally
+    M.Free;
+  end;
+end;
+
+procedure TTestCase_Boundary_TreeMap.Test_TreeMap_Empty_Remove_ReturnsFalse;
+var
+  M: TIntIntTreeMap;
+begin
+  M := TIntIntTreeMap.Create(nil, @IntCompare);
+  try
+    AssertFalse('Remove on empty treemap should return False', M.Remove(42));
+  finally
+    M.Free;
+  end;
+end;
+
+procedure TTestCase_Boundary_TreeMap.Test_TreeMap_Empty_Clear_NoEffect;
+var
+  M: TIntIntTreeMap;
+begin
+  M := TIntIntTreeMap.Create(nil, @IntCompare);
+  try
+    M.Clear;
+    AssertEquals('Count after Clear on empty should be 0', 0, M.Count);
+  finally
+    M.Free;
+  end;
+end;
+
+procedure TTestCase_Boundary_TreeMap.Test_TreeMap_SingleElement_AddRemove;
+var
+  M: TIntIntTreeMap;
+begin
+  M := TIntIntTreeMap.Create(nil, @IntCompare);
+  try
+    M.Put(1, 100);
+    AssertEquals('Count should be 1', 1, M.Count);
+    
+    AssertTrue('Remove should return True', M.Remove(1));
+    AssertEquals('Count should be 0', 0, M.Count);
+  finally
+    M.Free;
+  end;
+end;
+
+procedure TTestCase_Boundary_TreeMap.Test_TreeMap_SingleElement_GetValue;
+var
+  M: TIntIntTreeMap;
+  V: Integer;
+begin
+  M := TIntIntTreeMap.Create(nil, @IntCompare);
+  try
+    M.Put(42, 999);
+    AssertTrue('Get should return True', M.Get(42, V));
+    AssertEquals('Value should be 999', 999, V);
+  finally
+    M.Free;
+  end;
+end;
+
+procedure TTestCase_Boundary_TreeMap.Test_TreeMap_OrderPreserved_AfterInserts;
+var
+  M: TIntIntTreeMap;
+  V: Integer;
+begin
+  M := TIntIntTreeMap.Create(nil, @IntCompare);
+  try
+    // 乱序插入
+    M.Put(50, 1);
+    M.Put(25, 2);
+    M.Put(75, 3);
+    M.Put(10, 4);
+    M.Put(90, 5);
+    
+    // 验证所有值正确插入
+    AssertEquals('Count should be 5', 5, M.Count);
+    AssertTrue('Key 10 exists', M.Get(10, V)); AssertEquals('Value', 4, V);
+    AssertTrue('Key 90 exists', M.Get(90, V)); AssertEquals('Value', 5, V);
+  finally
+    M.Free;
+  end;
+end;
+
+{ TTestCase_Boundary_List }
+
+procedure TTestCase_Boundary_List.Test_List_Empty_Count_IsZero;
+var
+  L: TIntList;
+begin
+  L := TIntList.Create;
+  try
+    AssertEquals('Empty list count should be 0', 0, L.Count);
+  finally
+    L.Free;
+  end;
+end;
+
+procedure TTestCase_Boundary_List.Test_List_Empty_IsEmpty_ReturnsTrue;
+var
+  L: TIntList;
+begin
+  L := TIntList.Create;
+  try
+    AssertTrue('Empty list IsEmpty should be True', L.IsEmpty);
+  finally
+    L.Free;
+  end;
+end;
+
+procedure TTestCase_Boundary_List.Test_List_Empty_Clear_NoEffect;
+var
+  L: TIntList;
+begin
+  L := TIntList.Create;
+  try
+    L.Clear;
+    AssertEquals('Count after Clear should be 0', 0, L.Count);
+  finally
+    L.Free;
+  end;
+end;
+
+procedure TTestCase_Boundary_List.Test_List_SingleElement_PushPopFront;
+var
+  L: TIntList;
+begin
+  L := TIntList.Create;
+  try
+    L.PushFront(42);
+    AssertEquals('Count should be 1', 1, L.Count);
+    AssertEquals('Front should be 42', 42, L.Front);
+    
+    L.PopFront;
+    AssertEquals('Count should be 0', 0, L.Count);
+  finally
+    L.Free;
+  end;
+end;
+
+procedure TTestCase_Boundary_List.Test_List_SingleElement_PushPopBack;
+var
+  L: TIntList;
+begin
+  L := TIntList.Create;
+  try
+    L.PushBack(42);
+    AssertEquals('Count should be 1', 1, L.Count);
+    AssertEquals('Back should be 42', 42, L.Back);
+    
+    L.PopBack;
+    AssertEquals('Count should be 0', 0, L.Count);
+  finally
+    L.Free;
+  end;
+end;
+
+{ TTestCase_Boundary_TreeSet }
+
+procedure TTestCase_Boundary_TreeSet.Test_TreeSet_Empty_Count_IsZero;
+var
+  S: TIntTreeSet;
+begin
+  S := TIntTreeSet.Create;
+  try
+    AssertEquals('Empty treeset count should be 0', 0, S.GetCount);
+  finally
+    S.Free;
+  end;
+end;
+
+procedure TTestCase_Boundary_TreeSet.Test_TreeSet_Empty_Contains_ReturnsFalse;
+var
+  S: TIntTreeSet;
+begin
+  S := TIntTreeSet.Create;
+  try
+    AssertFalse('Contains on empty treeset should return False', S.Contains(42));
+  finally
+    S.Free;
+  end;
+end;
+
+procedure TTestCase_Boundary_TreeSet.Test_TreeSet_Empty_Clear_NoEffect;
+var
+  S: TIntTreeSet;
+begin
+  S := TIntTreeSet.Create;
+  try
+    S.Clear;
+    AssertEquals('Count after Clear should be 0', 0, S.GetCount);
+  finally
+    S.Free;
+  end;
+end;
+
+procedure TTestCase_Boundary_TreeSet.Test_TreeSet_SingleElement_AddRemove;
+var
+  S: TIntTreeSet;
+begin
+  S := TIntTreeSet.Create;
+  try
+    AssertTrue('Add should return True', S.Add(42));
+    AssertEquals('Count should be 1', 1, S.GetCount);
+    AssertTrue('Contains should return True', S.Contains(42));
+    
+    AssertTrue('Remove should return True', S.Remove(42));
+    AssertEquals('Count should be 0', 0, S.GetCount);
+  finally
+    S.Free;
+  end;
+end;
+
+procedure TTestCase_Boundary_TreeSet.Test_TreeSet_OrderPreserved_AfterInserts;
+var
+  S: TIntTreeSet;
+begin
+  S := TIntTreeSet.Create;
+  try
+    // 乱序插入
+    S.Add(50);
+    S.Add(25);
+    S.Add(75);
+    S.Add(10);
+    S.Add(90);
+    
+    // 验证所有元素存在
+    AssertEquals('Count should be 5', 5, S.GetCount);
+    AssertTrue('Contains 10', S.Contains(10));
+    AssertTrue('Contains 90', S.Contains(90));
+  finally
+    S.Free;
+  end;
+end;
+
+{ TTestCase_Boundary_PriorityQueue }
+
+procedure TTestCase_Boundary_PriorityQueue.Test_PriorityQueue_Empty_Count_IsZero;
+var
+  PQ: TIntPQ;
+begin
+  PQ := TIntPQ.Create(@IntCompare);
+  try
+    AssertEquals('Empty PQ count should be 0', 0, PQ.Count);
+  finally
+    PQ.Free;
+  end;
+end;
+
+procedure TTestCase_Boundary_PriorityQueue.Test_PriorityQueue_Empty_IsEmpty_ReturnsTrue;
+var
+  PQ: TIntPQ;
+begin
+  PQ := TIntPQ.Create(@IntCompare);
+  try
+    AssertTrue('Empty PQ IsEmpty should be True', PQ.IsEmpty);
+  finally
+    PQ.Free;
+  end;
+end;
+
+procedure TTestCase_Boundary_PriorityQueue.Test_PriorityQueue_SingleElement_EnqueueDequeue;
+var
+  PQ: TIntPQ;
+  V: Integer;
+begin
+  PQ := TIntPQ.Create(@IntCompare);
+  try
+    PQ.Enqueue(42);
+    AssertEquals('Count should be 1', 1, PQ.Count);
+    
+    AssertTrue('Dequeue should succeed', PQ.Dequeue(V));
+    AssertEquals('Dequeue should return 42', 42, V);
+    AssertEquals('Count should be 0', 0, PQ.Count);
+  finally
+    PQ.Free;
+  end;
+end;
+
+procedure TTestCase_Boundary_PriorityQueue.Test_PriorityQueue_OrderCorrect_MinHeap;
+var
+  PQ: TIntPQ;
+  V: Integer;
+begin
+  PQ := TIntPQ.Create(@IntCompare);  // 最小堆
+  try
+    // 乱序插入
+    PQ.Enqueue(50);
+    PQ.Enqueue(10);
+    PQ.Enqueue(30);
+    PQ.Enqueue(5);
+    PQ.Enqueue(20);
+    
+    // 按升序出队
+    AssertTrue('Dequeue 1', PQ.Dequeue(V)); AssertEquals('First dequeue should be 5', 5, V);
+    AssertTrue('Dequeue 2', PQ.Dequeue(V)); AssertEquals('Second dequeue should be 10', 10, V);
+    AssertTrue('Dequeue 3', PQ.Dequeue(V)); AssertEquals('Third dequeue should be 20', 20, V);
+    AssertTrue('Dequeue 4', PQ.Dequeue(V)); AssertEquals('Fourth dequeue should be 30', 30, V);
+    AssertTrue('Dequeue 5', PQ.Dequeue(V)); AssertEquals('Fifth dequeue should be 50', 50, V);
+  finally
+    PQ.Free;
+  end;
+end;
+
+{ TTestCase_Boundary_LinkedHashMap }
+
+procedure TTestCase_Boundary_LinkedHashMap.Test_LinkedHashMap_Empty_Count_IsZero;
+var
+  M: TIntIntLHM;
+begin
+  M := TIntIntLHM.Create;
+  try
+    AssertEquals('Empty LHM count should be 0', 0, M.Count);
+  finally
+    M.Free;
+  end;
+end;
+
+procedure TTestCase_Boundary_LinkedHashMap.Test_LinkedHashMap_Empty_ContainsKey_ReturnsFalse;
+var
+  M: TIntIntLHM;
+begin
+  M := TIntIntLHM.Create;
+  try
+    AssertFalse('ContainsKey on empty LHM should return False', M.ContainsKey(42));
+  finally
+    M.Free;
+  end;
+end;
+
+procedure TTestCase_Boundary_LinkedHashMap.Test_LinkedHashMap_SingleElement_AddRemove;
+var
+  M: TIntIntLHM;
+begin
+  M := TIntIntLHM.Create;
+  try
+    M.Put(1, 100);
+    AssertEquals('Count should be 1', 1, M.Count);
+    
+    AssertTrue('Remove should return True', M.Remove(1));
+    AssertEquals('Count should be 0', 0, M.Count);
+  finally
+    M.Free;
+  end;
+end;
+
+procedure TTestCase_Boundary_LinkedHashMap.Test_LinkedHashMap_InsertionOrderPreserved;
+var
+  M: TIntIntLHM;
+  V: Integer;
+begin
+  M := TIntIntLHM.Create;
+  try
+    // 按特定顺序插入
+    M.Put(30, 300);
+    M.Put(10, 100);
+    M.Put(20, 200);
+    
+    // 验证元素存在且值正确
+    AssertEquals('Count should be 3', 3, M.Count);
+    AssertTrue('Key 30 should exist', M.Get(30, V));
+    AssertEquals('Value for 30', 300, V);
+    AssertTrue('Key 10 should exist', M.Get(10, V));
+    AssertEquals('Value for 10', 100, V);
+    AssertTrue('Key 20 should exist', M.Get(20, V));
+    AssertEquals('Value for 20', 200, V);
+  finally
+    M.Free;
+  end;
+end;
+
 initialization
   RegisterTest(TTestCase_Boundary_Vec);
   RegisterTest(TTestCase_Boundary_HashMap);
   RegisterTest(TTestCase_Boundary_BitSet);
   RegisterTest(TTestCase_Boundary_VecDeque);
+  RegisterTest(TTestCase_Boundary_TreeMap);
+  RegisterTest(TTestCase_Boundary_List);
+  RegisterTest(TTestCase_Boundary_TreeSet);
+  RegisterTest(TTestCase_Boundary_PriorityQueue);
+  RegisterTest(TTestCase_Boundary_LinkedHashMap);
 
 end.

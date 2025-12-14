@@ -341,21 +341,16 @@ type
 
 
     { 非异常批量导入/追加（集合重载） - 接口便捷方法，转发至基类实现 }
-    function TryLoadFrom(const aSrc: TCollection): Boolean;
-    function TryAppend(const aSrc: TCollection): Boolean;
+    function TryLoadFrom(const aSrc: TCollection): Boolean; overload;
+    function TryAppend(const aSrc: TCollection): Boolean; overload;
+
+    { 非异常批量导入/追加（指针重载）见 TCollection.TryLoadFrom/TryAppend 指针重载 }
 
     {**
-
      * Read
      *
      * @desc 将容器内指定范围的元素读取到一个动态数组中.
      *
-
-     * @params
-    { 非异常批量导入/追加（指针重载） }
-    function TryLoadFrom(const aSrc: Pointer; aElementCount: SizeUInt): Boolean;
-    function TryAppend(const aSrc: Pointer; aElementCount: SizeUInt): Boolean;
-
      * @params
      *   aIndex  容器内开始读取的源索引 (0-based).
      *   aDst    (var) 用于接收数据的动态数组.

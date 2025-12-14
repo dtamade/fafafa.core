@@ -352,6 +352,19 @@ function  atomic_tagged_ptr_next(const aTaggedPtr: atomic_tagged_ptr_t): {$IFDEF
 procedure atomic_tagged_ptr_update(var aObj: atomic_tagged_ptr_t; aPtr: Pointer); inline;
 procedure atomic_tagged_ptr_update_tag(var aObj: atomic_tagged_ptr_t; aTag: {$IFDEF CPU64}UInt16{$ELSE}UInt32{$ENDIF}); inline;
 
+// Compatibility wrappers (older call sites expect C11-like naming + memory_order)
+function make_atomic_tagged_ptr_t(aPtr: Pointer; aTag: {$IFDEF CPU64}UInt16{$ELSE}UInt32{$ENDIF}): atomic_tagged_ptr_t; inline;
+function atomic_load_atomic_tagged_ptr_t(var aObj: atomic_tagged_ptr_t; aOrder: memory_order_t): atomic_tagged_ptr_t; inline;
+procedure atomic_store_atomic_tagged_ptr_t(var aObj: atomic_tagged_ptr_t; aDesired: atomic_tagged_ptr_t; aOrder: memory_order_t); inline;
+function atomic_compare_exchange_strong_atomic_tagged_ptr_t(var aObj: atomic_tagged_ptr_t; var aExpected: atomic_tagged_ptr_t; aDesired: atomic_tagged_ptr_t): Boolean; inline;
+
+// Compatibility wrappers for plain pointers
+function atomic_load_ptr(var aObj: Pointer; aOrder: memory_order_t): Pointer; inline;
+function atomic_load_ptr(var aObj: Pointer): Pointer; inline;
+procedure atomic_store_ptr(var aObj: Pointer; aDesired: Pointer; aOrder: memory_order_t); inline;
+procedure atomic_store_ptr(var aObj: Pointer; aDesired: Pointer); inline;
+function atomic_compare_exchange_strong_ptr(var aObj: Pointer; var aExpected: Pointer; aDesired: Pointer): Boolean; inline;
+
 procedure atomic_thread_fence(aOrder: memory_order_t); inline;
 
 implementation
@@ -1508,6 +1521,64 @@ begin
     mo_acq_rel: ReadWriteBarrier;      // 同时防止前后读取和写入重排
     mo_seq_cst: ReadWriteBarrier;      // 最强顺序，保证全序
   end;
+end;
+
+function make_atomic_tagged_ptr_t(aPtr: Pointer; aTag: {$IFDEF CPU64}UInt16{$ELSE}UInt32{$ENDIF}): atomic_tagged_ptr_t; inline;
+begin
+  Result := atomic_tagged_ptr(aPtr, aTag);
+end;
+
+function atomic_load_atomic_tagged_ptr_t(var aObj: atomic_tagged_ptr_t; aOrder: memory_order_t): atomic_tagged_ptr_t; inline;
+begin
+  Result := atomic_tagged_ptr_load(aObj);
+  case aOrder of
+    mo_consume: ReadDependencyBarrier;
+    mo_acquire, mo_acq_rel: ReadBarrier;
+    mo_seq_cst: ReadWriteBarrier;
+  else
+    ;
+  end;
+end;
+
+procedure atomic_store_atomic_tagged_ptr_t(var aObj: atomic_tagged_ptr_t; aDesired: atomic_tagged_ptr_t; aOrder: memory_order_t); inline;
+begin
+  case aOrder of
+    mo_release, mo_acq_rel: WriteBarrier;
+    mo_seq_cst: ReadWriteBarrier;
+  else
+    ;
+  end;
+  atomic_tagged_ptr_store(aObj, aDesired);
+end;
+
+function atomic_compare_exchange_strong_atomic_tagged_ptr_t(var aObj: atomic_tagged_ptr_t; var aExpected: atomic_tagged_ptr_t; aDesired: atomic_tagged_ptr_t): Boolean; inline;
+begin
+  Result := atomic_tagged_ptr_compare_exchange_strong(aObj, aExpected, aDesired);
+end;
+
+function atomic_load_ptr(var aObj: Pointer; aOrder: memory_order_t): Pointer; inline;
+begin
+  Result := atomic_load(aObj, aOrder);
+end;
+
+function atomic_load_ptr(var aObj: Pointer): Pointer; inline;
+begin
+  Result := atomic_load(aObj);
+end;
+
+procedure atomic_store_ptr(var aObj: Pointer; aDesired: Pointer; aOrder: memory_order_t); inline;
+begin
+  atomic_store(aObj, aDesired, aOrder);
+end;
+
+procedure atomic_store_ptr(var aObj: Pointer; aDesired: Pointer); inline;
+begin
+  atomic_store(aObj, aDesired);
+end;
+
+function atomic_compare_exchange_strong_ptr(var aObj: Pointer; var aExpected: Pointer; aDesired: Pointer): Boolean; inline;
+begin
+  Result := atomic_compare_exchange_strong(aObj, aExpected, aDesired);
 end;
 
 const

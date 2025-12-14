@@ -79,7 +79,8 @@ begin
     
     // Show next 5 scheduled times
     cron := CreateCronExpression('0 2 * * *');
-    now := NowInstant;
+    // 使用系统时钟的 Unix 纳秒构造 TInstant，避免与单调时钟混用
+    now := TInstant.FromNsSinceEpoch(UInt64(DefaultSystemClock.NowUnixNs));
     nextTimes := cron.GetNextTimes(now, 5);
     
     WriteLn;
@@ -123,7 +124,7 @@ begin
     
     // Show next 5 workday executions
     cron := CreateCronExpression('0 9 * * 1-5');
-    now := NowInstant;
+    now := TInstant.FromNsSinceEpoch(UInt64(DefaultSystemClock.NowUnixNs));
     nextTimes := cron.GetNextTimes(now, 5);
     
     WriteLn;
@@ -214,13 +215,13 @@ begin
   for i := 1 to 10 do
   begin
     cron := CreateCronExpression(patterns[i].pattern);
-    if cron.IsValid then
-    begin
-      WriteLn('✓ ', patterns[i].pattern:20, ' - ', patterns[i].description);
-      
-      // Show next execution
-      now := NowInstant;
-      nextTime := cron.GetNextTime(now);
+      if cron.IsValid then
+      begin
+        WriteLn('✓ ', patterns[i].pattern:20, ' - ', patterns[i].description);
+        
+        // Show next execution
+        now := TInstant.FromNsSinceEpoch(UInt64(DefaultSystemClock.NowUnixNs));
+        nextTime := cron.GetNextTime(now);
       if nextTime <> TInstant.Zero then
       begin
         dt := UnixToDateTime(nextTime.AsNsSinceEpoch div 1000000000, False);

@@ -1,176 +1,226 @@
 unit fafafa.core.io.adapters;
 
-{$MODE OBJFPC}{$H+}
+{$mode objfpc}{$H+}
 {$modeswitch advancedrecords}
 {$I fafafa.core.settings.inc}
+
+{
+  fafafa.core.io.adapters - IO 适配器
+
+  提供：
+  - TNopCloser: 将 IReader 包装为 IReadCloser（空 Close）
+  - TChainReader: 串联两个 Reader
+  - TSkipReader: 跳过前 N 字节
+
+  参考: Go io.NopCloser, Rust std::io::Chain
+}
 
 interface
 
 uses
-  SysUtils, Classes,
-  fafafa.core.bytes;
-
-// Stream <-> IByteSink/IByteSource 适配
+  SysUtils,
+  fafafa.core.io.base;
 
 type
-  TStreamSink = class(TInterfacedObject, IByteWriter)
+  { TNopCloser - 空关闭包装器
+
+    将 IReader 包装为 IReadCloser，Close 操作为空。
+    适用于需要 IReadCloser 但底层流不需要关闭的场景。
+
+    用法：
+      RC := NopCloser(SomeReader);
+      // 使用 RC...
+      RC.Close;  // 安全，不做任何事
+  }
+  TNopCloser = class(TInterfacedObject, IReader, ICloser, IReadCloser)
   private
-    FStream: TStream;
+    FInner: IReader;
   public
-    constructor Create(AStream: TStream);
-    // IWriter 接口
-    function Write(const Buffer: Pointer; Count: SizeInt): SizeInt;
-    // IByteWriter 接口
-    function WriteByte(Value: Byte): SizeInt;
-    function WriteBytes(const B: TBytes): SizeInt;
-    function WriteString(const S: RawByteString): SizeInt;
+    constructor Create(AInner: IReader);
+
+    { IReader }
+    function Read(Buf: Pointer; Count: SizeInt): SizeInt;
+
+    { ICloser }
+    procedure Close;
   end;
 
-  TStreamSource = class(TInterfacedObject, IByteReader)
+  { TChainReader - 串联两个 Reader
+
+    先从 First 读取直到 EOF，然后从 Second 读取。
+    类似 Rust std::io::Chain。
+
+    用法：
+      Chained := Chain(Reader1, Reader2);
+      // 先读 Reader1，EOF 后自动读 Reader2
+  }
+  TChainReader = class(TInterfacedObject, IReader)
   private
-    FStream: TStream;
+    FFirst: IReader;
+    FSecond: IReader;
+    FFirstDone: Boolean;
   public
-    constructor Create(AStream: TStream);
-    // IReader 接口
-    function Read(Buffer: Pointer; Count: SizeInt): SizeInt;
-    // IByteReader 接口
-    function ReadByte: Byte;
-    function ReadBytes(Count: SizeInt): TBytes;
-    function ReadAll: TBytes;
-    function ReadString(Count: SizeInt): RawByteString;
+    constructor Create(AFirst, ASecond: IReader);
+
+    { IReader }
+    function Read(Buf: Pointer; Count: SizeInt): SizeInt;
   end;
 
-function MakeStreamSink(AStream: TStream): IByteSink; inline;
-function MakeStreamSource(AStream: TStream): IByteSource; inline;
+  { TSkipReader - 跳过前 N 字节
+
+    在第一次读取时跳过（丢弃）前 N 字节。
+    适用于跳过文件头、前缀等场景。
+
+    用法：
+      Skipped := Skip(SomeReader, 100);  // 跳过前 100 字节
+  }
+  TSkipReader = class(TInterfacedObject, IReader)
+  private
+    FInner: IReader;
+    FSkip: Int64;
+    FSkipped: Boolean;
+  public
+    constructor Create(AInner: IReader; ASkip: Int64);
+
+    { IReader }
+    function Read(Buf: Pointer; Count: SizeInt): SizeInt;
+  end;
+
+{ 工厂函数 }
+function NopCloser(AInner: IReader): IReadCloser;
+function Chain(AFirst, ASecond: IReader): IReader;
+function Skip(AInner: IReader; N: Int64): IReader;
 
 implementation
 
-{ TStreamSink }
-constructor TStreamSink.Create(AStream: TStream);
+{ TNopCloser }
+
+constructor TNopCloser.Create(AInner: IReader);
 begin
   inherited Create;
-  if AStream = nil then raise EArgumentNil.Create('stream=nil');
-  FStream := AStream;
+  if AInner = nil then
+    raise EIOError.Create('TNopCloser: inner reader is nil');
+  FInner := AInner;
 end;
 
-function TStreamSink.Write(const Buffer: Pointer; Count: SizeInt): SizeInt;
-var w: Longint;
+function TNopCloser.Read(Buf: Pointer; Count: SizeInt): SizeInt;
 begin
-  if (Buffer = nil) and (Count > 0) then Exit(0);
-  if Count <= 0 then Exit(0);
-  w := FStream.Write(Buffer^, Count);
-  if w < 0 then w := 0;
-  Result := w;
+  Result := FInner.Read(Buf, Count);
 end;
 
-function TStreamSink.WriteBytes(const B: TBytes): SizeInt;
-var w: Longint;
+procedure TNopCloser.Close;
 begin
-  if Length(B) = 0 then Exit(0);
-  w := FStream.Write(B[0], Length(B));
-  if w < 0 then w := 0;
-  Result := w;
+  // 空操作
 end;
 
-function TStreamSink.WriteByte(Value: Byte): SizeInt;
-var w: Longint;
-begin
-  w := FStream.Write(Value, 1);
-  if w < 0 then w := 0;
-  Result := w;
-end;
+{ TChainReader }
 
-function TStreamSink.WriteString(const S: RawByteString): SizeInt;
-var w: Longint;
-begin
-  if Length(S) = 0 then Exit(0);
-  w := FStream.Write(S[1], Length(S));
-  if w < 0 then w := 0;
-  Result := w;
-end;
-
-{ TStreamSource }
-constructor TStreamSource.Create(AStream: TStream);
+constructor TChainReader.Create(AFirst, ASecond: IReader);
 begin
   inherited Create;
-  if AStream = nil then raise EArgumentNil.Create('stream=nil');
-  FStream := AStream;
+  FFirst := AFirst;
+  FSecond := ASecond;
+  FFirstDone := False;
 end;
 
-function TStreamSource.Read(Buffer: Pointer; Count: SizeInt): SizeInt;
-var r: Longint;
+function TChainReader.Read(Buf: Pointer; Count: SizeInt): SizeInt;
 begin
-  if (Buffer = nil) and (Count > 0) then Exit(0);
-  if Count <= 0 then Exit(0);
-  r := FStream.Read(Buffer^, Count);
-  if r < 0 then r := 0;
-  Result := r;
-end;
-
-function TStreamSource.ReadByte: Byte;
-var r: Longint;
-begin
-  r := FStream.Read(Result, 1);
-  if r <> 1 then
-    raise EEOFError.Create('Unexpected end of stream');
-end;
-
-function TStreamSource.ReadBytes(Count: SizeInt): TBytes;
-var r: Longint;
-begin
-  if Count <= 0 then
-  begin
-    SetLength(Result, 0);
+  Result := 0;
+  if (Buf = nil) or (Count <= 0) then
     Exit;
+
+  // 先从 First 读取
+  if not FFirstDone then
+  begin
+    if FFirst <> nil then
+      Result := FFirst.Read(Buf, Count);
+
+    if Result > 0 then
+      Exit;
+
+    // First EOF，切换到 Second
+    FFirstDone := True;
   end;
-  SetLength(Result, Count);
-  r := FStream.Read(Result[0], Count);
-  if r < Count then
-    SetLength(Result, r);
+
+  // 从 Second 读取
+  if FSecond <> nil then
+    Result := FSecond.Read(Buf, Count);
 end;
 
-function TStreamSource.ReadAll: TBytes;
-const ChunkSize = 8192;
+{ 工厂函数 }
+
+function NopCloser(AInner: IReader): IReadCloser;
+begin
+  Result := TNopCloser.Create(AInner);
+end;
+
+function Chain(AFirst, ASecond: IReader): IReader;
+begin
+  Result := TChainReader.Create(AFirst, ASecond);
+end;
+
+function Skip(AInner: IReader; N: Int64): IReader;
+begin
+  Result := TSkipReader.Create(AInner, N);
+end;
+
+{ TSkipReader }
+
+constructor TSkipReader.Create(AInner: IReader; ASkip: Int64);
+begin
+  inherited Create;
+  if AInner = nil then
+    raise EIOError.Create('TSkipReader: inner reader is nil');
+  FInner := AInner;
+  if ASkip < 0 then
+    ASkip := 0;
+  FSkip := ASkip;
+  FSkipped := False;
+end;
+
+function TSkipReader.Read(Buf: Pointer; Count: SizeInt): SizeInt;
 var
-  buffer: array[0..ChunkSize-1] of Byte;
-  totalRead, r: Longint;
+  LBuf: array[0..4095] of Byte;  // 4KB 临时缓冲区
+  LToSkip, LRead: SizeInt;
+  LSeeker: ISeeker;
 begin
-  SetLength(Result, 0);
-  totalRead := 0;
-  repeat
-    r := FStream.Read(buffer[0], ChunkSize);
-    if r > 0 then
-    begin
-      SetLength(Result, totalRead + r);
-      Move(buffer[0], Result[totalRead], r);
-      Inc(totalRead, r);
-    end;
-  until r < ChunkSize;
-end;
-
-function TStreamSource.ReadString(Count: SizeInt): RawByteString;
-var r: Longint;
-begin
-  if Count <= 0 then
-  begin
-    Result := '';
+  Result := 0;
+  if (Buf = nil) or (Count <= 0) then
     Exit;
+
+  // 首次读取时跳过前 N 字节
+  if not FSkipped then
+  begin
+    // 优化：如果底层支持 Seek，直接定位
+    if (FSkip > 0) and Supports(FInner, ISeeker, LSeeker) then
+    begin
+      try
+        LSeeker.Seek(FSkip, SeekCurrent);
+        FSkip := 0;
+      except
+        // Seek 失败（例如非 Seekable 流误报），降级到普通读取
+        on E: Exception do ;
+      end;
+    end;
+
+    while FSkip > 0 do
+    begin
+      if FSkip > SizeOf(LBuf) then
+        LToSkip := SizeOf(LBuf)
+      else
+        LToSkip := FSkip;
+
+      LRead := FInner.Read(@LBuf[0], LToSkip);
+      if LRead = 0 then
+        Break;  // EOF
+
+      Dec(FSkip, LRead);
+    end;
+    FSkipped := True;
   end;
-  SetLength(Result, Count);
-  r := FStream.Read(Result[1], Count);
-  if r < Count then
-    SetLength(Result, r);
-end;
 
-function MakeStreamSink(AStream: TStream): IByteSink;
-begin
-  Result := TStreamSink.Create(AStream);
-end;
-
-function MakeStreamSource(AStream: TStream): IByteSource;
-begin
-  Result := TStreamSource.Create(AStream);
+  // 正常读取
+  Result := FInner.Read(Buf, Count);
 end;
 
 end.
-

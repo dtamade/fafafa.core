@@ -6,7 +6,7 @@ unit fafafa.core.simd.dispatch;
 interface
 
 uses
-  fafafa.core.simd.types,
+  fafafa.core.simd.base,
   fafafa.core.simd.cpuinfo;
 
 // === Dispatch System ===
@@ -22,6 +22,11 @@ procedure SetActiveBackend(backend: TSimdBackend);
 
 // Reset to automatic backend selection
 procedure ResetToAutomaticBackend;
+
+// === Experimental / Unsafe Feature Toggles ===
+// Vector asm implementations are NOT yet fully validated; keep disabled by default.
+function IsVectorAsmEnabled: Boolean;
+procedure SetVectorAsmEnabled(enabled: Boolean);
 
 // === Function Dispatch Tables ===
 type
@@ -169,6 +174,9 @@ var
   g_ForcedBackend: TSimdBackend;
   g_BackendForced: Boolean = False;
 
+  // Feature toggles
+  g_VectorAsmEnabled: Boolean = False;
+
 // === Initialization ===
 
 const
@@ -261,6 +269,16 @@ begin
   g_BackendForced := False;
   g_DispatchInitialized := False; // Force re-initialization
   InitializeDispatch;
+end;
+
+function IsVectorAsmEnabled: Boolean;
+begin
+  Result := g_VectorAsmEnabled;
+end;
+
+procedure SetVectorAsmEnabled(enabled: Boolean);
+begin
+  g_VectorAsmEnabled := enabled;
 end;
 
 function GetDispatchTable: PSimdDispatchTable;

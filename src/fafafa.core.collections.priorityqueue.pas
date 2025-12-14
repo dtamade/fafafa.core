@@ -71,7 +71,6 @@ type
     procedure Swap(aIndex1, aIndex2: SizeUInt); {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
     
   protected
-    function GetCount: SizeUInt; override;
     function IsOverlap(const aSrc: Pointer; aElementCount: SizeUInt): Boolean; override;
     procedure DoZero; override;
     procedure DoReverse; override;
@@ -80,6 +79,8 @@ type
     function DoIterMoveNext(aIter: PPtrIter): Boolean;
     
   public
+    function GetCount: SizeUInt; override;
+
     constructor Create(aComparer: TPQCompareFunc; aCapacity: SizeUInt = 16; aAllocator: IAllocator = nil); reintroduce;
     destructor Destroy; override;
     
@@ -99,55 +100,6 @@ type
     
     property Capacity: SizeUInt read GetCapacity;
   end;
-
-  {**
-   * TPriorityQueueRecord<T> - 旧版 record 实现 (已弃用)
-   *
-   * @deprecated 请使用 TPriorityQueueClass<T> 或 IPriorityQueue<T>
-   *}
-  generic TPriorityQueueRecord<T> = record
-  private
-  type
-    TComparerFunc = function(const A, B: T): Integer;
-    TArray = array of T;
-  private
-    FItems: TArray;
-    FCount: Integer;
-    FComparer: TComparerFunc;
-    
-    procedure Grow;
-    procedure SiftUp(AIndex: Integer);
-    procedure SiftDown(AIndex: Integer);
-    procedure Swap(AIndex1, AIndex2: Integer);
-    function GetItem(AIndex: Integer): T;
-    
-  public
-    // 初始化
-    procedure Init(AComparer: TComparerFunc); overload;  // 使用自定义比较器
-    procedure Initialize(AComparer: TComparerFunc); overload;
-    procedure Initialize(AComparer: TComparerFunc; ACapacity: Integer); overload;
-    
-    // 基本操作
-    procedure Enqueue(constref AItem: T);  // O(log n)
-    function Dequeue(out AItem: T): Boolean;  // O(log n) - 返回是否成功
-    function Peek(out AItem: T): Boolean;     // O(1) - 返回是否成功
-    
-    // 容量和状态
-    function Count: Integer;
-    function IsEmpty: Boolean;
-    procedure Clear;
-    
-    // 查找和删除特定元素
-    function Find(constref AItem: T): Boolean;  // O(n) - 别名 Contains
-    function Contains(constref AItem: T): Boolean;  // O(n)
-    function Delete(constref AItem: T): Boolean;    // O(n) + O(log n) - 别名 Remove
-    function Remove(constref AItem: T): Boolean;    // O(n) + O(log n)
-    
-    // 批量操作
-    function ToArray: TArray;
-  end;
-
-  { TPriorityQueue 别名 - 保持向后兼容，使用原始 record 类型 }
 
 { 工厂函数声明 }
 generic function MakePriorityQueue<T>(aComparer: specialize TCompareFunc<T>; aCapacity: SizeUInt = 16; aAllocator: IAllocator = nil): specialize IPriorityQueue<T>;
@@ -413,184 +365,6 @@ begin
     Exit;
   for i := 0 to FCount - 1 do
     aDst.AppendUnChecked(@FItems[i], 1);
-end;
-
-{ TPriorityQueueRecord<T> }
-
-procedure TPriorityQueueRecord.Init(AComparer: TComparerFunc);
-begin
-  Initialize(AComparer, 16);
-end;
-
-procedure TPriorityQueueRecord.Initialize(AComparer: TComparerFunc);
-begin
-  Initialize(AComparer, 16);
-end;
-
-procedure TPriorityQueueRecord.Initialize(AComparer: TComparerFunc; ACapacity: Integer);
-begin
-  if ACapacity < 4 then
-    ACapacity := 4;
-  SetLength(FItems, ACapacity);
-  FCount := 0;
-  FComparer := AComparer;
-end;
-
-procedure TPriorityQueueRecord.Grow;
-var
-  newCap: Integer;
-begin
-  if Length(FItems) = 0 then
-    newCap := 16
-  else
-    newCap := Length(FItems) * 2;
-  SetLength(FItems, newCap);
-end;
-
-procedure TPriorityQueueRecord.Swap(AIndex1, AIndex2: Integer);
-var
-  temp: T;
-begin
-  temp := FItems[AIndex1];
-  FItems[AIndex1] := FItems[AIndex2];
-  FItems[AIndex2] := temp;
-end;
-
-procedure TPriorityQueueRecord.SiftUp(AIndex: Integer);
-var
-  parentIdx: Integer;
-begin
-  while AIndex > 0 do
-  begin
-    parentIdx := (AIndex - 1) div 2;
-    if FComparer(FItems[AIndex], FItems[parentIdx]) >= 0 then
-      Break;
-    Swap(AIndex, parentIdx);
-    AIndex := parentIdx;
-  end;
-end;
-
-procedure TPriorityQueueRecord.SiftDown(AIndex: Integer);
-var
-  leftIdx, rightIdx, smallestIdx: Integer;
-begin
-  while True do
-  begin
-    smallestIdx := AIndex;
-    leftIdx := 2 * AIndex + 1;
-    rightIdx := 2 * AIndex + 2;
-    if (leftIdx < FCount) and (FComparer(FItems[leftIdx], FItems[smallestIdx]) < 0) then
-      smallestIdx := leftIdx;
-    if (rightIdx < FCount) and (FComparer(FItems[rightIdx], FItems[smallestIdx]) < 0) then
-      smallestIdx := rightIdx;
-    if smallestIdx = AIndex then
-      Break;
-    Swap(AIndex, smallestIdx);
-    AIndex := smallestIdx;
-  end;
-end;
-
-function TPriorityQueueRecord.GetItem(AIndex: Integer): T;
-begin
-  if (AIndex < 0) or (AIndex >= FCount) then
-    raise ERangeError.CreateFmt('TPriorityQueueRecord.GetItem: index %d out of range [0..%d)', [AIndex, FCount]);
-  Result := FItems[AIndex];
-end;
-
-procedure TPriorityQueueRecord.Enqueue(constref AItem: T);
-begin
-  if FCount >= Length(FItems) then
-    Grow;
-  FItems[FCount] := AItem;
-  Inc(FCount);
-  SiftUp(FCount - 1);
-end;
-
-function TPriorityQueueRecord.Dequeue(out AItem: T): Boolean;
-begin
-  Result := FCount > 0;
-  if not Result then
-    Exit;
-  AItem := FItems[0];
-  Dec(FCount);
-  if FCount > 0 then
-  begin
-    FItems[0] := FItems[FCount];
-    SiftDown(0);
-  end;
-end;
-
-function TPriorityQueueRecord.Peek(out AItem: T): Boolean;
-begin
-  Result := FCount > 0;
-  if Result then
-    AItem := FItems[0];
-end;
-
-function TPriorityQueueRecord.Count: Integer;
-begin
-  Result := FCount;
-end;
-
-function TPriorityQueueRecord.IsEmpty: Boolean;
-begin
-  Result := FCount = 0;
-end;
-
-procedure TPriorityQueueRecord.Clear;
-begin
-  FCount := 0;
-end;
-
-function TPriorityQueueRecord.Find(constref AItem: T): Boolean;
-var
-  i: Integer;
-begin
-  Result := False;
-  for i := 0 to FCount - 1 do
-    if FComparer(FItems[i], AItem) = 0 then
-      Exit(True);
-end;
-
-function TPriorityQueueRecord.Contains(constref AItem: T): Boolean;
-begin
-  Result := Find(AItem);
-end;
-
-function TPriorityQueueRecord.Delete(constref AItem: T): Boolean;
-var
-  i: Integer;
-begin
-  Result := False;
-  for i := 0 to FCount - 1 do
-  begin
-    if FComparer(FItems[i], AItem) = 0 then
-    begin
-      Dec(FCount);
-      if i < FCount then
-      begin
-        FItems[i] := FItems[FCount];
-        SiftUp(i);
-        SiftDown(i);
-      end;
-      Exit(True);
-    end;
-  end;
-end;
-
-function TPriorityQueueRecord.Remove(constref AItem: T): Boolean;
-begin
-  Result := Delete(AItem);
-end;
-
-function TPriorityQueueRecord.ToArray: TArray;
-var
-  i: Integer;
-begin
-  Result := nil;
-  SetLength(Result, FCount);
-  for i := 0 to FCount - 1 do
-    Result[i] := FItems[i];
 end;
 
 end.

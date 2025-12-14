@@ -11,6 +11,7 @@ uses
 var
   TestSuite: TTestSuite;
   TestResult: TTestResult;
+  i: Integer;
 
 begin
   WriteLn('SSE Intrinsics Unit Test');
@@ -32,7 +33,23 @@ begin
     WriteLn('Errors: ', TestResult.NumberOfErrors);
     WriteLn('Skipped: ', TestResult.NumberOfSkippedTests);
 
+    // 输出失败详情
+    if TestResult.NumberOfFailures > 0 then
+    begin
+      WriteLn('');
+      WriteLn('=== Failures ===');
+      for i := 0 to TestResult.Failures.Count - 1 do
+        WriteLn('  ', TTestFailure(TestResult.Failures[i]).AsString);
+    end;
 
+    // 输出错误详情
+    if TestResult.NumberOfErrors > 0 then
+    begin
+      WriteLn('');
+      WriteLn('=== Errors ===');
+      for i := 0 to TestResult.Errors.Count - 1 do
+        WriteLn('  ', TTestFailure(TestResult.Errors[i]).AsString);
+    end;
 
     if (TestResult.NumberOfFailures = 0) and (TestResult.NumberOfErrors = 0) then
     begin

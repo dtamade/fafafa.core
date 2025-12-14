@@ -99,12 +99,43 @@ ToLowerAscii(@str[1], Length(str));
 var
   a, b, result: TVecF32x4;
 begin
-  a := VecF32x4Splat(1.0);  // [1.0, 1.0, 1.0, 1.0]
-  b := VecF32x4Splat(2.0);  // [2.0, 2.0, 2.0, 2.0]
-  result := VecF32x4Add(a, b);  // [3.0, 3.0, 3.0, 3.0]
+  // 使用运算符重载
+  a.f[0] := 1.0; a.f[1] := 2.0; a.f[2] := 3.0; a.f[3] := 4.0;
+  b.f[0] := 5.0; b.f[1] := 6.0; b.f[2] := 7.0; b.f[3] := 8.0;
+  result := a + b;  // [6.0, 8.0, 10.0, 12.0]
+  result := a * b;  // [5.0, 12.0, 21.0, 32.0]
+  result := -a;     // [-1.0, -2.0, -3.0, -4.0]
   
-  // 归约操作
-  sum := VecF32x4ReduceAdd(result);  // 12.0
+  // Shuffle 操作
+  result := VecF32x4Shuffle(a, MM_SHUFFLE(0,0,0,0));  // 广播 a[0]
+  result := VecF32x4Reverse(a);  // [4.0, 3.0, 2.0, 1.0]
+  
+  // 数学函数
+  result := VecF32x4Sin(a);   // 逐元素 sin
+  result := VecF32x4Exp(a);   // 逐元素 exp
+end;
+```
+
+### 高级算法
+```pascal
+var
+  v: TVecI32x4;
+  arr, out_arr: array[0..7] of Int32;
+begin
+  // 排序网络 - 4 元素排序
+  v.i[0] := 4; v.i[1] := 1; v.i[2] := 3; v.i[3] := 2;
+  v := SortNet4I32(v, True);  // 升序 [1, 2, 3, 4]
+  
+  // 前缀和
+  v.i[0] := 1; v.i[1] := 2; v.i[2] := 3; v.i[3] := 4;
+  v := PrefixSumI32x4(v, True);  // inclusive [1, 3, 6, 10]
+  
+  // 数组前缀和
+  arr[0] := 1; arr[1] := 2; arr[2] := 3; arr[3] := 4;
+  PrefixSumArrayI32(@arr[0], @out_arr[0], 4);  // [1, 3, 6, 10]
+  
+  // 字符串搜索
+  pos := StrFindChar(@text[0], Length(text), Ord('x'));
 end;
 ```
 
@@ -420,3 +451,513 @@ AArch64 门面绑定与使用
   - SCALAR 基线：export FAFAFA_SIMD_FORCE=SCALAR && ./minitest_search_neon
   - NEON 绑定：unset FAFAFA_SIMD_FORCE；编译时加 -dFAFAFA_SIMD_NEON_ASM 后运行
   - 预期：NEON 与 SCALAR 下均打印 OK；NEON 下可结合 bench 的 BytesIndexOf 项观察吞吐变化
+
+## types.pas API 参考
+
+### 向量类型
+
+#### 128-bit 有符号向量
+
+| 类型 | 元素类型 | 元素数 | 描述 |
+|------|----------|--------|------|
+| `TVecF32x4` | `Single` | 4 | 4 个 32 位浮点数 |
+| `TVecF64x2` | `Double` | 2 | 2 个 64 位浮点数 |
+| `TVecI32x4` | `Int32` | 4 | 4 个 32 位有符号整数 |
+| `TVecI64x2` | `Int64` | 2 | 2 个 64 位有符号整数 |
+| `TVecI16x8` | `Int16` | 8 | 8 个 16 位有符号整数 |
+| `TVecI8x16` | `Int8` | 16 | 16 个 8 位有符号整数 |
+
+#### 128-bit 无符号向量
+
+| 类型 | 元素类型 | 元素数 | 描述 |
+|------|----------|--------|------|
+| `TVecU32x4` | `UInt32` | 4 | 4 个 32 位无符号整数 |
+| `TVecU64x2` | `UInt64` | 2 | 2 个 64 位无符号整数 |
+| `TVecU16x8` | `UInt16` | 8 | 8 个 16 位无符号整数 |
+| `TVecU8x16` | `UInt8` | 16 | 16 个 8 位无符号整数 |
+
+#### 256-bit 向量
+
+| 类型 | 元素类型 | 元素数 | 描述 |
+|------|----------|--------|------|
+| `TVecF32x8` | `Single` | 8 | 8 个 32 位浮点数 |
+| `TVecF64x4` | `Double` | 4 | 4 个 64 位浮点数 |
+| `TVecI32x8` | `Int32` | 8 | 8 个 32 位有符号整数 |
+| `TVecU32x8` | `UInt32` | 8 | 8 个 32 位无符号整数 |
+
+#### 向量类型结构
+所有向量类型都是 `record` 类型，支持通过 variant 访问：
+```pascal
+var v: TVecF32x4;
+begin
+  // 方式 1: 通过元素数组访问
+  v.f[0] := 1.0;
+  v.f[1] := 2.0;
+  
+  // 方式 2: 通过 raw 字节数组访问
+  WriteLn(v.raw[0]);  // 访问底层字节
+end;
+```
+
+### 运算符重载
+
+#### TVecF32x4 运算符
+```pascal
+operator + (const a, b: TVecF32x4): TVecF32x4;  // 逐元素加法
+operator - (const a, b: TVecF32x4): TVecF32x4;  // 逐元素减法
+operator * (const a, b: TVecF32x4): TVecF32x4;  // 逐元素乘法
+operator / (const a, b: TVecF32x4): TVecF32x4;  // 逐元素除法
+operator - (const a: TVecF32x4): TVecF32x4;     // 取反
+operator * (const a: TVecF32x4; s: Single): TVecF32x4;  // 标量乘法
+operator * (s: Single; const a: TVecF32x4): TVecF32x4;  // 标量乘法
+operator / (const a: TVecF32x4; s: Single): TVecF32x4;  // 标量除法
+```
+
+#### TVecF64x2 运算符
+```pascal
+operator + (const a, b: TVecF64x2): TVecF64x2;
+operator - (const a, b: TVecF64x2): TVecF64x2;
+operator * (const a, b: TVecF64x2): TVecF64x2;
+operator / (const a, b: TVecF64x2): TVecF64x2;
+operator - (const a: TVecF64x2): TVecF64x2;
+```
+
+#### TVecI32x4 运算符
+```pascal
+operator + (const a, b: TVecI32x4): TVecI32x4;
+operator - (const a, b: TVecI32x4): TVecI32x4;
+operator - (const a: TVecI32x4): TVecI32x4;
+```
+
+**示例**：
+```pascal
+var a, b, c: TVecF32x4;
+begin
+  a.f[0] := 1.0; a.f[1] := 2.0; a.f[2] := 3.0; a.f[3] := 4.0;
+  b.f[0] := 5.0; b.f[1] := 6.0; b.f[2] := 7.0; b.f[3] := 8.0;
+  c := a + b;  // [6.0, 8.0, 10.0, 12.0]
+  c := a * 2.0;  // [2.0, 4.0, 6.0, 8.0]
+end;
+```
+
+### 掩码类型
+
+#### 掩码类型定义
+| 类型 | 元素类型 | 元素数 | 描述 |
+|------|----------|--------|------|
+| `TMaskF32x4` | `UInt32` | 4 | F32x4 的向量掩码 |
+| `TMaskF64x2` | `UInt64` | 2 | F64x2 的向量掩码 |
+| `TMaskI32x4` | `UInt32` | 4 | I32x4 的向量掩码 |
+| `TMaskI64x2` | `UInt64` | 2 | I64x2 的向量掩码 |
+
+掩码元素值：`0` 表示 false，`$FFFFFFFF` (或 `$FFFFFFFFFFFFFFFF` 对于 64-bit) 表示 true。
+
+#### 位掩码类型
+| 类型 | 有效位数 | 描述 |
+|------|----------|------|
+| `TMask2` | 2 | 用于 2 元素向量 |
+| `TMask4` | 4 | 用于 4 元素向量 |
+| `TMask8` | 8 | 用于 8 元素向量 |
+| `TMask16` | 16 | 用于 16 元素向量 |
+| `TMask32` | 32 | 用于 32 元素向量 |
+
+#### TMaskF32x4 函数
+
+```pascal
+function MaskF32x4AllTrue: TMaskF32x4;
+```
+返回所有元素为 true 的掩码。
+
+```pascal
+function MaskF32x4AllFalse: TMaskF32x4;
+```
+返回所有元素为 false 的掩码。
+
+```pascal
+function MaskF32x4Set(m0, m1, m2, m3: Boolean): TMaskF32x4;
+```
+根据 4 个布尔值构造掩码。
+
+```pascal
+function MaskF32x4Test(const m: TMaskF32x4; index: Integer): Boolean;
+```
+测试指定位置的掩码元素是否为 true。
+
+```pascal
+function MaskF32x4ToBitmask(const m: TMaskF32x4): TMask4;
+```
+将向量掩码转换为 4-bit 位掩码。
+
+```pascal
+function MaskF32x4Any(const m: TMaskF32x4): Boolean;
+```
+返回是否有任意元素为 true。
+
+```pascal
+function MaskF32x4All(const m: TMaskF32x4): Boolean;
+```
+返回是否所有元素都为 true。
+
+```pascal
+function MaskF32x4None(const m: TMaskF32x4): Boolean;
+```
+返回是否所有元素都为 false。
+
+```pascal
+function MaskF32x4Select(const m: TMaskF32x4; const a, b: TVecF32x4): TVecF32x4;
+```
+根据掩码选择元素：m[i]=true 选择 a[i]，否则选择 b[i]。
+
+#### TMaskF32x4 逻辑运算符
+```pascal
+operator and (const a, b: TMaskF32x4): TMaskF32x4;  // 逐元素与
+operator or (const a, b: TMaskF32x4): TMaskF32x4;   // 逐元素或
+operator xor (const a, b: TMaskF32x4): TMaskF32x4;  // 逐元素异或
+operator not (const a: TMaskF32x4): TMaskF32x4;     // 逐元素取反
+```
+
+#### TMaskF64x2 / TMaskI32x4 函数
+```pascal
+function MaskF64x2AllTrue: TMaskF64x2;
+function MaskF64x2AllFalse: TMaskF64x2;
+function MaskF64x2ToBitmask(const m: TMaskF64x2): TMask2;
+
+function MaskI32x4AllTrue: TMaskI32x4;
+function MaskI32x4AllFalse: TMaskI32x4;
+function MaskI32x4ToBitmask(const m: TMaskI32x4): TMask4;
+```
+
+### 类型转换函数
+
+#### IntoBits / FromBits - 位模式重新解释
+不改变位模式，仅重新解释类型：
+```pascal
+function VecF32x4IntoBits(const a: TVecF32x4): TVecI32x4;
+function VecI32x4FromBitsF32(const a: TVecI32x4): TVecF32x4;
+function VecF64x2IntoBits(const a: TVecF64x2): TVecI64x2;
+function VecI64x2FromBitsF64(const a: TVecI64x2): TVecF64x2;
+```
+
+**示例**：
+```pascal
+var f: TVecF32x4; i: TVecI32x4;
+begin
+  f.f[0] := 1.0;
+  i := VecF32x4IntoBits(f);  // i.i[0] = $3F800000 (1.0 的 IEEE 754 表示)
+end;
+```
+
+#### Cast - 元素级别数值转换
+```pascal
+function VecF32x4CastToI32x4(const a: TVecF32x4): TVecI32x4;  // 浮点截断为整数
+function VecI32x4CastToF32x4(const a: TVecI32x4): TVecF32x4;  // 整数转为浮点
+function VecF64x2CastToI64x2(const a: TVecF64x2): TVecI64x2;
+function VecI64x2CastToF64x2(const a: TVecI64x2): TVecF64x2;
+```
+
+#### Widen - 扩展宽度
+```pascal
+function VecI16x8WidenLoI32x4(const a: TVecI16x8): TVecI32x4;  // 低 4 元素符号扩展
+function VecI16x8WidenHiI32x4(const a: TVecI16x8): TVecI32x4;  // 高 4 元素符号扩展
+```
+
+#### Narrow - 缩小宽度
+```pascal
+function VecI32x4NarrowToI16x8(const a, b: TVecI32x4): TVecI16x8;  // a->低4, b->高4
+```
+
+#### 精度转换
+```pascal
+function VecF32x4ToF64x2Lo(const a: TVecF32x4): TVecF64x2;  // 低 2 元素 F32->F64
+function VecF64x2ToF32x4(const a, b: TVecF64x2): TVecF32x4;  // 2*F64x2 -> F32x4
+```
+
+### Shuffle/Swizzle 函数
+
+#### 辅助宏
+```pascal
+function MM_SHUFFLE(d, c, b, a: Byte): Byte;
+```
+生成 shuffle 立即数。结果 = `(d << 6) | (c << 4) | (b << 2) | a`。
+
+**示例**：
+- `MM_SHUFFLE(3,2,1,0) = $E4` - 不变
+- `MM_SHUFFLE(0,0,0,0) = $00` - 广播元素 0
+- `MM_SHUFFLE(0,1,2,3) = $1B` - 反转
+
+#### Shuffle - 单向量元素重排
+```pascal
+function VecF32x4Shuffle(const a: TVecF32x4; imm8: Byte): TVecF32x4;
+function VecI32x4Shuffle(const a: TVecI32x4; imm8: Byte): TVecI32x4;
+```
+根据 imm8 重排元素。imm8 每 2 bit 选择一个源元素索引 (0-3)。
+
+**示例**：
+```pascal
+var a, r: TVecF32x4;
+begin
+  a.f[0] := 1.0; a.f[1] := 2.0; a.f[2] := 3.0; a.f[3] := 4.0;
+  r := VecF32x4Shuffle(a, MM_SHUFFLE(0,0,0,0));  // [1,1,1,1] 广播
+  r := VecF32x4Shuffle(a, MM_SHUFFLE(0,1,2,3));  // [4,3,2,1] 反转
+end;
+```
+
+#### Shuffle2 - 双向量元素选择
+```pascal
+function VecF32x4Shuffle2(const a, b: TVecF32x4; imm8: Byte): TVecF32x4;
+```
+低 2 元素来自 a，高 2 元素来自 b。
+
+#### Blend - 根据掩码混合
+```pascal
+function VecF32x4Blend(const a, b: TVecF32x4; mask: Byte): TVecF32x4;
+function VecF64x2Blend(const a, b: TVecF64x2; mask: Byte): TVecF64x2;
+function VecI32x4Blend(const a, b: TVecI32x4; mask: Byte): TVecI32x4;
+```
+mask bit=0 选择 a，bit=1 选择 b。
+
+#### Unpack - 交织元素
+```pascal
+function VecF32x4UnpackLo(const a, b: TVecF32x4): TVecF32x4;  // [a0,b0,a1,b1]
+function VecF32x4UnpackHi(const a, b: TVecF32x4): TVecF32x4;  // [a2,b2,a3,b3]
+function VecI32x4UnpackLo(const a, b: TVecI32x4): TVecI32x4;
+function VecI32x4UnpackHi(const a, b: TVecI32x4): TVecI32x4;
+```
+
+#### Broadcast - 广播单元素
+```pascal
+function VecF32x4Broadcast(const a: TVecF32x4; index: Integer): TVecF32x4;
+function VecI32x4Broadcast(const a: TVecI32x4; index: Integer): TVecI32x4;
+```
+将 a[index] 广播到所有位置。
+
+#### Reverse - 反转元素顺序
+```pascal
+function VecF32x4Reverse(const a: TVecF32x4): TVecF32x4;  // [a3,a2,a1,a0]
+function VecI32x4Reverse(const a: TVecI32x4): TVecI32x4;
+```
+
+#### RotateLeft - 循环旋转
+```pascal
+function VecF32x4RotateLeft(const a: TVecF32x4; n: Integer): TVecF32x4;
+function VecI32x4RotateLeft(const a: TVecI32x4; n: Integer): TVecI32x4;
+```
+元素左移 n 个位置（循环）。
+
+#### Insert/Extract - 插入和提取单元素
+```pascal
+function VecF32x4Insert(const a: TVecF32x4; value: Single; index: Integer): TVecF32x4;
+function VecI32x4Insert(const a: TVecI32x4; value: Int32; index: Integer): TVecI32x4;
+function VecF32x4Extract(const a: TVecF32x4; index: Integer): Single;
+function VecI32x4Extract(const a: TVecI32x4; index: Integer): Int32;
+```
+
+### SIMD 数学函数
+
+所有数学函数都是逐元素操作，当前为标量参考实现。
+
+#### 三角函数
+```pascal
+function VecF32x4Sin(const a: TVecF32x4): TVecF32x4;   // sin(x)
+function VecF32x4Cos(const a: TVecF32x4): TVecF32x4;   // cos(x)
+function VecF32x4Tan(const a: TVecF32x4): TVecF32x4;   // tan(x)
+procedure VecF32x4SinCos(const a: TVecF32x4; out sinResult, cosResult: TVecF32x4);
+```
+
+**示例**：
+```pascal
+var angles, sines, cosines: TVecF32x4;
+begin
+  angles.f[0] := 0; angles.f[1] := Pi/6; angles.f[2] := Pi/4; angles.f[3] := Pi/2;
+  sines := VecF32x4Sin(angles);  // [0, 0.5, 0.707, 1.0]
+  VecF32x4SinCos(angles, sines, cosines);  // 同时计算 sin 和 cos
+end;
+```
+
+#### 指数/对数函数
+```pascal
+function VecF32x4Exp(const a: TVecF32x4): TVecF32x4;   // e^x
+function VecF32x4Exp2(const a: TVecF32x4): TVecF32x4;  // 2^x
+function VecF32x4Log(const a: TVecF32x4): TVecF32x4;   // ln(x)
+function VecF32x4Log2(const a: TVecF32x4): TVecF32x4;  // log2(x)
+function VecF32x4Log10(const a: TVecF32x4): TVecF32x4; // log10(x)
+function VecF32x4Pow(const base, exp: TVecF32x4): TVecF32x4;  // base^exp
+```
+
+#### 反三角函数
+```pascal
+function VecF32x4Asin(const a: TVecF32x4): TVecF32x4;  // arcsin(x), x ∈ [-1,1]
+function VecF32x4Acos(const a: TVecF32x4): TVecF32x4;  // arccos(x), x ∈ [-1,1]
+function VecF32x4Atan(const a: TVecF32x4): TVecF32x4;  // arctan(x)
+function VecF32x4Atan2(const y, x: TVecF32x4): TVecF32x4;  // arctan2(y, x)
+```
+
+### 高级算法
+
+#### 排序网络 (Sorting Networks)
+SIMD 友好的小数组排序，使用固定比较交换网络。
+
+```pascal
+function SortNet4I32(const a: TVecI32x4; ascending: Boolean = True): TVecI32x4;
+```
+对 4 个 Int32 元素排序。
+- `ascending`: True 为升序，False 为降序
+- 使用 5 次比较交换操作
+
+```pascal
+function SortNet4F32(const a: TVecF32x4; ascending: Boolean = True): TVecF32x4;
+```
+对 4 个 Single 元素排序。
+
+```pascal
+function SortNet8I32(const a: TVecI32x8; ascending: Boolean = True): TVecI32x8;
+```
+对 8 个 Int32 元素排序。
+
+**示例**：
+```pascal
+var v: TVecI32x4;
+begin
+  v.i[0] := 4; v.i[1] := 1; v.i[2] := 3; v.i[3] := 2;
+  v := SortNet4I32(v, True);   // [1, 2, 3, 4]
+  v := SortNet4I32(v, False);  // [4, 3, 2, 1]
+end;
+```
+
+#### 前缀和 (Prefix Sum / Scan)
+
+```pascal
+function PrefixSumI32x4(const a: TVecI32x4; inclusive: Boolean = True): TVecI32x4;
+function PrefixSumF32x4(const a: TVecF32x4; inclusive: Boolean = True): TVecF32x4;
+```
+向量前缀和。
+- `inclusive=True`: `[a0, a0+a1, a0+a1+a2, a0+a1+a2+a3]`
+- `inclusive=False`: `[0, a0, a0+a1, a0+a1+a2]` (exclusive)
+
+```pascal
+procedure PrefixSumArrayI32(src, dst: PInt32; count: SizeUInt);
+procedure PrefixSumArrayF32(src, dst: PSingle; count: SizeUInt);
+```
+数组前缀和，结果写入 dst。
+
+**示例**：
+```pascal
+var v, r: TVecI32x4;
+    arr, out_arr: array[0..7] of Int32;
+begin
+  // 向量前缀和
+  v.i[0] := 1; v.i[1] := 2; v.i[2] := 3; v.i[3] := 4;
+  r := PrefixSumI32x4(v, True);   // [1, 3, 6, 10]
+  r := PrefixSumI32x4(v, False);  // [0, 1, 3, 6]
+  
+  // 数组前缀和
+  arr[0] := 1; arr[1] := 2; arr[2] := 3; arr[3] := 4;
+  PrefixSumArrayI32(@arr[0], @out_arr[0], 4);  // [1, 3, 6, 10]
+end;
+```
+
+#### 字符串搜索
+
+```pascal
+function StrFindChar(p: Pointer; len: SizeUInt; ch: Byte): PtrInt;
+```
+在字节序列中查找单个字符。
+- `p`: 搜索起点
+- `len`: 搜索长度
+- `ch`: 要查找的字节值
+- 返回值：找到返回位置索引 (0-based)，未找到返回 -1
+
+**示例**：
+```pascal
+var
+  text: AnsiString;
+  pos: PtrInt;
+begin
+  text := 'Hello, World!';
+  pos := StrFindChar(@text[1], Length(text), Ord('W'));  // 返回 7
+  pos := StrFindChar(@text[1], Length(text), Ord('x'));  // 返回 -1
+end;
+```
+
+## 性能指南
+
+### 何时使用 SIMD
+
+#### 适合 SIMD 的场景
+- **大批量数据处理**：数据量 >= 64 字节时 SIMD 优势明显
+- **内存密集操作**：MemEqual/MemFindByte/SumBytes 等
+- **批量数值计算**：向量加减乘除、数学函数
+- **字符串/文本处理**：UTF-8 验证、大小写转换、比较
+- **位集操作**：PopCount、批量位操作
+
+#### 不适合 SIMD 的场景
+- **小数据量**：< 16 字节时标量可能更快（派发开销）
+- **分支密集代码**：SIMD 不擅长条件跳转
+- **随机内存访问**：不连续的数据难以向量化
+- **依赖链计算**：每步依赖前一步结果的计算
+
+### 最佳实践
+
+#### 1. 数据对齐
+```pascal
+// 推荐：16/32 字节对齐的数据
+var
+  data: array[0..1023] of Single; align 32;  // AVX2 对齐
+```
+未对齐数据也能工作，但对齐可提升 5-15% 性能。
+
+#### 2. 批量处理
+```pascal
+// 不推荐：逐元素调用
+for i := 0 to Length(arr) - 1 do
+  result := SomeSimdFunc(@arr[i], 1);
+
+// 推荐：一次性处理整个数组
+result := SomeSimdFunc(@arr[0], Length(arr));
+```
+
+#### 3. 避免混合使用 AVX 和 SSE
+混合使用会导致性能惩罚（状态切换）。本库内部已处理 `vzeroupper`。
+
+#### 4. 向量类型使用
+```pascal
+// 好：使用运算符重载
+var a, b, c: TVecF32x4;
+c := a + b * 2.0;
+
+// 避免：在紧密循环中访问单个元素
+for i := 0 to 3 do
+  total := total + v.f[i];  // 改用归约操作
+```
+
+### 性能对比参考
+
+测试环境：4096 字节数据，1M 次迭代
+
+| 函数 | Scalar | SSE2 | AVX2 | 加速比 |
+|------|--------|------|------|--------|
+| MemEqual | 11804ms | 774ms | 153ms | **77x** |
+| MemFindByte | 657ms | 52ms | 11ms | **60x** |
+| SumBytes | 10267ms | 759ms | 98ms | **105x** |
+| BitsetPopCount | 81136ms | - | 539ms | **151x** |
+| Utf8Validate | 2936ms | - | 318ms | **9x** |
+| AsciiIEqual | 5894ms | - | 247ms | **24x** |
+
+### 调试与排障
+
+#### 强制使用标量后端
+```bash
+# 用于对拍测试或排除 SIMD 问题
+export FAFAFA_SIMD_FORCE=SCALAR
+./your_program
+```
+
+#### 查询当前后端
+```pascal
+WriteLn('Backend: ', GetCurrentBackendInfo.Name);  // 输出 "AVX2"/"SSE2"/"Scalar"
+```
+
+#### 常见问题
+1. **性能未达预期**：检查数据量是否足够大，小数据量 SIMD 优势不明显
+2. **结果不一致**：设置 `FAFAFA_SIMD_FORCE=SCALAR` 对拍确认是否为 SIMD 实现问题
+3. **崩溃/越界**：检查指针和长度参数是否正确

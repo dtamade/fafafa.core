@@ -19,6 +19,12 @@ type
     // Reset the event to non-signaled state (for manual reset events)
     procedure ResetEvent;
     
+    // Alias for SetEvent - cross-platform naming convention
+    procedure Signal;
+    
+    // Alias for ResetEvent - cross-platform naming convention  
+    procedure Clear;
+    
     // Wait for the event to become signaled
     function Wait: TWaitResult; overload;
     function WaitFor: TWaitResult; overload;

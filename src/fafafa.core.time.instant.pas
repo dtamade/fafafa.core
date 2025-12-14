@@ -107,17 +107,20 @@ type
     /// <summary>Tests if this instant is before another.</summary>
     /// <param name="B">Instant to compare against.</param>
     /// <returns>True if Self &lt; B.</returns>
-    function LessThan(const B: TInstant): Boolean; inline;
+    /// <remarks>Deprecated: Use operator &lt; instead.</remarks>
+    function LessThan(const B: TInstant): Boolean; inline; deprecated 'Use operator < instead';
     
     /// <summary>Tests if this instant is after another.</summary>
     /// <param name="B">Instant to compare against.</param>
     /// <returns>True if Self &gt; B.</returns>
-    function GreaterThan(const B: TInstant): Boolean; inline;
+    /// <remarks>Deprecated: Use operator &gt; instead.</remarks>
+    function GreaterThan(const B: TInstant): Boolean; inline; deprecated 'Use operator > instead';
     
     /// <summary>Tests equality with another instant.</summary>
     /// <param name="B">Instant to compare against.</param>
     /// <returns>True if nanosecond values are equal.</returns>
-    function Equal(const B: TInstant): Boolean; inline;
+    /// <remarks>Deprecated: Use operator = instead.</remarks>
+    function Equal(const B: TInstant): Boolean; inline; deprecated 'Use operator = instead';
 
     // === Query Methods ===
     
@@ -407,22 +410,24 @@ end;
 
 class operator TInstant.=(const A, B: TInstant): Boolean;
 begin
-  Result := A.Equal(B);
+  // 直接比较内部纳秒值，避免依赖已弃用的 Equal 方法
+  Result := A.FNsSinceEpoch = B.FNsSinceEpoch;
 end;
 
 class operator TInstant.<>(const A, B: TInstant): Boolean;
 begin
-  Result := not A.Equal(B);
+  Result := A.FNsSinceEpoch <> B.FNsSinceEpoch;
 end;
 
 class operator TInstant.<(const A, B: TInstant): Boolean;
 begin
-  Result := A.LessThan(B);
+  // 直接比较，避免依赖已弃用的 LessThan 方法 (ISSUE-7 优化的同一风格)
+  Result := A.FNsSinceEpoch < B.FNsSinceEpoch;
 end;
 
 class operator TInstant.>(const A, B: TInstant): Boolean;
 begin
-  Result := A.GreaterThan(B);
+  Result := A.FNsSinceEpoch > B.FNsSinceEpoch;
 end;
 
 class operator TInstant.<=(const A, B: TInstant): Boolean;
@@ -456,8 +461,39 @@ begin
 end;
 
 function TInstant.CheckedSub(const D: TDuration; out R: TInstant): Boolean;
+var
+  base: UInt64;
+  subv: Int64;
 begin
-  Result := CheckedAdd(TDuration.FromNs(-D.AsNs), R);
+  // ISSUE-6 修复：避免对 Low(Int64) 取反导致溢出
+  base := FNsSinceEpoch;
+  subv := D.AsNs;
+  
+  if subv = 0 then
+  begin
+    R := Self;
+    Exit(True);
+  end;
+  
+  if subv < 0 then
+  begin
+    // D 是负数，Sub(负数) = Add(正数)
+    // 特殊处理 Low(Int64) 避免溢出
+    if subv = Low(Int64) then
+    begin
+      // Low(Int64) 的绝对值无法表示为 Int64，返回失败
+      Exit(False);
+    end;
+    Result := CheckedAdd(TDuration.FromNs(-subv), R);
+  end
+  else
+  begin
+    // D 是正数，正常减法
+    if UInt64(subv) > base then
+      Exit(False);  // 下溢
+    R.FNsSinceEpoch := base - UInt64(subv);
+    Result := True;
+  end;
 end;
 
 function TInstant.ToString: string;

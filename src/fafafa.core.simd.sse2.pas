@@ -7,7 +7,7 @@ unit fafafa.core.simd.sse2;
 interface
 
 uses
-  fafafa.core.simd.types,
+  fafafa.core.simd.base,
   fafafa.core.simd.dispatch;
 
 // === SSE2 Backend Implementation ===
@@ -46,8 +46,8 @@ uses
 function SSE2AddF32x4(const a, b: TVecF32x4): TVecF32x4;
 begin
   asm
-    mov    rax, a
-    mov    rdx, b
+    lea    rax, a
+    lea    rdx, b
     movups xmm0, [rax]
     movups xmm1, [rdx]
     addps  xmm0, xmm1
@@ -58,8 +58,8 @@ end;
 function SSE2SubF32x4(const a, b: TVecF32x4): TVecF32x4;
 begin
   asm
-    mov    rax, a
-    mov    rdx, b
+    lea    rax, a
+    lea    rdx, b
     movups xmm0, [rax]
     movups xmm1, [rdx]
     subps  xmm0, xmm1
@@ -70,8 +70,8 @@ end;
 function SSE2MulF32x4(const a, b: TVecF32x4): TVecF32x4;
 begin
   asm
-    mov    rax, a
-    mov    rdx, b
+    lea    rax, a
+    lea    rdx, b
     movups xmm0, [rax]
     movups xmm1, [rdx]
     mulps  xmm0, xmm1
@@ -82,8 +82,8 @@ end;
 function SSE2DivF32x4(const a, b: TVecF32x4): TVecF32x4;
 begin
   asm
-    mov    rax, a
-    mov    rdx, b
+    lea    rax, a
+    lea    rdx, b
     movups xmm0, [rax]
     movups xmm1, [rdx]
     divps  xmm0, xmm1
@@ -94,8 +94,8 @@ end;
 function SSE2AddF64x2(const a, b: TVecF64x2): TVecF64x2;
 begin
   asm
-    mov    rax, a
-    mov    rdx, b
+    lea    rax, a
+    lea    rdx, b
     movupd xmm0, [rax]
     movupd xmm1, [rdx]
     addpd  xmm0, xmm1
@@ -106,8 +106,8 @@ end;
 function SSE2SubF64x2(const a, b: TVecF64x2): TVecF64x2;
 begin
   asm
-    mov    rax, a
-    mov    rdx, b
+    lea    rax, a
+    lea    rdx, b
     movupd xmm0, [rax]
     movupd xmm1, [rdx]
     subpd  xmm0, xmm1
@@ -118,8 +118,8 @@ end;
 function SSE2MulF64x2(const a, b: TVecF64x2): TVecF64x2;
 begin
   asm
-    mov    rax, a
-    mov    rdx, b
+    lea    rax, a
+    lea    rdx, b
     movupd xmm0, [rax]
     movupd xmm1, [rdx]
     mulpd  xmm0, xmm1
@@ -130,8 +130,8 @@ end;
 function SSE2DivF64x2(const a, b: TVecF64x2): TVecF64x2;
 begin
   asm
-    mov    rax, a
-    mov    rdx, b
+    lea    rax, a
+    lea    rdx, b
     movupd xmm0, [rax]
     movupd xmm1, [rdx]
     divpd  xmm0, xmm1
@@ -142,8 +142,8 @@ end;
 function SSE2AddI32x4(const a, b: TVecI32x4): TVecI32x4;
 begin
   asm
-    mov    rax, a
-    mov    rdx, b
+    lea    rax, a
+    lea    rdx, b
     movdqu xmm0, [rax]
     movdqu xmm1, [rdx]
     paddd  xmm0, xmm1
@@ -154,8 +154,8 @@ end;
 function SSE2SubI32x4(const a, b: TVecI32x4): TVecI32x4;
 begin
   asm
-    mov    rax, a
-    mov    rdx, b
+    lea    rax, a
+    lea    rdx, b
     movdqu xmm0, [rax]
     movdqu xmm1, [rdx]
     psubd  xmm0, xmm1
@@ -179,8 +179,8 @@ function SSE2CmpEqF32x4(const a, b: TVecF32x4): TMask4;
 var mask: Integer;
 begin
   asm
-    mov      rax, a
-    mov      rdx, b
+    lea      rax, a
+    lea      rdx, b
     movups   xmm0, [rax]
     movups   xmm1, [rdx]
     cmpeqps  xmm0, xmm1
@@ -194,8 +194,8 @@ function SSE2CmpLtF32x4(const a, b: TVecF32x4): TMask4;
 var mask: Integer;
 begin
   asm
-    mov      rax, a
-    mov      rdx, b
+    lea      rax, a
+    lea      rdx, b
     movups   xmm0, [rax]
     movups   xmm1, [rdx]
     cmpltps  xmm0, xmm1
@@ -209,8 +209,8 @@ function SSE2CmpLeF32x4(const a, b: TVecF32x4): TMask4;
 var mask: Integer;
 begin
   asm
-    mov      rax, a
-    mov      rdx, b
+    lea      rax, a
+    lea      rdx, b
     movups   xmm0, [rax]
     movups   xmm1, [rdx]
     cmpleps  xmm0, xmm1
@@ -225,8 +225,8 @@ var mask: Integer;
 begin
   // GT: swap operands and use LT
   asm
-    mov      rax, b
-    mov      rdx, a
+    lea      rax, b
+    lea      rdx, a
     movups   xmm0, [rax]
     movups   xmm1, [rdx]
     cmpltps  xmm0, xmm1
@@ -241,8 +241,8 @@ var mask: Integer;
 begin
   // GE: swap operands and use LE
   asm
-    mov      rax, b
-    mov      rdx, a
+    lea      rax, b
+    lea      rdx, a
     movups   xmm0, [rax]
     movups   xmm1, [rdx]
     cmpleps  xmm0, xmm1
@@ -256,8 +256,8 @@ function SSE2CmpNeF32x4(const a, b: TVecF32x4): TMask4;
 var mask: Integer;
 begin
   asm
-    mov      rax, a
-    mov      rdx, b
+    lea      rax, a
+    lea      rdx, b
     movups   xmm0, [rax]
     movups   xmm1, [rdx]
     cmpneqps xmm0, xmm1
@@ -272,7 +272,7 @@ end;
 function SSE2AbsF32x4(const a: TVecF32x4): TVecF32x4;
 begin
   asm
-    mov     rax, a
+    lea     rax, a
     movups  xmm0, [rax]
     pcmpeqd xmm1, xmm1       // all 1s
     psrld   xmm1, 1          // shift right to get 0x7FFFFFFF
@@ -284,7 +284,7 @@ end;
 function SSE2SqrtF32x4(const a: TVecF32x4): TVecF32x4;
 begin
   asm
-    mov    rax, a
+    lea    rax, a
     movups xmm0, [rax]
     sqrtps xmm0, xmm0
     movups [result], xmm0
@@ -294,8 +294,8 @@ end;
 function SSE2MinF32x4(const a, b: TVecF32x4): TVecF32x4;
 begin
   asm
-    mov    rax, a
-    mov    rdx, b
+    lea    rax, a
+    lea    rdx, b
     movups xmm0, [rax]
     movups xmm1, [rdx]
     minps  xmm0, xmm1
@@ -306,8 +306,8 @@ end;
 function SSE2MaxF32x4(const a, b: TVecF32x4): TVecF32x4;
 begin
   asm
-    mov    rax, a
-    mov    rdx, b
+    lea    rax, a
+    lea    rdx, b
     movups xmm0, [rax]
     movups xmm1, [rdx]
     maxps  xmm0, xmm1
@@ -320,7 +320,7 @@ end;
 function SSE2ReduceAddF32x4(const a: TVecF32x4): Single;
 begin
   asm
-    mov     rax, a
+    lea     rax, a
     movups  xmm0, [rax]
     movaps  xmm1, xmm0
     shufps  xmm1, xmm1, $4E
@@ -335,7 +335,7 @@ end;
 function SSE2ReduceMinF32x4(const a: TVecF32x4): Single;
 begin
   asm
-    mov     rax, a
+    lea     rax, a
     movups  xmm0, [rax]
     movaps  xmm1, xmm0
     shufps  xmm1, xmm1, $4E
@@ -350,7 +350,7 @@ end;
 function SSE2ReduceMaxF32x4(const a: TVecF32x4): Single;
 begin
   asm
-    mov     rax, a
+    lea     rax, a
     movups  xmm0, [rax]
     movaps  xmm1, xmm0
     shufps  xmm1, xmm1, $4E
@@ -365,7 +365,7 @@ end;
 function SSE2ReduceMulF32x4(const a: TVecF32x4): Single;
 begin
   asm
-    mov     rax, a
+    lea     rax, a
     movups  xmm0, [rax]
     movaps  xmm1, xmm0
     shufps  xmm1, xmm1, $4E
@@ -401,7 +401,7 @@ procedure SSE2StoreF32x4(p: PSingle; const a: TVecF32x4);
 begin
   asm
     mov    rax, p
-    mov    rdx, a
+    lea    rdx, a
     movups xmm0, [rdx]
     movups [rax], xmm0
   end;
@@ -411,7 +411,7 @@ procedure SSE2StoreF32x4Aligned(p: PSingle; const a: TVecF32x4);
 begin
   asm
     mov    rax, p
-    mov    rdx, a
+    lea    rdx, a
     movups xmm0, [rdx]
     movaps [rax], xmm0
   end;
@@ -421,8 +421,8 @@ end;
 
 function SSE2SplatF32x4(value: Single): TVecF32x4;
 begin
-  // value comes in xmm0
   asm
+    movss  xmm0, value
     shufps xmm0, xmm0, 0
     movups [result], xmm0
   end;
@@ -789,9 +789,9 @@ end;
 function SSE2FmaF32x4(const a, b, c: TVecF32x4): TVecF32x4;
 begin
   asm
-    mov    rax, a
-    mov    rdx, b
-    mov    rcx, c
+    lea    rax, a
+    lea    rdx, b
+    lea    rcx, c
     movups xmm0, [rax]
     movups xmm1, [rdx]
     movups xmm2, [rcx]
@@ -805,7 +805,7 @@ end;
 function SSE2RcpF32x4(const a: TVecF32x4): TVecF32x4;
 begin
   asm
-    mov    rax, a
+    lea    rax, a
     movups xmm0, [rax]
     rcpps  xmm0, xmm0     // Approximate reciprocal (12-bit precision)
     movups [result], xmm0
@@ -816,58 +816,132 @@ end;
 function SSE2RsqrtF32x4(const a: TVecF32x4): TVecF32x4;
 begin
   asm
-    mov    rax, a
+    lea    rax, a
     movups xmm0, [rax]
     rsqrtps xmm0, xmm0    // Approximate rsqrt (12-bit precision)
     movups [result], xmm0
   end;
 end;
 
-// Floor/Ceil/Round/Trunc require SSE4.1 (roundps)
-// For SSE2, we use scalar fallback
+// Floor/Ceil/Round/Trunc: Use SSE4.1 roundps if available, otherwise scalar fallback
+// SSE4.1 roundps immediate values:
+//   0 = Round to nearest (even)
+//   1 = Round toward negative infinity (floor)
+//   2 = Round toward positive infinity (ceil) 
+//   3 = Round toward zero (truncate)
+
+var
+  g_HasSSE41: Boolean = False;
+  g_SSE41Checked: Boolean = False;
+
+procedure CheckSSE41;
+begin
+  if not g_SSE41Checked then
+  begin
+    g_HasSSE41 := HasSSE41;
+    g_SSE41Checked := True;
+  end;
+ end;
+
 function SSE2FloorF32x4(const a: TVecF32x4): TVecF32x4;
 var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.f[i] := System.Int(a.f[i]);
-  // Adjust for negative numbers
-  for i := 0 to 3 do
-    if (a.f[i] < 0) and (Result.f[i] <> a.f[i]) then
-      Result.f[i] := Result.f[i] - 1.0;
+  CheckSSE41;
+  if g_HasSSE41 then
+  begin
+    asm
+      lea    rax, a
+      movups xmm0, [rax]
+      // roundps xmm0, xmm0, 1  (floor)
+      db $66, $0F, $3A, $08, $C0, $01
+      movups [result], xmm0
+    end;
+  end
+  else
+  begin
+    for i := 0 to 3 do
+      Result.f[i] := System.Int(a.f[i]);
+    // Adjust for negative numbers
+    for i := 0 to 3 do
+      if (a.f[i] < 0) and (Result.f[i] <> a.f[i]) then
+        Result.f[i] := Result.f[i] - 1.0;
+  end;
 end;
 
 function SSE2CeilF32x4(const a: TVecF32x4): TVecF32x4;
 var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.f[i] := System.Int(a.f[i]);
-  // Adjust for positive numbers
-  for i := 0 to 3 do
-    if (a.f[i] > 0) and (Result.f[i] <> a.f[i]) then
-      Result.f[i] := Result.f[i] + 1.0;
+  CheckSSE41;
+  if g_HasSSE41 then
+  begin
+    asm
+      lea    rax, a
+      movups xmm0, [rax]
+      // roundps xmm0, xmm0, 2  (ceil)
+      db $66, $0F, $3A, $08, $C0, $02
+      movups [result], xmm0
+    end;
+  end
+  else
+  begin
+    for i := 0 to 3 do
+      Result.f[i] := System.Int(a.f[i]);
+    // Adjust for positive numbers
+    for i := 0 to 3 do
+      if (a.f[i] > 0) and (Result.f[i] <> a.f[i]) then
+        Result.f[i] := Result.f[i] + 1.0;
+  end;
 end;
 
 function SSE2RoundF32x4(const a: TVecF32x4): TVecF32x4;
 var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.f[i] := System.Round(a.f[i]);
+  CheckSSE41;
+  if g_HasSSE41 then
+  begin
+    asm
+      lea    rax, a
+      movups xmm0, [rax]
+      // roundps xmm0, xmm0, 0  (round to nearest even)
+      db $66, $0F, $3A, $08, $C0, $00
+      movups [result], xmm0
+    end;
+  end
+  else
+  begin
+    for i := 0 to 3 do
+      Result.f[i] := System.Round(a.f[i]);
+  end;
 end;
 
 function SSE2TruncF32x4(const a: TVecF32x4): TVecF32x4;
 var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.f[i] := System.Int(a.f[i]);
+  CheckSSE41;
+  if g_HasSSE41 then
+  begin
+    asm
+      lea    rax, a
+      movups xmm0, [rax]
+      // roundps xmm0, xmm0, 3  (truncate)
+      db $66, $0F, $3A, $08, $C0, $03
+      movups [result], xmm0
+    end;
+  end
+  else
+  begin
+    for i := 0 to 3 do
+      Result.f[i] := System.Int(a.f[i]);
+  end;
 end;
 
 // Clamp using SSE2 min/max
 function SSE2ClampF32x4(const a, minVal, maxVal: TVecF32x4): TVecF32x4;
 begin
   asm
-    mov    rax, a
-    mov    rdx, minVal
-    mov    rcx, maxVal
+    lea    rax, a
+    lea    rdx, minVal
+    lea    rcx, maxVal
     movups xmm0, [rax]
     movups xmm1, [rdx]
     movups xmm2, [rcx]
@@ -883,8 +957,8 @@ end;
 function SSE2DotF32x4(const a, b: TVecF32x4): Single;
 begin
   asm
-    mov     rax, a
-    mov     rdx, b
+    lea     rax, a
+    lea     rdx, b
     movups  xmm0, [rax]
     movups  xmm1, [rdx]
     mulps   xmm0, xmm1     // Element-wise multiply
@@ -904,8 +978,8 @@ function SSE2DotF32x3(const a, b: TVecF32x4): Single;
 var t: TVecF32x4;
 begin
   asm
-    mov     rax, a
-    mov     rdx, b
+    lea     rax, a
+    lea     rdx, b
     movups  xmm0, [rax]
     movups  xmm1, [rdx]
     mulps   xmm0, xmm1
@@ -925,18 +999,18 @@ function SSE2CrossF32x3(const a, b: TVecF32x4): TVecF32x4;
 begin
   // Cross = (a.y*b.z - a.z*b.y, a.z*b.x - a.x*b.z, a.x*b.y - a.y*b.x, 0)
   asm
-    mov     rax, a
-    mov     rdx, b
+    lea     rax, a
+    lea     rdx, b
     movups  xmm0, [rax]        // a = [x, y, z, w]
     movups  xmm1, [rdx]        // b = [x, y, z, w]
     
     // Shuffle a: [y, z, x, w]
     movaps  xmm2, xmm0
-    shufps  xmm2, xmm2, $C9    // 11 00 10 01 = 201 -> y,z,x,w
+    shufps  xmm2, xmm2, $C9    // 11 00 10 01 -> y,z,x,w
     
     // Shuffle b: [z, x, y, w]
     movaps  xmm3, xmm1
-    shufps  xmm3, xmm3, $D2    // 11 01 00 10 = 210 -> z,x,y,w
+    shufps  xmm3, xmm3, $D2    // 11 01 00 10 -> z,x,y,w
     
     mulps   xmm2, xmm3         // [a.y*b.z, a.z*b.x, a.x*b.y, ...]
     
@@ -950,13 +1024,7 @@ begin
     
     mulps   xmm4, xmm5         // [a.z*b.y, a.x*b.z, a.y*b.x, ...]
     
-    subps   xmm2, xmm4         // Subtract
-    
-    // Zero w component
-    xorps   xmm3, xmm3
-    movaps  xmm4, xmm2
-    shufps  xmm4, xmm3, $E0    // Keep xyz, set w=0
-    shufps  xmm2, xmm4, $84    // Final arrange
+    subps   xmm2, xmm4         // Subtract to get [x', y', z', w']
     
     movups  [result], xmm2
   end;
@@ -967,7 +1035,7 @@ end;
 function SSE2LengthF32x4(const a: TVecF32x4): Single;
 begin
   asm
-    mov     rax, a
+    lea     rax, a
     movups  xmm0, [rax]
     mulps   xmm0, xmm0      // Square each element
     // Horizontal add
@@ -986,7 +1054,7 @@ end;
 function SSE2LengthF32x3(const a: TVecF32x4): Single;
 begin
   asm
-    mov     rax, a
+    lea     rax, a
     movups  xmm0, [rax]
     // Zero w before squaring
     pcmpeqd xmm1, xmm1
@@ -1013,7 +1081,7 @@ begin
   if len > 0 then
   begin
     asm
-      mov     rax, a
+      lea     rax, a
       movups  xmm0, [rax]
       movss   xmm1, len
       shufps  xmm1, xmm1, 0   // Broadcast length
@@ -1033,7 +1101,7 @@ begin
   if len > 0 then
   begin
     asm
-      mov     rax, a
+      lea     rax, a
       movups  xmm0, [rax]
       movss   xmm1, len
       shufps  xmm1, xmm1, 0
@@ -1233,77 +1301,158 @@ begin
     Priority := 10; // Higher than scalar
   end;
 
-  // Register arithmetic operations
-  dispatchTable.AddF32x4 := @SSE2AddF32x4;
-  dispatchTable.SubF32x4 := @SSE2SubF32x4;
-  dispatchTable.MulF32x4 := @SSE2MulF32x4;
-  dispatchTable.DivF32x4 := @SSE2DivF32x4;
+  // Vector-related operations default to Scalar reference implementations.
+  // You can enable SSE2 vector ops for experimentation via SetVectorAsmEnabled(True)
+  // (note: SSE2 asm path is not yet fully validated under FPC's calling conventions).
 
-  dispatchTable.AddF32x8 := @SSE2AddF32x8;
-  dispatchTable.SubF32x8 := @SSE2SubF32x8;
-  dispatchTable.MulF32x8 := @SSE2MulF32x8;
-  dispatchTable.DivF32x8 := @SSE2DivF32x8;
+  if IsVectorAsmEnabled then
+  begin
+    // Register arithmetic operations
+    dispatchTable.AddF32x4 := @SSE2AddF32x4;
+    dispatchTable.SubF32x4 := @SSE2SubF32x4;
+    dispatchTable.MulF32x4 := @SSE2MulF32x4;
+    dispatchTable.DivF32x4 := @SSE2DivF32x4;
 
-  dispatchTable.AddF64x2 := @SSE2AddF64x2;
-  dispatchTable.SubF64x2 := @SSE2SubF64x2;
-  dispatchTable.MulF64x2 := @SSE2MulF64x2;
-  dispatchTable.DivF64x2 := @SSE2DivF64x2;
+    dispatchTable.AddF32x8 := @SSE2AddF32x8;
+    dispatchTable.SubF32x8 := @SSE2SubF32x8;
+    dispatchTable.MulF32x8 := @SSE2MulF32x8;
+    dispatchTable.DivF32x8 := @SSE2DivF32x8;
 
-  dispatchTable.AddI32x4 := @SSE2AddI32x4;
-  dispatchTable.SubI32x4 := @SSE2SubI32x4;
-  dispatchTable.MulI32x4 := @SSE2MulI32x4;
+    dispatchTable.AddF64x2 := @SSE2AddF64x2;
+    dispatchTable.SubF64x2 := @SSE2SubF64x2;
+    dispatchTable.MulF64x2 := @SSE2MulF64x2;
+    dispatchTable.DivF64x2 := @SSE2DivF64x2;
 
-  // Register comparison operations
-  dispatchTable.CmpEqF32x4 := @SSE2CmpEqF32x4;
-  dispatchTable.CmpLtF32x4 := @SSE2CmpLtF32x4;
-  dispatchTable.CmpLeF32x4 := @SSE2CmpLeF32x4;
-  dispatchTable.CmpGtF32x4 := @SSE2CmpGtF32x4;
-  dispatchTable.CmpGeF32x4 := @SSE2CmpGeF32x4;
-  dispatchTable.CmpNeF32x4 := @SSE2CmpNeF32x4;
+    dispatchTable.AddI32x4 := @SSE2AddI32x4;
+    dispatchTable.SubI32x4 := @SSE2SubI32x4;
+    dispatchTable.MulI32x4 := @SSE2MulI32x4;
 
-  // Register math functions
-  dispatchTable.AbsF32x4 := @SSE2AbsF32x4;
-  dispatchTable.SqrtF32x4 := @SSE2SqrtF32x4;
-  dispatchTable.MinF32x4 := @SSE2MinF32x4;
-  dispatchTable.MaxF32x4 := @SSE2MaxF32x4;
-  
-  // Extended math functions
-  dispatchTable.FmaF32x4 := @SSE2FmaF32x4;
-  dispatchTable.RcpF32x4 := @SSE2RcpF32x4;
-  dispatchTable.RsqrtF32x4 := @SSE2RsqrtF32x4;
-  dispatchTable.FloorF32x4 := @SSE2FloorF32x4;
-  dispatchTable.CeilF32x4 := @SSE2CeilF32x4;
-  dispatchTable.RoundF32x4 := @SSE2RoundF32x4;
-  dispatchTable.TruncF32x4 := @SSE2TruncF32x4;
-  dispatchTable.ClampF32x4 := @SSE2ClampF32x4;
-  
-  // Vector math functions
-  dispatchTable.DotF32x4 := @SSE2DotF32x4;
-  dispatchTable.DotF32x3 := @SSE2DotF32x3;
-  dispatchTable.CrossF32x3 := @SSE2CrossF32x3;
-  dispatchTable.LengthF32x4 := @SSE2LengthF32x4;
-  dispatchTable.LengthF32x3 := @SSE2LengthF32x3;
-  dispatchTable.NormalizeF32x4 := @SSE2NormalizeF32x4;
-  dispatchTable.NormalizeF32x3 := @SSE2NormalizeF32x3;
+    // Register comparison operations
+    dispatchTable.CmpEqF32x4 := @SSE2CmpEqF32x4;
+    dispatchTable.CmpLtF32x4 := @SSE2CmpLtF32x4;
+    dispatchTable.CmpLeF32x4 := @SSE2CmpLeF32x4;
+    dispatchTable.CmpGtF32x4 := @SSE2CmpGtF32x4;
+    dispatchTable.CmpGeF32x4 := @SSE2CmpGeF32x4;
+    dispatchTable.CmpNeF32x4 := @SSE2CmpNeF32x4;
 
-  // Register reduction operations
-  dispatchTable.ReduceAddF32x4 := @SSE2ReduceAddF32x4;
-  dispatchTable.ReduceMinF32x4 := @SSE2ReduceMinF32x4;
-  dispatchTable.ReduceMaxF32x4 := @SSE2ReduceMaxF32x4;
-  dispatchTable.ReduceMulF32x4 := @SSE2ReduceMulF32x4;
+    // Register math functions
+    dispatchTable.AbsF32x4 := @SSE2AbsF32x4;
+    dispatchTable.SqrtF32x4 := @SSE2SqrtF32x4;
+    dispatchTable.MinF32x4 := @SSE2MinF32x4;
+    dispatchTable.MaxF32x4 := @SSE2MaxF32x4;
 
-  // Register memory operations
-  dispatchTable.LoadF32x4 := @SSE2LoadF32x4;
-  dispatchTable.LoadF32x4Aligned := @SSE2LoadF32x4Aligned;
-  dispatchTable.StoreF32x4 := @SSE2StoreF32x4;
-  dispatchTable.StoreF32x4Aligned := @SSE2StoreF32x4Aligned;
+    // Extended math functions
+    dispatchTable.FmaF32x4 := @SSE2FmaF32x4;
+    dispatchTable.RcpF32x4 := @SSE2RcpF32x4;
+    dispatchTable.RsqrtF32x4 := @SSE2RsqrtF32x4;
+    dispatchTable.FloorF32x4 := @SSE2FloorF32x4;
+    dispatchTable.CeilF32x4 := @SSE2CeilF32x4;
+    dispatchTable.RoundF32x4 := @SSE2RoundF32x4;
+    dispatchTable.TruncF32x4 := @SSE2TruncF32x4;
+    dispatchTable.ClampF32x4 := @SSE2ClampF32x4;
 
-  // Register utility operations
-  dispatchTable.SplatF32x4 := @SSE2SplatF32x4;
-  dispatchTable.ZeroF32x4 := @SSE2ZeroF32x4;
-  dispatchTable.SelectF32x4 := @SSE2SelectF32x4;
-  dispatchTable.ExtractF32x4 := @SSE2ExtractF32x4;
-  dispatchTable.InsertF32x4 := @SSE2InsertF32x4;
+    // Vector math functions
+    dispatchTable.DotF32x4 := @SSE2DotF32x4;
+    dispatchTable.DotF32x3 := @SSE2DotF32x3;
+    dispatchTable.CrossF32x3 := @SSE2CrossF32x3;
+    dispatchTable.LengthF32x4 := @SSE2LengthF32x4;
+    dispatchTable.LengthF32x3 := @SSE2LengthF32x3;
+    dispatchTable.NormalizeF32x4 := @SSE2NormalizeF32x4;
+    dispatchTable.NormalizeF32x3 := @SSE2NormalizeF32x3;
+
+    // Register reduction operations
+    dispatchTable.ReduceAddF32x4 := @SSE2ReduceAddF32x4;
+    dispatchTable.ReduceMinF32x4 := @SSE2ReduceMinF32x4;
+    dispatchTable.ReduceMaxF32x4 := @SSE2ReduceMaxF32x4;
+    dispatchTable.ReduceMulF32x4 := @SSE2ReduceMulF32x4;
+
+    // Register memory operations
+    dispatchTable.LoadF32x4 := @SSE2LoadF32x4;
+    dispatchTable.LoadF32x4Aligned := @SSE2LoadF32x4Aligned;
+    dispatchTable.StoreF32x4 := @SSE2StoreF32x4;
+    dispatchTable.StoreF32x4Aligned := @SSE2StoreF32x4Aligned;
+
+    // Register utility operations
+    dispatchTable.SplatF32x4 := @SSE2SplatF32x4;
+    dispatchTable.ZeroF32x4 := @SSE2ZeroF32x4;
+    dispatchTable.SelectF32x4 := @SSE2SelectF32x4;
+    dispatchTable.ExtractF32x4 := @SSE2ExtractF32x4;
+    dispatchTable.InsertF32x4 := @SSE2InsertF32x4;
+  end
+  else
+  begin
+    // Register arithmetic operations
+    dispatchTable.AddF32x4 := @ScalarAddF32x4;
+    dispatchTable.SubF32x4 := @ScalarSubF32x4;
+    dispatchTable.MulF32x4 := @ScalarMulF32x4;
+    dispatchTable.DivF32x4 := @ScalarDivF32x4;
+
+    dispatchTable.AddF32x8 := @ScalarAddF32x8;
+    dispatchTable.SubF32x8 := @ScalarSubF32x8;
+    dispatchTable.MulF32x8 := @ScalarMulF32x8;
+    dispatchTable.DivF32x8 := @ScalarDivF32x8;
+
+    dispatchTable.AddF64x2 := @ScalarAddF64x2;
+    dispatchTable.SubF64x2 := @ScalarSubF64x2;
+    dispatchTable.MulF64x2 := @ScalarMulF64x2;
+    dispatchTable.DivF64x2 := @ScalarDivF64x2;
+
+    dispatchTable.AddI32x4 := @ScalarAddI32x4;
+    dispatchTable.SubI32x4 := @ScalarSubI32x4;
+    dispatchTable.MulI32x4 := @ScalarMulI32x4;
+
+    // Register comparison operations
+    dispatchTable.CmpEqF32x4 := @ScalarCmpEqF32x4;
+    dispatchTable.CmpLtF32x4 := @ScalarCmpLtF32x4;
+    dispatchTable.CmpLeF32x4 := @ScalarCmpLeF32x4;
+    dispatchTable.CmpGtF32x4 := @ScalarCmpGtF32x4;
+    dispatchTable.CmpGeF32x4 := @ScalarCmpGeF32x4;
+    dispatchTable.CmpNeF32x4 := @ScalarCmpNeF32x4;
+
+    // Register math functions
+    dispatchTable.AbsF32x4 := @ScalarAbsF32x4;
+    dispatchTable.SqrtF32x4 := @ScalarSqrtF32x4;
+    dispatchTable.MinF32x4 := @ScalarMinF32x4;
+    dispatchTable.MaxF32x4 := @ScalarMaxF32x4;
+    
+    // Extended math functions
+    dispatchTable.FmaF32x4 := @ScalarFmaF32x4;
+    dispatchTable.RcpF32x4 := @ScalarRcpF32x4;
+    dispatchTable.RsqrtF32x4 := @ScalarRsqrtF32x4;
+    dispatchTable.FloorF32x4 := @ScalarFloorF32x4;
+    dispatchTable.CeilF32x4 := @ScalarCeilF32x4;
+    dispatchTable.RoundF32x4 := @ScalarRoundF32x4;
+    dispatchTable.TruncF32x4 := @ScalarTruncF32x4;
+    dispatchTable.ClampF32x4 := @ScalarClampF32x4;
+    
+    // Vector math functions
+    dispatchTable.DotF32x4 := @ScalarDotF32x4;
+    dispatchTable.DotF32x3 := @ScalarDotF32x3;
+    dispatchTable.CrossF32x3 := @ScalarCrossF32x3;
+    dispatchTable.LengthF32x4 := @ScalarLengthF32x4;
+    dispatchTable.LengthF32x3 := @ScalarLengthF32x3;
+    dispatchTable.NormalizeF32x4 := @ScalarNormalizeF32x4;
+    dispatchTable.NormalizeF32x3 := @ScalarNormalizeF32x3;
+
+    // Register reduction operations
+    dispatchTable.ReduceAddF32x4 := @ScalarReduceAddF32x4;
+    dispatchTable.ReduceMinF32x4 := @ScalarReduceMinF32x4;
+    dispatchTable.ReduceMaxF32x4 := @ScalarReduceMaxF32x4;
+    dispatchTable.ReduceMulF32x4 := @ScalarReduceMulF32x4;
+
+    // Register memory operations
+    dispatchTable.LoadF32x4 := @ScalarLoadF32x4;
+    dispatchTable.LoadF32x4Aligned := @ScalarLoadF32x4Aligned;
+    dispatchTable.StoreF32x4 := @ScalarStoreF32x4;
+    dispatchTable.StoreF32x4Aligned := @ScalarStoreF32x4Aligned;
+
+    // Register utility operations
+    dispatchTable.SplatF32x4 := @ScalarSplatF32x4;
+    dispatchTable.ZeroF32x4 := @ScalarZeroF32x4;
+    dispatchTable.SelectF32x4 := @ScalarSelectF32x4;
+    dispatchTable.ExtractF32x4 := @ScalarExtractF32x4;
+    dispatchTable.InsertF32x4 := @ScalarInsertF32x4;
+  end;
 
   // Register facade functions (SSE2-accelerated where available)
   dispatchTable.MemEqual := @MemEqual_SSE2;

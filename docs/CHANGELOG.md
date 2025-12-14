@@ -2,6 +2,40 @@
 
 ## Unreleased
 
+### Added – Environment Module v1.1 (fafafa.core.env)
+Modern, cross-platform environment variable and user directory helpers.
+Inspired by Rust std::env and Go os.
+
+**Core Features:**
+- Basic operations: `env_get`, `env_set`, `env_unset`, `env_lookup`, `env_has`, `env_vars`
+- Convenience API: `env_required` (throws EEnvVarNotFound), `env_keys`, `env_count`, `env_get_or`
+- RAII override guards: `env_override`, `env_override_unset`, `env_overrides` (manual Done cleanup)
+- String expansion: `env_expand` ($VAR, ${VAR}, Windows %VAR%), `env_expand_with` (custom resolver)
+- PATH handling: `env_split_paths`, `env_join_paths`, `env_join_paths_checked`
+- Directories: `env_current_dir`, `env_home_dir`, `env_temp_dir`, `env_executable_path`, `env_user_config_dir`, `env_user_cache_dir`
+
+**v1.1 Additions (2025-12-06):**
+- Platform constants: `env_os`, `env_arch`, `env_family`, `env_is_windows`, `env_is_unix`, `env_is_darwin`
+- Iterator API: `TEnvKVPair`, `TEnvVarsEnumerator`, `env_iter` (supports for-in)
+- Command-line args: `env_args`, `env_args_count`, `env_arg`
+- Security helpers: `env_is_sensitive_name`, `env_mask_value`, `env_validate_name`
+- Sandbox: `env_clear_all` (dangerous, for test isolation)
+- Exception: `EEnvVarNotFound`
+- Result API (conditional, macro-gated): `env_get_result`, `env_join_paths_result`, `env_current_dir_result`, etc.
+
+**Tests:**
+- 59 test cases, 100% pass rate
+- Documentation examples validated (25/25 tests pass)
+
+**Performance Baseline (2025-12-13):**
+- env_get: 16M ops/sec
+- env_expand (simple): 824K ops/sec
+- env_split_paths: 1.4M ops/sec
+- See benchmarks/fafafa.core.env/BASELINE.md
+
+**Docs:**
+- docs/fafafa.core.env.md (API reference, examples, platform differences)
+- docs/fafafa.core.env.roadmap.md (development roadmap)
 
 ### Added – Result method-style API (macro-gated)
 - TResult<T,E>: add Rust-style method wrappers guarded by FAFAFA_CORE_RESULT_METHODS (default OFF)

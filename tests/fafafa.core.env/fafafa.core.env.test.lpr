@@ -10,13 +10,12 @@ uses
 
 begin
   // FPCUnit 控制台运行器
+  // NOTE: Do not manually free TestRegistry here; it can cause double-free/AV on exit.
   with TTestRunner.Create(nil) do
   begin
     Initialize;
     Run;
     Free;
   end;
-  // Avoid heaptrc call traces in --list mode
-  testregistry.GetTestRegistry.Free;
 end.
 

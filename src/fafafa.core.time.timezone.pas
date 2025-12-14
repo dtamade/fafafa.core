@@ -176,19 +176,58 @@ function TSystemTimeZone.IsDST(const AInstant: TInstant): Boolean;
 var
   LUnixSec: Int64;
   LDateTime: TDateTime;
+  LYear: Word;
+  LJan1, LJul1: TDateTime;
+  LJan1Offset, LJul1Offset, LCurrentOffset: Integer;
+  LStandardOffset, LDstOffset: Integer;
 begin
-  // 简化实现：检查当前时刻的 DST 状态
-  // 完整实现需要查询系统时区数据
+  // 跨平台 DST 检测方法：
+  // 比较给定日期的时区偏移与同一年的 1 月 1 日和 7 月 1 日的偏移。
+  // 假设：标准时间（非 DST）对应较小的偏移值（北半球冬季或南半球夏季）
+  
   LUnixSec := AInstant.AsUnixSec;
-  if LUnixSec >= 0 then
+  if LUnixSec < 0 then
   begin
-    LDateTime := UnixToDateTime(LUnixSec);
-    // FreePascal 没有直接的 DST 查询函数
-    // 返回 False 作为简化实现
     Result := False;
+    Exit;
+  end;
+  
+  LDateTime := UnixToDateTime(LUnixSec, False);  // 不转换为 UTC
+  LYear := YearOf(LDateTime);
+  
+  // 获取 1 月 1 日和 7 月 1 日的时区偏移（分钟）
+  LJan1 := EncodeDate(LYear, 1, 1);
+  LJul1 := EncodeDate(LYear, 7, 1);
+  
+  // GetLocalTimeOffset 返回分钟数（UTC 之西为正，之东为负）
+  LJan1Offset := -GetLocalTimeOffset(LJan1);  // 取反以获得 UTC+偏移
+  LJul1Offset := -GetLocalTimeOffset(LJul1);
+  LCurrentOffset := -GetLocalTimeOffset(LDateTime);
+  
+  // 如果两个偏移相同，该时区没有 DST
+  if LJan1Offset = LJul1Offset then
+  begin
+    Result := False;
+    Exit;
+  end;
+  
+  // 标准时间偏移是较小的那个（先东的时区偏移值较大）
+  // DST 时，时钟向前调，偏移变大
+  if LJan1Offset < LJul1Offset then
+  begin
+    // 北半球模式：1月是冬季（标准时间），7月是夏季（DST）
+    LStandardOffset := LJan1Offset;
+    LDstOffset := LJul1Offset;
   end
   else
-    Result := False;
+  begin
+    // 南半球模式：7月是冬季（标准时间），1月是夏季（DST）
+    LStandardOffset := LJul1Offset;
+    LDstOffset := LJan1Offset;
+  end;
+  
+  // 当前偏移等于 DST 偏移则处于夏令时
+  Result := LCurrentOffset = LDstOffset;
 end;
 
 { TTimeZoneDatabase }

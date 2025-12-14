@@ -121,9 +121,9 @@ type
     
     // 比较
     function Compare(const AOther: TDeadline): Integer; inline;
-    function Equal(const AOther: TDeadline): Boolean; inline;
-    function LessThan(const AOther: TDeadline): Boolean; inline;
-    function GreaterThan(const AOther: TDeadline): Boolean; inline;
+    function Equal(const AOther: TDeadline): Boolean; inline; deprecated 'Use operator = instead';
+    function LessThan(const AOther: TDeadline): Boolean; inline; deprecated 'Use operator < instead';
+    function GreaterThan(const AOther: TDeadline): Boolean; inline; deprecated 'Use operator > instead';
     
     // 运算符
     class operator =(const A, B: TDeadline): Boolean;
@@ -432,17 +432,19 @@ end;
 
 class operator TDeadline.=(const A, B: TDeadline): Boolean;
 begin
-  Result := A.Equal(B);
+  // 直接使用 Compare，避免依赖已弃用的 Equal 方法
+  Result := A.Compare(B) = 0;
 end;
 
 class operator TDeadline.<(const A, B: TDeadline): Boolean;
 begin
-  Result := A.LessThan(B);
+  // 使用 Compare 结果进行判定，避免依赖已弃用的 LessThan 方法
+  Result := A.Compare(B) < 0;
 end;
 
 class operator TDeadline.>(const A, B: TDeadline): Boolean;
 begin
-  Result := A.GreaterThan(B);
+  Result := A.Compare(B) > 0;
 end;
 
 function TDeadline.ToString: string;

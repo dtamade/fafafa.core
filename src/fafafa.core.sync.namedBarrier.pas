@@ -110,12 +110,10 @@ end;
 
 function TryOpenNamedBarrier(const AName: string): INamedBarrier;
 begin
-  try
-    // 尝试创建/打开屏障，如果失败返�?nil
-    Result := MakeNamedBarrier(AName);
-  except
-    Result := nil;
-  end;
+  // 语义：尝试打开或创建命名屏障，但不再吞掉所有异常
+  // - 参数错误（空名称、非法字符等）应直接向上传播
+  // - 资源或系统错误同样不应伪装成“打开失败”
+  Result := MakeNamedBarrier(AName);
 end;
 
 

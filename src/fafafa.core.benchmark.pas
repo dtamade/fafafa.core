@@ -16,7 +16,7 @@ uses
   {$IFDEF MSWINDOWS}
   SyncObjs, // for TEvent
   {$ENDIF}
-  Math,
+  fafafa.core.math,
   Variants,
   fafafa.core.tick,
   fafafa.core.io,

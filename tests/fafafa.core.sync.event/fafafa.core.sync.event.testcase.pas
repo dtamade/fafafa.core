@@ -29,6 +29,8 @@ type
     // ISynchronizable 继承方法
     procedure Test_LockMethods_AutoReset;
     procedure Test_LockMethods_ManualReset;
+    // Signal/Clear 别名测试
+    procedure Test_Signal_Clear_Aliases;
   end;
 
   // 并发测试
@@ -179,6 +181,30 @@ begin
   E.ResetEvent;
   r := E.WaitFor(0);
   AssertEquals('After ResetEvent, zero-timeout should timeout', Ord(wrTimeout), Ord(r));
+end;
+
+procedure TTestCase_Event_Basic.Test_Signal_Clear_Aliases;
+var E: IEvent; r: TWaitResult;
+begin
+  // 测试 Signal 是 SetEvent 的别名
+  E := MakeEvent(True, False);  // 手动重置
+  r := E.WaitFor(0);
+  AssertEquals('Initially should timeout', Ord(wrTimeout), Ord(r));
+  
+  E.Signal;  // 使用 Signal 别名
+  r := E.WaitFor(0);
+  AssertEquals('After Signal, should be signaled', Ord(wrSignaled), Ord(r));
+  
+  // 测试 Clear 是 ResetEvent 的别名
+  E.Clear;  // 使用 Clear 别名
+  r := E.WaitFor(0);
+  AssertEquals('After Clear, should timeout', Ord(wrTimeout), Ord(r));
+  
+  // 混合使用
+  E.Signal;
+  AssertTrue('IsSignaled after Signal', E.IsSignaled);
+  E.Clear;
+  AssertFalse('Not IsSignaled after Clear', E.IsSignaled);
 end;
 
 { TWaitThread }

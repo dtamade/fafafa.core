@@ -6,15 +6,19 @@ unit fafafa.core.simd.testcase;
 interface
 
 uses
-  Classes, SysUtils, fpcunit, testregistry,
+  Classes, SysUtils, Math, fpcunit, testregistry,
   fafafa.core.simd,
+  fafafa.core.simd.base,
   fafafa.core.simd.types,
   fafafa.core.simd.api,
+  fafafa.core.simd.dispatch,
   fafafa.core.simd.scalar,
   fafafa.core.simd.sse2,
   fafafa.core.simd.avx2,
   fafafa.core.simd.avx512,
-  fafafa.core.simd.cpuinfo;
+  fafafa.core.simd.cpuinfo,
+  fafafa.core.simd.memutils,
+  fafafa.core.simd.builder;
 
 type
   // 全局函数测试
@@ -76,6 +80,21 @@ type
     procedure Test_ToUpperAscii_Consistency;
     procedure Test_MemDiffRange_Consistency;
     procedure Test_BytesIndexOf_Consistency;
+  end;
+
+  // 后端烟雾测试 - 验证 backend 选择后基础向量操作不会崩溃且结果正确
+  TTestCase_BackendSmoke = class(TTestCase)
+  protected
+    procedure RunVecF32x4Smoke;
+    procedure TearDown; override;
+  published
+    procedure Test_VectorAsmEnabled_Toggle_Roundtrip;
+
+    procedure Test_DefaultBackend_VecF32x4_Smoke;
+    procedure Test_ForceScalar_VecF32x4_Smoke;
+    procedure Test_ForceSSE2_VecF32x4_Smoke;
+    procedure Test_ForceAVX2_VecF32x4_Smoke;
+    procedure Test_ForceAVX512_VecF32x4_Smoke;
   end;
 
   // 向量运算测试 (强制使用 Scalar 后端以避免 AVX2 实现的问题)
@@ -186,6 +205,342 @@ type
     // 标量操作测试
     procedure Test_VecF32x4_Op_ScalarMul;
     procedure Test_VecF32x4_Op_ScalarDiv;
+  end;
+
+  // Phase 1.3: 向量掩码类型测试
+  TTestCase_VectorMaskTypes = class(TTestCase)
+  published
+    // TMaskF32x4 基础测试
+    procedure Test_MaskF32x4_TypeDef_Size;
+    procedure Test_MaskF32x4_AllTrue;
+    procedure Test_MaskF32x4_AllFalse;
+    procedure Test_MaskF32x4_Mixed;
+    procedure Test_MaskF32x4_Test;
+    procedure Test_MaskF32x4_ToBitmask;
+    procedure Test_MaskF32x4_Any;
+    procedure Test_MaskF32x4_All;
+    procedure Test_MaskF32x4_None;
+    
+    // TMaskF32x4 逻辑运算符测试
+    procedure Test_MaskF32x4_Op_And;
+    procedure Test_MaskF32x4_Op_Or;
+    procedure Test_MaskF32x4_Op_Xor;
+    procedure Test_MaskF32x4_Op_Not;
+    
+    // TMaskI32x4 基础测试
+    procedure Test_MaskI32x4_TypeDef_Size;
+    procedure Test_MaskI32x4_AllTrue;
+    procedure Test_MaskI32x4_ToBitmask;
+    
+    // TMaskF64x2 基础测试
+    procedure Test_MaskF64x2_TypeDef_Size;
+    procedure Test_MaskF64x2_AllTrue;
+    procedure Test_MaskF64x2_ToBitmask;
+    
+    // Select 操作测试
+    procedure Test_MaskF32x4_Select;
+  end;
+
+  // Phase 1.4: 类型转换函数测试
+  TTestCase_TypeConversion = class(TTestCase)
+  published
+    // IntoBits / FromBits (F32x4 <-> I32x4)
+    procedure Test_VecF32x4_IntoBits;
+    procedure Test_VecI32x4_FromBitsF32;
+    procedure Test_IntoBits_FromBits_Roundtrip;
+    
+    // IntoBits / FromBits (F64x2 <-> I64x2)
+    procedure Test_VecF64x2_IntoBits;
+    procedure Test_VecI64x2_FromBitsF64;
+    
+    // Cast 函数 (元素级别转换)
+    procedure Test_VecF32x4_CastToI32x4;
+    procedure Test_VecI32x4_CastToF32x4;
+    procedure Test_VecF64x2_CastToI64x2;
+    procedure Test_VecI64x2_CastToF64x2;
+    
+    // Widen / Narrow (宽度转换)
+    procedure Test_VecI16x8_WidenLo_I32x4;
+    procedure Test_VecI16x8_WidenHi_I32x4;
+    procedure Test_VecI32x4_NarrowToI16x8;
+    
+    // F32x4 <-> F64x2 精度转换
+    procedure Test_VecF32x4_ToF64x2_Lo;
+    procedure Test_VecF64x2_ToF32x4;
+  end;
+
+  // Phase 3: Builder 模式测试
+  TTestCase_Builder = class(TTestCase)
+  protected
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    // TVecF32x4Builder 基础测试
+    procedure Test_Builder_Create_FromValues;
+    procedure Test_Builder_Create_Splat;
+    procedure Test_Builder_Create_Load;
+    
+    // 流式 API 测试
+    procedure Test_Builder_Chain_Add;
+    procedure Test_Builder_Chain_MulAdd;
+    procedure Test_Builder_Chain_Normalize;
+    procedure Test_Builder_Chain_Clamp;
+    
+    // 终结操作测试
+    procedure Test_Builder_Build;
+    procedure Test_Builder_ReduceAdd;
+    procedure Test_Builder_ReduceMin;
+    procedure Test_Builder_ReduceMax;
+    
+    // 复杂链式测试
+    procedure Test_Builder_Complex_DotProduct;
+    procedure Test_Builder_Complex_Lerp;
+  end;
+
+  // Phase 2: Gather/Scatter 测试
+  TTestCase_GatherScatter = class(TTestCase)
+  published
+    // Gather - 从不连续内存位置收集数据到向量
+    procedure Test_VecF32x4_Gather_Sequential;
+    procedure Test_VecF32x4_Gather_Stride;
+    procedure Test_VecF32x4_Gather_Random;
+    procedure Test_VecI32x4_Gather_Sequential;
+    procedure Test_VecI32x4_Gather_Negative;
+    
+    // Scatter - 将向量数据分散到不连续内存位置
+    procedure Test_VecF32x4_Scatter_Sequential;
+    procedure Test_VecF32x4_Scatter_Stride;
+    procedure Test_VecI32x4_Scatter_Sequential;
+    
+    // 边界条件
+    procedure Test_Gather_ZeroIndex;
+    procedure Test_Gather_LargeStride;
+  end;
+
+  // Phase 2: Shuffle/Swizzle 测试
+  TTestCase_ShuffleSWizzle = class(TTestCase)
+  published
+    // MM_SHUFFLE 辅助函数
+    procedure Test_MM_SHUFFLE;
+    
+    // Shuffle 单向量
+    procedure Test_VecF32x4_Shuffle_Identity;
+    procedure Test_VecF32x4_Shuffle_Reverse;
+    procedure Test_VecF32x4_Shuffle_Broadcast;
+    procedure Test_VecI32x4_Shuffle;
+    
+    // Shuffle2 双向量
+    procedure Test_VecF32x4_Shuffle2;
+    
+    // Blend 混合
+    procedure Test_VecF32x4_Blend;
+    procedure Test_VecF64x2_Blend;
+    procedure Test_VecI32x4_Blend;
+    
+    // Unpack 交织
+    procedure Test_VecF32x4_UnpackLo;
+    procedure Test_VecF32x4_UnpackHi;
+    procedure Test_VecI32x4_Unpack;
+    
+    // Broadcast 广播
+    procedure Test_VecF32x4_Broadcast;
+    procedure Test_VecI32x4_Broadcast;
+    
+    // Reverse 反转
+    procedure Test_VecF32x4_Reverse;
+    procedure Test_VecI32x4_Reverse;
+    
+    // Rotate 旋转
+    procedure Test_VecF32x4_RotateLeft;
+    procedure Test_VecI32x4_RotateLeft;
+    
+    // Insert/Extract 插入提取
+    procedure Test_VecF32x4_Insert;
+    procedure Test_VecF32x4_ExtractFunc;
+    procedure Test_VecI32x4_InsertExtract;
+  end;
+
+  // Phase 4: SIMD 数学函数测试
+  TTestCase_MathFunctions = class(TTestCase)
+  published
+    // 三角函数
+    procedure Test_VecF32x4_Sin;
+    procedure Test_VecF32x4_Cos;
+    procedure Test_VecF32x4_SinCos;
+    procedure Test_VecF32x4_Tan;
+    
+    // 指数/对数函数
+    procedure Test_VecF32x4_Exp;
+    procedure Test_VecF32x4_Exp2;
+    procedure Test_VecF32x4_Log;
+    procedure Test_VecF32x4_Log2;
+    procedure Test_VecF32x4_Log10;
+    procedure Test_VecF32x4_Pow;
+    
+    // 反三角函数
+    procedure Test_VecF32x4_Asin;
+    procedure Test_VecF32x4_Acos;
+    procedure Test_VecF32x4_Atan;
+    procedure Test_VecF32x4_Atan2;
+  end;
+
+  // Phase 5: 高级算法测试
+  TTestCase_AdvancedAlgorithms = class(TTestCase)
+  published
+    // 排序网络 (Sorting Network)
+    procedure Test_SortNet4_I32_Ascending;
+    procedure Test_SortNet4_I32_Descending;
+    procedure Test_SortNet4_F32_Ascending;
+    procedure Test_SortNet4_F32_WithNegatives;
+    procedure Test_SortNet8_I32;
+    
+    // 前缀和 (Prefix Sum / Scan)
+    procedure Test_PrefixSum_I32x4_Inclusive;
+    procedure Test_PrefixSum_I32x4_Exclusive;
+    procedure Test_PrefixSum_F32x4_Inclusive;
+    procedure Test_PrefixSum_Array_I32;
+    procedure Test_PrefixSum_Array_F32;
+    
+    // 向量化字符串搜索
+    procedure Test_StrFind_SingleChar;
+    procedure Test_StrFind_NotFound;
+    procedure Test_StrFind_AtStart;
+    procedure Test_StrFind_AtEnd;
+    procedure Test_StrFind_Empty;
+  end;
+
+  // 512-bit 向量类型测试 (AVX-512)
+  TTestCase_Vec512Types = class(TTestCase)
+  published
+    // TVecF32x16 类型测试
+    procedure Test_VecF32x16_Create;
+    procedure Test_VecF32x16_LoHi;
+    procedure Test_VecF32x16_SizeOf;
+    
+    // TVecF64x8 类型测试
+    procedure Test_VecF64x8_Create;
+    procedure Test_VecF64x8_LoHi;
+    procedure Test_VecF64x8_SizeOf;
+    
+    // TVecI32x16 类型测试
+    procedure Test_VecI32x16_Create;
+    procedure Test_VecI32x16_LoHi;
+    procedure Test_VecI32x16_SizeOf;
+    
+    // TVecI64x8 类型测试
+    procedure Test_VecI64x8_Create;
+    procedure Test_VecI64x8_SizeOf;
+    
+    // TVecI8x64 类型测试
+    procedure Test_VecI8x64_Create;
+    procedure Test_VecI8x64_SizeOf;
+    
+    // TMask64 掩码类型测试
+    procedure Test_Mask64_AllSet;
+    procedure Test_Mask64_NoneSet;
+    
+    // TMaskF32x16 向量掩码测试
+    procedure Test_MaskF32x16_AllTrue;
+    procedure Test_MaskF32x16_AllFalse;
+    procedure Test_MaskF32x16_ToBitmask;
+    procedure Test_MaskF32x16_Any_All_None;
+    
+    // 512-bit 向量算术测试
+    procedure Test_VecF32x16_Add;
+    procedure Test_VecF32x16_Sub;
+    procedure Test_VecF32x16_Mul;
+    procedure Test_VecF32x16_Neg;
+    procedure Test_VecF64x8_Add;
+    procedure Test_VecI32x16_Add;
+    
+    // 512-bit 比较和掩码逻辑测试 (Phase 4)
+    procedure Test_VecF32x16_CmpEq;
+    procedure Test_VecF32x16_CmpLt;
+    procedure Test_MaskF32x16_LogicOps;
+    procedure Test_MaskF32x16_Select;
+  end;
+
+  // 边界条件测试 - NaN, 无穷大, 溢出, 对齐
+  TTestCase_EdgeCases = class(TTestCase)
+  private
+    FSavedExceptionMask: TFPUExceptionMask;
+  protected
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    // NaN 处理测试
+    procedure Test_VecF32x4_Add_WithNaN;
+    procedure Test_VecF32x4_Mul_WithNaN;
+    procedure Test_VecF32x4_Compare_WithNaN;
+    procedure Test_SortNet4_F32_WithNaN;
+    
+    // Infinity 处理测试
+    procedure Test_VecF32x4_Add_WithInfinity;
+    procedure Test_VecF32x4_Mul_InfinityByZero;
+    procedure Test_VecF32x4_Div_ByZero;
+    procedure Test_VecF32x4_Div_InfinityByInfinity;
+    
+    // 整数边界测试
+    procedure Test_VecI32x4_Add_MaxValue;
+    procedure Test_VecI32x4_Sub_MinValue;
+    procedure Test_PrefixSum_I32_Overflow;
+    
+    // 极端对齐场景（MemEqual / SumBytes 在非对齐上的行为）
+    procedure Test_MemEqual_Unaligned_1Byte;
+    procedure Test_MemEqual_Unaligned_15Bytes;
+    procedure Test_MemFindByte_CrossPage;
+    procedure Test_SumBytes_OddSizes;
+    
+    // 数学函数边界
+    procedure Test_VecF32x4_Log_Zero;
+    procedure Test_VecF32x4_Log_Negative;
+    procedure Test_VecF32x4_Sqrt_Negative;
+    procedure Test_VecF32x4_Asin_OutOfRange;
+  end;
+
+  // Aligned 内存工具测试（memutils）
+  TTestCase_Memutils = class(TTestCase)
+  published
+    procedure Test_AlignedAlloc_AlignedAndWritable;
+    procedure Test_AlignedRealloc_Grow_PreservesPrefix;
+    procedure Test_AlignedRealloc_Shrink_PreservesPrefix;
+    procedure Test_AlignedRealloc_NilAndZero_Semantics;
+  end;
+
+  // Rust 风格类型别名测试
+  TTestCase_RustStyleAliases = class(TTestCase)
+  published
+    // 128-bit 浮点向量别名测试
+    procedure Test_f32x4_Alias_SameSize;
+    procedure Test_f32x4_Alias_Usable;
+    procedure Test_f64x2_Alias_SameSize;
+    procedure Test_f64x2_Alias_Usable;
+    
+    // 128-bit 整数向量别名测试
+    procedure Test_i32x4_Alias_SameSize;
+    procedure Test_i32x4_Alias_Usable;
+    procedure Test_i64x2_Alias_SameSize;
+    procedure Test_i16x8_Alias_SameSize;
+    procedure Test_i8x16_Alias_SameSize;
+    
+    // 128-bit 无符号整数向量别名测试
+    procedure Test_u32x4_Alias_SameSize;
+    procedure Test_u64x2_Alias_SameSize;
+    procedure Test_u16x8_Alias_SameSize;
+    procedure Test_u8x16_Alias_SameSize;
+    
+    // 256-bit 向量别名测试
+    procedure Test_f32x8_Alias_SameSize;
+    procedure Test_f64x4_Alias_SameSize;
+    procedure Test_i32x8_Alias_SameSize;
+    
+    // 512-bit 向量别名测试
+    procedure Test_f32x16_Alias_SameSize;
+    procedure Test_f64x8_Alias_SameSize;
+    procedure Test_i32x16_Alias_SameSize;
+    
+    // 别名互操作性测试
+    procedure Test_Alias_InteropWithOriginal;
   end;
 
 implementation
@@ -1094,6 +1449,311 @@ begin
   
   AssertEquals('Scalar should not find needle', -1, resScalar);
   AssertEquals('AVX2 should match Scalar (not found)', resScalar, resAVX2);
+end;
+
+{ TTestCase_BackendSmoke }
+
+procedure TTestCase_BackendSmoke.RunVecF32x4Smoke;
+var
+  src, dst: array[0..3] of Single;
+  v, w: TVecF32x4;
+  sum: Single;
+  dot: Single;
+begin
+  src[0] := 1.0;
+  src[1] := 2.0;
+  src[2] := 3.0;
+  src[3] := 4.0;
+
+  v := VecF32x4Load(@src[0]);
+
+  sum := VecF32x4ReduceAdd(v);
+  AssertEquals('ReduceAdd should be 10', 10.0, sum, 0.0001);
+
+  dot := VecF32x4Dot(v, VecF32x4Splat(1.0));
+  AssertEquals('Dot(v, splat(1)) should be 10', 10.0, dot, 0.0001);
+
+  w := VecF32x4Add(v, VecF32x4Splat(1.0));
+  VecF32x4Store(@dst[0], w);
+
+  AssertEquals('Store/Add[0]', 2.0, dst[0], 0.0001);
+  AssertEquals('Store/Add[1]', 3.0, dst[1], 0.0001);
+  AssertEquals('Store/Add[2]', 4.0, dst[2], 0.0001);
+  AssertEquals('Store/Add[3]', 5.0, dst[3], 0.0001);
+
+  w := VecF32x4Sub(v, VecF32x4Splat(1.0));
+  VecF32x4Store(@dst[0], w);
+
+  AssertEquals('Store/Sub[0]', 0.0, dst[0], 0.0001);
+  AssertEquals('Store/Sub[1]', 1.0, dst[1], 0.0001);
+  AssertEquals('Store/Sub[2]', 2.0, dst[2], 0.0001);
+  AssertEquals('Store/Sub[3]', 3.0, dst[3], 0.0001);
+
+  w := VecF32x4Mul(v, VecF32x4Splat(2.0));
+  VecF32x4Store(@dst[0], w);
+
+  AssertEquals('Store/Mul[0]', 2.0, dst[0], 0.0001);
+  AssertEquals('Store/Mul[1]', 4.0, dst[1], 0.0001);
+  AssertEquals('Store/Mul[2]', 6.0, dst[2], 0.0001);
+  AssertEquals('Store/Mul[3]', 8.0, dst[3], 0.0001);
+
+  // Div: v / 2 = (0.5, 1.0, 1.5, 2.0)
+  w := VecF32x4Div(v, VecF32x4Splat(2.0));
+  VecF32x4Store(@dst[0], w);
+
+  AssertEquals('Store/Div[0]', 0.5, dst[0], 0.0001);
+  AssertEquals('Store/Div[1]', 1.0, dst[1], 0.0001);
+  AssertEquals('Store/Div[2]', 1.5, dst[2], 0.0001);
+  AssertEquals('Store/Div[3]', 2.0, dst[3], 0.0001);
+
+  // Min: min(v, splat(2.5)) = (1, 2, 2.5, 2.5)
+  w := VecF32x4Min(v, VecF32x4Splat(2.5));
+  VecF32x4Store(@dst[0], w);
+
+  AssertEquals('Store/Min[0]', 1.0, dst[0], 0.0001);
+  AssertEquals('Store/Min[1]', 2.0, dst[1], 0.0001);
+  AssertEquals('Store/Min[2]', 2.5, dst[2], 0.0001);
+  AssertEquals('Store/Min[3]', 2.5, dst[3], 0.0001);
+
+  // Max: max(v, splat(2.5)) = (2.5, 2.5, 3, 4)
+  w := VecF32x4Max(v, VecF32x4Splat(2.5));
+  VecF32x4Store(@dst[0], w);
+
+  AssertEquals('Store/Max[0]', 2.5, dst[0], 0.0001);
+  AssertEquals('Store/Max[1]', 2.5, dst[1], 0.0001);
+  AssertEquals('Store/Max[2]', 3.0, dst[2], 0.0001);
+  AssertEquals('Store/Max[3]', 4.0, dst[3], 0.0001);
+
+  // Abs: abs((-1, 2, -3, 4)) = (1, 2, 3, 4)
+  src[0] := -1.0; src[1] := 2.0; src[2] := -3.0; src[3] := 4.0;
+  v := VecF32x4Load(@src[0]);
+  w := VecF32x4Abs(v);
+  VecF32x4Store(@dst[0], w);
+
+  AssertEquals('Store/Abs[0]', 1.0, dst[0], 0.0001);
+  AssertEquals('Store/Abs[1]', 2.0, dst[1], 0.0001);
+  AssertEquals('Store/Abs[2]', 3.0, dst[2], 0.0001);
+  AssertEquals('Store/Abs[3]', 4.0, dst[3], 0.0001);
+
+  // Sqrt: sqrt((1, 4, 9, 16)) = (1, 2, 3, 4)
+  src[0] := 1.0; src[1] := 4.0; src[2] := 9.0; src[3] := 16.0;
+  v := VecF32x4Load(@src[0]);
+  w := VecF32x4Sqrt(v);
+  VecF32x4Store(@dst[0], w);
+
+  AssertEquals('Store/Sqrt[0]', 1.0, dst[0], 0.0001);
+  AssertEquals('Store/Sqrt[1]', 2.0, dst[1], 0.0001);
+  AssertEquals('Store/Sqrt[2]', 3.0, dst[2], 0.0001);
+  AssertEquals('Store/Sqrt[3]', 4.0, dst[3], 0.0001);
+
+  // CmpEq: (1,2,3,4) == (1,2,5,4) -> mask = 0b1011 = $B
+  src[0] := 1.0; src[1] := 2.0; src[2] := 3.0; src[3] := 4.0;
+  v := VecF32x4Load(@src[0]);
+  src[0] := 1.0; src[1] := 2.0; src[2] := 5.0; src[3] := 4.0;
+  w := VecF32x4Load(@src[0]);
+  AssertEquals('CmpEq mask', $B, VecF32x4CmpEq(v, w));
+
+  // CmpLt: (1,2,3,4) < (2,2,2,5) -> mask = 0b1001 = $9
+  src[0] := 2.0; src[1] := 2.0; src[2] := 2.0; src[3] := 5.0;
+  w := VecF32x4Load(@src[0]);
+  src[0] := 1.0; src[1] := 2.0; src[2] := 3.0; src[3] := 4.0;
+  v := VecF32x4Load(@src[0]);
+  AssertEquals('CmpLt mask', $9, VecF32x4CmpLt(v, w));
+
+  // CmpGt: (1,2,3,4) > (0,2,2,5) -> mask = 0b0101 = $5
+  src[0] := 0.0; src[1] := 2.0; src[2] := 2.0; src[3] := 5.0;
+  w := VecF32x4Load(@src[0]);
+  src[0] := 1.0; src[1] := 2.0; src[2] := 3.0; src[3] := 4.0;
+  v := VecF32x4Load(@src[0]);
+  AssertEquals('CmpGt mask', $5, VecF32x4CmpGt(v, w));
+
+  // ReduceMin: min(5, 2, 8, 3) = 2
+  src[0] := 5.0; src[1] := 2.0; src[2] := 8.0; src[3] := 3.0;
+  v := VecF32x4Load(@src[0]);
+  AssertEquals('ReduceMin', 2.0, VecF32x4ReduceMin(v), 0.0001);
+
+  // ReduceMax: max(5, 2, 8, 3) = 8
+  AssertEquals('ReduceMax', 8.0, VecF32x4ReduceMax(v), 0.0001);
+
+  // ReduceMul: 1 * 2 * 3 * 4 = 24
+  src[0] := 1.0; src[1] := 2.0; src[2] := 3.0; src[3] := 4.0;
+  v := VecF32x4Load(@src[0]);
+  AssertEquals('ReduceMul', 24.0, VecF32x4ReduceMul(v), 0.0001);
+
+  // Fma: a*b+c = (2,2,2,2)*(3,3,3,3)+(4,4,4,4) = (10,10,10,10)
+  v := VecF32x4Splat(2.0);
+  w := VecF32x4Splat(3.0);
+  w := VecF32x4Fma(v, w, VecF32x4Splat(4.0));
+  VecF32x4Store(@dst[0], w);
+  AssertEquals('Fma[0]', 10.0, dst[0], 0.0001);
+  AssertEquals('Fma[1]', 10.0, dst[1], 0.0001);
+
+  // Rcp: 1/4 = 0.25
+  v := VecF32x4Splat(4.0);
+  w := VecF32x4Rcp(v);
+  VecF32x4Store(@dst[0], w);
+  AssertEquals('Rcp[0]', 0.25, dst[0], 0.01);
+
+  // Rsqrt: 1/sqrt(4) = 0.5
+  w := VecF32x4Rsqrt(v);
+  VecF32x4Store(@dst[0], w);
+  AssertEquals('Rsqrt[0]', 0.5, dst[0], 0.01);
+
+  // Floor: floor(2.7) = 2, floor(-2.3) = -3
+  src[0] := 2.7; src[1] := -2.3; src[2] := 3.0; src[3] := -3.0;
+  v := VecF32x4Load(@src[0]);
+  w := VecF32x4Floor(v);
+  VecF32x4Store(@dst[0], w);
+  AssertEquals('Floor[0]', 2.0, dst[0], 0.0001);
+  AssertEquals('Floor[1]', -3.0, dst[1], 0.0001);
+
+  // Ceil: ceil(2.3) = 3, ceil(-2.7) = -2
+  src[0] := 2.3; src[1] := -2.7; src[2] := 3.0; src[3] := -3.0;
+  v := VecF32x4Load(@src[0]);
+  w := VecF32x4Ceil(v);
+  VecF32x4Store(@dst[0], w);
+  AssertEquals('Ceil[0]', 3.0, dst[0], 0.0001);
+  AssertEquals('Ceil[1]', -2.0, dst[1], 0.0001);
+
+  // Round: round(2.4) = 2, round(2.6) = 3
+  src[0] := 2.4; src[1] := 2.6; src[2] := -2.4; src[3] := -2.6;
+  v := VecF32x4Load(@src[0]);
+  w := VecF32x4Round(v);
+  VecF32x4Store(@dst[0], w);
+  AssertEquals('Round[0]', 2.0, dst[0], 0.0001);
+  AssertEquals('Round[1]', 3.0, dst[1], 0.0001);
+
+  // Trunc: trunc(2.9) = 2, trunc(-2.9) = -2
+  src[0] := 2.9; src[1] := -2.9; src[2] := 3.0; src[3] := -3.0;
+  v := VecF32x4Load(@src[0]);
+  w := VecF32x4Trunc(v);
+  VecF32x4Store(@dst[0], w);
+  AssertEquals('Trunc[0]', 2.0, dst[0], 0.0001);
+  AssertEquals('Trunc[1]', -2.0, dst[1], 0.0001);
+
+  // Clamp: clamp((-5, 5, 15, 0), 0, 10) = (0, 5, 10, 0)
+  src[0] := -5.0; src[1] := 5.0; src[2] := 15.0; src[3] := 0.0;
+  v := VecF32x4Load(@src[0]);
+  w := VecF32x4Clamp(v, VecF32x4Splat(0.0), VecF32x4Splat(10.0));
+  VecF32x4Store(@dst[0], w);
+  AssertEquals('Clamp[0]', 0.0, dst[0], 0.0001);
+  AssertEquals('Clamp[1]', 5.0, dst[1], 0.0001);
+  AssertEquals('Clamp[2]', 10.0, dst[2], 0.0001);
+
+  // 3D Dot: (1,2,3) · (4,5,6) = 4+10+18 = 32
+  src[0] := 1.0; src[1] := 2.0; src[2] := 3.0; src[3] := 999.0;
+  v := VecF32x4Load(@src[0]);
+  src[0] := 4.0; src[1] := 5.0; src[2] := 6.0; src[3] := 999.0;
+  w := VecF32x4Load(@src[0]);
+  AssertEquals('Dot3', 32.0, VecF32x3Dot(v, w), 0.0001);
+
+  // 4D Dot: (1,2,3,4) · (2,3,4,5) = 2+6+12+20 = 40
+  src[0] := 1.0; src[1] := 2.0; src[2] := 3.0; src[3] := 4.0;
+  v := VecF32x4Load(@src[0]);
+  src[0] := 2.0; src[1] := 3.0; src[2] := 4.0; src[3] := 5.0;
+  w := VecF32x4Load(@src[0]);
+  AssertEquals('Dot4', 40.0, VecF32x4Dot(v, w), 0.0001);
+
+  // Cross: X × Y = Z
+  src[0] := 1.0; src[1] := 0.0; src[2] := 0.0; src[3] := 0.0;
+  v := VecF32x4Load(@src[0]);
+  src[0] := 0.0; src[1] := 1.0; src[2] := 0.0; src[3] := 0.0;
+  w := VecF32x4Load(@src[0]);
+  w := VecF32x3Cross(v, w);
+  VecF32x4Store(@dst[0], w);
+  AssertEquals('Cross X', 0.0, dst[0], 0.0001);
+  AssertEquals('Cross Y', 0.0, dst[1], 0.0001);
+  AssertEquals('Cross Z', 1.0, dst[2], 0.0001);
+
+  // Length3: |(3,4,0)| = 5
+  src[0] := 3.0; src[1] := 4.0; src[2] := 0.0; src[3] := 999.0;
+  v := VecF32x4Load(@src[0]);
+  AssertEquals('Length3', 5.0, VecF32x3Length(v), 0.0001);
+
+  // Length4: |(1,1,1,1)| = 2
+  src[0] := 1.0; src[1] := 1.0; src[2] := 1.0; src[3] := 1.0;
+  v := VecF32x4Load(@src[0]);
+  AssertEquals('Length4', 2.0, VecF32x4Length(v), 0.0001);
+
+  // Normalize3: (3,4,0) / 5 = (0.6, 0.8, 0)
+  src[0] := 3.0; src[1] := 4.0; src[2] := 0.0; src[3] := 999.0;
+  v := VecF32x4Load(@src[0]);
+  w := VecF32x3Normalize(v);
+  VecF32x4Store(@dst[0], w);
+  AssertEquals('Normalize3 X', 0.6, dst[0], 0.0001);
+  AssertEquals('Normalize3 Y', 0.8, dst[1], 0.0001);
+  AssertEquals('Normalize3 Z', 0.0, dst[2], 0.0001);
+
+  // Normalize4: (3,0,0,0) / 3 = (1,0,0,0)
+  src[0] := 3.0; src[1] := 0.0; src[2] := 0.0; src[3] := 0.0;
+  v := VecF32x4Load(@src[0]);
+  w := VecF32x4Normalize(v);
+  VecF32x4Store(@dst[0], w);
+  AssertEquals('Normalize4 X', 1.0, dst[0], 0.0001);
+  AssertEquals('Normalize4 Y', 0.0, dst[1], 0.0001);
+end;
+
+procedure TTestCase_BackendSmoke.TearDown;
+begin
+  ResetBackendSelection;
+  inherited TearDown;
+end;
+
+procedure TTestCase_BackendSmoke.Test_VectorAsmEnabled_Toggle_Roundtrip;
+var
+  oldValue: Boolean;
+begin
+  oldValue := IsVectorAsmEnabled;
+
+  SetVectorAsmEnabled(not oldValue);
+  AssertEquals('Vector asm should reflect the new value', not oldValue, IsVectorAsmEnabled);
+
+  SetVectorAsmEnabled(oldValue);
+  AssertEquals('Vector asm should restore original value', oldValue, IsVectorAsmEnabled);
+end;
+
+procedure TTestCase_BackendSmoke.Test_DefaultBackend_VecF32x4_Smoke;
+begin
+  // 自动选择 backend 的情况下，基础向量操作不应崩溃，且结果应正确
+  AssertTrue('Dispatch table should be assigned', GetDispatchTable <> nil);
+  RunVecF32x4Smoke;
+end;
+
+procedure TTestCase_BackendSmoke.Test_ForceScalar_VecF32x4_Smoke;
+begin
+  ForceBackend(sbScalar);
+  AssertEquals('Active backend should be Scalar', Ord(sbScalar), Ord(GetCurrentBackend));
+  RunVecF32x4Smoke;
+end;
+
+procedure TTestCase_BackendSmoke.Test_ForceSSE2_VecF32x4_Smoke;
+begin
+  ForceBackend(sbSSE2);
+  if HasSSE2 then
+    AssertEquals('Active backend should be SSE2', Ord(sbSSE2), Ord(GetCurrentBackend))
+  else
+    AssertEquals('Fallback backend should be Scalar', Ord(sbScalar), Ord(GetCurrentBackend));
+  RunVecF32x4Smoke;
+end;
+
+procedure TTestCase_BackendSmoke.Test_ForceAVX2_VecF32x4_Smoke;
+begin
+  ForceBackend(sbAVX2);
+  if HasAVX2 then
+    AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend))
+  else
+    AssertEquals('Fallback backend should be Scalar', Ord(sbScalar), Ord(GetCurrentBackend));
+  RunVecF32x4Smoke;
+end;
+
+procedure TTestCase_BackendSmoke.Test_ForceAVX512_VecF32x4_Smoke;
+begin
+  ForceBackend(sbAVX512);
+  if HasAVX512 then
+    AssertEquals('Active backend should be AVX-512', Ord(sbAVX512), Ord(GetCurrentBackend))
+  else
+    AssertEquals('Fallback backend should be Scalar', Ord(sbScalar), Ord(GetCurrentBackend));
+  RunVecF32x4Smoke;
 end;
 
 { TTestCase_VectorOps }
@@ -2150,12 +2810,2777 @@ begin
   AssertEquals('Element 3 should be 3.0', 3.0, VecF32x4Extract(c, 3), 0.0001);
 end;
 
+{ TTestCase_VectorMaskTypes }
+
+procedure TTestCase_VectorMaskTypes.Test_MaskF32x4_TypeDef_Size;
+var
+  m: TMaskF32x4;
+begin
+  AssertEquals('TMaskF32x4 should be 16 bytes', 16, SizeOf(m));
+end;
+
+procedure TTestCase_VectorMaskTypes.Test_MaskF32x4_AllTrue;
+var
+  m: TMaskF32x4;
+begin
+  m := MaskF32x4AllTrue;
+  AssertEquals('m[0] should be $FFFFFFFF', UInt32($FFFFFFFF), m.m[0]);
+  AssertEquals('m[1] should be $FFFFFFFF', UInt32($FFFFFFFF), m.m[1]);
+  AssertEquals('m[2] should be $FFFFFFFF', UInt32($FFFFFFFF), m.m[2]);
+  AssertEquals('m[3] should be $FFFFFFFF', UInt32($FFFFFFFF), m.m[3]);
+end;
+
+procedure TTestCase_VectorMaskTypes.Test_MaskF32x4_AllFalse;
+var
+  m: TMaskF32x4;
+begin
+  m := MaskF32x4AllFalse;
+  AssertEquals('m[0] should be 0', UInt32(0), m.m[0]);
+  AssertEquals('m[1] should be 0', UInt32(0), m.m[1]);
+  AssertEquals('m[2] should be 0', UInt32(0), m.m[2]);
+  AssertEquals('m[3] should be 0', UInt32(0), m.m[3]);
+end;
+
+procedure TTestCase_VectorMaskTypes.Test_MaskF32x4_Mixed;
+var
+  m: TMaskF32x4;
+begin
+  m := MaskF32x4Set(True, False, True, False);
+  AssertEquals('m[0] should be $FFFFFFFF', UInt32($FFFFFFFF), m.m[0]);
+  AssertEquals('m[1] should be 0', UInt32(0), m.m[1]);
+  AssertEquals('m[2] should be $FFFFFFFF', UInt32($FFFFFFFF), m.m[2]);
+  AssertEquals('m[3] should be 0', UInt32(0), m.m[3]);
+end;
+
+procedure TTestCase_VectorMaskTypes.Test_MaskF32x4_Test;
+var
+  m: TMaskF32x4;
+begin
+  m := MaskF32x4Set(True, False, True, False);
+  AssertTrue('Test(0) should be True', MaskF32x4Test(m, 0));
+  AssertFalse('Test(1) should be False', MaskF32x4Test(m, 1));
+  AssertTrue('Test(2) should be True', MaskF32x4Test(m, 2));
+  AssertFalse('Test(3) should be False', MaskF32x4Test(m, 3));
+end;
+
+procedure TTestCase_VectorMaskTypes.Test_MaskF32x4_ToBitmask;
+var
+  m: TMaskF32x4;
+  bm: TMask4;
+begin
+  m := MaskF32x4AllTrue;
+  bm := MaskF32x4ToBitmask(m);
+  AssertEquals('AllTrue bitmask should be $F', $F, bm);
+  
+  m := MaskF32x4AllFalse;
+  bm := MaskF32x4ToBitmask(m);
+  AssertEquals('AllFalse bitmask should be 0', 0, bm);
+  
+  m := MaskF32x4Set(True, False, True, False);
+  bm := MaskF32x4ToBitmask(m);
+  AssertEquals('Mixed bitmask should be $5', $5, bm);  // bits 0,2 set = 0101
+end;
+
+procedure TTestCase_VectorMaskTypes.Test_MaskF32x4_Any;
+var
+  m: TMaskF32x4;
+begin
+  m := MaskF32x4AllTrue;
+  AssertTrue('AllTrue.Any should be True', MaskF32x4Any(m));
+  
+  m := MaskF32x4AllFalse;
+  AssertFalse('AllFalse.Any should be False', MaskF32x4Any(m));
+  
+  m := MaskF32x4Set(False, False, False, True);
+  AssertTrue('OnlyLast.Any should be True', MaskF32x4Any(m));
+end;
+
+procedure TTestCase_VectorMaskTypes.Test_MaskF32x4_All;
+var
+  m: TMaskF32x4;
+begin
+  m := MaskF32x4AllTrue;
+  AssertTrue('AllTrue.All should be True', MaskF32x4All(m));
+  
+  m := MaskF32x4AllFalse;
+  AssertFalse('AllFalse.All should be False', MaskF32x4All(m));
+  
+  m := MaskF32x4Set(True, True, True, False);
+  AssertFalse('Almost all.All should be False', MaskF32x4All(m));
+end;
+
+procedure TTestCase_VectorMaskTypes.Test_MaskF32x4_None;
+var
+  m: TMaskF32x4;
+begin
+  m := MaskF32x4AllTrue;
+  AssertFalse('AllTrue.None should be False', MaskF32x4None(m));
+  
+  m := MaskF32x4AllFalse;
+  AssertTrue('AllFalse.None should be True', MaskF32x4None(m));
+  
+  m := MaskF32x4Set(False, False, False, True);
+  AssertFalse('OnlyLast.None should be False', MaskF32x4None(m));
+end;
+
+procedure TTestCase_VectorMaskTypes.Test_MaskF32x4_Op_And;
+var
+  a, b, c: TMaskF32x4;
+begin
+  a := MaskF32x4Set(True, True, False, False);
+  b := MaskF32x4Set(True, False, True, False);
+  c := a and b;
+  
+  AssertTrue('(T and T) should be T', MaskF32x4Test(c, 0));
+  AssertFalse('(T and F) should be F', MaskF32x4Test(c, 1));
+  AssertFalse('(F and T) should be F', MaskF32x4Test(c, 2));
+  AssertFalse('(F and F) should be F', MaskF32x4Test(c, 3));
+end;
+
+procedure TTestCase_VectorMaskTypes.Test_MaskF32x4_Op_Or;
+var
+  a, b, c: TMaskF32x4;
+begin
+  a := MaskF32x4Set(True, True, False, False);
+  b := MaskF32x4Set(True, False, True, False);
+  c := a or b;
+  
+  AssertTrue('(T or T) should be T', MaskF32x4Test(c, 0));
+  AssertTrue('(T or F) should be T', MaskF32x4Test(c, 1));
+  AssertTrue('(F or T) should be T', MaskF32x4Test(c, 2));
+  AssertFalse('(F or F) should be F', MaskF32x4Test(c, 3));
+end;
+
+procedure TTestCase_VectorMaskTypes.Test_MaskF32x4_Op_Xor;
+var
+  a, b, c: TMaskF32x4;
+begin
+  a := MaskF32x4Set(True, True, False, False);
+  b := MaskF32x4Set(True, False, True, False);
+  c := a xor b;
+  
+  AssertFalse('(T xor T) should be F', MaskF32x4Test(c, 0));
+  AssertTrue('(T xor F) should be T', MaskF32x4Test(c, 1));
+  AssertTrue('(F xor T) should be T', MaskF32x4Test(c, 2));
+  AssertFalse('(F xor F) should be F', MaskF32x4Test(c, 3));
+end;
+
+procedure TTestCase_VectorMaskTypes.Test_MaskF32x4_Op_Not;
+var
+  a, c: TMaskF32x4;
+begin
+  a := MaskF32x4Set(True, False, True, False);
+  c := not a;
+  
+  AssertFalse('(not T) should be F', MaskF32x4Test(c, 0));
+  AssertTrue('(not F) should be T', MaskF32x4Test(c, 1));
+  AssertFalse('(not T) should be F', MaskF32x4Test(c, 2));
+  AssertTrue('(not F) should be T', MaskF32x4Test(c, 3));
+end;
+
+procedure TTestCase_VectorMaskTypes.Test_MaskI32x4_TypeDef_Size;
+var
+  m: TMaskI32x4;
+begin
+  AssertEquals('TMaskI32x4 should be 16 bytes', 16, SizeOf(m));
+end;
+
+procedure TTestCase_VectorMaskTypes.Test_MaskI32x4_AllTrue;
+var
+  m: TMaskI32x4;
+begin
+  m := MaskI32x4AllTrue;
+  AssertEquals('m[0] should be $FFFFFFFF', UInt32($FFFFFFFF), m.m[0]);
+  AssertEquals('m[1] should be $FFFFFFFF', UInt32($FFFFFFFF), m.m[1]);
+  AssertEquals('m[2] should be $FFFFFFFF', UInt32($FFFFFFFF), m.m[2]);
+  AssertEquals('m[3] should be $FFFFFFFF', UInt32($FFFFFFFF), m.m[3]);
+end;
+
+procedure TTestCase_VectorMaskTypes.Test_MaskI32x4_ToBitmask;
+var
+  m: TMaskI32x4;
+  bm: TMask4;
+begin
+  m := MaskI32x4AllTrue;
+  bm := MaskI32x4ToBitmask(m);
+  AssertEquals('AllTrue bitmask should be $F', $F, bm);
+  
+  m := MaskI32x4AllFalse;
+  bm := MaskI32x4ToBitmask(m);
+  AssertEquals('AllFalse bitmask should be 0', 0, bm);
+end;
+
+procedure TTestCase_VectorMaskTypes.Test_MaskF64x2_TypeDef_Size;
+var
+  m: TMaskF64x2;
+begin
+  AssertEquals('TMaskF64x2 should be 16 bytes', 16, SizeOf(m));
+end;
+
+procedure TTestCase_VectorMaskTypes.Test_MaskF64x2_AllTrue;
+var
+  m: TMaskF64x2;
+begin
+  m := MaskF64x2AllTrue;
+  AssertEquals('m[0] should be max UInt64', High(UInt64), m.m[0]);
+  AssertEquals('m[1] should be max UInt64', High(UInt64), m.m[1]);
+end;
+
+procedure TTestCase_VectorMaskTypes.Test_MaskF64x2_ToBitmask;
+var
+  m: TMaskF64x2;
+  bm: TMask2;
+begin
+  m := MaskF64x2AllTrue;
+  bm := MaskF64x2ToBitmask(m);
+  AssertEquals('AllTrue bitmask should be $3', $3, bm);
+  
+  m := MaskF64x2AllFalse;
+  bm := MaskF64x2ToBitmask(m);
+  AssertEquals('AllFalse bitmask should be 0', 0, bm);
+end;
+
+procedure TTestCase_VectorMaskTypes.Test_MaskF32x4_Select;
+var
+  m: TMaskF32x4;
+  a, b, r: TVecF32x4;
+begin
+  // mask: [T, F, T, F]
+  m := MaskF32x4Set(True, False, True, False);
+  
+  // a = [1, 2, 3, 4], b = [10, 20, 30, 40]
+  a.f[0] := 1.0; a.f[1] := 2.0; a.f[2] := 3.0; a.f[3] := 4.0;
+  b.f[0] := 10.0; b.f[1] := 20.0; b.f[2] := 30.0; b.f[3] := 40.0;
+  
+  r := MaskF32x4Select(m, a, b);
+  
+  // result should be [1, 20, 3, 40]
+  AssertEquals('r[0] should be 1.0 (from a)', 1.0, r.f[0], 0.0001);
+  AssertEquals('r[1] should be 20.0 (from b)', 20.0, r.f[1], 0.0001);
+  AssertEquals('r[2] should be 3.0 (from a)', 3.0, r.f[2], 0.0001);
+  AssertEquals('r[3] should be 40.0 (from b)', 40.0, r.f[3], 0.0001);
+end;
+
+{ TTestCase_TypeConversion }
+
+procedure TTestCase_TypeConversion.Test_VecF32x4_IntoBits;
+var
+  f: TVecF32x4;
+  i: TVecI32x4;
+begin
+  // 1.0 的位模式是 0x3F800000
+  f.f[0] := 1.0;
+  f.f[1] := 1.0;
+  f.f[2] := 1.0;
+  f.f[3] := 1.0;
+  i := VecF32x4IntoBits(f);
+  
+  AssertEquals('1.0 bit pattern should be $3F800000', Int32($3F800000), i.i[0]);
+  AssertEquals('Element 1 should match', Int32($3F800000), i.i[1]);
+  AssertEquals('Element 2 should match', Int32($3F800000), i.i[2]);
+  AssertEquals('Element 3 should match', Int32($3F800000), i.i[3]);
+end;
+
+procedure TTestCase_TypeConversion.Test_VecI32x4_FromBitsF32;
+var
+  i: TVecI32x4;
+  f: TVecF32x4;
+begin
+  // 0x3F800000 解释为浮点数应该是 1.0
+  i.i[0] := Int32($3F800000);
+  i.i[1] := Int32($3F800000);
+  i.i[2] := Int32($3F800000);
+  i.i[3] := Int32($3F800000);
+  
+  f := VecI32x4FromBitsF32(i);
+  
+  AssertEquals('$3F800000 as float should be 1.0', 1.0, f.f[0], 0.0001);
+  AssertEquals('Element 1 should be 1.0', 1.0, f.f[1], 0.0001);
+  AssertEquals('Element 2 should be 1.0', 1.0, f.f[2], 0.0001);
+  AssertEquals('Element 3 should be 1.0', 1.0, f.f[3], 0.0001);
+end;
+
+procedure TTestCase_TypeConversion.Test_IntoBits_FromBits_Roundtrip;
+var
+  original, restored: TVecF32x4;
+  bits: TVecI32x4;
+begin
+  original.f[0] := 1.5;
+  original.f[1] := -2.5;
+  original.f[2] := 3.14159;
+  original.f[3] := 0.0;
+  
+  bits := VecF32x4IntoBits(original);
+  restored := VecI32x4FromBitsF32(bits);
+  
+  AssertEquals('Roundtrip [0]', original.f[0], restored.f[0], 0.0001);
+  AssertEquals('Roundtrip [1]', original.f[1], restored.f[1], 0.0001);
+  AssertEquals('Roundtrip [2]', original.f[2], restored.f[2], 0.0001);
+  AssertEquals('Roundtrip [3]', original.f[3], restored.f[3], 0.0001);
+end;
+
+procedure TTestCase_TypeConversion.Test_VecF64x2_IntoBits;
+var
+  f: TVecF64x2;
+  i: TVecI64x2;
+begin
+  // 1.0 的 double 位模式是 0x3FF0000000000000
+  f.d[0] := 1.0;
+  f.d[1] := 1.0;
+  i := VecF64x2IntoBits(f);
+  
+  AssertEquals('1.0 double bit pattern', Int64($3FF0000000000000), i.i[0]);
+  AssertEquals('Element 1 should match', Int64($3FF0000000000000), i.i[1]);
+end;
+
+procedure TTestCase_TypeConversion.Test_VecI64x2_FromBitsF64;
+var
+  i: TVecI64x2;
+  f: TVecF64x2;
+begin
+  i.i[0] := Int64($3FF0000000000000);  // 1.0
+  i.i[1] := Int64($4000000000000000);  // 2.0
+  
+  f := VecI64x2FromBitsF64(i);
+  
+  AssertEquals('$3FF... as double should be 1.0', 1.0, f.d[0], 0.0001);
+  AssertEquals('$400... as double should be 2.0', 2.0, f.d[1], 0.0001);
+end;
+
+procedure TTestCase_TypeConversion.Test_VecF32x4_CastToI32x4;
+var
+  f: TVecF32x4;
+  i: TVecI32x4;
+begin
+  f.f[0] := 1.9;   // 截断为 1
+  f.f[1] := -2.9;  // 截断为 -2
+  f.f[2] := 0.0;
+  f.f[3] := 100.5; // 截断为 100
+  
+  i := VecF32x4CastToI32x4(f);
+  
+  AssertEquals('1.9 truncates to 1', 1, i.i[0]);
+  AssertEquals('-2.9 truncates to -2', -2, i.i[1]);
+  AssertEquals('0.0 truncates to 0', 0, i.i[2]);
+  AssertEquals('100.5 truncates to 100', 100, i.i[3]);
+end;
+
+procedure TTestCase_TypeConversion.Test_VecI32x4_CastToF32x4;
+var
+  i: TVecI32x4;
+  f: TVecF32x4;
+begin
+  i.i[0] := 1;
+  i.i[1] := -2;
+  i.i[2] := 0;
+  i.i[3] := 100;
+  
+  f := VecI32x4CastToF32x4(i);
+  
+  AssertEquals('1 converts to 1.0', 1.0, f.f[0], 0.0001);
+  AssertEquals('-2 converts to -2.0', -2.0, f.f[1], 0.0001);
+  AssertEquals('0 converts to 0.0', 0.0, f.f[2], 0.0001);
+  AssertEquals('100 converts to 100.0', 100.0, f.f[3], 0.0001);
+end;
+
+procedure TTestCase_TypeConversion.Test_VecF64x2_CastToI64x2;
+var
+  f: TVecF64x2;
+  i: TVecI64x2;
+begin
+  f.d[0] := 1.9;   // 截断为 1
+  f.d[1] := -2.9;  // 截断为 -2
+  
+  i := VecF64x2CastToI64x2(f);
+  
+  AssertEquals('1.9 truncates to 1', Int64(1), i.i[0]);
+  AssertEquals('-2.9 truncates to -2', Int64(-2), i.i[1]);
+end;
+
+procedure TTestCase_TypeConversion.Test_VecI64x2_CastToF64x2;
+var
+  i: TVecI64x2;
+  f: TVecF64x2;
+begin
+  i.i[0] := 1;
+  i.i[1] := -2;
+  
+  f := VecI64x2CastToF64x2(i);
+  
+  AssertEquals('1 converts to 1.0', 1.0, f.d[0], 0.0001);
+  AssertEquals('-2 converts to -2.0', -2.0, f.d[1], 0.0001);
+end;
+
+procedure TTestCase_TypeConversion.Test_VecI16x8_WidenLo_I32x4;
+var
+  a: TVecI16x8;
+  r: TVecI32x4;
+begin
+  // 设置低 4 个元素，包含负数测试符号扩展
+  a.i[0] := 100;
+  a.i[1] := -100;
+  a.i[2] := 32767;   // max Int16
+  a.i[3] := -32768;  // min Int16
+  a.i[4] := 1; a.i[5] := 2; a.i[6] := 3; a.i[7] := 4;  // 高 4 个元素（应被忽略）
+  
+  r := VecI16x8WidenLoI32x4(a);
+  
+  AssertEquals('Widen lo[0]', Int32(100), r.i[0]);
+  AssertEquals('Widen lo[1] with sign', Int32(-100), r.i[1]);
+  AssertEquals('Widen lo[2] max', Int32(32767), r.i[2]);
+  AssertEquals('Widen lo[3] min', Int32(-32768), r.i[3]);
+end;
+
+procedure TTestCase_TypeConversion.Test_VecI16x8_WidenHi_I32x4;
+var
+  a: TVecI16x8;
+  r: TVecI32x4;
+begin
+  a.i[0] := 1; a.i[1] := 2; a.i[2] := 3; a.i[3] := 4;  // 低 4 个元素（应被忽略）
+  // 设置高 4 个元素
+  a.i[4] := 200;
+  a.i[5] := -200;
+  a.i[6] := 32767;
+  a.i[7] := -32768;
+  
+  r := VecI16x8WidenHiI32x4(a);
+  
+  AssertEquals('Widen hi[0]', Int32(200), r.i[0]);
+  AssertEquals('Widen hi[1] with sign', Int32(-200), r.i[1]);
+  AssertEquals('Widen hi[2] max', Int32(32767), r.i[2]);
+  AssertEquals('Widen hi[3] min', Int32(-32768), r.i[3]);
+end;
+
+procedure TTestCase_TypeConversion.Test_VecI32x4_NarrowToI16x8;
+var
+  a, b: TVecI32x4;
+  r: TVecI16x8;
+begin
+  // a -> 低 4 个元素
+  a.i[0] := 100;
+  a.i[1] := -100;
+  a.i[2] := 32767;
+  a.i[3] := -32768;
+  
+  // b -> 高 4 个元素
+  b.i[0] := 1;
+  b.i[1] := 2;
+  b.i[2] := 3;
+  b.i[3] := 4;
+  
+  r := VecI32x4NarrowToI16x8(a, b);
+  
+  // 低 4 个元素来自 a
+  AssertEquals('Narrow[0] from a', Int16(100), r.i[0]);
+  AssertEquals('Narrow[1] from a', Int16(-100), r.i[1]);
+  AssertEquals('Narrow[2] from a', Int16(32767), r.i[2]);
+  AssertEquals('Narrow[3] from a', Int16(-32768), r.i[3]);
+  // 高 4 个元素来自 b
+  AssertEquals('Narrow[4] from b', Int16(1), r.i[4]);
+  AssertEquals('Narrow[5] from b', Int16(2), r.i[5]);
+  AssertEquals('Narrow[6] from b', Int16(3), r.i[6]);
+  AssertEquals('Narrow[7] from b', Int16(4), r.i[7]);
+end;
+
+procedure TTestCase_TypeConversion.Test_VecF32x4_ToF64x2_Lo;
+var
+  a: TVecF32x4;
+  r: TVecF64x2;
+begin
+  a.f[0] := 1.5;
+  a.f[1] := -2.5;
+  a.f[2] := 999.0;  // 应被忽略
+  a.f[3] := 888.0;  // 应被忽略
+  
+  r := VecF32x4ToF64x2Lo(a);
+  
+  AssertEquals('F32->F64 [0]', 1.5, r.d[0], 0.0001);
+  AssertEquals('F32->F64 [1]', -2.5, r.d[1], 0.0001);
+end;
+
+procedure TTestCase_TypeConversion.Test_VecF64x2_ToF32x4;
+var
+  a, b: TVecF64x2;
+  r: TVecF32x4;
+begin
+  // a -> 低 2 个元素
+  a.d[0] := 1.5;
+  a.d[1] := -2.5;
+  
+  // b -> 高 2 个元素
+  b.d[0] := 3.5;
+  b.d[1] := 4.5;
+  
+  r := VecF64x2ToF32x4(a, b);
+  
+  AssertEquals('F64->F32 [0] from a', 1.5, r.f[0], 0.0001);
+  AssertEquals('F64->F32 [1] from a', -2.5, r.f[1], 0.0001);
+  AssertEquals('F64->F32 [2] from b', 3.5, r.f[2], 0.0001);
+  AssertEquals('F64->F32 [3] from b', 4.5, r.f[3], 0.0001);
+end;
+
+{ TTestCase_Builder }
+
+procedure TTestCase_Builder.SetUp;
+begin
+  inherited SetUp;
+end;
+
+procedure TTestCase_Builder.TearDown;
+begin
+  inherited TearDown;
+end;
+
+procedure TTestCase_Builder.Test_Builder_Create_FromValues;
+var
+  v: TVecF32x4;
+begin
+  v := TVecF32x4Builder.FromValues(1.0, 2.0, 3.0, 4.0).Build;
+  
+  AssertEquals('Element 0', 1.0, v.f[0], 0.0001);
+  AssertEquals('Element 1', 2.0, v.f[1], 0.0001);
+  AssertEquals('Element 2', 3.0, v.f[2], 0.0001);
+  AssertEquals('Element 3', 4.0, v.f[3], 0.0001);
+end;
+
+procedure TTestCase_Builder.Test_Builder_Create_Splat;
+var
+  v: TVecF32x4;
+begin
+  v := TVecF32x4Builder.Splat(42.0).Build;
+  
+  AssertEquals('Element 0', 42.0, v.f[0], 0.0001);
+  AssertEquals('Element 1', 42.0, v.f[1], 0.0001);
+  AssertEquals('Element 2', 42.0, v.f[2], 0.0001);
+  AssertEquals('Element 3', 42.0, v.f[3], 0.0001);
+end;
+
+procedure TTestCase_Builder.Test_Builder_Create_Load;
+var
+  arr: array[0..3] of Single;
+  v: TVecF32x4;
+begin
+  arr[0] := 10.0; arr[1] := 20.0; arr[2] := 30.0; arr[3] := 40.0;
+  v := TVecF32x4Builder.Load(@arr[0]).Build;
+  
+  AssertEquals('Element 0', 10.0, v.f[0], 0.0001);
+  AssertEquals('Element 1', 20.0, v.f[1], 0.0001);
+  AssertEquals('Element 2', 30.0, v.f[2], 0.0001);
+  AssertEquals('Element 3', 40.0, v.f[3], 0.0001);
+end;
+
+procedure TTestCase_Builder.Test_Builder_Chain_Add;
+var
+  v: TVecF32x4;
+begin
+  // (1,2,3,4) + (10,20,30,40) = (11,22,33,44)
+  v := TVecF32x4Builder.FromValues(1.0, 2.0, 3.0, 4.0)
+         .Add(TVecF32x4Builder.FromValues(10.0, 20.0, 30.0, 40.0).Build)
+         .Build;
+  
+  AssertEquals('Element 0', 11.0, v.f[0], 0.0001);
+  AssertEquals('Element 1', 22.0, v.f[1], 0.0001);
+  AssertEquals('Element 2', 33.0, v.f[2], 0.0001);
+  AssertEquals('Element 3', 44.0, v.f[3], 0.0001);
+end;
+
+procedure TTestCase_Builder.Test_Builder_Chain_MulAdd;
+var
+  v: TVecF32x4;
+begin
+  // (1,2,3,4) * 2 + (10,10,10,10) = (12,14,16,18)
+  v := TVecF32x4Builder.FromValues(1.0, 2.0, 3.0, 4.0)
+         .MulScalar(2.0)
+         .AddScalar(10.0)
+         .Build;
+  
+  AssertEquals('Element 0', 12.0, v.f[0], 0.0001);
+  AssertEquals('Element 1', 14.0, v.f[1], 0.0001);
+  AssertEquals('Element 2', 16.0, v.f[2], 0.0001);
+  AssertEquals('Element 3', 18.0, v.f[3], 0.0001);
+end;
+
+procedure TTestCase_Builder.Test_Builder_Chain_Normalize;
+var
+  v: TVecF32x4;
+  len: Single;
+begin
+  // (3,0,0,0) normalized = (1,0,0,0)
+  v := TVecF32x4Builder.FromValues(3.0, 0.0, 0.0, 0.0)
+         .Normalize
+         .Build;
+  
+  AssertEquals('Element 0', 1.0, v.f[0], 0.0001);
+  AssertEquals('Element 1', 0.0, v.f[1], 0.0001);
+  AssertEquals('Element 2', 0.0, v.f[2], 0.0001);
+  AssertEquals('Element 3', 0.0, v.f[3], 0.0001);
+  
+  // 验证长度为 1
+  len := VecF32x4Length(v);
+  AssertEquals('Length should be 1', 1.0, len, 0.0001);
+end;
+
+procedure TTestCase_Builder.Test_Builder_Chain_Clamp;
+var
+  v: TVecF32x4;
+begin
+  // (-5, 5, 15, 0) clamped to [0,10] = (0, 5, 10, 0)
+  v := TVecF32x4Builder.FromValues(-5.0, 5.0, 15.0, 0.0)
+         .Clamp(0.0, 10.0)
+         .Build;
+  
+  AssertEquals('Element 0', 0.0, v.f[0], 0.0001);
+  AssertEquals('Element 1', 5.0, v.f[1], 0.0001);
+  AssertEquals('Element 2', 10.0, v.f[2], 0.0001);
+  AssertEquals('Element 3', 0.0, v.f[3], 0.0001);
+end;
+
+procedure TTestCase_Builder.Test_Builder_Build;
+var
+  v: TVecF32x4;
+begin
+  v := TVecF32x4Builder.FromValues(1.0, 2.0, 3.0, 4.0).Build;
+  
+  AssertEquals('Element 0', 1.0, v.f[0], 0.0001);
+  AssertEquals('Element 1', 2.0, v.f[1], 0.0001);
+  AssertEquals('Element 2', 3.0, v.f[2], 0.0001);
+  AssertEquals('Element 3', 4.0, v.f[3], 0.0001);
+end;
+
+procedure TTestCase_Builder.Test_Builder_ReduceAdd;
+var
+  sum: Single;
+begin
+  sum := TVecF32x4Builder.FromValues(1.0, 2.0, 3.0, 4.0).ReduceAdd;
+  AssertEquals('Sum should be 10', 10.0, sum, 0.0001);
+end;
+
+procedure TTestCase_Builder.Test_Builder_ReduceMin;
+var
+  minVal: Single;
+begin
+  minVal := TVecF32x4Builder.FromValues(5.0, 2.0, 8.0, 3.0).ReduceMin;
+  AssertEquals('Min should be 2', 2.0, minVal, 0.0001);
+end;
+
+procedure TTestCase_Builder.Test_Builder_ReduceMax;
+var
+  maxVal: Single;
+begin
+  maxVal := TVecF32x4Builder.FromValues(5.0, 2.0, 8.0, 3.0).ReduceMax;
+  AssertEquals('Max should be 8', 8.0, maxVal, 0.0001);
+end;
+
+procedure TTestCase_Builder.Test_Builder_Complex_DotProduct;
+var
+  dot: Single;
+begin
+  // (1,2,3,4) · (2,3,4,5) = 2+6+12+20 = 40
+  dot := TVecF32x4Builder.FromValues(1.0, 2.0, 3.0, 4.0)
+           .Mul(TVecF32x4Builder.FromValues(2.0, 3.0, 4.0, 5.0).Build)
+           .ReduceAdd;
+  
+  AssertEquals('Dot product should be 40', 40.0, dot, 0.0001);
+end;
+
+procedure TTestCase_Builder.Test_Builder_Complex_Lerp;
+var
+  v: TVecF32x4;
+begin
+  // lerp((0,0,0,0), (10,10,10,10), 0.3) = (3,3,3,3)
+  v := TVecF32x4Builder.Splat(0.0)
+         .Lerp(TVecF32x4Builder.Splat(10.0).Build, 0.3)
+         .Build;
+  
+  AssertEquals('Element 0', 3.0, v.f[0], 0.0001);
+  AssertEquals('Element 1', 3.0, v.f[1], 0.0001);
+  AssertEquals('Element 2', 3.0, v.f[2], 0.0001);
+  AssertEquals('Element 3', 3.0, v.f[3], 0.0001);
+end;
+
+{ TTestCase_GatherScatter }
+
+procedure TTestCase_GatherScatter.Test_VecF32x4_Gather_Sequential;
+var
+  data: array[0..15] of Single;
+  indices: TVecI32x4;
+  r: TVecF32x4;
+  i: Integer;
+begin
+  // 准备数据
+  for i := 0 to 15 do
+    data[i] := (i + 1) * 10.0;  // [10, 20, 30, ..., 160]
+  
+  // 顺序索引: [0, 1, 2, 3]
+  indices.i[0] := 0;
+  indices.i[1] := 1;
+  indices.i[2] := 2;
+  indices.i[3] := 3;
+  
+  r := VecF32x4Gather(@data[0], indices);
+  
+  AssertEquals('Gather[0]', 10.0, r.f[0], 0.0001);
+  AssertEquals('Gather[1]', 20.0, r.f[1], 0.0001);
+  AssertEquals('Gather[2]', 30.0, r.f[2], 0.0001);
+  AssertEquals('Gather[3]', 40.0, r.f[3], 0.0001);
+end;
+
+procedure TTestCase_GatherScatter.Test_VecF32x4_Gather_Stride;
+var
+  data: array[0..15] of Single;
+  indices: TVecI32x4;
+  r: TVecF32x4;
+  i: Integer;
+begin
+  for i := 0 to 15 do
+    data[i] := (i + 1) * 10.0;
+  
+  // 跨步索引: [0, 2, 4, 6] (stride = 2)
+  indices.i[0] := 0;
+  indices.i[1] := 2;
+  indices.i[2] := 4;
+  indices.i[3] := 6;
+  
+  r := VecF32x4Gather(@data[0], indices);
+  
+  AssertEquals('Gather stride[0]', 10.0, r.f[0], 0.0001);
+  AssertEquals('Gather stride[1]', 30.0, r.f[1], 0.0001);
+  AssertEquals('Gather stride[2]', 50.0, r.f[2], 0.0001);
+  AssertEquals('Gather stride[3]', 70.0, r.f[3], 0.0001);
+end;
+
+procedure TTestCase_GatherScatter.Test_VecF32x4_Gather_Random;
+var
+  data: array[0..15] of Single;
+  indices: TVecI32x4;
+  r: TVecF32x4;
+  i: Integer;
+begin
+  for i := 0 to 15 do
+    data[i] := (i + 1) * 10.0;
+  
+  // 随机索引: [7, 0, 15, 3]
+  indices.i[0] := 7;
+  indices.i[1] := 0;
+  indices.i[2] := 15;
+  indices.i[3] := 3;
+  
+  r := VecF32x4Gather(@data[0], indices);
+  
+  AssertEquals('Gather random[0]', 80.0, r.f[0], 0.0001);
+  AssertEquals('Gather random[1]', 10.0, r.f[1], 0.0001);
+  AssertEquals('Gather random[2]', 160.0, r.f[2], 0.0001);
+  AssertEquals('Gather random[3]', 40.0, r.f[3], 0.0001);
+end;
+
+procedure TTestCase_GatherScatter.Test_VecI32x4_Gather_Sequential;
+var
+  data: array[0..15] of Int32;
+  indices: TVecI32x4;
+  r: TVecI32x4;
+  i: Integer;
+begin
+  for i := 0 to 15 do
+    data[i] := (i + 1) * 100;
+  
+  indices.i[0] := 0;
+  indices.i[1] := 1;
+  indices.i[2] := 2;
+  indices.i[3] := 3;
+  
+  r := VecI32x4Gather(@data[0], indices);
+  
+  AssertEquals('Gather[0]', 100, r.i[0]);
+  AssertEquals('Gather[1]', 200, r.i[1]);
+  AssertEquals('Gather[2]', 300, r.i[2]);
+  AssertEquals('Gather[3]', 400, r.i[3]);
+end;
+
+procedure TTestCase_GatherScatter.Test_VecI32x4_Gather_Negative;
+var
+  data: array[0..15] of Int32;
+  indices: TVecI32x4;
+  r: TVecI32x4;
+  i: Integer;
+begin
+  for i := 0 to 15 do
+    data[i] := i - 8;  // [-8, -7, ..., 7]
+  
+  indices.i[0] := 0;
+  indices.i[1] := 8;
+  indices.i[2] := 15;
+  indices.i[3] := 4;
+  
+  r := VecI32x4Gather(@data[0], indices);
+  
+  AssertEquals('Gather negative[0]', -8, r.i[0]);
+  AssertEquals('Gather negative[1]', 0, r.i[1]);
+  AssertEquals('Gather negative[2]', 7, r.i[2]);
+  AssertEquals('Gather negative[3]', -4, r.i[3]);
+end;
+
+procedure TTestCase_GatherScatter.Test_VecF32x4_Scatter_Sequential;
+var
+  data: array[0..15] of Single;
+  indices: TVecI32x4;
+  values: TVecF32x4;
+  i: Integer;
+begin
+  // 清零目标数组
+  for i := 0 to 15 do
+    data[i] := 0.0;
+  
+  // 顺序索引
+  indices.i[0] := 0;
+  indices.i[1] := 1;
+  indices.i[2] := 2;
+  indices.i[3] := 3;
+  
+  // 要写入的值
+  values.f[0] := 11.0;
+  values.f[1] := 22.0;
+  values.f[2] := 33.0;
+  values.f[3] := 44.0;
+  
+  VecF32x4Scatter(@data[0], indices, values);
+  
+  AssertEquals('Scatter[0]', 11.0, data[0], 0.0001);
+  AssertEquals('Scatter[1]', 22.0, data[1], 0.0001);
+  AssertEquals('Scatter[2]', 33.0, data[2], 0.0001);
+  AssertEquals('Scatter[3]', 44.0, data[3], 0.0001);
+  // 确保其它位置未被修改
+  AssertEquals('Scatter[4] unchanged', 0.0, data[4], 0.0001);
+end;
+
+procedure TTestCase_GatherScatter.Test_VecF32x4_Scatter_Stride;
+var
+  data: array[0..15] of Single;
+  indices: TVecI32x4;
+  values: TVecF32x4;
+  i: Integer;
+begin
+  for i := 0 to 15 do
+    data[i] := 0.0;
+  
+  // 跨步索引: [0, 4, 8, 12]
+  indices.i[0] := 0;
+  indices.i[1] := 4;
+  indices.i[2] := 8;
+  indices.i[3] := 12;
+  
+  values.f[0] := 100.0;
+  values.f[1] := 200.0;
+  values.f[2] := 300.0;
+  values.f[3] := 400.0;
+  
+  VecF32x4Scatter(@data[0], indices, values);
+  
+  AssertEquals('Scatter stride[0]', 100.0, data[0], 0.0001);
+  AssertEquals('Scatter stride[4]', 200.0, data[4], 0.0001);
+  AssertEquals('Scatter stride[8]', 300.0, data[8], 0.0001);
+  AssertEquals('Scatter stride[12]', 400.0, data[12], 0.0001);
+  // 确保中间位置未被修改
+  AssertEquals('Scatter[1] unchanged', 0.0, data[1], 0.0001);
+  AssertEquals('Scatter[5] unchanged', 0.0, data[5], 0.0001);
+end;
+
+procedure TTestCase_GatherScatter.Test_VecI32x4_Scatter_Sequential;
+var
+  data: array[0..15] of Int32;
+  indices: TVecI32x4;
+  values: TVecI32x4;
+  i: Integer;
+begin
+  for i := 0 to 15 do
+    data[i] := 0;
+  
+  indices.i[0] := 5;
+  indices.i[1] := 10;
+  indices.i[2] := 2;
+  indices.i[3] := 15;
+  
+  values.i[0] := 111;
+  values.i[1] := 222;
+  values.i[2] := 333;
+  values.i[3] := 444;
+  
+  VecI32x4Scatter(@data[0], indices, values);
+  
+  AssertEquals('Scatter[5]', 111, data[5]);
+  AssertEquals('Scatter[10]', 222, data[10]);
+  AssertEquals('Scatter[2]', 333, data[2]);
+  AssertEquals('Scatter[15]', 444, data[15]);
+  // 确保其它位置未被修改
+  AssertEquals('Scatter[0] unchanged', 0, data[0]);
+end;
+
+procedure TTestCase_GatherScatter.Test_Gather_ZeroIndex;
+var
+  data: array[0..7] of Single;
+  indices: TVecI32x4;
+  r: TVecF32x4;
+  i: Integer;
+begin
+  for i := 0 to 7 do
+    data[i] := i * 1.5;
+  
+  // 所有索引都是 0
+  indices.i[0] := 0;
+  indices.i[1] := 0;
+  indices.i[2] := 0;
+  indices.i[3] := 0;
+  
+  r := VecF32x4Gather(@data[0], indices);
+  
+  // 所有结果应该都是 data[0]
+  AssertEquals('Gather zero[0]', 0.0, r.f[0], 0.0001);
+  AssertEquals('Gather zero[1]', 0.0, r.f[1], 0.0001);
+  AssertEquals('Gather zero[2]', 0.0, r.f[2], 0.0001);
+  AssertEquals('Gather zero[3]', 0.0, r.f[3], 0.0001);
+end;
+
+procedure TTestCase_GatherScatter.Test_Gather_LargeStride;
+var
+  data: array[0..1023] of Single;
+  indices: TVecI32x4;
+  r: TVecF32x4;
+  i: Integer;
+begin
+  for i := 0 to 1023 do
+    data[i] := i;
+  
+  // 大跨步索引
+  indices.i[0] := 0;
+  indices.i[1] := 256;
+  indices.i[2] := 512;
+  indices.i[3] := 1023;
+  
+  r := VecF32x4Gather(@data[0], indices);
+  
+  AssertEquals('Gather large[0]', 0.0, r.f[0], 0.0001);
+  AssertEquals('Gather large[1]', 256.0, r.f[1], 0.0001);
+  AssertEquals('Gather large[2]', 512.0, r.f[2], 0.0001);
+  AssertEquals('Gather large[3]', 1023.0, r.f[3], 0.0001);
+end;
+
+{ TTestCase_ShuffleSWizzle }
+
+procedure TTestCase_ShuffleSWizzle.Test_MM_SHUFFLE;
+begin
+  // MM_SHUFFLE(3,2,1,0) = identity = 0xE4
+  AssertEquals('MM_SHUFFLE(3,2,1,0) = 0xE4', $E4, MM_SHUFFLE(3, 2, 1, 0));
+  // MM_SHUFFLE(0,1,2,3) = reverse = 0x1B
+  AssertEquals('MM_SHUFFLE(0,1,2,3) = 0x1B', $1B, MM_SHUFFLE(0, 1, 2, 3));
+  // MM_SHUFFLE(0,0,0,0) = broadcast 0 = 0x00
+  AssertEquals('MM_SHUFFLE(0,0,0,0) = 0x00', $00, MM_SHUFFLE(0, 0, 0, 0));
+  // MM_SHUFFLE(2,2,2,2) = broadcast 2 = 0xAA
+  AssertEquals('MM_SHUFFLE(2,2,2,2) = 0xAA', $AA, MM_SHUFFLE(2, 2, 2, 2));
+end;
+
+procedure TTestCase_ShuffleSWizzle.Test_VecF32x4_Shuffle_Identity;
+var
+  a, r: TVecF32x4;
+begin
+  a.f[0] := 1.0; a.f[1] := 2.0; a.f[2] := 3.0; a.f[3] := 4.0;
+  
+  // 恒等 shuffle: MM_SHUFFLE(3,2,1,0) = 0xE4
+  r := VecF32x4Shuffle(a, $E4);
+  
+  AssertEquals('Identity[0]', 1.0, r.f[0], 0.0001);
+  AssertEquals('Identity[1]', 2.0, r.f[1], 0.0001);
+  AssertEquals('Identity[2]', 3.0, r.f[2], 0.0001);
+  AssertEquals('Identity[3]', 4.0, r.f[3], 0.0001);
+end;
+
+procedure TTestCase_ShuffleSWizzle.Test_VecF32x4_Shuffle_Reverse;
+var
+  a, r: TVecF32x4;
+begin
+  a.f[0] := 1.0; a.f[1] := 2.0; a.f[2] := 3.0; a.f[3] := 4.0;
+  
+  // 反转 shuffle: MM_SHUFFLE(0,1,2,3) = 0x1B
+  r := VecF32x4Shuffle(a, $1B);
+  
+  AssertEquals('Reverse[0]', 4.0, r.f[0], 0.0001);
+  AssertEquals('Reverse[1]', 3.0, r.f[1], 0.0001);
+  AssertEquals('Reverse[2]', 2.0, r.f[2], 0.0001);
+  AssertEquals('Reverse[3]', 1.0, r.f[3], 0.0001);
+end;
+
+procedure TTestCase_ShuffleSWizzle.Test_VecF32x4_Shuffle_Broadcast;
+var
+  a, r: TVecF32x4;
+begin
+  a.f[0] := 1.0; a.f[1] := 2.0; a.f[2] := 3.0; a.f[3] := 4.0;
+  
+  // 广播元素 2: MM_SHUFFLE(2,2,2,2) = 0xAA
+  r := VecF32x4Shuffle(a, $AA);
+  
+  AssertEquals('Broadcast2[0]', 3.0, r.f[0], 0.0001);
+  AssertEquals('Broadcast2[1]', 3.0, r.f[1], 0.0001);
+  AssertEquals('Broadcast2[2]', 3.0, r.f[2], 0.0001);
+  AssertEquals('Broadcast2[3]', 3.0, r.f[3], 0.0001);
+end;
+
+procedure TTestCase_ShuffleSWizzle.Test_VecI32x4_Shuffle;
+var
+  a, r: TVecI32x4;
+begin
+  a.i[0] := 10; a.i[1] := 20; a.i[2] := 30; a.i[3] := 40;
+  
+  // 跳跃 shuffle: MM_SHUFFLE(1,0,3,2) = 0x4E
+  r := VecI32x4Shuffle(a, $4E);
+  
+  AssertEquals('Swap[0]', 30, r.i[0]);
+  AssertEquals('Swap[1]', 40, r.i[1]);
+  AssertEquals('Swap[2]', 10, r.i[2]);
+  AssertEquals('Swap[3]', 20, r.i[3]);
+end;
+
+procedure TTestCase_ShuffleSWizzle.Test_VecF32x4_Shuffle2;
+var
+  a, b, r: TVecF32x4;
+begin
+  a.f[0] := 1.0; a.f[1] := 2.0; a.f[2] := 3.0; a.f[3] := 4.0;
+  b.f[0] := 10.0; b.f[1] := 20.0; b.f[2] := 30.0; b.f[3] := 40.0;
+  
+  // 低2来自a的[0,1], 高2来自b的[0,1]: MM_SHUFFLE(1,0,1,0) = 0x44
+  r := VecF32x4Shuffle2(a, b, $44);
+  
+  AssertEquals('Shuffle2[0] from a', 1.0, r.f[0], 0.0001);
+  AssertEquals('Shuffle2[1] from a', 2.0, r.f[1], 0.0001);
+  AssertEquals('Shuffle2[2] from b', 10.0, r.f[2], 0.0001);
+  AssertEquals('Shuffle2[3] from b', 20.0, r.f[3], 0.0001);
+end;
+
+procedure TTestCase_ShuffleSWizzle.Test_VecF32x4_Blend;
+var
+  a, b, r: TVecF32x4;
+begin
+  a.f[0] := 1.0; a.f[1] := 2.0; a.f[2] := 3.0; a.f[3] := 4.0;
+  b.f[0] := 10.0; b.f[1] := 20.0; b.f[2] := 30.0; b.f[3] := 40.0;
+  
+  // mask = 0b0101 = 5: 元素0和2来自b
+  r := VecF32x4Blend(a, b, 5);
+  
+  AssertEquals('Blend[0] from b', 10.0, r.f[0], 0.0001);
+  AssertEquals('Blend[1] from a', 2.0, r.f[1], 0.0001);
+  AssertEquals('Blend[2] from b', 30.0, r.f[2], 0.0001);
+  AssertEquals('Blend[3] from a', 4.0, r.f[3], 0.0001);
+end;
+
+procedure TTestCase_ShuffleSWizzle.Test_VecF64x2_Blend;
+var
+  a, b, r: TVecF64x2;
+begin
+  a.d[0] := 1.0; a.d[1] := 2.0;
+  b.d[0] := 10.0; b.d[1] := 20.0;
+  
+  // mask = 0b01 = 1: 元素0来自b
+  r := VecF64x2Blend(a, b, 1);
+  
+  AssertEquals('Blend[0] from b', 10.0, r.d[0], 0.0001);
+  AssertEquals('Blend[1] from a', 2.0, r.d[1], 0.0001);
+end;
+
+procedure TTestCase_ShuffleSWizzle.Test_VecI32x4_Blend;
+var
+  a, b, r: TVecI32x4;
+begin
+  a.i[0] := 1; a.i[1] := 2; a.i[2] := 3; a.i[3] := 4;
+  b.i[0] := 10; b.i[1] := 20; b.i[2] := 30; b.i[3] := 40;
+  
+  // mask = 0b1010 = 10: 元素1和3来自b
+  r := VecI32x4Blend(a, b, 10);
+  
+  AssertEquals('Blend[0] from a', 1, r.i[0]);
+  AssertEquals('Blend[1] from b', 20, r.i[1]);
+  AssertEquals('Blend[2] from a', 3, r.i[2]);
+  AssertEquals('Blend[3] from b', 40, r.i[3]);
+end;
+
+procedure TTestCase_ShuffleSWizzle.Test_VecF32x4_UnpackLo;
+var
+  a, b, r: TVecF32x4;
+begin
+  a.f[0] := 1.0; a.f[1] := 2.0; a.f[2] := 3.0; a.f[3] := 4.0;
+  b.f[0] := 10.0; b.f[1] := 20.0; b.f[2] := 30.0; b.f[3] := 40.0;
+  
+  r := VecF32x4UnpackLo(a, b);
+  
+  // 结果: [a0, b0, a1, b1]
+  AssertEquals('UnpackLo[0]', 1.0, r.f[0], 0.0001);
+  AssertEquals('UnpackLo[1]', 10.0, r.f[1], 0.0001);
+  AssertEquals('UnpackLo[2]', 2.0, r.f[2], 0.0001);
+  AssertEquals('UnpackLo[3]', 20.0, r.f[3], 0.0001);
+end;
+
+procedure TTestCase_ShuffleSWizzle.Test_VecF32x4_UnpackHi;
+var
+  a, b, r: TVecF32x4;
+begin
+  a.f[0] := 1.0; a.f[1] := 2.0; a.f[2] := 3.0; a.f[3] := 4.0;
+  b.f[0] := 10.0; b.f[1] := 20.0; b.f[2] := 30.0; b.f[3] := 40.0;
+  
+  r := VecF32x4UnpackHi(a, b);
+  
+  // 结果: [a2, b2, a3, b3]
+  AssertEquals('UnpackHi[0]', 3.0, r.f[0], 0.0001);
+  AssertEquals('UnpackHi[1]', 30.0, r.f[1], 0.0001);
+  AssertEquals('UnpackHi[2]', 4.0, r.f[2], 0.0001);
+  AssertEquals('UnpackHi[3]', 40.0, r.f[3], 0.0001);
+end;
+
+procedure TTestCase_ShuffleSWizzle.Test_VecI32x4_Unpack;
+var
+  a, b, rLo, rHi: TVecI32x4;
+begin
+  a.i[0] := 1; a.i[1] := 2; a.i[2] := 3; a.i[3] := 4;
+  b.i[0] := 10; b.i[1] := 20; b.i[2] := 30; b.i[3] := 40;
+  
+  rLo := VecI32x4UnpackLo(a, b);
+  rHi := VecI32x4UnpackHi(a, b);
+  
+  AssertEquals('UnpackLo[0]', 1, rLo.i[0]);
+  AssertEquals('UnpackLo[1]', 10, rLo.i[1]);
+  AssertEquals('UnpackLo[2]', 2, rLo.i[2]);
+  AssertEquals('UnpackLo[3]', 20, rLo.i[3]);
+  
+  AssertEquals('UnpackHi[0]', 3, rHi.i[0]);
+  AssertEquals('UnpackHi[1]', 30, rHi.i[1]);
+  AssertEquals('UnpackHi[2]', 4, rHi.i[2]);
+  AssertEquals('UnpackHi[3]', 40, rHi.i[3]);
+end;
+
+procedure TTestCase_ShuffleSWizzle.Test_VecF32x4_Broadcast;
+var
+  a, r: TVecF32x4;
+begin
+  a.f[0] := 1.0; a.f[1] := 2.0; a.f[2] := 3.0; a.f[3] := 4.0;
+  
+  r := VecF32x4Broadcast(a, 2);
+  
+  AssertEquals('Broadcast[0]', 3.0, r.f[0], 0.0001);
+  AssertEquals('Broadcast[1]', 3.0, r.f[1], 0.0001);
+  AssertEquals('Broadcast[2]', 3.0, r.f[2], 0.0001);
+  AssertEquals('Broadcast[3]', 3.0, r.f[3], 0.0001);
+end;
+
+procedure TTestCase_ShuffleSWizzle.Test_VecI32x4_Broadcast;
+var
+  a, r: TVecI32x4;
+begin
+  a.i[0] := 10; a.i[1] := 20; a.i[2] := 30; a.i[3] := 40;
+  
+  r := VecI32x4Broadcast(a, 1);
+  
+  AssertEquals('Broadcast[0]', 20, r.i[0]);
+  AssertEquals('Broadcast[1]', 20, r.i[1]);
+  AssertEquals('Broadcast[2]', 20, r.i[2]);
+  AssertEquals('Broadcast[3]', 20, r.i[3]);
+end;
+
+procedure TTestCase_ShuffleSWizzle.Test_VecF32x4_Reverse;
+var
+  a, r: TVecF32x4;
+begin
+  a.f[0] := 1.0; a.f[1] := 2.0; a.f[2] := 3.0; a.f[3] := 4.0;
+  
+  r := VecF32x4Reverse(a);
+  
+  AssertEquals('Reverse[0]', 4.0, r.f[0], 0.0001);
+  AssertEquals('Reverse[1]', 3.0, r.f[1], 0.0001);
+  AssertEquals('Reverse[2]', 2.0, r.f[2], 0.0001);
+  AssertEquals('Reverse[3]', 1.0, r.f[3], 0.0001);
+end;
+
+procedure TTestCase_ShuffleSWizzle.Test_VecI32x4_Reverse;
+var
+  a, r: TVecI32x4;
+begin
+  a.i[0] := 10; a.i[1] := 20; a.i[2] := 30; a.i[3] := 40;
+  
+  r := VecI32x4Reverse(a);
+  
+  AssertEquals('Reverse[0]', 40, r.i[0]);
+  AssertEquals('Reverse[1]', 30, r.i[1]);
+  AssertEquals('Reverse[2]', 20, r.i[2]);
+  AssertEquals('Reverse[3]', 10, r.i[3]);
+end;
+
+procedure TTestCase_ShuffleSWizzle.Test_VecF32x4_RotateLeft;
+var
+  a, r: TVecF32x4;
+begin
+  a.f[0] := 1.0; a.f[1] := 2.0; a.f[2] := 3.0; a.f[3] := 4.0;
+  
+  // 左旋 1: [2,3,4,1]
+  r := VecF32x4RotateLeft(a, 1);
+  AssertEquals('RotL1[0]', 2.0, r.f[0], 0.0001);
+  AssertEquals('RotL1[1]', 3.0, r.f[1], 0.0001);
+  AssertEquals('RotL1[2]', 4.0, r.f[2], 0.0001);
+  AssertEquals('RotL1[3]', 1.0, r.f[3], 0.0001);
+  
+  // 左旋 2: [3,4,1,2]
+  r := VecF32x4RotateLeft(a, 2);
+  AssertEquals('RotL2[0]', 3.0, r.f[0], 0.0001);
+  AssertEquals('RotL2[3]', 2.0, r.f[3], 0.0001);
+end;
+
+procedure TTestCase_ShuffleSWizzle.Test_VecI32x4_RotateLeft;
+var
+  a, r: TVecI32x4;
+begin
+  a.i[0] := 10; a.i[1] := 20; a.i[2] := 30; a.i[3] := 40;
+  
+  // 左旋 3: [40,10,20,30]
+  r := VecI32x4RotateLeft(a, 3);
+  AssertEquals('RotL3[0]', 40, r.i[0]);
+  AssertEquals('RotL3[1]', 10, r.i[1]);
+  AssertEquals('RotL3[2]', 20, r.i[2]);
+  AssertEquals('RotL3[3]', 30, r.i[3]);
+end;
+
+procedure TTestCase_ShuffleSWizzle.Test_VecF32x4_Insert;
+var
+  a, r: TVecF32x4;
+begin
+  a.f[0] := 1.0; a.f[1] := 2.0; a.f[2] := 3.0; a.f[3] := 4.0;
+  
+  r := VecF32x4Insert(a, 99.0, 2);
+  
+  AssertEquals('Insert[0]', 1.0, r.f[0], 0.0001);
+  AssertEquals('Insert[1]', 2.0, r.f[1], 0.0001);
+  AssertEquals('Insert[2]', 99.0, r.f[2], 0.0001);
+  AssertEquals('Insert[3]', 4.0, r.f[3], 0.0001);
+end;
+
+procedure TTestCase_ShuffleSWizzle.Test_VecF32x4_ExtractFunc;
+var
+  a: TVecF32x4;
+begin
+  a.f[0] := 1.0; a.f[1] := 2.0; a.f[2] := 3.0; a.f[3] := 4.0;
+  
+  AssertEquals('Extract[0]', 1.0, VecF32x4Extract(a, 0), 0.0001);
+  AssertEquals('Extract[1]', 2.0, VecF32x4Extract(a, 1), 0.0001);
+  AssertEquals('Extract[2]', 3.0, VecF32x4Extract(a, 2), 0.0001);
+  AssertEquals('Extract[3]', 4.0, VecF32x4Extract(a, 3), 0.0001);
+end;
+
+procedure TTestCase_ShuffleSWizzle.Test_VecI32x4_InsertExtract;
+var
+  a, r: TVecI32x4;
+begin
+  a.i[0] := 10; a.i[1] := 20; a.i[2] := 30; a.i[3] := 40;
+  
+  r := VecI32x4Insert(a, 999, 1);
+  
+  AssertEquals('Insert[0]', 10, r.i[0]);
+  AssertEquals('Insert[1]', 999, r.i[1]);
+  AssertEquals('Insert[2]', 30, r.i[2]);
+  AssertEquals('Insert[3]', 40, r.i[3]);
+  
+  AssertEquals('Extract[0]', 10, VecI32x4Extract(a, 0));
+  AssertEquals('Extract[3]', 40, VecI32x4Extract(a, 3));
+end;
+
+{ TTestCase_MathFunctions }
+
+procedure TTestCase_MathFunctions.Test_VecF32x4_Sin;
+const
+  PI = 3.14159265358979323846;
+var
+  a, r: TVecF32x4;
+begin
+  a.f[0] := 0.0;        // sin(0) = 0
+  a.f[1] := PI / 6;     // sin(PI/6) = 0.5
+  a.f[2] := PI / 2;     // sin(PI/2) = 1
+  a.f[3] := PI;         // sin(PI) = 0
+  
+  r := VecF32x4Sin(a);
+  
+  AssertEquals('sin(0)', 0.0, r.f[0], 0.0001);
+  AssertEquals('sin(PI/6)', 0.5, r.f[1], 0.0001);
+  AssertEquals('sin(PI/2)', 1.0, r.f[2], 0.0001);
+  AssertEquals('sin(PI)', 0.0, r.f[3], 0.0001);
+end;
+
+procedure TTestCase_MathFunctions.Test_VecF32x4_Cos;
+const
+  PI = 3.14159265358979323846;
+var
+  a, r: TVecF32x4;
+begin
+  a.f[0] := 0.0;        // cos(0) = 1
+  a.f[1] := PI / 3;     // cos(PI/3) = 0.5
+  a.f[2] := PI / 2;     // cos(PI/2) = 0
+  a.f[3] := PI;         // cos(PI) = -1
+  
+  r := VecF32x4Cos(a);
+  
+  AssertEquals('cos(0)', 1.0, r.f[0], 0.0001);
+  AssertEquals('cos(PI/3)', 0.5, r.f[1], 0.0001);
+  AssertEquals('cos(PI/2)', 0.0, r.f[2], 0.0001);
+  AssertEquals('cos(PI)', -1.0, r.f[3], 0.0001);
+end;
+
+procedure TTestCase_MathFunctions.Test_VecF32x4_SinCos;
+const
+  PI = 3.14159265358979323846;
+var
+  a, s, c: TVecF32x4;
+begin
+  a.f[0] := 0.0;
+  a.f[1] := PI / 4;
+  a.f[2] := PI / 2;
+  a.f[3] := PI;
+  
+  VecF32x4SinCos(a, s, c);
+  
+  // sin
+  AssertEquals('sin(0)', 0.0, s.f[0], 0.0001);
+  AssertEquals('sin(PI/4)', 0.7071, s.f[1], 0.001);
+  AssertEquals('sin(PI/2)', 1.0, s.f[2], 0.0001);
+  AssertEquals('sin(PI)', 0.0, s.f[3], 0.0001);
+  
+  // cos
+  AssertEquals('cos(0)', 1.0, c.f[0], 0.0001);
+  AssertEquals('cos(PI/4)', 0.7071, c.f[1], 0.001);
+  AssertEquals('cos(PI/2)', 0.0, c.f[2], 0.0001);
+  AssertEquals('cos(PI)', -1.0, c.f[3], 0.0001);
+end;
+
+procedure TTestCase_MathFunctions.Test_VecF32x4_Tan;
+const
+  PI = 3.14159265358979323846;
+var
+  a, r: TVecF32x4;
+begin
+  a.f[0] := 0.0;        // tan(0) = 0
+  a.f[1] := PI / 4;     // tan(PI/4) = 1
+  a.f[2] := -PI / 4;    // tan(-PI/4) = -1
+  a.f[3] := PI / 6;     // tan(PI/6) = 1/sqrt(3)
+  
+  r := VecF32x4Tan(a);
+  
+  AssertEquals('tan(0)', 0.0, r.f[0], 0.0001);
+  AssertEquals('tan(PI/4)', 1.0, r.f[1], 0.0001);
+  AssertEquals('tan(-PI/4)', -1.0, r.f[2], 0.0001);
+  AssertEquals('tan(PI/6)', 0.5774, r.f[3], 0.001);
+end;
+
+procedure TTestCase_MathFunctions.Test_VecF32x4_Exp;
+var
+  a, r: TVecF32x4;
+begin
+  a.f[0] := 0.0;        // exp(0) = 1
+  a.f[1] := 1.0;        // exp(1) = e = 2.71828
+  a.f[2] := 2.0;        // exp(2) = 7.389
+  a.f[3] := -1.0;       // exp(-1) = 1/e = 0.3679
+  
+  r := VecF32x4Exp(a);
+  
+  AssertEquals('exp(0)', 1.0, r.f[0], 0.0001);
+  AssertEquals('exp(1)', 2.71828, r.f[1], 0.001);
+  AssertEquals('exp(2)', 7.389, r.f[2], 0.01);
+  AssertEquals('exp(-1)', 0.3679, r.f[3], 0.001);
+end;
+
+procedure TTestCase_MathFunctions.Test_VecF32x4_Exp2;
+var
+  a, r: TVecF32x4;
+begin
+  a.f[0] := 0.0;        // 2^0 = 1
+  a.f[1] := 1.0;        // 2^1 = 2
+  a.f[2] := 3.0;        // 2^3 = 8
+  a.f[3] := -1.0;       // 2^-1 = 0.5
+  
+  r := VecF32x4Exp2(a);
+  
+  AssertEquals('2^0', 1.0, r.f[0], 0.0001);
+  AssertEquals('2^1', 2.0, r.f[1], 0.0001);
+  AssertEquals('2^3', 8.0, r.f[2], 0.0001);
+  AssertEquals('2^-1', 0.5, r.f[3], 0.0001);
+end;
+
+procedure TTestCase_MathFunctions.Test_VecF32x4_Log;
+var
+  a, r: TVecF32x4;
+begin
+  a.f[0] := 1.0;        // ln(1) = 0
+  a.f[1] := 2.71828;    // ln(e) = 1
+  a.f[2] := 7.389;      // ln(e^2) = 2
+  a.f[3] := 0.3679;     // ln(1/e) = -1
+  
+  r := VecF32x4Log(a);
+  
+  AssertEquals('ln(1)', 0.0, r.f[0], 0.0001);
+  AssertEquals('ln(e)', 1.0, r.f[1], 0.001);
+  AssertEquals('ln(e^2)', 2.0, r.f[2], 0.01);
+  AssertEquals('ln(1/e)', -1.0, r.f[3], 0.01);
+end;
+
+procedure TTestCase_MathFunctions.Test_VecF32x4_Log2;
+var
+  a, r: TVecF32x4;
+begin
+  a.f[0] := 1.0;        // log2(1) = 0
+  a.f[1] := 2.0;        // log2(2) = 1
+  a.f[2] := 8.0;        // log2(8) = 3
+  a.f[3] := 0.5;        // log2(0.5) = -1
+  
+  r := VecF32x4Log2(a);
+  
+  AssertEquals('log2(1)', 0.0, r.f[0], 0.0001);
+  AssertEquals('log2(2)', 1.0, r.f[1], 0.0001);
+  AssertEquals('log2(8)', 3.0, r.f[2], 0.0001);
+  AssertEquals('log2(0.5)', -1.0, r.f[3], 0.0001);
+end;
+
+procedure TTestCase_MathFunctions.Test_VecF32x4_Log10;
+var
+  a, r: TVecF32x4;
+begin
+  a.f[0] := 1.0;        // log10(1) = 0
+  a.f[1] := 10.0;       // log10(10) = 1
+  a.f[2] := 100.0;      // log10(100) = 2
+  a.f[3] := 0.1;        // log10(0.1) = -1
+  
+  r := VecF32x4Log10(a);
+  
+  AssertEquals('log10(1)', 0.0, r.f[0], 0.0001);
+  AssertEquals('log10(10)', 1.0, r.f[1], 0.0001);
+  AssertEquals('log10(100)', 2.0, r.f[2], 0.0001);
+  AssertEquals('log10(0.1)', -1.0, r.f[3], 0.0001);
+end;
+
+procedure TTestCase_MathFunctions.Test_VecF32x4_Pow;
+var
+  base, exp, r: TVecF32x4;
+begin
+  base.f[0] := 2.0; exp.f[0] := 3.0;    // 2^3 = 8
+  base.f[1] := 3.0; exp.f[1] := 2.0;    // 3^2 = 9
+  base.f[2] := 10.0; exp.f[2] := 0.0;   // 10^0 = 1
+  base.f[3] := 4.0; exp.f[3] := 0.5;    // 4^0.5 = 2
+  
+  r := VecF32x4Pow(base, exp);
+  
+  AssertEquals('2^3', 8.0, r.f[0], 0.0001);
+  AssertEquals('3^2', 9.0, r.f[1], 0.0001);
+  AssertEquals('10^0', 1.0, r.f[2], 0.0001);
+  AssertEquals('4^0.5', 2.0, r.f[3], 0.0001);
+end;
+
+procedure TTestCase_MathFunctions.Test_VecF32x4_Asin;
+var
+  a, r: TVecF32x4;
+const
+  PI = 3.14159265358979323846;
+begin
+  a.f[0] := 0.0;        // asin(0) = 0
+  a.f[1] := 0.5;        // asin(0.5) = PI/6
+  a.f[2] := 1.0;        // asin(1) = PI/2
+  a.f[3] := -0.5;       // asin(-0.5) = -PI/6
+  
+  r := VecF32x4Asin(a);
+  
+  AssertEquals('asin(0)', 0.0, r.f[0], 0.0001);
+  AssertEquals('asin(0.5)', PI/6, r.f[1], 0.0001);
+  AssertEquals('asin(1)', PI/2, r.f[2], 0.0001);
+  AssertEquals('asin(-0.5)', -PI/6, r.f[3], 0.0001);
+end;
+
+procedure TTestCase_MathFunctions.Test_VecF32x4_Acos;
+var
+  a, r: TVecF32x4;
+const
+  PI = 3.14159265358979323846;
+begin
+  a.f[0] := 1.0;        // acos(1) = 0
+  a.f[1] := 0.5;        // acos(0.5) = PI/3
+  a.f[2] := 0.0;        // acos(0) = PI/2
+  a.f[3] := -1.0;       // acos(-1) = PI
+  
+  r := VecF32x4Acos(a);
+  
+  AssertEquals('acos(1)', 0.0, r.f[0], 0.0001);
+  AssertEquals('acos(0.5)', PI/3, r.f[1], 0.0001);
+  AssertEquals('acos(0)', PI/2, r.f[2], 0.0001);
+  AssertEquals('acos(-1)', PI, r.f[3], 0.0001);
+end;
+
+procedure TTestCase_MathFunctions.Test_VecF32x4_Atan;
+var
+  a, r: TVecF32x4;
+const
+  PI = 3.14159265358979323846;
+begin
+  a.f[0] := 0.0;        // atan(0) = 0
+  a.f[1] := 1.0;        // atan(1) = PI/4
+  a.f[2] := -1.0;       // atan(-1) = -PI/4
+  a.f[3] := 1.7320508;  // atan(sqrt(3)) = PI/3
+  
+  r := VecF32x4Atan(a);
+  
+  AssertEquals('atan(0)', 0.0, r.f[0], 0.0001);
+  AssertEquals('atan(1)', PI/4, r.f[1], 0.0001);
+  AssertEquals('atan(-1)', -PI/4, r.f[2], 0.0001);
+  AssertEquals('atan(sqrt(3))', PI/3, r.f[3], 0.0001);
+end;
+
+procedure TTestCase_MathFunctions.Test_VecF32x4_Atan2;
+var
+  y, x, r: TVecF32x4;
+const
+  PI = 3.14159265358979323846;
+begin
+  // atan2(y, x)
+  y.f[0] := 0.0;  x.f[0] := 1.0;   // atan2(0, 1) = 0
+  y.f[1] := 1.0;  x.f[1] := 1.0;   // atan2(1, 1) = PI/4
+  y.f[2] := 1.0;  x.f[2] := 0.0;   // atan2(1, 0) = PI/2
+  y.f[3] := -1.0; x.f[3] := -1.0;  // atan2(-1, -1) = -3*PI/4
+  
+  r := VecF32x4Atan2(y, x);
+  
+  AssertEquals('atan2(0,1)', 0.0, r.f[0], 0.0001);
+  AssertEquals('atan2(1,1)', PI/4, r.f[1], 0.0001);
+  AssertEquals('atan2(1,0)', PI/2, r.f[2], 0.0001);
+  AssertEquals('atan2(-1,-1)', -3*PI/4, r.f[3], 0.0001);
+end;
+
+{ TTestCase_AdvancedAlgorithms }
+
+// === 排序网络测试 ===
+
+procedure TTestCase_AdvancedAlgorithms.Test_SortNet4_I32_Ascending;
+var
+  a, r: TVecI32x4;
+begin
+  a.i[0] := 4; a.i[1] := 2; a.i[2] := 3; a.i[3] := 1;
+  
+  r := SortNet4I32(a, True);  // 升序
+  
+  AssertEquals('Sorted[0]', 1, r.i[0]);
+  AssertEquals('Sorted[1]', 2, r.i[1]);
+  AssertEquals('Sorted[2]', 3, r.i[2]);
+  AssertEquals('Sorted[3]', 4, r.i[3]);
+end;
+
+procedure TTestCase_AdvancedAlgorithms.Test_SortNet4_I32_Descending;
+var
+  a, r: TVecI32x4;
+begin
+  a.i[0] := 1; a.i[1] := 4; a.i[2] := 2; a.i[3] := 3;
+  
+  r := SortNet4I32(a, False);  // 降序
+  
+  AssertEquals('Sorted[0]', 4, r.i[0]);
+  AssertEquals('Sorted[1]', 3, r.i[1]);
+  AssertEquals('Sorted[2]', 2, r.i[2]);
+  AssertEquals('Sorted[3]', 1, r.i[3]);
+end;
+
+procedure TTestCase_AdvancedAlgorithms.Test_SortNet4_F32_Ascending;
+var
+  a, r: TVecF32x4;
+begin
+  a.f[0] := 3.5; a.f[1] := 1.2; a.f[2] := 4.8; a.f[3] := 2.1;
+  
+  r := SortNet4F32(a, True);
+  
+  AssertEquals('Sorted[0]', 1.2, r.f[0], 0.0001);
+  AssertEquals('Sorted[1]', 2.1, r.f[1], 0.0001);
+  AssertEquals('Sorted[2]', 3.5, r.f[2], 0.0001);
+  AssertEquals('Sorted[3]', 4.8, r.f[3], 0.0001);
+end;
+
+procedure TTestCase_AdvancedAlgorithms.Test_SortNet4_F32_WithNegatives;
+var
+  a, r: TVecF32x4;
+begin
+  a.f[0] := -1.0; a.f[1] := 5.0; a.f[2] := -3.0; a.f[3] := 2.0;
+  
+  r := SortNet4F32(a, True);
+  
+  AssertEquals('Sorted[0]', -3.0, r.f[0], 0.0001);
+  AssertEquals('Sorted[1]', -1.0, r.f[1], 0.0001);
+  AssertEquals('Sorted[2]', 2.0, r.f[2], 0.0001);
+  AssertEquals('Sorted[3]', 5.0, r.f[3], 0.0001);
+end;
+
+procedure TTestCase_AdvancedAlgorithms.Test_SortNet8_I32;
+var
+  a, r: TVecI32x8;
+begin
+  a.i[0] := 8; a.i[1] := 3; a.i[2] := 7; a.i[3] := 1;
+  a.i[4] := 6; a.i[5] := 2; a.i[6] := 5; a.i[7] := 4;
+  
+  r := SortNet8I32(a, True);
+  
+  AssertEquals('Sorted[0]', 1, r.i[0]);
+  AssertEquals('Sorted[1]', 2, r.i[1]);
+  AssertEquals('Sorted[2]', 3, r.i[2]);
+  AssertEquals('Sorted[3]', 4, r.i[3]);
+  AssertEquals('Sorted[4]', 5, r.i[4]);
+  AssertEquals('Sorted[5]', 6, r.i[5]);
+  AssertEquals('Sorted[6]', 7, r.i[6]);
+  AssertEquals('Sorted[7]', 8, r.i[7]);
+end;
+
+// === 前缀和测试 ===
+
+procedure TTestCase_AdvancedAlgorithms.Test_PrefixSum_I32x4_Inclusive;
+var
+  a, r: TVecI32x4;
+begin
+  a.i[0] := 1; a.i[1] := 2; a.i[2] := 3; a.i[3] := 4;
+  
+  r := PrefixSumI32x4(a, True);  // inclusive
+  
+  // [1, 1+2, 1+2+3, 1+2+3+4] = [1, 3, 6, 10]
+  AssertEquals('PrefixSum[0]', 1, r.i[0]);
+  AssertEquals('PrefixSum[1]', 3, r.i[1]);
+  AssertEquals('PrefixSum[2]', 6, r.i[2]);
+  AssertEquals('PrefixSum[3]', 10, r.i[3]);
+end;
+
+procedure TTestCase_AdvancedAlgorithms.Test_PrefixSum_I32x4_Exclusive;
+var
+  a, r: TVecI32x4;
+begin
+  a.i[0] := 1; a.i[1] := 2; a.i[2] := 3; a.i[3] := 4;
+  
+  r := PrefixSumI32x4(a, False);  // exclusive
+  
+  // [0, 1, 1+2, 1+2+3] = [0, 1, 3, 6]
+  AssertEquals('PrefixSum[0]', 0, r.i[0]);
+  AssertEquals('PrefixSum[1]', 1, r.i[1]);
+  AssertEquals('PrefixSum[2]', 3, r.i[2]);
+  AssertEquals('PrefixSum[3]', 6, r.i[3]);
+end;
+
+procedure TTestCase_AdvancedAlgorithms.Test_PrefixSum_F32x4_Inclusive;
+var
+  a, r: TVecF32x4;
+begin
+  a.f[0] := 1.0; a.f[1] := 2.0; a.f[2] := 3.0; a.f[3] := 4.0;
+  
+  r := PrefixSumF32x4(a, True);
+  
+  AssertEquals('PrefixSum[0]', 1.0, r.f[0], 0.0001);
+  AssertEquals('PrefixSum[1]', 3.0, r.f[1], 0.0001);
+  AssertEquals('PrefixSum[2]', 6.0, r.f[2], 0.0001);
+  AssertEquals('PrefixSum[3]', 10.0, r.f[3], 0.0001);
+end;
+
+procedure TTestCase_AdvancedAlgorithms.Test_PrefixSum_Array_I32;
+var
+  arr, result: array[0..7] of Int32;
+begin
+  arr[0] := 1; arr[1] := 2; arr[2] := 3; arr[3] := 4;
+  arr[4] := 5; arr[5] := 6; arr[6] := 7; arr[7] := 8;
+  
+  PrefixSumArrayI32(@arr[0], @result[0], 8);
+  
+  // [1, 3, 6, 10, 15, 21, 28, 36]
+  AssertEquals('PrefixSum[0]', 1, result[0]);
+  AssertEquals('PrefixSum[3]', 10, result[3]);
+  AssertEquals('PrefixSum[7]', 36, result[7]);
+end;
+
+procedure TTestCase_AdvancedAlgorithms.Test_PrefixSum_Array_F32;
+var
+  arr, result: array[0..3] of Single;
+begin
+  arr[0] := 1.5; arr[1] := 2.5; arr[2] := 3.5; arr[3] := 4.5;
+  
+  PrefixSumArrayF32(@arr[0], @result[0], 4);
+  
+  AssertEquals('PrefixSum[0]', 1.5, result[0], 0.0001);
+  AssertEquals('PrefixSum[1]', 4.0, result[1], 0.0001);
+  AssertEquals('PrefixSum[2]', 7.5, result[2], 0.0001);
+  AssertEquals('PrefixSum[3]', 12.0, result[3], 0.0001);
+end;
+
+// === 向量化字符串搜索测试 ===
+
+procedure TTestCase_AdvancedAlgorithms.Test_StrFind_SingleChar;
+var
+  s: AnsiString;
+  pos: PtrInt;
+begin
+  s := 'Hello, World!';
+  
+  pos := StrFindChar(@s[1], Length(s), Ord('W'));
+  
+  AssertEquals('Should find W at position 7', 7, pos);
+end;
+
+procedure TTestCase_AdvancedAlgorithms.Test_StrFind_NotFound;
+var
+  s: AnsiString;
+  pos: PtrInt;
+begin
+  s := 'Hello, World!';
+  
+  pos := StrFindChar(@s[1], Length(s), Ord('X'));
+  
+  AssertEquals('Should return -1 for not found', -1, pos);
+end;
+
+procedure TTestCase_AdvancedAlgorithms.Test_StrFind_AtStart;
+var
+  s: AnsiString;
+  pos: PtrInt;
+begin
+  s := 'Hello, World!';
+  
+  pos := StrFindChar(@s[1], Length(s), Ord('H'));
+  
+  AssertEquals('Should find H at position 0', 0, pos);
+end;
+
+procedure TTestCase_AdvancedAlgorithms.Test_StrFind_AtEnd;
+var
+  s: AnsiString;
+  pos: PtrInt;
+begin
+  s := 'Hello, World!';
+  
+  pos := StrFindChar(@s[1], Length(s), Ord('!'));
+  
+  AssertEquals('Should find ! at last position', 12, pos);
+end;
+
+procedure TTestCase_AdvancedAlgorithms.Test_StrFind_Empty;
+var
+  pos: PtrInt;
+begin
+  pos := StrFindChar(nil, 0, Ord('A'));
+  
+  AssertEquals('Should return -1 for empty string', -1, pos);
+end;
+
+{ TTestCase_EdgeCases }
+
+procedure TTestCase_EdgeCases.SetUp;
+begin
+  inherited SetUp;
+  // Save current FPU exception mask and mask all FP exceptions
+  // This allows testing NaN, Infinity, division by zero without triggering exceptions
+  FSavedExceptionMask := GetExceptionMask;
+  SetExceptionMask([exInvalidOp, exDenormalized, exZeroDivide, exOverflow, exUnderflow, exPrecision]);
+end;
+
+procedure TTestCase_EdgeCases.TearDown;
+begin
+  // Restore original FPU exception mask
+  SetExceptionMask(FSavedExceptionMask);
+  inherited TearDown;
+end;
+
+// === NaN 处理测试 ===
+
+procedure TTestCase_EdgeCases.Test_VecF32x4_Add_WithNaN;
+var
+  a, b, r: TVecF32x4;
+begin
+  a.f[0] := 1.0; a.f[1] := NaN; a.f[2] := 3.0; a.f[3] := NaN;
+  b.f[0] := 2.0; b.f[1] := 2.0; b.f[2] := NaN; b.f[3] := NaN;
+  
+  r := a + b;
+  
+  AssertEquals('Normal + Normal', 3.0, r.f[0], 0.0001);
+  AssertTrue('NaN + Normal is NaN', IsNaN(r.f[1]));
+  AssertTrue('Normal + NaN is NaN', IsNaN(r.f[2]));
+  AssertTrue('NaN + NaN is NaN', IsNaN(r.f[3]));
+end;
+
+procedure TTestCase_EdgeCases.Test_VecF32x4_Mul_WithNaN;
+var
+  a, b, r: TVecF32x4;
+begin
+  a.f[0] := 2.0; a.f[1] := NaN; a.f[2] := 0.0; a.f[3] := NaN;
+  b.f[0] := 3.0; b.f[1] := 3.0; b.f[2] := NaN; b.f[3] := 0.0;
+  
+  r := a * b;
+  
+  AssertEquals('Normal * Normal', 6.0, r.f[0], 0.0001);
+  AssertTrue('NaN * Normal is NaN', IsNaN(r.f[1]));
+  AssertTrue('0 * NaN is NaN', IsNaN(r.f[2]));
+  AssertTrue('NaN * 0 is NaN', IsNaN(r.f[3]));
+end;
+
+procedure TTestCase_EdgeCases.Test_VecF32x4_Compare_WithNaN;
+var
+  a, b: TVecF32x4;
+begin
+  a.f[0] := NaN; a.f[1] := 1.0; a.f[2] := NaN; a.f[3] := 1.0;
+  b.f[0] := 1.0; b.f[1] := NaN; b.f[2] := NaN; b.f[3] := 1.0;
+  
+  // NaN comparisons should always be false (IEEE 754)
+  AssertFalse('NaN > Normal is false', a.f[0] > b.f[0]);
+  AssertFalse('Normal > NaN is false', a.f[1] > b.f[1]);
+  AssertFalse('NaN = NaN is false', a.f[2] = b.f[2]);
+  AssertTrue('Normal = Normal is true', a.f[3] = b.f[3]);
+end;
+
+procedure TTestCase_EdgeCases.Test_SortNet4_F32_WithNaN;
+var
+  a, r: TVecF32x4;
+begin
+  // NaN 会破坏排序，但不应崩溃
+  a.f[0] := 3.0; a.f[1] := NaN; a.f[2] := 1.0; a.f[3] := 2.0;
+  
+  r := SortNet4F32(a, True);
+  
+  // 不检查结果顺序（NaN 破坏排序），只确保不崩溃
+  AssertTrue('SortNet4 with NaN should not crash', True);
+end;
+
+// === Infinity 处理测试 ===
+
+procedure TTestCase_EdgeCases.Test_VecF32x4_Add_WithInfinity;
+var
+  a, b, r: TVecF32x4;
+begin
+  a.f[0] := Infinity; a.f[1] := -Infinity; a.f[2] := Infinity; a.f[3] := 1.0;
+  b.f[0] := 1.0;       b.f[1] := 1.0;        b.f[2] := -Infinity; b.f[3] := Infinity;
+  
+  r := a + b;
+  
+  AssertTrue('+Inf + 1 = +Inf', IsInfinite(r.f[0]) and (r.f[0] > 0));
+  AssertTrue('-Inf + 1 = -Inf', IsInfinite(r.f[1]) and (r.f[1] < 0));
+  AssertTrue('+Inf + -Inf = NaN', IsNaN(r.f[2]));
+  AssertTrue('1 + Inf = +Inf', IsInfinite(r.f[3]) and (r.f[3] > 0));
+end;
+
+procedure TTestCase_EdgeCases.Test_VecF32x4_Mul_InfinityByZero;
+var
+  a, b, r: TVecF32x4;
+begin
+  a.f[0] := Infinity; a.f[1] := -Infinity; a.f[2] := 0.0; a.f[3] := Infinity;
+  b.f[0] := 0.0;       b.f[1] := 0.0;        b.f[2] := Infinity; b.f[3] := 2.0;
+  
+  r := a * b;
+  
+  AssertTrue('Inf * 0 = NaN', IsNaN(r.f[0]));
+  AssertTrue('-Inf * 0 = NaN', IsNaN(r.f[1]));
+  AssertTrue('0 * Inf = NaN', IsNaN(r.f[2]));
+  AssertTrue('Inf * 2 = Inf', IsInfinite(r.f[3]));
+end;
+
+procedure TTestCase_EdgeCases.Test_VecF32x4_Div_ByZero;
+var
+  a, b, r: TVecF32x4;
+begin
+  a.f[0] := 1.0; a.f[1] := -1.0; a.f[2] := 0.0; a.f[3] := Infinity;
+  b.f[0] := 0.0; b.f[1] := 0.0;  b.f[2] := 0.0; b.f[3] := 0.0;
+  
+  r := a / b;
+  
+  AssertTrue('1/0 = +Inf', IsInfinite(r.f[0]) and (r.f[0] > 0));
+  AssertTrue('-1/0 = -Inf', IsInfinite(r.f[1]) and (r.f[1] < 0));
+  AssertTrue('0/0 = NaN', IsNaN(r.f[2]));
+  AssertTrue('Inf/0 = Inf', IsInfinite(r.f[3]));
+end;
+
+procedure TTestCase_EdgeCases.Test_VecF32x4_Div_InfinityByInfinity;
+var
+  a, b, r: TVecF32x4;
+begin
+  a.f[0] := Infinity; a.f[1] := -Infinity; a.f[2] := Infinity; a.f[3] := 1.0;
+  b.f[0] := Infinity; b.f[1] := Infinity;  b.f[2] := -Infinity; b.f[3] := Infinity;
+  
+  r := a / b;
+  
+  AssertTrue('Inf/Inf = NaN', IsNaN(r.f[0]));
+  AssertTrue('-Inf/Inf = NaN', IsNaN(r.f[1]));
+  AssertTrue('Inf/-Inf = NaN', IsNaN(r.f[2]));
+  AssertEquals('1/Inf = 0', 0.0, r.f[3], 0.0001);
+end;
+
+// === 整数边界测试 ===
+
+procedure TTestCase_EdgeCases.Test_VecI32x4_Add_MaxValue;
+var
+  a, b, r: TVecI32x4;
+begin
+  {$PUSH}{$R-}{$Q-}  // Disable range and overflow checking for wraparound test
+  a.i[0] := High(Int32); a.i[1] := High(Int32); a.i[2] := 0; a.i[3] := Low(Int32);
+  b.i[0] := 1;           b.i[1] := High(Int32); b.i[2] := High(Int32); b.i[3] := -1;
+  
+  r := a + b;
+  
+  // 溢出行为（环绕）
+  AssertEquals('MaxInt + 1 overflows', Low(Int32), r.i[0]);
+  AssertEquals('0 + MaxInt', High(Int32), r.i[2]);
+  AssertEquals('MinInt + -1 overflows', High(Int32), r.i[3]);
+  {$POP}
+end;
+
+procedure TTestCase_EdgeCases.Test_VecI32x4_Sub_MinValue;
+var
+  a, b, r: TVecI32x4;
+begin
+  {$PUSH}{$R-}{$Q-}  // Disable range and overflow checking for wraparound test
+  a.i[0] := Low(Int32); a.i[1] := 0; a.i[2] := High(Int32); a.i[3] := Low(Int32);
+  b.i[0] := 1;          b.i[1] := Low(Int32); b.i[2] := -1; b.i[3] := Low(Int32);
+  
+  r := a - b;
+  
+  // 溢出行为（环绕）
+  AssertEquals('MinInt - 1 overflows', High(Int32), r.i[0]);
+  AssertEquals('0 - MinInt overflows', Low(Int32), r.i[1]);
+  AssertEquals('MaxInt - -1 overflows', Low(Int32), r.i[2]);
+  {$POP}
+end;
+
+procedure TTestCase_EdgeCases.Test_PrefixSum_I32_Overflow;
+var
+  a, r: TVecI32x4;
+begin
+  {$PUSH}{$R-}{$Q-}  // Disable range and overflow checking for wraparound test
+  a.i[0] := High(Int32); a.i[1] := 1; a.i[2] := 1; a.i[3] := 1;
+  
+  r := PrefixSumI32x4(a, True);
+  
+  // 前缀和会溢出，但不应崩溃
+  AssertEquals('First element', High(Int32), r.i[0]);
+  // r.i[1] = High(Int32) + 1 = overflow
+  AssertTrue('PrefixSum with overflow should not crash', True);
+  {$POP}
+end;
+
+// === 极端对齐场景 ===
+
+procedure TTestCase_EdgeCases.Test_MemEqual_Unaligned_1Byte;
+var
+  buf1, buf2: array[0..64] of Byte;
+  i: Integer;
+begin
+  for i := 0 to 64 do
+  begin
+    buf1[i] := i mod 256;
+    buf2[i] := i mod 256;
+  end;
+  
+  // 各种偏移测试
+  AssertTrue('Aligned comparison', MemEqual(@buf1[0], @buf2[0], 64));
+  AssertTrue('Offset +1', MemEqual(@buf1[1], @buf2[1], 63));
+  AssertTrue('Offset +2', MemEqual(@buf1[2], @buf2[2], 62));
+  AssertTrue('Offset +3', MemEqual(@buf1[3], @buf2[3], 61));
+  AssertTrue('Offset +7', MemEqual(@buf1[7], @buf2[7], 57));
+end;
+
+procedure TTestCase_EdgeCases.Test_MemEqual_Unaligned_15Bytes;
+var
+  buf1, buf2: array[0..30] of Byte;
+  i: Integer;
+begin
+  for i := 0 to 30 do
+  begin
+    buf1[i] := i;
+    buf2[i] := i;
+  end;
+  
+  // 15 字节（不足一个 SSE 寄存器）
+  AssertTrue('15 bytes from offset 0', MemEqual(@buf1[0], @buf2[0], 15));
+  AssertTrue('15 bytes from offset 1', MemEqual(@buf1[1], @buf2[1], 15));
+  
+  // 修改一个字节
+  buf2[7] := 255;
+  AssertFalse('15 bytes with diff at middle', MemEqual(@buf1[0], @buf2[0], 15));
+end;
+
+procedure TTestCase_EdgeCases.Test_MemFindByte_CrossPage;
+var
+  buf: array[0..8191] of Byte;  // 8KB, 跨页
+  i: Integer;
+begin
+  FillByte(buf[0], 8192, 0);
+  
+  // 在各种位置放置目标字节
+  buf[0] := $FF;
+  AssertEquals('Find at start', 0, MemFindByte(@buf[0], 8192, $FF));
+  
+  buf[0] := 0;
+  buf[4095] := $FF;  // 页边界
+  AssertEquals('Find at page boundary', 4095, MemFindByte(@buf[0], 8192, $FF));
+  
+  buf[4095] := 0;
+  buf[4096] := $FF;  // 下一页开始
+  AssertEquals('Find at next page start', 4096, MemFindByte(@buf[0], 8192, $FF));
+  
+  buf[4096] := 0;
+  buf[8191] := $FF;  // 最后一个字节
+  AssertEquals('Find at last byte', 8191, MemFindByte(@buf[0], 8192, $FF));
+end;
+
+procedure TTestCase_EdgeCases.Test_SumBytes_OddSizes;
+var
+  buf: array[0..255] of Byte;
+  i: Integer;
+  sum: UInt64;
+begin
+  for i := 0 to 255 do
+    buf[i] := 1;
+  
+  // 各种奇数大小
+  sum := SumBytes(@buf[0], 1);
+  AssertEquals('Sum of 1 byte', 1, sum);
+  
+  sum := SumBytes(@buf[0], 7);
+  AssertEquals('Sum of 7 bytes', 7, sum);
+  
+  sum := SumBytes(@buf[0], 15);
+  AssertEquals('Sum of 15 bytes', 15, sum);
+  
+  sum := SumBytes(@buf[0], 31);
+  AssertEquals('Sum of 31 bytes', 31, sum);
+  
+  sum := SumBytes(@buf[0], 33);
+  AssertEquals('Sum of 33 bytes', 33, sum);
+end;
+
+// === 数学函数边界 ===
+
+procedure TTestCase_EdgeCases.Test_VecF32x4_Log_Zero;
+var
+  a, r: TVecF32x4;
+begin
+  a.f[0] := 0.0; a.f[1] := 1.0; a.f[2] := 2.718281828; a.f[3] := 0.0;
+  
+  r := VecF32x4Log(a);
+  
+  AssertTrue('log(0) = -Inf', IsInfinite(r.f[0]) and (r.f[0] < 0));
+  AssertEquals('log(1) = 0', 0.0, r.f[1], 0.0001);
+  AssertEquals('log(e) = 1', 1.0, r.f[2], 0.0001);
+end;
+
+procedure TTestCase_EdgeCases.Test_VecF32x4_Log_Negative;
+var
+  a, r: TVecF32x4;
+begin
+  a.f[0] := -1.0; a.f[1] := -0.5; a.f[2] := 1.0; a.f[3] := -Infinity;
+  
+  r := VecF32x4Log(a);
+  
+  AssertTrue('log(-1) = NaN', IsNaN(r.f[0]));
+  AssertTrue('log(-0.5) = NaN', IsNaN(r.f[1]));
+  AssertEquals('log(1) = 0', 0.0, r.f[2], 0.0001);
+  AssertTrue('log(-Inf) = NaN', IsNaN(r.f[3]));
+end;
+
+procedure TTestCase_EdgeCases.Test_VecF32x4_Sqrt_Negative;
+var
+  a, r: TVecF32x4;
+begin
+  a.f[0] := -1.0; a.f[1] := 0.0; a.f[2] := 4.0; a.f[3] := -0.0;
+  
+  r.f[0] := Sqrt(a.f[0]);
+  r.f[1] := Sqrt(a.f[1]);
+  r.f[2] := Sqrt(a.f[2]);
+  r.f[3] := Sqrt(a.f[3]);
+  
+  AssertTrue('sqrt(-1) = NaN', IsNaN(r.f[0]));
+  AssertEquals('sqrt(0) = 0', 0.0, r.f[1], 0.0001);
+  AssertEquals('sqrt(4) = 2', 2.0, r.f[2], 0.0001);
+  AssertEquals('sqrt(-0) = 0', 0.0, r.f[3], 0.0001);
+end;
+
+procedure TTestCase_EdgeCases.Test_VecF32x4_Asin_OutOfRange;
+var
+  a, r: TVecF32x4;
+begin
+  a.f[0] := 2.0;  // 超出范围
+  a.f[1] := -2.0; // 超出范围
+  a.f[2] := 0.5;  // 正常范围
+  a.f[3] := 1.0;  // 边界
+  
+  r := VecF32x4Asin(a);
+  
+  AssertTrue('asin(2) = NaN', IsNaN(r.f[0]));
+  AssertTrue('asin(-2) = NaN', IsNaN(r.f[1]));
+  AssertEquals('asin(0.5)', Pi/6, r.f[2], 0.0001);
+  AssertEquals('asin(1) = pi/2', Pi/2, r.f[3], 0.0001);
+end;
+
+{ TTestCase_Memutils }
+
+procedure TTestCase_Memutils.Test_AlignedAlloc_AlignedAndWritable;
+var
+  p: PByte;
+  i: Integer;
+begin
+  p := AlignedAlloc(128, SIMD_ALIGN_32);
+  try
+    AssertTrue('AlignedAlloc should return non-nil', p <> nil);
+    AssertTrue('Pointer should be 32-byte aligned', IsAligned(p, SIMD_ALIGN_32));
+    // Write and read back a simple pattern
+    for i := 0 to 127 do
+      p[i] := Byte(i and $FF);
+    for i := 0 to 127 do
+      AssertEquals('Written data must round-trip', Byte(i and $FF), p[i]);
+  finally
+    AlignedFree(p);
+  end;
+end;
+
+procedure TTestCase_Memutils.Test_AlignedRealloc_Grow_PreservesPrefix;
+var
+  p, p2: PByte;
+  i: Integer;
+begin
+  // Start with a small buffer and grow it; existing bytes must be preserved
+  p := AlignedAlloc(16, SIMD_ALIGN_32);
+  try
+    for i := 0 to 15 do
+      p[i] := Byte(i + 10);
+    p2 := AlignedRealloc(p, 64, SIMD_ALIGN_32);
+    // After realloc, p should no longer be used
+    p := nil;
+    AssertTrue('Realloc result should be non-nil', p2 <> nil);
+    AssertTrue('Realloc result should be 32-byte aligned', IsAligned(p2, SIMD_ALIGN_32));
+    for i := 0 to 15 do
+      AssertEquals('Prefix bytes must be preserved after grow', Byte(i + 10), p2[i]);
+  finally
+    if p2 <> nil then
+      AlignedFree(p2);
+  end;
+end;
+
+procedure TTestCase_Memutils.Test_AlignedRealloc_Shrink_PreservesPrefix;
+var
+  p, p2: PByte;
+  i: Integer;
+begin
+  // Start with a larger buffer and shrink it; leading bytes must be preserved
+  p := AlignedAlloc(64, SIMD_ALIGN_32);
+  try
+    for i := 0 to 63 do
+      p[i] := Byte(255 - i);
+    p2 := AlignedRealloc(p, 16, SIMD_ALIGN_32);
+    p := nil;
+    AssertTrue('Realloc result should be non-nil', p2 <> nil);
+    AssertTrue('Realloc result should be 32-byte aligned', IsAligned(p2, SIMD_ALIGN_32));
+    for i := 0 to 15 do
+      AssertEquals('Prefix bytes must be preserved after shrink', Byte(255 - i), p2[i]);
+  finally
+    if p2 <> nil then
+      AlignedFree(p2);
+  end;
+end;
+
+procedure TTestCase_Memutils.Test_AlignedRealloc_NilAndZero_Semantics;
+var
+  p, p2: PByte;
+begin
+  // realloc(nil, N) behaves like malloc(N)
+  p := AlignedRealloc(nil, 32, SIMD_ALIGN_16);
+  AssertTrue('Realloc(nil, N) should allocate', p <> nil);
+  AssertTrue('Allocated pointer should be aligned', IsAligned(p, SIMD_ALIGN_16));
+  
+  // realloc(p, 0) behaves like free(p) and returns nil
+  p2 := AlignedRealloc(p, 0, SIMD_ALIGN_16);
+  p := nil;
+  AssertTrue('Realloc(p, 0) should return nil', p2 = nil);
+end;
+
+{ TTestCase_Vec512Types }
+
+procedure TTestCase_Vec512Types.Test_VecF32x16_Create;
+var
+  v: TVecF32x16;
+  i: Integer;
+begin
+  for i := 0 to 15 do
+    v.f[i] := i * 1.5;
+  
+  for i := 0 to 15 do
+    AssertEquals('Element ' + IntToStr(i), i * 1.5, v.f[i], 0.0001);
+end;
+
+procedure TTestCase_Vec512Types.Test_VecF32x16_LoHi;
+var
+  v: TVecF32x16;
+  i: Integer;
+begin
+  for i := 0 to 15 do
+    v.f[i] := i;
+  
+  // Lo 应该是 [0..7]
+  for i := 0 to 7 do
+    AssertEquals('Lo element ' + IntToStr(i), Single(i), v.lo.f[i], 0.0001);
+  
+  // Hi 应该是 [8..15]
+  for i := 0 to 7 do
+    AssertEquals('Hi element ' + IntToStr(i), Single(i + 8), v.hi.f[i], 0.0001);
+end;
+
+procedure TTestCase_Vec512Types.Test_VecF32x16_SizeOf;
+begin
+  AssertEquals('TVecF32x16 should be 64 bytes', 64, SizeOf(TVecF32x16));
+end;
+
+procedure TTestCase_Vec512Types.Test_VecF64x8_Create;
+var
+  v: TVecF64x8;
+  i: Integer;
+begin
+  for i := 0 to 7 do
+    v.d[i] := i * 2.5;
+  
+  for i := 0 to 7 do
+    AssertEquals('Element ' + IntToStr(i), i * 2.5, v.d[i], 0.0001);
+end;
+
+procedure TTestCase_Vec512Types.Test_VecF64x8_LoHi;
+var
+  v: TVecF64x8;
+  i: Integer;
+begin
+  for i := 0 to 7 do
+    v.d[i] := i;
+  
+  // Lo 应该是 [0..3]
+  for i := 0 to 3 do
+    AssertEquals('Lo element ' + IntToStr(i), Double(i), v.lo.d[i], 0.0001);
+  
+  // Hi 应该是 [4..7]
+  for i := 0 to 3 do
+    AssertEquals('Hi element ' + IntToStr(i), Double(i + 4), v.hi.d[i], 0.0001);
+end;
+
+procedure TTestCase_Vec512Types.Test_VecF64x8_SizeOf;
+begin
+  AssertEquals('TVecF64x8 should be 64 bytes', 64, SizeOf(TVecF64x8));
+end;
+
+procedure TTestCase_Vec512Types.Test_VecI32x16_Create;
+var
+  v: TVecI32x16;
+  i: Integer;
+begin
+  for i := 0 to 15 do
+    v.i[i] := i * 100;
+  
+  for i := 0 to 15 do
+    AssertEquals('Element ' + IntToStr(i), i * 100, v.i[i]);
+end;
+
+procedure TTestCase_Vec512Types.Test_VecI32x16_LoHi;
+var
+  v: TVecI32x16;
+  i: Integer;
+begin
+  for i := 0 to 15 do
+    v.i[i] := i;
+  
+  for i := 0 to 7 do
+    AssertEquals('Lo element ' + IntToStr(i), i, v.lo.i[i]);
+  
+  for i := 0 to 7 do
+    AssertEquals('Hi element ' + IntToStr(i), i + 8, v.hi.i[i]);
+end;
+
+procedure TTestCase_Vec512Types.Test_VecI32x16_SizeOf;
+begin
+  AssertEquals('TVecI32x16 should be 64 bytes', 64, SizeOf(TVecI32x16));
+end;
+
+procedure TTestCase_Vec512Types.Test_VecI64x8_Create;
+var
+  v: TVecI64x8;
+  i: Integer;
+begin
+  for i := 0 to 7 do
+    v.i[i] := Int64(i) * 1000000000;
+  
+  for i := 0 to 7 do
+    AssertEquals('Element ' + IntToStr(i), Int64(i) * 1000000000, v.i[i]);
+end;
+
+procedure TTestCase_Vec512Types.Test_VecI64x8_SizeOf;
+begin
+  AssertEquals('TVecI64x8 should be 64 bytes', 64, SizeOf(TVecI64x8));
+end;
+
+procedure TTestCase_Vec512Types.Test_VecI8x64_Create;
+var
+  v: TVecI8x64;
+  i: Integer;
+begin
+  for i := 0 to 63 do
+    v.i[i] := Int8(i - 32);
+  
+  for i := 0 to 63 do
+    AssertEquals('Element ' + IntToStr(i), Int8(i - 32), v.i[i]);
+end;
+
+procedure TTestCase_Vec512Types.Test_VecI8x64_SizeOf;
+begin
+  AssertEquals('TVecI8x64 should be 64 bytes', 64, SizeOf(TVecI8x64));
+end;
+
+procedure TTestCase_Vec512Types.Test_Mask64_AllSet;
+var
+  m: TMask64;
+begin
+  m := High(QWord);
+  AssertEquals('TMask64 all set', High(QWord), m);
+end;
+
+procedure TTestCase_Vec512Types.Test_Mask64_NoneSet;
+var
+  m: TMask64;
+begin
+  m := 0;
+  AssertEquals('TMask64 none set', 0, m);
+end;
+
+procedure TTestCase_Vec512Types.Test_MaskF32x16_AllTrue;
+var
+  m: TMaskF32x16;
+  i: Integer;
+begin
+  m := MaskF32x16AllTrue;
+  
+  for i := 0 to 15 do
+    AssertEquals('Element ' + IntToStr(i) + ' should be $FFFFFFFF', $FFFFFFFF, m.m[i]);
+  AssertEquals('Bits should be $FFFF', $FFFF, m.bits);
+end;
+
+procedure TTestCase_Vec512Types.Test_MaskF32x16_AllFalse;
+var
+  m: TMaskF32x16;
+  i: Integer;
+begin
+  m := MaskF32x16AllFalse;
+  
+  for i := 0 to 15 do
+    AssertEquals('Element ' + IntToStr(i) + ' should be 0', 0, m.m[i]);
+  AssertEquals('Bits should be 0', 0, m.bits);
+end;
+
+procedure TTestCase_Vec512Types.Test_MaskF32x16_ToBitmask;
+var
+  m: TMaskF32x16;
+  bm: TMask16;
+begin
+  m := MaskF32x16AllFalse;
+  m.m[0] := $FFFFFFFF;  // bit 0
+  m.m[3] := $FFFFFFFF;  // bit 3
+  m.m[7] := $FFFFFFFF;  // bit 7
+  m.m[15] := $FFFFFFFF; // bit 15
+  
+  bm := MaskF32x16ToBitmask(m);
+  AssertEquals('Bitmask should be $8089', $8089, bm);
+end;
+
+procedure TTestCase_Vec512Types.Test_MaskF32x16_Any_All_None;
+var
+  mAll, mNone, mSome: TMaskF32x16;
+begin
+  mAll := MaskF32x16AllTrue;
+  mNone := MaskF32x16AllFalse;
+  mSome := MaskF32x16AllFalse;
+  mSome.m[5] := $FFFFFFFF;
+  
+  // Test Any
+  AssertTrue('All mask Any = True', MaskF32x16Any(mAll));
+  AssertFalse('None mask Any = False', MaskF32x16Any(mNone));
+  AssertTrue('Some mask Any = True', MaskF32x16Any(mSome));
+  
+  // Test All
+  AssertTrue('All mask All = True', MaskF32x16All(mAll));
+  AssertFalse('None mask All = False', MaskF32x16All(mNone));
+  AssertFalse('Some mask All = False', MaskF32x16All(mSome));
+  
+  // Test None
+  AssertFalse('All mask None = False', MaskF32x16None(mAll));
+  AssertTrue('None mask None = True', MaskF32x16None(mNone));
+  AssertFalse('Some mask None = False', MaskF32x16None(mSome));
+end;
+
+procedure TTestCase_Vec512Types.Test_VecF32x16_Add;
+var
+  a, b, r: TVecF32x16;
+  i: Integer;
+begin
+  for i := 0 to 15 do
+  begin
+    a.f[i] := i;
+    b.f[i] := i * 2;
+  end;
+  
+  r := a + b;
+  
+  for i := 0 to 15 do
+    AssertEquals('Element ' + IntToStr(i), i * 3.0, r.f[i], 0.0001);
+end;
+
+procedure TTestCase_Vec512Types.Test_VecF32x16_Sub;
+var
+  a, b, r: TVecF32x16;
+  i: Integer;
+begin
+  for i := 0 to 15 do
+  begin
+    a.f[i] := i * 3;
+    b.f[i] := i;
+  end;
+  
+  r := a - b;
+  
+  for i := 0 to 15 do
+    AssertEquals('Element ' + IntToStr(i), i * 2.0, r.f[i], 0.0001);
+end;
+
+procedure TTestCase_Vec512Types.Test_VecF32x16_Mul;
+var
+  a, b, r: TVecF32x16;
+  i: Integer;
+begin
+  for i := 0 to 15 do
+  begin
+    a.f[i] := i + 1;
+    b.f[i] := 2;
+  end;
+  
+  r := a * b;
+  
+  for i := 0 to 15 do
+    AssertEquals('Element ' + IntToStr(i), (i + 1) * 2.0, r.f[i], 0.0001);
+end;
+
+procedure TTestCase_Vec512Types.Test_VecF32x16_Neg;
+var
+  a, r: TVecF32x16;
+  i: Integer;
+begin
+  for i := 0 to 15 do
+    a.f[i] := i - 7.5;
+  
+  r := -a;
+  
+  for i := 0 to 15 do
+    AssertEquals('Element ' + IntToStr(i), -(i - 7.5), r.f[i], 0.0001);
+end;
+
+procedure TTestCase_Vec512Types.Test_VecF64x8_Add;
+var
+  a, b, r: TVecF64x8;
+  i: Integer;
+begin
+  for i := 0 to 7 do
+  begin
+    a.d[i] := i * 1.5;
+    b.d[i] := i * 0.5;
+  end;
+  
+  r := a + b;
+  
+  for i := 0 to 7 do
+    AssertEquals('Element ' + IntToStr(i), i * 2.0, r.d[i], 0.0001);
+end;
+
+procedure TTestCase_Vec512Types.Test_VecI32x16_Add;
+var
+  a, b, r: TVecI32x16;
+  i: Integer;
+begin
+  for i := 0 to 15 do
+  begin
+    a.i[i] := i * 10;
+    b.i[i] := i * 5;
+  end;
+  
+  r := a + b;
+  
+  for i := 0 to 15 do
+    AssertEquals('Element ' + IntToStr(i), i * 15, r.i[i]);
+end;
+
+procedure TTestCase_Vec512Types.Test_VecF32x16_CmpEq;
+var
+  a, b: TVecF32x16;
+  m: TMaskF32x16;
+  i: Integer;
+begin
+  for i := 0 to 15 do
+  begin
+    a.f[i] := i;
+    if i mod 2 = 0 then
+      b.f[i] := i    // 等于
+    else
+      b.f[i] := i + 1;  // 不等
+  end;
+  
+  m := VecF32x16CmpEq(a, b);
+  
+  for i := 0 to 15 do
+    if i mod 2 = 0 then
+      AssertEquals('Element ' + IntToStr(i) + ' should be true', $FFFFFFFF, m.m[i])
+    else
+      AssertEquals('Element ' + IntToStr(i) + ' should be false', 0, m.m[i]);
+  
+  // 检查 bitmask: 偶数位置为 1 = $5555
+  AssertEquals('Bitmask', $5555, m.bits);
+end;
+
+procedure TTestCase_Vec512Types.Test_VecF32x16_CmpLt;
+var
+  a, b: TVecF32x16;
+  m: TMaskF32x16;
+  i: Integer;
+begin
+  for i := 0 to 15 do
+  begin
+    a.f[i] := i;
+    b.f[i] := 8;  // 比较与 8
+  end;
+  
+  m := VecF32x16CmpLt(a, b);
+  
+  // 元素 0-7 应该小于 8，元素 8-15 不小于 8
+  for i := 0 to 7 do
+    AssertTrue('Element ' + IntToStr(i) + ' < 8', m.m[i] = $FFFFFFFF);
+  for i := 8 to 15 do
+    AssertTrue('Element ' + IntToStr(i) + ' >= 8', m.m[i] = 0);
+  
+  // bitmask: 低 8 位为 1 = $00FF
+  AssertEquals('Bitmask', $00FF, m.bits);
+end;
+
+procedure TTestCase_Vec512Types.Test_MaskF32x16_LogicOps;
+var
+  m1, m2, r: TMaskF32x16;
+begin
+  // m1 = $5555 (偶数位), m2 = $00FF (低 8 位)
+  m1 := MaskF32x16FromBitmask($5555);
+  m2 := MaskF32x16FromBitmask($00FF);
+  
+  // AND: $5555 & $00FF = $0055
+  r := m1 and m2;
+  AssertEquals('AND result', $0055, r.bits);
+  
+  // OR: $5555 | $00FF = $55FF
+  r := m1 or m2;
+  AssertEquals('OR result', $55FF, r.bits);
+  
+  // XOR: $5555 ^ $00FF = $55AA
+  r := m1 xor m2;
+  AssertEquals('XOR result', $55AA, r.bits);
+  
+  // NOT: ~$5555 = $AAAA
+  r := not m1;
+  AssertEquals('NOT result', $AAAA, r.bits);
+end;
+
+procedure TTestCase_Vec512Types.Test_MaskF32x16_Select;
+var
+  a, b, r: TVecF32x16;
+  m: TMaskF32x16;
+  i: Integer;
+begin
+  for i := 0 to 15 do
+  begin
+    a.f[i] := 100 + i;  // 真分支
+    b.f[i] := 200 + i;  // 假分支
+  end;
+  
+  // 偶数位置选 a，奇数位置选 b
+  m := MaskF32x16FromBitmask($5555);
+  
+  r := MaskF32x16Select(m, a, b);
+  
+  for i := 0 to 15 do
+    if i mod 2 = 0 then
+      AssertEquals('Element ' + IntToStr(i), 100.0 + i, r.f[i], 0.0001)
+    else
+      AssertEquals('Element ' + IntToStr(i), 200.0 + i, r.f[i], 0.0001);
+end;
+
+{ TTestCase_RustStyleAliases }
+
+procedure TTestCase_RustStyleAliases.Test_f32x4_Alias_SameSize;
+begin
+  AssertEquals('f32x4 should have same size as TVecF32x4', SizeOf(TVecF32x4), SizeOf(f32x4));
+  AssertEquals('f32x4 size should be 16 bytes', 16, SizeOf(f32x4));
+end;
+
+procedure TTestCase_RustStyleAliases.Test_f32x4_Alias_Usable;
+var
+  v: f32x4;
+  i: Integer;
+begin
+  // 测试别名可以正常使用
+  v.f[0] := 1.0;
+  v.f[1] := 2.0;
+  v.f[2] := 3.0;
+  v.f[3] := 4.0;
+  
+  for i := 0 to 3 do
+    AssertEquals('Element ' + IntToStr(i), Single(i + 1), v.f[i], 0.0001);
+end;
+
+procedure TTestCase_RustStyleAliases.Test_f64x2_Alias_SameSize;
+begin
+  AssertEquals('f64x2 should have same size as TVecF64x2', SizeOf(TVecF64x2), SizeOf(f64x2));
+  AssertEquals('f64x2 size should be 16 bytes', 16, SizeOf(f64x2));
+end;
+
+procedure TTestCase_RustStyleAliases.Test_f64x2_Alias_Usable;
+var
+  v: f64x2;
+begin
+  v.d[0] := 1.5;
+  v.d[1] := 2.5;
+  
+  AssertEquals('Element 0', 1.5, v.d[0], 0.0001);
+  AssertEquals('Element 1', 2.5, v.d[1], 0.0001);
+end;
+
+procedure TTestCase_RustStyleAliases.Test_i32x4_Alias_SameSize;
+begin
+  AssertEquals('i32x4 should have same size as TVecI32x4', SizeOf(TVecI32x4), SizeOf(i32x4));
+  AssertEquals('i32x4 size should be 16 bytes', 16, SizeOf(i32x4));
+end;
+
+procedure TTestCase_RustStyleAliases.Test_i32x4_Alias_Usable;
+var
+  v: i32x4;
+  i: Integer;
+begin
+  for i := 0 to 3 do
+    v.i[i] := i * 10;
+  
+  for i := 0 to 3 do
+    AssertEquals('Element ' + IntToStr(i), i * 10, v.i[i]);
+end;
+
+procedure TTestCase_RustStyleAliases.Test_i64x2_Alias_SameSize;
+begin
+  AssertEquals('i64x2 should have same size as TVecI64x2', SizeOf(TVecI64x2), SizeOf(i64x2));
+  AssertEquals('i64x2 size should be 16 bytes', 16, SizeOf(i64x2));
+end;
+
+procedure TTestCase_RustStyleAliases.Test_i16x8_Alias_SameSize;
+begin
+  AssertEquals('i16x8 should have same size as TVecI16x8', SizeOf(TVecI16x8), SizeOf(i16x8));
+  AssertEquals('i16x8 size should be 16 bytes', 16, SizeOf(i16x8));
+end;
+
+procedure TTestCase_RustStyleAliases.Test_i8x16_Alias_SameSize;
+begin
+  AssertEquals('i8x16 should have same size as TVecI8x16', SizeOf(TVecI8x16), SizeOf(i8x16));
+  AssertEquals('i8x16 size should be 16 bytes', 16, SizeOf(i8x16));
+end;
+
+procedure TTestCase_RustStyleAliases.Test_u32x4_Alias_SameSize;
+begin
+  AssertEquals('u32x4 should have same size as TVecU32x4', SizeOf(TVecU32x4), SizeOf(u32x4));
+  AssertEquals('u32x4 size should be 16 bytes', 16, SizeOf(u32x4));
+end;
+
+procedure TTestCase_RustStyleAliases.Test_u64x2_Alias_SameSize;
+begin
+  AssertEquals('u64x2 should have same size as TVecU64x2', SizeOf(TVecU64x2), SizeOf(u64x2));
+  AssertEquals('u64x2 size should be 16 bytes', 16, SizeOf(u64x2));
+end;
+
+procedure TTestCase_RustStyleAliases.Test_u16x8_Alias_SameSize;
+begin
+  AssertEquals('u16x8 should have same size as TVecU16x8', SizeOf(TVecU16x8), SizeOf(u16x8));
+  AssertEquals('u16x8 size should be 16 bytes', 16, SizeOf(u16x8));
+end;
+
+procedure TTestCase_RustStyleAliases.Test_u8x16_Alias_SameSize;
+begin
+  AssertEquals('u8x16 should have same size as TVecU8x16', SizeOf(TVecU8x16), SizeOf(u8x16));
+  AssertEquals('u8x16 size should be 16 bytes', 16, SizeOf(u8x16));
+end;
+
+procedure TTestCase_RustStyleAliases.Test_f32x8_Alias_SameSize;
+begin
+  AssertEquals('f32x8 should have same size as TVecF32x8', SizeOf(TVecF32x8), SizeOf(f32x8));
+  AssertEquals('f32x8 size should be 32 bytes', 32, SizeOf(f32x8));
+end;
+
+procedure TTestCase_RustStyleAliases.Test_f64x4_Alias_SameSize;
+begin
+  AssertEquals('f64x4 should have same size as TVecF64x4', SizeOf(TVecF64x4), SizeOf(f64x4));
+  AssertEquals('f64x4 size should be 32 bytes', 32, SizeOf(f64x4));
+end;
+
+procedure TTestCase_RustStyleAliases.Test_i32x8_Alias_SameSize;
+begin
+  AssertEquals('i32x8 should have same size as TVecI32x8', SizeOf(TVecI32x8), SizeOf(i32x8));
+  AssertEquals('i32x8 size should be 32 bytes', 32, SizeOf(i32x8));
+end;
+
+procedure TTestCase_RustStyleAliases.Test_f32x16_Alias_SameSize;
+begin
+  AssertEquals('f32x16 should have same size as TVecF32x16', SizeOf(TVecF32x16), SizeOf(f32x16));
+  AssertEquals('f32x16 size should be 64 bytes', 64, SizeOf(f32x16));
+end;
+
+procedure TTestCase_RustStyleAliases.Test_f64x8_Alias_SameSize;
+begin
+  AssertEquals('f64x8 should have same size as TVecF64x8', SizeOf(TVecF64x8), SizeOf(f64x8));
+  AssertEquals('f64x8 size should be 64 bytes', 64, SizeOf(f64x8));
+end;
+
+procedure TTestCase_RustStyleAliases.Test_i32x16_Alias_SameSize;
+begin
+  AssertEquals('i32x16 should have same size as TVecI32x16', SizeOf(TVecI32x16), SizeOf(i32x16));
+  AssertEquals('i32x16 size should be 64 bytes', 64, SizeOf(i32x16));
+end;
+
+procedure TTestCase_RustStyleAliases.Test_Alias_InteropWithOriginal;
+var
+  original: TVecF32x4;
+  alias: f32x4;
+  i: Integer;
+begin
+  // 测试别名和原始类型可互用
+  for i := 0 to 3 do
+    original.f[i] := i + 1;
+  
+  alias := original;  // 直接赋值
+  
+  for i := 0 to 3 do
+    AssertEquals('Element ' + IntToStr(i), original.f[i], alias.f[i], 0.0001);
+  
+  // 反向赋值
+  for i := 0 to 3 do
+    alias.f[i] := (i + 1) * 10;
+  
+  original := alias;
+  
+  for i := 0 to 3 do
+    AssertEquals('Reverse element ' + IntToStr(i), alias.f[i], original.f[i], 0.0001);
+end;
+
 initialization
   RegisterTest(TTestCase_Global);
   RegisterTest(TTestCase_BackendConsistency);
+  RegisterTest(TTestCase_BackendSmoke);
   RegisterTest(TTestCase_VectorOps);
   RegisterTest(TTestCase_LargeData);
   RegisterTest(TTestCase_UnsignedVectorTypes);
   RegisterTest(TTestCase_OperatorOverloads);
+  RegisterTest(TTestCase_VectorMaskTypes);
+  RegisterTest(TTestCase_TypeConversion);
+  RegisterTest(TTestCase_Builder);
+  RegisterTest(TTestCase_GatherScatter);
+  RegisterTest(TTestCase_ShuffleSWizzle);
+  RegisterTest(TTestCase_MathFunctions);
+  RegisterTest(TTestCase_AdvancedAlgorithms);
+  RegisterTest(TTestCase_EdgeCases);
+  RegisterTest(TTestCase_Vec512Types);
+  RegisterTest(TTestCase_Memutils);
+  RegisterTest(TTestCase_RustStyleAliases);
 
 end.

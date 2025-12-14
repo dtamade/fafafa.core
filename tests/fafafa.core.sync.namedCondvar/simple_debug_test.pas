@@ -21,7 +21,7 @@ begin
     WriteLn('=== 简单调试测试 ===');
     
     WriteLn('1. 创建命名互斥锁...');
-    LMutex := CreateNamedMutex(TEST_MUTEX_NAME);
+    LMutex := Sync.MakeNamedMutex(TEST_MUTEX_NAME);
     WriteLn('   ✓ 互斥锁创建成功');
     WriteLn('   句柄: ', IntToHex(PtrUInt(LMutex.GetHandle), 16));
     

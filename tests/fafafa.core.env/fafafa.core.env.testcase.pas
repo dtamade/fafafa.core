@@ -14,78 +14,94 @@ uses
 type
   TTestCase_Global = class(TTestCase)
   published
+    // === Basic Operations ===
+    procedure Test_env_get_set_unset_rollback;
+    procedure Test_env_get_or_fallback;
+    procedure Test_env_lookup_defined_empty_vs_undefined;
+    procedure Test_env_has_defined_and_undefined;
+    procedure Test_env_vars_snapshot;
+    procedure Test_env_functions_with_empty_names;
+    procedure Test_env_vars_with_nil_destination;
+
+    // === RAII Override Guards ===
+    procedure Test_env_overrides_basic_restore;
+    procedure Test_env_overrides_duplicate_keys;
+    procedure Test_env_override_unset_behavior;
+
+    // === String Expansion ===
     procedure Test_env_expand_basic;
     procedure Test_env_expand_edges;
     procedure Test_env_expand_doubledollar_escape;
     procedure Test_env_expand_env_delegates;
     procedure Test_env_expand_with_custom_mapper;
+    procedure Test_env_expand_trailing_dollar_literal;
+    procedure Test_env_expand_braced_empty_name;
+    procedure Test_env_expand_name_with_hyphen_stops_before;
+    procedure Test_env_expand_with_unicode_braced_name;
+    procedure Test_env_expand_with_nil_resolver;
+    procedure Test_env_expand_with_very_long_string;
     {$IFDEF WINDOWS}
     procedure Test_env_expand_doublepercent_escape;
     procedure Test_env_expand_case_insensitive;
+    procedure Test_env_expand_unmatched_percent_literal_windows;
+    procedure Test_env_expand_percent_with_space_name_windows;
     {$ENDIF}
-    procedure Test_env_join_paths_checked_reports_error;
-    procedure Test_env_get_or_fallback;
 
+    // === PATH Handling ===
+    procedure Test_env_path_list_separator_platform;
     procedure Test_env_split_join_paths_roundtrip;
     procedure Test_env_split_join_paths_roundtrip2;
-    procedure Test_env_get_set_unset_rollback;
+    procedure Test_env_join_paths_skip_empty_segments;
+    procedure Test_env_join_paths_checked_reports_error;
+    procedure Test_env_split_paths_preserve_spaces_and_dot_segments;
+    procedure Test_env_join_paths_preserve_segments_verbatim;
+    procedure Test_env_split_paths_multiple_separators_collapsed;
+    procedure Test_env_join_paths_with_relative_and_dots_roundtrip;
+    procedure Test_env_split_paths_with_empty_string;
+
+    // === Directories & Process ===
+    procedure Test_env_cwd_and_exepath;
     procedure Test_env_user_dirs_best_effort;
 
-    procedure Test_env_vars_snapshot;
-    procedure Test_env_cwd_and_exepath;
-    procedure Test_env_overrides_basic_restore;
-    procedure Test_env_overrides_duplicate_keys;
+    // === Security Helpers ===
+    procedure Test_env_is_sensitive_name;
+    procedure Test_env_mask_value;
+    procedure Test_env_validate_name;
 
-    // New tests for improved semantics
-    procedure Test_env_lookup_defined_empty_vs_undefined;
-    procedure Test_env_override_unset_behavior;
-    procedure Test_env_has_defined_and_undefined;
+    // === Convenience APIs ===
+    procedure Test_env_required_returns_value_when_defined;
+    procedure Test_env_required_raises_when_undefined;
+    procedure Test_env_keys_returns_all_names;
+    procedure Test_env_count_returns_correct_number;
 
-    // Result API (env)
+    // === Platform Constants ===
+    procedure Test_env_os_returns_valid_os_name;
+    procedure Test_env_arch_returns_valid_arch;
+    procedure Test_env_family_returns_valid_family;
+    procedure Test_env_is_platform_functions;
+
+    // === Iterator API ===
+    procedure Test_env_iter_for_in_syntax;
+    procedure Test_env_iter_count_matches_env_count;
+    procedure Test_env_iter_keys_have_no_equals;
+
+    // === Command-line Arguments ===
+    procedure Test_env_args_returns_array;
+    procedure Test_env_args_count_matches_paramcount;
+    procedure Test_env_arg_returns_paramstr;
+
+    // === Sandbox Operations ===
+    procedure Test_env_clear_all_removes_all_vars;
+
+    // === Result API ===
     procedure Test_env_get_result_ok;
     procedure Test_env_get_result_err;
     procedure Test_env_join_paths_result_ok;
     procedure Test_env_join_paths_result_err;
-
-    // Result API (directories)
     procedure Test_env_current_dir_result_ok;
     procedure Test_env_set_current_dir_result_ok;
     procedure Test_env_set_current_dir_result_err;
-
-    // Result API (queries)
     procedure Test_env_home_temp_exe_user_dirs_result_ok;
-
-    // Additional boundary tests
-    procedure Test_env_path_list_separator_platform;
-    procedure Test_env_join_paths_skip_empty_segments;
-    procedure Test_env_expand_trailing_dollar_literal;
-    procedure Test_env_expand_braced_empty_name;
-    procedure Test_env_expand_name_with_hyphen_stops_before;
-    {$IFDEF WINDOWS}
-    procedure Test_env_expand_unmatched_percent_literal_windows;
-    {$ENDIF}
-
-    // Extreme cases added later
-    procedure Test_env_split_paths_preserve_spaces_and_dot_segments;
-    procedure Test_env_join_paths_preserve_segments_verbatim;
-    procedure Test_env_split_paths_multiple_separators_collapsed;
-    procedure Test_env_expand_with_unicode_braced_name;
-    {$IFDEF WINDOWS}
-    procedure Test_env_expand_percent_with_space_name_windows;
-    {$ENDIF}
-    procedure Test_env_join_paths_with_relative_and_dots_roundtrip;
-
-    // Additional edge case tests for improved coverage
-    procedure Test_env_functions_with_empty_names;
-    procedure Test_env_vars_with_nil_destination;
-    procedure Test_env_expand_with_nil_resolver;
-    procedure Test_env_expand_with_very_long_string;
-    procedure Test_env_split_paths_with_empty_string;
-
-    // Security helper tests
-    procedure Test_env_is_sensitive_name;
-    procedure Test_env_mask_value;
-    procedure Test_env_validate_name;
 
   end;
 
@@ -112,6 +128,7 @@ end;
 procedure TTestCase_Global.Test_env_join_paths_skip_empty_segments;
 var joined: string; arr: array of string;
 begin
+  arr := nil;
   SetLength(arr, 4);
   arr[0] := 'a';
   arr[1] := '';
@@ -269,12 +286,15 @@ begin
   AssertTrue(tmp <> '');
   AssertTrue(Length(tmp) > 0);
   AssertTrue(Length(home) >= 0);
+  AssertTrue(Length(cfg) >= 0);  // Use cfg to suppress hint
+  AssertTrue(Length(cache) >= 0); // Use cache to suppress hint
 end;
 
 
 procedure TTestCase_Global.Test_env_join_paths_checked_reports_error;
 var arr: array of string; j: string; idx: Integer;
 begin
+  arr := nil;
   SetLength(arr, 3);
   arr[0] := 'a';
   arr[1] := 'b' + env_path_list_separator + 'x'; // illegal
@@ -331,7 +351,7 @@ var g: TEnvOverridesGuard; aOld, bOld: string; aHad, bHad: boolean; kvs: array o
 begin
   aOld := env_get('FA_ENV_A'); aHad := aOld <> '';
   bOld := env_get('FA_ENV_B'); bHad := bOld <> '';
-
+  kvs := nil;
   SetLength(kvs, 2);
   kvs[0].Name := 'FA_ENV_A'; kvs[0].Value := '1'; kvs[0].HasValue := True;
   kvs[1].Name := 'FA_ENV_B'; kvs[1].HasValue := False;
@@ -350,7 +370,7 @@ procedure TTestCase_Global.Test_env_overrides_duplicate_keys;
 var g: TEnvOverridesGuard; old: string; had: boolean; kvs: array of TEnvKV;
 begin
   old := env_get('FA_ENV_DUP'); had := old <> '';
-
+  kvs := nil;
   SetLength(kvs, 4);
   kvs[0].Name := 'FA_ENV_DUP'; kvs[0].Value := 'x'; kvs[0].HasValue := True;
   kvs[1].Name := 'FA_ENV_DUP'; kvs[1].Value := 'y'; kvs[1].HasValue := True;
@@ -429,6 +449,7 @@ procedure TTestCase_Global.Test_env_join_paths_preserve_segments_verbatim;
 var arr: array of string; joined, expect: string; sep: Char;
 begin
   sep := env_path_list_separator;
+  arr := nil;
   SetLength(arr, 5);
   arr[0] := 'a'; arr[1] := ' . '; arr[2] := '..'; arr[3] := 'b'; arr[4] := '';
   joined := env_join_paths(arr);
@@ -478,6 +499,7 @@ end;
 procedure TTestCase_Global.Test_env_join_paths_with_relative_and_dots_roundtrip;
 var arr1, arr2: array of string; joined: string; i, n: integer;
 begin
+  arr1 := nil;
   SetLength(arr1, 4);
   arr1[0] := '.';
   arr1[1] := '..';
@@ -551,6 +573,7 @@ end;
 procedure TTestCase_Global.Test_env_join_paths_result_ok;
 var arr: array of string; r: specialize TResult<string, EPathJoinError>;
 begin
+  arr := nil;
   SetLength(arr, 2); arr[0] := 'a'; arr[1] := 'b';
   r := env_join_paths_result(arr);
   AssertTrue(r.IsOk);
@@ -559,6 +582,7 @@ end;
 procedure TTestCase_Global.Test_env_join_paths_result_err;
 var arr: array of string; r: specialize TResult<string, EPathJoinError>; idx: Integer;
 begin
+  arr := nil;
   SetLength(arr, 2);
   arr[0] := 'a' + env_path_list_separator + 'x';
   arr[1] := 'b';
@@ -706,7 +730,7 @@ begin
   AssertEquals('ab*de', masked);
 
   masked := env_mask_value('secret123456');
-  AssertEquals('se******56', masked);
+  AssertEquals('se********56', masked); // 12 chars: 2 + (12-4) + 2 = 12
 end;
 
 procedure TTestCase_Global.Test_env_validate_name;
@@ -723,6 +747,198 @@ begin
   AssertFalse(env_validate_name('VAR-NAME')); // contains hyphen
   AssertFalse(env_validate_name('VAR.NAME')); // contains dot
   AssertFalse(env_validate_name('VAR NAME')); // contains space
+end;
+
+// P1: High-value convenience API tests
+procedure TTestCase_Global.Test_env_required_returns_value_when_defined;
+var g: TEnvOverrideGuard;
+begin
+  g := env_override('FA_ENV_REQ_TEST', 'expected_value');
+  try
+    AssertEquals('expected_value', env_required('FA_ENV_REQ_TEST'));
+  finally
+    g.Done;
+  end;
+end;
+
+procedure TTestCase_Global.Test_env_required_raises_when_undefined;
+var raised: Boolean;
+begin
+  env_unset('FA_ENV_REQ_MISSING');
+  raised := False;
+  try
+    env_required('FA_ENV_REQ_MISSING');
+  except
+    on E: Exception do
+      raised := True;
+  end;
+  AssertTrue('env_required should raise for undefined var', raised);
+end;
+
+procedure TTestCase_Global.Test_env_keys_returns_all_names;
+var keys: TStringArray; i: Integer; foundPath: Boolean;
+begin
+  keys := env_keys;
+  AssertTrue('env_keys should return at least one key', Length(keys) > 0);
+  // PATH should be present on most systems
+  foundPath := False;
+  for i := 0 to High(keys) do
+    if UpperCase(keys[i]) = 'PATH' then begin foundPath := True; Break; end;
+  AssertTrue('PATH should be in env_keys', foundPath);
+  // Keys should not contain ''='' (values)
+  for i := 0 to High(keys) do
+    AssertTrue('Key should not contain =', Pos('=', keys[i]) = 0);
+end;
+
+procedure TTestCase_Global.Test_env_count_returns_correct_number;
+var cnt: Integer; lst: TStringList;
+begin
+  cnt := env_count;
+  AssertTrue('env_count should be > 0', cnt > 0);
+  // Verify against env_vars
+  lst := TStringList.Create;
+  try
+    env_vars(lst);
+    AssertEquals(lst.Count, cnt);
+  finally
+    lst.Free;
+  end;
+end;
+
+// P2: Platform constants tests
+procedure TTestCase_Global.Test_env_os_returns_valid_os_name;
+var os: string;
+begin
+  os := env_os;
+  AssertTrue('env_os should not be empty', os <> '');
+  // Should be one of known OS names
+  AssertTrue('env_os should be valid',
+    (os = 'Windows') or (os = 'Linux') or (os = 'Darwin') or
+    (os = 'FreeBSD') or (os = 'OpenBSD') or (os = 'NetBSD'));
+end;
+
+procedure TTestCase_Global.Test_env_arch_returns_valid_arch;
+var arch: string;
+begin
+  arch := env_arch;
+  AssertTrue('env_arch should not be empty', arch <> '');
+  // Common architectures
+  AssertTrue('env_arch should be valid',
+    (arch = 'x86_64') or (arch = 'aarch64') or (arch = 'i386') or
+    (arch = 'arm') or (arch = 'powerpc64') or (arch = 'riscv64'));
+end;
+
+procedure TTestCase_Global.Test_env_family_returns_valid_family;
+var fam: string;
+begin
+  fam := env_family;
+  AssertTrue('env_family should not be empty', fam <> '');
+  AssertTrue('env_family should be unix or windows',
+    (fam = 'unix') or (fam = 'windows'));
+end;
+
+procedure TTestCase_Global.Test_env_is_platform_functions;
+begin
+  // At least one should be true
+  AssertTrue('At least one platform should match',
+    env_is_windows or env_is_unix or env_is_darwin);
+  // Darwin implies Unix
+  if env_is_darwin then
+    AssertTrue('Darwin should also be Unix', env_is_unix);
+  // Consistency with env_family
+  if env_is_windows then
+    AssertEquals('windows', env_family)
+  else
+    AssertEquals('unix', env_family);
+end;
+
+// P3: env_clear_all test
+procedure TTestCase_Global.Test_env_clear_all_removes_all_vars;
+var kvs: array of TEnvKV; countAfter: Integer;
+    lst: TStringList; i: Integer;
+begin
+  // Save current env to restore later
+  lst := TStringList.Create;
+  try
+    env_vars(lst);
+    // Build restore array
+    kvs := nil;
+    SetLength(kvs, lst.Count);
+    for i := 0 to lst.Count - 1 do
+    begin
+      kvs[i].Name := lst.Names[i];
+      kvs[i].Value := lst.ValueFromIndex[i];
+      kvs[i].HasValue := True;
+    end;
+    // Clear all
+    env_clear_all;
+    countAfter := env_count;
+    AssertEquals('env_clear_all should remove all vars', 0, countAfter);
+    // Restore (manual, since guards need existing state)
+    for i := 0 to High(kvs) do
+      env_set(kvs[i].Name, kvs[i].Value);
+  finally
+    lst.Free;
+  end;
+end;
+
+// P4: Iterator API tests
+procedure TTestCase_Global.Test_env_iter_for_in_syntax;
+var kv: TEnvKVPair; cnt: Integer;
+begin
+  cnt := 0;
+  for kv in env_iter do
+  begin
+    Inc(cnt);
+    AssertTrue('Key should not be empty', kv.Key <> '');
+  end;
+  AssertTrue('Should iterate at least one var', cnt > 0);
+end;
+
+procedure TTestCase_Global.Test_env_iter_count_matches_env_count;
+var kv: TEnvKVPair; cnt: Integer;
+begin
+  cnt := 0;
+  for kv in env_iter do
+    Inc(cnt);
+  AssertEquals(env_count, cnt);
+end;
+
+procedure TTestCase_Global.Test_env_iter_keys_have_no_equals;
+var kv: TEnvKVPair;
+begin
+  for kv in env_iter do
+  begin
+    AssertTrue('Key should not contain =', Pos('=', kv.Key) = 0);
+  end;
+end;
+
+// P5: Command-line arguments API tests
+procedure TTestCase_Global.Test_env_args_returns_array;
+var args: TStringArray;
+begin
+  args := env_args;
+  // Should have at least one element (the program name)
+  AssertTrue('env_args should have at least one element', Length(args) > 0);
+  // First element should be the executable
+  AssertTrue('First arg should not be empty', args[0] <> '');
+end;
+
+procedure TTestCase_Global.Test_env_args_count_matches_paramcount;
+begin
+  // env_args_count should equal ParamCount + 1 (including program name)
+  AssertEquals(ParamCount + 1, env_args_count);
+end;
+
+procedure TTestCase_Global.Test_env_arg_returns_paramstr;
+var i: Integer;
+begin
+  // env_arg(i) should match ParamStr(i)
+  for i := 0 to ParamCount do
+    AssertEquals(ParamStr(i), env_arg(i));
+  // Out of range should return empty
+  AssertEquals('', env_arg(-1));
+  AssertEquals('', env_arg(ParamCount + 100));
 end;
 
 

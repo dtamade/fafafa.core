@@ -78,7 +78,7 @@ begin
   WriteLn('[Worker ', LProcessId, '] 启动，将执行 ', ACount, ' 次操作');
   
   // 创建命名互斥锁
-  LMutex := MakeNamedMutex(MUTEX_NAME);
+  LMutex := CreateNamedMutex(MUTEX_NAME);
   WriteLn('[Worker ', LProcessId, '] 连接到互斥锁: ', LMutex.GetName);
   WriteLn('[Worker ', LProcessId, '] 是否为创建者: ', BoolToStr(LMutex.IsOwner, '是', '否'));
   
@@ -87,8 +87,8 @@ begin
     WriteLn('[Worker ', LProcessId, '] 操作 ', i, '/', ACount, ' - 等待互斥锁...');
     
     // 获取互斥锁保护共享资源
-    LMutex.Acquire;
-    try
+    with LMutex.LockNamed do
+    begin
       WriteLn('[Worker ', LProcessId, '] 获取互斥锁成功，访问共享资源');
       
       // 读取当前值
@@ -103,8 +103,6 @@ begin
       WriteSharedCounter(LCurrentValue);
       WriteLn('[Worker ', LProcessId, '] 更新计数器值: ', LCurrentValue);
       
-    finally
-      LMutex.Release;
       WriteLn('[Worker ', LProcessId, '] 释放互斥锁');
     end;
     
@@ -126,22 +124,23 @@ begin
   WriteLn('[Reader ', LProcessId, '] 按 Ctrl+C 退出');
   
   // 创建命名互斥锁
-  LMutex := MakeNamedMutex(MUTEX_NAME);
+  LMutex := CreateNamedMutex(MUTEX_NAME);
   WriteLn('[Reader ', LProcessId, '] 连接到互斥锁: ', LMutex.GetName);
   
   while True do
   begin
     try
       // 尝试获取互斥锁（带超时）
-      if LMutex.TryAcquire(1000) then
+      if Assigned(LMutex.TryLockForNamed(1000)) then
       begin
         try
           LValue := ReadSharedCounter;
           WriteLn('[Reader ', LProcessId, '] ', FormatDateTime('hh:nn:ss', Now), 
                   ' - 当前计数器值: ', LValue);
-        finally
-          LMutex.Release;
+        except
+          // Handle exception in critical section
         end;
+        // Guard auto-released
       end
       else
         WriteLn('[Reader ', LProcessId, '] ', FormatDateTime('hh:nn:ss', Now), 

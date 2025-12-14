@@ -7,6 +7,7 @@ interface
 
 uses
   Classes, SysUtils, fpcunit, testregistry,
+  fafafa.core.sync,  // 门面单元，导出 MakeNamed* 函数
   fafafa.core.sync.namedMutex, fafafa.core.sync.base;
 
 type
@@ -15,7 +16,8 @@ type
   published
     procedure Test_MakeNamedMutex;
     procedure Test_MakeNamedMutex_InitialOwner;
-    procedure Test_TryOpenNamedMutex;
+    procedure Test_MakeNamedMutex_Existing;
+    procedure Test_MakeNamedMutex_WithTimeout;
     procedure Test_MakeGlobalNamedMutex;
   end;
 
@@ -29,10 +31,9 @@ type
     procedure TearDown; override;
   published
     procedure Test_GetName;
-    procedure Test_IsAbandoned_DefaultFalse;
-    procedure Test_Acquire_Release;
-    procedure Test_TryAcquire_Immediate;
-    procedure Test_TryAcquire_Timeouts;
+    procedure Test_LockNamed_Unlock;
+    procedure Test_TryLockNamed;
+    procedure Test_TryLockForNamed;
     procedure Test_InvalidName_AssertException;
   end;
 
@@ -44,7 +45,7 @@ procedure TTestCase_Global.Test_MakeNamedMutex;
 var
   M: INamedMutex;
 begin
-  M := MakeNamedMutex('test_mutex_basic');
+  M := Sync.MakeNamedMutex('test_mutex_basic');
   CheckNotNull(M);
   CheckEquals('test_mutex_basic', M.GetName);
 end;
@@ -52,20 +53,23 @@ end;
 procedure TTestCase_Global.Test_MakeNamedMutex_InitialOwner;
 var
   M: INamedMutex;
+  LConfig: TNamedMutexConfig;
 begin
-  M := MakeNamedMutex('test_mutex_owner', True);
+  LConfig := DefaultNamedMutexConfig;
+  LConfig.InitialOwner := True;
+  M := Sync.MakeNamedMutex('test_mutex_owner', LConfig);
   CheckNotNull(M);
   // 初始拥有可直接释放一次
   M.Release;
 end;
 
-procedure TTestCase_Global.Test_TryOpenNamedMutex;
+procedure TTestCase_Global.Test_MakeNamedMutex_Existing;
 var
   M1, M2: INamedMutex;
 begin
-  M1 := MakeNamedMutex('test_mutex_open');
+  M1 := Sync.MakeNamedMutex('test_mutex_open');
   CheckNotNull(M1);
-  M2 := TryOpenNamedMutex('test_mutex_open');
+  M2 := Sync.MakeNamedMutex('test_mutex_open');
   CheckNotNull(M2);
   CheckEquals('test_mutex_open', M2.GetName);
 end;
@@ -75,7 +79,7 @@ var
   M: INamedMutex;
 begin
   try
-    M := MakeNamedMutex('Global\test_global_mutex');
+    M := MakeGlobalNamedMutex('test_global_mutex');
   except
     on E: ELockError do
     begin
@@ -86,10 +90,21 @@ begin
   end;
   CheckNotNull(M);
   {$IFDEF WINDOWS}
+  // Windows: Global\ 前缀被添加
   CheckTrue(Pos('Global\', M.GetName) = 1);
   {$ELSE}
-  CheckEquals('Global\test_global_mutex', M.GetName);
+  // Unix: 命名互斥锁默认就是全局的，不需要前缀
+  CheckEquals('test_global_mutex', M.GetName);
   {$ENDIF}
+end;
+
+procedure TTestCase_Global.Test_MakeNamedMutex_WithTimeout;
+var
+  M: INamedMutex;
+begin
+  M := Sync.MakeNamedMutex('test_make_mutex_timeout', 1000);
+  CheckNotNull(M);
+  CheckEquals('test_make_mutex_timeout', M.GetName);
 end;
 
 { TTestCase_INamedMutex }
@@ -98,7 +113,7 @@ procedure TTestCase_INamedMutex.SetUp;
 begin
   inherited SetUp;
   FTestName := 'test_mutex_' + IntToStr(Random(100000));
-  FMutex := MakeNamedMutex(FTestName);
+  FMutex := Sync.MakeNamedMutex(FTestName);
 end;
 
 procedure TTestCase_INamedMutex.TearDown;
@@ -112,37 +127,41 @@ begin
   CheckEquals(FTestName, FMutex.GetName);
 end;
 
-procedure TTestCase_INamedMutex.Test_IsAbandoned_DefaultFalse;
+procedure TTestCase_INamedMutex.Test_LockNamed_Unlock;
+var
+  G: INamedMutexGuard;
 begin
-  CheckFalse(FMutex.IsAbandoned);
+  G := FMutex.LockNamed;
+  CheckNotNull(G);
+  CheckTrue(G.IsLocked);
+  G := nil;
 end;
 
-procedure TTestCase_INamedMutex.Test_Acquire_Release;
+procedure TTestCase_INamedMutex.Test_TryLockNamed;
+var
+  G: INamedMutexGuard;
 begin
-  FMutex.Acquire;
-  try
-    CheckTrue(True);
-  finally
-    FMutex.Release;
-  end;
+  G := FMutex.TryLockNamed;
+  CheckNotNull(G);
+  CheckTrue(G.IsLocked);
+  G := nil;
 end;
 
-procedure TTestCase_INamedMutex.Test_TryAcquire_Immediate;
+procedure TTestCase_INamedMutex.Test_TryLockForNamed;
+var
+  G: INamedMutexGuard;
 begin
-  CheckTrue(FMutex.TryAcquire);
-  FMutex.Release;
-end;
-
-procedure TTestCase_INamedMutex.Test_TryAcquire_Timeouts;
-begin
-  CheckTrue(FMutex.TryAcquire(0));
-  FMutex.Release;
-  CheckTrue(FMutex.TryAcquire(100));
-  FMutex.Release;
+  G := FMutex.TryLockForNamed(0);
+  CheckNotNull(G);
+  G := nil;
+  
+  G := FMutex.TryLockForNamed(100);
+  CheckNotNull(G);
+  G := nil;
 end;
 
 procedure TTestCase_INamedMutex.Test_InvalidName_AssertException;
-  procedure DoCall; begin MakeNamedMutex(''); end;
+  procedure DoCall; begin Sync.MakeNamedMutex(''); end;
 begin
   AssertException(fafafa.core.sync.base.EInvalidArgument, @DoCall);
 end;

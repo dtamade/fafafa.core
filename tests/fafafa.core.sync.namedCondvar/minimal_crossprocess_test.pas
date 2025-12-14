@@ -22,7 +22,7 @@ begin
   try
     WriteLn('[Creator] 开始创建共享对象...');
     
-    LMutex := CreateNamedMutex(TEST_MUTEX_NAME);
+    LMutex := Sync.MakeNamedMutex(TEST_MUTEX_NAME);
     WriteLn('[Creator] ✓ 互斥锁创建成功');
     
     LCondVar := MakeNamedConditionVariable(TEST_CONDVAR_NAME);
@@ -56,7 +56,7 @@ begin
     // 等待一下确保创建者先创建对象
     Sleep(1000);
     
-    LMutex := CreateNamedMutex(TEST_MUTEX_NAME);
+    LMutex := Sync.MakeNamedMutex(TEST_MUTEX_NAME);
     WriteLn('[Accessor] ✓ 互斥锁访问成功');
     
     LCondVar := MakeNamedConditionVariable(TEST_CONDVAR_NAME);

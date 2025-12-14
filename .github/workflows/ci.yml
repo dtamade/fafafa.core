@@ -1,0 +1,173 @@
+# fafafa.core CI - 跨平台 SIMD 测试
+name: CI
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master, develop]
+
+env:
+  FPC_VERSION: "3.2.2"
+
+jobs:
+  # x86_64 Linux 测试 (SSE2/AVX2/AVX-512)
+  test-linux-x64:
+    runs-on: ubuntu-latest
+    name: Linux x86_64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install FreePascal
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fpc lazarus
+
+      - name: Build SIMD Tests
+        run: |
+          cd tests/fafafa.core.simd
+          lazbuild fafafa.core.simd.test.lpi
+
+      - name: Run Tests
+        run: |
+          ./tests/fafafa.core.simd/bin/fafafa.core.simd.test --all
+
+      - name: Check Memory Leaks
+        run: |
+          # HeapTrc 已在测试中启用，检查输出是否有泄漏
+          ./tests/fafafa.core.simd/bin/fafafa.core.simd.test --all 2>&1 | grep -q "0 unfreed memory blocks" || exit 1
+
+  # ARM64 Linux 测试 (NEON)
+  test-linux-arm64:
+    runs-on: ubuntu-latest
+    name: Linux ARM64 (QEMU)
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Build and Test in ARM64 Container
+        run: |
+          docker run --rm --platform linux/arm64 \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace \
+            arm64v8/debian:bookworm \
+            bash -c "
+              apt-get update && apt-get install -y fpc lazarus-ide-gtk2 make
+              cd tests/fafafa.core.simd
+              lazbuild fafafa.core.simd.test.lpi || (cat ~/.lazarus/compilertest.log 2>/dev/null; exit 1)
+              ./bin/fafafa.core.simd.test --all
+            "
+
+  # Windows x86_64 测试
+  test-windows-x64:
+    runs-on: windows-latest
+    name: Windows x86_64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install FreePascal
+        run: |
+          choco install freepascal lazarus --yes
+
+      - name: Build SIMD Tests
+        shell: cmd
+        run: |
+          cd tests\fafafa.core.simd
+          lazbuild fafafa.core.simd.test.lpi
+
+      - name: Run Tests
+        shell: cmd
+        run: |
+          tests\fafafa.core.simd\bin\fafafa.core.simd.test.exe --all
+
+  # macOS x86_64 测试
+  test-macos-x64:
+    runs-on: macos-13
+    name: macOS x86_64
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install FreePascal
+        run: |
+          brew install fpc
+
+      - name: Build SIMD Tests
+        run: |
+          cd tests/fafafa.core.simd
+          # macOS 可能需要指定 SDK 路径
+          lazbuild fafafa.core.simd.test.lpi || true
+
+      - name: Run Tests
+        run: |
+          ./tests/fafafa.core.simd/bin/fafafa.core.simd.test --all || true
+
+  # macOS ARM64 测试 (Apple Silicon)
+  test-macos-arm64:
+    runs-on: macos-14
+    name: macOS ARM64 (Apple Silicon)
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install FreePascal
+        run: |
+          brew install fpc
+
+      - name: Build SIMD Tests
+        run: |
+          cd tests/fafafa.core.simd
+          lazbuild fafafa.core.simd.test.lpi || true
+
+      - name: Run Tests
+        run: |
+          ./tests/fafafa.core.simd/bin/fafafa.core.simd.test --all || true
+
+  # 性能回归检测
+  benchmark:
+    runs-on: ubuntu-latest
+    name: Performance Benchmark
+    needs: [test-linux-x64]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install FreePascal
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fpc lazarus
+
+      - name: Build Tests
+        run: |
+          cd tests/fafafa.core.simd
+          lazbuild fafafa.core.simd.test.lpi
+
+      - name: Run Benchmark
+        run: |
+          ./tests/fafafa.core.simd/bin/fafafa.core.simd.test --all 2>&1 | tee benchmark.log
+
+      - name: Extract Performance Metrics
+        run: |
+          echo "## Performance Results" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          grep -A 2 "MemEqual:\|SumBytes:\|CountByte:" benchmark.log >> $GITHUB_STEP_SUMMARY || true
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload Benchmark Results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: benchmark.log

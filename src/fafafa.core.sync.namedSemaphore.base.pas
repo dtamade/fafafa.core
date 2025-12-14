@@ -103,14 +103,6 @@ type
     function GetWaitCount: Int64;
     function GetReleaseCount: Int64;
     function GetAverageWaitTime: Double;
-
-    // Compatibility methods (deprecated)
-    procedure Acquire; deprecated 'Use Wait() instead';
-    function TryAcquire: Boolean; deprecated 'Use TryWait() instead';
-    function TryAcquire(ATimeoutMs: Cardinal): Boolean; overload; deprecated 'Use TryWaitFor() instead';
-    procedure Acquire(ATimeoutMs: Cardinal); overload; deprecated 'Use TryWaitFor() instead';
-    function GetHandle: Pointer; deprecated 'Implementation detail';
-    function IsCreator: Boolean; deprecated 'Implementation detail';
   end;
 
 implementation

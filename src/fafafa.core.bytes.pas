@@ -23,7 +23,8 @@ interface
 
 uses
   SysUtils, Classes,
-  fafafa.core.base;
+  fafafa.core.base,
+  fafafa.core.io.base;
   // TODO: 集成 fafafa.core.mem.pool（待内存池模块接口稳定后）
 
 type
@@ -34,74 +35,22 @@ type
   EInvalidOperation = fafafa.core.base.EInvalidOperation;
   EArgumentNil      = fafafa.core.base.EArgumentNil;
 
-  // ---- 标准 IO 抽象（参考 Go io 包设计）------------------------------------
-
-  // 标准错误类型
-  EIOError = class(Exception);
-  EEOFError = class(EIOError);
-  EUnexpectedEOF = class(EIOError);
-
-  // 核心 Reader 接口 - 类似 Go io.Reader
-  IReader = interface
-    ['{A1B2C3D4-E5F6-7890-1234-567890ABCDEF}']
-    // 读取最多 Count 字节到 Buffer
-    // 返回实际读取的字节数，0 表示 EOF
-    // 可能返回 n < Count 而不表示错误
-    function Read(Buffer: Pointer; Count: SizeInt): SizeInt;
-  end;
-
-  // 核心 Writer 接口 - 类似 Go io.Writer
-  IWriter = interface
-    ['{B2C3D4E5-F6A7-8901-2345-6789ABCDEF01}']
-    // 写入 Buffer 中的 Count 字节
-    // 返回实际写入的字节数
-    // 如果 n < Count，必须返回非 nil 错误
-    function Write(const Buffer: Pointer; Count: SizeInt): SizeInt;
-  end;
-
-  // 扩展 Reader 接口 - 提供便利方法
-  IByteReader = interface(IReader)
-    ['{C3D4E5F6-A7B8-9012-3456-789ABCDEF012}']
-    function ReadByte: Byte;
-    function ReadBytes(Count: SizeInt): TBytes;
-    function ReadAll: TBytes;
-    function ReadString(Count: SizeInt): RawByteString;
-  end;
-
-  // 扩展 Writer 接口 - 提供便利方法
-  IByteWriter = interface(IWriter)
-    ['{D4E5F6A7-B8C9-0123-4567-89ABCDEF0123}']
-    function WriteByte(Value: Byte): SizeInt;
-    function WriteBytes(const B: TBytes): SizeInt;
-    function WriteString(const S: RawByteString): SizeInt;
-  end;
-
-  // 可关闭接口
-  ICloser = interface
-    ['{E5F6A7B8-C9D0-1234-5678-9ABCDEF01234}']
-    procedure Close;
-  end;
-
-  // 可查找接口 - 类似 Go io.Seeker
-  ISeeker = interface
-    ['{F6A7B8C9-D0E1-2345-6789-ABCDEF012345}']
-    function Seek(Offset: Int64; Whence: Integer): Int64;
-  end;
-
-  // 组合接口
-  IReadWriter = interface(IReader)
-    ['{A7B8C9D0-E1F2-3456-789A-BCDEF0123456}']
-    function Write(const Buffer: Pointer; Count: SizeInt): SizeInt;
-  end;
-
-  IReadWriteCloser = interface(IReadWriter)
-    ['{B8C9D0E1-F2A3-4567-89AB-CDEF01234567}']
-    procedure Close;
-  end;
+  // 重新导出 IO 接口（来自 fafafa.core.io.base）
+  EIOError       = fafafa.core.io.base.EIOError;
+  EEOFError      = fafafa.core.io.base.EEOFError;
+  EUnexpectedEOF = fafafa.core.io.base.EUnexpectedEOF;
+  IReader        = fafafa.core.io.base.IReader;
+  IWriter        = fafafa.core.io.base.IWriter;
+  IByteReader    = fafafa.core.io.base.IByteReader;
+  IByteWriter    = fafafa.core.io.base.IByteWriter;
+  ICloser        = fafafa.core.io.base.ICloser;
+  ISeeker        = fafafa.core.io.base.ISeeker;
+  IReadWriter    = fafafa.core.io.base.IReadWriter;
+  IReadWriteCloser = fafafa.core.io.base.IReadWriteCloser;
 
   // 兼容性别名（逐步废弃）
-  IByteSink = IByteWriter;
-  IByteSource = IByteReader;
+  IByteSink = IWriter;
+  IByteSource = IReader;
 
   // ---- 内存管理优化（集成现有内存池系统）------------------------------------
 

@@ -311,15 +311,11 @@ procedure TLruCache.DestroyNode(aNode: PNode);
 begin
   if aNode <> nil then
   begin
-    // HashMap.Remove已经对PNode调用了Finalize，但PNode内部的接口需要手动清理
-    // HashMap的Finalize(FBuckets[idx].Value)只会清理PNode指针本身，不会清理指针内部的接口
-    // 手动清理PNode内部的接口引用
-    try
-      Finalize(aNode^.Value);
-      Finalize(aNode^.Key);
-    except
-      // 如果Finalize失败，仍然要释放内存
-    end;
+    // 正确释放托管类型：赋值 Default 会触发编译器生成的释放代码
+    // 对于接口类型，这会调用 _Release
+    // 对于字符串类型，这会减少引用计数
+    aNode^.Value := Default(V);
+    aNode^.Key := Default(K);
     
     // 释放PNode内存
     FAllocator.FreeMem(aNode);
@@ -712,8 +708,8 @@ begin
       { 从哈希表中移除 }
       FMap.Remove(aKey);
 
-      { 销毁节点 - HashMap.Remove已经Finalize了PNode，直接释放内存 }
-      FAllocator.FreeMem(LNode);
+      { 销毁节点 - 使用 DestroyNode 正确释放托管类型 }
+      DestroyNode(LNode);
       Dec(FSize);
     end;
   finally

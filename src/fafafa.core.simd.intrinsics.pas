@@ -113,163 +113,110 @@ function simd_mul_pd(const a, b: TM128): TM128;
 
 implementation
 
-// 暂时只提供基础�?Pascal 实现，后续会添加具体指令集模块的调用
+uses
+  fafafa.core.simd.cpuinfo;
 
-// === 指令集检测实�?===
-var
-  g_cpu_features: record
-    mmx, sse, sse2, sse3, sse41, sse42: Boolean;
-    avx, avx2, avx512f: Boolean;
-    aes, sha, fma3: Boolean;
-    initialized: Boolean;
-  end;
+// 暂时只提供基础 Pascal 实现，后续会添加具体指令集模块的调用
+//
+// 指令集检测统一委托给 fafafa.core.simd.cpuinfo：
+// - 对于 SSE/AVX 等 x86 特性，使用 TCPUInfo.X86 中的字段
+// - 对于需要考虑 OS 支持的特性（如 AVX2/AVX-512），使用 HasAVX2/HasAVX512
 
-procedure detect_cpu_features;
-{$IFDEF CPUX86_64}
-var
-  eax, ebx, ecx, edx: Cardinal;
-{$ENDIF}
-begin
-  if g_cpu_features.initialized then Exit;
-
-{$IFDEF CPUX86_64}
-  try
-    // 使用 CPUID 检�?x86/x64 特�?    asm
-      push rbx
-      mov eax, 1
-      cpuid
-      mov eax, edx
-      mov ebx, ecx
-      pop rbx
-      mov edx, eax
-      mov ecx, ebx
-    end;
-
-    g_cpu_features.mmx := (edx and (1 shl 23)) <> 0;
-    g_cpu_features.sse := (edx and (1 shl 25)) <> 0;
-    g_cpu_features.sse2 := (edx and (1 shl 26)) <> 0;
-    g_cpu_features.sse3 := (ecx and (1 shl 0)) <> 0;
-    g_cpu_features.sse41 := (ecx and (1 shl 19)) <> 0;
-    g_cpu_features.sse42 := (ecx and (1 shl 20)) <> 0;
-    g_cpu_features.avx := (ecx and (1 shl 28)) <> 0;
-    g_cpu_features.aes := (ecx and (1 shl 25)) <> 0;
-    g_cpu_features.fma3 := (ecx and (1 shl 12)) <> 0;
-
-    // 检�?AVX2 �?AVX-512
-    asm
-      push rbx
-      mov eax, 7
-      xor ecx, ecx
-      cpuid
-      mov eax, ebx
-      pop rbx
-      mov ebx, eax
-    end;
-
-    g_cpu_features.avx2 := (ebx and (1 shl 5)) <> 0;
-    g_cpu_features.avx512f := (ebx and (1 shl 16)) <> 0;
-    g_cpu_features.sha := False; // 需要额外检�?  except
-    // 如果 CPUID 失败，假设不支持任何特�?    g_cpu_features.mmx := False;
-    g_cpu_features.sse := False;
-    g_cpu_features.sse2 := False;
-    g_cpu_features.sse3 := False;
-    g_cpu_features.sse41 := False;
-    g_cpu_features.sse42 := False;
-    g_cpu_features.avx := False;
-    g_cpu_features.avx2 := False;
-    g_cpu_features.avx512f := False;
-    g_cpu_features.aes := False;
-    g_cpu_features.sha := False;
-    g_cpu_features.fma3 := False;
-  end;
-{$ELSE}
-  // 其他架构默认不支�?x86 特�?  g_cpu_features.mmx := False;
-  g_cpu_features.sse := False;
-  g_cpu_features.sse2 := False;
-  g_cpu_features.sse3 := False;
-  g_cpu_features.sse41 := False;
-  g_cpu_features.sse42 := False;
-  g_cpu_features.avx := False;
-  g_cpu_features.avx2 := False;
-  g_cpu_features.avx512f := False;
-  g_cpu_features.aes := False;
-  g_cpu_features.sha := False;
-  g_cpu_features.fma3 := False;
-{$ENDIF}
-
-  g_cpu_features.initialized := True;
-end;
+// === 指令集检测实现 ===
 
 function simd_has_mmx: Boolean;
 begin
-  detect_cpu_features;
-  Result := g_cpu_features.mmx;
+  {$IFDEF SIMD_X86_AVAILABLE}
+  Result := GetCPUInfo.X86.HasMMX;
+  {$ELSE}
+  Result := False;
+  {$ENDIF}
 end;
 
 function simd_has_sse: Boolean;
 begin
-  detect_cpu_features;
-  Result := g_cpu_features.sse;
+  {$IFDEF SIMD_X86_AVAILABLE}
+  Result := GetCPUInfo.X86.HasSSE;
+  {$ELSE}
+  Result := False;
+  {$ENDIF}
 end;
 
 function simd_has_sse2: Boolean;
 begin
-  detect_cpu_features;
-  Result := g_cpu_features.sse2;
+  // SSE2 is baseline on x86_64; delegate to cpuinfo helper for clarity
+  Result := HasSSE2;
 end;
 
 function simd_has_sse3: Boolean;
 begin
-  detect_cpu_features;
-  Result := g_cpu_features.sse3;
+  {$IFDEF SIMD_X86_AVAILABLE}
+  Result := GetCPUInfo.X86.HasSSE3;
+  {$ELSE}
+  Result := False;
+  {$ENDIF}
 end;
 
 function simd_has_sse41: Boolean;
 begin
-  detect_cpu_features;
-  Result := g_cpu_features.sse41;
+  Result := HasSSE41;
 end;
 
 function simd_has_sse42: Boolean;
 begin
-  detect_cpu_features;
-  Result := g_cpu_features.sse42;
+  {$IFDEF SIMD_X86_AVAILABLE}
+  Result := GetCPUInfo.X86.HasSSE42;
+  {$ELSE}
+  Result := False;
+  {$ENDIF}
 end;
 
 function simd_has_avx: Boolean;
 begin
-  detect_cpu_features;
-  Result := g_cpu_features.avx;
+  {$IFDEF SIMD_X86_AVAILABLE}
+  Result := GetCPUInfo.X86.HasAVX;
+  {$ELSE}
+  Result := False;
+  {$ENDIF}
 end;
 
 function simd_has_avx2: Boolean;
 begin
-  detect_cpu_features;
-  Result := g_cpu_features.avx2;
+  // AVX2 requires both hardware support and OS enabling of YMM state
+  Result := HasAVX2;
 end;
 
 function simd_has_avx512f: Boolean;
 begin
-  detect_cpu_features;
-  Result := g_cpu_features.avx512f;
+  // AVX-512F requires hardware support and OS enabling of ZMM/opmask state
+  Result := HasAVX512;
 end;
 
 function simd_has_aes: Boolean;
 begin
-  detect_cpu_features;
-  Result := g_cpu_features.aes;
+  {$IFDEF SIMD_X86_AVAILABLE}
+  Result := GetCPUInfo.X86.HasAES;
+  {$ELSE}
+  Result := False;
+  {$ENDIF}
 end;
 
 function simd_has_sha: Boolean;
 begin
-  detect_cpu_features;
-  Result := g_cpu_features.sha;
+  {$IFDEF SIMD_X86_AVAILABLE}
+  Result := GetCPUInfo.X86.HasSHA;
+  {$ELSE}
+  Result := False;
+  {$ENDIF}
 end;
 
 function simd_has_fma3: Boolean;
 begin
-  detect_cpu_features;
-  Result := g_cpu_features.fma3;
+  {$IFDEF SIMD_X86_AVAILABLE}
+  Result := GetCPUInfo.X86.HasFMA;
+  {$ELSE}
+  Result := False;
+  {$ENDIF}
 end;
 
 // === 基础函数实现 (Pascal 版本，后续会优化为汇�? ===

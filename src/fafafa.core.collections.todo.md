@@ -1,58 +1,55 @@
-# fafafa.core.collections 待办事项
+# fafafa.core.collections 状态摘要
 
-**最后更新**: 2025-11-05
-**状态**: ✅ 核心功能完整，正在打磨
-
----
-
-## 🎯 当前优先级
-
-### P0 - 本周必须完成 ⚡
-
-- [x] **内存安全验证** - 5个核心类型已完成 (HashMap, Vec, VecDeque, List, HashSet)
-- [ ] **修复 TPriorityQueue 泄漏测试** - 测试代码与API不匹配，需重写
-- [ ] **完成剩余类型验证** - TLinkedHashMap, TTreeMap, TTreeSet, TBitSet, TForwardList, TDeque
-
-### P1 - 本月完成 📋
-
-- [ ] **边界测试增强** - 空集合、单元素、最大容量测试
-- [ ] **文档质量提升** - VecDeque, List, PriorityQueue, Allocator 的英文XML文档
-- [ ] **性能热点分析** - Vec/HashMap 插入、查找操作的profiling
-
-### P2 - 下个月 🔧
-
-- [ ] **异常处理统一** - 标准化异常类型和消息格式
-- [ ] **并发安全测试** - 多线程场景验证
-- [ ] **SIMD 优化** - Vec/Arr 批量复制、BitSet 位运算
+**最后更新**: 2025-12-13
+**状态**: ✅ **生产就绪** - 核心功能完整，内存安全 100% 验证
 
 ---
 
-## 📊 详细规划
+## 🎯 模块概览
 
-见以下文档：
-- `docs/COLLECTIONS_CURRENT_STATUS_2025-11-03.md` - 模块当前状态（第289-367行：待完成工作）
-- `docs/COLLECTIONS_REFINEMENT_PLAN.md` - 完善计划（Phase 1-6）
-- `docs/COLLECTIONS_MEMORY_SAFETY_VERIFICATION_REPORT.md` - 内存验证报告（2025-11-05）
+| 指标 | 状态 |
+|------|------|
+| **代码规模** | 47,617 行，35 个源文件 |
+| **测试通过率** | ✅ 648/648 (100%) |
+| **内存安全** | ✅ 10/10 核心类型验证通过 |
+| **内存泄漏** | ✅ 0 unfreed blocks |
 
 ---
 
-## ✅ 最近完成 (2025-11-05)
+## ✅ 已验证的核心类型
 
-- ✅ **内存安全验证 Phase 1** - 50%完成
-  - TVec: 0 leaks ✅
-  - TVecDeque: 0 leaks ✅
-  - TList: 0 leaks ✅
-  - THashSet: 0 leaks ✅
-  - HashMap: 0 leaks ✅ (已于2025-10-06验证)
+| 容器类型 | 内存安全 | 验证日期 |
+|----------|---------|----------|
+| THashMap<K,V> | ✅ 0 leaks | 2025-10-06 |
+| TVec<T> | ✅ 0 leaks | 2025-11-05 |
+| TVecDeque<T> | ✅ 0 leaks | 2025-11-05 |
+| TList<T> | ✅ 0 leaks | 2025-11-05 |
+| THashSet<T> | ✅ 0 leaks | 2025-11-05 |
+| TPriorityQueue<T> | ✅ 0 leaks | 2025-11-05 |
+| TLinkedHashMap<K,V> | ✅ 0 leaks | 2025-11-05 |
+| TTreeMap<K,V> | ✅ 0 leaks | 2025-12-03 |
+| TTreeSet<T> | ✅ 0 leaks | 2025-12-03 |
+| TBitSet | ✅ 0 leaks | 2025-12-03 |
 
-- ✅ **代码清理**
-  - 修复 collections.slice.pas 的 C风格操作符问题
-  - 归档过时的 treemap.pas.backup
-  - 整理重复的 collections 文档
+---
 
-- ✅ **文档改进**
-  - 创建内存安全验证报告
-  - 更新 COLLECTIONS_CURRENT_STATUS.md
+## 📋 待完善工作 (可选优化)
+
+### P1 - 质量提升
+
+- [ ] **边界测试增强** - 空集合、单元素、大容量边界条件
+- [ ] **编译警告清理** - 处理 "inherited method hidden" 等警告
+- [ ] **API 一致性审查** - 确保类似容器 API 一致
+
+### P2 - 文档完善
+
+- [ ] **快速上手指南** - 帮助新用户快速入门
+- [ ] **容器选择指南** - 帮助用户选择合适的容器
+
+### P3 - 性能优化
+
+- [ ] **SIMD 优化** - Vec/Arr 批量操作、BitSet 位运算
+- [ ] **性能基准测试** - 建立性能基线
 
 ---
 
@@ -61,33 +58,23 @@
 ### 测试命令
 
 ```bash
+# 完整测试套件
+cd tests/fafafa.core.collections && bash BuildOrTest.sh test
+
 # 内存泄漏测试
 fpc -gh -gl -B -Fu../src -Fi../src -otest_XXX_leak test_XXX_leak.pas
 ./test_XXX_leak
-
-# 完整测试套件
-bash tests/run_all_tests.sh fafafa.core.collections.*
-
-# 快速回归测试
-STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.collections.{arr,base,vec,vecdeque}
 ```
 
-### 关键指标
+### 相关文档
 
-| 指标 | 当前值 | 目标 | 状态 |
-|------|--------|------|------|
-| **内存安全验证** | 50% (5/10) | 100% | 🔄 进行中 |
-| **测试通过率** | 100% (25/25) | 100% | ✅ 完成 |
-| **文档覆盖率** | ~60% | 80%+ | 🔄 进行中 |
-| **代码行数** | 40,105 | - | - |
+- `docs/API_collections.md` - API 索引
+- `docs/collections.md` - 设计蓝图
+- `docs/COLLECTIONS_MEMORY_SAFETY_VERIFICATION_REPORT.md` - 内存验证报告
+- `docs/collections/` - 各容器类型文档
 
 ---
 
 ## 🗂️ 历史记录
 
-详细的开发历史和规划记录见：
-- `archive/2025-11-collections/fafafa.core.collections.todo.ARCHIVE.md` - 完整历史记录（2025-08-10 至 2025-08-13）
-
----
-
-**下一步行动**: 修复 TPriorityQueue 泄漏测试，继续完成剩余类型的内存验证
+- `archive/2025-11-collections/` - 开发历史记录

@@ -202,7 +202,7 @@ procedure TTestCase_TreeSet.AssertArrayEquals(const aMsg: string; const aExpecte
 var
   I: SizeInt;
 begin
-  AssertEquals(aMsg + ' 长度不一致', Length(aExpected), Length(aActual));
+  AssertEquals(aMsg + string(' 长度不一致'), Length(aExpected), Length(aActual));
   for I := 0 to High(aExpected) do
     AssertEquals(
       Format('%s 索引 %d', [aMsg, I]),

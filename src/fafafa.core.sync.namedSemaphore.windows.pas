@@ -72,13 +72,6 @@ type
     function GetReleaseCount: Int64;
     function GetAverageWaitTime: Double;
 
-    // 兼容性方法（已弃用）
-    procedure Acquire; deprecated;
-    function TryAcquire: Boolean; deprecated;
-    function TryAcquire(ATimeoutMs: Cardinal): Boolean; overload; deprecated;
-    procedure Acquire(ATimeoutMs: Cardinal); overload; deprecated;
-    function GetHandle: Pointer; deprecated;
-    function IsCreator: Boolean; deprecated;
   end;
 
 implementation
@@ -222,32 +215,37 @@ var
 begin
   Result := nil;
 
-  // 验证名称
+  // 验证名称 - 应该抛出异常而不是静默退出
   if Length(AName) = 0 then
-    Exit;
+    raise EInvalidArgument.Create('Semaphore name cannot be empty');
 
   try
     LName := AName;
     if Length(LName) > 260 then  // MAX_PATH
-      Exit;
+      raise EInvalidArgument.CreateFmt('Semaphore name too long: %d characters (max 260)', [Length(LName)]);
 
     // 尝试打开现有信号量（不创建新的）
     LHandle := OpenSemaphoreW(SEMAPHORE_ALL_ACCESS, False, PWideChar(UnicodeString(LName)));
 
     if LHandle = 0 then
-      Exit; // 信号量不存在或无法打开
+      Exit; // 信号量不存在或无法打开，返回 nil 是正确的语义
 
     // 创建包装实例
     LInstance := TNamedSemaphore.Create;
     LInstance.FHandle := LHandle;
     LInstance.FName := LName;
     LInstance.FIsCreator := False;
-    LInstance.FMaxCount := -1; // 无法确定最大计�?
+    LInstance.FMaxCount := -1; // 无法确定最大计数
     LInstance.FLastError := weNone;
 
     Result := LInstance;
   except
-    // 忽略所有异常，返回 nil
+    on E: EInvalidArgument do
+      raise; // 参数错误直接向上传播
+    on E: Exception do
+      // 其他异常（如系统错误）暂时按旧习惯可能返回 nil，
+      // 但理想情况也应传播。这里先只放行 EInvalidArgument。
+      Result := nil;
   end;
 end;
 
@@ -398,74 +396,6 @@ function TNamedSemaphore.GetMaxCount: Integer;
 begin
   Result := FMaxCount;
 end;
-
-// 兼容性方法（已弃用）- 修复 RAII 问题，直接调�?Windows API
-procedure TNamedSemaphore.Acquire;
-var
-  LResult: DWORD;
-begin
-  LResult := WaitForSingleObject(FHandle, INFINITE);
-  case LResult of
-    WAIT_OBJECT_0:
-      ; // 成功获取
-    WAIT_FAILED:
-      raise ELockError.CreateFmt('Failed to acquire named semaphore "%s": %s',
-        [FName, SysErrorMessage(Windows.GetLastError)]);
-  else
-    raise ELockError.CreateFmt('Unexpected result from WaitForSingleObject: %d', [LResult]);
-  end;
-end;
-
-function TNamedSemaphore.TryAcquire: Boolean;
-var
-  LResult: DWORD;
-begin
-  LResult := WaitForSingleObject(FHandle, 0);
-  case LResult of
-    WAIT_OBJECT_0:
-      Result := True;
-    WAIT_TIMEOUT:
-      Result := False;
-    WAIT_FAILED:
-      raise ELockError.CreateFmt('Failed to try acquire named semaphore "%s": %s',
-        [FName, SysErrorMessage(Windows.GetLastError)]);
-  else
-    raise ELockError.CreateFmt('Unexpected result from WaitForSingleObject: %d', [LResult]);
-  end;
-end;
-
-function TNamedSemaphore.TryAcquire(ATimeoutMs: Cardinal): Boolean;
-var
-  LResult: DWORD;
-begin
-  LResult := WaitForSingleObject(FHandle, ATimeoutMs);
-  case LResult of
-    WAIT_OBJECT_0:
-      Result := True;
-    WAIT_TIMEOUT:
-      Result := False;
-    WAIT_FAILED:
-      raise ELockError.CreateFmt('Failed to try acquire named semaphore "%s" with timeout: %s',
-        [FName, SysErrorMessage(Windows.GetLastError)]);
-  else
-    raise ELockError.CreateFmt('Unexpected result from WaitForSingleObject: %d', [LResult]);
-  end;
-end;
-
-procedure TNamedSemaphore.Acquire(ATimeoutMs: Cardinal);
-begin
-  if not TryAcquire(ATimeoutMs) then
-    raise ETimeoutError.CreateFmt('Timeout waiting for named semaphore "%s"', [FName]);
-end;
-
-function TNamedSemaphore.GetHandle: Pointer;
-begin
-  Result := Pointer(FHandle);
-end;
-
-function TNamedSemaphore.IsCreator: Boolean;
-begin
-  Result := FIsCreator;
 end;
 
 // 性能监控方法实现

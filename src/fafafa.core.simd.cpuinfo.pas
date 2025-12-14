@@ -7,7 +7,7 @@ interface
 
 uses
   SysUtils,
-  fafafa.core.simd.types,
+  fafafa.core.simd.base,
   fafafa.core.simd.cpuinfo.base,
   fafafa.core.simd.sync,
   fafafa.core.atomic
@@ -45,6 +45,7 @@ procedure ResetCPUInfo; // safe reset for re-initialization
 
 // Quick feature detection (commonly used)
 function HasSSE2: Boolean;
+function HasSSE41: Boolean;
 function HasAVX2: Boolean;
 function HasAVX512: Boolean;
 function HasNEON: Boolean;
@@ -441,6 +442,20 @@ begin
   {$IFDEF SIMD_X86_AVAILABLE}
   cpuInfo := GetCPUInfo;
   Result := (cpuInfo.Arch = caX86) and cpuInfo.X86.HasSSE2;
+  {$ELSE}
+  Result := False;
+  {$ENDIF}
+end;
+
+function HasSSE41: Boolean;
+{$IFDEF SIMD_X86_AVAILABLE}
+var
+  cpuInfo: TCPUInfo;
+{$ENDIF}
+begin
+  {$IFDEF SIMD_X86_AVAILABLE}
+  cpuInfo := GetCPUInfo;
+  Result := (cpuInfo.Arch = caX86) and cpuInfo.X86.HasSSE41;
   {$ELSE}
   Result := False;
   {$ENDIF}

@@ -67,6 +67,7 @@ type
     {** 从秒创建，溢出时返回 False *}
     class function TryFromSec(const ASec: Int64; out D: TDuration): Boolean; static; inline;
 
+
     // ===== From* 工厂方法 (可能溢出饱和) =====
     {** 返回零时长 *}
     class function Zero: TDuration; static; inline;
@@ -103,6 +104,24 @@ type
     function AsSec: Int64; inline;
     {** 返回浮点秒数（可能丢失精度） *}
     function AsSecF: Double; inline;
+    
+    // ===== Whole* 分解方法 (v1.2.0) =====
+    {** 返回完整天数（截断向零） *}
+    function WholeDays: Int64; inline;
+    {** 返回完整小时数（截断向零） *}
+    function WholeHours: Int64; inline;
+    {** 返回完整分钟数（截断向零） *}
+    function WholeMinutes: Int64; inline;
+    {** 返回完整秒数（截断向零），等同 AsSec *}
+    function WholeSeconds: Int64; inline;
+    
+    // ===== Subsec* 亚秒分解方法 (v1.2.0) =====
+    {** 返回亚秒纳秒部分 (0-999999999) *}
+    function SubsecNanos: Integer; inline;
+    {** 返回亚秒微秒部分 (0-999999) *}
+    function SubsecMicros: Integer; inline;
+    {** 返回亚秒毫秒部分 (0-999) *}
+    function SubsecMillis: Integer; inline;
 
     // ===== 舍入方法 (到微秒精度) =====
     {** 截断到微秒（丢弃纳秒部分） *}
@@ -153,10 +172,15 @@ type
     function Modulo(const Divisor: TDuration): TDuration; inline;
 
     // ===== Checked 版本 (溢出检测) =====
+    {** 加法，溢出时返回 False (v1.3.0) *}
+    function CheckedAdd(const B: TDuration; out R: TDuration): Boolean; inline;
+    {** 减法，下溢时返回 False (v1.3.0) *}
+    function CheckedSub(const B: TDuration; out R: TDuration): Boolean; inline;
     {** 乘法，溢出时返回 False *}
     function CheckedMul(const Factor: Int64; out R: TDuration): Boolean; inline;
-    {** 除法，除零时返回 False *}
-    function CheckedDivBy(const Divisor: Int64; out R: TDuration): Boolean; inline;
+    {** 除法，除零时返回 False（统一命名 CheckedDiv，保留 CheckedDivBy 作为兼容别名） *}
+    function CheckedDiv(const Divisor: Int64; out R: TDuration): Boolean; inline;
+    function CheckedDivBy(const Divisor: Int64; out R: TDuration): Boolean; inline; deprecated 'Use CheckedDiv instead';
     {** 求模，除零时返回 False *}
     function CheckedModulo(const Divisor: TDuration; out R: TDuration): Boolean; inline;
 
@@ -367,6 +391,7 @@ begin
   if Result then D.FNs := t;
 end;
 
+
 class function TDuration.FromNs(const ANs: Int64): TDuration;
 begin
   Result.FNs := ANs;
@@ -458,13 +483,71 @@ function TDuration.AsMs: Int64; begin Result := FNs div 1000000; end;
 function TDuration.AsSec: Int64; begin Result := FNs div 1000000000; end;
 function TDuration.AsSecF: Double; begin Result := FNs / 1000000000.0; end;
 
+// ===== Whole* 分解方法实现 (v1.2.0) =====
+const
+  NS_PER_SECOND = Int64(1000000000);
+  NS_PER_MINUTE = Int64(60000000000);
+  NS_PER_HOUR   = Int64(3600000000000);
+  NS_PER_DAY    = Int64(86400000000000);
+
+function TDuration.WholeDays: Int64;
+begin
+  Result := FNs div NS_PER_DAY;
+end;
+
+function TDuration.WholeHours: Int64;
+begin
+  Result := FNs div NS_PER_HOUR;
+end;
+
+function TDuration.WholeMinutes: Int64;
+begin
+  Result := FNs div NS_PER_MINUTE;
+end;
+
+function TDuration.WholeSeconds: Int64;
+begin
+  Result := FNs div NS_PER_SECOND;
+end;
+
+// ===== Subsec* 亚秒分解方法实现 (v1.2.0) =====
+
+function TDuration.SubsecNanos: Integer;
+var
+  LAbsNs: Int64;
+begin
+  // 取模绝对值，亚秒部分始终为正数
+  if FNs >= 0 then
+    Result := Integer(FNs mod NS_PER_SECOND)
+  else if FNs = Low(Int64) then
+    // 边界情况：Low(Int64) 无法取负
+    Result := Integer(Int64(High(Int64)) mod NS_PER_SECOND)
+  else
+  begin
+    LAbsNs := -FNs;
+    Result := Integer(LAbsNs mod NS_PER_SECOND);
+  end;
+end;
+
+function TDuration.SubsecMicros: Integer;
+begin
+  // 纳秒 -> 微秒
+  Result := SubsecNanos div 1000;
+end;
+
+function TDuration.SubsecMillis: Integer;
+begin
+  // 纳秒 -> 毫秒
+  Result := SubsecNanos div 1000000;
+end;
+
 function TDuration.TruncToUs: TDuration;
 var absNs, q: Int64;
 begin
   if FNs >= 0 then
     begin q := FNs div 1000; Result.FNs := q * 1000; end
   else if FNs = Low(Int64) then
-    // ✅ Low(Int64) 边界情况：-FNs 溢出，饺和到 High(Int64)
+    // ✅ Low(Int64) 边界情况：-FNs 溢出，饱和到 High(Int64)
     Result.FNs := High(Int64)
   else
     begin absNs := -FNs; q := absNs div 1000; Result.FNs := -(q * 1000); end;
@@ -476,7 +559,7 @@ begin
   if FNs >= 0 then
     begin q := FNs div 1000; Result.FNs := q * 1000; end
   else if FNs = Low(Int64) then
-    // ✅ Low(Int64) 边界情况：-FNs 溢出，饺和到 High(Int64)
+    // ✅ Low(Int64) 边界情况：-FNs 溢出，饱和到 High(Int64)
     Result.FNs := High(Int64)
   else
   begin
@@ -492,7 +575,7 @@ begin
   if FNs >= 0 then
     begin q := (FNs + 1000 - 1) div 1000; Result.FNs := q * 1000; end
   else if FNs = Low(Int64) then
-    // ✅ Low(Int64) 边界情况：-FNs 溢出，饺和到 High(Int64)
+    // ✅ Low(Int64) 边界情况：-FNs 溢出，饱和到 High(Int64)
     Result.FNs := High(Int64)
   else
     begin absNs := -FNs; q := absNs div 1000; Result.FNs := -(q * 1000); end;
@@ -504,7 +587,7 @@ begin
   if FNs >= 0 then
     begin q := (FNs + 500) div 1000; Result.FNs := q * 1000; end
   else if FNs = Low(Int64) then
-    // ✅ Low(Int64) 边界情况：-FNs 溢出，饺和到 High(Int64)
+    // ✅ Low(Int64) 边界情况：-FNs 溢出，饱和到 High(Int64)
     Result.FNs := High(Int64)
   else
     begin absNs := -FNs; q := (absNs + 500) div 1000; Result.FNs := -(q * 1000); end;
@@ -560,7 +643,11 @@ end;
 
 class operator TDuration./(const A, B: TDuration): Double;
 begin
-  if B.FNs = 0 then Result := 0.0 else Result := A.FNs / B.FNs;
+  // ISSUE-? 修复：除零抛出异常，与 div 运算符保持一致
+  if B.FNs = 0 then
+    raise EDivByZero.Create('Division by zero in TDuration./')
+  else
+    Result := A.FNs / B.FNs;
 end;
 
 function TDuration.Mul(const Factor: Int64): TDuration;
@@ -591,9 +678,24 @@ begin
     Result.FNs := FNs mod Divisor.FNs;
 end;
 
+function TDuration.CheckedAdd(const B: TDuration; out R: TDuration): Boolean;
+begin
+  Result := TInt64Helper.TryAdd(FNs, B.FNs, R.FNs);
+end;
+
+function TDuration.CheckedSub(const B: TDuration; out R: TDuration): Boolean;
+begin
+  Result := TInt64Helper.TrySub(FNs, B.FNs, R.FNs);
+end;
+
 function TDuration.CheckedMul(const Factor: Int64; out R: TDuration): Boolean;
 begin
   Result := TInt64Helper.TryMul(FNs, Factor, R.FNs);
+end;
+
+function TDuration.CheckedDiv(const Divisor: Int64; out R: TDuration): Boolean;
+begin
+  Result := CheckedDivBy(Divisor, R);
 end;
 
 function TDuration.CheckedDivBy(const Divisor: Int64; out R: TDuration): Boolean;

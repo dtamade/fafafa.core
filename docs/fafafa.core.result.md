@@ -1,254 +1,318 @@
 # fafafa.core.result — 结果类型（Result<T,E>）
 
-目标
-- 提供跨平台、零依赖、现代化的错误处理原语：Result<T,E>
-- 语义参考 Rust：Ok/Err、unwrap/expect、map/and_then/or_else
+## 目标
+
+- 提供跨平台、零依赖、现代化的错误处理原语：`Result<T,E>`
+- 语义参考 Rust：`Ok`/`Err`、`unwrap`/`expect`、`map`/`and_then`/`or_else`
 - 零额外分配（record 承载），接口简洁、可组合
 
-快速开始
+## 快速开始
+
 ```pascal
 uses fafafa.core.result;
-最佳实践说明
-- 函数式门面（ResultXxx 顶层函数）为“规范接口”，默认推荐使用；方法式仅在需要链式风格时开启宏 FAFAFA_CORE_RESULT_METHODS。
-- 受管类型（如 string、动态数组、接口）建议保持默认双字段布局；仅当 T/E 明确为非受管类型时，才考虑启用变体布局宏（见下）。
-- 异常桥接仅用于边界与适配层（ResultFromTry / ResultToTry），领域逻辑内部优先保持 Result 流。
 
-变体布局宏与使用边界
-- 默认：安全双字段布局（FIsOk + FOk + FErr）
-- 可选宏：
-  - FAFAFA_RESULT_VARIANT_LAYOUT：启用变体记录布局以降低占用（仅当 T/E 均为非受管类型）
-  - FAFAFA_RESULT_ASSUME_NO_MANAGED：强化“不含受管类型”的假设，避免 RC/生命周期问题
-- 建议：如需启用变体布局，请在模块级/工程级确保 T/E 为非受管类型，并用单测约束
-
-API 总览（精选）
-- 基础：Ok/Err/IsOk/IsErr/Unwrap/UnwrapOr/UnwrapOrElse/Expect/UnwrapErr
-- 组合：Map/MapErr/AndThen/OrElse/MapOr/MapOrElse/MapBoth/Flatten/Swap
-- 谓词/观察：IsOkAnd/IsErrAnd/Inspect/InspectErr
-开启方法式 API（可选）
-- 编辑 src\fafafa.core.settings.inc，取消注释以下宏：
-```
-{.$DEFINE FAFAFA_CORE_RESULT_METHODS}
-```
-改为：
-```
-{$DEFINE FAFAFA_CORE_RESULT_METHODS}
-```
-- 重新构建后，可使用 And/Or/Contains*/FilterOrElse/ToTry 等方法式链路。
-
-- 扩展：And/Or、Contains/ContainsErr、FilterOrElse、Equals（默认 =）、ResultToTry
-- 匹配：Match/Fold
-- 互操作：OkOpt/ErrOpt、OptionToResult/ResultToOption/ResultErrOption、ResultTransposeOption、OptionTransposeResult
-
-
-var R: specialize TResult<Integer,String>;
-方法式 API 速览（需开启 FAFAFA_CORE_RESULT_METHODS）
-```pascal
-var Rb: specialize TResult<Integer,String>;
-Rb := specialize TResult<Integer,String>.Ok(1)
-        .And(specialize TResult<Integer,String>.Err('x'))
-        .Or(specialize TResult<Integer,String>.Ok(9));
-try
-  WriteLn(Rb.ToTry(function (const E: String): Exception begin Result := Exception.Create('mapped:'+E); end));
-except on Ex: Exception do WriteLn(Ex.Message); end;
-```
-
+var R: specialize TResult<Integer, String>;
 begin
-  R := specialize TResult<Integer,String>.Ok(42);
+  R := specialize TResult<Integer, String>.Ok(42);
   if R.IsOk then WriteLn(R.Unwrap);
 
-  R := specialize TResult<Integer,String>.Err('bad');
+  R := specialize TResult<Integer, String>.Err('bad');
   WriteLn(R.UnwrapOr(0)); // 0
 end;
 ```
 
-如何运行示例
-- 运行链式示例：examples\fafafa.core.result\BuildOrRun.bat
-- 运行 Filter/ToTry/Transpose 示例：examples\fafafa.core.result\BuildOrRun.bat filters
+## API 总览
 
+### 构造
 
-API 概览
-注意：ToString 仅输出标签（Ok/Err），调试打印建议使用 ToDebugString 传入打印器以获得详细输出。
+- `class function Ok(const AValue: T): TResult` — 构造 Ok 变体
+- `class function Err(const AError: E): TResult` — 构造 Err 变体
 
-- 构造：class function Ok/Err
-- 查询：IsOk/IsErr
-- 取值：Unwrap/UnwrapOr/Expect/UnwrapErr（错误路径抛出 EResultUnwrapError）
-- 组合子（顶层泛型函数）：
-  - ResultMap / ResultMapErr
-  - ResultAndThen / ResultOrElse
-  - ResultMapOr / ResultMapOrElse
-  - ResultInspect / ResultInspectErr（副作用，返回原值）
-  - ResultMatch / ResultFold（Ok 走 Fok；Err 走 Ferr）
-- 谓词：ResultIsOkAnd / ResultIsErrAnd
-- 扩展：
-  - ResultAnd / ResultOr（非闭包直连组合子）
-  - ResultContains / ResultContainsErr（带比较器/指针重载）
-  - ResultFilterOrElse（Ok 且谓词不满足 -> 生成 Err）
-  - ResultEquals 默认重载（当 T/E 支持 = 运算）
-  - ResultToTry（Err -> raise 映射异常；Ok -> 返回值）
-  - 与 Option 互操作：OkOpt/ErrOpt、OptionToResult/ResultToOption/ResultErrOption、ResultTransposeOption、OptionTransposeResult
+### 查询
 
+- `function IsOk: Boolean` — 是否为 Ok
+- `function IsErr: Boolean` — 是否为 Err
 
-异常语义
-- Unwrap on Err 与 UnwrapErr on Ok 都会抛出 EResultUnwrapError
-- Expect(AMsg) 在错误路径抛出携带自定义消息的 EResultUnwrapError
+### 取值
 
-实现要点
-- 单元路径：src/fafafa.core.result.pas
-- 依赖：SysUtils；包含 {$I fafafa.core.settings.inc}
-- 使用泛型 record + 标志位；组合子为顶层泛型函数以便复用
+- `function Unwrap: T` — 取 Ok 值，Err 时抛 `EResultUnwrapError`
+- `function UnwrapOr(const ADefault: T): T` — 取 Ok 值或默认值
+- `function Expect(const AMsg: string): T` — 取 Ok 值，Err 时抛自定义消息异常
+- `function UnwrapErr: E` — 取 Err 值，Ok 时抛异常
+- `function ExpectErr(const AMsg: string): E` — 取 Err 值，Ok 时抛自定义消息异常
+- `function TryUnwrap(out AValue: T): Boolean` — 安全取值，返回是否成功
+- `function TryUnwrapErr(out AError: E): Boolean` — 安全取错误，返回是否成功
+- `function UnwrapUnchecked: T` — 无检查取值（仅 DEBUG 时 Assert）
 
-可选优化（默认关闭）
-- variant 布局：仅在定义 FAFAFA_RESULT_VARIANT_LAYOUT 宏时启用
-- 安全前提：若再定义 FAFAFA_RESULT_ASSUME_NO_MANAGED，则表示 T/E 均非管理型类型（如整型/枚举/小记录），可启用“判别联合”布局降低体积与引用计数噪音
-- 默认行为：不定义上述宏，维持双字段布局，确保管理型类型安全
+### 字符串表示
 
-组合子示例
+- `function ToString: string` — 返回 `'Ok'` 或 `'Err'`
+- `function ToString(OkFormat, ErrFormat: string): string` — 自定义格式字符串
+- `function ToDebugString(OkPrinter, ErrPrinter): string` — 详细输出如 `'Ok(42)'` 或 `'Err(msg)'`，需提供打印函数
+
+### 方法式 API
+
+- `function Inspect(F): TResult` — Ok 时执行副作用，返回自身
+- `function InspectErr(F): TResult` — Err 时执行副作用，返回自身
+- `function IsOkAnd(Pred): Boolean` — Ok 且满足谓词
+- `function IsErrAnd(Pred): Boolean` — Err 且满足谓词
+- `function And_(B: TResult): TResult` — Ok 时返回 B，Err 时返回自身（与 Rust `and` 对齐）
+- `function Or_(B: TResult): TResult` — Ok 时返回自身，Err 时返回 B（与 Rust `or` 对齐）
+- `function Contains(V, Eq): Boolean` — Ok 且值等于 V
+- `function ContainsErr(E, Eq): Boolean` — Err 且值等于 E
+- `function Equals(Other, EqT, EqE): Boolean` — 比较两个 Result 是否相等
+
+> **弃用提示**: `AndResult`/`OrResult` 已标记为 deprecated，请迁移至 `And_`/`Or_`。
+
+## 顶层组合子
+
+所有组合子都有 `reference to` 和函数指针两种重载。
+
+### 映射
+
 ```pascal
-var R: specialize TResult<Integer,String>;
-var S: Integer;
-R := specialize TResult<Integer,String>.Ok(5);
-// MapOr: Ok -> f(T), Err -> 默认值 -1
-S := specialize ResultMapOr<Integer,String,Integer>(R, -1,
-  function (const X: Integer): Integer begin Result := X*2; end);
-// MapOrElse: Ok -> f_ok(T), Err -> f_err(E)
-S := specialize ResultMapOrElse<Integer,String,Integer>(R,
-  function (const E: String): Integer begin Result := -2; end,
-  function (const X: Integer): Integer begin Result := X+3; end);
-// Inspect: 在 Ok 路径做副作用，不改变 R
+// Map: Ok(T) -> Ok(U), Err 原样传递
+R2 := specialize ResultMap<Integer, String, Integer>(R, @IncOne);
 
-匹配与折叠（Match / Fold）
-```pascal
-var R: specialize TResult<Integer,String>;
-var U: Integer;
-R := specialize TResult<Integer,String>.Ok(3);
-U := specialize ResultMatch<Integer,String,Integer>(R,
-  function (const X: Integer): Integer begin Result := X*10; end,
-  function (const S: String): Integer begin Result := -1; end);
-// U = 30
+// MapErr: Err(E) -> Err(E2), Ok 原样传递
+R2 := specialize ResultMapErr<Integer, String, String>(R, @AppendBang);
+
+// MapBoth: 同时映射 Ok 和 Err
+R2 := specialize ResultMapBoth<Integer, String, String, Integer>(R, @IntToStr, @StrLen);
 ```
 
+### 链式
 
-异常桥接（ResultFromTry）
 ```pascal
-var U: Integer;
-U := specialize ResultFromTry<Integer,String>(
-  function: Integer begin Result := 7; end,
-  function (const Ex: Exception): String begin Result := Ex.Message; end
-).Unwrap;
+// AndThen: Ok 时执行返回 Result 的函数
+R2 := specialize ResultAndThen<Integer, String, Integer>(R,
+  function(const X: Integer): specialize TResult<Integer, String>
+  begin
+    if X > 0 then Result := TResult.Ok(X * 2)
+    else Result := TResult.Err('negative');
+  end);
+
+// OrElse: Err 时执行恢复函数
+R2 := specialize ResultOrElse<Integer, String, String>(R,
+  function(const E: String): specialize TResult<Integer, String>
+  begin Result := TResult.Ok(Length(E)); end);
 ```
 
-等值比较（ResultEquals）
+### 提取值
+
 ```pascal
-var R1, R2: specialize TResult<Integer,String>;
-R1 := specialize TResult<Integer,String>.Ok(42);
-R2 := specialize TResult<Integer,String>.Ok(42);
-if specialize ResultEquals<Integer,String>(R1, R2,
-  function (const A,B: Integer): Boolean begin Result := A=B; end,
-  function (const A,B: String): Boolean begin Result := A=B; end) then
-  WriteLn('equal');
+// MapOr: Ok 时映射，Err 时返回默认值
+U := specialize ResultMapOr<Integer, String, Integer>(R, -1, @Double);
+
+// MapOrElse: Ok/Err 分别处理
+U := specialize ResultMapOrElse<Integer, String, Integer>(R,
+  function(const E: String): Integer begin Result := -1; end,
+  function(const X: Integer): Integer begin Result := X * 2; end);
 ```
 
-谓词（Predicates）
+### 匹配
+
 ```pascal
-var ROk, RErr: specialize TResult<Integer,String>;
-CheckTrue(specialize ResultIsOkAnd<Integer,String>(ROk,
-  function (const X: Integer): Boolean begin Result := X>0; end));
-CheckTrue(specialize ResultIsErrAnd<Integer,String>(RErr,
-  function (const S: String): Boolean begin Result := S<>''; end));
+// Match/Fold: 模式匹配
+U := specialize ResultMatch<Integer, String, Integer>(R,
+  function(const X: Integer): Integer begin Result := X * 10; end,
+  function(const S: String): Integer begin Result := -1; end);
 ```
 
-R := specialize ResultInspect<Integer,String>(R,
-  procedure (const X: Integer) begin WriteLn('ok=', X); end);
-```
+### 其他组合子
 
-调试输出（ToDebugString）
 ```pascal
-var R1: specialize TResult<Integer,String> := specialize TResult<Integer,String>.Ok(9);
-var R2: specialize TResult<Integer,String> := specialize TResult<Integer,String>.Err('oops');
+// Swap: Ok <-> Err
+RS := specialize ResultSwap<Integer, String>(R);
 
-过滤与生成错误（FilterOrElse）
+// Flatten: Result<Result<T,E>, E> -> Result<T,E>
+R := specialize ResultFlatten<Integer, String>(Outer);
+
+// FilterOrElse
+R2 := specialize ResultFilterOrElse<Integer, String>(R, @IsPositive, @MakeErr);
+
+// Chain (类似 OrElse，但直接提供备用值)
+R := specialize ResultChain<Integer, String>(First, Second);
+
+// Transpose: Result<Option<T>,E> <-> Option<Result<T,E>>
+//   Ok(Some(v)) -> Some(Ok(v))
+//   Ok(None)    -> None
+//   Err(e)      -> Some(Err(e))
+var R: specialize TResult<specialize TOption<Integer>, string>;
+var O: specialize TOption<specialize TResult<Integer, string>>;
+R := specialize TResult<specialize TOption<Integer>, string>.Ok(
+       specialize TOption<Integer>.Some(42));
+O := specialize ResultTranspose<Integer, string>(R);
+// O = Some(Ok(42))
+```
+
+### 快速接口（Ensure / FromBool / Zip）
+
 ```pascal
-var R, R2: specialize TResult<Integer,String>;
-R := specialize TResult<Integer,String>.Ok(3);
-R2 := specialize ResultFilterOrElse<Integer,String>(R,
-  function (const X: Integer): Boolean begin Result := (X mod 2)=0; end,
-  function (const X: Integer): String begin Result := 'odd'; end);
-// R2 = Err('odd')
+// ResultEnsure: 条件为真 -> Ok(Unit)；否则 -> Err(E)
+// 其中 Unit 为 fafafa.core.result.TUnit
+var Guard: specialize TResult<TUnit, string>;
+Guard := specialize ResultEnsure<string>(X > 0, 'X must be positive');
+
+// ResultEnsureWith: 惰性版本，仅在失败时计算 Err
+Guard := specialize ResultEnsureWith<string>(X > 0,
+  function: string begin Result := 'X must be positive: ' + IntToStr(X); end);
+
+// ResultFromBool: 从布尔构造 Result
+var R1: specialize TResult<Integer, string>;
+R1 := specialize ResultFromBool<Integer, string>(X > 0, 1, 'bad');
+
+// ResultFromOption / ResultFromOptionElse: Option<T> -> Result<T,E>
+var O: specialize TOption<Integer>;
+var ROpt: specialize TResult<Integer, string>;
+O := specialize TOption<Integer>.Some(42);
+ROpt := specialize ResultFromOption<Integer, string>(O, 'none');
+// ROpt = Ok(42)
+
+O := specialize TOption<Integer>.None;
+ROpt := specialize ResultFromOptionElse<Integer, string>(O,
+  function: string begin Result := 'none'; end);
+// ROpt = Err('none')
+
+// ResultZip: (Ok(T1), Ok(T2)) -> Ok(TTuple2<T1,T2>)，否则返回首个 Err
+// TTuple2 字段：First / Second
+var A: specialize TResult<Integer, string>;
+var B: specialize TResult<string, string>;
+var Z: specialize TResult< specialize TTuple2<Integer, string>, string>;
+A := specialize TResult<Integer, string>.Ok(42);
+B := specialize TResult<string, string>.Ok('hello');
+Z := specialize ResultZip<Integer, string, string>(A, B);
+WriteLn(Z.Unwrap.First);  // 42
+WriteLn(Z.Unwrap.Second); // hello
+
+// ResultZipWith: 仅在两个都 Ok 时调用映射函数
+var Z2: specialize TResult<string, string>;
+Z2 := specialize ResultZipWith<Integer, string, string, string>(A, B,
+  function(const P: specialize TTuple2<Integer, string>): string
+  begin
+    Result := IntToStr(P.First) + ':' + P.Second;
+  end);
 ```
 
-将 Err 映射为异常（ResultToTry）
+### 序列收集（TryCollect）
+
 ```pascal
-var R: specialize TResult<Integer,String>;
-var V: Integer;
-R := specialize TResult<Integer,String>.Err('bad');
-try
-  V := specialize ResultToTry<Integer,String>(R,
-    function (const E: String): Exception begin Result := Exception.Create('mapped:'+E); end);
-except on Ex: Exception do WriteLn(Ex.Message); end; // 'mapped:bad'
+// TryCollectPtrIntoArray: 将 Result<T,E> 序列收集为动态数组
+// 全部 Ok 时返回 True，遇到第一个 Err 时返回 False 并输出该错误
+var
+  Items: array[0..2] of specialize TResult<Integer, string>;
+  OutValues: specialize TValueArray<Integer>;
+  FirstErr: string;
+  Success: Boolean;
+begin
+  Items[0] := specialize TResult<Integer, string>.Ok(10);
+  Items[1] := specialize TResult<Integer, string>.Ok(20);
+  Items[2] := specialize TResult<Integer, string>.Ok(30);
 
-速查表（常用模式）
+  Success := specialize TryCollectPtrIntoArray<Integer, string>(@Items[0], Length(Items), OutValues, FirstErr);
+  // Success = True, OutValues = [10, 20, 30], FirstErr = ''
+
+  // 如果有 Err:
+  Items[1] := specialize TResult<Integer, string>.Err('error');
+  Success := specialize TryCollectPtrIntoArray<Integer, string>(@Items[0], Length(Items), OutValues, FirstErr);
+  // Success = False, OutValues = [], FirstErr = 'error'
+end;
+```
+
+**注意**: 此 API 返回 `Boolean` 而非 `TResult`，这是为了规避 FPC 3.3.1 的泛型链接器问题。
+
+### 门面单元（result.facade）
+
+如果你偏好更短的函数名，可以使用门面单元：`fafafa.core.result.facade`。
+
+**注意**: 由于 FPC 3.3.1 的泛型链接器问题，目前 Facade 仅导出 `TryCollect` 别名。
+其他函数（如 `Ensure`、`Zip` 等）请直接使用 `fafafa.core.result` 中的 `ResultEnsure`、`ResultZip` 等。
+
+## 异常桥接
+
 ```pascal
-// And/Or：合并两个 Result
-R := specialize ResultAnd<Integer,String>(R1, R2); // R1.Ok -> R2；R1.Err -> Err(R1)
-R := specialize ResultOr<Integer,String>(R1, R2);  // R1.Ok -> R1；R1.Err -> R2
+// ResultFromTry: 捕获异常转为 Result
+R := specialize ResultFromTry<Integer, String>(
+  @WorkThatMightThrow,
+  @ExceptionToString);
 
-// Contains/ContainsErr：判定包含
-if specialize ResultContains<Integer,String>(R, 42,
-  function (const L,R: Integer): Boolean begin Result := L=R; end) then ...
-if specialize ResultContainsErr<Integer,String>(R, 'io',
-  function (const L,R: String): Boolean begin Result := Pos(R,L)>0; end) then ...
+// ResultToTry: Err 时抛异常
+V := specialize ResultToTry<Integer, String>(R, @StringToException);
 ```
 
+## 错误上下文
 
-R := specialize TResult<Integer,String>.Ok(9);
-V := specialize ResultToTry<Integer,String>(R,
-  function (const E: String): Exception begin Result := Exception.Create(E); end);
-// V = 9
-```
+### 简单上下文（丢弃原始错误）
 
-与 Option 的 Transpose 互操作
 ```pascal
-uses fafafa.core.option;
+// ResultContext: 将原始错误替换为上下文字符串
+R2 := specialize ResultContext<Integer, Integer>(R, 'file not found');
 
-var RO: specialize TResult< specialize TOption<Integer>, String>;
-var ORs: specialize TOption< specialize TResult<Integer,String> >;
-
-RO := specialize TResult< specialize TOption<Integer>, String>.Ok(specialize TOption<Integer>.Some(5));
-ORs := specialize ResultTransposeOption<Integer,String>(RO);
-// ORs = Some(Ok(5))
-
-RO := specialize TResult< specialize TOption<Integer>, String>.Err('e');
-ORs := specialize ResultTransposeOption<Integer,String>(RO);
-// ORs = Some(Err('e'))
+// ResultWithContext: 惰性生成上下文（仅在 Err 时调用）
+R2 := specialize ResultWithContext<Integer, Integer>(R,
+  function(const Code: Integer): string begin Result := 'Error: ' + IntToStr(Code); end);
 ```
 
-WriteLn(R1.ToDebugString(
-  function (const V: Integer): string begin Result := IntToStr(V); end,
-  function (const E: String): string begin Result := E; end)); // Ok(9)
-WriteLn(R2.ToDebugString(
-  function (const V: Integer): string begin Result := IntToStr(V); end,
-  function (const E: String): string begin Result := E; end)); // Err(oops)
+### 错误链（保留原始错误）
+
+使用 `TErrorCtx<E>` 可构建错误链，保留原始错误（Inner）及上下文消息（Msg）：
+
+```pascal
+type
+  TMyErrorCtx = specialize TErrorCtx<Integer>; // Inner 为 Integer 类型
+  TCtxResult = specialize TResult<string, TMyErrorCtx>;
+
+var
+  R: specialize TResult<string, Integer>;
+  R2: TCtxResult;
+  Ctx: TMyErrorCtx;
+begin
+  R := specialize TResult<string, Integer>.Err(404);
+
+  // ResultContextE: Err 时包装为 TErrorCtx<E>，保留原始错误
+  R2 := specialize ResultContextE<string, Integer>(R, 'file not found');
+  if R2.IsErr then
+  begin
+    Ctx := R2.UnwrapErr;
+    WriteLn(Ctx.Msg);   // 'file not found'
+    WriteLn(Ctx.Inner); // 404 (原始错误)
+  end;
+
+  // ResultWithContextE: 惰性版本，仅 Err 时调用上下文生成函数
+  R2 := specialize ResultWithContextE<string, Integer>(R,
+    function(const Code: Integer): string begin Result := 'Error code: ' + IntToStr(Code); end);
+
+  // ToDebugString: 输出完整错误链
+  // 需要提供 Inner 类型的打印函数
+  WriteLn(Ctx.ToDebugString(
+    function(const E: Integer): string begin Result := IntToStr(E); end));
+  // 输出: 'file not found (caused by: 404)'
+end;
 ```
 
+**TErrorCtx<E> API**:
 
-常见陷阱与建议
-- Map vs AndThen：Map 适用于 Ok 分支“纯变换”（T->U），AndThen 适用于“可能失败的变换”（T->Result<U,E>），避免在 Map 中手工构造 Err。
-- UnwrapOr vs UnwrapOrElse：前者传常量默认值；后者按需计算（闭包/函数）更高效（只在 Err 时执行）。
-- Transpose 的典型场景：当读取“可选值”同时又可能失败时，Result<Option<T>,E> 与 Option<Result<T,E>> 的互转可以简化分支处理。
-- 异常桥接：ResultFromTry/ResultToTry 适用于与异常世界的边界层；在业务逻辑内部尽量避免混用异常与 Result，统一语义更清晰。
+- `Msg: string` — 上下文消息
+- `Inner: E` — 原始错误（cause）
+- `class function Create(AMsg, AInner): TErrorCtx` — 构造函数
+- `function ToDebugString(InnerPrinter): string` — 格式化输出 `'Msg (caused by: InnerStr)'`
 
-测试
-- 位置：tests/fafafa.core.result/
-- 构建与运行：
-  - build: buildOrTest.bat
-  - test:  buildOrTest.bat test
-- 覆盖：Ok/Err/IsOk/IsErr/Unwrap/UnwrapOr/Expect/UnwrapErr + 全部组合子（含 MapOr/MapOrElse/Inspect/InspectErr）
+## 异常语义
 
-别名与辅助（aliases）
-- 参见 docs/fafafa.core.aliases.md：Ok/Err 泛型辅助与常见类型别名
+- `Unwrap` on Err 抛 `EResultUnwrapError`
+- `UnwrapErr` on Ok 抛 `EResultUnwrapError`
+- `Expect(AMsg)` 在错误路径抛携带自定义消息的异常
 
-后续路线
-- 提供 Match 辅助函数与 IResultPrinter 调试接口
-- 与 Option<T> 互转（Some/None）
-- 更丰富的 Map/MapErr 扩展与链式工具
+## 实现要点
 
+- 单元路径：`src/fafafa.core.result.pas`
+- 依赖：`SysUtils`
+- 使用泛型 record + 标志位布局（FIsOk + FOk + FErr）
+- 组合子为顶层泛型函数
+
+## 最佳实践
+
+1. **优先使用顶层组合子**：如 `ResultMap`、`ResultAndThen`
+2. **方法式 API 用于简单场景**：如 `R.And_(B)`、`R.Inspect(...)`
+3. **异常桥接仅用于边界**：`ResultFromTry`/`ResultToTry` 用于与传统代码交互
+4. **利用错误链追踪**：使用 `TErrorCtx<E>` + `ResultContextE`/`ResultWithContextE` 保留原始错误

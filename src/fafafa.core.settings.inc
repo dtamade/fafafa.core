@@ -35,6 +35,11 @@
 { Enable Result-based APIs for env module and others 默认启用 Result 风格 API }
 {$DEFINE FAFAFA_ENV_ENABLE_RESULT}
 
+{ Enable method-style API for Result type (Map/MapErr/AndThen/OrElse as methods) }
+{ 启用 Result 类型的方法式 API（Map/MapErr/AndThen/OrElse 等作为方法）}
+{ 注意：FPC 不支持泛型嵌套，此宏默认关闭。若 FPC 未来支持该特性可取消注释。}
+{.$DEFINE FAFAFA_CORE_RESULT_METHODS}
+
 { 开启匿名函数&匿名引用 仅限 fpc 3.3.1 及以上}
 {$IFDEF FPC}
   {$IF FPC_FULLVERSION >= 030301}
@@ -84,6 +89,11 @@
 { 启用 Linux/FreeBSD 现代的低开销 Mutex 实现（差距大约5~10 倍，默认开启, 如果目标os不支持请关闭）}
 {$DEFINE FAFAFA_CORE_USE_FUTEX}
 {$ENDIF}
+
+{ RWLock diagnostics & adaptive spin toggles }
+{ 读写锁诊断与自适应自旋开关：默认开启，如需极简实现可在构建时关闭 }
+{$DEFINE FAFAFA_SYNC_RWLOCK_DIAGNOSTICS}
+{$DEFINE FAFAFA_SYNC_RWLOCK_ADAPTIVE_SPIN}
 
 
 ///

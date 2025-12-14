@@ -8,7 +8,6 @@ interface
 {$IFDEF SIMD_RISCV_AVAILABLE}
 
 uses
-  fafafa.core.simd.types,
   fafafa.core.simd.cpuinfo.base;
 
 type

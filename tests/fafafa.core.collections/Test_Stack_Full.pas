@@ -62,7 +62,7 @@ var
 begin
   // Arrange & Act
   {$IFDEF FAFAFA_COLLECTIONS_FACADE}
-  Stack := specialize MakeStack<Integer>([1, 2, 3], nil, nil);
+  Stack := specialize MakeStack<Integer>([1, 2, 3], nil);
   {$ELSE}
   Stack := specialize MakeArrayStack<Integer>([1, 2, 3]);
   {$ENDIF}
@@ -88,7 +88,7 @@ begin
   
   // Act - 从集合创建 Stack
   {$IFDEF FAFAFA_COLLECTIONS_FACADE}
-  Stack := specialize MakeStack<Integer>(Vec as TCollection, nil, nil);
+  Stack := specialize MakeStack<Integer>(Vec as TCollection, nil);
   {$ELSE}
   // 如果没有 facade，使用 MakeArrayStack 然后手动 Push
   Stack := specialize MakeArrayStack<Integer>;

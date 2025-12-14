@@ -257,7 +257,7 @@ generic function NewPreallocStack<T>(Capacity: SizeInt): specialize ILockFreeSta
 implementation
 
 uses
-  Math;
+  fafafa.core.math;
 
 
 

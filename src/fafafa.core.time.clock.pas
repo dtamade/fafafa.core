@@ -440,6 +440,9 @@ var
   GClock: IClock = nil;
   GInitLock: TRTLCriticalSection;
   
+  // ✅ ISSUE-49: 睡眠策略配置的线程安全锁
+  GSleepConfigLock: TRTLCriticalSection;
+  
   // ✅ ISSUE-18: 可配置的取消检查频率
   // 默认 1ms，可通过 SetCancellationCheckInterval 调整
   GCancellationCheckIntervalNs: Int64 = 1000000; // 1ms = 1,000,000 ns
@@ -590,51 +593,71 @@ begin
   // 限制合理范围：10us - 100ms
   if ns < 10000 then ns := 10000;           // 最小 10us
   if ns > 100000000 then ns := 100000000;   // 最大 100ms
-  GCancellationCheckIntervalNs := ns;
+  EnterCriticalSection(GSleepConfigLock);
+  try
+    GCancellationCheckIntervalNs := ns;
+  finally
+    LeaveCriticalSection(GSleepConfigLock);
+  end;
 end;
 
 function GetCancellationCheckInterval: TDuration;
 begin
-  Result := TDuration.FromNs(GCancellationCheckIntervalNs);
+  EnterCriticalSection(GSleepConfigLock);
+  try
+    Result := TDuration.FromNs(GCancellationCheckIntervalNs);
+  finally
+    LeaveCriticalSection(GSleepConfigLock);
+  end;
 end;
 
-// ✅ ISSUE-49: 睡眠策略配置实现
+// ✅ ISSUE-49: 睡眠策略配置实现（线程安全）
 procedure SetSleepStrategy(AStrategy: TSleepStrategy);
 begin
-  GSleepStrategy := AStrategy;
-  // 应用预定义策略的参数
-  case AStrategy of
-    ssLowLatency:
-      begin
-        GFinalSpinNs := 20000;      // 20us
-        GMicroSleepNs := 25000;     // 25us
-        GSliceSleepNs := 500000;    // 500us
-      end;
-    ssBalanced:
-      begin
-        GFinalSpinNs := 10000;      // 10us
-        GMicroSleepNs := 50000;     // 50us
-        GSliceSleepNs := 1000000;   // 1ms
-      end;
-    ssLowPower:
-      begin
-        GFinalSpinNs := 0;          // 不自旋
-        GMicroSleepNs := 100000;    // 100us
-        GSliceSleepNs := 10000000;  // 10ms
-      end;
-    ssCustom:
-      ; // 保留当前参数
+  EnterCriticalSection(GSleepConfigLock);
+  try
+    GSleepStrategy := AStrategy;
+    // 应用预定义策略的参数
+    case AStrategy of
+      ssLowLatency:
+        begin
+          GFinalSpinNs := 20000;      // 20us
+          GMicroSleepNs := 25000;     // 25us
+          GSliceSleepNs := 500000;    // 500us
+        end;
+      ssBalanced:
+        begin
+          GFinalSpinNs := 10000;      // 10us
+          GMicroSleepNs := 50000;     // 50us
+          GSliceSleepNs := 1000000;   // 1ms
+        end;
+      ssLowPower:
+        begin
+          GFinalSpinNs := 0;          // 不自旋
+          GMicroSleepNs := 100000;    // 100us
+          GSliceSleepNs := 10000000;  // 10ms
+        end;
+      ssCustom:
+        ; // 保留当前参数
+    end;
+  finally
+    LeaveCriticalSection(GSleepConfigLock);
   end;
 end;
 
 function GetSleepStrategy: TSleepStrategy;
 begin
-  Result := GSleepStrategy;
+  EnterCriticalSection(GSleepConfigLock);
+  try
+    Result := GSleepStrategy;
+  finally
+    LeaveCriticalSection(GSleepConfigLock);
+  end;
 end;
 
 procedure SetSleepStrategyParams(AFinalSpinNs, AMicroSleepNs, ASliceSleepNs: Int64);
 begin
-  // 参数边界检查
+  // 参数边界检查（在锁外完成，避免长时间持锁）
   if AFinalSpinNs < 0 then AFinalSpinNs := 0;
   if AFinalSpinNs > 1000000 then AFinalSpinNs := 1000000; // 最大 1ms
   
@@ -644,17 +667,27 @@ begin
   if ASliceSleepNs < 10000 then ASliceSleepNs := 10000;   // 最小 10us
   if ASliceSleepNs > 100000000 then ASliceSleepNs := 100000000; // 最大 100ms
   
-  GFinalSpinNs := AFinalSpinNs;
-  GMicroSleepNs := AMicroSleepNs;
-  GSliceSleepNs := ASliceSleepNs;
-  GSleepStrategy := ssCustom;  // 自动切换到自定义模式
+  EnterCriticalSection(GSleepConfigLock);
+  try
+    GFinalSpinNs := AFinalSpinNs;
+    GMicroSleepNs := AMicroSleepNs;
+    GSliceSleepNs := ASliceSleepNs;
+    GSleepStrategy := ssCustom;  // 自动切换到自定义模式
+  finally
+    LeaveCriticalSection(GSleepConfigLock);
+  end;
 end;
 
 procedure GetSleepStrategyParams(out AFinalSpinNs, AMicroSleepNs, ASliceSleepNs: Int64);
 begin
-  AFinalSpinNs := GFinalSpinNs;
-  AMicroSleepNs := GMicroSleepNs;
-  ASliceSleepNs := GSliceSleepNs;
+  EnterCriticalSection(GSleepConfigLock);
+  try
+    AFinalSpinNs := GFinalSpinNs;
+    AMicroSleepNs := GMicroSleepNs;
+    ASliceSleepNs := GSliceSleepNs;
+  finally
+    LeaveCriticalSection(GSleepConfigLock);
+  end;
 end;
 
 { TMonotonicClock }
@@ -1268,6 +1301,7 @@ end;
 
 initialization
   InitCriticalSection(GInitLock);
+  InitCriticalSection(GSleepConfigLock);  // ✅ ISSUE-49: 睡眠策略锁
   {$IFDEF MSWINDOWS}
   InitCriticalSection(TMonotonicClock.FQPCInitLock);
   {$ENDIF}
@@ -1282,6 +1316,7 @@ finalization
   {$IFDEF DARWIN}
   DoneCriticalSection(TMonotonicClock.FTBInitLock);
   {$ENDIF}
+  DoneCriticalSection(GSleepConfigLock);  // ✅ ISSUE-49: 睡眠策略锁
   DoneCriticalSection(GInitLock);
 
 end.

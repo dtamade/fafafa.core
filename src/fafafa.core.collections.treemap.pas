@@ -45,25 +45,260 @@ type
   generic ITreeMap<K, V> = interface(specialize IGenericCollection<specialize TMapEntry<K, V>>)
     ['{A1B2C3D4-E5F6-4789-ABCD-123456789ABC}']
 
+    {**
+     * GetLowerBound
+     *
+     * @desc 获取严格大于指定键的最小键值对
+     *
+     * @params
+     *   aKey    参考键
+     *   aValue  (输出) 找到的值
+     *
+     * @return 找到返回 True，否则返回 False
+     *
+     * @complexity O(log n)
+     * @see GetUpperBound, Ceiling, Floor
+     *}
     function GetLowerBound(const aKey: K; out aValue: V): Boolean; overload;
+
+    {**
+     * GetUpperBound
+     *
+     * @desc 获取大于等于指定键的最小键值对
+     *
+     * @params
+     *   aKey    参考键
+     *   aValue  (输出) 找到的值
+     *
+     * @return 找到返回 True，否则返回 False
+     *
+     * @complexity O(log n)
+     * @see GetLowerBound, Ceiling, Floor
+     *}
     function GetUpperBound(const aKey: K; out aValue: V): Boolean; overload;
+
+    {**
+     * GetRange
+     *
+     * @desc 遍历指定范围 [aLow, aHigh] 内的所有键值对
+     *
+     * @params
+     *   aLow      范围下界（包含）
+     *   aHigh     范围上界（包含）
+     *   aCallback 每个键值对的回调函数
+     *
+     * @return 范围内有元素返回 True，否则返回 False
+     *
+     * @complexity O(log n + k)，k 为范围内元素数量
+     *
+     * @example
+     *   tree.GetRange(10, 20, @ProcessEntry);  // 遍历键在 10~20 的所有元素
+     *}
     function GetRange(const aLow, aHigh: K; const aCallback: specialize TKeyValueCallback<K, V>): Boolean;
+
+    {**
+     * Ceiling
+     *
+     * @desc 获取大于等于指定键的最小键值对（“天花板”）
+     *
+     * @params
+     *   aKey    参考键
+     *   aValue  (输出) 找到的值
+     *
+     * @return 找到返回 True，否则返回 False
+     *
+     * @complexity O(log n)
+     *
+     * @example
+     *   // 树中有键: 1, 5, 10, 15
+     *   tree.Ceiling(7, v);  // 返回 True, v 对应键 10
+     *   tree.Ceiling(5, v);  // 返回 True, v 对应键 5
+     *   tree.Ceiling(20, v); // 返回 False
+     *}
     function Ceiling(const aKey: K; out aValue: V): Boolean;
+
+    {**
+     * Floor
+     *
+     * @desc 获取小于等于指定键的最大键值对（“地板”）
+     *
+     * @params
+     *   aKey    参考键
+     *   aValue  (输出) 找到的值
+     *
+     * @return 找到返回 True，否则返回 False
+     *
+     * @complexity O(log n)
+     *
+     * @example
+     *   // 树中有键: 1, 5, 10, 15
+     *   tree.Floor(7, v);   // 返回 True, v 对应键 5
+     *   tree.Floor(5, v);   // 返回 True, v 对应键 5
+     *   tree.Floor(0, v);   // 返回 False
+     *}
     function Floor(const aKey: K; out aValue: V): Boolean;
+
+    {**
+     * Get
+     *
+     * @desc 根据键获取值
+     *
+     * @params
+     *   aKey    要查找的键
+     *   aValue  (输出) 找到的值
+     *
+     * @return 键存在返回 True，否则返回 False
+     *
+     * @complexity O(log n)
+     * @see Put, ContainsKey
+     *}
     function Get(const aKey: K; out aValue: V): Boolean;
+
+    {**
+     * Put
+     *
+     * @desc 插入或更新键值对
+     *
+     * @params
+     *   aKey    键
+     *   aValue  值
+     *
+     * @return 新插入返回 True，更新已有键返回 False
+     *
+     * @postcondition ContainsKey(aKey) = True
+     * @complexity O(log n)
+     *
+     * @exceptions
+     *   EOutOfMemory  内存分配失败
+     *}
     function Put(const aKey: K; const aValue: V): Boolean;
+
+    {**
+     * Remove
+     *
+     * @desc 删除指定键的键值对
+     *
+     * @params
+     *   aKey  要删除的键
+     *
+     * @return 删除成功返回 True，键不存在返回 False
+     *
+     * @postcondition ContainsKey(aKey) = False
+     * @complexity O(log n)
+     *}
     function Remove(const aKey: K): Boolean;
+
+    {**
+     * ContainsKey
+     *
+     * @desc 检查键是否存在
+     *
+     * @params
+     *   aKey  要检查的键
+     *
+     * @return 键存在返回 True，否则返回 False
+     *
+     * @complexity O(log n)
+     *}
     function ContainsKey(const aKey: K): Boolean;
+
+    {**
+     * GetKeyCount
+     *
+     * @desc 获取键值对数量
+     *
+     * @return 当前元素数量
+     *
+     * @complexity O(1)
+     *}
     function GetKeyCount: SizeUInt;
 
+    {**
+     * GetKeys
+     *
+     * @desc 获取所有键的集合（按升序排列）
+     *
+     * @return 包含所有键的 TCollection
+     *
+     * @complexity O(n)
+     * @note 调用者负责释放返回的集合
+     *}
     function GetKeys: TCollection;
+
+    {**
+     * GetValues
+     *
+     * @desc 获取所有值的集合（按键升序排列）
+     *
+     * @return 包含所有值的 TCollection
+     *
+     * @complexity O(n)
+     * @note 调用者负责释放返回的集合
+     *}
     function GetValues: TCollection;
 
+    {**
+     * Clear
+     *
+     * @desc 清空所有键值对
+     *
+     * @postcondition GetKeyCount = 0
+     * @complexity O(n)
+     *}
     procedure Clear;
-    
+
     { Entry API - Rust 风格的键值访问模式 }
+
+    {**
+     * GetOrInsert
+     *
+     * @desc 获取值，如果键不存在则插入默认值
+     *
+     * @params
+     *   AKey      键
+     *   ADefault  默认值（键不存在时插入）
+     *
+     * @return 键对应的值（已存在或新插入的）
+     *
+     * @complexity O(log n)
+     *
+     * @example
+     *   count := tree.GetOrInsert('apple', 0);  // 不存在则插入 0
+     *}
     function GetOrInsert(const AKey: K; const ADefault: V): V;
+
+    {**
+     * GetOrInsertWith
+     *
+     * @desc 获取值，如果键不存在则调用函数生成默认值
+     *
+     * @params
+     *   AKey       键
+     *   ASupplier  生成默认值的函数（仅在键不存在时调用）
+     *
+     * @return 键对应的值
+     *
+     * @complexity O(log n)
+     * @note 比 GetOrInsert 更高效，因为只在需要时才计算默认值
+     *}
     function GetOrInsertWith(const AKey: K; ASupplier: specialize TTreeValueSupplierFunc<V>): V;
+
+    {**
+     * ModifyOrInsert
+     *
+     * @desc 修改已有值或插入默认值 (Rust entry().and_modify().or_insert() 模式)
+     *
+     * @params
+     *   AKey       键
+     *   AModifier  修改函数（键存在时调用）
+     *   ADefault   默认值（键不存在时插入）
+     *
+     * @complexity O(log n)
+     *
+     * @example
+     *   // 统计单词频率
+     *   tree.ModifyOrInsert(word, @IncValue, 1);
+     *}
     procedure ModifyOrInsert(const AKey: K; AModifier: specialize TTreeValueModifierProc<V>; const ADefault: V);
   end;
 
@@ -148,8 +383,34 @@ type
    * TTreeMap<K,V>
    *
    * @desc 红黑树实现的有序键值对映射
-   * @param K 键类型（必须支持比较操作）
+   *
+   * @param K 键类型（必须支持比较操作，或提供自定义比较器）
    * @param V 值类型
+   *
+   * @note
+   *   - 键按升序排列，支持范围查询
+   *   - O(log n) 插入、删除、查找
+   *   - 支持 Rust 风格的 Entry API
+   *   - 与 HashMap 相比：内存占用更高，但支持有序遍历和范围查询
+   *
+   * @threadsafety NOT thread-safe。并发访问需外部同步。
+   *
+   * @example
+   *   var
+   *     tree: specialize TTreeMap<Integer, String>;
+   *   begin
+   *     tree := specialize TTreeMap<Integer, String>.Create;
+   *     try
+   *       tree.Put(3, 'three');
+   *       tree.Put(1, 'one');
+   *       tree.Put(2, 'two');
+   *       // 遍历按键升序: 1, 2, 3
+   *     finally
+   *       tree.Free;
+   *     end;
+   *   end;
+   *
+   * @see ITreeMap, THashMap
    *}
   generic TTreeMap<K, V> = class(specialize TGenericCollection<specialize TMapEntry<K, V>>, specialize ITreeMap<K, V>)
 
@@ -171,7 +432,6 @@ type
     TValueModifier = specialize TTreeValueModifierProc<V>;
 
   protected
-    function GetCount: SizeUInt; override;
     function IsOverlap(const aSrc: Pointer; aElementCount: SizeUInt): Boolean; override;
     procedure DoZero; override;
     procedure DoReverse; override;
@@ -179,17 +439,92 @@ type
     function DoIterMoveNext(aIter: PPtrIter): Boolean;
 
   public
+    function GetCount: SizeUInt; override;
+
+    {**
+     * Create
+     *
+     * @desc 创建 TTreeMap 实例
+     *
+     * @params
+     *   aAllocator  内存分配器（nil 则使用默认 RTL 分配器）
+     *   aCompare    键比较函数（nil 则使用默认比较）
+     *
+     * @exceptions
+     *   EOutOfMemory  内存分配失败
+     *
+     * @example
+     *   // 默认创建
+     *   tree := specialize TTreeMap<Integer, String>.Create;
+     *
+     *   // 自定义比较器（降序）
+     *   tree := specialize TTreeMap<Integer, String>.Create(nil, @ReverseCompare);
+     *}
     constructor Create(const aAllocator: IAllocator = nil; const aCompare: TKeyCompareFunc = nil); reintroduce; overload;
+
+    {**
+     * Destroy
+     *
+     * @desc 释放 TTreeMap 及其所有元素
+     *
+     * @note 会自动调用 Clear 释放所有节点
+     *}
     destructor Destroy; override;
+
     procedure AfterConstruction; override;
 
-    { TCollection abstract methods }
+    { TCollection 抽象方法实现 }
+
+    {**
+     * PtrIter
+     *
+     * @desc 获取指针迭代器（按键升序遍历）
+     *
+     * @return TPtrIter 迭代器
+     *
+     * @complexity 初始化 O(log n)，遍历 O(n)
+     *}
     function PtrIter: TPtrIter; override;
+
+    {**
+     * SerializeToArrayBuffer
+     *
+     * @desc 将键值对序列化到数组缓冲区（按键升序）
+     *
+     * @params
+     *   aDst    目标缓冲区指针
+     *   aCount  要序列化的元素数量
+     *
+     * @precondition aDst 必须有足够空间容纳 aCount 个 TMapEntry<K,V>
+     *}
     procedure SerializeToArrayBuffer(aDst: Pointer; aCount: SizeUInt); override;
+
+    {**
+     * AppendUnChecked
+     *
+     * @desc 从数组缓冲区追加键值对（无检查版本）
+     *
+     * @params
+     *   aSrc           源缓冲区指针
+     *   aElementCount  元素数量
+     *
+     * @precondition aSrc 指向有效的 TMapEntry<K,V> 数组
+     *}
     procedure AppendUnChecked(const aSrc: Pointer; aElementCount: SizeUInt); override;
+
+    {**
+     * AppendToUnChecked
+     *
+     * @desc 将当前元素追加到目标容器（无检查版本）
+     *
+     * @params
+     *   aDst  目标容器
+     *
+     * @precondition aDst 是兼容的 TTreeMap 实例
+     *}
     procedure AppendToUnChecked(const aDst: TCollection); override;
 
-    { ITreeMap 接口实现 }
+    { ITreeMap 接口实现 - 详见 ITreeMap 文档 }
     function GetLowerBound(const aKey: K; out aValue: V): Boolean; overload;
     function GetUpperBound(const aKey: K; out aValue: V): Boolean; overload;
     function GetRange(const aLow, aHigh: K; const aCallback: specialize TKeyValueCallback<K, V>): Boolean;
@@ -211,6 +546,9 @@ type
     function GetOrInsert(const AKey: K; const ADefault: V): V;
     function GetOrInsertWith(const AKey: K; ASupplier: TValueSupplier): V;
     procedure ModifyOrInsert(const AKey: K; AModifier: TValueModifier; const ADefault: V);
+
+    { 便捷属性 - API 一致性 }
+    property Count: SizeUInt read GetCount;
   end;
 
 implementation

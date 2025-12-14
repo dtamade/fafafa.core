@@ -68,6 +68,9 @@ type
    *   为 TTimeOfDay 添加 With* 修改器方法。
    *}
   TTimeOfDayHelper = record helper for TTimeOfDay
+    // On* 组合方法 (v1.2.0)
+    function OnDate(const ADate: TDate): TNaiveDateTime;
+    
     // With* 修改器方法
     function WithHour(AHour: Integer): TTimeOfDay;
     function WithMinute(AMinute: Integer): TTimeOfDay;
@@ -141,6 +144,11 @@ begin
 end;
 
 { TTimeOfDayHelper }
+
+function TTimeOfDayHelper.OnDate(const ADate: TDate): TNaiveDateTime;
+begin
+  Result := TNaiveDateTime.FromDateAndTime(ADate, Self);
+end;
 
 function TTimeOfDayHelper.WithHour(AHour: Integer): TTimeOfDay;
 begin

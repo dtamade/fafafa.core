@@ -73,7 +73,7 @@ begin
     // Test named sync primitives
     WriteLn('Creating named sync primitives...');
     
-    NamedMutex := MakeNamedMutex('TestMutex');
+    NamedMutex := Sync.MakeNamedMutex('TestMutex');
     WriteLn('  NamedMutex: OK');
     
     NamedEvent := MakeNamedEvent('TestEvent');
