@@ -79,37 +79,74 @@ function OptionFromInterface(const V: IInterface): specialize TOption<IInterface
 
 implementation
 
+uses
+  fafafa.core.base;
+
 { 全局组合子实现 }
 
 generic function OptionMap<T,U>(const O: specialize TOption<T>; const F: specialize TOptionFunc<T,U>): specialize TOption<U>;
 begin
   if O.IsSome then
-    Exit(specialize TOption<U>.Some(F(O.Unwrap)))
-  else
-    Exit(specialize TOption<U>.None);
+  begin
+    if F = nil then
+      raise EArgumentNil.Create('F is nil');
+    Exit(specialize TOption<U>.Some(F(O.GetValueUnchecked)));
+  end;
+
+  Result := specialize TOption<U>.None;
 end;
 
 generic function OptionAndThen<T,U>(const O: specialize TOption<T>; const F: specialize TOptionFunc<T, specialize TOption<U>>): specialize TOption<U>;
 begin
   if O.IsSome then
-    Exit(F(O.Unwrap))
-  else
-    Exit(specialize TOption<U>.None);
+  begin
+    if F = nil then
+      raise EArgumentNil.Create('F is nil');
+    Exit(F(O.GetValueUnchecked));
+  end;
+
+  Result := specialize TOption<U>.None;
 end;
 
 generic function OptionMapOr<T,U>(const O: specialize TOption<T>; const ADefault: U; const F: specialize TOptionFunc<T,U>): U;
 begin
-  if O.IsSome then Exit(F(O.Unwrap)) else Exit(ADefault);
+  if O.IsSome then
+  begin
+    if F = nil then
+      raise EArgumentNil.Create('F is nil');
+    Exit(F(O.GetValueUnchecked));
+  end;
+
+  Result := ADefault;
 end;
 
 generic function OptionMapOrElse<T,U>(const O: specialize TOption<T>; const Fnone: specialize TOptionThunk<U>; const Fok: specialize TOptionFunc<T,U>): U;
 begin
-  if O.IsSome then Exit(Fok(O.Unwrap)) else Exit(Fnone());
+  if O.IsSome then
+  begin
+    if Fok = nil then
+      raise EArgumentNil.Create('Fok is nil');
+    Exit(Fok(O.GetValueUnchecked));
+  end;
+
+  if Fnone = nil then
+    raise EArgumentNil.Create('Fnone is nil');
+
+  Result := Fnone();
 end;
 
 generic function OptionFilter<T>(const O: specialize TOption<T>; const Pred: specialize TOptionFunc<T,Boolean>): specialize TOption<T>;
 begin
-  if O.IsSome and Pred(O.Unwrap) then Exit(O) else Exit(specialize TOption<T>.None);
+  if O.IsSome then
+  begin
+    if Pred = nil then
+      raise EArgumentNil.Create('Pred is nil');
+
+    if Pred(O.GetValueUnchecked) then
+      Exit(O);
+  end;
+
+  Result := specialize TOption<T>.None;
 end;
 
 generic function OptionFlatten<T>(const O: specialize TOption<specialize TOption<T>>): specialize TOption<T>;
@@ -146,8 +183,11 @@ var
 begin
   if A.IsSome and B.IsSome then
   begin
-    P.First := A.Unwrap;
-    P.Second := B.Unwrap;
+    if F = nil then
+      raise EArgumentNil.Create('F is nil');
+
+    P.First := A.GetValueUnchecked;
+    P.Second := B.GetValueUnchecked;
     Result := specialize TOption<R>.Some(F(P));
   end
   else
@@ -162,8 +202,13 @@ end;
 
 generic function OptionToResultElse<T,E>(const O: specialize TOption<T>; const FerrThunk: specialize TOptionThunk<E>): specialize TResult<T,E>;
 begin
-  if O.IsSome then Exit(specialize TResult<T,E>.Ok(O.Unwrap))
-  else Exit(specialize TResult<T,E>.Err(FerrThunk()));
+  if O.IsSome then
+    Exit(specialize TResult<T,E>.Ok(O.GetValueUnchecked));
+
+  if FerrThunk = nil then
+    raise EArgumentNil.Create('FerrThunk is nil');
+
+  Result := specialize TResult<T,E>.Err(FerrThunk());
 end;
 
 generic function ResultToOption<T,E>(const R: specialize TResult<T,E>): specialize TOption<T>;

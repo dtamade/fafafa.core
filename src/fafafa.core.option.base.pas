@@ -86,6 +86,9 @@ type
 
 implementation
 
+uses
+  fafafa.core.base;
+
 { TOption<T> }
 class function TOption.Some(const AValue: T): TOption;
 begin
@@ -127,9 +130,12 @@ end;
 function TOption.UnwrapOrElse(const F: specialize TOptionThunk<T>): T;
 begin
   if FHas then
-    Result := FValue
-  else
-    Result := F();
+    Exit(FValue);
+
+  if F = nil then
+    raise EArgumentNil.Create('F is nil');
+
+  Result := F();
 end;
 
 function TOption.UnwrapOrDefault: T;
@@ -168,7 +174,12 @@ end;
 
 function TOption.Inspect(const F: specialize TOptionProc<T>): TOption;
 begin
-  if FHas then F(FValue);
+  if FHas then
+  begin
+    if F = nil then
+      raise EArgumentNil.Create('F is nil');
+    F(FValue);
+  end;
   Result := Self;
 end;
 
@@ -188,7 +199,11 @@ end;
 function TOption.IsSomeAnd(const Pred: specialize TOptionFunc<T, Boolean>): Boolean;
 begin
   if FHas then
-    Result := Pred(FValue)
+  begin
+    if Pred = nil then
+      raise EArgumentNil.Create('Pred is nil');
+    Result := Pred(FValue);
+  end
   else
     Result := False;
 end;
@@ -196,7 +211,11 @@ end;
 function TOption.Contains(const V: T; const Eq: specialize TOptionBiPred<T, T>): Boolean;
 begin
   if FHas then
-    Result := Eq(FValue, V)
+  begin
+    if Eq = nil then
+      raise EArgumentNil.Create('Eq is nil');
+    Result := Eq(FValue, V);
+  end
   else
     Result := False;
 end;

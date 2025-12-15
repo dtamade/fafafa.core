@@ -48,7 +48,7 @@ end;
 
 - `function ToString: string` — 返回 `'Ok'` 或 `'Err'`
 - `function ToString(OkFormat, ErrFormat: string): string` — 自定义格式字符串
-- `function ToDebugString(OkPrinter, ErrPrinter): string` — 详细输出如 `'Ok(42)'` 或 `'Err(msg)'`，需提供打印函数
+- `function ToDebugString(OkPrinter, ErrPrinter): string` — 详细输出如 `'Ok(42)'` 或 `'Err(msg)'`；当所需 Printer 为 nil 时输出占位符：`Ok(?)` / `Err(?)`
 
 ### 方法式 API
 
@@ -66,7 +66,10 @@ end;
 
 ## 顶层组合子
 
-所有组合子都有 `reference to` 和函数指针两种重载。
+所有组合子参数类型统一为 `reference to`（可传匿名函数或 `@GlobalFunc`）。
+
+> 注意：回调参数按惰性语义处理——仅当需要调用该回调时才要求非 nil；若 nil 回调被实际调用，将抛出 `EArgumentNil('<Name> is nil')`。
+> `ToDebugString` / `TErrorCtx.ToDebugString` 的 Printer 允许为 nil（会输出 `?` 占位符）。
 
 ### 映射
 
@@ -131,7 +134,8 @@ R := specialize ResultFlatten<Integer, String>(Outer);
 // FilterOrElse
 R2 := specialize ResultFilterOrElse<Integer, String>(R, @IsPositive, @MakeErr);
 
-// Chain (类似 OrElse，但直接提供备用值)
+// Chain (管道组合：等同于 First.And_(Second))
+// First 为 Ok -> 返回 Second；First 为 Err -> 返回 First
 R := specialize ResultChain<Integer, String>(First, Second);
 
 // ResultTranspose: Result<Option<T>,E> -> Option<Result<T,E>>
@@ -233,6 +237,10 @@ begin
 end;
 ```
 
+- 当 `Count > 0` 时，`ItemsPtr` 必须非 nil；否则将抛出异常。
+- 当 `Count = 0` 时，允许 `ItemsPtr = nil`。
+- `Count` 必须满足 `Count <= High(SizeInt)`；否则抛出 `EOutOfRange('Count is out of range')`。
+
 **注意**: 此 API 返回 `Boolean` 而非 `TResult`，这是为了规避 FPC 3.3.1 的泛型链接器问题。
 
 ### 门面单元（result.facade）
@@ -309,18 +317,20 @@ end;
 - `Msg: string` — 上下文消息
 - `Inner: E` — 原始错误（cause）
 - `class function Create(AMsg, AInner): TErrorCtx` — 构造函数
-- `function ToDebugString(InnerPrinter): string` — 格式化输出 `'Msg (caused by: InnerStr)'`
+- `function ToDebugString(InnerPrinter): string` — 格式化输出 `'Msg (caused by: InnerStr)'`（当 `InnerPrinter=nil` 时输出 `'Msg (caused by: ?)'`）
 
 ## 异常语义
 
 - `Unwrap` on Err 抛 `EResultUnwrapError`
 - `UnwrapErr` on Ok 抛 `EResultUnwrapError`
 - `Expect(AMsg)` 在错误路径抛携带自定义消息的异常
+- 当 nil 回调在执行路径被调用时，抛 `EArgumentNil('<Name> is nil')`
+- `TryCollectPtrIntoArray` 当 `Count > High(SizeInt)` 时抛 `EOutOfRange('Count is out of range')`
 
 ## 实现要点
 
 - 单元路径：`src/fafafa.core.result.pas`
-- 依赖：`SysUtils`、`fafafa.core.option.base`
+- 依赖：`SysUtils`、`fafafa.core.option.base`（实现中还使用 `fafafa.core.base` 的 `EArgumentNil` / `EOutOfRange`）
 - 使用泛型 record + 标志位布局（FIsOk + FOk + FErr）
 - 组合子为顶层泛型函数
 

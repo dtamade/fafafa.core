@@ -6,7 +6,7 @@
 
 快速开始
 ```pascal
-uses fafafa.core.option;
+uses fafafa.core.option.base, fafafa.core.option;
 
 var O: specialize TOption<Integer>;
 O := specialize TOption<Integer>.Some(7);
@@ -24,6 +24,9 @@ API 概览
 - 组合子：
   - 顶层：OptionMap / OptionAndThen
   - 方法：Inspect（副作用，返回 Self）、ToDebugString（调试输出）
+
+> 注意：回调参数按惰性语义处理——仅当需要调用该回调时才要求非 nil；若 nil 回调被实际调用，将抛出 `EArgumentNil('<Name> is nil')`（定义于 `fafafa.core.base`）。
+> `ToDebugString` 的 Printer 允许为 nil（会输出 `Some(?)`）。
 - 与 Result 互转：
   - OptionToResult(Some->Ok / None->Err(E))
   - ResultToOption(Ok->Some / Err->None)
@@ -58,7 +61,7 @@ WriteLn(O.ToDebugString(function (const X: Integer): string begin Result := IntT
 
 FromNullable 与链式分流（示例）
 ```pascal
-uses SysUtils, fafafa.core.option, fafafa.core.result;
+uses SysUtils, fafafa.core.option.base, fafafa.core.option, fafafa.core.result;
 
 function GetEnvOpt(const Name: string): specialize TOption<string>;
 begin

@@ -43,14 +43,19 @@ type
   published
     procedure Test_Map_On_Ok;
     procedure Test_Map_On_Err;
+    procedure Test_Map_On_Err_DoesNotCallMapper;
     procedure Test_MapErr_On_Ok;
+    procedure Test_MapErr_On_Ok_DoesNotCallErrMapper;
     procedure Test_MapErr_On_Err;
     procedure Test_AndThen_On_Ok;
     procedure Test_AndThen_On_Err;
+    procedure Test_AndThen_On_Err_DoesNotCallFunc;
     procedure Test_OrElse_On_Ok;
+    procedure Test_OrElse_On_Ok_DoesNotCallRecover;
     procedure Test_OrElse_On_Err;
     procedure Test_MapOr;
     procedure Test_MapOrElse;
+    procedure Test_MapOrElse_OnlyCallsMatchingBranch;
     procedure Test_Match;
     procedure Test_Swap;
     procedure Test_Flatten;
@@ -59,12 +64,59 @@ type
     procedure Test_Contains;
     procedure Test_ContainsErr;
     procedure Test_FilterOrElse;
+    procedure Test_FilterOrElse_On_Err_DoesNotCallPredOrErrFactory;
     procedure Test_IsOkAnd;
     procedure Test_IsErrAnd;
     procedure Test_Chain;
     procedure Test_Equals;
     procedure Test_MapBoth;
     procedure Test_Fold;
+  end;
+
+  { nil 回调/Printer 契约测试（防止 AV，提供更 Rust-like 的错误提示） }
+  TTestCase_TResult_CallbackContracts = class(TTestCase)
+  published
+    procedure Test_ToDebugString_Ok_NilOkPrinter_UsesPlaceholder;
+    procedure Test_ToDebugString_Err_NilErrPrinter_UsesPlaceholder;
+    procedure Test_TErrorCtx_ToDebugString_NilPrinter_UsesPlaceholder;
+
+    procedure Test_TryCollectPtrIntoArray_CountTooLarge_Raises;
+
+    procedure Test_NilCallbacks_UnusedBranches_DoNotRaise;
+    procedure Test_NilCallbacks_UnusedBranches_DoNotRaise_Methods;
+
+    procedure Test_ResultMap_Ok_NilMapper_Raises;
+    procedure Test_ResultMapErr_Err_NilMapper_Raises;
+    procedure Test_ResultAndThen_Ok_NilFunc_Raises;
+    procedure Test_ResultOrElse_Err_NilRecover_Raises;
+    procedure Test_ResultMapOr_Ok_NilMapper_Raises;
+    procedure Test_ResultMapOrElse_Ok_NilOkMapper_Raises;
+    procedure Test_ResultMapOrElse_Err_NilErrMapper_Raises;
+    procedure Test_ResultMatch_Ok_NilOkHandler_Raises;
+    procedure Test_ResultMatch_Err_NilErrHandler_Raises;
+    procedure Test_ResultMapBoth_Ok_NilOkMapper_Raises;
+    procedure Test_ResultMapBoth_Err_NilErrMapper_Raises;
+    procedure Test_ResultFilterOrElse_Ok_NilPred_Raises;
+    procedure Test_ResultFilterOrElse_Ok_PredFalse_NilErrFactory_Raises;
+    procedure Test_ResultEnsureWith_False_NilThunk_Raises;
+    procedure Test_ResultFromOptionElse_None_NilThunk_Raises;
+    procedure Test_ResultZipWith_OkOk_NilMapper_Raises;
+    procedure Test_ResultWithContext_Err_NilFunc_Raises;
+    procedure Test_ResultWithContextE_Err_NilFunc_Raises;
+    procedure Test_ResultToTry_Err_NilMapper_Raises;
+    procedure Test_ResultFromTry_NilWork_Raises;
+    procedure Test_ResultFromTry_Exception_NilMapEx_Raises;
+
+    procedure Test_TResult_UnwrapOrElse_Err_NilThunk_Raises;
+    procedure Test_TResult_OrElseThunk_Err_NilThunk_Raises;
+    procedure Test_TResult_Inspect_Ok_NilProc_Raises;
+    procedure Test_TResult_InspectErr_Err_NilProc_Raises;
+    procedure Test_TResult_IsOkAnd_Ok_NilPred_Raises;
+    procedure Test_TResult_IsErrAnd_Err_NilPred_Raises;
+    procedure Test_TResult_Contains_Ok_NilEq_Raises;
+    procedure Test_TResult_ContainsErr_Err_NilEq_Raises;
+    procedure Test_TResult_Equals_OkOk_NilEqT_Raises;
+    procedure Test_TResult_Equals_ErrErr_NilEqE_Raises;
   end;
 
   { 异常桥接测试 }
@@ -99,6 +151,7 @@ type
     procedure Test_ToDebugString;
     procedure Test_UnwrapErrUnchecked;
     procedure Test_OrElseThunk_On_Ok;
+    procedure Test_OrElseThunk_On_Ok_DoesNotCallThunk;
     procedure Test_OrElseThunk_On_Err;
   end;
 
@@ -117,6 +170,17 @@ type
     procedure Test_Xor;
     procedure Test_Flatten;
     procedure Test_Zip;
+  end;
+
+  { Option nil 回调/Printer 契约测试（防止 AV，提供更一致的错误提示） }
+  TTestCase_TOption_CallbackContracts = class(TTestCase)
+  published
+    procedure Test_ToDebugString_Some_NilPrinter_UsesPlaceholder;
+    procedure Test_NilCallbacks_UnusedBranches_DoNotRaise;
+    procedure Test_UnwrapOrElse_None_NilThunk_Raises;
+    procedure Test_Inspect_Some_NilProc_Raises;
+    procedure Test_IsSomeAnd_Some_NilPred_Raises;
+    procedure Test_Contains_Some_NilEq_Raises;
   end;
 
   { 错误上下文测试 - Phase 4 }
@@ -173,6 +237,7 @@ type
     procedure Test_ResultFromOptionElse_Some_DoesNotCallThunk;
 
     procedure Test_TResult_CollectPtrIntoArray_Empty_ReturnsOkAndOutEmpty;
+    procedure Test_TryCollectPtrIntoArray_NilPtrWithCount_Raises;
     procedure Test_TryCollectPtrIntoArray_AllOk_ReturnsTrue;
     procedure Test_TryCollectPtrIntoArray_FirstErr_ReturnsFalse;
     procedure Test_TryCollectPtrIntoArray_MixedWithErr_ReturnsFalseWithFirstErr;
@@ -188,6 +253,9 @@ type
 
 
 implementation
+
+uses
+  fafafa.core.base;
 
 type
   TIntResult = specialize TResult<Integer, string>;
@@ -494,6 +562,27 @@ begin
   CheckEquals('err', R2.UnwrapErr);
 end;
 
+procedure TTestCase_TResult_Combinators.Test_Map_On_Err_DoesNotCallMapper;
+var
+  Calls: Integer;
+  R, R2: TIntResult;
+  F: specialize TResultFunc<Integer, Integer>;
+begin
+  Calls := 0;
+  F := function(const X: Integer): Integer
+  begin
+    Inc(Calls);
+    Result := X + 1;
+  end;
+
+  R := TIntResult.Err('err');
+  R2 := specialize ResultMap<Integer, string, Integer>(R, F);
+
+  CheckEquals(0, Calls);
+  CheckTrue(R2.IsErr);
+  CheckEquals('err', R2.UnwrapErr);
+end;
+
 procedure TTestCase_TResult_Combinators.Test_MapErr_On_Ok;
 var
   R: TIntResult;
@@ -501,6 +590,28 @@ var
 begin
   R := TIntResult.Ok(10);
   R2 := specialize ResultMapErr<Integer, string, Integer>(R, @StrLen);
+  CheckTrue(R2.IsOk);
+  CheckEquals(10, R2.Unwrap);
+end;
+
+procedure TTestCase_TResult_Combinators.Test_MapErr_On_Ok_DoesNotCallErrMapper;
+var
+  Calls: Integer;
+  R: TIntResult;
+  R2: specialize TResult<Integer, Integer>;
+  F: specialize TResultFunc<string, Integer>;
+begin
+  Calls := 0;
+  F := function(const S: string): Integer
+  begin
+    Inc(Calls);
+    Result := Length(S);
+  end;
+
+  R := TIntResult.Ok(10);
+  R2 := specialize ResultMapErr<Integer, string, Integer>(R, F);
+
+  CheckEquals(0, Calls);
   CheckTrue(R2.IsOk);
   CheckEquals(10, R2.Unwrap);
 end;
@@ -549,6 +660,27 @@ begin
   CheckEquals('original', R2.UnwrapErr);
 end;
 
+procedure TTestCase_TResult_Combinators.Test_AndThen_On_Err_DoesNotCallFunc;
+var
+  Calls: Integer;
+  R, R2: TIntResult;
+  F: specialize TResultFunc<Integer, TIntResult>;
+begin
+  Calls := 0;
+  F := function(const X: Integer): TIntResult
+  begin
+    Inc(Calls);
+    Result := TIntResult.Ok(X * 2);
+  end;
+
+  R := TIntResult.Err('original');
+  R2 := specialize ResultAndThen<Integer, string, Integer>(R, F);
+
+  CheckEquals(0, Calls);
+  CheckTrue(R2.IsErr);
+  CheckEquals('original', R2.UnwrapErr);
+end;
+
 procedure TTestCase_TResult_Combinators.Test_OrElse_On_Ok;
 var
   R: TIntResult;
@@ -561,6 +693,28 @@ begin
     Result := TIntResult.Ok(Length(S));
   end;
   R2 := specialize ResultOrElse<Integer, string, string>(R, F);
+  CheckTrue(R2.IsOk);
+  CheckEquals(42, R2.Unwrap);
+end;
+
+procedure TTestCase_TResult_Combinators.Test_OrElse_On_Ok_DoesNotCallRecover;
+var
+  Calls: Integer;
+  R: TIntResult;
+  R2: TIntResult;
+  F: specialize TResultFunc<string, TIntResult>;
+begin
+  Calls := 0;
+  F := function(const S: string): TIntResult
+  begin
+    Inc(Calls);
+    Result := TIntResult.Ok(Length(S));
+  end;
+
+  R := TIntResult.Ok(42);
+  R2 := specialize ResultOrElse<Integer, string, string>(R, F);
+
+  CheckEquals(0, Calls);
   CheckTrue(R2.IsOk);
   CheckEquals(42, R2.Unwrap);
 end;
@@ -606,6 +760,42 @@ begin
 
   CheckEquals(50, specialize ResultMapOrElse<Integer, string, Integer>(ROk, FErr, FOk));
   CheckEquals(3, specialize ResultMapOrElse<Integer, string, Integer>(RErr, FErr, FOk));
+end;
+
+procedure TTestCase_TResult_Combinators.Test_MapOrElse_OnlyCallsMatchingBranch;
+var
+  CallsOk, CallsErr: Integer;
+  R: TIntResult;
+  FErr: specialize TResultFunc<string, Integer>;
+  FOk: specialize TResultFunc<Integer, Integer>;
+  V: Integer;
+begin
+  CallsOk := 0;
+  CallsErr := 0;
+
+  FErr := function(const S: string): Integer
+  begin
+    Inc(CallsErr);
+    Result := Length(S);
+  end;
+
+  FOk := function(const X: Integer): Integer
+  begin
+    Inc(CallsOk);
+    Result := X * 10;
+  end;
+
+  R := TIntResult.Ok(5);
+  V := specialize ResultMapOrElse<Integer, string, Integer>(R, FErr, FOk);
+  CheckEquals(50, V);
+  CheckEquals(1, CallsOk);
+  CheckEquals(0, CallsErr);
+
+  R := TIntResult.Err('abc');
+  V := specialize ResultMapOrElse<Integer, string, Integer>(R, FErr, FOk);
+  CheckEquals(3, V);
+  CheckEquals(1, CallsOk);
+  CheckEquals(1, CallsErr);
 end;
 
 procedure TTestCase_TResult_Combinators.Test_Match;
@@ -741,6 +931,38 @@ begin
   CheckEquals('original', R2.UnwrapErr);
 end;
 
+procedure TTestCase_TResult_Combinators.Test_FilterOrElse_On_Err_DoesNotCallPredOrErrFactory;
+var
+  CallsPred, CallsErrFactory: Integer;
+  R, R2: TIntResult;
+  Pred: specialize TResultFunc<Integer, Boolean>;
+  ErrFactory: specialize TResultFunc<Integer, string>;
+begin
+  CallsPred := 0;
+  CallsErrFactory := 0;
+
+  Pred := function(const X: Integer): Boolean
+  begin
+    Inc(CallsPred);
+    Result := X > 0;
+  end;
+
+  ErrFactory := function(const X: Integer): string
+  begin
+    if X = X then; // suppress hint
+    Inc(CallsErrFactory);
+    Result := 'not positive';
+  end;
+
+  R := TIntResult.Err('original');
+  R2 := specialize ResultFilterOrElse<Integer, string>(R, Pred, ErrFactory);
+
+  CheckEquals(0, CallsPred);
+  CheckEquals(0, CallsErrFactory);
+  CheckTrue(R2.IsErr);
+  CheckEquals('original', R2.UnwrapErr);
+end;
+
 procedure TTestCase_TResult_Combinators.Test_IsOkAnd;
 var
   R: TIntResult;
@@ -854,6 +1076,962 @@ begin
   CheckEquals('err:fail', specialize ResultFold<Integer, string, string>(RErr, FOk, FErr));
 end;
 
+{ TTestCase_TResult_CallbackContracts }
+
+procedure TTestCase_TResult_CallbackContracts.Test_ToDebugString_Ok_NilOkPrinter_UsesPlaceholder;
+var
+  R: TIntResult;
+  OkP: specialize TResultFunc<Integer, string>;
+  ErrP: specialize TResultFunc<string, string>;
+begin
+  R := TIntResult.Ok(42);
+  OkP := nil;
+  ErrP := function(const S: string): string
+  begin
+    Result := S;
+  end;
+
+  CheckEquals('Ok(?)', R.ToDebugString(OkP, ErrP));
+end;
+
+procedure TTestCase_TResult_CallbackContracts.Test_ToDebugString_Err_NilErrPrinter_UsesPlaceholder;
+var
+  R: TIntResult;
+  OkP: specialize TResultFunc<Integer, string>;
+  ErrP: specialize TResultFunc<string, string>;
+begin
+  R := TIntResult.Err('fail');
+  OkP := function(const X: Integer): string
+  begin
+    Result := IntToStr(X);
+  end;
+  ErrP := nil;
+
+  CheckEquals('Err(?)', R.ToDebugString(OkP, ErrP));
+end;
+
+procedure TTestCase_TResult_CallbackContracts.Test_TErrorCtx_ToDebugString_NilPrinter_UsesPlaceholder;
+type
+  TIntErrorCtx = specialize TErrorCtx<Integer>;
+var
+  Ctx: TIntErrorCtx;
+  P: specialize TResultFunc<Integer, string>;
+begin
+  Ctx := TIntErrorCtx.Create('operation failed', 500);
+  P := nil;
+  CheckEquals('operation failed (caused by: ?)', Ctx.ToDebugString(P));
+end;
+
+procedure TTestCase_TResult_CallbackContracts.Test_TryCollectPtrIntoArray_CountTooLarge_Raises;
+var
+  OutValues: specialize TValueArray<Integer> = nil;
+  FirstErr: string;
+  Count: SizeUInt;
+begin
+  // Arrange: pre-fill outputs to ensure they don't leak on exception
+  SetLength(OutValues, 1);
+  OutValues[0] := 123;
+  FirstErr := 'old';
+
+  Count := SizeUInt(High(SizeInt));
+  Inc(Count);
+
+  // Act + Assert
+  try
+    specialize TryCollectPtrIntoArray<Integer, string>(Pointer(1), Count, OutValues, FirstErr);
+    Fail('Expected exception when Count is too large');
+  except
+    on E: EOutOfRange do
+      CheckEquals('Count is out of range', E.Message);
+  end;
+
+  // Even on exception, outputs should have been reset at function entry
+  CheckEquals(0, Length(OutValues));
+  CheckEquals('', FirstErr);
+end;
+
+procedure TTestCase_TResult_CallbackContracts.Test_NilCallbacks_UnusedBranches_DoNotRaise;
+type
+  TIntIntResult = specialize TResult<Integer, Integer>;
+  TStrStrResult = specialize TResult<string, string>;
+  TTupIntStr = specialize TTuple2<Integer, string>;
+  TIntErrResult = specialize TResult<Integer, Integer>;
+  TIntStrResult = specialize TResult<Integer, string>;
+  TIntCtxResult = specialize TResult<Integer, specialize TErrorCtx<Integer>>;
+var
+  R: TIntResult;
+  R2: TIntResult;
+  R2IntInt: TIntIntResult;
+  RMb: TIntIntResult;
+  Guard: specialize TResult<TUnit, string>;
+  Opt: specialize TOption<Integer>;
+  MapF: specialize TResultFunc<Integer, Integer>;
+  MapErrF: specialize TResultFunc<string, Integer>;
+  AndThenF: specialize TResultFunc<Integer, TIntResult>;
+  OrElseF: specialize TResultFunc<string, TIntResult>;
+  MapOrElseFerr: specialize TResultFunc<string, Integer>;
+  MapOrElseFok: specialize TResultFunc<Integer, Integer>;
+  MatchFok: specialize TResultFunc<Integer, Integer>;
+  MatchFerr: specialize TResultFunc<string, Integer>;
+  MapBothFok: specialize TResultFunc<Integer, Integer>;
+  MapBothFerr: specialize TResultFunc<string, Integer>;
+  Pred: specialize TResultFunc<Integer, Boolean>;
+  ErrFactory: specialize TResultFunc<Integer, string>;
+  EnsureThunk: specialize TResultThunk<string>;
+  OptErrThunk: specialize TResultThunk<string>;
+  ZipMapper: specialize TResultFunc<TTupIntStr, string>;
+  A: TIntResult;
+  B: TStrStrResult;
+  Z: TStrStrResult;
+  CtxFunc: specialize TResultFunc<Integer, string>;
+  MapE: specialize TResultFunc<string, Exception>;
+  Work: specialize TResultThunk<Integer>;
+  MapEx: specialize TResultFunc<Exception, string>;
+  ResInt: Integer;
+  RIntErr: TIntErrResult;
+  RCtx: TIntStrResult;
+  RCtxE: TIntCtxResult;
+begin
+  // ResultMap: Err + nil mapper
+  MapF := nil;
+  R := TIntResult.Err('e');
+  R2 := specialize ResultMap<Integer, string, Integer>(R, MapF);
+  CheckTrue(R2.IsErr);
+
+  // ResultMapErr: Ok + nil err-mapper
+  MapErrF := nil;
+  R := TIntResult.Ok(1);
+  R2IntInt := specialize ResultMapErr<Integer, string, Integer>(R, MapErrF);
+  CheckTrue(R2IntInt.IsOk);
+  CheckEquals(1, R2IntInt.Unwrap);
+
+  // ResultAndThen: Err + nil func
+  AndThenF := nil;
+  R := TIntResult.Err('e');
+  R2 := specialize ResultAndThen<Integer, string, Integer>(R, AndThenF);
+  CheckTrue(R2.IsErr);
+
+  // ResultOrElse: Ok + nil recover
+  OrElseF := nil;
+  R := TIntResult.Ok(7);
+  R2 := specialize ResultOrElse<Integer, string, string>(R, OrElseF);
+  CheckTrue(R2.IsOk);
+  CheckEquals(7, R2.Unwrap);
+
+  // ResultMapOr: Err + nil mapper
+  ResInt := specialize ResultMapOr<Integer, string, Integer>(TIntResult.Err('e'), 123, MapF);
+  CheckEquals(123, ResInt);
+
+  // ResultMapOrElse: Ok uses Fok; Ferr may be nil
+  MapOrElseFerr := nil;
+  MapOrElseFok := function(const X: Integer): Integer
+  begin
+    Result := X * 2;
+  end;
+  ResInt := specialize ResultMapOrElse<Integer, string, Integer>(TIntResult.Ok(10), MapOrElseFerr, MapOrElseFok);
+  CheckEquals(20, ResInt);
+
+  // ResultMapOrElse: Err uses Ferr; Fok may be nil
+  MapOrElseFok := nil;
+  MapOrElseFerr := function(const S: string): Integer
+  begin
+    Result := Length(S);
+  end;
+  ResInt := specialize ResultMapOrElse<Integer, string, Integer>(TIntResult.Err('abc'), MapOrElseFerr, MapOrElseFok);
+  CheckEquals(3, ResInt);
+
+  // ResultMatch: Ok uses Fok; Ferr may be nil
+  MatchFerr := nil;
+  MatchFok := function(const X: Integer): Integer
+  begin
+    Result := X + 1;
+  end;
+  ResInt := specialize ResultMatch<Integer, string, Integer>(TIntResult.Ok(1), MatchFok, MatchFerr);
+  CheckEquals(2, ResInt);
+
+  // ResultMatch: Err uses Ferr; Fok may be nil
+  MatchFok := nil;
+  MatchFerr := function(const S: string): Integer
+  begin
+    Result := Length(S);
+  end;
+  ResInt := specialize ResultMatch<Integer, string, Integer>(TIntResult.Err('abc'), MatchFok, MatchFerr);
+  CheckEquals(3, ResInt);
+
+  // ResultMapBoth: Ok uses Fok; Ferr may be nil
+  MapBothFerr := nil;
+  MapBothFok := function(const X: Integer): Integer
+  begin
+    Result := X;
+  end;
+  RMb := specialize ResultMapBoth<Integer, string, Integer, Integer>(TIntResult.Ok(5), MapBothFok, MapBothFerr);
+  CheckTrue(RMb.IsOk);
+  CheckEquals(5, RMb.Unwrap);
+
+  // ResultMapBoth: Err uses Ferr; Fok may be nil
+  MapBothFok := nil;
+  MapBothFerr := function(const S: string): Integer
+  begin
+    Result := Length(S);
+  end;
+  RMb := specialize ResultMapBoth<Integer, string, Integer, Integer>(TIntResult.Err('abc'), MapBothFok, MapBothFerr);
+  CheckTrue(RMb.IsErr);
+  CheckEquals(3, RMb.UnwrapErr);
+
+  // ResultFilterOrElse: Err uses no callbacks
+  Pred := nil;
+  ErrFactory := nil;
+  R := TIntResult.Err('orig');
+  R2 := specialize ResultFilterOrElse<Integer, string>(R, Pred, ErrFactory);
+  CheckTrue(R2.IsErr);
+  CheckEquals('orig', R2.UnwrapErr);
+
+  // ResultEnsureWith: Cond=True does not call ErrThunk
+  EnsureThunk := nil;
+  Guard := specialize ResultEnsureWith<string>(True, EnsureThunk);
+  CheckTrue(Guard.IsOk);
+
+  // ResultFromOptionElse: Some does not call ErrThunk
+  OptErrThunk := nil;
+  Opt := specialize TOption<Integer>.Some(42);
+  R := specialize ResultFromOptionElse<Integer, string>(Opt, OptErrThunk);
+  CheckTrue(R.IsOk);
+  CheckEquals(42, R.Unwrap);
+
+  // ResultZipWith: Err path does not call mapper
+  ZipMapper := nil;
+  A := TIntResult.Err('e1');
+  B := TStrStrResult.Ok('hello');
+  Z := specialize ResultZipWith<Integer, string, string, string>(A, B, ZipMapper);
+  CheckTrue(Z.IsErr);
+  CheckEquals('e1', Z.UnwrapErr);
+
+  // ResultWithContext: Ok does not call CtxFunc
+  CtxFunc := nil;
+  RIntErr := TIntErrResult.Ok(1);
+  RCtx := specialize ResultWithContext<Integer, Integer>(RIntErr, CtxFunc);
+  CheckTrue(RCtx.IsOk);
+  CheckEquals(1, RCtx.Unwrap);
+
+  // ResultWithContextE: Ok does not call CtxFunc
+  RCtxE := specialize ResultWithContextE<Integer, Integer>(RIntErr, CtxFunc);
+  CheckTrue(RCtxE.IsOk);
+  CheckEquals(1, RCtxE.Unwrap);
+
+  // ResultToTry: Ok does not call MapE
+  MapE := nil;
+  ResInt := specialize ResultToTry<Integer, string>(TIntResult.Ok(7), MapE);
+  CheckEquals(7, ResInt);
+
+  // ResultFromTry: success does not call MapEx
+  Work := @WorkOk;
+  MapEx := nil;
+  R := specialize ResultFromTry<Integer, string>(Work, MapEx);
+  CheckTrue(R.IsOk);
+  CheckEquals(42, R.Unwrap);
+end;
+
+procedure TTestCase_TResult_CallbackContracts.Test_NilCallbacks_UnusedBranches_DoNotRaise_Methods;
+var
+  R, R2: TIntResult;
+  ThunkInt: specialize TResultThunk<Integer>;
+  ThunkRes: specialize TResultThunk<TIntResult>;
+  ProcInt: specialize TResultProc<Integer>;
+  ProcStr: specialize TResultProc<string>;
+  PredInt: specialize TResultFunc<Integer, Boolean>;
+  PredStr: specialize TResultFunc<string, Boolean>;
+  EqInt: specialize TResultBiPred<Integer, Integer>;
+  EqStr: specialize TResultBiPred<string, string>;
+  Other: TIntResult;
+  EqT: specialize TResultBiPred<Integer, Integer>;
+  EqE: specialize TResultBiPred<string, string>;
+begin
+  // UnwrapOrElse: Ok does not call thunk
+  ThunkInt := nil;
+  R := TIntResult.Ok(42);
+  CheckEquals(42, R.UnwrapOrElse(ThunkInt));
+
+  // OrElseThunk: Ok does not call thunk
+  ThunkRes := nil;
+  R := TIntResult.Ok(1);
+  R2 := R.OrElseThunk(ThunkRes);
+  CheckTrue(R2.IsOk);
+  CheckEquals(1, R2.Unwrap);
+
+  // Inspect: Err does not call proc
+  ProcInt := nil;
+  R := TIntResult.Err('e');
+  R2 := R.Inspect(ProcInt);
+  CheckTrue(R2.IsErr);
+  CheckEquals('e', R2.UnwrapErr);
+
+  // InspectErr: Ok does not call proc
+  ProcStr := nil;
+  R := TIntResult.Ok(1);
+  R2 := R.InspectErr(ProcStr);
+  CheckTrue(R2.IsOk);
+  CheckEquals(1, R2.Unwrap);
+
+  // IsOkAnd: Err does not call pred
+  PredInt := nil;
+  R := TIntResult.Err('e');
+  CheckFalse(R.IsOkAnd(PredInt));
+
+  // IsErrAnd: Ok does not call pred
+  PredStr := nil;
+  R := TIntResult.Ok(1);
+  CheckFalse(R.IsErrAnd(PredStr));
+
+  // Contains: Err does not call Eq
+  EqInt := nil;
+  R := TIntResult.Err('e');
+  CheckFalse(R.Contains(1, EqInt));
+
+  // ContainsErr: Ok does not call Eq
+  EqStr := nil;
+  R := TIntResult.Ok(1);
+  CheckFalse(R.ContainsErr('e', EqStr));
+
+  // Equals: Ok vs Err does not call EqT/EqE
+  EqT := nil;
+  EqE := nil;
+  R := TIntResult.Ok(1);
+  Other := TIntResult.Err('e');
+  CheckFalse(R.Equals(Other, EqT, EqE));
+end;
+
+procedure TTestCase_TResult_CallbackContracts.Test_ResultMap_Ok_NilMapper_Raises;
+var
+  R: TIntResult;
+  F: specialize TResultFunc<Integer, Integer>;
+begin
+  R := TIntResult.Ok(1);
+  F := nil;
+  try
+    specialize ResultMap<Integer, string, Integer>(R, F);
+    Fail('Expected exception: F is nil');
+  except
+    on E: EArgumentNil do
+      CheckEquals('F is nil', E.Message);
+  end;
+end;
+
+procedure TTestCase_TResult_CallbackContracts.Test_ResultMapErr_Err_NilMapper_Raises;
+var
+  R: TIntResult;
+  F: specialize TResultFunc<string, Integer>;
+begin
+  R := TIntResult.Err('e');
+  F := nil;
+  try
+    specialize ResultMapErr<Integer, string, Integer>(R, F);
+    Fail('Expected exception: F is nil');
+  except
+    on E: EArgumentNil do
+      CheckEquals('F is nil', E.Message);
+  end;
+end;
+
+procedure TTestCase_TResult_CallbackContracts.Test_ResultAndThen_Ok_NilFunc_Raises;
+var
+  R: TIntResult;
+  F: specialize TResultFunc<Integer, TIntResult>;
+begin
+  R := TIntResult.Ok(1);
+  F := nil;
+  try
+    specialize ResultAndThen<Integer, string, Integer>(R, F);
+    Fail('Expected exception: F is nil');
+  except
+    on E: EArgumentNil do
+      CheckEquals('F is nil', E.Message);
+  end;
+end;
+
+procedure TTestCase_TResult_CallbackContracts.Test_ResultOrElse_Err_NilRecover_Raises;
+var
+  R: TIntResult;
+  F: specialize TResultFunc<string, TIntResult>;
+begin
+  R := TIntResult.Err('e');
+  F := nil;
+  try
+    specialize ResultOrElse<Integer, string, string>(R, F);
+    Fail('Expected exception: F is nil');
+  except
+    on E: EArgumentNil do
+      CheckEquals('F is nil', E.Message);
+  end;
+end;
+
+procedure TTestCase_TResult_CallbackContracts.Test_ResultMapOr_Ok_NilMapper_Raises;
+var
+  R: TIntResult;
+  F: specialize TResultFunc<Integer, Integer>;
+  V: Integer;
+begin
+  R := TIntResult.Ok(1);
+  F := nil;
+  try
+    V := specialize ResultMapOr<Integer, string, Integer>(R, 0, F);
+    if V = V then; // suppress hint
+    Fail('Expected exception: F is nil');
+  except
+    on E: EArgumentNil do
+      CheckEquals('F is nil', E.Message);
+  end;
+end;
+
+procedure TTestCase_TResult_CallbackContracts.Test_ResultMapOrElse_Ok_NilOkMapper_Raises;
+var
+  R: TIntResult;
+  Ferr: specialize TResultFunc<string, Integer>;
+  Fok: specialize TResultFunc<Integer, Integer>;
+  V: Integer;
+begin
+  R := TIntResult.Ok(1);
+  Ferr := function(const S: string): Integer
+  begin
+    Result := Length(S);
+  end;
+  Fok := nil;
+
+  try
+    V := specialize ResultMapOrElse<Integer, string, Integer>(R, Ferr, Fok);
+    if V = V then; // suppress hint
+    Fail('Expected exception: Fok is nil');
+  except
+    on E: EArgumentNil do
+      CheckEquals('Fok is nil', E.Message);
+  end;
+end;
+
+procedure TTestCase_TResult_CallbackContracts.Test_ResultMapOrElse_Err_NilErrMapper_Raises;
+var
+  R: TIntResult;
+  Ferr: specialize TResultFunc<string, Integer>;
+  Fok: specialize TResultFunc<Integer, Integer>;
+  V: Integer;
+begin
+  R := TIntResult.Err('abc');
+  Ferr := nil;
+  Fok := function(const X: Integer): Integer
+  begin
+    Result := X;
+  end;
+
+  try
+    V := specialize ResultMapOrElse<Integer, string, Integer>(R, Ferr, Fok);
+    if V = V then; // suppress hint
+    Fail('Expected exception: Ferr is nil');
+  except
+    on E: EArgumentNil do
+      CheckEquals('Ferr is nil', E.Message);
+  end;
+end;
+
+procedure TTestCase_TResult_CallbackContracts.Test_ResultMatch_Ok_NilOkHandler_Raises;
+var
+  R: TIntResult;
+  Fok: specialize TResultFunc<Integer, Integer>;
+  Ferr: specialize TResultFunc<string, Integer>;
+  V: Integer;
+begin
+  R := TIntResult.Ok(1);
+  Fok := nil;
+  Ferr := function(const S: string): Integer
+  begin
+    Result := Length(S);
+  end;
+
+  try
+    V := specialize ResultMatch<Integer, string, Integer>(R, Fok, Ferr);
+    if V = V then; // suppress hint
+    Fail('Expected exception: Fok is nil');
+  except
+    on E: EArgumentNil do
+      CheckEquals('Fok is nil', E.Message);
+  end;
+end;
+
+procedure TTestCase_TResult_CallbackContracts.Test_ResultMatch_Err_NilErrHandler_Raises;
+var
+  R: TIntResult;
+  Fok: specialize TResultFunc<Integer, Integer>;
+  Ferr: specialize TResultFunc<string, Integer>;
+  V: Integer;
+begin
+  R := TIntResult.Err('abc');
+  Fok := function(const X: Integer): Integer
+  begin
+    Result := X;
+  end;
+  Ferr := nil;
+
+  try
+    V := specialize ResultMatch<Integer, string, Integer>(R, Fok, Ferr);
+    if V = V then; // suppress hint
+    Fail('Expected exception: Ferr is nil');
+  except
+    on E: EArgumentNil do
+      CheckEquals('Ferr is nil', E.Message);
+  end;
+end;
+
+procedure TTestCase_TResult_CallbackContracts.Test_ResultMapBoth_Ok_NilOkMapper_Raises;
+var
+  R: TIntResult;
+  Fok: specialize TResultFunc<Integer, Integer>;
+  Ferr: specialize TResultFunc<string, Integer>;
+  OutR: specialize TResult<Integer, Integer>;
+begin
+  R := TIntResult.Ok(1);
+  Fok := nil;
+  Ferr := function(const S: string): Integer
+  begin
+    Result := Length(S);
+  end;
+
+  try
+    OutR := specialize ResultMapBoth<Integer, string, Integer, Integer>(R, Fok, Ferr);
+    if OutR.IsOk then; // suppress hint
+    Fail('Expected exception: Fok is nil');
+  except
+    on E: EArgumentNil do
+      CheckEquals('Fok is nil', E.Message);
+  end;
+end;
+
+procedure TTestCase_TResult_CallbackContracts.Test_ResultMapBoth_Err_NilErrMapper_Raises;
+var
+  R: TIntResult;
+  Fok: specialize TResultFunc<Integer, Integer>;
+  Ferr: specialize TResultFunc<string, Integer>;
+  OutR: specialize TResult<Integer, Integer>;
+begin
+  R := TIntResult.Err('abc');
+  Fok := function(const X: Integer): Integer
+  begin
+    Result := X;
+  end;
+  Ferr := nil;
+
+  try
+    OutR := specialize ResultMapBoth<Integer, string, Integer, Integer>(R, Fok, Ferr);
+    if OutR.IsErr then; // suppress hint
+    Fail('Expected exception: Ferr is nil');
+  except
+    on E: EArgumentNil do
+      CheckEquals('Ferr is nil', E.Message);
+  end;
+end;
+
+procedure TTestCase_TResult_CallbackContracts.Test_ResultFilterOrElse_Ok_NilPred_Raises;
+var
+  R: TIntResult;
+  Pred: specialize TResultFunc<Integer, Boolean>;
+  Ferr: specialize TResultFunc<Integer, string>;
+  OutR: TIntResult;
+begin
+  R := TIntResult.Ok(1);
+  Pred := nil;
+  Ferr := function(const X: Integer): string
+  begin
+    if X = X then; // suppress hint
+    Result := 'bad';
+  end;
+
+  try
+    OutR := specialize ResultFilterOrElse<Integer, string>(R, Pred, Ferr);
+    if OutR.IsOk then; // suppress hint
+    Fail('Expected exception: Pred is nil');
+  except
+    on E: EArgumentNil do
+      CheckEquals('Pred is nil', E.Message);
+  end;
+end;
+
+procedure TTestCase_TResult_CallbackContracts.Test_ResultFilterOrElse_Ok_PredFalse_NilErrFactory_Raises;
+var
+  R: TIntResult;
+  Pred: specialize TResultFunc<Integer, Boolean>;
+  Ferr: specialize TResultFunc<Integer, string>;
+  OutR: TIntResult;
+begin
+  R := TIntResult.Ok(1);
+  Pred := function(const X: Integer): Boolean
+  begin
+    if X = X then; // suppress hint
+    Result := False;
+  end;
+  Ferr := nil;
+
+  try
+    OutR := specialize ResultFilterOrElse<Integer, string>(R, Pred, Ferr);
+    if OutR.IsErr then; // suppress hint
+    Fail('Expected exception: Ferr is nil');
+  except
+    on E: EArgumentNil do
+      CheckEquals('Ferr is nil', E.Message);
+  end;
+end;
+
+procedure TTestCase_TResult_CallbackContracts.Test_ResultEnsureWith_False_NilThunk_Raises;
+var
+  Thunk: specialize TResultThunk<string>;
+  R: specialize TResult<TUnit, string>;
+begin
+  Thunk := nil;
+  try
+    R := specialize ResultEnsureWith<string>(False, Thunk);
+    if R.IsOk then; // suppress hint
+    Fail('Expected exception: ErrThunk is nil');
+  except
+    on E: EArgumentNil do
+      CheckEquals('ErrThunk is nil', E.Message);
+  end;
+end;
+
+procedure TTestCase_TResult_CallbackContracts.Test_ResultFromOptionElse_None_NilThunk_Raises;
+var
+  O: specialize TOption<Integer>;
+  Thunk: specialize TResultThunk<string>;
+  R: TIntResult;
+begin
+  O := specialize TOption<Integer>.None;
+  Thunk := nil;
+
+  try
+    R := specialize ResultFromOptionElse<Integer, string>(O, Thunk);
+    if R.IsOk then; // suppress hint
+    Fail('Expected exception: ErrThunk is nil');
+  except
+    on E: EArgumentNil do
+      CheckEquals('ErrThunk is nil', E.Message);
+  end;
+end;
+
+procedure TTestCase_TResult_CallbackContracts.Test_ResultZipWith_OkOk_NilMapper_Raises;
+type
+  TStrStrResult = specialize TResult<string, string>;
+  TTupIntStr = specialize TTuple2<Integer, string>;
+var
+  A: TIntResult;
+  B: TStrStrResult;
+  F: specialize TResultFunc<TTupIntStr, string>;
+  Z: TStrStrResult;
+begin
+  A := TIntResult.Ok(1);
+  B := TStrStrResult.Ok('x');
+  F := nil;
+
+  try
+    Z := specialize ResultZipWith<Integer, string, string, string>(A, B, F);
+    if Z.IsOk then; // suppress hint
+    Fail('Expected exception: F is nil');
+  except
+    on E: EArgumentNil do
+      CheckEquals('F is nil', E.Message);
+  end;
+end;
+
+procedure TTestCase_TResult_CallbackContracts.Test_ResultWithContext_Err_NilFunc_Raises;
+type
+  TIntErrResult = specialize TResult<Integer, Integer>;
+  TIntStrResult = specialize TResult<Integer, string>;
+var
+  R: TIntErrResult;
+  CtxFunc: specialize TResultFunc<Integer, string>;
+  R2: TIntStrResult;
+begin
+  R := TIntErrResult.Err(123);
+  CtxFunc := nil;
+
+  try
+    R2 := specialize ResultWithContext<Integer, Integer>(R, CtxFunc);
+    if R2.IsOk then; // suppress hint
+    Fail('Expected exception: CtxFunc is nil');
+  except
+    on E: EArgumentNil do
+      CheckEquals('CtxFunc is nil', E.Message);
+  end;
+end;
+
+procedure TTestCase_TResult_CallbackContracts.Test_ResultWithContextE_Err_NilFunc_Raises;
+type
+  TIntErrResult = specialize TResult<Integer, Integer>;
+  TIntCtxResult = specialize TResult<Integer, specialize TErrorCtx<Integer>>;
+var
+  R: TIntErrResult;
+  CtxFunc: specialize TResultFunc<Integer, string>;
+  R2: TIntCtxResult;
+begin
+  R := TIntErrResult.Err(123);
+  CtxFunc := nil;
+
+  try
+    R2 := specialize ResultWithContextE<Integer, Integer>(R, CtxFunc);
+    if R2.IsOk then; // suppress hint
+    Fail('Expected exception: CtxFunc is nil');
+  except
+    on E: EArgumentNil do
+      CheckEquals('CtxFunc is nil', E.Message);
+  end;
+end;
+
+procedure TTestCase_TResult_CallbackContracts.Test_ResultToTry_Err_NilMapper_Raises;
+var
+  R: TIntResult;
+  MapE: specialize TResultFunc<string, Exception>;
+  V: Integer;
+begin
+  R := TIntResult.Err('boom');
+  MapE := nil;
+
+  try
+    V := specialize ResultToTry<Integer, string>(R, MapE);
+    if V = V then; // suppress hint
+    Fail('Expected exception: MapE is nil');
+  except
+    on E: EArgumentNil do
+      CheckEquals('MapE is nil', E.Message);
+  end;
+end;
+
+procedure TTestCase_TResult_CallbackContracts.Test_ResultFromTry_NilWork_Raises;
+var
+  Work: specialize TResultThunk<Integer>;
+  MapEx: specialize TResultFunc<Exception, string>;
+  R: TIntResult;
+begin
+  Work := nil;
+  MapEx := function(const Ex: Exception): string
+  begin
+    Result := Ex.Message;
+  end;
+
+  try
+    R := specialize ResultFromTry<Integer, string>(Work, MapEx);
+    if R.IsOk then; // suppress hint
+    Fail('Expected exception: Work is nil');
+  except
+    on E: EArgumentNil do
+      CheckEquals('Work is nil', E.Message);
+  end;
+end;
+
+procedure TTestCase_TResult_CallbackContracts.Test_ResultFromTry_Exception_NilMapEx_Raises;
+var
+  Work: specialize TResultThunk<Integer>;
+  MapEx: specialize TResultFunc<Exception, string>;
+  R: TIntResult;
+begin
+  Work := @WorkFail;
+  MapEx := nil;
+
+  try
+    R := specialize ResultFromTry<Integer, string>(Work, MapEx);
+    if R.IsOk then; // suppress hint
+    Fail('Expected exception: MapEx is nil');
+  except
+    on E: EArgumentNil do
+      CheckEquals('MapEx is nil', E.Message);
+  end;
+end;
+
+procedure TTestCase_TResult_CallbackContracts.Test_TResult_UnwrapOrElse_Err_NilThunk_Raises;
+var
+  R: TIntResult;
+  F: specialize TResultThunk<Integer>;
+  V: Integer;
+begin
+  R := TIntResult.Err('e');
+  F := nil;
+
+  try
+    V := R.UnwrapOrElse(F);
+    if V = V then; // suppress hint
+    Fail('Expected exception: F is nil');
+  except
+    on E: EArgumentNil do
+      CheckEquals('F is nil', E.Message);
+  end;
+end;
+
+procedure TTestCase_TResult_CallbackContracts.Test_TResult_OrElseThunk_Err_NilThunk_Raises;
+var
+  R, R2: TIntResult;
+  F: specialize TResultThunk<TIntResult>;
+begin
+  R := TIntResult.Err('e');
+  F := nil;
+
+  try
+    R2 := R.OrElseThunk(F);
+    if R2.IsOk then; // suppress hint
+    Fail('Expected exception: F is nil');
+  except
+    on E: EArgumentNil do
+      CheckEquals('F is nil', E.Message);
+  end;
+end;
+
+procedure TTestCase_TResult_CallbackContracts.Test_TResult_Inspect_Ok_NilProc_Raises;
+var
+  R, R2: TIntResult;
+  F: specialize TResultProc<Integer>;
+begin
+  R := TIntResult.Ok(1);
+  F := nil;
+
+  try
+    R2 := R.Inspect(F);
+    if R2.IsOk then; // suppress hint
+    Fail('Expected exception: F is nil');
+  except
+    on E: EArgumentNil do
+      CheckEquals('F is nil', E.Message);
+  end;
+end;
+
+procedure TTestCase_TResult_CallbackContracts.Test_TResult_InspectErr_Err_NilProc_Raises;
+var
+  R, R2: TIntResult;
+  F: specialize TResultProc<string>;
+begin
+  R := TIntResult.Err('e');
+  F := nil;
+
+  try
+    R2 := R.InspectErr(F);
+    if R2.IsErr then; // suppress hint
+    Fail('Expected exception: F is nil');
+  except
+    on E: EArgumentNil do
+      CheckEquals('F is nil', E.Message);
+  end;
+end;
+
+procedure TTestCase_TResult_CallbackContracts.Test_TResult_IsOkAnd_Ok_NilPred_Raises;
+var
+  R: TIntResult;
+  Pred: specialize TResultFunc<Integer, Boolean>;
+  B: Boolean;
+begin
+  R := TIntResult.Ok(1);
+  Pred := nil;
+
+  try
+    B := R.IsOkAnd(Pred);
+    if B then; // suppress hint
+    Fail('Expected exception: Pred is nil');
+  except
+    on E: EArgumentNil do
+      CheckEquals('Pred is nil', E.Message);
+  end;
+end;
+
+procedure TTestCase_TResult_CallbackContracts.Test_TResult_IsErrAnd_Err_NilPred_Raises;
+var
+  R: TIntResult;
+  Pred: specialize TResultFunc<string, Boolean>;
+  B: Boolean;
+begin
+  R := TIntResult.Err('e');
+  Pred := nil;
+
+  try
+    B := R.IsErrAnd(Pred);
+    if B then; // suppress hint
+    Fail('Expected exception: Pred is nil');
+  except
+    on E: EArgumentNil do
+      CheckEquals('Pred is nil', E.Message);
+  end;
+end;
+
+procedure TTestCase_TResult_CallbackContracts.Test_TResult_Contains_Ok_NilEq_Raises;
+var
+  R: TIntResult;
+  Eq: specialize TResultBiPred<Integer, Integer>;
+  B: Boolean;
+begin
+  R := TIntResult.Ok(1);
+  Eq := nil;
+
+  try
+    B := R.Contains(1, Eq);
+    if B then; // suppress hint
+    Fail('Expected exception: Eq is nil');
+  except
+    on E: EArgumentNil do
+      CheckEquals('Eq is nil', E.Message);
+  end;
+end;
+
+procedure TTestCase_TResult_CallbackContracts.Test_TResult_ContainsErr_Err_NilEq_Raises;
+var
+  R: TIntResult;
+  Eq: specialize TResultBiPred<string, string>;
+  B: Boolean;
+begin
+  R := TIntResult.Err('e');
+  Eq := nil;
+
+  try
+    B := R.ContainsErr('e', Eq);
+    if B then; // suppress hint
+    Fail('Expected exception: Eq is nil');
+  except
+    on E: EArgumentNil do
+      CheckEquals('Eq is nil', E.Message);
+  end;
+end;
+
+procedure TTestCase_TResult_CallbackContracts.Test_TResult_Equals_OkOk_NilEqT_Raises;
+var
+  A, B: TIntResult;
+  EqT: specialize TResultBiPred<Integer, Integer>;
+  EqE: specialize TResultBiPred<string, string>;
+  Res: Boolean;
+begin
+  A := TIntResult.Ok(1);
+  B := TIntResult.Ok(1);
+  EqT := nil;
+  EqE := @StrEq;
+
+  try
+    Res := A.Equals(B, EqT, EqE);
+    if Res then; // suppress hint
+    Fail('Expected exception: EqT is nil');
+  except
+    on E: EArgumentNil do
+      CheckEquals('EqT is nil', E.Message);
+  end;
+end;
+
+procedure TTestCase_TResult_CallbackContracts.Test_TResult_Equals_ErrErr_NilEqE_Raises;
+var
+  A, B: TIntResult;
+  EqT: specialize TResultBiPred<Integer, Integer>;
+  EqE: specialize TResultBiPred<string, string>;
+  Res: Boolean;
+begin
+  A := TIntResult.Err('e');
+  B := TIntResult.Err('e');
+  EqT := @IntEq;
+  EqE := nil;
+
+  try
+    Res := A.Equals(B, EqT, EqE);
+    if Res then; // suppress hint
+    Fail('Expected exception: EqE is nil');
+  except
+    on E: EArgumentNil do
+      CheckEquals('EqE is nil', E.Message);
+  end;
+end;
+
 { TTestCase_TResult_ExceptionBridge }
 
 procedure TTestCase_TResult_ExceptionBridge.Test_ResultToTry_On_Ok;
@@ -957,6 +2135,138 @@ begin
 end;
 
 { TTestCase_ErrorTypes removed }
+
+{ TTestCase_TOption_CallbackContracts }
+
+procedure TTestCase_TOption_CallbackContracts.Test_ToDebugString_Some_NilPrinter_UsesPlaceholder;
+type
+  TIntOption = specialize TOption<Integer>;
+var
+  O: TIntOption;
+  P: specialize TOptionFunc<Integer, string>;
+begin
+  O := TIntOption.Some(42);
+  P := nil;
+  CheckEquals('Some(?)', O.ToDebugString(P));
+end;
+
+procedure TTestCase_TOption_CallbackContracts.Test_NilCallbacks_UnusedBranches_DoNotRaise;
+type
+  TIntOption = specialize TOption<Integer>;
+var
+  O: TIntOption;
+  Thunk: specialize TOptionThunk<Integer>;
+  Proc: specialize TOptionProc<Integer>;
+  Pred: specialize TOptionFunc<Integer, Boolean>;
+  Eq: specialize TOptionBiPred<Integer, Integer>;
+  B: Boolean;
+begin
+  // UnwrapOrElse: Some does not call thunk
+  Thunk := nil;
+  O := TIntOption.Some(1);
+  CheckEquals(1, O.UnwrapOrElse(Thunk));
+
+  // Inspect: None does not call proc
+  Proc := nil;
+  O := TIntOption.None;
+  O := O.Inspect(Proc);
+  CheckTrue(O.IsNone);
+
+  // IsSomeAnd: None does not call pred
+  Pred := nil;
+  O := TIntOption.None;
+  B := O.IsSomeAnd(Pred);
+  CheckFalse(B);
+
+  // Contains: None does not call Eq
+  Eq := nil;
+  O := TIntOption.None;
+  B := O.Contains(1, Eq);
+  CheckFalse(B);
+end;
+
+procedure TTestCase_TOption_CallbackContracts.Test_UnwrapOrElse_None_NilThunk_Raises;
+type
+  TIntOption = specialize TOption<Integer>;
+var
+  O: TIntOption;
+  Thunk: specialize TOptionThunk<Integer>;
+  V: Integer;
+begin
+  O := TIntOption.None;
+  Thunk := nil;
+
+  try
+    V := O.UnwrapOrElse(Thunk);
+    if V = V then; // suppress hint
+    Fail('Expected exception: F is nil');
+  except
+    on E: EArgumentNil do
+      CheckEquals('F is nil', E.Message);
+  end;
+end;
+
+procedure TTestCase_TOption_CallbackContracts.Test_Inspect_Some_NilProc_Raises;
+type
+  TIntOption = specialize TOption<Integer>;
+var
+  O: TIntOption;
+  Proc: specialize TOptionProc<Integer>;
+begin
+  O := TIntOption.Some(1);
+  Proc := nil;
+
+  try
+    O := O.Inspect(Proc);
+    if O.IsSome then; // suppress hint
+    Fail('Expected exception: F is nil');
+  except
+    on E: EArgumentNil do
+      CheckEquals('F is nil', E.Message);
+  end;
+end;
+
+procedure TTestCase_TOption_CallbackContracts.Test_IsSomeAnd_Some_NilPred_Raises;
+type
+  TIntOption = specialize TOption<Integer>;
+var
+  O: TIntOption;
+  Pred: specialize TOptionFunc<Integer, Boolean>;
+  B: Boolean;
+begin
+  O := TIntOption.Some(1);
+  Pred := nil;
+
+  try
+    B := O.IsSomeAnd(Pred);
+    if B then; // suppress hint
+    Fail('Expected exception: Pred is nil');
+  except
+    on E: EArgumentNil do
+      CheckEquals('Pred is nil', E.Message);
+  end;
+end;
+
+procedure TTestCase_TOption_CallbackContracts.Test_Contains_Some_NilEq_Raises;
+type
+  TIntOption = specialize TOption<Integer>;
+var
+  O: TIntOption;
+  Eq: specialize TOptionBiPred<Integer, Integer>;
+  B: Boolean;
+begin
+  O := TIntOption.Some(1);
+  Eq := nil;
+
+  try
+    B := O.Contains(1, Eq);
+    if B then; // suppress hint
+    Fail('Expected exception: Eq is nil');
+  except
+    on E: EArgumentNil do
+      CheckEquals('Eq is nil', E.Message);
+  end;
+end;
 
 { TTestCase_TResult_Methods merged into Combinators }
 
@@ -1080,6 +2390,27 @@ var
 begin
   R := TIntResult.Ok(42);
   R2 := R.OrElseThunk(@GetFallbackResult);
+  CheckTrue(R2.IsOk);
+  CheckEquals(42, R2.Unwrap);
+end;
+
+procedure TTestCase_TResult_NewAPI.Test_OrElseThunk_On_Ok_DoesNotCallThunk;
+var
+  Calls: Integer;
+  R, R2: TIntResult;
+  Thunk: specialize TResultThunk<TIntResult>;
+begin
+  Calls := 0;
+  Thunk := function: TIntResult
+  begin
+    Inc(Calls);
+    Result := TIntResult.Ok(999);
+  end;
+
+  R := TIntResult.Ok(42);
+  R2 := R.OrElseThunk(Thunk);
+
+  CheckEquals(0, Calls);
   CheckTrue(R2.IsOk);
   CheckEquals(42, R2.Unwrap);
 end;
@@ -1672,6 +3003,30 @@ begin
   CheckEquals(0, Length(OutValues));
 end;
 
+procedure TTestCase_TResult_FastAPI.Test_TryCollectPtrIntoArray_NilPtrWithCount_Raises;
+var
+  OutValues: specialize TValueArray<Integer> = nil;
+  FirstErr: string;
+begin
+  // Arrange: pre-fill outputs to ensure they don't leak on exception
+  SetLength(OutValues, 1);
+  OutValues[0] := 123;
+  FirstErr := 'old';
+
+  // Act + Assert
+  try
+    specialize TryCollectPtrIntoArray<Integer, string>(nil, 1, OutValues, FirstErr);
+    Fail('Expected exception when ItemsPtr=nil and Count>0');
+  except
+    on E: EArgumentNil do
+      CheckEquals('ItemsPtr is nil', E.Message);
+  end;
+
+  // Even on exception, outputs should have been reset at function entry
+  CheckEquals(0, Length(OutValues));
+  CheckEquals('', FirstErr);
+end;
+
 procedure TTestCase_TResult_FastAPI.Test_TryCollectPtrIntoArray_AllOk_ReturnsTrue;
 var
   Items: array[0..2] of TIntResult;
@@ -1852,10 +3207,12 @@ initialization
   RegisterTest(TTestCase_TResult_Basic);
   RegisterTest(TTestCase_TResult_ToString);
   RegisterTest(TTestCase_TResult_Combinators);
+  RegisterTest(TTestCase_TResult_CallbackContracts);
   RegisterTest(TTestCase_TResult_ExceptionBridge);
   RegisterTest(TTestCase_TResult_Inspect);
   RegisterTest(TTestCase_TResult_NewAPI);
   RegisterTest(TTestCase_TOption_NewAPI);
+  RegisterTest(TTestCase_TOption_CallbackContracts);
   RegisterTest(TTestCase_TResult_Context);
   RegisterTest(TTestCase_TResult_Transpose);
   RegisterTest(TTestCase_TResult_FastAPI);

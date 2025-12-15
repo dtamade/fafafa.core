@@ -210,13 +210,13 @@ generic function ResultZipWith<T1, T2, E, U>(const A: specialize TResult<T1, E>;
   const B: specialize TResult<T2, E>;
   const F: specialize TResultFunc<specialize TTuple2<T1, T2>, U>): specialize TResult<U, E>; inline;
 
-{ ResultCollectPtrIntoArray / ResultSequencePtrIntoArray
+{ TryCollectPtrIntoArray
   输入：(ptr,count) 形式的 Result<T,E> 序列
-  输出：Ok 值写入 OutValues（动态数组），遇到首个 Err 则清空 OutValues 并返回 Err(E)。
-  注意：为避免 FPC 3.3.1 链接器问题，使用 out 参数返回成功/失败结果而非直接返回 TResult
+  输出：
+    - 全部 Ok：返回 True，并将 Ok 值按顺序写入 OutValues（动态数组）
+    - 遇到首个 Err：返回 False，清空 OutValues，并将 FirstErr 设为首个错误
+  注意：为规避 FPC 3.3.1 的泛型链接器/initialize 问题，此 API 返回 Boolean + out 参数，而非 TResult。
 }
-
-{ 简化版本：返回 Boolean 而非 Result，避免 FPC 的 $initialize 链接问题 }
 generic function TryCollectPtrIntoArray<T, E>(const ItemsPtr: Pointer; const Count: SizeUInt;
   var OutValues: specialize TValueArray<T>; out FirstErr: E): Boolean;
 
@@ -266,6 +266,9 @@ generic function ResultTranspose<T, E>(const R: specialize TResult<specialize TO
 
 implementation
 
+uses
+  fafafa.core.base;
+
 { TErrorCtx<E> }
 
 class function TErrorCtx.Create(const AMsg: string; const AInner: E): TErrorCtx;
@@ -276,6 +279,9 @@ end;
 
 function TErrorCtx.ToDebugString(const InnerPrinter: specialize TResultFunc<E, string>): string;
 begin
+  if InnerPrinter = nil then
+    Exit(Msg + ' (caused by: ?)');
+
   Result := Msg + ' (caused by: ' + InnerPrinter(Inner) + ')';
 end;
 
@@ -344,7 +350,13 @@ end;
 
 function TResult.UnwrapOrElse(const F: specialize TResultThunk<T>): T;
 begin
-  if FIsOk then Result := FOk else Result := F();
+  if FIsOk then
+    Exit(FOk);
+
+  if F = nil then
+    raise EArgumentNil.Create('F is nil');
+
+  Result := F();
 end;
 
 function TResult.UnwrapOrDefault: T;
@@ -431,9 +443,17 @@ function TResult.ToDebugString(const OkPrinter: specialize TResultFunc<T, string
   const ErrPrinter: specialize TResultFunc<E, string>): string;
 begin
   if FIsOk then
-    Result := 'Ok(' + OkPrinter(FOk) + ')'
+  begin
+    if OkPrinter = nil then
+      Exit('Ok(?)');
+    Result := 'Ok(' + OkPrinter(FOk) + ')';
+  end
   else
+  begin
+    if ErrPrinter = nil then
+      Exit('Err(?)');
     Result := 'Err(' + ErrPrinter(FErr) + ')';
+  end;
 end;
 
 function TResult.OkOption: TOkOption;
@@ -459,32 +479,33 @@ generic function TryCollectPtrIntoArray<T, E>(const ItemsPtr: Pointer; const Cou
 var
   I, N: SizeInt;
   P: ^specialize TResult<T, E>;
-  Item: specialize TResult<T, E>;
 begin
   // 总是先清空输出
   SetLength(OutValues, 0);
   FirstErr := Default(E);
+
+  if Count > SizeUInt(High(SizeInt)) then
+    raise EOutOfRange.Create('Count is out of range');
 
   N := SizeInt(Count);
   if N = 0 then
     Exit(True);
 
   if ItemsPtr = nil then
-    raise Exception.Create('ItemsPtr is nil');
+    raise EArgumentNil.Create('ItemsPtr is nil');
 
   SetLength(OutValues, N);
 
   P := ItemsPtr;
   for I := 0 to N - 1 do
   begin
-    Item := P^;
-    if not Item.IsOk then
+    if not P^.IsOk then
     begin
       SetLength(OutValues, 0);
-      FirstErr := Item.GetErrUnchecked;
+      FirstErr := P^.GetErrUnchecked;
       Exit(False);
     end;
-    OutValues[I] := Item.GetOkUnchecked;
+    OutValues[I] := P^.GetOkUnchecked;
     Inc(P);
   end;
 
@@ -497,7 +518,11 @@ generic function ResultMap<T, E, U>(const R: specialize TResult<T, E>;
   const F: specialize TResultFunc<T, U>): specialize TResult<U, E>;
 begin
   if R.IsOk then
-    Result := specialize TResult<U, E>.Ok(F(R.GetOkUnchecked))
+  begin
+    if F = nil then
+      raise EArgumentNil.Create('F is nil');
+    Result := specialize TResult<U, E>.Ok(F(R.GetOkUnchecked));
+  end
   else
     Result := specialize TResult<U, E>.Err(R.GetErrUnchecked);
 end;
@@ -508,14 +533,22 @@ begin
   if R.IsOk then
     Result := specialize TResult<T, E2>.Ok(R.GetOkUnchecked)
   else
+  begin
+    if F = nil then
+      raise EArgumentNil.Create('F is nil');
     Result := specialize TResult<T, E2>.Err(F(R.GetErrUnchecked));
+  end;
 end;
 
 generic function ResultAndThen<T, E, U>(const R: specialize TResult<T, E>;
   const F: specialize TResultFunc<T, specialize TResult<U, E>>): specialize TResult<U, E>;
 begin
   if R.IsOk then
-    Result := F(R.GetOkUnchecked)
+  begin
+    if F = nil then
+      raise EArgumentNil.Create('F is nil');
+    Result := F(R.GetOkUnchecked);
+  end
   else
     Result := specialize TResult<U, E>.Err(R.GetErrUnchecked);
 end;
@@ -526,25 +559,58 @@ begin
   if R.IsOk then
     Result := specialize TResult<T, E2>.Ok(R.GetOkUnchecked)
   else
+  begin
+    if F = nil then
+      raise EArgumentNil.Create('F is nil');
     Result := F(R.GetErrUnchecked);
+  end;
 end;
 
 generic function ResultMapOr<T, E, U>(const R: specialize TResult<T, E>;
   const ADefault: U; const F: specialize TResultFunc<T, U>): U;
 begin
-  if R.IsOk then Result := F(R.GetOkUnchecked) else Result := ADefault;
+  if R.IsOk then
+  begin
+    if F = nil then
+      raise EArgumentNil.Create('F is nil');
+    Result := F(R.GetOkUnchecked);
+  end
+  else
+    Result := ADefault;
 end;
 
 generic function ResultMapOrElse<T, E, U>(const R: specialize TResult<T, E>;
   const Ferr: specialize TResultFunc<E, U>; const Fok: specialize TResultFunc<T, U>): U;
 begin
-  if R.IsOk then Result := Fok(R.GetOkUnchecked) else Result := Ferr(R.GetErrUnchecked);
+  if R.IsOk then
+  begin
+    if Fok = nil then
+      raise EArgumentNil.Create('Fok is nil');
+    Result := Fok(R.GetOkUnchecked);
+  end
+  else
+  begin
+    if Ferr = nil then
+      raise EArgumentNil.Create('Ferr is nil');
+    Result := Ferr(R.GetErrUnchecked);
+  end;
 end;
 
 generic function ResultMatch<T, E, U>(const R: specialize TResult<T, E>;
   const Fok: specialize TResultFunc<T, U>; const Ferr: specialize TResultFunc<E, U>): U;
 begin
-  if R.IsOk then Result := Fok(R.GetOkUnchecked) else Result := Ferr(R.GetErrUnchecked);
+  if R.IsOk then
+  begin
+    if Fok = nil then
+      raise EArgumentNil.Create('Fok is nil');
+    Result := Fok(R.GetOkUnchecked);
+  end
+  else
+  begin
+    if Ferr = nil then
+      raise EArgumentNil.Create('Ferr is nil');
+    Result := Ferr(R.GetErrUnchecked);
+  end;
 end;
 
 generic function ResultFold<T, E, U>(const R: specialize TResult<T, E>;
@@ -573,9 +639,17 @@ generic function ResultMapBoth<T, E, U, F>(const R: specialize TResult<T, E>;
   const Fok: specialize TResultFunc<T, U>; const Ferr: specialize TResultFunc<E, F>): specialize TResult<U, F>;
 begin
   if R.IsOk then
-    Result := specialize TResult<U, F>.Ok(Fok(R.GetOkUnchecked))
+  begin
+    if Fok = nil then
+      raise EArgumentNil.Create('Fok is nil');
+    Result := specialize TResult<U, F>.Ok(Fok(R.GetOkUnchecked));
+  end
   else
+  begin
+    if Ferr = nil then
+      raise EArgumentNil.Create('Ferr is nil');
     Result := specialize TResult<U, F>.Err(Ferr(R.GetErrUnchecked));
+  end;
 end;
 
 generic function ResultFilterOrElse<T, E>(const R: specialize TResult<T, E>;
@@ -586,11 +660,18 @@ var
 begin
   if R.IsOk then
   begin
+    if Pred = nil then
+      raise EArgumentNil.Create('Pred is nil');
+
     V := R.GetOkUnchecked;
     if Pred(V) then
       Result := R
     else
+    begin
+      if Ferr = nil then
+        raise EArgumentNil.Create('Ferr is nil');
       Result := specialize TResult<T, E>.Err(Ferr(V));
+    end;
   end
   else
     Result := R;
@@ -618,48 +699,100 @@ end;
 
 function TResult.OrElseThunk(const F: specialize TResultThunk<TResult>): TResult;
 begin
-  if FIsOk then Result := Self else Result := F();
+  if FIsOk then
+    Exit(Self);
+
+  if F = nil then
+    raise EArgumentNil.Create('F is nil');
+
+  Result := F();
 end;
 
 function TResult.Inspect(const F: specialize TResultProc<T>): TResult;
 begin
-  if IsOk then F(GetOkUnchecked);
+  if IsOk then
+  begin
+    if F = nil then
+      raise EArgumentNil.Create('F is nil');
+    F(GetOkUnchecked);
+  end;
   Result := Self;
 end;
 
 function TResult.InspectErr(const F: specialize TResultProc<E>): TResult;
 begin
-  if IsErr then F(GetErrUnchecked);
+  if IsErr then
+  begin
+    if F = nil then
+      raise EArgumentNil.Create('F is nil');
+    F(GetErrUnchecked);
+  end;
   Result := Self;
 end;
 
 function TResult.IsOkAnd(const Pred: specialize TResultFunc<T, Boolean>): Boolean;
 begin
-  if IsOk then Result := Pred(GetOkUnchecked) else Result := False;
+  if IsOk then
+  begin
+    if Pred = nil then
+      raise EArgumentNil.Create('Pred is nil');
+    Result := Pred(GetOkUnchecked);
+  end
+  else
+    Result := False;
 end;
 
 function TResult.IsErrAnd(const Pred: specialize TResultFunc<E, Boolean>): Boolean;
 begin
-  if IsErr then Result := Pred(GetErrUnchecked) else Result := False;
+  if IsErr then
+  begin
+    if Pred = nil then
+      raise EArgumentNil.Create('Pred is nil');
+    Result := Pred(GetErrUnchecked);
+  end
+  else
+    Result := False;
 end;
 
 function TResult.Contains(const V: T; const Eq: specialize TResultBiPred<T, T>): Boolean;
 begin
-  if IsOk then Result := Eq(GetOkUnchecked, V) else Result := False;
+  if IsOk then
+  begin
+    if Eq = nil then
+      raise EArgumentNil.Create('Eq is nil');
+    Result := Eq(GetOkUnchecked, V);
+  end
+  else
+    Result := False;
 end;
 
 function TResult.ContainsErr(const EVal: E; const Eq: specialize TResultBiPred<E, E>): Boolean;
 begin
-  if IsErr then Result := Eq(GetErrUnchecked, EVal) else Result := False;
+  if IsErr then
+  begin
+    if Eq = nil then
+      raise EArgumentNil.Create('Eq is nil');
+    Result := Eq(GetErrUnchecked, EVal);
+  end
+  else
+    Result := False;
 end;
 
 function TResult.Equals(const Other: TResult; const EqT: specialize TResultBiPred<T, T>;
   const EqE: specialize TResultBiPred<E, E>): Boolean;
 begin
   if IsOk and Other.IsOk then
-    Result := EqT(GetOkUnchecked, Other.GetOkUnchecked)
+  begin
+    if EqT = nil then
+      raise EArgumentNil.Create('EqT is nil');
+    Result := EqT(GetOkUnchecked, Other.GetOkUnchecked);
+  end
   else if IsErr and Other.IsErr then
-    Result := EqE(GetErrUnchecked, Other.GetErrUnchecked)
+  begin
+    if EqE = nil then
+      raise EArgumentNil.Create('EqE is nil');
+    Result := EqE(GetErrUnchecked, Other.GetErrUnchecked);
+  end
   else
     Result := False;
 end;
@@ -672,17 +805,28 @@ begin
   if R.IsOk then
     Result := R.GetOkUnchecked
   else
+  begin
+    if MapE = nil then
+      raise EArgumentNil.Create('MapE is nil');
     raise MapE(R.GetErrUnchecked);
+  end;
 end;
 
 generic function ResultFromTry<T, E>(const Work: specialize TResultThunk<T>;
   const MapEx: specialize TResultFunc<Exception, E>): specialize TResult<T, E>;
 begin
+  if Work = nil then
+    raise EArgumentNil.Create('Work is nil');
+
   try
     Result := specialize TResult<T, E>.Ok(Work());
   except
     on Ex: Exception do
+    begin
+      if MapEx = nil then
+        raise EArgumentNil.Create('MapEx is nil');
       Result := specialize TResult<T, E>.Err(MapEx(Ex));
+    end;
   end;
 end;
 
@@ -706,7 +850,11 @@ begin
   if Cond then
     Result := specialize TResult<TUnit, E>.Ok(Default(TUnit))
   else
+  begin
+    if ErrThunk = nil then
+      raise EArgumentNil.Create('ErrThunk is nil');
     Result := specialize TResult<TUnit, E>.Err(ErrThunk());
+  end;
 end;
 
 generic function ResultFromBool<T, E>(const Cond: Boolean;
@@ -733,7 +881,11 @@ begin
   if O.IsSome then
     Result := specialize TResult<T, E>.Ok(O.GetValueUnchecked)
   else
+  begin
+    if ErrThunk = nil then
+      raise EArgumentNil.Create('ErrThunk is nil');
     Result := specialize TResult<T, E>.Err(ErrThunk());
+  end;
 end;
 
 generic function ResultZip<T1, T2, E>(const A: specialize TResult<T1, E>;
@@ -767,6 +919,9 @@ begin
   if B.IsErr then
     Exit(TResultU.Err(B.GetErrUnchecked));
 
+  if F = nil then
+    raise EArgumentNil.Create('F is nil');
+
   P := TTup.Create(A.GetOkUnchecked, B.GetOkUnchecked);
   Result := TResultU.Ok(F(P));
 end;
@@ -787,7 +942,11 @@ begin
   if R.IsOk then
     Exit(specialize TResult<T, string>.Ok(R.GetOkUnchecked))
   else
+  begin
+    if CtxFunc = nil then
+      raise EArgumentNil.Create('CtxFunc is nil');
     Exit(specialize TResult<T, string>.Err(CtxFunc(R.GetErrUnchecked)));
+  end;
 end;
 
 generic function ResultContextE<T, E>(const R: specialize TResult<T, E>;
@@ -814,6 +973,9 @@ begin
     Result := TResultCtx.Ok(R.GetOkUnchecked)
   else
   begin
+    if CtxFunc = nil then
+      raise EArgumentNil.Create('CtxFunc is nil');
+
     ErrVal := R.GetErrUnchecked;
     Result := TResultCtx.Err(TErrCtx.Create(CtxFunc(ErrVal), ErrVal));
   end;
