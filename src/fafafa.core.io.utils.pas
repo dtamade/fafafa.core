@@ -136,7 +136,16 @@ begin
     else
       LToRead := LRemaining;
 
-    LRead := Src.Read(@LBuf[0], LToRead);
+    try
+      LRead := Src.Read(@LBuf[0], LToRead);
+    except
+      on E: EIOError do
+      begin
+        if E.Kind = ekInterrupted then
+          Continue;
+        raise;
+      end;
+    end;
     if LRead = 0 then
       raise EUnexpectedEOF.Create('CopyN: unexpected EOF');
 
