@@ -431,9 +431,26 @@ begin
       Flush;
     while Count > 0 do
     begin
-      Written := FInner.Write(P, Count);
-      if Written <= 0 then
-        Exit;
+      while True do
+      begin
+        try
+          Written := FInner.Write(P, Count);
+          Break;
+        except
+          on E: EIOError do
+          begin
+            if E.Kind = ekInterrupted then
+              Continue;
+            raise;
+          end;
+        end;
+      end;
+
+      if Written = 0 then
+        raise EIOError.Create(ekWriteZero, 'TBufWriter: write zero');
+      if Written < 0 then
+        raise EIOError.Create('TBufWriter: write failed');
+
       Inc(P, Written);
       Inc(Result, Written);
       Dec(Count, Written);

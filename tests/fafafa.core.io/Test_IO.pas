@@ -84,6 +84,8 @@ type
     procedure Test_BufReader_ReadUntil_Interrupted_Retries;
     procedure Test_BufWriter_Flush_Interrupted_Retries;
     procedure Test_BufWriter_Flush_ZeroWrite_RaisesEIOError;
+    procedure Test_BufWriter_Write_LargeWrite_Interrupted_Retries;
+    procedure Test_BufWriter_Write_LargeWrite_ZeroWrite_RaisesEIOError;
     procedure Test_BufWriter_FlushOnDestroy;
   end;
 
@@ -1030,6 +1032,72 @@ begin
 
     AssertTrue('Flush should raise EIOError on zero-write', Raised);
     AssertEquals('Flush zero-write kind', Ord(ekWriteZero), Ord(GotKind));
+  finally
+    BW.Free;
+  end;
+end;
+
+procedure TTestBufferedIO.Test_BufWriter_Write_LargeWrite_Interrupted_Retries;
+var
+  DstCursor: TIOCursor;
+  Inner: IWriter;
+  FailW: TFailNTimesWriter;
+  Dst: IWriter;
+  BW: TBufWriter;
+  Data: array[0..9] of Byte;
+  N: SizeInt;
+  I: Integer;
+  FailCount: Integer;
+begin
+  FailCount := 2;
+  for I := 0 to High(Data) do
+    Data[I] := I;
+
+  DstCursor := TIOCursor.Create;
+  Inner := DstCursor;
+  FailW := TFailNTimesWriter.Create(Inner, FailCount, ekInterrupted);
+  Dst := FailW;
+
+  // BufSize 4, writing 10 bytes triggers the direct-write path
+  BW := TBufWriter.Create(Dst, 4);
+  try
+    N := BW.Write(@Data[0], Length(Data));
+    AssertEquals('Write count', Length(Data), N);
+    AssertEquals('Write retries (calls)', FailCount + 1, FailW.CallCount);
+    AssertEquals('Dst size', Length(Data), DstCursor.Size);
+  finally
+    BW.Free;
+  end;
+end;
+
+procedure TTestBufferedIO.Test_BufWriter_Write_LargeWrite_ZeroWrite_RaisesEIOError;
+var
+  ZW: IWriter;
+  BW: TBufWriter;
+  Data: array[0..3] of Byte;
+  Raised: Boolean;
+  GotKind: TIOErrorKind;
+begin
+  // Use small buffer and larger write to hit direct-write path
+  ZW := TZeroWriter.Create;
+  BW := TBufWriter.Create(ZW, 2);
+  try
+    Data[0] := 1; Data[1] := 2; Data[2] := 3; Data[3] := 4;
+
+    Raised := False;
+    GotKind := ekUnknown;
+    try
+      BW.Write(@Data[0], 4);
+    except
+      on E: EIOError do
+      begin
+        Raised := True;
+        GotKind := E.Kind;
+      end;
+    end;
+
+    AssertTrue('Write should raise EIOError on zero-write', Raised);
+    AssertEquals('Write zero-write kind', Ord(ekWriteZero), Ord(GotKind));
   finally
     BW.Free;
   end;
