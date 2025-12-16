@@ -210,7 +210,16 @@ begin
       else
         LToSkip := FSkip;
 
-      LRead := FInner.Read(@LBuf[0], LToSkip);
+      try
+        LRead := FInner.Read(@LBuf[0], LToSkip);
+      except
+        on E: EIOError do
+        begin
+          if E.Kind = ekInterrupted then
+            Continue;
+          raise;
+        end;
+      end;
       if LRead = 0 then
         Break;  // EOF
 

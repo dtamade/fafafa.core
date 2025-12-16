@@ -185,6 +185,7 @@ type
   published
     procedure Test_Skip_UsesSeek_IfAvailable;
     procedure Test_Skip_FallsBackToRead_IfNoSeek;
+    procedure Test_Skip_Interrupted_Retries;
   end;
 
   { TTestSectionSemantics }
@@ -2312,6 +2313,36 @@ begin
   
   Skipper.Read(@Buf[0], 1);
   AssertEquals('Read byte', 2, Buf[0]);
+end;
+
+procedure TTestAdapterSemantics.Test_Skip_Interrupted_Retries;
+var
+  Data: TBytes;
+  FailR: TFailNTimesReader;
+  Src: IReader;
+  Skipper: IReader;
+  Buf: array[0..4] of Byte;
+  N: SizeInt;
+  I: Integer;
+  FailCount: Integer;
+begin
+  FailCount := 2;
+  SetLength(Data, 10);
+  for I := 0 to High(Data) do
+    Data[I] := I;
+
+  FailR := TFailNTimesReader.Create(TIOCursor.FromBytes(Data), FailCount, ekInterrupted);
+  Src := FailR;
+
+  Skipper := IO.Skip(Src, 5);
+
+  FillChar(Buf[0], Length(Buf), 0);
+  N := Skipper.Read(@Buf[0], 5);
+
+  AssertEquals('Read count', 5, N);
+  AssertEquals('Byte 0', 5, Buf[0]);
+  AssertEquals('Byte 4', 9, Buf[4]);
+  AssertEquals('Skip retries (calls)', FailCount + 2, FailR.CallCount);
 end;
 
 { TTestSectionSemantics }
