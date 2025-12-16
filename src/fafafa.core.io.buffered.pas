@@ -166,7 +166,22 @@ begin
 
   // 3. 重新填充缓冲区
   FPos := 0;
-  FEnd := FInner.Read(@FBuf[0], FCapacity);
+
+  while True do
+  begin
+    try
+      FEnd := FInner.Read(@FBuf[0], FCapacity);
+      Break;
+    except
+      on E: EIOError do
+      begin
+        if E.Kind = ekInterrupted then
+          Continue;
+        raise;
+      end;
+    end;
+  end;
+
   if FEnd <= 0 then
   begin
     FEnd := 0;

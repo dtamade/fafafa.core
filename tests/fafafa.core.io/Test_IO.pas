@@ -82,6 +82,7 @@ type
     procedure Test_BufReader_ReadLine_CRLF_SplitAcrossBuffers;
     procedure Test_BufReader_ReadLine_LongLine_SmallBuffer;
     procedure Test_BufReader_ReadUntil_Interrupted_Retries;
+    procedure Test_BufReader_Read_Interrupted_Retries;
     procedure Test_BufWriter_Flush_Interrupted_Retries;
     procedure Test_BufWriter_Flush_ZeroWrite_RaisesEIOError;
     procedure Test_BufWriter_Write_LargeWrite_Interrupted_Retries;
@@ -965,6 +966,37 @@ begin
     AssertEquals('Byte 0', Ord('H'), Data[0]);
     AssertEquals('Byte 4', Ord('o'), Data[4]);
     AssertEquals('Delim', 10, Data[5]);
+    AssertEquals('Read retries (calls)', FailCount + 1, FailR.CallCount);
+  finally
+    BR.Free;
+  end;
+end;
+
+procedure TTestBufferedIO.Test_BufReader_Read_Interrupted_Retries;
+var
+  SrcData: TBytes;
+  Cursor: IReader;
+  FailR: TFailNTimesReader;
+  Src: IReader;
+  BR: TBufReader;
+  Buf: array[0..4] of Byte;
+  N: SizeInt;
+  FailCount: Integer;
+begin
+  FailCount := 2;
+  SrcData := TEncoding.UTF8.GetBytes('Hello');
+
+  Cursor := TIOCursor.FromBytes(SrcData);
+  FailR := TFailNTimesReader.Create(Cursor, FailCount, ekInterrupted);
+  Src := FailR;
+
+  BR := TBufReader.Create(Src, 16);
+  try
+    FillChar(Buf[0], Length(Buf), 0);
+    N := BR.Read(@Buf[0], 5);
+    AssertEquals('Read count', 5, N);
+    AssertEquals('Byte 0', Ord('H'), Buf[0]);
+    AssertEquals('Byte 4', Ord('o'), Buf[4]);
     AssertEquals('Read retries (calls)', FailCount + 1, FailR.CallCount);
   finally
     BR.Free;
