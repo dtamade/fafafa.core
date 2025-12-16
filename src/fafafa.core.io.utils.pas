@@ -159,7 +159,16 @@ begin
 
   while True do
   begin
-    LRead := Src.Read(@LBuf[0], BufSize);
+    try
+      LRead := Src.Read(@LBuf[0], BufSize);
+    except
+      on E: EIOError do
+      begin
+        if E.Kind = ekInterrupted then
+          Continue;
+        raise;
+      end;
+    end;
     if LRead = 0 then
       Break;  // EOF
 

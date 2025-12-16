@@ -95,6 +95,7 @@ type
   TTestIOUtils = class(TTestCase)
   published
     procedure Test_Copy_FullTransfer;
+    procedure Test_Copy_Interrupted_Retries;
     procedure Test_CopyN_ExactBytes;
     procedure Test_ReadAll_Success;
     procedure Test_ReadAll_Interrupted_Retries;
@@ -1216,6 +1217,32 @@ begin
   Copied := Copy(Dst, Src);
   AssertEquals('Copied bytes', 100, Copied);
   AssertEquals('Dst size', 100, DstCursor.Size);
+end;
+
+procedure TTestIOUtils.Test_Copy_Interrupted_Retries;
+var
+  SrcData: TBytes;
+  FailR: TFailNTimesReader;
+  Src: IReader;
+  DstCursor: TIOCursor;
+  Dst: IWriter;
+  Copied: Int64;
+  FailCount: Integer;
+begin
+  FailCount := 2;
+  SetLength(SrcData, 10);
+  FillChar(SrcData[0], 10, $CC);
+
+  FailR := TFailNTimesReader.Create(TIOCursor.FromBytes(SrcData), FailCount, ekInterrupted);
+  Src := FailR;
+
+  DstCursor := TIOCursor.Create;
+  Dst := DstCursor;
+  Copied := Copy(Dst, Src);
+
+  AssertEquals('Copied bytes', 10, Copied);
+  AssertEquals('Dst size', 10, DstCursor.Size);
+  AssertEquals('Copy retries (calls)', FailCount + 2, FailR.CallCount);
 end;
 
 procedure TTestIOUtils.Test_CopyN_ExactBytes;
