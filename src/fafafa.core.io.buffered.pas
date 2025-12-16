@@ -470,9 +470,26 @@ begin
   Offset := 0;
   while Offset < FPos do
   begin
-    Written := FInner.Write(@FBuf[Offset], FPos - Offset);
-    if Written <= 0 then
+    while True do
+    begin
+      try
+        Written := FInner.Write(@FBuf[Offset], FPos - Offset);
+        Break;
+      except
+        on E: EIOError do
+        begin
+          if E.Kind = ekInterrupted then
+            Continue;
+          raise;
+        end;
+      end;
+    end;
+
+    if Written = 0 then
+      raise EIOError.Create(ekWriteZero, 'TBufWriter: flush write zero');
+    if Written < 0 then
       raise EIOError.Create('TBufWriter: flush failed');
+
     Inc(Offset, Written);
   end;
   FPos := 0;

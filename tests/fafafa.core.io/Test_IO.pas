@@ -82,6 +82,8 @@ type
     procedure Test_BufReader_ReadLine_CRLF_SplitAcrossBuffers;
     procedure Test_BufReader_ReadLine_LongLine_SmallBuffer;
     procedure Test_BufReader_ReadUntil_Interrupted_Retries;
+    procedure Test_BufWriter_Flush_Interrupted_Retries;
+    procedure Test_BufWriter_Flush_ZeroWrite_RaisesEIOError;
     procedure Test_BufWriter_FlushOnDestroy;
   end;
 
@@ -964,6 +966,72 @@ begin
     AssertEquals('Read retries (calls)', FailCount + 1, FailR.CallCount);
   finally
     BR.Free;
+  end;
+end;
+
+procedure TTestBufferedIO.Test_BufWriter_Flush_Interrupted_Retries;
+var
+  DstCursor: TIOCursor;
+  Inner: IWriter;
+  FailW: TFailNTimesWriter;
+  Dst: IWriter;
+  BW: TBufWriter;
+  Data: array[0..4] of Byte;
+  FailCount: Integer;
+begin
+  FailCount := 2;
+  Data[0] := Ord('H');
+  Data[1] := Ord('e');
+  Data[2] := Ord('l');
+  Data[3] := Ord('l');
+  Data[4] := Ord('o');
+
+  DstCursor := TIOCursor.Create;
+  Inner := DstCursor;
+  FailW := TFailNTimesWriter.Create(Inner, FailCount, ekInterrupted);
+  Dst := FailW;
+
+  BW := TBufWriter.Create(Dst, 16);
+  try
+    AssertEquals('Write buffered', 5, BW.Write(@Data[0], 5));
+    BW.Flush;
+    AssertEquals('Flush retries (calls)', FailCount + 1, FailW.CallCount);
+    AssertEquals('Dst size', 5, DstCursor.Size);
+  finally
+    BW.Free;
+  end;
+end;
+
+procedure TTestBufferedIO.Test_BufWriter_Flush_ZeroWrite_RaisesEIOError;
+var
+  ZW: IWriter;
+  BW: TBufWriter;
+  Data: array[0..2] of Byte;
+  Raised: Boolean;
+  GotKind: TIOErrorKind;
+begin
+  ZW := TZeroWriter.Create;
+  BW := TBufWriter.Create(ZW, 8);
+  try
+    Data[0] := 1; Data[1] := 2; Data[2] := 3;
+    AssertEquals('Write buffered', 3, BW.Write(@Data[0], 3));
+
+    Raised := False;
+    GotKind := ekUnknown;
+    try
+      BW.Flush;
+    except
+      on E: EIOError do
+      begin
+        Raised := True;
+        GotKind := E.Kind;
+      end;
+    end;
+
+    AssertTrue('Flush should raise EIOError on zero-write', Raised);
+    AssertEquals('Flush zero-write kind', Ord(ekWriteZero), Ord(GotKind));
+  finally
+    BW.Free;
   end;
 end;
 
