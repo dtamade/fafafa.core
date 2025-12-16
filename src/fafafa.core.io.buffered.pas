@@ -159,7 +159,21 @@ begin
   // 2. 如果请求量大于缓冲区容量，直接读取
   if Count >= FCapacity then
   begin
-    DirectRead := FInner.Read(P, Count);
+    while True do
+    begin
+      try
+        DirectRead := FInner.Read(P, Count);
+        Break;
+      except
+        on E: EIOError do
+        begin
+          if E.Kind = ekInterrupted then
+            Continue;
+          raise;
+        end;
+      end;
+    end;
+
     Inc(Result, DirectRead);
     Exit;
   end;

@@ -83,6 +83,7 @@ type
     procedure Test_BufReader_ReadLine_LongLine_SmallBuffer;
     procedure Test_BufReader_ReadUntil_Interrupted_Retries;
     procedure Test_BufReader_Read_Interrupted_Retries;
+    procedure Test_BufReader_Read_LargeRead_Interrupted_Retries;
     procedure Test_BufWriter_Flush_Interrupted_Retries;
     procedure Test_BufWriter_Flush_ZeroWrite_RaisesEIOError;
     procedure Test_BufWriter_Write_LargeWrite_Interrupted_Retries;
@@ -997,6 +998,41 @@ begin
     AssertEquals('Read count', 5, N);
     AssertEquals('Byte 0', Ord('H'), Buf[0]);
     AssertEquals('Byte 4', Ord('o'), Buf[4]);
+    AssertEquals('Read retries (calls)', FailCount + 1, FailR.CallCount);
+  finally
+    BR.Free;
+  end;
+end;
+
+procedure TTestBufferedIO.Test_BufReader_Read_LargeRead_Interrupted_Retries;
+var
+  SrcData: TBytes;
+  Cursor: IReader;
+  FailR: TFailNTimesReader;
+  Src: IReader;
+  BR: TBufReader;
+  Buf: array[0..9] of Byte;
+  N: SizeInt;
+  I: Integer;
+  FailCount: Integer;
+begin
+  FailCount := 2;
+  SetLength(SrcData, 10);
+  for I := 0 to High(SrcData) do
+    SrcData[I] := I;
+
+  Cursor := TIOCursor.FromBytes(SrcData);
+  FailR := TFailNTimesReader.Create(Cursor, FailCount, ekInterrupted);
+  Src := FailR;
+
+  // BufSize 4, reading 10 bytes triggers the direct-read path
+  BR := TBufReader.Create(Src, 4);
+  try
+    FillChar(Buf[0], Length(Buf), 0);
+    N := BR.Read(@Buf[0], 10);
+    AssertEquals('Read count', 10, N);
+    AssertEquals('Byte 0', 0, Buf[0]);
+    AssertEquals('Byte 9', 9, Buf[9]);
     AssertEquals('Read retries (calls)', FailCount + 1, FailR.CallCount);
   finally
     BR.Free;
