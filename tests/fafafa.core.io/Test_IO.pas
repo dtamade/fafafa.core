@@ -295,6 +295,7 @@ type
     procedure Test_WriteV_MultipleBuffers;
     procedure Test_ReadV_EOF_PartialFill;
     procedure Test_ReadV_Fallback_WithNonVectored;
+    procedure Test_ReadV_Fallback_Interrupted_Retries;
     procedure Test_WriteV_Fallback_WithNonVectored;
   end;
 
@@ -3620,6 +3621,37 @@ begin
   AssertEquals('Buf1[4]', 40, Buf1[4]);
   AssertEquals('Buf2[0]', 50, Buf2[0]);
   AssertEquals('Buf2[4]', 90, Buf2[4]);
+end;
+
+procedure TTestVectoredIO.Test_ReadV_Fallback_Interrupted_Retries;
+var
+  Data: TBytes;
+  FailR: TFailNTimesReader;
+  Src: IReader;
+  IOV: TIOVecArray;
+  Buf1, Buf2: array[0..4] of Byte;
+  N: SizeInt;
+  FailCount: Integer;
+begin
+  FailCount := 2;
+  SetLength(Data, 10);
+  for N := 0 to 9 do
+    Data[N] := N * 10;
+
+  FailR := TFailNTimesReader.Create(IO.Cursor(Data), FailCount, ekInterrupted);
+  Src := FailR;
+
+  SetLength(IOV, 2);
+  IOV[0].Base := @Buf1[0]; IOV[0].Len := 5;
+  IOV[1].Base := @Buf2[0]; IOV[1].Len := 5;
+
+  N := IO.ReadV(Src, IOV);
+  AssertEquals('Fallback read', 10, N);
+  AssertEquals('Buf1[0]', 0, Buf1[0]);
+  AssertEquals('Buf1[4]', 40, Buf1[4]);
+  AssertEquals('Buf2[0]', 50, Buf2[0]);
+  AssertEquals('Buf2[4]', 90, Buf2[4]);
+  AssertEquals('ReadV fallback retries (calls)', FailCount + 2, FailR.CallCount);
 end;
 
 procedure TTestVectoredIO.Test_WriteV_Fallback_WithNonVectored;

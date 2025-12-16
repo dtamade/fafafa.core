@@ -406,7 +406,21 @@ begin
     if (IOV[I].Base = nil) or (IOV[I].Len <= 0) then
       Continue;
 
-    N := Src.Read(IOV[I].Base, IOV[I].Len);
+    while True do
+    begin
+      try
+        N := Src.Read(IOV[I].Base, IOV[I].Len);
+        Break;
+      except
+        on E: EIOError do
+        begin
+          if E.Kind = ekInterrupted then
+            Continue;
+          raise;
+        end;
+      end;
+    end;
+
     Inc(Result, N);
 
     // 如果未完全填充，停止（可能 EOF 或短读）
