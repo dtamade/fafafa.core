@@ -1,6 +1,6 @@
 # fafafa.core.env
 
-现代化、跨平台的环境变量与用户目录辅助模块。设计参考 Rust std::env 与 Go os。
+现代化、跨平台的环境变量与用户目录辅助模块（Windows / Linux / macOS / Android）。设计参考 Rust std::env 与 Go os。
 
 ## 目标与范围
 - 统一环境变量读写：env_get/env_set/env_unset/env_vars
@@ -91,7 +91,7 @@
   // 安全地导出当前环境快照：敏感名自动脱敏（适用于日志/诊断）
 
 ### 平台常量（对标 Rust std::env::consts）
-- function env_os: string; // 当前 OS: Windows/Linux/Darwin/FreeBSD/OpenBSD/NetBSD
+- function env_os: string; // 当前 OS: Windows/Linux/Darwin/Android/FreeBSD/OpenBSD/NetBSD
 - function env_arch: string; // 当前架构: x86_64/aarch64/i386/arm/powerpc64/riscv64
 - function env_family: string; // OS 家族: unix/windows
 - function env_is_windows: Boolean; // True on Windows
@@ -228,7 +228,7 @@ end;
 ### 平台检测与条件逻辑
 ```pascal
 begin
-  WriteLn('OS: ', env_os);       // Linux/Windows/Darwin
+  WriteLn('OS: ', env_os);       // Linux/Windows/Darwin/Android
   WriteLn('Arch: ', env_arch);   // x86_64/aarch64
   WriteLn('Family: ', env_family); // unix/windows
 
@@ -375,6 +375,12 @@ end;
   - Windows：config -> APPDATA，cache -> LOCALAPPDATA；回退至用户目录下 AppData 层级。
   - Unix：遵循 XDG（XDG_CONFIG_HOME、XDG_CACHE_HOME）；无则回退到 `~/.config` 与 `~/.cache`。
   - macOS：config -> `~/Library/Application Support`，cache -> `~/Library/Caches`。
+  - Android：优先解析 App sandbox（无需依赖 Java/Context）：
+    - 若设置 `FAFAFA_ANDROID_DATA_DIR`：直接使用该路径作为应用数据目录（例如 `/data/user/0/<pkg>`），并派生：
+      - config/home -> `${DATA_DIR}/files`
+      - cache/temp  -> `${DATA_DIR}/cache`
+    - 否则：从 `/proc/self/cmdline` 获取进程名（通常为包名 `com.example.app`，并自动剥离 `:service` 后缀），结合 uid 推导 userId（uid/100000），再探测：`/data/user/<userId>/<pkg>`、`/data/data/<pkg>`。
+    - 解析失败则回退到 Unix/XDG 规则（`XDG_*` / `HOME`）。
 
 ## 设计与契约
 - env_expand/env_expand_env/env_expand_with：

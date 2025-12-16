@@ -61,4 +61,8 @@ AssertEquals('a' + sep + 'b', env_join_paths(['a','','b']));
   - Windows：config -> APPDATA，cache -> LOCALAPPDATA；若缺失回退至用户目录内 AppData 路径。
   - macOS：config -> `~/Library/Application Support`，cache -> `~/Library/Caches`。
   - Unix：遵循 XDG（XDG_CONFIG_HOME、XDG_CACHE_HOME），缺失时回退到 `~/.config` 与 `~/.cache`。
+  - Android：优先解析 App sandbox（无需依赖 Java/Context）：
+    - 若设置 `FAFAFA_ANDROID_DATA_DIR`：直接使用该路径作为应用数据目录，并派生：config/home -> `${DATA_DIR}/files`，cache/temp -> `${DATA_DIR}/cache`。
+    - 否则：从 `/proc/self/cmdline` 获取包名（并剥离 `:service` 后缀），结合 uid 推导 userId（uid/100000），探测 `/data/user/<userId>/<pkg>`、`/data/data/<pkg>`。
+    - 若仍无法解析：回退到 Unix/XDG（`XDG_*` / `HOME`）。
 

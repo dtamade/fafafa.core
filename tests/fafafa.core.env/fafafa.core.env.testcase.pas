@@ -62,6 +62,10 @@ type
     // === Directories & Process ===
     procedure Test_env_cwd_and_exepath;
     procedure Test_env_user_dirs_best_effort;
+    {$IFDEF ANDROID}
+    procedure Test_env_android_user_dirs_data_dir_override;
+    procedure Test_env_android_user_dirs_process_name_detection;
+    {$ENDIF}
 
     // === Security Helpers ===
     procedure Test_env_is_sensitive_name;
@@ -329,6 +333,79 @@ begin
   AssertTrue(Length(cfg) >= 0);  // Use cfg to suppress hint
   AssertTrue(Length(cache) >= 0); // Use cache to suppress hint
 end;
+
+{$IFDEF ANDROID}
+procedure TTestCase_Global.Test_env_android_user_dirs_data_dir_override;
+var
+  base, filesDir, cacheDir: string;
+  g: TEnvOverrideGuard;
+begin
+  base := IncludeTrailingPathDelimiter(GetTempDir(False)) + 'fafafa_env_android_test';
+  filesDir := base + PathDelim + 'files';
+  cacheDir := base + PathDelim + 'cache';
+
+  AssertTrue('ForceDirectories(files) should succeed', ForceDirectories(filesDir));
+  AssertTrue('ForceDirectories(cache) should succeed', ForceDirectories(cacheDir));
+
+  g := env_override('FAFAFA_ANDROID_DATA_DIR', base);
+  try
+    AssertEquals(ExcludeTrailingPathDelimiter(filesDir), ExcludeTrailingPathDelimiter(env_home_dir));
+    AssertEquals(ExcludeTrailingPathDelimiter(filesDir), ExcludeTrailingPathDelimiter(env_user_config_dir));
+    AssertEquals(ExcludeTrailingPathDelimiter(cacheDir), ExcludeTrailingPathDelimiter(env_user_cache_dir));
+    AssertEquals(ExcludeTrailingPathDelimiter(cacheDir), ExcludeTrailingPathDelimiter(env_temp_dir));
+  finally
+    g.Done;
+
+    // best-effort cleanup
+    RemoveDir(cacheDir);
+    RemoveDir(filesDir);
+    RemoveDir(base);
+  end;
+end;
+
+procedure TTestCase_Global.Test_env_android_user_dirs_process_name_detection;
+var
+  root, pkg, dataDir, filesDir, cacheDir: string;
+  g: TEnvOverridesGuard;
+  kvs: array of TEnvKV;
+begin
+  // Simulate Android layout under a temp root:
+  //   <root>/user/0/<pkg>/{files,cache}
+  root := IncludeTrailingPathDelimiter(GetTempDir(False)) + 'fafafa_env_android_root';
+  pkg := 'com.example.fafafa';
+  dataDir := root + PathDelim + 'user' + PathDelim + '0' + PathDelim + pkg;
+  filesDir := dataDir + PathDelim + 'files';
+  cacheDir := dataDir + PathDelim + 'cache';
+
+  AssertTrue('ForceDirectories(files) should succeed', ForceDirectories(filesDir));
+  AssertTrue('ForceDirectories(cache) should succeed', ForceDirectories(cacheDir));
+
+  kvs := nil;
+  SetLength(kvs, 4);
+  kvs[0].Name := 'FAFAFA_ANDROID_DATA_DIR'; kvs[0].HasValue := False; // force auto-detect path
+  kvs[1].Name := 'FAFAFA_ANDROID_DATA_ROOT'; kvs[1].Value := root; kvs[1].HasValue := True;
+  kvs[2].Name := 'FAFAFA_ANDROID_USER_ID'; kvs[2].Value := '0'; kvs[2].HasValue := True;
+  kvs[3].Name := 'FAFAFA_ANDROID_PROCESS_NAME'; kvs[3].Value := pkg + ':service'; kvs[3].HasValue := True;
+
+  g := env_overrides(kvs);
+  try
+    AssertEquals(ExcludeTrailingPathDelimiter(filesDir), ExcludeTrailingPathDelimiter(env_home_dir));
+    AssertEquals(ExcludeTrailingPathDelimiter(filesDir), ExcludeTrailingPathDelimiter(env_user_config_dir));
+    AssertEquals(ExcludeTrailingPathDelimiter(cacheDir), ExcludeTrailingPathDelimiter(env_user_cache_dir));
+    AssertEquals(ExcludeTrailingPathDelimiter(cacheDir), ExcludeTrailingPathDelimiter(env_temp_dir));
+  finally
+    g.Done;
+
+    // best-effort cleanup (remove leaf -> root)
+    RemoveDir(cacheDir);
+    RemoveDir(filesDir);
+    RemoveDir(dataDir);
+    RemoveDir(root + PathDelim + 'user' + PathDelim + '0');
+    RemoveDir(root + PathDelim + 'user');
+    RemoveDir(root);
+  end;
+end;
+{$ENDIF}
 
 
 procedure TTestCase_Global.Test_env_join_paths_checked_reports_error;
@@ -950,10 +1027,15 @@ var os: string;
 begin
   os := env_os;
   AssertTrue('env_os should not be empty', os <> '');
+
+  {$IFDEF ANDROID}
+  AssertEquals('Android', os);
+  {$ELSE}
   // Should be one of known OS names
   AssertTrue('env_os should be valid',
     (os = 'Windows') or (os = 'Linux') or (os = 'Darwin') or
     (os = 'FreeBSD') or (os = 'OpenBSD') or (os = 'NetBSD'));
+  {$ENDIF}
 end;
 
 procedure TTestCase_Global.Test_env_arch_returns_valid_arch;
