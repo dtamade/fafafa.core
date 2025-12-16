@@ -366,6 +366,7 @@ type
     procedure Test_Peek_ThenRead_ReturnsData;
     procedure Test_Peek_BuffersData;
     procedure Test_Peek_EOF_ReturnsZero;
+    procedure Test_Peek_Interrupted_Retries;
     // 边界条件测试
     procedure Test_Peek_LargerThanData_ReturnsAvailable;
     procedure Test_Peek_ZeroBytes_ReturnsZero;
@@ -4336,6 +4337,42 @@ begin
 
   N := PR.Peek(@Buf[0], 10);
   AssertEquals('Peek on empty returns 0', 0, N);
+end;
+
+procedure TTestPeek.Test_Peek_Interrupted_Retries;
+var
+  Data: TBytes;
+  Cursor: IReader;
+  FailR: TFailNTimesReader;
+  Inner: IReader;
+  PR: IPeekReader;
+  Buf: array[0..3] of Byte;
+  N: SizeInt;
+  FailCount: Integer;
+begin
+  FailCount := 2;
+  Data := TEncoding.UTF8.GetBytes('Hello');
+
+  Cursor := TIOCursor.FromBytes(Data);
+  FailR := TFailNTimesReader.Create(Cursor, FailCount, ekInterrupted);
+  Inner := FailR;
+
+  PR := IO.Peekable(Inner);
+
+  FillChar(Buf[0], SizeOf(Buf), 0);
+  N := PR.Peek(@Buf[0], 4);
+  AssertEquals('Peek returns 4', 4, N);
+  AssertEquals('Peek[0]', Ord('H'), Buf[0]);
+  AssertEquals('Peek[3]', Ord('l'), Buf[3]);
+  AssertEquals('Peek retries (calls)', FailCount + 1, FailR.CallCount);
+
+  // Read should come from the peek buffer (no extra inner reads)
+  FillChar(Buf[0], SizeOf(Buf), 0);
+  N := PR.Read(@Buf[0], 4);
+  AssertEquals('Read returns 4', 4, N);
+  AssertEquals('Read[0]', Ord('H'), Buf[0]);
+  AssertEquals('Read[3]', Ord('l'), Buf[3]);
+  AssertEquals('Read after peek should not call inner', FailCount + 1, FailR.CallCount);
 end;
 
 { TTestChecksum }

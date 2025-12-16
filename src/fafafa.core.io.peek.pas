@@ -50,6 +50,9 @@ function PeekReader(AInner: IReader): IPeekReader;
 
 implementation
 
+uses
+  fafafa.core.io.error;
+
 const
   DefaultPeekBufSize = 4096;
 
@@ -125,7 +128,20 @@ begin
 
     // 读取更多数据到缓冲区
     Need := Count - FBufLen;
-    Got := FInner.Read(@FBuffer[FBufStart + FBufLen], Need);
+    while True do
+    begin
+      try
+        Got := FInner.Read(@FBuffer[FBufStart + FBufLen], Need);
+        Break;
+      except
+        on E: EIOError do
+        begin
+          if E.Kind = ekInterrupted then
+            Continue;
+          raise;
+        end;
+      end;
+    end;
     Inc(FBufLen, Got);
   end;
 
