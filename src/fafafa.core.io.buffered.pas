@@ -191,7 +191,22 @@ begin
   begin
     FPos := 0;
     FEnd := 0;
-    N := FInner.Read(@FBuf[0], FCapacity);
+
+    while True do
+    begin
+      try
+        N := FInner.Read(@FBuf[0], FCapacity);
+        Break;
+      except
+        on E: EIOError do
+        begin
+          if E.Kind = ekInterrupted then
+            Continue;
+          raise;
+        end;
+      end;
+    end;
+
     if N > 0 then
       FEnd := N;
   end;

@@ -81,6 +81,7 @@ type
     procedure Test_BufReader_ReadLine;
     procedure Test_BufReader_ReadLine_CRLF_SplitAcrossBuffers;
     procedure Test_BufReader_ReadLine_LongLine_SmallBuffer;
+    procedure Test_BufReader_ReadUntil_Interrupted_Retries;
     procedure Test_BufWriter_FlushOnDestroy;
   end;
 
@@ -931,6 +932,36 @@ begin
 
     HasLine := BR.ReadLine(Line);
     AssertFalse('No more lines after long line', HasLine);
+  finally
+    BR.Free;
+  end;
+end;
+
+procedure TTestBufferedIO.Test_BufReader_ReadUntil_Interrupted_Retries;
+var
+  SrcData: TBytes;
+  Cursor: IReader;
+  FailR: TFailNTimesReader;
+  Src: IReader;
+  BR: TBufReader;
+  Data: TBytes;
+  FailCount: Integer;
+begin
+  FailCount := 2;
+  SrcData := TEncoding.UTF8.GetBytes('Hello'#10);
+
+  Cursor := TIOCursor.FromBytes(SrcData);
+  FailR := TFailNTimesReader.Create(Cursor, FailCount, ekInterrupted);
+  Src := FailR;
+
+  BR := TBufReader.Create(Src);
+  try
+    AssertTrue('ReadUntil should succeed', BR.ReadUntil(10, Data));
+    AssertEquals('Data length', Length(SrcData), Length(Data));
+    AssertEquals('Byte 0', Ord('H'), Data[0]);
+    AssertEquals('Byte 4', Ord('o'), Data[4]);
+    AssertEquals('Delim', 10, Data[5]);
+    AssertEquals('Read retries (calls)', FailCount + 1, FailR.CallCount);
   finally
     BR.Free;
   end;
