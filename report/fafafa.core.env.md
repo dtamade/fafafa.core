@@ -6,7 +6,7 @@
 - **版本**：v1.2（企业级就绪，对标 Rust std::env）
 - **源文件**：`src/fafafa.core.env.pas`
 - **文档**：`docs/fafafa.core.env.md`
-- **测试**：94 个用例，全部通过
+- **测试**：95 个用例，全部通过
 - **示例**：example_quickstart, example_overrides_showcase, example_security_showcase
 
 ## 功能概览
@@ -43,7 +43,9 @@
 - **线程安全**：环境变量操作在多线程环境不安全（操作系统层面限制）
 - **UTF-8 假设**：模块假设所有字符串为 UTF-8 编码
 - **最佳实践**：库代码避免修改全局环境，测试中使用 RAII 守卫
-- **迭代器 Free**：for-in 场景会在遍历完成时自动释放内部资源；若手动使用 enumerator，需要调用 `.Free`
+- **迭代器资源释放**：
+  - for-in 场景：支持提前退出（break/exit）且不会泄漏；内部资源会在作用域结束时自动释放
+  - 若需要更及时/确定性释放：手动遍历并调用 `.Free`
 
 ## 后续规划
 参见 `docs/fafafa.core.env.roadmap.md`

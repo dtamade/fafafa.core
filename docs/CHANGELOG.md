@@ -46,9 +46,10 @@ Inspired by Rust std::env and Go os.
   - EVarError now includes Kind (currently vekNotDefined)
 - Performance optimization: `env_expand` fast path (16.9x speedup for passthrough)
 - Performance optimization: `env_iter` iterates environ directly (Unix) / GetEnvironmentStringsW block (Windows), avoids TStringList snapshot allocation
+- `env_iter`: auto-cleanup even on early-exit (e.g. `break` in for-in)
 
 **Tests:**
-- 94 test cases, 100% pass rate
+- 95 test cases, 100% pass rate
 - Documentation examples validated (25/25 tests pass)
 
 **Performance Baseline (2025-12-13):**
