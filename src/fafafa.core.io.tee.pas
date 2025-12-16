@@ -18,7 +18,8 @@ interface
 
 uses
   SysUtils,
-  fafafa.core.io.base;
+  fafafa.core.io.base,
+  fafafa.core.io.utils;
 
 type
   { TTeeReader - 读取时同时写入
@@ -92,10 +93,10 @@ begin
   Result := FInner.Read(Buf, Count);
   if Result > 0 then
   begin
-    // 将读取的数据写入 Writer，要求全写成功，否则视为错误
-    Written := FWriter.Write(Buf, Result);
+    // 将读取的数据写入 Writer，要求全写成功
+    Written := WriteAll(FWriter, Buf, Result);
     if Written <> Result then
-      raise EIOError.Create(ekWriteZero, 'TTeeReader: short write on tee target');
+      raise EIOError.Create('TTeeReader: internal error (short write)');
   end;
 end;
 
@@ -124,10 +125,9 @@ begin
   begin
     if FWriters[I] <> nil then
     begin
-      N := FWriters[I].Write(Buf, Count);
+      N := WriteAll(FWriters[I], Buf, Count);
       if N <> Count then
-        raise EIOError.Create(ekWriteZero,
-          'TMultiWriter: short write on target index ' + IntToStr(I));
+        raise EIOError.Create('TMultiWriter: internal error (short write) on target index ' + IntToStr(I));
     end;
   end;
 end;

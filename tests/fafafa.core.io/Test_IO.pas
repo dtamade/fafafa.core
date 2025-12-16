@@ -126,10 +126,12 @@ type
     procedure Test_TeeReader_CopiesOnRead;
     procedure Test_TeeReader_PreservesData;
     procedure Test_TeeReader_ShortWrite_RaisesEIOError;
+    procedure Test_TeeReader_Interrupted_Retries;
     procedure Test_MultiWriter_WritesToAll;
     procedure Test_MultiWriter_Empty;
     procedure Test_MultiWriter_Single;
     procedure Test_MultiWriter_ShortWrite_RaisesEIOError;
+    procedure Test_MultiWriter_Interrupted_Retries;
   end;
 
   { TTestPipe }
@@ -1693,6 +1695,42 @@ begin
   AssertTrue('TeeReader should raise EIOError on short write', Raised);
 end;
 
+procedure TTestTeeIO.Test_TeeReader_Interrupted_Retries;
+var
+  SrcData: TBytes;
+  Src: IReader;
+  CopyCursor: TIOCursor;
+  Inner: IWriter;
+  FailW: TFailNTimesWriter;
+  CopyWriter: IWriter;
+  Tee: IReader;
+  Buf: array[0..3] of Byte;
+  N: SizeInt;
+  FailCount: Integer;
+begin
+  FailCount := 2;
+  SetLength(SrcData, 4);
+  SrcData[0] := 1; SrcData[1] := 2; SrcData[2] := 3; SrcData[3] := 4;
+
+  Src := TIOCursor.FromBytes(SrcData);
+
+  CopyCursor := TIOCursor.Create;
+  Inner := CopyCursor;
+  FailW := TFailNTimesWriter.Create(Inner, FailCount, ekInterrupted);
+  CopyWriter := FailW;
+
+  Tee := TeeReader(Src, CopyWriter);
+
+  FillChar(Buf[0], Length(Buf), 0);
+  N := Tee.Read(@Buf[0], 4);
+
+  AssertEquals('Read count', 4, N);
+  AssertEquals('Byte 0', 1, Buf[0]);
+  AssertEquals('Byte 3', 4, Buf[3]);
+  AssertEquals('Copy size', 4, CopyCursor.Size);
+  AssertEquals('Tee write retries (calls)', FailCount + 1, FailW.CallCount);
+end;
+
 procedure TTestTeeIO.Test_MultiWriter_WritesToAll;
 var
   C1, C2, C3: TIOCursor;
@@ -1788,6 +1826,33 @@ begin
   end;
 
   AssertTrue('MultiWriter should raise EIOError on short write', Raised);
+end;
+
+procedure TTestTeeIO.Test_MultiWriter_Interrupted_Retries;
+var
+  DstCursor: TIOCursor;
+  Inner: IWriter;
+  FailW: TFailNTimesWriter;
+  Dst: IWriter;
+  MW: IWriter;
+  Data: array[0..3] of Byte;
+  N: SizeInt;
+  FailCount: Integer;
+begin
+  FailCount := 2;
+  Data[0] := 1; Data[1] := 2; Data[2] := 3; Data[3] := 4;
+
+  DstCursor := TIOCursor.Create;
+  Inner := DstCursor;
+  FailW := TFailNTimesWriter.Create(Inner, FailCount, ekInterrupted);
+  Dst := FailW;
+
+  MW := MultiWriter([Dst]);
+  N := MW.Write(@Data[0], 4);
+
+  AssertEquals('Write count', 4, N);
+  AssertEquals('Dst size', 4, DstCursor.Size);
+  AssertEquals('MultiWriter retries (calls)', FailCount + 1, FailW.CallCount);
 end;
 
 { TTestPipe }
