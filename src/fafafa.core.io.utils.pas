@@ -189,7 +189,16 @@ begin
       SetLength(LBuf, LCap);
     end;
 
-    LRead := Src.Read(@LBuf[LPos], LCap - LPos);
+    try
+      LRead := Src.Read(@LBuf[LPos], LCap - LPos);
+    except
+      on E: EIOError do
+      begin
+        if E.Kind = ekInterrupted then
+          Continue;
+        raise;
+      end;
+    end;
     if LRead = 0 then
       Break;  // EOF
 
@@ -251,7 +260,16 @@ begin
 
   while LRemaining > 0 do
   begin
-    LRead := Src.Read(LPtr, LRemaining);
+    try
+      LRead := Src.Read(LPtr, LRemaining);
+    except
+      on E: EIOError do
+      begin
+        if E.Kind = ekInterrupted then
+          Continue;
+        raise;
+      end;
+    end;
     if LRead = 0 then
       raise EUnexpectedEOF.Create('ReadFull: unexpected EOF');
 
@@ -276,9 +294,18 @@ begin
 
   while LRemaining > 0 do
   begin
-    LWritten := Dst.Write(LPtr, LRemaining);
+    try
+      LWritten := Dst.Write(LPtr, LRemaining);
+    except
+      on E: EIOError do
+      begin
+        if E.Kind = ekInterrupted then
+          Continue;
+        raise;
+      end;
+    end;
     if LWritten = 0 then
-      raise EIOError.Create('WriteAll: write returned 0');
+      raise EIOError.Create(ekWriteZero, 'WriteAll: write returned 0');
 
     Inc(Result, LWritten);
     Inc(LPtr, LWritten);

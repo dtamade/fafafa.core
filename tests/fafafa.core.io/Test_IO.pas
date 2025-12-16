@@ -90,9 +90,12 @@ type
     procedure Test_Copy_FullTransfer;
     procedure Test_CopyN_ExactBytes;
     procedure Test_ReadAll_Success;
+    procedure Test_ReadAll_Interrupted_Retries;
     procedure Test_ReadFull_Success;
+    procedure Test_ReadFull_Interrupted_Retries;
     procedure Test_ReadFull_UnexpectedEOF;
     procedure Test_WriteAll_Success;
+    procedure Test_WriteAll_Interrupted_Retries;
     procedure Test_WriteAll_ZeroWrite_RaisesEIOError;
     procedure Test_WriteString_UTF8;
     procedure Test_ReadString_UTF8;
@@ -440,6 +443,19 @@ type
     property CallCount: Integer read FCallCount;
   end;
 
+  { TFailNTimesWriter - 测试用 Writer，前 N 次写入抛出指定错误 }
+  TFailNTimesWriter = class(TInterfacedObject, IWriter)
+  private
+    FInner: IWriter;
+    FFailCount: Integer;
+    FCallCount: Integer;
+    FErrorKind: TIOErrorKind;
+  public
+    constructor Create(AInner: IWriter; AFailCount: Integer; AErrorKind: TIOErrorKind);
+    function Write(Buf: Pointer; Count: SizeInt): SizeInt;
+    property CallCount: Integer read FCallCount;
+  end;
+
 { TZeroWriter }
 
 function TZeroWriter.Write(Buf: Pointer; Count: SizeInt): SizeInt;
@@ -513,6 +529,25 @@ begin
   if FCallCount <= FFailCount then
     raise EIOError.Create(FErrorKind, Format('test failure %d/%d', [FCallCount, FFailCount]));
   Result := FInner.Read(Buf, Count);
+end;
+
+{ TFailNTimesWriter }
+
+constructor TFailNTimesWriter.Create(AInner: IWriter; AFailCount: Integer; AErrorKind: TIOErrorKind);
+begin
+  inherited Create;
+  FInner := AInner;
+  FFailCount := AFailCount;
+  FCallCount := 0;
+  FErrorKind := AErrorKind;
+end;
+
+function TFailNTimesWriter.Write(Buf: Pointer; Count: SizeInt): SizeInt;
+begin
+  Inc(FCallCount);
+  if FCallCount <= FFailCount then
+    raise EIOError.Create(FErrorKind, Format('test failure %d/%d', [FCallCount, FFailCount]));
+  Result := FInner.Write(Buf, Count);
 end;
 
 { TTestIOCursor }
@@ -980,6 +1015,27 @@ begin
   AssertEquals('ReadAll length', 256, Length(LResult));
 end;
 
+procedure TTestIOUtils.Test_ReadAll_Interrupted_Retries;
+var
+  SrcData: TBytes;
+  FailR: TFailNTimesReader;
+  Src: IReader;
+  LResult: TBytes;
+  FailCount: Integer;
+begin
+  FailCount := 3;
+  SetLength(SrcData, 10);
+  FillChar(SrcData[0], 10, $AB);
+
+  FailR := TFailNTimesReader.Create(TIOCursor.FromBytes(SrcData), FailCount, ekInterrupted);
+  Src := FailR;
+
+  LResult := ReadAll(Src);
+  AssertEquals('ReadAll length', Length(SrcData), Length(LResult));
+  AssertEquals('ReadAll first byte', $AB, LResult[0]);
+  AssertEquals('ReadAll retries (calls)', FailCount + 2, FailR.CallCount);
+end;
+
 procedure TTestIOUtils.Test_ReadFull_Success;
 var
   SrcData: TBytes;
@@ -993,6 +1049,30 @@ begin
   Src := TIOCursor.FromBytes(SrcData);
   N := ReadFull(Src, @Buf[0], 50);
   AssertEquals('ReadFull count', 50, N);
+end;
+
+procedure TTestIOUtils.Test_ReadFull_Interrupted_Retries;
+var
+  SrcData: TBytes;
+  FailR: TFailNTimesReader;
+  Src: IReader;
+  Buf: array[0..3] of Byte;
+  N: SizeInt;
+  FailCount: Integer;
+begin
+  FailCount := 2;
+  SetLength(SrcData, 4);
+  FillChar(SrcData[0], 4, $CD);
+
+  FailR := TFailNTimesReader.Create(TIOCursor.FromBytes(SrcData), FailCount, ekInterrupted);
+  Src := FailR;
+
+  FillChar(Buf[0], 4, 0);
+  N := ReadFull(Src, @Buf[0], 4);
+
+  AssertEquals('ReadFull count', 4, N);
+  AssertEquals('ReadFull first byte', $CD, Buf[0]);
+  AssertEquals('ReadFull retries (calls)', FailCount + 1, FailR.CallCount);
 end;
 
 procedure TTestIOUtils.Test_ReadFull_UnexpectedEOF;
@@ -1031,24 +1111,59 @@ begin
   AssertEquals('Dst size', 100, DstCursor.Size);
 end;
 
+procedure TTestIOUtils.Test_WriteAll_Interrupted_Retries;
+var
+  DstCursor: TIOCursor;
+  Inner: IWriter;
+  FailW: TFailNTimesWriter;
+  Dst: IWriter;
+  Data: array[0..3] of Byte;
+  N: SizeInt;
+  FailCount: Integer;
+begin
+  FailCount := 2;
+  Data[0] := $10;
+  Data[1] := $20;
+  Data[2] := $30;
+  Data[3] := $40;
+
+  DstCursor := TIOCursor.Create;
+  Inner := DstCursor;
+
+  FailW := TFailNTimesWriter.Create(Inner, FailCount, ekInterrupted);
+  Dst := FailW;
+
+  N := WriteAll(Dst, @Data[0], 4);
+
+  AssertEquals('WriteAll count', 4, N);
+  AssertEquals('WriteAll retries (calls)', FailCount + 1, FailW.CallCount);
+  AssertEquals('Dst size', 4, DstCursor.Size);
+end;
+
 procedure TTestIOUtils.Test_WriteAll_ZeroWrite_RaisesEIOError;
 var
   Dst: IWriter;
   Data: array[0..9] of Byte;
   Raised: Boolean;
+  GotKind: TIOErrorKind;
 begin
   FillChar(Data[0], 10, $33);
   Dst := TZeroWriter.Create;
 
   Raised := False;
+  GotKind := ekUnknown;
   try
     WriteAll(Dst, @Data[0], 10);
   except
     on E: EIOError do
+    begin
       Raised := True;
+      GotKind := E.Kind;
+    end;
   end;
 
   AssertTrue('WriteAll should raise EIOError when underlying writer returns 0', Raised);
+  AssertEquals('WriteAll zero-write kind', Ord(ekWriteZero), Ord(GotKind));
 end;
 
 procedure TTestIOUtils.Test_WriteString_UTF8;
