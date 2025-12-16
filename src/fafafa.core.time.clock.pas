@@ -312,7 +312,8 @@ uses
   , MacOSAll
   {$ENDIF}
   {$ENDIF},
-  fafafa.core.time.cpu;
+  fafafa.core.time.cpu,
+  fafafa.core.math;
 
 type
   // 平台相关的单调时钟实现

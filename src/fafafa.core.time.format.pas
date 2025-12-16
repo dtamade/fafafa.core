@@ -564,6 +564,9 @@ const
 
 implementation
 
+uses
+  fafafa.core.math;
+
 type
   // 时间格式化器实现
   TTimeFormatter = class(TInterfacedObject, ITimeFormatter)

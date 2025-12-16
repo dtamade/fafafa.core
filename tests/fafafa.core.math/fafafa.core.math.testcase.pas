@@ -84,7 +84,777 @@ type
     procedure Test_Max_Int64_Basic_ReturnsLarger;
   end;
 
+  TTestMathRules = class(TTestCase)
+  published
+    procedure Test_SrcUnits_IncludingIncUsingRoundTruncFrac_MustDependOn_MathFacade;
+    procedure Test_CollectionsUnits_UsingRoundTrunc_MustDependOn_MathFacade;
+    procedure Test_TimeUnits_UsingRoundTruncFrac_MustDependOn_MathFacade;
+    procedure Test_MemUnits_UsingRoundTruncFrac_MustDependOn_MathFacade;
+    procedure Test_BenchmarkUnits_UsingRoundTruncFrac_MustDependOn_MathFacade;
+    procedure Test_ArchiverUnits_UsingRoundTruncFrac_MustDependOn_MathFacade;
+    procedure Test_SyncUnits_UsingRoundTruncFrac_MustDependOn_MathFacade;
+  end;
+
 implementation
+
+function GetRepoRootDir: string;
+begin
+  // bin/ -> tests/fafafa.core.math/ -> tests/ -> repo root
+  Result := ExpandFileName(
+    ExtractFileDir(ParamStr(0)) + DirectorySeparator +
+    '..' + DirectorySeparator +
+    '..' + DirectorySeparator +
+    '..'
+  );
+end;
+
+function GetSrcDir: string;
+begin
+  Result := IncludeTrailingPathDelimiter(GetRepoRootDir) + 'src';
+end;
+
+function StripPascalStringsAndComments(const S: string): string;
+var
+  i, j, len: Integer;
+  InStr: Boolean;
+  InCurly: Boolean;
+  InParen: Boolean;
+begin
+  len := Length(S);
+  SetLength(Result, len);
+
+  InStr := False;
+  InCurly := False;
+  InParen := False;
+
+  i := 1;
+  while i <= len do
+  begin
+    if InStr then
+    begin
+      Result[i] := ' ';
+      if S[i] = '''' then
+      begin
+        // escaped quote: '' inside string
+        if (i < len) and (S[i + 1] = '''') then
+        begin
+          Result[i + 1] := ' ';
+          Inc(i, 2);
+          Continue;
+        end;
+        InStr := False;
+      end;
+      Inc(i);
+      Continue;
+    end;
+
+    if InCurly then
+    begin
+      Result[i] := ' ';
+      if S[i] = '}' then
+        InCurly := False;
+      Inc(i);
+      Continue;
+    end;
+
+    if InParen then
+    begin
+      Result[i] := ' ';
+      if (S[i] = '*') and (i < len) and (S[i + 1] = ')') then
+      begin
+        Result[i + 1] := ' ';
+        InParen := False;
+        Inc(i, 2);
+      end
+      else
+        Inc(i);
+      Continue;
+    end;
+
+    // not in any
+    if S[i] = '''' then
+    begin
+      InStr := True;
+      Result[i] := ' ';
+      Inc(i);
+      Continue;
+    end;
+
+    if S[i] = '{' then
+    begin
+      InCurly := True;
+      Result[i] := ' ';
+      Inc(i);
+      Continue;
+    end;
+
+    if (S[i] = '(') and (i < len) and (S[i + 1] = '*') then
+    begin
+      InParen := True;
+      Result[i] := ' ';
+      Result[i + 1] := ' ';
+      Inc(i, 2);
+      Continue;
+    end;
+
+    if (S[i] = '/') and (i < len) and (S[i + 1] = '/') then
+    begin
+      // Line comment: strip until end of line, not end of file.
+      Result[i] := ' ';
+      Result[i + 1] := ' ';
+      j := i + 2;
+      while (j <= len) and not (S[j] in [#10, #13]) do
+      begin
+        Result[j] := ' ';
+        Inc(j);
+      end;
+      i := j;
+      Continue;
+    end;
+
+    Result[i] := S[i];
+    Inc(i);
+  end;
+end;
+
+function IsIdentChar(const C: Char): Boolean; inline;
+begin
+  Result := (C in ['A'..'Z', 'a'..'z', '0'..'9', '_']);
+end;
+
+function LineHasIdentCall(const Line, Ident: string): Boolean;
+var
+  s: string;
+  i, j, len, identLen: Integer;
+  cBefore: Char;
+begin
+  Result := False;
+  if Ident = '' then
+    Exit;
+
+  s := StripPascalStringsAndComments(Line);
+  len := Length(s);
+  identLen := Length(Ident);
+
+  i := 1;
+  while i <= len - identLen + 1 do
+  begin
+    if CompareText(Copy(s, i, identLen), Ident) = 0 then
+    begin
+      if i = 1 then
+        cBefore := #0
+      else
+        cBefore := s[i - 1];
+
+      // Ignore qualified calls like Unit.Ident(
+      if (cBefore = '.') or IsIdentChar(cBefore) then
+      begin
+        Inc(i);
+        Continue;
+      end;
+
+      j := i + identLen;
+      while (j <= len) and (s[j] in [' ', #9, #10, #13]) do
+        Inc(j);
+
+      if (j <= len) and (s[j] = '(') then
+        Exit(True);
+    end;
+    Inc(i);
+  end;
+end;
+
+function TryExtractIncludeFileNameFromLine(const Line: string; out IncName: string): Boolean;
+var
+  s, u: string;
+  pI, pInclude: SizeInt;
+  pToken: SizeInt;
+  tokenLen: SizeInt;
+  i, len: Integer;
+  quote: Char;
+  j: Integer;
+begin
+  IncName := '';
+  Result := False;
+
+  s := Trim(Line);
+  if s = '' then
+    Exit;
+
+  u := UpperCase(s);
+  pI := Pos('{$I', u);
+  pInclude := Pos('{$INCLUDE', u);
+
+  if (pI = 0) and (pInclude = 0) then
+    Exit;
+
+  if (pI > 0) and ((pInclude = 0) or (pI < pInclude)) then
+  begin
+    // Ignore include-switch directives: {$I+} / {$I-}
+    if (pI + 3 <= Length(u)) and (u[pI + 3] in ['+', '-']) then
+      Exit;
+
+    pToken := pI;
+    tokenLen := 3; // {$I
+  end
+  else
+  begin
+    pToken := pInclude;
+    tokenLen := Length('{$INCLUDE');
+  end;
+
+  len := Length(s);
+  i := pToken + tokenLen;
+  while (i <= len) and (s[i] in [' ', #9]) do
+    Inc(i);
+  if i > len then
+    Exit;
+
+  quote := #0;
+  if (s[i] = '''') or (s[i] = '"') then
+  begin
+    quote := s[i];
+    Inc(i);
+  end;
+
+  if quote <> #0 then
+  begin
+    j := i;
+    while (j <= len) and (s[j] <> quote) do
+      Inc(j);
+    if j > len then
+      Exit;
+    IncName := Copy(s, i, j - i);
+  end
+  else
+  begin
+    j := i;
+    while (j <= len) and not (s[j] in ['}', ' ', #9]) do
+      Inc(j);
+    IncName := Copy(s, i, j - i);
+  end;
+
+  IncName := Trim(IncName);
+  if IncName = '' then
+    Exit;
+
+  if LowerCase(ExtractFileExt(IncName)) <> '.inc' then
+    Exit;
+
+  Result := True;
+end;
+
+procedure CollectIncludedIncFileNames(const HostPasPath: string; IncNames: TStrings);
+var
+  sl: TStringList;
+  i: Integer;
+  incName: string;
+begin
+  IncNames.Clear;
+
+  sl := TStringList.Create;
+  try
+    sl.LoadFromFile(HostPasPath);
+    for i := 0 to sl.Count - 1 do
+      if TryExtractIncludeFileNameFromLine(sl[i], incName) then
+        IncNames.Add(incName);
+  finally
+    sl.Free;
+  end;
+end;
+
+function ResolveIncPath(const HostPasPath, IncName: string; out ResolvedPath: string): Boolean;
+var
+  cand: string;
+  srcDir: string;
+begin
+  ResolvedPath := '';
+  Result := False;
+
+  if IncName = '' then
+    Exit;
+
+  // 1) relative to host unit dir
+  cand := ExpandFileName(ExtractFileDir(HostPasPath) + DirectorySeparator + IncName);
+  if FileExists(cand) then
+  begin
+    ResolvedPath := cand;
+    Exit(True);
+  end;
+
+  // 2) relative to src/
+  srcDir := IncludeTrailingPathDelimiter(GetSrcDir);
+  cand := ExpandFileName(srcDir + IncName);
+  if FileExists(cand) then
+  begin
+    ResolvedPath := cand;
+    Exit(True);
+  end;
+end;
+
+function FileDependsOnUnitOutsideComments(const PasPath, UnitName: string): Boolean;
+var
+  sl: TStringList;
+  text, stripped: string;
+  needle: string;
+begin
+  Result := False;
+  needle := LowerCase(UnitName);
+  if needle = '' then
+    Exit;
+
+  sl := TStringList.Create;
+  try
+    sl.LoadFromFile(PasPath);
+    text := sl.Text;
+  finally
+    sl.Free;
+  end;
+
+  stripped := StripPascalStringsAndComments(text);
+  Result := Pos(needle, LowerCase(stripped)) > 0;
+end;
+
+function IncFileUsesAnyOfRoundTruncFrac(const IncPath: string; out Evidence: string): Boolean;
+var
+  sl: TStringList;
+  i: Integer;
+  line: string;
+  hit: string;
+begin
+  Result := False;
+  Evidence := '';
+
+  sl := TStringList.Create;
+  try
+    sl.LoadFromFile(IncPath);
+    for i := 0 to sl.Count - 1 do
+    begin
+      line := sl[i];
+      if LineHasIdentCall(line, 'Round') then hit := 'Round'
+      else if LineHasIdentCall(line, 'Trunc') then hit := 'Trunc'
+      else if LineHasIdentCall(line, 'Frac') then hit := 'Frac'
+      else hit := '';
+
+      if hit <> '' then
+      begin
+        Evidence := Format('%s:%d: %s', [ExtractFileName(IncPath), i + 1, hit]);
+        Exit(True);
+      end;
+    end;
+  finally
+    sl.Free;
+  end;
+end;
+
+procedure TTestMathRules.Test_SrcUnits_IncludingIncUsingRoundTruncFrac_MustDependOn_MathFacade;
+var
+  srcDir: string;
+  sr: TSearchRec;
+  hostPath: string;
+  incNames: TStringList;
+  offenders: TStringList;
+  i: Integer;
+  incName: string;
+  incPath: string;
+  evidence: string;
+  dependsOnMath: Boolean;
+begin
+  srcDir := IncludeTrailingPathDelimiter(GetSrcDir);
+  if not DirectoryExists(srcDir) then
+    Fail('src directory not found: ' + srcDir);
+
+  incNames := TStringList.Create;
+  offenders := TStringList.Create;
+  try
+    if FindFirst(srcDir + '*.pas', faAnyFile, sr) = 0 then
+    begin
+      repeat
+        if (sr.Attr and faDirectory) <> 0 then
+          Continue;
+
+        hostPath := srcDir + sr.Name;
+        CollectIncludedIncFileNames(hostPath, incNames);
+        if incNames.Count = 0 then
+          Continue;
+
+        dependsOnMath := FileDependsOnUnitOutsideComments(hostPath, 'fafafa.core.math');
+        if dependsOnMath then
+          Continue;
+
+        for i := 0 to incNames.Count - 1 do
+        begin
+          incName := incNames[i];
+          if not ResolveIncPath(hostPath, incName, incPath) then
+            Continue;
+
+          if IncFileUsesAnyOfRoundTruncFrac(incPath, evidence) then
+          begin
+            offenders.Add(Format('%s includes %s (%s)', [sr.Name, ExtractFileName(incPath), evidence]));
+            Break;
+          end;
+        end;
+      until FindNext(sr) <> 0;
+      FindClose(sr);
+    end;
+
+    if offenders.Count > 0 then
+      Fail(
+        'These src units include .inc files that call Round/Trunc/Frac but do not depend on fafafa.core.math:' + LineEnding +
+        offenders.Text
+      );
+  finally
+    offenders.Free;
+    incNames.Free;
+  end;
+end;
+
+procedure TTestMathRules.Test_CollectionsUnits_UsingRoundTrunc_MustDependOn_MathFacade;
+var
+  srcDir: string;
+  sr: TSearchRec;
+  pasPath: string;
+  sl: TStringList;
+  offenders: TStringList;
+  i: Integer;
+  line: string;
+  hit: string;
+begin
+  srcDir := IncludeTrailingPathDelimiter(GetSrcDir);
+  if not DirectoryExists(srcDir) then
+    Fail('src directory not found: ' + srcDir);
+
+  sl := TStringList.Create;
+  offenders := TStringList.Create;
+  try
+    if FindFirst(srcDir + 'fafafa.core.collections*.pas', faAnyFile, sr) = 0 then
+    begin
+      repeat
+        if (sr.Attr and faDirectory) <> 0 then
+          Continue;
+
+        pasPath := srcDir + sr.Name;
+        if FileDependsOnUnitOutsideComments(pasPath, 'fafafa.core.math') then
+          Continue;
+
+        sl.LoadFromFile(pasPath);
+        for i := 0 to sl.Count - 1 do
+        begin
+          line := sl[i];
+          if LineHasIdentCall(line, 'Round') then hit := 'Round'
+          else if LineHasIdentCall(line, 'Trunc') then hit := 'Trunc'
+          else hit := '';
+
+          if hit <> '' then
+          begin
+            offenders.Add(Format('%s:%d: %s', [sr.Name, i + 1, hit]));
+            Break;
+          end;
+        end;
+      until FindNext(sr) <> 0;
+      FindClose(sr);
+    end;
+
+    if offenders.Count > 0 then
+      Fail(
+        'Collections units use Round/Trunc but do not depend on fafafa.core.math:' + LineEnding +
+        offenders.Text
+      );
+  finally
+    offenders.Free;
+    sl.Free;
+  end;
+end;
+
+procedure TTestMathRules.Test_TimeUnits_UsingRoundTruncFrac_MustDependOn_MathFacade;
+var
+  srcDir: string;
+  sr: TSearchRec;
+  pasPath: string;
+  sl: TStringList;
+  offenders: TStringList;
+  i: Integer;
+  line: string;
+  hit: string;
+begin
+  srcDir := IncludeTrailingPathDelimiter(GetSrcDir);
+  if not DirectoryExists(srcDir) then
+    Fail('src directory not found: ' + srcDir);
+
+  sl := TStringList.Create;
+  offenders := TStringList.Create;
+  try
+    if FindFirst(srcDir + 'fafafa.core.time*.pas', faAnyFile, sr) = 0 then
+    begin
+      repeat
+        if (sr.Attr and faDirectory) <> 0 then
+          Continue;
+
+        pasPath := srcDir + sr.Name;
+        if FileDependsOnUnitOutsideComments(pasPath, 'fafafa.core.math') then
+          Continue;
+
+        sl.LoadFromFile(pasPath);
+        for i := 0 to sl.Count - 1 do
+        begin
+          line := sl[i];
+          if LineHasIdentCall(line, 'Round') then hit := 'Round'
+          else if LineHasIdentCall(line, 'Trunc') then hit := 'Trunc'
+          else if LineHasIdentCall(line, 'Frac') then hit := 'Frac'
+          else hit := '';
+
+          if hit <> '' then
+          begin
+            offenders.Add(Format('%s:%d: %s', [sr.Name, i + 1, hit]));
+            Break;
+          end;
+        end;
+      until FindNext(sr) <> 0;
+      FindClose(sr);
+    end;
+
+    if offenders.Count > 0 then
+      Fail(
+        'Time units use Round/Trunc/Frac but do not depend on fafafa.core.math:' + LineEnding +
+        offenders.Text
+      );
+  finally
+    offenders.Free;
+    sl.Free;
+  end;
+end;
+
+procedure TTestMathRules.Test_MemUnits_UsingRoundTruncFrac_MustDependOn_MathFacade;
+var
+  srcDir: string;
+  sr: TSearchRec;
+  pasPath: string;
+  sl: TStringList;
+  offenders: TStringList;
+  i: Integer;
+  line: string;
+  hit: string;
+begin
+  srcDir := IncludeTrailingPathDelimiter(GetSrcDir);
+  if not DirectoryExists(srcDir) then
+    Fail('src directory not found: ' + srcDir);
+
+  sl := TStringList.Create;
+  offenders := TStringList.Create;
+  try
+    if FindFirst(srcDir + 'fafafa.core.mem*.pas', faAnyFile, sr) = 0 then
+    begin
+      repeat
+        if (sr.Attr and faDirectory) <> 0 then
+          Continue;
+
+        pasPath := srcDir + sr.Name;
+        if FileDependsOnUnitOutsideComments(pasPath, 'fafafa.core.math') then
+          Continue;
+
+        sl.LoadFromFile(pasPath);
+        for i := 0 to sl.Count - 1 do
+        begin
+          line := sl[i];
+          if LineHasIdentCall(line, 'Round') then hit := 'Round'
+          else if LineHasIdentCall(line, 'Trunc') then hit := 'Trunc'
+          else if LineHasIdentCall(line, 'Frac') then hit := 'Frac'
+          else hit := '';
+
+          if hit <> '' then
+          begin
+            offenders.Add(Format('%s:%d: %s', [sr.Name, i + 1, hit]));
+            Break;
+          end;
+        end;
+      until FindNext(sr) <> 0;
+      FindClose(sr);
+    end;
+
+    if offenders.Count > 0 then
+      Fail(
+        'Mem units use Round/Trunc/Frac but do not depend on fafafa.core.math:' + LineEnding +
+        offenders.Text
+      );
+  finally
+    offenders.Free;
+    sl.Free;
+  end;
+end;
+
+procedure TTestMathRules.Test_BenchmarkUnits_UsingRoundTruncFrac_MustDependOn_MathFacade;
+var
+  srcDir: string;
+  sr: TSearchRec;
+  pasPath: string;
+  sl: TStringList;
+  offenders: TStringList;
+  i: Integer;
+  line: string;
+  hit: string;
+begin
+  srcDir := IncludeTrailingPathDelimiter(GetSrcDir);
+  if not DirectoryExists(srcDir) then
+    Fail('src directory not found: ' + srcDir);
+
+  sl := TStringList.Create;
+  offenders := TStringList.Create;
+  try
+    if FindFirst(srcDir + 'fafafa.core.benchmark*.pas', faAnyFile, sr) = 0 then
+    begin
+      repeat
+        if (sr.Attr and faDirectory) <> 0 then
+          Continue;
+
+        pasPath := srcDir + sr.Name;
+        if FileDependsOnUnitOutsideComments(pasPath, 'fafafa.core.math') then
+          Continue;
+
+        sl.LoadFromFile(pasPath);
+        for i := 0 to sl.Count - 1 do
+        begin
+          line := sl[i];
+          if LineHasIdentCall(line, 'Round') then hit := 'Round'
+          else if LineHasIdentCall(line, 'Trunc') then hit := 'Trunc'
+          else if LineHasIdentCall(line, 'Frac') then hit := 'Frac'
+          else hit := '';
+
+          if hit <> '' then
+          begin
+            offenders.Add(Format('%s:%d: %s', [sr.Name, i + 1, hit]));
+            Break;
+          end;
+        end;
+      until FindNext(sr) <> 0;
+      FindClose(sr);
+    end;
+
+    if offenders.Count > 0 then
+      Fail(
+        'Benchmark units use Round/Trunc/Frac but do not depend on fafafa.core.math:' + LineEnding +
+        offenders.Text
+      );
+  finally
+    offenders.Free;
+    sl.Free;
+  end;
+end;
+
+procedure TTestMathRules.Test_ArchiverUnits_UsingRoundTruncFrac_MustDependOn_MathFacade;
+var
+  srcDir: string;
+  sr: TSearchRec;
+  pasPath: string;
+  sl: TStringList;
+  offenders: TStringList;
+  i: Integer;
+  line: string;
+  hit: string;
+begin
+  srcDir := IncludeTrailingPathDelimiter(GetSrcDir);
+  if not DirectoryExists(srcDir) then
+    Fail('src directory not found: ' + srcDir);
+
+  sl := TStringList.Create;
+  offenders := TStringList.Create;
+  try
+    if FindFirst(srcDir + 'fafafa.core.archiver*.pas', faAnyFile, sr) = 0 then
+    begin
+      repeat
+        if (sr.Attr and faDirectory) <> 0 then
+          Continue;
+
+        pasPath := srcDir + sr.Name;
+        if FileDependsOnUnitOutsideComments(pasPath, 'fafafa.core.math') then
+          Continue;
+
+        sl.LoadFromFile(pasPath);
+        for i := 0 to sl.Count - 1 do
+        begin
+          line := sl[i];
+          if LineHasIdentCall(line, 'Round') then hit := 'Round'
+          else if LineHasIdentCall(line, 'Trunc') then hit := 'Trunc'
+          else if LineHasIdentCall(line, 'Frac') then hit := 'Frac'
+          else hit := '';
+
+          if hit <> '' then
+          begin
+            offenders.Add(Format('%s:%d: %s', [sr.Name, i + 1, hit]));
+            Break;
+          end;
+        end;
+      until FindNext(sr) <> 0;
+      FindClose(sr);
+    end;
+
+    if offenders.Count > 0 then
+      Fail(
+        'Archiver units use Round/Trunc/Frac but do not depend on fafafa.core.math:' + LineEnding +
+        offenders.Text
+      );
+  finally
+    offenders.Free;
+    sl.Free;
+  end;
+end;
+
+procedure TTestMathRules.Test_SyncUnits_UsingRoundTruncFrac_MustDependOn_MathFacade;
+var
+  srcDir: string;
+  sr: TSearchRec;
+  pasPath: string;
+  sl: TStringList;
+  offenders: TStringList;
+  i: Integer;
+  line: string;
+  hit: string;
+begin
+  srcDir := IncludeTrailingPathDelimiter(GetSrcDir);
+  if not DirectoryExists(srcDir) then
+    Fail('src directory not found: ' + srcDir);
+
+  sl := TStringList.Create;
+  offenders := TStringList.Create;
+  try
+    if FindFirst(srcDir + 'fafafa.core.sync*.pas', faAnyFile, sr) = 0 then
+    begin
+      repeat
+        if (sr.Attr and faDirectory) <> 0 then
+          Continue;
+
+        pasPath := srcDir + sr.Name;
+        if FileDependsOnUnitOutsideComments(pasPath, 'fafafa.core.math') then
+          Continue;
+
+        sl.LoadFromFile(pasPath);
+        for i := 0 to sl.Count - 1 do
+        begin
+          line := sl[i];
+          if LineHasIdentCall(line, 'Round') then hit := 'Round'
+          else if LineHasIdentCall(line, 'Trunc') then hit := 'Trunc'
+          else if LineHasIdentCall(line, 'Frac') then hit := 'Frac'
+          else hit := '';
+
+          if hit <> '' then
+          begin
+            offenders.Add(Format('%s:%d: %s', [sr.Name, i + 1, hit]));
+            Break;
+          end;
+        end;
+      until FindNext(sr) <> 0;
+      FindClose(sr);
+    end;
+
+    if offenders.Count > 0 then
+      Fail(
+        'Sync units use Round/Trunc/Frac but do not depend on fafafa.core.math:' + LineEnding +
+        offenders.Text
+      );
+  finally
+    offenders.Free;
+    sl.Free;
+  end;
+end;
 
 // === IsAddOverflow SizeUInt ===
 
@@ -395,5 +1165,6 @@ end;
 
 initialization
   RegisterTest(TTestMath);
+  RegisterTest(TTestMathRules);
 
 end.

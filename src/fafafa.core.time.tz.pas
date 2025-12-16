@@ -153,6 +153,9 @@ type
 
 implementation
 
+uses
+  fafafa.core.math;
+
 { TTimeZone }
 
 class function TTimeZone.DetectSystemTimeZoneId: string;

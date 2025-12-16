@@ -875,6 +875,9 @@ type
 
 implementation
 
+uses
+  fafafa.core.math;
+
 { Hash helper functions }
 
 function HashMix32(x: UInt32): UInt32;

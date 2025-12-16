@@ -494,6 +494,8 @@ function CreateSlabConfigWithPageMerging: TSlabConfig;
 
 implementation
 
+uses
+  fafafa.core.math;
 
 
 // 默认配置函数

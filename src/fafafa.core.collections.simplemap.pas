@@ -124,6 +124,9 @@ function HashOfAnsiString(const s: AnsiString): UInt32;
 
 implementation
 
+uses
+  fafafa.core.math;
+
 function HashMix32(x: UInt32): UInt32;
 begin
   x := (x xor (x shr 16)) * $7feb352d;

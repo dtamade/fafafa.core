@@ -92,6 +92,9 @@ type
 
 implementation
 
+uses
+  fafafa.core.math;
+
 { TTarEntry }
 
 function TTarEntry.GetName: string; begin Result := FName; end;

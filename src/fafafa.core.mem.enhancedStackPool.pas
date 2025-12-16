@@ -342,7 +342,8 @@ function CreateDebugStackPolicy: TStackPoolPolicy;
 implementation
 
 uses
-  fafafa.core.mem.utils;
+  fafafa.core.mem.utils,
+  fafafa.core.math;
 
 { 辅助函数实现 }
 

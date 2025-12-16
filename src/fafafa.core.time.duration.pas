@@ -246,7 +246,8 @@ type
 implementation
 
 uses
-  SysUtils;  // For EDivByZero exception
+  SysUtils,  // For EDivByZero exception
+  fafafa.core.math;
 
 type
   TInt64Helper = record

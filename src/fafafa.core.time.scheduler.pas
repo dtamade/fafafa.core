@@ -299,6 +299,7 @@ implementation
 
 uses
   DateUtils,
+  fafafa.core.math,
   fafafa.core.collections.priorityqueue;
 
 type

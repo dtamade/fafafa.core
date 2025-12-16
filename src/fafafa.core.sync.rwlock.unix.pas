@@ -169,6 +169,9 @@ type
 
 implementation
 
+uses
+  fafafa.core.math;
+
 { TRWLockReadGuard }
 
 function TRWLockReadGuard.GetLock: TRWLock;

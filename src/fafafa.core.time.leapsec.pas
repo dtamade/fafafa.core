@@ -73,6 +73,9 @@ function GetNextLeapSecond(AUnixSec: Int64; out ANextLeap: Int64): Boolean;
 
 implementation
 
+uses
+  fafafa.core.math;
+
 const
   // 历史闰秒表：每个闰秒发生在该 Unix 时间戳所代表的那一秒结束时
   // 即 23:59:59 变为 23:59:60，然后变为 00:00:00

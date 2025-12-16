@@ -55,7 +55,8 @@ uses
   fafafa.core.report.sink.console,
   fafafa.core.report.sink.json,
   fafafa.core.test.json.intf,
-  fafafa.core.test.json.rtl;
+  fafafa.core.test.json.rtl,
+  fafafa.core.math;
 
 constructor TBenchmarkReporterSinkAdapter.Create(const ASink: IReportSink; const AOutFile: string);
 begin

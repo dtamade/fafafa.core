@@ -276,7 +276,7 @@ function os_system_info_ex(out Info: TSystemInfo): Boolean;
 implementation
 
 uses
-  {$IFDEF WINDOWS} Windows {$ELSE} BaseUnix, Unix {$ENDIF}, DateUtils;
+  {$IFDEF WINDOWS} Windows {$ELSE} BaseUnix, Unix {$ENDIF}, DateUtils, fafafa.core.math;
 
 {$IFDEF WINDOWS}
 {$I fafafa.core.os.windows.inc}

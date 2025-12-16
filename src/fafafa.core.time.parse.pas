@@ -513,6 +513,9 @@ const
 
 implementation
 
+uses
+  fafafa.core.math;
+
 const
   // ✅ ISSUE-39: LRU 缓存默认容量
   DEFAULT_LRU_CACHE_CAPACITY = 64;

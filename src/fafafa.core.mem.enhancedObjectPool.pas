@@ -323,7 +323,8 @@ function CreateMemoryOptimizedPolicy: TObjectPoolPolicy;
 implementation
 
 uses
-  DateUtils;
+  DateUtils,
+  fafafa.core.math;
 
 { 辅助函数实现 }
 
