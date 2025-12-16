@@ -9,8 +9,11 @@ unit fafafa.core.env;
 interface
 
 uses
-  SysUtils, Classes,
-  fafafa.core.os
+  SysUtils, Classes
+  {$IFDEF WINDOWS}
+  , Windows
+  {$ENDIF}
+  , fafafa.core.os
   {$IFDEF FAFAFA_ENV_ENABLE_RESULT}
   , fafafa.core.result
   {$ENDIF}
@@ -75,43 +78,70 @@ type
   end;
 
   // Iterator for environment variables.
-  // Resource lifecycle: The iterator allocates a TStringList internally.
-  // - Normal for-in loops: auto-freed when MoveNext returns False.
-  // - Early exit (break/exception): you MUST call Free manually.
+  // On Unix, iterates libc "environ" directly (no prebuilt TStringList snapshot).
+  // On Windows, iterates GetEnvironmentStringsW block (no TStringList snapshot).
+  // On other platforms, falls back to an os_environ snapshot.
   // Example:
-  //   iter := env_iter;
-  //   try
-  //     for kv in iter do if kv.Key = 'STOP' then Break;
-  //   finally
-  //     iter.Free; // Safe even if already freed by MoveNext
-  //   end;
+  //   for kv in env_iter do
+  //     WriteLn(kv.Key, '=', kv.Value);
   TEnvVarsEnumerator = record
   private
     FList: TStringList;
     FIndex: Integer;
+    {$IFDEF UNIX}
+    FEnvP: PPChar;
+    {$ENDIF}
+    {$IFDEF WINDOWS}
+    FWinStart: PWideChar;
+    FWinCur: PWideChar;
+    {$ENDIF}
     FCurrent: TEnvKVPair;
   public
     function GetEnumerator: TEnvVarsEnumerator;
     function MoveNext: Boolean;
     property Current: TEnvKVPair read FCurrent;
-    procedure Free; // Safe to call multiple times; call if loop exits early
+    procedure Free; inline; // Safe to call; frees internal list if not already freed
   end;
 
   // Error types (for Result API)
+  EVarErrorKind = (
+    vekNotDefined
+  );
+
   EVarError = record
+    Kind: EVarErrorKind;
     Name: string;
     Msg: string;
   end;
 
+  EPathJoinErrorKind = (
+    pjekContainsSeparator
+  );
+
   EPathJoinError = record
+    Kind: EPathJoinErrorKind;
     Index: Integer;
+    Separator: Char;
     Segment: string;
     Msg: string;
   end;
 
+  EIOErrorKind = (
+    ioekGetcwdFailed,
+    ioekChdirFailed,
+    ioekHomeDirFailed,
+    ioekTempDirFailed,
+    ioekExePathFailed,
+    ioekUserConfigDirFailed,
+    ioekUserCacheDirFailed
+  );
+
   EIOError = record
+    Kind: EIOErrorKind;
     Op: string; // 'getcwd' or 'chdir'
     Path: string;
+    Code: Integer; // OS error code if available, else 0
+    SysMsg: string; // OS error message for Code (SysErrorMessage(Code)), or ''
     Msg: string;
   end;
 
@@ -137,9 +167,34 @@ function env_set(const AName, AValue: string): Boolean; inline;
 function env_unset(const AName: string): Boolean; inline;
 function env_has(const AName: string): Boolean; inline;
 procedure env_vars(const ADest: TStrings); inline;
+procedure env_vars_masked(const ADest: TStrings);
 function env_required(const AName: string): string;
 function env_keys: TStringArray;
 function env_count: Integer; inline;
+
+{ ============================================================================ }
+{ === Typed Getters ========================================================== }
+{ ============================================================================ }
+
+function env_get_bool(const AName: string; ADefault: Boolean = False): Boolean;
+function env_get_int(const AName: string; ADefault: Integer = 0): Integer;
+function env_get_int64(const AName: string; ADefault: Int64 = 0): Int64;
+function env_get_uint(const AName: string; ADefault: Cardinal = 0): Cardinal;
+function env_get_uint64(const AName: string; ADefault: QWord = 0): QWord;
+function env_get_duration_ms(const AName: string; ADefault: QWord = 0): QWord;
+function env_get_size_bytes(const AName: string; ADefault: QWord = 0): QWord;
+function env_get_float(const AName: string; ADefault: Double = 0.0): Double;
+function env_get_list(const AName: string; ASeparator: Char = ','): TStringArray;
+function env_get_paths(const AName: string): TStringArray;
+
+{ ============================================================================ }
+{ === Convenience & Security Helpers ======================================== }
+{ ============================================================================ }
+
+function env_lookup_nonempty(const AName: string; out AValue: string): Boolean; inline;
+function env_has_nonempty(const AName: string): Boolean; inline;
+function env_get_nonempty_or(const AName, ADefault: string): string; inline;
+function env_mask_value_for_name(const AName, AValue: string): string; inline;
 
 { ============================================================================ }
 { === Scoped Override Guards (Manual Cleanup) ================================ }
@@ -237,6 +292,11 @@ function env_user_cache_dir_result: TResultString_IOError;
 {$ENDIF}
 
 implementation
+
+{$IFDEF UNIX}
+var
+  environ: PPChar; cvar; external;
+{$ENDIF}
 
 // Internal helper: parse NAME=VALUE line
 procedure ParseEnvLine(const Line: string; out Key, Value: string); inline;
@@ -376,8 +436,9 @@ begin
     Exit(TResultString_VarError.Ok(v))
   else
   begin
+    e.Kind := vekNotDefined;
     e.Name := AName;
-    e.Msg := 'environment variable not defined';
+    e.Msg := 'environment variable "' + AName + '" not defined';
     Exit(TResultString_VarError.Err(e));
   end;
 end;
@@ -387,15 +448,19 @@ var
   idx: Integer;
   joined: string;
   pe: EPathJoinError;
+  sep: Char;
 begin
   joined := env_join_paths_checked(Paths, idx);
   if (joined <> '') or (idx = -1) then
     Exit(TResultString_PathJoinError.Ok(joined))
   else
   begin
+    sep := env_path_list_separator;
+    pe.Kind := pjekContainsSeparator;
     pe.Index := idx;
+    pe.Separator := sep;
     if (idx >= Low(Paths)) and (idx <= High(Paths)) then pe.Segment := Paths[idx] else pe.Segment := '';
-    pe.Msg := 'path segment contains separator';
+    pe.Msg := 'path segment at index=' + IntToStr(idx) + ' contains separator "' + sep + '"' + ': "' + pe.Segment + '"';
     Exit(TResultString_PathJoinError.Err(pe));
   end;
 end;
@@ -410,7 +475,12 @@ begin
     Exit(TResultString_IOError.Ok(cwd))
   else
   begin
-    ioe.Op := 'getcwd'; ioe.Path := ''; ioe.Msg := 'failed to get current directory';
+    ioe.Kind := ioekGetcwdFailed;
+    ioe.Op := 'getcwd';
+    ioe.Path := '';
+    ioe.Code := GetLastOSError;
+    ioe.SysMsg := SysErrorMessage(ioe.Code);
+    ioe.Msg := 'getcwd failed (code=' + IntToStr(ioe.Code) + '): ' + ioe.SysMsg;
     Exit(TResultString_IOError.Err(ioe));
   end;
 end;
@@ -418,12 +488,19 @@ end;
 function env_set_current_dir_result(const APath: string): TResultUnit_IOError;
 var
   ioe: EIOError;
+  code: Integer;
 begin
   if env_set_current_dir(APath) then
     Exit(TResultUnit_IOError.Ok(True))
   else
   begin
-    ioe.Op := 'chdir'; ioe.Path := APath; ioe.Msg := 'failed to change directory';
+    code := GetLastOSError;
+    ioe.Kind := ioekChdirFailed;
+    ioe.Op := 'chdir';
+    ioe.Path := APath;
+    ioe.Code := code;
+    ioe.SysMsg := SysErrorMessage(code);
+    ioe.Msg := 'chdir "' + APath + '" failed (code=' + IntToStr(code) + '): ' + ioe.SysMsg;
     Exit(TResultUnit_IOError.Err(ioe));
   end;
 end;
@@ -436,7 +513,12 @@ begin
     Exit(TResultString_IOError.Ok(s))
   else
   begin
-    e.Op := 'homedir'; e.Path := ''; e.Msg := 'failed to resolve home directory';
+    e.Kind := ioekHomeDirFailed;
+    e.Op := 'homedir';
+    e.Path := '';
+    e.Code := 0;
+    e.SysMsg := '';
+    e.Msg := 'failed to resolve home directory';
     Exit(TResultString_IOError.Err(e));
   end;
 end;
@@ -449,7 +531,12 @@ begin
     Exit(TResultString_IOError.Ok(s))
   else
   begin
-    e.Op := 'tempdir'; e.Path := ''; e.Msg := 'failed to resolve temp directory';
+    e.Kind := ioekTempDirFailed;
+    e.Op := 'tempdir';
+    e.Path := '';
+    e.Code := 0;
+    e.SysMsg := '';
+    e.Msg := 'failed to resolve temp directory';
     Exit(TResultString_IOError.Err(e));
   end;
 end;
@@ -462,7 +549,12 @@ begin
     Exit(TResultString_IOError.Ok(s))
   else
   begin
-    e.Op := 'exepath'; e.Path := ''; e.Msg := 'failed to resolve executable path';
+    e.Kind := ioekExePathFailed;
+    e.Op := 'exepath';
+    e.Path := '';
+    e.Code := 0;
+    e.SysMsg := '';
+    e.Msg := 'failed to resolve executable path';
     Exit(TResultString_IOError.Err(e));
   end;
 end;
@@ -475,7 +567,12 @@ begin
     Exit(TResultString_IOError.Ok(s))
   else
   begin
-    e.Op := 'user_config_dir'; e.Path := ''; e.Msg := 'failed to resolve user config dir';
+    e.Kind := ioekUserConfigDirFailed;
+    e.Op := 'user_config_dir';
+    e.Path := '';
+    e.Code := 0;
+    e.SysMsg := '';
+    e.Msg := 'failed to resolve user config dir';
     Exit(TResultString_IOError.Err(e));
   end;
 end;
@@ -488,7 +585,12 @@ begin
     Exit(TResultString_IOError.Ok(s))
   else
   begin
-    e.Op := 'user_cache_dir'; e.Path := ''; e.Msg := 'failed to resolve user cache dir';
+    e.Kind := ioekUserCacheDirFailed;
+    e.Op := 'user_cache_dir';
+    e.Path := '';
+    e.Code := 0;
+    e.SysMsg := '';
+    e.Msg := 'failed to resolve user cache dir';
     Exit(TResultString_IOError.Err(e));
   end;
 end;
@@ -554,6 +656,16 @@ begin
   os_environ(ADest);
 end;
 
+procedure env_vars_masked(const ADest: TStrings);
+var
+  kv: TEnvKVPair;
+begin
+  if not Assigned(ADest) then Exit;
+  ADest.Clear;
+  for kv in env_iter do
+    ADest.Add(kv.Key + '=' + env_mask_value_for_name(kv.Key, kv.Value));
+end;
+
 
 function env_lookup(const AName: string; out AValue: string): Boolean; inline;
 begin
@@ -573,35 +685,94 @@ begin
   Result := env_lookup(AName, dummy);
 end;
 
+function env_lookup_nonempty(const AName: string; out AValue: string): Boolean; inline;
+var
+  V: string;
+begin
+  AValue := '';
+  if not env_lookup(AName, V) then
+    Exit(False);
+  if V = '' then
+    Exit(False);
+  AValue := V;
+  Result := True;
+end;
+
+function env_has_nonempty(const AName: string): Boolean; inline;
+var
+  Dummy: string;
+begin
+  Result := env_lookup_nonempty(AName, Dummy);
+end;
+
+function env_get_nonempty_or(const AName, ADefault: string): string; inline;
+begin
+  if not env_lookup_nonempty(AName, Result) then
+    Result := ADefault;
+end;
+
+function env_mask_value_for_name(const AName, AValue: string): string; inline;
+begin
+  if env_is_sensitive_name(AName) then
+    Result := env_mask_value(AValue)
+  else
+    Result := AValue;
+end;
+
 function env_expand_with(const S: string; Resolver: TEnvResolver): string;
 var
-  I, L, NameStart: Integer;
+  I, L, NameStart, LiteralStart: Integer;
   C: Char;
   Name, Val: string;
   Builder: TStringBuilder;
+  HasMarker: Boolean;
+
+  procedure FlushLiteral;
+  begin
+    if LiteralStart < I then
+      Builder.Append(Copy(S, LiteralStart, I - LiteralStart));
+  end;
 
   procedure AppendResolved(const Key: string);
   begin
     if Assigned(Resolver) and Resolver(Key, Val) then
       Builder.Append(Val);
-    // Note: if resolver fails or returns false, append nothing (empty expansion)
   end;
+
 begin
   if S = '' then Exit('');
+  L := Length(S);
 
-  Builder := TStringBuilder.Create(Length(S) * 2); // Pre-allocate with reasonable capacity
+  // Fast path: no variable markers -> return original string
+  HasMarker := False;
+  for I := 1 to L do
+  begin
+    C := S[I];
+    if (C = '$') {$IFDEF WINDOWS} or (C = '%') {$ENDIF} then
+    begin
+      HasMarker := True;
+      Break;
+    end;
+  end;
+  if not HasMarker then Exit(S);
+
+  // Slow path: parse and expand
+  Builder := TStringBuilder.Create(L + L div 2);
   try
-    I := 1; L := Length(S);
+    I := 1;
+    LiteralStart := 1;
     while I <= L do
     begin
       C := S[I];
       if C = '$' then
       begin
+        FlushLiteral;
         Inc(I);
         if (I <= L) and (S[I] = '$') then
         begin
           Builder.Append('$');
           Inc(I);
+          LiteralStart := I;
           Continue;
         end;
         if (I <= L) and (S[I] = '{') then
@@ -612,30 +783,33 @@ begin
           Name := Copy(S, NameStart, I - NameStart);
           if (I <= L) and (S[I] = '}') then Inc(I);
           AppendResolved(Name);
+          LiteralStart := I;
+        end
+        else if (I <= L) and (S[I] in ['A'..'Z','a'..'z','_']) then
+        begin
+          NameStart := I;
+          while (I <= L) and (S[I] in ['A'..'Z','a'..'z','0'..'9','_']) do Inc(I);
+          Name := Copy(S, NameStart, I - NameStart);
+          AppendResolved(Name);
+          LiteralStart := I;
         end
         else
         begin
-          if (I <= L) and (S[I] in ['A'..'Z','a'..'z','_']) then
-          begin
-            NameStart := I;
-            while (I <= L) and (S[I] in ['A'..'Z','a'..'z','0'..'9','_']) do Inc(I);
-            Name := Copy(S, NameStart, I - NameStart);
-            AppendResolved(Name);
-          end
-          else
-            Builder.Append('$');
+          Builder.Append('$');
+          LiteralStart := I;
         end;
       end
       {$IFDEF WINDOWS}
       else if C = '%' then
       begin
+        FlushLiteral;
         if (I+1 <= L) and (S[I+1] = '%') then
         begin
           Builder.Append('%');
           Inc(I, 2);
+          LiteralStart := I;
           Continue;
         end;
-        // %NAME%
         Inc(I);
         NameStart := I;
         while (I <= L) and (S[I] <> '%') do Inc(I);
@@ -644,20 +818,19 @@ begin
           Name := Copy(S, NameStart, I - NameStart);
           Inc(I);
           AppendResolved(Name);
+          LiteralStart := I;
           Continue;
         end;
         // unmatched: treat literally
         Name := Copy(S, NameStart, I - NameStart);
         Builder.Append('%').Append(Name);
+        LiteralStart := I;
       end
       {$ENDIF}
       else
-      begin
-        Builder.Append(C);
         Inc(I);
-      end;
     end;
-
+    FlushLiteral;
     Result := Builder.ToString;
   finally
     Builder.Free;
@@ -859,22 +1032,104 @@ end;
 function env_is_sensitive_name(const AName: string): Boolean;
 var
   UpperName: string;
+  I, StartIdx: Integer;
+
+  function IsDigitsSuffix(const S: string; const StartAt: Integer): Boolean;
+  var
+    J: Integer;
+  begin
+    if (StartAt <= 0) or (StartAt > Length(S)) then Exit(False);
+    for J := StartAt to Length(S) do
+      if not (S[J] in ['0'..'9']) then
+        Exit(False);
+    Result := True;
+  end;
+
+  function TokenEqualsOrDigitsSuffix(const Token, Base: string): Boolean;
+  var
+    L: Integer;
+  begin
+    if Token = Base then Exit(True);
+    L := Length(Base);
+    if (Length(Token) > L) and (Copy(Token, 1, L) = Base) and IsDigitsSuffix(Token, L + 1) then
+      Exit(True);
+    Result := False;
+  end;
+
+  function IsSensitiveToken(const Token: string): Boolean;
+  begin
+    // Token is expected to be uppercase and contain only [A-Z0-9]
+    if TokenEqualsOrDigitsSuffix(Token, 'PASSWORD') then Exit(True);
+    if TokenEqualsOrDigitsSuffix(Token, 'PASSWD') then Exit(True);
+    if TokenEqualsOrDigitsSuffix(Token, 'PASS') then Exit(True);
+    if TokenEqualsOrDigitsSuffix(Token, 'PWD') then Exit(True);
+    if TokenEqualsOrDigitsSuffix(Token, 'SECRET') then Exit(True);
+    if TokenEqualsOrDigitsSuffix(Token, 'TOKEN') then Exit(True);
+    if TokenEqualsOrDigitsSuffix(Token, 'KEY') then Exit(True);
+
+    if Token = 'PRIVATE' then Exit(True);
+    if Token = 'CREDENTIAL' then Exit(True);
+    if Token = 'CREDENTIALS' then Exit(True);
+    if Token = 'AUTH' then Exit(True);
+    if Token = 'OAUTH' then Exit(True);
+    if Token = 'CERT' then Exit(True);
+    if Token = 'CERTIFICATE' then Exit(True);
+    if Token = 'SSL' then Exit(True);
+    if Token = 'TLS' then Exit(True);
+
+    // Common compact forms (no separators)
+    if Token = 'APIKEY' then Exit(True);
+    if Token = 'ACCESSKEY' then Exit(True);
+    if Token = 'SECRETKEY' then Exit(True);
+    if Token = 'PRIVATEKEY' then Exit(True);
+    if Token = 'SIGNINGKEY' then Exit(True);
+
+    Result := False;
+  end;
+
+  function IsTokenChar(const C: Char): Boolean; inline;
+  begin
+    Result := (C in ['A'..'Z', '0'..'9']);
+  end;
+
+  function TokenIsSensitive(const AStart, ALen: Integer): Boolean;
+  var
+    T: string;
+  begin
+    if ALen <= 0 then Exit(False);
+    T := Copy(UpperName, AStart, ALen);
+    Result := IsSensitiveToken(T);
+  end;
+
 begin
   if AName = '' then Exit(False);
 
+  // Token-based detection avoids common false-positives like "MONKEY" (contains "KEY")
+  // and "AUTHOR" (contains "AUTH").
   UpperName := UpperCase(AName);
 
-  // Common patterns for sensitive environment variables
-  Result := (Pos('PASSWORD', UpperName) > 0) or
-            (Pos('SECRET', UpperName) > 0) or
-            (Pos('KEY', UpperName) > 0) or
-            (Pos('TOKEN', UpperName) > 0) or
-            (Pos('CREDENTIAL', UpperName) > 0) or
-            (Pos('AUTH', UpperName) > 0) or
-            (Pos('PRIVATE', UpperName) > 0) or
-            (Pos('CERT', UpperName) > 0) or
-            (Pos('SSL', UpperName) > 0) or
-            (Pos('TLS', UpperName) > 0);
+  Result := False;
+  StartIdx := 0;
+
+  for I := 1 to Length(UpperName) do
+  begin
+    if IsTokenChar(UpperName[I]) then
+    begin
+      if StartIdx = 0 then
+        StartIdx := I;
+    end
+    else
+    begin
+      if StartIdx <> 0 then
+      begin
+        if TokenIsSensitive(StartIdx, I - StartIdx) then Exit(True);
+        StartIdx := 0;
+      end;
+    end;
+  end;
+
+  if StartIdx <> 0 then
+    Exit(TokenIsSensitive(StartIdx, Length(UpperName) - StartIdx + 1));
 end;
 
 function env_mask_value(const AValue: string): string;
@@ -884,10 +1139,18 @@ begin
   Len := Length(AValue);
   if Len = 0 then
     Exit('');
+
+  // Keep masking stable and avoid leaking the prefix.
+  // <=4  -> "***"
+  // 5..8 -> mask all but last 2
+  // >=9  -> mask all but last 4
   if Len <= 4 then
-    Exit('***')
-  else
-    Exit(Copy(AValue, 1, 2) + StringOfChar('*', Len - 4) + Copy(AValue, Len - 1, 2));
+    Exit('***');
+
+  if Len <= 8 then
+    Exit(StringOfChar('*', Len - 2) + Copy(AValue, Len - 1, 2));
+
+  Result := StringOfChar('*', Len - 4) + Copy(AValue, Len - 3, 4);
 end;
 
 function env_validate_name(const AName: string): Boolean;
@@ -924,30 +1187,82 @@ end;
 
 function env_keys: TStringArray;
 var
-  Lst: TStringList;
-  I, Cnt: Integer;
-  Key, Value: string;
+  kv: TEnvKVPair;
+  Count, Capacity: Integer;
+
+  procedure EnsureCapacity(const Needed: Integer);
+  var
+    NewCap: Integer;
+  begin
+    if Capacity >= Needed then Exit;
+    NewCap := Capacity;
+    if NewCap = 0 then NewCap := 16;
+    while NewCap < Needed do NewCap := NewCap * 2;
+    Capacity := NewCap;
+    SetLength(Result, Capacity);
+  end;
+
 begin
   Result := nil;
-  Lst := TStringList.Create;
-  try
-    os_environ(Lst);
-    Cnt := Lst.Count;
-    SetLength(Result, Cnt);
-    for I := 0 to Cnt - 1 do
-    begin
-      ParseEnvLine(Lst[I], Key, Value);
-      Result[I] := Key;
-    end;
-  finally
-    Lst.Free;
+  Count := 0;
+  Capacity := 0;
+
+  for kv in env_iter do
+  begin
+    EnsureCapacity(Count + 1);
+    Result[Count] := kv.Key;
+    Inc(Count);
   end;
+
+  SetLength(Result, Count);
 end;
 
 function env_count: Integer; inline;
+{$IFDEF UNIX}
+var
+  P: PPChar;
+begin
+  Result := 0;
+  P := environ;
+  if P = nil then Exit;
+  while P^ <> nil do
+  begin
+    Inc(Result);
+    Inc(P);
+  end;
+end;
+{$ELSEIF DEFINED(WINDOWS)}
+var
+  P, PStart: PWideChar;
+  S: UnicodeString;
+begin
+  Result := 0;
+  PStart := GetEnvironmentStringsW();
+  P := PStart;
+  try
+    if P <> nil then
+    begin
+      while (P^ <> #0) do
+      begin
+        S := P;
+        if (Length(S) > 0) and (S[1] = '=') then
+        begin
+          Inc(P, Length(S) + 1);
+          Continue; // skip pseudo variables like =C:=...
+        end;
+        Inc(Result);
+        Inc(P, Length(S) + 1);
+      end;
+    end;
+  finally
+    if PStart <> nil then FreeEnvironmentStringsW(PStart);
+  end;
+end;
+{$ELSE}
 var
   Lst: TStringList;
 begin
+  // Keep cross-platform behavior consistent with env_keys/env_vars/env_iter fallback
   Lst := TStringList.Create;
   try
     os_environ(Lst);
@@ -955,6 +1270,259 @@ begin
   finally
     Lst.Free;
   end;
+end;
+{$ENDIF}
+
+function env_get_bool(const AName: string; ADefault: Boolean): Boolean;
+var
+  V, Lower: string;
+begin
+  if not env_lookup(AName, V) then
+    Exit(ADefault);
+  Lower := LowerCase(Trim(V));
+  if (Lower = 'true') or (Lower = '1') or (Lower = 'yes') or (Lower = 'on') then
+    Exit(True);
+  if (Lower = 'false') or (Lower = '0') or (Lower = 'no') or (Lower = 'off') then
+    Exit(False);
+  Result := ADefault;
+end;
+
+function env_get_int(const AName: string; ADefault: Integer): Integer;
+var
+  V: string;
+  Code: Integer;
+begin
+  if not env_lookup(AName, V) then
+    Exit(ADefault);
+  Val(Trim(V), Result, Code);
+  if Code <> 0 then
+    Result := ADefault;
+end;
+
+function env_get_int64(const AName: string; ADefault: Int64): Int64;
+var
+  V: string;
+  Code: Integer;
+begin
+  if not env_lookup(AName, V) then
+    Exit(ADefault);
+  Val(Trim(V), Result, Code);
+  if Code <> 0 then
+    Result := ADefault;
+end;
+
+function env_get_uint(const AName: string; ADefault: Cardinal): Cardinal;
+var
+  V: string;
+  Base: QWord;
+  Code: Integer;
+begin
+  if not env_lookup(AName, V) then
+    Exit(ADefault);
+
+  V := Trim(V);
+  if V = '' then
+    Exit(ADefault);
+  if (Length(V) > 0) and (V[1] = '-') then
+    Exit(ADefault);
+
+  Val(V, Base, Code);
+  if (Code <> 0) or (Base > High(Cardinal)) then
+    Exit(ADefault);
+
+  Result := Cardinal(Base);
+end;
+
+function env_get_uint64(const AName: string; ADefault: QWord): QWord;
+var
+  V: string;
+  Code: Integer;
+begin
+  if not env_lookup(AName, V) then
+    Exit(ADefault);
+
+  V := Trim(V);
+  if V = '' then
+    Exit(ADefault);
+  if (Length(V) > 0) and (V[1] = '-') then
+    Exit(ADefault);
+
+  Val(V, Result, Code);
+  if Code <> 0 then
+    Result := ADefault;
+end;
+
+function env_get_duration_ms(const AName: string; ADefault: QWord): QWord;
+var
+  V, L, NumPart: string;
+  Base, Mult: QWord;
+  Code: Integer;
+  Len: Integer;
+begin
+  if not env_lookup(AName, V) then
+    Exit(ADefault);
+
+  V := Trim(V);
+  if V = '' then
+    Exit(ADefault);
+
+  // Parse optional suffix: ms/s/m/h/d (case-insensitive)
+  L := LowerCase(V);
+  Len := Length(L);
+  Mult := 1;
+
+  if (Len >= 2) and (Copy(L, Len-1, 2) = 'ms') then
+  begin
+    Mult := 1;
+    NumPart := Copy(L, 1, Len-2);
+  end
+  else if (Len >= 1) then
+  begin
+    case L[Len] of
+      's': begin Mult := 1000;    NumPart := Copy(L, 1, Len-1); end;
+      'm': begin Mult := 60000;   NumPart := Copy(L, 1, Len-1); end;
+      'h': begin Mult := 3600000; NumPart := Copy(L, 1, Len-1); end;
+      'd': begin Mult := 86400000;NumPart := Copy(L, 1, Len-1); end;
+    else
+      Mult := 1;
+      NumPart := L;
+    end;
+  end
+  else
+    NumPart := L;
+
+  NumPart := Trim(NumPart);
+  if NumPart = '' then
+    Exit(ADefault);
+  if (Length(NumPart) > 0) and (NumPart[1] = '-') then
+    Exit(ADefault);
+
+  Val(NumPart, Base, Code);
+  if Code <> 0 then
+    Exit(ADefault);
+
+  // overflow guard
+  if (Mult <> 0) and (Base > High(QWord) div Mult) then
+    Exit(ADefault);
+
+  Result := Base * Mult;
+end;
+
+function env_get_size_bytes(const AName: string; ADefault: QWord): QWord;
+var
+  V, L, NumPart, UnitPart: string;
+  Base, Mult: QWord;
+  Code: Integer;
+  I, Len: Integer;
+begin
+  if not env_lookup(AName, V) then
+    Exit(ADefault);
+
+  V := Trim(V);
+  if V = '' then
+    Exit(ADefault);
+
+  L := LowerCase(V);
+  Len := Length(L);
+
+  // Split into numeric part and unit suffix (letters at the end)
+  I := Len;
+  while (I >= 1) and (L[I] in ['a'..'z']) do
+    Dec(I);
+  UnitPart := Copy(L, I + 1, Len - I);
+  NumPart := Trim(Copy(L, 1, I));
+
+  if NumPart = '' then
+    Exit(ADefault);
+  if (NumPart[1] = '-') then
+    Exit(ADefault);
+
+  if (UnitPart = '') or (UnitPart = 'b') then Mult := 1
+  else if UnitPart = 'kb' then Mult := 1000
+  else if UnitPart = 'mb' then Mult := 1000 * 1000
+  else if UnitPart = 'gb' then Mult := 1000 * 1000 * 1000
+  else if UnitPart = 'kib' then Mult := 1024
+  else if UnitPart = 'mib' then Mult := 1024 * 1024
+  else if UnitPart = 'gib' then Mult := 1024 * 1024 * 1024
+  else
+    Exit(ADefault);
+
+  Val(NumPart, Base, Code);
+  if Code <> 0 then
+    Exit(ADefault);
+
+  // overflow guard
+  if (Mult <> 0) and (Base > High(QWord) div Mult) then
+    Exit(ADefault);
+
+  Result := Base * Mult;
+end;
+
+function env_get_float(const AName: string; ADefault: Double): Double;
+var
+  V: string;
+  X: Double;
+  FS: TFormatSettings;
+begin
+  if not env_lookup(AName, V) then
+    Exit(ADefault);
+
+  V := Trim(V);
+  if V = '' then
+    Exit(ADefault);
+
+  // Parse as locale-invariant float (decimal separator '.')
+  FS := DefaultFormatSettings;
+  FS.DecimalSeparator := '.';
+
+  if TryStrToFloat(V, X, FS) then
+    Result := X
+  else
+    Result := ADefault;
+end;
+
+function env_get_list(const AName: string; ASeparator: Char): TStringArray;
+var
+  V: string;
+  I, Start, Cnt, Len: Integer;
+  C: Char;
+begin
+  Result := nil;
+  if not env_lookup(AName, V) then
+    Exit;
+  Len := Length(V);
+  if Len = 0 then
+    Exit;
+  // Count separators to pre-allocate
+  Cnt := 1;
+  for I := 1 to Len do
+    if V[I] = ASeparator then Inc(Cnt);
+  SetLength(Result, Cnt);
+  // Parse
+  Cnt := 0;
+  Start := 1;
+  for I := 1 to Len do
+  begin
+    C := V[I];
+    if C = ASeparator then
+    begin
+      Result[Cnt] := Copy(V, Start, I - Start);
+      Inc(Cnt);
+      Start := I + 1;
+    end;
+  end;
+  // Last segment
+  Result[Cnt] := Copy(V, Start, Len - Start + 1);
+end;
+
+function env_get_paths(const AName: string): TStringArray;
+var
+  V: string;
+begin
+  Result := nil;
+  if not env_lookup(AName, V) then
+    Exit;
+  Result := env_split_paths(V);
 end;
 
 function env_os: string; inline;
@@ -1044,11 +1612,20 @@ end;
 
 function env_iter: TEnvVarsEnumerator;
 begin
-  Result.FList := TStringList.Create;
-  os_environ(Result.FList);
   Result.FIndex := -1;
   Result.FCurrent.Key := '';
   Result.FCurrent.Value := '';
+  {$IFDEF UNIX}
+  Result.FList := nil;
+  Result.FEnvP := environ;
+  {$ELSEIF DEFINED(WINDOWS)}
+  Result.FList := nil;
+  Result.FWinStart := GetEnvironmentStringsW();
+  Result.FWinCur := Result.FWinStart;
+  {$ELSE}
+  Result.FList := TStringList.Create;
+  os_environ(Result.FList);
+  {$ENDIF}
 end;
 
 function TEnvVarsEnumerator.GetEnumerator: TEnvVarsEnumerator;
@@ -1057,26 +1634,78 @@ begin
 end;
 
 function TEnvVarsEnumerator.MoveNext: Boolean;
+var
+  Line: string;
+  {$IFDEF WINDOWS}
+  S: UnicodeString;
+  {$ENDIF}
 begin
-  Inc(FIndex);
-  if FIndex >= FList.Count then
+  if FList <> nil then
   begin
-    // Auto-free when iteration completes
-    FList.Free;
-    FList := nil;
-    Exit(False);
+    Inc(FIndex);
+    if FIndex >= FList.Count then
+    begin
+      // Auto-free when iteration completes
+      FList.Free;
+      FList := nil;
+      Exit(False);
+    end;
+    ParseEnvLine(FList[FIndex], FCurrent.Key, FCurrent.Value);
+    Exit(True);
   end;
-  ParseEnvLine(FList[FIndex], FCurrent.Key, FCurrent.Value);
-  Result := True;
+
+  {$IFDEF UNIX}
+  while (FEnvP <> nil) and (FEnvP^ <> nil) do
+  begin
+    Line := StrPas(FEnvP^);
+    Inc(FEnvP);
+    if Line = '' then Continue;
+    ParseEnvLine(Line, FCurrent.Key, FCurrent.Value);
+    if FCurrent.Key = '' then Continue;
+    Exit(True);
+  end;
+  {$ENDIF}
+
+  {$IFDEF WINDOWS}
+  while (FWinCur <> nil) and (FWinCur^ <> #0) do
+  begin
+    S := FWinCur;
+    Inc(FWinCur, Length(S) + 1);
+    if (Length(S) > 0) and (S[1] = '=') then
+      Continue; // skip pseudo variables like =C:=...
+    Line := UTF8Encode(WideString(S));
+    if Line = '' then Continue;
+    ParseEnvLine(Line, FCurrent.Key, FCurrent.Value);
+    if FCurrent.Key = '' then Continue;
+    Exit(True);
+  end;
+  // Auto-free snapshot block when iteration completes
+  if FWinStart <> nil then
+  begin
+    FreeEnvironmentStringsW(FWinStart);
+    FWinStart := nil;
+    FWinCur := nil;
+  end;
+  {$ENDIF}
+
+  Result := False;
 end;
 
-procedure TEnvVarsEnumerator.Free;
+procedure TEnvVarsEnumerator.Free; inline;
 begin
-  if Assigned(FList) then
+  if FList <> nil then
   begin
     FList.Free;
     FList := nil;
   end;
+  {$IFDEF WINDOWS}
+  if FWinStart <> nil then
+  begin
+    FreeEnvironmentStringsW(FWinStart);
+    FWinStart := nil;
+    FWinCur := nil;
+  end;
+  {$ENDIF}
 end;
 
 function env_args: TStringArray;

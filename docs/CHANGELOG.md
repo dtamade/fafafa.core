@@ -23,8 +23,32 @@ Inspired by Rust std::env and Go os.
 - Exception: `EEnvVarNotFound`
 - Result API (conditional, macro-gated): `env_get_result`, `env_join_paths_result`, `env_current_dir_result`, etc.
 
+**v1.2 Additions (2025-12-16):**
+- Typed Getters: `env_get_bool`, `env_get_int`, `env_get_int64`, `env_get_uint`, `env_get_uint64`, `env_get_duration_ms`, `env_get_size_bytes`, `env_get_float`, `env_get_list`, `env_get_paths`
+  - `env_get_bool`: Parse true/false/1/0/yes/no/on/off (case-insensitive), returns default for unrecognized/undefined
+  - `env_get_int`: Parse integer (Int32), returns default for invalid/undefined
+  - `env_get_int64`: Parse integer (Int64), returns default for invalid/undefined
+  - `env_get_uint`: Parse unsigned integer (UInt32/Cardinal), returns default for invalid/undefined/negative/overflow
+  - `env_get_uint64`: Parse unsigned integer (UInt64/QWord), returns default for invalid/undefined/negative/overflow
+  - `env_get_duration_ms`: Parse duration to milliseconds; supports suffix ms/s/m/h/d (case-insensitive); no suffix = ms; returns default for invalid/overflow
+  - `env_get_size_bytes`: Parse size to bytes; supports B/KB/MB/GB and KiB/MiB/GiB (case-insensitive; optional spaces); no suffix = bytes; returns default for invalid/overflow
+  - `env_get_float`: Parse float (Double) with '.' decimal separator (locale-invariant), returns default for invalid/undefined
+  - `env_get_list`: Split by separator (default comma), returns empty array for undefined
+  - `env_get_paths`: Split by platform PATH separator (like `env_split_paths`), returns empty array for undefined/empty
+- Convenience & Security:
+  - `env_vars_masked`: export masked NAME=VALUE snapshot for logging/diagnostics
+  - `env_is_sensitive_name`: token-based detection to reduce false positives (e.g. avoids MONKEY/AUTHOR)
+  - `env_mask_value`: updated policy to keep only a short tail (avoid leaking prefixes)
+- Result API:
+  - Improved Err Msg fields for readability (include var name / separator / OS error code where available)
+  - EIOError now includes Kind, Code (OS error code; 0 if unavailable) and SysMsg (SysErrorMessage(Code) when available)
+  - EPathJoinError now includes Kind (currently pjekContainsSeparator) and Separator (the path list separator that caused the join failure)
+  - EVarError now includes Kind (currently vekNotDefined)
+- Performance optimization: `env_expand` fast path (16.9x speedup for passthrough)
+- Performance optimization: `env_iter` iterates environ directly (Unix) / GetEnvironmentStringsW block (Windows), avoids TStringList snapshot allocation
+
 **Tests:**
-- 59 test cases, 100% pass rate
+- 94 test cases, 100% pass rate
 - Documentation examples validated (25/25 tests pass)
 
 **Performance Baseline (2025-12-13):**

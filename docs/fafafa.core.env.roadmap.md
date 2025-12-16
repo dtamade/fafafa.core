@@ -1,19 +1,19 @@
 # fafafa.core.env 模块发展路线图
 
-版本：v1.1
-更新日期：2025-12-06
+版本：v1.2
+更新日期：2025-12-16
 制定人：世界级 FreePascal 框架架构师
 
 ---
 
 ## 概述
 
-`fafafa.core.env` 模块已完成 v1.1 升级，完整对标 Rust std::env 核心功能。本路线图规划了模块的短期、中期和长期发展方向，确保模块持续演进并保持技术领先性。
+`fafafa.core.env` 模块已完成 v1.2 升级，完整对标 Rust std::env 核心功能。本路线图规划了模块的短期、中期和长期发展方向，确保模块持续演进并保持技术领先性。
 
 ## 当前状态
 
-- **版本**：v1.1 (企业级就绪，对标 Rust std::env)
-- **测试覆盖率**：100% (59个测试用例)
+- **版本**：v1.2 (企业级就绪，对标 Rust std::env)
+- **测试覆盖率**：100% (94个测试用例)
 - **文档覆盖率**：100%
 - **安全等级**：高 (符合2024年最佳实践)
 - **性能等级**：优秀 (已优化)
@@ -26,6 +26,14 @@
 - **沙盒操作**：`env_clear_all`
 - **异常类型**：`EEnvVarNotFound`
 - **命令行参数**：`env_args`, `env_args_count`, `env_arg`
+
+### v1.2 新增/改进（2025-12-16）
+- **类型化 Getters**：`env_get_bool`, `env_get_int`, `env_get_int64`, `env_get_uint`, `env_get_uint64`, `env_get_duration_ms`, `env_get_size_bytes`, `env_get_float`, `env_get_list`, `env_get_paths`
+- **安全增强**：`env_vars_masked`（导出脱敏快照）、`env_is_sensitive_name`（token 识别减少误报）、`env_mask_value`（仅保留尾部）
+- **Result API**：Err.Msg 更可读（包含变量名 / 分隔符 / 系统错误码等诊断信息）
+- **性能优化**：`env_expand` passthrough 快速路径（约 16.9x）
+- **性能优化**：`env_iter`（Unix）直接迭代 libc environ，（Windows）直接遍历 GetEnvironmentStringsW 环境块，避免预构建 TStringList
+- **测试**：59 → 94（全部通过）
 
 ---
 
@@ -40,14 +48,14 @@
 - [x] 实现 `env_clear_all` 沙盒操作
 
 #### 2. 测试验证 ✅
-- [x] 59 个测试用例全部通过
+- [x] 79 个测试用例全部通过
 - [x] Linux 平台验证完成
 - [x] 新增 API 全部有测试覆盖
 
 #### 2. 性能基准测试 📊 ✅
 - [x] 创建字符串展开性能基准测试 (2025-12-13)
 - [x] 创建PATH处理性能基准测试 (2025-12-13)
-- [ ] 对比优化前后的性能数据
+- [x] 对比优化前后的性能数据（见 BASELINE.md 的 vs v1.0）
 - [x] 建立性能基线，用于后续监控 (见 benchmarks/fafafa.core.env/BASELINE.md)
 
 #### 3. 文档最终审查 📚 ✅
@@ -79,14 +87,19 @@
 
 #### 2. API 易用性优化 🎯
 - [ ] 基于反馈优化函数命名和参数设计
-- [ ] 添加更多便利函数和语法糖
+- [x] 添加更多便利函数和语法糖（env_get_bool/env_get_int/env_get_list）
 - [ ] 改进错误消息的可读性
 - [ ] 优化Result API的使用体验
 
 #### 3. 性能监控与优化 ⚡
-- [ ] 建立持续性能监控
-- [ ] 识别和优化性能热点
-- [ ] 实现更高效的内存管理
+- [x] 建立持续性能监控 (benchmarks/fafafa.core.env/)
+- [x] 识别和优化性能热点 (2025-12-14)
+  - env_expand 快速路径: passthrough +1593%
+  - env_expand 批量追加: +86%~144%
+  - PATH 处理: +65%~96%
+- [x] 实现更高效的内存管理
+  - env_iter: Unix 下直接迭代 libc environ，避免预构建 TStringList (2025-12-15)
+  - env_iter: Windows 下直接遍历 GetEnvironmentStringsW 环境块，避免预构建 TStringList (2025-12-15)
 - [ ] 优化大规模环境变量处理
 
 #### 4. 安全最佳实践更新 🔒

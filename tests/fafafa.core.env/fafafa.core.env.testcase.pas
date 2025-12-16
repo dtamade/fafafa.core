@@ -67,6 +67,7 @@ type
     procedure Test_env_is_sensitive_name;
     procedure Test_env_mask_value;
     procedure Test_env_validate_name;
+    procedure Test_env_vars_masked_masks_sensitive_values;
 
     // === Convenience APIs ===
     procedure Test_env_required_returns_value_when_defined;
@@ -89,6 +90,44 @@ type
     procedure Test_env_args_returns_array;
     procedure Test_env_args_count_matches_paramcount;
     procedure Test_env_arg_returns_paramstr;
+
+    // === Typed Getters ===
+    procedure Test_env_get_bool_true_values;
+    procedure Test_env_get_bool_false_values;
+    procedure Test_env_get_bool_default_when_undefined;
+    procedure Test_env_get_int_valid_values;
+    procedure Test_env_get_int_default_when_invalid;
+    procedure Test_env_get_int_default_when_undefined;
+    procedure Test_env_get_int64_valid_values;
+    procedure Test_env_get_int64_default_when_invalid;
+    procedure Test_env_get_int64_default_when_undefined;
+    procedure Test_env_get_uint_valid_values;
+    procedure Test_env_get_uint_default_when_invalid;
+    procedure Test_env_get_uint_default_when_undefined;
+    procedure Test_env_get_uint64_valid_values;
+    procedure Test_env_get_uint64_default_when_invalid;
+    procedure Test_env_get_uint64_default_when_undefined;
+    procedure Test_env_get_duration_ms_valid_values;
+    procedure Test_env_get_duration_ms_default_when_invalid;
+    procedure Test_env_get_duration_ms_default_when_undefined;
+    procedure Test_env_get_size_bytes_valid_values;
+    procedure Test_env_get_size_bytes_default_when_invalid;
+    procedure Test_env_get_size_bytes_default_when_undefined;
+    procedure Test_env_get_paths_valid_values;
+    procedure Test_env_get_paths_empty_when_undefined;
+    procedure Test_env_get_paths_empty_when_defined_empty;
+    procedure Test_env_get_float_valid_values;
+    procedure Test_env_get_float_default_when_invalid;
+    procedure Test_env_get_float_default_when_undefined;
+    procedure Test_env_get_list_comma_separated;
+    procedure Test_env_get_list_custom_separator;
+    procedure Test_env_get_list_empty_when_undefined;
+
+    // === Convenience & Security Helpers (v1.2) ===
+    procedure Test_env_lookup_nonempty;
+    procedure Test_env_has_nonempty;
+    procedure Test_env_get_nonempty_or;
+    procedure Test_env_mask_value_for_name;
 
     // === Sandbox Operations ===
     procedure Test_env_clear_all_removes_all_vars;
@@ -563,11 +602,19 @@ end;
 
 procedure TTestCase_Global.Test_env_get_result_err;
 var r: specialize TResult<string, EVarError>;
+    msgLower: string;
 begin
   env_unset('FA_ENV_R_MISSING');
   r := env_get_result('FA_ENV_R_MISSING');
   AssertTrue(r.IsErr);
   AssertEquals('FA_ENV_R_MISSING', r.UnwrapErr.Name);
+  AssertTrue('Err Kind should be vekNotDefined', r.UnwrapErr.Kind = vekNotDefined);
+
+  AssertTrue('Err Msg should not be empty', r.UnwrapErr.Msg <> '');
+  AssertTrue('Err Msg should mention var name', Pos('FA_ENV_R_MISSING', r.UnwrapErr.Msg) > 0);
+  AssertTrue('Err Msg should quote var name', Pos('"FA_ENV_R_MISSING"', r.UnwrapErr.Msg) > 0);
+  msgLower := LowerCase(r.UnwrapErr.Msg);
+  AssertTrue('Err Msg should mention not defined', Pos('not defined', msgLower) > 0);
 end;
 
 procedure TTestCase_Global.Test_env_join_paths_result_ok;
@@ -581,6 +628,7 @@ end;
 
 procedure TTestCase_Global.Test_env_join_paths_result_err;
 var arr: array of string; r: specialize TResult<string, EPathJoinError>; idx: Integer;
+    msg, msgLower: string;
 begin
   arr := nil;
   SetLength(arr, 2);
@@ -590,6 +638,20 @@ begin
   AssertTrue(r.IsErr);
   idx := r.UnwrapErr.Index;
   AssertTrue(idx = 0);
+  AssertTrue('Err Kind should be pjekContainsSeparator', r.UnwrapErr.Kind = pjekContainsSeparator);
+  AssertEquals(env_path_list_separator, r.UnwrapErr.Separator);
+  AssertEquals(arr[0], r.UnwrapErr.Segment);
+
+  msg := r.UnwrapErr.Msg;
+  AssertTrue('Err Msg should not be empty', msg <> '');
+  AssertTrue('Err Msg should mention separator char, got: ' + msg,
+    Pos('"' + env_path_list_separator + '"', msg) > 0);
+  AssertTrue('Err Msg should mention segment, got: ' + msg,
+    Pos(arr[0], msg) > 0);
+
+  msgLower := LowerCase(msg);
+  AssertTrue('Err Msg should mention index', Pos('index', msgLower) > 0);
+  AssertTrue('Err Msg should include index number', Pos(IntToStr(idx), msg) > 0);
 end;
 
 procedure TTestCase_Global.Test_env_current_dir_result_ok;
@@ -611,10 +673,24 @@ end;
 
 procedure TTestCase_Global.Test_env_set_current_dir_result_err;
 var r: specialize TResult<Boolean, EIOError>;
+    msgLower: string;
 begin
-  r := env_set_current_dir_result('Z:\this\path\should\not\exist\__fa_test__');
+  r := env_set_current_dir_result('Z:\\this\\path\\should\\not\\exist\\__fa_test__');
   AssertTrue(r.IsErr);
+  AssertTrue('Err Kind should be ioekChdirFailed', r.UnwrapErr.Kind = ioekChdirFailed);
   AssertEquals('chdir', r.UnwrapErr.Op);
+  AssertEquals('Z:\\this\\path\\should\\not\\exist\\__fa_test__', r.UnwrapErr.Path);
+
+  AssertTrue('Err Msg should not be empty', r.UnwrapErr.Msg <> '');
+  AssertTrue('Err Msg should quote path', Pos('"' + r.UnwrapErr.Path + '"', r.UnwrapErr.Msg) > 0);
+  msgLower := LowerCase(r.UnwrapErr.Msg);
+  AssertTrue('Err Msg should mention op', Pos('chdir', msgLower) > 0);
+  AssertTrue('Err Msg should include code=', Pos('code=', msgLower) > 0);
+  AssertTrue('Err Msg should include code number', Pos('code=' + IntToStr(r.UnwrapErr.Code), msgLower) > 0);
+
+  AssertTrue('Err SysMsg should not be empty', r.UnwrapErr.SysMsg <> '');
+  AssertEquals(SysErrorMessage(r.UnwrapErr.Code), r.UnwrapErr.SysMsg);
+  AssertTrue('Err Msg should include sys msg', Pos(r.UnwrapErr.SysMsg, r.UnwrapErr.Msg) > 0);
 end;
 
 procedure TTestCase_Global.Test_env_home_temp_exe_user_dirs_result_ok;
@@ -704,6 +780,8 @@ begin
   AssertTrue(env_is_sensitive_name('PRIVATE_KEY'));
   AssertTrue(env_is_sensitive_name('SSL_CERT'));
   AssertTrue(env_is_sensitive_name('AUTH_TOKEN'));
+  AssertTrue(env_is_sensitive_name('AWS_ACCESS_KEY_ID'));
+  AssertTrue(env_is_sensitive_name('APIKEY'));
 
   // Test non-sensitive names
   AssertFalse(env_is_sensitive_name('PATH'));
@@ -711,12 +789,22 @@ begin
   AssertFalse(env_is_sensitive_name('USER'));
   AssertFalse(env_is_sensitive_name('TEMP'));
   AssertFalse(env_is_sensitive_name(''));
+
+  // Avoid common false-positives from naive substring checks
+  AssertFalse(env_is_sensitive_name('MONKEY'));
+  AssertFalse(env_is_sensitive_name('TURKEY'));
+  AssertFalse(env_is_sensitive_name('KEYBOARD'));
+  AssertFalse(env_is_sensitive_name('AUTHOR'));
 end;
 
 procedure TTestCase_Global.Test_env_mask_value;
 var masked: string;
 begin
-  // Test value masking
+  // Mask policy: keep none of the prefix; keep only a small tail for diagnostics.
+  // <=4  -> "***"
+  // 5..8 -> mask all but last 2
+  // >=9  -> mask all but last 4
+
   masked := env_mask_value('');
   AssertEquals('', masked);
 
@@ -727,10 +815,19 @@ begin
   AssertEquals('***', masked);
 
   masked := env_mask_value('abcde');
-  AssertEquals('ab*de', masked);
+  AssertEquals('***de', masked);
+
+  masked := env_mask_value('abcdef');
+  AssertEquals('****ef', masked);
+
+  masked := env_mask_value('abcdefgh');
+  AssertEquals('******gh', masked);
+
+  masked := env_mask_value('abcdefghi');
+  AssertEquals('*****fghi', masked);
 
   masked := env_mask_value('secret123456');
-  AssertEquals('se********56', masked); // 12 chars: 2 + (12-4) + 2 = 12
+  AssertEquals('********3456', masked);
 end;
 
 procedure TTestCase_Global.Test_env_validate_name;
@@ -747,6 +844,47 @@ begin
   AssertFalse(env_validate_name('VAR-NAME')); // contains hyphen
   AssertFalse(env_validate_name('VAR.NAME')); // contains dot
   AssertFalse(env_validate_name('VAR NAME')); // contains space
+end;
+
+procedure TTestCase_Global.Test_env_vars_masked_masks_sensitive_values;
+var
+  gSecret, gNormal: TEnvOverrideGuard;
+  lst: TStringList;
+  i: Integer;
+  foundSecret, foundNormal: Boolean;
+  line: string;
+begin
+  gSecret := env_override('FA_ENV_SECRET', 'secret123456');
+  gNormal := env_override('FA_ENV_NORMAL', 'value');
+  try
+    lst := TStringList.Create;
+    try
+      env_vars_masked(lst);
+      foundSecret := False;
+      foundNormal := False;
+      for i := 0 to lst.Count - 1 do
+      begin
+        line := lst[i];
+        if Pos('FA_ENV_SECRET=', line) = 1 then
+        begin
+          foundSecret := True;
+          AssertEquals('FA_ENV_SECRET=' + env_mask_value('secret123456'), line);
+        end;
+        if Pos('FA_ENV_NORMAL=', line) = 1 then
+        begin
+          foundNormal := True;
+          AssertEquals('FA_ENV_NORMAL=value', line);
+        end;
+      end;
+      AssertTrue('FA_ENV_SECRET should appear in env_vars_masked output', foundSecret);
+      AssertTrue('FA_ENV_NORMAL should appear in env_vars_masked output', foundNormal);
+    finally
+      lst.Free;
+    end;
+  finally
+    gNormal.Done;
+    gSecret.Done;
+  end;
 end;
 
 // P1: High-value convenience API tests
@@ -941,6 +1079,520 @@ begin
   AssertEquals('', env_arg(ParamCount + 100));
 end;
 
+// P6: Typed Getters tests
+procedure TTestCase_Global.Test_env_get_bool_true_values;
+var g: TEnvOverrideGuard;
+begin
+  // Test 'true'
+  g := env_override('FA_BOOL_TEST', 'true');
+  try AssertTrue(env_get_bool('FA_BOOL_TEST')); finally g.Done; end;
+  // Test 'TRUE'
+  g := env_override('FA_BOOL_TEST', 'TRUE');
+  try AssertTrue(env_get_bool('FA_BOOL_TEST')); finally g.Done; end;
+  // Test '1'
+  g := env_override('FA_BOOL_TEST', '1');
+  try AssertTrue(env_get_bool('FA_BOOL_TEST')); finally g.Done; end;
+  // Test 'yes'
+  g := env_override('FA_BOOL_TEST', 'yes');
+  try AssertTrue(env_get_bool('FA_BOOL_TEST')); finally g.Done; end;
+  // Test 'YES'
+  g := env_override('FA_BOOL_TEST', 'YES');
+  try AssertTrue(env_get_bool('FA_BOOL_TEST')); finally g.Done; end;
+  // Test 'on'
+  g := env_override('FA_BOOL_TEST', 'on');
+  try AssertTrue(env_get_bool('FA_BOOL_TEST')); finally g.Done; end;
+end;
+
+procedure TTestCase_Global.Test_env_get_bool_false_values;
+var g: TEnvOverrideGuard;
+begin
+  // Test 'false'
+  g := env_override('FA_BOOL_TEST', 'false');
+  try AssertFalse(env_get_bool('FA_BOOL_TEST', True)); finally g.Done; end;
+  // Test 'FALSE'
+  g := env_override('FA_BOOL_TEST', 'FALSE');
+  try AssertFalse(env_get_bool('FA_BOOL_TEST', True)); finally g.Done; end;
+  // Test '0'
+  g := env_override('FA_BOOL_TEST', '0');
+  try AssertFalse(env_get_bool('FA_BOOL_TEST', True)); finally g.Done; end;
+  // Test 'no'
+  g := env_override('FA_BOOL_TEST', 'no');
+  try AssertFalse(env_get_bool('FA_BOOL_TEST', True)); finally g.Done; end;
+  // Test 'off'
+  g := env_override('FA_BOOL_TEST', 'off');
+  try AssertFalse(env_get_bool('FA_BOOL_TEST', True)); finally g.Done; end;
+  // Test invalid value returns default
+  g := env_override('FA_BOOL_TEST', 'maybe');
+  try AssertTrue(env_get_bool('FA_BOOL_TEST', True)); finally g.Done; end;
+end;
+
+procedure TTestCase_Global.Test_env_get_bool_default_when_undefined;
+begin
+  env_unset('FA_BOOL_UNDEF');
+  AssertFalse(env_get_bool('FA_BOOL_UNDEF'));
+  AssertTrue(env_get_bool('FA_BOOL_UNDEF', True));
+end;
+
+procedure TTestCase_Global.Test_env_get_int_valid_values;
+var g: TEnvOverrideGuard;
+begin
+  g := env_override('FA_INT_TEST', '42');
+  try AssertEquals(42, env_get_int('FA_INT_TEST')); finally g.Done; end;
+  g := env_override('FA_INT_TEST', '-100');
+  try AssertEquals(-100, env_get_int('FA_INT_TEST')); finally g.Done; end;
+  g := env_override('FA_INT_TEST', '0');
+  try AssertEquals(0, env_get_int('FA_INT_TEST', 999)); finally g.Done; end;
+end;
+
+procedure TTestCase_Global.Test_env_get_int_default_when_invalid;
+var g: TEnvOverrideGuard;
+begin
+  g := env_override('FA_INT_TEST', 'abc');
+  try AssertEquals(123, env_get_int('FA_INT_TEST', 123)); finally g.Done; end;
+  g := env_override('FA_INT_TEST', '');
+  try AssertEquals(456, env_get_int('FA_INT_TEST', 456)); finally g.Done; end;
+  g := env_override('FA_INT_TEST', '12.5');
+  try AssertEquals(789, env_get_int('FA_INT_TEST', 789)); finally g.Done; end;
+end;
+
+procedure TTestCase_Global.Test_env_get_int_default_when_undefined;
+begin
+  env_unset('FA_INT_UNDEF');
+  AssertEquals(0, env_get_int('FA_INT_UNDEF'));
+  AssertEquals(999, env_get_int('FA_INT_UNDEF', 999));
+end;
+
+procedure TTestCase_Global.Test_env_get_int64_valid_values;
+var g: TEnvOverrideGuard;
+begin
+  g := env_override('FA_I64_TEST', '42');
+  try AssertEquals(Int64(42), env_get_int64('FA_I64_TEST')); finally g.Done; end;
+
+  g := env_override('FA_I64_TEST', ' -100 ');
+  try AssertEquals(Int64(-100), env_get_int64('FA_I64_TEST')); finally g.Done; end;
+
+  g := env_override('FA_I64_TEST', IntToStr(High(Int64)));
+  try AssertEquals(High(Int64), env_get_int64('FA_I64_TEST')); finally g.Done; end;
+
+  g := env_override('FA_I64_TEST', IntToStr(Low(Int64)));
+  try AssertEquals(Low(Int64), env_get_int64('FA_I64_TEST')); finally g.Done; end;
+end;
+
+procedure TTestCase_Global.Test_env_get_int64_default_when_invalid;
+var g: TEnvOverrideGuard;
+begin
+  g := env_override('FA_I64_TEST', 'abc');
+  try AssertEquals(Int64(123), env_get_int64('FA_I64_TEST', 123)); finally g.Done; end;
+
+  g := env_override('FA_I64_TEST', '');
+  try AssertEquals(Int64(456), env_get_int64('FA_I64_TEST', 456)); finally g.Done; end;
+
+  // overflow
+  g := env_override('FA_I64_TEST', '999999999999999999999999999');
+  try AssertEquals(Int64(789), env_get_int64('FA_I64_TEST', 789)); finally g.Done; end;
+end;
+
+procedure TTestCase_Global.Test_env_get_int64_default_when_undefined;
+begin
+  env_unset('FA_I64_UNDEF');
+  AssertEquals(Int64(0), env_get_int64('FA_I64_UNDEF'));
+  AssertEquals(Int64(999), env_get_int64('FA_I64_UNDEF', 999));
+end;
+
+procedure TTestCase_Global.Test_env_get_uint_valid_values;
+var g: TEnvOverrideGuard;
+begin
+  g := env_override('FA_U32_TEST', '0');
+  try AssertEquals(QWord(0), QWord(env_get_uint('FA_U32_TEST', 123))); finally g.Done; end;
+
+  g := env_override('FA_U32_TEST', ' 42 ');
+  try AssertEquals(QWord(42), QWord(env_get_uint('FA_U32_TEST'))); finally g.Done; end;
+
+  g := env_override('FA_U32_TEST', '4294967295');
+  try AssertEquals(QWord(High(Cardinal)), QWord(env_get_uint('FA_U32_TEST'))); finally g.Done; end;
+end;
+
+procedure TTestCase_Global.Test_env_get_uint_default_when_invalid;
+var g: TEnvOverrideGuard;
+begin
+  g := env_override('FA_U32_TEST', 'abc');
+  try AssertEquals(QWord(123), QWord(env_get_uint('FA_U32_TEST', 123))); finally g.Done; end;
+
+  g := env_override('FA_U32_TEST', '');
+  try AssertEquals(QWord(456), QWord(env_get_uint('FA_U32_TEST', 456))); finally g.Done; end;
+
+  // negative not allowed
+  g := env_override('FA_U32_TEST', '-1');
+  try AssertEquals(QWord(789), QWord(env_get_uint('FA_U32_TEST', 789))); finally g.Done; end;
+
+  // overflow
+  g := env_override('FA_U32_TEST', '4294967296');
+  try AssertEquals(QWord(999), QWord(env_get_uint('FA_U32_TEST', 999))); finally g.Done; end;
+end;
+
+procedure TTestCase_Global.Test_env_get_uint_default_when_undefined;
+begin
+  env_unset('FA_U32_UNDEF');
+  AssertEquals(QWord(0), QWord(env_get_uint('FA_U32_UNDEF')));
+  AssertEquals(QWord(42), QWord(env_get_uint('FA_U32_UNDEF', 42)));
+end;
+
+procedure TTestCase_Global.Test_env_get_uint64_valid_values;
+var g: TEnvOverrideGuard;
+begin
+  g := env_override('FA_U64_TEST', '0');
+  try AssertEquals(QWord(0), QWord(env_get_uint64('FA_U64_TEST', 123))); finally g.Done; end;
+
+  g := env_override('FA_U64_TEST', ' 42 ');
+  try AssertEquals(QWord(42), QWord(env_get_uint64('FA_U64_TEST'))); finally g.Done; end;
+
+  // High(QWord) = 18446744073709551615
+  g := env_override('FA_U64_TEST', ' 18446744073709551615 ');
+  try AssertEquals(QWord(High(QWord)), QWord(env_get_uint64('FA_U64_TEST'))); finally g.Done; end;
+end;
+
+procedure TTestCase_Global.Test_env_get_uint64_default_when_invalid;
+var g: TEnvOverrideGuard;
+begin
+  g := env_override('FA_U64_TEST', 'abc');
+  try AssertEquals(QWord(123), QWord(env_get_uint64('FA_U64_TEST', 123))); finally g.Done; end;
+
+  g := env_override('FA_U64_TEST', '');
+  try AssertEquals(QWord(456), QWord(env_get_uint64('FA_U64_TEST', 456))); finally g.Done; end;
+
+  // negative not allowed
+  g := env_override('FA_U64_TEST', '-1');
+  try AssertEquals(QWord(789), QWord(env_get_uint64('FA_U64_TEST', 789))); finally g.Done; end;
+
+  // overflow
+  g := env_override('FA_U64_TEST', '18446744073709551616');
+  try AssertEquals(QWord(999), QWord(env_get_uint64('FA_U64_TEST', 999))); finally g.Done; end;
+end;
+
+procedure TTestCase_Global.Test_env_get_uint64_default_when_undefined;
+begin
+  env_unset('FA_U64_UNDEF');
+  AssertEquals(QWord(0), QWord(env_get_uint64('FA_U64_UNDEF')));
+  AssertEquals(QWord(42), QWord(env_get_uint64('FA_U64_UNDEF', 42)));
+end;
+
+procedure TTestCase_Global.Test_env_get_duration_ms_valid_values;
+var g: TEnvOverrideGuard;
+begin
+  // plain number = milliseconds
+  g := env_override('FA_DUR_TEST', '1500');
+  try AssertEquals(QWord(1500), QWord(env_get_duration_ms('FA_DUR_TEST'))); finally g.Done; end;
+
+  g := env_override('FA_DUR_TEST', '1500ms');
+  try AssertEquals(QWord(1500), QWord(env_get_duration_ms('FA_DUR_TEST'))); finally g.Done; end;
+
+  g := env_override('FA_DUR_TEST', ' 2S ');
+  try AssertEquals(QWord(2000), QWord(env_get_duration_ms('FA_DUR_TEST'))); finally g.Done; end;
+
+  g := env_override('FA_DUR_TEST', '1m');
+  try AssertEquals(QWord(60000), QWord(env_get_duration_ms('FA_DUR_TEST'))); finally g.Done; end;
+
+  g := env_override('FA_DUR_TEST', '1h');
+  try AssertEquals(QWord(3600000), QWord(env_get_duration_ms('FA_DUR_TEST'))); finally g.Done; end;
+
+  g := env_override('FA_DUR_TEST', '1d');
+  try AssertEquals(QWord(86400000), QWord(env_get_duration_ms('FA_DUR_TEST'))); finally g.Done; end;
+end;
+
+procedure TTestCase_Global.Test_env_get_duration_ms_default_when_invalid;
+var g: TEnvOverrideGuard;
+begin
+  g := env_override('FA_DUR_TEST', 'abc');
+  try AssertEquals(QWord(123), QWord(env_get_duration_ms('FA_DUR_TEST', 123))); finally g.Done; end;
+
+  g := env_override('FA_DUR_TEST', '');
+  try AssertEquals(QWord(456), QWord(env_get_duration_ms('FA_DUR_TEST', 456))); finally g.Done; end;
+
+  // float not supported
+  g := env_override('FA_DUR_TEST', '1.5s');
+  try AssertEquals(QWord(789), QWord(env_get_duration_ms('FA_DUR_TEST', 789))); finally g.Done; end;
+
+  // negative not allowed
+  g := env_override('FA_DUR_TEST', '-1s');
+  try AssertEquals(QWord(111), QWord(env_get_duration_ms('FA_DUR_TEST', 111))); finally g.Done; end;
+
+  // overflow
+  g := env_override('FA_DUR_TEST', '18446744073709551615s');
+  try AssertEquals(QWord(222), QWord(env_get_duration_ms('FA_DUR_TEST', 222))); finally g.Done; end;
+end;
+
+procedure TTestCase_Global.Test_env_get_duration_ms_default_when_undefined;
+begin
+  env_unset('FA_DUR_UNDEF');
+  AssertEquals(QWord(0), QWord(env_get_duration_ms('FA_DUR_UNDEF')));
+  AssertEquals(QWord(42), QWord(env_get_duration_ms('FA_DUR_UNDEF', 42)));
+end;
+
+procedure TTestCase_Global.Test_env_get_size_bytes_valid_values;
+var g: TEnvOverrideGuard;
+begin
+  g := env_override('FA_SIZE_TEST', '0');
+  try AssertEquals(QWord(0), QWord(env_get_size_bytes('FA_SIZE_TEST', 123))); finally g.Done; end;
+
+  g := env_override('FA_SIZE_TEST', '42');
+  try AssertEquals(QWord(42), QWord(env_get_size_bytes('FA_SIZE_TEST'))); finally g.Done; end;
+
+  g := env_override('FA_SIZE_TEST', '1kb');
+  try AssertEquals(QWord(1000), QWord(env_get_size_bytes('FA_SIZE_TEST'))); finally g.Done; end;
+
+  g := env_override('FA_SIZE_TEST', '1KiB');
+  try AssertEquals(QWord(1024), QWord(env_get_size_bytes('FA_SIZE_TEST'))); finally g.Done; end;
+
+  g := env_override('FA_SIZE_TEST', '2MB');
+  try AssertEquals(QWord(2000000), QWord(env_get_size_bytes('FA_SIZE_TEST'))); finally g.Done; end;
+
+  g := env_override('FA_SIZE_TEST', '3GiB');
+  try AssertEquals(QWord(3) * QWord(1024) * QWord(1024) * QWord(1024), QWord(env_get_size_bytes('FA_SIZE_TEST'))); finally g.Done; end;
+
+  // allow spaces
+  g := env_override('FA_SIZE_TEST', '10 MB');
+  try AssertEquals(QWord(10000000), QWord(env_get_size_bytes('FA_SIZE_TEST'))); finally g.Done; end;
+end;
+
+procedure TTestCase_Global.Test_env_get_size_bytes_default_when_invalid;
+var g: TEnvOverrideGuard;
+begin
+  g := env_override('FA_SIZE_TEST', '');
+  try AssertEquals(QWord(123), QWord(env_get_size_bytes('FA_SIZE_TEST', 123))); finally g.Done; end;
+
+  g := env_override('FA_SIZE_TEST', 'abc');
+  try AssertEquals(QWord(456), QWord(env_get_size_bytes('FA_SIZE_TEST', 456))); finally g.Done; end;
+
+  // negative not allowed
+  g := env_override('FA_SIZE_TEST', '-1kb');
+  try AssertEquals(QWord(789), QWord(env_get_size_bytes('FA_SIZE_TEST', 789))); finally g.Done; end;
+
+  // float not supported
+  g := env_override('FA_SIZE_TEST', '1.5mb');
+  try AssertEquals(QWord(111), QWord(env_get_size_bytes('FA_SIZE_TEST', 111))); finally g.Done; end;
+
+  // unknown unit
+  g := env_override('FA_SIZE_TEST', '10xb');
+  try AssertEquals(QWord(222), QWord(env_get_size_bytes('FA_SIZE_TEST', 222))); finally g.Done; end;
+
+  // overflow (multiplier)
+  g := env_override('FA_SIZE_TEST', '18446744073709551615kb');
+  try AssertEquals(QWord(333), QWord(env_get_size_bytes('FA_SIZE_TEST', 333))); finally g.Done; end;
+end;
+
+procedure TTestCase_Global.Test_env_get_size_bytes_default_when_undefined;
+begin
+  env_unset('FA_SIZE_UNDEF');
+  AssertEquals(QWord(0), QWord(env_get_size_bytes('FA_SIZE_UNDEF')));
+  AssertEquals(QWord(42), QWord(env_get_size_bytes('FA_SIZE_UNDEF', 42)));
+end;
+
+procedure TTestCase_Global.Test_env_get_paths_valid_values;
+var g: TEnvOverrideGuard; arr: TStringArray; sep: Char;
+begin
+  sep := env_path_list_separator;
+
+  g := env_override('FA_PATHS_TEST', 'a' + sep + 'b');
+  try
+    arr := env_get_paths('FA_PATHS_TEST');
+    AssertEquals(2, Length(arr));
+    AssertEquals('a', arr[0]);
+    AssertEquals('b', arr[1]);
+  finally g.Done; end;
+
+  // ignore empty segments (like env_split_paths)
+  g := env_override('FA_PATHS_TEST', 'a' + sep + sep + 'b');
+  try
+    arr := env_get_paths('FA_PATHS_TEST');
+    AssertEquals(2, Length(arr));
+    AssertEquals('a', arr[0]);
+    AssertEquals('b', arr[1]);
+  finally g.Done; end;
+
+  // preserve spaces in segments
+  g := env_override('FA_PATHS_TEST', ' a ' + sep + 'b');
+  try
+    arr := env_get_paths('FA_PATHS_TEST');
+    AssertEquals(2, Length(arr));
+    AssertEquals(' a ', arr[0]);
+    AssertEquals('b', arr[1]);
+  finally g.Done; end;
+end;
+
+procedure TTestCase_Global.Test_env_get_paths_empty_when_undefined;
+var arr: TStringArray;
+begin
+  env_unset('FA_PATHS_UNDEF');
+  arr := env_get_paths('FA_PATHS_UNDEF');
+  AssertEquals(0, Length(arr));
+end;
+
+procedure TTestCase_Global.Test_env_get_paths_empty_when_defined_empty;
+var g: TEnvOverrideGuard; arr: TStringArray;
+begin
+  g := env_override('FA_PATHS_EMPTY', '');
+  try
+    arr := env_get_paths('FA_PATHS_EMPTY');
+    AssertEquals(0, Length(arr));
+  finally g.Done; end;
+end;
+
+procedure TTestCase_Global.Test_env_get_float_valid_values;
+var g: TEnvOverrideGuard; v: Double;
+begin
+  g := env_override('FA_FLOAT_TEST', '3.14');
+  try
+    v := env_get_float('FA_FLOAT_TEST');
+    AssertTrue(System.Abs(v - 3.14) < 1e-12);
+  finally g.Done; end;
+
+  g := env_override('FA_FLOAT_TEST', ' -1.5 ');
+  try
+    v := env_get_float('FA_FLOAT_TEST');
+    AssertTrue(System.Abs(v - (-1.5)) < 1e-12);
+  finally g.Done; end;
+
+  g := env_override('FA_FLOAT_TEST', '1e3');
+  try
+    v := env_get_float('FA_FLOAT_TEST');
+    AssertTrue(System.Abs(v - 1000.0) < 1e-9);
+  finally g.Done; end;
+end;
+
+procedure TTestCase_Global.Test_env_get_float_default_when_invalid;
+var g: TEnvOverrideGuard;
+begin
+  g := env_override('FA_FLOAT_TEST', 'abc');
+  try AssertTrue(System.Abs(env_get_float('FA_FLOAT_TEST', 9.5) - 9.5) < 1e-12); finally g.Done; end;
+
+  g := env_override('FA_FLOAT_TEST', '');
+  try AssertTrue(System.Abs(env_get_float('FA_FLOAT_TEST', 1.25) - 1.25) < 1e-12); finally g.Done; end;
+
+  // Locale-invariant: comma-decimal should not parse
+  g := env_override('FA_FLOAT_TEST', '3,14');
+  try AssertTrue(System.Abs(env_get_float('FA_FLOAT_TEST', 7.25) - 7.25) < 1e-12); finally g.Done; end;
+end;
+
+procedure TTestCase_Global.Test_env_get_float_default_when_undefined;
+begin
+  env_unset('FA_FLOAT_UNDEF');
+  AssertTrue(System.Abs(env_get_float('FA_FLOAT_UNDEF') - 0.0) < 1e-12);
+  AssertTrue(System.Abs(env_get_float('FA_FLOAT_UNDEF', 2.5) - 2.5) < 1e-12);
+end;
+
+procedure TTestCase_Global.Test_env_get_list_comma_separated;
+var g: TEnvOverrideGuard; arr: TStringArray;
+begin
+  g := env_override('FA_LIST_TEST', 'a,b,c');
+  try
+    arr := env_get_list('FA_LIST_TEST');
+    AssertEquals(3, Length(arr));
+    AssertEquals('a', arr[0]);
+    AssertEquals('b', arr[1]);
+    AssertEquals('c', arr[2]);
+  finally g.Done; end;
+  // Single item
+  g := env_override('FA_LIST_TEST', 'single');
+  try
+    arr := env_get_list('FA_LIST_TEST');
+    AssertEquals(1, Length(arr));
+    AssertEquals('single', arr[0]);
+  finally g.Done; end;
+end;
+
+procedure TTestCase_Global.Test_env_get_list_custom_separator;
+var g: TEnvOverrideGuard; arr: TStringArray;
+begin
+  g := env_override('FA_LIST_TEST', 'x;y;z');
+  try
+    arr := env_get_list('FA_LIST_TEST', ';');
+    AssertEquals(3, Length(arr));
+    AssertEquals('x', arr[0]);
+    AssertEquals('y', arr[1]);
+    AssertEquals('z', arr[2]);
+  finally g.Done; end;
+  // Colon separator
+  g := env_override('FA_LIST_TEST', 'p:q:r');
+  try
+    arr := env_get_list('FA_LIST_TEST', ':');
+    AssertEquals(3, Length(arr));
+  finally g.Done; end;
+end;
+
+procedure TTestCase_Global.Test_env_get_list_empty_when_undefined;
+var arr: TStringArray;
+begin
+  env_unset('FA_LIST_UNDEF');
+  arr := env_get_list('FA_LIST_UNDEF');
+  AssertEquals(0, Length(arr));
+end;
+
+// P7: Convenience & Security Helpers tests
+procedure TTestCase_Global.Test_env_lookup_nonempty;
+var g: TEnvOverrideGuard; v: string; ok: Boolean;
+begin
+  env_unset('FA_NONEMPTY_UNDEF');
+  v := 'x';
+  ok := env_lookup_nonempty('FA_NONEMPTY_UNDEF', v);
+  AssertFalse(ok);
+  AssertEquals('', v);
+
+  g := env_override('FA_NONEMPTY', '');
+  try
+    v := 'x';
+    ok := env_lookup_nonempty('FA_NONEMPTY', v);
+    AssertFalse(ok);
+    AssertEquals('', v);
+  finally g.Done; end;
+
+  g := env_override('FA_NONEMPTY', 'hello');
+  try
+    v := '';
+    ok := env_lookup_nonempty('FA_NONEMPTY', v);
+    AssertTrue(ok);
+    AssertEquals('hello', v);
+  finally g.Done; end;
+end;
+
+procedure TTestCase_Global.Test_env_has_nonempty;
+var g: TEnvOverrideGuard;
+begin
+  env_unset('FA_NONEMPTY2');
+  AssertFalse(env_has_nonempty('FA_NONEMPTY2'));
+
+  g := env_override('FA_NONEMPTY2', '');
+  try
+    AssertFalse(env_has_nonempty('FA_NONEMPTY2'));
+  finally g.Done; end;
+
+  g := env_override('FA_NONEMPTY2', 'x');
+  try
+    AssertTrue(env_has_nonempty('FA_NONEMPTY2'));
+  finally g.Done; end;
+end;
+
+procedure TTestCase_Global.Test_env_get_nonempty_or;
+var g: TEnvOverrideGuard;
+begin
+  env_unset('FA_NONEMPTY3');
+  AssertEquals('d', env_get_nonempty_or('FA_NONEMPTY3', 'd'));
+
+  g := env_override('FA_NONEMPTY3', '');
+  try
+    AssertEquals('d', env_get_nonempty_or('FA_NONEMPTY3', 'd'));
+  finally g.Done; end;
+
+  g := env_override('FA_NONEMPTY3', 'v');
+  try
+    AssertEquals('v', env_get_nonempty_or('FA_NONEMPTY3', 'd'));
+  finally g.Done; end;
+end;
+
+procedure TTestCase_Global.Test_env_mask_value_for_name;
+begin
+  AssertEquals('********3456', env_mask_value_for_name('API_KEY', 'secret123456'));
+  AssertEquals('value', env_mask_value_for_name('PATH', 'value'));
+end;
 
 initialization
   RegisterTest(TTestCase_Global);
