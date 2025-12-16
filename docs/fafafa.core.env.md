@@ -266,6 +266,28 @@ end;
 - Unix：`env_iter` 直接遍历 libc environ（更少分配）；迭代过程中如修改环境变量，行为未定义。
 - Windows：`env_iter` 直接遍历 `GetEnvironmentStringsW` 返回的环境块（跳过 `=C:=...` 等伪变量）；迭代过程中如修改环境变量，行为未定义。
 - 需要稳定快照：先用 `env_vars`/`env_keys` 获取列表再遍历。
+- 若你需要**提前退出迭代**（例如 `break`/`exit`），请改用“手动遍历 + try/finally + enumerator.Free”模式，避免内部快照资源泄漏。
+
+示例（手动遍历，支持提前退出）：
+```pascal
+var
+  it: TEnvVarsEnumerator;
+  kv: TEnvKVPair;
+begin
+  it := env_iter;
+  try
+    while it.MoveNext do
+    begin
+      kv := it.Current;
+      WriteLn(kv.Key, '=', kv.Value);
+      if kv.Key = 'PATH' then
+        Break;
+    end;
+  finally
+    it.Free;
+  end;
+end;
+```
 
 ### 命令行参数处理
 ```pascal
