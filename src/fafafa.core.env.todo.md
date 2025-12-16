@@ -41,11 +41,12 @@
   - Result Err.Msg 可读性增强（包含 index/segment/separator/op/code 等）
 
 ## 测试覆盖
-- 94 个测试用例，全部通过
+- 95 个测试用例，全部通过
 - 覆盖：基础操作、RAII 守卫、字符串展开、PATH、目录查询、安全、便捷 API、平台常量、迭代器、命令行参数、沙盒、Result API、typed getters
 
 ## 待补充（低优先级）
-- [x] 文档明确：`env_iter` 在非 for-in 使用时需手动调用 enumerator.Free
+- [x] `env_iter`：for-in 提前退出（break/exit）也能自动清理内部资源
+- [x] 文档说明：若需要更及时/确定性释放，可手动遍历并调用 enumerator.Free
 - 备注：非 UNIX/WINDOWS 平台 `env_count` 走 os_environ snapshot（会分配 TStringList）
 
 ## 后续规划
