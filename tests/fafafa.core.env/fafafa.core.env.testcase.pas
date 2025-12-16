@@ -83,6 +83,7 @@ type
 
     // === Iterator API ===
     procedure Test_env_iter_for_in_syntax;
+    procedure Test_env_iter_break_auto_cleanup;
     procedure Test_env_iter_count_matches_env_count;
     procedure Test_env_iter_keys_have_no_equals;
 
@@ -1031,6 +1032,25 @@ begin
     AssertTrue('Key should not be empty', kv.Key <> '');
   end;
   AssertTrue('Should iterate at least one var', cnt > 0);
+end;
+
+procedure TTestCase_Global.Test_env_iter_break_auto_cleanup;
+var
+  Before, After: Integer;
+
+  procedure DoBreak;
+  var
+    kv: TEnvKVPair;
+  begin
+    for kv in env_iter do
+      break;
+  end;
+
+begin
+  Before := env_iter_debug_active_states;
+  DoBreak;
+  After := env_iter_debug_active_states;
+  AssertEquals('env_iter should auto-cleanup even when breaking early', Before, After);
 end;
 
 procedure TTestCase_Global.Test_env_iter_count_matches_env_count;
