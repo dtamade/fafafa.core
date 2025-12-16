@@ -17,7 +17,7 @@
 - **文档覆盖率**：100%
 - **安全等级**：高 (符合2024年最佳实践)
 - **性能等级**：优秀 (已优化)
-- **跨平台支持**：Windows/Linux/macOS/FreeBSD/OpenBSD/NetBSD
+- **跨平台支持**：Windows/Linux/macOS/Android/FreeBSD/OpenBSD/NetBSD
 
 ### v1.1 新增功能（2025-12-06）
 - **高价值便捷 API**：`env_required`, `env_keys`, `env_count`

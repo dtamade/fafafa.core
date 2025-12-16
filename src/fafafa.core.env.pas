@@ -10,6 +10,9 @@ interface
 
 uses
   SysUtils, Classes
+  {$IFDEF ANDROID}
+  , BaseUnix
+  {$ENDIF}
   {$IFDEF WINDOWS}
   , Windows
   {$ENDIF}
@@ -991,15 +994,176 @@ begin
   Result := SetCurrentDir(APath);
 end;
 
+{$IFDEF ANDROID}
+function _android_read_proc_cmdline: string;
+var
+  fs: TFileStream;
+  buf: array[0..4095] of Byte;
+  n, p: Integer;
+  s: RawByteString;
+begin
+  Result := '';
+  try
+    fs := TFileStream.Create('/proc/self/cmdline', fmOpenRead or fmShareDenyNone);
+    try
+      n := fs.Read(buf, SizeOf(buf));
+      if n <= 0 then Exit('');
+      SetString(s, PAnsiChar(@buf[0]), n);
+      p := Pos(#0, s);
+      if p > 0 then
+        SetLength(s, p - 1);
+      Result := string(s);
+    finally
+      fs.Free;
+    end;
+  except
+    Result := '';
+  end;
+end;
+
+function _android_process_name: string; inline;
+begin
+  Result := env_get('FAFAFA_ANDROID_PROCESS_NAME');
+  if Result <> '' then Exit;
+  Result := _android_read_proc_cmdline;
+end;
+
+function _android_package_name: string;
+var
+  s: string;
+  i, p: Integer;
+  c: Char;
+begin
+  Result := '';
+  s := _android_process_name;
+  if s = '' then Exit;
+
+  // Trim optional process suffix like com.example.app:service
+  p := Pos(':', s);
+  if p > 0 then
+    s := Copy(s, 1, p - 1);
+
+  // Basic validation: must look like a Java package name
+  if Pos('.', s) <= 0 then Exit;
+  for i := 1 to Length(s) do
+  begin
+    c := s[i];
+    if not (c in ['A'..'Z','a'..'z','0'..'9','_','.']) then
+      Exit('');
+  end;
+  Result := s;
+end;
+
+function _android_user_id: Integer;
+var
+  s: string;
+  code: Integer;
+  uid: LongInt;
+begin
+  s := env_get('FAFAFA_ANDROID_USER_ID');
+  if s <> '' then
+  begin
+    Val(Trim(s), Result, code);
+    if code = 0 then Exit;
+  end;
+
+  // Android: userId is encoded in uid (PER_USER_RANGE = 100000)
+  uid := fpGetUID;
+  if uid < 0 then uid := 0;
+  Result := uid div 100000;
+end;
+
+function _android_data_root: string; inline;
+begin
+  Result := env_get('FAFAFA_ANDROID_DATA_ROOT');
+  if Result = '' then
+    Result := '/data';
+  Result := ExcludeTrailingPathDelimiter(Result);
+end;
+
+function _android_data_dir: string;
+var
+  s, root, pkg, cand: string;
+  userId: Integer;
+begin
+  Result := '';
+
+  // Explicit override (useful for tests and exotic runtimes)
+  s := env_get('FAFAFA_ANDROID_DATA_DIR');
+  if s <> '' then
+    Exit(ExcludeTrailingPathDelimiter(s));
+
+  root := _android_data_root;
+  pkg := _android_package_name;
+  if pkg = '' then Exit('');
+
+  userId := _android_user_id;
+
+  // Primary: /data/user/<userId>/<pkg>
+  cand := root + PathDelim + 'user' + PathDelim + IntToStr(userId) + PathDelim + pkg;
+  if DirectoryExists(cand) then Exit(cand);
+
+  // Legacy symlink for primary user: /data/data/<pkg>
+  cand := root + PathDelim + 'data' + PathDelim + pkg;
+  if DirectoryExists(cand) then Exit(cand);
+
+  // Fallback: user 0
+  cand := root + PathDelim + 'user' + PathDelim + '0' + PathDelim + pkg;
+  if DirectoryExists(cand) then Exit(cand);
+
+  Result := '';
+end;
+
+function _android_files_dir: string; inline;
+var d: string;
+begin
+  d := _android_data_dir;
+  if d = '' then Exit('');
+  Result := d + PathDelim + 'files';
+end;
+
+function _android_cache_dir: string; inline;
+var d: string;
+begin
+  d := _android_data_dir;
+  if d = '' then Exit('');
+  Result := d + PathDelim + 'cache';
+end;
+{$ENDIF}
+
 function env_home_dir: string; inline;
+{$IFDEF ANDROID}
+var s: string;
+begin
+  s := _android_files_dir;
+  if s <> '' then Exit(s);
+  Result := os_home_dir;
+end;
+{$ELSE}
 begin
   Result := os_home_dir;
 end;
+{$ENDIF}
 
 function env_temp_dir: string; inline;
+{$IFDEF ANDROID}
+var s: string;
+begin
+  // Prefer standard temp env vars first
+  s := env_get('TMPDIR');
+  if s <> '' then Exit(ExcludeTrailingPathDelimiter(s));
+
+  // Android best-effort: use app cache dir
+  s := _android_cache_dir;
+  if s <> '' then Exit(s);
+
+  Result := os_temp_dir;
+end;
+{$ELSE}
 begin
   Result := os_temp_dir;
 end;
+{$ENDIF}
 
 function env_executable_path: string; inline;
 begin
@@ -1015,6 +1179,13 @@ begin
   if S <> '' then Exit(S);
   // fallback to home
   S := env_home_dir; if S <> '' then Exit(S + PathDelim + 'AppData' + PathDelim + 'Roaming');
+  {$ELSEIF DEFINED(ANDROID)}
+  S := _android_files_dir;
+  if S <> '' then Exit(S);
+  // fallback to XDG
+  S := env_get('XDG_CONFIG_HOME');
+  if S <> '' then Exit(S);
+  S := env_home_dir; if S <> '' then Exit(S + PathDelim + '.config');
   {$ELSEIF DEFINED(DARWIN)}
   S := env_home_dir;
   if S <> '' then Exit(S + PathDelim + 'Library' + PathDelim + 'Application Support');
@@ -1035,6 +1206,13 @@ begin
   if S <> '' then Exit(S);
   // fallback
   S := env_home_dir; if S <> '' then Exit(S + PathDelim + 'AppData' + PathDelim + 'Local');
+  {$ELSEIF DEFINED(ANDROID)}
+  S := _android_cache_dir;
+  if S <> '' then Exit(S);
+  // fallback to XDG
+  S := env_get('XDG_CACHE_HOME');
+  if S <> '' then Exit(S);
+  S := env_home_dir; if S <> '' then Exit(S + PathDelim + '.cache');
   {$ELSEIF DEFINED(DARWIN)}
   S := env_home_dir;
   if S <> '' then Exit(S + PathDelim + 'Library' + PathDelim + 'Caches');
@@ -1547,6 +1725,8 @@ function env_os: string; inline;
 begin
   {$IFDEF WINDOWS}
   Result := 'Windows';
+  {$ELSEIF DEFINED(ANDROID)}
+  Result := 'Android';
   {$ELSEIF DEFINED(DARWIN)}
   Result := 'Darwin';
   {$ELSEIF DEFINED(LINUX)}
