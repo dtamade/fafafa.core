@@ -225,7 +225,16 @@ begin
 
   while Result < Min do
   begin
-    LRead := Src.Read(LPtr, BufSize - Result);
+    try
+      LRead := Src.Read(LPtr, BufSize - Result);
+    except
+      on E: EIOError do
+      begin
+        if E.Kind = ekInterrupted then
+          Continue;
+        raise;
+      end;
+    end;
     if LRead = 0 then
       raise EUnexpectedEOF.Create('ReadAtLeast: unexpected EOF');
 
@@ -236,7 +245,16 @@ begin
   // 继续读取直到缓冲区满或 EOF
   while Result < BufSize do
   begin
-    LRead := Src.Read(LPtr, BufSize - Result);
+    try
+      LRead := Src.Read(LPtr, BufSize - Result);
+    except
+      on E: EIOError do
+      begin
+        if E.Kind = ekInterrupted then
+          Continue;
+        raise;
+      end;
+    end;
     if LRead = 0 then
       Break;
 

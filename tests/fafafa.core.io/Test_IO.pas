@@ -108,6 +108,7 @@ type
     procedure Test_ReadString_UTF8;
     procedure Test_CopyBuffer_CustomSize;
     procedure Test_ReadAtLeast_MinReached;
+    procedure Test_ReadAtLeast_Interrupted_Retries;
   end;
 
   { TTestStreamAdapter }
@@ -1465,6 +1466,30 @@ begin
   N := ReadAtLeast(Src, @Buf[0], 100, 30);  // 至少读 30 字节
   AssertTrue('At least 30', N >= 30);
   AssertEquals('Actually read 50', 50, N);  // 实际读取到 50
+end;
+
+procedure TTestIOUtils.Test_ReadAtLeast_Interrupted_Retries;
+var
+  SrcData: TBytes;
+  FailR: TFailNTimesReader;
+  Src: IReader;
+  Buf: array[0..99] of Byte;
+  N: SizeInt;
+  FailCount: Integer;
+begin
+  FailCount := 2;
+  SetLength(SrcData, 50);
+  FillChar(SrcData[0], 50, $BB);
+
+  FailR := TFailNTimesReader.Create(TIOCursor.FromBytes(SrcData), FailCount, ekInterrupted);
+  Src := FailR;
+
+  FillChar(Buf[0], Length(Buf), 0);
+  N := ReadAtLeast(Src, @Buf[0], 100, 30);
+
+  AssertTrue('At least 30', N >= 30);
+  AssertEquals('Actually read 50', 50, N);
+  AssertEquals('ReadAtLeast retries (calls)', FailCount + 2, FailR.CallCount);
 end;
 
 { TTestStreamAdapter }
