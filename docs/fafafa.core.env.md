@@ -266,9 +266,10 @@ end;
 - Unix：`env_iter` 直接遍历 libc environ（更少分配）；迭代过程中如修改环境变量，行为未定义。
 - Windows：`env_iter` 直接遍历 `GetEnvironmentStringsW` 返回的环境块（跳过 `=C:=...` 等伪变量）；迭代过程中如修改环境变量，行为未定义。
 - 需要稳定快照：先用 `env_vars`/`env_keys` 获取列表再遍历。
-- 若你需要**提前退出迭代**（例如 `break`/`exit`），请改用“手动遍历 + try/finally + enumerator.Free”模式，避免内部快照资源泄漏。
+- `env_iter` 支持在 `for-in` 中提前退出（例如 `break`/`exit`）而不泄漏：枚举器会在作用域结束时自动释放内部资源（Windows 环境块 / fallback 快照等）。
+  - 注意：FPC 对 record 枚举器的 `Finalize` 往往在**外层过程结束**时才触发；如果你需要更“及时/确定性”的释放，可以用下面的手动遍历示例，显式调用 `it.Free`。
 
-示例（手动遍历，支持提前退出）：
+示例（需要更及时释放时，手动遍历 + try/finally）：
 ```pascal
 var
   it: TEnvVarsEnumerator;

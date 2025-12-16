@@ -86,21 +86,34 @@ type
   //     WriteLn(kv.Key, '=', kv.Value);
   TEnvVarsEnumerator = record
   private
-    FList: TStringList;
-    FIndex: Integer;
-    {$IFDEF UNIX}
-    FEnvP: PPChar;
-    {$ENDIF}
-    {$IFDEF WINDOWS}
-    FWinStart: PWideChar;
-    FWinCur: PWideChar;
-    {$ENDIF}
-    FCurrent: TEnvKVPair;
+    type
+      PState = ^TState;
+      TState = record
+        RefCount: LongInt;
+        List: TStringList;
+        Index: Integer;
+        {$IFDEF UNIX}
+        EnvP: PPChar;
+        {$ENDIF}
+        {$IFDEF WINDOWS}
+        WinStart: PWideChar;
+        WinCur: PWideChar;
+        {$ENDIF}
+        Current: TEnvKVPair;
+      end;
+  private
+    FState: PState;
+    function GetCurrent: TEnvKVPair; inline;
+    class procedure StateAddRef(const S: PState); static; inline;
+    class procedure StateRelease(var S: PState); static;
+    class operator Initialize(var r: TEnvVarsEnumerator);
+    class operator Finalize(var r: TEnvVarsEnumerator);
+    class operator Copy(constref src: TEnvVarsEnumerator; var dst: TEnvVarsEnumerator);
   public
     function GetEnumerator: TEnvVarsEnumerator;
     function MoveNext: Boolean;
-    property Current: TEnvKVPair read FCurrent;
-    procedure Free; inline; // Safe to call; frees internal list if not already freed
+    property Current: TEnvKVPair read GetCurrent;
+    procedure Free; inline; // Safe to call; releases resources if not already released
   end;
 
   // Error types (for Result API)
@@ -257,6 +270,11 @@ function env_is_darwin: Boolean; inline;
 { ============================================================================ }
 
 function env_iter: TEnvVarsEnumerator;
+
+{$IFDEF FAFAFA_ENV_DEBUG_ITER}
+function env_iter_debug_active_states: Integer; inline;
+procedure env_iter_debug_reset_states; inline;
+{$ENDIF}
 
 { ============================================================================ }
 { === Command-line Arguments ================================================= }
@@ -1610,21 +1628,115 @@ begin
     env_unset(Keys[I]);
 end;
 
-function env_iter: TEnvVarsEnumerator;
+{$IFDEF FAFAFA_ENV_DEBUG_ITER}
+var
+  GEnvIterDebugActiveStates: LongInt = 0;
+{$ENDIF}
+
+{$IFDEF FAFAFA_ENV_DEBUG_ITER}
+function env_iter_debug_active_states: Integer; inline;
 begin
-  Result.FIndex := -1;
-  Result.FCurrent.Key := '';
-  Result.FCurrent.Value := '';
+  Result := GEnvIterDebugActiveStates;
+end;
+
+procedure env_iter_debug_reset_states; inline;
+begin
+  GEnvIterDebugActiveStates := 0;
+end;
+{$ENDIF}
+
+function TEnvVarsEnumerator.GetCurrent: TEnvKVPair; inline;
+begin
+  if FState <> nil then
+    Result := FState^.Current
+  else
+  begin
+    Result.Key := '';
+    Result.Value := '';
+  end;
+end;
+
+class procedure TEnvVarsEnumerator.StateAddRef(const S: PState); static; inline;
+begin
+  if S <> nil then
+    Inc(S^.RefCount);
+end;
+
+class procedure TEnvVarsEnumerator.StateRelease(var S: PState); static;
+begin
+  if S = nil then Exit;
+
+  Dec(S^.RefCount);
+  if S^.RefCount = 0 then
+  begin
+    if S^.List <> nil then
+    begin
+      S^.List.Free;
+      S^.List := nil;
+    end;
+    {$IFDEF WINDOWS}
+    if S^.WinStart <> nil then
+    begin
+      FreeEnvironmentStringsW(S^.WinStart);
+      S^.WinStart := nil;
+      S^.WinCur := nil;
+    end;
+    {$ENDIF}
+    {$IFDEF FAFAFA_ENV_DEBUG_ITER}
+    Dec(GEnvIterDebugActiveStates);
+    {$ENDIF}
+    Dispose(S);
+  end;
+
+  S := nil;
+end;
+
+class operator TEnvVarsEnumerator.Initialize(var r: TEnvVarsEnumerator);
+begin
+  r.FState := nil;
+end;
+
+class operator TEnvVarsEnumerator.Finalize(var r: TEnvVarsEnumerator);
+begin
+  StateRelease(r.FState);
+end;
+
+class operator TEnvVarsEnumerator.Copy(constref src: TEnvVarsEnumerator; var dst: TEnvVarsEnumerator);
+begin
+  if src.FState = dst.FState then Exit;
+
+  StateRelease(dst.FState);
+  dst.FState := src.FState;
+  StateAddRef(dst.FState);
+end;
+
+function env_iter: TEnvVarsEnumerator;
+var
+  S: TEnvVarsEnumerator.PState;
+begin
+  New(S);
+  S^.RefCount := 1;
+  S^.List := nil;
+  S^.Index := -1;
+  S^.Current.Key := '';
+  S^.Current.Value := '';
   {$IFDEF UNIX}
-  Result.FList := nil;
-  Result.FEnvP := environ;
-  {$ELSEIF DEFINED(WINDOWS)}
-  Result.FList := nil;
-  Result.FWinStart := GetEnvironmentStringsW();
-  Result.FWinCur := Result.FWinStart;
-  {$ELSE}
-  Result.FList := TStringList.Create;
-  os_environ(Result.FList);
+  S^.EnvP := environ;
+  {$ENDIF}
+  {$IFDEF WINDOWS}
+  S^.WinStart := GetEnvironmentStringsW();
+  S^.WinCur := S^.WinStart;
+  {$ENDIF}
+  {$IFNDEF UNIX}
+  {$IFNDEF WINDOWS}
+  S^.List := TStringList.Create;
+  os_environ(S^.List);
+  {$ENDIF}
+  {$ENDIF}
+
+  Result.FState := S;
+  {$IFDEF FAFAFA_ENV_DEBUG_ITER}
+  Inc(GEnvIterDebugActiveStates);
   {$ENDIF}
 end;
 
@@ -1640,51 +1752,54 @@ var
   S: UnicodeString;
   {$ENDIF}
 begin
-  if FList <> nil then
+  if FState = nil then
+    Exit(False);
+
+  if FState^.List <> nil then
   begin
-    Inc(FIndex);
-    if FIndex >= FList.Count then
+    Inc(FState^.Index);
+    if FState^.Index >= FState^.List.Count then
     begin
       // Auto-free when iteration completes
-      FList.Free;
-      FList := nil;
+      FState^.List.Free;
+      FState^.List := nil;
       Exit(False);
     end;
-    ParseEnvLine(FList[FIndex], FCurrent.Key, FCurrent.Value);
+    ParseEnvLine(FState^.List[FState^.Index], FState^.Current.Key, FState^.Current.Value);
     Exit(True);
   end;
 
   {$IFDEF UNIX}
-  while (FEnvP <> nil) and (FEnvP^ <> nil) do
+  while (FState^.EnvP <> nil) and (FState^.EnvP^ <> nil) do
   begin
-    Line := StrPas(FEnvP^);
-    Inc(FEnvP);
+    Line := StrPas(FState^.EnvP^);
+    Inc(FState^.EnvP);
     if Line = '' then Continue;
-    ParseEnvLine(Line, FCurrent.Key, FCurrent.Value);
-    if FCurrent.Key = '' then Continue;
+    ParseEnvLine(Line, FState^.Current.Key, FState^.Current.Value);
+    if FState^.Current.Key = '' then Continue;
     Exit(True);
   end;
   {$ENDIF}
 
   {$IFDEF WINDOWS}
-  while (FWinCur <> nil) and (FWinCur^ <> #0) do
+  while (FState^.WinCur <> nil) and (FState^.WinCur^ <> #0) do
   begin
-    S := FWinCur;
-    Inc(FWinCur, Length(S) + 1);
+    S := FState^.WinCur;
+    Inc(FState^.WinCur, Length(S) + 1);
     if (Length(S) > 0) and (S[1] = '=') then
       Continue; // skip pseudo variables like =C:=...
     Line := UTF8Encode(WideString(S));
     if Line = '' then Continue;
-    ParseEnvLine(Line, FCurrent.Key, FCurrent.Value);
-    if FCurrent.Key = '' then Continue;
+    ParseEnvLine(Line, FState^.Current.Key, FState^.Current.Value);
+    if FState^.Current.Key = '' then Continue;
     Exit(True);
   end;
   // Auto-free snapshot block when iteration completes
-  if FWinStart <> nil then
+  if FState^.WinStart <> nil then
   begin
-    FreeEnvironmentStringsW(FWinStart);
-    FWinStart := nil;
-    FWinCur := nil;
+    FreeEnvironmentStringsW(FState^.WinStart);
+    FState^.WinStart := nil;
+    FState^.WinCur := nil;
   end;
   {$ENDIF}
 
@@ -1693,19 +1808,7 @@ end;
 
 procedure TEnvVarsEnumerator.Free; inline;
 begin
-  if FList <> nil then
-  begin
-    FList.Free;
-    FList := nil;
-  end;
-  {$IFDEF WINDOWS}
-  if FWinStart <> nil then
-  begin
-    FreeEnvironmentStringsW(FWinStart);
-    FWinStart := nil;
-    FWinCur := nil;
-  end;
-  {$ENDIF}
+  StateRelease(FState);
 end;
 
 function env_args: TStringArray;
