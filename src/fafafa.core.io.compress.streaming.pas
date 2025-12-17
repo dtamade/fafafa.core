@@ -133,10 +133,31 @@ begin
 end;
 
 function TWriterStream.Write(const Buffer; Count: Longint): Longint;
+var
+  Written: SizeInt;
 begin
   if Count <= 0 then
     Exit(0);
-  Result := FWriter.Write(@Buffer, Count);
+
+  while True do
+  begin
+    try
+      Written := FWriter.Write(@Buffer, Count);
+    except
+      on E: EIOError do
+      begin
+        if E.Kind = ekInterrupted then
+          Continue;
+        raise;
+      end;
+    end;
+
+    if (Count > 0) and (Written = 0) then
+      raise EIOError.Create(ekWriteZero, 'write returned 0');
+
+    Result := Written;
+    Exit;
+  end;
 end;
 
 function TWriterStream.Seek(const Offset: Int64; Origin: TSeekOrigin): Int64;
@@ -160,7 +181,21 @@ function TReaderStream.Read(var Buffer; Count: Longint): Longint;
 begin
   if Count <= 0 then
     Exit(0);
-  Result := FReader.Read(@Buffer, Count);
+
+  while True do
+  begin
+    try
+      Result := FReader.Read(@Buffer, Count);
+      Exit;
+    except
+      on E: EIOError do
+      begin
+        if E.Kind = ekInterrupted then
+          Continue;
+        raise;
+      end;
+    end;
+  end;
 end;
 
 function TReaderStream.Write(const Buffer; Count: Longint): Longint;

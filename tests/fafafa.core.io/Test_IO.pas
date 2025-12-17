@@ -268,6 +268,7 @@ type
     procedure Test_Gzip_Streaming_EncodeDecodeRoundtrip;
     procedure Test_Deflate_Streaming_EncodeDecodeRoundtrip;
     procedure Test_Gzip_Streaming_LargeData;
+    procedure Test_Gzip_Streaming_Encode_Interrupted_Retries;
     procedure Test_Gzip_Decode_InvalidData_RaisesEIOError;
     procedure Test_Gzip_WriteToClosed_RaisesEIOError;
   end;
@@ -3398,6 +3399,32 @@ begin
   AssertEquals('First byte', Original[0], Decompressed[0]);
   AssertEquals('Middle byte', Original[512*1024], Decompressed[512*1024]);
   AssertEquals('Last byte', Original[High(Original)], Decompressed[High(Decompressed)]);
+end;
+
+procedure TTestStreamingCompress.Test_Gzip_Streaming_Encode_Interrupted_Retries;
+var
+  DstCursor: TIOCursor;
+  Inner: IWriter;
+  FailW: TFailNTimesWriter;
+  Dst: IWriter;
+  Encoder: IWriteCloser;
+  Data: TBytes;
+  FailCount: Integer;
+begin
+  FailCount := 2;
+  DstCursor := IO.Cursor;
+  Inner := DstCursor;
+  FailW := TFailNTimesWriter.Create(Inner, FailCount, ekInterrupted);
+  Dst := FailW;
+
+  Encoder := Compress.Gzip.Encode(Dst);
+  Data := TEncoding.UTF8.GetBytes('Hello Hello Hello Hello Hello');
+
+  WriteAll(Encoder, @Data[0], Length(Data));
+  Encoder.Close;
+
+  AssertTrue('Compressed data written', DstCursor.Size > 0);
+  AssertTrue('Underlying writer should have been retried', FailW.CallCount >= FailCount + 1);
 end;
 
 procedure TTestStreamingCompress.Test_Gzip_Decode_InvalidData_RaisesEIOError;
