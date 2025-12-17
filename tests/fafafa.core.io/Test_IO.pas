@@ -118,6 +118,7 @@ type
   published
     procedure Test_StreamIO_ReadWrite;
     procedure Test_StreamIO_Seek;
+    procedure Test_StreamReader_ReadAll_Interrupted_Retries;
   end;
 
   { TTestTeeIO }
@@ -471,6 +472,22 @@ type
     property CallCount: Integer read FCallCount;
   end;
 
+  { TFailNTimesInOutErrorStream - 测试用 Stream，前 N 次 Read 抛出 EInOutError }
+  TFailNTimesInOutErrorStream = class(TStream)
+  private
+    FInner: TMemoryStream;
+    FFailCount: Integer;
+    FReadCallCount: Integer;
+    FErrorCode: Integer;
+  public
+    constructor Create(const AData: TBytes; AFailCount: Integer; AErrorCode: Integer);
+    destructor Destroy; override;
+    function Read(var Buffer; Count: Longint): Longint; override;
+    function Write(const Buffer; Count: Longint): Longint; override;
+    function Seek(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
+    property ReadCallCount: Integer read FReadCallCount;
+  end;
+
 { TZeroWriter }
 
 function TZeroWriter.Write(Buf: Pointer; Count: SizeInt): SizeInt;
@@ -563,6 +580,51 @@ begin
   if FCallCount <= FFailCount then
     raise EIOError.Create(FErrorKind, Format('test failure %d/%d', [FCallCount, FFailCount]));
   Result := FInner.Write(Buf, Count);
+end;
+
+{ TFailNTimesInOutErrorStream }
+
+constructor TFailNTimesInOutErrorStream.Create(const AData: TBytes; AFailCount: Integer; AErrorCode: Integer);
+begin
+  inherited Create;
+  FInner := TMemoryStream.Create;
+  if Length(AData) > 0 then
+    FInner.WriteBuffer(AData[0], Length(AData));
+  FInner.Position := 0;
+
+  FFailCount := AFailCount;
+  FReadCallCount := 0;
+  FErrorCode := AErrorCode;
+end;
+
+destructor TFailNTimesInOutErrorStream.Destroy;
+begin
+  FreeAndNil(FInner);
+  inherited Destroy;
+end;
+
+function TFailNTimesInOutErrorStream.Read(var Buffer; Count: Longint): Longint;
+var
+  E: EInOutError;
+begin
+  Inc(FReadCallCount);
+  if FReadCallCount <= FFailCount then
+  begin
+    E := EInOutError.Create(SysErrorMessage(FErrorCode));
+    E.ErrorCode := FErrorCode;
+    raise E;
+  end;
+  Result := FInner.Read(Buffer, Count);
+end;
+
+function TFailNTimesInOutErrorStream.Write(const Buffer; Count: Longint): Longint;
+begin
+  Result := FInner.Write(Buffer, Count);
+end;
+
+function TFailNTimesInOutErrorStream.Seek(const Offset: Int64; Origin: TSeekOrigin): Int64;
+begin
+  Result := FInner.Seek(Offset, Origin);
 end;
 
 { TTestIOCursor }
@@ -1600,6 +1662,38 @@ begin
   finally
     IO.Free;
   end;
+end;
+
+procedure TTestStreamAdapter.Test_StreamReader_ReadAll_Interrupted_Retries;
+var
+  SrcData: TBytes;
+  S: TFailNTimesInOutErrorStream;
+  R: IReader;
+  LResult: TBytes;
+  FailCount: Integer;
+  ErrCode: Integer;
+begin
+  {$IFNDEF WINDOWS}
+  FailCount := 2;
+  ErrCode := ESysEINTR;
+  SrcData := TEncoding.UTF8.GetBytes('Hello');
+
+  S := TFailNTimesInOutErrorStream.Create(SrcData, FailCount, ErrCode);
+  try
+    R := ReaderFromStream(S, False);
+    LResult := ReadAll(R);
+
+    AssertEquals('ReadAll length', Length(SrcData), Length(LResult));
+    AssertEquals('Byte 0', Ord('H'), LResult[0]);
+    AssertEquals('Byte 4', Ord('o'), LResult[4]);
+    AssertEquals('Stream read retries (calls)', FailCount + 2, S.ReadCallCount);
+  finally
+    R := nil;
+    S.Free;
+  end;
+  {$ELSE}
+  AssertTrue(True);
+  {$ENDIF}
 end;
 
 { TTestTeeIO }

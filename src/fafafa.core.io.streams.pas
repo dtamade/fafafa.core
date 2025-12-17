@@ -143,6 +143,8 @@ begin
 end;
 
 function TStreamReader.Read(Buf: Pointer; Count: SizeInt): SizeInt;
+var
+  Kind: TIOErrorKind;
 begin
   Result := 0;
   if (Buf = nil) or (Count <= 0) then
@@ -151,6 +153,19 @@ begin
   try
     Result := FStream.Read(Buf^, Count);
   except
+    on E: EIOError do
+      raise;
+    on E: EInOutError do
+    begin
+      Kind := ekUnknown;
+      {$IFDEF UNIX}
+      Kind := IOUnixErrorKind(E.ErrorCode);
+      {$ENDIF}
+      {$IFDEF WINDOWS}
+      Kind := IOWinErrorKind(E.ErrorCode);
+      {$ENDIF}
+      raise EIOError.Create(Kind, 'read', '', E.ErrorCode, E.Message);
+    end;
     on E: Exception do
       raise IOErrorWrap(ekUnknown, 'read', '', E);
   end;
@@ -175,6 +190,8 @@ begin
 end;
 
 function TStreamWriter.Write(Buf: Pointer; Count: SizeInt): SizeInt;
+var
+  Kind: TIOErrorKind;
 begin
   Result := 0;
   if (Buf = nil) or (Count <= 0) then
@@ -183,6 +200,19 @@ begin
   try
     Result := FStream.Write(Buf^, Count);
   except
+    on E: EIOError do
+      raise;
+    on E: EInOutError do
+    begin
+      Kind := ekUnknown;
+      {$IFDEF UNIX}
+      Kind := IOUnixErrorKind(E.ErrorCode);
+      {$ENDIF}
+      {$IFDEF WINDOWS}
+      Kind := IOWinErrorKind(E.ErrorCode);
+      {$ENDIF}
+      raise EIOError.Create(Kind, 'write', '', E.ErrorCode, E.Message);
+    end;
     on E: Exception do
       raise IOErrorWrap(ekUnknown, 'write', '', E);
   end;
@@ -213,6 +243,8 @@ begin
 end;
 
 function TStreamIO.Read(Buf: Pointer; Count: SizeInt): SizeInt;
+var
+  Kind: TIOErrorKind;
 begin
   Result := 0;
   if (Buf = nil) or (Count <= 0) then
@@ -221,12 +253,27 @@ begin
   try
     Result := FStream.Read(Buf^, Count);
   except
+    on E: EIOError do
+      raise;
+    on E: EInOutError do
+    begin
+      Kind := ekUnknown;
+      {$IFDEF UNIX}
+      Kind := IOUnixErrorKind(E.ErrorCode);
+      {$ENDIF}
+      {$IFDEF WINDOWS}
+      Kind := IOWinErrorKind(E.ErrorCode);
+      {$ENDIF}
+      raise EIOError.Create(Kind, 'read', '', E.ErrorCode, E.Message);
+    end;
     on E: Exception do
       raise IOErrorWrap(ekUnknown, 'read', '', E);
   end;
 end;
 
 function TStreamIO.Write(Buf: Pointer; Count: SizeInt): SizeInt;
+var
+  Kind: TIOErrorKind;
 begin
   Result := 0;
   if (Buf = nil) or (Count <= 0) then
@@ -235,6 +282,19 @@ begin
   try
     Result := FStream.Write(Buf^, Count);
   except
+    on E: EIOError do
+      raise;
+    on E: EInOutError do
+    begin
+      Kind := ekUnknown;
+      {$IFDEF UNIX}
+      Kind := IOUnixErrorKind(E.ErrorCode);
+      {$ENDIF}
+      {$IFDEF WINDOWS}
+      Kind := IOWinErrorKind(E.ErrorCode);
+      {$ENDIF}
+      raise EIOError.Create(Kind, 'write', '', E.ErrorCode, E.Message);
+    end;
     on E: Exception do
       raise IOErrorWrap(ekUnknown, 'write', '', E);
   end;
@@ -243,6 +303,7 @@ end;
 function TStreamIO.Seek(Offset: Int64; Whence: Integer): Int64;
 var
   Origin: Word;
+  Kind: TIOErrorKind;
 begin
   case Whence of
     SeekStart:   Origin := soFromBeginning;
@@ -255,6 +316,19 @@ begin
   try
     Result := FStream.Seek(Offset, Origin);
   except
+    on E: EIOError do
+      raise;
+    on E: EInOutError do
+    begin
+      Kind := ekUnknown;
+      {$IFDEF UNIX}
+      Kind := IOUnixErrorKind(E.ErrorCode);
+      {$ENDIF}
+      {$IFDEF WINDOWS}
+      Kind := IOWinErrorKind(E.ErrorCode);
+      {$ENDIF}
+      raise EIOError.Create(Kind, 'seek', '', E.ErrorCode, E.Message);
+    end;
     on E: Exception do
       raise IOErrorWrap(ekUnknown, 'seek', '', E);
   end;
