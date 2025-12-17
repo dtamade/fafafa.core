@@ -146,6 +146,7 @@ type
     procedure Test_VecF32x4_ABI_CalleeSavedRegisters_Preserved_VectorReturn_ThreeVec;
     procedure Test_VecF32x4_ABI_CalleeSavedRegisters_Preserved_VectorReturn_Ptr;
     procedure Test_VecF32x4_ABI_CalleeSavedRegisters_Preserved_Store;
+    procedure Test_VecF32x4_ABI_CalleeSavedRegisters_Preserved_Insert;
     procedure Test_VecF32x4_ABI_CalleeSavedRegisters_Preserved_MaskReturn;
   end;
 
@@ -2127,6 +2128,86 @@ asm
   mov rax, qword ptr [rsp + 48]   // fn ptr
   mov rdi, rsi                    // a.lowQ
   mov rsi, rdx                    // a.highQ
+  call rax
+
+  // store vector result (reload out ptr after the call)
+  mov r10, qword ptr [rsp + 40]
+  mov qword ptr [r10], rax
+  mov qword ptr [r10 + 8], rdx
+
+  // verify callee-saved regs
+  cmp rbx, $11223344
+  jne @fail
+  cmp r12, $55667788
+  jne @fail
+  cmp r13, $0F0E0D0C
+  jne @fail
+  cmp r14, $01020304
+  jne @fail
+  cmp r15, $22334455
+  jne @fail
+
+  mov eax, 1
+  jmp @done
+
+@fail:
+  xor eax, eax
+
+@done:
+  pop r15
+  pop r14
+  pop r13
+  pop r12
+  pop rbx
+  add rsp, 16
+end;
+
+function AbiCall_VecSingleI32ToVec_CheckCalleeSaved(fn: Pointer; const a: TVecF32x4; value: Single; index: Integer; out v: TVecF32x4): Boolean; assembler; nostackframe;
+asm
+  // SysV AMD64 (Linux x86_64) - 混合 INTEGER/SSE 参数。
+  //
+  // 入参（本 helper 的签名：fn, a, value, index, out v）：
+  //   RDI  = fn
+  //   RSI  = a.lowQ
+  //   RDX  = a.highQ
+  //   RCX  = index
+  //   R8   = @v
+  //   XMM0 = value
+  //
+  // 被测函数（签名：fn(a, value, index): TVecF32x4）期望：
+  //   RDI  = a.lowQ
+  //   RSI  = a.highQ
+  //   RDX  = index
+  //   XMM0 = value
+  // Return（预期）：
+  //   RAX = result.lowQ
+  //   RDX = result.highQ
+
+  // 保存 out ptr / fn 到栈上（避免被测函数破坏 caller-saved 寄存器）。
+  // 额外说明：这里用 16 bytes local + 5 pushes，保证 call 前 RSP 16-byte 对齐。
+  sub rsp, 16
+  mov qword ptr [rsp], r8      // out ptr
+  mov qword ptr [rsp + 8], rdi // fn ptr
+
+  // 保存 callee-saved（本函数也必须遵守 ABI）
+  push rbx
+  push r12
+  push r13
+  push r14
+  push r15
+
+  // 注意：FPC 内置汇编器对 64-bit imm 支持有限，这里用“可表示的 signed dword”哨兵值。
+  mov rbx, $11223344
+  mov r12, $55667788
+  mov r13, $0F0E0D0C
+  mov r14, $01020304
+  mov r15, $22334455
+
+  // call fn(a, value, index)
+  mov rax, qword ptr [rsp + 48]   // fn ptr
+  mov rdi, rsi                    // a.lowQ
+  mov rsi, rdx                    // a.highQ
+  mov rdx, rcx                    // index
   call rax
 
   // store vector result (reload out ptr after the call)
@@ -5028,6 +5109,52 @@ begin
   finally
     FreeMem(rawDst);
     AlignedFree(alignedRaw);
+  end;
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecF32x4_ABI_CalleeSavedRegisters_Preserved_Insert;
+var
+  dt: PSimdDispatchTable;
+  a, expected, actual: TVecF32x4;
+  value: Single;
+  idx, iter, i: Integer;
+  bits: DWord;
+  ok: Boolean;
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+
+  AssertTrue('Dispatch.InsertF32x4 should be assigned', Assigned(dt^.InsertF32x4));
+  AssertTrue('InsertF32x4 should not be scalar when vector asm enabled', dt^.InsertF32x4 <> @ScalarInsertF32x4);
+
+  RandSeed := 20260106;
+
+  for iter := 1 to 2000 do
+  begin
+    // 任意 bit-pattern（包含 NaN/Inf/±0 等），Insert 应该保持 bit-exact。
+    for i := 0 to 3 do
+    begin
+      bits := DWord(Random($10000)) or (DWord(Random($10000)) shl 16);
+      a.f[i] := SingleFromBits(bits);
+    end;
+
+    bits := DWord(Random($10000)) or (DWord(Random($10000)) shl 16);
+    value := SingleFromBits(bits);
+
+    idx := Random(4);
+
+    expected := ScalarInsertF32x4(a, value, idx);
+    ok := AbiCall_VecSingleI32ToVec_CheckCalleeSaved(Pointer(dt^.InsertF32x4), a, value, idx, actual);
+    AssertTrue('ABI callee-saved should be preserved (InsertF32x4) iter ' + IntToStr(iter), ok);
+
+    for i := 0 to 3 do
+      AssertEquals('ABI InsertF32x4 iter ' + IntToStr(iter) + ' lane ' + IntToStr(i) + ' bits',
+                   BitsFromSingle(expected.f[i]), BitsFromSingle(actual.f[i]));
   end;
 end;
 
