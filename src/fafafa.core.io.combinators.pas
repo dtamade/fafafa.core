@@ -233,16 +233,16 @@ begin
     SeekCurrent: NewPos := FPos + Offset;
     SeekEnd:     NewPos := Length(FData) + Offset;
   else
-    raise EIOError.Create('TIOCursor.Seek: invalid whence');
+    raise EIOError.Create(ekInvalidInput, 'TIOCursor.Seek: invalid whence');
   end;
 
   if NewPos < 0 then
-    raise EIOError.Create('TIOCursor.Seek: negative position');
+    raise EIOError.Create(ekInvalidInput, 'TIOCursor.Seek: negative position');
 
   {$IFDEF CPU32}
   // 32 位平台溢出检查
   if NewPos > High(SizeInt) then
-    raise EIOError.Create('TIOCursor.Seek: position overflow');
+    raise EIOError.Create(ekInvalidInput, 'TIOCursor.Seek: position overflow');
   {$ENDIF}
 
   FPos := SizeInt(NewPos);

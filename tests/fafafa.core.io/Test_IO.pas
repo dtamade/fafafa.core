@@ -40,6 +40,8 @@ type
     procedure Test_Cursor_SeekStart_Success;
     procedure Test_Cursor_SeekCurrent_Success;
     procedure Test_Cursor_SeekEnd_Success;
+    procedure Test_Cursor_Seek_Negative_RaisesInvalidInput;
+    procedure Test_Cursor_Seek_InvalidWhence_RaisesInvalidInput;
     procedure Test_Cursor_ReadEOF_ReturnsZero;
     procedure Test_Cursor_FromBytes_Success;
     procedure Test_Cursor_ToBytes_Success;
@@ -701,6 +703,58 @@ begin
   try
     Pos := C.Seek(-10, SeekEnd);
     AssertEquals('Position after SeekEnd', 90, Pos);
+  finally
+    C.Free;
+  end;
+end;
+
+procedure TTestIOCursor.Test_Cursor_Seek_Negative_RaisesInvalidInput;
+var
+  C: TIOCursor;
+  Raised: Boolean;
+  GotKind: TIOErrorKind;
+begin
+  C := TIOCursor.Create;
+  try
+    Raised := False;
+    GotKind := ekUnknown;
+    try
+      C.Seek(-1, SeekStart);
+    except
+      on E: EIOError do
+      begin
+        Raised := True;
+        GotKind := E.Kind;
+      end;
+    end;
+    AssertTrue('Seek negative should raise', Raised);
+    AssertEquals('Seek negative kind', Ord(ekInvalidInput), Ord(GotKind));
+  finally
+    C.Free;
+  end;
+end;
+
+procedure TTestIOCursor.Test_Cursor_Seek_InvalidWhence_RaisesInvalidInput;
+var
+  C: TIOCursor;
+  Raised: Boolean;
+  GotKind: TIOErrorKind;
+begin
+  C := TIOCursor.Create;
+  try
+    Raised := False;
+    GotKind := ekUnknown;
+    try
+      C.Seek(0, 123);
+    except
+      on E: EIOError do
+      begin
+        Raised := True;
+        GotKind := E.Kind;
+      end;
+    end;
+    AssertTrue('Seek invalid whence should raise', Raised);
+    AssertEquals('Seek invalid whence kind', Ord(ekInvalidInput), Ord(GotKind));
   finally
     C.Free;
   end;
