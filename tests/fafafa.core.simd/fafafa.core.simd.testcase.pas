@@ -4463,10 +4463,14 @@ begin
   AssertTrue('Dispatch.AddF32x4 should be assigned', Assigned(dt^.AddF32x4));
   AssertTrue('Dispatch.SubF32x4 should be assigned', Assigned(dt^.SubF32x4));
   AssertTrue('Dispatch.MulF32x4 should be assigned', Assigned(dt^.MulF32x4));
+  AssertTrue('Dispatch.MinF32x4 should be assigned', Assigned(dt^.MinF32x4));
+  AssertTrue('Dispatch.MaxF32x4 should be assigned', Assigned(dt^.MaxF32x4));
 
   AssertTrue('AddF32x4 should not be scalar when vector asm enabled', dt^.AddF32x4 <> @ScalarAddF32x4);
   AssertTrue('SubF32x4 should not be scalar when vector asm enabled', dt^.SubF32x4 <> @ScalarSubF32x4);
   AssertTrue('MulF32x4 should not be scalar when vector asm enabled', dt^.MulF32x4 <> @ScalarMulF32x4);
+  AssertTrue('MinF32x4 should not be scalar when vector asm enabled', dt^.MinF32x4 <> @ScalarMinF32x4);
+  AssertTrue('MaxF32x4 should not be scalar when vector asm enabled', dt^.MaxF32x4 <> @ScalarMaxF32x4);
 
   RandSeed := 20251228;
 
@@ -4501,6 +4505,22 @@ begin
     AssertTrue('ABI callee-saved should be preserved (MulF32x4) iter ' + IntToStr(iter), ok);
     for i := 0 to 3 do
       AssertEquals('ABI MulF32x4 iter ' + IntToStr(iter) + ' lane ' + IntToStr(i) + ' bits',
+                   BitsFromSingle(expected.f[i]), BitsFromSingle(actual.f[i]));
+
+    // Min
+    expected := ScalarMinF32x4(a, b);
+    ok := AbiCall_TwoVecToVec_CheckCalleeSaved(Pointer(dt^.MinF32x4), a, b, actual);
+    AssertTrue('ABI callee-saved should be preserved (MinF32x4) iter ' + IntToStr(iter), ok);
+    for i := 0 to 3 do
+      AssertEquals('ABI MinF32x4 iter ' + IntToStr(iter) + ' lane ' + IntToStr(i) + ' bits',
+                   BitsFromSingle(expected.f[i]), BitsFromSingle(actual.f[i]));
+
+    // Max
+    expected := ScalarMaxF32x4(a, b);
+    ok := AbiCall_TwoVecToVec_CheckCalleeSaved(Pointer(dt^.MaxF32x4), a, b, actual);
+    AssertTrue('ABI callee-saved should be preserved (MaxF32x4) iter ' + IntToStr(iter), ok);
+    for i := 0 to 3 do
+      AssertEquals('ABI MaxF32x4 iter ' + IntToStr(iter) + ' lane ' + IntToStr(i) + ' bits',
                    BitsFromSingle(expected.f[i]), BitsFromSingle(actual.f[i]));
   end;
 end;
@@ -4581,9 +4601,17 @@ begin
 
   AssertTrue('Dispatch.CmpEqF32x4 should be assigned', Assigned(dt^.CmpEqF32x4));
   AssertTrue('Dispatch.CmpLtF32x4 should be assigned', Assigned(dt^.CmpLtF32x4));
+  AssertTrue('Dispatch.CmpLeF32x4 should be assigned', Assigned(dt^.CmpLeF32x4));
+  AssertTrue('Dispatch.CmpGtF32x4 should be assigned', Assigned(dt^.CmpGtF32x4));
+  AssertTrue('Dispatch.CmpGeF32x4 should be assigned', Assigned(dt^.CmpGeF32x4));
+  AssertTrue('Dispatch.CmpNeF32x4 should be assigned', Assigned(dt^.CmpNeF32x4));
 
   AssertTrue('CmpEqF32x4 should not be scalar when vector asm enabled', dt^.CmpEqF32x4 <> @ScalarCmpEqF32x4);
   AssertTrue('CmpLtF32x4 should not be scalar when vector asm enabled', dt^.CmpLtF32x4 <> @ScalarCmpLtF32x4);
+  AssertTrue('CmpLeF32x4 should not be scalar when vector asm enabled', dt^.CmpLeF32x4 <> @ScalarCmpLeF32x4);
+  AssertTrue('CmpGtF32x4 should not be scalar when vector asm enabled', dt^.CmpGtF32x4 <> @ScalarCmpGtF32x4);
+  AssertTrue('CmpGeF32x4 should not be scalar when vector asm enabled', dt^.CmpGeF32x4 <> @ScalarCmpGeF32x4);
+  AssertTrue('CmpNeF32x4 should not be scalar when vector asm enabled', dt^.CmpNeF32x4 <> @ScalarCmpNeF32x4);
 
   RandSeed := 20251231;
 
@@ -4604,6 +4632,26 @@ begin
     ok := AbiCall_TwoVecToMask_CheckCalleeSaved(Pointer(dt^.CmpLtF32x4), a, b, actual);
     AssertTrue('ABI callee-saved should be preserved (CmpLtF32x4) iter ' + IntToStr(iter), ok);
     AssertEquals('ABI CmpLtF32x4 iter ' + IntToStr(iter), expected, actual);
+
+    expected := ScalarCmpLeF32x4(a, b);
+    ok := AbiCall_TwoVecToMask_CheckCalleeSaved(Pointer(dt^.CmpLeF32x4), a, b, actual);
+    AssertTrue('ABI callee-saved should be preserved (CmpLeF32x4) iter ' + IntToStr(iter), ok);
+    AssertEquals('ABI CmpLeF32x4 iter ' + IntToStr(iter), expected, actual);
+
+    expected := ScalarCmpGtF32x4(a, b);
+    ok := AbiCall_TwoVecToMask_CheckCalleeSaved(Pointer(dt^.CmpGtF32x4), a, b, actual);
+    AssertTrue('ABI callee-saved should be preserved (CmpGtF32x4) iter ' + IntToStr(iter), ok);
+    AssertEquals('ABI CmpGtF32x4 iter ' + IntToStr(iter), expected, actual);
+
+    expected := ScalarCmpGeF32x4(a, b);
+    ok := AbiCall_TwoVecToMask_CheckCalleeSaved(Pointer(dt^.CmpGeF32x4), a, b, actual);
+    AssertTrue('ABI callee-saved should be preserved (CmpGeF32x4) iter ' + IntToStr(iter), ok);
+    AssertEquals('ABI CmpGeF32x4 iter ' + IntToStr(iter), expected, actual);
+
+    expected := ScalarCmpNeF32x4(a, b);
+    ok := AbiCall_TwoVecToMask_CheckCalleeSaved(Pointer(dt^.CmpNeF32x4), a, b, actual);
+    AssertTrue('ABI callee-saved should be preserved (CmpNeF32x4) iter ' + IntToStr(iter), ok);
+    AssertEquals('ABI CmpNeF32x4 iter ' + IntToStr(iter), expected, actual);
   end;
 end;
 
