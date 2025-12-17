@@ -243,6 +243,7 @@ type
   published
     procedure Test_EIOError_StructuredFields;
     procedure Test_IOErrorWrap_CreatesStructuredError;
+    procedure Test_IOErrorWrap_PreservesCode_FromEIOErrorCause;
     procedure Test_IOErrorRetryable_InterruptedIsTrue;
     procedure Test_IOErrorRetryable_NotFoundIsFalse;
   end;
@@ -3192,6 +3193,25 @@ begin
     end;
   end;
   AssertTrue('Should raise wrapped EIOError', Raised);
+end;
+
+procedure TTestIOError.Test_IOErrorWrap_PreservesCode_FromEIOErrorCause;
+var
+  Cause: EIOError;
+  Wrapped: EIOError;
+begin
+  Cause := EIOError.Create(ekNotFound, 'open', '/tmp/a', 123, 'No such file');
+  try
+    Wrapped := IOErrorWrap(ekUnknown, 'read', '/tmp/b', Cause);
+    try
+      AssertEquals('Code should be preserved', 123, Wrapped.Code);
+      AssertTrue('Cause should contain inner message', Pos('No such file', Wrapped.Cause) > 0);
+    finally
+      Wrapped.Free;
+    end;
+  finally
+    Cause.Free;
+  end;
 end;
 
 procedure TTestIOError.Test_IOErrorRetryable_InterruptedIsTrue;

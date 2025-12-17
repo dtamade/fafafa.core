@@ -38,12 +38,21 @@ implementation
 function IOErrorWrap(AKind: TIOErrorKind; const AOp, APath: string; ACause: Exception): EIOError;
 var
   CauseMsg: string;
+  Code: Integer;
 begin
+  CauseMsg := '';
+  Code := 0;
+
   if ACause <> nil then
-    CauseMsg := ACause.Message
-  else
-    CauseMsg := '';
-  Result := EIOError.Create(AKind, AOp, APath, 0, CauseMsg);
+  begin
+    CauseMsg := ACause.Message;
+    if ACause is EIOError then
+      Code := EIOError(ACause).Code
+    else if ACause is EInOutError then
+      Code := EInOutError(ACause).ErrorCode;
+  end;
+
+  Result := EIOError.Create(AKind, AOp, APath, Code, CauseMsg);
 end;
 
 function IOErrorRetryable(AKind: TIOErrorKind): Boolean;
