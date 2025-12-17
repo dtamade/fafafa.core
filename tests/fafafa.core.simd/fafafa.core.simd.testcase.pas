@@ -145,6 +145,7 @@ type
     procedure Test_VecF32x4_ABI_CalleeSavedRegisters_Preserved_VectorReturn_OneVec;
     procedure Test_VecF32x4_ABI_CalleeSavedRegisters_Preserved_VectorReturn_ThreeVec;
     procedure Test_VecF32x4_ABI_CalleeSavedRegisters_Preserved_VectorReturn_Ptr;
+    procedure Test_VecF32x4_ABI_CalleeSavedRegisters_Preserved_Store;
     procedure Test_VecF32x4_ABI_CalleeSavedRegisters_Preserved_MaskReturn;
   end;
 
@@ -2299,6 +2300,74 @@ asm
   mov r10, qword ptr [rsp + 40]
   mov qword ptr [r10], rax
   mov qword ptr [r10 + 8], rdx
+
+  // verify callee-saved regs
+  cmp rbx, $11223344
+  jne @fail
+  cmp r12, $55667788
+  jne @fail
+  cmp r13, $0F0E0D0C
+  jne @fail
+  cmp r14, $01020304
+  jne @fail
+  cmp r15, $22334455
+  jne @fail
+
+  mov eax, 1
+  jmp @done
+
+@fail:
+  xor eax, eax
+
+@done:
+  pop r15
+  pop r14
+  pop r13
+  pop r12
+  pop rbx
+  add rsp, 16
+end;
+
+function AbiCall_PtrVecToVoid_CheckCalleeSaved(fn: Pointer; p: PSingle; const a: TVecF32x4): Boolean; assembler; nostackframe;
+asm
+  // SysV AMD64 (Linux x86_64) - FPC 对 TVecF32x4 的实际 ABI：按 INTEGER 类传参。
+  //
+  // 入参（本 helper 的签名：fn, p, a）：
+  //   RDI = fn
+  //   RSI = p
+  //   RDX = a.lowQ
+  //   RCX = a.highQ
+  //
+  // 被测函数（签名：fn(p, a): void）期望：
+  //   RDI = p
+  //   RSI = a.lowQ
+  //   RDX = a.highQ
+
+  // 保存 fn ptr 到栈上（避免被测函数破坏 caller-saved 寄存器）。
+  // 额外说明：这里用 16 bytes local + 5 pushes，保证 call 前 RSP 16-byte 对齐。
+  sub rsp, 16
+  mov qword ptr [rsp], rdi     // fn ptr
+
+  // 保存 callee-saved（本函数也必须遵守 ABI）
+  push rbx
+  push r12
+  push r13
+  push r14
+  push r15
+
+  // 注意：FPC 内置汇编器对 64-bit imm 支持有限，这里用“可表示的 signed dword”哨兵值。
+  mov rbx, $11223344
+  mov r12, $55667788
+  mov r13, $0F0E0D0C
+  mov r14, $01020304
+  mov r15, $22334455
+
+  // call fn(p, a)
+  mov rax, qword ptr [rsp + 40]   // fn ptr
+  mov rdi, rsi                    // p
+  mov rsi, rdx                    // a.lowQ
+  mov rdx, rcx                    // a.highQ
+  call rax
 
   // verify callee-saved regs
   cmp rbx, $11223344
@@ -4869,6 +4938,96 @@ begin
     for i := 0 to 3 do
       AssertEquals('ABI LoadF32x4Aligned iter ' + IntToStr(iter) + ' lane ' + IntToStr(i) + ' bits',
                    BitsFromSingle(expected.f[i]), BitsFromSingle(actual.f[i]));
+  end;
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecF32x4_ABI_CalleeSavedRegisters_Preserved_Store;
+var
+  dt: PSimdDispatchTable;
+  a: TVecF32x4;
+  expBytes: array[0..15] of Byte;
+  rawDst: PByte;
+  pDst: PByte;
+  alignedRaw: Pointer;
+  pAlignedDst: PByte;
+  iter, i: Integer;
+  bits: DWord;
+  ok: Boolean;
+
+  procedure AssertBytesEqual(const msg: string; expectedPtr, actualPtr: PByte; count: Integer);
+  var
+    j: Integer;
+  begin
+    for j := 0 to count - 1 do
+      AssertEquals(msg + ' byte ' + IntToStr(j), expectedPtr[j], actualPtr[j]);
+  end;
+
+  procedure AssertAllBytesAre(const msg: string; p: PByte; count: Integer; value: Byte);
+  var
+    j: Integer;
+  begin
+    for j := 0 to count - 1 do
+      AssertEquals(msg + ' byte ' + IntToStr(j), value, p[j]);
+  end;
+
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+
+  AssertTrue('Dispatch.StoreF32x4 should be assigned', Assigned(dt^.StoreF32x4));
+  AssertTrue('Dispatch.StoreF32x4Aligned should be assigned', Assigned(dt^.StoreF32x4Aligned));
+
+  AssertTrue('StoreF32x4 should not be scalar when vector asm enabled', dt^.StoreF32x4 <> @ScalarStoreF32x4);
+  AssertTrue('StoreF32x4Aligned should not be scalar when vector asm enabled', dt^.StoreF32x4Aligned <> @ScalarStoreF32x4Aligned);
+
+  rawDst := GetMem(64);
+  alignedRaw := AlignedAlloc(128, SIMD_ALIGN_16);
+  try
+    // 故意制造非对齐地址
+    pDst := rawDst + 3;
+
+    // 选择一个 16-byte 对齐的目的地址（避免与 header 重叠，并留足哨兵区）
+    pAlignedDst := PByte(alignedRaw) + 64;
+    AssertTrue('pAlignedDst should be 16-byte aligned', IsAligned(pAlignedDst, SIMD_ALIGN_16));
+
+    RandSeed := 20260105;
+
+    for iter := 1 to 2000 do
+    begin
+      // 任意 bit-pattern（包含 NaN/Inf/±0 等），store 应该 bit-exact。
+      for i := 0 to 3 do
+      begin
+        bits := DWord(Random($10000)) or (DWord(Random($10000)) shl 16);
+        a.f[i] := SingleFromBits(bits);
+      end;
+      Move(a.f[0], expBytes[0], SizeOf(expBytes));
+
+      // --- Unaligned store ---
+      FillChar(rawDst^, 64, $CD);
+      ok := AbiCall_PtrVecToVoid_CheckCalleeSaved(Pointer(dt^.StoreF32x4), PSingle(pDst), a);
+      AssertTrue('ABI callee-saved should be preserved (StoreF32x4) iter ' + IntToStr(iter), ok);
+
+      AssertAllBytesAre('StoreF32x4 prefix sentinel', rawDst, 3, $CD);
+      AssertBytesEqual('StoreF32x4 payload', @expBytes[0], pDst, 16);
+      AssertAllBytesAre('StoreF32x4 suffix sentinel', pDst + 16, 64 - (3 + 16), $CD);
+
+      // --- Aligned store ---
+      FillChar(PByte(alignedRaw)^, 128, $EF);
+      ok := AbiCall_PtrVecToVoid_CheckCalleeSaved(Pointer(dt^.StoreF32x4Aligned), PSingle(pAlignedDst), a);
+      AssertTrue('ABI callee-saved should be preserved (StoreF32x4Aligned) iter ' + IntToStr(iter), ok);
+
+      AssertAllBytesAre('StoreF32x4Aligned prefix sentinel', PByte(alignedRaw), 64, $EF);
+      AssertBytesEqual('StoreF32x4Aligned payload', @expBytes[0], pAlignedDst, 16);
+      AssertAllBytesAre('StoreF32x4Aligned suffix sentinel', pAlignedDst + 16, 128 - (64 + 16), $EF);
+    end;
+  finally
+    FreeMem(rawDst);
+    AlignedFree(alignedRaw);
   end;
 end;
 
