@@ -4461,7 +4461,12 @@ begin
   AssertTrue('Dispatch table should be assigned', dt <> nil);
 
   AssertTrue('Dispatch.AddF32x4 should be assigned', Assigned(dt^.AddF32x4));
+  AssertTrue('Dispatch.SubF32x4 should be assigned', Assigned(dt^.SubF32x4));
+  AssertTrue('Dispatch.MulF32x4 should be assigned', Assigned(dt^.MulF32x4));
+
   AssertTrue('AddF32x4 should not be scalar when vector asm enabled', dt^.AddF32x4 <> @ScalarAddF32x4);
+  AssertTrue('SubF32x4 should not be scalar when vector asm enabled', dt^.SubF32x4 <> @ScalarSubF32x4);
+  AssertTrue('MulF32x4 should not be scalar when vector asm enabled', dt^.MulF32x4 <> @ScalarMulF32x4);
 
   RandSeed := 20251228;
 
@@ -4469,18 +4474,33 @@ begin
   begin
     for i := 0 to 3 do
     begin
-      // 选小整数，保证加法结果 float32 bit-exact
+      // 选小整数，保证结果 float32 bit-exact
       a.f[i] := Single(Random(2001) - 1000);
       b.f[i] := Single(Random(2001) - 1000);
     end;
 
+    // Add
     expected := ScalarAddF32x4(a, b);
-
     ok := AbiCall_TwoVecToVec_CheckCalleeSaved(Pointer(dt^.AddF32x4), a, b, actual);
     AssertTrue('ABI callee-saved should be preserved (AddF32x4) iter ' + IntToStr(iter), ok);
-
     for i := 0 to 3 do
       AssertEquals('ABI AddF32x4 iter ' + IntToStr(iter) + ' lane ' + IntToStr(i) + ' bits',
+                   BitsFromSingle(expected.f[i]), BitsFromSingle(actual.f[i]));
+
+    // Sub
+    expected := ScalarSubF32x4(a, b);
+    ok := AbiCall_TwoVecToVec_CheckCalleeSaved(Pointer(dt^.SubF32x4), a, b, actual);
+    AssertTrue('ABI callee-saved should be preserved (SubF32x4) iter ' + IntToStr(iter), ok);
+    for i := 0 to 3 do
+      AssertEquals('ABI SubF32x4 iter ' + IntToStr(iter) + ' lane ' + IntToStr(i) + ' bits',
+                   BitsFromSingle(expected.f[i]), BitsFromSingle(actual.f[i]));
+
+    // Mul
+    expected := ScalarMulF32x4(a, b);
+    ok := AbiCall_TwoVecToVec_CheckCalleeSaved(Pointer(dt^.MulF32x4), a, b, actual);
+    AssertTrue('ABI callee-saved should be preserved (MulF32x4) iter ' + IntToStr(iter), ok);
+    for i := 0 to 3 do
+      AssertEquals('ABI MulF32x4 iter ' + IntToStr(iter) + ' lane ' + IntToStr(i) + ' bits',
                    BitsFromSingle(expected.f[i]), BitsFromSingle(actual.f[i]));
   end;
 end;
