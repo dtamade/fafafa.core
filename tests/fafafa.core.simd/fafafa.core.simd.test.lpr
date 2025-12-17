@@ -432,6 +432,8 @@ begin
         testSuite.AddTest(TTestCase_BackendConsistency.Suite);
       if ShouldRunSuite('TTestCase_BackendSmoke') then
         testSuite.AddTest(TTestCase_BackendSmoke.Suite);
+      if ShouldRunSuite('TTestCase_AVX2VectorAsm') then
+        testSuite.AddTest(TTestCase_AVX2VectorAsm.Suite);
       if ShouldRunSuite('TTestCase_VectorOps') then
         testSuite.AddTest(TTestCase_VectorOps.Suite);
       if ShouldRunSuite('TTestCase_LargeData') then

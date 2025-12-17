@@ -45,6 +45,7 @@ implementation
 uses
   SysUtils,
   fafafa.core.simd.cpuinfo,
+  fafafa.core.simd.cpuinfo.base,
   fafafa.core.simd.scalar; // For fallback functions
 
 // === AVX2 Arithmetic Operations ===
@@ -95,6 +96,287 @@ begin
     vmovups xmm0, [rax]
     vdivps xmm0, xmm0, [rdx]
     vmovups [result], xmm0
+  end;
+end;
+
+function AVX2FmaF32x4(const a, b, c: TVecF32x4): TVecF32x4;
+begin
+  // 仅当 CPU + OS 均支持 FMA(AVX state) 时，才执行 vfmadd* 指令
+  if HasFeature(gfFMA) then
+  begin
+    asm
+      lea      rax, a
+      lea      rdx, b
+      lea      rcx, c
+      vmovups  xmm0, [rcx]          // xmm0 = c
+      vmovups  xmm1, [rax]          // xmm1 = a
+      vfmadd231ps xmm0, xmm1, [rdx] // xmm0 = a*b + c (fused)
+      vmovups  [result], xmm0
+    end;
+  end
+  else
+    Result := ScalarFmaF32x4(a, b, c);
+end;
+
+function AVX2RcpF32x4(const a: TVecF32x4): TVecF32x4;
+begin
+  asm
+    lea    rax, a
+    vmovups xmm0, [rax]
+    vrcpps xmm0, xmm0
+    vmovups [result], xmm0
+  end;
+end;
+
+function AVX2RsqrtF32x4(const a: TVecF32x4): TVecF32x4;
+begin
+  asm
+    lea     rax, a
+    vmovups xmm0, [rax]
+    vrsqrtps xmm0, xmm0
+    vmovups [result], xmm0
+  end;
+end;
+
+function AVX2FloorF32x4(const a: TVecF32x4): TVecF32x4;
+begin
+  if HasSSE41 then
+  begin
+    asm
+      lea    rax, a
+      vmovups xmm0, [rax]
+      // roundps xmm0, xmm0, 1  (floor)
+      db $66, $0F, $3A, $08, $C0, $01
+      vmovups [result], xmm0
+    end;
+  end
+  else
+    Result := ScalarFloorF32x4(a);
+end;
+
+function AVX2CeilF32x4(const a: TVecF32x4): TVecF32x4;
+begin
+  if HasSSE41 then
+  begin
+    asm
+      lea    rax, a
+      vmovups xmm0, [rax]
+      // roundps xmm0, xmm0, 2  (ceil)
+      db $66, $0F, $3A, $08, $C0, $02
+      vmovups [result], xmm0
+    end;
+  end
+  else
+    Result := ScalarCeilF32x4(a);
+end;
+
+function AVX2RoundF32x4(const a: TVecF32x4): TVecF32x4;
+begin
+  if HasSSE41 then
+  begin
+    asm
+      lea    rax, a
+      vmovups xmm0, [rax]
+      // roundps xmm0, xmm0, 0  (round to nearest even)
+      db $66, $0F, $3A, $08, $C0, $00
+      vmovups [result], xmm0
+    end;
+  end
+  else
+    Result := ScalarRoundF32x4(a);
+end;
+
+function AVX2TruncF32x4(const a: TVecF32x4): TVecF32x4;
+begin
+  if HasSSE41 then
+  begin
+    asm
+      lea    rax, a
+      vmovups xmm0, [rax]
+      // roundps xmm0, xmm0, 3  (truncate)
+      db $66, $0F, $3A, $08, $C0, $03
+      vmovups [result], xmm0
+    end;
+  end
+  else
+    Result := ScalarTruncF32x4(a);
+end;
+
+function AVX2ClampF32x4(const a, minVal, maxVal: TVecF32x4): TVecF32x4;
+begin
+  // 语义对齐：与 ScalarClampF32x4 相同的计算顺序：
+  //   Max(minVal, Min(a, maxVal))
+  // 注意：vmin/vmax 在 NaN 场景下是“返回第二操作数”，因此 operand 顺序必须匹配标量实现。
+  asm
+    lea     rax, a
+    lea     rdx, minVal
+    lea     rcx, maxVal
+
+    vmovups xmm0, [rax]
+    vminps  xmm0, xmm0, [rcx]   // temp = Min(a, maxVal)  (maxVal as 2nd operand)
+
+    vmovups xmm1, [rdx]
+    vmaxps  xmm0, xmm1, xmm0    // result = Max(minVal, temp) (temp as 2nd operand)
+
+    vmovups [result], xmm0
+  end;
+end;
+
+// === Vector Math Functions ===
+
+function AVX2DotF32x4(const a, b: TVecF32x4): Single;
+begin
+  asm
+    lea     rax, a
+    lea     rdx, b
+    vmovups xmm0, [rax]
+    vmovups xmm1, [rdx]
+    vmulps  xmm0, xmm0, xmm1
+
+    // Horizontal add: sum all 4 lanes
+    vshufps xmm1, xmm0, xmm0, $4E // Swap high/low pairs
+    vaddps  xmm0, xmm0, xmm1
+    vshufps xmm1, xmm0, xmm0, $B1 // Swap adjacent
+    vaddss  xmm0, xmm0, xmm1
+
+    vmovss  [result], xmm0
+  end;
+end;
+
+function AVX2DotF32x3(const a, b: TVecF32x4): Single;
+begin
+  asm
+    lea      rax, a
+    lea      rdx, b
+    vmovups  xmm0, [rax]
+    vmovups  xmm1, [rdx]
+    vmulps   xmm0, xmm0, xmm1
+
+    // Zero w before summing (mask = [FFFFFFFF,FFFFFFFF,FFFFFFFF,00000000])
+    vpcmpeqd xmm1, xmm1, xmm1
+    vpsrldq  xmm1, xmm1, 4
+    vandps   xmm0, xmm0, xmm1
+
+    // Horizontal add
+    vshufps  xmm1, xmm0, xmm0, $4E
+    vaddps   xmm0, xmm0, xmm1
+    vshufps  xmm1, xmm0, xmm0, $B1
+    vaddss   xmm0, xmm0, xmm1
+
+    vmovss   [result], xmm0
+  end;
+end;
+
+function AVX2CrossF32x3(const a, b: TVecF32x4): TVecF32x4;
+begin
+  // Cross = (a.y*b.z - a.z*b.y, a.z*b.x - a.x*b.z, a.x*b.y - a.y*b.x, 0)
+  asm
+    lea     rax, a
+    lea     rdx, b
+    vmovups xmm0, [rax]        // a = [x, y, z, w]
+    vmovups xmm1, [rdx]        // b = [x, y, z, w]
+
+    // Shuffle a: [y, z, x, w]
+    vshufps xmm2, xmm0, xmm0, $C9
+    // Shuffle b: [z, x, y, w]
+    vshufps xmm3, xmm1, xmm1, $D2
+    vmulps  xmm2, xmm2, xmm3
+
+    // Shuffle a: [z, x, y, w]
+    vshufps xmm4, xmm0, xmm0, $D2
+    // Shuffle b: [y, z, x, w]
+    vshufps xmm5, xmm1, xmm1, $C9
+    vmulps  xmm4, xmm4, xmm5
+
+    vsubps  xmm2, xmm2, xmm4
+    vmovups [result], xmm2
+  end;
+  Result.f[3] := 0.0; // Ensure w=0
+end;
+
+function AVX2LengthF32x4(const a: TVecF32x4): Single;
+begin
+  asm
+    lea     rax, a
+    vmovups xmm0, [rax]
+    vmulps  xmm0, xmm0, xmm0
+
+    // Horizontal add
+    vshufps xmm1, xmm0, xmm0, $4E
+    vaddps  xmm0, xmm0, xmm1
+    vshufps xmm1, xmm0, xmm0, $B1
+    vaddss  xmm0, xmm0, xmm1
+
+    vsqrtss xmm0, xmm0, xmm0
+    vmovss  [result], xmm0
+  end;
+end;
+
+function AVX2LengthF32x3(const a: TVecF32x4): Single;
+begin
+  asm
+    lea      rax, a
+    vmovups  xmm0, [rax]
+
+    // Zero w (mask = [FFFFFFFF,FFFFFFFF,FFFFFFFF,00000000])
+    vpcmpeqd xmm1, xmm1, xmm1
+    vpsrldq  xmm1, xmm1, 4
+    vandps   xmm0, xmm0, xmm1
+
+    vmulps   xmm0, xmm0, xmm0
+
+    // Horizontal add
+    vshufps  xmm1, xmm0, xmm0, $4E
+    vaddps   xmm0, xmm0, xmm1
+    vshufps  xmm1, xmm0, xmm0, $B1
+    vaddss   xmm0, xmm0, xmm1
+
+    vsqrtss  xmm0, xmm0, xmm0
+    vmovss   [result], xmm0
+  end;
+end;
+
+function AVX2NormalizeF32x4(const a: TVecF32x4): TVecF32x4;
+var
+  len: Single;
+begin
+  len := AVX2LengthF32x4(a);
+  if len > 0.0 then
+  begin
+    asm
+      lea     rax, a
+      vmovups xmm0, [rax]
+      vmovss  xmm1, len
+      vshufps xmm1, xmm1, xmm1, 0   // Broadcast length
+      vdivps  xmm0, xmm0, xmm1      // Divide each element by length
+      vmovups [result], xmm0
+    end;
+  end
+  else
+    Result := a;
+end;
+
+function AVX2NormalizeF32x3(const a: TVecF32x4): TVecF32x4;
+var
+  len: Single;
+begin
+  len := AVX2LengthF32x3(a);
+  if len > 0.0 then
+  begin
+    asm
+      lea     rax, a
+      vmovups xmm0, [rax]
+      vmovss  xmm1, len
+      vshufps xmm1, xmm1, xmm1, 0
+      vdivps  xmm0, xmm0, xmm1
+      vmovups [result], xmm0
+    end;
+    Result.f[3] := 0.0;
+  end
+  else
+  begin
+    Result := a;
+    Result.f[3] := 0.0;
   end;
 end;
 
@@ -325,27 +607,59 @@ end;
 
 function AVX2ReduceMinF32x4(const a: TVecF32x4): Single;
 begin
+  // 语义对齐：与 ScalarReduceMinF32x4 相同的顺序 fold。
+  // 说明：vmin* 在 NaN/相等值/±0 上是“选择第二操作数”的语义，
+  // 这会让 reduction 的结果依赖于归约顺序；因此这里按 a0->a1->a2->a3 顺序归约。
   asm
     lea      rax, a
-    vmovups  xmm0, [rax]
-    vshufps  xmm1, xmm0, xmm0, $4E
-    vminps   xmm0, xmm0, xmm1
-    vshufps  xmm1, xmm0, xmm0, $B1
+    vmovups  xmm2, [rax]
+
+    // acc := a0
+    vmovaps  xmm0, xmm2
+
+    // acc := min(acc, a1)
+    vshufps  xmm1, xmm2, xmm2, $55
     vminss   xmm0, xmm0, xmm1
+
+    // acc := min(acc, a2)
+    vshufps  xmm1, xmm2, xmm2, $AA
+    vminss   xmm0, xmm0, xmm1
+
+    // acc := min(acc, a3)
+    vshufps  xmm1, xmm2, xmm2, $FF
+    vminss   xmm0, xmm0, xmm1
+
     vmovss   [result], xmm0
+    vzeroupper
   end;
 end;
 
 function AVX2ReduceMaxF32x4(const a: TVecF32x4): Single;
 begin
+  // 语义对齐：与 ScalarReduceMaxF32x4 相同的顺序 fold。
+  // 说明：vmax* 在 NaN/相等值/±0 上是“选择第二操作数”的语义，
+  // 这会让 reduction 的结果依赖于归约顺序；因此这里按 a0->a1->a2->a3 顺序归约。
   asm
     lea      rax, a
-    vmovups  xmm0, [rax]
-    vshufps  xmm1, xmm0, xmm0, $4E
-    vmaxps   xmm0, xmm0, xmm1
-    vshufps  xmm1, xmm0, xmm0, $B1
+    vmovups  xmm2, [rax]
+
+    // acc := a0
+    vmovaps  xmm0, xmm2
+
+    // acc := max(acc, a1)
+    vshufps  xmm1, xmm2, xmm2, $55
     vmaxss   xmm0, xmm0, xmm1
+
+    // acc := max(acc, a2)
+    vshufps  xmm1, xmm2, xmm2, $AA
+    vmaxss   xmm0, xmm0, xmm1
+
+    // acc := max(acc, a3)
+    vshufps  xmm1, xmm2, xmm2, $FF
+    vmaxss   xmm0, xmm0, xmm1
+
     vmovss   [result], xmm0
+    vzeroupper
   end;
 end;
 
@@ -445,49 +759,79 @@ end;
 // === F32x8 Operations (native 256-bit AVX) ===
 
 function AVX2AddF32x8(const a, b: TVecF32x8): TVecF32x8;
+var
+  pa, pb, pr: Pointer;
 begin
+  // 注意：FPC 对 32-byte record 的传参与返回值可能走 hidden pointer 约定。
+  // 直接在 asm 中用 [a]/[result] 容易把指针槽当作数据块，导致栈/堆被写坏。
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
   asm
-    lea     rax, a
-    lea     rdx, b
-    vmovups ymm0, [rax]
-    vaddps  ymm0, ymm0, [rdx]
-    vmovups [result], ymm0
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovups ymm0, [rdx]
+    vaddps  ymm0, ymm0, [rcx]
+    vmovups [rax], ymm0
     vzeroupper
   end;
 end;
 
 function AVX2SubF32x8(const a, b: TVecF32x8): TVecF32x8;
+var
+  pa, pb, pr: Pointer;
 begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
   asm
-    lea     rax, a
-    lea     rdx, b
-    vmovups ymm0, [rax]
-    vsubps  ymm0, ymm0, [rdx]
-    vmovups [result], ymm0
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovups ymm0, [rdx]
+    vsubps  ymm0, ymm0, [rcx]
+    vmovups [rax], ymm0
     vzeroupper
   end;
 end;
 
 function AVX2MulF32x8(const a, b: TVecF32x8): TVecF32x8;
+var
+  pa, pb, pr: Pointer;
 begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
   asm
-    lea     rax, a
-    lea     rdx, b
-    vmovups ymm0, [rax]
-    vmulps  ymm0, ymm0, [rdx]
-    vmovups [result], ymm0
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovups ymm0, [rdx]
+    vmulps  ymm0, ymm0, [rcx]
+    vmovups [rax], ymm0
     vzeroupper
   end;
 end;
 
 function AVX2DivF32x8(const a, b: TVecF32x8): TVecF32x8;
+var
+  pa, pb, pr: Pointer;
 begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
   asm
-    lea     rax, a
-    lea     rdx, b
-    vmovups ymm0, [rax]
-    vdivps  ymm0, ymm0, [rdx]
-    vmovups [result], ymm0
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovups ymm0, [rdx]
+    vdivps  ymm0, ymm0, [rcx]
+    vmovups [rax], ymm0
     vzeroupper
   end;
 end;
@@ -1648,24 +1992,67 @@ begin
     dispatchTable.InsertF32x4 := @ScalarInsertF32x4;
   end;
 
-  // Register extended math functions (Scalar for now)
-  dispatchTable.FmaF32x4 := @ScalarFmaF32x4;
-  dispatchTable.RcpF32x4 := @ScalarRcpF32x4;
-  dispatchTable.RsqrtF32x4 := @ScalarRsqrtF32x4;
-  dispatchTable.FloorF32x4 := @ScalarFloorF32x4;
-  dispatchTable.CeilF32x4 := @ScalarCeilF32x4;
-  dispatchTable.RoundF32x4 := @ScalarRoundF32x4;
-  dispatchTable.TruncF32x4 := @ScalarTruncF32x4;
-  dispatchTable.ClampF32x4 := @ScalarClampF32x4;
+  // Register extended math functions
+  if IsVectorAsmEnabled then
+  begin
+    dispatchTable.FmaF32x4 := @AVX2FmaF32x4;
+    dispatchTable.RcpF32x4 := @AVX2RcpF32x4;
+    dispatchTable.RsqrtF32x4 := @AVX2RsqrtF32x4;
+    dispatchTable.FloorF32x4 := @AVX2FloorF32x4;
+    dispatchTable.CeilF32x4 := @AVX2CeilF32x4;
+    dispatchTable.RoundF32x4 := @AVX2RoundF32x4;
+    dispatchTable.TruncF32x4 := @AVX2TruncF32x4;
+    dispatchTable.ClampF32x4 := @AVX2ClampF32x4;
+  end
+  else
+  begin
+    dispatchTable.FmaF32x4 := @ScalarFmaF32x4;
+    dispatchTable.RcpF32x4 := @ScalarRcpF32x4;
+    dispatchTable.RsqrtF32x4 := @ScalarRsqrtF32x4;
+    dispatchTable.FloorF32x4 := @ScalarFloorF32x4;
+    dispatchTable.CeilF32x4 := @ScalarCeilF32x4;
+    dispatchTable.RoundF32x4 := @ScalarRoundF32x4;
+    dispatchTable.TruncF32x4 := @ScalarTruncF32x4;
+    dispatchTable.ClampF32x4 := @ScalarClampF32x4;
+  end;
 
-  // Register 3D/4D vector math (Scalar for now)
-  dispatchTable.DotF32x4 := @ScalarDotF32x4;
-  dispatchTable.DotF32x3 := @ScalarDotF32x3;
-  dispatchTable.CrossF32x3 := @ScalarCrossF32x3;
-  dispatchTable.LengthF32x4 := @ScalarLengthF32x4;
-  dispatchTable.LengthF32x3 := @ScalarLengthF32x3;
-  dispatchTable.NormalizeF32x4 := @ScalarNormalizeF32x4;
-  dispatchTable.NormalizeF32x3 := @ScalarNormalizeF32x3;
+  // Register 3D/4D vector math
+  if IsVectorAsmEnabled then
+  begin
+    dispatchTable.DotF32x4 := @AVX2DotF32x4;
+    dispatchTable.DotF32x3 := @AVX2DotF32x3;
+  end
+  else
+  begin
+    dispatchTable.DotF32x4 := @ScalarDotF32x4;
+    dispatchTable.DotF32x3 := @ScalarDotF32x3;
+  end;
+
+  // 其余向量数学函数逐步覆盖。
+  if IsVectorAsmEnabled then
+    dispatchTable.CrossF32x3 := @AVX2CrossF32x3
+  else
+    dispatchTable.CrossF32x3 := @ScalarCrossF32x3;
+
+  if IsVectorAsmEnabled then
+    dispatchTable.LengthF32x4 := @AVX2LengthF32x4
+  else
+    dispatchTable.LengthF32x4 := @ScalarLengthF32x4;
+
+  if IsVectorAsmEnabled then
+    dispatchTable.LengthF32x3 := @AVX2LengthF32x3
+  else
+    dispatchTable.LengthF32x3 := @ScalarLengthF32x3;
+
+  if IsVectorAsmEnabled then
+    dispatchTable.NormalizeF32x4 := @AVX2NormalizeF32x4
+  else
+    dispatchTable.NormalizeF32x4 := @ScalarNormalizeF32x4;
+
+  if IsVectorAsmEnabled then
+    dispatchTable.NormalizeF32x3 := @AVX2NormalizeF32x3
+  else
+    dispatchTable.NormalizeF32x3 := @ScalarNormalizeF32x3;
 
   // Register facade functions (AVX2-accelerated where available)
   dispatchTable.MemEqual := @MemEqual_AVX2;

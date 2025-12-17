@@ -6,8 +6,6 @@ unit fafafa.core.simd.types;
 interface
 
 uses
-  // 仅用于类型别名导出
-  Math,
   fafafa.core.math,
   fafafa.core.simd.cpuinfo.base,
   fafafa.core.simd.base;
@@ -256,7 +254,7 @@ function VecF32x4Exp2(const a: TVecF32x4): TVecF32x4; inline;
 function VecF32x4Log(const a: TVecF32x4): TVecF32x4; inline;
 function VecF32x4Log2(const a: TVecF32x4): TVecF32x4; inline;
 function VecF32x4Log10(const a: TVecF32x4): TVecF32x4; inline;
-function VecF32x4Pow(const base, exp: TVecF32x4): TVecF32x4; inline;
+function VecF32x4Pow(const base, exponent: TVecF32x4): TVecF32x4; inline;
 
 // 反三角函数
 function VecF32x4Asin(const a: TVecF32x4): TVecF32x4; inline;
@@ -1323,14 +1321,14 @@ function VecF32x4Sin(const a: TVecF32x4): TVecF32x4;
 var i: Integer;
 begin
   for i := 0 to 3 do
-    Result.f[i] := System.Sin(a.f[i]);
+    Result.f[i] := Sin(a.f[i]);
 end;
 
 function VecF32x4Cos(const a: TVecF32x4): TVecF32x4;
 var i: Integer;
 begin
   for i := 0 to 3 do
-    Result.f[i] := System.Cos(a.f[i]);
+    Result.f[i] := Cos(a.f[i]);
 end;
 
 procedure VecF32x4SinCos(const a: TVecF32x4; out sinResult, cosResult: TVecF32x4);
@@ -1338,7 +1336,8 @@ var i: Integer;
 begin
   for i := 0 to 3 do
   begin
-    Math.SinCos(a.f[i], sinResult.f[i], cosResult.f[i]);
+    sinResult.f[i] := Sin(a.f[i]);
+    cosResult.f[i] := Cos(a.f[i]);
   end;
 end;
 
@@ -1346,14 +1345,14 @@ function VecF32x4Tan(const a: TVecF32x4): TVecF32x4;
 var i: Integer;
 begin
   for i := 0 to 3 do
-    Result.f[i] := System.Sin(a.f[i]) / System.Cos(a.f[i]);
+    Result.f[i] := Tan(a.f[i]);
 end;
 
 function VecF32x4Exp(const a: TVecF32x4): TVecF32x4;
 var i: Integer;
 begin
   for i := 0 to 3 do
-    Result.f[i] := System.Exp(a.f[i]);
+    Result.f[i] := Exp(a.f[i]);
 end;
 
 function VecF32x4Exp2(const a: TVecF32x4): TVecF32x4;
@@ -1361,14 +1360,14 @@ const LN2 = 0.6931471805599453;
 var i: Integer;
 begin
   for i := 0 to 3 do
-    Result.f[i] := System.Exp(a.f[i] * LN2);
+    Result.f[i] := Exp(a.f[i] * LN2);
 end;
 
 function VecF32x4Log(const a: TVecF32x4): TVecF32x4;
 var i: Integer;
 begin
   for i := 0 to 3 do
-    Result.f[i] := System.Ln(a.f[i]);
+    Result.f[i] := Ln(a.f[i]);
 end;
 
 function VecF32x4Log2(const a: TVecF32x4): TVecF32x4;
@@ -1376,7 +1375,7 @@ const INV_LN2 = 1.4426950408889634;
 var i: Integer;
 begin
   for i := 0 to 3 do
-    Result.f[i] := System.Ln(a.f[i]) * INV_LN2;
+    Result.f[i] := Ln(a.f[i]) * INV_LN2;
 end;
 
 function VecF32x4Log10(const a: TVecF32x4): TVecF32x4;
@@ -1384,15 +1383,15 @@ const INV_LN10 = 0.4342944819032518;
 var i: Integer;
 begin
   for i := 0 to 3 do
-    Result.f[i] := System.Ln(a.f[i]) * INV_LN10;
+    Result.f[i] := Ln(a.f[i]) * INV_LN10;
 end;
 
-function VecF32x4Pow(const base, exp: TVecF32x4): TVecF32x4;
+function VecF32x4Pow(const base, exponent: TVecF32x4): TVecF32x4;
 var i: Integer;
 begin
   for i := 0 to 3 do
     if base.f[i] > 0 then
-      Result.f[i] := System.Exp(exp.f[i] * System.Ln(base.f[i]))
+      Result.f[i] := Exp(exponent.f[i] * Ln(base.f[i]))
     else if base.f[i] = 0 then
       Result.f[i] := 0
     else
@@ -1403,28 +1402,28 @@ function VecF32x4Asin(const a: TVecF32x4): TVecF32x4;
 var i: Integer;
 begin
   for i := 0 to 3 do
-    Result.f[i] := Math.ArcSin(a.f[i]);
+    Result.f[i] := ArcSin(a.f[i]);
 end;
 
 function VecF32x4Acos(const a: TVecF32x4): TVecF32x4;
 var i: Integer;
 begin
   for i := 0 to 3 do
-    Result.f[i] := Math.ArcCos(a.f[i]);
+    Result.f[i] := ArcCos(a.f[i]);
 end;
 
 function VecF32x4Atan(const a: TVecF32x4): TVecF32x4;
 var i: Integer;
 begin
   for i := 0 to 3 do
-    Result.f[i] := System.ArcTan(a.f[i]);
+    Result.f[i] := ArcTan(a.f[i]);
 end;
 
 function VecF32x4Atan2(const y, x: TVecF32x4): TVecF32x4;
 var i: Integer;
 begin
   for i := 0 to 3 do
-    Result.f[i] := Math.ArcTan2(y.f[i], x.f[i]);
+    Result.f[i] := ArcTan2(y.f[i], x.f[i]);
 end;
 
 // === 高级算法实现 (Phase 5) ===

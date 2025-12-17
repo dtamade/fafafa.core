@@ -34,7 +34,8 @@ implementation
 uses
   SysUtils,
   fafafa.core.simd.cpuinfo,
-  fafafa.core.simd.scalar; // For fallback functions
+  fafafa.core.simd.scalar, // For fallback functions
+  fafafa.core.math;
 
 // === SSE2 Arithmetic Operations ===
 // Note: FPC x86-64 calling convention:
@@ -860,7 +861,7 @@ begin
   else
   begin
     for i := 0 to 3 do
-      Result.f[i] := System.Int(a.f[i]);
+      Result.f[i] := Int(a.f[i]);
     // Adjust for negative numbers
     for i := 0 to 3 do
       if (a.f[i] < 0) and (Result.f[i] <> a.f[i]) then
@@ -885,7 +886,7 @@ begin
   else
   begin
     for i := 0 to 3 do
-      Result.f[i] := System.Int(a.f[i]);
+      Result.f[i] := Int(a.f[i]);
     // Adjust for positive numbers
     for i := 0 to 3 do
       if (a.f[i] > 0) and (Result.f[i] <> a.f[i]) then
@@ -910,7 +911,7 @@ begin
   else
   begin
     for i := 0 to 3 do
-      Result.f[i] := System.Round(a.f[i]);
+      Result.f[i] := Round(a.f[i]);
   end;
 end;
 
@@ -931,7 +932,7 @@ begin
   else
   begin
     for i := 0 to 3 do
-      Result.f[i] := System.Int(a.f[i]);
+      Result.f[i] := Int(a.f[i]);
   end;
 end;
 

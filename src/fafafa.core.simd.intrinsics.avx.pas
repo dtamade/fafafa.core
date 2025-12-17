@@ -121,6 +121,9 @@ procedure avx_zeroall;
 
 implementation
 
+uses
+  fafafa.core.math;
+
 // === 基础函数实现 (Pascal 版本) ===
 function avx_load_ps256(const Ptr: Pointer): TM256;
 begin

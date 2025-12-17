@@ -60,7 +60,8 @@ procedure ApplyEdgeDetection(var dest: TImage; const src: TImage);
 implementation
 
 uses
-  SysUtils;
+  SysUtils,
+  fafafa.core.math;
 
 // === 常量定义 ===
 const

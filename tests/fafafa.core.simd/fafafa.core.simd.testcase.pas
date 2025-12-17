@@ -17,6 +17,7 @@ uses
   fafafa.core.simd.avx2,
   fafafa.core.simd.avx512,
   fafafa.core.simd.cpuinfo,
+  fafafa.core.simd.cpuinfo.base,
   fafafa.core.simd.memutils,
   fafafa.core.simd.builder;
 
@@ -95,6 +96,51 @@ type
     procedure Test_ForceSSE2_VecF32x4_Smoke;
     procedure Test_ForceAVX2_VecF32x4_Smoke;
     procedure Test_ForceAVX512_VecF32x4_Smoke;
+  end;
+
+  // AVX2 VectorAsm 专项测试：聚焦于向量汇编路径的正确性（小步推进）
+  TTestCase_AVX2VectorAsm = class(TTestCase)
+  protected
+    FOldVectorAsm: Boolean;
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    procedure Test_VecF32x4_Fma_FusedWhenFMAAvailable;
+    procedure Test_VecF32x8_AddSubMulDiv_RandomConsistency;
+    procedure Test_VecF32x8_AddSubMulDiv_SpecialValues_Consistency;
+    procedure Test_VecF64x2_AddSubMulDiv_RandomConsistency;
+    procedure Test_VecF64x2_AddSubMulDiv_SpecialValues_Consistency;
+    procedure Test_VecI32x4_AddSubMul_RandomConsistency;
+    procedure Test_VecI32x4_AddSubMul_BoundaryConsistency;
+    procedure Test_VecF32x4_Compare_SpecialValues_Consistency;
+    procedure Test_VecF32x4_Compare_RandomConsistency;
+    procedure Test_VecF32x4_AddSubMulDiv_RandomConsistency;
+    procedure Test_VecF32x4_AddSubMulDiv_SpecialValues_Consistency;
+    procedure Test_VecF32x4_Abs_RandomConsistency;
+    procedure Test_VecF32x4_Abs_SpecialValues_Consistency;
+    procedure Test_VecF32x4_Sqrt_RandomConsistency;
+    procedure Test_VecF32x4_Sqrt_SpecialValues_Consistency;
+    procedure Test_VecF32x4_MinMax_RandomConsistency;
+    procedure Test_VecF32x4_MinMax_SpecialValues_Consistency;
+    procedure Test_VecF32x4_Reduce_RandomConsistency;
+    procedure Test_VecF32x4_Reduce_SpecialValues_Consistency;
+    procedure Test_VecF32x4_LoadStore_RandomRoundtrip;
+    procedure Test_VecF32x4_LoadStore_SpecialValues_Roundtrip;
+    procedure Test_VecF32x4_Select_RandomConsistency;
+    procedure Test_VecF32x4_ExtractInsert_RandomConsistency;
+    procedure Test_VecF32x4_SplatZero_BitExact;
+    procedure Test_VecF32x4_RcpRsqrt_RandomConsistency;
+    procedure Test_VecF32x4_FloorCeil_RandomConsistency;
+    procedure Test_VecF32x4_RoundTrunc_RandomConsistency;
+    procedure Test_VecF32x4_Clamp_RandomConsistency;
+    procedure Test_VecF32x4_Dot_RandomConsistency;
+    procedure Test_VecF32x4_Dot3_RandomConsistency;
+    procedure Test_VecF32x4_Cross3_RandomConsistency;
+    procedure Test_VecF32x4_Length_RandomConsistency;
+    procedure Test_VecF32x4_Length3_RandomConsistency;
+    procedure Test_VecF32x4_Normalize_RandomConsistency;
+    procedure Test_VecF32x4_Normalize3_RandomConsistency;
+    procedure Test_VecF32x4_ABI_CalleeSavedRegisters_Preserved;
   end;
 
   // 向量运算测试 (强制使用 Scalar 后端以避免 AVX2 实现的问题)
@@ -1754,6 +1800,2411 @@ begin
   else
     AssertEquals('Fallback backend should be Scalar', Ord(sbScalar), Ord(GetCurrentBackend));
   RunVecF32x4Smoke;
+end;
+
+{ TTestCase_AVX2VectorAsm }
+
+function SingleFromBits(bits: DWord): Single; inline;
+begin
+  Move(bits, Result, SizeOf(Result));
+end;
+
+function BitsFromSingle(const value: Single): DWord; inline;
+begin
+  Move(value, Result, SizeOf(Result));
+end;
+
+function IsNaNSingle(const value: Single): Boolean; inline;
+var
+  bits: DWord;
+begin
+  // 注意：使用浮点比较检测 NaN（value<>value）会触发 InvalidOp（若未屏蔽异常）。
+  // 这里改为纯位判断：exp=all-1 且 mantissa<>0。
+  bits := BitsFromSingle(value);
+  Result := ((bits and $7F800000) = $7F800000) and ((bits and $007FFFFF) <> 0);
+end;
+
+function DoubleFromBits(bits: QWord): Double; inline;
+begin
+  Move(bits, Result, SizeOf(Result));
+end;
+
+function BitsFromDouble(const value: Double): QWord; inline;
+begin
+  Move(value, Result, SizeOf(Result));
+end;
+
+function IsNaNDouble(const value: Double): Boolean; inline;
+var
+  bits: QWord;
+begin
+  bits := BitsFromDouble(value);
+  Result := ((bits and QWord($7FF0000000000000)) = QWord($7FF0000000000000)) and
+            ((bits and QWord($000FFFFFFFFFFFFF)) <> 0);
+end;
+
+// === ABI/Calling-convention guard helpers ===
+// 目标：在不依赖编译器生成的 wrapper 的情况下，直接用汇编调用 dispatch 函数指针，
+// 并验证 SysV AMD64 的 callee-saved 寄存器（RBX/R12-R15）不会被破坏。
+
+function AbiCall_TwoVecToSingle_CheckCalleeSaved(fn: Pointer; const a, b: TVecF32x4; out value: Single): Boolean; assembler; nostackframe;
+asm
+  // SysV AMD64 (Linux x86_64) 参数传递说明（按 FPC 对 TVecF32x4 的实际 ABI 分类）：
+  //   - TVecF32x4 是 variant record（同时含 f[] 与 raw[]），FPC 在该平台将其按 INTEGER 类传递。
+  //   - 因此 16B 向量按 2 个 QWord 走整数寄存器，而不是 XMM。
+  //
+  // 入参（本 helper 的签名：fn, a, b, out value）：
+  //   RDI = fn
+  //   RSI = a.lowQ
+  //   RDX = a.highQ
+  //   RCX = b.lowQ
+  //   R8  = b.highQ
+  //   R9  = @value
+  //
+  // 被测函数（签名：fn(a,b): Single）期望：
+  //   RDI = a.lowQ
+  //   RSI = a.highQ
+  //   RDX = b.lowQ
+  //   RCX = b.highQ
+  // Return:
+  //   XMM0 = Single result
+
+  // 保存 out ptr / fn 到栈上（避免被测函数破坏 caller-saved 寄存器）。
+  // 额外说明：这里用 16 bytes local + 5 pushes，保证 call 前 RSP 16-byte 对齐。
+  sub rsp, 16
+  mov qword ptr [rsp], r9      // out ptr
+  mov qword ptr [rsp + 8], rdi // fn ptr
+
+  // 保存 callee-saved（本函数也必须遵守 ABI）
+  push rbx
+  push r12
+  push r13
+  push r14
+  push r15
+
+  // 注意：FPC 内置汇编器对 64-bit imm 支持有限，这里用“可表示的 signed dword”哨兵值。
+  mov rbx, $11223344
+  mov r12, $55667788
+  mov r13, $0F0E0D0C
+  mov r14, $01020304
+  mov r15, $22334455
+
+  // call fn(a, b)  (按上面的“被测函数期望”重新排列寄存器)
+  mov rax, qword ptr [rsp + 48]   // fn ptr
+  mov rdi, rsi                    // a.lowQ
+  mov rsi, rdx                    // a.highQ
+  mov rdx, rcx                    // b.lowQ
+  mov rcx, r8                     // b.highQ
+  call rax
+
+  // store float result (reload out ptr from stack after the call)
+  mov r9, qword ptr [rsp + 40]
+  movss dword ptr [r9], xmm0
+
+  // verify callee-saved regs
+  cmp rbx, $11223344
+  jne @fail
+  cmp r12, $55667788
+  jne @fail
+  cmp r13, $0F0E0D0C
+  jne @fail
+  cmp r14, $01020304
+  jne @fail
+  cmp r15, $22334455
+  jne @fail
+
+  mov eax, 1
+  jmp @done
+
+@fail:
+  xor eax, eax
+
+@done:
+  pop r15
+  pop r14
+  pop r13
+  pop r12
+  pop rbx
+  add rsp, 16
+end;
+
+function AbiCall_OneVecToSingle_CheckCalleeSaved(fn: Pointer; const a: TVecF32x4; out value: Single): Boolean; assembler; nostackframe;
+asm
+  // SysV AMD64 (Linux x86_64) 参数传递说明（按 FPC 对 TVecF32x4 的实际 ABI 分类）：
+  //   RDI = fn
+  //   RSI = a.lowQ
+  //   RDX = a.highQ
+  //   RCX = @value
+  //
+  // 被测函数（签名：fn(a): Single）期望：
+  //   RDI = a.lowQ
+  //   RSI = a.highQ
+  // Return:
+  //   XMM0 = Single result
+
+  // 保存 out ptr / fn 到栈上（避免被测函数破坏 caller-saved 寄存器）。
+  // 额外说明：这里用 16 bytes local + 5 pushes，保证 call 前 RSP 16-byte 对齐。
+  sub rsp, 16
+  mov qword ptr [rsp], rcx     // out ptr
+  mov qword ptr [rsp + 8], rdi // fn ptr
+
+  // 保存 callee-saved（本函数也必须遵守 ABI）
+  push rbx
+  push r12
+  push r13
+  push r14
+  push r15
+
+  // 注意：FPC 内置汇编器对 64-bit imm 支持有限，这里用“可表示的 signed dword”哨兵值。
+  mov rbx, $11223344
+  mov r12, $55667788
+  mov r13, $0F0E0D0C
+  mov r14, $01020304
+  mov r15, $22334455
+
+  // call fn(a)
+  mov rax, qword ptr [rsp + 48]   // fn ptr
+  mov rdi, rsi                    // a.lowQ
+  mov rsi, rdx                    // a.highQ
+  call rax
+
+  // store float result (reload out ptr from stack after the call)
+  mov r9, qword ptr [rsp + 40]
+  movss dword ptr [r9], xmm0
+
+  // verify callee-saved regs
+  cmp rbx, $11223344
+  jne @fail
+  cmp r12, $55667788
+  jne @fail
+  cmp r13, $0F0E0D0C
+  jne @fail
+  cmp r14, $01020304
+  jne @fail
+  cmp r15, $22334455
+  jne @fail
+
+  mov eax, 1
+  jmp @done
+
+@fail:
+  xor eax, eax
+
+@done:
+  pop r15
+  pop r14
+  pop r13
+  pop r12
+  pop rbx
+  add rsp, 16
+end;
+
+procedure TTestCase_AVX2VectorAsm.SetUp;
+begin
+  inherited SetUp;
+
+  FOldVectorAsm := IsVectorAsmEnabled;
+
+  // 强制开启 vector asm，并重新注册后端以更新 dispatch table
+  SetVectorAsmEnabled(True);
+  RegisterAVX2Backend;
+
+  // 在 AVX2 可用的机器上强制使用 AVX2；否则会自动回退到 Scalar
+  ForceBackend(sbAVX2);
+end;
+
+procedure TTestCase_AVX2VectorAsm.TearDown;
+begin
+  // 恢复 vector asm 开关，并重新注册后端，避免影响其他测试
+  SetVectorAsmEnabled(FOldVectorAsm);
+  RegisterAVX2Backend;
+
+  ResetBackendSelection;
+  inherited TearDown;
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecF32x4_Fma_FusedWhenFMAAvailable;
+var
+  dt: PSimdDispatchTable;
+  a, b, c, r: TVecF32x4;
+  expected: Single;
+  i: Integer;
+begin
+  if not HasAVX2 then
+  begin
+    AssertEquals('Fallback backend should be Scalar', Ord(sbScalar), Ord(GetCurrentBackend));
+    Exit;
+  end;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.FmaF32x4 should be assigned', Assigned(dt^.FmaF32x4));
+  AssertTrue('FmaF32x4 should not be scalar when vector asm enabled', dt^.FmaF32x4 <> @ScalarFmaF32x4);
+
+  // 构造一个“只有 fused FMA 才会得到非零”的经典用例：
+  // a = b = 1 + 2^-23 (float32 的下一个可表示数)
+  // c = -(1 + 2^-22)
+  // 真实结果：2^-46
+  // 非 fused：先乘法舍入到 1+2^-22，再加 c => 0
+  a := VecF32x4Splat(SingleFromBits($3F800001));
+  b := a;
+  c := VecF32x4Splat(SingleFromBits($BF800002));
+
+  r := VecF32x4Fma(a, b, c);
+
+  if HasFeature(gfFMA) then
+    expected := SingleFromBits($28800000) // 2^-46
+  else
+    expected := 0.0;
+
+  for i := 0 to 3 do
+    AssertEquals('Fma element ' + IntToStr(i), expected, VecF32x4Extract(r, i), 0.0);
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecF32x8_AddSubMulDiv_RandomConsistency;
+var
+  dt: PSimdDispatchTable;
+  a, b: TVecF32x8;
+  expV, actV: TVecF32x8;
+  i, iter: Integer;
+  eps: Single;
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.AddF32x8 should be assigned', Assigned(dt^.AddF32x8));
+  AssertTrue('Dispatch.SubF32x8 should be assigned', Assigned(dt^.SubF32x8));
+  AssertTrue('Dispatch.MulF32x8 should be assigned', Assigned(dt^.MulF32x8));
+  AssertTrue('Dispatch.DivF32x8 should be assigned', Assigned(dt^.DivF32x8));
+
+  // vector asm 打开时，AVX2 backend 不应退回到 scalar reference。
+  AssertTrue('AddF32x8 should not be scalar when vector asm enabled', dt^.AddF32x8 <> @ScalarAddF32x8);
+  AssertTrue('SubF32x8 should not be scalar when vector asm enabled', dt^.SubF32x8 <> @ScalarSubF32x8);
+  AssertTrue('MulF32x8 should not be scalar when vector asm enabled', dt^.MulF32x8 <> @ScalarMulF32x8);
+  AssertTrue('DivF32x8 should not be scalar when vector asm enabled', dt^.DivF32x8 <> @ScalarDivF32x8);
+
+  eps := 1e-6;
+  RandSeed := 12345;
+
+  for iter := 1 to 200 do
+  begin
+    for i := 0 to 7 do
+    begin
+      // 限制数值范围，避免溢出/下溢导致的非本测试目标分支
+      a.f[i] := (Random(2000000) - 1000000) / 1000.0;
+      b.f[i] := (Random(2000000) - 1000000) / 1000.0;
+      if Abs(b.f[i]) < 1e-3 then
+        b.f[i] := 1.0; // 避免除零/极小数
+    end;
+
+    // Add
+    expV := ScalarAddF32x8(a, b);
+    actV := dt^.AddF32x8(a, b);
+    for i := 0 to 7 do
+      AssertEquals('Add elem ' + IntToStr(i), expV.f[i], actV.f[i], eps);
+
+    // Sub
+    expV := ScalarSubF32x8(a, b);
+    actV := dt^.SubF32x8(a, b);
+    for i := 0 to 7 do
+      AssertEquals('Sub elem ' + IntToStr(i), expV.f[i], actV.f[i], eps);
+
+    // Mul
+    expV := ScalarMulF32x8(a, b);
+    actV := dt^.MulF32x8(a, b);
+    for i := 0 to 7 do
+      AssertEquals('Mul elem ' + IntToStr(i), expV.f[i], actV.f[i], eps);
+
+    // Div
+    expV := ScalarDivF32x8(a, b);
+    actV := dt^.DivF32x8(a, b);
+    for i := 0 to 7 do
+      AssertEquals('Div elem ' + IntToStr(i), expV.f[i], actV.f[i], eps);
+  end;
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecF32x8_AddSubMulDiv_SpecialValues_Consistency;
+var
+  dt: PSimdDispatchTable;
+  a, b, bDiv: TVecF32x8;
+  expV, actV: TVecF32x8;
+  i: Integer;
+  expBits, actBits: DWord;
+
+  procedure AssertSameElementBits(const op: string; idx: Integer; expVal, actVal: Single);
+  begin
+    if IsNaNSingle(expVal) then
+      AssertTrue(op + ' elem ' + IntToStr(idx) + ' should be NaN', IsNaNSingle(actVal))
+    else
+    begin
+      expBits := BitsFromSingle(expVal);
+      actBits := BitsFromSingle(actVal);
+      AssertTrue(op + ' elem ' + IntToStr(idx) + ' bits should match', expBits = actBits);
+    end;
+  end;
+
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.AddF32x8 should be assigned', Assigned(dt^.AddF32x8));
+  AssertTrue('Dispatch.SubF32x8 should be assigned', Assigned(dt^.SubF32x8));
+  AssertTrue('Dispatch.MulF32x8 should be assigned', Assigned(dt^.MulF32x8));
+  AssertTrue('Dispatch.DivF32x8 should be assigned', Assigned(dt^.DivF32x8));
+
+  // vector asm 打开时，AVX2 backend 不应退回到 scalar reference。
+  AssertTrue('AddF32x8 should not be scalar when vector asm enabled', dt^.AddF32x8 <> @ScalarAddF32x8);
+  AssertTrue('SubF32x8 should not be scalar when vector asm enabled', dt^.SubF32x8 <> @ScalarSubF32x8);
+  AssertTrue('MulF32x8 should not be scalar when vector asm enabled', dt^.MulF32x8 <> @ScalarMulF32x8);
+  AssertTrue('DivF32x8 should not be scalar when vector asm enabled', dt^.DivF32x8 <> @ScalarDivF32x8);
+
+  // 构造包含 NaN/Inf/±0 的输入，确保在 AVX2 vector-asm 路径下与 scalar 参考结果一致。
+  a.f[0] := SingleFromBits($80000000); // -0
+  b.f[0] := SingleFromBits($00000000); // +0
+
+  a.f[1] := SingleFromBits($00000000); // +0
+  b.f[1] := SingleFromBits($80000000); // -0
+
+  a.f[2] := SingleFromBits($7F800000); // +Inf
+  b.f[2] := 1.0;
+
+  a.f[3] := SingleFromBits($FF800000); // -Inf
+  b.f[3] := 1.0;
+
+  a.f[4] := SingleFromBits($7FC00000); // qNaN
+  b.f[4] := 2.0;
+
+  a.f[5] := 1.0;
+  b.f[5] := SingleFromBits($7F800000); // +Inf
+
+  a.f[6] := -1.0;
+  b.f[6] := SingleFromBits($FF800000); // -Inf
+
+  a.f[7] := 123.0;
+  b.f[7] := SingleFromBits($7FC00000); // qNaN
+
+  // Add
+  expV := ScalarAddF32x8(a, b);
+  actV := dt^.AddF32x8(a, b);
+  for i := 0 to 7 do
+    AssertSameElementBits('Add', i, expV.f[i], actV.f[i]);
+
+  // Sub
+  expV := ScalarSubF32x8(a, b);
+  actV := dt^.SubF32x8(a, b);
+  for i := 0 to 7 do
+    AssertSameElementBits('Sub', i, expV.f[i], actV.f[i]);
+
+  // Mul
+  expV := ScalarMulF32x8(a, b);
+  actV := dt^.MulF32x8(a, b);
+  for i := 0 to 7 do
+    AssertSameElementBits('Mul', i, expV.f[i], actV.f[i]);
+
+  // Div（避免除以 ±0；其他 special value 保留）
+  bDiv := b;
+  for i := 0 to 7 do
+    // 避免使用浮点比较（NaN 会触发 InvalidOp）
+    if (BitsFromSingle(bDiv.f[i]) and $7FFFFFFF) = 0 then
+      bDiv.f[i] := 1.0;
+
+  expV := ScalarDivF32x8(a, bDiv);
+  actV := dt^.DivF32x8(a, bDiv);
+  for i := 0 to 7 do
+    AssertSameElementBits('Div', i, expV.f[i], actV.f[i]);
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecF64x2_AddSubMulDiv_RandomConsistency;
+var
+  dt: PSimdDispatchTable;
+  a, b: TVecF64x2;
+  expV, actV: TVecF64x2;
+  iter, i: Integer;
+  eps: Double;
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.AddF64x2 should be assigned', Assigned(dt^.AddF64x2));
+  AssertTrue('Dispatch.SubF64x2 should be assigned', Assigned(dt^.SubF64x2));
+  AssertTrue('Dispatch.MulF64x2 should be assigned', Assigned(dt^.MulF64x2));
+  AssertTrue('Dispatch.DivF64x2 should be assigned', Assigned(dt^.DivF64x2));
+
+  // vector asm 打开时，AVX2 backend 不应退回到 scalar reference。
+  AssertTrue('AddF64x2 should not be scalar when vector asm enabled', dt^.AddF64x2 <> @ScalarAddF64x2);
+  AssertTrue('SubF64x2 should not be scalar when vector asm enabled', dt^.SubF64x2 <> @ScalarSubF64x2);
+  AssertTrue('MulF64x2 should not be scalar when vector asm enabled', dt^.MulF64x2 <> @ScalarMulF64x2);
+  AssertTrue('DivF64x2 should not be scalar when vector asm enabled', dt^.DivF64x2 <> @ScalarDivF64x2);
+
+  eps := 1e-12;
+  RandSeed := 20251224;
+
+  for iter := 1 to 2000 do
+  begin
+    for i := 0 to 1 do
+    begin
+      a.d[i] := (Random(2000001) - 1000000) / 1000.0;
+      b.d[i] := (Random(2000001) - 1000000) / 1000.0;
+      if Abs(b.d[i]) < 1e-12 then
+        b.d[i] := 1.0;
+    end;
+
+    // Add
+    expV := ScalarAddF64x2(a, b);
+    actV := dt^.AddF64x2(a, b);
+    for i := 0 to 1 do
+      AssertEquals('F64x2 Add iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.d[i], actV.d[i], eps);
+
+    // Sub
+    expV := ScalarSubF64x2(a, b);
+    actV := dt^.SubF64x2(a, b);
+    for i := 0 to 1 do
+      AssertEquals('F64x2 Sub iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.d[i], actV.d[i], eps);
+
+    // Mul
+    expV := ScalarMulF64x2(a, b);
+    actV := dt^.MulF64x2(a, b);
+    for i := 0 to 1 do
+      AssertEquals('F64x2 Mul iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.d[i], actV.d[i], eps);
+
+    // Div
+    expV := ScalarDivF64x2(a, b);
+    actV := dt^.DivF64x2(a, b);
+    for i := 0 to 1 do
+      AssertEquals('F64x2 Div iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.d[i], actV.d[i], eps);
+  end;
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecF64x2_AddSubMulDiv_SpecialValues_Consistency;
+var
+  dt: PSimdDispatchTable;
+  a, b, bDiv: TVecF64x2;
+  expV, actV: TVecF64x2;
+  i: Integer;
+  expBits, actBits: QWord;
+
+  procedure AssertSameElementBits(const op: string; idx: Integer; expVal, actVal: Double);
+  begin
+    if IsNaNDouble(expVal) then
+      AssertTrue(op + ' lane ' + IntToStr(idx) + ' should be NaN', IsNaNDouble(actVal))
+    else
+    begin
+      expBits := BitsFromDouble(expVal);
+      actBits := BitsFromDouble(actVal);
+      AssertTrue(op + ' lane ' + IntToStr(idx) + ' bits should match', expBits = actBits);
+    end;
+  end;
+
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.AddF64x2 should be assigned', Assigned(dt^.AddF64x2));
+  AssertTrue('Dispatch.SubF64x2 should be assigned', Assigned(dt^.SubF64x2));
+  AssertTrue('Dispatch.MulF64x2 should be assigned', Assigned(dt^.MulF64x2));
+  AssertTrue('Dispatch.DivF64x2 should be assigned', Assigned(dt^.DivF64x2));
+
+  // vector asm 打开时，AVX2 backend 不应退回到 scalar reference。
+  AssertTrue('AddF64x2 should not be scalar when vector asm enabled', dt^.AddF64x2 <> @ScalarAddF64x2);
+  AssertTrue('SubF64x2 should not be scalar when vector asm enabled', dt^.SubF64x2 <> @ScalarSubF64x2);
+  AssertTrue('MulF64x2 should not be scalar when vector asm enabled', dt^.MulF64x2 <> @ScalarMulF64x2);
+  AssertTrue('DivF64x2 should not be scalar when vector asm enabled', dt^.DivF64x2 <> @ScalarDivF64x2);
+
+  // 特殊值：±0 / ±Inf / qNaN
+  a.d[0] := DoubleFromBits(QWord($8000000000000000)); // -0
+  b.d[0] := DoubleFromBits(QWord($0000000000000000)); // +0
+
+  a.d[1] := DoubleFromBits(QWord($7FF0000000000000)); // +Inf
+  b.d[1] := DoubleFromBits(QWord($7FF8000000000000)); // qNaN
+
+  // Add
+  expV := ScalarAddF64x2(a, b);
+  actV := dt^.AddF64x2(a, b);
+  for i := 0 to 1 do
+    AssertSameElementBits('F64x2 Add', i, expV.d[i], actV.d[i]);
+
+  // Sub
+  expV := ScalarSubF64x2(a, b);
+  actV := dt^.SubF64x2(a, b);
+  for i := 0 to 1 do
+    AssertSameElementBits('F64x2 Sub', i, expV.d[i], actV.d[i]);
+
+  // Mul
+  expV := ScalarMulF64x2(a, b);
+  actV := dt^.MulF64x2(a, b);
+  for i := 0 to 1 do
+    AssertSameElementBits('F64x2 Mul', i, expV.d[i], actV.d[i]);
+
+  // Div（避免除以 ±0；其他 special value 保留）
+  bDiv := b;
+  for i := 0 to 1 do
+    if (BitsFromDouble(bDiv.d[i]) and QWord($7FFFFFFFFFFFFFFF)) = 0 then
+      bDiv.d[i] := 1.0;
+
+  expV := ScalarDivF64x2(a, bDiv);
+  actV := dt^.DivF64x2(a, bDiv);
+  for i := 0 to 1 do
+    AssertSameElementBits('F64x2 Div', i, expV.d[i], actV.d[i]);
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecI32x4_AddSubMul_RandomConsistency;
+var
+  dt: PSimdDispatchTable;
+  a, b: TVecI32x4;
+  expV, actV: TVecI32x4;
+  iter, i: Integer;
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.AddI32x4 should be assigned', Assigned(dt^.AddI32x4));
+  AssertTrue('Dispatch.SubI32x4 should be assigned', Assigned(dt^.SubI32x4));
+  AssertTrue('Dispatch.MulI32x4 should be assigned', Assigned(dt^.MulI32x4));
+
+  // vector asm 打开时，AVX2 backend 不应退回到 scalar reference。
+  AssertTrue('AddI32x4 should not be scalar when vector asm enabled', dt^.AddI32x4 <> @ScalarAddI32x4);
+  AssertTrue('SubI32x4 should not be scalar when vector asm enabled', dt^.SubI32x4 <> @ScalarSubI32x4);
+  AssertTrue('MulI32x4 should not be scalar when vector asm enabled', dt^.MulI32x4 <> @ScalarMulI32x4);
+
+  RandSeed := 20251225;
+
+  for iter := 1 to 5000 do
+  begin
+    // 选择安全范围，避免 32-bit 乘法溢出（保证结果可精确对比）。
+    for i := 0 to 3 do
+    begin
+      a.i[i] := Random(60001) - 30000; // [-30000..30000]
+      b.i[i] := Random(60001) - 30000;
+    end;
+
+    // Add
+    expV := ScalarAddI32x4(a, b);
+    actV := dt^.AddI32x4(a, b);
+    for i := 0 to 3 do
+      AssertEquals('I32x4 Add iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.i[i], actV.i[i]);
+
+    // Sub
+    expV := ScalarSubI32x4(a, b);
+    actV := dt^.SubI32x4(a, b);
+    for i := 0 to 3 do
+      AssertEquals('I32x4 Sub iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.i[i], actV.i[i]);
+
+    // Mul
+    expV := ScalarMulI32x4(a, b);
+    actV := dt^.MulI32x4(a, b);
+    for i := 0 to 3 do
+      AssertEquals('I32x4 Mul iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.i[i], actV.i[i]);
+  end;
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecI32x4_AddSubMul_BoundaryConsistency;
+var
+  dt: PSimdDispatchTable;
+  a, b: TVecI32x4;
+  expV, actV: TVecI32x4;
+  i: Integer;
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.AddI32x4 should be assigned', Assigned(dt^.AddI32x4));
+  AssertTrue('Dispatch.SubI32x4 should be assigned', Assigned(dt^.SubI32x4));
+  AssertTrue('Dispatch.MulI32x4 should be assigned', Assigned(dt^.MulI32x4));
+
+  // Add/Sub：边界但不溢出
+  a.i[0] := High(Int32) - 1; b.i[0] := 1;  // -> High(Int32)
+  a.i[1] := Low(Int32) + 1;  b.i[1] := -1; // -> Low(Int32)
+  a.i[2] := 0;               b.i[2] := 0;
+  a.i[3] := -1;              b.i[3] := 1;
+
+  expV := ScalarAddI32x4(a, b);
+  actV := dt^.AddI32x4(a, b);
+  for i := 0 to 3 do
+    AssertEquals('I32x4 Add boundary lane ' + IntToStr(i), expV.i[i], actV.i[i]);
+
+  expV := ScalarSubI32x4(a, b);
+  actV := dt^.SubI32x4(a, b);
+  for i := 0 to 3 do
+    AssertEquals('I32x4 Sub boundary lane ' + IntToStr(i), expV.i[i], actV.i[i]);
+
+  // Mul：使用 46340 保证 32-bit signed 乘法不溢出。
+  a.i[0] := 46340;  b.i[0] := 46340;
+  a.i[1] := -46340; b.i[1] := 46340;
+  a.i[2] := 0;      b.i[2] := 12345;
+  a.i[3] := -1;     b.i[3] := -1;
+
+  expV := ScalarMulI32x4(a, b);
+  actV := dt^.MulI32x4(a, b);
+  for i := 0 to 3 do
+    AssertEquals('I32x4 Mul boundary lane ' + IntToStr(i), expV.i[i], actV.i[i]);
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecF32x4_Compare_SpecialValues_Consistency;
+var
+  dt: PSimdDispatchTable;
+  a, b: TVecF32x4;
+  expMask, actMask: TMask4;
+  savedMask: TFPUExceptionMask;
+
+  function Mask4Of(b0, b1, b2, b3: Boolean): TMask4; inline;
+  begin
+    Result := 0;
+    if b0 then Result := Result or (1 shl 0);
+    if b1 then Result := Result or (1 shl 1);
+    if b2 then Result := Result or (1 shl 2);
+    if b3 then Result := Result or (1 shl 3);
+  end;
+
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.CmpEqF32x4 should be assigned', Assigned(dt^.CmpEqF32x4));
+  AssertTrue('Dispatch.CmpLtF32x4 should be assigned', Assigned(dt^.CmpLtF32x4));
+  AssertTrue('Dispatch.CmpLeF32x4 should be assigned', Assigned(dt^.CmpLeF32x4));
+  AssertTrue('Dispatch.CmpGtF32x4 should be assigned', Assigned(dt^.CmpGtF32x4));
+  AssertTrue('Dispatch.CmpGeF32x4 should be assigned', Assigned(dt^.CmpGeF32x4));
+  AssertTrue('Dispatch.CmpNeF32x4 should be assigned', Assigned(dt^.CmpNeF32x4));
+
+  // vector asm 打开时，AVX2 backend 不应退回到 scalar reference。
+  AssertTrue('CmpEqF32x4 should not be scalar when vector asm enabled', dt^.CmpEqF32x4 <> @ScalarCmpEqF32x4);
+  AssertTrue('CmpLtF32x4 should not be scalar when vector asm enabled', dt^.CmpLtF32x4 <> @ScalarCmpLtF32x4);
+  AssertTrue('CmpLeF32x4 should not be scalar when vector asm enabled', dt^.CmpLeF32x4 <> @ScalarCmpLeF32x4);
+  AssertTrue('CmpGtF32x4 should not be scalar when vector asm enabled', dt^.CmpGtF32x4 <> @ScalarCmpGtF32x4);
+  AssertTrue('CmpGeF32x4 should not be scalar when vector asm enabled', dt^.CmpGeF32x4 <> @ScalarCmpGeF32x4);
+  AssertTrue('CmpNeF32x4 should not be scalar when vector asm enabled', dt^.CmpNeF32x4 <> @ScalarCmpNeF32x4);
+
+  // 设计点：比较指令在 NaN 场景下会触发 InvalidOp（若未屏蔽异常），
+  // 这里临时屏蔽所有 FPU 异常，避免测试运行被中断。
+  savedMask := GetExceptionMask;
+  SetExceptionMask([exInvalidOp, exDenormalized, exZeroDivide, exOverflow, exUnderflow, exPrecision]);
+  try
+    // 我们直接写出 IEEE/SSE 语义的期望 mask。
+    a.f[0] := SingleFromBits($7FC00000); // NaN
+    b.f[0] := 1.0;
+
+    a.f[1] := 1.0;
+    b.f[1] := SingleFromBits($7FC00000); // NaN
+
+    a.f[2] := SingleFromBits($7F800000); // +Inf
+    b.f[2] := SingleFromBits($7F800000); // +Inf
+
+    a.f[3] := SingleFromBits($80000000); // -0
+    b.f[3] := 0.0;                       // +0
+
+    // Eq: NaN==x false; Inf==Inf true; -0==+0 true
+    expMask := Mask4Of(False, False, True, True);
+    actMask := dt^.CmpEqF32x4(a, b);
+    AssertEquals('CmpEq mask', expMask, actMask);
+
+    // Ne: NaN!=x true (unordered); Inf!=Inf false; -0!=+0 false
+    expMask := Mask4Of(True, True, False, False);
+    actMask := dt^.CmpNeF32x4(a, b);
+    AssertEquals('CmpNe mask', expMask, actMask);
+
+    // Lt: NaN comparisons false; Inf<Inf false; -0<+0 false
+    expMask := Mask4Of(False, False, False, False);
+    actMask := dt^.CmpLtF32x4(a, b);
+    AssertEquals('CmpLt mask', expMask, actMask);
+
+    // Le: NaN comparisons false; Inf<=Inf true; -0<=+0 true
+    expMask := Mask4Of(False, False, True, True);
+    actMask := dt^.CmpLeF32x4(a, b);
+    AssertEquals('CmpLe mask', expMask, actMask);
+
+    // Gt: NaN comparisons false; Inf>Inf false; -0>+0 false
+    expMask := Mask4Of(False, False, False, False);
+    actMask := dt^.CmpGtF32x4(a, b);
+    AssertEquals('CmpGt mask', expMask, actMask);
+
+    // Ge: NaN comparisons false; Inf>=Inf true; -0>=+0 true
+    expMask := Mask4Of(False, False, True, True);
+    actMask := dt^.CmpGeF32x4(a, b);
+    AssertEquals('CmpGe mask', expMask, actMask);
+  finally
+    SetExceptionMask(savedMask);
+  end;
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecF32x4_Compare_RandomConsistency;
+var
+  dt: PSimdDispatchTable;
+  a, b: TVecF32x4;
+  iter: Integer;
+  expMask, actMask: TMask4;
+
+  function Mask4Of(b0, b1, b2, b3: Boolean): TMask4; inline;
+  begin
+    Result := 0;
+    if b0 then Result := Result or (1 shl 0);
+    if b1 then Result := Result or (1 shl 1);
+    if b2 then Result := Result or (1 shl 2);
+    if b3 then Result := Result or (1 shl 3);
+  end;
+
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.CmpEqF32x4 should be assigned', Assigned(dt^.CmpEqF32x4));
+  AssertTrue('Dispatch.CmpLtF32x4 should be assigned', Assigned(dt^.CmpLtF32x4));
+  AssertTrue('Dispatch.CmpLeF32x4 should be assigned', Assigned(dt^.CmpLeF32x4));
+  AssertTrue('Dispatch.CmpGtF32x4 should be assigned', Assigned(dt^.CmpGtF32x4));
+  AssertTrue('Dispatch.CmpGeF32x4 should be assigned', Assigned(dt^.CmpGeF32x4));
+  AssertTrue('Dispatch.CmpNeF32x4 should be assigned', Assigned(dt^.CmpNeF32x4));
+
+  // vector asm 打开时，AVX2 backend 不应退回到 scalar reference。
+  AssertTrue('CmpEqF32x4 should not be scalar when vector asm enabled', dt^.CmpEqF32x4 <> @ScalarCmpEqF32x4);
+  AssertTrue('CmpLtF32x4 should not be scalar when vector asm enabled', dt^.CmpLtF32x4 <> @ScalarCmpLtF32x4);
+  AssertTrue('CmpLeF32x4 should not be scalar when vector asm enabled', dt^.CmpLeF32x4 <> @ScalarCmpLeF32x4);
+  AssertTrue('CmpGtF32x4 should not be scalar when vector asm enabled', dt^.CmpGtF32x4 <> @ScalarCmpGtF32x4);
+  AssertTrue('CmpGeF32x4 should not be scalar when vector asm enabled', dt^.CmpGeF32x4 <> @ScalarCmpGeF32x4);
+  AssertTrue('CmpNeF32x4 should not be scalar when vector asm enabled', dt^.CmpNeF32x4 <> @ScalarCmpNeF32x4);
+
+  RandSeed := 20251216;
+
+  for iter := 1 to 200 do
+  begin
+    // 设计点：避免 NaN/Inf，确保对比的期望值可用普通浮点比较计算。
+    // lane0：相等
+    a.f[0] := (Random(2000001) - 1000000) / 1000.0;
+    b.f[0] := a.f[0];
+
+    // lane1：a < b
+    a.f[1] := (Random(2000001) - 1000000) / 1000.0;
+    b.f[1] := a.f[1] + 1.0;
+
+    // lane2：a > b
+    a.f[2] := (Random(2000001) - 1000000) / 1000.0;
+    b.f[2] := a.f[2] - 1.0;
+
+    // lane3：随机
+    a.f[3] := (Random(2000001) - 1000000) / 1000.0;
+    b.f[3] := (Random(2000001) - 1000000) / 1000.0;
+
+    expMask := Mask4Of(a.f[0] = b.f[0], a.f[1] = b.f[1], a.f[2] = b.f[2], a.f[3] = b.f[3]);
+    actMask := dt^.CmpEqF32x4(a, b);
+    AssertEquals('CmpEq iter ' + IntToStr(iter), expMask, actMask);
+
+    expMask := Mask4Of(a.f[0] <> b.f[0], a.f[1] <> b.f[1], a.f[2] <> b.f[2], a.f[3] <> b.f[3]);
+    actMask := dt^.CmpNeF32x4(a, b);
+    AssertEquals('CmpNe iter ' + IntToStr(iter), expMask, actMask);
+
+    expMask := Mask4Of(a.f[0] < b.f[0], a.f[1] < b.f[1], a.f[2] < b.f[2], a.f[3] < b.f[3]);
+    actMask := dt^.CmpLtF32x4(a, b);
+    AssertEquals('CmpLt iter ' + IntToStr(iter), expMask, actMask);
+
+    expMask := Mask4Of(a.f[0] <= b.f[0], a.f[1] <= b.f[1], a.f[2] <= b.f[2], a.f[3] <= b.f[3]);
+    actMask := dt^.CmpLeF32x4(a, b);
+    AssertEquals('CmpLe iter ' + IntToStr(iter), expMask, actMask);
+
+    expMask := Mask4Of(a.f[0] > b.f[0], a.f[1] > b.f[1], a.f[2] > b.f[2], a.f[3] > b.f[3]);
+    actMask := dt^.CmpGtF32x4(a, b);
+    AssertEquals('CmpGt iter ' + IntToStr(iter), expMask, actMask);
+
+    expMask := Mask4Of(a.f[0] >= b.f[0], a.f[1] >= b.f[1], a.f[2] >= b.f[2], a.f[3] >= b.f[3]);
+    actMask := dt^.CmpGeF32x4(a, b);
+    AssertEquals('CmpGe iter ' + IntToStr(iter), expMask, actMask);
+  end;
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecF32x4_AddSubMulDiv_RandomConsistency;
+var
+  dt: PSimdDispatchTable;
+  a, b: TVecF32x4;
+  expV, actV: TVecF32x4;
+  i, iter: Integer;
+  eps: Single;
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.AddF32x4 should be assigned', Assigned(dt^.AddF32x4));
+  AssertTrue('Dispatch.SubF32x4 should be assigned', Assigned(dt^.SubF32x4));
+  AssertTrue('Dispatch.MulF32x4 should be assigned', Assigned(dt^.MulF32x4));
+  AssertTrue('Dispatch.DivF32x4 should be assigned', Assigned(dt^.DivF32x4));
+
+  // vector asm 打开时，AVX2 backend 不应退回到 scalar reference。
+  AssertTrue('AddF32x4 should not be scalar when vector asm enabled', dt^.AddF32x4 <> @ScalarAddF32x4);
+  AssertTrue('SubF32x4 should not be scalar when vector asm enabled', dt^.SubF32x4 <> @ScalarSubF32x4);
+  AssertTrue('MulF32x4 should not be scalar when vector asm enabled', dt^.MulF32x4 <> @ScalarMulF32x4);
+  AssertTrue('DivF32x4 should not be scalar when vector asm enabled', dt^.DivF32x4 <> @ScalarDivF32x4);
+
+  eps := 1e-6;
+  RandSeed := 54321;
+
+  for iter := 1 to 500 do
+  begin
+    for i := 0 to 3 do
+    begin
+      a.f[i] := (Random(2000001) - 1000000) / 1000.0;
+      b.f[i] := (Random(2000001) - 1000000) / 1000.0;
+      if Abs(b.f[i]) < 1e-3 then
+        b.f[i] := 1.0;
+    end;
+
+    // Add
+    expV := ScalarAddF32x4(a, b);
+    actV := dt^.AddF32x4(a, b);
+    for i := 0 to 3 do
+      AssertEquals('Add elem ' + IntToStr(i), expV.f[i], actV.f[i], eps);
+
+    // Sub
+    expV := ScalarSubF32x4(a, b);
+    actV := dt^.SubF32x4(a, b);
+    for i := 0 to 3 do
+      AssertEquals('Sub elem ' + IntToStr(i), expV.f[i], actV.f[i], eps);
+
+    // Mul
+    expV := ScalarMulF32x4(a, b);
+    actV := dt^.MulF32x4(a, b);
+    for i := 0 to 3 do
+      AssertEquals('Mul elem ' + IntToStr(i), expV.f[i], actV.f[i], eps);
+
+    // Div
+    expV := ScalarDivF32x4(a, b);
+    actV := dt^.DivF32x4(a, b);
+    for i := 0 to 3 do
+      AssertEquals('Div elem ' + IntToStr(i), expV.f[i], actV.f[i], eps);
+  end;
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecF32x4_AddSubMulDiv_SpecialValues_Consistency;
+var
+  dt: PSimdDispatchTable;
+  a, b, bDiv: TVecF32x4;
+  expV, actV: TVecF32x4;
+  i: Integer;
+  expBits, actBits: DWord;
+
+  procedure AssertSameElementBits(const op: string; idx: Integer; expVal, actVal: Single);
+  begin
+    if IsNaNSingle(expVal) then
+      AssertTrue(op + ' elem ' + IntToStr(idx) + ' should be NaN', IsNaNSingle(actVal))
+    else
+    begin
+      expBits := BitsFromSingle(expVal);
+      actBits := BitsFromSingle(actVal);
+      AssertTrue(op + ' elem ' + IntToStr(idx) + ' bits should match', expBits = actBits);
+    end;
+  end;
+
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.AddF32x4 should be assigned', Assigned(dt^.AddF32x4));
+  AssertTrue('Dispatch.SubF32x4 should be assigned', Assigned(dt^.SubF32x4));
+  AssertTrue('Dispatch.MulF32x4 should be assigned', Assigned(dt^.MulF32x4));
+  AssertTrue('Dispatch.DivF32x4 should be assigned', Assigned(dt^.DivF32x4));
+
+  // vector asm 打开时，AVX2 backend 不应退回到 scalar reference。
+  AssertTrue('AddF32x4 should not be scalar when vector asm enabled', dt^.AddF32x4 <> @ScalarAddF32x4);
+  AssertTrue('SubF32x4 should not be scalar when vector asm enabled', dt^.SubF32x4 <> @ScalarSubF32x4);
+  AssertTrue('MulF32x4 should not be scalar when vector asm enabled', dt^.MulF32x4 <> @ScalarMulF32x4);
+  AssertTrue('DivF32x4 should not be scalar when vector asm enabled', dt^.DivF32x4 <> @ScalarDivF32x4);
+
+  a.f[0] := SingleFromBits($80000000); // -0
+  b.f[0] := SingleFromBits($00000000); // +0
+
+  a.f[1] := SingleFromBits($7F800000); // +Inf
+  b.f[1] := 1.0;
+
+  a.f[2] := SingleFromBits($7FC00000); // qNaN
+  b.f[2] := 2.0;
+
+  a.f[3] := 123.0;
+  b.f[3] := SingleFromBits($FF800000); // -Inf
+
+  // Add
+  expV := ScalarAddF32x4(a, b);
+  actV := dt^.AddF32x4(a, b);
+  for i := 0 to 3 do
+    AssertSameElementBits('Add', i, expV.f[i], actV.f[i]);
+
+  // Sub
+  expV := ScalarSubF32x4(a, b);
+  actV := dt^.SubF32x4(a, b);
+  for i := 0 to 3 do
+    AssertSameElementBits('Sub', i, expV.f[i], actV.f[i]);
+
+  // Mul
+  expV := ScalarMulF32x4(a, b);
+  actV := dt^.MulF32x4(a, b);
+  for i := 0 to 3 do
+    AssertSameElementBits('Mul', i, expV.f[i], actV.f[i]);
+
+  // Div（避免除以 ±0；其他 special value 保留）
+  bDiv := b;
+  for i := 0 to 3 do
+    if (BitsFromSingle(bDiv.f[i]) and $7FFFFFFF) = 0 then
+      bDiv.f[i] := 1.0;
+
+  expV := ScalarDivF32x4(a, bDiv);
+  actV := dt^.DivF32x4(a, bDiv);
+  for i := 0 to 3 do
+    AssertSameElementBits('Div', i, expV.f[i], actV.f[i]);
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecF32x4_Abs_RandomConsistency;
+var
+  dt: PSimdDispatchTable;
+  a: TVecF32x4;
+  expV, actV: TVecF32x4;
+  i, iter: Integer;
+  expBits, actBits: DWord;
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.AbsF32x4 should be assigned', Assigned(dt^.AbsF32x4));
+
+  AssertTrue('AbsF32x4 should not be scalar when vector asm enabled', dt^.AbsF32x4 <> @ScalarAbsF32x4);
+
+  RandSeed := 24680;
+
+  for iter := 1 to 500 do
+  begin
+    for i := 0 to 3 do
+      a.f[i] := (Random(2000001) - 1000000) / 1000.0;
+
+    expV := ScalarAbsF32x4(a);
+    actV := dt^.AbsF32x4(a);
+
+    for i := 0 to 3 do
+    begin
+      expBits := BitsFromSingle(expV.f[i]);
+      actBits := BitsFromSingle(actV.f[i]);
+      AssertTrue('Abs elem ' + IntToStr(i) + ' bits should match', expBits = actBits);
+    end;
+  end;
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecF32x4_Abs_SpecialValues_Consistency;
+var
+  dt: PSimdDispatchTable;
+  a: TVecF32x4;
+  expV, actV: TVecF32x4;
+  i: Integer;
+  expBits, actBits: DWord;
+
+  procedure AssertSameElementBits(const op: string; idx: Integer; expVal, actVal: Single);
+  begin
+    if IsNaNSingle(expVal) then
+      AssertTrue(op + ' elem ' + IntToStr(idx) + ' should be NaN', IsNaNSingle(actVal))
+    else
+    begin
+      expBits := BitsFromSingle(expVal);
+      actBits := BitsFromSingle(actVal);
+      AssertTrue(op + ' elem ' + IntToStr(idx) + ' bits should match', expBits = actBits);
+    end;
+  end;
+
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.AbsF32x4 should be assigned', Assigned(dt^.AbsF32x4));
+
+  AssertTrue('AbsF32x4 should not be scalar when vector asm enabled', dt^.AbsF32x4 <> @ScalarAbsF32x4);
+
+  a.f[0] := SingleFromBits($80000000); // -0
+  a.f[1] := SingleFromBits($FF800000); // -Inf
+  a.f[2] := SingleFromBits($7FC00000); // qNaN
+  a.f[3] := -123.0;
+
+  expV := ScalarAbsF32x4(a);
+  actV := dt^.AbsF32x4(a);
+
+  for i := 0 to 3 do
+    AssertSameElementBits('Abs', i, expV.f[i], actV.f[i]);
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecF32x4_Sqrt_RandomConsistency;
+var
+  dt: PSimdDispatchTable;
+  a: TVecF32x4;
+  expV, actV: TVecF32x4;
+  i, iter: Integer;
+  eps: Single;
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.SqrtF32x4 should be assigned', Assigned(dt^.SqrtF32x4));
+
+  AssertTrue('SqrtF32x4 should not be scalar when vector asm enabled', dt^.SqrtF32x4 <> @ScalarSqrtF32x4);
+
+  eps := 1e-6;
+  RandSeed := 13579;
+
+  for iter := 1 to 500 do
+  begin
+    for i := 0 to 3 do
+      a.f[i] := Random(1000001) / 1000.0; // [0..1000]
+
+    expV := ScalarSqrtF32x4(a);
+    actV := dt^.SqrtF32x4(a);
+
+    for i := 0 to 3 do
+      AssertEquals('Sqrt elem ' + IntToStr(i), expV.f[i], actV.f[i], eps);
+  end;
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecF32x4_Sqrt_SpecialValues_Consistency;
+var
+  dt: PSimdDispatchTable;
+  a: TVecF32x4;
+  expV, actV: TVecF32x4;
+  i: Integer;
+  expBits, actBits: DWord;
+  savedMask: TFPUExceptionMask;
+
+  procedure AssertSameElementBits(const op: string; idx: Integer; expVal, actVal: Single);
+  begin
+    if IsNaNSingle(expVal) then
+      AssertTrue(op + ' elem ' + IntToStr(idx) + ' should be NaN', IsNaNSingle(actVal))
+    else
+    begin
+      expBits := BitsFromSingle(expVal);
+      actBits := BitsFromSingle(actVal);
+      AssertTrue(op + ' elem ' + IntToStr(idx) + ' bits should match', expBits = actBits);
+    end;
+  end;
+
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.SqrtF32x4 should be assigned', Assigned(dt^.SqrtF32x4));
+
+  AssertTrue('SqrtF32x4 should not be scalar when vector asm enabled', dt^.SqrtF32x4 <> @ScalarSqrtF32x4);
+
+  savedMask := GetExceptionMask;
+  SetExceptionMask([exInvalidOp, exDenormalized, exZeroDivide, exOverflow, exUnderflow, exPrecision]);
+  try
+    a.f[0] := SingleFromBits($80000000); // -0
+    a.f[1] := SingleFromBits($7FC00000); // qNaN
+    a.f[2] := SingleFromBits($7F800000); // +Inf
+    a.f[3] := -1.0;
+
+    expV := ScalarSqrtF32x4(a);
+    actV := dt^.SqrtF32x4(a);
+
+    for i := 0 to 3 do
+      AssertSameElementBits('Sqrt', i, expV.f[i], actV.f[i]);
+  finally
+    SetExceptionMask(savedMask);
+  end;
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecF32x4_MinMax_RandomConsistency;
+var
+  dt: PSimdDispatchTable;
+  a, b: TVecF32x4;
+  expV, actV: TVecF32x4;
+  i, iter: Integer;
+  expBits, actBits: DWord;
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.MinF32x4 should be assigned', Assigned(dt^.MinF32x4));
+  AssertTrue('Dispatch.MaxF32x4 should be assigned', Assigned(dt^.MaxF32x4));
+
+  AssertTrue('MinF32x4 should not be scalar when vector asm enabled', dt^.MinF32x4 <> @ScalarMinF32x4);
+  AssertTrue('MaxF32x4 should not be scalar when vector asm enabled', dt^.MaxF32x4 <> @ScalarMaxF32x4);
+
+  RandSeed := 112233;
+
+  for iter := 1 to 500 do
+  begin
+    for i := 0 to 3 do
+    begin
+      a.f[i] := (Random(2000001) - 1000000) / 1000.0;
+      b.f[i] := (Random(2000001) - 1000000) / 1000.0;
+    end;
+
+    // Min
+    expV := ScalarMinF32x4(a, b);
+    actV := dt^.MinF32x4(a, b);
+    for i := 0 to 3 do
+    begin
+      expBits := BitsFromSingle(expV.f[i]);
+      actBits := BitsFromSingle(actV.f[i]);
+      AssertTrue('Min elem ' + IntToStr(i) + ' bits should match', expBits = actBits);
+    end;
+
+    // Max
+    expV := ScalarMaxF32x4(a, b);
+    actV := dt^.MaxF32x4(a, b);
+    for i := 0 to 3 do
+    begin
+      expBits := BitsFromSingle(expV.f[i]);
+      actBits := BitsFromSingle(actV.f[i]);
+      AssertTrue('Max elem ' + IntToStr(i) + ' bits should match', expBits = actBits);
+    end;
+  end;
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecF32x4_MinMax_SpecialValues_Consistency;
+var
+  dt: PSimdDispatchTable;
+  a, b: TVecF32x4;
+  expV, actV: TVecF32x4;
+  i: Integer;
+  expBits, actBits: DWord;
+  savedMask: TFPUExceptionMask;
+
+  procedure AssertSameElementBits(const op: string; idx: Integer; expVal, actVal: Single);
+  begin
+    if IsNaNSingle(expVal) then
+      AssertTrue(op + ' elem ' + IntToStr(idx) + ' should be NaN', IsNaNSingle(actVal))
+    else
+    begin
+      expBits := BitsFromSingle(expVal);
+      actBits := BitsFromSingle(actVal);
+      AssertTrue(op + ' elem ' + IntToStr(idx) + ' bits should match', expBits = actBits);
+    end;
+  end;
+
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.MinF32x4 should be assigned', Assigned(dt^.MinF32x4));
+  AssertTrue('Dispatch.MaxF32x4 should be assigned', Assigned(dt^.MaxF32x4));
+
+  AssertTrue('MinF32x4 should not be scalar when vector asm enabled', dt^.MinF32x4 <> @ScalarMinF32x4);
+  AssertTrue('MaxF32x4 should not be scalar when vector asm enabled', dt^.MaxF32x4 <> @ScalarMaxF32x4);
+
+  savedMask := GetExceptionMask;
+  SetExceptionMask([exInvalidOp, exDenormalized, exZeroDivide, exOverflow, exUnderflow, exPrecision]);
+  try
+    // 覆盖：±0、Inf、NaN
+    a.f[0] := SingleFromBits($80000000); // -0
+    b.f[0] := SingleFromBits($00000000); // +0
+
+    a.f[1] := SingleFromBits($00000000); // +0
+    b.f[1] := SingleFromBits($80000000); // -0
+
+    a.f[2] := SingleFromBits($7F800000); // +Inf
+    b.f[2] := SingleFromBits($FF800000); // -Inf
+
+    a.f[3] := 1.0;
+    b.f[3] := SingleFromBits($7FC00000); // qNaN
+
+    // Min
+    expV := ScalarMinF32x4(a, b);
+    actV := dt^.MinF32x4(a, b);
+    for i := 0 to 3 do
+      AssertSameElementBits('Min', i, expV.f[i], actV.f[i]);
+
+    // Max
+    expV := ScalarMaxF32x4(a, b);
+    actV := dt^.MaxF32x4(a, b);
+    for i := 0 to 3 do
+      AssertSameElementBits('Max', i, expV.f[i], actV.f[i]);
+  finally
+    SetExceptionMask(savedMask);
+  end;
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecF32x4_Reduce_RandomConsistency;
+var
+  dt: PSimdDispatchTable;
+  a: TVecF32x4;
+  iter, i: Integer;
+  expS, actS: Single;
+  expBits, actBits: DWord;
+  epsAdd, epsMul: Single;
+
+  procedure AssertSameSingleBits(const op: string; expVal, actVal: Single);
+  begin
+    if IsNaNSingle(expVal) then
+      AssertTrue(op + ' should be NaN', IsNaNSingle(actVal))
+    else
+    begin
+      expBits := BitsFromSingle(expVal);
+      actBits := BitsFromSingle(actVal);
+      AssertTrue(op + ' bits should match', expBits = actBits);
+    end;
+  end;
+
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.ReduceAddF32x4 should be assigned', Assigned(dt^.ReduceAddF32x4));
+  AssertTrue('Dispatch.ReduceMinF32x4 should be assigned', Assigned(dt^.ReduceMinF32x4));
+  AssertTrue('Dispatch.ReduceMaxF32x4 should be assigned', Assigned(dt^.ReduceMaxF32x4));
+  AssertTrue('Dispatch.ReduceMulF32x4 should be assigned', Assigned(dt^.ReduceMulF32x4));
+
+  AssertTrue('ReduceAddF32x4 should not be scalar when vector asm enabled', dt^.ReduceAddF32x4 <> @ScalarReduceAddF32x4);
+  AssertTrue('ReduceMinF32x4 should not be scalar when vector asm enabled', dt^.ReduceMinF32x4 <> @ScalarReduceMinF32x4);
+  AssertTrue('ReduceMaxF32x4 should not be scalar when vector asm enabled', dt^.ReduceMaxF32x4 <> @ScalarReduceMaxF32x4);
+  AssertTrue('ReduceMulF32x4 should not be scalar when vector asm enabled', dt^.ReduceMulF32x4 <> @ScalarReduceMulF32x4);
+
+  // ReduceAdd/ReduceMul 的求和/求积顺序可能在不同实现间不同（浮点非结合律），
+  // 这里用小范围随机值 + 适度 eps 进行一致性验证。
+  epsAdd := 1e-6;
+  epsMul := 1e-6;
+
+  RandSeed := 778899;
+
+  for iter := 1 to 1000 do
+  begin
+    for i := 0 to 3 do
+      a.f[i] := (Random(4000001) - 2000000) / 1000000.0; // [-2..2]
+
+    // ReduceAdd
+    expS := ScalarReduceAddF32x4(a);
+    actS := dt^.ReduceAddF32x4(a);
+    if IsNaNSingle(expS) then
+      AssertTrue('ReduceAdd iter ' + IntToStr(iter) + ' should be NaN', IsNaNSingle(actS))
+    else
+      AssertEquals('ReduceAdd iter ' + IntToStr(iter), expS, actS, epsAdd);
+
+    // ReduceMul
+    expS := ScalarReduceMulF32x4(a);
+    actS := dt^.ReduceMulF32x4(a);
+    if IsNaNSingle(expS) then
+      AssertTrue('ReduceMul iter ' + IntToStr(iter) + ' should be NaN', IsNaNSingle(actS))
+    else
+      AssertEquals('ReduceMul iter ' + IntToStr(iter), expS, actS, epsMul);
+
+    // ReduceMin
+    expS := ScalarReduceMinF32x4(a);
+    actS := dt^.ReduceMinF32x4(a);
+    AssertSameSingleBits('ReduceMin iter ' + IntToStr(iter), expS, actS);
+
+    // ReduceMax
+    expS := ScalarReduceMaxF32x4(a);
+    actS := dt^.ReduceMaxF32x4(a);
+    AssertSameSingleBits('ReduceMax iter ' + IntToStr(iter), expS, actS);
+  end;
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecF32x4_Reduce_SpecialValues_Consistency;
+var
+  dt: PSimdDispatchTable;
+  a: TVecF32x4;
+  expS, actS: Single;
+  expBits, actBits: DWord;
+  savedMask: TFPUExceptionMask;
+
+  procedure AssertSameSingleBits(const op: string; expVal, actVal: Single);
+  begin
+    if IsNaNSingle(expVal) then
+      AssertTrue(op + ' should be NaN', IsNaNSingle(actVal))
+    else
+    begin
+      expBits := BitsFromSingle(expVal);
+      actBits := BitsFromSingle(actVal);
+      AssertTrue(op + ' bits should match', expBits = actBits);
+    end;
+  end;
+
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.ReduceAddF32x4 should be assigned', Assigned(dt^.ReduceAddF32x4));
+  AssertTrue('Dispatch.ReduceMinF32x4 should be assigned', Assigned(dt^.ReduceMinF32x4));
+  AssertTrue('Dispatch.ReduceMaxF32x4 should be assigned', Assigned(dt^.ReduceMaxF32x4));
+  AssertTrue('Dispatch.ReduceMulF32x4 should be assigned', Assigned(dt^.ReduceMulF32x4));
+
+  AssertTrue('ReduceAddF32x4 should not be scalar when vector asm enabled', dt^.ReduceAddF32x4 <> @ScalarReduceAddF32x4);
+  AssertTrue('ReduceMinF32x4 should not be scalar when vector asm enabled', dt^.ReduceMinF32x4 <> @ScalarReduceMinF32x4);
+  AssertTrue('ReduceMaxF32x4 should not be scalar when vector asm enabled', dt^.ReduceMaxF32x4 <> @ScalarReduceMaxF32x4);
+  AssertTrue('ReduceMulF32x4 should not be scalar when vector asm enabled', dt^.ReduceMulF32x4 <> @ScalarReduceMulF32x4);
+
+  // ReduceMin/Max 在 NaN/±0 场景下很容易出现“选择了哪个操作数”的差异。
+  // 为避免某些 CPU/FPU 设置下触发 InvalidOp，这里局部屏蔽异常。
+  savedMask := GetExceptionMask;
+  SetExceptionMask([exInvalidOp, exDenormalized, exZeroDivide, exOverflow, exUnderflow, exPrecision]);
+  try
+    // Case 1: NaN 会让 scalar 顺序 fold “重置”到后续元素（取决于 NaN 位置）
+    a.f[0] := 1.0;
+    a.f[1] := SingleFromBits($7FC00000); // qNaN
+    a.f[2] := 2.0;
+    a.f[3] := 3.0;
+
+    expS := ScalarReduceMinF32x4(a);
+    actS := dt^.ReduceMinF32x4(a);
+    AssertSameSingleBits('ReduceMin NaN-position case', expS, actS);
+
+    expS := ScalarReduceMaxF32x4(a);
+    actS := dt^.ReduceMaxF32x4(a);
+    AssertSameSingleBits('ReduceMax NaN-position case', expS, actS);
+
+    expS := ScalarReduceAddF32x4(a);
+    actS := dt^.ReduceAddF32x4(a);
+    if IsNaNSingle(expS) then
+      AssertTrue('ReduceAdd NaN-position case should be NaN', IsNaNSingle(actS))
+    else
+      AssertEquals('ReduceAdd NaN-position case', expS, actS, 0.0);
+
+    expS := ScalarReduceMulF32x4(a);
+    actS := dt^.ReduceMulF32x4(a);
+    if IsNaNSingle(expS) then
+      AssertTrue('ReduceMul NaN-position case should be NaN', IsNaNSingle(actS))
+    else
+      AssertEquals('ReduceMul NaN-position case', expS, actS, 0.0);
+
+    // Case 2: 更强的 Max 反例（NaN 在中间会让 scalar 顺序 fold 丢掉早期的极大值）
+    a.f[0] := 100.0;
+    a.f[1] := SingleFromBits($7FC00000); // qNaN
+    a.f[2] := 2.0;
+    a.f[3] := 3.0;
+
+    expS := ScalarReduceMaxF32x4(a);
+    actS := dt^.ReduceMaxF32x4(a);
+    AssertSameSingleBits('ReduceMax NaN-reset case', expS, actS);
+
+    // Case 3: ±0（关注符号位）
+    a.f[0] := 0.0;                       // +0
+    a.f[1] := SingleFromBits($80000000); // -0
+    a.f[2] := 1.0;
+    a.f[3] := 2.0;
+
+    expS := ScalarReduceMinF32x4(a);
+    actS := dt^.ReduceMinF32x4(a);
+    AssertSameSingleBits('ReduceMin signed-zero case', expS, actS);
+  finally
+    SetExceptionMask(savedMask);
+  end;
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecF32x4_LoadStore_RandomRoundtrip;
+var
+  dt: PSimdDispatchTable;
+  a, v: TVecF32x4;
+  src: array[0..3] of Single;
+  expBytes: array[0..15] of Byte;
+  rawSrc, rawDst: PByte;
+  pSrc, pDst: PByte;
+  alignedRaw: Pointer;
+  pAlignedSrc, pAlignedDst: PByte;
+  iter, i: Integer;
+  bits: DWord;
+
+  procedure AssertBytesEqual(const msg: string; expectedPtr, actualPtr: PByte; count: Integer);
+  var
+    j: Integer;
+  begin
+    for j := 0 to count - 1 do
+      AssertEquals(msg + ' byte ' + IntToStr(j), expectedPtr[j], actualPtr[j]);
+  end;
+
+  procedure AssertAllBytesAre(const msg: string; p: PByte; count: Integer; value: Byte);
+  var
+    j: Integer;
+  begin
+    for j := 0 to count - 1 do
+      AssertEquals(msg + ' byte ' + IntToStr(j), value, p[j]);
+  end;
+
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.LoadF32x4 should be assigned', Assigned(dt^.LoadF32x4));
+  AssertTrue('Dispatch.StoreF32x4 should be assigned', Assigned(dt^.StoreF32x4));
+  AssertTrue('Dispatch.LoadF32x4Aligned should be assigned', Assigned(dt^.LoadF32x4Aligned));
+  AssertTrue('Dispatch.StoreF32x4Aligned should be assigned', Assigned(dt^.StoreF32x4Aligned));
+
+  AssertTrue('LoadF32x4 should not be scalar when vector asm enabled', dt^.LoadF32x4 <> @ScalarLoadF32x4);
+  AssertTrue('StoreF32x4 should not be scalar when vector asm enabled', dt^.StoreF32x4 <> @ScalarStoreF32x4);
+  AssertTrue('LoadF32x4Aligned should not be scalar when vector asm enabled', dt^.LoadF32x4Aligned <> @ScalarLoadF32x4Aligned);
+  AssertTrue('StoreF32x4Aligned should not be scalar when vector asm enabled', dt^.StoreF32x4Aligned <> @ScalarStoreF32x4Aligned);
+
+  rawSrc := GetMem(64);
+  rawDst := GetMem(64);
+  alignedRaw := AlignedAlloc(128, SIMD_ALIGN_16);
+  try
+    // 故意制造非对齐地址
+    pSrc := rawSrc + 1;
+    pDst := rawDst + 3;
+
+    // 选择两个 16-byte 对齐的地址（避免与 header 重叠，并留足哨兵区）
+    pAlignedSrc := PByte(alignedRaw) + SIMD_ALIGN_16;
+    pAlignedDst := PByte(alignedRaw) + 64;
+
+    AssertTrue('pAlignedSrc should be 16-byte aligned', IsAligned(pAlignedSrc, SIMD_ALIGN_16));
+    AssertTrue('pAlignedDst should be 16-byte aligned', IsAligned(pAlignedDst, SIMD_ALIGN_16));
+
+    RandSeed := 424242;
+
+    for iter := 1 to 300 do
+    begin
+      // 生成任意 bit-pattern（包含 NaN/Inf/±0 等），load/store 应该 bit-exact。
+      for i := 0 to 3 do
+      begin
+        bits := DWord(Random($10000)) or (DWord(Random($10000)) shl 16);
+        src[i] := SingleFromBits(bits);
+        a.f[i] := src[i];
+      end;
+      Move(src[0], expBytes[0], SizeOf(expBytes));
+
+      // --- Unaligned store ---
+      FillChar(rawDst^, 64, $CD);
+      dt^.StoreF32x4(PSingle(pDst), a);
+      AssertAllBytesAre('StoreF32x4 prefix sentinel', rawDst, 3, $CD);
+      AssertBytesEqual('StoreF32x4 payload', @expBytes[0], pDst, 16);
+      AssertAllBytesAre('StoreF32x4 suffix sentinel', pDst + 16, 64 - (3 + 16), $CD);
+
+      // --- Unaligned load ---
+      FillChar(rawSrc^, 64, $AB);
+      Move(expBytes[0], pSrc^, 16);
+      v := dt^.LoadF32x4(PSingle(pSrc));
+      for i := 0 to 3 do
+        AssertEquals('LoadF32x4 elem ' + IntToStr(i) + ' bits', BitsFromSingle(src[i]), BitsFromSingle(v.f[i]));
+
+      // --- Aligned store ---
+      FillChar(PByte(alignedRaw)^, 128, $EF);
+      dt^.StoreF32x4Aligned(PSingle(pAlignedDst), a);
+      AssertAllBytesAre('StoreF32x4Aligned prefix sentinel', PByte(alignedRaw), 64, $EF);
+      AssertBytesEqual('StoreF32x4Aligned payload', @expBytes[0], pAlignedDst, 16);
+      AssertAllBytesAre('StoreF32x4Aligned suffix sentinel', pAlignedDst + 16, 128 - (64 + 16), $EF);
+
+      // --- Aligned load ---
+      FillChar(PByte(alignedRaw)^, 128, $E1);
+      Move(expBytes[0], pAlignedSrc^, 16);
+      v := dt^.LoadF32x4Aligned(PSingle(pAlignedSrc));
+      for i := 0 to 3 do
+        AssertEquals('LoadF32x4Aligned elem ' + IntToStr(i) + ' bits', BitsFromSingle(src[i]), BitsFromSingle(v.f[i]));
+    end;
+  finally
+    FreeMem(rawSrc);
+    FreeMem(rawDst);
+    AlignedFree(alignedRaw);
+  end;
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecF32x4_LoadStore_SpecialValues_Roundtrip;
+var
+  dt: PSimdDispatchTable;
+  a, v: TVecF32x4;
+  src: array[0..3] of Single;
+  expBytes: array[0..15] of Byte;
+  rawSrc, rawDst: PByte;
+  pSrc, pDst: PByte;
+  alignedRaw: Pointer;
+  pAlignedSrc, pAlignedDst: PByte;
+  i: Integer;
+
+  procedure AssertBytesEqual(const msg: string; expectedPtr, actualPtr: PByte; count: Integer);
+  var
+    j: Integer;
+  begin
+    for j := 0 to count - 1 do
+      AssertEquals(msg + ' byte ' + IntToStr(j), expectedPtr[j], actualPtr[j]);
+  end;
+
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.LoadF32x4 should be assigned', Assigned(dt^.LoadF32x4));
+  AssertTrue('Dispatch.StoreF32x4 should be assigned', Assigned(dt^.StoreF32x4));
+  AssertTrue('Dispatch.LoadF32x4Aligned should be assigned', Assigned(dt^.LoadF32x4Aligned));
+  AssertTrue('Dispatch.StoreF32x4Aligned should be assigned', Assigned(dt^.StoreF32x4Aligned));
+
+  AssertTrue('LoadF32x4 should not be scalar when vector asm enabled', dt^.LoadF32x4 <> @ScalarLoadF32x4);
+  AssertTrue('StoreF32x4 should not be scalar when vector asm enabled', dt^.StoreF32x4 <> @ScalarStoreF32x4);
+  AssertTrue('LoadF32x4Aligned should not be scalar when vector asm enabled', dt^.LoadF32x4Aligned <> @ScalarLoadF32x4Aligned);
+  AssertTrue('StoreF32x4Aligned should not be scalar when vector asm enabled', dt^.StoreF32x4Aligned <> @ScalarStoreF32x4Aligned);
+
+  // 特殊值：±0 / ±Inf / qNaN
+  src[0] := SingleFromBits($00000000); // +0
+  src[1] := SingleFromBits($80000000); // -0
+  src[2] := SingleFromBits($7F800000); // +Inf
+  src[3] := SingleFromBits($7FC00000); // qNaN
+
+  for i := 0 to 3 do
+    a.f[i] := src[i];
+  Move(src[0], expBytes[0], SizeOf(expBytes));
+
+  rawSrc := GetMem(64);
+  rawDst := GetMem(64);
+  alignedRaw := AlignedAlloc(128, SIMD_ALIGN_16);
+  try
+    pSrc := rawSrc + 1;
+    pDst := rawDst + 3;
+
+    pAlignedSrc := PByte(alignedRaw) + SIMD_ALIGN_16;
+    pAlignedDst := PByte(alignedRaw) + 64;
+
+    AssertTrue('pAlignedSrc should be 16-byte aligned', IsAligned(pAlignedSrc, SIMD_ALIGN_16));
+    AssertTrue('pAlignedDst should be 16-byte aligned', IsAligned(pAlignedDst, SIMD_ALIGN_16));
+
+    // Store unaligned
+    FillChar(rawDst^, 64, $CD);
+    dt^.StoreF32x4(PSingle(pDst), a);
+    AssertBytesEqual('StoreF32x4 special-values payload', @expBytes[0], pDst, 16);
+
+    // Load unaligned
+    FillChar(rawSrc^, 64, $AB);
+    Move(expBytes[0], pSrc^, 16);
+    v := dt^.LoadF32x4(PSingle(pSrc));
+    for i := 0 to 3 do
+      AssertEquals('LoadF32x4 special-values elem ' + IntToStr(i) + ' bits', BitsFromSingle(src[i]), BitsFromSingle(v.f[i]));
+
+    // Store aligned
+    FillChar(PByte(alignedRaw)^, 128, $EF);
+    dt^.StoreF32x4Aligned(PSingle(pAlignedDst), a);
+    AssertBytesEqual('StoreF32x4Aligned special-values payload', @expBytes[0], pAlignedDst, 16);
+
+    // Load aligned
+    FillChar(PByte(alignedRaw)^, 128, $E1);
+    Move(expBytes[0], pAlignedSrc^, 16);
+    v := dt^.LoadF32x4Aligned(PSingle(pAlignedSrc));
+    for i := 0 to 3 do
+      AssertEquals('LoadF32x4Aligned special-values elem ' + IntToStr(i) + ' bits', BitsFromSingle(src[i]), BitsFromSingle(v.f[i]));
+  finally
+    FreeMem(rawSrc);
+    FreeMem(rawDst);
+    AlignedFree(alignedRaw);
+  end;
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecF32x4_Select_RandomConsistency;
+var
+  dt: PSimdDispatchTable;
+  a, b: TVecF32x4;
+  expV, actV: TVecF32x4;
+  iter, i: Integer;
+  mask: TMask4;
+  bits: DWord;
+
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.SelectF32x4 should be assigned', Assigned(dt^.SelectF32x4));
+
+  AssertTrue('SelectF32x4 should not be scalar when vector asm enabled', dt^.SelectF32x4 <> @ScalarSelectF32x4);
+
+  RandSeed := 911911;
+
+  for iter := 1 to 1000 do
+  begin
+    // 使用任意 bit-pattern，Select 应该是纯“按 lane 选值”的语义，不应该改动位模式。
+    for i := 0 to 3 do
+    begin
+      bits := DWord(Random($10000)) or (DWord(Random($10000)) shl 16);
+      a.f[i] := SingleFromBits(bits);
+      bits := DWord(Random($10000)) or (DWord(Random($10000)) shl 16);
+      b.f[i] := SingleFromBits(bits);
+    end;
+
+    mask := TMask4(Random(16));
+
+    for i := 0 to 3 do
+      if (mask and (1 shl i)) <> 0 then
+        expV.f[i] := a.f[i]
+      else
+        expV.f[i] := b.f[i];
+
+    actV := dt^.SelectF32x4(mask, a, b);
+
+    for i := 0 to 3 do
+      AssertEquals('Select iter ' + IntToStr(iter) + ' lane ' + IntToStr(i) + ' bits',
+                   BitsFromSingle(expV.f[i]), BitsFromSingle(actV.f[i]));
+  end;
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecF32x4_ExtractInsert_RandomConsistency;
+var
+  dt: PSimdDispatchTable;
+  a, v: TVecF32x4;
+  iter, i, idx: Integer;
+  bits: DWord;
+  value, extracted: Single;
+
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.ExtractF32x4 should be assigned', Assigned(dt^.ExtractF32x4));
+  AssertTrue('Dispatch.InsertF32x4 should be assigned', Assigned(dt^.InsertF32x4));
+
+  AssertTrue('ExtractF32x4 should not be scalar when vector asm enabled', dt^.ExtractF32x4 <> @ScalarExtractF32x4);
+  AssertTrue('InsertF32x4 should not be scalar when vector asm enabled', dt^.InsertF32x4 <> @ScalarInsertF32x4);
+
+  RandSeed := 12211221;
+
+  for iter := 1 to 1000 do
+  begin
+    // 任意 bit-pattern（包含 NaN/Inf/子正常数等），Extract/Insert 都应该 bit-exact。
+    for i := 0 to 3 do
+    begin
+      bits := DWord(Random($10000)) or (DWord(Random($10000)) shl 16);
+      a.f[i] := SingleFromBits(bits);
+    end;
+
+    idx := Random(4);
+
+    extracted := dt^.ExtractF32x4(a, idx);
+    AssertEquals('Extract iter ' + IntToStr(iter) + ' idx ' + IntToStr(idx) + ' bits',
+                 BitsFromSingle(a.f[idx]), BitsFromSingle(extracted));
+
+    bits := DWord(Random($10000)) or (DWord(Random($10000)) shl 16);
+    value := SingleFromBits(bits);
+
+    v := dt^.InsertF32x4(a, value, idx);
+
+    for i := 0 to 3 do
+      if i = idx then
+        AssertEquals('Insert iter ' + IntToStr(iter) + ' idx ' + IntToStr(idx) + ' lane bits',
+                     BitsFromSingle(value), BitsFromSingle(v.f[i]))
+      else
+        AssertEquals('Insert iter ' + IntToStr(iter) + ' idx ' + IntToStr(idx) + ' other lane ' + IntToStr(i) + ' bits',
+                     BitsFromSingle(a.f[i]), BitsFromSingle(v.f[i]));
+
+    extracted := dt^.ExtractF32x4(v, idx);
+    AssertEquals('Extract-after-insert iter ' + IntToStr(iter) + ' idx ' + IntToStr(idx) + ' bits',
+                 BitsFromSingle(value), BitsFromSingle(extracted));
+  end;
+
+  // 额外覆盖：确保 -0 的符号位不会在 Extract/Insert 中丢失。
+  a.f[0] := 1.0;
+  a.f[1] := 2.0;
+  a.f[2] := 3.0;
+  a.f[3] := 4.0;
+  value := SingleFromBits($80000000); // -0
+  v := dt^.InsertF32x4(a, value, 1);
+  AssertEquals('Insert signed-zero lane bits', DWord($80000000), BitsFromSingle(v.f[1]));
+  extracted := dt^.ExtractF32x4(v, 1);
+  AssertEquals('Extract signed-zero lane bits', DWord($80000000), BitsFromSingle(extracted));
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecF32x4_SplatZero_BitExact;
+var
+  dt: PSimdDispatchTable;
+  v: TVecF32x4;
+  value: Single;
+  bits: DWord;
+  iter, i: Integer;
+
+  procedure AssertAllLanesBits(const msg: string; const vec: TVecF32x4; expectedBits: DWord);
+  var
+    j: Integer;
+  begin
+    for j := 0 to 3 do
+      AssertEquals(msg + ' lane ' + IntToStr(j) + ' bits', expectedBits, BitsFromSingle(vec.f[j]));
+  end;
+
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.SplatF32x4 should be assigned', Assigned(dt^.SplatF32x4));
+  AssertTrue('Dispatch.ZeroF32x4 should be assigned', Assigned(dt^.ZeroF32x4));
+
+  AssertTrue('SplatF32x4 should not be scalar when vector asm enabled', dt^.SplatF32x4 <> @ScalarSplatF32x4);
+  AssertTrue('ZeroF32x4 should not be scalar when vector asm enabled', dt^.ZeroF32x4 <> @ScalarZeroF32x4);
+
+  // Zero：必须是 +0（全 0 bit），不能是 -0。
+  v := dt^.ZeroF32x4();
+  AssertAllLanesBits('ZeroF32x4', v, DWord(0));
+
+  RandSeed := 334455;
+
+  for iter := 1 to 1000 do
+  begin
+    bits := DWord(Random($10000)) or (DWord(Random($10000)) shl 16);
+    value := SingleFromBits(bits);
+
+    v := dt^.SplatF32x4(value);
+    for i := 0 to 3 do
+      AssertEquals('Splat iter ' + IntToStr(iter) + ' lane ' + IntToStr(i) + ' bits',
+                   bits, BitsFromSingle(v.f[i]));
+  end;
+
+  // 特殊：-0 / qNaN payload
+  value := SingleFromBits($80000000);
+  v := dt^.SplatF32x4(value);
+  AssertAllLanesBits('Splat -0', v, DWord($80000000));
+
+  bits := $7FC12345;
+  value := SingleFromBits(bits);
+  v := dt^.SplatF32x4(value);
+  AssertAllLanesBits('Splat qNaN payload', v, bits);
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecF32x4_RcpRsqrt_RandomConsistency;
+var
+  dt: PSimdDispatchTable;
+  a: TVecF32x4;
+  expV, actV: TVecF32x4;
+  iter, i: Integer;
+  eps: Single;
+
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.RcpF32x4 should be assigned', Assigned(dt^.RcpF32x4));
+  AssertTrue('Dispatch.RsqrtF32x4 should be assigned', Assigned(dt^.RsqrtF32x4));
+
+  // 这个 suite 目标是验证 --vector-asm 路径：这里强制确保 AVX2 backend
+  // 在 vector asm 打开时不会退回到 scalar reference。
+  AssertTrue('RcpF32x4 should not be scalar when vector asm enabled', dt^.RcpF32x4 <> @ScalarRcpF32x4);
+  AssertTrue('RsqrtF32x4 should not be scalar when vector asm enabled', dt^.RsqrtF32x4 <> @ScalarRsqrtF32x4);
+
+  // Rcp/Rsqrt 可能是近似实现，这里选取温和输入范围并用 eps 做一致性验证。
+  // 输入范围 [0.5..2.0]：避免 1/x 过大、以及 rsqrt 的负数/零域。
+  eps := 1e-3;
+
+  RandSeed := 556677;
+
+  for iter := 1 to 2000 do
+  begin
+    for i := 0 to 3 do
+      a.f[i] := 0.5 + (Random(1500001) / 1000000.0); // [0.5..2.0]
+
+    // Rcp
+    expV := ScalarRcpF32x4(a);
+    actV := dt^.RcpF32x4(a);
+    for i := 0 to 3 do
+      AssertEquals('Rcp iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.f[i], actV.f[i], eps);
+
+    // Rsqrt
+    expV := ScalarRsqrtF32x4(a);
+    actV := dt^.RsqrtF32x4(a);
+    for i := 0 to 3 do
+      AssertEquals('Rsqrt iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.f[i], actV.f[i], eps);
+  end;
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecF32x4_FloorCeil_RandomConsistency;
+var
+  dt: PSimdDispatchTable;
+  a: TVecF32x4;
+  expV, actV: TVecF32x4;
+  iter, i: Integer;
+
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.FloorF32x4 should be assigned', Assigned(dt^.FloorF32x4));
+  AssertTrue('Dispatch.CeilF32x4 should be assigned', Assigned(dt^.CeilF32x4));
+
+  // 同样要求：vector asm 打开时，AVX2 backend 不应退回到 scalar reference。
+  AssertTrue('FloorF32x4 should not be scalar when vector asm enabled', dt^.FloorF32x4 <> @ScalarFloorF32x4);
+  AssertTrue('CeilF32x4 should not be scalar when vector asm enabled', dt^.CeilF32x4 <> @ScalarCeilF32x4);
+
+  // 选择一个结果可精确表示的范围（避免超出 float32 的整数精度）。
+  RandSeed := 778866;
+
+  for iter := 1 to 2000 do
+  begin
+    for i := 0 to 3 do
+      a.f[i] := (Random(2000001) - 1000000) / 1000.0; // [-1000..1000]
+
+    // Floor
+    expV := ScalarFloorF32x4(a);
+    actV := dt^.FloorF32x4(a);
+    for i := 0 to 3 do
+      AssertEquals('Floor iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.f[i], actV.f[i], 0.0);
+
+    // Ceil
+    expV := ScalarCeilF32x4(a);
+    actV := dt^.CeilF32x4(a);
+    for i := 0 to 3 do
+      AssertEquals('Ceil iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.f[i], actV.f[i], 0.0);
+  end;
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecF32x4_RoundTrunc_RandomConsistency;
+var
+  dt: PSimdDispatchTable;
+  a: TVecF32x4;
+  expV, actV: TVecF32x4;
+  iter, i: Integer;
+
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.RoundF32x4 should be assigned', Assigned(dt^.RoundF32x4));
+  AssertTrue('Dispatch.TruncF32x4 should be assigned', Assigned(dt^.TruncF32x4));
+
+  // vector asm 打开时，AVX2 backend 不应退回到 scalar reference。
+  AssertTrue('RoundF32x4 should not be scalar when vector asm enabled', dt^.RoundF32x4 <> @ScalarRoundF32x4);
+  AssertTrue('TruncF32x4 should not be scalar when vector asm enabled', dt^.TruncF32x4 <> @ScalarTruncF32x4);
+
+  // 先用确定性 case 覆盖“0.5 ties to even”语义。
+  a.f[0] := 2.5;
+  a.f[1] := 3.5;
+  a.f[2] := -2.5;
+  a.f[3] := -3.5;
+
+  expV := ScalarRoundF32x4(a);
+  actV := dt^.RoundF32x4(a);
+  for i := 0 to 3 do
+    AssertEquals('Round tie-even lane ' + IntToStr(i), expV.f[i], actV.f[i], 0.0);
+
+  // Random：范围同样限制在可精确表示整数的区间
+  RandSeed := 889977;
+
+  for iter := 1 to 2000 do
+  begin
+    for i := 0 to 3 do
+      a.f[i] := (Random(2000001) - 1000000) / 1000.0; // [-1000..1000]
+
+    // Round
+    expV := ScalarRoundF32x4(a);
+    actV := dt^.RoundF32x4(a);
+    for i := 0 to 3 do
+      AssertEquals('Round iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.f[i], actV.f[i], 0.0);
+
+    // Trunc
+    expV := ScalarTruncF32x4(a);
+    actV := dt^.TruncF32x4(a);
+    for i := 0 to 3 do
+      AssertEquals('Trunc iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.f[i], actV.f[i], 0.0);
+  end;
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecF32x4_Clamp_RandomConsistency;
+var
+  dt: PSimdDispatchTable;
+  a, minV, maxV: TVecF32x4;
+  expV, actV: TVecF32x4;
+  iter, i: Integer;
+  expBits, actBits: DWord;
+  savedMask: TFPUExceptionMask;
+
+  procedure AssertSameLaneBits(const msg: string; idx: Integer; expVal, actVal: Single);
+  begin
+    if IsNaNSingle(expVal) then
+      AssertTrue(msg + ' lane ' + IntToStr(idx) + ' should be NaN', IsNaNSingle(actVal))
+    else
+    begin
+      expBits := BitsFromSingle(expVal);
+      actBits := BitsFromSingle(actVal);
+      AssertTrue(msg + ' lane ' + IntToStr(idx) + ' bits should match', expBits = actBits);
+    end;
+  end;
+
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.ClampF32x4 should be assigned', Assigned(dt^.ClampF32x4));
+
+  // vector asm 打开时，AVX2 backend 不应退回到 scalar reference。
+  AssertTrue('ClampF32x4 should not be scalar when vector asm enabled', dt^.ClampF32x4 <> @ScalarClampF32x4);
+
+  // Clamp 内部会触发浮点比较（NaN 场景会触发 InvalidOp），这里局部屏蔽异常。
+  savedMask := GetExceptionMask;
+  SetExceptionMask([exInvalidOp, exDenormalized, exZeroDivide, exOverflow, exUnderflow, exPrecision]);
+  try
+    // 明确覆盖一个 NaN ordering case：
+    // scalar: Max(minVal, Min(a, maxVal))，当 a=NaN 时，Min(a,maxVal) 会选 maxVal（SSE-style），因此结果应为 maxVal。
+    a := VecF32x4Splat(SingleFromBits($7FC00000)); // qNaN
+    minV := VecF32x4Splat(0.0);
+    maxV := VecF32x4Splat(10.0);
+
+    expV := ScalarClampF32x4(a, minV, maxV);
+    actV := dt^.ClampF32x4(a, minV, maxV);
+    for i := 0 to 3 do
+      AssertSameLaneBits('Clamp NaN-ordering', i, expV.f[i], actV.f[i]);
+
+    RandSeed := 991122;
+
+    for iter := 1 to 2000 do
+    begin
+      for i := 0 to 3 do
+      begin
+        // a in [-2..2]
+        a.f[i] := (Random(4000001) - 2000000) / 1000000.0;
+        // min in [-1..1]
+        minV.f[i] := (Random(2000001) - 1000000) / 1000000.0;
+        // max >= min, add [0..2]
+        maxV.f[i] := minV.f[i] + (Random(2000001) / 1000000.0);
+      end;
+
+      expV := ScalarClampF32x4(a, minV, maxV);
+      actV := dt^.ClampF32x4(a, minV, maxV);
+
+      for i := 0 to 3 do
+        AssertSameLaneBits('Clamp iter ' + IntToStr(iter), i, expV.f[i], actV.f[i]);
+    end;
+  finally
+    SetExceptionMask(savedMask);
+  end;
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecF32x4_Dot_RandomConsistency;
+var
+  dt: PSimdDispatchTable;
+  a, b: TVecF32x4;
+  iter, i: Integer;
+  expS, actS: Single;
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.DotF32x4 should be assigned', Assigned(dt^.DotF32x4));
+
+  // vector asm 打开时，AVX2 backend 不应退回到 scalar reference。
+  AssertTrue('DotF32x4 should not be scalar when vector asm enabled', dt^.DotF32x4 <> @ScalarDotF32x4);
+
+  // 选择小整数，保证乘加结果在 float32 精确可表示的范围内，避免“求和顺序”带来的舍入差异。
+  RandSeed := 20251217;
+
+  for iter := 1 to 5000 do
+  begin
+    for i := 0 to 3 do
+    begin
+      a.f[i] := Single(Random(2001) - 1000);
+      b.f[i] := Single(Random(2001) - 1000);
+    end;
+
+    expS := ScalarDotF32x4(a, b);
+    actS := dt^.DotF32x4(a, b);
+
+    AssertEquals('Dot iter ' + IntToStr(iter), expS, actS, 0.0);
+  end;
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecF32x4_Dot3_RandomConsistency;
+var
+  dt: PSimdDispatchTable;
+  a, b: TVecF32x4;
+  iter, i: Integer;
+  expS, actS: Single;
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.DotF32x3 should be assigned', Assigned(dt^.DotF32x3));
+
+  // vector asm 打开时，AVX2 backend 不应退回到 scalar reference。
+  AssertTrue('DotF32x3 should not be scalar when vector asm enabled', dt^.DotF32x3 <> @ScalarDotF32x3);
+
+  RandSeed := 20251218;
+
+  for iter := 1 to 5000 do
+  begin
+    // x/y/z 使用小整数，保证 dot3 结果精确可比较；w 随机但应被忽略。
+    for i := 0 to 2 do
+    begin
+      a.f[i] := Single(Random(2001) - 1000);
+      b.f[i] := Single(Random(2001) - 1000);
+    end;
+    a.f[3] := Single(Random(2001) - 1000);
+    b.f[3] := Single(Random(2001) - 1000);
+
+    expS := ScalarDotF32x3(a, b);
+    actS := dt^.DotF32x3(a, b);
+
+    AssertEquals('Dot3 iter ' + IntToStr(iter), expS, actS, 0.0);
+  end;
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecF32x4_Cross3_RandomConsistency;
+var
+  dt: PSimdDispatchTable;
+  a, b: TVecF32x4;
+  expV, actV: TVecF32x4;
+  iter, i: Integer;
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.CrossF32x3 should be assigned', Assigned(dt^.CrossF32x3));
+
+  // vector asm 打开时，AVX2 backend 不应退回到 scalar reference。
+  AssertTrue('CrossF32x3 should not be scalar when vector asm enabled', dt^.CrossF32x3 <> @ScalarCrossF32x3);
+
+  RandSeed := 20251219;
+
+  for iter := 1 to 2000 do
+  begin
+    // 小整数：乘减结果精确可表示。
+    for i := 0 to 2 do
+    begin
+      a.f[i] := Single(Random(2001) - 1000);
+      b.f[i] := Single(Random(2001) - 1000);
+    end;
+    // w 随机，但 cross 应忽略并强制输出 w=+0
+    a.f[3] := Single(Random(2001) - 1000);
+    b.f[3] := Single(Random(2001) - 1000);
+
+    expV := ScalarCrossF32x3(a, b);
+    actV := dt^.CrossF32x3(a, b);
+
+    for i := 0 to 2 do
+      AssertEquals('Cross3 iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.f[i], actV.f[i], 0.0);
+
+    AssertEquals('Cross3 w should be +0', DWord(0), BitsFromSingle(actV.f[3]));
+  end;
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecF32x4_Length_RandomConsistency;
+var
+  dt: PSimdDispatchTable;
+  a: TVecF32x4;
+  iter, i: Integer;
+  expS, actS: Single;
+  eps: Single;
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.LengthF32x4 should be assigned', Assigned(dt^.LengthF32x4));
+
+  // vector asm 打开时，AVX2 backend 不应退回到 scalar reference。
+  AssertTrue('LengthF32x4 should not be scalar when vector asm enabled', dt^.LengthF32x4 <> @ScalarLengthF32x4);
+
+  // 确定性：3-4-0-0 -> 5
+  a.f[0] := 3.0; a.f[1] := 4.0; a.f[2] := 0.0; a.f[3] := 0.0;
+  expS := ScalarLengthF32x4(a);
+  actS := dt^.LengthF32x4(a);
+  AssertEquals('Length(3,4,0,0)', expS, actS, 0.0);
+
+  // 随机一致性：避免极端值
+  eps := 1e-4;
+  RandSeed := 20251220;
+
+  for iter := 1 to 5000 do
+  begin
+    for i := 0 to 3 do
+      a.f[i] := (Random(20001) - 10000) / 100.0; // [-100..100]
+
+    expS := ScalarLengthF32x4(a);
+    actS := dt^.LengthF32x4(a);
+
+    AssertEquals('Length iter ' + IntToStr(iter), expS, actS, eps);
+  end;
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecF32x4_Length3_RandomConsistency;
+var
+  dt: PSimdDispatchTable;
+  a: TVecF32x4;
+  iter, i: Integer;
+  expS, actS: Single;
+  eps: Single;
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.LengthF32x3 should be assigned', Assigned(dt^.LengthF32x3));
+
+  // vector asm 打开时，AVX2 backend 不应退回到 scalar reference。
+  AssertTrue('LengthF32x3 should not be scalar when vector asm enabled', dt^.LengthF32x3 <> @ScalarLengthF32x3);
+
+  // 确定性：|(3,4,0)| -> 5（w ignored）
+  a.f[0] := 3.0; a.f[1] := 4.0; a.f[2] := 0.0; a.f[3] := 999.0;
+  expS := ScalarLengthF32x3(a);
+  actS := dt^.LengthF32x3(a);
+  AssertEquals('Length3(3,4,0)', expS, actS, 0.0);
+
+  eps := 1e-4;
+  RandSeed := 20251221;
+
+  for iter := 1 to 5000 do
+  begin
+    for i := 0 to 2 do
+      a.f[i] := (Random(20001) - 10000) / 100.0;
+    a.f[3] := (Random(20001) - 10000) / 100.0; // ignored
+
+    expS := ScalarLengthF32x3(a);
+    actS := dt^.LengthF32x3(a);
+
+    AssertEquals('Length3 iter ' + IntToStr(iter), expS, actS, eps);
+  end;
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecF32x4_Normalize_RandomConsistency;
+var
+  dt: PSimdDispatchTable;
+  a: TVecF32x4;
+  expV, actV: TVecF32x4;
+  iter, i: Integer;
+  eps: Single;
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.NormalizeF32x4 should be assigned', Assigned(dt^.NormalizeF32x4));
+
+  // vector asm 打开时，AVX2 backend 不应退回到 scalar reference。
+  AssertTrue('NormalizeF32x4 should not be scalar when vector asm enabled', dt^.NormalizeF32x4 <> @ScalarNormalizeF32x4);
+
+  // 确定性：Normalize(3,0,0,0) -> (1,0,0,0)
+  a.f[0] := 3.0; a.f[1] := 0.0; a.f[2] := 0.0; a.f[3] := 0.0;
+  expV := ScalarNormalizeF32x4(a);
+  actV := dt^.NormalizeF32x4(a);
+  for i := 0 to 3 do
+    AssertEquals('Normalize(3,0,0,0) lane ' + IntToStr(i), expV.f[i], actV.f[i], 0.0);
+
+  eps := 1e-4;
+  RandSeed := 20251222;
+
+  for iter := 1 to 5000 do
+  begin
+    for i := 0 to 3 do
+      a.f[i] := (Random(20001) - 10000) / 100.0;
+
+    expV := ScalarNormalizeF32x4(a);
+    actV := dt^.NormalizeF32x4(a);
+
+    for i := 0 to 3 do
+      AssertEquals('Normalize iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.f[i], actV.f[i], eps);
+  end;
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecF32x4_Normalize3_RandomConsistency;
+var
+  dt: PSimdDispatchTable;
+  a: TVecF32x4;
+  expV, actV: TVecF32x4;
+  iter, i: Integer;
+  eps: Single;
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.NormalizeF32x3 should be assigned', Assigned(dt^.NormalizeF32x3));
+
+  // vector asm 打开时，AVX2 backend 不应退回到 scalar reference。
+  AssertTrue('NormalizeF32x3 should not be scalar when vector asm enabled', dt^.NormalizeF32x3 <> @ScalarNormalizeF32x3);
+
+  // 确定性：Normalize3(3,4,0,w) -> (0.6,0.8,0,w=0)
+  a.f[0] := 3.0; a.f[1] := 4.0; a.f[2] := 0.0; a.f[3] := 999.0;
+  expV := ScalarNormalizeF32x3(a);
+  actV := dt^.NormalizeF32x3(a);
+  eps := 1e-4;
+  for i := 0 to 2 do
+    AssertEquals('Normalize3(3,4,0) lane ' + IntToStr(i), expV.f[i], actV.f[i], eps);
+  AssertEquals('Normalize3 w should be +0', DWord(0), BitsFromSingle(actV.f[3]));
+
+  RandSeed := 20251223;
+
+  for iter := 1 to 5000 do
+  begin
+    for i := 0 to 2 do
+      a.f[i] := (Random(20001) - 10000) / 100.0;
+    a.f[3] := (Random(20001) - 10000) / 100.0;
+
+    expV := ScalarNormalizeF32x3(a);
+    actV := dt^.NormalizeF32x3(a);
+
+    for i := 0 to 2 do
+      AssertEquals('Normalize3 iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.f[i], actV.f[i], eps);
+    AssertEquals('Normalize3 iter ' + IntToStr(iter) + ' w should be +0', DWord(0), BitsFromSingle(actV.f[3]));
+  end;
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecF32x4_ABI_CalleeSavedRegisters_Preserved;
+var
+  dt: PSimdDispatchTable;
+  a, b: TVecF32x4;
+  expected, actual: Single;
+  iter, i: Integer;
+  ok: Boolean;
+  eps: Single;
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+
+  // 选择 3 个代表性的“返回 Single”的操作做 ABI 保护：Dot / Length / ReduceAdd。
+  AssertTrue('Dispatch.DotF32x4 should be assigned', Assigned(dt^.DotF32x4));
+  AssertTrue('Dispatch.LengthF32x4 should be assigned', Assigned(dt^.LengthF32x4));
+  AssertTrue('Dispatch.ReduceAddF32x4 should be assigned', Assigned(dt^.ReduceAddF32x4));
+
+  // 要求：vector asm 打开时，AVX2 backend 不应退回到 scalar reference。
+  AssertTrue('DotF32x4 should not be scalar when vector asm enabled', dt^.DotF32x4 <> @ScalarDotF32x4);
+  AssertTrue('LengthF32x4 should not be scalar when vector asm enabled', dt^.LengthF32x4 <> @ScalarLengthF32x4);
+  AssertTrue('ReduceAddF32x4 should not be scalar when vector asm enabled', dt^.ReduceAddF32x4 <> @ScalarReduceAddF32x4);
+
+  // Dot：用小整数保证精确可比。
+  RandSeed := 20251226;
+  for iter := 1 to 2000 do
+  begin
+    for i := 0 to 3 do
+    begin
+      a.f[i] := Single(Random(2001) - 1000);
+      b.f[i] := Single(Random(2001) - 1000);
+    end;
+
+    expected := ScalarDotF32x4(a, b);
+    ok := AbiCall_TwoVecToSingle_CheckCalleeSaved(Pointer(dt^.DotF32x4), a, b, actual);
+    AssertTrue('ABI callee-saved should be preserved (Dot) iter ' + IntToStr(iter), ok);
+    AssertEquals('ABI Dot iter ' + IntToStr(iter), expected, actual, 0.0);
+  end;
+
+  // ReduceAdd：同样用小整数精确可比。
+  RandSeed := 20251227;
+  for iter := 1 to 2000 do
+  begin
+    for i := 0 to 3 do
+      a.f[i] := Single(Random(2001) - 1000);
+
+    expected := ScalarReduceAddF32x4(a);
+    ok := AbiCall_OneVecToSingle_CheckCalleeSaved(Pointer(dt^.ReduceAddF32x4), a, actual);
+    AssertTrue('ABI callee-saved should be preserved (ReduceAdd) iter ' + IntToStr(iter), ok);
+    AssertEquals('ABI ReduceAdd iter ' + IntToStr(iter), expected, actual, 0.0);
+  end;
+
+  // Length：包含 sqrt，使用可精确表示的 case + eps。
+  a.f[0] := 3.0; a.f[1] := 4.0; a.f[2] := 0.0; a.f[3] := 0.0;
+  expected := ScalarLengthF32x4(a);
+  ok := AbiCall_OneVecToSingle_CheckCalleeSaved(Pointer(dt^.LengthF32x4), a, actual);
+  AssertTrue('ABI callee-saved should be preserved (Length)', ok);
+  eps := 1e-6;
+  AssertEquals('ABI Length(3,4,0,0)', expected, actual, eps);
 end;
 
 { TTestCase_VectorOps }
@@ -5567,6 +8018,7 @@ initialization
   RegisterTest(TTestCase_Global);
   RegisterTest(TTestCase_BackendConsistency);
   RegisterTest(TTestCase_BackendSmoke);
+  RegisterTest(TTestCase_AVX2VectorAsm);
   RegisterTest(TTestCase_VectorOps);
   RegisterTest(TTestCase_LargeData);
   RegisterTest(TTestCase_UnsignedVectorTypes);

@@ -128,6 +128,9 @@ procedure sse_setcsr(Value: Integer);
 
 implementation
 
+uses
+  fafafa.core.math;
+
 // 辅助函数：检查浮点数是否�?NaN
 function IsNaN(Value: Single): Boolean;
 var

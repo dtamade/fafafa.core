@@ -54,6 +54,9 @@ function sse41_mullo_epi32(const a, b: TM128): TM128;              // 32位乘�
 
 implementation
 
+uses
+  fafafa.core.math;
+
 // === Min/Max 操作实现 ===
 function sse41_max_epi8(const a, b: TM128): TM128;
 var
