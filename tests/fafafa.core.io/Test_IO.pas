@@ -111,6 +111,7 @@ type
     procedure Test_CopyBuffer_CustomSize;
     procedure Test_ReadAtLeast_MinReached;
     procedure Test_ReadAtLeast_Interrupted_Retries;
+    procedure Test_ReadAtLeast_MinGreaterThanBufSize_RaisesInvalidInput;
   end;
 
   { TTestStreamAdapter }
@@ -1614,6 +1615,32 @@ begin
   AssertTrue('At least 30', N >= 30);
   AssertEquals('Actually read 50', 50, N);
   AssertEquals('ReadAtLeast retries (calls)', FailCount + 2, FailR.CallCount);
+end;
+
+procedure TTestIOUtils.Test_ReadAtLeast_MinGreaterThanBufSize_RaisesInvalidInput;
+var
+  Src: IReader;
+  Buf: array[0..9] of Byte;
+  Raised: Boolean;
+  GotKind: TIOErrorKind;
+begin
+  Src := IO.Cursor(TEncoding.UTF8.GetBytes('Hello'));
+
+  Raised := False;
+  GotKind := ekUnknown;
+  try
+    // BufSize = 10, Min = 11
+    ReadAtLeast(Src, @Buf[0], 10, 11);
+  except
+    on E: EIOError do
+    begin
+      Raised := True;
+      GotKind := E.Kind;
+    end;
+  end;
+
+  AssertTrue('Should raise on min > buffer size', Raised);
+  AssertEquals('Kind should be ekInvalidInput', Ord(ekInvalidInput), Ord(GotKind));
 end;
 
 { TTestStreamAdapter }

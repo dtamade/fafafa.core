@@ -234,7 +234,7 @@ var
   LPtr: PByte;
 begin
   if Min > BufSize then
-    raise EIOError.Create('ReadAtLeast: min > buffer size');
+    raise EIOError.Create(ekInvalidInput, 'ReadAtLeast: min > buffer size');
   if Min < 0 then
     Min := 0;
 
