@@ -31,8 +31,22 @@
 ## 文件系统模块（fafafa.core.fs）
 - 模块文档：docs/fafafa.core.fs.md
 - 快速演示与一键脚本：
-  - Windows：examples\fafafa.core.fs\example_resolve_and_walk\buildOrRun.bat
+  - Windows：examples\\fafafa.core.fs\\example_resolve_and_walk\\buildOrRun.bat
   - Unix/macOS：examples/fafafa.core.fs/example_resolve_and_walk/buildOrRun.sh
+
+## 环境模块（fafafa.core.env）
+- 模块文档：docs/fafafa.core.env.md
+- 发布说明：docs/RELEASE-NOTES-env.md
+- 路线图：docs/fafafa.core.env.roadmap.md
+- 单元测试：tests/fafafa.core.env/
+  - Windows：`tests\run_all_tests.bat fafafa.core.env`（或 `tests\fafafa.core.env\BuildOrTest.bat`）
+  - Linux/macOS：`bash tests/run_all_tests.sh fafafa.core.env`
+  - 直接运行：`./tests/fafafa.core.env/bin/fafafa.core.env.test --all --format=plainnotiming`
+- 示例：
+  - Windows：`examples\fafafa.core.env\BuildOrRun.bat` / `BuildOrRun_Overrides.bat` / `BuildOrRun_Security.bat`
+  - Linux/macOS：`bash examples/fafafa.core.env/BuildOrRun.sh run all`
+- 文档示例验证：`./benchmarks/fafafa.core.env/bin/doc_examples_test`
+- 基准：benchmarks/fafafa.core.env/BASELINE.md
 
 ## 终端模块（fafafa.core.term）
 - 合约文档：docs/fafafa.core.term.contracts.md
