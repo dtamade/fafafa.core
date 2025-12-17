@@ -149,6 +149,7 @@ type
     procedure Test_VecF32x4_ABI_CalleeSavedRegisters_Preserved_Insert;
     procedure Test_VecF32x4_ABI_CalleeSavedRegisters_Preserved_Extract;
     procedure Test_VecF32x4_ABI_CalleeSavedRegisters_Preserved_MaskReturn;
+    procedure Test_VecF32x4_ABI_CalleeSavedRegisters_Preserved_Zero;
   end;
 
   // 向量运算测试 (强制使用 Scalar 后端以避免 AVX2 实现的问题)
@@ -2605,6 +2606,74 @@ asm
   // store mask result (reload out ptr after the call)
   mov r10, qword ptr [rsp + 40]
   mov dword ptr [r10], eax
+
+  // verify callee-saved regs
+  cmp rbx, $11223344
+  jne @fail
+  cmp r12, $55667788
+  jne @fail
+  cmp r13, $0F0E0D0C
+  jne @fail
+  cmp r14, $01020304
+  jne @fail
+  cmp r15, $22334455
+  jne @fail
+
+  mov eax, 1
+  jmp @done
+
+@fail:
+  xor eax, eax
+
+@done:
+  pop r15
+  pop r14
+  pop r13
+  pop r12
+  pop rbx
+  add rsp, 16
+end;
+
+function AbiCall_NoArgsToVec_CheckCalleeSaved(fn: Pointer; out value: TVecF32x4): Boolean; assembler; nostackframe;
+asm
+  // SysV AMD64 (Linux x86_64)
+  //
+  // 入参（本 helper 的签名：fn, out value）：
+  //   RDI = fn
+  //   RSI = @value
+  //
+  // 被测函数（签名：fn(): TVecF32x4）Return（预期）：
+  //   RAX = result.lowQ
+  //   RDX = result.highQ
+
+  // 保存 out ptr / fn 到栈上（避免被测函数破坏 caller-saved 寄存器）。
+  // 额外说明：这里用 16 bytes local + 5 pushes，保证 call 前 RSP 16-byte 对齐。
+  sub rsp, 16
+  mov qword ptr [rsp], rsi     // out ptr
+  mov qword ptr [rsp + 8], rdi // fn ptr
+
+  // 保存 callee-saved（本函数也必须遵守 ABI）
+  push rbx
+  push r12
+  push r13
+  push r14
+  push r15
+
+  // 注意：FPC 内置汇编器对 64-bit imm 支持有限，这里用“可表示的 signed dword”哨兵值。
+  mov rbx, $11223344
+  mov r12, $55667788
+  mov r13, $0F0E0D0C
+  mov r14, $01020304
+  mov r15, $22334455
+
+  // call fn()
+  mov rax, qword ptr [rsp + 48]   // fn ptr
+  call rax
+
+  // store vector result (reload out ptr after the call)
+  mov r10, qword ptr [rsp + 40]
+  mov qword ptr [r10], rax
+  mov qword ptr [r10 + 8], rdx
 
   // verify callee-saved regs
   cmp rbx, $11223344
@@ -5345,6 +5414,31 @@ begin
     AssertTrue('ABI callee-saved should be preserved (CmpNeF32x4) iter ' + IntToStr(iter), ok);
     AssertEquals('ABI CmpNeF32x4 iter ' + IntToStr(iter), expected, actual);
   end;
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecF32x4_ABI_CalleeSavedRegisters_Preserved_Zero;
+var
+  dt: PSimdDispatchTable;
+  actual: TVecF32x4;
+  ok: Boolean;
+  i: Integer;
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+
+  AssertTrue('Dispatch.ZeroF32x4 should be assigned', Assigned(dt^.ZeroF32x4));
+  AssertTrue('ZeroF32x4 should not be scalar when vector asm enabled', dt^.ZeroF32x4 <> @ScalarZeroF32x4);
+
+  ok := AbiCall_NoArgsToVec_CheckCalleeSaved(Pointer(dt^.ZeroF32x4), actual);
+  AssertTrue('ABI callee-saved should be preserved (ZeroF32x4)', ok);
+
+  for i := 0 to 3 do
+    AssertEquals('ABI ZeroF32x4 lane ' + IntToStr(i) + ' bits', DWord(0), BitsFromSingle(actual.f[i]));
 end;
 
 { TTestCase_VectorOps }
