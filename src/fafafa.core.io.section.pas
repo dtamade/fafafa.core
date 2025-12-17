@@ -112,7 +112,7 @@ begin
     SeekCurrent: NewOffset := FOffset + Offset;
     SeekEnd:     NewOffset := FSize + Offset;
   else
-    raise EIOError.Create('TSectionReader.Seek: invalid whence');
+    raise EIOError.Create(ekInvalidInput, 'TSectionReader.Seek: invalid whence');
   end;
 
   // 检查负数偏移 (SeekStart before 0)

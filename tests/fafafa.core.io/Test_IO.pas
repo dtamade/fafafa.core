@@ -197,6 +197,7 @@ type
     procedure Test_Seek_Negative_RaisesError;
     procedure Test_Seek_BeyondEnd_ReturnsPos;
     procedure Test_Read_AfterSeekBeyondEnd_ReturnsEOF;
+    procedure Test_Seek_InvalidWhence_RaisesInvalidInput;
   end;
 
   { TTestIOFacade - 测试门面 API }
@@ -2567,6 +2568,37 @@ begin
     SR.Seek(10, SeekStart); // Seek beyond end
     N := SR.Read(@Buf[0], 10);
     AssertEquals('Read beyond end returns 0', 0, N);
+  finally
+    SR.Free;
+  end;
+end;
+
+procedure TTestSectionSemantics.Test_Seek_InvalidWhence_RaisesInvalidInput;
+var
+  Data: TBytes;
+  C: TIOCursor;
+  SR: TSectionReader;
+  Raised: Boolean;
+  GotKind: TIOErrorKind;
+begin
+  SetLength(Data, 10);
+  C := TIOCursor.FromBytes(Data);
+  SR := TSectionReader.Create(C, 0, 10);
+  try
+    Raised := False;
+    GotKind := ekUnknown;
+    try
+      SR.Seek(0, 123); // invalid whence
+    except
+      on E: EIOError do
+      begin
+        Raised := True;
+        GotKind := E.Kind;
+      end;
+    end;
+
+    AssertTrue('Seek invalid whence should raise', Raised);
+    AssertEquals('Seek invalid whence kind', Ord(ekInvalidInput), Ord(GotKind));
   finally
     SR.Free;
   end;
