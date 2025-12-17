@@ -190,7 +190,8 @@ begin
   except
     on E: Exception do
     begin
-      FError := Exception.Create(E.Message);
+      FreeAndNil(FError);
+      FError := Exception(AcquireExceptionObject);
       Result := False;
     end;
   end;

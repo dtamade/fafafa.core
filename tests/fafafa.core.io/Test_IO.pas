@@ -281,6 +281,7 @@ type
     procedure Test_LinesIter_NoTrailingNewline;
     procedure Test_LinesIter_CRLFHandling;
     procedure Test_LinesIter_LineNumber;
+    procedure Test_LinesIter_Error_PreservesEIOErrorKind;
   end;
 
   { TTestScanner - 测试可配置扫描器 }
@@ -3579,6 +3580,35 @@ begin
   AssertEquals('After second', 2, It.LineNumber);
   It.Next(Line);
   AssertEquals('After third', 3, It.LineNumber);
+end;
+
+procedure TTestLineIterator.Test_LinesIter_Error_PreservesEIOErrorKind;
+var
+  Data: TBytes;
+  Inner: IReader;
+  FailR: TFailNTimesReader;
+  Src: IReader;
+  It: ILineIterator;
+  Line: string;
+  Err: Exception;
+  Kind: TIOErrorKind;
+begin
+  Data := TEncoding.UTF8.GetBytes('Line1'#10);
+  Inner := IO.Cursor(Data);
+
+  FailR := TFailNTimesReader.Create(Inner, 1, ekNotFound);
+  Src := FailR;
+  It := IO.LinesIter(Src);
+
+  AssertFalse('Next should stop on error', It.Next(Line));
+
+  Err := It.Error;
+  AssertTrue('Error should be set', Err <> nil);
+
+  Kind := ekUnknown;
+  if Err is EIOError then
+    Kind := EIOError(Err).Kind;
+  AssertEquals('Error kind should be preserved', Ord(ekNotFound), Ord(Kind));
 end;
 
 { TTestScanner }
