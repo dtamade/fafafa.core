@@ -152,6 +152,7 @@ type
     procedure Test_VecF32x4_ABI_CalleeSavedRegisters_Preserved_Zero;
     procedure Test_VecF32x4_ABI_CalleeSavedRegisters_Preserved_Splat;
     procedure Test_VecF32x4_ABI_CalleeSavedRegisters_Preserved_Select;
+    procedure Test_VecF32x8_ABI_CalleeSavedRegisters_Preserved_VectorReturn;
   end;
 
   // 向量运算测试 (强制使用 Scalar 后端以避免 AVX2 实现的问题)
@@ -2828,6 +2829,74 @@ asm
   mov r10, qword ptr [rsp + 40]
   mov qword ptr [r10], rax
   mov qword ptr [r10 + 8], rdx
+
+  // verify callee-saved regs
+  cmp rbx, $11223344
+  jne @fail
+  cmp r12, $55667788
+  jne @fail
+  cmp r13, $0F0E0D0C
+  jne @fail
+  cmp r14, $01020304
+  jne @fail
+  cmp r15, $22334455
+  jne @fail
+
+  mov eax, 1
+  jmp @done
+
+@fail:
+  xor eax, eax
+
+@done:
+  pop r15
+  pop r14
+  pop r13
+  pop r12
+  pop rbx
+  add rsp, 16
+end;
+
+function AbiCall_TwoPtrToVecF32x8_CheckCalleeSaved(fn: Pointer; pa, pb: Pointer; out value: TVecF32x8): Boolean; assembler; nostackframe;
+asm
+  // SysV AMD64 (Linux x86_64) - large record return uses hidden sret pointer.
+  //
+  // 入参（本 helper 的签名：fn, pa, pb, out value）：
+  //   RDI = fn
+  //   RSI = pa (points to TVecF32x8)
+  //   RDX = pb (points to TVecF32x8)
+  //   RCX = @value (out)
+  //
+  // 被测函数（签名：fn(const a,b: TVecF32x8): TVecF32x8）期望：
+  //   RDI = sret (@result)
+  //   RSI = @a
+  //   RDX = @b
+  // Return: typically RAX = sret (ignore)
+
+  // 保存 out ptr / fn 到栈上（避免被测函数破坏 caller-saved 寄存器）。
+  // 额外说明：这里用 16 bytes local + 5 pushes，保证 call 前 RSP 16-byte 对齐。
+  sub rsp, 16
+  mov qword ptr [rsp], rcx     // out ptr (sret)
+  mov qword ptr [rsp + 8], rdi // fn ptr
+
+  // 保存 callee-saved（本函数也必须遵守 ABI）
+  push rbx
+  push r12
+  push r13
+  push r14
+  push r15
+
+  // 注意：FPC 内置汇编器对 64-bit imm 支持有限，这里用“可表示的 signed dword”哨兵值。
+  mov rbx, $11223344
+  mov r12, $55667788
+  mov r13, $0F0E0D0C
+  mov r14, $01020304
+  mov r15, $22334455
+
+  // call fn(a, b) with sret in RDI
+  mov rax, qword ptr [rsp + 48]  // fn ptr
+  mov rdi, qword ptr [rsp + 40]  // sret/out ptr
+  call rax
 
   // verify callee-saved regs
   cmp rbx, $11223344
@@ -5692,6 +5761,45 @@ begin
 
     for i := 0 to 3 do
       AssertEquals('ABI SelectF32x4 iter ' + IntToStr(iter) + ' lane ' + IntToStr(i) + ' bits',
+                   BitsFromSingle(expected.f[i]), BitsFromSingle(actual.f[i]));
+  end;
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecF32x8_ABI_CalleeSavedRegisters_Preserved_VectorReturn;
+var
+  dt: PSimdDispatchTable;
+  a, b, expected, actual: TVecF32x8;
+  iter, i: Integer;
+  ok: Boolean;
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+
+  AssertTrue('Dispatch.AddF32x8 should be assigned', Assigned(dt^.AddF32x8));
+  AssertTrue('AddF32x8 should not be scalar when vector asm enabled', dt^.AddF32x8 <> @ScalarAddF32x8);
+
+  RandSeed := 20260110;
+
+  for iter := 1 to 2000 do
+  begin
+    for i := 0 to 7 do
+    begin
+      // 选小整数，保证结果 float32 bit-exact
+      a.f[i] := Single(Random(2001) - 1000);
+      b.f[i] := Single(Random(2001) - 1000);
+    end;
+
+    expected := ScalarAddF32x8(a, b);
+    ok := AbiCall_TwoPtrToVecF32x8_CheckCalleeSaved(Pointer(dt^.AddF32x8), @a, @b, actual);
+    AssertTrue('ABI callee-saved should be preserved (AddF32x8) iter ' + IntToStr(iter), ok);
+
+    for i := 0 to 7 do
+      AssertEquals('ABI AddF32x8 iter ' + IntToStr(iter) + ' lane ' + IntToStr(i) + ' bits',
                    BitsFromSingle(expected.f[i]), BitsFromSingle(actual.f[i]));
   end;
 end;
