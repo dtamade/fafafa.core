@@ -143,6 +143,7 @@ type
     procedure Test_VecF32x4_ABI_CalleeSavedRegisters_Preserved;
     procedure Test_VecF32x4_ABI_CalleeSavedRegisters_Preserved_VectorReturn;
     procedure Test_VecF32x4_ABI_CalleeSavedRegisters_Preserved_VectorReturn_OneVec;
+    procedure Test_VecF32x4_ABI_CalleeSavedRegisters_Preserved_VectorReturn_ThreeVec;
     procedure Test_VecF32x4_ABI_CalleeSavedRegisters_Preserved_MaskReturn;
   end;
 
@@ -2156,6 +2157,103 @@ asm
   pop r12
   pop rbx
   add rsp, 16
+end;
+
+function AbiCall_ThreeVecToVec_CheckCalleeSaved(fn: Pointer; const a, b, c: TVecF32x4; out value: TVecF32x4): Boolean; assembler; nostackframe;
+asm
+  // SysV AMD64 (Linux x86_64) - FPC 对 TVecF32x4 的实际 ABI：按 INTEGER 类传参/返回。
+  //
+  // 入参（本 helper 的签名：fn, a, b, c, out value）：
+  //   RDI = fn
+  //   RSI = a.lowQ
+  //   RDX = a.highQ
+  //   RCX = b.lowQ
+  //   R8  = b.highQ
+  //
+  //   注意：c 需要 2 个 INTEGER 寄存器槽，但此时只剩 1 个槽（R9）。
+  //   按 SysV 规则：寄存器不够时整个参数走内存，因此 c 会整体落到 stack。
+  //
+  //   R9 = @value
+  //   stack[+8]  = c.lowQ
+  //   stack[+16] = c.highQ
+  //
+  // 被测函数（签名：fn(a,b,c): TVecF32x4）期望：
+  //   RDI = a.lowQ
+  //   RSI = a.highQ
+  //   RDX = b.lowQ
+  //   RCX = b.highQ
+  //   R8  = c.lowQ
+  //   R9  = c.highQ
+  // Return（预期）：
+  //   RAX = result.lowQ
+  //   RDX = result.highQ
+
+  // 先把 stack 入参取出来（之后会改 RSP）。
+  mov r10, qword ptr [rsp + 8]   // c.lowQ
+  mov r11, qword ptr [rsp + 16]  // c.highQ
+
+  // 保存 out ptr / fn / c 到栈上（避免被测函数破坏 caller-saved 寄存器）。
+  // 额外说明：这里用 32 bytes local + 5 pushes，保证 call 前 RSP 16-byte 对齐。
+  sub rsp, 32
+  mov qword ptr [rsp], r9        // out ptr
+  mov qword ptr [rsp + 8], rdi   // fn ptr
+  mov qword ptr [rsp + 16], r10  // c.lowQ
+  mov qword ptr [rsp + 24], r11  // c.highQ
+
+  // 保存 callee-saved（本函数也必须遵守 ABI）
+  push rbx
+  push r12
+  push r13
+  push r14
+  push r15
+
+  // 注意：FPC 内置汇编器对 64-bit imm 支持有限，这里用“可表示的 signed dword”哨兵值。
+  mov rbx, $11223344
+  mov r12, $55667788
+  mov r13, $0F0E0D0C
+  mov r14, $01020304
+  mov r15, $22334455
+
+  // call fn(a, b, c)
+  mov rax, qword ptr [rsp + 48]   // fn ptr
+  mov rdi, rsi                    // a.lowQ
+  mov rsi, rdx                    // a.highQ
+  mov rdx, rcx                    // b.lowQ
+  mov rcx, r8                     // b.highQ
+  mov r8, qword ptr [rsp + 56]    // c.lowQ
+  mov r9, qword ptr [rsp + 64]    // c.highQ
+  call rax
+
+  // store vector result (reload out ptr after the call)
+  mov r10, qword ptr [rsp + 40]
+  mov qword ptr [r10], rax
+  mov qword ptr [r10 + 8], rdx
+
+  // verify callee-saved regs
+  cmp rbx, $11223344
+  jne @fail
+  cmp r12, $55667788
+  jne @fail
+  cmp r13, $0F0E0D0C
+  jne @fail
+  cmp r14, $01020304
+  jne @fail
+  cmp r15, $22334455
+  jne @fail
+
+  mov eax, 1
+  jmp @done
+
+@fail:
+  xor eax, eax
+
+@done:
+  pop r15
+  pop r14
+  pop r13
+  pop r12
+  pop rbx
+  add rsp, 32
 end;
 
 function AbiCall_TwoVecToMask_CheckCalleeSaved(fn: Pointer; const a, b: TVecF32x4; out value: TMask4): Boolean; assembler; nostackframe;
@@ -4579,6 +4677,68 @@ begin
 
     for i := 0 to 3 do
       AssertEquals('ABI SqrtF32x4 iter ' + IntToStr(iter) + ' lane ' + IntToStr(i) + ' bits',
+                   BitsFromSingle(expected.f[i]), BitsFromSingle(actual.f[i]));
+  end;
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecF32x4_ABI_CalleeSavedRegisters_Preserved_VectorReturn_ThreeVec;
+var
+  dt: PSimdDispatchTable;
+  a, b, c, expected, actual: TVecF32x4;
+  iter, i: Integer;
+  ok: Boolean;
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+
+  AssertTrue('Dispatch.FmaF32x4 should be assigned', Assigned(dt^.FmaF32x4));
+  AssertTrue('Dispatch.ClampF32x4 should be assigned', Assigned(dt^.ClampF32x4));
+
+  AssertTrue('FmaF32x4 should not be scalar when vector asm enabled', dt^.FmaF32x4 <> @ScalarFmaF32x4);
+  AssertTrue('ClampF32x4 should not be scalar when vector asm enabled', dt^.ClampF32x4 <> @ScalarClampF32x4);
+
+  // Fma: choose small integers => bit-exact whether fused or not
+  RandSeed := 20260101;
+  for iter := 1 to 2000 do
+  begin
+    for i := 0 to 3 do
+    begin
+      a.f[i] := Single(Random(2001) - 1000);
+      b.f[i] := Single(Random(2001) - 1000);
+      c.f[i] := Single(Random(2001) - 1000);
+    end;
+
+    expected := ScalarFmaF32x4(a, b, c);
+    ok := AbiCall_ThreeVecToVec_CheckCalleeSaved(Pointer(dt^.FmaF32x4), a, b, c, actual);
+    AssertTrue('ABI callee-saved should be preserved (FmaF32x4) iter ' + IntToStr(iter), ok);
+
+    for i := 0 to 3 do
+      AssertEquals('ABI FmaF32x4 iter ' + IntToStr(iter) + ' lane ' + IntToStr(i) + ' bits',
+                   BitsFromSingle(expected.f[i]), BitsFromSingle(actual.f[i]));
+  end;
+
+  // Clamp: also 3 vectors => ABI guard for passing 3x TVecF32x4
+  RandSeed := 20260102;
+  for iter := 1 to 2000 do
+  begin
+    for i := 0 to 3 do
+    begin
+      a.f[i] := Single(Random(2001) - 1000);
+      b.f[i] := Single(Random(2001) - 1000);              // min
+      c.f[i] := b.f[i] + Single(Random(2001));            // max >= min
+    end;
+
+    expected := ScalarClampF32x4(a, b, c);
+    ok := AbiCall_ThreeVecToVec_CheckCalleeSaved(Pointer(dt^.ClampF32x4), a, b, c, actual);
+    AssertTrue('ABI callee-saved should be preserved (ClampF32x4) iter ' + IntToStr(iter), ok);
+
+    for i := 0 to 3 do
+      AssertEquals('ABI ClampF32x4 iter ' + IntToStr(iter) + ' lane ' + IntToStr(i) + ' bits',
                    BitsFromSingle(expected.f[i]), BitsFromSingle(actual.f[i]));
   end;
 end;
