@@ -144,6 +144,7 @@ type
     procedure Test_VecF32x4_ABI_CalleeSavedRegisters_Preserved_VectorReturn;
     procedure Test_VecF32x4_ABI_CalleeSavedRegisters_Preserved_VectorReturn_OneVec;
     procedure Test_VecF32x4_ABI_CalleeSavedRegisters_Preserved_VectorReturn_ThreeVec;
+    procedure Test_VecF32x4_ABI_CalleeSavedRegisters_Preserved_VectorReturn_Ptr;
     procedure Test_VecF32x4_ABI_CalleeSavedRegisters_Preserved_MaskReturn;
   end;
 
@@ -2254,6 +2255,76 @@ asm
   pop r12
   pop rbx
   add rsp, 32
+end;
+
+function AbiCall_PtrToVec_CheckCalleeSaved(fn: Pointer; p: PSingle; out value: TVecF32x4): Boolean; assembler; nostackframe;
+asm
+  // SysV AMD64 (Linux x86_64) - 入参（本 helper 的签名：fn, p, out value）：
+  //   RDI = fn
+  //   RSI = p
+  //   RDX = @value
+  //
+  // 被测函数（签名：fn(p): TVecF32x4）期望：
+  //   RDI = p
+  // Return（预期）：
+  //   RAX = result.lowQ
+  //   RDX = result.highQ
+
+  // 保存 out ptr / fn 到栈上（避免被测函数破坏 caller-saved 寄存器）。
+  // 额外说明：这里用 16 bytes local + 5 pushes，保证 call 前 RSP 16-byte 对齐。
+  sub rsp, 16
+  mov qword ptr [rsp], rdx     // out ptr
+  mov qword ptr [rsp + 8], rdi // fn ptr
+
+  // 保存 callee-saved（本函数也必须遵守 ABI）
+  push rbx
+  push r12
+  push r13
+  push r14
+  push r15
+
+  // 注意：FPC 内置汇编器对 64-bit imm 支持有限，这里用“可表示的 signed dword”哨兵值。
+  mov rbx, $11223344
+  mov r12, $55667788
+  mov r13, $0F0E0D0C
+  mov r14, $01020304
+  mov r15, $22334455
+
+  // call fn(p)
+  mov rax, qword ptr [rsp + 48]   // fn ptr
+  mov rdi, rsi                    // p
+  call rax
+
+  // store vector result (reload out ptr after the call)
+  mov r10, qword ptr [rsp + 40]
+  mov qword ptr [r10], rax
+  mov qword ptr [r10 + 8], rdx
+
+  // verify callee-saved regs
+  cmp rbx, $11223344
+  jne @fail
+  cmp r12, $55667788
+  jne @fail
+  cmp r13, $0F0E0D0C
+  jne @fail
+  cmp r14, $01020304
+  jne @fail
+  cmp r15, $22334455
+  jne @fail
+
+  mov eax, 1
+  jmp @done
+
+@fail:
+  xor eax, eax
+
+@done:
+  pop r15
+  pop r14
+  pop r13
+  pop r12
+  pop rbx
+  add rsp, 16
 end;
 
 function AbiCall_TwoVecToMask_CheckCalleeSaved(fn: Pointer; const a, b: TVecF32x4; out value: TMask4): Boolean; assembler; nostackframe;
@@ -4739,6 +4810,64 @@ begin
 
     for i := 0 to 3 do
       AssertEquals('ABI ClampF32x4 iter ' + IntToStr(iter) + ' lane ' + IntToStr(i) + ' bits',
+                   BitsFromSingle(expected.f[i]), BitsFromSingle(actual.f[i]));
+  end;
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecF32x4_ABI_CalleeSavedRegisters_Preserved_VectorReturn_Ptr;
+var
+  dt: PSimdDispatchTable;
+  buf: array[0..15] of Single;
+  pAligned: PSingle;
+  expected, actual: TVecF32x4;
+  iter, i: Integer;
+  ok: Boolean;
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+
+  AssertTrue('Dispatch.LoadF32x4 should be assigned', Assigned(dt^.LoadF32x4));
+  AssertTrue('Dispatch.LoadF32x4Aligned should be assigned', Assigned(dt^.LoadF32x4Aligned));
+
+  AssertTrue('LoadF32x4 should not be scalar when vector asm enabled', dt^.LoadF32x4 <> @ScalarLoadF32x4);
+  AssertTrue('LoadF32x4Aligned should not be scalar when vector asm enabled', dt^.LoadF32x4Aligned <> @ScalarLoadF32x4Aligned);
+
+  // Unaligned load
+  RandSeed := 20260103;
+  for iter := 1 to 2000 do
+  begin
+    for i := 0 to 3 do
+      buf[i] := Single(Random(2001) - 1000);
+
+    expected := ScalarLoadF32x4(@buf[0]);
+    ok := AbiCall_PtrToVec_CheckCalleeSaved(Pointer(dt^.LoadF32x4), @buf[0], actual);
+    AssertTrue('ABI callee-saved should be preserved (LoadF32x4) iter ' + IntToStr(iter), ok);
+
+    for i := 0 to 3 do
+      AssertEquals('ABI LoadF32x4 iter ' + IntToStr(iter) + ' lane ' + IntToStr(i) + ' bits',
+                   BitsFromSingle(expected.f[i]), BitsFromSingle(actual.f[i]));
+  end;
+
+  // Aligned load
+  pAligned := PSingle((PtrUInt(@buf[0]) + 15) and not PtrUInt(15));
+
+  RandSeed := 20260104;
+  for iter := 1 to 2000 do
+  begin
+    for i := 0 to 3 do
+      pAligned[i] := Single(Random(2001) - 1000);
+
+    expected := ScalarLoadF32x4Aligned(pAligned);
+    ok := AbiCall_PtrToVec_CheckCalleeSaved(Pointer(dt^.LoadF32x4Aligned), pAligned, actual);
+    AssertTrue('ABI callee-saved should be preserved (LoadF32x4Aligned) iter ' + IntToStr(iter), ok);
+
+    for i := 0 to 3 do
+      AssertEquals('ABI LoadF32x4Aligned iter ' + IntToStr(iter) + ' lane ' + IntToStr(i) + ' bits',
                    BitsFromSingle(expected.f[i]), BitsFromSingle(actual.f[i]));
   end;
 end;
