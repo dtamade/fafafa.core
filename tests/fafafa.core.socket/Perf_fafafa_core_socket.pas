@@ -7,7 +7,7 @@ unit Perf_fafafa_core_socket;
 interface
 
 uses
-  Classes, SysUtils, Math, fpcunit, testregistry,
+  Classes, SysUtils, fafafa.core.math, fpcunit, testregistry,
   fafafa.core.base,
   fafafa.core.socket;
 

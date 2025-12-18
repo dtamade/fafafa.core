@@ -6,6 +6,7 @@ interface
 
 uses
   Classes, SysUtils, fpcunit, testregistry,
+  fafafa.core.math,
   fafafa.core.sync.rwlock, fafafa.core.sync.base;
 
 type

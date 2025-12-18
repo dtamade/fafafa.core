@@ -202,6 +202,9 @@ type
 
 implementation
 
+uses
+  fafafa.core.math;
+
 { TUtcOffset }
 
 class function TUtcOffset.UTC: TUtcOffset;

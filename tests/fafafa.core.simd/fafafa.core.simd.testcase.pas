@@ -6,7 +6,7 @@ unit fafafa.core.simd.testcase;
 interface
 
 uses
-  Classes, SysUtils, Math, fpcunit, testregistry,
+  Classes, SysUtils, fafafa.core.math, fpcunit, testregistry,
   fafafa.core.simd,
   fafafa.core.simd.base,
   fafafa.core.simd.types,
@@ -153,6 +153,21 @@ type
     procedure Test_VecF32x4_ABI_CalleeSavedRegisters_Preserved_Splat;
     procedure Test_VecF32x4_ABI_CalleeSavedRegisters_Preserved_Select;
     procedure Test_VecF32x8_ABI_CalleeSavedRegisters_Preserved_VectorReturn;
+    procedure Test_VecF64x2_ABI_CalleeSavedRegisters_Preserved_VectorReturn;
+    procedure Test_VecI32x4_ABI_CalleeSavedRegisters_Preserved_VectorReturn;
+
+    procedure Test_Facade_MemEqual_ABI_CalleeSavedRegisters_Preserved;
+    procedure Test_Facade_MemDiffRange_ABI_CalleeSavedRegisters_Preserved;
+    procedure Test_Facade_MemFindByte_ABI_CalleeSavedRegisters_Preserved;
+    procedure Test_Facade_MemCopy_ABI_CalleeSavedRegisters_Preserved;
+    procedure Test_Facade_SumBytes_ABI_CalleeSavedRegisters_Preserved;
+    procedure Test_Facade_CountByte_ABI_CalleeSavedRegisters_Preserved;
+    procedure Test_Facade_BitsetPopCount_ABI_CalleeSavedRegisters_Preserved;
+    procedure Test_Facade_Utf8Validate_ABI_CalleeSavedRegisters_Preserved;
+    procedure Test_Facade_AsciiIEqual_ABI_CalleeSavedRegisters_Preserved;
+    procedure Test_Facade_ToLowerAscii_ABI_CalleeSavedRegisters_Preserved;
+    procedure Test_Facade_ToUpperAscii_ABI_CalleeSavedRegisters_Preserved;
+    procedure Test_Facade_BytesIndexOf_ABI_CalleeSavedRegisters_Preserved;
   end;
 
   // 向量运算测试 (强制使用 Scalar 后端以避免 AVX2 实现的问题)
@@ -2168,6 +2183,168 @@ asm
   add rsp, 16
 end;
 
+function AbiCall_TwoVecF64x2ToVec_CheckCalleeSaved(fn: Pointer; const a, b: TVecF64x2; out value: TVecF64x2): Boolean; assembler; nostackframe;
+asm
+  // SysV AMD64 (Linux x86_64) - 16B variant record (TVecF64x2) 按 INTEGER 类传参/返回。
+  //
+  // 入参（本 helper 的签名：fn, a, b, out value）：
+  //   RDI = fn
+  //   RSI = a.lowQ
+  //   RDX = a.highQ
+  //   RCX = b.lowQ
+  //   R8  = b.highQ
+  //   R9  = @value
+  //
+  // 被测函数（签名：fn(a,b): TVecF64x2）期望：
+  //   RDI = a.lowQ
+  //   RSI = a.highQ
+  //   RDX = b.lowQ
+  //   RCX = b.highQ
+  // Return（预期）：
+  //   RAX = result.lowQ
+  //   RDX = result.highQ
+
+  // 保存 out ptr / fn 到栈上（避免被测函数破坏 caller-saved 寄存器）。
+  // 额外说明：这里用 16 bytes local + 5 pushes，保证 call 前 RSP 16-byte 对齐。
+  sub rsp, 16
+  mov qword ptr [rsp], r9      // out ptr
+  mov qword ptr [rsp + 8], rdi // fn ptr
+
+  // 保存 callee-saved（本函数也必须遵守 ABI）
+  push rbx
+  push r12
+  push r13
+  push r14
+  push r15
+
+  // 注意：FPC 内置汇编器对 64-bit imm 支持有限，这里用“可表示的 signed dword”哨兵值。
+  mov rbx, $11223344
+  mov r12, $55667788
+  mov r13, $0F0E0D0C
+  mov r14, $01020304
+  mov r15, $22334455
+
+  // call fn(a, b)
+  mov rax, qword ptr [rsp + 48]   // fn ptr
+  mov rdi, rsi                    // a.lowQ
+  mov rsi, rdx                    // a.highQ
+  mov rdx, rcx                    // b.lowQ
+  mov rcx, r8                     // b.highQ
+  call rax
+
+  // store vector result (reload out ptr after the call)
+  mov r10, qword ptr [rsp + 40]
+  mov qword ptr [r10], rax
+  mov qword ptr [r10 + 8], rdx
+
+  // verify callee-saved regs
+  cmp rbx, $11223344
+  jne @fail
+  cmp r12, $55667788
+  jne @fail
+  cmp r13, $0F0E0D0C
+  jne @fail
+  cmp r14, $01020304
+  jne @fail
+  cmp r15, $22334455
+  jne @fail
+
+  mov eax, 1
+  jmp @done
+
+@fail:
+  xor eax, eax
+
+@done:
+  pop r15
+  pop r14
+  pop r13
+  pop r12
+  pop rbx
+  add rsp, 16
+end;
+
+function AbiCall_TwoVecI32x4ToVec_CheckCalleeSaved(fn: Pointer; const a, b: TVecI32x4; out value: TVecI32x4): Boolean; assembler; nostackframe;
+asm
+  // SysV AMD64 (Linux x86_64) - 16B variant record (TVecI32x4) 按 INTEGER 类传参/返回。
+  //
+  // 入参（本 helper 的签名：fn, a, b, out value）：
+  //   RDI = fn
+  //   RSI = a.lowQ
+  //   RDX = a.highQ
+  //   RCX = b.lowQ
+  //   R8  = b.highQ
+  //   R9  = @value
+  //
+  // 被测函数（签名：fn(a,b): TVecI32x4）期望：
+  //   RDI = a.lowQ
+  //   RSI = a.highQ
+  //   RDX = b.lowQ
+  //   RCX = b.highQ
+  // Return（预期）：
+  //   RAX = result.lowQ
+  //   RDX = result.highQ
+
+  // 保存 out ptr / fn 到栈上（避免被测函数破坏 caller-saved 寄存器）。
+  // 额外说明：这里用 16 bytes local + 5 pushes，保证 call 前 RSP 16-byte 对齐。
+  sub rsp, 16
+  mov qword ptr [rsp], r9      // out ptr
+  mov qword ptr [rsp + 8], rdi // fn ptr
+
+  // 保存 callee-saved（本函数也必须遵守 ABI）
+  push rbx
+  push r12
+  push r13
+  push r14
+  push r15
+
+  // 注意：FPC 内置汇编器对 64-bit imm 支持有限，这里用“可表示的 signed dword”哨兵值。
+  mov rbx, $11223344
+  mov r12, $55667788
+  mov r13, $0F0E0D0C
+  mov r14, $01020304
+  mov r15, $22334455
+
+  // call fn(a, b)
+  mov rax, qword ptr [rsp + 48]   // fn ptr
+  mov rdi, rsi                    // a.lowQ
+  mov rsi, rdx                    // a.highQ
+  mov rdx, rcx                    // b.lowQ
+  mov rcx, r8                     // b.highQ
+  call rax
+
+  // store vector result (reload out ptr after the call)
+  mov r10, qword ptr [rsp + 40]
+  mov qword ptr [r10], rax
+  mov qword ptr [r10 + 8], rdx
+
+  // verify callee-saved regs
+  cmp rbx, $11223344
+  jne @fail
+  cmp r12, $55667788
+  jne @fail
+  cmp r13, $0F0E0D0C
+  jne @fail
+  cmp r14, $01020304
+  jne @fail
+  cmp r15, $22334455
+  jne @fail
+
+  mov eax, 1
+  jmp @done
+
+@fail:
+  xor eax, eax
+
+@done:
+  pop r15
+  pop r14
+  pop r13
+  pop r12
+  pop rbx
+  add rsp, 16
+end;
+
 function AbiCall_OneVecToVec_CheckCalleeSaved(fn: Pointer; const a: TVecF32x4; out value: TVecF32x4): Boolean; assembler; nostackframe;
 asm
   // SysV AMD64 (Linux x86_64) - FPC 对 TVecF32x4 的实际 ABI：按 INTEGER 类传参/返回。
@@ -2897,6 +3074,882 @@ asm
   mov rax, qword ptr [rsp + 48]  // fn ptr
   mov rdi, qword ptr [rsp + 40]  // sret/out ptr
   call rax
+
+  // verify callee-saved regs
+  cmp rbx, $11223344
+  jne @fail
+  cmp r12, $55667788
+  jne @fail
+  cmp r13, $0F0E0D0C
+  jne @fail
+  cmp r14, $01020304
+  jne @fail
+  cmp r15, $22334455
+  jne @fail
+
+  mov eax, 1
+  jmp @done
+
+@fail:
+  xor eax, eax
+
+@done:
+  pop r15
+  pop r14
+  pop r13
+  pop r12
+  pop rbx
+  add rsp, 16
+end;
+
+function AbiCall_MemEqual_CheckCalleeSaved(fn: Pointer; a, b: Pointer; len: SizeUInt; out resultValue: LongBool): Boolean; assembler; nostackframe;
+asm
+  // SysV AMD64 (Linux x86_64)
+  //
+  // 入参（本 helper 的签名：fn, a, b, len, out resultValue）：
+  //   RDI = fn
+  //   RSI = a
+  //   RDX = b
+  //   RCX = len
+  //   R8  = @resultValue
+  //
+  // 被测函数（签名：fn(a, b, len): LongBool）期望：
+  //   RDI = a
+  //   RSI = b
+  //   RDX = len
+  // Return:
+  //   EAX = LongBool result
+
+  // 保存 out ptr / fn 到栈上（避免被测函数破坏 caller-saved 寄存器）。
+  // 额外说明：这里用 16 bytes local + 5 pushes，保证 call 前 RSP 16-byte 对齐。
+  sub rsp, 16
+  mov qword ptr [rsp], r8      // out ptr
+  mov qword ptr [rsp + 8], rdi // fn ptr
+
+  // 保存 callee-saved（本函数也必须遵守 ABI）
+  push rbx
+  push r12
+  push r13
+  push r14
+  push r15
+
+  // 注意：FPC 内置汇编器对 64-bit imm 支持有限，这里用“可表示的 signed dword”哨兵值。
+  mov rbx, $11223344
+  mov r12, $55667788
+  mov r13, $0F0E0D0C
+  mov r14, $01020304
+  mov r15, $22334455
+
+  // call fn(a, b, len)
+  mov rax, qword ptr [rsp + 48]  // fn ptr
+  mov rdi, rsi                   // a
+  mov rsi, rdx                   // b
+  mov rdx, rcx                   // len
+  call rax
+
+  // store LongBool result (reload out ptr after the call)
+  mov r10, qword ptr [rsp + 40]
+  mov dword ptr [r10], eax
+
+  // verify callee-saved regs
+  cmp rbx, $11223344
+  jne @fail
+  cmp r12, $55667788
+  jne @fail
+  cmp r13, $0F0E0D0C
+  jne @fail
+  cmp r14, $01020304
+  jne @fail
+  cmp r15, $22334455
+  jne @fail
+
+  mov eax, 1
+  jmp @done
+
+@fail:
+  xor eax, eax
+
+@done:
+  pop r15
+  pop r14
+  pop r13
+  pop r12
+  pop rbx
+  add rsp, 16
+end;
+
+function AbiCall_SumBytes_CheckCalleeSaved(fn: Pointer; p: Pointer; len: SizeUInt; out resultValue: UInt64): Boolean; assembler; nostackframe;
+asm
+  // SysV AMD64 (Linux x86_64)
+  //
+  // 入参（本 helper 的签名：fn, p, len, out resultValue）：
+  //   RDI = fn
+  //   RSI = p
+  //   RDX = len
+  //   RCX = @resultValue
+  //
+  // 被测函数（签名：fn(p, len): UInt64）期望：
+  //   RDI = p
+  //   RSI = len
+  // Return:
+  //   RAX = UInt64 result
+
+  // 保存 out ptr / fn 到栈上（避免被测函数破坏 caller-saved 寄存器）。
+  // 额外说明：这里用 16 bytes local + 5 pushes，保证 call 前 RSP 16-byte 对齐。
+  sub rsp, 16
+  mov qword ptr [rsp], rcx     // out ptr
+  mov qword ptr [rsp + 8], rdi // fn ptr
+
+  // 保存 callee-saved（本函数也必须遵守 ABI）
+  push rbx
+  push r12
+  push r13
+  push r14
+  push r15
+
+  // 注意：FPC 内置汇编器对 64-bit imm 支持有限，这里用“可表示的 signed dword”哨兵值。
+  mov rbx, $11223344
+  mov r12, $55667788
+  mov r13, $0F0E0D0C
+  mov r14, $01020304
+  mov r15, $22334455
+
+  // call fn(p, len)
+  mov rax, qword ptr [rsp + 48]  // fn ptr
+  mov rdi, rsi                   // p
+  mov rsi, rdx                   // len
+  call rax
+
+  // store UInt64 result (reload out ptr after the call)
+  mov r10, qword ptr [rsp + 40]
+  mov qword ptr [r10], rax
+
+  // verify callee-saved regs
+  cmp rbx, $11223344
+  jne @fail
+  cmp r12, $55667788
+  jne @fail
+  cmp r13, $0F0E0D0C
+  jne @fail
+  cmp r14, $01020304
+  jne @fail
+  cmp r15, $22334455
+  jne @fail
+
+  mov eax, 1
+  jmp @done
+
+@fail:
+  xor eax, eax
+
+@done:
+  pop r15
+  pop r14
+  pop r13
+  pop r12
+  pop rbx
+  add rsp, 16
+end;
+
+function AbiCall_MemFindByte_CheckCalleeSaved(fn: Pointer; p: Pointer; len: SizeUInt; value: Byte; out resultValue: PtrInt): Boolean; assembler; nostackframe;
+asm
+  // SysV AMD64 (Linux x86_64)
+  //
+  // 入参（本 helper 的签名：fn, p, len, value, out resultValue）：
+  //   RDI = fn
+  //   RSI = p
+  //   RDX = len
+  //   RCX = value (Byte)
+  //   R8  = @resultValue
+  //
+  // 被测函数（签名：fn(p, len, value): PtrInt）期望：
+  //   RDI = p
+  //   RSI = len
+  //   RDX = value (zero-extended)
+  // Return:
+  //   RAX = PtrInt result
+
+  // 保存 out ptr / fn 到栈上（避免被测函数破坏 caller-saved 寄存器）。
+  // 额外说明：这里用 16 bytes local + 5 pushes，保证 call 前 RSP 16-byte 对齐。
+  sub rsp, 16
+  mov qword ptr [rsp], r8      // out ptr
+  mov qword ptr [rsp + 8], rdi // fn ptr
+
+  // 保存 callee-saved（本函数也必须遵守 ABI）
+  push rbx
+  push r12
+  push r13
+  push r14
+  push r15
+
+  // 注意：FPC 内置汇编器对 64-bit imm 支持有限，这里用“可表示的 signed dword”哨兵值。
+  mov rbx, $11223344
+  mov r12, $55667788
+  mov r13, $0F0E0D0C
+  mov r14, $01020304
+  mov r15, $22334455
+
+  // call fn(p, len, value)
+  mov rax, qword ptr [rsp + 48]  // fn ptr
+  mov rdi, rsi                   // p
+  mov rsi, rdx                   // len
+  movzx edx, cl                  // value (Byte) -> EDX
+  call rax
+
+  // store PtrInt result (reload out ptr after the call)
+  mov r10, qword ptr [rsp + 40]
+  mov qword ptr [r10], rax
+
+  // verify callee-saved regs
+  cmp rbx, $11223344
+  jne @fail
+  cmp r12, $55667788
+  jne @fail
+  cmp r13, $0F0E0D0C
+  jne @fail
+  cmp r14, $01020304
+  jne @fail
+  cmp r15, $22334455
+  jne @fail
+
+  mov eax, 1
+  jmp @done
+
+@fail:
+  xor eax, eax
+
+@done:
+  pop r15
+  pop r14
+  pop r13
+  pop r12
+  pop rbx
+  add rsp, 16
+end;
+
+function AbiCall_MemCopy_CheckCalleeSaved(fn: Pointer; src, dst: Pointer; len: SizeUInt): Boolean; assembler; nostackframe;
+asm
+  // SysV AMD64 (Linux x86_64)
+  //
+  // 入参（本 helper 的签名：fn, src, dst, len）：
+  //   RDI = fn
+  //   RSI = src
+  //   RDX = dst
+  //   RCX = len
+  //
+  // 被测函数（签名：fn(src, dst, len): void）期望：
+  //   RDI = src
+  //   RSI = dst
+  //   RDX = len
+
+  // 保存 fn（避免后续改写 RDI）
+  mov rax, rdi
+
+  // 保存 callee-saved（本函数也必须遵守 ABI）
+  // 5 pushes -> call 前 RSP 16-byte 对齐
+  push rbx
+  push r12
+  push r13
+  push r14
+  push r15
+
+  // 注意：FPC 内置汇编器对 64-bit imm 支持有限，这里用“可表示的 signed dword”哨兵值。
+  mov rbx, $11223344
+  mov r12, $55667788
+  mov r13, $0F0E0D0C
+  mov r14, $01020304
+  mov r15, $22334455
+
+  // call fn(src, dst, len)
+  mov rdi, rsi // src
+  mov rsi, rdx // dst
+  mov rdx, rcx // len
+  call rax
+
+  // verify callee-saved regs
+  cmp rbx, $11223344
+  jne @fail
+  cmp r12, $55667788
+  jne @fail
+  cmp r13, $0F0E0D0C
+  jne @fail
+  cmp r14, $01020304
+  jne @fail
+  cmp r15, $22334455
+  jne @fail
+
+  mov eax, 1
+  jmp @done
+
+@fail:
+  xor eax, eax
+
+@done:
+  pop r15
+  pop r14
+  pop r13
+  pop r12
+  pop rbx
+end;
+
+function AbiCall_CountByte_CheckCalleeSaved(fn: Pointer; p: Pointer; len: SizeUInt; value: Byte; out resultValue: SizeUInt): Boolean; assembler; nostackframe;
+asm
+  // SysV AMD64 (Linux x86_64)
+  //
+  // 入参（本 helper 的签名：fn, p, len, value, out resultValue）：
+  //   RDI = fn
+  //   RSI = p
+  //   RDX = len
+  //   RCX = value (Byte)
+  //   R8  = @resultValue
+  //
+  // 被测函数（签名：fn(p, len, value): SizeUInt）期望：
+  //   RDI = p
+  //   RSI = len
+  //   RDX = value (zero-extended)
+  // Return:
+  //   RAX = SizeUInt result
+
+  // 保存 out ptr / fn 到栈上（避免被测函数破坏 caller-saved 寄存器）。
+  // 额外说明：这里用 16 bytes local + 5 pushes，保证 call 前 RSP 16-byte 对齐。
+  sub rsp, 16
+  mov qword ptr [rsp], r8      // out ptr
+  mov qword ptr [rsp + 8], rdi // fn ptr
+
+  // 保存 callee-saved（本函数也必须遵守 ABI）
+  push rbx
+  push r12
+  push r13
+  push r14
+  push r15
+
+  // 注意：FPC 内置汇编器对 64-bit imm 支持有限，这里用“可表示的 signed dword”哨兵值。
+  mov rbx, $11223344
+  mov r12, $55667788
+  mov r13, $0F0E0D0C
+  mov r14, $01020304
+  mov r15, $22334455
+
+  // call fn(p, len, value)
+  mov rax, qword ptr [rsp + 48]  // fn ptr
+  mov rdi, rsi                   // p
+  mov rsi, rdx                   // len
+  movzx edx, cl                  // value (Byte) -> EDX
+  call rax
+
+  // store SizeUInt result (reload out ptr after the call)
+  mov r10, qword ptr [rsp + 40]
+  mov qword ptr [r10], rax
+
+  // verify callee-saved regs
+  cmp rbx, $11223344
+  jne @fail
+  cmp r12, $55667788
+  jne @fail
+  cmp r13, $0F0E0D0C
+  jne @fail
+  cmp r14, $01020304
+  jne @fail
+  cmp r15, $22334455
+  jne @fail
+
+  mov eax, 1
+  jmp @done
+
+@fail:
+  xor eax, eax
+
+@done:
+  pop r15
+  pop r14
+  pop r13
+  pop r12
+  pop rbx
+  add rsp, 16
+end;
+
+function AbiCall_BitsetPopCount_CheckCalleeSaved(fn: Pointer; p: Pointer; byteLen: SizeUInt; out resultValue: SizeUInt): Boolean; assembler; nostackframe;
+asm
+  // SysV AMD64 (Linux x86_64)
+  //
+  // 入参（本 helper 的签名：fn, p, byteLen, out resultValue）：
+  //   RDI = fn
+  //   RSI = p
+  //   RDX = byteLen
+  //   RCX = @resultValue
+  //
+  // 被测函数（签名：fn(p, byteLen): SizeUInt）期望：
+  //   RDI = p
+  //   RSI = byteLen
+  // Return:
+  //   RAX = SizeUInt result
+
+  // 保存 out ptr / fn 到栈上（避免被测函数破坏 caller-saved 寄存器）。
+  // 额外说明：这里用 16 bytes local + 5 pushes，保证 call 前 RSP 16-byte 对齐。
+  sub rsp, 16
+  mov qword ptr [rsp], rcx     // out ptr
+  mov qword ptr [rsp + 8], rdi // fn ptr
+
+  // 保存 callee-saved（本函数也必须遵守 ABI）
+  push rbx
+  push r12
+  push r13
+  push r14
+  push r15
+
+  // 注意：FPC 内置汇编器对 64-bit imm 支持有限，这里用“可表示的 signed dword”哨兵值。
+  mov rbx, $11223344
+  mov r12, $55667788
+  mov r13, $0F0E0D0C
+  mov r14, $01020304
+  mov r15, $22334455
+
+  // call fn(p, byteLen)
+  mov rax, qword ptr [rsp + 48]  // fn ptr
+  mov rdi, rsi                   // p
+  mov rsi, rdx                   // byteLen
+  call rax
+
+  // store SizeUInt result (reload out ptr after the call)
+  mov r10, qword ptr [rsp + 40]
+  mov qword ptr [r10], rax
+
+  // verify callee-saved regs
+  cmp rbx, $11223344
+  jne @fail
+  cmp r12, $55667788
+  jne @fail
+  cmp r13, $0F0E0D0C
+  jne @fail
+  cmp r14, $01020304
+  jne @fail
+  cmp r15, $22334455
+  jne @fail
+
+  mov eax, 1
+  jmp @done
+
+@fail:
+  xor eax, eax
+
+@done:
+  pop r15
+  pop r14
+  pop r13
+  pop r12
+  pop rbx
+  add rsp, 16
+end;
+
+function AbiCall_Utf8Validate_CheckCalleeSaved(fn: Pointer; p: Pointer; len: SizeUInt; out resultValue: Boolean): Boolean; assembler; nostackframe;
+asm
+  // SysV AMD64 (Linux x86_64)
+  //
+  // 入参（本 helper 的签名：fn, p, len, out resultValue）：
+  //   RDI = fn
+  //   RSI = p
+  //   RDX = len
+  //   RCX = @resultValue
+  //
+  // 被测函数（签名：fn(p, len): Boolean）期望：
+  //   RDI = p
+  //   RSI = len
+  // Return:
+  //   AL = Boolean result
+
+  // 保存 out ptr / fn 到栈上（避免被测函数破坏 caller-saved 寄存器）。
+  // 额外说明：这里用 16 bytes local + 5 pushes，保证 call 前 RSP 16-byte 对齐。
+  sub rsp, 16
+  mov qword ptr [rsp], rcx     // out ptr
+  mov qword ptr [rsp + 8], rdi // fn ptr
+
+  // 保存 callee-saved（本函数也必须遵守 ABI）
+  push rbx
+  push r12
+  push r13
+  push r14
+  push r15
+
+  // 注意：FPC 内置汇编器对 64-bit imm 支持有限，这里用“可表示的 signed dword”哨兵值。
+  mov rbx, $11223344
+  mov r12, $55667788
+  mov r13, $0F0E0D0C
+  mov r14, $01020304
+  mov r15, $22334455
+
+  // call fn(p, len)
+  mov rax, qword ptr [rsp + 48]  // fn ptr
+  mov rdi, rsi                   // p
+  mov rsi, rdx                   // len
+  call rax
+
+  // store Boolean result (reload out ptr after the call)
+  mov r10, qword ptr [rsp + 40]
+  mov byte ptr [r10], al
+
+  // verify callee-saved regs
+  cmp rbx, $11223344
+  jne @fail
+  cmp r12, $55667788
+  jne @fail
+  cmp r13, $0F0E0D0C
+  jne @fail
+  cmp r14, $01020304
+  jne @fail
+  cmp r15, $22334455
+  jne @fail
+
+  mov eax, 1
+  jmp @done
+
+@fail:
+  xor eax, eax
+
+@done:
+  pop r15
+  pop r14
+  pop r13
+  pop r12
+  pop rbx
+  add rsp, 16
+end;
+
+function AbiCall_AsciiIEqual_CheckCalleeSaved(fn: Pointer; a, b: Pointer; len: SizeUInt; out resultValue: Boolean): Boolean; assembler; nostackframe;
+asm
+  // SysV AMD64 (Linux x86_64)
+  //
+  // 入参（本 helper 的签名：fn, a, b, len, out resultValue）：
+  //   RDI = fn
+  //   RSI = a
+  //   RDX = b
+  //   RCX = len
+  //   R8  = @resultValue
+  //
+  // 被测函数（签名：fn(a, b, len): Boolean）期望：
+  //   RDI = a
+  //   RSI = b
+  //   RDX = len
+  // Return:
+  //   AL = Boolean result
+
+  // 保存 out ptr / fn 到栈上（避免被测函数破坏 caller-saved 寄存器）。
+  // 额外说明：这里用 16 bytes local + 5 pushes，保证 call 前 RSP 16-byte 对齐。
+  sub rsp, 16
+  mov qword ptr [rsp], r8      // out ptr
+  mov qword ptr [rsp + 8], rdi // fn ptr
+
+  // 保存 callee-saved（本函数也必须遵守 ABI）
+  push rbx
+  push r12
+  push r13
+  push r14
+  push r15
+
+  // 注意：FPC 内置汇编器对 64-bit imm 支持有限，这里用“可表示的 signed dword”哨兵值。
+  mov rbx, $11223344
+  mov r12, $55667788
+  mov r13, $0F0E0D0C
+  mov r14, $01020304
+  mov r15, $22334455
+
+  // call fn(a, b, len)
+  mov rax, qword ptr [rsp + 48]  // fn ptr
+  mov rdi, rsi                   // a
+  mov rsi, rdx                   // b
+  mov rdx, rcx                   // len
+  call rax
+
+  // store Boolean result (reload out ptr after the call)
+  mov r10, qword ptr [rsp + 40]
+  mov byte ptr [r10], al
+
+  // verify callee-saved regs
+  cmp rbx, $11223344
+  jne @fail
+  cmp r12, $55667788
+  jne @fail
+  cmp r13, $0F0E0D0C
+  jne @fail
+  cmp r14, $01020304
+  jne @fail
+  cmp r15, $22334455
+  jne @fail
+
+  mov eax, 1
+  jmp @done
+
+@fail:
+  xor eax, eax
+
+@done:
+  pop r15
+  pop r14
+  pop r13
+  pop r12
+  pop rbx
+  add rsp, 16
+end;
+
+function AbiCall_ToLowerAscii_CheckCalleeSaved(fn: Pointer; p: Pointer; len: SizeUInt): Boolean; assembler; nostackframe;
+asm
+  // SysV AMD64 (Linux x86_64)
+  //
+  // 入参（本 helper 的签名：fn, p, len）：
+  //   RDI = fn
+  //   RSI = p
+  //   RDX = len
+  //
+  // 被测函数（签名：fn(p, len): void）期望：
+  //   RDI = p
+  //   RSI = len
+
+  // 保存 fn（避免后续改写 RDI）
+  mov rax, rdi
+
+  // 保存 callee-saved（本函数也必须遵守 ABI）
+  // 5 pushes -> call 前 RSP 16-byte 对齐
+  push rbx
+  push r12
+  push r13
+  push r14
+  push r15
+
+  // 注意：FPC 内置汇编器对 64-bit imm 支持有限，这里用“可表示的 signed dword”哨兵值。
+  mov rbx, $11223344
+  mov r12, $55667788
+  mov r13, $0F0E0D0C
+  mov r14, $01020304
+  mov r15, $22334455
+
+  // call fn(p, len)
+  mov rdi, rsi // p
+  mov rsi, rdx // len
+  call rax
+
+  // verify callee-saved regs
+  cmp rbx, $11223344
+  jne @fail
+  cmp r12, $55667788
+  jne @fail
+  cmp r13, $0F0E0D0C
+  jne @fail
+  cmp r14, $01020304
+  jne @fail
+  cmp r15, $22334455
+  jne @fail
+
+  mov eax, 1
+  jmp @done
+
+@fail:
+  xor eax, eax
+
+@done:
+  pop r15
+  pop r14
+  pop r13
+  pop r12
+  pop rbx
+end;
+
+function AbiCall_ToUpperAscii_CheckCalleeSaved(fn: Pointer; p: Pointer; len: SizeUInt): Boolean; assembler; nostackframe;
+asm
+  // SysV AMD64 (Linux x86_64)
+  //
+  // 入参（本 helper 的签名：fn, p, len）：
+  //   RDI = fn
+  //   RSI = p
+  //   RDX = len
+  //
+  // 被测函数（签名：fn(p, len): void）期望：
+  //   RDI = p
+  //   RSI = len
+
+  // 保存 fn（避免后续改写 RDI）
+  mov rax, rdi
+
+  // 保存 callee-saved（本函数也必须遵守 ABI）
+  // 5 pushes -> call 前 RSP 16-byte 对齐
+  push rbx
+  push r12
+  push r13
+  push r14
+  push r15
+
+  // 注意：FPC 内置汇编器对 64-bit imm 支持有限，这里用“可表示的 signed dword”哨兵值。
+  mov rbx, $11223344
+  mov r12, $55667788
+  mov r13, $0F0E0D0C
+  mov r14, $01020304
+  mov r15, $22334455
+
+  // call fn(p, len)
+  mov rdi, rsi // p
+  mov rsi, rdx // len
+  call rax
+
+  // verify callee-saved regs
+  cmp rbx, $11223344
+  jne @fail
+  cmp r12, $55667788
+  jne @fail
+  cmp r13, $0F0E0D0C
+  jne @fail
+  cmp r14, $01020304
+  jne @fail
+  cmp r15, $22334455
+  jne @fail
+
+  mov eax, 1
+  jmp @done
+
+@fail:
+  xor eax, eax
+
+@done:
+  pop r15
+  pop r14
+  pop r13
+  pop r12
+  pop rbx
+end;
+
+function AbiCall_BytesIndexOf_CheckCalleeSaved(fn: Pointer; haystack: Pointer; haystackLen: SizeUInt; needle: Pointer; needleLen: SizeUInt; out value: PtrInt): Boolean; assembler; nostackframe;
+asm
+  // SysV AMD64 (Linux x86_64)
+  //
+  // 入参（本 helper 的签名：fn, haystack, haystackLen, needle, needleLen, out value）：
+  //   RDI = fn
+  //   RSI = haystack
+  //   RDX = haystackLen
+  //   RCX = needle
+  //   R8  = needleLen
+  //   R9  = @value
+  //
+  // 被测函数（签名：fn(haystack, haystackLen, needle, needleLen): PtrInt）期望：
+  //   RDI = haystack
+  //   RSI = haystackLen
+  //   RDX = needle
+  //   RCX = needleLen
+  // Return:
+  //   RAX = PtrInt result
+
+  // 保存 out ptr / fn 到栈上（避免被测函数破坏 caller-saved 寄存器）。
+  // 额外说明：这里用 16 bytes local + 5 pushes，保证 call 前 RSP 16-byte 对齐。
+  sub rsp, 16
+  mov qword ptr [rsp], r9      // out ptr
+  mov qword ptr [rsp + 8], rdi // fn ptr
+
+  // 保存 callee-saved（本函数也必须遵守 ABI）
+  push rbx
+  push r12
+  push r13
+  push r14
+  push r15
+
+  // 注意：FPC 内置汇编器对 64-bit imm 支持有限，这里用“可表示的 signed dword”哨兵值。
+  mov rbx, $11223344
+  mov r12, $55667788
+  mov r13, $0F0E0D0C
+  mov r14, $01020304
+  mov r15, $22334455
+
+  // call fn(haystack, haystackLen, needle, needleLen)
+  mov rax, qword ptr [rsp + 48]  // fn ptr
+  mov rdi, rsi                   // haystack
+  mov rsi, rdx                   // haystackLen
+  mov rdx, rcx                   // needle
+  mov rcx, r8                    // needleLen
+  call rax
+
+  // store PtrInt result (reload out ptr after the call)
+  mov r10, qword ptr [rsp + 40]
+  mov qword ptr [r10], rax
+
+  // verify callee-saved regs
+  cmp rbx, $11223344
+  jne @fail
+  cmp r12, $55667788
+  jne @fail
+  cmp r13, $0F0E0D0C
+  jne @fail
+  cmp r14, $01020304
+  jne @fail
+  cmp r15, $22334455
+  jne @fail
+
+  mov eax, 1
+  jmp @done
+
+@fail:
+  xor eax, eax
+
+@done:
+  pop r15
+  pop r14
+  pop r13
+  pop r12
+  pop rbx
+  add rsp, 16
+end;
+
+function AbiCall_MemDiffRange_CheckCalleeSaved(fn: Pointer; a, b: Pointer; len: SizeUInt; out firstDiff, lastDiff: SizeUInt; out resultValue: Boolean): Boolean; assembler; nostackframe;
+asm
+  // SysV AMD64 (Linux x86_64)
+  //
+  // 入参（本 helper 的签名：fn, a, b, len, out firstDiff, lastDiff, out resultValue）：
+  //   RDI = fn
+  //   RSI = a
+  //   RDX = b
+  //   RCX = len
+  //   R8  = @firstDiff
+  //   R9  = @lastDiff
+  //   stack[+8] = @resultValue (寄存器槽位用尽，out ptr 走 stack)
+  //
+  // 被测函数（签名：fn(a, b, len, out firstDiff, lastDiff): Boolean）期望：
+  //   RDI = a
+  //   RSI = b
+  //   RDX = len
+  //   RCX = @firstDiff
+  //   R8  = @lastDiff
+  // Return:
+  //   AL = Boolean result
+
+  // 先把 stack 入参取出来（之后会改 RSP）。
+  mov r10, qword ptr [rsp + 8]   // out ptr: @resultValue
+
+  // 保存 out ptr / fn 到栈上（避免被测函数破坏 caller-saved 寄存器）。
+  // 额外说明：这里用 16 bytes local + 5 pushes，保证 call 前 RSP 16-byte 对齐。
+  sub rsp, 16
+  mov qword ptr [rsp], r10       // out ptr
+  mov qword ptr [rsp + 8], rdi   // fn ptr
+
+  // 保存 callee-saved（本函数也必须遵守 ABI）
+  push rbx
+  push r12
+  push r13
+  push r14
+  push r15
+
+  // 注意：FPC 内置汇编器对 64-bit imm 支持有限，这里用“可表示的 signed dword”哨兵值。
+  mov rbx, $11223344
+  mov r12, $55667788
+  mov r13, $0F0E0D0C
+  mov r14, $01020304
+  mov r15, $22334455
+
+  // call fn(a, b, len, out firstDiff, lastDiff)
+  mov rax, qword ptr [rsp + 48]  // fn ptr
+  mov rdi, rsi                   // a
+  mov rsi, rdx                   // b
+  mov rdx, rcx                   // len
+  mov rcx, r8                    // @firstDiff
+  mov r8, r9                     // @lastDiff
+  call rax
+
+  // store Boolean result (reload out ptr after the call)
+  mov r10, qword ptr [rsp + 40]
+  mov byte ptr [r10], al
 
   // verify callee-saved regs
   cmp rbx, $11223344
@@ -5768,8 +6821,11 @@ end;
 procedure TTestCase_AVX2VectorAsm.Test_VecF32x8_ABI_CalleeSavedRegisters_Preserved_VectorReturn;
 var
   dt: PSimdDispatchTable;
-  a, b, expected, actual: TVecF32x8;
+  a, b: TVecF32x8;
+  aDiv, bDiv: TVecF32x8;
+  expected, actual: TVecF32x8;
   iter, i: Integer;
+  pow2: Integer;
   ok: Boolean;
 begin
   if not HasAVX2 then
@@ -5782,6 +6838,15 @@ begin
 
   AssertTrue('Dispatch.AddF32x8 should be assigned', Assigned(dt^.AddF32x8));
   AssertTrue('AddF32x8 should not be scalar when vector asm enabled', dt^.AddF32x8 <> @ScalarAddF32x8);
+
+  AssertTrue('Dispatch.SubF32x8 should be assigned', Assigned(dt^.SubF32x8));
+  AssertTrue('SubF32x8 should not be scalar when vector asm enabled', dt^.SubF32x8 <> @ScalarSubF32x8);
+
+  AssertTrue('Dispatch.MulF32x8 should be assigned', Assigned(dt^.MulF32x8));
+  AssertTrue('MulF32x8 should not be scalar when vector asm enabled', dt^.MulF32x8 <> @ScalarMulF32x8);
+
+  AssertTrue('Dispatch.DivF32x8 should be assigned', Assigned(dt^.DivF32x8));
+  AssertTrue('DivF32x8 should not be scalar when vector asm enabled', dt^.DivF32x8 <> @ScalarDivF32x8);
 
   RandSeed := 20260110;
 
@@ -5801,7 +6866,638 @@ begin
     for i := 0 to 7 do
       AssertEquals('ABI AddF32x8 iter ' + IntToStr(iter) + ' lane ' + IntToStr(i) + ' bits',
                    BitsFromSingle(expected.f[i]), BitsFromSingle(actual.f[i]));
+
+    expected := ScalarSubF32x8(a, b);
+    ok := AbiCall_TwoPtrToVecF32x8_CheckCalleeSaved(Pointer(dt^.SubF32x8), @a, @b, actual);
+    AssertTrue('ABI callee-saved should be preserved (SubF32x8) iter ' + IntToStr(iter), ok);
+
+    for i := 0 to 7 do
+      AssertEquals('ABI SubF32x8 iter ' + IntToStr(iter) + ' lane ' + IntToStr(i) + ' bits',
+                   BitsFromSingle(expected.f[i]), BitsFromSingle(actual.f[i]));
+
+    expected := ScalarMulF32x8(a, b);
+    ok := AbiCall_TwoPtrToVecF32x8_CheckCalleeSaved(Pointer(dt^.MulF32x8), @a, @b, actual);
+    AssertTrue('ABI callee-saved should be preserved (MulF32x8) iter ' + IntToStr(iter), ok);
+
+    for i := 0 to 7 do
+      AssertEquals('ABI MulF32x8 iter ' + IntToStr(iter) + ' lane ' + IntToStr(i) + ' bits',
+                   BitsFromSingle(expected.f[i]), BitsFromSingle(actual.f[i]));
+
+    // Div：使用 2^k 作为除数，保证结果在 float32 下 bit-exact。
+    for i := 0 to 7 do
+    begin
+      aDiv.f[i] := Single(Random(2001) - 1000);
+      pow2 := 1 shl Random(8); // 1..128
+      bDiv.f[i] := Single(pow2);
+    end;
+
+    expected := ScalarDivF32x8(aDiv, bDiv);
+    ok := AbiCall_TwoPtrToVecF32x8_CheckCalleeSaved(Pointer(dt^.DivF32x8), @aDiv, @bDiv, actual);
+    AssertTrue('ABI callee-saved should be preserved (DivF32x8) iter ' + IntToStr(iter), ok);
+
+    for i := 0 to 7 do
+      AssertEquals('ABI DivF32x8 iter ' + IntToStr(iter) + ' lane ' + IntToStr(i) + ' bits',
+                   BitsFromSingle(expected.f[i]), BitsFromSingle(actual.f[i]));
   end;
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecF64x2_ABI_CalleeSavedRegisters_Preserved_VectorReturn;
+var
+  dt: PSimdDispatchTable;
+  a, b: TVecF64x2;
+  aDiv, bDiv: TVecF64x2;
+  expected, actual: TVecF64x2;
+  iter, i: Integer;
+  pow2: Integer;
+  ok: Boolean;
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+
+  AssertTrue('Dispatch.AddF64x2 should be assigned', Assigned(dt^.AddF64x2));
+  AssertTrue('AddF64x2 should not be scalar when vector asm enabled', dt^.AddF64x2 <> @ScalarAddF64x2);
+
+  AssertTrue('Dispatch.SubF64x2 should be assigned', Assigned(dt^.SubF64x2));
+  AssertTrue('SubF64x2 should not be scalar when vector asm enabled', dt^.SubF64x2 <> @ScalarSubF64x2);
+
+  AssertTrue('Dispatch.MulF64x2 should be assigned', Assigned(dt^.MulF64x2));
+  AssertTrue('MulF64x2 should not be scalar when vector asm enabled', dt^.MulF64x2 <> @ScalarMulF64x2);
+
+  AssertTrue('Dispatch.DivF64x2 should be assigned', Assigned(dt^.DivF64x2));
+  AssertTrue('DivF64x2 should not be scalar when vector asm enabled', dt^.DivF64x2 <> @ScalarDivF64x2);
+
+  RandSeed := 20260111;
+
+  for iter := 1 to 2000 do
+  begin
+    for i := 0 to 1 do
+    begin
+      // 选小整数，保证 double 结果 bit-exact
+      a.d[i] := Double(Random(2001) - 1000);
+      b.d[i] := Double(Random(2001) - 1000);
+    end;
+
+    expected := ScalarAddF64x2(a, b);
+    ok := AbiCall_TwoVecF64x2ToVec_CheckCalleeSaved(Pointer(dt^.AddF64x2), a, b, actual);
+    AssertTrue('ABI callee-saved should be preserved (AddF64x2) iter ' + IntToStr(iter), ok);
+
+    for i := 0 to 1 do
+      AssertEquals('ABI AddF64x2 iter ' + IntToStr(iter) + ' lane ' + IntToStr(i) + ' bits',
+                   BitsFromDouble(expected.d[i]), BitsFromDouble(actual.d[i]));
+
+    expected := ScalarSubF64x2(a, b);
+    ok := AbiCall_TwoVecF64x2ToVec_CheckCalleeSaved(Pointer(dt^.SubF64x2), a, b, actual);
+    AssertTrue('ABI callee-saved should be preserved (SubF64x2) iter ' + IntToStr(iter), ok);
+
+    for i := 0 to 1 do
+      AssertEquals('ABI SubF64x2 iter ' + IntToStr(iter) + ' lane ' + IntToStr(i) + ' bits',
+                   BitsFromDouble(expected.d[i]), BitsFromDouble(actual.d[i]));
+
+    expected := ScalarMulF64x2(a, b);
+    ok := AbiCall_TwoVecF64x2ToVec_CheckCalleeSaved(Pointer(dt^.MulF64x2), a, b, actual);
+    AssertTrue('ABI callee-saved should be preserved (MulF64x2) iter ' + IntToStr(iter), ok);
+
+    for i := 0 to 1 do
+      AssertEquals('ABI MulF64x2 iter ' + IntToStr(iter) + ' lane ' + IntToStr(i) + ' bits',
+                   BitsFromDouble(expected.d[i]), BitsFromDouble(actual.d[i]));
+
+    // Div：使用 2^k 作为除数，保证结果在 double 下 bit-exact。
+    for i := 0 to 1 do
+    begin
+      aDiv.d[i] := Double(Random(2001) - 1000);
+      pow2 := 1 shl Random(8); // 1..128
+      bDiv.d[i] := Double(pow2);
+    end;
+
+    expected := ScalarDivF64x2(aDiv, bDiv);
+    ok := AbiCall_TwoVecF64x2ToVec_CheckCalleeSaved(Pointer(dt^.DivF64x2), aDiv, bDiv, actual);
+    AssertTrue('ABI callee-saved should be preserved (DivF64x2) iter ' + IntToStr(iter), ok);
+
+    for i := 0 to 1 do
+      AssertEquals('ABI DivF64x2 iter ' + IntToStr(iter) + ' lane ' + IntToStr(i) + ' bits',
+                   BitsFromDouble(expected.d[i]), BitsFromDouble(actual.d[i]));
+  end;
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_VecI32x4_ABI_CalleeSavedRegisters_Preserved_VectorReturn;
+var
+  dt: PSimdDispatchTable;
+  a, b, expected, actual: TVecI32x4;
+  iter, i: Integer;
+  ok: Boolean;
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+
+  AssertTrue('Dispatch.AddI32x4 should be assigned', Assigned(dt^.AddI32x4));
+  AssertTrue('AddI32x4 should not be scalar when vector asm enabled', dt^.AddI32x4 <> @ScalarAddI32x4);
+
+  AssertTrue('Dispatch.SubI32x4 should be assigned', Assigned(dt^.SubI32x4));
+  AssertTrue('SubI32x4 should not be scalar when vector asm enabled', dt^.SubI32x4 <> @ScalarSubI32x4);
+
+  AssertTrue('Dispatch.MulI32x4 should be assigned', Assigned(dt^.MulI32x4));
+  AssertTrue('MulI32x4 should not be scalar when vector asm enabled', dt^.MulI32x4 <> @ScalarMulI32x4);
+
+  RandSeed := 20260112;
+
+  for iter := 1 to 5000 do
+  begin
+    for i := 0 to 3 do
+    begin
+      // 选小整数，避免溢出，保证逐 lane 精确比对
+      a.i[i] := Random(2001) - 1000;
+      b.i[i] := Random(2001) - 1000;
+    end;
+
+    expected := ScalarAddI32x4(a, b);
+    ok := AbiCall_TwoVecI32x4ToVec_CheckCalleeSaved(Pointer(dt^.AddI32x4), a, b, actual);
+    AssertTrue('ABI callee-saved should be preserved (AddI32x4) iter ' + IntToStr(iter), ok);
+
+    for i := 0 to 3 do
+      AssertEquals('ABI AddI32x4 iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expected.i[i], actual.i[i]);
+
+    expected := ScalarSubI32x4(a, b);
+    ok := AbiCall_TwoVecI32x4ToVec_CheckCalleeSaved(Pointer(dt^.SubI32x4), a, b, actual);
+    AssertTrue('ABI callee-saved should be preserved (SubI32x4) iter ' + IntToStr(iter), ok);
+
+    for i := 0 to 3 do
+      AssertEquals('ABI SubI32x4 iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expected.i[i], actual.i[i]);
+
+    expected := ScalarMulI32x4(a, b);
+    ok := AbiCall_TwoVecI32x4ToVec_CheckCalleeSaved(Pointer(dt^.MulI32x4), a, b, actual);
+    AssertTrue('ABI callee-saved should be preserved (MulI32x4) iter ' + IntToStr(iter), ok);
+
+    for i := 0 to 3 do
+      AssertEquals('ABI MulI32x4 iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expected.i[i], actual.i[i]);
+  end;
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_Facade_MemEqual_ABI_CalleeSavedRegisters_Preserved;
+var
+  dt: PSimdDispatchTable;
+  buf1, buf2: array[0..127] of Byte;
+  expected, actual: LongBool;
+  ok: Boolean;
+  i: Integer;
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+
+  AssertTrue('Dispatch.MemEqual should be assigned', Assigned(dt^.MemEqual));
+  AssertTrue('MemEqual should not be scalar when vector asm enabled', dt^.MemEqual <> @MemEqual_Scalar);
+
+  for i := 0 to High(buf1) do
+  begin
+    buf1[i] := Byte(i);
+    buf2[i] := Byte(i);
+  end;
+
+  expected := MemEqual_Scalar(@buf1[0], @buf2[0], SizeUInt(Length(buf1)));
+
+  actual := False;
+  ok := AbiCall_MemEqual_CheckCalleeSaved(Pointer(dt^.MemEqual), @buf1[0], @buf2[0], SizeUInt(Length(buf1)), actual);
+  AssertTrue('ABI callee-saved should be preserved (MemEqual equal)', ok);
+  AssertEquals('ABI MemEqual equal result', expected, actual);
+
+  // different
+  buf2[17] := 255;
+  expected := MemEqual_Scalar(@buf1[0], @buf2[0], SizeUInt(Length(buf1)));
+
+  actual := False;
+  ok := AbiCall_MemEqual_CheckCalleeSaved(Pointer(dt^.MemEqual), @buf1[0], @buf2[0], SizeUInt(Length(buf1)), actual);
+  AssertTrue('ABI callee-saved should be preserved (MemEqual different)', ok);
+  AssertEquals('ABI MemEqual different result', expected, actual);
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_Facade_SumBytes_ABI_CalleeSavedRegisters_Preserved;
+var
+  dt: PSimdDispatchTable;
+  buf: array[0..255] of Byte;
+  expected, actual: UInt64;
+  ok: Boolean;
+  i: Integer;
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+
+  AssertTrue('Dispatch.SumBytes should be assigned', Assigned(dt^.SumBytes));
+  AssertTrue('SumBytes should not be scalar when vector asm enabled', dt^.SumBytes <> @SumBytes_Scalar);
+
+  for i := 0 to High(buf) do
+    buf[i] := Byte(i);
+
+  expected := SumBytes_Scalar(@buf[0], SizeUInt(Length(buf)));
+
+  actual := 0;
+  ok := AbiCall_SumBytes_CheckCalleeSaved(Pointer(dt^.SumBytes), @buf[0], SizeUInt(Length(buf)), actual);
+  AssertTrue('ABI callee-saved should be preserved (SumBytes)', ok);
+  AssertEquals('ABI SumBytes result', expected, actual);
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_Facade_CountByte_ABI_CalleeSavedRegisters_Preserved;
+var
+  dt: PSimdDispatchTable;
+  buf: array[0..255] of Byte;
+  expected, actual: SizeUInt;
+  ok: Boolean;
+  i: Integer;
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+
+  AssertTrue('Dispatch.CountByte should be assigned', Assigned(dt^.CountByte));
+  AssertTrue('CountByte should not be scalar when vector asm enabled', dt^.CountByte <> @CountByte_Scalar);
+
+  for i := 0 to High(buf) do
+    buf[i] := Byte(i and $0F);
+
+  expected := CountByte_Scalar(@buf[0], SizeUInt(Length(buf)), 5);
+
+  actual := 0;
+  ok := AbiCall_CountByte_CheckCalleeSaved(Pointer(dt^.CountByte), @buf[0], SizeUInt(Length(buf)), 5, actual);
+  AssertTrue('ABI callee-saved should be preserved (CountByte)', ok);
+  AssertEquals('ABI CountByte result', expected, actual);
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_Facade_BitsetPopCount_ABI_CalleeSavedRegisters_Preserved;
+var
+  dt: PSimdDispatchTable;
+  buf: array[0..255] of Byte;
+  expected, actual: SizeUInt;
+  ok: Boolean;
+  i: Integer;
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+
+  AssertTrue('Dispatch.BitsetPopCount should be assigned', Assigned(dt^.BitsetPopCount));
+  AssertTrue('BitsetPopCount should not be scalar when vector asm enabled', dt^.BitsetPopCount <> @BitsetPopCount_Scalar);
+
+  // 构造确定性位模式
+  for i := 0 to High(buf) do
+    buf[i] := Byte((i * 13 + 7) and $FF);
+
+  expected := BitsetPopCount_Scalar(@buf[0], SizeUInt(Length(buf)));
+
+  actual := 0;
+  ok := AbiCall_BitsetPopCount_CheckCalleeSaved(Pointer(dt^.BitsetPopCount), @buf[0], SizeUInt(Length(buf)), actual);
+  AssertTrue('ABI callee-saved should be preserved (BitsetPopCount)', ok);
+  AssertEquals('ABI BitsetPopCount result', expected, actual);
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_Facade_Utf8Validate_ABI_CalleeSavedRegisters_Preserved;
+const
+  ValidASCII: array[0..4] of Byte = (Ord('H'), Ord('e'), Ord('l'), Ord('l'), Ord('o'));
+  InvalidOverlong: array[0..1] of Byte = ($C0, $80);
+var
+  dt: PSimdDispatchTable;
+  expected, actual: Boolean;
+  ok: Boolean;
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+
+  AssertTrue('Dispatch.Utf8Validate should be assigned', Assigned(dt^.Utf8Validate));
+  AssertTrue('Utf8Validate should not be scalar when vector asm enabled', dt^.Utf8Validate <> @Utf8Validate_Scalar);
+
+  // valid
+  expected := Utf8Validate_Scalar(@ValidASCII[0], SizeUInt(Length(ValidASCII)));
+
+  actual := False;
+  ok := AbiCall_Utf8Validate_CheckCalleeSaved(Pointer(dt^.Utf8Validate), @ValidASCII[0], SizeUInt(Length(ValidASCII)), actual);
+  AssertTrue('ABI callee-saved should be preserved (Utf8Validate valid)', ok);
+  AssertEquals('ABI Utf8Validate valid result', expected, actual);
+
+  // invalid
+  expected := Utf8Validate_Scalar(@InvalidOverlong[0], SizeUInt(Length(InvalidOverlong)));
+
+  actual := False;
+  ok := AbiCall_Utf8Validate_CheckCalleeSaved(Pointer(dt^.Utf8Validate), @InvalidOverlong[0], SizeUInt(Length(InvalidOverlong)), actual);
+  AssertTrue('ABI callee-saved should be preserved (Utf8Validate invalid)', ok);
+  AssertEquals('ABI Utf8Validate invalid result', expected, actual);
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_Facade_AsciiIEqual_ABI_CalleeSavedRegisters_Preserved;
+const
+  A1: array[0..4] of Byte = (Ord('H'), Ord('e'), Ord('L'), Ord('L'), Ord('o'));
+  B1: array[0..4] of Byte = (Ord('h'), Ord('E'), Ord('l'), Ord('l'), Ord('O'));
+  B2: array[0..4] of Byte = (Ord('W'), Ord('o'), Ord('r'), Ord('l'), Ord('d'));
+var
+  dt: PSimdDispatchTable;
+  expected, actual: Boolean;
+  ok: Boolean;
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+
+  AssertTrue('Dispatch.AsciiIEqual should be assigned', Assigned(dt^.AsciiIEqual));
+  AssertTrue('AsciiIEqual should not be scalar when vector asm enabled', dt^.AsciiIEqual <> @AsciiIEqual_Scalar);
+
+  // equal (case-insensitive)
+  expected := AsciiIEqual_Scalar(@A1[0], @B1[0], SizeUInt(Length(A1)));
+
+  actual := False;
+  ok := AbiCall_AsciiIEqual_CheckCalleeSaved(Pointer(dt^.AsciiIEqual), @A1[0], @B1[0], SizeUInt(Length(A1)), actual);
+  AssertTrue('ABI callee-saved should be preserved (AsciiIEqual equal)', ok);
+  AssertEquals('ABI AsciiIEqual equal result', expected, actual);
+
+  // different
+  expected := AsciiIEqual_Scalar(@A1[0], @B2[0], SizeUInt(Length(A1)));
+
+  actual := False;
+  ok := AbiCall_AsciiIEqual_CheckCalleeSaved(Pointer(dt^.AsciiIEqual), @A1[0], @B2[0], SizeUInt(Length(A1)), actual);
+  AssertTrue('ABI callee-saved should be preserved (AsciiIEqual different)', ok);
+  AssertEquals('ABI AsciiIEqual different result', expected, actual);
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_Facade_ToLowerAscii_ABI_CalleeSavedRegisters_Preserved;
+var
+  dt: PSimdDispatchTable;
+  expected, actual: array[0..31] of Byte;
+  ok: Boolean;
+  i: Integer;
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+
+  AssertTrue('Dispatch.ToLowerAscii should be assigned', Assigned(dt^.ToLowerAscii));
+  AssertTrue('ToLowerAscii should not be scalar when vector asm enabled', dt^.ToLowerAscii <> @ToLowerAscii_Scalar);
+
+  for i := 0 to High(actual) do
+  begin
+    case (i and 3) of
+      0: actual[i] := Ord('A') + Byte(i mod 26);
+      1: actual[i] := Ord('a') + Byte(i mod 26);
+      2: actual[i] := Ord('0') + Byte(i mod 10);
+    else
+      actual[i] := Ord('_');
+    end;
+  end;
+
+  expected := actual;
+  ToLowerAscii_Scalar(@expected[0], SizeUInt(Length(expected)));
+
+  ok := AbiCall_ToLowerAscii_CheckCalleeSaved(Pointer(dt^.ToLowerAscii), @actual[0], SizeUInt(Length(actual)));
+  AssertTrue('ABI callee-saved should be preserved (ToLowerAscii)', ok);
+
+  for i := 0 to High(actual) do
+    AssertEquals('ABI ToLowerAscii byte ' + IntToStr(i), expected[i], actual[i]);
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_Facade_ToUpperAscii_ABI_CalleeSavedRegisters_Preserved;
+var
+  dt: PSimdDispatchTable;
+  expected, actual: array[0..31] of Byte;
+  ok: Boolean;
+  i: Integer;
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+
+  AssertTrue('Dispatch.ToUpperAscii should be assigned', Assigned(dt^.ToUpperAscii));
+  AssertTrue('ToUpperAscii should not be scalar when vector asm enabled', dt^.ToUpperAscii <> @ToUpperAscii_Scalar);
+
+  for i := 0 to High(actual) do
+  begin
+    case (i and 3) of
+      0: actual[i] := Ord('a') + Byte(i mod 26);
+      1: actual[i] := Ord('A') + Byte(i mod 26);
+      2: actual[i] := Ord('0') + Byte(i mod 10);
+    else
+      actual[i] := Ord('_');
+    end;
+  end;
+
+  expected := actual;
+  ToUpperAscii_Scalar(@expected[0], SizeUInt(Length(expected)));
+
+  ok := AbiCall_ToUpperAscii_CheckCalleeSaved(Pointer(dt^.ToUpperAscii), @actual[0], SizeUInt(Length(actual)));
+  AssertTrue('ABI callee-saved should be preserved (ToUpperAscii)', ok);
+
+  for i := 0 to High(actual) do
+    AssertEquals('ABI ToUpperAscii byte ' + IntToStr(i), expected[i], actual[i]);
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_Facade_MemDiffRange_ABI_CalleeSavedRegisters_Preserved;
+var
+  dt: PSimdDispatchTable;
+  buf1, buf2: array[0..63] of Byte;
+  expectedFirst, expectedLast: SizeUInt;
+  actualFirst, actualLast: SizeUInt;
+  expectedRes, actualRes: Boolean;
+  ok: Boolean;
+  i: Integer;
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+
+  AssertTrue('Dispatch.MemDiffRange should be assigned', Assigned(dt^.MemDiffRange));
+  AssertTrue('MemDiffRange should not be scalar when vector asm enabled', dt^.MemDiffRange <> @MemDiffRange_Scalar);
+
+  for i := 0 to High(buf1) do
+  begin
+    buf1[i] := Byte(i);
+    buf2[i] := Byte(i);
+  end;
+
+  // 制造一个确定性的 diff range
+  buf2[5] := 255;
+  buf2[40] := 254;
+
+  expectedRes := MemDiffRange_Scalar(@buf1[0], @buf2[0], SizeUInt(Length(buf1)), expectedFirst, expectedLast);
+  AssertTrue('Scalar MemDiffRange should detect differences', expectedRes);
+
+  actualFirst := 0;
+  actualLast := 0;
+  actualRes := False;
+
+  ok := AbiCall_MemDiffRange_CheckCalleeSaved(Pointer(dt^.MemDiffRange), @buf1[0], @buf2[0], SizeUInt(Length(buf1)),
+                                             actualFirst, actualLast, actualRes);
+  AssertTrue('ABI callee-saved should be preserved (MemDiffRange)', ok);
+
+  AssertEquals('ABI MemDiffRange result', expectedRes, actualRes);
+  AssertEquals('ABI MemDiffRange first diff', expectedFirst, actualFirst);
+  AssertEquals('ABI MemDiffRange last diff', expectedLast, actualLast);
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_Facade_MemFindByte_ABI_CalleeSavedRegisters_Preserved;
+var
+  dt: PSimdDispatchTable;
+  buf: array[0..255] of Byte;
+  expected, actual: PtrInt;
+  ok: Boolean;
+  i: Integer;
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+
+  AssertTrue('Dispatch.MemFindByte should be assigned', Assigned(dt^.MemFindByte));
+  AssertTrue('MemFindByte should not be scalar when vector asm enabled', dt^.MemFindByte <> @MemFindByte_Scalar);
+
+  for i := 0 to High(buf) do
+    buf[i] := Byte(i and $7F);
+
+  buf[123] := 200;
+
+  expected := MemFindByte_Scalar(@buf[0], SizeUInt(Length(buf)), 200);
+
+  actual := 0;
+  ok := AbiCall_MemFindByte_CheckCalleeSaved(Pointer(dt^.MemFindByte), @buf[0], SizeUInt(Length(buf)), 200, actual);
+  AssertTrue('ABI callee-saved should be preserved (MemFindByte)', ok);
+  AssertEquals('ABI MemFindByte result', expected, actual);
+
+  expected := MemFindByte_Scalar(@buf[0], SizeUInt(Length(buf)), 255);
+
+  actual := 0;
+  ok := AbiCall_MemFindByte_CheckCalleeSaved(Pointer(dt^.MemFindByte), @buf[0], SizeUInt(Length(buf)), 255, actual);
+  AssertTrue('ABI callee-saved should be preserved (MemFindByte not found)', ok);
+  AssertEquals('ABI MemFindByte not found', expected, actual);
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_Facade_MemCopy_ABI_CalleeSavedRegisters_Preserved;
+const
+  CopyLen = 123;
+var
+  dt: PSimdDispatchTable;
+  src: array[0..255] of Byte;
+  expected, actual: array[0..255] of Byte;
+  ok: Boolean;
+  i: Integer;
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+
+  AssertTrue('Dispatch.MemCopy should be assigned', Assigned(dt^.MemCopy));
+  AssertTrue('MemCopy is expected to use scalar Move (per backend choice)', dt^.MemCopy = @MemCopy_Scalar);
+
+  for i := 0 to High(src) do
+    src[i] := Byte((i * 37 + 11) and $FF);
+
+  for i := 0 to High(actual) do
+    actual[i] := $CC;
+
+  expected := actual;
+  MemCopy_Scalar(@src[0], @expected[0], SizeUInt(CopyLen));
+
+  ok := AbiCall_MemCopy_CheckCalleeSaved(Pointer(dt^.MemCopy), @src[0], @actual[0], SizeUInt(CopyLen));
+  AssertTrue('ABI callee-saved should be preserved (MemCopy)', ok);
+
+  for i := 0 to High(actual) do
+    AssertEquals('ABI MemCopy dst byte ' + IntToStr(i), expected[i], actual[i]);
+end;
+
+procedure TTestCase_AVX2VectorAsm.Test_Facade_BytesIndexOf_ABI_CalleeSavedRegisters_Preserved;
+var
+  dt: PSimdDispatchTable;
+  haystack: array[0..255] of Byte;
+  needle: array[0..3] of Byte;
+  expected, actual: PtrInt;
+  ok: Boolean;
+  i: Integer;
+begin
+  if not HasAVX2 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+
+  AssertTrue('Dispatch.BytesIndexOf should be assigned', Assigned(dt^.BytesIndexOf));
+  AssertTrue('BytesIndexOf should not be scalar when vector asm enabled', dt^.BytesIndexOf <> @BytesIndexOf_Scalar);
+
+  for i := 0 to High(haystack) do
+    haystack[i] := Byte(i and $7F);
+
+  needle[0] := 64;
+  needle[1] := 65;
+  needle[2] := 66;
+  needle[3] := 67;
+
+  expected := BytesIndexOf_Scalar(@haystack[0], SizeUInt(Length(haystack)), @needle[0], SizeUInt(Length(needle)));
+
+  ok := AbiCall_BytesIndexOf_CheckCalleeSaved(Pointer(dt^.BytesIndexOf), @haystack[0], SizeUInt(Length(haystack)),
+                                             @needle[0], SizeUInt(Length(needle)), actual);
+  AssertTrue('ABI callee-saved should be preserved (BytesIndexOf)', ok);
+  AssertEquals('ABI BytesIndexOf result', expected, actual);
+
+  // not found
+  needle[0] := 200;
+  needle[1] := 201;
+  needle[2] := 202;
+  needle[3] := 203;
+
+  expected := BytesIndexOf_Scalar(@haystack[0], SizeUInt(Length(haystack)), @needle[0], SizeUInt(Length(needle)));
+
+  ok := AbiCall_BytesIndexOf_CheckCalleeSaved(Pointer(dt^.BytesIndexOf), @haystack[0], SizeUInt(Length(haystack)),
+                                             @needle[0], SizeUInt(Length(needle)), actual);
+  AssertTrue('ABI callee-saved should be preserved (BytesIndexOf not found)', ok);
+  AssertEquals('ABI BytesIndexOf not found', expected, actual);
 end;
 
 { TTestCase_VectorOps }

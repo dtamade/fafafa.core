@@ -4,6 +4,7 @@ program TestSVGRender;
 
 uses
   SysUtils, Classes, Types,
+  fafafa.core.math,
   fafafa.core.graphics,
   fafafa.core.graphics.svg.improved,
   fafafa.core.graphics.svg.renderer;

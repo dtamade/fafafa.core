@@ -7,6 +7,7 @@ interface
 
 uses
   SysUtils, Classes,
+  fafafa.core.math,
   fafafa.core.lockfree,
   fafafa.core.lockfree.hashmap,
   fafafa.core.lockfree.hashmap.openAddressing;

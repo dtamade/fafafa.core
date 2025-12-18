@@ -6,7 +6,7 @@ unit Test_fafafa_core_json_reader_details;
 interface
 
 uses
-  SysUtils, Math, fpcunit, testregistry,
+  SysUtils, fafafa.core.math, fpcunit, testregistry,
   fafafa.core.mem.allocator,
   fafafa.core.json.core;
 
@@ -96,7 +96,7 @@ begin
   S := '1e10';
   D := JsonReadOpts(PChar(S), Length(S), [], GetRtlAllocator(), E);
   AssertTrue(Assigned(D)); V := D.Root; AssertTrue(UnsafeIsNum(V));
-  AssertTrue('approx', SameValue(JsonGetNum(V), 1.0e10, 1e-3));
+  AssertTrue('approx', Abs(JsonGetNum(V) - 1.0e10) <= 1e-3);
   D.Free;
 end;
 
@@ -107,7 +107,7 @@ begin
   S := '-2.5E-3';
   D := JsonReadOpts(PChar(S), Length(S), [], GetRtlAllocator(), E);
   AssertTrue(Assigned(D)); V := D.Root; AssertTrue(UnsafeIsNum(V));
-  AssertTrue('approx', SameValue(JsonGetNum(V), -2.5e-3, 1e-9));
+  AssertTrue('approx', Abs(JsonGetNum(V) - (-2.5e-3)) <= 1e-9);
   D.Free;
 end;
 
@@ -118,7 +118,7 @@ begin
   S := '3e0';
   D := JsonReadOpts(PChar(S), Length(S), [], GetRtlAllocator(), E);
   AssertTrue(Assigned(D)); V := D.Root; AssertTrue(UnsafeIsNum(V));
-  AssertTrue('approx', SameValue(JsonGetNum(V), 3.0, 1e-12));
+  AssertTrue('approx', Abs(JsonGetNum(V) - 3.0) <= 1e-12);
   D.Free;
 end;
 

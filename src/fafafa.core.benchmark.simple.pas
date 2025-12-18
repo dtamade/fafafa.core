@@ -137,6 +137,9 @@ procedure turbo_benchmark(const aTitle: string; const aTests: array of TQuickBen
 
 implementation
 
+uses
+  fafafa.core.math;
+
 type
 
   {**

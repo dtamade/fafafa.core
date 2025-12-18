@@ -19,6 +19,9 @@ function CompareJsonSnapshot(const ASnapDir, AName, AJsonText: string; AUpdate: 
 
 implementation
 
+uses
+  fafafa.core.math;
+
 // Forward declarations for helpers used earlier
 function EnvTrue(const AName: string): boolean; forward;
 function ShouldUpdate(AParam: boolean): boolean; forward;

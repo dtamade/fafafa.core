@@ -90,7 +90,7 @@ type
 implementation
 
 uses
-  Math;
+  fafafa.core.math;
 
 type
   TCRC32Table = array[0..255] of Cardinal;
@@ -162,7 +162,7 @@ begin
   try
     FStream.Position := 0;
     FillChar(Signature, SizeOf(Signature), 0);
-    FStream.Read(Signature, Min(SizeOf(Signature), FStream.Size));
+    FStream.Read(Signature, LongInt(Min(Int64(SizeOf(Signature)), FStream.Size)));
     
     // Check PNG
     if CompareMem(@Signature[0], @PNG_SIGNATURE[0], 8) then

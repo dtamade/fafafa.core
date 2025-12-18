@@ -290,6 +290,9 @@ const
 
 implementation
 
+uses
+  fafafa.core.math;
+
 const
   // 每月天数（非闰年）
   DAYS_IN_MONTH: array[1..12] of Integer = (31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31);

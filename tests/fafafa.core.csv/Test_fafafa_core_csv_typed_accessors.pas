@@ -5,7 +5,7 @@ unit Test_fafafa_core_csv_typed_accessors;
 interface
 
 uses
-  Classes, SysUtils, fpcunit, testregistry, fafafa.core.csv;
+  Classes, SysUtils, fpcunit, testregistry, fafafa.core.math, fafafa.core.csv;
 
 type
   TTestCSVTypedAccessors = class(TTestCase)

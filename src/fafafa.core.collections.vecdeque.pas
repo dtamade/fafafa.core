@@ -266,6 +266,17 @@ type
     procedure DoMerge(aLeft, aMid, aRight: SizeUInt; aComparer: TCompareFunc; aData: Pointer);
     function DoIntroSortDepthLimit(aCount: SizeUInt): Integer; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
 
+    type
+      TCompareMethodContext = record
+        Comparer: TCompareMethod;
+        Data: Pointer;
+      end;
+
+    class function CompareMethodAdapter(const aLeft, aRight: T; aData: Pointer): SizeInt; static;
+    {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
+    class function CompareRefFuncAdapter(const aLeft, aRight: T; aData: Pointer): SizeInt; static;
+    {$ENDIF}
+
 
   { ITerator 迭代器回调 }
   protected
@@ -5991,11 +6002,15 @@ begin
 end;
 
 procedure TVecDeque.Sort(aComparer: TCompareMethod; aData: Pointer);
+var
+  LContext: TCompareMethodContext;
 begin
   { 使用自定义比较方法和内省排序算法 - 简化为使用默认比较器 }
   if FCount <= 1 then
     Exit;
-  SortWith(0, FCount, saIntroSort);
+  LContext.Comparer := aComparer;
+  LContext.Data := aData;
+  SortWith(0, FCount, saIntroSort, @CompareMethodAdapter, @LContext);
 end;
 
 procedure TVecDeque.Sort(aComparer: TCompareRefFunc);
@@ -6023,13 +6038,17 @@ begin
 end;
 
 procedure TVecDeque.Sort(aStartIndex: SizeUInt; aComparer: TCompareMethod; aData: Pointer);
+var
+  LContext: TCompareMethodContext;
 begin
   { 从指定索引开始排序到末尾，使用默认比较器 }
   if aStartIndex >= FCount then
     Exit;
   if aStartIndex + 1 >= FCount then
     Exit;
-  SortWith(aStartIndex, FCount - aStartIndex, saIntroSort);
+  LContext.Comparer := aComparer;
+  LContext.Data := aData;
+  SortWith(aStartIndex, FCount - aStartIndex, saIntroSort, @CompareMethodAdapter, @LContext);
 end;
 
 procedure TVecDeque.Sort(aStartIndex: SizeUInt; aComparer: TCompareRefFunc);
@@ -6061,6 +6080,8 @@ begin
 end;
 
 procedure TVecDeque.Sort(aStartIndex, aCount: SizeUInt; aComparer: TCompareMethod; aData: Pointer);
+var
+  LContext: TCompareMethodContext;
 begin
   { 排序指定范围，使用默认比较器 }
   if (aStartIndex >= FCount) or (aCount = 0) then
@@ -6068,7 +6089,9 @@ begin
   if aStartIndex + aCount > FCount then
     raise EOutOfRange.Create('TVecDeque.Sort: range out of bounds');
   if aCount <= 1 then Exit;
-  SortWith(aStartIndex, aCount, saIntroSort);
+  LContext.Comparer := aComparer;
+  LContext.Data := aData;
+  SortWith(aStartIndex, aCount, saIntroSort, @CompareMethodAdapter, @LContext);
 end;
 
 procedure TVecDeque.Sort(aStartIndex, aCount: SizeUInt; aComparer: TCompareRefFunc);
@@ -6099,11 +6122,15 @@ begin
 end;
 
 procedure TVecDeque.SortUnChecked(aStartIndex, aCount: SizeUInt; aComparer: TCompareMethod; aData: Pointer);
+var
+  LContext: TCompareMethodContext;
 begin
   { 无边界检查的排序，使用默认比较器 }
   if aCount <= 1 then
     Exit;
-  DoQuickSort(aStartIndex, aStartIndex + aCount - 1, nil, nil);
+  LContext.Comparer := aComparer;
+  LContext.Data := aData;
+  DoQuickSort(aStartIndex, aStartIndex + aCount - 1, @CompareMethodAdapter, @LContext);
 end;
 
 procedure TVecDeque.SortUnChecked(aStartIndex, aCount: SizeUInt; aComparer: TCompareRefFunc);
@@ -7504,6 +7531,25 @@ begin
   end;
 end;
 
+class function TVecDeque.CompareMethodAdapter(const aLeft, aRight: T; aData: Pointer): SizeInt;
+type
+  PCompareMethodContext = ^TCompareMethodContext;
+var
+  LContext: PCompareMethodContext;
+begin
+  LContext := PCompareMethodContext(aData);
+  Result := LContext^.Comparer(aLeft, aRight, LContext^.Data);
+end;
+
+{$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
+class function TVecDeque.CompareRefFuncAdapter(const aLeft, aRight: T; aData: Pointer): SizeInt;
+type
+  PCompareRefFunc = ^TCompareRefFunc;
+begin
+  Result := PCompareRefFunc(aData)^(aLeft, aRight);
+end;
+{$ENDIF}
+
 procedure TVecDeque.SortWith(aStartIndex, aCount: SizeUInt; aAlgorithm: TSortAlgorithm; aComparer: TCompareFunc; aData: Pointer);
 var
   CPtr: PElement;
@@ -7527,9 +7573,6 @@ begin
 end;
 
 procedure TVecDeque.SortWith(aStartIndex, aCount: SizeUInt; aAlgorithm: TSortAlgorithm; aComparer: TCompareRefFunc);
-var
-  CPtr: PElement;
-  CLen: SizeUInt;
 begin
   { 使用指定算法和比较函数引用排序指定范围 }
   if (aStartIndex >= FCount) or (aCount <= 1) then
@@ -7538,14 +7581,7 @@ begin
   if aStartIndex + aCount > FCount then
     raise EOutOfRange.Create('TVecDeque.SortWith: range out of bounds');
 
-  MakeContiguous(CPtr, CLen);
-  case aAlgorithm of
-    saQuickSort: DoQuickSort(aStartIndex, aStartIndex + aCount - 1, nil, nil);
-    saMergeSort: DoMergeSort(aStartIndex, aStartIndex + aCount - 1, nil, nil);
-    saHeapSort: DoHeapSort(aStartIndex, aStartIndex + aCount - 1, nil, nil);
-    saIntroSort: DoIntroSort(aStartIndex, aStartIndex + aCount - 1, nil, nil);
-    saInsertionSort: DoInsertionSort(aStartIndex, aStartIndex + aCount - 1, nil, nil);
-  end;
+  SortWith(aStartIndex, aCount, aAlgorithm, @CompareRefFuncAdapter, @aComparer);
 end;
 
 // 排序辅助方法实现

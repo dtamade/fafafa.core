@@ -8,6 +8,7 @@ interface
 
 uses
   SysUtils, fpcunit, testregistry,
+  fafafa.core.math,
   fafafa.core.time.leapsec;
 
 type

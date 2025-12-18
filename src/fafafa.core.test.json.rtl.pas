@@ -32,6 +32,9 @@ function CreateRtlJsonWriterV2(const AFileName: string): IJsonReportWriter;
 
 implementation
 
+uses
+  fafafa.core.math;
+
 function FormatCleanupTimestampRFC3339(const ALocalNow: TDateTime): string;
 {$IFDEF FAFAFA_TEST_JSON_CLEANUP_TS_TZ_LOCAL_OFFSET}
 const

@@ -7,6 +7,7 @@ program Test_Clock;
 uses
   {$IFDEF UNIX}cthreads,{$ENDIF}
   SysUtils, DateUtils,
+  fafafa.core.math,
   fafafa.core.time.base,
   fafafa.core.time.duration,
   fafafa.core.time.instant,
@@ -337,7 +338,7 @@ begin
   offset := c.GetTimeZoneOffset;
   // Offset should be between -14 and +14 hours (convert seconds to hours)
   offsetHours := offset.AsSec div 3600;
-  AssertTrue(System.Abs(offsetHours) <= 14, 'Offset is within valid range');
+  AssertTrue(Abs(offsetHours) <= 14, 'Offset is within valid range');
 end;
 
 procedure Test_SystemClock_GetTimeZoneName;

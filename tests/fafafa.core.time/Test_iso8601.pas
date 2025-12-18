@@ -7,6 +7,7 @@ interface
 
 uses
   Classes, SysUtils, fpcunit, testregistry, DateUtils,
+  fafafa.core.math,
   fafafa.core.time.duration,
   fafafa.core.time.iso8601;
 

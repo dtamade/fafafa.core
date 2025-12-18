@@ -83,6 +83,10 @@ type
 function SignalCenter: ISignalCenter;
 
 implementation
+
+uses
+  fafafa.core.math;
+
 {$IFDEF FAFAFA_SIGNAL_DEBUG}
 procedure _sig_dbg(const s: string); inline;
 begin

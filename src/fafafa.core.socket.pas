@@ -1069,6 +1069,9 @@ type
 
 implementation
 
+uses
+  fafafa.core.math;
+
 // 包含平台特定的实现
 {$IFDEF WINDOWS}
 {$I fafafa.core.socket.windows.inc}

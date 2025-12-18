@@ -4,6 +4,7 @@ program test_image_comprehensive;
 
 uses
   SysUtils, Classes,
+  fafafa.core.math,
   fpcunit, testregistry, consoletestrunner,
   fafafa.core.graphics,
   fafafa.core.graphics.imageio,

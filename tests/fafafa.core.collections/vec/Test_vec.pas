@@ -7,6 +7,7 @@ interface
 
 uses
   Classes, SysUtils, fpcunit, testregistry, TypInfo,
+  fafafa.core.math,
   fafafa.core.base,
   fafafa.core.collections.base,
   fafafa.core.collections.arr,

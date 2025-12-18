@@ -15,7 +15,7 @@ unit benchmark_utils;
 interface
 
 uses
-  SysUtils, Classes, fafafa.core.benchmark, fafafa.core.atomic;
+  SysUtils, Classes, fafafa.core.math, fafafa.core.benchmark, fafafa.core.atomic;
 
 type
   {**
@@ -114,7 +114,7 @@ function CalculateImprovement(ABaseline, ATarget: Double): Double;
 implementation
 
 uses
-  Math, fpjson, jsonparser;
+  fpjson, jsonparser, StrUtils;
 
 { TAtomicBenchConfig }
 

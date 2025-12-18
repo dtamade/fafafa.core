@@ -883,6 +883,9 @@ type
 
 implementation
 
+uses
+  fafafa.core.math;
+
 {$I fafafa.core.process.exceptions.inc}
 
 

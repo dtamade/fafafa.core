@@ -314,7 +314,8 @@ function GetSecureRandom: ISecureRandom;
 implementation
 
 uses
-  fafafa.core.crypto.random;
+  fafafa.core.crypto.random,
+  fafafa.core.math;
 
 // 辅助函数
 function LowerCase(const AStr: string): string;

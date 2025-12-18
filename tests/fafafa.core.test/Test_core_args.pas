@@ -5,7 +5,7 @@ unit Test_core_args;
 interface
 
 uses
-  SysUtils, fpcunit, testregistry, fafafa.core.args, args_test_helper;
+  SysUtils, fpcunit, testregistry, fafafa.core.math, fafafa.core.args, args_test_helper;
 
 type
   TTestCase_Core_Args = class(TTestCase)

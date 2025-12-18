@@ -7,6 +7,7 @@ interface
 
 uses
   fpcunit, testregistry,
+  fafafa.core.math,
   fafafa.core.time.duration;
 
 type

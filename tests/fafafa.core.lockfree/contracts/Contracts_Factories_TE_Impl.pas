@@ -9,6 +9,7 @@ interface
 
 uses
   SysUtils, Classes,
+  fafafa.core.math,
   fafafa.core.lockfree,
   fafafa.core.lockfree.spscQueue,
   fafafa.core.lockfree.michaelScottQueue,

@@ -7,6 +7,7 @@ interface
 
 uses
   Classes, SysUtils, fpcunit, testregistry,
+  fafafa.core.math,
   fafafa.core.crypto,
   fafafa.core.crypto.aead.gcm.ghash; // IGHash, CreateGHash
 

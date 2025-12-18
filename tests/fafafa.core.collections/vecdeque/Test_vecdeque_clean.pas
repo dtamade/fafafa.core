@@ -3956,11 +3956,14 @@ end;
 procedure TTestCase_VecDeque.Test_SortUnChecked_StartIndex_Count_CompareRefFunc;
 {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
 begin
-  // TODO: 修复SortUnChecked匿名函数类型问题 - 暂时跳过
   FVecDeque.Clear;
-  FVecDeque.Append([5, 1, 4, 2, 3]);
-  FVecDeque.SortUnChecked(0, FVecDeque.GetCount); // 使用默认排序
-  ExpectSeq([1, 2, 3, 4, 5]);
+  FVecDeque.Append([0, 1, 2, 3, 4, 5]);
+  FVecDeque.SortUnChecked(1, 4,
+    reference to function (const aLeft, aRight: Integer): SizeInt
+    begin
+      Result := SizeInt(aRight) - SizeInt(aLeft);
+    end);
+  ExpectSeq([0, 4, 3, 2, 1, 5]);
 {$ELSE}
   FVecDeque.Clear;
   FVecDeque.Append([5, 1, 4, 2, 3]);
@@ -3996,11 +3999,14 @@ end;
 procedure TTestCase_VecDeque.Test_SortWith_Algorithm_CompareRefFunc;
 {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
 begin
-  // TODO: 修复SortWith匿名函数类型问题 - 暂时跳过
   FVecDeque.Clear;
-  FVecDeque.Append([3, 1, 2]);
-  FVecDeque.SortWith(saMergeSort); // 使用默认排序
-  ExpectSeq([1, 2, 3]);
+  FVecDeque.Append([0, 1, 2, 3, 4, 5]);
+  FVecDeque.SortWith(1, 4, saMergeSort,
+    reference to function (const aLeft, aRight: Integer): SizeInt
+    begin
+      Result := SizeInt(aRight) - SizeInt(aLeft);
+    end);
+  ExpectSeq([0, 4, 3, 2, 1, 5]);
 {$ELSE}
   FVecDeque.Clear;
   FVecDeque.Append([3, 1, 2]);

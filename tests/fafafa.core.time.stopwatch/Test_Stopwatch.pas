@@ -16,6 +16,7 @@ program Test_Stopwatch;
 
 uses
   SysUtils,
+  fafafa.core.math,
   fafafa.core.time.stopwatch,
   fafafa.core.time.duration,
   fafafa.core.time.cpu;

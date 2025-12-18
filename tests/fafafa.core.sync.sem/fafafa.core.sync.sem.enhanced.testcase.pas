@@ -9,6 +9,7 @@ interface
 
 uses
   Classes, SysUtils, fpcunit, testregistry,
+  fafafa.core.math,
   fafafa.core.sync.sem, fafafa.core.sync.base, fafafa.core.base;
 
 type

@@ -5,7 +5,7 @@ unit fafafa.core.sync.rwlock.testcase.full;
 interface
 
 uses
-  Classes, SysUtils, fpcunit, testregistry, Math,
+  Classes, SysUtils, fpcunit, testregistry, fafafa.core.math,
   fafafa.core.sync.rwlock, fafafa.core.sync.base;
 
 type

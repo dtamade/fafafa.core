@@ -3,7 +3,7 @@ program TestSVG;
 {$mode objfpc}{$H+}
 
 uses
-  SysUtils, Classes, Math, Types,
+  SysUtils, Classes, fafafa.core.math, Types,
   fafafa.core.graphics,
   fafafa.core.graphics.svg.improved;
 

@@ -8,6 +8,7 @@ interface
 
 uses
   SysUtils, DateUtils, fpcunit, testutils, testregistry,
+  fafafa.core.math,
   fafafa.core.id, fafafa.core.id.ulid, fafafa.core.id.ksuid, fafafa.core.id.snowflake, fafafa.core.id.ulid.monotonic, fafafa.core.id.codec;
 
 type

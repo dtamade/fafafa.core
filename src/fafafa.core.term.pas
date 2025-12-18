@@ -6112,6 +6112,7 @@ uses
 {$ENDIF}
   fafafa.core.term.ansi,
   fafafa.core.color,
+  fafafa.core.math,
   fafafa.core.term.paste.ring;
 
 function ParseSizeWithSuffix(const S: string; out V: SizeUInt): Boolean;

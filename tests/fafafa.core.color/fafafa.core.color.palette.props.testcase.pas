@@ -7,7 +7,7 @@ unit fafafa.core.color.palette.props.testcase;
 interface
 
 uses
-  Classes, SysUtils, Math, fpcunit, testregistry,
+  Classes, SysUtils, fafafa.core.math, fpcunit, testregistry,
   fafafa.core.color;
 
 type

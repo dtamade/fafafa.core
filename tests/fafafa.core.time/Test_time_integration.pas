@@ -6,6 +6,7 @@ interface
 
 uses
   SysUtils, Classes,
+  fafafa.core.math,
   fafafa.core.time,
   fafafa.core.time.clock,
   fafafa.core.time.clock.safe,

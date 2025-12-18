@@ -5,7 +5,7 @@ unit bench_blocking_policy;
 interface
 
 uses
-  SysUtils, DateUtils, Math,
+  SysUtils, DateUtils, fafafa.core.math,
   fafafa.core.bench.util,
   fafafa.core.lockfree.factories,
   fafafa.core.lockfree.ifaces,

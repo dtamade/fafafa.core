@@ -8,6 +8,7 @@ interface
 
 uses
   Classes, SysUtils, fpcunit, testutils, testregistry,
+  fafafa.core.math,
   fafafa.core.json, fafafa.core.json.errors;
 
 type
