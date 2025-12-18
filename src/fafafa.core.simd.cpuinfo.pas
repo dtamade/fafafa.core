@@ -13,9 +13,9 @@ uses
   fafafa.core.atomic
   {$IFDEF WINDOWS}
   , fafafa.core.simd.cpuinfo.windows
-  {$ELSEIF DEFINED(DARWIN)}
+  {$ELSEIFDEF DARWIN}
   , fafafa.core.simd.cpuinfo.darwin
-  {$ELSEIF DEFINED(UNIX)}
+  {$ELSEIFDEF UNIX}
   , fafafa.core.simd.cpuinfo.unix
   {$ENDIF}
   ;
@@ -114,9 +114,9 @@ function DetectCPUArchitecture: TCPUArch;
 begin
   {$IFDEF SIMD_X86_AVAILABLE}
   Result := DetectX86Architecture;
-  {$ELSEIF DEFINED(SIMD_ARM_AVAILABLE)}
+  {$ELSEIFDEF SIMD_ARM_AVAILABLE}
   Result := caARM;
-  {$ELSEIF DEFINED(SIMD_RISCV_AVAILABLE)}
+  {$ELSEIFDEF SIMD_RISCV_AVAILABLE}
   Result := caRISCV;
   {$ELSE}
   Result := caUnknown;
@@ -130,9 +130,9 @@ begin
   Logical := 0;
   {$IFDEF WINDOWS}
   Result := fafafa.core.simd.cpuinfo.windows.DetectCoreCounts(Physical, Logical);
-  {$ELSEIF DEFINED(DARWIN)}
+  {$ELSEIFDEF DARWIN}
   Result := fafafa.core.simd.cpuinfo.darwin.DetectCoreCounts(Physical, Logical);
-  {$ELSEIF DEFINED(UNIX)}
+  {$ELSEIFDEF UNIX}
   Result := fafafa.core.simd.cpuinfo.unix.DetectCoreCounts(Physical, Logical);
   {$ELSE}
   Result := False;

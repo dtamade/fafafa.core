@@ -206,6 +206,42 @@ function Sign(x: Double): Integer; overload; {$IFDEF FAFAFA_CORE_INLINE} inline;
 function IntPower(aBase: Double; aExponent: Integer): Double; overload; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
 
 {**
+ * NaN
+ *
+ * @desc
+ *   Returns a quiet NaN value (Double).
+ *   返回 quiet NaN（Double）。
+ *}
+function NaN: Double; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+
+{**
+ * Infinity
+ *
+ * @desc
+ *   Returns positive infinity (Double).
+ *   返回正无穷（Double）。
+ *}
+function Infinity: Double; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+
+{**
+ * GetExceptionMask
+ *
+ * @desc
+ *   Get current FPU exception mask.
+ *   获取当前 FPU 异常屏蔽掩码。
+ *}
+function GetExceptionMask: TFPUExceptionMask; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+
+{**
+ * SetExceptionMask
+ *
+ * @desc
+ *   Set current FPU exception mask.
+ *   设置当前 FPU 异常屏蔽掩码。
+ *}
+procedure SetExceptionMask(const aMask: TFPUExceptionMask); {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+
+{**
  * IsNaN
  *
  * @desc
@@ -525,6 +561,9 @@ function Max(aA, aB: SizeInt): SizeInt; overload; {$IFDEF FAFAFA_CORE_INLINE} in
 
 implementation
 
+uses
+  Math;
+
 // === Facade Implementation ===
 
 function IsAddOverflow(aA, aB: SizeUInt): Boolean;
@@ -659,18 +698,21 @@ end;
 
 function IntPower(aBase: Double; aExponent: Integer): Double;
 var
-  exp: Int64;
   base: Double;
+  exp: Integer;
 begin
-  exp := aExponent;
-  if exp = 0 then
+  if aExponent = 0 then
     Exit(1.0);
 
-  base := aBase;
-  if exp < 0 then
+  if aExponent < 0 then
   begin
-    exp := -exp;
-    base := 1.0 / base;
+    base := 1.0 / aBase;
+    exp := -aExponent;
+  end
+  else
+  begin
+    base := aBase;
+    exp := aExponent;
   end;
 
   Result := 1.0;
@@ -681,6 +723,26 @@ begin
     base := base * base;
     exp := exp shr 1;
   end;
+end;
+
+function NaN: Double;
+begin
+  Result := Math.NaN;
+end;
+
+function Infinity: Double;
+begin
+  Result := Math.Infinity;
+end;
+
+function GetExceptionMask: TFPUExceptionMask;
+begin
+  Result := Math.GetExceptionMask;
+end;
+
+procedure SetExceptionMask(const aMask: TFPUExceptionMask);
+begin
+  Math.SetExceptionMask(aMask);
 end;
 
 function IsNaN(x: Double): Boolean;
