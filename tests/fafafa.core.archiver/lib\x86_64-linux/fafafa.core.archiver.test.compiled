@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<CONFIG>
-  <Compiler Value="/home/dtamade/freePascal/fpc/bin/x86_64-linux/fpc.sh" Date="1761279526"/>
-  <Params Value="-MDelphi -Scghi -Cg -gw2 -godwarfsets -gl -gh -l -vewnhibq -Fi/home/dtamade/projects/fafafa.core/tests/fafafa.core.archiver/lib\x86_64-linux -Fi/home/dtamade/projects/fafafa.core/tests/fafafa.core.archiver/..\.. -Fu/home/dtamade/projects/fafafa.core/tests/fafafa.core.archiver/ -Fu/home/dtamade/projects/fafafa.core/tests/fafafa.core.archiver/..\..\src -FE/home/dtamade/projects/fafafa.core/tests/fafafa.core.archiver/lib\x86_64-linux/ -o/home/dtamade/projects/fafafa.core/tests/fafafa.core.archiver/lib\x86_64-linux/fafafa.core.archiver.test fafafa.core.archiver.test.lpr"/>
-</CONFIG>
