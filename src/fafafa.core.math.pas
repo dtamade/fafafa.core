@@ -32,6 +32,7 @@ unit fafafa.core.math;
 
 interface
 
+{$WARN 5023 OFF} // facade: interface uses re-exported units
 uses
   SysUtils,
   fafafa.core.base,
@@ -40,6 +41,10 @@ uses
   fafafa.core.math.intutil,
   fafafa.core.math.dispatch,
   fafafa.core.math.array_;
+
+const
+  // Keep PI available via facade (avoid direct RTL/qualified PI usage).
+  PI: Double = 3.1415926535897932384626433832795;
 
 {**
  * IsAddOverflow
@@ -154,6 +159,51 @@ function Round(x: Double): Int64; overload; {$IFDEF FAFAFA_CORE_INLINE} inline;{
  *   平方根（语义对齐 RTL Math）。
  *}
 function Sqrt(x: Double): Double; overload; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+
+{**
+ * Sqr
+ *
+ * @desc
+ *   Square (Double).
+ *   平方。
+ *}
+function Sqr(x: Double): Double; overload; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+
+{**
+ * Int
+ *
+ * @desc
+ *   Integer part of x (as Double), semantics follow RTL Int.
+ *   返回 x 的整数部分（Double），语义对齐 RTL Int。
+ *}
+function Int(x: Double): Double; overload; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+
+{**
+ * Frac
+ *
+ * @desc
+ *   Fractional part of x (as Double), semantics follow RTL Frac.
+ *   返回 x 的小数部分（Double），语义对齐 RTL Frac。
+ *}
+function Frac(x: Double): Double; overload; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+
+{**
+ * Sign
+ *
+ * @desc
+ *   Returns -1, 0, or 1 depending on sign of x. NaN yields 0.
+ *   返回 -1/0/1 表示符号；NaN 返回 0。
+ *}
+function Sign(x: Double): Integer; overload; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+
+{**
+ * IntPower
+ *
+ * @desc
+ *   Integer exponentiation.
+ *   整数指数幂。
+ *}
+function IntPower(aBase: Double; aExponent: Integer): Double; overload; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
 
 {**
  * IsNaN
@@ -580,6 +630,57 @@ end;
 function Sqrt(x: Double): Double;
 begin
   Result := fafafa.core.math.float.Sqrt(x);
+end;
+
+function Sqr(x: Double): Double;
+begin
+  Result := x * x;
+end;
+
+function Int(x: Double): Double;
+begin
+  Result := System.Int(x);
+end;
+
+function Frac(x: Double): Double;
+begin
+  Result := System.Frac(x);
+end;
+
+function Sign(x: Double): Integer;
+begin
+  if x > 0 then
+    Result := 1
+  else if x < 0 then
+    Result := -1
+  else
+    Result := 0;
+end;
+
+function IntPower(aBase: Double; aExponent: Integer): Double;
+var
+  exp: Int64;
+  base: Double;
+begin
+  exp := aExponent;
+  if exp = 0 then
+    Exit(1.0);
+
+  base := aBase;
+  if exp < 0 then
+  begin
+    exp := -exp;
+    base := 1.0 / base;
+  end;
+
+  Result := 1.0;
+  while exp > 0 do
+  begin
+    if (exp and 1) <> 0 then
+      Result := Result * base;
+    base := base * base;
+    exp := exp shr 1;
+  end;
 end;
 
 function IsNaN(x: Double): Boolean;

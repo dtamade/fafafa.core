@@ -5,9 +5,6 @@ unit fafafa.core.math.intutil;
 
 interface
 
-uses
-  fafafa.core.base;
-
 {**
  * 整数实用函数（基线实现）
  *
