@@ -28,6 +28,11 @@ var
   benchOnly: Boolean;
   pauseAtEnd: Boolean;
   vectorAsmEnabled: Boolean;
+  exitEarly: Boolean;
+  exitEarlyCode: Integer;
+  exitEarlyShowUsage: Boolean;
+  exitEarlyListSuites: Boolean;
+  exitEarlyError: string;
 
 procedure RunBenchmarks;
 const
@@ -270,6 +275,8 @@ begin
   WriteLn('  TTestCase_Global');
   WriteLn('  TTestCase_BackendConsistency');
   WriteLn('  TTestCase_BackendSmoke');
+  WriteLn('  TTestCase_AVX512BackendRequirements');
+  WriteLn('  TTestCase_AVX2VectorAsm');
   WriteLn('  TTestCase_VectorOps');
   WriteLn('  TTestCase_LargeData');
   WriteLn('  TTestCase_UnsignedVectorTypes');
@@ -329,6 +336,12 @@ begin
   pauseAtEnd := False;
   vectorAsmEnabled := False;
 
+  exitEarly := False;
+  exitEarlyCode := 0;
+  exitEarlyShowUsage := False;
+  exitEarlyListSuites := False;
+  exitEarlyError := '';
+
   suiteFilters := TStringList.Create;
   suiteFilters.CaseSensitive := False;
 
@@ -348,13 +361,17 @@ begin
     end
     else if (arg = '--help') or (arg = '-h') then
     begin
-      PrintUsage;
-      Halt(0);
+      exitEarly := True;
+      exitEarlyCode := 0;
+      exitEarlyShowUsage := True;
+      Exit;
     end
     else if arg = '--list-suites' then
     begin
-      PrintAvailableSuites;
-      Halt(0);
+      exitEarly := True;
+      exitEarlyCode := 0;
+      exitEarlyListSuites := True;
+      Exit;
     end
     else if arg = '--pause' then
       pauseAtEnd := True
@@ -367,9 +384,11 @@ begin
       Inc(argIndex);
       if argIndex > ParamCount then
       begin
-        WriteLn('Error: --suite requires a value');
-        PrintUsage;
-        Halt(2);
+        exitEarly := True;
+        exitEarlyCode := 2;
+        exitEarlyShowUsage := True;
+        exitEarlyError := 'Error: --suite requires a value';
+        Exit;
       end;
       AddSuiteFilter(ParamStr(argIndex));
     end
@@ -380,9 +399,11 @@ begin
     end
     else
     begin
-      WriteLn('Unknown argument: ', arg);
-      PrintUsage;
-      Halt(2);
+      exitEarly := True;
+      exitEarlyCode := 2;
+      exitEarlyShowUsage := True;
+      exitEarlyError := 'Unknown argument: ' + arg;
+      Exit;
     end;
 
     Inc(argIndex);
@@ -393,6 +414,26 @@ begin
   ParseArgs;
 
   try
+    if exitEarly then
+    begin
+      if exitEarlyError <> '' then
+        WriteLn(exitEarlyError);
+      if exitEarlyShowUsage then
+        PrintUsage;
+      if exitEarlyListSuites then
+        PrintAvailableSuites;
+
+      ExitCode := exitEarlyCode;
+
+      if pauseAtEnd then
+      begin
+        WriteLn('Press Enter to exit...');
+        ReadLn;
+      end;
+
+      Exit;
+    end;
+
     WriteLn('=== fafafa.core.simd Test Suite ===');
     WriteLn('Starting SIMD facade function tests...');
     WriteLn;
@@ -432,6 +473,8 @@ begin
         testSuite.AddTest(TTestCase_BackendConsistency.Suite);
       if ShouldRunSuite('TTestCase_BackendSmoke') then
         testSuite.AddTest(TTestCase_BackendSmoke.Suite);
+      if ShouldRunSuite('TTestCase_AVX512BackendRequirements') then
+        testSuite.AddTest(TTestCase_AVX512BackendRequirements.Suite);
       if ShouldRunSuite('TTestCase_AVX2VectorAsm') then
         testSuite.AddTest(TTestCase_AVX2VectorAsm.Suite);
       if ShouldRunSuite('TTestCase_VectorOps') then
@@ -502,7 +545,13 @@ begin
           end;
         end;
 
-        if (testResult.NumberOfFailures = 0) and (testResult.NumberOfErrors = 0) then
+        if (suiteFilters <> nil) and (suiteFilters.Count > 0) and (testResult.RunTests = 0) then
+        begin
+          WriteLn('ERROR: suite filter matched no tests.');
+          PrintAvailableSuites;
+          ExitCode := 2;
+        end
+        else if (testResult.NumberOfFailures = 0) and (testResult.NumberOfErrors = 0) then
         begin
           WriteLn('All tests passed!');
           ExitCode := 0;
