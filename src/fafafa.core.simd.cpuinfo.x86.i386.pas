@@ -134,6 +134,7 @@ var
   xcr0: UInt64;
 begin
   Result := False;
+  eax := 0; ebx := 0; ecx := 0; edx := 0;
   CPUID(1, eax, ebx, ecx, edx);
   if (ecx and (1 shl 27)) = 0 then Exit; // OSXSAVE
   xcr0 := ReadXCR0;
@@ -147,10 +148,17 @@ var
   xcr0: UInt64;
   osxsave: Boolean;
 begin
-  FillChar(Result, SizeOf(Result), 0);
+  Result := Default(TX86Features);
   if not HasCPUID then Exit;
+
+  eax := 0; ebx := 0; ecx := 0; edx := 0;
+  maxLeaf := 0;
+  maxExtLeaf := 0;
+
   CPUID(0, maxLeaf, ebx, ecx, edx);
   if maxLeaf < 1 then Exit;
+
+  eax := 0; ebx := 0; ecx := 0; edx := 0;
   CPUID(1, eax, ebx, ecx, edx);
   Result.HasMMX := (edx and (1 shl 23)) <> 0;
   Result.HasSSE := (edx and (1 shl 25)) <> 0;
@@ -161,6 +169,7 @@ begin
   Result.HasFMA := (ecx and (1 shl 12)) <> 0;
   Result.HasSSE41 := (ecx and (1 shl 19)) <> 0;
   Result.HasSSE42 := (ecx and (1 shl 20)) <> 0;
+  Result.HasPOPCNT := (ecx and (1 shl 23)) <> 0;
   Result.HasAES := (ecx and (1 shl 25)) <> 0;
   Result.HasAVX := (ecx and (1 shl 28)) <> 0;
   Result.HasF16C := (ecx and (1 shl 29)) <> 0;
@@ -171,6 +180,7 @@ begin
   if Result.HasAVX then Result.HasAVX := XCR0HasAVX(xcr0);
   if maxLeaf >= 7 then
   begin
+    eax := 0; ebx := 0; ecx := 0; edx := 0;
     CPUIDEX(7, 0, eax, ebx, ecx, edx);
     Result.HasBMI1 := (ebx and (1 shl 3)) <> 0;
     Result.HasAVX2 := (ebx and (1 shl 5)) <> 0;
@@ -205,9 +215,11 @@ begin
       Result.HasAVX512VBMI := False;
     end;
   end;
+  ebx := 0; ecx := 0; edx := 0;
   CPUID($80000000, maxExtLeaf, ebx, ecx, edx);
   if maxExtLeaf >= $80000001 then
   begin
+    eax := 0; ebx := 0; ecx := 0; edx := 0;
     CPUID($80000001, eax, ebx, ecx, edx);
     Result.HasFMA4 := (ecx and (1 shl 16)) <> 0;
   end;
@@ -225,13 +237,21 @@ begin
     cpuInfo.Model := 'Unknown x86 Processor';
     Exit;
   end;
+
+  eax := 0; ebx := 0; ecx := 0; edx := 0;
+  vendorString[0] := #0;
+  brandString[0] := #0;
+  FillChar(vendorString, SizeOf(vendorString), 0);
+  FillChar(brandString, SizeOf(brandString), 0);
+
   CPUID(0, eax, ebx, ecx, edx);
   Move(ebx, vendorString[0], 4);
   Move(edx, vendorString[4], 4);
   Move(ecx, vendorString[8], 4);
   vendorString[12] := #0;
   cpuInfo.Vendor := string(vendorString);
-  FillChar(brandString, SizeOf(brandString), 0);
+
+  eax := 0; ebx := 0; ecx := 0; edx := 0;
   CPUID($80000000, eax, ebx, ecx, edx);
   if eax >= $80000004 then
   begin
@@ -264,20 +284,25 @@ function GetX86CacheInfo: TX86CacheInfo;
 var
   eax, ebx, ecx, edx: DWord;
 begin
-  FillChar(Result, SizeOf(Result), 0);
+  Result := Default(TX86CacheInfo);
   if not HasCPUID then Exit;
+
+  eax := 0; ebx := 0; ecx := 0; edx := 0;
   CPUID(0, eax, ebx, ecx, edx);
   if eax >= 2 then
   begin
+    eax := 0; ebx := 0; ecx := 0; edx := 0;
     CPUID(2, eax, ebx, ecx, edx);
     Result.L1DataCache := 32;
     Result.L1InstructionCache := 32;
     Result.L2Cache := 256;
     Result.L3Cache := 0;
   end;
+  eax := 0; ebx := 0; ecx := 0; edx := 0;
   CPUID($80000000, eax, ebx, ecx, edx);
   if eax >= $80000006 then
   begin
+    eax := 0; ebx := 0; ecx := 0; edx := 0;
     CPUID($80000006, eax, ebx, ecx, edx);
     Result.L2Cache := (ecx shr 16) and $FFFF;
     Result.L3Cache := ((edx shr 18) and $3FFF) * 512;

@@ -119,6 +119,7 @@ var
   xcr0: UInt64;
 begin
   Result := False;
+  eax := 0; ebx := 0; ecx := 0; edx := 0;
   CPUID(1, eax, ebx, ecx, edx);
   if (ecx and (1 shl 27)) = 0 then Exit; // OSXSAVE
   xcr0 := ReadXCR0;
@@ -132,9 +133,17 @@ var
   xcr0: UInt64;
   osxsave: Boolean;
 begin
-  FillChar(Result, SizeOf(Result), 0);
+  Result := Default(TX86Features);
+
+  // Pre-initialize locals passed via "var" to avoid FPC initialization hints.
+  eax := 0; ebx := 0; ecx := 0; edx := 0;
+  maxLeaf := 0;
+  maxExtLeaf := 0;
+
   CPUID(0, maxLeaf, ebx, ecx, edx);
   if maxLeaf < 1 then Exit;
+
+  eax := 0; ebx := 0; ecx := 0; edx := 0;
   CPUID(1, eax, ebx, ecx, edx);
   Result.HasMMX := (edx and (1 shl 23)) <> 0;
   Result.HasSSE := (edx and (1 shl 25)) <> 0;
@@ -145,6 +154,7 @@ begin
   Result.HasFMA := (ecx and (1 shl 12)) <> 0;
   Result.HasSSE41 := (ecx and (1 shl 19)) <> 0;
   Result.HasSSE42 := (ecx and (1 shl 20)) <> 0;
+  Result.HasPOPCNT := (ecx and (1 shl 23)) <> 0;
   Result.HasAES := (ecx and (1 shl 25)) <> 0;
   Result.HasAVX := (ecx and (1 shl 28)) <> 0;
   Result.HasF16C := (ecx and (1 shl 29)) <> 0;
@@ -152,8 +162,10 @@ begin
   osxsave := (ecx and (1 shl 27)) <> 0;
   if osxsave then xcr0 := ReadXCR0 else xcr0 := 0;
   if Result.HasAVX then Result.HasAVX := XCR0HasAVX(xcr0);
+
   if maxLeaf >= 7 then
   begin
+    eax := 0; ebx := 0; ecx := 0; edx := 0;
     CPUIDEX(7, 0, eax, ebx, ecx, edx);
     Result.HasBMI1 := (ebx and (1 shl 3)) <> 0;
     Result.HasAVX2 := (ebx and (1 shl 5)) <> 0;
@@ -187,9 +199,12 @@ begin
       Result.HasAVX512VBMI := False;
     end;
   end;
+
+  ebx := 0; ecx := 0; edx := 0;
   CPUID($80000000, maxExtLeaf, ebx, ecx, edx);
   if maxExtLeaf >= $80000001 then
   begin
+    eax := 0; ebx := 0; ecx := 0; edx := 0;
     CPUID($80000001, eax, ebx, ecx, edx);
     Result.HasFMA4 := (ecx and (1 shl 16)) <> 0;
   end;
@@ -201,6 +216,14 @@ var
   vendorString: array[0..12] of AnsiChar;
   brandString: array[0..48] of AnsiChar;
 begin
+  eax := 0; ebx := 0; ecx := 0; edx := 0;
+  vendorString[0] := #0;
+  brandString[0] := #0;
+
+  // Pre-zero buffers to avoid initialization hints on Move/FillChar.
+  FillChar(vendorString, SizeOf(vendorString), 0);
+  FillChar(brandString, SizeOf(brandString), 0);
+
   CPUID(0, eax, ebx, ecx, edx);
   Move(ebx, vendorString[0], 4);
   Move(edx, vendorString[4], 4);
@@ -209,13 +232,15 @@ begin
   cpuInfo.Vendor := string(vendorString);
   
   // 检测OSXSAVE和XCR0
+  eax := 0; ebx := 0; ecx := 0; edx := 0;
   CPUID(1, eax, ebx, ecx, edx);
   cpuInfo.OSXSAVE := (ecx and (1 shl 27)) <> 0;
   if cpuInfo.OSXSAVE then
     cpuInfo.XCR0 := ReadXCR0
   else
     cpuInfo.XCR0 := 0;
-  FillChar(brandString, SizeOf(brandString), 0);
+
+  eax := 0; ebx := 0; ecx := 0; edx := 0;
   CPUID($80000000, eax, ebx, ecx, edx);
   if eax >= $80000004 then
   begin
@@ -248,12 +273,15 @@ function GetX86CacheInfo: TX86CacheInfo;
 var
   eax, ebx, ecx, edx: DWord;
   maxLeaf: DWord;
-  i, subleaf: Integer;
+  subleaf: Integer;
   cacheType, cacheLevel, cacheSets: DWord;
   cacheLineSize, cachePartitions, cacheWays: DWord;
   cacheSize: DWord;
 begin
-  FillChar(Result, SizeOf(Result), 0);
+  Result := Default(TX86CacheInfo);
+
+  eax := 0; ebx := 0; ecx := 0; edx := 0;
+  maxLeaf := 0;
   
   // First, try to get cache info from leaf 4 (Deterministic Cache Parameters)
   CPUID(0, maxLeaf, ebx, ecx, edx);
@@ -261,6 +289,7 @@ begin
   begin
     subleaf := 0;
     repeat
+      eax := 0; ebx := 0; ecx := 0; edx := 0;
       CPUIDEX(4, subleaf, eax, ebx, ecx, edx);
       cacheType := eax and $1F;
       
@@ -296,6 +325,7 @@ begin
     // Get cache line size from the first valid cache
     if Result.CacheLineSize = 0 then
     begin
+      eax := 0; ebx := 0; ecx := 0; edx := 0;
       CPUIDEX(4, 0, eax, ebx, ecx, edx);
       if (eax and $1F) <> 0 then
         Result.CacheLineSize := (ebx and $FFF) + 1;
@@ -303,11 +333,13 @@ begin
   end;
   
   // Fallback to extended CPUID leaves if leaf 4 didn't work or as supplement
+  ebx := 0; ecx := 0; edx := 0;
   CPUID($80000000, maxLeaf, ebx, ecx, edx);
   
   // Get L1 cache info from leaf $80000005 if available and not already set
   if (maxLeaf >= $80000005) and (Result.L1DataCache = 0) then
   begin
+    eax := 0; ebx := 0; ecx := 0; edx := 0;
     CPUID($80000005, eax, ebx, ecx, edx);
     if Result.L1DataCache = 0 then
       Result.L1DataCache := (ecx shr 24) and $FF;  // L1 D-cache size in KB
@@ -320,6 +352,7 @@ begin
   // Get L2/L3 cache info from leaf $80000006
   if maxLeaf >= $80000006 then
   begin
+    eax := 0; ebx := 0; ecx := 0; edx := 0;
     CPUID($80000006, eax, ebx, ecx, edx);
     if Result.L2Cache = 0 then
       Result.L2Cache := (ecx shr 16) and $FFFF;  // L2 cache size in KB

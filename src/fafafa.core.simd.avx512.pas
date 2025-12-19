@@ -8,7 +8,8 @@ interface
 
 uses
   fafafa.core.simd.base,
-  fafafa.core.simd.dispatch;
+  fafafa.core.simd.dispatch,
+  fafafa.core.simd.cpuinfo.base;
 
 // === AVX-512 Backend Implementation ===
 // Provides SIMD-accelerated operations using x86-64 AVX-512 instructions.
@@ -17,6 +18,10 @@ uses
 
 // Register the AVX-512 backend
 procedure RegisterAVX512Backend;
+
+// Pure logical predicate: returns True iff the CPU has all sub-features required by this backend.
+// NOTE: This does NOT include OS enabling checks (XCR0), which are handled separately via HasAVX512.
+function X86HasAVX512BackendRequiredFeatures(const X86: TX86Features): Boolean; inline;
 
 // === AVX-512 门面函数声明 ===
 
@@ -1133,6 +1138,15 @@ end;
 
 // === Backend Registration ===
 
+function X86HasAVX512BackendRequiredFeatures(const X86: TX86Features): Boolean; inline;
+begin
+  // This backend uses:
+  //   - AVX-512F + AVX-512BW (byte/word ops like vpcmpeqb/vpcmpub/vpminub/...)
+  //   - AVX2 256-bit integer ops in fallback paths
+  //   - POPCNT for bit counting (mask popcount)
+  Result := X86.HasAVX2 and X86.HasAVX512F and X86.HasAVX512BW and X86.HasPOPCNT;
+end;
+
 procedure RegisterAVX512Backend;
 var
   dispatchTable: TSimdDispatchTable;
@@ -1141,8 +1155,12 @@ begin
   if not HasAVX512 then
     Exit;
 
+  // Ensure the CPU has the exact subsets used by this implementation.
+  if not X86HasAVX512BackendRequiredFeatures(GetX86CPUInfo) then
+    Exit;
+
   // Initialize dispatch table
-  FillChar(dispatchTable, SizeOf(dispatchTable), 0);
+  dispatchTable := Default(TSimdDispatchTable);
 
   // Set backend info
   dispatchTable.Backend := sbAVX512;

@@ -27,6 +27,7 @@ type
     HasSSSE3: Boolean;
     HasSSE41: Boolean;
     HasSSE42: Boolean;
+    HasPOPCNT: Boolean;
 
     HasAVX: Boolean;
     HasAVX2: Boolean;
@@ -53,7 +54,7 @@ type
 
   // Arch-specific ISA enums for strong-typed queries
   TX86ISA = (
-    xMMX, xSSE, xSSE2, xSSE3, xSSSE3, xSSE41, xSSE42,
+    xMMX, xSSE, xSSE2, xSSE3, xSSSE3, xSSE41, xSSE42, xPOPCNT,
     xAVX, xAVX2, xAVX512F, xAVX512DQ, xAVX512BW, xAVX512VL, xAVX512VBMI,
     xAES, xSHA, xPCLMULQDQ, xFMA, xFMA4, xBMI1, xBMI2, xF16C, xRDRAND, xRDSEED
   );

@@ -98,6 +98,12 @@ type
     procedure Test_ForceAVX512_VecF32x4_Smoke;
   end;
 
+  // AVX-512 后端需求判定测试（纯逻辑，不依赖当前硬件）
+  TTestCase_AVX512BackendRequirements = class(TTestCase)
+  published
+    procedure Test_X86HasAVX512BackendRequiredFeatures_AVX512FOnly_Disabled;
+  end;
+
   // AVX2 VectorAsm 专项测试：聚焦于向量汇编路径的正确性（小步推进）
   TTestCase_AVX2VectorAsm = class(TTestCase)
   protected
@@ -1827,6 +1833,29 @@ begin
   else
     AssertEquals('Fallback backend should be Scalar', Ord(sbScalar), Ord(GetCurrentBackend));
   RunVecF32x4Smoke;
+end;
+
+{ TTestCase_AVX512BackendRequirements }
+
+procedure TTestCase_AVX512BackendRequirements.Test_X86HasAVX512BackendRequiredFeatures_AVX512FOnly_Disabled;
+var
+  F: TX86Features;
+begin
+  FillChar(F, SizeOf(F), 0);
+
+  // NOTE: 本测试只验证“需求判定逻辑”，不触发任何 AVX-512 指令执行。
+  F.HasAVX2 := True;
+  F.HasAVX512F := True;
+
+  // Missing AVX512BW
+  AssertFalse('AVX-512 backend should require AVX512BW', X86HasAVX512BackendRequiredFeatures(F));
+
+  // Still missing POPCNT
+  F.HasAVX512BW := True;
+  AssertFalse('AVX-512 backend should require POPCNT', X86HasAVX512BackendRequiredFeatures(F));
+
+  F.HasPOPCNT := True;
+  AssertTrue('AVX-512 backend should be usable with AVX2 + AVX512F + AVX512BW + POPCNT', X86HasAVX512BackendRequiredFeatures(F));
 end;
 
 { TTestCase_AVX2VectorAsm }
@@ -11311,6 +11340,7 @@ initialization
   RegisterTest(TTestCase_Global);
   RegisterTest(TTestCase_BackendConsistency);
   RegisterTest(TTestCase_BackendSmoke);
+  RegisterTest(TTestCase_AVX512BackendRequirements);
   RegisterTest(TTestCase_AVX2VectorAsm);
   RegisterTest(TTestCase_VectorOps);
   RegisterTest(TTestCase_LargeData);
