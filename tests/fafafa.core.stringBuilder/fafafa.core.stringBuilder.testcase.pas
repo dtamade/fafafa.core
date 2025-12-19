@@ -43,13 +43,19 @@ begin
 end;
 
 procedure TTestCase_Global.Test_Append_And_ToString;
-var B: IStringBuilder;
-    S: string;
+var
+  B: IStringBuilder;
+  S: string;
+  needle: string;
 begin
+  // NOTE: 在当前 FPC 构建中，Pos('你好', S) 可能返回 0（UTF-8 字面量处理问题）。
+  // 用变量可稳定得到正确结果。
+  needle := '你好';
+
   B := MakeStringBuilder(0);
-  B.Append('你好').Append(', ').Append('world');
+  B.Append(needle).Append(', ').Append('world');
   S := B.ToString;
-  AssertTrue(Pos('你好', S) > 0);
+  AssertTrue(Pos(needle, S) > 0);
   AssertTrue(Pos('world', S) > 0);
 end;
 

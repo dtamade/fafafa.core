@@ -117,7 +117,7 @@ type
 
     function Clear: IStringBuilder;
 
-    function ToString: string;
+    function ToString: string; override;
     function ToRaw: RawByteString;
     function AsBytes: TBytes;
     function WriteToByteSink(const Sink: IWriter; AChunkSize: SizeInt = 64*1024): Int64;
@@ -309,18 +309,25 @@ begin
 end;
 
 function TStringBuilderRaw.ToString: string;
-var B: TBytes; S: RawByteString;
+var
+  B: TBytes;
+  n: SizeInt;
+  rb: RawByteString absolute Result;
 begin
   // 原样转为 string（由调用方确保期望的编码）
   B := FBB.ToBytes;
-  SetLength(S, System.Length(B));
-  if System.Length(B) > 0 then Move(B[0], Pointer(S)^, System.Length(B));
-  Result := string(S);
+  n := System.Length(B);
+  if n = 0 then Exit('');
+
+  SetLength(Result, n);
+  Move(B[0], Result[1], n);
+  SetCodePage(rb, CP_UTF8, False);
 end;
 
 function TStringBuilderRaw.ToRaw: RawByteString;
 var B: TBytes;
 begin
+  Result := '';
   B := FBB.ToBytes;
   SetLength(Result, System.Length(B));
   if System.Length(B) > 0 then Move(B[0], Pointer(Result)^, System.Length(B));
@@ -332,7 +339,7 @@ end;
 
 function TStringBuilderRaw.DetachBytes(out UsedLen: SizeInt): TBytes;
 begin
-  Result := FBB.DetachRaw(UsedLen);
+  Result := FBB.DetachTrim(UsedLen);
 end;
 
 function TStringBuilderRaw.WriteToByteSink(const Sink: IWriter; AChunkSize: SizeInt): Int64;
@@ -369,10 +376,14 @@ begin
 end;
 
 function TStringBuilderRaw.AppendInt64(const V: Int64): IStringBuilder;
-var local: array[0..31] of Char; L: Integer;
+var
+  s: string;
+  L: SizeInt;
 begin
-  L := FormatInt64ToBuf(V, local);
-  AppendRaw(@local[0], L * SizeOf(Char));
+  s := IntToStr(V);
+  L := System.Length(s);
+  if L > 0 then
+    AppendRaw(Pointer(s), L * SizeOf(Char));
   Result := Self;
 end;
 
@@ -401,17 +412,23 @@ end;
 
 
 function TStringBuilderRaw.AppendFromStream(const AStream: TStream; Count: Int64): Int64;
-const BUF_CHUNK = 64*1024;
-var toRead, want: Int64; p: Pointer; granted: SizeInt; r: Longint;
+const
+  BUF_CHUNK: SizeInt = 64*1024;
+var
+  toRead: Int64;
+  want: SizeInt;
+  p: Pointer;
+  granted: SizeInt;
+  r: Longint;
 begin
   if AStream = nil then raise EArgumentNil.Create('stream=nil');
   Result := 0;
+
   if Count < 0 then
   begin
     repeat
       want := BUF_CHUNK;
-      if want > High(SizeInt) then want := High(SizeInt);
-      FBB.BeginWrite(SizeInt(want), p, granted);
+      FBB.BeginWrite(want, p, granted);
       if granted = 0 then Break;
       r := AStream.Read(p^, granted);
       if r <= 0 then begin FBB.Commit(0); Break; end;
@@ -425,11 +442,12 @@ begin
     while toRead > 0 do
     begin
       want := BUF_CHUNK;
-      if want > toRead then want := toRead;
-      if want > High(SizeInt) then want := High(SizeInt);
-      FBB.BeginWrite(SizeInt(want), p, granted);
+      if toRead < want then
+        want := SizeInt(toRead);
+
+      FBB.BeginWrite(want, p, granted);
       if granted = 0 then Break;
-      if granted > want then granted := SizeInt(want);
+      if granted > want then granted := want;
       r := AStream.Read(p^, granted);
       if r <= 0 then begin FBB.Commit(0); Break; end;
       FBB.Commit(r);

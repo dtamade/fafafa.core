@@ -42,6 +42,13 @@
   - 统一发现：`RUN_ACTION=check bash tests/run_all_tests.sh fafafa.core.bytes` / `bash tests/run_all_tests.sh fafafa.core.bytes`
   - 直接运行：`./tests/fafafa.core.bytes/bin/fafafa.core.bytes.test --all --format=plainnotiming`
 
+## 字符串构建器模块（fafafa.core.stringBuilder）
+- 模块文档：[docs/fafafa.core.stringBuilder.md](fafafa.core.stringBuilder.md)
+- 单元测试：tests/fafafa.core.stringBuilder/
+  - Linux/macOS：`bash tests/fafafa.core.stringBuilder/BuildOrTest.sh check` / `bash tests/fafafa.core.stringBuilder/BuildOrTest.sh test`
+  - 统一发现：`RUN_ACTION=check bash tests/run_all_tests.sh fafafa.core.stringBuilder` / `bash tests/run_all_tests.sh fafafa.core.stringBuilder`
+  - 直接运行：`./tests/fafafa.core.stringBuilder/bin/fafafa.core.stringBuilder.test --all --format=plainnotiming`
+
 ## 环境模块（fafafa.core.env）
 - 模块文档：docs/fafafa.core.env.md
 - 发布说明：docs/RELEASE-NOTES-env.md
