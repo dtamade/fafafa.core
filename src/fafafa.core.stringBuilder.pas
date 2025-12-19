@@ -19,7 +19,8 @@ interface
 uses
   SysUtils, Classes,
   fafafa.core.base,
-  fafafa.core.bytes;
+  fafafa.core.bytes,
+  fafafa.core.io.base;
 
 type
   EInvalidArgument = fafafa.core.base.EInvalidArgument;
@@ -65,8 +66,8 @@ type
     // IO 互操作（编码无关）：按字节读写
     function WriteToStream(const AStream: TStream): Int64;
     function AppendFromStream(const AStream: TStream; Count: Int64 = -1): Int64;
-    function WriteToByteSink(const Sink: IByteSink; AChunkSize: SizeInt = 64*1024): Int64;
-    function AppendFromByteSource(const Src: IByteSource; Count: Int64 = -1; AChunkSize: SizeInt = 64*1024): Int64;
+    function WriteToByteSink(const Sink: IWriter; AChunkSize: SizeInt = 64*1024): Int64;
+    function AppendFromByteSource(const Src: IReader; Count: Int64 = -1; AChunkSize: SizeInt = 64*1024): Int64;
 
     // UTF-8 友好 API（编码无关的字节追加，但命名明确语义）
     function AppendUTF8String(const S: RawByteString): IStringBuilder;
@@ -119,8 +120,8 @@ type
     function ToString: string;
     function ToRaw: RawByteString;
     function AsBytes: TBytes;
-    function WriteToByteSink(const Sink: IByteSink; AChunkSize: SizeInt = 64*1024): Int64;
-    function AppendFromByteSource(const Src: IByteSource; Count: Int64 = -1; AChunkSize: SizeInt = 64*1024): Int64;
+    function WriteToByteSink(const Sink: IWriter; AChunkSize: SizeInt = 64*1024): Int64;
+    function AppendFromByteSource(const Src: IReader; Count: Int64 = -1; AChunkSize: SizeInt = 64*1024): Int64;
 
     function IntoBytes: TBytes;
     function DetachBytes(out UsedLen: SizeInt): TBytes;
@@ -334,12 +335,12 @@ begin
   Result := FBB.DetachRaw(UsedLen);
 end;
 
-function TStringBuilderRaw.WriteToByteSink(const Sink: IByteSink; AChunkSize: SizeInt): Int64;
+function TStringBuilderRaw.WriteToByteSink(const Sink: IWriter; AChunkSize: SizeInt): Int64;
 begin
   Result := WriteToSink(FBB, Sink, AChunkSize);
 end;
 
-function TStringBuilderRaw.AppendFromByteSource(const Src: IByteSource; Count: Int64; AChunkSize: SizeInt): Int64;
+function TStringBuilderRaw.AppendFromByteSource(const Src: IReader; Count: Int64; AChunkSize: SizeInt): Int64;
 begin
   Result := ReadFromSource(FBB, Src, Count, AChunkSize);
 end;

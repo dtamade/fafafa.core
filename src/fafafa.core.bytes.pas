@@ -41,16 +41,16 @@ type
   EUnexpectedEOF = fafafa.core.io.base.EUnexpectedEOF;
   IReader        = fafafa.core.io.base.IReader;
   IWriter        = fafafa.core.io.base.IWriter;
+  {$PUSH}
+  {$WARN 5066 OFF} // deprecated symbol
   IByteReader    = fafafa.core.io.base.IByteReader;
   IByteWriter    = fafafa.core.io.base.IByteWriter;
+  {$POP}
   ICloser        = fafafa.core.io.base.ICloser;
   ISeeker        = fafafa.core.io.base.ISeeker;
   IReadWriter    = fafafa.core.io.base.IReadWriter;
   IReadWriteCloser = fafafa.core.io.base.IReadWriteCloser;
 
-  // 兼容性别名（逐步废弃）
-  IByteSink = IWriter;
-  IByteSource = IReader;
 
   // ---- 内存管理优化（集成现有内存池系统）------------------------------------
 
@@ -74,6 +74,10 @@ type
     procedure AddRef;
     procedure Release;
     function GetByte(Index: SizeInt): Byte;
+
+    class operator Initialize(var r: TSharedBytes);
+    class operator Finalize(var r: TSharedBytes);
+    class operator Copy(constref src: TSharedBytes; var dst: TSharedBytes);
   public
     // 创建和销毁
     class function Create(const Data: TBytes): TSharedBytes; static;
@@ -147,12 +151,12 @@ type
     procedure CopyTo(Dest: Pointer; DestOffset: SizeInt = 0);
     function Slice(Start: SizeInt): IBytes; overload;
     function Slice(Start, Count: SizeInt): IBytes; overload;
-    function Equals(const Other: IBytes): Boolean;
+    function Equals(const Other: IBytes): Boolean; reintroduce;
     function StartsWith(const Prefix: IBytes): Boolean;
     function EndsWith(const Suffix: IBytes): Boolean;
     function IndexOf(const Pattern: IBytes): SizeInt;
     function ToHex: string;
-    function ToString(Encoding: TEncoding = nil): string;
+    function ToString(Encoding: TEncoding = nil): string; reintroduce;
   end;
 
   // Immutable Bytes 工厂
@@ -329,7 +333,7 @@ type
     // borrow
     procedure Peek(out P: Pointer; out UsedLen: SizeInt); // borrow read-only pointer valid until next mutating call
 
-    // stream interop (deprecated; use WriteToSink/ReadFromSource with IByteSink/IByteSource)
+    // stream interop (deprecated; use WriteToSink/ReadFromSource with IWriter/IReader)
     function WriteToStream(const AStream: TStream): Int64; deprecated 'Use WriteToSink with TStreamSink';
 
     function ReadFromStream(const AStream: TStream; Count: Int64 = -1): Int64; deprecated 'Use ReadFromSource with TStreamSource';
@@ -362,10 +366,10 @@ function ChainAppendRepeat(Builder: PBytesBuilder; const Pattern: TBytes; Times:
 function ChainClear(Builder: PBytesBuilder): PBytesBuilder; inline;
 function ChainShrinkToFit(Builder: PBytesBuilder): PBytesBuilder; inline;
 
-function WriteToSink(var BB: TBytesBuilder; const Sink: IByteSink; AChunkSize: SizeInt = 64*1024): Int64;
-function ReadFromSource(var BB: TBytesBuilder; const Src: IByteSource; Count: Int64 = -1; AChunkSize: SizeInt = 64*1024): Int64;
+function WriteToSink(var BB: TBytesBuilder; const Sink: IWriter; AChunkSize: SizeInt = 64*1024): Int64;
+function ReadFromSource(var BB: TBytesBuilder; const Src: IReader; Count: Int64 = -1; AChunkSize: SizeInt = 64*1024): Int64;
 
-// ---- IByteSink/IByteSource 基础适配 -----------------------------------------
+// ---- IWriter/IReader 基础适配 -----------------------------------------
 
 // 在 implementation 部分提供适配实现
 
@@ -606,16 +610,14 @@ var
   end;
 
 begin
+  Result := nil;
   n := Length(S);
   if (n and 1) <> 0 then
     raise EInvalidArgument.Create('Hex string must have even length');
 
   byteCount := n div 2;
   if byteCount = 0 then
-  begin
-    SetLength(Result, 0);
     Exit;
-  end;
 
   SetLength(Result, byteCount);
   src := @S[1];
@@ -649,8 +651,8 @@ begin
 end;
 {$ENDIF}
 
-// ---- IByteSink/IByteSource 基础适配（实现） ---------------------------------
-function WriteToSink(var BB: TBytesBuilder; const Sink: IByteSink; AChunkSize: SizeInt = 64*1024): Int64;
+// ---- IWriter/IReader 基础适配（实现） ---------------------------------
+function WriteToSink(var BB: TBytesBuilder; const Sink: IWriter; AChunkSize: SizeInt = 64*1024): Int64;
 var P: Pointer; N: SizeInt; wrote: SizeInt;
 begin
   if Sink = nil then raise EArgumentNil.Create('sink=nil');
@@ -667,7 +669,7 @@ begin
   end;
 end;
 
-function ReadFromSource(var BB: TBytesBuilder; const Src: IByteSource; Count: Int64 = -1; AChunkSize: SizeInt = 64*1024): Int64;
+function ReadFromSource(var BB: TBytesBuilder; const Src: IReader; Count: Int64 = -1; AChunkSize: SizeInt = 64*1024): Int64;
 var toRead, want: Int64; p: Pointer; granted: SizeInt; r: SizeInt;
 begin
   if Src = nil then raise EArgumentNil.Create('src=nil');
@@ -709,7 +711,7 @@ end;
 function TryHexToBytesStrict(const S: string; out B: TBytes): Boolean;
 var i, n, L: SizeInt; ch1, ch2: Char;
 begin
-  SetLength(B, 0);
+  B := nil;
   L := Length(S);
   if (L = 0) then begin Result := True; Exit; end;
   if (L and 1) <> 0 then begin Result := False; Exit; end;
@@ -720,7 +722,7 @@ begin
     ch1 := S[i*2+1]; ch2 := S[i*2+2];
     if (not IsHexChar(ch1)) or (not IsHexChar(ch2)) then
     begin
-      SetLength(B, 0);
+      B := nil;
       Exit(False);
     end;
     B[i] := (HexNibble(ch1) shl 4) or HexNibble(ch2);
@@ -744,7 +746,7 @@ var
   nib: Byte;
 begin
   Result := False;
-  SetLength(B, 0);
+  B := nil;
   L := Length(S);
   if L = 0 then begin Result := True; Exit; end;
 
@@ -807,20 +809,20 @@ begin
     end;
 
     // invalid non-hex, non-space, non-prefix char
-    SetLength(B, 0);
+    B := nil;
     Exit(False);
   end;
 
   // odd number of hex digits => invalid
   if haveHigh then
   begin
-    SetLength(B, 0);
+    B := nil;
     Exit(False);
   end;
 
   if outLen = 0 then
   begin
-    SetLength(B, 0);
+    B := nil;
     Result := True;
   end
   else
@@ -838,7 +840,7 @@ end;
 // ---- 基础操作 ----
 function BytesSlice(const A: TBytes; AIndex, ACount: SizeInt): TBytes;
 begin
-  SetLength(Result, 0);
+  Result := nil;
   // use subtraction-form bounds checks to avoid overflow
   if (AIndex < 0) or (ACount < 0) or (AIndex > Length(A)) or (ACount > Length(A) - AIndex) then
     raise EOutOfRange.Create('slice out of range');
@@ -850,7 +852,7 @@ end;
 function BytesConcat(const A, B: TBytes): TBytes;
 var LA, LB: SizeInt;
 begin
-  SetLength(Result, 0);
+  Result := nil;
   LA := Length(A); LB := Length(B);
   SetLength(Result, LA + LB);
   if LA > 0 then Move(A[0], Result[0], LA);
@@ -860,7 +862,7 @@ end;
 function BytesConcat(const Parts: array of TBytes): TBytes;
 var i: SizeInt; total, off, n: SizeInt;
 begin
-  SetLength(Result, 0);
+  Result := nil;
   total := 0;
   for i := 0 to High(Parts) do Inc(total, Length(Parts[i]));
   SetLength(Result, total);
@@ -1424,6 +1426,7 @@ end;
 function TBytesBuilder.ToBytes: TBytes;
 var R: TBytes;
 begin
+  R := nil;
   SetLength(R, FLen);
   if FLen > 0 then Move(FBuf[0], R[0], FLen);
   Result := R;
@@ -1716,20 +1719,32 @@ begin
 end;
 
 function TBytesImpl.ToString(Encoding: TEncoding = nil): string;
-var temp: TBytes;
+var
+  temp: TBytes;
+  n: SizeInt;
 begin
   temp := FSharedBytes.ToArray;
+
   if Encoding = nil then
-    Result := StringOf(temp)
-  else
-    Result := Encoding.GetString(temp);
+  begin
+    // Treat as raw UTF-8 bytes (project default {$CODEPAGE UTF8}).
+    n := System.Length(temp);
+    if n = 0 then Exit('');
+    SetLength(Result, n);
+    Move(temp[0], Result[1], n);
+    Exit;
+  end;
+
+  Result := UTF8Encode(Encoding.GetString(temp));
 end;
 
 // ---- TImmutableBytes 工厂实现 ----
 class function TImmutableBytes.FromArray(const Data: array of Byte): IBytes;
-var temp: TBytes;
-    i: Integer;
+var
+  temp: TBytes;
+  i: Integer;
 begin
+  temp := nil;
   SetLength(temp, Length(Data));
   for i := 0 to High(Data) do
     temp[i] := Data[i];
@@ -1740,6 +1755,7 @@ class function TImmutableBytes.FromBytes(const Data: TBytes): IBytes;
 var temp: TBytes;
 begin
   // 复制数据以确保不可变性
+  temp := nil;
   SetLength(temp, Length(Data));
   if Length(Data) > 0 then
     Move(Data[0], temp[0], Length(Data));
@@ -1756,10 +1772,11 @@ end;
 class function TImmutableBytes.FromString(const Str: string; Encoding: TEncoding = nil): IBytes;
 var temp: TBytes;
 begin
+  temp := nil;
   if Encoding = nil then
     temp := BytesOf(Str)
   else
-    temp := Encoding.GetBytes(Str);
+    temp := Encoding.GetBytes(UTF8Decode(Str));
   Result := TBytesImpl.Create(temp);
 end;
 
@@ -1798,6 +1815,32 @@ begin
 end;
 
 // ---- TSharedBytes 实现 ----
+
+class operator TSharedBytes.Initialize(var r: TSharedBytes);
+begin
+  r.FSharedData := nil;
+  r.FOffset := 0;
+  r.FLength := 0;
+end;
+
+class operator TSharedBytes.Finalize(var r: TSharedBytes);
+begin
+  r.Release;
+  r.FOffset := 0;
+  r.FLength := 0;
+end;
+
+class operator TSharedBytes.Copy(constref src: TSharedBytes; var dst: TSharedBytes);
+begin
+  if (src.FSharedData = dst.FSharedData) and (src.FOffset = dst.FOffset) and (src.FLength = dst.FLength) then
+    Exit;
+
+  dst.Release;
+  dst.FSharedData := src.FSharedData;
+  dst.FOffset := src.FOffset;
+  dst.FLength := src.FLength;
+  dst.AddRef;
+end;
 
 procedure TSharedBytes.AddRef;
 begin
@@ -1878,14 +1921,18 @@ end;
 
 function TSharedBytes.ToArray: TBytes;
 begin
+  Result := nil;
+  if FLength <= 0 then Exit;
+
   SetLength(Result, FLength);
-  if (FLength > 0) and (FSharedData <> nil) then
+  if FSharedData <> nil then
     Move(FSharedData^.Data[FOffset], Result[0], FLength);
 end;
 
 procedure TSharedBytes.Assign(const Source: TSharedBytes);
 begin
-  if FSharedData = Source.FSharedData then Exit;
+  if (FSharedData = Source.FSharedData) and (FOffset = Source.FOffset) and (FLength = Source.FLength) then
+    Exit;
 
   Release;
   FSharedData := Source.FSharedData;
@@ -2059,6 +2106,7 @@ var
   pos, lastPos, i: SizeInt;
   temp: TBytes;
 begin
+  temp := nil;
   if System.Length(OldPattern) = 0 then
   begin
     Result := Data;

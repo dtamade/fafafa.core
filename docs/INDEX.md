@@ -34,6 +34,14 @@
   - Windows：examples\\fafafa.core.fs\\example_resolve_and_walk\\buildOrRun.bat
   - Unix/macOS：examples/fafafa.core.fs/example_resolve_and_walk/buildOrRun.sh
 
+## 字节模块（fafafa.core.bytes）
+- 模块文档：[docs/fafafa.core.bytes.md](fafafa.core.bytes.md)
+- BytesBuilder/Buffer 说明：[docs/fafafa.core.bytes.buf.md](fafafa.core.bytes.buf.md)
+- 单元测试：tests/fafafa.core.bytes/
+  - Linux/macOS：`bash tests/fafafa.core.bytes/BuildOrTest.sh check` / `bash tests/fafafa.core.bytes/BuildOrTest.sh test`
+  - 统一发现：`RUN_ACTION=check bash tests/run_all_tests.sh fafafa.core.bytes` / `bash tests/run_all_tests.sh fafafa.core.bytes`
+  - 直接运行：`./tests/fafafa.core.bytes/bin/fafafa.core.bytes.test --all --format=plainnotiming`
+
 ## 环境模块（fafafa.core.env）
 - 模块文档：docs/fafafa.core.env.md
 - 发布说明：docs/RELEASE-NOTES-env.md

@@ -6,7 +6,7 @@ interface
 
 uses
   fpcunit, testutils, testregistry, Classes, SysUtils,
-  fafafa.core.bytes, fafafa.core.io.adapters;
+  fafafa.core.bytes;
 
 type
   TTestCase_PeekContract = class(TTestCase)

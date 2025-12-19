@@ -10,12 +10,12 @@ uses
   SysUtils, Classes, fpcunit, testregistry,
   fafafa.core.base,
   fafafa.core.bytes,
-  fafafa.core.io.adapters,
+  fafafa.core.io.streams,
   test_peek_contract;
 
 type
   // 简单限流 Source：每次 Read 最多返回 ChunkSize 字节
-  TChunkedMemorySource = class(TInterfacedObject, IByteReader)
+  TChunkedMemorySource = class(TInterfacedObject, IReader)
   private
     FData: TBytes;
     FPos: SizeInt;
@@ -32,14 +32,14 @@ type
   end;
 type
   // 简单限流 Sink：每次 Write 最多写入 ChunkSize 字节到给定流
-  TChunkedStreamSink = class(TInterfacedObject, IByteWriter)
+  TChunkedStreamSink = class(TInterfacedObject, IWriter)
   private
     FStream: TStream;
     FChunk: SizeInt;
   public
     constructor Create(AStream: TStream; AChunk: SizeInt);
     // IWriter 接口
-    function Write(const Buffer: Pointer; Count: SizeInt): SizeInt;
+    function Write(Buffer: Pointer; Count: SizeInt): SizeInt;
     // IByteWriter 接口
     function WriteByte(Value: Byte): SizeInt;
     function WriteBytes(const B: TBytes): SizeInt;
@@ -539,21 +539,21 @@ begin
 end;
 
 procedure TTestCase_TBytesBuilder.Test_Stream_Roundtrip_Direct;
-var bb: TBytesBuilder; ms: TMemoryStream; wrote: Int64; p: Pointer; n: SizeInt; bb2: TBytesBuilder; read: Int64; sink: IByteSink; src: IByteSource;
+var bb: TBytesBuilder; ms: TMemoryStream; wrote: Int64; p: Pointer; n: SizeInt; bb2: TBytesBuilder; read: Int64; sink: IWriter; src: IReader;
 begin
   bb.Init(0);
   bb.AppendHex('DEADBEEF');
   ms := TMemoryStream.Create;
   try
     // direct write via Sink
-    sink := MakeStreamSink(ms);
+    sink := WriterFromStream(ms);
     wrote := WriteToSink(bb, sink);
     AssertEquals(Int64(4), wrote);
     AssertEquals(4, ms.Size);
 
     ms.Position := 0;
     bb2.Init(0);
-    src := MakeStreamSource(ms);
+    src := ReaderFromStream(ms);
     read := ReadFromSource(bb2, src, -1);
     AssertEquals(Int64(4), read);
     bb2.Peek(p, n);
@@ -611,7 +611,7 @@ begin
 end;
 
 procedure TTestCase_TBytesBuilder.Test_IO_Adapters_Roundtrip;
-var ms1, ms2: TMemoryStream; sink: IByteSink; src, src2: IByteSource; bb: TBytesBuilder; wrote, read, dataRead: Int64; P: Pointer; N: SizeInt; buf: array[0..4] of Byte; arr: TBytes;
+var ms1, ms2: TMemoryStream; sink: IWriter; src, src2: IReader; bb: TBytesBuilder; wrote, read, dataRead: Int64; P: Pointer; N: SizeInt; buf: array[0..4] of Byte; arr: TBytes;
 begin
   ms1 := TMemoryStream.Create; ms2 := TMemoryStream.Create;
   try
@@ -622,7 +622,7 @@ begin
     // 插入 Peek 契约测试放在单独过程，避免打断当前流程
 
     // 继续原有流程
-    src := MakeStreamSource(ms1);
+    src := ReaderFromStream(ms1);
     bb.Init(0);
     read := ReadFromSource(bb, src, -1);
     AssertEquals(Int64(5), read);
@@ -630,7 +630,7 @@ begin
     AssertEquals(5, N);
 
     // Sink 写出到 ms2
-    sink := MakeStreamSink(ms2);
+    sink := WriterFromStream(ms2);
     wrote := WriteToSink(bb, sink);
     AssertEquals(Int64(5), wrote);
     AssertEquals(5, ms2.Size);
@@ -677,14 +677,14 @@ begin
 end;
 
 procedure TTestCase_TBytesBuilder.Test_ShortReadWrite_Zero_One_Byte_Loops;
-var bb: TBytesBuilder; ms: TMemoryStream; sink: IByteSink; src: IByteSource; read,wrote: Int64; P: Pointer; N: SizeInt;
+var bb: TBytesBuilder; ms: TMemoryStream; sink: IWriter; src: IReader; read,wrote: Int64; P: Pointer; N: SizeInt;
 begin
   // prepare source bytes with 0/1 byte step via chunked source (chunk=1)
   ms := TMemoryStream.Create;
   try
     ms.WriteBuffer(PAnsiChar('abcdefg')^, 7);
     ms.Position := 0;
-    src := MakeStreamSource(ms);
+    src := ReaderFromStream(ms);
     bb.Init(0);
     read := ReadFromSource(bb, src, -1);
     AssertEquals(Int64(7), read);
@@ -781,12 +781,12 @@ begin
 end;
 
 procedure TTestCase_TBytesBuilder.Test_Source_ShortReads_EOF;
-var ms: TMemoryStream; src: IByteSource; bb: TBytesBuilder; P: Pointer; N: SizeInt; read: Int64;
+var ms: TMemoryStream; src: IReader; bb: TBytesBuilder; P: Pointer; N: SizeInt; read: Int64;
 begin
   ms := TMemoryStream.Create;
   try
     // 空流 -> 立即 EOF
-    src := MakeStreamSource(ms);
+    src := ReaderFromStream(ms);
     bb.Init(0);
     read := ReadFromSource(bb, src, -1);
     AssertEquals(Int64(0), read);
@@ -877,7 +877,7 @@ begin
   if AChunk <= 0 then FChunk := 1 else FChunk := AChunk;
 end;
 
-function TChunkedStreamSink.Write(const Buffer: Pointer; Count: SizeInt): SizeInt;
+function TChunkedStreamSink.Write(Buffer: Pointer; Count: SizeInt): SizeInt;
 var n: Longint;
 begin
   if (Buffer = nil) or (Count <= 0) then Exit(0);
@@ -904,7 +904,7 @@ begin
 end;
 
 procedure TTestCase_TBytesBuilder.Test_IO_AChunkSize_CountMinus1_Randomized;
-var bb: TBytesBuilder; ms: TMemoryStream; src: IByteSource; sink: IByteSink; data: TBytes; i, idx, chunk: SizeInt; total: Int64; P: Pointer; N: SizeInt;
+var bb: TBytesBuilder; ms: TMemoryStream; src: IReader; sink: IWriter; data: TBytes; i, idx, chunk: SizeInt; total: Int64; P: Pointer; N: SizeInt;
 begin
   // prepare 257 bytes to force multiple chunks
   SetLength(data, 257);
@@ -924,7 +924,7 @@ begin
       // write source data
       if Length(data) > 0 then ms.WriteBuffer(data[0], Length(data));
       ms.Position := 0;
-      src := MakeStreamSource(ms);
+      src := ReaderFromStream(ms);
 
       bb.Init(0);
       total := ReadFromSource(bb, src, -1, chunk);
@@ -943,7 +943,7 @@ begin
 end;
 
 procedure TTestCase_TBytesBuilder.Test_IO_AChunkSize_CountFixed_Randomized;
-var bb: TBytesBuilder; ms: TMemoryStream; src: IByteSource; data: TBytes; i, chunk: SizeInt; total: Int64; P: Pointer; N: SizeInt; want: SizeInt;
+var bb: TBytesBuilder; ms: TMemoryStream; src: IReader; data: TBytes; i, chunk: SizeInt; total: Int64; P: Pointer; N: SizeInt; want: SizeInt;
 begin
   // prepare 100 bytes input
   SetLength(data, 100);
@@ -956,7 +956,7 @@ begin
     try
       if Length(data) > 0 then ms.WriteBuffer(data[0], Length(data));
       ms.Position := 0;
-      src := MakeStreamSource(ms);
+      src := ReaderFromStream(ms);
 
       bb.Init(0);
       // exact count smaller than data size; verify partial read then EOF on subsequent read
