@@ -560,7 +560,7 @@ var
   dispatchTable: TSimdDispatchTable;
 begin
   // Initialize dispatch table
-  FillChar(dispatchTable, SizeOf(dispatchTable), 0);
+  dispatchTable := Default(TSimdDispatchTable);
 
   // Set backend info
   dispatchTable.Backend := sbScalar;

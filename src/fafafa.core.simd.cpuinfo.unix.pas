@@ -11,7 +11,7 @@ function DetectCoreCounts(out Physical, Logical: LongInt): Boolean;
 implementation
 
 uses
-  SysUtils, BaseUnix, unixtype
+  SysUtils
   {$IFDEF LINUX}
   , Unix
   {$ENDIF}
@@ -43,6 +43,8 @@ begin
   Logical := 0;
   CurPhysId := -1;
   CurCoreId := -1;
+  PhysicalIds := nil;
+  CoreIds := nil;
   try
     AssignFile(F, '/proc/cpuinfo');
     Reset(F);

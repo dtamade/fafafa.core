@@ -21,9 +21,8 @@ unit fafafa.core.simd.builder;
 interface
 
 uses
-  SysUtils, fafafa.core.math,
+  SysUtils,
   fafafa.core.simd.base,
-  fafafa.core.simd.types,
   fafafa.core.simd;
 
 type

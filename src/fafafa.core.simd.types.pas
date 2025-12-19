@@ -427,40 +427,40 @@ begin
   Result := (d shl 6) or (c shl 4) or (b shl 2) or a;
 end;
 
-function _pick4(const idx: Byte; const a: array of Single): TVecF32x4; inline;
+function _pick4(const idx: Byte; const a: TVecF32x4): TVecF32x4;
 var sel: array[0..3] of Byte;
 begin
   sel[0] := idx and $3;
   sel[1] := (idx shr 2) and $3;
   sel[2] := (idx shr 4) and $3;
   sel[3] := (idx shr 6) and $3;
-  Result.f[0] := a[sel[0]];
-  Result.f[1] := a[sel[1]];
-  Result.f[2] := a[sel[2]];
-  Result.f[3] := a[sel[3]];
+  Result.f[0] := a.f[sel[0]];
+  Result.f[1] := a.f[sel[1]];
+  Result.f[2] := a.f[sel[2]];
+  Result.f[3] := a.f[sel[3]];
 end;
 
-function _pick4i(const idx: Byte; const a: array of Int32): TVecI32x4; inline;
+function _pick4i(const idx: Byte; const a: TVecI32x4): TVecI32x4;
 var sel: array[0..3] of Byte;
 begin
   sel[0] := idx and $3;
   sel[1] := (idx shr 2) and $3;
   sel[2] := (idx shr 4) and $3;
   sel[3] := (idx shr 6) and $3;
-  Result.i[0] := a[sel[0]];
-  Result.i[1] := a[sel[1]];
-  Result.i[2] := a[sel[2]];
-  Result.i[3] := a[sel[3]];
+  Result.i[0] := a.i[sel[0]];
+  Result.i[1] := a.i[sel[1]];
+  Result.i[2] := a.i[sel[2]];
+  Result.i[3] := a.i[sel[3]];
 end;
 
 function VecF32x4Shuffle(const a: TVecF32x4; imm8: Byte): TVecF32x4;
 begin
-  Result := _pick4(imm8, a.f);
+  Result := _pick4(imm8, a);
 end;
 
 function VecI32x4Shuffle(const a: TVecI32x4; imm8: Byte): TVecI32x4;
 begin
-  Result := _pick4i(imm8, a.i);
+  Result := _pick4i(imm8, a);
 end;
 
 function VecF32x4Shuffle2(const a, b: TVecF32x4; imm8: Byte): TVecF32x4;
@@ -1223,22 +1223,26 @@ end;
 // IntoBits / FromBits - 位模式重新解释
 function VecF32x4IntoBits(const a: TVecF32x4): TVecI32x4;
 begin
-  Move(a, Result, SizeOf(TVecF32x4));
+  // Bit reinterpretation (same 16 bytes, different view)
+  Result.raw := a.raw;
 end;
 
 function VecI32x4FromBitsF32(const a: TVecI32x4): TVecF32x4;
 begin
-  Move(a, Result, SizeOf(TVecI32x4));
+  // Bit reinterpretation (same 16 bytes, different view)
+  Result.raw := a.raw;
 end;
 
 function VecF64x2IntoBits(const a: TVecF64x2): TVecI64x2;
 begin
-  Move(a, Result, SizeOf(TVecF64x2));
+  // Bit reinterpretation (same 16 bytes, different view)
+  Result.raw := a.raw;
 end;
 
 function VecI64x2FromBitsF64(const a: TVecI64x2): TVecF64x2;
 begin
-  Move(a, Result, SizeOf(TVecI64x2));
+  // Bit reinterpretation (same 16 bytes, different view)
+  Result.raw := a.raw;
 end;
 
 // Cast - 元素级别转换（数值转换）

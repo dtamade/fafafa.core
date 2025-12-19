@@ -28,7 +28,7 @@ uses
   Windows
   {$ELSE}
   {$IFDEF UNIX}
-  BaseUnix, Unix, unixtype
+  Unix, unixtype
   {$ENDIF}
   {$ENDIF};
 

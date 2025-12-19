@@ -139,6 +139,7 @@ begin
   if originalPtr = nil then
     raise EOutOfMemory.CreateFmt('Failed to allocate %d bytes with %d alignment', [size, alignment]);
 
+  {$PUSH}{$WARN 4055 OFF}
   // Calculate aligned address, leaving room for the header just before it
   alignedPtr := AlignUp(Pointer(NativeUInt(originalPtr) + headerOffset), alignment);
 
@@ -146,6 +147,7 @@ begin
   headerBase := NativeUInt(alignedPtr) - headerOffset;
   PPointer(headerBase)^ := originalPtr;
   PNativeUInt(headerBase + SizeOf(Pointer))^ := size;
+  {$POP}
 
   Result := alignedPtr;
 end;
@@ -158,8 +160,10 @@ begin
   if ptr <> nil then
   begin
     // Retrieve original pointer from header and free whole block
+    {$PUSH}{$WARN 4055 OFF}
     headerBase := NativeUInt(ptr) - (SizeOf(Pointer) + SizeOf(NativeUInt));
     originalPtr := PPointer(headerBase)^;
+    {$POP}
     FreeMem(originalPtr);
   end;
 end;
@@ -188,8 +192,10 @@ begin
   end;
 
   // Recover the originally requested size from the header
+  {$PUSH}{$WARN 4055 OFF}
   headerBase := NativeUInt(ptr) - (SizeOf(Pointer) + SizeOf(NativeUInt));
   oldSize := PNativeUInt(headerBase + SizeOf(Pointer))^;
+  {$POP}
 
   // Allocate new aligned memory
   newPtr := AlignedAlloc(newSize, alignment);
@@ -214,16 +220,20 @@ end;
 
 function IsAligned(ptr: Pointer; alignment: NativeUInt): Boolean;
 begin
+  {$PUSH}{$WARN 4055 OFF}
   Result := (NativeUInt(ptr) and (alignment - 1)) = 0;
+  {$POP}
 end;
 
 function AlignUp(ptr: Pointer; alignment: NativeUInt): Pointer;
 var
   addr: NativeUInt;
 begin
+  {$PUSH}{$WARN 4055 OFF}
   addr := NativeUInt(ptr);
   addr := (addr + alignment - 1) and not (alignment - 1);
   Result := Pointer(addr);
+  {$POP}
 end;
 
 function AlignUpSize(size: NativeUInt; alignment: NativeUInt): NativeUInt;
@@ -235,7 +245,9 @@ function GetAlignment(ptr: Pointer): NativeUInt;
 var
   addr: NativeUInt;
 begin
+  {$PUSH}{$WARN 4055 OFF}
   addr := NativeUInt(ptr);
+  {$POP}
   if addr = 0 then
   begin
     Result := 0;
@@ -274,8 +286,10 @@ end;
 
 procedure Prefetch(ptr: Pointer);
 begin
-  // Platform-specific prefetch instructions would go here
-  // For now, this is a no-op
+  // Platform-specific prefetch instructions would go here.
+  // For now, keep it as a no-op while still referencing the parameter.
+  if ptr = nil then
+    Exit;
   {$IFDEF SIMD_X86_AVAILABLE}
   // Could use: asm prefetcht0 [ptr] end;
   {$ENDIF}
@@ -283,7 +297,9 @@ end;
 
 procedure PrefetchNTA(ptr: Pointer);
 begin
-  // Non-temporal prefetch
+  // Non-temporal prefetch.
+  if ptr = nil then
+    Exit;
   {$IFDEF SIMD_X86_AVAILABLE}
   // Could use: asm prefetchnta [ptr] end;
   {$ENDIF}

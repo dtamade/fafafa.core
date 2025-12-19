@@ -152,6 +152,9 @@ var
   eax, ebx, ecx, edx: DWord;
   vendor: array[0..12] of AnsiChar;
 begin
+  eax := 0; ebx := 0; ecx := 0; edx := 0;
+  vendor[0] := #0;
+
   CPUID(0, eax, ebx, ecx, edx);
   Move(ebx, vendor[0], 4);
   Move(edx, vendor[4], 4);
@@ -165,20 +168,28 @@ var
   eax, ebx, ecx, edx: DWord;
   brand: array[0..48] of AnsiChar;
 begin
+  eax := 0; ebx := 0; ecx := 0; edx := 0;
+  brand[0] := #0;
   FillChar(brand, SizeOf(brand), 0);
+
   CPUID($80000000, eax, ebx, ecx, edx);
   if eax >= $80000004 then
   begin
+    eax := 0; ebx := 0; ecx := 0; edx := 0;
     CPUID($80000002, eax, ebx, ecx, edx);
     Move(eax, brand[0], 4);
     Move(ebx, brand[4], 4);
     Move(ecx, brand[8], 4);
     Move(edx, brand[12], 4);
+
+    eax := 0; ebx := 0; ecx := 0; edx := 0;
     CPUID($80000003, eax, ebx, ecx, edx);
     Move(eax, brand[16], 4);
     Move(ebx, brand[20], 4);
     Move(ecx, brand[24], 4);
     Move(edx, brand[28], 4);
+
+    eax := 0; ebx := 0; ecx := 0; edx := 0;
     CPUID($80000004, eax, ebx, ecx, edx);
     Move(eax, brand[32], 4);
     Move(ebx, brand[36], 4);

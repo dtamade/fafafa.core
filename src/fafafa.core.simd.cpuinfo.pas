@@ -13,10 +13,14 @@ uses
   fafafa.core.atomic
   {$IFDEF WINDOWS}
   , fafafa.core.simd.cpuinfo.windows
-  {$ELSEIFDEF DARWIN}
-  , fafafa.core.simd.cpuinfo.darwin
-  {$ELSEIFDEF UNIX}
-  , fafafa.core.simd.cpuinfo.unix
+  {$ELSE}
+    {$IFDEF DARWIN}
+    , fafafa.core.simd.cpuinfo.darwin
+    {$ELSE}
+      {$IFDEF UNIX}
+      , fafafa.core.simd.cpuinfo.unix
+      {$ENDIF}
+    {$ENDIF}
   {$ENDIF}
   ;
 
@@ -114,12 +118,16 @@ function DetectCPUArchitecture: TCPUArch;
 begin
   {$IFDEF SIMD_X86_AVAILABLE}
   Result := DetectX86Architecture;
-  {$ELSEIFDEF SIMD_ARM_AVAILABLE}
-  Result := caARM;
-  {$ELSEIFDEF SIMD_RISCV_AVAILABLE}
-  Result := caRISCV;
   {$ELSE}
-  Result := caUnknown;
+    {$IFDEF SIMD_ARM_AVAILABLE}
+    Result := caARM;
+    {$ELSE}
+      {$IFDEF SIMD_RISCV_AVAILABLE}
+      Result := caRISCV;
+      {$ELSE}
+      Result := caUnknown;
+      {$ENDIF}
+    {$ENDIF}
   {$ENDIF}
 end;
 
@@ -130,12 +138,16 @@ begin
   Logical := 0;
   {$IFDEF WINDOWS}
   Result := fafafa.core.simd.cpuinfo.windows.DetectCoreCounts(Physical, Logical);
-  {$ELSEIFDEF DARWIN}
-  Result := fafafa.core.simd.cpuinfo.darwin.DetectCoreCounts(Physical, Logical);
-  {$ELSEIFDEF UNIX}
-  Result := fafafa.core.simd.cpuinfo.unix.DetectCoreCounts(Physical, Logical);
   {$ELSE}
-  Result := False;
+    {$IFDEF DARWIN}
+    Result := fafafa.core.simd.cpuinfo.darwin.DetectCoreCounts(Physical, Logical);
+    {$ELSE}
+      {$IFDEF UNIX}
+      Result := fafafa.core.simd.cpuinfo.unix.DetectCoreCounts(Physical, Logical);
+      {$ELSE}
+      Result := False;
+      {$ENDIF}
+    {$ENDIF}
   {$ENDIF}
   if Physical < 1 then Physical := 1;
   if Logical < 1 then Logical := 1;
@@ -162,6 +174,8 @@ begin
     G_CPUInfo.X86 := fafafa.core.simd.cpuinfo.x86.DetectX86Features;
 
     // OSXSAVE / XCR0 (precise detection)
+    // Initialize locals to keep the compiler happy (CPUID is implemented in asm).
+    eax := 0; ebx := 0; ecx := 0; edx := 0;
     CPUID($00000001, eax, ebx, ecx, edx);
     G_CPUInfo.OSXSAVE := ((ecx and (1 shl 27)) <> 0);
     if G_CPUInfo.OSXSAVE then
