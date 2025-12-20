@@ -64,6 +64,13 @@ lib/
 
 # Local log artifacts
 async-boundary.log
+async-boundary.log.*
+
+# Generated copytree test artifacts (local runs)
+copytree_aslink_*/
+copytree_symlink_*/
+tests/*/copytree_aslink_*/
+tests/*/copytree_symlink_*/
 
 # Editor/backup artifacts
 *.backup
