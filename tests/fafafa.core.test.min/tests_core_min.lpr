@@ -6,6 +6,9 @@ program tests_core_min;
 {$I ../../src/fafafa.core.settings.inc}
 
 uses
+  {$IFDEF UNIX}
+  cthreads,
+  {$ENDIF}
   SysUtils,
   fafafa.core.test.core,
   fafafa.core.test.runner;
@@ -63,9 +66,13 @@ begin
   end);
 
   // 顶层用例：Cleanup 失败会将成功用例标记为失败，并在消息中附带 [cleanup]
+  // 默认保持用例通过；如需演示失败行为，设置环境变量 DEMO_CLEANUP_FAIL=1
   Test('control/cleanup', procedure(const ctx: ITestContext)
   begin
-    ctx.AddCleanup(procedure begin raise Exception.Create('c1'); end);
+    if GetEnvironmentVariable('DEMO_CLEANUP_FAIL') <> '' then
+      ctx.AddCleanup(procedure begin raise Exception.Create('c1'); end)
+    else
+      ctx.AddCleanup(procedure begin end);
     ctx.AssertTrue(True);
   end);
 

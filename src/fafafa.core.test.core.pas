@@ -128,18 +128,14 @@ procedure GetRegisteredTest(AIndex: Integer; out AName: string; out AProc: TTest
 implementation
 
 uses
-  {$IFDEF WINDOWS} Windows {$ELSE} BaseUnix {$ENDIF};
+  fafafa.core.env;
 
 procedure SetEnvCross(const AName, AValue: string);
 begin
-  {$IFDEF WINDOWS}
-  Windows.SetEnvironmentVariable(PChar(AName), PChar(AValue));
-  {$ELSE}
   if AValue = '' then
-    fpunsetenv(PChar(AName))
+    env_unset(AName)
   else
-    fpsetenv(PChar(AnsiString(AName + '=' + AValue)));
-  {$ENDIF}
+    env_set(AName, AValue);
 end;
 
 

@@ -6,6 +6,9 @@ program tests_core_no_fpcunit;
 {$I ../../src/fafafa.core.settings.inc}
 
 uses
+  {$IFDEF UNIX}
+  cthreads,
+  {$ENDIF}
   SysUtils,
   fafafa.core.test.core,
   fafafa.core.test.runner;

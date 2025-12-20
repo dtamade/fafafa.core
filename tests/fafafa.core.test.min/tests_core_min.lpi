@@ -46,7 +46,7 @@
             <CompilerMessages>
               <MsgFileName Value=""/>
             </CompilerMessages>
-            <CompilerPath Value=""/>
+            <CompilerPath Value="fpc.sh"/>
           </Other>
         </CompilerOptions>
       </Item>
@@ -94,7 +94,7 @@
       <CompilerMessages>
         <MsgFileName Value=""/>
       </CompilerMessages>
-      <CompilerPath Value=""/>
+      <CompilerPath Value="fpc.sh"/>
     </Other>
   </CompilerOptions>
   <Debugging>
