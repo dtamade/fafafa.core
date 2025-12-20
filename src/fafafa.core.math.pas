@@ -699,7 +699,7 @@ end;
 function IntPower(aBase: Double; aExponent: Integer): Double;
 var
   base: Double;
-  exp: Integer;
+  exp: Int64;
 begin
   if aExponent = 0 then
     Exit(1.0);
@@ -707,7 +707,7 @@ begin
   if aExponent < 0 then
   begin
     base := 1.0 / aBase;
-    exp := -aExponent;
+    exp := -Int64(aExponent); // handles Low(Integer) safely
   end
   else
   begin

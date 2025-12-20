@@ -90,6 +90,7 @@ type
     procedure Test_Frac_Double_Basic_ReturnsFractionalPart;
     procedure Test_Sign_Double_Basic_ReturnsMinus1Zero1;
     procedure Test_IntPower_Double_Basic_ReturnsPower;
+    procedure Test_IntPower_Double_MinIntegerExponent_UnderflowsToZero;
   end;
 
   TTestMathRules = class(TTestCase)
@@ -118,6 +119,83 @@ type
   end;
 
 implementation
+
+type
+  TMathFacadeScanResult = record
+    UsesFacade: Boolean;
+    UsesRtlMath: Boolean;
+    FoundIdent: string;
+    FoundPos: Integer;
+    FoundPiPos: Integer;
+    FoundMathIdent: string;
+    FoundMathPos: Integer;
+    FoundSystemIdent: string;
+    FoundSystemPos: Integer;
+  end;
+
+  TMathFacadeScanResultObj = class
+  public
+    R: TMathFacadeScanResult;
+  end;
+
+var
+  gIncScanCache: TStringList = nil;
+
+procedure EnsureIncScanCache;
+begin
+  if gIncScanCache <> nil then
+    Exit;
+
+  gIncScanCache := TStringList.Create;
+  gIncScanCache.Sorted := True;
+  gIncScanCache.Duplicates := dupError;
+end;
+
+function TryGetIncScanCached(const IncPath: string; out Res: TMathFacadeScanResult): Boolean;
+var
+  idx: Integer;
+  obj: TMathFacadeScanResultObj;
+begin
+  EnsureIncScanCache;
+  Result := gIncScanCache.Find(IncPath, idx);
+  if Result then
+  begin
+    obj := TMathFacadeScanResultObj(gIncScanCache.Objects[idx]);
+    Res := obj.R;
+  end;
+end;
+
+procedure PutIncScanCache(const IncPath: string; const Res: TMathFacadeScanResult);
+var
+  idx: Integer;
+  obj: TMathFacadeScanResultObj;
+begin
+  EnsureIncScanCache;
+
+  if gIncScanCache.Find(IncPath, idx) then
+  begin
+    obj := TMathFacadeScanResultObj(gIncScanCache.Objects[idx]);
+    obj.R := Res;
+    Exit;
+  end;
+
+  obj := TMathFacadeScanResultObj.Create;
+  obj.R := Res;
+  gIncScanCache.AddObject(IncPath, obj);
+end;
+
+procedure FreeIncScanCache;
+var
+  i: Integer;
+begin
+  if gIncScanCache = nil then
+    Exit;
+
+  for i := 0 to gIncScanCache.Count - 1 do
+    gIncScanCache.Objects[i].Free;
+
+  FreeAndNil(gIncScanCache);
+end;
 
 function GetRepoRootDir: string;
 begin
@@ -299,6 +377,114 @@ begin
     end;
 
     Result[i] := S[i];
+    Inc(i);
+  end;
+end;
+
+function StripPascalStringsAndCommentsLowerAscii(const S: string): string;
+var
+  i, j, len: Integer;
+  InStr: Boolean;
+  InCurly: Boolean;
+  InParen: Boolean;
+  c: Char;
+begin
+  len := Length(S);
+  SetLength(Result, len);
+
+  InStr := False;
+  InCurly := False;
+  InParen := False;
+
+  i := 1;
+  while i <= len do
+  begin
+    if InStr then
+    begin
+      Result[i] := ' ';
+      if S[i] = '''' then
+      begin
+        // escaped quote: '' inside string
+        if (i < len) and (S[i + 1] = '''') then
+        begin
+          Result[i + 1] := ' ';
+          Inc(i, 2);
+          Continue;
+        end;
+        InStr := False;
+      end;
+      Inc(i);
+      Continue;
+    end;
+
+    if InCurly then
+    begin
+      Result[i] := ' ';
+      if S[i] = '}' then
+        InCurly := False;
+      Inc(i);
+      Continue;
+    end;
+
+    if InParen then
+    begin
+      Result[i] := ' ';
+      if (S[i] = '*') and (i < len) and (S[i + 1] = ')') then
+      begin
+        Result[i + 1] := ' ';
+        InParen := False;
+        Inc(i, 2);
+      end
+      else
+        Inc(i);
+      Continue;
+    end;
+
+    // not in any
+    if S[i] = '''' then
+    begin
+      InStr := True;
+      Result[i] := ' ';
+      Inc(i);
+      Continue;
+    end;
+
+    if S[i] = '{' then
+    begin
+      InCurly := True;
+      Result[i] := ' ';
+      Inc(i);
+      Continue;
+    end;
+
+    if (S[i] = '(') and (i < len) and (S[i + 1] = '*') then
+    begin
+      InParen := True;
+      Result[i] := ' ';
+      Result[i + 1] := ' ';
+      Inc(i, 2);
+      Continue;
+    end;
+
+    if (S[i] = '/') and (i < len) and (S[i + 1] = '/') then
+    begin
+      // Line comment: strip until end of line, not end of file.
+      Result[i] := ' ';
+      Result[i + 1] := ' ';
+      j := i + 2;
+      while (j <= len) and not (S[j] in [#10, #13]) do
+      begin
+        Result[j] := ' ';
+        Inc(j);
+      end;
+      i := j;
+      Continue;
+    end;
+
+    c := S[i];
+    if (c >= 'A') and (c <= 'Z') then
+      c := Chr(Ord(c) + 32);
+    Result[i] := c;
     Inc(i);
   end;
 end;
@@ -720,7 +906,6 @@ end;
 
 procedure ScanMathFacadeUsage(
   const Text: string;
-  const Stripped: string;
   const StrippedLower: string;
   const FuncIdentsLower: array of string;
   out UsesFacade: Boolean;
@@ -737,15 +922,21 @@ var
   i, j, len: Integer;
   start: Integer;
   tokenLower: string;
-  prevW: string;
+  prevTokenLower: string;
   afterToken: Integer;
   qual: string;
   memberStart: Integer;
   memberTok: string;
   unitStart: Integer;
   unitName: string;
+  nameStart: Integer;
+  nameTok: string;
   declaresLocalMin: Boolean;
   declaresLocalMax: Boolean;
+  firstMinCallPos: Integer;
+  firstMaxCallPos: Integer;
+  firstOtherCallPos: Integer;
+  firstOtherCallIdentLower: string;
 
   procedure RecordQualifiedMath(const aIdent: string; const aPos: Integer);
   begin
@@ -765,6 +956,18 @@ var
     end;
   end;
 
+  procedure ConsiderFirstCallCandidate(const aPos: Integer; const aIdentLower: string);
+  begin
+    if aPos = 0 then
+      Exit;
+
+    if (FirstUnqualifiedCallPos = 0) or (aPos < FirstUnqualifiedCallPos) then
+    begin
+      FirstUnqualifiedCallPos := aPos;
+      FirstUnqualifiedCallIdentLower := aIdentLower;
+    end;
+  end;
+
 begin
   UsesFacade := False;
   UsesRtlMath := False;
@@ -776,9 +979,13 @@ begin
   FirstQualifiedSystemIdentLower := '';
   FirstQualifiedSystemPos := 0;
 
-  // Avoid false positives for common helper names.
-  declaresLocalMin := StrippedTextDeclaresUnqualifiedCallable(StrippedLower, 'min');
-  declaresLocalMax := StrippedTextDeclaresUnqualifiedCallable(StrippedLower, 'max');
+  declaresLocalMin := False;
+  declaresLocalMax := False;
+  firstMinCallPos := 0;
+  firstMaxCallPos := 0;
+  firstOtherCallPos := 0;
+  firstOtherCallIdentLower := '';
+  prevTokenLower := '';
 
   len := Length(StrippedLower);
   i := 1;
@@ -792,6 +999,30 @@ begin
         Inc(i);
 
       tokenLower := Copy(StrippedLower, start, i - start);
+
+      // Track whether this unit declares local Min/Max (avoid false positives for helper functions).
+      if IsDeclarationKeyword(tokenLower) then
+      begin
+        j := i;
+        while (j <= len) and IsWhitespaceChar(StrippedLower[j]) do
+          Inc(j);
+
+        if (j <= len) and IsIdentStartChar(StrippedLower[j]) then
+        begin
+          nameStart := j;
+          Inc(j);
+          while (j <= len) and IsIdentChar(StrippedLower[j]) do
+            Inc(j);
+          nameTok := Copy(StrippedLower, nameStart, j - nameStart);
+
+          // Only treat unqualified declarations: "function Max(..." / "procedure Min(...".
+          // Ignore method declarations like "function TObj.Max(..." (would read nameTok='tobj').
+          if nameTok = 'min' then
+            declaresLocalMin := True
+          else if nameTok = 'max' then
+            declaresLocalMax := True;
+        end;
+      end;
 
       // Parse uses clauses once, and skip scanning inside them.
       if (tokenLower = 'uses') and IsKeywordAt(StrippedLower, start, 'uses') then
@@ -843,6 +1074,8 @@ begin
         // consume ';'
         if (i <= len) and (StrippedLower[i] = ';') then
           Inc(i);
+
+        prevTokenLower := tokenLower;
         Continue;
       end;
 
@@ -894,25 +1127,38 @@ begin
       end;
 
       // Unqualified call detection (record first occurrence; apply facade dependency later)
-      if (FirstUnqualifiedCallPos = 0) and IdentInArray(tokenLower, FuncIdentsLower) then
+      if IdentInArray(tokenLower, FuncIdentsLower) then
       begin
-        // If this unit declares its own Min/Max, do not treat Min/Max(...) as facade usage.
-        if ((tokenLower = 'min') and declaresLocalMin) or ((tokenLower = 'max') and declaresLocalMax) then
-        begin
-          // ignore
-        end
-        else if (start = 1) or (not (IsIdentChar(StrippedLower[start - 1]) or (StrippedLower[start - 1] = '.'))) then
+        // Ignore qualified calls like Unit.Ident(
+        if (start = 1) or (not (IsIdentChar(StrippedLower[start - 1]) or (StrippedLower[start - 1] = '.'))) then
         begin
           afterToken := i;
           while (afterToken <= len) and IsWhitespaceChar(StrippedLower[afterToken]) do
             Inc(afterToken);
+
           if (afterToken <= len) and (StrippedLower[afterToken] = '(') then
           begin
-            prevW := PrevWordLower(StrippedLower, start - 1);
-            if not IsDeclarationKeyword(prevW) then
+            // Ignore declarations: "function Ident(" etc.
+            if not IsDeclarationKeyword(prevTokenLower) then
             begin
-              FirstUnqualifiedCallIdentLower := tokenLower;
-              FirstUnqualifiedCallPos := start;
+              if (tokenLower = 'min') then
+              begin
+                if firstMinCallPos = 0 then
+                  firstMinCallPos := start;
+              end
+              else if (tokenLower = 'max') then
+              begin
+                if firstMaxCallPos = 0 then
+                  firstMaxCallPos := start;
+              end
+              else
+              begin
+                if firstOtherCallPos = 0 then
+                begin
+                  firstOtherCallPos := start;
+                  firstOtherCallIdentLower := tokenLower;
+                end;
+              end;
             end;
           end;
         end;
@@ -921,17 +1167,29 @@ begin
       // PI constant usage (case-sensitive token "PI" only)
       if (FirstPiPos = 0) and (tokenLower = 'pi') then
       begin
-        if Copy(Stripped, start, i - start) = 'PI' then
+        if Copy(Text, start, i - start) = 'PI' then
         begin
           if (start = 1) or (not (IsIdentChar(StrippedLower[start - 1]) or (StrippedLower[start - 1] = '.'))) then
             FirstPiPos := start;
         end;
       end;
 
+      prevTokenLower := tokenLower;
     end
     else
       Inc(i);
   end;
+
+  // Decide the earliest unqualified call that should trigger a facade dependency.
+  // Min/Max calls are ignored when the unit declares local Min/Max.
+  FirstUnqualifiedCallPos := 0;
+  FirstUnqualifiedCallIdentLower := '';
+
+  ConsiderFirstCallCandidate(firstOtherCallPos, firstOtherCallIdentLower);
+  if not declaresLocalMin then
+    ConsiderFirstCallCandidate(firstMinCallPos, 'min');
+  if not declaresLocalMax then
+    ConsiderFirstCallCandidate(firstMaxCallPos, 'max');
 end;
 
 function IndexToLineNumber(const Text: string; const Index1: Integer): Integer;
@@ -1069,20 +1327,25 @@ begin
   Result := True;
 end;
 
-procedure CollectIncludedIncFileNames(const HostPasPath: string; IncNames: TStrings);
+procedure CollectIncludedIncFileNamesFromLines(const HostLines: TStrings; IncNames: TStrings);
 var
-  sl: TStringList;
   i: Integer;
   incName: string;
 begin
   IncNames.Clear;
+  for i := 0 to HostLines.Count - 1 do
+    if TryExtractIncludeFileNameFromLine(HostLines[i], incName) then
+      IncNames.Add(incName);
+end;
 
+procedure CollectIncludedIncFileNames(const HostPasPath: string; IncNames: TStrings);
+var
+  sl: TStringList;
+begin
   sl := TStringList.Create;
   try
     sl.LoadFromFile(HostPasPath);
-    for i := 0 to sl.Count - 1 do
-      if TryExtractIncludeFileNameFromLine(sl[i], incName) then
-        IncNames.Add(incName);
+    CollectIncludedIncFileNamesFromLines(sl, IncNames);
   finally
     sl.Free;
   end;
@@ -1208,7 +1471,6 @@ var
   relPath: string;
   sl: TStringList;
   text: string;
-  stripped: string;
   strippedLower: string;
   offenders: TStringList;
   usesFacade: Boolean;
@@ -1244,26 +1506,24 @@ begin
       if Copy(fileNameLower, 1, Length('fafafa.core.math')) = 'fafafa.core.math' then
         Continue;
 
-      sl.LoadFromFile(pasPath);
-      text := sl.Text;
-      stripped := StripPascalStringsAndComments(text);
-      strippedLower := LowerCase(stripped);
+  sl.LoadFromFile(pasPath);
+  text := sl.Text;
+  strippedLower := StripPascalStringsAndCommentsLowerAscii(text);
 
-      ScanMathFacadeUsage(
-        text,
-        stripped,
-        strippedLower,
-        CMathFuncIdentsLower,
-        usesFacade,
-        usesRtlMath,
-        foundIdent,
-        foundPos,
-        foundPiPos,
-        foundMathIdent,
-        foundMathPos,
-        foundSystemIdent,
-        foundSystemPos
-      );
+  ScanMathFacadeUsage(
+    text,
+    strippedLower,
+    CMathFuncIdentsLower,
+    usesFacade,
+    usesRtlMath,
+    foundIdent,
+    foundPos,
+    foundPiPos,
+    foundMathIdent,
+    foundMathPos,
+    foundSystemIdent,
+    foundSystemPos
+  );
 
       if usesRtlMath then
         offenders.Add(Format('%s: uses Math is forbidden (use fafafa.core.math facade)', [relPath]));
@@ -1330,6 +1590,7 @@ var
   hostText: string;
   hostStrippedLower: string;
   hostUsesFacade: Boolean;
+  hostUsesFacadeKnown: Boolean;
   hostFileNameLower: string;
   sl: TStringList;
   incNames: TStringList;
@@ -1338,7 +1599,6 @@ var
   incName: string;
   incPath: string;
   incText: string;
-  incStripped: string;
   incStrippedLower: string;
   incUsesFacade: Boolean;
   incUsesRtlMath: Boolean;
@@ -1350,6 +1610,7 @@ var
   foundSystemIdent: string;
   foundSystemPos: Integer;
   lineNo: Integer;
+  cached: TMathFacadeScanResult;
 begin
   repoDir := IncludeTrailingPathDelimiter(GetRepoRootDir);
 
@@ -1372,14 +1633,15 @@ begin
       if Copy(hostFileNameLower, 1, Length('fafafa.core.math')) = 'fafafa.core.math' then
         Continue;
 
-      CollectIncludedIncFileNames(hostPath, incNames);
+      sl.LoadFromFile(hostPath);
+      hostText := sl.Text;
+      CollectIncludedIncFileNamesFromLines(sl, incNames);
       if incNames.Count = 0 then
         Continue;
 
-      sl.LoadFromFile(hostPath);
-      hostText := sl.Text;
-      hostStrippedLower := LowerCase(StripPascalStringsAndComments(hostText));
-      hostUsesFacade := StrippedTextUsesUnit(hostStrippedLower, 'fafafa.core.math');
+      hostStrippedLower := '';
+      hostUsesFacade := False;
+      hostUsesFacadeKnown := False;
 
       for i := 0 to incNames.Count - 1 do
       begin
@@ -1387,26 +1649,52 @@ begin
         if not ResolveIncPath(hostPath, incName, incPath) then
           Continue;
 
-        sl.LoadFromFile(incPath);
-        incText := sl.Text;
-        incStripped := StripPascalStringsAndComments(incText);
-        incStrippedLower := LowerCase(incStripped);
+        incText := '';
 
-        ScanMathFacadeUsage(
-          incText,
-          incStripped,
-          incStrippedLower,
-          CMathFuncIdentsLower,
-          incUsesFacade,
-          incUsesRtlMath,
-          foundIdent,
-          foundPos,
-          foundPiPos,
-          foundMathIdent,
-          foundMathPos,
-          foundSystemIdent,
-          foundSystemPos
-        );
+        if TryGetIncScanCached(incPath, cached) then
+        begin
+          incUsesFacade := cached.UsesFacade;
+          incUsesRtlMath := cached.UsesRtlMath;
+          foundIdent := cached.FoundIdent;
+          foundPos := cached.FoundPos;
+          foundPiPos := cached.FoundPiPos;
+          foundMathIdent := cached.FoundMathIdent;
+          foundMathPos := cached.FoundMathPos;
+          foundSystemIdent := cached.FoundSystemIdent;
+          foundSystemPos := cached.FoundSystemPos;
+        end
+        else
+        begin
+          sl.LoadFromFile(incPath);
+          incText := sl.Text;
+          incStrippedLower := StripPascalStringsAndCommentsLowerAscii(incText);
+
+          ScanMathFacadeUsage(
+            incText,
+            incStrippedLower,
+            CMathFuncIdentsLower,
+            incUsesFacade,
+            incUsesRtlMath,
+            foundIdent,
+            foundPos,
+            foundPiPos,
+            foundMathIdent,
+            foundMathPos,
+            foundSystemIdent,
+            foundSystemPos
+          );
+
+          cached.UsesFacade := incUsesFacade;
+          cached.UsesRtlMath := incUsesRtlMath;
+          cached.FoundIdent := foundIdent;
+          cached.FoundPos := foundPos;
+          cached.FoundPiPos := foundPiPos;
+          cached.FoundMathIdent := foundMathIdent;
+          cached.FoundMathPos := foundMathPos;
+          cached.FoundSystemIdent := foundSystemIdent;
+          cached.FoundSystemPos := foundSystemPos;
+          PutIncScanCache(incPath, cached);
+        end;
 
         // Disallow RTL Math and qualified bypasses inside included code.
         if incUsesRtlMath then
@@ -1417,6 +1705,12 @@ begin
 
         if foundMathPos <> 0 then
         begin
+          if incText = '' then
+          begin
+            sl.LoadFromFile(incPath);
+            incText := sl.Text;
+          end;
+
           lineNo := IndexToLineNumber(incText, foundMathPos);
           offenders.Add(Format('%s includes %s:%d: qualified bypass Math.%s is forbidden', [hostRelPath, ExtractRelativePath(repoDir, incPath), lineNo, foundMathIdent]));
           Continue;
@@ -1424,24 +1718,52 @@ begin
 
         if foundSystemPos <> 0 then
         begin
+          if incText = '' then
+          begin
+            sl.LoadFromFile(incPath);
+            incText := sl.Text;
+          end;
+
           lineNo := IndexToLineNumber(incText, foundSystemPos);
           offenders.Add(Format('%s includes %s:%d: qualified bypass System.%s is forbidden', [hostRelPath, ExtractRelativePath(repoDir, incPath), lineNo, foundSystemIdent]));
           Continue;
         end;
 
         // Unqualified calls / PI usage inside .inc require the host to depend on the facade.
-        if (not hostUsesFacade) and (foundPos <> 0) then
+        if (foundPos <> 0) or (foundPiPos <> 0) then
         begin
-          lineNo := IndexToLineNumber(incText, foundPos);
-          offenders.Add(Format('%s includes %s:%d: calls %s(...) but host does not depend on fafafa.core.math', [hostRelPath, ExtractRelativePath(repoDir, incPath), lineNo, foundIdent]));
-          Continue;
-        end;
+          if not hostUsesFacadeKnown then
+          begin
+            hostStrippedLower := StripPascalStringsAndCommentsLowerAscii(hostText);
+            hostUsesFacade := StrippedTextUsesUnit(hostStrippedLower, 'fafafa.core.math');
+            hostUsesFacadeKnown := True;
+          end;
 
-        if (not hostUsesFacade) and (foundPiPos <> 0) then
-        begin
-          lineNo := IndexToLineNumber(incText, foundPiPos);
-          offenders.Add(Format('%s includes %s:%d: uses PI but host does not depend on fafafa.core.math', [hostRelPath, ExtractRelativePath(repoDir, incPath), lineNo]));
-          Continue;
+          if (not hostUsesFacade) and (foundPos <> 0) then
+          begin
+            if incText = '' then
+            begin
+              sl.LoadFromFile(incPath);
+              incText := sl.Text;
+            end;
+
+            lineNo := IndexToLineNumber(incText, foundPos);
+            offenders.Add(Format('%s includes %s:%d: calls %s(...) but host does not depend on fafafa.core.math', [hostRelPath, ExtractRelativePath(repoDir, incPath), lineNo, foundIdent]));
+            Continue;
+          end;
+
+          if (not hostUsesFacade) and (foundPiPos <> 0) then
+          begin
+            if incText = '' then
+            begin
+              sl.LoadFromFile(incPath);
+              incText := sl.Text;
+            end;
+
+            lineNo := IndexToLineNumber(incText, foundPiPos);
+            offenders.Add(Format('%s includes %s:%d: uses PI but host does not depend on fafafa.core.math', [hostRelPath, ExtractRelativePath(repoDir, incPath), lineNo]));
+            Continue;
+          end;
         end;
       end;
     end;
@@ -1887,7 +2209,7 @@ const
     'isnan', 'isinfinite'
   );
 var
-  text, stripped, strippedLower: string;
+  text, strippedLower: string;
   usesFacade: Boolean;
   usesRtlMath: Boolean;
   foundIdent: string;
@@ -1899,12 +2221,10 @@ var
   foundSystemPos: Integer;
 begin
   text := 'begin x := Math.Sin(0.0); end.';
-  stripped := StripPascalStringsAndComments(text);
-  strippedLower := LowerCase(stripped);
+  strippedLower := StripPascalStringsAndCommentsLowerAscii(text);
 
   ScanMathFacadeUsage(
     text,
-    stripped,
     strippedLower,
     CMathFuncIdentsLower,
     usesFacade,
@@ -1939,7 +2259,7 @@ const
     'isnan', 'isinfinite'
   );
 var
-  text, stripped, strippedLower: string;
+  text, strippedLower: string;
   usesFacade: Boolean;
   usesRtlMath: Boolean;
   foundIdent: string;
@@ -1951,12 +2271,10 @@ var
   foundSystemPos: Integer;
 begin
   text := 'begin x := System . Math . Sin(0.0); end.';
-  stripped := StripPascalStringsAndComments(text);
-  strippedLower := LowerCase(stripped);
+  strippedLower := StripPascalStringsAndCommentsLowerAscii(text);
 
   ScanMathFacadeUsage(
     text,
-    stripped,
     strippedLower,
     CMathFuncIdentsLower,
     usesFacade,
@@ -1992,7 +2310,7 @@ const
     'isnan', 'isinfinite'
   );
 var
-  text, stripped, strippedLower: string;
+  text, strippedLower: string;
   usesFacade: Boolean;
   usesRtlMath: Boolean;
   foundIdent: string;
@@ -2004,12 +2322,10 @@ var
   foundSystemPos: Integer;
 begin
   text := 'begin x := System.Math.PI; end.';
-  stripped := StripPascalStringsAndComments(text);
-  strippedLower := LowerCase(stripped);
+  strippedLower := StripPascalStringsAndCommentsLowerAscii(text);
 
   ScanMathFacadeUsage(
     text,
-    stripped,
     strippedLower,
     CMathFuncIdentsLower,
     usesFacade,
@@ -2046,7 +2362,7 @@ const
     'isnan', 'isinfinite'
   );
 var
-  text, stripped, strippedLower: string;
+  text, strippedLower: string;
   usesFacade: Boolean;
   usesRtlMath: Boolean;
   foundIdent: string;
@@ -2058,12 +2374,10 @@ var
   foundSystemPos: Integer;
 begin
   text := 'begin x := Math.Random; end.';
-  stripped := StripPascalStringsAndComments(text);
-  strippedLower := LowerCase(stripped);
+  strippedLower := StripPascalStringsAndCommentsLowerAscii(text);
 
   ScanMathFacadeUsage(
     text,
-    stripped,
     strippedLower,
     CMathFuncIdentsLower,
     usesFacade,
@@ -2098,7 +2412,7 @@ const
     'isnan', 'isinfinite'
   );
 var
-  text, stripped, strippedLower: string;
+  text, strippedLower: string;
   usesFacade: Boolean;
   usesRtlMath: Boolean;
   foundIdent: string;
@@ -2115,12 +2429,10 @@ begin
     'function Max(a,b: Integer): Integer; begin if a>b then Result:=a else Result:=b; end;' +
     'begin x := Max(1,2); y := Abs(-1.0); end.';
 
-  stripped := StripPascalStringsAndComments(text);
-  strippedLower := LowerCase(stripped);
+  strippedLower := StripPascalStringsAndCommentsLowerAscii(text);
 
   ScanMathFacadeUsage(
     text,
-    stripped,
     strippedLower,
     CMathFuncIdentsLower,
     usesFacade,
@@ -2487,9 +2799,18 @@ begin
   AssertTrue(IsNear(fafafa.core.math.IntPower(2.0, -2), 0.25, 1e-15));
 end;
 
+procedure TTestMath.Test_IntPower_Double_MinIntegerExponent_UnderflowsToZero;
+begin
+  // This is far below the smallest subnormal double; must underflow to 0.
+  AssertTrue(IsNear(fafafa.core.math.IntPower(2.0, Low(Integer)), 0.0, 0.0));
+end;
+
 initialization
   RegisterTest(TTestMath);
   RegisterTest(TTestMathScanner);
   RegisterTest(TTestMathRules);
+
+finalization
+  FreeIncScanCache;
 
 end.

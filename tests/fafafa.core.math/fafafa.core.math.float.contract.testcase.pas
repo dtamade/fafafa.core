@@ -23,6 +23,11 @@ type
 
     procedure Test_Sqrt_Double_MatchesRTL;
 
+    // Special values / boundaries
+    procedure Test_IsNaN_Double_NaNAndFinite_Correct;
+    procedure Test_IsInfinite_Double_InfinityAndFinite_Correct;
+    procedure Test_Sign_Double_SpecialValues_Correct;
+
     // Trigonometric functions
     procedure Test_Sin_Double_MatchesRTL;
     procedure Test_Cos_Double_MatchesRTL;
@@ -136,6 +141,59 @@ begin
   AssertNear(Self, System.Sqrt(Double(0.0)), fafafa.core.math.Sqrt(Double(0.0)), EPS, 'Sqrt(0)');
   AssertNear(Self, System.Sqrt(Double(1.0)), fafafa.core.math.Sqrt(Double(1.0)), EPS, 'Sqrt(1)');
   AssertNear(Self, System.Sqrt(Double(2.0)), fafafa.core.math.Sqrt(Double(2.0)), EPS, 'Sqrt(2)');
+end;
+
+procedure TTestMathFloatContract.Test_IsNaN_Double_NaNAndFinite_Correct;
+var
+  v: Double;
+begin
+  v := fafafa.core.math.NaN;
+  AssertTrue(fafafa.core.math.IsNaN(v));
+
+  AssertFalse(fafafa.core.math.IsNaN(Double(0.0)));
+  AssertFalse(fafafa.core.math.IsNaN(fafafa.core.math.Infinity));
+end;
+
+procedure TTestMathFloatContract.Test_IsInfinite_Double_InfinityAndFinite_Correct;
+var
+  inf: Double;
+begin
+  inf := fafafa.core.math.Infinity;
+  AssertTrue(fafafa.core.math.IsInfinite(inf));
+  AssertTrue(fafafa.core.math.IsInfinite(-inf));
+
+  AssertFalse(fafafa.core.math.IsInfinite(Double(0.0)));
+  AssertFalse(fafafa.core.math.IsInfinite(fafafa.core.math.NaN));
+end;
+
+procedure TTestMathFloatContract.Test_Sign_Double_SpecialValues_Correct;
+var
+  oldMask: TFPUExceptionMask;
+  inf: Double;
+  negZero: Double;
+  inv: Double;
+begin
+  // Ensure division by 0 does not raise.
+  oldMask := fafafa.core.math.GetExceptionMask;
+  try
+    fafafa.core.math.SetExceptionMask(oldMask + [exInvalidOp, exZeroDivide]);
+
+    inf := fafafa.core.math.Infinity;
+    AssertEquals(0, fafafa.core.math.Sign(fafafa.core.math.NaN));
+    AssertEquals(1, fafafa.core.math.Sign(inf));
+    AssertEquals(-1, fafafa.core.math.Sign(-inf));
+
+    // -0.0: create it via division by +Infinity.
+    negZero := -1.0 / inf;
+    AssertEquals(0, fafafa.core.math.Sign(negZero));
+
+    // sign bit check: 1/(-0.0) should be -Infinity.
+    inv := 1.0 / negZero;
+    AssertTrue(fafafa.core.math.IsInfinite(inv));
+    AssertTrue(inv < 0);
+  finally
+    fafafa.core.math.SetExceptionMask(oldMask);
+  end;
 end;
 
 // === Trigonometric Functions ===
