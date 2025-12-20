@@ -8,105 +8,28 @@ unit fafafa.core.args;
 interface
 
 uses
-  SysUtils, Classes, SyncObjs
+  SysUtils, Classes
   {$IFDEF Windows}
   , Windows, ShellApi
   {$ENDIF}
-  , fafafa.core.result
-  , fafafa.core.option
   ;
 
 type
   TStringArray = array of string;
 
-  // 现代化错误处理
-  TArgsErrorKind = (
-    aekSuccess,
-    aekUnknownOption,
-    aekMissingValue,
-    aekInvalidValue,
-    aekDuplicateOption,
-    aekMutuallyExclusive,
-    aekRequiredMissing,
-    aekTooManyPositionals,
-    aekTooFewPositionals,
-    aekParseError,
-    aekValidationError
-  );
-
-  TArgsError = record
-    Kind: TArgsErrorKind;
-    Position: Integer;
-    OptionName: string;
-    Message: string;
-    Suggestion: string;
-    Context: string;
-
-    class function Success: TArgsError; static;
-    class function UnknownOption(const OptName: string; Pos: Integer = -1): TArgsError; static;
-    class function MissingValue(const OptName: string; Pos: Integer = -1): TArgsError; static;
-    class function InvalidValue(const OptName, ExpectedType, ActualValue: string; Pos: Integer = -1): TArgsError; static;
-
-    function IsSuccess: Boolean; inline;
-    function ToString: string;
-    function ToDetailedString: string;
-  end;
-
-  TArgsResult = specialize TResult<string, TArgsError>;
-  TArgsResultInt = specialize TResult<Int64, TArgsError>;
-  TArgsResultDouble = specialize TResult<Double, TArgsError>;
-  TArgsResultBool = specialize TResult<Boolean, TArgsError>;
-
-  // 高性能解析选项
+  // Parsing options (stable core API)
   TArgsOptions = record
     CaseInsensitiveKeys: Boolean;
-    AllowShortFlagsCombo: Boolean;    // -abc => -a -b -c
-    AllowShortKeyValue: Boolean;      // -o=out or -o out
-    StopAtDoubleDash: Boolean;        // "--" stops parsing
+    AllowShortFlagsCombo: Boolean;            // -abc => -a -b -c
+    AllowShortKeyValue: Boolean;              // -o=out or -o out
+    StopAtDoubleDash: Boolean;                // "--" stops parsing
     TreatNegativeNumbersAsPositionals: Boolean; // -1.23 not short flags
-    EnableNoPrefixNegation: Boolean;  // --no-xxx maps to key=FALSE
-    EnableCaching: Boolean;           // 启用解析结果缓存
-    MaxCacheSize: Integer;            // 最大缓存条目数
-
-    class function Default: TArgsOptions; static;
-    class function HighPerformance: TArgsOptions; static;
-    class function Strict: TArgsOptions; static;
+    EnableNoPrefixNegation: Boolean;          // --no-xxx maps to xxx=false
   end;
 
-  // 高性能缓存系统
-  TArgsCacheEntry = record
-    Hash: Cardinal;
-    Args: TStringArray;
-    Options: TArgsOptions;
-    Context: TArgsContext;
-    Timestamp: TDateTime;
-  end;
+function ArgsOptionsDefault: TArgsOptions;
 
-  TArgsCache = class
-  private
-    class var FInstance: TArgsCache;
-    class var FLock: TCriticalSection;
-    FEntries: array of TArgsCacheEntry;
-    FMaxSize: Integer;
-    FCurrentSize: Integer;
-
-    function ComputeHash(const Args: array of string; const Options: TArgsOptions): Cardinal;
-    function FindEntry(Hash: Cardinal): Integer;
-    procedure AddEntry(Hash: Cardinal; const Args: array of string; const Options: TArgsOptions; const Context: TArgsContext);
-    procedure EvictOldest;
-  public
-    class constructor Create;
-    class destructor Destroy;
-    class function Instance: TArgsCache;
-
-    constructor Create(MaxSize: Integer = 100);
-    destructor Destroy; override;
-
-    function TryGet(const Args: array of string; const Options: TArgsOptions; out Context: TArgsContext): Boolean;
-    procedure Put(const Args: array of string; const Options: TArgsOptions; const Context: TArgsContext);
-    procedure Clear;
-  end;
-
+type
   TArgKind = (akArg, akOptionShort, akOptionLong);
 
   TArgItem = record
@@ -114,145 +37,83 @@ type
     Value: string;
     HasValue: Boolean;
     Kind: TArgKind;
-    Position: Integer;  // 在原始参数中的位置
-
-    function IsFlag: Boolean; inline;
-    function IsOption: Boolean; inline;
-    function IsPositional: Boolean; inline;
+    Position: Integer; // original argv index
   end;
 
-  // 高性能上下文结构
   TArgsContext = record
   private
     FFlags: TStringArray;      // normalized names (no leading '-'/'/')
     FKeys: TStringArray;       // normalized keys
     FValues: TStringArray;     // raw values
     FPositionals: TStringArray;// raw
+
     FItemNames: TStringArray;
     FItemValues: TStringArray;
     FItemHasValue: array of Boolean;
     FItemKinds: array of TArgKind;
     FItemPositions: array of Integer;
-    FKeyLookup: array of record Key: string; Index: Integer; end; // 快速查找
-    FFlagLookup: array of record Key: string; Value: Boolean; end; // 快速标志查找
-    FKeyCount: Integer;
-    FFlagCount: Integer;
   public
-    procedure Initialize;
-    procedure Finalize;
-
     function Flags: TStringArray; inline;
     function Keys: TStringArray; inline;
     function Values: TStringArray; inline;
     function Positionals: TStringArray; inline;
     function ItemsCount: Integer; inline;
     function ItemAt(Index: Integer): TArgItem; inline;
-
-    // 高性能查找方法
-    function HasFlagFast(const Name: string): Boolean; inline;
-    function TryGetValueFast(const Key: string; out Value: string): Boolean; inline;
   end;
 
-// 现代化解析函数 - 支持缓存和错误处理
-function ParseArgs(const Args: array of string; const Opts: TArgsOptions; out Ctx: TArgsContext): TArgsError;
-function ParseArgsWithCache(const Args: array of string; const Opts: TArgsOptions; out Ctx: TArgsContext): TArgsError;
+// Core parse
+procedure ParseArgs(const Args: array of string; const Opts: TArgsOptions; out Ctx: TArgsContext);
 
-// 现代化 Result 风格 API
-function ArgsGetValue(const Key: string): TArgsResult;
-function ArgsGetInt(const Key: string): TArgsResultInt;
-function ArgsGetDouble(const Key: string): TArgsResultDouble;
-function ArgsGetBool(const Key: string): TArgsResultBool;
-
-// 兼容性 API (标记为 deprecated)
-{$IFDEF FAFAFA_ARGS_LEGACY_API}
-function ArgsHasFlag(const Flag: string): Boolean; deprecated 'Use ArgsGetBool instead';
-function ArgsTryGetValue(const Key: string; out Value: string): Boolean; deprecated 'Use ArgsGetValue instead';
-function ArgsGetAll(const Key: string): TStringArray; deprecated 'Use modern API';
-function ArgsPositionals: TStringArray; deprecated 'Use modern API';
-function ArgsIsHelpRequested: Boolean; deprecated 'Use ArgsGetBool(''help'') instead';
-function ArgsGetStringDefault(const Key, Default: string): string; deprecated 'Use ArgsGetValue(Key).UnwrapOr(Default)';
-function ArgsGetInt64Default(const Key: string; const Default: Int64): Int64; deprecated 'Use ArgsGetInt(Key).UnwrapOr(Default)';
-function ArgsGetDoubleDefault(const Key: string; const Default: Double): Double; deprecated 'Use ArgsGetDouble(Key).UnwrapOr(Default)';
-function ArgsGetBoolDefault(const Key: string; const Default: Boolean): Boolean; deprecated 'Use ArgsGetBool(Key).UnwrapOr(Default)';
-{$ENDIF}
-
-// 现代化接口设计
+// OO API interface (stable, minimal)
 type
-  // 核心参数接口 - 高性能、类型安全
   IArgs = interface
     ['{E4F6A76C-4A13-4D4E-9D3A-7E8A3F2F3C21}']
-    // 基础查询
     function Count: Integer;
     function Items(Index: Integer): TArgItem;
     function Positionals: TStringArray;
 
-    // 现代化 Result 风格查询
-    function GetValue(const Key: string): TArgsResult;
-    function GetInt(const Key: string): TArgsResultInt;
-    function GetDouble(const Key: string): TArgsResultDouble;
-    function GetBool(const Key: string): TArgsResultBool;
+    function HasFlag(const Name: string): Boolean;
+    function TryGetValue(const Key: string; out Value: string): Boolean;
     function GetAll(const Key: string): TStringArray;
 
-    // 快速查询 (性能优化)
-    function HasFlag(const Name: string): Boolean;
-    function TryGetValueFast(const Key: string; out Value: string): Boolean;
+    function TryGetInt64(const Key: string; out V: Int64): Boolean;
+    function TryGetDouble(const Key: string; out V: Double): Boolean;
+    function TryGetBool(const Key: string; out V: Boolean): Boolean;
 
-    // 兼容性方法 (deprecated)
-    {$IFDEF FAFAFA_ARGS_LEGACY_API}
-    function TryGetValue(const Key: string; out Value: string): Boolean; deprecated;
-    function TryGetInt64(const Key: string; out V: Int64): Boolean; deprecated;
-    function TryGetDouble(const Key: string; out V: Double): Boolean; deprecated;
-    function TryGetBool(const Key: string; out V: Boolean): Boolean; deprecated;
-    function GetStringDefault(const Key, Default: string): string; deprecated;
-    function GetInt64Default(const Key: string; const Default: Int64): Int64; deprecated;
-    function GetDoubleDefault(const Key: string; const Default: Double): Double; deprecated;
-    function GetBoolDefault(const Key: string; const Default: Boolean): Boolean; deprecated;
-    {$ENDIF}
+    function GetStringDefault(const Key, Default: string): string;
+    function GetInt64Default(const Key: string; const Default: Int64): Int64;
+    function GetDoubleDefault(const Key: string; const Default: Double): Double;
+    function GetBoolDefault(const Key: string; const Default: Boolean): Boolean;
   end;
-
-  // Fluent API 接口
-  IArgsBuilder = interface
-    ['{B2C3D4E5-F6A7-4B8C-9D0E-1F2A3B4C5D6E}']
-    function WithOption(const Name, Description: string; Required: Boolean = False): IArgsBuilder;
-    function WithFlag(const Name, Description: string): IArgsBuilder;
-    function WithPositional(const Name, Description: string; Required: Boolean = True): IArgsBuilder;
-    function WithSubCommand(const Name, Description: string): IArgsBuilder;
-    function WithValidation(const Key: string; Validator: TArgsValidator): IArgsBuilder;
-    function Parse(const Args: array of string): IArgs;
-    function ParseProcess: IArgs;
-  end;
-
-  // 验证器接口
-  TArgsValidator = function(const Value: string): TArgsError;
-
-  // 现代化构建器
-  function NewArgsBuilder: IArgsBuilder;
-  function Args: IArgsBuilder; // 简短入口
 
 type
-  // 高性能参数解析器实现
   TArgs = class(TInterfacedObject, IArgs)
   private
     FCtx: TArgsContext;
     FOpts: TArgsOptions;
   public
-    class function FromProcess: TArgs; static;
+    class function FromProcess: TArgs; overload; static;
+    class function FromProcess(const Opts: TArgsOptions): TArgs; overload; static;
     class function FromArray(const A: array of string; const Opts: TArgsOptions): TArgs; static;
+
     // IArgs
     function Count: Integer;
     function Items(Index: Integer): TArgItem;
     function Positionals: TStringArray;
+
     function HasFlag(const Name: string): boolean;
     function TryGetValue(const Key: string; out Value: string): boolean;
     function GetAll(const Key: string): TStringArray;
+
     function TryGetInt64(const Key: string; out V: Int64): boolean;
     function TryGetDouble(const Key: string; out V: Double): boolean;
-
     function TryGetBool(const Key: string; out V: boolean): boolean;
+
     function GetStringDefault(const Key, Default: string): string;
     function GetInt64Default(const Key: string; const Default: Int64): Int64;
     function GetDoubleDefault(const Key: string; const Default: Double): Double;
     function GetBoolDefault(const Key: string; const Default: boolean): boolean;
+
     // Enumerators for for-in
     function GetEnumerator: TObject; // returns TArgsEnumerator
     function GetArgEnumerator: TObject; // returns TArgsArgEnumerator
@@ -291,12 +152,17 @@ type
     function MoveNext: boolean;
     property Current: TArgItem read GetCurrent;
   end;
+
+// Convenience helpers based on current process argv
+function ArgsHasFlag(const Flag: string): boolean;
+function ArgsTryGetValue(const Key: string; out Value: string): boolean;
+function ArgsGetAll(const Key: string): TStringArray;
+function ArgsPositionals: TStringArray;
+function ArgsIsHelpRequested: boolean;
+
 implementation
 
 function FindFlag(const Arr: TStringArray; const Flag: string; CaseInsensitive: boolean): boolean; forward;
-
-var
-  GArgsDefaultOptions: TArgsOptions;
 
 function ArgsOptionsDefault: TArgsOptions;
 begin
@@ -307,18 +173,6 @@ begin
   Result.TreatNegativeNumbersAsPositionals := True;
   Result.EnableNoPrefixNegation := False;
 end;
-
-function ArgsOptionsGetDefault: TArgsOptions;
-begin
-  Result := GArgsDefaultOptions;
-end;
-
-procedure ArgsOptionsSetDefault(const Opts: TArgsOptions);
-begin
-  GArgsDefaultOptions := Opts;
-end;
-
-
 
 function NormalizeKeyForCheck(const S: string; ACaseInsensitive: boolean): string;
 var i, n: Integer; res: string;
@@ -372,8 +226,8 @@ function TArgsContext.Values: TStringArray; inline; begin Result := nil; Result 
 function TArgsContext.Positionals: TStringArray; inline; begin Result := nil; Result := FPositionals; end;
 
 procedure ParseArgs(const Args: array of string; const Opts: TArgsOptions; out Ctx: TArgsContext);
-var i, j: Integer; a, key, val, baseKey: string; stop: boolean; handled: boolean;
-  procedure AddItem(const Kind: TArgKind; const Name, Value: string; const HasValue: boolean);
+var i, j, posOpt: Integer; a, key, val, baseKey: string; stop: boolean; handled: boolean;
+  procedure AddItem(const Kind: TArgKind; const Name, Value: string; const HasValue: boolean; const PosIndex: Integer);
   var L: SizeInt;
   begin
     L := Length(Ctx.FItemNames);
@@ -381,10 +235,12 @@ var i, j: Integer; a, key, val, baseKey: string; stop: boolean; handled: boolean
     SetLength(Ctx.FItemValues, L+1);
     SetLength(Ctx.FItemHasValue, L+1);
     SetLength(Ctx.FItemKinds, L+1);
+    SetLength(Ctx.FItemPositions, L+1);
     Ctx.FItemNames[L] := Name;
     Ctx.FItemValues[L] := Value;
     Ctx.FItemHasValue[L] := HasValue;
     Ctx.FItemKinds[L] := Kind;
+    Ctx.FItemPositions[L] := PosIndex;
   end;
   function NextIsValue: boolean;
   var nextTok: string;
@@ -432,7 +288,7 @@ begin
       begin
         // Treat "--" as a positional and also switch to positional-only for the rest
         AddString(Ctx.FPositionals, a);
-        AddItem(akArg, '', a, False);
+        AddItem(akArg, '', a, False, i);
         stop := True; Inc(i); Break;
       end;
     end;
@@ -454,28 +310,29 @@ begin
           begin
             baseKey := NormalizeKey(Copy(baseKey, Length('no-')+1, MaxInt), Opts.CaseInsensitiveKeys);
             AddString(Ctx.FKeys, baseKey); AddString(Ctx.FValues, val);
-            AddItem(akOptionLong, baseKey, val, True);
+            AddItem(akOptionLong, baseKey, val, True, i);
           end;
         end;
         // Always store the literal key too (so queries for 'no-xxx' still work)
         AddString(Ctx.FKeys, key); AddString(Ctx.FValues, val);
-        AddItem(akOptionLong, key, val, True);
+        AddItem(akOptionLong, key, val, True, i);
       end
       else if Pos(':', a)>0 then
       begin
         key := NormalizeKey(Copy(a,1,Pos(':',a)-1), Opts.CaseInsensitiveKeys);
         val := Copy(a, Pos(':',a)+1, MaxInt);
         AddString(Ctx.FKeys, key); AddString(Ctx.FValues, val);
-        AddItem(akOptionLong, key, val, True);
+        AddItem(akOptionLong, key, val, True, i);
       end
       else
       begin
         key := NormalizeKey(a, Opts.CaseInsensitiveKeys);
         if NextIsValue then
         begin
+          posOpt := i;
           val := Args[i+1]; Inc(i);
           AddString(Ctx.FKeys, key); AddString(Ctx.FValues, val);
-          AddItem(akOptionLong, key, val, True);
+          AddItem(akOptionLong, key, val, True, posOpt);
         end
         else
         begin
@@ -490,14 +347,14 @@ begin
               // --no-xxx  => key 'xxx' with value 'false'
               baseKey := Copy(baseKey, Length('no-')+1, MaxInt);
               AddString(Ctx.FKeys, baseKey); AddString(Ctx.FValues, 'false');
-              AddItem(akOptionLong, baseKey, 'false', True);
+              AddItem(akOptionLong, baseKey, 'false', True, i);
               handled := True;
             end;
           end;
           if not handled then
           begin
             AddString(Ctx.FFlags, key);
-            AddItem(akOptionLong, key, '', False);
+            AddItem(akOptionLong, key, '', False, i);
           end;
         end;
       end;
@@ -510,21 +367,22 @@ begin
         key := NormalizeKey(Copy(a,1,Pos('=',a)-1), Opts.CaseInsensitiveKeys);
         val := Copy(a, Pos('=',a)+1, MaxInt);
         AddString(Ctx.FKeys, key); AddString(Ctx.FValues, val);
-        AddItem(akOptionShort, key, val, True);
+        AddItem(akOptionShort, key, val, True, i);
       end
       else if (Opts.AllowShortKeyValue) and (Pos(':', a)>0) then
       begin
         key := NormalizeKey(Copy(a,1,Pos(':',a)-1), Opts.CaseInsensitiveKeys);
         val := Copy(a, Pos(':',a)+1, MaxInt);
         AddString(Ctx.FKeys, key); AddString(Ctx.FValues, val);
-        AddItem(akOptionShort, key, val, True);
+        AddItem(akOptionShort, key, val, True, i);
       end
       else if (Opts.AllowShortKeyValue) and (Length(a)=2) and NextIsValue then
       begin
         key := NormalizeKey(a, Opts.CaseInsensitiveKeys);
+        posOpt := i;
         val := Args[i+1]; Inc(i);
         AddString(Ctx.FKeys, key); AddString(Ctx.FValues, val);
-        AddItem(akOptionShort, key, val, True);
+        AddItem(akOptionShort, key, val, True, posOpt);
       end
       else if (Opts.EnableNoPrefixNegation) and (Length(a)>=4) and (Copy(a,1,4)='-no-') then
       begin
@@ -533,7 +391,7 @@ begin
         // no immediate value by design, map to false
         baseKey := Copy(key, Length('no-')+1, MaxInt);
         AddString(Ctx.FKeys, baseKey); AddString(Ctx.FValues, 'false');
-        AddItem(akOptionShort, baseKey, 'false', True);
+        AddItem(akOptionShort, baseKey, 'false', True, i);
       end
       else if Opts.AllowShortFlagsCombo then
       begin
@@ -542,7 +400,7 @@ begin
         begin
           key := NormalizeKey('-'+a[j], Opts.CaseInsensitiveKeys);
           AddString(Ctx.FFlags, key);
-          AddItem(akOptionShort, key, '', False);
+          AddItem(akOptionShort, key, '', False, i);
         end;
       end
       else
@@ -550,7 +408,7 @@ begin
         // treat as a single flag name (minus leading '-')
         key := NormalizeKey(a, Opts.CaseInsensitiveKeys);
         AddString(Ctx.FFlags, key);
-        AddItem(akOptionShort, key, '', False);
+        AddItem(akOptionShort, key, '', False, i);
       end;
     end
     else if (Length(a)>=1) and (a[1]='/') then
@@ -568,12 +426,12 @@ begin
           begin
             baseKey := NormalizeKey(Copy(baseKey, Length('no-')+1, MaxInt), Opts.CaseInsensitiveKeys);
             AddString(Ctx.FKeys, baseKey); AddString(Ctx.FValues, val);
-            AddItem(akOptionLong, baseKey, val, True);
+            AddItem(akOptionLong, baseKey, val, True, i);
           end;
         end;
         // store literal key as-is
         AddString(Ctx.FKeys, key); AddString(Ctx.FValues, val);
-        AddItem(akOptionLong, key, val, True);
+        AddItem(akOptionLong, key, val, True, i);
       end
       else if Pos(':', a)>0 then
       begin
@@ -587,12 +445,12 @@ begin
           begin
             baseKey := NormalizeKey(Copy(baseKey, Length('no-')+1, MaxInt), Opts.CaseInsensitiveKeys);
             AddString(Ctx.FKeys, baseKey); AddString(Ctx.FValues, val);
-            AddItem(akOptionLong, baseKey, val, True);
+            AddItem(akOptionLong, baseKey, val, True, i);
           end;
         end;
         // store literal key as-is
         AddString(Ctx.FKeys, key); AddString(Ctx.FValues, val);
-        AddItem(akOptionLong, key, val, True);
+        AddItem(akOptionLong, key, val, True, i);
       end
       else
       begin
@@ -607,14 +465,14 @@ begin
           begin
             baseKey := NormalizeKey(Copy(baseKey, Length('no-')+1, MaxInt), Opts.CaseInsensitiveKeys);
             AddString(Ctx.FKeys, baseKey); AddString(Ctx.FValues, 'false');
-            AddItem(akOptionLong, baseKey, 'false', True);
+            AddItem(akOptionLong, baseKey, 'false', True, i);
             handled := True;
           end;
         end;
         if not handled then
         begin
           AddString(Ctx.FFlags, key);
-          AddItem(akOptionLong, key, '', False);
+          AddItem(akOptionLong, key, '', False, i);
         end;
       end;
     end
@@ -622,7 +480,7 @@ begin
     begin
       // positional
       AddString(Ctx.FPositionals, a);
-      AddItem(akArg, '', a, False);
+      AddItem(akArg, '', a, False, i);
     end;
     Inc(i);
   end;
@@ -630,7 +488,7 @@ begin
   // append rest as positionals if stopped by '--'
   if stop then
   begin
-    while i<=High(Args) do begin AddString(Ctx.FPositionals, Args[i]); AddItem(akArg, '', Args[i], False); Inc(i); end;
+    while i<=High(Args) do begin AddString(Ctx.FPositionals, Args[i]); AddItem(akArg, '', Args[i], False, i); Inc(i); end;
   end;
 end;
 
@@ -698,16 +556,21 @@ begin
   Result.Value := FItemValues[Index];
   Result.HasValue := FItemHasValue[Index];
   Result.Kind := FItemKinds[Index];
+  Result.Position := FItemPositions[Index];
 end;
 
 class function TArgs.FromProcess: TArgs;
-var arr: TStringArray; opts: TArgsOptions;
+begin
+  Result := FromProcess(ArgsOptionsDefault);
+end;
+
+class function TArgs.FromProcess(const Opts: TArgsOptions): TArgs;
+var arr: TStringArray;
 begin
   Result := TArgs.Create;
-  opts := ArgsOptionsGetDefault;
   arr := CollectProcessArgs;
-  ParseArgs(arr, opts, Result.FCtx);
-  Result.FOpts := opts;
+  ParseArgs(arr, Opts, Result.FCtx);
+  Result.FOpts := Opts;
 end;
 
 class function TArgs.FromArray(const A: array of string; const Opts: TArgsOptions): TArgs;
@@ -728,6 +591,7 @@ begin
   Result.Value := '';
   Result.HasValue := False;
   Result.Kind := akArg;
+  Result.Position := -1;
   if (Index>=0) and (Index<FCtx.ItemsCount) then
     Result := FCtx.ItemAt(Index);
 end;
@@ -790,6 +654,7 @@ begin
   Result.Value := '';
   Result.HasValue := False;
   Result.Kind := akArg;
+  Result.Position := -1;
   if (FIndex>=0) and (FIndex<FArgs.Count) then
     Result := FArgs.Items(FIndex);
 end;
@@ -836,6 +701,7 @@ begin
   Result.Value := '';
   Result.HasValue := False;
   Result.Kind := akArg;
+  Result.Position := -1;
   if (FIndex>=0) and (FIndex<FArgs.Count) then
     Result := FArgs.Items(FIndex);
 end;
@@ -986,8 +852,5 @@ begin
   Result := A.HasFlag('help') or A.HasFlag('h') or A.HasFlag('?');
 end;
 
-
-initialization
-  GArgsDefaultOptions := ArgsOptionsDefault;
 
 end.

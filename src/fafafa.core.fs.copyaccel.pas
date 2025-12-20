@@ -16,9 +16,8 @@ interface
 uses
   SysUtils
   {$IFDEF WINDOWS}
-  , Windows
-  {$ENDIF}
-  , fafafa.core.fs.errors;
+  , Windows, fafafa.core.fs.errors
+  {$ENDIF};
 
 // 运行时是否启用 CopyAccel（受编译宏与环境变量控制）
 function FsCopyAccelIsEnabled: Boolean;
@@ -69,11 +68,18 @@ begin
   Result := Integer(SystemErrorToFsError(GetLastError()));
   {$ELSE}
   // 其他平台暂未实现加速，提示调用方回退
+  // touch parameters to silence unused-parameter hints in stub implementation
+  if (aSrc = '') and (aDst = '') and (aOverwrite = aOverwrite) then
+    aUsedAccel := False;
   Result := -999; // FS_ERROR_UNKNOWN
   {$ENDIF}
 end;
 
 function FsCopyAccelTryMoveFile(const aSrc, aDst: string; aOverwrite: Boolean; out aUsedAccel: Boolean): Integer;
+{$IFDEF WINDOWS}
+var
+  Flags: DWORD;
+{$ENDIF}
 begin
   aUsedAccel := False;
   {$IFDEF WINDOWS}
@@ -83,14 +89,20 @@ begin
     Exit;
   end;
   aUsedAccel := True;
+  Flags := MOVEFILE_COPY_ALLOWED;
+  if aOverwrite then
+    Flags := Flags or MOVEFILE_REPLACE_EXISTING;
   if MoveFileExW(
        PWideChar(UTF8Decode(aSrc)),
        PWideChar(UTF8Decode(aDst)),
-       (MOVEFILE_COPY_ALLOWED) or (if aOverwrite then MOVEFILE_REPLACE_EXISTING else 0)
+       Flags
      ) then
     Exit(0);
   Result := Integer(SystemErrorToFsError(GetLastError()));
   {$ELSE}
+  // touch parameters to silence unused-parameter hints in stub implementation
+  if (aSrc = '') and (aDst = '') and (aOverwrite = aOverwrite) then
+    aUsedAccel := False;
   Result := -999; // 其他平台暂未实现加速
   {$ENDIF}
 end;

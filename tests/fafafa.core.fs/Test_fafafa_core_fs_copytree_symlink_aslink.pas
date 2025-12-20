@@ -63,11 +63,7 @@ begin
   CreateText(IncludeTrailingPathDelimiter(B) + 'file.txt', 'hello');
 
   LinkAtoB := IncludeTrailingPathDelimiter(A) + 'to_B';
-  {$IFDEF UNIX}
-  fpSymlink(PChar('../B'), PChar(LinkAtoB));
-  {$ELSE}
   if fs_symlink('../B', LinkAtoB) <> 0 then begin EnsureClean(R); Exit; end;
-  {$ENDIF}
 
   FillChar(Opts, SizeOf(Opts), 0);
   Opts.Overwrite := True;

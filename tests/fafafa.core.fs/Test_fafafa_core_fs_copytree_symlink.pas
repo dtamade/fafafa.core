@@ -61,16 +61,15 @@ begin
   CreateDirectory(B, True);
   CreateText(IncludeTrailingPathDelimiter(B) + 'file.txt', 'hello');
 
-  {$IFDEF UNIX}
-  LinkAtoB := IncludeTrailingPathDelimiter(A) + 'to_B';
-  fpSymlink(PChar('../B'), PChar(LinkAtoB));
-  {$ELSE}
   LinkAtoB := IncludeTrailingPathDelimiter(A) + 'to_B';
   if fs_symlink('../B', LinkAtoB) <> 0 then begin EnsureClean(R); Exit; end;
-  {$ENDIF}
 
+  Opts := FsDefaultCopyTreeOptions;
   Opts.Overwrite := True;
+  Opts.PreserveTimes := False;
+  Opts.PreservePerms := False;
   Opts.FollowSymlinks := True;
+  Opts.CopySymlinksAsLinks := False;
   FsCopyTreeEx(R, Dst, Opts);
 
   // 期待：跟随符号链接，复制到 A/to_B 下的目标内容存在
@@ -97,16 +96,15 @@ begin
   CreateDirectory(B, True);
   CreateText(IncludeTrailingPathDelimiter(B) + 'file.txt', 'hello');
 
-  {$IFDEF UNIX}
-  LinkAtoB := IncludeTrailingPathDelimiter(A) + 'to_B';
-  fpSymlink(PChar('../B'), PChar(LinkAtoB));
-  {$ELSE}
   LinkAtoB := IncludeTrailingPathDelimiter(A) + 'to_B';
   if fs_symlink('../B', LinkAtoB) <> 0 then begin EnsureClean(R); Exit; end;
-  {$ENDIF}
 
+  Opts := FsDefaultCopyTreeOptions;
   Opts.Overwrite := True;
+  Opts.PreserveTimes := False;
+  Opts.PreservePerms := False;
   Opts.FollowSymlinks := False; // 关键：不跟随链接时应跳过链接本身
+  Opts.CopySymlinksAsLinks := False;
   FsCopyTreeEx(R, Dst, Opts);
 
   // 期待：不跟随时跳过链接，不应复制到 A/to_B 下的任何内容或链接本身

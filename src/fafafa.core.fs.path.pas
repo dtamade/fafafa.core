@@ -535,8 +535,12 @@ begin
     Result := Copy(aPath, 1, 2)
   else
     Result := '';
-  {$ELSE}
-  Result := ''; // Unix系统没有驱动器概念
+{$ELSE}
+  // Unix 系统没有驱动器概念，但保留参数以保持跨平台接口一致
+  if aPath = '' then
+    Result := ''
+  else
+    Result := '';
   {$ENDIF}
 end;
 

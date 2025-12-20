@@ -1,6 +1,7 @@
 unit fafafa.core.fs.errors;
 
 {$mode objfpc}{$H+}
+{$I fafafa.core.settings.inc}
 
 interface
 
@@ -129,7 +130,12 @@ begin
     ESysENOTDIR, ESysEISDIR: Result := FS_ERROR_INVALID_PARAMETER;
     ESysEBUSY: Result := FS_ERROR_ACCESS_DENIED;
     ESysETIMEDOUT: Result := FS_ERROR_INVALID_PARAMETER;
-    ESysENOTSUP, ESysEOPNOTSUPP: Result := FS_ERROR_INVALID_PARAMETER;
+    {$if declared(ESysENOTSUP)}
+      {$if ESysENOTSUP <> ESysEOPNOTSUPP}
+    ESysENOTSUP: Result := FS_ERROR_INVALID_PARAMETER;
+      {$endif}
+    {$endif}
+    ESysEOPNOTSUPP: Result := FS_ERROR_INVALID_PARAMETER;
     ESysEIO: Result := FS_ERROR_IO_ERROR;
   else
     Result := FS_ERROR_UNKNOWN;

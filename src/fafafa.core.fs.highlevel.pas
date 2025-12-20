@@ -418,13 +418,17 @@ type
   end;
 function TCopyTreeWalker.OnWalkError(const aPath: string; aError: Integer; aDepth: Integer): TFsWalkErrorAction;
 begin
+  // Policy handler currently ignores extra context, but keep signature stable.
+  if aPath = '' then ;
+  if aError = 0 then ;
+  if aDepth < 0 then ;
+
   Inc(Errors);
+  Result := weaAbort;
   case ErrorPolicy of
     epAbort: Result := weaAbort;
     epSkipSubtree: Result := weaSkipSubtree;
     epContinue: Result := weaContinue;
-  else
-    Result := weaAbort;
   end;
 end;
 
@@ -461,6 +465,8 @@ var
   Target: string;
   R: Integer;
 begin
+  if aDepth < 0 then ;
+
   // 继续 TCopyTreeWalker.OnEach
   Rel := ToRelativePath(aPath, SrcRoot);
   if Rel = '' then Rel := '.';
@@ -576,19 +582,19 @@ end;
 
 function FsOpenOptions_ReadOnly: TFsOpenOptions;
 begin
-  FillChar(Result, SizeOf(Result), 0);
+  Result := Default(TFsOpenOptions);
   Result.Read := True; Result.Share := [fsmRead];
 end;
 
 function FsOpenOptions_WriteTruncate: TFsOpenOptions;
 begin
-  FillChar(Result, SizeOf(Result), 0);
+  Result := Default(TFsOpenOptions);
   Result.Write := True; Result.Create := True; Result.Truncate := True; Result.Share := [fsmRead];
 end;
 
 function FsOpenOptions_ReadWrite: TFsOpenOptions;
 begin
-  FillChar(Result, SizeOf(Result), 0);
+  Result := Default(TFsOpenOptions);
   Result.Read := True; Result.Write := True; Result.Create := True; Result.Share := [fsmRead, fsmWrite];
 end;
 
@@ -1112,8 +1118,10 @@ begin
     LRes := fs_scandir_each(aRoot, {$IFDEF FPC}@{$ENDIF}LWrap.OnEntry);
     if LRes < 0 then
     begin
-      if Assigned(aOptions.Stats) then Inc(aOptions.Stats^.Errors);
-      Exit(ToUnifiedFsErrorCode(LRes));
+      // 目录枚举失败也应遵循 OnError 策略（Continue/SkipSubtree/Abort）
+      LRes := HandleError(aRoot, LRes);
+      if LRes < 0 then Exit(LRes);
+      Exit(0);
     end;
 
     // 稳定排序
@@ -1467,6 +1475,7 @@ end;
 function TFsFileNoExcept.Write(const ABuffer; ACount: Integer; out N: Integer): Integer;
 begin
   N := 0;
+  if @ABuffer = nil then ;
   try
     N := FileIntf.Write(ABuffer, ACount);
     Result := 0;
@@ -1542,6 +1551,7 @@ end;
 function TFsFileNoExcept.PWrite(const ABuffer; ACount: Integer; AOffset: Int64; out N: Integer): Integer;
 begin
   N := 0;
+  if @ABuffer = nil then ;
   try
     N := FileIntf.PWrite(ABuffer, ACount, AOffset);
     Result := 0;
@@ -1665,10 +1675,24 @@ procedure FsMoveFileEx(const aSrc, aDst: string; const aOpts: TFsMoveOptions);
 var
   R: Integer;
   CopyOpts: TFsCopyOptions;
+  DstStat: TfsStat;
 begin
-  // 尝试重命名（同卷 O(1)）
-  if aOpts.Overwrite and FileExists(aDst) then
+  // Overwrite 语义：POSIX rename(2) 会覆盖已存在的目标文件。
+  // 因此当 Overwrite=False 时必须显式检查目标是否存在并抛出 FS_ERROR_FILE_EXISTS。
+  if not aOpts.Overwrite then
+  begin
+    R := fs_lstat(aDst, DstStat);
+    if R = 0 then
+      raise EFsError.Create(FS_ERROR_FILE_EXISTS, 'Destination exists', 0);
+    if (R < 0) and (not IsNotFound(R)) then
+      CheckFsResultEx(R, 'stat destination before move', aDst, '');
+  end
+  else if FileExists(aDst) then
+  begin
     CheckFsResultEx(fs_unlink(aDst), 'pre-unlink before move overwrite', aDst, '');
+  end;
+
+  // 尝试重命名（同卷 O(1)）
   R := fs_rename(aSrc, aDst);
   if R = 0 then Exit;
   // 跨卷或其他原因无法 rename → fallback：复制
@@ -1712,7 +1736,7 @@ var
   Dummy: TFsTreeResult;
 begin
   // 调用重载，忽略统计
-  FillChar(Dummy, SizeOf(Dummy), 0);
+  Dummy := Default(TFsTreeResult);
   FsCopyTreeEx(aSrcRoot, aDstRoot, aOpts, Dummy);
 end;
 
@@ -1751,12 +1775,6 @@ begin
   WalkOpts.MaxDepth := -1;
   WalkOpts.UseStreaming := True;
   WalkOpts.Sort := False;
-  // 错误策略对齐 WalkDir
-  case aOpts.ErrorPolicy of
-    epAbort: WalkOpts.OnError := nil; // 沿用旧行为：出错返回负码（由 CheckFsResult 抛）
-    epContinue: WalkOpts.OnError := @Walker.OnWalkError; // 需要对象，稍后赋值
-    epSkipSubtree: WalkOpts.OnError := @Walker.OnWalkError;
-  end;
 
   Walker := TCopyTreeWalker.Create;
   try
@@ -1771,6 +1789,12 @@ begin
     Walker.FilesCopied := 0;
     Walker.DirsCreated := 0;
     Walker.BytesCopied := 0;
+
+    // 错误策略对齐 WalkDir（需要已初始化的 Walker 以绑定 OnError 方法指针）
+    case aOpts.ErrorPolicy of
+      epAbort: WalkOpts.OnError := nil; // 沿用旧行为：出错返回负码（由 CheckFsResult 抛）
+      epContinue, epSkipSubtree: WalkOpts.OnError := @Walker.OnWalkError;
+    end;
 
     CheckFsResult(WalkDir(SrcRoot, WalkOpts, @Walker.OnEach), 'copy tree walk');
     // 输出统计
@@ -1788,7 +1812,7 @@ var
   Dummy: TFsTreeResult;
 begin
   // 调用重载，忽略统计
-  FillChar(Dummy, SizeOf(Dummy), 0);
+  Dummy := Default(TFsTreeResult);
   FsMoveTreeEx(aSrcRoot, aDstRoot, aOpts, Dummy);
 end;
 
@@ -1913,7 +1937,7 @@ end;
 procedure RemoveTreeEx(const aRoot: string; const aOpts: TFsRemoveTreeOptions);
 var Dummy: TFsRemoveTreeResult;
 begin
-  FillChar(Dummy, SizeOf(Dummy), 0);
+  Dummy := Default(TFsRemoveTreeResult);
   RemoveTreeEx(aRoot, aOpts, Dummy);
 end;
 
@@ -1928,22 +1952,9 @@ var
   SR: Integer;
   S: TfsStat;
   Rm: Integer;
-  LinkT, AbsTarget: string;
-  R2: Integer;
+  AbsTarget: string;
   DelOpts: TFsRemoveTreeOptions;
   RDel: TFsRemoveTreeResult;
-  RealT: string;
-
-  function MapPolicyToAction(const Policy: TFsErrorPolicy): TFsWalkErrorAction; inline;
-  begin
-    case Policy of
-      epAbort: Result := weaAbort;
-      epContinue: Result := weaContinue;
-      epSkipSubtree: Result := weaSkipSubtree;
-    else
-      Result := weaAbort;
-    end;
-  end;
 
   function DoUnlinkOrRmdir(const P: string; const S: TfsStat): Integer; inline;
   var ModeBits: UInt64;
@@ -1999,56 +2010,37 @@ begin
       while I >= 0 do
       begin
         DP := Walker.Dirs[I];
-        // 若跟随符号链接，且 DP 本身为符号链接，则读取其目标并删除目标目录后再删链接本体
+
+        // FollowSymlinks=True 场景下，WalkDir 会把“指向目录的符号链接”当作目录遍历。
+        // 此时 Walker.Dirs 会包含该链接路径；但对链接路径调用 rmdir(2) 在 POSIX 上会返回 ENOTDIR。
+        // 正确行为：删除链接本体（unlink），其目标目录由 ExternalTargets 统一清理。
         if aOpts.FollowSymlinks then
         begin
           if fs_lstat(DP, S) = 0 then
           begin
             if (S.Mode and S_IFMT) = S_IFLNK then
             begin
-              // 直接解析 DP 的真实路径，获得绝对规范化的目标路径
-              R2 := fs_realpath_s(DP, AbsTarget);
-              if R2 >= 0 then
+              SR := fs_unlink(DP);
+              if SR < 0 then
               begin
-                // 仅当目标存在且为目录时删除
-                if fs_lstat(AbsTarget, S) = 0 then
+                if not IsNotFound(SR) then
                 begin
-                  if (S.Mode and S_IFMT) = S_IFDIR then
-                  begin
-                    try
-                      // 使用 RemoveTreeEx 以统一删除语义（支持跟随链接等）
-                      // 注意：FPC 不支持在语句块内引入 var，提前在外层 var 区声明
-                      DelOpts := FsDefaultRemoveTreeOptions;
-                      DelOpts.FollowSymlinks := aOpts.FollowSymlinks;
-                      DelOpts.ErrorPolicy := LErrorPolicy;
-                      RemoveTreeEx(AbsTarget, DelOpts, RDel);
-                      // 兜底：优先尝试直接递归删除；若仍存在再尝试 rmdir
-                      if (fs_lstat(AbsTarget, S) = 0) and ((S.Mode and S_IFMT) = S_IFDIR) then
-                      begin
-                        try
-                          DeleteDirectory(AbsTarget, True);
-                        except
-                          on E: EFsError do ; // 忽略，继续尝试 rmdir
-                        end;
-                      end;
-                      if (fs_lstat(AbsTarget, S) = 0) and ((S.Mode and S_IFMT) = S_IFDIR) then
-                        CheckFsResult(fs_rmdir(AbsTarget), 'rmdir external target after RemoveTreeEx');
-                    except
-                      on E: EFsError do
-                      begin
-                        Inc(Walker.Errors);
-                        case LErrorPolicy of
-                          epAbort: raise;
-                          epContinue, epSkipSubtree: ;
-                        end;
-                      end;
-                    end;
+                  Inc(Walker.Errors);
+                  case LErrorPolicy of
+                    epAbort: CheckFsResult(SR, 'unlink symlink during remove');
+                    epContinue, epSkipSubtree: ;
                   end;
                 end;
-              end;
+              end
+              else
+                Inc(Walker.FilesRemoved);
+
+              Dec(I);
+              Continue;
             end;
           end;
         end;
+
         SR := fs_rmdir(DP);
         if SR < 0 then
         begin
@@ -2129,13 +2121,16 @@ end;
 
 function TRemoveWalker.OnWalkError(const aPath: string; aError: Integer; aDepth: Integer): TFsWalkErrorAction;
 begin
+  if aPath = '' then ;
+  if aError = 0 then ;
+  if aDepth < 0 then ;
+
   Inc(Errors);
+  Result := weaAbort;
   case Opts.ErrorPolicy of
     epAbort: Result := weaAbort;
     epContinue: Result := weaContinue;
     epSkipSubtree: Result := weaSkipSubtree;
-  else
-    Result := weaAbort;
   end;
 end;
 
@@ -2144,8 +2139,10 @@ var
   R: Integer;
   ModeBits: UInt64;
   LSym: TfsStat;
+  LinkT: string;
   RealT: string;
 begin
+  if aDepth < 0 then ;
   ModeBits := aStat.Mode and S_IFMT;
   if ModeBits = S_IFDIR then
   begin
@@ -2161,12 +2158,17 @@ begin
       begin
         if (LSym.Mode and S_IFMT) = S_IFLNK then
         begin
-          // FPC 不支持在语句块内 var；提前使用外层循环内临时字符串
-          RealT := '';
-          if fs_realpath_s(aPath, RealT) >= 0 then
+          // fs_realpath 在 Unix 上可能是非触盘/非解析链接的 fallback（ExpandFileName），
+          // 无法得到“符号链接指向的目标”。这里改用 readlink 并按链接所在目录解析相对路径。
+          LinkT := '';
+          if fs_readlink_s(aPath, LinkT) >= 0 then
           begin
-            // 这里不再判断是否目录，统一留到最终阶段处理（那里会再次 lstat 判定）
-            ExternalTargets.Add(RealT);
+            if IsAbsolutePath(LinkT) then
+              RealT := ResolvePath(LinkT)
+            else
+              RealT := ResolvePath(JoinPath(ExtractFileDir(aPath), LinkT));
+            if RealT <> '' then
+              ExternalTargets.Add(RealT);
           end;
         end;
       end;
@@ -2177,9 +2179,16 @@ begin
   // 如果是符号链接且需要跟随，先记录其真实目标，最终阶段统一删除
   if Opts.FollowSymlinks and ((aStat.Mode and S_IFMT) = S_IFLNK) then
   begin
-    RealT := '';
-    if fs_realpath_s(aPath, RealT) >= 0 then
-      ExternalTargets.Add(RealT);
+    LinkT := '';
+    if fs_readlink_s(aPath, LinkT) >= 0 then
+    begin
+      if IsAbsolutePath(LinkT) then
+        RealT := ResolvePath(LinkT)
+      else
+        RealT := ResolvePath(JoinPath(ExtractFileDir(aPath), LinkT));
+      if RealT <> '' then
+        ExternalTargets.Add(RealT);
+    end;
   end;
 
   R := fs_unlink(aPath);

@@ -6,7 +6,6 @@ begin
   Result := UnixFsLastError;
 end;
 
-function fs_open(const aPath: string; aFlags, aMode: Integer): TfsFile;
 {$IFDEF FS_UNIFIED_ERRORS}
 function __MapUnixErrToUnified(aErr: LongInt): Integer; inline;
 begin
@@ -25,7 +24,12 @@ begin
     ESysEISDIR: Exit(-8);
     ESysEBUSY: Exit(-3); // 归入权限/占用类
     ESysETIMEDOUT: Exit(-8);
-    ESysENOTSUP, ESysEOPNOTSUPP: Exit(-8);
+    {$if declared(ESysENOTSUP)}
+      {$if ESysENOTSUP <> ESysEOPNOTSUPP}
+      ESysENOTSUP: Exit(-8);
+      {$endif}
+    {$endif}
+    ESysEOPNOTSUPP: Exit(-8);
     ESysEIO: Exit(-9);
   else
     Exit(-999);
@@ -33,8 +37,29 @@ begin
 end;
 {$ENDIF}
 
+{$if not declared(DT_DIR)}
+const
+  // Linux dirent.d_type values (avoid relying on DT_* availability in RTL)
+  DT_DIR = 4;
+  DT_REG = 8;
+  DT_LNK = 10;
+{$endif}
+
+// libc wrappers missing from BaseUnix on some RTL/FPC versions
+function c_fchmod(fd: cint; mode: mode_t): cint; cdecl; external 'c' name 'fchmod';
+function c_utimes(filename: PChar; times: Pointer): cint; cdecl; external 'c' name 'utimes';
+function c_futimes(fd: cint; times: Pointer): cint; cdecl; external 'c' name 'futimes';
+function c_mkdtemp(template: PChar): PChar; cdecl; external 'c' name 'mkdtemp';
+function c_mkstemp(template: PChar): cint; cdecl; external 'c' name 'mkstemp';
+
+function fs_open(const aPath: string; aFlags, aMode: Integer): TfsFile;
+var
+  LFlags: Integer;
 begin
-  Result := fpopen(aPath, aFlags, aMode);
+  // Unix: ignore Windows share flags; they are not valid for fpopen/open(2)
+  LFlags := aFlags and (not O_SHARE_MASK);
+
+  Result := fpopen(aPath, LFlags, aMode);
   if Result = -1 then
   begin
     {$IFDEF FS_UNIFIED_ERRORS}
@@ -204,7 +229,7 @@ end;
 
 procedure UnixStatToFsStat(const aUnixStat: TStat; out aFsStat: TfsStat);
 begin
-  FillChar(aFsStat, SizeOf(TfsStat), 0);
+  aFsStat := Default(TfsStat);
   aFsStat.Dev := aUnixStat.st_dev;
   aFsStat.Mode := aUnixStat.st_mode;
   aFsStat.NLink := aUnixStat.st_nlink;
@@ -214,35 +239,6 @@ begin
   aFsStat.Ino := aUnixStat.st_ino;
   aFsStat.Size := aUnixStat.st_size;
   aFsStat.BlkSize := aUnixStat.st_blksize;
-
-function fs_replace(const aSrc, aDst: string): Integer;
-var
-  Res: cint;
-begin
-  // 先试 rename（原子），若跨卷失败（EXDEV），回退 copy -> rename 替换
-  Res := fprename(aSrc, aDst);
-  if Res = 0 then Exit(0);
-  if fpgeterrno = EXDEV then
-  begin
-    // 目标若存在，先移除（atomic replace 语义）
-    // 使用临时路径：aDst + '.tmp-replace-' + pid
-    var Tmp := aDst + '.tmp-replace-' + IntToStr(fpgetpid);
-    // 尝试复制
-    Res := fs_copyfile(aSrc, Tmp, 0);
-    if Res < 0 then Exit(Res);
-    // rename 覆盖
-    Res := fprename(Tmp, aDst);
-    if Res = 0 then Exit(0);
-    // 清理临时
-    fpunlink(Tmp);
-  end;
-  {$IFDEF FS_UNIFIED_ERRORS}
-  Result := __MapUnixErrToUnified(fpgeterrno);
-  {$ELSE}
-  Result := -fpgeterrno;
-  {$ENDIF}
-end;
-
   aFsStat.Blocks := aUnixStat.st_blocks;
 
   // 设置时间字段（秒部分）
@@ -250,21 +246,53 @@ end;
   aFsStat.MTime.Sec := aUnixStat.st_mtime;
   aFsStat.CTime.Sec := aUnixStat.st_ctime;
 
-  // 纳秒部分在标准TStat中不可用，设置为0
+  // 纳秒部分在标准 TStat 中不可用，设置为 0
   aFsStat.ATime.Nsec := 0;
   aFsStat.MTime.Nsec := 0;
   aFsStat.CTime.Nsec := 0;
+end;
 
-  // Unix系统不支持的字段设置为0（已通过FillChar初始化）
-  // aFsStat.Flags := 0;
-  // aFsStat.Gen := 0;
-  // aFsStat.BTime := 0; // Birth time不被大多数Unix系统支持
+function fs_replace(const aSrc, aDst: string): Integer;
+var
+  Res: cint;
+  Err: cint;
+  Tmp: string;
+begin
+  // 先试 rename（原子），若跨卷失败（EXDEV），回退 copy -> rename 替换
+  Res := fprename(aSrc, aDst);
+  if Res = 0 then Exit(0);
+
+  Err := fpgeterrno;
+  if Err = ESysEXDEV then
+  begin
+    // 使用临时路径：aDst + '.tmp-replace-' + pid
+    Tmp := aDst + '.tmp-replace-' + IntToStr(fpgetpid);
+
+    // 尝试复制
+    Res := fs_copyfile(aSrc, Tmp, 0);
+    if Res < 0 then Exit(Res);
+
+    // rename 覆盖
+    Res := fprename(Tmp, aDst);
+    if Res = 0 then Exit(0);
+
+    Err := fpgeterrno;
+    // 清理临时（不要再读取 fpgeterrno，以免覆盖 Err）
+    fpunlink(Tmp);
+  end;
+
+  {$IFDEF FS_UNIFIED_ERRORS}
+  Result := __MapUnixErrToUnified(Err);
+  {$ELSE}
+  Result := -Err;
+  {$ENDIF}
 end;
 
 function fs_stat(const aPath: string; out aStat: TfsStat): Integer;
 var
   LStat: TStat;
 begin
+  LStat := Default(TStat);
   if fpstat(aPath, LStat) = 0 then
   begin
     UnixStatToFsStat(LStat, aStat);
@@ -284,6 +312,7 @@ function fs_lstat(const aPath: string; out aStat: TfsStat): Integer;
 var
   LStat: TStat;
 begin
+  LStat := Default(TStat);
   if fplstat(aPath, LStat) = 0 then
   begin
     UnixStatToFsStat(LStat, aStat);
@@ -303,6 +332,7 @@ function fs_fstat(aFile: TfsFile; out aStat: TfsStat): Integer;
 var
   LStat: TStat;
 begin
+  LStat := Default(TStat);
   if fpfstat(aFile, LStat) = 0 then
   begin
     UnixStatToFsStat(LStat, aStat);
@@ -320,7 +350,7 @@ end;
 
 function fs_ftruncate(aFile: TfsFile; aOffset: Int64): Integer;
 begin
-  if fptruncate(aFile, aOffset) = 0 then
+  if fpftruncate(aFile, aOffset) = 0 then
     Result := 0
   else
   begin
@@ -350,18 +380,18 @@ begin
   end;
 
   try
-    LEntry := fpreaddir(LDir);
+    LEntry := fpreaddir(LDir^);
     while LEntry <> nil do
     begin
       if (LEntry^.d_name <> '.') and (LEntry^.d_name <> '..') then
       begin
         aEntries.Add(LEntry^.d_name);
       end;
-      LEntry := fpreaddir(LDir);
+      LEntry := fpreaddir(LDir^);
     end;
     Result := 0;
   finally
-    fpclosedir(LDir);
+    fpclosedir(LDir^);
   end;
 end;
 
@@ -384,7 +414,7 @@ begin
     {$ENDIF}
   end;
   try
-    LEntry := fpreaddir(LDir);
+    LEntry := fpreaddir(LDir^);
     while LEntry <> nil do
     begin
       if (LEntry^.d_name <> '.') and (LEntry^.d_name <> '..') then
@@ -399,10 +429,10 @@ begin
         end;
         if not aOnEntry(LEntry^.d_name, LType) then Exit(0);
       end;
-      LEntry := fpreaddir(LDir);
+      LEntry := fpreaddir(LDir^);
     end;
   finally
-    fpclosedir(LDir);
+    fpclosedir(LDir^);
   end;
 end;
 
@@ -527,7 +557,7 @@ end;
 
 function fs_fchmod(aFile: TfsFile; aMode: Integer): Integer;
 begin
-  if fpfchmod(aFile, aMode) = 0 then
+  if c_fchmod(cint(aFile), mode_t(aMode)) = 0 then
     Result := 0
   else
   begin
@@ -566,7 +596,7 @@ begin
   LTimes[0].tv_usec := Trunc(Frac(aAtime) * 1000000);
   LTimes[1].tv_sec := Trunc(aMtime);
   LTimes[1].tv_usec := Trunc(Frac(aMtime) * 1000000);
-  if fputimes(aPath, @LTimes) = 0 then
+  if c_utimes(PChar(aPath), @LTimes[0]) = 0 then
     Result := 0
   else
   begin
@@ -606,7 +636,7 @@ begin
   LTimes[0].tv_usec := Trunc(Frac(aAtime) * 1000000);
   LTimes[1].tv_sec := Trunc(aMtime);
   LTimes[1].tv_usec := Trunc(Frac(aMtime) * 1000000);
-  if fpfutimes(aFile, @LTimes) = 0 then
+  if c_futimes(cint(aFile), @LTimes[0]) = 0 then
     Result := 0
   else
   begin
@@ -717,10 +747,11 @@ end;
 
 function fs_realpath(const aPath: string; aResolvedPath: PChar; aSize: SizeUInt): Integer;
 var
-  LRealPath: PChar;
+  LFullPath: string;
+  LLen: SizeUInt;
 begin
-  LRealPath := fprealpath(PChar(aPath), nil);
-  if LRealPath = nil then
+  // realpath 语义：路径不存在时应失败
+  if fpaccess(PChar(aPath), F_OK) <> 0 then
   begin
     {$IFDEF FS_UNIFIED_ERRORS}
     Result := __MapUnixErrToUnified(fpgeterrno);
@@ -730,90 +761,150 @@ begin
     Exit;
   end;
 
-  try
-    if StrLen(LRealPath) >= aSize then
-    begin
-      {$IFDEF FS_UNIFIED_ERRORS}
-      Result := __MapUnixErrToUnified(ESysENAMETOOLONG);
-      {$ELSE}
-      Result := -ESysENAMETOOLONG;
-      {$ENDIF}
-      Exit;
-    end;
+  // 退化实现：返回绝对路径（不保证解析符号链接）
+  LFullPath := ExpandFileName(aPath);
+  LLen := Length(LFullPath);
 
-    StrCopy(aResolvedPath, LRealPath);
-    Result := StrLen(LRealPath);
-  finally
-    fpfree(LRealPath);
+  if (aSize = 0) or (LLen >= aSize) then
+  begin
+    {$IFDEF FS_UNIFIED_ERRORS}
+    Result := __MapUnixErrToUnified(ESysENAMETOOLONG);
+    {$ELSE}
+    Result := -ESysENAMETOOLONG;
+    {$ENDIF}
+    Exit;
   end;
+
+  Move(PChar(LFullPath)^, aResolvedPath^, LLen);
+  aResolvedPath[LLen] := #0;
+  Result := LLen;
 end;
 
 function fs_mkdtemp(const aTemplate: string): string;
 var
   LTemplate: string;
-  LResult: PChar;
+  Buf: PChar;
+  R: PChar;
+  LLen: SizeInt;
 begin
   Result := '';
+
+  // Unix 语义：模板必须以 6 个 X 结尾，否则失败
+  if not aTemplate.EndsWith('XXXXXX') then Exit('');
+
   LTemplate := aTemplate;
+  // 若是相对模板，则放到系统临时目录
+  if Pos(PathDelim, LTemplate) = 0 then
+    LTemplate := IncludeTrailingPathDelimiter(GetTempDir) + LTemplate;
 
-  // 确保模板以6个X结尾
-  if not LTemplate.EndsWith('XXXXXX') then
-    LTemplate := LTemplate + 'XXXXXX';
-
-  LResult := fpmkdtemp(PChar(LTemplate));
-  if LResult <> nil then
-    Result := string(LResult);
+  LLen := Length(LTemplate);
+  GetMem(Buf, LLen + 1);
+  try
+    Move(PChar(LTemplate)^, Buf^, LLen);
+    Buf[LLen] := #0;
+    R := c_mkdtemp(Buf);
+    if R <> nil then
+      Result := string(R);
+  finally
+    FreeMem(Buf);
+  end;
 end;
 
 function fs_mkstemp(const aTemplate: string): TfsFile;
 var
   LTemplate: string;
+  Buf: PChar;
+  LLen: SizeInt;
+  Fd: cint;
 begin
-  LTemplate := aTemplate;
-
-  // 确保模板以6个X结尾
-  if not LTemplate.EndsWith('XXXXXX') then
-    LTemplate := LTemplate + 'XXXXXX';
-
-  Result := fpmkstemp(PChar(LTemplate));
-  if Result = -1 then
+  // Unix 语义：模板必须以 6 个 X 结尾
+  if not aTemplate.EndsWith('XXXXXX') then
   begin
     {$IFDEF FS_UNIFIED_ERRORS}
-    Result := __MapUnixErrToUnified(fpgeterrno);
+    UnixFsLastError := __MapUnixErrToUnified(ESysEINVAL);
     {$ELSE}
-    Result := -fpgeterrno;
+    UnixFsLastError := -ESysEINVAL;
     {$ENDIF}
+    Exit(INVALID_HANDLE_VALUE);
+  end;
+
+  LTemplate := aTemplate;
+  if Pos(PathDelim, LTemplate) = 0 then
+    LTemplate := IncludeTrailingPathDelimiter(GetTempDir) + LTemplate;
+
+  LLen := Length(LTemplate);
+  GetMem(Buf, LLen + 1);
+  try
+    Move(PChar(LTemplate)^, Buf^, LLen);
+    Buf[LLen] := #0;
+
+    Fd := c_mkstemp(Buf);
+    if Fd = -1 then
+    begin
+      {$IFDEF FS_UNIFIED_ERRORS}
+      UnixFsLastError := __MapUnixErrToUnified(fpgeterrno);
+      {$ELSE}
+      UnixFsLastError := -fpgeterrno;
+      {$ENDIF}
+      Result := INVALID_HANDLE_VALUE;
+    end
+    else
+    begin
+      UnixFsLastError := 0;
+      Result := Fd;
+    end;
+  finally
+    FreeMem(Buf);
   end;
 end;
 
 function fs_mkstemp_ex(const aTemplate: string; out aPath: string): TfsFile;
 var
   LTemplate: string;
-  Buf: array[0..4095] of Char;
-  R: Integer;
+  Buf: PChar;
+  LLen: SizeInt;
+  Fd: cint;
 begin
   aPath := '';
-  LTemplate := aTemplate;
-  if not LTemplate.EndsWith('XXXXXX') then
-    LTemplate := LTemplate + 'XXXXXX';
 
-  Result := fpmkstemp(PChar(LTemplate));
-  if Result = -1 then
+  if not aTemplate.EndsWith('XXXXXX') then
   begin
     {$IFDEF FS_UNIFIED_ERRORS}
-    Result := __MapUnixErrToUnified(fpgeterrno);
+    UnixFsLastError := __MapUnixErrToUnified(ESysEINVAL);
     {$ELSE}
-    Result := -fpgeterrno;
+    UnixFsLastError := -ESysEINVAL;
     {$ENDIF}
-    Exit;
+    Exit(INVALID_HANDLE_VALUE);
   end;
 
-  // 获取真实路径
-  R := fs_realpath(LTemplate, @Buf[0], Length(Buf));
-  if R >= 0 then
-    SetString(aPath, PChar(@Buf[0]), R)
-  else
-    aPath := LTemplate;
+  LTemplate := aTemplate;
+  if Pos(PathDelim, LTemplate) = 0 then
+    LTemplate := IncludeTrailingPathDelimiter(GetTempDir) + LTemplate;
+
+  LLen := Length(LTemplate);
+  GetMem(Buf, LLen + 1);
+  try
+    Move(PChar(LTemplate)^, Buf^, LLen);
+    Buf[LLen] := #0;
+
+    Fd := c_mkstemp(Buf);
+    if Fd = -1 then
+    begin
+      {$IFDEF FS_UNIFIED_ERRORS}
+      UnixFsLastError := __MapUnixErrToUnified(fpgeterrno);
+      {$ELSE}
+      UnixFsLastError := -fpgeterrno;
+      {$ENDIF}
+      Result := INVALID_HANDLE_VALUE;
+      Exit;
+    end;
+
+    UnixFsLastError := 0;
+    aPath := string(Buf);
+    Result := Fd;
+  finally
+    FreeMem(Buf);
+  end;
 end;
 
 

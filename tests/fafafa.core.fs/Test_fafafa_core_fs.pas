@@ -457,13 +457,18 @@ begin
   fs_close(LFile);
 
   LLinkName := FTestFileName + '_link';
-  LResult := fs_symlink(FTestFileName, LLinkName);
-
-  AssertEquals('创建符号链接应该成功', 0, LResult);
-  AssertTrue('符号链接应该存在', FileExists(LLinkName));
-
-  // 清理
+  // 预清理（即使为悬挂链接，FileExists 也可能为 False）
   fs_unlink(LLinkName);
+
+  try
+    LResult := fs_symlink(FTestFileName, LLinkName);
+
+    AssertEquals('创建符号链接应该成功', 0, LResult);
+    AssertTrue('符号链接应该存在', FileExists(LLinkName));
+  finally
+    // 清理：确保即使断言失败也会清掉本次创建的链接
+    fs_unlink(LLinkName);
+  end;
 end;
 
 procedure TTestCase_Global.Test_fs_readlink;
@@ -478,17 +483,20 @@ begin
   fs_close(LFile);
 
   LLinkName := FTestFileName + '_link';
-  fs_symlink(FTestFileName, LLinkName);
-
-  // 读取符号链接
-  FillChar(LBuffer, SizeOf(LBuffer), 0);
-  LResult := fs_readlink(LLinkName, @LBuffer[0], SizeOf(LBuffer));
-
-  AssertTrue('读取符号链接应该成功', LResult > 0);
-  AssertEquals('符号链接目标应该正确', FTestFileName, string(LBuffer));
-
-  // 清理
   fs_unlink(LLinkName);
+
+  try
+    AssertEquals('创建符号链接应该成功', 0, fs_symlink(FTestFileName, LLinkName));
+
+    // 读取符号链接
+    FillChar(LBuffer, SizeOf(LBuffer), 0);
+    LResult := fs_readlink(LLinkName, @LBuffer[0], SizeOf(LBuffer));
+
+    AssertTrue('读取符号链接应该成功', LResult > 0);
+    AssertEquals('符号链接目标应该正确', FTestFileName, string(LBuffer));
+  finally
+    fs_unlink(LLinkName);
+  end;
 end;
 
 procedure TTestCase_Global.Test_fs_link;
@@ -502,13 +510,16 @@ begin
   fs_close(LFile);
 
   LLinkName := FTestFileName + '_hardlink';
-  LResult := fs_link(FTestFileName, LLinkName);
-
-  AssertEquals('创建硬链接应该成功', 0, LResult);
-  AssertTrue('硬链接应该存在', FileExists(LLinkName));
-
-  // 清理
   fs_unlink(LLinkName);
+
+  try
+    LResult := fs_link(FTestFileName, LLinkName);
+
+    AssertEquals('创建硬链接应该成功', 0, LResult);
+    AssertTrue('硬链接应该存在', FileExists(LLinkName));
+  finally
+    fs_unlink(LLinkName);
+  end;
 end;
 {$ENDIF}
 

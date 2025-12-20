@@ -234,6 +234,8 @@ begin
     Fail('Expected EFsError for overwrite=false when target exists');
   except
     on E: EFsError do ;
+  end;
+end;
 
 {$IFDEF UNIX}
 procedure TTestCase_IFsFile.Test_FileLevel_PreserveTimesPerms_POSIX;
@@ -277,10 +279,6 @@ begin
   end;
 end;
 {$ENDIF}
-
-  end;
-end;
-
 
 
 initialization

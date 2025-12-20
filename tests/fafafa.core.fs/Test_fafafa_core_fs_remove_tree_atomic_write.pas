@@ -75,6 +75,11 @@ var
   Opts: TFsRemoveTreeOptions;
   FileHandle: TfsFile;
 begin
+  {$IFNDEF WINDOWS}
+  // POSIX: unlink(2) 允许删除已打开文件；且本库在 Unix 上忽略 O_SHARE_*。
+  // 因此“锁定文件导致无法删除”的语义仅适用于 Windows。
+  Exit;
+  {$ENDIF}
   Root := JoinPath(GetTempDirectory, 'rt_lock_abort_' + IntToStr(Random(100000)));
   CreateDirectory(Root, True);
   F := JoinPath(Root, 'locked.txt');
@@ -106,6 +111,11 @@ var
   R: TFsRemoveTreeResult;
   FileHandle: TfsFile;
 begin
+  {$IFNDEF WINDOWS}
+  // POSIX: unlink(2) 允许删除已打开文件；且本库在 Unix 上忽略 O_SHARE_*。
+  // 因此“锁定文件导致无法删除”的语义仅适用于 Windows。
+  Exit;
+  {$ENDIF}
   Root := JoinPath(GetTempDirectory, 'rt_lock_continue_' + IntToStr(Random(100000)));
   CreateDirectory(Root, True);
   F := JoinPath(Root, 'locked.txt');

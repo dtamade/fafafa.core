@@ -50,9 +50,15 @@ begin
 end;
 
 procedure TTestCase_SymlinkDeepLoop.EnsureClean(const P: string);
+var
+  Opts: TFsRemoveTreeOptions;
 begin
+  // 用 RemoveTreeEx(FollowSymlinks=False) 清理包含符号链接环的目录树，避免 DeleteDirectory(fs_stat) 跟随链接导致失败
   try
-    DeleteDirectory(P, True);
+    Opts := FsDefaultRemoveTreeOptions;
+    Opts.FollowSymlinks := False;
+    Opts.ErrorPolicy := epContinue;
+    RemoveTreeEx(P, Opts);
   except
   end;
 end;
@@ -64,20 +70,22 @@ var
 begin
   if not Enabled then Exit;
 
-  R := RootDir; EnsureClean(R);
-  CreateDirectory(R);
-  D1 := IncludeTrailingPathDelimiter(R) + 'd1';
-  D2 := IncludeTrailingPathDelimiter(R) + 'd2';
-  D3 := IncludeTrailingPathDelimiter(R) + 'd3';
-  CreateDirectory(D1);
-  CreateDirectory(D2);
-  CreateDirectory(D3);
+  R := RootDir;
+  EnsureClean(R);
+  try
+    CreateDirectory(R);
+    D1 := IncludeTrailingPathDelimiter(R) + 'd1';
+    D2 := IncludeTrailingPathDelimiter(R) + 'd2';
+    D3 := IncludeTrailingPathDelimiter(R) + 'd3';
+    CreateDirectory(D1);
+    CreateDirectory(D2);
+    CreateDirectory(D3);
 
   {$IFDEF UNIX}
   L1 := IncludeTrailingPathDelimiter(D1) + 'to_d2';
-  fpSymlink(PChar('../d2'), PChar(L1));
+  AssertEquals(0, fs_symlink('../d2', L1));
   L2 := IncludeTrailingPathDelimiter(D2) + 'to_d3';
-  fpSymlink(PChar('../d3'), PChar(L2));
+  AssertEquals(0, fs_symlink('../d3', L2));
   {$ELSE}
   // Windows: 尽力而为；失败则跳过
   L1 := IncludeTrailingPathDelimiter(D1) + 'to_d2';
@@ -95,7 +103,9 @@ begin
   WalkDir(R, Opt, @VisitorCount);
   AssertTrue('应能遍历到若干条目且不死循环', FCount > 0);
 
-  EnsureClean(R);
+  finally
+    EnsureClean(R);
+  end;
 end;
 
 procedure TTestCase_SymlinkDeepLoop.Test_Symlink_SelfLoop_NoCrash;
@@ -105,14 +115,16 @@ var
 begin
   if not Enabled then Exit;
 
-  R := RootDir; EnsureClean(R);
-  CreateDirectory(R);
-  D1 := IncludeTrailingPathDelimiter(R) + 'd1';
-  CreateDirectory(D1);
+  R := RootDir;
+  EnsureClean(R);
+  try
+    CreateDirectory(R);
+    D1 := IncludeTrailingPathDelimiter(R) + 'd1';
+    CreateDirectory(D1);
 
   {$IFDEF UNIX}
   L1 := IncludeTrailingPathDelimiter(D1) + 'self';
-  fpSymlink(PChar('.'), PChar(L1));
+  AssertEquals(0, fs_symlink('.', L1));
   {$ELSE}
   L1 := IncludeTrailingPathDelimiter(D1) + 'self';
   if fs_symlink('.', L1) <> 0 then begin EnsureClean(R); Exit; end;
@@ -125,7 +137,9 @@ begin
   WalkDir(R, Opt, @VisitorCount);
   AssertTrue('自环不应导致崩溃或无穷递归', FCount > 0);
 
-  EnsureClean(R);
+  finally
+    EnsureClean(R);
+  end;
 end;
 
 procedure TTestCase_SymlinkDeepLoop.Test_Symlink_SmallCycle_NoCrash;
@@ -135,18 +149,20 @@ var
 begin
   if not Enabled then Exit;
 
-  R := RootDir; EnsureClean(R);
-  CreateDirectory(R);
-  D1 := IncludeTrailingPathDelimiter(R) + 'd1';
-  D2 := IncludeTrailingPathDelimiter(R) + 'd2';
-  CreateDirectory(D1);
-  CreateDirectory(D2);
+  R := RootDir;
+  EnsureClean(R);
+  try
+    CreateDirectory(R);
+    D1 := IncludeTrailingPathDelimiter(R) + 'd1';
+    D2 := IncludeTrailingPathDelimiter(R) + 'd2';
+    CreateDirectory(D1);
+    CreateDirectory(D2);
 
   {$IFDEF UNIX}
   L1 := IncludeTrailingPathDelimiter(D1) + 'to_d2';
-  fpSymlink(PChar('../d2'), PChar(L1));
+  AssertEquals(0, fs_symlink('../d2', L1));
   L2 := IncludeTrailingPathDelimiter(D2) + 'to_d1';
-  fpSymlink(PChar('../d1'), PChar(L2));
+  AssertEquals(0, fs_symlink('../d1', L2));
   {$ELSE}
   L1 := IncludeTrailingPathDelimiter(D1) + 'to_d2';
   L2 := IncludeTrailingPathDelimiter(D2) + 'to_d1';
@@ -163,7 +179,9 @@ begin
   WalkDir(R, Opt, @VisitorCount);
   AssertTrue('小环不应导致崩溃或无穷递归', FCount > 0);
 
-  EnsureClean(R);
+  finally
+    EnsureClean(R);
+  end;
 end;
 
 
@@ -174,17 +192,19 @@ var
 begin
   if not Enabled then Exit;
 
-  R := RootDir; EnsureClean(R);
-  CreateDirectory(R);
-  D1 := IncludeTrailingPathDelimiter(R) + 'dir';
-  D2 := IncludeTrailingPathDelimiter(D1) + 'sub';
-  CreateDirectory(D1);
-  CreateDirectory(D2);
+  R := RootDir;
+  EnsureClean(R);
+  try
+    CreateDirectory(R);
+    D1 := IncludeTrailingPathDelimiter(R) + 'dir';
+    D2 := IncludeTrailingPathDelimiter(D1) + 'sub';
+    CreateDirectory(D1);
+    CreateDirectory(D2);
 
   {$IFDEF UNIX}
   // 在 D1 下创建指向其父目录 R 的链接，构成父环
   LUp := IncludeTrailingPathDelimiter(D1) + 'up';
-  fpSymlink(PChar('..'), PChar(LUp));
+  AssertEquals(0, fs_symlink('..', LUp));
   {$ELSE}
   LUp := IncludeTrailingPathDelimiter(D1) + 'up';
   if fs_symlink('..', LUp) <> 0 then begin EnsureClean(R); Exit; end;
@@ -197,7 +217,9 @@ begin
   WalkDir(R, Opt, @VisitorCount);
   AssertTrue('父环不应导致崩溃或无穷递归', FCount > 0);
 
-  EnsureClean(R);
+  finally
+    EnsureClean(R);
+  end;
 end;
 
 initialization

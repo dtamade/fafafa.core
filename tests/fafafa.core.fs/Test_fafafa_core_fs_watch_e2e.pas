@@ -6,7 +6,7 @@ unit Test_fafafa_core_fs_watch_e2e;
 interface
 
 uses
-  Classes, SysUtils, fpcunit, testregistry,
+  Classes, SysUtils, TypInfo, fpcunit, testregistry,
   fafafa.core.fs.watch, fafafa.core.fs, fafafa.core.fs.highlevel;
 
 type
@@ -28,6 +28,9 @@ type
     procedure Test_Rename_Events_Windows;
     procedure Test_Recursive_Directory_Events_Windows;
     procedure Test_Filter_Patterns_Windows;
+    {$ELSE}
+    // 非 Windows 平台目前未实现 fs.watch 的完整 E2E；提供一个占位用例避免空 Suite 导致失败。
+    procedure Test_Watch_E2E_NotSupported_Skipped;
     {$ENDIF}
   end;
 
@@ -282,7 +285,17 @@ begin
 end;
 {$ENDIF}
 
+{$IFNDEF WINDOWS}
+procedure TTestCase_Watch_E2E.Test_Watch_E2E_NotSupported_Skipped;
+begin
+  // 当前 fafafa.core.fs.watch 仅在 Windows 提供完整实现；在 Linux/macOS 下此处仅做占位通过。
+  AssertTrue(True);
+end;
+{$ENDIF}
+
 initialization
+  {$IFDEF WINDOWS}
   RegisterTest(TTestCase_Watch_E2E);
+  {$ENDIF}
 
 end.

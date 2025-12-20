@@ -352,7 +352,7 @@ begin
   {$IFDEF UNIX}
   // 创建符号链接指向 sub1（或 sub2），验证 FollowSymlinks 的行为
   LSym := IncludeTrailingPathDelimiter(FRoot) + 'link_to_sub1';
-  fpSymlink(PChar('sub1'), PChar(LSym));
+  AssertEquals(0, fs_symlink('sub1', LSym));
   try
     FVisited.Clear;
     LOpts := FsDefaultWalkOptions;
@@ -363,7 +363,7 @@ begin
     // 不跟随：应回调符号链接本身或不进入其子项；此处仅验证不失败
     AssertTrue(True);
   finally
-    fpUnlink(PChar(LSym));
+    fs_unlink(LSym);
   end;
   {$ELSE}
   // Windows 暂不测试符号链接（需要管理员权限/策略），直接通过
@@ -518,7 +518,7 @@ begin
   // 尝试移除访问权限（Unix 有效；Windows 下本测试将跳过核心断言）
   {$IFDEF UNIX}
   SavedAttr := FileGetAttr(BlockedDir);
-  fpChmod(PChar(BlockedDir), &0000);
+  AssertEquals(0, fs_chmod(BlockedDir, &0000));
   {$ELSE}
   SavedAttr := 0;
   if False and (SavedAttr = 0) then ;
@@ -543,7 +543,7 @@ begin
   finally
     {$IFDEF UNIX}
     // 恢复权限
-    fpChmod(PChar(BlockedDir), &0755);
+    fs_chmod(BlockedDir, &0755);
     {$ENDIF}
   end;
 end;
@@ -599,7 +599,7 @@ begin
   FOnErrorCount := 0;
   {$IFDEF UNIX}
   SavedAttr := FileGetAttr(BlockedDir);
-  fpChmod(PChar(BlockedDir), &0000);
+  AssertEquals(0, fs_chmod(BlockedDir, &0000));
   {$ELSE}
   SavedAttr := 0;
   if False and (SavedAttr = 0) then ;
@@ -617,7 +617,7 @@ begin
     {$ENDIF}
   finally
     {$IFDEF UNIX}
-    fpChmod(PChar(BlockedDir), &0755);
+    fs_chmod(BlockedDir, &0755);
     {$ENDIF}
   end;
 end;
@@ -673,7 +673,7 @@ begin
   {$IFDEF UNIX}
   // 创建符号链接指向 sub1，跟随链接不应触发 OnError
   LSym := IncludeTrailingPathDelimiter(FRoot) + 'link_ok';
-  fpSymlink(PChar('sub1'), PChar(LSym));
+  AssertEquals(0, fs_symlink('sub1', LSym));
   try
     FOnErrorCount := 0;
     LOpts := FsDefaultWalkOptions;
@@ -683,7 +683,7 @@ begin
     AssertEquals(0, LRes);
     AssertEquals('有效链接不应触发 OnError', 0, FOnErrorCount);
   finally
-    fpUnlink(PChar(LSym));
+    fs_unlink(LSym);
   end;
   {$ELSE}
   AssertTrue(True);
@@ -707,7 +707,7 @@ begin
   {$IFDEF UNIX}
   // 创建指向不存在目标的链接，预期跟随时报错触发 OnError
   LSym := IncludeTrailingPathDelimiter(FRoot) + 'link_broken';
-  fpSymlink(PChar('no_such_target'), PChar(LSym));
+  AssertEquals(0, fs_symlink('no_such_target', LSym));
   try
     FOnErrorCount := 0;
     LOpts := FsDefaultWalkOptions;
@@ -717,7 +717,7 @@ begin
     AssertEquals(0, LRes);
     AssertTrue('损坏链接应触发 OnError', FOnErrorCount >= 1);
   finally
-    fpUnlink(PChar(LSym));
+    fs_unlink(LSym);
   end;
   {$ELSE}
   AssertTrue(True);
@@ -762,8 +762,8 @@ begin
   // 构造循环：sub1/link_to_sub2 -> ../sub2, sub2/link_to_sub1 -> ../sub1
   L1 := IncludeTrailingPathDelimiter(FRoot) + 'sub1' + PathDelim + 'link_to_sub2';
   L2 := IncludeTrailingPathDelimiter(FRoot) + 'sub2' + PathDelim + 'link_to_sub1';
-  fpSymlink(PChar('..' + PathDelim + 'sub2'), PChar(L1));
-  fpSymlink(PChar('..' + PathDelim + 'sub1'), PChar(L2));
+  AssertEquals(0, fs_symlink('..' + PathDelim + 'sub2', L1));
+  AssertEquals(0, fs_symlink('..' + PathDelim + 'sub1', L2));
   try
     FOnErrorCount := 0;
     LOpts := FsDefaultWalkOptions;
@@ -774,8 +774,8 @@ begin
     AssertEquals(0, LRes);
     AssertTrue(True);
   finally
-    fpUnlink(PChar(L1));
-    fpUnlink(PChar(L2));
+    fs_unlink(L1);
+    fs_unlink(L2);
   end;
   {$ELSE}
   AssertTrue(True);
@@ -794,7 +794,7 @@ begin
   EnsureDir(BlockedDir);
   {$IFDEF UNIX}
   SavedAttr := FileGetAttr(BlockedDir);
-  fpChmod(PChar(BlockedDir), &0000);
+  AssertEquals(0, fs_chmod(BlockedDir, &0000));
   {$ELSE}
   SavedAttr := 0;
   if False and (SavedAttr = 0) then ;
@@ -808,7 +808,7 @@ begin
     BlockedDir := IncludeTrailingPathDelimiter(FRoot) + 'sub1' + PathDelim + 'sub2' + PathDelim + 'blocked';
     EnsureDir(BlockedDir);
     {$IFDEF UNIX}
-    fpChmod(PChar(BlockedDir), &0000);
+    AssertEquals(0, fs_chmod(BlockedDir, &0000));
     {$ENDIF}
     LOpts.MaxDepth := 2; // root(0), sub1(1), sub2(2) 边界，不进入 blocked(3)
     LOpts.OnError := @OnErrCountContinue;
@@ -818,7 +818,7 @@ begin
     AssertEquals(0, FOnErrorCount);
   finally
     {$IFDEF UNIX}
-    fpChmod(PChar(BlockedDir), &0755);
+    fs_chmod(BlockedDir, &0755);
     {$ENDIF}
   end;
 end;

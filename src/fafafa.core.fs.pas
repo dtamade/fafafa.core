@@ -62,10 +62,17 @@ const
   O_WRONLY = 1;
   O_RDWR   = 2;
   // Optional flags for fs_open
+  {$IFDEF WINDOWS}
   O_APPEND = $0008;
   O_CREAT  = $0200;
   O_EXCL   = $0800;
   O_TRUNC  = $0400;
+  {$ELSE}
+  O_APPEND = BaseUnix.O_APPEND;
+  O_CREAT  = BaseUnix.O_CREAT;
+  O_EXCL   = BaseUnix.O_EXCL;
+  O_TRUNC  = BaseUnix.O_TRUNC;
+  {$ENDIF}
 
   // Optional sharing flags (Windows maps to CreateFile share mode; ignored on Unix)
   O_SHARE_READ   = $010000;
@@ -79,11 +86,17 @@ const
   S_IFDIR  = $4000; // Directory
   S_IFREG  = $8000; // Regular file
   S_IFLNK  = $A000; // Symbolic link
+  {$IFDEF UNIX}
+  S_IFCHR  = $2000; // Character device
+  S_IFBLK  = $6000; // Block device
+  S_IFIFO  = $1000; // FIFO/pipe
+  S_IFSOCK = $C000; // Socket
+  {$ENDIF}
 
-  // File permission modes
-  S_IRWXU = $0700; S_IRUSR = $0400; S_IWUSR = $0200; S_IXUSR = $0100;
-  S_IRWXG = $0070; S_IRGRP = $0040; S_IWGRP = $0020; S_IXGRP = $0010;
-  S_IRWXO = $0007; S_IROTH = $0004; S_IWOTH = $0002; S_IXOTH = $0001;
+  // File permission modes (POSIX, octal)
+  S_IRWXU = &0700; S_IRUSR = &0400; S_IWUSR = &0200; S_IXUSR = &0100;
+  S_IRWXG = &0070; S_IRGRP = &0040; S_IWGRP = &0020; S_IXGRP = &0010;
+  S_IRWXO = &0007; S_IROTH = &0004; S_IWOTH = &0002; S_IXOTH = &0001;
 
 const
   UV_FS_COPYFILE_EXCL = 1;

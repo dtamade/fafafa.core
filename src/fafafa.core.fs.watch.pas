@@ -526,6 +526,11 @@ end;
 function TFsWatcherStub.Start(const Root: string; const Opts: TFsWatchOptions; const Obs: IFsWatchObserver): Integer;
 begin
   // FS_ERROR_UNKNOWN = -999 按当前错误枚举，取一个通用“未实现”负码
+  // touch params to keep build hint-free on non-Windows
+  if Root = '' then ;
+  if Opts.MaxQueue < 0 then ;
+  if Obs = nil then ;
+
   FRunning := False;
   Result := -999;
 end;
@@ -549,11 +554,13 @@ end;
 
 function TFsWatcherStub.AddPath(const SubRoot: string): Integer;
 begin
+  if SubRoot = '' then ;
   Result := -999;
 end;
 
 function TFsWatcherStub.RemovePath(const SubRoot: string): Integer;
 begin
+  if SubRoot = '' then ;
   Result := -999;
 end;
 
