@@ -11,6 +11,7 @@ uses
   fafafa.core.simd.cpuinfo,
   fafafa.core.simd.memutils,
   fafafa.core.simd.scalar
+  , fafafa.core.math
   {$IFDEF SIMD_X86_AVAILABLE}
   , fafafa.core.simd.sse2
   , fafafa.core.simd.avx2
@@ -163,6 +164,26 @@ function VecF64x2Sub(const a, b: TVecF64x2): TVecF64x2; inline;
 function VecF64x2Mul(const a, b: TVecF64x2): TVecF64x2; inline;
 function VecF64x2Div(const a, b: TVecF64x2): TVecF64x2; inline;
 
+// F64x2 comparison
+function VecF64x2CmpEq(const a, b: TVecF64x2): TMask2; inline;
+function VecF64x2CmpLt(const a, b: TVecF64x2): TMask2; inline;
+function VecF64x2CmpLe(const a, b: TVecF64x2): TMask2; inline;
+function VecF64x2CmpGt(const a, b: TVecF64x2): TMask2; inline;
+function VecF64x2CmpGe(const a, b: TVecF64x2): TMask2; inline;
+function VecF64x2CmpNe(const a, b: TVecF64x2): TMask2; inline;
+
+// F64x2 math functions
+function VecF64x2Abs(const a: TVecF64x2): TVecF64x2; inline;
+function VecF64x2Sqrt(const a: TVecF64x2): TVecF64x2; inline;
+function VecF64x2Min(const a, b: TVecF64x2): TVecF64x2; inline;
+function VecF64x2Max(const a, b: TVecF64x2): TVecF64x2; inline;
+
+// F64x2 reduction
+function VecF64x2ReduceAdd(const a: TVecF64x2): Double; inline;
+function VecF64x2ReduceMin(const a: TVecF64x2): Double; inline;
+function VecF64x2ReduceMax(const a: TVecF64x2): Double; inline;
+function VecF64x2ReduceMul(const a: TVecF64x2): Double; inline;
+
 // === I32x4 Operations (128-bit Integer) ===
 // ✅ P0.3: 添加缺失的 I32x4 高级 API
 
@@ -205,6 +226,20 @@ function VecI64x2Or(const a, b: TVecI64x2): TVecI64x2; inline;
 function VecI64x2Xor(const a, b: TVecI64x2): TVecI64x2; inline;
 function VecI64x2Not(const a: TVecI64x2): TVecI64x2; inline;
 function VecI64x2AndNot(const a, b: TVecI64x2): TVecI64x2; inline;
+
+// I64x2 shift operations
+function VecI64x2ShiftLeft(const a: TVecI64x2; count: Integer): TVecI64x2; inline;
+function VecI64x2ShiftRight(const a: TVecI64x2; count: Integer): TVecI64x2; inline;
+function VecI64x2ShiftRightArith(const a: TVecI64x2; count: Integer): TVecI64x2; inline;
+
+// I64x2 comparison
+function VecI64x2CmpEq(const a, b: TVecI64x2): TMask2; inline;
+function VecI64x2CmpLt(const a, b: TVecI64x2): TMask2; inline;
+function VecI64x2CmpGt(const a, b: TVecI64x2): TMask2; inline;
+
+// I64x2 min/max
+function VecI64x2Min(const a, b: TVecI64x2): TVecI64x2; inline;
+function VecI64x2Max(const a, b: TVecI64x2): TVecI64x2; inline;
 
 // === U64x2 Operations (128-bit Unsigned 64-bit Integer) ===
 // ✅ P3.3: 添加 U64x2 高级 API
@@ -948,6 +983,94 @@ begin
   end;
 end;
 
+// ✅ P5.1: F64x2 完整 API 实现 - 比较/数学/归约
+
+function VecF64x2CmpEq(const a, b: TVecF64x2): TMask2;
+begin
+  Result := 0;
+  if a.d[0] = b.d[0] then Result := Result or 1;
+  if a.d[1] = b.d[1] then Result := Result or 2;
+end;
+
+function VecF64x2CmpLt(const a, b: TVecF64x2): TMask2;
+begin
+  Result := 0;
+  if a.d[0] < b.d[0] then Result := Result or 1;
+  if a.d[1] < b.d[1] then Result := Result or 2;
+end;
+
+function VecF64x2CmpLe(const a, b: TVecF64x2): TMask2;
+begin
+  Result := 0;
+  if a.d[0] <= b.d[0] then Result := Result or 1;
+  if a.d[1] <= b.d[1] then Result := Result or 2;
+end;
+
+function VecF64x2CmpGt(const a, b: TVecF64x2): TMask2;
+begin
+  Result := 0;
+  if a.d[0] > b.d[0] then Result := Result or 1;
+  if a.d[1] > b.d[1] then Result := Result or 2;
+end;
+
+function VecF64x2CmpGe(const a, b: TVecF64x2): TMask2;
+begin
+  Result := 0;
+  if a.d[0] >= b.d[0] then Result := Result or 1;
+  if a.d[1] >= b.d[1] then Result := Result or 2;
+end;
+
+function VecF64x2CmpNe(const a, b: TVecF64x2): TMask2;
+begin
+  Result := 0;
+  if a.d[0] <> b.d[0] then Result := Result or 1;
+  if a.d[1] <> b.d[1] then Result := Result or 2;
+end;
+
+function VecF64x2Abs(const a: TVecF64x2): TVecF64x2;
+begin
+  Result.d[0] := Abs(a.d[0]);
+  Result.d[1] := Abs(a.d[1]);
+end;
+
+function VecF64x2Sqrt(const a: TVecF64x2): TVecF64x2;
+begin
+  Result.d[0] := Sqrt(a.d[0]);
+  Result.d[1] := Sqrt(a.d[1]);
+end;
+
+function VecF64x2Min(const a, b: TVecF64x2): TVecF64x2;
+begin
+  if a.d[0] < b.d[0] then Result.d[0] := a.d[0] else Result.d[0] := b.d[0];
+  if a.d[1] < b.d[1] then Result.d[1] := a.d[1] else Result.d[1] := b.d[1];
+end;
+
+function VecF64x2Max(const a, b: TVecF64x2): TVecF64x2;
+begin
+  if a.d[0] > b.d[0] then Result.d[0] := a.d[0] else Result.d[0] := b.d[0];
+  if a.d[1] > b.d[1] then Result.d[1] := a.d[1] else Result.d[1] := b.d[1];
+end;
+
+function VecF64x2ReduceAdd(const a: TVecF64x2): Double;
+begin
+  Result := a.d[0] + a.d[1];
+end;
+
+function VecF64x2ReduceMin(const a: TVecF64x2): Double;
+begin
+  if a.d[0] < a.d[1] then Result := a.d[0] else Result := a.d[1];
+end;
+
+function VecF64x2ReduceMax(const a: TVecF64x2): Double;
+begin
+  if a.d[0] > a.d[1] then Result := a.d[0] else Result := a.d[1];
+end;
+
+function VecF64x2ReduceMul(const a: TVecF64x2): Double;
+begin
+  Result := a.d[0] * a.d[1];
+end;
+
 // === I32x4 Operations Implementation ===
 // ✅ P0.3: I32x4 高级 API 实现
 
@@ -1259,6 +1382,61 @@ begin
   // (~a) and b
   Result.i[0] := (not a.i[0]) and b.i[0];
   Result.i[1] := (not a.i[1]) and b.i[1];
+end;
+
+// ✅ P5.2: I64x2 完整 API 实现 - 移位/比较/Min/Max
+
+function VecI64x2ShiftLeft(const a: TVecI64x2; count: Integer): TVecI64x2;
+begin
+  Result.i[0] := a.i[0] shl count;
+  Result.i[1] := a.i[1] shl count;
+end;
+
+function VecI64x2ShiftRight(const a: TVecI64x2; count: Integer): TVecI64x2;
+begin
+  // 逻辑右移 (无符号)
+  Result.i[0] := Int64(UInt64(a.i[0]) shr count);
+  Result.i[1] := Int64(UInt64(a.i[1]) shr count);
+end;
+
+function VecI64x2ShiftRightArith(const a: TVecI64x2; count: Integer): TVecI64x2;
+begin
+  // 算术右移 (保留符号位)
+  Result.i[0] := SarInt64(a.i[0], count);
+  Result.i[1] := SarInt64(a.i[1], count);
+end;
+
+function VecI64x2CmpEq(const a, b: TVecI64x2): TMask2;
+begin
+  Result := 0;
+  if a.i[0] = b.i[0] then Result := Result or 1;
+  if a.i[1] = b.i[1] then Result := Result or 2;
+end;
+
+function VecI64x2CmpLt(const a, b: TVecI64x2): TMask2;
+begin
+  Result := 0;
+  if a.i[0] < b.i[0] then Result := Result or 1;
+  if a.i[1] < b.i[1] then Result := Result or 2;
+end;
+
+function VecI64x2CmpGt(const a, b: TVecI64x2): TMask2;
+begin
+  Result := 0;
+  if a.i[0] > b.i[0] then Result := Result or 1;
+  if a.i[1] > b.i[1] then Result := Result or 2;
+end;
+
+function VecI64x2Min(const a, b: TVecI64x2): TVecI64x2;
+begin
+  if a.i[0] < b.i[0] then Result.i[0] := a.i[0] else Result.i[0] := b.i[0];
+  if a.i[1] < b.i[1] then Result.i[1] := a.i[1] else Result.i[1] := b.i[1];
+end;
+
+function VecI64x2Max(const a, b: TVecI64x2): TVecI64x2;
+begin
+  if a.i[0] > b.i[0] then Result.i[0] := a.i[0] else Result.i[0] := b.i[0];
+  if a.i[1] > b.i[1] then Result.i[1] := a.i[1] else Result.i[1] := b.i[1];
 end;
 
 // === U64x2 Operations Implementation ===
@@ -3172,7 +3350,7 @@ end;
 
 function IsPointerAligned(ptr: Pointer; alignment: NativeUInt): Boolean;
 begin
-  Result := IsAligned(ptr, alignment);
+  Result := fafafa.core.simd.memutils.IsAligned(ptr, alignment);
 end;
 
 end.
