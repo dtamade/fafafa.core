@@ -399,6 +399,57 @@ function VecI8x16CmpGt(const a, b: TVecI8x16): TMask16; inline;
 function VecI8x16Min(const a, b: TVecI8x16): TVecI8x16; inline;
 function VecI8x16Max(const a, b: TVecI8x16): TVecI8x16; inline;
 
+// === U8x16 Operations (128-bit, 8-bit unsigned integers) ===
+// ✅ P4.1: 添加 U8x16 高级 API
+
+// U8x16 arithmetic
+function VecU8x16Add(const a, b: TVecU8x16): TVecU8x16; inline;
+function VecU8x16Sub(const a, b: TVecU8x16): TVecU8x16; inline;
+
+// U8x16 bitwise operations
+function VecU8x16And(const a, b: TVecU8x16): TVecU8x16; inline;
+function VecU8x16Or(const a, b: TVecU8x16): TVecU8x16; inline;
+function VecU8x16Xor(const a, b: TVecU8x16): TVecU8x16; inline;
+function VecU8x16Not(const a: TVecU8x16): TVecU8x16; inline;
+function VecU8x16AndNot(const a, b: TVecU8x16): TVecU8x16; inline;
+
+// U8x16 comparison (unsigned)
+function VecU8x16CmpEq(const a, b: TVecU8x16): TMask16; inline;
+function VecU8x16CmpLt(const a, b: TVecU8x16): TMask16; inline;
+function VecU8x16CmpGt(const a, b: TVecU8x16): TMask16; inline;
+
+// U8x16 min/max (unsigned)
+function VecU8x16Min(const a, b: TVecU8x16): TVecU8x16; inline;
+function VecU8x16Max(const a, b: TVecU8x16): TVecU8x16; inline;
+
+// === U16x8 Operations (128-bit, 16-bit unsigned integers) ===
+// ✅ P4.2: 添加 U16x8 高级 API
+
+// U16x8 arithmetic
+function VecU16x8Add(const a, b: TVecU16x8): TVecU16x8; inline;
+function VecU16x8Sub(const a, b: TVecU16x8): TVecU16x8; inline;
+function VecU16x8Mul(const a, b: TVecU16x8): TVecU16x8; inline;
+
+// U16x8 bitwise operations
+function VecU16x8And(const a, b: TVecU16x8): TVecU16x8; inline;
+function VecU16x8Or(const a, b: TVecU16x8): TVecU16x8; inline;
+function VecU16x8Xor(const a, b: TVecU16x8): TVecU16x8; inline;
+function VecU16x8Not(const a: TVecU16x8): TVecU16x8; inline;
+function VecU16x8AndNot(const a, b: TVecU16x8): TVecU16x8; inline;
+
+// U16x8 shift operations
+function VecU16x8ShiftLeft(const a: TVecU16x8; count: Integer): TVecU16x8; inline;
+function VecU16x8ShiftRight(const a: TVecU16x8; count: Integer): TVecU16x8; inline;
+
+// U16x8 comparison (unsigned)
+function VecU16x8CmpEq(const a, b: TVecU16x8): TMask8; inline;
+function VecU16x8CmpLt(const a, b: TVecU16x8): TMask8; inline;
+function VecU16x8CmpGt(const a, b: TVecU16x8): TMask8; inline;
+
+// U16x8 min/max (unsigned)
+function VecU16x8Min(const a, b: TVecU16x8): TVecU16x8; inline;
+function VecU16x8Max(const a, b: TVecU16x8): TVecU16x8; inline;
+
 // === F64x4 Operations (256-bit Double, AVX) ===
 // ✅ P2.3: 添加 F64x4 高级 API
 
@@ -2189,6 +2240,219 @@ begin
       Result.i[i] := a.i[i]
     else
       Result.i[i] := b.i[i];
+end;
+
+// === U8x16 Operations Implementation ===
+// ✅ P4.1: U8x16 (128-bit, 16x UInt8) 高级 API 实现
+
+function VecU8x16Add(const a, b: TVecU8x16): TVecU8x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.u[i] := a.u[i] + b.u[i];
+end;
+
+function VecU8x16Sub(const a, b: TVecU8x16): TVecU8x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.u[i] := a.u[i] - b.u[i];
+end;
+
+function VecU8x16And(const a, b: TVecU8x16): TVecU8x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.u[i] := a.u[i] and b.u[i];
+end;
+
+function VecU8x16Or(const a, b: TVecU8x16): TVecU8x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.u[i] := a.u[i] or b.u[i];
+end;
+
+function VecU8x16Xor(const a, b: TVecU8x16): TVecU8x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.u[i] := a.u[i] xor b.u[i];
+end;
+
+function VecU8x16Not(const a: TVecU8x16): TVecU8x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.u[i] := not a.u[i];
+end;
+
+function VecU8x16AndNot(const a, b: TVecU8x16): TVecU8x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.u[i] := (not a.u[i]) and b.u[i];
+end;
+
+function VecU8x16CmpEq(const a, b: TVecU8x16): TMask16;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 15 do
+    if a.u[i] = b.u[i] then Result := Result or (1 shl i);
+end;
+
+function VecU8x16CmpLt(const a, b: TVecU8x16): TMask16;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 15 do
+    if a.u[i] < b.u[i] then Result := Result or (1 shl i);  // 无符号比较
+end;
+
+function VecU8x16CmpGt(const a, b: TVecU8x16): TMask16;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 15 do
+    if a.u[i] > b.u[i] then Result := Result or (1 shl i);  // 无符号比较
+end;
+
+function VecU8x16Min(const a, b: TVecU8x16): TVecU8x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    if a.u[i] < b.u[i] then
+      Result.u[i] := a.u[i]
+    else
+      Result.u[i] := b.u[i];
+end;
+
+function VecU8x16Max(const a, b: TVecU8x16): TVecU8x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    if a.u[i] > b.u[i] then
+      Result.u[i] := a.u[i]
+    else
+      Result.u[i] := b.u[i];
+end;
+
+// === U16x8 Operations Implementation ===
+// ✅ P4.2: U16x8 (128-bit, 8x UInt16) 高级 API 实现
+
+function VecU16x8Add(const a, b: TVecU16x8): TVecU16x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.u[i] := a.u[i] + b.u[i];
+end;
+
+function VecU16x8Sub(const a, b: TVecU16x8): TVecU16x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.u[i] := a.u[i] - b.u[i];
+end;
+
+function VecU16x8Mul(const a, b: TVecU16x8): TVecU16x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.u[i] := a.u[i] * b.u[i];
+end;
+
+function VecU16x8And(const a, b: TVecU16x8): TVecU16x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.u[i] := a.u[i] and b.u[i];
+end;
+
+function VecU16x8Or(const a, b: TVecU16x8): TVecU16x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.u[i] := a.u[i] or b.u[i];
+end;
+
+function VecU16x8Xor(const a, b: TVecU16x8): TVecU16x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.u[i] := a.u[i] xor b.u[i];
+end;
+
+function VecU16x8Not(const a: TVecU16x8): TVecU16x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.u[i] := not a.u[i];
+end;
+
+function VecU16x8AndNot(const a, b: TVecU16x8): TVecU16x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.u[i] := (not a.u[i]) and b.u[i];
+end;
+
+function VecU16x8ShiftLeft(const a: TVecU16x8; count: Integer): TVecU16x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.u[i] := a.u[i] shl count;
+end;
+
+function VecU16x8ShiftRight(const a: TVecU16x8; count: Integer): TVecU16x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.u[i] := a.u[i] shr count;  // 逻辑右移 (无符号)
+end;
+
+function VecU16x8CmpEq(const a, b: TVecU16x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.u[i] = b.u[i] then Result := Result or (1 shl i);
+end;
+
+function VecU16x8CmpLt(const a, b: TVecU16x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.u[i] < b.u[i] then Result := Result or (1 shl i);  // 无符号比较
+end;
+
+function VecU16x8CmpGt(const a, b: TVecU16x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.u[i] > b.u[i] then Result := Result or (1 shl i);  // 无符号比较
+end;
+
+function VecU16x8Min(const a, b: TVecU16x8): TVecU16x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    if a.u[i] < b.u[i] then
+      Result.u[i] := a.u[i]
+    else
+      Result.u[i] := b.u[i];
+end;
+
+function VecU16x8Max(const a, b: TVecU16x8): TVecU16x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    if a.u[i] > b.u[i] then
+      Result.u[i] := a.u[i]
+    else
+      Result.u[i] := b.u[i];
 end;
 
 // === F64x4 Operations Implementation ===
