@@ -832,12 +832,18 @@ begin
   // ✅ ISSUE-17: 优化等待策略，减少 CPU 自旋
   // ✅ ISSUE-18: 使用可配置的取消检查间隔
   // ✅ ISSUE-49: 使用可配置的睡眠策略参数
-  cancelCheckNs := GCancellationCheckIntervalNs;  // 默认 1ms
-  microSleepNs := GMicroSleepNs;    // 默认 50us
-  finalSpinNs := GFinalSpinNs;      // 默认 10us
-  
+  // NOTE: Read config under lock to avoid torn Int64 reads on 32-bit and to keep parameters consistent.
+  EnterCriticalSection(GSleepConfigLock);
+  try
+    cancelCheckNs := GCancellationCheckIntervalNs;  // 默认 1ms
+    microSleepNs := GMicroSleepNs;    // 默认 50us
+    finalSpinNs := GFinalSpinNs;      // 默认 10us
+    chunkNs := GSliceSleepNs;         // 常规睡眠切片上限
+  finally
+    LeaveCriticalSection(GSleepConfigLock);
+  end;
+
   // 常规睡眠切片取策略配置和取消检查间隔中较小者
-  chunkNs := GSliceSleepNs;
   if cancelCheckNs < chunkNs then chunkNs := cancelCheckNs;
 
   while remaining > 0 do

@@ -54,11 +54,13 @@ type
    *   目前先覆盖核心场景，后续可按需扩展。
    *}
   TTimeErrorKind = (
-    tekOverflow,      // 算术溢出
-    tekUnderflow,     // 算术下溢
-    tekInvalidFormat, // 文本/解析格式错误
-    tekSystemError,   // 系统调用失败（clock_nanosleep 等）
-    tekCancelled      // 操作被取消（配合取消令牌）
+    tekOverflow,        // 算术溢出
+    tekUnderflow,       // 算术下溢
+    tekInvalidArgument, // 参数非法（例如 Period<=0、空指针等）
+    tekInvalidFormat,   // 文本/解析格式错误
+    tekSystemError,     // 系统调用失败（clock_nanosleep 等）
+    tekShutdown,        // 组件已关闭（例如 Scheduler 已 Shutdown）
+    tekCancelled        // 操作被取消（配合取消令牌）
   );
 
   { Result 类型别名，便于在时间模块中统一使用 }
