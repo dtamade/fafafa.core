@@ -8,7 +8,8 @@ interface
 
 uses
   Classes, SysUtils, fpcunit, testregistry,
-  fafafa.core.time, fafafa.core.time.timer;
+  fafafa.core.time, fafafa.core.time.timer,
+  fafafa.core.time.testutils;
 
 type
   TTestCase_TimerExceptionHook = class(TTestCase)
@@ -17,8 +18,9 @@ type
   end;
 
 var
-  GExcCalled: Integer = 0;
-  GCountNext: Integer = 0;
+  GExcRaised: LongInt = 0;
+  GHandlerCalled: LongInt = 0;
+  GCountNext: LongInt = 0;
 
 
 
@@ -28,38 +30,50 @@ implementation
 
 procedure OnTickRaise;
 begin
-  Inc(GExcCalled);
+  InterlockedIncrement(GExcRaised);
   raise Exception.Create('boom');
 end;
 
 procedure OnTickNext;
 begin
-  Inc(GCountNext);
+  InterlockedIncrement(GCountNext);
 end;
 
 procedure OnExc(const E: Exception);
 begin
-  // no-op for test, counting is done inside OnTickRaise
+  InterlockedIncrement(GHandlerCalled);
 end;
 
 
 procedure TTestCase_TimerExceptionHook.Test_Exception_Handler_Called_And_Continue;
-var S: ITimerScheduler; t1, t2: ITimer;
+var
+  S: ITimerScheduler;
+  t1, t2: ITimer;
+  OldHandler: TTimerExceptionHandler;
 begin
   S := CreateTimerScheduler;
-  GExcCalled := 0; GCountNext := 0;
-  SetTimerExceptionHandler(@OnExc);
-  t1 := S.ScheduleAtFixedRate(TDuration.FromMs(0), TDuration.FromMs(10), @OnTickRaise);
-  t2 := S.ScheduleAtFixedRate(TDuration.FromMs(0), TDuration.FromMs(10), @OnTickNext);
-  SleepFor(TDuration.FromMs(60));
-  t1.Cancel; t2.Cancel;
-  // 异常回调执行了多次（异常被捕获，线程继续）
-  CheckTrue(GExcCalled >= 3);
-  // 正常回调也继续执行
-  CheckTrue(GCountNext >= 3);
-  // 还原 hook
-  SetTimerExceptionHandler(nil);
-  S.Shutdown;
+  GExcRaised := 0;
+  GHandlerCalled := 0;
+  GCountNext := 0;
+
+  OldHandler := PushTimerExceptionHandler(@OnExc);
+  try
+    t1 := S.ScheduleAtFixedRate(TDuration.FromMs(0), TDuration.FromMs(10), @OnTickRaise);
+    t2 := S.ScheduleAtFixedRate(TDuration.FromMs(0), TDuration.FromMs(10), @OnTickNext);
+    SleepFor(TDuration.FromMs(60));
+    t1.Cancel; t2.Cancel;
+    // 异常回调执行了多次（异常被捕获，线程继续）
+    CheckTrue(GExcRaised >= 3);
+    // 异常 hook 必须被调用（并且应与异常次数一致）
+    CheckTrue(GHandlerCalled >= 3);
+    CheckEquals(GExcRaised, GHandlerCalled);
+    // 正常回调也继续执行
+    CheckTrue(GCountNext >= 3);
+  finally
+    // Restore global hook to avoid cross-test interference.
+    PopTimerExceptionHandler(OldHandler);
+    S.Shutdown;
+  end;
 end;
 
 initialization

@@ -318,7 +318,10 @@ begin
   AssertFalse('Missing sign', TUtcOffset.TryParse('08:00', O));
   AssertFalse('Too short', TUtcOffset.TryParse('+8:00', O));
   AssertFalse('Missing colon', TUtcOffset.TryParse('+0800', O));
-  AssertFalse('Empty string', TUtcOffset.TryParse('', O));
+  // 注意：空字符串被设计为有效的 UTC（支持无时区的日期时间格式）
+  // 参见 fafafa.core.time.offset.pas:294-295
+  AssertTrue('Empty string defaults to UTC', TUtcOffset.TryParse('', O));
+  AssertTrue('Empty string is UTC', O.IsUTC);
 end;
 
 procedure TTestCase_UtcOffset.Test_TryParse_OutOfRange_ReturnsFalse;

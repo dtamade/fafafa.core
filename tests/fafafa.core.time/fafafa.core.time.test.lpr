@@ -26,6 +26,12 @@ uses
   Test_fafafa_core_time_timer_exception_hook,
   Test_fafafa_core_time_timer_metrics,
   Test_fafafa_core_time_timer_shutdown,
+  Test_fafafa_core_time_timer_lifetime,
+  Test_fafafa_core_time_timer_async_shutdown,
+  Test_fafafa_core_time_timer_options_result,
+  Test_fafafa_core_time_facade_timer_phase1,
+  Test_fafafa_core_time_timer_reset_heap,  // ✅ 新增：ResetAt/ResetAfter 堆更新修复测试
+  Test_fafafa_core_time_timer_itimer_ext,  // ✅ v2.0: ITimer 扩展功能测试（暂停/恢复/执行计数）
   Test_fafafa_core_time_operators,
   Test_fafafa_core_time_duration_arith,
   Test_fafafa_core_time_duration_round_ops,
@@ -61,6 +67,10 @@ uses
   , Test_fafafa_core_time_chinese  // ✅ Phase 1: 农历模块测试
   , Test_fafafa_core_time_deadline  // ✅ TDeadline 测试
   , Test_fafafa_core_time_timerwheel  // ✅ TTimerWheel 时间轮定时器测试
+  , Test_fafafa_core_time_timer_highfreq  // ✅ v2.0: 高频定时器压力测试
+  , Test_fafafa_core_time_timer_max_executions  // ✅ v2.0: 执行次数限制测试
+  , Test_fafafa_core_time_timer_backends  // ✅ v2.0: 后端接口测试
+  , Test_fafafa_core_time_timer_cancellation  // ✅ v2.0: 取消令牌集成测试
   // {$IFDEF LINUX}, Test_SleepBest_Linux{$ENDIF} // 暂时禁用 - NANOSECONDS_PER_MILLI 未定义
   {$IFDEF DARWIN}, Test_SleepBest_Darwin{$ENDIF}
   ;
