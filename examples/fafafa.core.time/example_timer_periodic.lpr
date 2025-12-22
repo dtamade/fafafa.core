@@ -1,37 +1,45 @@
 program example_timer_periodic;
 
-{$MODE OBJFPC}{$H+}
-{$I ..\..\src\fafafa.core.settings.inc}
+{$mode objfpc}{$H+}
+{$CODEPAGE UTF8}
+{$I ../../src/fafafa.core.settings.inc}
 
 uses
+  {$IFDEF UNIX}
+  cthreads,
+  {$ENDIF}
   SysUtils,
-  fafafa.core.time, fafafa.core.time.timer;
+  fafafa.core.time;
 
 var
-  fired: Integer = 0;
+  Fired: Integer = 0;
+  GT: ITimer = nil;
 
 procedure OnTick;
 begin
-  Inc(fired);
-  Writeln('tick at ', NowInstant.AsNsSinceEpoch, ' ns, fired=', fired);
-  if fired >= 5 then
+  Inc(Fired);
+  WriteLn('tick at ', NowInstant.AsNsSinceEpoch, ' ns, fired=', Fired);
+  if Fired = 5 then
   begin
-    Writeln('done.');
+    WriteLn('done.');
+    if GT <> nil then
+      GT.Cancel;
   end;
 end;
 
 var
   S: ITimerScheduler;
-  T: ITimer;
 begin
-  Writeln('Example: periodic timer (5 times)');
+  WriteLn('Example: periodic timer (5 times)');
+
   S := CreateTimerScheduler;
-  // 先延迟 200ms 启动，每 300ms 触发一次
-  T := S.ScheduleAtFixedRate(TDuration.FromMs(200), TDuration.FromMs(300), @OnTick);
-  // 主线程简单等待约 2 秒（实际生产中使用更合理的同步）
+  // Start after 200ms, then tick every 300ms
+  GT := S.ScheduleFixedRate(TDuration.FromMs(200), TDuration.FromMs(300), TimerCallback(@OnTick));
+
+  // Simple wait (demo only)
   SleepFor(TDuration.FromMs(2000));
-  // 取消定时器并关闭调度器
-  T.Cancel;
+
+  if GT <> nil then
+    GT.Cancel;
   S.Shutdown;
 end.
-
