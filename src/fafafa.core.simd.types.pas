@@ -8,7 +8,8 @@ interface
 uses
   fafafa.core.math,
   fafafa.core.simd.cpuinfo.base,
-  fafafa.core.simd.base;
+  fafafa.core.simd.base,
+  fafafa.core.simd.dispatch;
 
 // =============================================================
 // 说明
@@ -300,6 +301,15 @@ operator + (const a, b: TVecI32x4): TVecI32x4; inline;
 operator - (const a, b: TVecI32x4): TVecI32x4; inline;
 operator - (const a: TVecI32x4): TVecI32x4; inline;
 
+// TVecI64x2 运算符 (✅ P1.3)
+operator + (const a, b: TVecI64x2): TVecI64x2; inline;
+operator - (const a, b: TVecI64x2): TVecI64x2; inline;
+operator - (const a: TVecI64x2): TVecI64x2; inline;
+operator and (const a, b: TVecI64x2): TVecI64x2; inline;
+operator or (const a, b: TVecI64x2): TVecI64x2; inline;
+operator xor (const a, b: TVecI64x2): TVecI64x2; inline;
+operator not (const a: TVecI64x2): TVecI64x2; inline;
+
 // === 256-bit 向量运算符 (Phase 2) ===
 // TVecF32x8 运算符
 operator + (const a, b: TVecF32x8): TVecF32x8; inline;
@@ -318,7 +328,12 @@ operator - (const a: TVecF64x4): TVecF64x4; inline;
 // TVecI32x8 运算符
 operator + (const a, b: TVecI32x8): TVecI32x8; inline;
 operator - (const a, b: TVecI32x8): TVecI32x8; inline;
+operator * (const a, b: TVecI32x8): TVecI32x8; inline;
 operator - (const a: TVecI32x8): TVecI32x8; inline;
+operator and (const a, b: TVecI32x8): TVecI32x8; inline;
+operator or (const a, b: TVecI32x8): TVecI32x8; inline;
+operator xor (const a, b: TVecI32x8): TVecI32x8; inline;
+operator not (const a: TVecI32x8): TVecI32x8; inline;
 
 // === 512-bit 向量运算符 (AVX-512) ===
 // TVecF32x16 运算符
@@ -338,13 +353,14 @@ operator - (const a: TVecF64x8): TVecF64x8; inline;
 // TVecI32x16 运算符
 operator + (const a, b: TVecI32x16): TVecI32x16; inline;
 operator - (const a, b: TVecI32x16): TVecI32x16; inline;
+operator * (const a, b: TVecI32x16): TVecI32x16; inline;
 operator - (const a: TVecI32x16): TVecI32x16; inline;
+operator and (const a, b: TVecI32x16): TVecI32x16; inline;
+operator or (const a, b: TVecI32x16): TVecI32x16; inline;
+operator xor (const a, b: TVecI32x16): TVecI32x16; inline;
+operator not (const a: TVecI32x16): TVecI32x16; inline;
 
-// Duplicate identifiers removed (they were already defined via aliases above or in leftover code?)
-// No, the error says duplicate identifier "TSimdElementType" at 330
-// Let's remove the duplicate definitions that are still present later in the file.
-
-// === �?CPUInfo 相关的类型别名（来源�?cpuinfo.base�?===
+// === CPUInfo 相关的类型别名（来源 cpuinfo.base）===
 type
   TX86Features  = fafafa.core.simd.cpuinfo.base.TX86Features;
   TARMFeatures  = fafafa.core.simd.cpuinfo.base.TARMFeatures;
@@ -355,70 +371,148 @@ type
 implementation
 
 // === TVecF32x4 运算符实现 ===
+// ✅ 修复: 通过 dispatch 系统调用 SIMD 实现，而非标量循环
 
 operator + (const a, b: TVecF32x4): TVecF32x4;
-var i: Integer;
+var dt: PSimdDispatchTable;
 begin
-  for i := 0 to 3 do
-    Result.f[i] := a.f[i] + b.f[i];
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.AddF32x4) then
+    Result := dt^.AddF32x4(a, b)
+  else
+  begin
+    // Fallback to scalar if dispatch not available
+    Result.f[0] := a.f[0] + b.f[0];
+    Result.f[1] := a.f[1] + b.f[1];
+    Result.f[2] := a.f[2] + b.f[2];
+    Result.f[3] := a.f[3] + b.f[3];
+  end;
 end;
 
 operator - (const a, b: TVecF32x4): TVecF32x4;
-var i: Integer;
+var dt: PSimdDispatchTable;
 begin
-  for i := 0 to 3 do
-    Result.f[i] := a.f[i] - b.f[i];
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.SubF32x4) then
+    Result := dt^.SubF32x4(a, b)
+  else
+  begin
+    Result.f[0] := a.f[0] - b.f[0];
+    Result.f[1] := a.f[1] - b.f[1];
+    Result.f[2] := a.f[2] - b.f[2];
+    Result.f[3] := a.f[3] - b.f[3];
+  end;
 end;
 
 operator * (const a, b: TVecF32x4): TVecF32x4;
-var i: Integer;
+var dt: PSimdDispatchTable;
 begin
-  for i := 0 to 3 do
-    Result.f[i] := a.f[i] * b.f[i];
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.MulF32x4) then
+    Result := dt^.MulF32x4(a, b)
+  else
+  begin
+    Result.f[0] := a.f[0] * b.f[0];
+    Result.f[1] := a.f[1] * b.f[1];
+    Result.f[2] := a.f[2] * b.f[2];
+    Result.f[3] := a.f[3] * b.f[3];
+  end;
 end;
 
 operator / (const a, b: TVecF32x4): TVecF32x4;
-var i: Integer;
+var dt: PSimdDispatchTable;
 begin
-  for i := 0 to 3 do
-    Result.f[i] := a.f[i] / b.f[i];
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.DivF32x4) then
+    Result := dt^.DivF32x4(a, b)
+  else
+  begin
+    Result.f[0] := a.f[0] / b.f[0];
+    Result.f[1] := a.f[1] / b.f[1];
+    Result.f[2] := a.f[2] / b.f[2];
+    Result.f[3] := a.f[3] / b.f[3];
+  end;
 end;
 
 operator - (const a: TVecF32x4): TVecF32x4;
 var i: Integer;
 begin
+  // Unary negation - no dispatch function, use scalar
   for i := 0 to 3 do
     Result.f[i] := -a.f[i];
 end;
 
 operator * (const a: TVecF32x4; s: Single): TVecF32x4;
-var i: Integer;
+var dt: PSimdDispatchTable;
+    splat: TVecF32x4;
 begin
-  for i := 0 to 3 do
-    Result.f[i] := a.f[i] * s;
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.SplatF32x4) and Assigned(dt^.MulF32x4) then
+  begin
+    splat := dt^.SplatF32x4(s);
+    Result := dt^.MulF32x4(a, splat);
+  end
+  else
+  begin
+    Result.f[0] := a.f[0] * s;
+    Result.f[1] := a.f[1] * s;
+    Result.f[2] := a.f[2] * s;
+    Result.f[3] := a.f[3] * s;
+  end;
 end;
 
 operator * (s: Single; const a: TVecF32x4): TVecF32x4;
-var i: Integer;
+var dt: PSimdDispatchTable;
+    splat: TVecF32x4;
 begin
-  for i := 0 to 3 do
-    Result.f[i] := s * a.f[i];
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.SplatF32x4) and Assigned(dt^.MulF32x4) then
+  begin
+    splat := dt^.SplatF32x4(s);
+    Result := dt^.MulF32x4(splat, a);
+  end
+  else
+  begin
+    Result.f[0] := s * a.f[0];
+    Result.f[1] := s * a.f[1];
+    Result.f[2] := s * a.f[2];
+    Result.f[3] := s * a.f[3];
+  end;
 end;
 
 operator / (const a: TVecF32x4; s: Single): TVecF32x4;
-var i: Integer;
+var dt: PSimdDispatchTable;
+    splat: TVecF32x4;
 begin
-  for i := 0 to 3 do
-    Result.f[i] := a.f[i] / s;
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.SplatF32x4) and Assigned(dt^.DivF32x4) then
+  begin
+    splat := dt^.SplatF32x4(s);
+    Result := dt^.DivF32x4(a, splat);
+  end
+  else
+  begin
+    Result.f[0] := a.f[0] / s;
+    Result.f[1] := a.f[1] / s;
+    Result.f[2] := a.f[2] / s;
+    Result.f[3] := a.f[3] / s;
+  end;
 end;
 
 // === TVecF64x2 运算符实现 ===
+// ✅ 修复: 通过 dispatch 系统调用 SIMD 实现
 
 operator + (const a, b: TVecF64x2): TVecF64x2;
-var i: Integer;
+var dt: PSimdDispatchTable;
 begin
-  for i := 0 to 1 do
-    Result.d[i] := a.d[i] + b.d[i];
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.AddF64x2) then
+    Result := dt^.AddF64x2(a, b)
+  else
+  begin
+    Result.d[0] := a.d[0] + b.d[0];
+    Result.d[1] := a.d[1] + b.d[1];
+  end;
 end;
 
 // === Shuffle/Swizzle 实现 (Phase 2, Scalar 参考) ===
@@ -609,124 +703,280 @@ begin
 end;
 
 operator - (const a, b: TVecF64x2): TVecF64x2;
-var i: Integer;
+var dt: PSimdDispatchTable;
 begin
-  for i := 0 to 1 do
-    Result.d[i] := a.d[i] - b.d[i];
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.SubF64x2) then
+    Result := dt^.SubF64x2(a, b)
+  else
+  begin
+    Result.d[0] := a.d[0] - b.d[0];
+    Result.d[1] := a.d[1] - b.d[1];
+  end;
 end;
 
 operator * (const a, b: TVecF64x2): TVecF64x2;
-var i: Integer;
+var dt: PSimdDispatchTable;
 begin
-  for i := 0 to 1 do
-    Result.d[i] := a.d[i] * b.d[i];
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.MulF64x2) then
+    Result := dt^.MulF64x2(a, b)
+  else
+  begin
+    Result.d[0] := a.d[0] * b.d[0];
+    Result.d[1] := a.d[1] * b.d[1];
+  end;
 end;
 
 operator / (const a, b: TVecF64x2): TVecF64x2;
-var i: Integer;
+var dt: PSimdDispatchTable;
 begin
-  for i := 0 to 1 do
-    Result.d[i] := a.d[i] / b.d[i];
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.DivF64x2) then
+    Result := dt^.DivF64x2(a, b)
+  else
+  begin
+    Result.d[0] := a.d[0] / b.d[0];
+    Result.d[1] := a.d[1] / b.d[1];
+  end;
 end;
 
 operator - (const a: TVecF64x2): TVecF64x2;
-var i: Integer;
 begin
-  for i := 0 to 1 do
-    Result.d[i] := -a.d[i];
+  // Unary negation - no dispatch function, use scalar
+  Result.d[0] := -a.d[0];
+  Result.d[1] := -a.d[1];
 end;
 
 // === TVecI32x4 运算符实现 ===
 // Note: Integer SIMD operations should wrap around on overflow (like hardware)
+// ✅ 修复: 通过 dispatch 系统调用 SIMD 实现
 
 {$PUSH}{$R-}{$Q-}  // Disable range/overflow checks for wraparound semantics
 operator + (const a, b: TVecI32x4): TVecI32x4;
-var i: Integer;
+var dt: PSimdDispatchTable;
 begin
-  for i := 0 to 3 do
-    Result.i[i] := a.i[i] + b.i[i];
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.AddI32x4) then
+    Result := dt^.AddI32x4(a, b)
+  else
+  begin
+    Result.i[0] := a.i[0] + b.i[0];
+    Result.i[1] := a.i[1] + b.i[1];
+    Result.i[2] := a.i[2] + b.i[2];
+    Result.i[3] := a.i[3] + b.i[3];
+  end;
 end;
 
 operator - (const a, b: TVecI32x4): TVecI32x4;
-var i: Integer;
+var dt: PSimdDispatchTable;
 begin
-  for i := 0 to 3 do
-    Result.i[i] := a.i[i] - b.i[i];
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.SubI32x4) then
+    Result := dt^.SubI32x4(a, b)
+  else
+  begin
+    Result.i[0] := a.i[0] - b.i[0];
+    Result.i[1] := a.i[1] - b.i[1];
+    Result.i[2] := a.i[2] - b.i[2];
+    Result.i[3] := a.i[3] - b.i[3];
+  end;
 end;
 
 operator - (const a: TVecI32x4): TVecI32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.i[i] := -a.i[i];
+  // Unary negation - no dispatch function, use scalar
+  Result.i[0] := -a.i[0];
+  Result.i[1] := -a.i[1];
+  Result.i[2] := -a.i[2];
+  Result.i[3] := -a.i[3];
+end;
+{$POP}
+
+// === TVecI64x2 运算符实现 (128-bit, ✅ P1.3) ===
+{$PUSH}{$R-}{$Q-}  // Disable overflow checks for wraparound semantics
+operator + (const a, b: TVecI64x2): TVecI64x2;
+var dt: PSimdDispatchTable;
+begin
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.AddI64x2) then
+    Result := dt^.AddI64x2(a, b)
+  else
+  begin
+    Result.i[0] := a.i[0] + b.i[0];
+    Result.i[1] := a.i[1] + b.i[1];
+  end;
+end;
+
+operator - (const a, b: TVecI64x2): TVecI64x2;
+var dt: PSimdDispatchTable;
+begin
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.SubI64x2) then
+    Result := dt^.SubI64x2(a, b)
+  else
+  begin
+    Result.i[0] := a.i[0] - b.i[0];
+    Result.i[1] := a.i[1] - b.i[1];
+  end;
+end;
+
+operator - (const a: TVecI64x2): TVecI64x2;
+begin
+  Result.i[0] := -a.i[0];
+  Result.i[1] := -a.i[1];
+end;
+
+operator and (const a, b: TVecI64x2): TVecI64x2;
+begin
+  Result.i[0] := a.i[0] and b.i[0];
+  Result.i[1] := a.i[1] and b.i[1];
+end;
+
+operator or (const a, b: TVecI64x2): TVecI64x2;
+begin
+  Result.i[0] := a.i[0] or b.i[0];
+  Result.i[1] := a.i[1] or b.i[1];
+end;
+
+operator xor (const a, b: TVecI64x2): TVecI64x2;
+begin
+  Result.i[0] := a.i[0] xor b.i[0];
+  Result.i[1] := a.i[1] xor b.i[1];
+end;
+
+operator not (const a: TVecI64x2): TVecI64x2;
+begin
+  Result.i[0] := not a.i[0];
+  Result.i[1] := not a.i[1];
 end;
 {$POP}
 
 // === TVecF32x8 运算符实现 (256-bit) ===
+// ✅ P0 修复: 通过 dispatch 系统调用 AVX2/AVX-512 实现，而非标量循环
 
 operator + (const a, b: TVecF32x8): TVecF32x8;
-var i: Integer;
+var dt: PSimdDispatchTable;
+    i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.f[i] := a.f[i] + b.f[i];
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.AddF32x8) then
+    Result := dt^.AddF32x8(a, b)
+  else
+  begin
+    // Fallback to scalar if dispatch not available
+    for i := 0 to 7 do
+      Result.f[i] := a.f[i] + b.f[i];
+  end;
 end;
 
 operator - (const a, b: TVecF32x8): TVecF32x8;
-var i: Integer;
+var dt: PSimdDispatchTable;
+    i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.f[i] := a.f[i] - b.f[i];
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.SubF32x8) then
+    Result := dt^.SubF32x8(a, b)
+  else
+  begin
+    for i := 0 to 7 do
+      Result.f[i] := a.f[i] - b.f[i];
+  end;
 end;
 
 operator * (const a, b: TVecF32x8): TVecF32x8;
-var i: Integer;
+var dt: PSimdDispatchTable;
+    i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.f[i] := a.f[i] * b.f[i];
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.MulF32x8) then
+    Result := dt^.MulF32x8(a, b)
+  else
+  begin
+    for i := 0 to 7 do
+      Result.f[i] := a.f[i] * b.f[i];
+  end;
 end;
 
 operator / (const a, b: TVecF32x8): TVecF32x8;
-var i: Integer;
+var dt: PSimdDispatchTable;
+    i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.f[i] := a.f[i] / b.f[i];
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.DivF32x8) then
+    Result := dt^.DivF32x8(a, b)
+  else
+  begin
+    for i := 0 to 7 do
+      Result.f[i] := a.f[i] / b.f[i];
+  end;
 end;
 
 operator - (const a: TVecF32x8): TVecF32x8;
 var i: Integer;
 begin
+  // Unary negation - no dispatch function, use scalar
   for i := 0 to 7 do
     Result.f[i] := -a.f[i];
 end;
 
 // === TVecF64x4 运算符实现 (256-bit) ===
+// ✅ P0 修复: 通过 dispatch 系统调用 AVX2/AVX-512 实现
 
 operator + (const a, b: TVecF64x4): TVecF64x4;
-var i: Integer;
+var dt: PSimdDispatchTable;
+    i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.d[i] := a.d[i] + b.d[i];
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.AddF64x4) then
+    Result := dt^.AddF64x4(a, b)
+  else
+  begin
+    for i := 0 to 3 do
+      Result.d[i] := a.d[i] + b.d[i];
+  end;
 end;
 
 operator - (const a, b: TVecF64x4): TVecF64x4;
-var i: Integer;
+var dt: PSimdDispatchTable;
+    i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.d[i] := a.d[i] - b.d[i];
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.SubF64x4) then
+    Result := dt^.SubF64x4(a, b)
+  else
+  begin
+    for i := 0 to 3 do
+      Result.d[i] := a.d[i] - b.d[i];
+  end;
 end;
 
 operator * (const a, b: TVecF64x4): TVecF64x4;
-var i: Integer;
+var dt: PSimdDispatchTable;
+    i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.d[i] := a.d[i] * b.d[i];
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.MulF64x4) then
+    Result := dt^.MulF64x4(a, b)
+  else
+  begin
+    for i := 0 to 3 do
+      Result.d[i] := a.d[i] * b.d[i];
+  end;
 end;
 
 operator / (const a, b: TVecF64x4): TVecF64x4;
-var i: Integer;
+var dt: PSimdDispatchTable;
+    i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.d[i] := a.d[i] / b.d[i];
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.DivF64x4) then
+    Result := dt^.DivF64x4(a, b)
+  else
+  begin
+    for i := 0 to 3 do
+      Result.d[i] := a.d[i] / b.d[i];
+  end;
 end;
 
 operator - (const a: TVecF64x4): TVecF64x4;
@@ -737,19 +987,34 @@ begin
 end;
 
 // === TVecI32x8 运算符实现 (256-bit) ===
+// ✅ P0 修复: 通过 dispatch 系统调用 AVX2/AVX-512 实现
 
 operator + (const a, b: TVecI32x8): TVecI32x8;
-var i: Integer;
+var dt: PSimdDispatchTable;
+    i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.i[i] := a.i[i] + b.i[i];
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.AddI32x8) then
+    Result := dt^.AddI32x8(a, b)
+  else
+  begin
+    for i := 0 to 7 do
+      Result.i[i] := a.i[i] + b.i[i];
+  end;
 end;
 
 operator - (const a, b: TVecI32x8): TVecI32x8;
-var i: Integer;
+var dt: PSimdDispatchTable;
+    i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.i[i] := a.i[i] - b.i[i];
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.SubI32x8) then
+    Result := dt^.SubI32x8(a, b)
+  else
+  begin
+    for i := 0 to 7 do
+      Result.i[i] := a.i[i] - b.i[i];
+  end;
 end;
 
 operator - (const a: TVecI32x8): TVecI32x8;
@@ -759,34 +1024,135 @@ begin
     Result.i[i] := -a.i[i];
 end;
 
+// ✅ P1.1: 添加 I32x8 乘法运算符
+operator * (const a, b: TVecI32x8): TVecI32x8;
+var dt: PSimdDispatchTable;
+    i: Integer;
+begin
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.MulI32x8) then
+    Result := dt^.MulI32x8(a, b)
+  else
+  begin
+    for i := 0 to 7 do
+      Result.i[i] := a.i[i] * b.i[i];
+  end;
+end;
+
+// ✅ P1.1: 添加 I32x8 位运算符
+operator and (const a, b: TVecI32x8): TVecI32x8;
+var dt: PSimdDispatchTable;
+    i: Integer;
+begin
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.AndI32x8) then
+    Result := dt^.AndI32x8(a, b)
+  else
+  begin
+    for i := 0 to 7 do
+      Result.i[i] := a.i[i] and b.i[i];
+  end;
+end;
+
+operator or (const a, b: TVecI32x8): TVecI32x8;
+var dt: PSimdDispatchTable;
+    i: Integer;
+begin
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.OrI32x8) then
+    Result := dt^.OrI32x8(a, b)
+  else
+  begin
+    for i := 0 to 7 do
+      Result.i[i] := a.i[i] or b.i[i];
+  end;
+end;
+
+operator xor (const a, b: TVecI32x8): TVecI32x8;
+var dt: PSimdDispatchTable;
+    i: Integer;
+begin
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.XorI32x8) then
+    Result := dt^.XorI32x8(a, b)
+  else
+  begin
+    for i := 0 to 7 do
+      Result.i[i] := a.i[i] xor b.i[i];
+  end;
+end;
+
+operator not (const a: TVecI32x8): TVecI32x8;
+var dt: PSimdDispatchTable;
+    i: Integer;
+begin
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.NotI32x8) then
+    Result := dt^.NotI32x8(a)
+  else
+  begin
+    for i := 0 to 7 do
+      Result.i[i] := not a.i[i];
+  end;
+end;
+
 // === TVecF32x16 运算符实现 (512-bit AVX-512) ===
+// ✅ P0 修复: 通过 dispatch 系统调用 AVX-512 实现
 
 operator + (const a, b: TVecF32x16): TVecF32x16;
-var i: Integer;
+var dt: PSimdDispatchTable;
+    i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.f[i] := a.f[i] + b.f[i];
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.AddF32x16) then
+    Result := dt^.AddF32x16(a, b)
+  else
+  begin
+    for i := 0 to 15 do
+      Result.f[i] := a.f[i] + b.f[i];
+  end;
 end;
 
 operator - (const a, b: TVecF32x16): TVecF32x16;
-var i: Integer;
+var dt: PSimdDispatchTable;
+    i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.f[i] := a.f[i] - b.f[i];
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.SubF32x16) then
+    Result := dt^.SubF32x16(a, b)
+  else
+  begin
+    for i := 0 to 15 do
+      Result.f[i] := a.f[i] - b.f[i];
+  end;
 end;
 
 operator * (const a, b: TVecF32x16): TVecF32x16;
-var i: Integer;
+var dt: PSimdDispatchTable;
+    i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.f[i] := a.f[i] * b.f[i];
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.MulF32x16) then
+    Result := dt^.MulF32x16(a, b)
+  else
+  begin
+    for i := 0 to 15 do
+      Result.f[i] := a.f[i] * b.f[i];
+  end;
 end;
 
 operator / (const a, b: TVecF32x16): TVecF32x16;
-var i: Integer;
+var dt: PSimdDispatchTable;
+    i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.f[i] := a.f[i] / b.f[i];
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.DivF32x16) then
+    Result := dt^.DivF32x16(a, b)
+  else
+  begin
+    for i := 0 to 15 do
+      Result.f[i] := a.f[i] / b.f[i];
+  end;
 end;
 
 operator - (const a: TVecF32x16): TVecF32x16;
@@ -797,33 +1163,62 @@ begin
 end;
 
 // === TVecF64x8 运算符实现 (512-bit AVX-512) ===
+// ✅ P0 修复: 通过 dispatch 系统调用 AVX-512 实现
 
 operator + (const a, b: TVecF64x8): TVecF64x8;
-var i: Integer;
+var dt: PSimdDispatchTable;
+    i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.d[i] := a.d[i] + b.d[i];
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.AddF64x8) then
+    Result := dt^.AddF64x8(a, b)
+  else
+  begin
+    for i := 0 to 7 do
+      Result.d[i] := a.d[i] + b.d[i];
+  end;
 end;
 
 operator - (const a, b: TVecF64x8): TVecF64x8;
-var i: Integer;
+var dt: PSimdDispatchTable;
+    i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.d[i] := a.d[i] - b.d[i];
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.SubF64x8) then
+    Result := dt^.SubF64x8(a, b)
+  else
+  begin
+    for i := 0 to 7 do
+      Result.d[i] := a.d[i] - b.d[i];
+  end;
 end;
 
 operator * (const a, b: TVecF64x8): TVecF64x8;
-var i: Integer;
+var dt: PSimdDispatchTable;
+    i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.d[i] := a.d[i] * b.d[i];
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.MulF64x8) then
+    Result := dt^.MulF64x8(a, b)
+  else
+  begin
+    for i := 0 to 7 do
+      Result.d[i] := a.d[i] * b.d[i];
+  end;
 end;
 
 operator / (const a, b: TVecF64x8): TVecF64x8;
-var i: Integer;
+var dt: PSimdDispatchTable;
+    i: Integer;
 begin
-  for i := 0 to 7 do
-    Result.d[i] := a.d[i] / b.d[i];
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.DivF64x8) then
+    Result := dt^.DivF64x8(a, b)
+  else
+  begin
+    for i := 0 to 7 do
+      Result.d[i] := a.d[i] / b.d[i];
+  end;
 end;
 
 operator - (const a: TVecF64x8): TVecF64x8;
@@ -834,19 +1229,34 @@ begin
 end;
 
 // === TVecI32x16 运算符实现 (512-bit AVX-512) ===
+// ✅ P0 修复: 通过 dispatch 系统调用 AVX-512 实现
 
 operator + (const a, b: TVecI32x16): TVecI32x16;
-var i: Integer;
+var dt: PSimdDispatchTable;
+    i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.i[i] := a.i[i] + b.i[i];
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.AddI32x16) then
+    Result := dt^.AddI32x16(a, b)
+  else
+  begin
+    for i := 0 to 15 do
+      Result.i[i] := a.i[i] + b.i[i];
+  end;
 end;
 
 operator - (const a, b: TVecI32x16): TVecI32x16;
-var i: Integer;
+var dt: PSimdDispatchTable;
+    i: Integer;
 begin
-  for i := 0 to 15 do
-    Result.i[i] := a.i[i] - b.i[i];
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.SubI32x16) then
+    Result := dt^.SubI32x16(a, b)
+  else
+  begin
+    for i := 0 to 15 do
+      Result.i[i] := a.i[i] - b.i[i];
+  end;
 end;
 
 operator - (const a: TVecI32x16): TVecI32x16;
@@ -854,6 +1264,78 @@ var i: Integer;
 begin
   for i := 0 to 15 do
     Result.i[i] := -a.i[i];
+end;
+
+// ✅ P1.2: 添加 I32x16 乘法运算符
+operator * (const a, b: TVecI32x16): TVecI32x16;
+var dt: PSimdDispatchTable;
+    i: Integer;
+begin
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.MulI32x16) then
+    Result := dt^.MulI32x16(a, b)
+  else
+  begin
+    for i := 0 to 15 do
+      Result.i[i] := a.i[i] * b.i[i];
+  end;
+end;
+
+// ✅ P1.2: 添加 I32x16 位运算符
+operator and (const a, b: TVecI32x16): TVecI32x16;
+var dt: PSimdDispatchTable;
+    i: Integer;
+begin
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.AndI32x16) then
+    Result := dt^.AndI32x16(a, b)
+  else
+  begin
+    for i := 0 to 15 do
+      Result.i[i] := a.i[i] and b.i[i];
+  end;
+end;
+
+operator or (const a, b: TVecI32x16): TVecI32x16;
+var dt: PSimdDispatchTable;
+    i: Integer;
+begin
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.OrI32x16) then
+    Result := dt^.OrI32x16(a, b)
+  else
+  begin
+    for i := 0 to 15 do
+      Result.i[i] := a.i[i] or b.i[i];
+  end;
+end;
+
+operator xor (const a, b: TVecI32x16): TVecI32x16;
+var dt: PSimdDispatchTable;
+    i: Integer;
+begin
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.XorI32x16) then
+    Result := dt^.XorI32x16(a, b)
+  else
+  begin
+    for i := 0 to 15 do
+      Result.i[i] := a.i[i] xor b.i[i];
+  end;
+end;
+
+operator not (const a: TVecI32x16): TVecI32x16;
+var dt: PSimdDispatchTable;
+    i: Integer;
+begin
+  dt := GetDispatchTable;
+  if (dt <> nil) and Assigned(dt^.NotI32x16) then
+    Result := dt^.NotI32x16(a)
+  else
+  begin
+    for i := 0 to 15 do
+      Result.i[i] := not a.i[i];
+  end;
 end;
 
 // === TMaskF32x4 函数实现 ===

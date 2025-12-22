@@ -13,6 +13,14 @@ uses
   fafafa.core.simd.scalar
   {$IFDEF SIMD_X86_AVAILABLE}
   , fafafa.core.simd.sse2
+  , fafafa.core.simd.avx2
+  , fafafa.core.simd.avx512
+  {$ENDIF}
+  {$IFDEF SIMD_ARM_AVAILABLE}
+  , fafafa.core.simd.neon
+  {$ENDIF}
+  {$IFDEF SIMD_RISCV_AVAILABLE}
+  , fafafa.core.simd.riscvv
   {$ENDIF}
   ;
 
@@ -145,6 +153,125 @@ function VecF32x4Zero: TVecF32x4; inline;
 function VecF32x4Select(const mask: TMask4; const a, b: TVecF32x4): TVecF32x4; inline;
 function VecF32x4Extract(const a: TVecF32x4; index: Integer): Single; inline;
 function VecF32x4Insert(const a: TVecF32x4; value: Single; index: Integer): TVecF32x4; inline;
+
+// === F64x2 Operations (128-bit Double) ===
+// ✅ P0.3: 添加缺失的 F64x2 高级 API
+
+// F64x2 arithmetic
+function VecF64x2Add(const a, b: TVecF64x2): TVecF64x2; inline;
+function VecF64x2Sub(const a, b: TVecF64x2): TVecF64x2; inline;
+function VecF64x2Mul(const a, b: TVecF64x2): TVecF64x2; inline;
+function VecF64x2Div(const a, b: TVecF64x2): TVecF64x2; inline;
+
+// === I32x4 Operations (128-bit Integer) ===
+// ✅ P0.3: 添加缺失的 I32x4 高级 API
+
+// I32x4 arithmetic
+function VecI32x4Add(const a, b: TVecI32x4): TVecI32x4; inline;
+function VecI32x4Sub(const a, b: TVecI32x4): TVecI32x4; inline;
+function VecI32x4Mul(const a, b: TVecI32x4): TVecI32x4; inline;
+
+// I32x4 bitwise operations
+function VecI32x4And(const a, b: TVecI32x4): TVecI32x4; inline;
+function VecI32x4Or(const a, b: TVecI32x4): TVecI32x4; inline;
+function VecI32x4Xor(const a, b: TVecI32x4): TVecI32x4; inline;
+function VecI32x4Not(const a: TVecI32x4): TVecI32x4; inline;
+function VecI32x4AndNot(const a, b: TVecI32x4): TVecI32x4; inline;
+
+// I32x4 shift operations
+function VecI32x4ShiftLeft(const a: TVecI32x4; count: Integer): TVecI32x4; inline;
+function VecI32x4ShiftRight(const a: TVecI32x4; count: Integer): TVecI32x4; inline;
+function VecI32x4ShiftRightArith(const a: TVecI32x4; count: Integer): TVecI32x4; inline;
+
+// I32x4 comparison
+function VecI32x4CmpEq(const a, b: TVecI32x4): TMask4; inline;
+function VecI32x4CmpLt(const a, b: TVecI32x4): TMask4; inline;
+function VecI32x4CmpGt(const a, b: TVecI32x4): TMask4; inline;
+
+// I32x4 min/max
+function VecI32x4Min(const a, b: TVecI32x4): TVecI32x4; inline;
+function VecI32x4Max(const a, b: TVecI32x4): TVecI32x4; inline;
+
+// === I64x2 Operations (128-bit Integer, 64-bit elements) ===
+// ✅ P1.3: 添加 I64x2 高级 API
+
+// I64x2 arithmetic
+function VecI64x2Add(const a, b: TVecI64x2): TVecI64x2; inline;
+function VecI64x2Sub(const a, b: TVecI64x2): TVecI64x2; inline;
+
+// I64x2 bitwise operations
+function VecI64x2And(const a, b: TVecI64x2): TVecI64x2; inline;
+function VecI64x2Or(const a, b: TVecI64x2): TVecI64x2; inline;
+function VecI64x2Xor(const a, b: TVecI64x2): TVecI64x2; inline;
+function VecI64x2Not(const a: TVecI64x2): TVecI64x2; inline;
+function VecI64x2AndNot(const a, b: TVecI64x2): TVecI64x2; inline;
+
+// === F32x8 Operations (256-bit Float, AVX) ===
+// ✅ P0.3: 添加缺失的 F32x8 高级 API
+
+// F32x8 arithmetic
+function VecF32x8Add(const a, b: TVecF32x8): TVecF32x8; inline;
+function VecF32x8Sub(const a, b: TVecF32x8): TVecF32x8; inline;
+function VecF32x8Mul(const a, b: TVecF32x8): TVecF32x8; inline;
+function VecF32x8Div(const a, b: TVecF32x8): TVecF32x8; inline;
+
+// === I32x8 Operations (256-bit Integer, AVX2) ===
+// ✅ P1.1: 添加缺失的 I32x8 高级 API
+
+// I32x8 arithmetic
+function VecI32x8Add(const a, b: TVecI32x8): TVecI32x8; inline;
+function VecI32x8Sub(const a, b: TVecI32x8): TVecI32x8; inline;
+function VecI32x8Mul(const a, b: TVecI32x8): TVecI32x8; inline;
+
+// I32x8 bitwise operations
+function VecI32x8And(const a, b: TVecI32x8): TVecI32x8; inline;
+function VecI32x8Or(const a, b: TVecI32x8): TVecI32x8; inline;
+function VecI32x8Xor(const a, b: TVecI32x8): TVecI32x8; inline;
+function VecI32x8Not(const a: TVecI32x8): TVecI32x8; inline;
+function VecI32x8AndNot(const a, b: TVecI32x8): TVecI32x8; inline;
+
+// I32x8 shift operations
+function VecI32x8ShiftLeft(const a: TVecI32x8; count: Integer): TVecI32x8; inline;
+function VecI32x8ShiftRight(const a: TVecI32x8; count: Integer): TVecI32x8; inline;
+function VecI32x8ShiftRightArith(const a: TVecI32x8; count: Integer): TVecI32x8; inline;
+
+// I32x8 comparison
+function VecI32x8CmpEq(const a, b: TVecI32x8): TMask8; inline;
+function VecI32x8CmpLt(const a, b: TVecI32x8): TMask8; inline;
+function VecI32x8CmpGt(const a, b: TVecI32x8): TMask8; inline;
+
+// I32x8 min/max
+function VecI32x8Min(const a, b: TVecI32x8): TVecI32x8; inline;
+function VecI32x8Max(const a, b: TVecI32x8): TVecI32x8; inline;
+
+// === I32x16 Operations (512-bit Integer, AVX-512) ===
+// ✅ P1.2: 添加 I32x16 高级 API
+
+// I32x16 arithmetic
+function VecI32x16Add(const a, b: TVecI32x16): TVecI32x16; inline;
+function VecI32x16Sub(const a, b: TVecI32x16): TVecI32x16; inline;
+function VecI32x16Mul(const a, b: TVecI32x16): TVecI32x16; inline;
+
+// I32x16 bitwise operations
+function VecI32x16And(const a, b: TVecI32x16): TVecI32x16; inline;
+function VecI32x16Or(const a, b: TVecI32x16): TVecI32x16; inline;
+function VecI32x16Xor(const a, b: TVecI32x16): TVecI32x16; inline;
+function VecI32x16Not(const a: TVecI32x16): TVecI32x16; inline;
+function VecI32x16AndNot(const a, b: TVecI32x16): TVecI32x16; inline;
+
+// I32x16 shift operations
+function VecI32x16ShiftLeft(const a: TVecI32x16; count: Integer): TVecI32x16; inline;
+function VecI32x16ShiftRight(const a: TVecI32x16; count: Integer): TVecI32x16; inline;
+function VecI32x16ShiftRightArith(const a: TVecI32x16; count: Integer): TVecI32x16; inline;
+
+// I32x16 comparison
+function VecI32x16CmpEq(const a, b: TVecI32x16): TMask16; inline;
+function VecI32x16CmpLt(const a, b: TVecI32x16): TMask16; inline;
+function VecI32x16CmpGt(const a, b: TVecI32x16): TMask16; inline;
+
+// I32x16 min/max
+function VecI32x16Min(const a, b: TVecI32x16): TVecI32x16; inline;
+function VecI32x16Max(const a, b: TVecI32x16): TVecI32x16; inline;
 
 // === Framework Information ===
 
@@ -471,6 +598,905 @@ var dispatch: PSimdDispatchTable;
 begin
   dispatch := GetDispatchTable;
   Result := dispatch^.InsertF32x4(a, value, index);
+end;
+
+// === F64x2 Operations Implementation ===
+// ✅ P0.3: F64x2 高级 API 实现
+
+function VecF64x2Add(const a, b: TVecF64x2): TVecF64x2;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.AddF64x2) then
+    Result := dispatch^.AddF64x2(a, b)
+  else
+  begin
+    Result.d[0] := a.d[0] + b.d[0];
+    Result.d[1] := a.d[1] + b.d[1];
+  end;
+end;
+
+function VecF64x2Sub(const a, b: TVecF64x2): TVecF64x2;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.SubF64x2) then
+    Result := dispatch^.SubF64x2(a, b)
+  else
+  begin
+    Result.d[0] := a.d[0] - b.d[0];
+    Result.d[1] := a.d[1] - b.d[1];
+  end;
+end;
+
+function VecF64x2Mul(const a, b: TVecF64x2): TVecF64x2;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.MulF64x2) then
+    Result := dispatch^.MulF64x2(a, b)
+  else
+  begin
+    Result.d[0] := a.d[0] * b.d[0];
+    Result.d[1] := a.d[1] * b.d[1];
+  end;
+end;
+
+function VecF64x2Div(const a, b: TVecF64x2): TVecF64x2;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.DivF64x2) then
+    Result := dispatch^.DivF64x2(a, b)
+  else
+  begin
+    Result.d[0] := a.d[0] / b.d[0];
+    Result.d[1] := a.d[1] / b.d[1];
+  end;
+end;
+
+// === I32x4 Operations Implementation ===
+// ✅ P0.3: I32x4 高级 API 实现
+
+function VecI32x4Add(const a, b: TVecI32x4): TVecI32x4;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.AddI32x4) then
+    Result := dispatch^.AddI32x4(a, b)
+  else
+  begin
+    Result.i[0] := a.i[0] + b.i[0];
+    Result.i[1] := a.i[1] + b.i[1];
+    Result.i[2] := a.i[2] + b.i[2];
+    Result.i[3] := a.i[3] + b.i[3];
+  end;
+end;
+
+function VecI32x4Sub(const a, b: TVecI32x4): TVecI32x4;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.SubI32x4) then
+    Result := dispatch^.SubI32x4(a, b)
+  else
+  begin
+    Result.i[0] := a.i[0] - b.i[0];
+    Result.i[1] := a.i[1] - b.i[1];
+    Result.i[2] := a.i[2] - b.i[2];
+    Result.i[3] := a.i[3] - b.i[3];
+  end;
+end;
+
+function VecI32x4Mul(const a, b: TVecI32x4): TVecI32x4;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.MulI32x4) then
+    Result := dispatch^.MulI32x4(a, b)
+  else
+  begin
+    Result.i[0] := a.i[0] * b.i[0];
+    Result.i[1] := a.i[1] * b.i[1];
+    Result.i[2] := a.i[2] * b.i[2];
+    Result.i[3] := a.i[3] * b.i[3];
+  end;
+end;
+
+function VecI32x4And(const a, b: TVecI32x4): TVecI32x4;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.AndI32x4) then
+    Result := dispatch^.AndI32x4(a, b)
+  else
+  begin
+    Result.i[0] := a.i[0] and b.i[0];
+    Result.i[1] := a.i[1] and b.i[1];
+    Result.i[2] := a.i[2] and b.i[2];
+    Result.i[3] := a.i[3] and b.i[3];
+  end;
+end;
+
+function VecI32x4Or(const a, b: TVecI32x4): TVecI32x4;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.OrI32x4) then
+    Result := dispatch^.OrI32x4(a, b)
+  else
+  begin
+    Result.i[0] := a.i[0] or b.i[0];
+    Result.i[1] := a.i[1] or b.i[1];
+    Result.i[2] := a.i[2] or b.i[2];
+    Result.i[3] := a.i[3] or b.i[3];
+  end;
+end;
+
+function VecI32x4Xor(const a, b: TVecI32x4): TVecI32x4;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.XorI32x4) then
+    Result := dispatch^.XorI32x4(a, b)
+  else
+  begin
+    Result.i[0] := a.i[0] xor b.i[0];
+    Result.i[1] := a.i[1] xor b.i[1];
+    Result.i[2] := a.i[2] xor b.i[2];
+    Result.i[3] := a.i[3] xor b.i[3];
+  end;
+end;
+
+function VecI32x4Not(const a: TVecI32x4): TVecI32x4;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.NotI32x4) then
+    Result := dispatch^.NotI32x4(a)
+  else
+  begin
+    Result.i[0] := not a.i[0];
+    Result.i[1] := not a.i[1];
+    Result.i[2] := not a.i[2];
+    Result.i[3] := not a.i[3];
+  end;
+end;
+
+function VecI32x4AndNot(const a, b: TVecI32x4): TVecI32x4;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.AndNotI32x4) then
+    Result := dispatch^.AndNotI32x4(a, b)
+  else
+  begin
+    Result.i[0] := (not a.i[0]) and b.i[0];
+    Result.i[1] := (not a.i[1]) and b.i[1];
+    Result.i[2] := (not a.i[2]) and b.i[2];
+    Result.i[3] := (not a.i[3]) and b.i[3];
+  end;
+end;
+
+function VecI32x4ShiftLeft(const a: TVecI32x4; count: Integer): TVecI32x4;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.ShiftLeftI32x4) then
+    Result := dispatch^.ShiftLeftI32x4(a, count)
+  else
+  begin
+    Result.i[0] := a.i[0] shl count;
+    Result.i[1] := a.i[1] shl count;
+    Result.i[2] := a.i[2] shl count;
+    Result.i[3] := a.i[3] shl count;
+  end;
+end;
+
+function VecI32x4ShiftRight(const a: TVecI32x4; count: Integer): TVecI32x4;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.ShiftRightI32x4) then
+    Result := dispatch^.ShiftRightI32x4(a, count)
+  else
+  begin
+    // Logical shift (unsigned)
+    Result.i[0] := Int32(UInt32(a.i[0]) shr count);
+    Result.i[1] := Int32(UInt32(a.i[1]) shr count);
+    Result.i[2] := Int32(UInt32(a.i[2]) shr count);
+    Result.i[3] := Int32(UInt32(a.i[3]) shr count);
+  end;
+end;
+
+function VecI32x4ShiftRightArith(const a: TVecI32x4; count: Integer): TVecI32x4;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.ShiftRightArithI32x4) then
+    Result := dispatch^.ShiftRightArithI32x4(a, count)
+  else
+  begin
+    // Arithmetic shift (signed)
+    Result.i[0] := SarLongint(a.i[0], count);
+    Result.i[1] := SarLongint(a.i[1], count);
+    Result.i[2] := SarLongint(a.i[2], count);
+    Result.i[3] := SarLongint(a.i[3], count);
+  end;
+end;
+
+function VecI32x4CmpEq(const a, b: TVecI32x4): TMask4;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.CmpEqI32x4) then
+    Result := dispatch^.CmpEqI32x4(a, b)
+  else
+  begin
+    Result := 0;
+    if a.i[0] = b.i[0] then Result := Result or 1;
+    if a.i[1] = b.i[1] then Result := Result or 2;
+    if a.i[2] = b.i[2] then Result := Result or 4;
+    if a.i[3] = b.i[3] then Result := Result or 8;
+  end;
+end;
+
+function VecI32x4CmpLt(const a, b: TVecI32x4): TMask4;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.CmpLtI32x4) then
+    Result := dispatch^.CmpLtI32x4(a, b)
+  else
+  begin
+    Result := 0;
+    if a.i[0] < b.i[0] then Result := Result or 1;
+    if a.i[1] < b.i[1] then Result := Result or 2;
+    if a.i[2] < b.i[2] then Result := Result or 4;
+    if a.i[3] < b.i[3] then Result := Result or 8;
+  end;
+end;
+
+function VecI32x4CmpGt(const a, b: TVecI32x4): TMask4;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.CmpGtI32x4) then
+    Result := dispatch^.CmpGtI32x4(a, b)
+  else
+  begin
+    Result := 0;
+    if a.i[0] > b.i[0] then Result := Result or 1;
+    if a.i[1] > b.i[1] then Result := Result or 2;
+    if a.i[2] > b.i[2] then Result := Result or 4;
+    if a.i[3] > b.i[3] then Result := Result or 8;
+  end;
+end;
+
+function VecI32x4Min(const a, b: TVecI32x4): TVecI32x4;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.MinI32x4) then
+    Result := dispatch^.MinI32x4(a, b)
+  else
+  begin
+    for i := 0 to 3 do
+      if a.i[i] < b.i[i] then
+        Result.i[i] := a.i[i]
+      else
+        Result.i[i] := b.i[i];
+  end;
+end;
+
+function VecI32x4Max(const a, b: TVecI32x4): TVecI32x4;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.MaxI32x4) then
+    Result := dispatch^.MaxI32x4(a, b)
+  else
+  begin
+    for i := 0 to 3 do
+      if a.i[i] > b.i[i] then
+        Result.i[i] := a.i[i]
+      else
+        Result.i[i] := b.i[i];
+  end;
+end;
+
+// === I64x2 Operations Implementation ===
+// ✅ P1.3: I64x2 高级 API 实现
+
+function VecI64x2Add(const a, b: TVecI64x2): TVecI64x2;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.AddI64x2) then
+    Result := dispatch^.AddI64x2(a, b)
+  else
+  begin
+    Result.i[0] := a.i[0] + b.i[0];
+    Result.i[1] := a.i[1] + b.i[1];
+  end;
+end;
+
+function VecI64x2Sub(const a, b: TVecI64x2): TVecI64x2;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.SubI64x2) then
+    Result := dispatch^.SubI64x2(a, b)
+  else
+  begin
+    Result.i[0] := a.i[0] - b.i[0];
+    Result.i[1] := a.i[1] - b.i[1];
+  end;
+end;
+
+function VecI64x2And(const a, b: TVecI64x2): TVecI64x2;
+begin
+  // Bitwise operations - scalar fallback (no dispatch entry)
+  Result.i[0] := a.i[0] and b.i[0];
+  Result.i[1] := a.i[1] and b.i[1];
+end;
+
+function VecI64x2Or(const a, b: TVecI64x2): TVecI64x2;
+begin
+  Result.i[0] := a.i[0] or b.i[0];
+  Result.i[1] := a.i[1] or b.i[1];
+end;
+
+function VecI64x2Xor(const a, b: TVecI64x2): TVecI64x2;
+begin
+  Result.i[0] := a.i[0] xor b.i[0];
+  Result.i[1] := a.i[1] xor b.i[1];
+end;
+
+function VecI64x2Not(const a: TVecI64x2): TVecI64x2;
+begin
+  Result.i[0] := not a.i[0];
+  Result.i[1] := not a.i[1];
+end;
+
+function VecI64x2AndNot(const a, b: TVecI64x2): TVecI64x2;
+begin
+  // (~a) and b
+  Result.i[0] := (not a.i[0]) and b.i[0];
+  Result.i[1] := (not a.i[1]) and b.i[1];
+end;
+
+// === F32x8 Operations Implementation ===
+// ✅ P0.3: F32x8 (256-bit) 高级 API 实现
+
+function VecF32x8Add(const a, b: TVecF32x8): TVecF32x8;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.AddF32x8) then
+    Result := dispatch^.AddF32x8(a, b)
+  else
+  begin
+    for i := 0 to 7 do
+      Result.f[i] := a.f[i] + b.f[i];
+  end;
+end;
+
+function VecF32x8Sub(const a, b: TVecF32x8): TVecF32x8;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.SubF32x8) then
+    Result := dispatch^.SubF32x8(a, b)
+  else
+  begin
+    for i := 0 to 7 do
+      Result.f[i] := a.f[i] - b.f[i];
+  end;
+end;
+
+function VecF32x8Mul(const a, b: TVecF32x8): TVecF32x8;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.MulF32x8) then
+    Result := dispatch^.MulF32x8(a, b)
+  else
+  begin
+    for i := 0 to 7 do
+      Result.f[i] := a.f[i] * b.f[i];
+  end;
+end;
+
+function VecF32x8Div(const a, b: TVecF32x8): TVecF32x8;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.DivF32x8) then
+    Result := dispatch^.DivF32x8(a, b)
+  else
+  begin
+    for i := 0 to 7 do
+      Result.f[i] := a.f[i] / b.f[i];
+  end;
+end;
+
+// === I32x8 Operations Implementation ===
+// ✅ P1.1: I32x8 高级 API 实现
+
+function VecI32x8Add(const a, b: TVecI32x8): TVecI32x8;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.AddI32x8) then
+    Result := dispatch^.AddI32x8(a, b)
+  else
+  begin
+    for i := 0 to 7 do
+      Result.i[i] := a.i[i] + b.i[i];
+  end;
+end;
+
+function VecI32x8Sub(const a, b: TVecI32x8): TVecI32x8;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.SubI32x8) then
+    Result := dispatch^.SubI32x8(a, b)
+  else
+  begin
+    for i := 0 to 7 do
+      Result.i[i] := a.i[i] - b.i[i];
+  end;
+end;
+
+function VecI32x8Mul(const a, b: TVecI32x8): TVecI32x8;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.MulI32x8) then
+    Result := dispatch^.MulI32x8(a, b)
+  else
+  begin
+    for i := 0 to 7 do
+      Result.i[i] := a.i[i] * b.i[i];
+  end;
+end;
+
+function VecI32x8And(const a, b: TVecI32x8): TVecI32x8;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.AndI32x8) then
+    Result := dispatch^.AndI32x8(a, b)
+  else
+  begin
+    for i := 0 to 7 do
+      Result.i[i] := a.i[i] and b.i[i];
+  end;
+end;
+
+function VecI32x8Or(const a, b: TVecI32x8): TVecI32x8;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.OrI32x8) then
+    Result := dispatch^.OrI32x8(a, b)
+  else
+  begin
+    for i := 0 to 7 do
+      Result.i[i] := a.i[i] or b.i[i];
+  end;
+end;
+
+function VecI32x8Xor(const a, b: TVecI32x8): TVecI32x8;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.XorI32x8) then
+    Result := dispatch^.XorI32x8(a, b)
+  else
+  begin
+    for i := 0 to 7 do
+      Result.i[i] := a.i[i] xor b.i[i];
+  end;
+end;
+
+function VecI32x8Not(const a: TVecI32x8): TVecI32x8;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.NotI32x8) then
+    Result := dispatch^.NotI32x8(a)
+  else
+  begin
+    for i := 0 to 7 do
+      Result.i[i] := not a.i[i];
+  end;
+end;
+
+function VecI32x8AndNot(const a, b: TVecI32x8): TVecI32x8;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.AndNotI32x8) then
+    Result := dispatch^.AndNotI32x8(a, b)
+  else
+  begin
+    for i := 0 to 7 do
+      Result.i[i] := (not a.i[i]) and b.i[i];
+  end;
+end;
+
+function VecI32x8ShiftLeft(const a: TVecI32x8; count: Integer): TVecI32x8;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.ShiftLeftI32x8) then
+    Result := dispatch^.ShiftLeftI32x8(a, count)
+  else
+  begin
+    for i := 0 to 7 do
+      Result.i[i] := a.i[i] shl count;
+  end;
+end;
+
+function VecI32x8ShiftRight(const a: TVecI32x8; count: Integer): TVecI32x8;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.ShiftRightI32x8) then
+    Result := dispatch^.ShiftRightI32x8(a, count)
+  else
+  begin
+    for i := 0 to 7 do
+      Result.i[i] := Int32(UInt32(a.i[i]) shr count);
+  end;
+end;
+
+function VecI32x8ShiftRightArith(const a: TVecI32x8; count: Integer): TVecI32x8;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.ShiftRightArithI32x8) then
+    Result := dispatch^.ShiftRightArithI32x8(a, count)
+  else
+  begin
+    for i := 0 to 7 do
+      Result.i[i] := SarLongint(a.i[i], count);
+  end;
+end;
+
+function VecI32x8CmpEq(const a, b: TVecI32x8): TMask8;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.CmpEqI32x8) then
+    Result := dispatch^.CmpEqI32x8(a, b)
+  else
+  begin
+    Result := 0;
+    for i := 0 to 7 do
+      if a.i[i] = b.i[i] then Result := Result or (1 shl i);
+  end;
+end;
+
+function VecI32x8CmpLt(const a, b: TVecI32x8): TMask8;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.CmpLtI32x8) then
+    Result := dispatch^.CmpLtI32x8(a, b)
+  else
+  begin
+    Result := 0;
+    for i := 0 to 7 do
+      if a.i[i] < b.i[i] then Result := Result or (1 shl i);
+  end;
+end;
+
+function VecI32x8CmpGt(const a, b: TVecI32x8): TMask8;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.CmpGtI32x8) then
+    Result := dispatch^.CmpGtI32x8(a, b)
+  else
+  begin
+    Result := 0;
+    for i := 0 to 7 do
+      if a.i[i] > b.i[i] then Result := Result or (1 shl i);
+  end;
+end;
+
+function VecI32x8Min(const a, b: TVecI32x8): TVecI32x8;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.MinI32x8) then
+    Result := dispatch^.MinI32x8(a, b)
+  else
+  begin
+    for i := 0 to 7 do
+      if a.i[i] < b.i[i] then
+        Result.i[i] := a.i[i]
+      else
+        Result.i[i] := b.i[i];
+  end;
+end;
+
+function VecI32x8Max(const a, b: TVecI32x8): TVecI32x8;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.MaxI32x8) then
+    Result := dispatch^.MaxI32x8(a, b)
+  else
+  begin
+    for i := 0 to 7 do
+      if a.i[i] > b.i[i] then
+        Result.i[i] := a.i[i]
+      else
+        Result.i[i] := b.i[i];
+  end;
+end;
+
+// === I32x16 Operations Implementation ===
+// ✅ P1.2: I32x16 高级 API 实现
+
+function VecI32x16Add(const a, b: TVecI32x16): TVecI32x16;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.AddI32x16) then
+    Result := dispatch^.AddI32x16(a, b)
+  else
+  begin
+    for i := 0 to 15 do
+      Result.i[i] := a.i[i] + b.i[i];
+  end;
+end;
+
+function VecI32x16Sub(const a, b: TVecI32x16): TVecI32x16;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.SubI32x16) then
+    Result := dispatch^.SubI32x16(a, b)
+  else
+  begin
+    for i := 0 to 15 do
+      Result.i[i] := a.i[i] - b.i[i];
+  end;
+end;
+
+function VecI32x16Mul(const a, b: TVecI32x16): TVecI32x16;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.MulI32x16) then
+    Result := dispatch^.MulI32x16(a, b)
+  else
+  begin
+    for i := 0 to 15 do
+      Result.i[i] := a.i[i] * b.i[i];
+  end;
+end;
+
+function VecI32x16And(const a, b: TVecI32x16): TVecI32x16;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.AndI32x16) then
+    Result := dispatch^.AndI32x16(a, b)
+  else
+  begin
+    for i := 0 to 15 do
+      Result.i[i] := a.i[i] and b.i[i];
+  end;
+end;
+
+function VecI32x16Or(const a, b: TVecI32x16): TVecI32x16;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.OrI32x16) then
+    Result := dispatch^.OrI32x16(a, b)
+  else
+  begin
+    for i := 0 to 15 do
+      Result.i[i] := a.i[i] or b.i[i];
+  end;
+end;
+
+function VecI32x16Xor(const a, b: TVecI32x16): TVecI32x16;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.XorI32x16) then
+    Result := dispatch^.XorI32x16(a, b)
+  else
+  begin
+    for i := 0 to 15 do
+      Result.i[i] := a.i[i] xor b.i[i];
+  end;
+end;
+
+function VecI32x16Not(const a: TVecI32x16): TVecI32x16;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.NotI32x16) then
+    Result := dispatch^.NotI32x16(a)
+  else
+  begin
+    for i := 0 to 15 do
+      Result.i[i] := not a.i[i];
+  end;
+end;
+
+function VecI32x16AndNot(const a, b: TVecI32x16): TVecI32x16;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.AndNotI32x16) then
+    Result := dispatch^.AndNotI32x16(a, b)
+  else
+  begin
+    for i := 0 to 15 do
+      Result.i[i] := (not a.i[i]) and b.i[i];
+  end;
+end;
+
+function VecI32x16ShiftLeft(const a: TVecI32x16; count: Integer): TVecI32x16;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.ShiftLeftI32x16) then
+    Result := dispatch^.ShiftLeftI32x16(a, count)
+  else
+  begin
+    for i := 0 to 15 do
+      Result.i[i] := a.i[i] shl count;
+  end;
+end;
+
+function VecI32x16ShiftRight(const a: TVecI32x16; count: Integer): TVecI32x16;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.ShiftRightI32x16) then
+    Result := dispatch^.ShiftRightI32x16(a, count)
+  else
+  begin
+    for i := 0 to 15 do
+      Result.i[i] := Int32(UInt32(a.i[i]) shr count);
+  end;
+end;
+
+function VecI32x16ShiftRightArith(const a: TVecI32x16; count: Integer): TVecI32x16;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.ShiftRightArithI32x16) then
+    Result := dispatch^.ShiftRightArithI32x16(a, count)
+  else
+  begin
+    for i := 0 to 15 do
+      Result.i[i] := SarLongint(a.i[i], count);
+  end;
+end;
+
+function VecI32x16CmpEq(const a, b: TVecI32x16): TMask16;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.CmpEqI32x16) then
+    Result := dispatch^.CmpEqI32x16(a, b)
+  else
+  begin
+    Result := 0;
+    for i := 0 to 15 do
+      if a.i[i] = b.i[i] then Result := Result or (1 shl i);
+  end;
+end;
+
+function VecI32x16CmpLt(const a, b: TVecI32x16): TMask16;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.CmpLtI32x16) then
+    Result := dispatch^.CmpLtI32x16(a, b)
+  else
+  begin
+    Result := 0;
+    for i := 0 to 15 do
+      if a.i[i] < b.i[i] then Result := Result or (1 shl i);
+  end;
+end;
+
+function VecI32x16CmpGt(const a, b: TVecI32x16): TMask16;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.CmpGtI32x16) then
+    Result := dispatch^.CmpGtI32x16(a, b)
+  else
+  begin
+    Result := 0;
+    for i := 0 to 15 do
+      if a.i[i] > b.i[i] then Result := Result or (1 shl i);
+  end;
+end;
+
+function VecI32x16Min(const a, b: TVecI32x16): TVecI32x16;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.MinI32x16) then
+    Result := dispatch^.MinI32x16(a, b)
+  else
+  begin
+    for i := 0 to 15 do
+      if a.i[i] < b.i[i] then
+        Result.i[i] := a.i[i]
+      else
+        Result.i[i] := b.i[i];
+  end;
+end;
+
+function VecI32x16Max(const a, b: TVecI32x16): TVecI32x16;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.MaxI32x16) then
+    Result := dispatch^.MaxI32x16(a, b)
+  else
+  begin
+    for i := 0 to 15 do
+      if a.i[i] > b.i[i] then
+        Result.i[i] := a.i[i]
+      else
+        Result.i[i] := b.i[i];
+  end;
 end;
 
 // === Framework Information ===

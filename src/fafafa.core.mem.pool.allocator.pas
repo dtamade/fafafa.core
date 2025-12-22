@@ -63,7 +63,11 @@ type
     function AllocAligned(aSize, aAlignment: SizeUInt): Pointer;
     procedure FreeAligned(aPtr: Pointer);
     function Traits: TAllocatorTraits;
-    
+    // v1.2.0 新增方法
+    function GetMemSize(aPtr: Pointer): SizeUInt;
+    function TryGetMem(aSize: SizeUInt; out aPtr: Pointer): Boolean;
+    function TryAllocMem(aSize: SizeUInt; out aPtr: Pointer): Boolean;
+
     // 统计
     property BlockSize: SizeUInt read FBlockSize;
     property AllocatedCount: Integer read GetAllocatedCount;
@@ -109,7 +113,7 @@ end;
 
 destructor TPoolAllocator.Destroy;
 begin
-  FPool.Free;
+  FreeAndNil(FPool);
   inherited Destroy;
 end;
 
@@ -210,6 +214,36 @@ begin
   Result.ThreadSafe := False;  // TFixedPool 不是线程安全的
   Result.HasMemSize := True;   // 我们知道块大小
   Result.SupportsAligned := True;  // 块是 16 字节对齐的
+  // v1.2.0 新增字段
+  Result.MaxAlignment    := 16;    // 固定 16 字节对齐
+  Result.MinBlockSize    := FBlockSize;  // 最小块大小
+  Result.CanGrowInPlace  := False; // 固定池不支持原地扩展
+end;
+
+// ✅ v1.2.0 新增方法实现
+
+function TPoolAllocator.GetMemSize(aPtr: Pointer): SizeUInt;
+begin
+  if (aPtr = nil) then
+    Exit(0);
+  // 如果是池中的指针，返回块大小
+  if FPool.Owns(aPtr) then
+    Result := FBlockSize
+  else
+    // 否则使用后备分配器查询
+    Result := FFallback.GetMemSize(aPtr);
+end;
+
+function TPoolAllocator.TryGetMem(aSize: SizeUInt; out aPtr: Pointer): Boolean;
+begin
+  aPtr := GetMem(aSize);
+  Result := (aPtr <> nil) or (aSize = 0);
+end;
+
+function TPoolAllocator.TryAllocMem(aSize: SizeUInt; out aPtr: Pointer): Boolean;
+begin
+  aPtr := AllocMem(aSize);
+  Result := (aPtr <> nil) or (aSize = 0);
 end;
 
 { Factory function }
