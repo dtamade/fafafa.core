@@ -55,6 +55,14 @@ type
     function CompareLex(const B: TUUID): Integer; inline;
     function LessThan(const B: TUUID): Boolean; inline;
 
+    // Operator overloads
+    class operator = (const A, B: TUUID): Boolean; inline;
+    class operator <> (const A, B: TUUID): Boolean; inline;
+    class operator < (const A, B: TUUID): Boolean; inline;
+    class operator <= (const A, B: TUUID): Boolean; inline;
+    class operator > (const A, B: TUUID): Boolean; inline;
+    class operator >= (const A, B: TUUID): Boolean; inline;
+
     // Generators
     class function NewV4: TUUID; static; inline;
     class function NewV7: TUUID; static; inline;
@@ -226,17 +234,19 @@ begin
 end;
 
 function TUUID.Hash: UInt32;
-var p: PCardinal;
+const
+  FNV_OFFSET_BASIS = $811C9DC5;
+  FNV_PRIME = $01000193;
+var
+  i: Integer;
 begin
-  // simple 32-bit mix over first and last 4 bytes
-  p := @F[0];
-  Result := p^;
-  Inc(p, 1);
-  Result := Result xor p^;
-  Inc(p, 1);
-  Result := Result xor p^;
-  Inc(p, 1);
-  Result := Result xor PCardinal(@F[12])^;
+  // FNV-1a hash for better distribution and lower collision rate
+  Result := FNV_OFFSET_BASIS;
+  for i := 0 to 15 do
+  begin
+    Result := Result xor F[i];
+    Result := Result * FNV_PRIME;
+  end;
 end;
 
 class function TUUID.NilValue: TUUID;
@@ -258,6 +268,38 @@ end;
 class function TUUID.NewV7At(const TimestampMs: Int64): TUUID;
 begin
   Result.F := fafafa.core.id.UuidV7_Raw(TimestampMs);
+end;
+
+{ Operator overloads }
+
+class operator TUUID.= (const A, B: TUUID): Boolean;
+begin
+  Result := A.Equals(B);
+end;
+
+class operator TUUID.<> (const A, B: TUUID): Boolean;
+begin
+  Result := not A.Equals(B);
+end;
+
+class operator TUUID.< (const A, B: TUUID): Boolean;
+begin
+  Result := A.CompareLex(B) < 0;
+end;
+
+class operator TUUID.<= (const A, B: TUUID): Boolean;
+begin
+  Result := A.CompareLex(B) <= 0;
+end;
+
+class operator TUUID.> (const A, B: TUUID): Boolean;
+begin
+  Result := A.CompareLex(B) > 0;
+end;
+
+class operator TUUID.>= (const A, B: TUUID): Boolean;
+begin
+  Result := A.CompareLex(B) >= 0;
 end;
 
 end.

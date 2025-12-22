@@ -3,6 +3,7 @@
 
   - Provides NowUnixMs / NowUnixSeconds using the framework clock
   - Centralizes time source for UUID v7 / ULID / KSUID / Snowflake
+  - Uses UTC to avoid DST-related clock rollback issues
 }
 
 unit fafafa.core.id.time;
@@ -24,17 +25,19 @@ function NowUnixMs: Int64; inline;
 var
   D: TDateTime;
 begin
-  // Use local wall-clock via DefaultSystemClock, DateTimeToUnix handles TZ
-  D := DefaultSystemClock.NowLocal;
-  Result := Int64(DateTimeToUnix(D)) * 1000 + MilliSecondOf(D);
+  // Use UTC to avoid DST-related clock rollback issues
+  // DateTimeToUnix expects UTC input
+  D := DefaultSystemClock.NowUtc;
+  Result := Int64(DateTimeToUnix(D, False)) * 1000 + MilliSecondOf(D);
 end;
 
 function NowUnixSeconds: Int64; inline;
 var
   D: TDateTime;
 begin
-  D := DefaultSystemClock.NowLocal;
-  Result := DateTimeToUnix(D);
+  // Use UTC for consistent Unix epoch timestamps
+  D := DefaultSystemClock.NowUtc;
+  Result := DateTimeToUnix(D, False);
 end;
 
 end.

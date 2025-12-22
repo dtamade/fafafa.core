@@ -33,6 +33,10 @@ function KsuidToBase58(const A: TKsuid160): string;
 function TryParseKsuidBase58(const S: string; out A: TKsuid160): Boolean;
 function TryParseKsuidBase58Strict(const S: string; out A: TKsuid160): Boolean;
 
+{ ULID <-> UUID conversion (same 128 bits, different encoding) }
+function UlidToUuid(const A: TUlid128): TUuid128; inline;
+function UuidToUlid(const A: TUuid128): TUlid128; inline;
+
 implementation
 
 const
@@ -79,9 +83,6 @@ begin
   x := LongWord(A[15]);
   p^ := B64URL[(x shr 2) and $3F]; Inc(p);
   p^ := B64URL[(x and 3) shl 4];
-end;
-
-  p^ := B64URL[(x and 3) shl 4]; Inc(p);
 end;
 
 function B64UrlVal(C: Char): Integer; inline;
@@ -273,32 +274,25 @@ end;
 function KsuidToBase58(const A: TKsuid160): string;
 begin
   Result := Base58EncodeBytes(A, SizeOf(A));
-
-function TryParseUlidBase58Strict(const S: string; out A: TUlid128): Boolean;
-var i: Integer; c: Char;
-begin
-  Result := False;
-  // 128-bit ULID encoded in base58 的长度通常为 22 或 23，严格模式固定要求 22..23 之间并校验字符集
-  if (Length(S) < 22) or (Length(S) > 23) then Exit;
-  for i := 1 to Length(S) do begin c := S[i]; if Pos(c, string(B58)) = 0 then Exit; end;
-  Result := TryParseUlidBase58(S, A);
-end;
-
-function TryParseKsuidBase58Strict(const S: string; out A: TKsuid160): Boolean;
-var i: Integer; c: Char;
-begin
-  Result := False;
-  // 160-bit KSUID 在 base58 下通常为 27 字符
-  if Length(S) <> 27 then Exit;
-  for i := 1 to Length(S) do begin c := S[i]; if Pos(c, string(B58)) = 0 then Exit; end;
-  Result := TryParseKsuidBase58(S, A);
-end;
-
 end;
 
 function TryParseKsuidBase58(const S: string; out A: TKsuid160): Boolean;
 begin
   Result := Base58DecodeToFixed(S, A, SizeOf(A));
+end;
+
+{ ULID <-> UUID conversion }
+
+function UlidToUuid(const A: TUlid128): TUuid128; inline;
+begin
+  // Both types are 128-bit arrays, direct copy
+  Move(A[0], Result[0], 16);
+end;
+
+function UuidToUlid(const A: TUuid128): TUlid128; inline;
+begin
+  // Both types are 128-bit arrays, direct copy
+  Move(A[0], Result[0], 16);
 end;
 
 end.

@@ -317,6 +317,33 @@ begin
   for I := 0 to 15 do begin P^ := HEX[(A[I] shr 4) and $0F]; Inc(P); P^ := HEX[A[I] and $0F]; Inc(P); end;
 end;
 
+procedure UuidV4_FillTextN(var Dest: array of PChar);
+var i, n: SizeInt; R: TUuid128;
+begin
+  n := High(Dest) + 1; if n <= 0 then Exit;
+  for i := 0 to n-1 do begin R := UuidV4_Raw; UuidToChars(R, Dest[i]); end;
+end;
+
+procedure UuidV4_FillTextStringsN(var Dest: array of string);
+var i, n: SizeInt;
+begin
+  n := High(Dest) + 1; if n <= 0 then Exit;
+  for i := 0 to n-1 do Dest[i] := UuidV4;
+end;
+
+procedure UuidV7_FillTextN(var Dest: array of PChar);
+var i, n: SizeInt; R: TUuid128;
+begin
+  n := High(Dest) + 1; if n <= 0 then Exit;
+  for i := 0 to n-1 do begin R := UuidV7_Raw; UuidToChars(R, Dest[i]); end;
+end;
+
+procedure UuidV7_FillTextStringsN(var Dest: array of string);
+var i, n: SizeInt;
+begin
+  n := High(Dest) + 1; if n <= 0 then Exit;
+  for i := 0 to n-1 do Dest[i] := UuidV7;
+end;
 
 procedure UuidV4_FillTextNoDashN(var Dest: array of PChar);
 var i, n: SizeInt; R: TUuid128;
@@ -372,9 +399,6 @@ var i, n: SizeInt; R: TUuid128;
 begin
   n := High(Dest) + 1; if n <= 0 then Exit;
   for i := 0 to n-1 do begin R := UuidV7_Raw; SetLength(Dest[i], 22); UuidToBase64UrlChars(R, PChar(Dest[i])); end;
-end;
-
-  for I := 0 to 15 do begin P^ := HEX[(A[I] shr 4) and $0F]; Inc(P); P^ := HEX[A[I] and $0F]; Inc(P); end;
 end;
 
 function HexVal(C: Char; out V: Byte): Boolean; inline;

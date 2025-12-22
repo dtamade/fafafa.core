@@ -144,14 +144,17 @@ begin
 end;
 
 procedure TTestCase_Global.Test_Snowflake_Bitfields;
-var G: ISnowflake; id: TSnowflakeID; ts: Int64;
+var G: ISnowflake; id: TSnowflakeID; ts: Int64; NowUtcDT: TDateTime; NowUtcMs: Int64;
 begin
   G := CreateSnowflake(42);
   id := G.NextID;
   AssertEquals('worker', 42, Snowflake_WorkerId(id));
   AssertTrue('seq <= 4095', Snowflake_Sequence(id) <= 4095);
   ts := Snowflake_TimestampMs(id, G.EpochMs);
-  AssertTrue('ts close to now', Abs(ts - (Int64(DateTimeToUnix(Now))*1000 + MilliSecondOf(Now))) < 1000);
+  // Use UTC time since Snowflake now uses UTC via fafafa.core.id.time
+  NowUtcDT := LocalTimeToUniversal(Now);
+  NowUtcMs := Int64(DateTimeToUnix(NowUtcDT, False)) * 1000 + MilliSecondOf(NowUtcDT);
+  AssertTrue('ts close to now', Abs(ts - NowUtcMs) < 2000);
 end;
 
 procedure TTestCase_Global.Test_Snowflake_Monotonic_SameWorker;

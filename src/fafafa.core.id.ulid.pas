@@ -208,6 +208,11 @@ begin
   TS := 0;
   for I := 1 to 10 do
   begin
+    if not FindBase32Val(S[I], V) then Exit(-1);
+    TS := TS * 32 + V;
+  end;
+  Result := Int64(TS);
+end;
 
 function TryParseUlidStrict(const S: string; out A: TUlid128): Boolean;
 var I: Integer; U: Char;
@@ -239,12 +244,6 @@ var i, n: SizeInt; S: string;
 begin
   n := High(Dest) + 1; if n <= 0 then Exit;
   for i := 0 to n-1 do begin S := Ulid; Dest[i] := S; end;
-end;
-
-    if not FindBase32Val(S[I], V) then Exit(-1);
-    TS := TS * 32 + V;
-  end;
-  Result := Int64(TS);
 end;
 
 function Ulid_Raw(ATimestampMs: Int64): TUlid128;

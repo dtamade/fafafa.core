@@ -21,6 +21,11 @@ uses
 type
   TSnowflakeID = QWord; // 64-bit
 
+  // Specialized exceptions
+  ESnowflakeError = class(Exception);
+  ESnowflakeClockRollback = class(ESnowflakeError);
+  ESnowflakeInvalidConfig = class(ESnowflakeError);
+
   TSnowflakeBackwardPolicy = (sbWait, sbThrow);
 
   TSnowflakeConfig = record
@@ -95,14 +100,14 @@ type
 function CreateSnowflake(AWorkerId: Word; AEpochMs: Int64): ISnowflake;
 begin
   if AWorkerId > WORKER_MAX then
-    raise Exception.CreateFmt('workerId out of range (0..%d): %d', [WORKER_MAX, AWorkerId]);
+    raise ESnowflakeInvalidConfig.CreateFmt('workerId out of range (0..%d): %d', [WORKER_MAX, AWorkerId]);
   Result := TSnowflake.Create(AWorkerId, AEpochMs, sbWait);
 end;
 
 function CreateSnowflakeEx(const Config: TSnowflakeConfig): ISnowflake;
 begin
   if Config.WorkerId > WORKER_MAX then
-    raise Exception.CreateFmt('workerId out of range (0..%d): %d', [WORKER_MAX, Config.WorkerId]);
+    raise ESnowflakeInvalidConfig.CreateFmt('workerId out of range (0..%d): %d', [WORKER_MAX, Config.WorkerId]);
   Result := TSnowflake.Create(Config.WorkerId, Config.EpochMs, Config.BackwardPolicy);
 end;
 
@@ -145,7 +150,7 @@ begin
     if LMs < FLastMs then
     begin
       if FPolicy = sbThrow then
-        raise Exception.CreateFmt('clock moved backwards: now=%d last=%d', [LMs, FLastMs]);
+        raise ESnowflakeClockRollback.CreateFmt('clock moved backwards: now=%d last=%d', [LMs, FLastMs]);
       // wait-on-backward: cooperative wait until time catches up
       repeat
         LMs := NowUnixMs;
