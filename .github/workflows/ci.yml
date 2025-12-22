@@ -33,11 +33,41 @@ jobs:
       - name: Run Tests
         run: |
           ./tests/fafafa.core.simd/bin/fafafa.core.simd.test --all
-
       - name: Check Memory Leaks
         run: |
           # HeapTrc 已在测试中启用，检查输出是否有泄漏
           ./tests/fafafa.core.simd/bin/fafafa.core.simd.test --all 2>&1 | grep -q "0 unfreed memory blocks" || exit 1
+
+  # x86_64 Linux - fafafa.core.os
+  test-linux-os-x64:
+    runs-on: ubuntu-latest
+    name: Linux x86_64 (fafafa.core.os)
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install FreePascal + Lazarus
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fpc lazarus
+
+      - name: Build fafafa.core.os tests
+        run: |
+          cd tests/fafafa.core.os
+          lazbuild fafafa.core.os.test.lpi
+
+      - name: Run fafafa.core.os tests
+        run: |
+          ./tests/fafafa.core.os/bin/tests_os --all --format=plain | tee tests/fafafa.core.os/bin/tests_os.log
+
+      - name: Upload fafafa.core.os artifacts (linux-x64)
+        uses: actions/upload-artifact@v4
+        with:
+          name: tests_os-linux-x64
+          path: |
+            tests/fafafa.core.os/bin/tests_os
+            tests/fafafa.core.os/bin/tests_os.log
 
   # ARM64 Linux 测试 (NEON)
   test-linux-arm64:
@@ -66,6 +96,41 @@ jobs:
               ./bin/fafafa.core.simd.test --all
             "
 
+      - name: Upload fafafa.core.os artifacts (linux-arm64)
+        uses: actions/upload-artifact@v4
+        with:
+          name: tests_os-linux-arm64
+          path: |
+            tests/fafafa.core.os/bin/tests_os
+            tests/fafafa.core.os/bin/tests_os.log
+
+  # ARM64 Linux - fafafa.core.os (QEMU)
+  test-linux-os-arm64:
+    runs-on: ubuntu-latest
+    name: Linux ARM64 (fafafa.core.os, QEMU)
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Build and Test in ARM64 Container
+        run: |
+          docker run --rm --platform linux/arm64 \
+            -v ${{ github.workspace }}:/workspace \
+            -w /workspace \
+            arm64v8/debian:bookworm \
+            bash -c "\
+              apt-get update && apt-get install -y fpc lazarus-ide-gtk2 make \
+              cd tests/fafafa.core.os \
+              lazbuild fafafa.core.os.test.lpi || (cat ~/.lazarus/compilertest.log 2>/dev/null; exit 1) \
+              ./bin/tests_os --all --format=plain | tee /workspace/tests/fafafa.core.os/bin/tests_os.log \
+            "
+
   # Windows x86_64 测试
   test-windows-x64:
     runs-on: windows-latest
@@ -90,6 +155,44 @@ jobs:
         run: |
           tests\fafafa.core.simd\bin\fafafa.core.simd.test.exe --all
 
+  # Windows x86_64 - fafafa.core.os
+  test-windows-os-x64:
+    runs-on: windows-latest
+    name: Windows x86_64 (fafafa.core.os)
+    continue-on-error: true  # Windows Lazarus setup may vary; keep non-blocking
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install FreePascal
+        run: |
+          choco install freepascal lazarus --yes
+
+      - name: Build fafafa.core.os tests
+        shell: cmd
+        run: |
+          cd tests\\fafafa.core.os
+          lazbuild fafafa.core.os.test.lpi
+
+      - name: Run fafafa.core.os tests
+        shell: cmd
+        run: |
+          tests\\fafafa.core.os\\bin\\tests_os.exe --all --format=plain > tests\\fafafa.core.os\\bin\\tests_os.log
+
+      - name: Note soft failure reason (Windows toolchain)
+        if: failure()
+        run: echo "Soft fail: Windows Lazarus/FPC toolchain may be unavailable; see tests_os.log artifact."
+
+      - name: Upload fafafa.core.os artifacts (windows-x64)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tests_os-windows-x64
+          path: |
+            tests/fafafa.core.os/bin/tests_os.exe
+            tests/fafafa.core.os/bin/tests_os.log
+
   # macOS x86_64 测试
   test-macos-x64:
     runs-on: macos-13
@@ -112,6 +215,78 @@ jobs:
       - name: Run Tests
         run: |
           ./tests/fafafa.core.simd/bin/fafafa.core.simd.test --all || true
+
+  # macOS ARM64 - fafafa.core.os
+  test-macos-os-arm64:
+    runs-on: macos-14
+    name: macOS ARM64 (fafafa.core.os)
+    continue-on-error: true
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install FreePascal
+        run: |
+          brew install fpc
+
+      - name: Build fafafa.core.os tests
+        run: |
+          cd tests/fafafa.core.os
+          lazbuild fafafa.core.os.test.lpi || true
+
+      - name: Run fafafa.core.os tests
+        run: |
+          ./tests/fafafa.core.os/bin/tests_os --all --format=plain | tee tests/fafafa.core.os/bin/tests_os.log || true
+
+      - name: Note soft failure reason (macOS toolchain)
+        if: failure()
+        run: echo "Soft fail: macOS Lazarus/FPC toolchain may be partial; see tests_os.log artifact."
+
+      - name: Upload fafafa.core.os artifacts (macos-arm64)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tests_os-macos-arm64
+          path: |
+            tests/fafafa.core.os/bin/tests_os
+            tests/fafafa.core.os/bin/tests_os.log
+
+  # macOS x86_64 - fafafa.core.os
+  test-macos-os-x64:
+    runs-on: macos-13
+    name: macOS x86_64 (fafafa.core.os)
+    continue-on-error: true  # macOS Lazarus packaging may differ; keep soft
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install FreePascal
+        run: |
+          brew install fpc
+
+      - name: Build fafafa.core.os tests
+        run: |
+          cd tests/fafafa.core.os
+          lazbuild fafafa.core.os.test.lpi || true
+
+      - name: Run fafafa.core.os tests
+        run: |
+          ./tests/fafafa.core.os/bin/tests_os --all --format=plain | tee tests/fafafa.core.os/bin/tests_os.log || true
+
+      - name: Note soft failure reason (macOS toolchain)
+        if: failure()
+        run: echo "Soft fail: macOS Lazarus/FPC toolchain may be partial; see tests_os.log artifact."
+
+      - name: Upload fafafa.core.os artifacts (macos-x64)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tests_os-macos-x64
+          path: |
+            tests/fafafa.core.os/bin/tests_os
+            tests/fafafa.core.os/bin/tests_os.log
 
   # macOS ARM64 测试 (Apple Silicon)
   test-macos-arm64:

@@ -2,7 +2,7 @@
 program example_system_info;
 
 uses
-  SysUtils, fafafa.core.os;
+  SysUtils, DateUtils, fafafa.core.os;
 
 procedure ShowCPUInfo;
 var
@@ -165,7 +165,7 @@ begin
     WriteLn('CPU 数量: ', Info.Platform.CPUCount);
     WriteLn('OS 版本: ', Info.OSVersion.Name, ' ', Info.OSVersion.VersionString);
     if Info.BootTime > 0 then
-      WriteLn('启动时间: ', DateTimeToStr(Info.BootTime));
+      WriteLn('启动时间: ', DateTimeToStr(UnixToDateTime(Int64(Info.BootTime), True)));
     if Info.Uptime > 0 then
       WriteLn('运行时间: ', Info.Uptime div 3600, ' 小时 ', (Info.Uptime mod 3600) div 60, ' 分钟');
     WriteLn;
@@ -192,6 +192,5 @@ begin
   ShowSystemLoad;
   ShowSystemInfo;
   
-  WriteLn('注意：部分功能（如存储设备枚举、网络接口枚举、系统负载监控）');
-  WriteLn('      目前返回占位符数据，将在后续版本中实现平台特定的功能。');
+  WriteLn('注意：以上信息为 best-effort，不同平台/运行环境下部分字段可能为 0/空/ -1。');
 end.

@@ -7,7 +7,7 @@ program tests_os;
 uses
   {$IFDEF UNIX} cthreads, {$ENDIF}
   {$IFDEF WINDOWS} Windows, {$ENDIF}
-  Classes, SysUtils, fpcunit, testregistry, testreport, consoletestrunner,
+  Classes, SysUtils, fpcunit, testregistry, consoletestrunner,
   fafafa.core.os,
   fafafa.core.os.testcase;
 

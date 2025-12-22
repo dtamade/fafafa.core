@@ -6,6 +6,10 @@ examples/*/*.ppu
 examples/*/lib/
 examples/*/bin/
 examples/fafafa.core.sync.namedEvent/*.dbg
+examples/fafafa.core.os/bin/
+examples/fafafa.core.os/lib/
+examples/fafafa.core.os/bin/**/*.dbg
+examples/fafafa.core.os/bin/**/*.exe
 
 plays/*/*/lib/
 plays/*/*/bin/
@@ -18,6 +22,9 @@ plays/bin/
 tests/*/bin/
 tests/*/.lazarus/
 tests/*/lib/
+tests/fafafa.core.os/bin/
+tests/fafafa.core.os/lib/
+tests/fafafa.core.os/logs/
 
 # Generated logs/artifacts (local runs)
 tests/*/logs/
