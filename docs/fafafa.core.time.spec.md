@@ -57,6 +57,6 @@
 
 ## Roadmap items (next)
 - ParseDuration(text)->TDuration; configurable FormatDurationHuman (units/thresholds/precision/abbr)
-- ITimer/ITimerScheduler (one-shot/periodic) with slack & cancellation; min-heap scheduler
+- TimerScheduler：已实现 one-shot/periodic，并补齐门面快捷入口（Schedule*/TrySchedule*）与 Result 风格（ITimerSchedulerTry/TTimerResult）；支持可选线程池异步回调执行器
 - Benchmarks: NowInstant, Sleep accuracy, TimeIt overhead
 
