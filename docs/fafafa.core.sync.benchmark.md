@@ -72,6 +72,67 @@ SpinLock 4 Threads                              100.07            9.99          
 | **SpinLock** | 13.64 | 100.07 | 短临界区 (< 100 指令) |
 | **Mutex (pthread)** | 23.18 | 130.09 | 通用场景 |
 | **Mutex (futex)** | 27.42 | 330.30 | 自定义需求 |
+| **RWLock (读)** | 1734.79 | 1834.61 | 读多写少场景 |
+| **RWLock (写)** | 342.84 | 700.52 | 读多写少场景 |
+
+## RWLock 基准测试
+
+### 测试参数
+
+- **基础迭代次数**: 5,000,000 (500 万次)
+- **预热次数**: 50,000
+- **读者线程数**: 6
+- **写者线程数**: 2
+
+### 测试结果
+
+```
+================================================================================
+               fafafa.core.sync RWLock Performance Benchmark
+================================================================================
+
+Scenario                                                  ns/op       M ops/sec
+--------------------------------------------------------------------------------
+Single Thread - Read Only                               1734.79            0.58
+Single Thread - Write Only                               342.84            2.92
+Single Thread - Guard (RAII)                            1995.64            0.50
+6 Readers - Read Only                                   1834.61            0.55
+2 Writers - Write Only                                   700.52            1.43
+Mixed R/W (6 Readers + 2 Writers)                       1888.45            0.53
+Mixed R/W (2 Readers + 4 Writers)                       1168.27            0.86
+Write-to-Read Downgrade                                  971.36            1.03
+--------------------------------------------------------------------------------
+```
+
+### RWLock 分析
+
+| 场景 | 吞吐量 | 说明 |
+|------|--------|------|
+| 单线程读 | 0.58M ops/sec | 启用可重入检查的开销 |
+| 单线程写 | 2.92M ops/sec | 写锁获取相对简单 |
+| RAII Guard | 0.50M ops/sec | 接口调用+堆分配开销 |
+| 多读者 | 0.55M ops/sec | 并发读无竞争 |
+| 多写者 | 1.43M ops/sec | 写者互斥 |
+| 读重混合 | 0.53M ops/sec | 读者为主场景 |
+| 写重混合 | 0.86M ops/sec | 写者为主场景 |
+
+### RWLock 建议
+
+1. **读多写少场景使用 RWLock** - 多个读者可并发执行
+2. **写频繁场景使用 Mutex** - RWLock 开销更大
+3. **考虑禁用可重入** - `AllowReentrancy := False` 可提升性能
+4. **Guard 有堆分配开销** - 热路径考虑直接使用 AcquireRead/ReleaseRead
+
+### 运行 RWLock 基准测试
+
+```bash
+# 编译
+/home/dtamade/freePascal/lazarus/lazbuild \
+  tests/fafafa.core.sync.benchmark/benchmark_rwlock_impl.lpi
+
+# 运行
+./tests/fafafa.core.sync.benchmark/bin/benchmark_rwlock_impl
+```
 
 ## 三段式等待策略
 

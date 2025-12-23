@@ -61,11 +61,19 @@ type
     FRWLock: pthread_rwlock_t;
     FReaderCount: TAtomicCounter; // 版本化原子计数器，防�?ABA 问题
     FWriterThread: TThreadID;     // 写者线程ID
-    FLastLockResult: TLockResult; // 最后操作结�?
+    FLastLockResult: TLockResult; // 最后操作结果
 
-    // 缓存行对齐填充（确保下一组数据在新缓存行�?
-    FPadding1: array[0..63 - (SizeOf(pthread_rwlock_t) + SizeOf(TAtomicCounter) +
-                              SizeOf(TThreadID) + SizeOf(TLockResult)) mod 64] of Byte;
+    // ✅ 缓存行对齐填充 - 修复边界条件
+    // 公式: ((64 - (X mod 64)) mod 64) 确保 X mod 64 = 0 时填充为 0
+    FPadding1: array[0..
+      {$IF (64 - (SizeOf(pthread_rwlock_t) + SizeOf(TAtomicCounter) +
+                  SizeOf(TThreadID) + SizeOf(TLockResult)) mod 64) mod 64 = 0}
+        0  // 已对齐，使用最小填充（1字节）
+      {$ELSE}
+        (64 - (SizeOf(pthread_rwlock_t) + SizeOf(TAtomicCounter) +
+               SizeOf(TThreadID) + SizeOf(TLockResult)) mod 64) mod 64 - 1
+      {$ENDIF}
+    ] of Byte;
 
     // 第二个缓存行：性能统计数据（较少访问）
     FContentionCount: Integer;    // 竞争计数
@@ -76,6 +84,9 @@ type
 
     // 详细性能统计
     FPerfStats: TLockPerformanceStats;
+
+    // ✅ 第二缓存行填充 - 防止性能统计与管理对象伪共享
+    FPadding2: array[0..63] of Byte;
 
     // 第三个缓存行：管理对象（最少访问）
     FReentryManager: TThreadReentryManager;  // 线程重入管理�?

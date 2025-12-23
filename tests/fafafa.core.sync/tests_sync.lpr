@@ -8,9 +8,9 @@ uses
   cthreads,
   {$ENDIF}
   Classes, SysUtils, CustApp, fpcunit, testregistry, consoletestrunner,
-  fafafa.core.base,
-  fafafa.core.sync,
-  Test_sync_modern;
+  Test_sync_modern,
+  fafafa.core.sync.boundary.testcase,
+  fafafa.core.sync.deadlock.testcase;
 
 type
 
@@ -31,7 +31,7 @@ var
   LTestRunner: TTestRunner;
   I: Integer;
   IsXml: Boolean;
-  S, Key, Val: String;
+  S, Val: String;
 begin
   // 检测是否请求 XML 输出（--format=xml 或 --format xml）
   IsXml := False;

@@ -8,7 +8,6 @@ interface
 
 uses
   Classes, SysUtils, fpcunit, testregistry,
-  fafafa.core.base,
   fafafa.core.sync;
 
 type
