@@ -1546,19 +1546,19 @@ begin
   g := env_override('FA_FLOAT_TEST', '3.14');
   try
     v := env_get_float('FA_FLOAT_TEST');
-    AssertTrue(Abs(v - 3.14) < 1e-12);
+    AssertTrue(System.Abs(v - 3.14) < 1e-12);
   finally g.Done; end;
 
   g := env_override('FA_FLOAT_TEST', ' -1.5 ');
   try
     v := env_get_float('FA_FLOAT_TEST');
-    AssertTrue(Abs(v - (-1.5)) < 1e-12);
+    AssertTrue(System.Abs(v - (-1.5)) < 1e-12);
   finally g.Done; end;
 
   g := env_override('FA_FLOAT_TEST', '1e3');
   try
     v := env_get_float('FA_FLOAT_TEST');
-    AssertTrue(Abs(v - 1000.0) < 1e-9);
+    AssertTrue(System.Abs(v - 1000.0) < 1e-9);
   finally g.Done; end;
 end;
 
@@ -1566,21 +1566,21 @@ procedure TTestCase_Global.Test_env_get_float_default_when_invalid;
 var g: TEnvOverrideGuard;
 begin
   g := env_override('FA_FLOAT_TEST', 'abc');
-  try AssertTrue(Abs(env_get_float('FA_FLOAT_TEST', 9.5) - 9.5) < 1e-12); finally g.Done; end;
+  try AssertTrue(System.Abs(env_get_float('FA_FLOAT_TEST', 9.5) - 9.5) < 1e-12); finally g.Done; end;
 
   g := env_override('FA_FLOAT_TEST', '');
-  try AssertTrue(Abs(env_get_float('FA_FLOAT_TEST', 1.25) - 1.25) < 1e-12); finally g.Done; end;
+  try AssertTrue(System.Abs(env_get_float('FA_FLOAT_TEST', 1.25) - 1.25) < 1e-12); finally g.Done; end;
 
   // Locale-invariant: comma-decimal should not parse
   g := env_override('FA_FLOAT_TEST', '3,14');
-  try AssertTrue(Abs(env_get_float('FA_FLOAT_TEST', 7.25) - 7.25) < 1e-12); finally g.Done; end;
+  try AssertTrue(System.Abs(env_get_float('FA_FLOAT_TEST', 7.25) - 7.25) < 1e-12); finally g.Done; end;
 end;
 
 procedure TTestCase_Global.Test_env_get_float_default_when_undefined;
 begin
   env_unset('FA_FLOAT_UNDEF');
-  AssertTrue(Abs(env_get_float('FA_FLOAT_UNDEF') - 0.0) < 1e-12);
-  AssertTrue(Abs(env_get_float('FA_FLOAT_UNDEF', 2.5) - 2.5) < 1e-12);
+  AssertTrue(System.Abs(env_get_float('FA_FLOAT_UNDEF') - 0.0) < 1e-12);
+  AssertTrue(System.Abs(env_get_float('FA_FLOAT_UNDEF', 2.5) - 2.5) < 1e-12);
 end;
 
 procedure TTestCase_Global.Test_env_get_list_comma_separated;

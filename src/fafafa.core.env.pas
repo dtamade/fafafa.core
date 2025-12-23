@@ -218,7 +218,7 @@ function env_mask_value_for_name(const AName, AValue: string): string; inline;
 
 function env_override(const AName, AValue: string): TEnvOverrideGuard; inline;
 function env_override_unset(const AName: string): TEnvOverrideGuard; inline;
-function env_overrides(const Pairs: array of TEnvKV): TEnvOverridesGuard;
+function env_overrides(const Pairs: array of TEnvKV): TEnvOverridesGuard; inline;
 
 { ============================================================================ }
 { === String Expansion ======================================================= }
