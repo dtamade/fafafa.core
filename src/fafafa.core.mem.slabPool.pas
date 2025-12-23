@@ -30,7 +30,7 @@ interface
 uses
   SysUtils,
   fafafa.core.mem.allocator,
-  fafafa.core.tick;
+  fafafa.core.time.tick;
 
 const
   // nginx 风格的常量
@@ -523,7 +523,8 @@ begin
   if (FTick <> nil) and FEnablePerfMonitoring then
   begin
     // 使用高精度时间测量，获取当前时间戳并转换为微秒
-    Result := Round(FTick.TicksToMicroSeconds(FTick.GetCurrentTick));
+    // 新 API: Tick 返回当前值, Resolution 返回每秒 tick 数
+    Result := (FTick.Tick * 1000000) div FTick.Resolution;
   end
   else
   begin
@@ -549,7 +550,7 @@ begin
 
   // 初始化高精度时间测量
   try
-    FTick := CreateDefaultTick;
+    FTick := MakeTick;
   except
     // 如果高精度时间测量不可用，禁用性能监控
     FEnablePerfMonitoring := False;
@@ -753,11 +754,11 @@ begin
 
   // 4. 计算前导零的数量（即位位置）
   LTrailingZeros := 0;
-  if LIsolated > $FFFFFFFF then begin LTrailingZeros += 32; LIsolated := LIsolated shr 32; end;
-  if LIsolated > $FFFF then begin LTrailingZeros += 16; LIsolated := LIsolated shr 16; end;
-  if LIsolated > $FF then begin LTrailingZeros += 8; LIsolated := LIsolated shr 8; end;
-  if LIsolated > $F then begin LTrailingZeros += 4; LIsolated := LIsolated shr 4; end;
-  if LIsolated > $3 then begin LTrailingZeros += 2; LIsolated := LIsolated shr 2; end;
+  if LIsolated > $FFFFFFFF then begin Inc(LTrailingZeros, 32); LIsolated := LIsolated shr 32; end;
+  if LIsolated > $FFFF then begin Inc(LTrailingZeros, 16); LIsolated := LIsolated shr 16; end;
+  if LIsolated > $FF then begin Inc(LTrailingZeros, 8); LIsolated := LIsolated shr 8; end;
+  if LIsolated > $F then begin Inc(LTrailingZeros, 4); LIsolated := LIsolated shr 4; end;
+  if LIsolated > $3 then begin Inc(LTrailingZeros, 2); LIsolated := LIsolated shr 2; end;
   if LIsolated > $1 then Inc(LTrailingZeros);
 
   Result := LTrailingZeros;
@@ -854,7 +855,7 @@ begin
   if FEnablePerfMonitoring and (FTick <> nil) then
   begin
     Inc(FPerfCounters.AllocCalls);
-    LStartTime := FTick.GetCurrentTick;
+    LStartTime := FTick.Tick;
   end;
 
   // 拒绝0字节分配
@@ -920,7 +921,7 @@ begin
 
   // 记录分配时间
   if FEnablePerfMonitoring and (FTick <> nil) then
-    Inc(FPerfCounters.AllocTime, Round(FTick.TicksToMicroSeconds(FTick.GetElapsedTicks(LStartTime))));
+    Inc(FPerfCounters.AllocTime, ((FTick.Tick - LStartTime) * 1000000) div FTick.Resolution);
 end;
 
 procedure TSlabPool.Free(aPtr: Pointer);
@@ -940,7 +941,7 @@ begin
   if FEnablePerfMonitoring and (FTick <> nil) then
   begin
     Inc(FPerfCounters.FreeCalls);
-    LStartTime := FTick.GetCurrentTick;
+    LStartTime := FTick.Tick;
   end;
 
   LPageIndex := GetPageIndex(aPtr);
@@ -979,7 +980,7 @@ begin
 
   // 记录释放时间
   if FEnablePerfMonitoring and (FTick <> nil) then
-    Inc(FPerfCounters.FreeTime, Round(FTick.TicksToMicroSeconds(FTick.GetElapsedTicks(LStartTime))));
+    Inc(FPerfCounters.FreeTime, ((FTick.Tick - LStartTime) * 1000000) div FTick.Resolution);
 end;
 
 procedure TSlabPool.Reset;
@@ -1468,7 +1469,7 @@ begin
   // 性能监控开始
   LMergeCount := 0;
   if FConfig.EnablePageMerging and FEnablePerfMonitoring and (FTick <> nil) then
-    LStartTime := FTick.GetCurrentTick;
+    LStartTime := FTick.Tick;
 
   LPageIndex := GetPageIndex(aPage);
 
@@ -1605,7 +1606,7 @@ begin
     end;
 
     if FTick <> nil then
-      Inc(FPerfCounters.MergeTime, Round(FTick.TicksToMicroSeconds(FTick.GetElapsedTicks(LStartTime))));
+      Inc(FPerfCounters.MergeTime, ((FTick.Tick - LStartTime) * 1000000) div FTick.Resolution);
   end;
 end;
 
