@@ -160,6 +160,11 @@ function DefaultTimerScheduler: ITimerScheduler; inline;
 var
   GFixedRateMaxCatchupSteps: Integer = 3;
 
+  // ✅ ISSUE-REVIEW-P2-3: 定时器堆最大容量限制（防止 DoS 攻击）
+  // 默认 100 万个定时器，约 40MB 内存占用（按 40 字节/条目估算）
+const
+  TIMER_HEAP_MAX_CAPACITY = 1000000;
+
   type
     TTimerExceptionHandler = procedure(const E: Exception);
 
@@ -193,8 +198,10 @@ var
   // ✅ ISSUE-23: 为 GTimerExceptionHandler 添加锁保护
   GTimerExceptionHandlerLock: ILock;
   // ✅ v2.0 优化: 全局默认调度器（懒加载）
+  // ✅ ISSUE-REVIEW-P1-1: 使用原子状态标志避免双重检查锁定的内存屏障问题
   GDefaultScheduler: ITimerScheduler = nil;
   GDefaultSchedulerLock: ILock;
+  GDefaultSchedulerOnce: Int32 = 0;  // 0=未初始化, 1=正在初始化, 2=已完成
 
 // ✅ v2.0 优化: 原子指标计数（替代锁）
 procedure AtomicIncScheduled;
@@ -393,7 +400,7 @@ type
 
     procedure HeapSwap(a, b: Integer);
     procedure HeapEnsureCap;
-    procedure HeapInsert(e: PTimerEntry);
+    function HeapInsert(e: PTimerEntry): Boolean;  // ✅ ISSUE-REVIEW-P2-3: 返回 Boolean 指示插入是否成功
     procedure HeapRemoveAt(Index: Integer);
     procedure HeapUpdateKey(Index: Integer);
     procedure HeapifyUp(Index: Integer);
@@ -523,14 +530,17 @@ begin
 end;
 
 destructor TTimerRef.Destroy;
+var
+  LNewRefCount: LongInt;
 begin
   if FLock <> nil then FLock.Acquire;
   try
     if Assigned(FEntry) then
     begin
-      Dec(FEntry^.RefCount);
+      // ✅ ISSUE-REVIEW-P1-3: 使用原子操作避免竞态条件
+      LNewRefCount := InterlockedDecrement(FEntry^.RefCount);
       // 若已取消/一次性已触发且不在堆中，且计数为0，则释放
-      if (FEntry^.RefCount <= 0) and (FEntry^.Dead) and (not FEntry^.InHeap) then
+      if (LNewRefCount <= 0) and (FEntry^.Dead) and (not FEntry^.InHeap) then
         Dispose(FEntry);
       FEntry := nil;
     end;
@@ -714,7 +724,9 @@ begin
       // 重新加入堆
       if not FEntry^.InHeap then
       begin
-        sch.HeapInsert(FEntry);
+        // ✅ ISSUE-REVIEW-P2-3: 检查 HeapInsert 返回值
+        if not sch.HeapInsert(FEntry) then
+          Exit(False);  // 容量已满，恢复失败
         if Assigned(sch.FWakeup) then
           sch.FWakeup.SetEvent;
       end;
@@ -781,19 +793,40 @@ begin
 end;
 
 // ✅ v2.0 优化: 获取全局默认调度器（懒加载）
+// ✅ ISSUE-REVIEW-P1-1: 使用原子 CAS 模式避免双重检查锁定的内存屏障问题
 function GetDefaultTimerScheduler: ITimerScheduler;
+var
+  LState: Int32;
 begin
-  if GDefaultScheduler = nil then
+  // 快速路径：检查是否已初始化完成
+  LState := InterlockedCompareExchange(GDefaultSchedulerOnce, 0, 0);
+  if LState = 2 then
+    Exit(GDefaultScheduler);
+
+  // 尝试获取初始化权
+  if InterlockedCompareExchange(GDefaultSchedulerOnce, 1, 0) = 0 then
   begin
-    if GDefaultSchedulerLock <> nil then
-      GDefaultSchedulerLock.Acquire;
+    // 我们赢得了初始化权，执行初始化
     try
-      // 双重检查锁定
-      if GDefaultScheduler = nil then
-        GDefaultScheduler := CreateTimerScheduler(nil);
-    finally
-      if GDefaultSchedulerLock <> nil then
-        GDefaultSchedulerLock.Release;
+      GDefaultScheduler := CreateTimerScheduler(nil);
+      // 使用内存屏障确保写入可见后再设置状态
+      InterlockedExchange(GDefaultSchedulerOnce, 2);
+    except
+      // 初始化失败，重置状态允许重试
+      InterlockedExchange(GDefaultSchedulerOnce, 0);
+      raise;
+    end;
+  end
+  else
+  begin
+    // 其他线程正在初始化，等待完成
+    while InterlockedCompareExchange(GDefaultSchedulerOnce, 0, 0) <> 2 do
+    begin
+      {$IFDEF WINDOWS}
+      Sleep(0);  // 让出时间片
+      {$ELSE}
+      ThreadSwitch;
+      {$ENDIF}
     end;
   end;
   Result := GDefaultScheduler;
@@ -826,17 +859,23 @@ begin
   Result := CreateTickerFixedDelayOn(sch, InitialDelay, Delay, Callback);
 end;
 
+// ✅ ISSUE-REVIEW-P2-5: 使用原子操作确保线程安全
 procedure SetTimerFixedRateMaxCatchupSteps(const V: Integer);
+var
+  LValue: Int32;
 begin
   if V < 0 then
-    GFixedRateMaxCatchupSteps := 0
+    LValue := 0
   else
-    GFixedRateMaxCatchupSteps := V;
+    LValue := V;
+  // 使用原子写入确保线程可见性
+  InterlockedExchange(GFixedRateMaxCatchupSteps, LValue);
 end;
 
 function GetTimerFixedRateMaxCatchupSteps: Integer;
 begin
-  Result := GFixedRateMaxCatchupSteps;
+  // ✅ ISSUE-REVIEW-P2-5: 使用原子读取确保获取最新值
+  Result := InterlockedCompareExchange(GFixedRateMaxCatchupSteps, 0, 0);
 end;
 
 
@@ -926,17 +965,28 @@ end;
 procedure TTimerSchedulerImpl.HeapEnsureCap;
 var newCap: Integer;
 begin
+  // ✅ ISSUE-REVIEW-P2-3: 检查堆最大容量限制
+  if FCount >= TIMER_HEAP_MAX_CAPACITY then
+    Exit;  // 达到上限，不再扩容（调用者会检查 FCount）
+
   if Length(FHeap) = 0 then SetLength(FHeap, 16)
   else if FCount >= Length(FHeap) then
   begin
     newCap := Length(FHeap) * 2;
     if newCap < 16 then newCap := 16;
+    // ✅ ISSUE-REVIEW-P2-3: 确保不超过最大容量
+    if newCap > TIMER_HEAP_MAX_CAPACITY then newCap := TIMER_HEAP_MAX_CAPACITY;
     SetLength(FHeap, newCap);
   end;
 end;
 
-procedure TTimerSchedulerImpl.HeapInsert(e: PTimerEntry);
+// ✅ ISSUE-REVIEW-P2-3: 返回 Boolean 指示插入是否成功（防止 DoS 攻击）
+function TTimerSchedulerImpl.HeapInsert(e: PTimerEntry): Boolean;
 begin
+  // 检查容量限制，防止无限增长导致的 DoS
+  if FCount >= TIMER_HEAP_MAX_CAPACITY then
+    Exit(False);
+
   HeapEnsureCap;
   e^.HeapIndex := FCount;
   e^.InHeap := True;
@@ -944,6 +994,7 @@ begin
   FHeap[FCount] := e;
   Inc(FCount);
   HeapifyUp(e^.HeapIndex);
+  Result := True;
 end;
 
 procedure TTimerSchedulerImpl.HeapifyUp(Index: Integer);
@@ -1397,7 +1448,13 @@ begin
       Dispose(p);
       Exit(nil);
     end;
-    HeapInsert(p);
+    // ✅ ISSUE-REVIEW-P2-3: 检查 HeapInsert 返回值（容量满时返回 nil）
+    if not HeapInsert(p) then
+    begin
+      p^.CancellationToken := nil;
+      Dispose(p);
+      Exit(nil);
+    end;
     if Assigned(FWakeup) then FWakeup.SetEvent;
   finally
     FLock.Release;
@@ -1525,8 +1582,17 @@ begin
       if (not best^.Cancelled) and (not FShuttingDown) then
       begin
         best^.Deadline := FClock.NowInstant.Add(delay);
-        HeapInsert(best);
-        if Assigned(FWakeup) then FWakeup.SetEvent;
+        // ✅ ISSUE-REVIEW-P2-3: 检查 HeapInsert 返回值
+        if HeapInsert(best) then
+        begin
+          if Assigned(FWakeup) then FWakeup.SetEvent;
+        end
+        else
+        begin
+          // 容量满，标记任务为 Dead
+          best^.Dead := True;
+          if (best^.RefCount <= 0) and (not best^.InHeap) then Dispose(best);
+        end;
       end
       else
       begin
@@ -1546,8 +1612,17 @@ begin
       try
         if (not best^.Cancelled) and (not FShuttingDown) then
         begin
-          HeapInsert(best);
-          if Assigned(FWakeup) then FWakeup.SetEvent;
+          // ✅ ISSUE-REVIEW-P2-3: 检查 HeapInsert 返回值
+          if HeapInsert(best) then
+          begin
+            if Assigned(FWakeup) then FWakeup.SetEvent;
+          end
+          else
+          begin
+            // 容量满，标记任务为 Dead
+            best^.Dead := True;
+            if (best^.RefCount <= 0) and (not best^.InHeap) then Dispose(best);
+          end;
         end
         else
         begin
@@ -1574,6 +1649,7 @@ var
   sch: TTimerSchedulerImpl;
   entryToDispose: PTimerEntry;
   handler: TTimerExceptionHandler; // ✅ ISSUE-23: 局部变量复制 handler
+  LNewRefCount: LongInt;  // ✅ ISSUE-REVIEW-P1-3: 原子操作结果
 begin
   Result := False;
   if aData = nil then Exit;
@@ -1591,9 +1667,10 @@ begin
       try
         ctx^.Entry^.Cancelled := True;
         ctx^.Entry^.Dead := True;
-        Dec(ctx^.Entry^.RefCount);
+        // ✅ ISSUE-REVIEW-P1-3: 使用原子操作
+        LNewRefCount := InterlockedDecrement(ctx^.Entry^.RefCount);
         AtomicIncCancelled;
-        if (ctx^.Entry^.RefCount <= 0) and (not ctx^.Entry^.InHeap) then
+        if (LNewRefCount <= 0) and (not ctx^.Entry^.InHeap) then
           entryToDispose := ctx^.Entry;
       finally
         sch.FLock.Release;
@@ -1651,19 +1728,29 @@ begin
     begin
       sch.FLock.Acquire;
       try
-        // ✅ 先递减引用计数
-        Dec(ctx^.Entry^.RefCount);
-        
+        // ✅ ISSUE-REVIEW-P1-3: 使用原子操作
+        LNewRefCount := InterlockedDecrement(ctx^.Entry^.RefCount);
+
         if (not ctx^.Entry^.Cancelled) and (not sch.FShuttingDown) then
         begin
           ctx^.Entry^.Deadline := sch.FClock.NowInstant.Add(ctx^.Delay);
-          sch.HeapInsert(ctx^.Entry);
-          if Assigned(sch.FWakeup) then sch.FWakeup.SetEvent;
+          // ✅ ISSUE-REVIEW-P2-3: 检查 HeapInsert 返回值
+          if sch.HeapInsert(ctx^.Entry) then
+          begin
+            if Assigned(sch.FWakeup) then sch.FWakeup.SetEvent;
+          end
+          else
+          begin
+            // 容量满，标记任务为 Dead
+            ctx^.Entry^.Dead := True;
+            if (LNewRefCount <= 0) and (not ctx^.Entry^.InHeap) then
+              entryToDispose := ctx^.Entry;
+          end;
         end
         else
         begin
           ctx^.Entry^.Dead := True;
-          if (ctx^.Entry^.RefCount <= 0) and (not ctx^.Entry^.InHeap) then
+          if (LNewRefCount <= 0) and (not ctx^.Entry^.InHeap) then
             entryToDispose := ctx^.Entry; // 标记待释放，但在锁外释放
         end;
       finally
@@ -1677,18 +1764,28 @@ begin
       begin
         sch.FLock.Acquire;
         try
-          // ✅ 先递减引用计数
-          Dec(ctx^.Entry^.RefCount);
-          
+          // ✅ ISSUE-REVIEW-P1-3: 使用原子操作
+          LNewRefCount := InterlockedDecrement(ctx^.Entry^.RefCount);
+
           if (not ctx^.Entry^.Cancelled) and (not sch.FShuttingDown) then
           begin
-            sch.HeapInsert(ctx^.Entry);
-            if Assigned(sch.FWakeup) then sch.FWakeup.SetEvent;
+            // ✅ ISSUE-REVIEW-P2-3: 检查 HeapInsert 返回值
+            if sch.HeapInsert(ctx^.Entry) then
+            begin
+              if Assigned(sch.FWakeup) then sch.FWakeup.SetEvent;
+            end
+            else
+            begin
+              // 容量满，标记任务为 Dead
+              ctx^.Entry^.Dead := True;
+              if (LNewRefCount <= 0) and (not ctx^.Entry^.InHeap) then
+                entryToDispose := ctx^.Entry;
+            end;
           end
           else
           begin
             ctx^.Entry^.Dead := True;
-            if (ctx^.Entry^.RefCount <= 0) and (not ctx^.Entry^.InHeap) then
+            if (LNewRefCount <= 0) and (not ctx^.Entry^.InHeap) then
               entryToDispose := ctx^.Entry; // 标记待释放，但在锁外释放
           end;
         finally
@@ -1700,11 +1797,11 @@ begin
         // tkOnce：生命周期结束
         sch.FLock.Acquire;
         try
-          // ✅ 先递减引用计数
-          Dec(ctx^.Entry^.RefCount);
-          
+          // ✅ ISSUE-REVIEW-P1-3: 使用原子操作
+          LNewRefCount := InterlockedDecrement(ctx^.Entry^.RefCount);
+
           ctx^.Entry^.Dead := True;
-          if (ctx^.Entry^.RefCount <= 0) and (not ctx^.Entry^.InHeap) then
+          if (LNewRefCount <= 0) and (not ctx^.Entry^.InHeap) then
             entryToDispose := ctx^.Entry; // 标记待释放，但在锁外释放
         finally
           sch.FLock.Release;
@@ -1730,7 +1827,8 @@ begin
   // 增加引用计数，防止回调期间 best 被释放
   FLock.Acquire;
   try
-    Inc(best^.RefCount);
+    // ✅ ISSUE-REVIEW-P1-3: 使用原子操作
+    InterlockedIncrement(best^.RefCount);
   finally
     FLock.Release;
   end;
@@ -1743,7 +1841,7 @@ begin
   ctx^.Delay := delay;
   ctx^.Scheduler := Self;
   ctx^.SchedulerRef := Self; // retain scheduler lifetime across async task
-  
+
   // 提交到线程池
   try
     FCallbackPool.Submit(@AsyncCallbackTask, ctx);
@@ -1754,7 +1852,8 @@ begin
       // 减少引用计数
       FLock.Acquire;
       try
-        Dec(best^.RefCount);
+        // ✅ ISSUE-REVIEW-P1-3: 使用原子操作
+        InterlockedDecrement(best^.RefCount);
       finally
         FLock.Release;
       end;

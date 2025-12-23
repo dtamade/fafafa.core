@@ -156,6 +156,58 @@ implementation
 uses
   fafafa.core.math;
 
+// ✅ ISSUE-REVIEW-P2-2: 验证时区 ID，防止路径遍历攻击
+// 时区 ID 只能包含：字母、数字、下划线、连字符、正斜杠
+// 禁止：双点(..)、反斜杠、以斜杠开头、连续斜杠
+function IsValidTimeZoneId(const AId: string): Boolean;
+var
+  i, Len: Integer;
+  c: Char;
+  LastWasSlash: Boolean;
+begin
+  Result := False;
+  Len := Length(AId);
+
+  // 空字符串无效
+  if Len = 0 then Exit;
+
+  // 长度限制（防止 DoS）
+  if Len > 64 then Exit;
+
+  // 不能以斜杠开头（相对路径）
+  if AId[1] = '/' then Exit;
+
+  // 不能以斜杠结尾
+  if AId[Len] = '/' then Exit;
+
+  // 检查 ".." 路径遍历序列
+  if Pos('..', AId) > 0 then Exit;
+
+  // 检查每个字符
+  LastWasSlash := False;
+  for i := 1 to Len do
+  begin
+    c := AId[i];
+
+    // 检查连续斜杠
+    if c = '/' then
+    begin
+      if LastWasSlash then Exit;
+      LastWasSlash := True;
+    end
+    else
+    begin
+      LastWasSlash := False;
+
+      // 只允许：A-Z, a-z, 0-9, _, -, +
+      if not (c in ['A'..'Z', 'a'..'z', '0'..'9', '_', '-', '+']) then
+        Exit;
+    end;
+  end;
+
+  Result := True;
+end;
+
 { TTimeZone }
 
 class function TTimeZone.DetectSystemTimeZoneId: string;
@@ -173,13 +225,23 @@ begin
       // 链接通常指向 /usr/share/zoneinfo/Asia/Shanghai 等
       p := Pos('/zoneinfo/', Link);
       if p > 0 then
-        Result := Copy(Link, p + 10, MaxInt)
+      begin
+        Result := Copy(Link, p + 10, MaxInt);
+        // ✅ ISSUE-REVIEW-P2-2: 验证提取的时区 ID
+        if not IsValidTimeZoneId(Result) then
+          Result := '';
+      end
       else
       begin
         // 可能是相对路径
         p := Pos('zoneinfo/', Link);
         if p > 0 then
+        begin
           Result := Copy(Link, p + 9, MaxInt);
+          // ✅ ISSUE-REVIEW-P2-2: 验证提取的时区 ID
+          if not IsValidTimeZoneId(Result) then
+            Result := '';
+        end;
       end;
     end;
   except
@@ -196,7 +258,12 @@ begin
         try
           LoadFromFile('/etc/timezone');
           if Count > 0 then
+          begin
             Result := Trim(Strings[0]);
+            // ✅ ISSUE-REVIEW-P2-2: 验证从文件读取的时区 ID
+            if not IsValidTimeZoneId(Result) then
+              Result := '';
+          end;
         finally
           Free;
         end;

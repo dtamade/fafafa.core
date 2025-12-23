@@ -246,8 +246,7 @@ type
 implementation
 
 uses
-  SysUtils,  // For EDivByZero exception
-  fafafa.core.math;
+  SysUtils;  // For EDivByZero exception
 
 type
   TInt64Helper = record
@@ -696,14 +695,15 @@ end;
 
 function TDuration.CheckedDiv(const Divisor: Int64; out R: TDuration): Boolean;
 begin
-  Result := CheckedDivBy(Divisor, R);
+  if Divisor = 0 then Exit(False);
+  if (FNs = Low(Int64)) and (Divisor = -1) then Exit(False);  // Int64 最小值除以 -1 溢出
+  R.FNs := FNs div Divisor;
+  Result := True;
 end;
 
 function TDuration.CheckedDivBy(const Divisor: Int64; out R: TDuration): Boolean;
 begin
-  if Divisor = 0 then Exit(False);
-  if (FNs = Low(Int64)) and (Divisor = -1) then Exit(False);
-  R.FNs := FNs div Divisor; Result := True;
+  Result := CheckedDiv(Divisor, R);  // 委托给新方法
 end;
 
 function TDuration.CheckedModulo(const Divisor: TDuration; out R: TDuration): Boolean;

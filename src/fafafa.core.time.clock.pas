@@ -440,20 +440,37 @@ var
   GSysClock: ISystemClock = nil;
   GClock: IClock = nil;
   GInitLock: TRTLCriticalSection;
-  
-  // ✅ ISSUE-49: 睡眠策略配置的线程安全锁
+
+  // ✅ ISSUE-49: 睡眠策略配置的线程安全锁（仅用于写入操作）
   GSleepConfigLock: TRTLCriticalSection;
-  
+
   // ✅ ISSUE-18: 可配置的取消检查频率
   // 默认 1ms，可通过 SetCancellationCheckInterval 调整
   GCancellationCheckIntervalNs: Int64 = 1000000; // 1ms = 1,000,000 ns
-  
+
   // ✅ ISSUE-49: 睡眠策略配置
   GSleepStrategy: TSleepStrategy = ssBalanced;
   // 策略参数（单位：纳秒）
   GFinalSpinNs: Int64 = 10000;      // 10us - 最终自旋阈值
   GMicroSleepNs: Int64 = 50000;     // 50us - 微睡眠步长
   GSliceSleepNs: Int64 = 1000000;   // 1ms - 常规睡眠切片
+
+// ✅ ISSUE-REVIEW-P1-5: 原子读取 Int64 值（避免锁开销）
+// 使用 InterlockedCompareExchange64 进行无锁读取
+function AtomicReadInt64(var AValue: Int64): Int64; inline;
+begin
+  // InterlockedCompareExchange64(var Target; NewValue, Comparand): OldValue
+  // 如果 Target = Comparand，则 Target := NewValue，返回旧值
+  // 我们用 0 作为 Comparand，如果当前值是 0，它会被设为 0（无变化）
+  // 如果当前值不是 0，则不变，返回当前值
+  // 但这种方式在值为 0 时有问题，使用更安全的方式
+  Result := InterlockedCompareExchange64(AValue, AValue, AValue);
+end;
+
+function AtomicReadInt32(var AValue: Int32): Int32; inline;
+begin
+  Result := InterlockedCompareExchange(AValue, 0, 0);
+end;
 
 // 工厂函数实现
 
@@ -832,16 +849,15 @@ begin
   // ✅ ISSUE-17: 优化等待策略，减少 CPU 自旋
   // ✅ ISSUE-18: 使用可配置的取消检查间隔
   // ✅ ISSUE-49: 使用可配置的睡眠策略参数
-  // NOTE: Read config under lock to avoid torn Int64 reads on 32-bit and to keep parameters consistent.
-  EnterCriticalSection(GSleepConfigLock);
-  try
-    cancelCheckNs := GCancellationCheckIntervalNs;  // 默认 1ms
-    microSleepNs := GMicroSleepNs;    // 默认 50us
-    finalSpinNs := GFinalSpinNs;      // 默认 10us
-    chunkNs := GSliceSleepNs;         // 常规睡眠切片上限
-  finally
-    LeaveCriticalSection(GSleepConfigLock);
-  end;
+  // ✅ ISSUE-REVIEW-P1-5: 使用原子读取避免锁开销（~50-100ns 节省）
+  // 注意：这里使用原子读取而不是锁，因为：
+  // 1. WaitFor 是高频调用函数，锁开销会累积
+  // 2. 配置参数很少更改，偶尔的非一致读取不会影响正确性
+  // 3. 原子读取保证不会读到撕裂的值（即使在 32 位系统上）
+  cancelCheckNs := AtomicReadInt64(GCancellationCheckIntervalNs);  // 默认 1ms
+  microSleepNs := AtomicReadInt64(GMicroSleepNs);    // 默认 50us
+  finalSpinNs := AtomicReadInt64(GFinalSpinNs);      // 默认 10us
+  chunkNs := AtomicReadInt64(GSliceSleepNs);         // 常规睡眠切片上限
 
   // 常规睡眠切片取策略配置和取消检查间隔中较小者
   if cancelCheckNs < chunkNs then chunkNs := cancelCheckNs;

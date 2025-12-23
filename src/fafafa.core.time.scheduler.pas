@@ -295,6 +295,10 @@ const
   CRON_MIDNIGHT = '0 0 * * *';
   CRON_NOON = '0 12 * * *';
 
+  // ✅ ISSUE-REVIEW-P1-4: Cron 表达式安全限制（防止 ReDoS）
+  CRON_MAX_EXPRESSION_LENGTH = 256;   // 最大表达式长度
+  CRON_MAX_LIST_VALUES = 60;          // 列表中最大值数量（分钟字段最多 60 个值）
+
 implementation
 
 uses
@@ -545,6 +549,8 @@ type
 
 var
   GDefaultScheduler: ITaskScheduler = nil;
+  // ✅ ISSUE-REVIEW-P1-1: 原子状态标志避免竞态条件
+  GDefaultSchedulerOnce: Int32 = 0;  // 0=未初始化, 1=正在初始化, 2=已完成
 
 { TRetryStrategy }
 
@@ -594,10 +600,42 @@ begin
   Result := TTaskScheduler.Create(AClock, AMaxThreads);
 end;
 
+// ✅ ISSUE-REVIEW-P1-1: 使用原子 CAS 模式避免竞态条件
 function DefaultTaskScheduler: ITaskScheduler;
+var
+  LState: Int32;
 begin
-  if GDefaultScheduler = nil then
-    GDefaultScheduler := CreateTaskScheduler;
+  // 快速路径：检查是否已初始化完成
+  LState := InterlockedCompareExchange(GDefaultSchedulerOnce, 0, 0);
+  if LState = 2 then
+    Exit(GDefaultScheduler);
+
+  // 尝试获取初始化权
+  if InterlockedCompareExchange(GDefaultSchedulerOnce, 1, 0) = 0 then
+  begin
+    // 我们赢得了初始化权，执行初始化
+    try
+      GDefaultScheduler := CreateTaskScheduler;
+      // 使用内存屏障确保写入可见后再设置状态
+      InterlockedExchange(GDefaultSchedulerOnce, 2);
+    except
+      // 初始化失败，重置状态允许重试
+      InterlockedExchange(GDefaultSchedulerOnce, 0);
+      raise;
+    end;
+  end
+  else
+  begin
+    // 其他线程正在初始化，等待完成
+    while InterlockedCompareExchange(GDefaultSchedulerOnce, 0, 0) <> 2 do
+    begin
+      {$IFDEF WINDOWS}
+      Sleep(0);
+      {$ELSE}
+      ThreadSwitch;
+      {$ENDIF}
+    end;
+  end;
   Result := GDefaultScheduler;
 end;
 
@@ -2221,11 +2259,18 @@ begin
     Result := True;
     Exit;
   end;
-  
+
   // 处理列表 (1,3,5)
   if Pos(',', s) > 0 then
   begin
     parts := s.Split(',');
+    // ✅ ISSUE-REVIEW-P1-4: 限制列表中值的数量防止 ReDoS
+    if Length(parts) > CRON_MAX_LIST_VALUES then
+    begin
+      FParseError := Format('Too many values in list (%d > %d)',
+        [Length(parts), CRON_MAX_LIST_VALUES]);
+      Exit;
+    end;
     SetLength(valueList, Length(parts));
     for i := 0 to High(parts) do
     begin
@@ -2234,13 +2279,13 @@ begin
         FParseError := 'Invalid value in list: ' + Trim(parts[i]);
         Exit;
       end;
-      
+
       if not ValidateField(val, AMin, AMax) then
       begin
         FParseError := Format('Value %d out of bounds (%d-%d)', [val, AMin, AMax]);
         Exit;
       end;
-      
+
       valueList[i] := val;
     end;
     AField.SetList(valueList);
@@ -2270,13 +2315,21 @@ var
   expr: string;
 begin
   FIsValid := False;
-  
+
   if FExpression = '' then
   begin
     FParseError := 'Empty cron expression';
     Exit;
   end;
-  
+
+  // ✅ ISSUE-REVIEW-P1-4: 检查输入长度防止 ReDoS
+  if Length(FExpression) > CRON_MAX_EXPRESSION_LENGTH then
+  begin
+    FParseError := Format('Cron expression too long (%d > %d)',
+      [Length(FExpression), CRON_MAX_EXPRESSION_LENGTH]);
+    Exit;
+  end;
+
   expr := FExpression;
   
   // 处理宏
@@ -2468,7 +2521,8 @@ begin
     
     // 找到匹配的时间
     nextDT := EncodeDate(year, month, day) + EncodeTime(hour, minute, 0, 0);
-    Result := TInstant.FromNsSinceEpoch(UInt64(DateTimeToUnix(nextDT, False) * 1000000000));
+    // ✅ ISSUE-REVIEW-P2-1: 使用 Int64 常量避免 32 位系统上的整数溢出
+    Result := TInstant.FromNsSinceEpoch(UInt64(DateTimeToUnix(nextDT, False) * Int64(1000000000)));
     Exit;
   end;
   

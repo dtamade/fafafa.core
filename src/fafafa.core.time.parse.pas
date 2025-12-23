@@ -641,6 +641,9 @@ type
 var
   GTimeParser: ITimeParser = nil;
   GDurationParser: IDurationParser = nil;
+  // ✅ ISSUE-REVIEW-P1-2: 原子状态标志避免竞态条件
+  GTimeParserOnce: Int32 = 0;       // 0=未初始化, 1=正在初始化, 2=已完成
+  GDurationParserOnce: Int32 = 0;   // 0=未初始化, 1=正在初始化, 2=已完成
 
 {**
  * GetErrorCodeMessage - 获取错误代码的默认消息（英文）
@@ -1014,17 +1017,73 @@ begin
   Result := TDurationParser.Create(ALocale);
 end;
 
+// ✅ ISSUE-REVIEW-P1-2: 使用原子 CAS 模式避免竞态条件
 function DefaultTimeParser: ITimeParser;
+var
+  LState: Int32;
 begin
-  if GTimeParser = nil then
-    GTimeParser := CreateTimeParser;
+  // 快速路径
+  LState := InterlockedCompareExchange(GTimeParserOnce, 0, 0);
+  if LState = 2 then
+    Exit(GTimeParser);
+
+  // 尝试获取初始化权
+  if InterlockedCompareExchange(GTimeParserOnce, 1, 0) = 0 then
+  begin
+    try
+      GTimeParser := CreateTimeParser;
+      InterlockedExchange(GTimeParserOnce, 2);
+    except
+      InterlockedExchange(GTimeParserOnce, 0);
+      raise;
+    end;
+  end
+  else
+  begin
+    while InterlockedCompareExchange(GTimeParserOnce, 0, 0) <> 2 do
+    begin
+      {$IFDEF WINDOWS}
+      Sleep(0);
+      {$ELSE}
+      ThreadSwitch;
+      {$ENDIF}
+    end;
+  end;
   Result := GTimeParser;
 end;
 
+// ✅ ISSUE-REVIEW-P1-2: 使用原子 CAS 模式避免竞态条件
 function DefaultDurationParser: IDurationParser;
+var
+  LState: Int32;
 begin
-  if GDurationParser = nil then
-    GDurationParser := CreateDurationParser;
+  // 快速路径
+  LState := InterlockedCompareExchange(GDurationParserOnce, 0, 0);
+  if LState = 2 then
+    Exit(GDurationParser);
+
+  // 尝试获取初始化权
+  if InterlockedCompareExchange(GDurationParserOnce, 1, 0) = 0 then
+  begin
+    try
+      GDurationParser := CreateDurationParser;
+      InterlockedExchange(GDurationParserOnce, 2);
+    except
+      InterlockedExchange(GDurationParserOnce, 0);
+      raise;
+    end;
+  end
+  else
+  begin
+    while InterlockedCompareExchange(GDurationParserOnce, 0, 0) <> 2 do
+    begin
+      {$IFDEF WINDOWS}
+      Sleep(0);
+      {$ELSE}
+      ThreadSwitch;
+      {$ENDIF}
+    end;
+  end;
   Result := GDurationParser;
 end;
 
