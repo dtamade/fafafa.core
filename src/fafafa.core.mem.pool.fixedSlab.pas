@@ -80,6 +80,10 @@ type
     function ReallocMem(aDst: Pointer; aSize: SizeUInt): Pointer;
     procedure FreeMem(aDst: Pointer);
 
+    // IAllocator aligned allocation (fallback to GetMem with size class alignment)
+    function AllocAligned(aSize, aAlignment: SizeUInt): Pointer;
+    procedure FreeAligned(aPtr: Pointer);
+
     // IAllocator capability
     function Traits: TAllocatorTraits;
 
@@ -1265,6 +1269,32 @@ procedure TFixedSlabPool.FreeMem(aDst: Pointer);
 begin
   if (aDst = nil) or (FCore = nil) then Exit;
   ngx_slab_free_locked(Pngx_slab_pool_t(FCore), aDst);
+end;
+
+function TFixedSlabPool.AllocAligned(aSize, aAlignment: SizeUInt): Pointer;
+begin
+  // Slab pool size classes provide natural alignment based on size class:
+  // - 8B blocks are 8-byte aligned
+  // - 16B blocks are 16-byte aligned
+  // - etc.
+  // For alignment requests ≤ size class alignment, GetMem works directly.
+  // For larger alignment, fall back to underlying allocator if available.
+  if (aAlignment <= 8) or (aAlignment <= aSize) then
+    Result := GetMem(aSize)
+  else if FAllocator <> nil then
+    Result := FAllocator.AllocAligned(aSize, aAlignment)
+  else
+    Result := nil; // Cannot satisfy alignment request without backing allocator
+end;
+
+procedure TFixedSlabPool.FreeAligned(aPtr: Pointer);
+begin
+  // If pointer is within our region, free it ourselves; otherwise delegate
+  if Owns(aPtr) then
+    FreeMem(aPtr)
+  else if FAllocator <> nil then
+    FAllocator.FreeAligned(aPtr);
+  // else: ignore (pointer not ours and no backing allocator)
 end;
 
 initialization

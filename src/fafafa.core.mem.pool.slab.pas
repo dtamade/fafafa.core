@@ -75,8 +75,14 @@ type
     destructor Destroy; override;
     // IPool
     function Acquire(out aPtr: Pointer): Boolean;
+    function TryAcquire(out aPtr: Pointer): Boolean; inline;
+    function AcquireN(out aUnits: array of Pointer; aCount: Integer): Integer;
     procedure Release(aPtr: Pointer);
+    procedure ReleaseN(const aUnits: array of Pointer; aCount: Integer);
     procedure Reset;
+    // IAllocator aligned allocation
+    function AllocAligned(aSize, aAlignment: SizeUInt): Pointer;
+    procedure FreeAligned(aPtr: Pointer);
     // IMemoryPool + IAllocator
     // Compatibility helpers for older tests
     function Alloc(aSize: SizeUInt): Pointer; inline;
@@ -139,7 +145,7 @@ begin
 end;
 
 procedure TSlabPool.PageMapInit(aMinCapacity: SizeUInt);
-var cap, i: SizeUInt;
+var cap, i, m, tmp: SizeUInt;
 begin
   cap := HASH_MIN_CAP;
   while cap < aMinCapacity do cap := cap shl 1;
@@ -148,7 +154,6 @@ begin
   for i := 0 to cap-1 do begin FPageKeys[i] := 0; FPageVals[i] := -1; end;
   FPageMask := cap-1;
   // compute high-bit shift = 64 - log2(cap)
-  var m, tmp: SizeUInt;
   m := 0; tmp := cap;
   while tmp > 1 do begin Inc(m); tmp := tmp shr 1; end;
   FPageHighShift := SizeUInt(64 - m);
@@ -163,7 +168,7 @@ begin
 end;
 
 procedure TSlabPool.PageMapGrowIfNeeded(aNeedMore: SizeUInt);
-var oldKeys: array of PtrUInt; oldVals: array of Integer; oldCap, i: SizeUInt; key: PtrUInt; val, idx: Integer; h: QWord;
+var oldKeys: array of PtrUInt; oldVals: array of Integer; oldCap, i, m, tmp: SizeUInt; key: PtrUInt; val, idx: Integer; h: QWord;
 begin
   if (FPageCount + aNeedMore) <= ((FPageMask+1) shr 1) then Exit; // load <= 0.5
   oldCap := FPageMask+1;
@@ -172,7 +177,6 @@ begin
   SetLength(FPageVals, oldCap shl 1);
   FPageMask := (oldCap shl 1) - 1;
   // recompute high shift
-  var m, tmp: SizeUInt;
   m := 0; tmp := (FPageMask + 1);
   while tmp > 1 do begin Inc(m); tmp := tmp shr 1; end;
   FPageHighShift := SizeUInt(64 - m);
@@ -421,6 +425,59 @@ begin
   for i:=0 to High(FSegments) do if FSegments[i]<>nil then FSegments[i].Reset;
   SetLength(FAvail,0);
   FActive:=0;
+end;
+
+function TSlabPool.TryAcquire(out aPtr: Pointer): Boolean;
+begin
+  Result := Acquire(aPtr);
+end;
+
+function TSlabPool.AcquireN(out aUnits: array of Pointer; aCount: Integer): Integer;
+var
+  i: Integer;
+begin
+  Result := 0;
+  for i := 0 to aCount - 1 do
+  begin
+    if not Acquire(aUnits[i]) then
+      Break;
+    Inc(Result);
+  end;
+end;
+
+procedure TSlabPool.ReleaseN(const aUnits: array of Pointer; aCount: Integer);
+var
+  i: Integer;
+begin
+  for i := 0 to aCount - 1 do
+    Release(aUnits[i]);
+end;
+
+function TSlabPool.AllocAligned(aSize, aAlignment: SizeUInt): Pointer;
+begin
+  // Slab size classes already provide natural alignment based on block size
+  if (aAlignment <= 8) or (aAlignment <= aSize) then
+    Result := GetMem(aSize)
+  else if FAllocator <> nil then
+    Result := FAllocator.AllocAligned(aSize, aAlignment)
+  else
+    Result := nil;
+end;
+
+procedure TSlabPool.FreeAligned(aPtr: Pointer);
+var
+  idx: Integer;
+begin
+  if aPtr = nil then Exit;
+  idx := FindOwnerSegment(aPtr);
+  if idx >= 0 then
+  begin
+    FSegments[idx].FreeMem(aPtr);
+    PushAvail(idx);
+    Inc(FTotalFrees);
+  end
+  else if FAllocator <> nil then
+    FAllocator.FreeAligned(aPtr);
 end;
 
 end.
