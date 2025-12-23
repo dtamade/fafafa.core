@@ -234,6 +234,11 @@ begin
   Result := WaitFor(0) = wrSignaled;
 end;
 
+function TEvent.Wait: TWaitResult;
+begin
+  Result := WaitFor(High(Cardinal));
+end;
+
 function TEvent.IsSignaled: Boolean;
 begin
   if pthread_mutex_lock(@FMutex) <> 0 then

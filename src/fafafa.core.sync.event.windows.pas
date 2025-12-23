@@ -165,7 +165,7 @@ begin
   // Non-blocking check if event is signaled
   // Use WaitForSingleObject with 0 timeout for immediate return
   Result := WaitForSingleObject(FHandle, 0) = WAIT_OBJECT_0;
-  
+
   // For manual reset events, if signaled, restore the signaled state
   // since WaitForSingleObject would have consumed it for auto-reset events
   if Result and (not FManualReset) then
