@@ -110,6 +110,9 @@ function MakeMutex: IMutex; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
 {** 创建 pthread_mutex_t 版本的 mutex，用于与 pthread_cond_* 函数配合使用 *}
 function MakePthreadMutex: IMutex; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
 
+{** 创建 futex 版本的 mutex（高性能，仅 Linux），用于基准测试对比 *}
+function MakeFutexMutex: IMutex; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+
 implementation
 
 function MakeMutex: IMutex;
@@ -127,6 +130,17 @@ function MakePthreadMutex: IMutex;
 begin
   // 始终使用 pthread_mutex 实现，与 pthread_cond_* 兼容
   Result := TMutex.Create;
+end;
+
+function MakeFutexMutex: IMutex;
+begin
+  {$IFDEF FAFAFA_CORE_USE_FUTEX}
+  // 使用 futex 实现（高性能）
+  Result := TFutexMutex.Create;
+  {$ELSE}
+  // futex 不可用时回退到 pthread_mutex
+  Result := TMutex.Create;
+  {$ENDIF}
 end;
 
 { TMutex - 传统 pthread 实现 }
