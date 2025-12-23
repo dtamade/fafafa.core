@@ -39,8 +39,8 @@ src/
 ### 支持的指令集
 
 #### x86_64 架构
-- **当前支持**：SSE2, AVX2, POPCNT
-- **规划支持**：AVX-512F, AVX-512VL, AVX-512BW
+- **当前支持**：SSE2, AVX2, AVX-512F, POPCNT
+- **规划支持**：AVX-512VL, AVX-512BW（部分子集）
 
 #### AArch64 架构
 - **当前支持**：NEON (占位符阶段)
@@ -53,7 +53,7 @@ src/
 | LEVEL_0 | SCALAR | SCALAR | 无 SIMD，纯标量实现 |
 | LEVEL_1 | SSE2 | NEON | 基线 SIMD 支持 |
 | LEVEL_2 | AVX2 | NEON+CRC/AES | 增强 SIMD 支持 |
-| LEVEL_3 | AVX-512 | SVE/SVE2 | 高端 SIMD 支持（规划中） |
+| LEVEL_3 | AVX-512 | SVE/SVE2 | 高端 SIMD 支持 |
 
 ### 性能基准 (4096 字节, 1M 次迭代)
 
