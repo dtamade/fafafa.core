@@ -6,7 +6,7 @@ unit fafafa.core.sync.namedBarrier.base;
 interface
 
 uses
-  SysUtils, fafafa.core.base, fafafa.core.sync.base, fafafa.core.result;
+  SysUtils;
 
 type
   // Forward declarations
@@ -202,6 +202,7 @@ end;
 
 function TNamedBarrierBuilder.Build: INamedBarrier;
 begin
+  Result := nil;  // 满足编译器（实际会抛异常）
   // 这里需要调用门面层的实现，避免循环引用
   raise Exception.Create('TNamedBarrierBuilder.Build must be implemented in facade layer');
 end;

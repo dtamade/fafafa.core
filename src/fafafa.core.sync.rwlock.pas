@@ -6,7 +6,6 @@ unit fafafa.core.sync.rwlock;
 interface
 
 uses
-  fafafa.core.sync.base,
   fafafa.core.sync.rwlock.base
   {$IFDEF WINDOWS}, fafafa.core.sync.rwlock.windows{$ENDIF}
   {$IFDEF UNIX},    fafafa.core.sync.rwlock.unix{$ENDIF};
@@ -59,6 +58,8 @@ begin
   Result.WriterPriority := False;
   Result.MaxReaders := 1024;
   Result.SpinCount := 4000;
+  Result.EnablePoisoning := True;    // ✅ 默认启用毒化检测（Rust-style Poisoning）
+  Result.ReaderBiasEnabled := True;  // ✅ 默认启用读偏向优化
 end;
 
 function FairRWLockOptions: TRWLockOptions;

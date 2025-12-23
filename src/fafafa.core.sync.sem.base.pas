@@ -6,7 +6,7 @@ unit fafafa.core.sync.sem.base;
 interface
 
 uses
-  fafafa.core.base, fafafa.core.sync.base;
+  fafafa.core.sync.base;
 
 type
 

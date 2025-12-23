@@ -6,7 +6,7 @@ unit fafafa.core.sync.sem;
 interface
 
 uses
-  fafafa.core.sync.base, fafafa.core.sync.sem.base;
+  fafafa.core.sync.sem.base;
 
 type
   ISem = fafafa.core.sync.sem.base.ISem;
@@ -31,7 +31,7 @@ uses
 function MakeSem(AInitialCount: Integer; AMaxCount: Integer): ISem;
 begin
   {$IFDEF MSWINDOWS}
-  Result := fafafa.core.sync.sem.windows.TSem.Create(AInitialCount, AMaxCount);
+  Result := fafafa.core.sync.sem.windows.TSemaphore.Create(AInitialCount, AMaxCount);
   {$ELSE}
   Result := fafafa.core.sync.sem.unix.TSemaphore.Create(AInitialCount, AMaxCount);
   {$ENDIF}

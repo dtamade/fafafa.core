@@ -32,7 +32,6 @@ unit fafafa.core.sync.builder;
 interface
 
 uses
-  fafafa.core.sync.base,
   fafafa.core.sync.mutex,
   fafafa.core.sync.sem,
   fafafa.core.sync.rwlock,

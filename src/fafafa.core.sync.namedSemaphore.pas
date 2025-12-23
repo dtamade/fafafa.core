@@ -6,7 +6,7 @@ unit fafafa.core.sync.namedSemaphore;
 interface
 
 uses
-  fafafa.core.sync.base, fafafa.core.sync.namedSemaphore.base
+  fafafa.core.sync.namedSemaphore.base
   {$IFDEF WINDOWS}, fafafa.core.sync.namedSemaphore.windows{$ENDIF}
   {$IFDEF UNIX},    fafafa.core.sync.namedSemaphore.unix{$ENDIF};
 

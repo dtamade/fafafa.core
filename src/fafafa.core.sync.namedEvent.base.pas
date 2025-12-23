@@ -6,7 +6,7 @@ unit fafafa.core.sync.namedEvent.base;
 interface
 
 uses
-  fafafa.core.base, fafafa.core.sync.base;
+  fafafa.core.sync.base;
 
 type
   // ===== 配置结构 =====

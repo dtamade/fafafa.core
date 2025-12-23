@@ -10,11 +10,8 @@ uses
   fafafa.core.base,
   fafafa.core.sync.base,
   fafafa.core.sync.mutex,
-  fafafa.core.sync.mutex.guard,   // Phase 4: Rust-style TMutexGuard<T>
-  fafafa.core.sync.spin.base,
   fafafa.core.sync.spin,
   fafafa.core.sync.rwlock,
-  fafafa.core.sync.rwlock.guard,  // Phase 4: Rust-style TRwLockGuard<T>
   fafafa.core.sync.once,
   fafafa.core.sync.once.base,
   fafafa.core.sync.condvar,
@@ -27,7 +24,6 @@ uses
   fafafa.core.sync.parker,     // Phase 1.3: Rust-style Parker
   fafafa.core.sync.builder,    // Phase 2: Builder pattern for sync primitives
   fafafa.core.sync.oncelock,   // Phase 3.1: Rust-style OnceLock<T>
-  fafafa.core.sync.lazylock,   // Phase 3.2: Rust-style LazyLock<T>
   // Named synchronization primitives
   fafafa.core.sync.namedMutex,
   fafafa.core.sync.namedEvent,
@@ -474,6 +470,7 @@ begin
 end;
 
 procedure WithLock(const ALock: ILock; const AProc: TLockProc);
+{$PUSH}{$WARN 5027 OFF}  // Guard is used for RAII, not its value
 var
   Guard: ILockGuard;
 begin
@@ -484,6 +481,7 @@ begin
     Guard := nil;  // 触发释放
   end;
 end;
+{$POP}
 
 function TryWithLock(const ALock: ITryLock; const AProc: TLockProc): Boolean;
 var
@@ -504,6 +502,7 @@ begin
 end;
 
 procedure WithReadLock(const ARWLock: IRWLock; const AProc: TLockProc);
+{$PUSH}{$WARN 5027 OFF}  // Guard is used for RAII, not its value
 var
   Guard: IRWLockReadGuard;
 begin
@@ -514,8 +513,10 @@ begin
     Guard := nil;  // 触发释放
   end;
 end;
+{$POP}
 
 procedure WithWriteLock(const ARWLock: IRWLock; const AProc: TLockProc);
+{$PUSH}{$WARN 5027 OFF}  // Guard is used for RAII, not its value
 var
   Guard: IRWLockWriteGuard;
 begin
@@ -526,6 +527,7 @@ begin
     Guard := nil;  // 触发释放
   end;
 end;
+{$POP}
 
 function TryWithReadLock(const ARWLock: IRWLock; const AProc: TLockProc;
   ATimeoutMs: Cardinal): Boolean;

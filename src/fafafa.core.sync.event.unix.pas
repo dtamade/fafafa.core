@@ -49,7 +49,7 @@ unit fafafa.core.sync.event.unix;
 interface
 
 uses
-  SysUtils, BaseUnix, Unix, UnixType, pthreads,
+  SysUtils, Unix, UnixType, pthreads,
   {$IFDEF HAS_CLOCK_GETTIME}cthreads,{$ENDIF}
   fafafa.core.sync.base, fafafa.core.sync.event.base;
 
@@ -232,11 +232,6 @@ end;
 function TEvent.TryWait: Boolean;
 begin
   Result := WaitFor(0) = wrSignaled;
-end;
-
-function TEvent.Wait: TWaitResult;
-begin
-  Result := WaitFor(High(Cardinal));
 end;
 
 function TEvent.IsSignaled: Boolean;

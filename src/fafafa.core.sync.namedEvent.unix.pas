@@ -6,8 +6,8 @@ unit fafafa.core.sync.namedEvent.unix;
 interface
 
 uses
-  SysUtils, ctypes, BaseUnix, Unix, UnixType, pthreads,
-  fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.namedEvent.base;
+  SysUtils, BaseUnix, Unix, UnixType, pthreads,
+  fafafa.core.sync.base, fafafa.core.sync.namedEvent.base;
 
 const
   ESysETIMEDOUT = 110;  // 超时错误�?

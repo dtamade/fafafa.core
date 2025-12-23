@@ -7,8 +7,8 @@ unit fafafa.core.sync.namedMutex.unix;
 interface
 
 uses
-  SysUtils, ctypes, BaseUnix, Unix, UnixType,
-  fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.namedMutex.base;
+  SysUtils, BaseUnix, Unix, UnixType,
+  fafafa.core.sync.base, fafafa.core.sync.namedMutex.base;
 
 type
   // pthread_mutex_t 指针类型
@@ -435,6 +435,7 @@ var
   LTimespec: TTimeSpec;
   LResult: cint;
 begin
+  Result := False;  // 初始化返回值
   if ATimeoutMs = 0 then
     Exit(TryAcquireLock);
 

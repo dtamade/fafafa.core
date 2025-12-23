@@ -7,7 +7,7 @@ interface
 
 uses
   SysUtils, BaseUnix, Unix, UnixType, pthreads,
-  fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.mutex.base,
+  fafafa.core.sync.base, fafafa.core.sync.mutex.base,
   fafafa.core.sync.condvar.base;
 
 type
@@ -23,6 +23,7 @@ type
     // ICondVar
     procedure Wait(const ALock: ILock); overload;
     function Wait(const ALock: ILock; ATimeoutMs: Cardinal): Boolean; overload;
+    function WaitFor(const ALock: ILock; ATimeoutMs: Cardinal): TCondVarWaitResult;
     procedure Signal;
     procedure Broadcast;
   end;
@@ -174,6 +175,15 @@ begin
 
 end;
 
+function TCondVar.WaitFor(const ALock: ILock; ATimeoutMs: Cardinal): TCondVarWaitResult;
+begin
+  // Delegate to existing Wait implementation
+  if Wait(ALock, ATimeoutMs) then
+    Result := TCondVarWaitResult.Signaled
+  else
+    Result := TCondVarWaitResult.Timeout;
+end;
+
 procedure TCondVar.Signal;
 begin
   if pthread_cond_signal(@FCond) <> 0 then
@@ -202,7 +212,6 @@ function TCondVar.GetLastError: TWaitError;
 begin
   Result := FLastError;
 end;
-
 
 end.
 

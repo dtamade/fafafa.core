@@ -2,195 +2,374 @@
 
 ## 📋 模块概述
 
-`fafafa.core.sync` 是 fafafa.core 框架中的现代化同步原语模块。它提供了一套完整的、生产级别的同步机制，用于多线程编程中的资源保护和线程协调。
+`fafafa.core.sync` 是 fafafa.core 框架中的现代化同步原语模块，**对标 Rust std::sync (1.80+)**。它提供了一套完整的、生产级别的同步机制，用于多线程编程中的资源保护和线程协调。
 
 ### 🎯 设计目标
 
-- **现代化接口**: 借鉴 Rust、Go、Java 等现代语言的同步原语设计
-- **跨平台兼容**: 支持 Windows 和 Unix/Linux 平台
-- **RAII 支持**: 提供自动资源管理，防止死锁和资源泄漏
-- **高性能**: 针对不同场景优化的多种锁实现
+- **Rust 语义对齐**: 借鉴 Rust std::sync 的 API 设计，提供 Guard、OnceLock、LazyLock 等现代原语
+- **跨平台兼容**: 支持 Windows 和 Unix/Linux 平台，统一类名和接口
+- **RAII 支持**: 所有锁操作返回 Guard 对象，自动资源管理
+- **零分配热路径**: 结果类型使用 record 值类型，避免堆分配
 - **类型安全**: 基于接口的强类型设计
-- **异常安全**: 完整的异常处理和错误报告
+- **异常安全**: 完整的异常处理和 Poison 检测
 
 ### 🏗️ 架构设计
 
-模块采用分层设计：
+模块采用三层设计：
 
 ```
-┌─────────────────────────────────────┐
-│           应用层接口                │
-├─────────────────────────────────────┤
-│  ILock | IReadWriteLock | ISemaphore │
-├─────────────────────────────────────┤
-│      RAII 自动管理层                │
-│  TAutoLock | TAutoReadLock | ...    │
-├─────────────────────────────────────┤
-│         具体实现层                  │
-│ TMutex | TSpinLock | TReadWriteLock │
-├─────────────────────────────────────┤
-│        平台抽象层                   │
-│   Windows API | POSIX pthreads     │
-└─────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│                    门面层 (Facade)                       │
+│   fafafa.core.sync.mutex | .rwlock | .condvar | ...    │
+├─────────────────────────────────────────────────────────┤
+│                   接口层 (Base)                          │
+│   ILock | IRWLock | ICondVar | IBarrier | ISem | ...   │
+│   TCondVarWaitResult | TBarrierWaitResult (records)    │
+├─────────────────────────────────────────────────────────┤
+│                  平台实现层                              │
+│   .windows.pas | .unix.pas                             │
+│   Windows API | POSIX pthreads | futex                 │
+└─────────────────────────────────────────────────────────┘
 ```
 
 ## 🔒 核心同步原语
 
+### 同步原语一览
+
+| 原语 | 接口 | Rust 对应 | 说明 |
+|------|------|-----------|------|
+| **Mutex** | `IMutex` | `std::sync::Mutex` | 互斥锁 |
+| **RWLock** | `IRWLock` | `std::sync::RwLock` | 读写锁 |
+| **CondVar** | `ICondVar` | `std::sync::Condvar` | 条件变量 |
+| **Barrier** | `IBarrier` | `std::sync::Barrier` | 屏障同步 |
+| **Semaphore** | `ISem` | - | 信号量 |
+| **Once** | `IOnce` | `std::sync::Once` | 单次初始化 |
+| **OnceLock** | `IOnceLock<T>` | `std::sync::OnceLock` | 单次赋值容器 |
+| **LazyLock** | `ILazyLock<T>` | `std::sync::LazyLock` | 延迟初始化 |
+| **Parker** | `IParker` | `std::thread::Parker` | 线程停放 |
+| **WaitGroup** | `IWaitGroup` | Go `sync.WaitGroup` | 等待组 |
+| **Latch** | `ILatch` | Java `CountDownLatch` | 倒计时门闩 |
+| **SpinLock** | `ISpin` | - | 自旋锁 |
+
 ### 1. 互斥锁 (Mutex)
 
-**接口**: `ILock`  
-**实现**: `TMutex`
+**接口**: `IMutex`, `ILock`
+**实现**: `TMutex` (Windows/Unix)
 
-互斥锁是最基本的同步原语，提供互斥访问保护。
-
-**特性**:
-- 支持重入锁定（同一线程可多次获取）
-- 跨平台实现（Windows Mutex / POSIX pthread_mutex）
-- 超时支持
-- 死锁检测
-
-**基本用法**:
 ```pascal
+uses fafafa.core.sync.mutex;
+
 var
-  LMutex: ILock;
+  Mutex: IMutex;
+  Guard: ILockGuard;
 begin
-  LMutex := TMutex.Create;
-  
-  LMutex.Acquire;
+  Mutex := MakeMutex;
+
+  // 现代 API：返回 Guard，自动释放
+  Guard := Mutex.Lock;
+  // 临界区代码...
+  // Guard 离开作用域时自动释放锁
+
+  // 传统 API：手动管理
+  Mutex.Acquire;
   try
     // 临界区代码
   finally
-    LMutex.Release;
+    Mutex.Release;
   end;
 end;
 ```
 
-**RAII 用法**:
+**Guard 模式**:
 ```pascal
+// Guard 提供对保护数据的访问
+Guard := Mutex.Lock;
+if Guard.IsLocked then
+  // 安全访问数据
+```
+
+### 2. 读写锁 (RWLock)
+
+**接口**: `IRWLock`
+**实现**: `TRWLock` (Windows/Unix)
+
+```pascal
+uses fafafa.core.sync.rwlock;
+
 var
-  LMutex: ILock;
-  LAutoLock: TAutoLock;
+  RWLock: IRWLock;
+  ReadGuard: IRWLockReadGuard;
+  WriteGuard: IRWLockWriteGuard;
 begin
-  LMutex := TMutex.Create;
-  LAutoLock := TAutoLock.Create(LMutex);
-  
-  // 锁会在 LAutoLock 析构时自动释放
-  // 临界区代码
+  RWLock := MakeRWLock;
+
+  // 读锁（多个读者可并发）
+  ReadGuard := RWLock.Read;
+  // 读取数据...
+
+  // 写锁（独占访问）
+  WriteGuard := RWLock.Write;
+  // 修改数据...
+
+  // 写锁降级为读锁 (Rust-style)
+  ReadGuard := WriteGuard.Downgrade;
 end;
 ```
 
-### 2. 自旋锁 (SpinLock)
+### 3. 条件变量 (CondVar)
 
-**接口**: `ILock`  
-**实现**: `TSpinLock`
+**接口**: `ICondVar`
+**实现**: `TCondVar` (Windows/Unix)
+**结果类型**: `TCondVarWaitResult` (record, 零分配)
 
-自旋锁适用于短时间持有的锁，通过忙等待避免线程切换开销。
-
-**特性**:
-- 无线程切换开销
-- 适合短临界区
-- 不支持重入
-- 可配置自旋次数
-
-**用法**:
 ```pascal
+uses fafafa.core.sync.condvar;
+
 var
-  LSpinLock: ILock;
+  Cond: ICondVar;
+  Mutex: IMutex;
+  Result: TCondVarWaitResult;
 begin
-  LSpinLock := TSpinLock.Create(4000); // 自旋4000次
-  
-  LSpinLock.Acquire;
+  Cond := MakeCondVar;
+  Mutex := MakeMutex;
+
+  Mutex.Acquire;
   try
-    // 短时间临界区代码
+    // 等待条件（带超时）
+    Result := Cond.WaitFor(Mutex, 1000);  // 1秒超时
+
+    if Result.TimedOut then
+      WriteLn('等待超时')
+    else
+      WriteLn('被唤醒');
+
+    // 传统 API
+    if Cond.Wait(Mutex, 1000) then
+      WriteLn('被唤醒')
+    else
+      WriteLn('超时');
   finally
-    LSpinLock.Release;
+    Mutex.Release;
   end;
+
+  // 唤醒等待者
+  Cond.Signal;     // 唤醒一个
+  Cond.Broadcast;  // 唤醒所有
 end;
 ```
 
-### 3. 读写锁 (ReadWriteLock)
+### 4. 屏障 (Barrier)
 
-**接口**: `IReadWriteLock`  
-**实现**: `TReadWriteLock`
+**接口**: `IBarrier`
+**实现**: `TBarrier` (Windows/Unix)
+**结果类型**: `TBarrierWaitResult` (record, 零分配)
 
-读写锁允许多个读者同时访问，但写者独占访问。
+```pascal
+uses fafafa.core.sync.barrier;
 
-**特性**:
-- 多读者并发
-- 写者独占
-- 读写优先级控制
-- 跨平台实现
+var
+  Barrier: IBarrier;
+  Result: TBarrierWaitResult;
+begin
+  Barrier := MakeBarrier(4);  // 4个参与者
 
-**用法**:
+  // 在每个线程中
+  Result := Barrier.WaitEx;
+
+  if Result.IsLeader then
+    WriteLn('我是 Leader，代数: ', Result.Generation)
+  else
+    WriteLn('我是 Follower，代数: ', Result.Generation);
+
+  // 传统 API
+  if Barrier.Wait then
+    WriteLn('我是串行线程');
+end;
+```
+
+### 5. OnceLock (单次赋值容器)
+
+**接口**: `IOnceLock<T>`
+**Rust 对应**: `std::sync::OnceLock<T>`
+
+```pascal
+uses fafafa.core.sync.oncelock;
+
+var
+  Config: IOnceLock<TConfig>;
+begin
+  Config := TOnceLock<TConfig>.Create;
+
+  // 线程安全的单次初始化
+  Config.GetOrInit(function: TConfig
+  begin
+    Result := LoadConfig;  // 只执行一次
+  end);
+
+  // 之后直接获取
+  WriteLn(Config.Get.ServerUrl);
+end;
+```
+
+### 6. LazyLock (延迟初始化)
+
+**接口**: `ILazyLock<T>`
+**Rust 对应**: `std::sync::LazyLock<T>`
+
+```pascal
+uses fafafa.core.sync.lazylock;
+
+var
+  ExpensiveData: ILazyLock<TBigData>;
+begin
+  ExpensiveData := TLazyLock<TBigData>.Create(
+    function: TBigData
+    begin
+      Result := ComputeExpensiveData;  // 首次访问时执行
+    end
+  );
+
+  // 首次调用时初始化
+  WriteLn(ExpensiveData.Get.SomeProperty);
+
+  // 后续调用直接返回缓存值
+  WriteLn(ExpensiveData.Get.AnotherProperty);
+end;
+```
+
+### 7. Parker (线程停放)
+
+**接口**: `IParker`
+**Rust 对应**: `std::thread::Parker`
+
+```pascal
+uses fafafa.core.sync.parker;
+
+var
+  Parker: IParker;
+begin
+  Parker := MakeParker;
+
+  // 在等待线程中
+  Parker.Park;        // 阻塞直到被 Unpark
+  Parker.ParkTimeout(1000);  // 带超时
+
+  // 在唤醒线程中
+  Parker.Unpark;      // 唤醒停放的线程
+end;
+```
+
+## 🛡️ Guard 模式与 RAII
+
+所有锁操作都返回 Guard 对象，实现自动资源管理：
+
+### Guard 类型层次
+
+```
+ILockGuard (基础锁 Guard)
+├── IMutexGuard
+├── IRWLockReadGuard
+├── IRWLockWriteGuard
+└── ISemGuard
+```
+
+### Guard 特性
+
 ```pascal
 var
-  LRWLock: IReadWriteLock;
-  LReadLock: TAutoReadLock;
-  LWriteLock: TAutoWriteLock;
+  Guard: ILockGuard;
 begin
-  LRWLock := TReadWriteLock.Create;
-  
-  // 读操作
-  LReadLock := TAutoReadLock.Create(LRWLock);
-  // 读取数据
-  
-  // 写操作
-  LWriteLock := TAutoWriteLock.Create(LRWLock);
-  // 修改数据
+  Guard := Mutex.Lock;
+
+  // 检查锁状态
+  if Guard.IsLocked then
+    // 执行受保护操作
+
+  // 提前释放（可选）
+  Guard.Release;
+
+  // 离开作用域时自动释放（如果未手动释放）
 end;
 ```
 
-## 🛡️ RAII 自动管理
+## 📊 值类型结果 (Zero-Allocation)
 
-模块提供了多种 RAII（Resource Acquisition Is Initialization）管理器：
+为了避免热路径上的堆分配，等待操作返回 **record 值类型**：
 
-### TAutoLock
-自动管理 `ILock` 接口的锁：
+### TCondVarWaitResult
+
+```pascal
+TCondVarWaitResult = record
+  function TimedOut: Boolean;   // 是否超时
+  function Signaled: Boolean;   // 是否被信号唤醒 (= not TimedOut)
+  class function Timeout: TCondVarWaitResult; static;
+  class function Signaled: TCondVarWaitResult; static;
+end;
+```
+
+### TBarrierWaitResult
+
+```pascal
+TBarrierWaitResult = record
+  function IsLeader: Boolean;   // 是否是串行线程
+  function Generation: Cardinal; // 屏障代数
+  class function Leader(Gen: Cardinal): TBarrierWaitResult; static;
+  class function Follower(Gen: Cardinal): TBarrierWaitResult; static;
+end;
+```
+
+## 🔧 Builder 模式
+
+复杂同步原语支持 Builder 配置：
+
+```pascal
+uses fafafa.core.sync.builder;
+
+var
+  Barrier: INamedBarrier;
+begin
+  // 使用 Builder 创建命名屏障
+  Barrier := TNamedBarrierBuilder.Create
+    .Name('/my_barrier')
+    .ParticipantCount(4)
+    .Timeout(5000)
+    .Build;
+end;
+```
+
+## ☠️ Poison 检测
+
+当持有锁的线程 panic/异常退出时，锁会被标记为 "poisoned"：
+
 ```pascal
 var
-  LAutoLock: TAutoLock;
+  Mutex: IMutex;
 begin
-  LAutoLock := TAutoLock.Create(SomeLock);
-  // 锁在作用域结束时自动释放
+  Mutex := MakeMutex;
+
+  // 检查是否被污染
+  if Mutex.IsPoisoned then
+    WriteLn('锁被污染，之前的持有者异常退出');
+
+  // 清除污染状态（谨慎使用）
+  Mutex.ClearPoison;
+
+  // 手动标记为污染
+  Mutex.MarkPoisoned;
 end;
 ```
-
-### TAutoReadLock / TAutoWriteLock
-自动管理读写锁：
-```pascal
-// 自动读锁
-var LReadLock: TAutoReadLock;
-LReadLock := TAutoReadLock.Create(SomeRWLock);
-
-// 自动写锁  
-var LWriteLock: TAutoWriteLock;
-LWriteLock := TAutoWriteLock.Create(SomeRWLock);
-```
-
-## 🚨 异常处理
-
-模块定义了完整的异常层次结构：
-
-```
-ESyncError (基础同步异常)
-├── ELockError (锁操作异常)
-├── ETimeoutError (超时异常)
-├── EDeadlockError (死锁异常)
-└── EAbandonedMutexError (互斥锁遗弃异常)
-```
-
-**异常安全保证**:
-- 所有 RAII 管理器都是异常安全的
-- 异常发生时自动释放资源
-- 详细的错误信息和上下文
 
 ## 📊 性能特征
 
-| 同步原语 | 获取开销 | 释放开销 | 适用场景 | 重入支持 |
-|---------|---------|---------|---------|---------|
+| 同步原语 | 获取开销 | 释放开销 | 适用场景 | 重入 |
+|---------|---------|---------|---------|------|
 | TMutex | 中等 | 中等 | 通用场景 | ✅ |
-| TSpinLock | 极低 | 极低 | 短临界区 | ❌ |
-| TReadWriteLock | 高 | 高 | 读多写少 | ❌ |
+| TFutexMutex | 低 | 低 | Linux 高并发 | ❌ |
+| TSpin | 极低 | 极低 | 短临界区 | ❌ |
+| TRWLock | 高 | 高 | 读多写少 | ❌ |
+| TCondVar | - | - | 条件等待 | - |
+| TBarrier | - | - | 批量同步 | - |
+| TSemaphore | 中等 | 中等 | 资源池 | - |
 
 ## 🔧 最佳实践
 
@@ -243,21 +422,102 @@ end;
 - [使用示例](../examples/fafafa.core.sync/)
 - [架构设计](framework_design.md)
 
+## 🌐 跨进程同步 (IPC Named Primitives)
+
+`fafafa.core.sync` 提供完整的跨进程同步原语，所有 Named 版本通过操作系统内核对象实现进程间同步：
+
+### Named 原语一览
+
+| 原语 | 接口 | 说明 |
+|------|------|------|
+| **NamedMutex** | `INamedMutex` | 跨进程互斥锁 |
+| **NamedRWLock** | `INamedRWLock` | 跨进程读写锁 |
+| **NamedSemaphore** | `INamedSem` | 跨进程信号量 |
+| **NamedCondVar** | `INamedCondVar` | 跨进程条件变量 |
+| **NamedBarrier** | `INamedBarrier` | 跨进程屏障 |
+| **NamedEvent** | `INamedEvent` | 跨进程事件 |
+
+### 使用示例
+
+```pascal
+uses fafafa.core.sync.namedMutex;
+
+var
+  Mutex: INamedMutex;
+begin
+  // 创建或打开命名互斥锁（跨进程共享）
+  Mutex := MakeNamedMutex('/my_app_mutex');
+
+  Mutex.Acquire;
+  try
+    // 跨进程临界区
+  finally
+    Mutex.Release;
+  end;
+end;
+```
+
+### 平台实现
+
+- **Windows**: 使用 CreateMutex/CreateSemaphore 等内核对象
+- **Unix/Linux**: 使用 POSIX 命名信号量 (`sem_open`) 或共享内存 + futex
+
+## ⚡ 三段式等待策略 (Three-Stage Wait)
+
+高性能同步原语（如 `TFutexMutex`）采用三段式等待策略，平衡延迟和 CPU 使用：
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  Stage 1: Spin Wait (自旋等待)                              │
+│  - 极短时间内忙等待 (~100-1000 次循环)                       │
+│  - CPU 密集但延迟最低                                        │
+│  - 适合：竞争少、锁持有时间极短                              │
+├─────────────────────────────────────────────────────────────┤
+│  Stage 2: Yield/Pause (让出时间片)                          │
+│  - 调用 sched_yield() 或 PAUSE 指令                         │
+│  - 适度降低 CPU 使用，略增延迟                               │
+│  - 适合：中等竞争                                            │
+├─────────────────────────────────────────────────────────────┤
+│  Stage 3: Kernel Wait (内核等待)                            │
+│  - 调用 futex/WaitForSingleObject 进入睡眠                  │
+│  - CPU 使用最低，但唤醒延迟最高                              │
+│  - 适合：高竞争、长临界区                                    │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### 策略选择指南
+
+| 场景 | 推荐原语 | 等待策略 |
+|------|----------|----------|
+| 短临界区 (< 100 指令) | `TSpin` | 纯自旋 |
+| 通用场景 | `TMutex` | 三段式 |
+| 高并发 Linux | `TFutexMutex` | 三段式 + futex |
+| I/O 密集 | `TMutex` | 直接内核等待 |
+
 ## 🔄 版本历史
 
-### v1.0.0 (当前版本)
-- ✅ 基础同步原语实现
-- ✅ RAII 自动管理
-- ✅ 跨平台支持
-- ✅ 完整测试套件
-- ✅ 详细文档
+### v2.0.0 (当前版本) - 2025-12
 
-### 未来计划
-- 🔄 条件变量 (ConditionVariable)
-- 🔄 信号量 (Semaphore)  
-- 🔄 屏障 (Barrier)
-- 🔄 原子操作 (Atomic)
-- 🔄 无锁数据结构
+**✅ 完整同步原语套件 (21 个)**:
+- Mutex, RWLock, CondVar, Barrier, Semaphore
+- Once, OnceLock, LazyLock
+- Parker, WaitGroup, Latch, SpinLock, Event, RecMutex
+- Named IPC 版本 (NamedMutex, NamedRWLock, NamedCondVar, NamedBarrier, NamedSemaphore, NamedEvent)
+
+**✅ Rust std::sync 对标**:
+- Guard RAII 模式
+- Poison 检测机制
+- 零分配结果类型
+
+**✅ 质量保证**:
+- 157+ 测试用例 (126 单元测试 + 31 边界测试)
+- 内存泄漏检测通过 (HeapTrc 0 泄漏)
+- 跨平台支持 (Windows/Linux/macOS)
+
+### v1.0.0
+- 基础同步原语实现
+- RAII 自动管理
+- 跨平台支持
 
 ## ⏱️ 时钟与超时语义（UNIX）
 - Event/ConditionVariable：使用 pthread 条件变量，初始化时将时钟设为 CLOCK_MONOTONIC，避免系统时钟跳变影响 WaitFor/Wait(Timeout) 语义。

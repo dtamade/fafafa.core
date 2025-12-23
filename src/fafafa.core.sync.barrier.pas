@@ -53,6 +53,7 @@ uses
 
 type
 
+  TBarrierWaitResult = fafafa.core.sync.barrier.base.TBarrierWaitResult;
   IBarrier = fafafa.core.sync.barrier.base.IBarrier;
 
 {**

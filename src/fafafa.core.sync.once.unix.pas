@@ -24,8 +24,8 @@ unit fafafa.core.sync.once.unix;
 interface
 
 uses
-  SysUtils, BaseUnix, Unix, UnixType, pthreads,
-  fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.once.base;
+  SysUtils, Unix, UnixType, pthreads,
+  fafafa.core.sync.base, fafafa.core.sync.once.base;
 
 // 内存屏障函数声明
 {$IFDEF CPUX86_64}

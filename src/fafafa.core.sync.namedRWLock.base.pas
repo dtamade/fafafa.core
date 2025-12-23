@@ -5,9 +5,6 @@ unit fafafa.core.sync.namedRWLock.base;
 
 interface
 
-uses
-  fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.rwlock.base;
-
 type
   // ===== 配置结构 =====
   TNamedRWLockConfig = record

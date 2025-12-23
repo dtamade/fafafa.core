@@ -100,7 +100,7 @@ type
    *   - Unix: 基于 pthread_mutex_t，系统级锁，稳定可靠
    *   - 重入计数由系统内核管理，无额外开销
    *
-   * @guid {4A8E4E2F-2F38-4B2A-BE39-4F7A6E5B3C28}
+   * @guid '4A8E4E2F-2F38-4B2A-BE39-4F7A6E5B3C28'
    *}
   IRecMutex = interface(ITryLock)
     ['{4A8E4E2F-2F38-4B2A-BE39-4F7A6E5B3C28}']

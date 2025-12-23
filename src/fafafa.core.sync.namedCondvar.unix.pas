@@ -7,9 +7,10 @@ interface
 
 uses
   SysUtils, BaseUnix, Unix, UnixType, pthreads,
-  fafafa.core.base, fafafa.core.sync.base,
+  fafafa.core.sync.base,
+  fafafa.core.sync.condvar.base,
   fafafa.core.sync.namedCondvar.base,
-  fafafa.core.sync.namedMutex.base, fafafa.core.sync.mutex.base;
+  fafafa.core.sync.namedMutex.base;
 
 {$LINKLIB pthread}
 {$LINKLIB rt}
@@ -47,8 +48,8 @@ type
 
     function ValidateName(const AName: string): string;
     function CreateShmPath(const AName: string): string;
-    function CreateSharedObjects(const AName: string): Boolean;
-    function OpenSharedObjects(const AName: string): Boolean;
+    function CreateSharedObjects(const {%H-}AName: string): Boolean;
+    function OpenSharedObjects(const {%H-}AName: string): Boolean;
     procedure CleanupSharedObjects;
     function GetTickCount64: QWord;
     procedure UpdateStats(AOperation: string; AWaitTimeUs: QWord = 0);
@@ -70,6 +71,7 @@ type
     // ICondVar 接口
     procedure Wait(const ALock: ILock); overload;
     function Wait(const ALock: ILock; ATimeoutMs: Cardinal): Boolean; overload;
+    function WaitFor(const ALock: ILock; ATimeoutMs: Cardinal): TCondVarWaitResult;
     procedure Signal;
     procedure Broadcast;
     
@@ -626,6 +628,14 @@ begin
     FLastError := weSystemError;
 end;
 
+function TNamedCondVar.WaitFor(const ALock: ILock; ATimeoutMs: Cardinal): TCondVarWaitResult;
+begin
+  if Wait(ALock, ATimeoutMs) then
+    Result := TCondVarWaitResult.Signaled
+  else
+    Result := TCondVarWaitResult.Timeout;
+end;
+
 // INamedCondVar 特有方法
 function TNamedCondVar.GetName: string;
 begin
@@ -666,7 +676,5 @@ function TNamedCondVar.IsCreator: Boolean;
 begin
   Result := FIsCreator;
 end;
-
-
 
 end.

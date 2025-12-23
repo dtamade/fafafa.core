@@ -6,9 +6,48 @@ unit fafafa.core.sync.condvar.base;
 interface
 
 uses
-  fafafa.core.sync.base, fafafa.core.sync.mutex.base; // for ILock, IMutex
+  fafafa.core.sync.base; // for ILock
 
 type
+
+  {**
+   * TCondVarWaitResult - Rust-style condition variable wait result
+   *
+   * @desc
+   *   Lightweight value type representing the result of a timed condvar wait.
+   *   Zero heap allocation, stack-allocated like Rust's WaitTimeoutResult.
+   *
+   * @rust_equivalent std::sync::WaitTimeoutResult
+   *
+   * @example
+   *   result := condvar.WaitFor(lock, 1000);
+   *   if result.TimedOut then
+   *     WriteLn('Wait timed out after 1 second');
+   *}
+  TCondVarWaitResult = record
+  private
+    FTimedOut: Boolean;
+  public
+    {**
+     * TimedOut - Check if the wait timed out
+     *
+     * @return True if the wait timed out before being signaled,
+     *         False if the wait was woken by Signal/Broadcast
+     *
+     * @rust_equivalent WaitTimeoutResult::timed_out()
+     *}
+    function TimedOut: Boolean; inline;
+
+    {**
+     * Create a result indicating the wait was signaled (not timed out)
+     *}
+    class function Signaled: TCondVarWaitResult; static; inline;
+
+    {**
+     * Create a result indicating the wait timed out
+     *}
+    class function Timeout: TCondVarWaitResult; static; inline;
+  end;
 
   {**
    * ICondVar - 条件变量接口
@@ -35,7 +74,7 @@ type
      *
      * @warning
      *   只有当 ALock 实际是 IMutex 并提供底层 pthread_mutex_t 时，
-     *   才能保证“原子释放+等待”的强语义。其他 ILock 实现
+     *   才能保证"原子释放+等待"的强语义。其他 ILock 实现
      *   只能提供近似行为，极端竞态下可能遗漏唤醒。
      *}
     procedure Wait(const ALock: ILock); overload;
@@ -51,6 +90,24 @@ type
      *}
     function Wait(const ALock: ILock; ATimeoutMs: Cardinal): Boolean; overload;
 
+    {**
+     * WaitFor - Modern API: 带超时的等待，返回结果值 (Rust-style)
+     *
+     * @param ALock 要释放的锁
+     * @param ATimeoutMs 超时时间（毫秒）
+     * @return TCondVarWaitResult 包含超时状态的结果值（栈分配，零堆开销）
+     *
+     * @rust_equivalent Condvar::wait_timeout() -> WaitTimeoutResult
+     *
+     * @example
+     *   result := condvar.WaitFor(lock, 1000);
+     *   if result.TimedOut then
+     *     // 超时处理
+     *   else
+     *     // 被唤醒
+     *}
+    function WaitFor(const ALock: ILock; ATimeoutMs: Cardinal): TCondVarWaitResult;
+
     { 唤醒一个等待线程 }
     procedure Signal;
 
@@ -60,6 +117,21 @@ type
 
 implementation
 
+{ TCondVarWaitResult }
+
+function TCondVarWaitResult.TimedOut: Boolean;
+begin
+  Result := FTimedOut;
+end;
+
+class function TCondVarWaitResult.Signaled: TCondVarWaitResult;
+begin
+  Result.FTimedOut := False;
+end;
+
+class function TCondVarWaitResult.Timeout: TCondVarWaitResult;
+begin
+  Result.FTimedOut := True;
+end;
+
 end.
-
-

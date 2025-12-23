@@ -19,7 +19,7 @@ unit fafafa.core.sync.rwlock.guard;
 interface
 
 uses
-  SysUtils, fafafa.core.sync.base, fafafa.core.sync.rwlock, fafafa.core.sync.rwlock.base;
+  SysUtils, fafafa.core.sync.rwlock, fafafa.core.sync.rwlock.base;
 
 type
   generic TRwLockGuard<T> = class

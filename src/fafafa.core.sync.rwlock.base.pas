@@ -7,7 +7,7 @@ interface
 
 uses
   SysUtils,
-  fafafa.core.base, fafafa.core.sync.base, fafafa.core.atomic;
+  fafafa.core.sync.base, fafafa.core.atomic;
 
 type
   // ===== 类型定义 =====

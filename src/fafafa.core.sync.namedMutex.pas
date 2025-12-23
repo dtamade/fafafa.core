@@ -6,7 +6,7 @@ unit fafafa.core.sync.namedMutex;
 interface
 
 uses
-  fafafa.core.sync.base, fafafa.core.sync.namedMutex.base
+  fafafa.core.sync.namedMutex.base
   {$IFDEF WINDOWS}, fafafa.core.sync.namedMutex.windows{$ENDIF}
   {$IFDEF UNIX},    fafafa.core.sync.namedMutex.unix{$ENDIF};
 

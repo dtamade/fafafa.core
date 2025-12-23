@@ -21,7 +21,7 @@ interface
 
 uses
   SysUtils, BaseUnix, Unix, UnixType, pthreads,
-  fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.waitgroup.base,
+  fafafa.core.sync.base, fafafa.core.sync.waitgroup.base,
   fafafa.core.time.duration;
 
 const

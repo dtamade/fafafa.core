@@ -48,7 +48,6 @@ unit fafafa.core.sync.once;
 interface
 
 uses
-  fafafa.core.sync.base,
   fafafa.core.sync.once.base
   {$IFDEF WINDOWS}, fafafa.core.sync.once.windows{$ENDIF}
   {$IFDEF UNIX}

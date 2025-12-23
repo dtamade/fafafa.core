@@ -46,9 +46,10 @@ type
     FParticipantCount: Integer;
     {$IFDEF FAFAFA_SYNC_USE_WIN_BARRIER}
       FBarrier: TSynchronizationBarrier;
+      FGenerationNative: Cardinal;  // Track generation for native barrier WaitEx
       {$IFDEF FAFAFA_SYNC_WIN_RUNTIME_FALLBACK}
         FWaitingCount: Integer;
-        FGeneration: Integer;
+        FGeneration: Cardinal;       // Changed from Integer to Cardinal
         FCoordLock: ILock;               // Internal coordination lock
         FCondition: ICondVar;  // Internal condition variable
         FUseNative: Boolean;             // runtime switch
@@ -56,7 +57,7 @@ type
     {$ELSE}
       // Fallback coordination state (condvar + generation):
       FWaitingCount: Integer;
-      FGeneration: Integer;
+      FGeneration: Cardinal;         // Changed from Integer to Cardinal
       FCoordLock: ILock;
       FCondition: ICondVar;
     {$ENDIF}
@@ -65,6 +66,7 @@ type
     destructor Destroy; override;
     // IBarrier
     function Wait: Boolean;
+    function WaitEx: TBarrierWaitResult;
     function GetParticipantCount: Integer;
   end;
 
@@ -108,6 +110,8 @@ uses
   fafafa.core.sync.condvar;
 {$ENDIF}
 
+{ TBarrier }
+
 constructor TBarrier.Create(AParticipantCount: Integer);
 begin
   inherited Create;
@@ -115,6 +119,7 @@ begin
     raise EInvalidArgument.Create('Barrier participants must be > 0');
   FParticipantCount := AParticipantCount;
   {$IFDEF FAFAFA_SYNC_USE_WIN_BARRIER}
+    FGenerationNative := 0;  // Initialize generation tracking for WaitEx
     {$IFDEF FAFAFA_SYNC_WIN_RUNTIME_FALLBACK}
       FUseNative := False;
       if ResolveWinBarrierAPIs then
@@ -167,17 +172,21 @@ begin
 end;
 
 function TBarrier.Wait: Boolean;
-var myGen: Integer;
+var myGen: Cardinal;
 begin
   {$IFDEF FAFAFA_SYNC_USE_WIN_BARRIER}
     {$IFDEF FAFAFA_SYNC_WIN_RUNTIME_FALLBACK}
       if FUseNative then
       begin
         Result := _EnterSynchronizationBarrier(FBarrier, 0);
+        if Result then
+          Inc(FGenerationNative);  // Track generation for WaitEx support
         Exit;
       end;
     {$ELSE}
       Result := _EnterSynchronizationBarrier(FBarrier, 0);
+      if Result then
+        Inc(FGenerationNative);  // Track generation for WaitEx support
       Exit;
     {$ENDIF}
   {$ENDIF}
@@ -207,6 +216,78 @@ begin
   finally
     FCoordLock.Release;
   end;
+  {$ENDIF}
+end;
+
+function TBarrier.WaitEx: TBarrierWaitResult;
+var
+  myGen: Cardinal;
+  isLeader: Boolean;
+  resultGen: Cardinal;
+begin
+  {$IFDEF FAFAFA_SYNC_USE_WIN_BARRIER}
+    {$IFDEF FAFAFA_SYNC_WIN_RUNTIME_FALLBACK}
+      if FUseNative then
+      begin
+        isLeader := _EnterSynchronizationBarrier(FBarrier, 0);
+        if isLeader then
+        begin
+          Inc(FGenerationNative);
+          resultGen := FGenerationNative;
+          Result := TBarrierWaitResult.Leader(resultGen);
+        end
+        else
+        begin
+          resultGen := FGenerationNative;
+          Result := TBarrierWaitResult.Follower(resultGen);
+        end;
+        Exit;
+      end;
+    {$ELSE}
+      isLeader := _EnterSynchronizationBarrier(FBarrier, 0);
+      if isLeader then
+      begin
+        Inc(FGenerationNative);
+        resultGen := FGenerationNative;
+        Result := TBarrierWaitResult.Leader(resultGen);
+      end
+      else
+      begin
+        resultGen := FGenerationNative;
+        Result := TBarrierWaitResult.Follower(resultGen);
+      end;
+      Exit;
+    {$ENDIF}
+  {$ENDIF}
+
+  {$IF (not Defined(FAFAFA_SYNC_USE_WIN_BARRIER)) or Defined(FAFAFA_SYNC_WIN_RUNTIME_FALLBACK)}
+  // Fallback implementation using mutex + condition variable
+  FCoordLock.Acquire;
+  try
+    myGen := FGeneration;
+    Inc(FWaitingCount);
+    if FWaitingCount = FParticipantCount then
+    begin
+      Inc(FGeneration);
+      FWaitingCount := 0;
+      resultGen := FGeneration;
+      FCondition.Broadcast;
+      isLeader := True;
+    end
+    else
+    begin
+      while (myGen = FGeneration) do
+        FCondition.Wait(FCoordLock);
+      resultGen := FGeneration;
+      isLeader := False;
+    end;
+  finally
+    FCoordLock.Release;
+  end;
+  if isLeader then
+    Result := TBarrierWaitResult.Leader(resultGen)
+  else
+    Result := TBarrierWaitResult.Follower(resultGen);
   {$ENDIF}
 end;
 

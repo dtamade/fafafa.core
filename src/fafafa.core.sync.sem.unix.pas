@@ -7,7 +7,7 @@ interface
 
 uses
   SysUtils, BaseUnix, Unix, UnixType, pthreads,
-  fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.sem.base;
+  fafafa.core.sync.base, fafafa.core.sync.sem.base;
 
 {$IFDEF HAS_CLOCK_GETTIME}
 // POSIX 时钟函数声明
@@ -26,14 +26,14 @@ type
     FMaxCount: Integer;
     FName: string;
   public
-    constructor Create(AInitialCount: Integer = 1; AMaxCount: Integer = 1);
+    constructor Create(AInitialCount: Integer = 1; AMaxCount: Integer = 1); reintroduce;
     destructor Destroy; override;
-    procedure Acquire; overload;
+    procedure Acquire; reintroduce; overload;
     procedure Acquire(ACount: Integer); overload;
-    procedure Release; overload;
+    procedure Release; reintroduce; overload;
     procedure Release(ACount: Integer); overload;
-    function TryAcquire: Boolean; overload;
-    function TryAcquire(ATimeoutMs: Cardinal): Boolean; overload;
+    function TryAcquire: Boolean; reintroduce; overload;
+    function TryAcquire(ATimeoutMs: Cardinal): Boolean; reintroduce; overload;
     function TryAcquire(ACount: Integer): Boolean; overload;
     function TryAcquire(ACount: Integer; ATimeoutMs: Cardinal): Boolean; overload;
     function TryRelease: Boolean; overload;

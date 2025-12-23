@@ -6,7 +6,7 @@ unit fafafa.core.sync.namedSemaphore.base;
 interface
 
 uses
-  fafafa.core.base, fafafa.core.sync.base, SysUtils;
+  fafafa.core.sync.base, SysUtils;
 
 type
   // Error kinds for named semaphore operations
@@ -209,8 +209,7 @@ begin
     sekAlreadyExists: Result := 'Already exists: ' + Message;
     sekSystemError: Result := Format('System error (%d): %s', [SystemErrorCode, Message]);
     sekUnknown: Result := 'Unknown error: ' + Message;
-  else
-    Result := 'Undefined error: ' + Message;
+    // 注意：所有枚举值已覆盖，无需 else 分支
   end;
 end;
 

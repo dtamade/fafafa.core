@@ -6,7 +6,7 @@ unit fafafa.core.sync.namedRWLock;
 interface
 
 uses
-  fafafa.core.sync.base, fafafa.core.sync.namedRWLock.base
+  fafafa.core.sync.namedRWLock.base
   {$IFDEF WINDOWS}, fafafa.core.sync.namedRWLock.windows{$ENDIF}
   {$IFDEF UNIX},    fafafa.core.sync.namedRWLock.unix{$ENDIF};
 

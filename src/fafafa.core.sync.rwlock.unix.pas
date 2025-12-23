@@ -7,8 +7,8 @@ interface
 
 uses
   SysUtils, BaseUnix, Unix, UnixType, pthreads,
-  fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.rwlock.base, fafafa.core.atomic,
-  fafafa.core.sync.rwlock.reentry.unix;
+  fafafa.core.sync.base, fafafa.core.sync.rwlock.base, fafafa.core.atomic,
+  fafafa.core.sync.rwlock.reentry.unix, fafafa.core.math;
 
 const
   ETIMEDOUT = 110;  // Connection timed out
@@ -89,7 +89,7 @@ type
     FPoisoningException: string;   // 导致毒化的异常信息
 
     // 错误处理辅助方法
-    procedure HandleSystemError(const AOperation: string);
+    procedure HandleSystemError(const {%H-}AOperation: string);
     procedure HandleTimeout(ATimeoutMs: Cardinal);
     procedure HandleStateError(const AExpectedState, AActualState: string);
 
@@ -98,7 +98,7 @@ type
     procedure UpdateReentryRecord(ARecord: PThreadReentryRecord; AIsRead: Boolean; AIncrement: Boolean);
 
     // ===== 自适应自旋优化 =====
-    procedure UpdateSpinStatistics(Success: Boolean; SpinCount: Integer);
+    procedure UpdateSpinStatistics(Success: Boolean; {%H-}SpinCount: Integer);
     procedure AdjustSpinCount;
     function CalculateOptimalSpinCount: Integer;
     function TryAcquireReadLockWithSpin: Boolean;
@@ -168,9 +168,6 @@ type
   end;
 
 implementation
-
-uses
-  fafafa.core.math;
 
 { TRWLockReadGuard }
 
@@ -511,11 +508,10 @@ function TRWLock.GetLastError: TWaitError;
 begin
   case FLastLockResult of
     lrSuccess: Result := weNone;
-    lrTimeout: Result := weTimeout;  // 修复：超时应该映射为 weTimeout
+    lrTimeout: Result := weTimeout;
     lrWouldBlock: Result := weResourceExhausted;
     lrError: Result := weSystemError;
-  else
-    Result := weSystemError;
+    // 注意：所有 TLockResult 枚举值已覆盖，无需 else 分支
   end;
 end;
 
@@ -1201,7 +1197,6 @@ var
   CurrentTime: timeval;
   NanoSecs: Int64;
   LockResult: Integer;
-  NeedSystemLock: Boolean;
 begin
   // ===== 快速路径：非重入模式 =====
   if not FOptions.AllowReentrancy then
@@ -1266,8 +1261,6 @@ begin
     end;
     Exit;
   end;
-
-  NeedSystemLock := True;
 
   // 第一阶段：快速检查可重入性和冲突
   FReentryManager.Lock;
@@ -1573,22 +1566,16 @@ procedure TRWLock.AdjustSpinCount;
 var
   CurrentTime: QWord;
   TimeDelta: QWord;
-  ContentionRate: Double;
   NewSpinCount: Integer;
 begin
   CurrentTime := GetTickCount64;
   TimeDelta := CurrentTime - FLastAdjustTime;
 
-  // 至少间隔100ms才调�?
+  // 至少间隔100ms才调整
   if TimeDelta < 100 then
     Exit;
 
-  // 计算竞争�?
-  if (atomic_load(FSuccessCount) + atomic_load(FContentionCount)) > 0 then
-    ContentionRate := atomic_load(FContentionCount) / (atomic_load(FSuccessCount) + atomic_load(FContentionCount))
-  else
-    ContentionRate := 0.0;
-
+  // 计算最优自旋次数（内部会计算竞争率）
   NewSpinCount := CalculateOptimalSpinCount;
 
   // 平滑调整，避免剧烈变�?

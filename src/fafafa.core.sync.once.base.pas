@@ -34,7 +34,7 @@ unit fafafa.core.sync.once.base;
 interface
 
 uses
-  fafafa.core.base, fafafa.core.sync.base;
+  fafafa.core.sync.base;
 
 type
   // ===== 一次性执行状�?=====

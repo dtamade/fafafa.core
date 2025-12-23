@@ -24,7 +24,6 @@ unit fafafa.core.sync.namedCondvar;
 interface
 
 uses
-  fafafa.core.sync.base, fafafa.core.sync.condvar.base, 
   fafafa.core.sync.namedCondvar.base
   {$IFDEF WINDOWS}, fafafa.core.sync.namedCondvar.windows{$ENDIF}
   {$IFDEF UNIX},    fafafa.core.sync.namedCondvar.unix{$ENDIF};

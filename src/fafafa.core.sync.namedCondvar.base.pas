@@ -6,7 +6,7 @@ unit fafafa.core.sync.namedCondvar.base;
 interface
 
 uses
-  fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.condvar.base;
+  fafafa.core.sync.condvar.base;
 
 type
   // ===== Configuration Structure =====
@@ -97,7 +97,7 @@ end;
 
 function EmptyNamedCondVarStats: TNamedCondVarStats;
 begin
-  FillChar(Result, SizeOf(Result), 0);
+  Result := Default(TNamedCondVarStats);
 end;
 
 end.

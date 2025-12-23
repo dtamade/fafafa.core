@@ -7,7 +7,7 @@ interface
 
 uses
   SysUtils, BaseUnix, Unix, cthreads,
-  fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.namedRWLock.base,
+  fafafa.core.sync.base, fafafa.core.sync.namedRWLock.base,
   fafafa.core.atomic;
 
 {$LINKLIB pthread}
@@ -129,7 +129,7 @@ type
     
     function ValidateName(const AName: string): string;
     function CreateShmPath(const AName: string): string;
-    function CreateSharedMemory(const AName: string; AInitialOwner: Boolean): Boolean;
+    function CreateSharedMemory(const AName: string; {%H-}AInitialOwner: Boolean): Boolean;
     function GetSharedData: PSharedRWLockData;
     procedure InitializeSharedData;
     function TimeoutToTimespec(ATimeoutMs: Cardinal): TTimeSpec;

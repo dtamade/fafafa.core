@@ -49,7 +49,7 @@ unit fafafa.core.sync.spin.unix;
 interface
 
 uses
-  BaseUnix, Unix, pthreads,
+  Unix, pthreads,
   fafafa.core.sync.base,
   fafafa.core.sync.spin.base;
 
@@ -59,7 +59,7 @@ type
   private
     FSpinLock: pthread_spinlock_t; // 系统原生自旋锁
   public
-    constructor Create;
+    constructor Create; reintroduce;
     destructor Destroy; override;
 
     {**
@@ -130,9 +130,6 @@ type
 function MakeSpin: ISpin;
 
 implementation
-
-uses
-  fafafa.core.time.cpu;
 
 
 { TSpin }

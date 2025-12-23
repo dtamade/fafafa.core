@@ -7,8 +7,8 @@ unit fafafa.core.sync.namedBarrier.unix;
 interface
 
 uses
-  SysUtils, ctypes, BaseUnix, Unix, UnixType,
-  fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.namedBarrier.base;
+  SysUtils, BaseUnix, Unix, UnixType,
+  fafafa.core.sync.base, fafafa.core.sync.namedBarrier.base;
 
 type
   // pthread 相关类型定义
@@ -516,8 +516,8 @@ function TNamedBarrier.GetInfo: TNamedBarrierInfo;
 var
   LBarrierState: PBarrierState;
 begin
-  // 初始化结�?
-  FillChar(Result, SizeOf(Result), 0);
+  // 初始化结果（使用 Default 安全处理托管类型）
+  Result := Default(TNamedBarrierInfo);
   Result.Name := FOriginalName;
   Result.ParticipantCount := FParticipantCount;
   Result.AutoReset := FAutoReset;

@@ -113,6 +113,25 @@ type
  *}
 function MakeMutex: IMutex;
 
+{**
+ * MakePthreadMutex
+ *
+ * @desc 创建一个与 pthread_cond_* 兼容的 mutex
+ *
+ * @return 返回一个 IMutex 接口实例，始终使用 pthread_mutex_t 实现
+ *
+ * @remark
+ *   此函数专门用于与条件变量（condvar）配合使用。
+ *   在 Unix 平台，当启用 futex 优化时，标准 MakeMutex 返回的是 futex 实现，
+ *   但 pthread_cond_wait/pthread_cond_timedwait 需要 pthread_mutex_t。
+ *   此函数始终返回 pthread_mutex_t 版本的 mutex。
+ *
+ *   在 Windows 平台，此函数与 MakeMutex 行为相同。
+ *}
+{$IFDEF UNIX}
+function MakePthreadMutex: IMutex;
+{$ENDIF}
+
 
 implementation
 
@@ -126,5 +145,12 @@ begin
     {$ERROR 'Unsupported platform for fafafa.core.sync.mutex'}
   {$ENDIF}
 end;
+
+{$IFDEF UNIX}
+function MakePthreadMutex: IMutex;
+begin
+  Result := fafafa.core.sync.mutex.unix.MakePthreadMutex();
+end;
+{$ENDIF}
 
 end.

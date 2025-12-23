@@ -1296,7 +1296,6 @@ end;
 function TTryLock.TryAcquire(ATimeoutMs: Cardinal): Boolean;
 var
   LEndTime: UInt64;  // 超时时间点（绝对时间）
-  i:        UInt32;  // 循环计数器
   LSleepMs: Cardinal; // 渐进式睡眠间隔
 begin
   // 快速路径：立即尝试获取锁，避免不必要的计算开销

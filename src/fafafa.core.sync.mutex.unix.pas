@@ -35,7 +35,7 @@ type
     FPoisoningThreadId: TThreadID;
     FPoisoningException: string;
   public
-    constructor Create;
+    constructor Create; reintroduce;
     destructor Destroy; override;
 
     // ITryLock 继承的方法
@@ -86,7 +86,7 @@ type
     function FutexWake(NumWaiters: LongInt = 1): Boolean;
     function SpinTryAcquire(MaxSpins: Integer = 1000): Boolean;
   public
-    constructor Create;
+    constructor Create; reintroduce;
     destructor Destroy; override;
 
     // ITryLock 继承的方法
@@ -107,6 +107,9 @@ type
 
 function MakeMutex: IMutex; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
 
+{** 创建 pthread_mutex_t 版本的 mutex，用于与 pthread_cond_* 函数配合使用 *}
+function MakePthreadMutex: IMutex; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+
 implementation
 
 function MakeMutex: IMutex;
@@ -118,6 +121,12 @@ begin
   // 回退到 pthread_mutex 实现
   Result := TMutex.Create;
   {$ENDIF}
+end;
+
+function MakePthreadMutex: IMutex;
+begin
+  // 始终使用 pthread_mutex 实现，与 pthread_cond_* 兼容
+  Result := TMutex.Create;
 end;
 
 { TMutex - 传统 pthread 实现 }

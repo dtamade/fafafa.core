@@ -7,8 +7,8 @@ unit fafafa.core.sync.namedSemaphore.unix;
 interface
 
 uses
-  SysUtils, ctypes, BaseUnix, Unix, UnixType,
-  fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.namedSemaphore.base;
+  SysUtils, BaseUnix, Unix, UnixType,
+  fafafa.core.sync.base, fafafa.core.sync.namedSemaphore.base;
 
 type
   // POSIX 信号量类�?

@@ -10,7 +10,7 @@ uses
   fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.sem.base;
 
 type
-  TSem = class(TTryLock, ISem)
+  TSemaphore = class(TTryLock, ISem)
   private
     FHandle: THandle;
     FMaxCount: Integer;
@@ -47,6 +47,9 @@ type
     function TryAcquireGuard(ACount: Integer; ATimeoutMs: Cardinal): ISemGuard; overload;
   end;
 
+  // Backwards compatibility alias
+  TSem = TSemaphore;
+
   TSemGuard = class(TInterfacedObject, ISemGuard)
   private
     FSem: ISem;
@@ -63,7 +66,7 @@ implementation
 
 
 
-function TSem.LockGuard: ILockGuard;
+function TSemaphore.LockGuard: ILockGuard;
 begin
   // 统一风格：委派到 AcquireGuard（ISemGuard 继承�?ILockGuard�?
   Result := AcquireGuard;
@@ -102,19 +105,19 @@ begin
   end;
 end;
 
-function TSem.AcquireGuard: ISemGuard;
+function TSemaphore.AcquireGuard: ISemGuard;
 begin
   Acquire(1);
   Result := TSemGuard.Create(Self, 1);
 end;
 
-function TSem.AcquireGuard(ACount: Integer): ISemGuard;
+function TSemaphore.AcquireGuard(ACount: Integer): ISemGuard;
 begin
   Acquire(ACount);
   Result := TSemGuard.Create(Self, ACount);
 end;
 
-function TSem.TryAcquireGuard: ISemGuard;
+function TSemaphore.TryAcquireGuard: ISemGuard;
 begin
   if TryAcquire(1) then
     Result := TSemGuard.Create(Self, 1)
@@ -122,7 +125,7 @@ begin
     Result := nil;
 end;
 
-function TSem.TryAcquireGuard(ATimeoutMs: Cardinal): ISemGuard;
+function TSemaphore.TryAcquireGuard(ATimeoutMs: Cardinal): ISemGuard;
 begin
   if TryAcquire(1, ATimeoutMs) then
     Result := TSemGuard.Create(Self, 1)
@@ -130,7 +133,7 @@ begin
     Result := nil;
 end;
 
-function TSem.TryAcquireGuard(ACount: Integer): ISemGuard;
+function TSemaphore.TryAcquireGuard(ACount: Integer): ISemGuard;
 begin
   if TryAcquire(ACount) then
     Result := TSemGuard.Create(Self, ACount)
@@ -138,7 +141,7 @@ begin
     Result := nil;
 end;
 
-function TSem.TryAcquireGuard(ACount: Integer; ATimeoutMs: Cardinal): ISemGuard;
+function TSemaphore.TryAcquireGuard(ACount: Integer; ATimeoutMs: Cardinal): ISemGuard;
 begin
   if TryAcquire(ACount, ATimeoutMs) then
     Result := TSemGuard.Create(Self, ACount)
@@ -146,14 +149,14 @@ begin
     Result := nil;
 end;
 
-function TSem.GetName: string;
+function TSemaphore.GetName: string;
 begin
   if FName = '' then Result := 'Semaphore' else Result := FName;
 end;
 
 
 
-function TSem.NowMs: QWord; inline;
+function TSemaphore.NowMs: QWord; inline;
 begin
   {$IFDEF FPC}
   Result := GetTickCount64;
@@ -162,7 +165,7 @@ begin
   {$ENDIF}
 end;
 
-constructor TSem.Create(AInitialCount: Integer; AMaxCount: Integer);
+constructor TSemaphore.Create(AInitialCount: Integer; AMaxCount: Integer);
 begin
   inherited Create;
   if AMaxCount <= 0 then raise EInvalidArgument.Create('AMaxCount must be > 0');
@@ -179,19 +182,19 @@ begin
   FCurrentCount := AInitialCount;
 end;
 
-destructor TSem.Destroy;
+destructor TSemaphore.Destroy;
 begin
   if FHandle <> 0 then CloseHandle(FHandle);
   DeleteCriticalSection(FLock);
   inherited Destroy;
 end;
 
-procedure TSem.Acquire;
+procedure TSemaphore.Acquire;
 begin
   Acquire(1);
 end;
 
-procedure TSem.Acquire(ACount: Integer);
+procedure TSemaphore.Acquire(ACount: Integer);
 var
   i, acquired: Integer;
   rc: DWORD;
@@ -235,12 +238,12 @@ begin
   end;
 end;
 
-procedure TSem.Release;
+procedure TSemaphore.Release;
 begin
   Release(1);
 end;
 
-procedure TSem.Release(ACount: Integer);
+procedure TSemaphore.Release(ACount: Integer);
 begin
   if ACount < 0 then raise EInvalidArgument.Create('sem: ACount < 0');
   if ACount = 0 then Exit;
@@ -260,12 +263,12 @@ begin
   end;
 end;
 
-function TSem.TryRelease: Boolean;
+function TSemaphore.TryRelease: Boolean;
 begin
   Result := TryRelease(1);
 end;
 
-function TSem.TryRelease(ACount: Integer): Boolean;
+function TSemaphore.TryRelease(ACount: Integer): Boolean;
 begin
   if ACount < 0 then raise EInvalidArgument.Create('sem: ACount < 0');
   if ACount = 0 then Exit(True);
@@ -287,17 +290,17 @@ begin
   end;
 end;
 
-function TSem.TryAcquire: Boolean;
+function TSemaphore.TryAcquire: Boolean;
 begin
   Result := TryAcquire(1, 0);
 end;
 
-function TSem.TryAcquire(ATimeoutMs: Cardinal): Boolean;
+function TSemaphore.TryAcquire(ATimeoutMs: Cardinal): Boolean;
 begin
   Result := TryAcquire(1, ATimeoutMs);
 end;
 
-function TSem.TryAcquire(ACount: Integer): Boolean;
+function TSemaphore.TryAcquire(ACount: Integer): Boolean;
 begin
   if ACount < 0 then raise EInvalidArgument.Create('sem: ACount < 0');
   if ACount = 0 then Exit(True);
@@ -308,7 +311,7 @@ begin
   Result := TryAcquire(ACount, 0);
 end;
 
-function TSem.TryAcquire(ACount: Integer; ATimeoutMs: Cardinal): Boolean;
+function TSemaphore.TryAcquire(ACount: Integer; ATimeoutMs: Cardinal): Boolean;
 var
   acquired: Integer;
   waitMs: DWORD;
@@ -400,7 +403,7 @@ begin
   Result := True;
 end;
 
-function TSem.GetAvailableCount: Integer;
+function TSemaphore.GetAvailableCount: Integer;
 begin
   EnterCriticalSection(FLock);
   try
@@ -410,7 +413,7 @@ begin
   end;
 end;
 
-function TSem.GetMaxCount: Integer;
+function TSemaphore.GetMaxCount: Integer;
 begin
   Result := FMaxCount;
 end;

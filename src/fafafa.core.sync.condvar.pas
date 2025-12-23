@@ -6,12 +6,12 @@ unit fafafa.core.sync.condvar;
 interface
 
 uses
-  fafafa.core.sync.base,
   fafafa.core.sync.condvar.base
   {$IFDEF WINDOWS}, fafafa.core.sync.condvar.windows{$ENDIF}
   {$IFDEF UNIX},    fafafa.core.sync.condvar.unix{$ENDIF};
 
 type
+  TCondVarWaitResult = fafafa.core.sync.condvar.base.TCondVarWaitResult;
   ICondVar = fafafa.core.sync.condvar.base.ICondVar;
 
   {$IFDEF WINDOWS}

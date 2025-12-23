@@ -6,7 +6,7 @@ unit fafafa.core.sync.namedBarrier;
 interface
 
 uses
-  fafafa.core.base, fafafa.core.sync.base, fafafa.core.sync.namedBarrier.base;
+  fafafa.core.sync.namedBarrier.base;
 
 // ===== 类型别名 =====
 type

@@ -50,7 +50,7 @@ unit fafafa.core.sync.recMutex.unix;
 interface
 
 uses
-  SysUtils, BaseUnix, Unix, UnixType, pthreads,
+  SysUtils, Unix, UnixType, pthreads,
   fafafa.core.sync.base,
   fafafa.core.sync.recMutex.base;
 
@@ -87,7 +87,7 @@ type
     function GetDefaultBackOffSpin: UInt32; override;
     function GetDefaultBlockSpin: UInt32; override;
   public
-    constructor Create;
+    constructor Create; reintroduce;
     destructor Destroy; override;
 
     // ILock 接口实现

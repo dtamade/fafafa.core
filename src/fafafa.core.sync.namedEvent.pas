@@ -6,7 +6,7 @@ unit fafafa.core.sync.namedEvent;
 interface
 
 uses
-  fafafa.core.sync.base, fafafa.core.sync.namedEvent.base
+  fafafa.core.sync.namedEvent.base
   {$IFDEF WINDOWS}, fafafa.core.sync.namedEvent.windows{$ENDIF}
   {$IFDEF UNIX},    fafafa.core.sync.namedEvent.unix{$ENDIF};
 
