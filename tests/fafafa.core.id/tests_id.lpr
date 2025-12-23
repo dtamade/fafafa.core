@@ -17,8 +17,8 @@ uses
   Test_fafafa_core_id_uuid_record,
   Test_fafafa_core_id_uuid_v7_monotonic_batch,
   Test_fafafa_core_id_uuid_negative,
-  // Test_fafafa_core_id_p0_features, // Disabled: requires missing sha1 unit
-  // Test_fafafa_core_id_p1_features, // Disabled: requires missing sha1 unit
+  Test_fafafa_core_id_p0_features,
+  Test_fafafa_core_id_p1_features,
   Test_fafafa_core_id_p2_features,
   Test_fafafa_core_id_p3_features,
   Test_fafafa_core_id_p4_features;
