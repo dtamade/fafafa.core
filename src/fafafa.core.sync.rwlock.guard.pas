@@ -33,6 +33,11 @@ type
     FValue: T;
     FReadLocked: Boolean;
     FWriteLocked: Boolean;
+
+    {** 检查是否可以获取读锁，已持有任一锁时抛出异常 *}
+    procedure CheckCanAcquireRead; inline;
+    {** 检查是否可以获取写锁，已持有任一锁时抛出异常 *}
+    procedure CheckCanAcquireWrite; inline;
   public
     constructor Create(const AValue: T);
     destructor Destroy; override;
@@ -153,13 +158,25 @@ begin
   inherited Destroy;
 end;
 
-function TRwLockGuard.ReadLockPtr: PT;
+procedure TRwLockGuard.CheckCanAcquireRead;
 begin
-  // 防御性检查：避免重复加锁导致死锁
   if FReadLocked then
     raise ELockError.Create('TRwLockGuard: Already read-locked. Call ReadUnlock before locking again.');
   if FWriteLocked then
     raise ELockError.Create('TRwLockGuard: Already write-locked. Call WriteUnlock before read-locking.');
+end;
+
+procedure TRwLockGuard.CheckCanAcquireWrite;
+begin
+  if FWriteLocked then
+    raise ELockError.Create('TRwLockGuard: Already write-locked. Call WriteUnlock before locking again.');
+  if FReadLocked then
+    raise ELockError.Create('TRwLockGuard: Already read-locked. Call ReadUnlock before write-locking.');
+end;
+
+function TRwLockGuard.ReadLockPtr: PT;
+begin
+  CheckCanAcquireRead;
   FRWLock.AcquireRead;
   FReadLocked := True;
   Result := @FValue;
@@ -172,12 +189,7 @@ end;
 
 function TRwLockGuard.TryReadLock: PT;
 begin
-  // 防御性检查：与 ReadLockPtr 语义保持一致，禁止在已持有任一锁时重复加锁
-  if FReadLocked then
-    raise ELockError.Create('TRwLockGuard: Already read-locked. Call ReadUnlock before locking again.');
-  if FWriteLocked then
-    raise ELockError.Create('TRwLockGuard: Already write-locked. Call WriteUnlock before read-locking.');
-
+  CheckCanAcquireRead;
   if FRWLock.TryAcquireRead then
   begin
     FReadLocked := True;
@@ -198,11 +210,7 @@ end;
 
 function TRwLockGuard.WriteLockPtr: PT;
 begin
-  // 防御性检查：避免重复加锁导致死锁
-  if FWriteLocked then
-    raise ELockError.Create('TRwLockGuard: Already write-locked. Call WriteUnlock before locking again.');
-  if FReadLocked then
-    raise ELockError.Create('TRwLockGuard: Already read-locked. Call ReadUnlock before write-locking.');
+  CheckCanAcquireWrite;
   FRWLock.AcquireWrite;
   FWriteLocked := True;
   Result := @FValue;
@@ -215,12 +223,7 @@ end;
 
 function TRwLockGuard.TryWriteLock: PT;
 begin
-  // 防御性检查：与 WriteLockPtr 语义保持一致，禁止在已持有任一锁时重复加锁
-  if FWriteLocked then
-    raise ELockError.Create('TRwLockGuard: Already write-locked. Call WriteUnlock before locking again.');
-  if FReadLocked then
-    raise ELockError.Create('TRwLockGuard: Already read-locked. Call ReadUnlock before write-locking.');
-
+  CheckCanAcquireWrite;
   if FRWLock.TryAcquireWrite then
   begin
     FWriteLocked := True;
@@ -271,12 +274,7 @@ end;
 
 function TRwLockGuard.TryReadTimeout(ATimeoutMs: Cardinal): PT;
 begin
-  // 与 TryReadLock 保持一致：已持有任一锁时不允许再次尝试
-  if FReadLocked then
-    raise ELockError.Create('TRwLockGuard: Already read-locked. Call ReadUnlock before locking again.');
-  if FWriteLocked then
-    raise ELockError.Create('TRwLockGuard: Already write-locked. Call WriteUnlock before read-locking.');
-
+  CheckCanAcquireRead;
   if FRWLock.TryAcquireRead(ATimeoutMs) then
   begin
     FReadLocked := True;
@@ -288,12 +286,7 @@ end;
 
 function TRwLockGuard.TryWriteTimeout(ATimeoutMs: Cardinal): PT;
 begin
-  // 与 TryWriteLock 保持一致：已持有任一锁时不允许再次尝试
-  if FWriteLocked then
-    raise ELockError.Create('TRwLockGuard: Already write-locked. Call WriteUnlock before locking again.');
-  if FReadLocked then
-    raise ELockError.Create('TRwLockGuard: Already read-locked. Call ReadUnlock before write-locking.');
-
+  CheckCanAcquireWrite;
   if FRWLock.TryAcquireWrite(ATimeoutMs) then
   begin
     FWriteLocked := True;
