@@ -47,7 +47,7 @@ type
   end;
 
   {**
-   * TPriorityQueueClass<T> - 优先队列类实现
+   * TPriorityQueue<T> - 优先队列类实现
    *
    * @desc
    *   基于二叉堆实现的优先队列，继承 TGenericCollection<T>
@@ -56,7 +56,7 @@ type
    * @type_params
    *   T - 元素类型
    *}
-  generic TPriorityQueueClass<T> = class(specialize TGenericCollection<T>, specialize IPriorityQueue<T>)
+  generic TPriorityQueue<T> = class(specialize TGenericCollection<T>, specialize IPriorityQueue<T>)
   public type
     TPQCompareFunc = specialize TCompareFunc<T>;
   private
@@ -109,16 +109,16 @@ implementation
 { 工厂函数实现 }
 generic function MakePriorityQueue<T>(aComparer: specialize TCompareFunc<T>; aCapacity: SizeUInt; aAllocator: IAllocator): specialize IPriorityQueue<T>;
 begin
-  Result := specialize TPriorityQueueClass<T>.Create(aComparer, aCapacity, aAllocator);
+  Result := specialize TPriorityQueue<T>.Create(aComparer, aCapacity, aAllocator);
 end;
 
-{ TPriorityQueueClass<T> }
+{ TPriorityQueue<T> }
 
-constructor TPriorityQueueClass.Create(aComparer: TPQCompareFunc; aCapacity: SizeUInt; aAllocator: IAllocator);
+constructor TPriorityQueue.Create(aComparer: TPQCompareFunc; aCapacity: SizeUInt; aAllocator: IAllocator);
 begin
   inherited Create(aAllocator, nil);
   if not Assigned(aComparer) then
-    raise EArgumentNil.Create('TPriorityQueueClass.Create: comparer function cannot be nil');
+    raise EArgumentNil.Create('TPriorityQueue.Create: comparer function cannot be nil');
   FComparer := aComparer;
   FCapacity := aCapacity;
   if FCapacity < 4 then
@@ -127,14 +127,14 @@ begin
   FCount := 0;
 end;
 
-destructor TPriorityQueueClass.Destroy;
+destructor TPriorityQueue.Destroy;
 begin
   Clear;
   SetLength(FItems, 0);
   inherited Destroy;
 end;
 
-procedure TPriorityQueueClass.Grow;
+procedure TPriorityQueue.Grow;
 begin
   if FCapacity = 0 then
     FCapacity := 16
@@ -143,7 +143,7 @@ begin
   SetLength(FItems, FCapacity);
 end;
 
-procedure TPriorityQueueClass.Swap(aIndex1, aIndex2: SizeUInt);
+procedure TPriorityQueue.Swap(aIndex1, aIndex2: SizeUInt);
 var
   LTemp: T;
 begin
@@ -152,7 +152,7 @@ begin
   FItems[aIndex2] := LTemp;
 end;
 
-procedure TPriorityQueueClass.SiftUp(aIndex: SizeUInt);
+procedure TPriorityQueue.SiftUp(aIndex: SizeUInt);
 var
   LParentIdx: SizeUInt;
 begin
@@ -166,7 +166,7 @@ begin
   end;
 end;
 
-procedure TPriorityQueueClass.SiftDown(aIndex: SizeUInt);
+procedure TPriorityQueue.SiftDown(aIndex: SizeUInt);
 var
   LLeftIdx, LRightIdx, LSmallestIdx: SizeUInt;
 begin
@@ -190,7 +190,7 @@ begin
   end;
 end;
 
-procedure TPriorityQueueClass.Enqueue(const aItem: T);
+procedure TPriorityQueue.Enqueue(const aItem: T);
 begin
   if FCount >= FCapacity then
     Grow;
@@ -199,7 +199,7 @@ begin
   SiftUp(FCount - 1);
 end;
 
-function TPriorityQueueClass.Dequeue(out aItem: T): Boolean;
+function TPriorityQueue.Dequeue(out aItem: T): Boolean;
 begin
   Result := FCount > 0;
   if not Result then
@@ -213,24 +213,24 @@ begin
   end;
 end;
 
-function TPriorityQueueClass.Peek(out aItem: T): Boolean;
+function TPriorityQueue.Peek(out aItem: T): Boolean;
 begin
   Result := FCount > 0;
   if Result then
     aItem := FItems[0];
 end;
 
-function TPriorityQueueClass.GetCount: SizeUInt;
+function TPriorityQueue.GetCount: SizeUInt;
 begin
   Result := FCount;
 end;
 
-function TPriorityQueueClass.GetCapacity: SizeUInt;
+function TPriorityQueue.GetCapacity: SizeUInt;
 begin
   Result := FCapacity;
 end;
 
-procedure TPriorityQueueClass.Reserve(aCapacity: SizeUInt);
+procedure TPriorityQueue.Reserve(aCapacity: SizeUInt);
 begin
   if aCapacity > FCapacity then
   begin
@@ -239,7 +239,7 @@ begin
   end;
 end;
 
-procedure TPriorityQueueClass.Clear;
+procedure TPriorityQueue.Clear;
 var
   i: SizeUInt;
 begin
@@ -250,7 +250,7 @@ begin
   FCount := 0;
 end;
 
-function TPriorityQueueClass.IsOverlap(const aSrc: Pointer; aElementCount: SizeUInt): Boolean;
+function TPriorityQueue.IsOverlap(const aSrc: Pointer; aElementCount: SizeUInt): Boolean;
 var
   LSrcEnd, LItemsEnd: PByte;
 begin
@@ -261,13 +261,13 @@ begin
   Result := (PByte(aSrc) < LItemsEnd) and (LSrcEnd > PByte(@FItems[0]));
 end;
 
-procedure TPriorityQueueClass.DoZero;
+procedure TPriorityQueue.DoZero;
 begin
   if FCount > 0 then
     FillChar(FItems[0], FCount * SizeOf(T), 0);
 end;
 
-procedure TPriorityQueueClass.DoReverse;
+procedure TPriorityQueue.DoReverse;
 var
   i, j: SizeUInt;
 begin
@@ -284,7 +284,7 @@ begin
   // (Actually for PQ, reverse doesn't make semantic sense, but we implement it anyway)
 end;
 
-function TPriorityQueueClass.DoIterGetCurrent(aIter: PPtrIter): Pointer;
+function TPriorityQueue.DoIterGetCurrent(aIter: PPtrIter): Pointer;
 var
   LIdx: SizeUInt;
 begin
@@ -296,7 +296,7 @@ begin
   Result := @FItems[LIdx];
 end;
 
-function TPriorityQueueClass.DoIterMoveNext(aIter: PPtrIter): Boolean;
+function TPriorityQueue.DoIterMoveNext(aIter: PPtrIter): Boolean;
 var
   LIdx: SizeUInt;
 begin
@@ -322,12 +322,12 @@ begin
   end;
 end;
 
-function TPriorityQueueClass.PtrIter: TPtrIter;
+function TPriorityQueue.PtrIter: TPtrIter;
 begin
   Result.Init(Self, @DoIterGetCurrent, @DoIterMoveNext, nil);
 end;
 
-procedure TPriorityQueueClass.SerializeToArrayBuffer(aDst: Pointer; aCount: SizeUInt);
+procedure TPriorityQueue.SerializeToArrayBuffer(aDst: Pointer; aCount: SizeUInt);
 var
   LCopyCount: SizeUInt;
 begin
@@ -340,7 +340,7 @@ begin
     Move(FItems[0], aDst^, LCopyCount * SizeOf(T));
 end;
 
-procedure TPriorityQueueClass.AppendUnChecked(const aSrc: Pointer; aElementCount: SizeUInt);
+procedure TPriorityQueue.AppendUnChecked(const aSrc: Pointer; aElementCount: SizeUInt);
 type
   PT = ^T;
 var
@@ -357,7 +357,7 @@ begin
   end;
 end;
 
-procedure TPriorityQueueClass.AppendToUnChecked(const aDst: TCollection);
+procedure TPriorityQueue.AppendToUnChecked(const aDst: TCollection);
 var
   i: SizeUInt;
 begin

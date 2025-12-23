@@ -75,9 +75,6 @@ procedure BatchDeleteFiles(const aFiles: array of string);
 
 implementation
 
-uses
-  fafafa.core.math;
-
 constructor TFsFileOptimized.Create(aBufferSize: Integer);
 begin
   inherited Create;

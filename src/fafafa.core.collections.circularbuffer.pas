@@ -13,6 +13,26 @@ uses
 
 type
   {**
+   * ICircularBuffer<T> - 环形缓冲区接口
+   *
+   * @desc 固定容量的FIFO缓冲区接口
+   *}
+  generic ICircularBuffer<T> = interface(specialize IGenericCollection<T>)
+    ['{E1F2A3B4-C5D6-4E7F-8A9B-0C1D2E3F4A5B}']
+    function Push(const aElement: T): Boolean;
+    function Pop: T;
+    function TryPop(var aElement: T): Boolean;
+    function Peek: T;
+    function TryPeek(var aElement: T): Boolean;
+    function IsFull: Boolean;
+    function Capacity: SizeUInt;
+    function RemainingCapacity: SizeUInt;
+    function GetOverwriteOldest: Boolean;
+    procedure SetOverwriteOldest(aValue: Boolean);
+    property OverwriteOldest: Boolean read GetOverwriteOldest write SetOverwriteOldest;
+  end;
+
+  {**
    * TCircularBuffer<T> - 固定容量的环形缓冲区
    *
    * @desc
@@ -32,7 +52,7 @@ type
    *
    * @threadsafety NOT thread-safe
    *}
-  generic TCircularBuffer<T> = class(specialize TGenericCollection<T>)
+  generic TCircularBuffer<T> = class(specialize TGenericCollection<T>, specialize ICircularBuffer<T>)
   private
     type
       TInternalArray = array of T;
@@ -183,6 +203,10 @@ type
     function ToArray: TInternalArray;
 
     property OverwriteOldest: Boolean read FOverwriteOldest write FOverwriteOldest;
+
+    { ICircularBuffer<T> 接口方法 }
+    function GetOverwriteOldest: Boolean; inline;
+    procedure SetOverwriteOldest(aValue: Boolean); inline;
 
     // ICollection / TCollection
     function PtrIter: TPtrIter; override;
@@ -364,6 +388,16 @@ end;
 function TCircularBuffer.RemainingCapacity: SizeUInt;
 begin
   Result := FCapacity - FCount;
+end;
+
+function TCircularBuffer.GetOverwriteOldest: Boolean;
+begin
+  Result := FOverwriteOldest;
+end;
+
+procedure TCircularBuffer.SetOverwriteOldest(aValue: Boolean);
+begin
+  FOverwriteOldest := aValue;
 end;
 
 function TCircularBuffer.PopBatch(aCount: SizeUInt): TInternalArray;

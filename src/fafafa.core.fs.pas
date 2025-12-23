@@ -685,9 +685,6 @@ function IsValidHandle(aHandle: TfsFile): Boolean; inline;
 
 implementation
 
-uses
-  fafafa.core.math;
-
 {$IFDEF WINDOWS}
   {$I fafafa.core.fs.windows.inc}
 {$ELSE}
