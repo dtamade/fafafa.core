@@ -55,9 +55,21 @@ end;
 
 procedure TTestMathDispatch.Test_IsBackendAvailable_SIMDCurrentlyFalse;
 begin
-  // SIMD backend is not yet implemented
-  AssertFalse('SIMD backend should not be available yet',
-              IsBackendAvailable(mbSIMD));
+  // Test that a platform-incompatible SIMD backend is not available:
+  // - On x86_64: NEON (ARM) is unavailable
+  // - On ARM64: SSE2/AVX2 (x86) are unavailable
+  {$IFDEF CPUX86_64}
+  AssertFalse('NEON backend should not be available on x86_64',
+              IsBackendAvailable(mbNEON));
+  {$ENDIF}
+  {$IFDEF CPUAARCH64}
+  AssertFalse('SSE2 backend should not be available on ARM64',
+              IsBackendAvailable(mbSSE2));
+  {$ENDIF}
+  {$IF NOT DEFINED(CPUX86_64) AND NOT DEFINED(CPUAARCH64)}
+  // On other platforms, scalar is the only available backend
+  AssertTrue('At least scalar should be available', IsBackendAvailable(mbScalar));
+  {$ENDIF}
 end;
 
 // === Backend Selection ===
@@ -71,13 +83,30 @@ begin
 end;
 
 procedure TTestMathDispatch.Test_SetActiveBackend_UnavailableBackend_NoChange;
+var
+  LOriginalBackend: TMathBackend;
 begin
   ResetToAutomaticBackend;
-  // Try to set unavailable SIMD backend
-  SetActiveBackend(mbSIMD);
-  // Should remain Scalar since SIMD is unavailable
-  AssertEquals('Should remain Scalar when SIMD unavailable',
+  LOriginalBackend := GetActiveBackend;
+
+  // Try to set a platform-incompatible backend:
+  // - On x86_64: try to set NEON (ARM-only)
+  // - On ARM64: try to set SSE2 (x86-only)
+  {$IFDEF CPUX86_64}
+  SetActiveBackend(mbNEON);
+  AssertEquals('Should remain unchanged when NEON unavailable on x86_64',
+               Ord(LOriginalBackend), Ord(GetActiveBackend));
+  {$ENDIF}
+  {$IFDEF CPUAARCH64}
+  SetActiveBackend(mbSSE2);
+  AssertEquals('Should remain unchanged when SSE2 unavailable on ARM64',
+               Ord(LOriginalBackend), Ord(GetActiveBackend));
+  {$ENDIF}
+  {$IF NOT DEFINED(CPUX86_64) AND NOT DEFINED(CPUAARCH64)}
+  // On other platforms, just verify scalar is active
+  AssertEquals('Scalar should be active on unsupported platforms',
                Ord(mbScalar), Ord(GetActiveBackend));
+  {$ENDIF}
 end;
 
 procedure TTestMathDispatch.Test_ResetToAutomaticBackend_RestoresDefault;
