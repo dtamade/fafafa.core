@@ -7,7 +7,8 @@ interface
 
 uses
   SysUtils, BaseUnix, Unix, UnixType, pthreads,
-  fafafa.core.sync.base, fafafa.core.sync.namedEvent.base;
+  fafafa.core.sync.base, fafafa.core.sync.namedEvent.base,
+  fafafa.core.sync.timespec;
 
 const
   ESysETIMEDOUT = 110;  // 超时错误�?
@@ -67,7 +68,6 @@ type
     function ValidateName(const AName: string): string;
     function CreateShmPath(const AName: string): string;
     function InitializeEventState(const AConfig: TNamedEventConfig): Boolean;
-    function TimeoutToTimespec(ATimeoutMs: Cardinal): TTimeSpec;
   public
     constructor Create(const AName: string); overload;
     constructor Create(const AName: string; const AConfig: TNamedEventConfig); overload;
@@ -392,14 +392,6 @@ begin
   end;
 
   Result := True;
-end;
-
-function TNamedEvent.TimeoutToTimespec(ATimeoutMs: Cardinal): TTimeSpec;
-begin
-  Result := GetCurrentTimespec;
-  if Result.tv_sec = 0 then
-    raise ELockError.Create('Failed to get current time for timeout calculation');
-  Result := AddMillisecondsToTimespec(Result, ATimeoutMs);
 end;
 
 function TNamedEvent.GetLastError: TWaitError;

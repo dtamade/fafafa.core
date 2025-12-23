@@ -8,7 +8,8 @@ interface
 
 uses
   SysUtils, BaseUnix, Unix, UnixType,
-  fafafa.core.sync.base, fafafa.core.sync.namedSemaphore.base;
+  fafafa.core.sync.base, fafafa.core.sync.namedSemaphore.base,
+  fafafa.core.sync.timespec;
 
 type
   // POSIX 信号量类�?
@@ -46,7 +47,6 @@ type
     function ValidateName(const AName: string): string;
     function CreateSemName(const AName: string): string;
     function ValidateCount(AInitialCount, AMaxCount: Integer): Boolean;
-    function TimeoutToTimespec(ATimeoutMs: Cardinal): TTimeSpec;
   public
     constructor Create(const AName: string; AInitialCount, AMaxCount: Integer); overload;
     constructor Create(const AName: string; const AConfig: TNamedSemaphoreConfig); overload;
@@ -227,21 +227,6 @@ begin
       [AInitialCount, AMaxCount]);
       
   Result := True;
-end;
-
-function TNamedSemaphore.TimeoutToTimespec(ATimeoutMs: Cardinal): TTimeSpec;
-var
-  LCurrentTime: TTimeSpec;
-  LNanoSeconds: Int64;
-begin
-  // 获取当前时间
-  if clock_gettime(CLOCK_REALTIME, @LCurrentTime) <> 0 then
-    raise ELockError.Create('Failed to get current time');
-    
-  // 计算绝对超时时间
-  LNanoSeconds := Int64(LCurrentTime.tv_nsec) + Int64(ATimeoutMs) * 1000000;
-  Result.tv_sec := LCurrentTime.tv_sec + (LNanoSeconds div 1000000000);
-  Result.tv_nsec := LNanoSeconds mod 1000000000;
 end;
 
 constructor TNamedSemaphore.Create(const AName: string; AInitialCount, AMaxCount: Integer);

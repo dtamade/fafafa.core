@@ -8,7 +8,7 @@ interface
 uses
   SysUtils, BaseUnix, Unix, cthreads,
   fafafa.core.sync.base, fafafa.core.sync.namedRWLock.base,
-  fafafa.core.atomic;
+  fafafa.core.atomic, fafafa.core.sync.timespec;
 
 {$LINKLIB pthread}
 {$LINKLIB rt}
@@ -24,12 +24,6 @@ type
     data: array[0..7] of Byte;
   end;
   ppthread_rwlockattr_t = ^pthread_rwlockattr_t;
-
-  TTimeSpec = record
-    tv_sec: clong;
-    tv_nsec: clong;
-  end;
-  PTimeSpec = ^TTimeSpec;
 
 // pthread 函数声明
 function pthread_rwlock_init(rwlock: ppthread_rwlock_t; attr: ppthread_rwlockattr_t): cint; cdecl; external;
@@ -132,7 +126,6 @@ type
     function CreateSharedMemory(const AName: string; {%H-}AInitialOwner: Boolean): Boolean;
     function GetSharedData: PSharedRWLockData;
     procedure InitializeSharedData;
-    function TimeoutToTimespec(ATimeoutMs: Cardinal): TTimeSpec;
   public
     constructor Create(const AName: string); overload;
     constructor Create(const AName: string; AInitialOwner: Boolean); overload;
@@ -436,21 +429,6 @@ begin
   finally
     pthread_rwlockattr_destroy(@LAttr);
   end;
-end;
-
-function TNamedRWLock.TimeoutToTimespec(ATimeoutMs: Cardinal): TTimeSpec;
-var
-  LNow: TTimeVal;
-  LNanoSecs: Int64;
-begin
-  // 获取当前时间
-  fpgettimeofday(@LNow, nil);
-
-  // 计算绝对超时时间
-  LNanoSecs := Int64(LNow.tv_usec) * 1000 + Int64(ATimeoutMs) * 1000000;
-
-  Result.tv_sec := LNow.tv_sec + (LNanoSecs div 1000000000);
-  Result.tv_nsec := LNanoSecs mod 1000000000;
 end;
 
 function TNamedRWLock.GetLastError: TWaitError;

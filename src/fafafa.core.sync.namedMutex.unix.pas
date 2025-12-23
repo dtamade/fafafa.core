@@ -8,7 +8,8 @@ interface
 
 uses
   SysUtils, BaseUnix, Unix, UnixType,
-  fafafa.core.sync.base, fafafa.core.sync.namedMutex.base;
+  fafafa.core.sync.base, fafafa.core.sync.namedMutex.base,
+  fafafa.core.sync.timespec;
 
 type
   // pthread_mutex_t 指针类型
@@ -52,7 +53,6 @@ type
     function ValidateName(const AName: string): string;
     function CreateShmPath(const AName: string): string;
     function InitializeMutex: Boolean;
-    function TimeoutToTimespec(ATimeoutMs: Cardinal): TTimeSpec;
   public
     constructor Create(const AName: string); overload;
     constructor Create(const AName: string; AInitialOwner: Boolean); overload;
@@ -209,23 +209,6 @@ begin
     Result := True;
   finally
     pthread_mutexattr_destroy(LAttrPtr);
-  end;
-end;
-
-function TNamedMutex.TimeoutToTimespec(ATimeoutMs: Cardinal): TTimeSpec;
-var
-  tv: TTimeVal;
-begin
-  if fpgettimeofday(@tv, nil) <> 0 then
-    raise ELockError.Create('Failed to get current time');
-
-  Result.tv_sec := tv.tv_sec + (ATimeoutMs div 1000);
-  Result.tv_nsec := (tv.tv_usec * 1000) + ((ATimeoutMs mod 1000) * 1000000);
-
-  if Result.tv_nsec >= 1000000000 then
-  begin
-    Inc(Result.tv_sec, Result.tv_nsec div 1000000000);
-    Result.tv_nsec := Result.tv_nsec mod 1000000000;
   end;
 end;
 

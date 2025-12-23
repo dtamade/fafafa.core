@@ -10,7 +10,8 @@ uses
   fafafa.core.sync.base,
   fafafa.core.sync.condvar.base,
   fafafa.core.sync.namedCondvar.base,
-  fafafa.core.sync.namedMutex.base;
+  fafafa.core.sync.namedMutex.base,
+  fafafa.core.sync.timespec;
 
 {$LINKLIB pthread}
 {$LINKLIB rt}
@@ -53,7 +54,6 @@ type
     procedure CleanupSharedObjects;
     function GetTickCount64: QWord;
     procedure UpdateStats(AOperation: string; AWaitTimeUs: QWord = 0);
-    function TimeoutToTimespec(ATimeoutMs: Cardinal): TTimeSpec;
   public
     constructor Create(const AName: string); overload;
     constructor Create(const AName: string; const AConfig: TNamedCondVarConfig); overload;
@@ -245,21 +245,6 @@ begin
     Result := 0;
 end;
 
-function TNamedCondVar.TimeoutToTimespec(ATimeoutMs: Cardinal): TTimeSpec;
-var
-  LCurrentTime: TTimeSpec;
-  LTotalNs: QWord;
-begin
-  // 重要：使�?CLOCK_MONOTONIC 保持�?GetTickCount64 一致，避免系统时间调整影响
-  // 注意：pthread_cond_timedwait 默认使用 CLOCK_REALTIME，但我们可以通过 pthread_condattr_setclock 设置
-  if clock_gettime(CLOCK_MONOTONIC, @LCurrentTime) <> 0 then
-    raise ELockError.Create('Failed to get monotonic time');
-
-  LTotalNs := QWord(LCurrentTime.tv_sec) * 1000000000 + QWord(LCurrentTime.tv_nsec) + QWord(ATimeoutMs) * 1000000;
-
-  Result.tv_sec := LTotalNs div 1000000000;
-  Result.tv_nsec := LTotalNs mod 1000000000;
-end;
 
 function TNamedCondVar.CreateSharedObjects(const AName: string): Boolean;
 var
@@ -484,7 +469,7 @@ function TNamedCondVar.TryAcquire(ATimeoutMs: Cardinal): Boolean;
 var
   LAbsTimeout: TTimeSpec;
 begin
-  LAbsTimeout := TimeoutToTimespec(ATimeoutMs);
+  LAbsTimeout := TimeoutToMonotonicTimespec(ATimeoutMs);
   Result := pthread_mutex_timedlock(@FSharedState^.Mutex, @LAbsTimeout) = 0;
 end;
 
@@ -557,7 +542,7 @@ begin
     else
     begin
       // 带超时等�?
-      LAbsTimeout := TimeoutToTimespec(ATimeoutMs);
+      LAbsTimeout := TimeoutToMonotonicTimespec(ATimeoutMs);
       LRC := pthread_cond_timedwait(@FSharedState^.Cond, Ppthread_mutex_t(LUserMutex), @LAbsTimeout);
     end;
 
