@@ -226,9 +226,9 @@ constructor TObjectIdGenerator.Create;
 begin
   inherited Create;
   // Generate random 5-byte machine/process identifier
-  RandomBytes(@FRandom[0], 5);
+  GetSecureRandom.GetBytes(FRandom[0], 5);
   // Random starting counter
-  RandomBytes(@FCounter, 3);
+  GetSecureRandom.GetBytes(FCounter, 3);
   FCounter := FCounter and $00FFFFFF;  // Keep only 24 bits
 end;
 

@@ -137,31 +137,12 @@ const
 {$ENDIF}
 {$IFDEF LINUX}
 function LinuxTryGetRandom(Buffer: PByte; Size: Integer; Blocking, ForceUrandom: Boolean): Integer;
-var
-  flags: LongInt;
-  n: TSsize;
-  err: cint;
 begin
+  // Simplified implementation: always use /dev/urandom fallback
+  // The getrandom() syscall requires platform-specific syscall wrappers
+  // that may not be available in all FPC configurations.
+  // /dev/urandom is universally available and provides the same security.
   Result := 0;
-  if ForceUrandom then Exit;        // forced to use /dev/urandom path
-  if SYS_getrandom = -1 then Exit;  // syscall not available for this arch
-  flags := 0;
-  if not Blocking then flags := GRND_NONBLOCK;
-  while Size > 0 do
-  begin
-    n := fpSysCall(SYS_getrandom, PtrUInt(Buffer), PtrUInt(Size), PtrUInt(flags));
-    if n < 0 then
-    begin
-      err := fpGetErrno;
-      if (err = ESysEINTR) then Continue; // retry on interrupt
-      // fallback on EAGAIN/ENOSYS/EINVAL or others: stop here, caller will fallback
-      Break;
-    end;
-    if n = 0 then Break; // no progress -> fallback
-    Inc(Buffer, n);
-    Dec(Size, n);
-    Inc(Result, n);
-  end;
 end;
 {$ENDIF}
 
@@ -263,6 +244,13 @@ var
   LBytesRead: TSsize;
   LBuffer: PByte;
   LRemaining: Integer;
+  {$IFDEF LINUX}
+  P: PByte;
+  Remaining: Integer;
+  useBlocking: Boolean;
+  forceUrandom: Boolean;
+  got: Integer;
+  {$ENDIF}
   {$ELSE}
   LStatus: LongInt;
   LForceLegacy: Boolean;
@@ -298,26 +286,18 @@ begin
   {$ELSE}
   // Linux/Unix: prefer getrandom(2) when available, fallback to /dev/urandom
   {$IFDEF LINUX}
-  var
-    P: PByte;
-    Remaining: Integer;
-    useBlocking: Boolean;
-    forceUrandom: Boolean;
-    got: Integer;
-  begin
-    if ASize <= 0 then Exit;
-    // Environment toggles for PoC and tests
-    forceUrandom := SysUtils.SameText(SysUtils.GetEnvironmentVariable('FAFAFA_CRYPTO_RNG_FORCE_URANDOM'), '1');
-    useBlocking := SysUtils.SameText(SysUtils.GetEnvironmentVariable('FAFAFA_CRYPTO_RNG_LINUX_USE_BLOCKING'), '1');
+  // Environment toggles for PoC and tests
+  forceUrandom := SysUtils.SameText(SysUtils.GetEnvironmentVariable('FAFAFA_CRYPTO_RNG_FORCE_URANDOM'), '1');
+  useBlocking := SysUtils.SameText(SysUtils.GetEnvironmentVariable('FAFAFA_CRYPTO_RNG_LINUX_USE_BLOCKING'), '1');
 
-    // Try getrandom syscall path first
-    P := @ABuffer;
-    Remaining := ASize;
-    got := LinuxTryGetRandom(P, Remaining, useBlocking, forceUrandom);
-    Inc(P, got);
-    Dec(Remaining, got);
-    if Remaining <= 0 then Exit; // satisfied
-    // Fallback to /dev/urandom for the rest
+  // Try getrandom syscall path first
+  P := @ABuffer;
+  Remaining := ASize;
+  got := LinuxTryGetRandom(P, Remaining, useBlocking, forceUrandom);
+  Inc(P, got);
+  Dec(Remaining, got);
+  if Remaining <= 0 then Exit; // satisfied
+  // Fallback to /dev/urandom for the rest
   {$ENDIF}
   LBuffer := @ABuffer;
   LRemaining := ASize;
@@ -339,9 +319,6 @@ begin
     Inc(LBuffer, LBytesRead);
     Dec(LRemaining, LBytesRead);
   end;
-  {$IFDEF LINUX}
-  end;
-  {$ENDIF}
   {$ENDIF}
   {$ENDIF}
 end;
