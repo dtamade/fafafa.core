@@ -7,6 +7,8 @@ uses
   SysUtils, StrUtils, Classes,
   consoletestrunner,
   test_aligned,
+  test_fixedpool,
+  test_stackpool,
   test_mimalloc_manager_optional_smoke;
 
 var
