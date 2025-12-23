@@ -213,6 +213,8 @@ begin
     Result.d[i] := a.d[i] / b.d[i];
 end;
 
+// === Integer Arithmetic (disable overflow/range checks for wraparound semantics) ===
+{$PUSH}{$R-}{$Q-}
 function ScalarAddI32x4(const a, b: TVecI32x4): TVecI32x4;
 var i: Integer;
 begin
@@ -233,6 +235,7 @@ begin
   for i := 0 to 3 do
     Result.i[i] := a.i[i] * b.i[i];
 end;
+{$POP}
 
 // === Comparison Operations ===
 

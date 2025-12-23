@@ -58,7 +58,92 @@ type
     AddI32x4: function(const a, b: TVecI32x4): TVecI32x4;
     SubI32x4: function(const a, b: TVecI32x4): TVecI32x4;
     MulI32x4: function(const a, b: TVecI32x4): TVecI32x4;
-    
+    // Bitwise operations - I32x4
+    AndI32x4: function(const a, b: TVecI32x4): TVecI32x4;
+    OrI32x4: function(const a, b: TVecI32x4): TVecI32x4;
+    XorI32x4: function(const a, b: TVecI32x4): TVecI32x4;
+    NotI32x4: function(const a: TVecI32x4): TVecI32x4;
+    AndNotI32x4: function(const a, b: TVecI32x4): TVecI32x4;
+    // Shift operations - I32x4
+    ShiftLeftI32x4: function(const a: TVecI32x4; count: Integer): TVecI32x4;
+    ShiftRightI32x4: function(const a: TVecI32x4; count: Integer): TVecI32x4;
+    ShiftRightArithI32x4: function(const a: TVecI32x4; count: Integer): TVecI32x4;
+    // Comparison operations - I32x4
+    CmpEqI32x4: function(const a, b: TVecI32x4): TMask4;
+    CmpLtI32x4: function(const a, b: TVecI32x4): TMask4;
+    CmpGtI32x4: function(const a, b: TVecI32x4): TMask4;
+    // Min/Max operations - I32x4
+    MinI32x4: function(const a, b: TVecI32x4): TVecI32x4;
+    MaxI32x4: function(const a, b: TVecI32x4): TVecI32x4;
+
+    // Arithmetic operations - I64x2 (P1.3)
+    AddI64x2: function(const a, b: TVecI64x2): TVecI64x2;
+    SubI64x2: function(const a, b: TVecI64x2): TVecI64x2;
+    AndI64x2: function(const a, b: TVecI64x2): TVecI64x2;
+    OrI64x2: function(const a, b: TVecI64x2): TVecI64x2;
+    XorI64x2: function(const a, b: TVecI64x2): TVecI64x2;
+    NotI64x2: function(const a: TVecI64x2): TVecI64x2;
+
+    // Arithmetic operations - F64x4 (256-bit AVX)
+    AddF64x4: function(const a, b: TVecF64x4): TVecF64x4;
+    SubF64x4: function(const a, b: TVecF64x4): TVecF64x4;
+    MulF64x4: function(const a, b: TVecF64x4): TVecF64x4;
+    DivF64x4: function(const a, b: TVecF64x4): TVecF64x4;
+
+    // Arithmetic operations - I32x8 (256-bit AVX)
+    AddI32x8: function(const a, b: TVecI32x8): TVecI32x8;
+    SubI32x8: function(const a, b: TVecI32x8): TVecI32x8;
+    MulI32x8: function(const a, b: TVecI32x8): TVecI32x8;
+    AndI32x8: function(const a, b: TVecI32x8): TVecI32x8;
+    OrI32x8: function(const a, b: TVecI32x8): TVecI32x8;
+    XorI32x8: function(const a, b: TVecI32x8): TVecI32x8;
+    NotI32x8: function(const a: TVecI32x8): TVecI32x8;
+    AndNotI32x8: function(const a, b: TVecI32x8): TVecI32x8;
+    // Shift operations - I32x8
+    ShiftLeftI32x8: function(const a: TVecI32x8; count: Integer): TVecI32x8;
+    ShiftRightI32x8: function(const a: TVecI32x8; count: Integer): TVecI32x8;
+    ShiftRightArithI32x8: function(const a: TVecI32x8; count: Integer): TVecI32x8;
+    // Comparison operations - I32x8
+    CmpEqI32x8: function(const a, b: TVecI32x8): TMask8;
+    CmpLtI32x8: function(const a, b: TVecI32x8): TMask8;
+    CmpGtI32x8: function(const a, b: TVecI32x8): TMask8;
+    // Min/Max operations - I32x8
+    MinI32x8: function(const a, b: TVecI32x8): TVecI32x8;
+    MaxI32x8: function(const a, b: TVecI32x8): TVecI32x8;
+
+    // Arithmetic operations - I32x16 (512-bit AVX-512)
+    AddI32x16: function(const a, b: TVecI32x16): TVecI32x16;
+    SubI32x16: function(const a, b: TVecI32x16): TVecI32x16;
+    MulI32x16: function(const a, b: TVecI32x16): TVecI32x16;
+    AndI32x16: function(const a, b: TVecI32x16): TVecI32x16;
+    OrI32x16: function(const a, b: TVecI32x16): TVecI32x16;
+    XorI32x16: function(const a, b: TVecI32x16): TVecI32x16;
+    NotI32x16: function(const a: TVecI32x16): TVecI32x16;
+    AndNotI32x16: function(const a, b: TVecI32x16): TVecI32x16;
+    // Shift operations - I32x16
+    ShiftLeftI32x16: function(const a: TVecI32x16; count: Integer): TVecI32x16;
+    ShiftRightI32x16: function(const a: TVecI32x16; count: Integer): TVecI32x16;
+    ShiftRightArithI32x16: function(const a: TVecI32x16; count: Integer): TVecI32x16;
+    // Comparison operations - I32x16
+    CmpEqI32x16: function(const a, b: TVecI32x16): TMask16;
+    CmpLtI32x16: function(const a, b: TVecI32x16): TMask16;
+    CmpGtI32x16: function(const a, b: TVecI32x16): TMask16;
+    // Min/Max operations - I32x16
+    MinI32x16: function(const a, b: TVecI32x16): TVecI32x16;
+    MaxI32x16: function(const a, b: TVecI32x16): TVecI32x16;
+
+    // Arithmetic operations - F32x16 (512-bit AVX-512)
+    AddF32x16: function(const a, b: TVecF32x16): TVecF32x16;
+    SubF32x16: function(const a, b: TVecF32x16): TVecF32x16;
+    MulF32x16: function(const a, b: TVecF32x16): TVecF32x16;
+    DivF32x16: function(const a, b: TVecF32x16): TVecF32x16;
+
+    // Arithmetic operations - F64x8 (512-bit AVX-512)
+    AddF64x8: function(const a, b: TVecF64x8): TVecF64x8;
+    SubF64x8: function(const a, b: TVecF64x8): TVecF64x8;
+    MulF64x8: function(const a, b: TVecF64x8): TVecF64x8;
+    DivF64x8: function(const a, b: TVecF64x8): TVecF64x8;
+
     // Comparison operations
     CmpEqF32x4: function(const a, b: TVecF32x4): TMask4;
     CmpLtF32x4: function(const a, b: TVecF32x4): TMask4;
