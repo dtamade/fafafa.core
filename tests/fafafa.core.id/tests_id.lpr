@@ -19,7 +19,8 @@ uses
   Test_fafafa_core_id_uuid_negative,
   Test_fafafa_core_id_p0_features,
   Test_fafafa_core_id_p1_features,
-  Test_fafafa_core_id_p2_features;
+  Test_fafafa_core_id_p2_features,
+  Test_fafafa_core_id_p3_features;
 
 type
   TIdTestApplication = class(TCustomApplication)

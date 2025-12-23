@@ -24,7 +24,11 @@ uses
   fafafa.core.id.sonyflake,
   fafafa.core.id.json,
   fafafa.core.id.batch,
-  fafafa.core.id.builder;
+  fafafa.core.id.builder,
+  fafafa.core.id.nanoid,
+  fafafa.core.id.typeid,
+  fafafa.core.id.xid,
+  fafafa.core.id.cuid2;
 
 const
   ITERATIONS = 1000;
@@ -255,6 +259,120 @@ begin
   WriteLn('  Builder API: OK');
 end;
 
+procedure TestNanoIdLeak;
+var
+  I: Integer;
+  S: string;
+  Gen: INanoIdGenerator;
+  Arr: TStringArray;
+begin
+  WriteLn('Testing NanoID...');
+  for I := 1 to ITERATIONS do
+  begin
+    S := NanoId;
+    S := NanoId(10);
+    S := NanoIdCustom('abc123', 16);
+    S := NanoIdWithAlphabet(naAlphanumeric, 20);
+  end;
+
+  Gen := CreateNanoIdGenerator(naUrlSafe, 21);
+  for I := 1 to ITERATIONS do
+    S := Gen.Next;
+  Gen := nil;
+
+  Arr := NanoIdN(100);
+  SetLength(Arr, 0);
+
+  WriteLn('  NanoID: OK');
+end;
+
+procedure TestTypeIdLeak;
+var
+  I: Integer;
+  S: string;
+  Gen: ITypeIdGenerator;
+  Parts: TTypeIdParts;
+  Arr: TStringArray;
+begin
+  WriteLn('Testing TypeID...');
+  for I := 1 to ITERATIONS do
+  begin
+    S := TypeId('user');
+    S := TypeIdNil('test');
+    Parts := ParseTypeId(S);
+  end;
+
+  Gen := CreateTypeIdGenerator('account');
+  for I := 1 to ITERATIONS do
+    S := Gen.Next;
+  Gen := nil;
+
+  Arr := TypeIdN('item', 100);
+  SetLength(Arr, 0);
+
+  WriteLn('  TypeID: OK');
+end;
+
+procedure TestXidLeak;
+var
+  I: Integer;
+  X: TXid96;
+  S: string;
+  Gen: IXidGenerator;
+  Arr: TStringArray;
+  XArr: TXid96Array;
+begin
+  WriteLn('Testing XID...');
+  for I := 1 to ITERATIONS do
+  begin
+    X := Xid;
+    S := XidToString(X);
+    X := XidFromString(S);
+  end;
+
+  Gen := CreateXidGenerator;
+  for I := 1 to ITERATIONS do
+  begin
+    X := Gen.Next;
+    S := Gen.NextString;
+  end;
+  Gen := nil;
+
+  Arr := XidN(100);
+  SetLength(Arr, 0);
+
+  XArr := XidBatchN(100);
+  SetLength(XArr, 0);
+
+  WriteLn('  XID: OK');
+end;
+
+procedure TestCuid2Leak;
+var
+  I: Integer;
+  S: string;
+  Gen: ICuid2Generator;
+  Arr: TStringArray;
+begin
+  WriteLn('Testing CUID2...');
+  for I := 1 to ITERATIONS do
+  begin
+    S := Cuid2;
+    S := Cuid2(16);
+    S := Cuid2(32);
+  end;
+
+  Gen := CreateCuid2Generator(24);
+  for I := 1 to ITERATIONS do
+    S := Gen.Next;
+  Gen := nil;
+
+  Arr := Cuid2N(100);
+  SetLength(Arr, 0);
+
+  WriteLn('  CUID2: OK');
+end;
+
 begin
   WriteLn('=== fafafa.core.id Memory Leak Test ===');
   WriteLn('Iterations: ', ITERATIONS);
@@ -272,6 +390,10 @@ begin
   TestJsonSerializationLeak;
   TestBatchLeak;
   TestBuilderLeak;
+  TestNanoIdLeak;
+  TestTypeIdLeak;
+  TestXidLeak;
+  TestCuid2Leak;
 
   WriteLn('');
   WriteLn('=== All tests completed ===');
