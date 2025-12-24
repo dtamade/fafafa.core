@@ -259,7 +259,7 @@ var
   Stats: TFsWalkStats;
 begin
   // 目录结构已在 SetUp 创建：root, sub1, sub2 各至少一个文件
-  FillChar(Stats, SizeOf(Stats), 0);
+  Stats := Default(TFsWalkStats);
   FVisited.Clear;
   LOpts := FsDefaultWalkOptions;
   LOpts.Stats := @Stats;
@@ -348,7 +348,7 @@ begin
   // init locals to avoid uninitialized warnings (no behavior change)
   LSym := '';
   LRes := 0;
-  FillChar(LOpts, SizeOf(LOpts), 0);
+  LOpts := Default(TFsWalkOptions);
   {$IFDEF UNIX}
   // 创建符号链接指向 sub1（或 sub2），验证 FollowSymlinks 的行为
   LSym := IncludeTrailingPathDelimiter(FRoot) + 'link_to_sub1';
@@ -422,8 +422,8 @@ var
   Stats1, Stats2: TFsWalkStats;
   I: Integer;
 begin
-  FillChar(Stats1, SizeOf(Stats1), 0);
-  FillChar(Stats2, SizeOf(Stats2), 0);
+  Stats1 := Default(TFsWalkStats);
+  Stats2 := Default(TFsWalkStats);
   Baseline := TStringList.Create;
   Streamed := TStringList.Create;
   try
@@ -647,7 +647,7 @@ var
 
   Stats: TFsWalkStats;
 begin
-  FillChar(Stats, SizeOf(Stats), 0);
+  Stats := Default(TFsWalkStats);
   LOpts := FsDefaultWalkOptions;
   LOpts.Stats := @Stats;
   LOpts.OnError := @OnErrContinue;
@@ -669,7 +669,7 @@ begin
   // init locals to avoid uninitialized warnings (no behavior change)
   LSym := '';
   LRes := 0;
-  FillChar(LOpts, SizeOf(LOpts), 0);
+  LOpts := Default(TFsWalkOptions);
   {$IFDEF UNIX}
   // 创建符号链接指向 sub1，跟随链接不应触发 OnError
   LSym := IncludeTrailingPathDelimiter(FRoot) + 'link_ok';
@@ -703,7 +703,7 @@ begin
   // init locals to avoid uninitialized warnings (no行为改变)
   LSym := '';
   LRes := 0;
-  FillChar(LOpts, SizeOf(LOpts), 0);
+  LOpts := Default(TFsWalkOptions);
   {$IFDEF UNIX}
   // 创建指向不存在目标的链接，预期跟随时报错触发 OnError
   LSym := IncludeTrailingPathDelimiter(FRoot) + 'link_broken';

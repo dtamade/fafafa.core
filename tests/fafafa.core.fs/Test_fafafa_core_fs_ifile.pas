@@ -158,6 +158,7 @@ begin
   Src := NewTempPath('copy_src');
   Dst := NewTempPath('copy_dst');
   Dst2 := NewTempPath('move_dst');
+  Data := nil;
   SetLength(Data, 3);
   Data[0] := Ord('x'); Data[1] := Ord('y'); Data[2] := Ord('z');
   WriteFileAtomic(Src, Data);
@@ -205,6 +206,7 @@ var
 begin
   Src := NewTempPath('copy_src2');
   Dst := NewTempPath('copy_dst2');
+  Data := nil;
   SetLength(Data, 1); Data[0] := Ord('a');
   WriteFileAtomic(Src, Data);
   WriteFileAtomic(Dst, Data); // 预建目标使其存在
@@ -225,6 +227,7 @@ var
 begin
   Src := NewTempPath('move_src2');
   Dst := NewTempPath('move_dst2');
+  Data := nil;
   SetLength(Data, 1); Data[0] := Ord('a');
   WriteFileAtomic(Src, Data);
   WriteFileAtomic(Dst, Data); // 预建目标使其存在
@@ -249,6 +252,7 @@ begin
   // 构造源文件，设置权限与时间
   P := NewTempPath('preserve_src');
   Q := NewTempPath('preserve_dst');
+  Data := nil;
   SetLength(Data, 3);
   Data[0] := Ord('a'); Data[1] := Ord('b'); Data[2] := Ord('c');
   WriteFileAtomic(P, Data);

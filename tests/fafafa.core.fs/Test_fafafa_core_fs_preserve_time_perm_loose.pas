@@ -58,7 +58,7 @@ begin
   FDst := IncludeTrailingPathDelimiter(Dst) + 'a' + PathDelim + 'x.txt';
 
   // 复制，开启 PreserveTimes/Perms（best‑effort）
-  FillChar(Opts, SizeOf(Opts), 0);
+  Opts := Default(TFsCopyTreeOptions);
   Opts.Overwrite := True;
   Opts.FollowSymlinks := False;
   Opts.PreserveTimes := True;

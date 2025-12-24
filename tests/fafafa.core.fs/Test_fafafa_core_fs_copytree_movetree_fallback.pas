@@ -60,7 +60,7 @@ begin
     Dst := 'mt_dst_' + IntToStr(GetTickCount64);
   EnsureClean(Dst);
 
-  FillChar(Opts, SizeOf(Opts), 0);
+  Opts := Default(TFsMoveTreeOptions);
   Opts.Overwrite := True;
   Opts.FollowSymlinks := False;
   Opts.RootBehavior := rbMerge;

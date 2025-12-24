@@ -50,7 +50,7 @@ begin
   CreateText(IncludeTrailingPathDelimiter(Src) + 'a.txt', 'src');
   CreateText(IncludeTrailingPathDelimiter(Dst) + 'old.txt', 'old');
 
-  FillChar(Opts, SizeOf(Opts), 0);
+  Opts := Default(TFsCopyTreeOptions);
   Opts.Overwrite := True;
   Opts.FollowSymlinks := False;
   Opts.RootBehavior := rbMerge;
@@ -76,7 +76,7 @@ begin
   CreateDirectory(Dst, True);
   CreateText(IncludeTrailingPathDelimiter(Src) + 'a.txt', 'src');
 
-  FillChar(Opts, SizeOf(Opts), 0);
+  Opts := Default(TFsCopyTreeOptions);
   Opts.Overwrite := True;
   Opts.FollowSymlinks := False;
   Opts.RootBehavior := rbError;
@@ -105,7 +105,7 @@ begin
   CreateText(IncludeTrailingPathDelimiter(Src) + 'a.txt', 'src');
   CreateText(IncludeTrailingPathDelimiter(Dst) + 'old.txt', 'old');
 
-  FillChar(Opts, SizeOf(Opts), 0);
+  Opts := Default(TFsCopyTreeOptions);
   Opts.Overwrite := True;
   Opts.FollowSymlinks := False;
   Opts.RootBehavior := rbReplace;

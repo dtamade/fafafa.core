@@ -39,6 +39,7 @@ procedure CreateBin(const P: string; Count: Integer);
 var FS: TFileStream; Buf: array of byte; i: Integer;
 begin
   ForceDirectories(ExtractFileDir(P));
+  Buf := nil;
   FS := TFileStream.Create(P, fmCreate);
   try
     SetLength(Buf, Count);
@@ -64,7 +65,7 @@ begin
   CreateText(IncludeTrailingPathDelimiter(Src) + 'a.txt', 'hello'); // 5 bytes
   CreateBin(IncludeTrailingPathDelimiter(Src) + 'sub' + PathDelim + 'b.bin', 10); // 10 bytes
 
-  FillChar(Opts, SizeOf(Opts), 0);
+  Opts := Default(TFsCopyTreeOptions);
   Opts.Overwrite := True;
   Opts.FollowSymlinks := False;
 

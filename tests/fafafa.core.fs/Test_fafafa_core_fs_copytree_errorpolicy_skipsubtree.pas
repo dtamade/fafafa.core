@@ -58,7 +58,7 @@ begin
   CreateText(IncludeTrailingPathDelimiter(Src) + 'badsub' + PathDelim + 'file', 'bad');
   MakeConflictSubtree(Dst, 'badsub');
 
-  FillChar(Opts, SizeOf(Opts), 0);
+  Opts := Default(TFsCopyTreeOptions);
   Opts.Overwrite := True;
   Opts.FollowSymlinks := False;
   Opts.ErrorPolicy := epSkipSubtree;

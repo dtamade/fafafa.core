@@ -65,7 +65,7 @@ begin
   LinkAtoB := IncludeTrailingPathDelimiter(A) + 'to_B';
   if fs_symlink('../B', LinkAtoB) <> 0 then begin EnsureClean(R); Exit; end;
 
-  FillChar(Opts, SizeOf(Opts), 0);
+  Opts := Default(TFsCopyTreeOptions);
   Opts.Overwrite := True;
   Opts.FollowSymlinks := False;
   Opts.CopySymlinksAsLinks := True;

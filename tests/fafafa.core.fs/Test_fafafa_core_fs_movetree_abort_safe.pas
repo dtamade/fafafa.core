@@ -58,7 +58,7 @@ begin
   // 在 dst 构造冲突：badsub/file 变成目录，复制应失败
   MakeConflictSubtree(Dst, 'badsub');
 
-  FillChar(Opts, SizeOf(Opts), 0);
+  Opts := Default(TFsMoveTreeOptions);
   Opts.Overwrite := True;
   Opts.FollowSymlinks := False;
   Opts.RootBehavior := rbMerge;
