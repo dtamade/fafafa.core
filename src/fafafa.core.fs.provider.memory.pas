@@ -326,6 +326,7 @@ procedure TMemoryFileSystem.WriteTextFile(const APath: string; const AText: stri
 var
   Data: TBytes;
 begin
+  Data := nil;
   SetLength(Data, Length(AText));
   if Length(AText) > 0 then
     Move(AText[1], Data[0], Length(AText));

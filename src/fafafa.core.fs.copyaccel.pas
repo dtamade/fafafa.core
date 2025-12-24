@@ -82,6 +82,7 @@ var
   in_offset, out_offset: Int64;
 begin
   Result := -999;
+  stat_buf := Default(TStat);
 
   // 打开源文件
   fd_in := fpOpen(aSrc, O_RDONLY);

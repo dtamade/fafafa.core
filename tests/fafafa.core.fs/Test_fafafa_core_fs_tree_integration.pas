@@ -19,7 +19,6 @@ interface
 uses
   SysUtils, Classes, FPCUnit, TestRegistry,
   fafafa.core.fs,
-  fafafa.core.fs.errors,
   fafafa.core.fs.path,
   fafafa.core.fs.tree,
   fafafa.core.fs.directory,

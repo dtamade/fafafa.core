@@ -7,7 +7,7 @@ interface
 
 uses
   Classes, SysUtils, fpcunit, testregistry,
-  fafafa.core.fs, fafafa.core.fs.tree, fafafa.core.fs.fileio, fafafa.core.fs.directory, fafafa.core.fs.options, fafafa.core.fs.errors;
+  fafafa.core.fs.tree, fafafa.core.fs.directory, fafafa.core.fs.options, fafafa.core.fs.errors;
 
 type
   TTestCase_CopyTree_ErrorPolicy = class(TTestCase)
@@ -58,7 +58,7 @@ begin
   CreateText(IncludeTrailingPathDelimiter(Src) + 'sub' + PathDelim + 'file', 'x');
   MakeConflictPath(IncludeTrailingPathDelimiter(Dst) + 'sub' + PathDelim + 'file');
 
-  FillChar(Opts, SizeOf(Opts), 0);
+  Opts := Default(TFsCopyTreeOptions);
   Opts.Overwrite := True;
   Opts.FollowSymlinks := False;
   Opts.ErrorPolicy := epAbort; // 默认
@@ -89,7 +89,7 @@ begin
   CreateText(IncludeTrailingPathDelimiter(Src) + 'sub' + PathDelim + 'file', 'x');
   MakeConflictPath(IncludeTrailingPathDelimiter(Dst) + 'sub' + PathDelim + 'file');
 
-  FillChar(Opts, SizeOf(Opts), 0);
+  Opts := Default(TFsCopyTreeOptions);
   Opts.Overwrite := True;
   Opts.FollowSymlinks := False;
   Opts.ErrorPolicy := epContinue;
