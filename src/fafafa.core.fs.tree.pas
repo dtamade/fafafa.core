@@ -196,9 +196,31 @@ type
     Errors: QWord;
     Dirs: TStringList;
     ExternalTargets: TStringList;
+    constructor Create(const AOpts: TFsRemoveTreeOptions);
+    destructor Destroy; override;
     function OnEach(const aPath: string; const aStat: TfsStat; aDepth: Integer): Boolean;
     function OnWalkError(const aPath: string; aError: Integer; aDepth: Integer): TFsWalkErrorAction;
   end;
+
+constructor TRemoveWalker.Create(const AOpts: TFsRemoveTreeOptions);
+begin
+  inherited Create;
+  Opts := AOpts;
+  FilesRemoved := 0;
+  DirsRemoved := 0;
+  Errors := 0;
+  Dirs := TStringList.Create;
+  ExternalTargets := TStringList.Create;
+  ExternalTargets.Sorted := True;
+  ExternalTargets.Duplicates := dupIgnore;
+end;
+
+destructor TRemoveWalker.Destroy;
+begin
+  Dirs.Free;
+  ExternalTargets.Free;
+  inherited Destroy;
+end;
 
 function TRemoveWalker.OnWalkError(const aPath: string; aError: Integer; aDepth: Integer): TFsWalkErrorAction;
 begin
@@ -469,17 +491,8 @@ begin
   aResult.DirsRemoved := 0;
   aResult.Errors := 0;
 
-  Walker := TRemoveWalker.Create;
+  Walker := TRemoveWalker.Create(aOpts);
   try
-    Walker.Opts := aOpts;
-    Walker.FilesRemoved := 0;
-    Walker.DirsRemoved := 0;
-    Walker.Errors := 0;
-    Walker.Dirs := TStringList.Create;
-    Walker.ExternalTargets := TStringList.Create;
-    Walker.ExternalTargets.Sorted := True;
-    Walker.ExternalTargets.Duplicates := dupIgnore;
-
     WalkOpts := FsDefaultWalkOptions;
     WalkOpts.FollowSymlinks := aOpts.FollowSymlinks;
     WalkOpts.IncludeFiles := True;
@@ -619,8 +632,6 @@ begin
         end;
       end;
     end;
-    Walker.Dirs.Free;
-    Walker.ExternalTargets.Free;
     Walker.Free;
   end;
 end;
