@@ -6,7 +6,7 @@ unit fafafa.core.fs;
 interface
 
 uses
-  SysUtils, Classes
+  SysUtils, Classes, fafafa.core.math
   {$IFDEF WINDOWS}
   , Windows
   {$ELSE}

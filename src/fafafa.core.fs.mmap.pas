@@ -29,14 +29,18 @@ type
   TMemoryMappedFile = class
   private
     FFile: TfsFile;
-    FMappedMemory: Pointer;
-    FSize: Int64;
+    FMappedMemory: Pointer;       // 实际映射的基地址（页对齐）
+    FUserMemory: Pointer;         // 用户请求的地址（可能在页内偏移）
+    FSize: Int64;                 // 用户请求的映射大小
+    FActualMappedSize: Int64;     // 实际映射的大小（含对齐补偿）
+    FOffsetAdjustment: PtrUInt;   // 偏移调整量（页对齐补偿）
     FProtection: TMemoryProtection;
     FFlags: TMemoryMapFlags;
     FIsMapped: Boolean;
     {$IFDEF WINDOWS}
     FMappingHandle: THandle;
     {$ENDIF}
+    function GetMemory: Pointer;
   public
     constructor Create;
     destructor Destroy; override;
@@ -53,7 +57,7 @@ type
     procedure SyncRange(aOffset: Int64; aSize: Int64; aAsync: Boolean = False);
     
     // 属性
-    property Memory: Pointer read FMappedMemory;
+    property Memory: Pointer read GetMemory;
     property Size: Int64 read FSize;
     property IsMapped: Boolean read FIsMapped;
     property Protection: TMemoryProtection read FProtection;
@@ -68,7 +72,23 @@ implementation
 {$IFDEF WINDOWS}
 uses Windows;
 {$ELSE}
-uses BaseUnix, Unix;
+uses BaseUnix, Unix, syscall;
+
+const
+  // msync 标志 (如果 syscall 单元未定义)
+  {$IF NOT DECLARED(MS_ASYNC)}
+  MS_ASYNC = 1;
+  MS_SYNC  = 4;
+  MS_INVALIDATE = 2;
+  {$ENDIF}
+
+// msync wrapper (如果 syscall 单元未提供)
+{$IF NOT DECLARED(fpmsync)}
+function fpmsync(aAddr: Pointer; aLen: size_t; aFlags: cint): cint;
+begin
+  Result := do_syscall(syscall_nr_msync, TSysParam(aAddr), TSysParam(aLen), TSysParam(aFlags));
+end;
+{$ENDIF}
 {$ENDIF}
 
 { TMemoryMappedFile }
@@ -78,11 +98,20 @@ begin
   inherited Create;
   FFile := INVALID_HANDLE_VALUE;
   FMappedMemory := nil;
+  FUserMemory := nil;
   FSize := 0;
+  FActualMappedSize := 0;
+  FOffsetAdjustment := 0;
   FIsMapped := False;
   {$IFDEF WINDOWS}
   FMappingHandle := INVALID_HANDLE_VALUE;
   {$ENDIF}
+end;
+
+function TMemoryMappedFile.GetMemory: Pointer;
+begin
+  // 返回用户期望的地址（已调整偏移）
+  Result := FUserMemory;
 end;
 
 destructor TMemoryMappedFile.Destroy;
@@ -153,6 +182,10 @@ begin
     raise EFsError.Create(GetLastFsError(), 'Failed to map view of file', GetLastError());
   end;
 
+  // Windows MapViewOfFile 无需页对齐，直接设置
+  FUserMemory := FMappedMemory;
+  FActualMappedSize := FSize;
+  FOffsetAdjustment := 0;
   FIsMapped := True;
 end;
 {$ELSE}
@@ -160,6 +193,8 @@ var
   LFileSize: Int64;
   LStat: TfsStat;
   LProt, LFlags: Integer;
+  LPageSize: PtrUInt;
+  LAlignedOffset: Int64;
 begin
   if FIsMapped then
     raise EFsError.Create(FS_ERROR_INVALID_PARAMETER, 'Already mapped', 0);
@@ -195,11 +230,22 @@ begin
   else
     LFlags := LFlags or MAP_PRIVATE;
 
-  // 执行映射
-  FMappedMemory := fpmmap(nil, FSize, LProt, LFlags, aFile, aOffset);
+  // ✅ 修复: Linux mmap 要求 offset 必须是页大小的倍数
+  // 使用标准页大小 4096（适用于 x86/x86_64/ARM64 等）
+  LPageSize := 4096;
+
+  // 将 offset 向下对齐到页边界
+  LAlignedOffset := aOffset and (not Int64(LPageSize - 1));
+  FOffsetAdjustment := PtrUInt(aOffset - LAlignedOffset);
+  FActualMappedSize := FSize + Int64(FOffsetAdjustment);
+
+  // 执行映射（使用对齐后的偏移和扩展后的大小）
+  FMappedMemory := fpmmap(nil, FActualMappedSize, LProt, LFlags, aFile, LAlignedOffset);
   if FMappedMemory = MAP_FAILED then
     raise EFsError.Create(GetLastFsError(), 'Failed to map file', fpgeterrno);
 
+  // 计算用户期望的地址（页内偏移）
+  FUserMemory := Pointer(PtrUInt(FMappedMemory) + FOffsetAdjustment);
   FIsMapped := True;
 end;
 {$ENDIF}
@@ -237,6 +283,10 @@ begin
     raise EFsError.Create(GetLastFsError(), 'Failed to map anonymous memory', GetLastError());
   end;
 
+  // 匿名映射无偏移调整
+  FUserMemory := FMappedMemory;
+  FActualMappedSize := FSize;
+  FOffsetAdjustment := 0;
   FIsMapped := True;
 end;
 {$ELSE}
@@ -263,6 +313,10 @@ begin
   if FMappedMemory = MAP_FAILED then
     raise EFsError.Create(GetLastFsError(), 'Failed to create anonymous mapping', fpgeterrno);
 
+  // 匿名映射无偏移调整
+  FUserMemory := FMappedMemory;
+  FActualMappedSize := FSize;
+  FOffsetAdjustment := 0;
   FIsMapped := True;
 end;
 {$ENDIF}
@@ -278,25 +332,33 @@ begin
     UnmapViewOfFile(FMappedMemory);
     FMappedMemory := nil;
   end;
-  
+
   if FMappingHandle <> INVALID_HANDLE_VALUE then
   begin
     CloseHandle(FMappingHandle);
     FMappingHandle := INVALID_HANDLE_VALUE;
   end;
 {$ELSE}
+  // ✅ 修复: 使用实际映射大小（含对齐补偿）进行 unmap
   if FMappedMemory <> nil then
   begin
-    fpmunmap(FMappedMemory, FSize);
+    fpmunmap(FMappedMemory, FActualMappedSize);
     FMappedMemory := nil;
   end;
 {$ENDIF}
 
+  FUserMemory := nil;
   FIsMapped := False;
   FSize := 0;
+  FActualMappedSize := 0;
+  FOffsetAdjustment := 0;
 end;
 
 procedure TMemoryMappedFile.Sync(aAsync: Boolean);
+{$IFNDEF WINDOWS}
+var
+  LFlags: Integer;
+{$ENDIF}
 begin
   if not FIsMapped then
     raise EFsError.Create(FS_ERROR_INVALID_PARAMETER, 'Not mapped', 0);
@@ -305,12 +367,11 @@ begin
   if not FlushViewOfFile(FMappedMemory, FSize) then
     raise EFsError.Create(GetLastFsError(), 'Failed to sync memory mapping', GetLastError());
 {$ELSE}
-  var LFlags: Integer;
   if aAsync then
     LFlags := MS_ASYNC
   else
     LFlags := MS_SYNC;
-    
+
   if fpmsync(FMappedMemory, FSize, LFlags) <> 0 then
     raise EFsError.Create(GetLastFsError(), 'Failed to sync memory mapping', fpgeterrno);
 {$ENDIF}

@@ -7,14 +7,15 @@ unit fafafa.core.fs.async.simple;
 interface
 
 uses
-  SysUtils, Classes, 
+  SysUtils, Classes,
   {$IFDEF WINDOWS}
   Windows,
   {$ELSE}
   BaseUnix, Unix,
   {$ENDIF}
   fafafa.core.fs,
-  fafafa.core.fs.path;
+  fafafa.core.fs.path,
+  fafafa.core.fs.async.iface;  // ✅ 使用公共类型
 
 type
   // 简化的异步结果接口
@@ -26,8 +27,7 @@ type
     property Result: T read GetResult;
   end;
 
-  // 异常类型
-  EAsyncFileError = class(Exception);
+  // EAsyncFileError 现在从 async.iface 导入
 
   // 简化的异步文件系统接口
   ISimpleAsyncFileSystem = interface

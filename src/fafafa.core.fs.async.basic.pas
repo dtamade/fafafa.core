@@ -14,14 +14,11 @@ uses
   BaseUnix, Unix,
   {$ENDIF}
   fafafa.core.fs,
-  fafafa.core.fs.path;
+  fafafa.core.fs.path,
+  fafafa.core.fs.async.iface;  // ✅ 使用公共类型
 
 type
-  // 异步操作状态
-  TAsyncStatus = (asRunning, asCompleted, asFailed, asCancelled);
-
-  // 异步文件操作异常
-  EAsyncFileError = class(Exception);
+  // TAsyncStatus 和 EAsyncFileError 现在从 async.iface 导入
 
   // 基础异步结果接口
   IAsyncResult = interface

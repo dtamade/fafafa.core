@@ -332,15 +332,10 @@ begin
   if not IsAbsolutePath(Result) then
     Result := JoinPath(GetCurrentDirectory, Result);
 
-  // TODO: 实现真实路径解析
-  // 尝试获取真实路径
-  //FillChar(LBuffer, SizeOf(LBuffer), 0);
-  //LResult := fs_realpath(Result, @LBuffer[0], SizeOf(LBuffer));
-  //if LResult > 0 then
-  //begin
-  //  LBuffer[LResult] := #0;
-  //  Result := string(LBuffer);
-  //end;
+  // 注意: ResolvePath 只做规范化+绝对化，不触盘
+  // 若需要真实路径解析（解析符号链接），请使用:
+  //   - ResolvePathEx(aPath, True, True) - 解析符号链接
+  //   - Canonicalize(aPath, True) - 解析符号链接的简化版本
 end;
 
 function ResolvePathEx(const aPath: string; const aFollowLinks: Boolean; const aTouchDisk: Boolean = False): string;

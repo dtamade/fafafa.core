@@ -19,8 +19,26 @@ type
     Value: V;
   end;
 
+  {**
+   * IRBTreeMap<K,V> - 红黑树有序映射接口
+   *
+   * @desc 有序映射接口，基于红黑树实现，按键排序
+   *}
+  generic IRBTreeMap<K, V> = interface
+    ['{E5F6A7B8-C9D0-1234-EF01-567890ABCDEF}']
+    function InsertOrAssign(const AKey: K; const AValue: V): Boolean;
+    function TryAdd(const AKey: K; const AValue: V): Boolean;
+    function TryUpdate(const AKey: K; const AValue: V): Boolean;
+    function TryGetValue(const AKey: K; out AValue: V): Boolean;
+    function ContainsKey(const AKey: K): Boolean;
+    function Remove(const AKey: K): Boolean;
+    procedure Clear;
+    function GetCount: SizeUInt;
+    property Count: SizeUInt read GetCount;
+  end;
+
   // 红黑树 OrderedMap（薄适配 TRBTreeCore + 集成 TGenericCollection 以复用迭代框架）。
-  generic TRBTreeMap<K,V> = class(specialize TGenericCollection<specialize TRBMapEntry<K,V>>)
+  generic TRBTreeMap<K,V> = class(specialize TGenericCollection<specialize TRBMapEntry<K,V>>, specialize IRBTreeMap<K,V>)
   public
     type
       TEntry = specialize TRBMapEntry<K,V>;

@@ -502,12 +502,19 @@ end;
 
 function TFsWatcherWin.AddPath(const SubRoot: string): Integer;
 begin
-  Result := -999; // TODO: 后续支持多根
+  // 当前实现不支持动态添加子路径
+  // 设计限制：每个 IFsWatcher 实例仅支持单根监控
+  // 若需监控多个独立目录，请创建多个 IFsWatcher 实例
+  if SubRoot = '' then ; // 避免编译器提示
+  Result := -999; // FS_ERROR_UNKNOWN - 功能不支持
 end;
 
 function TFsWatcherWin.RemovePath(const SubRoot: string): Integer;
 begin
-  Result := -999;
+  // 当前实现不支持动态移除子路径
+  // 设计限制：请使用 Stop 停止整个监控
+  if SubRoot = '' then ; // 避免编译器提示
+  Result := -999; // FS_ERROR_UNKNOWN - 功能不支持
 end;
 {$ENDIF}
 
@@ -554,14 +561,16 @@ end;
 
 function TFsWatcherStub.AddPath(const SubRoot: string): Integer;
 begin
+  // 占位实现 - 功能不支持
   if SubRoot = '' then ;
-  Result := -999;
+  Result := -999; // FS_ERROR_UNKNOWN
 end;
 
 function TFsWatcherStub.RemovePath(const SubRoot: string): Integer;
 begin
+  // 占位实现 - 功能不支持
   if SubRoot = '' then ;
-  Result := -999;
+  Result := -999; // FS_ERROR_UNKNOWN
 end;
 
 end.
