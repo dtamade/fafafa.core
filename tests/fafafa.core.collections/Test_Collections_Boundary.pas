@@ -163,7 +163,7 @@ type
   TTestCase_Boundary_PriorityQueue = class(TTestCase)
   private
     type
-      TIntPQ = specialize TPriorityQueueClass<Integer>;
+      TIntPQ = specialize TPriorityQueue<Integer>;
   published
     // 空 PQ 边界
     procedure Test_PriorityQueue_Empty_Count_IsZero;
