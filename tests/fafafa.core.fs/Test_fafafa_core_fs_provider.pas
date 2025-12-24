@@ -59,6 +59,7 @@ procedure TTestFileSystemProvider.Test_MemoryFS_WriteAndReadFile;
 var
   Data, ReadData: TBytes;
 begin
+  Data := nil;
   SetLength(Data, 5);
   Data[0] := 1; Data[1] := 2; Data[2] := 3; Data[3] := 4; Data[4] := 5;
 

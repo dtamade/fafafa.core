@@ -38,6 +38,7 @@ begin
   Dir := GetTempDirectory;
   P := JoinPath(Dir, 'atomic.txt');
   if FileExists(P) then DeleteFile(P);
+  Data := nil;
   SetLength(Data, 3);
   Data[0] := Ord('A'); Data[1] := Ord('B'); Data[2] := Ord('C');
   WriteFileAtomic(P, Data);
