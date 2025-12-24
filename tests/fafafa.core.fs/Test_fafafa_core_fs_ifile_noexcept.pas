@@ -7,7 +7,7 @@ interface
 
 uses
   Classes, SysUtils, fpcunit, testregistry,
-  fafafa.core.fs, fafafa.core.fs.highlevel, fafafa.core.fs.errors;
+  fafafa.core.fs, fafafa.core.fs.fileio, fafafa.core.fs.errors, fafafa.core.fs.options;
 
 // 验证 TFsFileNoExcept 的基础行为（负码返回）
 

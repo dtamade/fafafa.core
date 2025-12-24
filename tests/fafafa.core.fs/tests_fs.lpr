@@ -33,7 +33,11 @@ uses
   Test_fafafa_core_fs_walkdir_edges,
   Test_fafafa_core_fs_movetree_abort_safe,
   Test_fafafa_core_fs_remove_tree_atomic_write,
-  Test_fafafa_core_fs_watch_e2e;
+  Test_fafafa_core_fs_watch_e2e,
+  // Issue #10: 树操作集成测试
+  Test_fafafa_core_fs_tree_integration,
+  // Issue #11: IFileSystemProvider 抽象
+  Test_fafafa_core_fs_provider;
 
 type
   { TMyTestRunner }

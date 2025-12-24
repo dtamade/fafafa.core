@@ -7,7 +7,7 @@ interface
 
 uses
   Classes, SysUtils, TypInfo, fpcunit, testregistry,
-  fafafa.core.fs.watch, fafafa.core.fs, fafafa.core.fs.highlevel;
+  fafafa.core.fs.watch, fafafa.core.fs, fafafa.core.fs.fileio, fafafa.core.fs.directory;
 
 type
   TTestCase_Watch_E2E = class(TTestCase)

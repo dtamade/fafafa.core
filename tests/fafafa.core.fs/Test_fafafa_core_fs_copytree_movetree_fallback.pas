@@ -7,7 +7,7 @@ interface
 
 uses
   Classes, SysUtils, fpcunit, testregistry,
-  fafafa.core.fs, fafafa.core.fs.highlevel;
+  fafafa.core.fs, fafafa.core.fs.tree, fafafa.core.fs.fileio, fafafa.core.fs.directory, fafafa.core.fs.options;
 
 type
   TTestCase_MoveTree_Fallback = class(TTestCase)

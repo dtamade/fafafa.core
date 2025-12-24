@@ -7,7 +7,7 @@ interface
 
 uses
   Classes, SysUtils, fpcunit, testregistry,
-  fafafa.core.fs, fafafa.core.fs.highlevel;
+  fafafa.core.fs, fafafa.core.fs.fileio, fafafa.core.fs.options;
 
 {$IFNDEF WINDOWS}
 {$WARN 5057 off}

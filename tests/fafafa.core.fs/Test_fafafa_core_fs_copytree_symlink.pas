@@ -7,7 +7,7 @@ interface
 
 uses
   Classes, SysUtils, fpcunit, testregistry,
-  fafafa.core.fs, fafafa.core.fs.highlevel, fafafa.core.fs.path;
+  fafafa.core.fs, fafafa.core.fs.tree, fafafa.core.fs.directory, fafafa.core.fs.options, fafafa.core.fs.path;
 
 type
   TTestCase_CopyTree_Symlink = class(TTestCase)

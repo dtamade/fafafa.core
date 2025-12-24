@@ -7,7 +7,7 @@ interface
 
 uses
   Classes, SysUtils, fpcunit, testregistry,
-  fafafa.core.fs.errors, fafafa.core.fs.highlevel;
+  fafafa.core.fs.errors, fafafa.core.fs.walk, fafafa.core.fs.options;
 
 // 说明：此测试用例聚焦于 WalkDir 在不同低层错误返回模式
 // （系统负错误码 vs 统一 TFsErrorCode 负值）下的行为一致性。

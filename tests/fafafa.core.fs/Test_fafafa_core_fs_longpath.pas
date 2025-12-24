@@ -7,7 +7,7 @@ interface
 
 uses
   Classes, SysUtils, fpcunit, testregistry,
-  fafafa.core.fs, fafafa.core.fs.path, fafafa.core.fs.highlevel;
+  fafafa.core.fs, fafafa.core.fs.path, fafafa.core.fs.walk, fafafa.core.fs.fileio, fafafa.core.fs.directory, fafafa.core.fs.options;
 
 // 仅在 Windows 且设置环境变量 FAFAFA_TEST_WIN_LONGPATH=1 时启用
 
