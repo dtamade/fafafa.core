@@ -41,10 +41,11 @@ type
   EInvalidObjectId = class(Exception);
 
   { IObjectIdGenerator - ObjectId generator interface }
+  // ✅ T1.2: 统一接口方法名 - 添加 NextRaw 规范命名
   IObjectIdGenerator = interface
     ['{F1A2B3C4-D5E6-F7A8-B9C0-D1E2F3A4B5C7}']
-    function Next: TObjectId;
-    function NextString: string;
+    function NextRaw: TObjectId;           // ✅ 推荐: 返回原始类型
+    function Next: string;                  // ✅ 推荐: 返回字符串 (最常用)
     function NextN(Count: Integer): TObjectIdArray;
   end;
 
@@ -92,8 +93,9 @@ type
   public
     constructor Create;
     destructor Destroy; override;  // ✅ P0: 清理敏感数据
-    function Next: TObjectId;
-    function NextString: string;
+    // ✅ T1.2: 统一接口命名
+    function NextRaw: TObjectId;
+    function Next: string;
     function NextN(Count: Integer): TObjectIdArray;
   end;
 
@@ -130,7 +132,7 @@ end;
 
 function ObjectId: TObjectId;
 begin
-  Result := GetDefaultGenerator.Next;
+  Result := GetDefaultGenerator.NextRaw;
 end;
 
 function ObjectIdNil: TObjectId;
@@ -305,7 +307,8 @@ begin
   inherited Destroy;
 end;
 
-function TObjectIdGenerator.Next: TObjectId;
+// ✅ T1.2: NextRaw 返回原始类型
+function TObjectIdGenerator.NextRaw: TObjectId;
 var
   Timestamp: UInt32;
   Counter: UInt32;
@@ -331,9 +334,10 @@ begin
   Result[11] := Counter and $FF;
 end;
 
-function TObjectIdGenerator.NextString: string;
+// ✅ T1.2: Next 返回字符串 (最常用)
+function TObjectIdGenerator.Next: string;
 begin
-  Result := ObjectIdToString(Next);
+  Result := ObjectIdToString(NextRaw);
 end;
 
 function TObjectIdGenerator.NextN(Count: Integer): TObjectIdArray;
@@ -342,7 +346,7 @@ var
 begin
   SetLength(Result, Count);
   for I := 0 to Count - 1 do
-    Result[I] := Next;
+    Result[I] := NextRaw;
 end;
 
 initialization

@@ -42,10 +42,11 @@ type
   EInvalidTimeflake = class(Exception);
 
   { ITimeflakeGenerator - Timeflake generator interface }
+  // ✅ T1.2: 统一接口方法名 - 添加 NextRaw 规范命名
   ITimeflakeGenerator = interface
     ['{A1B2C3D4-E5F6-7890-A1B2-C3D4E5F67890}']
-    function Next: TTimeflake;
-    function NextString: string;
+    function NextRaw: TTimeflake;           // ✅ 推荐: 返回原始类型
+    function Next: string;                   // ✅ 推荐: 返回字符串 (最常用)
     function NextN(Count: Integer): TTimeflakeArray;
   end;
 
@@ -98,8 +99,9 @@ type
   public
     constructor Create;
     destructor Destroy; override;
-    function Next: TTimeflake;
-    function NextString: string;
+    // ✅ T1.2: 统一接口命名
+    function NextRaw: TTimeflake;
+    function Next: string;
     function NextN(Count: Integer): TTimeflakeArray;
   end;
 
@@ -583,7 +585,7 @@ begin
   inherited Destroy;
 end;
 
-function TTimeflakeGenerator.Next: TTimeflake;
+function TTimeflakeGenerator.NextRaw: TTimeflake;
 var
   Ms: Int64;
   I: Integer;
@@ -628,9 +630,10 @@ begin
   end;
 end;
 
-function TTimeflakeGenerator.NextString: string;
+// ✅ T1.2: Next 返回字符串 (最常用)
+function TTimeflakeGenerator.Next: string;
 begin
-  Result := TimeflakeToString(Next);
+  Result := TimeflakeToString(NextRaw);
 end;
 
 function TTimeflakeGenerator.NextN(Count: Integer): TTimeflakeArray;
@@ -639,7 +642,7 @@ var
 begin
   SetLength(Result, Count);
   for I := 0 to Count - 1 do
-    Result[I] := Next;
+    Result[I] := NextRaw;
 end;
 
 initialization

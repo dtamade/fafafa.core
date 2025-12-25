@@ -31,10 +31,11 @@ uses
 
 type
   { XID 生成器接口 }
+  // ✅ T1.2: 统一接口方法名 - 添加 NextRaw 规范命名
   IXidGenerator = interface
     ['{D4E5F6A7-B8C9-0123-DEF0-456789012CDE}']
-    function Next: TXid96;
-    function NextString: string;
+    function NextRaw: TXid96;             // ✅ 推荐: 返回原始类型
+    function Next: string;                 // ✅ 推荐: 返回字符串 (最常用)
     function NextN(Count: Integer): TStringArray;
   end;
 
@@ -676,17 +677,20 @@ end;
 type
   TXidGenerator = class(TInterfacedObject, IXidGenerator)
   public
-    function Next: TXid96;
-    function NextString: string;
+    // ✅ T1.2: 统一接口命名
+    function NextRaw: TXid96;
+    function Next: string;
     function NextN(Count: Integer): TStringArray;
   end;
 
-function TXidGenerator.Next: TXid96;
+// ✅ T1.2: NextRaw 返回原始类型
+function TXidGenerator.NextRaw: TXid96;
 begin
   Result := Xid;
 end;
 
-function TXidGenerator.NextString: string;
+// ✅ T1.2: Next 返回字符串 (最常用)
+function TXidGenerator.Next: string;
 begin
   Result := XidString;
 end;

@@ -47,8 +47,20 @@ type
   procedure UuidV7_FillTextNoDashN(var Dest: array of PChar); overload;
   procedure UuidV7_FillTextNoDashStringsN(var Dest: array of string); overload;
 
-{ UUID v4 (random) }
+{**
+ * UuidV4_Raw - 生成 UUID v4 原始字节
+ *
+ * @return 16 字节随机 UUID (RFC 9562)
+ * @note 使用 CSPRNG 生成，适合安全场景
+ *}
 function UuidV4_Raw: TUuid128;
+
+{**
+ * UuidV4 - 生成 UUID v4 字符串
+ *
+ * @return 36 字符标准格式 (xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+ * @example "550e8400-e29b-41d4-a716-446655440000"
+ *}
 function UuidV4: string; overload;
   { Batch text Base64URL }
   procedure UuidV4_FillBase64UrlN(var Dest: array of PChar); overload;
@@ -58,24 +70,62 @@ function UuidV4: string; overload;
 
 procedure UuidV4(out AOut: string); overload;
 
-{ UUID v7 (Unix ms timestamp + randomness) }
+{**
+ * UuidV7_Raw - 生成 UUID v7 原始字节
+ *
+ * @param ATimestampMs Unix 毫秒时间戳
+ * @return 16 字节时间排序 UUID (RFC 9562)
+ * @note 推荐用于数据库主键 (索引友好)
+ *}
 function UuidV7_Raw(ATimestampMs: Int64): TUuid128; overload;
-function UuidV7_Raw: TUuid128; overload; // uses current time (ms)
+
+{**
+ * UuidV7_Raw - 使用当前时间生成 UUID v7
+ *
+ * @return 16 字节时间排序 UUID
+ *}
+function UuidV7_Raw: TUuid128; overload;
+
+{**
+ * UuidV7 - 生成 UUID v7 字符串
+ *
+ * @return 36 字符标准格式
+ * @example "01919d1c-4d7e-7000-8000-000000000000"
+ *}
 function UuidV7: string; overload;
 procedure UuidV7(out AOut: string); overload;
 
-{ Utilities }
+{**
+ * UuidToString - UUID 转字符串
+ *
+ * @param A 16 字节 UUID
+ * @return 36 字符标准格式
+ *}
 function UuidToString(const A: TUuid128): string;
 procedure UuidToString(const A: TUuid128; out S: string);
 function UuidToStringNoDash(const A: TUuid128): string;
+
 { Zero-allocation formatters }
-procedure UuidToChars(const A: TUuid128; Dest: PChar); inline;        // writes 36 chars
-procedure UuidToCharsNoDash(const A: TUuid128; Dest: PChar); inline;  // writes 32 chars
+{**
+ * UuidToChars - 零拷贝格式化到缓冲区
+ *
+ * @param A UUID 字节数组
+ * @param Dest 目标缓冲区 (至少 36 字节)
+ *}
+procedure UuidToChars(const A: TUuid128; Dest: PChar); inline;
+procedure UuidToCharsNoDash(const A: TUuid128; Dest: PChar); inline;
 
   { Append (no allocation if capacity pre-reserved) }
   procedure UuidAppend(const A: TUuid128; var S: string); inline;
 
-{ Parse (lenient: accepts lower/upper hex) }
+{**
+ * TryParseUuid - 解析 UUID 字符串
+ *
+ * @param S 36 字符 UUID 字符串
+ * @param A 输出 UUID 字节数组
+ * @return True 解析成功
+ * @note 接受大小写混合
+ *}
 function TryParseUuid(const S: string; out A: TUuid128): Boolean;
 { Relaxed parse: accepts 36-char dashed or 32 hex digits without dashes }
 function TryParseUuidRelaxed(const S: string; out A: TUuid128): Boolean;
@@ -93,11 +143,9 @@ function UuidV7_TimestampMsRelaxed(const S: string): Int64;
 implementation
 
 uses
-  fafafa.core.id.codec;
+  fafafa.core.id.codec,
+  fafafa.core.id.rng;  // ✅ 使用缓冲 RNG 优化性能 (提供 SecureRandomFill)
 
-
-// Forward declaration for bulk RNG helper (implemented below)
-procedure SecureRandomFill(var Buf; Count: SizeInt); forward;
 
 function UuidV4_RawN(Count: SizeInt): TUuid128Array;
 var
@@ -158,9 +206,11 @@ begin
   if n <= 0 then Exit;
   totalBytes := n * SizeOf(TUuid128);
   SecureRandomFill(OutArr[0], totalBytes);
+  // ✅ 优化: 获取一次时间戳，用于整个批量 (参考 Rust uuid7-rs 策略)
+  // 批量生成使用相同毫秒时间戳，随机部分保证唯一性
+  ts := NowUnixMs;
   for i := 0 to n-1 do
   begin
-    ts := NowUnixMs;
     OutArr[i][0] := Byte((QWord(ts) shr 40) and $FF);
     OutArr[i][1] := Byte((QWord(ts) shr 32) and $FF);
     OutArr[i][2] := Byte((QWord(ts) shr 24) and $FF);
@@ -183,10 +233,12 @@ begin
   // fill random in bulk first
   totalBytes := Count * SizeOf(TUuid128);
   SecureRandomFill(Result[0], totalBytes);
+  // ✅ 优化: 获取一次时间戳，用于整个批量 (参考 Rust uuid7-rs 策略)
+  // 批量生成使用相同毫秒时间戳，随机部分保证唯一性
+  ts := NowUnixMs;
   // apply timestamps + version/variant
   for i := 0 to Count-1 do
   begin
-    ts := NowUnixMs;
     Result[i][0] := Byte((QWord(ts) shr 40) and $FF);
     Result[i][1] := Byte((QWord(ts) shr 32) and $FF);
     Result[i][2] := Byte((QWord(ts) shr 24) and $FF);
@@ -208,12 +260,12 @@ begin
   if n <= 0 then Exit;
   totalBytes := n * SizeOf(TUuid128);
   SecureRandomFill(OutArr[0], totalBytes);
+  // ✅ 优化: 获取一次时间戳，用于整个批量 (参考 Rust uuid7-rs 策略)
+  ts := NowUnixMs;
   for i := 0 to n-1 do
   begin
-    ts := NowUnixMs;
     OutArr[i][0] := Byte((QWord(ts) shr 40) and $FF);
     OutArr[i][1] := Byte((QWord(ts) shr 32) and $FF);
-
     OutArr[i][2] := Byte((QWord(ts) shr 24) and $FF);
     OutArr[i][3] := Byte((QWord(ts) shr 16) and $FF);
     OutArr[i][4] := Byte((QWord(ts) shr 8) and $FF);
@@ -224,14 +276,10 @@ begin
 end;
 
 const
-  HEX: array[0..15] of Char = ('0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f');
+  HEX_CHARS: array[0..15] of Char = ('0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f');
 
 // Use shared time helper from fafafa.core.id.time
-
-procedure SecureRandomFill(var Buf; Count: SizeInt);
-begin
-  GetSecureRandom.GetBytes(Buf, Count);
-end;
+// SecureRandomFill 已统一到 fafafa.core.id.rng.pas
 
 function UuidVersion(const A: TUuid128): Integer; inline;
 begin
@@ -275,11 +323,11 @@ var
 begin
   P := Dest;
   // 8-4-4-4-12 groups over A[0..15]
-  for I := 0 to 3 do begin P^ := HEX[(A[I] shr 4) and $0F]; Inc(P); P^ := HEX[A[I] and $0F]; Inc(P); end; P^ := '-'; Inc(P);
-  for I := 4 to 5 do begin P^ := HEX[(A[I] shr 4) and $0F]; Inc(P); P^ := HEX[A[I] and $0F]; Inc(P); end; P^ := '-'; Inc(P);
-  for I := 6 to 7 do begin P^ := HEX[(A[I] shr 4) and $0F]; Inc(P); P^ := HEX[A[I] and $0F]; Inc(P); end; P^ := '-'; Inc(P);
-  for I := 8 to 9 do begin P^ := HEX[(A[I] shr 4) and $0F]; Inc(P); P^ := HEX[A[I] and $0F]; Inc(P); end; P^ := '-'; Inc(P);
-  for I := 10 to 15 do begin P^ := HEX[(A[I] shr 4) and $0F]; Inc(P); P^ := HEX[A[I] and $0F]; Inc(P); end;
+  for I := 0 to 3 do begin P^ := HEX_CHARS[(A[I] shr 4) and $0F]; Inc(P); P^ := HEX_CHARS[A[I] and $0F]; Inc(P); end; P^ := '-'; Inc(P);
+  for I := 4 to 5 do begin P^ := HEX_CHARS[(A[I] shr 4) and $0F]; Inc(P); P^ := HEX_CHARS[A[I] and $0F]; Inc(P); end; P^ := '-'; Inc(P);
+  for I := 6 to 7 do begin P^ := HEX_CHARS[(A[I] shr 4) and $0F]; Inc(P); P^ := HEX_CHARS[A[I] and $0F]; Inc(P); end; P^ := '-'; Inc(P);
+  for I := 8 to 9 do begin P^ := HEX_CHARS[(A[I] shr 4) and $0F]; Inc(P); P^ := HEX_CHARS[A[I] and $0F]; Inc(P); end; P^ := '-'; Inc(P);
+  for I := 10 to 15 do begin P^ := HEX_CHARS[(A[I] shr 4) and $0F]; Inc(P); P^ := HEX_CHARS[A[I] and $0F]; Inc(P); end;
 end;
 
 procedure UuidToString(const A: TUuid128; out S: string);
@@ -305,7 +353,7 @@ var
 begin
   SetLength(Result, 32);
   P := PChar(Result);
-  for I := 0 to 15 do begin P^ := HEX[(A[I] shr 4) and $0F]; Inc(P); P^ := HEX[A[I] and $0F]; Inc(P); end;
+  for I := 0 to 15 do begin P^ := HEX_CHARS[(A[I] shr 4) and $0F]; Inc(P); P^ := HEX_CHARS[A[I] and $0F]; Inc(P); end;
 end;
 
 procedure UuidToCharsNoDash(const A: TUuid128; Dest: PChar); inline;
@@ -314,7 +362,7 @@ var
   P: PChar;
 begin
   P := Dest;
-  for I := 0 to 15 do begin P^ := HEX[(A[I] shr 4) and $0F]; Inc(P); P^ := HEX[A[I] and $0F]; Inc(P); end;
+  for I := 0 to 15 do begin P^ := HEX_CHARS[(A[I] shr 4) and $0F]; Inc(P); P^ := HEX_CHARS[A[I] and $0F]; Inc(P); end;
 end;
 
 procedure UuidV4_FillTextN(var Dest: array of PChar);

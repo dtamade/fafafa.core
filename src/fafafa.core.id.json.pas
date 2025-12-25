@@ -129,7 +129,8 @@ end;
 
 function BytesToBase64Url(const Data: array of Byte): string;
 const
-  B64: array[0..63] of Char = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+  // ✅ T1.1: 统一常量命名 (B64 → BASE64_URL_CHARS)
+  BASE64_URL_CHARS: array[0..63] of Char = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
 var
   I, Len: Integer;
   Buf: array[0..2] of Byte;
@@ -143,12 +144,12 @@ begin
     if I + 1 < Len then Buf[1] := Data[I + 1] else Buf[1] := 0;
     if I + 2 < Len then Buf[2] := Data[I + 2] else Buf[2] := 0;
 
-    Result := Result + B64[Buf[0] shr 2];
-    Result := Result + B64[((Buf[0] and $03) shl 4) or (Buf[1] shr 4)];
+    Result := Result + BASE64_URL_CHARS[Buf[0] shr 2];
+    Result := Result + BASE64_URL_CHARS[((Buf[0] and $03) shl 4) or (Buf[1] shr 4)];
     if I + 1 < Len then
-      Result := Result + B64[((Buf[1] and $0F) shl 2) or (Buf[2] shr 6)];
+      Result := Result + BASE64_URL_CHARS[((Buf[1] and $0F) shl 2) or (Buf[2] shr 6)];
     if I + 2 < Len then
-      Result := Result + B64[Buf[2] and $3F];
+      Result := Result + BASE64_URL_CHARS[Buf[2] and $3F];
 
     Inc(I, 3);
   end;

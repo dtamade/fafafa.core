@@ -245,8 +245,8 @@ var
   Id1, Id2: TObjectId;
 begin
   Gen := CreateObjectIdGenerator;
-  Id1 := Gen.Next;
-  Id2 := Gen.Next;
+  Id1 := Gen.NextRaw;  // ✅ T1.2: 使用 NextRaw 获取原始类型
+  Id2 := Gen.NextRaw;
 
   AssertFalse('Generator should produce unique IDs', ObjectIdEquals(Id1, Id2));
 end;
@@ -361,8 +361,8 @@ var
   Id1, Id2: TTimeflake;
 begin
   Gen := CreateTimeflakeGenerator;
-  Id1 := Gen.Next;
-  Id2 := Gen.Next;
+  Id1 := Gen.NextRaw;  // ✅ T1.2: 使用 NextRaw 获取原始类型
+  Id2 := Gen.NextRaw;
 
   AssertTrue('Generator should produce ordered IDs', TimeflakeCompare(Id1, Id2) < 0);
 end;
