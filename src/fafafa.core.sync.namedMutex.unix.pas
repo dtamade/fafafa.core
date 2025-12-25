@@ -32,13 +32,16 @@ type
     FMutex: PPThreadMutex;
     FName: string;
     FReleased: Boolean;
+    FWasRecovered: Boolean;  // 标记锁是否从崩溃进程恢复
   public
-    constructor Create(AMutex: PPThreadMutex; const AName: string);
+    constructor Create(AMutex: PPThreadMutex; const AName: string; AWasRecovered: Boolean = False);
     destructor Destroy; override;
     function GetName: string;
     // ILockGuard 实现
     function IsLocked: Boolean;
     procedure Release;
+    // 新增：检查是否从崩溃中恢复
+    function WasRecovered: Boolean;
   end;
   TNamedMutex = class(TSynchronizable, ILock, INamedMutex)
   private
@@ -49,10 +52,13 @@ type
     FIsCreator: Boolean;        // 是否为创建者
     FShmSize: csize_t;          // 缓存共享内存大小
     FLastError: TWaitError;
-    
+    FLastLockRecovered: Boolean; // 上次锁操作是否从崩溃中恢复
+
     function ValidateName(const AName: string): string;
     function CreateShmPath(const AName: string): string;
     function InitializeMutex: Boolean;
+    // 辅助：处理锁获取结果，包括 EOWNERDEAD 恢复
+    function HandleLockResult(AResult: cint): Boolean;
   public
     constructor Create(const AName: string); overload;
     constructor Create(const AName: string; AInitialOwner: Boolean); overload;
@@ -79,7 +85,7 @@ type
     function GetHandle: Pointer;
   end;
 
-// pthread 函数声明 - 现代 Linux 系统�?pthread 函数�?libc �?
+// pthread 函数声明 - 现代 Linux 系统的 pthread 函数在 libc 中
 function pthread_mutex_init(mutex: PPThreadMutex; attr: PPThreadMutexAttr): cint; cdecl; external 'c';
 function pthread_mutex_destroy(mutex: PPThreadMutex): cint; cdecl; external 'c';
 function pthread_mutex_lock(mutex: PPThreadMutex): cint; cdecl; external 'c';
@@ -89,6 +95,9 @@ function pthread_mutex_timedlock(mutex: PPThreadMutex; abs_timeout: PTimeSpec): 
 function pthread_mutexattr_init(attr: PPThreadMutexAttr): cint; cdecl; external 'c';
 function pthread_mutexattr_destroy(attr: PPThreadMutexAttr): cint; cdecl; external 'c';
 function pthread_mutexattr_setpshared(attr: PPThreadMutexAttr; pshared: cint): cint; cdecl; external 'c';
+// Robust mutex 支持 - 进程崩溃恢复的关键
+function pthread_mutexattr_setrobust(attr: PPThreadMutexAttr; robustness: cint): cint; cdecl; external 'c';
+function pthread_mutex_consistent(mutex: PPThreadMutex): cint; cdecl; external 'c';
 
 // Direct errno access for Linux - fpGetErrno doesn't work with libc functions
 function __errno_location: pcint; cdecl; external 'c';
@@ -97,6 +106,12 @@ function GetCErrno: cint; inline;
 const
   PTHREAD_PROCESS_SHARED = 1;
   PTHREAD_PROCESS_PRIVATE = 0;
+  // Robust mutex 常量
+  PTHREAD_MUTEX_STALLED = 0;  // 默认：持有者崩溃后锁不可用
+  PTHREAD_MUTEX_ROBUST = 1;   // Robust：持有者崩溃后锁可恢复
+  // errno 常量
+  EOWNERDEAD = 130;           // 锁的前任持有者已死亡（Linux）
+  ENOTRECOVERABLE = 131;      // 锁状态不可恢复
 
 implementation
 
@@ -107,12 +122,13 @@ end;
 
 { TNamedMutexGuard }
 
-constructor TNamedMutexGuard.Create(AMutex: PPThreadMutex; const AName: string);
+constructor TNamedMutexGuard.Create(AMutex: PPThreadMutex; const AName: string; AWasRecovered: Boolean = False);
 begin
   inherited Create;
   FMutex := AMutex;
   FName := AName;
   FReleased := False;
+  FWasRecovered := AWasRecovered;
 end;
 
 destructor TNamedMutexGuard.Destroy;
@@ -142,6 +158,11 @@ begin
     pthread_mutex_unlock(FMutex);
     FReleased := True;
   end;
+end;
+
+function TNamedMutexGuard.WasRecovered: Boolean;
+begin
+  Result := FWasRecovered;
 end;
 
 { TNamedMutex }
@@ -192,7 +213,7 @@ var
 begin
   Result := False;
 
-  // 初始化互斥锁属�?
+  // 初始化互斥锁属性
   LAttrPtr := @LAttr;
   if pthread_mutexattr_init(LAttrPtr) <> 0 then
     Exit;
@@ -202,6 +223,12 @@ begin
     if pthread_mutexattr_setpshared(LAttrPtr, PTHREAD_PROCESS_SHARED) <> 0 then
       Exit;
 
+    // ★ 关键：设置为 robust mutex
+    // 当持有锁的进程崩溃时，下一个获取锁的进程会收到 EOWNERDEAD
+    // 这允许我们恢复锁状态而不是永久死锁
+    if pthread_mutexattr_setrobust(LAttrPtr, PTHREAD_MUTEX_ROBUST) <> 0 then
+      Exit;
+
     // 初始化互斥锁
     if pthread_mutex_init(FMutex, LAttrPtr) <> 0 then
       Exit;
@@ -209,6 +236,56 @@ begin
     Result := True;
   finally
     pthread_mutexattr_destroy(LAttrPtr);
+  end;
+end;
+
+// ★ 关键：处理锁获取结果，包括 EOWNERDEAD 恢复
+// 返回 True 表示成功获取锁（可能包括恢复），False 表示超时/失败
+function TNamedMutex.HandleLockResult(AResult: cint): Boolean;
+begin
+  FLastLockRecovered := False;
+
+  case AResult of
+    0: // 成功获取锁
+      begin
+        Result := True;
+      end;
+    EOWNERDEAD: // ★ 锁的前任持有者崩溃
+      begin
+        // 恢复锁状态
+        if pthread_mutex_consistent(FMutex) = 0 then
+        begin
+          FLastLockRecovered := True;
+          FLastError := weNone;
+          Result := True;
+          // 注意：调用者应该检查 FLastLockRecovered 并考虑是否需要
+          // 验证/修复被保护的共享数据
+        end
+        else
+        begin
+          // 无法恢复锁 - 这是严重错误
+          FLastError := weInvalidState;
+          pthread_mutex_unlock(FMutex);  // 释放不一致的锁
+          raise ELockError.CreateFmt(
+            'Named mutex "%s" cannot be recovered after owner death', [FOriginalName]);
+        end;
+      end;
+    ENOTRECOVERABLE: // 锁状态不可恢复
+      begin
+        FLastError := weInvalidState;
+        raise ELockError.CreateFmt(
+          'Named mutex "%s" is in unrecoverable state', [FOriginalName]);
+      end;
+    ESysETIMEDOUT, ESysEAGAIN, ESysEBUSY: // 超时或锁忙
+      begin
+        FLastError := weTimeout;
+        Result := False;
+      end;
+  else
+    // 其他错误
+    FLastError := weInvalidState;
+    raise ELockError.CreateFmt('Failed to acquire named mutex "%s": %s',
+      [FOriginalName, SysErrorMessage(AResult)]);
   end;
 end;
 
@@ -238,6 +315,7 @@ begin
   FShmFile := -1;
   FMutex := nil;
   FLastError := weNone;
+  FLastLockRecovered := False;
 
   // 缓存共享内存大小（pthread_mutex_t 的大小）
   FShmSize := SizeOf(TPThreadMutex);
@@ -339,19 +417,41 @@ begin
 end;
 
 function TNamedMutex.LockNamed: INamedMutexGuard;
+var
+  LResult: cint;
 begin
-  // Directly use pthread mutex lock to avoid overhead
-  if pthread_mutex_lock(FMutex) <> 0 then
-    raise ELockError.CreateFmt('Failed to acquire named mutex "%s": %s',
-      [FOriginalName, SysErrorMessage(GetCErrno)]);
-
-  Result := TNamedMutexGuard.Create(FMutex, FOriginalName);
+  // 获取锁，支持 EOWNERDEAD 恢复
+  LResult := pthread_mutex_lock(FMutex);
+  if HandleLockResult(LResult) then
+    Result := TNamedMutexGuard.Create(FMutex, FOriginalName, FLastLockRecovered)
+  else
+    raise ELockError.CreateFmt('Failed to acquire named mutex "%s"', [FOriginalName]);
 end;
 
 function TNamedMutex.TryLockNamed: INamedMutexGuard;
+var
+  LResult: cint;
 begin
-  if pthread_mutex_trylock(FMutex) = 0 then
-    Result := TNamedMutexGuard.Create(FMutex, FOriginalName)
+  LResult := pthread_mutex_trylock(FMutex);
+  if LResult = 0 then
+  begin
+    FLastLockRecovered := False;
+    Result := TNamedMutexGuard.Create(FMutex, FOriginalName, False);
+  end
+  else if LResult = EOWNERDEAD then
+  begin
+    // 锁的前任持有者崩溃，尝试恢复
+    if pthread_mutex_consistent(FMutex) = 0 then
+    begin
+      FLastLockRecovered := True;
+      Result := TNamedMutexGuard.Create(FMutex, FOriginalName, True);
+    end
+    else
+    begin
+      pthread_mutex_unlock(FMutex);
+      Result := nil;
+    end;
+  end
   else
     Result := nil;
 end;
@@ -367,17 +467,14 @@ begin
   if ATimeoutMs = Cardinal(-1) then
     Exit(LockNamed);
 
-  // 使用高效�?pthread_mutex_timedlock
+  // 使用 pthread_mutex_timedlock，支持 EOWNERDEAD 恢复
   LTimespec := TimeoutToTimespec(ATimeoutMs);
   LResult := pthread_mutex_timedlock(FMutex, @LTimespec);
 
-  if LResult = 0 then
-    Result := TNamedMutexGuard.Create(FMutex, FOriginalName)
-  else if LResult = ESysETIMEDOUT then
-    Result := nil
+  if HandleLockResult(LResult) then
+    Result := TNamedMutexGuard.Create(FMutex, FOriginalName, FLastLockRecovered)
   else
-    raise ELockError.CreateFmt('Failed to acquire named mutex "%s" with timeout: %s',
-      [FOriginalName, SysErrorMessage(LResult)]);
+    Result := nil;  // 超时
 end;
 
 function TNamedMutex.GetName: string;
@@ -386,13 +483,15 @@ begin
 end;
 
 procedure TNamedMutex.Acquire;
+var
+  LResult: cint;
 begin
   if FMutex = nil then
     raise ELockError.CreateFmt('Named mutex "%s" not initialized', [FOriginalName]);
 
-  if pthread_mutex_lock(@FMutex^) <> 0 then
-    raise ELockError.CreateFmt('Failed to acquire named mutex "%s": %s',
-      [FOriginalName, SysErrorMessage(GetCErrno)]);
+  LResult := pthread_mutex_lock(FMutex);
+  if not HandleLockResult(LResult) then
+    raise ELockError.CreateFmt('Failed to acquire named mutex "%s"', [FOriginalName]);
 end;
 
 procedure TNamedMutex.Release;
@@ -400,17 +499,40 @@ begin
   if FMutex = nil then
     raise ELockError.CreateFmt('Named mutex "%s" not initialized', [FOriginalName]);
 
-  if pthread_mutex_unlock(@FMutex^) <> 0 then
+  if pthread_mutex_unlock(FMutex) <> 0 then
     raise ELockError.CreateFmt('Failed to release named mutex "%s": %s',
       [FOriginalName, SysErrorMessage(GetCErrno)]);
 end;
 
 function TNamedMutex.TryAcquireLock: Boolean;
+var
+  LResult: cint;
 begin
   if FMutex = nil then
     raise ELockError.CreateFmt('Named mutex "%s" not initialized', [FOriginalName]);
 
-  Result := pthread_mutex_trylock(@FMutex^) = 0;
+  LResult := pthread_mutex_trylock(FMutex);
+  if LResult = 0 then
+  begin
+    FLastLockRecovered := False;
+    Result := True;
+  end
+  else if LResult = EOWNERDEAD then
+  begin
+    // 锁的前任持有者崩溃，尝试恢复
+    if pthread_mutex_consistent(FMutex) = 0 then
+    begin
+      FLastLockRecovered := True;
+      Result := True;
+    end
+    else
+    begin
+      pthread_mutex_unlock(FMutex);
+      Result := False;
+    end;
+  end
+  else
+    Result := False;
 end;
 
 function TNamedMutex.TryAcquireLock(ATimeoutMs: Cardinal): Boolean;
@@ -418,7 +540,7 @@ var
   LTimespec: TTimeSpec;
   LResult: cint;
 begin
-  Result := False;  // 初始化返回值
+  Result := False; // 默认值，避免编译器警告
   if ATimeoutMs = 0 then
     Exit(TryAcquireLock);
 
@@ -432,15 +554,10 @@ begin
     raise ELockError.CreateFmt('Named mutex "%s" not initialized', [FOriginalName]);
 
   LTimespec := TimeoutToTimespec(ATimeoutMs);
-  LResult := pthread_mutex_timedlock(@FMutex^, @LTimespec);
+  LResult := pthread_mutex_timedlock(FMutex, @LTimespec);
 
-  if LResult = 0 then
-    Result := True
-  else if LResult = ESysETIMEDOUT then
-    Result := False
-  else
-    raise ELockError.CreateFmt('Failed to acquire named mutex "%s" with timeout: %s',
-      [FOriginalName, SysErrorMessage(LResult)]);
+  // 使用统一的结果处理，支持 EOWNERDEAD 恢复
+  Result := HandleLockResult(LResult);
 end;
 
 function TNamedMutex.GetHandle: Pointer;

@@ -17,7 +17,6 @@ interface
 
 uses
   Classes, SysUtils, fpcunit, testregistry,
-  fafafa.core.sync,
   fafafa.core.sync.base,
   fafafa.core.sync.mutex,
   fafafa.core.sync.rwlock,

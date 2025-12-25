@@ -20,7 +20,7 @@ unit fafafa.core.sync.timespec;
 interface
 
 uses
-  BaseUnix, Unix;
+  Unix;
 
 const
   { POSIX 时钟常量 }
