@@ -17,12 +17,6 @@ uses
 
 type
 
-  {** TMapEntry<K,V> - Key-Value pair record }
-  generic TMapEntry<K,V> = record
-    Key: K;
-    Value: V;
-  end;
-
   {** TKeyValueCallback - Callback for key-value pairs }
   generic TKeyValueCallback<K, V> = procedure(const aEntry: specialize TMapEntry<K, V>; aData: Pointer);
 
@@ -335,7 +329,6 @@ type
     procedure RotateLeft(aNode: PNode);
     procedure RotateRight(aNode: PNode);
     function InsertNode(const aKey: K; const aValue: V; out aExisted: Boolean): PNode;
-    function DeleteNode(const aKey: K): Boolean; deprecated 'Use Remove instead';
     function FindNode(const aKey: K): PNode;
     function GetMaximum(aNode: PNode): PNode;
     function GetLowerBoundNode(const aKey: K): PNode;
@@ -1064,11 +1057,6 @@ begin
     FixDelete(LChild, LChildParent);
 
   Result := True;
-end;
-
-function TRedBlackTree.DeleteNode(const aKey: K): Boolean;
-begin
-  Result := Remove(aKey);
 end;
 
 procedure TRedBlackTree.InOrderTraversal(aNode: PNode; const aCallback: specialize TKeyValueCallback<K, V>);

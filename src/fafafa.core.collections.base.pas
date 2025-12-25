@@ -21,6 +21,28 @@ type
 
   generic TGenericArray<T> = array of T;
 
+  {**
+   * TMapEntry<K,V> - 键值对记录
+   *
+   * @desc 用于 Map 类型容器的统一键值对类型
+   * @param K 键类型
+   * @param V 值类型
+   *}
+  generic TMapEntry<K,V> = record
+    Key: K;
+    Value: V;
+  end;
+
+  {**
+   * TPair<K,V> - 键值对记录（与 TMapEntry 结构相同）
+   *
+   * @desc 保持向后兼容，部分模块使用 TPair 命名
+   *}
+  generic TPair<K,V> = record
+    Key: K;
+    Value: V;
+  end;
+
   PPtrIter = ^TPtrIter;
 
   { TPtrIter 指针迭代器 }

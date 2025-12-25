@@ -14,6 +14,7 @@ uses
   fafafa.core.collections.tree.rb;
 
 type
+  {** TRBMapEntry<K,V> - 红黑树映射条目 }
   generic TRBMapEntry<K,V> = record
     Key: K;
     Value: V;

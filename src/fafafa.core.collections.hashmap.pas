@@ -32,18 +32,6 @@ type
    *}
   generic TKeyEqualsFunc<K> = function (const L, R: K): Boolean;
 
-  {**
-   * TMapEntry<K,V>
-   *
-   * @desc Key-value pair for HashMap elements
-   * @param K Key type
-   * @param V Value type
-   *}
-  generic TMapEntry<K,V> = record
-    Key: K;
-    Value: V;
-  end;
-
   { Entry API 回调类型 }
   generic TValueSupplierFunc<V> = function: V;
   generic TValueModifierProc<V> = procedure(var Value: V);

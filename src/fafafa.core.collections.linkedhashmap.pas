@@ -15,16 +15,6 @@ uses
 
 type
   {**
-   * TPair<K,V>
-   *
-   * @desc Key-value pair for iteration
-   *}
-  generic TPair<K,V> = record
-    Key: K;
-    Value: V;
-  end;
-
-  {**
    * ILinkedHashMap<K,V>
    *
    * @desc Hash map that maintains insertion order
