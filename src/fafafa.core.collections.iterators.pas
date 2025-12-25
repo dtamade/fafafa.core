@@ -533,6 +533,9 @@ var
   LSource: TSourceIter;
   LCapacity, LCount: SizeUInt;
 begin
+  // Initialize Result to ensure managed types are properly set up
+  Result := Default(specialize TRevIter<T>);
+
   // Collect all elements from source in one pass
   LSource := aSource;
   LCapacity := 16;
