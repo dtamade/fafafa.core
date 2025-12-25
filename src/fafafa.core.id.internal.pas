@@ -83,6 +83,34 @@ procedure ClearSensitive10(var Data: TBytes10); inline;
  *}
 procedure ClearSensitive6(var Data: TBytes6); inline;
 
+{ 十六进制转换 }
+
+{**
+ * HexCharToNibble - 单个十六进制字符转数值
+ *
+ * @param C 十六进制字符 (0-9, a-f, A-F)
+ * @param V 输出数值 (0-15)
+ * @return True 如果字符有效
+ *}
+function HexCharToNibble(C: Char; out V: Byte): Boolean; inline;
+
+{**
+ * HexCharValue - 单个十六进制字符转数值 (无验证)
+ *
+ * @param C 十六进制字符 (0-9, a-f, A-F)
+ * @return 数值 (0-15)，无效字符返回 0
+ *}
+function HexCharValue(C: Char): Byte; inline;
+
+{**
+ * HexToByte - 两个十六进制字符转字节
+ *
+ * @param C1 高位字符
+ * @param C2 低位字符
+ * @return 字节值
+ *}
+function HexToByte(C1, C2: Char): Byte; inline;
+
 { 安全随机填充 }
 
 {**
@@ -168,6 +196,36 @@ end;
 procedure ClearSensitive6(var Data: TBytes6);
 begin
   FillChar(Data[0], SizeOf(Data), 0);
+end;
+
+{ 十六进制转换 }
+
+function HexCharToNibble(C: Char; out V: Byte): Boolean;
+begin
+  case C of
+    '0'..'9': begin V := Ord(C) - Ord('0'); Result := True; end;
+    'a'..'f': begin V := 10 + (Ord(C) - Ord('a')); Result := True; end;
+    'A'..'F': begin V := 10 + (Ord(C) - Ord('A')); Result := True; end;
+  else
+    V := 0;
+    Result := False;
+  end;
+end;
+
+function HexCharValue(C: Char): Byte;
+begin
+  case C of
+    '0'..'9': Result := Ord(C) - Ord('0');
+    'a'..'f': Result := 10 + (Ord(C) - Ord('a'));
+    'A'..'F': Result := 10 + (Ord(C) - Ord('A'));
+  else
+    Result := 0;
+  end;
+end;
+
+function HexToByte(C1, C2: Char): Byte;
+begin
+  Result := (HexCharValue(C1) shl 4) or HexCharValue(C2);
 end;
 
 { 安全随机填充 }

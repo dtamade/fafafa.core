@@ -31,8 +31,10 @@
 | T3.1 | nanoid.md 文档 | 2024-12-25 | 375b4a1 |
 | T3.2 | xid.md 文档 | 2024-12-25 | 375b4a1 |
 | T3.3 | architecture.md 文档 | 2024-12-25 | 375b4a1 |
-| SEC-3 | CUID2 DCL 竞态条件修复 | 2024-12-25 | pending |
-| SEC-4 | Sonyflake 线程安全修复 | 2024-12-25 | pending |
+| SEC-3 | CUID2 DCL 竞态条件修复 | 2024-12-25 | 694c298 |
+| SEC-4 | Sonyflake 线程安全修复 | 2024-12-25 | 694c298 |
+| CODE-1 | HexToByte/HexVal 统一到 internal.pas | 2024-12-25 | 2275b19 |
+| CODE-2 | XID Base32 256字节查表优化 | 2024-12-25 | 2275b19 |
 
 ---
 
@@ -58,6 +60,11 @@
 - [x] rng.pas: TLS RNG (GetThreadIdRng, IdRngFillBytesTLS)
 - [x] sqids.pas: 栈缓冲区 + 预分配字符串
 - [x] ulid.pas: 256 字节 Base32 查表
+- [x] xid.pas: 256 字节 Base32 查表 (XID_BASE32_DECODE) ✅ 新增
+
+### 代码质量改进
+- [x] internal.pas: 统一 HexCharToNibble/HexCharValue/HexToByte ✅ 新增
+- [x] timeflake/objectid/uuid 解析使用共享 hex 函数 ✅ 新增
 
 ### 测试增强
 - [x] Test_fafafa_core_id_threadsafe.pas (6 tests)

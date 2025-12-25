@@ -83,6 +83,7 @@ implementation
 
 uses
   fafafa.core.crypto.random,
+  fafafa.core.id.internal,  // ✅ 共享 HexToByte
   fafafa.core.id.rng;  // ✅ 缓冲 RNG 优化
 
 type
@@ -158,22 +159,7 @@ begin
   end;
 end;
 
-function HexToByte(C1, C2: Char): Byte;
-
-  function HexVal(C: Char): Byte;
-  begin
-    case C of
-      '0'..'9': Result := Ord(C) - Ord('0');
-      'a'..'f': Result := Ord(C) - Ord('a') + 10;
-      'A'..'F': Result := Ord(C) - Ord('A') + 10;
-    else
-      Result := 0;
-    end;
-  end;
-
-begin
-  Result := (HexVal(C1) shl 4) or HexVal(C2);
-end;
+// ✅ P1: 使用 fafafa.core.id.internal.HexToByte
 
 function ObjectIdFromString(const S: string): TObjectId;
 var

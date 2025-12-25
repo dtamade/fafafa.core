@@ -144,6 +144,7 @@ implementation
 
 uses
   fafafa.core.id.codec,
+  fafafa.core.id.internal,  // ✅ 共享 HexCharToNibble
   fafafa.core.id.rng;  // ✅ 使用缓冲 RNG 优化性能 (提供 SecureRandomFill)
 
 
@@ -449,15 +450,7 @@ begin
   for i := 0 to n-1 do begin R := UuidV7_Raw; SetLength(Dest[i], 22); UuidToBase64UrlChars(R, PChar(Dest[i])); end;
 end;
 
-function HexVal(C: Char; out V: Byte): Boolean; inline;
-begin
-  case C of
-    '0'..'9': begin V := Ord(C) - Ord('0'); Exit(True); end;
-    'a'..'f': begin V := 10 + (Ord(C) - Ord('a')); Exit(True); end;
-    'A'..'F': begin V := 10 + (Ord(C) - Ord('A')); Exit(True); end;
-  end;
-  V := 0; Result := False;
-end;
+// ✅ P1: 使用 fafafa.core.id.internal.HexCharToNibble (替代本地 HexVal)
 
 function TryParseUuid(const S: string; out A: TUuid128): Boolean;
 var
@@ -482,7 +475,7 @@ begin
   K := 0;
   for I := 0 to 15 do
   begin
-    if (not HexVal(HexOnly[I*2], V1)) or (not HexVal(HexOnly[I*2+1], V2)) then Exit;
+    if (not HexCharToNibble(HexOnly[I*2], V1)) or (not HexCharToNibble(HexOnly[I*2+1], V2)) then Exit;
     A[K] := (V1 shl 4) or V2;
     Inc(K);
   end;
@@ -508,7 +501,7 @@ begin
     K := 0;
     for I := 0 to 15 do
     begin
-      if (not HexVal(HexOnly[I*2], V1)) or (not HexVal(HexOnly[I*2+1], V2)) then Exit(False);
+      if (not HexCharToNibble(HexOnly[I*2], V1)) or (not HexCharToNibble(HexOnly[I*2+1], V2)) then Exit(False);
       A[K] := (V1 shl 4) or V2; Inc(K);
     end;
     Exit(True);
