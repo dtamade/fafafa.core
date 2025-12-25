@@ -88,6 +88,8 @@ end;
 
 destructor TUlidGenerator.Destroy;
 begin
+  // ✅ P0: 清理敏感随机数据
+  FillChar(FRandom[0], SizeOf(FRandom), 0);
   FLock.Free;
   inherited Destroy;
 end;

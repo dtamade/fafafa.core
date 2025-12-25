@@ -15,6 +15,7 @@ interface
 
 uses
   SysUtils, DateUtils, fpcunit, testregistry,
+  fafafa.core.math,
   fafafa.core.id,
   fafafa.core.id.v8,
   fafafa.core.id.ulid,

@@ -13,6 +13,8 @@ interface
 
 uses
   Classes, SysUtils, fpcunit, testregistry, DateUtils,
+  fafafa.core.math,
+  fafafa.core.id.base,    // ✅ TXid96, TXid96Array 类型定义
   fafafa.core.id.nanoid,
   fafafa.core.id.typeid,
   fafafa.core.id.xid,

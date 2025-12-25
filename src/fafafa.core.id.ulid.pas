@@ -46,38 +46,51 @@ procedure UlidFillTextStringsN(var Dest: array of string);
 
 implementation
 
+uses
+  fafafa.core.id.rng;  // ✅ 缓冲 RNG 优化
+
 const
   // Crockford Base32 alphabet (upper‑case, no I,L,O,U)
   ULID_ALPHABET: PChar = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
 
-// Use shared time helper from fafafa.core.id.time
+  // ✅ P2 优化: 256 字节查表替代 O(n) 线性搜索
+  // $FF = 无效字符，0-31 = Base32 索引
+  // 支持 Crockford 容错: I/L -> 1, O -> 0
+  ULID_BASE32_LOOKUP: array[0..255] of Byte = (
+    // 0x00-0x0F: 控制字符
+    $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF,
+    // 0x10-0x1F: 控制字符
+    $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF,
+    // 0x20-0x2F: 空格和标点
+    $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF,
+    // 0x30-0x3F: '0'-'9' -> 0-9, 然后标点
+       0,    1,    2,    3,    4,    5,    6,    7,    8,    9, $FF, $FF, $FF, $FF, $FF, $FF,
+    // 0x40-0x4F: '@', 'A'-'O'
+    // A=10, B=11, C=12, D=13, E=14, F=15, G=16, H=17, I->1, J=18, K=19, L->1, M=20, N=21, O->0
+    $FF,   10,   11,   12,   13,   14,   15,   16,   17,    1,   18,   19,    1,   20,   21,    0,
+    // 0x50-0x5F: 'P'-'Z', '[', '\', ']', '^', '_'
+    // P=22, Q=23, R=24, S=25, T=26, U=$FF, V=27, W=28, X=29, Y=30, Z=31
+      22,   23,   24,   25,   26, $FF,   27,   28,   29,   30,   31, $FF, $FF, $FF, $FF, $FF,
+    // 0x60-0x6F: '`', 'a'-'o' (小写映射同大写)
+    $FF,   10,   11,   12,   13,   14,   15,   16,   17,    1,   18,   19,    1,   20,   21,    0,
+    // 0x70-0x7F: 'p'-'z', '{', '|', '}', '~', DEL
+      22,   23,   24,   25,   26, $FF,   27,   28,   29,   30,   31, $FF, $FF, $FF, $FF, $FF,
+    // 0x80-0xFF: 扩展 ASCII（全部无效）
+    $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF,
+    $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF,
+    $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF,
+    $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF,
+    $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF,
+    $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF,
+    $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF,
+    $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF, $FF
+  );
 
-procedure SecureRandomFill(var Buf; Count: SizeInt);
-begin
-  GetSecureRandom.GetBytes(Buf, Count);
-end;
-
+// ✅ P2 优化: O(1) 查表替代 O(32) 线性搜索
 function FindBase32Val(C: Char; out V: Byte): Boolean; inline;
-var
-  U: Char;
-  I: Integer;
 begin
-  // normalize to upper
-  if (C >= 'a') and (C <= 'z') then
-    U := Chr(Ord(C) - Ord('a') + Ord('A'))
-  else
-    U := C;
-  // tolerant mapping for ambiguous letters per Crockford (optional):
-  if U = 'O' then U := '0';
-  if U = 'I' then U := '1';
-  if U = 'L' then U := '1';
-  // find index
-  for I := 0 to 31 do
-    if ULID_ALPHABET[I] = U then
-    begin
-      V := I; Exit(True);
-    end;
-  V := 0; Result := False;
+  V := ULID_BASE32_LOOKUP[Ord(C)];
+  Result := (V <> $FF);
 end;
 
 procedure PutBase32Char(Index: Byte; var P: PChar); inline;

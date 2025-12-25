@@ -34,14 +34,21 @@ type
     BackwardPolicy: TSnowflakeBackwardPolicy;
   end;
 
-  ISnowflake = interface
+  ISnowflakeGenerator = interface
     ['{8F2F2B21-2E81-4CF6-ABAF-CC78A5F5EAF3}']
-    function NextID: TSnowflakeID;
+    // ✅ P1: 统一方法命名 - NextRaw 返回原始类型
+    function NextRaw: TSnowflakeID;
+    function Next: string;
+    // 向后兼容
+    function NextID: TSnowflakeID; deprecated 'Use NextRaw instead';
     function GetWorkerId: Word;
     function GetEpochMs: Int64;
     property WorkerId: Word read GetWorkerId;
     property EpochMs: Int64 read GetEpochMs;
   end;
+
+  // ✅ P1: 向后兼容别名
+  ISnowflake = ISnowflakeGenerator;
 
 function CreateSnowflake(AWorkerId: Word = 0; AEpochMs: Int64 = 1288834974657): ISnowflake;
 function CreateSnowflakeEx(const Config: TSnowflakeConfig): ISnowflake;
@@ -81,7 +88,7 @@ begin
 end;
 
 type
-  TSnowflake = class(TInterfacedObject, ISnowflake)
+  TSnowflake = class(TInterfacedObject, ISnowflakeGenerator)
   private
     FWorkerId: Word;
     FEpochMs: Int64;
@@ -92,6 +99,8 @@ type
   public
     constructor Create(AWorkerId: Word; AEpochMs: Int64; APolicy: TSnowflakeBackwardPolicy);
     destructor Destroy; override;
+    function NextRaw: TSnowflakeID;
+    function Next: string;
     function NextID: TSnowflakeID;
     function GetWorkerId: Word;
     function GetEpochMs: Int64;
@@ -139,6 +148,17 @@ begin
 end;
 
 function TSnowflake.NextID: TSnowflakeID;
+begin
+  Result := NextRaw;
+end;
+
+// ✅ P1: 新增 Next 方法返回字符串
+function TSnowflake.Next: string;
+begin
+  Result := IntToStr(NextRaw);
+end;
+
+function TSnowflake.NextRaw: TSnowflakeID;
 var
   LMs: Int64;
   LSeq: Word;

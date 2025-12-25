@@ -15,6 +15,8 @@ uses
   DateUtils,
   fpcunit,
   testregistry,
+  fafafa.core.math,
+  fafafa.core.id.base,     // ✅ TTimeflake, TObjectId 类型定义
   fafafa.core.id.sqids,
   fafafa.core.id.objectid,
   fafafa.core.id.timeflake;

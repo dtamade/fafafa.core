@@ -27,15 +27,18 @@ unit fafafa.core.id.objectid;
 interface
 
 uses
-  SysUtils, DateUtils;
+  SysUtils, DateUtils, SyncObjs,
+  fafafa.core.id.base;  // ✅ P1: 统一类型定义
 
 const
   OBJECTID_SIZE = 12;
   OBJECTID_STRING_LENGTH = 24;
 
+{ 注意: TObjectId, TObjectIdArray 现在在 fafafa.core.id.base 中定义 }
+
 type
-  TObjectId = packed array[0..11] of Byte;
-  TObjectIdArray = array of TObjectId;
+  { EInvalidObjectId - Invalid ObjectId string exception }
+  EInvalidObjectId = class(Exception);
 
   { IObjectIdGenerator - ObjectId generator interface }
   IObjectIdGenerator = interface
@@ -54,6 +57,14 @@ function ObjectIdN(Count: Integer): TObjectIdArray;
 function ObjectIdToString(const Id: TObjectId): string;
 function ObjectIdFromString(const S: string): TObjectId;
 function IsValidObjectIdString(const S: string): Boolean;
+// ✅ P1: 统一解析函数命名
+function TryParseObjectId(const S: string; out Id: TObjectId): Boolean;
+// ✅ P2: 异常版本解析函数（对标 Rust）
+function ParseObjectId(const S: string): TObjectId;
+
+{ Zero-copy API }
+// ✅ P2: 零拷贝格式化
+procedure ObjectIdToChars(const Id: TObjectId; Dest: PChar); inline;
 
 { Properties }
 function ObjectIdTimestamp(const Id: TObjectId): TDateTime;
@@ -70,7 +81,8 @@ function CreateObjectIdGenerator: IObjectIdGenerator;
 implementation
 
 uses
-  fafafa.core.crypto.random;
+  fafafa.core.crypto.random,
+  fafafa.core.id.rng;  // ✅ 缓冲 RNG 优化
 
 type
   TObjectIdGenerator = class(TInterfacedObject, IObjectIdGenerator)
@@ -79,6 +91,7 @@ type
     FCounter: UInt32;              // 3-byte counter (lower 24 bits)
   public
     constructor Create;
+    destructor Destroy; override;  // ✅ P0: 清理敏感数据
     function Next: TObjectId;
     function NextString: string;
     function NextN(Count: Integer): TObjectIdArray;
@@ -86,12 +99,33 @@ type
 
 var
   GDefaultGenerator: IObjectIdGenerator = nil;
+  GObjectIdLock: TCriticalSection = nil;  // ✅ P0: 线程安全锁
 
 function GetDefaultGenerator: IObjectIdGenerator;
+var
+  LocalGen: IObjectIdGenerator;
 begin
-  if GDefaultGenerator = nil then
-    GDefaultGenerator := CreateObjectIdGenerator;
-  Result := GDefaultGenerator;
+  // ✅ P0: DCL 模式 + 内存屏障
+  LocalGen := GDefaultGenerator;
+  ReadWriteBarrier;
+  if LocalGen <> nil then
+  begin
+    Result := LocalGen;
+    Exit;
+  end;
+
+  GObjectIdLock.Acquire;
+  try
+    if GDefaultGenerator = nil then
+    begin
+      LocalGen := CreateObjectIdGenerator;
+      ReadWriteBarrier;
+      GDefaultGenerator := LocalGen;
+    end;
+    Result := GDefaultGenerator;
+  finally
+    GObjectIdLock.Release;
+  end;
 end;
 
 function ObjectId: TObjectId;
@@ -110,16 +144,15 @@ begin
 end;
 
 function ObjectIdToString(const Id: TObjectId): string;
-const
-  HexChars: array[0..15] of Char = '0123456789abcdef';
 var
   I: Integer;
 begin
+  // ✅ P3: 使用统一 HEX_CHARS 常量
   SetLength(Result, OBJECTID_STRING_LENGTH);
   for I := 0 to 11 do
   begin
-    Result[I * 2 + 1] := HexChars[Id[I] shr 4];
-    Result[I * 2 + 2] := HexChars[Id[I] and $0F];
+    Result[I * 2 + 1] := HEX_CHARS[Id[I] shr 4];
+    Result[I * 2 + 2] := HEX_CHARS[Id[I] and $0F];
   end;
 end;
 
@@ -165,6 +198,37 @@ begin
       Exit;
 
   Result := True;
+end;
+
+// ✅ P1: TryParseObjectId 统一解析函数
+function TryParseObjectId(const S: string; out Id: TObjectId): Boolean;
+begin
+  if not IsValidObjectIdString(S) then
+  begin
+    FillChar(Id[0], OBJECTID_SIZE, 0);
+    Exit(False);
+  end;
+  Id := ObjectIdFromString(S);
+  Result := True;
+end;
+
+// ✅ P2: ParseObjectId - 异常版本（对标 Rust）
+function ParseObjectId(const S: string): TObjectId;
+begin
+  if not TryParseObjectId(S, Result) then
+    raise EInvalidObjectId.CreateFmt('Invalid ObjectId string: "%s"', [S]);
+end;
+
+// ✅ P2: 零拷贝格式化
+procedure ObjectIdToChars(const Id: TObjectId; Dest: PChar); inline;
+var
+  I: Integer;
+begin
+  for I := 0 to 11 do
+  begin
+    Dest[I * 2] := HEX_CHARS[Id[I] shr 4];
+    Dest[I * 2 + 1] := HEX_CHARS[Id[I] and $0F];
+  end;
 end;
 
 function ObjectIdTimestamp(const Id: TObjectId): TDateTime;
@@ -226,10 +290,19 @@ constructor TObjectIdGenerator.Create;
 begin
   inherited Create;
   // Generate random 5-byte machine/process identifier
-  GetSecureRandom.GetBytes(FRandom[0], 5);
+  // ✅ 使用缓冲 RNG 优化
+  IdRngFillBytes(FRandom[0], 5);
   // Random starting counter
-  GetSecureRandom.GetBytes(FCounter, 3);
+  IdRngFillBytes(FCounter, 3);
   FCounter := FCounter and $00FFFFFF;  // Keep only 24 bits
+end;
+
+destructor TObjectIdGenerator.Destroy;
+begin
+  // ✅ P0: 清理敏感随机数据
+  FillChar(FRandom[0], SizeOf(FRandom), 0);
+  FCounter := 0;
+  inherited Destroy;
 end;
 
 function TObjectIdGenerator.Next: TObjectId;
@@ -271,5 +344,12 @@ begin
   for I := 0 to Count - 1 do
     Result[I] := Next;
 end;
+
+initialization
+  GObjectIdLock := TCriticalSection.Create;
+
+finalization
+  GDefaultGenerator := nil;
+  GObjectIdLock.Free;
 
 end.

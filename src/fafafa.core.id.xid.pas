@@ -24,12 +24,12 @@ unit fafafa.core.id.xid;
 interface
 
 uses
-  SysUtils, DateUtils;
+  SysUtils, DateUtils, SyncObjs,
+  fafafa.core.id.base;  // ✅ P1: 统一类型定义
+
+{ 注意: TXid96, TXid96Array 现在在 fafafa.core.id.base 中定义 }
 
 type
-  { XID 原始类型 (12 字节) }
-  TXid96 = array[0..11] of Byte;
-
   { XID 生成器接口 }
   IXidGenerator = interface
     ['{D4E5F6A7-B8C9-0123-DEF0-456789012CDE}']
@@ -96,7 +96,6 @@ function XidN(Count: Integer): TStringArray;
  * @param Count 生成数量
  * @return XID 原始数组
  *}
-type TXid96Array = array of TXid96;
 function XidBatchN(Count: Integer): TXid96Array;
 
 { 编码/解码 }
@@ -127,6 +126,13 @@ function XidFromString(const S: string): TXid96;
  * @return True 如果解析成功
  *}
 function TryXidFromString(const S: string; out X: TXid96): Boolean;
+
+// ✅ P1: 统一解析函数命名 - TryParseXid 作为推荐名称
+function TryParseXid(const S: string; out X: TXid96): Boolean; inline;
+
+{ Zero-copy API }
+// ✅ P2: 零拷贝格式化
+procedure XidToChars(const X: TXid96; Dest: PChar); inline;
 
 { 组件提取 }
 
@@ -231,7 +237,8 @@ uses
   {$IFDEF WINDOWS}
   Windows,
   {$ENDIF}
-  fafafa.core.crypto.random;
+  fafafa.core.crypto.random,
+  fafafa.core.id.rng;  // ✅ 缓冲 RNG 优化
 
 const
   { XID Base32 字母表 (小写，无 I L O U) }
@@ -250,45 +257,80 @@ var
   GCounter: UInt32;
   GCounterInitialized: Boolean = False;
 
+  { ✅ P0: 全局初始化锁 }
+  GXidInitLock: TCriticalSection = nil;
+
 { 初始化函数 }
 
 procedure InitMachineId;
 var
   Bytes: array[0..2] of Byte;
 begin
+  // ✅ P0: 快速路径检查
   if GMachineIdInitialized then Exit;
 
-  // 生成随机机器 ID
-  GetSecureRandom.GetBytes(Bytes[0], 3);
-  Move(Bytes[0], GMachineId[0], 3);
-  GMachineIdInitialized := True;
+  GXidInitLock.Acquire;
+  try
+    // 双重检查
+    if GMachineIdInitialized then Exit;
+
+    // 生成随机机器 ID
+    // ✅ 使用缓冲 RNG 优化
+    IdRngFillBytes(Bytes[0], 3);
+    Move(Bytes[0], GMachineId[0], 3);
+    ReadWriteBarrier;
+    GMachineIdInitialized := True;
+  finally
+    GXidInitLock.Release;
+  end;
 end;
 
 procedure InitProcessId;
 begin
+  // ✅ P0: 快速路径检查
   if GProcessIdInitialized then Exit;
 
-  {$IFDEF UNIX}
-  GProcessId := Word(FpGetPid mod 65536);
-  {$ELSE}
-  GProcessId := Word(GetCurrentProcessId mod 65536);
-  {$ENDIF}
-  GProcessIdInitialized := True;
+  GXidInitLock.Acquire;
+  try
+    // 双重检查
+    if GProcessIdInitialized then Exit;
+
+    {$IFDEF UNIX}
+    GProcessId := Word(FpGetPid mod 65536);
+    {$ELSE}
+    GProcessId := Word(GetCurrentProcessId mod 65536);
+    {$ENDIF}
+    ReadWriteBarrier;
+    GProcessIdInitialized := True;
+  finally
+    GXidInitLock.Release;
+  end;
 end;
 
 procedure InitCounter;
 var
   RandBytes: array[0..3] of Byte;
 begin
+  // ✅ P0: 快速路径检查
   if GCounterInitialized then Exit;
 
-  // 随机初始计数器
-  GetSecureRandom.GetBytes(RandBytes[0], 4);
-  GCounter := (UInt32(RandBytes[0]) shl 16) or
-              (UInt32(RandBytes[1]) shl 8) or
-              UInt32(RandBytes[2]);
-  GCounter := GCounter and $FFFFFF;  // 只用 24 位
-  GCounterInitialized := True;
+  GXidInitLock.Acquire;
+  try
+    // 双重检查
+    if GCounterInitialized then Exit;
+
+    // 随机初始计数器
+    // ✅ 使用缓冲 RNG 优化
+    IdRngFillBytes(RandBytes[0], 4);
+    GCounter := (UInt32(RandBytes[0]) shl 16) or
+                (UInt32(RandBytes[1]) shl 8) or
+                UInt32(RandBytes[2]);
+    GCounter := GCounter and $FFFFFF;  // 只用 24 位
+    ReadWriteBarrier;
+    GCounterInitialized := True;
+  finally
+    GXidInitLock.Release;
+  end;
 end;
 
 function GetNextCounter: UInt32;
@@ -499,6 +541,40 @@ begin
   Result := True;
 end;
 
+// ✅ P1: TryParseXid 作为 TryXidFromString 的别名
+function TryParseXid(const S: string; out X: TXid96): Boolean;
+begin
+  Result := TryXidFromString(S, X);
+end;
+
+// ✅ P2: 零拷贝格式化
+procedure XidToChars(const X: TXid96; Dest: PChar);
+begin
+  // 12 字节 = 96 位 -> 20 个 Base32 字符
+  Dest[0] := XID_ALPHABET[((X[0] shr 3) and $1F) + 1];
+  Dest[1] := XID_ALPHABET[(((X[0] shl 2) or (X[1] shr 6)) and $1F) + 1];
+  Dest[2] := XID_ALPHABET[((X[1] shr 1) and $1F) + 1];
+  Dest[3] := XID_ALPHABET[(((X[1] shl 4) or (X[2] shr 4)) and $1F) + 1];
+  Dest[4] := XID_ALPHABET[(((X[2] shl 1) or (X[3] shr 7)) and $1F) + 1];
+  Dest[5] := XID_ALPHABET[((X[3] shr 2) and $1F) + 1];
+  Dest[6] := XID_ALPHABET[(((X[3] shl 3) or (X[4] shr 5)) and $1F) + 1];
+  Dest[7] := XID_ALPHABET[(X[4] and $1F) + 1];
+
+  Dest[8] := XID_ALPHABET[((X[5] shr 3) and $1F) + 1];
+  Dest[9] := XID_ALPHABET[(((X[5] shl 2) or (X[6] shr 6)) and $1F) + 1];
+  Dest[10] := XID_ALPHABET[((X[6] shr 1) and $1F) + 1];
+  Dest[11] := XID_ALPHABET[(((X[6] shl 4) or (X[7] shr 4)) and $1F) + 1];
+  Dest[12] := XID_ALPHABET[(((X[7] shl 1) or (X[8] shr 7)) and $1F) + 1];
+  Dest[13] := XID_ALPHABET[((X[8] shr 2) and $1F) + 1];
+  Dest[14] := XID_ALPHABET[(((X[8] shl 3) or (X[9] shr 5)) and $1F) + 1];
+  Dest[15] := XID_ALPHABET[(X[9] and $1F) + 1];
+
+  Dest[16] := XID_ALPHABET[((X[10] shr 3) and $1F) + 1];
+  Dest[17] := XID_ALPHABET[(((X[10] shl 2) or (X[11] shr 6)) and $1F) + 1];
+  Dest[18] := XID_ALPHABET[((X[11] shr 1) and $1F) + 1];
+  Dest[19] := XID_ALPHABET[((X[11] shl 4) and $1F) + 1];
+end;
+
 function XidFromString(const S: string): TXid96;
 begin
   if not TryXidFromString(S, Result) then
@@ -624,5 +700,15 @@ function CreateXidGenerator: IXidGenerator;
 begin
   Result := TXidGenerator.Create;
 end;
+
+initialization
+  GXidInitLock := TCriticalSection.Create;
+
+finalization
+  // ✅ P0: 清理敏感数据
+  FillChar(GMachineId[0], SizeOf(GMachineId), 0);
+  GProcessId := 0;
+  GCounter := 0;
+  GXidInitLock.Free;
 
 end.

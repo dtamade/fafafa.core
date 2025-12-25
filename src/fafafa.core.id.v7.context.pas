@@ -102,6 +102,9 @@ end;
 
 destructor TContextV7.Destroy;
 begin
+  // ✅ P0: 清理敏感随机数据
+  FCounter := 0;
+  FLastRandB := 0;
   FLock.Free;
   inherited Destroy;
 end;

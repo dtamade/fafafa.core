@@ -105,7 +105,8 @@ uses
   Windows,
   {$ENDIF}
   fafafa.core.crypto.random,
-  fafafa.core.crypto.hash.sha256;
+  fafafa.core.crypto.hash.sha256,
+  fafafa.core.id.rng;  // ✅ 缓冲 RNG 优化
 
 const
   { CUID2 字母表 (首字符) }
@@ -137,7 +138,8 @@ var
 begin
   if GCounterInitialized then Exit;
 
-  GetSecureRandom.GetBytes(RandBytes[0], 8);
+  // ✅ 使用缓冲 RNG 优化
+  IdRngFillBytes(RandBytes[0], 8);
   GCounter := PUInt64(@RandBytes[0])^;
   GCounterInitialized := True;
 end;
@@ -149,16 +151,23 @@ begin
 end;
 
 function CreateEntropy(ALength: Integer): string;
+const
+  HEX_CHARS: array[0..15] of Char = '0123456789abcdef';
 var
   Bytes: array of Byte;
   I: Integer;
 begin
   SetLength(Bytes, ALength);
-  GetSecureRandom.GetBytes(Bytes[0], ALength);
+  // ✅ 使用缓冲 RNG 优化
+  IdRngFillBytes(Bytes[0], ALength);
 
-  Result := '';
+  // ✅ P0: 预分配字符串避免 O(n) 拼接
+  SetLength(Result, ALength * 2);
   for I := 0 to ALength - 1 do
-    Result := Result + IntToHex(Bytes[I], 2);
+  begin
+    Result[I * 2 + 1] := HEX_CHARS[Bytes[I] shr 4];
+    Result[I * 2 + 2] := HEX_CHARS[Bytes[I] and $0F];
+  end;
 end;
 
 function GetFingerprint: string;
@@ -197,18 +206,18 @@ begin
   // 计算 SHA256 哈希
   Hash := SHA256Hash(Data);
 
-  // 简化的 Base36 转换: 使用哈希的字节直接映射
-  Result := '';
+  // ✅ P0: 预分配字符串避免 O(n²) 拼接
+  SetLength(Result, ALength);
 
   // 首字符必须是字母
   Idx := Hash[0] mod 26;
-  Result := Result + ALPHABET_FIRST[Idx + 1];
+  Result[1] := ALPHABET_FIRST[Idx + 1];
 
   // 其余字符
   for I := 1 to ALength - 1 do
   begin
     Idx := Hash[I mod 32] mod 36;
-    Result := Result + ALPHABET_ALL[Idx + 1];
+    Result[I + 1] := ALPHABET_ALL[Idx + 1];
   end;
 end;
 
@@ -339,5 +348,18 @@ function CreateCuid2Generator(ALength: Integer): ICuid2Generator;
 begin
   Result := TCuid2Generator.Create(ALength);
 end;
+
+// ✅ P3: finalization 清理敏感数据
+finalization
+  // 清除指纹数据（包含 PID 和随机部分）
+  if GFingerprint.Initialized then
+  begin
+    FillChar(GFingerprint.Data[1], Length(GFingerprint.Data) * SizeOf(Char), 0);
+    GFingerprint.Data := '';
+    GFingerprint.Initialized := False;
+  end;
+  // 清零计数器
+  GCounter := 0;
+  GCounterInitialized := False;
 
 end.

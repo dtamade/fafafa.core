@@ -32,7 +32,8 @@ unit fafafa.core.id.sqids;
 interface
 
 uses
-  SysUtils;
+  SysUtils,
+  fafafa.core.sync;
 
 const
   { Default alphabet - lowercase, no ambiguous chars }
@@ -42,12 +43,16 @@ const
 type
   TUInt64Array = array of UInt64;
 
-  { ISqids - Sqids encoder/decoder interface }
-  ISqids = interface
+  { ISqidsGenerator - Sqids encoder/decoder interface }
+  // ✅ P1: 统一接口命名，添加 Generator 后缀
+  ISqidsGenerator = interface
     ['{E8A2B3C4-D5E6-F7A8-B9C0-D1E2F3A4B5C6}']
     function Encode(const Numbers: array of UInt64): string;
     function Decode(const Id: string): TUInt64Array;
   end;
+
+  // ✅ P1: 向后兼容别名
+  ISqids = ISqidsGenerator;
 
 { Quick functions }
 function SqidsEncodeOne(Number: UInt64): string;
@@ -69,7 +74,7 @@ implementation
 
 type
   { TSqids - Internal implementation }
-  TSqids = class(TInterfacedObject, ISqids)
+  TSqids = class(TInterfacedObject, ISqidsGenerator)
   private
     FAlphabet: string;
     FMinLength: Integer;
@@ -84,12 +89,46 @@ type
   end;
 
 var
-  GDefaultSqids: ISqids = nil;
+  GDefaultSqids: ISqidsGenerator = nil;
+  GSqidsLock: ILock = nil;
+  GSqidsInitialized: Int32 = 0;  // 0=未初始化, 1=正在初始化, 2=已完成
 
-function GetDefaultSqids: ISqids;
+// ✅ P0 修复: 添加 DCL 保护，解决线程安全问题
+function GetDefaultSqids: ISqidsGenerator;
+var
+  LState: Int32;
 begin
-  if GDefaultSqids = nil then
-    GDefaultSqids := CreateSqids;
+  // 快速路径：检查是否已初始化完成
+  LState := InterlockedCompareExchange(GSqidsInitialized, 0, 0);
+  if LState = 2 then
+    Exit(GDefaultSqids);
+
+  // 尝试获取初始化权
+  if InterlockedCompareExchange(GSqidsInitialized, 1, 0) = 0 then
+  begin
+    // 我们赢得了初始化权，执行初始化
+    try
+      GDefaultSqids := CreateSqids;
+      // 使用内存屏障确保写入可见后再设置状态
+      InterlockedExchange(GSqidsInitialized, 2);
+    except
+      // 初始化失败，重置状态允许重试
+      InterlockedExchange(GSqidsInitialized, 0);
+      raise;
+    end;
+  end
+  else
+  begin
+    // 其他线程正在初始化，等待完成
+    while InterlockedCompareExchange(GSqidsInitialized, 0, 0) <> 2 do
+    begin
+      {$IFDEF WINDOWS}
+      Sleep(0);  // 让出时间片
+      {$ELSE}
+      ThreadSwitch;
+      {$ENDIF}
+    end;
+  end;
   Result := GDefaultSqids;
 end;
 
@@ -192,15 +231,24 @@ begin
 end;
 
 function TSqids.ToId(Num: UInt64; const Alphabet: string): string;
+const
+  MAX_DIGITS = 32;  // UInt64 最多约 22 个 base62 字符
 var
-  AlphaLen: Integer;
+  AlphaLen, Len, I: Integer;
+  Buf: array[0..MAX_DIGITS - 1] of Char;  // ✅ P1: 栈缓冲区避免多次分配
 begin
-  Result := '';
   AlphaLen := Length(Alphabet);
+  Len := 0;
   repeat
-    Result := Alphabet[(Num mod UInt64(AlphaLen)) + 1] + Result;
+    Buf[Len] := Alphabet[(Num mod UInt64(AlphaLen)) + 1];
+    Inc(Len);
     Num := Num div UInt64(AlphaLen);
   until Num = 0;
+
+  // ✅ P1: 反转到结果（单次分配）
+  SetLength(Result, Len);
+  for I := 0 to Len - 1 do
+    Result[I + 1] := Buf[Len - 1 - I];
 end;
 
 function TSqids.ToNumber(const Id: string; const Alphabet: string): UInt64;
@@ -220,14 +268,21 @@ begin
 end;
 
 function TSqids.EncodeNumbers(const Numbers: array of UInt64; Increment: Integer): string;
+const
+  MAX_NUMS = 64;  // 最多支持 64 个数字
 var
-  I, Offset: Integer;
+  I, Offset, Pos, TotalLen: Integer;
   Alpha, EncAlpha: string;
-  NumId: string;
+  NumIds: array[0..MAX_NUMS - 1] of string;  // ✅ P1: 预存储各数字编码
+  NumCount: Integer;
   Separator: Char;
 begin
   if Length(Numbers) = 0 then
     Exit('');
+
+  NumCount := Length(Numbers);
+  if NumCount > MAX_NUMS then
+    NumCount := MAX_NUMS;
 
   // Calculate offset for prefix selection
   Offset := 0;
@@ -238,23 +293,49 @@ begin
   // Build ID
   Alpha := Copy(FAlphabet, Offset + 1, Length(FAlphabet) - Offset) +
            Copy(FAlphabet, 1, Offset);
-  Result := Alpha[1];  // Prefix character
   Separator := Alpha[2];  // Separator character
 
   // Encoding alphabet excludes prefix and separator
   EncAlpha := Copy(Alpha, 3, Length(Alpha) - 2);
 
-  for I := 0 to High(Numbers) do
+  // ✅ P1: 先计算所有 NumId 和总长度
+  TotalLen := 1;  // Prefix char
+  for I := 0 to NumCount - 1 do
   begin
-    NumId := ToId(Numbers[I], EncAlpha);
-    Result := Result + NumId;
-    if I < High(Numbers) then
-      Result := Result + Separator;
+    NumIds[I] := ToId(Numbers[I], EncAlpha);
+    Inc(TotalLen, Length(NumIds[I]));
+    if I < NumCount - 1 then
+      Inc(TotalLen);  // Separator
+  end;
+
+  // 确保满足最小长度
+  if TotalLen < FMinLength then
+    TotalLen := FMinLength;
+
+  // ✅ P1: 单次分配结果字符串
+  SetLength(Result, TotalLen);
+
+  // 填充结果
+  Result[1] := Alpha[1];  // Prefix
+  Pos := 2;
+
+  for I := 0 to NumCount - 1 do
+  begin
+    Move(NumIds[I][1], Result[Pos], Length(NumIds[I]) * SizeOf(Char));
+    Inc(Pos, Length(NumIds[I]));
+    if I < NumCount - 1 then
+    begin
+      Result[Pos] := Separator;
+      Inc(Pos);
+    end;
   end;
 
   // Pad to minimum length if needed
-  while Length(Result) < FMinLength do
-    Result := Result + Alpha[(Length(Result) mod Length(Alpha)) + 1];
+  while Pos <= Length(Result) do
+  begin
+    Result[Pos] := Alpha[((Pos - 1) mod Length(Alpha)) + 1];
+    Inc(Pos);
+  end;
 end;
 
 function TSqids.Encode(const Numbers: array of UInt64): string;

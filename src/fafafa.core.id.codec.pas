@@ -40,8 +40,50 @@ function UuidToUlid(const A: TUuid128): TUlid128; inline;
 implementation
 
 const
-  B64URL: PChar = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
-  B58: PChar = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+  BASE64_URL_ALPHABET: PChar = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
+  BASE58_ALPHABET: PChar = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+
+  { Base64URL 查找表: 字符 -> 值 (0-63)，无效字符为 $FF }
+  BASE64_URL_DECODE: array[0..127] of Byte = (
+    // 0-15:   NUL SOH STX ETX EOT ENQ ACK BEL BS  HT  LF  VT  FF  CR  SO  SI
+    $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+    // 16-31:  DLE DC1 DC2 DC3 DC4 NAK SYN ETB CAN EM  SUB ESC FS  GS  RS  US
+    $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+    // 32-47:  SPC !   "   #   $   %   &   '   (   )   *   +   ,   -   .   /
+    $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF, 62,$FF,$FF,  // '-' = 62
+    // 48-63:  0   1   2   3   4   5   6   7   8   9   :   ;   <   =   >   ?
+     52, 53, 54, 55, 56, 57, 58, 59, 60, 61,$FF,$FF,$FF,$FF,$FF,$FF,  // 0-9 = 52-61
+    // 64-79:  @   A   B   C   D   E   F   G   H   I   J   K   L   M   N   O
+    $FF,  0,  1,  2,  3,  4,  5,  6,  7,  8,  9, 10, 11, 12, 13, 14,  // A-O = 0-14
+    // 80-95:  P   Q   R   S   T   U   V   W   X   Y   Z   [   \   ]   ^   _
+     15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25,$FF,$FF,$FF,$FF, 63,  // P-Z = 15-25, '_' = 63
+    // 96-111: `   a   b   c   d   e   f   g   h   i   j   k   l   m   n   o
+    $FF, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40,  // a-o = 26-40
+    // 112-127:p   q   r   s   t   u   v   w   x   y   z   {   |   }   ~  DEL
+     41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51,$FF,$FF,$FF,$FF,$FF   // p-z = 41-51
+  );
+
+  { Base58 查找表: 字符 -> 值 (0-57)，无效字符为 $FF }
+  { Base58 alphabet: 123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz }
+  { 排除: 0, I, O, l (数字零、大写I、大写O、小写l) }
+  BASE58_DECODE: array[0..127] of Byte = (
+    // 0-15:   NUL SOH STX ETX EOT ENQ ACK BEL BS  HT  LF  VT  FF  CR  SO  SI
+    $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+    // 16-31:  DLE DC1 DC2 DC3 DC4 NAK SYN ETB CAN EM  SUB ESC FS  GS  RS  US
+    $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+    // 32-47:  SPC !   "   #   $   %   &   '   (   )   *   +   ,   -   .   /
+    $FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,$FF,
+    // 48-63:  0   1   2   3   4   5   6   7   8   9   :   ;   <   =   >   ?
+    $FF,  0,  1,  2,  3,  4,  5,  6,  7,  8,$FF,$FF,$FF,$FF,$FF,$FF,  // 0 invalid, 1-9 = 0-8
+    // 64-79:  @   A   B   C   D   E   F   G   H   I   J   K   L   M   N   O
+    $FF,  9, 10, 11, 12, 13, 14, 15, 16,$FF, 17, 18, 19, 20, 21,$FF,  // A-H=9-16, I skip, J-N=17-21, O skip
+    // 80-95:  P   Q   R   S   T   U   V   W   X   Y   Z   [   \   ]   ^   _
+     22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32,$FF,$FF,$FF,$FF,$FF,  // P-Z = 22-32
+    // 96-111: `   a   b   c   d   e   f   g   h   i   j   k   l   m   n   o
+    $FF, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43,$FF, 44, 45, 46,  // a-k = 33-43, l skip, m-o = 44-46
+    // 112-127:p   q   r   s   t   u   v   w   x   y   z   {   |   }   ~  DEL
+     47, 48, 49, 50, 51, 52, 53, 54, 55, 56, 57,$FF,$FF,$FF,$FF,$FF   // p-z = 47-57
+  );
 
 function UuidToBase64Url(const A: TUuid128): string;
 var
@@ -56,15 +98,15 @@ begin
   for i := 0 to 4 do
   begin
     x := (LongWord(A[i*3]) shl 16) or (LongWord(A[i*3+1]) shl 8) or LongWord(A[i*3+2]);
-    p^ := B64URL[(x shr 18) and $3F]; Inc(p);
-    p^ := B64URL[(x shr 12) and $3F]; Inc(p);
-    p^ := B64URL[(x shr 6) and $3F]; Inc(p);
-    p^ := B64URL[x and $3F]; Inc(p);
+    p^ := BASE64_URL_ALPHABET[(x shr 18) and $3F]; Inc(p);
+    p^ := BASE64_URL_ALPHABET[(x shr 12) and $3F]; Inc(p);
+    p^ := BASE64_URL_ALPHABET[(x shr 6) and $3F]; Inc(p);
+    p^ := BASE64_URL_ALPHABET[x and $3F]; Inc(p);
   end;
   // last byte (index 15)
   x := LongWord(A[15]);
-  p^ := B64URL[(x shr 2) and $3F]; Inc(p);
-  p^ := B64URL[(x and 3) shl 4]; Inc(p);
+  p^ := BASE64_URL_ALPHABET[(x shr 2) and $3F]; Inc(p);
+  p^ := BASE64_URL_ALPHABET[(x and 3) shl 4]; Inc(p);
 end;
 
 procedure UuidToBase64UrlChars(const A: TUuid128; Dest: PChar); inline;
@@ -75,21 +117,24 @@ begin
   for i := 0 to 4 do
   begin
     x := (LongWord(A[i*3]) shl 16) or (LongWord(A[i*3+1]) shl 8) or LongWord(A[i*3+2]);
-    p^ := B64URL[(x shr 18) and $3F]; Inc(p);
-    p^ := B64URL[(x shr 12) and $3F]; Inc(p);
-    p^ := B64URL[(x shr 6) and $3F]; Inc(p);
-    p^ := B64URL[x and $3F]; Inc(p);
+    p^ := BASE64_URL_ALPHABET[(x shr 18) and $3F]; Inc(p);
+    p^ := BASE64_URL_ALPHABET[(x shr 12) and $3F]; Inc(p);
+    p^ := BASE64_URL_ALPHABET[(x shr 6) and $3F]; Inc(p);
+    p^ := BASE64_URL_ALPHABET[x and $3F]; Inc(p);
   end;
   x := LongWord(A[15]);
-  p^ := B64URL[(x shr 2) and $3F]; Inc(p);
-  p^ := B64URL[(x and 3) shl 4];
+  p^ := BASE64_URL_ALPHABET[(x shr 2) and $3F]; Inc(p);
+  p^ := BASE64_URL_ALPHABET[(x and 3) shl 4];
 end;
 
 function B64UrlVal(C: Char): Integer; inline;
-var k: Integer;
+var b: Byte;
 begin
-  for k := 0 to 63 do if B64URL[k] = C then Exit(k);
-  Result := -1;
+  // 查表 O(1) 替代线性搜索 O(64)
+  if Ord(C) > 127 then Exit(-1);
+  b := BASE64_URL_DECODE[Ord(C)];
+  if b = $FF then Exit(-1);
+  Result := b;
 end;
 
 function TryParseUuidBase64Url(const S: string; out A: TUuid128): Boolean;
@@ -211,29 +256,33 @@ begin
   end;
   // compose string: leading '1's for zeros, then digits reversed
   SetLength(Result, zeros + n);
-  for i := 1 to zeros do Result[i] := B58[0];
-  for i := 0 to n-1 do Result[zeros + i + 1] := B58[ digits[n-1-i] ];
+  for i := 1 to zeros do Result[i] := BASE58_ALPHABET[0];
+  for i := 0 to n-1 do Result[zeros + i + 1] := BASE58_ALPHABET[ digits[n-1-i] ];
 end;
 
 function Base58DecodeToFixed(const S: string; out OutBuf; WantLen: Integer): Boolean;
 var
   i, zeros, val, len: Integer;
   tmp: array[0..255] of Byte;
-  function B58Val(C: Char; out V: Integer): Boolean; inline;
-  var k: Integer;
+  function B58CharValue(C: Char; out V: Integer): Boolean; inline;
+  var b: Byte;
   begin
-    for k := 0 to 57 do if B58[k] = C then begin V := k; Exit(True); end;
-    V := -1; Result := False;
+    // 查表 O(1) 替代线性搜索 O(58)
+    if Ord(C) > 127 then begin V := -1; Exit(False); end;
+    b := BASE58_DECODE[Ord(C)];
+    if b = $FF then begin V := -1; Exit(False); end;
+    V := b;
+    Result := True;
   end;
 begin
   if (WantLen < 1) or (WantLen > 256) then Exit(False);
   FillChar(tmp[0], WantLen, 0);
   len := WantLen;
   zeros := 0;
-  while (zeros < Length(S)) and (S[zeros+1] = B58[0]) do Inc(zeros);
+  while (zeros < Length(S)) and (S[zeros+1] = BASE58_ALPHABET[0]) do Inc(zeros);
   for i := zeros+1 to Length(S) do
   begin
-    if not B58Val(S[i], val) then Exit(False);
+    if not B58CharValue(S[i], val) then Exit(False);
     BigMulAddBase(tmp, len, 58, val);
   end;
   // tmp now has the decoded big-endian value truncated to 'len' bytes; handle leading zeros
@@ -258,7 +307,12 @@ var i: Integer; c: Char;
 begin
   Result := False;
   if (Length(S) < 22) or (Length(S) > 23) then Exit;
-  for i := 1 to Length(S) do begin c := S[i]; if Pos(c, string(B58)) = 0 then Exit; end;
+  // 使用查表验证 O(1) 替代 Pos() O(n) + 字符串分配
+  for i := 1 to Length(S) do
+  begin
+    c := S[i];
+    if (Ord(c) > 127) or (BASE58_DECODE[Ord(c)] = $FF) then Exit;
+  end;
   Result := TryParseUlidBase58(S, A);
 end;
 
@@ -267,7 +321,12 @@ var i: Integer; c: Char;
 begin
   Result := False;
   if Length(S) <> 27 then Exit;
-  for i := 1 to Length(S) do begin c := S[i]; if Pos(c, string(B58)) = 0 then Exit; end;
+  // 使用查表验证 O(1) 替代 Pos() O(n) + 字符串分配
+  for i := 1 to Length(S) do
+  begin
+    c := S[i];
+    if (Ord(c) > 127) or (BASE58_DECODE[Ord(c)] = $FF) then Exit;
+  end;
   Result := TryParseKsuidBase58(S, A);
 end;
 

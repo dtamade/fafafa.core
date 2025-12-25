@@ -41,9 +41,13 @@ type
   );
 
   { Sonyflake 生成器接口 }
-  ISonyflake = interface
+  ISonyflakeGenerator = interface
     ['{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}']
-    function NextID: TSonyflakeID;
+    // ✅ P1: 统一方法命名 - NextRaw 返回原始类型
+    function NextRaw: TSonyflakeID;
+    function Next: string;
+    // 向后兼容
+    function NextID: TSonyflakeID; deprecated 'Use NextRaw instead';
     function GetMachineID: Word;
     function GetEpochMs: Int64;
     function Decompose(ID: TSonyflakeID; out TimeUnits, Sequence: Int64; out MachineID: Word): Boolean;
@@ -51,8 +55,11 @@ type
     property EpochMs: Int64 read GetEpochMs;
   end;
 
+  // ✅ P1: 向后兼容别名
+  ISonyflake = ISonyflakeGenerator;
+
   { Sonyflake 生成器实现 }
-  TSonyflakeGenerator = class(TInterfacedObject, ISonyflake)
+  TSonyflakeGenerator = class(TInterfacedObject, ISonyflakeGenerator)
   private const
     TIME_BITS = 39;
     SEQUENCE_BITS = 8;
@@ -71,6 +78,8 @@ type
   public
     constructor Create(AMachineID: Word; AEpochMs: Int64 = 0);
 
+    function NextRaw: TSonyflakeID;
+    function Next: string;
     function NextID: TSonyflakeID;
     function GetMachineID: Word;
     function GetEpochMs: Int64;
@@ -134,6 +143,17 @@ begin
 end;
 
 function TSonyflakeGenerator.NextID: TSonyflakeID;
+begin
+  Result := NextRaw;
+end;
+
+// ✅ P1: 新增 Next 方法返回字符串
+function TSonyflakeGenerator.Next: string;
+begin
+  Result := IntToStr(NextRaw);
+end;
+
+function TSonyflakeGenerator.NextRaw: TSonyflakeID;
 var
   TimeUnits: Int64;
 begin

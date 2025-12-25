@@ -153,7 +153,7 @@ begin
 end;
 
 class function TUUID.TryParseURN(const S: string; out R: TUUID): Boolean;
-var L: Integer; Body: string;
+var Body: string;
 begin
   // Accept urn:uuid:<36-chars> or urn:uuid:<32-hex>
   if (Length(S) >= 9) and (LowerCase(Copy(S,1,9)) = 'urn:uuid:') then

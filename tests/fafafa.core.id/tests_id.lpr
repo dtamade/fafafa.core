@@ -21,7 +21,11 @@ uses
   Test_fafafa_core_id_p1_features,
   Test_fafafa_core_id_p2_features,
   Test_fafafa_core_id_p3_features,
-  Test_fafafa_core_id_p4_features;
+  Test_fafafa_core_id_p4_features,
+  Test_fafafa_core_id_threadsafe,
+  Test_fafafa_core_id_clockrollback,
+  Test_fafafa_core_id_boundary,
+  Test_fafafa_core_id_record_wrappers;
 
 type
   TIdTestApplication = class(TCustomApplication)

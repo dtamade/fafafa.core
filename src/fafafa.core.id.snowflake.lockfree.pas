@@ -28,7 +28,7 @@ type
   );
 
   { TLockFreeSnowflake - High-performance lock-free Snowflake generator }
-  TLockFreeSnowflake = class(TInterfacedObject, ISnowflake)
+  TLockFreeSnowflake = class(TInterfacedObject, ISnowflakeGenerator)
   private
     // Packed state: [unused:1][timestamp:41][sequence:12][padding:10]
     // We use a different packing for CAS efficiency
@@ -49,8 +49,10 @@ type
   public
     constructor Create(AWorkerId: Word; AEpochMs: Int64 = 1288834974657);
 
-    { ISnowflake interface }
-    function NextID: TSnowflakeID;
+    { ISnowflakeGenerator interface }
+    function NextRaw: TSnowflakeID;
+    function Next: string;
+    function NextID: TSnowflakeID;  // 向后兼容
     function GetWorkerId: Word;
     function GetEpochMs: Int64;
 
@@ -134,7 +136,8 @@ begin
   Result := (QWord(TimestampDelta) shl TIMESTAMP_SHIFT) or QWord(Sequence and SEQUENCE_MASK);
 end;
 
-function TLockFreeSnowflake.NextID: TSnowflakeID;
+// ✅ P1: NextRaw 作为主实现
+function TLockFreeSnowflake.NextRaw: TSnowflakeID;
 var
   CurrentMs, TimestampDelta, LastTimestamp: Int64;
   OldState, NewState: QWord;
@@ -240,6 +243,18 @@ begin
     ((TimestampDelta and $1FFFFFFFFFF) shl 22) or  // 41 bits timestamp
     (QWord(FWorkerId and $3FF) shl 12) or           // 10 bits worker
     (Seq and $FFF);                                  // 12 bits sequence
+end;
+
+// ✅ P1: Next 返回字符串表示
+function TLockFreeSnowflake.Next: string;
+begin
+  Result := IntToStr(NextRaw);
+end;
+
+// ✅ P1: NextID 向后兼容，调用 NextRaw
+function TLockFreeSnowflake.NextID: TSnowflakeID;
+begin
+  Result := NextRaw;
 end;
 
 function TLockFreeSnowflake.GetWorkerId: Word;

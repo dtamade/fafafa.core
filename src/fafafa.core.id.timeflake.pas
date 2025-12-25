@@ -28,15 +28,18 @@ unit fafafa.core.id.timeflake;
 interface
 
 uses
-  SysUtils, DateUtils;
+  SysUtils, DateUtils, SyncObjs,
+  fafafa.core.id.base;  // ✅ P1: 统一类型定义
 
 const
   TIMEFLAKE_SIZE = 16;
   TIMEFLAKE_STRING_LENGTH = 22;  // Base62 encoded
 
+{ 注意: TTimeflake, TTimeflakeArray 现在在 fafafa.core.id.base 中定义 }
+
 type
-  TTimeflake = packed array[0..15] of Byte;
-  TTimeflakeArray = array of TTimeflake;
+  { EInvalidTimeflake - Invalid Timeflake string exception }
+  EInvalidTimeflake = class(Exception);
 
   { ITimeflakeGenerator - Timeflake generator interface }
   ITimeflakeGenerator = interface
@@ -55,6 +58,14 @@ function TimeflakeN(Count: Integer): TTimeflakeArray;
 { String conversion - Base62 format (22 chars) }
 function TimeflakeToString(const Id: TTimeflake): string;
 function TimeflakeFromString(const S: string): TTimeflake;
+// ✅ P1: 统一解析函数命名
+function TryParseTimeflake(const S: string; out Id: TTimeflake): Boolean;
+// ✅ P2: 异常版本解析函数（对标 Rust）
+function ParseTimeflake(const S: string): TTimeflake;
+
+{ Zero-copy API }
+// ✅ P2: 零拷贝格式化
+procedure TimeflakeToChars(const Id: TTimeflake; Dest: PChar);
 
 { UUID format conversion (36 chars with dashes) }
 function TimeflakeToUuidString(const Id: TTimeflake): string;
@@ -75,18 +86,18 @@ function CreateTimeflakeGenerator: ITimeflakeGenerator;
 implementation
 
 uses
-  fafafa.core.crypto.random;
-
-const
-  BASE62_CHARS = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+  fafafa.core.crypto.random,
+  fafafa.core.id.rng;   // ✅ 缓冲 RNG 优化
 
 type
   TTimeflakeGenerator = class(TInterfacedObject, ITimeflakeGenerator)
   private
+    FLock: TCriticalSection;  // ✅ P0: 线程安全 - 保护内部状态
     FLastMs: Int64;
     FLastRandom: array[0..9] of Byte;  // 80 bits
   public
     constructor Create;
+    destructor Destroy; override;
     function Next: TTimeflake;
     function NextString: string;
     function NextN(Count: Integer): TTimeflakeArray;
@@ -95,19 +106,64 @@ type
 var
   GDefaultGenerator: ITimeflakeGenerator = nil;
   GMonotonicGenerator: ITimeflakeGenerator = nil;
+  GTimeflakeLock: TCriticalSection = nil;  // ✅ P0: 线程安全锁
+
+  // ✅ P0: 全局单调生成器状态（避免接口开销，确保线程安全）
+  GMonotonicLastMs: Int64 = 0;
+  GMonotonicRandom: array[0..9] of Byte;
 
 function GetDefaultGenerator: ITimeflakeGenerator;
+var
+  LocalGen: ITimeflakeGenerator;
 begin
-  if GDefaultGenerator = nil then
-    GDefaultGenerator := CreateTimeflakeGenerator;
-  Result := GDefaultGenerator;
+  // ✅ P0: DCL 模式 + 内存屏障
+  LocalGen := GDefaultGenerator;
+  ReadWriteBarrier;
+  if LocalGen <> nil then
+  begin
+    Result := LocalGen;
+    Exit;
+  end;
+
+  GTimeflakeLock.Acquire;
+  try
+    if GDefaultGenerator = nil then
+    begin
+      LocalGen := CreateTimeflakeGenerator;
+      ReadWriteBarrier;
+      GDefaultGenerator := LocalGen;
+    end;
+    Result := GDefaultGenerator;
+  finally
+    GTimeflakeLock.Release;
+  end;
 end;
 
 function GetMonotonicGenerator: ITimeflakeGenerator;
+var
+  LocalGen: ITimeflakeGenerator;
 begin
-  if GMonotonicGenerator = nil then
-    GMonotonicGenerator := CreateTimeflakeGenerator;
-  Result := GMonotonicGenerator;
+  // ✅ P0: DCL 模式 + 内存屏障
+  LocalGen := GMonotonicGenerator;
+  ReadWriteBarrier;
+  if LocalGen <> nil then
+  begin
+    Result := LocalGen;
+    Exit;
+  end;
+
+  GTimeflakeLock.Acquire;
+  try
+    if GMonotonicGenerator = nil then
+    begin
+      LocalGen := CreateTimeflakeGenerator;
+      ReadWriteBarrier;
+      GMonotonicGenerator := LocalGen;
+    end;
+    Result := GMonotonicGenerator;
+  finally
+    GTimeflakeLock.Release;
+  end;
 end;
 
 function GetCurrentUnixMs: Int64;
@@ -121,7 +177,6 @@ end;
 function Timeflake: TTimeflake;
 var
   Ms: Int64;
-  I: Integer;
 begin
   Ms := GetCurrentUnixMs;
 
@@ -134,12 +189,53 @@ begin
   Result[5] := Ms and $FF;
 
   // Bytes 6-15: random (80 bits)
-  GetSecureRandom.GetBytes(Result[6], 10);
+  // ✅ 使用缓冲 RNG 优化性能
+  IdRngFillBytes(Result[6], 10);
 end;
 
 function TimeflakeMonotonic: TTimeflake;
+var
+  Ms: Int64;
+  I: Integer;
+  Carry: Word;
 begin
-  Result := GetMonotonicGenerator.Next;
+  // ✅ P0: 直接使用全局状态 + 临界区保护（避免接口开销和 DCL 竞态）
+  GTimeflakeLock.Acquire;
+  try
+    Ms := GetCurrentUnixMs;
+
+    // Bytes 0-5: timestamp (big-endian, 48 bits)
+    Result[0] := (Ms shr 40) and $FF;
+    Result[1] := (Ms shr 32) and $FF;
+    Result[2] := (Ms shr 24) and $FF;
+    Result[3] := (Ms shr 16) and $FF;
+    Result[4] := (Ms shr 8) and $FF;
+    Result[5] := Ms and $FF;
+
+    if Ms = GMonotonicLastMs then
+    begin
+      // Same millisecond - increment random part
+      Carry := 1;
+      for I := 9 downto 0 do
+      begin
+        Carry := Carry + GMonotonicRandom[I];
+        GMonotonicRandom[I] := Carry and $FF;
+        Carry := Carry shr 8;
+        if Carry = 0 then
+          Break;
+      end;
+      Move(GMonotonicRandom[0], Result[6], 10);
+    end
+    else
+    begin
+      // New millisecond - generate fresh random
+      GMonotonicLastMs := Ms;
+      IdRngFillBytes(GMonotonicRandom[0], 10);
+      Move(GMonotonicRandom[0], Result[6], 10);
+    end;
+  finally
+    GTimeflakeLock.Release;
+  end;
 end;
 
 function TimeflakeNil: TTimeflake;
@@ -148,8 +244,13 @@ begin
 end;
 
 function TimeflakeN(Count: Integer): TTimeflakeArray;
+var
+  I: Integer;
 begin
-  Result := GetMonotonicGenerator.NextN(Count);
+  // ✅ P0: 使用 TimeflakeMonotonic 确保线程安全
+  SetLength(Result, Count);
+  for I := 0 to Count - 1 do
+    Result[I] := TimeflakeMonotonic;
 end;
 
 function TimeflakeToString(const Id: TTimeflake): string;
@@ -190,7 +291,7 @@ begin
     Value[3] := Temp div 62;
     Digit := Temp mod 62;
 
-    Chars[I] := BASE62_CHARS[Digit + 1];
+    Chars[I] := BASE62_ALPHABET_STR[Digit + 1];
   end;
 
   SetLength(Result, 22);
@@ -217,7 +318,7 @@ begin
   // Convert from Base62
   for I := 1 to 22 do
   begin
-    Digit := Pos(S[I], BASE62_CHARS) - 1;
+    Digit := Pos(S[I], BASE62_ALPHABET_STR) - 1;
     if Digit < 0 then
       Exit;  // Invalid character
 
@@ -250,52 +351,126 @@ begin
   Result[15] := Value[3] and $FF;
 end;
 
+// ✅ P1: TryParseTimeflake 统一解析函数
+function TryParseTimeflake(const S: string; out Id: TTimeflake): Boolean;
+var
+  I: Integer;
+begin
+  // 验证长度
+  if Length(S) <> TIMEFLAKE_STRING_LENGTH then
+  begin
+    FillChar(Id[0], TIMEFLAKE_SIZE, 0);
+    Exit(False);
+  end;
+
+  // 验证字符是否都在 Base62 字母表中
+  for I := 1 to TIMEFLAKE_STRING_LENGTH do
+  begin
+    if Pos(S[I], BASE62_ALPHABET_STR) = 0 then
+    begin
+      FillChar(Id[0], TIMEFLAKE_SIZE, 0);
+      Exit(False);
+    end;
+  end;
+
+  // 解析
+  Id := TimeflakeFromString(S);
+  Result := True;
+end;
+
+// ✅ P2: ParseTimeflake - 异常版本（对标 Rust）
+function ParseTimeflake(const S: string): TTimeflake;
+begin
+  if not TryParseTimeflake(S, Result) then
+    raise EInvalidTimeflake.CreateFmt('Invalid Timeflake string: "%s"', [S]);
+end;
+
+// ✅ P2: 零拷贝格式化（Base62）
+procedure TimeflakeToChars(const Id: TTimeflake; Dest: PChar);
+var
+  Value: array[0..3] of UInt32;
+  I, Digit: Integer;
+  Carry, Temp: UInt64;
+begin
+  // Load 128-bit value (big-endian)
+  Value[0] := (UInt32(Id[0]) shl 24) or (UInt32(Id[1]) shl 16) or
+              (UInt32(Id[2]) shl 8) or UInt32(Id[3]);
+  Value[1] := (UInt32(Id[4]) shl 24) or (UInt32(Id[5]) shl 16) or
+              (UInt32(Id[6]) shl 8) or UInt32(Id[7]);
+  Value[2] := (UInt32(Id[8]) shl 24) or (UInt32(Id[9]) shl 16) or
+              (UInt32(Id[10]) shl 8) or UInt32(Id[11]);
+  Value[3] := (UInt32(Id[12]) shl 24) or (UInt32(Id[13]) shl 16) or
+              (UInt32(Id[14]) shl 8) or UInt32(Id[15]);
+
+  // Convert to Base62
+  for I := 21 downto 0 do
+  begin
+    Carry := 0;
+    Temp := (UInt64(Carry) shl 32) or Value[0];
+    Value[0] := Temp div 62;
+    Carry := Temp mod 62;
+
+    Temp := (UInt64(Carry) shl 32) or Value[1];
+    Value[1] := Temp div 62;
+    Carry := Temp mod 62;
+
+    Temp := (UInt64(Carry) shl 32) or Value[2];
+    Value[2] := Temp div 62;
+    Carry := Temp mod 62;
+
+    Temp := (UInt64(Carry) shl 32) or Value[3];
+    Value[3] := Temp div 62;
+    Digit := Temp mod 62;
+
+    Dest[I] := BASE62_ALPHABET_STR[Digit + 1];
+  end;
+end;
+
 function TimeflakeToUuidString(const Id: TTimeflake): string;
-const
-  HexChars: array[0..15] of Char = '0123456789abcdef';
 var
   I, P: Integer;
 begin
+  // ✅ P3: 使用统一 HEX_CHARS 常量
   SetLength(Result, 36);
   P := 1;
 
   // 8-4-4-4-12 format
   for I := 0 to 3 do
   begin
-    Result[P] := HexChars[Id[I] shr 4];
-    Result[P + 1] := HexChars[Id[I] and $0F];
+    Result[P] := HEX_CHARS[Id[I] shr 4];
+    Result[P + 1] := HEX_CHARS[Id[I] and $0F];
     Inc(P, 2);
   end;
   Result[P] := '-'; Inc(P);
 
   for I := 4 to 5 do
   begin
-    Result[P] := HexChars[Id[I] shr 4];
-    Result[P + 1] := HexChars[Id[I] and $0F];
+    Result[P] := HEX_CHARS[Id[I] shr 4];
+    Result[P + 1] := HEX_CHARS[Id[I] and $0F];
     Inc(P, 2);
   end;
   Result[P] := '-'; Inc(P);
 
   for I := 6 to 7 do
   begin
-    Result[P] := HexChars[Id[I] shr 4];
-    Result[P + 1] := HexChars[Id[I] and $0F];
+    Result[P] := HEX_CHARS[Id[I] shr 4];
+    Result[P + 1] := HEX_CHARS[Id[I] and $0F];
     Inc(P, 2);
   end;
   Result[P] := '-'; Inc(P);
 
   for I := 8 to 9 do
   begin
-    Result[P] := HexChars[Id[I] shr 4];
-    Result[P + 1] := HexChars[Id[I] and $0F];
+    Result[P] := HEX_CHARS[Id[I] shr 4];
+    Result[P + 1] := HEX_CHARS[Id[I] and $0F];
     Inc(P, 2);
   end;
   Result[P] := '-'; Inc(P);
 
   for I := 10 to 15 do
   begin
-    Result[P] := HexChars[Id[I] shr 4];
-    Result[P + 1] := HexChars[Id[I] and $0F];
+    Result[P] := HEX_CHARS[Id[I] shr 4];
+    Result[P + 1] := HEX_CHARS[Id[I] and $0F];
     Inc(P, 2);
   end;
 end;
@@ -395,8 +570,17 @@ end;
 constructor TTimeflakeGenerator.Create;
 begin
   inherited Create;
+  FLock := TCriticalSection.Create;  // ✅ P0: 创建线程安全锁
   FLastMs := 0;
   FillChar(FLastRandom[0], 10, 0);
+end;
+
+destructor TTimeflakeGenerator.Destroy;
+begin
+  // ✅ P0: 清理敏感随机数据
+  FillChar(FLastRandom[0], SizeOf(FLastRandom), 0);
+  FLock.Free;
+  inherited Destroy;
 end;
 
 function TTimeflakeGenerator.Next: TTimeflake;
@@ -405,36 +589,42 @@ var
   I: Integer;
   Carry: Word;
 begin
-  Ms := GetCurrentUnixMs;
+  // ✅ P0: 线程安全 - 保护内部状态
+  FLock.Acquire;
+  try
+    Ms := GetCurrentUnixMs;
 
-  // Bytes 0-5: timestamp (big-endian, 48 bits)
-  Result[0] := (Ms shr 40) and $FF;
-  Result[1] := (Ms shr 32) and $FF;
-  Result[2] := (Ms shr 24) and $FF;
-  Result[3] := (Ms shr 16) and $FF;
-  Result[4] := (Ms shr 8) and $FF;
-  Result[5] := Ms and $FF;
+    // Bytes 0-5: timestamp (big-endian, 48 bits)
+    Result[0] := (Ms shr 40) and $FF;
+    Result[1] := (Ms shr 32) and $FF;
+    Result[2] := (Ms shr 24) and $FF;
+    Result[3] := (Ms shr 16) and $FF;
+    Result[4] := (Ms shr 8) and $FF;
+    Result[5] := Ms and $FF;
 
-  if Ms = FLastMs then
-  begin
-    // Same millisecond - increment random part
-    Carry := 1;
-    for I := 9 downto 0 do
+    if Ms = FLastMs then
     begin
-      Carry := Carry + FLastRandom[I];
-      FLastRandom[I] := Carry and $FF;
-      Carry := Carry shr 8;
-      if Carry = 0 then
-        Break;
+      // Same millisecond - increment random part
+      Carry := 1;
+      for I := 9 downto 0 do
+      begin
+        Carry := Carry + FLastRandom[I];
+        FLastRandom[I] := Carry and $FF;
+        Carry := Carry shr 8;
+        if Carry = 0 then
+          Break;
+      end;
+      Move(FLastRandom[0], Result[6], 10);
+    end
+    else
+    begin
+      // New millisecond - generate fresh random
+      FLastMs := Ms;
+      IdRngFillBytes(FLastRandom[0], 10);  // ✅ 缓冲 RNG
+      Move(FLastRandom[0], Result[6], 10);
     end;
-    Move(FLastRandom[0], Result[6], 10);
-  end
-  else
-  begin
-    // New millisecond - generate fresh random
-    FLastMs := Ms;
-    GetSecureRandom.GetBytes(FLastRandom[0], 10);
-    Move(FLastRandom[0], Result[6], 10);
+  finally
+    FLock.Release;
   end;
 end;
 
@@ -451,5 +641,15 @@ begin
   for I := 0 to Count - 1 do
     Result[I] := Next;
 end;
+
+initialization
+  GTimeflakeLock := TCriticalSection.Create;
+
+finalization
+  GDefaultGenerator := nil;
+  GMonotonicGenerator := nil;
+  // ✅ P0: 安全清理敏感数据
+  FillChar(GMonotonicRandom[0], SizeOf(GMonotonicRandom), 0);
+  GTimeflakeLock.Free;
 
 end.

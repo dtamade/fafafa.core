@@ -31,12 +31,8 @@ function CreateUlidMonotonic: IUlidGenerator;
 
 implementation
 
-// Use shared time helper from fafafa.core.id.time
-
-procedure SecureRandomFill(var Buf; Count: SizeInt);
-begin
-  GetSecureRandom.GetBytes(Buf, Count);
-end;
+uses
+  fafafa.core.id.rng;  // ✅ 缓冲 RNG 优化
 
 type
   TUlidMonotonic = class(TInterfacedObject, IUlidGenerator)
@@ -67,6 +63,8 @@ end;
 
 destructor TUlidMonotonic.Destroy;
 begin
+  // ✅ P0: 清理敏感随机数据
+  FillChar(FLastRand[0], SizeOf(FLastRand), 0);
   FLock.Free;
   inherited Destroy;
 end;

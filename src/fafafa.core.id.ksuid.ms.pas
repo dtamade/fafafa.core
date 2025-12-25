@@ -41,6 +41,7 @@ type
     procedure Reseed;
   public
     constructor Create;
+    destructor Destroy; override;  // ✅ P0: 清理敏感数据
 
     function Next: string;
     function NextRaw: TKsuidMs160;
@@ -66,14 +67,12 @@ function KsuidMs_Timestamp(const K: TKsuidMs160): TDateTime;
 implementation
 
 uses
-  DateUtils;
+  DateUtils,
+  fafafa.core.id.base;  // ✅ 统一 BASE62_ALPHABET_STR
 
 const
   // KSUID epoch: May 13, 2014 (same as standard KSUID)
   KSUID_EPOCH = 1400000000;
-
-  // Base62 alphabet
-  BASE62_ALPHABET = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
 
 function CreateKsuidMsGenerator: IKsuidMsGenerator;
 begin
@@ -88,6 +87,14 @@ begin
   FLastMs := -1;
   FCounter := 0;
   Reseed;
+end;
+
+destructor TKsuidMsGenerator.Destroy;
+begin
+  // ✅ P0: 清理敏感随机数据
+  FillChar(FRandom[0], SizeOf(FRandom), 0);
+  FCounter := 0;
+  inherited Destroy;
 end;
 
 procedure TKsuidMsGenerator.Reseed;
@@ -172,7 +179,7 @@ end;
 
 function KsuidMsToString(const K: TKsuidMs160): string;
 var
-  I, J: Integer;
+  I: Integer;
   Num: array[0..19] of Byte;
   Quotient, Remainder: Integer;
   Chars: array[0..26] of Char;
@@ -193,7 +200,7 @@ begin
       Num[I] := Quotient div 62;
       Remainder := Quotient mod 62;
     end;
-    Chars[CharIdx] := BASE62_ALPHABET[Remainder + 1];
+    Chars[CharIdx] := BASE62_ALPHABET_STR[Remainder + 1];
     Dec(CharIdx);
   end;
 
@@ -215,7 +222,7 @@ begin
   // Convert from base62
   for I := 1 to 27 do
   begin
-    CharVal := Pos(S[I], BASE62_ALPHABET) - 1;
+    CharVal := Pos(S[I], BASE62_ALPHABET_STR) - 1;
     if CharVal < 0 then
       raise Exception.CreateFmt('Invalid character in KSUID: %s', [S[I]]);
 

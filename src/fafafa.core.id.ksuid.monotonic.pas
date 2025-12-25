@@ -32,13 +32,11 @@ function CreateKsuidMonotonic: IKsuidGenerator;
 
 implementation
 
+uses
+  fafafa.core.id.rng;  // ✅ 缓冲 RNG 优化
+
 const
   KSUID_EPOCH_UNIX = 1400000000; // 2014-05-13 16:53:20 UTC
-
-procedure SecureRandomFill(var Buf; Count: SizeInt);
-begin
-  GetSecureRandom.GetBytes(Buf, Count);
-end;
 
 type
   TKsuidMonotonic = class(TInterfacedObject, IKsuidGenerator)
@@ -70,6 +68,8 @@ end;
 
 destructor TKsuidMonotonic.Destroy;
 begin
+  // ✅ P0: 清理敏感随机数据
+  FillChar(FLastRand[0], SizeOf(FLastRand), 0);
   FLock.Free;
   inherited Destroy;
 end;

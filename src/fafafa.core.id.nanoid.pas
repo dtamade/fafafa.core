@@ -23,7 +23,7 @@ unit fafafa.core.id.nanoid;
 interface
 
 uses
-  SysUtils;
+  SysUtils, fafafa.core.math;
 
 type
   { NanoID 字母表预设 }
@@ -169,7 +169,8 @@ function GetAlphabetString(Alphabet: TNanoIdAlphabet): string;
 implementation
 
 uses
-  fafafa.core.crypto.random;
+  fafafa.core.crypto.random,
+  fafafa.core.id.rng;  // ✅ 缓冲 RNG 优化
 
 type
   { NanoID 生成器实现 }
@@ -177,10 +178,7 @@ type
   private
     FAlphabet: string;
     FSize: Integer;
-    FMask: Byte;
-    FStep: Integer;
 
-    procedure CalculateMaskAndStep;
   public
     constructor Create(const AAlphabet: string; ASize: Integer);
 
@@ -204,20 +202,21 @@ begin
     naHexUpper:      Result := NANOID_ALPHABET_HEX_UPPER;
     naNoDoppelganger: Result := NANOID_ALPHABET_NO_DOPPELGANGER;
     naNumbers:       Result := NANOID_ALPHABET_NUMBERS;
-  else
-    Result := NANOID_ALPHABET_URL_SAFE;
   end;
+  // 注：所有枚举值已覆盖，无需 else 分支
 end;
 
 { Core generation using unbiased algorithm }
 
 function GenerateNanoId(const Alphabet: string; Size: Integer): string;
+const
+  MAX_STEP = 512;  // ✅ P0: 栈分配最大步长
 var
   AlphabetLen: Integer;
   Mask: Integer;
   Step: Integer;
-  RandomBytes: array of Byte;
-  I, J, ByteIdx: Integer;
+  RandomBytes: array[0..MAX_STEP - 1] of Byte;  // ✅ P0: 栈分配替代堆分配
+  I, ByteIdx: Integer;
   ResultIdx: Integer;
 begin
   if Size < 1 then
@@ -238,15 +237,18 @@ begin
   // step = ceil(1.6 * mask * size / alphabetLen)
   // 1.6 是经验值，确保大多数情况下一次获取足够的字节
   Step := Trunc(1.6 * Mask * Size / AlphabetLen) + 1;
+  // ✅ P0: 限制步长不超过栈缓冲区大小
+  if Step > MAX_STEP then
+    Step := MAX_STEP;
 
-  SetLength(RandomBytes, Step);
   SetLength(Result, Size);
   ResultIdx := 1;
 
   while ResultIdx <= Size do
   begin
     // 获取密码学安全的随机字节
-    GetSecureRandom.GetBytes(RandomBytes[0], Step);
+    // ✅ 使用缓冲 RNG 优化性能
+    IdRngFillBytes(RandomBytes[0], Step);
 
     for ByteIdx := 0 to Step - 1 do
     begin
@@ -307,23 +309,6 @@ begin
   FSize := ASize;
   if FSize < 1 then
     FSize := NANOID_DEFAULT_SIZE;
-  CalculateMaskAndStep;
-end;
-
-procedure TNanoIdGenerator.CalculateMaskAndStep;
-var
-  AlphabetLen: Integer;
-begin
-  AlphabetLen := Length(FAlphabet);
-
-  // 计算掩码
-  FMask := 1;
-  while FMask < AlphabetLen do
-    FMask := FMask shl 1;
-  Dec(FMask);
-
-  // 计算步长
-  FStep := Trunc(1.6 * FMask * FSize / AlphabetLen) + 1;
 end;
 
 function TNanoIdGenerator.Next: string;
@@ -356,11 +341,7 @@ procedure TNanoIdGenerator.SetSize(ASize: Integer);
 begin
   if ASize < 1 then
     ASize := NANOID_DEFAULT_SIZE;
-  if ASize <> FSize then
-  begin
-    FSize := ASize;
-    CalculateMaskAndStep;
-  end;
+  FSize := ASize;
 end;
 
 { Factory functions }
@@ -377,9 +358,41 @@ end;
 
 { Validation }
 
+// ✅ P0: 预计算字母表查表（256 字节，O(1) 查找）
+type
+  TCharLookupTable = array[0..255] of Boolean;
+
+procedure BuildCharLookupTable(const Alphabet: string; out Table: TCharLookupTable);
+var
+  I: Integer;
+begin
+  FillChar(Table, SizeOf(Table), 0);
+  for I := 1 to Length(Alphabet) do
+    Table[Ord(Alphabet[I])] := True;
+end;
+
+// ✅ P0: 预计算的默认字母表查表（URL 安全）
+var
+  GUrlSafeCharTable: TCharLookupTable;
+  GUrlSafeCharTableInitialized: Boolean = False;
+
+procedure EnsureUrlSafeCharTable;
+var
+  I: Integer;
+begin
+  if not GUrlSafeCharTableInitialized then
+  begin
+    FillChar(GUrlSafeCharTable, SizeOf(GUrlSafeCharTable), 0);
+    for I := 1 to Length(NANOID_ALPHABET_URL_SAFE) do
+      GUrlSafeCharTable[Ord(NANOID_ALPHABET_URL_SAFE[I])] := True;
+    GUrlSafeCharTableInitialized := True;
+  end;
+end;
+
 function IsValidNanoId(const S: string; Alphabet: TNanoIdAlphabet; ExpectedSize: Integer): Boolean;
 var
   AlphabetStr: string;
+  CharTable: TCharLookupTable;
   I: Integer;
 begin
   Result := False;
@@ -390,12 +403,26 @@ begin
   if (ExpectedSize > 0) and (Length(S) <> ExpectedSize) then
     Exit;
 
-  AlphabetStr := GetAlphabetString(Alphabet);
-
-  for I := 1 to Length(S) do
+  // ✅ P0: 对默认 URL 安全字母表使用预计算查表
+  if Alphabet = naUrlSafe then
   begin
-    if Pos(S[I], AlphabetStr) = 0 then
-      Exit;
+    EnsureUrlSafeCharTable;
+    for I := 1 to Length(S) do
+    begin
+      if not GUrlSafeCharTable[Ord(S[I])] then
+        Exit;
+    end;
+  end
+  else
+  begin
+    // 其他字母表：动态构建查表
+    AlphabetStr := GetAlphabetString(Alphabet);
+    BuildCharLookupTable(AlphabetStr, CharTable);
+    for I := 1 to Length(S) do
+    begin
+      if not CharTable[Ord(S[I])] then
+        Exit;
+    end;
   end;
 
   Result := True;

@@ -42,10 +42,8 @@ function CreateUuidV7MonotonicEx(const Opts: TUuidV7Options): IUuidV7Generator;
 
 implementation
 
-procedure SecureRandomFill(var Buf; Count: SizeInt);
-begin
-  GetSecureRandom.GetBytes(Buf, Count);
-end;
+uses
+  fafafa.core.id.rng;  // ✅ 缓冲 RNG 优化
 
 type
   TUuidV7Monotonic = class(TInterfacedObject, IUuidV7Generator)
@@ -95,6 +93,8 @@ end;
 
 destructor TUuidV7Monotonic.Destroy;
 begin
+  // ✅ P0: 清理敏感随机数据
+  FillChar(FLastRand[0], SizeOf(FLastRand), 0);
   FLock.Free;
   inherited Destroy;
 end;
