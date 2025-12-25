@@ -25,7 +25,7 @@ unit fafafa.core.id.cuid2;
 interface
 
 uses
-  SysUtils;
+  SysUtils, SyncObjs;
 
 type
   { CUID2 生成器接口 }
@@ -130,18 +130,32 @@ var
   { 全局指纹 }
   GFingerprint: TFingerprint;
 
+  { ✅ P0: 全局初始化锁 }
+  GCuid2InitLock: TCriticalSection = nil;
+
 { Helper functions }
 
 procedure InitCounter;
 var
   RandBytes: array[0..7] of Byte;
 begin
+  // ✅ P0: 快速路径检查
   if GCounterInitialized then Exit;
 
-  // ✅ 使用缓冲 RNG 优化
-  IdRngFillBytes(RandBytes[0], 8);
-  GCounter := PUInt64(@RandBytes[0])^;
-  GCounterInitialized := True;
+  // ✅ P0: DCL 模式 + 临界区保护
+  GCuid2InitLock.Acquire;
+  try
+    // 双重检查
+    if GCounterInitialized then Exit;
+
+    // ✅ 使用缓冲 RNG 优化
+    IdRngFillBytes(RandBytes[0], 8);
+    GCounter := PUInt64(@RandBytes[0])^;
+    ReadWriteBarrier;
+    GCounterInitialized := True;
+  finally
+    GCuid2InitLock.Release;
+  end;
 end;
 
 function GetNextCounter: UInt64;
@@ -175,27 +189,42 @@ var
   PID: Cardinal;
   RandPart: string;
 begin
+  // ✅ P0: 快速路径检查
   if GFingerprint.Initialized then
   begin
     Result := GFingerprint.Data;
     Exit;
   end;
 
-  // 获取进程 ID
-  {$IFDEF UNIX}
-  PID := FpGetPid;
-  {$ELSE}
-  PID := GetCurrentProcessId;
-  {$ENDIF}
+  // ✅ P0: DCL 模式 + 临界区保护
+  GCuid2InitLock.Acquire;
+  try
+    // 双重检查
+    if GFingerprint.Initialized then
+    begin
+      Result := GFingerprint.Data;
+      Exit;
+    end;
 
-  // 使用随机部分作为机器标识 (简化实现，避免复杂的系统调用)
-  RandPart := CreateEntropy(16);
+    // 获取进程 ID
+    {$IFDEF UNIX}
+    PID := FpGetPid;
+    {$ELSE}
+    PID := GetCurrentProcessId;
+    {$ENDIF}
 
-  // 组合指纹
-  Result := IntToStr(PID) + RandPart;
+    // 使用随机部分作为机器标识 (简化实现，避免复杂的系统调用)
+    RandPart := CreateEntropy(16);
 
-  GFingerprint.Data := Result;
-  GFingerprint.Initialized := True;
+    // 组合指纹
+    Result := IntToStr(PID) + RandPart;
+
+    GFingerprint.Data := Result;
+    ReadWriteBarrier;
+    GFingerprint.Initialized := True;
+  finally
+    GCuid2InitLock.Release;
+  end;
 end;
 
 function HashToBase36(const Data: string; ALength: Integer): string;
@@ -350,6 +379,9 @@ begin
 end;
 
 // ✅ P3: finalization 清理敏感数据
+initialization
+  GCuid2InitLock := TCriticalSection.Create;
+
 finalization
   // 清除指纹数据（包含 PID 和随机部分）
   if GFingerprint.Initialized then
@@ -361,5 +393,7 @@ finalization
   // 清零计数器
   GCounter := 0;
   GCounterInitialized := False;
+  // ✅ P0: 释放锁
+  GCuid2InitLock.Free;
 
 end.

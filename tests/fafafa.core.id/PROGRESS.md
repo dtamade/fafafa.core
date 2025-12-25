@@ -31,6 +31,8 @@
 | T3.1 | nanoid.md 文档 | 2024-12-25 | 375b4a1 |
 | T3.2 | xid.md 文档 | 2024-12-25 | 375b4a1 |
 | T3.3 | architecture.md 文档 | 2024-12-25 | 375b4a1 |
+| SEC-3 | CUID2 DCL 竞态条件修复 | 2024-12-25 | pending |
+| SEC-4 | Sonyflake 线程安全修复 | 2024-12-25 | pending |
 
 ---
 
@@ -49,6 +51,8 @@
 - [x] timeflake.pas: finalization 清理 GMonotonicRandom
 - [x] cuid2.pas: finalization 清理 GFingerprint
 - [x] sqids.pas: DCL 初始化保护
+- [x] cuid2.pas: DCL 模式 + 临界区保护 (InitCounter, GetFingerprint) ✅ 新增
+- [x] sonyflake.pas: 线程安全锁 (NextRaw 临界区保护) ✅ 新增
 
 ### 性能改进
 - [x] rng.pas: TLS RNG (GetThreadIdRng, IdRngFillBytesTLS)

@@ -27,7 +27,7 @@ unit fafafa.core.id.sonyflake;
 interface
 
 uses
-  SysUtils, DateUtils,
+  SysUtils, DateUtils, SyncObjs,
   fafafa.core.id.time;
 
 type
@@ -67,6 +67,7 @@ type
     MAX_SEQUENCE = (1 shl SEQUENCE_BITS) - 1;  // 255
     TIME_UNIT_MS = 10;  // 10ms per unit
   private
+    FLock: TCriticalSection;  // ✅ P0: 线程安全锁
     FMachineID: Word;
     FEpochMs: Int64;
     FLastTime: Int64;      // 上次时间单位
@@ -77,6 +78,7 @@ type
     function WaitForNextTimeUnit(LastTime: Int64): Int64;
   public
     constructor Create(AMachineID: Word; AEpochMs: Int64 = 0);
+    destructor Destroy; override;  // ✅ P0: 析构函数
 
     function NextRaw: TSonyflakeID;
     function Next: string;
@@ -120,11 +122,21 @@ end;
 constructor TSonyflakeGenerator.Create(AMachineID: Word; AEpochMs: Int64);
 begin
   inherited Create;
+  FLock := TCriticalSection.Create;  // ✅ P0: 创建线程安全锁
   FMachineID := AMachineID;
   FEpochMs := AEpochMs;
   FLastTime := -1;
   FSequence := 0;
   FClockPolicy := scpSpinWait;
+end;
+
+destructor TSonyflakeGenerator.Destroy;
+begin
+  // ✅ P0: 清理敏感数据
+  FLastTime := 0;
+  FSequence := 0;
+  FLock.Free;
+  inherited Destroy;
 end;
 
 function TSonyflakeGenerator.CurrentTimeUnits: Int64;
@@ -157,45 +169,51 @@ function TSonyflakeGenerator.NextRaw: TSonyflakeID;
 var
   TimeUnits: Int64;
 begin
-  TimeUnits := CurrentTimeUnits;
+  // ✅ P0: 线程安全 - 保护内部状态
+  FLock.Acquire;
+  try
+    TimeUnits := CurrentTimeUnits;
 
-  if TimeUnits < FLastTime then
-  begin
-    // 时钟回退
-    case FClockPolicy of
-      scpSpinWait:
-        TimeUnits := WaitForNextTimeUnit(FLastTime);
-      scpRaiseError:
-        raise Exception.CreateFmt('Sonyflake clock rollback: current=%d, last=%d',
-          [TimeUnits, FLastTime]);
-      scpSkipAhead:
-        TimeUnits := FLastTime;
-    end;
-  end;
-
-  if TimeUnits = FLastTime then
-  begin
-    // 同一时间单位，递增序列号
-    Inc(FSequence);
-    if FSequence > MAX_SEQUENCE then
+    if TimeUnits < FLastTime then
     begin
-      // 序列号溢出，等待下一个时间单位
-      TimeUnits := WaitForNextTimeUnit(FLastTime);
+      // 时钟回退
+      case FClockPolicy of
+        scpSpinWait:
+          TimeUnits := WaitForNextTimeUnit(FLastTime);
+        scpRaiseError:
+          raise Exception.CreateFmt('Sonyflake clock rollback: current=%d, last=%d',
+            [TimeUnits, FLastTime]);
+        scpSkipAhead:
+          TimeUnits := FLastTime;
+      end;
+    end;
+
+    if TimeUnits = FLastTime then
+    begin
+      // 同一时间单位，递增序列号
+      Inc(FSequence);
+      if FSequence > MAX_SEQUENCE then
+      begin
+        // 序列号溢出，等待下一个时间单位
+        TimeUnits := WaitForNextTimeUnit(FLastTime);
+        FSequence := 0;
+      end;
+    end
+    else
+    begin
+      // 新时间单位，重置序列号
       FSequence := 0;
     end;
-  end
-  else
-  begin
-    // 新时间单位，重置序列号
-    FSequence := 0;
+
+    FLastTime := TimeUnits;
+
+    // 组装 ID: 时间(39位) | 序列(8位) | 机器ID(16位)
+    Result := (TimeUnits shl (SEQUENCE_BITS + MACHINE_BITS)) or
+              (Int64(FSequence) shl MACHINE_BITS) or
+              Int64(FMachineID);
+  finally
+    FLock.Release;
   end;
-
-  FLastTime := TimeUnits;
-
-  // 组装 ID: 时间(39位) | 序列(8位) | 机器ID(16位)
-  Result := (TimeUnits shl (SEQUENCE_BITS + MACHINE_BITS)) or
-            (Int64(FSequence) shl MACHINE_BITS) or
-            Int64(FMachineID);
 end;
 
 function TSonyflakeGenerator.GetMachineID: Word;
