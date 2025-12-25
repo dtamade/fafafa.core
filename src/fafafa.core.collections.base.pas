@@ -14,6 +14,9 @@ uses
   fafafa.core.mem.allocator,
   fafafa.core.collections.elementManager;
 
+// Suppress unused parameter hints - growth strategies and IsOverlap have intentionally unused params
+{$WARN 5024 OFF}
+
 
 type
 
@@ -3491,7 +3494,7 @@ begin
   Result := TPowerOfTwoGrowStrategy.Create;
 end;
 
-function TPowerOfTwoGrowStrategy.DoGetGrowSize(aCurrentSize, aRequiredSize: SizeUInt): SizeUInt;
+function TPowerOfTwoGrowStrategy.DoGetGrowSize({%H-}aCurrentSize, aRequiredSize: SizeUInt): SizeUInt;
 begin
   if aRequiredSize = 0 then
     Exit(0);
@@ -3592,7 +3595,7 @@ begin
 end;
 
 
-function TExactGrowStrategy.DoGetGrowSize(aCurrentSize, aRequiredSize: SizeUInt): SizeUInt;
+function TExactGrowStrategy.DoGetGrowSize({%H-}aCurrentSize, aRequiredSize: SizeUInt): SizeUInt;
 begin
   Result := aRequiredSize;
 end;
