@@ -231,15 +231,7 @@ type
      *}
     function GetValues: TCollection;
 
-    {**
-     * Clear
-     *
-     * @desc 清空所有键值对
-     *
-     * @postcondition GetKeyCount = 0
-     * @complexity O(n)
-     *}
-    procedure Clear;
+    // Clear 继承自 ICollection，不再重复声明
 
     { Entry API - Rust 风格的键值访问模式 }
 

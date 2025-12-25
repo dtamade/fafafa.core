@@ -142,7 +142,7 @@ type
      * @desc 清空缓冲区
      * @Complexity O(n) if T is managed type, else O(1)
      *}
-    procedure Clear;
+    procedure Clear; override;
 
     {**
      * IsFull
@@ -200,7 +200,7 @@ type
      * @return 包含所有元素的数组
      * @Complexity O(n)
      *}
-    function ToArray: TInternalArray;
+    function ToArray: TInternalArray; reintroduce;
 
     property OverwriteOldest: Boolean read FOverwriteOldest write FOverwriteOldest;
 

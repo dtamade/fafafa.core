@@ -120,7 +120,7 @@ type
     function Add(const aKey: K; const aValue: V): Boolean;
     function AddOrAssign(const aKey: K; const aValue: V): Boolean;
     function Remove(const aKey: K): Boolean;
-    procedure Clear;
+    procedure Clear; override;
     function GetCapacity: SizeUInt;
     function GetLoadFactor: Single;
     procedure Reserve(aCapacity: SizeUInt);
@@ -140,9 +140,9 @@ type
     procedure Retain(aPredicate: TEntryPredicate; aData: Pointer);
 
     // ICollection interface
-    function GetCount: SizeUInt;
+    function GetCount: SizeUInt; override;
     function IsEmpty: Boolean;
-    function PtrIter: TPtrIter;
+    function PtrIter: TPtrIter; override;
 
     // ILinkedHashMap<K,V> specific
     function First: TPairType;

@@ -153,16 +153,7 @@ type
      *}
     function Remove(const AKey: K): Boolean;
 
-    {**
-     * Clear
-     *
-     * @desc 清空所有元素
-     *
-     * @postcondition Count = 0, Capacity 不变
-     *
-     * @complexity O(n) 需要遍历所有桶并 Finalize
-     *}
-    procedure Clear;
+    // Clear 继承自 ICollection，不再重复声明
 
     {**
      * GetCapacity
@@ -443,23 +434,7 @@ type
      *}
     function Add(const AKey: K): Boolean;
 
-    {**
-     * Contains
-     *
-     * @desc 检查元素是否存在
-     *
-     * @params
-     *   AKey  要检查的元素
-     *
-     * @return Boolean 元素存在返回 True
-     *
-     * @complexity O(1) 平均, O(n) 最坏
-     *
-     * @example
-     *   if MySet.Contains('item') then
-     *     WriteLn('Found!');
-     *}
-    function Contains(const AKey: K): Boolean;
+    // Contains 继承自 IGenericCollection，不再重复声明
 
     {**
      * Remove
@@ -477,16 +452,7 @@ type
      *}
     function Remove(const AKey: K): Boolean;
 
-    {**
-     * Clear
-     *
-     * @desc 清空所有元素
-     *
-     * @postcondition Count = 0
-     *
-     * @complexity O(n)
-     *}
-    procedure Clear;
+    // Clear 继承自 ICollection，不再重复声明
 
     {**
      * GetCapacity
