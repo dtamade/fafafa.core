@@ -304,3 +304,214 @@ Writeln(FormatDurationHuman(TDuration.FromNs(1500000000))); // "1.500s"
 - ParseDuration / TryParseDuration（Go 风格 duration 文本解析）
 - TimerScheduler（ITimerScheduler / ITimerSchedulerTry / ITimer / ITicker）
 - TDeadline（超时表达）
+
+## 日期与时间类型
+
+### TDate（日期）
+```pascal
+uses fafafa.core.time.date;
+
+var d: TDate;
+begin
+  d := TDate.Create(2025, 12, 24);           // 构造
+  d := TDate.Today;                          // 当前日期
+  d := TDate.FromDateTime(Now);              // 从 TDateTime 转换
+
+  // 组件访问
+  WriteLn(d.GetYear, '-', d.GetMonth, '-', d.GetDay);
+  WriteLn('星期', d.GetDayOfWeek);           // 1=Sunday
+  WriteLn('年中第', d.GetDayOfYear, '天');
+
+  // 算术
+  d := d.AddDays(7);
+  d := d.AddMonths(1);
+  d := d.AddYears(1);
+
+  // 格式化与解析
+  WriteLn(d.ToString);                       // "2025-12-24"
+  TDate.TryParse('2025-12-24', d);
+end.
+```
+
+### TTimeOfDay（一天中的时间）
+```pascal
+uses fafafa.core.time.timeofday;
+
+var t: TTimeOfDay;
+begin
+  t := TTimeOfDay.Create(14, 30, 45);        // 14:30:45
+  t := TTimeOfDay.Create(14, 30, 45, 500);   // 带毫秒
+  t := TTimeOfDay.Midnight;                  // 00:00:00
+  t := TTimeOfDay.Noon;                      // 12:00:00
+
+  // 组件访问
+  WriteLn(t.GetHour, ':', t.GetMinute, ':', t.GetSecond);
+  WriteLn('毫秒:', t.GetMillisecond);
+
+  // 状态查询
+  if t.IsAM then WriteLn('上午');
+  if t.IsPM then WriteLn('下午');
+
+  // 格式化
+  WriteLn(t.ToString);                       // "14:30:45"
+  WriteLn(t.ToLongString);                   // "14:30:45.500"
+  WriteLn(t.To12HourString);                 // "2:30 PM"
+end.
+```
+
+### TNaiveDateTime（本地日期时间，无时区）
+```pascal
+uses fafafa.core.time.naivedatetime;
+
+var dt: TNaiveDateTime;
+begin
+  dt := TNaiveDateTime.Create(2025, 12, 24, 14, 30, 0);
+  dt := TNaiveDateTime.Now;                  // 当前本地时间
+
+  // 组件访问
+  WriteLn(dt.GetDate.ToString);              // 日期部分
+  WriteLn(dt.GetTime.ToString);              // 时间部分
+
+  // With* 链式修改（返回新值）
+  dt := dt.WithYear(2026).WithMonth(1).WithDay(1);
+  dt := dt.WithHour(0).WithMinute(0);
+end.
+```
+
+## CRON 表达式（任务调度）
+
+```pascal
+uses fafafa.core.time.scheduler;
+
+var
+  cron: ICronExpression;
+  fromTime, nextTime, prevTime: TInstant;
+begin
+  // 创建 CRON 表达式
+  cron := CreateCronExpression('0 9 * * 1-5');  // 工作日 9:00
+
+  if cron.IsValid then
+  begin
+    fromTime := NowInstant;
+
+    // 获取下一个执行时间
+    nextTime := cron.GetNextTime(fromTime);
+
+    // 获取上一个执行时间（反向查找）
+    prevTime := cron.GetPreviousTime(fromTime);
+  end;
+end.
+```
+
+常用 CRON 表达式：
+- `* * * * *` - 每分钟
+- `0 * * * *` - 每小时整点
+- `0 9 * * *` - 每天 9:00
+- `0 0 1 * *` - 每月 1 号 0:00
+- `0 9 * * 1-5` - 工作日 9:00
+- `0 0 29 2 *` - 每年 2 月 29 日（闰年）
+
+## ISO 8601 格式化与解析
+
+```pascal
+uses fafafa.core.time.iso8601;
+
+var
+  dt: TDateTime;
+  opts: TISO8601Options;
+  formatted: string;
+  parsed: TDateTime;
+  dur: TISO8601Duration;
+begin
+  dt := EncodeDate(2025, 12, 24) + EncodeTime(14, 30, 0, 0);
+
+  // 格式化
+  formatted := TISO8601Formatter.FormatDateTime(dt);  // "2025-12-24T14:30:00"
+
+  // 带选项格式化
+  opts := TISO8601Options.UTC;
+  formatted := TISO8601Formatter.FormatDateTime(dt, opts);  // "2025-12-24T14:30:00Z"
+
+  // 解析
+  if TISO8601Parser.ParseDateTime('2025-12-24T14:30:00Z', parsed) then
+    WriteLn('解析成功');
+
+  // Duration 格式化与解析
+  formatted := TISO8601Formatter.FormatDuration(TDuration.FromHours(2));  // "PT2H"
+  dur := TISO8601Duration.FromString('PT1H30M');
+  WriteLn('分钟数:', dur.ToTDuration.WholeMinutes);  // 90
+end.
+```
+
+## 时区支持
+
+```pascal
+uses fafafa.core.time.tz;
+
+var
+  tz: ITimeZone;
+  utcTime, localTime: TDateTime;
+begin
+  // 获取时区
+  tz := GetTimeZone('Asia/Shanghai');
+  // 或使用本地时区
+  tz := GetLocalTimeZone;
+
+  // UTC 转本地
+  utcTime := NowUTC;
+  localTime := tz.ToLocal(utcTime);
+
+  // 本地转 UTC
+  utcTime := tz.ToUTC(localTime);
+
+  // 时区偏移（分钟）
+  WriteLn('UTC+', tz.GetOffsetMinutes(utcTime) div 60);
+end.
+```
+
+## 解析器安全特性
+
+时间解析模块内置了多层安全防护：
+
+1. **输入长度限制**：最大 4096 字符，防止 DoS 攻击
+2. **格式字符串验证**：白名单校验，拒绝正则元字符
+3. **正则复杂度估算**：防止回溯炸弹（ReDoS）
+
+```pascal
+uses fafafa.core.time.parse;
+
+var
+  result: TFormatValidationResult;
+begin
+  // 验证格式字符串安全性
+  result := ValidateFormatString('yyyy-mm-dd');
+  if result.IsValid then
+    WriteLn('格式安全')
+  else
+    WriteLn('不安全: ', result.ErrorMessage);
+end.
+```
+
+## 性能特征
+
+基于 10 万次迭代的典型测量值（实际值因环境而异）：
+
+| 操作 | 典型耗时 |
+|------|----------|
+| NowInstant | < 2μs |
+| Duration 加法 | < 50ns |
+| Duration 比较 | < 20ns |
+| Instant 比较 | < 20ns |
+| Stopwatch 周期 | < 1.5μs |
+
+## 废弃方法
+
+部分旧版本方法已标记为 `deprecated`，将在 v3.0 版本移除。
+
+主要变更：
+- **比较方法** (`Equal`、`LessThan` 等) → 使用运算符 (`=`、`<` 等)
+- **TDuration.CheckedDivBy** → 使用 `CheckedDiv`
+- **TStopwatch.LapDuration** → 使用 `Lap`
+
+详细迁移指南请参考：[fafafa.core.time.DEPRECATIONS.md](fafafa.core.time.DEPRECATIONS.md)
+

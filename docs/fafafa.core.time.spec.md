@@ -55,8 +55,14 @@
 - "Sleep Best Practices": Slack and cancelable patterns
 - Migration guide: from GetTickCount64/millisecond integers to TDuration/TInstant/TDeadline
 
-## Roadmap items (next)
-- ParseDuration(text)->TDuration; configurable FormatDurationHuman (units/thresholds/precision/abbr)
-- TimerScheduler：已实现 one-shot/periodic，并补齐门面快捷入口（Schedule*/TrySchedule*）与 Result 风格（ITimerSchedulerTry/TTimerResult）；支持可选线程池异步回调执行器
-- Benchmarks: NowInstant, Sleep accuracy, TimeIt overhead
+## Roadmap items (status as of 2025-12-25)
+- ✅ ParseDuration(text)->TDuration: 已实现于 fafafa.core.time.parse.pas，支持 Go 风格语法
+- ✅ configurable FormatDurationHuman: 已实现于 fafafa.core.time.format.pas，支持缩写/精度配置
+- ✅ TimerScheduler：已实现 one-shot/periodic，并补齐门面快捷入口（Schedule*/TrySchedule*）与 Result 风格（ITimerSchedulerTry/TTimerResult）；支持可选线程池异步回调执行器
+- ✅ Benchmarks: NowInstant, Sleep accuracy, TimeIt overhead - 已实现于 Test_fafafa_core_time_perf_regression.pas
+
+## Future considerations
+- TDuration.ToISO8601 / TryParseISO8601 增强
+- 更多时区数据库支持（IANA tzdata）
+- 高精度定时器后端（实验性）
 

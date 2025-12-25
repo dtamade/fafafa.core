@@ -71,6 +71,9 @@ uses
   , Test_fafafa_core_time_timer_max_executions  // ✅ v2.0: 执行次数限制测试
   , Test_fafafa_core_time_timer_backends  // ✅ v2.0: 后端接口测试
   , Test_fafafa_core_time_timer_cancellation  // ✅ v2.0: 取消令牌集成测试
+  , Test_fafafa_core_time_roundtrip  // ✅ Format/Parse 往返验证测试
+  , Test_fafafa_core_time_cron_boundary  // ✅ CRON 表达式边界测试
+  , Test_fafafa_core_time_perf_regression  // ✅ 性能回归测试套件
   // {$IFDEF LINUX}, Test_SleepBest_Linux{$ENDIF} // 暂时禁用 - NANOSECONDS_PER_MILLI 未定义
   {$IFDEF DARWIN}, Test_SleepBest_Darwin{$ENDIF}
   ;

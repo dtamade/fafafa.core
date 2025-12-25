@@ -13,6 +13,8 @@ uses
   fafafa.core.time.duration,
   fafafa.core.time.instant,
   fafafa.core.time.clock,
+  fafafa.core.time.timer.backend,       // ✅ Phase 3.1: 后端接口
+  fafafa.core.time.timer.backend.heap,  // ✅ Phase 3.1: 二叉堆后端实现
   fafafa.core.sync,
   fafafa.core.thread.threadpool,
   fafafa.core.thread.cancel;
@@ -386,26 +388,25 @@ type
   private
     FClock: IMonotonicClock;
     FLock: ILock;
-    FHeap: array of PTimerEntry; // bespoke binary min-heap
-    FCount: Integer; // number of elements in heap
+    // ✅ Phase 3.1: 使用可插拔后端接口替代内部堆数组
+    FBackend: ITimerQueueBackend;
     FThread: TThread;
     FShuttingDown: Boolean;
     FWakeup: IEvent; // wake up timer thread on insert/cancel/shutdown
-    
+
     // 异步回调执行支持
     FCallbackPool: IThreadPool; // 用于异步执行定时器回调
     FUseAsyncCallbacks: Boolean; // 是否启用异步回调
   private
+    // ✅ Phase 3.1: 后端封装方法（替代旧的堆方法）
+    function BackendInsert(e: PTimerEntry): Boolean;
+    procedure BackendRemove(e: PTimerEntry);
+    procedure BackendUpdateDeadline(e: PTimerEntry);
+    function BackendPopMin: PTimerEntry;
+    function BackendCount: Integer; inline;
+    function BackendPeek: PTimerEntry; inline;
+    function BackendIsEmpty: Boolean; inline;
 
-
-    procedure HeapSwap(a, b: Integer);
-    procedure HeapEnsureCap;
-    function HeapInsert(e: PTimerEntry): Boolean;  // ✅ ISSUE-REVIEW-P2-3: 返回 Boolean 指示插入是否成功
-    procedure HeapRemoveAt(Index: Integer);
-    procedure HeapUpdateKey(Index: Integer);
-    procedure HeapifyUp(Index: Integer);
-    procedure HeapifyDown(Index: Integer);
-    function  HeapPopMinUnsafe: PTimerEntry; // FLock must be held
     procedure ThreadProc;
     procedure ExecuteCallbackSync(const cb: TTimerCallback; const best: PTimerEntry; const kind: TTimerKind; const delay: TDuration);
     procedure ExecuteCallbackAsync(const cb: TTimerCallback; const best: PTimerEntry; const kind: TTimerKind; const delay: TDuration);
@@ -464,7 +465,7 @@ begin
   FEntry := AEntry;
   FLock := Lock;
   // ✅ 不再增加 RefCount，因为 Schedule 方法中已经将初始值设置为 1
-  // 这避免了在 HeapInsert 之后、TTimerRef.Create 之前的竞态条件
+  // 这避免了在 BackendInsert 之后、TTimerRef.Create 之前的竞态条件
   // 当前 TTimerRef 持有这个引用，数值已经包含在初始值中
 end;
 
@@ -579,11 +580,10 @@ begin
     // 修改截止时间
     FEntry^.Deadline := Deadline;
 
-    // ✅ 修复 BUG: 更新堆排序
-    // 注意：FLock 已经是调度器的锁，可以安全调用 HeapUpdateKey
-    if (sch <> nil) and (idx >= 0) and (idx < sch.FCount) then
+    // ✅ Phase 3.1: 使用后端接口更新堆排序
+    if (sch <> nil) and FEntry^.InHeap then
     begin
-      sch.HeapUpdateKey(idx);
+      sch.BackendUpdateDeadline(FEntry);
       // ✅ 唤醒调度线程重新计算等待时间
       if Assigned(sch.FWakeup) then
         sch.FWakeup.SetEvent;
@@ -678,14 +678,13 @@ begin
 
     FEntry^.Paused := True;
 
-    // 如果在堆中，需要移除（暂停时不参与调度）
+    // ✅ Phase 3.1: 如果在堆中，需要移除（暂停时不参与调度）
     if FEntry^.InHeap then
     begin
       sch := TTimerSchedulerImpl(FEntry^.Owner);
-      if (sch <> nil) and (FEntry^.HeapIndex >= 0) then
-        sch.HeapRemoveAt(FEntry^.HeapIndex);
-      FEntry^.InHeap := False;
-      FEntry^.HeapIndex := -1;
+      if sch <> nil then
+        sch.BackendRemove(FEntry);
+      // 后端会自动设置 InHeap=False 和 HeapIndex=-1
     end;
 
     Result := True;
@@ -724,8 +723,8 @@ begin
       // 重新加入堆
       if not FEntry^.InHeap then
       begin
-        // ✅ ISSUE-REVIEW-P2-3: 检查 HeapInsert 返回值
-        if not sch.HeapInsert(FEntry) then
+        // ✅ Phase 3.1: 使用后端接口
+        if not sch.BackendInsert(FEntry) then
           Exit(False);  // 容量已满，恢复失败
         if Assigned(sch.FWakeup) then
           sch.FWakeup.SetEvent;
@@ -932,7 +931,7 @@ begin
   inherited Create;
   if Clock <> nil then FClock := Clock else FClock := DefaultMonotonicClock;
   FLock := TMutex.Create;
-  SetLength(FHeap, 0); FCount := 0;
+  FBackend := CreateDefaultBackend;  // ✅ Phase 3.1: 使用后端接口
   FShuttingDown := False;
   FWakeup := TEvent.Create(True, False); // manual reset, non-signaled
   FCallbackPool := nil;
@@ -945,7 +944,7 @@ begin
   inherited Create;
   if Clock <> nil then FClock := Clock else FClock := DefaultMonotonicClock;
   FLock := TMutex.Create;
-  SetLength(FHeap, 0); FCount := 0;
+  FBackend := CreateDefaultBackend;  // ✅ Phase 3.1: 使用后端接口
   FShuttingDown := False;
   FWakeup := TEvent.Create(True, False);
   FCallbackPool := CallbackPool;
@@ -953,155 +952,67 @@ begin
   FThread := TTimerThread.Create(Self);
 end;
 
-procedure TTimerSchedulerImpl.HeapSwap(a, b: Integer);
-var tmp: PTimerEntry;
+// ✅ Phase 3.1: 后端封装方法实现
+function TTimerSchedulerImpl.BackendInsert(e: PTimerEntry): Boolean;
 begin
-  if a = b then Exit;
-  tmp := FHeap[a]; FHeap[a] := FHeap[b]; FHeap[b] := tmp;
-  if FHeap[a] <> nil then FHeap[a]^.HeapIndex := a;
-  if FHeap[b] <> nil then FHeap[b]^.HeapIndex := b;
-end;
-
-procedure TTimerSchedulerImpl.HeapEnsureCap;
-var newCap: Integer;
-begin
-  // ✅ ISSUE-REVIEW-P2-3: 检查堆最大容量限制
-  if FCount >= TIMER_HEAP_MAX_CAPACITY then
-    Exit;  // 达到上限，不再扩容（调用者会检查 FCount）
-
-  if Length(FHeap) = 0 then SetLength(FHeap, 16)
-  else if FCount >= Length(FHeap) then
-  begin
-    newCap := Length(FHeap) * 2;
-    if newCap < 16 then newCap := 16;
-    // ✅ ISSUE-REVIEW-P2-3: 确保不超过最大容量
-    if newCap > TIMER_HEAP_MAX_CAPACITY then newCap := TIMER_HEAP_MAX_CAPACITY;
-    SetLength(FHeap, newCap);
-  end;
-end;
-
-// ✅ ISSUE-REVIEW-P2-3: 返回 Boolean 指示插入是否成功（防止 DoS 攻击）
-function TTimerSchedulerImpl.HeapInsert(e: PTimerEntry): Boolean;
-begin
-  // 检查容量限制，防止无限增长导致的 DoS
-  if FCount >= TIMER_HEAP_MAX_CAPACITY then
+  // 容量限制检查
+  if FBackend.Count >= TIMER_HEAP_MAX_CAPACITY then
     Exit(False);
-
-  HeapEnsureCap;
-  e^.HeapIndex := FCount;
-  e^.InHeap := True;
   e^.Owner := Self;
-  FHeap[FCount] := e;
-  Inc(FCount);
-  HeapifyUp(e^.HeapIndex);
+  FBackend.Enqueue(PTimerEntryOpaque(e));
   Result := True;
 end;
 
-procedure TTimerSchedulerImpl.HeapifyUp(Index: Integer);
-var i, p: Integer; a, b: PTimerEntry;
+procedure TTimerSchedulerImpl.BackendRemove(e: PTimerEntry);
 begin
-  i := Index;
-  while i > 0 do
-  begin
-    p := (i - 1) shr 1;
-    a := FHeap[i]; b := FHeap[p];
-    if (a = nil) or (b = nil) or (not a^.Deadline.LessThan(b^.Deadline)) then Break;
-    HeapSwap(i, p);
-    i := p;
-  end;
+  FBackend.Remove(PTimerEntryOpaque(e));
 end;
 
-
-
-procedure TTimerSchedulerImpl.HeapifyDown(Index: Integer);
-var i, l, r, smallest: Integer; a, leftE, rightE, smE: PTimerEntry;
+procedure TTimerSchedulerImpl.BackendUpdateDeadline(e: PTimerEntry);
 begin
-  i := Index;
-  while True do
-  begin
-    l := (i shl 1) + 1; r := l + 1;
-    smallest := i;
-    if l < FCount then
-    begin
-      a := FHeap[i]; leftE := FHeap[l];
-      if (leftE <> nil) and (a <> nil) and leftE^.Deadline.LessThan(a^.Deadline) then smallest := l;
-    end;
-    if r < FCount then
-    begin
-      smE := FHeap[smallest]; rightE := FHeap[r];
-      if (rightE <> nil) and (smE <> nil) and rightE^.Deadline.LessThan(smE^.Deadline) then smallest := r;
-    end;
-    if smallest = i then Break;
-    HeapSwap(i, smallest);
-    i := smallest;
-  end;
+  FBackend.UpdateDeadline(PTimerEntryOpaque(e));
 end;
 
-function TTimerSchedulerImpl.HeapPopMinUnsafe: PTimerEntry;
+function TTimerSchedulerImpl.BackendPopMin: PTimerEntry;
 begin
-  if FCount = 0 then Exit(nil);
-  Result := FHeap[0];
-  Dec(FCount);
-  if FCount > 0 then
-  begin
-    FHeap[0] := FHeap[FCount];
-    if FHeap[0] <> nil then FHeap[0]^.HeapIndex := 0;
-    FHeap[FCount] := nil;
-    HeapifyDown(0);
-  end
-  else
-    FHeap[0] := nil;
-  if Result <> nil then
-  begin
-    Result^.InHeap := False;
-    Result^.HeapIndex := -1;
-  end;
+  Result := PTimerEntry(FBackend.Dequeue);
 end;
 
-
-procedure TTimerSchedulerImpl.HeapRemoveAt(Index: Integer);
-var last: Integer;
+function TTimerSchedulerImpl.BackendCount: Integer;
 begin
-  if (Index < 0) or (Index >= FCount) then Exit;
-  last := FCount - 1;
-  if Index <> last then
-  begin
-    HeapSwap(Index, last);
-  end;
-  Dec(FCount);
-  FHeap[last] := nil;
-  if Index < FCount then
-  begin
-    HeapifyDown(Index);
-    HeapifyUp(Index);
-  end;
+  Result := FBackend.Count;
 end;
 
-procedure TTimerSchedulerImpl.HeapUpdateKey(Index: Integer);
+function TTimerSchedulerImpl.BackendPeek: PTimerEntry;
 begin
-  if (Index < 0) or (Index >= FCount) then Exit;
-  HeapifyDown(Index);
-  HeapifyUp(Index);
+  Result := PTimerEntry(FBackend.Peek);
+end;
+
+function TTimerSchedulerImpl.BackendIsEmpty: Boolean;
+begin
+  Result := FBackend.IsEmpty;
 end;
 
 destructor TTimerSchedulerImpl.Destroy;
+var
+  entry: PTimerEntry;
 begin
   Shutdown;
   FThread.Free;
-  // 清理未释放的条目
+  // ✅ Phase 3.1: 使用后端接口清理未释放的条目
   FLock.Acquire;
   try
-    while FCount > 0 do
+    while not FBackend.IsEmpty do
     begin
-      Dispose(FHeap[0]);
-      FHeap[0] := FHeap[FCount - 1];
-      Dec(FCount);
-      if FCount > 0 then HeapifyDown(0);
+      entry := PTimerEntry(FBackend.Dequeue);
+      if entry <> nil then
+        Dispose(entry);
     end;
+    FBackend.Clear;
   finally
     FLock.Release;
   end;
-  SetLength(FHeap, 0);
+  FBackend := nil;  // ✅ 释放后端接口引用
   FCallbackPool := nil; // 释放线程池引用
   inherited Destroy;
 end;
@@ -1131,14 +1042,14 @@ begin
     FLock.Acquire;
     try
       best := nil;
-      while (FCount > 0) do
+      while not BackendIsEmpty do  // ✅ Phase 3.1: 使用后端接口
       begin
-        best := FHeap[0];
+        best := BackendPeek;  // ✅ Phase 3.1: 使用后端接口
         // ✅ v2.0: 添加 Paused 检查（暂停的定时器不应该被调度）
         if best^.Cancelled or best^.Paused or ((best^.Kind = tkOnce) and best^.Fired) then
         begin
           // 丢弃无效元素
-          OldE := HeapPopMinUnsafe;
+          OldE := BackendPopMin;  // ✅ Phase 3.1: 使用后端接口
           if OldE <> nil then
           begin
             OldE^.InHeap := False;
@@ -1205,7 +1116,7 @@ begin
               ;
           end;
           // 弹出堆顶，让出锁后执行回调
-          HeapPopMinUnsafe;
+          BackendPopMin;  // ✅ Phase 3.1: 使用后端接口
           // 固定延迟的下一次触发在回调后安排
         end
         else
@@ -1448,8 +1359,8 @@ begin
       Dispose(p);
       Exit(nil);
     end;
-    // ✅ ISSUE-REVIEW-P2-3: 检查 HeapInsert 返回值（容量满时返回 nil）
-    if not HeapInsert(p) then
+    // ✅ ISSUE-REVIEW-P2-3: 检查 BackendInsert 返回值（容量满时返回 False）
+    if not BackendInsert(p) then
     begin
       p^.CancellationToken := nil;
       Dispose(p);
@@ -1582,8 +1493,8 @@ begin
       if (not best^.Cancelled) and (not FShuttingDown) then
       begin
         best^.Deadline := FClock.NowInstant.Add(delay);
-        // ✅ ISSUE-REVIEW-P2-3: 检查 HeapInsert 返回值
-        if HeapInsert(best) then
+        // ✅ ISSUE-REVIEW-P2-3: 检查 BackendInsert 返回值
+        if BackendInsert(best) then
         begin
           if Assigned(FWakeup) then FWakeup.SetEvent;
         end
@@ -1612,8 +1523,8 @@ begin
       try
         if (not best^.Cancelled) and (not FShuttingDown) then
         begin
-          // ✅ ISSUE-REVIEW-P2-3: 检查 HeapInsert 返回值
-          if HeapInsert(best) then
+          // ✅ ISSUE-REVIEW-P2-3: 检查 BackendInsert 返回值
+          if BackendInsert(best) then
           begin
             if Assigned(FWakeup) then FWakeup.SetEvent;
           end
@@ -1734,8 +1645,8 @@ begin
         if (not ctx^.Entry^.Cancelled) and (not sch.FShuttingDown) then
         begin
           ctx^.Entry^.Deadline := sch.FClock.NowInstant.Add(ctx^.Delay);
-          // ✅ ISSUE-REVIEW-P2-3: 检查 HeapInsert 返回值
-          if sch.HeapInsert(ctx^.Entry) then
+          // ✅ ISSUE-REVIEW-P2-3: 检查 BackendInsert 返回值
+          if sch.BackendInsert(ctx^.Entry) then
           begin
             if Assigned(sch.FWakeup) then sch.FWakeup.SetEvent;
           end
@@ -1769,8 +1680,8 @@ begin
 
           if (not ctx^.Entry^.Cancelled) and (not sch.FShuttingDown) then
           begin
-            // ✅ ISSUE-REVIEW-P2-3: 检查 HeapInsert 返回值
-            if sch.HeapInsert(ctx^.Entry) then
+            // ✅ ISSUE-REVIEW-P2-3: 检查 BackendInsert 返回值
+            if sch.BackendInsert(ctx^.Entry) then
             begin
               if Assigned(sch.FWakeup) then sch.FWakeup.SetEvent;
             end

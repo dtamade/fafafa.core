@@ -352,6 +352,7 @@ type
     procedure SetRangeWithStep(AStart, AEnd, AStep: Integer);
     function Matches(AValue: Integer): Boolean;
     function GetNext(AValue: Integer): Integer; // 返回 >= AValue 的下一个匹配值，-1 表示没有
+    function GetPrevious(AValue: Integer): Integer; // 返回 <= AValue 的上一个匹配值，-1 表示没有
   end;
   
   // Cron 表达式实现
@@ -2124,6 +2125,22 @@ begin
   end;
 end;
 
+function TCronField.GetPrevious(AValue: Integer): Integer;
+var
+  i: Integer;
+begin
+  Result := -1;
+  // 从后向前遍历，找到第一个 <= AValue 的值
+  for i := High(Values) downto 0 do
+  begin
+    if Values[i] <= AValue then
+    begin
+      Result := Values[i];
+      Exit;
+    end;
+  end;
+end;
+
 { TCronExpression }
 
 constructor TCronExpression.Create(const AExpression: string);
@@ -2539,9 +2556,178 @@ begin
 end;
 
 function TCronExpression.GetPreviousTime(const AFromTime: TInstant): TInstant;
+var
+  fromDT, prevDT: TDateTime;
+  year, month, day, hour, minute, second, msec: Word;
+  prevMinute, prevHour: Integer;
+  maxAttempts, attempts: Integer;
+  dow: Integer;
+  daysInMonth: Integer;
+  found: Boolean;
 begin
-  // TODO: 实现反向查找
   Result := TInstant.Zero;
+
+  if not FIsValid then
+    Exit;
+
+  // 将 TInstant 转换为 TDateTime
+  fromDT := UnixToDateTime(AFromTime.AsNsSinceEpoch div 1000000000, False);
+  // 减一分钟，确保上次时间是在过去
+  fromDT := IncMinute(fromDT, -1);
+
+  DecodeDateTime(fromDT, year, month, day, hour, minute, second, msec);
+
+  // 设置秒和毫秒为 0
+  second := 0;
+  msec := 0;
+
+  // 最多尝试 2 年
+  maxAttempts := 365 * 2 * 24 * 60;
+  attempts := 0;
+
+  while attempts < maxAttempts do
+  begin
+    Inc(attempts);
+
+    // 1. 检查当前月份是否匹配
+    if not FMonth.Matches(month) then
+    begin
+      // 当前月份不匹配，找上一个匹配的月份
+      if FMonth.GetPrevious(month) < 0 then
+      begin
+        // 今年没有更早的匹配月份，转到去年
+        Dec(year);
+        if year < 1970 then
+          Exit;
+        month := FMonth.Values[High(FMonth.Values)];
+      end
+      else
+        month := FMonth.GetPrevious(month);
+      daysInMonth := DaysInAMonth(year, month);
+      day := daysInMonth;
+      hour := 23;
+      minute := 59;
+      Continue;
+    end;
+
+    // 2. 查找匹配的日期
+    daysInMonth := DaysInAMonth(year, month);
+    if day > daysInMonth then
+      day := daysInMonth;
+    found := False;
+
+    while day >= 1 do
+    begin
+      prevDT := EncodeDate(year, month, day) + EncodeTime(hour, minute, 0, 0);
+      dow := DayOfWeek(prevDT) - 1;
+
+      if FDay.Matches(day) and FDayOfWeek.Matches(dow) then
+      begin
+        found := True;
+        break;
+      end;
+
+      Dec(day);
+      hour := 23;
+      minute := 59;
+    end;
+
+    if not found then
+    begin
+      // 本月没有匹配的日期，转到上个月
+      if month = 1 then
+      begin
+        Dec(year);
+        if year < 1970 then
+          Exit;
+        month := 12;
+      end
+      else
+        Dec(month);
+
+      // 跳到上一个匹配的月份
+      if not FMonth.Matches(month) then
+      begin
+        if FMonth.GetPrevious(month) < 0 then
+        begin
+          Dec(year);
+          if year < 1970 then
+            Exit;
+          month := FMonth.Values[High(FMonth.Values)];
+        end
+        else
+          month := FMonth.GetPrevious(month);
+      end;
+
+      daysInMonth := DaysInAMonth(year, month);
+      day := daysInMonth;
+      hour := 23;
+      minute := 59;
+      Continue;
+    end;
+
+    // 3. 查找上一个匹配的小时
+    prevHour := FHour.GetPrevious(hour);
+    if prevHour < 0 then
+    begin
+      Dec(day);
+      if day < 1 then
+      begin
+        if month = 1 then
+        begin
+          Dec(year);
+          if year < 1970 then
+            Exit;
+          month := 12;
+        end
+        else
+          Dec(month);
+        day := DaysInAMonth(year, month);
+      end;
+      hour := 23;
+      minute := 59;
+      Continue;
+    end
+    else if prevHour < hour then
+    begin
+      hour := prevHour;
+      minute := 59;
+    end;
+
+    // 4. 查找上一个匹配的分钟
+    prevMinute := FMinute.GetPrevious(minute);
+    if prevMinute < 0 then
+    begin
+      Dec(hour);
+      if hour < 0 then
+      begin
+        Dec(day);
+        if day < 1 then
+        begin
+          if month = 1 then
+          begin
+            Dec(year);
+            if year < 1970 then
+              Exit;
+            month := 12;
+          end
+          else
+            Dec(month);
+          day := DaysInAMonth(year, month);
+        end;
+        hour := 23;
+      end;
+      minute := 59;
+      Continue;
+    end;
+
+    minute := prevMinute;
+
+    // 找到匹配时间
+    prevDT := EncodeDate(year, month, day) + EncodeTime(hour, minute, 0, 0);
+    Result := TInstant.FromNsSinceEpoch(DateTimeToUnix(prevDT, False) * 1000000000);
+    Exit;
+  end;
 end;
 
 function TCronExpression.GetPreviousTime: TInstant;

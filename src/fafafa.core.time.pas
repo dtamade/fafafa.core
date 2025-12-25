@@ -25,6 +25,7 @@ uses
   // 时钟与便捷函数
   fafafa.core.time.clock,
   // 其他功能模块
+  fafafa.core.time.timer.base,  // ✅ 添加 timer.base 用于枚举值重导出
   fafafa.core.time.timer,  // ✅ 恢复 timer 模块导出
   fafafa.core.time.stopwatch,
   fafafa.core.time.date,
@@ -132,15 +133,15 @@ const
   tekShutdown        = fafafa.core.time.base.tekShutdown;
   tekCancelled       = fafafa.core.time.base.tekCancelled;
 
-  // Re-export timer enums for facade consumers
-  tkOnce      = fafafa.core.time.timer.tkOnce;
-  tkFixedRate = fafafa.core.time.timer.tkFixedRate;
-  tkFixedDelay= fafafa.core.time.timer.tkFixedDelay;
+  // Re-export timer enums for facade consumers (from timer.base)
+  tkOnce      = fafafa.core.time.timer.base.tkOnce;
+  tkFixedRate = fafafa.core.time.timer.base.tkFixedRate;
+  tkFixedDelay= fafafa.core.time.timer.base.tkFixedDelay;
 
-  tckProc     = fafafa.core.time.timer.tckProc;
-  tckProcData = fafafa.core.time.timer.tckProcData;
-  tckMethod   = fafafa.core.time.timer.tckMethod;
-  tckNested   = fafafa.core.time.timer.tckNested;
+  tckProc     = fafafa.core.time.timer.base.tckProc;
+  tckProcData = fafafa.core.time.timer.base.tckProcData;
+  tckMethod   = fafafa.core.time.timer.base.tckMethod;
+  tckNested   = fafafa.core.time.timer.base.tckNested;
 
 // Result 风格构造器（委托 base 单元）
 function TryDurationFromSec(const ASec: Int64): TDurationResult; inline;

@@ -46,7 +46,6 @@ uses
   fafafa.core.time.base,
   fafafa.core.time.duration,
   fafafa.core.time.instant,
-  // fafafa.core.time.config, // TODO: 该单元尚未实现，暂时注释
   fafafa.core.thread.cancel;
 
 type
@@ -440,6 +439,10 @@ var
   GSysClock: ISystemClock = nil;
   GClock: IClock = nil;
   GInitLock: TRTLCriticalSection;
+  // ✅ ISSUE-REVIEW-P1-1: 原子 CAS 状态变量（0=未初始化, 1=初始化中, 2=已完成）
+  GMonoClockOnce: Int32 = 0;
+  GSysClockOnce: Int32 = 0;
+  GClockOnce: Int32 = 0;
 
   // ✅ ISSUE-49: 睡眠策略配置的线程安全锁（仅用于写入操作）
   GSleepConfigLock: TRTLCriticalSection;
@@ -511,46 +514,110 @@ end;
 
 // 默认实例
 
+// ✅ ISSUE-REVIEW-P1-1: 使用原子 CAS 模式避免双重检查锁定的竞态条件
 function DefaultMonotonicClock: IMonotonicClock;
+var
+  LState: Int32;
 begin
-  if GMonoClock = nil then
+  // 快速路径：检查是否已初始化完成
+  LState := InterlockedCompareExchange(GMonoClockOnce, 0, 0);
+  if LState = 2 then
+    Exit(GMonoClock);
+
+  // 尝试获取初始化权
+  if InterlockedCompareExchange(GMonoClockOnce, 1, 0) = 0 then
   begin
-    EnterCriticalSection(GInitLock);
+    // 我们赢得了初始化权，执行初始化
     try
-      if GMonoClock = nil then
-        GMonoClock := CreateMonotonicClock;
-    finally
-      LeaveCriticalSection(GInitLock);
+      GMonoClock := CreateMonotonicClock;
+      // 使用内存屏障确保写入可见后再设置状态
+      InterlockedExchange(GMonoClockOnce, 2);
+    except
+      // 初始化失败，重置状态允许重试
+      InterlockedExchange(GMonoClockOnce, 0);
+      raise;
+    end;
+  end
+  else
+  begin
+    // 其他线程正在初始化，等待完成
+    while InterlockedCompareExchange(GMonoClockOnce, 0, 0) <> 2 do
+    begin
+      {$IFDEF WINDOWS}
+      Sleep(0);  // 让出时间片
+      {$ELSE}
+      ThreadSwitch;
+      {$ENDIF}
     end;
   end;
   Result := GMonoClock;
 end;
 
+// ✅ ISSUE-REVIEW-P1-1: 使用原子 CAS 模式避免双重检查锁定的竞态条件
 function DefaultSystemClock: ISystemClock;
+var
+  LState: Int32;
 begin
-  if GSysClock = nil then
+  // 快速路径：检查是否已初始化完成
+  LState := InterlockedCompareExchange(GSysClockOnce, 0, 0);
+  if LState = 2 then
+    Exit(GSysClock);
+
+  // 尝试获取初始化权
+  if InterlockedCompareExchange(GSysClockOnce, 1, 0) = 0 then
   begin
-    EnterCriticalSection(GInitLock);
     try
-      if GSysClock = nil then
-        GSysClock := CreateSystemClock;
-    finally
-      LeaveCriticalSection(GInitLock);
+      GSysClock := CreateSystemClock;
+      InterlockedExchange(GSysClockOnce, 2);
+    except
+      InterlockedExchange(GSysClockOnce, 0);
+      raise;
+    end;
+  end
+  else
+  begin
+    while InterlockedCompareExchange(GSysClockOnce, 0, 0) <> 2 do
+    begin
+      {$IFDEF WINDOWS}
+      Sleep(0);
+      {$ELSE}
+      ThreadSwitch;
+      {$ENDIF}
     end;
   end;
   Result := GSysClock;
 end;
 
+// ✅ ISSUE-REVIEW-P1-1: 使用原子 CAS 模式避免双重检查锁定的竞态条件
 function DefaultClock: IClock;
+var
+  LState: Int32;
 begin
-  if GClock = nil then
+  // 快速路径：检查是否已初始化完成
+  LState := InterlockedCompareExchange(GClockOnce, 0, 0);
+  if LState = 2 then
+    Exit(GClock);
+
+  // 尝试获取初始化权
+  if InterlockedCompareExchange(GClockOnce, 1, 0) = 0 then
   begin
-    EnterCriticalSection(GInitLock);
     try
-      if GClock = nil then
-        GClock := CreateClock;
-    finally
-      LeaveCriticalSection(GInitLock);
+      GClock := CreateClock;
+      InterlockedExchange(GClockOnce, 2);
+    except
+      InterlockedExchange(GClockOnce, 0);
+      raise;
+    end;
+  end
+  else
+  begin
+    while InterlockedCompareExchange(GClockOnce, 0, 0) <> 2 do
+    begin
+      {$IFDEF WINDOWS}
+      Sleep(0);
+      {$ELSE}
+      ThreadSwitch;
+      {$ENDIF}
     end;
   end;
   Result := GClock;

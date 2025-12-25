@@ -32,24 +32,41 @@ function CreateBinaryHeapBackendImpl: ITimerQueueBackend;
 implementation
 
 type
-  // 定义与 fafafa.core.time.timer 中 TTimerEntry 兼容的结构
-  // 只访问我们需要的字段
+  // ✅ Phase 3.1: 定义与 fafafa.core.time.timer 中 TTimerEntry 完全兼容的结构
+  // 字段顺序和大小必须精确匹配，否则 InHeap/HeapIndex 的偏移会错误
+  TTimerCallbackKindCompat = (
+    tckProc,
+    tckProcData,
+    tckMethod,
+    tckNested
+  );
+
+  // TTimerCallback 的兼容版本 - 必须与原版大小相同
+  TTimerCallbackCompat = record
+    case Kind: TTimerCallbackKindCompat of
+      tckProc: (Proc: Pointer);
+      tckProcData: (ProcData: Pointer; Data: Pointer);
+      tckMethod: (MethodCode: Pointer; MethodData: Pointer);
+      tckNested: (NestedCode: Pointer; NestedFrame: Pointer);
+  end;
+
   PTimerEntryCompat = ^TTimerEntryCompat;
   TTimerEntryCompat = record
-    Kind: Integer;           // TTimerKind
-    Deadline: TInstant;      // 用于排序
-    Period: Int64;           // TDuration.FNanos
-    Delay: Int64;            // TDuration.FNanos
-    Callback: Pointer;       // TTimerCallback (变体记录)
-    CallbackData: Pointer;   // TTimerCallback.Data
+    Kind: Integer;              // TTimerKind (4 bytes)
+    Deadline: TInstant;         // 用于排序 (8 bytes, aligned at 8)
+    Period: Int64;              // TDuration.FNanos (8 bytes)
+    Delay: Int64;               // TDuration.FNanos (8 bytes)
+    Callback: TTimerCallbackCompat;  // TTimerCallback (变体记录, ~24 bytes)
     Cancelled: Boolean;
     Fired: Boolean;
-    ExecutionCount: QWord;
+    ExecutionCount: QWord;      // 8 bytes, aligned
+    MaxExecutions: QWord;       // ✅ v2.0 新增字段
     Paused: Boolean;
+    CancellationToken: Pointer; // ICancellationToken (interface = pointer)
     RefCount: LongInt;
     Dead: Boolean;
-    InHeap: Boolean;         // 我们需要维护
-    HeapIndex: Integer;      // 我们需要维护
+    InHeap: Boolean;            // 我们需要维护
+    HeapIndex: Integer;         // 我们需要维护, aligned
     Owner: Pointer;
   end;
 
