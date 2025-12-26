@@ -7,13 +7,21 @@ interface
 
 // =============================================================
 // 说明
-// - 本单元是 SIMD 子系统的基础单元，包含所有公共类型、枚举、常量和接口定义。
-// - 所有其他 SIMD 单元都应引用此单元。
+// - 本单元是 SIMD 子系统的基础单元，仅包含类型定义和常量。
+// - 工具函数（Mask*、Vec*、Shuffle 等）位于 fafafa.core.simd.utils 单元。
+// - 向量运算符重载位于 fafafa.core.simd.ops 单元。
 // =============================================================
 
 // === 向量数据类型（record + variant 部分）===
+// 注意: 对齐属性确保向量可安全用于 SIMD load/store 指令
+// - 128-bit 向量: 16 字节对齐 (SSE/NEON)
+// - 256-bit 向量: 32 字节对齐 (AVX/AVX2)
+// - 512-bit 向量: 32 字节对齐 (AVX-512, FPC 最大支持)
+
+{$PUSH}
+{$CODEALIGN RECORDMIN=16}
 type
-  // 128-bit 有符号向量
+  // 128-bit 有符号向量 (16 字节对齐)
   TVecF32x4 = record
     case Integer of
       0: (f: array[0..3] of Single);
@@ -50,7 +58,7 @@ type
       1: (raw: array[0..15] of Byte);
   end;
 
-  // 128-bit 无符号向量
+  // 128-bit 无符号向量 (16 字节对齐)
   TVecU32x4 = record
     case Integer of
       0: (u: array[0..3] of UInt32);
@@ -74,8 +82,11 @@ type
       0: (u: array[0..15] of UInt8);
       1: (raw: array[0..15] of Byte);
   end;
+{$POP}
 
-  // 256-bit
+{$PUSH}
+{$CODEALIGN RECORDMIN=32}
+  // 256-bit 向量 (32 字节对齐 - AVX/AVX2)
   TVecF32x8 = record
     case Integer of
       0: (f: array[0..7] of Single);
@@ -111,7 +122,7 @@ type
       2: (raw: array[0..31] of Byte);
   end;
 
-  // 256-bit 无符号向量
+  // 256-bit 无符号向量 (32 字节对齐)
   TVecU32x8 = record
     case Integer of
       0: (u: array[0..7] of UInt32);
@@ -139,8 +150,13 @@ type
       1: (lo, hi: TVecU8x16);
       2: (raw: array[0..31] of Byte);
   end;
+{$POP}
 
-  // 512-bit 向量类型
+{$PUSH}
+{$CODEALIGN RECORDMIN=32}
+  // 512-bit 向量类型 (32 字节对齐 - FPC 最大支持值)
+  // 注意: AVX-512 理论需要 64 字节对齐，但 FPC CODEALIGN 最大支持 32
+  // 对于栈分配，编译器通常会保证足够对齐
   TVecF32x16 = record
     case Integer of
       0: (f: array[0..15] of Single);
@@ -183,7 +199,7 @@ type
       2: (raw: array[0..63] of Byte);
   end;
 
-  // 512-bit 无符号向量
+  // 512-bit 无符号向量 (32 字节对齐)
   TVecU32x16 = record
     case Integer of
       0: (u: array[0..15] of UInt32);
@@ -204,6 +220,7 @@ type
       1: (lo, hi: TVecU8x32);
       2: (raw: array[0..63] of Byte);
   end;
+{$POP}
 
 // === 位掩码类型 ===
 type
@@ -215,53 +232,59 @@ type
   TMask64 = type QWord;  // 64 位有效
 
 // === 向量掩码类型 ===
+{$PUSH}
+{$CODEALIGN RECORDMIN=16}
 type
-  // 128-bit F32x4 掩码
+  // 128-bit F32x4 掩码 (16 字节对齐)
   TMaskF32x4 = record
     case Integer of
       0: (m: array[0..3] of UInt32);      // 每个元素 0 或 $FFFFFFFF
       1: (raw: array[0..15] of Byte);
   end;
 
-  // 128-bit F64x2 掩码
+  // 128-bit F64x2 掩码 (16 字节对齐)
   TMaskF64x2 = record
     case Integer of
       0: (m: array[0..1] of UInt64);      // 每个元素 0 或 $FFFFFFFFFFFFFFFF
       1: (raw: array[0..15] of Byte);
   end;
 
-  // 128-bit I32x4 掩码
+  // 128-bit I32x4 掩码 (16 字节对齐)
   TMaskI32x4 = record
     case Integer of
       0: (m: array[0..3] of UInt32);      // 每个元素 0 或 $FFFFFFFF
       1: (raw: array[0..15] of Byte);
   end;
 
-  // 128-bit I64x2 掩码
+  // 128-bit I64x2 掩码 (16 字节对齐)
   TMaskI64x2 = record
     case Integer of
       0: (m: array[0..1] of UInt64);
       1: (raw: array[0..15] of Byte);
   end;
+{$POP}
 
-  // 512-bit F32x16 掩码
+{$PUSH}
+{$CODEALIGN RECORDMIN=32}
+  // 512-bit F32x16 掩码 (32 字节对齐)
   // Note: bits 作为独立字段，不与 m 数组重叠
   TMaskF32x16 = record
     m: array[0..15] of UInt32;     // 每个元素 0 或 $FFFFFFFF
     bits: UInt16;                   // AVX-512 k 寄存器位模式
   end;
 
-  // 512-bit I32x16 掩码
+  // 512-bit I32x16 掩码 (32 字节对齐)
   TMaskI32x16 = record
     m: array[0..15] of UInt32;
     bits: UInt16;
   end;
 
-  // 512-bit F64x8 掩码
+  // 512-bit F64x8 掩码 (32 字节对齐)
   TMaskF64x8 = record
     m: array[0..7] of UInt64;
     bits: UInt8;                    // AVX-512 k 寄存器 8 位
   end;
+{$POP}
 
 // === 元素类型枚举 ===
 type
@@ -283,10 +306,14 @@ type
   TSimdBackend = (
     sbScalar,
     sbSSE2,
+    sbSSE3,     // SSE3 - 新增水平运算指令 (HADDPS, MOVDDUP 等)
+    sbSSSE3,    // SSSE3 - 补充 SSE3 (PSHUFB, PALIGNR 等)
+    sbSSE41,    // SSE4.1 - 扩展整数/浮点指令 (ROUNDPS, PBLENDVB 等)
+    sbSSE42,    // SSE4.2 - 字符串处理/CRC32 (PCMPESTRI, CRC32 等)
     sbAVX2,
     sbAVX512,
     sbNEON,
-    sbRISCVV
+    sbRISCVV    // ⚠️ EXPERIMENTAL - 实验性后端，API 可能变更
   );
 
   TSimdCapability = (
@@ -329,8 +356,83 @@ const
   MASK16_NONE_SET : TMask16 = $0000;
   MASK32_NONE_SET : TMask32 = $00000000;
 
+// === 掩码逻辑运算符 ===
+// 512-bit 掩码逻辑运算符
+operator and (const a, b: TMaskF32x16): TMaskF32x16; inline;
+operator or (const a, b: TMaskF32x16): TMaskF32x16; inline;
+operator xor (const a, b: TMaskF32x16): TMaskF32x16; inline;
+operator not (const a: TMaskF32x16): TMaskF32x16; inline;
+
+// TMaskF32x4 逻辑运算符
+operator and (const a, b: TMaskF32x4): TMaskF32x4; inline;
+operator or (const a, b: TMaskF32x4): TMaskF32x4; inline;
+operator xor (const a, b: TMaskF32x4): TMaskF32x4; inline;
+operator not (const a: TMaskF32x4): TMaskF32x4; inline;
+
 implementation
 
+// === TMaskF32x16 逻辑运算符实现 ===
+
+operator and (const a, b: TMaskF32x16): TMaskF32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.m[i] := a.m[i] and b.m[i];
+  Result.bits := a.bits and b.bits;
+end;
+
+operator or (const a, b: TMaskF32x16): TMaskF32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.m[i] := a.m[i] or b.m[i];
+  Result.bits := a.bits or b.bits;
+end;
+
+operator xor (const a, b: TMaskF32x16): TMaskF32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.m[i] := a.m[i] xor b.m[i];
+  Result.bits := a.bits xor b.bits;
+end;
+
+operator not (const a: TMaskF32x16): TMaskF32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.m[i] := not a.m[i];
+  Result.bits := not a.bits;
+end;
+
+// === TMaskF32x4 逻辑运算符实现 ===
+
+operator and (const a, b: TMaskF32x4): TMaskF32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.m[i] := a.m[i] and b.m[i];
+end;
+
+operator or (const a, b: TMaskF32x4): TMaskF32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.m[i] := a.m[i] or b.m[i];
+end;
+
+operator xor (const a, b: TMaskF32x4): TMaskF32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.m[i] := a.m[i] xor b.m[i];
+end;
+
+operator not (const a: TMaskF32x4): TMaskF32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.m[i] := not a.m[i];
+end;
+
 end.
-
-

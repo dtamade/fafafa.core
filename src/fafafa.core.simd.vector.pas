@@ -7,7 +7,8 @@ unit fafafa.core.simd.vector;
 interface
 
 uses
-  fafafa.core.simd.base;
+  fafafa.core.simd.base,
+  fafafa.core.simd.utils;
 
 type
   { TSimdVecF32x4 - 高级 4x Single 向量封装 }
@@ -175,14 +176,25 @@ uses
 
 { TSimdVecF32x4 }
 
+// ✅ Safety check: use saturation strategy for index bounds (per project spec)
 function TSimdVecF32x4.GetElement(index: Integer): Single;
+var
+  safeIndex: Integer;
 begin
-  Result := FData.f[index];
+  safeIndex := index;
+  if safeIndex < 0 then safeIndex := 0
+  else if safeIndex > 3 then safeIndex := 3;
+  Result := FData.f[safeIndex];
 end;
 
 procedure TSimdVecF32x4.SetElement(index: Integer; value: Single);
+var
+  safeIndex: Integer;
 begin
-  FData.f[index] := value;
+  safeIndex := index;
+  if safeIndex < 0 then safeIndex := 0
+  else if safeIndex > 3 then safeIndex := 3;
+  FData.f[safeIndex] := value;
 end;
 
 class function TSimdVecF32x4.Create(x, y, z, w: Single): TSimdVecF32x4;
@@ -422,14 +434,25 @@ end;
 
 { TSimdVecI32x4 }
 
+// ✅ Safety check: use saturation strategy for index bounds (per project spec)
 function TSimdVecI32x4.GetElement(index: Integer): Int32;
+var
+  safeIndex: Integer;
 begin
-  Result := FData.i[index];
+  safeIndex := index;
+  if safeIndex < 0 then safeIndex := 0
+  else if safeIndex > 3 then safeIndex := 3;
+  Result := FData.i[safeIndex];
 end;
 
 procedure TSimdVecI32x4.SetElement(index: Integer; value: Int32);
+var
+  safeIndex: Integer;
 begin
-  FData.i[index] := value;
+  safeIndex := index;
+  if safeIndex < 0 then safeIndex := 0
+  else if safeIndex > 3 then safeIndex := 3;
+  FData.i[safeIndex] := value;
 end;
 
 class function TSimdVecI32x4.Create(x, y, z, w: Int32): TSimdVecI32x4;

@@ -63,9 +63,113 @@ function ScalarSubF64x2(const a, b: TVecF64x2): TVecF64x2;
 function ScalarMulF64x2(const a, b: TVecF64x2): TVecF64x2;
 function ScalarDivF64x2(const a, b: TVecF64x2): TVecF64x2;
 
+// F64x4 Arithmetic (256-bit)
+function ScalarAddF64x4(const a, b: TVecF64x4): TVecF64x4;
+function ScalarSubF64x4(const a, b: TVecF64x4): TVecF64x4;
+function ScalarMulF64x4(const a, b: TVecF64x4): TVecF64x4;
+function ScalarDivF64x4(const a, b: TVecF64x4): TVecF64x4;
+
 function ScalarAddI32x4(const a, b: TVecI32x4): TVecI32x4;
 function ScalarSubI32x4(const a, b: TVecI32x4): TVecI32x4;
 function ScalarMulI32x4(const a, b: TVecI32x4): TVecI32x4;
+// I32x4 Bitwise
+function ScalarAndI32x4(const a, b: TVecI32x4): TVecI32x4;
+function ScalarOrI32x4(const a, b: TVecI32x4): TVecI32x4;
+function ScalarXorI32x4(const a, b: TVecI32x4): TVecI32x4;
+function ScalarNotI32x4(const a: TVecI32x4): TVecI32x4;
+function ScalarAndNotI32x4(const a, b: TVecI32x4): TVecI32x4;
+// I32x4 Shift
+function ScalarShiftLeftI32x4(const a: TVecI32x4; count: Integer): TVecI32x4;
+function ScalarShiftRightI32x4(const a: TVecI32x4; count: Integer): TVecI32x4;
+function ScalarShiftRightArithI32x4(const a: TVecI32x4; count: Integer): TVecI32x4;
+// I32x4 Comparison
+function ScalarCmpEqI32x4(const a, b: TVecI32x4): TMask4;
+function ScalarCmpLtI32x4(const a, b: TVecI32x4): TMask4;
+function ScalarCmpGtI32x4(const a, b: TVecI32x4): TMask4;
+function ScalarCmpLeI32x4(const a, b: TVecI32x4): TMask4;  // ✅ P0-5: Added
+function ScalarCmpGeI32x4(const a, b: TVecI32x4): TMask4;  // ✅ P0-5: Added
+function ScalarCmpNeI32x4(const a, b: TVecI32x4): TMask4;  // ✅ P0-5: Added
+// I32x4 MinMax
+function ScalarMinI32x4(const a, b: TVecI32x4): TVecI32x4;
+function ScalarMaxI32x4(const a, b: TVecI32x4): TVecI32x4;
+
+// I64x2 Arithmetic
+function ScalarAddI64x2(const a, b: TVecI64x2): TVecI64x2;
+function ScalarSubI64x2(const a, b: TVecI64x2): TVecI64x2;
+// I64x2 Bitwise
+function ScalarAndI64x2(const a, b: TVecI64x2): TVecI64x2;
+function ScalarOrI64x2(const a, b: TVecI64x2): TVecI64x2;
+function ScalarXorI64x2(const a, b: TVecI64x2): TVecI64x2;
+function ScalarNotI64x2(const a: TVecI64x2): TVecI64x2;
+// ✅ P0-5: I64x2 Comparison (added full set)
+function ScalarCmpEqI64x2(const a, b: TVecI64x2): TMask2;
+function ScalarCmpLtI64x2(const a, b: TVecI64x2): TMask2;
+function ScalarCmpGtI64x2(const a, b: TVecI64x2): TMask2;
+function ScalarCmpLeI64x2(const a, b: TVecI64x2): TMask2;
+function ScalarCmpGeI64x2(const a, b: TVecI64x2): TMask2;
+function ScalarCmpNeI64x2(const a, b: TVecI64x2): TMask2;
+
+// I32x8 Arithmetic (256-bit)
+function ScalarAddI32x8(const a, b: TVecI32x8): TVecI32x8;
+function ScalarSubI32x8(const a, b: TVecI32x8): TVecI32x8;
+function ScalarMulI32x8(const a, b: TVecI32x8): TVecI32x8;
+// I32x8 Bitwise
+function ScalarAndI32x8(const a, b: TVecI32x8): TVecI32x8;
+function ScalarOrI32x8(const a, b: TVecI32x8): TVecI32x8;
+function ScalarXorI32x8(const a, b: TVecI32x8): TVecI32x8;
+function ScalarNotI32x8(const a: TVecI32x8): TVecI32x8;
+function ScalarAndNotI32x8(const a, b: TVecI32x8): TVecI32x8;
+// I32x8 Shift
+function ScalarShiftLeftI32x8(const a: TVecI32x8; count: Integer): TVecI32x8;
+function ScalarShiftRightI32x8(const a: TVecI32x8; count: Integer): TVecI32x8;
+function ScalarShiftRightArithI32x8(const a: TVecI32x8; count: Integer): TVecI32x8;
+// I32x8 Comparison
+function ScalarCmpEqI32x8(const a, b: TVecI32x8): TMask8;
+function ScalarCmpLtI32x8(const a, b: TVecI32x8): TMask8;
+function ScalarCmpGtI32x8(const a, b: TVecI32x8): TMask8;
+function ScalarCmpLeI32x8(const a, b: TVecI32x8): TMask8;  // ✅ P0-5: Added
+function ScalarCmpGeI32x8(const a, b: TVecI32x8): TMask8;  // ✅ P0-5: Added
+function ScalarCmpNeI32x8(const a, b: TVecI32x8): TMask8;  // ✅ P0-5: Added
+// I32x8 MinMax
+function ScalarMinI32x8(const a, b: TVecI32x8): TVecI32x8;
+function ScalarMaxI32x8(const a, b: TVecI32x8): TVecI32x8;
+
+// F32x16 Arithmetic (512-bit)
+function ScalarAddF32x16(const a, b: TVecF32x16): TVecF32x16;
+function ScalarSubF32x16(const a, b: TVecF32x16): TVecF32x16;
+function ScalarMulF32x16(const a, b: TVecF32x16): TVecF32x16;
+function ScalarDivF32x16(const a, b: TVecF32x16): TVecF32x16;
+
+// F64x8 Arithmetic (512-bit)
+function ScalarAddF64x8(const a, b: TVecF64x8): TVecF64x8;
+function ScalarSubF64x8(const a, b: TVecF64x8): TVecF64x8;
+function ScalarMulF64x8(const a, b: TVecF64x8): TVecF64x8;
+function ScalarDivF64x8(const a, b: TVecF64x8): TVecF64x8;
+
+// I32x16 Arithmetic (512-bit)
+function ScalarAddI32x16(const a, b: TVecI32x16): TVecI32x16;
+function ScalarSubI32x16(const a, b: TVecI32x16): TVecI32x16;
+function ScalarMulI32x16(const a, b: TVecI32x16): TVecI32x16;
+// I32x16 Bitwise
+function ScalarAndI32x16(const a, b: TVecI32x16): TVecI32x16;
+function ScalarOrI32x16(const a, b: TVecI32x16): TVecI32x16;
+function ScalarXorI32x16(const a, b: TVecI32x16): TVecI32x16;
+function ScalarNotI32x16(const a: TVecI32x16): TVecI32x16;
+function ScalarAndNotI32x16(const a, b: TVecI32x16): TVecI32x16;
+// I32x16 Shift
+function ScalarShiftLeftI32x16(const a: TVecI32x16; count: Integer): TVecI32x16;
+function ScalarShiftRightI32x16(const a: TVecI32x16; count: Integer): TVecI32x16;
+function ScalarShiftRightArithI32x16(const a: TVecI32x16; count: Integer): TVecI32x16;
+// I32x16 Comparison
+function ScalarCmpEqI32x16(const a, b: TVecI32x16): TMask16;
+function ScalarCmpLtI32x16(const a, b: TVecI32x16): TMask16;
+function ScalarCmpGtI32x16(const a, b: TVecI32x16): TMask16;
+function ScalarCmpLeI32x16(const a, b: TVecI32x16): TMask16;  // ✅ P0-5: Added
+function ScalarCmpGeI32x16(const a, b: TVecI32x16): TMask16;  // ✅ P0-5: Added
+function ScalarCmpNeI32x16(const a, b: TVecI32x16): TMask16;  // ✅ P0-5: Added
+// I32x16 MinMax
+function ScalarMinI32x16(const a, b: TVecI32x16): TVecI32x16;
+function ScalarMaxI32x16(const a, b: TVecI32x16): TVecI32x16;
 
 // Comparison
 function ScalarCmpEqF32x4(const a, b: TVecF32x4): TMask4;
@@ -74,6 +178,14 @@ function ScalarCmpLeF32x4(const a, b: TVecF32x4): TMask4;
 function ScalarCmpGtF32x4(const a, b: TVecF32x4): TMask4;
 function ScalarCmpGeF32x4(const a, b: TVecF32x4): TMask4;
 function ScalarCmpNeF32x4(const a, b: TVecF32x4): TMask4;
+
+// ✅ P1-E: F64x2 比较操作
+function ScalarCmpEqF64x2(const a, b: TVecF64x2): TMask2;
+function ScalarCmpLtF64x2(const a, b: TVecF64x2): TMask2;
+function ScalarCmpLeF64x2(const a, b: TVecF64x2): TMask2;
+function ScalarCmpGtF64x2(const a, b: TVecF64x2): TMask2;
+function ScalarCmpGeF64x2(const a, b: TVecF64x2): TMask2;
+function ScalarCmpNeF64x2(const a, b: TVecF64x2): TMask2;
 
 // Math
 function ScalarAbsF32x4(const a: TVecF32x4): TVecF32x4;
@@ -100,6 +212,23 @@ function ScalarSelectF32x4(const mask: TMask4; const a, b: TVecF32x4): TVecF32x4
 function ScalarExtractF32x4(const a: TVecF32x4; index: Integer): Single;
 function ScalarInsertF32x4(const a: TVecF32x4; value: Single; index: Integer): TVecF32x4;
 
+// ✅ P1-5: 宽向量 Load/Store/Splat/Zero
+// F64x2 (128-bit)
+function ScalarLoadF64x2(p: PDouble): TVecF64x2;
+procedure ScalarStoreF64x2(p: PDouble; const a: TVecF64x2);
+function ScalarSplatF64x2(value: Double): TVecF64x2;
+function ScalarZeroF64x2: TVecF64x2;
+// F32x8 (256-bit)
+function ScalarLoadF32x8(p: PSingle): TVecF32x8;
+procedure ScalarStoreF32x8(p: PSingle; const a: TVecF32x8);
+function ScalarSplatF32x8(value: Single): TVecF32x8;
+function ScalarZeroF32x8: TVecF32x8;
+// F64x4 (256-bit)
+function ScalarLoadF64x4(p: PDouble): TVecF64x4;
+procedure ScalarStoreF64x4(p: PDouble; const a: TVecF64x4);
+function ScalarSplatF64x4(value: Double): TVecF64x4;
+function ScalarZeroF64x4: TVecF64x4;
+
 // 扩展数学函数
 function ScalarFmaF32x4(const a, b, c: TVecF32x4): TVecF32x4;
 function ScalarRcpF32x4(const a: TVecF32x4): TVecF32x4;
@@ -110,6 +239,28 @@ function ScalarRoundF32x4(const a: TVecF32x4): TVecF32x4;
 function ScalarTruncF32x4(const a: TVecF32x4): TVecF32x4;
 function ScalarClampF32x4(const a, minVal, maxVal: TVecF32x4): TVecF32x4;
 
+// ✅ P1-4: 宽向量扩展数学函数
+// F64x2 (128-bit)
+function ScalarFmaF64x2(const a, b, c: TVecF64x2): TVecF64x2;
+function ScalarFloorF64x2(const a: TVecF64x2): TVecF64x2;
+function ScalarCeilF64x2(const a: TVecF64x2): TVecF64x2;
+function ScalarRoundF64x2(const a: TVecF64x2): TVecF64x2;
+function ScalarTruncF64x2(const a: TVecF64x2): TVecF64x2;
+
+// F32x8 (256-bit)
+function ScalarFmaF32x8(const a, b, c: TVecF32x8): TVecF32x8;
+function ScalarFloorF32x8(const a: TVecF32x8): TVecF32x8;
+function ScalarCeilF32x8(const a: TVecF32x8): TVecF32x8;
+function ScalarRoundF32x8(const a: TVecF32x8): TVecF32x8;
+function ScalarTruncF32x8(const a: TVecF32x8): TVecF32x8;
+
+// F64x4 (256-bit)
+function ScalarFmaF64x4(const a, b, c: TVecF64x4): TVecF64x4;
+function ScalarFloorF64x4(const a: TVecF64x4): TVecF64x4;
+function ScalarCeilF64x4(const a: TVecF64x4): TVecF64x4;
+function ScalarRoundF64x4(const a: TVecF64x4): TVecF64x4;
+function ScalarTruncF64x4(const a: TVecF64x4): TVecF64x4;
+
 // 3D/4D 向量数学函数
 function ScalarDotF32x4(const a, b: TVecF32x4): Single;
 function ScalarDotF32x3(const a, b: TVecF32x4): Single;
@@ -118,6 +269,47 @@ function ScalarLengthF32x4(const a: TVecF32x4): Single;
 function ScalarLengthF32x3(const a: TVecF32x4): Single;
 function ScalarNormalizeF32x4(const a: TVecF32x4): TVecF32x4;
 function ScalarNormalizeF32x3(const a: TVecF32x4): TVecF32x4;
+
+// === ✅ P2-1: Saturating Arithmetic ===
+// Signed saturating (clamp to type range, no overflow)
+function ScalarI8x16SatAdd(const a, b: TVecI8x16): TVecI8x16;
+function ScalarI8x16SatSub(const a, b: TVecI8x16): TVecI8x16;
+function ScalarI16x8SatAdd(const a, b: TVecI16x8): TVecI16x8;
+function ScalarI16x8SatSub(const a, b: TVecI16x8): TVecI16x8;
+// Unsigned saturating
+function ScalarU8x16SatAdd(const a, b: TVecU8x16): TVecU8x16;
+function ScalarU8x16SatSub(const a, b: TVecU8x16): TVecU8x16;
+function ScalarU16x8SatAdd(const a, b: TVecU16x8): TVecU16x8;
+function ScalarU16x8SatSub(const a, b: TVecU16x8): TVecU16x8;
+
+// ✅ P2-2: Mask 操作函数
+// TMask2 (2 元素)
+function ScalarMask2All(mask: TMask2): Boolean;
+function ScalarMask2Any(mask: TMask2): Boolean;
+function ScalarMask2None(mask: TMask2): Boolean;
+function ScalarMask2PopCount(mask: TMask2): Integer;
+function ScalarMask2FirstSet(mask: TMask2): Integer;
+// TMask4 (4 元素)
+function ScalarMask4All(mask: TMask4): Boolean;
+function ScalarMask4Any(mask: TMask4): Boolean;
+function ScalarMask4None(mask: TMask4): Boolean;
+function ScalarMask4PopCount(mask: TMask4): Integer;
+function ScalarMask4FirstSet(mask: TMask4): Integer;
+// TMask8 (8 元素)
+function ScalarMask8All(mask: TMask8): Boolean;
+function ScalarMask8Any(mask: TMask8): Boolean;
+function ScalarMask8None(mask: TMask8): Boolean;
+function ScalarMask8PopCount(mask: TMask8): Integer;
+function ScalarMask8FirstSet(mask: TMask8): Integer;
+// TMask16 (16 元素)
+function ScalarMask16All(mask: TMask16): Boolean;
+function ScalarMask16Any(mask: TMask16): Boolean;
+function ScalarMask16None(mask: TMask16): Boolean;
+function ScalarMask16PopCount(mask: TMask16): Integer;
+function ScalarMask16FirstSet(mask: TMask16): Integer;
+
+// ✅ P2-3: F64x2 Select
+function ScalarSelectF64x2(const mask: TMask2; const a, b: TVecF64x2): TVecF64x2;
 
 implementation
 
@@ -235,6 +427,742 @@ begin
   for i := 0 to 3 do
     Result.i[i] := a.i[i] * b.i[i];
 end;
+
+// I32x4 Bitwise Operations
+function ScalarAndI32x4(const a, b: TVecI32x4): TVecI32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.i[i] := a.i[i] and b.i[i];
+end;
+
+function ScalarOrI32x4(const a, b: TVecI32x4): TVecI32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.i[i] := a.i[i] or b.i[i];
+end;
+
+function ScalarXorI32x4(const a, b: TVecI32x4): TVecI32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.i[i] := a.i[i] xor b.i[i];
+end;
+
+function ScalarNotI32x4(const a: TVecI32x4): TVecI32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.i[i] := not a.i[i];
+end;
+
+function ScalarAndNotI32x4(const a, b: TVecI32x4): TVecI32x4;
+var i: Integer;
+begin
+  // AndNot: (not a) and b - 与 SIMD 指令 PANDN 语义一致
+  for i := 0 to 3 do
+    Result.i[i] := (not a.i[i]) and b.i[i];
+end;
+
+// I32x4 Shift Operations
+function ScalarShiftLeftI32x4(const a: TVecI32x4; count: Integer): TVecI32x4;
+var i: Integer;
+begin
+  if (count < 0) or (count >= 32) then
+  begin
+    // 超出范围时返回零（与 SIMD 行为一致）
+    for i := 0 to 3 do
+      Result.i[i] := 0;
+  end
+  else
+  begin
+    for i := 0 to 3 do
+      Result.i[i] := a.i[i] shl count;
+  end;
+end;
+
+function ScalarShiftRightI32x4(const a: TVecI32x4; count: Integer): TVecI32x4;
+var i: Integer;
+begin
+  if (count < 0) or (count >= 32) then
+  begin
+    for i := 0 to 3 do
+      Result.i[i] := 0;
+  end
+  else
+  begin
+    // 逻辑右移（无符号）
+    for i := 0 to 3 do
+      Result.i[i] := Int32(UInt32(a.i[i]) shr count);
+  end;
+end;
+
+function ScalarShiftRightArithI32x4(const a: TVecI32x4; count: Integer): TVecI32x4;
+var i: Integer;
+begin
+  if count < 0 then
+  begin
+    for i := 0 to 3 do
+      Result.i[i] := a.i[i];
+  end
+  else if count >= 32 then
+  begin
+    // 算术右移超过31位，结果为全0或全1（取决于符号位）
+    for i := 0 to 3 do
+      if a.i[i] < 0 then
+        Result.i[i] := -1
+      else
+        Result.i[i] := 0;
+  end
+  else
+  begin
+    // 算术右移（保留符号）
+    for i := 0 to 3 do
+      Result.i[i] := SarLongint(a.i[i], count);
+  end;
+end;
+
+// I32x4 Comparison Operations
+function ScalarCmpEqI32x4(const a, b: TVecI32x4): TMask4;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 3 do
+    if a.i[i] = b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function ScalarCmpLtI32x4(const a, b: TVecI32x4): TMask4;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 3 do
+    if a.i[i] < b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function ScalarCmpGtI32x4(const a, b: TVecI32x4): TMask4;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 3 do
+    if a.i[i] > b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+// ✅ P0-5: Added missing comparison operations
+function ScalarCmpLeI32x4(const a, b: TVecI32x4): TMask4;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 3 do
+    if a.i[i] <= b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function ScalarCmpGeI32x4(const a, b: TVecI32x4): TMask4;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 3 do
+    if a.i[i] >= b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function ScalarCmpNeI32x4(const a, b: TVecI32x4): TMask4;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 3 do
+    if a.i[i] <> b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+// I32x4 Min/Max Operations
+function ScalarMinI32x4(const a, b: TVecI32x4): TVecI32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    if a.i[i] < b.i[i] then
+      Result.i[i] := a.i[i]
+    else
+      Result.i[i] := b.i[i];
+end;
+
+function ScalarMaxI32x4(const a, b: TVecI32x4): TVecI32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    if a.i[i] > b.i[i] then
+      Result.i[i] := a.i[i]
+    else
+      Result.i[i] := b.i[i];
+end;
+
+// I64x2 Arithmetic Operations
+function ScalarAddI64x2(const a, b: TVecI64x2): TVecI64x2;
+var j: Integer;
+begin
+  for j := 0 to 1 do
+    Result.i[j] := a.i[j] + b.i[j];
+end;
+
+function ScalarSubI64x2(const a, b: TVecI64x2): TVecI64x2;
+var j: Integer;
+begin
+  for j := 0 to 1 do
+    Result.i[j] := a.i[j] - b.i[j];
+end;
+
+// I64x2 Bitwise Operations
+function ScalarAndI64x2(const a, b: TVecI64x2): TVecI64x2;
+var j: Integer;
+begin
+  for j := 0 to 1 do
+    Result.i[j] := a.i[j] and b.i[j];
+end;
+
+function ScalarOrI64x2(const a, b: TVecI64x2): TVecI64x2;
+var j: Integer;
+begin
+  for j := 0 to 1 do
+    Result.i[j] := a.i[j] or b.i[j];
+end;
+
+function ScalarXorI64x2(const a, b: TVecI64x2): TVecI64x2;
+var j: Integer;
+begin
+  for j := 0 to 1 do
+    Result.i[j] := a.i[j] xor b.i[j];
+end;
+
+function ScalarNotI64x2(const a: TVecI64x2): TVecI64x2;
+var j: Integer;
+begin
+  for j := 0 to 1 do
+    Result.i[j] := not a.i[j];
+end;
+
+// ✅ P0-5: I64x2 Comparison Operations (missing from dispatch table)
+function ScalarCmpEqI64x2(const a, b: TVecI64x2): TMask2;
+begin
+  Result := 0;
+  if a.i[0] = b.i[0] then Result := Result or 1;
+  if a.i[1] = b.i[1] then Result := Result or 2;
+end;
+
+function ScalarCmpLtI64x2(const a, b: TVecI64x2): TMask2;
+begin
+  Result := 0;
+  if a.i[0] < b.i[0] then Result := Result or 1;
+  if a.i[1] < b.i[1] then Result := Result or 2;
+end;
+
+function ScalarCmpGtI64x2(const a, b: TVecI64x2): TMask2;
+begin
+  Result := 0;
+  if a.i[0] > b.i[0] then Result := Result or 1;
+  if a.i[1] > b.i[1] then Result := Result or 2;
+end;
+
+function ScalarCmpLeI64x2(const a, b: TVecI64x2): TMask2;
+begin
+  Result := 0;
+  if a.i[0] <= b.i[0] then Result := Result or 1;
+  if a.i[1] <= b.i[1] then Result := Result or 2;
+end;
+
+function ScalarCmpGeI64x2(const a, b: TVecI64x2): TMask2;
+begin
+  Result := 0;
+  if a.i[0] >= b.i[0] then Result := Result or 1;
+  if a.i[1] >= b.i[1] then Result := Result or 2;
+end;
+
+function ScalarCmpNeI64x2(const a, b: TVecI64x2): TMask2;
+begin
+  Result := 0;
+  if a.i[0] <> b.i[0] then Result := Result or 1;
+  if a.i[1] <> b.i[1] then Result := Result or 2;
+end;
+
+// F64x4 Arithmetic Operations (256-bit)
+function ScalarAddF64x4(const a, b: TVecF64x4): TVecF64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.d[i] := a.d[i] + b.d[i];
+end;
+
+function ScalarSubF64x4(const a, b: TVecF64x4): TVecF64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.d[i] := a.d[i] - b.d[i];
+end;
+
+function ScalarMulF64x4(const a, b: TVecF64x4): TVecF64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.d[i] := a.d[i] * b.d[i];
+end;
+
+function ScalarDivF64x4(const a, b: TVecF64x4): TVecF64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.d[i] := a.d[i] / b.d[i];
+end;
+{$POP}
+
+// === I32x8 Arithmetic Operations (256-bit) ===
+{$PUSH}{$R-}{$Q-}
+function ScalarAddI32x8(const a, b: TVecI32x8): TVecI32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.i[i] := a.i[i] + b.i[i];
+end;
+
+function ScalarSubI32x8(const a, b: TVecI32x8): TVecI32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.i[i] := a.i[i] - b.i[i];
+end;
+
+function ScalarMulI32x8(const a, b: TVecI32x8): TVecI32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.i[i] := a.i[i] * b.i[i];
+end;
+
+// I32x8 Bitwise Operations
+function ScalarAndI32x8(const a, b: TVecI32x8): TVecI32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.i[i] := a.i[i] and b.i[i];
+end;
+
+function ScalarOrI32x8(const a, b: TVecI32x8): TVecI32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.i[i] := a.i[i] or b.i[i];
+end;
+
+function ScalarXorI32x8(const a, b: TVecI32x8): TVecI32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.i[i] := a.i[i] xor b.i[i];
+end;
+
+function ScalarNotI32x8(const a: TVecI32x8): TVecI32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.i[i] := not a.i[i];
+end;
+
+function ScalarAndNotI32x8(const a, b: TVecI32x8): TVecI32x8;
+var i: Integer;
+begin
+  // AndNot: (not a) and b - 与 SIMD 指令 PANDN 语义一致
+  for i := 0 to 7 do
+    Result.i[i] := (not a.i[i]) and b.i[i];
+end;
+
+// I32x8 Shift Operations
+function ScalarShiftLeftI32x8(const a: TVecI32x8; count: Integer): TVecI32x8;
+var i: Integer;
+begin
+  if (count < 0) or (count >= 32) then
+  begin
+    for i := 0 to 7 do
+      Result.i[i] := 0;
+  end
+  else
+  begin
+    for i := 0 to 7 do
+      Result.i[i] := a.i[i] shl count;
+  end;
+end;
+
+function ScalarShiftRightI32x8(const a: TVecI32x8; count: Integer): TVecI32x8;
+var i: Integer;
+begin
+  if (count < 0) or (count >= 32) then
+  begin
+    for i := 0 to 7 do
+      Result.i[i] := 0;
+  end
+  else
+  begin
+    // 逻辑右移（无符号）
+    for i := 0 to 7 do
+      Result.i[i] := Int32(UInt32(a.i[i]) shr count);
+  end;
+end;
+
+function ScalarShiftRightArithI32x8(const a: TVecI32x8; count: Integer): TVecI32x8;
+var i: Integer;
+begin
+  if count < 0 then
+  begin
+    for i := 0 to 7 do
+      Result.i[i] := a.i[i];
+  end
+  else if count >= 32 then
+  begin
+    // 算术右移超过31位，结果为全0或全1（取决于符号位）
+    for i := 0 to 7 do
+      if a.i[i] < 0 then
+        Result.i[i] := -1
+      else
+        Result.i[i] := 0;
+  end
+  else
+  begin
+    // 算术右移（保留符号）
+    for i := 0 to 7 do
+      Result.i[i] := SarLongint(a.i[i], count);
+  end;
+end;
+
+// I32x8 Comparison Operations
+function ScalarCmpEqI32x8(const a, b: TVecI32x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.i[i] = b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function ScalarCmpLtI32x8(const a, b: TVecI32x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.i[i] < b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function ScalarCmpGtI32x8(const a, b: TVecI32x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.i[i] > b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+// ✅ P0-5: Added missing I32x8 comparison operations
+function ScalarCmpLeI32x8(const a, b: TVecI32x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.i[i] <= b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function ScalarCmpGeI32x8(const a, b: TVecI32x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.i[i] >= b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function ScalarCmpNeI32x8(const a, b: TVecI32x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.i[i] <> b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+// I32x8 Min/Max Operations
+function ScalarMinI32x8(const a, b: TVecI32x8): TVecI32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    if a.i[i] < b.i[i] then
+      Result.i[i] := a.i[i]
+    else
+      Result.i[i] := b.i[i];
+end;
+
+function ScalarMaxI32x8(const a, b: TVecI32x8): TVecI32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    if a.i[i] > b.i[i] then
+      Result.i[i] := a.i[i]
+    else
+      Result.i[i] := b.i[i];
+end;
+{$POP}
+
+// === F32x16 Arithmetic Operations (512-bit) ===
+function ScalarAddF32x16(const a, b: TVecF32x16): TVecF32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.f[i] := a.f[i] + b.f[i];
+end;
+
+function ScalarSubF32x16(const a, b: TVecF32x16): TVecF32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.f[i] := a.f[i] - b.f[i];
+end;
+
+function ScalarMulF32x16(const a, b: TVecF32x16): TVecF32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.f[i] := a.f[i] * b.f[i];
+end;
+
+function ScalarDivF32x16(const a, b: TVecF32x16): TVecF32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.f[i] := a.f[i] / b.f[i];
+end;
+
+// === F64x8 Arithmetic Operations (512-bit) ===
+function ScalarAddF64x8(const a, b: TVecF64x8): TVecF64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.d[i] := a.d[i] + b.d[i];
+end;
+
+function ScalarSubF64x8(const a, b: TVecF64x8): TVecF64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.d[i] := a.d[i] - b.d[i];
+end;
+
+function ScalarMulF64x8(const a, b: TVecF64x8): TVecF64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.d[i] := a.d[i] * b.d[i];
+end;
+
+function ScalarDivF64x8(const a, b: TVecF64x8): TVecF64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.d[i] := a.d[i] / b.d[i];
+end;
+
+// === I32x16 Arithmetic Operations (512-bit) ===
+{$PUSH}{$R-}{$Q-}
+function ScalarAddI32x16(const a, b: TVecI32x16): TVecI32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.i[i] := a.i[i] + b.i[i];
+end;
+
+function ScalarSubI32x16(const a, b: TVecI32x16): TVecI32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.i[i] := a.i[i] - b.i[i];
+end;
+
+function ScalarMulI32x16(const a, b: TVecI32x16): TVecI32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.i[i] := a.i[i] * b.i[i];
+end;
+
+// I32x16 Bitwise Operations
+function ScalarAndI32x16(const a, b: TVecI32x16): TVecI32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.i[i] := a.i[i] and b.i[i];
+end;
+
+function ScalarOrI32x16(const a, b: TVecI32x16): TVecI32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.i[i] := a.i[i] or b.i[i];
+end;
+
+function ScalarXorI32x16(const a, b: TVecI32x16): TVecI32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.i[i] := a.i[i] xor b.i[i];
+end;
+
+function ScalarNotI32x16(const a: TVecI32x16): TVecI32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.i[i] := not a.i[i];
+end;
+
+function ScalarAndNotI32x16(const a, b: TVecI32x16): TVecI32x16;
+var i: Integer;
+begin
+  // AndNot: (not a) and b - 与 SIMD 指令 PANDN 语义一致
+  for i := 0 to 15 do
+    Result.i[i] := (not a.i[i]) and b.i[i];
+end;
+
+// I32x16 Shift Operations
+function ScalarShiftLeftI32x16(const a: TVecI32x16; count: Integer): TVecI32x16;
+var i: Integer;
+begin
+  if (count < 0) or (count >= 32) then
+  begin
+    for i := 0 to 15 do
+      Result.i[i] := 0;
+  end
+  else
+  begin
+    for i := 0 to 15 do
+      Result.i[i] := a.i[i] shl count;
+  end;
+end;
+
+function ScalarShiftRightI32x16(const a: TVecI32x16; count: Integer): TVecI32x16;
+var i: Integer;
+begin
+  if (count < 0) or (count >= 32) then
+  begin
+    for i := 0 to 15 do
+      Result.i[i] := 0;
+  end
+  else
+  begin
+    // 逻辑右移（无符号）
+    for i := 0 to 15 do
+      Result.i[i] := Int32(UInt32(a.i[i]) shr count);
+  end;
+end;
+
+function ScalarShiftRightArithI32x16(const a: TVecI32x16; count: Integer): TVecI32x16;
+var i: Integer;
+begin
+  if count < 0 then
+  begin
+    for i := 0 to 15 do
+      Result.i[i] := a.i[i];
+  end
+  else if count >= 32 then
+  begin
+    // 算术右移超过31位，结果为全0或全1（取决于符号位）
+    for i := 0 to 15 do
+      if a.i[i] < 0 then
+        Result.i[i] := -1
+      else
+        Result.i[i] := 0;
+  end
+  else
+  begin
+    // 算术右移（保留符号）
+    for i := 0 to 15 do
+      Result.i[i] := SarLongint(a.i[i], count);
+  end;
+end;
+
+// I32x16 Comparison Operations
+function ScalarCmpEqI32x16(const a, b: TVecI32x16): TMask16;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 15 do
+    if a.i[i] = b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function ScalarCmpLtI32x16(const a, b: TVecI32x16): TMask16;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 15 do
+    if a.i[i] < b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function ScalarCmpGtI32x16(const a, b: TVecI32x16): TMask16;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 15 do
+    if a.i[i] > b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+// ✅ P0-5: Added missing I32x16 comparison operations
+function ScalarCmpLeI32x16(const a, b: TVecI32x16): TMask16;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 15 do
+    if a.i[i] <= b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function ScalarCmpGeI32x16(const a, b: TVecI32x16): TMask16;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 15 do
+    if a.i[i] >= b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function ScalarCmpNeI32x16(const a, b: TVecI32x16): TMask16;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 15 do
+    if a.i[i] <> b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+// I32x16 Min/Max Operations
+function ScalarMinI32x16(const a, b: TVecI32x16): TVecI32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    if a.i[i] < b.i[i] then
+      Result.i[i] := a.i[i]
+    else
+      Result.i[i] := b.i[i];
+end;
+
+function ScalarMaxI32x16(const a, b: TVecI32x16): TVecI32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    if a.i[i] > b.i[i] then
+      Result.i[i] := a.i[i]
+    else
+      Result.i[i] := b.i[i];
+end;
 {$POP}
 
 // === Comparison Operations ===
@@ -291,6 +1219,49 @@ begin
   for i := 0 to 3 do
     if a.f[i] <> b.f[i] then
       Result := Result or (1 shl i);
+end;
+
+// ✅ P1-E: F64x2 比较操作实现
+function ScalarCmpEqF64x2(const a, b: TVecF64x2): TMask2;
+begin
+  Result := 0;
+  if a.d[0] = b.d[0] then Result := Result or 1;
+  if a.d[1] = b.d[1] then Result := Result or 2;
+end;
+
+function ScalarCmpLtF64x2(const a, b: TVecF64x2): TMask2;
+begin
+  Result := 0;
+  if a.d[0] < b.d[0] then Result := Result or 1;
+  if a.d[1] < b.d[1] then Result := Result or 2;
+end;
+
+function ScalarCmpLeF64x2(const a, b: TVecF64x2): TMask2;
+begin
+  Result := 0;
+  if a.d[0] <= b.d[0] then Result := Result or 1;
+  if a.d[1] <= b.d[1] then Result := Result or 2;
+end;
+
+function ScalarCmpGtF64x2(const a, b: TVecF64x2): TMask2;
+begin
+  Result := 0;
+  if a.d[0] > b.d[0] then Result := Result or 1;
+  if a.d[1] > b.d[1] then Result := Result or 2;
+end;
+
+function ScalarCmpGeF64x2(const a, b: TVecF64x2): TMask2;
+begin
+  Result := 0;
+  if a.d[0] >= b.d[0] then Result := Result or 1;
+  if a.d[1] >= b.d[1] then Result := Result or 2;
+end;
+
+function ScalarCmpNeF64x2(const a, b: TVecF64x2): TMask2;
+begin
+  Result := 0;
+  if a.d[0] <> b.d[0] then Result := Result or 1;
+  if a.d[1] <> b.d[1] then Result := Result or 2;
 end;
 
 // === Math Functions ===
@@ -379,6 +1350,111 @@ var i: Integer;
 begin
   for i := 0 to 3 do
     Result.f[i] := Max(minVal.f[i], Min(a.f[i], maxVal.f[i]));
+end;
+
+// === ✅ P1-4: Wide Vector Extended Math Functions ===
+
+// F64x2 (128-bit)
+function ScalarFmaF64x2(const a, b, c: TVecF64x2): TVecF64x2;
+begin
+  Result.d[0] := a.d[0] * b.d[0] + c.d[0];
+  Result.d[1] := a.d[1] * b.d[1] + c.d[1];
+end;
+
+function ScalarFloorF64x2(const a: TVecF64x2): TVecF64x2;
+begin
+  Result.d[0] := Floor(a.d[0]);
+  Result.d[1] := Floor(a.d[1]);
+end;
+
+function ScalarCeilF64x2(const a: TVecF64x2): TVecF64x2;
+begin
+  Result.d[0] := Ceil(a.d[0]);
+  Result.d[1] := Ceil(a.d[1]);
+end;
+
+function ScalarRoundF64x2(const a: TVecF64x2): TVecF64x2;
+begin
+  Result.d[0] := Round(a.d[0]);
+  Result.d[1] := Round(a.d[1]);
+end;
+
+function ScalarTruncF64x2(const a: TVecF64x2): TVecF64x2;
+begin
+  Result.d[0] := Trunc(a.d[0]);
+  Result.d[1] := Trunc(a.d[1]);
+end;
+
+// F32x8 (256-bit)
+function ScalarFmaF32x8(const a, b, c: TVecF32x8): TVecF32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.f[i] := a.f[i] * b.f[i] + c.f[i];
+end;
+
+function ScalarFloorF32x8(const a: TVecF32x8): TVecF32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.f[i] := Floor(a.f[i]);
+end;
+
+function ScalarCeilF32x8(const a: TVecF32x8): TVecF32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.f[i] := Ceil(a.f[i]);
+end;
+
+function ScalarRoundF32x8(const a: TVecF32x8): TVecF32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.f[i] := Round(a.f[i]);
+end;
+
+function ScalarTruncF32x8(const a: TVecF32x8): TVecF32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.f[i] := Trunc(a.f[i]);
+end;
+
+// F64x4 (256-bit)
+function ScalarFmaF64x4(const a, b, c: TVecF64x4): TVecF64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.d[i] := a.d[i] * b.d[i] + c.d[i];
+end;
+
+function ScalarFloorF64x4(const a: TVecF64x4): TVecF64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.d[i] := Floor(a.d[i]);
+end;
+
+function ScalarCeilF64x4(const a: TVecF64x4): TVecF64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.d[i] := Ceil(a.d[i]);
+end;
+
+function ScalarRoundF64x4(const a: TVecF64x4): TVecF64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.d[i] := Round(a.d[i]);
+end;
+
+function ScalarTruncF64x4(const a: TVecF64x4): TVecF64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.d[i] := Trunc(a.d[i]);
 end;
 
 // === 3D/4D Vector Math ===
@@ -485,9 +1561,11 @@ end;
 
 // === Memory Operations ===
 
+// ✅ Safety check: Assert for nil pointer (performance-sensitive code)
 function ScalarLoadF32x4(p: PSingle): TVecF32x4;
 var i: Integer;
 begin
+  Assert(p <> nil, 'ScalarLoadF32x4: pointer is nil');
   for i := 0 to 3 do
     Result.f[i] := p[i];
 end;
@@ -501,6 +1579,7 @@ end;
 procedure ScalarStoreF32x4(p: PSingle; const a: TVecF32x4);
 var i: Integer;
 begin
+  Assert(p <> nil, 'ScalarStoreF32x4: pointer is nil');
   for i := 0 to 3 do
     p[i] := a.f[i];
 end;
@@ -513,18 +1592,22 @@ end;
 
 // === Utility Operations ===
 
+// ✅ P2-1: 展开循环优化
 function ScalarSplatF32x4(value: Single): TVecF32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.f[i] := value;
+  Result.f[0] := value;
+  Result.f[1] := value;
+  Result.f[2] := value;
+  Result.f[3] := value;
 end;
 
+// ✅ P2-1: 展开循环优化
 function ScalarZeroF32x4: TVecF32x4;
-var i: Integer;
 begin
-  for i := 0 to 3 do
-    Result.f[i] := 0.0;
+  Result.f[0] := 0.0;
+  Result.f[1] := 0.0;
+  Result.f[2] := 0.0;
+  Result.f[3] := 0.0;
 end;
 
 function ScalarSelectF32x4(const mask: TMask4; const a, b: TVecF32x4): TVecF32x4;
@@ -538,22 +1621,133 @@ begin
 end;
 
 function ScalarExtractF32x4(const a: TVecF32x4; index: Integer): Single;
+var
+  safeIndex: Integer;
 begin
-  {$IFDEF SIMD_BOUNDS_CHECK}
-  if (index < 0) or (index > 3) then
-    raise EArgumentOutOfRangeException.CreateFmt('Index %d out of range [0..3]', [index]);
-  {$ENDIF}
-  Result := a.f[index];
+  // ✅ Safety check: use saturation strategy for index bounds (per project spec)
+  safeIndex := index;
+  if safeIndex < 0 then safeIndex := 0
+  else if safeIndex > 3 then safeIndex := 3;
+  Result := a.f[safeIndex];
 end;
 
 function ScalarInsertF32x4(const a: TVecF32x4; value: Single; index: Integer): TVecF32x4;
+var
+  safeIndex: Integer;
 begin
-  {$IFDEF SIMD_BOUNDS_CHECK}
-  if (index < 0) or (index > 3) then
-    raise EArgumentOutOfRangeException.CreateFmt('Index %d out of range [0..3]', [index]);
-  {$ENDIF}
+  // ✅ Safety check: use saturation strategy for index bounds (per project spec)
+  safeIndex := index;
+  if safeIndex < 0 then safeIndex := 0
+  else if safeIndex > 3 then safeIndex := 3;
   Result := a;
-  Result.f[index] := value;
+  Result.f[safeIndex] := value;
+end;
+
+// === ✅ P1-5: Wide Vector Load/Store/Splat/Zero Functions ===
+
+// F64x2 (128-bit)
+function ScalarLoadF64x2(p: PDouble): TVecF64x2;
+begin
+  Assert(p <> nil, 'ScalarLoadF64x2: pointer is nil');
+  Result.d[0] := p[0];
+  Result.d[1] := p[1];
+end;
+
+procedure ScalarStoreF64x2(p: PDouble; const a: TVecF64x2);
+begin
+  Assert(p <> nil, 'ScalarStoreF64x2: pointer is nil');
+  p[0] := a.d[0];
+  p[1] := a.d[1];
+end;
+
+function ScalarSplatF64x2(value: Double): TVecF64x2;
+begin
+  Result.d[0] := value;
+  Result.d[1] := value;
+end;
+
+function ScalarZeroF64x2: TVecF64x2;
+begin
+  Result.d[0] := 0.0;
+  Result.d[1] := 0.0;
+end;
+
+// F32x8 (256-bit)
+function ScalarLoadF32x8(p: PSingle): TVecF32x8;
+var i: Integer;
+begin
+  Assert(p <> nil, 'ScalarLoadF32x8: pointer is nil');
+  for i := 0 to 7 do
+    Result.f[i] := p[i];
+end;
+
+procedure ScalarStoreF32x8(p: PSingle; const a: TVecF32x8);
+var i: Integer;
+begin
+  Assert(p <> nil, 'ScalarStoreF32x8: pointer is nil');
+  for i := 0 to 7 do
+    p[i] := a.f[i];
+end;
+
+// ✅ P2-1: 展开循环优化
+function ScalarSplatF32x8(value: Single): TVecF32x8;
+begin
+  Result.f[0] := value;
+  Result.f[1] := value;
+  Result.f[2] := value;
+  Result.f[3] := value;
+  Result.f[4] := value;
+  Result.f[5] := value;
+  Result.f[6] := value;
+  Result.f[7] := value;
+end;
+
+// ✅ P2-1: 展开循环优化
+function ScalarZeroF32x8: TVecF32x8;
+begin
+  Result.f[0] := 0.0;
+  Result.f[1] := 0.0;
+  Result.f[2] := 0.0;
+  Result.f[3] := 0.0;
+  Result.f[4] := 0.0;
+  Result.f[5] := 0.0;
+  Result.f[6] := 0.0;
+  Result.f[7] := 0.0;
+end;
+
+// F64x4 (256-bit)
+function ScalarLoadF64x4(p: PDouble): TVecF64x4;
+var i: Integer;
+begin
+  Assert(p <> nil, 'ScalarLoadF64x4: pointer is nil');
+  for i := 0 to 3 do
+    Result.d[i] := p[i];
+end;
+
+procedure ScalarStoreF64x4(p: PDouble; const a: TVecF64x4);
+var i: Integer;
+begin
+  Assert(p <> nil, 'ScalarStoreF64x4: pointer is nil');
+  for i := 0 to 3 do
+    p[i] := a.d[i];
+end;
+
+// ✅ P2-1: 展开循环优化
+function ScalarSplatF64x4(value: Double): TVecF64x4;
+begin
+  Result.d[0] := value;
+  Result.d[1] := value;
+  Result.d[2] := value;
+  Result.d[3] := value;
+end;
+
+// ✅ P2-1: 展开循环优化
+function ScalarZeroF64x4: TVecF64x4;
+begin
+  Result.d[0] := 0.0;
+  Result.d[1] := 0.0;
+  Result.d[2] := 0.0;
+  Result.d[3] := 0.0;
 end;
 
 // === Backend Registration ===
@@ -562,8 +1756,8 @@ procedure RegisterScalarBackend;
 var
   dispatchTable: TSimdDispatchTable;
 begin
-  // Initialize dispatch table
-  dispatchTable := Default(TSimdDispatchTable);
+  // Fill with base scalar implementations
+  FillBaseDispatchTable(dispatchTable);
 
   // Set backend info
   dispatchTable.Backend := sbScalar;
@@ -577,95 +1771,6 @@ begin
     Priority := 0; // Lowest priority
   end;
 
-  // Register arithmetic operations
-  dispatchTable.AddF32x4 := @ScalarAddF32x4;
-  dispatchTable.SubF32x4 := @ScalarSubF32x4;
-  dispatchTable.MulF32x4 := @ScalarMulF32x4;
-  dispatchTable.DivF32x4 := @ScalarDivF32x4;
-
-  dispatchTable.AddF32x8 := @ScalarAddF32x8;
-  dispatchTable.SubF32x8 := @ScalarSubF32x8;
-  dispatchTable.MulF32x8 := @ScalarMulF32x8;
-  dispatchTable.DivF32x8 := @ScalarDivF32x8;
-
-  dispatchTable.AddF64x2 := @ScalarAddF64x2;
-  dispatchTable.SubF64x2 := @ScalarSubF64x2;
-  dispatchTable.MulF64x2 := @ScalarMulF64x2;
-  dispatchTable.DivF64x2 := @ScalarDivF64x2;
-
-  dispatchTable.AddI32x4 := @ScalarAddI32x4;
-  dispatchTable.SubI32x4 := @ScalarSubI32x4;
-  dispatchTable.MulI32x4 := @ScalarMulI32x4;
-
-  // Register comparison operations
-  dispatchTable.CmpEqF32x4 := @ScalarCmpEqF32x4;
-  dispatchTable.CmpLtF32x4 := @ScalarCmpLtF32x4;
-  dispatchTable.CmpLeF32x4 := @ScalarCmpLeF32x4;
-  dispatchTable.CmpGtF32x4 := @ScalarCmpGtF32x4;
-  dispatchTable.CmpGeF32x4 := @ScalarCmpGeF32x4;
-  dispatchTable.CmpNeF32x4 := @ScalarCmpNeF32x4;
-
-  // Register math functions
-  dispatchTable.AbsF32x4 := @ScalarAbsF32x4;
-  dispatchTable.SqrtF32x4 := @ScalarSqrtF32x4;
-  dispatchTable.MinF32x4 := @ScalarMinF32x4;
-  dispatchTable.MaxF32x4 := @ScalarMaxF32x4;
-
-  // Register extended math functions
-  dispatchTable.FmaF32x4 := @ScalarFmaF32x4;
-  dispatchTable.RcpF32x4 := @ScalarRcpF32x4;
-  dispatchTable.RsqrtF32x4 := @ScalarRsqrtF32x4;
-  dispatchTable.FloorF32x4 := @ScalarFloorF32x4;
-  dispatchTable.CeilF32x4 := @ScalarCeilF32x4;
-  dispatchTable.RoundF32x4 := @ScalarRoundF32x4;
-  dispatchTable.TruncF32x4 := @ScalarTruncF32x4;
-  dispatchTable.ClampF32x4 := @ScalarClampF32x4;
-
-  // Register 3D/4D vector math
-  dispatchTable.DotF32x4 := @ScalarDotF32x4;
-  dispatchTable.DotF32x3 := @ScalarDotF32x3;
-  dispatchTable.CrossF32x3 := @ScalarCrossF32x3;
-  dispatchTable.LengthF32x4 := @ScalarLengthF32x4;
-  dispatchTable.LengthF32x3 := @ScalarLengthF32x3;
-  dispatchTable.NormalizeF32x4 := @ScalarNormalizeF32x4;
-  dispatchTable.NormalizeF32x3 := @ScalarNormalizeF32x3;
-
-  // Register reduction operations
-  dispatchTable.ReduceAddF32x4 := @ScalarReduceAddF32x4;
-  dispatchTable.ReduceMinF32x4 := @ScalarReduceMinF32x4;
-  dispatchTable.ReduceMaxF32x4 := @ScalarReduceMaxF32x4;
-  dispatchTable.ReduceMulF32x4 := @ScalarReduceMulF32x4;
-
-  // Register memory operations
-  dispatchTable.LoadF32x4 := @ScalarLoadF32x4;
-  dispatchTable.LoadF32x4Aligned := @ScalarLoadF32x4Aligned;
-  dispatchTable.StoreF32x4 := @ScalarStoreF32x4;
-  dispatchTable.StoreF32x4Aligned := @ScalarStoreF32x4Aligned;
-
-  // Register utility operations
-  dispatchTable.SplatF32x4 := @ScalarSplatF32x4;
-  dispatchTable.ZeroF32x4 := @ScalarZeroF32x4;
-  dispatchTable.SelectF32x4 := @ScalarSelectF32x4;
-  dispatchTable.ExtractF32x4 := @ScalarExtractF32x4;
-  dispatchTable.InsertF32x4 := @ScalarInsertF32x4;
-
-  // Register facade functions
-  dispatchTable.MemEqual := @MemEqual_Scalar;
-  dispatchTable.MemFindByte := @MemFindByte_Scalar;
-  dispatchTable.MemDiffRange := @MemDiffRange_Scalar;
-  dispatchTable.MemCopy := @MemCopy_Scalar;
-  dispatchTable.MemSet := @MemSet_Scalar;
-  dispatchTable.MemReverse := @MemReverse_Scalar;
-  dispatchTable.SumBytes := @SumBytes_Scalar;
-  dispatchTable.MinMaxBytes := @MinMaxBytes_Scalar;
-  dispatchTable.CountByte := @CountByte_Scalar;
-  dispatchTable.Utf8Validate := @Utf8Validate_Scalar;
-  dispatchTable.AsciiIEqual := @AsciiIEqual_Scalar;
-  dispatchTable.ToLowerAscii := @ToLowerAscii_Scalar;
-  dispatchTable.ToUpperAscii := @ToUpperAscii_Scalar;
-  dispatchTable.BytesIndexOf := @BytesIndexOf_Scalar;
-  dispatchTable.BitsetPopCount := @BitsetPopCount_Scalar;
-
   // Register the backend
   RegisterBackend(sbScalar, dispatchTable);
 end;
@@ -673,11 +1778,14 @@ end;
 // === 标量门面函数实现 ===
 
 // 内存操作函数
+// ✅ P1-1: 优化为 8 字节批量比较
 function MemEqual_Scalar(a, b: Pointer; len: SizeUInt): LongBool;
 var
   pa, pb: PByte;
-  i: SizeUInt;
+  pqa, pqb: PQWord;
+  i, qwordCount, remaining: SizeUInt;
 begin
+  {$PUSH}{$Q-}{$R-}  // Disable overflow/range checks for SIMD-style loop
   if len = 0 then
   begin
     Result := True;
@@ -693,16 +1801,40 @@ begin
   pa := PByte(a);
   pb := PByte(b);
 
-  for i := 0 to len - 1 do
+  // 快速路径: 按 8 字节 (QWord) 批量比较
+  qwordCount := len div 8;
+  if qwordCount > 0 then
   begin
-    if pa[i] <> pb[i] then
+    pqa := PQWord(pa);
+    pqb := PQWord(pb);
+    for i := 0 to qwordCount - 1 do
     begin
-      Result := False;
-      Exit;
+      if pqa[i] <> pqb[i] then
+      begin
+        Result := False;
+        Exit;
+      end;
     end;
+    // 移动指针到剩余字节
+    pa := pa + qwordCount * 8;
+    pb := pb + qwordCount * 8;
   end;
 
+  // 处理剩余的 0-7 字节
+  remaining := len mod 8;
+  // ✅ 修复: 当 remaining=0 时，remaining-1 会下溢到 High(SizeUInt)
+  if remaining > 0 then
+    for i := 0 to remaining - 1 do
+    begin
+      if pa[i] <> pb[i] then
+      begin
+        Result := False;
+        Exit;
+      end;
+    end;
+
   Result := True;
+  {$POP}
 end;
 
 function MemFindByte_Scalar(p: Pointer; len: SizeUInt; value: Byte): PtrInt;
@@ -814,11 +1946,16 @@ begin
 end;
 
 // 统计函数
+// ✅ P1-2: 优化为 8 字节批量读取并展开循环
 function SumBytes_Scalar(p: Pointer; len: SizeUInt): UInt64;
 var
   pb: PByte;
-  i: SizeUInt;
+  pq: PQWord;
+  i, qwordCount, remaining: SizeUInt;
+  qval: QWord;
+  sum0, sum1, sum2, sum3: UInt64;
 begin
+  {$PUSH}{$Q-}{$R-}  // Disable overflow/range checks for SIMD-style loop
   Result := 0;
 
   if (len = 0) or (p = nil) then
@@ -826,8 +1963,42 @@ begin
 
   pb := PByte(p);
 
-  for i := 0 to len - 1 do
-    Result := Result + pb[i];
+  // 使用4路累加器减少依赖
+  sum0 := 0;
+  sum1 := 0;
+  sum2 := 0;
+  sum3 := 0;
+
+  // 快速路径: 按 8 字节 (QWord) 批量读取
+  qwordCount := len div 8;
+  if qwordCount > 0 then
+  begin
+    pq := PQWord(pb);
+    for i := 0 to qwordCount - 1 do
+    begin
+      qval := pq[i];
+      // 提取并累加每个字节
+      sum0 := sum0 + (qval and $FF);
+      sum1 := sum1 + ((qval shr 8) and $FF);
+      sum2 := sum2 + ((qval shr 16) and $FF);
+      sum3 := sum3 + ((qval shr 24) and $FF);
+      sum0 := sum0 + ((qval shr 32) and $FF);
+      sum1 := sum1 + ((qval shr 40) and $FF);
+      sum2 := sum2 + ((qval shr 48) and $FF);
+      sum3 := sum3 + ((qval shr 56) and $FF);
+    end;
+    pb := pb + qwordCount * 8;
+  end;
+
+  // 处理剩余的 0-7 字节
+  remaining := len mod 8;
+  // ✅ 修复: 当 remaining=0 时，remaining-1 会下溢到 High(SizeUInt)
+  if remaining > 0 then
+    for i := 0 to remaining - 1 do
+      sum0 := sum0 + pb[i];
+
+  Result := sum0 + sum1 + sum2 + sum3;
+  {$POP}
 end;
 
 procedure MinMaxBytes_Scalar(p: Pointer; len: SizeUInt; out minVal, maxVal: Byte);
@@ -884,8 +2055,11 @@ var
 begin
   Result := True;
 
-  if (len = 0) or (p = nil) then
-    Exit;
+  // ✅ 边界检查: 空长度有效，空指针无效
+  if len = 0 then
+    Exit(True);
+  if p = nil then
+    Exit(False);
 
   pb := PByte(p);
   i := 0;
@@ -1088,12 +2262,31 @@ begin
 end;
 
 // 位集函数
+// ✅ 使用 256 字节查找表实现 O(1) 每字节的 popcount
+const
+  PopCountTable: array[0..255] of Byte = (
+    0,1,1,2,1,2,2,3,1,2,2,3,2,3,3,4,  // 0x00-0x0F
+    1,2,2,3,2,3,3,4,2,3,3,4,3,4,4,5,  // 0x10-0x1F
+    1,2,2,3,2,3,3,4,2,3,3,4,3,4,4,5,  // 0x20-0x2F
+    2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,  // 0x30-0x3F
+    1,2,2,3,2,3,3,4,2,3,3,4,3,4,4,5,  // 0x40-0x4F
+    2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,  // 0x50-0x5F
+    2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,  // 0x60-0x6F
+    3,4,4,5,4,5,5,6,4,5,5,6,5,6,6,7,  // 0x70-0x7F
+    1,2,2,3,2,3,3,4,2,3,3,4,3,4,4,5,  // 0x80-0x8F
+    2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,  // 0x90-0x9F
+    2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,  // 0xA0-0xAF
+    3,4,4,5,4,5,5,6,4,5,5,6,5,6,6,7,  // 0xB0-0xBF
+    2,3,3,4,3,4,4,5,3,4,4,5,4,5,5,6,  // 0xC0-0xCF
+    3,4,4,5,4,5,5,6,4,5,5,6,5,6,6,7,  // 0xD0-0xDF
+    3,4,4,5,4,5,5,6,4,5,5,6,5,6,6,7,  // 0xE0-0xEF
+    4,5,5,6,5,6,6,7,5,6,6,7,6,7,7,8   // 0xF0-0xFF
+  );
+
 function BitsetPopCount_Scalar(p: Pointer; byteLen: SizeUInt): SizeUInt;
 var
   pb: PByte;
   i: SizeUInt;
-  b: Byte;
-  count: Integer;
 begin
   Result := 0;
 
@@ -1102,22 +2295,329 @@ begin
 
   pb := PByte(p);
 
+  // ✅ 使用查找表 O(1) 每字节，而非逐位循环 O(8)
   for i := 0 to byteLen - 1 do
+    Result := Result + PopCountTable[pb[i]];
+end;
+
+// === ✅ P2-1: Saturating Arithmetic Implementation ===
+// 饱和算术：结果超出类型范围时钳位到边界值
+
+{$PUSH}{$R-}{$Q-}  // 禁用溢出检查，我们自己处理饱和
+
+// I8x16 Signed Saturating Add: [-128, 127]
+function ScalarI8x16SatAdd(const a, b: TVecI8x16): TVecI8x16;
+var
+  i: Integer;
+  sum: Int32;
+begin
+  for i := 0 to 15 do
   begin
-    b := pb[i];
-    count := 0;
-
-    // Count bits in byte
-    while b <> 0 do
-    begin
-      if (b and 1) <> 0 then
-        Inc(count);
-      b := b shr 1;
-    end;
-
-    Result := Result + SizeUInt(count);
+    sum := Int32(a.i[i]) + Int32(b.i[i]);
+    if sum > 127 then
+      Result.i[i] := 127
+    else if sum < -128 then
+      Result.i[i] := -128
+    else
+      Result.i[i] := Int8(sum);
   end;
 end;
+
+// I8x16 Signed Saturating Sub: [-128, 127]
+function ScalarI8x16SatSub(const a, b: TVecI8x16): TVecI8x16;
+var
+  i: Integer;
+  diff: Int32;
+begin
+  for i := 0 to 15 do
+  begin
+    diff := Int32(a.i[i]) - Int32(b.i[i]);
+    if diff > 127 then
+      Result.i[i] := 127
+    else if diff < -128 then
+      Result.i[i] := -128
+    else
+      Result.i[i] := Int8(diff);
+  end;
+end;
+
+// I16x8 Signed Saturating Add: [-32768, 32767]
+function ScalarI16x8SatAdd(const a, b: TVecI16x8): TVecI16x8;
+var
+  i: Integer;
+  sum: Int32;
+begin
+  for i := 0 to 7 do
+  begin
+    sum := Int32(a.i[i]) + Int32(b.i[i]);
+    if sum > 32767 then
+      Result.i[i] := 32767
+    else if sum < -32768 then
+      Result.i[i] := -32768
+    else
+      Result.i[i] := Int16(sum);
+  end;
+end;
+
+// I16x8 Signed Saturating Sub: [-32768, 32767]
+function ScalarI16x8SatSub(const a, b: TVecI16x8): TVecI16x8;
+var
+  i: Integer;
+  diff: Int32;
+begin
+  for i := 0 to 7 do
+  begin
+    diff := Int32(a.i[i]) - Int32(b.i[i]);
+    if diff > 32767 then
+      Result.i[i] := 32767
+    else if diff < -32768 then
+      Result.i[i] := -32768
+    else
+      Result.i[i] := Int16(diff);
+  end;
+end;
+
+// U8x16 Unsigned Saturating Add: [0, 255]
+function ScalarU8x16SatAdd(const a, b: TVecU8x16): TVecU8x16;
+var
+  i: Integer;
+  sum: UInt32;
+begin
+  for i := 0 to 15 do
+  begin
+    sum := UInt32(a.u[i]) + UInt32(b.u[i]);
+    if sum > 255 then
+      Result.u[i] := 255
+    else
+      Result.u[i] := UInt8(sum);
+  end;
+end;
+
+// U8x16 Unsigned Saturating Sub: [0, 255]
+function ScalarU8x16SatSub(const a, b: TVecU8x16): TVecU8x16;
+var
+  i: Integer;
+begin
+  for i := 0 to 15 do
+  begin
+    // 无符号减法：如果 b > a，结果饱和到 0
+    if b.u[i] > a.u[i] then
+      Result.u[i] := 0
+    else
+      Result.u[i] := a.u[i] - b.u[i];
+  end;
+end;
+
+// U16x8 Unsigned Saturating Add: [0, 65535]
+function ScalarU16x8SatAdd(const a, b: TVecU16x8): TVecU16x8;
+var
+  i: Integer;
+  sum: UInt32;
+begin
+  for i := 0 to 7 do
+  begin
+    sum := UInt32(a.u[i]) + UInt32(b.u[i]);
+    if sum > 65535 then
+      Result.u[i] := 65535
+    else
+      Result.u[i] := UInt16(sum);
+  end;
+end;
+
+// U16x8 Unsigned Saturating Sub: [0, 65535]
+function ScalarU16x8SatSub(const a, b: TVecU16x8): TVecU16x8;
+var
+  i: Integer;
+begin
+  for i := 0 to 7 do
+  begin
+    // 无符号减法：如果 b > a，结果饱和到 0
+    if b.u[i] > a.u[i] then
+      Result.u[i] := 0
+    else
+      Result.u[i] := a.u[i] - b.u[i];
+  end;
+end;
+
+// ✅ P2-2: Mask 操作实现
+// === TMask2 操作 (2 有效位) ===
+function ScalarMask2All(mask: TMask2): Boolean;
+begin
+  Result := (mask and $03) = $03;  // 两位都设置
+end;
+
+function ScalarMask2Any(mask: TMask2): Boolean;
+begin
+  Result := (mask and $03) <> 0;  // 至少一位设置
+end;
+
+function ScalarMask2None(mask: TMask2): Boolean;
+begin
+  Result := (mask and $03) = 0;  // 没有位设置
+end;
+
+function ScalarMask2PopCount(mask: TMask2): Integer;
+var
+  m: Byte;
+begin
+  m := mask and $03;
+  Result := (m and 1) + ((m shr 1) and 1);
+end;
+
+function ScalarMask2FirstSet(mask: TMask2): Integer;
+var
+  m: Byte;
+begin
+  m := mask and $03;
+  if m = 0 then
+    Result := -1
+  else if (m and 1) <> 0 then
+    Result := 0
+  else
+    Result := 1;
+end;
+
+// === TMask4 操作 (4 有效位) ===
+function ScalarMask4All(mask: TMask4): Boolean;
+begin
+  Result := (mask and $0F) = $0F;
+end;
+
+function ScalarMask4Any(mask: TMask4): Boolean;
+begin
+  Result := (mask and $0F) <> 0;
+end;
+
+function ScalarMask4None(mask: TMask4): Boolean;
+begin
+  Result := (mask and $0F) = 0;
+end;
+
+function ScalarMask4PopCount(mask: TMask4): Integer;
+var
+  m: Byte;
+begin
+  m := mask and $0F;
+  Result := 0;
+  while m <> 0 do
+  begin
+    Inc(Result, m and 1);
+    m := m shr 1;
+  end;
+end;
+
+function ScalarMask4FirstSet(mask: TMask4): Integer;
+var
+  m: Byte;
+  i: Integer;
+begin
+  m := mask and $0F;
+  if m = 0 then
+    Exit(-1);
+  for i := 0 to 3 do
+    if (m and (1 shl i)) <> 0 then
+      Exit(i);
+  Result := -1;
+end;
+
+// === TMask8 操作 (8 有效位) ===
+function ScalarMask8All(mask: TMask8): Boolean;
+begin
+  Result := mask = $FF;
+end;
+
+function ScalarMask8Any(mask: TMask8): Boolean;
+begin
+  Result := mask <> 0;
+end;
+
+function ScalarMask8None(mask: TMask8): Boolean;
+begin
+  Result := mask = 0;
+end;
+
+function ScalarMask8PopCount(mask: TMask8): Integer;
+var
+  m: Byte;
+begin
+  m := mask;
+  Result := 0;
+  while m <> 0 do
+  begin
+    Inc(Result, m and 1);
+    m := m shr 1;
+  end;
+end;
+
+function ScalarMask8FirstSet(mask: TMask8): Integer;
+var
+  i: Integer;
+begin
+  if mask = 0 then
+    Exit(-1);
+  for i := 0 to 7 do
+    if (mask and (1 shl i)) <> 0 then
+      Exit(i);
+  Result := -1;
+end;
+
+// === TMask16 操作 (16 有效位) ===
+function ScalarMask16All(mask: TMask16): Boolean;
+begin
+  Result := mask = $FFFF;
+end;
+
+function ScalarMask16Any(mask: TMask16): Boolean;
+begin
+  Result := mask <> 0;
+end;
+
+function ScalarMask16None(mask: TMask16): Boolean;
+begin
+  Result := mask = 0;
+end;
+
+function ScalarMask16PopCount(mask: TMask16): Integer;
+var
+  m: Word;
+begin
+  m := mask;
+  Result := 0;
+  while m <> 0 do
+  begin
+    Inc(Result, m and 1);
+    m := m shr 1;
+  end;
+end;
+
+function ScalarMask16FirstSet(mask: TMask16): Integer;
+var
+  i: Integer;
+begin
+  if mask = 0 then
+    Exit(-1);
+  for i := 0 to 15 do
+    if (mask and (1 shl i)) <> 0 then
+      Exit(i);
+  Result := -1;
+end;
+
+// ✅ P2-3: F64x2 Select 实现
+function ScalarSelectF64x2(const mask: TMask2; const a, b: TVecF64x2): TVecF64x2;
+begin
+  // mask 位 0 控制元素 0，位 1 控制元素 1
+  // 位为 1 时选择 a，位为 0 时选择 b
+  if (mask and 1) <> 0 then
+    Result.d[0] := a.d[0]
+  else
+    Result.d[0] := b.d[0];
+  if (mask and 2) <> 0 then
+    Result.d[1] := a.d[1]
+  else
+    Result.d[1] := b.d[1];
+end;
+
+{$POP}
 
 initialization
   // Register scalar backend on unit initialization

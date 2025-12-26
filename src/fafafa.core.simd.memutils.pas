@@ -135,6 +135,11 @@ var
 begin
   // Reserve extra space for alignment plus our header (pointer + size)
   headerOffset := SizeOf(Pointer) + SizeOf(NativeUInt);
+
+  // ✅ Safety check: prevent integer overflow in total size calculation
+  if (size > High(NativeUInt) - alignment - headerOffset) then
+    raise EOutOfMemory.CreateFmt('Allocation size overflow: size=%d, alignment=%d', [size, alignment]);
+
   originalPtr := GetMem(size + alignment + headerOffset);
   if originalPtr = nil then
     raise EOutOfMemory.CreateFmt('Failed to allocate %d bytes with %d alignment', [size, alignment]);
@@ -308,13 +313,21 @@ end;
 // === TAlignedArray Implementation ===
 
 class function TAlignedArray.Create(count: NativeUInt; alignment: NativeUInt): TAlignedArray;
+var
+  maxCount: NativeUInt;
 begin
   Result.FSize := count;
   Result.FAlignment := alignment;
   Result.FOwnsMemory := True;
-  
+
   if count > 0 then
-    Result.FData := AlignedAlloc(count * SizeOf(T), alignment)
+  begin
+    // ✅ Safety check: prevent integer overflow in size calculation
+    maxCount := NativeUInt(High(NativeUInt)) div NativeUInt(SizeOf(T));
+    if count > maxCount then
+      raise EOutOfMemory.CreateFmt('Allocation size overflow: count=%d, elemSize=%d', [count, SizeOf(T)]);
+    Result.FData := AlignedAlloc(count * SizeOf(T), alignment);
+  end
   else
     Result.FData := nil;
 end;
