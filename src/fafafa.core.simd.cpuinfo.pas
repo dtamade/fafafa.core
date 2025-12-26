@@ -49,7 +49,10 @@ procedure ResetCPUInfo; // safe reset for re-initialization
 
 // Quick feature detection (commonly used)
 function HasSSE2: Boolean;
+function HasSSE3: Boolean;
+function HasSSSE3: Boolean;
 function HasSSE41: Boolean;
+function HasSSE42: Boolean;
 function HasAVX2: Boolean;
 function HasAVX512: Boolean;
 function HasNEON: Boolean;
@@ -366,8 +369,13 @@ begin
   {$IFDEF SIMD_X86_AVAILABLE}
   if C.Arch = caX86 then
   begin
+    // SSE family: 按演进顺序添加，每个后端要求对应的 CPU 特性
     if (gfSimd128 in C.GenericUsable) then Add(sbSSE2);
-    // 若定义有 sbAVX 且仅 AVX 可用可加上；当前最小修改保留 AVX2+
+    if (gfSimd128 in C.GenericUsable) and C.X86.HasSSE3 then Add(sbSSE3);
+    if (gfSimd128 in C.GenericUsable) and C.X86.HasSSSE3 then Add(sbSSSE3);
+    if (gfSimd128 in C.GenericUsable) and C.X86.HasSSE41 then Add(sbSSE41);
+    if (gfSimd128 in C.GenericUsable) and C.X86.HasSSE42 then Add(sbSSE42);
+    // AVX family: 需要 OS 支持 (XCR0)
     if (gfSimd256 in C.GenericUsable) and C.X86.HasAVX2 then Add(sbAVX2);
     if (gfSimd512 in C.GenericUsable) and C.X86.HasAVX512F then Add(sbAVX512);
   end;
@@ -461,6 +469,34 @@ begin
   {$ENDIF}
 end;
 
+function HasSSE3: Boolean;
+{$IFDEF SIMD_X86_AVAILABLE}
+var
+  cpuInfo: TCPUInfo;
+{$ENDIF}
+begin
+  {$IFDEF SIMD_X86_AVAILABLE}
+  cpuInfo := GetCPUInfo;
+  Result := (cpuInfo.Arch = caX86) and cpuInfo.X86.HasSSE3;
+  {$ELSE}
+  Result := False;
+  {$ENDIF}
+end;
+
+function HasSSSE3: Boolean;
+{$IFDEF SIMD_X86_AVAILABLE}
+var
+  cpuInfo: TCPUInfo;
+{$ENDIF}
+begin
+  {$IFDEF SIMD_X86_AVAILABLE}
+  cpuInfo := GetCPUInfo;
+  Result := (cpuInfo.Arch = caX86) and cpuInfo.X86.HasSSSE3;
+  {$ELSE}
+  Result := False;
+  {$ENDIF}
+end;
+
 function HasSSE41: Boolean;
 {$IFDEF SIMD_X86_AVAILABLE}
 var
@@ -470,6 +506,20 @@ begin
   {$IFDEF SIMD_X86_AVAILABLE}
   cpuInfo := GetCPUInfo;
   Result := (cpuInfo.Arch = caX86) and cpuInfo.X86.HasSSE41;
+  {$ELSE}
+  Result := False;
+  {$ENDIF}
+end;
+
+function HasSSE42: Boolean;
+{$IFDEF SIMD_X86_AVAILABLE}
+var
+  cpuInfo: TCPUInfo;
+{$ENDIF}
+begin
+  {$IFDEF SIMD_X86_AVAILABLE}
+  cpuInfo := GetCPUInfo;
+  Result := (cpuInfo.Arch = caX86) and cpuInfo.X86.HasSSE42;
   {$ELSE}
   Result := False;
   {$ENDIF}

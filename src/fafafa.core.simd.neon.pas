@@ -1417,41 +1417,43 @@ procedure RegisterNEONBackend;
 var
   table: TSimdDispatchTable;
 begin
-  FillChar(table, SizeOf(table), 0);
-  
+  // Fill with base scalar implementations (provides fallback for unimplemented operations)
+  FillBaseDispatchTable(table);
+
   // Backend info
   table.Backend := sbNEON;
   table.BackendInfo.Backend := sbNEON;
   table.BackendInfo.Available := True;
   table.BackendInfo.Name := 'NEON';
   table.BackendInfo.Description := 'ARM NEON 128-bit SIMD';
-  table.BackendInfo.Capabilities := [scBasicArithmetic, scComparison, scMathFunctions, 
+  table.BackendInfo.Capabilities := [scBasicArithmetic, scComparison, scMathFunctions,
                                      scReduction, scIntegerOps, scLoadStore, scFMA];
   table.BackendInfo.Priority := 40;  // Higher than Scalar (0), lower than AVX2 (60)
-  
+
+  // Override with NEON-accelerated operations
   // Arithmetic operations - F32x4
   table.AddF32x4 := @NEONAddF32x4;
   table.SubF32x4 := @NEONSubF32x4;
   table.MulF32x4 := @NEONMulF32x4;
   table.DivF32x4 := @NEONDivF32x4;
-  
+
   // Arithmetic operations - F32x8 (emulated via 2x F32x4)
   table.AddF32x8 := @NEONAddF32x8;
   table.SubF32x8 := @NEONSubF32x8;
   table.MulF32x8 := @NEONMulF32x8;
   table.DivF32x8 := @NEONDivF32x8;
-  
+
   // Arithmetic operations - F64x2
   table.AddF64x2 := @NEONAddF64x2;
   table.SubF64x2 := @NEONSubF64x2;
   table.MulF64x2 := @NEONMulF64x2;
   table.DivF64x2 := @NEONDivF64x2;
-  
+
   // Arithmetic operations - I32x4
   table.AddI32x4 := @NEONAddI32x4;
   table.SubI32x4 := @NEONSubI32x4;
   table.MulI32x4 := @NEONMulI32x4;
-  
+
   // Comparison operations
   table.CmpEqF32x4 := @NEONCmpEqF32x4;
   table.CmpLtF32x4 := @NEONCmpLtF32x4;
@@ -1459,13 +1461,13 @@ begin
   table.CmpGtF32x4 := @NEONCmpGtF32x4;
   table.CmpGeF32x4 := @NEONCmpGeF32x4;
   table.CmpNeF32x4 := @NEONCmpNeF32x4;
-  
+
   // Math functions
   table.AbsF32x4 := @NEONAbsF32x4;
   table.SqrtF32x4 := @NEONSqrtF32x4;
   table.MinF32x4 := @NEONMinF32x4;
   table.MaxF32x4 := @NEONMaxF32x4;
-  
+
   // Extended math functions
   table.FmaF32x4 := @NEONFmaF32x4;
   table.RcpF32x4 := @NEONRcpF32x4;
@@ -1475,7 +1477,7 @@ begin
   table.RoundF32x4 := @NEONRoundF32x4;
   table.TruncF32x4 := @NEONTruncF32x4;
   table.ClampF32x4 := @NEONClampF32x4;
-  
+
   // 3D/4D Vector math
   table.DotF32x4 := @NEONDotF32x4;
   table.DotF32x3 := @NEONDotF32x3;
@@ -1484,26 +1486,26 @@ begin
   table.LengthF32x3 := @NEONLengthF32x3;
   table.NormalizeF32x4 := @NEONNormalizeF32x4;
   table.NormalizeF32x3 := @NEONNormalizeF32x3;
-  
+
   // Reduction operations
   table.ReduceAddF32x4 := @NEONReduceAddF32x4;
   table.ReduceMinF32x4 := @NEONReduceMinF32x4;
   table.ReduceMaxF32x4 := @NEONReduceMaxF32x4;
   table.ReduceMulF32x4 := @NEONReduceMulF32x4;
-  
+
   // Memory operations
   table.LoadF32x4 := @NEONLoadF32x4;
   table.LoadF32x4Aligned := @NEONLoadF32x4Aligned;
   table.StoreF32x4 := @NEONStoreF32x4;
   table.StoreF32x4Aligned := @NEONStoreF32x4Aligned;
-  
+
   // Utility operations
   table.SplatF32x4 := @NEONSplatF32x4;
   table.ZeroF32x4 := @NEONZeroF32x4;
   table.SelectF32x4 := @NEONSelectF32x4;
   table.ExtractF32x4 := @NEONExtractF32x4;
   table.InsertF32x4 := @NEONInsertF32x4;
-  
+
   // Facade functions
   table.MemEqual := @MemEqual_NEON;
   table.MemFindByte := @MemFindByte_NEON;
@@ -1520,7 +1522,7 @@ begin
   table.ToUpperAscii := @ToUpperAscii_NEON;
   table.BytesIndexOf := @BytesIndexOf_NEON;
   table.BitsetPopCount := @BitsetPopCount_NEON;
-  
+
   // Register the backend
   RegisterBackend(sbNEON, table);
 end;
@@ -1529,11 +1531,15 @@ initialization
   {$IFDEF CPUAARCH64}
   // Auto-register on AArch64 platforms
   RegisterNEONBackend;
+  // ✅ P1-D: Register rebuilder callback for VectorAsmEnabled changes
+  RegisterBackendRebuilder(sbNEON, @RegisterNEONBackend);
   {$ENDIF}
   {$IFDEF CPUARM}
   // Also register on 32-bit ARM with NEON support
   // Note: May need runtime detection for older ARMv6 without NEON
   RegisterNEONBackend;
+  // ✅ P1-D: Register rebuilder callback for VectorAsmEnabled changes
+  RegisterBackendRebuilder(sbNEON, @RegisterNEONBackend);
   {$ENDIF}
 
 end.

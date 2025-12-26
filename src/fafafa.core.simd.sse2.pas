@@ -29,12 +29,23 @@ procedure MemSet_SSE2(dst: Pointer; len: SizeUInt; value: Byte);
 function SumBytes_SSE2(p: Pointer; len: SizeUInt): UInt64;
 function CountByte_SSE2(p: Pointer; len: SizeUInt; value: Byte): SizeUInt;
 
+// ✅ P2-1: 饱和算术（SSE2 PADDS/PSUBS 指令加速）
+function SSE2I8x16SatAdd(const a, b: TVecI8x16): TVecI8x16;
+function SSE2I8x16SatSub(const a, b: TVecI8x16): TVecI8x16;
+function SSE2I16x8SatAdd(const a, b: TVecI16x8): TVecI16x8;
+function SSE2I16x8SatSub(const a, b: TVecI16x8): TVecI16x8;
+function SSE2U8x16SatAdd(const a, b: TVecU8x16): TVecU8x16;
+function SSE2U8x16SatSub(const a, b: TVecU8x16): TVecU8x16;
+function SSE2U16x8SatAdd(const a, b: TVecU16x8): TVecU16x8;
+function SSE2U16x8SatSub(const a, b: TVecU16x8): TVecU16x8;
+
 implementation
 
 uses
   SysUtils,
   fafafa.core.simd.cpuinfo,
   fafafa.core.simd.scalar, // For fallback functions
+  fafafa.core.simd.sync,   // For atomic operations
   fafafa.core.math;
 
 // === SSE2 Arithmetic Operations ===
@@ -382,6 +393,8 @@ end;
 
 function SSE2LoadF32x4(p: PSingle): TVecF32x4;
 begin
+  // ✅ Safety check: Assert for nil pointer
+  Assert(p <> nil, 'SSE2LoadF32x4: pointer is nil');
   asm
     mov    rax, p
     movups xmm0, [rax]
@@ -391,6 +404,9 @@ end;
 
 function SSE2LoadF32x4Aligned(p: PSingle): TVecF32x4;
 begin
+  // ✅ Safety check: Assert for nil pointer and 16-byte alignment
+  Assert(p <> nil, 'SSE2LoadF32x4Aligned: pointer is nil');
+  Assert((PtrUInt(p) and $F) = 0, 'SSE2LoadF32x4Aligned: Pointer must be 16-byte aligned');
   asm
     mov    rax, p
     movaps xmm0, [rax]
@@ -400,6 +416,8 @@ end;
 
 procedure SSE2StoreF32x4(p: PSingle; const a: TVecF32x4);
 begin
+  // ✅ Safety check: Assert for nil pointer
+  Assert(p <> nil, 'SSE2StoreF32x4: pointer is nil');
   asm
     mov    rax, p
     lea    rdx, a
@@ -410,6 +428,9 @@ end;
 
 procedure SSE2StoreF32x4Aligned(p: PSingle; const a: TVecF32x4);
 begin
+  // ✅ Safety check: Assert for nil pointer and 16-byte alignment
+  Assert(p <> nil, 'SSE2StoreF32x4Aligned: pointer is nil');
+  Assert((PtrUInt(p) and $F) = 0, 'SSE2StoreF32x4Aligned: Pointer must be 16-byte aligned');
   asm
     mov    rax, p
     lea    rdx, a
@@ -448,14 +469,26 @@ begin
 end;
 
 function SSE2ExtractF32x4(const a: TVecF32x4; index: Integer): Single;
+var
+  safeIndex: Integer;
 begin
-  Result := a.f[index];
+  // ✅ Safety check: use saturation strategy for index bounds (per project spec)
+  safeIndex := index;
+  if safeIndex < 0 then safeIndex := 0
+  else if safeIndex > 3 then safeIndex := 3;
+  Result := a.f[safeIndex];
 end;
 
 function SSE2InsertF32x4(const a: TVecF32x4; value: Single; index: Integer): TVecF32x4;
+var
+  safeIndex: Integer;
 begin
+  // ✅ Safety check: use saturation strategy for index bounds (per project spec)
+  safeIndex := index;
+  if safeIndex < 0 then safeIndex := 0
+  else if safeIndex > 3 then safeIndex := 3;
   Result := a;
-  Result.f[index] := value;
+  Result.f[safeIndex] := value;
 end;
 
 // === F32x8 Operations (simulate with 2x F32x4) ===
@@ -492,6 +525,7 @@ var
   i: SizeUInt;
   maskA, maskB: Integer;
 begin
+  {$PUSH}{$Q-}{$R-}  // Disable overflow/range checks for SIMD loop
   if len = 0 then
   begin
     Result := True;
@@ -544,6 +578,7 @@ begin
   end;
 
   Result := True;
+  {$POP}
 end;
 
 function MemFindByte_SSE2(p: Pointer; len: SizeUInt; value: Byte): PtrInt;
@@ -681,6 +716,7 @@ var
   i: SizeUInt;
   sum0, sum1, sum2, sum3: UInt32;
 begin
+  {$PUSH}{$Q-}{$R-}  // Disable overflow/range checks for SIMD loop
   if (len = 0) or (p = nil) then
   begin
     Result := 0;
@@ -721,6 +757,7 @@ begin
   end;
 
   Result := UInt64(sum0) + UInt64(sum1) + UInt64(sum2) + UInt64(sum3);
+  {$POP}
 end;
 
 function CountByte_SSE2(p: Pointer; len: SizeUInt; value: Byte): SizeUInt; assembler; nostackframe;
@@ -833,16 +870,35 @@ end;
 
 var
   g_HasSSE41: Boolean = False;
-  g_SSE41Checked: Boolean = False;
+  g_SSE41CheckState: LongInt = 0; // 0=未检查, 1=检查中, 2=已完成
 
+// ✅ Thread-safe SSE4.1 detection using atomic operations
 procedure CheckSSE41;
+var
+  oldState: LongInt;
 begin
-  if not g_SSE41Checked then
+  // 快速路径: 已完成检查
+  if g_SSE41CheckState = 2 then Exit;
+
+  oldState := InterlockedCompareExchange(g_SSE41CheckState, 1, 0);
+  if oldState = 0 then
   begin
+    // 我们是第一个检查者
     g_HasSSE41 := HasSSE41;
-    g_SSE41Checked := True;
+    WriteBarrier;
+    InterlockedExchange(g_SSE41CheckState, 2);
+  end
+  else if oldState = 1 then
+  begin
+    // 另一个线程正在检查，自旋等待
+    while g_SSE41CheckState <> 2 do
+    begin
+      ReadBarrier;
+      ThreadSwitch;
+    end;
   end;
- end;
+  // oldState = 2: 已完成，直接返回
+end;
 
 function SSE2FloorF32x4(const a: TVecF32x4): TVecF32x4;
 var i: Integer;
@@ -1277,6 +1333,139 @@ begin
   Result := count;
 end;
 
+// === ✅ P2-1: Saturating Arithmetic (SSE2 硬件加速) ===
+// SSE2 提供专门的饱和算术指令，比标量实现快 8-16x
+
+// I8x16 有符号饱和加法 (PADDSB)
+function SSE2I8x16SatAdd(const a, b: TVecI8x16): TVecI8x16; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  // x86-64 SysV ABI: a -> RDI, b -> RSI, Result -> RAX
+  movdqu xmm0, [rdi]
+  movdqu xmm1, [rsi]
+  paddsb xmm0, xmm1
+  movdqu [rax], xmm0
+  {$ELSE}
+  // Windows x64: a -> RCX, b -> RDX, Result -> RAX
+  movdqu xmm0, [rcx]
+  movdqu xmm1, [rdx]
+  paddsb xmm0, xmm1
+  movdqu [rax], xmm0
+  {$ENDIF}
+end;
+
+// I8x16 有符号饱和减法 (PSUBSB)
+function SSE2I8x16SatSub(const a, b: TVecI8x16): TVecI8x16; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  movdqu xmm0, [rdi]
+  movdqu xmm1, [rsi]
+  psubsb xmm0, xmm1
+  movdqu [rax], xmm0
+  {$ELSE}
+  movdqu xmm0, [rcx]
+  movdqu xmm1, [rdx]
+  psubsb xmm0, xmm1
+  movdqu [rax], xmm0
+  {$ENDIF}
+end;
+
+// I16x8 有符号饱和加法 (PADDSW)
+function SSE2I16x8SatAdd(const a, b: TVecI16x8): TVecI16x8; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  movdqu xmm0, [rdi]
+  movdqu xmm1, [rsi]
+  paddsw xmm0, xmm1
+  movdqu [rax], xmm0
+  {$ELSE}
+  movdqu xmm0, [rcx]
+  movdqu xmm1, [rdx]
+  paddsw xmm0, xmm1
+  movdqu [rax], xmm0
+  {$ENDIF}
+end;
+
+// I16x8 有符号饱和减法 (PSUBSW)
+function SSE2I16x8SatSub(const a, b: TVecI16x8): TVecI16x8; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  movdqu xmm0, [rdi]
+  movdqu xmm1, [rsi]
+  psubsw xmm0, xmm1
+  movdqu [rax], xmm0
+  {$ELSE}
+  movdqu xmm0, [rcx]
+  movdqu xmm1, [rdx]
+  psubsw xmm0, xmm1
+  movdqu [rax], xmm0
+  {$ENDIF}
+end;
+
+// U8x16 无符号饱和加法 (PADDUSB)
+function SSE2U8x16SatAdd(const a, b: TVecU8x16): TVecU8x16; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  movdqu xmm0, [rdi]
+  movdqu xmm1, [rsi]
+  paddusb xmm0, xmm1
+  movdqu [rax], xmm0
+  {$ELSE}
+  movdqu xmm0, [rcx]
+  movdqu xmm1, [rdx]
+  paddusb xmm0, xmm1
+  movdqu [rax], xmm0
+  {$ENDIF}
+end;
+
+// U8x16 无符号饱和减法 (PSUBUSB)
+function SSE2U8x16SatSub(const a, b: TVecU8x16): TVecU8x16; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  movdqu xmm0, [rdi]
+  movdqu xmm1, [rsi]
+  psubusb xmm0, xmm1
+  movdqu [rax], xmm0
+  {$ELSE}
+  movdqu xmm0, [rcx]
+  movdqu xmm1, [rdx]
+  psubusb xmm0, xmm1
+  movdqu [rax], xmm0
+  {$ENDIF}
+end;
+
+// U16x8 无符号饱和加法 (PADDUSW)
+function SSE2U16x8SatAdd(const a, b: TVecU16x8): TVecU16x8; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  movdqu xmm0, [rdi]
+  movdqu xmm1, [rsi]
+  paddusw xmm0, xmm1
+  movdqu [rax], xmm0
+  {$ELSE}
+  movdqu xmm0, [rcx]
+  movdqu xmm1, [rdx]
+  paddusw xmm0, xmm1
+  movdqu [rax], xmm0
+  {$ENDIF}
+end;
+
+// U16x8 无符号饱和减法 (PSUBUSW)
+function SSE2U16x8SatSub(const a, b: TVecU16x8): TVecU16x8; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  movdqu xmm0, [rdi]
+  movdqu xmm1, [rsi]
+  psubusw xmm0, xmm1
+  movdqu [rax], xmm0
+  {$ELSE}
+  movdqu xmm0, [rcx]
+  movdqu xmm1, [rdx]
+  psubusw xmm0, xmm1
+  movdqu [rax], xmm0
+  {$ENDIF}
+end;
+
 // === Backend Registration ===
 
 procedure RegisterSSE2Backend;
@@ -1287,8 +1476,8 @@ begin
   if not HasSSE2 then
     Exit;
 
-  // Initialize dispatch table
-  dispatchTable := Default(TSimdDispatchTable);
+  // Fill with base scalar implementations (provides fallback for all operations)
+  FillBaseDispatchTable(dispatchTable);
 
   // Set backend info
   dispatchTable.Backend := sbSSE2;
@@ -1308,7 +1497,7 @@ begin
 
   if IsVectorAsmEnabled then
   begin
-    // Register arithmetic operations
+    // Override with SSE2 arithmetic operations
     dispatchTable.AddF32x4 := @SSE2AddF32x4;
     dispatchTable.SubF32x4 := @SSE2SubF32x4;
     dispatchTable.MulF32x4 := @SSE2MulF32x4;
@@ -1328,7 +1517,7 @@ begin
     dispatchTable.SubI32x4 := @SSE2SubI32x4;
     dispatchTable.MulI32x4 := @SSE2MulI32x4;
 
-    // Register comparison operations
+    // Override with SSE2 comparison operations
     dispatchTable.CmpEqF32x4 := @SSE2CmpEqF32x4;
     dispatchTable.CmpLtF32x4 := @SSE2CmpLtF32x4;
     dispatchTable.CmpLeF32x4 := @SSE2CmpLeF32x4;
@@ -1336,13 +1525,13 @@ begin
     dispatchTable.CmpGeF32x4 := @SSE2CmpGeF32x4;
     dispatchTable.CmpNeF32x4 := @SSE2CmpNeF32x4;
 
-    // Register math functions
+    // Override with SSE2 math functions
     dispatchTable.AbsF32x4 := @SSE2AbsF32x4;
     dispatchTable.SqrtF32x4 := @SSE2SqrtF32x4;
     dispatchTable.MinF32x4 := @SSE2MinF32x4;
     dispatchTable.MaxF32x4 := @SSE2MaxF32x4;
 
-    // Extended math functions
+    // Override with SSE2 extended math functions
     dispatchTable.FmaF32x4 := @SSE2FmaF32x4;
     dispatchTable.RcpF32x4 := @SSE2RcpF32x4;
     dispatchTable.RsqrtF32x4 := @SSE2RsqrtF32x4;
@@ -1352,7 +1541,7 @@ begin
     dispatchTable.TruncF32x4 := @SSE2TruncF32x4;
     dispatchTable.ClampF32x4 := @SSE2ClampF32x4;
 
-    // Vector math functions
+    // Override with SSE2 vector math functions
     dispatchTable.DotF32x4 := @SSE2DotF32x4;
     dispatchTable.DotF32x3 := @SSE2DotF32x3;
     dispatchTable.CrossF32x3 := @SSE2CrossF32x3;
@@ -1361,117 +1550,46 @@ begin
     dispatchTable.NormalizeF32x4 := @SSE2NormalizeF32x4;
     dispatchTable.NormalizeF32x3 := @SSE2NormalizeF32x3;
 
-    // Register reduction operations
+    // Override with SSE2 reduction operations
     dispatchTable.ReduceAddF32x4 := @SSE2ReduceAddF32x4;
     dispatchTable.ReduceMinF32x4 := @SSE2ReduceMinF32x4;
     dispatchTable.ReduceMaxF32x4 := @SSE2ReduceMaxF32x4;
     dispatchTable.ReduceMulF32x4 := @SSE2ReduceMulF32x4;
 
-    // Register memory operations
+    // Override with SSE2 memory operations
     dispatchTable.LoadF32x4 := @SSE2LoadF32x4;
     dispatchTable.LoadF32x4Aligned := @SSE2LoadF32x4Aligned;
     dispatchTable.StoreF32x4 := @SSE2StoreF32x4;
     dispatchTable.StoreF32x4Aligned := @SSE2StoreF32x4Aligned;
 
-    // Register utility operations
+    // Override with SSE2 utility operations
     dispatchTable.SplatF32x4 := @SSE2SplatF32x4;
     dispatchTable.ZeroF32x4 := @SSE2ZeroF32x4;
     dispatchTable.SelectF32x4 := @SSE2SelectF32x4;
     dispatchTable.ExtractF32x4 := @SSE2ExtractF32x4;
     dispatchTable.InsertF32x4 := @SSE2InsertF32x4;
-  end
-  else
-  begin
-    // Register arithmetic operations
-    dispatchTable.AddF32x4 := @ScalarAddF32x4;
-    dispatchTable.SubF32x4 := @ScalarSubF32x4;
-    dispatchTable.MulF32x4 := @ScalarMulF32x4;
-    dispatchTable.DivF32x4 := @ScalarDivF32x4;
-
-    dispatchTable.AddF32x8 := @ScalarAddF32x8;
-    dispatchTable.SubF32x8 := @ScalarSubF32x8;
-    dispatchTable.MulF32x8 := @ScalarMulF32x8;
-    dispatchTable.DivF32x8 := @ScalarDivF32x8;
-
-    dispatchTable.AddF64x2 := @ScalarAddF64x2;
-    dispatchTable.SubF64x2 := @ScalarSubF64x2;
-    dispatchTable.MulF64x2 := @ScalarMulF64x2;
-    dispatchTable.DivF64x2 := @ScalarDivF64x2;
-
-    dispatchTable.AddI32x4 := @ScalarAddI32x4;
-    dispatchTable.SubI32x4 := @ScalarSubI32x4;
-    dispatchTable.MulI32x4 := @ScalarMulI32x4;
-
-    // Register comparison operations
-    dispatchTable.CmpEqF32x4 := @ScalarCmpEqF32x4;
-    dispatchTable.CmpLtF32x4 := @ScalarCmpLtF32x4;
-    dispatchTable.CmpLeF32x4 := @ScalarCmpLeF32x4;
-    dispatchTable.CmpGtF32x4 := @ScalarCmpGtF32x4;
-    dispatchTable.CmpGeF32x4 := @ScalarCmpGeF32x4;
-    dispatchTable.CmpNeF32x4 := @ScalarCmpNeF32x4;
-
-    // Register math functions
-    dispatchTable.AbsF32x4 := @ScalarAbsF32x4;
-    dispatchTable.SqrtF32x4 := @ScalarSqrtF32x4;
-    dispatchTable.MinF32x4 := @ScalarMinF32x4;
-    dispatchTable.MaxF32x4 := @ScalarMaxF32x4;
-    
-    // Extended math functions
-    dispatchTable.FmaF32x4 := @ScalarFmaF32x4;
-    dispatchTable.RcpF32x4 := @ScalarRcpF32x4;
-    dispatchTable.RsqrtF32x4 := @ScalarRsqrtF32x4;
-    dispatchTable.FloorF32x4 := @ScalarFloorF32x4;
-    dispatchTable.CeilF32x4 := @ScalarCeilF32x4;
-    dispatchTable.RoundF32x4 := @ScalarRoundF32x4;
-    dispatchTable.TruncF32x4 := @ScalarTruncF32x4;
-    dispatchTable.ClampF32x4 := @ScalarClampF32x4;
-    
-    // Vector math functions
-    dispatchTable.DotF32x4 := @ScalarDotF32x4;
-    dispatchTable.DotF32x3 := @ScalarDotF32x3;
-    dispatchTable.CrossF32x3 := @ScalarCrossF32x3;
-    dispatchTable.LengthF32x4 := @ScalarLengthF32x4;
-    dispatchTable.LengthF32x3 := @ScalarLengthF32x3;
-    dispatchTable.NormalizeF32x4 := @ScalarNormalizeF32x4;
-    dispatchTable.NormalizeF32x3 := @ScalarNormalizeF32x3;
-
-    // Register reduction operations
-    dispatchTable.ReduceAddF32x4 := @ScalarReduceAddF32x4;
-    dispatchTable.ReduceMinF32x4 := @ScalarReduceMinF32x4;
-    dispatchTable.ReduceMaxF32x4 := @ScalarReduceMaxF32x4;
-    dispatchTable.ReduceMulF32x4 := @ScalarReduceMulF32x4;
-
-    // Register memory operations
-    dispatchTable.LoadF32x4 := @ScalarLoadF32x4;
-    dispatchTable.LoadF32x4Aligned := @ScalarLoadF32x4Aligned;
-    dispatchTable.StoreF32x4 := @ScalarStoreF32x4;
-    dispatchTable.StoreF32x4Aligned := @ScalarStoreF32x4Aligned;
-
-    // Register utility operations
-    dispatchTable.SplatF32x4 := @ScalarSplatF32x4;
-    dispatchTable.ZeroF32x4 := @ScalarZeroF32x4;
-    dispatchTable.SelectF32x4 := @ScalarSelectF32x4;
-    dispatchTable.ExtractF32x4 := @ScalarExtractF32x4;
-    dispatchTable.InsertF32x4 := @ScalarInsertF32x4;
   end;
+  // else: keep scalar implementations from FillBaseDispatchTable
 
-  // Register facade functions (SSE2-accelerated where available)
+  // Override facade functions with SSE2-accelerated versions
   dispatchTable.MemEqual := @MemEqual_SSE2;
   dispatchTable.MemFindByte := @MemFindByte_SSE2;
   dispatchTable.SumBytes := @SumBytes_SSE2;
   dispatchTable.CountByte := @CountByte_SSE2;
-  // Fallback to scalar for functions where compiler optimization is better
-  dispatchTable.MemCopy := @MemCopy_Scalar;   // FPC's Move is faster
-  dispatchTable.MemSet := @MemSet_Scalar;     // FPC's FillChar is faster
-  dispatchTable.MemDiffRange := @MemDiffRange_Scalar;
-  dispatchTable.MemReverse := @MemReverse_Scalar;
   dispatchTable.MinMaxBytes := @MinMaxBytes_SSE2;
-  dispatchTable.Utf8Validate := @Utf8Validate_Scalar;
-  dispatchTable.AsciiIEqual := @AsciiIEqual_Scalar;
-  dispatchTable.ToLowerAscii := @ToLowerAscii_Scalar;
-  dispatchTable.ToUpperAscii := @ToUpperAscii_Scalar;
-  dispatchTable.BytesIndexOf := @BytesIndexOf_Scalar;
   dispatchTable.BitsetPopCount := @BitsetPopCount_SSE2;
+  // Note: MemCopy, MemSet, MemDiffRange, MemReverse, Utf8Validate, etc.
+  // keep scalar implementations (FPC's Move/FillChar are already optimized)
+
+  // ✅ P2-1: Override with SSE2 saturating arithmetic (always enabled, stable ops)
+  dispatchTable.I8x16SatAdd := @SSE2I8x16SatAdd;
+  dispatchTable.I8x16SatSub := @SSE2I8x16SatSub;
+  dispatchTable.I16x8SatAdd := @SSE2I16x8SatAdd;
+  dispatchTable.I16x8SatSub := @SSE2I16x8SatSub;
+  dispatchTable.U8x16SatAdd := @SSE2U8x16SatAdd;
+  dispatchTable.U8x16SatSub := @SSE2U8x16SatSub;
+  dispatchTable.U16x8SatAdd := @SSE2U16x8SatAdd;
+  dispatchTable.U16x8SatSub := @SSE2U16x8SatSub;
 
   // Register the backend
   RegisterBackend(sbSSE2, dispatchTable);
@@ -1479,5 +1597,7 @@ end;
 
 initialization
   RegisterSSE2Backend;
+  // ✅ P1-D: Register rebuilder callback for VectorAsmEnabled changes
+  RegisterBackendRebuilder(sbSSE2, @RegisterSSE2Backend);
 
 end.

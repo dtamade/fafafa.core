@@ -13,6 +13,33 @@ uses
 // === AVX2 Backend Implementation ===
 // Provides SIMD-accelerated operations using x86-64 AVX2 instructions.
 // This backend requires AVX2 support (Intel Haswell 2013+, AMD Excavator 2015+).
+//
+// ✅ P1-E: vzeroupper 策略
+// ============================================================
+// 所有使用 YMM 寄存器的 AVX2 函数必须在返回前调用 vzeroupper。
+// 这可以避免从 AVX 代码调用 SSE 代码时的 SSE/AVX 状态转换惩罚。
+//
+// 惩罚原因:
+//   - 当 YMM 寄存器的上半部分不干净时，后续 SSE 指令会触发部分寄存器暂存
+//   - 在某些 CPU 上可能导致 70+ 周期的延迟
+//
+// 正确模式:
+//   function AVX2Foo(...): ...;
+//   asm
+//     vmovups ymm0, [...]
+//     ... AVX2 操作 ...
+//     vmovups [...], ymm0
+//     vzeroupper          // <-- 必须在返回前调用
+//   end;
+//
+// 何时需要 vzeroupper:
+//   - 任何使用 256-bit YMM 寄存器的汇编函数
+//   - 即使函数返回标量值（因为调用者可能使用 SSE）
+//
+// 何时不需要:
+//   - 仅使用 128-bit XMM 寄存器的函数
+//   - 纯 Pascal 函数（无内联汇编）
+// ============================================================
 
 // Register the AVX2 backend
 procedure RegisterAVX2Backend;
@@ -680,6 +707,8 @@ end;
 
 function AVX2LoadF32x4(p: PSingle): TVecF32x4;
 begin
+  // ✅ Safety check: Assert for nil pointer
+  Assert(p <> nil, 'AVX2LoadF32x4: pointer is nil');
   asm
     mov     rax, p
     vmovups xmm0, [rax]
@@ -689,6 +718,9 @@ end;
 
 function AVX2LoadF32x4Aligned(p: PSingle): TVecF32x4;
 begin
+  // ✅ Safety check: Assert for nil pointer and 16-byte alignment
+  Assert(p <> nil, 'AVX2LoadF32x4Aligned: pointer is nil');
+  Assert((PtrUInt(p) and $F) = 0, 'AVX2LoadF32x4Aligned: Pointer must be 16-byte aligned');
   asm
     mov     rax, p
     vmovaps xmm0, [rax]
@@ -698,6 +730,8 @@ end;
 
 procedure AVX2StoreF32x4(p: PSingle; const a: TVecF32x4);
 begin
+  // ✅ Safety check: Assert for nil pointer
+  Assert(p <> nil, 'AVX2StoreF32x4: pointer is nil');
   asm
     mov     rax, p
     lea     rdx, a
@@ -708,6 +742,9 @@ end;
 
 procedure AVX2StoreF32x4Aligned(p: PSingle; const a: TVecF32x4);
 begin
+  // ✅ Safety check: Assert for nil pointer and 16-byte alignment
+  Assert(p <> nil, 'AVX2StoreF32x4Aligned: pointer is nil');
+  Assert((PtrUInt(p) and $F) = 0, 'AVX2StoreF32x4Aligned: Pointer must be 16-byte aligned');
   asm
     mov     rax, p
     lea     rdx, a
@@ -746,14 +783,26 @@ begin
 end;
 
 function AVX2ExtractF32x4(const a: TVecF32x4; index: Integer): Single;
+var
+  safeIndex: Integer;
 begin
-  Result := a.f[index];
+  // ✅ Safety check: use saturation strategy for index bounds (per project spec)
+  safeIndex := index;
+  if safeIndex < 0 then safeIndex := 0
+  else if safeIndex > 3 then safeIndex := 3;
+  Result := a.f[safeIndex];
 end;
 
 function AVX2InsertF32x4(const a: TVecF32x4; value: Single; index: Integer): TVecF32x4;
+var
+  safeIndex: Integer;
 begin
+  // ✅ Safety check: use saturation strategy for index bounds (per project spec)
+  safeIndex := index;
+  if safeIndex < 0 then safeIndex := 0
+  else if safeIndex > 3 then safeIndex := 3;
   Result := a;
-  Result.f[index] := value;
+  Result.f[safeIndex] := value;
 end;
 
 // === F32x8 Operations (native 256-bit AVX) ===
@@ -832,6 +881,431 @@ begin
     vmovups ymm0, [rdx]
     vdivps  ymm0, ymm0, [rcx]
     vmovups [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+// === F64x4 Operations (native 256-bit AVX) ===
+
+function AVX2AddF64x4(const a, b: TVecF64x4): TVecF64x4;
+var
+  pa, pb, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovupd ymm0, [rdx]
+    vaddpd  ymm0, ymm0, [rcx]
+    vmovupd [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+function AVX2SubF64x4(const a, b: TVecF64x4): TVecF64x4;
+var
+  pa, pb, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovupd ymm0, [rdx]
+    vsubpd  ymm0, ymm0, [rcx]
+    vmovupd [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+function AVX2MulF64x4(const a, b: TVecF64x4): TVecF64x4;
+var
+  pa, pb, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovupd ymm0, [rdx]
+    vmulpd  ymm0, ymm0, [rcx]
+    vmovupd [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+function AVX2DivF64x4(const a, b: TVecF64x4): TVecF64x4;
+var
+  pa, pb, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovupd ymm0, [rdx]
+    vdivpd  ymm0, ymm0, [rcx]
+    vmovupd [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+// === I32x8 Operations (native 256-bit AVX2) ===
+
+function AVX2AddI32x8(const a, b: TVecI32x8): TVecI32x8;
+var
+  pa, pb, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vpaddd  ymm0, ymm0, [rcx]
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+function AVX2SubI32x8(const a, b: TVecI32x8): TVecI32x8;
+var
+  pa, pb, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vpsubd  ymm0, ymm0, [rcx]
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+function AVX2MulI32x8(const a, b: TVecI32x8): TVecI32x8;
+var
+  pa, pb, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vpmulld ymm0, ymm0, [rcx]
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+// I32x8 Bitwise Operations
+
+function AVX2AndI32x8(const a, b: TVecI32x8): TVecI32x8;
+var
+  pa, pb, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vpand   ymm0, ymm0, [rcx]
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+function AVX2OrI32x8(const a, b: TVecI32x8): TVecI32x8;
+var
+  pa, pb, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vpor    ymm0, ymm0, [rcx]
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+function AVX2XorI32x8(const a, b: TVecI32x8): TVecI32x8;
+var
+  pa, pb, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vpxor   ymm0, ymm0, [rcx]
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+function AVX2NotI32x8(const a: TVecI32x8): TVecI32x8;
+var
+  pa, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    vpcmpeqd ymm1, ymm1, ymm1   // all 1s
+    vmovdqu ymm0, [rdx]
+    vpxor   ymm0, ymm0, ymm1    // NOT = XOR with all 1s
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+function AVX2AndNotI32x8(const a, b: TVecI32x8): TVecI32x8;
+var
+  pa, pb, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vpandn  ymm0, ymm0, [rcx]   // (NOT a) AND b
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+// I32x8 Shift Operations
+
+function AVX2ShiftLeftI32x8(const a: TVecI32x8; count: Integer): TVecI32x8;
+var
+  pa, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+
+  if (count < 0) or (count >= 32) then
+  begin
+    FillChar(Result, SizeOf(Result), 0);
+    Exit;
+  end;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    vmovdqu ymm0, [rdx]
+    vmovd   xmm1, count
+    vpslld  ymm0, ymm0, xmm1
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+function AVX2ShiftRightI32x8(const a: TVecI32x8; count: Integer): TVecI32x8;
+var
+  pa, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+
+  if (count < 0) or (count >= 32) then
+  begin
+    FillChar(Result, SizeOf(Result), 0);
+    Exit;
+  end;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    vmovdqu ymm0, [rdx]
+    vmovd   xmm1, count
+    vpsrld  ymm0, ymm0, xmm1    // Logical right shift
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+function AVX2ShiftRightArithI32x8(const a: TVecI32x8; count: Integer): TVecI32x8;
+var
+  pa, pr: Pointer;
+  i: Integer;
+begin
+  pr := @Result;
+  pa := @a;
+
+  if count < 0 then
+  begin
+    Result := a;
+    Exit;
+  end;
+
+  if count >= 32 then
+  begin
+    // Arithmetic shift >= 32: result is all 0s or all 1s depending on sign
+    for i := 0 to 7 do
+      if a.i[i] < 0 then
+        Result.i[i] := -1
+      else
+        Result.i[i] := 0;
+    Exit;
+  end;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    vmovdqu ymm0, [rdx]
+    vmovd   xmm1, count
+    vpsrad  ymm0, ymm0, xmm1    // Arithmetic right shift
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+// I32x8 Comparison Operations
+
+function AVX2CmpEqI32x8(const a, b: TVecI32x8): TMask8;
+var
+  pa, pb: Pointer;
+  mask: Integer;
+begin
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vpcmpeqd ymm0, ymm0, [rcx]
+    vmovmskps eax, ymm0         // Extract sign bits (1 bit per 32-bit element)
+    mov     mask, eax
+    vzeroupper
+  end;
+
+  Result := TMask8(mask);
+end;
+
+function AVX2CmpLtI32x8(const a, b: TVecI32x8): TMask8;
+var
+  pa, pb: Pointer;
+  mask: Integer;
+begin
+  pa := @a;
+  pb := @b;
+
+  // a < b is equivalent to b > a
+  asm
+    mov     rdx, pb
+    mov     rcx, pa
+    vmovdqu ymm0, [rdx]
+    vpcmpgtd ymm0, ymm0, [rcx]  // b > a
+    vmovmskps eax, ymm0
+    mov     mask, eax
+    vzeroupper
+  end;
+
+  Result := TMask8(mask);
+end;
+
+function AVX2CmpGtI32x8(const a, b: TVecI32x8): TMask8;
+var
+  pa, pb: Pointer;
+  mask: Integer;
+begin
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vpcmpgtd ymm0, ymm0, [rcx]
+    vmovmskps eax, ymm0
+    mov     mask, eax
+    vzeroupper
+  end;
+
+  Result := TMask8(mask);
+end;
+
+// I32x8 Min/Max Operations
+
+function AVX2MinI32x8(const a, b: TVecI32x8): TVecI32x8;
+var
+  pa, pb, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vpminsd ymm0, ymm0, [rcx]   // Signed min
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+function AVX2MaxI32x8(const a, b: TVecI32x8): TVecI32x8;
+var
+  pa, pb, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vpmaxsd ymm0, ymm0, [rcx]   // Signed max
+    vmovdqu [rax], ymm0
     vzeroupper
   end;
 end;
@@ -1254,38 +1728,41 @@ var
   i: SizeUInt;
   mask: UInt32;
   pCurrent: Pointer;
+  usedYMM: Boolean;
 begin
   // 边界检查
   if (len = 0) then Exit(True);
   if (p = nil) then Exit(False);
-  
+
   pData := PByteArray(p);
   pCurrent := p;
   remaining := len;
   hasNonASCII := False;
-  
+  usedYMM := False;
+
   // 阶段 1：使用 AVX2 快速检查是否全为 ASCII
   // 一次处理 32 字节，检查最高位是否为 0
   while remaining >= 32 do
   begin
+    usedYMM := True;
     asm
       mov rax, pCurrent
       vmovdqu ymm0, [rax]         // 加载 32 字节
       vpmovmskb eax, ymm0         // 提取每个字节的最高位
       mov mask, eax
     end;
-    
+
     if mask <> 0 then
     begin
       // 发现非 ASCII 字节
       hasNonASCII := True;
       Break;
     end;
-    
+
     Inc(pCurrent, 32);
     Dec(remaining, 32);
   end;
-  
+
   // 如果全部是 ASCII，继续检查剩余字节
   if not hasNonASCII then
   begin
@@ -1303,26 +1780,29 @@ begin
         end;
       end;
     end;
-    
+
     if not hasNonASCII then
     begin
-      // 全部是 ASCII，有效
-      asm
-        vzeroupper
-      end;
+      // 全部是 ASCII，有效 - 确保在退出前调用 vzeroupper
+      if usedYMM then
+        asm
+          vzeroupper
+        end;
       Exit(True);
     end;
-    
+
     // 调整位置
     Inc(pCurrent, i);
     Dec(remaining, i);
   end;
-  
+
   // 阶段 2：包含非 ASCII，回退到完整的标量 UTF-8 验证
-  asm
-    vzeroupper
-  end;
-  
+  // 确保在退出前调用 vzeroupper
+  if usedYMM then
+    asm
+      vzeroupper
+    end;
+
   Result := Utf8Validate_Scalar(pCurrent, remaining);
 end;
 
@@ -1862,20 +2342,17 @@ begin
   if not HasAVX2 then
     Exit;
 
-  // Initialize dispatch table
-  dispatchTable := Default(TSimdDispatchTable);
+  // Fill with base scalar implementations (provides fallback for all operations)
+  FillBaseDispatchTable(dispatchTable);
 
   // Set backend info
   dispatchTable.Backend := sbAVX2;
-  with dispatchTable.BackendInfo do
-  begin
-    Backend := sbAVX2;
-    Name := 'AVX2';
-    Description := 'x86-64 AVX2 SIMD implementation (256-bit)';
-    Capabilities := [scBasicArithmetic, scComparison, scMathFunctions, scReduction, scLoadStore];
-    Available := True;
-    Priority := 20; // Higher than SSE2
-  end;
+  dispatchTable.BackendInfo.Backend := sbAVX2;
+  dispatchTable.BackendInfo.Name := 'AVX2';
+  dispatchTable.BackendInfo.Description := 'x86-64 AVX2 SIMD implementation (256-bit)';
+  dispatchTable.BackendInfo.Capabilities := [scBasicArithmetic, scComparison, scMathFunctions, scReduction, scLoadStore];
+  dispatchTable.BackendInfo.Available := True;
+  dispatchTable.BackendInfo.Priority := 20; // Higher than SSE2
 
   // Vector-related operations default to Scalar reference implementations.
   // You can enable AVX2 vector ops for experimentation via SetVectorAsmEnabled(True)
@@ -1883,7 +2360,7 @@ begin
 
   if IsVectorAsmEnabled then
   begin
-    // Register arithmetic operations
+    // Override with AVX2 arithmetic operations
     dispatchTable.AddF32x4 := @AVX2AddF32x4;
     dispatchTable.SubF32x4 := @AVX2SubF32x4;
     dispatchTable.MulF32x4 := @AVX2MulF32x4;
@@ -1903,7 +2380,31 @@ begin
     dispatchTable.SubI32x4 := @AVX2SubI32x4;
     dispatchTable.MulI32x4 := @AVX2MulI32x4;
 
-    // Register comparison operations
+    // F64x4 (256-bit AVX)
+    dispatchTable.AddF64x4 := @AVX2AddF64x4;
+    dispatchTable.SubF64x4 := @AVX2SubF64x4;
+    dispatchTable.MulF64x4 := @AVX2MulF64x4;
+    dispatchTable.DivF64x4 := @AVX2DivF64x4;
+
+    // I32x8 (256-bit AVX2)
+    dispatchTable.AddI32x8 := @AVX2AddI32x8;
+    dispatchTable.SubI32x8 := @AVX2SubI32x8;
+    dispatchTable.MulI32x8 := @AVX2MulI32x8;
+    dispatchTable.AndI32x8 := @AVX2AndI32x8;
+    dispatchTable.OrI32x8 := @AVX2OrI32x8;
+    dispatchTable.XorI32x8 := @AVX2XorI32x8;
+    dispatchTable.NotI32x8 := @AVX2NotI32x8;
+    dispatchTable.AndNotI32x8 := @AVX2AndNotI32x8;
+    dispatchTable.ShiftLeftI32x8 := @AVX2ShiftLeftI32x8;
+    dispatchTable.ShiftRightI32x8 := @AVX2ShiftRightI32x8;
+    dispatchTable.ShiftRightArithI32x8 := @AVX2ShiftRightArithI32x8;
+    dispatchTable.CmpEqI32x8 := @AVX2CmpEqI32x8;
+    dispatchTable.CmpLtI32x8 := @AVX2CmpLtI32x8;
+    dispatchTable.CmpGtI32x8 := @AVX2CmpGtI32x8;
+    dispatchTable.MinI32x8 := @AVX2MinI32x8;
+    dispatchTable.MaxI32x8 := @AVX2MaxI32x8;
+
+    // Override with AVX2 comparison operations
     dispatchTable.CmpEqF32x4 := @AVX2CmpEqF32x4;
     dispatchTable.CmpLtF32x4 := @AVX2CmpLtF32x4;
     dispatchTable.CmpLeF32x4 := @AVX2CmpLeF32x4;
@@ -1911,90 +2412,13 @@ begin
     dispatchTable.CmpGeF32x4 := @AVX2CmpGeF32x4;
     dispatchTable.CmpNeF32x4 := @AVX2CmpNeF32x4;
 
-    // Register math functions
+    // Override with AVX2 math functions
     dispatchTable.AbsF32x4 := @AVX2AbsF32x4;
     dispatchTable.SqrtF32x4 := @AVX2SqrtF32x4;
     dispatchTable.MinF32x4 := @AVX2MinF32x4;
     dispatchTable.MaxF32x4 := @AVX2MaxF32x4;
 
-    // Register reduction operations
-    dispatchTable.ReduceAddF32x4 := @AVX2ReduceAddF32x4;
-    dispatchTable.ReduceMinF32x4 := @AVX2ReduceMinF32x4;
-    dispatchTable.ReduceMaxF32x4 := @AVX2ReduceMaxF32x4;
-    dispatchTable.ReduceMulF32x4 := @AVX2ReduceMulF32x4;
-
-    // Register memory operations
-    dispatchTable.LoadF32x4 := @AVX2LoadF32x4;
-    dispatchTable.LoadF32x4Aligned := @AVX2LoadF32x4Aligned;
-    dispatchTable.StoreF32x4 := @AVX2StoreF32x4;
-    dispatchTable.StoreF32x4Aligned := @AVX2StoreF32x4Aligned;
-
-    // Register utility operations
-    dispatchTable.SplatF32x4 := @AVX2SplatF32x4;
-    dispatchTable.ZeroF32x4 := @AVX2ZeroF32x4;
-    dispatchTable.SelectF32x4 := @AVX2SelectF32x4;
-    dispatchTable.ExtractF32x4 := @AVX2ExtractF32x4;
-    dispatchTable.InsertF32x4 := @AVX2InsertF32x4;
-  end
-  else
-  begin
-    // Register arithmetic operations
-    dispatchTable.AddF32x4 := @ScalarAddF32x4;
-    dispatchTable.SubF32x4 := @ScalarSubF32x4;
-    dispatchTable.MulF32x4 := @ScalarMulF32x4;
-    dispatchTable.DivF32x4 := @ScalarDivF32x4;
-
-    dispatchTable.AddF32x8 := @ScalarAddF32x8;
-    dispatchTable.SubF32x8 := @ScalarSubF32x8;
-    dispatchTable.MulF32x8 := @ScalarMulF32x8;
-    dispatchTable.DivF32x8 := @ScalarDivF32x8;
-
-    dispatchTable.AddF64x2 := @ScalarAddF64x2;
-    dispatchTable.SubF64x2 := @ScalarSubF64x2;
-    dispatchTable.MulF64x2 := @ScalarMulF64x2;
-    dispatchTable.DivF64x2 := @ScalarDivF64x2;
-
-    dispatchTable.AddI32x4 := @ScalarAddI32x4;
-    dispatchTable.SubI32x4 := @ScalarSubI32x4;
-    dispatchTable.MulI32x4 := @ScalarMulI32x4;
-
-    // Register comparison operations
-    dispatchTable.CmpEqF32x4 := @ScalarCmpEqF32x4;
-    dispatchTable.CmpLtF32x4 := @ScalarCmpLtF32x4;
-    dispatchTable.CmpLeF32x4 := @ScalarCmpLeF32x4;
-    dispatchTable.CmpGtF32x4 := @ScalarCmpGtF32x4;
-    dispatchTable.CmpGeF32x4 := @ScalarCmpGeF32x4;
-    dispatchTable.CmpNeF32x4 := @ScalarCmpNeF32x4;
-
-    // Register math functions
-    dispatchTable.AbsF32x4 := @ScalarAbsF32x4;
-    dispatchTable.SqrtF32x4 := @ScalarSqrtF32x4;
-    dispatchTable.MinF32x4 := @ScalarMinF32x4;
-    dispatchTable.MaxF32x4 := @ScalarMaxF32x4;
-
-    // Register reduction operations
-    dispatchTable.ReduceAddF32x4 := @ScalarReduceAddF32x4;
-    dispatchTable.ReduceMinF32x4 := @ScalarReduceMinF32x4;
-    dispatchTable.ReduceMaxF32x4 := @ScalarReduceMaxF32x4;
-    dispatchTable.ReduceMulF32x4 := @ScalarReduceMulF32x4;
-
-    // Register memory operations
-    dispatchTable.LoadF32x4 := @ScalarLoadF32x4;
-    dispatchTable.LoadF32x4Aligned := @ScalarLoadF32x4Aligned;
-    dispatchTable.StoreF32x4 := @ScalarStoreF32x4;
-    dispatchTable.StoreF32x4Aligned := @ScalarStoreF32x4Aligned;
-
-    // Register utility operations
-    dispatchTable.SplatF32x4 := @ScalarSplatF32x4;
-    dispatchTable.ZeroF32x4 := @ScalarZeroF32x4;
-    dispatchTable.SelectF32x4 := @ScalarSelectF32x4;
-    dispatchTable.ExtractF32x4 := @ScalarExtractF32x4;
-    dispatchTable.InsertF32x4 := @ScalarInsertF32x4;
-  end;
-
-  // Register extended math functions
-  if IsVectorAsmEnabled then
-  begin
+    // Override with AVX2 extended math functions
     dispatchTable.FmaF32x4 := @AVX2FmaF32x4;
     dispatchTable.RcpF32x4 := @AVX2RcpF32x4;
     dispatchTable.RsqrtF32x4 := @AVX2RsqrtF32x4;
@@ -2003,65 +2427,42 @@ begin
     dispatchTable.RoundF32x4 := @AVX2RoundF32x4;
     dispatchTable.TruncF32x4 := @AVX2TruncF32x4;
     dispatchTable.ClampF32x4 := @AVX2ClampF32x4;
-  end
-  else
-  begin
-    dispatchTable.FmaF32x4 := @ScalarFmaF32x4;
-    dispatchTable.RcpF32x4 := @ScalarRcpF32x4;
-    dispatchTable.RsqrtF32x4 := @ScalarRsqrtF32x4;
-    dispatchTable.FloorF32x4 := @ScalarFloorF32x4;
-    dispatchTable.CeilF32x4 := @ScalarCeilF32x4;
-    dispatchTable.RoundF32x4 := @ScalarRoundF32x4;
-    dispatchTable.TruncF32x4 := @ScalarTruncF32x4;
-    dispatchTable.ClampF32x4 := @ScalarClampF32x4;
-  end;
 
-  // Register 3D/4D vector math
-  if IsVectorAsmEnabled then
-  begin
+    // Override with AVX2 vector math functions
     dispatchTable.DotF32x4 := @AVX2DotF32x4;
     dispatchTable.DotF32x3 := @AVX2DotF32x3;
-  end
-  else
-  begin
-    dispatchTable.DotF32x4 := @ScalarDotF32x4;
-    dispatchTable.DotF32x3 := @ScalarDotF32x3;
+    dispatchTable.CrossF32x3 := @AVX2CrossF32x3;
+    dispatchTable.LengthF32x4 := @AVX2LengthF32x4;
+    dispatchTable.LengthF32x3 := @AVX2LengthF32x3;
+    dispatchTable.NormalizeF32x4 := @AVX2NormalizeF32x4;
+    dispatchTable.NormalizeF32x3 := @AVX2NormalizeF32x3;
+
+    // Override with AVX2 reduction operations
+    dispatchTable.ReduceAddF32x4 := @AVX2ReduceAddF32x4;
+    dispatchTable.ReduceMinF32x4 := @AVX2ReduceMinF32x4;
+    dispatchTable.ReduceMaxF32x4 := @AVX2ReduceMaxF32x4;
+    dispatchTable.ReduceMulF32x4 := @AVX2ReduceMulF32x4;
+
+    // Override with AVX2 memory operations
+    dispatchTable.LoadF32x4 := @AVX2LoadF32x4;
+    dispatchTable.LoadF32x4Aligned := @AVX2LoadF32x4Aligned;
+    dispatchTable.StoreF32x4 := @AVX2StoreF32x4;
+    dispatchTable.StoreF32x4Aligned := @AVX2StoreF32x4Aligned;
+
+    // Override with AVX2 utility operations
+    dispatchTable.SplatF32x4 := @AVX2SplatF32x4;
+    dispatchTable.ZeroF32x4 := @AVX2ZeroF32x4;
+    dispatchTable.SelectF32x4 := @AVX2SelectF32x4;
+    dispatchTable.ExtractF32x4 := @AVX2ExtractF32x4;
+    dispatchTable.InsertF32x4 := @AVX2InsertF32x4;
   end;
+  // else: keep scalar implementations from FillBaseDispatchTable
 
-  // 其余向量数学函数逐步覆盖。
-  if IsVectorAsmEnabled then
-    dispatchTable.CrossF32x3 := @AVX2CrossF32x3
-  else
-    dispatchTable.CrossF32x3 := @ScalarCrossF32x3;
-
-  if IsVectorAsmEnabled then
-    dispatchTable.LengthF32x4 := @AVX2LengthF32x4
-  else
-    dispatchTable.LengthF32x4 := @ScalarLengthF32x4;
-
-  if IsVectorAsmEnabled then
-    dispatchTable.LengthF32x3 := @AVX2LengthF32x3
-  else
-    dispatchTable.LengthF32x3 := @ScalarLengthF32x3;
-
-  if IsVectorAsmEnabled then
-    dispatchTable.NormalizeF32x4 := @AVX2NormalizeF32x4
-  else
-    dispatchTable.NormalizeF32x4 := @ScalarNormalizeF32x4;
-
-  if IsVectorAsmEnabled then
-    dispatchTable.NormalizeF32x3 := @AVX2NormalizeF32x3
-  else
-    dispatchTable.NormalizeF32x3 := @ScalarNormalizeF32x3;
-
-  // Register facade functions (AVX2-accelerated where available)
+  // Override facade functions with AVX2-accelerated versions
   dispatchTable.MemEqual := @MemEqual_AVX2;
   dispatchTable.MemFindByte := @MemFindByte_AVX2;
   dispatchTable.SumBytes := @SumBytes_AVX2;
   dispatchTable.CountByte := @CountByte_AVX2;
-  // Fallback to scalar for functions where compiler optimization is better
-  dispatchTable.MemCopy := @MemCopy_Scalar;   // FPC's Move is faster
-  dispatchTable.MemSet := @MemSet_Scalar;     // FPC's FillChar is faster
   dispatchTable.MemDiffRange := @MemDiffRange_AVX2;
   dispatchTable.MemReverse := @MemReverse_AVX2;
   dispatchTable.MinMaxBytes := @MinMaxBytes_AVX2;
@@ -2071,6 +2472,7 @@ begin
   dispatchTable.ToUpperAscii := @ToUpperAscii_AVX2;
   dispatchTable.BytesIndexOf := @BytesIndexOf_AVX2;
   dispatchTable.BitsetPopCount := @BitsetPopCount_AVX2;
+  // Note: MemCopy, MemSet keep scalar implementations (FPC's Move/FillChar are already optimized)
 
   // Register the backend
   RegisterBackend(sbAVX2, dispatchTable);
@@ -2078,5 +2480,7 @@ end;
 
 initialization
   RegisterAVX2Backend;
+  // ✅ P1-D: Register rebuilder callback for VectorAsmEnabled changes
+  RegisterBackendRebuilder(sbAVX2, @RegisterAVX2Backend);
 
 end.

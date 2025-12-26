@@ -6,14 +6,19 @@ unit fafafa.core.simd;
 interface
 
 uses
-  fafafa.core.simd.types,
+  fafafa.core.simd.base,
   fafafa.core.simd.dispatch,
   fafafa.core.simd.cpuinfo,
+  fafafa.core.simd.cpuinfo.base,
   fafafa.core.simd.memutils,
   fafafa.core.simd.scalar
   , fafafa.core.math
   {$IFDEF SIMD_X86_AVAILABLE}
   , fafafa.core.simd.sse2
+  , fafafa.core.simd.sse3      // ✅ SSE3: horizontal ops (HADDPS, HSUBPS)
+  , fafafa.core.simd.ssse3     // ✅ SSSE3: byte shuffle (PSHUFB), integer abs (PABS)
+  , fafafa.core.simd.sse41     // ✅ SSE4.1: dot product (DPPS), rounding, PMULLD
+  , fafafa.core.simd.sse42     // ✅ SSE4.2: CRC32, string ops, PCMPGTQ
   , fafafa.core.simd.avx2
   , fafafa.core.simd.avx512
   {$ENDIF}
@@ -36,35 +41,35 @@ uses
 // === Re-export Core Types ===
 type
   // Vector types (re-exported from types unit)
-  TVecF32x4 = fafafa.core.simd.types.TVecF32x4;
-  TVecF32x8 = fafafa.core.simd.types.TVecF32x8;
-  TVecF64x2 = fafafa.core.simd.types.TVecF64x2;
-  TVecF64x4 = fafafa.core.simd.types.TVecF64x4;
-  TVecI32x4 = fafafa.core.simd.types.TVecI32x4;
-  TVecI32x8 = fafafa.core.simd.types.TVecI32x8;
-  TVecI64x2 = fafafa.core.simd.types.TVecI64x2;
-  TVecI16x8 = fafafa.core.simd.types.TVecI16x8;
-  TVecI8x16 = fafafa.core.simd.types.TVecI8x16;
-  TVecU32x4 = fafafa.core.simd.types.TVecU32x4;
-  TVecU64x2 = fafafa.core.simd.types.TVecU64x2;
-  TVecU16x8 = fafafa.core.simd.types.TVecU16x8;
-  TVecU8x16 = fafafa.core.simd.types.TVecU8x16;
-  TVecU32x8 = fafafa.core.simd.types.TVecU32x8;
-  TVecF32x16 = fafafa.core.simd.types.TVecF32x16;
-  TVecF64x8 = fafafa.core.simd.types.TVecF64x8;
-  TVecI32x16 = fafafa.core.simd.types.TVecI32x16;
+  TVecF32x4 = fafafa.core.simd.base.TVecF32x4;
+  TVecF32x8 = fafafa.core.simd.base.TVecF32x8;
+  TVecF64x2 = fafafa.core.simd.base.TVecF64x2;
+  TVecF64x4 = fafafa.core.simd.base.TVecF64x4;
+  TVecI32x4 = fafafa.core.simd.base.TVecI32x4;
+  TVecI32x8 = fafafa.core.simd.base.TVecI32x8;
+  TVecI64x2 = fafafa.core.simd.base.TVecI64x2;
+  TVecI16x8 = fafafa.core.simd.base.TVecI16x8;
+  TVecI8x16 = fafafa.core.simd.base.TVecI8x16;
+  TVecU32x4 = fafafa.core.simd.base.TVecU32x4;
+  TVecU64x2 = fafafa.core.simd.base.TVecU64x2;
+  TVecU16x8 = fafafa.core.simd.base.TVecU16x8;
+  TVecU8x16 = fafafa.core.simd.base.TVecU8x16;
+  TVecU32x8 = fafafa.core.simd.base.TVecU32x8;
+  TVecF32x16 = fafafa.core.simd.base.TVecF32x16;
+  TVecF64x8 = fafafa.core.simd.base.TVecF64x8;
+  TVecI32x16 = fafafa.core.simd.base.TVecI32x16;
   
   // Mask types
-  TMask2 = fafafa.core.simd.types.TMask2;
-  TMask4 = fafafa.core.simd.types.TMask4;
-  TMask8 = fafafa.core.simd.types.TMask8;
-  TMask16 = fafafa.core.simd.types.TMask16;
-  TMask32 = fafafa.core.simd.types.TMask32;
+  TMask2 = fafafa.core.simd.base.TMask2;
+  TMask4 = fafafa.core.simd.base.TMask4;
+  TMask8 = fafafa.core.simd.base.TMask8;
+  TMask16 = fafafa.core.simd.base.TMask16;
+  TMask32 = fafafa.core.simd.base.TMask32;
   
   // Backend types
-  TSimdBackend = fafafa.core.simd.types.TSimdBackend;
-  TSimdBackendInfo = fafafa.core.simd.types.TSimdBackendInfo;
-  TCPUInfo = fafafa.core.simd.types.TCPUInfo;
+  TSimdBackend = fafafa.core.simd.base.TSimdBackend;
+  TSimdBackendInfo = fafafa.core.simd.base.TSimdBackendInfo;
+  TCPUInfo = fafafa.core.simd.cpuinfo.base.TCPUInfo;
   TSimdBackendArray = fafafa.core.simd.cpuinfo.TSimdBackendArray;
 
   // === Rust-Style Short Aliases (portable-simd compatible naming) ===
@@ -184,6 +189,44 @@ function VecF64x2ReduceMin(const a: TVecF64x2): Double; inline;
 function VecF64x2ReduceMax(const a: TVecF64x2): Double; inline;
 function VecF64x2ReduceMul(const a: TVecF64x2): Double; inline;
 
+// ✅ P2-3: F64x2 memory operations
+function VecF64x2Load(p: PDouble): TVecF64x2; inline;
+procedure VecF64x2Store(p: PDouble; const a: TVecF64x2); inline;
+
+// ✅ P2-3: F64x2 utility operations
+function VecF64x2Splat(value: Double): TVecF64x2; inline;
+function VecF64x2Zero: TVecF64x2; inline;
+function VecF64x2Select(const mask: TMask2; const a, b: TVecF64x2): TVecF64x2; inline;
+
+// ✅ P2-2: Mask Operations (条件分支优化)
+// TMask2 (2 元素向量的比较结果)
+function Mask2All(mask: TMask2): Boolean; inline;    // 全部为 true
+function Mask2Any(mask: TMask2): Boolean; inline;    // 至少一个为 true
+function Mask2None(mask: TMask2): Boolean; inline;   // 全部为 false
+function Mask2PopCount(mask: TMask2): Integer; inline;  // 为 true 的元素数
+function Mask2FirstSet(mask: TMask2): Integer; inline;  // 第一个为 true 的索引，-1 if none
+
+// TMask4 (4 元素向量的比较结果)
+function Mask4All(mask: TMask4): Boolean; inline;
+function Mask4Any(mask: TMask4): Boolean; inline;
+function Mask4None(mask: TMask4): Boolean; inline;
+function Mask4PopCount(mask: TMask4): Integer; inline;
+function Mask4FirstSet(mask: TMask4): Integer; inline;
+
+// TMask8 (8 元素向量的比较结果)
+function Mask8All(mask: TMask8): Boolean; inline;
+function Mask8Any(mask: TMask8): Boolean; inline;
+function Mask8None(mask: TMask8): Boolean; inline;
+function Mask8PopCount(mask: TMask8): Integer; inline;
+function Mask8FirstSet(mask: TMask8): Integer; inline;
+
+// TMask16 (16 元素向量的比较结果)
+function Mask16All(mask: TMask16): Boolean; inline;
+function Mask16Any(mask: TMask16): Boolean; inline;
+function Mask16None(mask: TMask16): Boolean; inline;
+function Mask16PopCount(mask: TMask16): Integer; inline;
+function Mask16FirstSet(mask: TMask16): Integer; inline;
+
 // === I32x4 Operations (128-bit Integer) ===
 // ✅ P0.3: 添加缺失的 I32x4 高级 API
 
@@ -208,6 +251,9 @@ function VecI32x4ShiftRightArith(const a: TVecI32x4; count: Integer): TVecI32x4;
 function VecI32x4CmpEq(const a, b: TVecI32x4): TMask4; inline;
 function VecI32x4CmpLt(const a, b: TVecI32x4): TMask4; inline;
 function VecI32x4CmpGt(const a, b: TVecI32x4): TMask4; inline;
+function VecI32x4CmpLe(const a, b: TVecI32x4): TMask4; inline;  // ✅ P0-C: 添加缺失 API
+function VecI32x4CmpGe(const a, b: TVecI32x4): TMask4; inline;  // ✅ P0-C: 添加缺失 API
+function VecI32x4CmpNe(const a, b: TVecI32x4): TMask4; inline;  // ✅ P0-C: 添加缺失 API
 
 // I32x4 min/max
 function VecI32x4Min(const a, b: TVecI32x4): TVecI32x4; inline;
@@ -236,6 +282,9 @@ function VecI64x2ShiftRightArith(const a: TVecI64x2; count: Integer): TVecI64x2;
 function VecI64x2CmpEq(const a, b: TVecI64x2): TMask2; inline;
 function VecI64x2CmpLt(const a, b: TVecI64x2): TMask2; inline;
 function VecI64x2CmpGt(const a, b: TVecI64x2): TMask2; inline;
+function VecI64x2CmpLe(const a, b: TVecI64x2): TMask2; inline;  // ✅ P0-C: 添加缺失 API
+function VecI64x2CmpGe(const a, b: TVecI64x2): TMask2; inline;  // ✅ P0-C: 添加缺失 API
+function VecI64x2CmpNe(const a, b: TVecI64x2): TMask2; inline;  // ✅ P0-C: 添加缺失 API
 
 // I64x2 min/max
 function VecI64x2Min(const a, b: TVecI64x2): TVecI64x2; inline;
@@ -347,6 +396,9 @@ function VecI32x8ShiftRightArith(const a: TVecI32x8; count: Integer): TVecI32x8;
 function VecI32x8CmpEq(const a, b: TVecI32x8): TMask8; inline;
 function VecI32x8CmpLt(const a, b: TVecI32x8): TMask8; inline;
 function VecI32x8CmpGt(const a, b: TVecI32x8): TMask8; inline;
+function VecI32x8CmpLe(const a, b: TVecI32x8): TMask8; inline;  // ✅ P0-C: 添加缺失 API
+function VecI32x8CmpGe(const a, b: TVecI32x8): TMask8; inline;  // ✅ P0-C: 添加缺失 API
+function VecI32x8CmpNe(const a, b: TVecI32x8): TMask8; inline;  // ✅ P0-C: 添加缺失 API
 
 // I32x8 min/max
 function VecI32x8Min(const a, b: TVecI32x8): TVecI32x8; inline;
@@ -596,10 +648,25 @@ function VecI32x16ShiftRightArith(const a: TVecI32x16; count: Integer): TVecI32x
 function VecI32x16CmpEq(const a, b: TVecI32x16): TMask16; inline;
 function VecI32x16CmpLt(const a, b: TVecI32x16): TMask16; inline;
 function VecI32x16CmpGt(const a, b: TVecI32x16): TMask16; inline;
+function VecI32x16CmpLe(const a, b: TVecI32x16): TMask16; inline;  // ✅ P0-C: 添加缺失 API
+function VecI32x16CmpGe(const a, b: TVecI32x16): TMask16; inline;  // ✅ P0-C: 添加缺失 API
+function VecI32x16CmpNe(const a, b: TVecI32x16): TMask16; inline;  // ✅ P0-C: 添加缺失 API
 
 // I32x16 min/max
 function VecI32x16Min(const a, b: TVecI32x16): TVecI32x16; inline;
 function VecI32x16Max(const a, b: TVecI32x16): TVecI32x16; inline;
+
+// === ✅ P2-1: Saturating Arithmetic (音视频处理必需) ===
+// 有符号饱和: I8 范围 [-128, 127], I16 范围 [-32768, 32767]
+function VecI8x16SatAdd(const a, b: TVecI8x16): TVecI8x16; inline;
+function VecI8x16SatSub(const a, b: TVecI8x16): TVecI8x16; inline;
+function VecI16x8SatAdd(const a, b: TVecI16x8): TVecI16x8; inline;
+function VecI16x8SatSub(const a, b: TVecI16x8): TVecI16x8; inline;
+// 无符号饱和: U8 范围 [0, 255], U16 范围 [0, 65535]
+function VecU8x16SatAdd(const a, b: TVecU8x16): TVecU8x16; inline;
+function VecU8x16SatSub(const a, b: TVecU8x16): TVecU8x16; inline;
+function VecU16x8SatAdd(const a, b: TVecU16x8): TVecU16x8; inline;
+function VecU16x8SatSub(const a, b: TVecU16x8): TVecU16x8; inline;
 
 // === Framework Information ===
 
@@ -983,48 +1050,84 @@ begin
   end;
 end;
 
-// ✅ P5.1: F64x2 完整 API 实现 - 比较/数学/归约
+// ✅ P1-E: F64x2 比较操作 - 使用派发表
 
 function VecF64x2CmpEq(const a, b: TVecF64x2): TMask2;
+var dispatch: PSimdDispatchTable;
 begin
-  Result := 0;
-  if a.d[0] = b.d[0] then Result := Result or 1;
-  if a.d[1] = b.d[1] then Result := Result or 2;
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.CmpEqF64x2) then
+    Result := dispatch^.CmpEqF64x2(a, b)
+  else begin
+    Result := 0;
+    if a.d[0] = b.d[0] then Result := Result or 1;
+    if a.d[1] = b.d[1] then Result := Result or 2;
+  end;
 end;
 
 function VecF64x2CmpLt(const a, b: TVecF64x2): TMask2;
+var dispatch: PSimdDispatchTable;
 begin
-  Result := 0;
-  if a.d[0] < b.d[0] then Result := Result or 1;
-  if a.d[1] < b.d[1] then Result := Result or 2;
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.CmpLtF64x2) then
+    Result := dispatch^.CmpLtF64x2(a, b)
+  else begin
+    Result := 0;
+    if a.d[0] < b.d[0] then Result := Result or 1;
+    if a.d[1] < b.d[1] then Result := Result or 2;
+  end;
 end;
 
 function VecF64x2CmpLe(const a, b: TVecF64x2): TMask2;
+var dispatch: PSimdDispatchTable;
 begin
-  Result := 0;
-  if a.d[0] <= b.d[0] then Result := Result or 1;
-  if a.d[1] <= b.d[1] then Result := Result or 2;
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.CmpLeF64x2) then
+    Result := dispatch^.CmpLeF64x2(a, b)
+  else begin
+    Result := 0;
+    if a.d[0] <= b.d[0] then Result := Result or 1;
+    if a.d[1] <= b.d[1] then Result := Result or 2;
+  end;
 end;
 
 function VecF64x2CmpGt(const a, b: TVecF64x2): TMask2;
+var dispatch: PSimdDispatchTable;
 begin
-  Result := 0;
-  if a.d[0] > b.d[0] then Result := Result or 1;
-  if a.d[1] > b.d[1] then Result := Result or 2;
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.CmpGtF64x2) then
+    Result := dispatch^.CmpGtF64x2(a, b)
+  else begin
+    Result := 0;
+    if a.d[0] > b.d[0] then Result := Result or 1;
+    if a.d[1] > b.d[1] then Result := Result or 2;
+  end;
 end;
 
 function VecF64x2CmpGe(const a, b: TVecF64x2): TMask2;
+var dispatch: PSimdDispatchTable;
 begin
-  Result := 0;
-  if a.d[0] >= b.d[0] then Result := Result or 1;
-  if a.d[1] >= b.d[1] then Result := Result or 2;
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.CmpGeF64x2) then
+    Result := dispatch^.CmpGeF64x2(a, b)
+  else begin
+    Result := 0;
+    if a.d[0] >= b.d[0] then Result := Result or 1;
+    if a.d[1] >= b.d[1] then Result := Result or 2;
+  end;
 end;
 
 function VecF64x2CmpNe(const a, b: TVecF64x2): TMask2;
+var dispatch: PSimdDispatchTable;
 begin
-  Result := 0;
-  if a.d[0] <> b.d[0] then Result := Result or 1;
-  if a.d[1] <> b.d[1] then Result := Result or 2;
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.CmpNeF64x2) then
+    Result := dispatch^.CmpNeF64x2(a, b)
+  else begin
+    Result := 0;
+    if a.d[0] <> b.d[0] then Result := Result or 1;
+    if a.d[1] <> b.d[1] then Result := Result or 2;
+  end;
 end;
 
 function VecF64x2Abs(const a: TVecF64x2): TVecF64x2;
@@ -1069,6 +1172,214 @@ end;
 function VecF64x2ReduceMul(const a: TVecF64x2): Double;
 begin
   Result := a.d[0] * a.d[1];
+end;
+
+// ✅ P2-3: F64x2 memory operations
+function VecF64x2Load(p: PDouble): TVecF64x2;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.LoadF64x2) then
+    Result := dispatch^.LoadF64x2(p)
+  else
+  begin
+    Result.d[0] := p[0];
+    Result.d[1] := p[1];
+  end;
+end;
+
+procedure VecF64x2Store(p: PDouble; const a: TVecF64x2);
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.StoreF64x2) then
+    dispatch^.StoreF64x2(p, a)
+  else
+  begin
+    p[0] := a.d[0];
+    p[1] := a.d[1];
+  end;
+end;
+
+function VecF64x2Splat(value: Double): TVecF64x2;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.SplatF64x2) then
+    Result := dispatch^.SplatF64x2(value)
+  else
+  begin
+    Result.d[0] := value;
+    Result.d[1] := value;
+  end;
+end;
+
+function VecF64x2Zero: TVecF64x2;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.ZeroF64x2) then
+    Result := dispatch^.ZeroF64x2()
+  else
+  begin
+    Result.d[0] := 0.0;
+    Result.d[1] := 0.0;
+  end;
+end;
+
+function VecF64x2Select(const mask: TMask2; const a, b: TVecF64x2): TVecF64x2;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.SelectF64x2) then
+    Result := dispatch^.SelectF64x2(mask, a, b)
+  else
+  begin
+    // 标量回退实现
+    if (mask and 1) <> 0 then Result.d[0] := a.d[0] else Result.d[0] := b.d[0];
+    if (mask and 2) <> 0 then Result.d[1] := a.d[1] else Result.d[1] := b.d[1];
+  end;
+end;
+
+// ✅ P2-2: Mask Operations Implementation
+function Mask2All(mask: TMask2): Boolean;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  Result := dispatch^.Mask2All(mask);
+end;
+
+function Mask2Any(mask: TMask2): Boolean;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  Result := dispatch^.Mask2Any(mask);
+end;
+
+function Mask2None(mask: TMask2): Boolean;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  Result := dispatch^.Mask2None(mask);
+end;
+
+function Mask2PopCount(mask: TMask2): Integer;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  Result := dispatch^.Mask2PopCount(mask);
+end;
+
+function Mask2FirstSet(mask: TMask2): Integer;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  Result := dispatch^.Mask2FirstSet(mask);
+end;
+
+function Mask4All(mask: TMask4): Boolean;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  Result := dispatch^.Mask4All(mask);
+end;
+
+function Mask4Any(mask: TMask4): Boolean;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  Result := dispatch^.Mask4Any(mask);
+end;
+
+function Mask4None(mask: TMask4): Boolean;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  Result := dispatch^.Mask4None(mask);
+end;
+
+function Mask4PopCount(mask: TMask4): Integer;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  Result := dispatch^.Mask4PopCount(mask);
+end;
+
+function Mask4FirstSet(mask: TMask4): Integer;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  Result := dispatch^.Mask4FirstSet(mask);
+end;
+
+function Mask8All(mask: TMask8): Boolean;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  Result := dispatch^.Mask8All(mask);
+end;
+
+function Mask8Any(mask: TMask8): Boolean;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  Result := dispatch^.Mask8Any(mask);
+end;
+
+function Mask8None(mask: TMask8): Boolean;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  Result := dispatch^.Mask8None(mask);
+end;
+
+function Mask8PopCount(mask: TMask8): Integer;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  Result := dispatch^.Mask8PopCount(mask);
+end;
+
+function Mask8FirstSet(mask: TMask8): Integer;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  Result := dispatch^.Mask8FirstSet(mask);
+end;
+
+function Mask16All(mask: TMask16): Boolean;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  Result := dispatch^.Mask16All(mask);
+end;
+
+function Mask16Any(mask: TMask16): Boolean;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  Result := dispatch^.Mask16Any(mask);
+end;
+
+function Mask16None(mask: TMask16): Boolean;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  Result := dispatch^.Mask16None(mask);
+end;
+
+function Mask16PopCount(mask: TMask16): Integer;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  Result := dispatch^.Mask16PopCount(mask);
+end;
+
+function Mask16FirstSet(mask: TMask16): Integer;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  Result := dispatch^.Mask16FirstSet(mask);
 end;
 
 // === I32x4 Operations Implementation ===
@@ -1289,6 +1600,55 @@ begin
   end;
 end;
 
+// ✅ P0-C: 添加 I32x4 缺失比较函数
+function VecI32x4CmpLe(const a, b: TVecI32x4): TMask4;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.CmpLeI32x4) then
+    Result := dispatch^.CmpLeI32x4(a, b)
+  else
+  begin
+    Result := 0;
+    if a.i[0] <= b.i[0] then Result := Result or 1;
+    if a.i[1] <= b.i[1] then Result := Result or 2;
+    if a.i[2] <= b.i[2] then Result := Result or 4;
+    if a.i[3] <= b.i[3] then Result := Result or 8;
+  end;
+end;
+
+function VecI32x4CmpGe(const a, b: TVecI32x4): TMask4;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.CmpGeI32x4) then
+    Result := dispatch^.CmpGeI32x4(a, b)
+  else
+  begin
+    Result := 0;
+    if a.i[0] >= b.i[0] then Result := Result or 1;
+    if a.i[1] >= b.i[1] then Result := Result or 2;
+    if a.i[2] >= b.i[2] then Result := Result or 4;
+    if a.i[3] >= b.i[3] then Result := Result or 8;
+  end;
+end;
+
+function VecI32x4CmpNe(const a, b: TVecI32x4): TMask4;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.CmpNeI32x4) then
+    Result := dispatch^.CmpNeI32x4(a, b)
+  else
+  begin
+    Result := 0;
+    if a.i[0] <> b.i[0] then Result := Result or 1;
+    if a.i[1] <> b.i[1] then Result := Result or 2;
+    if a.i[2] <> b.i[2] then Result := Result or 4;
+    if a.i[3] <> b.i[3] then Result := Result or 8;
+  end;
+end;
+
 function VecI32x4Min(const a, b: TVecI32x4): TVecI32x4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
@@ -1425,6 +1785,28 @@ begin
   Result := 0;
   if a.i[0] > b.i[0] then Result := Result or 1;
   if a.i[1] > b.i[1] then Result := Result or 2;
+end;
+
+// ✅ P0-C: 添加 I64x2 缺失比较函数
+function VecI64x2CmpLe(const a, b: TVecI64x2): TMask2;
+begin
+  Result := 0;
+  if a.i[0] <= b.i[0] then Result := Result or 1;
+  if a.i[1] <= b.i[1] then Result := Result or 2;
+end;
+
+function VecI64x2CmpGe(const a, b: TVecI64x2): TMask2;
+begin
+  Result := 0;
+  if a.i[0] >= b.i[0] then Result := Result or 1;
+  if a.i[1] >= b.i[1] then Result := Result or 2;
+end;
+
+function VecI64x2CmpNe(const a, b: TVecI64x2): TMask2;
+begin
+  Result := 0;
+  if a.i[0] <> b.i[0] then Result := Result or 1;
+  if a.i[1] <> b.i[1] then Result := Result or 2;
 end;
 
 function VecI64x2Min(const a, b: TVecI64x2): TVecI64x2;
@@ -2030,6 +2412,52 @@ begin
     Result := 0;
     for i := 0 to 7 do
       if a.i[i] > b.i[i] then Result := Result or (1 shl i);
+  end;
+end;
+
+// ✅ P0-C: 添加 I32x8 缺失比较函数
+function VecI32x8CmpLe(const a, b: TVecI32x8): TMask8;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.CmpLeI32x8) then
+    Result := dispatch^.CmpLeI32x8(a, b)
+  else
+  begin
+    Result := 0;
+    for i := 0 to 7 do
+      if a.i[i] <= b.i[i] then Result := Result or (1 shl i);
+  end;
+end;
+
+function VecI32x8CmpGe(const a, b: TVecI32x8): TMask8;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.CmpGeI32x8) then
+    Result := dispatch^.CmpGeI32x8(a, b)
+  else
+  begin
+    Result := 0;
+    for i := 0 to 7 do
+      if a.i[i] >= b.i[i] then Result := Result or (1 shl i);
+  end;
+end;
+
+function VecI32x8CmpNe(const a, b: TVecI32x8): TMask8;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.CmpNeI32x8) then
+    Result := dispatch^.CmpNeI32x8(a, b)
+  else
+  begin
+    Result := 0;
+    for i := 0 to 7 do
+      if a.i[i] <> b.i[i] then Result := Result or (1 shl i);
   end;
 end;
 
@@ -3270,6 +3698,52 @@ begin
   end;
 end;
 
+// ✅ P0-C: 添加 I32x16 缺失比较函数
+function VecI32x16CmpLe(const a, b: TVecI32x16): TMask16;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.CmpLeI32x16) then
+    Result := dispatch^.CmpLeI32x16(a, b)
+  else
+  begin
+    Result := 0;
+    for i := 0 to 15 do
+      if a.i[i] <= b.i[i] then Result := Result or (1 shl i);
+  end;
+end;
+
+function VecI32x16CmpGe(const a, b: TVecI32x16): TMask16;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.CmpGeI32x16) then
+    Result := dispatch^.CmpGeI32x16(a, b)
+  else
+  begin
+    Result := 0;
+    for i := 0 to 15 do
+      if a.i[i] >= b.i[i] then Result := Result or (1 shl i);
+  end;
+end;
+
+function VecI32x16CmpNe(const a, b: TVecI32x16): TMask16;
+var dispatch: PSimdDispatchTable;
+    i: Integer;
+begin
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.CmpNeI32x16) then
+    Result := dispatch^.CmpNeI32x16(a, b)
+  else
+  begin
+    Result := 0;
+    for i := 0 to 15 do
+      if a.i[i] <> b.i[i] then Result := Result or (1 shl i);
+  end;
+end;
+
 function VecI32x16Min(const a, b: TVecI32x16): TVecI32x16;
 var dispatch: PSimdDispatchTable;
     i: Integer;
@@ -3302,6 +3776,65 @@ begin
       else
         Result.i[i] := b.i[i];
   end;
+end;
+
+// === ✅ P2-1: Saturating Arithmetic Implementation ===
+// 饱和算术：结果被钳制到类型范围，而不是溢出回绕
+
+function VecI8x16SatAdd(const a, b: TVecI8x16): TVecI8x16;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  Result := dispatch^.I8x16SatAdd(a, b);
+end;
+
+function VecI8x16SatSub(const a, b: TVecI8x16): TVecI8x16;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  Result := dispatch^.I8x16SatSub(a, b);
+end;
+
+function VecI16x8SatAdd(const a, b: TVecI16x8): TVecI16x8;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  Result := dispatch^.I16x8SatAdd(a, b);
+end;
+
+function VecI16x8SatSub(const a, b: TVecI16x8): TVecI16x8;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  Result := dispatch^.I16x8SatSub(a, b);
+end;
+
+function VecU8x16SatAdd(const a, b: TVecU8x16): TVecU8x16;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  Result := dispatch^.U8x16SatAdd(a, b);
+end;
+
+function VecU8x16SatSub(const a, b: TVecU8x16): TVecU8x16;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  Result := dispatch^.U8x16SatSub(a, b);
+end;
+
+function VecU16x8SatAdd(const a, b: TVecU16x8): TVecU16x8;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  Result := dispatch^.U16x8SatAdd(a, b);
+end;
+
+function VecU16x8SatSub(const a, b: TVecU16x8): TVecU16x8;
+var dispatch: PSimdDispatchTable;
+begin
+  dispatch := GetDispatchTable;
+  Result := dispatch^.U16x8SatSub(a, b);
 end;
 
 // === Framework Information ===
