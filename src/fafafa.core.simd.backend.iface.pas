@@ -415,8 +415,8 @@ type
 // Initialize all fields of TSimdBackendOps to nil
 procedure ClearBackendOps(var ops: TSimdBackendOps);
 
-// Fill TSimdBackendOps with scalar reference implementations
-procedure FillScalarBackendOps(var ops: TSimdBackendOps);
+// Note: For scalar implementations, use FillScalarOps from
+// fafafa.core.simd.backend.adapter - it's the authoritative source.
 
 // Check if an operation group is fully populated (no nil pointers)
 function IsArithmeticF32x4Complete(const ops: TArithmeticOpsF32x4): Boolean;
@@ -432,23 +432,6 @@ implementation
 procedure ClearBackendOps(var ops: TSimdBackendOps);
 begin
   FillChar(ops, SizeOf(TSimdBackendOps), 0);
-end;
-
-procedure FillScalarBackendOps(var ops: TSimdBackendOps);
-begin
-  // This will be implemented to call scalar implementations
-  // For now, just clear to ensure no garbage
-  ClearBackendOps(ops);
-
-  // Note: Actual implementation will import from fafafa.core.simd.scalar
-  // and assign all function pointers. This is a placeholder.
-  ops.Backend := sbScalar;
-  ops.BackendInfo.Backend := sbScalar;
-  ops.BackendInfo.Name := 'Scalar';
-  ops.BackendInfo.Description := 'Pure scalar reference implementation';
-  ops.BackendInfo.Capabilities := [scBasicArithmetic, scComparison, scMathFunctions, scReduction, scLoadStore];
-  ops.BackendInfo.Available := True;
-  ops.BackendInfo.Priority := 0;
 end;
 
 function IsArithmeticF32x4Complete(const ops: TArithmeticOpsF32x4): Boolean;

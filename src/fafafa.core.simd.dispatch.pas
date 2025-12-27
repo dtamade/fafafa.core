@@ -18,7 +18,15 @@ procedure InitializeDispatch;
 function GetActiveBackend: TSimdBackend;
 
 // Force a specific backend (for testing)
+// ✅ P1: 添加安全性检查 - 如果后端不可用则回退到 Scalar
 procedure SetActiveBackend(backend: TSimdBackend);
+
+// Try to set a specific backend, returns True if successful
+// ✅ P1: 新增函数 - 允许调用者检查是否成功
+function TrySetActiveBackend(backend: TSimdBackend): Boolean;
+
+// Check if a backend is available on current CPU
+function IsBackendAvailableOnCPU(backend: TSimdBackend): Boolean;
 
 // Reset to automatic backend selection
 procedure ResetToAutomaticBackend;
@@ -31,12 +39,14 @@ function IsVectorAsmEnabled: Boolean;
 procedure SetVectorAsmEnabled(enabled: Boolean);
 
 // === Backend Rebuilder Registration ===
-// ✅ P1-D: Allow backends to register a rebuilder callback
-// When SetVectorAsmEnabled is called, all registered rebuilders will be invoked
-// to rebuild their dispatch tables with the new setting.
+// ⚠️ DEPRECATED: The rebuilder mechanism has been removed for thread safety.
+// VectorAsm setting is now only effective before dispatch initialization.
+// Use compile-time {$DEFINE SIMD_VECTOR_ASM_DISABLED} to disable vector asm.
 type
   TBackendRebuilder = procedure;
 
+// DEPRECATED: This procedure is now a no-op for backward compatibility.
+// Rebuilders are no longer called at runtime.
 procedure RegisterBackendRebuilder(backend: TSimdBackend; rebuilder: TBackendRebuilder);
 
 // === Function Dispatch Tables ===
@@ -373,6 +383,37 @@ function GetBackendInfo(backend: TSimdBackend): TSimdBackendInfo;
  *}
 procedure FillBaseDispatchTable(var dispatchTable: TSimdDispatchTable);
 
+{**
+ * CloneDispatchTable
+ *
+ * @desc
+ *   Clones a dispatch table from an already registered backend.
+ *   This allows tier backends (SSE3/SSSE3/SSE4.1/SSE4.2) to inherit
+ *   implementations from a lower tier (SSE2) instead of starting from scalar.
+ *   从已注册的后端克隆派发表。
+ *   这允许 tier 后端（SSE3/SSSE3/SSE4.1/SSE4.2）从低级后端（SSE2）
+ *   继承实现，而不是从标量基线开始。
+ *
+ * @param fromBackend
+ *   The backend to clone from. Must be already registered.
+ *   要克隆的源后端。必须已注册。
+ *
+ * @param dispatchTable
+ *   The dispatch table to fill with cloned implementations.
+ *   要填充克隆实现的派发表。
+ *
+ * @returns
+ *   True if clone succeeded (source backend was registered), False otherwise.
+ *   如果克隆成功（源后端已注册）返回 True，否则返回 False。
+ *
+ * @note
+ *   If the source backend is not registered, falls back to FillBaseDispatchTable.
+ *   Backend info is NOT copied - caller must set it appropriately.
+ *   如果源后端未注册，回退到 FillBaseDispatchTable。
+ *   后端信息不会被复制 - 调用者必须自行设置。
+ *}
+function CloneDispatchTable(fromBackend: TSimdBackend; var dispatchTable: TSimdDispatchTable): Boolean;
+
 implementation
 
 uses
@@ -403,8 +444,7 @@ var
   g_VectorAsmEnabled: Boolean = False;
   {$ENDIF}
 
-  // ✅ P1-D: Backend rebuilder callbacks
-  g_BackendRebuilders: array[TSimdBackend] of TBackendRebuilder;
+  // ⚠️ REMOVED: g_BackendRebuilders array - rebuilder mechanism deprecated for thread safety
 
 // === Initialization ===
 
@@ -517,14 +557,59 @@ begin
     Result := sbScalar;
 end;
 
-procedure SetActiveBackend(backend: TSimdBackend);
+// ✅ P1: Check if a backend is available on current CPU
+function IsBackendAvailableOnCPU(backend: TSimdBackend): Boolean;
+var
+  backends: array of TSimdBackend;
+  i: Integer;
 begin
+  // Scalar is always available
+  if backend = sbScalar then
+    Exit(True);
+
+  backends := GetAvailableBackends;
+  for i := 0 to High(backends) do
+    if backends[i] = backend then
+      Exit(True);
+  Result := False;
+end;
+
+// ✅ P1: TrySetActiveBackend - returns True if backend was successfully set
+function TrySetActiveBackend(backend: TSimdBackend): Boolean;
+begin
+  // Check if backend is both registered and available on CPU
+  if not IsBackendRegistered(backend) then
+    Exit(False);
+
+  if not IsBackendAvailableOnCPU(backend) then
+    Exit(False);
+
+  // Backend is valid, force it
   g_ForcedBackend := backend;
   g_BackendForced := True;
-  WriteBarrier;  // Ensure above writes are visible before clearing initialized flag
-  g_DispatchInitialized := False; // Force re-initialization
-  InterlockedExchange(g_DispatchState, 0);  // ✅ Reset atomic state
-  MemoryBarrier; // Full barrier before re-initialization
+  WriteBarrier;
+  g_DispatchInitialized := False;
+  InterlockedExchange(g_DispatchState, 0);
+  MemoryBarrier;
+  InitializeDispatch;
+  Result := True;
+end;
+
+// ✅ P1: SetActiveBackend - now with safety check, falls back to Scalar if unavailable
+procedure SetActiveBackend(backend: TSimdBackend);
+begin
+  // Try to set the requested backend
+  if TrySetActiveBackend(backend) then
+    Exit;
+
+  // If requested backend is not available, fall back to Scalar
+  // (always available, always registered)
+  g_ForcedBackend := sbScalar;
+  g_BackendForced := True;
+  WriteBarrier;
+  g_DispatchInitialized := False;
+  InterlockedExchange(g_DispatchState, 0);
+  MemoryBarrier;
   InitializeDispatch;
 end;
 
@@ -543,30 +628,21 @@ begin
   Result := g_VectorAsmEnabled;
 end;
 
-// ✅ P1-D: SetVectorAsmEnabled now triggers backend rebuild
+// ⚠️ THREAD SAFETY: SetVectorAsmEnabled only works BEFORE dispatch initialization.
+// After initialization, the value is locked and this call is ignored.
+// For compile-time control, use {$DEFINE SIMD_VECTOR_ASM_DISABLED}.
 procedure SetVectorAsmEnabled(enabled: Boolean);
-var
-  backend: TSimdBackend;
 begin
-  // Skip if value unchanged
-  if g_VectorAsmEnabled = enabled then
-    Exit;
-
-  g_VectorAsmEnabled := enabled;
-  WriteBarrier;
-
-  // Call all registered rebuilders to recreate their dispatch tables
-  for backend := Low(TSimdBackend) to High(TSimdBackend) do
+  // Only allow changes before dispatch is initialized
+  if g_DispatchState <> 0 then
   begin
-    if Assigned(g_BackendRebuilders[backend]) then
-      g_BackendRebuilders[backend]();
+    // Already initialized - ignore the call silently for backward compatibility
+    // In debug builds, you could add a warning here
+    Exit;
   end;
 
-  // Force dispatch re-initialization to pick up the new tables
-  g_DispatchInitialized := False;
-  InterlockedExchange(g_DispatchState, 0);
-  MemoryBarrier;
-  InitializeDispatch;
+  // Safe to change before initialization
+  g_VectorAsmEnabled := enabled;
 end;
 
 function GetDispatchTable: PSimdDispatchTable;
@@ -609,11 +685,13 @@ begin
   end;
 end;
 
-// ✅ P1-D: Register a rebuilder callback for a backend
-// The rebuilder will be called when SetVectorAsmEnabled changes
+// ⚠️ DEPRECATED: Rebuilder mechanism removed for thread safety.
+// This procedure is now a no-op for backward compatibility.
+// Existing calls will compile but have no effect.
 procedure RegisterBackendRebuilder(backend: TSimdBackend; rebuilder: TBackendRebuilder);
 begin
-  g_BackendRebuilders[backend] := rebuilder;
+  // No-op: rebuilder mechanism has been removed
+  // Keeping this stub for backward compatibility with existing backend code
 end;
 
 // === Dispatch Table Helpers ===
@@ -914,6 +992,34 @@ begin
 
   // === ✅ P2-3: F64x2 Select ===
   dispatchTable.SelectF64x2 := @ScalarSelectF64x2;
+end;
+
+// ✅ 修复 P0-1: 允许 tier 后端从 SSE2 继承实现，而非从标量基线开始
+function CloneDispatchTable(fromBackend: TSimdBackend; var dispatchTable: TSimdDispatchTable): Boolean;
+var
+  savedBackend: TSimdBackend;
+  savedInfo: TSimdBackendInfo;
+begin
+  // 保存当前后端信息（调用者可能已经设置）
+  savedBackend := dispatchTable.Backend;
+  savedInfo := dispatchTable.BackendInfo;
+
+  if g_BackendRegistered[fromBackend] then
+  begin
+    // 从源后端复制整个派发表
+    dispatchTable := g_BackendTables[fromBackend];
+    Result := True;
+  end
+  else
+  begin
+    // 源后端未注册，回退到标量基线
+    FillBaseDispatchTable(dispatchTable);
+    Result := False;
+  end;
+
+  // 恢复后端信息（不复制源后端的信息）
+  dispatchTable.Backend := savedBackend;
+  dispatchTable.BackendInfo := savedInfo;
 end;
 
 // === Initialization ===
