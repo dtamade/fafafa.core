@@ -50,6 +50,29 @@ type
     tkFixedDelay  // 固定延迟周期定时器
   );
 
+  // ✅ Phase 2: 定时器条目结构（共享类型，backend 和 timer.pas 共用）
+  PTimerEntry = ^TTimerEntry;
+  TTimerEntry = record
+    Kind: TTimerKind;
+    Deadline: TInstant;
+    Period: TDuration;               // for FixedRate
+    Delay: TDuration;                // for FixedDelay
+    Callback: TTimerCallback;        // ✅ v2.0: 统一回调类型
+    Cancelled: Boolean;
+    Fired: Boolean;                  // for once; for periodic it indicates at least fired once
+    // ✅ v2.0: 新增字段
+    ExecutionCount: QWord;           // 执行计数（周期定时器用）
+    MaxExecutions: QWord;            // ✅ v2.0: 最大执行次数（0 = 无限制）
+    Paused: Boolean;                 // 暂停状态（周期定时器用）
+    CancellationToken: ICancellationToken;  // ✅ v2.0: 取消令牌
+    // lifecycle safety
+    RefCount: LongInt;               // references held by TTimerRef or internal temporary holders
+    Dead: Boolean;                   // removed from scheduling permanently (fired once or cancelled)
+    InHeap: Boolean;                 // currently present in heap list
+    HeapIndex: Integer;              // index in heap/list; -1 when not in heap
+    Owner: Pointer;                  // back-reference to scheduler (TTimerSchedulerImpl)
+  end;
+
   ITimer = interface
     ['{D9A1B6C6-0C1D-4A6E-9F2B-0AF4B7A3ED1B}']
     // 取消定时器

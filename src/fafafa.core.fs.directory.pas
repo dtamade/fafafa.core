@@ -57,6 +57,7 @@ end;
 procedure CreateDirectory(const aPath: string; aRecursive: Boolean);
 var
   LParentPath: string;
+  LResult: Integer;
 begin
   if aRecursive then
   begin
@@ -66,9 +67,12 @@ begin
       CreateDirectory(LParentPath, True);
   end;
 
-  // 如果目录已存在，不报错
-  if not DirectoryExists(aPath) then
-    CheckFsResult(fs_mkdir(aPath, S_IRWXU), 'create directory');
+  // ✅ 安全修复：消除 TOCTOU 竞态条件
+  // 直接尝试创建目录，如果已存在则忽略该错误
+  // 这比先检查再创建更安全，避免了检查和创建之间的时间窗口
+  LResult := fs_mkdir(aPath, S_IRWXU);
+  if (LResult < 0) and (not IsExists(LResult)) then
+    CheckFsResult(LResult, 'create directory');
 end;
 
 procedure DeleteFile(const aPath: string);

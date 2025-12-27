@@ -106,6 +106,9 @@ end;
     procedure LockRelease; inline;
 
     // 鍐呴儴鎵ц鏂规硶
+    // ✅ P0-2 Fix: 使用统一的核心方法消除代码重复
+    // ✅ P0-3 Fix: 递归调用检测移至锁内部，避免竞态条件
+    procedure DoInternalCore(const ACallback: TOnceCallback; AForce: Boolean);
     procedure DoInternal(const AProc: TOnceProc; AForce: Boolean); overload;
     procedure DoInternal(const AMethod: TOnceMethod; AForce: Boolean); overload;
     {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
@@ -377,64 +380,46 @@ end;
 {$ENDIF}
 
 
-
-// 鏍稿績鍐呴儴瀹炵幇锛氶珮鎬ц兘鍘熷瓙蹇€熻矾�?+ 鎱㈤€熻矾寰?
-procedure TOnce.DoInternal(const AProc: TOnceProc; AForce: Boolean);
+// ✅ P0-2 Fix: 统一的核心执行方法，消除代码重复
+// ✅ P0-3 Fix: 递归调用检测移至锁内部，避免竞态条件
+procedure TOnce.DoInternalCore(const ACallback: TOnceCallback; AForce: Boolean);
 var
   CurrentState: LongInt;
-  ExecutingThread: TThreadID;
   ExecutionSucceeded: Boolean;
   ShouldExecute: Boolean;
 begin
-  // 璋冭瘯閽╁瓙锛氬紑濮嬫墽�?
   {$IFDEF FAFAFA_CORE_DEBUG_ONCE}
   WriteLn('[DEBUG] Execute started, Force=', AForce);
   {$ENDIF}
 
-  // 蹇€熻矾寰勶細鍘熷瓙璇诲彇锛屾棤閿佹鏌ワ紙Go 椋庢牸浼樺寲�?
-  // 浣跨�?acquire 璇箟纭繚鍚庣画璇诲彇涓嶄細閲嶆帓搴忓埌姝や箣�?
-  // 鍒嗘敮棰勬祴浼樺寲锛氬凡瀹屾垚鐨勬儏鍐垫槸鏈€甯歌鐨勶紙likely�?
+  // 快速路径：原子读取，无锁检查（acquire 语义）
   if Likely(atomic_load(FDone, mo_acquire) <> 0) then
   begin
-    // AForce 閫氬父涓?false锛岃繖鏄父瑙佹儏鍐碉紙likely�?
     if Likely(not AForce) then
     begin
-      // 淇ABA闂锛氫娇鐢ㄥ師瀛愯鍙栬€屼笉鏄疌AS鏉ユ鏌ユ瘨鍖栫姸鎬?
-      // 杩欓伩鍏嶄簡ABA闂锛屽洜涓烘垜浠彧鏄鍙栬€屼笉鏄慨鏀?
-      CurrentState := atomic_load(FState, mo_relaxed); // 鍘熷瓙璇诲彇
-      // 姣掑寲鐘舵€佸緢灏戣锛坲nlikely�?
+      CurrentState := atomic_load(FState, mo_relaxed);
       if Unlikely(CurrentState = STATE_POISONED) then
-      begin
-        {$IFDEF FAFAFA_CORE_DEBUG_ONCE}
-        WriteLn('[DEBUG] Attempt to execute poisoned Once');
-        {$ENDIF}
         raise ELockError.Create(rsOnceAlreadyPoisoned);
-      end;
-
-      {$IFDEF FAFAFA_CORE_DEBUG_ONCE}
-      WriteLn('[DEBUG] Execution skipped - already completed');
-      {$ENDIF}
       Exit;
     end;
   end;
 
-  // 閫掑綊璋冪敤妫€娴嬶紙淇绔炴€佹潯浠讹級
-  // 浣跨敤鍘熷瓙璇诲彇閬垮厤绔炴€佹潯浠?
-  ExecutingThread := UInt32(atomic_load(PUInt32(@FExecutingThreadId)^, mo_relaxed));
-  if ExecutingThread = GetCurrentThreadId then
-  begin
-    {$IFDEF FAFAFA_CORE_DEBUG_ONCE}
-    WriteLn('[DEBUG] Recursive call detected from thread ', GetCurrentThreadId);
-    {$ENDIF}
-    raise EOnceRecursiveCall.Create(rsOnceRecursiveCall);
-  end;
+  // 慢速路径：三阶段锁控制
+  ShouldExecute := False;
 
-  // 鎱㈤€熻矾寰勶細浼樺寲閿佺矑搴︼紝鍑忓皯閿佹寔鏈夋椂�?
-
-  // 绗竴闃舵锛氳幏鍙栭攣锛屾鏌ョ姸鎬侊紝璁剧疆鎵ц鏍囧�?
+  // 第一阶段：获取锁，检查状态，设置执行标志
   LockAcquire;
   try
-    // 鍙岄噸妫€鏌ラ攣瀹氭ā�?
+    // ✅ P0-3 Fix: 递归调用检测移至锁内部
+    if FExecutingThreadId = GetCurrentThreadId then
+    begin
+      {$IFDEF FAFAFA_CORE_DEBUG_ONCE}
+      WriteLn('[DEBUG] Recursive call detected from thread ', GetCurrentThreadId);
+      {$ENDIF}
+      raise EOnceRecursiveCall.Create(rsOnceRecursiveCall);
+    end;
+
+    // 双重检查锁定模式
     if (FDone <> 0) and (not AForce) then
     begin
       if FState = STATE_POISONED then
@@ -442,36 +427,27 @@ begin
       Exit;
     end;
 
-    // 妫€鏌ュ綋鍓嶇姸鎬侊紝纭繚骞跺彂瀹夊�?
+    // 检查当前状态，确保并发安全
     case FState of
       STATE_NOT_STARTED:
       begin
-        // 鍙湁绗竴涓嚎绋嬭兘杩涘叆杩欓噷
         atomic_store(FState, STATE_IN_PROGRESS, mo_release);
         FExecutingThreadId := GetCurrentThreadId;
         ShouldExecute := True;
       end;
-
       STATE_IN_PROGRESS:
       begin
-        // 鍏朵粬绾跨▼锛氭鍦ㄦ墽琛屼腑锛屼笉寮哄埗鎵ц鍒欑洿鎺ヨ繑鍥?
         if not AForce then
-        begin
-          ShouldExecute := False;
-          Exit;
-        end
+          Exit
         else
         begin
-          // 寮哄埗鎵ц锛氶噸缃姸鎬?
           atomic_store(FState, STATE_IN_PROGRESS, mo_release);
           FExecutingThreadId := GetCurrentThreadId;
           ShouldExecute := True;
         end;
       end;
-
       STATE_COMPLETED:
       begin
-        // 宸插畬鎴愶紝寮哄埗鎵ц鏃堕噸鏂版墽琛?
         if AForce then
         begin
           atomic_store(FState, STATE_IN_PROGRESS, mo_release);
@@ -479,20 +455,14 @@ begin
           ShouldExecute := True;
         end
         else
-        begin
-          ShouldExecute := False;
           Exit;
-        end;
       end;
-
       STATE_POISONED:
       begin
-        // 姣掑寲鐘舵€?
         if not AForce then
           raise ELockError.Create(rsOnceAlreadyPoisoned)
         else
         begin
-          // 寮哄埗鎵ц锛氫粠姣掑寲鐘舵€佹仮�?
           atomic_store(FState, STATE_IN_PROGRESS, mo_release);
           FExecutingThreadId := GetCurrentThreadId;
           ShouldExecute := True;
@@ -500,20 +470,28 @@ begin
       end;
     end;
   finally
-    LockRelease; // 灏芥棭閲婃斁�?
+    LockRelease;
   end;
 
-  // 绗簩闃舵锛氬湪閿佸鎵ц鐢ㄦ埛鍥炶皟锛堟彁楂樺苟鍙戞€э級
+  // 第二阶段：在锁外执行用户回调（提高并发性）
   ExecutionSucceeded := False;
   if ShouldExecute then
   begin
     try
-      // 鐢ㄦ埛鍥炶皟鍦ㄩ攣澶栨墽琛岋紝涓嶉樆濉炲叾浠栫嚎�?
-      if Assigned(AProc) then
-        AProc();
-
+      case ACallback.CallbackType of
+        octProc:
+          if Assigned(ACallback.Proc) then
+            ACallback.Proc();
+        octMethod:
+          if Assigned(ACallback.Method) then
+            ACallback.Method();
+        {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
+        octAnonymous:
+          if Assigned(ACallback.AnonymousProc) then
+            ACallback.AnonymousProc();
+        {$ENDIF}
+      end;
       ExecutionSucceeded := True;
-
       {$IFDEF FAFAFA_CORE_DEBUG_ONCE}
       WriteLn('[DEBUG] Execution completed successfully');
       {$ENDIF}
@@ -521,307 +499,71 @@ begin
       {$IFDEF FAFAFA_CORE_DEBUG_ONCE}
       WriteLn('[DEBUG] Execution failed - Once will be poisoned');
       {$ENDIF}
-      // 寮傚父浼氬湪绗笁闃舵澶勭�?
     end;
   end;
 
-  // 绗笁闃舵锛氶噸鏂拌幏鍙栭攣锛岃缃渶缁堢姸�?
+  // 第三阶段：重新获取锁，设置最终状态
   LockAcquire;
   try
     if ExecutionSucceeded then
     begin
-      // 鎴愬姛璺緞锛氳缃畬鎴愮姸鎬?
       atomic_store(FState, STATE_COMPLETED, mo_release);
       atomic_store(FDone, 1, mo_release);
       FExecutingThreadId := 0;
     end
     else
     begin
-      // 澶辫触璺緞锛氳缃瘨鍖栫姸鎬?
       atomic_store(FState, STATE_POISONED, mo_release);
       atomic_store(FDone, 1, mo_release);
       FExecutingThreadId := 0;
-      // 閲嶆柊鎶涘嚭寮傚父锛堟棤娉曞湪姝ゅ浣跨敤瑁?raise�?
-      raise ELockError.Create('Once callback failed (proc)');
+      raise ELockError.Create('Once callback failed');
     end;
   finally
     LockRelease;
   end;
 end;
 
+// ✅ P0-2 Fix: 简化后的 DoInternal 方法，委托给 DoInternalCore
+procedure TOnce.DoInternal(const AProc: TOnceProc; AForce: Boolean);
+var
+  Callback: TOnceCallback;
+begin
+  Callback.CallbackType := octProc;
+  Callback.Proc := AProc;
+  Callback.Method := nil;
+  {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
+  Callback.AnonymousProc := nil;
+  {$ENDIF}
+  DoInternalCore(Callback, AForce);
+end;
+
 procedure TOnce.DoInternal(const AMethod: TOnceMethod; AForce: Boolean);
 var
-  CurrentState: LongInt;
-  ExecutingThread: TThreadID;
-  ExecutionSucceeded: Boolean;
-  ShouldExecute: Boolean;
+  Callback: TOnceCallback;
 begin
-  // 蹇€熻矾寰勶細鍘熷瓙璇诲彇锛屾棤閿佹鏌ワ紙acquire 璇箟锛?
-  // 鍒嗘敮棰勬祴浼樺寲锛氬凡瀹屾垚鐨勬儏鍐垫槸鏈€甯歌�?
-  if Likely(atomic_load(FDone, mo_acquire) <> 0) then
-  begin
-    if Likely(not AForce) then
-    begin
-      // 淇ABA闂锛氫娇鐢ㄥ師瀛愯鍙栨鏌ユ瘨鍖栫姸�?
-      CurrentState := atomic_load(FState, mo_relaxed);
-      // 姣掑寲鐘舵€佸緢灏戣�?
-      if Unlikely(CurrentState = STATE_POISONED) then
-        raise ELockError.Create(rsOnceAlreadyPoisoned);
-      Exit;
-    end;
-  end;
-
-  // 閫掑綊璋冪敤妫€娴嬶紙淇绔炴€佹潯浠讹級
-  ExecutingThread := UInt32(atomic_load(PUInt32(@FExecutingThreadId)^, mo_relaxed));
-  if ExecutingThread = GetCurrentThreadId then
-    raise EOnceRecursiveCall.Create(rsOnceRecursiveCall);
-
-  // 鎱㈤€熻矾寰勶細闇€瑕佸悓姝ユ墽�?
-  // 浼樺寲閿佺矑搴︼細涓夐樁娈甸攣鎺у�?
-
-  // 绗竴闃舵锛氳幏鍙栭攣锛屾鏌ョ姸鎬侊紝璁剧疆鎵ц鏍囧�?
-  LockAcquire;
-  try
-    // 鍙岄噸妫€鏌ラ攣瀹氭ā�?
-    if (FDone <> 0) and (not AForce) then
-    begin
-      if FState = STATE_POISONED then
-        raise ELockError.Create(rsOnceAlreadyPoisoned);
-      Exit;
-    end;
-
-    // 妫€鏌ュ綋鍓嶇姸鎬侊紝纭繚骞跺彂瀹夊�?
-    case FState of
-      STATE_NOT_STARTED:
-      begin
-        // 鍙湁绗竴涓嚎绋嬭兘杩涘叆杩欓噷
-        atomic_store(FState, STATE_IN_PROGRESS, mo_release);
-        FExecutingThreadId := GetCurrentThreadId;
-        ShouldExecute := True;
-      end;
-
-      STATE_IN_PROGRESS:
-      begin
-        // 鍏朵粬绾跨▼锛氭鍦ㄦ墽琛屼腑锛屼笉寮哄埗鎵ц鍒欑洿鎺ヨ繑鍥?
-        if not AForce then
-        begin
-          ShouldExecute := False;
-          Exit;
-        end
-        else
-        begin
-          // 寮哄埗鎵ц锛氶噸缃姸鎬?
-          atomic_store(FState, STATE_IN_PROGRESS, mo_release);
-          FExecutingThreadId := GetCurrentThreadId;
-          ShouldExecute := True;
-        end;
-      end;
-
-      STATE_COMPLETED:
-      begin
-        // 宸插畬鎴愶紝寮哄埗鎵ц鏃堕噸鏂版墽琛?
-        if AForce then
-        begin
-          atomic_store(FState, STATE_IN_PROGRESS, mo_release);
-          FExecutingThreadId := GetCurrentThreadId;
-          ShouldExecute := True;
-        end
-        else
-        begin
-          ShouldExecute := False;
-          Exit;
-        end;
-      end;
-
-      STATE_POISONED:
-      begin
-        // 姣掑寲鐘舵€?
-        if not AForce then
-          raise ELockError.Create(rsOnceAlreadyPoisoned)
-        else
-        begin
-          // 寮哄埗鎵ц锛氫粠姣掑寲鐘舵€佹仮�?
-          atomic_store(FState, STATE_IN_PROGRESS, mo_release);
-          FExecutingThreadId := GetCurrentThreadId;
-          ShouldExecute := True;
-        end;
-      end;
-    end;
-  finally
-    LockRelease; // 灏芥棭閲婃斁�?
-  end;
-
-  // 绗簩闃舵锛氬湪閿佸鎵ц鐢ㄦ埛鍥炶皟
-  ExecutionSucceeded := False;
-  if ShouldExecute then
-  begin
-    try
-      if Assigned(AMethod) then
-        AMethod();
-      ExecutionSucceeded := True;
-    except
-      // 寮傚父浼氬湪绗笁闃舵澶勭�?
-    end;
-  end;
-
-  // 绗笁闃舵锛氶噸鏂拌幏鍙栭攣锛岃缃渶缁堢姸�?
-  LockAcquire;
-  try
-    if ExecutionSucceeded then
-    begin
-      atomic_store(FState, STATE_COMPLETED, mo_release);
-      atomic_store(FDone, 1, mo_release);
-      FExecutingThreadId := 0;
-    end
-    else
-    begin
-      atomic_store(FState, STATE_POISONED, mo_release);
-      atomic_store(FDone, 1, mo_release);
-      FExecutingThreadId := 0;
-      raise ELockError.Create('Once callback failed (method)');
-    end;
-  finally
-    LockRelease;
-  end;
+  Callback.CallbackType := octMethod;
+  Callback.Proc := nil;
+  Callback.Method := AMethod;
+  {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
+  Callback.AnonymousProc := nil;
+  {$ENDIF}
+  DoInternalCore(Callback, AForce);
 end;
 
 {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
 procedure TOnce.DoInternal(const AAnonymousProc: TOnceAnonymousProc; AForce: Boolean);
 var
-  CurrentState: LongInt;
-  ExecutingThread: TThreadID;
-  ExecutionSucceeded: Boolean;
-  ShouldExecute: Boolean;
+  Callback: TOnceCallback;
 begin
-  // 蹇€熻矾寰勶細鍘熷瓙璇诲彇锛屾棤閿佹鏌ワ紙acquire 璇箟锛?
-  // 鍒嗘敮棰勬祴浼樺寲锛氬凡瀹屾垚鐨勬儏鍐垫槸鏈€甯歌�?
-  if Likely(atomic_load(FDone, mo_acquire) <> 0) then
-  begin
-    if Likely(not AForce) then
-    begin
-      // 淇ABA闂锛氫娇鐢ㄥ師瀛愯鍙栨鏌ユ瘨鍖栫姸�?
-      CurrentState := atomic_load(FState, mo_relaxed);
-      // 姣掑寲鐘舵€佸緢灏戣�?
-      if Unlikely(CurrentState = STATE_POISONED) then
-        raise ELockError.Create(rsOnceAlreadyPoisoned);
-      Exit;
-    end;
-  end;
-
-  // 閫掑綊璋冪敤妫€娴嬶紙淇绔炴€佹潯浠讹級
-  ExecutingThread := UInt32(atomic_load(PUInt32(@FExecutingThreadId)^, mo_relaxed));
-  if ExecutingThread = GetCurrentThreadId then
-    raise EOnceRecursiveCall.Create(rsOnceRecursiveCall);
-
-  // 浼樺寲閿佺矑搴︼細涓夐樁娈甸攣鎺у�?
-
-  // 绗竴闃舵锛氳幏鍙栭攣锛屾鏌ョ姸鎬侊紝璁剧疆鎵ц鏍囧�?
-  LockAcquire;
-  try
-    // 鍙岄噸妫€鏌ラ攣瀹氭ā�?
-    if (FDone <> 0) and (not AForce) then
-    begin
-      if FState = STATE_POISONED then
-        raise ELockError.Create(rsOnceAlreadyPoisoned);
-      Exit;
-    end;
-
-    // 妫€鏌ュ綋鍓嶇姸鎬侊紝纭繚骞跺彂瀹夊�?
-    case FState of
-      STATE_NOT_STARTED:
-      begin
-        // 鍙湁绗竴涓嚎绋嬭兘杩涘叆杩欓噷
-        atomic_store(FState, STATE_IN_PROGRESS, mo_release);
-        FExecutingThreadId := GetCurrentThreadId;
-        ShouldExecute := True;
-      end;
-
-      STATE_IN_PROGRESS:
-      begin
-        // 鍏朵粬绾跨▼锛氭鍦ㄦ墽琛屼腑锛屼笉寮哄埗鎵ц鍒欑洿鎺ヨ繑鍥?
-        if not AForce then
-        begin
-          ShouldExecute := False;
-          Exit;
-        end
-        else
-        begin
-          // 寮哄埗鎵ц锛氶噸缃姸鎬?
-          atomic_store(FState, STATE_IN_PROGRESS, mo_release);
-          FExecutingThreadId := GetCurrentThreadId;
-          ShouldExecute := True;
-        end;
-      end;
-
-      STATE_COMPLETED:
-      begin
-        // 宸插畬鎴愶紝寮哄埗鎵ц鏃堕噸鏂版墽琛?
-        if AForce then
-        begin
-          atomic_store(FState, STATE_IN_PROGRESS, mo_release);
-          FExecutingThreadId := GetCurrentThreadId;
-          ShouldExecute := True;
-        end
-        else
-        begin
-          ShouldExecute := False;
-          Exit;
-        end;
-      end;
-
-      STATE_POISONED:
-      begin
-        // 姣掑寲鐘舵€?
-        if not AForce then
-          raise ELockError.Create(rsOnceAlreadyPoisoned)
-        else
-        begin
-          // 寮哄埗鎵ц锛氫粠姣掑寲鐘舵€佹仮�?
-          atomic_store(FState, STATE_IN_PROGRESS, mo_release);
-          FExecutingThreadId := GetCurrentThreadId;
-          ShouldExecute := True;
-        end;
-      end;
-    end;
-  finally
-    LockRelease; // 灏芥棭閲婃斁�?
-  end;
-
-  // 绗簩闃舵锛氬湪閿佸鎵ц鐢ㄦ埛鍥炶皟
-  ExecutionSucceeded := False;
-  if ShouldExecute then
-  begin
-    try
-      if Assigned(AAnonymousProc) then
-        AAnonymousProc();
-      ExecutionSucceeded := True;
-    except
-      // 寮傚父浼氬湪绗笁闃舵澶勭�?
-    end;
-  end;
-
-  // 绗笁闃舵锛氶噸鏂拌幏鍙栭攣锛岃缃渶缁堢姸�?
-  LockAcquire;
-  try
-    if ExecutionSucceeded then
-    begin
-      atomic_store(FState, STATE_COMPLETED, mo_release);
-      atomic_store(FDone, 1, mo_release);
-      FExecutingThreadId := 0;
-    end
-    else
-    begin
-      atomic_store(FState, STATE_POISONED, mo_release);
-      atomic_store(FDone, 1, mo_release);
-      FExecutingThreadId := 0;
-      raise ELockError.Create('Once callback failed (anonymous)');
-    end;
-  finally
-    LockRelease;
-  end;
+  Callback.CallbackType := octAnonymous;
+  Callback.Proc := nil;
+  Callback.Method := nil;
+  Callback.AnonymousProc := AAnonymousProc;
+  DoInternalCore(Callback, AForce);
 end;
 {$ENDIF}
-// 绛夊緟鏈哄埗瀹炵幇锛堥珮鎬ц兘鐗堟湰锛?
+
+// 等待机制实现（高性能版本）
 procedure TOnce.Wait;
 var
   SpinCount: Integer;

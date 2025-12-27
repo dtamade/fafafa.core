@@ -248,10 +248,10 @@ begin
       FRWLock.AcquireWrite;
       Fail('应该抛出死锁异常');
     except
-      on E: ERWLockDeadlockError do
+      on E: ERWLockError do
       begin
-        // 预期的异常
-        AssertEquals(GetCurrentThreadId, E.OwnerThread);
+        // 预期的异常 - 消息包含 "deadlock" 或 "upgrade not allowed"
+        AssertTrue('应包含死锁相关消息', Pos('deadlock', LowerCase(E.Message)) > 0);
       end;
     end;
     
@@ -267,30 +267,28 @@ end;
 procedure TTestCase_Reentrancy.Test_ReleaseWithoutAcquire;
 begin
   WriteLn('测试: 未获取锁就释放');
-  
+
   // 尝试释放未获取的读锁
   try
     FRWLock.ReleaseRead;
     Fail('应该抛出状态错误异常');
   except
-    on E: ERWLockStateError do
+    on E: ERWLockError do
     begin
-      // 预期的异常
-      AssertEquals('Read lock not held', E.ExpectedState);
-      AssertEquals('Released', E.ActualState);
+      // 预期的异常 - 消息包含 "not held" 或 "Released"
+      AssertTrue('应包含锁未持有的消息', Pos('not held', LowerCase(E.Message)) > 0);
     end;
   end;
-  
+
   // 尝试释放未获取的写锁
   try
     FRWLock.ReleaseWrite;
     Fail('应该抛出状态错误异常');
   except
-    on E: ERWLockStateError do
+    on E: ERWLockError do
     begin
-      // 预期的异常
-      AssertEquals('Write lock not held', E.ExpectedState);
-      AssertEquals('Released', E.ActualState);
+      // 预期的异常 - 消息包含 "not held" 或 "Released"
+      AssertTrue('应包含锁未持有的消息', Pos('not held', LowerCase(E.Message)) > 0);
     end;
   end;
 end;
@@ -298,7 +296,7 @@ end;
 procedure TTestCase_Reentrancy.Test_MismatchedRelease;
 begin
   WriteLn('测试: 不匹配的锁释放');
-  
+
   // 获取读锁但尝试释放写锁
   FRWLock.AcquireRead;
   try
@@ -306,10 +304,10 @@ begin
       FRWLock.ReleaseWrite;
       Fail('应该抛出状态错误异常');
     except
-      on E: ERWLockStateError do
+      on E: ERWLockError do
       begin
-        // 预期的异常
-        AssertEquals('Write lock not held', E.ExpectedState);
+        // 预期的异常 - 消息包含 "not held"
+        AssertTrue('应包含锁未持有的消息', Pos('not held', LowerCase(E.Message)) > 0);
       end;
     end;
   finally

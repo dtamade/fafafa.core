@@ -108,6 +108,14 @@ type
       2: (raw: array[0..31] of Byte);
   end;
 
+  // ✅ P0-FIX: 添加缺失的 TVecI64x4 类型 (256-bit signed 64-bit integer vector)
+  TVecI64x4 = record
+    case Integer of
+      0: (i: array[0..3] of Int64);
+      1: (lo, hi: TVecI64x2);
+      2: (raw: array[0..31] of Byte);
+  end;
+
   TVecI16x16 = record
     case Integer of
       0: (i: array[0..15] of Int16);
@@ -181,7 +189,7 @@ type
   TVecI64x8 = record
     case Integer of
       0: (i: array[0..7] of Int64);
-      1: (lo, hi: TVecI64x2);
+      1: (lo, hi: TVecI64x4);  // ✅ P0-FIX: 修复变体记录大小不匹配 (原为 TVecI64x2，仅 32 字节)
       2: (raw: array[0..63] of Byte);
   end;
 

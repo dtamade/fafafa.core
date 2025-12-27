@@ -11,7 +11,8 @@ uses
   fafafa.core.mem.allocator.base,
   fafafa.core.mem.pool.base,
   fafafa.core.mem.pool.memoryPool,
-  fafafa.core.mem.pool.fixedSlab;
+  fafafa.core.mem.pool.fixedSlab,
+  fafafa.core.mem.error;        // EAllocError, TAllocError
 
 type
   // 性能计数器（供测试）
@@ -32,8 +33,10 @@ type
     MaxAllocSize: SizeUInt;        // 0=不限制（无限扩展）；>0 时限制单次分配
   end;
 
-  ESlabPoolInvalidSize = class(Exception);
-  ESlabPoolCorruption  = class(Exception);
+  {** 无效大小异常（继承自 EAllocError）| Invalid size exception *}
+  ESlabPoolInvalidSize = class(EAllocError);
+  {** Slab 池损坏异常 | Slab pool corruption exception *}
+  ESlabPoolCorruption  = class(EAllocError);
 
 
   // Auto-expanding slab pool built atop TFixedSlabPool segments
@@ -44,6 +47,7 @@ type
     FActive: Integer;
     FInitialCapacity, FMinShift: SizeUInt;
     FAvail: array of Integer; // LIFO of segments likely with free space
+    FAvailCount: Integer;     // 实际使用的元素数量（避免每次 SetLength）
     FConfig: TSlabConfig;
     FTotalAllocs: SizeUInt;
     FTotalFrees: SizeUInt;
@@ -253,7 +257,7 @@ begin
   SetLength(FSegments,1);
   S:=TFixedSlabPool.Create(aCapacity,FAllocator,aMinShift);
   FSegments[0]:=S;
-  SetLength(FAvail,0);
+  FAvailCount := 0;  // 显式初始化
   PageMapInit( (aCapacity shr S.PageShift) * 2 );
   IndexSegmentPages(0);
 end;
@@ -327,22 +331,26 @@ begin
 end;
 
 function TSlabPool.PopAvail(out aIdx: Integer): Boolean; inline;
-var n:Integer;
 begin
-  n:=Length(FAvail);
-  if n=0 then Exit(False);
-  Dec(n);
-  aIdx:=FAvail[n];
-  SetLength(FAvail,n);
-  Result:=True;
+  if FAvailCount = 0 then Exit(False);
+  Dec(FAvailCount);
+  aIdx := FAvail[FAvailCount];
+  Result := True;
 end;
 
 procedure TSlabPool.PushAvail(const aIdx: Integer); inline;
-var n:Integer;
+var cap: Integer;
 begin
-  n:=Length(FAvail);
-  SetLength(FAvail,n+1);
-  FAvail[n]:=aIdx;
+  cap := Length(FAvail);
+  if FAvailCount >= cap then
+  begin
+    // 容量倍增策略，最小 8
+    if cap < 8 then cap := 8
+    else cap := cap * 2;
+    SetLength(FAvail, cap);
+  end;
+  FAvail[FAvailCount] := aIdx;
+  Inc(FAvailCount);
 end;
 
 function TSlabPool.NewSegmentCapacity: SizeUInt; inline;
@@ -407,8 +415,20 @@ begin
     FSegments[idx].FreeMem(aDst);
     Exit;
   end;
-  // 未知归属，保守处理：直接新分配，不拷贝
-  Result:=GetMem(aSize);
+  // ✅ P0-3: 未知归属指针处理 - 可能来自 AllocAligned 的 fallback 路径
+  // 必须尝试用 FAllocator 处理，否则会导致内存泄漏
+  if FAllocator <> nil then
+  begin
+    // 使用 fallback allocator 的 ReallocMem
+    // 注意：这里无法获取旧大小，依赖 FAllocator 的实现
+    Result := FAllocator.ReallocMem(aDst, aSize);
+  end
+  else
+  begin
+    // 无 fallback allocator：返回 nil 表示失败，不修改原指针
+    // 这比之前的"分配新内存但不拷贝不释放"更安全
+    Result := nil;
+  end;
 end;
 
 procedure TSlabPool.FreeMem(aDst: Pointer);
@@ -416,14 +436,28 @@ var idx:Integer;
 begin
   if aDst=nil then Exit;
   idx:=FindOwnerSegment(aDst);
-  if idx>=0 then begin FSegments[idx].FreeMem(aDst); PushAvail(idx); Inc(FTotalFrees); end;
+  if idx>=0 then
+  begin
+    FSegments[idx].FreeMem(aDst);
+    PushAvail(idx);
+    Inc(FTotalFrees);
+  end
+  else if FAllocator <> nil then
+  begin
+    // ✅ P0-3: 未知归属指针可能来自 AllocAligned 的 fallback 路径
+    // 尝试用 FAllocator.FreeMem 释放
+    FAllocator.FreeMem(aDst);
+    Inc(FTotalFrees);
+  end;
+  // 如果没有 FAllocator 且指针不属于任何段，则无法释放（静默忽略）
+  // 这可能是调用者的错误，但我们不能崩溃
 end;
 
 procedure TSlabPool.Reset;
 var i:Integer;
 begin
   for i:=0 to High(FSegments) do if FSegments[i]<>nil then FSegments[i].Reset;
-  SetLength(FAvail,0);
+  FAvailCount := 0;  // 只重置计数，保留容量
   FActive:=0;
 end;
 

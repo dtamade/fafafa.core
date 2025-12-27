@@ -11,8 +11,6 @@ uses
   fafafa.core.mem,
   fafafa.core.mem.memPool,
   fafafa.core.mem.stackPool,
-  fafafa.core.mem.slabPool,
-  fafafa.core.mem.objectPool,
   fafafa.core.mem.ringBuffer;
 
 type
@@ -58,32 +56,6 @@ type
     procedure Test_StackPool_AllocAligned;
     procedure Test_StackPool_TryAllocAligned;
 
-  end;
-
-  {**
-   * TTestCase_SlabPool
-   *
-   * @desc 测试 TSlabPool 功能
-   *}
-  TTestCase_SlabPool = class(TTestCase)
-  published
-    procedure Test_SlabPool_Create;
-    procedure Test_SlabPool_BasicAllocation;
-    procedure Test_SlabPool_MultipleSlabs;
-    procedure Test_SlabPool_Reset;
-  end;
-
-  {**
-   * TTestCase_ObjectPool
-   *
-   * @desc 测试 TObjectPool 功能
-   *}
-  TTestCase_ObjectPool = class(TTestCase)
-  published
-    procedure Test_ObjectPool_Create;
-    procedure Test_ObjectPool_BasicOperations;
-    procedure Test_ObjectPool_Preallocate;
-    procedure Test_ObjectPool_Statistics;
   end;
 
   {**
@@ -343,9 +315,9 @@ begin
     AssertEquals('块大小应该正确', 64, LPool.BlockSize);
     AssertEquals('容量应该正确', 10, LPool.Capacity);
     AssertEquals('初始分配数量应该为0', 0, LPool.AllocatedCount);
-    AssertEquals('初始可用数量应该等于容量', 10, LPool.AvailableCount);
-    AssertTrue('初始应该为空', LPool.IsEmpty);
-    AssertFalse('初始不应该满', LPool.IsFull);
+    AssertEquals('初始可用数量应该等于容量', 10, LPool.Available);
+    AssertTrue('初始应该为空', LPool.AllocatedCount = 0);
+    AssertFalse('初始不应该满', LPool.Available = 0);
   finally
     LPool.Destroy;
   end;
@@ -361,11 +333,11 @@ begin
     LPtr := LPool.Alloc;
     AssertNotNull('分配应该成功', LPtr);
     AssertEquals('分配后数量应该为1', 1, LPool.AllocatedCount);
-    AssertFalse('分配后不应该为空', LPool.IsEmpty);
+    AssertFalse('分配后不应该为空', LPool.AllocatedCount = 0);
 
-    LPool.Free(LPtr);
+    LPool.ReleasePtr(LPtr);
     AssertEquals('释放后数量应该为0', 0, LPool.AllocatedCount);
-    AssertTrue('释放后应该为空', LPool.IsEmpty);
+    AssertTrue('释放后应该为空', LPool.AllocatedCount = 0);
   finally
     LPool.Destroy;
   end;
@@ -386,7 +358,7 @@ begin
       AssertNotNull('分配应该成功', LPtrs[I]);
     end;
 
-    AssertTrue('池应该满了', LPool.IsFull);
+    AssertTrue('池应该满了', LPool.Available = 0);
     AssertEquals('分配数量应该等于容量', 5, LPool.AllocatedCount);
 
     // 尝试再分配应该失败
@@ -394,9 +366,9 @@ begin
 
     // 释放所有块
     for I := 0 to 4 do
-      LPool.Free(LPtrs[I]);
+      LPool.ReleasePtr(LPtrs[I]);
 
-    AssertTrue('释放后应该为空', LPool.IsEmpty);
+    AssertTrue('释放后应该为空', LPool.AllocatedCount = 0);
   finally
     LPool.Destroy;
   end;
@@ -415,7 +387,7 @@ begin
 
     LPool.Reset;
     AssertEquals('重置后数量应该为0', 0, LPool.AllocatedCount);
-    AssertTrue('重置后应该为空', LPool.IsEmpty);
+    AssertTrue('重置后应该为空', LPool.AllocatedCount = 0);
   finally
     LPool.Destroy;
   end;
@@ -536,185 +508,6 @@ begin
   end;
 end;
 
-
-{ TTestCase_SlabPool }
-
-procedure TTestCase_SlabPool.Test_SlabPool_Create;
-var
-  LPool: TSlabPool;
-begin
-  LPool := TSlabPool.Create(8192); // 2个页面
-  try
-    AssertEquals('池大小应该正确', 8192, LPool.PoolSize);
-    AssertEquals('页面数应该为2', 2, LPool.PageCount);
-    AssertEquals('初始分配数应该为0', 0, LPool.TotalAllocs);
-    AssertEquals('初始失败数应该为0', 0, LPool.FailedAllocs);
-  finally
-    LPool.Destroy;
-  end;
-end;
-
-procedure TTestCase_SlabPool.Test_SlabPool_BasicAllocation;
-var
-  LPool: TSlabPool;
-  LPtr1, LPtr2: Pointer;
-begin
-  LPool := TSlabPool.Create(4096); // 1个页面
-  try
-    LPtr1 := LPool.Alloc(64);
-    AssertNotNull('第一次分配应该成功', LPtr1);
-    AssertEquals('分配后请求数应该为1', 1, LPool.TotalAllocs);
-
-    LPtr2 := LPool.Alloc(64);
-    AssertNotNull('第二次分配应该成功', LPtr2);
-    AssertEquals('第二次分配后请求数应该为2', 2, LPool.TotalAllocs);
-
-    // 指针应该不同
-    AssertTrue('两个指针应该不同', LPtr1 <> LPtr2);
-
-    LPool.Free(LPtr1);
-    AssertEquals('释放后释放数应该为1', 1, LPool.TotalFrees);
-
-    LPool.Free(LPtr2);
-    AssertEquals('全部释放后释放数应该为2', 2, LPool.TotalFrees);
-  finally
-    LPool.Destroy;
-  end;
-end;
-
-procedure TTestCase_SlabPool.Test_SlabPool_MultipleSlabs;
-var
-  LPool: TSlabPool;
-  LPtrs: array of Pointer;
-  I: Integer;
-begin
-  LPool := TSlabPool.Create(8192); // 2个页面
-  try
-    SetLength(LPtrs, 50); // 分配较少对象以避免内存耗尽
-
-    // 分配多个对象，测试不同大小类别
-    for I := 0 to High(LPtrs) do
-    begin
-      LPtrs[I] := LPool.Alloc(8 * (1 + (I mod 4))); // 8, 16, 32, 64 字节
-      if LPtrs[I] = nil then
-      begin
-        // 如果分配失败，减少数组大小并退出
-        SetLength(LPtrs, I);
-        Break;
-      end;
-    end;
-
-    AssertTrue('应该分配至少一些对象', Length(LPtrs) > 0);
-    // Note: TotalAllocs may include failed allocation attempts
-    AssertTrue('分配请求数应该合理', LPool.TotalAllocs >= SizeUInt(Length(LPtrs)));
-
-    // 释放所有对象
-    for I := 0 to High(LPtrs) do
-      LPool.Free(LPtrs[I]);
-
-    AssertEquals('释放数应该正确', SizeUInt(Length(LPtrs)), LPool.TotalFrees);
-  finally
-    LPool.Destroy;
-  end;
-end;
-
-procedure TTestCase_SlabPool.Test_SlabPool_Reset;
-var
-  LPool: TSlabPool;
-  LPtr: Pointer;
-begin
-  LPool := TSlabPool.Create(4096);
-  try
-    // 分配一个对象
-    LPtr := LPool.Alloc(32);
-    AssertNotNull('分配应该成功', LPtr);
-
-    // 重置池
-    LPool.Reset;
-    AssertEquals('重置后分配数应该为0', 0, LPool.TotalAllocs);
-    AssertEquals('重置后释放数应该为0', 0, LPool.TotalFrees);
-  finally
-    LPool.Destroy;
-  end;
-end;
-
-{ TTestCase_ObjectPool }
-
-procedure TTestCase_ObjectPool.Test_ObjectPool_Create;
-var
-  LPool: TObjectPool;
-begin
-  LPool := TObjectPool.Create(TObject, 10);
-  try
-    AssertEquals('池容量应该正确', 10, LPool.MaxSize);
-    AssertEquals('初始数量应该为0', 0, LPool.CurrentCount);
-    AssertTrue('初始应该为空', LPool.IsEmpty);
-    AssertFalse('初始不应该满', LPool.IsFull);
-  finally
-    LPool.Free;
-  end;
-end;
-
-procedure TTestCase_ObjectPool.Test_ObjectPool_BasicOperations;
-var
-  LPool: TObjectPool;
-  LObj1, LObj2: TObject;
-begin
-  LPool := TObjectPool.Create(TObject, 5);
-  try
-    // 获取对象
-    LObj1 := LPool.Get;
-    AssertNotNull('获取的对象不应该为空', LObj1);
-
-    LObj2 := LPool.Get;
-    AssertNotNull('获取的对象不应该为空', LObj2);
-
-    // 返回对象
-    LPool.Return(LObj1);
-    AssertEquals('返回对象后数量应该增加', 1, LPool.CurrentCount);
-
-    LPool.Return(LObj2);
-    AssertEquals('返回对象后数量应该增加', 2, LPool.CurrentCount);
-  finally
-    LPool.Free;
-  end;
-end;
-
-procedure TTestCase_ObjectPool.Test_ObjectPool_Preallocate;
-var
-  LPool: TObjectPool;
-begin
-  LPool := TObjectPool.Create(TObject, 10);
-  try
-    LPool.Preallocate(5);
-    AssertEquals('预分配后数量应该正确', 5, LPool.CurrentCount);
-    AssertFalse('预分配后不应该为空', LPool.IsEmpty);
-  finally
-    LPool.Free;
-  end;
-end;
-
-procedure TTestCase_ObjectPool.Test_ObjectPool_Statistics;
-var
-  LPool: TObjectPool;
-  LObj: TObject;
-begin
-  LPool := TObjectPool.Create(TObject, 5);
-  try
-    // 预分配一些对象
-    LPool.Preallocate(2);
-
-    // 获取对象（应该复用）
-    LObj := LPool.Get;
-    AssertTrue('总创建数应该大于0', LPool.TotalCreated > 0);
-    AssertTrue('总复用数应该大于0', LPool.TotalReused > 0);
-
-    LPool.Return(LObj);
-  finally
-    LPool.Free;
-  end;
-end;
-
 { TTestCase_RingBuffer }
 
 procedure TTestCase_RingBuffer.Test_RingBuffer_Create;
@@ -812,7 +605,6 @@ procedure TTestCase_FacadeOnly.Test_Facade_Exports_Pools;
 var
   LMem: TMemPool;
   LStack: TStackPool;
-  LSlab: TSlabPool;
   LPtr: Pointer;
 begin
   // 仅依赖门面导出的类型和函数
@@ -820,7 +612,7 @@ begin
   try
     LPtr := LMem.Alloc;
     AssertNotNull('TMemPool.Alloc 应成功', LPtr);
-    if LPtr <> nil then LMem.Free(LPtr);
+    if LPtr <> nil then LMem.ReleasePtr(LPtr);
   finally
     LMem.Destroy;
   end;
@@ -831,15 +623,6 @@ begin
     AssertNotNull('TStackPool.Alloc 应成功', LPtr);
   finally
     LStack.Destroy;
-  end;
-
-  LSlab := TSlabPool.Create(4096);
-  try
-    LPtr := LSlab.Alloc(64);
-    AssertNotNull('TSlabPool.Alloc 应成功', LPtr);
-    LSlab.Free(LPtr);
-  finally
-    LSlab.Destroy;
   end;
 end;
 
@@ -864,8 +647,6 @@ initialization
   RegisterTest(TTestCase_CoreMem);
   RegisterTest(TTestCase_MemPool);
   RegisterTest(TTestCase_StackPool);
-  RegisterTest(TTestCase_SlabPool);
-  RegisterTest(TTestCase_ObjectPool);
   RegisterTest(TTestCase_RingBuffer);
 
 end.

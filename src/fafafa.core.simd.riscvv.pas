@@ -25,7 +25,8 @@ interface
 
 uses
   fafafa.core.simd.base,
-  fafafa.core.simd.dispatch;
+  fafafa.core.simd.dispatch,
+  fafafa.core.simd.cpuinfo;
 
 // =============================================================
 // RISC-V V (Vector Extension) SIMD Backend
@@ -1340,7 +1341,13 @@ procedure RegisterRISCVVBackend;
 var
   table: TSimdDispatchTable;
 begin
-  FillChar(table, SizeOf(table), 0);
+  // ✅ 运行时检测：如果 CPU 不支持 RISC-V V 扩展，则不注册后端
+  if not HasRISCVV then
+    Exit;
+
+  // 使用 FillBaseDispatchTable 填充所有字段的 scalar 回退实现
+  // 这确保了系统不变量：所有 dispatch table 字段都非 nil
+  FillBaseDispatchTable(table);
 
   // Backend info
   table.Backend := sbRISCVV;

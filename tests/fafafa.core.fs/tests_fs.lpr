@@ -37,7 +37,15 @@ uses
   // Issue #10: 树操作集成测试
   Test_fafafa_core_fs_tree_integration,
   // Issue #11: IFileSystemProvider 抽象
-  Test_fafafa_core_fs_provider;
+  Test_fafafa_core_fs_provider,
+  // Rust 风格 API 测试
+  Test_fafafa_core_fs_rustapi,
+  // 缓冲读写器测试
+  Test_fafafa_core_fs_bufio,
+  // 边界测试
+  Test_fafafa_core_fs_boundary,
+  // 接口测试
+  Test_fafafa_core_fs_traits;
 
 type
   { TMyTestRunner }

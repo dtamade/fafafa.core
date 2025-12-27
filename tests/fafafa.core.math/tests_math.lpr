@@ -8,7 +8,10 @@ uses
   fafafa.core.math.float.contract.testcase,
   fafafa.core.math.intutil.testcase,
   fafafa.core.math.dispatch.testcase,
-  fafafa.core.math.array_.testcase;
+  fafafa.core.math.arrays.testcase,
+  fafafa.core.math.safeint.boundary.testcase,
+  fafafa.core.math.special.testcase,
+  fafafa.core.math.proptest.testcase;
 
 var
   Application: TTestRunner;

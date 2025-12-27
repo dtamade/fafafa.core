@@ -4,7 +4,7 @@ program minimal_test;
 
 uses
   SysUtils,
-  fafafa.core.simd.types,
+  fafafa.core.simd.base,
   fafafa.core.simd.intrinsics.mmx;
 
 var

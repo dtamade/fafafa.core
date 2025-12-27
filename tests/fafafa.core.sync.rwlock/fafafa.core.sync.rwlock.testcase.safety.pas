@@ -77,12 +77,12 @@ begin
   // 测试正常情况
   Guard := FRWLock.Read;
   AssertNotNull(Guard);
-  AssertTrue(Guard.IsValid);
+  AssertTrue(Guard.IsLocked);
   AssertEquals(1, FRWLock.GetReaderCount);
   
   // 手动释放
   Guard.Release;
-  AssertFalse(Guard.IsValid);
+  AssertFalse(Guard.IsLocked);
   AssertEquals(0, FRWLock.GetReaderCount);
   
   // 重复释放应该安全
@@ -94,7 +94,7 @@ begin
   begin
     Guard := FRWLock.Read;
     AssertNotNull(Guard);
-    AssertTrue(Guard.IsValid);
+    AssertTrue(Guard.IsLocked);
     Guard := nil;  // 自动释放
   end;
   
@@ -111,12 +111,12 @@ begin
   // 测试正常情况
   Guard := FRWLock.Write;
   AssertNotNull(Guard);
-  AssertTrue(Guard.IsValid);
+  AssertTrue(Guard.IsLocked);
   AssertTrue(FRWLock.IsWriteLocked);
   
   // 手动释放
   Guard.Release;
-  AssertFalse(Guard.IsValid);
+  AssertFalse(Guard.IsLocked);
   AssertFalse(FRWLock.IsWriteLocked);
   
   // 重复释放应该安全
@@ -128,7 +128,7 @@ begin
   begin
     Guard := FRWLock.Write;
     AssertNotNull(Guard);
-    AssertTrue(Guard.IsValid);
+    AssertTrue(Guard.IsLocked);
     AssertTrue(FRWLock.IsWriteLocked);
     Guard := nil;  // 自动释放
     AssertFalse(FRWLock.IsWriteLocked);
@@ -342,12 +342,12 @@ begin
   
   Guard := FRWLock.Read;
   AssertNotNull(Guard);
-  AssertTrue(Guard.IsValid);
+  AssertTrue(Guard.IsLocked);
   AssertEquals(1, FRWLock.GetReaderCount);
   
   // 第一次释放
   Guard.Release;
-  AssertFalse(Guard.IsValid);
+  AssertFalse(Guard.IsLocked);
   AssertEquals(0, FRWLock.GetReaderCount);
   
   // 多次释放应该安全
@@ -356,7 +356,7 @@ begin
   Guard.Release;
   
   // 状态应该保持一致
-  AssertFalse(Guard.IsValid);
+  AssertFalse(Guard.IsLocked);
   AssertEquals(0, FRWLock.GetReaderCount);
 end;
 
@@ -460,8 +460,8 @@ begin
 
   // 验证两个锁都有效
   WriteLn('验证锁状态...');
-  AssertTrue(Guard1.IsValid);
-  AssertTrue(Guard2.IsValid);
+  AssertTrue(Guard1.IsLocked);
+  AssertTrue(Guard2.IsLocked);
   AssertTrue(FRWLock.IsWriteLocked);
 
   // 测试真正的死锁场景：读锁升级为写锁
@@ -481,10 +481,11 @@ begin
       Guard1 := FRWLock.Write;
       Fail('应该抛出死锁异常');
     except
-      on E: ERWLockDeadlockError do
+      on E: ERWLockError do
       begin
         WriteLn('正确捕获死锁异常: ', E.Message);
-        // 预期的异常
+        // 预期的异常 - 消息包含 "deadlock"
+        AssertTrue('应包含死锁相关消息', Pos('deadlock', LowerCase(E.Message)) > 0);
       end;
     end;
 
@@ -621,20 +622,20 @@ begin
 
   Guard := FRWLock.Read;
   try
-    AssertTrue(Guard.IsValid);
+    AssertTrue(Guard.IsLocked);
     AssertEquals(1, FRWLock.GetReaderCount);
 
     // 手动释放
     Guard.Release;
-    AssertFalse(Guard.IsValid);
+    AssertFalse(Guard.IsLocked);
 
     // 多次释放应该安全（不抛出异常）
     Guard.Release;
-    AssertFalse(Guard.IsValid);
+    AssertFalse(Guard.IsLocked);
 
   finally
     // 确保清理
-    if Guard.IsValid then
+    if Guard.IsLocked then
       Guard.Release;
   end;
 

@@ -12,19 +12,26 @@ uses
 // SIMD Backend Interface Abstraction
 // =============================================================================
 //
-// Purpose:
+// ⚠️ DEPRECATED - This unit is scheduled for removal in a future version.
+//
+// Reason:
+//   This hierarchical abstraction (TSimdBackendOps) was an experimental
+//   refactoring attempt that was never integrated into the core dispatch
+//   system. The core system uses TSimdDispatchTable from dispatch.pas.
+//
+// Migration:
+//   - Use TSimdDispatchTable from fafafa.core.simd.dispatch directly
+//   - Use FillBaseDispatchTable() for scalar fallbacks
+//   - Do NOT use TSimdBackendOps for new code
+//
+// Status:
+//   - Only used by test_backend_ops.pas for testing this abstraction
+//   - Not used by any production code path
+//   - Kept for backward compatibility until next major version
+//
+// Original Purpose (historical):
 //   Provides a cleaner abstraction for SIMD backend implementations.
 //   Reduces code duplication by grouping operations into logical categories.
-//
-// Design Goals:
-//   1. Single source of truth for operation signatures
-//   2. Easier backend implementation via grouped interfaces
-//   3. Better cache locality through smaller, focused tables
-//   4. Simplified testing via operation group contracts
-//
-// Usage:
-//   Each backend implements TSimdBackendOps and registers via RegisterBackendOps.
-//   The dispatch system uses these grouped operations internally.
 //
 // =============================================================================
 

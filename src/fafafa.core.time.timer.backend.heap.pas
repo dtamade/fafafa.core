@@ -24,6 +24,7 @@ interface
 uses
   SysUtils,
   fafafa.core.time.instant,
+  fafafa.core.time.timer.base,     // ✅ Phase 2: 共享类型 (PTimerEntry)
   fafafa.core.time.timer.backend;
 
 {** 创建二叉堆后端 *}
@@ -32,48 +33,13 @@ function CreateBinaryHeapBackendImpl: ITimerQueueBackend;
 implementation
 
 type
-  // ✅ Phase 3.1: 定义与 fafafa.core.time.timer 中 TTimerEntry 完全兼容的结构
-  // 字段顺序和大小必须精确匹配，否则 InHeap/HeapIndex 的偏移会错误
-  TTimerCallbackKindCompat = (
-    tckProc,
-    tckProcData,
-    tckMethod,
-    tckNested
-  );
-
-  // TTimerCallback 的兼容版本 - 必须与原版大小相同
-  TTimerCallbackCompat = record
-    case Kind: TTimerCallbackKindCompat of
-      tckProc: (Proc: Pointer);
-      tckProcData: (ProcData: Pointer; Data: Pointer);
-      tckMethod: (MethodCode: Pointer; MethodData: Pointer);
-      tckNested: (NestedCode: Pointer; NestedFrame: Pointer);
-  end;
-
-  PTimerEntryCompat = ^TTimerEntryCompat;
-  TTimerEntryCompat = record
-    Kind: Integer;              // TTimerKind (4 bytes)
-    Deadline: TInstant;         // 用于排序 (8 bytes, aligned at 8)
-    Period: Int64;              // TDuration.FNanos (8 bytes)
-    Delay: Int64;               // TDuration.FNanos (8 bytes)
-    Callback: TTimerCallbackCompat;  // TTimerCallback (变体记录, ~24 bytes)
-    Cancelled: Boolean;
-    Fired: Boolean;
-    ExecutionCount: QWord;      // 8 bytes, aligned
-    MaxExecutions: QWord;       // ✅ v2.0 新增字段
-    Paused: Boolean;
-    CancellationToken: Pointer; // ICancellationToken (interface = pointer)
-    RefCount: LongInt;
-    Dead: Boolean;
-    InHeap: Boolean;            // 我们需要维护
-    HeapIndex: Integer;         // 我们需要维护, aligned
-    Owner: Pointer;
-  end;
+  // ✅ Phase 2: TTimerEntry 已移至 fafafa.core.time.timer.base
+  // 不再需要 TTimerEntryCompat 兼容层
 
   { TBinaryHeapBackend }
   TBinaryHeapBackend = class(TInterfacedObject, ITimerQueueBackend)
   private
-    FHeap: array of PTimerEntryCompat;
+    FHeap: array of PTimerEntry;
     FCount: Integer;
     FCapacity: Integer;
 
@@ -81,7 +47,7 @@ type
     procedure HeapSwap(A, B: Integer);
     procedure HeapifyUp(Index: Integer);
     procedure HeapifyDown(Index: Integer);
-    function CompareDeadline(A, B: PTimerEntryCompat): Integer; inline;
+    function CompareDeadline(A, B: PTimerEntry): Integer; inline;
   public
     constructor Create;
     destructor Destroy; override;
@@ -135,7 +101,7 @@ end;
 
 procedure TBinaryHeapBackend.HeapSwap(A, B: Integer);
 var
-  Tmp: PTimerEntryCompat;
+  Tmp: PTimerEntry;
 begin
   if A = B then Exit;
   Tmp := FHeap[A];
@@ -148,12 +114,12 @@ begin
     FHeap[B]^.HeapIndex := B;
 end;
 
-function TBinaryHeapBackend.CompareDeadline(A, B: PTimerEntryCompat): Integer;
+function TBinaryHeapBackend.CompareDeadline(A, B: PTimerEntry): Integer;
 begin
   // 比较 Deadline（TInstant 内部是 FNanos: Int64）
-  if A^.Deadline.LessThan(B^.Deadline) then
+  if A^.Deadline < B^.Deadline then
     Result := -1
-  else if A^.Deadline.GreaterThan(B^.Deadline) then
+  else if A^.Deadline > B^.Deadline then
     Result := 1
   else
     Result := 0;
@@ -209,9 +175,9 @@ end;
 
 procedure TBinaryHeapBackend.Enqueue(E: PTimerEntryOpaque);
 var
-  Entry: PTimerEntryCompat;
+  Entry: PTimerEntry;
 begin
-  Entry := PTimerEntryCompat(E);
+  Entry := PTimerEntry(E);
   if Entry = nil then Exit;
 
   EnsureCapacity;
@@ -243,14 +209,14 @@ begin
 
   if Result <> nil then
   begin
-    PTimerEntryCompat(Result)^.InHeap := False;
-    PTimerEntryCompat(Result)^.HeapIndex := -1;
+    PTimerEntry(Result)^.InHeap := False;
+    PTimerEntry(Result)^.HeapIndex := -1;
   end;
 end;
 
 function TBinaryHeapBackend.PopDue(const Now: TInstant; MaxCount: Integer; out DueEntries: array of PTimerEntryOpaque): Integer;
 var
-  Entry: PTimerEntryCompat;
+  Entry: PTimerEntry;
   ArrayLen: Integer;
 begin
   Result := 0;
@@ -263,7 +229,7 @@ begin
     if Entry = nil then Break;
 
     // 检查是否已到期（Deadline <= Now）
-    if Entry^.Deadline.GreaterThan(Now) then
+    if Entry^.Deadline > Now then
       Break;  // 堆顶未到期，后面的更不会到期
 
     // 出队
@@ -296,10 +262,10 @@ end;
 
 procedure TBinaryHeapBackend.Remove(E: PTimerEntryOpaque);
 var
-  Entry: PTimerEntryCompat;
+  Entry: PTimerEntry;
   Idx, LastIdx: Integer;
 begin
-  Entry := PTimerEntryCompat(E);
+  Entry := PTimerEntry(E);
   if Entry = nil then Exit;
   if not Entry^.InHeap then Exit;
 
@@ -327,10 +293,10 @@ end;
 
 procedure TBinaryHeapBackend.UpdateDeadline(E: PTimerEntryOpaque);
 var
-  Entry: PTimerEntryCompat;
+  Entry: PTimerEntry;
   Idx: Integer;
 begin
-  Entry := PTimerEntryCompat(E);
+  Entry := PTimerEntry(E);
   if Entry = nil then Exit;
   if not Entry^.InHeap then Exit;
 
@@ -355,7 +321,7 @@ end;
 procedure TBinaryHeapBackend.Clear;
 var
   I: Integer;
-  Entry: PTimerEntryCompat;
+  Entry: PTimerEntry;
 begin
   for I := 0 to FCount - 1 do
   begin

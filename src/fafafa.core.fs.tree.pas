@@ -165,10 +165,12 @@ begin
     try
       FsCopyFileEx(aPath, OutPath, CopyOpts);
       Inc(FilesCopied);
-      try
-        Inc(BytesCopied, aStat.Size);
-      except
-      end;
+      // ✅ 安全修复：防止 BytesCopied 溢出
+      // 使用饱和算术代替空的 try-except
+      if (aStat.Size > 0) and (QWord(aStat.Size) <= High(QWord) - BytesCopied) then
+        Inc(BytesCopied, aStat.Size)
+      else if aStat.Size > 0 then
+        BytesCopied := High(QWord); // 饱和到最大值
     except
       on E: EFsError do
       begin
@@ -191,6 +193,7 @@ type
   TRemoveWalker = class
   public
     Opts: TFsRemoveTreeOptions;
+    RootPath: string;  // ✅ 安全修复：记录根路径用于边界检查
     FilesRemoved: QWord;
     DirsRemoved: QWord;
     Errors: QWord;
@@ -198,6 +201,7 @@ type
     ExternalTargets: TStringList;
     constructor Create(const AOpts: TFsRemoveTreeOptions);
     destructor Destroy; override;
+    function IsPathWithinRoot(const aPath: string): Boolean;  // ✅ 检查路径是否在根目录范围内
     function OnEach(const aPath: string; const aStat: TfsStat; aDepth: Integer): Boolean;
     function OnWalkError(const aPath: string; aError: Integer; aDepth: Integer): TFsWalkErrorAction;
   end;
@@ -206,6 +210,7 @@ constructor TRemoveWalker.Create(const AOpts: TFsRemoveTreeOptions);
 begin
   inherited Create;
   Opts := AOpts;
+  RootPath := '';  // ✅ 由调用方设置
   FilesRemoved := 0;
   DirsRemoved := 0;
   Errors := 0;
@@ -220,6 +225,38 @@ begin
   Dirs.Free;
   ExternalTargets.Free;
   inherited Destroy;
+end;
+
+// ✅ 安全修复：检查路径是否在根目录范围内
+// 通过检查父目录的真实路径来判断，这样：
+// - 符号链接文件本身（如 Root/link）会被删除（因为其父目录 Root 在根内）
+// - 符号链接指向的内容不会被删除（因为其父目录解析后在根外）
+function TRemoveWalker.IsPathWithinRoot(const aPath: string): Boolean;
+var
+  ParentPath, ResolvedParent, ResolvedRoot, NormalizedRoot: string;
+begin
+  if RootPath = '' then Exit(True);  // 未设置根路径时跳过检查
+
+  // 获取父目录
+  ParentPath := ExtractFileDir(aPath);
+  if ParentPath = '' then ParentPath := '.';
+
+  // 解析父目录的真实路径（跟随符号链接）
+  if fs_realpath_s(ParentPath, ResolvedParent) < 0 then
+    ResolvedParent := ResolvePath(ParentPath);  // 回退到简单规范化
+
+  // 解析根目录的真实路径
+  if fs_realpath_s(RootPath, ResolvedRoot) < 0 then
+    ResolvedRoot := RootPath;
+
+  NormalizedRoot := ResolvedRoot;
+  if (NormalizedRoot <> '') and (NormalizedRoot[Length(NormalizedRoot)] <> PathDelim) then
+    NormalizedRoot := NormalizedRoot + PathDelim;
+
+  // 检查父目录的真实路径是否在根目录内
+  Result := (ResolvedParent = ResolvedRoot) or
+            ((Length(ResolvedParent) >= Length(NormalizedRoot)) and
+             (Copy(ResolvedParent, 1, Length(NormalizedRoot)) = NormalizedRoot));
 end;
 
 function TRemoveWalker.OnWalkError(const aPath: string; aError: Integer; aDepth: Integer): TFsWalkErrorAction;
@@ -247,6 +284,17 @@ var
 begin
   if aDepth < 0 then ;
   ModeBits := aStat.Mode and S_IFMT;
+
+  // ✅ 安全修复：检查路径是否在根目录范围内
+  // 防止通过符号链接逃逸删除外部文件
+  if Opts.FollowSymlinks and (not IsPathWithinRoot(aPath)) then
+  begin
+    // 路径在根目录范围外，记录为外部目标并跳过
+    ExternalTargets.Add(ResolvePath(aPath));
+    Inc(Errors);  // 增加错误计数以提醒调用方
+    Exit(True);   // 继续遍历但不删除
+  end;
+
   if ModeBits = S_IFDIR then
   begin
     Dirs.Add(aPath);
@@ -476,9 +524,6 @@ var
   SR: Integer;
   S: TfsStat;
   Rm: Integer;
-  AbsTarget: string;
-  DelOpts: TFsRemoveTreeOptions;
-  RDel: TFsRemoveTreeResult;
 
   function DoUnlinkOrRmdir(const P: string; const Stat: TfsStat): Integer; inline;
   var ModeBits: UInt64;
@@ -493,6 +538,9 @@ begin
 
   Walker := TRemoveWalker.Create(aOpts);
   try
+    // ✅ 安全修复：设置根路径用于边界检查
+    Walker.RootPath := ResolvePath(aRoot);
+
     WalkOpts := FsDefaultWalkOptions;
     WalkOpts.FollowSymlinks := aOpts.FollowSymlinks;
     WalkOpts.IncludeFiles := True;
@@ -504,7 +552,7 @@ begin
 
     LErrorPolicy := aOpts.ErrorPolicy;
 
-    if not DirectoryExists(ResolvePath(aRoot)) then
+    if not DirectoryExists(Walker.RootPath) then
     begin
       aResult.FilesRemoved := Walker.FilesRemoved;
       aResult.DirsRemoved := Walker.DirsRemoved;
@@ -512,7 +560,7 @@ begin
       Exit;
     end;
 
-    SR := WalkDir(ResolvePath(aRoot), WalkOpts, @Walker.OnEach);
+    SR := WalkDir(Walker.RootPath, WalkOpts, @Walker.OnEach);
     if SR < 0 then
     begin
       case LErrorPolicy of
@@ -598,39 +646,21 @@ begin
     aResult.DirsRemoved := Walker.DirsRemoved;
     aResult.Errors := Walker.Errors;
   finally
-    if Assigned(Walker.ExternalTargets) then
+    // ✅ 安全修复：不再自动删除外部符号链接目标
+    // 这是一个危险的操作，可能导致删除预期范围外的文件（符号链接逃逸攻击）
+    // 如果确实需要跟随符号链接删除，调用方应显式处理 ExternalTargets
+    //
+    // 原代码会递归删除 ExternalTargets 中的所有目录，这可能包括：
+    // - /home/user/important_data (如果有符号链接指向它)
+    // - /etc, /var 等系统目录
+    //
+    // 现在只记录警告，不执行删除
+    if Assigned(Walker.ExternalTargets) and (Walker.ExternalTargets.Count > 0) then
     begin
-      for I := 0 to Walker.ExternalTargets.Count - 1 do
-      begin
-        AbsTarget := Walker.ExternalTargets[I];
-        if fs_lstat(AbsTarget, S) = 0 then
-        begin
-          if (S.Mode and S_IFMT) = S_IFDIR then
-          begin
-            try
-              DelOpts := FsDefaultRemoveTreeOptions;
-              DelOpts.FollowSymlinks := aOpts.FollowSymlinks;
-              DelOpts.ErrorPolicy := LErrorPolicy;
-              RemoveTreeEx(AbsTarget, DelOpts, RDel);
-              if (fs_lstat(AbsTarget, S) = 0) and ((S.Mode and S_IFMT) = S_IFDIR) then
-              begin
-                try DeleteDirectory(AbsTarget, True); except end;
-              end;
-              if (fs_lstat(AbsTarget, S) = 0) and ((S.Mode and S_IFMT) = S_IFDIR) then
-                CheckFsResult(fs_rmdir(AbsTarget), 'rmdir external target at finalize');
-            except
-              on E: EFsError do
-              begin
-                Inc(Walker.Errors);
-                case LErrorPolicy of
-                  epAbort: raise;
-                  epContinue, epSkipSubtree: ;
-                end;
-              end;
-            end;
-          end;
-        end;
-      end;
+      // 外部符号链接目标未被删除，增加错误计数以提醒调用方
+      Inc(Walker.Errors, Walker.ExternalTargets.Count);
+      // 更新结果中的错误数
+      aResult.Errors := Walker.Errors;
     end;
     Walker.Free;
   end;

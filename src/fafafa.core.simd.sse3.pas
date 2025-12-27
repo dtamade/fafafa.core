@@ -193,28 +193,20 @@ end;
 
 function SSE3DotF32x3(const a, b: TVecF32x4): Single;
 begin
-  asm
-    lea     rax, a
-    lea     rdx, b
-    movups  xmm0, [rax]
-    movups  xmm1, [rdx]
-    // Zero the w component
-    xorps   xmm2, xmm2
-    insertps xmm0, xmm2, $30  // Zero element 3 (SSE4.1 would be better, fallback)
-  end;
-  // Fallback: use mask to zero w
+  // ✅ 修复 P0-2: 删除 insertps 指令（SSE4.1），使用纯 SSE2/SSE3 实现
+  // 通过掩码将 w 分量归零，然后计算点积
   asm
     lea     rax, a
     lea     rdx, b
     movups  xmm0, [rax]
     movups  xmm1, [rdx]
     mulps   xmm0, xmm1
-    // Zero w by clearing high bits
-    pcmpeqd xmm2, xmm2
-    psrldq  xmm2, 4           // Mask: [FF, FF, FF, 00]
-    andps   xmm0, xmm2
-    haddps  xmm0, xmm0
-    haddps  xmm0, xmm0
+    // Zero w by masking: create mask [FF, FF, FF, 00]
+    pcmpeqd xmm2, xmm2        // All ones
+    psrldq  xmm2, 4           // Shift right 4 bytes → [FF, FF, FF, 00]
+    andps   xmm0, xmm2        // Zero the w component
+    haddps  xmm0, xmm0        // [x+y, z+0, ...]
+    haddps  xmm0, xmm0        // [x+y+z, ...]
     movss   [result], xmm0
   end;
 end;
@@ -244,12 +236,12 @@ begin
   if not HasSSE3 then
     Exit;
 
-  // Start with SSE2 as base (SSE3 is a superset)
-  // We copy the registered SSE2 table and enhance it
-  FillBaseDispatchTable(dispatchTable);
+  // ✅ 修复 P0-1: 从 SSE2 继承实现，而非从标量基线开始
+  // SSE3 是 SSE2 的超集，应继承 SSE2 的所有优化实现
+  dispatchTable := Default(TSimdDispatchTable);
 
-  // Set backend info
-  dispatchTable.Backend := sbSSE3;
+  // Set backend info BEFORE cloning (will be preserved)
+  dispatchTable.Backend := sbSSE2;  // Temporary, will be overwritten
   with dispatchTable.BackendInfo do
   begin
     Backend := sbSSE3;
@@ -259,6 +251,13 @@ begin
     Available := True;
     Priority := 15; // Higher than SSE2 (10)
   end;
+
+  // Clone from SSE2 backend (inherits all SSE2 optimizations including facade functions)
+  if not CloneDispatchTable(sbSSE2, dispatchTable) then
+    FillBaseDispatchTable(dispatchTable);  // Fallback if SSE2 not registered yet
+
+  // Update backend identifier
+  dispatchTable.Backend := sbSSE3;
 
   // SSE3 improvements: faster reductions via HADD
   if IsVectorAsmEnabled then

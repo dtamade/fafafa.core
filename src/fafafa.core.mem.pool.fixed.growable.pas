@@ -65,7 +65,10 @@ type
 
     // IPool
     function Acquire(out AUnit: Pointer): Boolean; inline;
+    function TryAcquire(out APtr: Pointer): Boolean; inline;
+    function AcquireN(out aPtrs: array of Pointer; aCount: Integer): Integer;
     procedure Release(AUnit: Pointer); inline;
+    procedure ReleaseN(const aPtrs: array of Pointer; aCount: Integer);
     procedure Reset; inline;
 
     // 管理
@@ -380,6 +383,43 @@ begin
   SetLength(FArenas, 0);
   SetLength(FFreeStack, 0);
   inherited Destroy;
+end;
+
+function TGrowingFixedPool.TryAcquire(out APtr: Pointer): Boolean;
+begin
+  Result := Acquire(APtr);
+end;
+
+function TGrowingFixedPool.AcquireN(out aPtrs: array of Pointer; aCount: Integer): Integer;
+var
+  I: Integer;
+  P: Pointer;
+begin
+  Result := 0;
+  for I := 0 to aCount - 1 do
+  begin
+    if I > High(aPtrs) then
+      Break;
+    if Acquire(P) then
+    begin
+      aPtrs[I] := P;
+      Inc(Result);
+    end
+    else
+      Break;
+  end;
+end;
+
+procedure TGrowingFixedPool.ReleaseN(const aPtrs: array of Pointer; aCount: Integer);
+var
+  I: Integer;
+begin
+  for I := 0 to aCount - 1 do
+  begin
+    if I > High(aPtrs) then
+      Break;
+    Release(aPtrs[I]);
+  end;
 end;
 
 

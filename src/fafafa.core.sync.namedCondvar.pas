@@ -35,9 +35,9 @@ type
   TNamedCondVarStats = fafafa.core.sync.namedCondvar.base.TNamedCondVarStats;
 
   // 注意：TNamedCondVar 具体类型不再公开导出
-  // 用户应该只使�?INamedCondVar 接口和工厂函�?
+  // 用户应该只使用 INamedCondVar 接口和工厂函数
 
-// ===== 工厂函数（仅使用 MakeXXX 模式�?=====
+// ===== 工厂函数（仅使用 MakeXXX 模式）=====
 
 // 主要工厂函数
 function MakeNamedCondVar(const AName: string): INamedCondVar; overload;
@@ -48,7 +48,7 @@ function MakeGlobalNamedCondVar(const AName: string): INamedCondVar;
 function MakeNamedCondVarWithTimeout(const AName: string; ATimeoutMs: Cardinal): INamedCondVar;
 function MakeNamedCondVarWithStats(const AName: string): INamedCondVar;
 
-// 尝试打开现有的命名条件变�?
+// 尝试打开现有的命名条件变量
 function TryOpenNamedCondVar(const AName: string): INamedCondVar;
 
 // ===== 配置辅助函数（重新导出） =====
@@ -114,7 +114,7 @@ end;
 
 function TryOpenNamedCondVar(const AName: string): INamedCondVar;
 begin
-  // 尝试打开现有的命名条件变�?
+  // 尝试打开现有的命名条件变量
   // 实际上与 MakeNamedCondVar 相同，因为底层实现会自动处理创建/打开逻辑
   Result := MakeNamedCondVar(AName);
 end;

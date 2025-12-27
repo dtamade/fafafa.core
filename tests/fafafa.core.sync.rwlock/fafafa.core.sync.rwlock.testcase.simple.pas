@@ -6,7 +6,7 @@ interface
 
 uses
   Classes, SysUtils, fpcunit, testregistry,
-  fafafa.core.sync.rwlock, fafafa.core.sync.base;
+  fafafa.core.sync.rwlock;
 
 type
   // 全局函数测试

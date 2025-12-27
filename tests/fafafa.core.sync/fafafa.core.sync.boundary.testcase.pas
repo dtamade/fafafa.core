@@ -101,7 +101,7 @@ procedure TTestCase_Mutex_Boundary.Test_TryAcquire_ZeroTimeout;
 var
   M: IMutex;
 begin
-  M := MakeMutex;
+  M := MakePthreadMutex;
   // First acquire should succeed
   CheckTrue(M.TryAcquire, 'First TryAcquire should succeed');
   M.Release;
@@ -115,7 +115,7 @@ procedure TTestCase_Mutex_Boundary.Test_TryAcquire_SmallTimeout;
 var
   M: IMutex;
 begin
-  M := MakeMutex;
+  M := MakePthreadMutex;
   // Small timeout when available should succeed immediately
   CheckTrue(M.TryAcquire(1), 'TryAcquire(1ms) should succeed');
   M.Release;
@@ -128,7 +128,7 @@ procedure TTestCase_Mutex_Boundary.Test_TryAcquire_LargeTimeout;
 var
   M: IMutex;
 begin
-  M := MakeMutex;
+  M := MakePthreadMutex;
   // Large timeout when available should succeed immediately
   CheckTrue(M.TryAcquire(10000), 'TryAcquire(10s) should succeed immediately when available');
   M.Release;
@@ -139,7 +139,7 @@ var
   M: IMutex;
   I: Integer;
 begin
-  M := MakeMutex;
+  M := MakePthreadMutex;
   // Rapid acquire/release sequence
   for I := 1 to 100 do
   begin
@@ -153,7 +153,7 @@ procedure TTestCase_Mutex_Boundary.Test_Multiple_TryAcquire_Same_Thread;
 var
   M: IMutex;
 begin
-  M := MakeMutex;
+  M := MakePthreadMutex;
   // First acquire succeeds
   CheckTrue(M.TryAcquire, 'First TryAcquire should succeed');
   // Second TryAcquire on same thread should fail (non-reentrant mutex)
@@ -314,7 +314,7 @@ var
   R: TCondVarWaitResult;
 begin
   CV := MakeCondVar;
-  M := MakeMutex;
+  M := MakePthreadMutex;
   M.Acquire;
   try
     R := CV.WaitFor(M, 0);
@@ -352,7 +352,7 @@ var
   R: TCondVarWaitResult;
 begin
   CV := MakeCondVar;
-  M := MakeMutex;
+  M := MakePthreadMutex;
   M.Acquire;
   try
     R := CV.WaitFor(M, 1);

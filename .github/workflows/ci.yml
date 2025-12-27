@@ -325,24 +325,47 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y fpc lazarus
 
-      - name: Build Tests
+      - name: Build SIMD Tests
         run: |
           cd tests/fafafa.core.simd
           lazbuild fafafa.core.simd.test.lpi
 
-      - name: Run Benchmark
+      - name: Build FS Tests
         run: |
-          ./tests/fafafa.core.simd/bin/fafafa.core.simd.test --all 2>&1 | tee benchmark.log
+          cd tests/fafafa.core.fs
+          lazbuild tests_fs.lpi
+
+      - name: Run SIMD Benchmark
+        run: |
+          ./tests/fafafa.core.simd/bin/fafafa.core.simd.test --all 2>&1 | tee benchmark-simd.log
+
+      - name: Run FS Benchmark
+        run: |
+          ./tests/fafafa.core.fs/bin/tests_fs --suite=TTestTreeIntegration --format=plain 2>&1 | tee benchmark-fs.log
 
       - name: Extract Performance Metrics
         run: |
           echo "## Performance Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### SIMD Performance" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
-          grep -A 2 "MemEqual:\|SumBytes:\|CountByte:" benchmark.log >> $GITHUB_STEP_SUMMARY || true
+          grep -A 2 "MemEqual:\|SumBytes:\|CountByte:" benchmark-simd.log >> $GITHUB_STEP_SUMMARY || true
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### FS Tree Operations" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          grep "Test_\|Time:" benchmark-fs.log >> $GITHUB_STEP_SUMMARY || true
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Memory Safety" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          grep "unfreed memory blocks" benchmark-fs.log >> $GITHUB_STEP_SUMMARY || echo "No heap trace" >> $GITHUB_STEP_SUMMARY
           echo '```' >> $GITHUB_STEP_SUMMARY
 
       - name: Upload Benchmark Results
         uses: actions/upload-artifact@v4
         with:
           name: benchmark-results
-          path: benchmark.log
+          path: |
+            benchmark-simd.log
+            benchmark-fs.log

@@ -40,6 +40,9 @@ function TryParseUlid(const S: string; out A: TUlid128): Boolean;
 function TryParseUlidStrict(const S: string; out A: TUlid128): Boolean;
 function Ulid_TimestampMs(const S: string): Int64; // -1 if invalid
 
+// ✅ P0: 从原始字节直接提取时间戳（零拷贝）
+function Ulid_TimestampMsRaw(const A: TUlid128): Int64; inline;
+
 { Batch text helpers }
 procedure UlidFillTextN(var Dest: array of PChar);
 procedure UlidFillTextStringsN(var Dest: array of string);
@@ -225,6 +228,18 @@ begin
     TS := TS * 32 + V;
   end;
   Result := Int64(TS);
+end;
+
+// ✅ P0: 从原始字节直接提取时间戳（零拷贝，避免字符串绕行）
+function Ulid_TimestampMsRaw(const A: TUlid128): Int64;
+begin
+  // ULID: 前 6 字节 = 48 位时间戳（big-endian）
+  Result := (Int64(A[0]) shl 40) or
+            (Int64(A[1]) shl 32) or
+            (Int64(A[2]) shl 24) or
+            (Int64(A[3]) shl 16) or
+            (Int64(A[4]) shl 8) or
+            Int64(A[5]);
 end;
 
 function TryParseUlidStrict(const S: string; out A: TUlid128): Boolean;

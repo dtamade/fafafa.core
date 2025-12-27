@@ -45,12 +45,19 @@ const
   DT_LNK = 10;
 {$endif}
 
+const
+  // ✅ 安全修复：定义合理的默认文件权限
+  // 0644 = rw-r--r-- (用户读写，组和其他只读)
+  // 比 S_IRWXU (0700) 更安全，因为不包含执行权限
+  FS_DEFAULT_FILE_MODE = S_IRUSR or S_IWUSR or S_IRGRP or S_IROTH;
+
 // libc wrappers missing from BaseUnix on some RTL/FPC versions
 function c_fchmod(fd: cint; mode: mode_t): cint; cdecl; external 'c' name 'fchmod';
 function c_utimes(filename: PChar; times: Pointer): cint; cdecl; external 'c' name 'utimes';
 function c_futimes(fd: cint; times: Pointer): cint; cdecl; external 'c' name 'futimes';
 function c_mkdtemp(template: PChar): PChar; cdecl; external 'c' name 'mkdtemp';
 function c_mkstemp(template: PChar): cint; cdecl; external 'c' name 'mkstemp';
+function c_realpath(path: PChar; resolved_path: PChar): PChar; cdecl; external 'c' name 'realpath';  // ✅ 真正的 realpath
 
 function fs_open(const aPath: string; aFlags, aMode: Integer): TfsFile;
 var
@@ -451,9 +458,9 @@ begin
   end;
   try
     if (aFlags and UV_FS_COPYFILE_EXCL) <> 0 then
-      OutFd := fpopen(aNewPath, O_WRONLY or O_CREAT or O_EXCL, S_IRWXU)
+      OutFd := fpopen(aNewPath, O_WRONLY or O_CREAT or O_EXCL, FS_DEFAULT_FILE_MODE)
     else
-      OutFd := fpopen(aNewPath, O_WRONLY or O_CREAT or O_TRUNC, S_IRWXU);
+      OutFd := fpopen(aNewPath, O_WRONLY or O_CREAT or O_TRUNC, FS_DEFAULT_FILE_MODE);
     if OutFd = -1 then
     begin
       {$IFDEF FS_UNIFIED_ERRORS} Result := __MapUnixErrToUnified(fpgeterrno); {$ELSE} Result := -fpgeterrno; {$ENDIF}
@@ -487,9 +494,9 @@ begin
   if InFd = -1 then begin {$IFDEF FS_UNIFIED_ERRORS} Exit(__MapUnixErrToUnified(fpgeterrno)); {$ELSE} Exit(-fpgeterrno); {$ENDIF} end;
   try
     if (aFlags and UV_FS_COPYFILE_EXCL) <> 0 then
-      OutFd := fpopen(aNewPath, O_WRONLY or O_CREAT or O_EXCL, S_IRWXU)
+      OutFd := fpopen(aNewPath, O_WRONLY or O_CREAT or O_EXCL, FS_DEFAULT_FILE_MODE)
     else
-      OutFd := fpopen(aNewPath, O_WRONLY or O_CREAT or O_TRUNC, S_IRWXU);
+      OutFd := fpopen(aNewPath, O_WRONLY or O_CREAT or O_TRUNC, FS_DEFAULT_FILE_MODE);
     if OutFd = -1 then begin {$IFDEF FS_UNIFIED_ERRORS} Result := __MapUnixErrToUnified(fpgeterrno); {$ELSE} Result := -fpgeterrno; {$ENDIF} Exit; end;
     try
       Off := 0;
@@ -515,9 +522,9 @@ begin
   if LInFile < 0 then Exit(LInFile);
   try
     if (aFlags and UV_FS_COPYFILE_EXCL) <> 0 then
-      LOutFile := fs_open(aNewPath, O_WRONLY or O_CREAT or O_EXCL, S_IRWXU)
+      LOutFile := fs_open(aNewPath, O_WRONLY or O_CREAT or O_EXCL, FS_DEFAULT_FILE_MODE)
     else
-      LOutFile := fs_open(aNewPath, O_WRONLY or O_CREAT or O_TRUNC, S_IRWXU);
+      LOutFile := fs_open(aNewPath, O_WRONLY or O_CREAT or O_TRUNC, FS_DEFAULT_FILE_MODE);
     if LOutFile < 0 then begin Result := LOutFile; Exit; end;
     try
       repeat
@@ -747,11 +754,13 @@ end;
 
 function fs_realpath(const aPath: string; aResolvedPath: PChar; aSize: SizeUInt): Integer;
 var
-  LFullPath: string;
+  LBuf: array[0..4095] of Char;
+  LResult: PChar;
   LLen: SizeUInt;
 begin
-  // realpath 语义：路径不存在时应失败
-  if fpaccess(PChar(aPath), F_OK) <> 0 then
+  // ✅ 使用真正的 libc realpath 来解析符号链接
+  LResult := c_realpath(PChar(aPath), @LBuf[0]);
+  if LResult = nil then
   begin
     {$IFDEF FS_UNIFIED_ERRORS}
     Result := __MapUnixErrToUnified(fpgeterrno);
@@ -761,9 +770,7 @@ begin
     Exit;
   end;
 
-  // 退化实现：返回绝对路径（不保证解析符号链接）
-  LFullPath := ExpandFileName(aPath);
-  LLen := Length(LFullPath);
+  LLen := StrLen(LResult);
 
   if (aSize = 0) or (LLen >= aSize) then
   begin
@@ -775,7 +782,7 @@ begin
     Exit;
   end;
 
-  Move(PChar(LFullPath)^, aResolvedPath^, LLen);
+  Move(LResult^, aResolvedPath^, LLen);
   aResolvedPath[LLen] := #0;
   Result := LLen;
 end;

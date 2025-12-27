@@ -40,9 +40,13 @@ function GetCPUInfo: TCPUInfo;
 function DetectCPUArchitecture: TCPUArch;
 
 // Feature query helpers (quick checks)
-function HasFeature(feature: TGenericFeature): Boolean; 
+function HasFeature(feature: TGenericFeature): Boolean;
 function GetSupportedBackends: TSimdBackendArray;
 function GetAvailableBackends: TSimdBackendArray; // alias for backward compatibility
+
+// ✅ P2: 添加 GetBestBackend 别名函数（向后兼容）
+// 注意：此函数委托给 dispatch 模块的 GetActiveBackend
+function GetBestBackend: TSimdBackend;
 
 // Cache and lifecycle helpers
 procedure ResetCPUInfo; // safe reset for re-initialization
@@ -56,6 +60,7 @@ function HasSSE42: Boolean;
 function HasAVX2: Boolean;
 function HasAVX512: Boolean;
 function HasNEON: Boolean;
+function HasRISCVV: Boolean;
 
 {$IFDEF SIMD_X86_AVAILABLE}
 function GetX86CPUInfo: TX86Features;
@@ -443,6 +448,29 @@ begin
   Result := GetSupportedBackends;
 end;
 
+// ✅ P2: GetBestBackend 实现 - 返回当前 CPU 支持的最佳后端
+// 优先级: AVX512 > AVX2 > SSE4.2 > SSE4.1 > SSSE3 > SSE3 > SSE2 > NEON > RISCVV > Scalar
+function GetBestBackend: TSimdBackend;
+const
+  BACKEND_PRIORITY: array[0..9] of TSimdBackend = (
+    sbAVX512, sbAVX2, sbSSE42, sbSSE41, sbSSSE3, sbSSE3, sbSSE2, sbNEON, sbRISCVV, sbScalar
+  );
+var
+  backends: TSimdBackendArray;
+  i, j: Integer;
+begin
+  backends := GetSupportedBackends;
+
+  // 按优先级顺序查找第一个可用的后端
+  for i := Low(BACKEND_PRIORITY) to High(BACKEND_PRIORITY) do
+    for j := 0 to High(backends) do
+      if backends[j] = BACKEND_PRIORITY[i] then
+        Exit(BACKEND_PRIORITY[i]);
+
+  // 默认回退到 Scalar
+  Result := sbScalar;
+end;
+
 // Safe reset to force re-detection on next query
 procedure ResetCPUInfo;
 begin
@@ -563,6 +591,20 @@ begin
   {$IFDEF SIMD_ARM_AVAILABLE}
   cpuInfo := GetCPUInfo;
   Result := (cpuInfo.Arch = caARM) and cpuInfo.ARM.HasNEON;
+  {$ELSE}
+  Result := False;
+  {$ENDIF}
+end;
+
+function HasRISCVV: Boolean;
+{$IFDEF SIMD_RISCV_AVAILABLE}
+var
+  cpuInfo: TCPUInfo;
+{$ENDIF}
+begin
+  {$IFDEF SIMD_RISCV_AVAILABLE}
+  cpuInfo := GetCPUInfo;
+  Result := (cpuInfo.Arch = caRISCV) and cpuInfo.RISCV.HasV;
   {$ELSE}
   Result := False;
   {$ENDIF}

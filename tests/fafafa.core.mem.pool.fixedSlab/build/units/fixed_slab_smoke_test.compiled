@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<CONFIG>
-  <Compiler Value="/home/dtamade/fpc/fpc/bin/x86_64-linux/fpc.sh" Date="1756300905"/>
-  <Params Value="-Tlinux -Px86_64 -MObjFPC -Scghi -CX -Cg -O1 -XX -l -vewnhibq -Fi/home/dtamade/fafafa.core/src -Fu/home/dtamade/fafafa.core/tests/fafafa.core.mem.pool.fixedSlab/ -Fu/home/dtamade/fafafa.core/src -FU/home/dtamade/fafafa.core/tests/fafafa.core.mem.pool.fixedSlab/build/units/ -FE/home/dtamade/fafafa.core/tests/fafafa.core.mem.pool.fixedSlab/build/tests/ -o/home/dtamade/fafafa.core/tests/fafafa.core.mem.pool.fixedSlab/build/tests/fixed_slab_smoke_test fixed_slab_smoke_test.pas"/>
-  <Complete Value="False"/>
-</CONFIG>

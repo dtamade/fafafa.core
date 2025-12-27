@@ -16,7 +16,7 @@ uses
   fafafa.core.base,
   fafafa.core.mem.memPool,
   fafafa.core.mem.stackPool,
-  fafafa.core.mem.slabPool;
+  fafafa.core.mem.mimalloc;
 
 // 通用统计记录
 
@@ -36,17 +36,16 @@ type
     Utilization: Double; // 0.0 .. 1.0
   end;
 
-  TSlabPoolStats = record
-    TotalPages: SizeUInt;
-    FreePages: SizeUInt;
-    PartialPages: SizeUInt;
-    FullPages: SizeUInt;
+  TMimallocStats = record
+    TotalAllocated: SizeUInt;
+    TotalFreed: SizeUInt;
+    ActiveBytes: SizeUInt;  // TotalAllocated - TotalFreed
   end;
 
 // 快照函数（零副作用）
 function GetMemPoolStats(const APool: TMemPool): TMemPoolStats; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
 function GetStackPoolStats(const APool: TStackPool): TStackPoolStats; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
-function GetSlabPoolStats(const APool: TSlabPool): TSlabPoolStats; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
+function GetMimallocStats(const AAlloc: TMimalloc): TMimallocStats; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
 
 implementation
 
@@ -90,21 +89,18 @@ begin
     Result.Utilization := 0.0;
 end;
 
-function GetSlabPoolStats(const APool: TSlabPool): TSlabPoolStats;
+function GetMimallocStats(const AAlloc: TMimalloc): TMimallocStats;
+var
+  LHeap: TMiHeap;
 begin
-  // 仅提供最小只读统计（从公开方法或现有统计接口聚合）
-  FillChar(Result, SizeOf(Result), 0);
-  try
-    with APool.GetStats do
-    begin
-      Result.TotalPages := TotalPages;
-      Result.FreePages := FreePages;
-      Result.PartialPages := PartialPages;
-      Result.FullPages := FullPages;
-    end;
-  except
-    // 若获取失败（不同构建配置/接口变动），保持零入侵，不抛异常
-  end;
+  // 从 TMimalloc 获取堆统计
+  LHeap := AAlloc.GetHeapStats;
+  Result.TotalAllocated := LHeap.TotalAllocated;
+  Result.TotalFreed := LHeap.TotalFreed;
+  if LHeap.TotalAllocated >= LHeap.TotalFreed then
+    Result.ActiveBytes := LHeap.TotalAllocated - LHeap.TotalFreed
+  else
+    Result.ActiveBytes := 0; // 防御性
 end;
 
 end.

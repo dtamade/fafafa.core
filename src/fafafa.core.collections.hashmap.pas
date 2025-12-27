@@ -3,6 +3,8 @@ unit fafafa.core.collections.hashmap;
 {$mode objfpc}{$H+}
 {$modeswitch advancedrecords}
 {$I fafafa.core.settings.inc}
+// Suppress unused parameter hints - hash map uses non-contiguous bucket storage
+{$WARN 5024 OFF}
 
 interface
 

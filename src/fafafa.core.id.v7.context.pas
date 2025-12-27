@@ -65,18 +65,30 @@ var
   GContextV7Lock: TCriticalSection = nil;
 
 function GlobalContextV7: TContextV7;
+var
+  LocalCtx: TContextV7;
 begin
-  if GContextV7 = nil then
+  // ✅ P0: DCL 模式 + ReadWriteBarrier
+  LocalCtx := GContextV7;
+  ReadWriteBarrier;
+  if LocalCtx <> nil then
   begin
-    GContextV7Lock.Acquire;
-    try
-      if GContextV7 = nil then
-        GContextV7 := TContextV7.Create;
-    finally
-      GContextV7Lock.Release;
-    end;
+    Result := LocalCtx;
+    Exit;
   end;
-  Result := GContextV7;
+
+  GContextV7Lock.Acquire;
+  try
+    if GContextV7 = nil then
+    begin
+      LocalCtx := TContextV7.Create;
+      ReadWriteBarrier;  // ✅ 确保对象完全构造后才发布
+      GContextV7 := LocalCtx;
+    end;
+    Result := GContextV7;
+  finally
+    GContextV7Lock.Release;
+  end;
 end;
 
 function UuidV7_Monotonic: string;

@@ -11,12 +11,21 @@ uses
   fafafa.core.mem.allocator.instrumentation;
 
 type
-  { Traits: 只读能力描述，便于上层策略化选择 }
+  {**
+   * TAllocatorTraits
+   *
+   * @desc 只读能力描述，便于上层策略化选择
+   *
+   * 注意：所有 IAllocator 实现都提供 AllocAligned/FreeAligned 方法，
+   * 但实现方式不同：
+   * - SupportsAligned=True: 原生支持，无额外开销（如 mimalloc）
+   * - SupportsAligned=False: 通过 over-allocate 模拟，有内存/性能开销
+   *}
   TAllocatorTraits = record
     ZeroInitialized: Boolean;   // AllocMem 是否保证零填充
-    ThreadSafe     : Boolean;   // 是否线程安全
-    HasMemSize     : Boolean;   // 是否支持查询已分配块大小
-    SupportsAligned: Boolean;   // 是否原生支持对齐分配
+    ThreadSafe     : Boolean;   // 是否内置线程安全（无需外部加锁）
+    HasMemSize     : Boolean;   // 是否支持查询已分配块大小（如 MemSizeOf）
+    SupportsAligned: Boolean;   // 是否原生支持对齐分配（无 over-allocate 开销）
   end;
   {**
    * IAllocator
@@ -77,7 +86,11 @@ end;
 
 function TAllocator.Traits: TAllocatorTraits;
 begin
-  // 缺省：线程安全=是；其余能力未知/不支持
+  // 基类缺省值：
+  // - ThreadSafe=True: 大多数 RTL 分配器线程安全
+  // - ZeroInitialized=False: GetMem 不保证零填充
+  // - HasMemSize=False: 不支持查询块大小
+  // - SupportsAligned=False: 通过 over-allocate 模拟
   Result.ZeroInitialized := False;
   Result.ThreadSafe      := True;
   Result.HasMemSize      := False;

@@ -22,12 +22,7 @@ interface
 uses
   SysUtils, BaseUnix, Unix, UnixType, pthreads,
   fafafa.core.sync.base, fafafa.core.sync.waitgroup.base,
-  fafafa.core.time.duration;
-
-const
-  CLOCK_REALTIME = 0;
-
-function clock_gettime(clk_id: cint; tp: PTimeSpec): cint; cdecl; external 'rt';
+  fafafa.core.time.duration, fafafa.core.sync.timespec;
 
 type
   TWaitGroup = class(TSynchronizable, IWaitGroup)
@@ -138,8 +133,6 @@ end;
 function TWaitGroup.WaitTimeout(ATimeoutMs: Cardinal): Boolean;
 var
   AbsTime: TTimeSpec;
-  CurrentTime: TTimeSpec;
-  NanoSecs: Int64;
   rc: cint;
 begin
   // 快速路径：计数已为 0
@@ -148,11 +141,8 @@ begin
     if FCount = 0 then
       Exit(True);
 
-    // 计算绝对超时时间
-    clock_gettime(CLOCK_REALTIME, @CurrentTime);
-    NanoSecs := Int64(CurrentTime.tv_nsec) + Int64(ATimeoutMs) * 1000000;
-    AbsTime.tv_sec := CurrentTime.tv_sec + NanoSecs div 1000000000;
-    AbsTime.tv_nsec := NanoSecs mod 1000000000;
+    // 使用 timespec.pas 共享函数计算绝对超时时间
+    AbsTime := TimeoutToTimespec(ATimeoutMs);
 
     // 等待直到计数为 0 或超时
     while FCount > 0 do

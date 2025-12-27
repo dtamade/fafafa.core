@@ -9,12 +9,13 @@ interface
 uses
   SysUtils,
   fafafa.core.result,
-  fafafa.core.option,
-  fafafa.core.aliases;
+  fafafa.core.option.base,  // TOption<T> 核心定义
+  fafafa.core.option;
 
 type
   // 参数解析错误类型
   TArgsErrorKind = (
+    aekSuccess,              // 成功（无错误）
     aekUnknownOption,        // 未知选项
     aekMissingValue,         // 缺少值
     aekInvalidValue,         // 无效值
@@ -27,7 +28,7 @@ type
     aekValidationError       // 验证错误
   );
 
-  // 参数解析错误详情
+  // 参数解析错误详情（统一定义，包含 v2 扩展字段）
   TArgsError = record
     Kind: TArgsErrorKind;
     Message: string;
@@ -35,10 +36,13 @@ type
     Position: Integer;       // 参数位置（从0开始，-1表示不适用）
     ExpectedType: string;    // 期望的类型（如果适用）
     ActualValue: string;     // 实际值（如果适用）
-    
+    Suggestion: string;      // 建议修复方案
+    Context: string;         // 上下文信息
+
+    class function Success: TArgsError; static;
     class function UnknownOption(const OptName: string; Pos: Integer = -1): TArgsError; static;
     class function MissingValue(const OptName: string; Pos: Integer = -1): TArgsError; static;
-    class function InvalidValue(const OptName, ExpectedType, ActualValue: string; Pos: Integer = -1): TArgsError; static;
+    class function InvalidValue(const OptName, AExpectedType, AActualValue: string; Pos: Integer = -1): TArgsError; static;
     class function DuplicateOption(const OptName: string; Pos: Integer = -1): TArgsError; static;
     class function MutuallyExclusive(const Opt1, Opt2: string): TArgsError; static;
     class function RequiredMissing(const OptName: string): TArgsError; static;
@@ -46,14 +50,14 @@ type
     class function TooFewPositionals(Expected, Actual: Integer): TArgsError; static;
     class function ParseError(const Msg: string; Pos: Integer = -1): TArgsError; static;
     class function ValidationError(const OptName, Msg: string): TArgsError; static;
-    
+
+    function IsSuccess: Boolean; inline;
     function ToString: string;
     function ToDetailedString: string;
   end;
 
-  // 类型别名
+  // Result 类型别名
   TArgsResult = specialize TResult<string, TArgsError>;
-  TArgsOptionStr = specialize TOption<string>;
   TArgsResultInt = specialize TResult<Int64, TArgsError>;
   TArgsResultDouble = specialize TResult<Double, TArgsError>;
   TArgsResultBool = specialize TResult<Boolean, TArgsError>;
@@ -64,11 +68,8 @@ function ArgsGetIntSafe(const Key: string): TArgsResultInt;
 function ArgsGetDoubleSafe(const Key: string): TArgsResultDouble;
 function ArgsGetBoolSafe(const Key: string): TArgsResultBool;
 
-// Option 风格的参数获取
-function ArgsGetValueOpt(const Key: string): TArgsOptionStr;
-function ArgsGetIntOpt(const Key: string): specialize TOption<Int64>;
-function ArgsGetDoubleOpt(const Key: string): specialize TOption<Double>;
-function ArgsGetBoolOpt(const Key: string): specialize TOption<Boolean>;
+// Note: Option-style APIs (ArgsGetOpt, ArgsGetInt64Opt, etc.) are in args.base.pas
+// This unit focuses on Result-style APIs with detailed error information
 
 // 验证辅助函数
 function ValidateRange(const Value: Int64; Min, Max: Int64): specialize TResult<Int64, TArgsError>;
@@ -78,9 +79,26 @@ function ValidateEnum(const Value: string; const ValidValues: array of string): 
 implementation
 
 uses
-  fafafa.core.args, RegExpr;
+  fafafa.core.args.base, RegExpr;
 
 { TArgsError }
+
+class function TArgsError.Success: TArgsError;
+begin
+  Result.Kind := aekSuccess;
+  Result.Message := '';
+  Result.OptionName := '';
+  Result.Position := -1;
+  Result.ExpectedType := '';
+  Result.ActualValue := '';
+  Result.Suggestion := '';
+  Result.Context := '';
+end;
+
+function TArgsError.IsSuccess: Boolean;
+begin
+  Result := Kind = aekSuccess;
+end;
 
 class function TArgsError.UnknownOption(const OptName: string; Pos: Integer): TArgsError;
 begin
@@ -90,6 +108,8 @@ begin
   Result.Position := Pos;
   Result.ExpectedType := '';
   Result.ActualValue := '';
+  Result.Suggestion := 'Check available options with --help';
+  Result.Context := '';
 end;
 
 class function TArgsError.MissingValue(const OptName: string; Pos: Integer): TArgsError;
@@ -100,16 +120,20 @@ begin
   Result.Position := Pos;
   Result.ExpectedType := '';
   Result.ActualValue := '';
+  Result.Suggestion := Format('Use %s=<value> or %s <value>', [OptName, OptName]);
+  Result.Context := '';
 end;
 
-class function TArgsError.InvalidValue(const OptName, ExpectedType, ActualValue: string; Pos: Integer): TArgsError;
+class function TArgsError.InvalidValue(const OptName, AExpectedType, AActualValue: string; Pos: Integer): TArgsError;
 begin
   Result.Kind := aekInvalidValue;
-  Result.Message := Format('Invalid value for option %s: expected %s, got "%s"', [OptName, ExpectedType, ActualValue]);
+  Result.Message := Format('Invalid value for option %s: expected %s, got "%s"', [OptName, AExpectedType, AActualValue]);
   Result.OptionName := OptName;
   Result.Position := Pos;
-  Result.ExpectedType := ExpectedType;
-  Result.ActualValue := ActualValue;
+  Result.ExpectedType := AExpectedType;
+  Result.ActualValue := AActualValue;
+  Result.Suggestion := Format('Provide a valid %s value', [AExpectedType]);
+  Result.Context := '';
 end;
 
 class function TArgsError.DuplicateOption(const OptName: string; Pos: Integer): TArgsError;
@@ -120,6 +144,8 @@ begin
   Result.Position := Pos;
   Result.ExpectedType := '';
   Result.ActualValue := '';
+  Result.Suggestion := '';
+  Result.Context := '';
 end;
 
 class function TArgsError.MutuallyExclusive(const Opt1, Opt2: string): TArgsError;
@@ -130,6 +156,8 @@ begin
   Result.Position := -1;
   Result.ExpectedType := '';
   Result.ActualValue := Opt2;
+  Result.Suggestion := Format('Use either %s or %s, not both', [Opt1, Opt2]);
+  Result.Context := '';
 end;
 
 class function TArgsError.RequiredMissing(const OptName: string): TArgsError;
@@ -140,6 +168,8 @@ begin
   Result.Position := -1;
   Result.ExpectedType := '';
   Result.ActualValue := '';
+  Result.Suggestion := Format('Add the required option: %s', [OptName]);
+  Result.Context := '';
 end;
 
 class function TArgsError.TooManyPositionals(Expected, Actual: Integer): TArgsError;
@@ -150,6 +180,8 @@ begin
   Result.Position := Expected;
   Result.ExpectedType := IntToStr(Expected);
   Result.ActualValue := IntToStr(Actual);
+  Result.Suggestion := '';
+  Result.Context := '';
 end;
 
 class function TArgsError.TooFewPositionals(Expected, Actual: Integer): TArgsError;
@@ -160,6 +192,8 @@ begin
   Result.Position := Actual;
   Result.ExpectedType := IntToStr(Expected);
   Result.ActualValue := IntToStr(Actual);
+  Result.Suggestion := '';
+  Result.Context := '';
 end;
 
 class function TArgsError.ParseError(const Msg: string; Pos: Integer): TArgsError;
@@ -170,6 +204,8 @@ begin
   Result.Position := Pos;
   Result.ExpectedType := '';
   Result.ActualValue := '';
+  Result.Suggestion := '';
+  Result.Context := '';
 end;
 
 class function TArgsError.ValidationError(const OptName, Msg: string): TArgsError;
@@ -180,6 +216,8 @@ begin
   Result.Position := -1;
   Result.ExpectedType := '';
   Result.ActualValue := '';
+  Result.Suggestion := '';
+  Result.Context := '';
 end;
 
 function TArgsError.ToString: string;
@@ -188,25 +226,32 @@ begin
 end;
 
 function TArgsError.ToDetailedString: string;
+var
+  KindStr: string;
 begin
-  Result := Format('[%s] %s', [
-    case Kind of
-      aekUnknownOption: 'UNKNOWN_OPTION';
-      aekMissingValue: 'MISSING_VALUE';
-      aekInvalidValue: 'INVALID_VALUE';
-      aekDuplicateOption: 'DUPLICATE_OPTION';
-      aekMutuallyExclusive: 'MUTUALLY_EXCLUSIVE';
-      aekRequiredMissing: 'REQUIRED_MISSING';
-      aekTooManyPositionals: 'TOO_MANY_POSITIONALS';
-      aekTooFewPositionals: 'TOO_FEW_POSITIONALS';
-      aekParseError: 'PARSE_ERROR';
-      aekValidationError: 'VALIDATION_ERROR';
-    end,
-    Message
-  ]);
-  
+  case Kind of
+    aekSuccess: KindStr := 'SUCCESS';
+    aekUnknownOption: KindStr := 'UNKNOWN_OPTION';
+    aekMissingValue: KindStr := 'MISSING_VALUE';
+    aekInvalidValue: KindStr := 'INVALID_VALUE';
+    aekDuplicateOption: KindStr := 'DUPLICATE_OPTION';
+    aekMutuallyExclusive: KindStr := 'MUTUALLY_EXCLUSIVE';
+    aekRequiredMissing: KindStr := 'REQUIRED_MISSING';
+    aekTooManyPositionals: KindStr := 'TOO_MANY_POSITIONALS';
+    aekTooFewPositionals: KindStr := 'TOO_FEW_POSITIONALS';
+    aekParseError: KindStr := 'PARSE_ERROR';
+    aekValidationError: KindStr := 'VALIDATION_ERROR';
+  else
+    KindStr := 'UNKNOWN';
+  end;
+
+  Result := Format('[%s] %s', [KindStr, Message]);
+
   if Position >= 0 then
     Result := Result + Format(' (position: %d)', [Position]);
+
+  if Suggestion <> '' then
+    Result := Result + Format(' Suggestion: %s', [Suggestion]);
 end;
 
 // 现代化的参数获取函数实现
@@ -275,60 +320,6 @@ begin
       TArgsError.InvalidValue(Key, 'boolean', Value)));
   
   Result := specialize TResult<Boolean, TArgsError>.Ok(BoolValue);
-end;
-
-// Option 风格的参数获取实现
-function ArgsGetValueOpt(const Key: string): TArgsOptionStr;
-var
-  Value: string;
-begin
-  if ArgsTryGetValue(Key, Value) then
-    Result := specialize TOption<string>.Some(Value)
-  else
-    Result := specialize TOption<string>.None;
-end;
-
-function ArgsGetIntOpt(const Key: string): specialize TOption<Int64>;
-var
-  Value: string;
-  IntValue: Int64;
-begin
-  if ArgsTryGetValue(Key, Value) and TryStrToInt64(Value, IntValue) then
-    Result := specialize TOption<Int64>.Some(IntValue)
-  else
-    Result := specialize TOption<Int64>.None;
-end;
-
-function ArgsGetDoubleOpt(const Key: string): specialize TOption<Double>;
-var
-  Value: string;
-  DoubleValue: Double;
-begin
-  if ArgsTryGetValue(Key, Value) and TryStrToFloat(Value, DoubleValue) then
-    Result := specialize TOption<Double>.Some(DoubleValue)
-  else
-    Result := specialize TOption<Double>.None;
-end;
-
-function ArgsGetBoolOpt(const Key: string): specialize TOption<Boolean>;
-var
-  Value: string;
-begin
-  if ArgsHasFlag(Key) then
-    Exit(specialize TOption<Boolean>.Some(True));
-  
-  if ArgsTryGetValue(Key, Value) then
-  begin
-    Value := LowerCase(Trim(Value));
-    if (Value = 'true') or (Value = '1') or (Value = 'yes') or (Value = 'on') then
-      Result := specialize TOption<Boolean>.Some(True)
-    else if (Value = 'false') or (Value = '0') or (Value = 'no') or (Value = 'off') then
-      Result := specialize TOption<Boolean>.Some(False)
-    else
-      Result := specialize TOption<Boolean>.None;
-  end
-  else
-    Result := specialize TOption<Boolean>.None;
 end;
 
 // 验证辅助函数实现

@@ -8,7 +8,7 @@ interface
 uses
   SysUtils, BaseUnix, Unix, UnixType, pthreads,
   fafafa.core.sync.base, fafafa.core.sync.mutex.base,
-  fafafa.core.sync.condvar.base;
+  fafafa.core.sync.condvar.base, fafafa.core.sync.timespec;
 
 type
   TCondVar = class(TSynchronizable, ICondVar)
@@ -115,11 +115,6 @@ var
   PMutex: Ppthread_mutex_t;
   TS: timespec;
   RC: Integer;
-  {$IFDEF HAS_CLOCK_MONOTONIC}
-  NowTS: timespec;
-  {$ELSE}
-  TV: TTimeVal;
-  {$ENDIF}
 begin
   if ALock = nil then
     raise EArgumentNilException.Create('Lock cannot be nil');
@@ -136,42 +131,30 @@ begin
   if ATimeoutMs = 0 then
     Exit(False);
 
-    {$IFDEF HAS_CLOCK_MONOTONIC}
-    clock_gettime(CLOCK_MONOTONIC, @NowTS);
-    TS.tv_sec := NowTS.tv_sec + (ATimeoutMs div 1000);
-    TS.tv_nsec := NowTS.tv_nsec + Int64(ATimeoutMs mod 1000) * 1000000;
-    if TS.tv_nsec >= 1000000000 then
-    begin
-      Inc(TS.tv_sec);
-      Dec(TS.tv_nsec, 1000000000);
-    end;
-    {$ELSE}
-    if fpgettimeofday(@TV, nil) <> 0 then Exit(False);
-    TS.tv_sec := TV.tv_sec + (ATimeoutMs div 1000);
-    TS.tv_nsec := (TV.tv_usec * 1000) + Int64(ATimeoutMs mod 1000) * 1000000;
-    if TS.tv_nsec >= 1000000000 then
-    begin
-      Inc(TS.tv_sec);
-      Dec(TS.tv_nsec, 1000000000);
-    end;
-    {$ENDIF}
+  // 使用 timespec.pas 共享函数计算超时
+  // 注意: 必须与 pthread_condattr_setclock 设置的时钟一致
+  {$IFDEF HAS_CLOCK_MONOTONIC}
+  TS := TimeoutToMonotonicTimespec(ATimeoutMs);
+  {$ELSE}
+  TS := TimeoutToTimespec(ATimeoutMs);
+  {$ENDIF}
 
-    RC := pthread_cond_timedwait(@FCond, PMutex, @TS);
-    if RC = 0 then
-    begin
-      FLastError := weNone;
-      Exit(True)
-    end
-    else if RC = ESysETIMEDOUT then
-    begin
-      FLastError := weTimeout;
-      Exit(False)
-    end
-    else
-    begin
-      FLastError := MapErrToWaitError(RC);
-      raise ELockError.Create('pthread_cond_timedwait failed');
-    end;
+  RC := pthread_cond_timedwait(@FCond, PMutex, @TS);
+  if RC = 0 then
+  begin
+    FLastError := weNone;
+    Exit(True)
+  end
+  else if RC = ESysETIMEDOUT then
+  begin
+    FLastError := weTimeout;
+    Exit(False)
+  end
+  else
+  begin
+    FLastError := MapErrToWaitError(RC);
+    raise ELockError.Create('pthread_cond_timedwait failed');
+  end;
 
 end;
 

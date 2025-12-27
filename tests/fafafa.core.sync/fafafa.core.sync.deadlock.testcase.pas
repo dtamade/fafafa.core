@@ -64,7 +64,7 @@ var
 begin
   WriteLn('测试: Mutex 重入应该检测到死锁');
 
-  M := MakeMutex;  // 非重入互斥锁
+  M := MakePthreadMutex;  // 非重入互斥锁
   DeadlockDetected := False;
 
   M.Acquire;
@@ -95,7 +95,7 @@ var
 begin
   WriteLn('测试: Mutex 跨线程超时');
 
-  M := MakeMutex;
+  M := MakePthreadMutex;
 
   // 主线程持有锁
   M.Acquire;
@@ -263,8 +263,8 @@ var
 begin
   WriteLn('测试: 嵌套锁相同顺序获取不会死锁');
 
-  M1 := MakeMutex;
-  M2 := MakeMutex;
+  M1 := MakePthreadMutex;
+  M2 := MakePthreadMutex;
 
   // 按顺序获取锁：M1 -> M2
   M1.Acquire;
@@ -304,8 +304,8 @@ var
 begin
   WriteLn('测试: 嵌套锁超时检测（模拟潜在死锁场景）');
 
-  M1 := MakeMutex;
-  M2 := MakeMutex;
+  M1 := MakePthreadMutex;
+  M2 := MakePthreadMutex;
   Thread1Completed := False;
   Thread2Completed := False;
   Thread1GotM2 := False;

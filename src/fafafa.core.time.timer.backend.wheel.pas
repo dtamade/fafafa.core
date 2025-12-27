@@ -238,7 +238,7 @@ begin
     Node := FSlots[I];
     while Node <> nil do
     begin
-      if (not Found) or Node^.Entry^.Deadline.LessThan(Earliest) then
+      if (not Found) or (Node^.Entry^.Deadline < Earliest) then
       begin
         Earliest := Node^.Entry^.Deadline;
         Found := True;
@@ -253,7 +253,7 @@ begin
   Node := FOverflow;
   while Node <> nil do
   begin
-    if (not Found) or Node^.Entry^.Deadline.LessThan(Earliest) then
+    if (not Found) or (Node^.Entry^.Deadline < Earliest) then
     begin
       Earliest := Node^.Entry^.Deadline;
       Found := True;
@@ -335,7 +335,7 @@ begin
     begin
       if Node^.Rounds = 0 then
       begin
-        if (Best = nil) or Node^.Entry^.Deadline.LessThan(Best^.Entry^.Deadline) then
+        if (Best = nil) or (Node^.Entry^.Deadline < Best^.Entry^.Deadline) then
         begin
           Best := Node;
           BestSlot := I;
@@ -351,9 +351,9 @@ begin
   Node := FOverflow;
   while Node <> nil do
   begin
-    if Node^.Entry^.Deadline.LessThan(FCurrentTime) or (Node^.Entry^.Deadline = FCurrentTime) then
+    if (Node^.Entry^.Deadline < FCurrentTime) or (Node^.Entry^.Deadline = FCurrentTime) then
     begin
-      if (Best = nil) or Node^.Entry^.Deadline.LessThan(Best^.Entry^.Deadline) then
+      if (Best = nil) or (Node^.Entry^.Deadline < Best^.Entry^.Deadline) then
       begin
         Best := Node;
         BestSlot := -1;  // 溢出列表
@@ -392,7 +392,7 @@ begin
     if Entry = nil then Break;
 
     // Dequeue 已经返回最早到期的，检查是否已到期
-    if PTimerEntryCompat(Entry)^.Deadline.GreaterThan(Now) then
+    if PTimerEntryCompat(Entry)^.Deadline > Now then
     begin
       // 未到期，放回队列
       Enqueue(Entry);
@@ -422,7 +422,7 @@ begin
     Node := FSlots[I];
     while Node <> nil do
     begin
-      if (Best = nil) or Node^.Entry^.Deadline.LessThan(Best^.Entry^.Deadline) then
+      if (Best = nil) or (Node^.Entry^.Deadline < Best^.Entry^.Deadline) then
         Best := Node;
       Node := Node^.Next;
     end;
@@ -434,7 +434,7 @@ begin
   Node := FOverflow;
   while Node <> nil do
   begin
-    if (Best = nil) or Node^.Entry^.Deadline.LessThan(Best^.Entry^.Deadline) then
+    if (Best = nil) or (Node^.Entry^.Deadline < Best^.Entry^.Deadline) then
       Best := Node;
     Node := Node^.Next;
   end;

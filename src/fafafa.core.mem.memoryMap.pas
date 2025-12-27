@@ -320,6 +320,19 @@ type
 
 implementation
 
+{$IFDEF UNIX}
+// POSIX 共享内存和内存管理函数声明
+// FPC 的 BaseUnix 不提供 fp* 别名，需要显式声明
+function shm_open(name: PAnsiChar; oflag: cint; mode: mode_t): cint; cdecl; external 'rt';
+function shm_unlink(name: PAnsiChar): cint; cdecl; external 'rt';
+function msync(addr: Pointer; len: size_t; flags: cint): cint; cdecl; external 'c';
+function mlock(addr: Pointer; len: size_t): cint; cdecl; external 'c';
+function munlock(addr: Pointer; len: size_t): cint; cdecl; external 'c';
+
+const
+  MS_SYNC = 4;  // msync flags: synchronous memory sync
+{$ENDIF}
+
 { TMemoryMap }
 
 constructor TMemoryMap.Create;
@@ -696,7 +709,7 @@ begin
   {$IFDEF WINDOWS}
   Result := FlushViewOfFile(LFlushPtr, LFlushSize);
   {$ELSE}
-  Result := FpMsync(LFlushPtr, LFlushSize, MS_SYNC) = 0;
+  Result := msync(LFlushPtr, LFlushSize, MS_SYNC) = 0;
   {$ENDIF}
 end;
 
@@ -778,7 +791,7 @@ begin
   {$IFDEF WINDOWS}
   Result := VirtualLock(LLockPtr, LLockSize);
   {$ELSE}
-  Result := FpMLock(LLockPtr, LLockSize) = 0;
+  Result := mlock(LLockPtr, LLockSize) = 0;
   {$ENDIF}
 end;
 {$POP}
@@ -805,7 +818,7 @@ begin
   {$IFDEF WINDOWS}
   Result := VirtualUnlock(LUnlockPtr, LUnlockSize);
   {$ELSE}
-  Result := FpMUnlock(LUnlockPtr, LUnlockSize) = 0;
+  Result := munlock(LUnlockPtr, LUnlockSize) = 0;
   {$ENDIF}
 end;
 
@@ -982,11 +995,11 @@ begin
     LSharedName := FName;
 
   // O_EXCL 避免覆盖已存在的对象
-  LFileHandle := fpShmOpen(PChar(LSharedName), O_CREAT or O_EXCL or O_RDWR, &666);
+  LFileHandle := shm_open(PChar(LSharedName), O_CREAT or O_EXCL or O_RDWR, &666);
   if LFileHandle = -1 then
   begin
     // 已存在则仅打开
-    LFileHandle := fpShmOpen(PChar(LSharedName), O_RDWR, 0);
+    LFileHandle := shm_open(PChar(LSharedName), O_RDWR, 0);
     if LFileHandle = -1 then Exit;
     FIsCreator := False;
   end
@@ -997,7 +1010,7 @@ begin
     if FpFTruncate(LFileHandle, FSize) <> 0 then
     begin
       FpClose(LFileHandle);
-      fpShmUnlink(PChar(LSharedName));
+      shm_unlink(PChar(LSharedName));
       Exit;
     end;
   end;
@@ -1018,7 +1031,7 @@ begin
     FMemoryMap.FBaseAddress := nil;
     FpClose(LFileHandle);
     if FIsCreator then
-      fpShmUnlink(PChar(LSharedName));
+      shm_unlink(PChar(LSharedName));
     FMemoryMap.FFileHandle := INVALID_HANDLE_VALUE;
     FMemoryMap.FIsOpen := False;
     Exit;
@@ -1104,11 +1117,11 @@ begin
 
   // 根据访问模式确定打开标志
   case aAccess of
-    mmaRead: LFileHandle := fpShmOpen(PChar(LSharedName), O_RDONLY, 0);
-    mmaWrite, mmaReadWrite: LFileHandle := fpShmOpen(PChar(LSharedName), O_RDWR, 0);
-    mmaCopyOnWrite: LFileHandle := fpShmOpen(PChar(LSharedName), O_RDONLY, 0);
+    mmaRead: LFileHandle := shm_open(PChar(LSharedName), O_RDONLY, 0);
+    mmaWrite, mmaReadWrite: LFileHandle := shm_open(PChar(LSharedName), O_RDWR, 0);
+    mmaCopyOnWrite: LFileHandle := shm_open(PChar(LSharedName), O_RDONLY, 0);
   else
-    LFileHandle := fpShmOpen(PChar(LSharedName), O_RDWR, 0);
+    LFileHandle := shm_open(PChar(LSharedName), O_RDWR, 0);
   end;
   if LFileHandle = -1 then Exit;
 
@@ -1164,7 +1177,7 @@ begin
         LSharedName := '/' + FName
       else
         LSharedName := FName;
-      fpShmUnlink(PChar(LSharedName));
+      shm_unlink(PChar(LSharedName));
     end;
     {$ENDIF}
 

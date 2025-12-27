@@ -291,7 +291,7 @@ var
   ex: ITimerSchedulerTry;
 begin
   if Supports(DefaultTimerScheduler, ITimerSchedulerTry, ex) then
-    Result := ex.TrySchedule(Delay, fafafa.core.time.timer.TProc(Callback))
+    Result := ex.TrySchedule(Delay, TimerCallback(fafafa.core.time.timer.TTimerProc(Callback)))
   else
     Result := TTimerResult.Err(tekSystemError);
 end;
@@ -311,7 +311,7 @@ var
   ex: ITimerSchedulerTry;
 begin
   if Supports(DefaultTimerScheduler, ITimerSchedulerTry, ex) then
-    Result := ex.TryScheduleFixedRate(InitialDelay, Period, fafafa.core.time.timer.TProc(Callback))
+    Result := ex.TryScheduleFixedRate(InitialDelay, Period, TimerCallback(fafafa.core.time.timer.TTimerProc(Callback)))
   else
     Result := TTimerResult.Err(tekSystemError);
 end;
@@ -331,7 +331,7 @@ var
   ex: ITimerSchedulerTry;
 begin
   if Supports(DefaultTimerScheduler, ITimerSchedulerTry, ex) then
-    Result := ex.TryScheduleFixedDelay(InitialDelay, Delay, fafafa.core.time.timer.TProc(Callback))
+    Result := ex.TryScheduleFixedDelay(InitialDelay, Delay, TimerCallback(fafafa.core.time.timer.TTimerProc(Callback)))
   else
     Result := TTimerResult.Err(tekSystemError);
 end;
@@ -351,7 +351,7 @@ var
   ex: ITimerSchedulerTry;
 begin
   if Supports(DefaultTimerScheduler, ITimerSchedulerTry, ex) then
-    Result := ex.TryScheduleAt(Deadline, fafafa.core.time.timer.TProc(Callback))
+    Result := ex.TryScheduleAtCb(Deadline, TimerCallback(fafafa.core.time.timer.TTimerProc(Callback)))
   else
     Result := TTimerResult.Err(tekSystemError);
 end;
@@ -368,17 +368,17 @@ end;
 
 function ScheduleOnce(const Delay: TDuration; const Callback: TProc): ITimer; inline;
 begin
-  Result := DefaultTimerScheduler.ScheduleOnce(Delay, Callback);
+  Result := DefaultTimerScheduler.Schedule(Delay, TimerCallback(fafafa.core.time.timer.TTimerProc(Callback)));
 end;
 
 function ScheduleFixedRate(const InitialDelay: TDuration; const Period: TDuration; const Callback: TProc): ITimer; inline;
 begin
-  Result := DefaultTimerScheduler.ScheduleAtFixedRate(InitialDelay, Period, Callback);
+  Result := DefaultTimerScheduler.ScheduleFixedRate(InitialDelay, Period, TimerCallback(fafafa.core.time.timer.TTimerProc(Callback)));
 end;
 
 function ScheduleFixedDelay(const InitialDelay: TDuration; const Delay: TDuration; const Callback: TProc): ITimer; inline;
 begin
-  Result := DefaultTimerScheduler.ScheduleWithFixedDelay(InitialDelay, Delay, Callback);
+  Result := DefaultTimerScheduler.ScheduleFixedDelay(InitialDelay, Delay, TimerCallback(fafafa.core.time.timer.TTimerProc(Callback)));
 end;
 
 procedure SleepFor(const D: TDuration); inline;

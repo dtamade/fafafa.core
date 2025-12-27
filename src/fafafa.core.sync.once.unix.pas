@@ -68,6 +68,14 @@ type
       STATE_COMPLETED = 2;
       STATE_POISONED = 3;
 
+    // 状态机辅助方法 - 消除 DoInternal 重复代码
+    {** 快速路径检查，返回 True 表示可以跳过执行 *}
+    function CheckFastPathAndExit(AForce: Boolean): Boolean; inline;
+    {** 进入慢速路径，获取锁并检查状态，返回 True 表示应该执行回调 *}
+    function EnterSlowPath(AForce: Boolean): Boolean;
+    {** 完成执行，设置状态 *}
+    procedure FinishExecution(ASuccess: Boolean); inline;
+
     // 内部执行方法
     procedure DoInternal(const AProc: TOnceProc; AForce: Boolean); overload;
     procedure DoInternal(const AMethod: TOnceMethod; AForce: Boolean); overload;
@@ -305,15 +313,15 @@ begin
   inherited Destroy;
 end;
 
-// 核心内部实现：高性能原子快速路�?+ 慢速路�?
-procedure TOnce.DoInternal(const AProc: TOnceProc; AForce: Boolean);
+// ===== 状态机辅助方法 =====
+
+function TOnce.CheckFastPathAndExit(AForce: Boolean): Boolean;
 begin
-  // 快速路径：使用 acquire 语义读取，确保内存可见�?
-  // 修复：使�?LoadAcquire 替代简单的 FDone 读取，解决内存屏障缺失问�?
+  // 快速路径：使用 acquire 语义读取，确保内存可见性
+  Result := False;
   if LoadAcquire(FDone) and not AForce then
   begin
     // 如果是毒化状态且不强制执行，抛出异常
-    // 这里仍需要锁，因为状态检查需要与状态设置同�?
     pthread_mutex_lock(@FMutex);
     try
       if FState = STATE_POISONED then
@@ -321,188 +329,150 @@ begin
     finally
       pthread_mutex_unlock(@FMutex);
     end;
-    Exit;
+    Result := True; // 可以跳过执行
   end;
+end;
 
-  // 递归调用检测（在获取锁之前检查，避免死锁�?
+function TOnce.EnterSlowPath(AForce: Boolean): Boolean;
+begin
+  Result := False;
+
+  // 递归调用检测（在获取锁之前检查，避免死锁）
   if FExecutingThreadId = GetCurrentThreadId then
     raise EOnceRecursiveCall.Create(rsOnceRecursiveCall);
 
-  // 慢速路径：需要同步执�?
+  // 慢速路径：需要同步执行
   pthread_mutex_lock(@FMutex);
-  try
-    // 双重检查锁定模�?- 在锁内再次检�?
-    if LoadAcquire(FDone) and not AForce then
+
+  // 双重检查锁定模式 - 在锁内再次检查
+  if LoadAcquire(FDone) and not AForce then
+  begin
+    if FState = STATE_POISONED then
     begin
-      if FState = STATE_POISONED then
-        raise ELockError.Create(rsOnceAlreadyPoisoned);
-      Exit;
+      pthread_mutex_unlock(@FMutex);
+      raise ELockError.Create(rsOnceAlreadyPoisoned);
+    end;
+    pthread_mutex_unlock(@FMutex);
+    Exit; // Result = False
+  end;
+
+  // 检查当前状态，确保并发安全
+  case FState of
+    STATE_NOT_STARTED:
+    begin
+      FState := STATE_IN_PROGRESS;
+      FExecutingThreadId := GetCurrentThreadId;
+      Result := True;
     end;
 
-    // 检查当前状态，确保并发安全
-    case FState of
-      STATE_NOT_STARTED:
+    STATE_IN_PROGRESS:
+    begin
+      if not AForce then
       begin
-        // 只有第一个线程能进入这里
+        pthread_mutex_unlock(@FMutex);
+        Exit; // Result = False
+      end
+      else
+      begin
         FState := STATE_IN_PROGRESS;
         FExecutingThreadId := GetCurrentThreadId;
-      end;
-
-      STATE_IN_PROGRESS:
-      begin
-        // 其他线程：正在执行中，不强制执行则直接返�?
-        if not AForce then
-          Exit
-        else
-        begin
-          // 强制执行：重置状�?
-          FState := STATE_IN_PROGRESS;
-          FExecutingThreadId := GetCurrentThreadId;
-        end;
-      end;
-
-      STATE_COMPLETED:
-      begin
-        // 已完成，强制执行时重新执�?
-        if AForce then
-        begin
-          FState := STATE_IN_PROGRESS;
-          FExecutingThreadId := GetCurrentThreadId;
-        end
-        else
-          Exit;
-      end;
-
-      STATE_POISONED:
-      begin
-        // 毒化状�?
-        if not AForce then
-          raise ELockError.Create(rsOnceAlreadyPoisoned)
-        else
-        begin
-          // 强制执行：从毒化状态恢�?
-          FState := STATE_IN_PROGRESS;
-          FExecutingThreadId := GetCurrentThreadId;
-        end;
+        Result := True;
       end;
     end;
 
-    try
-      try
-        // 执行用户回调
-        if Assigned(AProc) then
-          AProc();
-
-        // 标记为已完成
-        FState := STATE_COMPLETED;
-        // 使用 release 语义存储，确保所有前面的操作对其他线程可�?
-        StoreRelease(FDone, True);  // 启用快速路�?
-      except
-        // 异常处理：标记为毒化状�?
-        FState := STATE_POISONED;
-        // 使用 release 语义存储，确保毒化状态对其他线程可见
-        StoreRelease(FDone, True);  // 即使毒化也设�?Done，避免重复执�?
-        raise;
+    STATE_COMPLETED:
+    begin
+      if AForce then
+      begin
+        FState := STATE_IN_PROGRESS;
+        FExecutingThreadId := GetCurrentThreadId;
+        Result := True;
+      end
+      else
+      begin
+        pthread_mutex_unlock(@FMutex);
+        Exit; // Result = False
       end;
-    finally
-      // 清除执行线程ID
-      FExecutingThreadId := 0;
+    end;
+
+    STATE_POISONED:
+    begin
+      if not AForce then
+      begin
+        pthread_mutex_unlock(@FMutex);
+        raise ELockError.Create(rsOnceAlreadyPoisoned);
+      end
+      else
+      begin
+        FState := STATE_IN_PROGRESS;
+        FExecutingThreadId := GetCurrentThreadId;
+        Result := True;
+      end;
+    end;
+  end;
+  // 注意：如果 Result = True，锁仍然被持有，调用方必须释放
+end;
+
+procedure TOnce.FinishExecution(ASuccess: Boolean);
+begin
+  if ASuccess then
+  begin
+    FState := STATE_COMPLETED;
+    StoreRelease(FDone, True);
+  end
+  else
+  begin
+    FState := STATE_POISONED;
+    StoreRelease(FDone, True);
+  end;
+end;
+
+// ===== DoInternal 实现（使用辅助方法消除重复） =====
+
+procedure TOnce.DoInternal(const AProc: TOnceProc; AForce: Boolean);
+begin
+  // 快速路径检查
+  if CheckFastPathAndExit(AForce) then Exit;
+
+  // 慢速路径
+  if not EnterSlowPath(AForce) then Exit;
+
+  // 执行回调（锁已被 EnterSlowPath 获取）
+  try
+    try
+      if Assigned(AProc) then
+        AProc();
+      FinishExecution(True);
+    except
+      FinishExecution(False);
+      raise;
     end;
   finally
+    FExecutingThreadId := 0;
     pthread_mutex_unlock(@FMutex);
   end;
 end;
 
 procedure TOnce.DoInternal(const AMethod: TOnceMethod; AForce: Boolean);
 begin
-  // 快速路径：使用 acquire 语义读取，确保内存可见�?
-  if LoadAcquire(FDone) and not AForce then
-  begin
-    pthread_mutex_lock(@FMutex);
-    try
-      if FState = STATE_POISONED then
-        raise ELockError.Create(rsOnceAlreadyPoisoned);
-    finally
-      pthread_mutex_unlock(@FMutex);
-    end;
-    Exit;
-  end;
+  // 快速路径检查
+  if CheckFastPathAndExit(AForce) then Exit;
 
-  // 递归调用检测（在获取锁之前检查，避免死锁�?
-  if FExecutingThreadId = GetCurrentThreadId then
-    raise EOnceRecursiveCall.Create(rsOnceRecursiveCall);
+  // 慢速路径
+  if not EnterSlowPath(AForce) then Exit;
 
-  // 慢速路径：需要同步执�?
-  pthread_mutex_lock(@FMutex);
+  // 执行回调（锁已被 EnterSlowPath 获取）
   try
-    if LoadAcquire(FDone) and not AForce then
-    begin
-      if FState = STATE_POISONED then
-        raise ELockError.Create(rsOnceAlreadyPoisoned);
-      Exit;
-    end;
-
-    // 检查当前状态，确保并发安全
-    case FState of
-      STATE_NOT_STARTED:
-      begin
-        FState := STATE_IN_PROGRESS;
-        FExecutingThreadId := GetCurrentThreadId;
-      end;
-
-      STATE_IN_PROGRESS:
-      begin
-        if not AForce then
-          Exit
-        else
-        begin
-          FState := STATE_IN_PROGRESS;
-          FExecutingThreadId := GetCurrentThreadId;
-        end;
-      end;
-
-      STATE_COMPLETED:
-      begin
-        if AForce then
-        begin
-          FState := STATE_IN_PROGRESS;
-          FExecutingThreadId := GetCurrentThreadId;
-        end
-        else
-          Exit;
-      end;
-
-      STATE_POISONED:
-      begin
-        if not AForce then
-          raise ELockError.Create(rsOnceAlreadyPoisoned)
-        else
-        begin
-          FState := STATE_IN_PROGRESS;
-          FExecutingThreadId := GetCurrentThreadId;
-        end;
-      end;
-    end;
-
     try
-      try
-        if Assigned(AMethod) then
-          AMethod();
-
-        FState := STATE_COMPLETED;
-        // 使用 release 语义存储，确保所有前面的操作对其他线程可�?
-        StoreRelease(FDone, True);
-      except
-        FState := STATE_POISONED;
-        // 使用 release 语义存储，确保毒化状态对其他线程可见
-        StoreRelease(FDone, True);
-        raise;
-      end;
-    finally
-      // 清除执行线程ID
-      FExecutingThreadId := 0;
+      if Assigned(AMethod) then
+        AMethod();
+      FinishExecution(True);
+    except
+      FinishExecution(False);
+      raise;
     end;
   finally
+    FExecutingThreadId := 0;
     pthread_mutex_unlock(@FMutex);
   end;
 end;
@@ -510,94 +480,24 @@ end;
 {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
 procedure TOnce.DoInternal(const AAnonymousProc: TOnceAnonymousProc; AForce: Boolean);
 begin
-  // 快速路径：使用 acquire 语义读取，确保内存可见�?
-  if LoadAcquire(FDone) and not AForce then
-  begin
-    pthread_mutex_lock(@FMutex);
-    try
-      if FState = STATE_POISONED then
-        raise ELockError.Create(rsOnceAlreadyPoisoned);
-    finally
-      pthread_mutex_unlock(@FMutex);
-    end;
-    Exit;
-  end;
+  // 快速路径检查
+  if CheckFastPathAndExit(AForce) then Exit;
 
-  // 慢速路径：需要同步执�?
-  // 递归调用检测（在获取锁之前检查，避免死锁�?
-  if FExecutingThreadId = GetCurrentThreadId then
-    raise EOnceRecursiveCall.Create(rsOnceRecursiveCall);
+  // 慢速路径
+  if not EnterSlowPath(AForce) then Exit;
 
-  pthread_mutex_lock(@FMutex);
+  // 执行回调（锁已被 EnterSlowPath 获取）
   try
-    if LoadAcquire(FDone) and not AForce then
-    begin
-      if FState = STATE_POISONED then
-        raise ELockError.Create(rsOnceAlreadyPoisoned);
-      Exit;
-    end;
-
-    // 检查当前状态，确保并发安全
-    case FState of
-      STATE_NOT_STARTED:
-      begin
-        FState := STATE_IN_PROGRESS;
-        FExecutingThreadId := GetCurrentThreadId;
-      end;
-
-      STATE_IN_PROGRESS:
-      begin
-        if not AForce then
-          Exit
-        else
-        begin
-          FState := STATE_IN_PROGRESS;
-          FExecutingThreadId := GetCurrentThreadId;
-        end;
-      end;
-
-      STATE_COMPLETED:
-      begin
-        if AForce then
-        begin
-          FState := STATE_IN_PROGRESS;
-          FExecutingThreadId := GetCurrentThreadId;
-        end
-        else
-          Exit;
-      end;
-
-      STATE_POISONED:
-      begin
-        if not AForce then
-          raise ELockError.Create(rsOnceAlreadyPoisoned)
-        else
-        begin
-          FState := STATE_IN_PROGRESS;
-          FExecutingThreadId := GetCurrentThreadId;
-        end;
-      end;
-    end;
-
     try
-      try
-        if Assigned(AAnonymousProc) then
-          AAnonymousProc();
-
-        FState := STATE_COMPLETED;
-        // 使用 release 语义存储，确保所有前面的操作对其他线程可�?
-        StoreRelease(FDone, True);
-      except
-        FState := STATE_POISONED;
-        // 使用 release 语义存储，确保毒化状态对其他线程可见
-        StoreRelease(FDone, True);
-        raise;
-      end;
-    finally
-      // 清除执行线程ID
-      FExecutingThreadId := 0;
+      if Assigned(AAnonymousProc) then
+        AAnonymousProc();
+      FinishExecution(True);
+    except
+      FinishExecution(False);
+      raise;
     end;
   finally
+    FExecutingThreadId := 0;
     pthread_mutex_unlock(@FMutex);
   end;
 end;

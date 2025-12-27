@@ -1505,6 +1505,9 @@ begin
       // Allow internal math implementation units & their tests to use RTL Math.
       if Copy(fileNameLower, 1, Length('fafafa.core.math')) = 'fafafa.core.math' then
         Continue;
+      // Allow SIMD infrastructure units (lower-level than math facade, cannot depend on it).
+      if Copy(fileNameLower, 1, Length('fafafa.core.simd')) = 'fafafa.core.simd' then
+        Continue;
 
   sl.LoadFromFile(pasPath);
   text := sl.Text;
@@ -1631,6 +1634,9 @@ begin
 
       hostFileNameLower := LowerCase(ExtractFileName(hostPath));
       if Copy(hostFileNameLower, 1, Length('fafafa.core.math')) = 'fafafa.core.math' then
+        Continue;
+      // Allow SIMD infrastructure units (lower-level than math facade, cannot depend on it).
+      if Copy(hostFileNameLower, 1, Length('fafafa.core.simd')) = 'fafafa.core.simd' then
         Continue;
 
       sl.LoadFromFile(hostPath);

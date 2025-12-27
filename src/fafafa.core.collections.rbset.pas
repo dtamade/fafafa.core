@@ -2,6 +2,8 @@ unit fafafa.core.collections.rbset;
 
 {$mode objfpc}{$H+}
 {$I fafafa.core.settings.inc}
+// Suppress unused parameter hints for IsOverlap - tree structures don't use contiguous memory
+{$WARN 5024 OFF}
 
 interface
 

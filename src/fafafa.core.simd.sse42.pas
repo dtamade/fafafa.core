@@ -367,11 +367,10 @@ begin
   if not HasSSE42 then
     Exit;
 
-  // Start with base scalar implementations
-  FillBaseDispatchTable(dispatchTable);
+  // ✅ 修复 P0-1: 从 SSE4.1 继承实现（SSE4.2 是 SSE4.1 的超集）
+  dispatchTable := Default(TSimdDispatchTable);
 
-  // Set backend info
-  dispatchTable.Backend := sbSSE42;
+  // Set backend info BEFORE cloning (will be preserved)
   with dispatchTable.BackendInfo do
   begin
     Backend := sbSSE42;
@@ -382,6 +381,16 @@ begin
     Available := True;
     Priority := 22; // Higher than SSE4.1 (20)
   end;
+
+  // Clone from SSE4.1 → SSSE3 → SSE3 → SSE2 chain
+  if not CloneDispatchTable(sbSSE41, dispatchTable) then
+    if not CloneDispatchTable(sbSSSE3, dispatchTable) then
+      if not CloneDispatchTable(sbSSE3, dispatchTable) then
+        if not CloneDispatchTable(sbSSE2, dispatchTable) then
+          FillBaseDispatchTable(dispatchTable);
+
+  // Update backend identifier
+  dispatchTable.Backend := sbSSE42;
 
   // SSE4.2 provides string operations and CRC32
   if IsVectorAsmEnabled then

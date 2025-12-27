@@ -432,12 +432,12 @@ end;
 
 class operator TInstant.<=(const A, B: TInstant): Boolean;
 begin
-  Result := not A.GreaterThan(B);
+  Result := A.FNsSinceEpoch <= B.FNsSinceEpoch;
 end;
 
 class operator TInstant.>=(const A, B: TInstant): Boolean;
 begin
-  Result := not A.LessThan(B);
+  Result := A.FNsSinceEpoch >= B.FNsSinceEpoch;
 end;
 
 function TInstant.CheckedAdd(const D: TDuration; out R: TInstant): Boolean;

@@ -2,6 +2,8 @@ unit fafafa.core.collections.orderedmap.rb;
 
 {$mode objfpc}{$H+}
 {$I fafafa.core.settings.inc}
+// Suppress unused parameter hints - RB tree map uses node-based storage
+{$WARN 5024 OFF}
 
 interface
 

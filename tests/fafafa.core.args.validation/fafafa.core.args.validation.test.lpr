@@ -1,17 +1,25 @@
-program fafafa_core_args_validation_test;
+{$CODEPAGE UTF8}
+program fafafa.core.args.validation.test;
 
 {$mode objfpc}{$H+}
-{$CODEPAGE UTF8}
-{$I ../../src/fafafa.core.settings.inc}
 
 uses
-  Interfaces, Forms, GuiTestRunner,
+  SysUtils, Classes, consoletestrunner,
   fafafa.core.args.validation.testcase;
 
-{$R *.res}
+type
+  TMyTestRunner = class(TTestRunner)
+  protected
+  // override the protected methods of TTestRunner to customize its behavior
+  end;
+
+var
+  Application: TMyTestRunner;
 
 begin
+  Application := TMyTestRunner.Create(nil);
   Application.Initialize;
-  Application.CreateForm(TGuiTestRunner, TestRunner);
+  Application.Title := 'fafafa.core.args.validation Tests';
   Application.Run;
+  Application.Free;
 end.

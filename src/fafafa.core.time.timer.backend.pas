@@ -164,9 +164,8 @@ begin
       Result := CreateBinaryHeapBackend;
     tbkHashedWheel:
       Result := CreateHashedWheelBackend(Config.WheelSlotCount, Config.WheelTickIntervalMs);
-  else
-    Result := CreateBinaryHeapBackend;
   end;
+  // 注意: 所有 TBackendKind 枚举值已覆盖，无需 else 分支
 end;
 
 function CreateBinaryHeapBackend: ITimerQueueBackend;

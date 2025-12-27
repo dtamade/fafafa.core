@@ -36,11 +36,12 @@ interface
 uses
   SysUtils,
   fafafa.core.base,
+  fafafa.core.math.base,  // TOptional<T>, TOverflowResult<T> types
   fafafa.core.math.float,
   fafafa.core.math.safeint,
   fafafa.core.math.intutil,
   fafafa.core.math.dispatch,
-  fafafa.core.math.array_;
+  fafafa.core.math.arrays;
 
 const
   // Keep PI available via facade (avoid direct RTL/qualified PI usage).
@@ -488,6 +489,200 @@ function SaturatingMul(aA, aB: SizeUInt): SizeUInt; overload; {$IFDEF FAFAFA_COR
  *}
 function SaturatingMul(aA, aB: UInt32): UInt32; overload; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
 
+// ============================================================================
+// Checked Operations (Return TOptional - None on overflow)
+// Rust-style checked arithmetic: returns Option<T>.
+// ============================================================================
+
+{**
+ * CheckedAddU32
+ *
+ * @desc
+ *   Checked addition that returns None on overflow.
+ *   检查加法，溢出时返回 None。
+ *
+ * @example
+ *   var result: TOptionalU32;
+ *   result := CheckedAddU32(100, 50);
+ *   if result.Valid then
+ *     WriteLn('Sum: ', result.Value)  // 输出: Sum: 150
+ *
+ * @safety
+ *   永不引发异常，溢出时返回 None。
+ *}
+function CheckedAddU32(aA, aB: UInt32): TOptionalU32; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function CheckedSubU32(aA, aB: UInt32): TOptionalU32; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function CheckedMulU32(aA, aB: UInt32): TOptionalU32; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function CheckedDivU32(aA, aB: UInt32): TOptionalU32; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+
+function CheckedAddU64(aA, aB: UInt64): TOptionalU64; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function CheckedSubU64(aA, aB: UInt64): TOptionalU64; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function CheckedMulU64(aA, aB: UInt64): TOptionalU64; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function CheckedDivU64(aA, aB: UInt64): TOptionalU64; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+
+function CheckedAddI32(aA, aB: Int32): TOptionalI32; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function CheckedSubI32(aA, aB: Int32): TOptionalI32; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function CheckedMulI32(aA, aB: Int32): TOptionalI32; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function CheckedDivI32(aA, aB: Int32): TOptionalI32; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function CheckedNegI32(aA: Int32): TOptionalI32; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+
+function CheckedAddI64(aA, aB: Int64): TOptionalI64; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function CheckedSubI64(aA, aB: Int64): TOptionalI64; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function CheckedMulI64(aA, aB: Int64): TOptionalI64; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function CheckedDivI64(aA, aB: Int64): TOptionalI64; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function CheckedNegI64(aA: Int64): TOptionalI64; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+
+// ============================================================================
+// Overflowing Operations (Return value + overflow flag)
+// Rust-style overflowing arithmetic: returns (T, bool).
+// ============================================================================
+
+{**
+ * OverflowingAddU32
+ *
+ * @desc
+ *   Overflowing addition that returns wrapped value + overflow flag.
+ *   溢出加法，返回环绕值和溢出标志。
+ *
+ * @example
+ *   var result: TOverflowU32;
+ *   result := OverflowingAddU32(High(UInt32), 1);
+ *   WriteLn('Value: ', result.Value);       // 0 (环绕)
+ *   WriteLn('Overflowed: ', result.Overflowed);  // True
+ *}
+function OverflowingAddU32(aA, aB: UInt32): TOverflowU32; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function OverflowingSubU32(aA, aB: UInt32): TOverflowU32; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function OverflowingMulU32(aA, aB: UInt32): TOverflowU32; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+
+function OverflowingAddU64(aA, aB: UInt64): TOverflowU64; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function OverflowingSubU64(aA, aB: UInt64): TOverflowU64; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function OverflowingMulU64(aA, aB: UInt64): TOverflowU64; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+
+function OverflowingAddI32(aA, aB: Int32): TOverflowI32; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function OverflowingSubI32(aA, aB: Int32): TOverflowI32; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function OverflowingMulI32(aA, aB: Int32): TOverflowI32; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function OverflowingNegI32(aA: Int32): TOverflowI32; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+
+function OverflowingAddI64(aA, aB: Int64): TOverflowI64; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function OverflowingSubI64(aA, aB: Int64): TOverflowI64; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function OverflowingMulI64(aA, aB: Int64): TOverflowI64; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function OverflowingNegI64(aA: Int64): TOverflowI64; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+
+// ============================================================================
+// Wrapping Operations (2's complement wrap, no overflow detection)
+// Rust-style wrapping arithmetic: always wraps on overflow.
+// ============================================================================
+
+{**
+ * WrappingAddU32
+ *
+ * @desc
+ *   Wrapping addition using 2's complement semantics.
+ *   2 补码环绕加法。
+ *
+ * @note
+ *   这些函数禁用范围/溢出检查，总是返回环绕结果。
+ *}
+function WrappingAddU32(aA, aB: UInt32): UInt32; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function WrappingSubU32(aA, aB: UInt32): UInt32; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function WrappingMulU32(aA, aB: UInt32): UInt32; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+
+function WrappingAddU64(aA, aB: UInt64): UInt64; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function WrappingSubU64(aA, aB: UInt64): UInt64; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function WrappingMulU64(aA, aB: UInt64): UInt64; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+
+function WrappingAddI32(aA, aB: Int32): Int32; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function WrappingSubI32(aA, aB: Int32): Int32; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function WrappingMulI32(aA, aB: Int32): Int32; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function WrappingNegI32(aA: Int32): Int32; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+
+function WrappingAddI64(aA, aB: Int64): Int64; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function WrappingSubI64(aA, aB: Int64): Int64; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function WrappingMulI64(aA, aB: Int64): Int64; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function WrappingNegI64(aA: Int64): Int64; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+
+// ============================================================================
+// Carrying/Borrowing Operations (for multi-word arithmetic)
+// Rust-style carrying arithmetic: returns (value, carry) or (value, borrow).
+// ============================================================================
+
+{**
+ * CarryingAddU32
+ *
+ * @desc
+ *   Addition with carry input and output for multi-word arithmetic.
+ *   带进位输入输出的加法，用于多字算术。
+ *
+ * @example
+ *   var low, high: TCarryResultU32;
+ *   low := CarryingAddU32(a_lo, b_lo, False);
+ *   high := CarryingAddU32(a_hi, b_hi, low.Carry);  // propagate carry
+ *}
+function CarryingAddU32(aA, aB: UInt32; aCarryIn: Boolean): TCarryResultU32; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function BorrowingSubU32(aA, aB: UInt32; aBorrowIn: Boolean): TCarryResultU32; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+
+function CarryingAddU64(aA, aB: UInt64; aCarryIn: Boolean): TCarryResultU64; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function BorrowingSubU64(aA, aB: UInt64; aBorrowIn: Boolean): TCarryResultU64; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+
+// ============================================================================
+// Widening Multiplication (no overflow possible)
+// Rust-style widening multiplication: result type is 2x input width.
+// ============================================================================
+
+{**
+ * WideningMulU32
+ *
+ * @desc
+ *   Widening multiplication: UInt32 * UInt32 -> UInt64.
+ *   扩展乘法：UInt32 * UInt32 -> UInt64，永不溢出。
+ *
+ * @example
+ *   var product: UInt64;
+ *   product := WideningMulU32(High(UInt32), High(UInt32));
+ *   // product = 18446744065119617025 (no overflow!)
+ *}
+function WideningMulU32(aA, aB: UInt32): UInt64; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+
+{**
+ * WideningMulU64
+ *
+ * @desc
+ *   Widening multiplication: UInt64 * UInt64 -> TUInt128.
+ *   扩展乘法：UInt64 * UInt64 -> TUInt128，永不溢出。
+ *}
+function WideningMulU64(aA, aB: UInt64): TUInt128; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+
+// ============================================================================
+// Euclidean Division/Remainder (differs from truncated division for negatives)
+// Rust-style div_euclid/rem_euclid: remainder is always non-negative.
+// ============================================================================
+
+{**
+ * DivEuclidI32 / RemEuclidI32
+ *
+ * @desc
+ *   Euclidean division where the remainder is always non-negative.
+ *   For positive numbers, same as regular division.
+ *   For negative dividends, differs from Pascal's truncated division.
+ *   欧几里得除法，余数始终为非负数。
+ *
+ * @example
+ *   // Regular Pascal division vs Euclidean:
+ *   // -7 div 4 = -1, -7 mod 4 = -3 (Pascal truncated)
+ *   // DivEuclid(-7, 4) = -2, RemEuclid(-7, 4) = 1 (Euclidean)
+ *   // Invariant: a = DivEuclid(a,b) * b + RemEuclid(a,b)
+ *   // And: 0 <= RemEuclid(a,b) < |b|
+ *}
+function DivEuclidI32(aA, aB: Int32): Int32; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function RemEuclidI32(aA, aB: Int32): Int32; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function CheckedDivEuclidI32(aA, aB: Int32): TOptionalI32; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function CheckedRemEuclidI32(aA, aB: Int32): TOptionalI32; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+
+function DivEuclidI64(aA, aB: Int64): Int64; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function RemEuclidI64(aA, aB: Int64): Int64; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function CheckedDivEuclidI64(aA, aB: Int64): TOptionalI64; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function CheckedRemEuclidI64(aA, aB: Int64): TOptionalI64; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+
 // === Integer Utilities ===
 
 {**
@@ -624,6 +819,330 @@ end;
 function SaturatingMul(aA, aB: UInt32): UInt32;
 begin
   Result := fafafa.core.math.safeint.SaturatingMul(aA, aB);
+end;
+
+// ============================================================================
+// Checked Operations
+// ============================================================================
+
+function CheckedAddU32(aA, aB: UInt32): TOptionalU32;
+begin
+  Result := fafafa.core.math.safeint.CheckedAddU32(aA, aB);
+end;
+
+function CheckedSubU32(aA, aB: UInt32): TOptionalU32;
+begin
+  Result := fafafa.core.math.safeint.CheckedSubU32(aA, aB);
+end;
+
+function CheckedMulU32(aA, aB: UInt32): TOptionalU32;
+begin
+  Result := fafafa.core.math.safeint.CheckedMulU32(aA, aB);
+end;
+
+function CheckedDivU32(aA, aB: UInt32): TOptionalU32;
+begin
+  Result := fafafa.core.math.safeint.CheckedDivU32(aA, aB);
+end;
+
+function CheckedAddU64(aA, aB: UInt64): TOptionalU64;
+begin
+  Result := fafafa.core.math.safeint.CheckedAddU64(aA, aB);
+end;
+
+function CheckedSubU64(aA, aB: UInt64): TOptionalU64;
+begin
+  Result := fafafa.core.math.safeint.CheckedSubU64(aA, aB);
+end;
+
+function CheckedMulU64(aA, aB: UInt64): TOptionalU64;
+begin
+  Result := fafafa.core.math.safeint.CheckedMulU64(aA, aB);
+end;
+
+function CheckedDivU64(aA, aB: UInt64): TOptionalU64;
+begin
+  Result := fafafa.core.math.safeint.CheckedDivU64(aA, aB);
+end;
+
+function CheckedAddI32(aA, aB: Int32): TOptionalI32;
+begin
+  Result := fafafa.core.math.safeint.CheckedAddI32(aA, aB);
+end;
+
+function CheckedSubI32(aA, aB: Int32): TOptionalI32;
+begin
+  Result := fafafa.core.math.safeint.CheckedSubI32(aA, aB);
+end;
+
+function CheckedMulI32(aA, aB: Int32): TOptionalI32;
+begin
+  Result := fafafa.core.math.safeint.CheckedMulI32(aA, aB);
+end;
+
+function CheckedDivI32(aA, aB: Int32): TOptionalI32;
+begin
+  Result := fafafa.core.math.safeint.CheckedDivI32(aA, aB);
+end;
+
+function CheckedNegI32(aA: Int32): TOptionalI32;
+begin
+  Result := fafafa.core.math.safeint.CheckedNegI32(aA);
+end;
+
+function CheckedAddI64(aA, aB: Int64): TOptionalI64;
+begin
+  Result := fafafa.core.math.safeint.CheckedAddI64(aA, aB);
+end;
+
+function CheckedSubI64(aA, aB: Int64): TOptionalI64;
+begin
+  Result := fafafa.core.math.safeint.CheckedSubI64(aA, aB);
+end;
+
+function CheckedMulI64(aA, aB: Int64): TOptionalI64;
+begin
+  Result := fafafa.core.math.safeint.CheckedMulI64(aA, aB);
+end;
+
+function CheckedDivI64(aA, aB: Int64): TOptionalI64;
+begin
+  Result := fafafa.core.math.safeint.CheckedDivI64(aA, aB);
+end;
+
+function CheckedNegI64(aA: Int64): TOptionalI64;
+begin
+  Result := fafafa.core.math.safeint.CheckedNegI64(aA);
+end;
+
+// ============================================================================
+// Overflowing Operations
+// ============================================================================
+
+function OverflowingAddU32(aA, aB: UInt32): TOverflowU32;
+begin
+  Result := fafafa.core.math.safeint.OverflowingAddU32(aA, aB);
+end;
+
+function OverflowingSubU32(aA, aB: UInt32): TOverflowU32;
+begin
+  Result := fafafa.core.math.safeint.OverflowingSubU32(aA, aB);
+end;
+
+function OverflowingMulU32(aA, aB: UInt32): TOverflowU32;
+begin
+  Result := fafafa.core.math.safeint.OverflowingMulU32(aA, aB);
+end;
+
+function OverflowingAddU64(aA, aB: UInt64): TOverflowU64;
+begin
+  Result := fafafa.core.math.safeint.OverflowingAddU64(aA, aB);
+end;
+
+function OverflowingSubU64(aA, aB: UInt64): TOverflowU64;
+begin
+  Result := fafafa.core.math.safeint.OverflowingSubU64(aA, aB);
+end;
+
+function OverflowingMulU64(aA, aB: UInt64): TOverflowU64;
+begin
+  Result := fafafa.core.math.safeint.OverflowingMulU64(aA, aB);
+end;
+
+function OverflowingAddI32(aA, aB: Int32): TOverflowI32;
+begin
+  Result := fafafa.core.math.safeint.OverflowingAddI32(aA, aB);
+end;
+
+function OverflowingSubI32(aA, aB: Int32): TOverflowI32;
+begin
+  Result := fafafa.core.math.safeint.OverflowingSubI32(aA, aB);
+end;
+
+function OverflowingMulI32(aA, aB: Int32): TOverflowI32;
+begin
+  Result := fafafa.core.math.safeint.OverflowingMulI32(aA, aB);
+end;
+
+function OverflowingNegI32(aA: Int32): TOverflowI32;
+begin
+  Result := fafafa.core.math.safeint.OverflowingNegI32(aA);
+end;
+
+function OverflowingAddI64(aA, aB: Int64): TOverflowI64;
+begin
+  Result := fafafa.core.math.safeint.OverflowingAddI64(aA, aB);
+end;
+
+function OverflowingSubI64(aA, aB: Int64): TOverflowI64;
+begin
+  Result := fafafa.core.math.safeint.OverflowingSubI64(aA, aB);
+end;
+
+function OverflowingMulI64(aA, aB: Int64): TOverflowI64;
+begin
+  Result := fafafa.core.math.safeint.OverflowingMulI64(aA, aB);
+end;
+
+function OverflowingNegI64(aA: Int64): TOverflowI64;
+begin
+  Result := fafafa.core.math.safeint.OverflowingNegI64(aA);
+end;
+
+// ============================================================================
+// Wrapping Operations
+// ============================================================================
+
+function WrappingAddU32(aA, aB: UInt32): UInt32;
+begin
+  Result := fafafa.core.math.safeint.WrappingAddU32(aA, aB);
+end;
+
+function WrappingSubU32(aA, aB: UInt32): UInt32;
+begin
+  Result := fafafa.core.math.safeint.WrappingSubU32(aA, aB);
+end;
+
+function WrappingMulU32(aA, aB: UInt32): UInt32;
+begin
+  Result := fafafa.core.math.safeint.WrappingMulU32(aA, aB);
+end;
+
+function WrappingAddU64(aA, aB: UInt64): UInt64;
+begin
+  Result := fafafa.core.math.safeint.WrappingAddU64(aA, aB);
+end;
+
+function WrappingSubU64(aA, aB: UInt64): UInt64;
+begin
+  Result := fafafa.core.math.safeint.WrappingSubU64(aA, aB);
+end;
+
+function WrappingMulU64(aA, aB: UInt64): UInt64;
+begin
+  Result := fafafa.core.math.safeint.WrappingMulU64(aA, aB);
+end;
+
+function WrappingAddI32(aA, aB: Int32): Int32;
+begin
+  Result := fafafa.core.math.safeint.WrappingAddI32(aA, aB);
+end;
+
+function WrappingSubI32(aA, aB: Int32): Int32;
+begin
+  Result := fafafa.core.math.safeint.WrappingSubI32(aA, aB);
+end;
+
+function WrappingMulI32(aA, aB: Int32): Int32;
+begin
+  Result := fafafa.core.math.safeint.WrappingMulI32(aA, aB);
+end;
+
+function WrappingNegI32(aA: Int32): Int32;
+begin
+  Result := fafafa.core.math.safeint.WrappingNegI32(aA);
+end;
+
+function WrappingAddI64(aA, aB: Int64): Int64;
+begin
+  Result := fafafa.core.math.safeint.WrappingAddI64(aA, aB);
+end;
+
+function WrappingSubI64(aA, aB: Int64): Int64;
+begin
+  Result := fafafa.core.math.safeint.WrappingSubI64(aA, aB);
+end;
+
+function WrappingMulI64(aA, aB: Int64): Int64;
+begin
+  Result := fafafa.core.math.safeint.WrappingMulI64(aA, aB);
+end;
+
+function WrappingNegI64(aA: Int64): Int64;
+begin
+  Result := fafafa.core.math.safeint.WrappingNegI64(aA);
+end;
+
+// ============================================================================
+// Carrying/Borrowing Operations
+// ============================================================================
+
+function CarryingAddU32(aA, aB: UInt32; aCarryIn: Boolean): TCarryResultU32;
+begin
+  Result := fafafa.core.math.safeint.CarryingAddU32(aA, aB, aCarryIn);
+end;
+
+function BorrowingSubU32(aA, aB: UInt32; aBorrowIn: Boolean): TCarryResultU32;
+begin
+  Result := fafafa.core.math.safeint.BorrowingSubU32(aA, aB, aBorrowIn);
+end;
+
+function CarryingAddU64(aA, aB: UInt64; aCarryIn: Boolean): TCarryResultU64;
+begin
+  Result := fafafa.core.math.safeint.CarryingAddU64(aA, aB, aCarryIn);
+end;
+
+function BorrowingSubU64(aA, aB: UInt64; aBorrowIn: Boolean): TCarryResultU64;
+begin
+  Result := fafafa.core.math.safeint.BorrowingSubU64(aA, aB, aBorrowIn);
+end;
+
+// ============================================================================
+// Widening Multiplication
+// ============================================================================
+
+function WideningMulU32(aA, aB: UInt32): UInt64;
+begin
+  Result := fafafa.core.math.safeint.WideningMulU32(aA, aB);
+end;
+
+function WideningMulU64(aA, aB: UInt64): TUInt128;
+begin
+  Result := fafafa.core.math.safeint.WideningMulU64(aA, aB);
+end;
+
+// ============================================================================
+// Euclidean Division/Remainder
+// ============================================================================
+
+function DivEuclidI32(aA, aB: Int32): Int32;
+begin
+  Result := fafafa.core.math.safeint.DivEuclidI32(aA, aB);
+end;
+
+function RemEuclidI32(aA, aB: Int32): Int32;
+begin
+  Result := fafafa.core.math.safeint.RemEuclidI32(aA, aB);
+end;
+
+function CheckedDivEuclidI32(aA, aB: Int32): TOptionalI32;
+begin
+  Result := fafafa.core.math.safeint.CheckedDivEuclidI32(aA, aB);
+end;
+
+function CheckedRemEuclidI32(aA, aB: Int32): TOptionalI32;
+begin
+  Result := fafafa.core.math.safeint.CheckedRemEuclidI32(aA, aB);
+end;
+
+function DivEuclidI64(aA, aB: Int64): Int64;
+begin
+  Result := fafafa.core.math.safeint.DivEuclidI64(aA, aB);
+end;
+
+function RemEuclidI64(aA, aB: Int64): Int64;
+begin
+  Result := fafafa.core.math.safeint.RemEuclidI64(aA, aB);
+end;
+
+function CheckedDivEuclidI64(aA, aB: Int64): TOptionalI64;
+begin
+  Result := fafafa.core.math.safeint.CheckedDivEuclidI64(aA, aB);
+end;
+
+function CheckedRemEuclidI64(aA, aB: Int64): TOptionalI64;
+begin
+  Result := fafafa.core.math.safeint.CheckedRemEuclidI64(aA, aB);
 end;
 
 function Abs(x: Double): Double;

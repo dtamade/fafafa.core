@@ -30,7 +30,12 @@ uses
   fafafa.core.sync.namedSemaphore,
   fafafa.core.sync.namedBarrier,
   fafafa.core.sync.namedCondvar,
-  fafafa.core.sync.namedRWLock;
+  fafafa.core.sync.namedRWLock,
+  // Named cross-process primitives (Phase 4)
+  fafafa.core.sync.namedOnce,
+  fafafa.core.sync.namedLatch,
+  fafafa.core.sync.namedWaitGroup,
+  fafafa.core.sync.namedSharedCounter;
 
 type
   // Re-export core interfaces and enums for backward compatibility
@@ -69,6 +74,17 @@ type
   INamedRWLock            = fafafa.core.sync.namedRWLock.INamedRWLock;
   INamedRWLockReadGuard   = fafafa.core.sync.namedRWLock.INamedRWLockReadGuard;
   INamedRWLockWriteGuard  = fafafa.core.sync.namedRWLock.INamedRWLockWriteGuard;
+
+  // Named cross-process primitives (Phase 4)
+  INamedOnce              = fafafa.core.sync.namedOnce.INamedOnce;
+  TNamedOnceState         = fafafa.core.sync.namedOnce.TNamedOnceState;
+  TNamedOnceConfig        = fafafa.core.sync.namedOnce.TNamedOnceConfig;
+  INamedLatch             = fafafa.core.sync.namedLatch.INamedLatch;
+  TNamedLatchConfig       = fafafa.core.sync.namedLatch.TNamedLatchConfig;
+  INamedWaitGroup         = fafafa.core.sync.namedWaitGroup.INamedWaitGroup;
+  TNamedWaitGroupConfig   = fafafa.core.sync.namedWaitGroup.TNamedWaitGroupConfig;
+  INamedSharedCounter     = fafafa.core.sync.namedSharedCounter.INamedSharedCounter;
+  TNamedSharedCounterConfig = fafafa.core.sync.namedSharedCounter.TNamedSharedCounterConfig;
 
   TLockGuard              = fafafa.core.sync.base.TLockGuard;
 
@@ -306,6 +322,16 @@ function MakeNamedSemaphore(const AName: string; AInitialCount: Integer; AMaxCou
 function MakeNamedBarrier(const AName: string; AParticipantCount: Integer): INamedBarrier;
 function MakeNamedCondVar(const AName: string): INamedCondVar;
 function MakeNamedRWLock(const AName: string): INamedRWLock;
+
+// Named cross-process primitives factory functions (Phase 4)
+function MakeNamedOnce(const AName: string): INamedOnce; overload;
+function MakeNamedOnce(const AName: string; const AConfig: TNamedOnceConfig): INamedOnce; overload;
+function MakeNamedLatch(const AName: string; AInitialCount: Cardinal): INamedLatch; overload;
+function MakeNamedLatch(const AName: string; AInitialCount: Cardinal; const AConfig: TNamedLatchConfig): INamedLatch; overload;
+function MakeNamedWaitGroup(const AName: string): INamedWaitGroup; overload;
+function MakeNamedWaitGroup(const AName: string; const AConfig: TNamedWaitGroupConfig): INamedWaitGroup; overload;
+function MakeNamedSharedCounter(const AName: string): INamedSharedCounter; overload;
+function MakeNamedSharedCounter(const AName: string; const AConfig: TNamedSharedCounterConfig): INamedSharedCounter; overload;
 
 implementation
 
@@ -627,6 +653,47 @@ end;
 function MakeNamedRWLock(const AName: string): INamedRWLock;
 begin
   Result := fafafa.core.sync.namedRWLock.MakeNamedRWLock(AName);
+end;
+
+// Named cross-process primitives implementations (Phase 4)
+function MakeNamedOnce(const AName: string): INamedOnce;
+begin
+  Result := fafafa.core.sync.namedOnce.MakeNamedOnce(AName);
+end;
+
+function MakeNamedOnce(const AName: string; const AConfig: TNamedOnceConfig): INamedOnce;
+begin
+  Result := fafafa.core.sync.namedOnce.MakeNamedOnce(AName, AConfig);
+end;
+
+function MakeNamedLatch(const AName: string; AInitialCount: Cardinal): INamedLatch;
+begin
+  Result := fafafa.core.sync.namedLatch.MakeNamedLatch(AName, AInitialCount);
+end;
+
+function MakeNamedLatch(const AName: string; AInitialCount: Cardinal; const AConfig: TNamedLatchConfig): INamedLatch;
+begin
+  Result := fafafa.core.sync.namedLatch.MakeNamedLatch(AName, AInitialCount, AConfig);
+end;
+
+function MakeNamedWaitGroup(const AName: string): INamedWaitGroup;
+begin
+  Result := fafafa.core.sync.namedWaitGroup.MakeNamedWaitGroup(AName);
+end;
+
+function MakeNamedWaitGroup(const AName: string; const AConfig: TNamedWaitGroupConfig): INamedWaitGroup;
+begin
+  Result := fafafa.core.sync.namedWaitGroup.MakeNamedWaitGroup(AName, AConfig);
+end;
+
+function MakeNamedSharedCounter(const AName: string): INamedSharedCounter;
+begin
+  Result := fafafa.core.sync.namedSharedCounter.MakeNamedSharedCounter(AName);
+end;
+
+function MakeNamedSharedCounter(const AName: string; const AConfig: TNamedSharedCounterConfig): INamedSharedCounter;
+begin
+  Result := fafafa.core.sync.namedSharedCounter.MakeNamedSharedCounter(AName, AConfig);
 end;
 
 end.

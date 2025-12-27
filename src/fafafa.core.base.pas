@@ -173,6 +173,12 @@ const
   MAX_UINT64    = High(UInt64);
   MAX_INT64     = High(Int64);
 
+  MIN_SIZE_INT  = Low(SizeInt);
+  MIN_INT8      = Low(Int8);
+  MIN_INT16     = Low(Int16);
+  MIN_INT32     = Low(Int32);
+  MIN_INT64     = Low(Int64);
+
   SIZE_PTR = SizeOf(Pointer);
   SIZE_8   = SizeOf(UInt8);
   SIZE_16  = SizeOf(UInt16);

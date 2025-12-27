@@ -6,14 +6,17 @@ unit fafafa.core.sync.sem.base;
 interface
 
 uses
-  fafafa.core.sync.base;
+  SysUtils, fafafa.core.sync.base;
 
 type
 
-  // RAII 守卫：析构时自动释放指定数量的许�?
+  // Forward declaration
+  ISem = interface;
+
+  // RAII 守卫：析构时自动释放指定数量的许可
   ISemGuard = interface(ILockGuard)
     ['{8B3E4A75-9C2D-4B6E-8C9F-0D1E2F3A4B5C}']
-    function GetCount: Integer;  // 获取持有的许可数�?
+    function GetCount: Integer;  // 获取持有的许可数量
     // 继承 ILockGuard.Release - 手动释放许可
   end;
 
@@ -30,7 +33,7 @@ type
     function GetAvailableCount: Integer;
     function GetMaxCount: Integer;
 
-    // RAII 友好获取：成功返回守卫，失败返回 nil（Try 系列�?
+    // RAII 友好获取：成功返回守卫，失败返回 nil（Try 系列）
     function AcquireGuard: ISemGuard; overload;                     // 1 permit
     function AcquireGuard(ACount: Integer): ISemGuard; overload;    // ACount permits
     function TryAcquireGuard: ISemGuard; overload;                  // 0ms
@@ -39,7 +42,56 @@ type
     function TryAcquireGuard(ACount: Integer; ATimeoutMs: Cardinal): ISemGuard; overload;
   end;
 
+  // 跨平台 RAII Guard 实现 - 仅依赖 ISem 接口
+  TSemGuard = class(TInterfacedObject, ISemGuard)
+  private
+    FSem: ISem;
+    FCount: Integer;
+    FReleased: Boolean;
+  public
+    constructor Create(const ASem: ISem; ACount: Integer);
+    destructor Destroy; override;
+    function GetCount: Integer;
+    function IsLocked: Boolean;  // IGuard.IsLocked
+    procedure Release;  // ILockGuard.Release
+  end;
+
 implementation
 
-end.
+{ TSemGuard }
 
+constructor TSemGuard.Create(const ASem: ISem; ACount: Integer);
+begin
+  inherited Create;
+  FSem := ASem;
+  FCount := ACount;
+  FReleased := False;
+end;
+
+destructor TSemGuard.Destroy;
+begin
+  if (not FReleased) and Assigned(FSem) and (FCount > 0) then
+    FSem.Release(FCount);
+  inherited Destroy;
+end;
+
+function TSemGuard.GetCount: Integer;
+begin
+  Result := FCount;
+end;
+
+function TSemGuard.IsLocked: Boolean;
+begin
+  Result := (not FReleased) and Assigned(FSem) and (FCount > 0);
+end;
+
+procedure TSemGuard.Release;
+begin
+  if (not FReleased) and Assigned(FSem) and (FCount > 0) then
+  begin
+    FSem.Release(FCount);
+    FReleased := True;
+  end;
+end;
+
+end.

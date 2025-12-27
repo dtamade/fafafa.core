@@ -302,13 +302,15 @@ begin
     Result[I + 1] := Chars[I];
 end;
 
-function TimeflakeFromString(const S: string): TTimeflake;
+// ✅ P0: 内部解析函数，带溢出检测
+function TryTimeflakeFromStringInternal(const S: string; out Id: TTimeflake): Boolean;
 var
   Value: array[0..3] of UInt32;
   I, J, Digit: Integer;
   Carry, Temp: UInt64;
 begin
-  FillChar(Result[0], TIMEFLAKE_SIZE, 0);
+  Result := False;
+  FillChar(Id[0], TIMEFLAKE_SIZE, 0);
   if Length(S) <> TIMEFLAKE_STRING_LENGTH then
     Exit;
 
@@ -333,52 +335,42 @@ begin
       Value[J] := Temp and $FFFFFFFF;
       Carry := Temp shr 32;
     end;
+    // ✅ P0: 检测溢出（Carry 非零表示超过 128 位）
+    if Carry <> 0 then
+      Exit;
   end;
 
   // Store as big-endian bytes
-  Result[0] := (Value[0] shr 24) and $FF;
-  Result[1] := (Value[0] shr 16) and $FF;
-  Result[2] := (Value[0] shr 8) and $FF;
-  Result[3] := Value[0] and $FF;
-  Result[4] := (Value[1] shr 24) and $FF;
-  Result[5] := (Value[1] shr 16) and $FF;
-  Result[6] := (Value[1] shr 8) and $FF;
-  Result[7] := Value[1] and $FF;
-  Result[8] := (Value[2] shr 24) and $FF;
-  Result[9] := (Value[2] shr 16) and $FF;
-  Result[10] := (Value[2] shr 8) and $FF;
-  Result[11] := Value[2] and $FF;
-  Result[12] := (Value[3] shr 24) and $FF;
-  Result[13] := (Value[3] shr 16) and $FF;
-  Result[14] := (Value[3] shr 8) and $FF;
-  Result[15] := Value[3] and $FF;
+  Id[0] := (Value[0] shr 24) and $FF;
+  Id[1] := (Value[0] shr 16) and $FF;
+  Id[2] := (Value[0] shr 8) and $FF;
+  Id[3] := Value[0] and $FF;
+  Id[4] := (Value[1] shr 24) and $FF;
+  Id[5] := (Value[1] shr 16) and $FF;
+  Id[6] := (Value[1] shr 8) and $FF;
+  Id[7] := Value[1] and $FF;
+  Id[8] := (Value[2] shr 24) and $FF;
+  Id[9] := (Value[2] shr 16) and $FF;
+  Id[10] := (Value[2] shr 8) and $FF;
+  Id[11] := Value[2] and $FF;
+  Id[12] := (Value[3] shr 24) and $FF;
+  Id[13] := (Value[3] shr 16) and $FF;
+  Id[14] := (Value[3] shr 8) and $FF;
+  Id[15] := Value[3] and $FF;
+  Result := True;
 end;
 
-// ✅ P1: TryParseTimeflake 统一解析函数
-function TryParseTimeflake(const S: string; out Id: TTimeflake): Boolean;
-var
-  I: Integer;
+function TimeflakeFromString(const S: string): TTimeflake;
 begin
-  // 验证长度
-  if Length(S) <> TIMEFLAKE_STRING_LENGTH then
-  begin
-    FillChar(Id[0], TIMEFLAKE_SIZE, 0);
-    Exit(False);
-  end;
+  if not TryTimeflakeFromStringInternal(S, Result) then
+    FillChar(Result[0], TIMEFLAKE_SIZE, 0);
+end;
 
-  // 验证字符是否都在 Base62 字母表中
-  for I := 1 to TIMEFLAKE_STRING_LENGTH do
-  begin
-    if Pos(S[I], BASE62_ALPHABET_STR) = 0 then
-    begin
-      FillChar(Id[0], TIMEFLAKE_SIZE, 0);
-      Exit(False);
-    end;
-  end;
-
-  // 解析
-  Id := TimeflakeFromString(S);
-  Result := True;
+// ✅ P0: TryParseTimeflake 使用内部函数，带溢出检测
+function TryParseTimeflake(const S: string; out Id: TTimeflake): Boolean;
+begin
+  // 内部函数已包含：长度验证、字符验证、溢出检测
+  Result := TryTimeflakeFromStringInternal(S, Id);
 end;
 
 // ✅ P2: ParseTimeflake - 异常版本（对标 Rust）

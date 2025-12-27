@@ -8,7 +8,8 @@ interface
 uses
   SysUtils,
   fafafa.core.sync.base,
-  fafafa.core.sync.mutex.base;
+  fafafa.core.sync.mutex.base,
+  fafafa.core.atomic;  // ✅ P0-1 Fix: 使用框架内的原子操作
 
 // 基础 Windows 类型（避免直�?uses Windows 单元导致符号冲突�?
 type
@@ -147,20 +148,22 @@ procedure TMutex.Acquire;
 var
   Cur: DWORD;
 begin
+  // ✅ P0-1 Fix: 使用框架内 atomic 操作读取 FOwnerThreadId 避免竞态条件
   // 非重入：同一线程重复获取直接抛异常
   Cur := GetCurrentThreadId;
-  if FOwnerThreadId = Cur then
+  // 原子读取当前持有者，避免读取撕裂和内存可见性问题
+  if atomic_load(FOwnerThreadId, mo_acquire) = Cur then
     raise EDeadlockError.Create('Re-entrant acquire on non-reentrant mutex');
 
   EnterCriticalSection(FCriticalSection);
-  // 进入后登记所有者
-  FOwnerThreadId := Cur;
+  // 进入后原子设置所有者
+  atomic_store(FOwnerThreadId, Cur, mo_release);
 
   // Poisoning 检查：获取锁后检查是否被毒化
   if FPoisoned then
   begin
     // 释放锁后再抛异常，避免死锁
-    FOwnerThreadId := 0;
+    atomic_store(FOwnerThreadId, DWORD(0), mo_release);
     LeaveCriticalSection(FCriticalSection);
     raise EMutexPoisonError.Create(FPoisoningThreadId, FPoisoningException);
   end;
@@ -168,8 +171,8 @@ end;
 
 procedure TMutex.Release;
 begin
-  // 清理所有者再释放，避免新线程进入时短暂误�?
-  FOwnerThreadId := 0;
+  // ✅ P0-1 Fix: 使用框架内 atomic 操作，确保内存可见性
+  atomic_store(FOwnerThreadId, DWORD(0), mo_release);
   LeaveCriticalSection(FCriticalSection);
 end;
 
@@ -177,20 +180,20 @@ function TMutex.TryAcquire: Boolean;
 var
   Cur: DWORD;
 begin
-  // 非重入快速检查
+  // ✅ P0-1 Fix: 使用框架内 atomic 操作避免竞态条件
   Cur := GetCurrentThreadId;
-  if FOwnerThreadId = Cur then
+  if atomic_load(FOwnerThreadId, mo_acquire) = Cur then
     raise EDeadlockError.Create('Re-entrant try-acquire on non-reentrant mutex');
 
   Result := TryEnterCriticalSection(FCriticalSection);
   if Result then
   begin
-    FOwnerThreadId := Cur;
+    atomic_store(FOwnerThreadId, Cur, mo_release);
     // Poisoning 检查：获取锁后检查是否被毒化
     if FPoisoned then
     begin
       // 释放锁后再抛异常，避免死锁
-      FOwnerThreadId := 0;
+      atomic_store(FOwnerThreadId, DWORD(0), mo_release);
       LeaveCriticalSection(FCriticalSection);
       raise EMutexPoisonError.Create(FPoisoningThreadId, FPoisoningException);
     end;
@@ -249,18 +252,19 @@ procedure TSRWMutex.Acquire;
 var
   Cur: DWORD;
 begin
+  // ✅ P0-1 Fix: 使用框架内 atomic 操作避免竞态条件
   Cur := GetCurrentThreadId;
-  if FOwnerThreadId = Cur then
+  if atomic_load(FOwnerThreadId, mo_acquire) = Cur then
     raise EDeadlockError.Create('Re-entrant acquire on non-reentrant mutex');
 
   AcquireSRWLockExclusive(FLock);
-  FOwnerThreadId := Cur;
+  atomic_store(FOwnerThreadId, Cur, mo_release);
 
   // Poisoning 检查：获取锁后检查是否被毒化
   if FPoisoned then
   begin
     // 释放锁后再抛异常，避免死锁
-    FOwnerThreadId := 0;
+    atomic_store(FOwnerThreadId, DWORD(0), mo_release);
     ReleaseSRWLockExclusive(FLock);
     raise EMutexPoisonError.Create(FPoisoningThreadId, FPoisoningException);
   end;
@@ -268,7 +272,8 @@ end;
 
 procedure TSRWMutex.Release;
 begin
-  FOwnerThreadId := 0;
+  // ✅ P0-1 Fix: 使用框架内 atomic 操作
+  atomic_store(FOwnerThreadId, DWORD(0), mo_release);
   ReleaseSRWLockExclusive(FLock);
 end;
 
@@ -276,19 +281,20 @@ function TSRWMutex.TryAcquire: Boolean;
 var
   Cur: DWORD;
 begin
+  // ✅ P0-1 Fix: 使用框架内 atomic 操作避免竞态条件
   Cur := GetCurrentThreadId;
-  if FOwnerThreadId = Cur then
+  if atomic_load(FOwnerThreadId, mo_acquire) = Cur then
     raise EDeadlockError.Create('Re-entrant try-acquire on non-reentrant mutex');
 
   Result := TryAcquireSRWLockExclusive(FLock);
   if Result then
   begin
-    FOwnerThreadId := Cur;
+    atomic_store(FOwnerThreadId, Cur, mo_release);
     // Poisoning 检查：获取锁后检查是否被毒化
     if FPoisoned then
     begin
       // 释放锁后再抛异常，避免死锁
-      FOwnerThreadId := 0;
+      atomic_store(FOwnerThreadId, DWORD(0), mo_release);
       ReleaseSRWLockExclusive(FLock);
       raise EMutexPoisonError.Create(FPoisoningThreadId, FPoisoningException);
     end;

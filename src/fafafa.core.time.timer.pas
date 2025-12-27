@@ -8,144 +8,47 @@ interface
 
 uses
   Classes, SysUtils,
-  fafafa.core.result,
   fafafa.core.time.base,
   fafafa.core.time.duration,
   fafafa.core.time.instant,
   fafafa.core.time.clock,
-  fafafa.core.time.timer.backend,       // ✅ Phase 3.1: 后端接口
-  fafafa.core.time.timer.backend.heap,  // ✅ Phase 3.1: 二叉堆后端实现
+  fafafa.core.time.timer.base,            // ✅ Phase 2: 共享类型
+  fafafa.core.time.timer.backend,         // ✅ Phase 3.1: 后端接口
+  fafafa.core.time.timer.backend.heap,    // ✅ Phase 3.1: 二叉堆后端实现
   fafafa.core.sync,
   fafafa.core.thread.threadpool,
   fafafa.core.thread.cancel;
 
-type
-  // Callback procedure types
-  TProc = procedure;                            // 无参数过程（向后兼容）
-  TTimerProc = procedure;                       // 别名
-  TTimerProcData = procedure(Data: Pointer);    // 带用户数据
-  TTimerMethod = procedure of object;           // 对象方法
-  TTimerProcNested = procedure is nested;       // 嵌套过程
-
-  // ✅ v2.0: 统一回调类型系统
-  TTimerCallbackKind = (
-    tckProc,        // procedure
-    tckProcData,    // procedure(Data: Pointer)
-    tckMethod,      // procedure of object
-    tckNested       // procedure is nested
-  );
-
-  TTimerCallback = record
-    case Kind: TTimerCallbackKind of
-      tckProc: (Proc: TTimerProc);
-      tckProcData: (ProcData: TTimerProcData; Data: Pointer);
-      tckMethod: (Method: TTimerMethod);
-      tckNested: (Nested: TTimerProcNested);
-  end;
-
-  // 便捷构造函数
-  function TimerCallback(const P: TTimerProc): TTimerCallback; overload; inline;
-  function TimerCallback(const P: TTimerProcData; Data: Pointer): TTimerCallback; overload; inline;
-  function TimerCallbackMethod(const M: TTimerMethod): TTimerCallback; inline;
-  function TimerCallbackNested(const N: TTimerProcNested): TTimerCallback; inline;
-
-  // 回调执行
-  procedure ExecuteTimerCallback(const cb: TTimerCallback);
+// ✅ Phase 2: 类型已移至 fafafa.core.time.timer.base
+// 重新导出以保持向后兼容
 
 type
-  // ✅ v2.0: 定时器类型枚举（移至接口部分，供用户查询）
-  TTimerKind = (
-    tkOnce,       // 一次性定时器
-    tkFixedRate,  // 固定频率周期定时器
-    tkFixedDelay  // 固定延迟周期定时器
-  );
+  // 重新导出 timer.base 中的类型（向后兼容别名）
+  TTimerKindAlias = fafafa.core.time.timer.base.TTimerKind;
+  TTimerCallbackAlias = fafafa.core.time.timer.base.TTimerCallback;
+  ITimerScheduler = fafafa.core.time.timer.base.ITimerScheduler;
+  ITimer = fafafa.core.time.timer.base.ITimer;
+  ITicker = fafafa.core.time.timer.base.ITicker;
+  TTimerSchedulerOptions = fafafa.core.time.timer.base.TTimerSchedulerOptions;
+  TTimerKind = fafafa.core.time.timer.base.TTimerKind;
+  TTimerCallback = fafafa.core.time.timer.base.TTimerCallback;
+  TTimerCallbackKind = fafafa.core.time.timer.base.TTimerCallbackKind;
+  TTimerProc = fafafa.core.time.timer.base.TTimerProc;
+  TTimerProcData = fafafa.core.time.timer.base.TTimerProcData;
+  TTimerMethod = fafafa.core.time.timer.base.TTimerMethod;
+  TTimerProcNested = fafafa.core.time.timer.base.TTimerProcNested;
+  TProc = fafafa.core.time.timer.base.TProc;
+  TTimerExceptionHandler = fafafa.core.time.timer.base.TTimerExceptionHandler;
+  TTimerMetrics = fafafa.core.time.timer.base.TTimerMetrics;
+  TTimerResult = fafafa.core.time.timer.base.TTimerResult;
+  ITimerSchedulerTry = fafafa.core.time.timer.base.ITimerSchedulerTry;
 
-  ITimer = interface
-    ['{D9A1B6C6-0C1D-4A6E-9F2B-0AF4B7A3ED1B}']
-    // 取消定时器
-    procedure Cancel;
-    function IsCancelled: Boolean;
-
-    // Reset/Reschedule（仅支持一次性定时器；周期定时器返回 False）
-    function ResetAt(const Deadline: TInstant): Boolean;
-    function ResetAfter(const Delay: TDuration): Boolean;
-
-    // ✅ v2.0: 状态查询
-    function GetNextDeadline: TInstant;       // 下次触发时间
-    function GetExecutionCount: QWord;        // 已执行次数
-    function GetKind: TTimerKind;             // 定时器类型
-    function IsFired: Boolean;                // 是否已触发（Once 定时器）
-
-    // ✅ v2.0: 周期定时器控制（仅对 FixedRate/FixedDelay 有效）
-    function Pause: Boolean;                  // 暂停定时器
-    function Resume: Boolean;                 // 恢复定时器
-    function IsPaused: Boolean;               // 是否已暂停
-
-    // ✅ v2.0: 执行次数限制（仅对周期定时器有效）
-    function SetMaxExecutions(Max: QWord): Boolean;  // 设置最大执行次数（0=无限制）
-    function GetMaxExecutions: QWord;                // 获取最大执行次数
-  end;
-
-  ITimerScheduler = interface
-    ['{2B7B9D2C-8F9B-4C4D-9C8E-7E83F7C994A4}']
-    // 一次性（TProc 版本 - 向后兼容）
-    function ScheduleOnce(const Delay: TDuration; const Callback: TProc): ITimer;
-    function ScheduleAt(const Deadline: TInstant; const Callback: TProc): ITimer;
-    // 周期（TProc 版本 - 向后兼容）
-    function ScheduleAtFixedRate(const InitialDelay: TDuration; const Period: TDuration; const Callback: TProc): ITimer;
-    function ScheduleWithFixedDelay(const InitialDelay: TDuration; const Delay: TDuration; const Callback: TProc): ITimer;
-
-    // ✅ v2.0: TTimerCallback 版本（推荐使用）
-    function Schedule(const Delay: TDuration; const Callback: TTimerCallback): ITimer;
-    function ScheduleAtCb(const Deadline: TInstant; const Callback: TTimerCallback): ITimer;
-    function ScheduleFixedRate(const InitialDelay: TDuration; const Period: TDuration; const Callback: TTimerCallback): ITimer;
-    function ScheduleFixedDelay(const InitialDelay: TDuration; const Delay: TDuration; const Callback: TTimerCallback): ITimer;
-
-    // ✅ v2.0: 带取消令牌的版本
-    function ScheduleWithToken(const Delay: TDuration; const Callback: TTimerCallback; const Token: ICancellationToken): ITimer;
-    function ScheduleFixedRateWithToken(const InitialDelay: TDuration; const Period: TDuration; const Callback: TTimerCallback; const Token: ICancellationToken): ITimer;
-    function ScheduleFixedDelayWithToken(const InitialDelay: TDuration; const Delay: TDuration; const Callback: TTimerCallback; const Token: ICancellationToken): ITimer;
-
-    // 控制
-    procedure Shutdown;
-
-    // 异步回调执行支持
-    procedure SetCallbackExecutor(const Pool: IThreadPool);
-    function GetCallbackExecutor: IThreadPool;
-  end;
-
-  ITicker = interface
-    ['{7F9E3C3A-0D6E-4C0E-9B7F-2F58E4E8F1C2}']
-    procedure Stop;
-    function IsStopped: Boolean;
-  end;
-
-  // Phase 1: Options / Result-style APIs
-  TTimerSchedulerOptions = record
-    Clock: IMonotonicClock;
-    CallbackExecutor: IThreadPool;
-
-    class function Default: TTimerSchedulerOptions; static; inline;
-    function WithClock(const AClock: IMonotonicClock): TTimerSchedulerOptions; inline;
-    function WithCallbackExecutor(const Pool: IThreadPool): TTimerSchedulerOptions; inline;
-  end;
-
-  TTimerResult = specialize TResult<ITimer, TTimeErrorKind>;
-
-  ITimerSchedulerTry = interface(ITimerScheduler)
-    ['{8C1A5A0B-6BB7-4C1E-9F7E-7B20E8F4AA10}']
-    function TrySchedule(const Delay: TDuration; const Callback: TTimerCallback): TTimerResult; overload;
-    function TrySchedule(const Delay: TDuration; const Callback: TProc): TTimerResult; overload;
-
-    function TryScheduleAt(const Deadline: TInstant; const Callback: TProc): TTimerResult;
-    function TryScheduleAtCb(const Deadline: TInstant; const Callback: TTimerCallback): TTimerResult;
-
-    function TryScheduleFixedRate(const InitialDelay: TDuration; const Period: TDuration; const Callback: TTimerCallback): TTimerResult; overload;
-    function TryScheduleFixedRate(const InitialDelay: TDuration; const Period: TDuration; const Callback: TProc): TTimerResult; overload;
-
-    function TryScheduleFixedDelay(const InitialDelay: TDuration; const Delay: TDuration; const Callback: TTimerCallback): TTimerResult; overload;
-    function TryScheduleFixedDelay(const InitialDelay: TDuration; const Delay: TDuration; const Callback: TProc): TTimerResult; overload;
-  end;
+// 重新导出回调便捷构造函数
+function TimerCallback(const P: TTimerProc): TTimerCallback; overload;
+function TimerCallback(const P: TTimerProcData; Data: Pointer): TTimerCallback; overload;
+function TimerCallbackMethod(const M: TTimerMethod): TTimerCallback;
+function TimerCallbackNested(const N: TTimerProcNested): TTimerCallback;
+procedure ExecuteTimerCallback(const cb: TTimerCallback);
 
 function CreateTickerFixedRate(const InitialDelay, Period: TDuration; const Callback: TProc; const Clock: IMonotonicClock = nil): ITicker;
 function CreateTickerFixedDelay(const InitialDelay, Delay: TDuration; const Callback: TProc; const Clock: IMonotonicClock = nil): ITicker;
@@ -162,14 +65,6 @@ function DefaultTimerScheduler: ITimerScheduler; inline;
 var
   GFixedRateMaxCatchupSteps: Integer = 3;
 
-  // ✅ ISSUE-REVIEW-P2-3: 定时器堆最大容量限制（防止 DoS 攻击）
-  // 默认 100 万个定时器，约 40MB 内存占用（按 40 字节/条目估算）
-const
-  TIMER_HEAP_MAX_CAPACITY = 1000000;
-
-  type
-    TTimerExceptionHandler = procedure(const E: Exception);
-
   // 回调异常处理 Hook（可选）
   procedure SetTimerExceptionHandler(const H: TTimerExceptionHandler);
   function GetTimerExceptionHandler: TTimerExceptionHandler;
@@ -177,14 +72,6 @@ const
   procedure SetTimerFixedRateMaxCatchupSteps(const V: Integer);
 var
   GTimerExceptionHandler: TTimerExceptionHandler = nil;
-
-  type
-    TTimerMetrics = record
-      ScheduledTotal: QWord;
-      FiredTotal: QWord;
-      CancelledTotal: QWord;
-      ExceptionTotal: QWord;
-    end;
 
   procedure TimerResetMetrics;
   function TimerGetMetrics: TTimerMetrics;
@@ -274,25 +161,6 @@ begin
   Result.Nested := N;
 end;
 
-{ TTimerSchedulerOptions }
-class function TTimerSchedulerOptions.Default: TTimerSchedulerOptions;
-begin
-  Result.Clock := nil;
-  Result.CallbackExecutor := nil;
-end;
-
-function TTimerSchedulerOptions.WithClock(const AClock: IMonotonicClock): TTimerSchedulerOptions;
-begin
-  Result := Self;
-  Result.Clock := AClock;
-end;
-
-function TTimerSchedulerOptions.WithCallbackExecutor(const Pool: IThreadPool): TTimerSchedulerOptions;
-begin
-  Result := Self;
-  Result.CallbackExecutor := Pool;
-end;
-
 // ✅ v2.0: 回调执行
 procedure ExecuteTimerCallback(const cb: TTimerCallback);
 begin
@@ -310,29 +178,8 @@ end;
 
 
 type
-  PTimerEntry = ^TTimerEntry;
+  // ✅ Phase 2: TTimerEntry 和 PTimerEntry 已移至 fafafa.core.time.timer.base
   // TTimerKind 已在接口部分定义
-
-  TTimerEntry = record
-    Kind: TTimerKind;
-    Deadline: TInstant;
-    Period: TDuration; // for FixedRate
-    Delay: TDuration;  // for FixedDelay
-    Callback: TTimerCallback;  // ✅ v2.0: 使用统一回调类型
-    Cancelled: Boolean;
-    Fired: Boolean; // for once; for periodic it indicates at least fired once
-    // ✅ v2.0: 新增字段
-    ExecutionCount: QWord;     // 执行计数（周期定时器用）
-    MaxExecutions: QWord;      // ✅ v2.0: 最大执行次数（0 = 无限制）
-    Paused: Boolean;           // 暂停状态（周期定时器用）
-    CancellationToken: ICancellationToken;  // ✅ v2.0: 取消令牌
-    // lifecycle safety
-    RefCount: LongInt; // references held by TTimerRef or internal temporary holders
-    Dead: Boolean;     // removed from scheduling permanently (fired once or cancelled)
-    InHeap: Boolean;   // currently present in heap list
-    HeapIndex: Integer; // index in heap/list; -1 when not in heap
-    Owner: pointer;     // back-reference to scheduler (TTimerSchedulerImpl)
-  end;
 
   TTimerRef = class(TInterfacedObject, ITimer)
   private
@@ -564,7 +411,6 @@ end;
 function TTimerRef.ResetAt(const Deadline: TInstant): Boolean;
 var
   sch: TTimerSchedulerImpl;
-  idx: Integer;
 begin
   FLock.Acquire;
   try
@@ -573,8 +419,7 @@ begin
     if FEntry^.Fired then Exit(False);
     if not FEntry^.InHeap then Exit(False);  // ✅ 必须在堆中才能重置
 
-    // 保存修改前的索引和调度器引用
-    idx := FEntry^.HeapIndex;
+    // 保存调度器引用
     sch := TTimerSchedulerImpl(FEntry^.Owner);
 
     // 修改截止时间
@@ -779,7 +624,7 @@ function CreateTickerFixedRateOn(const Scheduler: ITimerScheduler; const Initial
 var tm: ITimer;
 begin
   if Scheduler = nil then Exit(nil);
-  tm := Scheduler.ScheduleAtFixedRate(InitialDelay, Period, Callback);
+  tm := Scheduler.ScheduleFixedRate(InitialDelay, Period, TimerCallback(TTimerProc(Callback)));
   Result := TTicker.Create(Scheduler, tm);
 end;
 
@@ -787,7 +632,7 @@ function CreateTickerFixedDelayOn(const Scheduler: ITimerScheduler; const Initia
 var tm: ITimer;
 begin
   if Scheduler = nil then Exit(nil);
-  tm := Scheduler.ScheduleWithFixedDelay(InitialDelay, Delay, Callback);
+  tm := Scheduler.ScheduleFixedDelay(InitialDelay, Delay, TimerCallback(TTimerProc(Callback)));
   Result := TTicker.Create(Scheduler, tm);
 end;
 
@@ -1100,7 +945,7 @@ begin
                       missed := GFixedRateMaxCatchupSteps;
                     NextDeadline := NextDeadline.Add(period.Mul(missed));
                     // 若仍未超过 nowI（可能 limit 过小），则直接跳到 nowI 之后的最近整数倍
-                    if not NextDeadline.GreaterThan(nowI) then
+                    if not (NextDeadline > nowI) then
                     begin
                       elapsedNs := nowI.Diff(best^.Deadline).AsNs;
                       missed := (elapsedNs div period.AsNs) + 1;

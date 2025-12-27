@@ -8,7 +8,7 @@ interface
 uses
   fpcunit, testregistry,
   SysUtils,
-  fafafa.core.simd.types,
+  fafafa.core.simd.base,
   fafafa.core.simd.cpuinfo;
 
 type

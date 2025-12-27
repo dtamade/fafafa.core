@@ -3,6 +3,8 @@ unit fafafa.core.collections.linkedhashmap;
 {$mode objfpc}{$H+}
 {$modeswitch advancedrecords}
 {$I fafafa.core.settings.inc}
+// Suppress unused parameter hints - linked hash map uses node-based storage
+{$WARN 5024 OFF}
 
 interface
 

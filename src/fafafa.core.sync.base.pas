@@ -1478,6 +1478,7 @@ begin
 
     CpuRelax;
   end;
+  Result := False;  // ✅ P0-fix: 必须显式返回 False，避免未定义行为
 end;
 
 function TTryLock.DoTight(aEndTick: UInt64): Boolean;
@@ -1494,6 +1495,7 @@ begin
     if((i mod FTightTimeCheckIntervalSpin) = 0) and (GetTickCount64 >= aEndTick) then
       Exit(False);
   end;
+  Result := False;  // ✅ P0-fix: 必须显式返回 False，避免未定义行为
 end;
 
 function TTryLock.DoBackOffNoCheckNoYield: Boolean;
@@ -1507,6 +1509,7 @@ begin
 
     CpuRelax;
   end;
+  Result := False;  // ✅ P0-fix: 必须显式返回 False，避免未定义行为
 end;
 
 function TTryLock.DoBackOffNoCheck: Boolean;
@@ -1523,6 +1526,7 @@ begin
     if ((i mod FBackOffYieldIntervalSpin) = 0) then
       SchedYield;
   end;
+  Result := False;  // ✅ P0-fix: 必须显式返回 False，避免未定义行为
 end;
 
 function TTryLock.DoBackOffNoYield(aEndTick: UInt64): Boolean;
@@ -1539,6 +1543,7 @@ begin
     if ((i mod FBackOffTimeCheckIntervalSpin) = 0) and (GetTickCount64 >= aEndTick) then
       Exit(False);
   end;
+  Result := False;  // ✅ P0-fix: 必须显式返回 False，避免未定义行为
 end;
 
 function TTryLock.DoBackOff(aEndTick: UInt64): Boolean;
@@ -1558,6 +1563,7 @@ begin
     if ((i mod FBackOffYieldIntervalSpin) = 0) then
       SchedYield;
   end;
+  Result := False;  // ✅ P0-fix: 必须显式返回 False，避免未定义行为
 end;
 
 function TTryLock.DoBlock: Boolean;
@@ -1571,6 +1577,7 @@ begin
 
     Sleep(FBlockSleepIntervalMs);
   end;
+  Result := False;  // ✅ P0-fix: 必须显式返回 False，避免未定义行为
 end;
 
 function TTryLock.DoBlock(aEndTick: UInt64): Boolean;
@@ -1581,12 +1588,13 @@ begin
   begin
     if TryAcquire() then
       Exit(True);
-      
+
     if ((i mod FBlockTimeCheckIntervalSpin) = 0) and (GetTickCount64 >= aEndTick) then
       Exit(False);
 
     Sleep(FBlockSleepIntervalMs);
   end;
+  Result := False;  // ✅ P0-fix: 必须显式返回 False，避免未定义行为
 end;
 
 

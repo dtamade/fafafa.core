@@ -4,17 +4,15 @@ program fafafa_core_mem_pool_fixed_tests;
 {$I ../../src/fafafa.core.settings.inc}
 
 uses
-  {$IFDEF UNIX}{$IFDEF UseCThreads}cthreads,{$ENDIF}{$ENDIF}
+  {$IFDEF UNIX}cthreads,{$ENDIF}
   SysUtils, fpcunit, consoletestrunner,
   fafafa.core.mem.pool.fixed.testcase,
-  fafafa.core.mem.pool.fixed.concurrent.testcase,
-  fafafa.core.mem.pool.fixed.tl.testcase;
+  fafafa.core.mem.pool.fixed.concurrent.testcase;
 
 begin
   // 注册本模块测试用例
   fafafa.core.mem.pool.fixed.testcase.RegisterTests;
   fafafa.core.mem.pool.fixed.concurrent.testcase.RegisterTests;
-  fafafa.core.mem.pool.fixed.tl.testcase.RegisterTests;
 
   with TTestRunner.Create(nil) do
   begin

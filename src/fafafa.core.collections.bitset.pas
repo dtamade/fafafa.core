@@ -2,6 +2,8 @@ unit fafafa.core.collections.bitset;
 
 {$mode objfpc}{$H+}
 {$I fafafa.core.settings.inc}
+// Suppress unused parameter hints - bitset uses word-based internal storage
+{$WARN 5024 OFF}
 
 interface
 

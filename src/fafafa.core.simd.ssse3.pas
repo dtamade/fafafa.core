@@ -324,11 +324,10 @@ begin
   if not HasSSSE3 then
     Exit;
 
-  // Start with base scalar implementations
-  FillBaseDispatchTable(dispatchTable);
+  // ✅ 修复 P0-1: 从 SSE3 继承实现（SSSE3 是 SSE3 的超集）
+  dispatchTable := Default(TSimdDispatchTable);
 
-  // Set backend info
-  dispatchTable.Backend := sbSSSE3;
+  // Set backend info BEFORE cloning (will be preserved)
   with dispatchTable.BackendInfo do
   begin
     Backend := sbSSSE3;
@@ -339,6 +338,15 @@ begin
     Available := True;
     Priority := 18; // Higher than SSE3 (15)
   end;
+
+  // Clone from SSE3 backend (inherits SSE3 → SSE2 → all optimizations)
+  // Fall back to SSE2 if SSE3 not registered, then to scalar baseline
+  if not CloneDispatchTable(sbSSE3, dispatchTable) then
+    if not CloneDispatchTable(sbSSE2, dispatchTable) then
+      FillBaseDispatchTable(dispatchTable);
+
+  // Update backend identifier
+  dispatchTable.Backend := sbSSSE3;
 
   // SSSE3 improvements: integer absolute value, byte shuffle
   // Note: AbsI8x16/AbsI16x8/AbsI32x4/ReduceAddI32x4 not in dispatch table yet

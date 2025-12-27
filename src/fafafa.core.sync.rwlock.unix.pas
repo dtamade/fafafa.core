@@ -63,17 +63,10 @@ type
     FWriterThread: TThreadID;     // 写者线程ID
     FLastLockResult: TLockResult; // 最后操作结果
 
-    // ✅ 缓存行对齐填充 - 修复边界条件
-    // 公式: ((64 - (X mod 64)) mod 64) 确保 X mod 64 = 0 时填充为 0
-    FPadding1: array[0..
-      {$IF (64 - (SizeOf(pthread_rwlock_t) + SizeOf(TAtomicCounter) +
-                  SizeOf(TThreadID) + SizeOf(TLockResult)) mod 64) mod 64 = 0}
-        0  // 已对齐，使用最小填充（1字节）
-      {$ELSE}
-        (64 - (SizeOf(pthread_rwlock_t) + SizeOf(TAtomicCounter) +
-               SizeOf(TThreadID) + SizeOf(TLockResult)) mod 64) mod 64 - 1
-      {$ENDIF}
-    ] of Byte;
+    // ✅ P0-1 Fix: 简化缓存行填充，使用固定大小避免编译时条件脆弱性
+    // 64 字节缓存行：使用足够的填充确保下一字段在新缓存行开始
+    // 旧方法使用编译时条件有脆弱性风险，改为固定填充
+    FPadding1: array[0..63] of Byte;
 
     // 第二个缓存行：性能统计数据（较少访问）
     FContentionCount: Integer;    // 竞争计数
@@ -180,6 +173,53 @@ type
 
 implementation
 
+// ✅ P0-5 Fix: 安全的超时时间计算，避免纳秒乘法溢出
+// 直接使用秒和微秒分别计算，不经过中间纳秒值
+procedure CalcAbsoluteTimeout(const ACurrentTime: timeval; ATimeoutMs: Cardinal; out AAbsTime: timespec);
+  forward;
+
+// ✅ P1-1 Fix: 提取公共的守卫毒化检查辅助方法，消除代码重复
+procedure CheckGuardPoisoning(ALock: TRWLock);
+var
+  ExObj: TObject;
+  ExMsg: string;
+begin
+  if (ALock = nil) or not ALock.FOptions.EnablePoisoning then
+    Exit;
+
+  ExObj := ExceptObject;
+  if ExObj = nil then
+    Exit;
+
+  // 有异常且锁有效，标记锁为毒化状态
+  if ExObj is Exception then
+    ExMsg := Exception(ExObj).Message
+  else
+    ExMsg := 'Unknown exception';
+  ALock.MarkPoisoned(ExMsg);
+end;
+
+procedure CalcAbsoluteTimeout(const ACurrentTime: timeval; ATimeoutMs: Cardinal; out AAbsTime: timespec);
+var
+  ExtraSeconds: Int64;
+  MicroSeconds: Int64;
+begin
+  // 将超时毫秒分解为秒和微秒部分
+  ExtraSeconds := ATimeoutMs div 1000;
+  MicroSeconds := ACurrentTime.tv_usec + ((ATimeoutMs mod 1000) * 1000);
+
+  // 处理微秒进位
+  if MicroSeconds >= 1000000 then
+  begin
+    Inc(ExtraSeconds, MicroSeconds div 1000000);
+    MicroSeconds := MicroSeconds mod 1000000;
+  end;
+
+  // 设置绝对时间（微秒转纳秒不会溢出，因为 MicroSeconds < 1000000）
+  AAbsTime.tv_sec := ACurrentTime.tv_sec + ExtraSeconds;
+  AAbsTime.tv_nsec := MicroSeconds * 1000;
+end;
+
 { TRWLockReadGuard }
 
 function TRWLockReadGuard.GetLock: TRWLock;
@@ -216,30 +256,10 @@ begin
 end;
 
 destructor TRWLockReadGuard.Destroy;
-var
-  ExObj: TObject;
-  ExMsg: string;
-  Lock: TRWLock;
 begin
-  // 检测是否在异常展开过程中（Rust-style Poisoning）
+  // ✅ P1-1 Fix: 使用公共辅助方法检测异常展开过程中的毒化（Rust-style Poisoning）
   if IsLocked then
-  begin
-    Lock := GetLock;
-    // 只有启用毒化检测时才标记
-    if Lock.FOptions.EnablePoisoning then
-    begin
-      ExObj := ExceptObject;
-      if ExObj <> nil then
-      begin
-        // 有异常且锁有效，标记锁为毒化状态
-        if ExObj is Exception then
-          ExMsg := Exception(ExObj).Message
-        else
-          ExMsg := 'Unknown exception';
-        Lock.MarkPoisoned(ExMsg);
-      end;
-    end;
-  end;
+    CheckGuardPoisoning(GetLock);
 
   Release;
   inherited Destroy;
@@ -251,11 +271,16 @@ begin
 end;
 
 procedure TRWLockReadGuard.Release;
+var
+  Lock: TRWLock;
 begin
   if IsLocked then
   begin
+    // ✅ P0-4 Fix: 添加 nil 检查
+    Lock := GetLock;
     try
-      GetLock.ReleaseRead;
+      if Lock <> nil then
+        Lock.ReleaseRead;
     finally
       FReleased := True;
     end;
@@ -288,30 +313,10 @@ begin
 end;
 
 destructor TRWLockWriteGuard.Destroy;
-var
-  ExObj: TObject;
-  ExMsg: string;
-  Lock: TRWLock;
 begin
-  // 检测是否在异常展开过程中（Rust-style Poisoning）
+  // ✅ P1-1 Fix: 使用公共辅助方法检测异常展开过程中的毒化（Rust-style Poisoning）
   if IsLocked then
-  begin
-    Lock := GetLock;
-    // 只有启用毒化检测时才标记
-    if Lock.FOptions.EnablePoisoning then
-    begin
-      ExObj := ExceptObject;
-      if ExObj <> nil then
-      begin
-        // 有异常且锁有效，标记锁为毒化状态
-        if ExObj is Exception then
-          ExMsg := Exception(ExObj).Message
-        else
-          ExMsg := 'Unknown exception';
-        Lock.MarkPoisoned(ExMsg);
-      end;
-    end;
-  end;
+    CheckGuardPoisoning(GetLock);
 
   Release;
   inherited Destroy;
@@ -323,11 +328,16 @@ begin
 end;
 
 procedure TRWLockWriteGuard.Release;
+var
+  Lock: TRWLock;
 begin
   if IsLocked then
   begin
+    // ✅ P0-4 Fix: 添加 nil 检查
+    Lock := GetLock;
     try
-      GetLock.ReleaseWrite;
+      if Lock <> nil then
+        Lock.ReleaseWrite;
     finally
       FReleased := True;
     end;
@@ -348,8 +358,15 @@ begin
   end;
 
   Lock := GetLock;
+  // ✅ P0-4 Fix: 添加 nil 检查
+  if Lock = nil then
+  begin
+    Result := TRWLockReadGuard.CreateFromDowngrade(nil);
+    Exit;
+  end;
+
   CurrentThreadId := GetCurrentThreadId;
-  
+
   // 在重入管理器中更新状态：写锁 -> 读锁
   Lock.FReentryManager.Lock;
   try
@@ -606,14 +623,19 @@ begin
   // 当禁用重入支持时，直接使用 pthread_rwlock，避免管理器锁开销
   if not FOptions.AllowReentrancy then
   begin
-    // MaxReaders 检查
-    CurrentReaders := AtomicLoadCounter(FReaderCount);
-    if CurrentReaders >= FOptions.MaxReaders then
-      raise ERWLockError.Create(Format('Resource limit exceeded: current=%d, max=%d', [CurrentReaders, FOptions.MaxReaders]), lrError);
-
+    // 先获取锁，再检查 MaxReaders（避免 TOCTOU 竞态）
     if not TryAcquireReadLockWithSpin then
       raise ELockError.Create('Failed to acquire read lock');
-    AtomicIncrementCounter(FReaderCount);
+
+    // 原子增加读者计数并检查限制
+    CurrentReaders := AtomicIncrementCounter(FReaderCount);
+    if CurrentReaders > FOptions.MaxReaders then
+    begin
+      // 超过限制，回退：减少计数并释放锁
+      AtomicDecrementCounter(FReaderCount);
+      pthread_rwlock_unlock(@FRWLock);
+      raise ERWLockError.Create(Format('Resource limit exceeded: current=%d, max=%d', [CurrentReaders, FOptions.MaxReaders]), lrError);
+    end;
     Exit;
   end;
 
@@ -653,17 +675,12 @@ begin
   if not NeedSystemLock then
     Exit;
 
-  // MaxReaders 检查（在获取系统锁之前）
-  CurrentReaders := AtomicLoadCounter(FReaderCount);
-  if CurrentReaders >= FOptions.MaxReaders then
-    raise ERWLockError.Create(Format('Resource limit exceeded: current=%d, max=%d', [CurrentReaders, FOptions.MaxReaders]), lrError);
-
   // 第二阶段：获取系统锁（在管理器锁外部）
   // 使用自适应自旋优化
   if not TryAcquireReadLockWithSpin then
     raise ELockError.Create('Failed to acquire read lock');
 
-  // 第三阶段：更新重入记录
+  // 第三阶段：更新重入记录（在锁内原子检查 MaxReaders）
   FReentryManager.Lock;
   try
     // 重新查找记录（可能在等待期间被其他操作修改）
@@ -672,7 +689,18 @@ begin
       ReentryRecord := FReentryManager.GetOrCreateRecord(CurrentThreadId);
 
     Inc(ReentryRecord^.ReadCount);
-    AtomicIncrementCounter(FReaderCount);
+    CurrentReaders := AtomicIncrementCounter(FReaderCount);
+
+    // MaxReaders 检查（在锁内，避免竞态）
+    if CurrentReaders > FOptions.MaxReaders then
+    begin
+      // 超过限制，回退
+      Dec(ReentryRecord^.ReadCount);
+      AtomicDecrementCounter(FReaderCount);
+      FReentryManager.Unlock;
+      pthread_rwlock_unlock(@FRWLock);
+      raise ERWLockError.Create(Format('Resource limit exceeded: current=%d, max=%d', [CurrentReaders, FOptions.MaxReaders]), lrError);
+    end;
 
     // 确保读锁获取的内存可见性
     MemoryBarrierAcquire;
@@ -882,15 +910,18 @@ begin
   begin
     Result := False;
 
-    // MaxReaders 检查
-    CurrentReaders := AtomicLoadCounter(FReaderCount);
-    if CurrentReaders >= FOptions.MaxReaders then
-      Exit(False);  // TryAcquire 返回 False 而不是抛异常
-
-    // 直接尝试获取系统读锁，不使用重入管理器
+    // 先尝试获取系统读锁
     if pthread_rwlock_tryrdlock(@FRWLock) = 0 then
     begin
-      AtomicIncrementCounter(FReaderCount);
+      // 原子增加计数并检查限制
+      CurrentReaders := AtomicIncrementCounter(FReaderCount);
+      if CurrentReaders > FOptions.MaxReaders then
+      begin
+        // 超过限制，回退
+        AtomicDecrementCounter(FReaderCount);
+        pthread_rwlock_unlock(@FRWLock);
+        Exit(False);
+      end;
       Result := True;
     end;
     Exit;
@@ -900,11 +931,6 @@ begin
   CurrentThreadId := GetCurrentThreadId;
   Result := False;
   NeedSystemLock := True;
-
-  // MaxReaders 检查
-  CurrentReaders := AtomicLoadCounter(FReaderCount);
-  if CurrentReaders >= FOptions.MaxReaders then
-    Exit(False);  // TryAcquire 返回 False 而不是抛异常
 
   // 第一阶段：快速检查可重入性
   FReentryManager.Lock;
@@ -918,7 +944,14 @@ begin
       begin
         // 该线程持有写锁，可以直接获取读锁（写锁降级）
         Inc(ReentryRecord^.ReadCount);
-        AtomicIncrementCounter(FReaderCount);
+        CurrentReaders := AtomicIncrementCounter(FReaderCount);
+        // 重入模式下也检查 MaxReaders
+        if CurrentReaders > FOptions.MaxReaders then
+        begin
+          Dec(ReentryRecord^.ReadCount);
+          AtomicDecrementCounter(FReaderCount);
+          Exit(False);
+        end;
         Result := True;
         NeedSystemLock := False;
       end
@@ -926,7 +959,13 @@ begin
       begin
         // 该线程已经持有读锁，可重入
         Inc(ReentryRecord^.ReadCount);
-        AtomicIncrementCounter(FReaderCount);
+        CurrentReaders := AtomicIncrementCounter(FReaderCount);
+        if CurrentReaders > FOptions.MaxReaders then
+        begin
+          Dec(ReentryRecord^.ReadCount);
+          AtomicDecrementCounter(FReaderCount);
+          Exit(False);
+        end;
         Result := True;
         NeedSystemLock := False;
       end;
@@ -942,7 +981,7 @@ begin
   // 第二阶段：尝试获取系统锁
   if pthread_rwlock_tryrdlock(@FRWLock) = 0 then
   begin
-    // 第三阶段：更新重入记录
+    // 第三阶段：更新重入记录（在锁内检查 MaxReaders）
     FReentryManager.Lock;
     try
       ReentryRecord := FReentryManager.FindRecord(CurrentThreadId);
@@ -950,7 +989,17 @@ begin
         ReentryRecord := FReentryManager.GetOrCreateRecord(CurrentThreadId);
 
       Inc(ReentryRecord^.ReadCount);
-      AtomicIncrementCounter(FReaderCount);
+      CurrentReaders := AtomicIncrementCounter(FReaderCount);
+
+      // MaxReaders 检查
+      if CurrentReaders > FOptions.MaxReaders then
+      begin
+        Dec(ReentryRecord^.ReadCount);
+        AtomicDecrementCounter(FReaderCount);
+        FReentryManager.Unlock;
+        pthread_rwlock_unlock(@FRWLock);
+        Exit(False);
+      end;
       Result := True;
     finally
       FReentryManager.Unlock;
@@ -969,7 +1018,6 @@ var
   ReentryRecord: PThreadReentryRecord;
   AbsTime: timespec;
   CurrentTime: timeval;
-  NanoSecs: Int64;
   LockResult: Integer;
   NeedSystemLock: Boolean;
   CurrentReaders: Integer;
@@ -992,27 +1040,28 @@ begin
       Exit;
     end;
 
-    // MaxReaders 检查（在获取系统锁之前）
-    CurrentReaders := AtomicLoadCounter(FReaderCount);
-    if CurrentReaders >= FOptions.MaxReaders then
-    begin
-      Result := lrWouldBlock;
-      FLastLockResult := lrWouldBlock;
-      Exit;
-    end;
-
-    // 计算绝对超时时间并获取系统锁（不使用重入管理器）
+    // ✅ P0-5 Fix: 使用安全的超时时间计算
     fpgettimeofday(@CurrentTime, nil);
-    NanoSecs := (CurrentTime.tv_sec * 1000000000) + (CurrentTime.tv_usec * 1000) + (ATimeoutMs * 1000000);
-    AbsTime.tv_sec := NanoSecs div 1000000000;
-    AbsTime.tv_nsec := NanoSecs mod 1000000000;
+    CalcAbsoluteTimeout(CurrentTime, ATimeoutMs, AbsTime);
 
     LockResult := pthread_rwlock_timedrdlock(@FRWLock, @AbsTime);
     case LockResult of
       0: begin
-        AtomicIncrementCounter(FReaderCount);
-        Result := lrSuccess;
-        FLastLockResult := lrSuccess;
+        // 原子增加计数并检查限制
+        CurrentReaders := AtomicIncrementCounter(FReaderCount);
+        if CurrentReaders > FOptions.MaxReaders then
+        begin
+          // 超过限制，回退
+          AtomicDecrementCounter(FReaderCount);
+          pthread_rwlock_unlock(@FRWLock);
+          Result := lrWouldBlock;
+          FLastLockResult := lrWouldBlock;
+        end
+        else
+        begin
+          Result := lrSuccess;
+          FLastLockResult := lrSuccess;
+        end;
       end;
       ETIMEDOUT: begin
         Result := lrTimeout;
@@ -1085,10 +1134,9 @@ begin
     Exit;
 
   // 第二阶段：计算绝对超时时间并获取系统锁
+  // ✅ P0-5 Fix: 使用安全的超时时间计算
   fpgettimeofday(@CurrentTime, nil);
-  NanoSecs := (CurrentTime.tv_sec * 1000000000) + (CurrentTime.tv_usec * 1000) + (ATimeoutMs * 1000000);
-  AbsTime.tv_sec := NanoSecs div 1000000000;
-  AbsTime.tv_nsec := NanoSecs mod 1000000000;
+  CalcAbsoluteTimeout(CurrentTime, ATimeoutMs, AbsTime);
 
   LockResult := pthread_rwlock_timedrdlock(@FRWLock, @AbsTime);
   case LockResult of
@@ -1206,7 +1254,6 @@ var
   ReentryRecord: PThreadReentryRecord;
   AbsTime: timespec;
   CurrentTime: timeval;
-  NanoSecs: Int64;
   LockResult: Integer;
 begin
   // ===== 快速路径：非重入模式 =====
@@ -1228,10 +1275,9 @@ begin
     end;
 
     // 非重入模式下直接基于 pthread_rwlock_timedwrlock 实现超时逻辑
+    // ✅ P0-5 Fix: 使用安全的超时时间计算
     fpgettimeofday(@CurrentTime, nil);
-    NanoSecs := (CurrentTime.tv_sec * 1000000000) + (CurrentTime.tv_usec * 1000) + (ATimeoutMs * 1000000);
-    AbsTime.tv_sec := NanoSecs div 1000000000;
-    AbsTime.tv_nsec := NanoSecs mod 1000000000;
+    CalcAbsoluteTimeout(CurrentTime, ATimeoutMs, AbsTime);
 
     LockResult := pthread_rwlock_timedwrlock(@FRWLock, @AbsTime);
     case LockResult of
@@ -1301,10 +1347,9 @@ begin
   end;
 
   // 第二阶段：计算绝对超时时间并获取系统锁
+  // ✅ P0-5 Fix: 使用安全的超时时间计算
   fpgettimeofday(@CurrentTime, nil);
-  NanoSecs := (CurrentTime.tv_sec * 1000000000) + (CurrentTime.tv_usec * 1000) + (ATimeoutMs * 1000000);
-  AbsTime.tv_sec := NanoSecs div 1000000000;
-  AbsTime.tv_nsec := NanoSecs mod 1000000000;
+  CalcAbsoluteTimeout(CurrentTime, ATimeoutMs, AbsTime);
 
   LockResult := pthread_rwlock_timedwrlock(@FRWLock, @AbsTime);
   case LockResult of

@@ -188,6 +188,13 @@ begin
     _cache_unlock_unix;
   end;
   {$ENDIF}
+
+  // Linux: also reset CPU usage sampling baseline.
+  {$IFDEF LINUX}
+  g_cpu_usage_inited := False;
+  g_cpu_usage_last_idle := 0;
+  g_cpu_usage_last_total := 0;
+  {$ENDIF}
 end;
 
 procedure os_cache_reset_ex(const flags: TOSCacheFlags);
@@ -199,7 +206,7 @@ begin
       g_unix_cached_cpu_model_inited := False;
       g_unix_cached_cpu_model := '';
     end;
-    if oscTimezone in flags then begin
+    if (oscTimezone in flags) or (oscTimezoneIana in flags) then begin
       g_unix_cached_timezone_inited := False;
       g_unix_cached_timezone := '';
     end;

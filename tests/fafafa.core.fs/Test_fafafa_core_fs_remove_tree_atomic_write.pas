@@ -167,12 +167,15 @@ var
   Opts: TFsRemoveTreeOptions;
   R: TFsRemoveTreeResult;
 begin
+  // ✅ 安全行为变更：FollowSymlinks=True 不再自动删除外部目标
+  // 这是一个有意的安全修复，防止符号链接逃逸攻击
+  // 外部目标现在会被保留，但会增加错误计数以提醒调用方
   Root := JoinPath(GetTempDirectory, 'rt_symlink_true_' + IntToStr(Random(100000)));
   CreateDirectory(Root, True);
   ExternalDir := JoinPath(GetTempDirectory, 'rt_external_' + IntToStr(Random(100000)));
   CreateDirectory(ExternalDir, True);
-  ExternalFile := JoinPath(ExternalDir, 'gone.txt');
-  WriteTextFile(ExternalFile, 'g');
+  ExternalFile := JoinPath(ExternalDir, 'preserved.txt');
+  WriteTextFile(ExternalFile, 'p');
 
   LinkP := JoinPath(Root, 'link_to_external');
   if fs_symlink(ExternalDir, LinkP) < 0 then Exit;
@@ -181,7 +184,12 @@ begin
   Opts.FollowSymlinks := True;
   RemoveTreeEx(Root, Opts, R);
   AssertTrue('root removed', not PathExists(Root));
-  AssertTrue('external target removed', not PathExists(ExternalDir));
+  // 新的安全行为：外部目标被保留，错误计数 >= 1
+  AssertTrue('external target preserved (security)', PathExists(ExternalDir));
+  AssertTrue('external file preserved', PathExists(ExternalFile));
+  AssertTrue('errors >= 1 (external targets not deleted)', R.Errors >= 1);
+  // 清理
+  RemoveTreeEx(ExternalDir, FsDefaultRemoveTreeOptions);
 end;
 
 

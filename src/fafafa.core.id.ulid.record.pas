@@ -144,12 +144,16 @@ end;
 
 function TULID.TimestampMs: Int64;
 begin
-  Result := fafafa.core.id.ulid.Ulid_TimestampMs(ToString);
+  // ✅ P0: 直接从原始字节提取时间戳，避免 ToString 绕行
+  Result := fafafa.core.id.ulid.Ulid_TimestampMsRaw(F);
 end;
 
 function TULID.IsNil: Boolean;
+const
+  ZERO16: array[0..15] of Byte = (0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0);
 begin
-  Result := (PUInt64(@F[0])^ = 0) and (PUInt64(@F[8])^ = 0);
+  // ✅ P0: 使用 CompareMem 避免未对齐访问（跨平台安全）
+  Result := CompareMem(@F[0], @ZERO16[0], 16);
 end;
 
 function TULID.Equals(const B: TULID): Boolean;

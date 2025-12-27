@@ -617,23 +617,23 @@ end;
 
 class operator TTimeOfDay.=(const A, B: TTimeOfDay): Boolean;
 begin
-  Result := A.Equal(B);
+  Result := A.FNanoseconds = B.FNanoseconds;
 end;
 
 
 class operator TTimeOfDay.<>(const A, B: TTimeOfDay): Boolean;
 begin
-  Result := not (A = B);
+  Result := A.FNanoseconds <> B.FNanoseconds;
 end;
 
 class operator TTimeOfDay.<(const A, B: TTimeOfDay): Boolean;
 begin
-  Result := A.LessThan(B);
+  Result := A.FNanoseconds < B.FNanoseconds;
 end;
 
 class operator TTimeOfDay.>(const A, B: TTimeOfDay): Boolean;
 begin
-  Result := A.GreaterThan(B);
+  Result := A.FNanoseconds > B.FNanoseconds;
 end;
 
 
@@ -847,7 +847,7 @@ end;
 
 class operator TTimeOfDay.<=(const A, B: TTimeOfDay): Boolean;
 begin
-  Result := A.LessOrEqual(B);
+  Result := A.FNanoseconds <= B.FNanoseconds;
 end;
 
 
@@ -1213,7 +1213,7 @@ end;
 
 class operator TTimeOfDay.>=(const A, B: TTimeOfDay): Boolean;
 begin
-  Result := A.GreaterOrEqual(B);
+  Result := A.FNanoseconds >= B.FNanoseconds;
 end;
 
 // ===== P1: 字符串与时段判定 =====

@@ -1,4 +1,4 @@
-unit fafafa.core.math.array_.testcase;
+unit fafafa.core.math.arrays.testcase;
 
 {$MODE OBJFPC}{$H+}
 
@@ -6,7 +6,7 @@ interface
 
 uses
   Classes, SysUtils, fpcunit, testregistry,
-  fafafa.core.math.array_;
+  fafafa.core.math.arrays;
 
 type
   TTestMathArray = class(TTestCase)

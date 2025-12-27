@@ -7,7 +7,7 @@ unit fafafa.core.mem.mappedSlabPool;
 interface
 
 uses
-  SysUtils, fafafa.core.mem.memoryMap, fafafa.core.mem.slabPool;
+  SysUtils, fafafa.core.mem.memoryMap;
 
 type
   {**
@@ -126,8 +126,6 @@ type
      * @desc 释放通过 Alloc 得到的块（避免与 TObject.Free 名称冲突）
      *}
     procedure FreeBlock(aPtr: Pointer);
-    // Deprecated: 为兼容旧代码，保留 Free(aPtr) 声明，但内部委托给 FreeBlock
-    procedure Free(aPtr: Pointer); inline; deprecated 'Use FreeBlock instead to avoid confusion with TObject.Free';
 
     {**
      * Alloc
@@ -647,12 +645,6 @@ begin
   // 简化的释放实现：只增加计数器
   // 实际应该实现完整的 slab 释放算法
   Inc(Header^.TotalFrees);
-end;
-
-// Deprecated shim: keep backward compatibility and avoid confusion with TObject.Free
-procedure TMappedSlabPool.Free(aPtr: Pointer);
-begin
-  FreeBlock(aPtr);
 end;
 
 function TMappedSlabPool.Flush: Boolean;

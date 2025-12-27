@@ -10,9 +10,10 @@ uses
   Classes, SysUtils,
   fpcunit, testregistry,
   fafafa.core.simd.testcase,
+  fafafa.core.simd.direct.testcase,
   fafafa.core.simd.cpuinfo,
   fafafa.core.simd.dispatch,
-  fafafa.core.simd.types,
+  fafafa.core.simd.base,
   fafafa.core.simd.api,
   fafafa.core.simd.scalar,
   fafafa.core.simd.sse2,
@@ -292,6 +293,8 @@ begin
   WriteLn('  TTestCase_Vec512Types');
   WriteLn('  TTestCase_Memutils');
   WriteLn('  TTestCase_RustStyleAliases');
+  WriteLn('  TTestCase_SaturatingArithmetic');
+  WriteLn('  TTestCase_DirectDispatch');
 end;
 
 procedure AddSuiteFilter(const value: string);
@@ -358,6 +361,11 @@ begin
     begin
       doBench := True;
       benchOnly := True;
+    end
+    else if arg = '--all' then
+    begin
+      // Compatibility with ConsoleTestRunner-style flags used in CI.
+      // This runner executes all suites by default, so --all is a no-op.
     end
     else if (arg = '--help') or (arg = '-h') then
     begin
@@ -507,6 +515,10 @@ begin
         testSuite.AddTest(TTestCase_Memutils.Suite);
       if ShouldRunSuite('TTestCase_RustStyleAliases') then
         testSuite.AddTest(TTestCase_RustStyleAliases.Suite);
+      if ShouldRunSuite('TTestCase_SaturatingArithmetic') then
+        testSuite.AddTest(TTestCase_SaturatingArithmetic.Suite);
+      if ShouldRunSuite('TTestCase_DirectDispatch') then
+        testSuite.AddTest(TTestCase_DirectDispatch.Suite);
 
       // Create test result
       testResult := TTestResult.Create;

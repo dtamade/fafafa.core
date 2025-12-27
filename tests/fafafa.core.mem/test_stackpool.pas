@@ -56,7 +56,7 @@ end;
 
 procedure TTestCase_StackPool.Test_Create_ZeroSize;
 begin
-  AssertException(Exception,
+  AssertException(EStackPoolError,
     procedure begin TStackPool.Create(0).Free; end);
 end;
 

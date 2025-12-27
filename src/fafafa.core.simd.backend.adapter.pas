@@ -14,18 +14,27 @@ uses
 // SIMD Backend Adapter
 // =============================================================================
 //
-// Purpose:
+// ⚠️ DEPRECATED - This unit is scheduled for removal in a future version.
+//
+// Reason:
+//   This adapter was designed to bridge TSimdBackendOps (hierarchical) and
+//   TSimdDispatchTable (flat). Since TSimdBackendOps is deprecated and was
+//   never integrated into the core system, this adapter is also deprecated.
+//
+// Migration:
+//   - Use TSimdDispatchTable from fafafa.core.simd.dispatch directly
+//   - Use FillBaseDispatchTable() for scalar fallbacks
+//   - Do NOT use BackendOpsToDispatchTable/DispatchTableToBackendOps
+//
+// Status:
+//   - Only used by test_backend_ops.pas for testing
+//   - Not used by any production code path
+//   - Kept for backward compatibility until next major version
+//
+// Original Purpose (historical):
 //   Provides bidirectional conversion between:
 //   - Legacy TSimdDispatchTable (flat, 100+ fields)
 //   - New TSimdBackendOps (hierarchical, grouped)
-//
-// Migration Strategy:
-//   1. Existing backends continue using TSimdDispatchTable (no changes needed)
-//   2. New backends can implement TSimdBackendOps (cleaner)
-//   3. Adapter converts between them transparently
-//   4. Gradual migration: convert one backend at a time
-//
-// This allows parallel development without breaking existing code!
 //
 // =============================================================================
 

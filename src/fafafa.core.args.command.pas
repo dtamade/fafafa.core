@@ -87,7 +87,24 @@ type
     // Schema attachment (optional)
     function GetSpec: IArgsCommandSpec;
     procedure SetSpec(const S: IArgsCommandSpec);
-    // Execute this command with parsed sub-args
+
+    {**
+     * Execute the command handler with parsed arguments.
+     *
+     * @param A Parsed command line arguments (IArgs interface)
+     * @returns Exit code following POSIX conventions:
+     *          - CMD_OK (0): Success
+     *          - CMD_NOT_FOUND (1): Command or subcommand not found
+     *          - CMD_PARSE_ERROR (2): Argument parsing error / misuse
+     *          - Other non-zero: Application-specific error codes
+     *
+     * @note If no handler is registered, returns CMD_OK (0).
+     * @note The caller is responsible for help/error output; this library
+     *       does not print to stdout/stderr.
+     *
+     * @see CMD_OK, CMD_NOT_FOUND, CMD_PARSE_ERROR constants
+     * @see TCommandHandlerFunc, TCommandHandlerMethod, TCommandHandlerRef
+     *}
     function Execute(const A: IArgs): Integer;
   end;
 

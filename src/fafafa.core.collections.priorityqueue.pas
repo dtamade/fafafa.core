@@ -3,6 +3,8 @@ unit fafafa.core.collections.priorityqueue;
 {$mode objfpc}{$H+}
 {$modeswitch advancedrecords}
 {$I fafafa.core.settings.inc}
+// Suppress unused parameter hints - priority queue uses heap-based storage
+{$WARN 5024 OFF}
 
 interface
 

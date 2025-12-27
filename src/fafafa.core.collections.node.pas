@@ -3,6 +3,8 @@ unit fafafa.core.collections.node;
 {$mode objfpc}{$H+}
 {$modeswitch advancedrecords}
 {$I fafafa.core.settings.inc}
+// Suppress unused parameter hints - node-based structures
+{$WARN 5024 OFF}
 
 interface
 

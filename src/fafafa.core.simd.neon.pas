@@ -26,7 +26,8 @@ interface
 
 uses
   fafafa.core.simd.base,
-  fafafa.core.simd.dispatch;
+  fafafa.core.simd.dispatch,
+  fafafa.core.simd.cpuinfo;
 
 // Register the NEON backend
 procedure RegisterNEONBackend;
@@ -1417,6 +1418,10 @@ procedure RegisterNEONBackend;
 var
   table: TSimdDispatchTable;
 begin
+  // ✅ 运行时检测：如果 CPU 不支持 NEON，则不注册后端
+  if not HasNEON then
+    Exit;
+
   // Fill with base scalar implementations (provides fallback for unimplemented operations)
   FillBaseDispatchTable(table);
 

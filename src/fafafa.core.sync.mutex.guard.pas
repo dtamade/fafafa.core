@@ -245,6 +245,10 @@ end;
 
 function TMutexGuard.TryLock: PT;
 begin
+  // ✅ P0-2 Fix: 与 LockPtr 行为一致，禁止重入
+  if FLocked then
+    raise ELockError.Create('TMutexGuard.TryLock: Already locked. Call Unlock before locking again.');
+
   if FMutex.TryAcquire then
   begin
     FLocked := True;
@@ -293,8 +297,10 @@ var
   Acquired: Boolean;
   TryLockIntf: ITryLock;
 begin
+  // ✅ P0-2 Fix: 与 LockPtr 行为一致，禁止重入
+  // 之前返回已锁定的指针会导致调用者困惑和潜在的死锁
   if FLocked then
-    Exit(@FValue);  // 已持有锁，直接返回
+    raise ELockError.Create('TMutexGuard.TryLockTimeout: Already locked. Call Unlock before locking again.');
 
   // 检查底层是否支持 ITryLock/超时语义
   if not Supports(FMutex, ITryLock, TryLockIntf) then

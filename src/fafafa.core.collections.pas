@@ -2,6 +2,8 @@ unit fafafa.core.collections;
 
 {$mode objfpc}{$H+}
 {$I fafafa.core.settings.inc}
+// Suppress unused parameter hints - facade unit
+{$WARN 5024 OFF}
 
 interface
 

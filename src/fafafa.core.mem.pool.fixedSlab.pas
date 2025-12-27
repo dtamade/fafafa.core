@@ -1,6 +1,7 @@
 unit fafafa.core.mem.pool.fixedSlab;
 
 {$mode objfpc}{$H+}
+{$GOTO ON}  // nginx 移植代码使用 goto 控制流
 {$I fafafa.core.settings.inc}
 {.$define FAFAFA_SLAB_TESTGUARD} // enable when diagnosing
 
@@ -207,8 +208,9 @@ begin
 end;
 {$ENDIF}
 
-// nginx 全局变量
+// nginx 全局变量（线程安全一次性初始化）
 var
+  ngx_slab_sizes_initialized: LongInt = 0;  // 0=未初始化, 1=已初始化
   ngx_slab_max_size: SizeUInt = 0;
   ngx_slab_exact_size: SizeUInt = 0;
   ngx_slab_exact_shift: SizeUInt = 0;
@@ -243,11 +245,15 @@ begin
   Result := PByte((PtrUInt(p) + (a - 1)) and not (a - 1));
 end;
 
-// ngx_slab_sizes_init 的字节级移植
+// ngx_slab_sizes_init 的字节级移植（线程安全一次性初始化）
 procedure ngx_slab_sizes_init;
 var
   n: SizeUInt;
 begin
+  // ✅ 线程安全：只有第一个线程会执行初始化
+  if InterlockedCompareExchange(ngx_slab_sizes_initialized, 1, 0) <> 0 then
+    Exit;  // 已初始化，直接返回
+
   ngx_slab_max_size := ngx_pagesize div 2;
   ngx_slab_exact_size := ngx_pagesize div (8 * SizeOf(PtrUInt));
   ngx_slab_exact_shift := 0;

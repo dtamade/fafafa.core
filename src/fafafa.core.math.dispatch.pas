@@ -278,7 +278,9 @@ function Debug_GetDispatchTrace: TMathDispatchTrace;
 implementation
 
 uses
-  fafafa.core.math.array_;
+  fafafa.core.math.arrays,
+  fafafa.core.math.internal,
+  fafafa.core.simd.arrays;
 
 var
   g_ActiveBackend: TMathBackend = mbScalar;
@@ -305,7 +307,7 @@ end;
 {$ENDIF}
 
 // ============================================================================
-// Scalar Wrapper Functions (delegate to array_ module)
+// Scalar Wrapper Functions (delegate to simd.arrays module)
 // ============================================================================
 
 function ScalarArraySumF64(aSrc: PDouble; aCount: SizeUInt): Double;
@@ -314,7 +316,7 @@ begin
   Inc(g_DispatchTrace.ArraySumF64Calls);
 {$ENDIF}
   // Match facade semantics: ArraySumF64 is the naive sum (Kahan has its own API).
-  Result := fafafa.core.math.array_.ArraySumF64(aSrc, aCount);
+  Result := fafafa.core.simd.arrays.SimdArraySumF64(aSrc, aCount);
 end;
 
 function ScalarArraySumKahanF64(aSrc: PDouble; aCount: SizeUInt): Double;
@@ -322,7 +324,7 @@ begin
 {$IFDEF DEBUG}
   Inc(g_DispatchTrace.ArraySumKahanF64Calls);
 {$ENDIF}
-  Result := fafafa.core.math.array_.ArraySumKahanF64(aSrc, aCount);
+  Result := fafafa.core.simd.arrays.SimdArraySumKahanF64(aSrc, aCount);
 end;
 
 function ScalarArrayMinF64(aSrc: PDouble; aCount: SizeUInt): Double;
@@ -330,7 +332,7 @@ begin
 {$IFDEF DEBUG}
   Inc(g_DispatchTrace.ArrayMinF64Calls);
 {$ENDIF}
-  Result := fafafa.core.math.array_.ArrayMinF64(aSrc, aCount);
+  Result := fafafa.core.simd.arrays.SimdArrayMinF64(aSrc, aCount);
 end;
 
 function ScalarArrayMaxF64(aSrc: PDouble; aCount: SizeUInt): Double;
@@ -338,7 +340,7 @@ begin
 {$IFDEF DEBUG}
   Inc(g_DispatchTrace.ArrayMaxF64Calls);
 {$ENDIF}
-  Result := fafafa.core.math.array_.ArrayMaxF64(aSrc, aCount);
+  Result := fafafa.core.simd.arrays.SimdArrayMaxF64(aSrc, aCount);
 end;
 
 procedure ScalarArrayMinMaxF64(aSrc: PDouble; aCount: SizeUInt; out aMin, aMax: Double);
@@ -346,7 +348,7 @@ begin
 {$IFDEF DEBUG}
   Inc(g_DispatchTrace.ArrayMinMaxF64Calls);
 {$ENDIF}
-  fafafa.core.math.array_.ArrayMinMaxF64(aSrc, aCount, aMin, aMax);
+  fafafa.core.simd.arrays.SimdArrayMinMaxF64(aSrc, aCount, aMin, aMax);
 end;
 
 function ScalarArrayMeanF64(aSrc: PDouble; aCount: SizeUInt): Double;
@@ -354,7 +356,7 @@ begin
 {$IFDEF DEBUG}
   Inc(g_DispatchTrace.ArrayMeanF64Calls);
 {$ENDIF}
-  Result := fafafa.core.math.array_.ArrayMeanF64(aSrc, aCount);
+  Result := fafafa.core.simd.arrays.SimdArrayMeanF64(aSrc, aCount);
 end;
 
 function ScalarArrayDotProductF64(aSrc1, aSrc2: PDouble; aCount: SizeUInt): Double;
@@ -362,8 +364,8 @@ begin
 {$IFDEF DEBUG}
   Inc(g_DispatchTrace.ArrayDotProductF64Calls);
 {$ENDIF}
-  // Match facade semantics: use the array_ implementation (Kahan summation).
-  Result := fafafa.core.math.array_.ArrayDotProductF64(aSrc1, aSrc2, aCount);
+  // Delegate to simd.array_ for SIMD-accelerated dot product
+  Result := fafafa.core.simd.arrays.SimdArrayDotProductF64(aSrc1, aSrc2, aCount);
 end;
 
 function ScalarArrayVarianceF64(aSrc: PDouble; aCount: SizeUInt): Double;
@@ -371,7 +373,7 @@ begin
 {$IFDEF DEBUG}
   Inc(g_DispatchTrace.ArrayVarianceF64Calls);
 {$ENDIF}
-  Result := fafafa.core.math.array_.ArrayVarianceF64(aSrc, aCount);
+  Result := fafafa.core.simd.arrays.SimdArrayVarianceF64(aSrc, aCount);
 end;
 
 function ScalarArrayPopulationVarianceF64(aSrc: PDouble; aCount: SizeUInt): Double;
@@ -379,7 +381,7 @@ begin
 {$IFDEF DEBUG}
   Inc(g_DispatchTrace.ArrayPopulationVarianceF64Calls);
 {$ENDIF}
-  Result := fafafa.core.math.array_.ArrayPopulationVarianceF64(aSrc, aCount);
+  Result := fafafa.core.simd.arrays.SimdArrayPopulationVarianceF64(aSrc, aCount);
 end;
 
 function ScalarArrayStdDevF64(aSrc: PDouble; aCount: SizeUInt): Double;
@@ -387,7 +389,7 @@ begin
 {$IFDEF DEBUG}
   Inc(g_DispatchTrace.ArrayStdDevF64Calls);
 {$ENDIF}
-  Result := fafafa.core.math.array_.ArrayStdDevF64(aSrc, aCount);
+  Result := fafafa.core.simd.arrays.SimdArrayStdDevF64(aSrc, aCount);
 end;
 
 function ScalarArrayPopulationStdDevF64(aSrc: PDouble; aCount: SizeUInt): Double;
@@ -395,7 +397,7 @@ begin
 {$IFDEF DEBUG}
   Inc(g_DispatchTrace.ArrayPopulationStdDevF64Calls);
 {$ENDIF}
-  Result := fafafa.core.math.array_.ArrayPopulationStdDevF64(aSrc, aCount);
+  Result := fafafa.core.simd.arrays.SimdArrayPopulationStdDevF64(aSrc, aCount);
 end;
 
 function ScalarArrayL2NormF64(aSrc: PDouble; aCount: SizeUInt): Double;
@@ -403,7 +405,7 @@ begin
 {$IFDEF DEBUG}
   Inc(g_DispatchTrace.ArrayL2NormF64Calls);
 {$ENDIF}
-  Result := fafafa.core.math.array_.ArrayL2NormF64(aSrc, aCount);
+  Result := fafafa.core.simd.arrays.SimdArrayL2NormF64(aSrc, aCount);
 end;
 
 procedure ScalarArrayScaleF64(aSrc, aDst: PDouble; aCount: SizeUInt; aFactor: Double);
@@ -411,7 +413,7 @@ begin
 {$IFDEF DEBUG}
   Inc(g_DispatchTrace.ArrayScaleF64Calls);
 {$ENDIF}
-  fafafa.core.math.array_.ArrayScaleF64(aSrc, aDst, aCount, aFactor);
+  fafafa.core.simd.arrays.SimdArrayScaleF64(aSrc, aDst, aCount, aFactor);
 end;
 
 procedure ScalarArrayAbsF64(aSrc, aDst: PDouble; aCount: SizeUInt);
@@ -419,7 +421,7 @@ begin
 {$IFDEF DEBUG}
   Inc(g_DispatchTrace.ArrayAbsF64Calls);
 {$ENDIF}
-  fafafa.core.math.array_.ArrayAbsF64(aSrc, aDst, aCount);
+  fafafa.core.simd.arrays.SimdArrayAbsF64(aSrc, aDst, aCount);
 end;
 
 procedure ScalarArrayAddF64(aSrc, aDst: PDouble; aCount: SizeUInt; aValue: Double);
@@ -427,7 +429,7 @@ begin
 {$IFDEF DEBUG}
   Inc(g_DispatchTrace.ArrayAddF64Calls);
 {$ENDIF}
-  fafafa.core.math.array_.ArrayAddF64(aSrc, aDst, aCount, aValue);
+  fafafa.core.simd.arrays.SimdArrayAddF64(aSrc, aDst, aCount, aValue);
 end;
 
 procedure ScalarArrayAddArrayF64(aSrc1, aSrc2, aDst: PDouble; aCount: SizeUInt);
@@ -435,7 +437,7 @@ begin
 {$IFDEF DEBUG}
   Inc(g_DispatchTrace.ArrayAddArrayF64Calls);
 {$ENDIF}
-  fafafa.core.math.array_.ArrayAddArrayF64(aSrc1, aSrc2, aDst, aCount);
+  fafafa.core.simd.arrays.SimdArrayAddArrayF64(aSrc1, aSrc2, aDst, aCount);
 end;
 
 function ScalarArraySumF32(aSrc: PSingle; aCount: SizeUInt): Single;
@@ -443,8 +445,8 @@ begin
 {$IFDEF DEBUG}
   Inc(g_DispatchTrace.ArraySumF32Calls);
 {$ENDIF}
-  // Match facade semantics: ArraySumF32 is the naive sum (Kahan has its own API).
-  Result := fafafa.core.math.array_.ArraySumF32(aSrc, aCount);
+  // Delegate to simd.array_ for SIMD-accelerated summation
+  Result := fafafa.core.simd.arrays.SimdArraySumF32(aSrc, aCount);
 end;
 
 function ScalarArraySumKahanF32(aSrc: PSingle; aCount: SizeUInt): Single;
@@ -452,7 +454,7 @@ begin
 {$IFDEF DEBUG}
   Inc(g_DispatchTrace.ArraySumKahanF32Calls);
 {$ENDIF}
-  Result := fafafa.core.math.array_.ArraySumKahanF32(aSrc, aCount);
+  Result := fafafa.core.simd.arrays.SimdArraySumKahanF32(aSrc, aCount);
 end;
 
 function ScalarArrayMinF32(aSrc: PSingle; aCount: SizeUInt): Single;
@@ -460,7 +462,7 @@ begin
 {$IFDEF DEBUG}
   Inc(g_DispatchTrace.ArrayMinF32Calls);
 {$ENDIF}
-  Result := fafafa.core.math.array_.ArrayMinF32(aSrc, aCount);
+  Result := fafafa.core.simd.arrays.SimdArrayMinF32(aSrc, aCount);
 end;
 
 function ScalarArrayMaxF32(aSrc: PSingle; aCount: SizeUInt): Single;
@@ -468,7 +470,7 @@ begin
 {$IFDEF DEBUG}
   Inc(g_DispatchTrace.ArrayMaxF32Calls);
 {$ENDIF}
-  Result := fafafa.core.math.array_.ArrayMaxF32(aSrc, aCount);
+  Result := fafafa.core.simd.arrays.SimdArrayMaxF32(aSrc, aCount);
 end;
 
 procedure ScalarArrayMinMaxF32(aSrc: PSingle; aCount: SizeUInt; out aMin, aMax: Single);
@@ -476,7 +478,7 @@ begin
 {$IFDEF DEBUG}
   Inc(g_DispatchTrace.ArrayMinMaxF32Calls);
 {$ENDIF}
-  fafafa.core.math.array_.ArrayMinMaxF32(aSrc, aCount, aMin, aMax);
+  fafafa.core.simd.arrays.SimdArrayMinMaxF32(aSrc, aCount, aMin, aMax);
 end;
 
 function ScalarArrayMeanF32(aSrc: PSingle; aCount: SizeUInt): Single;
@@ -484,7 +486,7 @@ begin
 {$IFDEF DEBUG}
   Inc(g_DispatchTrace.ArrayMeanF32Calls);
 {$ENDIF}
-  Result := fafafa.core.math.array_.ArrayMeanF32(aSrc, aCount);
+  Result := fafafa.core.simd.arrays.SimdArrayMeanF32(aSrc, aCount);
 end;
 
 function ScalarArrayVarianceF32(aSrc: PSingle; aCount: SizeUInt): Single;
@@ -492,7 +494,7 @@ begin
 {$IFDEF DEBUG}
   Inc(g_DispatchTrace.ArrayVarianceF32Calls);
 {$ENDIF}
-  Result := fafafa.core.math.array_.ArrayVarianceF32(aSrc, aCount);
+  Result := fafafa.core.simd.arrays.SimdArrayVarianceF32(aSrc, aCount);
 end;
 
 function ScalarArrayPopulationVarianceF32(aSrc: PSingle; aCount: SizeUInt): Single;
@@ -500,7 +502,7 @@ begin
 {$IFDEF DEBUG}
   Inc(g_DispatchTrace.ArrayPopulationVarianceF32Calls);
 {$ENDIF}
-  Result := fafafa.core.math.array_.ArrayPopulationVarianceF32(aSrc, aCount);
+  Result := fafafa.core.simd.arrays.SimdArrayPopulationVarianceF32(aSrc, aCount);
 end;
 
 function ScalarArrayStdDevF32(aSrc: PSingle; aCount: SizeUInt): Single;
@@ -508,7 +510,7 @@ begin
 {$IFDEF DEBUG}
   Inc(g_DispatchTrace.ArrayStdDevF32Calls);
 {$ENDIF}
-  Result := fafafa.core.math.array_.ArrayStdDevF32(aSrc, aCount);
+  Result := fafafa.core.simd.arrays.SimdArrayStdDevF32(aSrc, aCount);
 end;
 
 function ScalarArrayPopulationStdDevF32(aSrc: PSingle; aCount: SizeUInt): Single;
@@ -516,7 +518,7 @@ begin
 {$IFDEF DEBUG}
   Inc(g_DispatchTrace.ArrayPopulationStdDevF32Calls);
 {$ENDIF}
-  Result := fafafa.core.math.array_.ArrayPopulationStdDevF32(aSrc, aCount);
+  Result := fafafa.core.simd.arrays.SimdArrayPopulationStdDevF32(aSrc, aCount);
 end;
 
 function ScalarArrayDotProductF32(aSrc1, aSrc2: PSingle; aCount: SizeUInt): Single;
@@ -524,7 +526,7 @@ begin
 {$IFDEF DEBUG}
   Inc(g_DispatchTrace.ArrayDotProductF32Calls);
 {$ENDIF}
-  Result := fafafa.core.math.array_.ArrayDotProductF32(aSrc1, aSrc2, aCount);
+  Result := fafafa.core.simd.arrays.SimdArrayDotProductF32(aSrc1, aSrc2, aCount);
 end;
 
 function ScalarArrayL2NormF32(aSrc: PSingle; aCount: SizeUInt): Single;
@@ -532,7 +534,7 @@ begin
 {$IFDEF DEBUG}
   Inc(g_DispatchTrace.ArrayL2NormF32Calls);
 {$ENDIF}
-  Result := fafafa.core.math.array_.ArrayL2NormF32(aSrc, aCount);
+  Result := fafafa.core.simd.arrays.SimdArrayL2NormF32(aSrc, aCount);
 end;
 
 procedure ScalarArrayScaleF32(aSrc, aDst: PSingle; aCount: SizeUInt; aFactor: Single);
@@ -540,7 +542,7 @@ begin
 {$IFDEF DEBUG}
   Inc(g_DispatchTrace.ArrayScaleF32Calls);
 {$ENDIF}
-  fafafa.core.math.array_.ArrayScaleF32(aSrc, aDst, aCount, aFactor);
+  fafafa.core.simd.arrays.SimdArrayScaleF32(aSrc, aDst, aCount, aFactor);
 end;
 
 procedure ScalarArrayAbsF32(aSrc, aDst: PSingle; aCount: SizeUInt);
@@ -548,7 +550,7 @@ begin
 {$IFDEF DEBUG}
   Inc(g_DispatchTrace.ArrayAbsF32Calls);
 {$ENDIF}
-  fafafa.core.math.array_.ArrayAbsF32(aSrc, aDst, aCount);
+  fafafa.core.simd.arrays.SimdArrayAbsF32(aSrc, aDst, aCount);
 end;
 
 procedure ScalarArrayAddF32(aSrc, aDst: PSingle; aCount: SizeUInt; aValue: Single);
@@ -556,7 +558,7 @@ begin
 {$IFDEF DEBUG}
   Inc(g_DispatchTrace.ArrayAddF32Calls);
 {$ENDIF}
-  fafafa.core.math.array_.ArrayAddF32(aSrc, aDst, aCount, aValue);
+  fafafa.core.simd.arrays.SimdArrayAddF32(aSrc, aDst, aCount, aValue);
 end;
 
 procedure ScalarArrayAddArrayF32(aSrc1, aSrc2, aDst: PSingle; aCount: SizeUInt);
@@ -564,7 +566,7 @@ begin
 {$IFDEF DEBUG}
   Inc(g_DispatchTrace.ArrayAddArrayF32Calls);
 {$ENDIF}
-  fafafa.core.math.array_.ArrayAddArrayF32(aSrc1, aSrc2, aDst, aCount);
+  fafafa.core.simd.arrays.SimdArrayAddArrayF32(aSrc1, aSrc2, aDst, aCount);
 end;
 
 // ============================================================================
@@ -804,13 +806,12 @@ begin
   aMin := LMin0;
   aMax := LMax0;
 
+  // Reduce 4 SIMD lanes using internal helper
+  // 使用内部辅助函数归约 4 个 SIMD 通道
   for j := 0 to High(LMinAcc) do
-  begin
-    if LMinAcc[j] < aMin then
-      aMin := LMinAcc[j];
-    if LMaxAcc[j] > aMax then
-      aMax := LMaxAcc[j];
-  end;
+    MinMaxUpdateF64(LMinAcc[j], aMin, aMax);
+  for j := 0 to High(LMaxAcc) do
+    MinMaxUpdateF64(LMaxAcc[j], aMin, aMax);
 
   i := 1 + LVecCount;
   while i < aCount do
@@ -925,13 +926,12 @@ begin
   aMin := LMin0;
   aMax := LMax0;
 
+  // Reduce 8 SIMD lanes using internal helper
+  // 使用内部辅助函数归约 8 个 SIMD 通道
   for j := 0 to High(LMinAcc) do
-  begin
-    if LMinAcc[j] < aMin then
-      aMin := LMinAcc[j];
-    if LMaxAcc[j] > aMax then
-      aMax := LMaxAcc[j];
-  end;
+    MinMaxUpdateF32(LMinAcc[j], aMin, aMax);
+  for j := 0 to High(LMaxAcc) do
+    MinMaxUpdateF32(LMaxAcc[j], aMin, aMax);
 
   i := 1 + LVecCount;
   while i < aCount do
@@ -959,7 +959,7 @@ var
   i: SizeUInt;
   j: Integer;
   LAcc: TAcc4;
-  c, y, t: Double;
+  c: Double;
 begin
   Result := 0.0;
   if (aSrc = nil) or (aCount = 0) then
@@ -1003,24 +1003,18 @@ begin
     vzeroupper
   end;
 
-  // Reduce vector lanes with scalar Kahan.
+  // Reduce vector lanes with scalar Kahan using internal helper
+  // 使用内部辅助函数进行标量 Kahan 归约
   c := 0.0;
   for j := 0 to High(LAcc) do
-  begin
-    y := LAcc[j] - c;
-    t := Result + y;
-    c := (t - Result) - y;
-    Result := t;
-  end;
+    KahanAccumulateF64(Result, c, LAcc[j]);
 
-  // Tail.
+  // Tail: process remaining elements
+  // 尾部：处理剩余元素
   i := LVecCount;
   while i < aCount do
   begin
-    y := aSrc[i] - c;
-    t := Result + y;
-    c := (t - Result) - y;
-    Result := t;
+    KahanAccumulateF64(Result, c, aSrc[i]);
     Inc(i);
   end;
 end;
@@ -1496,7 +1490,7 @@ var
   i: SizeUInt;
   j: Integer;
   LAcc: TAcc8;
-  c, y, t: Single;
+  c: Single;
 begin
   Result := 0.0;
   if (aSrc = nil) or (aCount = 0) then
@@ -1536,21 +1530,17 @@ begin
   end;
 
   c := 0.0;
+  // Reduce vector lanes with scalar Kahan using internal helper
+  // 使用内部辅助函数进行标量 Kahan 归约
   for j := 0 to High(LAcc) do
-  begin
-    y := LAcc[j] - c;
-    t := Result + y;
-    c := (t - Result) - y;
-    Result := t;
-  end;
+    KahanAccumulateF32(Result, c, LAcc[j]);
 
+  // Tail: process remaining elements
+  // 尾部：处理剩余元素
   i := LVecCount;
   while i < aCount do
   begin
-    y := aSrc[i] - c;
-    t := Result + y;
-    c := (t - Result) - y;
-    Result := t;
+    KahanAccumulateF32(Result, c, aSrc[i]);
     Inc(i);
   end;
 end;

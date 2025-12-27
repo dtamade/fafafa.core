@@ -674,9 +674,8 @@ begin
     pecLocaleNotSupported: Result := 'Locale not supported';
     pecTimeZoneNotSupported: Result := 'Time zone not supported';
     pecInternalError: Result := 'Internal error';
-  else
-    Result := 'Unknown error';
   end;
+  // 注意: 所有 TParseErrorCode 枚举值已覆盖，无需 else 分支
 end;
 
 {**
@@ -716,9 +715,8 @@ begin
       pecLocaleNotSupported: Result := '不支持的语言环境';
       pecTimeZoneNotSupported: Result := '不支持的时区';
       pecInternalError: Result := '内部错误';
-    else
-      Result := '未知错误';
     end;
+    // 注意: 所有 TParseErrorCode 枚举值已覆盖
     Exit;
   end;
   
@@ -746,9 +744,8 @@ begin
       pecLocaleNotSupported: Result := 'サポートされていないロケール';
       pecTimeZoneNotSupported: Result := 'サポートされていないタイムゾーン';
       pecInternalError: Result := '内部エラー';
-    else
-      Result := '不明なエラー';
     end;
+    // 注意: 所有 TParseErrorCode 枚举值已覆盖
     Exit;
   end;
   

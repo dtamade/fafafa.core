@@ -3,6 +3,8 @@ unit fafafa.core.collections.circularbuffer;
 {$mode objfpc}{$H+}
 {$modeswitch advancedrecords}
 {$I fafafa.core.settings.inc}
+// Suppress unused parameter hints - circular buffer uses ring buffer storage
+{$WARN 5024 OFF}
 
 interface
 

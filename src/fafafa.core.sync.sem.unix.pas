@@ -7,15 +7,8 @@ interface
 
 uses
   SysUtils, BaseUnix, Unix, UnixType, pthreads,
-  fafafa.core.sync.base, fafafa.core.sync.sem.base;
-
-{$IFDEF HAS_CLOCK_GETTIME}
-// POSIX 时钟函数声明
-function clock_gettime(clk_id: cint; tp: PTimeSpec): cint; cdecl; external 'rt';
-
-const
-  CLOCK_MONOTONIC = 1;  // 单调时钟
-{$ENDIF}
+  fafafa.core.sync.base, fafafa.core.sync.sem.base,
+  fafafa.core.sync.timespec;
 
 type
   TSemaphore = class(TTryLock, ISem)
@@ -221,11 +214,6 @@ end;
 
 function TSemaphore.TryAcquire(ACount: Integer; ATimeoutMs: Cardinal): Boolean;
 var
-  {$IFDEF HAS_CLOCK_GETTIME}
-  nowTs: timespec;
-  {$ELSE}
-  tv: TTimeVal;
-  {$ENDIF}
   ts: timespec;
   rc: Integer;
 begin
@@ -257,36 +245,8 @@ begin
     end
     else
     begin
-      // 使用单调时钟计算超时，避免系统时间调整的影响
-      {$IFDEF HAS_CLOCK_GETTIME}
-      if clock_gettime(CLOCK_MONOTONIC, @nowTs) <> 0 then
-      begin
-
-        Exit(False);
-      end;
-      ts.tv_sec := nowTs.tv_sec + (ATimeoutMs div 1000);
-      ts.tv_nsec := nowTs.tv_nsec + Int64(ATimeoutMs mod 1000) * 1000000;
-      if ts.tv_nsec >= 1000000000 then
-      begin
-        Inc(ts.tv_sec);
-        Dec(ts.tv_nsec, 1000000000);
-      end;
-      {$ELSE}
-      // 回退�?gettimeofday（在不支�?CLOCK_MONOTONIC 的系统上�?
-      if fpgettimeofday(@tv, nil) <> 0 then
-      begin
-
-        Exit(False);
-      end;
-      ts.tv_sec := tv.tv_sec + (ATimeoutMs div 1000);
-      ts.tv_nsec := (tv.tv_usec * 1000) + (ATimeoutMs mod 1000) * 1000000;
-      if ts.tv_nsec >= 1000000000 then
-      begin
-        Inc(ts.tv_sec, ts.tv_nsec div 1000000000);
-        ts.tv_nsec := ts.tv_nsec mod 1000000000;
-      end;
-      {$ENDIF}
-
+      // 使用 timespec.pas 共享函数计算超时
+      ts := TimeoutToTimespec(ATimeoutMs);
       while FCount < ACount do
       begin
         rc := pthread_cond_timedwait(@FCond, @FMutex, @ts);

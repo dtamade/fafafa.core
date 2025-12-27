@@ -34,9 +34,16 @@ interface
 uses
   SysUtils,
   fafafa.core.base,
-  fafafa.core.mem.allocator;
+  fafafa.core.mem.allocator,
+  fafafa.core.mem.error;
 
 type
+  {** 环形缓冲区异常 Ring buffer exception *}
+  ERingBufferError = class(EAllocError);
+
+  {** 元素比较函数类型 Element comparison function type *}
+  TRingBufferCompareFunc = function(aLeft, aRight: Pointer; aSize: SizeUInt): Boolean;
+
   {** 操作结果枚举 Operation result **}
   TRingOpResult = (
     rrOk,
@@ -62,7 +69,7 @@ type
     FHead: SizeUInt;      // 读取位置 Read position
     FTail: SizeUInt;      // 写入位置 Write position
     FCount: SizeUInt;     // 当前元素数量 Current element count
-    FBaseAllocator: TAllocator;
+    FBaseAllocator: IAllocator;
     FIsPow2Capacity: Boolean;
 
     function GetElementPtr(aIndex: SizeUInt): Pointer; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
@@ -79,7 +86,7 @@ type
      * @param aElementSize 元素大小 Element size
      * @param aAllocator 基础分配器 Base allocator (optional)
      *}
-    constructor Create(aCapacity: SizeUInt; aElementSize: SizeUInt; aAllocator: TAllocator = nil);
+    constructor Create(aCapacity: SizeUInt; aElementSize: SizeUInt; aAllocator: IAllocator = nil);
 
     {**
      * Destroy
@@ -145,11 +152,8 @@ type
     function Resize(aNewCapacity: SizeUInt): Boolean;
 
     { 批量操作 Batch operations }
-    function Push(aData: Pointer; aCount: SizeUInt; out aPushed: SizeUInt): Boolean; overload; // prefer overload naming
-    function Pop(aData: Pointer; aCount: SizeUInt; out aPopped: SizeUInt): Boolean; overload; // prefer overload naming
-    // deprecated aliases (kept for compatibility)
-    function PushN(aData: Pointer; aCount: SizeUInt; out aPushed: SizeUInt): Boolean; deprecated 'Use overloaded Push(aData, aCount, out aPushed)';
-    function PopN(aData: Pointer; aCount: SizeUInt; out aPopped: SizeUInt): Boolean; deprecated 'Use overloaded Pop(aData, aCount, out aPopped)';
+    function Push(aData: Pointer; aCount: SizeUInt; out aPushed: SizeUInt): Boolean; overload;
+    function Pop(aData: Pointer; aCount: SizeUInt; out aPopped: SizeUInt): Boolean; overload;
 
     { 连续片段 Contiguous spans }
     procedure GetContiguousWriteSpan(out aPtr: Pointer; out aLenInElems: SizeUInt);
@@ -166,6 +170,67 @@ type
     function GetAvailableSpace: SizeUInt; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
     function GetUsageRatio: Single; // 使用率 (0.0..1.0)
     function GetUsagePercent: Single; // 使用率百分比 (0..100)
+
+    { 查找与访问 Find and access }
+
+    {**
+     * FindElement
+     *
+     * @desc 查找元素在缓冲区中的位置
+     *       Find element position in buffer
+     *
+     * @param aData 要查找的元素数据 Element data to find
+     * @param aCompareFunc 比较函数（可选）Compare function (optional)
+     * @return 元素位置，-1表示未找到 Element position, -1 if not found
+     *}
+    function FindElement(aData: Pointer; aCompareFunc: TRingBufferCompareFunc = nil): Integer;
+
+    {**
+     * ContainsElement
+     *
+     * @desc 检查缓冲区是否包含指定元素
+     *       Check if buffer contains specified element
+     *
+     * @param aData 要查找的元素数据 Element data to find
+     * @param aCompareFunc 比较函数（可选）Compare function (optional)
+     * @return 是否包含该元素 Whether element exists
+     *}
+    function ContainsElement(aData: Pointer; aCompareFunc: TRingBufferCompareFunc = nil): Boolean;
+
+    {**
+     * GetElementAt
+     *
+     * @desc 获取指定位置的元素（不移除）
+     *       Get element at specified position (without removing)
+     *
+     * @param aIndex 元素索引（0为最旧元素）Element index (0 is oldest)
+     * @param aData 数据指针（输出）Data pointer (output)
+     * @return 是否成功 Success flag
+     *}
+    function GetElementAt(aIndex: SizeUInt; aData: Pointer): Boolean;
+
+    {**
+     * SetElementAt
+     *
+     * @desc 设置指定位置的元素值
+     *       Set element value at specified position
+     *
+     * @param aIndex 元素索引（0为最旧元素）Element index (0 is oldest)
+     * @param aData 数据指针 Data pointer
+     * @return 是否成功 Success flag
+     *}
+    function SetElementAt(aIndex: SizeUInt; aData: Pointer): Boolean;
+
+    {**
+     * DropElements
+     *
+     * @desc 丢弃指定数量的元素（从头部开始）
+     *       Drop specified number of elements (from head)
+     *
+     * @param aCount 要丢弃的元素个数 Number of elements to drop
+     * @return 实际丢弃的元素个数 Actual number of elements dropped
+     *}
+    function DropElements(aCount: SizeUInt): SizeUInt;
   end;
 
   {**
@@ -176,12 +241,19 @@ type
    *}
   generic TTypedRingBuffer<T> = class(TRingBuffer)
   public
-    constructor Create(aCapacity: SizeUInt; aAllocator: TAllocator = nil);
+    constructor Create(aCapacity: SizeUInt; aAllocator: IAllocator = nil);
     function Push(const aItem: T): Boolean; reintroduce;
     function Pop(out aItem: T): Boolean; reintroduce;
     function Peek(out aItem: T; aOffset: SizeUInt = 0): Boolean; reintroduce;
     function TryPush(const aItem: T): TRingOpResult; reintroduce;
     function TryPop(out aItem: T): TRingOpResult; reintroduce;
+
+    { 类型安全的查找与访问 Type-safe find and access }
+    function Find(const aItem: T): Integer;
+    function Contains(const aItem: T): Boolean;
+    function GetItem(aIndex: SizeUInt; out aItem: T): Boolean;
+    function SetItem(aIndex: SizeUInt; const aItem: T): Boolean;
+    function Drop(aCount: SizeUInt): SizeUInt;
   end;
 
 implementation
@@ -191,14 +263,14 @@ uses
 
 { TRingBuffer }
 
-constructor TRingBuffer.Create(aCapacity: SizeUInt; aElementSize: SizeUInt; aAllocator: TAllocator);
+constructor TRingBuffer.Create(aCapacity: SizeUInt; aElementSize: SizeUInt; aAllocator: IAllocator);
 begin
   inherited Create;
 
   if aCapacity = 0 then
-    raise Exception.Create('Capacity cannot be zero');
+    raise ERingBufferError.Create(aeInvalidLayout, 'Capacity cannot be zero');
   if aElementSize = 0 then
-    raise Exception.Create('Element size cannot be zero');
+    raise ERingBufferError.Create(aeInvalidLayout, 'Element size cannot be zero');
 
   FCapacity := aCapacity;
   FElementSize := aElementSize;
@@ -214,11 +286,11 @@ begin
 
   // 防止乘法溢出并分配内存
   if (FElementSize <> 0) and (FCapacity > MAX_SIZE_UINT div FElementSize) then
-    raise Exception.Create('Requested size exceeds addressable memory range');
+    raise ERingBufferError.Create(aeInvalidLayout, 'Requested size exceeds addressable memory range');
 
   FBuffer := FBaseAllocator.GetMem(FCapacity * FElementSize);
   if FBuffer = nil then
-    raise Exception.Create('Failed to allocate ring buffer memory');
+    raise ERingBufferError.Create(aeOutOfMemory, 'Failed to allocate ring buffer memory');
 end;
 
 destructor TRingBuffer.Destroy;
@@ -307,11 +379,6 @@ begin
   Result := aPushed > 0;
 end;
 
-function TRingBuffer.PushN(aData: Pointer; aCount: SizeUInt; out aPushed: SizeUInt): Boolean;
-begin
-  Result := Push(aData, aCount, aPushed);
-end;
-
 function TRingBuffer.Pop(aData: Pointer): Boolean;
 begin
   Result := TryPop(aData) = rrOk;
@@ -365,11 +432,6 @@ begin
 
   aPopped := LToRead;
   Result := aPopped > 0;
-end;
-
-function TRingBuffer.PopN(aData: Pointer; aCount: SizeUInt; out aPopped: SizeUInt): Boolean;
-begin
-  Result := Pop(aData, aCount, aPopped);
 end;
 
 function TRingBuffer.Peek(aData: Pointer; aOffset: SizeUInt): Boolean;
@@ -528,9 +590,86 @@ begin
   Result := GetUsageRatio * 100.0;
 end;
 
+function TRingBuffer.FindElement(aData: Pointer; aCompareFunc: TRingBufferCompareFunc): Integer;
+var
+  i: SizeUInt;
+  LIndex: SizeUInt;
+  LElementPtr: Pointer;
+begin
+  Result := -1;
+  if aData = nil then Exit;
+  if FCount = 0 then Exit;
+
+  for i := 0 to FCount - 1 do
+  begin
+    LIndex := (FHead + i) mod FCapacity;
+    LElementPtr := GetElementPtr(LIndex);
+
+    if Assigned(aCompareFunc) then
+    begin
+      if aCompareFunc(aData, LElementPtr, FElementSize) then
+      begin
+        Result := i;
+        Exit;
+      end;
+    end
+    else
+    begin
+      // 默认按字节比较
+      if CompareMem(aData, LElementPtr, FElementSize) then
+      begin
+        Result := i;
+        Exit;
+      end;
+    end;
+  end;
+end;
+
+function TRingBuffer.ContainsElement(aData: Pointer; aCompareFunc: TRingBufferCompareFunc): Boolean;
+begin
+  Result := FindElement(aData, aCompareFunc) >= 0;
+end;
+
+function TRingBuffer.GetElementAt(aIndex: SizeUInt; aData: Pointer): Boolean;
+begin
+  Result := Peek(aData, aIndex);
+end;
+
+function TRingBuffer.SetElementAt(aIndex: SizeUInt; aData: Pointer): Boolean;
+var
+  LIndex: SizeUInt;
+  LElementPtr: Pointer;
+begin
+  Result := False;
+  if aData = nil then Exit;
+  if aIndex >= FCount then Exit;
+
+  LIndex := (FHead + aIndex) mod FCapacity;
+  LElementPtr := GetElementPtr(LIndex);
+  fafafa.core.mem.utils.Copy(aData, LElementPtr, FElementSize);
+  Result := True;
+end;
+
+function TRingBuffer.DropElements(aCount: SizeUInt): SizeUInt;
+var
+  LToDrop: SizeUInt;
+begin
+  if aCount = 0 then Exit(0);
+  if FCount = 0 then Exit(0);
+
+  if aCount > FCount then
+    LToDrop := FCount
+  else
+    LToDrop := aCount;
+
+  FHead := (FHead + LToDrop) mod FCapacity;
+  Dec(FCount, LToDrop);
+  Result := LToDrop;
+end;
+
 { TTypedRingBuffer<T> }
 
-constructor TTypedRingBuffer.Create(aCapacity: SizeUInt; aAllocator: TAllocator);
+constructor TTypedRingBuffer.Create(aCapacity: SizeUInt; aAllocator: IAllocator);
 begin
   inherited Create(aCapacity, SizeOf(T), aAllocator);
 end;
@@ -558,6 +697,31 @@ end;
 function TTypedRingBuffer.Peek(out aItem: T; aOffset: SizeUInt): Boolean;
 begin
   Result := inherited Peek(@aItem, aOffset);
+end;
+
+function TTypedRingBuffer.Find(const aItem: T): Integer;
+begin
+  Result := FindElement(@aItem);
+end;
+
+function TTypedRingBuffer.Contains(const aItem: T): Boolean;
+begin
+  Result := ContainsElement(@aItem);
+end;
+
+function TTypedRingBuffer.GetItem(aIndex: SizeUInt; out aItem: T): Boolean;
+begin
+  Result := GetElementAt(aIndex, @aItem);
+end;
+
+function TTypedRingBuffer.SetItem(aIndex: SizeUInt; const aItem: T): Boolean;
+begin
+  Result := SetElementAt(aIndex, @aItem);
+end;
+
+function TTypedRingBuffer.Drop(aCount: SizeUInt): SizeUInt;
+begin
+  Result := DropElements(aCount);
 end;
 
 end.

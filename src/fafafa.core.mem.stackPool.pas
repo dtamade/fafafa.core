@@ -27,16 +27,22 @@ Copyright: (c) 2025 fafafaStudio. All rights reserved.
 unit fafafa.core.mem.stackPool;
 
 {$mode objfpc}{$H+}
+{$modeswitch advancedrecords}
 {$I fafafa.core.settings.inc}
 
 interface
 
 uses
-  SysUtils,
+  SysUtils, Classes,
   fafafa.core.base,
-  fafafa.core.mem.allocator;
+  fafafa.core.mem.allocator,
+  fafafa.core.mem.error;
 
- type
+type
+  {** 栈池异常 Stack pool exception *}
+  EStackPoolError = class(EAllocError);
+
+type
   TStackPoolConfig = record
     TotalSize: SizeUInt;
     Alignment: SizeUInt;    // 默认指针大小
@@ -141,10 +147,201 @@ type
     function IsFull: Boolean;
   end;
 
+  // ============================================================================
+  // 作用域栈池 (Scoped Stack Pool) - 支持 RAII 和自动回收
+  // ============================================================================
+
+  // Forward declarations
+  TScopedStackPool = class;
+
+  {**
+   * TStackPoolStatistics
+   *
+   * @desc 栈池统计信息
+   *}
+  TStackPoolStatistics = record
+    TotalAllocations: UInt64;     // 总分配次数
+    TotalBytes: UInt64;           // 总分配字节数
+    PeakUsage: SizeUInt;          // 峰值使用量
+    CurrentUsage: SizeUInt;       // 当前使用量
+    ScopeCreations: UInt64;       // 作用域创建次数
+    ScopeDestructions: UInt64;    // 作用域销毁次数
+    MaxScopeDepth: Integer;       // 最大作用域深度
+    CurrentScopeDepth: Integer;   // 当前作用域深度
+    FragmentationRatio: Double;   // 碎片化比率
+  end;
+
+  {**
+   * TStackPoolPolicy
+   *
+   * @desc 栈池策略配置
+   *}
+  TStackPoolPolicy = record
+    EnableStatistics: Boolean;    // 启用统计信息
+    EnableScopeTracking: Boolean; // 启用作用域跟踪
+    EnableAutoGrow: Boolean;      // 启用自动增长
+    GrowthFactor: Single;         // 增长因子
+    MaxSize: SizeUInt;            // 最大大小
+    DefaultAlignment: SizeUInt;   // 默认对齐
+    EnableDebugMode: Boolean;     // 启用调试模式
+
+    class function Default: TStackPoolPolicy; static;
+    class function HighPerformance: TStackPoolPolicy; static;
+    class function Debug: TStackPoolPolicy; static;
+  end;
+
+  // 调试用内存映射条目类型
+  TStackMemoryMapEntry = record
+    Start: Pointer;
+    Size: SizeUInt;
+    Used: Boolean;
+  end;
+
+  {**
+   * TStackPoolScope
+   *
+   * @desc 栈作用域，支持 RAII 自动回收
+   *}
+  TStackPoolScope = class
+  private
+    FPool: TScopedStackPool;
+    FSavedState: SizeUInt;
+    FActive: Boolean;
+  public
+    constructor Create(aPool: TScopedStackPool);
+    destructor Destroy; override;
+
+    {** 在当前作用域中分配内存 *}
+    function Alloc(aSize: SizeUInt; aAlignment: SizeUInt = SizeOf(Pointer)): Pointer;
+
+    {** 手动释放作用域（通常由析构函数自动调用） *}
+    procedure Release;
+
+    property Active: Boolean read FActive;
+  end;
+
+  {**
+   * TStackPoolScopeManager
+   *
+   * @desc 栈作用域管理器，管理嵌套作用域
+   *}
+  TStackPoolScopeManager = class
+  private
+    FScopes: TList;
+    FPool: TScopedStackPool;
+  public
+    constructor Create(aPool: TScopedStackPool);
+    destructor Destroy; override;
+
+    function PushScope: TStackPoolScope;
+    procedure PopScope;
+    procedure RemoveScope(aScope: TStackPoolScope);  // 从列表中移除（不释放）
+    function GetCurrentScope: TStackPoolScope;
+    function GetScopeDepth: Integer;
+    procedure ClearAllScopes;
+  end;
+
+  {**
+   * TScopedStackPool
+   *
+   * @desc 作用域栈池，支持嵌套作用域、自动回收、RAII 等高级功能
+   *       原名 TEnhancedStackPool，整合命名规范后改名
+   *}
+  TScopedStackPool = class(TStackPool)
+  private
+    FPolicy: TStackPoolPolicy;
+    FStatistics: TStackPoolStatistics;
+    FScopeManager: TStackPoolScopeManager;
+    FStateStack: array of SizeUInt;
+    FStateStackTop: Integer;
+    FMaxStateStack: Integer;
+
+    procedure UpdateStatistics(aAllocSize: SizeUInt);
+    procedure GrowPool(aRequiredSize: SizeUInt);
+    function CalculateFragmentation: Double;
+
+  public
+    constructor Create(aSize: SizeUInt; const aPolicy: TStackPoolPolicy; aAllocator: IAllocator = nil);
+    destructor Destroy; override;
+
+    {** 分配内存（带策略支持） *}
+    function Alloc(aSize: SizeUInt; aAlignment: SizeUInt = SizeOf(Pointer)): Pointer; reintroduce;
+
+    {** 创建新的作用域 *}
+    function CreateScope: TStackPoolScope;
+
+    {** 推入状态到状态栈 *}
+    function PushState: Boolean;
+
+    {** 从状态栈弹出状态 *}
+    function PopState: Boolean;
+
+    {** 获取状态栈深度 *}
+    function GetStateStackDepth: Integer;
+
+    {** 分配对齐内存 *}
+    function AllocAligned(aSize: SizeUInt; aAlignment: SizeUInt): Pointer; reintroduce;
+
+    {** 分配并清零的内存 *}
+    function AllocZeroed(aSize: SizeUInt; aAlignment: SizeUInt = 0): Pointer;
+
+    {** 分配字符串内存 *}
+    function AllocString(aLength: SizeUInt): PChar;
+
+    {** 分配数组内存 *}
+    function AllocArray(aElementSize: SizeUInt; aCount: SizeUInt; aAlignment: SizeUInt = 0): Pointer;
+
+    {** 获取统计信息 *}
+    function GetStatistics: TStackPoolStatistics;
+
+    {** 重置统计信息 *}
+    procedure ResetStatistics;
+
+    {** 获取碎片化比率 *}
+    function GetFragmentation: Double;
+
+    {** 优化池状态 *}
+    procedure Optimize;
+
+    {** 获取内存映射信息（调试用） *}
+    function GetMemoryMap(out aMap: array of TStackMemoryMapEntry): Integer;
+
+    property Policy: TStackPoolPolicy read FPolicy write FPolicy;
+    property Statistics: TStackPoolStatistics read GetStatistics;
+    property ScopeManager: TStackPoolScopeManager read FScopeManager;
+  end;
+
+  {**
+   * TAutoStackPoolScope
+   *
+   * @desc 自动栈作用域，支持 RAII 模式
+   *}
+  TAutoStackPoolScope = record
+  private
+    FScope: TStackPoolScope;
+    FActive: Boolean;
+  public
+    class function Initialize(aPool: TScopedStackPool): TAutoStackPoolScope; static;
+    procedure Finalize;
+    function Alloc(aSize: SizeUInt; aAlignment: SizeUInt = SizeOf(Pointer)): Pointer;
+    property Active: Boolean read FActive;
+  end;
+
+  // 向后兼容别名 (deprecated, will be removed in v3.0)
+  TEnhancedStackPool = TScopedStackPool deprecated 'Use TScopedStackPool instead';
+  TStackScope = TStackPoolScope deprecated 'Use TStackPoolScope instead';
+  TAutoStackScope = TAutoStackPoolScope deprecated 'Use TAutoStackPoolScope instead';
+  TStackScopeManager = TStackPoolScopeManager deprecated 'Use TStackPoolScopeManager instead';
+
+// 向后兼容辅助函数 (deprecated)
+function CreateDefaultStackPolicy: TStackPoolPolicy; deprecated 'Use TStackPoolPolicy.Default instead';
+function CreateHighPerformanceStackPolicy: TStackPoolPolicy; deprecated 'Use TStackPoolPolicy.HighPerformance instead';
+function CreateDebugStackPolicy: TStackPoolPolicy; deprecated 'Use TStackPoolPolicy.Debug instead';
+
 implementation
 
 uses
-  fafafa.core.mem.utils;
+  fafafa.core.math;
 
 constructor TStackPool.Create(const aConfig: TStackPoolConfig);
 begin
@@ -160,7 +357,7 @@ begin
   inherited Create;
 
   if aSize = 0 then
-    raise Exception.Create('Stack size cannot be zero');
+    raise EStackPoolError.Create(aeInvalidLayout, 'Stack size cannot be zero');
 
   FSize := aSize;
   FOffset := 0;
@@ -172,7 +369,7 @@ begin
 
   FBuffer := FBaseAllocator.GetMem(aSize);
   if FBuffer = nil then
-    raise Exception.Create('Failed to allocate stack buffer');
+    raise EStackPoolError.Create(aeOutOfMemory, 'Failed to allocate stack buffer');
 end;
 
 destructor TStackPool.Destroy;
@@ -278,5 +475,428 @@ begin
     Result := (aOffset + aAlignment - 1) and not (aAlignment - 1);
 end;
 
+// ============================================================================
+// TStackPoolPolicy
+// ============================================================================
+
+class function TStackPoolPolicy.Default: TStackPoolPolicy;
+begin
+  Result.EnableStatistics := True;
+  Result.EnableScopeTracking := True;
+  Result.EnableAutoGrow := False;
+  Result.GrowthFactor := 2.0;
+  Result.MaxSize := 64 * 1024 * 1024; // 64MB
+  Result.DefaultAlignment := SizeOf(Pointer);
+  Result.EnableDebugMode := False;
+end;
+
+class function TStackPoolPolicy.HighPerformance: TStackPoolPolicy;
+begin
+  Result := TStackPoolPolicy.Default;
+  Result.EnableStatistics := False;
+  Result.EnableScopeTracking := False;
+  Result.EnableDebugMode := False;
+end;
+
+class function TStackPoolPolicy.Debug: TStackPoolPolicy;
+begin
+  Result := TStackPoolPolicy.Default;
+  Result.EnableDebugMode := True;
+  Result.GrowthFactor := 1.5; // 更保守的增长
+end;
+
+// 向后兼容辅助函数
+function CreateDefaultStackPolicy: TStackPoolPolicy;
+begin
+  Result := TStackPoolPolicy.Default;
+end;
+
+function CreateHighPerformanceStackPolicy: TStackPoolPolicy;
+begin
+  Result := TStackPoolPolicy.HighPerformance;
+end;
+
+function CreateDebugStackPolicy: TStackPoolPolicy;
+begin
+  Result := TStackPoolPolicy.Debug;
+end;
+
+// ============================================================================
+// TStackPoolScope
+// ============================================================================
+
+constructor TStackPoolScope.Create(aPool: TScopedStackPool);
+begin
+  inherited Create;
+  FPool := aPool;
+  FSavedState := FPool.SaveState;
+  FActive := True;
+
+  if FPool.Policy.EnableStatistics then
+    Inc(FPool.FStatistics.ScopeCreations);
+end;
+
+destructor TStackPoolScope.Destroy;
+begin
+  if FActive then
+    Release;
+  // 从 ScopeManager 中移除自己（如果存在）
+  if Assigned(FPool) and Assigned(FPool.FScopeManager) then
+    FPool.FScopeManager.RemoveScope(Self);
+  inherited Destroy;
+end;
+
+function TStackPoolScope.Alloc(aSize: SizeUInt; aAlignment: SizeUInt): Pointer;
+begin
+  if not FActive then
+  begin
+    Result := nil;
+    Exit;
+  end;
+
+  if aAlignment = 0 then
+    aAlignment := FPool.Policy.DefaultAlignment;
+
+  Result := FPool.Alloc(aSize, aAlignment);
+end;
+
+procedure TStackPoolScope.Release;
+begin
+  if not FActive then Exit;
+
+  FPool.RestoreState(FSavedState);
+  FActive := False;
+
+  if FPool.Policy.EnableStatistics then
+    Inc(FPool.FStatistics.ScopeDestructions);
+end;
+
+// ============================================================================
+// TStackPoolScopeManager
+// ============================================================================
+
+constructor TStackPoolScopeManager.Create(aPool: TScopedStackPool);
+begin
+  inherited Create;
+  FPool := aPool;
+  FScopes := TList.Create;
+end;
+
+destructor TStackPoolScopeManager.Destroy;
+begin
+  ClearAllScopes;
+  FScopes.Free;
+  inherited Destroy;
+end;
+
+function TStackPoolScopeManager.PushScope: TStackPoolScope;
+begin
+  Result := TStackPoolScope.Create(FPool);
+  FScopes.Add(Result);
+
+  if FPool.Policy.EnableStatistics then
+  begin
+    FPool.FStatistics.CurrentScopeDepth := FScopes.Count;
+    if FScopes.Count > FPool.FStatistics.MaxScopeDepth then
+      FPool.FStatistics.MaxScopeDepth := FScopes.Count;
+  end;
+end;
+
+procedure TStackPoolScopeManager.PopScope;
+var
+  Scope: TStackPoolScope;
+begin
+  if FScopes.Count = 0 then Exit;
+
+  Scope := TStackPoolScope(FScopes.Last);
+  FScopes.Delete(FScopes.Count - 1);
+  Scope.Free;
+
+  if FPool.Policy.EnableStatistics then
+    FPool.FStatistics.CurrentScopeDepth := FScopes.Count;
+end;
+
+procedure TStackPoolScopeManager.RemoveScope(aScope: TStackPoolScope);
+var
+  Idx: Integer;
+begin
+  Idx := FScopes.IndexOf(aScope);
+  if Idx >= 0 then
+  begin
+    FScopes.Delete(Idx);
+    if FPool.Policy.EnableStatistics then
+      FPool.FStatistics.CurrentScopeDepth := FScopes.Count;
+  end;
+end;
+
+function TStackPoolScopeManager.GetCurrentScope: TStackPoolScope;
+begin
+  if FScopes.Count > 0 then
+    Result := TStackPoolScope(FScopes.Last)
+  else
+    Result := nil;
+end;
+
+function TStackPoolScopeManager.GetScopeDepth: Integer;
+begin
+  Result := FScopes.Count;
+end;
+
+procedure TStackPoolScopeManager.ClearAllScopes;
+var
+  i: Integer;
+begin
+  for i := FScopes.Count - 1 downto 0 do
+    TStackPoolScope(FScopes[i]).Free;
+  FScopes.Clear;
+
+  if FPool.Policy.EnableStatistics then
+    FPool.FStatistics.CurrentScopeDepth := 0;
+end;
+
+// ============================================================================
+// TScopedStackPool
+// ============================================================================
+
+constructor TScopedStackPool.Create(aSize: SizeUInt; const aPolicy: TStackPoolPolicy; aAllocator: IAllocator);
+begin
+  inherited Create(aSize, aAllocator);
+
+  FPolicy := aPolicy;
+  FillChar(FStatistics, SizeOf(FStatistics), 0);
+
+  if FPolicy.EnableScopeTracking then
+    FScopeManager := TStackPoolScopeManager.Create(Self)
+  else
+    FScopeManager := nil;
+
+  // 初始化状态栈
+  FMaxStateStack := 32; // 默认支持 32 层嵌套
+  SetLength(FStateStack, FMaxStateStack);
+  FStateStackTop := -1;
+end;
+
+destructor TScopedStackPool.Destroy;
+begin
+  if Assigned(FScopeManager) then
+    FScopeManager.Free;
+  SetLength(FStateStack, 0);
+  inherited Destroy;
+end;
+
+function TScopedStackPool.Alloc(aSize: SizeUInt; aAlignment: SizeUInt): Pointer;
+begin
+  if aAlignment = 0 then
+    aAlignment := FPolicy.DefaultAlignment;
+
+  Result := inherited Alloc(aSize, aAlignment);
+
+  if Result = nil then
+  begin
+    // 如果分配失败且启用自动增长，尝试扩容
+    if FPolicy.EnableAutoGrow then
+    begin
+      GrowPool(aSize);
+      Result := inherited Alloc(aSize, aAlignment);
+    end;
+  end;
+
+  if (Result <> nil) and FPolicy.EnableStatistics then
+    UpdateStatistics(aSize);
+end;
+
+function TScopedStackPool.CreateScope: TStackPoolScope;
+begin
+  if Assigned(FScopeManager) then
+    Result := FScopeManager.PushScope
+  else
+    Result := TStackPoolScope.Create(Self);
+end;
+
+function TScopedStackPool.PushState: Boolean;
+begin
+  Result := False;
+
+  if FStateStackTop >= FMaxStateStack - 1 then
+  begin
+    // 扩展状态栈
+    FMaxStateStack := FMaxStateStack * 2;
+    SetLength(FStateStack, FMaxStateStack);
+  end;
+
+  Inc(FStateStackTop);
+  FStateStack[FStateStackTop] := SaveState;
+  Result := True;
+end;
+
+function TScopedStackPool.PopState: Boolean;
+begin
+  Result := False;
+
+  if FStateStackTop < 0 then Exit;
+
+  RestoreState(FStateStack[FStateStackTop]);
+  Dec(FStateStackTop);
+  Result := True;
+end;
+
+function TScopedStackPool.GetStateStackDepth: Integer;
+begin
+  Result := FStateStackTop + 1;
+end;
+
+function TScopedStackPool.AllocAligned(aSize: SizeUInt; aAlignment: SizeUInt): Pointer;
+begin
+  Result := Alloc(aSize, aAlignment);
+end;
+
+function TScopedStackPool.AllocZeroed(aSize: SizeUInt; aAlignment: SizeUInt): Pointer;
+begin
+  Result := Alloc(aSize, aAlignment);
+  if Result <> nil then
+    FillChar(Result^, aSize, 0);
+end;
+
+function TScopedStackPool.AllocString(aLength: SizeUInt): PChar;
+begin
+  Result := PChar(AllocZeroed(aLength + 1, 1)); // +1 for null terminator
+end;
+
+function TScopedStackPool.AllocArray(aElementSize: SizeUInt; aCount: SizeUInt; aAlignment: SizeUInt): Pointer;
+var
+  LTotalSize: SizeUInt;
+begin
+  LTotalSize := aElementSize * aCount;
+  Result := AllocZeroed(LTotalSize, aAlignment);
+end;
+
+function TScopedStackPool.GetStatistics: TStackPoolStatistics;
+begin
+  Result := Default(TStackPoolStatistics);
+  if FPolicy.EnableStatistics then
+  begin
+    FStatistics.CurrentUsage := UsedSize;
+    FStatistics.FragmentationRatio := CalculateFragmentation;
+    Result := FStatistics;
+  end;
+end;
+
+procedure TScopedStackPool.ResetStatistics;
+begin
+  FillChar(FStatistics, SizeOf(FStatistics), 0);
+end;
+
+function TScopedStackPool.GetFragmentation: Double;
+begin
+  Result := CalculateFragmentation;
+end;
+
+procedure TScopedStackPool.Optimize;
+begin
+  // 简化实现：栈池通常不需要优化，因为是顺序分配
+  // 实际应用中可以实现内存整理等功能
+end;
+
+function TScopedStackPool.GetMemoryMap(out aMap: array of TStackMemoryMapEntry): Integer;
+begin
+  // 简化实现：返回单个已使用块
+  Result := 0;
+  if Length(aMap) > 0 then
+  begin
+    aMap[0].Start := FBuffer;
+    aMap[0].Size := UsedSize;
+    aMap[0].Used := True;
+    Result := 1;
+  end;
+end;
+
+procedure TScopedStackPool.UpdateStatistics(aAllocSize: SizeUInt);
+begin
+  if not FPolicy.EnableStatistics then Exit;
+
+  Inc(FStatistics.TotalAllocations);
+  FStatistics.TotalBytes := FStatistics.TotalBytes + aAllocSize;
+  FStatistics.CurrentUsage := UsedSize;
+
+  if FStatistics.CurrentUsage > FStatistics.PeakUsage then
+    FStatistics.PeakUsage := FStatistics.CurrentUsage;
+end;
+
+procedure TScopedStackPool.GrowPool(aRequiredSize: SizeUInt);
+var
+  NewSize, MinRequired: SizeUInt;
+  NewBuffer: Pointer;
+  OldUsedSize: SizeUInt;
+begin
+  if not FPolicy.EnableAutoGrow then Exit;
+
+  // 计算最小所需大小
+  MinRequired := UsedSize + aRequiredSize;
+
+  // 按增长因子计算新大小
+  NewSize := Round(FSize * FPolicy.GrowthFactor);
+
+  // 确保新大小足够容纳所需
+  if NewSize < MinRequired then
+    NewSize := MinRequired;
+
+  if NewSize > FPolicy.MaxSize then
+    NewSize := FPolicy.MaxSize;
+
+  if NewSize <= FSize then Exit; // 无法增长
+
+  // 分配新缓冲区
+  NewBuffer := FBaseAllocator.GetMem(NewSize);
+  if NewBuffer = nil then Exit;
+
+  // 复制现有数据
+  OldUsedSize := UsedSize;
+  if OldUsedSize > 0 then
+    Move(FBuffer^, NewBuffer^, OldUsedSize);
+
+  // 释放旧缓冲区
+  FBaseAllocator.FreeMem(FBuffer);
+
+  // 更新池状态
+  FBuffer := NewBuffer;
+  FSize := NewSize;
+end;
+
+function TScopedStackPool.CalculateFragmentation: Double;
+begin
+  // 栈池的碎片化很简单：已使用空间 / 总空间
+  if FSize = 0 then
+    Result := 0.0
+  else
+    Result := 1.0 - (UsedSize / FSize);
+end;
+
+// ============================================================================
+// TAutoStackPoolScope
+// ============================================================================
+
+class function TAutoStackPoolScope.Initialize(aPool: TScopedStackPool): TAutoStackPoolScope;
+begin
+  Result.FScope := aPool.CreateScope;
+  Result.FActive := True;
+end;
+
+procedure TAutoStackPoolScope.Finalize;
+begin
+  if FActive and Assigned(FScope) then
+  begin
+    FScope.Free;
+    FScope := nil;
+    FActive := False;
+  end;
+end;
+
+function TAutoStackPoolScope.Alloc(aSize: SizeUInt; aAlignment: SizeUInt): Pointer;
+begin
+  if FActive and Assigned(FScope) then
+    Result := FScope.Alloc(aSize, aAlignment)
+  else
+    Result := nil;
+end;
 
 end.

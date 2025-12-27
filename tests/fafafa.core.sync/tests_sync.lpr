@@ -8,6 +8,7 @@ uses
   cthreads,
   {$ENDIF}
   Classes, SysUtils, CustApp, fpcunit, testregistry, consoletestrunner,
+  Test_sync,
   Test_sync_modern,
   fafafa.core.sync.boundary.testcase,
   fafafa.core.sync.deadlock.testcase;

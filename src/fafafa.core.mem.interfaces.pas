@@ -8,17 +8,15 @@ uses
   SysUtils, fafafa.core.mem.allocator;
 
 // 说明：本单元仅声明接口类型（P2 预研）。
-// 不改变现有类用法；实现仍由现有类（TMemPool/TStackPool/TSlabPool）提供。
+// 不改变现有类用法；实现仍由现有类（TMemPool/TStackPool）提供。
+// ISlabPool 接口保留，实现可使用 fafafa.core.mem.pool.slab 或 fafafa.core.mem.mimalloc。
+//
+// 注意：IAllocator 已从此单元移除，使用 fafafa.core.mem.allocator 中的定义。
+// Note: IAllocator has been removed from this unit. Use the one from fafafa.core.mem.allocator.
 
-// 基础分配器接口（面向抽象）
+// 基础分配器接口重导出（避免 GUID 冲突）
 type
-  IAllocator = interface
-    ['{E7B8C1B4-8F0C-4D7F-9E7B-AB3BCD8142F9}']
-    function GetMem(ASize: SizeUInt): Pointer;
-    function AllocMem(ASize: SizeUInt): Pointer;
-    function ReallocMem(APtr: Pointer; ANewSize: SizeUInt): Pointer;
-    procedure FreeMem(APtr: Pointer);
-  end;
+  IAllocator = fafafa.core.mem.allocator.IAllocator;
 
   // 固定块内存池接口
   IMemPool = interface

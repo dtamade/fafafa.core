@@ -1275,22 +1275,22 @@ end;
 
 function TDateRange.Contains(const ADate: TDate): Boolean;
 begin
-  Result := (ADate.GreaterOrEqual(FStartDate)) and (ADate.LessOrEqual(FEndDate));
+  Result := (ADate >= FStartDate) and (ADate <= FEndDate);
 end;
 
 function TDateRange.Overlaps(const AOther: TDateRange): Boolean;
 begin
-  Result := (FStartDate.LessOrEqual(AOther.FEndDate)) and (FEndDate.GreaterOrEqual(AOther.FStartDate));
+  Result := (FStartDate <= AOther.FEndDate) and (FEndDate >= AOther.FStartDate);
 end;
 
 function TDateRange.IsEmpty: Boolean;
 begin
-  Result := FStartDate.GreaterThan(FEndDate);
+  Result := FStartDate > FEndDate;
 end;
 
 function TDateRange.IsValid: Boolean;
 begin
-  Result := FStartDate.LessOrEqual(FEndDate);
+  Result := FStartDate <= FEndDate;
 end;
 
 function TDateRange.Union(const AOther: TDateRange): TDateRange;
@@ -1343,12 +1343,12 @@ begin
   begin
     FStarted := True;
     FCurrent := FStart;
-    Result := not (FStart.GreaterThan(FEnd));
+    Result := not (FStart > FEnd);
   end
   else
   begin
     FCurrent := FCurrent.AddDays(1);
-    Result := FCurrent.LessOrEqual(FEnd);
+    Result := FCurrent <= FEnd;
   end;
 end;
 

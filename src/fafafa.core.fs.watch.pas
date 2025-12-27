@@ -8,6 +8,11 @@ uses
   SysUtils, Classes
   {$IFDEF WINDOWS}, Windows{$ENDIF};
 
+const
+  // ✅ 错误码常量：与 fafafa.core.fs.errors.FS_ERROR_UNKNOWN 保持一致
+  // 用于表示功能不支持
+  FS_WATCH_ERROR_NOT_SUPPORTED = -999;
+
 type
   // 事件类型（对齐多平台能力，合并最小公约数）
   TFsWatchEventKind = (
@@ -333,7 +338,7 @@ begin
   FullW := FRoot + '\' + RelName;
   E.Path := UTF8Encode(FullW);
   if OldRelName <> '' then
-    E.OldPath := UTF8Encode(FRoot + '\\' + OldRelName)
+    E.OldPath := UTF8Encode(FRoot + '\' + OldRelName)  // ✅ 修复：使用单个反斜杠，与 E.Path 保持一致
   else
     E.OldPath := '';
   Attr := GetFileAttributesW(PWideChar(FullW));
@@ -506,7 +511,7 @@ begin
   // 设计限制：每个 IFsWatcher 实例仅支持单根监控
   // 若需监控多个独立目录，请创建多个 IFsWatcher 实例
   if SubRoot = '' then ; // 避免编译器提示
-  Result := -999; // FS_ERROR_UNKNOWN - 功能不支持
+  Result := FS_WATCH_ERROR_NOT_SUPPORTED;
 end;
 
 function TFsWatcherWin.RemovePath(const SubRoot: string): Integer;
@@ -514,7 +519,7 @@ begin
   // 当前实现不支持动态移除子路径
   // 设计限制：请使用 Stop 停止整个监控
   if SubRoot = '' then ; // 避免编译器提示
-  Result := -999; // FS_ERROR_UNKNOWN - 功能不支持
+  Result := FS_WATCH_ERROR_NOT_SUPPORTED;
 end;
 {$ENDIF}
 
@@ -532,14 +537,13 @@ end;
 
 function TFsWatcherStub.Start(const Root: string; const Opts: TFsWatchOptions; const Obs: IFsWatchObserver): Integer;
 begin
-  // FS_ERROR_UNKNOWN = -999 按当前错误枚举，取一个通用“未实现”负码
   // touch params to keep build hint-free on non-Windows
   if Root = '' then ;
   if Opts.MaxQueue < 0 then ;
   if Obs = nil then ;
 
   FRunning := False;
-  Result := -999;
+  Result := FS_WATCH_ERROR_NOT_SUPPORTED;
 end;
 
 procedure TFsWatcherStub.Stop;
@@ -563,14 +567,14 @@ function TFsWatcherStub.AddPath(const SubRoot: string): Integer;
 begin
   // 占位实现 - 功能不支持
   if SubRoot = '' then ;
-  Result := -999; // FS_ERROR_UNKNOWN
+  Result := FS_WATCH_ERROR_NOT_SUPPORTED;
 end;
 
 function TFsWatcherStub.RemovePath(const SubRoot: string): Integer;
 begin
   // 占位实现 - 功能不支持
   if SubRoot = '' then ;
-  Result := -999; // FS_ERROR_UNKNOWN
+  Result := FS_WATCH_ERROR_NOT_SUPPORTED;
 end;
 
 end.

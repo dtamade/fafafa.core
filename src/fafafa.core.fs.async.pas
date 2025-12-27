@@ -523,6 +523,11 @@ end;
 
 function TAsyncFile.CloseAsync: IFuture<Boolean>;
 begin
+  // ✅ 设计说明：FClosed 在提交关闭任务后立即设置为 True
+  // 这是有意为之的设计：
+  // 1. 防止在关闭过程中有新的读写操作
+  // 2. 句柄已被捕获到闭包中，析构函数不需要再次关闭
+  // 3. 如果需要等待关闭完成，调用方应使用 CloseAsync.Await
   if FClosed then
   begin
     Result := FThreadPool.Submit<Boolean>(
@@ -534,6 +539,9 @@ begin
     Exit;
   end;
 
+  // 立即标记为关闭，防止后续操作
+  FClosed := True;
+
   var Handle := FHandle;
 
   Result := FThreadPool.Submit<Boolean>(
@@ -542,8 +550,6 @@ begin
       Result := fs_close(Handle) = 0;
     end
   );
-
-  FClosed := True;
 end;
 
 function TAsyncFile.ReadAllAsync: IFuture<TBytes>;

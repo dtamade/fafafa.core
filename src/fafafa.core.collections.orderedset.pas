@@ -3,6 +3,8 @@ unit fafafa.core.collections.orderedset;
 {$mode objfpc}{$H+}
 {$modeswitch advancedrecords}
 {$I fafafa.core.settings.inc}
+// Suppress unused parameter hints - ordered set delegates to internal map
+{$WARN 5024 OFF}
 
 interface
 

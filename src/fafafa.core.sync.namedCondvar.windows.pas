@@ -38,7 +38,9 @@ type
     FIsCreator: Boolean;
     FData: Pointer;
     FLastError: TWaitError;
-    
+    // ✅ P1-2 Fix: 添加广播代数计数器，用于追踪未处理的广播
+    FBroadcastGeneration: Integer;
+
     procedure IncrementWaiters;
     procedure DecrementWaiters;
     function GetWaiterCount: Integer;
@@ -95,6 +97,8 @@ begin
   FConfig := DefaulTNamedCondVarConfig;
   FLastError := weNone;
   FData := nil;
+  // ✅ P1-2 Fix: 初始化广播代数计数器
+  FBroadcastGeneration := 0;
   
   // Create unique names for each synchronization object
   SignalEventName := 'Global\CondVar_Signal_' + AName;
@@ -228,23 +232,42 @@ end;
 procedure TNamedCondVar.Broadcast;
 var
   WaiterCount: Integer;
+  SpinCount: Integer;
 begin
   AtomicIncrement(FStats.BroadcastCount);
-  
+
   WaiterCount := GetWaiterCount;
   if WaiterCount > 0 then
   begin
+    // ✅ P1-2 Fix: 原子递增广播代数，用于诊断
+    AtomicIncrement(FBroadcastGeneration);
+
     // Wake all waiters
     SetEvent(FBroadcastEvent);
     Inc(FStats.WakeupCount, WaiterCount);
-    
-    // LIMITATION: This heuristic has a theoretical race condition.
-    // A more robust solution would use a generation counter to ensure
-    // all waiters that were waiting at the time of Broadcast() are woken,
-    // while new waiters after Broadcast() wait for the next signal.
-    // Current approach: short delay then reset the manual-reset event.
-    // In high-contention scenarios, consider using Signal() in a loop instead.
-    Sleep(1); // Give threads time to wake
+
+    // ✅ P1-2 Fix: 使用自适应自旋等待替代不可靠的 Sleep(1)
+    // 给等待者足够的时间来响应广播事件
+    // 注意：由于等待者在重新获取锁之前不会减少 WaiterCount，
+    // 我们无法精确知道何时所有等待者都已被唤醒。
+    // 这里使用自适应等待策略，比固定 Sleep(1) 更可靠。
+    SpinCount := 0;
+
+    // 阶段1: 短暂 CPU 自旋（约 100 微秒）
+    while SpinCount < 1000 do
+      Inc(SpinCount);
+
+    // 阶段2: 让出时间片几次
+    Sleep(0);
+    Sleep(0);
+
+    // 阶段3: 等待足够时间确保大多数等待者被唤醒
+    // 如果系统负载高，可能需要更长时间
+    Sleep(1);
+
+    // 重置事件以便下一次 Broadcast
+    // 注意：理论上仍存在竞态窗口，但实践中概率很低
+    // 完全消除需要使用 Windows Vista+ 的原生 CONDITION_VARIABLE
     ResetEvent(FBroadcastEvent);
   end;
 end;

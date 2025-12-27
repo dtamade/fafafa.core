@@ -38,6 +38,15 @@ procedure ResetToAutomaticBackend;
 function IsVectorAsmEnabled: Boolean;
 procedure SetVectorAsmEnabled(enabled: Boolean);
 
+// === Dispatch Change Hook ===
+// Used by higher-level facades to bind a fast access path once per (re)initialization.
+type
+  TSimdDispatchChangedHook = procedure;
+
+// Set a hook that will be called after dispatch (re)initialization completes.
+// If dispatch is already initialized, the hook will be invoked immediately.
+procedure SetDispatchChangedHook(hook: TSimdDispatchChangedHook);
+
 // === Backend Rebuilder Registration ===
 // ⚠️ DEPRECATED: The rebuilder mechanism has been removed for thread safety.
 // VectorAsm setting is now only effective before dispatch initialization.
@@ -367,6 +376,44 @@ function GetBackendInfo(backend: TSimdBackend): TSimdBackendInfo;
 // === Dispatch Table Helpers ===
 
 {**
+ * ValidateDispatchTable
+ *
+ * @desc
+ *   Validates that all function pointers in a dispatch table are non-nil.
+ *   This is a critical safety check to ensure no nil pointer dereferences.
+ *   验证派发表中所有函数指针都非 nil。
+ *   这是确保不会发生 nil 指针解引用的关键安全检查。
+ *
+ * @param dispatchTable
+ *   The dispatch table to validate.
+ *   要验证的派发表。
+ *
+ * @returns
+ *   True if all function pointers are non-nil, False otherwise.
+ *   如果所有函数指针都非 nil 返回 True，否则返回 False。
+ *}
+function ValidateDispatchTable(const dispatchTable: TSimdDispatchTable): Boolean;
+
+{**
+ * AssertDispatchTableValid
+ *
+ * @desc
+ *   Asserts that all function pointers in a dispatch table are non-nil.
+ *   Raises an assertion error in debug builds if validation fails.
+ *   断言派发表中所有函数指针都非 nil。
+ *   在调试构建中，如果验证失败则引发断言错误。
+ *
+ * @param dispatchTable
+ *   The dispatch table to validate.
+ *   要验证的派发表。
+ *
+ * @param backendName
+ *   Name of the backend for error reporting.
+ *   用于错误报告的后端名称。
+ *}
+procedure AssertDispatchTableValid(const dispatchTable: TSimdDispatchTable; const backendName: string);
+
+{**
  * FillBaseDispatchTable
  *
  * @desc
@@ -434,6 +481,9 @@ var
   g_DispatchState: LongInt = 0;  // ✅ 0=未初始化, 1=初始化中, 2=已完成
   g_ForcedBackend: TSimdBackend;
   g_BackendForced: Boolean = False;
+
+  // Optional callback invoked after (re)initialization completes.
+  g_DispatchChangedHook: TSimdDispatchChangedHook = nil;
 
   // Feature toggles
   // ✅ P1-E: 默认启用 SIMD 向量操作
@@ -527,6 +577,10 @@ begin
     g_DispatchInitialized := True;
     WriteBarrier;
     InterlockedExchange(g_DispatchState, 2);
+
+    // Notify listeners after dispatch state is fully published.
+    if Assigned(g_DispatchChangedHook) then
+      g_DispatchChangedHook;
   end
   else if oldState = 1 then
   begin
@@ -645,6 +699,15 @@ begin
   g_VectorAsmEnabled := enabled;
 end;
 
+procedure SetDispatchChangedHook(hook: TSimdDispatchChangedHook);
+begin
+  g_DispatchChangedHook := hook;
+
+  // If dispatch is already initialized, sync immediately.
+  if Assigned(hook) and (g_DispatchState = 2) then
+    hook;
+end;
+
 function GetDispatchTable: PSimdDispatchTable;
 begin
   InitializeDispatch;
@@ -655,6 +718,11 @@ end;
 
 procedure RegisterBackend(backend: TSimdBackend; const dispatchTable: TSimdDispatchTable);
 begin
+  // ✅ P2-1: Validate dispatch table integrity before registration
+  {$IFDEF DEBUG}
+  AssertDispatchTableValid(dispatchTable, dispatchTable.BackendInfo.Name);
+  {$ENDIF}
+
   g_BackendTables[backend] := dispatchTable;
   WriteBarrier;  // Ensure table is fully written before marking as registered
   g_BackendRegistered[backend] := True;
@@ -695,6 +763,74 @@ begin
 end;
 
 // === Dispatch Table Helpers ===
+
+// ✅ P2-1: Dispatch table integrity validation
+function ValidateDispatchTable(const dispatchTable: TSimdDispatchTable): Boolean;
+type
+  PPointer = ^Pointer;
+var
+  p: PPointer;
+  i: Integer;
+  fieldCount: Integer;
+  startOffset: Integer;
+begin
+  Result := True;
+
+  // Calculate the offset to the first function pointer (after Backend and BackendInfo)
+  // Backend: TSimdBackend (enum, typically 1-4 bytes)
+  // BackendInfo: TSimdBackendInfo (record with multiple fields)
+  startOffset := SizeOf(TSimdBackend) + SizeOf(TSimdBackendInfo);
+
+  // Calculate number of function pointer fields
+  // Total size minus header fields, divided by pointer size
+  fieldCount := (SizeOf(TSimdDispatchTable) - startOffset) div SizeOf(Pointer);
+
+  // Check each function pointer
+  p := PPointer(PByte(@dispatchTable) + startOffset);
+  for i := 0 to fieldCount - 1 do
+  begin
+    if p^ = nil then
+    begin
+      Result := False;
+      Exit;
+    end;
+    Inc(p);
+  end;
+end;
+
+procedure AssertDispatchTableValid(const dispatchTable: TSimdDispatchTable; const backendName: string);
+type
+  PPointer = ^Pointer;
+var
+  p: PPointer;
+  i: Integer;
+  fieldCount: Integer;
+  startOffset: Integer;
+  nilCount: Integer;
+begin
+  startOffset := SizeOf(TSimdBackend) + SizeOf(TSimdBackendInfo);
+  fieldCount := (SizeOf(TSimdDispatchTable) - startOffset) div SizeOf(Pointer);
+
+  nilCount := 0;
+  p := PPointer(PByte(@dispatchTable) + startOffset);
+  for i := 0 to fieldCount - 1 do
+  begin
+    if p^ = nil then
+      Inc(nilCount);
+    Inc(p);
+  end;
+
+  {$IFDEF DEBUG}
+  if nilCount > 0 then
+    raise Exception.CreateFmt(
+      'SIMD dispatch table validation failed for backend "%s": %d of %d function pointers are nil',
+      [backendName, nilCount, fieldCount]);
+  {$ENDIF}
+
+  // In release builds, just assert
+  Assert(nilCount = 0,
+    Format('SIMD dispatch table "%s" has %d nil pointers', [backendName, nilCount]));
+end;
 
 procedure FillBaseDispatchTable(var dispatchTable: TSimdDispatchTable);
 begin

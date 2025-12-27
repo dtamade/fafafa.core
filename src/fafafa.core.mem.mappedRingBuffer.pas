@@ -218,10 +218,8 @@ end;
 
 
 const
-  // 内存布局常量
-  // 头部大小由头结构大小决定，Sequence 数组与 Data 区按计算偏移
-  HEADER_SIZE = SizeOf(TMappedRingBufferHeader);
-  CACHE_LINE_SIZE = 64;  // 缓存行大小，避免伪共享
+  // 缓存行大小，避免伪共享
+  CACHE_LINE_SIZE = 64;
 
 type
   // 环形缓冲区头部结构（v2：支持双向两套ring）
@@ -255,6 +253,8 @@ type
 const
   MAPPED_RINGBUFFER_MAGIC = $4D524246; // 'MRBF'
   MAPPED_RINGBUFFER_VERSION = 2;
+  // 头部大小由头结构大小决定
+  HEADER_SIZE = SizeOf(TMappedRingBufferHeader);
 
 { TMappedRingBuffer }
 
@@ -307,6 +307,9 @@ begin
   Header^.Capacity := aCapacity;
   Header^.Mask := aCapacity - 1;
   Header^.ElementSize := aElementSize;
+  // 同步设置对象字段
+  FCapacity := aCapacity;
+  FElementSize := aElementSize;
   // 初始化序号计数器（双向）
   atomic_store_64(Header^.ProducerSeq_AB, 0, mo_relaxed);
   atomic_store_64(Header^.ConsumerSeq_AB, 0, mo_relaxed);
@@ -549,8 +552,6 @@ begin
     FIsShared := True;
     FMode := aMode;
     FHeader := FSharedMemory.BaseAddress;
-    FDataBuffer := Pointer(PByte(FHeader) + PMappedRingBufferHeader(FHeader)^.OffData_AB);
-    FDataBufferIn := Pointer(PByte(FHeader) + PMappedRingBufferHeader(FHeader)^.OffData_BA);
 
     if FIsCreator then
     begin
@@ -560,6 +561,10 @@ begin
     begin
       if not ValidateHeader then Exit;
     end;
+
+    // 必须在 InitializeHeader/ValidateHeader 之后设置，因为 offset 字段需要先初始化
+    FDataBuffer := Pointer(PByte(FHeader) + PMappedRingBufferHeader(FHeader)^.OffData_AB);
+    FDataBufferIn := Pointer(PByte(FHeader) + PMappedRingBufferHeader(FHeader)^.OffData_BA);
 
     Result := True;
   except

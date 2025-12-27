@@ -69,7 +69,20 @@ function BitsetPopCount(p: Pointer; byteLen: SizeUInt): SizeUInt; {$IFDEF SIMD_A
 implementation
 
 uses
-  fafafa.core.simd.dispatch;
+  fafafa.core.simd.dispatch
+  {$IFDEF SIMD_USE_DIRECT_DISPATCH}
+  , fafafa.core.simd.direct
+  {$ENDIF}
+  ;
+
+function GetFacadeDispatch: PSimdDispatchTable; inline;
+begin
+  {$IFDEF SIMD_USE_DIRECT_DISPATCH}
+  Result := GetDirectDispatchTable;
+  {$ELSE}
+  Result := GetDispatchTable;
+  {$ENDIF}
+end;
 
 // === 内存操作函数实现 ===
 // 通过派发表调用当前活跃后端
@@ -77,42 +90,42 @@ uses
 function MemEqual(a, b: Pointer; len: SizeUInt): LongBool;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetFacadeDispatch;
   Result := dispatch^.MemEqual(a, b, len);
 end;
 
 function MemFindByte(p: Pointer; len: SizeUInt; value: Byte): PtrInt;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetFacadeDispatch;
   Result := dispatch^.MemFindByte(p, len, value);
 end;
 
 function MemDiffRange(a, b: Pointer; len: SizeUInt; out firstDiff, lastDiff: SizeUInt): Boolean;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetFacadeDispatch;
   Result := dispatch^.MemDiffRange(a, b, len, firstDiff, lastDiff);
 end;
 
 procedure MemCopy(src, dst: Pointer; len: SizeUInt);
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetFacadeDispatch;
   dispatch^.MemCopy(src, dst, len);
 end;
 
 procedure MemSet(dst: Pointer; len: SizeUInt; value: Byte);
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetFacadeDispatch;
   dispatch^.MemSet(dst, len, value);
 end;
 
 procedure MemReverse(p: Pointer; len: SizeUInt);
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetFacadeDispatch;
   dispatch^.MemReverse(p, len);
 end;
 
@@ -121,21 +134,21 @@ end;
 function SumBytes(p: Pointer; len: SizeUInt): UInt64;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetFacadeDispatch;
   Result := dispatch^.SumBytes(p, len);
 end;
 
 procedure MinMaxBytes(p: Pointer; len: SizeUInt; out minVal, maxVal: Byte);
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetFacadeDispatch;
   dispatch^.MinMaxBytes(p, len, minVal, maxVal);
 end;
 
 function CountByte(p: Pointer; len: SizeUInt; value: Byte): SizeUInt;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetFacadeDispatch;
   Result := dispatch^.CountByte(p, len, value);
 end;
 
@@ -144,28 +157,28 @@ end;
 function Utf8Validate(p: Pointer; len: SizeUInt): Boolean;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetFacadeDispatch;
   Result := dispatch^.Utf8Validate(p, len);
 end;
 
 function AsciiIEqual(a, b: Pointer; len: SizeUInt): Boolean;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetFacadeDispatch;
   Result := dispatch^.AsciiIEqual(a, b, len);
 end;
 
 procedure ToLowerAscii(p: Pointer; len: SizeUInt);
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetFacadeDispatch;
   dispatch^.ToLowerAscii(p, len);
 end;
 
 procedure ToUpperAscii(p: Pointer; len: SizeUInt);
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetFacadeDispatch;
   dispatch^.ToUpperAscii(p, len);
 end;
 
@@ -174,7 +187,7 @@ end;
 function BytesIndexOf(haystack: Pointer; haystackLen: SizeUInt; needle: Pointer; needleLen: SizeUInt): PtrInt;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetFacadeDispatch;
   Result := dispatch^.BytesIndexOf(haystack, haystackLen, needle, needleLen);
 end;
 
@@ -183,7 +196,7 @@ end;
 function BitsetPopCount(p: Pointer; byteLen: SizeUInt): SizeUInt;
 var dispatch: PSimdDispatchTable;
 begin
-  dispatch := GetDispatchTable;
+  dispatch := GetFacadeDispatch;
   Result := dispatch^.BitsetPopCount(p, byteLen);
 end;
 

@@ -369,7 +369,7 @@ begin
   if IsNever then
     Result := False
   else
-    Result := not ANow.LessThan(FInstant);
+    Result := ANow >= FInstant;
 end;
 
 function TDeadline.IsNever: Boolean;

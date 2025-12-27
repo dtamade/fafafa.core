@@ -8,7 +8,8 @@ interface
 uses
   SysUtils,
   fafafa.core.mem.pool.base,    // IPool (decoupled from facade)
-  fafafa.core.mem.allocator;     // IAllocator + GetRtlAllocator
+  fafafa.core.mem.allocator,    // IAllocator + GetRtlAllocator
+  fafafa.core.mem.error;        // EAllocError, TAllocError
 
 // 说明：
 // - 固定块内存池（Fixed-size Pool），支持逐块分配/归还
@@ -20,8 +21,11 @@ uses
 //   * 线程安全：当前实现不内置并发控制，需要外部同步；或采用后续线程本地/并发变体
 
 type
-  EMemFixedPoolError = class(Exception);
+  {** 固定块池基础异常（继承自 EAllocError）| Fixed pool base exception *}
+  EMemFixedPoolError = class(EAllocError);
+  {** 无效指针异常 | Invalid pointer exception *}
   EMemFixedPoolInvalidPointer = class(EMemFixedPoolError);
+  {** 双重释放异常 | Double free exception *}
   EMemFixedPoolDoubleFree = class(EMemFixedPoolError);
 
   TFixedPoolConfig = record
@@ -140,11 +144,11 @@ var
 begin
   inherited Create;
   if ABlockSize = 0 then
-    raise EMemFixedPoolError.Create('Block size cannot be zero');
+    raise EMemFixedPoolError.Create(aeInvalidLayout, 'Block size cannot be zero');
   if (SizeOf(Pointer) <> 0) and ((ABlockSize mod SizeOf(Pointer)) <> 0) then
-    raise EMemFixedPoolError.Create('Block size must be a multiple of pointer size');
+    raise EMemFixedPoolError.Create(aeInvalidLayout, 'Block size must be a multiple of pointer size');
   if ACapacity <= 0 then
-    raise EMemFixedPoolError.Create('Capacity must be positive');
+    raise EMemFixedPoolError.Create(aeInvalidLayout, 'Capacity must be positive');
 
   FBlockSize := ABlockSize;
   FCapacity := ACapacity;
@@ -168,9 +172,9 @@ begin
   else
     FAlignment := AAlignment;
   if (FAlignment and (FAlignment-1)) <> 0 then
-    raise EMemFixedPoolError.Create('Alignment must be power of two');
+    raise EMemFixedPoolError.Create(aeAlignmentNotSupported, 'Alignment must be power of two');
   if (FBlockSize mod FAlignment) <> 0 then
-    raise EMemFixedPoolError.Create('Block size must be a multiple of alignment');
+    raise EMemFixedPoolError.Create(aeInvalidLayout, 'Block size must be a multiple of alignment');
 
   // 计算总大小并检查溢出
   FTotalSize := FBlockSize * SizeUInt(FCapacity);
@@ -178,25 +182,32 @@ begin
   begin
     LOverflowCheck := FTotalSize div FBlockSize;
     if LOverflowCheck <> SizeUInt(FCapacity) then
-      raise EMemFixedPoolError.Create('Total size overflow');
+      raise EMemFixedPoolError.Create(aeOutOfMemory, 'Total size overflow');
   end;
 
   // 分配连续 Arena（对齐）
   // 如果分配器不提供对齐接口，则 over-allocate 并手动对齐
   LRaw := FAllocator.GetMem(FTotalSize + (FAlignment - 1));
   if LRaw = nil then
-    raise EMemFixedPoolError.Create('Failed to allocate arena buffer');
+    raise EMemFixedPoolError.Create(aeOutOfMemory, 'Failed to allocate arena buffer');
   FRawBuffer := LRaw;
-  LAddr := PtrUInt(LRaw);
-  LMask := FAlignment - 1;
-  LAligned := (LAddr + LMask) and not LMask;
-  FBuffer := Pointer(LAligned);
+  try
+    LAddr := PtrUInt(LRaw);
+    LMask := FAlignment - 1;
+    LAligned := (LAddr + LMask) and not LMask;
+    FBuffer := Pointer(LAligned);
 
-  SetLength(FFreeStack, FCapacity);
-  SetLength(FIsFree, FCapacity);
-  FFreeTop := 0;
+    SetLength(FFreeStack, FCapacity);
+    SetLength(FIsFree, FCapacity);
+    FFreeTop := 0;
 
-  RebuildFreeStack;
+    RebuildFreeStack;
+  except
+    // 异常安全：释放已分配的内存
+    FAllocator.FreeMem(FRawBuffer);
+    FRawBuffer := nil;
+    raise;
+  end;
 end;
 
 constructor TFixedPool.Create(const AConfig: TFixedPoolConfig);
@@ -211,7 +222,7 @@ destructor TFixedPool.Destroy;
 begin
   {$IFDEF FAF_MEM_DEBUG}
   if FAllocatedCount <> 0 then
-    raise EMemFixedPoolError.CreateFmt('Memory leak: %d blocks not freed', [FAllocatedCount]);
+    raise EMemFixedPoolError.Create(aeInternalError, Format('Memory leak: %d blocks not freed', [FAllocatedCount]));
   {$ENDIF}
   if FRawBuffer <> nil then
     FAllocator.FreeMem(FRawBuffer)
@@ -276,24 +287,24 @@ var
 begin
   if APtr = nil then Exit; // Free(nil) = no-op
   if (FBuffer = nil) or (FTotalSize = 0) then
-    raise EMemFixedPoolInvalidPointer.Create('Pool is not initialized');
+    raise EMemFixedPoolInvalidPointer.Create(aeInvalidPointer, 'Pool is not initialized');
 
   // 边界检查：必须在 [FBuffer, FBuffer + FTotalSize) 范围内
   if (APtr < FBuffer) or (APtr >= Pointer(PByte(FBuffer) + FTotalSize)) then
-    raise EMemFixedPoolInvalidPointer.Create('Pointer does not belong to this pool');
+    raise EMemFixedPoolInvalidPointer.Create(aeInvalidPointer, 'Pointer does not belong to this pool');
 
   // 计算与校验对齐
   LDiff := SizeUInt(PByte(APtr) - PByte(FBuffer));
   if (FBlockSize = 0) or ((LDiff mod FBlockSize) <> 0) then
-    raise EMemFixedPoolInvalidPointer.Create('Pointer is not aligned to block size');
+    raise EMemFixedPoolInvalidPointer.Create(aeInvalidPointer, 'Pointer is not aligned to block size');
 
   LIdxU := LDiff div FBlockSize;
   if LIdxU >= SizeUInt(FCapacity) then
-    raise EMemFixedPoolInvalidPointer.Create('Pointer index out of range');
+    raise EMemFixedPoolInvalidPointer.Create(aeInvalidPointer, 'Pointer index out of range');
 
   LIdx := Integer(LIdxU);
   if FIsFree[LIdx] then
-    raise EMemFixedPoolDoubleFree.Create('Double free detected');
+    raise EMemFixedPoolDoubleFree.Create(aeDoubleFree, 'Double free detected');
 
   {$IFDEF FAF_MEM_DEBUG}
   // 污化已释放内存，提升 UAF 暴露率

@@ -520,6 +520,8 @@ begin
   Year := UnixSecToYear(AUnixSec);
   
   case AConfig.RuleKind of
+    drkNone:
+      Result := False;  // 已在上面检查，这里仅为完整性
     drkUSA:
     begin
       // 美国：3月第2周日 02:00 本地 -> 11月第1周日 02:00 本地

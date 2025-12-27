@@ -88,6 +88,22 @@ type
     procedure Test_Performance_Baseline_16_Threads;
   end;
 
+  // WaitEx (Rust-style IBarrierWaitResult) tests
+  TTestCase_WaitEx = class(TTestCase)
+  private
+    FBarrier: IBarrier;
+  protected
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    // Basic WaitEx functionality
+    procedure Test_WaitEx_SingleParticipant_IsLeader;
+    procedure Test_WaitEx_TwoParticipants_ExactlyOneLeader;
+    procedure Test_WaitEx_Generation_IncrementOnComplete;
+    procedure Test_WaitEx_Generation_SameForAllParticipants;
+    procedure Test_WaitEx_MultipleRounds_GenerationIncreases;
+  end;
+
   // Enhanced test helper classes
   TBarrierWorkerThread = class(TThread)
   private
@@ -109,6 +125,19 @@ type
     procedure Execute; override;
   public
     constructor Create(const ABarrier: IBarrier; ADone: PInteger);
+  end;
+
+  // WaitEx worker thread for testing IBarrierWaitResult
+  TWaitExWorkerThread = class(TThread)
+  private
+    FBarrier: IBarrier;
+    FIsLeader: PBoolean;
+    FGeneration: PCardinal;
+    FDoneCount: PInteger;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(const ABarrier: IBarrier; AIsLeader: PBoolean; AGeneration: PCardinal; ADone: PInteger);
   end;
 
 implementation
@@ -546,8 +575,176 @@ begin
   AssertTrue('16-thread performance baseline test placeholder', True);
 end;
 
+{ TWaitExWorkerThread }
+
+constructor TWaitExWorkerThread.Create(const ABarrier: IBarrier; AIsLeader: PBoolean; AGeneration: PCardinal; ADone: PInteger);
+begin
+  inherited Create(False);
+  FreeOnTerminate := False;
+  FBarrier := ABarrier;
+  FIsLeader := AIsLeader;
+  FGeneration := AGeneration;
+  FDoneCount := ADone;
+end;
+
+procedure TWaitExWorkerThread.Execute;
+var
+  Result: TBarrierWaitResult;
+begin
+  Result := FBarrier.WaitEx;
+  if Assigned(FIsLeader) then FIsLeader^ := Result.IsLeader;
+  if Assigned(FGeneration) then FGeneration^ := Result.Generation;
+  if Assigned(FDoneCount) then InterlockedIncrement(FDoneCount^);
+end;
+
+{ TTestCase_WaitEx }
+
+procedure TTestCase_WaitEx.SetUp;
+begin
+  inherited SetUp;
+  FBarrier := MakeBarrier(2); // Default to 2 participants
+end;
+
+procedure TTestCase_WaitEx.TearDown;
+begin
+  FBarrier := nil;
+  inherited TearDown;
+end;
+
+procedure TTestCase_WaitEx.Test_WaitEx_SingleParticipant_IsLeader;
+var
+  B: IBarrier;
+  Result: TBarrierWaitResult;
+begin
+  B := MakeBarrier(1);
+
+  // Single participant should always be leader
+  Result := B.WaitEx;
+  AssertTrue('Single participant should be leader', Result.IsLeader);
+  AssertEquals('First generation should be 1', Cardinal(1), Result.Generation);
+
+  // Second round
+  Result := B.WaitEx;
+  AssertTrue('Single participant should be leader again', Result.IsLeader);
+  AssertEquals('Second generation should be 2', Cardinal(2), Result.Generation);
+end;
+
+procedure TTestCase_WaitEx.Test_WaitEx_TwoParticipants_ExactlyOneLeader;
+var
+  Worker: TWaitExWorkerThread;
+  WorkerIsLeader: Boolean;
+  WorkerGeneration: Cardinal;
+  MainResult: TBarrierWaitResult;
+  DoneCount: Integer;
+  LeaderCount: Integer;
+begin
+  WorkerIsLeader := False;
+  WorkerGeneration := 0;
+  DoneCount := 0;
+
+  Worker := TWaitExWorkerThread.Create(FBarrier, @WorkerIsLeader, @WorkerGeneration, @DoneCount);
+  try
+    MainResult := FBarrier.WaitEx;
+    Worker.WaitFor;
+
+    // Count leaders
+    LeaderCount := 0;
+    if MainResult.IsLeader then Inc(LeaderCount);
+    if WorkerIsLeader then Inc(LeaderCount);
+
+    AssertEquals('Exactly one thread should be leader', 1, LeaderCount);
+    AssertEquals('Both threads should see same generation', MainResult.Generation, WorkerGeneration);
+  finally
+    Worker.Free;
+  end;
+end;
+
+procedure TTestCase_WaitEx.Test_WaitEx_Generation_IncrementOnComplete;
+var
+  B: IBarrier;
+  R1, R2, R3: TBarrierWaitResult;
+begin
+  B := MakeBarrier(1);
+
+  R1 := B.WaitEx;
+  R2 := B.WaitEx;
+  R3 := B.WaitEx;
+
+  AssertEquals('First generation should be 1', Cardinal(1), R1.Generation);
+  AssertEquals('Second generation should be 2', Cardinal(2), R2.Generation);
+  AssertEquals('Third generation should be 3', Cardinal(3), R3.Generation);
+end;
+
+procedure TTestCase_WaitEx.Test_WaitEx_Generation_SameForAllParticipants;
+var
+  B: IBarrier;
+  Workers: array[0..2] of TWaitExWorkerThread;
+  WorkerGenerations: array[0..2] of Cardinal;
+  MainResult: TBarrierWaitResult;
+  DoneCount: Integer;
+  i: Integer;
+begin
+  B := MakeBarrier(4);
+  DoneCount := 0;
+
+  for i := 0 to 2 do
+  begin
+    WorkerGenerations[i] := 0;
+    Workers[i] := TWaitExWorkerThread.Create(B, nil, @WorkerGenerations[i], @DoneCount);
+  end;
+
+  try
+    MainResult := B.WaitEx;
+
+    for i := 0 to 2 do
+      Workers[i].WaitFor;
+
+    // All participants should see the same generation
+    for i := 0 to 2 do
+      AssertEquals('All threads should see same generation',
+                   MainResult.Generation, WorkerGenerations[i]);
+  finally
+    for i := 0 to 2 do
+      Workers[i].Free;
+  end;
+end;
+
+procedure TTestCase_WaitEx.Test_WaitEx_MultipleRounds_GenerationIncreases;
+var
+  B: IBarrier;
+  Worker: TWaitExWorkerThread;
+  WorkerGeneration: Cardinal;
+  MainResult: TBarrierWaitResult;
+  DoneCount: Integer;
+  Round: Integer;
+  ExpectedGen: Cardinal;
+begin
+  B := MakeBarrier(2);
+
+  for Round := 1 to 5 do
+  begin
+    DoneCount := 0;
+    WorkerGeneration := 0;
+
+    Worker := TWaitExWorkerThread.Create(B, nil, @WorkerGeneration, @DoneCount);
+    try
+      MainResult := B.WaitEx;
+      Worker.WaitFor;
+
+      ExpectedGen := Cardinal(Round);
+      AssertEquals(Format('Round %d: generation should be %d', [Round, Round]),
+                   ExpectedGen, MainResult.Generation);
+      AssertEquals(Format('Round %d: worker should see same generation', [Round]),
+                   MainResult.Generation, WorkerGeneration);
+    finally
+      Worker.Free;
+    end;
+  end;
+end;
+
 initialization
   RegisterTest(TTestCase_Global);
   RegisterTest(TTestCase_IBarrier);
+  RegisterTest(TTestCase_WaitEx);
 
 end.

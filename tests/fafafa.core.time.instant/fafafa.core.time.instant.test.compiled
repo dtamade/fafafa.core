@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<CONFIG>
-  <Compiler Value="/home/dtamade/freePascal/fpc/bin/x86_64-linux/fpc.sh" Date="1761279526"/>
-  <Params Value="-MObjFPC -Scgi -Cg -O1 -g -gl -l -vewnhibq -Fu/home/dtamade/projects/fafafa.core/tests/fafafa.core.time.instant/ -Fu/home/dtamade/freePascal/lazarus/components/fpcunit/lib/x86_64-linux/gtk2 -Fu/home/dtamade/freePascal/lazarus/components/synedit/units/x86_64-linux/gtk2 -Fu/home/dtamade/freePascal/lazarus/lcl/units/x86_64-linux/gtk2 -Fu/home/dtamade/freePascal/lazarus/components/lazedit/lib/x86_64-linux -Fu/home/dtamade/freePascal/lazarus/lcl/units/x86_64-linux -Fu/home/dtamade/freePascal/lazarus/components/freetype/lib/x86_64-linux -Fu/home/dtamade/freePascal/lazarus/components/lazutils/lib/x86_64-linux -Fu/home/dtamade/freePascal/lazarus/packager/units/x86_64-linux -o/home/dtamade/projects/fafafa.core/tests/fafafa.core.time.instant/fafafa.core.time.instant.test -dLCL -dLCLgtk2 fafafa.core.time.instant.test.lpr"/>
-</CONFIG>

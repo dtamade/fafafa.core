@@ -2698,8 +2698,8 @@ begin
     prevMinute := FMinute.GetPrevious(minute);
     if prevMinute < 0 then
     begin
-      Dec(hour);
-      if hour < 0 then
+      // 当前小时没有匹配的分钟，回退到上一个小时
+      if hour = 0 then
       begin
         Dec(day);
         if day < 1 then
@@ -2716,7 +2716,9 @@ begin
           day := DaysInAMonth(year, month);
         end;
         hour := 23;
-      end;
+      end
+      else
+        Dec(hour);
       minute := 59;
       Continue;
     end;
@@ -2767,6 +2769,8 @@ var
   i: Integer;
   current: TInstant;
 begin
+  Result := nil;  // 显式初始化 Result
+  current := TInstant.Zero;
   SetLength(Result, ACount);
   current := AFromTime;
   

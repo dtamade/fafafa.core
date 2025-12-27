@@ -224,7 +224,8 @@ begin
   Remainder := cur;
 end;
 
-procedure BigMulAddBase(var Bytes: array of Byte; Len, Base, Digit: Integer);
+// ✅ P0: 返回 Boolean 以检测溢出（cur 非零 = 溢出）
+function BigMulAddBase(var Bytes: array of Byte; Len, Base, Digit: Integer): Boolean;
 var
   k, cur: Integer;
 begin
@@ -235,6 +236,8 @@ begin
     Bytes[k] := cur and $FF;
     cur := cur shr 8;
   end;
+  // ✅ 如果 cur 非零，说明结果溢出了缓冲区
+  Result := (cur = 0);
 end;
 
 function Base58EncodeBytes(const Buf; Len: Integer): string;
@@ -283,7 +286,8 @@ begin
   for i := zeros+1 to Length(S) do
   begin
     if not B58CharValue(S[i], val) then Exit(False);
-    BigMulAddBase(tmp, len, 58, val);
+    // ✅ P0: 检测溢出
+    if not BigMulAddBase(tmp, len, 58, val) then Exit(False);
   end;
   // tmp now has the decoded big-endian value truncated to 'len' bytes; handle leading zeros
   // Reconstruct full array: count leading zero bytes implied by '1's

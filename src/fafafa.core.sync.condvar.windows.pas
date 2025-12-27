@@ -22,6 +22,10 @@ uses
 type
   TCondVar = class(TSynchronizable, ICondVar)
   private
+    // ✅ P0-3 Fix: 定义合理的信号量上限常量，避免资源耗尽
+    const
+      CONDVAR_SEM_MAX_COUNT = 65536;  // 合理的等待者上限
+    var
     {$IFDEF FAFAFA_SYNC_USE_CONDVAR}
     FCond: CONDITION_VARIABLE;
     {$ELSE}
@@ -132,7 +136,7 @@ begin
 
   ALock.Release;
   try
-    if FWaitSemaphore = nil then FWaitSemaphore := MakeSem(0, MaxInt);
+    if FWaitSemaphore = nil then FWaitSemaphore := MakeSem(0, CONDVAR_SEM_MAX_COUNT);
     FWaitSemaphore.Acquire;
   finally
     ALock.Acquire;
@@ -199,7 +203,7 @@ begin
 
   ALock.Release;
   try
-    if FWaitSemaphore = nil then FWaitSemaphore := MakeSem(0, MaxInt);
+    if FWaitSemaphore = nil then FWaitSemaphore := MakeSem(0, CONDVAR_SEM_MAX_COUNT);
     if ATimeoutMs = INFINITE then
       FWaitSemaphore.Acquire
     else

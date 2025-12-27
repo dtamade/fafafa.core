@@ -25,6 +25,13 @@ Copyright: (c) 2025 fafafaStudio. All rights reserved.
 }
 
 {------------------------------------------------------------------------------
+  v2.0.0 Release Notes（2025-12-24）
+  - Rust 风格接口：IAlloc（类似 GlobalAlloc）、IBlockPool、IArena
+  - TMemLayout：内存布局描述（Size + Align）
+  - TAllocResult：Result 类型错误处理
+  - TAllocCaps：分配器能力自省
+  - 零成本抽象：所有热路径 inline
+
   v1.1.0 Release Notes（2025-08-10）
   - 接口优先收束：TryAlloc 系列、ReleasePtr 别名（避免与 TObject.Free 混淆）
   - 统计助手：Mem/Stack/Slab 只读快照（fafafa.core.mem.stats）
@@ -45,13 +52,15 @@ uses
   SysUtils,
   fafafa.core.base,
   fafafa.core.mem.utils,
-  fafafa.core.mem.allocator,
-  fafafa.core.mem.memPool,
-  fafafa.core.mem.stackPool,
-  fafafa.core.mem.slabPool;
+  // v2.0 Rust 风格接口（统一导出）
+  fafafa.core.mem.layout,
+  fafafa.core.mem.error,
+  fafafa.core.mem.alloc,
+  fafafa.core.mem.blockpool,
+  fafafa.core.mem.mimalloc;
 
 const
-  FAFAFA_CORE_MEM_VERSION = '1.1.0';
+  FAFAFA_CORE_MEM_VERSION = '2.0.0';
 
 function MemVersion: string; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
 
@@ -124,35 +133,44 @@ function AlignUpUnChecked(aPtr: Pointer; aAlignment: SizeUInt = SIZE_PTR): Point
   function AlignDown(aPtr: Pointer; aAlignment: SizeUInt = SIZE_PTR): Pointer; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
   function AlignDownUnChecked(aPtr: Pointer; aAlignment: SizeUInt = SIZE_PTR): Pointer; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
 
-{
-  重新导出分配器类型 Re-export allocator types
-}
+{-----------------------------------------------------------------------------
+  v2.0 Rust 风格接口 Rust-style Interface
+
+  内存管理 API：
+  - 零成本抽象
+  - 基于 Layout 的内存布局描述
+  - Result 类型错误处理
+  - 类型安全的能力查询
+
+  注意：v1 接口（IAllocator）已废弃，如需使用请直接 uses fafafa.core.mem.allocator
+-----------------------------------------------------------------------------}
 
 type
-  // 导出接口优先的分配器类型（统一 IAllocator 策略）
-  IAllocator = fafafa.core.mem.allocator.IAllocator;
-  TAllocator = fafafa.core.mem.allocator.TAllocator;
-  TCallbackAllocator = fafafa.core.mem.allocator.TCallbackAllocator;
-  TRtlAllocator = fafafa.core.mem.allocator.TRtlAllocator;
-  {$IFDEF FAFAFA_CORE_CRT_ALLOCATOR}
-  TCrtAllocator = fafafa.core.mem.allocator.TCrtAllocator;
-  {$ENDIF}
+  // 内存布局和能力类型 Memory Layout and Capability Types
+  TMemLayout = fafafa.core.mem.layout.TMemLayout;
+  TAllocCaps = fafafa.core.mem.layout.TAllocCaps;
 
-// 重新导出分配器获取函数
-function GetRtlAllocator: IAllocator; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
-{$IFDEF FAFAFA_CORE_CRT_ALLOCATOR}
-function GetCrtAllocator: IAllocator; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
-{$ENDIF}
+  // 错误处理类型 Error Handling Types
+  TAllocError = fafafa.core.mem.error.TAllocError;
+  TAllocResult = fafafa.core.mem.error.TAllocResult;
 
-{
-  高级内存管理功能 Advanced Memory Management Features
-}
+  // Rust 风格分配器接口 Rust-style Allocator Interfaces
+  IAlloc = fafafa.core.mem.alloc.IAlloc;
+  TAllocBase = fafafa.core.mem.alloc.TAllocBase;
+  TSystemAlloc = fafafa.core.mem.alloc.TSystemAlloc;
+  TAlignedAlloc = fafafa.core.mem.alloc.TAlignedAlloc;
 
-// 重新导出池类型（门面导出三类核心池）
-type
-  TMemPool  = fafafa.core.mem.memPool.TMemPool;
-  TStackPool = fafafa.core.mem.stackPool.TStackPool;
-  TSlabPool = fafafa.core.mem.slabPool.TSlabPool;
+  // 块池和 Arena 接口 Block Pool and Arena Interfaces
+  IBlockPool = fafafa.core.mem.blockpool.IBlockPool;
+  IArena = fafafa.core.mem.blockpool.IArena;
+  TArenaMarker = fafafa.core.mem.blockpool.TArenaMarker;
+  TSimpleBlockPool = fafafa.core.mem.blockpool.TSimpleBlockPool;
+  TSimpleArena = fafafa.core.mem.blockpool.TSimpleArena;
+
+// 分配器获取函数 Allocator Accessor Functions
+function GetSystemAlloc: IAlloc; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function GetAlignedAlloc: IAlloc; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+function GetMimalloc: IAlloc; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
 
 // 重新导出增强版栈池类型
 // 为保持门面职责收敛，不再重导出增强型/对象池/环形缓冲区/内存映射/映射池类型。
@@ -347,24 +365,27 @@ begin
   Result := fafafa.core.mem.utils.AlignUp(aPtr, aAlignment);
 end;
 
-function GetRtlAllocator: IAllocator;
-begin
-  Result := fafafa.core.mem.allocator.GetRtlAllocator;
-end;
-
-{$IFDEF FAFAFA_CORE_CRT_ALLOCATOR}
-function GetCrtAllocator: IAllocator;
-begin
-  Result := fafafa.core.mem.allocator.GetCrtAllocator;
-end;
-{$ENDIF}
-
 function MemVersion: string;
 begin
   Result := FAFAFA_CORE_MEM_VERSION;
 end;
 
+{ v2.0 分配器获取函数 v2.0 Allocator Accessor Functions }
 
+function GetSystemAlloc: IAlloc;
+begin
+  Result := fafafa.core.mem.alloc.GetSystemAlloc;
+end;
+
+function GetAlignedAlloc: IAlloc;
+begin
+  Result := fafafa.core.mem.alloc.GetAlignedAlloc;
+end;
+
+function GetMimalloc: IAlloc;
+begin
+  Result := fafafa.core.mem.mimalloc.GetMimalloc;
+end;
 
 end.
 
