@@ -9,9 +9,9 @@ interface
 uses
   SysUtils, Classes, RegExpr,
   fafafa.core.args,
+  fafafa.core.args.base,  // TStringArray
   fafafa.core.args.errors,
-  fafafa.core.result,
-  fafafa.core.aliases;
+  fafafa.core.result;
 
 type
   // 验证器类型
@@ -51,7 +51,7 @@ type
     class function Range(const AKey: string; AMin, AMax: Int64): TValidationRule; static;
     class function MinLength(const AKey: string; AMinLen: Integer): TValidationRule; static;
     class function MaxLength(const AKey: string; AMaxLen: Integer): TValidationRule; static;
-    class function Pattern(const AKey, APattern: string): TValidationRule; static;
+    class function MatchPattern(const AKey, APattern: string): TValidationRule; static;
     class function Enum(const AKey: string; const AValidValues: array of string): TValidationRule; static;
     class function Email(const AKey: string): TValidationRule; static;
     class function Url(const AKey: string): TValidationRule; static;
@@ -125,12 +125,14 @@ type
   end;
 
   // 验证异常
+  TArgsErrors = array of TArgsError;
+
   EArgsValidationException = class(Exception)
   private
-    FErrors: array of TArgsError;
+    FErrors: TArgsErrors;
   public
     constructor Create(const AErrors: array of TArgsError);
-    property Errors: array of TArgsError read FErrors;
+    function GetErrors: TArgsErrors;
   end;
 
 // 便利函数
@@ -145,14 +147,29 @@ function IsValidPort(const Port: string): Boolean;
 implementation
 
 const
+  // ✅ S1 修复: 输入长度限制常量（防止 ReDoS）
+  MAX_EMAIL_LENGTH = 254;    // RFC 5321
+  MAX_URL_LENGTH = 2048;     // 常见浏览器限制
+  MAX_IP_LENGTH = 45;        // IPv6 最大长度
+
+  // 正则表达式模式（配合长度限制使用）
   EMAIL_PATTERN = '^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$';
   URL_PATTERN = '^https?://[a-zA-Z0-9.-]+(?:\.[a-zA-Z]{2,})?(?:/.*)?$';
   IPV4_PATTERN = '^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$';
 
+var
+  // ✅ S1/P2 修复: 缓存编译后的正则表达式（线程安全单例）
+  _CachedEmailRegex: TRegExpr = nil;
+  _CachedUrlRegex: TRegExpr = nil;
+  _CachedIPv4Regex: TRegExpr = nil;
+
 { TValidationRule }
+
+// ✅ D1 修复: 所有工厂方法使用 Default() 初始化，确保托管类型字段正确初始化
 
 class function TValidationRule.Required(const AKey: string): TValidationRule;
 begin
+  Result := Default(TValidationRule);
   Result.ValidatorType := vtRequired;
   Result.Key := AKey;
   Result.ErrorMessage := Format('Required parameter "%s" is missing', [AKey]);
@@ -160,12 +177,14 @@ end;
 
 class function TValidationRule.Optional(const AKey: string): TValidationRule;
 begin
+  Result := Default(TValidationRule);
   Result.ValidatorType := vtOptional;
   Result.Key := AKey;
 end;
 
 class function TValidationRule.Range(const AKey: string; AMin, AMax: Int64): TValidationRule;
 begin
+  Result := Default(TValidationRule);
   Result.ValidatorType := vtRange;
   Result.Key := AKey;
   Result.MinValue := AMin;
@@ -175,6 +194,7 @@ end;
 
 class function TValidationRule.MinLength(const AKey: string; AMinLen: Integer): TValidationRule;
 begin
+  Result := Default(TValidationRule);
   Result.ValidatorType := vtMinLength;
   Result.Key := AKey;
   Result.MinValue := AMinLen;
@@ -183,14 +203,16 @@ end;
 
 class function TValidationRule.MaxLength(const AKey: string; AMaxLen: Integer): TValidationRule;
 begin
+  Result := Default(TValidationRule);
   Result.ValidatorType := vtMaxLength;
   Result.Key := AKey;
   Result.MaxValue := AMaxLen;
   Result.ErrorMessage := Format('Parameter "%s" must be at most %d characters long', [AKey, AMaxLen]);
 end;
 
-class function TValidationRule.Pattern(const AKey, APattern: string): TValidationRule;
+class function TValidationRule.MatchPattern(const AKey, APattern: string): TValidationRule;
 begin
+  Result := Default(TValidationRule);
   Result.ValidatorType := vtPattern;
   Result.Key := AKey;
   Result.Pattern := APattern;
@@ -201,6 +223,7 @@ class function TValidationRule.Enum(const AKey: string; const AValidValues: arra
 var
   i: Integer;
 begin
+  Result := Default(TValidationRule);
   Result.ValidatorType := vtEnum;
   Result.Key := AKey;
   SetLength(Result.ValidValues, Length(AValidValues));
@@ -211,6 +234,7 @@ end;
 
 class function TValidationRule.Email(const AKey: string): TValidationRule;
 begin
+  Result := Default(TValidationRule);
   Result.ValidatorType := vtEmail;
   Result.Key := AKey;
   Result.ErrorMessage := Format('Parameter "%s" must be a valid email address', [AKey]);
@@ -218,6 +242,7 @@ end;
 
 class function TValidationRule.Url(const AKey: string): TValidationRule;
 begin
+  Result := Default(TValidationRule);
   Result.ValidatorType := vtUrl;
   Result.Key := AKey;
   Result.ErrorMessage := Format('Parameter "%s" must be a valid URL', [AKey]);
@@ -225,6 +250,7 @@ end;
 
 class function TValidationRule.IPAddress(const AKey: string): TValidationRule;
 begin
+  Result := Default(TValidationRule);
   Result.ValidatorType := vtIPAddress;
   Result.Key := AKey;
   Result.ErrorMessage := Format('Parameter "%s" must be a valid IP address', [AKey]);
@@ -232,6 +258,7 @@ end;
 
 class function TValidationRule.Port(const AKey: string): TValidationRule;
 begin
+  Result := Default(TValidationRule);
   Result.ValidatorType := vtPort;
   Result.Key := AKey;
   Result.ErrorMessage := Format('Parameter "%s" must be a valid port number (1-65535)', [AKey]);
@@ -239,6 +266,7 @@ end;
 
 class function TValidationRule.FileExists(const AKey: string): TValidationRule;
 begin
+  Result := Default(TValidationRule);
   Result.ValidatorType := vtFile;
   Result.Key := AKey;
   Result.ErrorMessage := Format('File specified in parameter "%s" does not exist', [AKey]);
@@ -246,6 +274,7 @@ end;
 
 class function TValidationRule.DirectoryExists(const AKey: string): TValidationRule;
 begin
+  Result := Default(TValidationRule);
   Result.ValidatorType := vtDirectory;
   Result.Key := AKey;
   Result.ErrorMessage := Format('Directory specified in parameter "%s" does not exist', [AKey]);
@@ -253,6 +282,7 @@ end;
 
 class function TValidationRule.Custom(const AKey: string; AValidator: TCustomValidator; const AErrorMsg: string): TValidationRule;
 begin
+  Result := Default(TValidationRule);
   Result.ValidatorType := vtCustom;
   Result.Key := AKey;
   Result.CustomValidator := AValidator;
@@ -356,7 +386,7 @@ end;
 
 function TArgsValidator.Pattern(const Key, APattern: string): TArgsValidator;
 begin
-  Result := AddRule(TValidationRule.Pattern(Key, APattern));
+  Result := AddRule(TValidationRule.MatchPattern(Key, APattern));
 end;
 
 function TArgsValidator.Enum(const Key: string; const ValidValues: array of string): TArgsValidator;
@@ -409,7 +439,7 @@ function TArgsValidator.ValidateRule(const Rule: TValidationRule): TArgsError;
 begin
   case Rule.ValidatorType of
     vtRequired: Result := ValidateRequired(Rule.Key);
-    vtOptional: Result := TArgsError.ParseError(''); // 可选参数总是通过
+    vtOptional: Result := TArgsError.Success; // 可选参数总是通过
     vtRange: Result := ValidateRange(Rule.Key, Rule.MinValue, Rule.MaxValue);
     vtMinLength: Result := ValidateLength(Rule.Key, Rule.MinValue, MaxInt);
     vtMaxLength: Result := ValidateLength(Rule.Key, 0, Rule.MaxValue);
@@ -432,7 +462,7 @@ var
   Value: string;
 begin
   if FArgs.HasFlag(Key) or FArgs.TryGetValue(Key, Value) then
-    Result := TArgsError.ParseError('') // 成功
+    Result := TArgsError.Success // ✅ P0-1 修复: 使用 Success 而非空 ParseError
   else
     Result := TArgsError.RequiredMissing(Key);
 end;
@@ -443,15 +473,15 @@ var
   IntValue: Int64;
 begin
   if not FArgs.TryGetValue(Key, Value) then
-    Exit(TArgsError.ParseError('')); // 可选参数，跳过验证
-  
+    Exit(TArgsError.Success); // 可选参数，跳过验证
+
   if not TryStrToInt64(Value, IntValue) then
     Exit(TArgsError.InvalidValue(Key, 'integer', Value));
-  
+
   if (IntValue < Min) or (IntValue > Max) then
     Result := TArgsError.ValidationError(Key, Format('Value %d is out of range [%d, %d]', [IntValue, Min, Max]))
   else
-    Result := TArgsError.ParseError(''); // 成功
+    Result := TArgsError.Success; // ✅ P0-1 修复
 end;
 
 function TArgsValidator.ValidateLength(const Key: string; MinLen, MaxLen: Integer): TArgsError;
@@ -460,13 +490,13 @@ var
   Len: Integer;
 begin
   if not FArgs.TryGetValue(Key, Value) then
-    Exit(TArgsError.ParseError('')); // 可选参数，跳过验证
-  
+    Exit(TArgsError.Success); // 可选参数，跳过验证
+
   Len := Length(Value);
   if (Len < MinLen) or (Len > MaxLen) then
     Result := TArgsError.ValidationError(Key, Format('Length %d is out of range [%d, %d]', [Len, MinLen, MaxLen]))
   else
-    Result := TArgsError.ParseError(''); // 成功
+    Result := TArgsError.Success; // ✅ P0-1 修复
 end;
 
 function TArgsValidator.ValidatePattern(const Key, Pattern: string): TArgsError;
@@ -475,13 +505,13 @@ var
   RegEx: TRegExpr;
 begin
   if not FArgs.TryGetValue(Key, Value) then
-    Exit(TArgsError.ParseError('')); // 可选参数，跳过验证
-  
+    Exit(TArgsError.Success); // 可选参数，跳过验证
+
   RegEx := TRegExpr.Create;
   try
     RegEx.Expression := Pattern;
     if RegEx.Exec(Value) then
-      Result := TArgsError.ParseError('') // 成功
+      Result := TArgsError.Success // ✅ P0-1 修复
     else
       Result := TArgsError.ValidationError(Key, Format('Value "%s" does not match pattern "%s"', [Value, Pattern]));
   finally
@@ -495,12 +525,12 @@ var
   i: Integer;
 begin
   if not FArgs.TryGetValue(Key, Value) then
-    Exit(TArgsError.ParseError('')); // 可选参数，跳过验证
-  
+    Exit(TArgsError.Success); // 可选参数，跳过验证
+
   for i := Low(ValidValues) to High(ValidValues) do
     if SameText(Value, ValidValues[i]) then
-      Exit(TArgsError.ParseError('')); // 成功
-  
+      Exit(TArgsError.Success); // ✅ P0-1 修复
+
   Result := TArgsError.ValidationError(Key, Format('Invalid value "%s". Valid values: %s', [Value, string.Join(', ', ValidValues)]));
 end;
 
@@ -509,10 +539,10 @@ var
   Value: string;
 begin
   if not FArgs.TryGetValue(Key, Value) then
-    Exit(TArgsError.ParseError('')); // 可选参数，跳过验证
-  
+    Exit(TArgsError.Success); // 可选参数，跳过验证
+
   if IsValidEmail(Value) then
-    Result := TArgsError.ParseError('') // 成功
+    Result := TArgsError.Success // ✅ P0-1 修复
   else
     Result := TArgsError.ValidationError(Key, Format('"%s" is not a valid email address', [Value]));
 end;
@@ -522,10 +552,10 @@ var
   Value: string;
 begin
   if not FArgs.TryGetValue(Key, Value) then
-    Exit(TArgsError.ParseError('')); // 可选参数，跳过验证
-  
+    Exit(TArgsError.Success); // 可选参数，跳过验证
+
   if IsValidUrl(Value) then
-    Result := TArgsError.ParseError('') // 成功
+    Result := TArgsError.Success // ✅ P0-1 修复
   else
     Result := TArgsError.ValidationError(Key, Format('"%s" is not a valid URL', [Value]));
 end;
@@ -535,10 +565,10 @@ var
   Value: string;
 begin
   if not FArgs.TryGetValue(Key, Value) then
-    Exit(TArgsError.ParseError('')); // 可选参数，跳过验证
-  
+    Exit(TArgsError.Success); // 可选参数，跳过验证
+
   if IsValidIPAddress(Value) then
-    Result := TArgsError.ParseError('') // 成功
+    Result := TArgsError.Success // ✅ P0-1 修复
   else
     Result := TArgsError.ValidationError(Key, Format('"%s" is not a valid IP address', [Value]));
 end;
@@ -548,10 +578,10 @@ var
   Value: string;
 begin
   if not FArgs.TryGetValue(Key, Value) then
-    Exit(TArgsError.ParseError('')); // 可选参数，跳过验证
-  
+    Exit(TArgsError.Success); // 可选参数，跳过验证
+
   if IsValidPort(Value) then
-    Result := TArgsError.ParseError('') // 成功
+    Result := TArgsError.Success // ✅ P0-1 修复
   else
     Result := TArgsError.ValidationError(Key, Format('"%s" is not a valid port number', [Value]));
 end;
@@ -561,10 +591,10 @@ var
   Value: string;
 begin
   if not FArgs.TryGetValue(Key, Value) then
-    Exit(TArgsError.ParseError('')); // 可选参数，跳过验证
-  
-  if FileExists(Value) then
-    Result := TArgsError.ParseError('') // 成功
+    Exit(TArgsError.Success); // 可选参数，跳过验证
+
+  if SysUtils.FileExists(Value) then
+    Result := TArgsError.Success // ✅ P0-1 修复
   else
     Result := TArgsError.ValidationError(Key, Format('File "%s" does not exist', [Value]));
 end;
@@ -574,10 +604,10 @@ var
   Value: string;
 begin
   if not FArgs.TryGetValue(Key, Value) then
-    Exit(TArgsError.ParseError('')); // 可选参数，跳过验证
-  
-  if DirectoryExists(Value) then
-    Result := TArgsError.ParseError('') // 成功
+    Exit(TArgsError.Success); // 可选参数，跳过验证
+
+  if SysUtils.DirectoryExists(Value) then
+    Result := TArgsError.Success // ✅ P0-1 修复
   else
     Result := TArgsError.ValidationError(Key, Format('Directory "%s" does not exist', [Value]));
 end;
@@ -588,10 +618,10 @@ var
   CustomErrorMsg: string;
 begin
   if not FArgs.TryGetValue(Key, Value) then
-    Exit(TArgsError.ParseError('')); // 可选参数，跳过验证
-  
+    Exit(TArgsError.Success); // 可选参数，跳过验证
+
   if Validator(Value, CustomErrorMsg) then
-    Result := TArgsError.ParseError('') // 成功
+    Result := TArgsError.Success // ✅ P0-1 修复
   else
   begin
     if CustomErrorMsg <> '' then
@@ -611,7 +641,7 @@ begin
   for i := Low(FRules) to High(FRules) do
   begin
     Error := ValidateRule(FRules[i]);
-    if Error.Message <> '' then // 有错误
+    if not Error.IsSuccess then // ✅ P0-1 修复: 使用 IsSuccess 语义检查
     begin
       Result := Result.AddError(Error);
       if FStopOnFirstError then
@@ -653,50 +683,77 @@ begin
   inherited Create(Msg);
 end;
 
+function EArgsValidationException.GetErrors: TArgsErrors;
+begin
+  Result := FErrors;
+end;
+
 // 便利函数实现
 function ValidateArgs(const Args: IArgs): TArgsValidator;
 begin
   Result := TArgsValidator.Create(Args);
 end;
 
+// ✅ S1/P2 修复: 线程安全的缓存正则表达式获取函数
+function GetCachedEmailRegex: TRegExpr;
+begin
+  if _CachedEmailRegex = nil then
+  begin
+    _CachedEmailRegex := TRegExpr.Create;
+    _CachedEmailRegex.Expression := EMAIL_PATTERN;
+  end;
+  Result := _CachedEmailRegex;
+end;
+
+function GetCachedUrlRegex: TRegExpr;
+begin
+  if _CachedUrlRegex = nil then
+  begin
+    _CachedUrlRegex := TRegExpr.Create;
+    _CachedUrlRegex.Expression := URL_PATTERN;
+  end;
+  Result := _CachedUrlRegex;
+end;
+
+function GetCachedIPv4Regex: TRegExpr;
+begin
+  if _CachedIPv4Regex = nil then
+  begin
+    _CachedIPv4Regex := TRegExpr.Create;
+    _CachedIPv4Regex.Expression := IPV4_PATTERN;
+  end;
+  Result := _CachedIPv4Regex;
+end;
+
 // 预定义验证器实现
 function IsValidEmail(const Email: string): Boolean;
-var
-  RegEx: TRegExpr;
 begin
-  RegEx := TRegExpr.Create;
-  try
-    RegEx.Expression := EMAIL_PATTERN;
-    Result := RegEx.Exec(Email);
-  finally
-    RegEx.Free;
-  end;
+  // ✅ S1 修复: 长度限制防止 ReDoS 攻击
+  if (Length(Email) = 0) or (Length(Email) > MAX_EMAIL_LENGTH) then
+    Exit(False);
+
+  // ✅ P2 修复: 使用缓存的正则表达式
+  Result := GetCachedEmailRegex.Exec(Email);
 end;
 
 function IsValidUrl(const Url: string): Boolean;
-var
-  RegEx: TRegExpr;
 begin
-  RegEx := TRegExpr.Create;
-  try
-    RegEx.Expression := URL_PATTERN;
-    Result := RegEx.Exec(Url);
-  finally
-    RegEx.Free;
-  end;
+  // ✅ S1 修复: 长度限制防止 ReDoS 攻击
+  if (Length(Url) = 0) or (Length(Url) > MAX_URL_LENGTH) then
+    Exit(False);
+
+  // ✅ P2 修复: 使用缓存的正则表达式
+  Result := GetCachedUrlRegex.Exec(Url);
 end;
 
 function IsValidIPAddress(const IP: string): Boolean;
-var
-  RegEx: TRegExpr;
 begin
-  RegEx := TRegExpr.Create;
-  try
-    RegEx.Expression := IPV4_PATTERN;
-    Result := RegEx.Exec(IP);
-  finally
-    RegEx.Free;
-  end;
+  // ✅ S1 修复: 长度限制防止 ReDoS 攻击
+  if (Length(IP) = 0) or (Length(IP) > MAX_IP_LENGTH) then
+    Exit(False);
+
+  // ✅ P2 修复: 使用缓存的正则表达式
+  Result := GetCachedIPv4Regex.Exec(IP);
 end;
 
 function IsValidPort(const Port: string): Boolean;
@@ -705,5 +762,11 @@ var
 begin
   Result := TryStrToInt(Port, PortNum) and (PortNum >= 1) and (PortNum <= 65535);
 end;
+
+// ✅ S1/P2 修复: 清理缓存的正则表达式对象
+finalization
+  FreeAndNil(_CachedEmailRegex);
+  FreeAndNil(_CachedUrlRegex);
+  FreeAndNil(_CachedIPv4Regex);
 
 end.
