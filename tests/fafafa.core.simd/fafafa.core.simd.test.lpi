@@ -21,12 +21,12 @@
           <Version Value="11"/>
           <PathDelim Value="\"/>
           <Target>
-            <Filename Value="bin/fafafa.core.simd.test"/>
+            <Filename Value="bin2/fafafa.core.simd.test"/>
           </Target>
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir);../../src"/>
             <OtherUnitFiles Value="../../src"/>
-            <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
+            <UnitOutputDirectory Value="lib2/$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <Parsing>
             <SyntaxOptions>
@@ -60,12 +60,12 @@
           <Version Value="11"/>
           <PathDelim Value="\"/>
           <Target>
-            <Filename Value="bin/fafafa.core.simd.test"/>
+            <Filename Value="bin2/fafafa.core.simd.test"/>
           </Target>
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir);../../src"/>
             <OtherUnitFiles Value="../../src"/>
-            <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
+            <UnitOutputDirectory Value="lib2/$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <CodeGeneration>
             <SmartLinkUnit Value="True"/>
@@ -93,9 +93,6 @@
       <Item>
         <PackageName Value="FCL"/>
       </Item>
-      <Item>
-        <PackageName Value="fpcunittestrunner"/>
-      </Item>
     </RequiredPackages>
     <Units>
       <Unit>
@@ -112,12 +109,12 @@
     <Version Value="11"/>
     <PathDelim Value="\"/>
     <Target>
-      <Filename Value="bin/fafafa.core.simd.test"/>
+      <Filename Value="bin2/fafafa.core.simd.test"/>
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir);../../src"/>
       <OtherUnitFiles Value="../../src"/>
-      <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
+      <UnitOutputDirectory Value="lib2/$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Parsing>
       <SyntaxOptions>

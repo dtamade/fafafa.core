@@ -53,7 +53,6 @@ implementation
 uses
   SysUtils,
   fafafa.core.simd.cpuinfo,
-  fafafa.core.simd.scalar,
   fafafa.core.simd.avx2; // Fallback for some operations
 
 // === AVX-512 Memory Functions (512-bit) ===
@@ -1666,6 +1665,7 @@ begin
     Exit;
 
   // Fill with base scalar implementations (provides fallback for all operations)
+  dispatchTable := Default(TSimdDispatchTable);
   FillBaseDispatchTable(dispatchTable);
 
   // Set backend info

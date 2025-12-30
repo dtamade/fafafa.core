@@ -29,7 +29,6 @@ COVERED FILES
 src/fafafa.core.simd.pas
 src/fafafa.core.simd.base.pas
 src/fafafa.core.simd.dispatch.pas
-src/fafafa.core.simd.sync.pas
 src/fafafa.core.simd.cpuinfo.pas
 src/fafafa.core.simd.scalar.pas
 src/fafafa.core.simd.sse2.pas

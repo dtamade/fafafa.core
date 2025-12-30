@@ -5,8 +5,7 @@ unit fafafa.core.simd.cpuinfo.lazy;
 interface
 
 uses
-  fafafa.core.simd.cpuinfo.base,
-  fafafa.core.simd.sync;
+  fafafa.core.simd.cpuinfo.base;
 
 type
   // 懒加载的 CPU 信息管理�?

@@ -9,14 +9,18 @@ uses
   fafafa.core.simd.dispatch;
 
 // =============================================================
-// Direct Dispatch (一次性绑定)
+// Direct Dispatch (direct pointer)
 //
-// 目的：避免每次门面调用都执行 GetDispatchTable，再通过表内函数指针二次派发。
-// 做法：在初始化/切换后端时，将当前 dispatch table 复制到本单元的全局表中。
+// 目的：避免每次门面调用都执行 GetDispatchTable（函数调用 + init 检查），
+// 直接通过一个已绑定的全局指针访问当前 dispatch table。
 //
-// 注意：本单元不替代 fafafa.core.simd.dispatch。
-// - dispatch 仍然是“真相来源”，支持后端注册/选择。
-// - direct 只是把当前选择的表快照绑定到全局变量，供门面走更快路径。
+// 设计：
+// - dispatch 仍然是“真相来源”（后端注册/选择/切换）。
+// - direct 仅维护一个指向当前 table 的指针，并在 dispatch (re)init 后更新。
+//
+// 为什么不用复制整个 record：
+// - 整表拷贝在多线程 backend 切换时可能出现“撕裂读取”（读到混合后端的指针）。
+// - 指针更新是原子的（在主流平台上），可避免这类竞态。
 // =============================================================
 
 // Returns the bound direct dispatch table.
@@ -29,37 +33,43 @@ procedure RebindDirectDispatch;
 
 implementation
 
+uses
+  fafafa.core.atomic;
+
 var
-  g_DirectDispatch: TSimdDispatchTable;
+  // Points to the currently active table.
+  // Stored as a raw pointer so we can use fafafa.core.atomic helpers.
+  g_DirectDispatchPtr: Pointer = nil;
 
 function GetDirectDispatchTable: PSimdDispatchTable; inline;
+var
+  p: Pointer;
 begin
-  Result := @g_DirectDispatch;
+  // Fast path: already bound.
+  p := atomic_load_ptr(g_DirectDispatchPtr, mo_acquire);
+  if p <> nil then
+    Exit(PSimdDispatchTable(p));
+
+  // Lazy bind (should be rare): make sure dispatch is initialized and bind once.
+  RebindDirectDispatch;
+  p := atomic_load_ptr(g_DirectDispatchPtr, mo_acquire);
+  Result := PSimdDispatchTable(p);
 end;
 
 procedure RebindDirectDispatch;
 var
-  dt: PSimdDispatchTable;
+  p: Pointer;
 begin
-  dt := GetDispatchTable;
-  if dt = nil then
-  begin
-    // Should never happen (scalar backend is always registered), but keep safe.
-    Finalize(g_DirectDispatch);
-    FillChar(g_DirectDispatch, SizeOf(g_DirectDispatch), 0);
-    Exit;
-  end;
-
-  // Copy the currently active dispatch table into a global snapshot.
-  // This makes facade calls avoid the per-call GetDispatchTable overhead.
-  g_DirectDispatch := dt^;
+  // GetDispatchTable performs dispatch initialization if needed.
+  p := GetDispatchTable;
+  atomic_store_ptr(g_DirectDispatchPtr, p, mo_release);
 end;
 
 initialization
-  // Keep the direct snapshot in sync with dispatch (including backend (re)registration).
+  // Keep the direct pointer in sync with dispatch (including backend (re)registration).
   SetDispatchChangedHook(@RebindDirectDispatch);
 
-  // Bind once at unit load (and also acts as initial sync).
+  // Bind once at unit load (also acts as initial sync).
   RebindDirectDispatch;
 
 end.

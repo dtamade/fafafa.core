@@ -9,7 +9,6 @@ uses
   SysUtils,
   fafafa.core.simd.base,
   fafafa.core.simd.cpuinfo.base,
-  fafafa.core.simd.sync,
   fafafa.core.atomic
   {$IFDEF WINDOWS}
   , fafafa.core.simd.cpuinfo.windows
@@ -318,7 +317,7 @@ begin
   begin
     try
       InitializeCPUInfoInternal;
-      MemoryBarrier; // Ensure visibility of G_CPUInfo writes
+      atomic_thread_fence(mo_seq_cst); // Ensure visibility of G_CPUInfo writes
       G_InitState := 2;
     except
       G_InitState := 0; // rollback on failure
@@ -330,7 +329,7 @@ begin
     // Wait for the concurrent initializer to finish
     while G_InitState <> 2 do
     begin
-      MemoryBarrier;
+      atomic_thread_fence(mo_seq_cst);
       // Yield to scheduler to avoid busy spin on all platforms
       SysUtils.Sleep(0);
     end;
@@ -476,7 +475,7 @@ procedure ResetCPUInfo;
 begin
   // Clear structure
   FillChar(G_CPUInfo, SizeOf(G_CPUInfo), 0);
-  MemoryBarrier;
+  atomic_thread_fence(mo_seq_cst);
   // Reset init state
   G_InitState := 0;
 end;

@@ -26,7 +26,7 @@ fafafa.core.simd.cpuinfo (Main facade)
     ├── fafafa.core.simd.cpuinfo.riscv (RISC-V detection)
     ├── fafafa.core.simd.cpuinfo.lazy (Lazy loading wrapper)
     ├── fafafa.core.simd.cpuinfo.diagnostic (Diagnostic tools)
-    └── fafafa.core.simd.sync (Synchronization primitives)
+    └── fafafa.core.atomic (Synchronization primitives)
 ```
 
 ## Quick Start

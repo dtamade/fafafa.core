@@ -466,7 +466,7 @@ implementation
 uses
   SysUtils,
   fafafa.core.simd.scalar,
-  fafafa.core.simd.sync;  // For memory barriers in thread-safe backend switching
+  fafafa.core.atomic; // atomic_thread_fence (MemoryBarrier replacement)
 
 var
   // Current active dispatch table
@@ -644,7 +644,7 @@ begin
   WriteBarrier;
   g_DispatchInitialized := False;
   InterlockedExchange(g_DispatchState, 0);
-  MemoryBarrier;
+  atomic_thread_fence(mo_seq_cst);
   InitializeDispatch;
   Result := True;
 end;
@@ -663,7 +663,7 @@ begin
   WriteBarrier;
   g_DispatchInitialized := False;
   InterlockedExchange(g_DispatchState, 0);
-  MemoryBarrier;
+  atomic_thread_fence(mo_seq_cst);
   InitializeDispatch;
 end;
 
@@ -673,7 +673,7 @@ begin
   WriteBarrier;  // Ensure write is visible before clearing initialized flag
   g_DispatchInitialized := False; // Force re-initialization
   InterlockedExchange(g_DispatchState, 0);  // ✅ Reset atomic state
-  MemoryBarrier; // Full barrier before re-initialization
+  atomic_thread_fence(mo_seq_cst); // Full barrier before re-initialization
   InitializeDispatch;
 end;
 
@@ -731,7 +731,7 @@ begin
   // Always re-select best backend when a new one is registered
   g_DispatchInitialized := False;
   InterlockedExchange(g_DispatchState, 0);  // ✅ Reset atomic state
-  MemoryBarrier; // Full barrier before re-initialization
+  atomic_thread_fence(mo_seq_cst); // Full barrier before re-initialization
   InitializeDispatch;
 end;
 
@@ -758,8 +758,11 @@ end;
 // Existing calls will compile but have no effect.
 procedure RegisterBackendRebuilder(backend: TSimdBackend; rebuilder: TBackendRebuilder);
 begin
-  // No-op: rebuilder mechanism has been removed
-  // Keeping this stub for backward compatibility with existing backend code
+  // No-op: rebuilder mechanism has been removed.
+  // Keeping this stub for backward compatibility with existing backend code.
+  // Touch parameters to avoid compiler hints in strict build checks.
+  if backend = sbScalar then ; // no-op
+  if Assigned(rebuilder) then ; // no-op
 end;
 
 // === Dispatch Table Helpers ===

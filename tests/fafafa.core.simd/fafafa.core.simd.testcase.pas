@@ -14,9 +14,11 @@ uses
   fafafa.core.simd.api,
   fafafa.core.simd.dispatch,
   fafafa.core.simd.scalar,
+  {$IFDEF CPUX86_64}
   fafafa.core.simd.sse2,
   fafafa.core.simd.avx2,
   fafafa.core.simd.avx512,
+  {$ENDIF}
   fafafa.core.simd.cpuinfo,
   fafafa.core.simd.cpuinfo.base,
   fafafa.core.simd.memutils,
@@ -66,6 +68,7 @@ type
     procedure Test_BitsetPopCount_AllSet;
   end;
 
+  {$IFDEF CPUX86_64}
   // 后端一致性测试 - 确保所有后端对同一输入产生相同结果
   TTestCase_BackendConsistency = class(TTestCase)
   published
@@ -83,6 +86,7 @@ type
     procedure Test_MemDiffRange_Consistency;
     procedure Test_BytesIndexOf_Consistency;
   end;
+  {$ENDIF}
 
   // 后端烟雾测试 - 验证 backend 选择后基础向量操作不会崩溃且结果正确
   TTestCase_BackendSmoke = class(TTestCase)
@@ -103,12 +107,16 @@ type
     procedure Test_ForceAVX512_VecF32x4_Smoke;
   end;
 
+  {$IFDEF CPUX86_64}
   // AVX-512 后端需求判定测试（纯逻辑，不依赖当前硬件）
   TTestCase_AVX512BackendRequirements = class(TTestCase)
   published
     procedure Test_X86HasAVX512BackendRequiredFeatures_AVX512FOnly_Disabled;
   end;
+  {$ENDIF}
 
+  {$IFDEF UNIX}
+  {$IFDEF CPUX86_64}
   // AVX2 VectorAsm 专项测试：聚焦于向量汇编路径的正确性（小步推进）
   TTestCase_AVX2VectorAsm = class(TTestCase)
   protected
@@ -180,6 +188,8 @@ type
     procedure Test_Facade_ToUpperAscii_ABI_CalleeSavedRegisters_Preserved;
     procedure Test_Facade_BytesIndexOf_ABI_CalleeSavedRegisters_Preserved;
   end;
+  {$ENDIF}
+  {$ENDIF}
 
   // 向量运算测试 (强制使用 Scalar 后端以避免 AVX2 实现的问题)
   TTestCase_VectorOps = class(TTestCase)
@@ -1095,6 +1105,8 @@ begin
   AssertEquals('All bits set should count 16', 16, count);
 end;
 
+{$IFDEF CPUX86_64}
+
 { TTestCase_BackendConsistency }
 
 procedure TTestCase_BackendConsistency.Test_MemEqual_Consistency;
@@ -1567,6 +1579,8 @@ begin
   AssertEquals('AVX2 should match Scalar (not found)', resScalar, resAVX2);
 end;
 
+{$ENDIF}
+
 { TTestCase_BackendSmoke }
 
 procedure TTestCase_BackendSmoke.RunVecF32x4Smoke;
@@ -1919,6 +1933,8 @@ begin
   RunVecF32x4Smoke;
 end;
 
+{$IFDEF CPUX86_64}
+
 { TTestCase_AVX512BackendRequirements }
 
 procedure TTestCase_AVX512BackendRequirements.Test_X86HasAVX512BackendRequiredFeatures_AVX512FOnly_Disabled;
@@ -1941,6 +1957,11 @@ begin
   F.HasPOPCNT := True;
   AssertTrue('AVX-512 backend should be usable with AVX2 + AVX512F + AVX512BW + POPCNT', X86HasAVX512BackendRequiredFeatures(F));
 end;
+
+{$ENDIF}
+
+{$IFDEF UNIX}
+{$IFDEF CPUX86_64}
 
 { TTestCase_AVX2VectorAsm }
 
@@ -7613,6 +7634,9 @@ begin
   AssertEquals('ABI BytesIndexOf not found', expected, actual);
 end;
 
+{$ENDIF}
+{$ENDIF}
+
 { TTestCase_VectorOps }
 
 procedure TTestCase_VectorOps.SetUp;
@@ -11780,10 +11804,16 @@ end;
 
 initialization
   RegisterTest(TTestCase_Global);
+  {$IFDEF CPUX86_64}
   RegisterTest(TTestCase_BackendConsistency);
-  RegisterTest(TTestCase_BackendSmoke);
   RegisterTest(TTestCase_AVX512BackendRequirements);
+  {$ENDIF}
+  RegisterTest(TTestCase_BackendSmoke);
+  {$IFDEF UNIX}
+  {$IFDEF CPUX86_64}
   RegisterTest(TTestCase_AVX2VectorAsm);
+  {$ENDIF}
+  {$ENDIF}
   RegisterTest(TTestCase_VectorOps);
   RegisterTest(TTestCase_LargeData);
   RegisterTest(TTestCase_UnsignedVectorTypes);
