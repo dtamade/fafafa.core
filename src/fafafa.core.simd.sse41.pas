@@ -34,8 +34,7 @@ implementation
 
 uses
   SysUtils,
-  fafafa.core.simd.cpuinfo,
-  fafafa.core.simd.scalar;
+  fafafa.core.simd.cpuinfo;
 
 // === SSE4.1 Dot Product ===
 // DPPS/DPPD provide single-instruction dot product with masking
@@ -92,7 +91,7 @@ begin
     movupd xmm0, [rax]
     movupd xmm1, [rdx]
     dppd   xmm0, xmm1, $31   // Both inputs, output to element 0
-    movsd  [result], xmm0
+    movlpd [result], xmm0
   end;
 end;
 
@@ -340,6 +339,9 @@ begin
   if safeIndex < 0 then safeIndex := 0
   else if safeIndex > 3 then safeIndex := 3;
 
+  tmp := 0;
+  Result := 0.0;
+
   case safeIndex of
     0: asm
          lea    rax, a
@@ -366,7 +368,7 @@ begin
          mov    [tmp], eax
        end;
   end;
-  Move(tmp, Result, 4);
+  Move(tmp, Result, SizeOf(Result));
 end;
 
 // === SSE4.1 64-bit Comparison ===

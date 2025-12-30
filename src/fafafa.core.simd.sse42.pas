@@ -50,8 +50,7 @@ implementation
 
 uses
   SysUtils,
-  fafafa.core.simd.cpuinfo,
-  fafafa.core.simd.scalar;
+  fafafa.core.simd.cpuinfo;
 
 // === CRC32C Hardware Implementation ===
 // SSE4.2 provides CRC32 instruction with Castagnoli polynomial

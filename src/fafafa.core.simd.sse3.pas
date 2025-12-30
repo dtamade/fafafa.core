@@ -28,9 +28,7 @@ implementation
 
 uses
   SysUtils,
-  fafafa.core.simd.cpuinfo,
-  fafafa.core.simd.scalar,
-  fafafa.core.simd.sse2;
+  fafafa.core.simd.cpuinfo;
 
 // === SSE3 Horizontal Arithmetic ===
 // These operations are the main benefit of SSE3 over SSE2
@@ -109,7 +107,7 @@ begin
     lea     rax, a
     movupd  xmm0, [rax]
     haddpd  xmm0, xmm0     // [a0+a1, a0+a1]
-    movsd   [result], xmm0
+    movlpd  [result], xmm0
   end;
 end;
 

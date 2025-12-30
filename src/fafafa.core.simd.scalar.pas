@@ -1757,6 +1757,7 @@ var
   dispatchTable: TSimdDispatchTable;
 begin
   // Fill with base scalar implementations
+  dispatchTable := Default(TSimdDispatchTable);
   FillBaseDispatchTable(dispatchTable);
 
   // Set backend info

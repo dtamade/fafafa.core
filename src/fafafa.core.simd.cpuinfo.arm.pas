@@ -8,7 +8,7 @@ interface
 {$IFDEF SIMD_ARM_AVAILABLE}
 
 uses
-  SysUtils,
+  SysUtils, StrUtils,
   fafafa.core.simd.cpuinfo.base;
 
 type
@@ -56,10 +56,10 @@ function ReadProcCpuInfoSafe: string;
 var
   f: TextFile;
   line: string;
-  result: string;
+  cpuText: string;
   fileOpened: Boolean;
 begin
-  result := '';
+  cpuText := '';
   fileOpened := False;
   
   try
@@ -72,12 +72,12 @@ begin
       while not EOF(f) do
       begin
         ReadLn(f, line);
-        result := result + line + #10;
+        cpuText := cpuText + line + LineEnding;
       end;
     end;
   except
     // Ignore errors, return empty string
-    result := '';
+    cpuText := '';
   end;
   
   // Ensure file is closed even if exception occurs
@@ -90,7 +90,7 @@ begin
     end;
   end;
   
-  Result := result;
+  Result := cpuText;
 end;
 
 function ParseARMFeaturesFromCpuInfo(const cpuInfo: string): TARMFeatures;
@@ -123,7 +123,7 @@ end;
 
 function ParseARMVendorFromCpuInfo(const cpuInfo: string; var vendor, model: string): Boolean;
 var
-  pos, nextPos, colonPos: Integer;
+  scanPos, nextPos, colonPos: Integer;
   line, key, value: string;
 begin
   Result := False;
@@ -133,16 +133,16 @@ begin
   if cpuInfo = '' then
     Exit;
     
-  pos := 1;
-  while pos <= Length(cpuInfo) do
+  scanPos := 1;
+  while scanPos <= Length(cpuInfo) do
   begin
-    // Find next line
-    nextPos := Pos(#10, cpuInfo, pos);
+    // Find next line (Pos does not support an offset; use PosEx)
+    nextPos := PosEx(LineEnding, cpuInfo, scanPos);
     if nextPos = 0 then
       nextPos := Length(cpuInfo) + 1;
       
-    line := Trim(Copy(cpuInfo, pos, nextPos - pos));
-    pos := nextPos + 1;
+    line := Trim(Copy(cpuInfo, scanPos, nextPos - scanPos));
+    scanPos := nextPos + 1;
     
     // Parse key:value pairs
     colonPos := Pos(':', line);

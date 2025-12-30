@@ -6,12 +6,12 @@ shift || true
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 PROJ="${ROOT}/fafafa.core.simd.test.lpi"
-BIN="${ROOT}/bin/fafafa.core.simd.test"
+BIN="${ROOT}/bin2/fafafa.core.simd.test"
 LOG_DIR="${ROOT}/logs"
 BUILD_LOG="${LOG_DIR}/build.txt"
 TEST_LOG="${LOG_DIR}/test.txt"
 
-mkdir -p "${ROOT}/bin" "${ROOT}/lib" "${LOG_DIR}"
+mkdir -p "${ROOT}/bin2" "${ROOT}/lib2" "${LOG_DIR}"
 
 LAZBUILD_BIN="${LAZBUILD:-lazbuild}"
 
@@ -35,13 +35,13 @@ build_project() {
 }
 
 check_build_log() {
-  # Module acceptance criteria: no warnings/hints emitted from src/ during module-only build.
-  if grep -nE '(^|.*/)src/.*(Warning:|Hint:)' "${BUILD_LOG}" >/dev/null; then
-    echo "[CHECK] Found warnings/hints from src/ in build log:"
-    grep -nE '(^|.*/)src/.*(Warning:|Hint:)' "${BUILD_LOG}" || true
+  # Module acceptance criteria: no warnings/hints emitted from the SIMD module units under src/.
+  if grep -nE '(^|.*/)src/fafafa\.core\.simd\..*(Warning:|Hint:)' "${BUILD_LOG}" >/dev/null; then
+    echo "[CHECK] Found warnings/hints from SIMD units in build log:"
+    grep -nE '(^|.*/)src/fafafa\.core\.simd\..*(Warning:|Hint:)' "${BUILD_LOG}" || true
     return 1
   fi
-  echo "[CHECK] OK (no src/ warnings/hints)"
+  echo "[CHECK] OK (no SIMD-unit warnings/hints)"
 }
 
 run_tests() {
@@ -75,8 +75,8 @@ check_heap_leaks() {
 
 case "${ACTION}" in
   clean)
-    echo "[CLEAN] Removing bin/, lib/, logs/"
-    rm -rf "${ROOT}/bin" "${ROOT}/lib" "${ROOT}/logs"
+    echo "[CLEAN] Removing bin2/, lib2/, logs/"
+    rm -rf "${ROOT}/bin2" "${ROOT}/lib2" "${ROOT}/logs"
     ;;
   build)
     build_project

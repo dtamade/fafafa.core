@@ -29,8 +29,7 @@ implementation
 
 uses
   SysUtils,
-  fafafa.core.simd.cpuinfo,
-  fafafa.core.simd.scalar;
+  fafafa.core.simd.cpuinfo;
 
 // === SSSE3 Byte Shuffle ===
 // PSHUFB is one of the most powerful SIMD instructions

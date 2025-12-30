@@ -11,8 +11,7 @@ uses
   fafafa.core.simd.cpuinfo,
   fafafa.core.simd.cpuinfo.base,
   fafafa.core.simd.memutils,
-  fafafa.core.simd.scalar
-  , fafafa.core.math
+  fafafa.core.math
   {$IFDEF SIMD_X86_AVAILABLE}
   , fafafa.core.simd.sse2
   , fafafa.core.simd.sse3      // ✅ SSE3: horizontal ops (HADDPS, HSUBPS)

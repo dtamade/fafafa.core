@@ -87,101 +87,211 @@ type
 // ============================================================================
 // === AArch64 NEON Assembly Implementations ===
 // ============================================================================
+// NOTE:
+// FPC 3.2.2 on AArch64 can hit an internal compiler error when compiling large
+// amounts of inline NEON assembler. Keep these implementations opt-in.
+// Enable via: -dFAFAFA_SIMD_NEON_ASM (and ensure SIMD_VECTOR_ASM_DISABLED is NOT defined).
 {$IFDEF CPUAARCH64}
+  {$IFDEF FAFAFA_SIMD_NEON_ASM}
+    // FPC 3.2.2 has reproducible internal errors on AArch64 NEON inline asm (e.g. "ldr q0, [x0]").
+    // Require a newer compiler for the opt-in asm path to avoid ICEs.
+    {$IFDEF FPC}
+      {$IF FPC_FULLVERSION < 030301}
+        {$MESSAGE FATAL 'FAFAFA_SIMD_NEON_ASM requires FPC >= 3.3.1 (3.2.2 ICE on AArch64 NEON inline asm)'}
+      {$ENDIF}
+    {$ENDIF}
+    {$IFNDEF SIMD_VECTOR_ASM_DISABLED}
+      {$DEFINE FAFAFA_SIMD_NEON_ASM_ENABLED}
+    {$ENDIF}
+  {$ENDIF}
+{$ENDIF}
+
+{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
 // === F32x4 Arithmetic Operations ===
 
 function NEONAddF32x4(const a, b: TVecF32x4): TVecF32x4; assembler; nostackframe;
 asm
-  // x0 = @a, x1 = @b, x8 = @result (hidden param for struct return)
-  ldr   q0, [x0]          // v0 = a
-  ldr   q1, [x1]          // v1 = b
-  fadd  v0.4s, v0.4s, v1.4s  // v0 = a + b
-  str   q0, [x8]          // store result
+  // ABI (FPC AArch64):
+  // - 16-byte records are passed by value in GPRs.
+  // - a: x0..x1, b: x2..x3, return: x0..x1.
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
+  fmov  d1, x2
+  fmov  d2, x3
+  ins   v1.d[1], v2.d[0]
+
+  fadd  v0.4s, v0.4s, v1.4s
+
+  umov  x0, v0.d[0]
+  umov  x1, v0.d[1]
 end;
 
 function NEONSubF32x4(const a, b: TVecF32x4): TVecF32x4; assembler; nostackframe;
 asm
-  ldr   q0, [x0]
-  ldr   q1, [x1]
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
+  fmov  d1, x2
+  fmov  d2, x3
+  ins   v1.d[1], v2.d[0]
+
   fsub  v0.4s, v0.4s, v1.4s
-  str   q0, [x8]
+
+  umov  x0, v0.d[0]
+  umov  x1, v0.d[1]
 end;
 
 function NEONMulF32x4(const a, b: TVecF32x4): TVecF32x4; assembler; nostackframe;
 asm
-  ldr   q0, [x0]
-  ldr   q1, [x1]
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
+  fmov  d1, x2
+  fmov  d2, x3
+  ins   v1.d[1], v2.d[0]
+
   fmul  v0.4s, v0.4s, v1.4s
-  str   q0, [x8]
+
+  umov  x0, v0.d[0]
+  umov  x1, v0.d[1]
 end;
 
 function NEONDivF32x4(const a, b: TVecF32x4): TVecF32x4; assembler; nostackframe;
 asm
-  ldr   q0, [x0]
-  ldr   q1, [x1]
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
+  fmov  d1, x2
+  fmov  d2, x3
+  ins   v1.d[1], v2.d[0]
+
   fdiv  v0.4s, v0.4s, v1.4s
-  str   q0, [x8]
+
+  umov  x0, v0.d[0]
+  umov  x1, v0.d[1]
 end;
 
 // === F64x2 Arithmetic Operations ===
 
 function NEONAddF64x2(const a, b: TVecF64x2): TVecF64x2; assembler; nostackframe;
 asm
-  ldr   q0, [x0]
-  ldr   q1, [x1]
+  // a: x0..x1, b: x2..x3
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
+  fmov  d1, x2
+  fmov  d2, x3
+  ins   v1.d[1], v2.d[0]
+
   fadd  v0.2d, v0.2d, v1.2d
-  str   q0, [x8]
+
+  umov  x0, v0.d[0]
+  umov  x1, v0.d[1]
 end;
 
 function NEONSubF64x2(const a, b: TVecF64x2): TVecF64x2; assembler; nostackframe;
 asm
-  ldr   q0, [x0]
-  ldr   q1, [x1]
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
+  fmov  d1, x2
+  fmov  d2, x3
+  ins   v1.d[1], v2.d[0]
+
   fsub  v0.2d, v0.2d, v1.2d
-  str   q0, [x8]
+
+  umov  x0, v0.d[0]
+  umov  x1, v0.d[1]
 end;
 
 function NEONMulF64x2(const a, b: TVecF64x2): TVecF64x2; assembler; nostackframe;
 asm
-  ldr   q0, [x0]
-  ldr   q1, [x1]
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
+  fmov  d1, x2
+  fmov  d2, x3
+  ins   v1.d[1], v2.d[0]
+
   fmul  v0.2d, v0.2d, v1.2d
-  str   q0, [x8]
+
+  umov  x0, v0.d[0]
+  umov  x1, v0.d[1]
 end;
 
 function NEONDivF64x2(const a, b: TVecF64x2): TVecF64x2; assembler; nostackframe;
 asm
-  ldr   q0, [x0]
-  ldr   q1, [x1]
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
+  fmov  d1, x2
+  fmov  d2, x3
+  ins   v1.d[1], v2.d[0]
+
   fdiv  v0.2d, v0.2d, v1.2d
-  str   q0, [x8]
+
+  umov  x0, v0.d[0]
+  umov  x1, v0.d[1]
 end;
 
 // === I32x4 Arithmetic Operations ===
 
 function NEONAddI32x4(const a, b: TVecI32x4): TVecI32x4; assembler; nostackframe;
 asm
-  ldr   q0, [x0]
-  ldr   q1, [x1]
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
+  fmov  d1, x2
+  fmov  d2, x3
+  ins   v1.d[1], v2.d[0]
+
   add   v0.4s, v0.4s, v1.4s
-  str   q0, [x8]
+
+  umov  x0, v0.d[0]
+  umov  x1, v0.d[1]
 end;
 
 function NEONSubI32x4(const a, b: TVecI32x4): TVecI32x4; assembler; nostackframe;
 asm
-  ldr   q0, [x0]
-  ldr   q1, [x1]
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
+  fmov  d1, x2
+  fmov  d2, x3
+  ins   v1.d[1], v2.d[0]
+
   sub   v0.4s, v0.4s, v1.4s
-  str   q0, [x8]
+
+  umov  x0, v0.d[0]
+  umov  x1, v0.d[1]
 end;
 
 function NEONMulI32x4(const a, b: TVecI32x4): TVecI32x4; assembler; nostackframe;
 asm
-  ldr   q0, [x0]
-  ldr   q1, [x1]
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
+  fmov  d1, x2
+  fmov  d2, x3
+  ins   v1.d[1], v2.d[0]
+
   mul   v0.4s, v0.4s, v1.4s
-  str   q0, [x8]
+
+  umov  x0, v0.d[0]
+  umov  x1, v0.d[1]
 end;
 
 // === F32x8 (2x 128-bit operations) ===
@@ -226,291 +336,438 @@ end;
 
 function NEONAbsF32x4(const a: TVecF32x4): TVecF32x4; assembler; nostackframe;
 asm
-  ldr   q0, [x0]
+  // a: x0..x1, return: x0..x1
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
   fabs  v0.4s, v0.4s
-  str   q0, [x8]
+
+  umov  x0, v0.d[0]
+  umov  x1, v0.d[1]
 end;
 
 function NEONSqrtF32x4(const a: TVecF32x4): TVecF32x4; assembler; nostackframe;
 asm
-  ldr   q0, [x0]
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
   fsqrt v0.4s, v0.4s
-  str   q0, [x8]
+
+  umov  x0, v0.d[0]
+  umov  x1, v0.d[1]
 end;
 
 function NEONMinF32x4(const a, b: TVecF32x4): TVecF32x4; assembler; nostackframe;
 asm
-  ldr   q0, [x0]
-  ldr   q1, [x1]
+  // a: x0..x1, b: x2..x3
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
+  fmov  d1, x2
+  fmov  d2, x3
+  ins   v1.d[1], v2.d[0]
+
   fmin  v0.4s, v0.4s, v1.4s
-  str   q0, [x8]
+
+  umov  x0, v0.d[0]
+  umov  x1, v0.d[1]
 end;
 
 function NEONMaxF32x4(const a, b: TVecF32x4): TVecF32x4; assembler; nostackframe;
 asm
-  ldr   q0, [x0]
-  ldr   q1, [x1]
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
+  fmov  d1, x2
+  fmov  d2, x3
+  ins   v1.d[1], v2.d[0]
+
   fmax  v0.4s, v0.4s, v1.4s
-  str   q0, [x8]
+
+  umov  x0, v0.d[0]
+  umov  x1, v0.d[1]
 end;
 
 // === Extended Math Functions ===
 
 function NEONFmaF32x4(const a, b, c: TVecF32x4): TVecF32x4; assembler; nostackframe;
 asm
-  // x0=@a, x1=@b, x2=@c, x8=@result
-  ldr   q0, [x0]           // v0 = a
-  ldr   q1, [x1]           // v1 = b
-  ldr   q2, [x2]           // v2 = c
+  // a: x0..x1, b: x2..x3, c: x4..x5
+  fmov  d0, x0
+  fmov  d3, x1
+  ins   v0.d[1], v3.d[0]
+
+  fmov  d1, x2
+  fmov  d3, x3
+  ins   v1.d[1], v3.d[0]
+
+  fmov  d2, x4
+  fmov  d3, x5
+  ins   v2.d[1], v3.d[0]
+
   fmla  v2.4s, v0.4s, v1.4s  // v2 = a*b + c
-  str   q2, [x8]
+
+  umov  x0, v2.d[0]
+  umov  x1, v2.d[1]
 end;
 
 function NEONRcpF32x4(const a: TVecF32x4): TVecF32x4; assembler; nostackframe;
 asm
-  ldr   q0, [x0]
-  frecpe v0.4s, v0.4s       // Approximate reciprocal
-  str   q0, [x8]
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
+  frecpe v0.4s, v0.4s
+
+  umov  x0, v0.d[0]
+  umov  x1, v0.d[1]
 end;
 
 function NEONRsqrtF32x4(const a: TVecF32x4): TVecF32x4; assembler; nostackframe;
 asm
-  ldr   q0, [x0]
-  frsqrte v0.4s, v0.4s      // Approximate reciprocal sqrt
-  str   q0, [x8]
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
+  frsqrte v0.4s, v0.4s
+
+  umov  x0, v0.d[0]
+  umov  x1, v0.d[1]
 end;
 
 // === Rounding Operations ===
 
 function NEONFloorF32x4(const a: TVecF32x4): TVecF32x4; assembler; nostackframe;
 asm
-  ldr   q0, [x0]
-  frintm v0.4s, v0.4s       // Round toward -infinity (floor)
-  str   q0, [x8]
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
+  frintm v0.4s, v0.4s
+
+  umov  x0, v0.d[0]
+  umov  x1, v0.d[1]
 end;
 
 function NEONCeilF32x4(const a: TVecF32x4): TVecF32x4; assembler; nostackframe;
 asm
-  ldr   q0, [x0]
-  frintp v0.4s, v0.4s       // Round toward +infinity (ceil)
-  str   q0, [x8]
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
+  frintp v0.4s, v0.4s
+
+  umov  x0, v0.d[0]
+  umov  x1, v0.d[1]
 end;
 
 function NEONRoundF32x4(const a: TVecF32x4): TVecF32x4; assembler; nostackframe;
 asm
-  ldr   q0, [x0]
-  frintn v0.4s, v0.4s       // Round to nearest, ties to even
-  str   q0, [x8]
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
+  frintn v0.4s, v0.4s
+
+  umov  x0, v0.d[0]
+  umov  x1, v0.d[1]
 end;
 
 function NEONTruncF32x4(const a: TVecF32x4): TVecF32x4; assembler; nostackframe;
 asm
-  ldr   q0, [x0]
-  frintz v0.4s, v0.4s       // Round toward zero (truncate)
-  str   q0, [x8]
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
+  frintz v0.4s, v0.4s
+
+  umov  x0, v0.d[0]
+  umov  x1, v0.d[1]
 end;
 
 function NEONClampF32x4(const a, minVal, maxVal: TVecF32x4): TVecF32x4; assembler; nostackframe;
 asm
-  // x0=@a, x1=@minVal, x2=@maxVal, x8=@result
-  ldr   q0, [x0]            // a
-  ldr   q1, [x1]            // minVal
-  ldr   q2, [x2]            // maxVal
-  fmax  v0.4s, v0.4s, v1.4s // max(a, minVal)
-  fmin  v0.4s, v0.4s, v2.4s // min(result, maxVal)
-  str   q0, [x8]
+  // a: x0..x1, minVal: x2..x3, maxVal: x4..x5
+  fmov  d0, x0
+  fmov  d3, x1
+  ins   v0.d[1], v3.d[0]
+
+  fmov  d1, x2
+  fmov  d3, x3
+  ins   v1.d[1], v3.d[0]
+
+  fmov  d2, x4
+  fmov  d3, x5
+  ins   v2.d[1], v3.d[0]
+
+  fmax  v0.4s, v0.4s, v1.4s
+  fmin  v0.4s, v0.4s, v2.4s
+
+  umov  x0, v0.d[0]
+  umov  x1, v0.d[1]
 end;
 
 // === Vector Math Operations ===
 
 function NEONDotF32x4(const a, b: TVecF32x4): Single; assembler; nostackframe;
 asm
-  ldr   q0, [x0]
-  ldr   q1, [x1]
-  fmul  v0.4s, v0.4s, v1.4s   // Element-wise multiply
-  faddp v0.4s, v0.4s, v0.4s   // Pairwise add: [a*b+c*d, e*f+g*h, ...]
-  faddp s0, v0.2s             // Final add
-  // Result in s0
+  // a: x0..x1, b: x2..x3
+  fmov  d0, x0
+  fmov  d3, x1
+  ins   v0.d[1], v3.d[0]
+
+  fmov  d1, x2
+  fmov  d3, x3
+  ins   v1.d[1], v3.d[0]
+
+  fmul  v0.4s, v0.4s, v1.4s
+  // Horizontal sum (avoid faddp)
+  ext   v2.16b, v0.16b, v0.16b, #8
+  fadd  v0.4s, v0.4s, v2.4s
+  ext   v2.16b, v0.16b, v0.16b, #4
+  fadd  v0.4s, v0.4s, v2.4s
+  // Result in s0 (v0.s[0])
 end;
 
 function NEONDotF32x3(const a, b: TVecF32x4): Single; assembler; nostackframe;
 asm
-  ldr   q0, [x0]
-  ldr   q1, [x1]
-  fmul  v0.4s, v0.4s, v1.4s   // Element-wise multiply
+  fmov  d0, x0
+  fmov  d3, x1
+  ins   v0.d[1], v3.d[0]
+
+  fmov  d1, x2
+  fmov  d3, x3
+  ins   v1.d[1], v3.d[0]
+
+  fmul  v0.4s, v0.4s, v1.4s
   mov   v0.s[3], wzr          // Zero the w component
-  faddp v0.4s, v0.4s, v0.4s
-  faddp s0, v0.2s
+  // Horizontal sum (avoid faddp)
+  ext   v2.16b, v0.16b, v0.16b, #8
+  fadd  v0.4s, v0.4s, v2.4s
+  ext   v2.16b, v0.16b, v0.16b, #4
+  fadd  v0.4s, v0.4s, v2.4s
+  // Result in s0 (v0.s[0])
 end;
 
 function NEONCrossF32x3(const a, b: TVecF32x4): TVecF32x4; assembler; nostackframe;
 asm
+  // a: x0..x1, b: x2..x3, return: x0..x1
+  fmov  d0, x0
+  fmov  d5, x1
+  ins   v0.d[1], v5.d[0]
+
+  fmov  d1, x2
+  fmov  d5, x3
+  ins   v1.d[1], v5.d[0]
+
   // Cross product: (a.y*b.z - a.z*b.y, a.z*b.x - a.x*b.z, a.x*b.y - a.y*b.x, 0)
-  ldr   q0, [x0]              // a = [x, y, z, w]
-  ldr   q1, [x1]              // b = [x, y, z, w]
-  
   // Shuffle a: [y, z, x, w] = 1,2,0,3
   mov   v2.s[0], v0.s[1]      // a.y
   mov   v2.s[1], v0.s[2]      // a.z
   mov   v2.s[2], v0.s[0]      // a.x
   mov   v2.s[3], v0.s[3]      // a.w
-  
+
   // Shuffle b: [z, x, y, w] = 2,0,1,3
   mov   v3.s[0], v1.s[2]      // b.z
   mov   v3.s[1], v1.s[0]      // b.x
   mov   v3.s[2], v1.s[1]      // b.y
   mov   v3.s[3], v1.s[3]      // b.w
-  
+
   fmul  v4.4s, v2.4s, v3.4s   // [a.y*b.z, a.z*b.x, a.x*b.y, ...]
-  
+
   // Shuffle a: [z, x, y, w] = 2,0,1,3
   mov   v2.s[0], v0.s[2]      // a.z
   mov   v2.s[1], v0.s[0]      // a.x
   mov   v2.s[2], v0.s[1]      // a.y
-  
+
   // Shuffle b: [y, z, x, w] = 1,2,0,3
   mov   v3.s[0], v1.s[1]      // b.y
   mov   v3.s[1], v1.s[2]      // b.z
   mov   v3.s[2], v1.s[0]      // b.x
-  
+
   fmul  v2.4s, v2.4s, v3.4s   // [a.z*b.y, a.x*b.z, a.y*b.x, ...]
-  fsub  v0.4s, v4.4s, v2.4s   // Subtract
-  
-  // Zero w component
+  fsub  v0.4s, v4.4s, v2.4s
+
   mov   v0.s[3], wzr
-  str   q0, [x8]
+
+  umov  x0, v0.d[0]
+  umov  x1, v0.d[1]
 end;
 
 function NEONLengthF32x4(const a: TVecF32x4): Single; assembler; nostackframe;
 asm
-  ldr   q0, [x0]
-  fmul  v0.4s, v0.4s, v0.4s   // Square each element
-  faddp v0.4s, v0.4s, v0.4s   // Pairwise add
-  faddp s0, v0.2s             // Sum all
-  fsqrt s0, s0                // Square root
+  // a: x0..x1
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
+  fmul  v0.4s, v0.4s, v0.4s
+  // Horizontal sum (avoid faddp)
+  ext   v1.16b, v0.16b, v0.16b, #8
+  fadd  v0.4s, v0.4s, v1.4s
+  ext   v1.16b, v0.16b, v0.16b, #4
+  fadd  v0.4s, v0.4s, v1.4s
+  fsqrt s0, s0
 end;
 
 function NEONLengthF32x3(const a: TVecF32x4): Single; assembler; nostackframe;
 asm
-  ldr   q0, [x0]
-  mov   v0.s[3], wzr          // Zero w component
-  fmul  v0.4s, v0.4s, v0.4s   // Square each element
-  faddp v0.4s, v0.4s, v0.4s
-  faddp s0, v0.2s
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
+  mov   v0.s[3], wzr
+  fmul  v0.4s, v0.4s, v0.4s
+  // Horizontal sum (avoid faddp)
+  ext   v1.16b, v0.16b, v0.16b, #8
+  fadd  v0.4s, v0.4s, v1.4s
+  ext   v1.16b, v0.16b, v0.16b, #4
+  fadd  v0.4s, v0.4s, v1.4s
   fsqrt s0, s0
 end;
 
 function NEONNormalizeF32x4(const a: TVecF32x4): TVecF32x4; assembler; nostackframe;
 asm
-  ldr   q0, [x0]
-  fmul  v1.4s, v0.4s, v0.4s   // Square each element
-  faddp v1.4s, v1.4s, v1.4s   // Sum squares
-  faddp s1, v1.2s
-  fsqrt s1, s1                // length
-  
-  // Check for zero length
-  fcmp  s1, #0.0
-  beq   .Lzero_len4
-  
-  // Reciprocal length and multiply
-  fmov  s2, #1.0
-  fdiv  s1, s2, s1            // 1/length
-  dup   v1.4s, v1.s[0]        // Broadcast
+  // a: x0..x1
+  fmov  d0, x0
+  fmov  d3, x1
+  ins   v0.d[1], v3.d[0]
+
+  fmul  v1.4s, v0.4s, v0.4s        // squares
+  // Sum squares (avoid faddp)
+  ext   v2.16b, v1.16b, v1.16b, #8
+  fadd  v1.4s, v1.4s, v2.4s
+  ext   v2.16b, v1.16b, v1.16b, #4
+  fadd  v1.4s, v1.4s, v2.4s
+  fsqrt s1, s1
+
+  // if length == 0, return original
+  fmov  s2, wzr
+  fcmp  s1, s2
+  b.eq  .Lret_norm4
+
+  // invLen = 1.0 / length
+  movz  w3, #0x3f80, lsl #16
+  fmov  s2, w3
+  fdiv  s1, s2, s1
+
+  // broadcast invLen
+  fmov  w3, s1
+  dup   v1.4s, w3
+
   fmul  v0.4s, v0.4s, v1.4s
-  str   q0, [x8]
-  ret
-  
-.Lzero_len4:
-  str   q0, [x8]              // Return original if zero length
+
+.Lret_norm4:
+  umov  x0, v0.d[0]
+  umov  x1, v0.d[1]
 end;
 
 function NEONNormalizeF32x3(const a: TVecF32x4): TVecF32x4; assembler; nostackframe;
 asm
-  ldr   q0, [x0]
-  mov   v0.s[3], wzr          // Zero w for calculation
+  fmov  d0, x0
+  fmov  d3, x1
+  ins   v0.d[1], v3.d[0]
+
+  mov   v0.s[3], wzr               // w=0 for calc and result
+
   fmul  v1.4s, v0.4s, v0.4s
-  faddp v1.4s, v1.4s, v1.4s
-  faddp s1, v1.2s
+  // Sum squares (avoid faddp)
+  ext   v2.16b, v1.16b, v1.16b, #8
+  fadd  v1.4s, v1.4s, v2.4s
+  ext   v2.16b, v1.16b, v1.16b, #4
+  fadd  v1.4s, v1.4s, v2.4s
   fsqrt s1, s1
-  
-  fcmp  s1, #0.0
-  beq   .Lzero_len3
-  
-  fmov  s2, #1.0
+
+  fmov  s2, wzr
+  fcmp  s1, s2
+  b.eq  .Lret_norm3
+
+  movz  w3, #0x3f80, lsl #16
+  fmov  s2, w3
   fdiv  s1, s2, s1
-  dup   v1.4s, v1.s[0]
-  ldr   q0, [x0]              // Reload original
+
+  fmov  w3, s1
+  dup   v1.4s, w3
   fmul  v0.4s, v0.4s, v1.4s
-  mov   v0.s[3], wzr          // Ensure w=0
-  str   q0, [x8]
-  ret
-  
-.Lzero_len3:
-  ldr   q0, [x0]
-  mov   v0.s[3], wzr
-  str   q0, [x8]
+
+.Lret_norm3:
+  umov  x0, v0.d[0]
+  umov  x1, v0.d[1]
 end;
 
 // === Selection Operation ===
 
 function NEONSelectF32x4(const mask: TMask4; const a, b: TVecF32x4): TVecF32x4; assembler; nostackframe;
 asm
-  // w0 = mask (4-bit), x1 = @a, x2 = @b, x8 = @result
-  ldr   q0, [x1]              // a
-  ldr   q1, [x2]              // b
-  
+  // ABI: mask in w0, a: x1..x2, b: x3..x4, return: x0..x1
+  fmov  d0, x1
+  fmov  d4, x2
+  ins   v0.d[1], v4.d[0]
+
+  fmov  d1, x3
+  fmov  d4, x4
+  ins   v1.d[1], v4.d[0]
+
   // Expand 4-bit mask to 128-bit mask
-  // Each bit becomes 32 bits of all 1s or all 0s
   movi  v2.4s, #0
-  
+
   // Bit 0
   tst   w0, #1
-  beq   .Lbit0_zero
-  movi  v3.4s, #0xFF
+  b.eq  .Lbit0_zero
+  movi  v3.4s, #-1
   ins   v2.s[0], v3.s[0]
 .Lbit0_zero:
-  
+
   // Bit 1
   tst   w0, #2
-  beq   .Lbit1_zero
-  movi  v3.4s, #0xFF
+  b.eq  .Lbit1_zero
+  movi  v3.4s, #-1
   ins   v2.s[1], v3.s[0]
 .Lbit1_zero:
-  
+
   // Bit 2
   tst   w0, #4
-  beq   .Lbit2_zero
-  movi  v3.4s, #0xFF
+  b.eq  .Lbit2_zero
+  movi  v3.4s, #-1
   ins   v2.s[2], v3.s[0]
 .Lbit2_zero:
-  
+
   // Bit 3
   tst   w0, #8
-  beq   .Lbit3_zero
-  movi  v3.4s, #0xFF
+  b.eq  .Lbit3_zero
+  movi  v3.4s, #-1
   ins   v2.s[3], v3.s[0]
 .Lbit3_zero:
-  
-  // BSL: bit select - result = (a AND mask) OR (b AND NOT mask)
+
+  // Bit select: result = (a AND mask) OR (b AND NOT mask)
   bsl   v2.16b, v0.16b, v1.16b
-  str   q2, [x8]
+
+  umov  x0, v2.d[0]
+  umov  x1, v2.d[1]
 end;
 
 function NEONInsertF32x4(const a: TVecF32x4; value: Single; index: Integer): TVecF32x4; assembler; nostackframe;
 asm
-  // x0 = @a, s0 = value (in FP reg), w1 = index, x8 = @result
-  ldr   q1, [x0]              // Load a into v1
-  and   w1, w1, #3            // index & 3
-  
-  cbz   w1, .Lins0
-  cmp   w1, #1
-  beq   .Lins1
-  cmp   w1, #2
-  beq   .Lins2
+  // ABI: a in x0..x1, value in s0 (v0.s[0]), index in w2, return x0..x1
+  fmov  d1, x0
+  fmov  d3, x1
+  ins   v1.d[1], v3.d[0]
+
+  and   w2, w2, #3
+
+  cbz   w2, .Lins0
+  cmp   w2, #1
+  b.eq  .Lins1
+  cmp   w2, #2
+  b.eq  .Lins2
   // index = 3
   ins   v1.s[3], v0.s[0]
   b     .Lins_done
-  
+
 .Lins0:
   ins   v1.s[0], v0.s[0]
   b     .Lins_done
@@ -519,38 +776,55 @@ asm
   b     .Lins_done
 .Lins2:
   ins   v1.s[2], v0.s[0]
-  
+
 .Lins_done:
-  str   q1, [x8]
+  umov  x0, v1.d[0]
+  umov  x1, v1.d[1]
 end;
 
 // === Reduction Operations ===
 
 function NEONReduceAddF32x4(const a: TVecF32x4): Single; assembler; nostackframe;
 asm
-  ldr   q0, [x0]
-  faddp v0.4s, v0.4s, v0.4s  // Pairwise add: [a+b, c+d, a+b, c+d]
-  faddp s0, v0.2s            // Final add: a+b+c+d
-  // Result in s0 (v0.s[0]), returned via FP reg
+  // a: x0..x1
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
+  // Horizontal sum (avoid faddp)
+  ext   v1.16b, v0.16b, v0.16b, #8
+  fadd  v0.4s, v0.4s, v1.4s
+  ext   v1.16b, v0.16b, v0.16b, #4
+  fadd  v0.4s, v0.4s, v1.4s
+  // Result in s0 (v0.s[0])
 end;
 
 function NEONReduceMinF32x4(const a: TVecF32x4): Single; assembler; nostackframe;
 asm
-  ldr   q0, [x0]
-  fminp v0.4s, v0.4s, v0.4s  // Pairwise min
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
+  fminp v0.4s, v0.4s, v0.4s
   fminp s0, v0.2s
 end;
 
 function NEONReduceMaxF32x4(const a: TVecF32x4): Single; assembler; nostackframe;
 asm
-  ldr   q0, [x0]
-  fmaxp v0.4s, v0.4s, v0.4s  // Pairwise max
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
+  fmaxp v0.4s, v0.4s, v0.4s
   fmaxp s0, v0.2s
 end;
 
 function NEONReduceMulF32x4(const a: TVecF32x4): Single; assembler; nostackframe;
 asm
-  ldr   q0, [x0]
+  fmov  d0, x0
+  fmov  d4, x1
+  ins   v0.d[1], v4.d[0]
+
   // Extract and multiply: no native instruction, do manually
   mov   s1, v0.s[1]
   mov   s2, v0.s[2]
@@ -564,26 +838,33 @@ end;
 
 function NEONLoadF32x4(p: PSingle): TVecF32x4; assembler; nostackframe;
 asm
+  // p in x0, return in x0..x1
   ldr   q0, [x0]
-  str   q0, [x8]
+  umov  x0, v0.d[0]
+  umov  x1, v0.d[1]
 end;
 
 function NEONLoadF32x4Aligned(p: PSingle): TVecF32x4; assembler; nostackframe;
 asm
   ldr   q0, [x0]
-  str   q0, [x8]
+  umov  x0, v0.d[0]
+  umov  x1, v0.d[1]
 end;
 
 procedure NEONStoreF32x4(p: PSingle; const a: TVecF32x4); assembler; nostackframe;
 asm
-  // x0 = p, x1 = @a
-  ldr   q0, [x1]
+  // p: x0, a: x1..x2
+  fmov  d0, x1
+  fmov  d1, x2
+  ins   v0.d[1], v1.d[0]
   str   q0, [x0]
 end;
 
 procedure NEONStoreF32x4Aligned(p: PSingle; const a: TVecF32x4); assembler; nostackframe;
 asm
-  ldr   q0, [x1]
+  fmov  d0, x1
+  fmov  d1, x2
+  ins   v0.d[1], v1.d[0]
   str   q0, [x0]
 end;
 
@@ -591,33 +872,37 @@ end;
 
 function NEONSplatF32x4(value: Single): TVecF32x4; assembler; nostackframe;
 asm
-  // s0 = value (passed in FP reg)
-  dup   v0.4s, v0.s[0]      // Duplicate to all lanes
-  str   q0, [x8]
+  // value in s0
+  fmov  w2, s0
+  dup   v0.4s, w2
+
+  umov  x0, v0.d[0]
+  umov  x1, v0.d[1]
 end;
 
 function NEONZeroF32x4: TVecF32x4; assembler; nostackframe;
 asm
-  movi  v0.4s, #0
-  str   q0, [x8]
+  mov   x0, xzr
+  mov   x1, xzr
 end;
 
 function NEONExtractF32x4(const a: TVecF32x4; index: Integer): Single; assembler; nostackframe;
 asm
-  // x0 = @a, w1 = index (lower 32 bits of x1)
-  ldr   q0, [x0]
-  and   w1, w1, #3          // index & 3
-  // Use index to extract - need computed branch or table
-  cbz   w1, .L0
-  cmp   w1, #1
-  beq   .L1
-  cmp   w1, #2
-  beq   .L2
-  // else index=3
+  // ABI: a in x0..x1, index in w2
+  fmov  d0, x0
+  fmov  d3, x1
+  ins   v0.d[1], v3.d[0]
+
+  and   w2, w2, #3
+  cbz   w2, .L0
+  cmp   w2, #1
+  b.eq  .L1
+  cmp   w2, #2
+  b.eq  .L2
   mov   s0, v0.s[3]
   ret
 .L0:
-  // s0 already has v0.s[0]
+  // s0 already holds v0.s[0]
   ret
 .L1:
   mov   s0, v0.s[1]
@@ -630,106 +915,163 @@ end;
 
 function NEONCmpEqF32x4(const a, b: TVecF32x4): TMask4; assembler; nostackframe;
 asm
-  ldr   q0, [x0]
-  ldr   q1, [x1]
-  fcmeq v0.4s, v0.4s, v1.4s  // Compare equal, all 1s if true
-  // Extract mask: shrink to bytes and extract
-  xtn   v0.4h, v0.4s         // Narrow 32->16 bits
-  xtn   v0.8b, v0.8h         // Narrow 16->8 bits
-  umov  w0, v0.b[0]          // Get byte 0
-  umov  w1, v0.b[1]
-  umov  w2, v0.b[2]
-  umov  w3, v0.b[3]
-  and   w0, w0, #1
-  orr   w0, w0, w1, lsl #1
-  orr   w0, w0, w2, lsl #2
-  orr   w0, w0, w3, lsl #3
+  // a: x0..x1, b: x2..x3
+  fmov  d0, x0
+  fmov  d4, x1
+  ins   v0.d[1], v4.d[0]
+
+  fmov  d1, x2
+  fmov  d4, x3
+  ins   v1.d[1], v4.d[0]
+
+  fcmeq v0.4s, v0.4s, v1.4s
+
+  // Extract sign bits to build 4-bit mask
+  umov  w1, v0.s[0]
+  lsr   w1, w1, #31
+  umov  w2, v0.s[1]
+  lsr   w2, w2, #31
+  umov  w3, v0.s[2]
+  lsr   w3, w3, #31
+  umov  w4, v0.s[3]
+  lsr   w4, w4, #31
+
+  orr   w0, w1, w2, lsl #1
+  orr   w0, w0, w3, lsl #2
+  orr   w0, w0, w4, lsl #3
 end;
 
 function NEONCmpLtF32x4(const a, b: TVecF32x4): TMask4; assembler; nostackframe;
 asm
-  ldr   q0, [x0]
-  ldr   q1, [x1]
-  fcmlt v0.4s, v0.4s, v1.4s
-  xtn   v0.4h, v0.4s
-  xtn   v0.8b, v0.8h
-  umov  w0, v0.b[0]
-  umov  w1, v0.b[1]
-  umov  w2, v0.b[2]
-  umov  w3, v0.b[3]
-  and   w0, w0, #1
-  orr   w0, w0, w1, lsl #1
-  orr   w0, w0, w2, lsl #2
-  orr   w0, w0, w3, lsl #3
+  fmov  d0, x0
+  fmov  d4, x1
+  ins   v0.d[1], v4.d[0]
+
+  fmov  d1, x2
+  fmov  d4, x3
+  ins   v1.d[1], v4.d[0]
+
+  // a < b  <=>  b > a
+  fcmgt v0.4s, v1.4s, v0.4s
+
+  umov  w1, v0.s[0]
+  lsr   w1, w1, #31
+  umov  w2, v0.s[1]
+  lsr   w2, w2, #31
+  umov  w3, v0.s[2]
+  lsr   w3, w3, #31
+  umov  w4, v0.s[3]
+  lsr   w4, w4, #31
+
+  orr   w0, w1, w2, lsl #1
+  orr   w0, w0, w3, lsl #2
+  orr   w0, w0, w4, lsl #3
 end;
 
 function NEONCmpLeF32x4(const a, b: TVecF32x4): TMask4; assembler; nostackframe;
 asm
-  ldr   q0, [x0]
-  ldr   q1, [x1]
-  fcmle v0.4s, v0.4s, v1.4s
-  xtn   v0.4h, v0.4s
-  xtn   v0.8b, v0.8h
-  umov  w0, v0.b[0]
-  umov  w1, v0.b[1]
-  umov  w2, v0.b[2]
-  umov  w3, v0.b[3]
-  and   w0, w0, #1
-  orr   w0, w0, w1, lsl #1
-  orr   w0, w0, w2, lsl #2
-  orr   w0, w0, w3, lsl #3
+  fmov  d0, x0
+  fmov  d4, x1
+  ins   v0.d[1], v4.d[0]
+
+  fmov  d1, x2
+  fmov  d4, x3
+  ins   v1.d[1], v4.d[0]
+
+  // a <= b  <=>  b >= a
+  fcmge v0.4s, v1.4s, v0.4s
+
+  umov  w1, v0.s[0]
+  lsr   w1, w1, #31
+  umov  w2, v0.s[1]
+  lsr   w2, w2, #31
+  umov  w3, v0.s[2]
+  lsr   w3, w3, #31
+  umov  w4, v0.s[3]
+  lsr   w4, w4, #31
+
+  orr   w0, w1, w2, lsl #1
+  orr   w0, w0, w3, lsl #2
+  orr   w0, w0, w4, lsl #3
 end;
 
 function NEONCmpGtF32x4(const a, b: TVecF32x4): TMask4; assembler; nostackframe;
 asm
-  ldr   q0, [x0]
-  ldr   q1, [x1]
+  fmov  d0, x0
+  fmov  d4, x1
+  ins   v0.d[1], v4.d[0]
+
+  fmov  d1, x2
+  fmov  d4, x3
+  ins   v1.d[1], v4.d[0]
+
   fcmgt v0.4s, v0.4s, v1.4s
-  xtn   v0.4h, v0.4s
-  xtn   v0.8b, v0.8h
-  umov  w0, v0.b[0]
-  umov  w1, v0.b[1]
-  umov  w2, v0.b[2]
-  umov  w3, v0.b[3]
-  and   w0, w0, #1
-  orr   w0, w0, w1, lsl #1
-  orr   w0, w0, w2, lsl #2
-  orr   w0, w0, w3, lsl #3
+
+  umov  w1, v0.s[0]
+  lsr   w1, w1, #31
+  umov  w2, v0.s[1]
+  lsr   w2, w2, #31
+  umov  w3, v0.s[2]
+  lsr   w3, w3, #31
+  umov  w4, v0.s[3]
+  lsr   w4, w4, #31
+
+  orr   w0, w1, w2, lsl #1
+  orr   w0, w0, w3, lsl #2
+  orr   w0, w0, w4, lsl #3
 end;
 
 function NEONCmpGeF32x4(const a, b: TVecF32x4): TMask4; assembler; nostackframe;
 asm
-  ldr   q0, [x0]
-  ldr   q1, [x1]
+  fmov  d0, x0
+  fmov  d4, x1
+  ins   v0.d[1], v4.d[0]
+
+  fmov  d1, x2
+  fmov  d4, x3
+  ins   v1.d[1], v4.d[0]
+
   fcmge v0.4s, v0.4s, v1.4s
-  xtn   v0.4h, v0.4s
-  xtn   v0.8b, v0.8h
-  umov  w0, v0.b[0]
-  umov  w1, v0.b[1]
-  umov  w2, v0.b[2]
-  umov  w3, v0.b[3]
-  and   w0, w0, #1
-  orr   w0, w0, w1, lsl #1
-  orr   w0, w0, w2, lsl #2
-  orr   w0, w0, w3, lsl #3
+
+  umov  w1, v0.s[0]
+  lsr   w1, w1, #31
+  umov  w2, v0.s[1]
+  lsr   w2, w2, #31
+  umov  w3, v0.s[2]
+  lsr   w3, w3, #31
+  umov  w4, v0.s[3]
+  lsr   w4, w4, #31
+
+  orr   w0, w1, w2, lsl #1
+  orr   w0, w0, w3, lsl #2
+  orr   w0, w0, w4, lsl #3
 end;
 
 function NEONCmpNeF32x4(const a, b: TVecF32x4): TMask4; assembler; nostackframe;
 asm
-  ldr   q0, [x0]
-  ldr   q1, [x1]
-  fcmeq v0.4s, v0.4s, v1.4s  // Equal
-  not   v0.16b, v0.16b       // Invert for not-equal
-  xtn   v0.4h, v0.4s
-  xtn   v0.8b, v0.8h
-  umov  w0, v0.b[0]
-  umov  w1, v0.b[1]
-  umov  w2, v0.b[2]
-  umov  w3, v0.b[3]
-  and   w0, w0, #1
-  orr   w0, w0, w1, lsl #1
-  orr   w0, w0, w2, lsl #2
-  orr   w0, w0, w3, lsl #3
+  fmov  d0, x0
+  fmov  d4, x1
+  ins   v0.d[1], v4.d[0]
+
+  fmov  d1, x2
+  fmov  d4, x3
+  ins   v1.d[1], v4.d[0]
+
+  fcmeq v0.4s, v0.4s, v1.4s
+  mvn   v0.16b, v0.16b
+
+  umov  w1, v0.s[0]
+  lsr   w1, w1, #31
+  umov  w2, v0.s[1]
+  lsr   w2, w2, #31
+  umov  w3, v0.s[2]
+  lsr   w3, w3, #31
+  umov  w4, v0.s[3]
+  lsr   w4, w4, #31
+
+  orr   w0, w1, w2, lsl #1
+  orr   w0, w0, w3, lsl #2
+  orr   w0, w0, w4, lsl #3
 end;
 
 // === Facade Functions with NEON ===
@@ -738,11 +1080,15 @@ function MemEqual_NEON(a, b: Pointer; len: SizeUInt): LongBool; assembler; nosta
 asm
   // x0 = a, x1 = b, x2 = len
   cbz   x2, .Lequal          // len == 0, return true
+  cmp   x0, x1
+  b.eq  .Lequal              // same pointer (including both nil)
+  cbz   x0, .Lnotequal       // one nil => not equal
+  cbz   x1, .Lnotequal
   
   // Process 16 bytes at a time
 .Lloop16:
   cmp   x2, #16
-  blo   .Ltail
+  b.lo  .Ltail
   ldr   q0, [x0], #16
   ldr   q1, [x1], #16
   cmeq  v0.16b, v0.16b, v1.16b
@@ -750,7 +1096,7 @@ asm
   uminv b2, v0.16b           // Min of all bytes
   umov  w3, v2.b[0]
   cmp   w3, #255
-  bne   .Lnotequal
+  b.ne  .Lnotequal
   sub   x2, x2, #16
   cbnz  x2, .Lloop16
   b     .Lequal
@@ -762,9 +1108,9 @@ asm
   ldrb  w3, [x0], #1
   ldrb  w4, [x1], #1
   cmp   w3, w4
-  bne   .Lnotequal
+  b.ne  .Lnotequal
   subs  x2, x2, #1
-  bne   .Ltailloop
+  b.ne  .Ltailloop
   
 .Lequal:
   mov   w0, #1
@@ -772,86 +1118,73 @@ asm
   
 .Lnotequal:
   mov   w0, #0
+  ret
 end;
 
 function SumBytes_NEON(p: Pointer; len: SizeUInt): UInt64; assembler; nostackframe;
 asm
   // x0 = p, x1 = len
-  movi  v0.16b, #0           // Accumulator (16 bytes)
-  movi  v1.2d, #0            // 64-bit accumulator
+  mov   x3, #0
   cbz   x1, .Ldone
-  
+
 .Lloop16:
   cmp   x1, #16
-  blo   .Ltail
-  ldr   q2, [x0], #16
-  uaddlp v2.8h, v2.16b       // Pairwise add bytes -> 8 x 16-bit
-  uaddlp v2.4s, v2.8h        // -> 4 x 32-bit
-  uaddlp v2.2d, v2.4s        // -> 2 x 64-bit
-  add   v1.2d, v1.2d, v2.2d
+  b.lo  .Ltail
+
+  ldr   q0, [x0], #16
+  uaddlv h0, v0.16b           // sum 16 bytes -> 16-bit
+  umov  w2, v0.h[0]
+  add   x3, x3, x2
+
   sub   x1, x1, #16
   cbnz  x1, .Lloop16
-  b     .Lfinal
-  
+  b     .Ldone
+
 .Ltail:
-  cbz   x1, .Lfinal
+  cbz   x1, .Ldone
 .Ltailloop:
   ldrb  w2, [x0], #1
   add   x3, x3, x2
   subs  x1, x1, #1
-  bne   .Ltailloop
-  // Add tail sum to vector
-  dup   v2.2d, x3
-  add   v1.2d, v1.2d, v2.2d
-  
-.Lfinal:
-  addp  d0, v1.2d            // Add two 64-bit lanes
-  fmov  x0, d0               // Move to GP reg for return
-  
+  b.ne  .Ltailloop
+
 .Ldone:
+  mov   x0, x3
 end;
 
 function CountByte_NEON(p: Pointer; len: SizeUInt; value: Byte): SizeUInt; assembler; nostackframe;
 asm
   // x0 = p, x1 = len, w2 = value
-  dup   v0.16b, w2           // Broadcast search value
-  movi  v1.2d, #0            // Count accumulator
+  mov   x3, #0
+  dup   v0.16b, w2
   cbz   x1, .Ldone
-  
+
 .Lloop16:
   cmp   x1, #16
-  blo   .Ltail
-  ldr   q2, [x0], #16
-  cmeq  v2.16b, v2.16b, v0.16b  // Compare (0xFF for match)
-  // Count matches: each match is 0xFF = -1, so negate and add
-  cnt   v2.16b, v2.16b       // Count bits in each byte (8 for match)
-  uaddlp v2.8h, v2.16b       // Pairwise add
-  uaddlp v2.4s, v2.8h
-  uaddlp v2.2d, v2.4s
-  // Divide by 8 since we counted bits
-  ushr  v2.2d, v2.2d, #3
-  add   v1.2d, v1.2d, v2.2d
+  b.lo  .Ltail
+
+  ldr   q1, [x0], #16
+  cmeq  v1.16b, v1.16b, v0.16b
+  ushr  v1.16b, v1.16b, #7    // 0xFF -> 1, 0 -> 0
+  uaddlv h1, v1.16b           // sum 16 bytes -> 16-bit
+  umov  w4, v1.h[0]
+  add   x3, x3, x4
+
   sub   x1, x1, #16
   cbnz  x1, .Lloop16
-  b     .Lfinal
-  
+  b     .Ldone
+
 .Ltail:
-  cbz   x1, .Lfinal
-  mov   x3, #0
+  cbz   x1, .Ldone
 .Ltailloop:
   ldrb  w4, [x0], #1
   cmp   w4, w2
   cinc  x3, x3, eq
   subs  x1, x1, #1
-  bne   .Ltailloop
-  dup   v2.2d, x3
-  add   v1.2d, v1.2d, v2.2d
-  
-.Lfinal:
-  addp  d0, v1.2d
-  fmov  x0, d0
-  
+  b.ne  .Ltailloop
+
 .Ldone:
+  mov   x0, x3
 end;
 
 function MemFindByte_NEON(p: Pointer; len: SizeUInt; value: Byte): PtrInt; assembler; nostackframe;
@@ -863,7 +1196,7 @@ asm
   
 .Lloop16:
   cmp   x1, #16
-  blo   .Ltail
+  b.lo  .Ltail
   ldr   q1, [x0]
   cmeq  v1.16b, v1.16b, v0.16b
   // Check if any match
@@ -884,7 +1217,7 @@ asm
   ext   v1.16b, v1.16b, v1.16b, #1  // Shift left by 1
   add   w5, w5, #1
   cmp   w5, #16
-  blo   .Lscan
+  b.lo  .Lscan
   
 .Lfoundexact:
   add   x0, x0, x5
@@ -896,10 +1229,10 @@ asm
 .Ltailloop:
   ldrb  w4, [x0]
   cmp   w4, w2
-  beq   .Lfoundtail
+  b.eq  .Lfoundtail
   add   x0, x0, #1
   subs  x1, x1, #1
-  bne   .Ltailloop
+  b.ne  .Ltailloop
   b     .Lnotfound
   
 .Lfoundtail:
@@ -911,7 +1244,11 @@ asm
 end;
 
 {$ELSE}
-// === Scalar Fallback for non-AArch64 platforms ===
+// === Scalar Fallback ===
+// Used when:
+// - not CPUAARCH64, or
+// - CPUAARCH64 but FAFAFA_SIMD_NEON_ASM is not enabled, or
+// - SIMD_VECTOR_ASM_DISABLED is defined.
 
 function NEONAddF32x4(const a, b: TVecF32x4): TVecF32x4;
 var i: Integer;
@@ -997,6 +1334,8 @@ begin
     Result.d[i] := a.d[i] / b.d[i];
 end;
 
+// Integer SIMD operations must wrap on overflow (hardware semantics).
+{$PUSH}{$R-}{$Q-}
 function NEONAddI32x4(const a, b: TVecI32x4): TVecI32x4;
 var i: Integer;
 begin
@@ -1017,6 +1356,7 @@ begin
   for i := 0 to 3 do
     Result.i[i] := a.i[i] * b.i[i];
 end;
+{$POP}
 
 // === Comparison Operations ===
 
@@ -1351,7 +1691,7 @@ begin
   Result := CountByte_Scalar(p, len, value);
 end;
 
-{$ENDIF} // CPUAARCH64
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 // === Platform-Independent Facade Functions ===
 // (These always use scalar fallback regardless of platform)

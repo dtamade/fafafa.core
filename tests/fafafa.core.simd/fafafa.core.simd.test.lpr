@@ -14,9 +14,12 @@ uses
   fafafa.core.simd.dispatch,
   fafafa.core.simd.types,
   fafafa.core.simd.api,
-  fafafa.core.simd.scalar,
-  fafafa.core.simd.sse2,
-  fafafa.core.simd.avx2;
+  fafafa.core.simd.scalar
+  {$IFDEF CPUX86_64}
+  , fafafa.core.simd.sse2
+  , fafafa.core.simd.avx2
+  {$ENDIF}
+  ;
 
 var
   testResult: TTestResult;
@@ -35,6 +38,7 @@ var
   exitEarlyError: string;
 
 procedure RunBenchmarks;
+{$IFDEF CPUX86_64}
 const
   ITERATIONS = 1000000;
   ARRAY_SIZE = 4096;
@@ -252,6 +256,11 @@ begin
   if dummyMax > 0 then;
   if dummyBool then;
 end;
+{$ELSE}
+begin
+  WriteLn('Benchmarks are not supported on this architecture.');
+end;
+{$ENDIF}
 
 procedure PrintUsage;
 begin
@@ -273,10 +282,18 @@ procedure PrintAvailableSuites;
 begin
   WriteLn('Available suites:');
   WriteLn('  TTestCase_Global');
+  {$IFDEF CPUX86_64}
   WriteLn('  TTestCase_BackendConsistency');
+  {$ENDIF}
   WriteLn('  TTestCase_BackendSmoke');
+  {$IFDEF CPUX86_64}
   WriteLn('  TTestCase_AVX512BackendRequirements');
+  {$ENDIF}
+  {$IFDEF UNIX}
+  {$IFDEF CPUX86_64}
   WriteLn('  TTestCase_AVX2VectorAsm');
+  {$ENDIF}
+  {$ENDIF}
   WriteLn('  TTestCase_VectorOps');
   WriteLn('  TTestCase_LargeData');
   WriteLn('  TTestCase_UnsignedVectorTypes');
@@ -443,9 +460,11 @@ begin
     SetVectorAsmEnabled(vectorAsmEnabled);
     if vectorAsmEnabled then
     begin
+      {$IFDEF CPUX86_64}
       // Re-register backends so their dispatch tables reflect the new toggle.
       RegisterSSE2Backend;
       RegisterAVX2Backend;
+      {$ENDIF}
     end;
 
     WriteLn('CPU Features:');
@@ -469,14 +488,22 @@ begin
       // Add test cases
       if ShouldRunSuite('TTestCase_Global') then
         testSuite.AddTest(TTestCase_Global.Suite);
+      {$IFDEF CPUX86_64}
       if ShouldRunSuite('TTestCase_BackendConsistency') then
         testSuite.AddTest(TTestCase_BackendConsistency.Suite);
+      {$ENDIF}
       if ShouldRunSuite('TTestCase_BackendSmoke') then
         testSuite.AddTest(TTestCase_BackendSmoke.Suite);
+      {$IFDEF CPUX86_64}
       if ShouldRunSuite('TTestCase_AVX512BackendRequirements') then
         testSuite.AddTest(TTestCase_AVX512BackendRequirements.Suite);
+      {$ENDIF}
+      {$IFDEF UNIX}
+      {$IFDEF CPUX86_64}
       if ShouldRunSuite('TTestCase_AVX2VectorAsm') then
         testSuite.AddTest(TTestCase_AVX2VectorAsm.Suite);
+      {$ENDIF}
+      {$ENDIF}
       if ShouldRunSuite('TTestCase_VectorOps') then
         testSuite.AddTest(TTestCase_VectorOps.Suite);
       if ShouldRunSuite('TTestCase_LargeData') then

@@ -85,8 +85,12 @@ type
 {$POP}
 
 {$PUSH}
-{$CODEALIGN RECORDMIN=32}
-  // 256-bit 向量 (32 字节对齐 - AVX/AVX2)
+// NOTE:
+// RECORDMIN=32 can introduce padding between sub-record fields inside variant
+// records (e.g. lo/hi) and break the intended 32-byte layout/aliasing.
+// Use RECORDMIN=16 here to keep a stable 32-byte layout on all targets.
+{$CODEALIGN RECORDMIN=16}
+  // 256-bit 向量 (32 bytes payload)
   TVecF32x8 = record
     case Integer of
       0: (f: array[0..7] of Single);

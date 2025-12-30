@@ -720,7 +720,9 @@ function AVX2LoadF32x4Aligned(p: PSingle): TVecF32x4;
 begin
   // ✅ Safety check: Assert for nil pointer and 16-byte alignment
   Assert(p <> nil, 'AVX2LoadF32x4Aligned: pointer is nil');
+  {$PUSH}{$WARN 4055 OFF}
   Assert((PtrUInt(p) and $F) = 0, 'AVX2LoadF32x4Aligned: Pointer must be 16-byte aligned');
+  {$POP}
   asm
     mov     rax, p
     vmovaps xmm0, [rax]
@@ -744,7 +746,9 @@ procedure AVX2StoreF32x4Aligned(p: PSingle; const a: TVecF32x4);
 begin
   // ✅ Safety check: Assert for nil pointer and 16-byte alignment
   Assert(p <> nil, 'AVX2StoreF32x4Aligned: pointer is nil');
+  {$PUSH}{$WARN 4055 OFF}
   Assert((PtrUInt(p) and $F) = 0, 'AVX2StoreF32x4Aligned: Pointer must be 16-byte aligned');
+  {$POP}
   asm
     mov     rax, p
     lea     rdx, a
@@ -2343,6 +2347,7 @@ begin
     Exit;
 
   // Fill with base scalar implementations (provides fallback for all operations)
+  dispatchTable := Default(TSimdDispatchTable);
   FillBaseDispatchTable(dispatchTable);
 
   // Set backend info
