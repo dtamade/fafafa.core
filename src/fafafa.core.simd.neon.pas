@@ -87,21 +87,15 @@ type
 // ============================================================================
 // === AArch64 NEON Assembly Implementations ===
 // ============================================================================
-// NOTE:
-// FPC 3.2.2 on AArch64 can hit an internal compiler error when compiling large
-// amounts of inline NEON assembler. Keep these implementations opt-in.
-// Enable via: -dFAFAFA_SIMD_NEON_ASM (and ensure SIMD_VECTOR_ASM_DISABLED is NOT defined).
+// FPC 3.2.2 does NOT support AArch64 NEON inline assembly (ICE on any vN.xS syntax).
+// NEON ASM requires FPC >= 3.3.1.
+// Auto-enabled on CPUAARCH64 with FPC >= 3.3.1 unless SIMD_VECTOR_ASM_DISABLED is defined.
 {$IFDEF CPUAARCH64}
-  {$IFDEF FAFAFA_SIMD_NEON_ASM}
-    // FPC 3.2.2 has reproducible internal errors on AArch64 NEON inline asm (e.g. "ldr q0, [x0]").
-    // Require a newer compiler for the opt-in asm path to avoid ICEs.
-    {$IFDEF FPC}
-      {$IF FPC_FULLVERSION < 030301}
-        {$MESSAGE FATAL 'FAFAFA_SIMD_NEON_ASM requires FPC >= 3.3.1 (3.2.2 ICE on AArch64 NEON inline asm)'}
+  {$IFDEF FPC}
+    {$IF FPC_FULLVERSION >= 030301}
+      {$IFNDEF SIMD_VECTOR_ASM_DISABLED}
+        {$DEFINE FAFAFA_SIMD_NEON_ASM_ENABLED}
       {$ENDIF}
-    {$ENDIF}
-    {$IFNDEF SIMD_VECTOR_ASM_DISABLED}
-      {$DEFINE FAFAFA_SIMD_NEON_ASM_ENABLED}
     {$ENDIF}
   {$ENDIF}
 {$ENDIF}
@@ -1094,6 +1088,7 @@ asm
 end;
 
 // === Facade Functions with NEON ===
+// ICE-safe pattern: use ldp + fmov + ins instead of ldr q
 
 function MemEqual_NEON(a, b: Pointer; len: SizeUInt): LongBool; assembler; nostackframe;
 asm
@@ -1108,8 +1103,15 @@ asm
 .Lloop16:
   cmp   x2, #16
   b.lo  .Ltail
-  ldr   q0, [x0], #16
-  ldr   q1, [x1], #16
+  // ICE-safe load: ldp + fmov + ins instead of ldr q
+  ldp   x4, x5, [x0], #16
+  fmov  d0, x4
+  fmov  d2, x5
+  ins   v0.d[1], v2.d[0]
+  ldp   x4, x5, [x1], #16
+  fmov  d1, x4
+  fmov  d2, x5
+  ins   v1.d[1], v2.d[0]
   cmeq  v0.16b, v0.16b, v1.16b
   // Check if all bytes equal (all 1s)
   uminv b2, v0.16b           // Min of all bytes
@@ -1150,7 +1152,11 @@ asm
   cmp   x1, #16
   b.lo  .Ltail
 
-  ldr   q0, [x0], #16
+  // ICE-safe load
+  ldp   x4, x5, [x0], #16
+  fmov  d0, x4
+  fmov  d2, x5
+  ins   v0.d[1], v2.d[0]
   uaddlv h0, v0.16b           // sum 16 bytes -> 16-bit
   umov  w2, v0.h[0]
   add   x3, x3, x2
@@ -1182,7 +1188,11 @@ asm
   cmp   x1, #16
   b.lo  .Ltail
 
-  ldr   q1, [x0], #16
+  // ICE-safe load
+  ldp   x4, x5, [x0], #16
+  fmov  d1, x4
+  fmov  d2, x5
+  ins   v1.d[1], v2.d[0]
   cmeq  v1.16b, v1.16b, v0.16b
   ushr  v1.16b, v1.16b, #7    // 0xFF -> 1, 0 -> 0
   uaddlv h1, v1.16b           // sum 16 bytes -> 16-bit
@@ -1216,7 +1226,11 @@ asm
 .Lloop16:
   cmp   x1, #16
   b.lo  .Ltail
-  ldr   q1, [x0]
+  // ICE-safe load (no post-increment here since we need x0 for found position)
+  ldp   x4, x5, [x0]
+  fmov  d1, x4
+  fmov  d2, x5
+  ins   v1.d[1], v2.d[0]
   cmeq  v1.16b, v1.16b, v0.16b
   // Check if any match
   umaxv b2, v1.16b           // Max of all bytes
@@ -1905,18 +1919,19 @@ begin
 end;
 
 initialization
-  {$IFDEF CPUAARCH64}
-  // Auto-register on AArch64 platforms
-  RegisterNEONBackend;
-  // ✅ P1-D: Register rebuilder callback for VectorAsmEnabled changes
-  RegisterBackendRebuilder(sbNEON, @RegisterNEONBackend);
-  {$ENDIF}
-  {$IFDEF CPUARM}
-  // Also register on 32-bit ARM with NEON support
-  // Note: May need runtime detection for older ARMv6 without NEON
-  RegisterNEONBackend;
-  // ✅ P1-D: Register rebuilder callback for VectorAsmEnabled changes
-  RegisterBackendRebuilder(sbNEON, @RegisterNEONBackend);
+  // Only register NEON backend when ASM is available.
+  // FPC 3.2.2 does NOT support AArch64 NEON inline assembly (causes ICE).
+  // Without ASM, the scalar fallback + dispatch overhead makes performance WORSE.
+  // Users with FPC 3.2.2 should use the scalar backend directly.
+  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+    {$IFDEF CPUAARCH64}
+    RegisterNEONBackend;
+    RegisterBackendRebuilder(sbNEON, @RegisterNEONBackend);
+    {$ENDIF}
+    {$IFDEF CPUARM}
+    RegisterNEONBackend;
+    RegisterBackendRebuilder(sbNEON, @RegisterNEONBackend);
+    {$ENDIF}
   {$ENDIF}
 
 end.
