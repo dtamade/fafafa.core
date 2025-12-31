@@ -146,6 +146,9 @@ function IsValidPort(const Port: string): Boolean;
 
 implementation
 
+uses
+  fafafa.core.sync.mutex;
+
 const
   // ✅ S1 修复: 输入长度限制常量（防止 ReDoS）
   MAX_EMAIL_LENGTH = 254;    // RFC 5321
@@ -158,10 +161,15 @@ const
   IPV4_PATTERN = '^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$';
 
 var
-  // ✅ S1/P2 修复: 缓存编译后的正则表达式（线程安全单例）
+  // ✅ S1/P2: 缓存编译后的正则表达式
+  // 注意：TRegExpr.Exec 不是可重入/线程安全的，因此必须用锁保护 Exec。
   _CachedEmailRegex: TRegExpr = nil;
   _CachedUrlRegex: TRegExpr = nil;
   _CachedIPv4Regex: TRegExpr = nil;
+
+  _EmailRegexLock: IMutex = nil;
+  _UrlRegexLock: IMutex = nil;
+  _IPv4RegexLock: IMutex = nil;
 
 { TValidationRule }
 
@@ -694,35 +702,49 @@ begin
   Result := TArgsValidator.Create(Args);
 end;
 
-// ✅ S1/P2 修复: 线程安全的缓存正则表达式获取函数
-function GetCachedEmailRegex: TRegExpr;
+function ExecEmailRegexLocked(const Email: string): Boolean;
 begin
-  if _CachedEmailRegex = nil then
-  begin
-    _CachedEmailRegex := TRegExpr.Create;
-    _CachedEmailRegex.Expression := EMAIL_PATTERN;
+  _EmailRegexLock.Acquire;
+  try
+    if _CachedEmailRegex = nil then
+    begin
+      _CachedEmailRegex := TRegExpr.Create;
+      _CachedEmailRegex.Expression := EMAIL_PATTERN;
+    end;
+    Result := _CachedEmailRegex.Exec(Email);
+  finally
+    _EmailRegexLock.Release;
   end;
-  Result := _CachedEmailRegex;
 end;
 
-function GetCachedUrlRegex: TRegExpr;
+function ExecUrlRegexLocked(const Url: string): Boolean;
 begin
-  if _CachedUrlRegex = nil then
-  begin
-    _CachedUrlRegex := TRegExpr.Create;
-    _CachedUrlRegex.Expression := URL_PATTERN;
+  _UrlRegexLock.Acquire;
+  try
+    if _CachedUrlRegex = nil then
+    begin
+      _CachedUrlRegex := TRegExpr.Create;
+      _CachedUrlRegex.Expression := URL_PATTERN;
+    end;
+    Result := _CachedUrlRegex.Exec(Url);
+  finally
+    _UrlRegexLock.Release;
   end;
-  Result := _CachedUrlRegex;
 end;
 
-function GetCachedIPv4Regex: TRegExpr;
+function ExecIPv4RegexLocked(const IP: string): Boolean;
 begin
-  if _CachedIPv4Regex = nil then
-  begin
-    _CachedIPv4Regex := TRegExpr.Create;
-    _CachedIPv4Regex.Expression := IPV4_PATTERN;
+  _IPv4RegexLock.Acquire;
+  try
+    if _CachedIPv4Regex = nil then
+    begin
+      _CachedIPv4Regex := TRegExpr.Create;
+      _CachedIPv4Regex.Expression := IPV4_PATTERN;
+    end;
+    Result := _CachedIPv4Regex.Exec(IP);
+  finally
+    _IPv4RegexLock.Release;
   end;
-  Result := _CachedIPv4Regex;
 end;
 
 // 预定义验证器实现
@@ -732,8 +754,8 @@ begin
   if (Length(Email) = 0) or (Length(Email) > MAX_EMAIL_LENGTH) then
     Exit(False);
 
-  // ✅ P2 修复: 使用缓存的正则表达式
-  Result := GetCachedEmailRegex.Exec(Email);
+  // ✅ P2 修复: 使用缓存正则（加锁保护 TRegExpr.Exec）
+  Result := ExecEmailRegexLocked(Email);
 end;
 
 function IsValidUrl(const Url: string): Boolean;
@@ -742,8 +764,8 @@ begin
   if (Length(Url) = 0) or (Length(Url) > MAX_URL_LENGTH) then
     Exit(False);
 
-  // ✅ P2 修复: 使用缓存的正则表达式
-  Result := GetCachedUrlRegex.Exec(Url);
+  // ✅ P2 修复: 使用缓存正则（加锁保护 TRegExpr.Exec）
+  Result := ExecUrlRegexLocked(Url);
 end;
 
 function IsValidIPAddress(const IP: string): Boolean;
@@ -752,8 +774,8 @@ begin
   if (Length(IP) = 0) or (Length(IP) > MAX_IP_LENGTH) then
     Exit(False);
 
-  // ✅ P2 修复: 使用缓存的正则表达式
-  Result := GetCachedIPv4Regex.Exec(IP);
+  // ✅ P2 修复: 使用缓存正则（加锁保护 TRegExpr.Exec）
+  Result := ExecIPv4RegexLocked(IP);
 end;
 
 function IsValidPort(const Port: string): Boolean;
@@ -763,10 +785,19 @@ begin
   Result := TryStrToInt(Port, PortNum) and (PortNum >= 1) and (PortNum <= 65535);
 end;
 
+initialization
+  _EmailRegexLock := MakeMutex;
+  _UrlRegexLock := MakeMutex;
+  _IPv4RegexLock := MakeMutex;
+
 // ✅ S1/P2 修复: 清理缓存的正则表达式对象
 finalization
   FreeAndNil(_CachedEmailRegex);
   FreeAndNil(_CachedUrlRegex);
   FreeAndNil(_CachedIPv4Regex);
+
+  _EmailRegexLock := nil;
+  _UrlRegexLock := nil;
+  _IPv4RegexLock := nil;
 
 end.

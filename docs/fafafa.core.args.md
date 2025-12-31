@@ -11,13 +11,13 @@
 - Extensions (opt-in, small helpers, no behavior forced)
   - Usage rendering: RenderUsage(Node) returns text; the caller decides whether/when to print
   - Light schema: describe flags/positionals only for rendering and metadata (not a heavy DSL)
-  - ENV → argv: ArgvFromEnv('APP_') → ['--foo=1','--debug']
-  - CONFIG (TOML) → argv: ArgvFromToml('config.toml')
+  - ENV → argv: ArgsArgvFromEnv('APP_') → ['--foo=1','--debug']
+  - CONFIG (TOML) → argv: ArgsArgvFromToml('config.toml')
     - Flattens tables to dot-keys; keys lower-cased with '_'→'-'
     - Scalars → '--key=value'; arrays of scalars → repeated '--key=value'
   - Persistent flags (registration-time propagation): parent → child, first-wins (child keeps same-name flags)
 - Reserved (not implemented yet)
-  - ArgvFromJson: stub
+  - ArgsArgvFromYaml: stub
 - Out of scope (unless strong demand later)
   - Auto help/auto error printing, complex validation (mutex/depends/choices/range), did-you-mean, heavy styling/i18n/completion generators
 
@@ -31,29 +31,29 @@
 
 
 ### ENV → argv（过滤与值规范化扩展）
-- 基础函数：`ArgvFromEnv(Prefix)`（保持不变）
-- 扩展函数：`ArgvFromEnvEx(Prefix, Allow, Deny, Flags)`
+- 基础函数：`ArgsArgvFromEnv(Prefix)`（旧名 `ArgvFromEnv` 为 deprecated 别名）
+- 扩展函数：`ArgsArgvFromEnvEx(Prefix, Allow, Deny, Flags)`（旧名 `ArgvFromEnvEx` 为 deprecated 别名）
   - 键名匹配基于“归一化后的键”（去前缀、小写、`_`→`-`）
   - Allow 非空时仅包含 Allow 命中的键；随后移除 Deny 中的键
   - Flags：
     - `efTrimValues`：去除值两端空白
-    - `efLowercaseBools`：将 `TRUE`/`FALSE` 规范为 `true`/`false`
+    - `efNormalizeBools`：将 `TRUE/yes/1` 规范为 `true`，`FALSE/no/0` 规范为 `false`（`efLowercaseBools` 为 deprecated 别名）
   - 令牌构造与基础函数一致：空值 → `--name`；非空 → `--name=value`
 
 示例：
 ```pascal
 // APP_DEBUG=  TRUE  , APP_TAG=  x  , APP_TMP=
-var a := ArgvFromEnvEx('APP_', [], [], [efTrimValues, efLowercaseBools]);
+var a := ArgsArgvFromEnvEx('APP_', [], [], [efTrimValues, efNormalizeBools]);
 // a 包含 --debug=true, --tag=x, --tmp
 
-var b := ArgvFromEnvEx('APP_', ['debug'], [], []); // 仅允许 debug
+var b := ArgsArgvFromEnvEx('APP_', ['debug'], [], []); // 仅允许 debug
 // b 仅包含 --debug=true
 
-var c := ArgvFromEnvEx('APP_', [], ['tag'], []); // 排除 tag
+var c := ArgsArgvFromEnvEx('APP_', [], ['tag'], []); // 排除 tag
 // c 不包含 --tag=...
 ```
 
-- JSON/Completion: reserved; integrate by real demand and dependency readiness
+- YAML/Completion: reserved; integrate by real demand and dependency readiness
 
 ## Examples index
 - Default subcommand and caller-owned help
@@ -175,7 +175,7 @@ var A := TArgs.FromArray(['-o', 'out.txt'], opts);
 ### 键名归一化与 no- 前缀（Dash→Dot 兼容）
 
 - Dash→Dot：为了与配置键（如 TOML/JSON 的 `app.name`）统一，解析阶段会将选项名中的 `-` 视为分段分隔并转换为 `.`。因此 `--app-name` 与 `--app.name` 等价。
-- 不影响检测：为确保 `--no-xxx` 正确识别，内部先用“检测态归一化”（不做 Dash→Dot）判断是否存在 `no-` 前缀，再对基础键做完整归一化存储。
+- 不影响检测：为确保 `--no-xxx` 正确识别，内部先用“检测态归一化”（不做 `?`→`help` 别名；但会做 `_`/`-`→`.` 归一）判断是否存在 `no-` 前缀，再对基础键做完整归一化存储。
 - 无值 negation：`--no-color` 解析为 `color=false`；`-no-debug` 同理。
 - 显式赋值：`--no-cache=false` 会同步影响 `cache=false`（并保留 `no-cache=false` 记录），保证“最后一次赋值覆盖”在基础键上生效。
 - Windows 风格：`/no-verbose` 同样遵循上述规则。
@@ -332,7 +332,7 @@ end.
 - 默认仅使用 ENV + CLI；不做任何隐式文件读取
 - CONFIG 文件（TOML/JSON/YAML）为“可选依赖”，通过条件编译宏显式启用：
   - {$DEFINE FAFAFA_ARGS_CONFIG_TOML} / {$DEFINE FAFAFA_ARGS_CONFIG_JSON}
-  - 未启用或解析失败时，ArgvFromToml/ArgvFromJson/ArgvFromYaml 返回空数组（不抛错、不打印日志）
+  - 未启用或解析失败时，ArgsArgvFromToml/ArgsArgvFromJson/ArgsArgvFromYaml 返回空数组（旧名 ArgvFrom* 为 deprecated 别名；不抛错、不打印日志）
 - 合并顺序固定：CONFIG -> ENV -> CLI（后者覆盖前者；库内部查值遵循“最后一次赋值覆盖”）
 - 是否读取哪个配置文件、在哪里查找，由应用自行决定（库不扫描默认路径）
 
@@ -345,15 +345,15 @@ begin
   opts := ArgsOptionsDefault;
   // 1) CONFIG（可选，需启用相应宏；未启用或文件缺失将返回空数组）
   {$IFDEF FAFAFA_ARGS_CONFIG_TOML}
-  cfgArgv := ArgvFromToml('config.toml');
+  cfgArgv := ArgsArgvFromToml('config.toml');
   {$ELSEIF DEFINED(FAFAFA_ARGS_CONFIG_JSON)}
-  cfgArgv := ArgvFromJson('config.json');
+  cfgArgv := ArgsArgvFromJson('config.json');
   {$ELSE}
   SetLength(cfgArgv, 0);
   {$ENDIF}
 
   // 2) ENV（推荐作“轻量配置”，使用固定前缀，例：APP_）
-  envArgv := ArgvFromEnv('APP_');
+  envArgv := ArgsArgvFromEnv('APP_');
 
   // 3) CLI（真实进程参数，此处仅示例）
   cliArgv := ['run','--count=5'];

@@ -7,7 +7,7 @@
 ## Who should adopt Extensions?
 - If you need a quick Usage rendering with flags/args, use Schema + RenderUsage
 - If you want parent flags to appear in child commands, use Persistent flags (registration-time propagation)
-- If you want ENV-based defaults, use ArgvFromEnv and merge with argv (prefer CLI > ENV)
+- If you want ENV-based defaults, use ArgsArgvFromEnv (deprecated alias: ArgvFromEnv) and merge with argv (prefer CLI > ENV)
 
 ## Recommended migration steps (Core → Extensions)
 1. Keep your existing Core-only integration unchanged (parsing + routing)
@@ -19,7 +19,7 @@
    - Mark parent flags with SetPersistent(True) to propagate down when registering
    - Use First-Wins semantics to avoid overriding child’s own flags
 4. For ENV defaults
-   - Map env vars with ArgvFromEnv('APP_')
+   - Map env vars with ArgsArgvFromEnv('APP_')
    - Merge: merged := env ++ cli (or cli ++ env). Recommended precedence: CLI > ENV
 
 ## Non-goals (to avoid surprises)

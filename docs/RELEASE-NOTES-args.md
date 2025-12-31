@@ -19,13 +19,14 @@
 - Light schema for rendering/metadata
 - Usage rendering: RenderUsage(Node)
   - Child list "name: desc"; if spec attached, appends Flags/Args
-- ENV → argv: ArgvFromEnv('APP_') (maps APP_FOO=1 → --foo=1)
+- ENV → argv: ArgsArgvFromEnv('APP_') (maps APP_FOO=1 → --foo=1; deprecated alias: ArgvFromEnv)
 - Persistent flags
   - Registration-time propagation (parent → child)
   - First-wins (child keeps same-name flag)
 
 ## Reserved / Deferred
-- ArgvFromToml/ArgvFromJson: stubs only (integrate when TOML/JSON modules are ready)
+- CONFIG → argv (opt-in): ArgsArgvFromToml / ArgsArgvFromJson (enable via {$DEFINE FAFAFA_ARGS_CONFIG_TOML} / {$DEFINE FAFAFA_ARGS_CONFIG_JSON}); returns empty array when disabled
+- YAML → argv: ArgsArgvFromYaml (stub)
 - Completion generators (bash/zsh/fish/pwsh): under consideration
 - Advanced validation/diagnostics (mutex/depends/choices/range, did-you-mean): deferred
 

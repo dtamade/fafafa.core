@@ -1,6 +1,6 @@
 # Args Config JSON flattening rules
 
-This document specifies how JSON config files are converted into argv-like tokens by ArgvFromJson.
+This document specifies how JSON config files are converted into argv-like tokens by ArgsArgvFromJson (deprecated alias: ArgvFromJson).
 
 Principles
 - Keys are flattened using dot-separated paths; names are normalized to lower-case and underscores become dashes

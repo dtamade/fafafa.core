@@ -144,10 +144,10 @@ See CHANGELOG.md for details.
 - Extensions (opt-in)
   - Usage rendering: RenderUsage(Node) returns text; the caller decides whether/when to print
   - Light schema for rendering metadata
-  - ENV → argv: ArgvFromEnv('APP_')
+  - ENV → argv: ArgsArgvFromEnv('APP_')
   - Persistent flags (registration-time propagation), first-wins
 - Reserved (not implemented)
-  - ArgvFromToml/ArgvFromJson stubs; Completion generators under consideration
+  - CONFIG → argv: ArgsArgvFromToml/ArgsArgvFromJson (opt-in via macros); YAML stub; Completion generators under consideration
 
 Examples: see
 - examples/fafafa.core.args.command/example_usage_default

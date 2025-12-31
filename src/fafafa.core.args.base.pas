@@ -412,7 +412,11 @@ var i, posOpt: Integer; a, key, val, baseKey: string; stop: Boolean; kv: TKeyVal
       val := Args[i+1]; Inc(i);
       AddKeyValue(akOptionShort, key, val, posOpt);
     end
-    else if Opts.EnableNoPrefixNegation and (Length(a)>=4) and (Copy(a,1,4)='-no-') then
+    else if Opts.EnableNoPrefixNegation
+      and (Length(a) >= 4)
+      and (Copy(a, 1, 4) = '-no-')
+      and (Pos('=', a) = 0)
+      and (Pos(':', a) = 0) then
     begin
       // ✅ A4 修复: 同时添加 baseKey=false 和 no.xxx 标志
       baseKey := NormalizeKey(Copy(a, 5, MaxInt), Opts.CaseInsensitiveKeys);
@@ -420,11 +424,19 @@ var i, posOpt: Integer; a, key, val, baseKey: string; stop: Boolean; kv: TKeyVal
       noKey := NormalizeKey(a, Opts.CaseInsensitiveKeys);
       AddFlag(akOptionShort, noKey, i);
     end
+    else if (not Opts.AllowShortKeyValue)
+      and ((Pos('=', a) > 0) or (Pos(':', a) > 0)) then
+    begin
+      // AllowShortKeyValue=False: treat "-o=out" / "-o:out" as a single flag.
+      // This avoids accidentally splitting '=' ':' and value bytes into combo flags.
+      key := NormalizeKey(a, Opts.CaseInsensitiveKeys);
+      AddFlag(akOptionShort, key, i);
+    end
     else if Opts.AllowShortFlagsCombo then
     begin
       for jj := 2 to Length(a) do
       begin
-        key := NormalizeKey('-'+a[jj], Opts.CaseInsensitiveKeys);
+        key := NormalizeKey('-' + a[jj], Opts.CaseInsensitiveKeys);
         AddFlag(akOptionShort, key, i);
       end;
     end
@@ -827,7 +839,8 @@ function FindFlag(const Arr: TStringArray; const Flag: string; CaseInsensitive: 
 var i: Integer; f, norm: string;
 begin
   Result := False;
-  norm := NormalizeKeyForCheck(Flag, CaseInsensitive);
+  // Flags use the same normalization rules as parsing (including '?' -> 'help').
+  norm := NormalizeKey(Flag, CaseInsensitive);
   for i := 0 to High(Arr) do
   begin
     f := Arr[i];

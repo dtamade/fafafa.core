@@ -27,8 +27,10 @@ type
 
     // 短选项测试
     procedure Test_ShortOption_EqualsSeparator;
+    procedure Test_ShortOption_EqualsSeparator_Disabled_TreatAsSingleFlag;
     procedure Test_ShortOption_SpaceSeparator;
     procedure Test_ShortOption_ComboFlags;
+    procedure Test_ShortOption_ComboFlags_Disabled_TreatAsSingleFlag;
     procedure Test_ShortOption_SingleFlag;
 
     // 斜杠选项测试 (Windows 风格)
@@ -38,12 +40,16 @@ type
 
     // 双破折号停止解析
     procedure Test_DoubleDash_StopsParsing;
+    procedure Test_DoubleDash_StopAtDoubleDashFalse_KeepsSentinel;
 
     // 负数作为位置参数
     procedure Test_NegativeNumber_AsPositional;
 
     // --no- 否定前缀
     procedure Test_NoPrefixNegation;
+    procedure Test_NoPrefixNegation_DashToDot;
+    procedure Test_NoPrefixNegation_ExplicitAssignment_UpdatesBaseKey;
+    procedure Test_NoPrefixNegation_ShortForm;
 
     // 大小写不敏感
     procedure Test_CaseInsensitive;
@@ -59,6 +65,7 @@ type
     // TArgs 类测试
     procedure Test_TArgs_FromArray;
     procedure Test_TArgs_HasFlag;
+    procedure Test_TArgs_HasFlag_HelpAliasQuestionMark;
     procedure Test_TArgs_TryGetValue;
     procedure Test_TArgs_GetOpt;
     procedure Test_TArgs_GetIntOpt;
@@ -169,6 +176,23 @@ begin
   CheckEquals('value', Ctx.Values[0]);
 end;
 
+procedure TTestCase_ArgsBase.Test_ShortOption_EqualsSeparator_Disabled_TreatAsSingleFlag;
+var
+  Ctx: TArgsContext;
+  Opts: TArgsOptions;
+begin
+  Opts := ArgsOptionsDefault;
+  Opts.AllowShortKeyValue := False;
+  // even if combo flags is enabled, a token containing '=' should not be split into many flags
+  Opts.AllowShortFlagsCombo := True;
+  ParseArgs(['-o=out.txt'], Opts, Ctx);
+
+  CheckEquals(0, Length(Ctx.Keys));
+  CheckEquals(1, Length(Ctx.Flags));
+  CheckEquals('o=out.txt', Ctx.Flags[0]);
+  CheckEquals(0, Length(Ctx.Positionals));
+end;
+
 procedure TTestCase_ArgsBase.Test_ShortOption_SpaceSeparator;
 var
   Ctx: TArgsContext;
@@ -195,6 +219,19 @@ begin
   CheckEquals('a', Ctx.Flags[0]);
   CheckEquals('b', Ctx.Flags[1]);
   CheckEquals('c', Ctx.Flags[2]);
+end;
+
+procedure TTestCase_ArgsBase.Test_ShortOption_ComboFlags_Disabled_TreatAsSingleFlag;
+var
+  Ctx: TArgsContext;
+  Opts: TArgsOptions;
+begin
+  Opts := ArgsOptionsDefault;
+  Opts.AllowShortFlagsCombo := False;
+  ParseArgs(['-abc'], Opts, Ctx);
+
+  CheckEquals(1, Length(Ctx.Flags), 'Should treat -abc as a single flag when combo is disabled');
+  CheckEquals('abc', Ctx.Flags[0]);
 end;
 
 procedure TTestCase_ArgsBase.Test_ShortOption_SingleFlag;
@@ -269,6 +306,24 @@ begin
   CheckEquals('positional', Ctx.Positionals[1]);
 end;
 
+procedure TTestCase_ArgsBase.Test_DoubleDash_StopAtDoubleDashFalse_KeepsSentinel;
+var
+  Ctx: TArgsContext;
+  Opts: TArgsOptions;
+begin
+  Opts := ArgsOptionsDefault;
+  Opts.StopAtDoubleDash := False;
+  ParseArgs(['pos1', '--', '/x', '--not-flag'], Opts, Ctx);
+
+  CheckEquals(4, Length(Ctx.Positionals), 'Should keep -- and treat the rest as positionals when StopAtDoubleDash=False');
+  CheckEquals('pos1', Ctx.Positionals[0]);
+  CheckEquals('--', Ctx.Positionals[1]);
+  CheckEquals('/x', Ctx.Positionals[2]);
+  CheckEquals('--not-flag', Ctx.Positionals[3]);
+  CheckEquals(0, Length(Ctx.Flags));
+  CheckEquals(0, Length(Ctx.Keys));
+end;
+
 { 负数测试 }
 
 procedure TTestCase_ArgsBase.Test_NegativeNumber_AsPositional;
@@ -306,6 +361,72 @@ begin
   CheckEquals('false', Ctx.Values[0]);
   CheckEquals('verify', Ctx.Keys[1]);
   CheckEquals('false', Ctx.Values[1]);
+
+  // Also keep the literal no.* record as a flag
+  CheckEquals(2, Length(Ctx.Flags));
+  CheckEquals('no.cache', Ctx.Flags[0]);
+  CheckEquals('no.verify', Ctx.Flags[1]);
+end;
+
+procedure TTestCase_ArgsBase.Test_NoPrefixNegation_DashToDot;
+var
+  Ctx: TArgsContext;
+  Opts: TArgsOptions;
+begin
+  Opts := ArgsOptionsDefault;
+  Opts.EnableNoPrefixNegation := True;
+  ParseArgs(['--no-app-name'], Opts, Ctx);
+
+  CheckEquals(1, Length(Ctx.Keys));
+  CheckEquals('app.name', Ctx.Keys[0]);
+  CheckEquals('false', Ctx.Values[0]);
+
+  CheckEquals(1, Length(Ctx.Flags));
+  CheckEquals('no.app.name', Ctx.Flags[0]);
+end;
+
+procedure TTestCase_ArgsBase.Test_NoPrefixNegation_ExplicitAssignment_UpdatesBaseKey;
+var
+  Ctx: TArgsContext;
+  Opts: TArgsOptions;
+  Args: TArgs;
+  V: Boolean;
+begin
+  Opts := ArgsOptionsDefault;
+  Opts.EnableNoPrefixNegation := True;
+
+  ParseArgs(['--no-cache=false'], Opts, Ctx);
+  CheckEquals(2, Length(Ctx.Keys), 'Explicit assignment should record base key and no.* key');
+  CheckEquals('cache', Ctx.Keys[0]);
+  CheckEquals('false', Ctx.Values[0]);
+  CheckEquals('no.cache', Ctx.Keys[1]);
+  CheckEquals('false', Ctx.Values[1]);
+  CheckEquals(0, Length(Ctx.Flags), 'Explicit assignment does not create a flag record');
+
+  Args := TArgs.FromArray(['--no-cache=false'], Opts);
+  try
+    CheckTrue(Args.TryGetBool('cache', V));
+    CheckFalse(V);
+  finally
+    Args.Free;
+  end;
+end;
+
+procedure TTestCase_ArgsBase.Test_NoPrefixNegation_ShortForm;
+var
+  Ctx: TArgsContext;
+  Opts: TArgsOptions;
+begin
+  Opts := ArgsOptionsDefault;
+  Opts.EnableNoPrefixNegation := True;
+  ParseArgs(['-no-debug'], Opts, Ctx);
+
+  CheckEquals(1, Length(Ctx.Keys));
+  CheckEquals('debug', Ctx.Keys[0]);
+  CheckEquals('false', Ctx.Values[0]);
+
+  CheckEquals(1, Length(Ctx.Flags));
+  CheckEquals('no.debug', Ctx.Flags[0]);
 end;
 
 { 大小写不敏感测试 }
@@ -416,6 +537,24 @@ begin
     CheckTrue(Args.HasFlag('v'));
     CheckTrue(Args.HasFlag('debug'));
     CheckFalse(Args.HasFlag('quiet'));
+  finally
+    Args.Free;
+  end;
+end;
+
+procedure TTestCase_ArgsBase.Test_TArgs_HasFlag_HelpAliasQuestionMark;
+var
+  Args: TArgs;
+begin
+  Args := TArgs.FromArray(['/?', '-?', '--?'], ArgsOptionsDefault);
+  try
+    // '?' 是 help 的别名：存储时会归一化为 'help'
+    CheckTrue(Args.HasFlag('help'));
+    // 调用侧也应允许用 '?' 来查询
+    CheckTrue(Args.HasFlag('?'));
+    CheckTrue(Args.HasFlag('/?'));
+    CheckTrue(Args.HasFlag('-?'));
+    CheckTrue(Args.HasFlag('--?'));
   finally
     Args.Free;
   end;

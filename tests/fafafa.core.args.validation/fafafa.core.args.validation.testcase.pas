@@ -11,7 +11,7 @@ unit fafafa.core.args.validation.testcase;
 interface
 
 uses
-  SysUtils, fpcunit, testregistry,
+  Classes, SysUtils, fpcunit, testregistry,
   fafafa.core.args.base,
   fafafa.core.args.errors,
   fafafa.core.args.validation;
@@ -85,6 +85,9 @@ type
     procedure Test_IsValidIPAddress_Invalid;
     procedure Test_IsValidPort_Valid;
     procedure Test_IsValidPort_Invalid;
+
+    // 并发/线程安全烟囱测试
+    procedure Test_PredefinedValidators_Concurrent_NoCrash;
 
     // 边界测试
     procedure Test_Validator_OptionalKey_Skipped;
@@ -909,6 +912,110 @@ begin
     CheckTrue(R.IsValid, 'Empty args with no rules should pass');
   finally
     V.Free;
+  end;
+end;
+
+type
+  TValidateThread = class(TThread)
+  private
+    FStartGate: PLongInt;
+    FErrorMsg: string;
+    FIterations: Integer;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(AStartGate: PLongInt; AIterations: Integer);
+    property ErrorMsg: string read FErrorMsg;
+  end;
+
+constructor TValidateThread.Create(AStartGate: PLongInt; AIterations: Integer);
+begin
+  inherited Create(True);
+  FreeOnTerminate := False;
+  FStartGate := AStartGate;
+  FIterations := AIterations;
+  FErrorMsg := '';
+end;
+
+procedure TValidateThread.Execute;
+var
+  i: Integer;
+  SEmailOk: string;
+  SEmailBad: string;
+  SUrlOk: string;
+  SUrlBad: string;
+  SIPOk: string;
+  SIPBad: string;
+begin
+  // Wait until main thread flips the gate to 1.
+  while FStartGate^ = 0 do
+    Sleep(0);
+
+  SEmailOk := 'user@example.com';
+  SEmailBad := 'invalid-email';
+  SUrlOk := 'https://example.com/path';
+  SUrlBad := 'not-a-url';
+  SIPOk := '192.168.1.1';
+  SIPBad := '999.999.999.999';
+
+  try
+    for i := 1 to FIterations do
+    begin
+      if not IsValidEmail(SEmailOk) then
+        raise Exception.Create('Expected valid email');
+      if IsValidEmail(SEmailBad) then
+        raise Exception.Create('Expected invalid email');
+
+      if not IsValidUrl(SUrlOk) then
+        raise Exception.Create('Expected valid URL');
+      if IsValidUrl(SUrlBad) then
+        raise Exception.Create('Expected invalid URL');
+
+      if not IsValidIPAddress(SIPOk) then
+        raise Exception.Create('Expected valid IP');
+      if IsValidIPAddress(SIPBad) then
+        raise Exception.Create('Expected invalid IP');
+
+      if not IsValidPort('8080') then
+        raise Exception.Create('Expected valid port');
+      if IsValidPort('99999') then
+        raise Exception.Create('Expected invalid port');
+    end;
+  except
+    on E: Exception do
+      FErrorMsg := E.ClassName + ': ' + E.Message;
+  end;
+end;
+
+procedure TTestCase_ArgsValidation.Test_PredefinedValidators_Concurrent_NoCrash;
+const
+  THREADS = 8;
+  ITERS_PER_THREAD = 2000;
+var
+  Gate: LongInt;
+  Ts: array[0..THREADS - 1] of TValidateThread;
+  i: Integer;
+begin
+  Gate := 0;
+
+  for i := Low(Ts) to High(Ts) do
+    Ts[i] := TValidateThread.Create(@Gate, ITERS_PER_THREAD);
+
+  try
+    for i := Low(Ts) to High(Ts) do
+      Ts[i].Start;
+
+    // Let all threads start competing as close to the same time as possible.
+    Gate := 1;
+
+    for i := Low(Ts) to High(Ts) do
+      Ts[i].WaitFor;
+
+    for i := Low(Ts) to High(Ts) do
+      CheckEquals('', Ts[i].ErrorMsg, 'Thread ' + IntToStr(i) + ' failed: ' + Ts[i].ErrorMsg);
+  finally
+    for i := Low(Ts) to High(Ts) do
+      Ts[i].Free;
   end;
 end;
 
