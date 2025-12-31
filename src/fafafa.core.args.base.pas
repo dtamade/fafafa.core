@@ -499,7 +499,13 @@ begin
     end;
 
     // 根据前缀分派处理
-    if (Length(a)>=2) and StartsWith(a,'--') then
+    // TreatNegativeNumbersAsPositionals=True: avoid splitting "-1.23" into short flags.
+    if Opts.TreatNegativeNumbersAsPositionals and IsNegativeNumberLike(a) then
+    begin
+      AddString(Ctx.FPositionals, a);
+      AddItem(akArg, '', a, False, i);
+    end
+    else if (Length(a)>=2) and StartsWith(a,'--') then
       HandleLongOption
     else if (Length(a)>=2) and (a[1]='-') then
       HandleShortOption

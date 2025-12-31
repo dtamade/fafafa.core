@@ -44,6 +44,7 @@ type
 
     // 负数作为位置参数
     procedure Test_NegativeNumber_AsPositional;
+    procedure Test_NegativeNumber_Standalone_TreatedAsPositional;
 
     // --no- 否定前缀
     procedure Test_NoPrefixNegation;
@@ -332,7 +333,6 @@ var
   Opts: TArgsOptions;
 begin
   // TreatNegativeNumbersAsPositionals 使 -1.5 被识别为值而非短选项
-  // 但独立的 -2 仍会被解析为短选项
   Opts := ArgsOptionsDefault;
   Opts.TreatNegativeNumbersAsPositionals := True;
   ParseArgs(['--value', '-1.5', '--', '-2', 'arg'], Opts, Ctx);
@@ -343,6 +343,22 @@ begin
   CheckEquals(2, Length(Ctx.Positionals), '-2 and arg after -- as positionals');
   CheckEquals('-2', Ctx.Positionals[0]);
   CheckEquals('arg', Ctx.Positionals[1]);
+end;
+
+procedure TTestCase_ArgsBase.Test_NegativeNumber_Standalone_TreatedAsPositional;
+var
+  Ctx: TArgsContext;
+  Opts: TArgsOptions;
+begin
+  Opts := ArgsOptionsDefault;
+  Opts.TreatNegativeNumbersAsPositionals := True;
+  ParseArgs(['-1.2', 'arg'], Opts, Ctx);
+
+  CheckEquals(2, Length(Ctx.Positionals));
+  CheckEquals('-1.2', Ctx.Positionals[0]);
+  CheckEquals('arg', Ctx.Positionals[1]);
+  CheckEquals(0, Length(Ctx.Flags));
+  CheckEquals(0, Length(Ctx.Keys));
 end;
 
 { --no- 否定前缀测试 }
