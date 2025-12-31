@@ -30,6 +30,19 @@ function SumBytes_SSE2_i386(p: Pointer; len: SizeUInt): UInt64;
 function CountByte_SSE2_i386(p: Pointer; len: SizeUInt; value: Byte): SizeUInt;
 function BitsetPopCount_SSE2_i386(p: Pointer; len: SizeUInt): SizeUInt;
 
+// === i386 SSE2 Vector Operations ===
+function SSE2AddF32x4_i386(const a, b: TVecF32x4): TVecF32x4;
+function SSE2SubF32x4_i386(const a, b: TVecF32x4): TVecF32x4;
+function SSE2MulF32x4_i386(const a, b: TVecF32x4): TVecF32x4;
+function SSE2DivF32x4_i386(const a, b: TVecF32x4): TVecF32x4;
+function SSE2AddI32x4_i386(const a, b: TVecI32x4): TVecI32x4;
+function SSE2SubI32x4_i386(const a, b: TVecI32x4): TVecI32x4;
+function SSE2MulI32x4_i386(const a, b: TVecI32x4): TVecI32x4;
+function SSE2AddF64x2_i386(const a, b: TVecF64x2): TVecF64x2;
+function SSE2SubF64x2_i386(const a, b: TVecF64x2): TVecF64x2;
+function SSE2MulF64x2_i386(const a, b: TVecF64x2): TVecF64x2;
+function SSE2DivF64x2_i386(const a, b: TVecF64x2): TVecF64x2;
+
 implementation
 
 uses
@@ -318,15 +331,18 @@ const
     3,4,4,5,4,5,5,6,4,5,5,6,5,6,6,7,4,5,5,6,5,6,6,7,5,6,6,7,6,7,7,8
   );
 
+// === SSE2 Optimized BitsetPopCount ===
+// Uses psadbw to count bits in parallel:
+// 1. Use lookup table in XMM register to map nibbles to bit counts
+// 2. Use pshufb (SSSE3) or fallback for nibble lookup
+// For SSE2, we use psadbw with a precomputed popcount for each byte
 function BitsetPopCount_SSE2_i386(p: Pointer; len: SizeUInt): SizeUInt;
 var
   pb: PByte;
   i: SizeUInt;
   count: SizeUInt;
-  dwordCount: SizeUInt;
-  dwordVal: UInt32;
-  pDword: PUInt32;
-begin
+  sum0, sum1: UInt32;
+ begin
   if (len = 0) or (p = nil) then
   begin
     Result := 0;
@@ -336,21 +352,83 @@ begin
   pb := PByte(p);
   i := 0;
   count := 0;
+  sum0 := 0;
+  sum1 := 0;
 
-  // Process 4 bytes at a time using SWAR popcount
-  pDword := PUInt32(p);
-  dwordCount := len div 4;
-  
-  while dwordCount > 0 do
+  // Process 16 bytes at a time using SSE2
+  // Strategy: load bytes, lookup popcount for each byte, sum with psadbw
+  while i + 16 <= len do
   begin
-    dwordVal := pDword^;
-    Inc(count, PopCount32_SWAR(dwordVal));
-    Inc(pDword);
-    Dec(dwordCount);
+    asm
+      push ebx
+      push esi
+      
+      mov  eax, pb
+      add  eax, i
+      movdqu xmm0, [eax]      // Load 16 bytes
+      
+      // Split into nibbles and lookup popcount
+      // SSE2 doesn't have pshufb, so we use a different approach:
+      // For each byte, compute popcount using bit manipulation
+      
+      // Method: Use the parallel bit count algorithm with SSE2
+      // popcount(x) = x - ((x >> 1) & 0x55) 
+      //             = (x & 0x33) + ((x >> 2) & 0x33)
+      //             = (x + (x >> 4)) & 0x0F
+      
+      // Create constants
+      mov  eax, $55555555
+      movd xmm1, eax
+      pshufd xmm1, xmm1, 0     // xmm1 = 0x55555555... (broadcast)
+      
+      mov  eax, $33333333
+      movd xmm2, eax
+      pshufd xmm2, xmm2, 0     // xmm2 = 0x33333333...
+      
+      mov  eax, $0F0F0F0F
+      movd xmm3, eax
+      pshufd xmm3, xmm3, 0     // xmm3 = 0x0F0F0F0F...
+      
+      // Step 1: x = x - ((x >> 1) & 0x55)
+      movdqa xmm4, xmm0
+      psrlw  xmm4, 1           // Shift right by 1 (word-wise, but works for bytes)
+      pand   xmm4, xmm1
+      psubb  xmm0, xmm4
+      
+      // Step 2: x = (x & 0x33) + ((x >> 2) & 0x33)
+      movdqa xmm4, xmm0
+      psrlw  xmm4, 2
+      pand   xmm0, xmm2
+      pand   xmm4, xmm2
+      paddb  xmm0, xmm4
+      
+      // Step 3: x = (x + (x >> 4)) & 0x0F
+      movdqa xmm4, xmm0
+      psrlw  xmm4, 4
+      paddb  xmm0, xmm4
+      pand   xmm0, xmm3
+      
+      // Now each byte contains the popcount of the original byte (0-8)
+      // Sum all bytes using psadbw with zero
+      pxor   xmm1, xmm1
+      psadbw xmm0, xmm1        // Sum bytes in each 64-bit half
+      
+      // Extract sums
+      movd   eax, xmm0
+      add    sum0, eax
+      psrldq xmm0, 8
+      movd   eax, xmm0
+      add    sum1, eax
+      
+      pop  esi
+      pop  ebx
+    end;
+    Inc(i, 16);
   end;
-  
+
+  count := SizeUInt(sum0) + SizeUInt(sum1);
+
   // Handle remaining bytes using lookup table
-  i := (len div 4) * 4;
   while i < len do
   begin
     Inc(count, PopCountTable[pb[i]]);
@@ -358,6 +436,220 @@ begin
   end;
 
   Result := count;
+end;
+
+// === i386 SSE Vector Arithmetic Operations ===
+// Note: For i386, we use SSE instructions with proper stack-based result handling.
+// FPC i386 passes const record params by reference (pointer on stack).
+
+function SSE2AddF32x4_i386(const a, b: TVecF32x4): TVecF32x4;
+var
+  tmp: TVecF32x4;
+  pa, pb, pr: Pointer;
+begin
+  pa := @a;
+  pb := @b;
+  pr := @tmp;
+  asm
+    mov  eax, pa
+    mov  edx, pb
+    mov  ecx, pr
+    movups xmm0, [eax]
+    movups xmm1, [edx]
+    addps  xmm0, xmm1
+    movups [ecx], xmm0
+  end;
+  Result := tmp;
+end;
+
+function SSE2SubF32x4_i386(const a, b: TVecF32x4): TVecF32x4;
+var
+  tmp: TVecF32x4;
+  pa, pb, pr: Pointer;
+begin
+  pa := @a;
+  pb := @b;
+  pr := @tmp;
+  asm
+    mov  eax, pa
+    mov  edx, pb
+    mov  ecx, pr
+    movups xmm0, [eax]
+    movups xmm1, [edx]
+    subps  xmm0, xmm1
+    movups [ecx], xmm0
+  end;
+  Result := tmp;
+end;
+
+function SSE2MulF32x4_i386(const a, b: TVecF32x4): TVecF32x4;
+var
+  tmp: TVecF32x4;
+  pa, pb, pr: Pointer;
+begin
+  pa := @a;
+  pb := @b;
+  pr := @tmp;
+  asm
+    mov  eax, pa
+    mov  edx, pb
+    mov  ecx, pr
+    movups xmm0, [eax]
+    movups xmm1, [edx]
+    mulps  xmm0, xmm1
+    movups [ecx], xmm0
+  end;
+  Result := tmp;
+end;
+
+function SSE2DivF32x4_i386(const a, b: TVecF32x4): TVecF32x4;
+var
+  tmp: TVecF32x4;
+  pa, pb, pr: Pointer;
+begin
+  pa := @a;
+  pb := @b;
+  pr := @tmp;
+  asm
+    mov  eax, pa
+    mov  edx, pb
+    mov  ecx, pr
+    movups xmm0, [eax]
+    movups xmm1, [edx]
+    divps  xmm0, xmm1
+    movups [ecx], xmm0
+  end;
+  Result := tmp;
+end;
+
+function SSE2AddI32x4_i386(const a, b: TVecI32x4): TVecI32x4;
+var
+  tmp: TVecI32x4;
+  pa, pb, pr: Pointer;
+begin
+  pa := @a;
+  pb := @b;
+  pr := @tmp;
+  asm
+    mov  eax, pa
+    mov  edx, pb
+    mov  ecx, pr
+    movdqu xmm0, [eax]
+    movdqu xmm1, [edx]
+    paddd  xmm0, xmm1
+    movdqu [ecx], xmm0
+  end;
+  Result := tmp;
+end;
+
+function SSE2SubI32x4_i386(const a, b: TVecI32x4): TVecI32x4;
+var
+  tmp: TVecI32x4;
+  pa, pb, pr: Pointer;
+begin
+  pa := @a;
+  pb := @b;
+  pr := @tmp;
+  asm
+    mov  eax, pa
+    mov  edx, pb
+    mov  ecx, pr
+    movdqu xmm0, [eax]
+    movdqu xmm1, [edx]
+    psubd  xmm0, xmm1
+    movdqu [ecx], xmm0
+  end;
+  Result := tmp;
+end;
+
+// SSE2 has no direct 32-bit integer multiply, use scalar fallback
+function SSE2MulI32x4_i386(const a, b: TVecI32x4): TVecI32x4;
+var
+  j: Integer;
+begin
+  for j := 0 to 3 do
+    Result.i[j] := a.i[j] * b.i[j];
+end;
+
+// === F64x2 Operations ===
+function SSE2AddF64x2_i386(const a, b: TVecF64x2): TVecF64x2;
+var
+  tmp: TVecF64x2;
+  pa, pb, pr: Pointer;
+begin
+  pa := @a;
+  pb := @b;
+  pr := @tmp;
+  asm
+    mov  eax, pa
+    mov  edx, pb
+    mov  ecx, pr
+    movupd xmm0, [eax]
+    movupd xmm1, [edx]
+    addpd  xmm0, xmm1
+    movupd [ecx], xmm0
+  end;
+  Result := tmp;
+end;
+
+function SSE2SubF64x2_i386(const a, b: TVecF64x2): TVecF64x2;
+var
+  tmp: TVecF64x2;
+  pa, pb, pr: Pointer;
+begin
+  pa := @a;
+  pb := @b;
+  pr := @tmp;
+  asm
+    mov  eax, pa
+    mov  edx, pb
+    mov  ecx, pr
+    movupd xmm0, [eax]
+    movupd xmm1, [edx]
+    subpd  xmm0, xmm1
+    movupd [ecx], xmm0
+  end;
+  Result := tmp;
+end;
+
+function SSE2MulF64x2_i386(const a, b: TVecF64x2): TVecF64x2;
+var
+  tmp: TVecF64x2;
+  pa, pb, pr: Pointer;
+begin
+  pa := @a;
+  pb := @b;
+  pr := @tmp;
+  asm
+    mov  eax, pa
+    mov  edx, pb
+    mov  ecx, pr
+    movupd xmm0, [eax]
+    movupd xmm1, [edx]
+    mulpd  xmm0, xmm1
+    movupd [ecx], xmm0
+  end;
+  Result := tmp;
+end;
+
+function SSE2DivF64x2_i386(const a, b: TVecF64x2): TVecF64x2;
+var
+  tmp: TVecF64x2;
+  pa, pb, pr: Pointer;
+begin
+  pa := @a;
+  pb := @b;
+  pr := @tmp;
+  asm
+    mov  eax, pa
+    mov  edx, pb
+    mov  ecx, pr
+    movupd xmm0, [eax]
+    movupd xmm1, [edx]
+    divpd  xmm0, xmm1
+    movupd [ecx], xmm0
+  end;
+  Result := tmp;
 end;
 
 // === Backend Registration ===
@@ -389,6 +681,22 @@ begin
   dispatchTable.SumBytes := @SumBytes_SSE2_i386;
   dispatchTable.CountByte := @CountByte_SSE2_i386;
   dispatchTable.BitsetPopCount := @BitsetPopCount_SSE2_i386;
+
+  // Override vector operations with SSE2-accelerated versions
+  if IsVectorAsmEnabled then
+  begin
+    dispatchTable.AddF32x4 := @SSE2AddF32x4_i386;
+    dispatchTable.SubF32x4 := @SSE2SubF32x4_i386;
+    dispatchTable.MulF32x4 := @SSE2MulF32x4_i386;
+    dispatchTable.DivF32x4 := @SSE2DivF32x4_i386;
+    dispatchTable.AddI32x4 := @SSE2AddI32x4_i386;
+    dispatchTable.SubI32x4 := @SSE2SubI32x4_i386;
+    dispatchTable.MulI32x4 := @SSE2MulI32x4_i386;
+    dispatchTable.AddF64x2 := @SSE2AddF64x2_i386;
+    dispatchTable.SubF64x2 := @SSE2SubF64x2_i386;
+    dispatchTable.MulF64x2 := @SSE2MulF64x2_i386;
+    dispatchTable.DivF64x2 := @SSE2DivF64x2_i386;
+  end;
 
   // Register the backend
   RegisterBackend(sbSSE2, dispatchTable);
