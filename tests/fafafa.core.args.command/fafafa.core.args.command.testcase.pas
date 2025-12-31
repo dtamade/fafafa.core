@@ -88,6 +88,7 @@ type
     procedure Test_Run_DefaultSubcommand_NegativeNumber_NoFallback;
     procedure Test_Run_DefaultSubcommand_DoubleDash_NoFallback;
     procedure Test_Run_DefaultSubcommand_DoubleDash_StopAtDoubleDashFalse_NoFallback;
+    procedure Test_Run_DefaultSubcommand_SingleDash_Positional_NoFallback;
     procedure Test_Run_DoubleDashBeforeCommand_Returns_CMD_NOT_FOUND;
     procedure Test_Run_DoubleDashBeforeCommand_StopAtDoubleDashFalse_Returns_CMD_NOT_FOUND;
 
@@ -104,6 +105,7 @@ type
     procedure Test_GetBestMatchPath_DefaultChild_NegativeNumber_NoDefaultChild;
     procedure Test_GetBestMatchPath_DefaultChild_DoubleDash_NoDefaultChild;
     procedure Test_GetBestMatchPath_DefaultChild_DoubleDash_StopAtDoubleDashFalse_NoDefaultChild;
+    procedure Test_GetBestMatchPath_DefaultChild_SingleDash_Positional_NoDefaultChild;
     procedure Test_GetBestMatchPath_DoubleDashBeforeCommand_EmptyPath;
     procedure Test_GetBestMatchPath_DoubleDashBeforeCommand_StopAtDoubleDashFalse_EmptyPath;
 
@@ -997,6 +999,41 @@ begin
   CheckEquals(0, HandlerCallCount, 'Handler must not be called');
 end;
 
+procedure TTestCase_ArgsCommand.Test_Run_DefaultSubcommand_SingleDash_Positional_NoFallback;
+var
+  Root: IRootCommand;
+  ServeCmd, DevCmd: ICommand;
+  Code: Integer;
+  Opts: TArgsOptions;
+  Pos: TStringArray;
+begin
+  Root := NewRootCommand;
+
+  ServeCmd := NewCommand('serve');
+  ServeCmd.SetHandlerFunc(@SimpleHandler);
+
+  DevCmd := NewCommand('dev');
+  DevCmd.SetHandlerFunc(@SubCommandHandler);
+  ServeCmd.AddChild(DevCmd);
+  ServeCmd.SetDefaultChildName('dev');
+
+  Root.AddChild(ServeCmd);
+
+  Opts := ArgsOptionsDefault;
+
+  HandlerCallCount := 0;
+  LastHandlerArgs := nil;
+  Code := Root.Run(['serve', '-'], Opts);
+
+  CheckEquals(0, Code, '"-" should be treated as positional for routing (no default-child fallback)');
+  CheckEquals(1, HandlerCallCount);
+  CheckNotNull(LastHandlerArgs, 'Handler should receive args');
+
+  Pos := LastHandlerArgs.Positionals;
+  CheckEquals(1, Length(Pos));
+  CheckEquals('-', Pos[0]);
+end;
+
 { RunPath tests }
 
 procedure TTestCase_ArgsCommand.Test_RunPath_SingleLevel;
@@ -1213,6 +1250,28 @@ begin
 
   Path := GetBestMatchPath(Root, ['--', 'serve'], Opts);
   CheckEquals(0, Length(Path), 'StopAtDoubleDash=False: routing must still stop at "--"');
+end;
+
+procedure TTestCase_ArgsCommand.Test_GetBestMatchPath_DefaultChild_SingleDash_Positional_NoDefaultChild;
+var
+  Root: IRootCommand;
+  ServeCmd, DevCmd: ICommand;
+  Path: array of string;
+  Opts: TArgsOptions;
+begin
+  Root := NewRootCommand;
+
+  ServeCmd := NewCommand('serve');
+  DevCmd := NewCommand('dev');
+  ServeCmd.AddChild(DevCmd);
+  ServeCmd.SetDefaultChildName('dev');
+  Root.AddChild(ServeCmd);
+
+  Opts := ArgsOptionsDefault;
+
+  Path := GetBestMatchPath(Root, ['serve', '-'], Opts);
+  CheckEquals(1, Length(Path), '"-" should be treated as positional (no default child)');
+  CheckEquals('serve', Path[0]);
 end;
 
 { Schema integration tests }

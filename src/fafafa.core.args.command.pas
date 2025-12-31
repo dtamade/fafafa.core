@@ -209,10 +209,23 @@ end;
 function IsOptionLikeForRouting(const S: string; const Opts: TArgsOptions): boolean; inline;
 begin
   if S='' then Exit(False);
-  // Treat negative numbers as positionals: e.g. -1, -1.2
-  if Opts.TreatNegativeNumbersAsPositionals and IsNegativeNumberLike(S) then
-    Exit(False);
-  Result := (S[1]='-') or (S[1]='/');
+
+  // Keep consistent with ParseArgs dispatch rules:
+  // - '-' alone is a positional token (commonly "stdin" marker)
+  // - options start with '--' or '-' (len>=2), or '/'
+  if S[1]='-' then
+  begin
+    if Length(S) < 2 then Exit(False);
+    // Treat negative numbers as positionals: e.g. -1, -1.2
+    if Opts.TreatNegativeNumbersAsPositionals and IsNegativeNumberLike(S) then
+      Exit(False);
+    Exit(True);
+  end;
+
+  if S[1]='/' then
+    Exit(True);
+
+  Result := False;
 end;
 
 
