@@ -68,19 +68,19 @@ begin
   // 测试指针原子操作
   WriteLn('指针原子操作测试:');
   GetMem(LPtr, 100);
-  WriteLn('  初始指针: ', PtrUInt(atomic_load_ptr(LPtr)));
+  WriteLn('  初始指针: ', PtrUInt(atomic_load(LPtr)));
   
   GetMem(LNewPtr, 200);
-  WriteLn('  exchange(新指针): ', PtrUInt(atomic_exchange_ptr(LPtr, LNewPtr)));
-  WriteLn('  当前指针: ', PtrUInt(atomic_load_ptr(LPtr)));
+  WriteLn('  exchange(新指针): ', PtrUInt(atomic_exchange(LPtr, LNewPtr)));
+  WriteLn('  当前指针: ', PtrUInt(atomic_load(LPtr)));
 
   LExpectedPtr := LNewPtr;
   GetMem(LAnotherPtr, 300);
-  if atomic_compare_exchange_strong_ptr(LPtr, LExpectedPtr, LAnotherPtr) then
+  if atomic_compare_exchange_strong(LPtr, LExpectedPtr, LAnotherPtr) then
     WriteLn('  compare_exchange_strong: 成功')
   else
     WriteLn('  compare_exchange_strong: 失败');
-  WriteLn('  当前指针: ', PtrUInt(atomic_load_ptr(LPtr)));
+  WriteLn('  当前指针: ', PtrUInt(atomic_load(LPtr)));
   
   FreeMem(LAnotherPtr);
   FreeMem(LNewPtr);
@@ -89,41 +89,43 @@ end;
 
 procedure TestTaggedPointer;
 var
-  LTaggedPtr: tagged_ptr;
-  LExpected: tagged_ptr;
+  LTaggedPtr: atomic_tagged_ptr_t;
+  LExpected: atomic_tagged_ptr_t;
   LNewPtr: Pointer;
-  LLoaded: tagged_ptr;
-  LNewTagged: tagged_ptr;
-  LDesired: tagged_ptr;
+  LLoaded: atomic_tagged_ptr_t;
+  LNewTagged: atomic_tagged_ptr_t;
+  LDesired: atomic_tagged_ptr_t;
+  LTag: {$IFDEF CPU64}UInt16{$ELSE}UInt32{$ENDIF};
 begin
   WriteLn('=== 测试Tagged Pointer ===');
-  
-  GetMem(LNewPtr, 100);
-  LTaggedPtr := make_tagged_ptr(LNewPtr, 42);
-  
-  WriteLn('Tagged Pointer测试:');
-  WriteLn('  指针: ', PtrUInt(get_ptr(LTaggedPtr)));
-  WriteLn('  标签: ', get_tag(LTaggedPtr));
-  WriteLn('  下一个标签: ', next_tag(LTaggedPtr));
-  
-  LLoaded := atomic_load_tagged_ptr(LTaggedPtr);
-  WriteLn('  Load结果 - 指针: ', PtrUInt(get_ptr(LLoaded)), ', 标签: ', get_tag(LLoaded));
 
-  LNewTagged := make_tagged_ptr(LNewPtr, 43);
-  atomic_store_tagged_ptr(LTaggedPtr, LNewTagged);
-  LLoaded := atomic_load_tagged_ptr(LTaggedPtr);
-  WriteLn('  Store后 - 指针: ', PtrUInt(get_ptr(LLoaded)), ', 标签: ', get_tag(LLoaded));
+  GetMem(LNewPtr, 100);
+  LTag := 42;
+  LTaggedPtr := atomic_tagged_ptr(LNewPtr, LTag);
+
+  WriteLn('Tagged Pointer测试:');
+  WriteLn('  指针: ', PtrUInt(atomic_tagged_ptr_get_ptr(LTaggedPtr)));
+  WriteLn('  标签: ', atomic_tagged_ptr_get_tag(LTaggedPtr));
+  WriteLn('  下一个标签: ', atomic_tagged_ptr_next(LTaggedPtr));
+
+  LLoaded := atomic_tagged_ptr_load(LTaggedPtr, mo_acquire);
+  WriteLn('  Load结果 - 指针: ', PtrUInt(atomic_tagged_ptr_get_ptr(LLoaded)), ', 标签: ', atomic_tagged_ptr_get_tag(LLoaded));
+
+  LNewTagged := atomic_tagged_ptr(LNewPtr, 43);
+  atomic_tagged_ptr_store(LTaggedPtr, LNewTagged, mo_release);
+  LLoaded := atomic_tagged_ptr_load(LTaggedPtr, mo_acquire);
+  WriteLn('  Store后 - 指针: ', PtrUInt(atomic_tagged_ptr_get_ptr(LLoaded)), ', 标签: ', atomic_tagged_ptr_get_tag(LLoaded));
 
   LExpected := LNewTagged;
-  LDesired := make_tagged_ptr(LNewPtr, 44);
-  if atomic_compare_exchange_strong_tagged_ptr(LTaggedPtr, LExpected, LDesired) then
+  LDesired := atomic_tagged_ptr(LNewPtr, 44);
+  if atomic_tagged_ptr_compare_exchange_strong(LTaggedPtr, LExpected, LDesired) then
     WriteLn('  CompareExchange: 成功')
   else
     WriteLn('  CompareExchange: 失败');
-  
-  LLoaded := atomic_load_tagged_ptr(LTaggedPtr);
-  WriteLn('  最终值 - 指针: ', PtrUInt(get_ptr(LLoaded)), ', 标签: ', get_tag(LLoaded));
-  
+
+  LLoaded := atomic_tagged_ptr_load(LTaggedPtr, mo_acquire);
+  WriteLn('  最终值 - 指针: ', PtrUInt(atomic_tagged_ptr_get_ptr(LLoaded)), ', 标签: ', atomic_tagged_ptr_get_tag(LLoaded));
+
   FreeMem(LNewPtr);
   WriteLn;
 end;
@@ -133,21 +135,21 @@ var
   LValue: Int32;
 begin
   WriteLn('=== 测试内存序 ===');
-  
+
   LValue := 100;
   WriteLn('内存序测试:');
-  WriteLn('  初始值: ', atomic_load(LValue, memory_order_relaxed));
-  
-  atomic_store(LValue, 200, memory_order_relaxed);
-  WriteLn('  Store(relaxed)后: ', atomic_load(LValue, memory_order_relaxed));
-  
-  atomic_store(LValue, 300, memory_order_release);
-  WriteLn('  Store(release)后: ', atomic_load(LValue, memory_order_acquire));
-  
-  atomic_store(LValue, 400, memory_order_seq_cst);
-  WriteLn('  Store(seq_cst)后: ', atomic_load(LValue, memory_order_seq_cst));
-  
-  atomic_thread_fence(memory_order_seq_cst);
+  WriteLn('  初始值: ', atomic_load(LValue, mo_relaxed));
+
+  atomic_store(LValue, 200, mo_relaxed);
+  WriteLn('  Store(relaxed)后: ', atomic_load(LValue, mo_relaxed));
+
+  atomic_store(LValue, 300, mo_release);
+  WriteLn('  Store(release)后: ', atomic_load(LValue, mo_acquire));
+
+  atomic_store(LValue, 400, mo_seq_cst);
+  WriteLn('  Store(seq_cst)后: ', atomic_load(LValue, mo_seq_cst));
+
+  atomic_thread_fence(mo_seq_cst);
   WriteLn('  内存屏障执行完成');
   WriteLn;
 end;

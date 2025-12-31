@@ -279,14 +279,14 @@ begin
   LFailCount := 0;
   repeat
     // 1. 读取当前栈顶（acquire 确保看到前驱线程对节点内容的发布）
-    LCurrentTop := PNode(atomic_load_ptr(PPointer(@FTop)^, mo_acquire));
+    LCurrentTop := PNode(atomic_load(PPointer(@FTop)^, mo_acquire));
 
     // 2. 设置新节点的next指向当前栈顶
     LNewNode^.Next := LCurrentTop;
 
     // 3. 尝试原子地将栈顶更新为新节点
     // 如果FTop仍然等于LCurrentTop，则更新为LNewNode
-    if atomic_compare_exchange_strong_ptr(PPointer(@FTop)^, Pointer(LCurrentTop), Pointer(LNewNode)) then
+    if atomic_compare_exchange_strong(PPointer(@FTop)^, Pointer(LCurrentTop), Pointer(LNewNode)) then
     begin
       atomic_increment(FCount); // best-effort count
       Break;
@@ -310,7 +310,7 @@ begin
   try
     repeat
       // 1. 读取当前栈顶（acquire 确保看到前驱线程对节点内容的发布）
-      LCurrentTop := PNode(atomic_load_ptr(PPointer(@FTop)^, mo_acquire));
+      LCurrentTop := PNode(atomic_load(PPointer(@FTop)^, mo_acquire));
 
       // 2. 检查栈是否为空
       if LCurrentTop = nil then
@@ -321,7 +321,7 @@ begin
 
       // 4. 尝试原子地将栈顶更新为下一个节点
       // 如果FTop仍然等于LCurrentTop，则更新为LNext
-      if atomic_compare_exchange_strong_ptr(PPointer(@FTop)^, Pointer(LCurrentTop), Pointer(LNext)) then
+      if atomic_compare_exchange_strong(PPointer(@FTop)^, Pointer(LCurrentTop), Pointer(LNext)) then
       begin
         // 5. 成功！获取数据并将节点退休（由回收层决定何时释放）
         AItem := LCurrentTop^.Data;
@@ -341,7 +341,7 @@ end;
 
 function TTreiberStack.IsEmpty: Boolean;
 begin
-  Result := atomic_load_ptr(PPointer(@FTop)^, mo_relaxed) = nil;
+  Result := atomic_load(PPointer(@FTop)^, mo_relaxed) = nil;
 end;
 
 { TTreiberStack - 扩展接口实现 }
@@ -405,9 +405,9 @@ begin
   // Single CAS insert of the whole chain
   FailCount := 0;
   repeat
-    OldTop := PNode(atomic_load_ptr(PPointer(@FTop)^, mo_acquire));
+    OldTop := PNode(atomic_load(PPointer(@FTop)^, mo_acquire));
     Tail^.Next := OldTop;
-    if atomic_compare_exchange_strong_ptr(PPointer(@FTop)^, Pointer(OldTop), Pointer(Head)) then
+    if atomic_compare_exchange_strong(PPointer(@FTop)^, Pointer(OldTop), Pointer(Head)) then
       Break;
     BackoffStep(FailCount);
   until False;
@@ -429,7 +429,7 @@ begin
 
   FailCount := 0;
   repeat
-    ExpectedTop := PNode(atomic_load_ptr(PPointer(@FTop)^, mo_acquire));
+    ExpectedTop := PNode(atomic_load(PPointer(@FTop)^, mo_acquire));
     if ExpectedTop = nil then Exit(0);
 
     // Walk up to Want nodes
@@ -444,7 +444,7 @@ begin
     end;
     NextAfter := Tail^.Next; // node after our segment
 
-    if atomic_compare_exchange_strong_ptr(PPointer(@FTop)^, Pointer(ExpectedTop), Pointer(NextAfter)) then
+    if atomic_compare_exchange_strong(PPointer(@FTop)^, Pointer(ExpectedTop), Pointer(NextAfter)) then
       Break;
 
     BackoffStep(FailCount);

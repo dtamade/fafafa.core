@@ -270,7 +270,7 @@ var
 begin
   // Opportunistic physical removal of logically deleted nodes in a bucket
   prevIsBucket := True;
-  prevNextTagged := atomic_load_atomic_tagged_ptr_t(FBuckets[ABucket], mo_acquire);
+  prevNextTagged := atomic_tagged_ptr_load(FBuckets[ABucket], mo_acquire);
   prevEntry := nil;
   while True do
   begin
@@ -278,17 +278,17 @@ begin
     if curEntry = nil then Exit;
 
     // Load current's next
-    curNextTagged := atomic_load_atomic_tagged_ptr_t(curEntry^.Next, mo_acquire);
+    curNextTagged := atomic_tagged_ptr_load(curEntry^.Next, mo_acquire);
     nextEntry := PEntry(atomic_tagged_ptr_get_ptr(curNextTagged));
 
     if curEntry^.IsDeleted then
     begin
       // Try to unlink curEntry by updating prev->Next from prevNextTagged to next
       expectedTagged := prevNextTagged;
-      desiredTagged := make_atomic_tagged_ptr_t(nextEntry, atomic_tagged_ptr_next(prevNextTagged));
+      desiredTagged := atomic_tagged_ptr(nextEntry, atomic_tagged_ptr_next(prevNextTagged));
       if prevIsBucket then
       begin
-        if atomic_compare_exchange_strong_atomic_tagged_ptr_t(FBuckets[ABucket], expectedTagged, desiredTagged) then
+        if atomic_tagged_ptr_compare_exchange_strong(FBuckets[ABucket], expectedTagged, desiredTagged) then
         begin
           // finalize and retire removed node
           Finalize(curEntry^.Key);
@@ -301,7 +301,7 @@ begin
         else
         begin
           // reload from bucket head on failure
-          prevNextTagged := atomic_load_atomic_tagged_ptr_t(FBuckets[ABucket], mo_acquire);
+          prevNextTagged := atomic_tagged_ptr_load(FBuckets[ABucket], mo_acquire);
           Continue;
         end;
       end
@@ -309,7 +309,7 @@ begin
       begin
         // prev is an entry; update its Next
         prevNextRef := @prevEntry^.Next;
-        if atomic_compare_exchange_strong_atomic_tagged_ptr_t(prevNextRef^, expectedTagged, desiredTagged) then
+        if atomic_tagged_ptr_compare_exchange_strong(prevNextRef^, expectedTagged, desiredTagged) then
         begin
           Finalize(curEntry^.Key);
           Finalize(curEntry^.Value);
@@ -320,7 +320,7 @@ begin
         else
         begin
           // reload prevNextTagged from prevEntry^.Next and retry
-          prevNextTagged := atomic_load_atomic_tagged_ptr_t(prevEntry^.Next, mo_acquire);
+          prevNextTagged := atomic_tagged_ptr_load(prevEntry^.Next, mo_acquire);
           Continue;
         end;
       end;
@@ -353,7 +353,7 @@ begin
 
   // 初始化所有桶为“空”标记指针
   for I := 0 to FBucketCount - 1 do
-    FBuckets[I] := make_atomic_tagged_ptr_t(nil, 0);
+    FBuckets[I] := atomic_tagged_ptr(nil, 0);
 
   // 设置哈希函数与比较器
   FHashFunction := AHashFunction;
@@ -401,7 +401,7 @@ begin
    * - We see all writes that happened-before the release store of this pointer
    * - Critical for seeing consistent linked list structure
    *}
-  LBucketHead := atomic_load_atomic_tagged_ptr_t(FBuckets[ABucket], mo_acquire);
+  LBucketHead := atomic_tagged_ptr_load(FBuckets[ABucket], mo_acquire);
   LCurrent := atomic_tagged_ptr_get_ptr(LBucketHead);
 
   {**
@@ -429,7 +429,7 @@ begin
      * @mo_acquire ensures we see consistent next pointer
      * and any updates to the node it points to
      *}
-    LCurrent := atomic_tagged_ptr_get_ptr(atomic_load_atomic_tagged_ptr_t(LCurrent^.Next, mo_acquire));
+    LCurrent := atomic_tagged_ptr_get_ptr(atomic_tagged_ptr_load(LCurrent^.Next, mo_acquire));
   end;
 
   Result := nil;
@@ -441,7 +441,7 @@ begin
   Result^.Key := AKey;
   Result^.Value := AValue;
   Result^.Hash := AHash;
-  Result^.Next := make_atomic_tagged_ptr_t(nil, 0);
+  Result^.Next := atomic_tagged_ptr(nil, 0);
   Result^.IsDeleted := False;
 end;
 
@@ -489,10 +489,10 @@ begin
 
   {** Insert at bucket head using CAS loop with Tagged Pointers **}
   repeat
-    LBucketHead := atomic_load_atomic_tagged_ptr_t(FBuckets[LBucketIndex], mo_acquire);
+    LBucketHead := atomic_tagged_ptr_load(FBuckets[LBucketIndex], mo_acquire);
     LNewEntry^.Next := LBucketHead;
-    LNewHead := make_atomic_tagged_ptr_t(LNewEntry, atomic_tagged_ptr_next(LBucketHead));
-  until atomic_compare_exchange_strong_atomic_tagged_ptr_t(FBuckets[LBucketIndex], LBucketHead, LNewHead);
+    LNewHead := atomic_tagged_ptr(LNewEntry, atomic_tagged_ptr_next(LBucketHead));
+  until atomic_tagged_ptr_compare_exchange_strong(FBuckets[LBucketIndex], LBucketHead, LNewHead);
 
   atomic_fetch_add_64(FSize, 1);
 
@@ -633,7 +633,7 @@ var
 begin
   for I := 0 to FBucketCount - 1 do
   begin
-    LBucketHead := atomic_load_atomic_tagged_ptr_t(FBuckets[I], mo_acquire);
+    LBucketHead := atomic_tagged_ptr_load(FBuckets[I], mo_acquire);
     LCurrent := atomic_tagged_ptr_get_ptr(LBucketHead);
 
     while LCurrent <> nil do
@@ -647,7 +647,7 @@ begin
     end;
 
     // Reset bucket to empty
-    atomic_store_atomic_tagged_ptr_t(FBuckets[I], make_atomic_tagged_ptr_t(nil, 0), mo_release);
+    atomic_tagged_ptr_store(FBuckets[I], atomic_tagged_ptr(nil, 0), mo_release);
   end;
 
   atomic_store_64(FSize, 0, mo_relaxed);

@@ -78,8 +78,6 @@
       <Optimizations>
         <OptimizationLevel Value="1"/>
       </Optimizations>
-      <TargetCPU Value="x86_64"/>
-      <TargetOS Value="win64"/>
       <SmallerCode Value="False"/>
       <Relocatable Value="False"/>
       <HeapSize Value="16777216"/>

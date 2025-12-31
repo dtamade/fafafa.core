@@ -23,6 +23,11 @@ interface
 uses
   SysUtils, fafafa.core.atomic, fafafa.core.lockfree.util;
 
+// Fallback helpers used by generic templates must be declared in the interface.
+// NOTE: Generic helpers must be called via `specialize`, e.g. `specialize _DefaultHashKey<K>(Key)`.
+generic function _DefaultHashKey<T>(const AKey: T): Cardinal; inline;
+generic function _DefaultKeysEqual<T>(const L, R: T): Boolean; inline;
+
 type
   generic TLockFreeHashMap<K, V> = class
   public
@@ -53,6 +58,9 @@ type
     constructor Create(ACapacity: Integer; AHash: THashFunc; AEqual: TEqualFunc); overload;
     destructor Destroy; override;
 
+    // Strict constructor helper: require explicit hash & equality (avoid unsafe fallbacks for managed/padded types)
+    class function NewStrict(ACapacity: Integer; AHash: THashFunc; AEqual: TEqualFunc): TLockFreeHashMap; static;
+
     { 写入：当 key 已存在时更新 value；当命中空槽位时插入 }
     function Put(const AKey: K; const AValue: V): Boolean;
     function Get(const AKey: K; out AValue: V): Boolean;
@@ -71,6 +79,29 @@ type
   end;
 
 implementation
+
+generic function _DefaultHashKey<T>(const AKey: T): Cardinal;
+var
+  S: AnsiString;
+begin
+  if TypeInfo(T) = TypeInfo(string) then
+  begin
+    S := PAnsiString(@AKey)^;
+    if Length(S) = 0 then
+      Exit(0);
+    Exit(SimpleHash(S[1], Length(S)));
+  end;
+
+  Result := SimpleHash(AKey, SizeOf(T));
+end;
+
+generic function _DefaultKeysEqual<T>(const L, R: T): Boolean;
+begin
+  if TypeInfo(T) = TypeInfo(string) then
+    Exit(PAnsiString(@L)^ = PAnsiString(@R)^);
+
+  Result := CompareMem(@L, @R, SizeOf(T));
+end;
 
 constructor TLockFreeHashMap.Create(ACapacity: Integer);
 var
@@ -137,22 +168,25 @@ begin
   inherited Destroy;
 end;
 
+class function TLockFreeHashMap.NewStrict(ACapacity: Integer; AHash: THashFunc; AEqual: TEqualFunc): TLockFreeHashMap;
+begin
+  if (not Assigned(AHash)) or (not Assigned(AEqual)) then
+    raise Exception.Create('TLockFreeHashMap.NewStrict: hash and equal must be provided');
+  Result := TLockFreeHashMap.Create(ACapacity, AHash, AEqual);
+end;
+
 function TLockFreeHashMap.HashKey(const AKey: K): Cardinal;
 begin
   if Assigned(FHash) then
     Exit(FHash(AKey));
-  Result := SimpleHash(AKey, SizeOf(K));
+  Result := specialize _DefaultHashKey<K>(AKey);
 end;
 
 function TLockFreeHashMap.KeysEqual(const L, R: K): Boolean;
 begin
   if Assigned(FEqual) then
     Exit(FEqual(L, R));
-  // 默认使用“=”运算符进行相等性比较：
-  // - 对字符串等托管类型为内容相等
-  // - 对标量/记录为逐字段比较（由编译器定义）
-  // 避免 CompareMem 在托管类型上仅比较指针的误用
-  Result := (L = R);
+  Result := specialize _DefaultKeysEqual<K>(L, R);
 end;
 
 function TLockFreeHashMap.FindSlot(const AKey: K; AHash: Cardinal): Integer;

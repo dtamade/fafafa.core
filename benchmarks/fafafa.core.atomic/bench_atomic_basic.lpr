@@ -527,7 +527,7 @@ begin
   Value := TestPtr;
   while aState.KeepRunning do
   begin
-    Result := atomic_load_ptr(Value);
+    Result := atomic_load(Value);
     aState.Blackhole(PtrUInt(Result));
   end;
 end;
@@ -553,7 +553,7 @@ begin
   Value := TestPtr;
   while aState.KeepRunning do
   begin
-    Result := atomic_exchange_ptr(Value, @TestValue32);
+    Result := atomic_exchange(Value, @TestValue32);
     aState.Blackhole(PtrUInt(Result));
   end;
 end;

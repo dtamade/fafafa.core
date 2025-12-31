@@ -3,12 +3,12 @@
 本页补充 lock-free 数据结构在 FreePascal 下的内存序、伪共享与 ABA 相关说明，以及本模块新增的可选性能开关。
 
 ## 内存序与可见性
-- 我们使用 fafafa.core.atomic 提供的 `atomic_load_64/atomic_store_64/atomic_compare_exchange_strong_*` 并显式指定 memory_order：
-  - 读取快路径使用 `memory_order_relaxed` 以降低一致性成本
-  - 关键数据交接使用 `acquire/release` 保证先行发生关系
-- SPSC：序列号法避免 CAS，读写使用 acquire/release 保证数据对消费端的可见性
-- MPMC：Vyukov 风格的序列号环，CAS 成功后写入/回收位用 release；读路径用 acquire
-- MPSC/Treiber：指针读取使用 acquire 以确保可见性，链接/发布使用 acq_rel / release
+- 我们使用 fafafa.core.atomic 提供的 `atomic_load_64/atomic_store_64/atomic_compare_exchange_strong_*` 等 API，并显式指定 `memory_order_t`：
+  - 读取快路径使用 `mo_relaxed` 以降低一致性成本
+  - 关键数据交接使用 `mo_acquire/mo_release` 保证先行发生关系
+- SPSC：序列号法避免 CAS，读写使用 `mo_acquire/mo_release` 保证数据对消费端的可见性
+- MPMC：Vyukov 风格的序列号环，CAS 成功后写入/回收位用 `mo_release`；读路径用 `mo_acquire`
+- MPSC/Treiber：指针读取使用 `mo_acquire` 以确保可见性，链接/发布使用 `mo_acq_rel` / `mo_release`
 
 ## 伪共享与 cacheline padding（可选）
 - 在多线程并发下，紧邻的索引/计数变量可能落在同一缓存行，引发频繁一致性流量（伪共享）
@@ -36,7 +36,7 @@
 - 若 PadOn 已缓解伪共享但仍出现 CAS 热点，开启 Backoff 作为进一步缓解；务必通过微基准复核吞吐与尾延迟
 
 ## 兼容性
-- 弱内存序平台（ARM/POWER 等）务必遵循上述 acquire/release 原则；指针读取（如 Head/Tail/Next/FTop）使用 atomic_load_ptr(..., acquire)；发布写使用 release/acq_rel。
+- 弱内存序平台（ARM/POWER 等）务必遵循上述 acquire/release 原则；指针读取（如 Head/Tail/Next/FTop）使用 `atomic_load(..., mo_acquire)`；发布写使用 `atomic_store(..., mo_release)` / CAS 使用 `mo_acq_rel`。
 
 - 所有开关默认关闭，不改变现有行为与性能特征
 

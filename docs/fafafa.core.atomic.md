@@ -7,7 +7,7 @@
 `fafafa.core.atomic` 提供了完整的原子操作 API，支持：
 - 基础原子操作（加载、存储、交换、比较交换）
 - 读-修改-写操作（fetch_add、fetch_and、fetch_or、fetch_xor）
-- 内存序控制（relaxed、acquire、release、seq_cst）
+- 内存序控制（relaxed、consume、acquire、release、acq_rel、seq_cst）
 - 指针运算（fetch_add、fetch_sub）
 - 带标签指针（tagged pointer）用于解决 ABA 问题
 
@@ -22,99 +22,165 @@
 ### 内存序类型
 ```pascal
 type
-  memory_order = (
-    mo_relaxed,  // 最弱序：仅保证原子性，无同步语义
-    mo_acquire,  // 获取序：防止后续读写重排到此操作之前
-    mo_release,  // 释放序：防止之前读写重排到此操作之后
-    mo_seq_cst   // 顺序一致：全局统一顺序，最强保证（默认）
+  memory_order_t = (
+    mo_relaxed,   // 最弱序：仅保证原子性，无同步语义
+    mo_consume,   // 当前实现：等价 mo_acquire（更强；跨平台一致性）
+    mo_acquire,   // 获取序：防止后续读写重排到此操作之前
+    mo_release,   // 释放序：防止之前读写重排到此操作之后
+    mo_acq_rel,   // 获取+释放（RMW）：用于 read-modify-write 操作
+    mo_seq_cst    // 顺序一致：全局统一顺序，最强保证
   );
 ```
 
 ### 使用建议
 - **mo_relaxed**：计数器、统计信息等无同步要求的场景
-- **mo_acquire/release**：生产者-消费者模式、锁实现
-- **mo_seq_cst**：需要全局一致性的复杂同步（默认选择）
+- **mo_consume**：当前实现等价 `mo_acquire`，建议直接使用 `mo_acquire`
+- **mo_acquire/mo_release**：生产者-消费者模式、锁实现
+- **mo_acq_rel**：RMW 场景（如引用计数 decrement、一些无锁结构）
+- **mo_seq_cst**：需要全局一致性的复杂同步（最安全的默认选择）
 
 ## 基础 API
 
 ### 原子加载与存储
 ```pascal
 // 原子加载
-function atomic_load(var target: Int32; order: memory_order = mo_seq_cst): Int32;
-function atomic_load_64(var target: Int64; order: memory_order = mo_seq_cst): Int64;
-function atomic_load(var target: Pointer; order: memory_order = mo_seq_cst): Pointer;
+function atomic_load(var target: Int32): Int32; overload;
+function atomic_load(var target: Int32; order: memory_order_t): Int32; overload;
+
+function atomic_load_64(var target: Int64): Int64; overload;
+function atomic_load_64(var target: Int64; order: memory_order_t): Int64; overload;
+
+function atomic_load(var target: Pointer): Pointer; overload;
+function atomic_load(var target: Pointer; order: memory_order_t): Pointer; overload;
 
 // 原子存储
-procedure atomic_store(var target: Int32; value: Int32; order: memory_order = mo_seq_cst);
-procedure atomic_store_64(var target: Int64; value: Int64; order: memory_order = mo_seq_cst);
-procedure atomic_store(var target: Pointer; value: Pointer; order: memory_order = mo_seq_cst);
+procedure atomic_store(var target: Int32; value: Int32); overload;
+procedure atomic_store(var target: Int32; value: Int32; order: memory_order_t); overload;
+
+procedure atomic_store_64(var target: Int64; value: Int64); overload;
+procedure atomic_store_64(var target: Int64; value: Int64; order: memory_order_t); overload;
+
+procedure atomic_store(var target: Pointer; value: Pointer); overload;
+procedure atomic_store(var target: Pointer; value: Pointer; order: memory_order_t); overload;
 ```
 
 ### 原子交换
 ```pascal
 // 原子交换：返回旧值，设置新值
-function atomic_exchange(var target: Int32; desired: Int32; order: memory_order = mo_seq_cst): Int32;
-function atomic_exchange_64(var target: Int64; desired: Int64; order: memory_order = mo_seq_cst): Int64;
-function atomic_exchange(var target: Pointer; desired: Pointer; order: memory_order = mo_seq_cst): Pointer;
+// （无 order 版本默认使用 seq_cst）
+function atomic_exchange(var target: Int32; desired: Int32): Int32; overload;
+function atomic_exchange(var target: Int32; desired: Int32; order: memory_order_t): Int32; overload;
+
+function atomic_exchange_64(var target: Int64; desired: Int64): Int64; overload;
+function atomic_exchange_64(var target: Int64; desired: Int64; order: memory_order_t): Int64; overload;
+
+function atomic_exchange(var target: Pointer; desired: Pointer): Pointer; overload;
+function atomic_exchange(var target: Pointer; desired: Pointer; order: memory_order_t): Pointer; overload;
 ```
 
 ### 比较交换（CAS）
 ```pascal
 // 强比较交换：如果 target = expected，则设置为 desired，返回是否成功
-function atomic_compare_exchange_strong(var target: Int32; var expected: Int32; desired: Int32; order: memory_order = mo_seq_cst): Boolean;
+// （无 order 版本默认使用 seq_cst）
+function atomic_compare_exchange_strong(
+  var target: Int32;
+  var expected: Int32;
+  desired: Int32
+): Boolean; overload;
 
-// 弱比较交换：允许虚假失败，在循环中使用性能更好
-function atomic_compare_exchange_weak(var target: Int32; var expected: Int32; desired: Int32; order: memory_order = mo_seq_cst): Boolean;
+// 双内存序版本（对齐 C++11 / Rust）：success_order 与 failure_order
+function atomic_compare_exchange_strong(
+  var target: Int32;
+  var expected: Int32;
+  desired: Int32;
+  success_order, failure_order: memory_order_t
+): Boolean; overload;
+
+// 弱比较交换：允许虚假失败（在循环中使用性能更好；某些平台更快）
+function atomic_compare_exchange_weak(
+  var target: Int32;
+  var expected: Int32;
+  desired: Int32
+): Boolean; overload;
+
+function atomic_compare_exchange_weak(
+  var target: Int32;
+  var expected: Int32;
+  desired: Int32;
+  success_order, failure_order: memory_order_t
+): Boolean; overload;
 ```
 
 ### 读-修改-写操作
 ```pascal
+// （无 order 版本默认使用 seq_cst）
+
 // 原子加法：返回旧值
-function atomic_fetch_add(var target: Int32; delta: Int32; order: memory_order = mo_seq_cst): Int32;
-function atomic_fetch_sub(var target: Int32; delta: Int32; order: memory_order = mo_seq_cst): Int32;
+function atomic_fetch_add(var target: Int32; delta: Int32): Int32; overload;
+function atomic_fetch_add(var target: Int32; delta: Int32; order: memory_order_t): Int32; overload;
+
+function atomic_fetch_sub(var target: Int32; delta: Int32): Int32; overload;
+function atomic_fetch_sub(var target: Int32; delta: Int32; order: memory_order_t): Int32; overload;
 
 // 位运算：返回旧值
-function atomic_fetch_and(var target: Int32; mask: Int32; order: memory_order = mo_seq_cst): Int32;
-function atomic_fetch_or(var target: Int32; mask: Int32; order: memory_order = mo_seq_cst): Int32;
-function atomic_fetch_xor(var target: Int32; mask: Int32; order: memory_order = mo_seq_cst): Int32;
+function atomic_fetch_and(var target: Int32; mask: Int32): Int32; overload;
+function atomic_fetch_and(var target: Int32; mask: Int32; order: memory_order_t): Int32; overload;
 
-// 便利函数：返回新值
-function atomic_increment(var target: Int32; order: memory_order = mo_seq_cst): Int32;
-function atomic_decrement(var target: Int32; order: memory_order = mo_seq_cst): Int32;
+function atomic_fetch_or(var target: Int32; mask: Int32): Int32; overload;
+function atomic_fetch_or(var target: Int32; mask: Int32; order: memory_order_t): Int32; overload;
+
+function atomic_fetch_xor(var target: Int32; mask: Int32): Int32; overload;
+function atomic_fetch_xor(var target: Int32; mask: Int32; order: memory_order_t): Int32; overload;
+
+// 便利函数：返回新值（这些接口为 seq_cst；如需指定内存序请用 fetch_add/fetch_sub）
+function atomic_increment(var target: Int32): Int32;
+function atomic_decrement(var target: Int32): Int32;
 ```
 
 ### 指针运算
 ```pascal
 // 指针偏移（字节为单位）
-function atomic_fetch_add(var target: Pointer; delta: PtrInt; order: memory_order = mo_seq_cst): Pointer;
-function atomic_fetch_sub(var target: Pointer; delta: PtrInt; order: memory_order = mo_seq_cst): Pointer;
+function atomic_fetch_add(var target: Pointer; deltaBytes: PtrInt): Pointer;
+function atomic_fetch_sub(var target: Pointer; deltaBytes: PtrInt): Pointer;
 ```
 
 ## 带标签指针 API
 
-用于解决 ABA 问题的带版本标签的指针：
+用于解决 ABA 问题的带版本标签的指针（单字宽度打包实现）：
 
 ```pascal
 type
-  atomic_tagged_ptr_t = record
-    // 内部实现，不要直接访问字段
-  end;
+  // x86_64: tag 使用高 16 位（指针使用低 48 位）
+  // 其他 64-bit: 为避免假设“指针一定是 48-bit VA”，默认改用低 TAG_BITS 位（默认 TAG_BITS = 3；要求指针按 2^TAG_BITS 对齐）
+  // 32-bit: tag 使用低 TAG_BITS 位（默认 TAG_BITS = 2；要求指针按 2^TAG_BITS 对齐）
+  // 可通过编译宏调整：FAFAFA_ATOMIC_TAG_BITS_64 / FAFAFA_ATOMIC_TAG_BITS_32
+  atomic_tagged_ptr_t = type PtrUInt;
 
 // 创建带标签指针
-function atomic_tagged_ptr(ptr: Pointer; tag: PtrUInt): atomic_tagged_ptr_t;
+function atomic_tagged_ptr(ptr: Pointer; tag: {$IFDEF CPU64}UInt16{$ELSE}UInt32{$ENDIF}): atomic_tagged_ptr_t;
 
 // 提取指针和标签
 function atomic_tagged_ptr_get_ptr(const tagged: atomic_tagged_ptr_t): Pointer;
-function atomic_tagged_ptr_get_tag(const tagged: atomic_tagged_ptr_t): PtrUInt;
+function atomic_tagged_ptr_get_tag(const tagged: atomic_tagged_ptr_t): {$IFDEF CPU64}UInt16{$ELSE}UInt32{$ENDIF};
 
 // 标签递增（用于版本控制）
-function atomic_tagged_ptr_next(const tagged: atomic_tagged_ptr_t): PtrUInt;
+function atomic_tagged_ptr_next(const tagged: atomic_tagged_ptr_t): {$IFDEF CPU64}UInt16{$ELSE}UInt32{$ENDIF};
 
-// 原子操作
-function atomic_tagged_ptr_load(var target: atomic_tagged_ptr_t; order: memory_order = mo_seq_cst): atomic_tagged_ptr_t;
-procedure atomic_tagged_ptr_store(var target: atomic_tagged_ptr_t; desired: atomic_tagged_ptr_t; order: memory_order = mo_seq_cst);
-function atomic_tagged_ptr_exchange(var target: atomic_tagged_ptr_t; desired: atomic_tagged_ptr_t; order: memory_order = mo_seq_cst): atomic_tagged_ptr_t;
-function atomic_tagged_ptr_compare_exchange_weak(var target: atomic_tagged_ptr_t; var expected: atomic_tagged_ptr_t; desired: atomic_tagged_ptr_t; order: memory_order = mo_seq_cst): Boolean;
+// 原子操作（默认版本）
+// - Load/Store 默认：x86/x86_64 为 mo_relaxed；弱内存序平台为 mo_acquire/mo_release
+// - Exchange/CAS 默认：mo_seq_cst
+function atomic_tagged_ptr_load(var target: atomic_tagged_ptr_t): atomic_tagged_ptr_t; overload;
+procedure atomic_tagged_ptr_store(var target: atomic_tagged_ptr_t; desired: atomic_tagged_ptr_t); overload;
+function atomic_tagged_ptr_exchange(var target: atomic_tagged_ptr_t; desired: atomic_tagged_ptr_t): atomic_tagged_ptr_t; overload;
+function atomic_tagged_ptr_compare_exchange_strong(var target: atomic_tagged_ptr_t; var expected: atomic_tagged_ptr_t; desired: atomic_tagged_ptr_t): Boolean; overload;
+function atomic_tagged_ptr_compare_exchange_weak(var target: atomic_tagged_ptr_t; var expected: atomic_tagged_ptr_t; desired: atomic_tagged_ptr_t): Boolean; overload;
+
+// 原子操作（显式 memory_order）
+function atomic_tagged_ptr_load(var target: atomic_tagged_ptr_t; order: memory_order_t): atomic_tagged_ptr_t; overload;
+procedure atomic_tagged_ptr_store(var target: atomic_tagged_ptr_t; desired: atomic_tagged_ptr_t; order: memory_order_t); overload;
+function atomic_tagged_ptr_exchange(var target: atomic_tagged_ptr_t; desired: atomic_tagged_ptr_t; order: memory_order_t): atomic_tagged_ptr_t; overload;
+function atomic_tagged_ptr_compare_exchange_strong(var target: atomic_tagged_ptr_t; var expected: atomic_tagged_ptr_t; desired: atomic_tagged_ptr_t; success_order, failure_order: memory_order_t): Boolean; overload;
+function atomic_tagged_ptr_compare_exchange_weak(var target: atomic_tagged_ptr_t; var expected: atomic_tagged_ptr_t; desired: atomic_tagged_ptr_t; success_order, failure_order: memory_order_t): Boolean; overload;
 ```
 
 ## 性能特征
@@ -198,7 +264,8 @@ var counter: Int32 = 0;
 // 线程安全的递增
 function GetNextId: Int32;
 begin
-  Result := atomic_increment(counter, mo_relaxed);
+  // fetch_add 返回旧值，因此 +1 得到新值
+  Result := atomic_fetch_add(counter, 1, mo_relaxed) + 1;
 end;
 ```
 
@@ -268,12 +335,14 @@ end;
 
 procedure TRefCounted.AddRef;
 begin
-  atomic_increment(ref_count, mo_relaxed);
+  // 引用计数增加通常使用 relaxed 即可
+  atomic_fetch_add(ref_count, 1, mo_relaxed);
 end;
 
 procedure TRefCounted.Release;
 begin
-  if atomic_decrement(ref_count, mo_acq_rel) = 0 then
+  // fetch_sub 返回旧值；旧值为 1 表示减 1 后到 0
+  if atomic_fetch_sub(ref_count, 1, mo_acq_rel) = 1 then
     Free;
 end;
 ```

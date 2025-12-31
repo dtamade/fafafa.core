@@ -7,7 +7,8 @@ interface
 
 uses
   SysUtils, Classes, fpcunit, testregistry,
-  fafafa.core.atomic;
+  fafafa.core.atomic,
+  fafafa.core.atomic.compat;
 
 procedure RegisterAtomicTests;
 
@@ -25,7 +26,7 @@ type
     procedure Test_atomic_fetch_and_32;
     procedure Test_atomic_fetch_or_32;
     procedure Test_atomic_fetch_xor_32;
-    {$IFDEF CPU64}
+    {$IF DEFINED(CPU64) OR DEFINED(CPUX86)}
     procedure Test_atomic_fetch_and_64;
     procedure Test_atomic_fetch_or_64;
     procedure Test_atomic_fetch_xor_64;
@@ -41,7 +42,7 @@ type
     procedure Test_atomic_compare_exchange_strong_32;
     procedure Test_atomic_compare_exchange_weak_32;
     procedure Test_atomic_increment_decrement_32;
-    {$IFDEF CPU64}
+    {$IF DEFINED(CPU64) OR DEFINED(CPUX86)}
     procedure Test_atomic_load_store_64;
     procedure Test_atomic_exchange_64;
     procedure Test_atomic_compare_exchange_strong_64;
@@ -57,7 +58,7 @@ type
     // 更多覆盖
     procedure Test_atomic_load_store_orders_32;
     procedure Test_atomic_load_store_orders_ptr;
-    {$IFDEF CPU64}
+    {$IF DEFINED(CPU64) OR DEFINED(CPUX86)}
     procedure Test_atomic_load_store_orders_64;
     {$ENDIF}
     procedure Test_atomic_compare_exchange_strong_ptr;
@@ -67,13 +68,13 @@ type
     procedure Test_atomic_uint32_fetch_ops;
     procedure Test_atomic_bitmask_variants_32;
     procedure Test_atomic_fetch_add_sub_boundaries_32;
-    {$IFDEF CPU64}
+    {$IF DEFINED(CPU64) OR DEFINED(CPUX86)}
     procedure Test_atomic_fetch_add_sub_boundaries_64;
     procedure Test_atomic_uint64_fetch_ops;
     {$ENDIF}
 
     procedure Test_ptruint_pointer_fetch_smoke;
-    {$IFDEF CPU64}
+    {$IF DEFINED(CPU64) OR DEFINED(CPUX86)}
     procedure Test_uint64_add_sub_fetch_paths;
     procedure Test_uint64_bitwise_boundary_extremes;
     {$ENDIF}
@@ -81,6 +82,7 @@ type
     procedure Test_compare_exchange_expected_writeback_consistency;
     procedure Test_pointer_fetch_add_negative_boundary;
     procedure Test_tagged_ptr_weak_and_exchange;
+    procedure Test_tagged_ptr_round_trip_allocated_ptr;
     procedure Test_tagged_ptr_tag_wraparound;
     procedure Test_atomic_compare_exchange_loops_32;
   end;
@@ -93,6 +95,11 @@ type
     procedure Test_concurrent_cas_increment_32;
     procedure Test_thread_fence_visibility;
     procedure Test_seq_cst_total_order_three_threads;
+    // ✅ Phase 6: Litmus 测试 - 内存序正确性验证
+    procedure Test_litmus_message_passing;      // MP: release/acquire 同步
+    procedure Test_litmus_store_buffering;      // SB: seq_cst 全序
+    procedure Test_litmus_load_buffering;       // LB: acquire/release 防止重排
+    procedure Test_litmus_independent_reads;    // IRIW: 独立读观测一致性
   end;
 
 // ———— Helpers to bridge PtrInt/PtrUInt on 32-bit without overloading conflicts ————
@@ -169,6 +176,86 @@ begin
 end;
 {$ENDIF}
 
+// ———— Stress helpers (opt-in via env) ————
+//
+// Default test suite stays fast.
+// Set env FAFAFA_ATOMIC_STRESS=1 to enable longer runs.
+// Optional tuning:
+//   FAFAFA_ATOMIC_CONCURRENT_FACTOR (default 5)
+//   FAFAFA_ATOMIC_LITMUS_FACTOR     (default 20)
+//   FAFAFA_ATOMIC_CONCURRENT_NPER   (override per-thread loop count)
+//   FAFAFA_ATOMIC_LITMUS_ITERS      (override MP/SB/LB iters)
+//   FAFAFA_ATOMIC_LITMUS_IRIW_ITERS (override IRIW iters)
+
+function EnvBool(const Name: string): Boolean;
+var
+  s: string;
+begin
+  s := Trim(GetEnvironmentVariable(Name));
+  if s = '' then Exit(False);
+  s := LowerCase(s);
+  Result := (s <> '0') and (s <> 'false') and (s <> 'no') and (s <> 'off');
+end;
+
+function EnvPosInt(const Name: string; DefaultValue: Integer): Integer;
+var
+  s: string;
+  v: LongInt;
+begin
+  s := Trim(GetEnvironmentVariable(Name));
+  if (s <> '') and TryStrToInt(s, v) and (v > 0) then
+    Exit(v);
+  Result := DefaultValue;
+end;
+
+function AtomicStressEnabled: Boolean;
+begin
+  Result := EnvBool('FAFAFA_ATOMIC_STRESS');
+end;
+
+function AtomicConcurrentFactor: Integer;
+begin
+  if AtomicStressEnabled then
+    Result := EnvPosInt('FAFAFA_ATOMIC_CONCURRENT_FACTOR', 5)
+  else
+    Result := 1;
+end;
+
+function AtomicLitmusFactor: Integer;
+begin
+  if AtomicStressEnabled then
+    Result := EnvPosInt('FAFAFA_ATOMIC_LITMUS_FACTOR', 20)
+  else
+    Result := 1;
+end;
+
+function ConcurrentNPer(DefaultValue: Integer): Integer;
+var
+  v: Integer;
+begin
+  v := EnvPosInt('FAFAFA_ATOMIC_CONCURRENT_NPER', 0);
+  if v > 0 then Exit(v);
+  Result := DefaultValue * AtomicConcurrentFactor;
+end;
+
+function LitmusIters(DefaultValue: Integer): Integer;
+var
+  v: Integer;
+begin
+  v := EnvPosInt('FAFAFA_ATOMIC_LITMUS_ITERS', 0);
+  if v > 0 then Exit(v);
+  Result := DefaultValue * AtomicLitmusFactor;
+end;
+
+function LitmusIriwIters(DefaultValue: Integer): Integer;
+var
+  v: Integer;
+begin
+  v := EnvPosInt('FAFAFA_ATOMIC_LITMUS_IRIW_ITERS', 0);
+  if v > 0 then Exit(v);
+  Result := DefaultValue * AtomicLitmusFactor;
+end;
+
 // ———— Tests ————
 
 procedure TTestCase_Global.Test_atomic_fetch_and_32;
@@ -198,12 +285,12 @@ begin
   AssertEquals($000F0FFF, i);
 end;
 
-{$IFDEF CPU64}
+{$IF DEFINED(CPU64) OR DEFINED(CPUX86)}
 procedure TTestCase_Global.Test_atomic_fetch_and_64;
 var i, r: Int64;
 begin
   i := $00FF00FF00FF00FF;
-  r := atomic_fetch_and(i, $0F0F0F0F0F0F0F0F);
+  r := atomic_fetch_and_64(i, $0F0F0F0F0F0F0F0F);
   AssertEquals(QWord($00FF00FF00FF00FF), QWord(r));
   AssertEquals(QWord($000F000F000F000F), QWord(i));
 end;
@@ -212,7 +299,7 @@ procedure TTestCase_Global.Test_atomic_fetch_or_64;
 var i, r: Int64;
 begin
   i := $000F000F000F000F;
-  r := atomic_fetch_or(i, $F0);
+  r := atomic_fetch_or_64(i, $F0);
   AssertEquals(QWord($000F000F000F000F), QWord(r));
   AssertEquals(QWord($000F000F000F00FF), QWord(i));
 end;
@@ -221,7 +308,7 @@ procedure TTestCase_Global.Test_atomic_fetch_xor_64;
 var i, r: Int64;
 begin
   i := $000F000F000F00FF;
-  r := atomic_fetch_xor(i, $0F);
+  r := atomic_fetch_xor_64(i, $0F);
   AssertEquals(QWord($000F000F000F00FF), QWord(r));
   AssertEquals(QWord($000F000F000F00F0), QWord(i));
 end;
@@ -302,7 +389,7 @@ begin
   AssertEquals(2, v);
 end;
 
-{$IFDEF CPU64}
+{$IF DEFINED(CPU64) OR DEFINED(CPUX86)}
 procedure TTestCase_Global.Test_atomic_load_store_64;
 var v: Int64;
 begin
@@ -330,6 +417,21 @@ begin
   AssertEquals(QWord(20), QWord(v));
   AssertEquals(QWord(20), QWord(exp));
 end;
+
+// ✅ P0-3 修复: 添加缺失的 Test_atomic_compare_exchange_weak_64 实现
+procedure TTestCase_Global.Test_atomic_compare_exchange_weak_64;
+var v, exp: Int64;
+begin
+  v := 10; exp := 10;
+  // weak=strong 语义：成功路径
+  AssertTrue(atomic_compare_exchange_weak_64(v, exp, 20));
+  AssertEquals(QWord(20), QWord(v));
+  // 失败路径：预期值不匹配时 expected 会被写回实际旧值
+  exp := 10;
+  AssertFalse(atomic_compare_exchange_weak_64(v, exp, 30));
+  AssertEquals(QWord(20), QWord(v));
+  AssertEquals(QWord(20), QWord(exp));
+end;
 {$ENDIF}
 
 
@@ -347,7 +449,7 @@ begin
   AssertEquals(20, exp);
 end;
 
-{$IFDEF CPU64}
+{$IF DEFINED(CPU64) OR DEFINED(CPUX86)}
 procedure TTestCase_Global.Test_atomic_increment_decrement_64;
 var v: Int64;
 begin
@@ -389,7 +491,7 @@ begin
   AssertTrue(PtrUInt(atomic_load(p, mo_seq_cst)) = 2);
 end;
 
-{$IFDEF CPU64}
+{$IF DEFINED(CPU64) OR DEFINED(CPUX86)}
 procedure TTestCase_Global.Test_atomic_load_store_orders_64;
 var v: Int64;
 begin
@@ -478,7 +580,7 @@ begin
   old := atomic_fetch_sub(v, 1); AssertEquals(High(Int32), old); AssertEquals(High(Int32)-1, v);
 end;
 
-{$IFDEF CPU64}
+{$IF DEFINED(CPU64) OR DEFINED(CPUX86)}
 procedure TTestCase_Global.Test_atomic_fetch_add_sub_boundaries_64;
 var v: Int64; old: Int64;
 begin
@@ -527,16 +629,40 @@ begin
   AssertEquals(3, Integer(atomic_tagged_ptr_get_tag(tp)));
 end;
 
-procedure TTestCase_Global.Test_tagged_ptr_tag_wraparound;
-var tp: atomic_tagged_ptr_t; i: UInt32; last: UInt32;
+procedure TTestCase_Global.Test_tagged_ptr_round_trip_allocated_ptr;
+var
+  p: Pointer;
+  tp: atomic_tagged_ptr_t;
 begin
-  // 从接近最大 tag 开始，触发一次回卷
-  tp := atomic_tagged_ptr(nil, {$IFDEF CPU64}UInt16($FFFE){$ELSE}UInt32($FFFFFFFE){$ENDIF});
-  for i := 1 to 3 do begin
-    tp := atomic_tagged_ptr(atomic_tagged_ptr_get_ptr(tp), atomic_tagged_ptr_next(tp));
+  // 仅验证打包/解包不破坏指针值（不解引用）。
+  // - x86_64: 高 16 位 tag
+  // - 其他平台: 低 TAG_BITS 位 tag（要求指针对齐）
+  GetMem(p, 16);
+  try
+    tp := atomic_tagged_ptr(p, 1);
+    AssertTrue(atomic_tagged_ptr_get_ptr(tp) = p);
+    AssertEquals(1, Integer(atomic_tagged_ptr_get_tag(tp)));
+  finally
+    FreeMem(p);
   end;
+end;
+
+procedure TTestCase_Global.Test_tagged_ptr_tag_wraparound;
+var
+  tp: atomic_tagged_ptr_t;
+  i: UInt32;
+  maxTag, last: {$IFDEF CPU64}UInt16{$ELSE}UInt32{$ENDIF};
+begin
+  // 从接近最大 tag 开始，触发一次回卷。
+  // maxTag 的定义取决于平台/实现（x86_64 为 $FFFF；低位 tag 则为 TAG_MASK）。
+  maxTag := atomic_tagged_ptr_get_tag(atomic_tagged_ptr(nil, {$IFDEF CPU64}UInt16($FFFF){$ELSE}UInt32($FFFFFFFF){$ENDIF}));
+  tp := atomic_tagged_ptr(nil, maxTag - 1);
+
+  // 期望：(max-1) -> max -> 1 -> 2
+  for i := 1 to 3 do
+    tp := atomic_tagged_ptr(atomic_tagged_ptr_get_ptr(tp), atomic_tagged_ptr_next(tp));
+
   last := atomic_tagged_ptr_get_tag(tp);
-  // 期望：FFFE -> FFFF -> 1 -> 2
   AssertEquals(Integer(2), Integer(last));
 end;
 
@@ -598,36 +724,141 @@ type
     constructor CreateShared(var Tp: atomic_tagged_ptr_t; NPer: Integer);
   end;
 
+  TCasInc32Thread = class(TThread)
+  private
+    FValue: PInt32;
+    FNPer: Integer;
+  protected
+    procedure Execute; override;
+  public
+    constructor CreateShared(var Value: Int32; NPer: Integer);
+  end;
+
+  TAtomicStore32Thread = class(TThread)
+  private
+    FTarget: PInt32;
+    FValue: Int32;
+    FOrder: memory_order_t;
+  protected
+    procedure Execute; override;
+  public
+    constructor CreateShared(var Target: Int32; Value: Int32; Order: memory_order_t);
+  end;
+
+  TWaitUntilEqualsThenStore32Thread = class(TThread)
+  private
+    FWaitVar: PInt32;
+    FWaitValue: Int32;
+    FStoreVar: PInt32;
+    FStoreValue: Int32;
+    FOrder: memory_order_t;
+    FMaxIters: Integer;
+  protected
+    procedure Execute; override;
+  public
+    constructor CreateShared(var WaitVar: Int32; WaitValue: Int32; var StoreVar: Int32; StoreValue: Int32;
+      Order: memory_order_t; MaxIters: Integer);
+  end;
+
+  TWaitUntilNonZeroThenLoad32Thread = class(TThread)
+  private
+    FWaitVar: PInt32;
+    FOutVar: PInt32;
+    FOrder: memory_order_t;
+    FMaxIters: Integer;
+  protected
+    procedure Execute; override;
+  public
+    constructor CreateShared(var WaitVar: Int32; var OutVar: Int32; Order: memory_order_t; MaxIters: Integer);
+  end;
+
+  TStoreThenLoad32Thread = class(TThread)
+  private
+    FStoreVar: PInt32;
+    FStoreValue: Int32;
+    FStoreOrder: memory_order_t;
+    FLoadVar: PInt32;
+    FLoadOrder: memory_order_t;
+    FOutVar: PInt32;
+  protected
+    procedure Execute; override;
+  public
+    constructor CreateShared(var StoreVar: Int32; StoreValue: Int32; StoreOrder: memory_order_t;
+      var LoadVar: Int32; LoadOrder: memory_order_t; var OutVar: Int32);
+  end;
+
+  TLoadThenStore32Thread = class(TThread)
+  private
+    FLoadVar: PInt32;
+    FLoadOrder: memory_order_t;
+    FOutVar: PInt32;
+    FStoreVar: PInt32;
+    FStoreValue: Int32;
+    FStoreOrder: memory_order_t;
+  protected
+    procedure Execute; override;
+  public
+    constructor CreateShared(var LoadVar: Int32; LoadOrder: memory_order_t; var OutVar: Int32;
+      var StoreVar: Int32; StoreValue: Int32; StoreOrder: memory_order_t);
+  end;
+
+  TLoadPair32Thread = class(TThread)
+  private
+    FVar1: PInt32;
+    FVar2: PInt32;
+    FOrder: memory_order_t;
+    FOut1: PInt32;
+    FOut2: PInt32;
+  protected
+    procedure Execute; override;
+  public
+    constructor CreateShared(var Var1: Int32; var Var2: Int32; Order: memory_order_t; var Out1: Int32; var Out2: Int32);
+  end;
+
+  TMessagePassingWriterThread = class(TThread)
+  private
+    FData: PInt32;
+    FFlag: PInt32;
+  protected
+    procedure Execute; override;
+  public
+    constructor CreateShared(var Data: Int32; var Flag: Int32);
+  end;
+
+  TMessagePassingReaderThread = class(TThread)
+  private
+    FData: PInt32;
+    FFlag: PInt32;
+    FR1: PInt32;
+    FR2: PInt32;
+  protected
+    procedure Execute; override;
+  public
+    constructor CreateShared(var Data: Int32; var Flag: Int32; var R1: Int32; var R2: Int32);
+  end;
+
 
 procedure TTestCase_Concurrent.Test_concurrent_cas_increment_32;
-const NThreads = 4; NPer = 4000;
-var i: Integer; v: Int32; th: array of TThread = nil;
-  function MakeThread: TThread;
-  begin
-    Result := TThread.CreateAnonymousThread(
-      procedure
-      var k: Integer; exp: Int32; spins: Integer;
-      begin
-
-
-        for k := 1 to NPer do
-        begin
-          spins := 0;
-          repeat
-            exp := v;
-            Inc(spins);
-            if (spins and 1023)=0 then TThread.Yield;
-            if spins > 1000000 then raise Exception.Create('CAS timeout (concurrent_cas_increment_32)');
-          until atomic_compare_exchange_weak(v, exp, exp+1);
-        end;
-      end);
-    Result.FreeOnTerminate := False;
-  end;
+const
+  NThreads = 4;
+  DefaultNPer = 4000;
+var
+  i: Integer;
+  v: Int32;
+  NPer: Integer;
+  th: array of TCasInc32Thread = nil;
 begin
+  NPer := ConcurrentNPer(DefaultNPer);
   v := 0;
   SetLength(th, NThreads);
-  for i := 0 to NThreads-1 do begin th[i] := MakeThread; th[i].Start; end;
-  for i := 0 to NThreads-1 do begin th[i].WaitFor; th[i].Free; end;
+  for i := 0 to NThreads-1 do begin
+    th[i] := TCasInc32Thread.CreateShared(v, NPer);
+    th[i].Start;
+  end;
+  for i := 0 to NThreads-1 do begin
+    th[i].WaitFor;
+    th[i].Free;
+  end;
   AssertEquals(NThreads*NPer, v);
 end;
 
@@ -635,26 +866,8 @@ procedure TTestCase_Concurrent.Test_thread_fence_visibility;
 var x, y: Int32; writer, reader: TThread;
 begin
   x := 0; y := 0;
-  writer := TThread.CreateAnonymousThread(
-    procedure
-    begin
-      atomic_store(x, 1, mo_release);
-    end);
-  writer.FreeOnTerminate := False;
-  reader := TThread.CreateAnonymousThread(
-    procedure
-    var r: Int32; k: Integer;
-    begin
-      // 用 acquire 轮询直到观测到 writer 的 release
-      for k := 1 to 100000 do
-      begin
-        r := atomic_load(x, mo_acquire);
-        if r <> 0 then break;
-        TThread.Yield;
-      end;
-      y := atomic_load(x, mo_acquire);
-    end);
-  reader.FreeOnTerminate := False;
+  writer := TAtomicStore32Thread.CreateShared(x, 1, mo_release);
+  reader := TWaitUntilNonZeroThenLoad32Thread.CreateShared(x, y, mo_acquire, 100000);
   writer.Start; reader.Start; writer.WaitFor; reader.WaitFor; writer.Free; reader.Free;
   AssertEquals(1, y);
 end;
@@ -711,10 +924,205 @@ begin
   end;
 end;
 
-procedure TTestCase_Concurrent.Test_concurrent_fetch_add_32;
-const NThreads = 4; NPer = 5000;
-var i: Integer; counter: Int32; th: array of TInc32Thread = nil;
+constructor TCasInc32Thread.CreateShared(var Value: Int32; NPer: Integer);
 begin
+  inherited Create(True);
+  FreeOnTerminate := False;
+  FValue := @Value;
+  FNPer := NPer;
+end;
+
+procedure TCasInc32Thread.Execute;
+var
+  k: Integer;
+  exp: Int32;
+  spins: Integer;
+begin
+  for k := 1 to FNPer do
+  begin
+    spins := 0;
+    repeat
+      exp := FValue^;
+      Inc(spins);
+      if (spins and 1023)=0 then TThread.Yield;
+      if spins > 1000000 then
+        raise Exception.Create('CAS timeout (concurrent_cas_increment_32)');
+    until atomic_compare_exchange_weak(FValue^, exp, exp + 1);
+  end;
+end;
+
+constructor TAtomicStore32Thread.CreateShared(var Target: Int32; Value: Int32; Order: memory_order_t);
+begin
+  inherited Create(True);
+  FreeOnTerminate := False;
+  FTarget := @Target;
+  FValue := Value;
+  FOrder := Order;
+end;
+
+procedure TAtomicStore32Thread.Execute;
+begin
+  atomic_store(FTarget^, FValue, FOrder);
+end;
+
+constructor TWaitUntilEqualsThenStore32Thread.CreateShared(var WaitVar: Int32; WaitValue: Int32;
+  var StoreVar: Int32; StoreValue: Int32; Order: memory_order_t; MaxIters: Integer);
+begin
+  inherited Create(True);
+  FreeOnTerminate := False;
+  FWaitVar := @WaitVar;
+  FWaitValue := WaitValue;
+  FStoreVar := @StoreVar;
+  FStoreValue := StoreValue;
+  FOrder := Order;
+  FMaxIters := MaxIters;
+end;
+
+procedure TWaitUntilEqualsThenStore32Thread.Execute;
+var
+  k: Integer;
+  v: Int32;
+begin
+  for k := 1 to FMaxIters do
+  begin
+    v := atomic_load(FWaitVar^, FOrder);
+    if v = FWaitValue then
+    begin
+      atomic_store(FStoreVar^, FStoreValue, FOrder);
+      Exit;
+    end;
+    if (k and 1023)=0 then TThread.Yield;
+  end;
+  raise Exception.Create('Wait timeout (wait_until_equals_then_store)');
+end;
+
+constructor TWaitUntilNonZeroThenLoad32Thread.CreateShared(var WaitVar: Int32; var OutVar: Int32;
+  Order: memory_order_t; MaxIters: Integer);
+begin
+  inherited Create(True);
+  FreeOnTerminate := False;
+  FWaitVar := @WaitVar;
+  FOutVar := @OutVar;
+  FOrder := Order;
+  FMaxIters := MaxIters;
+end;
+
+procedure TWaitUntilNonZeroThenLoad32Thread.Execute;
+var
+  k: Integer;
+  r: Int32;
+begin
+  r := 0;
+  for k := 1 to FMaxIters do
+  begin
+    r := atomic_load(FWaitVar^, FOrder);
+    if r <> 0 then Break;
+    TThread.Yield;
+  end;
+  if r = 0 then
+    raise Exception.Create('Wait timeout (wait_until_nonzero_then_load)');
+
+  FOutVar^ := atomic_load(FWaitVar^, FOrder);
+end;
+
+constructor TStoreThenLoad32Thread.CreateShared(var StoreVar: Int32; StoreValue: Int32; StoreOrder: memory_order_t;
+  var LoadVar: Int32; LoadOrder: memory_order_t; var OutVar: Int32);
+begin
+  inherited Create(True);
+  FreeOnTerminate := False;
+  FStoreVar := @StoreVar;
+  FStoreValue := StoreValue;
+  FStoreOrder := StoreOrder;
+  FLoadVar := @LoadVar;
+  FLoadOrder := LoadOrder;
+  FOutVar := @OutVar;
+end;
+
+procedure TStoreThenLoad32Thread.Execute;
+begin
+  atomic_store(FStoreVar^, FStoreValue, FStoreOrder);
+  FOutVar^ := atomic_load(FLoadVar^, FLoadOrder);
+end;
+
+constructor TLoadThenStore32Thread.CreateShared(var LoadVar: Int32; LoadOrder: memory_order_t; var OutVar: Int32;
+  var StoreVar: Int32; StoreValue: Int32; StoreOrder: memory_order_t);
+begin
+  inherited Create(True);
+  FreeOnTerminate := False;
+  FLoadVar := @LoadVar;
+  FLoadOrder := LoadOrder;
+  FOutVar := @OutVar;
+  FStoreVar := @StoreVar;
+  FStoreValue := StoreValue;
+  FStoreOrder := StoreOrder;
+end;
+
+procedure TLoadThenStore32Thread.Execute;
+begin
+  FOutVar^ := atomic_load(FLoadVar^, FLoadOrder);
+  atomic_store(FStoreVar^, FStoreValue, FStoreOrder);
+end;
+
+constructor TLoadPair32Thread.CreateShared(var Var1: Int32; var Var2: Int32; Order: memory_order_t;
+  var Out1: Int32; var Out2: Int32);
+begin
+  inherited Create(True);
+  FreeOnTerminate := False;
+  FVar1 := @Var1;
+  FVar2 := @Var2;
+  FOrder := Order;
+  FOut1 := @Out1;
+  FOut2 := @Out2;
+end;
+
+procedure TLoadPair32Thread.Execute;
+begin
+  FOut1^ := atomic_load(FVar1^, FOrder);
+  FOut2^ := atomic_load(FVar2^, FOrder);
+end;
+
+constructor TMessagePassingWriterThread.CreateShared(var Data: Int32; var Flag: Int32);
+begin
+  inherited Create(True);
+  FreeOnTerminate := False;
+  FData := @Data;
+  FFlag := @Flag;
+end;
+
+procedure TMessagePassingWriterThread.Execute;
+begin
+  atomic_store(FData^, 42, mo_relaxed);
+  atomic_store(FFlag^, 1, mo_release);
+end;
+
+constructor TMessagePassingReaderThread.CreateShared(var Data: Int32; var Flag: Int32; var R1: Int32; var R2: Int32);
+begin
+  inherited Create(True);
+  FreeOnTerminate := False;
+  FData := @Data;
+  FFlag := @Flag;
+  FR1 := @R1;
+  FR2 := @R2;
+end;
+
+procedure TMessagePassingReaderThread.Execute;
+begin
+  FR1^ := atomic_load(FFlag^, mo_acquire);
+  if FR1^ = 1 then
+    FR2^ := atomic_load(FData^, mo_relaxed);
+end;
+
+procedure TTestCase_Concurrent.Test_concurrent_fetch_add_32;
+const
+  NThreads = 4;
+  DefaultNPer = 5000;
+var
+  i: Integer;
+  counter: Int32;
+  NPer: Integer;
+  th: array of TInc32Thread = nil;
+begin
+  NPer := ConcurrentNPer(DefaultNPer);
   counter := 0;
   SetLength(th, NThreads);
   for i := 0 to NThreads-1 do begin
@@ -747,9 +1155,17 @@ begin
 end;
 
 procedure TTestCase_Concurrent.Test_concurrent_tagged_ptr_increment_tag;
-const NThreads = 4; NPer = 2000;
-var i, total: Integer; tp, tmp: atomic_tagged_ptr_t; th: array of TTaggedIncThread = nil; expected: UInt32;
+const
+  NThreads = 4;
+  DefaultNPer = 2000;
+var
+  i, total: Integer;
+  NPer: Integer;
+  tp, tmp: atomic_tagged_ptr_t;
+  th: array of TTaggedIncThread = nil;
+  expected: UInt32;
 begin
+  NPer := ConcurrentNPer(DefaultNPer);
   tp := atomic_tagged_ptr(nil, 0);
   SetLength(th, NThreads);
   for i := 0 to NThreads-1 do begin
@@ -776,29 +1192,15 @@ procedure TTestCase_Concurrent.Test_seq_cst_total_order_three_threads;
 var a, b, c: Int32; t1, t2, t3: TThread;
 begin
   a := 0; b := 0; c := 0;
-  t1 := TThread.CreateAnonymousThread(procedure begin atomic_store(a, 1, mo_seq_cst); end);
-  t2 := TThread.CreateAnonymousThread(
-    procedure
-    var k: Integer;
-    begin
-      for k := 1 to 100000 do
-      begin
-        if atomic_load(a, mo_seq_cst) = 1 then begin atomic_store(b, 1, mo_seq_cst); break; end;
-        if (k and 1023)=0 then TThread.Yield;
-      end;
-    end);
-  t3 := TThread.CreateAnonymousThread(
-    procedure
-    var k: Integer;
-    begin
-      for k := 1 to 100000 do
-      begin
-        if atomic_load(b, mo_seq_cst) = 1 then begin atomic_store(c, 1, mo_seq_cst); break; end;
-        if (k and 1023)=0 then TThread.Yield;
-      end;
-    end);
-  t1.FreeOnTerminate := False; t2.FreeOnTerminate := False; t3.FreeOnTerminate := False;
-  t1.Start; t2.Start; t3.Start; t1.WaitFor; t2.WaitFor; t3.WaitFor; t1.Free; t2.Free; t3.Free;
+
+  t1 := TAtomicStore32Thread.CreateShared(a, 1, mo_seq_cst);
+  t2 := TWaitUntilEqualsThenStore32Thread.CreateShared(a, 1, b, 1, mo_seq_cst, 100000);
+  t3 := TWaitUntilEqualsThenStore32Thread.CreateShared(b, 1, c, 1, mo_seq_cst, 100000);
+
+  t1.Start; t2.Start; t3.Start;
+  t1.WaitFor; t2.WaitFor; t3.WaitFor;
+  t1.Free; t2.Free; t3.Free;
+
   AssertEquals(1, c);
 end;
 
@@ -815,7 +1217,7 @@ begin
   rp := atomic_fetch_xor(pp, Pointer(PtrUInt($00FF))); AssertEquals(PtrUInt($0FF0), PtrUInt(rp)); AssertEquals(PtrUInt($0F0F), PtrUInt(pp));
 end;
 
-{$IFDEF CPU64}
+{$IF DEFINED(CPU64) OR DEFINED(CPUX86)}
 procedure TTestCase_Global.Test_uint64_add_sub_fetch_paths;
 var u, r: UInt64;
 begin
@@ -825,7 +1227,7 @@ end;
 
 {$ENDIF}
 
-{$IFDEF CPU64}
+{$IF DEFINED(CPU64) OR DEFINED(CPUX86)}
 procedure TTestCase_Global.Test_uint64_bitwise_boundary_extremes;
 var u, r: UInt64;
 begin
@@ -909,6 +1311,192 @@ end;
 
 // 内存序对照与桥接余缺
 
+//┌────────────────────────────────────────────────────────────────────────────┐
+//│              Phase 6: Litmus 测试 - 内存序正确性验证                        │
+//└────────────────────────────────────────────────────────────────────────────┘
+
+// ✅ Litmus Test: Message Passing (MP)
+// 验证 release/acquire 同步：如果 reader 看到 flag=1，则必须看到 data=42
+// 禁止结果: r1=1, r2=0 (看到 flag 但没看到 data)
+procedure TTestCase_Concurrent.Test_litmus_message_passing;
+const
+  DefaultNIterations = 100;  // 默认保持较快
+var
+  NIterations: Integer;
+  data, flag: Int32;
+  r1, r2: Int32;
+  badCount: Integer;
+  iter: Integer;
+  writer, reader: TThread;
+begin
+  NIterations := LitmusIters(DefaultNIterations);
+  badCount := 0;
+
+  for iter := 1 to NIterations do
+  begin
+    data := 0;
+    flag := 0;
+    r1 := 0;
+    r2 := 0;
+
+    writer := TMessagePassingWriterThread.CreateShared(data, flag);
+    reader := TMessagePassingReaderThread.CreateShared(data, flag, r1, r2);
+
+    writer.Start;
+    reader.Start;
+    writer.WaitFor;
+    reader.WaitFor;
+    writer.Free;
+    reader.Free;
+
+    // 如果看到 flag=1 但 data≠42，则内存序错误
+    if (r1 = 1) and (r2 <> 42) then
+      Inc(badCount);
+  end;
+
+  // 在正确的 release/acquire 实现下，badCount 必须为 0
+  AssertEquals('MP litmus: release/acquire 同步失败', 0, badCount);
+end;
+
+// ✅ Litmus Test: Store Buffering (SB)
+// 验证 seq_cst 全序：两个线程各自写后读对方，不能都读到旧值
+// 禁止结果: r1=0, r2=0 (两个线程都没看到对方的写)
+procedure TTestCase_Concurrent.Test_litmus_store_buffering;
+const
+  DefaultNIterations = 100;  // 默认保持较快
+var
+  NIterations: Integer;
+  x, y: Int32;
+  r1, r2: Int32;
+  badCount: Integer;
+  iter: Integer;
+  t1, t2: TThread;
+begin
+  NIterations := LitmusIters(DefaultNIterations);
+  badCount := 0;
+
+  for iter := 1 to NIterations do
+  begin
+    x := 0;
+    y := 0;
+    r1 := -1;
+    r2 := -1;
+
+    t1 := TStoreThenLoad32Thread.CreateShared(x, 1, mo_seq_cst, y, mo_seq_cst, r1);
+    t2 := TStoreThenLoad32Thread.CreateShared(y, 1, mo_seq_cst, x, mo_seq_cst, r2);
+
+    t1.Start;
+    t2.Start;
+    t1.WaitFor;
+    t2.WaitFor;
+    t1.Free;
+    t2.Free;
+
+    // seq_cst 保证至少一个线程能看到对方的写
+    // 禁止: r1=0 AND r2=0
+    if (r1 = 0) and (r2 = 0) then
+      Inc(badCount);
+  end;
+
+  // 在正确的 seq_cst 实现下，badCount 必须为 0
+  AssertEquals('SB litmus: seq_cst 全序失败', 0, badCount);
+end;
+
+// ✅ Litmus Test: Load Buffering (LB)
+// 验证 acquire/release 防止 load-load 重排
+// 两个线程各自读后写，不能都读到对方的写
+// 禁止结果: r1=1, r2=1 (两个线程都读到了对方还没写的值)
+procedure TTestCase_Concurrent.Test_litmus_load_buffering;
+const
+  DefaultNIterations = 100;  // 默认保持较快
+var
+  NIterations: Integer;
+  x, y: Int32;
+  r1, r2: Int32;
+  badCount: Integer;
+  iter: Integer;
+  t1, t2: TThread;
+begin
+  NIterations := LitmusIters(DefaultNIterations);
+  badCount := 0;
+
+  for iter := 1 to NIterations do
+  begin
+    x := 0;
+    y := 0;
+    r1 := -1;
+    r2 := -1;
+
+    t1 := TLoadThenStore32Thread.CreateShared(x, mo_acquire, r1, y, 1, mo_release);
+    t2 := TLoadThenStore32Thread.CreateShared(y, mo_acquire, r2, x, 1, mo_release);
+
+    t1.Start;
+    t2.Start;
+    t1.WaitFor;
+    t2.WaitFor;
+    t1.Free;
+    t2.Free;
+
+    // 在因果一致性下，不可能两个线程都读到对方的写
+    // 禁止: r1=1 AND r2=1
+    if (r1 = 1) and (r2 = 1) then
+      Inc(badCount);
+  end;
+
+  // 在正确实现下，badCount 必须为 0
+  AssertEquals('LB litmus: load-load 重排检测', 0, badCount);
+end;
+
+// ✅ Litmus Test: Independent Reads of Independent Writes (IRIW)
+// 验证 seq_cst 的全局观测一致性
+// 4 个线程：2 个写者，2 个读者
+// 两个读者必须以相同顺序观测到两个写者的写入
+procedure TTestCase_Concurrent.Test_litmus_independent_reads;
+const
+  DefaultNIterations = 50;  // 默认保持较快（4线程开销大）
+var
+  NIterations: Integer;
+  x, y: Int32;
+  r1, r2, r3, r4: Int32;
+  badCount: Integer;
+  iter: Integer;
+  w1, w2, reader1, reader2: TThread;
+begin
+  NIterations := LitmusIriwIters(DefaultNIterations);
+  badCount := 0;
+
+  for iter := 1 to NIterations do
+  begin
+    x := 0;
+    y := 0;
+    r1 := -1; r2 := -1; r3 := -1; r4 := -1;
+
+    // Writer 1: 写 x=1
+    w1 := TAtomicStore32Thread.CreateShared(x, 1, mo_seq_cst);
+
+    // Writer 2: 写 y=1
+    w2 := TAtomicStore32Thread.CreateShared(y, 1, mo_seq_cst);
+
+    // Reader 1: 先读 x，再读 y
+    reader1 := TLoadPair32Thread.CreateShared(x, y, mo_seq_cst, r1, r2);
+
+    // Reader 2: 先读 y，再读 x
+    reader2 := TLoadPair32Thread.CreateShared(y, x, mo_seq_cst, r3, r4);
+
+    w1.Start; w2.Start; reader1.Start; reader2.Start;
+    w1.WaitFor; w2.WaitFor; reader1.WaitFor; reader2.WaitFor;
+    w1.Free; w2.Free; reader1.Free; reader2.Free;
+
+    // seq_cst 保证全局一致的观测顺序
+    // 禁止: reader1 看到 x=1,y=0 (x 先于 y) 同时 reader2 看到 y=1,x=0 (y 先于 x)
+    // 即: (r1=1, r2=0) AND (r3=1, r4=0) 是禁止的
+    if (r1 = 1) and (r2 = 0) and (r3 = 1) and (r4 = 0) then
+      Inc(badCount);
+  end;
+
+  // 在正确的 seq_cst 实现下，badCount 必须为 0
+  AssertEquals('IRIW litmus: seq_cst 全局观测一致性失败', 0, badCount);
+end;
 
 {$POP}
 end.

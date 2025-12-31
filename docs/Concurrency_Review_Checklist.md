@@ -9,8 +9,8 @@
 
 ## 2) 原子与内存序
 - 是否统一使用 fafafa.core.atomic 的 atomic_* API（禁止混用 TInterlocked）？
-- 读取快路径：memory_order_relaxed；数据交接：release/acquire；CAS/RMW：acq_rel？
-- 指针访问是否仅通过 atomic_load_ptr/atomic_store_ptr/CAS？32 位指针原子性是否考虑？
+- 读取快路径：`mo_relaxed`；数据交接：`mo_release/mo_acquire`；CAS/RMW：`mo_acq_rel`？
+- 指针访问是否仅通过 `atomic_load/atomic_store/atomic_compare_exchange_*`（Pointer 重载）？32 位指针原子性是否考虑？
 
 ## 3) 数据结构选型与语义
 - SPSC：固定容量（2^n），环/序列号；MPSC：Michael-Scott 链式；MPMC：Vyukov 序列号环？

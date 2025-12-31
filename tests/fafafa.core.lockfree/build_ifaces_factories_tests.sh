@@ -89,14 +89,12 @@ if [[ ${BUILD_RC} -ne 0 ]]; then
   exit ${BUILD_RC}
 fi
 
-if [[ -x "${EXECUTABLE_BASE}.exe" ]]; then
+if [[ -x "${EXECUTABLE_BASE}" ]]; then
+  EXECUTABLE="${EXECUTABLE_BASE}"
+elif [[ -x "${EXECUTABLE_BASE}.exe" ]]; then
   EXECUTABLE="${EXECUTABLE_BASE}.exe"
 else
-  EXECUTABLE="${EXECUTABLE_BASE}"
-fi
-
-if [[ ! -x "${EXECUTABLE}" ]]; then
-  echo "[ERROR] Interface/factories test executable not found at ${EXECUTABLE}"
+  echo "[ERROR] Interface/factories test executable not found at ${EXECUTABLE_BASE}[.exe]"
   exit 1
 fi
 

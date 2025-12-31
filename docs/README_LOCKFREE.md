@@ -22,36 +22,34 @@
 
 - 原子实现统一至 `fafafa.core.atomic`，不再依赖 `fafafa.core.sync`
 - 常用 API：
-  - 指针：`atomic_load_ptr` / `atomic_store_ptr` / `atomic_exchange_ptr` / `atomic_compare_exchange_strong_ptr`
+  - 指针：`atomic_load` / `atomic_store` / `atomic_exchange` / `atomic_compare_exchange_strong`（Pointer 重载；旧命名 wrappers 见 `fafafa.core.atomic.compat`）
   - 64位整型：`atomic_load_64` / `atomic_store_64` / `atomic_compare_exchange_strong_64` / `atomic_fetch_add_64` / `atomic_fetch_sub_64`
   - 普通整型：`atomic_load` / `atomic_store` / `atomic_fetch_add` / `atomic_fetch_sub`
 - 内存序建议：
-  - CAS：`memory_order_acq_rel`
-  - 发布写：`memory_order_release`
-  - 读取观测：`memory_order_acquire`
-  - 统计/非关键：`memory_order_relaxed`
+  - CAS/RMW：`mo_acq_rel`
+  - 发布写：`mo_release`
+  - 读取观测：`mo_acquire`
+  - 统计/非关键：`mo_relaxed`
 - 典型路径：
-  - Treiber/PreAlloc 栈：CAS 用 acq_rel；头部加载 acquire；IsEmpty 可 relaxed
-  - MSQueue：修改 head/tail 的 CAS 用 acq_rel；读侧 acquire
-  - MPMC 队列：槽位序号 acquire，推进游标 acq_rel，发布写 release
-  - OA HashMap：Empty→Writing（acq_rel）→Occupied（release），读 acquire；计数 relaxed
+  - Treiber/PreAlloc 栈：CAS 用 `mo_acq_rel`；头部加载 `mo_acquire`；IsEmpty 可 `mo_relaxed`
+  - MSQueue：修改 head/tail 的 CAS 用 `mo_acq_rel`；读侧 `mo_acquire`
+  - MPMC 队列：槽位序号 `mo_acquire`，推进游标 `mo_acq_rel`，发布写 `mo_release`
+  - OA HashMap：Empty→Writing（`mo_acq_rel`）→Occupied（`mo_release`），读 `mo_acquire`；计数 `mo_relaxed`
 
 ### 内存屏障适配说明（atomic_thread_fence）
 
-- `fafafa.core.atomic` 中的 `atomic_thread_fence(order)` 会对 `acquire/release/acq_rel/seq_cst` 使用统一的读写屏障。
+- `fafafa.core.atomic` 中的 `atomic_thread_fence(order)` 会对 `mo_acquire/mo_release/mo_acq_rel/mo_seq_cst` 使用统一的读写屏障。
 - 为提升可移植性，模块内部提供 `ReadWriteBarrier` 的后备定义：
   - 若存在 `System.MemoryBarrier`，优先调用
   - 否则若存在 `MemoryBarrier`，调用之
   - 否则退化为空操作（在 x86/x64 等强内存模型上通常可接受）
 - 如目标平台为弱内存模型（如部分 ARM），建议在 RTL 或平台层提供合适的 `MemoryBarrier`，以确保严格的 acquire/release 语义。
-- `memory_order_consume` 视同 `acquire` 处理（与 C++ 社区实践一致）。
+- `mo_consume` 当前实现视同 `mo_acquire` 处理（与 C++ 社区实践一致）。
 
 
 ## 快速示例
 
 ```pascal
-- 新增：MPSC 与 Stack 门面与便捷构造（详见下文和 docs/LOCKFREE_API.md）
-
 uses
   fafafa.core.lockfree;
 
@@ -64,6 +62,9 @@ begin
     Q.Enqueue(2);
   finally
     Q.Free;
+  end;
+end;
+```
 
 ### 新增门面概览（MPSC / Stack）
 
@@ -76,10 +77,6 @@ begin
   - 预分配安全栈：CreateIntPreAllocStack(ACapacity) / CreateStrPreAllocStack(ACapacity) / ...
 
 更多清单见 docs/LOCKFREE_API.md
-
-  end;
-end;
-```
 
 
 ## 门面最佳实践（推荐）

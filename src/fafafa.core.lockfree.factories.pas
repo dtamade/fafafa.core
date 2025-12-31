@@ -1009,7 +1009,7 @@ end;
 
 function TPreallocStackAdapter.Push(constref Item: T): Boolean;
 begin
-  Result := FS.Push(Item);
+  Result := FS.TryPush(Item);
 end;
 
 function TPreallocStackAdapter.Pop(out Item: T): Boolean;

@@ -26,6 +26,50 @@ implementation
 uses
   fafafa.core.lockfree.backoff;
 
+function CaseInsensitiveEqual(const L, R: string): Boolean;
+begin
+  Result := CompareText(L, R) = 0;
+end;
+
+function CaseInsensitiveHash32(const Key: string): Cardinal;
+var
+  i: SizeInt;
+  h: Cardinal;
+  c: Char;
+begin
+  // FNV-1a 32-bit (case-insensitive)
+  h := Cardinal($811C9DC5);
+  for i := 1 to Length(Key) do
+  begin
+    c := UpCase(Key[i]);
+    h := h xor Cardinal(Ord(c));
+    h := h * Cardinal($01000193);
+  end;
+  Result := h;
+end;
+
+function CaseInsensitiveHash64(const Key: string): QWord;
+var
+  i: SizeInt;
+  h: QWord;
+  c: Char;
+begin
+  // FNV-1a 64-bit (case-insensitive)
+  h := QWord($CBF29CE484222325);
+  for i := 1 to Length(Key) do
+  begin
+    c := UpCase(Key[i]);
+    h := h xor QWord(Ord(c));
+    h := h * QWord($100000001B3);
+  end;
+  Result := h;
+end;
+
+function MapComputeInc(const OldValue: Integer): Integer;
+begin
+  Result := OldValue + 1;
+end;
+
 var
   CurrentBackoffLabel: String = 'Default';
 
@@ -177,12 +221,12 @@ begin
 
   // OA: Case-insensitive comparer
   MB := specialize TMapBuilder<string,Integer>.New.Capacity(1024).ImplOA
-    .WithComparer(@DefaultStringHash, @CaseInsensitiveEqual);
+    .WithComparer(@CaseInsensitiveHash32, @CaseInsensitiveEqual);
   M := MB.BuildEx;
   t0 := Now;
   for i := 1 to N do begin
     M.PutIfAbsent('Key'+IntToStr(i mod 128), i, inserted);
-    M.Compute('KEY'+IntToStr(i mod 128), function(const v: Integer): Integer begin Result := v + 1; end, updated);
+    M.Compute('KEY'+IntToStr(i mod 128), @MapComputeInc, updated);
     M.Get('key'+IntToStr(i mod 128), outV);
   end;
   t1 := Now;
@@ -192,12 +236,12 @@ begin
 
   // MM: 需要提供比较器
   MB := specialize TMapBuilder<string,Integer>.New.Capacity(1024).ImplMM
-    .WithComparer(@DefaultStringHash, @CaseInsensitiveEqual);
+    .WithComparerMM(@CaseInsensitiveHash64, @CaseInsensitiveEqual);
   M := MB.BuildEx;
   t0 := Now;
   for i := 1 to N do begin
     M.PutIfAbsent('Key'+IntToStr(i mod 128), i, inserted);
-    M.Compute('KEY'+IntToStr(i mod 128), function(const v: Integer): Integer begin Result := v + 1; end, updated);
+    M.Compute('KEY'+IntToStr(i mod 128), @MapComputeInc, updated);
     M.Get('key'+IntToStr(i mod 128), outV);
   end;
   t1 := Now;

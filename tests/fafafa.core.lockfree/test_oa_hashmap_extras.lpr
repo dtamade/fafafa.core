@@ -21,7 +21,7 @@ begin
     if not Map.Get('a', V) then raise Exception.Create('Get failed');
     if V <> 1 then raise Exception.Create('Value mismatch');
   finally
-    Map := nil; // class type; allow ref drop
+    Map.Free;
   end;
 end;
 
@@ -39,7 +39,7 @@ begin
     if Inserted = 0 then raise Exception.Create('No inserts succeeded');
     WriteLn('Inserted: ', Inserted, ' (expected < 1024)');
   finally
-    Map := nil;
+    Map.Free;
   end;
 end;
 

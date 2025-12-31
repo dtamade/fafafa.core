@@ -54,7 +54,7 @@ begin
     AssertTrue(Map.Get('abc', V));
     AssertEquals(7, V);
   finally
-    Map := nil;
+    Map.Free;
   end;
 end;
 

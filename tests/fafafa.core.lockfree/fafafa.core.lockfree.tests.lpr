@@ -32,6 +32,7 @@ end;
 
 var
   LApplication: TLockFreeTestRunner;
+  backoff: String;
 
 begin
   WriteLn('fafafa.core.lockfree 单元测试');
@@ -45,7 +46,7 @@ begin
   if GetEnvironmentVariable('FAFAFA_BENCH') <> '' then
   begin
     // Optional: select backoff variant
-    var backoff := GetEnvironmentVariable('FAFAFA_BENCH_BACKOFF');
+    backoff := GetEnvironmentVariable('FAFAFA_BENCH_BACKOFF');
     if (backoff <> '') and (CompareText(backoff, 'Aggressive') = 0) then
     begin
       RunBlockingPolicyMicroBench_Aggressive;

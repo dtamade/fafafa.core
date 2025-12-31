@@ -80,9 +80,9 @@ var
   oldHead: Pointer;
 begin
   repeat
-    oldHead := atomic_load_ptr(gParticipantsHead, mo_relaxed);
+    oldHead := atomic_load(gParticipantsHead, mo_relaxed);
     node^.next := PParticipant(oldHead);
-  until atomic_compare_exchange_strong_ptr(gParticipantsHead, oldHead, node);
+  until atomic_compare_exchange_strong(gParticipantsHead, oldHead, node);
   Result := True;
 end;
 
@@ -121,13 +121,13 @@ begin
   p^.active := 0;
   // 从全局单链表移除（无锁近似：如果失败则保留，后续扫描忽略 active=0 即可）
   prev := nil;
-  cur := PParticipant(atomic_load_ptr(gParticipantsHead, mo_acquire));
+  cur := PParticipant(atomic_load(gParticipantsHead, mo_acquire));
   while cur <> nil do
   begin
     if cur = p then
     begin
       if prev = nil then
-        atomic_compare_exchange_strong_ptr(gParticipantsHead, Pointer(cur), Pointer(cur^.next))
+        atomic_compare_exchange_strong(gParticipantsHead, Pointer(cur), Pointer(cur^.next))
       else
         prev^.next := cur^.next;
       Break;
@@ -160,7 +160,7 @@ var
   minE: Int64;
 begin
   minE := atomic_load_64(gEpoch, mo_relaxed);
-  cur := PParticipant(atomic_load_ptr(gParticipantsHead, mo_acquire));
+  cur := PParticipant(atomic_load(gParticipantsHead, mo_acquire));
   while cur <> nil do
   begin
     if cur^.active <> 0 then
@@ -218,7 +218,7 @@ procedure lf_drain; inline;
 var
   cur: PParticipant;
 begin
-  cur := PParticipant(atomic_load_ptr(gParticipantsHead, mo_acquire));
+  cur := PParticipant(atomic_load(gParticipantsHead, mo_acquire));
   while cur <> nil do
   begin
     CollectFor(cur);

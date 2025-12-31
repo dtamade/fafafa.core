@@ -152,7 +152,7 @@ begin
   {$POP}
   
   // Update array pointer atomically
-  atomic_store_ptr(Pointer(FArray), LNewArray, mo_release);
+  atomic_store(Pointer(FArray), LNewArray, mo_release);
   
   // Update indices
   atomic_store_64(FTop, 0, mo_relaxed);
@@ -168,7 +168,7 @@ function TLockFreeDeque.GetCapacity: Integer;
 var
   LArray: PArray;
 begin
-  LArray := atomic_load_ptr(Pointer(FArray), mo_relaxed);
+  LArray := atomic_load(Pointer(FArray), mo_relaxed);
   if LArray <> nil then
     Result := LArray^.Size
   else
@@ -187,7 +187,7 @@ var
 begin
   LBottom := atomic_load_64(FBottom, mo_relaxed);
   LTop := atomic_load_64(FTop, mo_acquire);
-  LArray := atomic_load_ptr(Pointer(FArray), mo_relaxed);
+  LArray := atomic_load(Pointer(FArray), mo_relaxed);
   
   LSize := Integer(LBottom - LTop);
   
@@ -218,7 +218,7 @@ var
   LExpectedTop: Int64;
 begin
   LBottom := atomic_load_64(FBottom, mo_relaxed);
-  LArray := atomic_load_ptr(Pointer(FArray), mo_relaxed);
+  LArray := atomic_load(Pointer(FArray), mo_relaxed);
   
   LNewBottom := LBottom - 1;
   atomic_store_64(FBottom, LNewBottom, mo_relaxed);
@@ -287,7 +287,7 @@ begin
   end;
   
   // Load array and get item (disable range checking)
-  LArray := atomic_load_ptr(Pointer(FArray), mo_consume);
+  LArray := atomic_load(Pointer(FArray), mo_consume);
   {$PUSH}
   {$R-} // Disable range checking
   AItem := LArray^.Data[LTop and (LArray^.Size - 1)];

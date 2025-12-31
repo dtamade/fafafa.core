@@ -8,6 +8,7 @@ interface
 
 uses
   SysUtils,
+  fafafa.core.base,
   fafafa.core.atomic,
   fafafa.core.lockfree.ifaces,
   fafafa.core.lockfree.blocking,
@@ -16,9 +17,8 @@ uses
   fafafa.core.lockfree.mpmcQueue;
 
 type
-  generic TLockFreeChannelBase<T, TQueue> = class(TInterfacedObject)
+  generic TLockFreeChannelBase<T> = class(TInterfacedObject)
   strict protected
-    FQueue: TQueue;
     FState: Int32;
     FBlockingPolicy: IBlockingPolicy;
     function InternalTrySend(constref aItem: T): Boolean; virtual; abstract;
@@ -38,8 +38,7 @@ type
     function DoWaitReceiveReady(aTimeoutUs: Int64): Boolean;
     function CurrentState: TLockFreeChannelState; inline;
 
-    constructor Create(const aQueue: TQueue; const aBlocking: IBlockingPolicy);
-    procedure FreeQueue; virtual;
+    constructor Create(const aBlocking: IBlockingPolicy);
   private
     function GetStateValue: TLockFreeChannelState; inline;
     function TryTransition(aFrom, aTo: TLockFreeChannelState): Boolean; inline;
@@ -48,7 +47,12 @@ type
     procedure StepBlocking(var aSpinCount: Integer; const aDeadline: Int64; out aTimedOut: Boolean); inline;
   end;
 
-  generic TLockFreeChannelMPMC<T> = class(specialize TLockFreeChannelBase<T, specialize TPreAllocMPMCQueue<T>>, specialize ILockFreeChannelMPMC<T>)
+  generic TLockFreeChannelMPMC<T> = class(specialize TLockFreeChannelBase<T>, specialize ILockFreeChannelMPMC<T>)
+  private
+    type
+      TQueue = specialize TPreAllocMPMCQueue<T>;
+  private
+    FQueue: TQueue;
   protected
     function InternalTrySend(constref aItem: T): Boolean; override;
     function InternalTryReceive(out aItem: T): Boolean; override;
@@ -74,7 +78,12 @@ type
     function Capacity: SizeInt;
   end;
 
-  generic TLockFreeChannelSPSC<T> = class(specialize TLockFreeChannelBase<T, specialize TSPSCQueue<T>>, specialize ILockFreeChannelSPSC<T>)
+  generic TLockFreeChannelSPSC<T> = class(specialize TLockFreeChannelBase<T>, specialize ILockFreeChannelSPSC<T>)
+  private
+    type
+      TQueue = specialize TSPSCQueue<T>;
+  private
+    FQueue: TQueue;
   protected
     function InternalTrySend(constref aItem: T): Boolean; override;
     function InternalTryReceive(out aItem: T): Boolean; override;
@@ -100,7 +109,12 @@ type
     function Capacity: SizeInt;
   end;
 
-  generic TLockFreeChannelMPSC<T> = class(specialize TLockFreeChannelBase<T, specialize TMichaelScottQueue<T>>, specialize ILockFreeChannelMPSC<T>)
+  generic TLockFreeChannelMPSC<T> = class(specialize TLockFreeChannelBase<T>, specialize ILockFreeChannelMPSC<T>)
+  private
+    type
+      TQueue = specialize TMichaelScottQueue<T>;
+  private
+    FQueue: TQueue;
   protected
     function InternalTrySend(constref aItem: T): Boolean; override;
     function InternalTryReceive(out aItem: T): Boolean; override;
@@ -126,43 +140,27 @@ type
     function Capacity: SizeInt;
   end;
 
-function CreateLockFreeChannelMPMC<T>(aCapacity: SizeInt = 1024): specialize ILockFreeChannelMPMC<T>;
-function CreateLockFreeChannelSPSC<T>(aCapacity: SizeInt = 1024): specialize ILockFreeChannelSPSC<T>;
-function CreateLockFreeChannelMPSC<T>: specialize ILockFreeChannelMPSC<T>;
+generic function CreateLockFreeChannelMPMC<T>(aCapacity: SizeInt = 1024): specialize ILockFreeChannelMPMC<T>;
+generic function CreateLockFreeChannelSPSC<T>(aCapacity: SizeInt = 1024): specialize ILockFreeChannelSPSC<T>;
+generic function CreateLockFreeChannelMPSC<T>: specialize ILockFreeChannelMPSC<T>;
 
 implementation
 
-const
-  CHANNEL_STATE_MASK = Ord(High(TLockFreeChannelState));
-
-function NowMicroseconds: Int64; inline;
-begin
-  Result := Int64(GetTickCount64) * 1000;
-end;
 
 { TLockFreeChannelBase }
 
-constructor TLockFreeChannelBase.Create(const aQueue: TQueue; const aBlocking: IBlockingPolicy);
+constructor TLockFreeChannelBase.Create(const aBlocking: IBlockingPolicy);
 begin
   inherited Create;
-  if aQueue = nil then
-    raise EArgumentNil.Create('Channel queue cannot be nil');
-  FQueue := aQueue;
   FBlockingPolicy := aBlocking;
   if FBlockingPolicy = nil then
     FBlockingPolicy := GetDefaultBlockingPolicy;
   atomic_store(FState, Ord(csOpen), mo_release);
 end;
 
-procedure TLockFreeChannelBase.FreeQueue;
-begin
-  if TObject(FQueue) <> nil then
-    TObject(FQueue).Free;
-end;
-
 function TLockFreeChannelBase.GetStateValue: TLockFreeChannelState;
 begin
-  Result := TLockFreeChannelState(atomic_load(FState, mo_acquire) and CHANNEL_STATE_MASK);
+  Result := TLockFreeChannelState(atomic_load(FState, mo_acquire) and Ord(High(TLockFreeChannelState)));
 end;
 
 function TLockFreeChannelBase.CurrentState: TLockFreeChannelState;
@@ -182,12 +180,12 @@ function TLockFreeChannelBase.MakeDeadline(aTimeoutUs: Int64): Int64;
 begin
   if aTimeoutUs < 0 then
     Exit(-1);
-  Result := NowMicroseconds + aTimeoutUs;
+  Result := (Int64(GetTickCount64) * 1000) + aTimeoutUs;
 end;
 
 function TLockFreeChannelBase.DeadlineExpired(const aDeadline: Int64): Boolean;
 begin
-  Result := (aDeadline >= 0) and (NowMicroseconds >= aDeadline);
+  Result := (aDeadline >= 0) and ((Int64(GetTickCount64) * 1000) >= aDeadline);
 end;
 
 procedure TLockFreeChannelBase.StepBlocking(var aSpinCount: Integer; const aDeadline: Int64; out aTimedOut: Boolean);
@@ -366,12 +364,13 @@ constructor TLockFreeChannelMPMC.Create(aCapacity: SizeInt; aBlocking: IBlocking
 begin
   if aCapacity <= 0 then
     raise EInvalidArgument.Create('Channel capacity must be positive');
-  inherited Create(TPreAllocMPMCQueue<T>.Create(aCapacity), aBlocking);
+  inherited Create(aBlocking);
+  FQueue := TQueue.Create(aCapacity);
 end;
 
 destructor TLockFreeChannelMPMC.Destroy;
 begin
-  FreeQueue;
+  FQueue.Free;
   inherited Destroy;
 end;
 
@@ -476,12 +475,13 @@ constructor TLockFreeChannelSPSC.Create(aCapacity: SizeInt; aBlocking: IBlocking
 begin
   if aCapacity <= 0 then
     raise EInvalidArgument.Create('Channel capacity must be positive');
-  inherited Create(TSPSCQueue<T>.Create(aCapacity), aBlocking);
+  inherited Create(aBlocking);
+  FQueue := TQueue.Create(aCapacity);
 end;
 
 destructor TLockFreeChannelSPSC.Destroy;
 begin
-  FreeQueue;
+  FQueue.Free;
   inherited Destroy;
 end;
 
@@ -584,12 +584,13 @@ end;
 
 constructor TLockFreeChannelMPSC.Create(aBlocking: IBlockingPolicy);
 begin
-  inherited Create(TMichaelScottQueue<T>.Create, aBlocking);
+  inherited Create(aBlocking);
+  FQueue := TQueue.Create;
 end;
 
 destructor TLockFreeChannelMPSC.Destroy;
 begin
-  FreeQueue;
+  FQueue.Free;
   inherited Destroy;
 end;
 
@@ -689,17 +690,17 @@ begin
   Result := QueueCapacity;
 end;
 
-function CreateLockFreeChannelMPMC<T>(aCapacity: SizeInt): specialize ILockFreeChannelMPMC<T>;
+generic function CreateLockFreeChannelMPMC<T>(aCapacity: SizeInt): specialize ILockFreeChannelMPMC<T>;
 begin
   Result := specialize TLockFreeChannelMPMC<T>.Create(aCapacity);
 end;
 
-function CreateLockFreeChannelSPSC<T>(aCapacity: SizeInt): specialize ILockFreeChannelSPSC<T>;
+generic function CreateLockFreeChannelSPSC<T>(aCapacity: SizeInt): specialize ILockFreeChannelSPSC<T>;
 begin
   Result := specialize TLockFreeChannelSPSC<T>.Create(aCapacity);
 end;
 
-function CreateLockFreeChannelMPSC<T>: specialize ILockFreeChannelMPSC<T>;
+generic function CreateLockFreeChannelMPSC<T>: specialize ILockFreeChannelMPSC<T>;
 begin
   Result := specialize TLockFreeChannelMPSC<T>.Create;
 end;

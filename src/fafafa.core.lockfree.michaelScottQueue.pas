@@ -9,7 +9,8 @@ interface
 uses
   fafafa.core.collections.queue;
 
-
+// Global disposer used by MSQueue retirement; paired with clearing node payload before retire.
+procedure MSQ_DisposeNode(p: Pointer);
 
 
 type
@@ -55,13 +56,14 @@ uses
 procedure MSQ_DisposeNode(p: Pointer);
 begin
   if p <> nil then
-    Dispose(PNode(p));
+    FreeMem(p);
 end;
 
 constructor TMichaelScottQueue.Create;
 begin
   inherited Create;
   New(FHead);
+  FHead^.Data := Default(T);
   FHead^.Next := nil;
   FHead^.HasData := False;
   FTail := FHead;
@@ -75,8 +77,7 @@ begin
   while LNode <> nil do
   begin
     LNext := LNode^.Next;
-    // retire nodes; in Immediate mode this frees directly
-    lf_retire(LNode, @MSQ_DisposeNode);
+    Dispose(LNode);
     LNode := LNext;
   end;
   // ensure all retired nodes are reclaimed (Immediate: no-op)
@@ -96,26 +97,26 @@ begin
   LNewNode^.HasData := True;
   repeat
     // HB-1: acquire read tail to see newest published tail value
-    LTail := atomic_load_ptr(PPointer(@FTail)^, mo_acquire);
+    LTail := atomic_load(PPointer(@FTail)^, mo_acquire);
     // HB-2: acquire read next to observe enqueuer's release of new node link
-    LNext := PNode(atomic_load_ptr(PPointer(@LTail^.Next)^, mo_acquire));
+    LNext := PNode(atomic_load(PPointer(@LTail^.Next)^, mo_acquire));
     // Re-read tail (acquire) and compare to avoid torn observation
-    if LTail = atomic_load_ptr(PPointer(@FTail)^, mo_acquire) then
+    if LTail = atomic_load(PPointer(@FTail)^, mo_acquire) then
     begin
       if LNext = nil then
       begin
         LExpected := nil;
-        if atomic_compare_exchange_strong_ptr(PPointer(@LTail^.Next)^, LExpected, Pointer(LNewNode)) then
+        if atomic_compare_exchange_strong(PPointer(@LTail^.Next)^, LExpected, Pointer(LNewNode)) then
         begin
           LExpected := LTail;
-          atomic_compare_exchange_strong_ptr(PPointer(@FTail)^, LExpected, Pointer(LNewNode));
+          atomic_compare_exchange_strong(PPointer(@FTail)^, LExpected, Pointer(LNewNode));
           Break;
         end;
       end
       else
       begin
         LExpected := LTail;
-        atomic_compare_exchange_strong_ptr(PPointer(@FTail)^, LExpected, Pointer(LNext));
+        atomic_compare_exchange_strong(PPointer(@FTail)^, LExpected, Pointer(LNext));
       end;
     end;
   until False;
@@ -127,13 +128,14 @@ var
   LExpected: Pointer;
   G: Pointer;
 begin
+  AItem := Default(T);
   G := lf_enter;
   try
     repeat
-      LHead := atomic_load_ptr(PPointer(@FHead)^, mo_acquire);
-      LTail := atomic_load_ptr(PPointer(@FTail)^, mo_acquire);
+      LHead := atomic_load(PPointer(@FHead)^, mo_acquire);
+      LTail := atomic_load(PPointer(@FTail)^, mo_acquire);
       // Acquire read of next ensures we see the enqueuer's data published before linking
-      LNext := PNode(atomic_load_ptr(PPointer(@LHead^.Next)^, mo_acquire));
+      LNext := PNode(atomic_load(PPointer(@LHead^.Next)^, mo_acquire));
       if LHead = FHead then
       begin
         if LHead = LTail then
@@ -141,21 +143,31 @@ begin
           if LNext = nil then Exit(False);
           LExpected := LTail;
           // HB-3: acq_rel CAS on tail to help advance tail publishes new tail
-          atomic_compare_exchange_strong_ptr(PPointer(@FTail)^, LExpected, Pointer(LNext));
+          atomic_compare_exchange_strong(PPointer(@FTail)^, LExpected, Pointer(LNext));
         end
         else
         begin
           if LNext <> nil then
           begin
-            if LNext^.HasData then
-              AItem := LNext^.Data;
             LExpected := LHead;
             // HB-4: acq_rel CAS moves head to next; publish new head and ensures prior reads of LNext^.Data are visible
-            if atomic_compare_exchange_strong_ptr(PPointer(@FHead)^, LExpected, Pointer(LNext)) then
+            if atomic_compare_exchange_strong(PPointer(@FHead)^, LExpected, Pointer(LNext)) then
             begin
-              // retire old head after unlink; immediate mode frees it directly
+              // We won the dequeue: take the payload from LNext and then turn it into the new dummy head.
+              if LNext^.HasData then
+              begin
+                AItem := LNext^.Data;
+                LNext^.Data := Default(T);
+              end
+              else
+              begin
+                AItem := Default(T);
+              end;
+              LNext^.HasData := False;
+
+              // retire old head after unlink; nodes are dummy nodes (payload cleared)
               lf_retire(LHead, @MSQ_DisposeNode);
-              Exit(LNext^.HasData);
+              Exit(True);
             end;
           end;
         end;
@@ -164,6 +176,8 @@ begin
   finally
     lf_exit(G);
   end;
+  Result := False;
+end;
 
 { IQueue<T> 显式实现 }
 
@@ -218,8 +232,6 @@ end;
 function TMichaelScottQueue.Count: SizeUInt;
 begin
   Result := 0;
-end;
-
 end;
 
 function TMichaelScottQueue.IsEmpty: Boolean;

@@ -1137,7 +1137,7 @@ var
   LResult: Boolean;
 begin
   // 测试压栈
-  LResult := FStack.Push(42);
+  LResult := FStack.TryPush(42);
   CheckTrue(LResult, '压栈应该成功');
   CheckFalse(FStack.IsEmpty, '栈不应该为空');
   CheckEquals(1, FStack.GetSize, '大小应该为1');
@@ -1166,14 +1166,14 @@ begin
   // 填满栈
   for I := 1 to 64 do
   begin
-    LResult := FStack.Push(I);
+    LResult := FStack.TryPush(I);
     CheckTrue(LResult, '压栈应该成功');
   end;
 
   CheckTrue(FStack.IsFull, '满栈应该返回true');
 
   // 尝试再次压栈
-  LResult := FStack.Push(65);
+  LResult := FStack.TryPush(65);
   CheckFalse(LResult, '满栈压栈应该失败');
 end;
 
@@ -1198,7 +1198,7 @@ begin
     FStack.Push(I);
 
   // 验证无法继续压栈
-  CheckFalse(FStack.Push(65), '满栈压栈应该失败');
+  CheckFalse(FStack.TryPush(65), '满栈压栈应该失败');
 end;
 
 {$IFDEF FAFAFA_CORE_ENABLE_CONCURRENCY_TESTS}
@@ -1214,7 +1214,7 @@ begin
   // 简化的并发测试
   for I := 1 to 50 do
   begin
-    if FStack.Push(I) then
+    if FStack.TryPush(I) then
       Inc(LPushedCount);
   end;
 
@@ -1349,7 +1349,7 @@ begin
 
   for I := 1 to 100000 do
   begin
-    if FStack.Push(I) then
+    if FStack.TryPush(I) then
       FStack.Pop(LValue);
   end;
 

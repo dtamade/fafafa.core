@@ -41,7 +41,7 @@ type
    * @note 这是SPSC场景下最优的实现方式
    *       避免了CAS操作的开销，使用简单的原子读写
    *}
-  generic TSPSCQueue<T> = class(TInterfacedObject, specialize IQueue<T>)(TInterfacedObject, specialize IQueue<T>)
+  generic TSPSCQueue<T> = class(TInterfacedObject, specialize IQueue<T>)
   public
     type
       PNode = ^TNode;

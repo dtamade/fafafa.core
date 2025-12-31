@@ -26,10 +26,10 @@
 - `atomic_fetch_xor` vs 自实现 CAS 循环
 
 ### 4. 指针原子操作
-- `atomic_load_ptr` vs 直接指针读取
-- `atomic_store_ptr` vs 直接指针写入
-- `atomic_exchange_ptr` vs `InterlockedExchangePointer`
-- `atomic_compare_exchange_strong_ptr` vs `InterlockedCompareExchangePointer`
+- `atomic_load` (Pointer) vs 直接指针读取
+- `atomic_store` (Pointer) vs 直接指针写入
+- `atomic_exchange` (Pointer) vs `InterlockedExchangePointer`
+- `atomic_compare_exchange_strong` (Pointer) vs `InterlockedCompareExchangePointer`
 
 ### 5. 64位原子操作
 - `atomic_load_64` vs 直接读取（32位系统对比）
@@ -37,11 +37,11 @@
 - `atomic_fetch_add_64` vs `InterlockedExchangeAdd64`
 
 ### 6. 内存序性能影响
-- `memory_order_relaxed`
-- `memory_order_acquire`
-- `memory_order_release`
-- `memory_order_acq_rel`
-- `memory_order_seq_cst`
+- `mo_relaxed`
+- `mo_acquire`
+- `mo_release`
+- `mo_acq_rel`
+- `mo_seq_cst`
 
 ### 7. 多线程并发测试
 - 单线程 vs 2线程 vs 4线程 vs 8线程

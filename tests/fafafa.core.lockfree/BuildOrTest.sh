@@ -91,10 +91,10 @@ echo
 ACTION="${1:-}"
 
 if [[ "${ACTION}" == "test" ]]; then
-  if [[ -x "${TEST_EXEC_BASE}.exe" ]]; then
-    TEST_EXEC="${TEST_EXEC_BASE}.exe"
-  elif [[ -x "${TEST_EXEC_BASE}" ]]; then
+  if [[ -x "${TEST_EXEC_BASE}" ]]; then
     TEST_EXEC="${TEST_EXEC_BASE}"
+  elif [[ -x "${TEST_EXEC_BASE}.exe" ]]; then
+    TEST_EXEC="${TEST_EXEC_BASE}.exe"
   else
     echo "[ERROR] Test executable not found (looked for ${TEST_EXEC_BASE}[.exe])"
     exit 1

@@ -9,7 +9,8 @@ uses
   Classes, SysUtils, fpcunit, testregistry,
   fafafa.core.lockfree.ifaces,
   fafafa.core.lockfree.factories,
-  fafafa.core.lockfree.channel.wait;
+  fafafa.core.lockfree.channel.wait,
+  fafafa.core.lockfree.channel.select;
 
 type
   TTestLockFreeChannel = class(TTestCase)
@@ -51,42 +52,44 @@ begin
   FChan := aChan;
   FValue := aValue;
   FDelayMs := aDelayMs;
-  FreeOnTerminate := True;
+  FreeOnTerminate := False;
   Start;
 end;
 
 procedure TTestLockFreeChannel.WaitAnyReceiveReady_ReturnsIndex;
 var
   ChanA, ChanB: specialize ILockFreeChannelMPMC<Integer>;
-  ChannelList: array[0..1] of specialize ILockFreeChannel<Integer>;
+  ChannelList: specialize TChannelArray<Integer>;
   V: Integer;
   Index: SizeInt;
 begin
   ChanA := specialize NewChannelMPMC<Integer>(4);
   ChanB := specialize NewChannelMPMC<Integer>(4);
+  SetLength(ChannelList, 2);
   ChannelList[0] := ChanA;
   ChannelList[1] := ChanB;
 
-  AssertEquals(srOk, ChanB.Send(99));
-  Index := specialize WaitAnyChannelReceiveReady<Integer>(ChannelList, 1000);
+  AssertEquals(Ord(srOk), Ord(ChanB.Send(99)));
+  Index := specialize WaitAnyReceiveReady<Integer>(ChannelList, 1000);
   AssertEquals(1, Index);
-  AssertEquals(rrOk, ChanB.Receive(V));
+  AssertEquals(Ord(rrOk), Ord(ChanB.Receive(V)));
   AssertEquals(99, V);
 end;
 
 procedure TTestLockFreeChannel.ChannelSelectReceive_Works;
 var
   ChanA, ChanB: specialize ILockFreeChannelMPMC<Integer>;
-  Channels: array[0..1] of specialize ILockFreeChannel<Integer>;
+  Channels: specialize TChannelArray<Integer>;
   V: Integer;
   Index: SizeInt;
 begin
   ChanA := specialize NewChannelMPMC<Integer>(4);
   ChanB := specialize NewChannelMPMC<Integer>(4);
+  SetLength(Channels, 2);
   Channels[0] := ChanA;
   Channels[1] := ChanB;
 
-  AssertEquals(srOk, ChanA.Send(123));
+  AssertEquals(Ord(srOk), Ord(ChanA.Send(123)));
   Index := specialize ChannelSelectReceive<Integer>(Channels, V, 1000);
   AssertEquals(0, Index);
   AssertEquals(123, V);
@@ -95,26 +98,27 @@ end;
 procedure TTestLockFreeChannel.ChannelSelectSend_Works;
 var
   ChanA, ChanB: specialize ILockFreeChannelMPMC<Integer>;
-  Channels: array[0..1] of specialize ILockFreeChannel<Integer>;
+  Channels: specialize TChannelArray<Integer>;
   Values: array[0..1] of Integer;
   V: Integer;
   Index: SizeInt;
 begin
   ChanA := specialize NewChannelMPMC<Integer>(1);
   ChanB := specialize NewChannelMPMC<Integer>(1);
+  SetLength(Channels, 2);
   Channels[0] := ChanA;
   Channels[1] := ChanB;
   Values[0] := 1;
   Values[1] := 2;
 
   // fill second channel to block send, leaving first available
-  AssertEquals(srOk, ChanB.Send(42));
+  AssertEquals(Ord(srOk), Ord(ChanB.Send(42)));
 
   Index := specialize ChannelSelectSend<Integer>(Channels, Values, 1000);
   AssertEquals(0, Index);
-  AssertEquals(rrOk, ChanA.Receive(V));
+  AssertEquals(Ord(rrOk), Ord(ChanA.Receive(V)));
   AssertEquals(1, V);
-  AssertEquals(rrOk, ChanB.Receive(V));
+  AssertEquals(Ord(rrOk), Ord(ChanB.Receive(V)));
   AssertEquals(42, V);
 end;
 
@@ -128,14 +132,14 @@ end;
 procedure TTestLockFreeChannel.AssertSend(const aChannel: TIntChannel; const aValue: Integer;
   const aExpected: TLockFreeSendResult);
 begin
-  AssertEquals(aExpected, aChannel.Send(aValue));
+  AssertEquals(Ord(aExpected), Ord(aChannel.Send(aValue)));
 end;
 
 procedure TTestLockFreeChannel.AssertReceive(const aChannel: TIntChannel; aExpectedValue: Integer);
 var
   LVal: Integer;
 begin
-  AssertEquals(rrOk, aChannel.Receive(LVal));
+  AssertEquals(Ord(rrOk), Ord(aChannel.Receive(LVal)));
   AssertEquals(aExpectedValue, LVal);
 end;
 
@@ -159,9 +163,9 @@ begin
   AssertReceive(Chan, 1);
 
   Chan.Complete;
-  AssertEquals(srClosed, Chan.Send(99));
+  AssertEquals(Ord(srClosed), Ord(Chan.Send(99)));
 
-  AssertEquals(rrClosed, Chan.Receive(LVal, 0));
+  AssertEquals(Ord(rrClosed), Ord(Chan.Receive(LVal, 0)));
 end;
 
 procedure TTestLockFreeChannel.Cancel_SignalsReceivers;
@@ -171,7 +175,7 @@ var
 begin
   Chan := specialize NewChannelMPMC<Integer>(4);
   Chan.Cancel;
-  AssertEquals(rrCanceled, Chan.Receive(LVal, 0));
+  AssertEquals(Ord(rrCanceled), Ord(Chan.Receive(LVal, 0)));
   AssertFalse('TrySend must fail after Cancel', Chan.TrySend(10));
 end;
 
@@ -185,7 +189,7 @@ begin
   Sender := TDelayedSender.Create(Chan, 777, 50);
   try
     AssertTrue('WaitReceiveReady should signal within timeout', Chan.WaitReceiveReady(200 * 1000));
-    AssertEquals(rrOk, Chan.Receive(LVal));
+    AssertEquals(Ord(rrOk), Ord(Chan.Receive(LVal)));
     AssertEquals(777, LVal);
   finally
     Sender.WaitFor;
@@ -200,15 +204,15 @@ var
 begin
   Chan := specialize NewChannelSPSC<Integer>(2);
   try
-    AssertEquals(srOk, Chan.Send(1));
-    AssertEquals(srOk, Chan.Send(2));
-    AssertEquals(srTimedOut, Chan.Send(3, 1000)); // queue full within timeout
-    AssertEquals(rrOk, Chan.Receive(R));
+    AssertEquals(Ord(srOk), Ord(Chan.Send(1)));
+    AssertEquals(Ord(srOk), Ord(Chan.Send(2)));
+    AssertEquals(Ord(srTimedOut), Ord(Chan.Send(3, 1000))); // queue full within timeout
+    AssertEquals(Ord(rrOk), Ord(Chan.Receive(R)));
     AssertEquals(1, R);
-    AssertEquals(srOk, Chan.Send(4));
-    AssertEquals(rrOk, Chan.Receive(R));
+    AssertEquals(Ord(srOk), Ord(Chan.Send(4)));
+    AssertEquals(Ord(rrOk), Ord(Chan.Receive(R)));
     AssertEquals(2, R);
-    AssertEquals(rrOk, Chan.Receive(R));
+    AssertEquals(Ord(rrOk), Ord(Chan.Receive(R)));
     AssertEquals(4, R);
   finally
     Chan := nil;
@@ -223,10 +227,10 @@ begin
   Chan := specialize NewChannelMPSC<Integer>;
   try
     for i := 1 to 100 do
-      AssertEquals(srOk, Chan.Send(i));
+      AssertEquals(Ord(srOk), Ord(Chan.Send(i)));
     for i := 1 to 100 do
     begin
-      AssertEquals(rrOk, Chan.Receive(V));
+      AssertEquals(Ord(rrOk), Ord(Chan.Receive(V)));
       AssertEquals(i, V);
     end;
   finally
