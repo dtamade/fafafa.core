@@ -6,7 +6,7 @@ unit fafafa.core.args.config;
 interface
 
 uses
-  SysUtils, Dos, Classes,
+  SysUtils, Classes,
   fafafa.core.option.base,
   fafafa.core.option, fafafa.core.result, fafafa.core.env
   {$IFDEF FAFAFA_ARGS_CONFIG_TOML}
@@ -206,66 +206,70 @@ end;
 
 // ✅ P1-1: 新的 Args 前缀函数
 function ArgsArgvFromEnvEx(const Prefix: string; const Allow, Deny: array of string; const Flags: TEnvFlags): TStringArray;
-var i, n: Integer; kv, name, value, pfx, norm: string; eqPos: SizeInt;
+var
+  kvp: TEnvKVPair;
+  name, value, pfx, norm: string;
+
+  procedure AddToken(const Tok: string); inline;
+  begin
+    SetLength(Result, Length(Result) + 1);
+    Result[High(Result)] := Tok;
+  end;
+
 begin
   SetLength(Result, 0);
   if Prefix = '' then Exit;
+
   pfx := UpperCase(Prefix);
-  n := EnvCount;
-  for i := 1 to n do
+  for kvp in env_iter do
   begin
-    kv := EnvStr(i);
-    eqPos := Pos('=', kv);
-    if eqPos <= 1 then Continue;
-    name := Copy(kv, 1, eqPos - 1);
-    value := Copy(kv, eqPos + 1, MaxInt);
+    name := kvp.Key;
+    value := kvp.Value;
+
     if not StartsWithCI(UpperCase(name), pfx) then Continue;
     norm := NormalizeKeyFromEnv(name, pfx);
     if norm = '' then Continue;
+
     if (Length(Allow) > 0) and (not InSetCI(norm, Allow)) then Continue;
     if InSetCI(norm, Deny) then Continue;
+
     value := MaybeNormalizeValue(value, Flags);
     if value = '' then
-    begin
-      SetLength(Result, Length(Result) + 1);
-      Result[High(Result)] := '--' + norm;
-    end
+      AddToken('--' + norm)
     else
-    begin
-      SetLength(Result, Length(Result) + 1);
-      Result[High(Result)] := '--' + norm + '=' + value;
-    end;
+      AddToken('--' + norm + '=' + value);
   end;
 end;
 
 function ArgsArgvFromEnv(const Prefix: string): TStringArray;
-var i, n: Integer; kv, name, value, pfx: string; eqPos: SizeInt;
+var
+  kvp: TEnvKVPair;
+  name, value, pfx, norm: string;
+
+  procedure AddToken(const Tok: string); inline;
+  begin
+    SetLength(Result, Length(Result) + 1);
+    Result[High(Result)] := Tok;
+  end;
+
 begin
   SetLength(Result, 0);
   if Prefix = '' then Exit;
+
   pfx := UpperCase(Prefix);
-  n := EnvCount;
-  for i := 1 to n do
+  for kvp in env_iter do
   begin
-    kv := EnvStr(i);
-    eqPos := Pos('=', kv);
-    if eqPos<=1 then Continue;
-    name := Copy(kv, 1, eqPos-1);
-    value := Copy(kv, eqPos+1, MaxInt);
+    name := kvp.Key;
+    value := kvp.Value;
+
     if not StartsWithCI(UpperCase(name), pfx) then Continue;
-    name := NormalizeKeyFromEnv(name, pfx);
-    if name='' then Continue;
-    // build token
-    if value='' then
-    begin
-      SetLength(Result, Length(Result)+1);
-      Result[High(Result)] := '--' + name;
-    end
+    norm := NormalizeKeyFromEnv(name, pfx);
+    if norm = '' then Continue;
+
+    if value = '' then
+      AddToken('--' + norm)
     else
-    begin
-      SetLength(Result, Length(Result)+1);
-      Result[High(Result)] := '--' + name + '=' + value;
-    end;
+      AddToken('--' + norm + '=' + value);
   end;
 end;
 

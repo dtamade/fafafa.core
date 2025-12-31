@@ -9,8 +9,8 @@ This example shows how to convert environment variables (and optionally a CONFIG
   - Scalars → `--key=value`; arrays of scalars → repeated `--key=value`
 
 Optional features (compile-time flags):
-- `{$DEFINE FAFAFA_ARGS_CONFIG_TOML}` enables ArgvFromToml
-- `{$DEFINE FAFAFA_ARGS_CONFIG_JSON}` enables ArgvFromJson
+- `{$DEFINE FAFAFA_ARGS_CONFIG_TOML}` enables ArgsArgvFromToml
+- `{$DEFINE FAFAFA_ARGS_CONFIG_JSON}` enables ArgsArgvFromJson
 
 Build & run (Windows):
 

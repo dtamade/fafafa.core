@@ -23,8 +23,10 @@ type
   TTestCase_ArgsConfig = class(TTestCase)
   private
     function EnvWorks: Boolean;
+    function HasToken(const Arr: TStringArray; const Tok: string): Boolean;
+    procedure AssertHasToken(const Arr: TStringArray; const Tok: string);
   published
-    // ArgValueFromEnvOpt 测试
+    // ArgsValueFromEnvOpt 测试
     procedure Test_ArgValueFromEnvOpt_Basic;
     procedure Test_ArgValueFromEnvOpt_NotSet;
     procedure Test_ArgValueFromEnvOpt_EmptyValue;
@@ -37,14 +39,14 @@ type
     procedure Test_ArgValueFromEnvOpt_CaseInsensitiveKey;
     procedure Test_ArgValueFromEnvOpt_DashToUnderscore;
 
-    // ArgTokenFromEnvOpt 测试
+    // ArgsTokenFromEnvOpt 测试
     procedure Test_ArgTokenFromEnvOpt_WithValue;
     procedure Test_ArgTokenFromEnvOpt_EmptyValue;
     procedure Test_ArgTokenFromEnvOpt_NotSet;
     procedure Test_ArgTokenFromEnvOpt_KeyNormalization;
     procedure Test_ArgTokenFromEnvOpt_DashInKey;
 
-    // ArgIntFromEnvRes 测试
+    // ArgsIntFromEnvRes 测试
     procedure Test_ArgIntFromEnvRes_Valid;
     procedure Test_ArgIntFromEnvRes_NotSet;
     procedure Test_ArgIntFromEnvRes_Invalid;
@@ -55,19 +57,19 @@ type
     procedure Test_ArgIntFromEnvRes_Float;
     procedure Test_ArgIntFromEnvRes_Hex;
 
-    // ArgvFromEnv 测试 (平台限制可能导致跳过)
+    // ArgsArgvFromEnv 测试 (平台限制可能导致跳过)
     procedure Test_ArgvFromEnv_Basic;
     procedure Test_ArgvFromEnv_EmptyPrefix;
     procedure Test_ArgvFromEnv_NoMatch;
     procedure Test_ArgvFromEnv_KeyNormalization;
 
-    // ArgvFromEnvEx 测试
+    // ArgsArgvFromEnvEx 测试
     procedure Test_ArgvFromEnvEx_AllowList;
     procedure Test_ArgvFromEnvEx_DenyList;
     procedure Test_ArgvFromEnvEx_AllowAndDeny;
     procedure Test_ArgvFromEnvEx_WithFlags;
 
-    // ArgTokensFromEnvOpt 测试
+    // ArgsTokensFromEnvOpt 测试
     procedure Test_ArgTokensFromEnvOpt_Some;
     procedure Test_ArgTokensFromEnvOpt_None;
 
@@ -111,7 +113,22 @@ begin
   end;
 end;
 
-{ ArgValueFromEnvOpt 测试 }
+function TTestCase_ArgsConfig.HasToken(const Arr: TStringArray; const Tok: string): Boolean;
+var
+  I: Integer;
+begin
+  for I := 0 to High(Arr) do
+    if Arr[I] = Tok then
+      Exit(True);
+  Result := False;
+end;
+
+procedure TTestCase_ArgsConfig.AssertHasToken(const Arr: TStringArray; const Tok: string);
+begin
+  CheckTrue(HasToken(Arr, Tok), 'Expected token: ' + Tok);
+end;
+
+{ ArgsValueFromEnvOpt 测试 }
 
 procedure TTestCase_ArgsConfig.Test_ArgValueFromEnvOpt_Basic;
 var
@@ -122,7 +139,7 @@ begin
   try
     if not EnvWorks then begin Ignore('env_override not working'); Exit; end;
 
-    Opt := ArgValueFromEnvOpt('APP_', 'host', []);
+    Opt := ArgsValueFromEnvOpt('APP_', 'host', []);
     CheckTrue(Opt.IsSome, 'Should return Some for existing env');
     CheckEquals('localhost', Opt.Unwrap, 'Value should be localhost');
   finally
@@ -134,7 +151,7 @@ procedure TTestCase_ArgsConfig.Test_ArgValueFromEnvOpt_NotSet;
 var
   Opt: specialize TOption<string>;
 begin
-  Opt := ArgValueFromEnvOpt('NONEXISTENT_PREFIX_XYZ_', 'missing', []);
+  Opt := ArgsValueFromEnvOpt('NONEXISTENT_PREFIX_XYZ_', 'missing', []);
   CheckTrue(Opt.IsNone, 'Should return None for non-existent env');
 end;
 
@@ -147,7 +164,7 @@ begin
   try
     if not EnvWorks then begin Ignore('env_override not working'); Exit; end;
 
-    Opt := ArgValueFromEnvOpt('APP_', 'empty', []);
+    Opt := ArgsValueFromEnvOpt('APP_', 'empty', []);
     // Empty string is still Some, not None
     CheckTrue(Opt.IsSome, 'Should return Some for empty value');
     CheckEquals('', Opt.Unwrap, 'Value should be empty string');
@@ -165,7 +182,7 @@ begin
   try
     if not EnvWorks then begin Ignore('env_override not working'); Exit; end;
 
-    Opt := ArgValueFromEnvOpt('APP_', 'spaced', [efTrimValues]);
+    Opt := ArgsValueFromEnvOpt('APP_', 'spaced', [efTrimValues]);
     CheckTrue(Opt.IsSome, 'Should return Some');
     CheckEquals('hello world', Opt.Unwrap, 'Value should be trimmed');
   finally
@@ -182,7 +199,7 @@ begin
   try
     if not EnvWorks then begin Ignore('env_override not working'); Exit; end;
 
-    Opt := ArgValueFromEnvOpt('APP_', 'enabled', [efLowercaseBools]);
+    Opt := ArgsValueFromEnvOpt('APP_', 'enabled', [efNormalizeBools]);
     CheckTrue(Opt.IsSome, 'Should return Some');
     CheckEquals('true', Opt.Unwrap, 'TRUE should become true');
   finally
@@ -199,7 +216,7 @@ begin
   try
     if not EnvWorks then begin Ignore('env_override not working'); Exit; end;
 
-    Opt := ArgValueFromEnvOpt('APP_', 'disabled', [efLowercaseBools]);
+    Opt := ArgsValueFromEnvOpt('APP_', 'disabled', [efNormalizeBools]);
     CheckTrue(Opt.IsSome, 'Should return Some');
     CheckEquals('false', Opt.Unwrap, 'FALSE should become false');
   finally
@@ -216,7 +233,7 @@ begin
   try
     if not EnvWorks then begin Ignore('env_override not working'); Exit; end;
 
-    Opt := ArgValueFromEnvOpt('APP_', 'flag', [efLowercaseBools]);
+    Opt := ArgsValueFromEnvOpt('APP_', 'flag', [efNormalizeBools]);
     CheckTrue(Opt.IsSome, 'Should return Some');
     CheckEquals('true', Opt.Unwrap, 'YES should become true');
   finally
@@ -233,7 +250,7 @@ begin
   try
     if not EnvWorks then begin Ignore('env_override not working'); Exit; end;
 
-    Opt := ArgValueFromEnvOpt('APP_', 'flag', [efLowercaseBools]);
+    Opt := ArgsValueFromEnvOpt('APP_', 'flag', [efNormalizeBools]);
     CheckTrue(Opt.IsSome, 'Should return Some');
     CheckEquals('false', Opt.Unwrap, 'NO should become false');
   finally
@@ -250,7 +267,7 @@ begin
   try
     if not EnvWorks then begin Ignore('env_override not working'); Exit; end;
 
-    Opt := ArgValueFromEnvOpt('APP_', 'combo', [efTrimValues, efLowercaseBools]);
+    Opt := ArgsValueFromEnvOpt('APP_', 'combo', [efTrimValues, efNormalizeBools]);
     CheckTrue(Opt.IsSome, 'Should return Some');
     CheckEquals('true', Opt.Unwrap, 'Should trim and lowercase');
   finally
@@ -268,7 +285,7 @@ begin
     if not EnvWorks then begin Ignore('env_override not working'); Exit; end;
 
     // Key is case-insensitive in lookup (toEnvName uppercases)
-    Opt := ArgValueFromEnvOpt('app_', 'mykey', []);
+    Opt := ArgsValueFromEnvOpt('app_', 'mykey', []);
     CheckTrue(Opt.IsSome, 'Should find key case-insensitively');
     CheckEquals('value', Opt.Unwrap, 'Value should match');
   finally
@@ -286,7 +303,7 @@ begin
     if not EnvWorks then begin Ignore('env_override not working'); Exit; end;
 
     // Key with dash becomes underscore in env name
-    Opt := ArgValueFromEnvOpt('APP_', 'my-key', []);
+    Opt := ArgsValueFromEnvOpt('APP_', 'my-key', []);
     CheckTrue(Opt.IsSome, 'Should convert dash to underscore');
     CheckEquals('dash-value', Opt.Unwrap, 'Value should match');
   finally
@@ -294,7 +311,7 @@ begin
   end;
 end;
 
-{ ArgTokenFromEnvOpt 测试 }
+{ ArgsTokenFromEnvOpt 测试 }
 
 procedure TTestCase_ArgsConfig.Test_ArgTokenFromEnvOpt_WithValue;
 var
@@ -305,7 +322,7 @@ begin
   try
     if not EnvWorks then begin Ignore('env_override not working'); Exit; end;
 
-    Opt := ArgTokenFromEnvOpt('APP_', 'port', []);
+    Opt := ArgsTokenFromEnvOpt('APP_', 'port', []);
     CheckTrue(Opt.IsSome, 'Should return Some');
     CheckEquals('--port=8080', Opt.Unwrap, 'Token should be --port=8080');
   finally
@@ -322,7 +339,7 @@ begin
   try
     if not EnvWorks then begin Ignore('env_override not working'); Exit; end;
 
-    Opt := ArgTokenFromEnvOpt('APP_', 'verbose', []);
+    Opt := ArgsTokenFromEnvOpt('APP_', 'verbose', []);
     CheckTrue(Opt.IsSome, 'Should return Some for empty value');
     CheckEquals('--verbose', Opt.Unwrap, 'Token should be --verbose (no =)');
   finally
@@ -334,7 +351,7 @@ procedure TTestCase_ArgsConfig.Test_ArgTokenFromEnvOpt_NotSet;
 var
   Opt: specialize TOption<string>;
 begin
-  Opt := ArgTokenFromEnvOpt('NONEXISTENT_', 'key', []);
+  Opt := ArgsTokenFromEnvOpt('NONEXISTENT_', 'key', []);
   CheckTrue(Opt.IsNone, 'Should return None for non-existent env');
 end;
 
@@ -347,7 +364,7 @@ begin
   try
     if not EnvWorks then begin Ignore('env_override not working'); Exit; end;
 
-    Opt := ArgTokenFromEnvOpt('APP_', 'MY_CONFIG', []);
+    Opt := ArgsTokenFromEnvOpt('APP_', 'MY_CONFIG', []);
     CheckTrue(Opt.IsSome, 'Should return Some');
     // Key normalization: underscore -> dash, lowercase
     CheckEquals('--my-config=test', Opt.Unwrap, 'Key should be normalized');
@@ -365,7 +382,7 @@ begin
   try
     if not EnvWorks then begin Ignore('env_override not working'); Exit; end;
 
-    Opt := ArgTokenFromEnvOpt('APP_', 'log-level', []);
+    Opt := ArgsTokenFromEnvOpt('APP_', 'log-level', []);
     CheckTrue(Opt.IsSome, 'Should return Some');
     CheckEquals('--log-level=debug', Opt.Unwrap, 'Token format correct');
   finally
@@ -373,7 +390,7 @@ begin
   end;
 end;
 
-{ ArgIntFromEnvRes 测试 }
+{ ArgsIntFromEnvRes 测试 }
 
 procedure TTestCase_ArgsConfig.Test_ArgIntFromEnvRes_Valid;
 var
@@ -384,7 +401,7 @@ begin
   try
     if not EnvWorks then begin Ignore('env_override not working'); Exit; end;
 
-    Res := ArgIntFromEnvRes('APP_', 'count', []);
+    Res := ArgsIntFromEnvRes('APP_', 'count', []);
     CheckTrue(Res.IsOk, 'Should return Ok');
     CheckEquals(42, Res.Unwrap, 'Value should be 42');
   finally
@@ -396,7 +413,7 @@ procedure TTestCase_ArgsConfig.Test_ArgIntFromEnvRes_NotSet;
 var
   Res: specialize TResult<Integer, string>;
 begin
-  Res := ArgIntFromEnvRes('NONEXISTENT_', 'count', []);
+  Res := ArgsIntFromEnvRes('NONEXISTENT_', 'count', []);
   CheckTrue(Res.IsErr, 'Should return Err for non-existent env');
   CheckTrue(Pos('not set', Res.UnwrapErr) > 0, 'Error should mention not set');
 end;
@@ -410,7 +427,7 @@ begin
   try
     if not EnvWorks then begin Ignore('env_override not working'); Exit; end;
 
-    Res := ArgIntFromEnvRes('APP_', 'bad', []);
+    Res := ArgsIntFromEnvRes('APP_', 'bad', []);
     CheckTrue(Res.IsErr, 'Should return Err for invalid int');
     CheckTrue(Pos('invalid', LowerCase(Res.UnwrapErr)) > 0, 'Error should mention invalid');
   finally
@@ -427,7 +444,7 @@ begin
   try
     if not EnvWorks then begin Ignore('env_override not working'); Exit; end;
 
-    Res := ArgIntFromEnvRes('APP_', 'zero', []);
+    Res := ArgsIntFromEnvRes('APP_', 'zero', []);
     CheckTrue(Res.IsOk, 'Should return Ok for zero');
     CheckEquals(0, Res.Unwrap, 'Value should be 0');
   finally
@@ -444,7 +461,7 @@ begin
   try
     if not EnvWorks then begin Ignore('env_override not working'); Exit; end;
 
-    Res := ArgIntFromEnvRes('APP_', 'neg', []);
+    Res := ArgsIntFromEnvRes('APP_', 'neg', []);
     CheckTrue(Res.IsOk, 'Should return Ok for negative');
     CheckEquals(-100, Res.Unwrap, 'Value should be -100');
   finally
@@ -461,7 +478,7 @@ begin
   try
     if not EnvWorks then begin Ignore('env_override not working'); Exit; end;
 
-    Res := ArgIntFromEnvRes('APP_', 'large', []);
+    Res := ArgsIntFromEnvRes('APP_', 'large', []);
     CheckTrue(Res.IsOk, 'Should return Ok for MaxInt');
     CheckEquals(2147483647, Res.Unwrap, 'Value should be MaxInt');
   finally
@@ -478,7 +495,7 @@ begin
   try
     if not EnvWorks then begin Ignore('env_override not working'); Exit; end;
 
-    Res := ArgIntFromEnvRes('APP_', 'trimmed', [efTrimValues]);
+    Res := ArgsIntFromEnvRes('APP_', 'trimmed', [efTrimValues]);
     CheckTrue(Res.IsOk, 'Should return Ok with trim flag');
     CheckEquals(123, Res.Unwrap, 'Value should be 123 after trim');
   finally
@@ -495,7 +512,7 @@ begin
   try
     if not EnvWorks then begin Ignore('env_override not working'); Exit; end;
 
-    Res := ArgIntFromEnvRes('APP_', 'float', []);
+    Res := ArgsIntFromEnvRes('APP_', 'float', []);
     CheckTrue(Res.IsErr, 'Should return Err for float');
   finally
     Guard.Done;
@@ -511,7 +528,7 @@ begin
   try
     if not EnvWorks then begin Ignore('env_override not working'); Exit; end;
 
-    Res := ArgIntFromEnvRes('APP_', 'hex', []);
+    Res := ArgsIntFromEnvRes('APP_', 'hex', []);
     // FreePascal TryStrToInt can parse hex with 0x prefix
     CheckTrue(Res.IsOk, 'Should return Ok for hex');
     CheckEquals(255, Res.Unwrap, 'Value should be 255');
@@ -520,33 +537,28 @@ begin
   end;
 end;
 
-{ ArgvFromEnv 测试 }
+{ ArgsArgvFromEnv 测试 }
 
 procedure TTestCase_ArgsConfig.Test_ArgvFromEnv_Basic;
 var
-  Guard: TEnvOverrideGuard;
+  g: TEnvOverridesGuard;
+  kvs: array of TEnvKV;
   Arr: TStringArray;
-  Val: string;
 begin
-  Guard := env_override('TEST_DEBUG', 'true');
+  if not EnvWorks then begin Ignore('env_override not working'); Exit; end;
+
+  kvs := nil;
+  SetLength(kvs, 2);
+  kvs[0].Name := '__FAFAFA_ARGS_CFG_TEST_BASIC_DEBUG'; kvs[0].Value := 'true'; kvs[0].HasValue := True;
+  kvs[1].Name := '__FAFAFA_ARGS_CFG_TEST_BASIC_VERBOSE'; kvs[1].Value := ''; kvs[1].HasValue := True;
+
+  g := env_overrides(kvs);
   try
-    if not env_lookup('TEST_DEBUG', Val) then
-    begin
-      Ignore('env_override did not work');
-      Exit;
-    end;
-
-    Arr := ArgvFromEnv('TEST_');
-    // Platform limitation: Dos.EnvStr may not see runtime changes
-    if Length(Arr) = 0 then
-    begin
-      Ignore('ArgvFromEnv uses Dos.EnvStr which cannot see runtime env changes');
-      Exit;
-    end;
-
-    CheckTrue(Length(Arr) >= 1, 'Should have at least 1 token');
+    Arr := ArgsArgvFromEnv('__FAFAFA_ARGS_CFG_TEST_BASIC_');
+    AssertHasToken(Arr, '--debug=true');
+    AssertHasToken(Arr, '--verbose');
   finally
-    Guard.Done;
+    g.Done;
   end;
 end;
 
@@ -554,7 +566,7 @@ procedure TTestCase_ArgsConfig.Test_ArgvFromEnv_EmptyPrefix;
 var
   Arr: TStringArray;
 begin
-  Arr := ArgvFromEnv('');
+  Arr := ArgsArgvFromEnv('');
   CheckEquals(0, Length(Arr), 'Empty prefix should return empty array');
 end;
 
@@ -562,41 +574,39 @@ procedure TTestCase_ArgsConfig.Test_ArgvFromEnv_NoMatch;
 var
   Arr: TStringArray;
 begin
-  Arr := ArgvFromEnv('VERY_UNIQUE_PREFIX_THAT_DOES_NOT_EXIST_XYZ_');
+  Arr := ArgsArgvFromEnv('VERY_UNIQUE_PREFIX_THAT_DOES_NOT_EXIST_XYZ_');
   CheckEquals(0, Length(Arr), 'Non-matching prefix should return empty array');
 end;
 
 procedure TTestCase_ArgsConfig.Test_ArgvFromEnv_KeyNormalization;
 var
-  Guard: TEnvOverrideGuard;
+  g: TEnvOverridesGuard;
+  kvs: array of TEnvKV;
   Arr: TStringArray;
 begin
-  Guard := env_override('MYAPP_LOG_LEVEL', 'debug');
+  if not EnvWorks then begin Ignore('env_override not working'); Exit; end;
+
+  kvs := nil;
+  SetLength(kvs, 1);
+  kvs[0].Name := '__FAFAFA_ARGS_CFG_TEST_KEYNORM_LOG_LEVEL'; kvs[0].Value := 'debug'; kvs[0].HasValue := True;
+
+  g := env_overrides(kvs);
   try
-    if not EnvWorks then begin Ignore('env_override not working'); Exit; end;
-
-    Arr := ArgvFromEnv('MYAPP_');
-    if Length(Arr) = 0 then
-    begin
-      Ignore('Platform limitation with Dos.EnvStr');
-      Exit;
-    end;
-
-    // Key LOG_LEVEL should become --log-level
-    CheckTrue(Pos('--log-level', Arr[0]) > 0, 'Key should be normalized');
+    Arr := ArgsArgvFromEnv('__FAFAFA_ARGS_CFG_TEST_KEYNORM_');
+    AssertHasToken(Arr, '--log-level=debug');
   finally
-    Guard.Done;
+    g.Done;
   end;
 end;
 
-{ ArgvFromEnvEx 测试 }
+{ ArgsArgvFromEnvEx 测试 }
 
 procedure TTestCase_ArgsConfig.Test_ArgvFromEnvEx_AllowList;
 var
   Arr: TStringArray;
 begin
   // Without runtime env changes visible, we test structure only
-  Arr := ArgvFromEnvEx('NONEXISTENT_', ['allowed'], [], []);
+  Arr := ArgsArgvFromEnvEx('NONEXISTENT_', ['allowed'], [], []);
   CheckEquals(0, Length(Arr), 'No match returns empty');
 end;
 
@@ -604,7 +614,7 @@ procedure TTestCase_ArgsConfig.Test_ArgvFromEnvEx_DenyList;
 var
   Arr: TStringArray;
 begin
-  Arr := ArgvFromEnvEx('NONEXISTENT_', [], ['denied'], []);
+  Arr := ArgsArgvFromEnvEx('NONEXISTENT_', [], ['denied'], []);
   CheckEquals(0, Length(Arr), 'No match returns empty');
 end;
 
@@ -612,7 +622,7 @@ procedure TTestCase_ArgsConfig.Test_ArgvFromEnvEx_AllowAndDeny;
 var
   Arr: TStringArray;
 begin
-  Arr := ArgvFromEnvEx('NONEXISTENT_', ['a'], ['b'], [efTrimValues]);
+  Arr := ArgsArgvFromEnvEx('NONEXISTENT_', ['a'], ['b'], [efTrimValues]);
   CheckEquals(0, Length(Arr), 'No match returns empty');
 end;
 
@@ -620,33 +630,31 @@ procedure TTestCase_ArgsConfig.Test_ArgvFromEnvEx_WithFlags;
 var
   Arr: TStringArray;
 begin
-  Arr := ArgvFromEnvEx('NONEXISTENT_', [], [], [efTrimValues, efLowercaseBools]);
+  Arr := ArgsArgvFromEnvEx('NONEXISTENT_', [], [], [efTrimValues, efNormalizeBools]);
   CheckEquals(0, Length(Arr), 'No match returns empty');
 end;
 
-{ ArgTokensFromEnvOpt 测试 }
+{ ArgsTokensFromEnvOpt 测试 }
 
 procedure TTestCase_ArgsConfig.Test_ArgTokensFromEnvOpt_Some;
 var
-  Guard: TEnvOverrideGuard;
+  g: TEnvOverridesGuard;
+  kvs: array of TEnvKV;
   Opt: specialize TOption<TStringArray>;
 begin
-  Guard := env_override('BATCH_ITEM', 'value');
+  if not EnvWorks then begin Ignore('env_override not working'); Exit; end;
+
+  kvs := nil;
+  SetLength(kvs, 1);
+  kvs[0].Name := '__FAFAFA_ARGS_CFG_TEST_BATCH_ITEM'; kvs[0].Value := 'value'; kvs[0].HasValue := True;
+
+  g := env_overrides(kvs);
   try
-    if not EnvWorks then begin Ignore('env_override not working'); Exit; end;
-
-    Opt := ArgTokensFromEnvOpt('BATCH_', ['item'], [], []);
-    // May be None due to platform limitation
-    if Opt.IsNone then
-    begin
-      Ignore('Platform limitation with Dos.EnvStr');
-      Exit;
-    end;
-
+    Opt := ArgsTokensFromEnvOpt('__FAFAFA_ARGS_CFG_TEST_BATCH_', ['item'], [], []);
     CheckTrue(Opt.IsSome, 'Should return Some when matches found');
-    CheckTrue(Length(Opt.Unwrap) > 0, 'Should have tokens');
+    AssertHasToken(Opt.Unwrap, '--item=value');
   finally
-    Guard.Done;
+    g.Done;
   end;
 end;
 
@@ -654,7 +662,7 @@ procedure TTestCase_ArgsConfig.Test_ArgTokensFromEnvOpt_None;
 var
   Opt: specialize TOption<TStringArray>;
 begin
-  Opt := ArgTokensFromEnvOpt('NONEXISTENT_', [], [], []);
+  Opt := ArgsTokensFromEnvOpt('NONEXISTENT_', [], [], []);
   CheckTrue(Opt.IsNone, 'Should return None when no matches');
 end;
 
@@ -669,7 +677,7 @@ begin
   try
     if not EnvWorks then begin Ignore('env_override not working'); Exit; end;
 
-    Opt := ArgTokenFromEnvOpt('APP_', 'some_long_key', []);
+    Opt := ArgsTokenFromEnvOpt('APP_', 'some_long_key', []);
     CheckTrue(Opt.IsSome, 'Should find key');
     // Normalized key has dashes
     CheckEquals('--some-long-key=test', Opt.Unwrap, 'Underscores become dashes');
@@ -687,7 +695,7 @@ begin
   try
     if not EnvWorks then begin Ignore('env_override not working'); Exit; end;
 
-    Opt := ArgTokenFromEnvOpt('CFG_', 'db.host', []);
+    Opt := ArgsTokenFromEnvOpt('CFG_', 'db.host', []);
     // . becomes _ in env lookup, but stays as . in output key
     CheckTrue(Opt.IsSome, 'Should find key with dot');
     CheckEquals('--db.host=localhost', Opt.Unwrap, 'Key keeps dot in output');
@@ -705,7 +713,7 @@ begin
   try
     if not EnvWorks then begin Ignore('env_override not working'); Exit; end;
 
-    Opt := ArgValueFromEnvOpt('TRIM_', 'test', [efTrimValues]);
+    Opt := ArgsValueFromEnvOpt('TRIM_', 'test', [efTrimValues]);
     CheckTrue(Opt.IsSome, 'Should return Some');
     CheckEquals('spaces', Opt.Unwrap, 'Value trimmed');
   finally
@@ -722,7 +730,7 @@ begin
   try
     if not EnvWorks then begin Ignore('env_override not working'); Exit; end;
 
-    Opt := ArgValueFromEnvOpt('BOOL_', 'test', [efLowercaseBools]);
+    Opt := ArgsValueFromEnvOpt('BOOL_', 'test', [efNormalizeBools]);
     CheckTrue(Opt.IsSome, 'Should return Some');
     CheckEquals('true', Opt.Unwrap, '1 becomes true');
   finally
@@ -742,7 +750,7 @@ begin
     if not EnvWorks then begin Ignore('env_override not working'); Exit; end;
 
     // Empty key means env var is PREFIX_ (just the prefix)
-    Opt := ArgValueFromEnvOpt('PREFIX_', '', []);
+    Opt := ArgsValueFromEnvOpt('PREFIX_', '', []);
     // This depends on implementation - likely None since empty key is invalid
     // Just verify it doesn't crash
     CheckTrue(True, 'Should not crash on empty key');
@@ -760,7 +768,7 @@ begin
   try
     if not EnvWorks then begin Ignore('env_override not working'); Exit; end;
 
-    Opt := ArgValueFromEnvOpt('SPEC_', 'path', []);
+    Opt := ArgsValueFromEnvOpt('SPEC_', 'path', []);
     CheckTrue(Opt.IsSome, 'Should handle special chars');
     CheckEquals('/usr/bin:./local', Opt.Unwrap, 'Special chars preserved');
   finally
@@ -777,7 +785,7 @@ begin
   try
     if not EnvWorks then begin Ignore('env_override not working'); Exit; end;
 
-    Opt := ArgValueFromEnvOpt('UNI_', 'name', []);
+    Opt := ArgsValueFromEnvOpt('UNI_', 'name', []);
     CheckTrue(Opt.IsSome, 'Should handle unicode');
     CheckEquals('Hello', Opt.Unwrap, 'Unicode preserved');
   finally
@@ -796,7 +804,7 @@ begin
   try
     if not EnvWorks then begin Ignore('env_override not working'); Exit; end;
 
-    Opt := ArgValueFromEnvOpt('LONG_', 'val', []);
+    Opt := ArgsValueFromEnvOpt('LONG_', 'val', []);
     CheckTrue(Opt.IsSome, 'Should handle long values');
     CheckEquals(4096, Length(Opt.Unwrap), 'Long value length preserved');
   finally
@@ -813,7 +821,7 @@ begin
   try
     if not EnvWorks then begin Ignore('env_override not working'); Exit; end;
 
-    Opt := ArgValueFromEnvOpt('NUM_', '123', []);
+    Opt := ArgsValueFromEnvOpt('NUM_', '123', []);
     CheckTrue(Opt.IsSome, 'Should handle numeric keys');
     CheckEquals('numeric', Opt.Unwrap, 'Value correct');
   finally
@@ -827,7 +835,7 @@ procedure TTestCase_ArgsConfig.Test_ArgvFromJson_NotExists;
 var
   Arr: TStringArray;
 begin
-  Arr := ArgvFromJson('/nonexistent/path/config.json');
+  Arr := ArgsArgvFromJson('/nonexistent/path/config.json');
   CheckEquals(0, Length(Arr), 'Non-existent file returns empty array');
 end;
 
@@ -835,7 +843,7 @@ procedure TTestCase_ArgsConfig.Test_ArgvFromJson_EmptyPath;
 var
   Arr: TStringArray;
 begin
-  Arr := ArgvFromJson('');
+  Arr := ArgsArgvFromJson('');
   CheckEquals(0, Length(Arr), 'Empty path returns empty array');
 end;
 
@@ -845,7 +853,7 @@ procedure TTestCase_ArgsConfig.Test_ArgvFromToml_NotExists;
 var
   Arr: TStringArray;
 begin
-  Arr := ArgvFromToml('/nonexistent/path/config.toml');
+  Arr := ArgsArgvFromToml('/nonexistent/path/config.toml');
   CheckEquals(0, Length(Arr), 'Non-existent file returns empty array');
 end;
 
@@ -853,7 +861,7 @@ procedure TTestCase_ArgsConfig.Test_ArgvFromToml_EmptyPath;
 var
   Arr: TStringArray;
 begin
-  Arr := ArgvFromToml('');
+  Arr := ArgsArgvFromToml('');
   CheckEquals(0, Length(Arr), 'Empty path returns empty array');
 end;
 
@@ -863,7 +871,7 @@ procedure TTestCase_ArgsConfig.Test_ArgvFromYaml_Stub;
 var
   Arr: TStringArray;
 begin
-  Arr := ArgvFromYaml('/any/path.yaml');
+  Arr := ArgsArgvFromYaml('/any/path.yaml');
   CheckEquals(0, Length(Arr), 'YAML stub returns empty array');
 end;
 

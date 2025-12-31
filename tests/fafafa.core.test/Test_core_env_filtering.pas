@@ -7,16 +7,13 @@ interface
 
 uses
   SysUtils, fpcunit, testregistry,
-  {$IFDEF MSWINDOWS} Windows, {$ENDIF}
-  {$IFDEF UNIX} BaseUnix, {$ENDIF}
-  fafafa.core.args.config;
+  fafafa.core.args.config,
+  fafafa.core.env;
 
 type
   TTestCase_Core_EnvFiltering = class(TTestCase)
   private
-    function GetEnvOld(const Name: string; out Had: boolean): string;
-    procedure SetEnvKV(const Name, Value: string);
-    procedure RestoreEnv(const Name, OldValue: string; const Had: boolean);
+    function HasToken(const Tokens: array of string; const Tok: string): Boolean;
   published
     procedure Test_Allow_Filter_Includes_Only_Allowed;
     procedure Test_Deny_Filter_Excludes_Denied;
@@ -28,25 +25,14 @@ procedure RegisterTests;
 
 implementation
 
-function TTestCase_Core_EnvFiltering.GetEnvOld(const Name: string; out Had: boolean): string;
+function TTestCase_Core_EnvFiltering.HasToken(const Tokens: array of string; const Tok: string): Boolean;
+var
+  I: Integer;
 begin
-  Result := SysUtils.GetEnvironmentVariable(Name);
-  Had := Result <> '';
-end;
-
-procedure TTestCase_Core_EnvFiltering.SetEnvKV(const Name, Value: string);
-begin
-  {$IFDEF MSWINDOWS}
-  Windows.SetEnvironmentVariable(PChar(Name), PChar(Value));
-  {$ELSE}
-  BaseUnix.FpSetEnv(PChar(Name+'='+Value));
-  {$ENDIF}
-end;
-
-procedure TTestCase_Core_EnvFiltering.RestoreEnv(const Name, OldValue: string; const Had: boolean);
-begin
-  if Had then SetEnvKV(Name, OldValue)
-  else SetEnvKV(Name, '');
+  for I := 0 to High(Tokens) do
+    if Tokens[I] = Tok then
+      Exit(True);
+  Result := False;
 end;
 
 procedure RegisterTests;
@@ -55,80 +41,86 @@ begin
 end;
 
 procedure TTestCase_Core_EnvFiltering.Test_Allow_Filter_Includes_Only_Allowed;
-var oldF, oldB: string; hadF, hadB: boolean; arr: array of string; 
-    tokens: array of string; i: Integer;
+var
+  g: TEnvOverridesGuard;
+  kvs: array of TEnvKV;
+  tokens: array of string;
 begin
-  oldF := GetEnvOld('APP_FOO', hadF);
-  oldB := GetEnvOld('APP_BAR', hadB);
-  try
-    SetEnvKV('APP_FOO','1');
-    SetEnvKV('APP_BAR','2');
+  kvs := nil;
+  SetLength(kvs, 2);
+  kvs[0].Name := '__FAFAFA_ENV_FILTER_TEST_FOO'; kvs[0].Value := '1'; kvs[0].HasValue := True;
+  kvs[1].Name := '__FAFAFA_ENV_FILTER_TEST_BAR'; kvs[1].Value := '2'; kvs[1].HasValue := True;
 
-    tokens := ArgvFromEnvEx('APP_', ['foo'], [], []);
+  g := env_overrides(kvs);
+  try
+    tokens := ArgsArgvFromEnvEx('__FAFAFA_ENV_FILTER_TEST_', ['foo'], [], []);
     // expect only --foo=1
     AssertEquals(1, Length(tokens));
     AssertEquals('--foo=1', tokens[0]);
   finally
-    RestoreEnv('APP_FOO', oldF, hadF);
-    RestoreEnv('APP_BAR', oldB, hadB);
+    g.Done;
   end;
 end;
 
 procedure TTestCase_Core_EnvFiltering.Test_Deny_Filter_Excludes_Denied;
-var oldF, oldB: string; hadF, hadB: boolean; tokens: array of string;
+var
+  g: TEnvOverridesGuard;
+  kvs: array of TEnvKV;
+  tokens: array of string;
 begin
-  oldF := GetEnvOld('APP_FOO', hadF);
-  oldB := GetEnvOld('APP_BAR', hadB);
-  try
-    SetEnvKV('APP_FOO','1');
-    SetEnvKV('APP_BAR','2');
+  kvs := nil;
+  SetLength(kvs, 2);
+  kvs[0].Name := '__FAFAFA_ENV_FILTER_TEST_FOO'; kvs[0].Value := '1'; kvs[0].HasValue := True;
+  kvs[1].Name := '__FAFAFA_ENV_FILTER_TEST_BAR'; kvs[1].Value := '2'; kvs[1].HasValue := True;
 
-    tokens := ArgvFromEnvEx('APP_', [], ['bar'], []);
+  g := env_overrides(kvs);
+  try
+    tokens := ArgsArgvFromEnvEx('__FAFAFA_ENV_FILTER_TEST_', [], ['bar'], []);
     // expect only --foo=1
     AssertEquals(1, Length(tokens));
     AssertEquals('--foo=1', tokens[0]);
   finally
-    RestoreEnv('APP_FOO', oldF, hadF);
-    RestoreEnv('APP_BAR', oldB, hadB);
+    g.Done;
   end;
 end;
 
 procedure TTestCase_Core_EnvFiltering.Test_Flags_Trim_And_BoolLowercase;
-var oldD, oldN: string; hadD, hadN: boolean; tokens: array of string;
-    seenDebug, seenName: boolean; i: Integer;
+var
+  g: TEnvOverridesGuard;
+  kvs: array of TEnvKV;
+  tokens: array of string;
 begin
-  oldD := GetEnvOld('APP_DEBUG', hadD);
-  oldN := GetEnvOld('APP_NAME', hadN);
-  try
-    SetEnvKV('APP_DEBUG','  TRUE  ');
-    SetEnvKV('APP_NAME','  x  ');
+  kvs := nil;
+  SetLength(kvs, 2);
+  kvs[0].Name := '__FAFAFA_ENV_FILTER_TEST_DEBUG'; kvs[0].Value := '  TRUE  '; kvs[0].HasValue := True;
+  kvs[1].Name := '__FAFAFA_ENV_FILTER_TEST_NAME'; kvs[1].Value := '  x  '; kvs[1].HasValue := True;
 
-    tokens := ArgvFromEnvEx('APP_', [], [], [efTrimValues, efLowercaseBools]);
-    seenDebug := False; seenName := False;
-    for i := 0 to High(tokens) do begin
-      if tokens[i] = '--debug=true' then seenDebug := True;
-      if tokens[i] = '--name=x' then seenName := True;
-    end;
-    AssertTrue(seenDebug);
-    AssertTrue(seenName);
+  g := env_overrides(kvs);
+  try
+    tokens := ArgsArgvFromEnvEx('__FAFAFA_ENV_FILTER_TEST_', [], [], [efTrimValues, efNormalizeBools]);
+    AssertTrue(HasToken(tokens, '--debug=true'));
+    AssertTrue(HasToken(tokens, '--name=x'));
   finally
-    RestoreEnv('APP_DEBUG', oldD, hadD);
-    RestoreEnv('APP_NAME', oldN, hadN);
+    g.Done;
   end;
 end;
 
 procedure TTestCase_Core_EnvFiltering.Test_EmptyValue_Becomes_SwitchToken;
-var oldE: string; hadE: boolean; tokens: array of string; i: Integer; seen: boolean;
+var
+  g: TEnvOverridesGuard;
+  kvs: array of TEnvKV;
+  tokens: array of string;
 begin
-  oldE := GetEnvOld('APP_EMPTY', hadE);
+  kvs := nil;
+  SetLength(kvs, 1);
+  kvs[0].Name := '__FAFAFA_ENV_FILTER_TEST_EMPTY'; kvs[0].Value := ''; kvs[0].HasValue := True;
+
+  g := env_overrides(kvs);
   try
-    SetEnvKV('APP_EMPTY','');
-    tokens := ArgvFromEnvEx('APP_', [], [], [efTrimValues]);
-    seen := False;
-    for i := 0 to High(tokens) do if tokens[i] = '--empty' then begin seen := True; Break; end;
-    AssertTrue(seen);
+    tokens := ArgsArgvFromEnvEx('__FAFAFA_ENV_FILTER_TEST_', [], [], [efTrimValues]);
+    AssertTrue(HasToken(tokens, '--empty'));
   finally
-    RestoreEnv('APP_EMPTY', oldE, hadE);
+    g.Done;
   end;
 end;
 

@@ -27,10 +27,10 @@ begin
     // If any is supported, skip this test in current build
     Exit;
   end;
-  arr := ArgvFromJson('nonexistent.json');
-  AssertEquals('ArgvFromJson should return empty when FAFAFA_ARGS_CONFIG_JSON is not defined', 0, Length(arr));
-  tmp := ArgvFromToml('nonexistent.toml');
-  AssertEquals('ArgvFromToml should return empty when FAFAFA_ARGS_CONFIG_TOML is not defined', 0, Length(tmp));
+  arr := ArgsArgvFromJson('nonexistent.json');
+  AssertEquals('ArgsArgvFromJson should return empty when FAFAFA_ARGS_CONFIG_JSON is not defined', 0, Length(arr));
+  tmp := ArgsArgvFromToml('nonexistent.toml');
+  AssertEquals('ArgsArgvFromToml should return empty when FAFAFA_ARGS_CONFIG_TOML is not defined', 0, Length(tmp));
 end;
 
 procedure RegisterTests;

@@ -62,7 +62,7 @@ var FN: string; argv: TStringArray; A: TArgs; opts: TArgsOptions; s: string; n: 
 begin
   FN := WriteTempFileJSON('{"app":{"name":"core","count":3,"debug":true}}');
   try
-    argv := ArgvFromJson(FN);
+    argv := ArgsArgvFromJson(FN);
     opts := MakeDefaultOpts;
     A := TArgs.FromArray(argv, opts);
     AssertTrue(A.TryGetValue('app.name', s)); AssertEquals('core', s);
@@ -78,7 +78,7 @@ var FN: string; argv: TStringArray; A: TArgs; opts: TArgsOptions; all: TStringAr
 begin
   FN := WriteTempFileJSON('{"tags":["a","b","c"]}');
   try
-    argv := ArgvFromJson(FN);
+    argv := ArgsArgvFromJson(FN);
     opts := MakeDefaultOpts;
     A := TArgs.FromArray(argv, opts);
     all := A.GetAll('tags');
@@ -93,7 +93,7 @@ var FN: string; cfgArgv, envArgv, cliArgv, merged: TStringArray; opts: TArgsOpti
 begin
   FN := WriteTempFileJSON('{"count":1,"debug":true}');
   try
-    cfgArgv := ArgvFromJson(FN);
+    cfgArgv := ArgsArgvFromJson(FN);
     envArgv := Arr(['--count=2']);
     cliArgv := Arr(['run','--count=5']);
     merged := Join(Join(cfgArgv, envArgv), cliArgv);
@@ -114,7 +114,7 @@ var FN: string; argv: TStringArray;
 begin
   FN := WriteTempFileJSON('{"items":[{"a":1},{"a":2}]}');
   try
-    argv := ArgvFromJson(FN);
+    argv := ArgsArgvFromJson(FN);
     AssertEquals(0, Length(argv));
   finally
     if FileExists(FN) then DeleteFile(FN);
@@ -126,7 +126,7 @@ var FN: string; argv: TStringArray;
 begin
   FN := WriteTempFileJSON('{"a":null}');
   try
-    argv := ArgvFromJson(FN);
+    argv := ArgsArgvFromJson(FN);
     AssertEquals(0, Length(argv));
   finally
     if FileExists(FN) then DeleteFile(FN);
@@ -138,7 +138,7 @@ var FN: string; argv: TStringArray;
 begin
   FN := WriteTempFileJSON('{}');
   try
-    argv := ArgvFromJson(FN);
+    argv := ArgsArgvFromJson(FN);
     AssertEquals(0, Length(argv));
   finally
     if FileExists(FN) then DeleteFile(FN);
@@ -150,7 +150,7 @@ var FN: string; argv: TStringArray;
 begin
   FN := WriteTempFileJSON('{"tags":[]}');
   try
-    argv := ArgvFromJson(FN);
+    argv := ArgsArgvFromJson(FN);
     AssertEquals(0, Length(argv));
   finally
     if FileExists(FN) then DeleteFile(FN);
@@ -162,7 +162,7 @@ var FN: string; argv: TStringArray; A: TArgs; opts: TArgsOptions; s: string;
 begin
   FN := WriteTempFileJSON('{"app":{"db":{"host":"h"}}}');
   try
-    argv := ArgvFromJson(FN);
+    argv := ArgsArgvFromJson(FN);
     opts := MakeDefaultOpts;
     A := TArgs.FromArray(argv, opts);
     AssertTrue(A.TryGetValue('app.db.host', s)); AssertEquals('h', s);
@@ -176,7 +176,7 @@ var FN: string; argv: TStringArray; A: TArgs; opts: TArgsOptions; all: TStringAr
 begin
   FN := WriteTempFileJSON('{"tags":["a",1,true,null,{},[]]}');
   try
-    argv := ArgvFromJson(FN);
+    argv := ArgsArgvFromJson(FN);
     opts := MakeDefaultOpts;
     A := TArgs.FromArray(argv, opts);
     all := A.GetAll('tags');
@@ -192,7 +192,7 @@ begin
   FN := WriteTempFileJSON('{"a":,}');
   try
     try
-      ArgvFromJson(FN);
+      ArgsArgvFromJson(FN);
       Fail('Expected JSON parse error');
     except
       on E: Exception do ; // any parsing exception is acceptable
@@ -207,7 +207,7 @@ var FN: string; argv: TStringArray; A: TArgs; opts: TArgsOptions; all: TStringAr
 begin
   FN := WriteTempFileJSON('{"APP_Name":"X","app_count":2, "App_DEBUG":true, "app":{"DB_Host":"h"}}');
   try
-    argv := ArgvFromJson(FN);
+    argv := ArgsArgvFromJson(FN);
     opts := ArgsOptionsDefault;
     A := TArgs.FromArray(argv, opts);
     AssertTrue(A.TryGetValue('app-name', s));
@@ -225,7 +225,7 @@ var FN: string; argv: TStringArray; A: TArgs; s: string;
 begin
   FN := WriteTempFileJSON('{"A__B-C1":"v","arr_key":[1,2],"N_N":"x","obj":{"__K":"v"}}');
   try
-    argv := ArgvFromJson(FN);
+    argv := ArgsArgvFromJson(FN);
     A := TArgs.FromArray(argv, MakeDefaultOpts);
     AssertTrue(A.TryGetValue('a--b-c1', s)); // existing dash preserved; double underscore stays as two dashes
     AssertTrue(A.TryGetValue('arr-key', s)); // array produces repeated tokens; key normalized

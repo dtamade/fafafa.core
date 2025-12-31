@@ -79,7 +79,7 @@ begin
   try
     startTime := Now;
     for i := 1 to ITERATIONS do
-      envArgv := ArgvFromEnv('APP_');
+      envArgv := ArgsArgvFromEnv('APP_');
     endTime := Now;
     
     elapsed := MilliSecondsBetween(endTime, startTime);
@@ -106,7 +106,7 @@ begin
   try
     startTime := Now;
     for i := 1 to ITERATIONS do
-      configArgv := ArgvFromToml(configFile);
+      configArgv := ArgsArgvFromToml(configFile);
     endTime := Now;
     
     elapsed := MilliSecondsBetween(endTime, startTime);
@@ -138,11 +138,11 @@ begin
   
   try
     {$IFDEF FAFAFA_ARGS_CONFIG_TOML}
-    configArgv := ArgvFromToml(configFile);
+    configArgv := ArgsArgvFromToml(configFile);
     {$ELSE}
     SetLength(configArgv, 0);
     {$ENDIF}
-    envArgv := ArgvFromEnv('APP_');
+    envArgv := ArgsArgvFromEnv('APP_');
     cliArgv := GenerateCLIArgs(CONFIG_SIZE_SMALL);
     
     opts := ArgsOptionsDefault;
@@ -188,11 +188,11 @@ begin
   
   try
     {$IFDEF FAFAFA_ARGS_CONFIG_TOML}
-    configArgv := ArgvFromToml(configFile);
+    configArgv := ArgsArgvFromToml(configFile);
     {$ELSE}
     SetLength(configArgv, 0);
     {$ENDIF}
-    envArgv := ArgvFromEnv('APP_');
+    envArgv := ArgsArgvFromEnv('APP_');
     cliArgv := GenerateCLIArgs(CONFIG_SIZE_LARGE);
     
     opts := ArgsOptionsDefault;
@@ -235,14 +235,14 @@ begin
   // 创建冲突的配置：同样的键在不同源中有不同值
   {$IFDEF FAFAFA_ARGS_CONFIG_TOML}
   configFile := CreateTempConfigFile(5);
-  configArgv := ArgvFromToml(configFile);
+  configArgv := ArgsArgvFromToml(configFile);
   {$ELSE}
   SetLength(configArgv, 0);
   {$ENDIF}
   
   env_set('APP_KEY1', 'env_value');
   env_set('APP_KEY2', 'env_value');
-  envArgv := ArgvFromEnv('APP_');
+  envArgv := ArgsArgvFromEnv('APP_');
   
   SetLength(cliArgv, 2);
   cliArgv[0] := '--key1=cli_value';
