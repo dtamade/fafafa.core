@@ -33,7 +33,7 @@
   - Parent → child, first-wins (child keeps same-name flag). Visible in Usage
 
 ### Reserved / not implemented yet
-- CONFIG → argv (opt-in): ArgsArgvFromToml / ArgsArgvFromJson (enable via {$DEFINE FAFAFA_ARGS_CONFIG_TOML} / {$DEFINE FAFAFA_ARGS_CONFIG_JSON}); returns empty array when disabled
+- CONFIG → argv (opt-in): ArgsArgvFromToml / ArgsArgvFromJson (enable via {$DEFINE FAFAFA_ARGS_CONFIG_TOML} / {$DEFINE FAFAFA_ARGS_CONFIG_JSON}); returns empty array when disabled or on read/parse errors (no raise). JSON requires object root
 - ArgsArgvFromYaml stub (reserved)
 - Completion generators (bash/zsh/fish/pwsh) under consideration
 - Advanced validation/diagnostics (mutex/depends/choices/range, did-you-mean), heavy styling/i18n — deferred

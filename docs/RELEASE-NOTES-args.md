@@ -25,7 +25,7 @@
   - First-wins (child keeps same-name flag)
 
 ## Reserved / Deferred
-- CONFIG → argv (opt-in): ArgsArgvFromToml / ArgsArgvFromJson (enable via {$DEFINE FAFAFA_ARGS_CONFIG_TOML} / {$DEFINE FAFAFA_ARGS_CONFIG_JSON}); returns empty array when disabled
+- CONFIG → argv (opt-in): ArgsArgvFromToml / ArgsArgvFromJson (enable via {$DEFINE FAFAFA_ARGS_CONFIG_TOML} / {$DEFINE FAFAFA_ARGS_CONFIG_JSON}); returns empty array when disabled or on read/parse errors (no raise). JSON requires object root
 - YAML → argv: ArgsArgvFromYaml (stub)
 - Completion generators (bash/zsh/fish/pwsh): under consideration
 - Advanced validation/diagnostics (mutex/depends/choices/range, did-you-mean): deferred
