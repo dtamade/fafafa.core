@@ -12,7 +12,7 @@ uses
   fafafa.core.simd.cpuinfo.base,
   fafafa.core.simd.memutils,
   fafafa.core.math
-  {$IFDEF SIMD_X86_AVAILABLE}
+  {$IFDEF CPUX86_64}  // x86 SIMD backends use 64-bit assembly
   , fafafa.core.simd.sse2
   , fafafa.core.simd.sse3      // ✅ SSE3: horizontal ops (HADDPS, HSUBPS)
   , fafafa.core.simd.ssse3     // ✅ SSSE3: byte shuffle (PSHUFB), integer abs (PABS)

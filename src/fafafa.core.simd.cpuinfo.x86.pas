@@ -38,9 +38,9 @@ implementation
 {$IFDEF SIMD_X86_AVAILABLE}
 
 uses
-  {$IFDEF CPUX86_64}
+  {$IF defined(CPUX86_64)}
   fafafa.core.simd.cpuinfo.x86.x86_64
-  {$ELSEIF DEFINED(CPUI386)}
+  {$ELSEIF defined(CPUI386)}
   fafafa.core.simd.cpuinfo.x86.i386
   {$ENDIF};
 
@@ -48,7 +48,7 @@ uses
 
 function HasCPUID: Boolean; inline;
 begin
-  {$IFDEF CPUX86_64}
+  {$IF defined(CPUX86_64)}
   Result := fafafa.core.simd.cpuinfo.x86.x86_64.HasCPUID;
   {$ELSEIF DEFINED(CPUI386)}
   Result := fafafa.core.simd.cpuinfo.x86.i386.HasCPUID;
@@ -57,7 +57,7 @@ end;
 
 procedure CPUID(EAX: DWord; var EAX_Out, EBX_Out, ECX_Out, EDX_Out: DWord); inline;
 begin
-  {$IFDEF CPUX86_64}
+  {$IF defined(CPUX86_64)}
   fafafa.core.simd.cpuinfo.x86.x86_64.CPUID(EAX, EAX_Out, EBX_Out, ECX_Out, EDX_Out);
   {$ELSEIF DEFINED(CPUI386)}
   fafafa.core.simd.cpuinfo.x86.i386.CPUID(EAX, EAX_Out, EBX_Out, ECX_Out, EDX_Out);
@@ -66,7 +66,7 @@ end;
 
 procedure CPUIDEX(EAX, ECX_In: DWord; var EAX_Out, EBX_Out, ECX_Out, EDX_Out: DWord); inline;
 begin
-  {$IFDEF CPUX86_64}
+  {$IF defined(CPUX86_64)}
   fafafa.core.simd.cpuinfo.x86.x86_64.CPUIDEX(EAX, ECX_In, EAX_Out, EBX_Out, ECX_Out, EDX_Out);
   {$ELSEIF DEFINED(CPUI386)}
   fafafa.core.simd.cpuinfo.x86.i386.CPUIDEX(EAX, ECX_In, EAX_Out, EBX_Out, ECX_Out, EDX_Out);
@@ -75,7 +75,7 @@ end;
 
 function ReadXCR0: UInt64; inline;
 begin
-  {$IFDEF CPUX86_64}
+  {$IF defined(CPUX86_64)}
   Result := fafafa.core.simd.cpuinfo.x86.x86_64.ReadXCR0;
   {$ELSEIF DEFINED(CPUI386)}
   Result := fafafa.core.simd.cpuinfo.x86.i386.ReadXCR0;
@@ -84,7 +84,7 @@ end;
 
 function DetectX86Features: TX86Features; inline;
 begin
-  {$IFDEF CPUX86_64}
+  {$IF defined(CPUX86_64)}
   Result := fafafa.core.simd.cpuinfo.x86.x86_64.DetectX86Features;
   {$ELSEIF DEFINED(CPUI386)}
   Result := fafafa.core.simd.cpuinfo.x86.i386.DetectX86Features;
@@ -93,7 +93,7 @@ end;
 
 procedure DetectX86VendorAndModel(var cpuInfo: TCPUInfo); inline;
 begin
-  {$IFDEF CPUX86_64}
+  {$IF defined(CPUX86_64)}
   fafafa.core.simd.cpuinfo.x86.x86_64.DetectX86VendorAndModel(cpuInfo);
   {$ELSEIF DEFINED(CPUI386)}
   fafafa.core.simd.cpuinfo.x86.i386.DetectX86VendorAndModel(cpuInfo);
@@ -102,7 +102,7 @@ end;
 
 function GetX86CacheInfo: TX86CacheInfo; inline;
 begin
-  {$IFDEF CPUX86_64}
+  {$IF defined(CPUX86_64)}
   Result := fafafa.core.simd.cpuinfo.x86.x86_64.GetX86CacheInfo;
   {$ELSEIF DEFINED(CPUI386)}
   Result := fafafa.core.simd.cpuinfo.x86.i386.GetX86CacheInfo;
@@ -111,7 +111,7 @@ end;
 
 function IsAVXSupportedByOS: Boolean; inline;
 begin
-  {$IFDEF CPUX86_64}
+  {$IF defined(CPUX86_64)}
   Result := fafafa.core.simd.cpuinfo.x86.x86_64.IsAVXSupportedByOS;
   {$ELSEIF DEFINED(CPUI386)}
   Result := fafafa.core.simd.cpuinfo.x86.i386.IsAVXSupportedByOS;

@@ -1,10 +1,19 @@
-# Use Ubuntu as base; arm64 uses apt packages, riscv64 downloads snapshot.
-FROM ubuntu:24.04
+# Multi-arch SIMD test image
+# - i386: Debian bookworm (Ubuntu 24.04 dropped i386)
+# - arm64/amd64: Ubuntu 24.04
+# - riscv64: Ubuntu 24.04 + FPC snapshot
+ARG TARGETARCH
+FROM debian:bookworm AS base-386
+FROM ubuntu:24.04 AS base-arm64
+FROM ubuntu:24.04 AS base-amd64
+FROM ubuntu:24.04 AS base-riscv64
+
+FROM base-${TARGETARCH}
 
 ARG DEBIAN_FRONTEND=noninteractive
 ARG TARGETARCH
 
-# For riscv64: freepascal.org can be slow (~6KB/s). Consider self-hosting the tarball.
+# For riscv64: freepascal.org can be slow. Consider self-hosting the tarball.
 ARG FPC_RISCV64_SNAPSHOT_URL="https://downloads.freepascal.org/fpc/snapshot/trunk/riscv64-linux/fpc-3.3.1.riscv64-linux.tar.gz"
 
 RUN apt-get -o Acquire::Retries=5 -o Acquire::ForceIPv4=true update \

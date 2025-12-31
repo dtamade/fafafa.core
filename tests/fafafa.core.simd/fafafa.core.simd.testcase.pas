@@ -1883,7 +1883,8 @@ end;
 procedure TTestCase_BackendSmoke.Test_ForceSSE2_VecF32x4_Smoke;
 begin
   ForceBackend(sbSSE2);
-  if HasSSE2 then
+  // Need both CPU feature AND compiled backend
+  if HasSSE2 and IsBackendRegistered(sbSSE2) then
     AssertEquals('Active backend should be SSE2', Ord(sbSSE2), Ord(GetCurrentBackend))
   else
     AssertEquals('Fallback backend should be Scalar', Ord(sbScalar), Ord(GetCurrentBackend));
@@ -1893,7 +1894,8 @@ end;
 procedure TTestCase_BackendSmoke.Test_ForceSSE3_VecF32x4_Smoke;
 begin
   ForceBackend(sbSSE3);
-  if HasSSE3 then
+  // Need both CPU feature AND compiled backend
+  if HasSSE3 and IsBackendRegistered(sbSSE3) then
     AssertEquals('Active backend should be SSE3', Ord(sbSSE3), Ord(GetCurrentBackend))
   else
     AssertEquals('Fallback backend should be Scalar', Ord(sbScalar), Ord(GetCurrentBackend));
@@ -1903,7 +1905,8 @@ end;
 procedure TTestCase_BackendSmoke.Test_ForceSSSE3_VecF32x4_Smoke;
 begin
   ForceBackend(sbSSSE3);
-  if HasSSSE3 then
+  // Need both CPU feature AND compiled backend
+  if HasSSSE3 and IsBackendRegistered(sbSSSE3) then
     AssertEquals('Active backend should be SSSE3', Ord(sbSSSE3), Ord(GetCurrentBackend))
   else
     AssertEquals('Fallback backend should be Scalar', Ord(sbScalar), Ord(GetCurrentBackend));
@@ -1913,7 +1916,8 @@ end;
 procedure TTestCase_BackendSmoke.Test_ForceSSE41_VecF32x4_Smoke;
 begin
   ForceBackend(sbSSE41);
-  if HasSSE41 then
+  // Need both CPU feature AND compiled backend
+  if HasSSE41 and IsBackendRegistered(sbSSE41) then
     AssertEquals('Active backend should be SSE4.1', Ord(sbSSE41), Ord(GetCurrentBackend))
   else
     AssertEquals('Fallback backend should be Scalar', Ord(sbScalar), Ord(GetCurrentBackend));
@@ -1923,7 +1927,8 @@ end;
 procedure TTestCase_BackendSmoke.Test_ForceSSE42_VecF32x4_Smoke;
 begin
   ForceBackend(sbSSE42);
-  if HasSSE42 then
+  // Need both CPU feature AND compiled backend
+  if HasSSE42 and IsBackendRegistered(sbSSE42) then
     AssertEquals('Active backend should be SSE4.2', Ord(sbSSE42), Ord(GetCurrentBackend))
   else
     AssertEquals('Fallback backend should be Scalar', Ord(sbScalar), Ord(GetCurrentBackend));
@@ -1933,7 +1938,8 @@ end;
 procedure TTestCase_BackendSmoke.Test_ForceAVX2_VecF32x4_Smoke;
 begin
   ForceBackend(sbAVX2);
-  if HasAVX2 then
+  // Need both CPU feature AND compiled backend
+  if HasAVX2 and IsBackendRegistered(sbAVX2) then
     AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend))
   else
     AssertEquals('Fallback backend should be Scalar', Ord(sbScalar), Ord(GetCurrentBackend));
@@ -1943,7 +1949,8 @@ end;
 procedure TTestCase_BackendSmoke.Test_ForceAVX512_VecF32x4_Smoke;
 begin
   ForceBackend(sbAVX512);
-  if HasAVX512 then
+  // Need both CPU feature AND compiled backend
+  if HasAVX512 and IsBackendRegistered(sbAVX512) then
     AssertEquals('Active backend should be AVX-512', Ord(sbAVX512), Ord(GetCurrentBackend))
   else
     AssertEquals('Fallback backend should be Scalar', Ord(sbScalar), Ord(GetCurrentBackend));

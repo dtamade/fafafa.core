@@ -7,6 +7,7 @@ DOCKER_DIR="${ROOT_DIR}/tests/fafafa.core.simd/docker"
 IMAGE_BASE="fafafa-core-simd-test"
 
 PLATFORMS=(
+  "linux/386"
   "linux/arm64"
   "linux/riscv64"
 )

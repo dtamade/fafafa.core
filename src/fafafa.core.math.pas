@@ -62,6 +62,7 @@ const
  *}
 function IsAddOverflow(aA, aB: SizeUInt): Boolean; overload; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
 
+{$IFDEF CPU64}
 {**
  * IsAddOverflow
  *
@@ -77,6 +78,7 @@ function IsAddOverflow(aA, aB: SizeUInt): Boolean; overload; {$IFDEF FAFAFA_CORE
  *   True if overflow would occur / 如果会溢出返回 True
  *}
 function IsAddOverflow(aA, aB: UInt32): Boolean; overload; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+{$ENDIF}
 
 {**
  * Abs
@@ -338,6 +340,7 @@ function Log2(x: Double): Double; overload; {$IFDEF FAFAFA_CORE_INLINE} inline;{
  *}
 function IsSubUnderflow(aA, aB: SizeUInt): Boolean; overload; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
 
+{$IFDEF CPU64}
 {**
  * IsSubUnderflow
  *
@@ -353,6 +356,7 @@ function IsSubUnderflow(aA, aB: SizeUInt): Boolean; overload; {$IFDEF FAFAFA_COR
  *   True if underflow would occur (aA < aB) / 如果会下溢返回 True
  *}
 function IsSubUnderflow(aA, aB: UInt32): Boolean; overload; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+{$ENDIF}
 
 {**
  * IsMulOverflow
@@ -370,6 +374,7 @@ function IsSubUnderflow(aA, aB: UInt32): Boolean; overload; {$IFDEF FAFAFA_CORE_
  *}
 function IsMulOverflow(aA, aB: SizeUInt): Boolean; overload; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
 
+{$IFDEF CPU64}
 {**
  * IsMulOverflow
  *
@@ -385,6 +390,7 @@ function IsMulOverflow(aA, aB: SizeUInt): Boolean; overload; {$IFDEF FAFAFA_CORE
  *   True if overflow would occur / 如果会溢出返回 True
  *}
 function IsMulOverflow(aA, aB: UInt32): Boolean; overload; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+{$ENDIF}
 
 {**
  * SaturatingAdd
@@ -403,6 +409,7 @@ function IsMulOverflow(aA, aB: UInt32): Boolean; overload; {$IFDEF FAFAFA_CORE_I
  *}
 function SaturatingAdd(aA, aB: SizeUInt): SizeUInt; overload; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
 
+{$IFDEF CPU64}
 {**
  * SaturatingAdd
  *
@@ -419,6 +426,7 @@ function SaturatingAdd(aA, aB: SizeUInt): SizeUInt; overload; {$IFDEF FAFAFA_COR
  *   Sum or MAX_UINT32 if overflow / 和或溢出时返回最大值
  *}
 function SaturatingAdd(aA, aB: UInt32): UInt32; overload; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+{$ENDIF}
 
 {**
  * SaturatingSub
@@ -437,6 +445,7 @@ function SaturatingAdd(aA, aB: UInt32): UInt32; overload; {$IFDEF FAFAFA_CORE_IN
  *}
 function SaturatingSub(aA, aB: SizeUInt): SizeUInt; overload; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
 
+{$IFDEF CPU64}
 {**
  * SaturatingSub
  *
@@ -453,6 +462,7 @@ function SaturatingSub(aA, aB: SizeUInt): SizeUInt; overload; {$IFDEF FAFAFA_COR
  *   Difference or 0 if underflow / 差或下溢时返回 0
  *}
 function SaturatingSub(aA, aB: UInt32): UInt32; overload; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+{$ENDIF}
 
 {**
  * SaturatingMul
@@ -471,6 +481,7 @@ function SaturatingSub(aA, aB: UInt32): UInt32; overload; {$IFDEF FAFAFA_CORE_IN
  *}
 function SaturatingMul(aA, aB: SizeUInt): SizeUInt; overload; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
 
+{$IFDEF CPU64}
 {**
  * SaturatingMul
  *
@@ -487,6 +498,7 @@ function SaturatingMul(aA, aB: SizeUInt): SizeUInt; overload; {$IFDEF FAFAFA_COR
  *   Product or MAX_UINT32 if overflow / 积或溢出时返回最大值
  *}
 function SaturatingMul(aA, aB: UInt32): UInt32; overload; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+{$ENDIF}
 
 // === Integer Utilities ===
 
@@ -571,60 +583,72 @@ begin
   Result := fafafa.core.math.safeint.IsAddOverflow(aA, aB);
 end;
 
+{$IFDEF CPU64}
 function IsAddOverflow(aA, aB: UInt32): Boolean;
 begin
   Result := fafafa.core.math.safeint.IsAddOverflow(aA, aB);
 end;
+{$ENDIF}
 
 function IsSubUnderflow(aA, aB: SizeUInt): Boolean;
 begin
   Result := fafafa.core.math.safeint.IsSubUnderflow(aA, aB);
 end;
 
+{$IFDEF CPU64}
 function IsSubUnderflow(aA, aB: UInt32): Boolean;
 begin
   Result := fafafa.core.math.safeint.IsSubUnderflow(aA, aB);
 end;
+{$ENDIF}
 
 function IsMulOverflow(aA, aB: SizeUInt): Boolean;
 begin
   Result := fafafa.core.math.safeint.IsMulOverflow(aA, aB);
 end;
 
+{$IFDEF CPU64}
 function IsMulOverflow(aA, aB: UInt32): Boolean;
 begin
   Result := fafafa.core.math.safeint.IsMulOverflow(aA, aB);
 end;
+{$ENDIF}
 
 function SaturatingAdd(aA, aB: SizeUInt): SizeUInt;
 begin
   Result := fafafa.core.math.safeint.SaturatingAdd(aA, aB);
 end;
 
+{$IFDEF CPU64}
 function SaturatingAdd(aA, aB: UInt32): UInt32;
 begin
   Result := fafafa.core.math.safeint.SaturatingAdd(aA, aB);
 end;
+{$ENDIF}
 
 function SaturatingSub(aA, aB: SizeUInt): SizeUInt;
 begin
   Result := fafafa.core.math.safeint.SaturatingSub(aA, aB);
 end;
 
+{$IFDEF CPU64}
 function SaturatingSub(aA, aB: UInt32): UInt32;
 begin
   Result := fafafa.core.math.safeint.SaturatingSub(aA, aB);
 end;
+{$ENDIF}
 
 function SaturatingMul(aA, aB: SizeUInt): SizeUInt;
 begin
   Result := fafafa.core.math.safeint.SaturatingMul(aA, aB);
 end;
 
+{$IFDEF CPU64}
 function SaturatingMul(aA, aB: UInt32): UInt32;
 begin
   Result := fafafa.core.math.safeint.SaturatingMul(aA, aB);
 end;
+{$ENDIF}
 
 function Abs(x: Double): Double;
 begin
