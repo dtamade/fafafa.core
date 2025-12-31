@@ -14,7 +14,7 @@ unit fafafa.core.args.command;
 interface
 
 uses
-  SysUtils, fafafa.core.args, fafafa.core.collections.vec, fafafa.core.args.schema;
+  SysUtils, fafafa.core.args, fafafa.core.args.utils, fafafa.core.collections.vec, fafafa.core.args.schema;
 
 type
   TStringArray = array of string;
@@ -199,9 +199,18 @@ begin
   Arr[High(Arr)] := V;
 end;
 
-function IsOptionLike(const S: string): boolean; inline;
+function IsRoutingStopToken(const S: string; const Opts: TArgsOptions): boolean; inline;
 begin
-  Result := (Length(S)>0) and ((S[1]='-') or (S[1]='/'));
+  Result := Opts.StopAtDoubleDash and (S = '--');
+end;
+
+function IsOptionLikeForRouting(const S: string; const Opts: TArgsOptions): boolean; inline;
+begin
+  if S='' then Exit(False);
+  // Treat negative numbers as positionals: e.g. -1, -1.2
+  if Opts.TreatNegativeNumbersAsPositionals and IsNegativeNumberLike(S) then
+    Exit(False);
+  Result := (S[1]='-') or (S[1]='/');
 end;
 
 
@@ -499,11 +508,14 @@ begin
   // find first non-option as path start
   depth := 0; firstNonOpt := -1;
   for i := Low(Args) to High(Args) do
-    if not IsOptionLike(Args[i]) then begin firstNonOpt := i; Break; end;
+  begin
+    if IsRoutingStopToken(Args[i], Opts) then Break;
+    if not IsOptionLikeForRouting(Args[i], Opts) then begin firstNonOpt := i; Break; end;
+  end;
   if firstNonOpt<0 then Exit; // no command provided
   // walk down
   idx := firstNonOpt;
-  while (idx <= High(Args)) and (not IsOptionLike(Args[idx])) do
+  while (idx <= High(Args)) and (not IsOptionLikeForRouting(Args[idx], Opts)) do
   begin
     if cur=nil then child := FindChild(Args[idx], caseInsensitive)
     else child := cur.FindChild(Args[idx], caseInsensitive);
@@ -512,11 +524,19 @@ begin
   end;
   if (cur=nil) or (depth=0) then Exit; // not found (CMD_NOT_FOUND)
   // default-subcommand fallback when no more tokens OR next is an option
-  hasNextNonOpt := (idx <= High(Args)) and (not IsOptionLike(Args[idx]));
+  hasNextNonOpt := (idx <= High(Args)) and (not IsOptionLikeForRouting(Args[idx], Opts));
   if (not hasNextNonOpt) then
   begin
-    child := cur.DefaultChild;
-    if child<>nil then cur := child;
+    // "--" is a routing stop marker: do not trigger default-child fallback.
+    if (idx <= High(Args)) and IsRoutingStopToken(Args[idx], Opts) then
+    begin
+      // keep cur as-is
+    end
+    else
+    begin
+      child := cur.DefaultChild;
+      if child<>nil then cur := child;
+    end;
   end;
   // slice sub-args (starting from the first token after matched path)
   SetLength(subArgs, 0);
@@ -596,7 +616,10 @@ begin
   // find first non-option as path start
   depth := 0; firstNonOpt := -1; cur := nil;
   for i := Low(Args) to High(Args) do
-    if not IsOptionLike(Args[i]) then begin firstNonOpt := i; Break; end;
+  begin
+    if IsRoutingStopToken(Args[i], Opts) then Break;
+    if not IsOptionLikeForRouting(Args[i], Opts) then begin firstNonOpt := i; Break; end;
+  end;
   if firstNonOpt<0 then Exit; // no command tokens
   // walk down greedily by name/alias
   name := Args[firstNonOpt];
@@ -606,7 +629,7 @@ begin
   depth := 1; i := firstNonOpt+1;
   while i <= High(Args) do
   begin
-    if IsOptionLike(Args[i]) then Break;
+    if IsOptionLikeForRouting(Args[i], Opts) then Break;
     child := cur.FindChild(Args[i], caseInsensitive);
     if child=nil then
     begin
@@ -619,14 +642,22 @@ begin
     Inc(depth); Inc(i);
   end;
   // apply default-child fallback if next is option or no more tokens
-  hasNextNonOpt := (i <= High(Args)) and (not IsOptionLike(Args[i]));
+  hasNextNonOpt := (i <= High(Args)) and (not IsOptionLikeForRouting(Args[i], Opts));
   if not hasNextNonOpt then
   begin
-    child := cur.DefaultChild;
-    if child<>nil then
+    // "--" is a routing stop marker: do not trigger default-child fallback.
+    if (i <= High(Args)) and IsRoutingStopToken(Args[i], Opts) then
     begin
-      SetLength(Result, Length(Result)+1);
-      Result[High(Result)] := child.Name;
+      // keep as-is
+    end
+    else
+    begin
+      child := cur.DefaultChild;
+      if child<>nil then
+      begin
+        SetLength(Result, Length(Result)+1);
+        Result[High(Result)] := child.Name;
+      end;
     end;
   end;
 end;
