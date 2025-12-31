@@ -42,6 +42,7 @@ type
 
 // Re-export functions from args.base
 function ArgsOptionsDefault: TArgsOptions; inline;
+procedure ArgsOptionsSetDefault(const Opts: TArgsOptions); inline;
 procedure ParseArgs(const Args: array of string; const Opts: TArgsOptions; out Ctx: TArgsContext); inline;
 
 function ArgsHasFlag(const Flag: string): boolean; inline;
@@ -70,6 +71,11 @@ implementation
 function ArgsOptionsDefault: TArgsOptions; inline;
 begin
   Result := fafafa.core.args.base.ArgsOptionsDefault;
+end;
+
+procedure ArgsOptionsSetDefault(const Opts: TArgsOptions); inline;
+begin
+  fafafa.core.args.base.ArgsOptionsSetDefault(Opts);
 end;
 
 procedure ParseArgs(const Args: array of string; const Opts: TArgsOptions; out Ctx: TArgsContext); inline;

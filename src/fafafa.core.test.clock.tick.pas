@@ -8,30 +8,53 @@ interface
 uses
   SysUtils,
   fafafa.core.test.core,   // IClock
-  fafafa.core.time.tick;   // ITick / CreateDefaultTick (new namespace)
+  fafafa.core.time.tick;   // ITick / MakeBestTick
 
-// High-resolution clock adapter that wraps record-based TTick as IClock.
-// NowUTC uses SysUtils.Now (same as TSystemClock); NowMonotonicMs uses TTick.
+// High-resolution clock adapter that wraps ITick as IClock.
+// NowUTC uses SysUtils.Now (same as TSystemClock); NowMonotonicMs uses ITick.
 
 type
   TTickClock = class(TInterfacedObject, IClock)
   private
-    FTick: TTick; // record-based clock
+    FTick: ITick;
+    class function TickToMs(const ATicks, AResolution: UInt64): QWord;
   public
-    constructor Create; reintroduce;
+    constructor Create(const ATick: ITick); reintroduce; overload;
+    constructor Create; reintroduce; overload;
     function NowUTC: TDateTime;
     function NowMonotonicMs: QWord;
   end;
 
-// Convenience factory: create a high-resolution clock using BestTick
+// Convenience factory: create a high-resolution clock using MakeBestTick
 function CreateHighResClock: IClock;
 
 implementation
 
-constructor TTickClock.Create;
+class function TTickClock.TickToMs(const ATicks, AResolution: UInt64): QWord;
+var
+  secs, rem: UInt64;
+begin
+  if (AResolution = 0) then Exit(0);
+
+  // Convert "ticks" (with Resolution ticks/second) to milliseconds without overflow.
+  secs := ATicks div AResolution;
+  rem  := ATicks mod AResolution;
+  Result := QWord(secs) * 1000 + (QWord(rem) * 1000) div AResolution;
+end;
+
+constructor TTickClock.Create(const ATick: ITick);
 begin
   inherited Create;
-  FTick := BestTick;
+
+  if ATick <> nil then
+    FTick := ATick
+  else
+    FTick := MakeBestTick;
+end;
+
+constructor TTickClock.Create;
+begin
+  Create(nil);
 end;
 
 function TTickClock.NowUTC: TDateTime;
@@ -41,16 +64,18 @@ end;
 
 function TTickClock.NowMonotonicMs: QWord;
 var
-  t0, dt: UInt64;
+  t: UInt64;
+  res: UInt64;
 begin
-  t0 := FTick.Now;
-  dt := FTick.Elapsed(t0);
-  Result := FTick.TicksToDuration(dt).AsMs;
+  if FTick = nil then Exit(0);
+  t := FTick.Tick;
+  res := FTick.Resolution;
+  Result := TickToMs(t, res);
 end;
 
 function CreateHighResClock: IClock;
 begin
-  Result := TTickClock.Create;
+  Result := TTickClock.Create(nil);
 end;
 
 end.

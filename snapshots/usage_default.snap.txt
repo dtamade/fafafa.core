@@ -1,0 +1,10 @@
+
+Aliases: r
+Flags:
+           times
+  --count  [required] [default=1] [int]  Number of 
+           JSON
+  --json   [bool]  Output 
+Args:
+        path
+  file  [required]  Input file 
