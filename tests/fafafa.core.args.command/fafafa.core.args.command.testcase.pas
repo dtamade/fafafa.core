@@ -87,7 +87,9 @@ type
     procedure Test_Run_DefaultSubcommand_Fallback;
     procedure Test_Run_DefaultSubcommand_NegativeNumber_NoFallback;
     procedure Test_Run_DefaultSubcommand_DoubleDash_NoFallback;
+    procedure Test_Run_DefaultSubcommand_DoubleDash_StopAtDoubleDashFalse_NoFallback;
     procedure Test_Run_DoubleDashBeforeCommand_Returns_CMD_NOT_FOUND;
+    procedure Test_Run_DoubleDashBeforeCommand_StopAtDoubleDashFalse_Returns_CMD_NOT_FOUND;
 
     // RunPath tests
     procedure Test_RunPath_SingleLevel;
@@ -101,7 +103,9 @@ type
     procedure Test_GetBestMatchPath_NoMatch;
     procedure Test_GetBestMatchPath_DefaultChild_NegativeNumber_NoDefaultChild;
     procedure Test_GetBestMatchPath_DefaultChild_DoubleDash_NoDefaultChild;
+    procedure Test_GetBestMatchPath_DefaultChild_DoubleDash_StopAtDoubleDashFalse_NoDefaultChild;
     procedure Test_GetBestMatchPath_DoubleDashBeforeCommand_EmptyPath;
+    procedure Test_GetBestMatchPath_DoubleDashBeforeCommand_StopAtDoubleDashFalse_EmptyPath;
 
     // Schema integration tests
     procedure Test_Command_Spec_SetGet;
@@ -934,6 +938,65 @@ begin
   CheckEquals(0, HandlerCallCount, 'Handler must not be called');
 end;
 
+procedure TTestCase_ArgsCommand.Test_Run_DefaultSubcommand_DoubleDash_StopAtDoubleDashFalse_NoFallback;
+var
+  Root: IRootCommand;
+  ServeCmd, DevCmd: ICommand;
+  Code: Integer;
+  Opts: TArgsOptions;
+  Pos: TStringArray;
+begin
+  Root := NewRootCommand;
+
+  ServeCmd := NewCommand('serve');
+  ServeCmd.SetHandlerFunc(@SimpleHandler);
+
+  DevCmd := NewCommand('dev');
+  DevCmd.SetHandlerFunc(@SubCommandHandler);
+  ServeCmd.AddChild(DevCmd);
+  ServeCmd.SetDefaultChildName('dev');
+
+  Root.AddChild(ServeCmd);
+
+  Opts := ArgsOptionsDefault;
+  Opts.StopAtDoubleDash := False;
+
+  HandlerCallCount := 0;
+  LastHandlerArgs := nil;
+  Code := Root.Run(['serve', '--', '/x'], Opts);
+
+  CheckEquals(0, Code, 'StopAtDoubleDash=False: "--" still stops routing and must not trigger default-child fallback');
+  CheckEquals(1, HandlerCallCount);
+  CheckNotNull(LastHandlerArgs, 'Handler should receive args');
+
+  Pos := LastHandlerArgs.Positionals;
+  CheckEquals(2, Length(Pos));
+  CheckEquals('--', Pos[0]);
+  CheckEquals('/x', Pos[1]);
+end;
+
+procedure TTestCase_ArgsCommand.Test_Run_DoubleDashBeforeCommand_StopAtDoubleDashFalse_Returns_CMD_NOT_FOUND;
+var
+  Root: IRootCommand;
+  Cmd: ICommand;
+  Code: Integer;
+  Opts: TArgsOptions;
+begin
+  Root := NewRootCommand;
+  Cmd := NewCommand('serve');
+  Cmd.SetHandlerFunc(@SimpleHandler);
+  Root.AddChild(Cmd);
+
+  Opts := ArgsOptionsDefault;
+  Opts.StopAtDoubleDash := False;
+
+  HandlerCallCount := 0;
+  Code := Root.Run(['--', 'serve'], Opts);
+
+  CheckEquals(CMD_NOT_FOUND, Code, 'StopAtDoubleDash=False: routing must still stop at "--"');
+  CheckEquals(0, HandlerCallCount, 'Handler must not be called');
+end;
+
 { RunPath tests }
 
 procedure TTestCase_ArgsCommand.Test_RunPath_SingleLevel;
@@ -1111,6 +1174,45 @@ begin
 
   Path := GetBestMatchPath(Root, ['--', 'serve'], Opts);
   CheckEquals(0, Length(Path), 'StopAtDoubleDash=True: routing must stop at "--"');
+end;
+
+procedure TTestCase_ArgsCommand.Test_GetBestMatchPath_DefaultChild_DoubleDash_StopAtDoubleDashFalse_NoDefaultChild;
+var
+  Root: IRootCommand;
+  ServeCmd, DevCmd: ICommand;
+  Path: array of string;
+  Opts: TArgsOptions;
+begin
+  Root := NewRootCommand;
+
+  ServeCmd := NewCommand('serve');
+  DevCmd := NewCommand('dev');
+  ServeCmd.AddChild(DevCmd);
+  ServeCmd.SetDefaultChildName('dev');
+  Root.AddChild(ServeCmd);
+
+  Opts := ArgsOptionsDefault;
+  Opts.StopAtDoubleDash := False;
+
+  Path := GetBestMatchPath(Root, ['serve', '--', 'dev'], Opts);
+  CheckEquals(1, Length(Path), 'StopAtDoubleDash=False: "--" must not trigger default child');
+  CheckEquals('serve', Path[0]);
+end;
+
+procedure TTestCase_ArgsCommand.Test_GetBestMatchPath_DoubleDashBeforeCommand_StopAtDoubleDashFalse_EmptyPath;
+var
+  Root: IRootCommand;
+  Path: array of string;
+  Opts: TArgsOptions;
+begin
+  Root := NewRootCommand;
+  Root.AddChild(NewCommand('serve'));
+
+  Opts := ArgsOptionsDefault;
+  Opts.StopAtDoubleDash := False;
+
+  Path := GetBestMatchPath(Root, ['--', 'serve'], Opts);
+  CheckEquals(0, Length(Path), 'StopAtDoubleDash=False: routing must still stop at "--"');
 end;
 
 { Schema integration tests }

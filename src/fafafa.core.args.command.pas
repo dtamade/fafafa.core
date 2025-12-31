@@ -201,7 +201,9 @@ end;
 
 function IsRoutingStopToken(const S: string; const Opts: TArgsOptions): boolean; inline;
 begin
-  Result := Opts.StopAtDoubleDash and (S = '--');
+  // Keep consistent with ParseArgs contract: "--" always stops parsing.
+  // StopAtDoubleDash only controls whether the token is kept as a positional.
+  Result := (S = '--');
 end;
 
 function IsOptionLikeForRouting(const S: string; const Opts: TArgsOptions): boolean; inline;
