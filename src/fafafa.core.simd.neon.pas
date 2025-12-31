@@ -6,20 +6,44 @@ unit fafafa.core.simd.neon;
 {
   === fafafa.core.simd.neon ===
   ARM NEON SIMD Backend Implementation
-  
+
   This provides NEON-optimized implementations for ARM processors.
   NEON is available on ARMv7-A, ARMv8-A (AArch32), and AArch64 processors.
-  
+
   Features:
   - 128-bit vector registers (v0-v31 on AArch64, q0-q15 on ARMv7)
   - Single and double precision floating-point
   - Integer SIMD operations (8, 16, 32, 64-bit)
-  
+
   AArch64 Calling Convention (AAPCS64):
   - Arguments: x0-x7 (integer/pointer), v0-v7 (SIMD/FP)
   - Return: x0 (integer), v0 (SIMD/FP)
   - Callee-saved: x19-x28, v8-v15 (lower 64 bits only)
   - For struct returns, pointer passed in x8
+
+  === COMPILER REQUIREMENTS ===
+
+  FPC 3.2.2 Limitation:
+  FPC 3.2.2 does NOT support AArch64 NEON inline assembly. Any use of
+  vector register syntax like "v0.4s" or "v1.16b" causes an Internal
+  Compiler Error (ICE). This is a fundamental compiler limitation, not
+  a code pattern issue.
+
+  Minimum FPC Version: 3.3.1 (trunk) for NEON inline assembly support.
+
+  Workarounds for FPC 3.2.2 users:
+  1. Upgrade to FPC 3.3.1 or later (recommended)
+  2. Wait for FPC 3.2.4 release (currently in RC stage)
+  3. Use external pre-compiled .o files with C NEON intrinsics
+     (see: github.com/neurolabusc/FPCintrinsics for example approach)
+  4. Use scalar backend (default behavior - no NEON registered)
+
+  Note: FPC does not provide NEON intrinsics like C compilers do.
+  Users must write inline assembly or link external C object files.
+
+  Reference:
+  - FPC Wiki: wiki.freepascal.org/AArch64
+  - ARM NEON syntax: "add v0.4s, v1.4s, v2.4s" (AArch64 style)
 }
 
 interface
