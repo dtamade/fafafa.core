@@ -1,9 +1,8 @@
 # fafafa.core.simd API 文档
 
-> **模块状态**: ✅ **稳定 (v1.0.0-stable)** | 生产就绪 | 2025-12-27
+> **模块状态**: STABLE | 2025-12-27
 >
-> 本模块已通过全面稳定性审计，可安全用于生产环境。
-> 详见 [SIMD_STABILITY_REPORT.md](./SIMD_STABILITY_REPORT.md)
+> 本文档以代码为准；不包含“审计报告/测试计数”等不可自动验证的断言。
 
 ## 概述
 
@@ -11,18 +10,18 @@
 
 ### 支持的后端
 
-| 后端 | 平台 | 向量宽度 | 优先级 |
-|------|------|----------|--------|
-| AVX-512 | x86-64 | 512-bit | 100 |
-| AVX2 | x86-64 | 256-bit | 50 |
-| SSE4.2 | x86-64 | 128-bit | 20 |
-| SSE4.1 | x86-64 | 128-bit | 18 |
-| SSSE3 | x86-64 | 128-bit | 16 |
-| SSE3 | x86-64 | 128-bit | 15 |
-| SSE2 | x86-64 | 128-bit | 10 |
-| NEON | ARM64 | 128-bit | 30 |
-| RISC-V V | RISC-V | 可变 | 25 |
-| Scalar | 全平台 | N/A | 1 |
+| 后端 | 平台 | 向量宽度 |
+|------|------|----------|
+| AVX-512 | x86-64 | 512-bit |
+| AVX2 | x86-64 | 256-bit |
+| SSE4.2 | x86-64 | 128-bit |
+| SSE4.1 | x86-64 | 128-bit |
+| SSSE3 | x86-64 | 128-bit |
+| SSE3 | x86-64 | 128-bit |
+| SSE2 | x86-64 | 128-bit |
+| NEON | ARM64 | 128-bit |
+| RISC-V V | RISC-V | 可变 |
+| Scalar | 全平台 | N/A |
 
 ## 设计原则
 
@@ -30,10 +29,10 @@
 
 本模块遵循以下质量标准：
 
-- **内存安全**: 所有指针访问都有边界检查
-- **对齐安全**: 对齐加载/存储函数包含断言验证
-- **线程安全**: 后端切换使用内存屏障保护
-- **IEEE 754 兼容**: 正确处理 NaN、Inf、-0.0
+- **输入语义清晰**: 对 `len=0` / `nil` 指针有明确约定（见下文），其余情况下调用方需保证指针与长度有效。
+- **对齐安全**: `*Aligned` 系列会断言指针满足对齐要求。
+- **线程安全**: Dispatch 初始化与后端切换使用原子状态与内存屏障。
+- **浮点一致性**: 浮点向量运算以 Scalar 参考实现为语义基准（包含 NaN/Inf/-0.0 等边界）。
 
 ### 2. 命名规范
 
@@ -108,7 +107,8 @@ Extract(v, 2)    // 返回 v.f[2]
 | 函数 | nil 指针行为 |
 |------|-------------|
 | `Utf8Validate(nil, n)` | 返回 `False` |
-| `MemEqual(nil, p, n)` | 返回 `False` |
+| `MemEqual(nil, nil, n)` | 返回 `True` |
+| `MemEqual(nil, p, n)` | 返回 `False`（p<>nil） |
 | `MemFindByte(nil, n, x)` | 返回 `-1` |
 | `SumBytes(nil, n)` | 返回 `0` |
 
@@ -293,59 +293,20 @@ begin
 end;
 ```
 
-## 测试覆盖
+## 测试
 
-| 测试类型 | 测试数 | 状态 |
-|----------|--------|------|
-| 主测试套件 | 380 | ✅ 全部通过 |
-| 边界测试 | 44 | ✅ 全部通过 |
-| 后端操作测试 | 15 | ✅ 全部通过 |
-| 内存泄漏 | 0 | ✅ 无泄漏 |
+建议使用仓库内置脚本来构建/检查/运行 SIMD 测试（输出目录为 `tests/fafafa.core.simd/bin2/` 与 `tests/fafafa.core.simd/lib2/`）。
 
-运行测试:
 ```bash
-# 主测试
-./tests/fafafa.core.simd/bin/fafafa.core.simd.test
+# 编译并检查：SIMD 单元不允许出现 Warning/Hint
+bash tests/fafafa.core.simd/BuildOrTest.sh check
 
-# 边界测试
-./tests/fafafa.core.simd/bin/test_simd_boundary
+# 运行测试并检查 heaptrc 泄漏
+bash tests/fafafa.core.simd/BuildOrTest.sh test
 
-# 后端操作测试
-./tests/fafafa.core.simd/bin/test_backend_ops
+# Release 模式（可选）
+bash tests/fafafa.core.simd/BuildOrTest.sh release
+
+# 也可以运行仓库测试入口（限定此模块）
+bash tests/run_all_tests.sh fafafa.core.simd
 ```
-
-## 版本历史
-
-### v1.0.0-stable (2025-12-27)
-
-**稳定性里程碑**:
-- ✅ 通过全面稳定性审计
-- ✅ 10 个后端运行时检测一致性验证
-- ✅ 三态原子初始化线程安全性验证
-- ✅ Dispatch table 完整性验证机制
-- ✅ 439 个测试全部通过，0 内存泄漏
-
-**新增后端**:
-- SSE3 (水平运算优化)
-- SSSE3 (字节混洗)
-- SSE4.1 (扩展混合/舍入)
-- SSE4.2 (字符串/CRC32)
-- RISC-V V (向量扩展)
-
-**新增功能**:
-- `ValidateDispatchTable()` - Dispatch table 完整性验证
-- `AssertDispatchTableValid()` - DEBUG 构建断言
-- `CloneDispatchTable()` - 后端继承机制
-
-**修复**:
-- SSE3 `DotF32x3` 移除 SSE4.1 指令依赖
-- SSE4.2 变量名与 x86 寄存器冲突
-
-### v0.9.0 (2025-12)
-
-- Rust 级别代码质量重构
-- 添加对齐断言
-- 实现索引饱和策略
-- 修复 vzeroupper 问题
-- 添加内存屏障
-- 创建边界测试套件

@@ -19,22 +19,16 @@ uses
 type
   TStringArray = array of string;
 
-  // Option/Result 风格旁路 API（不破坏原有函数）
-  function ArgValueFromEnvOpt(const Prefix, Key: string; const Flags: TEnvFlags): specialize TOption<string>;
-  function ArgTokenFromEnvOpt(const Prefix, Key: string; const Flags: TEnvFlags): specialize TOption<string>;
-  function ArgTokensFromEnvOpt(const Prefix: string; const Allow, Deny: array of string; const Flags: TEnvFlags): specialize TOption<TStringArray>;
-  function ArgIntFromEnvRes(const Prefix, Key: string; const Flags: TEnvFlags): specialize TResult<Integer,string>;
-
-  // Option/Result 风格旁路 API（不破坏原有函数）
-  function ArgValueFromEnvOpt(const Prefix, Key: string; const Flags: TEnvFlags): specialize TOption<string>;
-  function ArgTokenFromEnvOpt(const Prefix, Key: string; const Flags: TEnvFlags): specialize TOption<string>;
-  function ArgTokensFromEnvOpt(const Prefix: string; const Allow, Deny: array of string; const Flags: TEnvFlags): specialize TOption<TStringArray>;
-  function ArgIntFromEnvRes(const Prefix, Key: string; const Flags: TEnvFlags): specialize TResult<Integer,string>;
-
   TEnvFlags = set of (
     efTrimValues,       // trim whitespace around values
     efLowercaseBools    // lowercase boolean-like strings: TRUE/FALSE -> true/false
   );
+
+// Option/Result 风格旁路 API（不破坏原有函数）
+function ArgValueFromEnvOpt(const Prefix, Key: string; const Flags: TEnvFlags): specialize TOption<string>;
+function ArgTokenFromEnvOpt(const Prefix, Key: string; const Flags: TEnvFlags): specialize TOption<string>;
+function ArgTokensFromEnvOpt(const Prefix: string; const Allow, Deny: array of string; const Flags: TEnvFlags): specialize TOption<TStringArray>;
+function ArgIntFromEnvRes(const Prefix, Key: string; const Flags: TEnvFlags): specialize TResult<Integer,string>;
 
 // Build argv-like tokens from environment variables with a given prefix.
 // Example: Prefix="APP_"; APP_FOO=1 -> "--foo=1"
@@ -78,66 +72,16 @@ begin
   Result := UpperCase(Prefix) + K;
 end;
 
-function ArgValueFromEnvOpt(const Prefix, Key: string; const Flags: TEnvFlags): specialize TOption<string>;
-var
-  Name, Val: string; Has: Boolean;
+function MaybeNormalizeValue(const V: string; const Flags: TEnvFlags): string; inline;
+var s: string;
 begin
-  Name := ToEnvName(Prefix, Key);
-  Has := env_lookup(Name, Val);
-  if not Has then Exit(specialize TOption<string>.None);
-  Val := MaybeNormalizeValue(Val, Flags);
-  Exit(specialize TOption<string>.Some(Val));
-end;
-
-function ArgTokenFromEnvOpt(const Prefix, Key: string; const Flags: TEnvFlags): specialize TOption<string>;
-var
-  OptVal: specialize TOption<string>; TokName, V: string;
-begin
-  OptVal := ArgValueFromEnvOpt(Prefix, Key, Flags);
-  if OptVal.IsNone then Exit(specialize TOption<string>.None);
-  V := OptVal.Unwrap;
-  TokName := '--' + LowerDash2(Key);
-  if V = '' then
-    Exit(specialize TOption<string>.Some(TokName))
-  else
-    Exit(specialize TOption<string>.Some(TokName + '=' + V));
-end;
-
-function ArgTokensFromEnvOpt(const Prefix: string; const Allow, Deny: array of string; const Flags: TEnvFlags): specialize TOption<TStringArray>;
-var A: TStringArray;
-begin
-  A := ArgvFromEnvEx(Prefix, Allow, Deny, Flags);
-  if Length(A)=0 then Exit(specialize TOption<TStringArray>.None) else Exit(specialize TOption<TStringArray>.Some(A));
-end;
-
-function ArgIntFromEnvRes(const Prefix, Key: string; const Flags: TEnvFlags): specialize TResult<Integer,string>;
-var
-  OptVal: specialize TOption<string>;
-  S: string; N: Integer;
-begin
-  OptVal := ArgValueFromEnvOpt(Prefix, Key, Flags);
-  if OptVal.IsNone then Exit(specialize TResult<Integer,string>.Err('env not set: ' + ToEnvName(Prefix, Key)));
-  S := OptVal.Unwrap;
-  if TryStrToInt(S, N) then Exit(specialize TResult<Integer,string>.Ok(N))
-  else Exit(specialize TResult<Integer,string>.Err('invalid int: ' + S));
-end;
-
-function LowerDash2(const S: string): string; inline;
-var i: Integer; R: string;
-begin
-  R := LowerCase(S);
-  for i := 1 to Length(R) do if R[i]='_' then R[i] := '-';
-  Result := R;
-end;
-
-function ToEnvName(const Prefix, Key: string): string; inline;
-var i: Integer; K: string;
-begin
-  K := Key;
-  for i := 1 to Length(K) do
-    if (K[i] = '-') or (K[i] = '.') then K[i] := '_';
-  K := UpperCase(K);
-  Result := UpperCase(Prefix) + K;
+  s := V;
+  if efTrimValues in Flags then s := Trim(s);
+  if (efLowercaseBools in Flags) and ((AnsiSameText(s,'TRUE')) or (AnsiSameText(s,'FALSE'))) then
+  begin
+    if AnsiSameText(s,'TRUE') then s := 'true' else s := 'false';
+  end;
+  Result := s;
 end;
 
 function ArgValueFromEnvOpt(const Prefix, Key: string; const Flags: TEnvFlags): specialize TOption<string>;
@@ -183,6 +127,7 @@ begin
   if TryStrToInt(S, N) then Exit(specialize TResult<Integer,string>.Ok(N))
   else Exit(specialize TResult<Integer,string>.Err('invalid int: ' + S));
 end;
+
 
 function StartsWithCI(const S, Prefix: string): boolean; inline;
 begin
@@ -197,18 +142,6 @@ begin
   if Length(Arr)=0 then Exit(False);
   for i := Low(Arr) to High(Arr) do if AnsiSameText(S, Arr[i]) then Exit(True);
   Result := False;
-end;
-
-function MaybeNormalizeValue(const V: string; const Flags: TEnvFlags): string; inline;
-var s: string;
-begin
-  s := V;
-  if efTrimValues in Flags then s := Trim(s);
-  if (efLowercaseBools in Flags) and ((AnsiSameText(s,'TRUE')) or (AnsiSameText(s,'FALSE'))) then
-  begin
-    if AnsiSameText(s,'TRUE') then s := 'true' else s := 'false';
-  end;
-  Result := s;
 end;
 
 function ArgvFromEnvEx(const Prefix: string; const Allow, Deny: array of string; const Flags: TEnvFlags): TStringArray;
@@ -293,20 +226,13 @@ begin
   end;
 end;
 
-{$IFDEF FAFAFA_ARGS_CONFIG_TOML}
-function LowerDash(const S: string): string; inline;
-var i: Integer;
-begin
-  Result := LowerCase(S);
-  for i := 1 to Length(Result) do if Result[i]='_' then Result[i] := '-';
-end;
-
 procedure AppendToken(var Arr: TStringArray; const Tok: string); inline;
 begin
   SetLength(Arr, Length(Arr)+1);
   Arr[High(Arr)] := Tok;
 end;
 
+{$IFDEF FAFAFA_ARGS_CONFIG_TOML}
 function ScalarToString(const V: ITomlValue): string;
 var s: string; i: Int64; b: Boolean; f: Double; t: string; FS: TFormatSettings;
 begin
@@ -329,7 +255,7 @@ begin
   for idx := 0 to T.KeyCount-1 do
   begin
     K := T.KeyAt(idx);
-    if PrefixKey<>'' then FullK := PrefixKey + '.' + LowerDash(K) else FullK := LowerDash(K);
+    if PrefixKey<>'' then FullK := PrefixKey + '.' + LowerDash2(K) else FullK := LowerDash2(K);
     V := T.GetValue(K);
     if V = nil then Continue;
     case V.GetType of
@@ -396,7 +322,7 @@ begin
         for i := 0 to Obj.Count-1 do
         begin
           name := Obj.Names[i];
-          if PrefixKey<>'' then FullK := PrefixKey + '.' + LowerDash(name) else FullK := LowerDash(name);
+          if PrefixKey<>'' then FullK := PrefixKey + '.' + LowerDash2(name) else FullK := LowerDash2(name);
           item := Obj.Items[i];
           WalkJson(FullK, item, OutArr);
         end;

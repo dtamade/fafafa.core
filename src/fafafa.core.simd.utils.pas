@@ -530,25 +530,53 @@ begin
 end;
 
 function VecF32x4Insert(const a: TVecF32x4; value: Single; index: Integer): TVecF32x4;
+var
+  idx: Integer;
 begin
   Result := a;
-  Result.f[index and 3] := value;
+  idx := index;
+  if idx < 0 then
+    idx := 0
+  else if idx > 3 then
+    idx := 3;
+  Result.f[idx] := value;
 end;
 
 function VecI32x4Insert(const a: TVecI32x4; value: Int32; index: Integer): TVecI32x4;
+var
+  idx: Integer;
 begin
   Result := a;
-  Result.i[index and 3] := value;
+  idx := index;
+  if idx < 0 then
+    idx := 0
+  else if idx > 3 then
+    idx := 3;
+  Result.i[idx] := value;
 end;
 
 function VecF32x4Extract(const a: TVecF32x4; index: Integer): Single;
+var
+  idx: Integer;
 begin
-  Result := a.f[index and 3];
+  idx := index;
+  if idx < 0 then
+    idx := 0
+  else if idx > 3 then
+    idx := 3;
+  Result := a.f[idx];
 end;
 
 function VecI32x4Extract(const a: TVecI32x4; index: Integer): Int32;
+var
+  idx: Integer;
 begin
-  Result := a.i[index and 3];
+  idx := index;
+  if idx < 0 then
+    idx := 0
+  else if idx > 3 then
+    idx := 3;
+  Result := a.i[idx];
 end;
 
 // === TMaskF32x4 函数实现 ===
@@ -580,8 +608,15 @@ begin
 end;
 
 function MaskF32x4Test(const m: TMaskF32x4; index: Integer): Boolean;
+var
+  idx: Integer;
 begin
-  Result := m.m[index] <> 0;
+  idx := index;
+  if idx < 0 then
+    idx := 0
+  else if idx > 3 then
+    idx := 3;
+  Result := m.m[idx] <> 0;
 end;
 
 // ✅ P1-3: 展开循环优化

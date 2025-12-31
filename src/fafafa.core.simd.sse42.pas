@@ -366,6 +366,8 @@ begin
   if not HasSSE42 then
     Exit;
 
+  dispatchTable := Default(TSimdDispatchTable);
+
   // Start with base scalar implementations
   FillBaseDispatchTable(dispatchTable);
 

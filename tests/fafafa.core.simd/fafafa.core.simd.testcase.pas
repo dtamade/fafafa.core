@@ -107,6 +107,14 @@ type
     procedure Test_ForceAVX512_VecF32x4_Smoke;
   end;
 
+  // Dispatch public API contract tests
+  TTestCase_DispatchAPI = class(TTestCase)
+  published
+    procedure Test_TrySetActiveBackend_Scalar_ReturnsTrue;
+    procedure Test_TrySetActiveBackend_Unavailable_NoChange;
+    procedure Test_SetActiveBackend_Unavailable_FallsBackToScalar;
+  end;
+
   {$IFDEF CPUX86_64}
   // AVX-512 后端需求判定测试（纯逻辑，不依赖当前硬件）
   TTestCase_AVX512BackendRequirements = class(TTestCase)
@@ -584,6 +592,15 @@ type
     procedure Test_MemEqual_Unaligned_15Bytes;
     procedure Test_MemFindByte_CrossPage;
     procedure Test_SumBytes_OddSizes;
+
+    // 索引边界语义（utils）
+    procedure Test_Utils_VecF32x4Extract_IndexSaturation;
+    procedure Test_Utils_VecF32x4Insert_IndexSaturation;
+    procedure Test_Utils_MaskF32x4Test_IndexSaturation_NoException;
+
+    // 索引边界语义（facade / dispatch）
+    procedure Test_Facade_VecF32x4Extract_IndexSaturation;
+    procedure Test_Facade_VecF32x4Insert_IndexSaturation;
     
     // 数学函数边界
     procedure Test_VecF32x4_Log_Zero;
@@ -10724,6 +10741,146 @@ begin
   AssertEquals('Sum of 33 bytes', 33, sum);
 end;
 
+procedure TTestCase_EdgeCases.Test_Utils_VecF32x4Extract_IndexSaturation;
+var
+  a: TVecF32x4;
+begin
+  a.f[0] := 10.0;
+  a.f[1] := 20.0;
+  a.f[2] := 30.0;
+  a.f[3] := 40.0;
+
+  AssertEquals('Extract(-1) should saturate to lane 0', 10.0, fafafa.core.simd.utils.VecF32x4Extract(a, -1), 0.0001);
+  AssertEquals('Extract(-99) should saturate to lane 0', 10.0, fafafa.core.simd.utils.VecF32x4Extract(a, -99), 0.0001);
+  AssertEquals('Extract(0) should read lane 0', 10.0, fafafa.core.simd.utils.VecF32x4Extract(a, 0), 0.0001);
+  AssertEquals('Extract(1) should read lane 1', 20.0, fafafa.core.simd.utils.VecF32x4Extract(a, 1), 0.0001);
+  AssertEquals('Extract(2) should read lane 2', 30.0, fafafa.core.simd.utils.VecF32x4Extract(a, 2), 0.0001);
+  AssertEquals('Extract(3) should read lane 3', 40.0, fafafa.core.simd.utils.VecF32x4Extract(a, 3), 0.0001);
+  AssertEquals('Extract(4) should saturate to lane 3', 40.0, fafafa.core.simd.utils.VecF32x4Extract(a, 4), 0.0001);
+  AssertEquals('Extract(99) should saturate to lane 3', 40.0, fafafa.core.simd.utils.VecF32x4Extract(a, 99), 0.0001);
+end;
+
+procedure TTestCase_EdgeCases.Test_Utils_VecF32x4Insert_IndexSaturation;
+var
+  a, r: TVecF32x4;
+begin
+  a.f[0] := 1.0;
+  a.f[1] := 2.0;
+  a.f[2] := 3.0;
+  a.f[3] := 4.0;
+
+  // Negative index -> lane 0
+  r := fafafa.core.simd.utils.VecF32x4Insert(a, 9.0, -1);
+  AssertEquals('Insert(-1) should write lane 0', 9.0, r.f[0], 0.0001);
+  AssertEquals('Insert(-1) should not change lane 1', 2.0, r.f[1], 0.0001);
+  AssertEquals('Insert(-1) should not change lane 2', 3.0, r.f[2], 0.0001);
+  AssertEquals('Insert(-1) should not change lane 3', 4.0, r.f[3], 0.0001);
+
+  // In-range index
+  r := fafafa.core.simd.utils.VecF32x4Insert(a, 9.0, 2);
+  AssertEquals('Insert(2) should not change lane 0', 1.0, r.f[0], 0.0001);
+  AssertEquals('Insert(2) should not change lane 1', 2.0, r.f[1], 0.0001);
+  AssertEquals('Insert(2) should write lane 2', 9.0, r.f[2], 0.0001);
+  AssertEquals('Insert(2) should not change lane 3', 4.0, r.f[3], 0.0001);
+
+  // Out-of-range index -> lane 3
+  r := fafafa.core.simd.utils.VecF32x4Insert(a, 9.0, 4);
+  AssertEquals('Insert(4) should not change lane 0', 1.0, r.f[0], 0.0001);
+  AssertEquals('Insert(4) should not change lane 1', 2.0, r.f[1], 0.0001);
+  AssertEquals('Insert(4) should not change lane 2', 3.0, r.f[2], 0.0001);
+  AssertEquals('Insert(4) should write lane 3', 9.0, r.f[3], 0.0001);
+end;
+
+procedure TTestCase_EdgeCases.Test_Utils_MaskF32x4Test_IndexSaturation_NoException;
+var
+  m: TMaskF32x4;
+  b: Boolean;
+  idx: Integer;
+begin
+  m := MaskF32x4Set(True, False, True, False);
+
+  // Negative index -> lane 0
+  idx := -1;
+  try
+    b := fafafa.core.simd.utils.MaskF32x4Test(m, idx);
+  except
+    on E: Exception do
+      Fail('MaskF32x4Test(-1) should not raise, but got: ' + E.ClassName + ': ' + E.Message);
+  end;
+  AssertTrue('MaskF32x4Test(-1) should saturate to lane 0', b);
+
+  // Out-of-range index -> lane 3
+  idx := 4;
+  try
+    b := fafafa.core.simd.utils.MaskF32x4Test(m, idx);
+  except
+    on E: Exception do
+      Fail('MaskF32x4Test(4) should not raise, but got: ' + E.ClassName + ': ' + E.Message);
+  end;
+  AssertFalse('MaskF32x4Test(4) should saturate to lane 3', b);
+end;
+
+procedure TTestCase_EdgeCases.Test_Facade_VecF32x4Extract_IndexSaturation;
+var
+  a: TVecF32x4;
+  idx: Integer;
+begin
+  a.f[0] := 10.0;
+  a.f[1] := 20.0;
+  a.f[2] := 30.0;
+  a.f[3] := 40.0;
+
+  // 注意：这里用 runtime 变量，避免 inline 函数在常量越界时触发编译期 range check。
+  idx := -1;
+  AssertEquals('Facade Extract(-1) should saturate to lane 0', 10.0, fafafa.core.simd.VecF32x4Extract(a, idx), 0.0001);
+  idx := -99;
+  AssertEquals('Facade Extract(-99) should saturate to lane 0', 10.0, fafafa.core.simd.VecF32x4Extract(a, idx), 0.0001);
+
+  AssertEquals('Facade Extract(0) should read lane 0', 10.0, fafafa.core.simd.VecF32x4Extract(a, 0), 0.0001);
+  AssertEquals('Facade Extract(1) should read lane 1', 20.0, fafafa.core.simd.VecF32x4Extract(a, 1), 0.0001);
+  AssertEquals('Facade Extract(2) should read lane 2', 30.0, fafafa.core.simd.VecF32x4Extract(a, 2), 0.0001);
+  AssertEquals('Facade Extract(3) should read lane 3', 40.0, fafafa.core.simd.VecF32x4Extract(a, 3), 0.0001);
+
+  idx := 4;
+  AssertEquals('Facade Extract(4) should saturate to lane 3', 40.0, fafafa.core.simd.VecF32x4Extract(a, idx), 0.0001);
+  idx := 99;
+  AssertEquals('Facade Extract(99) should saturate to lane 3', 40.0, fafafa.core.simd.VecF32x4Extract(a, idx), 0.0001);
+end;
+
+procedure TTestCase_EdgeCases.Test_Facade_VecF32x4Insert_IndexSaturation;
+var
+  a, r: TVecF32x4;
+  idx: Integer;
+begin
+  a.f[0] := 1.0;
+  a.f[1] := 2.0;
+  a.f[2] := 3.0;
+  a.f[3] := 4.0;
+
+  // Negative index -> lane 0
+  idx := -1;
+  r := fafafa.core.simd.VecF32x4Insert(a, 9.0, idx);
+  AssertEquals('Facade Insert(-1) should write lane 0', 9.0, r.f[0], 0.0001);
+  AssertEquals('Facade Insert(-1) should not change lane 1', 2.0, r.f[1], 0.0001);
+  AssertEquals('Facade Insert(-1) should not change lane 2', 3.0, r.f[2], 0.0001);
+  AssertEquals('Facade Insert(-1) should not change lane 3', 4.0, r.f[3], 0.0001);
+
+  // In-range index
+  r := fafafa.core.simd.VecF32x4Insert(a, 9.0, 2);
+  AssertEquals('Facade Insert(2) should not change lane 0', 1.0, r.f[0], 0.0001);
+  AssertEquals('Facade Insert(2) should not change lane 1', 2.0, r.f[1], 0.0001);
+  AssertEquals('Facade Insert(2) should write lane 2', 9.0, r.f[2], 0.0001);
+  AssertEquals('Facade Insert(2) should not change lane 3', 4.0, r.f[3], 0.0001);
+
+  // Out-of-range index -> lane 3
+  idx := 4;
+  r := fafafa.core.simd.VecF32x4Insert(a, 9.0, idx);
+  AssertEquals('Facade Insert(4) should not change lane 0', 1.0, r.f[0], 0.0001);
+  AssertEquals('Facade Insert(4) should not change lane 1', 2.0, r.f[1], 0.0001);
+  AssertEquals('Facade Insert(4) should not change lane 2', 3.0, r.f[2], 0.0001);
+  AssertEquals('Facade Insert(4) should write lane 3', 9.0, r.f[3], 0.0001);
+end;
+
 // === 数学函数边界 ===
 
 procedure TTestCase_EdgeCases.Test_VecF32x4_Log_Zero;
@@ -11802,6 +11959,59 @@ begin
   AssertEquals('0 - 1 should saturate to 0', 0, r.u[1]);
 end;
 
+{ TTestCase_DispatchAPI }
+
+procedure TTestCase_DispatchAPI.Test_TrySetActiveBackend_Scalar_ReturnsTrue;
+begin
+  try
+    AssertTrue('TrySetActiveBackend(sbScalar) should succeed', TrySetActiveBackend(sbScalar));
+    AssertEquals('Active backend should be Scalar after TrySetActiveBackend', Ord(sbScalar), Ord(GetActiveBackend));
+  finally
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_TrySetActiveBackend_Unavailable_NoChange;
+var
+  original: TSimdBackend;
+begin
+  original := GetActiveBackend;
+  try
+    {$IFDEF CPUX86_64}
+    AssertFalse('TrySetActiveBackend(sbNEON) should fail on x86_64', TrySetActiveBackend(sbNEON));
+    {$ELSE}
+    {$IFDEF CPUAARCH64}
+    AssertFalse('TrySetActiveBackend(sbSSE2) should fail on AArch64', TrySetActiveBackend(sbSSE2));
+    {$ELSE}
+    AssertFalse('TrySetActiveBackend(sbAVX512) should fail when backend is unavailable', TrySetActiveBackend(sbAVX512));
+    {$ENDIF}
+    {$ENDIF}
+
+    AssertEquals('Active backend should remain unchanged after failed TrySetActiveBackend', Ord(original), Ord(GetActiveBackend));
+  finally
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_SetActiveBackend_Unavailable_FallsBackToScalar;
+begin
+  try
+    {$IFDEF CPUX86_64}
+    SetActiveBackend(sbNEON);
+    {$ELSE}
+    {$IFDEF CPUAARCH64}
+    SetActiveBackend(sbSSE2);
+    {$ELSE}
+    SetActiveBackend(sbAVX512);
+    {$ENDIF}
+    {$ENDIF}
+
+    AssertEquals('SetActiveBackend(unavailable) should fall back to Scalar', Ord(sbScalar), Ord(GetActiveBackend));
+  finally
+    ResetToAutomaticBackend;
+  end;
+end;
+
 initialization
   RegisterTest(TTestCase_Global);
   {$IFDEF CPUX86_64}
@@ -11809,6 +12019,7 @@ initialization
   RegisterTest(TTestCase_AVX512BackendRequirements);
   {$ENDIF}
   RegisterTest(TTestCase_BackendSmoke);
+  RegisterTest(TTestCase_DispatchAPI);
   {$IFDEF UNIX}
   {$IFDEF CPUX86_64}
   RegisterTest(TTestCase_AVX2VectorAsm);

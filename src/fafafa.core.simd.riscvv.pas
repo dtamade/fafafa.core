@@ -94,9 +94,10 @@ uses
 // we use inline assembly. Otherwise, scalar fallback is used.
 // =============================================================
 
-{$IFDEF CPURISCV64}
+{$IF DEFINED(CPURISCV64) AND DEFINED(SIMD_BACKEND_RISCVV)}
 // RISC-V V extension detection
 // In practice, this would need runtime detection via HWCAP or similar
+// NOTE: FPC 3.3.1 does not support RVV inline assembly, so this is disabled by default
 {$DEFINE RISCVV_ASSEMBLY}
 {$ENDIF}
 
@@ -858,14 +859,32 @@ begin
 end;
 
 function RISCVVExtractF32x4(const a: TVecF32x4; index: Integer): Single;
+var
+  idx: Integer;
 begin
-  Result := a.f[index and 3];
+  if index < 0 then
+    idx := 0
+  else if index > 3 then
+    idx := 3
+  else
+    idx := index;
+
+  Result := a.f[idx];
 end;
 
 function RISCVVInsertF32x4(const a: TVecF32x4; value: Single; index: Integer): TVecF32x4;
+var
+  idx: Integer;
 begin
+  if index < 0 then
+    idx := 0
+  else if index > 3 then
+    idx := 3
+  else
+    idx := index;
+
   Result := a;
-  Result.f[index and 3] := value;
+  Result.f[idx] := value;
 end;
 
 // =============================================================

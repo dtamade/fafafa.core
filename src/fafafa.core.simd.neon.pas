@@ -757,7 +757,16 @@ asm
   fmov  d3, x1
   ins   v1.d[1], v3.d[0]
 
-  and   w2, w2, #3
+  // Clamp index to [0..3] (saturating semantics)
+  cmp   w2, #0
+  b.ge  .Lins_clamp_hi_check
+  mov   w2, #0
+  b     .Lins_clamp_done
+.Lins_clamp_hi_check:
+  cmp   w2, #3
+  b.le  .Lins_clamp_done
+  mov   w2, #3
+.Lins_clamp_done:
 
   cbz   w2, .Lins0
   cmp   w2, #1
@@ -893,7 +902,17 @@ asm
   fmov  d3, x1
   ins   v0.d[1], v3.d[0]
 
-  and   w2, w2, #3
+  // Clamp index to [0..3] (saturating semantics)
+  cmp   w2, #0
+  b.ge  .Lext_clamp_hi_check
+  mov   w2, #0
+  b     .Lext_clamp_done
+.Lext_clamp_hi_check:
+  cmp   w2, #3
+  b.le  .Lext_clamp_done
+  mov   w2, #3
+.Lext_clamp_done:
+
   cbz   w2, .L0
   cmp   w2, #1
   b.eq  .L1
@@ -1659,14 +1678,32 @@ begin
 end;
 
 function NEONExtractF32x4(const a: TVecF32x4; index: Integer): Single;
+var
+  idx: Integer;
 begin
-  Result := a.f[index and 3];
+  if index < 0 then
+    idx := 0
+  else if index > 3 then
+    idx := 3
+  else
+    idx := index;
+
+  Result := a.f[idx];
 end;
 
 function NEONInsertF32x4(const a: TVecF32x4; value: Single; index: Integer): TVecF32x4;
+var
+  idx: Integer;
 begin
+  if index < 0 then
+    idx := 0
+  else if index > 3 then
+    idx := 3
+  else
+    idx := index;
+
   Result := a;
-  Result.f[index and 3] := value;
+  Result.f[idx] := value;
 end;
 
 // === Facade Functions ===

@@ -417,15 +417,17 @@
 {$ENDIF}
 
 { Enable RISC-V SIMD backends }
+{ NOTE: SIMD_BACKEND_RISCVV disabled - FPC 3.3.1 inline asm doesn't support RVV instructions.
+        Enable when FPC gains RVV assembler support. Scalar fallback is used instead. }
 {$IFDEF CPURISCV64}
   {$DEFINE SIMD_RISCV64}
   {$DEFINE SIMD_RISCV_AVAILABLE}
-  {$DEFINE SIMD_BACKEND_RISCVV}
+  {.$DEFINE SIMD_BACKEND_RISCVV}
 {$ENDIF}
 {$IFDEF CPURISCV32}
   {$DEFINE SIMD_RISCV32}
   {$DEFINE SIMD_RISCV_AVAILABLE}
-  {$DEFINE SIMD_BACKEND_RISCVV}
+  {.$DEFINE SIMD_BACKEND_RISCVV}
 {$ENDIF}
 
 { === Performance Tuning === }

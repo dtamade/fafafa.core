@@ -38,6 +38,15 @@ procedure ResetToAutomaticBackend;
 function IsVectorAsmEnabled: Boolean;
 procedure SetVectorAsmEnabled(enabled: Boolean);
 
+// === Dispatch Change Hook ===
+// Used by higher-level facades to bind a fast access path once per (re)initialization.
+type
+  TSimdDispatchChangedHook = procedure;
+
+// Set a hook that will be called after dispatch (re)initialization completes.
+// If dispatch is already initialized, the hook will be invoked immediately.
+procedure SetDispatchChangedHook(hook: TSimdDispatchChangedHook);
+
 // === Backend Rebuilder Registration ===
 // ⚠️ DEPRECATED: The rebuilder mechanism has been removed for thread safety.
 // VectorAsm setting is now only effective before dispatch initialization.
@@ -444,6 +453,9 @@ var
   g_VectorAsmEnabled: Boolean = False;
   {$ENDIF}
 
+  // Dispatch change hook (e.g., for direct-dispatch fast path binding)
+  g_DispatchChangedHook: TSimdDispatchChangedHook = nil;
+
   // ⚠️ REMOVED: g_BackendRebuilders array - rebuilder mechanism deprecated for thread safety
 
 // === Initialization ===
@@ -527,6 +539,10 @@ begin
     g_DispatchInitialized := True;
     WriteBarrier;
     InterlockedExchange(g_DispatchState, 2);
+
+    // Notify listeners after dispatch state is fully published.
+    if Assigned(g_DispatchChangedHook) then
+      g_DispatchChangedHook;
   end
   else if oldState = 1 then
   begin
@@ -643,6 +659,15 @@ begin
 
   // Safe to change before initialization
   g_VectorAsmEnabled := enabled;
+end;
+
+procedure SetDispatchChangedHook(hook: TSimdDispatchChangedHook);
+begin
+  g_DispatchChangedHook := hook;
+
+  // If dispatch is already initialized, sync immediately.
+  if Assigned(hook) and (g_DispatchState = 2) then
+    hook;
 end;
 
 function GetDispatchTable: PSimdDispatchTable;

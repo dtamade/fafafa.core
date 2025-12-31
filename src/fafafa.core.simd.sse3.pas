@@ -191,26 +191,19 @@ end;
 
 function SSE3DotF32x3(const a, b: TVecF32x4): Single;
 begin
-  asm
-    lea     rax, a
-    lea     rdx, b
-    movups  xmm0, [rax]
-    movups  xmm1, [rdx]
-    // Zero the w component
-    xorps   xmm2, xmm2
-    insertps xmm0, xmm2, $30  // Zero element 3 (SSE4.1 would be better, fallback)
-  end;
-  // Fallback: use mask to zero w
+  // SSE3-safe implementation: mask off W lane, then use HADD reduction.
   asm
     lea     rax, a
     lea     rdx, b
     movups  xmm0, [rax]
     movups  xmm1, [rdx]
     mulps   xmm0, xmm1
-    // Zero w by clearing high bits
+
+    // Zero w by clearing the high 32-bit lane.
     pcmpeqd xmm2, xmm2
     psrldq  xmm2, 4           // Mask: [FF, FF, FF, 00]
     andps   xmm0, xmm2
+
     haddps  xmm0, xmm0
     haddps  xmm0, xmm0
     movss   [result], xmm0
@@ -241,6 +234,8 @@ begin
   // Only register if SSE3 is available
   if not HasSSE3 then
     Exit;
+
+  dispatchTable := Default(TSimdDispatchTable);
 
   // Start with SSE2 as base (SSE3 is a superset)
   // We copy the registered SSE2 table and enhance it

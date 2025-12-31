@@ -10,6 +10,7 @@ uses
   Classes, SysUtils,
   fpcunit, testregistry,
   fafafa.core.simd.testcase,
+  fafafa.core.simd.direct.testcase,
   fafafa.core.simd.cpuinfo,
   fafafa.core.simd.dispatch,
   fafafa.core.simd.types,

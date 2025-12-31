@@ -474,6 +474,8 @@ begin
   if not HasSSE41 then
     Exit;
 
+  dispatchTable := Default(TSimdDispatchTable);
+
   // Start with base scalar implementations
   FillBaseDispatchTable(dispatchTable);
 
