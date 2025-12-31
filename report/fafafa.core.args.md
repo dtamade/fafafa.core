@@ -26,11 +26,11 @@
 - 结果：91/91 通过；退出码 0
 
 ## 本轮代码改动（ENV 过滤与规范化扩展）
-- 新增 API：ArgvFromEnvEx(Prefix, Allow, Deny, Flags)，保持 ArgvFromEnv 兼容不变
+- 新增 API：ArgsArgvFromEnvEx(Prefix, Allow, Deny, Flags)（配套 ArgsArgvFromEnv(Prefix)）
 - 过滤：Allow（白名单，若非空仅包含其内键）→ Deny（黑名单进一步排除），均基于归一化键（去前缀、小写、'_'→'-'）
 - 值规范化 Flags：
   - efTrimValues（去除值两端空白）
-  - efLowercaseBools（TRUE/FALSE → true/false）
+  - efNormalizeBools（TRUE/FALSE/YES/NO/1/0 → true/false）
 
 ## 本轮代码改动（Usage 渲染选项增强）
 - RenderUsageOptions 增加 showSectionHeaders、groupFlagsBy/groupPositionalsBy
@@ -82,7 +82,7 @@
 - 规划选项（不破坏现状）：
   - 自动 Usage/Help 渲染增强（保持“调用方决定是否打印”的原则）。
   - ENV 解析的白名单/黑名单过滤与类型提示（轻量）。
-  - YAML 支持（ArgvFromYaml），待依赖成熟再推进。
+  - YAML 支持（ArgsArgvFromYaml），待依赖成熟再推进。
 
 
 ## 本轮新增（args.command）
@@ -94,7 +94,7 @@
 
 
 ## 本轮新增（args.config）
-- 新增 ArgvFromToml 最小实现：
+- 新增 ArgsArgvFromToml 最小实现：
   - 拍扁表为点分路径，键名小写并将 '_'→'-'
   - 标量 → --k=v；标量数组 → 重复 --k=v；复杂结构暂不处理
 - 新增测试 Test_core_args_config（3 项）并纳入总测试工程
@@ -102,7 +102,7 @@
 - 回归结果：所有测试通过（除预期的演示失败/跳过用例不影响）
 
 ## 下一步计划
-- ArgvFromJson：与 TOML 一致的映射与规则
+- ArgsArgvFromJson：与 TOML 一致的映射与规则
 - TOML 进一步扩展：array-of-tables 的路径与索引规范（如 items.0.name）
 - 文档：给出 CONFIG/ENV/CLI 合并顺序的更详示例与注意事项
 

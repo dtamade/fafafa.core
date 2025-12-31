@@ -21,7 +21,7 @@
 4. For ENV defaults
    - Map env vars with ArgsArgvFromEnv('APP_')
    - Merge: merged := env ++ cli (or cli ++ env). Recommended precedence: CLI > ENV
-   - Note: legacy ArgvFrom* aliases were removed; use ArgsArgvFrom* APIs.
+   - Note: legacy aliases were removed; use ArgsArgvFrom* APIs.
 
 ## Non-goals (to avoid surprises)
 - No automatic printing or process exit (you control it)

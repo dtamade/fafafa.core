@@ -28,12 +28,12 @@
 - Light schema (for rendering/metadata, not a heavy DSL)
 - Usage rendering: RenderUsage(Node)
   - Prints child list as "name: desc"; if schema attached, appends Flags/Args sections
-- ENV → argv: ArgvFromEnv('APP_')
+- ENV → argv: ArgsArgvFromEnv('APP_')
 - Persistent flags (registration-time propagation):
   - Parent → child, first-wins (child keeps same-name flag). Visible in Usage
 
 ### Reserved / not implemented yet
-- ArgvFromToml/ArgvFromJson stubs (TOML/JSON integration planned when modules are ready)
+- ArgsArgvFromToml/ArgsArgvFromJson stubs (TOML/JSON integration planned when modules are ready)
 - Completion generators (bash/zsh/fish/pwsh) under consideration
 - Advanced validation/diagnostics (mutex/depends/choices/range, did-you-mean), heavy styling/i18n — deferred
 

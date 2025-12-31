@@ -332,7 +332,7 @@ end.
 - 默认仅使用 ENV + CLI；不做任何隐式文件读取
 - CONFIG 文件（TOML/JSON/YAML）为“可选依赖”，通过条件编译宏显式启用：
   - {$DEFINE FAFAFA_ARGS_CONFIG_TOML} / {$DEFINE FAFAFA_ARGS_CONFIG_JSON}
-  - 未启用或解析失败时，ArgsArgvFromToml/ArgsArgvFromJson/ArgsArgvFromYaml 返回空数组（旧名 ArgvFrom* 为 deprecated 别名；不抛错、不打印日志）
+- 未启用或解析失败时，ArgsArgvFromToml/ArgsArgvFromJson/ArgsArgvFromYaml 返回空数组（不抛错、不打印日志）
 - 合并顺序固定：CONFIG -> ENV -> CLI（后者覆盖前者；库内部查值遵循“最后一次赋值覆盖”）
 - 是否读取哪个配置文件、在哪里查找，由应用自行决定（库不扫描默认路径）
 
