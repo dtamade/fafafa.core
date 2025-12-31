@@ -19,7 +19,7 @@
 - Light schema for rendering/metadata
 - Usage rendering: RenderUsage(Node)
   - Child list "name: desc"; if spec attached, appends Flags/Args
-- ENV → argv: ArgsArgvFromEnv('APP_') (maps APP_FOO=1 → --foo=1; deprecated alias: ArgvFromEnv)
+- ENV → argv: ArgsArgvFromEnv('APP_') (maps APP_FOO=1 → --foo=1)
 - Persistent flags
   - Registration-time propagation (parent → child)
   - First-wins (child keeps same-name flag)

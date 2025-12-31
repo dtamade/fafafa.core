@@ -20,52 +20,26 @@ uses
 type
   TStringArray = array of string;
 
-  // ✅ P1-3: 枚举语义增强
+  // Environment value normalization flags
   TEnvFlags = set of (
     efTrimValues,       // trim whitespace around values
     efNormalizeBools    // normalize boolean-like strings (TRUE/yes/1 → 'true', FALSE/no/0 → 'false')
   );
 
-const
-  efLowercaseBools = efNormalizeBools deprecated 'Use efNormalizeBools instead';
-
-// Option/Result 风格 API - ✅ P1-1: 统一使用 Args 前缀
+// Option/Result 风格 API
 function ArgsValueFromEnvOpt(const Prefix, Key: string; const Flags: TEnvFlags = []): specialize TOption<string>;
 function ArgsTokenFromEnvOpt(const Prefix, Key: string; const Flags: TEnvFlags = []): specialize TOption<string>;
 function ArgsTokensFromEnvOpt(const Prefix: string; const Allow, Deny: array of string; const Flags: TEnvFlags = []): specialize TOption<TStringArray>;
 function ArgsIntFromEnvRes(const Prefix, Key: string; const Flags: TEnvFlags = []): specialize TResult<Integer, string>;
 
-// ✅ P1-1: 旧名称保留为 deprecated 别名（一个版本周期后移除）
-function ArgValueFromEnvOpt(const Prefix, Key: string; const Flags: TEnvFlags = []): specialize TOption<string>; deprecated 'Use ArgsValueFromEnvOpt instead';
-function ArgTokenFromEnvOpt(const Prefix, Key: string; const Flags: TEnvFlags = []): specialize TOption<string>; deprecated 'Use ArgsTokenFromEnvOpt instead';
-function ArgTokensFromEnvOpt(const Prefix: string; const Allow, Deny: array of string; const Flags: TEnvFlags = []): specialize TOption<TStringArray>; deprecated 'Use ArgsTokensFromEnvOpt instead';
-function ArgIntFromEnvRes(const Prefix, Key: string; const Flags: TEnvFlags = []): specialize TResult<Integer, string>; deprecated 'Use ArgsIntFromEnvRes instead';
-
-// Build argv-like tokens from environment variables with a given prefix.
-// Example: Prefix="APP_"; APP_FOO=1 -> "--foo=1"
-// Rules:
-// - Match keys that start with Prefix (case-insensitive)
-// - Key normalization: strip Prefix, lower-case, '_' -> '-'
-// - Value empty -> token: --name ; otherwise --name=value
-// ✅ P1-1: 统一使用 Args 前缀
+// ENV → argv
 function ArgsArgvFromEnv(const Prefix: string): TStringArray;
-function ArgvFromEnv(const Prefix: string): TStringArray; deprecated 'Use ArgsArgvFromEnv instead';
-
-// Extended: filter by allow/deny lists and normalize values by flags.
-// Allow/Deny items refer to normalized key names (after prefix strip + '_'->'-' + lowercase).
-// If Allow is non-empty → only keys present in Allow are included.
-// Then remove any key present in Deny.
 function ArgsArgvFromEnvEx(const Prefix: string; const Allow, Deny: array of string; const Flags: TEnvFlags = []): TStringArray;
-function ArgvFromEnvEx(const Prefix: string; const Allow, Deny: array of string; const Flags: TEnvFlags = []): TStringArray; deprecated 'Use ArgsArgvFromEnvEx instead';
 
-// Config file integration - ✅ P1-1: 统一使用 Args 前缀
+// Config file integration
 function ArgsArgvFromToml(const Path: string): TStringArray;
 function ArgsArgvFromJson(const Path: string): TStringArray;
 function ArgsArgvFromYaml(const Path: string): TStringArray;
-// Deprecated aliases
-function ArgvFromToml(const Path: string): TStringArray; deprecated 'Use ArgsArgvFromToml instead';
-function ArgvFromJson(const Path: string): TStringArray; deprecated 'Use ArgsArgvFromJson instead';
-function ArgvFromYaml(const Path: string): TStringArray; deprecated 'Use ArgsArgvFromYaml instead';
 
 
 implementation
@@ -181,26 +155,6 @@ begin
     Exit(specialize TResult<Integer, string>.Err('invalid int: ' + S));
 end;
 
-// ✅ P1-1: Deprecated 别名实现 - 调用新函数
-function ArgValueFromEnvOpt(const Prefix, Key: string; const Flags: TEnvFlags): specialize TOption<string>;
-begin
-  Result := ArgsValueFromEnvOpt(Prefix, Key, Flags);
-end;
-
-function ArgTokenFromEnvOpt(const Prefix, Key: string; const Flags: TEnvFlags): specialize TOption<string>;
-begin
-  Result := ArgsTokenFromEnvOpt(Prefix, Key, Flags);
-end;
-
-function ArgTokensFromEnvOpt(const Prefix: string; const Allow, Deny: array of string; const Flags: TEnvFlags): specialize TOption<TStringArray>;
-begin
-  Result := ArgsTokensFromEnvOpt(Prefix, Allow, Deny, Flags);
-end;
-
-function ArgIntFromEnvRes(const Prefix, Key: string; const Flags: TEnvFlags): specialize TResult<Integer, string>;
-begin
-  Result := ArgsIntFromEnvRes(Prefix, Key, Flags);
-end;
 
 // ── Argv 构建函数 ────────────────────────────────────────────
 
@@ -273,16 +227,6 @@ begin
   end;
 end;
 
-// ✅ P1-1: Deprecated 别名
-function ArgvFromEnvEx(const Prefix: string; const Allow, Deny: array of string; const Flags: TEnvFlags): TStringArray;
-begin
-  Result := ArgsArgvFromEnvEx(Prefix, Allow, Deny, Flags);
-end;
-
-function ArgvFromEnv(const Prefix: string): TStringArray;
-begin
-  Result := ArgsArgvFromEnv(Prefix);
-end;
 
 {$IFDEF FAFAFA_ARGS_CONFIG_TOML}
 procedure AppendToken(var Arr: TStringArray; const Tok: string); inline;
@@ -350,20 +294,10 @@ begin
   WalkToml('', Doc.Root, Result);
 end;
 
-// ✅ P1-1: Deprecated 别名
-function ArgvFromToml(const Path: string): TStringArray;
-begin
-  Result := ArgsArgvFromToml(Path);
-end;
 {$ELSE}
 function ArgsArgvFromToml(const Path: string): TStringArray;
 begin
   SetLength(Result, 0); // feature disabled or dependency unavailable
-end;
-
-function ArgvFromToml(const Path: string): TStringArray;
-begin
-  Result := ArgsArgvFromToml(Path);
 end;
 {$ENDIF}
 
@@ -443,20 +377,10 @@ begin
   end;
 end;
 
-// ✅ P1-1: Deprecated 别名
-function ArgvFromJson(const Path: string): TStringArray;
-begin
-  Result := ArgsArgvFromJson(Path);
-end;
 {$ELSE}
 function ArgsArgvFromJson(const Path: string): TStringArray;
 begin
   SetLength(Result, 0);
-end;
-
-function ArgvFromJson(const Path: string): TStringArray;
-begin
-  Result := ArgsArgvFromJson(Path);
 end;
 {$ENDIF}
 
@@ -467,11 +391,6 @@ begin
   SetLength(Result, 0);
 end;
 
-// ✅ P1-1: Deprecated 别名
-function ArgvFromYaml(const Path: string): TStringArray;
-begin
-  Result := ArgsArgvFromYaml(Path);
-end;
 
 end.
 

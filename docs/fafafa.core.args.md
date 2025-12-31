@@ -31,13 +31,13 @@
 
 
 ### ENV → argv（过滤与值规范化扩展）
-- 基础函数：`ArgsArgvFromEnv(Prefix)`（旧名 `ArgvFromEnv` 为 deprecated 别名）
-- 扩展函数：`ArgsArgvFromEnvEx(Prefix, Allow, Deny, Flags)`（旧名 `ArgvFromEnvEx` 为 deprecated 别名）
+- 基础函数：`ArgsArgvFromEnv(Prefix)`
+- 扩展函数：`ArgsArgvFromEnvEx(Prefix, Allow, Deny, Flags)`
   - 键名匹配基于“归一化后的键”（去前缀、小写、`_`→`-`）
   - Allow 非空时仅包含 Allow 命中的键；随后移除 Deny 中的键
   - Flags：
     - `efTrimValues`：去除值两端空白
-    - `efNormalizeBools`：将 `TRUE/yes/1` 规范为 `true`，`FALSE/no/0` 规范为 `false`（`efLowercaseBools` 为 deprecated 别名）
+    - `efNormalizeBools`：将 `TRUE/yes/1` 规范为 `true`，`FALSE/no/0` 规范为 `false`
   - 令牌构造与基础函数一致：空值 → `--name`；非空 → `--name=value`
 
 示例：
