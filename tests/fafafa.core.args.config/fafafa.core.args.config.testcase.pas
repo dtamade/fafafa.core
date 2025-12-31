@@ -86,9 +86,11 @@ type
     procedure Test_VeryLongValue;
     procedure Test_NumericKey;
 
-    // JSON 配置测试 (条件编译)
+    // JSON 配置测试
     procedure Test_ArgvFromJson_NotExists;
     procedure Test_ArgvFromJson_EmptyPath;
+    procedure Test_ArgvFromJson_InvalidJson_ReturnsEmpty;
+    procedure Test_ArgvFromJson_RootArray_ReturnsEmpty;
 
     // TOML 配置测试 (条件编译)
     procedure Test_ArgvFromToml_NotExists;
@@ -905,6 +907,61 @@ var
 begin
   Arr := ArgsArgvFromJson('');
   CheckEquals(0, Length(Arr), 'Empty path returns empty array');
+end;
+
+procedure TTestCase_ArgsConfig.Test_ArgvFromJson_InvalidJson_ReturnsEmpty;
+var
+  FN: string;
+  FS: TFileStream;
+  Arr: TStringArray;
+begin
+  FN := IncludeTrailingPathDelimiter(GetTempDir(False)) + 'fafafa_args_cfg_invalid_' + IntToStr(GetTickCount64) + '.json';
+  FS := TFileStream.Create(FN, fmCreate);
+  try
+    // invalid json
+    FS.WriteBuffer(PChar('{"a":,}')^, Length('{"a":,}'));
+  finally
+    FS.Free;
+  end;
+
+  try
+    try
+      Arr := ArgsArgvFromJson(FN);
+    except
+      on E: Exception do
+        Fail('ArgsArgvFromJson should not raise on invalid JSON: ' + E.Message);
+    end;
+    CheckEquals(0, Length(Arr), 'Invalid JSON should return empty array');
+  finally
+    if FileExists(FN) then DeleteFile(FN);
+  end;
+end;
+
+procedure TTestCase_ArgsConfig.Test_ArgvFromJson_RootArray_ReturnsEmpty;
+var
+  FN: string;
+  FS: TFileStream;
+  Arr: TStringArray;
+begin
+  FN := IncludeTrailingPathDelimiter(GetTempDir(False)) + 'fafafa_args_cfg_root_array_' + IntToStr(GetTickCount64) + '.json';
+  FS := TFileStream.Create(FN, fmCreate);
+  try
+    FS.WriteBuffer(PChar('[1,2,"x"]')^, Length('[1,2,"x"]'));
+  finally
+    FS.Free;
+  end;
+
+  try
+    try
+      Arr := ArgsArgvFromJson(FN);
+    except
+      on E: Exception do
+        Fail('ArgsArgvFromJson should not raise on root array JSON: ' + E.Message);
+    end;
+    CheckEquals(0, Length(Arr), 'Root array JSON should produce empty argv');
+  finally
+    if FileExists(FN) then DeleteFile(FN);
+  end;
 end;
 
 { TOML 配置测试 }

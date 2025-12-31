@@ -52,7 +52,8 @@ type
     procedure Test_JSON_EmptyArray_Produces_Empty;
     procedure Test_JSON_DeepObject_Flattens;
     procedure Test_JSON_MixedArray_OnlyScalars_Kept;
-    procedure Test_JSON_Invalid_Raises;
+    procedure Test_JSON_Invalid_ReturnsEmpty;
+    procedure Test_JSON_RootArray_ReturnsEmpty;
     procedure Test_JSON_Key_Normalization;
     procedure Test_JSON_Key_Normalization_Boundaries;
   end;
@@ -186,17 +187,25 @@ begin
   end;
 end;
 
-procedure TTestCase_Core_Args_Config_Json.Test_JSON_Invalid_Raises;
-var FN: string;
+procedure TTestCase_Core_Args_Config_Json.Test_JSON_Invalid_ReturnsEmpty;
+var FN: string; argv: TStringArray;
 begin
-  FN := WriteTempFileJSON('{"a":,}');
+  FN := WriteTempFileJSON('{\"a\":,}');
   try
-    try
-      ArgsArgvFromJson(FN);
-      Fail('Expected JSON parse error');
-    except
-      on E: Exception do ; // any parsing exception is acceptable
-    end;
+    argv := ArgsArgvFromJson(FN);
+    AssertEquals(0, Length(argv));
+  finally
+    if FileExists(FN) then DeleteFile(FN);
+  end;
+end;
+
+procedure TTestCase_Core_Args_Config_Json.Test_JSON_RootArray_ReturnsEmpty;
+var FN: string; argv: TStringArray;
+begin
+  FN := WriteTempFileJSON('[1,2,3]');
+  try
+    argv := ArgsArgvFromJson(FN);
+    AssertEquals(0, Length(argv));
   finally
     if FileExists(FN) then DeleteFile(FN);
   end;

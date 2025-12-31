@@ -352,28 +352,44 @@ end;
 
 // ✅ P1-1: 新的 Args 前缀函数
 function ArgsArgvFromJson(const Path: string): TStringArray;
-var fs: TFileStream; P: TJSONParser; Root: TJSONData;
+var
+  fs: TFileStream;
+  P: TJSONParser;
+  Root: TJSONData;
 begin
   SetLength(Result, 0);
   if (Path='') or (not FileExists(Path)) then Exit;
-  fs := TFileStream.Create(Path, fmOpenRead or fmShareDenyNone);
+
+  Root := nil;
   try
+    try
+      fs := TFileStream.Create(Path, fmOpenRead or fmShareDenyNone);
+      try
 {$push}
 {$warn 5066 off}
-    P := TJSONParser.Create(fs);
+        P := TJSONParser.Create(fs);
 {$pop}
-    try
-      Root := P.Parse;
-    finally
-      P.Free;
+        try
+          Root := P.Parse;
+        finally
+          P.Free;
+        end;
+      finally
+        fs.Free;
+      end;
+
+      // Only object roots are supported for config flattening
+      if (Root = nil) or (Root.JSONType <> jtObject) then
+        Exit;
+
+      WalkJson('', Root, Result);
+    except
+      // Parse/IO errors: return empty argv by contract
+      SetLength(Result, 0);
     end;
   finally
-    fs.Free;
-  end;
-  try
-    WalkJson('', Root, Result);
-  finally
-    Root.Free;
+    if Root <> nil then
+      Root.Free;
   end;
 end;
 
