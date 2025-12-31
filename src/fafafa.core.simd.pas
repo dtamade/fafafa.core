@@ -12,7 +12,7 @@ uses
   fafafa.core.simd.cpuinfo.base,
   fafafa.core.simd.memutils,
   fafafa.core.math
-  {$IFDEF CPUX86_64}  // x86 SIMD backends use 64-bit assembly
+  {$IFDEF CPUX86_64}  // x86-64 SIMD backends use 64-bit assembly
   , fafafa.core.simd.sse2
   , fafafa.core.simd.sse3      // ✅ SSE3: horizontal ops (HADDPS, HSUBPS)
   , fafafa.core.simd.ssse3     // ✅ SSSE3: byte shuffle (PSHUFB), integer abs (PABS)
@@ -20,6 +20,9 @@ uses
   , fafafa.core.simd.sse42     // ✅ SSE4.2: CRC32, string ops, PCMPGTQ
   , fafafa.core.simd.avx2
   , fafafa.core.simd.avx512
+  {$ENDIF}
+  {$IFDEF CPUI386}  // i386 SSE2 backend uses 32-bit assembly
+  , fafafa.core.simd.sse2.i386
   {$ENDIF}
   {$IFDEF SIMD_ARM_AVAILABLE}
   , fafafa.core.simd.neon
