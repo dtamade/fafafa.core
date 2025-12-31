@@ -603,35 +603,95 @@ end;
 
 procedure TTestCase_ArgsConfig.Test_ArgvFromEnvEx_AllowList;
 var
+  g: TEnvOverridesGuard;
+  kvs: array of TEnvKV;
   Arr: TStringArray;
 begin
-  // Without runtime env changes visible, we test structure only
-  Arr := ArgsArgvFromEnvEx('NONEXISTENT_', ['allowed'], [], []);
-  CheckEquals(0, Length(Arr), 'No match returns empty');
+  if not EnvWorks then begin Ignore('env_override not working'); Exit; end;
+
+  kvs := nil;
+  SetLength(kvs, 2);
+  kvs[0].Name := '__FAFAFA_ARGS_CFG_TEST_ENVEX_ALLOW_FOO'; kvs[0].Value := '1'; kvs[0].HasValue := True;
+  kvs[1].Name := '__FAFAFA_ARGS_CFG_TEST_ENVEX_ALLOW_BAR'; kvs[1].Value := '2'; kvs[1].HasValue := True;
+
+  g := env_overrides(kvs);
+  try
+    Arr := ArgsArgvFromEnvEx('__FAFAFA_ARGS_CFG_TEST_ENVEX_ALLOW_', ['foo'], [], []);
+    CheckEquals(1, Length(Arr), 'AllowList should include only foo');
+    CheckEquals('--foo=1', Arr[0]);
+  finally
+    g.Done;
+  end;
 end;
 
 procedure TTestCase_ArgsConfig.Test_ArgvFromEnvEx_DenyList;
 var
+  g: TEnvOverridesGuard;
+  kvs: array of TEnvKV;
   Arr: TStringArray;
 begin
-  Arr := ArgsArgvFromEnvEx('NONEXISTENT_', [], ['denied'], []);
-  CheckEquals(0, Length(Arr), 'No match returns empty');
+  if not EnvWorks then begin Ignore('env_override not working'); Exit; end;
+
+  kvs := nil;
+  SetLength(kvs, 2);
+  kvs[0].Name := '__FAFAFA_ARGS_CFG_TEST_ENVEX_DENY_FOO'; kvs[0].Value := '1'; kvs[0].HasValue := True;
+  kvs[1].Name := '__FAFAFA_ARGS_CFG_TEST_ENVEX_DENY_BAR'; kvs[1].Value := '2'; kvs[1].HasValue := True;
+
+  g := env_overrides(kvs);
+  try
+    Arr := ArgsArgvFromEnvEx('__FAFAFA_ARGS_CFG_TEST_ENVEX_DENY_', [], ['bar'], []);
+    CheckEquals(1, Length(Arr), 'DenyList should exclude bar');
+    CheckEquals('--foo=1', Arr[0]);
+  finally
+    g.Done;
+  end;
 end;
 
 procedure TTestCase_ArgsConfig.Test_ArgvFromEnvEx_AllowAndDeny;
 var
+  g: TEnvOverridesGuard;
+  kvs: array of TEnvKV;
   Arr: TStringArray;
 begin
-  Arr := ArgsArgvFromEnvEx('NONEXISTENT_', ['a'], ['b'], [efTrimValues]);
-  CheckEquals(0, Length(Arr), 'No match returns empty');
+  if not EnvWorks then begin Ignore('env_override not working'); Exit; end;
+
+  kvs := nil;
+  SetLength(kvs, 3);
+  kvs[0].Name := '__FAFAFA_ARGS_CFG_TEST_ENVEX_BOTH_A'; kvs[0].Value := '1'; kvs[0].HasValue := True;
+  kvs[1].Name := '__FAFAFA_ARGS_CFG_TEST_ENVEX_BOTH_B'; kvs[1].Value := '2'; kvs[1].HasValue := True;
+  kvs[2].Name := '__FAFAFA_ARGS_CFG_TEST_ENVEX_BOTH_C'; kvs[2].Value := '3'; kvs[2].HasValue := True;
+
+  g := env_overrides(kvs);
+  try
+    Arr := ArgsArgvFromEnvEx('__FAFAFA_ARGS_CFG_TEST_ENVEX_BOTH_', ['a','b'], ['b'], [efTrimValues]);
+    CheckEquals(1, Length(Arr), 'AllowAndDeny should keep a and drop b/c');
+    CheckEquals('--a=1', Arr[0]);
+  finally
+    g.Done;
+  end;
 end;
 
 procedure TTestCase_ArgsConfig.Test_ArgvFromEnvEx_WithFlags;
 var
+  g: TEnvOverridesGuard;
+  kvs: array of TEnvKV;
   Arr: TStringArray;
 begin
-  Arr := ArgsArgvFromEnvEx('NONEXISTENT_', [], [], [efTrimValues, efNormalizeBools]);
-  CheckEquals(0, Length(Arr), 'No match returns empty');
+  if not EnvWorks then begin Ignore('env_override not working'); Exit; end;
+
+  kvs := nil;
+  SetLength(kvs, 2);
+  kvs[0].Name := '__FAFAFA_ARGS_CFG_TEST_ENVEX_FLAGS_DEBUG'; kvs[0].Value := '  TRUE  '; kvs[0].HasValue := True;
+  kvs[1].Name := '__FAFAFA_ARGS_CFG_TEST_ENVEX_FLAGS_NAME'; kvs[1].Value := '  x  '; kvs[1].HasValue := True;
+
+  g := env_overrides(kvs);
+  try
+    Arr := ArgsArgvFromEnvEx('__FAFAFA_ARGS_CFG_TEST_ENVEX_FLAGS_', [], [], [efTrimValues, efNormalizeBools]);
+    AssertHasToken(Arr, '--debug=true');
+    AssertHasToken(Arr, '--name=x');
+  finally
+    g.Done;
+  end;
 end;
 
 { ArgsTokensFromEnvOpt 测试 }
