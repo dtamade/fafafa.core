@@ -97,7 +97,7 @@ for var opt in A.GetOptionEnumerator do UseOpt(opt);
 - Short options:
   - Short flags combo: `-abc` => `-a -b -c`
   - Key/value: `-o=out`, `-o:out`, `-o out`
-- Windows style: `/k`, `/k=v`, `/k:v`, `/long`, `/long=value`, `/long:value`
+- Slash options (Windows style): 当 `AllowSlashOptions=True` 时支持 `/k`, `/k=v`, `/k:v`, `/long`, `/long=value`, `/long:value`（默认：Windows=True；非 Windows=False，以避免与 Unix 绝对路径 `/tmp/a` 冲突）
 - Double dash: `--` stops parsing; everything after is positional（当 StopAtDoubleDash=False 时，`--` 本身作为位置参数保留，且后续同样视为位置参数）
 - Negative numbers: `-1.23` not split into short flags; accepted as values when appropriate
 - Case: keys are case‑insensitive by default
@@ -110,7 +110,7 @@ Types:
 
 Options:
 - `function ArgsOptionsDefault: TArgsOptions;`
-- `TArgsOptions` fields: `CaseInsensitiveKeys`, `AllowShortFlagsCombo`, `AllowShortKeyValue`, `StopAtDoubleDash`, `TreatNegativeNumbersAsPositionals`, `EnableNoPrefixNegation`
+- `TArgsOptions` fields: `CaseInsensitiveKeys`, `AllowShortFlagsCombo`, `AllowShortKeyValue`, `AllowSlashOptions`, `StopAtDoubleDash`, `TreatNegativeNumbersAsPositionals`, `EnableNoPrefixNegation`
 
 Core parse:
 - `procedure ParseArgs(const Args: array of string; const Opts: TArgsOptions; out Ctx: TArgsContext);`
@@ -147,6 +147,7 @@ for var f in A.GetArgEnumerator do ProcessFile(f);
 Windows/Unix mixed and literal arguments after "--":
 ```pascal
 var opts := ArgsOptionsDefault;
+opts.AllowSlashOptions := True; // enable Windows-style /v on non-Windows
 // StopAtDoubleDash=True (default), everything after "--" treated as positionals
 var A := TArgs.FromArray(['--input=file', '/v', '--', '--not-flag', '/x', 'file2'], opts);
 // A.Positionals = ['--not-flag','/x','file2']
@@ -194,16 +195,16 @@ A := TArgs.FromArray(['--no-cache=false'], opts);
 - Value detection rules（NextIsValue）：
   - 下一个 token 为 `--` 时不作为值；
   - 以 `-` 开头的 token 仅在 `TreatNegativeNumbersAsPositionals=True` 且匹配负数样式时（如 `-1`, `-1.2`）才作为值；否则视为下一个选项/旗；
-  - 以 `/` 开头的 token（Windows 选项风格）不作为值；
+  - 当 `AllowSlashOptions=True` 时，以 `/` 开头的 token（Windows 选项风格）不作为值；当 False 时可以作为值（例如 Linux 下的 `/tmp/a`）；
 - `--no-xxx` 无值时，在 `EnableNoPrefixNegation=True` 下解析为 `xxx=false`；显式赋值（如 `--color=true/false`、`--no-cache=true/false`）按“后者覆盖前者”处理；
 - `TryGetValue/Get*Default/TryGet*` 均遵循“最后一次赋值覆盖”规则。
 
 ## Compatibility Notes
 
-- Windows-style options: tokens starting with '/' are treated as options; such tokens are never considered as values of the previous key.
+- Slash options: when `AllowSlashOptions=True`, tokens starting with '/' are treated as options and are never considered as values of the previous key. When False, they behave like normal tokens (can be values/positionals).
 - Short option bundles: when AllowShortFlagsCombo=True, '-abc' expands to '-a -b -c'; when False, '-abc' is a single flag name 'abc'.
 - Double dash '--': StopAtDoubleDash=True (default) stops parsing and treats the rest as positionals; when False, '--' itself is kept as a positional and the rest are also positionals.
-- Negative numbers: only considered as a value when TreatNegativeNumbersAsPositionals=True and the token looks like a negative number; '--' and '/'-prefixed tokens are never values.
+- Negative numbers: only considered as a value when TreatNegativeNumbersAsPositionals=True and the token looks like a negative number; '--' is never a value; '/'-prefixed tokens are never values when AllowSlashOptions=True.
 - No-prefix negation: EnableNoPrefixNegation=False by default; when enabled, '--no-xxx' maps to 'xxx=false'. Explicit assignments (e.g. '--color=true/false') follow last-write-wins.
 - Windows no- with assignment: when EnableNoPrefixNegation=True, '/no-xxx=value' and '/no-xxx:value' also map the base key 'xxx' to 'value' (and keep the literal no- key record), preserving last-write-wins semantics across long and Windows forms.
 
@@ -278,10 +279,11 @@ end.
 
 - 负数值判定
   - TreatNegativeNumbersAsPositionals=True 时，`-1`、`-1.2` 等负数样式可作为值；否则视作“短选项起始”，避免误判
-  - 以 `--`、`/` 起始的 token 永不作为值
+  - 以 `--` 起始的 token 永不作为值；当 AllowSlashOptions=True 时，以 `/` 起始的 token 也不作为值
 
-- Windows 形式
-  - 以 `/` 起始的 token 一律视为选项；绝不作为前一键的值
+- Slash options（AllowSlashOptions）
+  - Windows 默认 AllowSlashOptions=True：以 `/` 起始的 token 视为选项；且不作为前一键的值
+  - 非 Windows 默认 AllowSlashOptions=False：以 `/` 起始的 token 作为普通 token（可作为值/位置参数），避免与 Unix 绝对路径冲突
 
 - no- 前缀与覆盖策略（EnableNoPrefixNegation）
   - `--no-x` → `x=false`

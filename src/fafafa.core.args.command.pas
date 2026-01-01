@@ -223,7 +223,7 @@ begin
   end;
 
   if S[1]='/' then
-    Exit(True);
+    Exit(Opts.AllowSlashOptions);
 
   Result := False;
 end;

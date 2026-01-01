@@ -27,6 +27,7 @@ type
     CaseInsensitiveKeys: Boolean;
     AllowShortFlagsCombo: Boolean;            // -abc => -a -b -c
     AllowShortKeyValue: Boolean;              // -o=out or -o out
+    AllowSlashOptions: Boolean;               // /k /k=v /k:v (Windows-style)
     StopAtDoubleDash: Boolean;                // "--" stops parsing
     TreatNegativeNumbersAsPositionals: Boolean; // -1.23 not short flags
     EnableNoPrefixNegation: Boolean;          // --no-xxx maps to xxx=false
@@ -251,6 +252,11 @@ begin
   Result.CaseInsensitiveKeys := True;
   Result.AllowShortFlagsCombo := True;
   Result.AllowShortKeyValue := True;
+{$IFDEF Windows}
+  Result.AllowSlashOptions := True;
+{$ELSE}
+  Result.AllowSlashOptions := False;
+{$ENDIF}
   Result.StopAtDoubleDash := True;
   Result.TreatNegativeNumbersAsPositionals := True;
   Result.EnableNoPrefixNegation := False;
@@ -365,7 +371,10 @@ var i, posOpt: Integer; a, key, val, baseKey: string; stop: Boolean; kv: TKeyVal
       else
         Exit(False);
     end;
-    if (Length(nextTok)>0) and (nextTok[1]='/') then Exit(False);
+    if (Length(nextTok)>0) and (nextTok[1]='/') then
+    begin
+      if Opts.AllowSlashOptions then Exit(False) else Exit(True);
+    end;
     Result := True;
   end;
   procedure HandleLongOption;
@@ -509,7 +518,7 @@ begin
       HandleLongOption
     else if (Length(a)>=2) and (a[1]='-') then
       HandleShortOption
-    else if (Length(a)>=1) and (a[1]='/') then
+    else if Opts.AllowSlashOptions and (Length(a)>=1) and (a[1]='/') then
       HandleSlashOption
     else
     begin

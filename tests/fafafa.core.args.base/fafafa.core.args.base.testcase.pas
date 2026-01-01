@@ -37,6 +37,10 @@ type
     procedure Test_SlashOption_EqualsSeparator;
     procedure Test_SlashOption_ColonSeparator;
     procedure Test_SlashOption_FlagOnly;
+    procedure Test_SlashOption_Disabled_TreatAsPositional;
+
+    // Linux/Unix absolute paths as values (when slash options disabled)
+    procedure Test_LongOption_SpaceSeparator_AllowsSlashValue_WhenSlashOptionsDisabled;
 
     // 双破折号停止解析
     procedure Test_DoubleDash_StopsParsing;
@@ -256,6 +260,7 @@ var
   Opts: TArgsOptions;
 begin
   Opts := ArgsOptionsDefault;
+  Opts.AllowSlashOptions := True;
   ParseArgs(['/key=value'], Opts, Ctx);
 
   CheckEquals(1, Length(Ctx.Keys));
@@ -269,6 +274,7 @@ var
   Opts: TArgsOptions;
 begin
   Opts := ArgsOptionsDefault;
+  Opts.AllowSlashOptions := True;
   ParseArgs(['/key:value'], Opts, Ctx);
 
   CheckEquals(1, Length(Ctx.Keys));
@@ -282,6 +288,7 @@ var
   Opts: TArgsOptions;
 begin
   Opts := ArgsOptionsDefault;
+  Opts.AllowSlashOptions := True;
   ParseArgs(['/help', '/verbose'], Opts, Ctx);
 
   CheckEquals(2, Length(Ctx.Flags));
@@ -289,6 +296,37 @@ begin
   CheckEquals('verbose', Ctx.Flags[1]);
 end;
 
+procedure TTestCase_ArgsBase.Test_SlashOption_Disabled_TreatAsPositional;
+var
+  Ctx: TArgsContext;
+  Opts: TArgsOptions;
+begin
+  Opts := ArgsOptionsDefault;
+  Opts.AllowSlashOptions := False;
+  ParseArgs(['/key=value', '/flag', 'arg'], Opts, Ctx);
+
+  CheckEquals(3, Length(Ctx.Positionals));
+  CheckEquals('/key=value', Ctx.Positionals[0]);
+  CheckEquals('/flag', Ctx.Positionals[1]);
+  CheckEquals('arg', Ctx.Positionals[2]);
+  CheckEquals(0, Length(Ctx.Flags));
+  CheckEquals(0, Length(Ctx.Keys));
+end;
+
+procedure TTestCase_ArgsBase.Test_LongOption_SpaceSeparator_AllowsSlashValue_WhenSlashOptionsDisabled;
+var
+  Ctx: TArgsContext;
+  Opts: TArgsOptions;
+begin
+  Opts := ArgsOptionsDefault;
+  Opts.AllowSlashOptions := False;
+  ParseArgs(['--out', '/tmp/a'], Opts, Ctx);
+
+  CheckEquals(1, Length(Ctx.Keys));
+  CheckEquals('out', Ctx.Keys[0]);
+  CheckEquals('/tmp/a', Ctx.Values[0]);
+  CheckEquals(0, Length(Ctx.Positionals));
+end;
 { 双破折号测试 }
 
 procedure TTestCase_ArgsBase.Test_DoubleDash_StopsParsing;

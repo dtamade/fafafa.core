@@ -89,6 +89,7 @@ type
     procedure Test_Run_DefaultSubcommand_DoubleDash_NoFallback;
     procedure Test_Run_DefaultSubcommand_DoubleDash_StopAtDoubleDashFalse_NoFallback;
     procedure Test_Run_DefaultSubcommand_SingleDash_Positional_NoFallback;
+    procedure Test_Run_DefaultSubcommand_SlashPath_NoFallback_WhenAllowSlashOptionsFalse;
     procedure Test_Run_DoubleDashBeforeCommand_Returns_CMD_NOT_FOUND;
     procedure Test_Run_DoubleDashBeforeCommand_StopAtDoubleDashFalse_Returns_CMD_NOT_FOUND;
 
@@ -106,6 +107,7 @@ type
     procedure Test_GetBestMatchPath_DefaultChild_DoubleDash_NoDefaultChild;
     procedure Test_GetBestMatchPath_DefaultChild_DoubleDash_StopAtDoubleDashFalse_NoDefaultChild;
     procedure Test_GetBestMatchPath_DefaultChild_SingleDash_Positional_NoDefaultChild;
+    procedure Test_GetBestMatchPath_DefaultChild_SlashPath_NoDefaultChild_WhenAllowSlashOptionsFalse;
     procedure Test_GetBestMatchPath_DoubleDashBeforeCommand_EmptyPath;
     procedure Test_GetBestMatchPath_DoubleDashBeforeCommand_StopAtDoubleDashFalse_EmptyPath;
 
@@ -1034,6 +1036,35 @@ begin
   CheckEquals('-', Pos[0]);
 end;
 
+procedure TTestCase_ArgsCommand.Test_Run_DefaultSubcommand_SlashPath_NoFallback_WhenAllowSlashOptionsFalse;
+var
+  Root: IRootCommand;
+  ServeCmd, DevCmd: ICommand;
+  Code: Integer;
+  Opts: TArgsOptions;
+begin
+  Root := NewRootCommand;
+
+  ServeCmd := NewCommand('serve');
+  ServeCmd.SetHandlerFunc(@SimpleHandler);
+
+  DevCmd := NewCommand('dev');
+  DevCmd.SetHandlerFunc(@SubCommandHandler);
+  ServeCmd.AddChild(DevCmd);
+  ServeCmd.SetDefaultChildName('dev');
+
+  Root.AddChild(ServeCmd);
+
+  Opts := ArgsOptionsDefault;
+  Opts.AllowSlashOptions := False;
+
+  HandlerCallCount := 0;
+  Code := Root.Run(['serve', '/tmp/a'], Opts);
+
+  CheckEquals(0, Code, 'When slash options are disabled, "/tmp/a" should be positional for routing (no default fallback)');
+  CheckEquals(1, HandlerCallCount);
+end;
+
 { RunPath tests }
 
 procedure TTestCase_ArgsCommand.Test_RunPath_SingleLevel;
@@ -1271,6 +1302,29 @@ begin
 
   Path := GetBestMatchPath(Root, ['serve', '-'], Opts);
   CheckEquals(1, Length(Path), '"-" should be treated as positional (no default child)');
+  CheckEquals('serve', Path[0]);
+end;
+
+procedure TTestCase_ArgsCommand.Test_GetBestMatchPath_DefaultChild_SlashPath_NoDefaultChild_WhenAllowSlashOptionsFalse;
+var
+  Root: IRootCommand;
+  ServeCmd, DevCmd: ICommand;
+  Path: array of string;
+  Opts: TArgsOptions;
+begin
+  Root := NewRootCommand;
+
+  ServeCmd := NewCommand('serve');
+  DevCmd := NewCommand('dev');
+  ServeCmd.AddChild(DevCmd);
+  ServeCmd.SetDefaultChildName('dev');
+  Root.AddChild(ServeCmd);
+
+  Opts := ArgsOptionsDefault;
+  Opts.AllowSlashOptions := False;
+
+  Path := GetBestMatchPath(Root, ['serve', '/tmp/a'], Opts);
+  CheckEquals(1, Length(Path), 'When slash options are disabled, "/tmp/a" should not trigger default child');
   CheckEquals('serve', Path[0]);
 end;
 
