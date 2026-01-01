@@ -3,6 +3,7 @@
 简述
 - 基于子命令树（任意深度），与 Rust clap / Go Cobra / Java picocli 设计一致
 - 路由从 argv 首个非选项 token 开始向下匹配；匹配成功后余下切片交由叶子命令解析
+  - 为避免常见“值 token”被误判为命令名：当 `-`（stdin/stdout 标记）、负数（如 `-1`，在 TreatNegativeNumbersAsPositionals=True 时）或 Unix 绝对路径（如 `/tmp/a`，在 AllowSlashOptions=False 时）紧跟在选项 token 后出现时，路由会跳过它们继续寻找命令 token
 - 支持别名（与主名等价，大小写敏感性由 ArgsOptions 控制）
 - 支持 `--` 哨兵：其后的 token 全部作为位置参数传递给子命令
 

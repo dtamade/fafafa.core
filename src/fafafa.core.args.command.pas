@@ -211,6 +211,16 @@ begin
   Result := IsOptionLikeToken(S, Opts.AllowSlashOptions, Opts.TreatNegativeNumbersAsPositionals);
 end;
 
+function IsSkippableOptionValueTokenForRouting(const S: string; const Opts: TArgsOptions): boolean; inline;
+begin
+  // Heuristic for routing pre-scan only: some tokens are very likely to be option values
+  // (and very unlikely to be command path segments).
+  if S='-' then Exit(True);
+  if Opts.TreatNegativeNumbersAsPositionals and IsNegativeNumberLike(S) then Exit(True);
+  if (not Opts.AllowSlashOptions) and (Length(S)>0) and (S[1]='/') then Exit(True);
+  Result := False;
+end;
+
 
 
 function Normalize(const S: string; CaseInsensitive: boolean): string;
@@ -505,10 +515,24 @@ begin
   caseInsensitive := Opts.CaseInsensitiveKeys;
   // find first non-option as path start
   depth := 0; firstNonOpt := -1;
-  for i := Low(Args) to High(Args) do
+  i := Low(Args);
+  while i <= High(Args) do
   begin
     if IsRoutingStopToken(Args[i], Opts) then Break;
-    if not IsOptionLikeForRouting(Args[i], Opts) then begin firstNonOpt := i; Break; end;
+    if IsOptionLikeForRouting(Args[i], Opts) then
+    begin
+      // Options can appear before the command token. For a few special tokens that are
+      // commonly used as values, skip them to avoid misrouting.
+      if (i+1 <= High(Args))
+        and (not IsRoutingStopToken(Args[i+1], Opts))
+        and IsSkippableOptionValueTokenForRouting(Args[i+1], Opts) then
+        Inc(i, 2)
+      else
+        Inc(i);
+      Continue;
+    end;
+    firstNonOpt := i;
+    Break;
   end;
   if firstNonOpt<0 then Exit; // no command provided
   // walk down
@@ -613,10 +637,22 @@ begin
   caseInsensitive := Opts.CaseInsensitiveKeys;
   // find first non-option as path start
   depth := 0; firstNonOpt := -1; cur := nil;
-  for i := Low(Args) to High(Args) do
+  i := Low(Args);
+  while i <= High(Args) do
   begin
     if IsRoutingStopToken(Args[i], Opts) then Break;
-    if not IsOptionLikeForRouting(Args[i], Opts) then begin firstNonOpt := i; Break; end;
+    if IsOptionLikeForRouting(Args[i], Opts) then
+    begin
+      if (i+1 <= High(Args))
+        and (not IsRoutingStopToken(Args[i+1], Opts))
+        and IsSkippableOptionValueTokenForRouting(Args[i+1], Opts) then
+        Inc(i, 2)
+      else
+        Inc(i);
+      Continue;
+    end;
+    firstNonOpt := i;
+    Break;
   end;
   if firstNonOpt<0 then Exit; // no command tokens
   // walk down greedily by name/alias

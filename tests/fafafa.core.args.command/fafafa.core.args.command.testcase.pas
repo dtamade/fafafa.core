@@ -110,6 +110,9 @@ type
     procedure Test_GetBestMatchPath_DefaultChild_SlashPath_NoDefaultChild_WhenAllowSlashOptionsFalse;
     procedure Test_GetBestMatchPath_DoubleDashBeforeCommand_EmptyPath;
     procedure Test_GetBestMatchPath_DoubleDashBeforeCommand_StopAtDoubleDashFalse_EmptyPath;
+    procedure Test_GetBestMatchPath_OptionsBeforeCommand_SingleDashValue_Skipped;
+    procedure Test_GetBestMatchPath_OptionsBeforeCommand_NegativeNumberValue_Skipped;
+    procedure Test_GetBestMatchPath_OptionsBeforeCommand_SlashPathValue_Skipped_WhenAllowSlashOptionsFalse;
 
     // Schema integration tests
     procedure Test_Command_Spec_SetGet;
@@ -123,6 +126,9 @@ type
     procedure Test_Run_EmptyArgs_Returns_CMD_NOT_FOUND;
     procedure Test_Run_OnlyOptions_Returns_CMD_NOT_FOUND;
     procedure Test_Run_OptionsBeforeCommand;
+    procedure Test_Run_OptionsBeforeCommand_SingleDashValue_Skipped;
+    procedure Test_Run_OptionsBeforeCommand_NegativeNumberValue_Skipped;
+    procedure Test_Run_OptionsBeforeCommand_SlashPathValue_Skipped_WhenAllowSlashOptionsFalse;
   end;
 
 var
@@ -1328,6 +1334,53 @@ begin
   CheckEquals('serve', Path[0]);
 end;
 
+procedure TTestCase_ArgsCommand.Test_GetBestMatchPath_OptionsBeforeCommand_SingleDashValue_Skipped;
+var
+  Root: IRootCommand;
+  Path: array of string;
+begin
+  Root := NewRootCommand;
+  Root.AddChild(NewCommand('serve'));
+
+  Path := GetBestMatchPath(Root, ['--out', '-', 'serve'], ArgsOptionsDefault);
+  CheckEquals(1, Length(Path));
+  CheckEquals('serve', Path[0]);
+end;
+
+procedure TTestCase_ArgsCommand.Test_GetBestMatchPath_OptionsBeforeCommand_NegativeNumberValue_Skipped;
+var
+  Root: IRootCommand;
+  Path: array of string;
+  Opts: TArgsOptions;
+begin
+  Root := NewRootCommand;
+  Root.AddChild(NewCommand('serve'));
+
+  Opts := ArgsOptionsDefault;
+  Opts.TreatNegativeNumbersAsPositionals := True;
+
+  Path := GetBestMatchPath(Root, ['--threads', '-1', 'serve'], Opts);
+  CheckEquals(1, Length(Path));
+  CheckEquals('serve', Path[0]);
+end;
+
+procedure TTestCase_ArgsCommand.Test_GetBestMatchPath_OptionsBeforeCommand_SlashPathValue_Skipped_WhenAllowSlashOptionsFalse;
+var
+  Root: IRootCommand;
+  Path: array of string;
+  Opts: TArgsOptions;
+begin
+  Root := NewRootCommand;
+  Root.AddChild(NewCommand('serve'));
+
+  Opts := ArgsOptionsDefault;
+  Opts.AllowSlashOptions := False;
+
+  Path := GetBestMatchPath(Root, ['--out', '/tmp/a', 'serve'], Opts);
+  CheckEquals(1, Length(Path));
+  CheckEquals('serve', Path[0]);
+end;
+
 { Schema integration tests }
 
 procedure TTestCase_ArgsCommand.Test_Command_Spec_SetGet;
@@ -1465,6 +1518,74 @@ begin
   Code := Root.Run(['--verbose', 'serve', '--port=8080'], ArgsOptionsDefault);
 
   // Current implementation: first non-option is 'serve'
+  CheckEquals(0, Code);
+  CheckEquals(1, HandlerCallCount);
+end;
+
+procedure TTestCase_ArgsCommand.Test_Run_OptionsBeforeCommand_SingleDashValue_Skipped;
+var
+  Root: IRootCommand;
+  Cmd: ICommand;
+  Code: Integer;
+begin
+  Root := NewRootCommand;
+  Cmd := NewCommand('serve');
+  Cmd.SetHandlerFunc(@SimpleHandler);
+  Root.AddChild(Cmd);
+
+  HandlerCallCount := 0;
+  // '-' is commonly used as stdin/stdout marker; it should not be treated as a command token
+  // when it appears as a value after an option token.
+  Code := Root.Run(['--out', '-', 'serve'], ArgsOptionsDefault);
+
+  CheckEquals(0, Code);
+  CheckEquals(1, HandlerCallCount);
+end;
+
+procedure TTestCase_ArgsCommand.Test_Run_OptionsBeforeCommand_NegativeNumberValue_Skipped;
+var
+  Root: IRootCommand;
+  Cmd: ICommand;
+  Code: Integer;
+  Opts: TArgsOptions;
+begin
+  Root := NewRootCommand;
+  Cmd := NewCommand('serve');
+  Cmd.SetHandlerFunc(@SimpleHandler);
+  Root.AddChild(Cmd);
+
+  HandlerCallCount := 0;
+  Opts := ArgsOptionsDefault;
+  Opts.TreatNegativeNumbersAsPositionals := True;
+
+  // Negative numbers can be values; when they appear after an option token, routing should
+  // not treat them as the first command token.
+  Code := Root.Run(['--threads', '-1', 'serve'], Opts);
+
+  CheckEquals(0, Code);
+  CheckEquals(1, HandlerCallCount);
+end;
+
+procedure TTestCase_ArgsCommand.Test_Run_OptionsBeforeCommand_SlashPathValue_Skipped_WhenAllowSlashOptionsFalse;
+var
+  Root: IRootCommand;
+  Cmd: ICommand;
+  Code: Integer;
+  Opts: TArgsOptions;
+begin
+  Root := NewRootCommand;
+  Cmd := NewCommand('serve');
+  Cmd.SetHandlerFunc(@SimpleHandler);
+  Root.AddChild(Cmd);
+
+  HandlerCallCount := 0;
+  Opts := ArgsOptionsDefault;
+  Opts.AllowSlashOptions := False;
+
+  // On non-Windows platforms, unix-style absolute paths should be allowed as values.
+  // When used after an option token, they should not become the command token.
+  Code := Root.Run(['--out', '/tmp/a', 'serve'], Opts);
+
   CheckEquals(0, Code);
   CheckEquals(1, HandlerCallCount);
 end;
