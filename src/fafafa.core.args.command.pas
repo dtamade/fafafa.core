@@ -592,10 +592,13 @@ begin
       if child<>nil then cur := child;
     end;
   end;
-  // slice sub-args (starting from the first token after matched path)
+  // Build argv for the selected command by removing only the matched command-path tokens.
+  // This preserves options that appear before the command token (e.g. ENV/CONFIG merges).
   SetLength(subArgs, 0);
-  for i := firstNonOpt+depth to High(Args) do
+  for i := Low(Args) to High(Args) do
   begin
+    if (i >= firstNonOpt) and (i < firstNonOpt + depth) then
+      Continue; // skip routing path tokens
     SetLength(subArgs, Length(subArgs)+1);
     subArgs[High(subArgs)] := Args[i];
   end;

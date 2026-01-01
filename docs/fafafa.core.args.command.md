@@ -2,7 +2,7 @@
 
 简述
 - 基于子命令树（任意深度），与 Rust clap / Go Cobra / Java picocli 设计一致
-- 路由会扫描 argv，定位首个“命令 token”（忽略前置选项），并向下匹配；匹配成功后余下切片交由叶子命令解析
+- 路由会扫描 argv，定位首个“命令 token”（忽略前置选项），并向下匹配；匹配成功后仅移除“命令路径 token”，其余 token（包括命令前的选项/值）会传给叶子命令解析
   - 支持常见“选项在命令前”形式：如 `--out out.txt serve` / `-o out.txt serve`
     - 规则：当某个选项 token 后紧跟一个非选项 token，且该 token **不匹配任何根命令名/别名** 时，路由会将其视作该选项的 value 并跳过，继续寻找命令 token
     - 若 value 恰好等于命令名/别名，将优先被视作命令 token；可用 `--out=serve` 等 inline 赋值或将选项放到命令之后来消歧

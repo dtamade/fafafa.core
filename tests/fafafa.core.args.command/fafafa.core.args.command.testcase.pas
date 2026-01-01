@@ -1625,6 +1625,7 @@ var
   Root: IRootCommand;
   Cmd: ICommand;
   Code: Integer;
+  V: string;
 begin
   Root := NewRootCommand;
   Cmd := NewCommand('serve');
@@ -1632,10 +1633,14 @@ begin
   Root.AddChild(Cmd);
 
   HandlerCallCount := 0;
+  LastHandlerArgs := nil;
   Code := Root.Run(['--out', 'out.txt', 'serve'], ArgsOptionsDefault);
 
   CheckEquals(0, Code);
   CheckEquals(1, HandlerCallCount);
+  CheckNotNull(LastHandlerArgs, 'Handler should receive args');
+  CheckTrue(LastHandlerArgs.TryGetValue('out', V));
+  CheckEquals('out.txt', V);
 end;
 
 procedure TTestCase_ArgsCommand.Test_Run_OptionsBeforeCommand_ShortOptionValue_Skipped;
@@ -1643,6 +1648,7 @@ var
   Root: IRootCommand;
   Cmd: ICommand;
   Code: Integer;
+  V: string;
 begin
   Root := NewRootCommand;
   Cmd := NewCommand('serve');
@@ -1650,10 +1656,14 @@ begin
   Root.AddChild(Cmd);
 
   HandlerCallCount := 0;
+  LastHandlerArgs := nil;
   Code := Root.Run(['-o', 'out.txt', 'serve'], ArgsOptionsDefault);
 
   CheckEquals(0, Code);
   CheckEquals(1, HandlerCallCount);
+  CheckNotNull(LastHandlerArgs, 'Handler should receive args');
+  CheckTrue(LastHandlerArgs.TryGetValue('o', V));
+  CheckEquals('out.txt', V);
 end;
 
 initialization
