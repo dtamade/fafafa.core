@@ -194,7 +194,8 @@ A := TArgs.FromArray(['--no-cache=false'], opts);
 
 - Value detection rules（NextIsValue）：
   - 下一个 token 为 `--` 时不作为值；
-  - 以 `-` 开头的 token 仅在 `TreatNegativeNumbersAsPositionals=True` 且匹配负数样式时（如 `-1`, `-1.2`）才作为值；否则视为下一个选项/旗；
+  - 下一个 token 为 `-` 时可以作为值（常见 stdin 标记，例如 `--out -` / `-o -`）；
+  - 以 `-` 开头且长度 >= 2 的 token 仅在 `TreatNegativeNumbersAsPositionals=True` 且匹配负数样式时（如 `-1`, `-1.2`）才作为值；否则视为下一个选项/旗；
   - 当 `AllowSlashOptions=True` 时，以 `/` 开头的 token（Windows 选项风格）不作为值；当 False 时可以作为值（例如 Linux 下的 `/tmp/a`）；
 - `--no-xxx` 无值时，在 `EnableNoPrefixNegation=True` 下解析为 `xxx=false`；显式赋值（如 `--color=true/false`、`--no-cache=true/false`）按“后者覆盖前者”处理；
 - `TryGetValue/Get*Default/TryGet*` 均遵循“最后一次赋值覆盖”规则。
@@ -204,7 +205,7 @@ A := TArgs.FromArray(['--no-cache=false'], opts);
 - Slash options: when `AllowSlashOptions=True`, tokens starting with '/' are treated as options and are never considered as values of the previous key. When False, they behave like normal tokens (can be values/positionals).
 - Short option bundles: when AllowShortFlagsCombo=True, '-abc' expands to '-a -b -c'; when False, '-abc' is a single flag name 'abc'.
 - Double dash '--': StopAtDoubleDash=True (default) stops parsing and treats the rest as positionals; when False, '--' itself is kept as a positional and the rest are also positionals.
-- Negative numbers: only considered as a value when TreatNegativeNumbersAsPositionals=True and the token looks like a negative number; '--' is never a value; '/'-prefixed tokens are never values when AllowSlashOptions=True.
+- Value detection summary: '-' alone can be used as a value (stdin marker); negative numbers are only considered as a value when TreatNegativeNumbersAsPositionals=True and the token looks like a negative number; '--' is never a value; '/'-prefixed tokens are never values when AllowSlashOptions=True.
 - No-prefix negation: EnableNoPrefixNegation=False by default; when enabled, '--no-xxx' maps to 'xxx=false'. Explicit assignments (e.g. '--color=true/false') follow last-write-wins.
 - Windows no- with assignment: when EnableNoPrefixNegation=True, '/no-xxx=value' and '/no-xxx:value' also map the base key 'xxx' to 'value' (and keep the literal no- key record), preserving last-write-wins semantics across long and Windows forms.
 

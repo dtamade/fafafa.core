@@ -363,19 +363,13 @@ var i, posOpt: Integer; a, key, val, baseKey: string; stop: Boolean; kv: TKeyVal
   begin
     if i+1>High(Args) then Exit(False);
     nextTok := Args[i+1];
-    if nextTok='--' then Exit(False);
-    if (Length(nextTok)>0) and (nextTok[1]='-') then
-    begin
-      if Opts.TreatNegativeNumbersAsPositionals and IsNegativeNumberLike(nextTok) then
-        Exit(True)
-      else
-        Exit(False);
-    end;
-    if (Length(nextTok)>0) and (nextTok[1]='/') then
-    begin
-      if Opts.AllowSlashOptions then Exit(False) else Exit(True);
-    end;
-    Result := True;
+
+    // '--' is never a value token
+    if IsDoubleDashSentinel(nextTok) then Exit(False);
+
+    // If the next token is an option token, it cannot be used as a value.
+    // Otherwise it is a value token (including '-' and negative numbers when enabled).
+    Result := not IsOptionLikeToken(nextTok, Opts.AllowSlashOptions, Opts.TreatNegativeNumbersAsPositionals);
   end;
   procedure HandleLongOption;
   var noKey: string;

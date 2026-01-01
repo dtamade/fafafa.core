@@ -203,29 +203,12 @@ function IsRoutingStopToken(const S: string; const Opts: TArgsOptions): boolean;
 begin
   // Keep consistent with ParseArgs contract: "--" always stops parsing.
   // StopAtDoubleDash only controls whether the token is kept as a positional.
-  Result := (S = '--');
+  Result := IsDoubleDashSentinel(S);
 end;
 
 function IsOptionLikeForRouting(const S: string; const Opts: TArgsOptions): boolean; inline;
 begin
-  if S='' then Exit(False);
-
-  // Keep consistent with ParseArgs dispatch rules:
-  // - '-' alone is a positional token (commonly "stdin" marker)
-  // - options start with '--' or '-' (len>=2), or '/'
-  if S[1]='-' then
-  begin
-    if Length(S) < 2 then Exit(False);
-    // Treat negative numbers as positionals: e.g. -1, -1.2
-    if Opts.TreatNegativeNumbersAsPositionals and IsNegativeNumberLike(S) then
-      Exit(False);
-    Exit(True);
-  end;
-
-  if S[1]='/' then
-    Exit(Opts.AllowSlashOptions);
-
-  Result := False;
+  Result := IsOptionLikeToken(S, Opts.AllowSlashOptions, Opts.TreatNegativeNumbersAsPositionals);
 end;
 
 

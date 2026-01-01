@@ -23,12 +23,14 @@ type
     procedure Test_LongOption_EqualsSeparator;
     procedure Test_LongOption_ColonSeparator;
     procedure Test_LongOption_SpaceSeparator;
+    procedure Test_LongOption_SpaceSeparator_AllowsSingleDashValue;
     procedure Test_LongOption_FlagOnly;
 
     // 短选项测试
     procedure Test_ShortOption_EqualsSeparator;
     procedure Test_ShortOption_EqualsSeparator_Disabled_TreatAsSingleFlag;
     procedure Test_ShortOption_SpaceSeparator;
+    procedure Test_ShortOption_SpaceSeparator_AllowsSingleDashValue;
     procedure Test_ShortOption_ComboFlags;
     procedure Test_ShortOption_ComboFlags_Disabled_TreatAsSingleFlag;
     procedure Test_ShortOption_SingleFlag;
@@ -152,6 +154,21 @@ begin
   CheckEquals('value', Ctx.Values[0]);
 end;
 
+procedure TTestCase_ArgsBase.Test_LongOption_SpaceSeparator_AllowsSingleDashValue;
+var
+  Ctx: TArgsContext;
+  Opts: TArgsOptions;
+begin
+  Opts := ArgsOptionsDefault;
+  ParseArgs(['--out', '-'], Opts, Ctx);
+
+  CheckEquals(1, Length(Ctx.Keys));
+  CheckEquals('out', Ctx.Keys[0]);
+  CheckEquals('-', Ctx.Values[0]);
+  CheckEquals(0, Length(Ctx.Flags));
+  CheckEquals(0, Length(Ctx.Positionals));
+end;
+
 procedure TTestCase_ArgsBase.Test_LongOption_FlagOnly;
 var
   Ctx: TArgsContext;
@@ -204,11 +221,26 @@ var
   Opts: TArgsOptions;
 begin
   Opts := ArgsOptionsDefault;
-  ParseArgs(['-o', 'output.txt'], Opts, Ctx);
+  ParseArgs(['-k', 'value'], Opts, Ctx);
+
+  CheckEquals(1, Length(Ctx.Keys));
+  CheckEquals('k', Ctx.Keys[0]);
+  CheckEquals('value', Ctx.Values[0]);
+end;
+
+procedure TTestCase_ArgsBase.Test_ShortOption_SpaceSeparator_AllowsSingleDashValue;
+var
+  Ctx: TArgsContext;
+  Opts: TArgsOptions;
+begin
+  Opts := ArgsOptionsDefault;
+  ParseArgs(['-o', '-'], Opts, Ctx);
 
   CheckEquals(1, Length(Ctx.Keys));
   CheckEquals('o', Ctx.Keys[0]);
-  CheckEquals('output.txt', Ctx.Values[0]);
+  CheckEquals('-', Ctx.Values[0]);
+  CheckEquals(0, Length(Ctx.Flags));
+  CheckEquals(0, Length(Ctx.Positionals));
 end;
 
 procedure TTestCase_ArgsBase.Test_ShortOption_ComboFlags;
