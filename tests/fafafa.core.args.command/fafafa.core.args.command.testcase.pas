@@ -113,6 +113,8 @@ type
     procedure Test_GetBestMatchPath_OptionsBeforeCommand_SingleDashValue_Skipped;
     procedure Test_GetBestMatchPath_OptionsBeforeCommand_NegativeNumberValue_Skipped;
     procedure Test_GetBestMatchPath_OptionsBeforeCommand_SlashPathValue_Skipped_WhenAllowSlashOptionsFalse;
+    procedure Test_GetBestMatchPath_OptionsBeforeCommand_LongOptionValue_Skipped;
+    procedure Test_GetBestMatchPath_OptionsBeforeCommand_ShortOptionValue_Skipped;
 
     // Schema integration tests
     procedure Test_Command_Spec_SetGet;
@@ -129,6 +131,8 @@ type
     procedure Test_Run_OptionsBeforeCommand_SingleDashValue_Skipped;
     procedure Test_Run_OptionsBeforeCommand_NegativeNumberValue_Skipped;
     procedure Test_Run_OptionsBeforeCommand_SlashPathValue_Skipped_WhenAllowSlashOptionsFalse;
+    procedure Test_Run_OptionsBeforeCommand_LongOptionValue_Skipped;
+    procedure Test_Run_OptionsBeforeCommand_ShortOptionValue_Skipped;
   end;
 
 var
@@ -1381,6 +1385,32 @@ begin
   CheckEquals('serve', Path[0]);
 end;
 
+procedure TTestCase_ArgsCommand.Test_GetBestMatchPath_OptionsBeforeCommand_LongOptionValue_Skipped;
+var
+  Root: IRootCommand;
+  Path: array of string;
+begin
+  Root := NewRootCommand;
+  Root.AddChild(NewCommand('serve'));
+
+  Path := GetBestMatchPath(Root, ['--out', 'out.txt', 'serve'], ArgsOptionsDefault);
+  CheckEquals(1, Length(Path));
+  CheckEquals('serve', Path[0]);
+end;
+
+procedure TTestCase_ArgsCommand.Test_GetBestMatchPath_OptionsBeforeCommand_ShortOptionValue_Skipped;
+var
+  Root: IRootCommand;
+  Path: array of string;
+begin
+  Root := NewRootCommand;
+  Root.AddChild(NewCommand('serve'));
+
+  Path := GetBestMatchPath(Root, ['-o', 'out.txt', 'serve'], ArgsOptionsDefault);
+  CheckEquals(1, Length(Path));
+  CheckEquals('serve', Path[0]);
+end;
+
 { Schema integration tests }
 
 procedure TTestCase_ArgsCommand.Test_Command_Spec_SetGet;
@@ -1585,6 +1615,42 @@ begin
   // On non-Windows platforms, unix-style absolute paths should be allowed as values.
   // When used after an option token, they should not become the command token.
   Code := Root.Run(['--out', '/tmp/a', 'serve'], Opts);
+
+  CheckEquals(0, Code);
+  CheckEquals(1, HandlerCallCount);
+end;
+
+procedure TTestCase_ArgsCommand.Test_Run_OptionsBeforeCommand_LongOptionValue_Skipped;
+var
+  Root: IRootCommand;
+  Cmd: ICommand;
+  Code: Integer;
+begin
+  Root := NewRootCommand;
+  Cmd := NewCommand('serve');
+  Cmd.SetHandlerFunc(@SimpleHandler);
+  Root.AddChild(Cmd);
+
+  HandlerCallCount := 0;
+  Code := Root.Run(['--out', 'out.txt', 'serve'], ArgsOptionsDefault);
+
+  CheckEquals(0, Code);
+  CheckEquals(1, HandlerCallCount);
+end;
+
+procedure TTestCase_ArgsCommand.Test_Run_OptionsBeforeCommand_ShortOptionValue_Skipped;
+var
+  Root: IRootCommand;
+  Cmd: ICommand;
+  Code: Integer;
+begin
+  Root := NewRootCommand;
+  Cmd := NewCommand('serve');
+  Cmd.SetHandlerFunc(@SimpleHandler);
+  Root.AddChild(Cmd);
+
+  HandlerCallCount := 0;
+  Code := Root.Run(['-o', 'out.txt', 'serve'], ArgsOptionsDefault);
 
   CheckEquals(0, Code);
   CheckEquals(1, HandlerCallCount);

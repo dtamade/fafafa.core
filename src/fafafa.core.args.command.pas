@@ -221,6 +221,56 @@ begin
   Result := False;
 end;
 
+function FindFirstCommandTokenIndex(const Root: IBaseCommand; const Args: array of string; const Opts: TArgsOptions): Integer;
+var
+  i: Integer;
+  caseInsensitive: boolean;
+begin
+  Result := -1;
+  if Root=nil then Exit;
+  caseInsensitive := Opts.CaseInsensitiveKeys;
+
+  i := Low(Args);
+  while i <= High(Args) do
+  begin
+    if IsRoutingStopToken(Args[i], Opts) then Exit;
+    if IsOptionLikeForRouting(Args[i], Opts) then
+    begin
+      if (Pos('=', Args[i]) > 0) or (Pos(':', Args[i]) > 0) then
+      begin
+        // Inline assignment already contains the value.
+        Inc(i);
+        Continue;
+      end;
+
+      if (i+1 <= High(Args)) and (not IsRoutingStopToken(Args[i+1], Opts)) then
+      begin
+        // Special value tokens (stdin marker, negative numbers, unix paths) are never
+        // treated as command tokens.
+        if IsSkippableOptionValueTokenForRouting(Args[i+1], Opts) then
+        begin
+          Inc(i, 2);
+          Continue;
+        end;
+
+        // Generic value token: skip if it isn't option-like and also isn't a command.
+        if (not IsOptionLikeForRouting(Args[i+1], Opts))
+          and (Root.FindChild(Args[i+1], caseInsensitive) = nil) then
+        begin
+          Inc(i, 2);
+          Continue;
+        end;
+      end;
+
+      Inc(i);
+      Continue;
+    end;
+
+    Result := i;
+    Exit;
+  end;
+end;
+
 
 
 function Normalize(const S: string; CaseInsensitive: boolean): string;
@@ -513,27 +563,9 @@ begin
   cur := nil;
   SetLength(subArgs, 0);
   caseInsensitive := Opts.CaseInsensitiveKeys;
-  // find first non-option as path start
-  depth := 0; firstNonOpt := -1;
-  i := Low(Args);
-  while i <= High(Args) do
-  begin
-    if IsRoutingStopToken(Args[i], Opts) then Break;
-    if IsOptionLikeForRouting(Args[i], Opts) then
-    begin
-      // Options can appear before the command token. For a few special tokens that are
-      // commonly used as values, skip them to avoid misrouting.
-      if (i+1 <= High(Args))
-        and (not IsRoutingStopToken(Args[i+1], Opts))
-        and IsSkippableOptionValueTokenForRouting(Args[i+1], Opts) then
-        Inc(i, 2)
-      else
-        Inc(i);
-      Continue;
-    end;
-    firstNonOpt := i;
-    Break;
-  end;
+  // find first command token as path start
+  depth := 0;
+  firstNonOpt := FindFirstCommandTokenIndex(Self as IRootCommand, Args, Opts);
   if firstNonOpt<0 then Exit; // no command provided
   // walk down
   idx := firstNonOpt;
@@ -635,25 +667,9 @@ begin
   SetLength(Result, 0);
   if Root=nil then Exit;
   caseInsensitive := Opts.CaseInsensitiveKeys;
-  // find first non-option as path start
-  depth := 0; firstNonOpt := -1; cur := nil;
-  i := Low(Args);
-  while i <= High(Args) do
-  begin
-    if IsRoutingStopToken(Args[i], Opts) then Break;
-    if IsOptionLikeForRouting(Args[i], Opts) then
-    begin
-      if (i+1 <= High(Args))
-        and (not IsRoutingStopToken(Args[i+1], Opts))
-        and IsSkippableOptionValueTokenForRouting(Args[i+1], Opts) then
-        Inc(i, 2)
-      else
-        Inc(i);
-      Continue;
-    end;
-    firstNonOpt := i;
-    Break;
-  end;
+  // find first command token as path start
+  depth := 0; cur := nil;
+  firstNonOpt := FindFirstCommandTokenIndex(Root, Args, Opts);
   if firstNonOpt<0 then Exit; // no command tokens
   // walk down greedily by name/alias
   name := Args[firstNonOpt];
