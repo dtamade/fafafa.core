@@ -1274,6 +1274,76 @@ begin
   Result := TMask8(mask);
 end;
 
+// ✅ P0-2: 补充缺失的比较函数
+function AVX2CmpLeI32x8(const a, b: TVecI32x8): TMask8;
+var
+  pa, pb: Pointer;
+  mask: Integer;
+begin
+  pa := @a;
+  pb := @b;
+
+  // a <= b is equivalent to NOT(a > b)
+  asm
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vpcmpgtd ymm0, ymm0, [rcx]   // a > b
+    vmovmskps eax, ymm0
+    xor     eax, $FF              // NOT (8 bits for 8 elements)
+    mov     mask, eax
+    vzeroupper
+  end;
+
+  Result := TMask8(mask);
+end;
+
+function AVX2CmpGeI32x8(const a, b: TVecI32x8): TMask8;
+var
+  pa, pb: Pointer;
+  mask: Integer;
+begin
+  pa := @a;
+  pb := @b;
+
+  // a >= b is equivalent to NOT(a < b) = NOT(b > a)
+  asm
+    mov     rdx, pb
+    mov     rcx, pa
+    vmovdqu ymm0, [rdx]
+    vpcmpgtd ymm0, ymm0, [rcx]   // b > a = a < b
+    vmovmskps eax, ymm0
+    xor     eax, $FF              // NOT (8 bits for 8 elements)
+    mov     mask, eax
+    vzeroupper
+  end;
+
+  Result := TMask8(mask);
+end;
+
+function AVX2CmpNeI32x8(const a, b: TVecI32x8): TMask8;
+var
+  pa, pb: Pointer;
+  mask: Integer;
+begin
+  pa := @a;
+  pb := @b;
+
+  // a != b is equivalent to NOT(a == b)
+  asm
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vpcmpeqd ymm0, ymm0, [rcx]   // a == b
+    vmovmskps eax, ymm0
+    xor     eax, $FF              // NOT (8 bits for 8 elements)
+    mov     mask, eax
+    vzeroupper
+  end;
+
+  Result := TMask8(mask);
+end;
+
 // I32x8 Min/Max Operations
 
 function AVX2MinI32x8(const a, b: TVecI32x8): TVecI32x8;
@@ -2336,6 +2406,622 @@ begin
   end;
 end;
 
+// === ✅ P2: Saturating Arithmetic (AVX2 VEX-encoded) ===
+// 使用 VEX 编码避免 SSE-AVX 转换惩罚
+
+// I8x16 有符号饱和加法 (VPADDSB)
+function AVX2I8x16SatAdd(const a, b: TVecI8x16): TVecI8x16; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  vmovdqu xmm0, [rdi]
+  vmovdqu xmm1, [rsi]
+  vpaddsb xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  {$ELSE}
+  vmovdqu xmm0, [rcx]
+  vmovdqu xmm1, [rdx]
+  vpaddsb xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  {$ENDIF}
+end;
+
+// I8x16 有符号饱和减法 (VPSUBSB)
+function AVX2I8x16SatSub(const a, b: TVecI8x16): TVecI8x16; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  vmovdqu xmm0, [rdi]
+  vmovdqu xmm1, [rsi]
+  vpsubsb xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  {$ELSE}
+  vmovdqu xmm0, [rcx]
+  vmovdqu xmm1, [rdx]
+  vpsubsb xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  {$ENDIF}
+end;
+
+// I16x8 有符号饱和加法 (VPADDSW)
+function AVX2I16x8SatAdd(const a, b: TVecI16x8): TVecI16x8; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  vmovdqu xmm0, [rdi]
+  vmovdqu xmm1, [rsi]
+  vpaddsw xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  {$ELSE}
+  vmovdqu xmm0, [rcx]
+  vmovdqu xmm1, [rdx]
+  vpaddsw xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  {$ENDIF}
+end;
+
+// I16x8 有符号饱和减法 (VPSUBSW)
+function AVX2I16x8SatSub(const a, b: TVecI16x8): TVecI16x8; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  vmovdqu xmm0, [rdi]
+  vmovdqu xmm1, [rsi]
+  vpsubsw xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  {$ELSE}
+  vmovdqu xmm0, [rcx]
+  vmovdqu xmm1, [rdx]
+  vpsubsw xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  {$ENDIF}
+end;
+
+// U8x16 无符号饱和加法 (VPADDUSB)
+function AVX2U8x16SatAdd(const a, b: TVecU8x16): TVecU8x16; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  vmovdqu xmm0, [rdi]
+  vmovdqu xmm1, [rsi]
+  vpaddusb xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  {$ELSE}
+  vmovdqu xmm0, [rcx]
+  vmovdqu xmm1, [rdx]
+  vpaddusb xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  {$ENDIF}
+end;
+
+// U8x16 无符号饱和减法 (VPSUBUSB)
+function AVX2U8x16SatSub(const a, b: TVecU8x16): TVecU8x16; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  vmovdqu xmm0, [rdi]
+  vmovdqu xmm1, [rsi]
+  vpsubusb xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  {$ELSE}
+  vmovdqu xmm0, [rcx]
+  vmovdqu xmm1, [rdx]
+  vpsubusb xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  {$ENDIF}
+end;
+
+// U16x8 无符号饱和加法 (VPADDUSW)
+function AVX2U16x8SatAdd(const a, b: TVecU16x8): TVecU16x8; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  vmovdqu xmm0, [rdi]
+  vmovdqu xmm1, [rsi]
+  vpaddusw xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  {$ELSE}
+  vmovdqu xmm0, [rcx]
+  vmovdqu xmm1, [rdx]
+  vpaddusw xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  {$ENDIF}
+end;
+
+// U16x8 无符号饱和减法 (VPSUBUSW)
+function AVX2U16x8SatSub(const a, b: TVecU16x8): TVecU16x8; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  vmovdqu xmm0, [rdi]
+  vmovdqu xmm1, [rsi]
+  vpsubusw xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  {$ELSE}
+  vmovdqu xmm0, [rcx]
+  vmovdqu xmm1, [rdx]
+  vpsubusw xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  {$ENDIF}
+end;
+
+// === ✅ P3: I64x2 Arithmetic and Bitwise Operations (AVX2 VEX-encoded) ===
+// 使用 VEX 编码避免 SSE-AVX 转换惩罚
+
+// I64x2 加法 (VPADDQ)
+function AVX2AddI64x2(const a, b: TVecI64x2): TVecI64x2; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  vmovdqu xmm0, [rdi]
+  vmovdqu xmm1, [rsi]
+  vpaddq  xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  {$ELSE}
+  vmovdqu xmm0, [rcx]
+  vmovdqu xmm1, [rdx]
+  vpaddq  xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  {$ENDIF}
+end;
+
+// I64x2 减法 (VPSUBQ)
+function AVX2SubI64x2(const a, b: TVecI64x2): TVecI64x2; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  vmovdqu xmm0, [rdi]
+  vmovdqu xmm1, [rsi]
+  vpsubq  xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  {$ELSE}
+  vmovdqu xmm0, [rcx]
+  vmovdqu xmm1, [rdx]
+  vpsubq  xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  {$ENDIF}
+end;
+
+// I64x2 位与 (VPAND)
+function AVX2AndI64x2(const a, b: TVecI64x2): TVecI64x2; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  vmovdqu xmm0, [rdi]
+  vmovdqu xmm1, [rsi]
+  vpand   xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  {$ELSE}
+  vmovdqu xmm0, [rcx]
+  vmovdqu xmm1, [rdx]
+  vpand   xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  {$ENDIF}
+end;
+
+// I64x2 位或 (VPOR)
+function AVX2OrI64x2(const a, b: TVecI64x2): TVecI64x2; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  vmovdqu xmm0, [rdi]
+  vmovdqu xmm1, [rsi]
+  vpor    xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  {$ELSE}
+  vmovdqu xmm0, [rcx]
+  vmovdqu xmm1, [rdx]
+  vpor    xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  {$ENDIF}
+end;
+
+// I64x2 位异或 (VPXOR)
+function AVX2XorI64x2(const a, b: TVecI64x2): TVecI64x2; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  vmovdqu xmm0, [rdi]
+  vmovdqu xmm1, [rsi]
+  vpxor   xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  {$ELSE}
+  vmovdqu xmm0, [rcx]
+  vmovdqu xmm1, [rdx]
+  vpxor   xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  {$ENDIF}
+end;
+
+// I64x2 位非 (VPXOR with all 1s)
+function AVX2NotI64x2(const a: TVecI64x2): TVecI64x2; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  vmovdqu  xmm0, [rdi]
+  vpcmpeqd xmm1, xmm1, xmm1    // all 1s
+  vpxor    xmm0, xmm0, xmm1    // NOT = XOR with all 1s
+  vmovdqu  [rax], xmm0
+  {$ELSE}
+  vmovdqu  xmm0, [rcx]
+  vpcmpeqd xmm1, xmm1, xmm1
+  vpxor    xmm0, xmm0, xmm1
+  vmovdqu  [rax], xmm0
+  {$ENDIF}
+end;
+
+// I64x2 相等比较 (VPCMPEQQ - requires AVX2)
+function AVX2CmpEqI64x2(const a, b: TVecI64x2): TMask2;
+var maskVal: Integer;
+begin
+  asm
+    lea rax, a
+    lea rdx, b
+    vmovdqu  xmm0, [rax]
+    vmovdqu  xmm1, [rdx]
+    vpcmpeqq xmm0, xmm0, xmm1
+    vmovmskpd eax, xmm0
+    mov      maskVal, eax
+  end;
+  Result := TMask2(maskVal);
+end;
+
+// I64x2 大于比较 (VPCMPGTQ - requires AVX2)
+function AVX2CmpGtI64x2(const a, b: TVecI64x2): TMask2;
+var maskVal: Integer;
+begin
+  asm
+    lea rax, a
+    lea rdx, b
+    vmovdqu  xmm0, [rax]
+    vmovdqu  xmm1, [rdx]
+    vpcmpgtq xmm0, xmm0, xmm1
+    vmovmskpd eax, xmm0
+    mov      maskVal, eax
+  end;
+  Result := TMask2(maskVal);
+end;
+
+// I64x2 小于比较 (a < b = b > a)
+function AVX2CmpLtI64x2(const a, b: TVecI64x2): TMask2;
+var maskVal: Integer;
+begin
+  asm
+    lea rax, b     // swap: load b first
+    lea rdx, a
+    vmovdqu  xmm0, [rax]
+    vmovdqu  xmm1, [rdx]
+    vpcmpgtq xmm0, xmm0, xmm1  // b > a
+    vmovmskpd eax, xmm0
+    mov      maskVal, eax
+  end;
+  Result := TMask2(maskVal);
+end;
+
+// I64x2 小于等于 (a <= b = NOT(a > b))
+function AVX2CmpLeI64x2(const a, b: TVecI64x2): TMask2;
+var maskVal: Integer;
+begin
+  asm
+    lea rax, a
+    lea rdx, b
+    vmovdqu  xmm0, [rax]
+    vmovdqu  xmm1, [rdx]
+    vpcmpgtq xmm0, xmm0, xmm1  // a > b
+    vmovmskpd eax, xmm0
+    xor      eax, 3           // NOT (2 bits)
+    mov      maskVal, eax
+  end;
+  Result := TMask2(maskVal);
+end;
+
+// I64x2 大于等于 (a >= b = NOT(a < b) = NOT(b > a))
+function AVX2CmpGeI64x2(const a, b: TVecI64x2): TMask2;
+var maskVal: Integer;
+begin
+  asm
+    lea rax, b     // swap: load b first
+    lea rdx, a
+    vmovdqu  xmm0, [rax]
+    vmovdqu  xmm1, [rdx]
+    vpcmpgtq xmm0, xmm0, xmm1  // b > a = a < b
+    vmovmskpd eax, xmm0
+    xor      eax, 3           // NOT
+    mov      maskVal, eax
+  end;
+  Result := TMask2(maskVal);
+end;
+
+// I64x2 不等比较 (a != b = NOT(a == b))
+function AVX2CmpNeI64x2(const a, b: TVecI64x2): TMask2;
+var maskVal: Integer;
+begin
+  asm
+    lea rax, a
+    lea rdx, b
+    vmovdqu  xmm0, [rax]
+    vmovdqu  xmm1, [rdx]
+    vpcmpeqq xmm0, xmm0, xmm1
+    vmovmskpd eax, xmm0
+    xor      eax, 3           // NOT
+    mov      maskVal, eax
+  end;
+  Result := TMask2(maskVal);
+end;
+
+// === ✅ P1: Mask Operations SIMD Implementation (AVX2) ===
+// AVX2 CPU 都支持 popcnt 指令（SSE4.2），可以使用原生指令
+// 使用 bsf (bit scan forward) 和 popcnt 指令
+
+// --- TMask2 Operations (2 bits) ---
+function AVX2Mask2All(mask: TMask2): Boolean; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  and   edi, 3
+  cmp   edi, 3
+  sete  al
+  {$ELSE}
+  and   ecx, 3
+  cmp   ecx, 3
+  sete  al
+  {$ENDIF}
+end;
+
+function AVX2Mask2Any(mask: TMask2): Boolean; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  test  edi, 3
+  setne al
+  {$ELSE}
+  test  ecx, 3
+  setne al
+  {$ENDIF}
+end;
+
+function AVX2Mask2None(mask: TMask2): Boolean; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  test  edi, 3
+  sete  al
+  {$ELSE}
+  test  ecx, 3
+  sete  al
+  {$ENDIF}
+end;
+
+function AVX2Mask2PopCount(mask: TMask2): Integer; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  and   edi, 3
+  popcnt eax, edi    // 原生 popcnt 指令
+  {$ELSE}
+  and   ecx, 3
+  popcnt eax, ecx
+  {$ENDIF}
+end;
+
+function AVX2Mask2FirstSet(mask: TMask2): Integer; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  and   edi, 3
+  bsf   eax, edi
+  jnz   @done
+  mov   eax, -1
+@done:
+  {$ELSE}
+  and   ecx, 3
+  bsf   eax, ecx
+  jnz   @done
+  mov   eax, -1
+@done:
+  {$ENDIF}
+end;
+
+// --- TMask4 Operations (4 bits) ---
+function AVX2Mask4All(mask: TMask4): Boolean; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  and   edi, 15
+  cmp   edi, 15
+  sete  al
+  {$ELSE}
+  and   ecx, 15
+  cmp   ecx, 15
+  sete  al
+  {$ENDIF}
+end;
+
+function AVX2Mask4Any(mask: TMask4): Boolean; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  test  edi, 15
+  setne al
+  {$ELSE}
+  test  ecx, 15
+  setne al
+  {$ENDIF}
+end;
+
+function AVX2Mask4None(mask: TMask4): Boolean; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  test  edi, 15
+  sete  al
+  {$ELSE}
+  test  ecx, 15
+  sete  al
+  {$ENDIF}
+end;
+
+function AVX2Mask4PopCount(mask: TMask4): Integer; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  and   edi, 15
+  popcnt eax, edi
+  {$ELSE}
+  and   ecx, 15
+  popcnt eax, ecx
+  {$ENDIF}
+end;
+
+function AVX2Mask4FirstSet(mask: TMask4): Integer; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  and   edi, 15
+  bsf   eax, edi
+  jnz   @done
+  mov   eax, -1
+@done:
+  {$ELSE}
+  and   ecx, 15
+  bsf   eax, ecx
+  jnz   @done
+  mov   eax, -1
+@done:
+  {$ENDIF}
+end;
+
+// --- TMask8 Operations (8 bits) ---
+function AVX2Mask8All(mask: TMask8): Boolean; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  cmp   dil, $FF
+  sete  al
+  {$ELSE}
+  cmp   cl, $FF
+  sete  al
+  {$ENDIF}
+end;
+
+function AVX2Mask8Any(mask: TMask8): Boolean; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  test  dil, dil
+  setne al
+  {$ELSE}
+  test  cl, cl
+  setne al
+  {$ENDIF}
+end;
+
+function AVX2Mask8None(mask: TMask8): Boolean; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  test  dil, dil
+  sete  al
+  {$ELSE}
+  test  cl, cl
+  sete  al
+  {$ENDIF}
+end;
+
+function AVX2Mask8PopCount(mask: TMask8): Integer; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  movzx edi, dil
+  popcnt eax, edi
+  {$ELSE}
+  movzx ecx, cl
+  popcnt eax, ecx
+  {$ENDIF}
+end;
+
+function AVX2Mask8FirstSet(mask: TMask8): Integer; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  movzx edi, dil
+  bsf   eax, edi
+  jnz   @done
+  mov   eax, -1
+@done:
+  {$ELSE}
+  movzx ecx, cl
+  bsf   eax, ecx
+  jnz   @done
+  mov   eax, -1
+@done:
+  {$ENDIF}
+end;
+
+// --- TMask16 Operations (16 bits) ---
+function AVX2Mask16All(mask: TMask16): Boolean; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  cmp   di, $FFFF
+  sete  al
+  {$ELSE}
+  cmp   cx, $FFFF
+  sete  al
+  {$ENDIF}
+end;
+
+function AVX2Mask16Any(mask: TMask16): Boolean; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  test  di, di
+  setne al
+  {$ELSE}
+  test  cx, cx
+  setne al
+  {$ENDIF}
+end;
+
+function AVX2Mask16None(mask: TMask16): Boolean; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  test  di, di
+  sete  al
+  {$ELSE}
+  test  cx, cx
+  sete  al
+  {$ENDIF}
+end;
+
+function AVX2Mask16PopCount(mask: TMask16): Integer; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  movzx edi, di
+  popcnt eax, edi
+  {$ELSE}
+  movzx ecx, cx
+  popcnt eax, ecx
+  {$ENDIF}
+end;
+
+function AVX2Mask16FirstSet(mask: TMask16): Integer; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  movzx edi, di
+  bsf   eax, edi
+  jnz   @done
+  mov   eax, -1
+@done:
+  {$ELSE}
+  movzx ecx, cx
+  bsf   eax, ecx
+  jnz   @done
+  mov   eax, -1
+@done:
+  {$ENDIF}
+end;
+
+// === ✅ P4: SelectF64x2 SIMD Implementation ===
+// 使用 vblendvpd 进行掩码混合 (AVX 指令集)
+// mask 位 0 控制元素 0，位 1 控制元素 1
+// 位为 1 时选择 a，位为 0 时选择 b
+function AVX2SelectF64x2(const mask: TMask2; const a, b: TVecF64x2): TVecF64x2;
+var
+  expandedMask: TVecI64x2;
+begin
+  // 将 mask 扩展为 64-bit 掩码 (最高位需要为 1 表示选择第一个源)
+  if (mask and 1) <> 0 then expandedMask.i[0] := Int64($8000000000000000) else expandedMask.i[0] := 0;
+  if (mask and 2) <> 0 then expandedMask.i[1] := Int64($8000000000000000) else expandedMask.i[1] := 0;
+
+  // vblendvpd: if mask bit set, select from first source (a), else from second (b)
+  asm
+    lea rax, a
+    lea rdx, b
+    lea rcx, expandedMask
+
+    vmovupd xmm0, [rax]      // a (first source)
+    vmovupd xmm1, [rdx]      // b (second source)  
+    vmovdqu xmm2, [rcx]      // expanded mask
+
+    // vblendvpd xmm0, xmm1, xmm0, xmm2
+    // Result = mask[i] ? xmm0[i] : xmm1[i]
+    vblendvpd xmm0, xmm1, xmm0, xmm2
+
+    vmovupd [result], xmm0
+    vzeroupper
+  end;
+end;
+
 // === Backend Registration ===
 
 procedure RegisterAVX2Backend;
@@ -2385,6 +3071,20 @@ begin
     dispatchTable.SubI32x4 := @AVX2SubI32x4;
     dispatchTable.MulI32x4 := @AVX2MulI32x4;
 
+    // ✅ P3: I64x2 arithmetic, bitwise, and comparison
+    dispatchTable.AddI64x2 := @AVX2AddI64x2;
+    dispatchTable.SubI64x2 := @AVX2SubI64x2;
+    dispatchTable.AndI64x2 := @AVX2AndI64x2;
+    dispatchTable.OrI64x2 := @AVX2OrI64x2;
+    dispatchTable.XorI64x2 := @AVX2XorI64x2;
+    dispatchTable.NotI64x2 := @AVX2NotI64x2;
+    dispatchTable.CmpEqI64x2 := @AVX2CmpEqI64x2;
+    dispatchTable.CmpLtI64x2 := @AVX2CmpLtI64x2;
+    dispatchTable.CmpGtI64x2 := @AVX2CmpGtI64x2;
+    dispatchTable.CmpLeI64x2 := @AVX2CmpLeI64x2;
+    dispatchTable.CmpGeI64x2 := @AVX2CmpGeI64x2;
+    dispatchTable.CmpNeI64x2 := @AVX2CmpNeI64x2;
+
     // F64x4 (256-bit AVX)
     dispatchTable.AddF64x4 := @AVX2AddF64x4;
     dispatchTable.SubF64x4 := @AVX2SubF64x4;
@@ -2406,6 +3106,9 @@ begin
     dispatchTable.CmpEqI32x8 := @AVX2CmpEqI32x8;
     dispatchTable.CmpLtI32x8 := @AVX2CmpLtI32x8;
     dispatchTable.CmpGtI32x8 := @AVX2CmpGtI32x8;
+    dispatchTable.CmpLeI32x8 := @AVX2CmpLeI32x8;  // ✅ P0-2: 补充缺失
+    dispatchTable.CmpGeI32x8 := @AVX2CmpGeI32x8;  // ✅ P0-2: 补充缺失
+    dispatchTable.CmpNeI32x8 := @AVX2CmpNeI32x8;  // ✅ P0-2: 补充缺失
     dispatchTable.MinI32x8 := @AVX2MinI32x8;
     dispatchTable.MaxI32x8 := @AVX2MaxI32x8;
 
@@ -2460,6 +3163,9 @@ begin
     dispatchTable.SelectF32x4 := @AVX2SelectF32x4;
     dispatchTable.ExtractF32x4 := @AVX2ExtractF32x4;
     dispatchTable.InsertF32x4 := @AVX2InsertF32x4;
+
+    // ✅ P4: SelectF64x2
+    dispatchTable.SelectF64x2 := @AVX2SelectF64x2;
   end;
   // else: keep scalar implementations from FillBaseDispatchTable
 
@@ -2478,6 +3184,38 @@ begin
   dispatchTable.BytesIndexOf := @BytesIndexOf_AVX2;
   dispatchTable.BitsetPopCount := @BitsetPopCount_AVX2;
   // Note: MemCopy, MemSet keep scalar implementations (FPC's Move/FillChar are already optimized)
+
+  // ✅ P2: Override with AVX2 saturating arithmetic (VEX-encoded, always enabled)
+  dispatchTable.I8x16SatAdd := @AVX2I8x16SatAdd;
+  dispatchTable.I8x16SatSub := @AVX2I8x16SatSub;
+  dispatchTable.I16x8SatAdd := @AVX2I16x8SatAdd;
+  dispatchTable.I16x8SatSub := @AVX2I16x8SatSub;
+  dispatchTable.U8x16SatAdd := @AVX2U8x16SatAdd;
+  dispatchTable.U8x16SatSub := @AVX2U8x16SatSub;
+  dispatchTable.U16x8SatAdd := @AVX2U16x8SatAdd;
+  dispatchTable.U16x8SatSub := @AVX2U16x8SatSub;
+
+  // ✅ P1: Mask operations (native popcnt + bsf, always enabled)
+  dispatchTable.Mask2All := @AVX2Mask2All;
+  dispatchTable.Mask2Any := @AVX2Mask2Any;
+  dispatchTable.Mask2None := @AVX2Mask2None;
+  dispatchTable.Mask2PopCount := @AVX2Mask2PopCount;
+  dispatchTable.Mask2FirstSet := @AVX2Mask2FirstSet;
+  dispatchTable.Mask4All := @AVX2Mask4All;
+  dispatchTable.Mask4Any := @AVX2Mask4Any;
+  dispatchTable.Mask4None := @AVX2Mask4None;
+  dispatchTable.Mask4PopCount := @AVX2Mask4PopCount;
+  dispatchTable.Mask4FirstSet := @AVX2Mask4FirstSet;
+  dispatchTable.Mask8All := @AVX2Mask8All;
+  dispatchTable.Mask8Any := @AVX2Mask8Any;
+  dispatchTable.Mask8None := @AVX2Mask8None;
+  dispatchTable.Mask8PopCount := @AVX2Mask8PopCount;
+  dispatchTable.Mask8FirstSet := @AVX2Mask8FirstSet;
+  dispatchTable.Mask16All := @AVX2Mask16All;
+  dispatchTable.Mask16Any := @AVX2Mask16Any;
+  dispatchTable.Mask16None := @AVX2Mask16None;
+  dispatchTable.Mask16PopCount := @AVX2Mask16PopCount;
+  dispatchTable.Mask16FirstSet := @AVX2Mask16FirstSet;
 
   // Register the backend
   RegisterBackend(sbAVX2, dispatchTable);

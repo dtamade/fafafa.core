@@ -1111,6 +1111,374 @@ asm
   orr   w0, w0, w4, lsl #3
 end;
 
+// === ✅ P2: Saturating Arithmetic Operations (NEON) ===
+// NEON 使用 sqadd/sqsub (有符号) 和 uqadd/uqsub (无符号) 指令
+
+// I8x16 有符号饱和加法 (sqadd v.16b)
+function NEONI8x16SatAdd(const a, b: TVecI8x16): TVecI8x16; assembler; nostackframe;
+asm
+  // ABI: a in x0..x1, b in x2..x3, return in x0..x1
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
+  fmov  d1, x2
+  fmov  d2, x3
+  ins   v1.d[1], v2.d[0]
+
+  sqadd v0.16b, v0.16b, v1.16b
+
+  umov  x0, v0.d[0]
+  umov  x1, v0.d[1]
+end;
+
+// I8x16 有符号饱和减法 (sqsub v.16b)
+function NEONI8x16SatSub(const a, b: TVecI8x16): TVecI8x16; assembler; nostackframe;
+asm
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
+  fmov  d1, x2
+  fmov  d2, x3
+  ins   v1.d[1], v2.d[0]
+
+  sqsub v0.16b, v0.16b, v1.16b
+
+  umov  x0, v0.d[0]
+  umov  x1, v0.d[1]
+end;
+
+// I16x8 有符号饱和加法 (sqadd v.8h)
+function NEONI16x8SatAdd(const a, b: TVecI16x8): TVecI16x8; assembler; nostackframe;
+asm
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
+  fmov  d1, x2
+  fmov  d2, x3
+  ins   v1.d[1], v2.d[0]
+
+  sqadd v0.8h, v0.8h, v1.8h
+
+  umov  x0, v0.d[0]
+  umov  x1, v0.d[1]
+end;
+
+// I16x8 有符号饱和减法 (sqsub v.8h)
+function NEONI16x8SatSub(const a, b: TVecI16x8): TVecI16x8; assembler; nostackframe;
+asm
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
+  fmov  d1, x2
+  fmov  d2, x3
+  ins   v1.d[1], v2.d[0]
+
+  sqsub v0.8h, v0.8h, v1.8h
+
+  umov  x0, v0.d[0]
+  umov  x1, v0.d[1]
+end;
+
+// U8x16 无符号饱和加法 (uqadd v.16b)
+function NEONU8x16SatAdd(const a, b: TVecU8x16): TVecU8x16; assembler; nostackframe;
+asm
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
+  fmov  d1, x2
+  fmov  d2, x3
+  ins   v1.d[1], v2.d[0]
+
+  uqadd v0.16b, v0.16b, v1.16b
+
+  umov  x0, v0.d[0]
+  umov  x1, v0.d[1]
+end;
+
+// U8x16 无符号饱和减法 (uqsub v.16b)
+function NEONU8x16SatSub(const a, b: TVecU8x16): TVecU8x16; assembler; nostackframe;
+asm
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
+  fmov  d1, x2
+  fmov  d2, x3
+  ins   v1.d[1], v2.d[0]
+
+  uqsub v0.16b, v0.16b, v1.16b
+
+  umov  x0, v0.d[0]
+  umov  x1, v0.d[1]
+end;
+
+// U16x8 无符号饱和加法 (uqadd v.8h)
+function NEONU16x8SatAdd(const a, b: TVecU16x8): TVecU16x8; assembler; nostackframe;
+asm
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
+  fmov  d1, x2
+  fmov  d2, x3
+  ins   v1.d[1], v2.d[0]
+
+  uqadd v0.8h, v0.8h, v1.8h
+
+  umov  x0, v0.d[0]
+  umov  x1, v0.d[1]
+end;
+
+// U16x8 无符号饱和减法 (uqsub v.8h)
+function NEONU16x8SatSub(const a, b: TVecU16x8): TVecU16x8; assembler; nostackframe;
+asm
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
+  fmov  d1, x2
+  fmov  d2, x3
+  ins   v1.d[1], v2.d[0]
+
+  uqsub v0.8h, v0.8h, v1.8h
+
+  umov  x0, v0.d[0]
+  umov  x1, v0.d[1]
+end;
+
+// === ✅ P3: I64x2 Arithmetic, Bitwise, and Comparison Operations (NEON) ===
+// NEON 使用 add/sub v.2d 和 and/orr/eor v.16b 指令
+
+// I64x2 加法 (add v.2d)
+function NEONAddI64x2(const a, b: TVecI64x2): TVecI64x2; assembler; nostackframe;
+asm
+  // ABI: a in x0..x1, b in x2..x3, return in x0..x1
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
+  fmov  d1, x2
+  fmov  d2, x3
+  ins   v1.d[1], v2.d[0]
+
+  add   v0.2d, v0.2d, v1.2d
+
+  umov  x0, v0.d[0]
+  umov  x1, v0.d[1]
+end;
+
+// I64x2 减法 (sub v.2d)
+function NEONSubI64x2(const a, b: TVecI64x2): TVecI64x2; assembler; nostackframe;
+asm
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
+  fmov  d1, x2
+  fmov  d2, x3
+  ins   v1.d[1], v2.d[0]
+
+  sub   v0.2d, v0.2d, v1.2d
+
+  umov  x0, v0.d[0]
+  umov  x1, v0.d[1]
+end;
+
+// I64x2 位与 (and v.16b)
+function NEONAndI64x2(const a, b: TVecI64x2): TVecI64x2; assembler; nostackframe;
+asm
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
+  fmov  d1, x2
+  fmov  d2, x3
+  ins   v1.d[1], v2.d[0]
+
+  and   v0.16b, v0.16b, v1.16b
+
+  umov  x0, v0.d[0]
+  umov  x1, v0.d[1]
+end;
+
+// I64x2 位或 (orr v.16b)
+function NEONOrI64x2(const a, b: TVecI64x2): TVecI64x2; assembler; nostackframe;
+asm
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
+  fmov  d1, x2
+  fmov  d2, x3
+  ins   v1.d[1], v2.d[0]
+
+  orr   v0.16b, v0.16b, v1.16b
+
+  umov  x0, v0.d[0]
+  umov  x1, v0.d[1]
+end;
+
+// I64x2 位异或 (eor v.16b)
+function NEONXorI64x2(const a, b: TVecI64x2): TVecI64x2; assembler; nostackframe;
+asm
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
+  fmov  d1, x2
+  fmov  d2, x3
+  ins   v1.d[1], v2.d[0]
+
+  eor   v0.16b, v0.16b, v1.16b
+
+  umov  x0, v0.d[0]
+  umov  x1, v0.d[1]
+end;
+
+// I64x2 位非 (mvn v.16b)
+function NEONNotI64x2(const a: TVecI64x2): TVecI64x2; assembler; nostackframe;
+asm
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
+  mvn   v0.16b, v0.16b
+
+  umov  x0, v0.d[0]
+  umov  x1, v0.d[1]
+end;
+
+// I64x2 相等比较 (cmeq v.2d) -> TMask2
+function NEONCmpEqI64x2(const a, b: TVecI64x2): TMask2; assembler; nostackframe;
+asm
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
+  fmov  d1, x2
+  fmov  d2, x3
+  ins   v1.d[1], v2.d[0]
+
+  cmeq  v0.2d, v0.2d, v1.2d
+
+  // 提取掩码: 每个 64-bit lane 的最高位
+  umov  x2, v0.d[0]
+  lsr   x2, x2, #63
+  umov  x3, v0.d[1]
+  lsr   x3, x3, #63
+  orr   w0, w2, w3, lsl #1
+end;
+
+// I64x2 大于比较 (cmgt v.2d) -> TMask2
+function NEONCmpGtI64x2(const a, b: TVecI64x2): TMask2; assembler; nostackframe;
+asm
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
+  fmov  d1, x2
+  fmov  d2, x3
+  ins   v1.d[1], v2.d[0]
+
+  cmgt  v0.2d, v0.2d, v1.2d
+
+  umov  x2, v0.d[0]
+  lsr   x2, x2, #63
+  umov  x3, v0.d[1]
+  lsr   x3, x3, #63
+  orr   w0, w2, w3, lsl #1
+end;
+
+// I64x2 小于比较 (a < b = b > a)
+function NEONCmpLtI64x2(const a, b: TVecI64x2): TMask2; assembler; nostackframe;
+asm
+  // 交换 a 和 b，然后用 cmgt
+  fmov  d0, x2        // b
+  fmov  d2, x3
+  ins   v0.d[1], v2.d[0]
+
+  fmov  d1, x0        // a
+  fmov  d2, x1
+  ins   v1.d[1], v2.d[0]
+
+  cmgt  v0.2d, v0.2d, v1.2d  // b > a
+
+  umov  x2, v0.d[0]
+  lsr   x2, x2, #63
+  umov  x3, v0.d[1]
+  lsr   x3, x3, #63
+  orr   w0, w2, w3, lsl #1
+end;
+
+// I64x2 小于等于 (a <= b = NOT(a > b))
+function NEONCmpLeI64x2(const a, b: TVecI64x2): TMask2; assembler; nostackframe;
+asm
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
+  fmov  d1, x2
+  fmov  d2, x3
+  ins   v1.d[1], v2.d[0]
+
+  cmgt  v0.2d, v0.2d, v1.2d  // a > b
+  mvn   v0.16b, v0.16b       // NOT
+
+  umov  x2, v0.d[0]
+  lsr   x2, x2, #63
+  umov  x3, v0.d[1]
+  lsr   x3, x3, #63
+  orr   w0, w2, w3, lsl #1
+end;
+
+// I64x2 大于等于 (a >= b = NOT(b > a))
+function NEONCmpGeI64x2(const a, b: TVecI64x2): TMask2; assembler; nostackframe;
+asm
+  // 交换 a 和 b，然后用 cmgt，然后取反
+  fmov  d0, x2        // b
+  fmov  d2, x3
+  ins   v0.d[1], v2.d[0]
+
+  fmov  d1, x0        // a
+  fmov  d2, x1
+  ins   v1.d[1], v2.d[0]
+
+  cmgt  v0.2d, v0.2d, v1.2d  // b > a = a < b
+  mvn   v0.16b, v0.16b       // NOT
+
+  umov  x2, v0.d[0]
+  lsr   x2, x2, #63
+  umov  x3, v0.d[1]
+  lsr   x3, x3, #63
+  orr   w0, w2, w3, lsl #1
+end;
+
+// I64x2 不等比较 (a != b = NOT(a == b))
+function NEONCmpNeI64x2(const a, b: TVecI64x2): TMask2; assembler; nostackframe;
+asm
+  fmov  d0, x0
+  fmov  d2, x1
+  ins   v0.d[1], v2.d[0]
+
+  fmov  d1, x2
+  fmov  d2, x3
+  ins   v1.d[1], v2.d[0]
+
+  cmeq  v0.2d, v0.2d, v1.2d  // a == b
+  mvn   v0.16b, v0.16b       // NOT
+
+  umov  x2, v0.d[0]
+  lsr   x2, x2, #63
+  umov  x3, v0.d[1]
+  lsr   x3, x3, #63
+  orr   w0, w2, w3, lsl #1
+end;
+
 // === Facade Functions with NEON ===
 // ICE-safe pattern: use ldp + fmov + ins instead of ldr q
 
@@ -2145,6 +2513,178 @@ begin
   Result := AsciiIEqual_Scalar(a, b, len);
 end;
 
+// ✅ P2: Saturating Arithmetic Scalar Fallback
+// 用于 FPC < 3.3.1 或非 ARM 平台
+
+function NEONI8x16SatAdd(const a, b: TVecI8x16): TVecI8x16;
+begin
+  Result := ScalarI8x16SatAdd(a, b);
+end;
+
+function NEONI8x16SatSub(const a, b: TVecI8x16): TVecI8x16;
+begin
+  Result := ScalarI8x16SatSub(a, b);
+end;
+
+function NEONI16x8SatAdd(const a, b: TVecI16x8): TVecI16x8;
+begin
+  Result := ScalarI16x8SatAdd(a, b);
+end;
+
+function NEONI16x8SatSub(const a, b: TVecI16x8): TVecI16x8;
+begin
+  Result := ScalarI16x8SatSub(a, b);
+end;
+
+function NEONU8x16SatAdd(const a, b: TVecU8x16): TVecU8x16;
+begin
+  Result := ScalarU8x16SatAdd(a, b);
+end;
+
+function NEONU8x16SatSub(const a, b: TVecU8x16): TVecU8x16;
+begin
+  Result := ScalarU8x16SatSub(a, b);
+end;
+
+function NEONU16x8SatAdd(const a, b: TVecU16x8): TVecU16x8;
+begin
+  Result := ScalarU16x8SatAdd(a, b);
+end;
+
+function NEONU16x8SatSub(const a, b: TVecU16x8): TVecU16x8;
+begin
+  Result := ScalarU16x8SatSub(a, b);
+end;
+
+// ✅ P3: I64x2 Scalar Fallback (用于 FPC < 3.3.1 或非 ARM 平台)
+function NEONAddI64x2(const a, b: TVecI64x2): TVecI64x2;
+begin
+  Result := ScalarAddI64x2(a, b);
+end;
+
+function NEONSubI64x2(const a, b: TVecI64x2): TVecI64x2;
+begin
+  Result := ScalarSubI64x2(a, b);
+end;
+
+function NEONAndI64x2(const a, b: TVecI64x2): TVecI64x2;
+begin
+  Result := ScalarAndI64x2(a, b);
+end;
+
+function NEONOrI64x2(const a, b: TVecI64x2): TVecI64x2;
+begin
+  Result := ScalarOrI64x2(a, b);
+end;
+
+function NEONXorI64x2(const a, b: TVecI64x2): TVecI64x2;
+begin
+  Result := ScalarXorI64x2(a, b);
+end;
+
+function NEONNotI64x2(const a: TVecI64x2): TVecI64x2;
+begin
+  Result := ScalarNotI64x2(a);
+end;
+
+function NEONCmpEqI64x2(const a, b: TVecI64x2): TMask2;
+begin
+  Result := ScalarCmpEqI64x2(a, b);
+end;
+
+function NEONCmpLtI64x2(const a, b: TVecI64x2): TMask2;
+begin
+  Result := ScalarCmpLtI64x2(a, b);
+end;
+
+function NEONCmpGtI64x2(const a, b: TVecI64x2): TMask2;
+begin
+  Result := ScalarCmpGtI64x2(a, b);
+end;
+
+function NEONCmpLeI64x2(const a, b: TVecI64x2): TMask2;
+begin
+  Result := ScalarCmpLeI64x2(a, b);
+end;
+
+function NEONCmpGeI64x2(const a, b: TVecI64x2): TMask2;
+begin
+  Result := ScalarCmpGeI64x2(a, b);
+end;
+
+function NEONCmpNeI64x2(const a, b: TVecI64x2): TMask2;
+begin
+  Result := ScalarCmpNeI64x2(a, b);
+end;
+
+// ✅ P4: SelectF64x2 (Scalar Fallback)
+function NEONSelectF64x2(const mask: TMask2; const a, b: TVecF64x2): TVecF64x2;
+begin
+  Result := ScalarSelectF64x2(mask, a, b);
+end;
+
+// ✅ P1: Mask Operations (Scalar Fallback)
+// NEON 没有直接的 popcount/bsf 指令，使用标量回退
+function NEONMask2All(mask: TMask2): Boolean;
+begin Result := ScalarMask2All(mask); end;
+
+function NEONMask2Any(mask: TMask2): Boolean;
+begin Result := ScalarMask2Any(mask); end;
+
+function NEONMask2None(mask: TMask2): Boolean;
+begin Result := ScalarMask2None(mask); end;
+
+function NEONMask2PopCount(mask: TMask2): Integer;
+begin Result := ScalarMask2PopCount(mask); end;
+
+function NEONMask2FirstSet(mask: TMask2): Integer;
+begin Result := ScalarMask2FirstSet(mask); end;
+
+function NEONMask4All(mask: TMask4): Boolean;
+begin Result := ScalarMask4All(mask); end;
+
+function NEONMask4Any(mask: TMask4): Boolean;
+begin Result := ScalarMask4Any(mask); end;
+
+function NEONMask4None(mask: TMask4): Boolean;
+begin Result := ScalarMask4None(mask); end;
+
+function NEONMask4PopCount(mask: TMask4): Integer;
+begin Result := ScalarMask4PopCount(mask); end;
+
+function NEONMask4FirstSet(mask: TMask4): Integer;
+begin Result := ScalarMask4FirstSet(mask); end;
+
+function NEONMask8All(mask: TMask8): Boolean;
+begin Result := ScalarMask8All(mask); end;
+
+function NEONMask8Any(mask: TMask8): Boolean;
+begin Result := ScalarMask8Any(mask); end;
+
+function NEONMask8None(mask: TMask8): Boolean;
+begin Result := ScalarMask8None(mask); end;
+
+function NEONMask8PopCount(mask: TMask8): Integer;
+begin Result := ScalarMask8PopCount(mask); end;
+
+function NEONMask8FirstSet(mask: TMask8): Integer;
+begin Result := ScalarMask8FirstSet(mask); end;
+
+function NEONMask16All(mask: TMask16): Boolean;
+begin Result := ScalarMask16All(mask); end;
+
+function NEONMask16Any(mask: TMask16): Boolean;
+begin Result := ScalarMask16Any(mask); end;
+
+function NEONMask16None(mask: TMask16): Boolean;
+begin Result := ScalarMask16None(mask); end;
+
+function NEONMask16PopCount(mask: TMask16): Integer;
+begin Result := ScalarMask16PopCount(mask); end;
+
+function NEONMask16FirstSet(mask: TMask16): Integer;
+begin Result := ScalarMask16FirstSet(mask); end;
+
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 // === Platform-Independent Facade Functions ===
@@ -2291,6 +2831,55 @@ begin
   table.ToUpperAscii := @ToUpperAscii_NEON;
   table.BytesIndexOf := @BytesIndexOf_NEON;
   table.BitsetPopCount := @BitsetPopCount_NEON;
+
+  // ✅ P2: Saturating Arithmetic
+  table.I8x16SatAdd := @NEONI8x16SatAdd;
+  table.I8x16SatSub := @NEONI8x16SatSub;
+  table.I16x8SatAdd := @NEONI16x8SatAdd;
+  table.I16x8SatSub := @NEONI16x8SatSub;
+  table.U8x16SatAdd := @NEONU8x16SatAdd;
+  table.U8x16SatSub := @NEONU8x16SatSub;
+  table.U16x8SatAdd := @NEONU16x8SatAdd;
+  table.U16x8SatSub := @NEONU16x8SatSub;
+
+  // ✅ P3: I64x2 Arithmetic, Bitwise, and Comparison
+  table.AddI64x2 := @NEONAddI64x2;
+  table.SubI64x2 := @NEONSubI64x2;
+  table.AndI64x2 := @NEONAndI64x2;
+  table.OrI64x2 := @NEONOrI64x2;
+  table.XorI64x2 := @NEONXorI64x2;
+  table.NotI64x2 := @NEONNotI64x2;
+  table.CmpEqI64x2 := @NEONCmpEqI64x2;
+  table.CmpLtI64x2 := @NEONCmpLtI64x2;
+  table.CmpGtI64x2 := @NEONCmpGtI64x2;
+  table.CmpLeI64x2 := @NEONCmpLeI64x2;
+  table.CmpGeI64x2 := @NEONCmpGeI64x2;
+  table.CmpNeI64x2 := @NEONCmpNeI64x2;
+
+  // ✅ P4: SelectF64x2
+  table.SelectF64x2 := @NEONSelectF64x2;
+
+  // ✅ P1: Mask Operations
+  table.Mask2All := @NEONMask2All;
+  table.Mask2Any := @NEONMask2Any;
+  table.Mask2None := @NEONMask2None;
+  table.Mask2PopCount := @NEONMask2PopCount;
+  table.Mask2FirstSet := @NEONMask2FirstSet;
+  table.Mask4All := @NEONMask4All;
+  table.Mask4Any := @NEONMask4Any;
+  table.Mask4None := @NEONMask4None;
+  table.Mask4PopCount := @NEONMask4PopCount;
+  table.Mask4FirstSet := @NEONMask4FirstSet;
+  table.Mask8All := @NEONMask8All;
+  table.Mask8Any := @NEONMask8Any;
+  table.Mask8None := @NEONMask8None;
+  table.Mask8PopCount := @NEONMask8PopCount;
+  table.Mask8FirstSet := @NEONMask8FirstSet;
+  table.Mask16All := @NEONMask16All;
+  table.Mask16Any := @NEONMask16Any;
+  table.Mask16None := @NEONMask16None;
+  table.Mask16PopCount := @NEONMask16PopCount;
+  table.Mask16FirstSet := @NEONMask16FirstSet;
 
   // Register the backend
   RegisterBackend(sbNEON, table);

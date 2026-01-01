@@ -1587,6 +1587,70 @@ begin
   Result := TMask16(mask);
 end;
 
+// ✅ P0-1: 补充缺失的比较函数
+function AVX512CmpLeI32x16(const a, b: TVecI32x16): TMask16;
+var
+  pa, pb: Pointer;
+  mask: Word;
+begin
+  pa := @a;
+  pb := @b;
+
+  // vpcmpd with imm8=2 means LE (less than or equal)
+  asm
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu64 zmm0, [rdx]
+    vpcmpd  k1, zmm0, [rcx], 2    // imm8=2: LE
+    kmovw   mask, k1
+    vzeroupper
+  end;
+
+  Result := TMask16(mask);
+end;
+
+function AVX512CmpGeI32x16(const a, b: TVecI32x16): TMask16;
+var
+  pa, pb: Pointer;
+  mask: Word;
+begin
+  pa := @a;
+  pb := @b;
+
+  // vpcmpd with imm8=5 means NLT (not less than) = GE
+  asm
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu64 zmm0, [rdx]
+    vpcmpd  k1, zmm0, [rcx], 5    // imm8=5: GE (NLT)
+    kmovw   mask, k1
+    vzeroupper
+  end;
+
+  Result := TMask16(mask);
+end;
+
+function AVX512CmpNeI32x16(const a, b: TVecI32x16): TMask16;
+var
+  pa, pb: Pointer;
+  mask: Word;
+begin
+  pa := @a;
+  pb := @b;
+
+  // vpcmpd with imm8=4 means NE (not equal)
+  asm
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu64 zmm0, [rdx]
+    vpcmpd  k1, zmm0, [rcx], 4    // imm8=4: NE
+    kmovw   mask, k1
+    vzeroupper
+  end;
+
+  Result := TMask16(mask);
+end;
+
 // === I32x16 Min/Max Operations ===
 
 function AVX512MinI32x16(const a, b: TVecI32x16): TVecI32x16;
@@ -1625,6 +1689,137 @@ begin
     vmovdqu64 [rax], zmm0
     vzeroupper
   end;
+end;
+
+// === ✅ P2: Saturating Arithmetic (EVEX-encoded 128-bit) ===
+// 使用 EVEX 编码的 128-bit 指令，保持 API 一致性
+
+// I8x16 有符号饱和加法 (VPADDSB)
+function AVX512I8x16SatAdd(const a, b: TVecI8x16): TVecI8x16; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  vmovdqu xmm0, [rdi]
+  vmovdqu xmm1, [rsi]
+  vpaddsb xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  {$ELSE}
+  vmovdqu xmm0, [rcx]
+  vmovdqu xmm1, [rdx]
+  vpaddsb xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  {$ENDIF}
+end;
+
+// I8x16 有符号饱和减法 (VPSUBSB)
+function AVX512I8x16SatSub(const a, b: TVecI8x16): TVecI8x16; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  vmovdqu xmm0, [rdi]
+  vmovdqu xmm1, [rsi]
+  vpsubsb xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  {$ELSE}
+  vmovdqu xmm0, [rcx]
+  vmovdqu xmm1, [rdx]
+  vpsubsb xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  {$ENDIF}
+end;
+
+// I16x8 有符号饱和加法 (VPADDSW)
+function AVX512I16x8SatAdd(const a, b: TVecI16x8): TVecI16x8; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  vmovdqu xmm0, [rdi]
+  vmovdqu xmm1, [rsi]
+  vpaddsw xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  {$ELSE}
+  vmovdqu xmm0, [rcx]
+  vmovdqu xmm1, [rdx]
+  vpaddsw xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  {$ENDIF}
+end;
+
+// I16x8 有符号饱和减法 (VPSUBSW)
+function AVX512I16x8SatSub(const a, b: TVecI16x8): TVecI16x8; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  vmovdqu xmm0, [rdi]
+  vmovdqu xmm1, [rsi]
+  vpsubsw xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  {$ELSE}
+  vmovdqu xmm0, [rcx]
+  vmovdqu xmm1, [rdx]
+  vpsubsw xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  {$ENDIF}
+end;
+
+// U8x16 无符号饱和加法 (VPADDUSB)
+function AVX512U8x16SatAdd(const a, b: TVecU8x16): TVecU8x16; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  vmovdqu xmm0, [rdi]
+  vmovdqu xmm1, [rsi]
+  vpaddusb xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  {$ELSE}
+  vmovdqu xmm0, [rcx]
+  vmovdqu xmm1, [rdx]
+  vpaddusb xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  {$ENDIF}
+end;
+
+// U8x16 无符号饱和减法 (VPSUBUSB)
+function AVX512U8x16SatSub(const a, b: TVecU8x16): TVecU8x16; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  vmovdqu xmm0, [rdi]
+  vmovdqu xmm1, [rsi]
+  vpsubusb xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  {$ELSE}
+  vmovdqu xmm0, [rcx]
+  vmovdqu xmm1, [rdx]
+  vpsubusb xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  {$ENDIF}
+end;
+
+// U16x8 无符号饱和加法 (VPADDUSW)
+function AVX512U16x8SatAdd(const a, b: TVecU16x8): TVecU16x8; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  vmovdqu xmm0, [rdi]
+  vmovdqu xmm1, [rsi]
+  vpaddusw xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  {$ELSE}
+  vmovdqu xmm0, [rcx]
+  vmovdqu xmm1, [rdx]
+  vpaddusw xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  {$ENDIF}
+end;
+
+// U16x8 无符号饱和减法 (VPSUBUSW)
+function AVX512U16x8SatSub(const a, b: TVecU16x8): TVecU16x8; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  vmovdqu xmm0, [rdi]
+  vmovdqu xmm1, [rsi]
+  vpsubusw xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  {$ELSE}
+  vmovdqu xmm0, [rcx]
+  vmovdqu xmm1, [rdx]
+  vpsubusw xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  {$ENDIF}
 end;
 
 // === Fallback Functions ===
@@ -1735,10 +1930,23 @@ begin
   dispatchTable.CmpEqI32x16 := @AVX512CmpEqI32x16;
   dispatchTable.CmpLtI32x16 := @AVX512CmpLtI32x16;
   dispatchTable.CmpGtI32x16 := @AVX512CmpGtI32x16;
+  dispatchTable.CmpLeI32x16 := @AVX512CmpLeI32x16;  // ✅ P0-1: 补充缺失
+  dispatchTable.CmpGeI32x16 := @AVX512CmpGeI32x16;  // ✅ P0-1: 补充缺失
+  dispatchTable.CmpNeI32x16 := @AVX512CmpNeI32x16;  // ✅ P0-1: 补充缺失
 
   // I32x16 (512-bit integer) - Min/Max
   dispatchTable.MinI32x16 := @AVX512MinI32x16;
   dispatchTable.MaxI32x16 := @AVX512MaxI32x16;
+
+  // ✅ P2: Saturating Arithmetic (EVEX-encoded, always enabled)
+  dispatchTable.I8x16SatAdd := @AVX512I8x16SatAdd;
+  dispatchTable.I8x16SatSub := @AVX512I8x16SatSub;
+  dispatchTable.I16x8SatAdd := @AVX512I16x8SatAdd;
+  dispatchTable.I16x8SatSub := @AVX512I16x8SatSub;
+  dispatchTable.U8x16SatAdd := @AVX512U8x16SatAdd;
+  dispatchTable.U8x16SatSub := @AVX512U8x16SatSub;
+  dispatchTable.U16x8SatAdd := @AVX512U16x8SatAdd;
+  dispatchTable.U16x8SatSub := @AVX512U16x8SatSub;
 
   // Register the backend
   RegisterBackend(sbAVX512, dispatchTable);

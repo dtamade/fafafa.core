@@ -32,13 +32,31 @@ uses
   {$ENDIF}
   ;
 
-// === Modern SIMD Framework for FreePascal ===
-// This is the main user interface for the SIMD framework.
-// It provides:
-// 1. High-level vector types with operator overloading
-// 2. Automatic backend selection and dispatch
-// 3. Type-safe SIMD operations
-// 4. Memory management utilities
+{**
+  @abstract(Modern SIMD Framework for FreePascal)
+  
+  This is the main user interface for the SIMD framework, providing:
+  @unorderedlist(
+    @item(High-level vector types with type safety)
+    @item(Automatic backend selection (Scalar/SSE2/AVX2/AVX-512/NEON))
+    @item(Zero-overhead dispatch via function pointer tables)
+    @item(Rust portable-simd compatible naming conventions)
+  )
+  
+  @bold(Quick Start:)
+  @longcode(#
+  uses fafafa.core.simd;
+  var a, b, c: TVecF32x4;
+  begin
+    a := VecF32x4Splat(1.5);
+    b := VecF32x4Splat(2.0);
+    c := VecF32x4Add(a, b);  // SIMD accelerated
+  end;
+  #)
+  
+  @seealso(fafafa.core.simd.dispatch)
+  @seealso(fafafa.core.simd.base)
+*}
 
 // === Re-export Core Types ===
 type
@@ -104,62 +122,160 @@ type
 
 // === High-Level Vector Operations ===
 
-// F32x4 operations
+{** @abstract(F32x4 Arithmetic Operations - 4x Single-precision floats) *}
+
+{**
+  Element-wise addition of two 4-element float vectors.
+  @param(a First operand vector)
+  @param(b Second operand vector)
+  @returns(Result vector where result[i] = a[i] + b[i])
+*}
 function VecF32x4Add(const a, b: TVecF32x4): TVecF32x4; inline;
+
+{** Element-wise subtraction. @returns(result[i] = a[i] - b[i]) *}
 function VecF32x4Sub(const a, b: TVecF32x4): TVecF32x4; inline;
+
+{** Element-wise multiplication. @returns(result[i] = a[i] * b[i]) *}
 function VecF32x4Mul(const a, b: TVecF32x4): TVecF32x4; inline;
+
+{** Element-wise division. @returns(result[i] = a[i] / b[i]) *}
 function VecF32x4Div(const a, b: TVecF32x4): TVecF32x4; inline;
 
-// F32x4 comparison
+{** @abstract(F32x4 Comparison Operations)
+  Returns TMask4 where bit i is set if condition holds for element i. *}
+
+{** Equal comparison. @returns(mask[i] = (a[i] == b[i])) *}
 function VecF32x4CmpEq(const a, b: TVecF32x4): TMask4; inline;
+
+{** Less-than comparison. @returns(mask[i] = (a[i] < b[i])) *}
 function VecF32x4CmpLt(const a, b: TVecF32x4): TMask4; inline;
+
+{** Less-or-equal comparison. @returns(mask[i] = (a[i] <= b[i])) *}
 function VecF32x4CmpLe(const a, b: TVecF32x4): TMask4; inline;
+
+{** Greater-than comparison. @returns(mask[i] = (a[i] > b[i])) *}
 function VecF32x4CmpGt(const a, b: TVecF32x4): TMask4; inline;
+
+{** Greater-or-equal comparison. @returns(mask[i] = (a[i] >= b[i])) *}
 function VecF32x4CmpGe(const a, b: TVecF32x4): TMask4; inline;
+
+{** Not-equal comparison. @returns(mask[i] = (a[i] != b[i])) *}
 function VecF32x4CmpNe(const a, b: TVecF32x4): TMask4; inline;
 
-// F32x4 math functions
+{** @abstract(F32x4 Math Functions) *}
+
+{** Element-wise absolute value. @returns(result[i] = |a[i]|) *}
 function VecF32x4Abs(const a: TVecF32x4): TVecF32x4; inline;
+
+{** Element-wise square root. @returns(result[i] = sqrt(a[i])) *}
 function VecF32x4Sqrt(const a: TVecF32x4): TVecF32x4; inline;
+
+{** Element-wise minimum. @returns(result[i] = min(a[i], b[i])) *}
 function VecF32x4Min(const a, b: TVecF32x4): TVecF32x4; inline;
+
+{** Element-wise maximum. @returns(result[i] = max(a[i], b[i])) *}
 function VecF32x4Max(const a, b: TVecF32x4): TVecF32x4; inline;
 
-// F32x4 extended math
-function VecF32x4Fma(const a, b, c: TVecF32x4): TVecF32x4; inline;    // a*b+c
-function VecF32x4Rcp(const a: TVecF32x4): TVecF32x4; inline;          // 1/x (approximate)
-function VecF32x4Rsqrt(const a: TVecF32x4): TVecF32x4; inline;        // 1/sqrt(x) (approximate)
+{** @abstract(F32x4 Extended Math Functions) *}
+
+{**
+  Fused multiply-add: a*b + c.
+  Uses FMA instruction if available, otherwise emulated.
+  @returns(result[i] = a[i] * b[i] + c[i])
+*}
+function VecF32x4Fma(const a, b, c: TVecF32x4): TVecF32x4; inline;
+
+{** Approximate reciprocal (12-bit precision). @returns(result[i] ≈ 1/a[i]) *}
+function VecF32x4Rcp(const a: TVecF32x4): TVecF32x4; inline;
+
+{** Approximate reciprocal square root (12-bit precision). @returns(result[i] ≈ 1/sqrt(a[i])) *}
+function VecF32x4Rsqrt(const a: TVecF32x4): TVecF32x4; inline;
+
+{** Floor (round toward -∞). @returns(result[i] = floor(a[i])) *}
 function VecF32x4Floor(const a: TVecF32x4): TVecF32x4; inline;
+
+{** Ceiling (round toward +∞). @returns(result[i] = ceil(a[i])) *}
 function VecF32x4Ceil(const a: TVecF32x4): TVecF32x4; inline;
+
+{** Round to nearest integer. @returns(result[i] = round(a[i])) *}
 function VecF32x4Round(const a: TVecF32x4): TVecF32x4; inline;
+
+{** Truncate toward zero. @returns(result[i] = trunc(a[i])) *}
 function VecF32x4Trunc(const a: TVecF32x4): TVecF32x4; inline;
+
+{** Clamp to range. @returns(result[i] = clamp(a[i], minVal[i], maxVal[i])) *}
 function VecF32x4Clamp(const a, minVal, maxVal: TVecF32x4): TVecF32x4; inline;
 
-// 3D/4D Vector math
-function VecF32x4Dot(const a, b: TVecF32x4): Single; inline;          // Dot product (4 elements)
-function VecF32x3Dot(const a, b: TVecF32x4): Single; inline;          // Dot product (3 elements)
-function VecF32x3Cross(const a, b: TVecF32x4): TVecF32x4; inline;     // Cross product
-function VecF32x4Length(const a: TVecF32x4): Single; inline;          // Length (4 elements)
-function VecF32x3Length(const a: TVecF32x4): Single; inline;          // Length (3 elements)
-function VecF32x4Normalize(const a: TVecF32x4): TVecF32x4; inline;    // Normalize (4 elements)
-function VecF32x3Normalize(const a: TVecF32x4): TVecF32x4; inline;    // Normalize (3 elements)
+{** @abstract(3D/4D Vector Math - Geometry operations) *}
 
-// F32x4 reduction
+{** 4-element dot product. @returns(a[0]*b[0] + a[1]*b[1] + a[2]*b[2] + a[3]*b[3]) *}
+function VecF32x4Dot(const a, b: TVecF32x4): Single; inline;
+
+{** 3-element dot product (ignores w). @returns(a.x*b.x + a.y*b.y + a.z*b.z) *}
+function VecF32x3Dot(const a, b: TVecF32x4): Single; inline;
+
+{** 3D cross product. @returns([a.y*b.z - a.z*b.y, a.z*b.x - a.x*b.z, a.x*b.y - a.y*b.x, 0]) *}
+function VecF32x3Cross(const a, b: TVecF32x4): TVecF32x4; inline;
+
+{** 4-element vector length. @returns(sqrt(dot(a, a))) *}
+function VecF32x4Length(const a: TVecF32x4): Single; inline;
+
+{** 3-element vector length (ignores w). @returns(sqrt(x² + y² + z²)) *}
+function VecF32x3Length(const a: TVecF32x4): Single; inline;
+
+{** Normalize 4-element vector. @returns(a / length(a)) *}
+function VecF32x4Normalize(const a: TVecF32x4): TVecF32x4; inline;
+
+{** Normalize 3-element vector (w=0). @returns([x,y,z,0] / length([x,y,z])) *}
+function VecF32x3Normalize(const a: TVecF32x4): TVecF32x4; inline;
+
+{** @abstract(F32x4 Reduction/Horizontal Operations) *}
+
+{** Horizontal sum of all elements. @returns(a[0] + a[1] + a[2] + a[3]) *}
 function VecF32x4ReduceAdd(const a: TVecF32x4): Single; inline;
+
+{** Minimum of all elements. @returns(min(a[0], a[1], a[2], a[3])) *}
 function VecF32x4ReduceMin(const a: TVecF32x4): Single; inline;
+
+{** Maximum of all elements. @returns(max(a[0], a[1], a[2], a[3])) *}
 function VecF32x4ReduceMax(const a: TVecF32x4): Single; inline;
+
+{** Product of all elements. @returns(a[0] * a[1] * a[2] * a[3]) *}
 function VecF32x4ReduceMul(const a: TVecF32x4): Single; inline;
 
-// F32x4 memory operations
+{** @abstract(F32x4 Memory Operations) *}
+
+{** Load 4 floats from memory (unaligned). @param(p Pointer to 4 consecutive floats) *}
 function VecF32x4Load(p: PSingle): TVecF32x4; inline;
+
+{** Load 4 floats from 16-byte aligned memory (faster). @param(p Must be 16-byte aligned) *}
 function VecF32x4LoadAligned(p: PSingle): TVecF32x4; inline;
+
+{** Store 4 floats to memory (unaligned). *}
 procedure VecF32x4Store(p: PSingle; const a: TVecF32x4); inline;
+
+{** Store 4 floats to 16-byte aligned memory (faster). @param(p Must be 16-byte aligned) *}
 procedure VecF32x4StoreAligned(p: PSingle; const a: TVecF32x4); inline;
 
-// F32x4 utility operations
+{** @abstract(F32x4 Utility Operations) *}
+
+{** Broadcast scalar to all lanes. @returns([value, value, value, value]) *}
 function VecF32x4Splat(value: Single): TVecF32x4; inline;
+
+{** Create zero vector. @returns([0, 0, 0, 0]) *}
 function VecF32x4Zero: TVecF32x4; inline;
+
+{**
+  Select elements based on mask.
+  @param(mask Bit mask where bit i selects source for element i)
+  @returns(result[i] = mask[i] ? a[i] : b[i])
+*}
 function VecF32x4Select(const mask: TMask4; const a, b: TVecF32x4): TVecF32x4; inline;
+
+{** Extract single element. @param(index Lane index 0-3) *}
 function VecF32x4Extract(const a: TVecF32x4; index: Integer): Single; inline;
+
+{** Insert value at index. @returns(Vector with a[index] replaced by value) *}
 function VecF32x4Insert(const a: TVecF32x4; value: Single; index: Integer): TVecF32x4; inline;
 
 // === F64x2 Operations (128-bit Double) ===
