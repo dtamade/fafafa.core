@@ -27,6 +27,7 @@ type
     procedure Test_env_overrides_basic_restore;
     procedure Test_env_overrides_duplicate_keys;
     procedure Test_env_override_unset_behavior;
+    procedure Test_env_override_unset_restores_defined_empty;
 
     // === String Expansion ===
     procedure Test_env_expand_basic;
@@ -524,27 +525,74 @@ begin
 end;
 
 procedure TTestCase_Global.Test_env_override_unset_behavior;
-var g: TEnvOverrideGuard; name, origBefore, preGuard: string; hadOrig: boolean;
+var
+  g: TEnvOverrideGuard;
+  name, origBefore, preGuard, tmp: string;
+  hadOrig, ok: boolean;
 begin
   name := 'FA_ENV_OVERRIDE_UNSET_CASE';
-  // Snapshot original state before this test mutates the env
-  origBefore := env_get(name); hadOrig := origBefore <> '';
+  // Snapshot original state before this test mutates the env (must distinguish undefined vs defined-empty)
+  hadOrig := env_lookup(name, origBefore);
   try
     // Set a value first (simulate existing var)
     AssertTrue(env_set(name, 'v'));
     preGuard := env_get(name);
     AssertEquals('v', preGuard);
+
     // Use explicit unset helper
     g := env_override_unset(name);
     try
       AssertEquals('', env_get(name));
+
+      tmp := 'sentinel';
+      ok := env_lookup(name, tmp);
+      AssertFalse('env_override_unset should behave as undefined (lookup=false)', ok);
+      AssertFalse('env_override_unset should behave as undefined (has=false)', env_has(name));
     finally
       g.Done;
     end;
+
     // After guard.Done, it should restore to the value at guard construction time
     AssertEquals(preGuard, env_get(name));
+    tmp := '';
+    ok := env_lookup(name, tmp);
+    AssertTrue(ok);
+    AssertEquals(preGuard, tmp);
   finally
     // Restore original state from before this test
+    if hadOrig then env_set(name, origBefore) else env_unset(name);
+  end;
+end;
+
+procedure TTestCase_Global.Test_env_override_unset_restores_defined_empty;
+var
+  g: TEnvOverrideGuard;
+  name, origBefore, tmp: string;
+  hadOrig, ok: boolean;
+begin
+  name := 'FA_ENV_OVERRIDE_UNSET_EMPTY_CASE';
+  hadOrig := env_lookup(name, origBefore);
+  try
+    // Start with a defined-empty variable
+    AssertTrue(env_set(name, ''));
+    ok := env_lookup(name, tmp);
+    AssertTrue(ok);
+    AssertEquals('', tmp);
+
+    g := env_override_unset(name);
+    try
+      ok := env_lookup(name, tmp);
+      AssertFalse('scope should be undefined (lookup=false)', ok);
+      AssertFalse('scope should be undefined (has=false)', env_has(name));
+    finally
+      g.Done;
+    end;
+
+    // Must restore to defined-empty (lookup=true + value='')
+    ok := env_lookup(name, tmp);
+    AssertTrue('after Done should restore defined-empty (lookup=true)', ok);
+    AssertEquals('', tmp);
+  finally
     if hadOrig then env_set(name, origBefore) else env_unset(name);
   end;
 end;
