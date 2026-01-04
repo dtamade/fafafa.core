@@ -23,27 +23,40 @@ type
     procedure Test_LongOption_EqualsSeparator;
     procedure Test_LongOption_ColonSeparator;
     procedure Test_LongOption_SpaceSeparator;
+    procedure Test_LongOption_SpaceSeparator_AllowsSingleDashValue;
     procedure Test_LongOption_FlagOnly;
 
     // 短选项测试
     procedure Test_ShortOption_EqualsSeparator;
+    procedure Test_ShortOption_EqualsSeparator_Disabled_TreatAsSingleFlag;
     procedure Test_ShortOption_SpaceSeparator;
+    procedure Test_ShortOption_SpaceSeparator_AllowsSingleDashValue;
     procedure Test_ShortOption_ComboFlags;
+    procedure Test_ShortOption_ComboFlags_Disabled_TreatAsSingleFlag;
     procedure Test_ShortOption_SingleFlag;
 
     // 斜杠选项测试 (Windows 风格)
     procedure Test_SlashOption_EqualsSeparator;
     procedure Test_SlashOption_ColonSeparator;
     procedure Test_SlashOption_FlagOnly;
+    procedure Test_SlashOption_Disabled_TreatAsPositional;
+
+    // Linux/Unix absolute paths as values (when slash options disabled)
+    procedure Test_LongOption_SpaceSeparator_AllowsSlashValue_WhenSlashOptionsDisabled;
 
     // 双破折号停止解析
     procedure Test_DoubleDash_StopsParsing;
+    procedure Test_DoubleDash_StopAtDoubleDashFalse_KeepsSentinel;
 
     // 负数作为位置参数
     procedure Test_NegativeNumber_AsPositional;
+    procedure Test_NegativeNumber_Standalone_TreatedAsPositional;
 
     // --no- 否定前缀
     procedure Test_NoPrefixNegation;
+    procedure Test_NoPrefixNegation_DashToDot;
+    procedure Test_NoPrefixNegation_ExplicitAssignment_UpdatesBaseKey;
+    procedure Test_NoPrefixNegation_ShortForm;
 
     // 大小写不敏感
     procedure Test_CaseInsensitive;
@@ -59,16 +72,21 @@ type
     // TArgs 类测试
     procedure Test_TArgs_FromArray;
     procedure Test_TArgs_HasFlag;
+    procedure Test_TArgs_HasFlag_HelpAliasQuestionMark;
     procedure Test_TArgs_TryGetValue;
     procedure Test_TArgs_GetOpt;
     procedure Test_TArgs_GetIntOpt;
     procedure Test_TArgs_GetBoolOpt;
+    procedure Test_TArgs_GetBoolOpt_FlagOnly_TreatedAsTrue;
+    procedure Test_TArgs_GetBoolOpt_ValueOverridesFlag;
     procedure Test_TArgs_GetDoubleOpt;
 
     // Try 风格 API
     procedure Test_TArgs_TryGetInt64;
     procedure Test_TArgs_TryGetDouble;
     procedure Test_TArgs_TryGetBool;
+    procedure Test_TArgs_TryGetBool_FlagOnly_TreatedAsTrue;
+    procedure Test_TArgs_TryGetBool_ValueOverridesFlag;
 
     // Default 风格 API
     procedure Test_TArgs_GetStringDefault;
@@ -140,6 +158,21 @@ begin
   CheckEquals('value', Ctx.Values[0]);
 end;
 
+procedure TTestCase_ArgsBase.Test_LongOption_SpaceSeparator_AllowsSingleDashValue;
+var
+  Ctx: TArgsContext;
+  Opts: TArgsOptions;
+begin
+  Opts := ArgsOptionsDefault;
+  ParseArgs(['--out', '-'], Opts, Ctx);
+
+  CheckEquals(1, Length(Ctx.Keys));
+  CheckEquals('out', Ctx.Keys[0]);
+  CheckEquals('-', Ctx.Values[0]);
+  CheckEquals(0, Length(Ctx.Flags));
+  CheckEquals(0, Length(Ctx.Positionals));
+end;
+
 procedure TTestCase_ArgsBase.Test_LongOption_FlagOnly;
 var
   Ctx: TArgsContext;
@@ -169,17 +202,49 @@ begin
   CheckEquals('value', Ctx.Values[0]);
 end;
 
+procedure TTestCase_ArgsBase.Test_ShortOption_EqualsSeparator_Disabled_TreatAsSingleFlag;
+var
+  Ctx: TArgsContext;
+  Opts: TArgsOptions;
+begin
+  Opts := ArgsOptionsDefault;
+  Opts.AllowShortKeyValue := False;
+  // even if combo flags is enabled, a token containing '=' should not be split into many flags
+  Opts.AllowShortFlagsCombo := True;
+  ParseArgs(['-o=out.txt'], Opts, Ctx);
+
+  CheckEquals(0, Length(Ctx.Keys));
+  CheckEquals(1, Length(Ctx.Flags));
+  CheckEquals('o=out.txt', Ctx.Flags[0]);
+  CheckEquals(0, Length(Ctx.Positionals));
+end;
+
 procedure TTestCase_ArgsBase.Test_ShortOption_SpaceSeparator;
 var
   Ctx: TArgsContext;
   Opts: TArgsOptions;
 begin
   Opts := ArgsOptionsDefault;
-  ParseArgs(['-o', 'output.txt'], Opts, Ctx);
+  ParseArgs(['-k', 'value'], Opts, Ctx);
+
+  CheckEquals(1, Length(Ctx.Keys));
+  CheckEquals('k', Ctx.Keys[0]);
+  CheckEquals('value', Ctx.Values[0]);
+end;
+
+procedure TTestCase_ArgsBase.Test_ShortOption_SpaceSeparator_AllowsSingleDashValue;
+var
+  Ctx: TArgsContext;
+  Opts: TArgsOptions;
+begin
+  Opts := ArgsOptionsDefault;
+  ParseArgs(['-o', '-'], Opts, Ctx);
 
   CheckEquals(1, Length(Ctx.Keys));
   CheckEquals('o', Ctx.Keys[0]);
-  CheckEquals('output.txt', Ctx.Values[0]);
+  CheckEquals('-', Ctx.Values[0]);
+  CheckEquals(0, Length(Ctx.Flags));
+  CheckEquals(0, Length(Ctx.Positionals));
 end;
 
 procedure TTestCase_ArgsBase.Test_ShortOption_ComboFlags;
@@ -195,6 +260,19 @@ begin
   CheckEquals('a', Ctx.Flags[0]);
   CheckEquals('b', Ctx.Flags[1]);
   CheckEquals('c', Ctx.Flags[2]);
+end;
+
+procedure TTestCase_ArgsBase.Test_ShortOption_ComboFlags_Disabled_TreatAsSingleFlag;
+var
+  Ctx: TArgsContext;
+  Opts: TArgsOptions;
+begin
+  Opts := ArgsOptionsDefault;
+  Opts.AllowShortFlagsCombo := False;
+  ParseArgs(['-abc'], Opts, Ctx);
+
+  CheckEquals(1, Length(Ctx.Flags), 'Should treat -abc as a single flag when combo is disabled');
+  CheckEquals('abc', Ctx.Flags[0]);
 end;
 
 procedure TTestCase_ArgsBase.Test_ShortOption_SingleFlag;
@@ -218,6 +296,7 @@ var
   Opts: TArgsOptions;
 begin
   Opts := ArgsOptionsDefault;
+  Opts.AllowSlashOptions := True;
   ParseArgs(['/key=value'], Opts, Ctx);
 
   CheckEquals(1, Length(Ctx.Keys));
@@ -231,6 +310,7 @@ var
   Opts: TArgsOptions;
 begin
   Opts := ArgsOptionsDefault;
+  Opts.AllowSlashOptions := True;
   ParseArgs(['/key:value'], Opts, Ctx);
 
   CheckEquals(1, Length(Ctx.Keys));
@@ -244,6 +324,7 @@ var
   Opts: TArgsOptions;
 begin
   Opts := ArgsOptionsDefault;
+  Opts.AllowSlashOptions := True;
   ParseArgs(['/help', '/verbose'], Opts, Ctx);
 
   CheckEquals(2, Length(Ctx.Flags));
@@ -251,6 +332,37 @@ begin
   CheckEquals('verbose', Ctx.Flags[1]);
 end;
 
+procedure TTestCase_ArgsBase.Test_SlashOption_Disabled_TreatAsPositional;
+var
+  Ctx: TArgsContext;
+  Opts: TArgsOptions;
+begin
+  Opts := ArgsOptionsDefault;
+  Opts.AllowSlashOptions := False;
+  ParseArgs(['/key=value', '/flag', 'arg'], Opts, Ctx);
+
+  CheckEquals(3, Length(Ctx.Positionals));
+  CheckEquals('/key=value', Ctx.Positionals[0]);
+  CheckEquals('/flag', Ctx.Positionals[1]);
+  CheckEquals('arg', Ctx.Positionals[2]);
+  CheckEquals(0, Length(Ctx.Flags));
+  CheckEquals(0, Length(Ctx.Keys));
+end;
+
+procedure TTestCase_ArgsBase.Test_LongOption_SpaceSeparator_AllowsSlashValue_WhenSlashOptionsDisabled;
+var
+  Ctx: TArgsContext;
+  Opts: TArgsOptions;
+begin
+  Opts := ArgsOptionsDefault;
+  Opts.AllowSlashOptions := False;
+  ParseArgs(['--out', '/tmp/a'], Opts, Ctx);
+
+  CheckEquals(1, Length(Ctx.Keys));
+  CheckEquals('out', Ctx.Keys[0]);
+  CheckEquals('/tmp/a', Ctx.Values[0]);
+  CheckEquals(0, Length(Ctx.Positionals));
+end;
 { 双破折号测试 }
 
 procedure TTestCase_ArgsBase.Test_DoubleDash_StopsParsing;
@@ -269,6 +381,24 @@ begin
   CheckEquals('positional', Ctx.Positionals[1]);
 end;
 
+procedure TTestCase_ArgsBase.Test_DoubleDash_StopAtDoubleDashFalse_KeepsSentinel;
+var
+  Ctx: TArgsContext;
+  Opts: TArgsOptions;
+begin
+  Opts := ArgsOptionsDefault;
+  Opts.StopAtDoubleDash := False;
+  ParseArgs(['pos1', '--', '/x', '--not-flag'], Opts, Ctx);
+
+  CheckEquals(4, Length(Ctx.Positionals), 'Should keep -- and treat the rest as positionals when StopAtDoubleDash=False');
+  CheckEquals('pos1', Ctx.Positionals[0]);
+  CheckEquals('--', Ctx.Positionals[1]);
+  CheckEquals('/x', Ctx.Positionals[2]);
+  CheckEquals('--not-flag', Ctx.Positionals[3]);
+  CheckEquals(0, Length(Ctx.Flags));
+  CheckEquals(0, Length(Ctx.Keys));
+end;
+
 { 负数测试 }
 
 procedure TTestCase_ArgsBase.Test_NegativeNumber_AsPositional;
@@ -277,7 +407,6 @@ var
   Opts: TArgsOptions;
 begin
   // TreatNegativeNumbersAsPositionals 使 -1.5 被识别为值而非短选项
-  // 但独立的 -2 仍会被解析为短选项
   Opts := ArgsOptionsDefault;
   Opts.TreatNegativeNumbersAsPositionals := True;
   ParseArgs(['--value', '-1.5', '--', '-2', 'arg'], Opts, Ctx);
@@ -288,6 +417,22 @@ begin
   CheckEquals(2, Length(Ctx.Positionals), '-2 and arg after -- as positionals');
   CheckEquals('-2', Ctx.Positionals[0]);
   CheckEquals('arg', Ctx.Positionals[1]);
+end;
+
+procedure TTestCase_ArgsBase.Test_NegativeNumber_Standalone_TreatedAsPositional;
+var
+  Ctx: TArgsContext;
+  Opts: TArgsOptions;
+begin
+  Opts := ArgsOptionsDefault;
+  Opts.TreatNegativeNumbersAsPositionals := True;
+  ParseArgs(['-1.2', 'arg'], Opts, Ctx);
+
+  CheckEquals(2, Length(Ctx.Positionals));
+  CheckEquals('-1.2', Ctx.Positionals[0]);
+  CheckEquals('arg', Ctx.Positionals[1]);
+  CheckEquals(0, Length(Ctx.Flags));
+  CheckEquals(0, Length(Ctx.Keys));
 end;
 
 { --no- 否定前缀测试 }
@@ -306,6 +451,72 @@ begin
   CheckEquals('false', Ctx.Values[0]);
   CheckEquals('verify', Ctx.Keys[1]);
   CheckEquals('false', Ctx.Values[1]);
+
+  // Also keep the literal no.* record as a flag
+  CheckEquals(2, Length(Ctx.Flags));
+  CheckEquals('no.cache', Ctx.Flags[0]);
+  CheckEquals('no.verify', Ctx.Flags[1]);
+end;
+
+procedure TTestCase_ArgsBase.Test_NoPrefixNegation_DashToDot;
+var
+  Ctx: TArgsContext;
+  Opts: TArgsOptions;
+begin
+  Opts := ArgsOptionsDefault;
+  Opts.EnableNoPrefixNegation := True;
+  ParseArgs(['--no-app-name'], Opts, Ctx);
+
+  CheckEquals(1, Length(Ctx.Keys));
+  CheckEquals('app.name', Ctx.Keys[0]);
+  CheckEquals('false', Ctx.Values[0]);
+
+  CheckEquals(1, Length(Ctx.Flags));
+  CheckEquals('no.app.name', Ctx.Flags[0]);
+end;
+
+procedure TTestCase_ArgsBase.Test_NoPrefixNegation_ExplicitAssignment_UpdatesBaseKey;
+var
+  Ctx: TArgsContext;
+  Opts: TArgsOptions;
+  Args: TArgs;
+  V: Boolean;
+begin
+  Opts := ArgsOptionsDefault;
+  Opts.EnableNoPrefixNegation := True;
+
+  ParseArgs(['--no-cache=false'], Opts, Ctx);
+  CheckEquals(2, Length(Ctx.Keys), 'Explicit assignment should record base key and no.* key');
+  CheckEquals('cache', Ctx.Keys[0]);
+  CheckEquals('false', Ctx.Values[0]);
+  CheckEquals('no.cache', Ctx.Keys[1]);
+  CheckEquals('false', Ctx.Values[1]);
+  CheckEquals(0, Length(Ctx.Flags), 'Explicit assignment does not create a flag record');
+
+  Args := TArgs.FromArray(['--no-cache=false'], Opts);
+  try
+    CheckTrue(Args.TryGetBool('cache', V));
+    CheckFalse(V);
+  finally
+    Args.Free;
+  end;
+end;
+
+procedure TTestCase_ArgsBase.Test_NoPrefixNegation_ShortForm;
+var
+  Ctx: TArgsContext;
+  Opts: TArgsOptions;
+begin
+  Opts := ArgsOptionsDefault;
+  Opts.EnableNoPrefixNegation := True;
+  ParseArgs(['-no-debug'], Opts, Ctx);
+
+  CheckEquals(1, Length(Ctx.Keys));
+  CheckEquals('debug', Ctx.Keys[0]);
+  CheckEquals('false', Ctx.Values[0]);
+
+  CheckEquals(1, Length(Ctx.Flags));
+  CheckEquals('no.debug', Ctx.Flags[0]);
 end;
 
 { 大小写不敏感测试 }
@@ -421,6 +632,24 @@ begin
   end;
 end;
 
+procedure TTestCase_ArgsBase.Test_TArgs_HasFlag_HelpAliasQuestionMark;
+var
+  Args: TArgs;
+begin
+  Args := TArgs.FromArray(['/?', '-?', '--?'], ArgsOptionsDefault);
+  try
+    // '?' 是 help 的别名：存储时会归一化为 'help'
+    CheckTrue(Args.HasFlag('help'));
+    // 调用侧也应允许用 '?' 来查询
+    CheckTrue(Args.HasFlag('?'));
+    CheckTrue(Args.HasFlag('/?'));
+    CheckTrue(Args.HasFlag('-?'));
+    CheckTrue(Args.HasFlag('--?'));
+  finally
+    Args.Free;
+  end;
+end;
+
 procedure TTestCase_ArgsBase.Test_TArgs_TryGetValue;
 var
   Args: TArgs;
@@ -499,6 +728,36 @@ begin
     Opt := Args.GetBoolOpt('no');
     CheckTrue(Opt.IsSome);
     CheckFalse(Opt.Unwrap);
+  finally
+    Args.Free;
+  end;
+end;
+
+procedure TTestCase_ArgsBase.Test_TArgs_GetBoolOpt_FlagOnly_TreatedAsTrue;
+var
+  Args: TArgs;
+  Opt: specialize TOption<Boolean>;
+begin
+  Args := TArgs.FromArray(['--enabled'], ArgsOptionsDefault);
+  try
+    Opt := Args.GetBoolOpt('enabled');
+    CheckTrue(Opt.IsSome, 'Flag-only bool should be Some(True)');
+    CheckTrue(Opt.Unwrap);
+  finally
+    Args.Free;
+  end;
+end;
+
+procedure TTestCase_ArgsBase.Test_TArgs_GetBoolOpt_ValueOverridesFlag;
+var
+  Args: TArgs;
+  Opt: specialize TOption<Boolean>;
+begin
+  Args := TArgs.FromArray(['--enabled', '--enabled=false'], ArgsOptionsDefault);
+  try
+    Opt := Args.GetBoolOpt('enabled');
+    CheckTrue(Opt.IsSome, 'Explicit value should be preferred over flag presence');
+    CheckFalse(Opt.Unwrap, 'Last value wins: --enabled=false');
   finally
     Args.Free;
   end;
@@ -597,6 +856,34 @@ begin
     // 无效值
     CheckFalse(Args.TryGetBool('invalid', V), 'Invalid bool should return False');
     CheckFalse(Args.TryGetBool('missing', V), 'Missing key should return False');
+  finally
+    Args.Free;
+  end;
+end;
+
+procedure TTestCase_ArgsBase.Test_TArgs_TryGetBool_FlagOnly_TreatedAsTrue;
+var
+  Args: TArgs;
+  V: Boolean;
+begin
+  Args := TArgs.FromArray(['--enabled'], ArgsOptionsDefault);
+  try
+    CheckTrue(Args.TryGetBool('enabled', V), 'Flag-only bool should return True');
+    CheckTrue(V);
+  finally
+    Args.Free;
+  end;
+end;
+
+procedure TTestCase_ArgsBase.Test_TArgs_TryGetBool_ValueOverridesFlag;
+var
+  Args: TArgs;
+  V: Boolean;
+begin
+  Args := TArgs.FromArray(['--enabled', '--enabled=false'], ArgsOptionsDefault);
+  try
+    CheckTrue(Args.TryGetBool('enabled', V));
+    CheckFalse(V, 'Last value wins: --enabled=false');
   finally
     Args.Free;
   end;

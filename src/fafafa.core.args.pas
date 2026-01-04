@@ -40,8 +40,17 @@ type
   TArgsResultDouble = fafafa.core.args.errors.TArgsResultDouble;
   TArgsResultBool = fafafa.core.args.errors.TArgsResultBool;
 
+  // Re-export from args.config (ENV normalization flags)
+  TEnvFlags = fafafa.core.args.config.TEnvFlags;
+
+const
+  // Re-export env normalization flag enum values so docs/examples compile with only `uses fafafa.core.args`.
+  efTrimValues = fafafa.core.args.config.efTrimValues;
+  efNormalizeBools = fafafa.core.args.config.efNormalizeBools;
+
 // Re-export functions from args.base
 function ArgsOptionsDefault: TArgsOptions; inline;
+procedure ArgsOptionsSetDefault(const Opts: TArgsOptions); inline;
 procedure ParseArgs(const Args: array of string; const Opts: TArgsOptions; out Ctx: TArgsContext); inline;
 
 function ArgsHasFlag(const Flag: string): boolean; inline;
@@ -57,7 +66,15 @@ function ArgsGetBoolOpt(const Key: string): specialize TOption<Boolean>; inline;
 
 // Re-export functions from args.config (✅ P1-1: 使用新的 Args 前缀)
 function ArgsArgvFromEnv(const Prefix: string): TStringArray; inline;
+function ArgsArgvFromEnvEx(const Prefix: string; const Allow, Deny: array of string; const Flags: TEnvFlags = []): TStringArray; inline;
 function ArgsValueFromEnvOpt(const Prefix, Key: string; const Flags: TEnvFlags = []): specialize TOption<string>; inline;
+function ArgsTokenFromEnvOpt(const Prefix, Key: string; const Flags: TEnvFlags = []): specialize TOption<string>; inline;
+function ArgsTokensFromEnvOpt(const Prefix: string; const Allow, Deny: array of string; const Flags: TEnvFlags = []): specialize TOption<TStringArray>; inline;
+// Config file integration
+function ArgsArgvFromToml(const Path: string): TStringArray; inline;
+function ArgsArgvFromJson(const Path: string): TStringArray; inline;
+// YAML is not supported yet: use Option API to detect unsupported explicitly.
+function ArgsArgvFromYamlOpt(const Path: string): specialize TOption<TStringArray>; inline;
 
 // ✅ P1-4: 补全 Result API 函数导出
 function ArgsGetValueSafe(const Key: string): TArgsResult; inline;
@@ -70,6 +87,11 @@ implementation
 function ArgsOptionsDefault: TArgsOptions; inline;
 begin
   Result := fafafa.core.args.base.ArgsOptionsDefault;
+end;
+
+procedure ArgsOptionsSetDefault(const Opts: TArgsOptions); inline;
+begin
+  fafafa.core.args.base.ArgsOptionsSetDefault(Opts);
 end;
 
 procedure ParseArgs(const Args: array of string; const Opts: TArgsOptions; out Ctx: TArgsContext); inline;
@@ -128,9 +150,53 @@ begin
   Result := fafafa.core.args.config.ArgsArgvFromEnv(Prefix);
 end;
 
+function ArgsArgvFromEnvEx(const Prefix: string; const Allow, Deny: array of string; const Flags: TEnvFlags): TStringArray; inline;
+begin
+  Result := fafafa.core.args.config.ArgsArgvFromEnvEx(Prefix, Allow, Deny, Flags);
+end;
+
 function ArgsValueFromEnvOpt(const Prefix, Key: string; const Flags: TEnvFlags): specialize TOption<string>; inline;
 begin
   Result := fafafa.core.args.config.ArgsValueFromEnvOpt(Prefix, Key, Flags);
+end;
+
+function ArgsTokenFromEnvOpt(const Prefix, Key: string; const Flags: TEnvFlags): specialize TOption<string>; inline;
+begin
+  Result := fafafa.core.args.config.ArgsTokenFromEnvOpt(Prefix, Key, Flags);
+end;
+
+function ArgsTokensFromEnvOpt(const Prefix: string; const Allow, Deny: array of string; const Flags: TEnvFlags): specialize TOption<TStringArray>; inline;
+var
+  O: specialize TOption<fafafa.core.args.config.TStringArray>;
+  A: TStringArray;
+begin
+  O := fafafa.core.args.config.ArgsTokensFromEnvOpt(Prefix, Allow, Deny, Flags);
+  if O.IsNone then
+    Exit(specialize TOption<TStringArray>.None);
+  A := O.Unwrap;
+  Exit(specialize TOption<TStringArray>.Some(A));
+end;
+
+function ArgsArgvFromToml(const Path: string): TStringArray; inline;
+begin
+  Result := fafafa.core.args.config.ArgsArgvFromToml(Path);
+end;
+
+function ArgsArgvFromJson(const Path: string): TStringArray; inline;
+begin
+  Result := fafafa.core.args.config.ArgsArgvFromJson(Path);
+end;
+
+function ArgsArgvFromYamlOpt(const Path: string): specialize TOption<TStringArray>; inline;
+var
+  O: specialize TOption<fafafa.core.args.config.TStringArray>;
+  A: TStringArray;
+begin
+  O := fafafa.core.args.config.ArgsArgvFromYamlOpt(Path);
+  if O.IsNone then
+    Exit(specialize TOption<TStringArray>.None);
+  A := O.Unwrap;
+  Exit(specialize TOption<TStringArray>.Some(A));
 end;
 
 // ✅ P1-4: 补全 Result API 函数实现

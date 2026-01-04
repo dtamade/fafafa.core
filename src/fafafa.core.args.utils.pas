@@ -36,6 +36,12 @@ function NormalizeKeyForCheck(const Key: string; CaseInsensitive: Boolean): stri
 function StartsWith(const S, Prefix: string): Boolean; inline;
 function IsNegativeNumberLike(const S: string): Boolean;
 
+// Token classification helpers (shared by parser and command routing)
+function IsDoubleDashSentinel(const S: string): Boolean; inline;
+function IsDashOptionLike(const S: string; TreatNegativeNumbersAsPositionals: Boolean): Boolean; inline;
+function IsSlashOptionLike(const S: string; AllowSlashOptions: Boolean): Boolean; inline;
+function IsOptionLikeToken(const S: string; AllowSlashOptions, TreatNegativeNumbersAsPositionals: Boolean): Boolean; inline;
+
 // 布尔值解析辅助
 function IsTrueValue(const S: string): Boolean;
 function IsFalseValue(const S: string): Boolean;
@@ -137,6 +143,31 @@ begin
     end;
   end;
   Result := True;
+end;
+
+function IsDoubleDashSentinel(const S: string): Boolean; inline;
+begin
+  Result := S = '--';
+end;
+
+function IsDashOptionLike(const S: string; TreatNegativeNumbersAsPositionals: Boolean): Boolean; inline;
+begin
+  Result := False;
+  if S='' then Exit;
+  if S[1] <> '-' then Exit;
+  if Length(S) < 2 then Exit; // '-' alone is positional
+  if TreatNegativeNumbersAsPositionals and IsNegativeNumberLike(S) then Exit;
+  Result := True;
+end;
+
+function IsSlashOptionLike(const S: string; AllowSlashOptions: Boolean): Boolean; inline;
+begin
+  Result := AllowSlashOptions and (Length(S) > 0) and (S[1] = '/');
+end;
+
+function IsOptionLikeToken(const S: string; AllowSlashOptions, TreatNegativeNumbersAsPositionals: Boolean): Boolean; inline;
+begin
+  Result := IsDashOptionLike(S, TreatNegativeNumbersAsPositionals) or IsSlashOptionLike(S, AllowSlashOptions);
 end;
 
 function IsTrueValue(const S: string): Boolean;

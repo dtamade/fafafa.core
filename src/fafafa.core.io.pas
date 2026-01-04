@@ -182,6 +182,7 @@ uses
   fafafa.core.io.combinators,
   fafafa.core.io.buffered,
   fafafa.core.io.utils,
+  fafafa.core.io.textsink,
   fafafa.core.io.std,
   fafafa.core.io.streams,
   fafafa.core.io.tee,
@@ -216,6 +217,12 @@ type
   ISeeker = fafafa.core.io.base.ISeeker;
   ICloser = fafafa.core.io.base.ICloser;
   IFlusher = fafafa.core.io.base.IFlusher;
+
+  // Text sinks
+  ITextSink = fafafa.core.io.textsink.ITextSink;
+  TConsoleSink = fafafa.core.io.textsink.TConsoleSink;
+  TFileSink = fafafa.core.io.textsink.TFileSink;
+  TStringSink = fafafa.core.io.textsink.TStringSink;
 
   // 扩展 trait
   // IByteReader 和 IByteWriter 已弃用，不再导出，请使用 IO.ReadFull/WriteAll 替代

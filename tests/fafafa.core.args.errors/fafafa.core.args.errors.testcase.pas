@@ -13,6 +13,7 @@ interface
 uses
   SysUtils, fpcunit, testregistry,
   fafafa.core.args.errors,
+  fafafa.core.args.base,
   fafafa.core.result;
 
 type
@@ -44,6 +45,14 @@ type
     procedure Test_ToDetailedString_WithPosition;
     procedure Test_ToDetailedString_WithSuggestion;
     procedure Test_ToDetailedString_AllKinds;
+
+    // Result-style safe getters (IArgs overloads)
+    procedure Test_ArgsGetValueSafe_IArgs_UnknownOption_ReturnsErr;
+    procedure Test_ArgsGetBoolSafe_IArgs_FlagOnly_OkTrue;
+    procedure Test_ArgsGetBoolSafe_IArgs_ValueOverridesFlag_OkFalse;
+    procedure Test_ArgsGetBoolSafe_IArgs_Invalid_ReturnsErr;
+    procedure Test_ArgsGetDoubleSafe_IArgs_Valid_Ok;
+    procedure Test_ArgsGetDoubleSafe_IArgs_Invalid_ReturnsErr;
 
     // ValidateRange 测试
     procedure Test_ValidateRange_InRange;
@@ -333,6 +342,72 @@ begin
   Err := TArgsError.ValidationError('--x', 'failed');
   Detail := Err.ToDetailedString;
   CheckTrue(Pos('[VALIDATION_ERROR]', Detail) > 0, 'ValidationError should show [VALIDATION_ERROR]');
+end;
+
+procedure TTestCase_ArgsErrors.Test_ArgsGetValueSafe_IArgs_UnknownOption_ReturnsErr;
+var
+  A: IArgs;
+  R: TArgsResult;
+begin
+  A := TArgs.FromArray([], ArgsOptionsDefault);
+  R := ArgsGetValueSafe(A, 'missing');
+  CheckTrue(R.IsErr);
+  CheckEquals(Ord(aekUnknownOption), Ord(R.UnwrapErr.Kind));
+end;
+
+procedure TTestCase_ArgsErrors.Test_ArgsGetBoolSafe_IArgs_FlagOnly_OkTrue;
+var
+  A: IArgs;
+  R: TArgsResultBool;
+begin
+  A := TArgs.FromArray(['--enabled'], ArgsOptionsDefault);
+  R := ArgsGetBoolSafe(A, 'enabled');
+  CheckTrue(R.IsOk);
+  CheckTrue(R.Unwrap);
+end;
+
+procedure TTestCase_ArgsErrors.Test_ArgsGetBoolSafe_IArgs_ValueOverridesFlag_OkFalse;
+var
+  A: IArgs;
+  R: TArgsResultBool;
+begin
+  A := TArgs.FromArray(['--enabled', '--enabled=false'], ArgsOptionsDefault);
+  R := ArgsGetBoolSafe(A, 'enabled');
+  CheckTrue(R.IsOk);
+  CheckFalse(R.Unwrap);
+end;
+
+procedure TTestCase_ArgsErrors.Test_ArgsGetBoolSafe_IArgs_Invalid_ReturnsErr;
+var
+  A: IArgs;
+  R: TArgsResultBool;
+begin
+  A := TArgs.FromArray(['--enabled=maybe'], ArgsOptionsDefault);
+  R := ArgsGetBoolSafe(A, 'enabled');
+  CheckTrue(R.IsErr);
+  CheckEquals(Ord(aekInvalidValue), Ord(R.UnwrapErr.Kind));
+end;
+
+procedure TTestCase_ArgsErrors.Test_ArgsGetDoubleSafe_IArgs_Valid_Ok;
+var
+  A: IArgs;
+  R: TArgsResultDouble;
+begin
+  A := TArgs.FromArray(['--pi=3.14'], ArgsOptionsDefault);
+  R := ArgsGetDoubleSafe(A, 'pi');
+  CheckTrue(R.IsOk);
+  CheckEquals(3.14, R.Unwrap, 0.00001);
+end;
+
+procedure TTestCase_ArgsErrors.Test_ArgsGetDoubleSafe_IArgs_Invalid_ReturnsErr;
+var
+  A: IArgs;
+  R: TArgsResultDouble;
+begin
+  A := TArgs.FromArray(['--pi=3,14'], ArgsOptionsDefault);
+  R := ArgsGetDoubleSafe(A, 'pi');
+  CheckTrue(R.IsErr);
+  CheckEquals(Ord(aekInvalidValue), Ord(R.UnwrapErr.Kind));
 end;
 
 { ValidateRange 测试 }

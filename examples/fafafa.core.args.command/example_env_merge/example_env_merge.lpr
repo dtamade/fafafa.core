@@ -55,7 +55,7 @@ begin
   Root.Register(NewCommandPath(['run'], @H_Run, 'Run with env-merged flags'));
 
   // example: take env with prefix APP_ and merge into argv
-  envArgv := ArgvFromEnv('APP_');
+  envArgv := ArgsArgvFromEnv('APP_');
   cliArgv := ParamsToArray;
   merged := ConcatArrays(envArgv, cliArgv);
 

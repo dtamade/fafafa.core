@@ -4,6 +4,9 @@ program fafafa.core.args.validation.test;
 {$mode objfpc}{$H+}
 
 uses
+  {$IFDEF UNIX}
+  cthreads,
+  {$ENDIF}
   SysUtils, Classes, consoletestrunner,
   fafafa.core.args.validation.testcase;
 

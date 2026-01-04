@@ -85,6 +85,13 @@ type
     procedure Test_Run_CaseInsensitive;
     procedure Test_Run_WithOptions;
     procedure Test_Run_DefaultSubcommand_Fallback;
+    procedure Test_Run_DefaultSubcommand_NegativeNumber_NoFallback;
+    procedure Test_Run_DefaultSubcommand_DoubleDash_NoFallback;
+    procedure Test_Run_DefaultSubcommand_DoubleDash_StopAtDoubleDashFalse_NoFallback;
+    procedure Test_Run_DefaultSubcommand_SingleDash_Positional_NoFallback;
+    procedure Test_Run_DefaultSubcommand_SlashPath_NoFallback_WhenAllowSlashOptionsFalse;
+    procedure Test_Run_DoubleDashBeforeCommand_Returns_CMD_NOT_FOUND;
+    procedure Test_Run_DoubleDashBeforeCommand_StopAtDoubleDashFalse_Returns_CMD_NOT_FOUND;
 
     // RunPath tests
     procedure Test_RunPath_SingleLevel;
@@ -96,6 +103,18 @@ type
     procedure Test_GetBestMatchPath_NestedMatch;
     procedure Test_GetBestMatchPath_WithDefaultChild;
     procedure Test_GetBestMatchPath_NoMatch;
+    procedure Test_GetBestMatchPath_DefaultChild_NegativeNumber_NoDefaultChild;
+    procedure Test_GetBestMatchPath_DefaultChild_DoubleDash_NoDefaultChild;
+    procedure Test_GetBestMatchPath_DefaultChild_DoubleDash_StopAtDoubleDashFalse_NoDefaultChild;
+    procedure Test_GetBestMatchPath_DefaultChild_SingleDash_Positional_NoDefaultChild;
+    procedure Test_GetBestMatchPath_DefaultChild_SlashPath_NoDefaultChild_WhenAllowSlashOptionsFalse;
+    procedure Test_GetBestMatchPath_DoubleDashBeforeCommand_EmptyPath;
+    procedure Test_GetBestMatchPath_DoubleDashBeforeCommand_StopAtDoubleDashFalse_EmptyPath;
+    procedure Test_GetBestMatchPath_OptionsBeforeCommand_SingleDashValue_Skipped;
+    procedure Test_GetBestMatchPath_OptionsBeforeCommand_NegativeNumberValue_Skipped;
+    procedure Test_GetBestMatchPath_OptionsBeforeCommand_SlashPathValue_Skipped_WhenAllowSlashOptionsFalse;
+    procedure Test_GetBestMatchPath_OptionsBeforeCommand_LongOptionValue_Skipped;
+    procedure Test_GetBestMatchPath_OptionsBeforeCommand_ShortOptionValue_Skipped;
 
     // Schema integration tests
     procedure Test_Command_Spec_SetGet;
@@ -109,6 +128,11 @@ type
     procedure Test_Run_EmptyArgs_Returns_CMD_NOT_FOUND;
     procedure Test_Run_OnlyOptions_Returns_CMD_NOT_FOUND;
     procedure Test_Run_OptionsBeforeCommand;
+    procedure Test_Run_OptionsBeforeCommand_SingleDashValue_Skipped;
+    procedure Test_Run_OptionsBeforeCommand_NegativeNumberValue_Skipped;
+    procedure Test_Run_OptionsBeforeCommand_SlashPathValue_Skipped_WhenAllowSlashOptionsFalse;
+    procedure Test_Run_OptionsBeforeCommand_LongOptionValue_Skipped;
+    procedure Test_Run_OptionsBeforeCommand_ShortOptionValue_Skipped;
   end;
 
 var
@@ -841,6 +865,216 @@ begin
   CheckEquals(1, HandlerCallCount);
 end;
 
+procedure TTestCase_ArgsCommand.Test_Run_DefaultSubcommand_NegativeNumber_NoFallback;
+var
+  Root: IRootCommand;
+  ServeCmd, DevCmd: ICommand;
+  Code: Integer;
+  Opts: TArgsOptions;
+begin
+  Root := NewRootCommand;
+
+  ServeCmd := NewCommand('serve');
+  ServeCmd.SetHandlerFunc(@SimpleHandler);
+
+  DevCmd := NewCommand('dev');
+  DevCmd.SetHandlerFunc(@SubCommandHandler);
+  ServeCmd.AddChild(DevCmd);
+  ServeCmd.SetDefaultChildName('dev');
+
+  Root.AddChild(ServeCmd);
+
+  Opts := ArgsOptionsDefault;
+  Opts.TreatNegativeNumbersAsPositionals := True;
+
+  HandlerCallCount := 0;
+  Code := Root.Run(['serve', '-1.2'], Opts);
+
+  CheckEquals(0, Code, 'Negative number should be positional for routing (no default fallback)');
+  CheckEquals(1, HandlerCallCount);
+end;
+
+procedure TTestCase_ArgsCommand.Test_Run_DefaultSubcommand_DoubleDash_NoFallback;
+var
+  Root: IRootCommand;
+  ServeCmd, DevCmd: ICommand;
+  Code: Integer;
+  Opts: TArgsOptions;
+  Pos: TStringArray;
+begin
+  Root := NewRootCommand;
+
+  ServeCmd := NewCommand('serve');
+  ServeCmd.SetHandlerFunc(@SimpleHandler);
+
+  DevCmd := NewCommand('dev');
+  DevCmd.SetHandlerFunc(@SubCommandHandler);
+  ServeCmd.AddChild(DevCmd);
+  ServeCmd.SetDefaultChildName('dev');
+
+  Root.AddChild(ServeCmd);
+
+  Opts := ArgsOptionsDefault;
+  Opts.StopAtDoubleDash := True;
+
+  HandlerCallCount := 0;
+  LastHandlerArgs := nil;
+  Code := Root.Run(['serve', '--', '-notAnOption'], Opts);
+
+  CheckEquals(0, Code, '"--" should stop routing and NOT trigger default-child fallback');
+  CheckEquals(1, HandlerCallCount);
+  CheckNotNull(LastHandlerArgs, 'Handler should receive args');
+
+  Pos := LastHandlerArgs.Positionals;
+  CheckEquals(1, Length(Pos));
+  CheckEquals('-notAnOption', Pos[0]);
+end;
+
+procedure TTestCase_ArgsCommand.Test_Run_DoubleDashBeforeCommand_Returns_CMD_NOT_FOUND;
+var
+  Root: IRootCommand;
+  Cmd: ICommand;
+  Code: Integer;
+  Opts: TArgsOptions;
+begin
+  Root := NewRootCommand;
+  Cmd := NewCommand('serve');
+  Cmd.SetHandlerFunc(@SimpleHandler);
+  Root.AddChild(Cmd);
+
+  Opts := ArgsOptionsDefault;
+  Opts.StopAtDoubleDash := True;
+
+  HandlerCallCount := 0;
+  Code := Root.Run(['--', 'serve'], Opts);
+
+  CheckEquals(CMD_NOT_FOUND, Code, 'StopAtDoubleDash=True: routing must stop at "--"');
+  CheckEquals(0, HandlerCallCount, 'Handler must not be called');
+end;
+
+procedure TTestCase_ArgsCommand.Test_Run_DefaultSubcommand_DoubleDash_StopAtDoubleDashFalse_NoFallback;
+var
+  Root: IRootCommand;
+  ServeCmd, DevCmd: ICommand;
+  Code: Integer;
+  Opts: TArgsOptions;
+  Pos: TStringArray;
+begin
+  Root := NewRootCommand;
+
+  ServeCmd := NewCommand('serve');
+  ServeCmd.SetHandlerFunc(@SimpleHandler);
+
+  DevCmd := NewCommand('dev');
+  DevCmd.SetHandlerFunc(@SubCommandHandler);
+  ServeCmd.AddChild(DevCmd);
+  ServeCmd.SetDefaultChildName('dev');
+
+  Root.AddChild(ServeCmd);
+
+  Opts := ArgsOptionsDefault;
+  Opts.StopAtDoubleDash := False;
+
+  HandlerCallCount := 0;
+  LastHandlerArgs := nil;
+  Code := Root.Run(['serve', '--', '/x'], Opts);
+
+  CheckEquals(0, Code, 'StopAtDoubleDash=False: "--" still stops routing and must not trigger default-child fallback');
+  CheckEquals(1, HandlerCallCount);
+  CheckNotNull(LastHandlerArgs, 'Handler should receive args');
+
+  Pos := LastHandlerArgs.Positionals;
+  CheckEquals(2, Length(Pos));
+  CheckEquals('--', Pos[0]);
+  CheckEquals('/x', Pos[1]);
+end;
+
+procedure TTestCase_ArgsCommand.Test_Run_DoubleDashBeforeCommand_StopAtDoubleDashFalse_Returns_CMD_NOT_FOUND;
+var
+  Root: IRootCommand;
+  Cmd: ICommand;
+  Code: Integer;
+  Opts: TArgsOptions;
+begin
+  Root := NewRootCommand;
+  Cmd := NewCommand('serve');
+  Cmd.SetHandlerFunc(@SimpleHandler);
+  Root.AddChild(Cmd);
+
+  Opts := ArgsOptionsDefault;
+  Opts.StopAtDoubleDash := False;
+
+  HandlerCallCount := 0;
+  Code := Root.Run(['--', 'serve'], Opts);
+
+  CheckEquals(CMD_NOT_FOUND, Code, 'StopAtDoubleDash=False: routing must still stop at "--"');
+  CheckEquals(0, HandlerCallCount, 'Handler must not be called');
+end;
+
+procedure TTestCase_ArgsCommand.Test_Run_DefaultSubcommand_SingleDash_Positional_NoFallback;
+var
+  Root: IRootCommand;
+  ServeCmd, DevCmd: ICommand;
+  Code: Integer;
+  Opts: TArgsOptions;
+  Pos: TStringArray;
+begin
+  Root := NewRootCommand;
+
+  ServeCmd := NewCommand('serve');
+  ServeCmd.SetHandlerFunc(@SimpleHandler);
+
+  DevCmd := NewCommand('dev');
+  DevCmd.SetHandlerFunc(@SubCommandHandler);
+  ServeCmd.AddChild(DevCmd);
+  ServeCmd.SetDefaultChildName('dev');
+
+  Root.AddChild(ServeCmd);
+
+  Opts := ArgsOptionsDefault;
+
+  HandlerCallCount := 0;
+  LastHandlerArgs := nil;
+  Code := Root.Run(['serve', '-'], Opts);
+
+  CheckEquals(0, Code, '"-" should be treated as positional for routing (no default-child fallback)');
+  CheckEquals(1, HandlerCallCount);
+  CheckNotNull(LastHandlerArgs, 'Handler should receive args');
+
+  Pos := LastHandlerArgs.Positionals;
+  CheckEquals(1, Length(Pos));
+  CheckEquals('-', Pos[0]);
+end;
+
+procedure TTestCase_ArgsCommand.Test_Run_DefaultSubcommand_SlashPath_NoFallback_WhenAllowSlashOptionsFalse;
+var
+  Root: IRootCommand;
+  ServeCmd, DevCmd: ICommand;
+  Code: Integer;
+  Opts: TArgsOptions;
+begin
+  Root := NewRootCommand;
+
+  ServeCmd := NewCommand('serve');
+  ServeCmd.SetHandlerFunc(@SimpleHandler);
+
+  DevCmd := NewCommand('dev');
+  DevCmd.SetHandlerFunc(@SubCommandHandler);
+  ServeCmd.AddChild(DevCmd);
+  ServeCmd.SetDefaultChildName('dev');
+
+  Root.AddChild(ServeCmd);
+
+  Opts := ArgsOptionsDefault;
+  Opts.AllowSlashOptions := False;
+
+  HandlerCallCount := 0;
+  Code := Root.Run(['serve', '/tmp/a'], Opts);
+
+  CheckEquals(0, Code, 'When slash options are disabled, "/tmp/a" should be positional for routing (no default fallback)');
+  CheckEquals(1, HandlerCallCount);
+end;
+
 { RunPath tests }
 
 procedure TTestCase_ArgsCommand.Test_RunPath_SingleLevel;
@@ -956,6 +1190,225 @@ begin
 
   Path := GetBestMatchPath(Root, ['nonexistent'], ArgsOptionsDefault);
   CheckEquals(0, Length(Path), 'Should return empty path for no match');
+end;
+
+procedure TTestCase_ArgsCommand.Test_GetBestMatchPath_DefaultChild_NegativeNumber_NoDefaultChild;
+var
+  Root: IRootCommand;
+  ServeCmd, DevCmd: ICommand;
+  Path: array of string;
+  Opts: TArgsOptions;
+begin
+  Root := NewRootCommand;
+
+  ServeCmd := NewCommand('serve');
+  DevCmd := NewCommand('dev');
+  ServeCmd.AddChild(DevCmd);
+  ServeCmd.SetDefaultChildName('dev');
+  Root.AddChild(ServeCmd);
+
+  Opts := ArgsOptionsDefault;
+  Opts.TreatNegativeNumbersAsPositionals := True;
+
+  Path := GetBestMatchPath(Root, ['serve', '-1.2'], Opts);
+  CheckEquals(1, Length(Path), 'Negative number should not trigger default child');
+  CheckEquals('serve', Path[0]);
+end;
+
+procedure TTestCase_ArgsCommand.Test_GetBestMatchPath_DefaultChild_DoubleDash_NoDefaultChild;
+var
+  Root: IRootCommand;
+  ServeCmd, DevCmd: ICommand;
+  Path: array of string;
+  Opts: TArgsOptions;
+begin
+  Root := NewRootCommand;
+
+  ServeCmd := NewCommand('serve');
+  DevCmd := NewCommand('dev');
+  ServeCmd.AddChild(DevCmd);
+  ServeCmd.SetDefaultChildName('dev');
+  Root.AddChild(ServeCmd);
+
+  Opts := ArgsOptionsDefault;
+  Opts.StopAtDoubleDash := True;
+
+  Path := GetBestMatchPath(Root, ['serve', '--', 'dev'], Opts);
+  CheckEquals(1, Length(Path), '"--" should not trigger default child');
+  CheckEquals('serve', Path[0]);
+end;
+
+procedure TTestCase_ArgsCommand.Test_GetBestMatchPath_DoubleDashBeforeCommand_EmptyPath;
+var
+  Root: IRootCommand;
+  Path: array of string;
+  Opts: TArgsOptions;
+begin
+  Root := NewRootCommand;
+  Root.AddChild(NewCommand('serve'));
+
+  Opts := ArgsOptionsDefault;
+  Opts.StopAtDoubleDash := True;
+
+  Path := GetBestMatchPath(Root, ['--', 'serve'], Opts);
+  CheckEquals(0, Length(Path), 'StopAtDoubleDash=True: routing must stop at "--"');
+end;
+
+procedure TTestCase_ArgsCommand.Test_GetBestMatchPath_DefaultChild_DoubleDash_StopAtDoubleDashFalse_NoDefaultChild;
+var
+  Root: IRootCommand;
+  ServeCmd, DevCmd: ICommand;
+  Path: array of string;
+  Opts: TArgsOptions;
+begin
+  Root := NewRootCommand;
+
+  ServeCmd := NewCommand('serve');
+  DevCmd := NewCommand('dev');
+  ServeCmd.AddChild(DevCmd);
+  ServeCmd.SetDefaultChildName('dev');
+  Root.AddChild(ServeCmd);
+
+  Opts := ArgsOptionsDefault;
+  Opts.StopAtDoubleDash := False;
+
+  Path := GetBestMatchPath(Root, ['serve', '--', 'dev'], Opts);
+  CheckEquals(1, Length(Path), 'StopAtDoubleDash=False: "--" must not trigger default child');
+  CheckEquals('serve', Path[0]);
+end;
+
+procedure TTestCase_ArgsCommand.Test_GetBestMatchPath_DoubleDashBeforeCommand_StopAtDoubleDashFalse_EmptyPath;
+var
+  Root: IRootCommand;
+  Path: array of string;
+  Opts: TArgsOptions;
+begin
+  Root := NewRootCommand;
+  Root.AddChild(NewCommand('serve'));
+
+  Opts := ArgsOptionsDefault;
+  Opts.StopAtDoubleDash := False;
+
+  Path := GetBestMatchPath(Root, ['--', 'serve'], Opts);
+  CheckEquals(0, Length(Path), 'StopAtDoubleDash=False: routing must still stop at "--"');
+end;
+
+procedure TTestCase_ArgsCommand.Test_GetBestMatchPath_DefaultChild_SingleDash_Positional_NoDefaultChild;
+var
+  Root: IRootCommand;
+  ServeCmd, DevCmd: ICommand;
+  Path: array of string;
+  Opts: TArgsOptions;
+begin
+  Root := NewRootCommand;
+
+  ServeCmd := NewCommand('serve');
+  DevCmd := NewCommand('dev');
+  ServeCmd.AddChild(DevCmd);
+  ServeCmd.SetDefaultChildName('dev');
+  Root.AddChild(ServeCmd);
+
+  Opts := ArgsOptionsDefault;
+
+  Path := GetBestMatchPath(Root, ['serve', '-'], Opts);
+  CheckEquals(1, Length(Path), '"-" should be treated as positional (no default child)');
+  CheckEquals('serve', Path[0]);
+end;
+
+procedure TTestCase_ArgsCommand.Test_GetBestMatchPath_DefaultChild_SlashPath_NoDefaultChild_WhenAllowSlashOptionsFalse;
+var
+  Root: IRootCommand;
+  ServeCmd, DevCmd: ICommand;
+  Path: array of string;
+  Opts: TArgsOptions;
+begin
+  Root := NewRootCommand;
+
+  ServeCmd := NewCommand('serve');
+  DevCmd := NewCommand('dev');
+  ServeCmd.AddChild(DevCmd);
+  ServeCmd.SetDefaultChildName('dev');
+  Root.AddChild(ServeCmd);
+
+  Opts := ArgsOptionsDefault;
+  Opts.AllowSlashOptions := False;
+
+  Path := GetBestMatchPath(Root, ['serve', '/tmp/a'], Opts);
+  CheckEquals(1, Length(Path), 'When slash options are disabled, "/tmp/a" should not trigger default child');
+  CheckEquals('serve', Path[0]);
+end;
+
+procedure TTestCase_ArgsCommand.Test_GetBestMatchPath_OptionsBeforeCommand_SingleDashValue_Skipped;
+var
+  Root: IRootCommand;
+  Path: array of string;
+begin
+  Root := NewRootCommand;
+  Root.AddChild(NewCommand('serve'));
+
+  Path := GetBestMatchPath(Root, ['--out', '-', 'serve'], ArgsOptionsDefault);
+  CheckEquals(1, Length(Path));
+  CheckEquals('serve', Path[0]);
+end;
+
+procedure TTestCase_ArgsCommand.Test_GetBestMatchPath_OptionsBeforeCommand_NegativeNumberValue_Skipped;
+var
+  Root: IRootCommand;
+  Path: array of string;
+  Opts: TArgsOptions;
+begin
+  Root := NewRootCommand;
+  Root.AddChild(NewCommand('serve'));
+
+  Opts := ArgsOptionsDefault;
+  Opts.TreatNegativeNumbersAsPositionals := True;
+
+  Path := GetBestMatchPath(Root, ['--threads', '-1', 'serve'], Opts);
+  CheckEquals(1, Length(Path));
+  CheckEquals('serve', Path[0]);
+end;
+
+procedure TTestCase_ArgsCommand.Test_GetBestMatchPath_OptionsBeforeCommand_SlashPathValue_Skipped_WhenAllowSlashOptionsFalse;
+var
+  Root: IRootCommand;
+  Path: array of string;
+  Opts: TArgsOptions;
+begin
+  Root := NewRootCommand;
+  Root.AddChild(NewCommand('serve'));
+
+  Opts := ArgsOptionsDefault;
+  Opts.AllowSlashOptions := False;
+
+  Path := GetBestMatchPath(Root, ['--out', '/tmp/a', 'serve'], Opts);
+  CheckEquals(1, Length(Path));
+  CheckEquals('serve', Path[0]);
+end;
+
+procedure TTestCase_ArgsCommand.Test_GetBestMatchPath_OptionsBeforeCommand_LongOptionValue_Skipped;
+var
+  Root: IRootCommand;
+  Path: array of string;
+begin
+  Root := NewRootCommand;
+  Root.AddChild(NewCommand('serve'));
+
+  Path := GetBestMatchPath(Root, ['--out', 'out.txt', 'serve'], ArgsOptionsDefault);
+  CheckEquals(1, Length(Path));
+  CheckEquals('serve', Path[0]);
+end;
+
+procedure TTestCase_ArgsCommand.Test_GetBestMatchPath_OptionsBeforeCommand_ShortOptionValue_Skipped;
+var
+  Root: IRootCommand;
+  Path: array of string;
+begin
+  Root := NewRootCommand;
+  Root.AddChild(NewCommand('serve'));
+
+  Path := GetBestMatchPath(Root, ['-o', 'out.txt', 'serve'], ArgsOptionsDefault);
+  CheckEquals(1, Length(Path));
+  CheckEquals('serve', Path[0]);
 end;
 
 { Schema integration tests }
@@ -1097,6 +1550,120 @@ begin
   // Current implementation: first non-option is 'serve'
   CheckEquals(0, Code);
   CheckEquals(1, HandlerCallCount);
+end;
+
+procedure TTestCase_ArgsCommand.Test_Run_OptionsBeforeCommand_SingleDashValue_Skipped;
+var
+  Root: IRootCommand;
+  Cmd: ICommand;
+  Code: Integer;
+begin
+  Root := NewRootCommand;
+  Cmd := NewCommand('serve');
+  Cmd.SetHandlerFunc(@SimpleHandler);
+  Root.AddChild(Cmd);
+
+  HandlerCallCount := 0;
+  // '-' is commonly used as stdin/stdout marker; it should not be treated as a command token
+  // when it appears as a value after an option token.
+  Code := Root.Run(['--out', '-', 'serve'], ArgsOptionsDefault);
+
+  CheckEquals(0, Code);
+  CheckEquals(1, HandlerCallCount);
+end;
+
+procedure TTestCase_ArgsCommand.Test_Run_OptionsBeforeCommand_NegativeNumberValue_Skipped;
+var
+  Root: IRootCommand;
+  Cmd: ICommand;
+  Code: Integer;
+  Opts: TArgsOptions;
+begin
+  Root := NewRootCommand;
+  Cmd := NewCommand('serve');
+  Cmd.SetHandlerFunc(@SimpleHandler);
+  Root.AddChild(Cmd);
+
+  HandlerCallCount := 0;
+  Opts := ArgsOptionsDefault;
+  Opts.TreatNegativeNumbersAsPositionals := True;
+
+  // Negative numbers can be values; when they appear after an option token, routing should
+  // not treat them as the first command token.
+  Code := Root.Run(['--threads', '-1', 'serve'], Opts);
+
+  CheckEquals(0, Code);
+  CheckEquals(1, HandlerCallCount);
+end;
+
+procedure TTestCase_ArgsCommand.Test_Run_OptionsBeforeCommand_SlashPathValue_Skipped_WhenAllowSlashOptionsFalse;
+var
+  Root: IRootCommand;
+  Cmd: ICommand;
+  Code: Integer;
+  Opts: TArgsOptions;
+begin
+  Root := NewRootCommand;
+  Cmd := NewCommand('serve');
+  Cmd.SetHandlerFunc(@SimpleHandler);
+  Root.AddChild(Cmd);
+
+  HandlerCallCount := 0;
+  Opts := ArgsOptionsDefault;
+  Opts.AllowSlashOptions := False;
+
+  // On non-Windows platforms, unix-style absolute paths should be allowed as values.
+  // When used after an option token, they should not become the command token.
+  Code := Root.Run(['--out', '/tmp/a', 'serve'], Opts);
+
+  CheckEquals(0, Code);
+  CheckEquals(1, HandlerCallCount);
+end;
+
+procedure TTestCase_ArgsCommand.Test_Run_OptionsBeforeCommand_LongOptionValue_Skipped;
+var
+  Root: IRootCommand;
+  Cmd: ICommand;
+  Code: Integer;
+  V: string;
+begin
+  Root := NewRootCommand;
+  Cmd := NewCommand('serve');
+  Cmd.SetHandlerFunc(@SimpleHandler);
+  Root.AddChild(Cmd);
+
+  HandlerCallCount := 0;
+  LastHandlerArgs := nil;
+  Code := Root.Run(['--out', 'out.txt', 'serve'], ArgsOptionsDefault);
+
+  CheckEquals(0, Code);
+  CheckEquals(1, HandlerCallCount);
+  CheckNotNull(LastHandlerArgs, 'Handler should receive args');
+  CheckTrue(LastHandlerArgs.TryGetValue('out', V));
+  CheckEquals('out.txt', V);
+end;
+
+procedure TTestCase_ArgsCommand.Test_Run_OptionsBeforeCommand_ShortOptionValue_Skipped;
+var
+  Root: IRootCommand;
+  Cmd: ICommand;
+  Code: Integer;
+  V: string;
+begin
+  Root := NewRootCommand;
+  Cmd := NewCommand('serve');
+  Cmd.SetHandlerFunc(@SimpleHandler);
+  Root.AddChild(Cmd);
+
+  HandlerCallCount := 0;
+  LastHandlerArgs := nil;
+  Code := Root.Run(['-o', 'out.txt', 'serve'], ArgsOptionsDefault);
+
+  CheckEquals(0, Code);
+  CheckEquals(1, HandlerCallCount);
+  CheckNotNull(LastHandlerArgs, 'Handler should receive args');
+  CheckTrue(LastHandlerArgs.TryGetValue('o', V));
+  CheckEquals('out.txt', V);
 end;
 
 initialization

@@ -55,7 +55,7 @@ var FN: string; argv: TStringArray; A: TArgs; opts: TArgsOptions; s: string; n: 
 begin
   FN := WriteTempFile('[app]' + LineEnding + 'name = "core"' + LineEnding + 'count = 3' + LineEnding + 'debug = true');
   try
-    argv := ArgvFromToml(FN);
+    argv := ArgsArgvFromToml(FN);
     AssertTrue(Length(argv) >= 3);
     opts := MakeDefaultOpts;
     A := TArgs.FromArray(argv, opts);
@@ -72,7 +72,7 @@ var FN: string; argv: TStringArray; A: TArgs; opts: TArgsOptions; all: TStringAr
 begin
   FN := WriteTempFile('tags = ["a","b","c"]');
   try
-    argv := ArgvFromToml(FN);
+    argv := ArgsArgvFromToml(FN);
     opts := MakeDefaultOpts;
     A := TArgs.FromArray(argv, opts);
     all := A.GetAll('tags');
@@ -87,7 +87,7 @@ var FN: string; cfgArgv, envArgv, cliArgv, merged: TStringArray; Root: IRootComm
 begin
   FN := WriteTempFile('count = 1' + LineEnding + 'debug = true');
   try
-    cfgArgv := ArgvFromToml(FN);
+    cfgArgv := ArgsArgvFromToml(FN);
     envArgv := Arr(['--count=2']);
     cliArgv := Arr(['run','--count=5']);
     merged := Join(Join(cfgArgv, envArgv), cliArgv);
@@ -114,7 +114,7 @@ var FN: string; argv: TStringArray;
 begin
   FN := WriteTempFile('[[items]]' + LineEnding + 'name = "a"' + LineEnding + '[[items]]' + LineEnding + 'name = "b"');
   try
-    argv := ArgvFromToml(FN);
+    argv := ArgsArgvFromToml(FN);
     AssertEquals(0, Length(argv));
   finally
     if FileExists(FN) then DeleteFile(FN);
@@ -126,7 +126,7 @@ var FN: string; argv: TStringArray;
 begin
   FN := WriteTempFile('k = [[1,2],[3]]');
   try
-    argv := ArgvFromToml(FN);
+    argv := ArgsArgvFromToml(FN);
     AssertEquals(0, Length(argv));
   finally
     if FileExists(FN) then DeleteFile(FN);
@@ -138,7 +138,7 @@ var FN: string; argv: TStringArray; A: TArgs; opts: TArgsOptions; s: string;
 begin
   FN := WriteTempFile('[API]' + LineEnding + 'ACCESS_KEY_ID = "x"');
   try
-    argv := ArgvFromToml(FN);
+    argv := ArgsArgvFromToml(FN);
     opts := MakeDefaultOpts;
     A := TArgs.FromArray(argv, opts);
     AssertTrue(A.TryGetValue('api.access-key-id', s));

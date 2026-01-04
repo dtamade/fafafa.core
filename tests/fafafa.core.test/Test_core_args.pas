@@ -200,6 +200,7 @@ procedure TTestCase_Core_Args.Test_NoPrefix_Negation_Enable;
 var opts: TArgsOptions; arr: array of string; A: TArgs; v: string; b: boolean;
 begin
   opts := MakeDefaultOpts; opts.EnableNoPrefixNegation := True;
+  opts.AllowSlashOptions := True;
   SetLength(arr, 3);
   arr[0] := '--no-color';
   arr[1] := '/no-verbose';
@@ -220,7 +221,9 @@ end;
 procedure TTestCase_Core_Args.Test_Windows_Help_Shortcut;
 var opts: TArgsOptions; arr: array of string; A: TArgs;
 begin
-  opts := MakeDefaultOpts; SetLength(arr,1); arr[0] := '/?';
+  opts := MakeDefaultOpts;
+  opts.AllowSlashOptions := True;
+  SetLength(arr,1); arr[0] := '/?';
   A := TArgs.FromArray(arr, opts);
   AssertTrue(A.HasFlag('help'));
 end;
@@ -228,7 +231,9 @@ end;
 procedure TTestCase_Core_Args.Test_Windows_Help_CaseInsensitive;
 var opts: TArgsOptions; arr: array of string; A: TArgs;
 begin
-  opts := MakeDefaultOpts; SetLength(arr,1); arr[0] := '/Help';
+  opts := MakeDefaultOpts;
+  opts.AllowSlashOptions := True;
+  SetLength(arr,1); arr[0] := '/Help';
   A := TArgs.FromArray(arr, opts);
   AssertTrue(A.HasFlag('help'));
 end;
@@ -355,6 +360,7 @@ procedure TTestCase_Core_Args.Test_NoPrefix_Negation_Windows_Slash;
 var opts: TArgsOptions; arr: array of string; A: TArgs; b: boolean;
 begin
   opts := ArgsOptionsDefault; opts.EnableNoPrefixNegation := True;
+  opts.AllowSlashOptions := True;
   SetLength(arr, 1);
   arr[0] := '/no-verbose';
   A := TArgs.FromArray(arr, opts);
@@ -382,6 +388,7 @@ begin
   opts := MakeDefaultOpts;
   opts.EnableNoPrefixNegation := True;
   opts.CaseInsensitiveKeys := True;
+  opts.AllowSlashOptions := True;
   SetLength(arr, 3);
   arr[0] := '/no-Verbose';     // CI + Windows slash
   arr[1] := '--VERBOSE=true';  // explicit override to true

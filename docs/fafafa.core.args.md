@@ -11,13 +11,13 @@
 - Extensions (opt-in, small helpers, no behavior forced)
   - Usage rendering: RenderUsage(Node) returns text; the caller decides whether/when to print
   - Light schema: describe flags/positionals only for rendering and metadata (not a heavy DSL)
-  - ENV → argv: ArgvFromEnv('APP_') → ['--foo=1','--debug']
-  - CONFIG (TOML) → argv: ArgvFromToml('config.toml')
+  - ENV → argv: ArgsArgvFromEnv('APP_') → ['--foo=1','--debug']
+  - CONFIG (TOML) → argv: ArgsArgvFromToml('config.toml')
     - Flattens tables to dot-keys; keys lower-cased with '_'→'-'
     - Scalars → '--key=value'; arrays of scalars → repeated '--key=value'
   - Persistent flags (registration-time propagation): parent → child, first-wins (child keeps same-name flags)
 - Reserved (not implemented yet)
-  - ArgvFromJson: stub
+  - ArgsArgvFromYaml: stub
 - Out of scope (unless strong demand later)
   - Auto help/auto error printing, complex validation (mutex/depends/choices/range), did-you-mean, heavy styling/i18n/completion generators
 
@@ -31,29 +31,29 @@
 
 
 ### ENV → argv（过滤与值规范化扩展）
-- 基础函数：`ArgvFromEnv(Prefix)`（保持不变）
-- 扩展函数：`ArgvFromEnvEx(Prefix, Allow, Deny, Flags)`
+- 基础函数：`ArgsArgvFromEnv(Prefix)`
+- 扩展函数：`ArgsArgvFromEnvEx(Prefix, Allow, Deny, Flags)`
   - 键名匹配基于“归一化后的键”（去前缀、小写、`_`→`-`）
   - Allow 非空时仅包含 Allow 命中的键；随后移除 Deny 中的键
   - Flags：
     - `efTrimValues`：去除值两端空白
-    - `efLowercaseBools`：将 `TRUE`/`FALSE` 规范为 `true`/`false`
+    - `efNormalizeBools`：将 `TRUE/yes/1` 规范为 `true`，`FALSE/no/0` 规范为 `false`
   - 令牌构造与基础函数一致：空值 → `--name`；非空 → `--name=value`
 
 示例：
 ```pascal
 // APP_DEBUG=  TRUE  , APP_TAG=  x  , APP_TMP=
-var a := ArgvFromEnvEx('APP_', [], [], [efTrimValues, efLowercaseBools]);
+var a := ArgsArgvFromEnvEx('APP_', [], [], [efTrimValues, efNormalizeBools]);
 // a 包含 --debug=true, --tag=x, --tmp
 
-var b := ArgvFromEnvEx('APP_', ['debug'], [], []); // 仅允许 debug
+var b := ArgsArgvFromEnvEx('APP_', ['debug'], [], []); // 仅允许 debug
 // b 仅包含 --debug=true
 
-var c := ArgvFromEnvEx('APP_', [], ['tag'], []); // 排除 tag
+var c := ArgsArgvFromEnvEx('APP_', [], ['tag'], []); // 排除 tag
 // c 不包含 --tag=...
 ```
 
-- JSON/Completion: reserved; integrate by real demand and dependency readiness
+- YAML/Completion: reserved; integrate by real demand and dependency readiness
 
 ## Examples index
 - Default subcommand and caller-owned help
@@ -97,7 +97,7 @@ for var opt in A.GetOptionEnumerator do UseOpt(opt);
 - Short options:
   - Short flags combo: `-abc` => `-a -b -c`
   - Key/value: `-o=out`, `-o:out`, `-o out`
-- Windows style: `/k`, `/k=v`, `/k:v`, `/long`, `/long=value`, `/long:value`
+- Slash options (Windows style): 当 `AllowSlashOptions=True` 时支持 `/k`, `/k=v`, `/k:v`, `/long`, `/long=value`, `/long:value`（默认：Windows=True；非 Windows=False，以避免与 Unix 绝对路径 `/tmp/a` 冲突）
 - Double dash: `--` stops parsing; everything after is positional（当 StopAtDoubleDash=False 时，`--` 本身作为位置参数保留，且后续同样视为位置参数）
 - Negative numbers: `-1.23` not split into short flags; accepted as values when appropriate
 - Case: keys are case‑insensitive by default
@@ -110,7 +110,7 @@ Types:
 
 Options:
 - `function ArgsOptionsDefault: TArgsOptions;`
-- `TArgsOptions` fields: `CaseInsensitiveKeys`, `AllowShortFlagsCombo`, `AllowShortKeyValue`, `StopAtDoubleDash`, `TreatNegativeNumbersAsPositionals`, `EnableNoPrefixNegation`
+- `TArgsOptions` fields: `CaseInsensitiveKeys`, `AllowShortFlagsCombo`, `AllowShortKeyValue`, `AllowSlashOptions`, `StopAtDoubleDash`, `TreatNegativeNumbersAsPositionals`, `EnableNoPrefixNegation`
 
 Core parse:
 - `procedure ParseArgs(const Args: array of string; const Opts: TArgsOptions; out Ctx: TArgsContext);`
@@ -147,6 +147,7 @@ for var f in A.GetArgEnumerator do ProcessFile(f);
 Windows/Unix mixed and literal arguments after "--":
 ```pascal
 var opts := ArgsOptionsDefault;
+opts.AllowSlashOptions := True; // enable Windows-style /v on non-Windows
 // StopAtDoubleDash=True (default), everything after "--" treated as positionals
 var A := TArgs.FromArray(['--input=file', '/v', '--', '--not-flag', '/x', 'file2'], opts);
 // A.Positionals = ['--not-flag','/x','file2']
@@ -175,7 +176,7 @@ var A := TArgs.FromArray(['-o', 'out.txt'], opts);
 ### 键名归一化与 no- 前缀（Dash→Dot 兼容）
 
 - Dash→Dot：为了与配置键（如 TOML/JSON 的 `app.name`）统一，解析阶段会将选项名中的 `-` 视为分段分隔并转换为 `.`。因此 `--app-name` 与 `--app.name` 等价。
-- 不影响检测：为确保 `--no-xxx` 正确识别，内部先用“检测态归一化”（不做 Dash→Dot）判断是否存在 `no-` 前缀，再对基础键做完整归一化存储。
+- 不影响检测：为确保 `--no-xxx` 正确识别，内部先用“检测态归一化”（不做 `?`→`help` 别名；但会做 `_`/`-`→`.` 归一）判断是否存在 `no-` 前缀，再对基础键做完整归一化存储。
 - 无值 negation：`--no-color` 解析为 `color=false`；`-no-debug` 同理。
 - 显式赋值：`--no-cache=false` 会同步影响 `cache=false`（并保留 `no-cache=false` 记录），保证“最后一次赋值覆盖”在基础键上生效。
 - Windows 风格：`/no-verbose` 同样遵循上述规则。
@@ -193,17 +194,18 @@ A := TArgs.FromArray(['--no-cache=false'], opts);
 
 - Value detection rules（NextIsValue）：
   - 下一个 token 为 `--` 时不作为值；
-  - 以 `-` 开头的 token 仅在 `TreatNegativeNumbersAsPositionals=True` 且匹配负数样式时（如 `-1`, `-1.2`）才作为值；否则视为下一个选项/旗；
-  - 以 `/` 开头的 token（Windows 选项风格）不作为值；
+  - 下一个 token 为 `-` 时可以作为值（常见 stdin 标记，例如 `--out -` / `-o -`）；
+  - 以 `-` 开头且长度 >= 2 的 token 仅在 `TreatNegativeNumbersAsPositionals=True` 且匹配负数样式时（如 `-1`, `-1.2`）才作为值；否则视为下一个选项/旗；
+  - 当 `AllowSlashOptions=True` 时，以 `/` 开头的 token（Windows 选项风格）不作为值；当 False 时可以作为值（例如 Linux 下的 `/tmp/a`）；
 - `--no-xxx` 无值时，在 `EnableNoPrefixNegation=True` 下解析为 `xxx=false`；显式赋值（如 `--color=true/false`、`--no-cache=true/false`）按“后者覆盖前者”处理；
 - `TryGetValue/Get*Default/TryGet*` 均遵循“最后一次赋值覆盖”规则。
 
 ## Compatibility Notes
 
-- Windows-style options: tokens starting with '/' are treated as options; such tokens are never considered as values of the previous key.
+- Slash options: when `AllowSlashOptions=True`, tokens starting with '/' are treated as options and are never considered as values of the previous key. When False, they behave like normal tokens (can be values/positionals).
 - Short option bundles: when AllowShortFlagsCombo=True, '-abc' expands to '-a -b -c'; when False, '-abc' is a single flag name 'abc'.
 - Double dash '--': StopAtDoubleDash=True (default) stops parsing and treats the rest as positionals; when False, '--' itself is kept as a positional and the rest are also positionals.
-- Negative numbers: only considered as a value when TreatNegativeNumbersAsPositionals=True and the token looks like a negative number; '--' and '/'-prefixed tokens are never values.
+- Value detection summary: '-' alone can be used as a value (stdin marker); negative numbers are only considered as a value when TreatNegativeNumbersAsPositionals=True and the token looks like a negative number; '--' is never a value; '/'-prefixed tokens are never values when AllowSlashOptions=True.
 - No-prefix negation: EnableNoPrefixNegation=False by default; when enabled, '--no-xxx' maps to 'xxx=false'. Explicit assignments (e.g. '--color=true/false') follow last-write-wins.
 - Windows no- with assignment: when EnableNoPrefixNegation=True, '/no-xxx=value' and '/no-xxx:value' also map the base key 'xxx' to 'value' (and keep the literal no- key record), preserving last-write-wins semantics across long and Windows forms.
 
@@ -278,10 +280,11 @@ end.
 
 - 负数值判定
   - TreatNegativeNumbersAsPositionals=True 时，`-1`、`-1.2` 等负数样式可作为值；否则视作“短选项起始”，避免误判
-  - 以 `--`、`/` 起始的 token 永不作为值
+  - 以 `--` 起始的 token 永不作为值；当 AllowSlashOptions=True 时，以 `/` 起始的 token 也不作为值
 
-- Windows 形式
-  - 以 `/` 起始的 token 一律视为选项；绝不作为前一键的值
+- Slash options（AllowSlashOptions）
+  - Windows 默认 AllowSlashOptions=True：以 `/` 起始的 token 视为选项；且不作为前一键的值
+  - 非 Windows 默认 AllowSlashOptions=False：以 `/` 起始的 token 作为普通 token（可作为值/位置参数），避免与 Unix 绝对路径冲突
 
 - no- 前缀与覆盖策略（EnableNoPrefixNegation）
   - `--no-x` → `x=false`
@@ -332,7 +335,8 @@ end.
 - 默认仅使用 ENV + CLI；不做任何隐式文件读取
 - CONFIG 文件（TOML/JSON/YAML）为“可选依赖”，通过条件编译宏显式启用：
   - {$DEFINE FAFAFA_ARGS_CONFIG_TOML} / {$DEFINE FAFAFA_ARGS_CONFIG_JSON}
-  - 未启用或解析失败时，ArgvFromToml/ArgvFromJson/ArgvFromYaml 返回空数组（不抛错、不打印日志）
+- 未启用或读取/解析失败时，ArgsArgvFromToml/ArgsArgvFromJson/ArgsArgvFromYaml 返回空数组（不抛错、不打印日志）
+- JSON：仅 object 根会被处理；array/scalar 根会返回空数组
 - 合并顺序固定：CONFIG -> ENV -> CLI（后者覆盖前者；库内部查值遵循“最后一次赋值覆盖”）
 - 是否读取哪个配置文件、在哪里查找，由应用自行决定（库不扫描默认路径）
 
@@ -345,15 +349,15 @@ begin
   opts := ArgsOptionsDefault;
   // 1) CONFIG（可选，需启用相应宏；未启用或文件缺失将返回空数组）
   {$IFDEF FAFAFA_ARGS_CONFIG_TOML}
-  cfgArgv := ArgvFromToml('config.toml');
+  cfgArgv := ArgsArgvFromToml('config.toml');
   {$ELSEIF DEFINED(FAFAFA_ARGS_CONFIG_JSON)}
-  cfgArgv := ArgvFromJson('config.json');
+  cfgArgv := ArgsArgvFromJson('config.json');
   {$ELSE}
   SetLength(cfgArgv, 0);
   {$ENDIF}
 
   // 2) ENV（推荐作“轻量配置”，使用固定前缀，例：APP_）
-  envArgv := ArgvFromEnv('APP_');
+  envArgv := ArgsArgvFromEnv('APP_');
 
   // 3) CLI（真实进程参数，此处仅示例）
   cliArgv := ['run','--count=5'];

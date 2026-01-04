@@ -46,7 +46,7 @@ end;
 function MakeMergedArgv(const Cli: array of string; const EnvPrefix: string): TStringArray;
 var env: TStringArray; i, nCli, nEnv: Integer;
 begin
-  env := ArgvFromEnv(EnvPrefix);
+  env := ArgsArgvFromEnv(EnvPrefix);
   nCli := Length(Cli);
   nEnv := Length(env);
   SetLength(Result, nEnv + nCli);

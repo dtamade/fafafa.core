@@ -27,6 +27,7 @@ type
     CaseInsensitiveKeys: Boolean;
     AllowShortFlagsCombo: Boolean;            // -abc => -a -b -c
     AllowShortKeyValue: Boolean;              // -o=out or -o out
+    AllowSlashOptions: Boolean;               // /k /k=v /k:v (Windows-style)
     StopAtDoubleDash: Boolean;                // "--" stops parsing
     TreatNegativeNumbersAsPositionals: Boolean; // -1.23 not short flags
     EnableNoPrefixNegation: Boolean;          // --no-xxx maps to xxx=false
@@ -251,6 +252,11 @@ begin
   Result.CaseInsensitiveKeys := True;
   Result.AllowShortFlagsCombo := True;
   Result.AllowShortKeyValue := True;
+{$IFDEF Windows}
+  Result.AllowSlashOptions := True;
+{$ELSE}
+  Result.AllowSlashOptions := False;
+{$ENDIF}
   Result.StopAtDoubleDash := True;
   Result.TreatNegativeNumbersAsPositionals := True;
   Result.EnableNoPrefixNegation := False;
@@ -357,16 +363,13 @@ var i, posOpt: Integer; a, key, val, baseKey: string; stop: Boolean; kv: TKeyVal
   begin
     if i+1>High(Args) then Exit(False);
     nextTok := Args[i+1];
-    if nextTok='--' then Exit(False);
-    if (Length(nextTok)>0) and (nextTok[1]='-') then
-    begin
-      if Opts.TreatNegativeNumbersAsPositionals and IsNegativeNumberLike(nextTok) then
-        Exit(True)
-      else
-        Exit(False);
-    end;
-    if (Length(nextTok)>0) and (nextTok[1]='/') then Exit(False);
-    Result := True;
+
+    // '--' is never a value token
+    if IsDoubleDashSentinel(nextTok) then Exit(False);
+
+    // If the next token is an option token, it cannot be used as a value.
+    // Otherwise it is a value token (including '-' and negative numbers when enabled).
+    Result := not IsOptionLikeToken(nextTok, Opts.AllowSlashOptions, Opts.TreatNegativeNumbersAsPositionals);
   end;
   procedure HandleLongOption;
   var noKey: string;
@@ -412,7 +415,11 @@ var i, posOpt: Integer; a, key, val, baseKey: string; stop: Boolean; kv: TKeyVal
       val := Args[i+1]; Inc(i);
       AddKeyValue(akOptionShort, key, val, posOpt);
     end
-    else if Opts.EnableNoPrefixNegation and (Length(a)>=4) and (Copy(a,1,4)='-no-') then
+    else if Opts.EnableNoPrefixNegation
+      and (Length(a) >= 4)
+      and (Copy(a, 1, 4) = '-no-')
+      and (Pos('=', a) = 0)
+      and (Pos(':', a) = 0) then
     begin
       // ✅ A4 修复: 同时添加 baseKey=false 和 no.xxx 标志
       baseKey := NormalizeKey(Copy(a, 5, MaxInt), Opts.CaseInsensitiveKeys);
@@ -420,11 +427,19 @@ var i, posOpt: Integer; a, key, val, baseKey: string; stop: Boolean; kv: TKeyVal
       noKey := NormalizeKey(a, Opts.CaseInsensitiveKeys);
       AddFlag(akOptionShort, noKey, i);
     end
+    else if (not Opts.AllowShortKeyValue)
+      and ((Pos('=', a) > 0) or (Pos(':', a) > 0)) then
+    begin
+      // AllowShortKeyValue=False: treat "-o=out" / "-o:out" as a single flag.
+      // This avoids accidentally splitting '=' ':' and value bytes into combo flags.
+      key := NormalizeKey(a, Opts.CaseInsensitiveKeys);
+      AddFlag(akOptionShort, key, i);
+    end
     else if Opts.AllowShortFlagsCombo then
     begin
       for jj := 2 to Length(a) do
       begin
-        key := NormalizeKey('-'+a[jj], Opts.CaseInsensitiveKeys);
+        key := NormalizeKey('-' + a[jj], Opts.CaseInsensitiveKeys);
         AddFlag(akOptionShort, key, i);
       end;
     end
@@ -487,11 +502,17 @@ begin
     end;
 
     // 根据前缀分派处理
-    if (Length(a)>=2) and StartsWith(a,'--') then
+    // TreatNegativeNumbersAsPositionals=True: avoid splitting "-1.23" into short flags.
+    if Opts.TreatNegativeNumbersAsPositionals and IsNegativeNumberLike(a) then
+    begin
+      AddString(Ctx.FPositionals, a);
+      AddItem(akArg, '', a, False, i);
+    end
+    else if (Length(a)>=2) and StartsWith(a,'--') then
       HandleLongOption
     else if (Length(a)>=2) and (a[1]='-') then
       HandleShortOption
-    else if (Length(a)>=1) and (a[1]='/') then
+    else if Opts.AllowSlashOptions and (Length(a)>=1) and (a[1]='/') then
       HandleSlashOption
     else
     begin
@@ -659,9 +680,15 @@ end;
 function TArgs.TryGetBool(const Key: string; out V: Boolean): Boolean;
 var s: string;
 begin
-  if not TryGetValue(Key, s) then Exit(False);
-  if IsTrueValue(s) then begin V := True; Exit(True); end;
-  if IsFalseValue(s) then begin V := False; Exit(True); end;
+  // Prefer explicit value (last write wins), then fall back to flag-only presence.
+  if TryGetValue(Key, s) then
+  begin
+    if IsTrueValue(s) then begin V := True; Exit(True); end;
+    if IsFalseValue(s) then begin V := False; Exit(True); end;
+    Exit(False);
+  end;
+
+  if HasFlag(Key) then begin V := True; Exit(True); end;
   Result := False;
 end;
 
@@ -721,12 +748,19 @@ end;
 function TArgs.GetBoolOpt(const Key: string): specialize TOption<Boolean>;
 var s: string;
 begin
-  if not TryGetValue(Key, s) then
+  // Prefer explicit value (last write wins), then fall back to flag-only presence.
+  if TryGetValue(Key, s) then
+  begin
+    if IsTrueValue(s) then
+      Exit(specialize TOption<Boolean>.Some(True));
+    if IsFalseValue(s) then
+      Exit(specialize TOption<Boolean>.Some(False));
     Exit(specialize TOption<Boolean>.None);
-  if IsTrueValue(s) then
+  end;
+
+  if HasFlag(Key) then
     Exit(specialize TOption<Boolean>.Some(True));
-  if IsFalseValue(s) then
-    Exit(specialize TOption<Boolean>.Some(False));
+
   Result := specialize TOption<Boolean>.None;
 end;
 
@@ -827,7 +861,8 @@ function FindFlag(const Arr: TStringArray; const Flag: string; CaseInsensitive: 
 var i: Integer; f, norm: string;
 begin
   Result := False;
-  norm := NormalizeKeyForCheck(Flag, CaseInsensitive);
+  // Flags use the same normalization rules as parsing (including '?' -> 'help').
+  norm := NormalizeKey(Flag, CaseInsensitive);
   for i := 0 to High(Arr) do
   begin
     f := Arr[i];

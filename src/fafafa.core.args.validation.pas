@@ -11,6 +11,8 @@ uses
   fafafa.core.args,
   fafafa.core.args.base,  // TStringArray
   fafafa.core.args.errors,
+  fafafa.core.args.schema,
+  fafafa.core.args.utils,
   fafafa.core.result;
 
 type
@@ -138,6 +140,9 @@ type
 // 便利函数
 function ValidateArgs(const Args: IArgs): TArgsValidator;
 
+// Spec-based strict validation (schema bridge)
+function ValidateArgsAgainstSpec(const Args: IArgs; const Spec: IArgsCommandSpec; const Opts: TArgsOptions): TValidationResult;
+
 // 预定义验证器
 function IsValidEmail(const Email: string): Boolean;
 function IsValidUrl(const Url: string): Boolean;
@@ -145,6 +150,9 @@ function IsValidIPAddress(const IP: string): Boolean;
 function IsValidPort(const Port: string): Boolean;
 
 implementation
+
+uses
+  fafafa.core.sync.mutex;
 
 const
   // ✅ S1 修复: 输入长度限制常量（防止 ReDoS）
@@ -158,10 +166,15 @@ const
   IPV4_PATTERN = '^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$';
 
 var
-  // ✅ S1/P2 修复: 缓存编译后的正则表达式（线程安全单例）
+  // ✅ S1/P2: 缓存编译后的正则表达式
+  // 注意：TRegExpr.Exec 不是可重入/线程安全的，因此必须用锁保护 Exec。
   _CachedEmailRegex: TRegExpr = nil;
   _CachedUrlRegex: TRegExpr = nil;
   _CachedIPv4Regex: TRegExpr = nil;
+
+  _EmailRegexLock: IMutex = nil;
+  _UrlRegexLock: IMutex = nil;
+  _IPv4RegexLock: IMutex = nil;
 
 { TValidationRule }
 
@@ -694,35 +707,177 @@ begin
   Result := TArgsValidator.Create(Args);
 end;
 
-// ✅ S1/P2 修复: 线程安全的缓存正则表达式获取函数
-function GetCachedEmailRegex: TRegExpr;
+function FindFlagSpecByKey(const Spec: IArgsCommandSpec; const Key: string; const Opts: TArgsOptions): IArgsFlagSpec;
+var
+  i, j: Integer;
+  F: IArgsFlagSpec;
+  Aliases: fafafa.core.args.schema.TStringArray;
+  Canon: string;
 begin
-  if _CachedEmailRegex = nil then
+  Result := nil;
+  if Spec = nil then Exit;
+
+  for i := 0 to Spec.FlagCount - 1 do
   begin
-    _CachedEmailRegex := TRegExpr.Create;
-    _CachedEmailRegex.Expression := EMAIL_PATTERN;
+    F := Spec.FlagAt(i);
+    if F = nil then Continue;
+
+    Canon := NormalizeKey(F.Name, Opts.CaseInsensitiveKeys);
+    if Canon = Key then Exit(F);
+
+    Aliases := F.Aliases;
+    for j := Low(Aliases) to High(Aliases) do
+      if NormalizeKey(Aliases[j], Opts.CaseInsensitiveKeys) = Key then
+        Exit(F);
   end;
-  Result := _CachedEmailRegex;
 end;
 
-function GetCachedUrlRegex: TRegExpr;
+function SpecFlagIsPresentInArgs(const Args: IArgs; const F: IArgsFlagSpec; const Opts: TArgsOptions): Boolean;
+var
+  Dummy: string;
+  i: Integer;
+  Aliases: fafafa.core.args.schema.TStringArray;
+  IsBool: Boolean;
 begin
-  if _CachedUrlRegex = nil then
+  Result := False;
+  if (Args = nil) or (F = nil) then Exit;
+
+  IsBool := SameText(F.ValueType, 'bool');
+
+  // Check canonical name
+  if IsBool then
   begin
-    _CachedUrlRegex := TRegExpr.Create;
-    _CachedUrlRegex.Expression := URL_PATTERN;
+    if Args.HasFlag(F.Name) then Exit(True);
+    if Args.TryGetValue(F.Name, Dummy) then Exit(True);
+  end
+  else
+  begin
+    if Args.TryGetValue(F.Name, Dummy) then Exit(True);
   end;
-  Result := _CachedUrlRegex;
+
+  // Check aliases
+  Aliases := F.Aliases;
+  for i := Low(Aliases) to High(Aliases) do
+  begin
+    if IsBool then
+    begin
+      if Args.HasFlag(Aliases[i]) then Exit(True);
+      if Args.TryGetValue(Aliases[i], Dummy) then Exit(True);
+    end
+    else
+    begin
+      if Args.TryGetValue(Aliases[i], Dummy) then Exit(True);
+    end;
+  end;
 end;
 
-function GetCachedIPv4Regex: TRegExpr;
+function ValidateArgsAgainstSpec(const Args: IArgs; const Spec: IArgsCommandSpec; const Opts: TArgsOptions): TValidationResult;
+var
+  i: Integer;
+  It: TArgItem;
+  F: IArgsFlagSpec;
+  BaseKey: string;
+  CanonName: string;
 begin
-  if _CachedIPv4Regex = nil then
+  Result := TValidationResult.Success;
+
+  if (Args = nil) or (Spec = nil) then
+    Exit;
+
+  // 1) Validate each encountered option token: unknown options, missing values, etc.
+  for i := 0 to Args.Count - 1 do
   begin
-    _CachedIPv4Regex := TRegExpr.Create;
-    _CachedIPv4Regex.Expression := IPV4_PATTERN;
+    It := Args.Items(i);
+
+    // Skip positionals
+    if It.Kind = akArg then
+      Continue;
+
+    if It.Name = '' then
+      Continue;
+
+    F := FindFlagSpecByKey(Spec, It.Name, Opts);
+
+    // Allow internal no.* marker when no-prefix negation is enabled.
+    if (F = nil)
+      and Opts.EnableNoPrefixNegation
+      and StartsWith(It.Name, 'no.') then
+    begin
+      BaseKey := Copy(It.Name, Length('no.') + 1, MaxInt);
+      F := FindFlagSpecByKey(Spec, BaseKey, Opts);
+      if (F <> nil) and SameText(F.ValueType, 'bool') then
+        Continue; // ignore internal marker
+    end;
+
+    if F = nil then
+    begin
+      Result := Result.AddError(TArgsError.UnknownOption(It.Name, It.Position));
+      Continue;
+    end;
+
+    // Missing value: non-bool flags require a value token.
+    if (not SameText(F.ValueType, 'bool')) and (not It.HasValue) then
+      Result := Result.AddError(TArgsError.MissingValue(It.Name, It.Position));
   end;
-  Result := _CachedIPv4Regex;
+
+  // 2) Validate required flags.
+  for i := 0 to Spec.FlagCount - 1 do
+  begin
+    F := Spec.FlagAt(i);
+    if (F = nil) or (not F.Required) then
+      Continue;
+
+    if not SpecFlagIsPresentInArgs(Args, F, Opts) then
+    begin
+      CanonName := NormalizeKey(F.Name, Opts.CaseInsensitiveKeys);
+      Result := Result.AddError(TArgsError.RequiredMissing(CanonName));
+    end;
+  end;
+end;
+
+function ExecEmailRegexLocked(const Email: string): Boolean;
+begin
+  _EmailRegexLock.Acquire;
+  try
+    if _CachedEmailRegex = nil then
+    begin
+      _CachedEmailRegex := TRegExpr.Create;
+      _CachedEmailRegex.Expression := EMAIL_PATTERN;
+    end;
+    Result := _CachedEmailRegex.Exec(Email);
+  finally
+    _EmailRegexLock.Release;
+  end;
+end;
+
+function ExecUrlRegexLocked(const Url: string): Boolean;
+begin
+  _UrlRegexLock.Acquire;
+  try
+    if _CachedUrlRegex = nil then
+    begin
+      _CachedUrlRegex := TRegExpr.Create;
+      _CachedUrlRegex.Expression := URL_PATTERN;
+    end;
+    Result := _CachedUrlRegex.Exec(Url);
+  finally
+    _UrlRegexLock.Release;
+  end;
+end;
+
+function ExecIPv4RegexLocked(const IP: string): Boolean;
+begin
+  _IPv4RegexLock.Acquire;
+  try
+    if _CachedIPv4Regex = nil then
+    begin
+      _CachedIPv4Regex := TRegExpr.Create;
+      _CachedIPv4Regex.Expression := IPV4_PATTERN;
+    end;
+    Result := _CachedIPv4Regex.Exec(IP);
+  finally
+    _IPv4RegexLock.Release;
+  end;
 end;
 
 // 预定义验证器实现
@@ -732,8 +887,8 @@ begin
   if (Length(Email) = 0) or (Length(Email) > MAX_EMAIL_LENGTH) then
     Exit(False);
 
-  // ✅ P2 修复: 使用缓存的正则表达式
-  Result := GetCachedEmailRegex.Exec(Email);
+  // ✅ P2 修复: 使用缓存正则（加锁保护 TRegExpr.Exec）
+  Result := ExecEmailRegexLocked(Email);
 end;
 
 function IsValidUrl(const Url: string): Boolean;
@@ -742,8 +897,8 @@ begin
   if (Length(Url) = 0) or (Length(Url) > MAX_URL_LENGTH) then
     Exit(False);
 
-  // ✅ P2 修复: 使用缓存的正则表达式
-  Result := GetCachedUrlRegex.Exec(Url);
+  // ✅ P2 修复: 使用缓存正则（加锁保护 TRegExpr.Exec）
+  Result := ExecUrlRegexLocked(Url);
 end;
 
 function IsValidIPAddress(const IP: string): Boolean;
@@ -752,8 +907,8 @@ begin
   if (Length(IP) = 0) or (Length(IP) > MAX_IP_LENGTH) then
     Exit(False);
 
-  // ✅ P2 修复: 使用缓存的正则表达式
-  Result := GetCachedIPv4Regex.Exec(IP);
+  // ✅ P2 修复: 使用缓存正则（加锁保护 TRegExpr.Exec）
+  Result := ExecIPv4RegexLocked(IP);
 end;
 
 function IsValidPort(const Port: string): Boolean;
@@ -763,10 +918,19 @@ begin
   Result := TryStrToInt(Port, PortNum) and (PortNum >= 1) and (PortNum <= 65535);
 end;
 
+initialization
+  _EmailRegexLock := MakeMutex;
+  _UrlRegexLock := MakeMutex;
+  _IPv4RegexLock := MakeMutex;
+
 // ✅ S1/P2 修复: 清理缓存的正则表达式对象
 finalization
   FreeAndNil(_CachedEmailRegex);
   FreeAndNil(_CachedUrlRegex);
   FreeAndNil(_CachedIPv4Regex);
+
+  _EmailRegexLock := nil;
+  _UrlRegexLock := nil;
+  _IPv4RegexLock := nil;
 
 end.

@@ -14,7 +14,7 @@ unit fafafa.core.args.command;
 interface
 
 uses
-  SysUtils, fafafa.core.args, fafafa.core.collections.vec, fafafa.core.args.schema;
+  SysUtils, fafafa.core.args, fafafa.core.args.utils, fafafa.core.collections.vec, fafafa.core.args.schema;
 
 type
   TStringArray = array of string;
@@ -199,9 +199,76 @@ begin
   Arr[High(Arr)] := V;
 end;
 
-function IsOptionLike(const S: string): boolean; inline;
+function IsRoutingStopToken(const S: string; const Opts: TArgsOptions): boolean; inline;
 begin
-  Result := (Length(S)>0) and ((S[1]='-') or (S[1]='/'));
+  // Keep consistent with ParseArgs contract: "--" always stops parsing.
+  // StopAtDoubleDash only controls whether the token is kept as a positional.
+  Result := IsDoubleDashSentinel(S);
+end;
+
+function IsOptionLikeForRouting(const S: string; const Opts: TArgsOptions): boolean; inline;
+begin
+  Result := IsOptionLikeToken(S, Opts.AllowSlashOptions, Opts.TreatNegativeNumbersAsPositionals);
+end;
+
+function IsSkippableOptionValueTokenForRouting(const S: string; const Opts: TArgsOptions): boolean; inline;
+begin
+  // Heuristic for routing pre-scan only: some tokens are very likely to be option values
+  // (and very unlikely to be command path segments).
+  if S='-' then Exit(True);
+  if Opts.TreatNegativeNumbersAsPositionals and IsNegativeNumberLike(S) then Exit(True);
+  if (not Opts.AllowSlashOptions) and (Length(S)>0) and (S[1]='/') then Exit(True);
+  Result := False;
+end;
+
+function FindFirstCommandTokenIndex(const Root: IBaseCommand; const Args: array of string; const Opts: TArgsOptions): Integer;
+var
+  i: Integer;
+  caseInsensitive: boolean;
+begin
+  Result := -1;
+  if Root=nil then Exit;
+  caseInsensitive := Opts.CaseInsensitiveKeys;
+
+  i := Low(Args);
+  while i <= High(Args) do
+  begin
+    if IsRoutingStopToken(Args[i], Opts) then Exit;
+    if IsOptionLikeForRouting(Args[i], Opts) then
+    begin
+      if (Pos('=', Args[i]) > 0) or (Pos(':', Args[i]) > 0) then
+      begin
+        // Inline assignment already contains the value.
+        Inc(i);
+        Continue;
+      end;
+
+      if (i+1 <= High(Args)) and (not IsRoutingStopToken(Args[i+1], Opts)) then
+      begin
+        // Special value tokens (stdin marker, negative numbers, unix paths) are never
+        // treated as command tokens.
+        if IsSkippableOptionValueTokenForRouting(Args[i+1], Opts) then
+        begin
+          Inc(i, 2);
+          Continue;
+        end;
+
+        // Generic value token: skip if it isn't option-like and also isn't a command.
+        if (not IsOptionLikeForRouting(Args[i+1], Opts))
+          and (Root.FindChild(Args[i+1], caseInsensitive) = nil) then
+        begin
+          Inc(i, 2);
+          Continue;
+        end;
+      end;
+
+      Inc(i);
+      Continue;
+    end;
+
+    Result := i;
+    Exit;
+  end;
 end;
 
 
@@ -496,14 +563,13 @@ begin
   cur := nil;
   SetLength(subArgs, 0);
   caseInsensitive := Opts.CaseInsensitiveKeys;
-  // find first non-option as path start
-  depth := 0; firstNonOpt := -1;
-  for i := Low(Args) to High(Args) do
-    if not IsOptionLike(Args[i]) then begin firstNonOpt := i; Break; end;
+  // find first command token as path start
+  depth := 0;
+  firstNonOpt := FindFirstCommandTokenIndex(Self as IRootCommand, Args, Opts);
   if firstNonOpt<0 then Exit; // no command provided
   // walk down
   idx := firstNonOpt;
-  while (idx <= High(Args)) and (not IsOptionLike(Args[idx])) do
+  while (idx <= High(Args)) and (not IsOptionLikeForRouting(Args[idx], Opts)) do
   begin
     if cur=nil then child := FindChild(Args[idx], caseInsensitive)
     else child := cur.FindChild(Args[idx], caseInsensitive);
@@ -512,16 +578,27 @@ begin
   end;
   if (cur=nil) or (depth=0) then Exit; // not found (CMD_NOT_FOUND)
   // default-subcommand fallback when no more tokens OR next is an option
-  hasNextNonOpt := (idx <= High(Args)) and (not IsOptionLike(Args[idx]));
+  hasNextNonOpt := (idx <= High(Args)) and (not IsOptionLikeForRouting(Args[idx], Opts));
   if (not hasNextNonOpt) then
   begin
-    child := cur.DefaultChild;
-    if child<>nil then cur := child;
+    // "--" is a routing stop marker: do not trigger default-child fallback.
+    if (idx <= High(Args)) and IsRoutingStopToken(Args[idx], Opts) then
+    begin
+      // keep cur as-is
+    end
+    else
+    begin
+      child := cur.DefaultChild;
+      if child<>nil then cur := child;
+    end;
   end;
-  // slice sub-args (starting from the first token after matched path)
+  // Build argv for the selected command by removing only the matched command-path tokens.
+  // This preserves options that appear before the command token (e.g. ENV/CONFIG merges).
   SetLength(subArgs, 0);
-  for i := firstNonOpt+depth to High(Args) do
+  for i := Low(Args) to High(Args) do
   begin
+    if (i >= firstNonOpt) and (i < firstNonOpt + depth) then
+      Continue; // skip routing path tokens
     SetLength(subArgs, Length(subArgs)+1);
     subArgs[High(subArgs)] := Args[i];
   end;
@@ -593,10 +670,9 @@ begin
   SetLength(Result, 0);
   if Root=nil then Exit;
   caseInsensitive := Opts.CaseInsensitiveKeys;
-  // find first non-option as path start
-  depth := 0; firstNonOpt := -1; cur := nil;
-  for i := Low(Args) to High(Args) do
-    if not IsOptionLike(Args[i]) then begin firstNonOpt := i; Break; end;
+  // find first command token as path start
+  depth := 0; cur := nil;
+  firstNonOpt := FindFirstCommandTokenIndex(Root, Args, Opts);
   if firstNonOpt<0 then Exit; // no command tokens
   // walk down greedily by name/alias
   name := Args[firstNonOpt];
@@ -606,7 +682,7 @@ begin
   depth := 1; i := firstNonOpt+1;
   while i <= High(Args) do
   begin
-    if IsOptionLike(Args[i]) then Break;
+    if IsOptionLikeForRouting(Args[i], Opts) then Break;
     child := cur.FindChild(Args[i], caseInsensitive);
     if child=nil then
     begin
@@ -619,14 +695,22 @@ begin
     Inc(depth); Inc(i);
   end;
   // apply default-child fallback if next is option or no more tokens
-  hasNextNonOpt := (i <= High(Args)) and (not IsOptionLike(Args[i]));
+  hasNextNonOpt := (i <= High(Args)) and (not IsOptionLikeForRouting(Args[i], Opts));
   if not hasNextNonOpt then
   begin
-    child := cur.DefaultChild;
-    if child<>nil then
+    // "--" is a routing stop marker: do not trigger default-child fallback.
+    if (i <= High(Args)) and IsRoutingStopToken(Args[i], Opts) then
     begin
-      SetLength(Result, Length(Result)+1);
-      Result[High(Result)] := child.Name;
+      // keep as-is
+    end
+    else
+    begin
+      child := cur.DefaultChild;
+      if child<>nil then
+      begin
+        SetLength(Result, Length(Result)+1);
+        Result[High(Result)] := child.Name;
+      end;
     end;
   end;
 end;
