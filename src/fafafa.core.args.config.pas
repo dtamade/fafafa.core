@@ -39,7 +39,9 @@ function ArgsArgvFromEnvEx(const Prefix: string; const Allow, Deny: array of str
 // Config file integration
 function ArgsArgvFromToml(const Path: string): TStringArray;
 function ArgsArgvFromJson(const Path: string): TStringArray;
+// YAML is not supported yet: use the Opt variant to detect unsupported explicitly.
 function ArgsArgvFromYaml(const Path: string): TStringArray;
+function ArgsArgvFromYamlOpt(const Path: string): specialize TOption<TStringArray>;
 
 
 implementation
@@ -404,7 +406,14 @@ end;
 function ArgsArgvFromYaml(const Path: string): TStringArray;
 begin
   // YAML support is not ready; reserved for future implementation.
+  // Prefer ArgsArgvFromYamlOpt for an explicit unsupported signal.
   SetLength(Result, 0);
+end;
+
+function ArgsArgvFromYamlOpt(const Path: string): specialize TOption<TStringArray>;
+begin
+  // YAML support is not ready; reserved for future implementation.
+  Result := specialize TOption<TStringArray>.None;
 end;
 
 

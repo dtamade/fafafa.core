@@ -77,12 +77,16 @@ type
     procedure Test_TArgs_GetOpt;
     procedure Test_TArgs_GetIntOpt;
     procedure Test_TArgs_GetBoolOpt;
+    procedure Test_TArgs_GetBoolOpt_FlagOnly_TreatedAsTrue;
+    procedure Test_TArgs_GetBoolOpt_ValueOverridesFlag;
     procedure Test_TArgs_GetDoubleOpt;
 
     // Try 风格 API
     procedure Test_TArgs_TryGetInt64;
     procedure Test_TArgs_TryGetDouble;
     procedure Test_TArgs_TryGetBool;
+    procedure Test_TArgs_TryGetBool_FlagOnly_TreatedAsTrue;
+    procedure Test_TArgs_TryGetBool_ValueOverridesFlag;
 
     // Default 风格 API
     procedure Test_TArgs_GetStringDefault;
@@ -729,6 +733,36 @@ begin
   end;
 end;
 
+procedure TTestCase_ArgsBase.Test_TArgs_GetBoolOpt_FlagOnly_TreatedAsTrue;
+var
+  Args: TArgs;
+  Opt: specialize TOption<Boolean>;
+begin
+  Args := TArgs.FromArray(['--enabled'], ArgsOptionsDefault);
+  try
+    Opt := Args.GetBoolOpt('enabled');
+    CheckTrue(Opt.IsSome, 'Flag-only bool should be Some(True)');
+    CheckTrue(Opt.Unwrap);
+  finally
+    Args.Free;
+  end;
+end;
+
+procedure TTestCase_ArgsBase.Test_TArgs_GetBoolOpt_ValueOverridesFlag;
+var
+  Args: TArgs;
+  Opt: specialize TOption<Boolean>;
+begin
+  Args := TArgs.FromArray(['--enabled', '--enabled=false'], ArgsOptionsDefault);
+  try
+    Opt := Args.GetBoolOpt('enabled');
+    CheckTrue(Opt.IsSome, 'Explicit value should be preferred over flag presence');
+    CheckFalse(Opt.Unwrap, 'Last value wins: --enabled=false');
+  finally
+    Args.Free;
+  end;
+end;
+
 procedure TTestCase_ArgsBase.Test_TArgs_GetDoubleOpt;
 var
   Args: TArgs;
@@ -822,6 +856,34 @@ begin
     // 无效值
     CheckFalse(Args.TryGetBool('invalid', V), 'Invalid bool should return False');
     CheckFalse(Args.TryGetBool('missing', V), 'Missing key should return False');
+  finally
+    Args.Free;
+  end;
+end;
+
+procedure TTestCase_ArgsBase.Test_TArgs_TryGetBool_FlagOnly_TreatedAsTrue;
+var
+  Args: TArgs;
+  V: Boolean;
+begin
+  Args := TArgs.FromArray(['--enabled'], ArgsOptionsDefault);
+  try
+    CheckTrue(Args.TryGetBool('enabled', V), 'Flag-only bool should return True');
+    CheckTrue(V);
+  finally
+    Args.Free;
+  end;
+end;
+
+procedure TTestCase_ArgsBase.Test_TArgs_TryGetBool_ValueOverridesFlag;
+var
+  Args: TArgs;
+  V: Boolean;
+begin
+  Args := TArgs.FromArray(['--enabled', '--enabled=false'], ArgsOptionsDefault);
+  try
+    CheckTrue(Args.TryGetBool('enabled', V));
+    CheckFalse(V, 'Last value wins: --enabled=false');
   finally
     Args.Free;
   end;

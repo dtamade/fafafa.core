@@ -9,7 +9,8 @@ uses
   {$ENDIF}
   Classes, SysUtils, CustApp,
   fpcunit, testregistry, consoletestrunner,
-  fafafa.core.args.base.testcase;
+  fafafa.core.args.base.testcase,
+  fafafa.core.args.facade.testcase;
 
 type
   TTestApp = class(TCustomApplication)

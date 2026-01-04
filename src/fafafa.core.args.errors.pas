@@ -8,6 +8,7 @@ interface
 
 uses
   SysUtils,
+  fafafa.core.args.base,
   fafafa.core.result,
   fafafa.core.option.base,  // TOption<T> 核心定义
   fafafa.core.option;
@@ -63,10 +64,14 @@ type
   TArgsResultBool = specialize TResult<Boolean, TArgsError>;
 
 // 现代化的参数获取函数
-function ArgsGetValueSafe(const Key: string): TArgsResult;
-function ArgsGetIntSafe(const Key: string): TArgsResultInt;
-function ArgsGetDoubleSafe(const Key: string): TArgsResultDouble;
-function ArgsGetBoolSafe(const Key: string): TArgsResultBool;
+function ArgsGetValueSafe(const Key: string): TArgsResult; overload;
+function ArgsGetValueSafe(const A: IArgs; const Key: string): TArgsResult; overload;
+function ArgsGetIntSafe(const Key: string): TArgsResultInt; overload;
+function ArgsGetIntSafe(const A: IArgs; const Key: string): TArgsResultInt; overload;
+function ArgsGetDoubleSafe(const Key: string): TArgsResultDouble; overload;
+function ArgsGetDoubleSafe(const A: IArgs; const Key: string): TArgsResultDouble; overload;
+function ArgsGetBoolSafe(const Key: string): TArgsResultBool; overload;
+function ArgsGetBoolSafe(const A: IArgs; const Key: string): TArgsResultBool; overload;
 
 // Note: Option-style APIs (ArgsGetOpt, ArgsGetInt64Opt, etc.) are in args.base.pas
 // This unit focuses on Result-style APIs with detailed error information
@@ -79,7 +84,8 @@ function ValidateEnum(const Value: string; const ValidValues: array of string): 
 implementation
 
 uses
-  fafafa.core.args.base, RegExpr;
+  RegExpr,
+  fafafa.core.args.utils;
 
 { TArgsError }
 
@@ -255,18 +261,53 @@ begin
 end;
 
 // 现代化的参数获取函数实现
-function ArgsGetValueSafe(const Key: string): TArgsResult;
+function ArgsGetValueSafe(const A: IArgs; const Key: string): TArgsResult; overload;
+var
+  Value: string;
+begin
+  if A = nil then
+    Exit(specialize TResult<string, TArgsError>.Err(
+      TArgsError.ParseError('Args instance is nil')));
+
+  if A.TryGetValue(Key, Value) then
+    Exit(specialize TResult<string, TArgsError>.Ok(Value));
+
+  Exit(specialize TResult<string, TArgsError>.Err(
+    TArgsError.UnknownOption(Key)));
+end;
+
+function ArgsGetValueSafe(const Key: string): TArgsResult; overload;
 var
   Value: string;
 begin
   if ArgsTryGetValue(Key, Value) then
-    Result := specialize TResult<string, TArgsError>.Ok(Value)
-  else
-    Result := specialize TResult<string, TArgsError>.Err(
-      TArgsError.UnknownOption(Key));
+    Exit(specialize TResult<string, TArgsError>.Ok(Value));
+
+  Exit(specialize TResult<string, TArgsError>.Err(
+    TArgsError.UnknownOption(Key)));
 end;
 
-function ArgsGetIntSafe(const Key: string): TArgsResultInt;
+function ArgsGetIntSafe(const A: IArgs; const Key: string): TArgsResultInt; overload;
+var
+  Value: string;
+  IntValue: Int64;
+begin
+  if A = nil then
+    Exit(specialize TResult<Int64, TArgsError>.Err(
+      TArgsError.ParseError('Args instance is nil')));
+
+  if not A.TryGetValue(Key, Value) then
+    Exit(specialize TResult<Int64, TArgsError>.Err(
+      TArgsError.UnknownOption(Key)));
+
+  if TryStrToInt64(Value, IntValue) then
+    Exit(specialize TResult<Int64, TArgsError>.Ok(IntValue));
+
+  Exit(specialize TResult<Int64, TArgsError>.Err(
+    TArgsError.InvalidValue(Key, 'integer', Value)));
+end;
+
+function ArgsGetIntSafe(const Key: string): TArgsResultInt; overload;
 var
   Value: string;
   IntValue: Int64;
@@ -274,52 +315,110 @@ begin
   if not ArgsTryGetValue(Key, Value) then
     Exit(specialize TResult<Int64, TArgsError>.Err(
       TArgsError.UnknownOption(Key)));
-  
+
   if TryStrToInt64(Value, IntValue) then
-    Result := specialize TResult<Int64, TArgsError>.Ok(IntValue)
-  else
-    Result := specialize TResult<Int64, TArgsError>.Err(
-      TArgsError.InvalidValue(Key, 'integer', Value));
+    Exit(specialize TResult<Int64, TArgsError>.Ok(IntValue));
+
+  Exit(specialize TResult<Int64, TArgsError>.Err(
+    TArgsError.InvalidValue(Key, 'integer', Value)));
 end;
 
-function ArgsGetDoubleSafe(const Key: string): TArgsResultDouble;
+function ArgsGetDoubleSafe(const A: IArgs; const Key: string): TArgsResultDouble; overload;
 var
   Value: string;
   DoubleValue: Double;
 begin
+  if A = nil then
+    Exit(specialize TResult<Double, TArgsError>.Err(
+      TArgsError.ParseError('Args instance is nil')));
+
+  if not A.TryGetValue(Key, Value) then
+    Exit(specialize TResult<Double, TArgsError>.Err(
+      TArgsError.UnknownOption(Key)));
+
+  if A.TryGetDouble(Key, DoubleValue) then
+    Exit(specialize TResult<Double, TArgsError>.Ok(DoubleValue));
+
+  Exit(specialize TResult<Double, TArgsError>.Err(
+    TArgsError.InvalidValue(Key, 'number', Value)));
+end;
+
+function ArgsGetDoubleSafe(const Key: string): TArgsResultDouble; overload;
+var
+  Value: string;
+  DoubleValue: Double;
+  FS: TFormatSettings;
+begin
   if not ArgsTryGetValue(Key, Value) then
     Exit(specialize TResult<Double, TArgsError>.Err(
       TArgsError.UnknownOption(Key)));
-  
-  if TryStrToFloat(Value, DoubleValue) then
-    Result := specialize TResult<Double, TArgsError>.Ok(DoubleValue)
-  else
-    Result := specialize TResult<Double, TArgsError>.Err(
-      TArgsError.InvalidValue(Key, 'number', Value));
+
+  // Locale-invariant float parsing ('.' as decimal separator)
+  FS := DefaultFormatSettings;
+  FS.DecimalSeparator := '.';
+  FS.ThousandSeparator := ',';
+
+  if TryStrToFloat(Value, DoubleValue, FS) then
+    Exit(specialize TResult<Double, TArgsError>.Ok(DoubleValue));
+
+  Exit(specialize TResult<Double, TArgsError>.Err(
+    TArgsError.InvalidValue(Key, 'number', Value)));
 end;
 
-function ArgsGetBoolSafe(const Key: string): TArgsResultBool;
+function ArgsGetBoolSafe(const A: IArgs; const Key: string): TArgsResultBool; overload;
 var
   Value: string;
   BoolValue: Boolean;
 begin
+  if A = nil then
+    Exit(specialize TResult<Boolean, TArgsError>.Err(
+      TArgsError.ParseError('Args instance is nil')));
+
+  // Prefer explicit value (last write wins), then fall back to flag-only presence.
+  if A.TryGetValue(Key, Value) then
+  begin
+    if IsTrueValue(Value) then
+      BoolValue := True
+    else if IsFalseValue(Value) then
+      BoolValue := False
+    else
+      Exit(specialize TResult<Boolean, TArgsError>.Err(
+        TArgsError.InvalidValue(Key, 'boolean', Value)));
+
+    Exit(specialize TResult<Boolean, TArgsError>.Ok(BoolValue));
+  end;
+
+  if A.HasFlag(Key) then
+    Exit(specialize TResult<Boolean, TArgsError>.Ok(True));
+
+  Exit(specialize TResult<Boolean, TArgsError>.Err(
+    TArgsError.UnknownOption(Key)));
+end;
+
+function ArgsGetBoolSafe(const Key: string): TArgsResultBool; overload;
+var
+  Value: string;
+  BoolValue: Boolean;
+begin
+  // Prefer explicit value (last write wins), then fall back to flag-only presence.
+  if ArgsTryGetValue(Key, Value) then
+  begin
+    if IsTrueValue(Value) then
+      BoolValue := True
+    else if IsFalseValue(Value) then
+      BoolValue := False
+    else
+      Exit(specialize TResult<Boolean, TArgsError>.Err(
+        TArgsError.InvalidValue(Key, 'boolean', Value)));
+
+    Exit(specialize TResult<Boolean, TArgsError>.Ok(BoolValue));
+  end;
+
   if ArgsHasFlag(Key) then
     Exit(specialize TResult<Boolean, TArgsError>.Ok(True));
-  
-  if not ArgsTryGetValue(Key, Value) then
-    Exit(specialize TResult<Boolean, TArgsError>.Err(
-      TArgsError.UnknownOption(Key)));
-  
-  Value := LowerCase(Trim(Value));
-  if (Value = 'true') or (Value = '1') or (Value = 'yes') or (Value = 'on') then
-    BoolValue := True
-  else if (Value = 'false') or (Value = '0') or (Value = 'no') or (Value = 'off') then
-    BoolValue := False
-  else
-    Exit(specialize TResult<Boolean, TArgsError>.Err(
-      TArgsError.InvalidValue(Key, 'boolean', Value)));
-  
-  Result := specialize TResult<Boolean, TArgsError>.Ok(BoolValue);
+
+  Exit(specialize TResult<Boolean, TArgsError>.Err(
+    TArgsError.UnknownOption(Key)));
 end;
 
 // 验证辅助函数实现

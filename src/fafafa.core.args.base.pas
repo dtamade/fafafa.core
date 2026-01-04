@@ -680,9 +680,15 @@ end;
 function TArgs.TryGetBool(const Key: string; out V: Boolean): Boolean;
 var s: string;
 begin
-  if not TryGetValue(Key, s) then Exit(False);
-  if IsTrueValue(s) then begin V := True; Exit(True); end;
-  if IsFalseValue(s) then begin V := False; Exit(True); end;
+  // Prefer explicit value (last write wins), then fall back to flag-only presence.
+  if TryGetValue(Key, s) then
+  begin
+    if IsTrueValue(s) then begin V := True; Exit(True); end;
+    if IsFalseValue(s) then begin V := False; Exit(True); end;
+    Exit(False);
+  end;
+
+  if HasFlag(Key) then begin V := True; Exit(True); end;
   Result := False;
 end;
 
@@ -742,12 +748,19 @@ end;
 function TArgs.GetBoolOpt(const Key: string): specialize TOption<Boolean>;
 var s: string;
 begin
-  if not TryGetValue(Key, s) then
+  // Prefer explicit value (last write wins), then fall back to flag-only presence.
+  if TryGetValue(Key, s) then
+  begin
+    if IsTrueValue(s) then
+      Exit(specialize TOption<Boolean>.Some(True));
+    if IsFalseValue(s) then
+      Exit(specialize TOption<Boolean>.Some(False));
     Exit(specialize TOption<Boolean>.None);
-  if IsTrueValue(s) then
+  end;
+
+  if HasFlag(Key) then
     Exit(specialize TOption<Boolean>.Some(True));
-  if IsFalseValue(s) then
-    Exit(specialize TOption<Boolean>.Some(False));
+
   Result := specialize TOption<Boolean>.None;
 end;
 

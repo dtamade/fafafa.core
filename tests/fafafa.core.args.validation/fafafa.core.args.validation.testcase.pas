@@ -14,6 +14,7 @@ uses
   Classes, SysUtils, fpcunit, testregistry,
   fafafa.core.args.base,
   fafafa.core.args.errors,
+  fafafa.core.args.schema,
   fafafa.core.args.validation;
 
 type
@@ -92,6 +93,13 @@ type
     // 边界测试
     procedure Test_Validator_OptionalKey_Skipped;
     procedure Test_Validator_EmptyArgs;
+
+    // Schema-driven strict validation (clap-like)
+    procedure Test_SpecValidate_UnknownOption;
+    procedure Test_SpecValidate_MissingValue;
+    procedure Test_SpecValidate_RequiredMissing;
+    procedure Test_SpecValidate_BoolFlagOnly_Ok;
+    procedure Test_SpecValidate_NoPrefixNegation_Ok;
   end;
 
 implementation
@@ -913,6 +921,95 @@ begin
   finally
     V.Free;
   end;
+end;
+
+procedure TTestCase_ArgsValidation.Test_SpecValidate_UnknownOption;
+var
+  Args: IArgs;
+  Spec: IArgsCommandSpec;
+  Opts: TArgsOptions;
+  R: TValidationResult;
+begin
+  Spec := NewCommandSpec;
+  Spec.AddFlag(NewFlagSpec('port', '', False, 'int'));
+
+  Opts := ArgsOptionsDefault;
+  Args := TArgs.FromArray(['--bad=1'], Opts);
+
+  R := ValidateArgsAgainstSpec(Args, Spec, Opts);
+  CheckTrue(R.HasErrors);
+  CheckEquals(Ord(aekUnknownOption), Ord(R.GetFirstError.Kind));
+end;
+
+procedure TTestCase_ArgsValidation.Test_SpecValidate_MissingValue;
+var
+  Args: IArgs;
+  Spec: IArgsCommandSpec;
+  Opts: TArgsOptions;
+  R: TValidationResult;
+begin
+  Spec := NewCommandSpec;
+  Spec.AddFlag(NewFlagSpec('port', '', False, 'int'));
+
+  Opts := ArgsOptionsDefault;
+  Args := TArgs.FromArray(['--port'], Opts);
+
+  R := ValidateArgsAgainstSpec(Args, Spec, Opts);
+  CheckTrue(R.HasErrors);
+  CheckEquals(Ord(aekMissingValue), Ord(R.GetFirstError.Kind));
+end;
+
+procedure TTestCase_ArgsValidation.Test_SpecValidate_RequiredMissing;
+var
+  Args: IArgs;
+  Spec: IArgsCommandSpec;
+  Opts: TArgsOptions;
+  R: TValidationResult;
+begin
+  Spec := NewCommandSpec;
+  Spec.AddFlag(NewFlagSpec('config', '', True, 'string'));
+
+  Opts := ArgsOptionsDefault;
+  Args := TArgs.FromArray([], Opts);
+
+  R := ValidateArgsAgainstSpec(Args, Spec, Opts);
+  CheckTrue(R.HasErrors);
+  CheckEquals(Ord(aekRequiredMissing), Ord(R.GetFirstError.Kind));
+end;
+
+procedure TTestCase_ArgsValidation.Test_SpecValidate_BoolFlagOnly_Ok;
+var
+  Args: IArgs;
+  Spec: IArgsCommandSpec;
+  Opts: TArgsOptions;
+  R: TValidationResult;
+begin
+  Spec := NewCommandSpec;
+  Spec.AddFlag(NewFlagSpec('verbose', '', False, 'bool'));
+
+  Opts := ArgsOptionsDefault;
+  Args := TArgs.FromArray(['--verbose'], Opts);
+
+  R := ValidateArgsAgainstSpec(Args, Spec, Opts);
+  CheckTrue(R.IsValid);
+end;
+
+procedure TTestCase_ArgsValidation.Test_SpecValidate_NoPrefixNegation_Ok;
+var
+  Args: IArgs;
+  Spec: IArgsCommandSpec;
+  Opts: TArgsOptions;
+  R: TValidationResult;
+begin
+  Spec := NewCommandSpec;
+  Spec.AddFlag(NewFlagSpec('color', '', False, 'bool'));
+
+  Opts := ArgsOptionsDefault;
+  Opts.EnableNoPrefixNegation := True;
+  Args := TArgs.FromArray(['--no-color'], Opts);
+
+  R := ValidateArgsAgainstSpec(Args, Spec, Opts);
+  CheckTrue(R.IsValid);
 end;
 
 type

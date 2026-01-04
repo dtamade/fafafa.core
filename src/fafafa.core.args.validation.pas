@@ -11,6 +11,8 @@ uses
   fafafa.core.args,
   fafafa.core.args.base,  // TStringArray
   fafafa.core.args.errors,
+  fafafa.core.args.schema,
+  fafafa.core.args.utils,
   fafafa.core.result;
 
 type
@@ -137,6 +139,9 @@ type
 
 // 便利函数
 function ValidateArgs(const Args: IArgs): TArgsValidator;
+
+// Spec-based strict validation (schema bridge)
+function ValidateArgsAgainstSpec(const Args: IArgs; const Spec: IArgsCommandSpec; const Opts: TArgsOptions): TValidationResult;
 
 // 预定义验证器
 function IsValidEmail(const Email: string): Boolean;
@@ -700,6 +705,134 @@ end;
 function ValidateArgs(const Args: IArgs): TArgsValidator;
 begin
   Result := TArgsValidator.Create(Args);
+end;
+
+function FindFlagSpecByKey(const Spec: IArgsCommandSpec; const Key: string; const Opts: TArgsOptions): IArgsFlagSpec;
+var
+  i, j: Integer;
+  F: IArgsFlagSpec;
+  Aliases: fafafa.core.args.schema.TStringArray;
+  Canon: string;
+begin
+  Result := nil;
+  if Spec = nil then Exit;
+
+  for i := 0 to Spec.FlagCount - 1 do
+  begin
+    F := Spec.FlagAt(i);
+    if F = nil then Continue;
+
+    Canon := NormalizeKey(F.Name, Opts.CaseInsensitiveKeys);
+    if Canon = Key then Exit(F);
+
+    Aliases := F.Aliases;
+    for j := Low(Aliases) to High(Aliases) do
+      if NormalizeKey(Aliases[j], Opts.CaseInsensitiveKeys) = Key then
+        Exit(F);
+  end;
+end;
+
+function SpecFlagIsPresentInArgs(const Args: IArgs; const F: IArgsFlagSpec; const Opts: TArgsOptions): Boolean;
+var
+  Dummy: string;
+  i: Integer;
+  Aliases: fafafa.core.args.schema.TStringArray;
+  IsBool: Boolean;
+begin
+  Result := False;
+  if (Args = nil) or (F = nil) then Exit;
+
+  IsBool := SameText(F.ValueType, 'bool');
+
+  // Check canonical name
+  if IsBool then
+  begin
+    if Args.HasFlag(F.Name) then Exit(True);
+    if Args.TryGetValue(F.Name, Dummy) then Exit(True);
+  end
+  else
+  begin
+    if Args.TryGetValue(F.Name, Dummy) then Exit(True);
+  end;
+
+  // Check aliases
+  Aliases := F.Aliases;
+  for i := Low(Aliases) to High(Aliases) do
+  begin
+    if IsBool then
+    begin
+      if Args.HasFlag(Aliases[i]) then Exit(True);
+      if Args.TryGetValue(Aliases[i], Dummy) then Exit(True);
+    end
+    else
+    begin
+      if Args.TryGetValue(Aliases[i], Dummy) then Exit(True);
+    end;
+  end;
+end;
+
+function ValidateArgsAgainstSpec(const Args: IArgs; const Spec: IArgsCommandSpec; const Opts: TArgsOptions): TValidationResult;
+var
+  i: Integer;
+  It: TArgItem;
+  F: IArgsFlagSpec;
+  BaseKey: string;
+  CanonName: string;
+begin
+  Result := TValidationResult.Success;
+
+  if (Args = nil) or (Spec = nil) then
+    Exit;
+
+  // 1) Validate each encountered option token: unknown options, missing values, etc.
+  for i := 0 to Args.Count - 1 do
+  begin
+    It := Args.Items(i);
+
+    // Skip positionals
+    if It.Kind = akArg then
+      Continue;
+
+    if It.Name = '' then
+      Continue;
+
+    F := FindFlagSpecByKey(Spec, It.Name, Opts);
+
+    // Allow internal no.* marker when no-prefix negation is enabled.
+    if (F = nil)
+      and Opts.EnableNoPrefixNegation
+      and StartsWith(It.Name, 'no.') then
+    begin
+      BaseKey := Copy(It.Name, Length('no.') + 1, MaxInt);
+      F := FindFlagSpecByKey(Spec, BaseKey, Opts);
+      if (F <> nil) and SameText(F.ValueType, 'bool') then
+        Continue; // ignore internal marker
+    end;
+
+    if F = nil then
+    begin
+      Result := Result.AddError(TArgsError.UnknownOption(It.Name, It.Position));
+      Continue;
+    end;
+
+    // Missing value: non-bool flags require a value token.
+    if (not SameText(F.ValueType, 'bool')) and (not It.HasValue) then
+      Result := Result.AddError(TArgsError.MissingValue(It.Name, It.Position));
+  end;
+
+  // 2) Validate required flags.
+  for i := 0 to Spec.FlagCount - 1 do
+  begin
+    F := Spec.FlagAt(i);
+    if (F = nil) or (not F.Required) then
+      Continue;
+
+    if not SpecFlagIsPresentInArgs(Args, F, Opts) then
+    begin
+      CanonName := NormalizeKey(F.Name, Opts.CaseInsensitiveKeys);
+      Result := Result.AddError(TArgsError.RequiredMissing(CanonName));
+    end;
+  end;
 end;
 
 function ExecEmailRegexLocked(const Email: string): Boolean;

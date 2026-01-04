@@ -96,8 +96,8 @@ type
     procedure Test_ArgvFromToml_NotExists;
     procedure Test_ArgvFromToml_EmptyPath;
 
-    // YAML 存根测试
-    procedure Test_ArgvFromYaml_Stub;
+    // YAML (unsupported) explicit API
+    procedure Test_ArgvFromYamlOpt_Unsupported_ReturnsNone;
   end;
 
 implementation
@@ -984,12 +984,12 @@ end;
 
 { YAML 存根测试 }
 
-procedure TTestCase_ArgsConfig.Test_ArgvFromYaml_Stub;
+procedure TTestCase_ArgsConfig.Test_ArgvFromYamlOpt_Unsupported_ReturnsNone;
 var
-  Arr: TStringArray;
+  Opt: specialize TOption<TStringArray>;
 begin
-  Arr := ArgsArgvFromYaml('/any/path.yaml');
-  CheckEquals(0, Length(Arr), 'YAML stub returns empty array');
+  Opt := ArgsArgvFromYamlOpt('/any/path.yaml');
+  CheckTrue(Opt.IsNone, 'YAML support is not ready; should return None');
 end;
 
 initialization
