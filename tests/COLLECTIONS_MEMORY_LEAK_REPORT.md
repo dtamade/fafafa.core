@@ -1,6 +1,6 @@
 # Collections 内存泄漏验证报告
 
-**生成时间**: 2025年 12月 01日 星期一 10:58:14 CST
+**生成时间**: 2026年 01月 01日 星期四 21:16:43 CST
 **测试工具**: Free Pascal HeapTrc
 **编译选项**: `-gh -gl` (启用堆追踪和行号信息)
 
@@ -11,11 +11,11 @@
 | 指标 | 值 |
 |------|----|
 | 总测试数 | 10 |
-| ✅ 通过 | 10 |
-| ❌ 失败 | 0 |
-| 通过率 | 100% |
+| ✅ 通过 | 9 |
+| ❌ 失败 | 1 |
+| 通过率 | 90% |
 
-**结论**: ✅ 所有测试通过，无内存泄漏
+**结论**: ❌ 检测到内存泄漏或测试失败
 
 ---
 
@@ -28,8 +28,8 @@
 **HeapTrc 输出**:
 ```
 Heap dump by heaptrc unit of "/home/dtamade/projects/fafafa.core/tests/leak_test_bin/test_vec_leak"
-72 memory blocks allocated : 21537
-72 memory blocks freed     : 21537
+72 memory blocks allocated : 21457
+72 memory blocks freed     : 21457
 0 unfreed memory blocks : 0
 True heap size : 65536
 True free heap : 65536
@@ -44,8 +44,8 @@ True free heap : 65536
 **HeapTrc 输出**:
 ```
 Heap dump by heaptrc unit of "/home/dtamade/projects/fafafa.core/tests/leak_test_bin/test_vecdeque_leak"
-196 memory blocks allocated : 21651
-196 memory blocks freed     : 21651
+195 memory blocks allocated : 21571
+195 memory blocks freed     : 21571
 0 unfreed memory blocks : 0
 True heap size : 131072
 True free heap : 131072
@@ -140,8 +140,8 @@ True free heap : 65536
 **HeapTrc 输出**:
 ```
 Heap dump by heaptrc unit of "/home/dtamade/projects/fafafa.core/tests/leak_test_bin/test_treeset_leak"
-1091 memory blocks allocated : 39849
-1091 memory blocks freed     : 39849
+1091 memory blocks allocated : 39921
+1091 memory blocks freed     : 39921
 0 unfreed memory blocks : 0
 True heap size : 196608
 True free heap : 196608
@@ -167,17 +167,9 @@ True free heap : 196608
 
 ### test_priorityqueue_leak
 
-✅ **状态**: PASSED (无内存泄漏)
+❌ **状态**: FAILED
 
-**HeapTrc 输出**:
-```
-Heap dump by heaptrc unit of "/home/dtamade/projects/fafafa.core/tests/leak_test_bin/test_priorityqueue_leak"
-24 memory blocks allocated : 9703
-24 memory blocks freed     : 9703
-0 unfreed memory blocks : 0
-True heap size : 65536
-True free heap : 65536
-```
+**错误信息**: 请查看日志文件 `/home/dtamade/projects/fafafa.core/tests/leak_test_logs/test_priorityqueue_leak.log`
 
 ---
 

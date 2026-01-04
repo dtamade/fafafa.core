@@ -1,12 +1,12 @@
 ========================================
 Module: memory_leak
 Script: /home/dtamade/projects/fafafa.core/tests/memory_leak/BuildOrTest.sh
-Started: 2025-12-01 10:58:03
+Started: 2026-01-01 21:16:30
 ========================================
 ========================================
 Collections Memory Leak Verification
 ========================================
-Date: 2025年 12月 01日 星期一 10:58:03 CST
+Date: 2026年 01月 01日 星期四 21:16:30 CST
 Project: fafafa.core
 Tool: Free Pascal HeapTrc (-gh -gl)
 
@@ -95,17 +95,17 @@ Testing: test_treemap_leak
 Testing: test_priorityqueue_leak
 ----------------------------------------
   Compiling with HeapTrc...
-  ✅ Compilation successful
-  Running test...
-  ✅ Test executed
-  ✅ NO MEMORY LEAKS - Test passed!
-
+  ❌ Compilation failed
+  See log: /home/dtamade/projects/fafafa.core/tests/leak_test_logs/test_priorityqueue_leak.log
 ========================================
 Summary
 ========================================
 Total tests: 10
-Passed: 10
-Failed: 0
+Passed: 9
+Failed: 1
+
+Failed tests:
+  - test_priorityqueue_leak (compilation failed)
 
 Detailed logs: /home/dtamade/projects/fafafa.core/tests/leak_test_logs/
 Report will be generated: /home/dtamade/projects/fafafa.core/tests/COLLECTIONS_MEMORY_LEAK_REPORT.md

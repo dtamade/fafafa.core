@@ -1281,6 +1281,178 @@ begin
   end;
 end;
 
+// === 512-bit Load/Store/Splat/Zero/Select ===
+
+// F32x16
+function AVX512LoadF32x16(p: PSingle): TVecF32x16;
+var
+  pp, pr: Pointer;
+begin
+  pr := @Result;
+  pp := p;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pp
+    vmovups zmm0, [rdx]
+    vmovups [rax], zmm0
+    vzeroupper
+  end;
+end;
+
+procedure AVX512StoreF32x16(p: PSingle; const a: TVecF32x16);
+var
+  pp, pa: Pointer;
+begin
+  pp := p;
+  pa := @a;
+
+  asm
+    mov     rax, pp
+    mov     rdx, pa
+    vmovups zmm0, [rdx]
+    vmovups [rax], zmm0
+    vzeroupper
+  end;
+end;
+
+function AVX512SplatF32x16(value: Single): TVecF32x16;
+var
+  pr: Pointer;
+  v: Single;
+begin
+  pr := @Result;
+  v := value;
+
+  asm
+    mov     rax, pr
+    vbroadcastss zmm0, v
+    vmovups [rax], zmm0
+    vzeroupper
+  end;
+end;
+
+function AVX512ZeroF32x16: TVecF32x16;
+var
+  pr: Pointer;
+begin
+  pr := @Result;
+
+  asm
+    mov     rax, pr
+    vxorps  zmm0, zmm0, zmm0
+    vmovups [rax], zmm0
+    vzeroupper
+  end;
+end;
+
+function AVX512SelectF32x16(const mask: TMask16; const a, b: TVecF32x16): TVecF32x16;
+var
+  pa, pb, pr: Pointer;
+  m: Word;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+  m := Word(mask);
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    kmovw   k1, m
+    vmovups zmm0, [rcx]
+    vmovups zmm0 {k1}, [rdx]
+    vmovups [rax], zmm0
+    vzeroupper
+  end;
+end;
+
+// F64x8
+function AVX512LoadF64x8(p: PDouble): TVecF64x8;
+var
+  pp, pr: Pointer;
+begin
+  pr := @Result;
+  pp := p;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pp
+    vmovupd zmm0, [rdx]
+    vmovupd [rax], zmm0
+    vzeroupper
+  end;
+end;
+
+procedure AVX512StoreF64x8(p: PDouble; const a: TVecF64x8);
+var
+  pp, pa: Pointer;
+begin
+  pp := p;
+  pa := @a;
+
+  asm
+    mov     rax, pp
+    mov     rdx, pa
+    vmovupd zmm0, [rdx]
+    vmovupd [rax], zmm0
+    vzeroupper
+  end;
+end;
+
+function AVX512SplatF64x8(value: Double): TVecF64x8;
+var
+  pr: Pointer;
+  v: Double;
+begin
+  pr := @Result;
+  v := value;
+
+  asm
+    mov     rax, pr
+    vbroadcastsd zmm0, v
+    vmovupd [rax], zmm0
+    vzeroupper
+  end;
+end;
+
+function AVX512ZeroF64x8: TVecF64x8;
+var
+  pr: Pointer;
+begin
+  pr := @Result;
+
+  asm
+    mov     rax, pr
+    vxorpd  zmm0, zmm0, zmm0
+    vmovupd [rax], zmm0
+    vzeroupper
+  end;
+end;
+
+function AVX512SelectF64x8(const mask: TMask8; const a, b: TVecF64x8): TVecF64x8;
+var
+  pa, pb, pr: Pointer;
+  m: Byte;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+  m := Byte(mask);
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    kmovb   k1, m
+    vmovupd zmm0, [rcx]
+    vmovupd zmm0 {k1}, [rdx]
+    vmovupd [rax], zmm0
+    vzeroupper
+  end;
+end;
+
 // === I32x16 Arithmetic Operations (512-bit) ===
 
 function AVX512AddI32x16(const a, b: TVecI32x16): TVecI32x16;
@@ -1697,129 +1869,197 @@ end;
 // I8x16 有符号饱和加法 (VPADDSB)
 function AVX512I8x16SatAdd(const a, b: TVecI8x16): TVecI8x16; assembler; nostackframe;
 asm
+  // NOTE:
+  //   TVec* (16-byte variant record) 在 x86_64 上按 INTEGER 类传参/返回：
+  //   - SysV:  a.lowQ=RDI, a.highQ=RSI, b.lowQ=RDX, b.highQ=RCX; return RAX/RDX
+  //   - Win64: a.lowQ=RCX, a.highQ=RDX, b.lowQ=R8,  b.highQ=R9;  return RAX/RDX
+  sub rsp, 32
   {$IFDEF UNIX}
-  vmovdqu xmm0, [rdi]
-  vmovdqu xmm1, [rsi]
-  vpaddsb xmm0, xmm0, xmm1
-  vmovdqu [rax], xmm0
+  mov qword ptr [rsp], rdi
+  mov qword ptr [rsp + 8], rsi
+  mov qword ptr [rsp + 16], rdx
+  mov qword ptr [rsp + 24], rcx
   {$ELSE}
-  vmovdqu xmm0, [rcx]
-  vmovdqu xmm1, [rdx]
-  vpaddsb xmm0, xmm0, xmm1
-  vmovdqu [rax], xmm0
+  mov qword ptr [rsp], rcx
+  mov qword ptr [rsp + 8], rdx
+  mov qword ptr [rsp + 16], r8
+  mov qword ptr [rsp + 24], r9
   {$ENDIF}
+  vmovdqu xmm0, [rsp]
+  vmovdqu xmm1, [rsp + 16]
+  vpaddsb xmm0, xmm0, xmm1
+  vmovdqu [rsp], xmm0
+  mov rax, qword ptr [rsp]
+  mov rdx, qword ptr [rsp + 8]
+  add rsp, 32
 end;
 
 // I8x16 有符号饱和减法 (VPSUBSB)
 function AVX512I8x16SatSub(const a, b: TVecI8x16): TVecI8x16; assembler; nostackframe;
 asm
+  sub rsp, 32
   {$IFDEF UNIX}
-  vmovdqu xmm0, [rdi]
-  vmovdqu xmm1, [rsi]
-  vpsubsb xmm0, xmm0, xmm1
-  vmovdqu [rax], xmm0
+  mov qword ptr [rsp], rdi
+  mov qword ptr [rsp + 8], rsi
+  mov qword ptr [rsp + 16], rdx
+  mov qword ptr [rsp + 24], rcx
   {$ELSE}
-  vmovdqu xmm0, [rcx]
-  vmovdqu xmm1, [rdx]
-  vpsubsb xmm0, xmm0, xmm1
-  vmovdqu [rax], xmm0
+  mov qword ptr [rsp], rcx
+  mov qword ptr [rsp + 8], rdx
+  mov qword ptr [rsp + 16], r8
+  mov qword ptr [rsp + 24], r9
   {$ENDIF}
+  vmovdqu xmm0, [rsp]
+  vmovdqu xmm1, [rsp + 16]
+  vpsubsb xmm0, xmm0, xmm1
+  vmovdqu [rsp], xmm0
+  mov rax, qword ptr [rsp]
+  mov rdx, qword ptr [rsp + 8]
+  add rsp, 32
 end;
 
 // I16x8 有符号饱和加法 (VPADDSW)
 function AVX512I16x8SatAdd(const a, b: TVecI16x8): TVecI16x8; assembler; nostackframe;
 asm
+  sub rsp, 32
   {$IFDEF UNIX}
-  vmovdqu xmm0, [rdi]
-  vmovdqu xmm1, [rsi]
-  vpaddsw xmm0, xmm0, xmm1
-  vmovdqu [rax], xmm0
+  mov qword ptr [rsp], rdi
+  mov qword ptr [rsp + 8], rsi
+  mov qword ptr [rsp + 16], rdx
+  mov qword ptr [rsp + 24], rcx
   {$ELSE}
-  vmovdqu xmm0, [rcx]
-  vmovdqu xmm1, [rdx]
-  vpaddsw xmm0, xmm0, xmm1
-  vmovdqu [rax], xmm0
+  mov qword ptr [rsp], rcx
+  mov qword ptr [rsp + 8], rdx
+  mov qword ptr [rsp + 16], r8
+  mov qword ptr [rsp + 24], r9
   {$ENDIF}
+  vmovdqu xmm0, [rsp]
+  vmovdqu xmm1, [rsp + 16]
+  vpaddsw xmm0, xmm0, xmm1
+  vmovdqu [rsp], xmm0
+  mov rax, qword ptr [rsp]
+  mov rdx, qword ptr [rsp + 8]
+  add rsp, 32
 end;
 
 // I16x8 有符号饱和减法 (VPSUBSW)
 function AVX512I16x8SatSub(const a, b: TVecI16x8): TVecI16x8; assembler; nostackframe;
 asm
+  sub rsp, 32
   {$IFDEF UNIX}
-  vmovdqu xmm0, [rdi]
-  vmovdqu xmm1, [rsi]
-  vpsubsw xmm0, xmm0, xmm1
-  vmovdqu [rax], xmm0
+  mov qword ptr [rsp], rdi
+  mov qword ptr [rsp + 8], rsi
+  mov qword ptr [rsp + 16], rdx
+  mov qword ptr [rsp + 24], rcx
   {$ELSE}
-  vmovdqu xmm0, [rcx]
-  vmovdqu xmm1, [rdx]
-  vpsubsw xmm0, xmm0, xmm1
-  vmovdqu [rax], xmm0
+  mov qword ptr [rsp], rcx
+  mov qword ptr [rsp + 8], rdx
+  mov qword ptr [rsp + 16], r8
+  mov qword ptr [rsp + 24], r9
   {$ENDIF}
+  vmovdqu xmm0, [rsp]
+  vmovdqu xmm1, [rsp + 16]
+  vpsubsw xmm0, xmm0, xmm1
+  vmovdqu [rsp], xmm0
+  mov rax, qword ptr [rsp]
+  mov rdx, qword ptr [rsp + 8]
+  add rsp, 32
 end;
 
 // U8x16 无符号饱和加法 (VPADDUSB)
 function AVX512U8x16SatAdd(const a, b: TVecU8x16): TVecU8x16; assembler; nostackframe;
 asm
+  sub rsp, 32
   {$IFDEF UNIX}
-  vmovdqu xmm0, [rdi]
-  vmovdqu xmm1, [rsi]
-  vpaddusb xmm0, xmm0, xmm1
-  vmovdqu [rax], xmm0
+  mov qword ptr [rsp], rdi
+  mov qword ptr [rsp + 8], rsi
+  mov qword ptr [rsp + 16], rdx
+  mov qword ptr [rsp + 24], rcx
   {$ELSE}
-  vmovdqu xmm0, [rcx]
-  vmovdqu xmm1, [rdx]
-  vpaddusb xmm0, xmm0, xmm1
-  vmovdqu [rax], xmm0
+  mov qword ptr [rsp], rcx
+  mov qword ptr [rsp + 8], rdx
+  mov qword ptr [rsp + 16], r8
+  mov qword ptr [rsp + 24], r9
   {$ENDIF}
+  vmovdqu xmm0, [rsp]
+  vmovdqu xmm1, [rsp + 16]
+  vpaddusb xmm0, xmm0, xmm1
+  vmovdqu [rsp], xmm0
+  mov rax, qword ptr [rsp]
+  mov rdx, qword ptr [rsp + 8]
+  add rsp, 32
 end;
 
 // U8x16 无符号饱和减法 (VPSUBUSB)
 function AVX512U8x16SatSub(const a, b: TVecU8x16): TVecU8x16; assembler; nostackframe;
 asm
+  sub rsp, 32
   {$IFDEF UNIX}
-  vmovdqu xmm0, [rdi]
-  vmovdqu xmm1, [rsi]
-  vpsubusb xmm0, xmm0, xmm1
-  vmovdqu [rax], xmm0
+  mov qword ptr [rsp], rdi
+  mov qword ptr [rsp + 8], rsi
+  mov qword ptr [rsp + 16], rdx
+  mov qword ptr [rsp + 24], rcx
   {$ELSE}
-  vmovdqu xmm0, [rcx]
-  vmovdqu xmm1, [rdx]
-  vpsubusb xmm0, xmm0, xmm1
-  vmovdqu [rax], xmm0
+  mov qword ptr [rsp], rcx
+  mov qword ptr [rsp + 8], rdx
+  mov qword ptr [rsp + 16], r8
+  mov qword ptr [rsp + 24], r9
   {$ENDIF}
+  vmovdqu xmm0, [rsp]
+  vmovdqu xmm1, [rsp + 16]
+  vpsubusb xmm0, xmm0, xmm1
+  vmovdqu [rsp], xmm0
+  mov rax, qword ptr [rsp]
+  mov rdx, qword ptr [rsp + 8]
+  add rsp, 32
 end;
 
 // U16x8 无符号饱和加法 (VPADDUSW)
 function AVX512U16x8SatAdd(const a, b: TVecU16x8): TVecU16x8; assembler; nostackframe;
 asm
+  sub rsp, 32
   {$IFDEF UNIX}
-  vmovdqu xmm0, [rdi]
-  vmovdqu xmm1, [rsi]
-  vpaddusw xmm0, xmm0, xmm1
-  vmovdqu [rax], xmm0
+  mov qword ptr [rsp], rdi
+  mov qword ptr [rsp + 8], rsi
+  mov qword ptr [rsp + 16], rdx
+  mov qword ptr [rsp + 24], rcx
   {$ELSE}
-  vmovdqu xmm0, [rcx]
-  vmovdqu xmm1, [rdx]
-  vpaddusw xmm0, xmm0, xmm1
-  vmovdqu [rax], xmm0
+  mov qword ptr [rsp], rcx
+  mov qword ptr [rsp + 8], rdx
+  mov qword ptr [rsp + 16], r8
+  mov qword ptr [rsp + 24], r9
   {$ENDIF}
+  vmovdqu xmm0, [rsp]
+  vmovdqu xmm1, [rsp + 16]
+  vpaddusw xmm0, xmm0, xmm1
+  vmovdqu [rsp], xmm0
+  mov rax, qword ptr [rsp]
+  mov rdx, qword ptr [rsp + 8]
+  add rsp, 32
 end;
 
 // U16x8 无符号饱和减法 (VPSUBUSW)
 function AVX512U16x8SatSub(const a, b: TVecU16x8): TVecU16x8; assembler; nostackframe;
 asm
+  sub rsp, 32
   {$IFDEF UNIX}
-  vmovdqu xmm0, [rdi]
-  vmovdqu xmm1, [rsi]
-  vpsubusw xmm0, xmm0, xmm1
-  vmovdqu [rax], xmm0
+  mov qword ptr [rsp], rdi
+  mov qword ptr [rsp + 8], rsi
+  mov qword ptr [rsp + 16], rdx
+  mov qword ptr [rsp + 24], rcx
   {$ELSE}
-  vmovdqu xmm0, [rcx]
-  vmovdqu xmm1, [rdx]
-  vpsubusw xmm0, xmm0, xmm1
-  vmovdqu [rax], xmm0
+  mov qword ptr [rsp], rcx
+  mov qword ptr [rsp + 8], rdx
+  mov qword ptr [rsp + 16], r8
+  mov qword ptr [rsp + 24], r9
   {$ENDIF}
+  vmovdqu xmm0, [rsp]
+  vmovdqu xmm1, [rsp + 16]
+  vpsubusw xmm0, xmm0, xmm1
+  vmovdqu [rsp], xmm0
+  mov rax, qword ptr [rsp]
+  mov rdx, qword ptr [rsp + 8]
+  add rsp, 32
 end;
 
 // === Fallback Functions ===
@@ -1850,14 +2090,11 @@ end;
 procedure RegisterAVX512Backend;
 var
   dispatchTable: TSimdDispatchTable;
+  isAvailable: Boolean;
 begin
-  // Only register if AVX-512 is available
-  if not HasAVX512 then
-    Exit;
-
-  // Ensure the CPU has the exact subsets used by this implementation.
-  if not X86HasAVX512BackendRequiredFeatures(GetX86CPUInfo) then
-    Exit;
+  // Always register so the dispatch table can be inspected (e.g. on non-AVX-512 machines).
+  // Runtime dispatch/forcing still prevents executing AVX-512 on unsupported CPUs.
+  isAvailable := HasAVX512 and X86HasAVX512BackendRequiredFeatures(GetX86CPUInfo);
 
   // Fill with base scalar implementations (provides fallback for all operations)
   dispatchTable := Default(TSimdDispatchTable);
@@ -1872,7 +2109,7 @@ begin
     Description := 'x86-64 AVX-512 SIMD implementation (512-bit)';
     Capabilities := [scBasicArithmetic, scComparison, scMathFunctions, scReduction,
                      scLoadStore, scMaskedOps, sc512BitOps];
-    Available := True;
+    Available := isAvailable;
     Priority := 30; // Higher than AVX2 (20)
   end;
 
@@ -1903,11 +2140,23 @@ begin
   dispatchTable.MulF32x16 := @AVX512MulF32x16;
   dispatchTable.DivF32x16 := @AVX512DivF32x16;
 
+  dispatchTable.LoadF32x16 := @AVX512LoadF32x16;
+  dispatchTable.StoreF32x16 := @AVX512StoreF32x16;
+  dispatchTable.SplatF32x16 := @AVX512SplatF32x16;
+  dispatchTable.ZeroF32x16 := @AVX512ZeroF32x16;
+  dispatchTable.SelectF32x16 := @AVX512SelectF32x16;
+
   // F64x8 (512-bit double)
   dispatchTable.AddF64x8 := @AVX512AddF64x8;
   dispatchTable.SubF64x8 := @AVX512SubF64x8;
   dispatchTable.MulF64x8 := @AVX512MulF64x8;
   dispatchTable.DivF64x8 := @AVX512DivF64x8;
+
+  dispatchTable.LoadF64x8 := @AVX512LoadF64x8;
+  dispatchTable.StoreF64x8 := @AVX512StoreF64x8;
+  dispatchTable.SplatF64x8 := @AVX512SplatF64x8;
+  dispatchTable.ZeroF64x8 := @AVX512ZeroF64x8;
+  dispatchTable.SelectF64x8 := @AVX512SelectF64x8;
 
   // I32x16 (512-bit integer) - Arithmetic
   dispatchTable.AddI32x16 := @AVX512AddI32x16;

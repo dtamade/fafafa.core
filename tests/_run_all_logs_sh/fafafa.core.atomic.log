@@ -1,7 +1,7 @@
 ========================================
 Module: fafafa.core.atomic
 Script: /home/dtamade/projects/fafafa.core/tests/fafafa.core.atomic/BuildOrTest.sh
-Started: 2025-12-12 10:25:22
+Started: 2026-01-01 21:16:50
 ========================================
 Building project: /home/dtamade/projects/fafafa.core/tests/fafafa.core.atomic/tests_atomic.lpi ...
 SetPrimaryConfigPath NewValue="/home/dtamade/freePascal/config_lazarus"

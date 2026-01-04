@@ -77,6 +77,7 @@ begin
   {$IFDEF UNIX}
   {$IFDEF CPUX86_64}
   WriteLn('  TTestCase_AVX2VectorAsm');
+  WriteLn('  TTestCase_AVX512VectorAsm');
   {$ENDIF}
   {$ENDIF}
   WriteLn('  TTestCase_VectorOps');
@@ -94,6 +95,7 @@ begin
   WriteLn('  TTestCase_Vec512Types');
   WriteLn('  TTestCase_Memutils');
   WriteLn('  TTestCase_RustStyleAliases');
+  WriteLn('  TTestCase_SaturatingArithmetic');
 end;
 
 procedure AddSuiteFilter(const value: string);
@@ -287,6 +289,8 @@ begin
       {$IFDEF CPUX86_64}
       if ShouldRunSuite('TTestCase_AVX2VectorAsm') then
         testSuite.AddTest(TTestCase_AVX2VectorAsm.Suite);
+      if ShouldRunSuite('TTestCase_AVX512VectorAsm') then
+        testSuite.AddTest(TTestCase_AVX512VectorAsm.Suite);
       {$ENDIF}
       {$ENDIF}
       if ShouldRunSuite('TTestCase_VectorOps') then
@@ -319,6 +323,8 @@ begin
         testSuite.AddTest(TTestCase_Memutils.Suite);
       if ShouldRunSuite('TTestCase_RustStyleAliases') then
         testSuite.AddTest(TTestCase_RustStyleAliases.Suite);
+      if ShouldRunSuite('TTestCase_SaturatingArithmetic') then
+        testSuite.AddTest(TTestCase_SaturatingArithmetic.Suite);
 
       // Create test result
       testResult := TTestResult.Create;

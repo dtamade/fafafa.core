@@ -171,6 +171,20 @@ function ScalarCmpNeI32x16(const a, b: TVecI32x16): TMask16;  // ✅ P0-5: Added
 function ScalarMinI32x16(const a, b: TVecI32x16): TVecI32x16;
 function ScalarMaxI32x16(const a, b: TVecI32x16): TVecI32x16;
 
+// I64x8 Arithmetic/Bitwise/Comparison (512-bit)
+function ScalarAddI64x8(const a, b: TVecI64x8): TVecI64x8;
+function ScalarSubI64x8(const a, b: TVecI64x8): TVecI64x8;
+function ScalarAndI64x8(const a, b: TVecI64x8): TVecI64x8;
+function ScalarOrI64x8(const a, b: TVecI64x8): TVecI64x8;
+function ScalarXorI64x8(const a, b: TVecI64x8): TVecI64x8;
+function ScalarNotI64x8(const a: TVecI64x8): TVecI64x8;
+function ScalarCmpEqI64x8(const a, b: TVecI64x8): TMask8;
+function ScalarCmpLtI64x8(const a, b: TVecI64x8): TMask8;
+function ScalarCmpGtI64x8(const a, b: TVecI64x8): TMask8;
+function ScalarCmpLeI64x8(const a, b: TVecI64x8): TMask8;
+function ScalarCmpGeI64x8(const a, b: TVecI64x8): TMask8;
+function ScalarCmpNeI64x8(const a, b: TVecI64x8): TMask8;
+
 // Comparison
 function ScalarCmpEqF32x4(const a, b: TVecF32x4): TMask4;
 function ScalarCmpLtF32x4(const a, b: TVecF32x4): TMask4;
@@ -187,17 +201,92 @@ function ScalarCmpGtF64x2(const a, b: TVecF64x2): TMask2;
 function ScalarCmpGeF64x2(const a, b: TVecF64x2): TMask2;
 function ScalarCmpNeF64x2(const a, b: TVecF64x2): TMask2;
 
+// 512-bit floating-point comparisons
+function ScalarCmpEqF32x16(const a, b: TVecF32x16): TMask16;
+function ScalarCmpLtF32x16(const a, b: TVecF32x16): TMask16;
+function ScalarCmpLeF32x16(const a, b: TVecF32x16): TMask16;
+function ScalarCmpGtF32x16(const a, b: TVecF32x16): TMask16;
+function ScalarCmpGeF32x16(const a, b: TVecF32x16): TMask16;
+function ScalarCmpNeF32x16(const a, b: TVecF32x16): TMask16;
+function ScalarCmpEqF64x8(const a, b: TVecF64x8): TMask8;
+function ScalarCmpLtF64x8(const a, b: TVecF64x8): TMask8;
+function ScalarCmpLeF64x8(const a, b: TVecF64x8): TMask8;
+function ScalarCmpGtF64x8(const a, b: TVecF64x8): TMask8;
+function ScalarCmpGeF64x8(const a, b: TVecF64x8): TMask8;
+function ScalarCmpNeF64x8(const a, b: TVecF64x8): TMask8;
+
 // Math
 function ScalarAbsF32x4(const a: TVecF32x4): TVecF32x4;
 function ScalarSqrtF32x4(const a: TVecF32x4): TVecF32x4;
 function ScalarMinF32x4(const a, b: TVecF32x4): TVecF32x4;
 function ScalarMaxF32x4(const a, b: TVecF32x4): TVecF32x4;
 
+// ✅ NEW: F64x2 Math
+function ScalarAbsF64x2(const a: TVecF64x2): TVecF64x2;
+function ScalarSqrtF64x2(const a: TVecF64x2): TVecF64x2;
+function ScalarMinF64x2(const a, b: TVecF64x2): TVecF64x2;
+function ScalarMaxF64x2(const a, b: TVecF64x2): TVecF64x2;
+function ScalarClampF64x2(const a, minVal, maxVal: TVecF64x2): TVecF64x2;
+
+// ✅ NEW: F32x8 Math
+function ScalarAbsF32x8(const a: TVecF32x8): TVecF32x8;
+function ScalarSqrtF32x8(const a: TVecF32x8): TVecF32x8;
+function ScalarMinF32x8(const a, b: TVecF32x8): TVecF32x8;
+function ScalarMaxF32x8(const a, b: TVecF32x8): TVecF32x8;
+function ScalarClampF32x8(const a, minVal, maxVal: TVecF32x8): TVecF32x8;
+
+// ✅ NEW: F64x4 Math
+function ScalarAbsF64x4(const a: TVecF64x4): TVecF64x4;
+function ScalarSqrtF64x4(const a: TVecF64x4): TVecF64x4;
+function ScalarMinF64x4(const a, b: TVecF64x4): TVecF64x4;
+function ScalarMaxF64x4(const a, b: TVecF64x4): TVecF64x4;
+function ScalarClampF64x4(const a, minVal, maxVal: TVecF64x4): TVecF64x4;
+
+// 512-bit float math
+function ScalarAbsF32x16(const a: TVecF32x16): TVecF32x16;
+function ScalarSqrtF32x16(const a: TVecF32x16): TVecF32x16;
+function ScalarMinF32x16(const a, b: TVecF32x16): TVecF32x16;
+function ScalarMaxF32x16(const a, b: TVecF32x16): TVecF32x16;
+function ScalarClampF32x16(const a, minVal, maxVal: TVecF32x16): TVecF32x16;
+function ScalarAbsF64x8(const a: TVecF64x8): TVecF64x8;
+function ScalarSqrtF64x8(const a: TVecF64x8): TVecF64x8;
+function ScalarMinF64x8(const a, b: TVecF64x8): TVecF64x8;
+function ScalarMaxF64x8(const a, b: TVecF64x8): TVecF64x8;
+function ScalarClampF64x8(const a, minVal, maxVal: TVecF64x8): TVecF64x8;
+
 // Reduction
 function ScalarReduceAddF32x4(const a: TVecF32x4): Single;
 function ScalarReduceMinF32x4(const a: TVecF32x4): Single;
 function ScalarReduceMaxF32x4(const a: TVecF32x4): Single;
 function ScalarReduceMulF32x4(const a: TVecF32x4): Single;
+
+// ✅ NEW: F64x2 Reduction
+function ScalarReduceAddF64x2(const a: TVecF64x2): Double;
+function ScalarReduceMinF64x2(const a: TVecF64x2): Double;
+function ScalarReduceMaxF64x2(const a: TVecF64x2): Double;
+function ScalarReduceMulF64x2(const a: TVecF64x2): Double;
+
+// ✅ NEW: F32x8 Reduction
+function ScalarReduceAddF32x8(const a: TVecF32x8): Single;
+function ScalarReduceMinF32x8(const a: TVecF32x8): Single;
+function ScalarReduceMaxF32x8(const a: TVecF32x8): Single;
+function ScalarReduceMulF32x8(const a: TVecF32x8): Single;
+
+// ✅ NEW: F64x4 Reduction
+function ScalarReduceAddF64x4(const a: TVecF64x4): Double;
+function ScalarReduceMinF64x4(const a: TVecF64x4): Double;
+function ScalarReduceMaxF64x4(const a: TVecF64x4): Double;
+function ScalarReduceMulF64x4(const a: TVecF64x4): Double;
+
+// 512-bit float reductions
+function ScalarReduceAddF32x16(const a: TVecF32x16): Single;
+function ScalarReduceMinF32x16(const a: TVecF32x16): Single;
+function ScalarReduceMaxF32x16(const a: TVecF32x16): Single;
+function ScalarReduceMulF32x16(const a: TVecF32x16): Single;
+function ScalarReduceAddF64x8(const a: TVecF64x8): Double;
+function ScalarReduceMinF64x8(const a: TVecF64x8): Double;
+function ScalarReduceMaxF64x8(const a: TVecF64x8): Double;
+function ScalarReduceMulF64x8(const a: TVecF64x8): Double;
 
 // Load/Store
 function ScalarLoadF32x4(p: PSingle): TVecF32x4;
@@ -228,6 +317,16 @@ function ScalarLoadF64x4(p: PDouble): TVecF64x4;
 procedure ScalarStoreF64x4(p: PDouble; const a: TVecF64x4);
 function ScalarSplatF64x4(value: Double): TVecF64x4;
 function ScalarZeroF64x4: TVecF64x4;
+// F32x16 (512-bit)
+function ScalarLoadF32x16(p: PSingle): TVecF32x16;
+procedure ScalarStoreF32x16(p: PSingle; const a: TVecF32x16);
+function ScalarSplatF32x16(value: Single): TVecF32x16;
+function ScalarZeroF32x16: TVecF32x16;
+// F64x8 (512-bit)
+function ScalarLoadF64x8(p: PDouble): TVecF64x8;
+procedure ScalarStoreF64x8(p: PDouble; const a: TVecF64x8);
+function ScalarSplatF64x8(value: Double): TVecF64x8;
+function ScalarZeroF64x8: TVecF64x8;
 
 // 扩展数学函数
 function ScalarFmaF32x4(const a, b, c: TVecF32x4): TVecF32x4;
@@ -260,6 +359,18 @@ function ScalarFloorF64x4(const a: TVecF64x4): TVecF64x4;
 function ScalarCeilF64x4(const a: TVecF64x4): TVecF64x4;
 function ScalarRoundF64x4(const a: TVecF64x4): TVecF64x4;
 function ScalarTruncF64x4(const a: TVecF64x4): TVecF64x4;
+
+// F32x16 / F64x8 (512-bit)
+function ScalarFmaF32x16(const a, b, c: TVecF32x16): TVecF32x16;
+function ScalarFloorF32x16(const a: TVecF32x16): TVecF32x16;
+function ScalarCeilF32x16(const a: TVecF32x16): TVecF32x16;
+function ScalarRoundF32x16(const a: TVecF32x16): TVecF32x16;
+function ScalarTruncF32x16(const a: TVecF32x16): TVecF32x16;
+function ScalarFmaF64x8(const a, b, c: TVecF64x8): TVecF64x8;
+function ScalarFloorF64x8(const a: TVecF64x8): TVecF64x8;
+function ScalarCeilF64x8(const a: TVecF64x8): TVecF64x8;
+function ScalarRoundF64x8(const a: TVecF64x8): TVecF64x8;
+function ScalarTruncF64x8(const a: TVecF64x8): TVecF64x8;
 
 // 3D/4D 向量数学函数
 function ScalarDotF32x4(const a, b: TVecF32x4): Single;
@@ -310,6 +421,10 @@ function ScalarMask16FirstSet(mask: TMask16): Integer;
 
 // ✅ P2-3: F64x2 Select
 function ScalarSelectF64x2(const mask: TMask2; const a, b: TVecF64x2): TVecF64x2;
+
+// ✅ NEW: 512-bit Select
+function ScalarSelectF32x16(const mask: TMask16; const a, b: TVecF32x16): TVecF32x16;
+function ScalarSelectF64x8(const mask: TMask8; const a, b: TVecF64x8): TVecF64x8;
 
 implementation
 
@@ -1163,6 +1278,103 @@ begin
     else
       Result.i[i] := b.i[i];
 end;
+
+// === I64x8 Arithmetic/Bitwise/Comparison (512-bit) ===
+function ScalarAddI64x8(const a, b: TVecI64x8): TVecI64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.i[i] := a.i[i] + b.i[i];
+end;
+
+function ScalarSubI64x8(const a, b: TVecI64x8): TVecI64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.i[i] := a.i[i] - b.i[i];
+end;
+
+function ScalarAndI64x8(const a, b: TVecI64x8): TVecI64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.i[i] := a.i[i] and b.i[i];
+end;
+
+function ScalarOrI64x8(const a, b: TVecI64x8): TVecI64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.i[i] := a.i[i] or b.i[i];
+end;
+
+function ScalarXorI64x8(const a, b: TVecI64x8): TVecI64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.i[i] := a.i[i] xor b.i[i];
+end;
+
+function ScalarNotI64x8(const a: TVecI64x8): TVecI64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.i[i] := not a.i[i];
+end;
+
+function ScalarCmpEqI64x8(const a, b: TVecI64x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.i[i] = b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function ScalarCmpLtI64x8(const a, b: TVecI64x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.i[i] < b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function ScalarCmpGtI64x8(const a, b: TVecI64x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.i[i] > b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function ScalarCmpLeI64x8(const a, b: TVecI64x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.i[i] <= b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function ScalarCmpGeI64x8(const a, b: TVecI64x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.i[i] >= b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function ScalarCmpNeI64x8(const a, b: TVecI64x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.i[i] <> b.i[i] then
+      Result := Result or (1 shl i);
+end;
 {$POP}
 
 // === Comparison Operations ===
@@ -1264,6 +1476,116 @@ begin
   if a.d[1] <> b.d[1] then Result := Result or 2;
 end;
 
+// === F32x16/F64x8 Comparison (512-bit) ===
+
+function ScalarCmpEqF32x16(const a, b: TVecF32x16): TMask16;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 15 do
+    if a.f[i] = b.f[i] then
+      Result := Result or (1 shl i);
+end;
+
+function ScalarCmpLtF32x16(const a, b: TVecF32x16): TMask16;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 15 do
+    if a.f[i] < b.f[i] then
+      Result := Result or (1 shl i);
+end;
+
+function ScalarCmpLeF32x16(const a, b: TVecF32x16): TMask16;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 15 do
+    if a.f[i] <= b.f[i] then
+      Result := Result or (1 shl i);
+end;
+
+function ScalarCmpGtF32x16(const a, b: TVecF32x16): TMask16;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 15 do
+    if a.f[i] > b.f[i] then
+      Result := Result or (1 shl i);
+end;
+
+function ScalarCmpGeF32x16(const a, b: TVecF32x16): TMask16;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 15 do
+    if a.f[i] >= b.f[i] then
+      Result := Result or (1 shl i);
+end;
+
+function ScalarCmpNeF32x16(const a, b: TVecF32x16): TMask16;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 15 do
+    if a.f[i] <> b.f[i] then
+      Result := Result or (1 shl i);
+end;
+
+function ScalarCmpEqF64x8(const a, b: TVecF64x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.d[i] = b.d[i] then
+      Result := Result or (1 shl i);
+end;
+
+function ScalarCmpLtF64x8(const a, b: TVecF64x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.d[i] < b.d[i] then
+      Result := Result or (1 shl i);
+end;
+
+function ScalarCmpLeF64x8(const a, b: TVecF64x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.d[i] <= b.d[i] then
+      Result := Result or (1 shl i);
+end;
+
+function ScalarCmpGtF64x8(const a, b: TVecF64x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.d[i] > b.d[i] then
+      Result := Result or (1 shl i);
+end;
+
+function ScalarCmpGeF64x8(const a, b: TVecF64x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.d[i] >= b.d[i] then
+      Result := Result or (1 shl i);
+end;
+
+function ScalarCmpNeF64x8(const a, b: TVecF64x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.d[i] <> b.d[i] then
+      Result := Result or (1 shl i);
+end;
+
 // === Math Functions ===
 
 function ScalarAbsF32x4(const a: TVecF32x4): TVecF32x4;
@@ -1350,6 +1672,183 @@ var i: Integer;
 begin
   for i := 0 to 3 do
     Result.f[i] := Max(minVal.f[i], Min(a.f[i], maxVal.f[i]));
+end;
+
+// === ✅ NEW: Wide Vector Math Functions ===
+
+// F64x2 Math
+function ScalarAbsF64x2(const a: TVecF64x2): TVecF64x2;
+begin
+  Result.d[0] := Abs(a.d[0]);
+  Result.d[1] := Abs(a.d[1]);
+end;
+
+function ScalarSqrtF64x2(const a: TVecF64x2): TVecF64x2;
+begin
+  Result.d[0] := Sqrt(a.d[0]);
+  Result.d[1] := Sqrt(a.d[1]);
+end;
+
+function ScalarMinF64x2(const a, b: TVecF64x2): TVecF64x2;
+begin
+  Result.d[0] := Min(a.d[0], b.d[0]);
+  Result.d[1] := Min(a.d[1], b.d[1]);
+end;
+
+function ScalarMaxF64x2(const a, b: TVecF64x2): TVecF64x2;
+begin
+  Result.d[0] := Max(a.d[0], b.d[0]);
+  Result.d[1] := Max(a.d[1], b.d[1]);
+end;
+
+function ScalarClampF64x2(const a, minVal, maxVal: TVecF64x2): TVecF64x2;
+begin
+  Result.d[0] := Max(minVal.d[0], Min(a.d[0], maxVal.d[0]));
+  Result.d[1] := Max(minVal.d[1], Min(a.d[1], maxVal.d[1]));
+end;
+
+// F32x8 Math
+function ScalarAbsF32x8(const a: TVecF32x8): TVecF32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.f[i] := Abs(a.f[i]);
+end;
+
+function ScalarSqrtF32x8(const a: TVecF32x8): TVecF32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.f[i] := Sqrt(a.f[i]);
+end;
+
+function ScalarMinF32x8(const a, b: TVecF32x8): TVecF32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.f[i] := Min(a.f[i], b.f[i]);
+end;
+
+function ScalarMaxF32x8(const a, b: TVecF32x8): TVecF32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.f[i] := Max(a.f[i], b.f[i]);
+end;
+
+function ScalarClampF32x8(const a, minVal, maxVal: TVecF32x8): TVecF32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.f[i] := Max(minVal.f[i], Min(a.f[i], maxVal.f[i]));
+end;
+
+// F64x4 Math
+function ScalarAbsF64x4(const a: TVecF64x4): TVecF64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.d[i] := Abs(a.d[i]);
+end;
+
+function ScalarSqrtF64x4(const a: TVecF64x4): TVecF64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.d[i] := Sqrt(a.d[i]);
+end;
+
+function ScalarMinF64x4(const a, b: TVecF64x4): TVecF64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.d[i] := Min(a.d[i], b.d[i]);
+end;
+
+function ScalarMaxF64x4(const a, b: TVecF64x4): TVecF64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.d[i] := Max(a.d[i], b.d[i]);
+end;
+
+function ScalarClampF64x4(const a, minVal, maxVal: TVecF64x4): TVecF64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.d[i] := Max(minVal.d[i], Min(a.d[i], maxVal.d[i]));
+end;
+
+// F32x16 (512-bit)
+function ScalarAbsF32x16(const a: TVecF32x16): TVecF32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.f[i] := Abs(a.f[i]);
+end;
+
+function ScalarSqrtF32x16(const a: TVecF32x16): TVecF32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.f[i] := Sqrt(a.f[i]);
+end;
+
+function ScalarMinF32x16(const a, b: TVecF32x16): TVecF32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.f[i] := Min(a.f[i], b.f[i]);
+end;
+
+function ScalarMaxF32x16(const a, b: TVecF32x16): TVecF32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.f[i] := Max(a.f[i], b.f[i]);
+end;
+
+function ScalarClampF32x16(const a, minVal, maxVal: TVecF32x16): TVecF32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.f[i] := Max(minVal.f[i], Min(a.f[i], maxVal.f[i]));
+end;
+
+// F64x8 (512-bit)
+function ScalarAbsF64x8(const a: TVecF64x8): TVecF64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.d[i] := Abs(a.d[i]);
+end;
+
+function ScalarSqrtF64x8(const a: TVecF64x8): TVecF64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.d[i] := Sqrt(a.d[i]);
+end;
+
+function ScalarMinF64x8(const a, b: TVecF64x8): TVecF64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.d[i] := Min(a.d[i], b.d[i]);
+end;
+
+function ScalarMaxF64x8(const a, b: TVecF64x8): TVecF64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.d[i] := Max(a.d[i], b.d[i]);
+end;
+
+function ScalarClampF64x8(const a, minVal, maxVal: TVecF64x8): TVecF64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.d[i] := Max(minVal.d[i], Min(a.d[i], maxVal.d[i]));
 end;
 
 // === ✅ P1-4: Wide Vector Extended Math Functions ===
@@ -1457,6 +1956,78 @@ begin
     Result.d[i] := Trunc(a.d[i]);
 end;
 
+// F32x16 (512-bit)
+function ScalarFmaF32x16(const a, b, c: TVecF32x16): TVecF32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.f[i] := a.f[i] * b.f[i] + c.f[i];
+end;
+
+function ScalarFloorF32x16(const a: TVecF32x16): TVecF32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.f[i] := Floor(a.f[i]);
+end;
+
+function ScalarCeilF32x16(const a: TVecF32x16): TVecF32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.f[i] := Ceil(a.f[i]);
+end;
+
+function ScalarRoundF32x16(const a: TVecF32x16): TVecF32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.f[i] := Round(a.f[i]);
+end;
+
+function ScalarTruncF32x16(const a: TVecF32x16): TVecF32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.f[i] := Trunc(a.f[i]);
+end;
+
+// F64x8 (512-bit)
+function ScalarFmaF64x8(const a, b, c: TVecF64x8): TVecF64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.d[i] := a.d[i] * b.d[i] + c.d[i];
+end;
+
+function ScalarFloorF64x8(const a: TVecF64x8): TVecF64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.d[i] := Floor(a.d[i]);
+end;
+
+function ScalarCeilF64x8(const a: TVecF64x8): TVecF64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.d[i] := Ceil(a.d[i]);
+end;
+
+function ScalarRoundF64x8(const a: TVecF64x8): TVecF64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.d[i] := Round(a.d[i]);
+end;
+
+function ScalarTruncF64x8(const a: TVecF64x8): TVecF64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.d[i] := Trunc(a.d[i]);
+end;
+
 // === 3D/4D Vector Math ===
 
 function ScalarDotF32x4(const a, b: TVecF32x4): Single;
@@ -1557,6 +2128,161 @@ begin
   Result := 1.0;
   for i := 0 to 3 do
     Result := Result * a.f[i];
+end;
+
+// === ✅ NEW: Wide Vector Reduction Operations ===
+
+// F64x2 Reduction
+function ScalarReduceAddF64x2(const a: TVecF64x2): Double;
+begin
+  Result := a.d[0] + a.d[1];
+end;
+
+function ScalarReduceMinF64x2(const a: TVecF64x2): Double;
+begin
+  Result := Min(a.d[0], a.d[1]);
+end;
+
+function ScalarReduceMaxF64x2(const a: TVecF64x2): Double;
+begin
+  Result := Max(a.d[0], a.d[1]);
+end;
+
+function ScalarReduceMulF64x2(const a: TVecF64x2): Double;
+begin
+  Result := a.d[0] * a.d[1];
+end;
+
+// F32x8 Reduction
+function ScalarReduceAddF32x8(const a: TVecF32x8): Single;
+var i: Integer;
+begin
+  Result := 0.0;
+  for i := 0 to 7 do
+    Result := Result + a.f[i];
+end;
+
+function ScalarReduceMinF32x8(const a: TVecF32x8): Single;
+var i: Integer;
+begin
+  Result := a.f[0];
+  for i := 1 to 7 do
+    Result := Min(Result, a.f[i]);
+end;
+
+function ScalarReduceMaxF32x8(const a: TVecF32x8): Single;
+var i: Integer;
+begin
+  Result := a.f[0];
+  for i := 1 to 7 do
+    Result := Max(Result, a.f[i]);
+end;
+
+function ScalarReduceMulF32x8(const a: TVecF32x8): Single;
+var i: Integer;
+begin
+  Result := 1.0;
+  for i := 0 to 7 do
+    Result := Result * a.f[i];
+end;
+
+// F64x4 Reduction
+function ScalarReduceAddF64x4(const a: TVecF64x4): Double;
+var i: Integer;
+begin
+  Result := 0.0;
+  for i := 0 to 3 do
+    Result := Result + a.d[i];
+end;
+
+function ScalarReduceMinF64x4(const a: TVecF64x4): Double;
+var i: Integer;
+begin
+  Result := a.d[0];
+  for i := 1 to 3 do
+    Result := Min(Result, a.d[i]);
+end;
+
+function ScalarReduceMaxF64x4(const a: TVecF64x4): Double;
+var i: Integer;
+begin
+  Result := a.d[0];
+  for i := 1 to 3 do
+    Result := Max(Result, a.d[i]);
+end;
+
+function ScalarReduceMulF64x4(const a: TVecF64x4): Double;
+var i: Integer;
+begin
+  Result := 1.0;
+  for i := 0 to 3 do
+    Result := Result * a.d[i];
+end;
+
+// F32x16 (512-bit)
+function ScalarReduceAddF32x16(const a: TVecF32x16): Single;
+var i: Integer;
+begin
+  Result := 0.0;
+  for i := 0 to 15 do
+    Result := Result + a.f[i];
+end;
+
+function ScalarReduceMinF32x16(const a: TVecF32x16): Single;
+var i: Integer;
+begin
+  Result := a.f[0];
+  for i := 1 to 15 do
+    Result := Min(Result, a.f[i]);
+end;
+
+function ScalarReduceMaxF32x16(const a: TVecF32x16): Single;
+var i: Integer;
+begin
+  Result := a.f[0];
+  for i := 1 to 15 do
+    Result := Max(Result, a.f[i]);
+end;
+
+function ScalarReduceMulF32x16(const a: TVecF32x16): Single;
+var i: Integer;
+begin
+  Result := 1.0;
+  for i := 0 to 15 do
+    Result := Result * a.f[i];
+end;
+
+// F64x8 (512-bit)
+function ScalarReduceAddF64x8(const a: TVecF64x8): Double;
+var i: Integer;
+begin
+  Result := 0.0;
+  for i := 0 to 7 do
+    Result := Result + a.d[i];
+end;
+
+function ScalarReduceMinF64x8(const a: TVecF64x8): Double;
+var i: Integer;
+begin
+  Result := a.d[0];
+  for i := 1 to 7 do
+    Result := Min(Result, a.d[i]);
+end;
+
+function ScalarReduceMaxF64x8(const a: TVecF64x8): Double;
+var i: Integer;
+begin
+  Result := a.d[0];
+  for i := 1 to 7 do
+    Result := Max(Result, a.d[i]);
+end;
+
+function ScalarReduceMulF64x8(const a: TVecF64x8): Double;
+var i: Integer;
+begin
+  Result := 1.0;
+  for i := 0 to 7 do
+    Result := Result * a.d[i];
 end;
 
 // === Memory Operations ===
@@ -1748,6 +2474,68 @@ begin
   Result.d[1] := 0.0;
   Result.d[2] := 0.0;
   Result.d[3] := 0.0;
+end;
+
+// F32x16 (512-bit)
+function ScalarLoadF32x16(p: PSingle): TVecF32x16;
+var i: Integer;
+begin
+  Assert(p <> nil, 'ScalarLoadF32x16: pointer is nil');
+  for i := 0 to 15 do
+    Result.f[i] := p[i];
+end;
+
+procedure ScalarStoreF32x16(p: PSingle; const a: TVecF32x16);
+var i: Integer;
+begin
+  Assert(p <> nil, 'ScalarStoreF32x16: pointer is nil');
+  for i := 0 to 15 do
+    p[i] := a.f[i];
+end;
+
+function ScalarSplatF32x16(value: Single): TVecF32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.f[i] := value;
+end;
+
+function ScalarZeroF32x16: TVecF32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.f[i] := 0.0;
+end;
+
+// F64x8 (512-bit)
+function ScalarLoadF64x8(p: PDouble): TVecF64x8;
+var i: Integer;
+begin
+  Assert(p <> nil, 'ScalarLoadF64x8: pointer is nil');
+  for i := 0 to 7 do
+    Result.d[i] := p[i];
+end;
+
+procedure ScalarStoreF64x8(p: PDouble; const a: TVecF64x8);
+var i: Integer;
+begin
+  Assert(p <> nil, 'ScalarStoreF64x8: pointer is nil');
+  for i := 0 to 7 do
+    p[i] := a.d[i];
+end;
+
+function ScalarSplatF64x8(value: Double): TVecF64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.d[i] := value;
+end;
+
+function ScalarZeroF64x8: TVecF64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.d[i] := 0.0;
 end;
 
 // === Backend Registration ===
@@ -2616,6 +3404,26 @@ begin
     Result.d[1] := a.d[1]
   else
     Result.d[1] := b.d[1];
+end;
+
+function ScalarSelectF32x16(const mask: TMask16; const a, b: TVecF32x16): TVecF32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    if (mask and (1 shl i)) <> 0 then
+      Result.f[i] := a.f[i]
+    else
+      Result.f[i] := b.f[i];
+end;
+
+function ScalarSelectF64x8(const mask: TMask8; const a, b: TVecF64x8): TVecF64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    if (mask and (1 shl i)) <> 0 then
+      Result.d[i] := a.d[i]
+    else
+      Result.d[i] := b.d[i];
 end;
 
 {$POP}
