@@ -1,6 +1,98 @@
 ========================================
 Module: fafafa.core.lockfree
 Script: /home/dtamade/projects/fafafa.core/tests/fafafa.core.lockfree/BuildAndTest.sh
-Started: 2025-12-01 10:58:15
+Started: 2026-01-01 21:18:25
 ========================================
-bash: 行 1: /home/dtamade/projects/fafafa.core/tests/fafafa.core.lockfree/BuildAndTest.sh: 权限不够
+fafafa.core.lockfree 构建和测试系统
+====================================
+
+开始测试流程...
+
+[1/4] 编译基础功能测试...
+Free Pascal Compiler version 3.3.1-18766-gc75982a639-dirty [2025/10/23] for x86_64
+Copyright (c) 1993-2025 by Florian Klaempfl and others
+Target OS: Linux for x86-64
+Compiling /home/dtamade/projects/fafafa.core/tests/fafafa.core.lockfree/tests_lockfree.lpr
+Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.lockfree.stack.pas
+Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.collections.stack.pas
+Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.collections.vecdeque.pas
+Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.collections.vec.pas
+Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.collections.slice.pas
+Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.base.pas
+Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.collections.base.pas
+Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.collections.elementManager.pas
+Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.math.pas
+Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.math.array_.pas
+Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.math.dispatch.pas
+Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.math.intutil.pas
+Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.math.safeint.pas
+Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.math.float.pas
+Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.utils.pas
+fafafa.core.mem.utils.pas(837,13) Note: Call to subroutine "function IsOverlapUnChecked(aPtr1:Pointer;aSize1:QWord;aPtr2:Pointer;aSize2:QWord):System.Boolean;" marked as inline is not inlined
+fafafa.core.mem.utils.pas(874,3) Note: Call to subroutine "procedure CopyUnChecked(aSrc:Pointer;aDst:Pointer;aSize:QWord);" marked as inline is not inlined
+fafafa.core.mem.utils.pas(903,3) Note: Call to subroutine "procedure CopyNonOverlapUnChecked(aSrc:Pointer;aDst:Pointer;aSize:QWord);" marked as inline is not inlined
+fafafa.core.mem.utils.pas(917,3) Note: Call to subroutine "procedure Fill8(aDst:Pointer;aCount:Int64;aValue:Byte);" marked as inline is not inlined
+fafafa.core.mem.utils.pas(922,3) Note: Call to subroutine "procedure Fill8(aDst:Pointer;aCount:QWord;aValue:Byte);" marked as inline is not inlined
+fafafa.core.mem.utils.pas(1119,13) Note: Call to subroutine "function Compare8(aPtr1:Pointer;aPtr2:Pointer;aCount:QWord):System.LongInt;" marked as inline is not inlined
+fafafa.core.mem.utils.pas(1124,13) Note: Call to subroutine "function Compare8(aPtr1:Pointer;aPtr2:Pointer;aCount:Int64):System.LongInt;" marked as inline is not inlined
+fafafa.core.mem.utils.pas(1148,16) Note: Call to subroutine "function Compare8(aPtr1:Pointer;aPtr2:Pointer;aCount:Int64):System.LongInt;" marked as inline is not inlined
+fafafa.core.mem.utils.pas(1187,16) Note: Call to subroutine "function Compare16(aPtr1:Pointer;aPtr2:Pointer;aCount:Int64):System.LongInt;" marked as inline is not inlined
+fafafa.core.mem.utils.pas(1229,16) Note: Call to subroutine "function Compare32(aPtr1:Pointer;aPtr2:Pointer;aCount:Int64):System.LongInt;" marked as inline is not inlined
+fafafa.core.mem.utils.pas(1278,10) Note: Call to subroutine "function IsPowerOfTwo(N:QWord):System.Boolean;" marked as inline is not inlined
+fafafa.core.mem.utils.pas(1281,13) Note: Call to subroutine "function AlignUpUnChecked(aPtr:Pointer;aAlignment:QWord=`8`):System.Pointer;" marked as inline is not inlined
+fafafa.core.mem.utils.pas(1305,13) Note: Call to subroutine "function AlignDownUnChecked(aPtr:Pointer;aAlignment:QWord=`8`):System.Pointer;" marked as inline is not inlined
+Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.pas
+Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.crtAllocator.pas
+Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.base.pas
+Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.instrumentation.pas
+fafafa.core.mem.allocator.instrumentation.pas(68,13) Hint: Variable "S" does not seem to be initialized
+fafafa.core.mem.allocator.instrumentation.pas(39,34) Hint: Parameter "AEnable" not used
+fafafa.core.mem.allocator.instrumentation.pas(40,40) Hint: Parameter "AN" not used
+fafafa.core.mem.allocator.instrumentation.pas(34,34) Hint: Parameter "ABytes" not used
+fafafa.core.mem.allocator.instrumentation.pas(35,36) Hint: Parameter "ABytes" not used
+fafafa.core.mem.allocator.base.pas(73,11) Hint: Conversion between ordinals and pointers is not portable
+fafafa.core.mem.allocator.base.pas(75,13) Hint: Conversion between ordinals and pointers is not portable
+fafafa.core.mem.allocator.base.pas(161,32) Hint: Conversion between ordinals and pointers is not portable
+fafafa.core.mem.allocator.base.pas(161,24) Hint: Conversion between ordinals and pointers is not portable
+fafafa.core.mem.allocator.base.pas(162,25) Hint: Conversion between ordinals and pointers is not portable
+fafafa.core.mem.allocator.base.pas(162,16) Hint: Conversion between ordinals and pointers is not portable
+fafafa.core.mem.allocator.base.pas(172,25) Hint: Conversion between ordinals and pointers is not portable
+fafafa.core.mem.allocator.base.pas(172,16) Hint: Conversion between ordinals and pointers is not portable
+fafafa.core.mem.allocator.base.pas(11,3) Hint: Unit "fafafa.core.mem.allocator.instrumentation" not used in fafafa.core.mem.allocator.base
+fafafa.core.mem.allocator.crtAllocator.pas(10,3) Hint: Unit "fafafa.core.base" not used in fafafa.core.mem.allocator.crtAllocator
+Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.mimalloc.pas
+Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.callbackAllocator.pas
+Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.rtlAllocator.pas
+fafafa.core.mem.allocator.rtlAllocator.pas(10,3) Hint: Unit "fafafa.core.base" not used in fafafa.core.mem.allocator.rtlAllocator
+fafafa.core.mem.allocator.pas(24,3) Hint: Unit "fafafa.core.base" not used in fafafa.core.mem.allocator
+fafafa.core.collections.base.pas(1585,13) Note: Call to subroutine "function compare_u8(const aLeft:Byte;const aRight:Byte):System.Int64;" marked as inline is not inlined
+fafafa.core.collections.base.pas(1590,13) Note: Call to subroutine "function compare_u16(const aLeft:Word;const aRight:Word):System.Int64;" marked as inline is not inlined
+fafafa.core.collections.base.pas(2078,33) Note: Call to subroutine "function TCollection.GetAllocator:fafafa.core.mem.allocator.base.IAllocator;" marked as inline is not inlined
+fafafa.core.collections.base.pas(2078,44) Note: Call to subroutine "function TCollection.GetData:System.Pointer;" marked as inline is not inlined
+fafafa.core.collections.base.pas(2086,37) Note: Call to subroutine "function TCollection.GetData:System.Pointer;" marked as inline is not inlined
+fafafa.core.collections.base.pas(1423,28) Hint: Parameter "aCurrentSize" not used
+fafafa.core.collections.base.pas(1468,28) Hint: Parameter "aCurrentSize" not used
+fafafa.core.collections.base.pas(13,15) Hint: Unit "fafafa.core.mem.utils" not used in fafafa.core.collections.base
+Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.collections.arr.pas
+Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.collections.queue.pas
+Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.lockfree.reclaim.pas
+Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas
+Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.lockfree.backoff.pas
+Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.lockfree.stats.pas
+fafafa.core.lockfree.stack.pas(87,5) Note: Private field "TTreiberStack.FPadAfterTop" is never used
+fafafa.core.lockfree.stack.pas(160,5) Note: Private field "TPreAllocStack.FPadAfterHead" is never used
+fafafa.core.lockfree.stack.pas(162,5) Note: Private field "TPreAllocStack.FPadAfterFree" is never used
+Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.lockfree.hashmap.pas
+Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.lockfree.mpmcQueue.pas
+Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.lockfree.util.pas
+fafafa.core.lockfree.mpmcQueue.pas(28,5) Note: Private field "TPreAllocMPMCQueue.FPad0" is never used
+fafafa.core.lockfree.mpmcQueue.pas(32,5) Note: Private field "TPreAllocMPMCQueue.FPad1" is never used
+fafafa.core.lockfree.mpmcQueue.pas(36,5) Note: Private field "TPreAllocMPMCQueue.FPad2" is never used
+Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.lockfree.michaelScottQueue.pas
+fafafa.core.lockfree.michaelScottQueue.pas(58,13) Error: Identifier not found "PNode"
+fafafa.core.lockfree.michaelScottQueue.pas(58,21) Error: Pointer type expected, but got "<erroneous type>"
+fafafa.core.lockfree.michaelScottQueue.pas(85,4) Error: Generic template in interface section references symbol in implementation section
+fafafa.core.lockfree.michaelScottQueue.pas(170,1) Error: Illegal expression
+fafafa.core.lockfree.michaelScottQueue.pas(170,11) Fatal: Syntax error, ";" expected but "identifier TMICHAELSCOTTQUEUE" found
+Fatal: Compilation aborted
+Error: /home/dtamade/freePascal/fpc/bin/x86_64-linux/ppcx64 returned an error exitcode

@@ -474,10 +474,13 @@ begin
   if not HasSSE41 then
     Exit;
 
-  // ✅ 修复 P0-1: 从 SSSE3 继承实现（SSE4.1 是 SSSE3 的超集）
   dispatchTable := Default(TSimdDispatchTable);
 
-  // Set backend info BEFORE cloning (will be preserved)
+  // Start with base scalar implementations
+  FillBaseDispatchTable(dispatchTable);
+
+  // Set backend info
+  dispatchTable.Backend := sbSSE41;
   with dispatchTable.BackendInfo do
   begin
     Backend := sbSSE41;
@@ -488,15 +491,6 @@ begin
     Available := True;
     Priority := 20; // Higher than SSSE3 (18)
   end;
-
-  // Clone from SSSE3 → SSE3 → SSE2 chain
-  if not CloneDispatchTable(sbSSSE3, dispatchTable) then
-    if not CloneDispatchTable(sbSSE3, dispatchTable) then
-      if not CloneDispatchTable(sbSSE2, dispatchTable) then
-        FillBaseDispatchTable(dispatchTable);
-
-  // Update backend identifier
-  dispatchTable.Backend := sbSSE41;
 
   // SSE4.1 provides major improvements
   if IsVectorAsmEnabled then

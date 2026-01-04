@@ -1,6 +1,189 @@
 ========================================
 Module: fafafa.core.crypto
 Script: /home/dtamade/projects/fafafa.core/tests/fafafa.core.crypto/BuildOrTest.sh
-Started: 2025-12-01 10:58:15
+Started: 2026-01-01 21:18:22
 ========================================
-bash: 行 1: /home/dtamade/projects/fafafa.core/tests/fafafa.core.crypto/BuildOrTest.sh: 权限不够
+[BuildOrTest] BuildMode: Release (default)
+Building project (anon=ON): /home/dtamade/projects/fafafa.core/tests/fafafa.core.crypto/tests_crypto.lpi...
+SetPrimaryConfigPath NewValue="/home/dtamade/freePascal/config_lazarus"
+Hint: (lazbuild) Primary config path: "/home/dtamade/freePascal/config_lazarus"
+Hint: (lazarus) [TBuildManager.SetBuildTarget] Old=x86_64-linux--gtk2 New=x86_64-linux--gtk2 Changed: OS/CPU=True LCL=False
+Hint: (lazarus) [TBuildManager.SetBuildTarget] Old=x86_64-linux--gtk2 New=x86_64-linux--gtk2 Changed: OS/CPU=True LCL=False
+TProject.DoLoadStateFile Statefile not found: /home/dtamade/projects/fafafa.core/tests/fafafa.core.crypto/lib/x86_64-linux/tests_crypto.compiled
+Hint: (lazarus) Project needs building: No state file for Project
+Info: (lazarus) Execute Title="Compile Project, Mode: Release, Target: /home/dtamade/projects/fafafa.core/tests/fafafa.core.crypto/bin/tests_crypto"
+Info: (lazarus) Working Directory="/home/dtamade/projects/fafafa.core/tests/fafafa.core.crypto/"
+Info: (lazarus) Executable="/home/dtamade/freePascal/fpc/bin/x86_64-linux/fpc.sh"
+Info: (lazarus) Param[0]="-MObjFPC"
+Info: (lazarus) Param[1]="-Scaghi"
+Info: (lazarus) Param[2]="-Cg"
+Info: (lazarus) Param[3]="-CirotR"
+Info: (lazarus) Param[4]="-O1"
+Info: (lazarus) Param[5]="-gw3"
+Info: (lazarus) Param[6]="-gl"
+Info: (lazarus) Param[7]="-gh"
+Info: (lazarus) Param[8]="-Xg"
+Info: (lazarus) Param[9]="-gt"
+Info: (lazarus) Param[10]="-l"
+Info: (lazarus) Param[11]="-vewnhibq"
+Info: (lazarus) Param[12]="-Fi/home/dtamade/projects/fafafa.core/tests/fafafa.core.crypto/lib/x86_64-linux"
+Info: (lazarus) Param[13]="-Fu/home/dtamade/projects/fafafa.core/tests/fafafa.core.crypto/"
+Info: (lazarus) Param[14]="-Fu/home/dtamade/projects/fafafa.core/src"
+Info: (lazarus) Param[15]="-Fu/home/dtamade/freePascal/lazarus/components/fpcunit/lib/x86_64-linux/gtk2"
+Info: (lazarus) Param[16]="-Fu/home/dtamade/freePascal/lazarus/components/synedit/units/x86_64-linux/gtk2"
+Info: (lazarus) Param[17]="-Fu/home/dtamade/freePascal/lazarus/lcl/units/x86_64-linux/gtk2"
+Info: (lazarus) Param[18]="-Fu/home/dtamade/freePascal/lazarus/components/lazedit/lib/x86_64-linux"
+Info: (lazarus) Param[19]="-Fu/home/dtamade/freePascal/lazarus/lcl/units/x86_64-linux"
+Info: (lazarus) Param[20]="-Fu/home/dtamade/freePascal/lazarus/components/freetype/lib/x86_64-linux"
+Info: (lazarus) Param[21]="-Fu/home/dtamade/freePascal/lazarus/components/lazutils/lib/x86_64-linux"
+Info: (lazarus) Param[22]="-Fu/home/dtamade/freePascal/lazarus/packager/units/x86_64-linux"
+Info: (lazarus) Param[23]="-FU/home/dtamade/projects/fafafa.core/tests/fafafa.core.crypto/lib/x86_64-linux/"
+Info: (lazarus) Param[24]="-FE/home/dtamade/projects/fafafa.core/tests/fafafa.core.crypto/bin/"
+Info: (lazarus) Param[25]="-o/home/dtamade/projects/fafafa.core/tests/fafafa.core.crypto/bin/tests_crypto"
+Info: (lazarus) Param[26]="-dLCL"
+Info: (lazarus) Param[27]="-dLCLgtk2"
+Info: (lazarus) Param[28]="-dDEBUG"
+Info: (lazarus) Param[29]="tests_crypto.lpr"
+Info: (lazarus) Param[30]="-B"
+Hint: (11030) Start of reading config file /home/dtamade/freePascal/fpc/bin/x86_64-linux/fpc.cfg
+Compiling Debug Version
+Hint: (11031) End of reading config file /home/dtamade/freePascal/fpc/bin/x86_64-linux/fpc.cfg
+Free Pascal Compiler version 3.3.1-18766-gc75982a639-dirty [2025/10/23] for x86_64
+Copyright (c) 1993-2025 by Florian Klaempfl and others
+(1002) Target OS: Linux for x86-64
+(3104) Compiling tests_crypto.lpr
+(3104) Compiling Test_ghash_warmup_smoke.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.safe.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.chacha20poly1305.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.interfaces.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.gcm.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.nonce.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.utils.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.random.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.kdf.pbkdf2.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.base.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.math.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.math.array_.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.math.dispatch.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.math.intutil.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.math.safeint.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.math.float.pas
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.chacha20poly1305.pas(88,4) Note: (3123) "open array" not yet supported inside inline procedure/function
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.chacha20poly1305.pas(88,4) Hint: (3124) Inlining disabled
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.chacha20poly1305.pas(121,18) Hint: (5092) Variable "Block" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.chacha20poly1305.pas(137,33) Hint: (5091) Local variable "Block" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.chacha20poly1305.pas(133,3) Note: (5025) Local variable "I" not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.chacha20poly1305.pas(173,3) Note: (5025) Local variable "I" not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.chacha20poly1305.pas(410,6) Note: (5025) Local variable "I" not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.chacha20poly1305.pas(444,3) Note: (5025) Local variable "I" not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.chacha20poly1305.pas(489,16) Hint: (5091) Local variable "OTK" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.chacha20poly1305.pas(515,16) Hint: (5091) Local variable "OTK" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.chacha20poly1305.pas(515,38) Hint: (5091) Local variable "Block0" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.chacha20poly1305.pas(516,14) Hint: (5091) Local variable "C" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.chacha20poly1305.pas(516,38) Hint: (5091) Local variable "GivenTag" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.chacha20poly1305.pas(516,61) Hint: (5091) Local variable "CalcTag" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.chacha20poly1305.pas(516,79) Hint: (5091) Local variable "PT" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.chacha20poly1305.pas(553,16) Hint: (5091) Local variable "OTK" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.chacha20poly1305.pas(553,38) Hint: (5091) Local variable "Block0" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.chacha20poly1305.pas(554,14) Hint: (5091) Local variable "C" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.chacha20poly1305.pas(554,33) Hint: (5091) Local variable "Tag" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.chacha20poly1305.pas(583,16) Hint: (5091) Local variable "OTK" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.chacha20poly1305.pas(583,38) Hint: (5091) Local variable "Block0" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.chacha20poly1305.pas(584,14) Hint: (5091) Local variable "C" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.chacha20poly1305.pas(584,38) Hint: (5091) Local variable "GivenTag" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.chacha20poly1305.pas(584,61) Hint: (5091) Local variable "CalcTag" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.chacha20poly1305.pas(584,79) Hint: (5091) Local variable "PT" of a managed type does not seem to be initialized
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.gcm.ghash.pas
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.gcm.ghash.pas(105,48) Hint: (5026) Value parameter "B" is assigned but never used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.gcm.ghash.pas(441,29) Hint: (5026) Value parameter "A" is assigned but never used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.gcm.ghash.pas(441,32) Hint: (5026) Value parameter "B" is assigned but never used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.gcm.ghash.pas(513,15) Hint: (5057) Local variable "V" does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.gcm.ghash.pas(534,19) Hint: (5057) Local variable "tmp" does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.gcm.ghash.pas(560,16) Hint: (5057) Local variable "Zloc" does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.gcm.ghash.pas(406,40) Hint: (5026) Value parameter "X" is assigned but never used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.gcm.ghash.pas(585,19) Hint: (5057) Local variable "tmp" does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.gcm.ghash.pas(599,16) Hint: (5057) Local variable "Zloc" does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.gcm.ghash.pas(407,38) Hint: (5026) Value parameter "X" is assigned but never used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.gcm.ghash.pas(639,16) Hint: (5057) Local variable "Zloc" does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.gcm.ghash.pas(405,41) Hint: (5026) Value parameter "X" is assigned but never used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.gcm.ghash.pas(81,3) Note: (5025) Local variable "GF_CLMUL_Faulted" not used
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.cipher.aes.ctr.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.cipher.aes.pas
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.cipher.aes.pas(348,55) Hint: (5026) Value parameter "rk" is assigned but never used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.cipher.aes.pas(56,34) Hint: (5026) Value parameter "InBlk" is assigned but never used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.cipher.aes.pas(57,34) Hint: (5026) Value parameter "InBlk" is assigned but never used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.random.pas(139,28) Hint: (5024) Parameter "Buffer" not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.random.pas(139,43) Hint: (5024) Parameter "Size" not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.random.pas(139,58) Hint: (5024) Parameter "Blocking" not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.random.pas(139,68) Hint: (5024) Parameter "ForceUrandom" not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.random.pas(82,32) Hint: (5024) Parameter "AData" not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.random.pas(126,3) Hint: (5028) Local const "SYS_getrandom" is not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.random.pas(136,3) Hint: (5028) Local const "GRND_NONBLOCK" is not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.utils.pas(470,3) Note: (5025) Local variable "LRepeatedChars" not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.utils.pas(318,3) Hint: (5023) Unit "fafafa.core.math" not used in fafafa.core.crypto.utils
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.hmac.pas
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.kdf.pbkdf2.pas(270,27) Hint: (5091) Local variable "LPasswordBytes" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.kdf.pbkdf2.pas(25,3) Hint: (5023) Unit "fafafa.core.base" not used in fafafa.core.crypto.kdf.pbkdf2
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.hash.sha256.pas
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.hash.sha256.pas(25,3) Hint: (5023) Unit "fafafa.core.base" not used in fafafa.core.crypto.hash.sha256
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.hash.sha512.pas
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.hash.sha512.pas(25,3) Hint: (5023) Unit "fafafa.core.base" not used in fafafa.core.crypto.hash.sha512
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.hash.md5.pas
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.hash.md5.pas(27,3) Hint: (5023) Unit "fafafa.core.base" not used in fafafa.core.crypto.hash.md5
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.hmac.pas(67,28) Hint: (5026) Value parameter "AData" is assigned but never used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.hmac.pas(360,16) Hint: (5091) Local variable "tmp" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.hmac.pas(24,3) Hint: (5023) Unit "fafafa.core.math" not used in fafafa.core.crypto.hmac
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.cipher.aes.cbc.pas
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.cipher.aes.cbc.pas(221,7) Note: (5027) Local variable "LJ" is assigned but never used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.cipher.aes.cbc.pas(55,59) Hint: (5026) Value parameter "ABlock2" is assigned but never used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.cipher.aes.cbc.pas(25,3) Hint: (5023) Unit "fafafa.core.base" not used in fafafa.core.crypto.cipher.aes.cbc
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.hash.xxhash64.pas
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.hash.xxhash64.pas(262,18) Hint: (5091) Local variable "Bytes" of a managed type does not seem to be initialized
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.hash.xxhash32.pas
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.hash.xxhash32.pas(322,18) Hint: (5091) Local variable "Bytes" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.hash.xxhash32.pas(25,3) Hint: (5023) Unit "fafafa.core.base" not used in fafafa.core.crypto.hash.xxhash32
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.bytes.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.io.base.pas
+/home/dtamade/projects/fafafa.core/src/fafafa.core.bytes.pas(599,3) Note: (5025) Local variable "v1" not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.bytes.pas(599,7) Note: (5025) Local variable "v2" not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.bytes.pas(369,66) Hint: (5024) Parameter "AChunkSize" not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.gcm.pas(491,14) Hint: (5091) Local variable "H" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.gcm.pas(492,19) Hint: (5057) Local variable "J0Block" does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.gcm.pas(495,16) Hint: (5091) Local variable "EJ0" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.gcm.pas(510,21) Hint: (5091) Local variable "TagTrunc" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.gcm.pas(481,11) Note: (5025) Local variable "L" not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.gcm.pas(548,14) Hint: (5091) Local variable "C" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.gcm.pas(549,21) Hint: (5091) Local variable "GivenTag" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.gcm.pas(552,14) Hint: (5091) Local variable "H" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.gcm.pas(553,19) Hint: (5057) Local variable "J0Block" does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.gcm.pas(563,16) Hint: (5091) Local variable "EJ0" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.gcm.pas(565,20) Hint: (5091) Local variable "CalcTag" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.gcm.pas(602,14) Hint: (5091) Local variable "H" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.gcm.pas(603,19) Hint: (5057) Local variable "J0Block" does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.gcm.pas(616,16) Hint: (5091) Local variable "EJ0" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.gcm.pas(618,21) Hint: (5091) Local variable "TagTrunc" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.gcm.pas(652,14) Hint: (5091) Local variable "C" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.gcm.pas(653,21) Hint: (5091) Local variable "GivenTag" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.gcm.pas(656,14) Hint: (5091) Local variable "H" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.gcm.pas(657,19) Hint: (5057) Local variable "J0Block" does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.gcm.pas(668,16) Hint: (5091) Local variable "EJ0" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.aead.gcm.pas(670,20) Hint: (5091) Local variable "CalcTag" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.pas(879,19) Hint: (5091) Local variable "LBytes" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.crypto.pas(905,19) Hint: (5091) Local variable "LBytes" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.crypto/Test_ghash_warmup_smoke.pas(28,16) Hint: (5091) Local variable "AAD" of a managed type does not seem to be initialized
+(3104) Compiling Test_rng_contracts.pas
+(3104) Compiling TestAssertHelpers.pas
+(3104) Compiling Test_include_integrity.pas
+(3104) Compiling Test_ghash_finalize_mismatch_debug.pas
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.crypto/Test_ghash_finalize_mismatch_debug.pas(24,14) Hint: (5091) Local variable "H" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.crypto/Test_ghash_finalize_mismatch_debug.pas(25,14) Hint: (5091) Local variable "A" of a managed type does not seem to be initialized
+(3104) Compiling Test_ghash_cache_per_h_basic.pas
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.crypto/Test_ghash_cache_per_h_basic.pas(9,45) Fatal: (10022) Can't find unit Windows used by Test_ghash_cache_per_h_basic
+Fatal: (1018) Compilation aborted
+Error: /home/dtamade/freePascal/fpc/bin/x86_64-linux/ppcx64 returned an error exitcode
+Error: (lazarus) Compile Project, Mode: Release, Target: /home/dtamade/projects/fafafa.core/tests/fafafa.core.crypto/bin/tests_crypto: stopped with exit code 1
+Info: (lazarus) [TCompiler.Compile] end
+Error: (lazbuild) Failed compiling of project "/home/dtamade/projects/fafafa.core/tests/fafafa.core.crypto/tests_crypto.lpi"
+
+Build failed (anon=ON).

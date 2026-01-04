@@ -110,9 +110,9 @@ begin
   result := VecF32x4Shuffle(a, MM_SHUFFLE(0,0,0,0));  // 广播 a[0]
   result := VecF32x4Reverse(a);  // [4.0, 3.0, 2.0, 1.0]
   
-  // 数学函数
-  result := VecF32x4Sin(a);   // 逐元素 sin
-  result := VecF32x4Exp(a);   // 逐元素 exp
+  // 数学函数（示例：使用已实现的 API）
+  result := VecF32x4Sqrt(a);
+  result := VecF32x4Abs(result);
 end;
 ```
 
@@ -176,16 +176,18 @@ function MemFindByte(p: Pointer; len: SizeUInt; value: Byte): PtrInt;
 
 #### MemDiffRange
 ```pascal
-function MemDiffRange(a, b: Pointer; len: SizeUInt): TDiffRange;
+function MemDiffRange(a, b: Pointer; len: SizeUInt; out firstDiff, lastDiff: SizeUInt): Boolean;
 ```
 **功能**：找出两个内存区域的差异范围
 **参数**：
 - `a`, `b`: 要比较的内存区域指针
 - `len`: 比较的字节数
+- `firstDiff`: 首个差异位置（0-based）
+- `lastDiff`: 最后差异位置（0-based）
 
-**返回值**：`TDiffRange` 记录，包含 `First` 和 `Last` 字段
-- 完全相同时：`First = -1, Last = -1`
-- 有差异时：`First` 为首个差异位置，`Last` 为最后差异位置
+**返回值**：
+- 有差异返回 `True`，并输出 `firstDiff/lastDiff`
+- 完全相同返回 `False`
 
 **优化**：x86_64 使用 SSE2/AVX2，AArch64 使用 NEON
 
@@ -193,7 +195,7 @@ function MemDiffRange(a, b: Pointer; len: SizeUInt): TDiffRange;
 
 #### Utf8Validate
 ```pascal
-function Utf8Validate(p: Pointer; len: SizeUInt): LongBool;
+function Utf8Validate(p: Pointer; len: SizeUInt): Boolean;
 ```
 **功能**：验证内存区域是否为有效的 UTF-8 编码
 **参数**：
@@ -229,7 +231,7 @@ procedure ToUpperAscii(p: Pointer; len: SizeUInt);
 
 #### AsciiIEqual
 ```pascal
-function AsciiIEqual(a, b: Pointer; len: SizeUInt): LongBool;
+function AsciiIEqual(a, b: Pointer; len: SizeUInt): Boolean;
 ```
 **功能**：ASCII 字符串忽略大小写比较
 **参数**：
@@ -239,21 +241,12 @@ function AsciiIEqual(a, b: Pointer; len: SizeUInt): LongBool;
 **返回值**：忽略大小写相等返回 `True`，否则返回 `False`
 **说明**：只对 ASCII 字母进行大小写转换，非 ASCII 字节直接比较
 **优化**：x86_64 使用 SSE2/AVX2，AArch64 使用 NEON
-- 初始化阶段：
-  - 检测 CPU/OS 能力（x86：CPUID + OSXSAVE + XGETBV；ARM64：特征寄存器/操作系统导出），决定可用 ISA 集。
-  - 为每个原语选择最佳实现，绑定函数指针。
-- 强制策略：
-  - 环境变量 FAFAFA_SIMD_FORCE=SCALAR|SSE2|AVX2|NEON|AVX-512|SVE|SVE2（大小写不敏感）。
-  - 编译宏 FAFAFA_SIMD_USE_ASM 开启汇编；FAFAFA_SIMD_NO_ASM 禁用汇编（仅标量）。
-- Info：
-  - function SimdInfo: string;  // 返回 "X86_64-AVX2"、"AARCH64-NEON"、"SCALAR" 等。
-
-实现策略
-- M0：门面/检测/标量实现 + 派发骨架（功能即刻可用）。
-- M1：微内核（SSE2）覆盖：MemEqual/MemFindByte/MemDiffRange；Utf8Validate 快路径；BitsetPopCount POPCNT 绑定。
-- M2：AVX2 路径 + Bitset 带宽优化 + ASCII 大小写。
-- M3：XxHash64 分块优化 + （可选）CRC32C 的 SSE4.2/PMULL 实现。
-- M4：视硬件与工具链考虑 AVX-512/SVE/SVE2 的选点增强。
+实现与配置（以代码为准）
+- 后端选择/强制：使用 `fafafa.core.simd.dispatch` 的 `SetActiveBackend` / `TrySetActiveBackend` / `ResetToAutomaticBackend`。
+- VectorAsm 开关：编译期定义 `SIMD_VECTOR_ASM_DISABLED`；运行时可调用 `SetVectorAsmEnabled`（仅在 dispatch 初始化前有效）。
+- 测试入口：
+  - bash tests/fafafa.core.simd/BuildOrTest.sh check
+  - bash tests/fafafa.core.simd/BuildOrTest.sh test
 
 汇编与调用约定注意
 - Windows x64：遵循 MS x64 ABI；如使用 AVX，返回前执行 vzeroupper；保存 XMM6–XMM15。

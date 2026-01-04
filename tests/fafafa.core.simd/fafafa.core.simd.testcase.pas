@@ -107,11 +107,22 @@ type
     procedure Test_ForceAVX512_VecF32x4_Smoke;
   end;
 
+  // Dispatch public API contract tests
+  TTestCase_DispatchAPI = class(TTestCase)
+  published
+    procedure Test_TrySetActiveBackend_Scalar_ReturnsTrue;
+    procedure Test_TrySetActiveBackend_Unavailable_NoChange;
+    procedure Test_SetActiveBackend_Unavailable_FallsBackToScalar;
+  end;
+
   {$IFDEF CPUX86_64}
   // AVX-512 后端需求判定测试（纯逻辑，不依赖当前硬件）
   TTestCase_AVX512BackendRequirements = class(TTestCase)
   published
     procedure Test_X86HasAVX512BackendRequiredFeatures_AVX512FOnly_Disabled;
+    procedure Test_AVX512Backend_RegisteredDispatchTable_IsAccessible;
+    procedure Test_AVX512Backend_DispatchTable_Overrides512BitLoadStoreAndSelect;
+    procedure Test_AVX512Backend_DispatchTable_Overrides512BitFloatCompare;
   end;
   {$ENDIF}
 
@@ -187,6 +198,63 @@ type
     procedure Test_Facade_ToLowerAscii_ABI_CalleeSavedRegisters_Preserved;
     procedure Test_Facade_ToUpperAscii_ABI_CalleeSavedRegisters_Preserved;
     procedure Test_Facade_BytesIndexOf_ABI_CalleeSavedRegisters_Preserved;
+  end;
+
+  // AVX-512 VectorAsm 专项测试：聚焦于 512-bit 向量汇编路径的正确性
+  // 全面覆盖所有 AVX-512 注册函数
+  TTestCase_AVX512VectorAsm = class(TTestCase)
+  protected
+    FOldVectorAsm: Boolean;
+    procedure SetUp; override;
+    procedure TearDown; override;
+  published
+    // === F32x16 算术运算一致性测试 ===
+    procedure Test_VecF32x16_AddSubMulDiv_RandomConsistency;
+    procedure Test_VecF32x16_AddSubMulDiv_SpecialValues_Consistency;
+
+    // === F64x8 算术运算一致性测试 ===
+    procedure Test_VecF64x8_AddSubMulDiv_RandomConsistency;
+    procedure Test_VecF64x8_AddSubMulDiv_SpecialValues_Consistency;
+
+    // === I32x16 算术运算一致性测试 ===
+    procedure Test_VecI32x16_AddSubMul_RandomConsistency;
+    procedure Test_VecI32x16_AddSubMul_BoundaryConsistency;
+
+    // === I32x16 位运算测试 ===
+    procedure Test_VecI32x16_BitwiseOps_RandomConsistency;
+
+    // === I32x16 移位测试 ===
+    procedure Test_VecI32x16_Shift_RandomConsistency;
+
+    // === I32x16 比较测试（全部6个比较函数）===
+    procedure Test_VecI32x16_Compare_Consistency;
+    procedure Test_VecI32x16_Compare_LeGeNe_Consistency;
+
+    // === I32x16 MinMax测试 ===
+    procedure Test_VecI32x16_MinMax_Consistency;
+
+    // === 饱和算术测试（8个函数）===
+    procedure Test_I8x16_SatAddSub_Consistency;
+    procedure Test_I16x8_SatAddSub_Consistency;
+    procedure Test_U8x16_SatAddSub_Consistency;
+    procedure Test_U16x8_SatAddSub_Consistency;
+
+    // === Facade 函数测试（11个 AVX-512 原生函数）===
+    procedure Test_Facade_MemEqual_Consistency;
+    procedure Test_Facade_MemFindByte_Consistency;
+    procedure Test_Facade_SumBytes_Consistency;
+    procedure Test_Facade_CountByte_Consistency;
+    procedure Test_Facade_MinMaxBytes_Consistency;
+    procedure Test_Facade_BitsetPopCount_Consistency;
+    procedure Test_Facade_MemCopy_Consistency;
+    procedure Test_Facade_MemSet_Consistency;
+    procedure Test_Facade_ToLowerAscii_Consistency;
+    procedure Test_Facade_ToUpperAscii_Consistency;
+    procedure Test_Facade_AsciiIEqual_Consistency;
+
+    // === ABI 调用约定测试 ===
+    procedure Test_VecF32x16_ABI_CalleeSavedRegisters_Preserved;
+    procedure Test_VecI32x16_ABI_CalleeSavedRegisters_Preserved;
   end;
   {$ENDIF}
   {$ENDIF}
@@ -584,6 +652,15 @@ type
     procedure Test_MemEqual_Unaligned_15Bytes;
     procedure Test_MemFindByte_CrossPage;
     procedure Test_SumBytes_OddSizes;
+
+    // 索引边界语义（utils）
+    procedure Test_Utils_VecF32x4Extract_IndexSaturation;
+    procedure Test_Utils_VecF32x4Insert_IndexSaturation;
+    procedure Test_Utils_MaskF32x4Test_IndexSaturation_NoException;
+
+    // 索引边界语义（facade / dispatch）
+    procedure Test_Facade_VecF32x4Extract_IndexSaturation;
+    procedure Test_Facade_VecF32x4Insert_IndexSaturation;
     
     // 数学函数边界
     procedure Test_VecF32x4_Log_Zero;
@@ -1866,7 +1943,8 @@ end;
 procedure TTestCase_BackendSmoke.Test_ForceSSE2_VecF32x4_Smoke;
 begin
   ForceBackend(sbSSE2);
-  if HasSSE2 then
+  // Need both CPU feature AND compiled backend
+  if HasSSE2 and IsBackendRegistered(sbSSE2) then
     AssertEquals('Active backend should be SSE2', Ord(sbSSE2), Ord(GetCurrentBackend))
   else
     AssertEquals('Fallback backend should be Scalar', Ord(sbScalar), Ord(GetCurrentBackend));
@@ -1876,7 +1954,8 @@ end;
 procedure TTestCase_BackendSmoke.Test_ForceSSE3_VecF32x4_Smoke;
 begin
   ForceBackend(sbSSE3);
-  if HasSSE3 then
+  // Need both CPU feature AND compiled backend
+  if HasSSE3 and IsBackendRegistered(sbSSE3) then
     AssertEquals('Active backend should be SSE3', Ord(sbSSE3), Ord(GetCurrentBackend))
   else
     AssertEquals('Fallback backend should be Scalar', Ord(sbScalar), Ord(GetCurrentBackend));
@@ -1886,7 +1965,8 @@ end;
 procedure TTestCase_BackendSmoke.Test_ForceSSSE3_VecF32x4_Smoke;
 begin
   ForceBackend(sbSSSE3);
-  if HasSSSE3 then
+  // Need both CPU feature AND compiled backend
+  if HasSSSE3 and IsBackendRegistered(sbSSSE3) then
     AssertEquals('Active backend should be SSSE3', Ord(sbSSSE3), Ord(GetCurrentBackend))
   else
     AssertEquals('Fallback backend should be Scalar', Ord(sbScalar), Ord(GetCurrentBackend));
@@ -1896,7 +1976,8 @@ end;
 procedure TTestCase_BackendSmoke.Test_ForceSSE41_VecF32x4_Smoke;
 begin
   ForceBackend(sbSSE41);
-  if HasSSE41 then
+  // Need both CPU feature AND compiled backend
+  if HasSSE41 and IsBackendRegistered(sbSSE41) then
     AssertEquals('Active backend should be SSE4.1', Ord(sbSSE41), Ord(GetCurrentBackend))
   else
     AssertEquals('Fallback backend should be Scalar', Ord(sbScalar), Ord(GetCurrentBackend));
@@ -1906,7 +1987,8 @@ end;
 procedure TTestCase_BackendSmoke.Test_ForceSSE42_VecF32x4_Smoke;
 begin
   ForceBackend(sbSSE42);
-  if HasSSE42 then
+  // Need both CPU feature AND compiled backend
+  if HasSSE42 and IsBackendRegistered(sbSSE42) then
     AssertEquals('Active backend should be SSE4.2', Ord(sbSSE42), Ord(GetCurrentBackend))
   else
     AssertEquals('Fallback backend should be Scalar', Ord(sbScalar), Ord(GetCurrentBackend));
@@ -1916,7 +1998,8 @@ end;
 procedure TTestCase_BackendSmoke.Test_ForceAVX2_VecF32x4_Smoke;
 begin
   ForceBackend(sbAVX2);
-  if HasAVX2 then
+  // Need both CPU feature AND compiled backend
+  if HasAVX2 and IsBackendRegistered(sbAVX2) then
     AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend))
   else
     AssertEquals('Fallback backend should be Scalar', Ord(sbScalar), Ord(GetCurrentBackend));
@@ -1926,7 +2009,8 @@ end;
 procedure TTestCase_BackendSmoke.Test_ForceAVX512_VecF32x4_Smoke;
 begin
   ForceBackend(sbAVX512);
-  if HasAVX512 then
+  // Need both CPU feature AND compiled backend
+  if HasAVX512 and IsBackendRegistered(sbAVX512) then
     AssertEquals('Active backend should be AVX-512', Ord(sbAVX512), Ord(GetCurrentBackend))
   else
     AssertEquals('Fallback backend should be Scalar', Ord(sbScalar), Ord(GetCurrentBackend));
@@ -1956,6 +2040,65 @@ begin
 
   F.HasPOPCNT := True;
   AssertTrue('AVX-512 backend should be usable with AVX2 + AVX512F + AVX512BW + POPCNT', X86HasAVX512BackendRequiredFeatures(F));
+end;
+
+procedure TTestCase_AVX512BackendRequirements.Test_AVX512Backend_RegisteredDispatchTable_IsAccessible;
+var
+  dt: TSimdDispatchTable;
+begin
+  // NOTE: This test must not execute any AVX-512 instructions.
+  AssertTrue('AVX-512 backend dispatch table should be registered',
+             TryGetRegisteredBackendDispatchTable(sbAVX512, dt));
+  AssertEquals('AVX-512 dispatch table should report backend sbAVX512', Ord(sbAVX512), Ord(dt.Backend));
+end;
+
+procedure TTestCase_AVX512BackendRequirements.Test_AVX512Backend_DispatchTable_Overrides512BitLoadStoreAndSelect;
+var
+  dt: TSimdDispatchTable;
+begin
+  // NOTE: This test must not execute any AVX-512 instructions.
+  AssertTrue('AVX-512 backend dispatch table should be registered',
+             TryGetRegisteredBackendDispatchTable(sbAVX512, dt));
+
+  // 512-bit Load/Store/Splat/Zero
+  AssertTrue('LoadF32x16 should be overridden', dt.LoadF32x16 <> @ScalarLoadF32x16);
+  AssertTrue('StoreF32x16 should be overridden', dt.StoreF32x16 <> @ScalarStoreF32x16);
+  AssertTrue('SplatF32x16 should be overridden', dt.SplatF32x16 <> @ScalarSplatF32x16);
+  AssertTrue('ZeroF32x16 should be overridden', dt.ZeroF32x16 <> @ScalarZeroF32x16);
+
+  AssertTrue('LoadF64x8 should be overridden', dt.LoadF64x8 <> @ScalarLoadF64x8);
+  AssertTrue('StoreF64x8 should be overridden', dt.StoreF64x8 <> @ScalarStoreF64x8);
+  AssertTrue('SplatF64x8 should be overridden', dt.SplatF64x8 <> @ScalarSplatF64x8);
+  AssertTrue('ZeroF64x8 should be overridden', dt.ZeroF64x8 <> @ScalarZeroF64x8);
+
+  // 512-bit Select
+  AssertTrue('SelectF32x16 should be overridden', dt.SelectF32x16 <> @ScalarSelectF32x16);
+  AssertTrue('SelectF64x8 should be overridden', dt.SelectF64x8 <> @ScalarSelectF64x8);
+end;
+
+procedure TTestCase_AVX512BackendRequirements.Test_AVX512Backend_DispatchTable_Overrides512BitFloatCompare;
+var
+  dt: TSimdDispatchTable;
+begin
+  // NOTE: This test must not execute any AVX-512 instructions.
+  AssertTrue('AVX-512 backend dispatch table should be registered',
+             TryGetRegisteredBackendDispatchTable(sbAVX512, dt));
+
+  // F32x16 (512-bit)
+  AssertTrue('CmpEqF32x16 should be overridden', dt.CmpEqF32x16 <> @ScalarCmpEqF32x16);
+  AssertTrue('CmpLtF32x16 should be overridden', dt.CmpLtF32x16 <> @ScalarCmpLtF32x16);
+  AssertTrue('CmpLeF32x16 should be overridden', dt.CmpLeF32x16 <> @ScalarCmpLeF32x16);
+  AssertTrue('CmpGtF32x16 should be overridden', dt.CmpGtF32x16 <> @ScalarCmpGtF32x16);
+  AssertTrue('CmpGeF32x16 should be overridden', dt.CmpGeF32x16 <> @ScalarCmpGeF32x16);
+  AssertTrue('CmpNeF32x16 should be overridden', dt.CmpNeF32x16 <> @ScalarCmpNeF32x16);
+
+  // F64x8 (512-bit)
+  AssertTrue('CmpEqF64x8 should be overridden', dt.CmpEqF64x8 <> @ScalarCmpEqF64x8);
+  AssertTrue('CmpLtF64x8 should be overridden', dt.CmpLtF64x8 <> @ScalarCmpLtF64x8);
+  AssertTrue('CmpLeF64x8 should be overridden', dt.CmpLeF64x8 <> @ScalarCmpLeF64x8);
+  AssertTrue('CmpGtF64x8 should be overridden', dt.CmpGtF64x8 <> @ScalarCmpGtF64x8);
+  AssertTrue('CmpGeF64x8 should be overridden', dt.CmpGeF64x8 <> @ScalarCmpGeF64x8);
+  AssertTrue('CmpNeF64x8 should be overridden', dt.CmpNeF64x8 <> @ScalarCmpNeF64x8);
 end;
 
 {$ENDIF}
@@ -7634,6 +7777,1290 @@ begin
   AssertEquals('ABI BytesIndexOf not found', expected, actual);
 end;
 
+{ TTestCase_AVX512VectorAsm }
+
+procedure TTestCase_AVX512VectorAsm.SetUp;
+begin
+  inherited SetUp;
+
+  FOldVectorAsm := IsVectorAsmEnabled;
+
+  // 强制开启 vector asm，并重新注册后端以更新 dispatch table
+  SetVectorAsmEnabled(True);
+  RegisterAVX512Backend;
+
+  // 在 AVX-512 可用的机器上强制使用 AVX-512；否则会自动回退到 Scalar
+  ForceBackend(sbAVX512);
+end;
+
+procedure TTestCase_AVX512VectorAsm.TearDown;
+begin
+  // 恢复 vector asm 开关，并重新注册后端，避免影响其他测试
+  SetVectorAsmEnabled(FOldVectorAsm);
+  RegisterAVX512Backend;
+
+  ResetBackendSelection;
+  inherited TearDown;
+end;
+
+procedure TTestCase_AVX512VectorAsm.Test_VecF32x16_AddSubMulDiv_RandomConsistency;
+var
+  dt: PSimdDispatchTable;
+  a, b: TVecF32x16;
+  expV, actV: TVecF32x16;
+  i, iter: Integer;
+  eps: Single;
+begin
+  if not HasAVX512 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.AddF32x16 should be assigned', Assigned(dt^.AddF32x16));
+  AssertTrue('Dispatch.SubF32x16 should be assigned', Assigned(dt^.SubF32x16));
+  AssertTrue('Dispatch.MulF32x16 should be assigned', Assigned(dt^.MulF32x16));
+  AssertTrue('Dispatch.DivF32x16 should be assigned', Assigned(dt^.DivF32x16));
+
+  // vector asm 打开时，AVX-512 backend 不应退回到 scalar reference。
+  AssertTrue('AddF32x16 should not be scalar', dt^.AddF32x16 <> @ScalarAddF32x16);
+  AssertTrue('SubF32x16 should not be scalar', dt^.SubF32x16 <> @ScalarSubF32x16);
+  AssertTrue('MulF32x16 should not be scalar', dt^.MulF32x16 <> @ScalarMulF32x16);
+  AssertTrue('DivF32x16 should not be scalar', dt^.DivF32x16 <> @ScalarDivF32x16);
+
+  eps := 1e-5;
+  RandSeed := 20260101;
+
+  for iter := 1 to 100 do
+  begin
+    for i := 0 to 15 do
+    begin
+      a.f[i] := (Random(2000001) - 1000000) / 1000.0;
+      b.f[i] := (Random(2000001) - 1000000) / 1000.0;
+      if Abs(b.f[i]) < 1e-3 then
+        b.f[i] := 1.0;
+    end;
+
+    // Add
+    expV := ScalarAddF32x16(a, b);
+    actV := dt^.AddF32x16(a, b);
+    for i := 0 to 15 do
+      AssertEquals('F32x16 Add iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.f[i], actV.f[i], eps);
+
+    // Sub
+    expV := ScalarSubF32x16(a, b);
+    actV := dt^.SubF32x16(a, b);
+    for i := 0 to 15 do
+      AssertEquals('F32x16 Sub iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.f[i], actV.f[i], eps);
+
+    // Mul
+    expV := ScalarMulF32x16(a, b);
+    actV := dt^.MulF32x16(a, b);
+    for i := 0 to 15 do
+      AssertEquals('F32x16 Mul iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.f[i], actV.f[i], eps);
+
+    // Div
+    expV := ScalarDivF32x16(a, b);
+    actV := dt^.DivF32x16(a, b);
+    for i := 0 to 15 do
+      AssertEquals('F32x16 Div iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.f[i], actV.f[i], eps);
+  end;
+end;
+
+procedure TTestCase_AVX512VectorAsm.Test_VecF32x16_AddSubMulDiv_SpecialValues_Consistency;
+var
+  dt: PSimdDispatchTable;
+  a, b, bDiv: TVecF32x16;
+  expV, actV: TVecF32x16;
+  i: Integer;
+
+  procedure AssertSameElementBits(const op: string; idx: Integer; expVal, actVal: Single);
+  var
+    expBits, actBits: DWord;
+  begin
+    if IsNaNSingle(expVal) then
+      AssertTrue(op + ' lane ' + IntToStr(idx) + ' should be NaN', IsNaNSingle(actVal))
+    else
+    begin
+      expBits := BitsFromSingle(expVal);
+      actBits := BitsFromSingle(actVal);
+      AssertTrue(op + ' lane ' + IntToStr(idx) + ' bits should match', expBits = actBits);
+    end;
+  end;
+
+begin
+  if not HasAVX512 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+
+  // Fill test patterns: ±0, ±Inf, NaN interspersed with normal values
+  a.f[0] := SingleFromBits($80000000); b.f[0] := SingleFromBits($00000000); // -0, +0
+  a.f[1] := SingleFromBits($00000000); b.f[1] := SingleFromBits($80000000); // +0, -0
+  a.f[2] := SingleFromBits($7F800000); b.f[2] := 1.0;                       // +Inf, 1
+  a.f[3] := SingleFromBits($FF800000); b.f[3] := 1.0;                       // -Inf, 1
+  a.f[4] := SingleFromBits($7FC00000); b.f[4] := 2.0;                       // NaN, 2
+  a.f[5] := 1.0; b.f[5] := SingleFromBits($7F800000);                       // 1, +Inf
+  a.f[6] := -1.0; b.f[6] := SingleFromBits($FF800000);                      // -1, -Inf
+  a.f[7] := 123.0; b.f[7] := SingleFromBits($7FC00000);                     // 123, NaN
+  // Remaining lanes: normal values
+  for i := 8 to 15 do
+  begin
+    a.f[i] := (i - 8) * 10.0 + 1.0;
+    b.f[i] := (i - 8) * 5.0 + 2.0;
+  end;
+
+  // Add
+  expV := ScalarAddF32x16(a, b);
+  actV := dt^.AddF32x16(a, b);
+  for i := 0 to 15 do
+    AssertSameElementBits('F32x16 Add', i, expV.f[i], actV.f[i]);
+
+  // Sub
+  expV := ScalarSubF32x16(a, b);
+  actV := dt^.SubF32x16(a, b);
+  for i := 0 to 15 do
+    AssertSameElementBits('F32x16 Sub', i, expV.f[i], actV.f[i]);
+
+  // Mul
+  expV := ScalarMulF32x16(a, b);
+  actV := dt^.MulF32x16(a, b);
+  for i := 0 to 15 do
+    AssertSameElementBits('F32x16 Mul', i, expV.f[i], actV.f[i]);
+
+  // Div (avoid div by ±0)
+  bDiv := b;
+  for i := 0 to 15 do
+    if (BitsFromSingle(bDiv.f[i]) and $7FFFFFFF) = 0 then
+      bDiv.f[i] := 1.0;
+
+  expV := ScalarDivF32x16(a, bDiv);
+  actV := dt^.DivF32x16(a, bDiv);
+  for i := 0 to 15 do
+    AssertSameElementBits('F32x16 Div', i, expV.f[i], actV.f[i]);
+end;
+
+procedure TTestCase_AVX512VectorAsm.Test_VecF64x8_AddSubMulDiv_RandomConsistency;
+var
+  dt: PSimdDispatchTable;
+  a, b: TVecF64x8;
+  expV, actV: TVecF64x8;
+  i, iter: Integer;
+  eps: Double;
+begin
+  if not HasAVX512 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.AddF64x8 should be assigned', Assigned(dt^.AddF64x8));
+  AssertTrue('Dispatch.SubF64x8 should be assigned', Assigned(dt^.SubF64x8));
+  AssertTrue('Dispatch.MulF64x8 should be assigned', Assigned(dt^.MulF64x8));
+  AssertTrue('Dispatch.DivF64x8 should be assigned', Assigned(dt^.DivF64x8));
+
+  AssertTrue('AddF64x8 should not be scalar', dt^.AddF64x8 <> @ScalarAddF64x8);
+  AssertTrue('SubF64x8 should not be scalar', dt^.SubF64x8 <> @ScalarSubF64x8);
+  AssertTrue('MulF64x8 should not be scalar', dt^.MulF64x8 <> @ScalarMulF64x8);
+  AssertTrue('DivF64x8 should not be scalar', dt^.DivF64x8 <> @ScalarDivF64x8);
+
+  eps := 1e-10;
+  RandSeed := 20260102;
+
+  for iter := 1 to 100 do
+  begin
+    for i := 0 to 7 do
+    begin
+      a.d[i] := (Random(2000001) - 1000000) / 1000.0;
+      b.d[i] := (Random(2000001) - 1000000) / 1000.0;
+      if Abs(b.d[i]) < 1e-10 then
+        b.d[i] := 1.0;
+    end;
+
+    // Add
+    expV := ScalarAddF64x8(a, b);
+    actV := dt^.AddF64x8(a, b);
+    for i := 0 to 7 do
+      AssertEquals('F64x8 Add iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.d[i], actV.d[i], eps);
+
+    // Sub
+    expV := ScalarSubF64x8(a, b);
+    actV := dt^.SubF64x8(a, b);
+    for i := 0 to 7 do
+      AssertEquals('F64x8 Sub iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.d[i], actV.d[i], eps);
+
+    // Mul
+    expV := ScalarMulF64x8(a, b);
+    actV := dt^.MulF64x8(a, b);
+    for i := 0 to 7 do
+      AssertEquals('F64x8 Mul iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.d[i], actV.d[i], eps);
+
+    // Div
+    expV := ScalarDivF64x8(a, b);
+    actV := dt^.DivF64x8(a, b);
+    for i := 0 to 7 do
+      AssertEquals('F64x8 Div iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.d[i], actV.d[i], eps);
+  end;
+end;
+
+procedure TTestCase_AVX512VectorAsm.Test_VecF64x8_AddSubMulDiv_SpecialValues_Consistency;
+var
+  dt: PSimdDispatchTable;
+  a, b, bDiv: TVecF64x8;
+  expV, actV: TVecF64x8;
+  i: Integer;
+
+  procedure AssertSameElementBits(const op: string; idx: Integer; expVal, actVal: Double);
+  var
+    expBits, actBits: QWord;
+  begin
+    if IsNaNDouble(expVal) then
+      AssertTrue(op + ' lane ' + IntToStr(idx) + ' should be NaN', IsNaNDouble(actVal))
+    else
+    begin
+      expBits := BitsFromDouble(expVal);
+      actBits := BitsFromDouble(actVal);
+      AssertTrue(op + ' lane ' + IntToStr(idx) + ' bits should match', expBits = actBits);
+    end;
+  end;
+
+begin
+  if not HasAVX512 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+
+  // Special values: ±0, ±Inf, NaN
+  a.d[0] := DoubleFromBits(QWord($8000000000000000)); // -0
+  b.d[0] := DoubleFromBits(QWord($0000000000000000)); // +0
+  a.d[1] := DoubleFromBits(QWord($7FF0000000000000)); // +Inf
+  b.d[1] := 1.0;
+  a.d[2] := DoubleFromBits(QWord($7FF8000000000000)); // qNaN
+  b.d[2] := 2.0;
+  a.d[3] := 1.0;
+  b.d[3] := DoubleFromBits(QWord($FFF0000000000000)); // -Inf
+  // Normal values
+  for i := 4 to 7 do
+  begin
+    a.d[i] := (i - 4) * 100.0 + 1.0;
+    b.d[i] := (i - 4) * 50.0 + 2.0;
+  end;
+
+  // Add
+  expV := ScalarAddF64x8(a, b);
+  actV := dt^.AddF64x8(a, b);
+  for i := 0 to 7 do
+    AssertSameElementBits('F64x8 Add', i, expV.d[i], actV.d[i]);
+
+  // Sub
+  expV := ScalarSubF64x8(a, b);
+  actV := dt^.SubF64x8(a, b);
+  for i := 0 to 7 do
+    AssertSameElementBits('F64x8 Sub', i, expV.d[i], actV.d[i]);
+
+  // Mul
+  expV := ScalarMulF64x8(a, b);
+  actV := dt^.MulF64x8(a, b);
+  for i := 0 to 7 do
+    AssertSameElementBits('F64x8 Mul', i, expV.d[i], actV.d[i]);
+
+  // Div (avoid div by ±0)
+  bDiv := b;
+  for i := 0 to 7 do
+    if (BitsFromDouble(bDiv.d[i]) and QWord($7FFFFFFFFFFFFFFF)) = 0 then
+      bDiv.d[i] := 1.0;
+
+  expV := ScalarDivF64x8(a, bDiv);
+  actV := dt^.DivF64x8(a, bDiv);
+  for i := 0 to 7 do
+    AssertSameElementBits('F64x8 Div', i, expV.d[i], actV.d[i]);
+end;
+
+procedure TTestCase_AVX512VectorAsm.Test_VecI32x16_AddSubMul_RandomConsistency;
+var
+  dt: PSimdDispatchTable;
+  a, b: TVecI32x16;
+  expV, actV: TVecI32x16;
+  iter, i: Integer;
+begin
+  if not HasAVX512 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.AddI32x16 should be assigned', Assigned(dt^.AddI32x16));
+  AssertTrue('Dispatch.SubI32x16 should be assigned', Assigned(dt^.SubI32x16));
+  AssertTrue('Dispatch.MulI32x16 should be assigned', Assigned(dt^.MulI32x16));
+
+  AssertTrue('AddI32x16 should not be scalar', dt^.AddI32x16 <> @ScalarAddI32x16);
+  AssertTrue('SubI32x16 should not be scalar', dt^.SubI32x16 <> @ScalarSubI32x16);
+  AssertTrue('MulI32x16 should not be scalar', dt^.MulI32x16 <> @ScalarMulI32x16);
+
+  RandSeed := 20260103;
+
+  for iter := 1 to 200 do
+  begin
+    for i := 0 to 15 do
+    begin
+      a.i[i] := Random(60001) - 30000;
+      b.i[i] := Random(60001) - 30000;
+    end;
+
+    // Add
+    expV := ScalarAddI32x16(a, b);
+    actV := dt^.AddI32x16(a, b);
+    for i := 0 to 15 do
+      AssertEquals('I32x16 Add iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.i[i], actV.i[i]);
+
+    // Sub
+    expV := ScalarSubI32x16(a, b);
+    actV := dt^.SubI32x16(a, b);
+    for i := 0 to 15 do
+      AssertEquals('I32x16 Sub iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.i[i], actV.i[i]);
+
+    // Mul
+    expV := ScalarMulI32x16(a, b);
+    actV := dt^.MulI32x16(a, b);
+    for i := 0 to 15 do
+      AssertEquals('I32x16 Mul iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.i[i], actV.i[i]);
+  end;
+end;
+
+procedure TTestCase_AVX512VectorAsm.Test_VecI32x16_AddSubMul_BoundaryConsistency;
+var
+  dt: PSimdDispatchTable;
+  a, b: TVecI32x16;
+  expV, actV: TVecI32x16;
+  i: Integer;
+begin
+  if not HasAVX512 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+
+  // Add/Sub boundary: avoid overflow
+  a.i[0] := High(Int32) - 1; b.i[0] := 1;
+  a.i[1] := Low(Int32) + 1;  b.i[1] := -1;
+  for i := 2 to 15 do
+  begin
+    a.i[i] := i * 100 - 500;
+    b.i[i] := i * 50 - 200;
+  end;
+
+  expV := ScalarAddI32x16(a, b);
+  actV := dt^.AddI32x16(a, b);
+  for i := 0 to 15 do
+    AssertEquals('I32x16 Add boundary lane ' + IntToStr(i), expV.i[i], actV.i[i]);
+
+  expV := ScalarSubI32x16(a, b);
+  actV := dt^.SubI32x16(a, b);
+  for i := 0 to 15 do
+    AssertEquals('I32x16 Sub boundary lane ' + IntToStr(i), expV.i[i], actV.i[i]);
+
+  // Mul with safe range
+  for i := 0 to 15 do
+  begin
+    if i mod 2 = 0 then
+      a.i[i] := 46340
+    else
+      a.i[i] := -46340;
+    if i mod 3 = 0 then
+      b.i[i] := 1
+    else
+      b.i[i] := -1;
+  end;
+
+  expV := ScalarMulI32x16(a, b);
+  actV := dt^.MulI32x16(a, b);
+  for i := 0 to 15 do
+    AssertEquals('I32x16 Mul boundary lane ' + IntToStr(i), expV.i[i], actV.i[i]);
+end;
+
+procedure TTestCase_AVX512VectorAsm.Test_VecI32x16_BitwiseOps_RandomConsistency;
+var
+  dt: PSimdDispatchTable;
+  a, b: TVecI32x16;
+  expV, actV: TVecI32x16;
+  iter, i: Integer;
+begin
+  if not HasAVX512 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.AndI32x16 should be assigned', Assigned(dt^.AndI32x16));
+  AssertTrue('Dispatch.OrI32x16 should be assigned', Assigned(dt^.OrI32x16));
+  AssertTrue('Dispatch.XorI32x16 should be assigned', Assigned(dt^.XorI32x16));
+  AssertTrue('Dispatch.NotI32x16 should be assigned', Assigned(dt^.NotI32x16));
+  AssertTrue('Dispatch.AndNotI32x16 should be assigned', Assigned(dt^.AndNotI32x16));
+
+  RandSeed := 20260104;
+
+  for iter := 1 to 100 do
+  begin
+    for i := 0 to 15 do
+    begin
+      a.i[i] := Random(High(Int32) * 2 + 1) - High(Int32);
+      b.i[i] := Random(High(Int32) * 2 + 1) - High(Int32);
+    end;
+
+    expV := ScalarAndI32x16(a, b);
+    actV := dt^.AndI32x16(a, b);
+    for i := 0 to 15 do
+      AssertEquals('I32x16 And iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.i[i], actV.i[i]);
+
+    expV := ScalarOrI32x16(a, b);
+    actV := dt^.OrI32x16(a, b);
+    for i := 0 to 15 do
+      AssertEquals('I32x16 Or iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.i[i], actV.i[i]);
+
+    expV := ScalarXorI32x16(a, b);
+    actV := dt^.XorI32x16(a, b);
+    for i := 0 to 15 do
+      AssertEquals('I32x16 Xor iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.i[i], actV.i[i]);
+
+    expV := ScalarNotI32x16(a);
+    actV := dt^.NotI32x16(a);
+    for i := 0 to 15 do
+      AssertEquals('I32x16 Not iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.i[i], actV.i[i]);
+
+    expV := ScalarAndNotI32x16(a, b);
+    actV := dt^.AndNotI32x16(a, b);
+    for i := 0 to 15 do
+      AssertEquals('I32x16 AndNot iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.i[i], actV.i[i]);
+  end;
+end;
+
+procedure TTestCase_AVX512VectorAsm.Test_VecI32x16_Shift_RandomConsistency;
+var
+  dt: PSimdDispatchTable;
+  a: TVecI32x16;
+  expV, actV: TVecI32x16;
+  iter, i, shift: Integer;
+begin
+  if not HasAVX512 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.ShiftLeftI32x16 should be assigned', Assigned(dt^.ShiftLeftI32x16));
+  AssertTrue('Dispatch.ShiftRightI32x16 should be assigned', Assigned(dt^.ShiftRightI32x16));
+  AssertTrue('Dispatch.ShiftRightArithI32x16 should be assigned', Assigned(dt^.ShiftRightArithI32x16));
+
+  RandSeed := 20260105;
+
+  for iter := 1 to 50 do
+  begin
+    for i := 0 to 15 do
+      a.i[i] := Random(High(Int32) * 2 + 1) - High(Int32);
+
+    shift := Random(32);
+
+    expV := ScalarShiftLeftI32x16(a, shift);
+    actV := dt^.ShiftLeftI32x16(a, shift);
+    for i := 0 to 15 do
+      AssertEquals('I32x16 SHL ' + IntToStr(shift) + ' iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.i[i], actV.i[i]);
+
+    expV := ScalarShiftRightI32x16(a, shift);
+    actV := dt^.ShiftRightI32x16(a, shift);
+    for i := 0 to 15 do
+      AssertEquals('I32x16 SHR ' + IntToStr(shift) + ' iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.i[i], actV.i[i]);
+
+    expV := ScalarShiftRightArithI32x16(a, shift);
+    actV := dt^.ShiftRightArithI32x16(a, shift);
+    for i := 0 to 15 do
+      AssertEquals('I32x16 SAR ' + IntToStr(shift) + ' iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.i[i], actV.i[i]);
+  end;
+end;
+
+procedure TTestCase_AVX512VectorAsm.Test_VecI32x16_Compare_Consistency;
+var
+  dt: PSimdDispatchTable;
+  a, b: TVecI32x16;
+  expMask, actMask: TMask16;
+  iter, i: Integer;
+begin
+  if not HasAVX512 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.CmpEqI32x16 should be assigned', Assigned(dt^.CmpEqI32x16));
+  AssertTrue('Dispatch.CmpLtI32x16 should be assigned', Assigned(dt^.CmpLtI32x16));
+  AssertTrue('Dispatch.CmpGtI32x16 should be assigned', Assigned(dt^.CmpGtI32x16));
+
+  RandSeed := 20260106;
+
+  for iter := 1 to 50 do
+  begin
+    for i := 0 to 15 do
+    begin
+      a.i[i] := Random(1001) - 500;
+      // 50% chance of equal, 50% random
+      if Random(2) = 0 then
+        b.i[i] := a.i[i]
+      else
+        b.i[i] := Random(1001) - 500;
+    end;
+
+    // CmpEq
+    expMask := ScalarCmpEqI32x16(a, b);
+    actMask := dt^.CmpEqI32x16(a, b);
+    AssertEquals('I32x16 CmpEq iter ' + IntToStr(iter), expMask, actMask);
+
+    // CmpLt
+    expMask := ScalarCmpLtI32x16(a, b);
+    actMask := dt^.CmpLtI32x16(a, b);
+    AssertEquals('I32x16 CmpLt iter ' + IntToStr(iter), expMask, actMask);
+
+    // CmpGt
+    expMask := ScalarCmpGtI32x16(a, b);
+    actMask := dt^.CmpGtI32x16(a, b);
+    AssertEquals('I32x16 CmpGt iter ' + IntToStr(iter), expMask, actMask);
+  end;
+end;
+
+procedure TTestCase_AVX512VectorAsm.Test_VecI32x16_MinMax_Consistency;
+var
+  dt: PSimdDispatchTable;
+  a, b: TVecI32x16;
+  expV, actV: TVecI32x16;
+  iter, i: Integer;
+begin
+  if not HasAVX512 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.MinI32x16 should be assigned', Assigned(dt^.MinI32x16));
+  AssertTrue('Dispatch.MaxI32x16 should be assigned', Assigned(dt^.MaxI32x16));
+
+  RandSeed := 20260107;
+
+  for iter := 1 to 100 do
+  begin
+    for i := 0 to 15 do
+    begin
+      a.i[i] := Random(200001) - 100000;
+      b.i[i] := Random(200001) - 100000;
+    end;
+
+    expV := ScalarMinI32x16(a, b);
+    actV := dt^.MinI32x16(a, b);
+    for i := 0 to 15 do
+      AssertEquals('I32x16 Min iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.i[i], actV.i[i]);
+
+    expV := ScalarMaxI32x16(a, b);
+    actV := dt^.MaxI32x16(a, b);
+    for i := 0 to 15 do
+      AssertEquals('I32x16 Max iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.i[i], actV.i[i]);
+  end;
+end;
+
+procedure TTestCase_AVX512VectorAsm.Test_VecI32x16_Compare_LeGeNe_Consistency;
+var
+  dt: PSimdDispatchTable;
+  a, b: TVecI32x16;
+  expMask, actMask: TMask16;
+  iter, i: Integer;
+begin
+  if not HasAVX512 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.CmpLeI32x16 should be assigned', Assigned(dt^.CmpLeI32x16));
+  AssertTrue('Dispatch.CmpGeI32x16 should be assigned', Assigned(dt^.CmpGeI32x16));
+  AssertTrue('Dispatch.CmpNeI32x16 should be assigned', Assigned(dt^.CmpNeI32x16));
+
+  RandSeed := 20260108;
+
+  for iter := 1 to 50 do
+  begin
+    for i := 0 to 15 do
+    begin
+      a.i[i] := Random(1001) - 500;
+      if Random(3) = 0 then
+        b.i[i] := a.i[i]
+      else
+        b.i[i] := Random(1001) - 500;
+    end;
+
+    // CmpLe
+    expMask := ScalarCmpLeI32x16(a, b);
+    actMask := dt^.CmpLeI32x16(a, b);
+    AssertEquals('I32x16 CmpLe iter ' + IntToStr(iter), expMask, actMask);
+
+    // CmpGe
+    expMask := ScalarCmpGeI32x16(a, b);
+    actMask := dt^.CmpGeI32x16(a, b);
+    AssertEquals('I32x16 CmpGe iter ' + IntToStr(iter), expMask, actMask);
+
+    // CmpNe
+    expMask := ScalarCmpNeI32x16(a, b);
+    actMask := dt^.CmpNeI32x16(a, b);
+    AssertEquals('I32x16 CmpNe iter ' + IntToStr(iter), expMask, actMask);
+  end;
+end;
+
+procedure TTestCase_AVX512VectorAsm.Test_I8x16_SatAddSub_Consistency;
+var
+  dt: PSimdDispatchTable;
+  a, b: TVecI8x16;
+  expV, actV: TVecI8x16;
+  iter, i: Integer;
+begin
+  if not HasAVX512 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.I8x16SatAdd should be assigned', Assigned(dt^.I8x16SatAdd));
+  AssertTrue('Dispatch.I8x16SatSub should be assigned', Assigned(dt^.I8x16SatSub));
+
+  RandSeed := 20260109;
+
+  for iter := 1 to 100 do
+  begin
+    for i := 0 to 15 do
+    begin
+      a.i[i] := Int8(Random(256) - 128);
+      b.i[i] := Int8(Random(256) - 128);
+    end;
+
+    // SatAdd
+    expV := ScalarI8x16SatAdd(a, b);
+    actV := dt^.I8x16SatAdd(a, b);
+    for i := 0 to 15 do
+      AssertEquals('I8x16 SatAdd iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.i[i], actV.i[i]);
+
+    // SatSub
+    expV := ScalarI8x16SatSub(a, b);
+    actV := dt^.I8x16SatSub(a, b);
+    for i := 0 to 15 do
+      AssertEquals('I8x16 SatSub iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.i[i], actV.i[i]);
+  end;
+end;
+
+procedure TTestCase_AVX512VectorAsm.Test_I16x8_SatAddSub_Consistency;
+var
+  dt: PSimdDispatchTable;
+  a, b: TVecI16x8;
+  expV, actV: TVecI16x8;
+  iter, i: Integer;
+begin
+  if not HasAVX512 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.I16x8SatAdd should be assigned', Assigned(dt^.I16x8SatAdd));
+  AssertTrue('Dispatch.I16x8SatSub should be assigned', Assigned(dt^.I16x8SatSub));
+
+  RandSeed := 20260110;
+
+  for iter := 1 to 100 do
+  begin
+    for i := 0 to 7 do
+    begin
+      a.i[i] := Int16(Random(65536) - 32768);
+      b.i[i] := Int16(Random(65536) - 32768);
+    end;
+
+    // SatAdd
+    expV := ScalarI16x8SatAdd(a, b);
+    actV := dt^.I16x8SatAdd(a, b);
+    for i := 0 to 7 do
+      AssertEquals('I16x8 SatAdd iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.i[i], actV.i[i]);
+
+    // SatSub
+    expV := ScalarI16x8SatSub(a, b);
+    actV := dt^.I16x8SatSub(a, b);
+    for i := 0 to 7 do
+      AssertEquals('I16x8 SatSub iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.i[i], actV.i[i]);
+  end;
+end;
+
+procedure TTestCase_AVX512VectorAsm.Test_U8x16_SatAddSub_Consistency;
+var
+  dt: PSimdDispatchTable;
+  a, b: TVecU8x16;
+  expV, actV: TVecU8x16;
+  iter, i: Integer;
+begin
+  if not HasAVX512 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.U8x16SatAdd should be assigned', Assigned(dt^.U8x16SatAdd));
+  AssertTrue('Dispatch.U8x16SatSub should be assigned', Assigned(dt^.U8x16SatSub));
+
+  RandSeed := 20260111;
+
+  for iter := 1 to 100 do
+  begin
+    for i := 0 to 15 do
+    begin
+      a.u[i] := Byte(Random(256));
+      b.u[i] := Byte(Random(256));
+    end;
+
+    // SatAdd
+    expV := ScalarU8x16SatAdd(a, b);
+    actV := dt^.U8x16SatAdd(a, b);
+    for i := 0 to 15 do
+      AssertEquals('U8x16 SatAdd iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.u[i], actV.u[i]);
+
+    // SatSub
+    expV := ScalarU8x16SatSub(a, b);
+    actV := dt^.U8x16SatSub(a, b);
+    for i := 0 to 15 do
+      AssertEquals('U8x16 SatSub iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.u[i], actV.u[i]);
+  end;
+end;
+
+procedure TTestCase_AVX512VectorAsm.Test_U16x8_SatAddSub_Consistency;
+var
+  dt: PSimdDispatchTable;
+  a, b: TVecU16x8;
+  expV, actV: TVecU16x8;
+  iter, i: Integer;
+begin
+  if not HasAVX512 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.U16x8SatAdd should be assigned', Assigned(dt^.U16x8SatAdd));
+  AssertTrue('Dispatch.U16x8SatSub should be assigned', Assigned(dt^.U16x8SatSub));
+
+  RandSeed := 20260112;
+
+  for iter := 1 to 100 do
+  begin
+    for i := 0 to 7 do
+    begin
+      a.u[i] := Word(Random(65536));
+      b.u[i] := Word(Random(65536));
+    end;
+
+    // SatAdd
+    expV := ScalarU16x8SatAdd(a, b);
+    actV := dt^.U16x8SatAdd(a, b);
+    for i := 0 to 7 do
+      AssertEquals('U16x8 SatAdd iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.u[i], actV.u[i]);
+
+    // SatSub
+    expV := ScalarU16x8SatSub(a, b);
+    actV := dt^.U16x8SatSub(a, b);
+    for i := 0 to 7 do
+      AssertEquals('U16x8 SatSub iter ' + IntToStr(iter) + ' lane ' + IntToStr(i), expV.u[i], actV.u[i]);
+  end;
+end;
+
+procedure TTestCase_AVX512VectorAsm.Test_Facade_MemEqual_Consistency;
+var
+  dt: PSimdDispatchTable;
+  buf1, buf2: array[0..511] of Byte;
+  i, iter: Integer;
+  expRes, actRes: LongBool;
+begin
+  if not HasAVX512 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.MemEqual should be assigned', Assigned(dt^.MemEqual));
+
+  RandSeed := 20260113;
+
+  for iter := 1 to 50 do
+  begin
+    // Initialize with same data
+    for i := 0 to 511 do
+    begin
+      buf1[i] := Byte(Random(256));
+      buf2[i] := buf1[i];
+    end;
+
+    // Test equal buffers
+    expRes := MemEqual_Scalar(@buf1[0], @buf2[0], 512);
+    actRes := dt^.MemEqual(@buf1[0], @buf2[0], 512);
+    AssertEquals('MemEqual equal iter ' + IntToStr(iter), expRes, actRes);
+
+    // Create a difference at random position
+    buf2[Random(512)] := buf2[Random(512)] xor $FF;
+
+    expRes := MemEqual_Scalar(@buf1[0], @buf2[0], 512);
+    actRes := dt^.MemEqual(@buf1[0], @buf2[0], 512);
+    AssertEquals('MemEqual diff iter ' + IntToStr(iter), expRes, actRes);
+  end;
+end;
+
+procedure TTestCase_AVX512VectorAsm.Test_Facade_MemFindByte_Consistency;
+var
+  dt: PSimdDispatchTable;
+  buf: array[0..511] of Byte;
+  i, iter: Integer;
+  searchByte: Byte;
+  expRes, actRes: PtrInt;
+begin
+  if not HasAVX512 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.MemFindByte should be assigned', Assigned(dt^.MemFindByte));
+
+  RandSeed := 20260114;
+
+  for iter := 1 to 50 do
+  begin
+    for i := 0 to 511 do
+      buf[i] := Byte(Random(128));
+
+    // Find existing byte
+    searchByte := Byte(Random(128));
+    expRes := MemFindByte_Scalar(@buf[0], 512, searchByte);
+    actRes := dt^.MemFindByte(@buf[0], 512, searchByte);
+    AssertEquals('MemFindByte iter ' + IntToStr(iter), expRes, actRes);
+
+    // Find non-existing byte
+    searchByte := Byte(200 + Random(56));
+    expRes := MemFindByte_Scalar(@buf[0], 512, searchByte);
+    actRes := dt^.MemFindByte(@buf[0], 512, searchByte);
+    AssertEquals('MemFindByte not found iter ' + IntToStr(iter), expRes, actRes);
+  end;
+end;
+
+procedure TTestCase_AVX512VectorAsm.Test_Facade_SumBytes_Consistency;
+var
+  dt: PSimdDispatchTable;
+  buf: array[0..511] of Byte;
+  i, iter: Integer;
+  expSum, actSum: UInt64;
+begin
+  if not HasAVX512 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.SumBytes should be assigned', Assigned(dt^.SumBytes));
+
+  RandSeed := 20260115;
+
+  for iter := 1 to 50 do
+  begin
+    for i := 0 to 511 do
+      buf[i] := Byte(Random(256));
+
+    expSum := SumBytes_Scalar(@buf[0], 512);
+    actSum := dt^.SumBytes(@buf[0], 512);
+    AssertEquals('SumBytes iter ' + IntToStr(iter), expSum, actSum);
+  end;
+end;
+
+procedure TTestCase_AVX512VectorAsm.Test_Facade_CountByte_Consistency;
+var
+  dt: PSimdDispatchTable;
+  buf: array[0..511] of Byte;
+  i, iter: Integer;
+  searchByte: Byte;
+  expCnt, actCnt: SizeUInt;
+begin
+  if not HasAVX512 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.CountByte should be assigned', Assigned(dt^.CountByte));
+
+  RandSeed := 20260116;
+
+  for iter := 1 to 50 do
+  begin
+    for i := 0 to 511 do
+      buf[i] := Byte(i mod 32);
+
+    searchByte := Byte(Random(32));
+    expCnt := CountByte_Scalar(@buf[0], 512, searchByte);
+    actCnt := dt^.CountByte(@buf[0], 512, searchByte);
+    AssertEquals('CountByte iter ' + IntToStr(iter), expCnt, actCnt);
+  end;
+end;
+
+procedure TTestCase_AVX512VectorAsm.Test_Facade_MinMaxBytes_Consistency;
+var
+  dt: PSimdDispatchTable;
+  buf: array[0..511] of Byte;
+  i, iter: Integer;
+  expMin, expMax, actMin, actMax: Byte;
+begin
+  if not HasAVX512 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.MinMaxBytes should be assigned', Assigned(dt^.MinMaxBytes));
+
+  RandSeed := 20260117;
+
+  for iter := 1 to 50 do
+  begin
+    for i := 0 to 511 do
+      buf[i] := Byte(Random(256));
+
+    MinMaxBytes_Scalar(@buf[0], 512, expMin, expMax);
+    dt^.MinMaxBytes(@buf[0], 512, actMin, actMax);
+    AssertEquals('MinMaxBytes min iter ' + IntToStr(iter), expMin, actMin);
+    AssertEquals('MinMaxBytes max iter ' + IntToStr(iter), expMax, actMax);
+  end;
+end;
+
+procedure TTestCase_AVX512VectorAsm.Test_Facade_BitsetPopCount_Consistency;
+var
+  dt: PSimdDispatchTable;
+  buf: array[0..255] of Byte;
+  i, iter: Integer;
+  expCnt, actCnt: SizeUInt;
+begin
+  if not HasAVX512 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.BitsetPopCount should be assigned', Assigned(dt^.BitsetPopCount));
+
+  RandSeed := 20260118;
+
+  for iter := 1 to 50 do
+  begin
+    for i := 0 to 255 do
+      buf[i] := Byte(Random(256));
+
+    expCnt := BitsetPopCount_Scalar(@buf[0], 256);
+    actCnt := dt^.BitsetPopCount(@buf[0], 256);
+    AssertEquals('BitsetPopCount iter ' + IntToStr(iter), expCnt, actCnt);
+  end;
+end;
+
+procedure TTestCase_AVX512VectorAsm.Test_Facade_MemCopy_Consistency;
+var
+  dt: PSimdDispatchTable;
+  src, dstExp, dstAct: array[0..511] of Byte;
+  i, iter: Integer;
+begin
+  if not HasAVX512 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.MemCopy should be assigned', Assigned(dt^.MemCopy));
+
+  RandSeed := 20260119;
+
+  for iter := 1 to 20 do
+  begin
+    for i := 0 to 511 do
+    begin
+      src[i] := Byte(Random(256));
+      dstExp[i] := $CC;
+      dstAct[i] := $CC;
+    end;
+
+    MemCopy_Scalar(@src[0], @dstExp[0], 512);
+    dt^.MemCopy(@src[0], @dstAct[0], 512);
+
+    for i := 0 to 511 do
+      AssertEquals('MemCopy iter ' + IntToStr(iter) + ' byte ' + IntToStr(i), dstExp[i], dstAct[i]);
+  end;
+end;
+
+procedure TTestCase_AVX512VectorAsm.Test_Facade_MemSet_Consistency;
+var
+  dt: PSimdDispatchTable;
+  dstExp, dstAct: array[0..511] of Byte;
+  i, iter: Integer;
+  setValue: Byte;
+begin
+  if not HasAVX512 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.MemSet should be assigned', Assigned(dt^.MemSet));
+
+  RandSeed := 20260120;
+
+  for iter := 1 to 20 do
+  begin
+    setValue := Byte(Random(256));
+
+    for i := 0 to 511 do
+    begin
+      dstExp[i] := $CC;
+      dstAct[i] := $CC;
+    end;
+
+    MemSet_Scalar(@dstExp[0], 512, setValue);
+    dt^.MemSet(@dstAct[0], 512, setValue);
+
+    for i := 0 to 511 do
+      AssertEquals('MemSet iter ' + IntToStr(iter) + ' byte ' + IntToStr(i), dstExp[i], dstAct[i]);
+  end;
+end;
+
+procedure TTestCase_AVX512VectorAsm.Test_Facade_ToLowerAscii_Consistency;
+var
+  dt: PSimdDispatchTable;
+  bufExp, bufAct: array[0..127] of Byte;
+  i, iter: Integer;
+begin
+  if not HasAVX512 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.ToLowerAscii should be assigned', Assigned(dt^.ToLowerAscii));
+
+  RandSeed := 20260121;
+
+  for iter := 1 to 20 do
+  begin
+    for i := 0 to 127 do
+    begin
+      bufExp[i] := Byte(32 + Random(95));
+      bufAct[i] := bufExp[i];
+    end;
+
+    ToLowerAscii_Scalar(@bufExp[0], 128);
+    dt^.ToLowerAscii(@bufAct[0], 128);
+
+    for i := 0 to 127 do
+      AssertEquals('ToLowerAscii iter ' + IntToStr(iter) + ' byte ' + IntToStr(i), bufExp[i], bufAct[i]);
+  end;
+end;
+
+procedure TTestCase_AVX512VectorAsm.Test_Facade_ToUpperAscii_Consistency;
+var
+  dt: PSimdDispatchTable;
+  bufExp, bufAct: array[0..127] of Byte;
+  i, iter: Integer;
+begin
+  if not HasAVX512 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.ToUpperAscii should be assigned', Assigned(dt^.ToUpperAscii));
+
+  RandSeed := 20260122;
+
+  for iter := 1 to 20 do
+  begin
+    for i := 0 to 127 do
+    begin
+      bufExp[i] := Byte(32 + Random(95));
+      bufAct[i] := bufExp[i];
+    end;
+
+    ToUpperAscii_Scalar(@bufExp[0], 128);
+    dt^.ToUpperAscii(@bufAct[0], 128);
+
+    for i := 0 to 127 do
+      AssertEquals('ToUpperAscii iter ' + IntToStr(iter) + ' byte ' + IntToStr(i), bufExp[i], bufAct[i]);
+  end;
+end;
+
+procedure TTestCase_AVX512VectorAsm.Test_Facade_AsciiIEqual_Consistency;
+var
+  dt: PSimdDispatchTable;
+  buf1, buf2: array[0..127] of Byte;
+  i, iter: Integer;
+  expRes, actRes: Boolean;
+begin
+  if not HasAVX512 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+  AssertTrue('Dispatch.AsciiIEqual should be assigned', Assigned(dt^.AsciiIEqual));
+
+  RandSeed := 20260123;
+
+  for iter := 1 to 50 do
+  begin
+    // Same content, different case
+    for i := 0 to 127 do
+    begin
+      if Random(2) = 0 then
+        buf1[i] := Byte(65 + (i mod 26))
+      else
+        buf1[i] := Byte(97 + (i mod 26));
+
+      if Random(2) = 0 then
+        buf2[i] := Byte(65 + (i mod 26))
+      else
+        buf2[i] := Byte(97 + (i mod 26));
+    end;
+
+    expRes := AsciiIEqual_Scalar(@buf1[0], @buf2[0], 128);
+    actRes := dt^.AsciiIEqual(@buf1[0], @buf2[0], 128);
+    AssertEquals('AsciiIEqual same iter ' + IntToStr(iter), expRes, actRes);
+
+    // Make them differ
+    buf2[Random(128)] := Byte(48 + Random(10));
+    expRes := AsciiIEqual_Scalar(@buf1[0], @buf2[0], 128);
+    actRes := dt^.AsciiIEqual(@buf1[0], @buf2[0], 128);
+    AssertEquals('AsciiIEqual diff iter ' + IntToStr(iter), expRes, actRes);
+  end;
+end;
+
+procedure TTestCase_AVX512VectorAsm.Test_VecF32x16_ABI_CalleeSavedRegisters_Preserved;
+var
+  dt: PSimdDispatchTable;
+  a, b, resultV: TVecF32x16;
+  i: Integer;
+begin
+  if not HasAVX512 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+
+  // 初始化测试数据
+  for i := 0 to 15 do
+  begin
+    a.f[i] := (i + 1) * 1.5;
+    b.f[i] := (i + 1) * 0.5;
+  end;
+
+  // 直接调用 dispatch 函数，验证结果正确性（无法在 Pascal 层面验证 callee-saved）
+  resultV := dt^.AddF32x16(a, b);
+
+  for i := 0 to 15 do
+    AssertEquals('F32x16 Add result lane ' + IntToStr(i), a.f[i] + b.f[i], resultV.f[i], 1e-5);
+
+  resultV := dt^.SubF32x16(a, b);
+
+  for i := 0 to 15 do
+    AssertEquals('F32x16 Sub result lane ' + IntToStr(i), a.f[i] - b.f[i], resultV.f[i], 1e-5);
+
+  resultV := dt^.MulF32x16(a, b);
+
+  for i := 0 to 15 do
+    AssertEquals('F32x16 Mul result lane ' + IntToStr(i), a.f[i] * b.f[i], resultV.f[i], 1e-5);
+
+  resultV := dt^.DivF32x16(a, b);
+
+  for i := 0 to 15 do
+    AssertEquals('F32x16 Div result lane ' + IntToStr(i), a.f[i] / b.f[i], resultV.f[i], 1e-5);
+end;
+
+procedure TTestCase_AVX512VectorAsm.Test_VecI32x16_ABI_CalleeSavedRegisters_Preserved;
+var
+  dt: PSimdDispatchTable;
+  a, b, resultV: TVecI32x16;
+  i: Integer;
+begin
+  if not HasAVX512 then
+    Exit;
+
+  AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
+
+  dt := GetDispatchTable;
+  AssertTrue('Dispatch table should be assigned', dt <> nil);
+
+  // 初始化测试数据
+  for i := 0 to 15 do
+  begin
+    a.i[i] := (i + 1) * 100;
+    b.i[i] := (i + 1) * 10;
+  end;
+
+  // 直接调用 dispatch 函数，验证结果正确性
+  resultV := dt^.AddI32x16(a, b);
+
+  for i := 0 to 15 do
+    AssertEquals('I32x16 Add result lane ' + IntToStr(i), a.i[i] + b.i[i], resultV.i[i]);
+
+  resultV := dt^.SubI32x16(a, b);
+
+  for i := 0 to 15 do
+    AssertEquals('I32x16 Sub result lane ' + IntToStr(i), a.i[i] - b.i[i], resultV.i[i]);
+
+  resultV := dt^.MulI32x16(a, b);
+
+  for i := 0 to 15 do
+    AssertEquals('I32x16 Mul result lane ' + IntToStr(i), a.i[i] * b.i[i], resultV.i[i]);
+
+  resultV := dt^.AndI32x16(a, b);
+
+  for i := 0 to 15 do
+    AssertEquals('I32x16 And result lane ' + IntToStr(i), a.i[i] and b.i[i], resultV.i[i]);
+
+  resultV := dt^.OrI32x16(a, b);
+
+  for i := 0 to 15 do
+    AssertEquals('I32x16 Or result lane ' + IntToStr(i), a.i[i] or b.i[i], resultV.i[i]);
+end;
+
 {$ENDIF}
 {$ENDIF}
 
@@ -10724,6 +12151,146 @@ begin
   AssertEquals('Sum of 33 bytes', 33, sum);
 end;
 
+procedure TTestCase_EdgeCases.Test_Utils_VecF32x4Extract_IndexSaturation;
+var
+  a: TVecF32x4;
+begin
+  a.f[0] := 10.0;
+  a.f[1] := 20.0;
+  a.f[2] := 30.0;
+  a.f[3] := 40.0;
+
+  AssertEquals('Extract(-1) should saturate to lane 0', 10.0, fafafa.core.simd.utils.VecF32x4Extract(a, -1), 0.0001);
+  AssertEquals('Extract(-99) should saturate to lane 0', 10.0, fafafa.core.simd.utils.VecF32x4Extract(a, -99), 0.0001);
+  AssertEquals('Extract(0) should read lane 0', 10.0, fafafa.core.simd.utils.VecF32x4Extract(a, 0), 0.0001);
+  AssertEquals('Extract(1) should read lane 1', 20.0, fafafa.core.simd.utils.VecF32x4Extract(a, 1), 0.0001);
+  AssertEquals('Extract(2) should read lane 2', 30.0, fafafa.core.simd.utils.VecF32x4Extract(a, 2), 0.0001);
+  AssertEquals('Extract(3) should read lane 3', 40.0, fafafa.core.simd.utils.VecF32x4Extract(a, 3), 0.0001);
+  AssertEquals('Extract(4) should saturate to lane 3', 40.0, fafafa.core.simd.utils.VecF32x4Extract(a, 4), 0.0001);
+  AssertEquals('Extract(99) should saturate to lane 3', 40.0, fafafa.core.simd.utils.VecF32x4Extract(a, 99), 0.0001);
+end;
+
+procedure TTestCase_EdgeCases.Test_Utils_VecF32x4Insert_IndexSaturation;
+var
+  a, r: TVecF32x4;
+begin
+  a.f[0] := 1.0;
+  a.f[1] := 2.0;
+  a.f[2] := 3.0;
+  a.f[3] := 4.0;
+
+  // Negative index -> lane 0
+  r := fafafa.core.simd.utils.VecF32x4Insert(a, 9.0, -1);
+  AssertEquals('Insert(-1) should write lane 0', 9.0, r.f[0], 0.0001);
+  AssertEquals('Insert(-1) should not change lane 1', 2.0, r.f[1], 0.0001);
+  AssertEquals('Insert(-1) should not change lane 2', 3.0, r.f[2], 0.0001);
+  AssertEquals('Insert(-1) should not change lane 3', 4.0, r.f[3], 0.0001);
+
+  // In-range index
+  r := fafafa.core.simd.utils.VecF32x4Insert(a, 9.0, 2);
+  AssertEquals('Insert(2) should not change lane 0', 1.0, r.f[0], 0.0001);
+  AssertEquals('Insert(2) should not change lane 1', 2.0, r.f[1], 0.0001);
+  AssertEquals('Insert(2) should write lane 2', 9.0, r.f[2], 0.0001);
+  AssertEquals('Insert(2) should not change lane 3', 4.0, r.f[3], 0.0001);
+
+  // Out-of-range index -> lane 3
+  r := fafafa.core.simd.utils.VecF32x4Insert(a, 9.0, 4);
+  AssertEquals('Insert(4) should not change lane 0', 1.0, r.f[0], 0.0001);
+  AssertEquals('Insert(4) should not change lane 1', 2.0, r.f[1], 0.0001);
+  AssertEquals('Insert(4) should not change lane 2', 3.0, r.f[2], 0.0001);
+  AssertEquals('Insert(4) should write lane 3', 9.0, r.f[3], 0.0001);
+end;
+
+procedure TTestCase_EdgeCases.Test_Utils_MaskF32x4Test_IndexSaturation_NoException;
+var
+  m: TMaskF32x4;
+  b: Boolean;
+  idx: Integer;
+begin
+  m := MaskF32x4Set(True, False, True, False);
+
+  // Negative index -> lane 0
+  idx := -1;
+  try
+    b := fafafa.core.simd.utils.MaskF32x4Test(m, idx);
+  except
+    on E: Exception do
+      Fail('MaskF32x4Test(-1) should not raise, but got: ' + E.ClassName + ': ' + E.Message);
+  end;
+  AssertTrue('MaskF32x4Test(-1) should saturate to lane 0', b);
+
+  // Out-of-range index -> lane 3
+  idx := 4;
+  try
+    b := fafafa.core.simd.utils.MaskF32x4Test(m, idx);
+  except
+    on E: Exception do
+      Fail('MaskF32x4Test(4) should not raise, but got: ' + E.ClassName + ': ' + E.Message);
+  end;
+  AssertFalse('MaskF32x4Test(4) should saturate to lane 3', b);
+end;
+
+procedure TTestCase_EdgeCases.Test_Facade_VecF32x4Extract_IndexSaturation;
+var
+  a: TVecF32x4;
+  idx: Integer;
+begin
+  a.f[0] := 10.0;
+  a.f[1] := 20.0;
+  a.f[2] := 30.0;
+  a.f[3] := 40.0;
+
+  // 注意：这里用 runtime 变量，避免 inline 函数在常量越界时触发编译期 range check。
+  idx := -1;
+  AssertEquals('Facade Extract(-1) should saturate to lane 0', 10.0, fafafa.core.simd.VecF32x4Extract(a, idx), 0.0001);
+  idx := -99;
+  AssertEquals('Facade Extract(-99) should saturate to lane 0', 10.0, fafafa.core.simd.VecF32x4Extract(a, idx), 0.0001);
+
+  AssertEquals('Facade Extract(0) should read lane 0', 10.0, fafafa.core.simd.VecF32x4Extract(a, 0), 0.0001);
+  AssertEquals('Facade Extract(1) should read lane 1', 20.0, fafafa.core.simd.VecF32x4Extract(a, 1), 0.0001);
+  AssertEquals('Facade Extract(2) should read lane 2', 30.0, fafafa.core.simd.VecF32x4Extract(a, 2), 0.0001);
+  AssertEquals('Facade Extract(3) should read lane 3', 40.0, fafafa.core.simd.VecF32x4Extract(a, 3), 0.0001);
+
+  idx := 4;
+  AssertEquals('Facade Extract(4) should saturate to lane 3', 40.0, fafafa.core.simd.VecF32x4Extract(a, idx), 0.0001);
+  idx := 99;
+  AssertEquals('Facade Extract(99) should saturate to lane 3', 40.0, fafafa.core.simd.VecF32x4Extract(a, idx), 0.0001);
+end;
+
+procedure TTestCase_EdgeCases.Test_Facade_VecF32x4Insert_IndexSaturation;
+var
+  a, r: TVecF32x4;
+  idx: Integer;
+begin
+  a.f[0] := 1.0;
+  a.f[1] := 2.0;
+  a.f[2] := 3.0;
+  a.f[3] := 4.0;
+
+  // Negative index -> lane 0
+  idx := -1;
+  r := fafafa.core.simd.VecF32x4Insert(a, 9.0, idx);
+  AssertEquals('Facade Insert(-1) should write lane 0', 9.0, r.f[0], 0.0001);
+  AssertEquals('Facade Insert(-1) should not change lane 1', 2.0, r.f[1], 0.0001);
+  AssertEquals('Facade Insert(-1) should not change lane 2', 3.0, r.f[2], 0.0001);
+  AssertEquals('Facade Insert(-1) should not change lane 3', 4.0, r.f[3], 0.0001);
+
+  // In-range index
+  r := fafafa.core.simd.VecF32x4Insert(a, 9.0, 2);
+  AssertEquals('Facade Insert(2) should not change lane 0', 1.0, r.f[0], 0.0001);
+  AssertEquals('Facade Insert(2) should not change lane 1', 2.0, r.f[1], 0.0001);
+  AssertEquals('Facade Insert(2) should write lane 2', 9.0, r.f[2], 0.0001);
+  AssertEquals('Facade Insert(2) should not change lane 3', 4.0, r.f[3], 0.0001);
+
+  // Out-of-range index -> lane 3
+  idx := 4;
+  r := fafafa.core.simd.VecF32x4Insert(a, 9.0, idx);
+  AssertEquals('Facade Insert(4) should not change lane 0', 1.0, r.f[0], 0.0001);
+  AssertEquals('Facade Insert(4) should not change lane 1', 2.0, r.f[1], 0.0001);
+  AssertEquals('Facade Insert(4) should not change lane 2', 3.0, r.f[2], 0.0001);
+  AssertEquals('Facade Insert(4) should write lane 3', 9.0, r.f[3], 0.0001);
+end;
+
 // === 数学函数边界 ===
 
 procedure TTestCase_EdgeCases.Test_VecF32x4_Log_Zero;
@@ -11802,6 +13369,59 @@ begin
   AssertEquals('0 - 1 should saturate to 0', 0, r.u[1]);
 end;
 
+{ TTestCase_DispatchAPI }
+
+procedure TTestCase_DispatchAPI.Test_TrySetActiveBackend_Scalar_ReturnsTrue;
+begin
+  try
+    AssertTrue('TrySetActiveBackend(sbScalar) should succeed', TrySetActiveBackend(sbScalar));
+    AssertEquals('Active backend should be Scalar after TrySetActiveBackend', Ord(sbScalar), Ord(GetActiveBackend));
+  finally
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_TrySetActiveBackend_Unavailable_NoChange;
+var
+  original: TSimdBackend;
+begin
+  original := GetActiveBackend;
+  try
+    {$IFDEF CPUX86_64}
+    AssertFalse('TrySetActiveBackend(sbNEON) should fail on x86_64', TrySetActiveBackend(sbNEON));
+    {$ELSE}
+    {$IFDEF CPUAARCH64}
+    AssertFalse('TrySetActiveBackend(sbSSE2) should fail on AArch64', TrySetActiveBackend(sbSSE2));
+    {$ELSE}
+    AssertFalse('TrySetActiveBackend(sbAVX512) should fail when backend is unavailable', TrySetActiveBackend(sbAVX512));
+    {$ENDIF}
+    {$ENDIF}
+
+    AssertEquals('Active backend should remain unchanged after failed TrySetActiveBackend', Ord(original), Ord(GetActiveBackend));
+  finally
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_SetActiveBackend_Unavailable_FallsBackToScalar;
+begin
+  try
+    {$IFDEF CPUX86_64}
+    SetActiveBackend(sbNEON);
+    {$ELSE}
+    {$IFDEF CPUAARCH64}
+    SetActiveBackend(sbSSE2);
+    {$ELSE}
+    SetActiveBackend(sbAVX512);
+    {$ENDIF}
+    {$ENDIF}
+
+    AssertEquals('SetActiveBackend(unavailable) should fall back to Scalar', Ord(sbScalar), Ord(GetActiveBackend));
+  finally
+    ResetToAutomaticBackend;
+  end;
+end;
+
 initialization
   RegisterTest(TTestCase_Global);
   {$IFDEF CPUX86_64}
@@ -11809,9 +13429,11 @@ initialization
   RegisterTest(TTestCase_AVX512BackendRequirements);
   {$ENDIF}
   RegisterTest(TTestCase_BackendSmoke);
+  RegisterTest(TTestCase_DispatchAPI);
   {$IFDEF UNIX}
   {$IFDEF CPUX86_64}
   RegisterTest(TTestCase_AVX2VectorAsm);
+  RegisterTest(TTestCase_AVX512VectorAsm);
   {$ENDIF}
   {$ENDIF}
   RegisterTest(TTestCase_VectorOps);

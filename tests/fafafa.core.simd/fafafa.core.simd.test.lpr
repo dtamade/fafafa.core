@@ -11,9 +11,10 @@ uses
   fpcunit, testregistry,
   fafafa.core.simd.testcase,
   fafafa.core.simd.direct.testcase,
+  fafafa.core.simd.bench,
   fafafa.core.simd.cpuinfo,
   fafafa.core.simd.dispatch,
-  fafafa.core.simd.base,
+  fafafa.core.simd.types,
   fafafa.core.simd.api,
   fafafa.core.simd.scalar
   {$IFDEF CPUX86_64}
@@ -39,229 +40,12 @@ var
   exitEarlyError: string;
 
 procedure RunBenchmarks;
-{$IFDEF CPUX86_64}
-const
-  ITERATIONS = 1000000;
-  ARRAY_SIZE = 4096;
 var
-  buf1, buf2: array[0..ARRAY_SIZE-1] of Byte;
-  i, j: Integer;
-  startTime, endTime: Int64;
-  scalarTime, sse2Time, avx2Time: Double;
-  dummy: LongBool;
-  dummyIdx: PtrInt;
-  dummySum: UInt64;
-  dummyCount: SizeUInt;
-  dummyMin, dummyMax: Byte;
-  dummyBool: Boolean;
+  Results: TBenchResults;
 begin
-  // Initialize test data
-  for i := 0 to ARRAY_SIZE - 1 do
-  begin
-    buf1[i] := Byte(i mod 256);
-    buf2[i] := Byte(i mod 256);
-  end;
-
-  WriteLn('=== Performance Benchmarks ===');
-  WriteLn('Testing with ', ARRAY_SIZE, ' bytes, ', ITERATIONS, ' iterations');
-  WriteLn;
-
-  // Test MemEqual
-  WriteLn('MemEqual:');
-  startTime := GetTickCount64;
-  for j := 1 to ITERATIONS do dummy := MemEqual_Scalar(@buf1[0], @buf2[0], ARRAY_SIZE);
-  scalarTime := GetTickCount64 - startTime;
-  WriteLn('  Scalar: ', scalarTime:0:0, ' ms');
-
-  startTime := GetTickCount64;
-  for j := 1 to ITERATIONS do dummy := MemEqual_SSE2(@buf1[0], @buf2[0], ARRAY_SIZE);
-  sse2Time := GetTickCount64 - startTime;
-  WriteLn('  SSE2:   ', sse2Time:0:0, ' ms (', (scalarTime/sse2Time):0:2, 'x)');
-
-  if HasAVX2 then
-  begin
-    startTime := GetTickCount64;
-    for j := 1 to ITERATIONS do dummy := MemEqual_AVX2(@buf1[0], @buf2[0], ARRAY_SIZE);
-    avx2Time := GetTickCount64 - startTime;
-    WriteLn('  AVX2:   ', avx2Time:0:0, ' ms (', (scalarTime/avx2Time):0:2, 'x)');
-  end;
-  WriteLn;
-
-  // Test MemFindByte
-  WriteLn('MemFindByte:');
-  startTime := GetTickCount64;
-  for j := 1 to ITERATIONS do dummyIdx := MemFindByte_Scalar(@buf1[0], ARRAY_SIZE, 255);
-  scalarTime := GetTickCount64 - startTime;
-  WriteLn('  Scalar: ', scalarTime:0:0, ' ms');
-
-  startTime := GetTickCount64;
-  for j := 1 to ITERATIONS do dummyIdx := MemFindByte_SSE2(@buf1[0], ARRAY_SIZE, 255);
-  sse2Time := GetTickCount64 - startTime;
-  WriteLn('  SSE2:   ', sse2Time:0:0, ' ms (', (scalarTime/sse2Time):0:2, 'x)');
-
-  if HasAVX2 then
-  begin
-    startTime := GetTickCount64;
-    for j := 1 to ITERATIONS do dummyIdx := MemFindByte_AVX2(@buf1[0], ARRAY_SIZE, 255);
-    avx2Time := GetTickCount64 - startTime;
-    WriteLn('  AVX2:   ', avx2Time:0:0, ' ms (', (scalarTime/avx2Time):0:2, 'x)');
-  end;
-  WriteLn;
-
-  // Test SumBytes
-  WriteLn('SumBytes:');
-  startTime := GetTickCount64;
-  for j := 1 to ITERATIONS do dummySum := SumBytes_Scalar(@buf1[0], ARRAY_SIZE);
-  scalarTime := GetTickCount64 - startTime;
-  WriteLn('  Scalar: ', scalarTime:0:0, ' ms');
-
-  startTime := GetTickCount64;
-  for j := 1 to ITERATIONS do dummySum := SumBytes_SSE2(@buf1[0], ARRAY_SIZE);
-  sse2Time := GetTickCount64 - startTime;
-  WriteLn('  SSE2:   ', sse2Time:0:0, ' ms (', (scalarTime/sse2Time):0:2, 'x)');
-
-  if HasAVX2 then
-  begin
-    startTime := GetTickCount64;
-    for j := 1 to ITERATIONS do dummySum := SumBytes_AVX2(@buf1[0], ARRAY_SIZE);
-    avx2Time := GetTickCount64 - startTime;
-    WriteLn('  AVX2:   ', avx2Time:0:0, ' ms (', (scalarTime/avx2Time):0:2, 'x)');
-  end;
-  WriteLn;
-
-  // Test CountByte
-  WriteLn('CountByte:');
-  startTime := GetTickCount64;
-  for j := 1 to ITERATIONS do dummyCount := CountByte_Scalar(@buf1[0], ARRAY_SIZE, $AA);
-  scalarTime := GetTickCount64 - startTime;
-  WriteLn('  Scalar: ', scalarTime:0:0, ' ms');
-
-  startTime := GetTickCount64;
-  for j := 1 to ITERATIONS do dummyCount := CountByte_SSE2(@buf1[0], ARRAY_SIZE, $AA);
-  sse2Time := GetTickCount64 - startTime;
-  WriteLn('  SSE2:   ', sse2Time:0:0, ' ms (', (scalarTime/sse2Time):0:2, 'x)');
-
-  if HasAVX2 then
-  begin
-    startTime := GetTickCount64;
-    for j := 1 to ITERATIONS do dummyCount := CountByte_AVX2(@buf1[0], ARRAY_SIZE, $AA);
-    avx2Time := GetTickCount64 - startTime;
-    WriteLn('  AVX2:   ', avx2Time:0:0, ' ms (', (scalarTime/avx2Time):0:2, 'x)');
-  end;
-  WriteLn;
-
-  // Test MinMaxBytes
-  WriteLn('MinMaxBytes:');
-  startTime := GetTickCount64;
-  for j := 1 to ITERATIONS do MinMaxBytes_Scalar(@buf1[0], ARRAY_SIZE, dummyMin, dummyMax);
-  scalarTime := GetTickCount64 - startTime;
-  WriteLn('  Scalar: ', scalarTime:0:0, ' ms');
-
-  if HasAVX2 then
-  begin
-    startTime := GetTickCount64;
-    for j := 1 to ITERATIONS do MinMaxBytes_AVX2(@buf1[0], ARRAY_SIZE, dummyMin, dummyMax);
-    avx2Time := GetTickCount64 - startTime;
-    WriteLn('  AVX2:   ', avx2Time:0:0, ' ms (', (scalarTime/avx2Time):0:2, 'x)');
-  end;
-  WriteLn;
-
-  // Test BitsetPopCount
-  WriteLn('BitsetPopCount:');
-  startTime := GetTickCount64;
-  for j := 1 to ITERATIONS do dummyCount := BitsetPopCount_Scalar(@buf1[0], ARRAY_SIZE);
-  scalarTime := GetTickCount64 - startTime;
-  WriteLn('  Scalar: ', scalarTime:0:0, ' ms');
-
-  if HasAVX2 then
-  begin
-    startTime := GetTickCount64;
-    for j := 1 to ITERATIONS do dummyCount := BitsetPopCount_AVX2(@buf1[0], ARRAY_SIZE);
-    avx2Time := GetTickCount64 - startTime;
-    WriteLn('  AVX2:   ', avx2Time:0:0, ' ms (', (scalarTime/avx2Time):0:2, 'x)');
-  end;
-  WriteLn;
-
-  // Test Utf8Validate (ASCII data)
-  WriteLn('Utf8Validate (ASCII):');
-  // Fill with ASCII data for fair comparison
-  for i := 0 to ARRAY_SIZE - 1 do
-    buf1[i] := Byte(32 + (i mod 95));  // Printable ASCII
-  startTime := GetTickCount64;
-  for j := 1 to ITERATIONS do dummyBool := Utf8Validate_Scalar(@buf1[0], ARRAY_SIZE);
-  scalarTime := GetTickCount64 - startTime;
-  WriteLn('  Scalar: ', scalarTime:0:0, ' ms');
-
-  if HasAVX2 then
-  begin
-    startTime := GetTickCount64;
-    for j := 1 to ITERATIONS do dummyBool := Utf8Validate_AVX2(@buf1[0], ARRAY_SIZE);
-    avx2Time := GetTickCount64 - startTime;
-    WriteLn('  AVX2:   ', avx2Time:0:0, ' ms (', (scalarTime/avx2Time):0:2, 'x)');
-  end;
-  WriteLn;
-
-  // Test ToLowerAscii
-  WriteLn('ToLowerAscii:');
-  for i := 0 to ARRAY_SIZE - 1 do
-    buf1[i] := Byte(65 + (i mod 26)); // 'A'..'Z' repeated
-  startTime := GetTickCount64;
-  for j := 1 to ITERATIONS do
-  begin
-    for i := 0 to ARRAY_SIZE - 1 do buf1[i] := Byte(65 + (i mod 26));
-    ToLowerAscii_Scalar(@buf1[0], ARRAY_SIZE);
-  end;
-  scalarTime := GetTickCount64 - startTime;
-  WriteLn('  Scalar: ', scalarTime:0:0, ' ms');
-
-  if HasAVX2 then
-  begin
-    startTime := GetTickCount64;
-    for j := 1 to ITERATIONS do
-    begin
-      for i := 0 to ARRAY_SIZE - 1 do buf1[i] := Byte(65 + (i mod 26));
-      ToLowerAscii_AVX2(@buf1[0], ARRAY_SIZE);
-    end;
-    avx2Time := GetTickCount64 - startTime;
-    WriteLn('  AVX2:   ', avx2Time:0:0, ' ms (', (scalarTime/avx2Time):0:2, 'x)');
-  end;
-  WriteLn;
-
-  // Test AsciiIEqual
-  WriteLn('AsciiIEqual:');
-  for i := 0 to ARRAY_SIZE - 1 do
-  begin
-    buf1[i] := Byte(65 + (i mod 26)); // 'A'..'Z'
-    buf2[i] := Byte(97 + (i mod 26)); // 'a'..'z'
-  end;
-  startTime := GetTickCount64;
-  for j := 1 to ITERATIONS do dummyBool := AsciiIEqual_Scalar(@buf1[0], @buf2[0], ARRAY_SIZE);
-  scalarTime := GetTickCount64 - startTime;
-  WriteLn('  Scalar: ', scalarTime:0:0, ' ms');
-
-  if HasAVX2 then
-  begin
-    startTime := GetTickCount64;
-    for j := 1 to ITERATIONS do dummyBool := AsciiIEqual_AVX2(@buf1[0], @buf2[0], ARRAY_SIZE);
-    avx2Time := GetTickCount64 - startTime;
-    WriteLn('  AVX2:   ', avx2Time:0:0, ' ms (', (scalarTime/avx2Time):0:2, 'x)');
-  end;
-  WriteLn;
-  
-  // Prevent unused variable warning
-  if dummy then;
-  if dummyIdx > 0 then;
-  if dummySum > 0 then;
-  if dummyCount > 0 then;
-  if dummyMin > 0 then;
-  if dummyMax > 0 then;
-  if dummyBool then;
+  Results := fafafa.core.simd.bench.RunAllBenchmarks;
+  PrintBenchResults(Results);
 end;
-{$ELSE}
-begin
-  WriteLn('Benchmarks are not supported on this architecture.');
-end;
-{$ENDIF}
 
 procedure PrintUsage;
 begin
@@ -293,6 +77,7 @@ begin
   {$IFDEF UNIX}
   {$IFDEF CPUX86_64}
   WriteLn('  TTestCase_AVX2VectorAsm');
+  WriteLn('  TTestCase_AVX512VectorAsm');
   {$ENDIF}
   {$ENDIF}
   WriteLn('  TTestCase_VectorOps');
@@ -311,7 +96,6 @@ begin
   WriteLn('  TTestCase_Memutils');
   WriteLn('  TTestCase_RustStyleAliases');
   WriteLn('  TTestCase_SaturatingArithmetic');
-  WriteLn('  TTestCase_DirectDispatch');
 end;
 
 procedure AddSuiteFilter(const value: string);
@@ -378,11 +162,6 @@ begin
     begin
       doBench := True;
       benchOnly := True;
-    end
-    else if arg = '--all' then
-    begin
-      // Compatibility with ConsoleTestRunner-style flags used in CI.
-      // This runner executes all suites by default, so --all is a no-op.
     end
     else if (arg = '--help') or (arg = '-h') then
     begin
@@ -510,6 +289,8 @@ begin
       {$IFDEF CPUX86_64}
       if ShouldRunSuite('TTestCase_AVX2VectorAsm') then
         testSuite.AddTest(TTestCase_AVX2VectorAsm.Suite);
+      if ShouldRunSuite('TTestCase_AVX512VectorAsm') then
+        testSuite.AddTest(TTestCase_AVX512VectorAsm.Suite);
       {$ENDIF}
       {$ENDIF}
       if ShouldRunSuite('TTestCase_VectorOps') then
@@ -544,8 +325,6 @@ begin
         testSuite.AddTest(TTestCase_RustStyleAliases.Suite);
       if ShouldRunSuite('TTestCase_SaturatingArithmetic') then
         testSuite.AddTest(TTestCase_SaturatingArithmetic.Suite);
-      if ShouldRunSuite('TTestCase_DirectDispatch') then
-        testSuite.AddTest(TTestCase_DirectDispatch.Suite);
 
       // Create test result
       testResult := TTestResult.Create;

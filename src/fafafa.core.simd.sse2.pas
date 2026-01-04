@@ -1468,6 +1468,474 @@ asm
   {$ENDIF}
 end;
 
+// === ✅ P3: I64x2 Arithmetic and Bitwise Operations (SSE2) ===
+// SSE2 提供 paddq/psubq 用于 64-bit 整数运算
+
+// I64x2 加法 (PADDQ)
+function SSE2AddI64x2(const a, b: TVecI64x2): TVecI64x2; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  movdqu xmm0, [rdi]
+  movdqu xmm1, [rsi]
+  paddq  xmm0, xmm1
+  movdqu [rax], xmm0
+  {$ELSE}
+  movdqu xmm0, [rcx]
+  movdqu xmm1, [rdx]
+  paddq  xmm0, xmm1
+  movdqu [rax], xmm0
+  {$ENDIF}
+end;
+
+// I64x2 减法 (PSUBQ)
+function SSE2SubI64x2(const a, b: TVecI64x2): TVecI64x2; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  movdqu xmm0, [rdi]
+  movdqu xmm1, [rsi]
+  psubq  xmm0, xmm1
+  movdqu [rax], xmm0
+  {$ELSE}
+  movdqu xmm0, [rcx]
+  movdqu xmm1, [rdx]
+  psubq  xmm0, xmm1
+  movdqu [rax], xmm0
+  {$ENDIF}
+end;
+
+// I64x2 位与 (PAND)
+function SSE2AndI64x2(const a, b: TVecI64x2): TVecI64x2; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  movdqu xmm0, [rdi]
+  movdqu xmm1, [rsi]
+  pand   xmm0, xmm1
+  movdqu [rax], xmm0
+  {$ELSE}
+  movdqu xmm0, [rcx]
+  movdqu xmm1, [rdx]
+  pand   xmm0, xmm1
+  movdqu [rax], xmm0
+  {$ENDIF}
+end;
+
+// I64x2 位或 (POR)
+function SSE2OrI64x2(const a, b: TVecI64x2): TVecI64x2; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  movdqu xmm0, [rdi]
+  movdqu xmm1, [rsi]
+  por    xmm0, xmm1
+  movdqu [rax], xmm0
+  {$ELSE}
+  movdqu xmm0, [rcx]
+  movdqu xmm1, [rdx]
+  por    xmm0, xmm1
+  movdqu [rax], xmm0
+  {$ENDIF}
+end;
+
+// I64x2 位异或 (PXOR)
+function SSE2XorI64x2(const a, b: TVecI64x2): TVecI64x2; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  movdqu xmm0, [rdi]
+  movdqu xmm1, [rsi]
+  pxor   xmm0, xmm1
+  movdqu [rax], xmm0
+  {$ELSE}
+  movdqu xmm0, [rcx]
+  movdqu xmm1, [rdx]
+  pxor   xmm0, xmm1
+  movdqu [rax], xmm0
+  {$ENDIF}
+end;
+
+// I64x2 位非 (PXOR with all 1s)
+function SSE2NotI64x2(const a: TVecI64x2): TVecI64x2; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  movdqu  xmm0, [rdi]
+  pcmpeqd xmm1, xmm1      // all 1s
+  pxor    xmm0, xmm1      // NOT = XOR with all 1s
+  movdqu  [rax], xmm0
+  {$ELSE}
+  movdqu  xmm0, [rcx]
+  pcmpeqd xmm1, xmm1
+  pxor    xmm0, xmm1
+  movdqu  [rax], xmm0
+  {$ENDIF}
+end;
+
+// === ✅ P1: Mask Operations SIMD Implementation ===
+// 使用 bsf (bit scan forward) 和 SWAR popcount 加速
+// Mask 类型是小整数（TMask2/4/8/16），可以用标量指令优化
+
+// --- TMask2 Operations (2 bits) ---
+function SSE2Mask2All(mask: TMask2): Boolean; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  and   edi, 3        // 只保留低 2 位
+  cmp   edi, 3        // 检查是否都为 1
+  sete  al            // 设置结果
+  {$ELSE}
+  and   ecx, 3
+  cmp   ecx, 3
+  sete  al
+  {$ENDIF}
+end;
+
+function SSE2Mask2Any(mask: TMask2): Boolean; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  test  edi, 3        // 测试低 2 位
+  setne al            // 任何位设置则为 true
+  {$ELSE}
+  test  ecx, 3
+  setne al
+  {$ENDIF}
+end;
+
+function SSE2Mask2None(mask: TMask2): Boolean; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  test  edi, 3
+  sete  al            // 没有位设置则为 true
+  {$ELSE}
+  test  ecx, 3
+  sete  al
+  {$ENDIF}
+end;
+
+function SSE2Mask2PopCount(mask: TMask2): Integer; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  and   edi, 3        // 只保留低 2 位
+  mov   eax, edi
+  shr   eax, 1        // 第二位移到位 0
+  and   eax, 1        // 取第二位
+  and   edi, 1        // 取第一位
+  add   eax, edi      // 相加
+  {$ELSE}
+  and   ecx, 3
+  mov   eax, ecx
+  shr   eax, 1
+  and   eax, 1
+  and   ecx, 1
+  add   eax, ecx
+  {$ENDIF}
+end;
+
+function SSE2Mask2FirstSet(mask: TMask2): Integer; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  and   edi, 3        // 只保留低 2 位
+  bsf   eax, edi      // 找第一个设置的位
+  jnz   @done
+  mov   eax, -1       // 没有设置的位
+@done:
+  {$ELSE}
+  and   ecx, 3
+  bsf   eax, ecx
+  jnz   @done
+  mov   eax, -1
+@done:
+  {$ENDIF}
+end;
+
+// --- TMask4 Operations (4 bits) ---
+function SSE2Mask4All(mask: TMask4): Boolean; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  and   edi, 15       // 只保留低 4 位
+  cmp   edi, 15
+  sete  al
+  {$ELSE}
+  and   ecx, 15
+  cmp   ecx, 15
+  sete  al
+  {$ENDIF}
+end;
+
+function SSE2Mask4Any(mask: TMask4): Boolean; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  test  edi, 15
+  setne al
+  {$ELSE}
+  test  ecx, 15
+  setne al
+  {$ENDIF}
+end;
+
+function SSE2Mask4None(mask: TMask4): Boolean; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  test  edi, 15
+  sete  al
+  {$ELSE}
+  test  ecx, 15
+  sete  al
+  {$ENDIF}
+end;
+
+function SSE2Mask4PopCount(mask: TMask4): Integer; assembler; nostackframe;
+// SWAR popcount for 4 bits
+asm
+  {$IFDEF UNIX}
+  and   edi, 15
+  mov   eax, edi
+  shr   eax, 1
+  and   eax, $5       // 0101 pattern
+  sub   edi, eax
+  mov   eax, edi
+  shr   eax, 2
+  and   edi, $3       // 0011 pattern
+  and   eax, $3
+  add   eax, edi
+  {$ELSE}
+  and   ecx, 15
+  mov   eax, ecx
+  shr   eax, 1
+  and   eax, $5
+  sub   ecx, eax
+  mov   eax, ecx
+  shr   eax, 2
+  and   ecx, $3
+  and   eax, $3
+  add   eax, ecx
+  {$ENDIF}
+end;
+
+function SSE2Mask4FirstSet(mask: TMask4): Integer; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  and   edi, 15
+  bsf   eax, edi
+  jnz   @done
+  mov   eax, -1
+@done:
+  {$ELSE}
+  and   ecx, 15
+  bsf   eax, ecx
+  jnz   @done
+  mov   eax, -1
+@done:
+  {$ENDIF}
+end;
+
+// --- TMask8 Operations (8 bits) ---
+function SSE2Mask8All(mask: TMask8): Boolean; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  cmp   dil, $FF
+  sete  al
+  {$ELSE}
+  cmp   cl, $FF
+  sete  al
+  {$ENDIF}
+end;
+
+function SSE2Mask8Any(mask: TMask8): Boolean; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  test  dil, dil
+  setne al
+  {$ELSE}
+  test  cl, cl
+  setne al
+  {$ENDIF}
+end;
+
+function SSE2Mask8None(mask: TMask8): Boolean; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  test  dil, dil
+  sete  al
+  {$ELSE}
+  test  cl, cl
+  sete  al
+  {$ENDIF}
+end;
+
+function SSE2Mask8PopCount(mask: TMask8): Integer; assembler; nostackframe;
+// SWAR popcount for 8 bits
+asm
+  {$IFDEF UNIX}
+  movzx eax, dil
+  mov   edx, eax
+  shr   edx, 1
+  and   edx, $55
+  sub   eax, edx
+  mov   edx, eax
+  shr   edx, 2
+  and   eax, $33
+  and   edx, $33
+  add   eax, edx
+  mov   edx, eax
+  shr   edx, 4
+  add   eax, edx
+  and   eax, $0F
+  {$ELSE}
+  movzx eax, cl
+  mov   edx, eax
+  shr   edx, 1
+  and   edx, $55
+  sub   eax, edx
+  mov   edx, eax
+  shr   edx, 2
+  and   eax, $33
+  and   edx, $33
+  add   eax, edx
+  mov   edx, eax
+  shr   edx, 4
+  add   eax, edx
+  and   eax, $0F
+  {$ENDIF}
+end;
+
+function SSE2Mask8FirstSet(mask: TMask8): Integer; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  movzx edi, dil
+  bsf   eax, edi
+  jnz   @done
+  mov   eax, -1
+@done:
+  {$ELSE}
+  movzx ecx, cl
+  bsf   eax, ecx
+  jnz   @done
+  mov   eax, -1
+@done:
+  {$ENDIF}
+end;
+
+// --- TMask16 Operations (16 bits) ---
+function SSE2Mask16All(mask: TMask16): Boolean; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  cmp   di, $FFFF
+  sete  al
+  {$ELSE}
+  cmp   cx, $FFFF
+  sete  al
+  {$ENDIF}
+end;
+
+function SSE2Mask16Any(mask: TMask16): Boolean; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  test  di, di
+  setne al
+  {$ELSE}
+  test  cx, cx
+  setne al
+  {$ENDIF}
+end;
+
+function SSE2Mask16None(mask: TMask16): Boolean; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  test  di, di
+  sete  al
+  {$ELSE}
+  test  cx, cx
+  sete  al
+  {$ENDIF}
+end;
+
+function SSE2Mask16PopCount(mask: TMask16): Integer; assembler; nostackframe;
+// SWAR popcount for 16 bits
+asm
+  {$IFDEF UNIX}
+  movzx eax, di
+  mov   edx, eax
+  shr   edx, 1
+  and   edx, $5555
+  sub   eax, edx
+  mov   edx, eax
+  shr   edx, 2
+  and   eax, $3333
+  and   edx, $3333
+  add   eax, edx
+  mov   edx, eax
+  shr   edx, 4
+  add   eax, edx
+  and   eax, $0F0F
+  mov   edx, eax
+  shr   edx, 8
+  add   eax, edx
+  and   eax, $FF
+  {$ELSE}
+  movzx eax, cx
+  mov   edx, eax
+  shr   edx, 1
+  and   edx, $5555
+  sub   eax, edx
+  mov   edx, eax
+  shr   edx, 2
+  and   eax, $3333
+  and   edx, $3333
+  add   eax, edx
+  mov   edx, eax
+  shr   edx, 4
+  add   eax, edx
+  and   eax, $0F0F
+  mov   edx, eax
+  shr   edx, 8
+  add   eax, edx
+  and   eax, $FF
+  {$ENDIF}
+end;
+
+function SSE2Mask16FirstSet(mask: TMask16): Integer; assembler; nostackframe;
+asm
+  {$IFDEF UNIX}
+  movzx edi, di
+  bsf   eax, edi
+  jnz   @done
+  mov   eax, -1
+@done:
+  {$ELSE}
+  movzx ecx, cx
+  bsf   eax, ecx
+  jnz   @done
+  mov   eax, -1
+@done:
+  {$ENDIF}
+end;
+
+// === ✅ P4: SelectF64x2 SIMD Implementation ===
+// 使用 andpd/andnpd/orpd 实现手动混合 (blendvpd 需要 SSE4.1)
+// mask 位 0 控制元素 0，位 1 控制元素 1
+// 位为 1 时选择 a，位为 0 时选择 b
+function SSE2SelectF64x2(const mask: TMask2; const a, b: TVecF64x2): TVecF64x2;
+var
+  expandedMask: TVecI64x2;
+begin
+  // 将 mask 扩展为 64-bit 掉码
+  if (mask and 1) <> 0 then expandedMask.i[0] := Int64(-1) else expandedMask.i[0] := 0;
+  if (mask and 2) <> 0 then expandedMask.i[1] := Int64(-1) else expandedMask.i[1] := 0;
+
+  // result = (a AND mask) OR (b AND NOT mask)
+  asm
+    lea rax, a
+    lea rdx, b
+    lea rcx, expandedMask
+
+    movupd xmm0, [rax]     // a
+    movupd xmm1, [rdx]     // b
+    movdqu xmm2, [rcx]     // mask (expanded to 128-bit)
+
+    andpd  xmm0, xmm2      // a AND mask
+    andnpd xmm2, xmm1      // b AND (NOT mask)  (andnpd: ~src1 AND src2)
+    orpd   xmm0, xmm2      // combine
+
+    movupd [result], xmm0
+  end;
+end;
+
 // === Backend Registration ===
 
 procedure RegisterSSE2Backend;
@@ -1520,6 +1988,14 @@ begin
     dispatchTable.SubI32x4 := @SSE2SubI32x4;
     dispatchTable.MulI32x4 := @SSE2MulI32x4;
 
+    // ✅ P3: I64x2 arithmetic and bitwise
+    dispatchTable.AddI64x2 := @SSE2AddI64x2;
+    dispatchTable.SubI64x2 := @SSE2SubI64x2;
+    dispatchTable.AndI64x2 := @SSE2AndI64x2;
+    dispatchTable.OrI64x2 := @SSE2OrI64x2;
+    dispatchTable.XorI64x2 := @SSE2XorI64x2;
+    dispatchTable.NotI64x2 := @SSE2NotI64x2;
+
     // Override with SSE2 comparison operations
     dispatchTable.CmpEqF32x4 := @SSE2CmpEqF32x4;
     dispatchTable.CmpLtF32x4 := @SSE2CmpLtF32x4;
@@ -1571,6 +2047,9 @@ begin
     dispatchTable.SelectF32x4 := @SSE2SelectF32x4;
     dispatchTable.ExtractF32x4 := @SSE2ExtractF32x4;
     dispatchTable.InsertF32x4 := @SSE2InsertF32x4;
+
+    // ✅ P4: SelectF64x2
+    dispatchTable.SelectF64x2 := @SSE2SelectF64x2;
   end;
   // else: keep scalar implementations from FillBaseDispatchTable
 
@@ -1593,6 +2072,28 @@ begin
   dispatchTable.U8x16SatSub := @SSE2U8x16SatSub;
   dispatchTable.U16x8SatAdd := @SSE2U16x8SatAdd;
   dispatchTable.U16x8SatSub := @SSE2U16x8SatSub;
+
+  // ✅ P1: Mask operations (bsf + SWAR popcount, always enabled)
+  dispatchTable.Mask2All := @SSE2Mask2All;
+  dispatchTable.Mask2Any := @SSE2Mask2Any;
+  dispatchTable.Mask2None := @SSE2Mask2None;
+  dispatchTable.Mask2PopCount := @SSE2Mask2PopCount;
+  dispatchTable.Mask2FirstSet := @SSE2Mask2FirstSet;
+  dispatchTable.Mask4All := @SSE2Mask4All;
+  dispatchTable.Mask4Any := @SSE2Mask4Any;
+  dispatchTable.Mask4None := @SSE2Mask4None;
+  dispatchTable.Mask4PopCount := @SSE2Mask4PopCount;
+  dispatchTable.Mask4FirstSet := @SSE2Mask4FirstSet;
+  dispatchTable.Mask8All := @SSE2Mask8All;
+  dispatchTable.Mask8Any := @SSE2Mask8Any;
+  dispatchTable.Mask8None := @SSE2Mask8None;
+  dispatchTable.Mask8PopCount := @SSE2Mask8PopCount;
+  dispatchTable.Mask8FirstSet := @SSE2Mask8FirstSet;
+  dispatchTable.Mask16All := @SSE2Mask16All;
+  dispatchTable.Mask16Any := @SSE2Mask16Any;
+  dispatchTable.Mask16None := @SSE2Mask16None;
+  dispatchTable.Mask16PopCount := @SSE2Mask16PopCount;
+  dispatchTable.Mask16FirstSet := @SSE2Mask16FirstSet;
 
   // Register the backend
   RegisterBackend(sbSSE2, dispatchTable);

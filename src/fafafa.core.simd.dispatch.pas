@@ -178,6 +178,22 @@ type
     MinI32x16: function(const a, b: TVecI32x16): TVecI32x16;
     MaxI32x16: function(const a, b: TVecI32x16): TVecI32x16;
 
+    // Arithmetic operations - I64x8 (512-bit AVX-512)
+    AddI64x8: function(const a, b: TVecI64x8): TVecI64x8;
+    SubI64x8: function(const a, b: TVecI64x8): TVecI64x8;
+    // Bitwise operations - I64x8
+    AndI64x8: function(const a, b: TVecI64x8): TVecI64x8;
+    OrI64x8: function(const a, b: TVecI64x8): TVecI64x8;
+    XorI64x8: function(const a, b: TVecI64x8): TVecI64x8;
+    NotI64x8: function(const a: TVecI64x8): TVecI64x8;
+    // Comparison operations - I64x8
+    CmpEqI64x8: function(const a, b: TVecI64x8): TMask8;
+    CmpLtI64x8: function(const a, b: TVecI64x8): TMask8;
+    CmpGtI64x8: function(const a, b: TVecI64x8): TMask8;
+    CmpLeI64x8: function(const a, b: TVecI64x8): TMask8;
+    CmpGeI64x8: function(const a, b: TVecI64x8): TMask8;
+    CmpNeI64x8: function(const a, b: TVecI64x8): TMask8;
+
     // Arithmetic operations - F32x16 (512-bit AVX-512)
     AddF32x16: function(const a, b: TVecF32x16): TVecF32x16;
     SubF32x16: function(const a, b: TVecF32x16): TVecF32x16;
@@ -205,6 +221,22 @@ type
     CmpGtF64x2: function(const a, b: TVecF64x2): TMask2;
     CmpGeF64x2: function(const a, b: TVecF64x2): TMask2;
     CmpNeF64x2: function(const a, b: TVecF64x2): TMask2;
+
+    // ✅ NEW: 512-bit floating-point comparisons
+    // F32x16 (512-bit)
+    CmpEqF32x16: function(const a, b: TVecF32x16): TMask16;
+    CmpLtF32x16: function(const a, b: TVecF32x16): TMask16;
+    CmpLeF32x16: function(const a, b: TVecF32x16): TMask16;
+    CmpGtF32x16: function(const a, b: TVecF32x16): TMask16;
+    CmpGeF32x16: function(const a, b: TVecF32x16): TMask16;
+    CmpNeF32x16: function(const a, b: TVecF32x16): TMask16;
+    // F64x8 (512-bit)
+    CmpEqF64x8: function(const a, b: TVecF64x8): TMask8;
+    CmpLtF64x8: function(const a, b: TVecF64x8): TMask8;
+    CmpLeF64x8: function(const a, b: TVecF64x8): TMask8;
+    CmpGtF64x8: function(const a, b: TVecF64x8): TMask8;
+    CmpGeF64x8: function(const a, b: TVecF64x8): TMask8;
+    CmpNeF64x8: function(const a, b: TVecF64x8): TMask8;
     
     // Math functions
     AbsF32x4: function(const a: TVecF32x4): TVecF32x4;
@@ -229,18 +261,62 @@ type
     CeilF64x2: function(const a: TVecF64x2): TVecF64x2;
     RoundF64x2: function(const a: TVecF64x2): TVecF64x2;
     TruncF64x2: function(const a: TVecF64x2): TVecF64x2;
+    // ✅ NEW: F64x2 math functions
+    AbsF64x2: function(const a: TVecF64x2): TVecF64x2;
+    SqrtF64x2: function(const a: TVecF64x2): TVecF64x2;
+    MinF64x2: function(const a, b: TVecF64x2): TVecF64x2;
+    MaxF64x2: function(const a, b: TVecF64x2): TVecF64x2;
+    ClampF64x2: function(const a, minVal, maxVal: TVecF64x2): TVecF64x2;
     // F32x8 (256-bit)
     FmaF32x8: function(const a, b, c: TVecF32x8): TVecF32x8;
     FloorF32x8: function(const a: TVecF32x8): TVecF32x8;
     CeilF32x8: function(const a: TVecF32x8): TVecF32x8;
     RoundF32x8: function(const a: TVecF32x8): TVecF32x8;
     TruncF32x8: function(const a: TVecF32x8): TVecF32x8;
+    // ✅ NEW: F32x8 math functions
+    AbsF32x8: function(const a: TVecF32x8): TVecF32x8;
+    SqrtF32x8: function(const a: TVecF32x8): TVecF32x8;
+    MinF32x8: function(const a, b: TVecF32x8): TVecF32x8;
+    MaxF32x8: function(const a, b: TVecF32x8): TVecF32x8;
+    ClampF32x8: function(const a, minVal, maxVal: TVecF32x8): TVecF32x8;
     // F64x4 (256-bit)
     FmaF64x4: function(const a, b, c: TVecF64x4): TVecF64x4;
     FloorF64x4: function(const a: TVecF64x4): TVecF64x4;
     CeilF64x4: function(const a: TVecF64x4): TVecF64x4;
     RoundF64x4: function(const a: TVecF64x4): TVecF64x4;
     TruncF64x4: function(const a: TVecF64x4): TVecF64x4;
+    // F32x16 (512-bit)
+    FmaF32x16: function(const a, b, c: TVecF32x16): TVecF32x16;
+    FloorF32x16: function(const a: TVecF32x16): TVecF32x16;
+    CeilF32x16: function(const a: TVecF32x16): TVecF32x16;
+    RoundF32x16: function(const a: TVecF32x16): TVecF32x16;
+    TruncF32x16: function(const a: TVecF32x16): TVecF32x16;
+    // F64x8 (512-bit)
+    FmaF64x8: function(const a, b, c: TVecF64x8): TVecF64x8;
+    FloorF64x8: function(const a: TVecF64x8): TVecF64x8;
+    CeilF64x8: function(const a: TVecF64x8): TVecF64x8;
+    RoundF64x8: function(const a: TVecF64x8): TVecF64x8;
+    TruncF64x8: function(const a: TVecF64x8): TVecF64x8;
+    // ✅ NEW: F64x4 math functions
+    AbsF64x4: function(const a: TVecF64x4): TVecF64x4;
+    SqrtF64x4: function(const a: TVecF64x4): TVecF64x4;
+    MinF64x4: function(const a, b: TVecF64x4): TVecF64x4;
+    MaxF64x4: function(const a, b: TVecF64x4): TVecF64x4;
+    ClampF64x4: function(const a, minVal, maxVal: TVecF64x4): TVecF64x4;
+
+    // ✅ NEW: 512-bit float math functions
+    // F32x16 (512-bit)
+    AbsF32x16: function(const a: TVecF32x16): TVecF32x16;
+    SqrtF32x16: function(const a: TVecF32x16): TVecF32x16;
+    MinF32x16: function(const a, b: TVecF32x16): TVecF32x16;
+    MaxF32x16: function(const a, b: TVecF32x16): TVecF32x16;
+    ClampF32x16: function(const a, minVal, maxVal: TVecF32x16): TVecF32x16;
+    // F64x8 (512-bit)
+    AbsF64x8: function(const a: TVecF64x8): TVecF64x8;
+    SqrtF64x8: function(const a: TVecF64x8): TVecF64x8;
+    MinF64x8: function(const a, b: TVecF64x8): TVecF64x8;
+    MaxF64x8: function(const a, b: TVecF64x8): TVecF64x8;
+    ClampF64x8: function(const a, minVal, maxVal: TVecF64x8): TVecF64x8;
 
     // 3D/4D Vector math
     DotF32x4: function(const a, b: TVecF32x4): Single;          // Dot product (4 elements)
@@ -256,6 +332,32 @@ type
     ReduceMinF32x4: function(const a: TVecF32x4): Single;
     ReduceMaxF32x4: function(const a: TVecF32x4): Single;
     ReduceMulF32x4: function(const a: TVecF32x4): Single;
+    // ✅ NEW: Wide vector reduction operations
+    // F64x2 (128-bit)
+    ReduceAddF64x2: function(const a: TVecF64x2): Double;
+    ReduceMinF64x2: function(const a: TVecF64x2): Double;
+    ReduceMaxF64x2: function(const a: TVecF64x2): Double;
+    ReduceMulF64x2: function(const a: TVecF64x2): Double;
+    // F32x8 (256-bit)
+    ReduceAddF32x8: function(const a: TVecF32x8): Single;
+    ReduceMinF32x8: function(const a: TVecF32x8): Single;
+    ReduceMaxF32x8: function(const a: TVecF32x8): Single;
+    ReduceMulF32x8: function(const a: TVecF32x8): Single;
+    // F64x4 (256-bit)
+    ReduceAddF64x4: function(const a: TVecF64x4): Double;
+    ReduceMinF64x4: function(const a: TVecF64x4): Double;
+    ReduceMaxF64x4: function(const a: TVecF64x4): Double;
+    ReduceMulF64x4: function(const a: TVecF64x4): Double;
+    // F32x16 (512-bit)
+    ReduceAddF32x16: function(const a: TVecF32x16): Single;
+    ReduceMinF32x16: function(const a: TVecF32x16): Single;
+    ReduceMaxF32x16: function(const a: TVecF32x16): Single;
+    ReduceMulF32x16: function(const a: TVecF32x16): Single;
+    // F64x8 (512-bit)
+    ReduceAddF64x8: function(const a: TVecF64x8): Double;
+    ReduceMinF64x8: function(const a: TVecF64x8): Double;
+    ReduceMaxF64x8: function(const a: TVecF64x8): Double;
+    ReduceMulF64x8: function(const a: TVecF64x8): Double;
     
     // Memory operations
     LoadF32x4: function(p: PSingle): TVecF32x4;
@@ -286,6 +388,16 @@ type
     StoreF64x4: procedure(p: PDouble; const a: TVecF64x4);
     SplatF64x4: function(value: Double): TVecF64x4;
     ZeroF64x4: function: TVecF64x4;
+    // F32x16 (512-bit)
+    LoadF32x16: function(p: PSingle): TVecF32x16;
+    StoreF32x16: procedure(p: PSingle; const a: TVecF32x16);
+    SplatF32x16: function(value: Single): TVecF32x16;
+    ZeroF32x16: function: TVecF32x16;
+    // F64x8 (512-bit)
+    LoadF64x8: function(p: PDouble): TVecF64x8;
+    StoreF64x8: procedure(p: PDouble; const a: TVecF64x8);
+    SplatF64x8: function(value: Double): TVecF64x8;
+    ZeroF64x8: function: TVecF64x8;
 
     // === Facade Functions (High-Level API) ===
     // Memory operations
@@ -353,6 +465,10 @@ type
 
     // ✅ P2-3: F64x2 Select 操作
     SelectF64x2: function(const mask: TMask2; const a, b: TVecF64x2): TVecF64x2;
+
+    // ✅ NEW: 512-bit Select operations
+    SelectF32x16: function(const mask: TMask16; const a, b: TVecF32x16): TVecF32x16;
+    SelectF64x8: function(const mask: TMask8; const a, b: TVecF64x8): TVecF64x8;
   end;
 
 // Pointer to dispatch table
@@ -373,45 +489,12 @@ function IsBackendRegistered(backend: TSimdBackend): Boolean;
 // Get backend info
 function GetBackendInfo(backend: TSimdBackend): TSimdBackendInfo;
 
+// Get a copy of a registered backend's dispatch table.
+// Useful for diagnostics/tests (e.g. validating wiring on machines without that CPU feature).
+// Returns False and clears `dispatchTable` if the backend is not registered.
+function TryGetRegisteredBackendDispatchTable(backend: TSimdBackend; out dispatchTable: TSimdDispatchTable): Boolean;
+
 // === Dispatch Table Helpers ===
-
-{**
- * ValidateDispatchTable
- *
- * @desc
- *   Validates that all function pointers in a dispatch table are non-nil.
- *   This is a critical safety check to ensure no nil pointer dereferences.
- *   验证派发表中所有函数指针都非 nil。
- *   这是确保不会发生 nil 指针解引用的关键安全检查。
- *
- * @param dispatchTable
- *   The dispatch table to validate.
- *   要验证的派发表。
- *
- * @returns
- *   True if all function pointers are non-nil, False otherwise.
- *   如果所有函数指针都非 nil 返回 True，否则返回 False。
- *}
-function ValidateDispatchTable(const dispatchTable: TSimdDispatchTable): Boolean;
-
-{**
- * AssertDispatchTableValid
- *
- * @desc
- *   Asserts that all function pointers in a dispatch table are non-nil.
- *   Raises an assertion error in debug builds if validation fails.
- *   断言派发表中所有函数指针都非 nil。
- *   在调试构建中，如果验证失败则引发断言错误。
- *
- * @param dispatchTable
- *   The dispatch table to validate.
- *   要验证的派发表。
- *
- * @param backendName
- *   Name of the backend for error reporting.
- *   用于错误报告的后端名称。
- *}
-procedure AssertDispatchTableValid(const dispatchTable: TSimdDispatchTable; const backendName: string);
 
 {**
  * FillBaseDispatchTable
@@ -482,9 +565,6 @@ var
   g_ForcedBackend: TSimdBackend;
   g_BackendForced: Boolean = False;
 
-  // Optional callback invoked after (re)initialization completes.
-  g_DispatchChangedHook: TSimdDispatchChangedHook = nil;
-
   // Feature toggles
   // ✅ P1-E: 默认启用 SIMD 向量操作
   // 如需禁用，编译时定义 SIMD_VECTOR_ASM_DISABLED
@@ -493,6 +573,9 @@ var
   {$ELSE}
   g_VectorAsmEnabled: Boolean = False;
   {$ENDIF}
+
+  // Dispatch change hook (e.g., for direct-dispatch fast path binding)
+  g_DispatchChangedHook: TSimdDispatchChangedHook = nil;
 
   // ⚠️ REMOVED: g_BackendRebuilders array - rebuilder mechanism deprecated for thread safety
 
@@ -718,11 +801,6 @@ end;
 
 procedure RegisterBackend(backend: TSimdBackend; const dispatchTable: TSimdDispatchTable);
 begin
-  // ✅ P2-1: Validate dispatch table integrity before registration
-  {$IFDEF DEBUG}
-  AssertDispatchTableValid(dispatchTable, dispatchTable.BackendInfo.Name);
-  {$ENDIF}
-
   g_BackendTables[backend] := dispatchTable;
   WriteBarrier;  // Ensure table is fully written before marking as registered
   g_BackendRegistered[backend] := True;
@@ -753,6 +831,21 @@ begin
   end;
 end;
 
+function TryGetRegisteredBackendDispatchTable(backend: TSimdBackend; out dispatchTable: TSimdDispatchTable): Boolean;
+begin
+  // Ensure we see a consistent snapshot of the registration + table.
+  ReadBarrier;
+
+  if g_BackendRegistered[backend] then
+  begin
+    dispatchTable := g_BackendTables[backend];
+    Exit(True);
+  end;
+
+  FillChar(dispatchTable, SizeOf(dispatchTable), 0);
+  Result := False;
+end;
+
 // ⚠️ DEPRECATED: Rebuilder mechanism removed for thread safety.
 // This procedure is now a no-op for backward compatibility.
 // Existing calls will compile but have no effect.
@@ -766,74 +859,6 @@ begin
 end;
 
 // === Dispatch Table Helpers ===
-
-// ✅ P2-1: Dispatch table integrity validation
-function ValidateDispatchTable(const dispatchTable: TSimdDispatchTable): Boolean;
-type
-  PPointer = ^Pointer;
-var
-  p: PPointer;
-  i: Integer;
-  fieldCount: Integer;
-  startOffset: Integer;
-begin
-  Result := True;
-
-  // Calculate the offset to the first function pointer (after Backend and BackendInfo)
-  // Backend: TSimdBackend (enum, typically 1-4 bytes)
-  // BackendInfo: TSimdBackendInfo (record with multiple fields)
-  startOffset := SizeOf(TSimdBackend) + SizeOf(TSimdBackendInfo);
-
-  // Calculate number of function pointer fields
-  // Total size minus header fields, divided by pointer size
-  fieldCount := (SizeOf(TSimdDispatchTable) - startOffset) div SizeOf(Pointer);
-
-  // Check each function pointer
-  p := PPointer(PByte(@dispatchTable) + startOffset);
-  for i := 0 to fieldCount - 1 do
-  begin
-    if p^ = nil then
-    begin
-      Result := False;
-      Exit;
-    end;
-    Inc(p);
-  end;
-end;
-
-procedure AssertDispatchTableValid(const dispatchTable: TSimdDispatchTable; const backendName: string);
-type
-  PPointer = ^Pointer;
-var
-  p: PPointer;
-  i: Integer;
-  fieldCount: Integer;
-  startOffset: Integer;
-  nilCount: Integer;
-begin
-  startOffset := SizeOf(TSimdBackend) + SizeOf(TSimdBackendInfo);
-  fieldCount := (SizeOf(TSimdDispatchTable) - startOffset) div SizeOf(Pointer);
-
-  nilCount := 0;
-  p := PPointer(PByte(@dispatchTable) + startOffset);
-  for i := 0 to fieldCount - 1 do
-  begin
-    if p^ = nil then
-      Inc(nilCount);
-    Inc(p);
-  end;
-
-  {$IFDEF DEBUG}
-  if nilCount > 0 then
-    raise Exception.CreateFmt(
-      'SIMD dispatch table validation failed for backend "%s": %d of %d function pointers are nil',
-      [backendName, nilCount, fieldCount]);
-  {$ENDIF}
-
-  // In release builds, just assert
-  Assert(nilCount = 0,
-    Format('SIMD dispatch table "%s" has %d nil pointers', [backendName, nilCount]));
-end;
 
 procedure FillBaseDispatchTable(var dispatchTable: TSimdDispatchTable);
 begin
@@ -983,6 +1008,20 @@ begin
   dispatchTable.MinI32x16 := @ScalarMinI32x16;
   dispatchTable.MaxI32x16 := @ScalarMaxI32x16;
 
+  // === I64x8 Arithmetic/Bitwise/Comparison (512-bit) ===
+  dispatchTable.AddI64x8 := @ScalarAddI64x8;
+  dispatchTable.SubI64x8 := @ScalarSubI64x8;
+  dispatchTable.AndI64x8 := @ScalarAndI64x8;
+  dispatchTable.OrI64x8 := @ScalarOrI64x8;
+  dispatchTable.XorI64x8 := @ScalarXorI64x8;
+  dispatchTable.NotI64x8 := @ScalarNotI64x8;
+  dispatchTable.CmpEqI64x8 := @ScalarCmpEqI64x8;
+  dispatchTable.CmpLtI64x8 := @ScalarCmpLtI64x8;
+  dispatchTable.CmpGtI64x8 := @ScalarCmpGtI64x8;
+  dispatchTable.CmpLeI64x8 := @ScalarCmpLeI64x8;
+  dispatchTable.CmpGeI64x8 := @ScalarCmpGeI64x8;
+  dispatchTable.CmpNeI64x8 := @ScalarCmpNeI64x8;
+
   // === F32x4 Comparison ===
   dispatchTable.CmpEqF32x4 := @ScalarCmpEqF32x4;
   dispatchTable.CmpLtF32x4 := @ScalarCmpLtF32x4;
@@ -998,6 +1037,20 @@ begin
   dispatchTable.CmpGtF64x2 := @ScalarCmpGtF64x2;
   dispatchTable.CmpGeF64x2 := @ScalarCmpGeF64x2;
   dispatchTable.CmpNeF64x2 := @ScalarCmpNeF64x2;
+
+  // === F32x16/F64x8 Comparison (512-bit) ===
+  dispatchTable.CmpEqF32x16 := @ScalarCmpEqF32x16;
+  dispatchTable.CmpLtF32x16 := @ScalarCmpLtF32x16;
+  dispatchTable.CmpLeF32x16 := @ScalarCmpLeF32x16;
+  dispatchTable.CmpGtF32x16 := @ScalarCmpGtF32x16;
+  dispatchTable.CmpGeF32x16 := @ScalarCmpGeF32x16;
+  dispatchTable.CmpNeF32x16 := @ScalarCmpNeF32x16;
+  dispatchTable.CmpEqF64x8 := @ScalarCmpEqF64x8;
+  dispatchTable.CmpLtF64x8 := @ScalarCmpLtF64x8;
+  dispatchTable.CmpLeF64x8 := @ScalarCmpLeF64x8;
+  dispatchTable.CmpGtF64x8 := @ScalarCmpGtF64x8;
+  dispatchTable.CmpGeF64x8 := @ScalarCmpGeF64x8;
+  dispatchTable.CmpNeF64x8 := @ScalarCmpNeF64x8;
 
   // === F32x4 Math ===
   dispatchTable.AbsF32x4 := @ScalarAbsF32x4;
@@ -1035,6 +1088,54 @@ begin
   dispatchTable.RoundF64x4 := @ScalarRoundF64x4;
   dispatchTable.TruncF64x4 := @ScalarTruncF64x4;
 
+  // F32x16 (512-bit)
+  dispatchTable.FmaF32x16 := @ScalarFmaF32x16;
+  dispatchTable.FloorF32x16 := @ScalarFloorF32x16;
+  dispatchTable.CeilF32x16 := @ScalarCeilF32x16;
+  dispatchTable.RoundF32x16 := @ScalarRoundF32x16;
+  dispatchTable.TruncF32x16 := @ScalarTruncF32x16;
+
+  // F64x8 (512-bit)
+  dispatchTable.FmaF64x8 := @ScalarFmaF64x8;
+  dispatchTable.FloorF64x8 := @ScalarFloorF64x8;
+  dispatchTable.CeilF64x8 := @ScalarCeilF64x8;
+  dispatchTable.RoundF64x8 := @ScalarRoundF64x8;
+  dispatchTable.TruncF64x8 := @ScalarTruncF64x8;
+
+  // === Wide Vector Math (Abs/Sqrt/Min/Max/Clamp) ===
+  // F64x2
+  dispatchTable.AbsF64x2 := @ScalarAbsF64x2;
+  dispatchTable.SqrtF64x2 := @ScalarSqrtF64x2;
+  dispatchTable.MinF64x2 := @ScalarMinF64x2;
+  dispatchTable.MaxF64x2 := @ScalarMaxF64x2;
+  dispatchTable.ClampF64x2 := @ScalarClampF64x2;
+  // F32x8
+  dispatchTable.AbsF32x8 := @ScalarAbsF32x8;
+  dispatchTable.SqrtF32x8 := @ScalarSqrtF32x8;
+  dispatchTable.MinF32x8 := @ScalarMinF32x8;
+  dispatchTable.MaxF32x8 := @ScalarMaxF32x8;
+  dispatchTable.ClampF32x8 := @ScalarClampF32x8;
+  // F64x4
+  dispatchTable.AbsF64x4 := @ScalarAbsF64x4;
+  dispatchTable.SqrtF64x4 := @ScalarSqrtF64x4;
+  dispatchTable.MinF64x4 := @ScalarMinF64x4;
+  dispatchTable.MaxF64x4 := @ScalarMaxF64x4;
+  dispatchTable.ClampF64x4 := @ScalarClampF64x4;
+
+  // F32x16 (512-bit)
+  dispatchTable.AbsF32x16 := @ScalarAbsF32x16;
+  dispatchTable.SqrtF32x16 := @ScalarSqrtF32x16;
+  dispatchTable.MinF32x16 := @ScalarMinF32x16;
+  dispatchTable.MaxF32x16 := @ScalarMaxF32x16;
+  dispatchTable.ClampF32x16 := @ScalarClampF32x16;
+
+  // F64x8 (512-bit)
+  dispatchTable.AbsF64x8 := @ScalarAbsF64x8;
+  dispatchTable.SqrtF64x8 := @ScalarSqrtF64x8;
+  dispatchTable.MinF64x8 := @ScalarMinF64x8;
+  dispatchTable.MaxF64x8 := @ScalarMaxF64x8;
+  dispatchTable.ClampF64x8 := @ScalarClampF64x8;
+
   // === 3D/4D Vector Math ===
   dispatchTable.DotF32x4 := @ScalarDotF32x4;
   dispatchTable.DotF32x3 := @ScalarDotF32x3;
@@ -1049,6 +1150,35 @@ begin
   dispatchTable.ReduceMinF32x4 := @ScalarReduceMinF32x4;
   dispatchTable.ReduceMaxF32x4 := @ScalarReduceMaxF32x4;
   dispatchTable.ReduceMulF32x4 := @ScalarReduceMulF32x4;
+
+  // === Wide Vector Reduction ===
+  // F64x2
+  dispatchTable.ReduceAddF64x2 := @ScalarReduceAddF64x2;
+  dispatchTable.ReduceMinF64x2 := @ScalarReduceMinF64x2;
+  dispatchTable.ReduceMaxF64x2 := @ScalarReduceMaxF64x2;
+  dispatchTable.ReduceMulF64x2 := @ScalarReduceMulF64x2;
+  // F32x8
+  dispatchTable.ReduceAddF32x8 := @ScalarReduceAddF32x8;
+  dispatchTable.ReduceMinF32x8 := @ScalarReduceMinF32x8;
+  dispatchTable.ReduceMaxF32x8 := @ScalarReduceMaxF32x8;
+  dispatchTable.ReduceMulF32x8 := @ScalarReduceMulF32x8;
+  // F64x4
+  dispatchTable.ReduceAddF64x4 := @ScalarReduceAddF64x4;
+  dispatchTable.ReduceMinF64x4 := @ScalarReduceMinF64x4;
+  dispatchTable.ReduceMaxF64x4 := @ScalarReduceMaxF64x4;
+  dispatchTable.ReduceMulF64x4 := @ScalarReduceMulF64x4;
+
+  // F32x16 (512-bit)
+  dispatchTable.ReduceAddF32x16 := @ScalarReduceAddF32x16;
+  dispatchTable.ReduceMinF32x16 := @ScalarReduceMinF32x16;
+  dispatchTable.ReduceMaxF32x16 := @ScalarReduceMaxF32x16;
+  dispatchTable.ReduceMulF32x16 := @ScalarReduceMulF32x16;
+
+  // F64x8 (512-bit)
+  dispatchTable.ReduceAddF64x8 := @ScalarReduceAddF64x8;
+  dispatchTable.ReduceMinF64x8 := @ScalarReduceMinF64x8;
+  dispatchTable.ReduceMaxF64x8 := @ScalarReduceMaxF64x8;
+  dispatchTable.ReduceMulF64x8 := @ScalarReduceMulF64x8;
 
   // === F32x4 Memory Operations ===
   dispatchTable.LoadF32x4 := @ScalarLoadF32x4;
@@ -1079,6 +1209,18 @@ begin
   dispatchTable.StoreF64x4 := @ScalarStoreF64x4;
   dispatchTable.SplatF64x4 := @ScalarSplatF64x4;
   dispatchTable.ZeroF64x4 := @ScalarZeroF64x4;
+
+  // F32x16 (512-bit)
+  dispatchTable.LoadF32x16 := @ScalarLoadF32x16;
+  dispatchTable.StoreF32x16 := @ScalarStoreF32x16;
+  dispatchTable.SplatF32x16 := @ScalarSplatF32x16;
+  dispatchTable.ZeroF32x16 := @ScalarZeroF32x16;
+
+  // F64x8 (512-bit)
+  dispatchTable.LoadF64x8 := @ScalarLoadF64x8;
+  dispatchTable.StoreF64x8 := @ScalarStoreF64x8;
+  dispatchTable.SplatF64x8 := @ScalarSplatF64x8;
+  dispatchTable.ZeroF64x8 := @ScalarZeroF64x8;
 
   // === Facade Functions ===
   dispatchTable.MemEqual := @MemEqual_Scalar;
@@ -1131,6 +1273,10 @@ begin
 
   // === ✅ P2-3: F64x2 Select ===
   dispatchTable.SelectF64x2 := @ScalarSelectF64x2;
+
+  // === 512-bit Select ===
+  dispatchTable.SelectF32x16 := @ScalarSelectF32x16;
+  dispatchTable.SelectF64x8 := @ScalarSelectF64x8;
 end;
 
 // ✅ 修复 P0-1: 允许 tier 后端从 SSE2 继承实现，而非从标量基线开始

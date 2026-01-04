@@ -353,15 +353,25 @@ end;
 
 function VecF32x4Broadcast(const a: TVecF32x4; index: Integer): TVecF32x4;
 var v: Single;
+    idx: Integer;
 begin
-  v := a.f[index and 3];
+  // Saturate index to [0..3]
+  if index < 0 then idx := 0
+  else if index > 3 then idx := 3
+  else idx := index;
+  v := a.f[idx];
   Result.f[0] := v; Result.f[1] := v; Result.f[2] := v; Result.f[3] := v;
 end;
 
 function VecI32x4Broadcast(const a: TVecI32x4; index: Integer): TVecI32x4;
 var v: Int32;
+    idx: Integer;
 begin
-  v := a.i[index and 3];
+  // Saturate index to [0..3]
+  if index < 0 then idx := 0
+  else if index > 3 then idx := 3
+  else idx := index;
+  v := a.i[idx];
   Result.i[0] := v; Result.i[1] := v; Result.i[2] := v; Result.i[3] := v;
 end;
 
@@ -530,25 +540,53 @@ begin
 end;
 
 function VecF32x4Insert(const a: TVecF32x4; value: Single; index: Integer): TVecF32x4;
+var
+  idx: Integer;
 begin
   Result := a;
-  Result.f[index and 3] := value;
+  idx := index;
+  if idx < 0 then
+    idx := 0
+  else if idx > 3 then
+    idx := 3;
+  Result.f[idx] := value;
 end;
 
 function VecI32x4Insert(const a: TVecI32x4; value: Int32; index: Integer): TVecI32x4;
+var
+  idx: Integer;
 begin
   Result := a;
-  Result.i[index and 3] := value;
+  idx := index;
+  if idx < 0 then
+    idx := 0
+  else if idx > 3 then
+    idx := 3;
+  Result.i[idx] := value;
 end;
 
 function VecF32x4Extract(const a: TVecF32x4; index: Integer): Single;
+var
+  idx: Integer;
 begin
-  Result := a.f[index and 3];
+  idx := index;
+  if idx < 0 then
+    idx := 0
+  else if idx > 3 then
+    idx := 3;
+  Result := a.f[idx];
 end;
 
 function VecI32x4Extract(const a: TVecI32x4; index: Integer): Int32;
+var
+  idx: Integer;
 begin
-  Result := a.i[index and 3];
+  idx := index;
+  if idx < 0 then
+    idx := 0
+  else if idx > 3 then
+    idx := 3;
+  Result := a.i[idx];
 end;
 
 // === TMaskF32x4 函数实现 ===
@@ -580,8 +618,15 @@ begin
 end;
 
 function MaskF32x4Test(const m: TMaskF32x4; index: Integer): Boolean;
+var
+  idx: Integer;
 begin
-  Result := m.m[index] <> 0;
+  idx := index;
+  if idx < 0 then
+    idx := 0
+  else if idx > 3 then
+    idx := 3;
+  Result := m.m[idx] <> 0;
 end;
 
 // ✅ P1-3: 展开循环优化

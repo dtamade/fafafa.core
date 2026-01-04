@@ -1,6 +1,10 @@
 ========================================
 Module: fafafa.core.term
 Script: /home/dtamade/projects/fafafa.core/tests/fafafa.core.term/BuildOrTest.sh
-Started: 2025-12-01 10:56:40
+Started: 2026-01-01 21:14:55
 ========================================
-bash: 行 1: /home/dtamade/projects/fafafa.core/tests/fafafa.core.term/BuildOrTest.sh: 权限不够
+[BUILD] Project: tests_term.lpi
+./BuildOrTest.sh: 行 12: ../../tools/lazbuild.sh: 没有那个文件或目录
+[BUILD] FAILED code=127
+
+[ERROR] Test executable not found: bin/tests_term

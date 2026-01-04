@@ -1,6 +1,6 @@
 # Collections 内存泄漏验证报告
 
-**生成时间**: 2025年 12月 24日 星期三 01:00:15 CST
+**生成时间**: 2026年 01月 01日 星期四 21:16:43 CST
 **测试工具**: Free Pascal HeapTrc
 **编译选项**: `-gh -gl` (启用堆追踪和行号信息)
 
@@ -28,8 +28,8 @@
 **HeapTrc 输出**:
 ```
 Heap dump by heaptrc unit of "/home/dtamade/projects/fafafa.core/tests/leak_test_bin/test_vec_leak"
-869 memory blocks allocated : 299190
-869 memory blocks freed     : 299190
+72 memory blocks allocated : 21457
+72 memory blocks freed     : 21457
 0 unfreed memory blocks : 0
 True heap size : 65536
 True free heap : 65536
@@ -44,8 +44,8 @@ True free heap : 65536
 **HeapTrc 输出**:
 ```
 Heap dump by heaptrc unit of "/home/dtamade/projects/fafafa.core/tests/leak_test_bin/test_vecdeque_leak"
-992 memory blocks allocated : 299304
-992 memory blocks freed     : 299304
+195 memory blocks allocated : 21571
+195 memory blocks freed     : 21571
 0 unfreed memory blocks : 0
 True heap size : 131072
 True free heap : 131072
@@ -60,8 +60,8 @@ True free heap : 131072
 **HeapTrc 输出**:
 ```
 Heap dump by heaptrc unit of "/home/dtamade/projects/fafafa.core/tests/leak_test_bin/test_list_leak"
-1878 memory blocks allocated : 303931
-1878 memory blocks freed     : 303931
+1081 memory blocks allocated : 26198
+1081 memory blocks freed     : 26198
 0 unfreed memory blocks : 0
 True heap size : 196608
 True free heap : 196608
@@ -76,8 +76,8 @@ True free heap : 196608
 **HeapTrc 输出**:
 ```
 Heap dump by heaptrc unit of "/home/dtamade/projects/fafafa.core/tests/leak_test_bin/test_hashmap_leak"
-4367 memory blocks allocated : 458345
-4367 memory blocks freed     : 458345
+3570 memory blocks allocated : 180612
+3570 memory blocks freed     : 180612
 0 unfreed memory blocks : 0
 True heap size : 262144
 True free heap : 262144
@@ -92,8 +92,8 @@ True free heap : 262144
 **HeapTrc 输出**:
 ```
 Heap dump by heaptrc unit of "/home/dtamade/projects/fafafa.core/tests/leak_test_bin/test_hashset_leak"
-874 memory blocks allocated : 352142
-874 memory blocks freed     : 352142
+77 memory blocks allocated : 74409
+77 memory blocks freed     : 74409
 0 unfreed memory blocks : 0
 True heap size : 131072
 True free heap : 131072
@@ -108,8 +108,8 @@ True free heap : 131072
 **HeapTrc 输出**:
 ```
 Heap dump by heaptrc unit of "/home/dtamade/projects/fafafa.core/tests/leak_test_bin/test_linkedhashmap_leak"
-1907 memory blocks allocated : 474932
-1907 memory blocks freed     : 474932
+1110 memory blocks allocated : 197199
+1110 memory blocks freed     : 197199
 0 unfreed memory blocks : 0
 True heap size : 196608
 True free heap : 196608
@@ -124,8 +124,8 @@ True free heap : 196608
 **HeapTrc 输出**:
 ```
 Heap dump by heaptrc unit of "/home/dtamade/projects/fafafa.core/tests/leak_test_bin/test_bitset_leak"
-859 memory blocks allocated : 385945
-859 memory blocks freed     : 385945
+62 memory blocks allocated : 108212
+62 memory blocks freed     : 108212
 0 unfreed memory blocks : 0
 True heap size : 65536
 True free heap : 65536
@@ -140,8 +140,8 @@ True free heap : 65536
 **HeapTrc 输出**:
 ```
 Heap dump by heaptrc unit of "/home/dtamade/projects/fafafa.core/tests/leak_test_bin/test_treeset_leak"
-1888 memory blocks allocated : 317582
-1888 memory blocks freed     : 317582
+1091 memory blocks allocated : 39921
+1091 memory blocks freed     : 39921
 0 unfreed memory blocks : 0
 True heap size : 196608
 True free heap : 196608
@@ -156,8 +156,8 @@ True free heap : 196608
 **HeapTrc 输出**:
 ```
 Heap dump by heaptrc unit of "/home/dtamade/projects/fafafa.core/tests/leak_test_bin/test_treemap_leak"
-1873 memory blocks allocated : 324662
-1873 memory blocks freed     : 324662
+1076 memory blocks allocated : 46929
+1076 memory blocks freed     : 46929
 0 unfreed memory blocks : 0
 True heap size : 196608
 True free heap : 196608

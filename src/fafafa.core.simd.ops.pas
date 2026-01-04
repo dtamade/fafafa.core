@@ -100,20 +100,7 @@ operator not (const a: TVecI32x16): TVecI32x16; inline;
 implementation
 
 uses
-  fafafa.core.simd.dispatch
-  {$IFDEF SIMD_USE_DIRECT_DISPATCH}
-  , fafafa.core.simd.direct
-  {$ENDIF}
-  ;
-
-function GetOpsDispatch: PSimdDispatchTable; inline;
-begin
-  {$IFDEF SIMD_USE_DIRECT_DISPATCH}
-  Result := GetDirectDispatchTable;
-  {$ELSE}
-  Result := GetDispatchTable;
-  {$ENDIF}
-end;
+  fafafa.core.simd.dispatch;
 
 // === TVecF32x4 运算符实现 ===
 // 通过 dispatch 系统调用 SIMD 实现，而非标量循环
@@ -121,22 +108,22 @@ end;
 // ✅ P2-B: 简化运算符 - GetDispatchTable 保证返回有效指针，所有槽位已填充
 operator + (const a, b: TVecF32x4): TVecF32x4;
 begin
-  Result := GetOpsDispatch^.AddF32x4(a, b);
+  Result := GetDispatchTable^.AddF32x4(a, b);
 end;
 
 operator - (const a, b: TVecF32x4): TVecF32x4;
 begin
-  Result := GetOpsDispatch^.SubF32x4(a, b);
+  Result := GetDispatchTable^.SubF32x4(a, b);
 end;
 
 operator * (const a, b: TVecF32x4): TVecF32x4;
 begin
-  Result := GetOpsDispatch^.MulF32x4(a, b);
+  Result := GetDispatchTable^.MulF32x4(a, b);
 end;
 
 operator / (const a, b: TVecF32x4): TVecF32x4;
 begin
-  Result := GetOpsDispatch^.DivF32x4(a, b);
+  Result := GetDispatchTable^.DivF32x4(a, b);
 end;
 
 operator - (const a: TVecF32x4): TVecF32x4;
@@ -150,21 +137,21 @@ end;
 operator * (const a: TVecF32x4; s: Single): TVecF32x4;
 var dt: PSimdDispatchTable;
 begin
-  dt := GetOpsDispatch;
+  dt := GetDispatchTable;
   Result := dt^.MulF32x4(a, dt^.SplatF32x4(s));
 end;
 
 operator * (s: Single; const a: TVecF32x4): TVecF32x4;
 var dt: PSimdDispatchTable;
 begin
-  dt := GetOpsDispatch;
+  dt := GetDispatchTable;
   Result := dt^.MulF32x4(dt^.SplatF32x4(s), a);
 end;
 
 operator / (const a: TVecF32x4; s: Single): TVecF32x4;
 var dt: PSimdDispatchTable;
 begin
-  dt := GetOpsDispatch;
+  dt := GetDispatchTable;
   Result := dt^.DivF32x4(a, dt^.SplatF32x4(s));
 end;
 
@@ -174,22 +161,22 @@ end;
 // ✅ P2-B: 简化运算符 - GetDispatchTable 保证返回有效指针，所有槽位已填充
 operator + (const a, b: TVecF64x2): TVecF64x2;
 begin
-  Result := GetOpsDispatch^.AddF64x2(a, b);
+  Result := GetDispatchTable^.AddF64x2(a, b);
 end;
 
 operator - (const a, b: TVecF64x2): TVecF64x2;
 begin
-  Result := GetOpsDispatch^.SubF64x2(a, b);
+  Result := GetDispatchTable^.SubF64x2(a, b);
 end;
 
 operator * (const a, b: TVecF64x2): TVecF64x2;
 begin
-  Result := GetOpsDispatch^.MulF64x2(a, b);
+  Result := GetDispatchTable^.MulF64x2(a, b);
 end;
 
 operator / (const a, b: TVecF64x2): TVecF64x2;
 begin
-  Result := GetOpsDispatch^.DivF64x2(a, b);
+  Result := GetDispatchTable^.DivF64x2(a, b);
 end;
 
 operator - (const a: TVecF64x2): TVecF64x2;
@@ -206,12 +193,12 @@ end;
 {$PUSH}{$R-}{$Q-}  // Disable range/overflow checks for wraparound semantics
 operator + (const a, b: TVecI32x4): TVecI32x4;
 begin
-  Result := GetOpsDispatch^.AddI32x4(a, b);
+  Result := GetDispatchTable^.AddI32x4(a, b);
 end;
 
 operator - (const a, b: TVecI32x4): TVecI32x4;
 begin
-  Result := GetOpsDispatch^.SubI32x4(a, b);
+  Result := GetDispatchTable^.SubI32x4(a, b);
 end;
 
 operator - (const a: TVecI32x4): TVecI32x4;
@@ -229,12 +216,12 @@ end;
 {$PUSH}{$R-}{$Q-}  // Disable overflow checks for wraparound semantics
 operator + (const a, b: TVecI64x2): TVecI64x2;
 begin
-  Result := GetOpsDispatch^.AddI64x2(a, b);
+  Result := GetDispatchTable^.AddI64x2(a, b);
 end;
 
 operator - (const a, b: TVecI64x2): TVecI64x2;
 begin
-  Result := GetOpsDispatch^.SubI64x2(a, b);
+  Result := GetDispatchTable^.SubI64x2(a, b);
 end;
 
 operator - (const a: TVecI64x2): TVecI64x2;
@@ -273,22 +260,22 @@ end;
 
 operator + (const a, b: TVecF32x8): TVecF32x8;
 begin
-  Result := GetOpsDispatch^.AddF32x8(a, b);
+  Result := GetDispatchTable^.AddF32x8(a, b);
 end;
 
 operator - (const a, b: TVecF32x8): TVecF32x8;
 begin
-  Result := GetOpsDispatch^.SubF32x8(a, b);
+  Result := GetDispatchTable^.SubF32x8(a, b);
 end;
 
 operator * (const a, b: TVecF32x8): TVecF32x8;
 begin
-  Result := GetOpsDispatch^.MulF32x8(a, b);
+  Result := GetDispatchTable^.MulF32x8(a, b);
 end;
 
 operator / (const a, b: TVecF32x8): TVecF32x8;
 begin
-  Result := GetOpsDispatch^.DivF32x8(a, b);
+  Result := GetDispatchTable^.DivF32x8(a, b);
 end;
 
 operator - (const a: TVecF32x8): TVecF32x8;
@@ -304,22 +291,22 @@ end;
 
 operator + (const a, b: TVecF64x4): TVecF64x4;
 begin
-  Result := GetOpsDispatch^.AddF64x4(a, b);
+  Result := GetDispatchTable^.AddF64x4(a, b);
 end;
 
 operator - (const a, b: TVecF64x4): TVecF64x4;
 begin
-  Result := GetOpsDispatch^.SubF64x4(a, b);
+  Result := GetDispatchTable^.SubF64x4(a, b);
 end;
 
 operator * (const a, b: TVecF64x4): TVecF64x4;
 begin
-  Result := GetOpsDispatch^.MulF64x4(a, b);
+  Result := GetDispatchTable^.MulF64x4(a, b);
 end;
 
 operator / (const a, b: TVecF64x4): TVecF64x4;
 begin
-  Result := GetOpsDispatch^.DivF64x4(a, b);
+  Result := GetDispatchTable^.DivF64x4(a, b);
 end;
 
 operator - (const a: TVecF64x4): TVecF64x4;
@@ -334,12 +321,12 @@ end;
 
 operator + (const a, b: TVecI32x8): TVecI32x8;
 begin
-  Result := GetOpsDispatch^.AddI32x8(a, b);
+  Result := GetDispatchTable^.AddI32x8(a, b);
 end;
 
 operator - (const a, b: TVecI32x8): TVecI32x8;
 begin
-  Result := GetOpsDispatch^.SubI32x8(a, b);
+  Result := GetDispatchTable^.SubI32x8(a, b);
 end;
 
 operator - (const a: TVecI32x8): TVecI32x8;
@@ -354,7 +341,7 @@ operator * (const a, b: TVecI32x8): TVecI32x8;
 var dt: PSimdDispatchTable;
     i: Integer;
 begin
-  dt := GetOpsDispatch;
+  dt := GetDispatchTable;
   if (dt <> nil) and Assigned(dt^.MulI32x8) then
     Result := dt^.MulI32x8(a, b)
   else
@@ -369,7 +356,7 @@ operator and (const a, b: TVecI32x8): TVecI32x8;
 var dt: PSimdDispatchTable;
     i: Integer;
 begin
-  dt := GetOpsDispatch;
+  dt := GetDispatchTable;
   if (dt <> nil) and Assigned(dt^.AndI32x8) then
     Result := dt^.AndI32x8(a, b)
   else
@@ -383,7 +370,7 @@ operator or (const a, b: TVecI32x8): TVecI32x8;
 var dt: PSimdDispatchTable;
     i: Integer;
 begin
-  dt := GetOpsDispatch;
+  dt := GetDispatchTable;
   if (dt <> nil) and Assigned(dt^.OrI32x8) then
     Result := dt^.OrI32x8(a, b)
   else
@@ -397,7 +384,7 @@ operator xor (const a, b: TVecI32x8): TVecI32x8;
 var dt: PSimdDispatchTable;
     i: Integer;
 begin
-  dt := GetOpsDispatch;
+  dt := GetDispatchTable;
   if (dt <> nil) and Assigned(dt^.XorI32x8) then
     Result := dt^.XorI32x8(a, b)
   else
@@ -411,7 +398,7 @@ operator not (const a: TVecI32x8): TVecI32x8;
 var dt: PSimdDispatchTable;
     i: Integer;
 begin
-  dt := GetOpsDispatch;
+  dt := GetDispatchTable;
   if (dt <> nil) and Assigned(dt^.NotI32x8) then
     Result := dt^.NotI32x8(a)
   else
@@ -428,7 +415,7 @@ operator + (const a, b: TVecF32x16): TVecF32x16;
 var dt: PSimdDispatchTable;
     i: Integer;
 begin
-  dt := GetOpsDispatch;
+  dt := GetDispatchTable;
   if (dt <> nil) and Assigned(dt^.AddF32x16) then
     Result := dt^.AddF32x16(a, b)
   else
@@ -442,7 +429,7 @@ operator - (const a, b: TVecF32x16): TVecF32x16;
 var dt: PSimdDispatchTable;
     i: Integer;
 begin
-  dt := GetOpsDispatch;
+  dt := GetDispatchTable;
   if (dt <> nil) and Assigned(dt^.SubF32x16) then
     Result := dt^.SubF32x16(a, b)
   else
@@ -456,7 +443,7 @@ operator * (const a, b: TVecF32x16): TVecF32x16;
 var dt: PSimdDispatchTable;
     i: Integer;
 begin
-  dt := GetOpsDispatch;
+  dt := GetDispatchTable;
   if (dt <> nil) and Assigned(dt^.MulF32x16) then
     Result := dt^.MulF32x16(a, b)
   else
@@ -470,7 +457,7 @@ operator / (const a, b: TVecF32x16): TVecF32x16;
 var dt: PSimdDispatchTable;
     i: Integer;
 begin
-  dt := GetOpsDispatch;
+  dt := GetDispatchTable;
   if (dt <> nil) and Assigned(dt^.DivF32x16) then
     Result := dt^.DivF32x16(a, b)
   else
@@ -494,7 +481,7 @@ operator + (const a, b: TVecF64x8): TVecF64x8;
 var dt: PSimdDispatchTable;
     i: Integer;
 begin
-  dt := GetOpsDispatch;
+  dt := GetDispatchTable;
   if (dt <> nil) and Assigned(dt^.AddF64x8) then
     Result := dt^.AddF64x8(a, b)
   else
@@ -508,7 +495,7 @@ operator - (const a, b: TVecF64x8): TVecF64x8;
 var dt: PSimdDispatchTable;
     i: Integer;
 begin
-  dt := GetOpsDispatch;
+  dt := GetDispatchTable;
   if (dt <> nil) and Assigned(dt^.SubF64x8) then
     Result := dt^.SubF64x8(a, b)
   else
@@ -522,7 +509,7 @@ operator * (const a, b: TVecF64x8): TVecF64x8;
 var dt: PSimdDispatchTable;
     i: Integer;
 begin
-  dt := GetOpsDispatch;
+  dt := GetDispatchTable;
   if (dt <> nil) and Assigned(dt^.MulF64x8) then
     Result := dt^.MulF64x8(a, b)
   else
@@ -536,7 +523,7 @@ operator / (const a, b: TVecF64x8): TVecF64x8;
 var dt: PSimdDispatchTable;
     i: Integer;
 begin
-  dt := GetOpsDispatch;
+  dt := GetDispatchTable;
   if (dt <> nil) and Assigned(dt^.DivF64x8) then
     Result := dt^.DivF64x8(a, b)
   else
@@ -560,7 +547,7 @@ operator + (const a, b: TVecI32x16): TVecI32x16;
 var dt: PSimdDispatchTable;
     i: Integer;
 begin
-  dt := GetOpsDispatch;
+  dt := GetDispatchTable;
   if (dt <> nil) and Assigned(dt^.AddI32x16) then
     Result := dt^.AddI32x16(a, b)
   else
@@ -574,7 +561,7 @@ operator - (const a, b: TVecI32x16): TVecI32x16;
 var dt: PSimdDispatchTable;
     i: Integer;
 begin
-  dt := GetOpsDispatch;
+  dt := GetDispatchTable;
   if (dt <> nil) and Assigned(dt^.SubI32x16) then
     Result := dt^.SubI32x16(a, b)
   else
@@ -596,7 +583,7 @@ operator * (const a, b: TVecI32x16): TVecI32x16;
 var dt: PSimdDispatchTable;
     i: Integer;
 begin
-  dt := GetOpsDispatch;
+  dt := GetDispatchTable;
   if (dt <> nil) and Assigned(dt^.MulI32x16) then
     Result := dt^.MulI32x16(a, b)
   else
@@ -611,7 +598,7 @@ operator and (const a, b: TVecI32x16): TVecI32x16;
 var dt: PSimdDispatchTable;
     i: Integer;
 begin
-  dt := GetOpsDispatch;
+  dt := GetDispatchTable;
   if (dt <> nil) and Assigned(dt^.AndI32x16) then
     Result := dt^.AndI32x16(a, b)
   else
@@ -625,7 +612,7 @@ operator or (const a, b: TVecI32x16): TVecI32x16;
 var dt: PSimdDispatchTable;
     i: Integer;
 begin
-  dt := GetOpsDispatch;
+  dt := GetDispatchTable;
   if (dt <> nil) and Assigned(dt^.OrI32x16) then
     Result := dt^.OrI32x16(a, b)
   else
@@ -639,7 +626,7 @@ operator xor (const a, b: TVecI32x16): TVecI32x16;
 var dt: PSimdDispatchTable;
     i: Integer;
 begin
-  dt := GetOpsDispatch;
+  dt := GetDispatchTable;
   if (dt <> nil) and Assigned(dt^.XorI32x16) then
     Result := dt^.XorI32x16(a, b)
   else
@@ -653,7 +640,7 @@ operator not (const a: TVecI32x16): TVecI32x16;
 var dt: PSimdDispatchTable;
     i: Integer;
 begin
-  dt := GetOpsDispatch;
+  dt := GetDispatchTable;
   if (dt <> nil) and Assigned(dt^.NotI32x16) then
     Result := dt^.NotI32x16(a)
   else

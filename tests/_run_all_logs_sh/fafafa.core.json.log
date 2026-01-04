@@ -1,7 +1,7 @@
 ========================================
 Module: fafafa.core.json
 Script: /home/dtamade/projects/fafafa.core/tests/fafafa.core.json/BuildOrTest.sh
-Started: 2025-12-01 10:56:57
+Started: 2026-01-01 21:16:30
 ========================================
 [WARN] tools/lazbuild.sh not found or not executable, falling back to lazbuild in PATH
 [BUILD] Project: tests_json.lpi
@@ -21,7 +21,8 @@ TProject.ReadProject file exists twice in lpi file: ignoring "/home/dtamade/proj
 TProject.ReadProject file exists twice in lpi file: ignoring "/home/dtamade/projects/fafafa.core/tests/fafafa.core.json/Test_fafafa_core_json_writer.pas"
 TProject.ReadProject file exists twice in lpi file: ignoring "/home/dtamade/projects/fafafa.core/tests/fafafa.core.json/Test_fafafa_core_json_mutable.pas"
 Hint: (lazarus) [TBuildManager.SetBuildTarget] Old=x86_64-linux--gtk2 New=x86_64-linux--gtk2 Changed: OS/CPU=True LCL=False
-Hint: (lazarus) Project needs building: Compile was incomplete for Project
+TProject.DoLoadStateFile Statefile not found: /home/dtamade/projects/fafafa.core/tests/fafafa.core.json/lib/x86_64-linux/tests_json.compiled
+Hint: (lazarus) Project needs building: No state file for Project
 Info: (lazarus) Execute Title="Compile Project, Mode: Default, Target: /home/dtamade/projects/fafafa.core/tests/fafafa.core.json/bin/tests_json"
 Info: (lazarus) Working Directory="/home/dtamade/projects/fafafa.core/tests/fafafa.core.json/"
 Info: (lazarus) Executable="/home/dtamade/freePascal/fpc/bin/x86_64-linux/fpc.sh"
@@ -43,6 +44,7 @@ Info: (lazarus) Param[14]="-FU/home/dtamade/projects/fafafa.core/tests/fafafa.co
 Info: (lazarus) Param[15]="-FE/home/dtamade/projects/fafafa.core/tests/fafafa.core.json/bin/"
 Info: (lazarus) Param[16]="-o/home/dtamade/projects/fafafa.core/tests/fafafa.core.json/bin/tests_json"
 Info: (lazarus) Param[17]="tests_json.lpr"
+Info: (lazarus) Param[18]="-B"
 Hint: (11030) Start of reading config file /home/dtamade/freePascal/fpc/bin/x86_64-linux/fpc.cfg
 Hint: (11031) End of reading config file /home/dtamade/freePascal/fpc/bin/x86_64-linux/fpc.cfg
 Free Pascal Compiler version 3.3.1-18766-gc75982a639-dirty [2025/10/23] for x86_64
@@ -52,6 +54,33 @@ Copyright (c) 1993-2025 by Florian Klaempfl and others
 /home/dtamade/projects/fafafa.core/tests/fafafa.core.json/tests_json.lpr(3,2) Warning: (2045) APPTYPE is not supported by the target OS
 (3104) Compiling Test_fafafa_core_json_encoding_flags.pas
 (3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.json.core.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.math.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.math.array_.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.math.dispatch.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.math.intutil.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.math.safeint.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.base.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.math.float.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.crtAllocator.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.base.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.instrumentation.pas
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.instrumentation.pas(68,13) Hint: (5058) Variable "S" does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.base.pas(73,11) Hint: (4055) Conversion between ordinals and pointers is not portable
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.base.pas(75,13) Hint: (4055) Conversion between ordinals and pointers is not portable
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.base.pas(161,32) Hint: (4055) Conversion between ordinals and pointers is not portable
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.base.pas(161,24) Hint: (4055) Conversion between ordinals and pointers is not portable
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.base.pas(162,25) Hint: (4055) Conversion between ordinals and pointers is not portable
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.base.pas(162,16) Hint: (4055) Conversion between ordinals and pointers is not portable
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.base.pas(172,25) Hint: (4055) Conversion between ordinals and pointers is not portable
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.base.pas(172,16) Hint: (4055) Conversion between ordinals and pointers is not portable
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.base.pas(11,3) Hint: (5023) Unit "fafafa.core.mem.allocator.instrumentation" not used in fafafa.core.mem.allocator.base
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.crtAllocator.pas(10,3) Hint: (5023) Unit "fafafa.core.base" not used in fafafa.core.mem.allocator.crtAllocator
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.mimalloc.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.callbackAllocator.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.rtlAllocator.pas
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.rtlAllocator.pas(10,3) Hint: (5023) Unit "fafafa.core.base" not used in fafafa.core.mem.allocator.rtlAllocator
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.pas(24,3) Hint: (5023) Unit "fafafa.core.base" not used in fafafa.core.mem.allocator
 /home/dtamade/projects/fafafa.core/src/fafafa.core.json.core.pas(641,29) Note: (6058) Call to subroutine "function CharIsSpace(C:Byte):System.Boolean;" marked as inline is not inlined
 /home/dtamade/projects/fafafa.core/src/fafafa.core.json.core.pas(645,9) Note: (6058) Call to subroutine "procedure SkipComments(var ACur:PByte;AEnd:PByte);" marked as inline is not inlined
 /home/dtamade/projects/fafafa.core/src/fafafa.core.json.core.pas(677,29) Note: (6058) Call to subroutine "function CharIsSpace(C:Byte):System.Boolean;" marked as inline is not inlined

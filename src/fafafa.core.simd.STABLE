@@ -1,59 +1,49 @@
 SIMD Module Stability Marker
 ============================
 
-Version: 1.0.0-stable
+Version: 1.0.0
 Date: 2025-12-27
-Status: FROZEN
+Status: STABLE
 
-This marker file indicates that the fafafa.core.simd module has been
-audited and verified as production-ready.
+This marker file indicates that the public surface of the fafafa.core.simd module
+is considered stable within this repository.
 
 STABILITY GUARANTEES
 --------------------
-1. API Stability: Public API will remain backward compatible
-2. ABI Stability: TSimdDispatchTable structure will not change
-3. Behavior Stability: Same inputs produce same outputs
+1. API Stability: Public API changes must be backward compatible within a major version.
+2. ABI Stability: TSimdDispatchTable layout is part of the ABI; changing it requires a major version bump.
+3. Behavior Stability: Same inputs produce same outputs (within documented edge-case semantics).
 
 MODIFICATION POLICY
 -------------------
-Before modifying any file in the SIMD module:
+Before modifying any file under src/fafafa.core.simd.*:
 
-1. Run full test suite: bash tests/run_all_tests.sh fafafa.core.simd
-2. Ensure all 439 tests pass
-3. Verify zero memory leaks
-4. Update SIMD_STABILITY_REPORT.md if behavior changes
-5. Increment version number for breaking changes
+1. Run build hygiene check (no SIMD-unit warnings/hints):
+   bash tests/fafafa.core.simd/BuildOrTest.sh check
+2. Run SIMD tests (and verify no leaks):
+   bash tests/fafafa.core.simd/BuildOrTest.sh test
+3. (Optional) Run the repo test runner restricted to this module:
+   bash tests/run_all_tests.sh fafafa.core.simd
 
-COVERED FILES
--------------
-src/fafafa.core.simd.pas
-src/fafafa.core.simd.base.pas
-src/fafafa.core.simd.dispatch.pas
-src/fafafa.core.simd.cpuinfo.pas
-src/fafafa.core.simd.scalar.pas
-src/fafafa.core.simd.sse2.pas
-src/fafafa.core.simd.sse3.pas
-src/fafafa.core.simd.ssse3.pas
-src/fafafa.core.simd.sse41.pas
-src/fafafa.core.simd.sse42.pas
-src/fafafa.core.simd.avx2.pas
-src/fafafa.core.simd.avx512.pas
-src/fafafa.core.simd.neon.pas
-src/fafafa.core.simd.riscvv.pas
+COVERED PUBLIC ENTRY POINTS
+---------------------------
+- src/fafafa.core.simd.pas
+- src/fafafa.core.simd.api.pas
+- src/fafafa.core.simd.types.pas
+- src/fafafa.core.simd.dispatch.pas
+- src/fafafa.core.simd.cpuinfo.pas
+- src/fafafa.core.simd.memutils.pas
 
-TEST COVERAGE
--------------
-- Main test suite: 380 tests
-- Boundary tests: 44 tests
-- Backend ops tests: 15 tests
-- Total: 439 tests, 0 failures, 0 memory leaks
-
-AUDIT SUMMARY
--------------
-- Runtime detection: All 10 backends verified
-- Thread safety: Three-state atomic initialization verified
-- Boundary conditions: nil/zero-length/alignment verified
-- Dispatch table integrity: Validation functions added
-
----
-Audited by: Claude Code (Anthropic Official CLI)
+BACKENDS (IMPLEMENTATION DETAILS)
+--------------------------------
+- src/fafafa.core.simd.scalar.pas
+- src/fafafa.core.simd.sse2.pas
+- src/fafafa.core.simd.sse3.pas
+- src/fafafa.core.simd.ssse3.pas
+- src/fafafa.core.simd.sse41.pas
+- src/fafafa.core.simd.sse42.pas
+- src/fafafa.core.simd.avx2.pas
+- src/fafafa.core.simd.avx512.pas
+- src/fafafa.core.simd.neon.pas
+- src/fafafa.core.simd.riscvv.pas
+- src/fafafa.core.simd.direct.pas

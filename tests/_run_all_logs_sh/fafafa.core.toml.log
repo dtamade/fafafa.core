@@ -1,6 +1,7 @@
 ========================================
 Module: fafafa.core.toml
 Script: /home/dtamade/projects/fafafa.core/tests/fafafa.core.toml/BuildOrTest.sh
-Started: 2025-12-01 10:58:15
+Started: 2026-01-01 21:16:53
 ========================================
-bash: 行 1: /home/dtamade/projects/fafafa.core/tests/fafafa.core.toml/BuildOrTest.sh: 权限不够
+Building project: tests_toml.lpi...
+./BuildOrTest.sh: 行 9: /home/dtamade/projects/fafafa.core/tests/fafafa.core.toml/../../tools/lazbuild.bat: 没有那个文件或目录

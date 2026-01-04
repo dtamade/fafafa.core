@@ -25,8 +25,7 @@ interface
 
 uses
   fafafa.core.simd.base,
-  fafafa.core.simd.dispatch,
-  fafafa.core.simd.cpuinfo;
+  fafafa.core.simd.dispatch;
 
 // =============================================================
 // RISC-V V (Vector Extension) SIMD Backend
@@ -95,9 +94,10 @@ uses
 // we use inline assembly. Otherwise, scalar fallback is used.
 // =============================================================
 
-{$IFDEF CPURISCV64}
+{$IF DEFINED(CPURISCV64) AND DEFINED(SIMD_BACKEND_RISCVV)}
 // RISC-V V extension detection
 // In practice, this would need runtime detection via HWCAP or similar
+// NOTE: FPC 3.3.1 does not support RVV inline assembly, so this is disabled by default
 {$DEFINE RISCVV_ASSEMBLY}
 {$ENDIF}
 
@@ -859,14 +859,32 @@ begin
 end;
 
 function RISCVVExtractF32x4(const a: TVecF32x4; index: Integer): Single;
+var
+  idx: Integer;
 begin
-  Result := a.f[index and 3];
+  if index < 0 then
+    idx := 0
+  else if index > 3 then
+    idx := 3
+  else
+    idx := index;
+
+  Result := a.f[idx];
 end;
 
 function RISCVVInsertF32x4(const a: TVecF32x4; value: Single; index: Integer): TVecF32x4;
+var
+  idx: Integer;
 begin
+  if index < 0 then
+    idx := 0
+  else if index > 3 then
+    idx := 3
+  else
+    idx := index;
+
   Result := a;
-  Result.f[index and 3] := value;
+  Result.f[idx] := value;
 end;
 
 // =============================================================
@@ -1341,13 +1359,7 @@ procedure RegisterRISCVVBackend;
 var
   table: TSimdDispatchTable;
 begin
-  // ✅ 运行时检测：如果 CPU 不支持 RISC-V V 扩展，则不注册后端
-  if not HasRISCVV then
-    Exit;
-
-  // 使用 FillBaseDispatchTable 填充所有字段的 scalar 回退实现
-  // 这确保了系统不变量：所有 dispatch table 字段都非 nil
-  FillBaseDispatchTable(table);
+  FillChar(table, SizeOf(table), 0);
 
   // Backend info
   table.Backend := sbRISCVV;

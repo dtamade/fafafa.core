@@ -1,7 +1,7 @@
 ========================================
 Module: fafafa.core.csv
 Script: /home/dtamade/projects/fafafa.core/tests/fafafa.core.csv/BuildOrTest.sh
-Started: 2025-12-12 11:11:03
+Started: 2026-01-01 21:15:30
 ========================================
 Building project: /home/dtamade/projects/fafafa.core/tests/fafafa.core.csv/tests_csv.lpi (Debug)
 SetPrimaryConfigPath NewValue="/home/dtamade/freePascal/config_lazarus"
@@ -69,6 +69,13 @@ Copyright (c) 1993-2025 by Florian Klaempfl and others
 /home/dtamade/projects/fafafa.core/src/fafafa.core.csv.pas(1844,18) Hint: (5091) Local variable "Tmp" of a managed type does not seem to be initialized
 /home/dtamade/projects/fafafa.core/src/fafafa.core.csv.pas(2394,19) Warning: (5093) Function result variable of a managed type does not seem to be initialized
 (3104) Compiling Test_fafafa_core_csv_typed_accessors.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.math.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.math.array_.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.math.dispatch.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.math.intutil.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.math.safeint.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.base.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.math.float.pas
 (3104) Compiling Test_fafafa_core_csv_quote_nonnumeric.pas
 /home/dtamade/projects/fafafa.core/tests/fafafa.core.csv/Test_fafafa_core_csv_quote_nonnumeric.pas(40,21) Hint: (5091) Local variable "Result" of a managed type does not seem to be initialized
 /home/dtamade/projects/fafafa.core/tests/fafafa.core.csv/Test_fafafa_core_csv_quote_nonnumeric.pas(68,21) Hint: (5091) Local variable "Result" of a managed type does not seem to be initialized
@@ -160,7 +167,7 @@ Copyright (c) 1993-2025 by Florian Klaempfl and others
 (3104) Compiling Test_fafafa_core_csv.pas
 /home/dtamade/projects/fafafa.core/tests/fafafa.core.csv/tests_csv.lpr(11,3) Hint: (5023) Unit "fafafa.core.csv" not used in tests_csv
 (9015) Linking /home/dtamade/projects/fafafa.core/tests/fafafa.core.csv/bin/tests
-(1008) 7642 lines compiled, 1.5 sec, 1125216 bytes code, 1607240 bytes data
+(1008) 16012 lines compiled, 1.4 sec, 1149856 bytes code, 1619472 bytes data
 (1021) 22 warning(s) issued
 (1022) 42 hint(s) issued
 (1023) 14 note(s) issued
@@ -171,139 +178,139 @@ Build successful.
 Running tests...
 .....................................................................................................................................<?xml version="1.0" encoding="utf-8"?>
 <TestResults>
-  <!-- Generated using FpcUnit on 2025-12-12 11:11:05-->
+  <!-- Generated using FpcUnit on 2026-01-01 21:15:31-->
   <TestListing>
-    <TestSuite Name="" ElapsedTime="00:00:00.903" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="133" NumberOfIgnoredTests="0">
+    <TestSuite Name="" ElapsedTime="00:00:00.879" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="133" NumberOfIgnoredTests="0">
       <TestSuite Name="TTestCase_Global" ElapsedTime="00:00:00.000" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="3" NumberOfIgnoredTests="0">
         <Test Name="Test_DefaultRFC4180" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_UnixDialect" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_ExcelDialect" Result="OK" ElapsedTime="00:00:00.000"/>
       </TestSuite>
-      <TestSuite Name="TTestCase_Reader" ElapsedTime="00:00:00.000" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="1" NumberOfIgnoredTests="0">
-        <Test Name="Test_Read_Basic_NoHeader" Result="OK" ElapsedTime="00:00:00.000"/>
+      <TestSuite Name="TTestCase_Reader" ElapsedTime="00:00:00.001" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="1" NumberOfIgnoredTests="0">
+        <Test Name="Test_Read_Basic_NoHeader" Result="OK" ElapsedTime="00:00:00.001"/>
       </TestSuite>
-      <TestSuite Name="TTestCase_Reader_Strict" ElapsedTime="00:00:00.001" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="1" NumberOfIgnoredTests="0">
-        <Test Name="Test_FieldCount_Mismatch_Should_Raise" Result="OK" ElapsedTime="00:00:00.001"/>
+      <TestSuite Name="TTestCase_Reader_Strict" ElapsedTime="00:00:00.000" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="1" NumberOfIgnoredTests="0">
+        <Test Name="Test_FieldCount_Mismatch_Should_Raise" Result="OK" ElapsedTime="00:00:00.000"/>
       </TestSuite>
       <TestSuite Name="TTestCase_Writer" ElapsedTime="00:00:00.000" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="1" NumberOfIgnoredTests="0">
         <Test Name="Test_Write_Basic" Result="OK" ElapsedTime="00:00:00.000"/>
       </TestSuite>
-      <TestSuite Name="TTestCase_Writer_Headers" ElapsedTime="00:00:00.000" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="1" NumberOfIgnoredTests="0">
+      <TestSuite Name="TTestCase_Writer_Headers" ElapsedTime="00:00:00.001" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="1" NumberOfIgnoredTests="0">
         <Test Name="Test_Write_WithHeaders_FirstLine" Result="OK" ElapsedTime="00:00:00.000"/>
       </TestSuite>
-      <TestSuite Name="TTestCase_Reader_Quoted" ElapsedTime="00:00:00.001" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="2" NumberOfIgnoredTests="0">
-        <Test Name="Test_Quoted_With_Comma_And_DoubleQuote" Result="OK" ElapsedTime="00:00:00.001"/>
+      <TestSuite Name="TTestCase_Reader_Quoted" ElapsedTime="00:00:00.000" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="2" NumberOfIgnoredTests="0">
+        <Test Name="Test_Quoted_With_Comma_And_DoubleQuote" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_Quoted_With_Embedded_Newline" Result="OK" ElapsedTime="00:00:00.000"/>
       </TestSuite>
-      <TestSuite Name="TTestCase_Reader_Trim_Lazy" ElapsedTime="00:00:00.000" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="2" NumberOfIgnoredTests="0">
+      <TestSuite Name="TTestCase_Reader_Trim_Lazy" ElapsedTime="00:00:00.001" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="2" NumberOfIgnoredTests="0">
         <Test Name="Test_TrimSpaces_Unquoted_Only" Result="OK" ElapsedTime="00:00:00.000"/>
-        <Test Name="Test_LazyQuotes_Unquoted_Quotes_Accepted" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_LazyQuotes_Unquoted_Quotes_Accepted" Result="OK" ElapsedTime="00:00:00.001"/>
       </TestSuite>
-      <TestSuite Name="TTestCase_Reader_Escape_BOM" ElapsedTime="00:00:00.001" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="2" NumberOfIgnoredTests="0">
-        <Test Name="Test_Escape_Distinct_From_Quote" Result="OK" ElapsedTime="00:00:00.001"/>
+      <TestSuite Name="TTestCase_Reader_Escape_BOM" ElapsedTime="00:00:00.000" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="2" NumberOfIgnoredTests="0">
+        <Test Name="Test_Escape_Distinct_From_Quote" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_BOM_Skipped_UTF8" Result="OK" ElapsedTime="00:00:00.000"/>
       </TestSuite>
-      <TestSuite Name="TTestCase_Reader_Headers_Strict" ElapsedTime="00:00:00.000" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="2" NumberOfIgnoredTests="0">
+      <TestSuite Name="TTestCase_Reader_Headers_Strict" ElapsedTime="00:00:00.001" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="2" NumberOfIgnoredTests="0">
         <Test Name="Test_Strict_FieldCount_Uses_First_Data_Row_When_Header" Result="OK" ElapsedTime="00:00:00.000"/>
-        <Test Name="Test_TryGetByName_With_Header" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_TryGetByName_With_Header" Result="OK" ElapsedTime="00:00:00.001"/>
       </TestSuite>
-      <TestSuite Name="TTestCase_Reader_CR_Only_And_Errors" ElapsedTime="00:00:00.001" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="2" NumberOfIgnoredTests="0">
-        <Test Name="Test_CR_Only_Newline" Result="OK" ElapsedTime="00:00:00.001"/>
+      <TestSuite Name="TTestCase_Reader_CR_Only_And_Errors" ElapsedTime="00:00:00.000" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="2" NumberOfIgnoredTests="0">
+        <Test Name="Test_CR_Only_Newline" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_FieldCount_Mismatch_Error_Position_Uses_Record_Start" Result="OK" ElapsedTime="00:00:00.000"/>
       </TestSuite>
-      <TestSuite Name="TTestCase_Reader_Positions_More" ElapsedTime="00:00:00.000" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="2" NumberOfIgnoredTests="0">
-        <Test Name="Test_Unterminated_Quoted_Field_Raises" Result="OK" ElapsedTime="00:00:00.000"/>
+      <TestSuite Name="TTestCase_Reader_Positions_More" ElapsedTime="00:00:00.001" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="2" NumberOfIgnoredTests="0">
+        <Test Name="Test_Unterminated_Quoted_Field_Raises" Result="OK" ElapsedTime="00:00:00.001"/>
         <Test Name="Test_Unexpected_Quote_In_Unquoted_Field_Raises" Result="OK" ElapsedTime="00:00:00.000"/>
       </TestSuite>
       <TestSuite Name="TTestCase_Reader_Positions_Asserts" ElapsedTime="00:00:00.001" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="4" NumberOfIgnoredTests="0">
-        <Test Name="Test_FieldCount_Mismatch_Position_Is_RecordStart" Result="OK" ElapsedTime="00:00:00.001"/>
+        <Test Name="Test_FieldCount_Mismatch_Position_Is_RecordStart" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_Unterminated_Quoted_Field_Position_Is_RecordStart" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_Unexpected_Quote_Position_Is_RecordStart" Result="OK" ElapsedTime="00:00:00.000"/>
-        <Test Name="Test_Header_Strict_Mismatch_Position_Is_ThirdLine_Start" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_Header_Strict_Mismatch_Position_Is_ThirdLine_Start" Result="OK" ElapsedTime="00:00:00.001"/>
       </TestSuite>
-      <TestSuite Name="TTestCase_Reader_MixedNewlines" ElapsedTime="00:00:00.001" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="2" NumberOfIgnoredTests="0">
-        <Test Name="Test_Mixed_CRLF_LF_CR_Reads_All_Records" Result="OK" ElapsedTime="00:00:00.001"/>
+      <TestSuite Name="TTestCase_Reader_MixedNewlines" ElapsedTime="00:00:00.000" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="2" NumberOfIgnoredTests="0">
+        <Test Name="Test_Mixed_CRLF_LF_CR_Reads_All_Records" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_Unexpected_Quote_Error_On_Line2_RecordStart" Result="OK" ElapsedTime="00:00:00.000"/>
       </TestSuite>
       <TestSuite Name="TTestCase_Reader_TryGet_And_Delims" ElapsedTime="00:00:00.001" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="3" NumberOfIgnoredTests="0">
-        <Test Name="Test_TryGetByName_Missing_Returns_False_CaseInsensitive" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_TryGetByName_Missing_Returns_False_CaseInsensitive" Result="OK" ElapsedTime="00:00:00.001"/>
         <Test Name="Test_Custom_Semicolon_Delimiter" Result="OK" ElapsedTime="00:00:00.000"/>
-        <Test Name="Test_Custom_Tab_Delimiter" Result="OK" ElapsedTime="00:00:00.001"/>
+        <Test Name="Test_Custom_Tab_Delimiter" Result="OK" ElapsedTime="00:00:00.000"/>
       </TestSuite>
       <TestSuite Name="TTestCase_Reader_FieldIndex_Error" ElapsedTime="00:00:00.000" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="1" NumberOfIgnoredTests="0">
         <Test Name="Test_Field_Index_Out_Of_Range_Message_Contains_Index_Count" Result="OK" ElapsedTime="00:00:00.000"/>
       </TestSuite>
-      <TestSuite Name="TTestCase_Reader_Multiline_NoEscape" ElapsedTime="00:00:00.000" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="2" NumberOfIgnoredTests="0">
-        <Test Name="Test_Quoted_Field_Spans_Multiple_Lines_CRLF_and_CR" Result="OK" ElapsedTime="00:00:00.000"/>
+      <TestSuite Name="TTestCase_Reader_Multiline_NoEscape" ElapsedTime="00:00:00.001" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="2" NumberOfIgnoredTests="0">
+        <Test Name="Test_Quoted_Field_Spans_Multiple_Lines_CRLF_and_CR" Result="OK" ElapsedTime="00:00:00.001"/>
         <Test Name="Test_Backslash_Not_Escape_When_Escape_Disabled" Result="OK" ElapsedTime="00:00:00.000"/>
       </TestSuite>
-      <TestSuite Name="TTestCase_Reader_Multiline_Edge" ElapsedTime="00:00:00.001" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="2" NumberOfIgnoredTests="0">
-        <Test Name="Test_Quoted_Field_Spans_CRLF_and_LF_Mixed" Result="OK" ElapsedTime="00:00:00.001"/>
+      <TestSuite Name="TTestCase_Reader_Multiline_Edge" ElapsedTime="00:00:00.000" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="2" NumberOfIgnoredTests="0">
+        <Test Name="Test_Quoted_Field_Spans_CRLF_and_LF_Mixed" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_Unterminated_Quoted_Field_On_Line2_Column1" Result="OK" ElapsedTime="00:00:00.000"/>
       </TestSuite>
-      <TestSuite Name="TTestCase_Reader_Edge_More" ElapsedTime="00:00:00.227" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="4" NumberOfIgnoredTests="0">
-        <Test Name="Test_Empty_Fields_And_Trailing_Delimiter" Result="OK" ElapsedTime="00:00:00.000"/>
+      <TestSuite Name="TTestCase_Reader_Edge_More" ElapsedTime="00:00:00.210" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="4" NumberOfIgnoredTests="0">
+        <Test Name="Test_Empty_Fields_And_Trailing_Delimiter" Result="OK" ElapsedTime="00:00:00.001"/>
         <Test Name="Test_No_Terminating_Newline_Last_Record_Read" Result="OK" ElapsedTime="00:00:00.000"/>
-        <Test Name="Test_Large_Field_Reading" Result="OK" ElapsedTime="00:00:00.227"/>
+        <Test Name="Test_Large_Field_Reading" Result="OK" ElapsedTime="00:00:00.209"/>
         <Test Name="Test_Duplicate_Header_Names_TryGetByName_FirstWins" Result="OK" ElapsedTime="00:00:00.000"/>
       </TestSuite>
       <TestSuite Name="TTestCase_Writer_Behaviors" ElapsedTime="00:00:00.001" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="8" NumberOfIgnoredTests="0">
         <Test Name="Test_Writer_Quotes_Fields_With_Delimiter_Newline_Spaces" Result="OK" ElapsedTime="00:00:00.000"/>
-        <Test Name="Test_Writer_UseCRLF_and_UnixDialect_Newline" Result="OK" ElapsedTime="00:00:00.001"/>
-        <Test Name="Test_Writer_Header_Writes_Once_With_Mixed_Calls" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_Writer_UseCRLF_and_UnixDialect_Newline" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_Writer_Header_Writes_Once_With_Mixed_Calls" Result="OK" ElapsedTime="00:00:00.001"/>
         <Test Name="Test_Writer_DoubleQuote_Escape_Precise" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_Writer_Custom_Delimiters_Precise" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_Writer_QuoteMode_None_Raises_On_Specials" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_Writer_QuoteMode_None_Raises_On_TrailingSpace" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_Writer_QuoteMode_None_Raises_On_Leading_Comment_Char" Result="OK" ElapsedTime="00:00:00.000"/>
       </TestSuite>
-      <TestSuite Name="TTestCase_Writer_Extremes" ElapsedTime="00:00:00.630" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="2" NumberOfIgnoredTests="0">
-        <Test Name="Test_Writer_Empty_Fields_Unquoted" Result="OK" ElapsedTime="00:00:00.001"/>
-        <Test Name="Test_Writer_Very_Long_Unicode_Field_ReadBack_OK" Result="OK" ElapsedTime="00:00:00.629"/>
+      <TestSuite Name="TTestCase_Writer_Extremes" ElapsedTime="00:00:00.623" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="2" NumberOfIgnoredTests="0">
+        <Test Name="Test_Writer_Empty_Fields_Unquoted" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_Writer_Very_Long_Unicode_Field_ReadBack_OK" Result="OK" ElapsedTime="00:00:00.623"/>
       </TestSuite>
-      <TestSuite Name="TTestCase_Reader_Spaces_Empty" ElapsedTime="00:00:00.000" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="2" NumberOfIgnoredTests="0">
+      <TestSuite Name="TTestCase_Reader_Spaces_Empty" ElapsedTime="00:00:00.001" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="2" NumberOfIgnoredTests="0">
         <Test Name="Test_Empty_Line_And_Only_Spaces_Line_Preserved_When_NoTrim" Result="OK" ElapsedTime="00:00:00.000"/>
-        <Test Name="Test_Only_Spaces_Line_Trimmed_When_TrimSpaces" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_Only_Spaces_Line_Trimmed_When_TrimSpaces" Result="OK" ElapsedTime="00:00:00.001"/>
       </TestSuite>
-      <TestSuite Name="TTestCase_Reader_ManyCols" ElapsedTime="00:00:00.028" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="1" NumberOfIgnoredTests="0">
-        <Test Name="Test_One_Row_Thousand_Columns_Strict_OK" Result="OK" ElapsedTime="00:00:00.028"/>
+      <TestSuite Name="TTestCase_Reader_ManyCols" ElapsedTime="00:00:00.026" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="1" NumberOfIgnoredTests="0">
+        <Test Name="Test_One_Row_Thousand_Columns_Strict_OK" Result="OK" ElapsedTime="00:00:00.026"/>
       </TestSuite>
-      <TestSuite Name="TTestCase_Reader_InvalidUTF8" ElapsedTime="00:00:00.000" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="3" NumberOfIgnoredTests="0">
+      <TestSuite Name="TTestCase_Reader_InvalidUTF8" ElapsedTime="00:00:00.001" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="3" NumberOfIgnoredTests="0">
         <Test Name="Test_Default_Behavior_Invalid_UTF8_Does_Not_Raise" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_StrictUTF8_Raises_On_Invalid_UTF8" Result="OK" ElapsedTime="00:00:00.000"/>
-        <Test Name="Test_ReplaceInvalidUTF8_Replaces_Invalid_Sequence" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_ReplaceInvalidUTF8_Replaces_Invalid_Sequence" Result="OK" ElapsedTime="00:00:00.001"/>
       </TestSuite>
-      <TestSuite Name="TTestCase_Reader_ErrorCodes" ElapsedTime="00:00:00.001" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="5" NumberOfIgnoredTests="0">
+      <TestSuite Name="TTestCase_Reader_ErrorCodes" ElapsedTime="00:00:00.000" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="5" NumberOfIgnoredTests="0">
         <Test Name="Test_ErrorCode_UnexpectedQuote" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_ErrorCode_UnterminatedQuote" Result="OK" ElapsedTime="00:00:00.000"/>
-        <Test Name="Test_ErrorCode_FieldCountMismatch" Result="OK" ElapsedTime="00:00:00.001"/>
+        <Test Name="Test_ErrorCode_FieldCountMismatch" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_ErrorCode_InvalidUTF8_Strict" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_ErrorCode_RecordTooLarge" Result="OK" ElapsedTime="00:00:00.000"/>
       </TestSuite>
-      <TestSuite Name="TTestCase_Reader_BuilderOptions" ElapsedTime="00:00:00.000" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="3" NumberOfIgnoredTests="0">
-        <Test Name="Test_Builder_StrictUTF8_Raises" Result="OK" ElapsedTime="00:00:00.000"/>
+      <TestSuite Name="TTestCase_Reader_BuilderOptions" ElapsedTime="00:00:00.001" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="3" NumberOfIgnoredTests="0">
+        <Test Name="Test_Builder_StrictUTF8_Raises" Result="OK" ElapsedTime="00:00:00.001"/>
         <Test Name="Test_Builder_ReplaceInvalidUTF8_Allows" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_Builder_MaxRecordBytes_Limit" Result="OK" ElapsedTime="00:00:00.000"/>
       </TestSuite>
-      <TestSuite Name="TTestCase_Reader_BuilderPrecedence" ElapsedTime="00:00:00.001" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="2" NumberOfIgnoredTests="0">
-        <Test Name="Test_Builder_Overrides_Dialect_Strict_to_Replace" Result="OK" ElapsedTime="00:00:00.001"/>
+      <TestSuite Name="TTestCase_Reader_BuilderPrecedence" ElapsedTime="00:00:00.000" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="2" NumberOfIgnoredTests="0">
+        <Test Name="Test_Builder_Overrides_Dialect_Strict_to_Replace" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_Builder_Overrides_Dialect_Replace_to_Strict" Result="OK" ElapsedTime="00:00:00.000"/>
       </TestSuite>
-      <TestSuite Name="TTestCase_Reader_ZeroCopyBytes" ElapsedTime="00:00:00.000" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="2" NumberOfIgnoredTests="0">
+      <TestSuite Name="TTestCase_Reader_ZeroCopyBytes" ElapsedTime="00:00:00.001" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="2" NumberOfIgnoredTests="0">
         <Test Name="Test_TryGetFieldBytes_Basic_UTF8" Result="OK" ElapsedTime="00:00:00.000"/>
-        <Test Name="Test_TryGetFieldBytes_IndexOutOfRange" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_TryGetFieldBytes_IndexOutOfRange" Result="OK" ElapsedTime="00:00:00.001"/>
       </TestSuite>
       <TestSuite Name="TTestCase_Reader_SliceLifetime" ElapsedTime="00:00:00.000" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="2" NumberOfIgnoredTests="0">
         <Test Name="Test_Slice_Invalid_After_Next_Read" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_Bytes_Copy_Survives_After_Next_Read" Result="OK" ElapsedTime="00:00:00.000"/>
       </TestSuite>
-      <TestSuite Name="TTestCase_Reader_ReuseRecord" ElapsedTime="00:00:00.001" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="2" NumberOfIgnoredTests="0">
+      <TestSuite Name="TTestCase_Reader_ReuseRecord" ElapsedTime="00:00:00.000" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="2" NumberOfIgnoredTests="0">
         <Test Name="Test_ReuseRecord_Same_Instance" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_NoReuseRecord_Different_Instance" Result="OK" ElapsedTime="00:00:00.000"/>
       </TestSuite>
-      <TestSuite Name="TTestCase_WriterTerminatorAndReaderReset" ElapsedTime="00:00:00.000" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="2" NumberOfIgnoredTests="0">
+      <TestSuite Name="TTestCase_WriterTerminatorAndReaderReset" ElapsedTime="00:00:00.001" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="2" NumberOfIgnoredTests="0">
         <Test Name="Test_Writer_Terminator_LF" Result="OK" ElapsedTime="00:00:00.000"/>
-        <Test Name="Test_Reader_Reset_ClearsHeaders" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_Reader_Reset_ClearsHeaders" Result="OK" ElapsedTime="00:00:00.001"/>
       </TestSuite>
       <TestSuite Name="TTestCase_Writer_Escape_Options" ElapsedTime="00:00:00.000" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="3" NumberOfIgnoredTests="0">
         <Test Name="Test_Writer_Escape_Backslash_When_DoubleQuote_False" Result="OK" ElapsedTime="00:00:00.000"/>
@@ -312,12 +319,12 @@ Running tests...
       </TestSuite>
       <TestSuite Name="TTestCase_FacadeAPI" ElapsedTime="00:00:00.001" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="13" NumberOfIgnoredTests="0">
         <Test Name="Test_ReadCSVFile_Basic" Result="OK" ElapsedTime="00:00:00.000"/>
-        <Test Name="Test_ReadCSVFile_WithDialect" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_ReadCSVFile_WithDialect" Result="OK" ElapsedTime="00:00:00.001"/>
         <Test Name="Test_ReadCSVFile_Empty" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_WriteCSVFile_Basic" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_WriteCSVFile_WithDialect" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_ParseCSVString_Basic" Result="OK" ElapsedTime="00:00:00.000"/>
-        <Test Name="Test_ParseCSVString_WithDialect" Result="OK" ElapsedTime="00:00:00.001"/>
+        <Test Name="Test_ParseCSVString_WithDialect" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_ParseCSVString_Empty" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_ParseCSVString_Multiline" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_ToCSVString_Basic" Result="OK" ElapsedTime="00:00:00.000"/>
@@ -333,8 +340,8 @@ Running tests...
         <Test Name="Test_ReaderBuilder_Delimiter_Tab" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_ReaderBuilder_HasHeader" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_ReaderBuilder_Flexible" Result="OK" ElapsedTime="00:00:00.000"/>
-        <Test Name="Test_ReaderBuilder_TrimSpaces" Result="OK" ElapsedTime="00:00:00.001"/>
-        <Test Name="Test_ReaderBuilder_Comment" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_ReaderBuilder_TrimSpaces" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_ReaderBuilder_Comment" Result="OK" ElapsedTime="00:00:00.001"/>
         <Test Name="Test_ReaderBuilder_FromString" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_WriterBuilder_Delimiter_Tab" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_WriterBuilder_UseCRLF_False" Result="OK" ElapsedTime="00:00:00.000"/>
@@ -344,8 +351,8 @@ Running tests...
         <Test Name="Test_TrimMode_None_No_Trim" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_TrimMode_Headers_Only_Trim_Headers" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_TrimMode_Fields_Only_Trim_Data" Result="OK" ElapsedTime="00:00:00.000"/>
-        <Test Name="Test_TrimMode_All_Trim_Both" Result="OK" ElapsedTime="00:00:00.001"/>
-        <Test Name="Test_TrimSpaces_True_Maps_To_TrimFields" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_TrimMode_All_Trim_Both" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_TrimSpaces_True_Maps_To_TrimFields" Result="OK" ElapsedTime="00:00:00.001"/>
         <Test Name="Test_TrimSpaces_False_Maps_To_TrimNone" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_ReadAll_TrimSpaces_Works" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_ReadAll_TrimMode_Fields_Works" Result="OK" ElapsedTime="00:00:00.000"/>
@@ -355,16 +362,16 @@ Running tests...
         <Test Name="Test_ReaderBuilder_Flexible_Alias" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_ReaderBuilder_LazyQuotes_Alias" Result="OK" ElapsedTime="00:00:00.000"/>
       </TestSuite>
-      <TestSuite Name="TTestCSVQuoteNonNumeric" ElapsedTime="00:00:00.001" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="6" NumberOfIgnoredTests="0">
+      <TestSuite Name="TTestCSVQuoteNonNumeric" ElapsedTime="00:00:00.000" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="6" NumberOfIgnoredTests="0">
         <Test Name="Test_QuoteNonNumeric_Integer_NoQuote" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_QuoteNonNumeric_Float_NoQuote" Result="OK" ElapsedTime="00:00:00.000"/>
-        <Test Name="Test_QuoteNonNumeric_Negative_NoQuote" Result="OK" ElapsedTime="00:00:00.001"/>
+        <Test Name="Test_QuoteNonNumeric_Negative_NoQuote" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_QuoteNonNumeric_Text_Quoted" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_QuoteNonNumeric_Empty_NoQuote" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_QuoteNonNumeric_Mixed_Row" Result="OK" ElapsedTime="00:00:00.000"/>
       </TestSuite>
-      <TestSuite Name="TTestCSVTypedAccessors" ElapsedTime="00:00:00.001" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="15" NumberOfIgnoredTests="0">
-        <Test Name="Test_AsInt_Index_ValidInteger" Result="OK" ElapsedTime="00:00:00.000"/>
+      <TestSuite Name="TTestCSVTypedAccessors" ElapsedTime="00:00:00.002" NumberOfErrors="0" NumberOfFailures="0" NumberOfRunTests="15" NumberOfIgnoredTests="0">
+        <Test Name="Test_AsInt_Index_ValidInteger" Result="OK" ElapsedTime="00:00:00.001"/>
         <Test Name="Test_AsInt_Index_InvalidReturnsDefault" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_AsInt_Index_EmptyReturnsDefault" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_AsInt_Name_ValidInteger" Result="OK" ElapsedTime="00:00:00.000"/>
@@ -373,8 +380,8 @@ Running tests...
         <Test Name="Test_AsInt64_LargeValue" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_AsFloat_Index_ValidFloat" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_AsFloat_Name_ValidFloat" Result="OK" ElapsedTime="00:00:00.000"/>
-        <Test Name="Test_AsFloat_InvalidReturnsDefault" Result="OK" ElapsedTime="00:00:00.001"/>
-        <Test Name="Test_AsBool_True_Values" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_AsFloat_InvalidReturnsDefault" Result="OK" ElapsedTime="00:00:00.000"/>
+        <Test Name="Test_AsBool_True_Values" Result="OK" ElapsedTime="00:00:00.001"/>
         <Test Name="Test_AsBool_False_Values" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_AsBool_InvalidReturnsDefault" Result="OK" ElapsedTime="00:00:00.000"/>
         <Test Name="Test_AsStr_Index" Result="OK" ElapsedTime="00:00:00.000"/>
@@ -392,13 +399,13 @@ Running tests...
   <NumberOfErrors>0</NumberOfErrors>
   <NumberOfFailures>0</NumberOfFailures>
   <NumberOfIgnoredTests>0</NumberOfIgnoredTests>
-  <TotalElapsedTime>00:00:00.903</TotalElapsedTime>
-  <DateTimeRan>2025-12-12 11:11:05</DateTimeRan>
+  <TotalElapsedTime>00:00:00.879</TotalElapsedTime>
+  <DateTimeRan>2026-01-01 21:15:32</DateTimeRan>
 </TestResults>
 
 Heap dump by heaptrc unit of "/home/dtamade/projects/fafafa.core/tests/fafafa.core.csv/bin/tests"
-824180 memory blocks allocated : 78939619
-824180 memory blocks freed     : 78939619
+824176 memory blocks allocated : 78939383
+824176 memory blocks freed     : 78939383
 0 unfreed memory blocks : 0
 True heap size : 720896
 True free heap : 72089====== End of console log ======
