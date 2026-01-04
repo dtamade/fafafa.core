@@ -1,8 +1,7 @@
 ========================================
-Run-all summary (2026-01-01 21:18:28)
-Logs dir: /home/dtamade/projects/fafafa.core/tests/_run_all_logs_sh
+Run-all summary (2025-12-17 11:00:36)
+Logs dir: /home/dtamade/projects/fafafa.core-env-android/tests/_run_all_logs_sh
 ========================================
-Total:  28
-Passed: 12
-Failed: 16
-Failed modules: fafafa.core.xml,fafafa.core.term,fafafa.core.tick,fafafa.core.term.ui,vec,vecdeque,fafafa.core.fs,fafafa.core.json,memory_leak,fafafa.core.atomic,fafafa.core.toml,fafafa.core.lockfree,fafafa.core.simd,fafafa.core.thread,fafafa.core.crypto,fafafa.core.lockfree
+Total:  1
+Passed: 1
+Failed: 0
