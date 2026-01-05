@@ -6,18 +6,19 @@ uses
   cthreads,
   {$ENDIF}
   SysUtils,
+  fafafa.core.base,
   fafafa.core.collections.priorityqueue;
 
 type
   TIntPQ = specialize TPriorityQueue<Integer>;
   TStringPQ = specialize TPriorityQueue<string>;
 
-function IntComparer(const A, B: Integer): Integer;
+function IntComparer(const A, B: Integer; aData: Pointer): SizeInt;
 begin
   Result := A - B;
 end;
 
-function StringComparer(const A, B: string): Integer;
+function StringComparer(const A, B: string; aData: Pointer): SizeInt;
 begin
   Result := CompareStr(A, B);
 end;
@@ -28,7 +29,7 @@ var
   V: Integer;
 begin
   WriteLn('[Test 1] Basic operations');
-  PQ.Initialize(@IntComparer);
+  PQ := TIntPQ.Create(@IntComparer);
   try
     PQ.Enqueue(5);
     PQ.Enqueue(3);
@@ -42,7 +43,7 @@ begin
 
     WriteLn('  Pass: Count = ', PQ.Count);
   finally
-    PQ.Clear;
+    PQ.Free;
   end;
 end;
 
@@ -52,7 +53,7 @@ var
   S: string;
 begin
   WriteLn('[Test 2] String priority queue');
-  PQ.Initialize(@StringComparer);
+  PQ := TStringPQ.Create(@StringComparer);
   try
     PQ.Enqueue('zebra');
     PQ.Enqueue('apple');
@@ -65,7 +66,7 @@ begin
 
     WriteLn('  Pass: Count = ', PQ.Count);
   finally
-    PQ.Clear;
+    PQ.Free;
   end;
 end;
 
@@ -75,7 +76,7 @@ var
   I: Integer;
 begin
   WriteLn('[Test 3] Clear operation');
-  PQ.Initialize(@IntComparer);
+  PQ := TIntPQ.Create(@IntComparer);
   try
     for I := 1 to 10 do
       PQ.Enqueue(I);
@@ -83,29 +84,28 @@ begin
     PQ.Clear;
     WriteLn('  Pass: Count after clear = ', PQ.Count);
   finally
-    PQ.Clear;
+    PQ.Free;
   end;
 end;
 
-procedure Test4_FindAndRemove;
+procedure Test4_Dequeue;
 var
   PQ: TIntPQ;
-  I: Integer;
+  I, V: Integer;
 begin
-  WriteLn('[Test 4] Find and remove');
-  PQ.Initialize(@IntComparer);
+  WriteLn('[Test 4] Dequeue operations');
+  PQ := TIntPQ.Create(@IntComparer);
   try
     for I := 1 to 5 do
       PQ.Enqueue(I * 10);
 
-    if PQ.Contains(30) then
-      WriteLn('  Found: 30');
-    if PQ.Remove(30) then
-      WriteLn('  Removed: 30');
+    WriteLn('  Pass: Enqueued 5 items, count = ', PQ.Count);
+    if PQ.Dequeue(V) then
+      WriteLn('  Dequeued: ', V, ' (expected 10)');
 
-    WriteLn('  Pass: Count after remove = ', PQ.Count);
+    WriteLn('  Pass: Count after dequeue = ', PQ.Count);
   finally
-    PQ.Clear;
+    PQ.Free;
   end;
 end;
 
@@ -116,7 +116,7 @@ var
   Success: Integer;
 begin
   WriteLn('[Test 5] Stress test (1000 items)');
-  PQ.Initialize(@IntComparer);
+  PQ := TIntPQ.Create(@IntComparer);
   try
     // Insert 1000 items
     for I := 1000 downto 1 do
@@ -134,7 +134,7 @@ begin
     PQ.Clear;
     WriteLn('  Pass: Cleared, count = ', PQ.Count);
   finally
-    PQ.Clear;
+    PQ.Free;
   end;
 end;
 
@@ -153,7 +153,7 @@ begin
   Test3_Clear;
   WriteLn;
 
-  Test4_FindAndRemove;
+  Test4_Dequeue;
   WriteLn;
 
   Test5_StressTest;

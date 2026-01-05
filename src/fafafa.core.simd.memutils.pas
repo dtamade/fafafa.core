@@ -91,6 +91,11 @@ implementation
 {$IFDEF WINDOWS}
 uses
   Windows;
+
+// Windows CRT aligned memory functions
+function _aligned_malloc(size: NativeUInt; alignment: NativeUInt): Pointer; cdecl; external 'msvcrt.dll' name '_aligned_malloc';
+procedure _aligned_free(ptr: Pointer); cdecl; external 'msvcrt.dll' name '_aligned_free';
+function _aligned_realloc(ptr: Pointer; size: NativeUInt; alignment: NativeUInt): Pointer; cdecl; external 'msvcrt.dll' name '_aligned_realloc';
 {$ENDIF}
 
 // === Platform-specific aligned allocation ===
