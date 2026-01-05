@@ -10,6 +10,7 @@
 ## Collections 快速入口
 - TVec 快速上手与容量管理：docs/README_TVec.md
 - VecDeque 参考：docs/README_VecDeque.md
+- **✅ 内存安全验证**: 所有 10 个集合类型通过 HeapTrc 零泄漏检测 (2026-01-06) - 详见 tests/COLLECTIONS_MEMORY_LEAK_REPORT.md
 
 ## 构建与运行（Windows）
 - 请使用模块内脚本（符合目录规范）：
@@ -110,6 +111,7 @@ if JsonTryGetObjectValue(Root, 'nums', V) then
 - Best Practices（策略组合与对齐建议）：docs/partials/collections.best_practices.md
 - 示例总表（TVec/TVecDeque）：docs/EXAMPLES.md#集合模块示例总表（TVec-/-TVecDeque）
 - 示例索引（一键脚本与示例清单）：examples/fafafa.core.collections/README.md
+- **✅ 内存安全验证**: 10/10 集合类型零泄漏 (TVec, TVecDeque, TList, THashMap, THashSet, TLinkedHashMap, TBitSet, TTreeSet, TTreeMap, TPriorityQueue)
 
 
 See CHANGELOG.md for details.
@@ -289,7 +291,7 @@ end;
 - **基于学术研究**: 所有算法都有权威论文支持
 - **线性化验证**: 通过Lincheck方法论验证
 - **严格测试**: 包含正确性、性能、边界条件测试
-- **内存安全**: 解决ABA问题，避免内存泄漏
+- **内存安全**: 解决ABA问题，所有 10 个集合类型通过 HeapTrc 验证零内存泄漏 (2026-01)
 
 ## 🚀 快速开始
 

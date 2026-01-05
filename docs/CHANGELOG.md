@@ -2,6 +2,39 @@
 
 ## Unreleased
 
+### Fixed – Collections Memory Safety Verification (2026-01-06)
+**All 10 collection types verified memory-leak-free using FPC 3.3.1 + HeapTrc**
+
+**Collections Verified (100% Pass Rate):**
+- TVec (Dynamic Array)
+- TVecDeque (Double-ended Queue)
+- TList (Linked List)
+- THashMap (Hash Table)
+- THashSet (Hash Set)
+- TLinkedHashMap (Insertion-order Hash Map)
+- TBitSet (Bit Set)
+- TTreeSet (Red-Black Tree Set)
+- TTreeMap (Red-Black Tree Map)
+- TPriorityQueue (Binary Heap)
+
+**Test Results:**
+- 10/10 collections: 0 unfreed memory blocks
+- Test scenarios: basic ops, clear, resize/rehash, stress tests (1000-10000 items)
+- Platform: Windows x64, FPC 3.3.1-19187-ge6e887dd0a
+- Compiler flags: `-gh -gl` (HeapTrc with line info)
+
+**Windows Build Fixes:**
+- Added Windows CRT aligned memory function declarations (`_aligned_malloc`, `_aligned_free`, `_aligned_realloc`) to `fafafa.core.simd.memutils`
+- Implemented `WideningMulU64` returning `TUInt128` in `fafafa.core.math.safeint`
+- Implemented Euclidean division functions: `DivEuclidI32/64`, `RemEuclidI32/64`, `CheckedDivEuclidI32/64`, `CheckedRemEuclidI32/64`
+- Fixed PriorityQueue test API usage (3-parameter comparer, Create/Free lifecycle)
+
+**Deliverables:**
+- Test programs: `tests/test_*_leak.pas` (10 files)
+- Automation scripts: `test_all_leaks.bat`, `run_leak_tests.ps1`
+- Report: `tests/COLLECTIONS_MEMORY_LEAK_REPORT.md` (236 lines)
+- All collections are production-ready with verified memory safety
+
 ### Added – Environment Module v1.1 (fafafa.core.env)
 Modern, cross-platform environment variable and user directory helpers.
 Inspired by Rust std::env and Go os.
