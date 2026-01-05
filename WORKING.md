@@ -1,9 +1,9 @@
 # WORKING.md - 工作上下文
 
-**最后更新**: 2025-10-06 13:38 UTC  
+**最后更新**: 2026-01-06 02:25 UTC+8  
 **项目**: fafafa.core 核心库  
 **工作类型**: 集合类型内存安全验证  
-**当前状态**: ✅ HashMap 内存泄漏检测完成，零泄漏！
+**当前状态**: ✅ 所有 10 个集合类型内存泄漏检测完成，零泄漏！
 
 ---
 
@@ -53,38 +53,41 @@ D:\projects\Pascal\lazarus\My\libs\fafafa.core\
 
 ## ✅ 最近已完成的工作
 
-### 🎉 HashMap 内存泄漏检测 (2025-10-06) ✅
+### 🎉 所有集合类型内存泄漏检测完成 (2026-01-06) ✅
 
-**重大里程碑**: 使用 Free Pascal HeapTrc 完成 HashMap 深度内存泄漏检测
+**重大里程碑**: 使用 Free Pascal 3.3.1 + HeapTrc 完成所有 10 个集合类型的内存泄漏检测
 
-**检测结果**: ✅ **零内存泄漏**
+**检测结果**: ✅ **10/10 测试通过，零内存泄漏！**
 
-**HeapTrc 数据**:
-```
-分配的内存块: 3665 (182597 bytes)
-释放的内存块: 3665 (182597 bytes)
-未释放的块:   0
-泄漏字节数:   0 bytes
-```
+**已验证的集合类型**:
+1. ✅ TVec (动态数组)
+2. ✅ TVecDeque (双端队列)
+3. ✅ TList (链表)
+4. ✅ THashMap (哈希表)
+5. ✅ THashSet (哈希集合)
+6. ✅ TLinkedHashMap (保序哈希表)
+7. ✅ TBitSet (位集合)
+8. ✅ TTreeSet (红黑树集合)
+9. ✅ TTreeMap (红黑树映射)
+10. ✅ TPriorityQueue (优先队列)
 
-**测试覆盖场景** (5 个):
-1. ✅ 基本操作（添加、删除、查询）
-2. ✅ Clear 操作
-3. ✅ Rehash 扩容（100 个元素触发多次扩容）
-4. ✅ 键值覆盖（同键多次赋值）
-5. ✅ 压力测试（1000 个元素大规模操作）
-
-**已验证的修复**:
-1. **DoZero 方法**: 修复 FillChar 跳过 Finalize 导致的字符串泄漏
-2. **Remove 方法**: 添加键值的正确 Finalize 和清零逻辑
+**修复的问题** (Windows 编译):
+1. **Windows CRT 对齐内存函数**: 添加 `_aligned_malloc`, `_aligned_free`, `_aligned_realloc` 外部声明
+2. **安全整数运算**: 实现 `WideningMulU64` (返回 TUInt128)、欧几里得除法函数
+3. **PriorityQueue 测试**: 修正比较器签名、使用 Create/Free 替代 Initialize/Clear
 
 **生成的文档**:
-- `tests/HASHMAP_HEAPTRC_REPORT.md` - 详细检测报告 (234行)
-- `tests/MEMORY_LEAK_SUMMARY.md` - 集合类型检测总览 (182行)
-- `tests/HEAPTRC_SESSION_2025-10-06.md` - 完整会话记录 (352行)
-- `tests/test_hashmap_leak.pas` - 可复用测试程序 (135行)
+- `tests/COLLECTIONS_MEMORY_LEAK_REPORT.md` - 完整检测报告 (236行)
+- `test_all_leaks.bat` - 自动化测试批处理脚本
+- `run_leak_tests.ps1` - PowerShell 测试脚本 (263行)
+- 10 个测试程序：`tests/test_*_leak.pas`
 
-**状态**: ✅ HashMap 已可安全用于生产环境
+**编译环境**:
+- FPC 版本: 3.3.1-19187-ge6e887dd0a (trunk)
+- 平台: Windows x64
+- 编译选项: `-gh -gl` (HeapTrc 堆追踪)
+
+**状态**: ✅ 所有集合类型已可安全用于生产环境
 
 ---
 
@@ -233,7 +236,7 @@ class operator div(const A: TDuration; const Divisor: Int64): TDuration;
 | 测试通过率 | 100% | 100% | ✅ 完成 |
 | 测试覆盖 | 110 用例 | 150+ | 🔄 进行中 |
 | 编译警告 | 0 | 0 | ✅ 完成 |
-| **内存泄漏检测** | **HashMap: 0 泄漏** | **所有集合: 0** | **✅ HashMap 完成** |
+| **内存泄漏检测** | **所有 10 个集合: 0 泄漏** | **所有集合: 0** | **✅ 全部完成** |
 
 ### 问题优先级分布
 
@@ -616,9 +619,9 @@ A: 运行完整测试套件，确保 110/110 tests passed，无新增警告
 
 ---
 
-**状态**: ✅ 准备就绪  
-**下一步**: 集合类型内存泄漏检测 (THashSet, TVecDeque, TVec)  
-**当前进度**: HashMap ✅ | HashSet ⏳ | VecDeque ⏳ | Vec ⏳ | List ⏳ | PriorityQueue ⏳
+**状态**: ✅ 集合类型内存检测完成  
+**下一步**: 处理 P1 问题 或 其他模块优化  
+**当前进度**: 所有 10 个集合 ✅ 内存泄漏检测 100% 完成
 
 ---
 
@@ -626,15 +629,20 @@ A: 运行完整测试套件，确保 110/110 tests passed，无新增警告
 
 | 集合类型 | 状态 | 内存泄漏 | 测试日期 | 报告 |
 |---------|------|---------|---------|------|
-| **THashMap** | ✅ 已检测 | **无** | 2025-10-06 | [HASHMAP_HEAPTRC_REPORT.md](tests/HASHMAP_HEAPTRC_REPORT.md) |
-| THashSet | 🔲 待检测 | - | - | - |
-| TVecDeque | 🔲 待检测 | - | - | - |
-| TVec | 🔲 待检测 | - | - | - |
-| TList | 🔲 待检测 | - | - | - |
-| TPriorityQueue | 🔲 待检测 | - | - | - |
+| **TVec** | ✅ 已检测 | **无** | 2026-01-06 | [COLLECTIONS_MEMORY_LEAK_REPORT.md](tests/COLLECTIONS_MEMORY_LEAK_REPORT.md) |
+|| **TVecDeque** | ✅ 已检测 | **无** | 2026-01-06 | [COLLECTIONS_MEMORY_LEAK_REPORT.md](tests/COLLECTIONS_MEMORY_LEAK_REPORT.md) |
+|| **TList** | ✅ 已检测 | **无** | 2026-01-06 | [COLLECTIONS_MEMORY_LEAK_REPORT.md](tests/COLLECTIONS_MEMORY_LEAK_REPORT.md) |
+|| **THashMap** | ✅ 已检测 | **无** | 2026-01-06 | [COLLECTIONS_MEMORY_LEAK_REPORT.md](tests/COLLECTIONS_MEMORY_LEAK_REPORT.md) |
+|| **THashSet** | ✅ 已检测 | **无** | 2026-01-06 | [COLLECTIONS_MEMORY_LEAK_REPORT.md](tests/COLLECTIONS_MEMORY_LEAK_REPORT.md) |
+|| **TLinkedHashMap** | ✅ 已检测 | **无** | 2026-01-06 | [COLLECTIONS_MEMORY_LEAK_REPORT.md](tests/COLLECTIONS_MEMORY_LEAK_REPORT.md) |
+|| **TBitSet** | ✅ 已检测 | **无** | 2026-01-06 | [COLLECTIONS_MEMORY_LEAK_REPORT.md](tests/COLLECTIONS_MEMORY_LEAK_REPORT.md) |
+|| **TTreeSet** | ✅ 已检测 | **无** | 2026-01-06 | [COLLECTIONS_MEMORY_LEAK_REPORT.md](tests/COLLECTIONS_MEMORY_LEAK_REPORT.md) |
+|| **TTreeMap** | ✅ 已检测 | **无** | 2026-01-06 | [COLLECTIONS_MEMORY_LEAK_REPORT.md](tests/COLLECTIONS_MEMORY_LEAK_REPORT.md) |
+|| **TPriorityQueue** | ✅ 已检测 | **无** | 2026-01-06 | [COLLECTIONS_MEMORY_LEAK_REPORT.md](tests/COLLECTIONS_MEMORY_LEAK_REPORT.md) |
 
-**最近更新**: 2025-10-06 13:38 UTC  
-**Git Commit**: 0c9c45e  
-**总结文档**: [MEMORY_LEAK_SUMMARY.md](tests/MEMORY_LEAK_SUMMARY.md)
+**最近更新**: 2026-01-06 02:25 UTC+8  
+**Git Commit**: 58fa29c  
+**总结文档**: [COLLECTIONS_MEMORY_LEAK_REPORT.md](tests/COLLECTIONS_MEMORY_LEAK_REPORT.md)
+**通过率**: 100% (10/10 集合类型)
 
 祝工作顺利！🚀
