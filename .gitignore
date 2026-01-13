@@ -65,6 +65,8 @@ src/tests/bin
 bin/*
 
 lib/
+!lib/*/libmimalloc.*
+!lib/*/mimalloc.dll
 *.o
 *.exe
 *.ppu
@@ -81,5 +83,24 @@ tests/*/copytree_symlink_*/
 
 # Editor/backup artifacts
 *.backup
+*.bak
 *.pas.backup*
 *.lpr.backup*
+.ace-tool/
+
+# Temporary files
+temp_*.txt
+*.tmp
+*~
+commit-msg.txt
+build_debug.log
+test_diagnostic_report.txt
+
+# Build artifacts (root level)
+*.compiled
+*.dbg
+*.rst
+
+# Output directories
+out/*
+!out/.gitkeep
