@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<CONFIG>
-  <Compiler Value="D:\devtools\lazarus\trunk\fpc\bin\x86_64-win64\fpc.exe" Date="1526497373"/>
-  <Params Value="-MObjFPC -Scgi -O1 -g -gl -l -vewnhibq -FuD:\projects\Pascal\lazarus\My\libs\fafafa.collections5\examples\fafafa.core.sync\ -oD:\projects\Pascal\lazarus\My\libs\fafafa.collections5\examples\fafafa.core.sync\example_autolock.exe example_autolock.lpr"/>
-  <Complete Value="False"/>
-</CONFIG>

@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<CONFIG>
-  <Compiler Value="D:\devtools\lazarus\trunk\fpc\bin\x86_64-win64\fpc.exe" Date="1526497373"/>
-  <Params Value="-MObjFPC -Scaghi -CirotR -O1 -gw3 -gl -gh -Xg -gt -l -vewnhibq -vm5024 -FiD:\projects\Pascal\lazarus\My\libs\fafafa.collections5\examples\fafafa.core.mem\lib\x86_64-win64 -FiD:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src -FuD:\projects\Pascal\lazarus\My\libs\fafafa.collections5\examples\fafafa.core.mem\ -FuD:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src -FuD:\devtools\lazarus\trunk\lazarus\packager\units\x86_64-win64 -FUD:\projects\Pascal\lazarus\My\libs\fafafa.collections5\examples\fafafa.core.mem\lib\x86_64-win64\ -FED:\projects\Pascal\lazarus\My\libs\fafafa.collections5\examples\fafafa.core.mem\bin\ -oD:\projects\Pascal\lazarus\My\libs\fafafa.collections5\examples\fafafa.core.mem\bin\example_mem_baseline_win_debug.exe example_mem_baseline_win.lpr"/>
-</CONFIG>

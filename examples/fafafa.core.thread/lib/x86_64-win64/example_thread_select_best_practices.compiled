@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<CONFIG>
-  <Compiler Value="D:\devtools\lazarus\trunk\fpc\bin\x86_64-win64\fpc.exe" Date="1526497373"/>
-  <Params Value="-MObjFPC -Scghi -CX -O3 -XX -l -vewnhibq -FiD:\projects\Pascal\lazarus\My\libs\fafafa.collections5\examples\fafafa.core.thread\lib\x86_64-win64 -FuD:\projects\Pascal\lazarus\My\libs\fafafa.collections5\examples\fafafa.core.thread\ -FuD:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src -FUD:\projects\Pascal\lazarus\My\libs\fafafa.collections5\examples\fafafa.core.thread\lib\x86_64-win64\ -FED:\projects\Pascal\lazarus\My\libs\fafafa.collections5\examples\fafafa.core.thread\bin\ -oD:\projects\Pascal\lazarus\My\libs\fafafa.collections5\examples\fafafa.core.thread\bin\example_thread_select_best_practices.exe example_thread_select_best_practices.lpr"/>
-  <Complete Value="False"/>
-</CONFIG>
