@@ -14,6 +14,6 @@ echo "Building with FAFAFA_SYNC_USE_POSIX_BARRIER enabled..."
   -FUlib \
   -FE. \
   fafafa.core.sync.barrier.test.lpr
-./fafafa.core.sync.barrier.test --all --progress || true
+./fafafa.core.sync.barrier.test --all --progress
 
 echo "POSIX native barrier test completed."

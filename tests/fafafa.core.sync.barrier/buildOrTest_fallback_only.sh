@@ -15,6 +15,6 @@ echo "Building with native barriers disabled (fallback only)..."
   -FUlib \
   -FE. \
   fafafa.core.sync.barrier.test.lpr
-./fafafa.core.sync.barrier.test --all --progress || true
+./fafafa.core.sync.barrier.test --all --progress
 
 echo "Fallback-only barrier test completed."
