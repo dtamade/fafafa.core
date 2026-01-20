@@ -20,12 +20,12 @@
         <CompilerOptions>
           <Version Value="11"/>
           <Target>
-            <Filename Value="fafafa.core.sync.barrier.test"/>
+            <Filename Value="bin/fafafa.core.sync.barrier.test"/>
           </Target>
           <SearchPaths>
             <IncludeFiles Value=""/>
             <OtherUnitFiles Value="../../src"/>
-            <UnitOutputDirectory Value="lib"/>
+            <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <Parsing>
             <SyntaxOptions>
@@ -58,12 +58,12 @@
     <Version Value="11"/>
     <PathDelim Value="/"/>
     <Target>
-      <Filename Value="fafafa.core.sync.barrier.test"/>
+      <Filename Value="bin/fafafa.core.sync.barrier.test"/>
     </Target>
     <SearchPaths>
       <IncludeFiles Value=""/>
       <OtherUnitFiles Value="../../src"/>
-      <UnitOutputDirectory Value="lib"/>
+      <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Parsing>
       <SyntaxOptions>
