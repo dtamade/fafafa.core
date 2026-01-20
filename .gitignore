@@ -104,6 +104,7 @@ test_diagnostic_report.txt
 *.dbg
 *.rst
 *.lps
+*.rsj
 *.a
 
 # Output directories
