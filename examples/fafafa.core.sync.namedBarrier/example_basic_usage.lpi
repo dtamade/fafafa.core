@@ -13,12 +13,12 @@
         <CompilerOptions>
           <Version Value="11"/>
           <Target>
-            <Filename Value="..\..\bin\example_basic_usage"/>
+            <Filename Value="bin/example_basic_usage"/>
           </Target>
           <SearchPaths>
-            <IncludeFiles Value="$(ProjOutDir);..\..\src"/>
-            <OtherUnitFiles Value="..\..\src"/>
-            <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+            <IncludeFiles Value="$(ProjOutDir);../../src"/>
+            <OtherUnitFiles Value="../../src"/>
+            <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)/"/>
           </SearchPaths>
           <Linking>
             <Debugging>
@@ -47,12 +47,12 @@
   <CompilerOptions>
     <Version Value="11"/>
     <Target>
-      <Filename Value="..\..\bin\example_basic_usage"/>
+      <Filename Value="bin/example_basic_usage"/>
     </Target>
     <SearchPaths>
-      <IncludeFiles Value="$(ProjOutDir);..\..\src"/>
-      <OtherUnitFiles Value="..\..\src"/>
-      <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+      <IncludeFiles Value="$(ProjOutDir);../../src"/>
+      <OtherUnitFiles Value="../../src"/>
+      <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)/"/>
     </SearchPaths>
     <Linking>
       <Debugging>
