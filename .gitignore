@@ -1,3 +1,6 @@
+# 参考资料目录（不纳入版本控制）
+/reference/
+
 examples/*/*/lib/
 examples/*/*/bin/
 examples/*/*.exe
@@ -100,6 +103,8 @@ test_diagnostic_report.txt
 *.compiled
 *.dbg
 *.rst
+*.lps
+*.a
 
 # Output directories
 out/*
