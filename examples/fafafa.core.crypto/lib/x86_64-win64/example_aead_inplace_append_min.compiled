@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<CONFIG>
-  <Compiler Value="D:\devtools\lazarus\trunk\fpc\bin\x86_64-win64\fpc.exe" Date="1526497373"/>
-  <Params Value="-Twin64 -Px86_64 -MObjFPC -Scghi -CX -O3 -XX -l -vewnhibq -FuD:\projects\Pascal\lazarus\My\libs\fafafa.collections5\examples\fafafa.core.crypto\ -FuD:\projects\Pascal\lazarus\My\libs\fafafa.collections5\src -FuD:\devtools\lazarus\trunk\lazarus\packager\units\x86_64-win64 -FUD:\projects\Pascal\lazarus\My\libs\fafafa.collections5\examples\fafafa.core.crypto\lib\x86_64-win64\ -FED:\projects\Pascal\lazarus\My\libs\fafafa.collections5\examples\fafafa.core.crypto\bin\ -oD:\projects\Pascal\lazarus\My\libs\fafafa.collections5\examples\fafafa.core.crypto\bin\example_aead_inplace_append_min.exe example_aead_inplace_append_min.pas"/>
-  <Complete Value="False"/>
-</CONFIG>
