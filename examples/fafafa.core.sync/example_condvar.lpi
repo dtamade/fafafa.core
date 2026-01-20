@@ -11,12 +11,12 @@
         <CompilerOptions>
           <Version Value="11"/>
           <Target>
-            <Filename Value="..\..\bin\example_condvar"/>
+            <Filename Value="bin/example_condvar"/>
           </Target>
           <SearchPaths>
-            <OtherUnitFiles Value="..\..\src"/>
-            <IncludeFiles Value="$(ProjOutDir);..\..\src"/>
-            <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+            <OtherUnitFiles Value="../../src"/>
+            <IncludeFiles Value="$(ProjOutDir);../../src"/>
+            <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <Other>
             <CustomOptions Value="-dDEBUG"/>
@@ -27,12 +27,12 @@
         <CompilerOptions>
           <Version Value="11"/>
           <Target>
-            <Filename Value="..\..\bin\example_condvar"/>
+            <Filename Value="bin/example_condvar"/>
           </Target>
           <SearchPaths>
-            <OtherUnitFiles Value="..\..\src"/>
-            <IncludeFiles Value="$(ProjOutDir);..\..\src"/>
-            <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+            <OtherUnitFiles Value="../../src"/>
+            <IncludeFiles Value="$(ProjOutDir);../../src"/>
+            <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
         </CompilerOptions>
       </Item>

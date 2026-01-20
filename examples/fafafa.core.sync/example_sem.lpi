@@ -12,12 +12,12 @@
         <CompilerOptions>
           <Version Value="11"/>
           <Target>
-            <Filename Value="..\..\bin\example_semaphore"/>
+            <Filename Value="bin/example_semaphore"/>
           </Target>
           <SearchPaths>
-            <OtherUnitFiles Value="..\..\src"/>
-            <IncludeFiles Value="$(ProjOutDir);..\..\src"/>
-            <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+            <OtherUnitFiles Value="../../src"/>
+            <IncludeFiles Value="$(ProjOutDir);../../src"/>
+            <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <Linking>
             <Debugging>
@@ -35,12 +35,12 @@
         <CompilerOptions>
           <Version Value="11"/>
           <Target>
-            <Filename Value="..\..\bin\example_semaphore"/>
+            <Filename Value="bin/example_semaphore"/>
           </Target>
           <SearchPaths>
-            <OtherUnitFiles Value="..\..\src"/>
-            <IncludeFiles Value="$(ProjOutDir);..\..\src"/>
-            <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+            <OtherUnitFiles Value="../../src"/>
+            <IncludeFiles Value="$(ProjOutDir);../../src"/>
+            <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <CodeGeneration>
             <SmartLinkUnit Value="True"/>
