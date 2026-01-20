@@ -11,7 +11,7 @@ fpc -Fu%SRC_PATH% -FE%TEST_PATH%\bin -FU%TEST_PATH%\lib %TEST_PATH%\fafafa.core.
 
 if %ERRORLEVEL% neq 0 (
     echo Compilation failed!
-    pause
+if "%FAFAFA_INTERACTIVE%"=="1" if "%FAFAFA_INTERACTIVE%"=="1" pause
     exit /b 1
 )
 
@@ -23,4 +23,4 @@ echo Running tests...
 
 echo.
 echo Test completed.
-pause
+if "%FAFAFA_INTERACTIVE%"=="1" if "%FAFAFA_INTERACTIVE%"=="1" pause
