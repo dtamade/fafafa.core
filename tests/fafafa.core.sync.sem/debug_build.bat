@@ -81,4 +81,4 @@ if exist lib\x86_64-win64\fafafa.core.sync.sem.test.compiled (
 :end
 echo.
 echo Debug build script completed.
-pause
+if "%FAFAFA_INTERACTIVE%"=="1" pause

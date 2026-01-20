@@ -17,4 +17,4 @@ if exist bin\simple_run_test.exe (
     echo Build failed, executable not generated
 )
 
-pause
+if "%FAFAFA_INTERACTIVE%"=="1" pause

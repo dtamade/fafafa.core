@@ -70,5 +70,7 @@ set errorlevel=1
 
 :end
 echo.
-echo Press any key to exit...
-pause >nul
+if "%FAFAFA_INTERACTIVE%"=="1" (
+  echo Press any key to exit...
+  pause >nul
+)

@@ -13,4 +13,4 @@ if exist bin\minimal.exe (
     echo Failed to create minimal.exe
 )
 
-pause
+if "%FAFAFA_INTERACTIVE%"=="1" pause
