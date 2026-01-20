@@ -19,8 +19,8 @@ rm -rf ./bin
 rm -rf ./lib/*-*/
 mkdir -p ./bin ./lib
 
-echo "[BUILD] ${LAZBUILD_BIN} --build-mode=Default ${PROJECT_LPI}"
-"${LAZBUILD_BIN}" --build-mode=Default "${PROJECT_LPI}"
+echo "[BUILD] ${LAZBUILD_BIN} --build-mode=Debug ${PROJECT_LPI}"
+"${LAZBUILD_BIN}" --build-mode=Debug "${PROJECT_LPI}"
 
 if [[ "${ACTION}" == "test" || "${ACTION}" == "run" ]]; then
   echo "[RUN] ${TEST_BIN}"
