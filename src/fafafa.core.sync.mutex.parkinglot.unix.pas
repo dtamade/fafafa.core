@@ -1,6 +1,7 @@
 unit fafafa.core.sync.mutex.parkinglot.unix;
 
 {$mode objfpc}
+{$modeswitch advancedrecords}
 {$I fafafa.core.settings.inc}
 
 interface
@@ -224,6 +225,12 @@ var
 var
   LBackoffCount: Integer;
   LStartTime: QWord;
+  LSpinCount: Integer;
+  i: Integer;
+  LMicroSleep: Integer;
+  LMilliSleep: Integer;
+  LMaxSleep: Integer;
+  LSleepTime: Integer;
 begin
   if HasFutexSupport then
   begin
@@ -274,7 +281,7 @@ begin
     // 回退到高级智能退避策略
     LBackoffCount := 0;
     LStartTime := GetCurrentTimeMs;
-    var LSpinCount: Integer := 0;
+    LSpinCount := 0;
 
     repeat
       // 检查值是否改变
@@ -291,7 +298,7 @@ begin
           begin
             // 阶段1：CPU 暂停 + 紧密自旋
             // 使用指数退避的自旋次数
-            for var i := 1 to (1 shl LBackoffCount) do
+            for i := 1 to (1 shl LBackoffCount) do
             begin
               {$IF DEFINED(CPUX86_64) OR DEFINED(CPUI386)}
               asm
@@ -315,7 +322,7 @@ begin
           begin
             // 阶段2：让出 CPU 给同优先级线程
             {$IFDEF UNIX}
-            fpSched_yield;
+            Do_SysCall(syscall_nr_sched_yield);
             {$ELSE}
             Sleep(0);
             {$ENDIF}
@@ -323,14 +330,11 @@ begin
         32..47:
           begin
             // 阶段3：微秒级睡眠，使用指数退避
-            var LMicroSleep := 1 shl ((LBackoffCount - 32) div 4); // 1, 2, 4, 8 微秒
+            LMicroSleep := 1 shl ((LBackoffCount - 32) div 4); // 1, 2, 4, 8 微秒
             {$IFDEF UNIX}
-            var LSleepTime: TTimeSpec;
-            begin
-              LSleepTime.tv_sec := 0;
-              LSleepTime.tv_nsec := LMicroSleep * 1000; // 转换为纳秒
-              fpNanoSleep(@LSleepTime, nil);
-            end;
+            LTimeSpec.tv_sec := 0;
+            LTimeSpec.tv_nsec := LMicroSleep * 1000; // 转换为纳秒
+            fpNanoSleep(@LTimeSpec, nil);
             {$ELSE}
             if LMicroSleep >= 1000 then
               Sleep(LMicroSleep div 1000)
@@ -341,14 +345,11 @@ begin
         48..63:
           begin
             // 阶段4：毫秒级睡眠，指数退避
-            var LMilliSleep := 1 shl ((LBackoffCount - 48) div 4); // 1, 2, 4, 8ms
+            LMilliSleep := 1 shl ((LBackoffCount - 48) div 4); // 1, 2, 4, 8ms
             {$IFDEF UNIX}
-            var LSleepTime: TTimeSpec;
-            begin
-              LSleepTime.tv_sec := LMilliSleep div 1000;
-              LSleepTime.tv_nsec := (LMilliSleep mod 1000) * 1000000;
-              fpNanoSleep(@LSleepTime, nil);
-            end;
+            LTimeSpec.tv_sec := LMilliSleep div 1000;
+            LTimeSpec.tv_nsec := (LMilliSleep mod 1000) * 1000000;
+            fpNanoSleep(@LTimeSpec, nil);
             {$ELSE}
             Sleep(LMilliSleep);
             {$ENDIF}
@@ -356,16 +357,13 @@ begin
         else
           begin
             // 阶段5：较长睡眠，但限制最大值
-            var LMaxSleep := 16; // 最大16ms
-            var LSleepTime: Integer := 1 shl ((LBackoffCount - 64) div 8);
+            LMaxSleep := 16; // 最大16ms
+            LSleepTime := 1 shl ((LBackoffCount - 64) div 8);
             if LSleepTime > LMaxSleep then LSleepTime := LMaxSleep;
             {$IFDEF UNIX}
-            var LTimeSpec: TTimeSpec;
-            begin
-              LTimeSpec.tv_sec := LSleepTime div 1000;
-              LTimeSpec.tv_nsec := (LSleepTime mod 1000) * 1000000;
-              fpNanoSleep(@LTimeSpec, nil);
-            end;
+            LTimeSpec.tv_sec := LSleepTime div 1000;
+            LTimeSpec.tv_nsec := (LSleepTime mod 1000) * 1000000;
+            fpNanoSleep(@LTimeSpec, nil);
             {$ELSE}
             Sleep(LSleepTime);
             {$ENDIF}

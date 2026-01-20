@@ -1,4 +1,5 @@
 program ParkingLotMutexBenchmark;
+{$mode objfpc}{$H+}
 {$IFDEF WINDOWS}{$CODEPAGE UTF8}{$ENDIF}
 
 {$I fafafa.core.settings.inc}

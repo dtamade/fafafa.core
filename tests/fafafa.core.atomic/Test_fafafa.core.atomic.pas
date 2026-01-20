@@ -1,5 +1,6 @@
 unit Test_fafafa.core.atomic;
 
+{$mode objfpc}{$H+}
 {$IFDEF WINDOWS}{$CODEPAGE UTF8}{$ENDIF}
 {$I ../../src/fafafa.core.settings.inc}
 
