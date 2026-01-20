@@ -10,7 +10,7 @@ set "TEST_EXE=%~dp0bin\tests_atomic.exe"
 
 if not exist "%PROJECT%" (
     echo error: project file is not exist: %PROJECT%
-    pause
+    if "%FAFAFA_INTERACTIVE%"=="1" pause
     exit /b 1
 )
 
@@ -19,7 +19,7 @@ lazbuild -B "%PROJECT%"
 
 if %ERRORLEVEL% neq 0 (
     echo error: build failed, return code %ERRORLEVEL%
-    pause
+    if "%FAFAFA_INTERACTIVE%"=="1" pause
     exit /b 1
 )
 
@@ -27,7 +27,7 @@ echo build success!
 
 if not exist "%TEST_EXE%" (
     echo error: file is not exist: %TEST_EXE%
-    pause
+    if "%FAFAFA_INTERACTIVE%"=="1" pause
     exit /b 1
 )
 
@@ -38,7 +38,7 @@ echo.
 if %ERRORLEVEL% neq 0 (
     echo.
     echo error: test failed, return code %ERRORLEVEL%
-    pause
+    if "%FAFAFA_INTERACTIVE%"=="1" pause
     exit /b %ERRORLEVEL%
 )
 
@@ -46,5 +46,5 @@ echo.
 echo ==========================================
 echo bye!
 echo ==========================================
-pause
+if "%FAFAFA_INTERACTIVE%"=="1" pause
 
