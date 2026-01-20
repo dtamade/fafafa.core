@@ -12,7 +12,7 @@
         <CompilerOptions>
           <Version Value="11"/>
           <Target>
-            <Filename Value="bin/example_semaphore"/>
+            <Filename Value="bin/example_sem"/>
           </Target>
           <SearchPaths>
             <OtherUnitFiles Value="../../src"/>
@@ -35,7 +35,7 @@
         <CompilerOptions>
           <Version Value="11"/>
           <Target>
-            <Filename Value="bin/example_semaphore"/>
+            <Filename Value="bin/example_sem"/>
           </Target>
           <SearchPaths>
             <OtherUnitFiles Value="../../src"/>
