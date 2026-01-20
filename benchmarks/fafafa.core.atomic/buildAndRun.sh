@@ -52,6 +52,3 @@ if [ -f "$RESULTS_DIR/basic_atomic_results.csv" ]; then
     cat "$RESULTS_DIR/basic_atomic_results.csv"
     echo
 fi
-
-echo "按回车键继续..."
-read

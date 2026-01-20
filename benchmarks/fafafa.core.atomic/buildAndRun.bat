@@ -57,4 +57,4 @@ if exist "%RESULTS_DIR%\basic_atomic_results.csv" (
     echo.
 )
 
-pause
+if "%FAFAFA_INTERACTIVE%"=="1" pause
