@@ -1,29 +1,17 @@
-{
-
-```text
-   ______   ______     ______   ______     ______   ______
-  /\  ___\ /\  __ \   /\  ___\ /\  __ \   /\  ___\ /\  __ \
-  \ \  __\ \ \  __ \  \ \  __\ \ \  __ \  \ \  __\ \ \  __ \
-   \ \_\    \ \_\ \_\  \ \_\    \ \_\ \_\  \ \_\    \ \_\ \_\
-    \/_/     \/_/\/_/   \/_/     \/_/\/_/   \/_/     \/_/\/_/  Studio
-
-```
-# fafafa.core.math
-
-## Abstract 摘要
-
-Provides a set of basic, cross-platform mathematical routines without external dependencies.
-提供一组不依赖外部单元的、跨平台的基础数学函数。
-
-## Declaration 声明
-
-For forwarding or using it for your own project, please retain the copyright notice of this project. Thank you.
-转发或者用于自己项目请保留本项目的版权声明,谢谢.
-
-Author:    fafafaStudio
-Contact:   dtamade@gmail.com | QQ Group: 685403987 | QQ:179033731
-Copyright: (c) 2025 fafafaStudio. All rights reserved.
-}
+{**
+ * fafafa.core.math
+ *
+ * @desc
+ *   Cross-platform mathematical routines with Rust-style safe arithmetic operations.
+ *   提供跨平台数学函数和 Rust 风格的安全算术运算。
+ *
+ * @author    fafafaStudio
+ * @contact   dtamade@gmail.com
+ * @copyright (c) 2025 fafafaStudio. All rights reserved.
+ *
+ * @see docs/fafafa.core.math.md for complete documentation
+ *      完整文档请参见 docs/fafafa.core.math.md
+ *}
 
 unit fafafa.core.math;
 
