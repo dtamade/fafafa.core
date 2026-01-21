@@ -665,11 +665,11 @@ end;
 procedure TTestCase_Global.Test_HexToBytes_InvalidCharacters;
 begin
   {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
-  AssertException('Should raise exception for invalid characters', EConvertError,
+  AssertException('Should raise exception for invalid characters', fafafa.core.crypto.interfaces.EInvalidArgument,
     procedure begin HexToBytes('abcg'); end);
   {$ELSE}
   // 方法指针版本
-  AssertException('Should raise exception for invalid characters', EConvertError,
+  AssertException('Should raise exception for invalid characters', fafafa.core.crypto.interfaces.EInvalidArgument,
     @Self.Test_HexToBytes_InvalidCharacters_Helper);
   {$ENDIF}
 end;

@@ -6,7 +6,7 @@ unit Test_ghash_pure_mode_bench_sweep;
 interface
 
 uses
-  Classes, SysUtils, fpcunit, testregistry, Windows,
+  Classes, SysUtils, fpcunit, testregistry, {$IFDEF MSWINDOWS}Windows,{$ELSE}ctypes,{$ENDIF}
   fafafa.core.math,
   fafafa.core.crypto.aead.gcm.ghash;
 
@@ -17,6 +17,10 @@ type
   end;
 
 implementation
+
+{$IFNDEF MSWINDOWS}
+function setenv(name: PChar; value: PChar; overwrite: cint): cint; cdecl; external 'c' name 'setenv';
+{$ENDIF}
 
 function NowUS: Int64;
 begin
@@ -42,7 +46,11 @@ begin
   SetLength(C,   256*1024); FillSeq(C,   19);
 
   // set mode (DEBUG 构建下生效)
-  SetEnvironmentVariable('FAFAFA_GHASH_PURE_MODE', PChar(Mode));
+  {$IFDEF MSWINDOWS}
+  Windows.SetEnvironmentVariable('FAFAFA_GHASH_PURE_MODE', PChar(Mode));
+  {$ELSE}
+  setenv('FAFAFA_GHASH_PURE_MODE', PChar(Mode), 1);
+  {$ENDIF}
 
   // warmup
   g := CreateGHash; g.Init(H); g.Update(AAD); g.Update(C); Tag := g.Finalize(Length(AAD), Length(C));

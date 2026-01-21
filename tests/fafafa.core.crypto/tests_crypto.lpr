@@ -4,6 +4,9 @@ program tests_crypto;
 {$mode objfpc}{$H+}
 
 uses
+  {$IFDEF UNIX}
+  cthreads,
+  {$ENDIF}
   Classes, SysUtils, CustApp, fpcunit, testregistry, consoletestrunner,
   Test_crypto,
   Test_aes_ecb_vectors,

@@ -6,9 +6,14 @@ unit Test_ghash_cache_per_h_basic;
 interface
 
 uses
-  Classes, SysUtils, fpcunit, testregistry, Windows,
+  Classes, SysUtils, fpcunit, testregistry,
+  {$IFDEF MSWINDOWS}Windows,{$ELSE}ctypes,{$ENDIF}
   fafafa.core.math,
   fafafa.core.crypto.aead.gcm.ghash;
+
+{$IFNDEF MSWINDOWS}
+function setenv(name: PChar; value: PChar; overwrite: cint): cint; cdecl; external 'c' name 'setenv';
+{$ENDIF}
 
 type
   TTestCase_GHash_CachePerH_Basic = class(TTestCase)
@@ -37,9 +42,15 @@ var
   i: Integer;
 begin
   // enable cache and force pure-byte
+  {$IFDEF MSWINDOWS}
   Windows.SetEnvironmentVariable(PChar('FAFAFA_GHASH_CACHE_PER_H'), PChar('1'));
   Windows.SetEnvironmentVariable(PChar('FAFAFA_GHASH_IMPL'), PChar('pure'));
   Windows.SetEnvironmentVariable(PChar('FAFAFA_GHASH_PURE_MODE'), PChar('byte'));
+  {$ELSE}
+  setenv('FAFAFA_GHASH_CACHE_PER_H', '1', 1);
+  setenv('FAFAFA_GHASH_IMPL', 'pure', 1);
+  setenv('FAFAFA_GHASH_PURE_MODE', 'byte', 1);
+  {$ENDIF}
 
   SetLength(H, 16); FillSeq(H, 7);
   SetLength(A, 64*1024); FillSeq(A, 11);

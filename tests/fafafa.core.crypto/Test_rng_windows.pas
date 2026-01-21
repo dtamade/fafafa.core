@@ -6,7 +6,7 @@ unit Test_rng_windows;
 interface
 
 uses
-  Classes, SysUtils, Windows, fpcunit, testregistry,
+  Classes, SysUtils, {$IFDEF MSWINDOWS}Windows,{$ELSE}ctypes,{$ENDIF} fpcunit, testregistry,
   fafafa.core.crypto,
   fafafa.core.crypto.interfaces;
 
@@ -27,10 +27,18 @@ type
 
 implementation
 
+{$IFNDEF MSWINDOWS}
+function setenv(name: PChar; value: PChar; overwrite: cint): cint; cdecl; external 'c' name 'setenv';
+{$ENDIF}
+
 procedure TTestCase_RNG_Windows.SetEnvLegacy(const AValue: String);
 begin
   // Note: environment variable is read during each GetBytes call
+  {$IFDEF MSWINDOWS}
   Windows.SetEnvironmentVariable('FAFAFA_CRYPTO_RNG_FORCE_LEGACY', PChar(AValue));
+  {$ELSE}
+  setenv('FAFAFA_CRYPTO_RNG_FORCE_LEGACY', PChar(AValue), 1);
+  {$ENDIF}
 end;
 
 procedure TTestCase_RNG_Windows.SetUp;

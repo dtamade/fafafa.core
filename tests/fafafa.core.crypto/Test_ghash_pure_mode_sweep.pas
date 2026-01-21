@@ -6,7 +6,7 @@ unit Test_ghash_pure_mode_sweep;
 interface
 
 uses
-  Classes, SysUtils, fpcunit, testregistry, Windows,
+  Classes, SysUtils, fpcunit, testregistry, {$IFDEF MSWINDOWS}Windows,{$ELSE}ctypes,{$ENDIF}
   fafafa.core.crypto.aead.gcm.ghash;
 
 type
@@ -16,6 +16,11 @@ type
   end;
 
 implementation
+
+{$IFNDEF MSWINDOWS}
+function setenv(name: PChar; value: PChar; overwrite: cint): cint; cdecl; external 'c' name 'setenv';
+function unsetenv(name: PChar): cint; cdecl; external 'c' name 'unsetenv';
+{$ENDIF}
 
 procedure RunKAT_AllZero;
 var
@@ -57,8 +62,13 @@ end;
 
 procedure SetEnv(const Name, Value: String);
 begin
+  {$IFDEF MSWINDOWS}
   if Value = '' then Windows.SetEnvironmentVariable(PChar(Name), nil)
   else Windows.SetEnvironmentVariable(PChar(Name), PChar(Value));
+  {$ELSE}
+  if Value = '' then unsetenv(PChar(Name))
+  else setenv(PChar(Name), PChar(Value), 1);
+  {$ENDIF}
 end;
 
 procedure SetMode(const M: String);

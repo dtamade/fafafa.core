@@ -6,7 +6,8 @@ unit Test_ghash_precompute_coldstart_bench;
 interface
 
 uses
-  Classes, SysUtils, fpcunit, testregistry, Windows,
+  Classes, SysUtils, fpcunit, testregistry,
+  {$IFDEF MSWINDOWS}Windows,{$ELSE}ctypes,{$ENDIF}
   fafafa.core.math,
   fafafa.core.crypto.aead.gcm.ghash;
 
@@ -17,6 +18,10 @@ type
   end;
 
 implementation
+
+{$IFNDEF MSWINDOWS}
+function setenv(name: PChar; value: PChar; overwrite: cint): cint; cdecl; external 'c' name 'setenv';
+{$ENDIF}
 
 function NowUS: Int64;
 begin
@@ -52,8 +57,13 @@ begin
   SetLength(C, 128*1024); FillSeq(C, 19);
 
   // force pure-byte
+  {$IFDEF MSWINDOWS}
   Windows.SetEnvironmentVariable('FAFAFA_GHASH_IMPL', 'pure');
   Windows.SetEnvironmentVariable('FAFAFA_GHASH_PURE_MODE', 'byte');
+  {$ELSE}
+  setenv('FAFAFA_GHASH_IMPL', 'pure', 1);
+  setenv('FAFAFA_GHASH_PURE_MODE', 'byte', 1);
+  {$ENDIF}
 
   // coldstart: new context, first run builds tables
   if useMedian then

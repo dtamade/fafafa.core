@@ -6,7 +6,7 @@ unit Test_ghash_bench_sizes_sweep;
 interface
 
 uses
-  Classes, SysUtils, fpcunit, testregistry, Windows,
+  Classes, SysUtils, fpcunit, testregistry, {$IFDEF MSWINDOWS}Windows,{$ELSE}ctypes,{$ENDIF}
   fafafa.core.math,
   fafafa.core.crypto.aead.gcm.ghash;
 
@@ -17,6 +17,11 @@ type
   end;
 
 implementation
+
+{$IFNDEF MSWINDOWS}
+function setenv(name: PChar; value: PChar; overwrite: cint): cint; cdecl; external 'c' name 'setenv';
+function unsetenv(name: PChar): cint; cdecl; external 'c' name 'unsetenv';
+{$ENDIF}
 
 function NowUS: Int64;
 begin
@@ -36,8 +41,13 @@ end;
 
 procedure SetEnv(const Name, Value: String);
 begin
+  {$IFDEF MSWINDOWS}
   if Value = '' then Windows.SetEnvironmentVariable(PChar(Name), nil)
   else Windows.SetEnvironmentVariable(PChar(Name), PChar(Value));
+  {$ELSE}
+  if Value = '' then unsetenv(PChar(Name))
+  else setenv(PChar(Name), PChar(Value), 1);
+  {$ENDIF}
 end;
 
 procedure RestoreEnv(const Name, Old: String);

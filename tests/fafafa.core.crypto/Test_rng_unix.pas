@@ -7,7 +7,7 @@ interface
 
 uses
   {$IFDEF UNIX}
-  Classes, SysUtils, fpcunit, testregistry,
+  Classes, SysUtils, {$IFNDEF MSWINDOWS}ctypes,{$ENDIF} fpcunit, testregistry,
   fafafa.core.crypto,
   fafafa.core.crypto.interfaces;
   {$ENDIF}
@@ -31,6 +31,10 @@ type
 implementation
 
 {$IFDEF UNIX}
+
+{$IFNDEF MSWINDOWS}
+function setenv(name: PChar; value: PChar; overwrite: cint): cint; cdecl; external 'c' name 'setenv';
+{$ENDIF}
 
 procedure SmokeCheck_Distribution(const B: TBytes; out NonZeroRatio: Double);
 var I, NonZero: Integer;
@@ -80,17 +84,17 @@ begin
   PrevBlocking := SysUtils.GetEnvironmentVariable('FAFAFA_CRYPTO_RNG_LINUX_USE_BLOCKING');
   try
     // 强制 urandom 路径
-    SysUtils.SetEnvironmentVariable('FAFAFA_CRYPTO_RNG_FORCE_URANDOM', '1');
+    setenv('FAFAFA_CRYPTO_RNG_FORCE_URANDOM', '1', 1);
     B := GenerateRandomBytes(32);
     AssertEquals(32, Length(B));
     // 切换到 getrandom 非阻塞
-    SysUtils.SetEnvironmentVariable('FAFAFA_CRYPTO_RNG_FORCE_URANDOM', '0');
-    SysUtils.SetEnvironmentVariable('FAFAFA_CRYPTO_RNG_LINUX_USE_BLOCKING', '0');
+    setenv('FAFAFA_CRYPTO_RNG_FORCE_URANDOM', '0', 1);
+    setenv('FAFAFA_CRYPTO_RNG_LINUX_USE_BLOCKING', '0', 1);
     B := GenerateRandomBytes(16);
     AssertEquals(16, Length(B));
   finally
-    SysUtils.SetEnvironmentVariable('FAFAFA_CRYPTO_RNG_FORCE_URANDOM', PChar(PrevForce));
-    SysUtils.SetEnvironmentVariable('FAFAFA_CRYPTO_RNG_LINUX_USE_BLOCKING', PChar(PrevBlocking));
+    if PrevForce <> '' then setenv('FAFAFA_CRYPTO_RNG_FORCE_URANDOM', PChar(PrevForce), 1);
+    if PrevBlocking <> '' then setenv('FAFAFA_CRYPTO_RNG_LINUX_USE_BLOCKING', PChar(PrevBlocking), 1);
   end;
 end;
 
@@ -110,13 +114,13 @@ begin
   PrevForce := SysUtils.GetEnvironmentVariable('FAFAFA_CRYPTO_RNG_FORCE_URANDOM');
   PrevBlocking := SysUtils.GetEnvironmentVariable('FAFAFA_CRYPTO_RNG_LINUX_USE_BLOCKING');
   try
-    SysUtils.SetEnvironmentVariable('FAFAFA_CRYPTO_RNG_FORCE_URANDOM', '0');
-    SysUtils.SetEnvironmentVariable('FAFAFA_CRYPTO_RNG_LINUX_USE_BLOCKING', '0');
+    setenv('FAFAFA_CRYPTO_RNG_FORCE_URANDOM', '0', 1);
+    setenv('FAFAFA_CRYPTO_RNG_LINUX_USE_BLOCKING', '0', 1);
     B := GenerateRandomBytes(4096);
     AssertEquals(4096, Length(B));
   finally
-    SysUtils.SetEnvironmentVariable('FAFAFA_CRYPTO_RNG_FORCE_URANDOM', PChar(PrevForce));
-    SysUtils.SetEnvironmentVariable('FAFAFA_CRYPTO_RNG_LINUX_USE_BLOCKING', PChar(PrevBlocking));
+    if PrevForce <> '' then setenv('FAFAFA_CRYPTO_RNG_FORCE_URANDOM', PChar(PrevForce), 1);
+    if PrevBlocking <> '' then setenv('FAFAFA_CRYPTO_RNG_LINUX_USE_BLOCKING', PChar(PrevBlocking), 1);
   end;
 end;
 
@@ -128,13 +132,13 @@ begin
   PrevForce := SysUtils.GetEnvironmentVariable('FAFAFA_CRYPTO_RNG_FORCE_URANDOM');
   PrevBlocking := SysUtils.GetEnvironmentVariable('FAFAFA_CRYPTO_RNG_LINUX_USE_BLOCKING');
   try
-    SysUtils.SetEnvironmentVariable('FAFAFA_CRYPTO_RNG_FORCE_URANDOM', '0');
-    SysUtils.SetEnvironmentVariable('FAFAFA_CRYPTO_RNG_LINUX_USE_BLOCKING', '1');
+    setenv('FAFAFA_CRYPTO_RNG_FORCE_URANDOM', '0', 1);
+    setenv('FAFAFA_CRYPTO_RNG_LINUX_USE_BLOCKING', '1', 1);
     B := GenerateRandomBytes(128);
     AssertEquals(128, Length(B));
   finally
-    SysUtils.SetEnvironmentVariable('FAFAFA_CRYPTO_RNG_FORCE_URANDOM', PChar(PrevForce));
-    SysUtils.SetEnvironmentVariable('FAFAFA_CRYPTO_RNG_LINUX_USE_BLOCKING', PChar(PrevBlocking));
+    if PrevForce <> '' then setenv('FAFAFA_CRYPTO_RNG_FORCE_URANDOM', PChar(PrevForce), 1);
+    if PrevBlocking <> '' then setenv('FAFAFA_CRYPTO_RNG_LINUX_USE_BLOCKING', PChar(PrevBlocking), 1);
   end;
 end;
 {$ENDIF}

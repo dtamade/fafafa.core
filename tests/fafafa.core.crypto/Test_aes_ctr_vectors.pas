@@ -206,7 +206,8 @@ begin
       AssertEquals('AES-128 CTR stepped split length', Length(outWhole), Length(outPart));
       AssertTrue('AES-128 CTR stepped split content',
         UpperCase(BytesToHex(outWhole)) = UpperCase(BytesToHex(outPart)));
-
+    end;
+  end;
 end;
 
 
