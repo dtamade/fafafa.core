@@ -23,7 +23,7 @@
             <Filename Value="bin/fafafa.core.sync.barrier.test"/>
           </Target>
           <SearchPaths>
-            <IncludeFiles Value=""/>
+            <IncludeFiles Value="../../src"/>
             <OtherUnitFiles Value="../../src"/>
             <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
@@ -61,7 +61,7 @@
       <Filename Value="bin/fafafa.core.sync.barrier.test"/>
     </Target>
     <SearchPaths>
-      <IncludeFiles Value=""/>
+      <IncludeFiles Value="../../src"/>
       <OtherUnitFiles Value="../../src"/>
       <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>

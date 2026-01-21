@@ -24,7 +24,7 @@
             <Filename Value="bin\tests_sync"/>
           </Target>
           <SearchPaths>
-            <IncludeFiles Value="$(ProjOutDir);..\..\src"/>
+            <IncludeFiles Value="../../src"/>
             <OtherUnitFiles Value="..\..\src"/>
             <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
@@ -63,7 +63,7 @@
             <Filename Value="bin\tests_sync"/>
           </Target>
           <SearchPaths>
-            <IncludeFiles Value="$(ProjOutDir);..\..\src"/>
+            <IncludeFiles Value="../../src"/>
             <OtherUnitFiles Value="..\..\src"/>
             <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
@@ -112,7 +112,7 @@
       <Filename Value="bin\tests_sync"/>
     </Target>
     <SearchPaths>
-      <IncludeFiles Value="$(ProjOutDir);..\..\src"/>
+      <IncludeFiles Value="../../src"/>
       <OtherUnitFiles Value="..\..\src"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>

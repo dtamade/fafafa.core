@@ -22,7 +22,7 @@
             <Filename Value="bin/minimal_crossprocess_test"/>
           </Target>
           <SearchPaths>
-            <IncludeFiles Value="$(ProjOutDir)"/>
+            <IncludeFiles Value="../../src"/>
             <OtherUnitFiles Value="/home/dtamade/fafafa.core/src"/>
             <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
@@ -71,7 +71,7 @@
       <Filename Value="bin/minimal_crossprocess_test"/>
     </Target>
     <SearchPaths>
-      <IncludeFiles Value="$(ProjOutDir)"/>
+      <IncludeFiles Value="../../src"/>
       <OtherUnitFiles Value="/home/dtamade/fafafa.core/src"/>
       <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>

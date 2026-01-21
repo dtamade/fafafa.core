@@ -38,7 +38,7 @@
       <Filename Value="bin/benchmark_rwlock"/>
     </Target>
     <SearchPaths>
-      <IncludeFiles Value="$(ProjOutDir)"/>
+      <IncludeFiles Value="../../src"/>
       <OtherUnitFiles Value="../../src"/>
       <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
