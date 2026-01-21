@@ -37,9 +37,10 @@ type
     constructor Create(AMutex: PPThreadMutex; const AName: string; AWasRecovered: Boolean = False);
     destructor Destroy; override;
     function GetName: string;
-    // ILockGuard 实现
+    // IGuard 实现
     function IsLocked: Boolean;
     procedure Release;
+    procedure Unlock;
     // 新增：检查是否从崩溃中恢复
     function WasRecovered: Boolean;
   end;
@@ -72,10 +73,11 @@ type
     procedure Release;
     function Lock: ILockGuard;
     function TryLock: ILockGuard;
+    function TryLockFor(ATimeoutMs: Cardinal): ILockGuard;
     function LockGuard: ILockGuard;
-    
-    function TryAcquireLock: Boolean; overload;
-    function TryAcquireLock(ATimeoutMs: Cardinal): Boolean; overload;
+
+    function TryAcquire: Boolean; overload;
+    function TryAcquire(ATimeoutMs: Cardinal): Boolean; overload;
 
     // 现代化接口 - 带名称信息
     function LockNamed: INamedMutexGuard;
@@ -158,6 +160,12 @@ begin
     pthread_mutex_unlock(FMutex);
     FReleased := True;
   end;
+end;
+
+procedure TNamedMutexGuard.Unlock;
+begin
+  // Unlock 是 Release 的别名，直接调用 Release
+  Release;
 end;
 
 function TNamedMutexGuard.WasRecovered: Boolean;
@@ -411,6 +419,11 @@ begin
   Result := Self.TryLockNamed;
 end;
 
+function TNamedMutex.TryLockFor(ATimeoutMs: Cardinal): ILockGuard;
+begin
+  Result := Self.TryLockForNamed(ATimeoutMs);
+end;
+
 function TNamedMutex.LockGuard: ILockGuard;
 begin
   Result := Self.Lock;
@@ -504,7 +517,7 @@ begin
       [FOriginalName, SysErrorMessage(GetCErrno)]);
 end;
 
-function TNamedMutex.TryAcquireLock: Boolean;
+function TNamedMutex.TryAcquire: Boolean;
 var
   LResult: cint;
 begin
@@ -535,14 +548,14 @@ begin
     Result := False;
 end;
 
-function TNamedMutex.TryAcquireLock(ATimeoutMs: Cardinal): Boolean;
+function TNamedMutex.TryAcquire(ATimeoutMs: Cardinal): Boolean;
 var
   LTimespec: TTimeSpec;
   LResult: cint;
 begin
   Result := False; // 默认值，避免编译器警告
   if ATimeoutMs = 0 then
-    Exit(TryAcquireLock);
+    Exit(TryAcquire);
 
   if ATimeoutMs = Cardinal(-1) then
   begin

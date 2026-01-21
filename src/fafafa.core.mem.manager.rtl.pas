@@ -106,33 +106,25 @@ const
 
 procedure InstallRtlMemoryManager;
 var
-  LAuto: TAutoLock;
+  LGuard: ILockGuard;
 begin
-  LAuto := TAutoLock.Create(GManagerLock);
-  try
-    if GInstalled then Exit;
-    // Prepare allocator (wrapping System mem functions)
-    GAlloc := GetRtlAllocator;
-    System.GetMemoryManager(GOldManager);
-    System.SetMemoryManager(GRtlManager);
-    GInstalled := True;
-  finally
-    LAuto.Free;
-  end;
+  LGuard := GManagerLock.Lock;
+  if GInstalled then Exit;
+  // Prepare allocator (wrapping System mem functions)
+  GAlloc := GetRtlAllocator;
+  System.GetMemoryManager(GOldManager);
+  System.SetMemoryManager(GRtlManager);
+  GInstalled := True;
 end;
 
 procedure UninstallRtlMemoryManager;
 var
-  LAuto: TAutoLock;
+  LGuard: ILockGuard;
 begin
-  LAuto := TAutoLock.Create(GManagerLock);
-  try
-    if not GInstalled then Exit;
-    System.SetMemoryManager(GOldManager);
-    GInstalled := False;
-  finally
-    LAuto.Free;
-  end;
+  LGuard := GManagerLock.Lock;
+  if not GInstalled then Exit;
+  System.SetMemoryManager(GOldManager);
+  GInstalled := False;
 end;
 
 function IsRtlMemoryManagerInstalled: Boolean;

@@ -111,33 +111,25 @@ const
 
 procedure InstallCrtMemoryManager;
 var
-  LAuto: TAutoLock;
+  LGuard: ILockGuard;
 begin
-  LAuto := TAutoLock.Create(GManagerLock);
-  try
-    if GInstalled then Exit;
-    // Prepare allocator (uses CRT C runtime under the hood)
-    GAlloc := GetCrtAllocator;
-    System.GetMemoryManager(GOldManager);
-    System.SetMemoryManager(GCrtManager);
-    GInstalled := True;
-  finally
-    LAuto.Free;
-  end;
+  LGuard := GManagerLock.Lock;
+  if GInstalled then Exit;
+  // Prepare allocator (uses CRT C runtime under the hood)
+  GAlloc := GetCrtAllocator;
+  System.GetMemoryManager(GOldManager);
+  System.SetMemoryManager(GCrtManager);
+  GInstalled := True;
 end;
 
 procedure UninstallCrtMemoryManager;
 var
-  LAuto: TAutoLock;
+  LGuard: ILockGuard;
 begin
-  LAuto := TAutoLock.Create(GManagerLock);
-  try
-    if not GInstalled then Exit;
-    System.SetMemoryManager(GOldManager);
-    GInstalled := False;
-  finally
-    LAuto.Free;
-  end;
+  LGuard := GManagerLock.Lock;
+  if not GInstalled then Exit;
+  System.SetMemoryManager(GOldManager);
+  GInstalled := False;
 end;
 
 function IsCrtMemoryManagerInstalled: Boolean;

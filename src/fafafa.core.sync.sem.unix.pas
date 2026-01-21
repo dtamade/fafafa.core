@@ -56,7 +56,8 @@ type
     destructor Destroy; override;
     function GetCount: Integer;
     function IsLocked: Boolean;  // IGuard.IsLocked
-    procedure Release;  // ILockGuard.Release
+    procedure Release;  // IGuard.Release
+    procedure Unlock;   // IGuard.Unlock
   end;
 
 implementation
@@ -339,6 +340,12 @@ begin
     FSem.Release(FCount);
     FReleased := True;
   end;
+end;
+
+procedure TSemGuard.Unlock;
+begin
+  // Unlock 是 Release 的别名，直接调用 Release
+  Release;
 end;
 
 function TSemaphore.AcquireGuard: ISemGuard;
