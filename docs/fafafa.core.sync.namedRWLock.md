@@ -541,6 +541,355 @@ end;
 - 通过共享内存 (`shm_open`) 实现跨进程共享
 - 支持原生超时控制 (`pthread_rwlock_timed*`)
 
+## Unix 平台详解
+
+### 权限管理
+
+#### 创建权限
+
+命名读写锁在 Unix 平台上使用共享内存 + `pthread_rwlock_t` 实现，创建时需要指定权限：
+
+```pascal
+// 默认权限：0644 (rw-r--r--)
+LRWLock := MakeNamedRWLock('MyRWLock');
+
+// 自定义权限
+LConfig := DefaultNamedRWLockConfig;
+LConfig.Permissions := &0666;  // rw-rw-rw-
+LRWLock := MakeNamedRWLockWithConfig('MyRWLock', LConfig);
+```
+
+**权限说明**：
+- **0644** (默认)：所有者可读写，组和其他用户只读
+- **0666**：所有用户可读写
+- **0600**：仅所有者可读写
+- **0660**：所有者和组可读写
+
+**权限影响**：
+- 创建者进程的 umask 会影响最终权限
+- 其他进程访问时需要有相应的读写权限
+- 权限不足会导致 `shm_open` 失败并返回 `EACCES` 错误
+
+#### 所有权
+
+- 共享内存对象的所有者是创建它的进程的有效用户ID (euid)
+- 所有者可以修改权限（通过 `fchmod` 系统调用）
+- 非所有者进程需要有相应权限才能访问
+
+### 命名空间管理
+
+#### 命名规则
+
+Unix 平台的命名读写锁遵循 POSIX 共享内存对象规范：
+
+```pascal
+// 自动添加 / 前缀
+LRWLock := MakeNamedRWLock('MyRWLock');
+// 实际名称：/MyRWLock
+
+// 不能包含额外的 / 字符
+LRWLock := MakeNamedRWLock('App/MyRWLock');  // 错误！会抛出异常
+```
+
+**命名限制**：
+- 名称长度：最多 255 字符 (NAME_MAX)
+- 必须以字母或数字开头
+- 只能包含字母、数字、下划线、点号
+- 不能包含 `/` 字符（除了自动添加的前缀）
+- 区分大小写：`MyRWLock` 和 `myrwlock` 是不同的读写锁
+
+#### 命名空间隔离
+
+Unix 平台的共享内存对象是**全局的**，没有类似 Windows 的 `Global\` 和 `Local\` 命名空间：
+
+```pascal
+// Unix 平台：所有进程共享同一命名空间
+// 进程 A
+LRWLock := MakeNamedRWLock('SharedRWLock');
+
+// 进程 B（不同用户）
+LRWLock := MakeNamedRWLock('SharedRWLock');  // 访问同一个读写锁（如果权限允许）
+```
+
+**命名空间特点**：
+- 所有进程共享同一命名空间
+- 不同用户的进程可以访问同一命名对象（如果权限允许）
+- 建议使用应用程序特定的前缀避免冲突：
+  ```pascal
+  LRWLock := MakeNamedRWLock('MyApp.Module.RWLock');
+  ```
+
+#### 命名冲突处理
+
+```pascal
+// 场景1：同名读写锁已存在
+LRWLock1 := MakeNamedRWLock('SharedRWLock');  // 创建
+LRWLock2 := MakeNamedRWLock('SharedRWLock');  // 打开现有的
+
+// 场景2：避免冲突的命名策略
+LRWLock := MakeNamedRWLock('com.mycompany.myapp.rwlock');  // 使用反向域名
+LRWLock := MakeNamedRWLock(Format('MyApp.%d.RWLock', [GetProcessID]));  // 包含进程ID
+```
+
+### 清理语义
+
+#### 自动清理
+
+Unix 平台的命名读写锁具有以下自动清理特性：
+
+**进程退出时**：
+- 进程持有的读锁或写锁会自动释放
+- 共享内存的引用计数减1
+- 如果引用计数降为0，共享内存对象会被标记为删除
+
+**系统重启时**：
+- 所有共享内存对象会被清理
+- 不会留下"僵尸"对象
+
+#### 手动清理
+
+```pascal
+// 方式1：通过接口引用计数自动清理
+var
+  LRWLock: INamedRWLock;
+begin
+  LRWLock := MakeNamedRWLock('MyRWLock');
+  // 使用读写锁...
+  LRWLock := nil;  // 自动调用 shm_unlink
+end;
+
+// 方式2：显式删除（仅创建者）
+LRWLock := MakeNamedRWLock('MyRWLock');
+// 使用完毕后
+shm_unlink('/MyRWLock');  // 从系统中删除（需要手动调用系统API）
+```
+
+**清理注意事项**：
+- 关闭共享内存只是关闭当前进程的引用，不会删除共享内存对象
+- `shm_unlink` 会从系统中删除共享内存，但已打开的引用仍然有效
+- 建议由创建者进程负责调用 `shm_unlink` 清理
+
+#### 资源泄漏预防
+
+```pascal
+// 好的做法：使用 try-finally 确保清理
+var
+  LRWLock: INamedRWLock;
+begin
+  LRWLock := MakeNamedRWLock('MyRWLock');
+  try
+    // 使用读写锁...
+  finally
+    LRWLock := nil;  // 确保释放
+  end;
+end;
+
+// 避免：忘记释放引用
+var
+  LRWLock: INamedRWLock;
+begin
+  LRWLock := MakeNamedRWLock('MyRWLock');
+  // 使用读写锁...
+  // 忘记设置 LRWLock := nil
+end;  // 引用计数在作用域结束时自动减少，但最好显式清理
+```
+
+### 系统限制
+
+#### 资源限制
+
+Unix 系统对共享内存对象有以下限制：
+
+```bash
+# 查看系统限制
+cat /proc/sys/kernel/shmmax  # 单个共享内存段的最大大小（字节）
+cat /proc/sys/kernel/shmall  # 系统范围内共享内存的总大小（页）
+cat /proc/sys/kernel/shmmni  # 系统范围内共享内存段的最大数量
+
+# 查看当前使用情况
+ipcs -m  # 显示所有共享内存段
+```
+
+**常见限制**：
+- **SHMMAX**：单个共享内存段的最大大小（通常为几GB）
+- **SHMALL**：系统范围内共享内存的总大小（通常为几GB）
+- **SHMMNI**：系统范围内共享内存段的最大数量（通常为 4096）
+
+**超出限制时**：
+- `shm_open` 会失败并返回 `ENOSPC` 或 `ENOMEM` 错误
+- 需要清理未使用的共享内存或调整系统限制
+
+#### 文件系统位置
+
+命名共享内存对象在文件系统中的位置：
+
+```bash
+# Linux
+/dev/shm/MyRWLock
+
+# macOS
+/var/tmp/MyRWLock
+
+# 查看所有命名共享内存对象
+ls -l /dev/shm/ 2>/dev/null || ls -l /var/tmp/
+```
+
+### 读写锁特性
+
+#### 读写锁属性
+
+Unix 平台的 `pthread_rwlock_t` 支持以下属性：
+
+```pascal
+// 读者优先（默认）
+LConfig := DefaultNamedRWLockConfig;
+LConfig.ReaderPriority := True;
+LRWLock := MakeNamedRWLockWithConfig('MyRWLock', LConfig);
+
+// 写者优先
+LConfig.ReaderPriority := False;
+LRWLock := MakeNamedRWLockWithConfig('MyRWLock', LConfig);
+```
+
+**优先级策略**：
+- **读者优先**：新的读者可以插队，可能导致写者饥饿
+- **写者优先**：新的写者可以插队，可能导致读者饥饿
+- **公平策略**：按FIFO顺序，避免饥饿（部分系统支持）
+
+#### 超时控制
+
+Unix 平台支持原生的超时控制：
+
+```pascal
+// 带超时的读锁
+LReadGuard := LRWLock.TryReadLockFor(1000);  // 1秒超时
+
+// 带超时的写锁
+LWriteGuard := LRWLock.TryWriteLockFor(1000);  // 1秒超时
+```
+
+**超时实现**：
+- 使用 `pthread_rwlock_timedrdlock` 和 `pthread_rwlock_timedwrlock`
+- 超时精度取决于系统调度器（通常为毫秒级）
+- 超时时返回 `ETIMEDOUT` 错误
+
+### 跨平台差异
+
+#### Windows vs Unix
+
+| 特性 | Windows | Unix/Linux |
+|------|---------|------------|
+| 实现机制 | SRW Lock + 共享内存 | pthread_rwlock_t + 共享内存 |
+| 命名空间 | `Global\` / `Local\` | 全局（无隔离） |
+| 权限模型 | ACL（访问控制列表） | Unix 权限（rwx） |
+| 读写优先级 | 不可配置 | 可配置（读者/写者优先） |
+| 超时控制 | 支持 | 支持（原生） |
+| 自动清理 | 进程退出时自动 | 进程退出时自动 |
+| 持久化 | 仅在进程存在时 | 仅在进程存在时 |
+| 系统重启 | 自动清理 | 自动清理 |
+
+#### 可移植性建议
+
+```pascal
+// 好的做法：使用统一的命名约定
+{$IFDEF WINDOWS}
+  LRWLock := MakeNamedRWLock('Global\MyApp.RWLock');
+{$ELSE}
+  LRWLock := MakeNamedRWLock('MyApp.RWLock');
+{$ENDIF}
+
+// 更好的做法：使用配置抽象平台差异
+LConfig := DefaultNamedRWLockConfig;
+{$IFDEF WINDOWS}
+  LConfig.UseGlobalNamespace := True;
+{$ELSE}
+  LConfig.Permissions := &0666;
+  LConfig.ReaderPriority := True;
+{$ENDIF}
+LRWLock := MakeNamedRWLockWithConfig('MyApp.RWLock', LConfig);
+```
+
+### 调试与诊断
+
+#### 查看共享内存对象
+
+```bash
+# Linux：查看所有共享内存对象
+ls -lh /dev/shm/
+
+# macOS：查看所有共享内存对象
+ls -lh /var/tmp/
+
+# 查看特定共享内存对象的详细信息
+stat /dev/shm/MyRWLock
+
+# 查看共享内存使用情况
+ipcs -m
+```
+
+#### 清理僵尸共享内存
+
+```bash
+# 手动删除未使用的共享内存对象
+rm /dev/shm/MyRWLock
+
+# 清理所有共享内存对象（谨慎使用！）
+rm /dev/shm/*
+
+# 使用 ipcrm 删除共享内存段
+ipcrm -m <shmid>
+```
+
+#### 常见问题诊断
+
+**问题1：权限不足**
+```
+错误：shm_open failed with EACCES
+原因：当前用户没有访问权限
+解决：
+1. 检查共享内存对象权限：ls -l /dev/shm/MyRWLock
+2. 修改权限：chmod 666 /dev/shm/MyRWLock
+3. 或使用更宽松的创建权限：LConfig.Permissions := &0666
+```
+
+**问题2：资源耗尽**
+```
+错误：shm_open failed with ENOSPC
+原因：系统共享内存数量达到上限
+解决：
+1. 查看系统限制：cat /proc/sys/kernel/shmmni
+2. 清理未使用的共享内存：ipcs -m | grep <user> | awk '{print $2}' | xargs ipcrm -m
+3. 调整系统限制（需要 root）：sysctl -w kernel.shmmni=8192
+```
+
+**问题3：名称冲突**
+```
+错误：不同应用使用相同名称
+原因：命名空间全局共享
+解决：使用应用程序特定的前缀
+LRWLock := MakeNamedRWLock('com.mycompany.myapp.rwlock');
+```
+
+**问题4：死锁**
+```
+错误：线程永久阻塞
+原因：锁获取顺序不一致或嵌套锁
+解决：
+1. 使用超时避免永久阻塞：TryReadLockFor(5000)
+2. 按固定顺序获取多个锁
+3. 避免在持有写锁时再次获取读锁
+```
+
+**问题5：写者饥饿**
+```
+错误：写者长时间无法获取锁
+原因：读者优先策略导致写者饥饿
+解决：
+1. 使用写者优先策略：LConfig.ReaderPriority := False
+2. 或使用公平策略（如果系统支持）
+3. 限制读锁的持有时间
+```
+
 ## 故障排除
 
 ### 常见问题

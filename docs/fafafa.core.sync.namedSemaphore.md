@@ -333,6 +333,331 @@ end;
 - 不能包含额外的 `/` 字符
 - 区分大小写
 
+## Unix 平台详解
+
+### 权限管理
+
+#### 创建权限
+
+命名信号量在 Unix 平台上使用 POSIX 命名信号量实现，创建时需要指定权限：
+
+```pascal
+// 默认权限：0644 (rw-r--r--)
+LSem := MakeNamedSemaphore('MySemaphore', 5);
+
+// 自定义权限
+LConfig := DefaultNamedSemaphoreConfig;
+LConfig.Permissions := &0666;  // rw-rw-rw-
+LSem := MakeNamedSemaphoreWithConfig('MySemaphore', 5, LConfig);
+```
+
+**权限说明**：
+- **0644** (默认)：所有者可读写，组和其他用户只读
+- **0666**：所有用户可读写
+- **0600**：仅所有者可读写
+- **0660**：所有者和组可读写
+
+**权限影响**：
+- 创建者进程的 umask 会影响最终权限
+- 其他进程访问时需要有相应的读写权限
+- 权限不足会导致 `sem_open` 失败并返回 `EACCES` 错误
+
+#### 所有权
+
+- 命名信号量的所有者是创建它的进程的有效用户ID (euid)
+- 所有者可以修改权限（通过 `chmod` 系统调用）
+- 非所有者进程需要有相应权限才能访问
+
+### 命名空间管理
+
+#### 命名规则
+
+Unix 平台的命名信号量遵循 POSIX 命名信号量规范：
+
+```pascal
+// 自动添加 / 前缀
+LSem := MakeNamedSemaphore('MySemaphore', 5);
+// 实际名称：/MySemaphore
+
+// 不能包含额外的 / 字符
+LSem := MakeNamedSemaphore('App/MySemaphore', 5);  // 错误！会抛出异常
+```
+
+**命名限制**：
+- 名称长度：最多 255 字符 (NAME_MAX)
+- 必须以字母或数字开头
+- 只能包含字母、数字、下划线、点号
+- 不能包含 `/` 字符（除了自动添加的前缀）
+- 区分大小写：`MySemaphore` 和 `mysemaphore` 是不同的信号量
+
+#### 命名空间隔离
+
+Unix 平台的命名信号量是**全局的**，没有类似 Windows 的 `Global\` 和 `Local\` 命名空间：
+
+```pascal
+// Unix 平台：所有进程共享同一命名空间
+// 进程 A
+LSem := MakeNamedSemaphore('SharedSemaphore', 5);
+
+// 进程 B（不同用户）
+LSem := MakeNamedSemaphore('SharedSemaphore', 5);  // 访问同一个信号量（如果权限允许）
+```
+
+**命名空间特点**：
+- 所有进程共享同一命名空间
+- 不同用户的进程可以访问同一命名对象（如果权限允许）
+- 建议使用应用程序特定的前缀避免冲突：
+  ```pascal
+  LSem := MakeNamedSemaphore('MyApp.Module.Semaphore', 5);
+  ```
+
+#### 命名冲突处理
+
+```pascal
+// 场景1：同名信号量已存在
+LSem1 := MakeNamedSemaphore('SharedSemaphore', 5);  // 创建
+LSem2 := MakeNamedSemaphore('SharedSemaphore', 5);  // 打开现有的
+
+// 场景2：避免冲突的命名策略
+LSem := MakeNamedSemaphore('com.mycompany.myapp.semaphore', 5);  // 使用反向域名
+LSem := MakeNamedSemaphore(Format('MyApp.%d.Semaphore', [GetProcessID]), 5);  // 包含进程ID
+```
+
+### 清理语义
+
+#### 自动清理
+
+Unix 平台的命名信号量具有以下自动清理特性：
+
+**进程退出时**：
+- 进程持有的信号量资源会自动释放
+- 信号量的引用计数减1
+- 如果引用计数降为0，信号量对象会被标记为删除
+
+**系统重启时**：
+- 所有命名信号量会被清理
+- 不会留下"僵尸"对象
+
+#### 手动清理
+
+```pascal
+// 方式1：通过接口引用计数自动清理
+var
+  LSem: INamedSemaphore;
+begin
+  LSem := MakeNamedSemaphore('MySemaphore', 5);
+  // 使用信号量...
+  LSem := nil;  // 自动调用 sem_close
+end;
+
+// 方式2：显式删除（仅创建者）
+LSem := MakeNamedSemaphore('MySemaphore', 5);
+// 使用完毕后
+sem_unlink('/MySemaphore');  // 从系统中删除（需要手动调用系统API）
+```
+
+**清理注意事项**：
+- `sem_close` 只是关闭当前进程的引用，不会删除信号量对象
+- `sem_unlink` 会从系统中删除信号量，但已打开的引用仍然有效
+- 建议由创建者进程负责调用 `sem_unlink` 清理
+
+#### 资源泄漏预防
+
+```pascal
+// 好的做法：使用 try-finally 确保清理
+var
+  LSem: INamedSemaphore;
+begin
+  LSem := MakeNamedSemaphore('MySemaphore', 5);
+  try
+    // 使用信号量...
+  finally
+    LSem := nil;  // 确保释放
+  end;
+end;
+```
+
+### 系统限制
+
+#### 资源限制
+
+Unix 系统对命名信号量有以下限制：
+
+```bash
+# 查看系统限制
+cat /proc/sys/kernel/sem
+# 输出：SEMMSL  SEMMNS  SEMOPM  SEMMNI
+#       250     32000   32      128
+```
+
+**常见限制**：
+- **SEMMNI**：系统范围内的信号量集数量（通常为 128）
+- **SEMMNS**：系统范围内的信号量总数（通常为 32000）
+- **SEMMSL**：每个信号量集的最大信号量数（通常为 250）
+
+**超出限制时**：
+- `sem_open` 会失败并返回 `ENOSPC` 错误
+- 需要清理未使用的信号量或调整系统限制
+
+#### 文件系统位置
+
+命名信号量在文件系统中的位置：
+
+```bash
+# Linux
+/dev/shm/sem.MySemaphore
+
+# macOS
+/var/tmp/sem.MySemaphore
+
+# 查看所有命名信号量
+ls -l /dev/shm/sem.* 2>/dev/null || ls -l /var/tmp/sem.* 2>/dev/null
+```
+
+### 信号量特性
+
+#### 计数值管理
+
+Unix 平台的 POSIX 信号量支持计数值：
+
+```pascal
+// 创建初始计数为 5 的信号量
+LSem := MakeNamedSemaphore('MySemaphore', 5);
+
+// 获取当前计数值
+LCount := LSem.GetValue;
+WriteLn('当前计数: ', LCount);
+
+// Post 操作增加计数
+LSem.Post;  // 计数 +1
+
+// Wait 操作减少计数
+LSem.Wait;  // 计数 -1，如果计数为 0 则阻塞
+```
+
+**计数值特点**：
+- 初始计数值在创建时指定
+- `Post` 操作原子地增加计数值
+- `Wait` 操作原子地减少计数值（如果计数为 0 则阻塞）
+- 计数值不能为负数
+
+#### 超时控制
+
+Unix 平台支持原生的超时控制：
+
+```pascal
+// 带超时的等待
+if LSem.WaitTimeout(1000) then  // 1秒超时
+  WriteLn('获取信号量成功')
+else
+  WriteLn('等待超时');
+```
+
+**超时实现**：
+- 使用 `sem_timedwait` 实现
+- 超时精度取决于系统调度器（通常为毫秒级）
+- 超时时返回 `ETIMEDOUT` 错误
+
+### 跨平台差异
+
+#### Windows vs Unix
+
+| 特性 | Windows | Unix/Linux |
+|------|---------|------------|
+| 实现机制 | 内核 Semaphore 对象 | POSIX 命名信号量 |
+| 命名空间 | `Global\` / `Local\` | 全局（无隔离） |
+| 权限模型 | ACL（访问控制列表） | Unix 权限（rwx） |
+| 计数值查询 | 不支持 | 支持（sem_getvalue） |
+| 超时控制 | 支持 | 支持（原生） |
+| 自动清理 | 进程退出时自动 | 进程退出时自动 |
+| 持久化 | 仅在进程存在时 | 仅在进程存在时 |
+| 系统重启 | 自动清理 | 自动清理 |
+
+#### 可移植性建议
+
+```pascal
+// 好的做法：使用统一的命名约定
+{$IFDEF WINDOWS}
+  LSem := MakeNamedSemaphore('Global\MyApp.Semaphore', 5);
+{$ELSE}
+  LSem := MakeNamedSemaphore('MyApp.Semaphore', 5);
+{$ENDIF}
+
+// 更好的做法：使用配置抽象平台差异
+LConfig := DefaultNamedSemaphoreConfig;
+{$IFDEF WINDOWS}
+  LConfig.UseGlobalNamespace := True;
+{$ELSE}
+  LConfig.Permissions := &0666;
+{$ENDIF}
+LSem := MakeNamedSemaphoreWithConfig('MyApp.Semaphore', 5, LConfig);
+```
+
+### 调试与诊断
+
+#### 查看命名信号量
+
+```bash
+# Linux：查看所有命名信号量
+ls -lh /dev/shm/sem.*
+
+# macOS：查看所有命名信号量
+ls -lh /var/tmp/sem.*
+
+# 查看特定信号量的详细信息
+stat /dev/shm/sem.MySemaphore
+```
+
+#### 清理僵尸信号量
+
+```bash
+# 手动删除未使用的信号量
+rm /dev/shm/sem.MySemaphore
+
+# 清理所有信号量（谨慎使用！）
+rm /dev/shm/sem.*
+```
+
+#### 常见问题诊断
+
+**问题1：权限不足**
+```
+错误：sem_open failed with EACCES
+原因：当前用户没有访问权限
+解决：
+1. 检查信号量文件权限：ls -l /dev/shm/sem.MySemaphore
+2. 修改权限：chmod 666 /dev/shm/sem.MySemaphore
+3. 或使用更宽松的创建权限：LConfig.Permissions := &0666
+```
+
+**问题2：资源耗尽**
+```
+错误：sem_open failed with ENOSPC
+原因：系统信号量数量达到上限
+解决：
+1. 查看系统限制：cat /proc/sys/kernel/sem
+2. 清理未使用的信号量：rm /dev/shm/sem.*
+3. 调整系统限制（需要 root）：sysctl -w kernel.sem="250 32000 32 256"
+```
+
+**问题3：名称冲突**
+```
+错误：不同应用使用相同名称
+原因：命名空间全局共享
+解决：使用应用程序特定的前缀
+LSem := MakeNamedSemaphore('com.mycompany.myapp.semaphore', 5);
+```
+
+**问题4：计数值异常**
+```
+错误：信号量计数值不符合预期
+原因：多个进程同时操作或异常退出
+解决：
+1. 使用 GetValue 查看当前计数
+2. 检查是否有进程异常退出未释放
+3. 必要时重新创建信号量
+```
+
 ## 错误处理
 
 ### 异常类型
