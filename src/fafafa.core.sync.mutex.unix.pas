@@ -28,13 +28,14 @@ type
     FMutex: pthread_mutex_t;
     FHasOwner: Boolean;
     FOwner: pthread_t;
+    FUseNormalType: Boolean;  // 是否使用 PTHREAD_MUTEX_NORMAL 类型（用于 CondVar）
     // Poisoning 状态 - 使用 volatile 语义
     FPoisoned: LongInt;  // 使用 LongInt 支持原子操作 (0=false, 1=true)
     FPoisoningThreadId: TThreadID;
     FPoisoningException: string;
     FPoisonLock: pthread_mutex_t;  // 保护 poison 状态的轻量锁
   public
-    constructor Create; reintroduce;
+    constructor Create(AUseNormalType: Boolean = False); reintroduce;
     destructor Destroy; override;
 
     // ITryLock 继承的方法
@@ -135,8 +136,8 @@ end;
 
 function MakePthreadMutex: IMutex;
 begin
-  // 始终使用 pthread_mutex 实现，与 pthread_cond_* 兼容
-  Result := TMutex.Create;
+  // 使用 PTHREAD_MUTEX_NORMAL 类型，与 pthread_cond_* 兼容
+  Result := TMutex.Create(True);
 end;
 
 function MakeFutexMutex: IMutex;
@@ -152,12 +153,14 @@ end;
 
 { TMutex - 传统 pthread 实现 }
 
-constructor TMutex.Create;
+constructor TMutex.Create(AUseNormalType: Boolean);
 var
   Attr: pthread_mutexattr_t;
+  LMutexType: cint;
 begin
   inherited Create;
   FHasOwner := False;
+  FUseNormalType := AUseNormalType;
   FPoisoned := 0;
   FPoisoningThreadId := 0;
   FPoisoningException := '';
@@ -174,11 +177,16 @@ begin
   end;
 
   try
-    // 设置为 error-checking 互斥锁（检测同线程重复获取），避免死锁
-    if pthread_mutexattr_settype(@Attr, PTHREAD_MUTEX_ERRORCHECK) <> 0 then
+    // 根据参数选择 mutex 类型
+    if AUseNormalType then
+      LMutexType := PTHREAD_MUTEX_NORMAL  // 用于 CondVar（无所有者检查）
+    else
+      LMutexType := PTHREAD_MUTEX_ERRORCHECK;  // 默认（检测同线程重复获取）
+    
+    if pthread_mutexattr_settype(@Attr, LMutexType) <> 0 then
     begin
       pthread_mutex_destroy(@FPoisonLock);
-      raise ELockError.Create('Failed to set mutex type to error-check');
+      raise ELockError.Create('Failed to set mutex type');
     end;
 
     // 初始化互斥锁
@@ -336,6 +344,9 @@ end;
 
 {$IFDEF FAFAFA_CORE_USE_FUTEX}
 { TFutexMutex - 现代 futex 实现 }
+
+{$PUSH}
+{$WARN 4055 OFF} // pointer/ordinal conversions for futex syscalls
 
 constructor TFutexMutex.Create;
 begin
@@ -654,6 +665,8 @@ begin
     pthread_mutex_unlock(@FPoisonLock);
   end;
 end;
+
+{$POP}
 
 {$ENDIF}
 

@@ -13,41 +13,10 @@ uses
   Windows,
   {$ENDIF}
   fafafa.core.sync.base,
-  fafafa.core.sync.sem;
-
-{$IFNDEF WINDOWS}
-const
-  CLOCK_MONOTONIC = 1;
+  fafafa.core.sync.sem,
+  fafafa.core.benchmark.utils;
 
 type
-  TTimeSpec = record
-    tv_sec: Int64;
-    tv_nsec: Int64;
-  end;
-  PTimeSpec = ^TTimeSpec;
-
-function clock_gettime(clk_id: Integer; tp: PTimeSpec): Integer; cdecl; external 'c';
-{$ENDIF}
-
-type
-  THighResTime = record
-    {$IFDEF WINDOWS}
-    Value: Int64;
-    {$ELSE}
-    Sec: Int64;
-    NSec: Int64;
-    {$ENDIF}
-  end;
-
-  TBenchmarkResult = record
-    TestName: string;
-    ThreadCount: Integer;
-    Operations: Int64;
-    ElapsedNs: Int64;
-    OpsPerSecond: Double;
-    AvgLatencyNs: Double;
-  end;
-
   TWorkerThread = class(TThread)
   private
     FSem: ISem;
@@ -59,35 +28,6 @@ type
   public
     constructor Create(ASem: ISem; AOperations: PInt64; ADurationNs: Int64; const AStartTime: THighResTime);
   end;
-
-{$IFDEF WINDOWS}
-var
-  Frequency: Int64;
-{$ENDIF}
-
-function GetHighResTime: THighResTime;
-{$IFNDEF WINDOWS}
-var
-  ts: TTimeSpec;
-{$ENDIF}
-begin
-  {$IFDEF WINDOWS}
-  QueryPerformanceCounter(Result.Value);
-  {$ELSE}
-  clock_gettime(CLOCK_MONOTONIC, @ts);
-  Result.Sec := ts.tv_sec;
-  Result.NSec := ts.tv_nsec;
-  {$ENDIF}
-end;
-
-function CalcElapsedNs(const AStart, AEnd: THighResTime): Int64;
-begin
-  {$IFDEF WINDOWS}
-  Result := ((AEnd.Value - AStart.Value) * 1000000000) div Frequency;
-  {$ELSE}
-  Result := (AEnd.Sec - AStart.Sec) * 1000000000 + (AEnd.NSec - AStart.NSec);
-  {$ENDIF}
-end;
 
 { TWorkerThread }
 
@@ -172,14 +112,6 @@ begin
      AResult.ElapsedNs / 1000000.0, AResult.OpsPerSecond, AResult.AvgLatencyNs]));
 end;
 
-procedure PrintHeader;
-begin
-  WriteLn(StringOfChar('=', 120));
-  WriteLn('Semaphore Performance Benchmark');
-  WriteLn(StringOfChar('=', 120));
-  WriteLn;
-end;
-
 procedure RunAllBenchmarks;
 const
   DURATION_MS = 1000;  // 1 second per test
@@ -187,8 +119,10 @@ const
 var
   i: Integer;
   LResult: TBenchmarkResult;
+  LResults: TBenchmarkResults;
 begin
-  PrintHeader;
+  PrintHeader('Semaphore Performance Benchmark');
+  SetLength(LResults, 0);
   
   // Binary semaphore (max count = 1, like mutex)
   WriteLn('--- Binary Semaphore (Max Count = 1) ---');
@@ -196,6 +130,8 @@ begin
   begin
     LResult := RunBenchmark('Semaphore/Binary', THREAD_COUNTS[i], DURATION_MS, 1);
     PrintResult(LResult);
+    SetLength(LResults, Length(LResults) + 1);
+    LResults[High(LResults)] := LResult;
   end;
   WriteLn;
   
@@ -205,6 +141,8 @@ begin
   begin
     LResult := RunBenchmark('Semaphore/Count4', THREAD_COUNTS[i], DURATION_MS, 4);
     PrintResult(LResult);
+    SetLength(LResults, Length(LResults) + 1);
+    LResults[High(LResults)] := LResult;
   end;
   WriteLn;
   
@@ -214,6 +152,8 @@ begin
   begin
     LResult := RunBenchmark('Semaphore/Count8', THREAD_COUNTS[i], DURATION_MS, 8);
     PrintResult(LResult);
+    SetLength(LResults, Length(LResults) + 1);
+    LResults[High(LResults)] := LResult;
   end;
   WriteLn;
   
@@ -223,26 +163,26 @@ begin
   begin
     LResult := RunBenchmark('Semaphore/Count16', THREAD_COUNTS[i], DURATION_MS, 16);
     PrintResult(LResult);
+    SetLength(LResults, Length(LResults) + 1);
+    LResults[High(LResults)] := LResult;
   end;
   WriteLn;
   
-  WriteLn(StringOfChar('=', 120));
-  WriteLn('Benchmark Complete');
-  WriteLn(StringOfChar('=', 120));
+  PrintFooter;
+  
+  // Save results to CSV and JSON
+  SaveResultsToCSV(LResults, 'semaphore_benchmark_results.csv');
+  SaveResultsToJSON(LResults, 'semaphore_benchmark_results.json');
+  WriteLn;
+  WriteLn('Results saved to:');
+  WriteLn('  - semaphore_benchmark_results.csv');
+  WriteLn('  - semaphore_benchmark_results.json');
 end;
 
 begin
   {$IFDEF WINDOWS}
-  QueryPerformanceFrequency(Frequency);
+  SetConsoleOutputCP(CP_UTF8);
   {$ENDIF}
   
-  try
-    RunAllBenchmarks;
-  except
-    on E: Exception do
-    begin
-      WriteLn('Error: ', E.Message);
-      ExitCode := 1;
-    end;
-  end;
+  RunAllBenchmarks;
 end.

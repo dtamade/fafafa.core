@@ -1,0 +1,132 @@
+{
+  "benchmarks": [
+    {
+      "name": "Semaphore/Binary",
+      "thread_count": 1,
+      "operations": 4248576,
+      "elapsed_ms": 1000.818,
+      "ops_per_second": 4245104,
+      "avg_latency_ns": 235.57
+    },
+    {
+      "name": "Semaphore/Binary",
+      "thread_count": 2,
+      "operations": 1125376,
+      "elapsed_ms": 1001.075,
+      "ops_per_second": 1124168,
+      "avg_latency_ns": 889.55
+    },
+    {
+      "name": "Semaphore/Binary",
+      "thread_count": 4,
+      "operations": 486400,
+      "elapsed_ms": 1101.183,
+      "ops_per_second": 441707,
+      "avg_latency_ns": 2263.94
+    },
+    {
+      "name": "Semaphore/Binary",
+      "thread_count": 8,
+      "operations": 253952,
+      "elapsed_ms": 1101.198,
+      "ops_per_second": 230614,
+      "avg_latency_ns": 4336.24
+    },
+    {
+      "name": "Semaphore/Count4",
+      "thread_count": 1,
+      "operations": 3698688,
+      "elapsed_ms": 1000.763,
+      "ops_per_second": 3695867,
+      "avg_latency_ns": 270.57
+    },
+    {
+      "name": "Semaphore/Count4",
+      "thread_count": 2,
+      "operations": 2300928,
+      "elapsed_ms": 1000.914,
+      "ops_per_second": 2298827,
+      "avg_latency_ns": 435.00
+    },
+    {
+      "name": "Semaphore/Count4",
+      "thread_count": 4,
+      "operations": 1793024,
+      "elapsed_ms": 1100.914,
+      "ops_per_second": 1628668,
+      "avg_latency_ns": 614.00
+    },
+    {
+      "name": "Semaphore/Count4",
+      "thread_count": 8,
+      "operations": 631808,
+      "elapsed_ms": 1101.001,
+      "ops_per_second": 573849,
+      "avg_latency_ns": 1742.62
+    },
+    {
+      "name": "Semaphore/Count8",
+      "thread_count": 1,
+      "operations": 3561472,
+      "elapsed_ms": 1000.748,
+      "ops_per_second": 3558812,
+      "avg_latency_ns": 280.99
+    },
+    {
+      "name": "Semaphore/Count8",
+      "thread_count": 2,
+      "operations": 1602560,
+      "elapsed_ms": 1000.803,
+      "ops_per_second": 1601274,
+      "avg_latency_ns": 624.50
+    },
+    {
+      "name": "Semaphore/Count8",
+      "thread_count": 4,
+      "operations": 1808384,
+      "elapsed_ms": 1100.976,
+      "ops_per_second": 1642528,
+      "avg_latency_ns": 608.82
+    },
+    {
+      "name": "Semaphore/Count8",
+      "thread_count": 8,
+      "operations": 1599488,
+      "elapsed_ms": 1101.293,
+      "ops_per_second": 1452373,
+      "avg_latency_ns": 688.53
+    },
+    {
+      "name": "Semaphore/Count16",
+      "thread_count": 1,
+      "operations": 4224000,
+      "elapsed_ms": 1000.810,
+      "ops_per_second": 4220582,
+      "avg_latency_ns": 236.93
+    },
+    {
+      "name": "Semaphore/Count16",
+      "thread_count": 2,
+      "operations": 1847296,
+      "elapsed_ms": 1000.858,
+      "ops_per_second": 1845712,
+      "avg_latency_ns": 541.80
+    },
+    {
+      "name": "Semaphore/Count16",
+      "thread_count": 4,
+      "operations": 2123776,
+      "elapsed_ms": 1001.203,
+      "ops_per_second": 2121224,
+      "avg_latency_ns": 471.43
+    },
+    {
+      "name": "Semaphore/Count16",
+      "thread_count": 8,
+      "operations": 1571840,
+      "elapsed_ms": 1101.260,
+      "ops_per_second": 1427311,
+      "avg_latency_ns": 700.62
+    }
+  ]
+}

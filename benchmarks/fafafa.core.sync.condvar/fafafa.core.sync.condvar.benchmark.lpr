@@ -167,18 +167,20 @@ procedure TConsumerThread.Execute;
 var
   LLocalOps: Int64;
   LCurrentTime: THighResTime;
-  LGuard: ILockGuard;
 begin
   LLocalOps := 0;
   
   repeat
-    LGuard := FMutex.Lock;
-    while FCounter^ = 0 do
-    begin
-      FCondVar.Wait(FMutex);
+    FMutex.Acquire;
+    try
+      while FCounter^ = 0 do
+      begin
+        FCondVar.Wait(FMutex);  // 修复：使用手动 Acquire/Release 模式
+      end;
+      Dec(FCounter^);
+    finally
+      FMutex.Release;
     end;
-    Dec(FCounter^);
-    LGuard := nil;
     Inc(LLocalOps);
 
     // Check time every 256 operations
@@ -210,7 +212,11 @@ begin
   LCounter := 0;
   
   LCondVar := MakeCondVar;
+  {$IFDEF UNIX}
+  LMutex := MakePthreadMutex;  // 修复：使用与 pthread_cond_* 兼容的 mutex
+  {$ELSE}
   LMutex := MakeMutex;
+  {$ENDIF}
   LDurationNs := Int64(ADurationMs) * 1000000;
   
   SetLength(LThreads, AProducerCount + AConsumerCount);

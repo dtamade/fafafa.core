@@ -1,0 +1,68 @@
+{
+  "benchmarks": [
+    {
+      "name": "Event/AutoReset",
+      "thread_count": 2,
+      "operations": 3040768,
+      "elapsed_ms": 1901.564,
+      "ops_per_second": 1599088,
+      "avg_latency_ns": 625.36
+    },
+    {
+      "name": "Event/AutoReset",
+      "thread_count": 4,
+      "operations": 1152000,
+      "elapsed_ms": 1001.069,
+      "ops_per_second": 1150770,
+      "avg_latency_ns": 868.98
+    },
+    {
+      "name": "Event/AutoReset",
+      "thread_count": 8,
+      "operations": 651776,
+      "elapsed_ms": 2702.272,
+      "ops_per_second": 241196,
+      "avg_latency_ns": 4146.01
+    },
+    {
+      "name": "Event/AutoReset",
+      "thread_count": 16,
+      "operations": 484352,
+      "elapsed_ms": 1101.911,
+      "ops_per_second": 439556,
+      "avg_latency_ns": 2275.02
+    },
+    {
+      "name": "Event/ManualReset",
+      "thread_count": 2,
+      "operations": 1052928,
+      "elapsed_ms": 1000.803,
+      "ops_per_second": 1052083,
+      "avg_latency_ns": 950.50
+    },
+    {
+      "name": "Event/ManualReset",
+      "thread_count": 4,
+      "operations": 2354944,
+      "elapsed_ms": 1000.879,
+      "ops_per_second": 2352875,
+      "avg_latency_ns": 425.01
+    },
+    {
+      "name": "Event/ManualReset",
+      "thread_count": 8,
+      "operations": 1749504,
+      "elapsed_ms": 1000.973,
+      "ops_per_second": 1747804,
+      "avg_latency_ns": 572.15
+    },
+    {
+      "name": "Event/ManualReset",
+      "thread_count": 16,
+      "operations": 1662464,
+      "elapsed_ms": 1101.714,
+      "ops_per_second": 1508980,
+      "avg_latency_ns": 662.70
+    }
+  ]
+}

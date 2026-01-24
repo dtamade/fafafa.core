@@ -44,7 +44,7 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="..\..\src"/>
-      <OtherUnitFiles Value="..\..\src"/>
+      <OtherUnitFiles Value="..\..\src;..\utils"/>
       <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <CodeGeneration>

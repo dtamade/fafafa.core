@@ -1,0 +1,132 @@
+{
+  "benchmarks": [
+    {
+      "name": "RWLock/Read100%",
+      "thread_count": 1,
+      "operations": 560128,
+      "elapsed_ms": 1100.927,
+      "ops_per_second": 508778,
+      "avg_latency_ns": 1965.49
+    },
+    {
+      "name": "RWLock/Read100%",
+      "thread_count": 2,
+      "operations": 576512,
+      "elapsed_ms": 1100.923,
+      "ops_per_second": 523662,
+      "avg_latency_ns": 1909.63
+    },
+    {
+      "name": "RWLock/Read100%",
+      "thread_count": 4,
+      "operations": 529408,
+      "elapsed_ms": 1100.964,
+      "ops_per_second": 480859,
+      "avg_latency_ns": 2079.61
+    },
+    {
+      "name": "RWLock/Read100%",
+      "thread_count": 8,
+      "operations": 525312,
+      "elapsed_ms": 1101.323,
+      "ops_per_second": 476983,
+      "avg_latency_ns": 2096.51
+    },
+    {
+      "name": "RWLock/Read90%Write10%",
+      "thread_count": 1,
+      "operations": 508928,
+      "elapsed_ms": 1000.851,
+      "ops_per_second": 508495,
+      "avg_latency_ns": 1966.59
+    },
+    {
+      "name": "RWLock/Read90%Write10%",
+      "thread_count": 2,
+      "operations": 604160,
+      "elapsed_ms": 1100.834,
+      "ops_per_second": 548820,
+      "avg_latency_ns": 1822.09
+    },
+    {
+      "name": "RWLock/Read90%Write10%",
+      "thread_count": 4,
+      "operations": 529408,
+      "elapsed_ms": 1100.956,
+      "ops_per_second": 480862,
+      "avg_latency_ns": 2079.60
+    },
+    {
+      "name": "RWLock/Read90%Write10%",
+      "thread_count": 8,
+      "operations": 496640,
+      "elapsed_ms": 1101.373,
+      "ops_per_second": 450928,
+      "avg_latency_ns": 2217.65
+    },
+    {
+      "name": "RWLock/Read50%Write50%",
+      "thread_count": 1,
+      "operations": 1385472,
+      "elapsed_ms": 1000.799,
+      "ops_per_second": 1384366,
+      "avg_latency_ns": 722.35
+    },
+    {
+      "name": "RWLock/Read50%Write50%",
+      "thread_count": 2,
+      "operations": 534528,
+      "elapsed_ms": 1000.864,
+      "ops_per_second": 534067,
+      "avg_latency_ns": 1872.43
+    },
+    {
+      "name": "RWLock/Read50%Write50%",
+      "thread_count": 4,
+      "operations": 521216,
+      "elapsed_ms": 1101.097,
+      "ops_per_second": 473361,
+      "avg_latency_ns": 2112.55
+    },
+    {
+      "name": "RWLock/Read50%Write50%",
+      "thread_count": 8,
+      "operations": 525312,
+      "elapsed_ms": 1101.292,
+      "ops_per_second": 476996,
+      "avg_latency_ns": 2096.45
+    },
+    {
+      "name": "RWLock/Write100%",
+      "thread_count": 1,
+      "operations": 1862656,
+      "elapsed_ms": 1000.824,
+      "ops_per_second": 1861123,
+      "avg_latency_ns": 537.31
+    },
+    {
+      "name": "RWLock/Write100%",
+      "thread_count": 2,
+      "operations": 660480,
+      "elapsed_ms": 1000.978,
+      "ops_per_second": 659835,
+      "avg_latency_ns": 1515.53
+    },
+    {
+      "name": "RWLock/Write100%",
+      "thread_count": 4,
+      "operations": 784384,
+      "elapsed_ms": 1100.961,
+      "ops_per_second": 712454,
+      "avg_latency_ns": 1403.60
+    },
+    {
+      "name": "RWLock/Write100%",
+      "thread_count": 8,
+      "operations": 865280,
+      "elapsed_ms": 1101.437,
+      "ops_per_second": 785592,
+      "avg_latency_ns": 1272.93
+    }
+  ]
+}

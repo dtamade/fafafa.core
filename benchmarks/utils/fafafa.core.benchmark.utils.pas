@@ -97,9 +97,9 @@ end;
 
 procedure PrintHeader(const ATitle: string);
 begin
-  WriteLn('='.PadRight(120, '='));
+  WriteLn(StringOfChar('=', 120));
   WriteLn(ATitle);
-  WriteLn('='.PadRight(120, '='));
+  WriteLn(StringOfChar('=', 120));
   WriteLn;
 end;
 
@@ -113,9 +113,9 @@ end;
 procedure PrintFooter;
 begin
   WriteLn;
-  WriteLn('='.PadRight(120, '='));
+  WriteLn(StringOfChar('=', 120));
   WriteLn('Benchmark Complete');
-  WriteLn('='.PadRight(120, '='));
+  WriteLn(StringOfChar('=', 120));
 end;
 
 procedure SaveResultsToCSV(const AResults: TBenchmarkResults; const AFileName: string);
