@@ -130,7 +130,7 @@ type
   // Re-export exceptions
   ESyncError          = fafafa.core.sync.base.ESyncError;
   ELockError          = fafafa.core.sync.base.ELockError;
-  ETimeoutError       = fafafa.core.sync.base.ETimeoutError;
+  ESyncTimeoutError   = fafafa.core.sync.base.ESyncTimeoutError;  // ✅ SYNC-002: 重命名避免与 base 模块冲突
   EDeadlockError      = fafafa.core.sync.base.EDeadlockError;
   // Back-compat exception alias
   EArgumentOutOfRange = fafafa.core.base.EOutOfRange;
@@ -314,11 +314,12 @@ function TryWithWriteLock(const ARWLock: IRWLock; const AProc: TLockProc;
 // Named synchronization primitives factory functions
 function MakeNamedMutex(const AName: string): INamedMutex; overload;
 function MakeNamedMutex(const AName: string; ATimeoutMs: Cardinal): INamedMutex; overload;
+function MakeNamedMutex(const AName: string; const AConfig: TNamedMutexConfig): INamedMutex; overload;
 function MakeGlobalNamedMutex(const AName: string): INamedMutex;
-function MakeNamedEvent(const AName: string): INamedEvent; overload;
-function MakeNamedEvent(const AName: string; AManualReset: Boolean; AInitialState: Boolean): INamedEvent; overload;
 function MakeNamedSemaphore(const AName: string): INamedSemaphore; overload;
 function MakeNamedSemaphore(const AName: string; AInitialCount: Integer; AMaxCount: Integer): INamedSemaphore; overload;
+function MakeGlobalNamedSemaphore(const AName: string): INamedSemaphore; overload;
+function MakeGlobalNamedSemaphore(const AName: string; AInitialCount: Integer; AMaxCount: Integer): INamedSemaphore; overload;
 function MakeNamedBarrier(const AName: string; AParticipantCount: Integer): INamedBarrier;
 function MakeNamedCondVar(const AName: string): INamedCondVar;
 function MakeNamedRWLock(const AName: string): INamedRWLock;
@@ -615,6 +616,11 @@ begin
   Result := fafafa.core.sync.namedMutex.CreateNamedMutex(AName, ATimeoutMs);
 end;
 
+function MakeNamedMutex(const AName: string; const AConfig: TNamedMutexConfig): INamedMutex;
+begin
+  Result := fafafa.core.sync.namedMutex.CreateNamedMutex(AName, AConfig);
+end;
+
 function MakeGlobalNamedMutex(const AName: string): INamedMutex;
 begin
   Result := fafafa.core.sync.namedMutex.CreateGlobalNamedMutex(AName);
@@ -638,6 +644,16 @@ end;
 function MakeNamedSemaphore(const AName: string; AInitialCount: Integer; AMaxCount: Integer): INamedSemaphore;
 begin
   Result := fafafa.core.sync.namedSemaphore.CreateNamedSemaphore(AName, AInitialCount, AMaxCount);
+end;
+
+function MakeGlobalNamedSemaphore(const AName: string): INamedSemaphore;
+begin
+  Result := fafafa.core.sync.namedSemaphore.CreateGlobalNamedSemaphore(AName);
+end;
+
+function MakeGlobalNamedSemaphore(const AName: string; AInitialCount: Integer; AMaxCount: Integer): INamedSemaphore;
+begin
+  Result := fafafa.core.sync.namedSemaphore.CreateGlobalNamedSemaphore(AName, AInitialCount, AMaxCount);
 end;
 
 function MakeNamedBarrier(const AName: string; AParticipantCount: Integer): INamedBarrier;
@@ -697,5 +713,3 @@ begin
 end;
 
 end.
-
-

@@ -236,7 +236,7 @@ end;
 
 procedure TTestCase_Wait.Test_Wait_After_Execute;
 begin
-  FOnce.Execute(@SlowCallback);
+  FOnce.ExecuteMethod(@SlowCallback);
   CheckTrue(FOnce.Wait(1000), 'Wait should return true after execution');
   CheckTrue(FExecuted, 'Callback should have been executed');
 end;
@@ -272,7 +272,7 @@ procedure TTestCase_Poison.Test_IsPoisoned_After_Exception;
 begin
   CheckFalse(FOnce.IsPoisoned, 'Should not be poisoned initially');
   try
-    FOnce.Execute(@RaiseException);
+    FOnce.ExecuteMethod(@RaiseException);
   except
     // 忽略异常
   end;
@@ -300,13 +300,13 @@ end;
 
 procedure TTestCase_Reset.Test_Reset_AllowsReExecution;
 begin
-  FOnce.Execute(@IncrementCounter);
+  FOnce.ExecuteMethod(@IncrementCounter);
   CheckEquals(1, FCounter, 'First execute should increment');
 
   FOnce.Reset;
   CheckFalse(FOnce.IsDone, 'IsDone should be false after Reset');
 
-  FOnce.Execute(@IncrementCounter);
+  FOnce.ExecuteMethod(@IncrementCounter);
   CheckEquals(2, FCounter, 'After Reset, execute should increment again');
 end;
 

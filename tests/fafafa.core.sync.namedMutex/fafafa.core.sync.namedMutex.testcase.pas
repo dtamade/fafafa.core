@@ -45,7 +45,7 @@ procedure TTestCase_Global.Test_MakeNamedMutex;
 var
   M: INamedMutex;
 begin
-  M := Sync.MakeNamedMutex('test_mutex_basic');
+  M := MakeNamedMutex('test_mutex_basic');
   CheckNotNull(M);
   CheckEquals('test_mutex_basic', M.GetName);
 end;
@@ -57,7 +57,7 @@ var
 begin
   LConfig := DefaultNamedMutexConfig;
   LConfig.InitialOwner := True;
-  M := Sync.MakeNamedMutex('test_mutex_owner', LConfig);
+  M := MakeNamedMutex('test_mutex_owner', LConfig);
   CheckNotNull(M);
   // 初始拥有可直接释放一次
   M.Release;
@@ -67,9 +67,9 @@ procedure TTestCase_Global.Test_MakeNamedMutex_Existing;
 var
   M1, M2: INamedMutex;
 begin
-  M1 := Sync.MakeNamedMutex('test_mutex_open');
+  M1 := MakeNamedMutex('test_mutex_open');
   CheckNotNull(M1);
-  M2 := Sync.MakeNamedMutex('test_mutex_open');
+  M2 := MakeNamedMutex('test_mutex_open');
   CheckNotNull(M2);
   CheckEquals('test_mutex_open', M2.GetName);
 end;
@@ -102,7 +102,7 @@ procedure TTestCase_Global.Test_MakeNamedMutex_WithTimeout;
 var
   M: INamedMutex;
 begin
-  M := Sync.MakeNamedMutex('test_make_mutex_timeout', 1000);
+  M := MakeNamedMutex('test_make_mutex_timeout', 1000);
   CheckNotNull(M);
   CheckEquals('test_make_mutex_timeout', M.GetName);
 end;
@@ -113,7 +113,7 @@ procedure TTestCase_INamedMutex.SetUp;
 begin
   inherited SetUp;
   FTestName := 'test_mutex_' + IntToStr(Random(100000));
-  FMutex := Sync.MakeNamedMutex(FTestName);
+  FMutex := MakeNamedMutex(FTestName);
 end;
 
 procedure TTestCase_INamedMutex.TearDown;
@@ -161,7 +161,7 @@ begin
 end;
 
 procedure TTestCase_INamedMutex.Test_InvalidName_AssertException;
-  procedure DoCall; begin Sync.MakeNamedMutex(''); end;
+  procedure DoCall; begin MakeNamedMutex(''); end;
 begin
   AssertException(fafafa.core.sync.base.EInvalidArgument, @DoCall);
 end;
