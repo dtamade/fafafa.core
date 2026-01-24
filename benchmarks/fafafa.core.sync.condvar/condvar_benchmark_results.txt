@@ -1,0 +1,9 @@
+========================================================================================================================
+CondVar Performance Benchmark (Producer-Consumer Pattern)
+========================================================================================================================
+
+--- 1 Producer, 1 Consumer ---
+CondVar/1P1C                              2 threads:      1856512 ops in 1000.828 ms |      1854976 ops/sec |   539.09 ns/op
+
+--- 2 Producers, 2 Consumers ---
+Fatal glibc error: ../nptl/pthread_mutex_lock.c:94 (__pthread_mutex_cond_lock): assertion failed: mutex->__data.__owner == 0

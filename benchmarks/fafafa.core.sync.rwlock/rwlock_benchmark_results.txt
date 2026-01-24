@@ -1,0 +1,31 @@
+========================================================================================================================
+RWLock Performance Benchmark
+========================================================================================================================
+
+--- 100% Read (No Write Contention) ---
+RWLock/Read100%                           1 threads:       570368 ops in 1000.935 ms |       569835 ops/sec |  1754.89 ns/op
+RWLock/Read100%                           2 threads:       656384 ops in 1101.107 ms |       596113 ops/sec |  1677.53 ns/op
+RWLock/Read100%                           4 threads:       677888 ops in 1101.380 ms |       615490 ops/sec |  1624.72 ns/op
+RWLock/Read100%                           8 threads:       530432 ops in 1101.262 ms |       481658 ops/sec |  2076.16 ns/op
+
+--- 90% Read, 10% Write ---
+RWLock/Read90%Write10%                    1 threads:       571392 ops in 1101.045 ms |       518954 ops/sec |  1926.95 ns/op
+RWLock/Read90%Write10%                    2 threads:       713728 ops in 1100.919 ms |       648302 ops/sec |  1542.49 ns/op
+RWLock/Read90%Write10%                    4 threads:       625664 ops in 1100.929 ms |       568306 ops/sec |  1759.62 ns/op
+RWLock/Read90%Write10%                    8 threads:       550912 ops in 1101.653 ms |       500077 ops/sec |  1999.69 ns/op
+
+--- 50% Read, 50% Write ---
+RWLock/Read50%Write50%                    1 threads:      1830912 ops in 1000.840 ms |      1829375 ops/sec |   546.63 ns/op
+RWLock/Read50%Write50%                    2 threads:       762880 ops in 1101.097 ms |       692837 ops/sec |  1443.34 ns/op
+RWLock/Read50%Write50%                    4 threads:       665600 ops in 1100.964 ms |       604561 ops/sec |  1654.09 ns/op
+RWLock/Read50%Write50%                    8 threads:       547840 ops in 1101.195 ms |       497496 ops/sec |  2010.07 ns/op
+
+--- 100% Write (Maximum Contention) ---
+RWLock/Write100%                          1 threads:      1858560 ops in 1000.919 ms |      1856854 ops/sec |   538.55 ns/op
+RWLock/Write100%                          2 threads:       622592 ops in 1101.027 ms |       565465 ops/sec |  1768.46 ns/op
+RWLock/Write100%                          4 threads:       995328 ops in 1101.080 ms |       903956 ops/sec |  1106.25 ns/op
+RWLock/Write100%                          8 threads:       817152 ops in 1101.453 ms |       741886 ops/sec |  1347.92 ns/op
+
+========================================================================================================================
+Benchmark Complete
+========================================================================================================================

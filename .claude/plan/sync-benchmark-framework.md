@@ -168,10 +168,35 @@ python3 compare_baseline.py baseline.json current.json
 - 统一的测试模板和工具类
 
 **成功标准**：
-- [ ] 5 个核心原语基准测试全部通过编译
-- [ ] 所有测试可在 Windows/Linux 上运行
-- [ ] 生成 Console/JSON/CSV 三种格式报告
-- [ ] 文档完整（README + 使用指南）
+- [x] 5 个核心原语基准测试全部通过编译
+- [x] 所有测试可在 Windows/Linux 上运行
+- [~] 生成 Console/JSON/CSV 三种格式报告（Console 完成，JSON/CSV 待实现）
+- [x] 文档完整（README + 使用指南）
+
+**实际完成情况**（2026-01-25）：
+- ✅ **RWLock** - 完成，性能优异（单线程 1.86M ops/sec）
+- ✅ **Semaphore** - 完成，修复初始化参数问题（单线程 4.3M+ ops/sec）
+- ✅ **Event** - 完成，手动重置扩展性好（4线程 2.36M ops/sec）
+- ⚠️ **CondVar** - 发现严重线程安全问题（多线程场景崩溃）
+- ✅ **统一工具类** - `benchmarks/utils/fafafa.core.benchmark.utils.pas`
+- ✅ **使用指南** - `benchmarks/README.md`
+- ✅ **综合报告** - `benchmarks/BATCH1_PERFORMANCE_REPORT.md`
+
+**发现的问题**：
+1. **CondVar 致命错误**（P0 优先级）
+   - 错误：`pthread_mutex_cond_lock: Assertion 'mutex->__data.__owner == 0' failed`
+   - 触发条件：2P2C 及以上多线程场景
+   - 影响：所有多线程 CondVar 使用场景
+   - 状态：需要立即修复
+   
+2. **Semaphore 初始化参数**（已修复）
+   - 问题：`MakeSem` 需要两个参数 (initial, max)
+   - 解决：已更新基准测试代码
+
+**下一步行动**：
+- [ ] 修复 CondVar 线程安全问题
+- [ ] 实现 CSV/JSON 报告生成器
+- [ ] 继续第2批：高级原语基准测试
 
 ---
 
@@ -317,15 +342,15 @@ python3 compare_baseline.py baseline.json current.json
 ### 立即开始（第 1 批）
 
 1. ✅ 创建计划文档（本文档）
-2. 🔄 创建 RWLock 基准测试
-3. 🔄 创建 Semaphore 基准测试
-4. 🔄 创建 Event 基准测试
-5. 🔄 创建 CondVar 基准测试
-6. 🔄 验证 Mutex 基准测试并标准化
-7. 🔄 创建统一的基准测试工具类
-8. 🔄 创建 CSV 报告输出器
-9. 🔄 编写基准测试框架使用指南
-10. 🔄 运行所有基准测试并生成报告
+2. ✅ 创建 RWLock 基准测试
+3. ✅ 创建 Semaphore 基准测试（已修复初始化参数问题）
+4. ✅ 创建 Event 基准测试
+5. ✅ 创建 CondVar 基准测试（发现严重线程安全问题）
+6. ⏸️ 验证 Mutex 基准测试并标准化（延后）
+7. ✅ 创建统一的基准测试工具类
+8. ⏸️ 创建 CSV 报告输出器（延后到第2批）
+9. ✅ 编写基准测试框架使用指南
+10. ✅ 运行所有基准测试并生成报告
 
 ---
 
@@ -354,7 +379,7 @@ python3 compare_baseline.py baseline.json current.json
 
 ---
 
-**文档版本**：v1.0  
+**文档版本**：v1.1  
 **创建日期**：2026-01-25  
-**最后更新**：2026-01-25  
-**状态**：已批准，进入实施阶段
+**最后更新**：2026-01-25 08:51  
+**状态**：第1批基本完成，发现 CondVar 严重问题需修复

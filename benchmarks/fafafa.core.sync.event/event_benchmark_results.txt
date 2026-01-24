@@ -1,0 +1,19 @@
+========================================================================================================================
+Event Performance Benchmark
+========================================================================================================================
+
+--- Auto-Reset Event (One Waiter Per Signal) ---
+Event/AutoReset                           2 threads:      2768640 ops in 1801.473 ms |      1536876 ops/sec |   650.67 ns/op
+Event/AutoReset                           4 threads:      1130496 ops in 1201.237 ms |       941110 ops/sec |  1062.57 ns/op
+Event/AutoReset                           8 threads:       694528 ops in 1101.138 ms |       630737 ops/sec |  1585.45 ns/op
+Event/AutoReset                          16 threads:       506368 ops in 1302.427 ms |       388788 ops/sec |  2572.10 ns/op
+
+--- Manual-Reset Event (All Waiters Per Signal) ---
+Event/ManualReset                         2 threads:      1048320 ops in 1000.891 ms |      1047387 ops/sec |   954.76 ns/op
+Event/ManualReset                         4 threads:      2362880 ops in 1001.079 ms |      2360332 ops/sec |   423.67 ns/op
+Event/ManualReset                         8 threads:      1851136 ops in 1101.200 ms |      1681017 ops/sec |   594.88 ns/op
+Event/ManualReset                        16 threads:      1786880 ops in 1102.154 ms |      1621261 ops/sec |   616.80 ns/op
+
+========================================================================================================================
+Benchmark Complete
+========================================================================================================================

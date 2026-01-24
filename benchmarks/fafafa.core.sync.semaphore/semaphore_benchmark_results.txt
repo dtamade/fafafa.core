@@ -1,0 +1,31 @@
+========================================================================================================================
+Semaphore Performance Benchmark
+========================================================================================================================
+
+--- Binary Semaphore (Max Count = 1) ---
+Semaphore/Binary                          1 threads:      4333568 ops in 1000.847 ms |      4329901 ops/sec |   230.95 ns/op
+Semaphore/Binary                          2 threads:      1573888 ops in 1000.997 ms |      1572321 ops/sec |   636.00 ns/op
+Semaphore/Binary                          4 threads:       492544 ops in 1100.950 ms |       447381 ops/sec |  2235.23 ns/op
+Semaphore/Binary                          8 threads:       259072 ops in 1102.575 ms |       234970 ops/sec |  4255.86 ns/op
+
+--- Counting Semaphore (Max Count = 4) ---
+Semaphore/Count4                          1 threads:      3543040 ops in 1000.864 ms |      3539981 ops/sec |   282.49 ns/op
+Semaphore/Count4                          2 threads:      1800192 ops in 1000.848 ms |      1798666 ops/sec |   555.97 ns/op
+Semaphore/Count4                          4 threads:      1968128 ops in 1101.217 ms |      1787231 ops/sec |   559.52 ns/op
+Semaphore/Count4                          8 threads:       645120 ops in 1101.364 ms |       585746 ops/sec |  1707.22 ns/op
+
+--- Counting Semaphore (Max Count = 8) ---
+Semaphore/Count8                          1 threads:      2806784 ops in 1000.818 ms |      2804490 ops/sec |   356.57 ns/op
+Semaphore/Count8                          2 threads:      1657856 ops in 1000.804 ms |      1656525 ops/sec |   603.67 ns/op
+Semaphore/Count8                          4 threads:      2075648 ops in 1000.948 ms |      2073682 ops/sec |   482.23 ns/op
+Semaphore/Count8                          8 threads:      1490944 ops in 1101.046 ms |      1354116 ops/sec |   738.49 ns/op
+
+--- High Concurrency (Max Count = 16) ---
+Semaphore/Count16                         1 threads:      4339712 ops in 1000.824 ms |      4336140 ops/sec |   230.62 ns/op
+Semaphore/Count16                         2 threads:      2011136 ops in 1000.940 ms |      2009247 ops/sec |   497.70 ns/op
+Semaphore/Count16                         4 threads:      2013184 ops in 1001.070 ms |      2011033 ops/sec |   497.26 ns/op
+Semaphore/Count16                         8 threads:      1651712 ops in 1001.264 ms |      1649627 ops/sec |   606.20 ns/op
+
+========================================================================================================================
+Benchmark Complete
+========================================================================================================================

@@ -138,7 +138,7 @@ begin
   Result.ThreadCount := AThreadCount;
   LOperations := 0;
   
-  LSem := MakeSem(AMaxCount);
+  LSem := MakeSem(AMaxCount, AMaxCount);  // Initial count = Max count (all permits available)
   LDurationNs := Int64(ADurationMs) * 1000000;
   
   SetLength(LThreads, AThreadCount);
