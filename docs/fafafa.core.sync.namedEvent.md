@@ -316,6 +316,323 @@ end;
 - 不能包含额外的 `/` 字符
 - 区分大小写
 
+## Unix 平台详解
+
+### 权限管理
+
+#### 创建权限
+
+命名事件在 Unix 平台上使用 POSIX 命名信号量 + 共享内存实现，创建时需要指定权限：
+
+```pascal
+// 默认权限：0644 (rw-r--r--)
+LEvent := MakeNamedEvent('MyEvent', False, False);
+
+// 自定义权限
+LConfig := DefaultNamedEventConfig;
+LConfig.Permissions := &0666;  // rw-rw-rw-
+LEvent := MakeNamedEventWithConfig('MyEvent', False, False, LConfig);
+```
+
+**权限说明**：
+- **0644** (默认)：所有者可读写，组和其他用户只读
+- **0666**：所有用户可读写
+- **0600**：仅所有者可读写
+- **0660**：所有者和组可读写
+
+**权限影响**：
+- 创建者进程的 umask 会影响最终权限
+- 其他进程访问时需要有相应的读写权限
+- 权限不足会导致 `sem_open` 或 `shm_open` 失败并返回 `EACCES` 错误
+
+#### 所有权
+
+- 命名事件对象的所有者是创建它的进程的有效用户ID (euid)
+- 所有者可以修改权限（通过 `chmod` 或 `fchmod` 系统调用）
+- 非所有者进程需要有相应权限才能访问
+
+### 命名空间管理
+
+#### 命名规则
+
+Unix 平台的命名事件遵循 POSIX 命名规范：
+
+```pascal
+// 自动添加 /fafafa_event_ 前缀
+LEvent := MakeNamedEvent('MyEvent', False, False);
+// 实际名称：/fafafa_event_MyEvent
+
+// 不能包含额外的 / 字符
+LEvent := MakeNamedEvent('App/MyEvent', False, False);  // 错误！会抛出异常
+```
+
+**命名限制**：
+- 名称长度：最多 255 字符 (NAME_MAX)
+- 必须以字母或数字开头
+- 只能包含字母、数字、下划线、点号
+- 不能包含 `/` 字符（除了自动添加的前缀）
+- 区分大小写：`MyEvent` 和 `myevent` 是不同的事件
+
+#### 命名空间隔离
+
+Unix 平台的命名事件是**全局的**，没有类似 Windows 的 `Global\` 和 `Local\` 命名空间：
+
+```pascal
+// Unix 平台：所有进程共享同一命名空间
+// 进程 A
+LEvent := MakeNamedEvent('SharedEvent', False, False);
+
+// 进程 B（不同用户）
+LEvent := MakeNamedEvent('SharedEvent', False, False);  // 访问同一个事件（如果权限允许）
+```
+
+**命名空间特点**：
+- 所有进程共享同一命名空间
+- 不同用户的进程可以访问同一命名对象（如果权限允许）
+- 建议使用应用程序特定的前缀避免冲突：
+  ```pascal
+  LEvent := MakeNamedEvent('MyApp.Module.Event', False, False);
+  ```
+
+#### 命名冲突处理
+
+```pascal
+// 场景1：同名事件已存在
+LEvent1 := MakeNamedEvent('SharedEvent', False, False);  // 创建
+LEvent2 := MakeNamedEvent('SharedEvent', False, False);  // 打开现有的
+
+// 场景2：避免冲突的命名策略
+LEvent := MakeNamedEvent('com.mycompany.myapp.event', False, False);  // 使用反向域名
+LEvent := MakeNamedEvent(Format('MyApp.%d.Event', [GetProcessID]), False, False);  // 包含进程ID
+```
+
+### 清理语义
+
+#### 自动清理
+
+Unix 平台的命名事件具有以下自动清理特性：
+
+**进程退出时**：
+- 进程持有的事件资源会自动释放
+- 信号量和共享内存的引用计数减1
+- 如果引用计数降为0，对象会被标记为删除
+
+**系统重启时**：
+- 所有命名事件会被清理
+- 不会留下"僵尸"对象
+
+#### 手动清理
+
+```pascal
+// 方式1：通过接口引用计数自动清理
+var
+  LEvent: INamedEvent;
+begin
+  LEvent := MakeNamedEvent('MyEvent', False, False);
+  // 使用事件...
+  LEvent := nil;  // 自动调用 sem_close 和 shm_unlink
+end;
+
+// 方式2：显式删除（仅创建者）
+LEvent := MakeNamedEvent('MyEvent', False, False);
+// 使用完毕后
+sem_unlink('/fafafa_event_MyEvent');  // 从系统中删除（需要手动调用系统API）
+shm_unlink('/fafafa_event_MyEvent');
+```
+
+**清理注意事项**：
+- `sem_close` 和关闭共享内存只是关闭当前进程的引用，不会删除对象
+- `sem_unlink` 和 `shm_unlink` 会从系统中删除对象，但已打开的引用仍然有效
+- 建议由创建者进程负责调用 unlink 清理
+
+#### 资源泄漏预防
+
+```pascal
+// 好的做法：使用 try-finally 确保清理
+var
+  LEvent: INamedEvent;
+begin
+  LEvent := MakeNamedEvent('MyEvent', False, False);
+  try
+    // 使用事件...
+  finally
+    LEvent := nil;  // 确保释放
+  end;
+end;
+```
+
+### 系统限制
+
+#### 资源限制
+
+Unix 系统对命名信号量和共享内存有以下限制：
+
+```bash
+# 查看信号量限制
+cat /proc/sys/kernel/sem
+
+# 查看共享内存限制
+cat /proc/sys/kernel/shmmax
+cat /proc/sys/kernel/shmmni
+```
+
+**常见限制**：
+- **信号量数量**：系统范围内的信号量总数（通常为 32000）
+- **共享内存段数量**：系统范围内的共享内存段数量（通常为 4096）
+
+**超出限制时**：
+- `sem_open` 或 `shm_open` 会失败并返回 `ENOSPC` 错误
+- 需要清理未使用的对象或调整系统限制
+
+#### 文件系统位置
+
+命名事件对象在文件系统中的位置：
+
+```bash
+# Linux
+/dev/shm/sem.fafafa_event_MyEvent
+/dev/shm/fafafa_event_MyEvent
+
+# macOS
+/var/tmp/sem.fafafa_event_MyEvent
+/var/tmp/fafafa_event_MyEvent
+
+# 查看所有命名事件对象
+ls -l /dev/shm/fafafa_event_* 2>/dev/null || ls -l /var/tmp/fafafa_event_* 2>/dev/null
+```
+
+### 事件特性
+
+#### 手动/自动重置
+
+Unix 平台的命名事件支持手动和自动重置模式：
+
+```pascal
+// 手动重置事件（需要显式调用 Reset）
+LEvent := MakeNamedEvent('ManualEvent', False, False);
+LEvent.Set;     // 设置为有信号状态
+// 所有等待的线程被唤醒
+LEvent.Reset;   // 需要手动重置
+
+// 自动重置事件（唤醒一个线程后自动重置）
+LEvent := MakeNamedEvent('AutoEvent', False, True);
+LEvent.Set;     // 设置为有信号状态
+// 只有一个等待的线程被唤醒，事件自动重置
+```
+
+**模式特点**：
+- **手动重置**：适合广播场景，唤醒所有等待线程
+- **自动重置**：适合单一通知场景，只唤醒一个线程
+
+#### 初始状态
+
+```pascal
+// 创建时设置初始状态
+LEvent := MakeNamedEvent('MyEvent', True, False);  // 初始为有信号状态
+LEvent := MakeNamedEvent('MyEvent', False, False); // 初始为无信号状态
+```
+
+### 跨平台差异
+
+#### Windows vs Unix
+
+| 特性 | Windows | Unix/Linux |
+|------|---------|------------|
+| 实现机制 | 内核 Event 对象 | 信号量 + 共享内存 |
+| 命名空间 | `Global\` / `Local\` | 全局（无隔离） |
+| 权限模型 | ACL（访问控制列表） | Unix 权限（rwx） |
+| Pulse 操作 | 支持 | 不支持（模拟实现） |
+| 超时控制 | 支持 | 支持 |
+| 自动清理 | 进程退出时自动 | 进程退出时自动 |
+| 持久化 | 仅在进程存在时 | 仅在进程存在时 |
+| 系统重启 | 自动清理 | 自动清理 |
+
+#### 可移植性建议
+
+```pascal
+// 好的做法：使用统一的命名约定
+{$IFDEF WINDOWS}
+  LEvent := MakeNamedEvent('Global\MyApp.Event', False, False);
+{$ELSE}
+  LEvent := MakeNamedEvent('MyApp.Event', False, False);
+{$ENDIF}
+
+// 更好的做法：使用配置抽象平台差异
+LConfig := DefaultNamedEventConfig;
+{$IFDEF WINDOWS}
+  LConfig.UseGlobalNamespace := True;
+{$ELSE}
+  LConfig.Permissions := &0666;
+{$ENDIF}
+LEvent := MakeNamedEventWithConfig('MyApp.Event', False, False, LConfig);
+```
+
+### 调试与诊断
+
+#### 查看命名事件对象
+
+```bash
+# Linux：查看所有命名事件对象
+ls -lh /dev/shm/fafafa_event_*
+ls -lh /dev/shm/sem.fafafa_event_*
+
+# macOS：查看所有命名事件对象
+ls -lh /var/tmp/fafafa_event_*
+ls -lh /var/tmp/sem.fafafa_event_*
+```
+
+#### 清理僵尸事件对象
+
+```bash
+# 手动删除未使用的事件对象
+rm /dev/shm/fafafa_event_MyEvent
+rm /dev/shm/sem.fafafa_event_MyEvent
+
+# 清理所有事件对象（谨慎使用！）
+rm /dev/shm/fafafa_event_*
+rm /dev/shm/sem.fafafa_event_*
+```
+
+#### 常见问题诊断
+
+**问题1：权限不足**
+```
+错误：sem_open 或 shm_open failed with EACCES
+原因：当前用户没有访问权限
+解决：
+1. 检查对象文件权限：ls -l /dev/shm/fafafa_event_MyEvent
+2. 修改权限：chmod 666 /dev/shm/fafafa_event_MyEvent
+3. 或使用更宽松的创建权限：LConfig.Permissions := &0666
+```
+
+**问题2：资源耗尽**
+```
+错误：sem_open 或 shm_open failed with ENOSPC
+原因：系统资源数量达到上限
+解决：
+1. 查看系统限制：cat /proc/sys/kernel/sem
+2. 清理未使用的对象：rm /dev/shm/fafafa_event_*
+3. 调整系统限制（需要 root）：sysctl -w kernel.sem="250 32000 32 256"
+```
+
+**问题3：名称冲突**
+```
+错误：不同应用使用相同名称
+原因：命名空间全局共享
+解决：使用应用程序特定的前缀
+LEvent := MakeNamedEvent('com.mycompany.myapp.event', False, False);
+```
+
+**问题4：事件状态不一致**
+```
+错误：事件状态与预期不符
+原因：多个进程同时操作或异常退出
+解决：
+1. 检查是否有进程异常退出未清理
+2. 必要时重新创建事件对象
+3. 使用手动重置模式避免自动重置带来的竞态
+```
+
 ## 错误处理
 
 ### 异常类型

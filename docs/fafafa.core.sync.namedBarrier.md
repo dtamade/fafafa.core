@@ -297,9 +297,178 @@ end;
 ### Unix/Linux 平台
 
 - 名称长度限制：255 字符 (NAME_MAX)
-- 自动添加路径前缀符合系统规范
-- 不能包含路径分隔符
+- 自动添加 `/fafafa_barrier_` 前缀符合 POSIX 规范
+- 不能包含额外的 `/` 字符
 - 区分大小写
+
+## Unix 平台详解
+
+### 权限管理
+
+#### 创建权限
+
+命名屏障在 Unix 平台上使用 pthread_barrier_t + 共享内存实现，创建时需要指定权限：
+
+```pascal
+// 默认权限：0644 (rw-r--r--)
+LBarrier := MakeNamedBarrier('MyBarrier', 5);
+
+// 自定义权限
+LConfig := DefaultNamedBarrierConfig;
+LConfig.Permissions := &0666;  // rw-rw-rw-
+LBarrier := MakeNamedBarrierWithConfig('MyBarrier', 5, LConfig);
+```
+
+**权限说明**：
+- **0644** (默认)：所有者可读写，组和其他用户只读
+- **0666**：所有用户可读写
+- **0600**：仅所有者可读写
+- **0660**：所有者和组可读写
+
+**权限影响**：
+- 创建者进程的 umask 会影响最终权限
+- 其他进程访问时需要有相应的读写权限
+- 权限不足会导致 `shm_open` 失败并返回 `EACCES` 错误
+
+### 命名空间管理
+
+#### 命名规则
+
+Unix 平台的命名屏障遵循 POSIX 共享内存对象规范：
+
+```pascal
+// 自动添加 /fafafa_barrier_ 前缀
+LBarrier := MakeNamedBarrier('MyBarrier', 5);
+// 实际名称：/fafafa_barrier_MyBarrier
+
+// 不能包含额外的 / 字符
+LBarrier := MakeNamedBarrier('App/MyBarrier', 5);  // 错误！会抛出异常
+```
+
+**命名限制**：
+- 名称长度：最多 255 字符 (NAME_MAX)
+- 必须以字母或数字开头
+- 只能包含字母、数字、下划线、点号
+- 不能包含 `/` 字符（除了自动添加的前缀）
+- 区分大小写：`MyBarrier` 和 `mybarrier` 是不同的屏障
+
+### 清理语义
+
+#### 自动清理
+
+Unix 平台的命名屏障具有以下自动清理特性：
+
+**进程退出时**：
+- 进程持有的屏障资源会自动释放
+- 共享内存的引用计数减1
+- 如果引用计数降为0，共享内存对象会被标记为删除
+
+**系统重启时**：
+- 所有共享内存对象会被清理
+- 不会留下"僵尸"对象
+
+### 系统限制
+
+#### 资源限制
+
+Unix 系统对共享内存对象有以下限制：
+
+```bash
+# 查看系统限制
+cat /proc/sys/kernel/shmmax
+cat /proc/sys/kernel/shmmni
+```
+
+**常见限制**：
+- **SHMMAX**：单个共享内存段的最大大小（通常为几GB）
+- **SHMMNI**：系统范围内共享内存段的最大数量（通常为 4096）
+
+#### 文件系统位置
+
+命名屏障对象在文件系统中的位置：
+
+```bash
+# Linux
+/dev/shm/fafafa_barrier_MyBarrier
+
+# macOS
+/var/tmp/fafafa_barrier_MyBarrier
+```
+
+### 屏障特性
+
+#### 参与者数量
+
+Unix 平台的 pthread_barrier_t 支持固定数量的参与者：
+
+```pascal
+// 创建需要 5 个参与者的屏障
+LBarrier := MakeNamedBarrier('MyBarrier', 5);
+
+// 所有 5 个参与者必须调用 Wait 才能通过
+LBarrier.Wait;  // 阻塞直到 5 个参与者都到达
+```
+
+**参与者特点**：
+- 参与者数量在创建时固定
+- 所有参与者必须到达屏障点才能继续
+- 最后一个到达的参与者会收到特殊返回值（PTHREAD_BARRIER_SERIAL_THREAD）
+
+### 跨平台差异
+
+#### Windows vs Unix
+
+| 特性 | Windows | Unix/Linux |
+|------|---------|------------|
+| 实现机制 | Event + 计数器 | pthread_barrier_t + 共享内存 |
+| 命名空间 | `Global\` / `Local\` | 全局（无隔离） |
+| 权限模型 | ACL（访问控制列表） | Unix 权限（rwx） |
+| 超时控制 | 支持 | 不支持（POSIX 标准） |
+| 自动清理 | 进程退出时自动 | 进程退出时自动 |
+
+### 调试与诊断
+
+#### 查看命名屏障对象
+
+```bash
+# Linux：查看所有命名屏障对象
+ls -lh /dev/shm/fafafa_barrier_*
+
+# macOS：查看所有命名屏障对象
+ls -lh /var/tmp/fafafa_barrier_*
+```
+
+#### 清理僵尸屏障对象
+
+```bash
+# 手动删除未使用的屏障对象
+rm /dev/shm/fafafa_barrier_MyBarrier
+
+# 清理所有屏障对象（谨慎使用！）
+rm /dev/shm/fafafa_barrier_*
+```
+
+#### 常见问题诊断
+
+**问题1：权限不足**
+```
+错误：shm_open failed with EACCES
+原因：当前用户没有访问权限
+解决：
+1. 检查共享内存对象权限：ls -l /dev/shm/fafafa_barrier_MyBarrier
+2. 修改权限：chmod 666 /dev/shm/fafafa_barrier_MyBarrier
+3. 或使用更宽松的创建权限：LConfig.Permissions := &0666
+```
+
+**问题2：死锁**
+```
+错误：线程永久阻塞在 Wait
+原因：参与者数量不足
+解决：
+1. 确保所有参与者都调用 Wait
+2. 检查是否有进程异常退出
+3. 必要时重新创建屏障对象
+```
 
 ## 错误处理
 
