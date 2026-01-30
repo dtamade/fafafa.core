@@ -73,6 +73,9 @@ type
   TTestCase_Concurrency = class(TTestCase)
   private
     FOnce: IOnce;
+    FExecutionCount: Integer;  // 改为字段,避免闭包捕获
+    
+    procedure ConcurrentTestMethod;  // 提取为方法,避免嵌套过程
 
   protected
     procedure SetUp; override;
@@ -96,6 +99,17 @@ type
     procedure Execute; override;
   public
     constructor Create(const AOnce: IOnce; AExecutionCount: PInteger);
+  end;
+
+  // 方法回调测试专用线程类
+  TOnceMethodCallbackThread = class(TThread)
+  private
+    FOnce: IOnce;
+    FCallback: TOnceAnonymousProc;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(const AOnce: IOnce; const ACallback: TOnceAnonymousProc);
   end;
 
 implementation
@@ -143,6 +157,25 @@ procedure TOnceWorkerThread.Execute;
 begin
   try
     FOnce.Execute;
+  except
+    // 忽略异常
+  end;
+end;
+
+{ TOnceMethodCallbackThread }
+
+constructor TOnceMethodCallbackThread.Create(const AOnce: IOnce; const ACallback: TOnceAnonymousProc);
+begin
+  inherited Create(False);
+  FreeOnTerminate := False;
+  FOnce := AOnce;
+  FCallback := ACallback;
+end;
+
+procedure TOnceMethodCallbackThread.Execute;
+begin
+  try
+    FOnce.Execute(FCallback);
   except
     // 忽略异常
   end;
@@ -567,34 +600,31 @@ begin
   end;
 end;
 
+procedure TTestCase_Concurrency.ConcurrentTestMethod;
+begin
+  InterlockedIncrement(FExecutionCount);
+end;
+
 procedure TTestCase_Concurrency.Test_Execute_Concurrent_MethodCallback;
 const
   ThreadCount = 5;
 var
-  Threads: array[0..ThreadCount-1] of TThread;
-  Once: IOnce;
-  ExecutionCount: Integer;
+  Threads: array[0..ThreadCount-1] of TOnceMethodCallbackThread;
   i: Integer;
-
-  procedure TestMethod;
-  begin
-    InterlockedIncrement(ExecutionCount);
-  end;
-
+  Callback: TOnceAnonymousProc;
 begin
-  ExecutionCount := 0;
-  Once := MakeOnce;
+  FExecutionCount := 0;
+  FOnce := MakeOnce;
 
-  // 创建多个线程同时执行方法回调
-  for i := 0 to ThreadCount-1 do
+  // 创建匿名过程回调（在主线程中创建，避免嵌套）
+  Callback := procedure
   begin
-    Threads[i] := TThread.CreateAnonymousThread(
-      procedure
-      begin
-        Once.Execute(@TestMethod);
-      end);
-    Threads[i].Start;
+    ConcurrentTestMethod;
   end;
+
+  // 使用专用线程类，避免嵌套匿名过程
+  for i := 0 to ThreadCount-1 do
+    Threads[i] := TOnceMethodCallbackThread.Create(FOnce, Callback);
 
   try
     // 等待所有线程完成
@@ -602,8 +632,8 @@ begin
       Threads[i].WaitFor;
 
     // 验证方法回调的并发安全性
-    AssertEquals('Method callback: only one execution', 1, ExecutionCount);
-    AssertTrue('Once should be completed', Once.Completed);
+    AssertEquals('Method callback: only one execution', 1, FExecutionCount);
+    AssertTrue('Once should be completed', FOnce.Completed);
   finally
     for i := 0 to ThreadCount-1 do
       Threads[i].Free;
