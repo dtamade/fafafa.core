@@ -110,3 +110,4 @@ test_diagnostic_report.txt
 # Output directories
 out/*
 !out/.gitkeep
+vendor/
