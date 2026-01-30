@@ -2,7 +2,7 @@
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-LAZBUILD="../../tools/lazbuild.sh"
+LAZBUILD="lazbuild"
 
 PROJECT="tests_thread.lpi"
 

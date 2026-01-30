@@ -9,12 +9,14 @@ unit fafafa.core.test.core;
 interface
 
 uses
-  SysUtils, Classes, fafafa.core.test.utils;
+  SysUtils, Classes,
+  fafafa.core.base,  // ✅ TEST-001: 引入 ECore 基类
+  fafafa.core.test.utils;
 
 type
-  ETestFailure = class(Exception);
+  ETestFailure = class(ECore);  // ✅ TEST-001: 继承自 ECore
   // Export ETestSkip so runner can recognize top-level Skip/Assume
-  ETestSkip = class(Exception);
+  ETestSkip = class(ECore);  // ✅ TEST-002: 继承自 ECore
 
   ITestContext = interface; // forward
   // Use managed closures so registered tests remain valid after RegisterTests returns
@@ -584,4 +586,3 @@ begin
 end;
 
 end.
-

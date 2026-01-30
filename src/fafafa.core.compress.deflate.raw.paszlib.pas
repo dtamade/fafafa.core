@@ -7,13 +7,14 @@ unit fafafa.core.compress.deflate.raw.paszlib;
 interface
 
 uses
-  Classes, SysUtils;
+  Classes, SysUtils,
+  fafafa.core.base;  // ✅ DEFLATE-001: 引入 ECore 基类
 
 // 原始 deflate/inflate 流封装：使用 zlib 的 *Init2(windowBits=-MAX_WBITS)* 原始模式
 // - 不写入/解析 zlib 头与 Adler32 尾（供 gzip 编解码内部使用）
 
 type
-  ERawDeflateError = class(Exception);
+  ERawDeflateError = class(ECore);  // ✅ DEFLATE-001: 继承自 ECore
 
   TRawDeflateStream = class(TStream)
   private

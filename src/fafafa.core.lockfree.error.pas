@@ -13,11 +13,12 @@ unit fafafa.core.lockfree.error;
 interface
 
 uses
-  SysUtils;
+  SysUtils,
+  fafafa.core.base;  // ✅ LOCKFREE-001: 引入 ECore 基类
 
 type
   // 无锁数据结构异常基类
-  ELockFreeError = class(Exception);
+  ELockFreeError = class(ECore);  // ✅ LOCKFREE-001: 继承自 ECore
 
   // 队列相关异常
   EQueueFullError = class(ELockFreeError);
@@ -29,4 +30,3 @@ type
 implementation
 
 end.
-

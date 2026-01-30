@@ -18,7 +18,7 @@ begin
     WriteLn('=== 测试 Acquire/Release ===');
     
     WriteLn('1. 创建命名互斥锁...');
-    LMutex := Sync.MakeNamedMutex(TEST_MUTEX_NAME);
+    LMutex := MakeNamedMutex(TEST_MUTEX_NAME);
     WriteLn('   ✓ 互斥锁创建成功');
     
     WriteLn('2. 测试 Acquire...');

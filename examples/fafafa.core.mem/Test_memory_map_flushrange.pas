@@ -2,7 +2,7 @@
 unit Test_memory_map_flushrange;
 
 {$mode objfpc}{$H+}
-{$I fafafa.core.settings.inc}
+{$I ../../src/fafafa.core.settings.inc}
 
 interface
 

@@ -1,0 +1,35 @@
+=== fafafa.core.atomic ?????????? ===
+
+??????...
+=== ?????? ===
+????                                   ops/sec        ????(ns)
+-----------------------------------------------------------------
+fafafa_atomic_load32                 249996641            4.00
+rtl_load32                            71429215           14.00
+nonatomic_load32                     333346318            3.00
+fafafa_atomic_store32                124998321            8.00
+rtl_store32                           66666469           15.00
+nonatomic_store32                    499914717            2.00
+fafafa_atomic_exchange32              76924833           13.00
+rtl_exchange32                        83332214           12.00
+fafafa_atomic_fetch_add32             90909168           11.00
+rtl_fetch_add32                       83332214           12.00
+fafafa_atomic_increment32             90909168           11.00
+rtl_increment32                       90909168           11.00
+
+=== ?????? ===
+32?????????:
+fafafa_atomic_load32 vs nonatomic_load32: 0.75x
+rtl_load32 vs nonatomic_load32: 0.21x
+fafafa_atomic_load32 vs rtl_load32: 3.50x
+
+fafafa_atomic_store32 vs nonatomic_store32: 0.25x
+rtl_store32 vs nonatomic_store32: 0.13x
+fafafa_atomic_store32 vs rtl_store32: 1.87x
+
+fafafa_atomic_exchange32 vs rtl_exchange32: 0.92x
+fafafa_atomic_fetch_add32 vs rtl_fetch_add32: 1.09x
+fafafa_atomic_increment32 vs rtl_increment32: 1.00x
+
+???????
+??????...

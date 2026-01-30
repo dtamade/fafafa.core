@@ -27,6 +27,15 @@ type
   public
     class function Create(AValue: Int32): TAtomicInt32; static; inline;
 
+    {**
+     * is_lock_free - 查询原子操作是否无锁
+     *
+     * @return True 如果原子操作使用无锁 CPU 指令实现
+     *
+     * @cpp_equivalent std::atomic<int32_t>::is_lock_free()
+     *}
+    class function is_lock_free: Boolean; static; inline;
+
     // 基础操作
     function Load(AOrder: memory_order_t = mo_seq_cst): Int32; inline;
     procedure Store(AValue: Int32; AOrder: memory_order_t = mo_seq_cst); inline;
@@ -61,6 +70,15 @@ type
   public
     class function Create(AValue: UInt32): TAtomicUInt32; static; inline;
 
+    {**
+     * is_lock_free - 查询原子操作是否无锁
+     *
+     * @return True 如果原子操作使用无锁 CPU 指令实现
+     *
+     * @cpp_equivalent std::atomic<uint32_t>::is_lock_free()
+     *}
+    class function is_lock_free: Boolean; static; inline;
+
     function Load(AOrder: memory_order_t = mo_seq_cst): UInt32; inline;
     procedure Store(AValue: UInt32; AOrder: memory_order_t = mo_seq_cst); inline;
     function Exchange(AValue: UInt32; AOrder: memory_order_t = mo_seq_cst): UInt32; inline;
@@ -91,6 +109,17 @@ type
   public
     class function Create(AValue: Int64): TAtomicInt64; static; inline;
 
+    {**
+     * is_lock_free - 查询原子操作是否无锁
+     *
+     * @return True 如果原子操作使用无锁 CPU 指令实现
+     *
+     * @note 64位操作在64位平台通常无锁，在32位平台可能需要锁
+     *
+     * @cpp_equivalent std::atomic<int64_t>::is_lock_free()
+     *}
+    class function is_lock_free: Boolean; static; inline;
+
     function Load(AOrder: memory_order_t = mo_seq_cst): Int64; inline;
     procedure Store(AValue: Int64; AOrder: memory_order_t = mo_seq_cst); inline;
     function Exchange(AValue: Int64; AOrder: memory_order_t = mo_seq_cst): Int64; inline;
@@ -119,6 +148,17 @@ type
     FValue: UInt64;
   public
     class function Create(AValue: UInt64): TAtomicUInt64; static; inline;
+
+    {**
+     * is_lock_free - 查询原子操作是否无锁
+     *
+     * @return True 如果原子操作使用无锁 CPU 指令实现
+     *
+     * @note 64位操作在64位平台通常无锁，在32位平台可能需要锁
+     *
+     * @cpp_equivalent std::atomic<uint64_t>::is_lock_free()
+     *}
+    class function is_lock_free: Boolean; static; inline;
 
     function Load(AOrder: memory_order_t = mo_seq_cst): UInt64; inline;
     procedure Store(AValue: UInt64; AOrder: memory_order_t = mo_seq_cst); inline;
@@ -150,6 +190,15 @@ type
   public
     class function Create(AValue: Boolean): TAtomicBool; static; inline;
 
+    {**
+     * is_lock_free - 查询原子操作是否无锁
+     *
+     * @return True 如果原子操作使用无锁 CPU 指令实现
+     *
+     * @cpp_equivalent std::atomic<bool>::is_lock_free()
+     *}
+    class function is_lock_free: Boolean; static; inline;
+
     function Load(AOrder: memory_order_t = mo_seq_cst): Boolean; inline;
     procedure Store(AValue: Boolean; AOrder: memory_order_t = mo_seq_cst); inline;
     function Exchange(AValue: Boolean; AOrder: memory_order_t = mo_seq_cst): Boolean; inline;
@@ -169,12 +218,98 @@ type
     function IntoInner: Boolean; inline;
   end;
 
+  {**
+   * TAtomicFlag - 原子标志（最简单的原子类型）
+   *
+   * @desc
+   *   最简单的原子类型，保证无锁。只有两个操作：test_and_set 和 clear。
+   *   常用于实现自旋锁和简单的同步标志。
+   *
+   * @cpp_equivalent std::atomic_flag
+   *
+   * @example
+   *   var flag: TAtomicFlag;
+   *   flag := TAtomicFlag.Create(False);
+   *   if not flag.test_and_set() then
+   *     WriteLn('First thread acquired the flag');
+   *}
+  TAtomicFlag = record
+  private
+    FValue: Int32;  // 使用 Int32 存储，0=clear, 1=set
+  public
+    {**
+     * Create - 创建原子标志
+     *
+     * @param AInitialValue 初始值（True=set, False=clear）
+     *
+     * @note C++ std::atomic_flag 必须用 ATOMIC_FLAG_INIT 初始化为 clear 状态，
+     *       但我们提供更灵活的初始化方式
+     *}
+    class function Create(AInitialValue: Boolean = False): TAtomicFlag; static; inline;
+
+    {**
+     * is_lock_free - 查询原子操作是否无锁
+     *
+     * @return 始终返回 True（atomic_flag 保证无锁）
+     *
+     * @cpp_equivalent std::atomic_flag::is_lock_free() (always true)
+     *}
+    class function is_lock_free: Boolean; static; inline;
+
+    {**
+     * test_and_set - 原子地设置标志并返回旧值
+     *
+     * @param AOrder 内存序（默认 seq_cst）
+     * @return 旧值（True 表示之前已设置，False 表示之前未设置）
+     *
+     * @cpp_equivalent std::atomic_flag::test_and_set()
+     *
+     * @example
+     *   if not flag.test_and_set() then
+     *     // 成功获取锁
+     *}
+    function test_and_set(AOrder: memory_order_t = mo_seq_cst): Boolean; inline;
+
+    {**
+     * clear - 原子地清除标志
+     *
+     * @param AOrder 内存序（默认 seq_cst）
+     *
+     * @cpp_equivalent std::atomic_flag::clear()
+     *
+     * @example
+     *   flag.clear();  // 释放锁
+     *}
+    procedure clear(AOrder: memory_order_t = mo_seq_cst); inline;
+
+    {**
+     * test - 原子地读取标志值（不修改）
+     *
+     * @param AOrder 内存序（默认 seq_cst）
+     * @return 当前值（True=set, False=clear）
+     *
+     * @note C++20 新增的 test() 方法，用于非破坏性读取
+     *
+     * @cpp_equivalent std::atomic_flag::test() (C++20)
+     *}
+    function test(AOrder: memory_order_t = mo_seq_cst): Boolean; inline;
+  end;
+
   { TAtomicISize - 指针大小有符号原子整数 (PtrInt) }
   TAtomicISize = record
   private
     FValue: PtrInt;
   public
     class function Create(AValue: PtrInt): TAtomicISize; static; inline;
+
+    {**
+     * is_lock_free - 查询原子操作是否无锁
+     *
+     * @return True 如果原子操作使用无锁 CPU 指令实现
+     *
+     * @cpp_equivalent std::atomic<intptr_t>::is_lock_free()
+     *}
+    class function is_lock_free: Boolean; static; inline;
 
     function Load(AOrder: memory_order_t = mo_seq_cst): PtrInt; inline;
     procedure Store(AValue: PtrInt; AOrder: memory_order_t = mo_seq_cst); inline;
@@ -204,6 +339,15 @@ type
     FValue: PtrUInt;
   public
     class function Create(AValue: PtrUInt): TAtomicUSize; static; inline;
+
+    {**
+     * is_lock_free - 查询原子操作是否无锁
+     *
+     * @return True 如果原子操作使用无锁 CPU 指令实现
+     *
+     * @cpp_equivalent std::atomic<uintptr_t>::is_lock_free()
+     *}
+    class function is_lock_free: Boolean; static; inline;
 
     function Load(AOrder: memory_order_t = mo_seq_cst): PtrUInt; inline;
     procedure Store(AValue: PtrUInt; AOrder: memory_order_t = mo_seq_cst); inline;
@@ -235,6 +379,15 @@ type
     FValue: PT;
   public
     class function Create(AValue: PT): TAtomicPtr; static; inline;
+
+    {**
+     * is_lock_free - 查询原子操作是否无锁
+     *
+     * @return True 如果原子操作使用无锁 CPU 指令实现
+     *
+     * @cpp_equivalent std::atomic<T*>::is_lock_free()
+     *}
+    class function is_lock_free: Boolean; static; inline;
 
     function Load(AOrder: memory_order_t = mo_seq_cst): PT; inline;
     procedure Store(AValue: PT; AOrder: memory_order_t = mo_seq_cst); inline;
@@ -285,6 +438,12 @@ end;
 class function TAtomicInt32.Create(AValue: Int32): TAtomicInt32;
 begin
   Result.FValue := AValue;
+end;
+
+class function TAtomicInt32.is_lock_free: Boolean;
+begin
+  // 32-bit atomic operations are always lock-free on modern platforms
+  Result := True;
 end;
 
 function TAtomicInt32.Load(AOrder: memory_order_t): Int32;
@@ -374,6 +533,12 @@ end;
 class function TAtomicUInt32.Create(AValue: UInt32): TAtomicUInt32;
 begin
   Result.FValue := AValue;
+end;
+
+class function TAtomicUInt32.is_lock_free: Boolean;
+begin
+  // 32-bit atomic operations are always lock-free on modern platforms
+  Result := True;
 end;
 
 function TAtomicUInt32.Load(AOrder: memory_order_t): UInt32;
@@ -466,6 +631,17 @@ begin
   Result.FValue := AValue;
 end;
 
+class function TAtomicInt64.is_lock_free: Boolean;
+begin
+  // 64-bit atomic operations are lock-free on 64-bit platforms
+  // On x86/x64, CMPXCHG8B provides lock-free 64-bit atomics even in 32-bit mode
+  {$IFDEF CPU64}
+  Result := True;
+  {$ELSE}
+  Result := True;  // x86 with CMPXCHG8B instruction
+  {$ENDIF}
+end;
+
 function TAtomicInt64.Load(AOrder: memory_order_t): Int64;
 begin
   Result := atomic_load_64(FValue, AOrder);
@@ -553,6 +729,17 @@ end;
 class function TAtomicUInt64.Create(AValue: UInt64): TAtomicUInt64;
 begin
   Result.FValue := AValue;
+end;
+
+class function TAtomicUInt64.is_lock_free: Boolean;
+begin
+  // 64-bit atomic operations are lock-free on 64-bit platforms
+  // On x86/x64, CMPXCHG8B provides lock-free 64-bit atomics even in 32-bit mode
+  {$IFDEF CPU64}
+  Result := True;
+  {$ELSE}
+  Result := True;  // x86 with CMPXCHG8B instruction
+  {$ENDIF}
 end;
 
 function TAtomicUInt64.Load(AOrder: memory_order_t): UInt64;
@@ -646,6 +833,12 @@ begin
     Result.FValue := 1
   else
     Result.FValue := 0;
+end;
+
+class function TAtomicBool.is_lock_free: Boolean;
+begin
+  // Boolean is stored as Int32, which is always lock-free
+  Result := True;
 end;
 
 function TAtomicBool.Load(AOrder: memory_order_t): Boolean;
@@ -759,11 +952,51 @@ begin
   Result := FValue <> 0;
 end;
 
+{ TAtomicFlag }
+
+class function TAtomicFlag.Create(AInitialValue: Boolean): TAtomicFlag;
+begin
+  if AInitialValue then
+    Result.FValue := 1
+  else
+    Result.FValue := 0;
+end;
+
+class function TAtomicFlag.is_lock_free: Boolean;
+begin
+  // atomic_flag is guaranteed to be lock-free
+  Result := True;
+end;
+
+function TAtomicFlag.test_and_set(AOrder: memory_order_t): Boolean;
+begin
+  // Atomically set to 1 and return old value
+  Result := atomic_exchange(FValue, 1, AOrder) <> 0;
+end;
+
+procedure TAtomicFlag.clear(AOrder: memory_order_t);
+begin
+  // Atomically set to 0
+  atomic_store(FValue, 0, AOrder);
+end;
+
+function TAtomicFlag.test(AOrder: memory_order_t): Boolean;
+begin
+  // Atomically read without modifying
+  Result := atomic_load(FValue, AOrder) <> 0;
+end;
+
 { TAtomicISize }
 
 class function TAtomicISize.Create(AValue: PtrInt): TAtomicISize;
 begin
   Result.FValue := AValue;
+end;
+
+class function TAtomicISize.is_lock_free: Boolean;
+begin
+  // Pointer-sized atomic operations are always lock-free on modern platforms
+  Result := True;
 end;
 
 function TAtomicISize.Load(AOrder: memory_order_t): PtrInt;
@@ -921,6 +1154,12 @@ begin
   Result.FValue := AValue;
 end;
 
+class function TAtomicUSize.is_lock_free: Boolean;
+begin
+  // Pointer-sized atomic operations are always lock-free on modern platforms
+  Result := True;
+end;
+
 function TAtomicUSize.Load(AOrder: memory_order_t): PtrUInt;
 begin
   {$IF SIZEOF(PtrUInt) = 4}
@@ -1074,6 +1313,12 @@ end;
 class function TAtomicPtr.Create(AValue: PT): TAtomicPtr;
 begin
   Result.FValue := AValue;
+end;
+
+class function TAtomicPtr.is_lock_free: Boolean;
+begin
+  // Pointer atomic operations are always lock-free on modern platforms
+  Result := True;
 end;
 
 function TAtomicPtr.Load(AOrder: memory_order_t): PT;

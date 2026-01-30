@@ -1,11 +1,12 @@
-{$CODEPAGE UTF8}
 program example_mem;
-
 {$mode objfpc}{$H+}
+{$I ../../src/fafafa.core.settings.inc}
+{$IFDEF WINDOWS}{$CODEPAGE UTF8}{$ENDIF}
 
 uses
   SysUtils,
-  fafafa.core.mem;
+  fafafa.core.mem,
+  fafafa.core.mem.allocator;
 
 {**
  * 演示 fafafa.core.mem 模块的基本使用

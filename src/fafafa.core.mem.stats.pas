@@ -12,11 +12,10 @@ unit fafafa.core.mem.stats;
 interface
 
 uses
-  SysUtils,
-  fafafa.core.base,
   fafafa.core.mem.memPool,
   fafafa.core.mem.stackPool,
-  fafafa.core.mem.mimalloc;
+  fafafa.core.mem.blockpool,
+  fafafa.core.mem.pool.slab;
 
 // 通用统计记录
 
@@ -36,29 +35,36 @@ type
     Utilization: Double; // 0.0 .. 1.0
   end;
 
-  TMimallocStats = record
-    TotalAllocated: SizeUInt;
-    TotalFreed: SizeUInt;
-    ActiveBytes: SizeUInt;  // TotalAllocated - TotalFreed
+  TBlockPoolStats = record
+    BlockSize: SizeUInt;
+    Capacity: SizeUInt;
+    InUse: SizeUInt;
+    Available: SizeUInt;
+    Utilization: Double; // 0.0 .. 1.0
   end;
 
+
+
+  TSlabPoolStats = fafafa.core.mem.pool.slab.TSlabPoolStats;
+
 // 快照函数（零副作用）
-function GetMemPoolStats(const APool: TMemPool): TMemPoolStats; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
-function GetStackPoolStats(const APool: TStackPool): TStackPoolStats; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
-function GetMimallocStats(const AAlloc: TMimalloc): TMimallocStats; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
+function GetMemPoolStats(const aPool: TMemPool): TMemPoolStats; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
+function GetStackPoolStats(const aPool: TStackPool): TStackPoolStats; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
+function GetBlockPoolStats(const aPool: IBlockPool): TBlockPoolStats; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
+function GetSlabPoolStats(const aPool: TSlabPool): TSlabPoolStats; {$IFDEF FAFAFA_CORE_INLINE}inline;{$ENDIF}
 
 implementation
 
-function GetMemPoolStats(const APool: TMemPool): TMemPoolStats;
+function GetMemPoolStats(const aPool: TMemPool): TMemPoolStats;
 var
   LCapacity: Integer;
   LAllocated: Integer;
 begin
   // 中文注释：从现有公开属性采集只读统计
-  LCapacity := APool.Capacity;
-  LAllocated := APool.AllocatedCount;
+  LCapacity := aPool.Capacity;
+  LAllocated := aPool.AllocatedCount;
 
-  Result.BlockSize := APool.BlockSize;
+  Result.BlockSize := aPool.BlockSize;
   Result.Capacity := LCapacity;
   Result.AllocatedCount := LAllocated;
   Result.AvailableCount := LCapacity - LAllocated;
@@ -68,13 +74,13 @@ begin
     Result.Utilization := 0.0;
 end;
 
-function GetStackPoolStats(const APool: TStackPool): TStackPoolStats;
+function GetStackPoolStats(const aPool: TStackPool): TStackPoolStats;
 var
   LTotal, LUsed: SizeUInt;
 begin
   // 中文注释：读取总大小与已用大小，计算可用与利用率
-  LTotal := APool.TotalSize;
-  LUsed := APool.UsedSize;
+  LTotal := aPool.TotalSize;
+  LUsed := aPool.UsedSize;
 
   Result.TotalSize := LTotal;
   Result.UsedSize := LUsed;
@@ -89,19 +95,31 @@ begin
     Result.Utilization := 0.0;
 end;
 
-function GetMimallocStats(const AAlloc: TMimalloc): TMimallocStats;
+function GetBlockPoolStats(const aPool: IBlockPool): TBlockPoolStats;
 var
-  LHeap: TMiHeap;
+  LCapacity: SizeUInt;
+  LInUse: SizeUInt;
+  LAvailable: SizeUInt;
 begin
-  // 从 TMimalloc 获取堆统计
-  LHeap := AAlloc.GetHeapStats;
-  Result.TotalAllocated := LHeap.TotalAllocated;
-  Result.TotalFreed := LHeap.TotalFreed;
-  if LHeap.TotalAllocated >= LHeap.TotalFreed then
-    Result.ActiveBytes := LHeap.TotalAllocated - LHeap.TotalFreed
+  LCapacity := aPool.Capacity;
+  LInUse := aPool.InUse;
+  LAvailable := aPool.Available;
+
+  Result.BlockSize := aPool.BlockSize;
+  Result.Capacity := LCapacity;
+  Result.InUse := LInUse;
+  Result.Available := LAvailable;
+  if LCapacity > 0 then
+    Result.Utilization := LInUse / LCapacity
   else
-    Result.ActiveBytes := 0; // 防御性
+    Result.Utilization := 0.0;
+end;
+
+
+
+function GetSlabPoolStats(const aPool: TSlabPool): TSlabPoolStats;
+begin
+  Result := aPool.Stats;
 end;
 
 end.
-

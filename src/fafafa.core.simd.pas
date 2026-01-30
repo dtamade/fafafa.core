@@ -19,7 +19,9 @@ uses
   , fafafa.core.simd.sse41     // ✅ SSE4.1: dot product (DPPS), rounding, PMULLD
   , fafafa.core.simd.sse42     // ✅ SSE4.2: CRC32, string ops, PCMPGTQ
   , fafafa.core.simd.avx2
+    {$IFDEF SIMD_BACKEND_AVX512}
   , fafafa.core.simd.avx512
+    {$ENDIF}
   {$ENDIF}
   {$IFDEF CPUI386}  // i386 SSE2 backend uses 32-bit assembly
   , fafafa.core.simd.sse2.i386

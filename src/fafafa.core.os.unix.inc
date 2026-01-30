@@ -13,22 +13,16 @@ var
   g_unix_cache_cs_inited: Boolean = False;
   g_unix_cache_cs: TRTLCriticalSection;
 
-procedure _cache_lock_unix;
+procedure _cache_lock_unix; inline;
 begin
-  // 延迟初始化临界区，确保线程安全
-  if not g_unix_cache_cs_inited then
-  begin
-    InitCriticalSection(g_unix_cache_cs);
-    g_unix_cache_cs_inited := True;
-  end;
+  // CriticalSection 在 initialization 中初始化
+  // 这里只需要进入临界区
   EnterCriticalSection(g_unix_cache_cs);
 end;
 
-procedure _cache_unlock_unix;
+procedure _cache_unlock_unix; inline;
 begin
-  // 安全释放临界区锁
-  if g_unix_cache_cs_inited then
-    LeaveCriticalSection(g_unix_cache_cs);
+  LeaveCriticalSection(g_unix_cache_cs);
 end;
 {$ENDIF}
 

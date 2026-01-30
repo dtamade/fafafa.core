@@ -4,272 +4,367 @@ unit fafafa.core.option;
 {$modeswitch advancedrecords}
 {$I fafafa.core.settings.inc}
 
-{
-  fafafa.core.option - Option 类型组合子扩展
-
-  此模块基于 fafafa.core.option.base 提供的 TOption<T> 核心定义，
-  扩展更多全局组合子函数和与 Result 的互转功能。
-
-  用法：
-    uses fafafa.core.option.base, fafafa.core.option;
-
-  TOption<T> 核心类型定义位于 fafafa.core.option.base 模块。
-}
+{**
+ * fafafa.core.option - Option 类型组合子扩展
+ *
+ * @desc
+ *   基于 fafafa.core.option.base 的 TOption<T> 核心定义，提供丰富的函数式组合子和类型转换功能。
+ *   Extends TOption<T> from fafafa.core.option.base with rich functional combinators and type conversion utilities.
+ *
+ * @design_philosophy
+ *   Option 类型用于显式表达"值可能不存在"的语义，避免 nil 指针和空值检查的陷阱。
+ *   Option type explicitly expresses "value may not exist" semantics, avoiding nil pointer and null check pitfalls.
+ *
+ * @core_concepts
+ *   1. **Some(T)**: 包含值的 Option
+ *   2. **None**: 不包含值的 Option
+ *   3. **组合子**: 函数式操作，如 Map、Filter、AndThen
+ *   4. **类型转换**: 与 Result 类型的互转
+ *
+ * @usage_patterns
+ *   // 1. 基础构造
+ *   var Opt: specialize TOption<Integer>;
+ *   Opt := specialize TOption<Integer>.Some(42);
+ *   Opt := specialize TOption<Integer>.None;
+ *
+ *   // 2. Map 转换（Some(T) -> Some(U)）
+ *   function DoubleIt(const N: Integer): Integer;
+ *   begin
+ *     Result := N * 2;
+ *   end;
+ *   var Doubled: specialize TOption<Integer>;
+ *   Doubled := OptionMap(Opt, @DoubleIt);  // Some(42) -> Some(84)
+ *
+ *   // 3. Filter 过滤（Some(T) -> Some(T) or None）
+ *   function IsEven(const N: Integer): Boolean;
+ *   begin
+ *     Result := (N mod 2) = 0;
+ *   end;
+ *   var Filtered: specialize TOption<Integer>;
+ *   Filtered := OptionFilter(Opt, @IsEven);  // Some(42) -> Some(42)
+ *
+ *   // 4. AndThen 链式操作（Some(T) -> Option<U>）
+ *   function SafeDivide(const N: Integer): specialize TOption<Integer>;
+ *   begin
+ *     if N = 0 then
+ *       Exit(specialize TOption<Integer>.None);
+ *     Result := specialize TOption<Integer>.Some(100 div N);
+ *   end;
+ *   var Divided: specialize TOption<Integer>;
+ *   Divided := OptionAndThen(Opt, @SafeDivide);
+ *
+ *   // 5. 与 Result 互转
+ *   var Res: specialize TResult<Integer, string>;
+ *   Res := OptionToResult(Opt, 'Value not found');  // Some(42) -> Ok(42)
+ *
+ * @combinators
+ *   - **Map**: 转换 Some 中的值，None 保持不变
+ *   - **AndThen**: 链式操作，可能返回 None
+ *   - **Filter**: 根据谓词过滤，不满足返回 None
+ *   - **MapOr**: 提供默认值的 Map
+ *   - **MapOrElse**: 提供默认值生成函数的 Map
+ *   - **Flatten**: 展平嵌套的 Option<Option<T>>
+ *   - **Zip**: 组合两个 Option 为元组
+ *   - **ZipWith**: 组合两个 Option 并应用函数
+ *
+ * @conversions
+ *   - **OptionToResult**: Option<T> -> Result<T, E>
+ *   - **ResultToOption**: Result<T, E> -> Option<T>
+ *   - **ResultErrOption**: Result<T, E> -> Option<E>
+ *   - **Transpose**: Result<Option<T>, E> <-> Option<Result<T, E>>
+ *
+ * @best_practices
+ *   1. 优先使用 Option 而非 nil 指针
+ *   2. 使用组合子链式操作，避免嵌套 if
+ *   3. 使用 UnwrapOr 提供默认值，避免异常
+ *   4. 使用 AndThen 处理可能失败的操作链
+ *
+ * @see fafafa.core.option.base, fafafa.core.result, TOption, TResult
+ *}
 
 interface
 
 uses
   SysUtils,
-  fafafa.core.option.base,  // TOption<T> 核心定义
+  fafafa.core.base,              // TTuple2 类型定义
+  fafafa.core.option.base,       // TOption<T> 核心定义
   fafafa.core.result;
+
+const
+  {** 模块版本 | Module version *}
+  FAFAFA_CORE_OPTION_VERSION = '1.0.0';
 
 // 顶层组合子（Option）
 // Map: Some(T)->Some(U)  None->None
-generic function OptionMap<T,U>(const O: specialize TOption<T>; const F: specialize TOptionFunc<T,U>): specialize TOption<U>;
+generic function OptionMap<T,U>(const aO: specialize TOption<T>; const aF: specialize TOptionFunc<T,U>): specialize TOption<U>; inline;
 // AndThen: Some(T)->F(T)  None->None
-generic function OptionAndThen<T,U>(const O: specialize TOption<T>; const F: specialize TOptionFunc<T, specialize TOption<U>>): specialize TOption<U>;
+generic function OptionAndThen<T,U>(const aO: specialize TOption<T>; const aF: specialize TOptionFunc<T, specialize TOption<U>>): specialize TOption<U>; inline;
 // MapOr: Some(T)->F(T):U  None->Default:U
-generic function OptionMapOr<T,U>(const O: specialize TOption<T>; const ADefault: U; const F: specialize TOptionFunc<T,U>): U;
+generic function OptionMapOr<T,U>(const aO: specialize TOption<T>; const aDefault: U; const aF: specialize TOptionFunc<T,U>): U; inline;
 // MapOrElse: Some(T)->Fok(T):U  None->Fnone():U
-generic function OptionMapOrElse<T,U>(const O: specialize TOption<T>; const Fnone: specialize TOptionThunk<U>; const Fok: specialize TOptionFunc<T,U>): U;
+generic function OptionMapOrElse<T,U>(const aO: specialize TOption<T>; const aFnone: specialize TOptionThunk<U>; const aFok: specialize TOptionFunc<T,U>): U; inline;
 // Filter: Some(T)&Pred(T)->Some(T) else None
-generic function OptionFilter<T>(const O: specialize TOption<T>; const Pred: specialize TOptionFunc<T,Boolean>): specialize TOption<T>;
+generic function OptionFilter<T>(const aO: specialize TOption<T>; const aPred: specialize TOptionFunc<T,Boolean>): specialize TOption<T>; inline;
 
 // Flatten: Option<Option<T>> -> Option<T>
-generic function OptionFlatten<T>(const O: specialize TOption<specialize TOption<T>>): specialize TOption<T>;
+generic function OptionFlatten<T>(const aO: specialize TOption<specialize TOption<T>>): specialize TOption<T>; inline;
 
 // Zip: (Some(T), Some(U)) -> Some((T,U))  else None
-// 返回 TPair 记录，包含 First 和 Second 字段
-type
-  generic TPair<TFirst, TSecond> = record
-    First: TFirst;
-    Second: TSecond;
-  end;
+// 使用 fafafa.core.base 中的 TTuple2 类型
 
-generic function OptionZip<T, U>(const A: specialize TOption<T>; const B: specialize TOption<U>): specialize TOption<specialize TPair<T, U>>;
+generic function OptionZip<T, U>(const aA: specialize TOption<T>; const aB: specialize TOption<U>): specialize TOption<specialize TTuple2<T, U>>; inline;
 
 // ZipWith: (Some(T), Some(U)) -> Some(F(T,U))  else None
-generic function OptionZipWith<T, U, R>(const A: specialize TOption<T>; const B: specialize TOption<U>;
-  const F: specialize TOptionFunc<specialize TPair<T, U>, R>): specialize TOption<R>;
+generic function OptionZipWith<T, U, R>(const aA: specialize TOption<T>; const aB: specialize TOption<U>;
+  const aF: specialize TOptionFunc<specialize TTuple2<T, U>, R>): specialize TOption<R>; inline;
 
 // 与 Result 互转
 // Some(T) -> Ok(T)；None -> Err(E)
-generic function OptionToResult<T,E>(const O: specialize TOption<T>; const Err: E): specialize TResult<T,E>;
+generic function OptionToResult<T,E>(const aO: specialize TOption<T>; const aErr: E): specialize TResult<T,E>;
 // Some(T) -> Ok(T)；None -> FerrThunk():Err(E)
-generic function OptionToResultElse<T,E>(const O: specialize TOption<T>; const FerrThunk: specialize TOptionThunk<E>): specialize TResult<T,E>;
+generic function OptionToResultElse<T,E>(const aO: specialize TOption<T>; const aFerrThunk: specialize TOptionThunk<E>): specialize TResult<T,E>;
 // Ok(T) -> Some(T)；Err(E) -> None
-generic function ResultToOption<T,E>(const R: specialize TResult<T,E>): specialize TOption<T>;
+generic function ResultToOption<T,E>(const aR: specialize TResult<T,E>): specialize TOption<T>;
 // Err(E) -> Some(E)；Ok(T) -> None
-generic function ResultErrOption<T,E>(const R: specialize TResult<T,E>): specialize TOption<E>;
+generic function ResultErrOption<T,E>(const aR: specialize TResult<T,E>): specialize TOption<E>;
 
   // Transpose：Result<Option<T>,E> <-> Option<Result<T,E>>
-  generic function ResultTransposeOption<T,E>(const R: specialize TResult<specialize TOption<T>,E>): specialize TOption< specialize TResult<T,E> >;
-  generic function OptionTransposeResult<T,E>(const O: specialize TOption< specialize TResult<T,E> >): specialize TResult< specialize TOption<T>, E>;
+  generic function ResultTransposeOption<T,E>(const aR: specialize TResult<specialize TOption<T>,E>): specialize TOption< specialize TResult<T,E> >;
+  generic function OptionTransposeResult<T,E>(const aO: specialize TOption< specialize TResult<T,E> >): specialize TResult< specialize TOption<T>, E>;
 
 
 // FromNullable 家族
 // 1) 从布尔条件
-generic function OptionFromBool<T>(B: Boolean; const WhenTrue: T): specialize TOption<T>;
+generic function OptionFromBool<T>(aB: Boolean; const aWhenTrue: T): specialize TOption<T>;
 // 2) 从字符串（TreatEmptyAsNone=True 表示空串视为 None）
-function OptionFromString(const S: string; const TreatEmptyAsNone: Boolean = True): specialize TOption<string>;
+function OptionFromString(const aStr: string; const aTreatEmptyAsNone: Boolean = True): specialize TOption<string>;
 // 3) 通用聚合（已知 HasValue）
-generic function OptionFromValue<T>(HasValue: Boolean; const Value: T): specialize TOption<T>;
+generic function OptionFromValue<T>(aHasValue: Boolean; const aValue: T): specialize TOption<T>;
 // 4) 从 IInterface（nil -> None）
-function OptionFromInterface(const V: IInterface): specialize TOption<IInterface>;
+function OptionFromInterface(const aV: IInterface): specialize TOption<IInterface>;
 
 implementation
 
-uses
-  fafafa.core.base;
-
 { 全局组合子实现 }
 
-generic function OptionMap<T,U>(const O: specialize TOption<T>; const F: specialize TOptionFunc<T,U>): specialize TOption<U>;
+generic function OptionMap<T,U>(const aO: specialize TOption<T>; const aF: specialize TOptionFunc<T,U>): specialize TOption<U>; inline;
 begin
-  if O.IsSome then
+  if aO.IsSome then
   begin
-    if F = nil then
-      raise EArgumentNil.Create('F is nil');
-    Exit(specialize TOption<U>.Some(F(O.GetValueUnchecked)));
+    {$IFDEF DEBUG}
+    // ✅ Phase 4.4 优化：仅在 Debug 模式保留 nil 检查
+    if aF = nil then
+      raise EArgumentNil.Create('aF is nil');
+    {$ENDIF}
+    Exit(specialize TOption<U>.Some(aF(aO.GetValueUnchecked)));
   end;
 
   Result := specialize TOption<U>.None;
 end;
 
-generic function OptionAndThen<T,U>(const O: specialize TOption<T>; const F: specialize TOptionFunc<T, specialize TOption<U>>): specialize TOption<U>;
+generic function OptionAndThen<T,U>(const aO: specialize TOption<T>; const aF: specialize TOptionFunc<T, specialize TOption<U>>): specialize TOption<U>; inline;
 begin
-  if O.IsSome then
+  if aO.IsSome then
   begin
-    if F = nil then
-      raise EArgumentNil.Create('F is nil');
-    Exit(F(O.GetValueUnchecked));
+    {$IFDEF DEBUG}
+    // ✅ Phase 4.4 优化：仅在 Debug 模式保留 nil 检查
+    if aF = nil then
+      raise EArgumentNil.Create('aF is nil');
+    {$ENDIF}
+    Exit(aF(aO.GetValueUnchecked));
   end;
 
   Result := specialize TOption<U>.None;
 end;
 
-generic function OptionMapOr<T,U>(const O: specialize TOption<T>; const ADefault: U; const F: specialize TOptionFunc<T,U>): U;
+generic function OptionMapOr<T,U>(const aO: specialize TOption<T>; const aDefault: U; const aF: specialize TOptionFunc<T,U>): U; inline;
 begin
-  if O.IsSome then
+  if aO.IsSome then
   begin
-    if F = nil then
-      raise EArgumentNil.Create('F is nil');
-    Exit(F(O.GetValueUnchecked));
+    {$IFDEF DEBUG}
+    // ✅ Phase 4.4 优化：仅在 Debug 模式保留 nil 检查
+    if aF = nil then
+      raise EArgumentNil.Create('aF is nil');
+    {$ENDIF}
+    Exit(aF(aO.GetValueUnchecked));
   end;
 
-  Result := ADefault;
+  Result := aDefault;
 end;
 
-generic function OptionMapOrElse<T,U>(const O: specialize TOption<T>; const Fnone: specialize TOptionThunk<U>; const Fok: specialize TOptionFunc<T,U>): U;
+generic function OptionMapOrElse<T,U>(const aO: specialize TOption<T>; const aFnone: specialize TOptionThunk<U>; const aFok: specialize TOptionFunc<T,U>): U; inline;
 begin
-  if O.IsSome then
+  if aO.IsSome then
   begin
-    if Fok = nil then
-      raise EArgumentNil.Create('Fok is nil');
-    Exit(Fok(O.GetValueUnchecked));
+    {$IFDEF DEBUG}
+    // ✅ Phase 4.4 优化：仅在 Debug 模式保留 nil 检查
+    if aFok = nil then
+      raise EArgumentNil.Create('aFok is nil');
+    {$ENDIF}
+    Exit(aFok(aO.GetValueUnchecked));
   end;
 
-  if Fnone = nil then
-    raise EArgumentNil.Create('Fnone is nil');
+  {$IFDEF DEBUG}
+  // ✅ Phase 4.4 优化：仅在 Debug 模式保留 nil 检查
+  if aFnone = nil then
+    raise EArgumentNil.Create('aFnone is nil');
+  {$ENDIF}
 
-  Result := Fnone();
+  Result := aFnone();
 end;
 
-generic function OptionFilter<T>(const O: specialize TOption<T>; const Pred: specialize TOptionFunc<T,Boolean>): specialize TOption<T>;
+generic function OptionFilter<T>(const aO: specialize TOption<T>; const aPred: specialize TOptionFunc<T,Boolean>): specialize TOption<T>; inline;
 begin
-  if O.IsSome then
+  if aO.IsSome then
   begin
-    if Pred = nil then
-      raise EArgumentNil.Create('Pred is nil');
+    {$IFDEF DEBUG}
+    // ✅ Phase 4.4 优化：仅在 Debug 模式保留 nil 检查
+    if aPred = nil then
+      raise EArgumentNil.Create('aPred is nil');
+    {$ENDIF}
 
-    if Pred(O.GetValueUnchecked) then
-      Exit(O);
+    if aPred(aO.GetValueUnchecked) then
+      Exit(aO);
   end;
 
   Result := specialize TOption<T>.None;
 end;
 
-generic function OptionFlatten<T>(const O: specialize TOption<specialize TOption<T>>): specialize TOption<T>;
+generic function OptionFlatten<T>(const aO: specialize TOption<specialize TOption<T>>): specialize TOption<T>; inline;
 begin
-  if O.IsSome then
-    Result := O.Unwrap
+  if aO.IsSome then
+    Result := aO.GetValueUnchecked  // ✅ OPT: 避免双重检查
   else
     Result := specialize TOption<T>.None;
 end;
 
-generic function OptionZip<T, U>(const A: specialize TOption<T>; const B: specialize TOption<U>): specialize TOption<specialize TPair<T, U>>;
+generic function OptionZip<T, U>(const aA: specialize TOption<T>; const aB: specialize TOption<U>): specialize TOption<specialize TTuple2<T, U>>; inline;
 type
-  TResultPair = specialize TPair<T, U>;
-  TResultOption = specialize TOption<TResultPair>;
+  TResultTuple = specialize TTuple2<T, U>;
+  TResultOption = specialize TOption<TResultTuple>;
 var
-  P: TResultPair;
+  P: TResultTuple;
 begin
-  if A.IsSome and B.IsSome then
+  if aA.IsSome and aB.IsSome then
   begin
-    P.First := A.Unwrap;
-    P.Second := B.Unwrap;
+    P.First := aA.GetValueUnchecked;   // ✅ OPT: 避免双重检查
+    P.Second := aB.GetValueUnchecked;  // ✅ OPT: 避免双重检查
     Result := TResultOption.Some(P);
   end
   else
     Result := TResultOption.None;
 end;
 
-generic function OptionZipWith<T, U, R>(const A: specialize TOption<T>; const B: specialize TOption<U>;
-  const F: specialize TOptionFunc<specialize TPair<T, U>, R>): specialize TOption<R>;
+generic function OptionZipWith<T, U, R>(const aA: specialize TOption<T>; const aB: specialize TOption<U>;
+  const aF: specialize TOptionFunc<specialize TTuple2<T, U>, R>): specialize TOption<R>; inline;
 type
-  TPairTU = specialize TPair<T, U>;
+  TTupleTU = specialize TTuple2<T, U>;
 var
-  P: TPairTU;
+  P: TTupleTU;
 begin
-  if A.IsSome and B.IsSome then
+  if aA.IsSome and aB.IsSome then
   begin
-    if F = nil then
-      raise EArgumentNil.Create('F is nil');
+    {$IFDEF DEBUG}
+    // ✅ Phase 4.4 优化：仅在 Debug 模式保留 nil 检查
+    if aF = nil then
+      raise EArgumentNil.Create('aF is nil');
+    {$ENDIF}
 
-    P.First := A.GetValueUnchecked;
-    P.Second := B.GetValueUnchecked;
-    Result := specialize TOption<R>.Some(F(P));
+    P.First := aA.GetValueUnchecked;
+    P.Second := aB.GetValueUnchecked;
+    Result := specialize TOption<R>.Some(aF(P));
   end
   else
     Result := specialize TOption<R>.None;
 end;
 
-generic function OptionToResult<T,E>(const O: specialize TOption<T>; const Err: E): specialize TResult<T,E>;
+generic function OptionToResult<T,E>(const aO: specialize TOption<T>; const aErr: E): specialize TResult<T,E>;
 begin
-  if O.IsSome then Exit(specialize TResult<T,E>.Ok(O.Unwrap))
-  else Exit(specialize TResult<T,E>.Err(Err));
+  if aO.IsSome then Exit(specialize TResult<T,E>.Ok(aO.GetValueUnchecked))  // ✅ OPT
+  else Exit(specialize TResult<T,E>.Err(aErr));
 end;
 
-generic function OptionToResultElse<T,E>(const O: specialize TOption<T>; const FerrThunk: specialize TOptionThunk<E>): specialize TResult<T,E>;
+generic function OptionToResultElse<T,E>(const aO: specialize TOption<T>; const aFerrThunk: specialize TOptionThunk<E>): specialize TResult<T,E>;
 begin
-  if O.IsSome then
-    Exit(specialize TResult<T,E>.Ok(O.GetValueUnchecked));
+  if aO.IsSome then
+    Exit(specialize TResult<T,E>.Ok(aO.GetValueUnchecked));
 
-  if FerrThunk = nil then
-    raise EArgumentNil.Create('FerrThunk is nil');
+  {$IFDEF DEBUG}
+  // ✅ Phase 4.4 优化：仅在 Debug 模式保留 nil 检查
+  if aFerrThunk = nil then
+    raise EArgumentNil.Create('aFerrThunk is nil');
+  {$ENDIF}
 
-  Result := specialize TResult<T,E>.Err(FerrThunk());
+  Result := specialize TResult<T,E>.Err(aFerrThunk());
 end;
 
-generic function ResultToOption<T,E>(const R: specialize TResult<T,E>): specialize TOption<T>;
+generic function ResultToOption<T,E>(const aR: specialize TResult<T,E>): specialize TOption<T>;
 begin
-  if R.IsOk then Exit(specialize TOption<T>.Some(R.Unwrap)) else Exit(specialize TOption<T>.None);
+  if aR.IsOk then Exit(specialize TOption<T>.Some(aR.GetOkUnchecked))  // ✅ OPT
+  else Exit(specialize TOption<T>.None);
 end;
 
 // Transpose 实现
 
-generic function ResultTransposeOption<T,E>(const R: specialize TResult<specialize TOption<T>,E>): specialize TOption< specialize TResult<T,E> >;
+generic function ResultTransposeOption<T,E>(const aR: specialize TResult<specialize TOption<T>,E>): specialize TOption< specialize TResult<T,E> >;
 begin
-  if R.IsOk then
+  if aR.IsOk then
   begin
-    if R.Unwrap.IsSome then Exit(specialize TOption< specialize TResult<T,E> >.Some(specialize TResult<T,E>.Ok(R.Unwrap.Unwrap)))
-    else Exit(specialize TOption< specialize TResult<T,E> >.None);
+    if aR.GetOkUnchecked.IsSome then  // ✅ OPT
+      Exit(specialize TOption< specialize TResult<T,E> >.Some(specialize TResult<T,E>.Ok(aR.GetOkUnchecked.GetValueUnchecked)))
+    else
+      Exit(specialize TOption< specialize TResult<T,E> >.None);
   end
   else
-    Exit(specialize TOption< specialize TResult<T,E> >.Some(specialize TResult<T,E>.Err(R.UnwrapErr)));
+    Exit(specialize TOption< specialize TResult<T,E> >.Some(specialize TResult<T,E>.Err(aR.GetErrUnchecked)));  // ✅ OPT
 end;
 
-generic function OptionTransposeResult<T,E>(const O: specialize TOption< specialize TResult<T,E> >): specialize TResult< specialize TOption<T>, E>;
+generic function OptionTransposeResult<T,E>(const aO: specialize TOption< specialize TResult<T,E> >): specialize TResult< specialize TOption<T>, E>;
+var
+  Inner: specialize TResult<T,E>;
 begin
-  if O.IsSome then
+  if aO.IsSome then
   begin
-    if O.Unwrap.IsOk then Exit(specialize TResult< specialize TOption<T>, E>.Ok(specialize TOption<T>.Some(O.Unwrap.Unwrap)))
-    else Exit(specialize TResult< specialize TOption<T>, E>.Err(O.Unwrap.UnwrapErr));
+    Inner := aO.GetValueUnchecked;  // ✅ OPT
+    if Inner.IsOk then
+      Exit(specialize TResult< specialize TOption<T>, E>.Ok(specialize TOption<T>.Some(Inner.GetOkUnchecked)))
+    else
+      Exit(specialize TResult< specialize TOption<T>, E>.Err(Inner.GetErrUnchecked));
   end
   else
     Exit(specialize TResult< specialize TOption<T>, E>.Ok(specialize TOption<T>.None));
 end;
 
 
-generic function ResultErrOption<T,E>(const R: specialize TResult<T,E>): specialize TOption<E>;
+generic function ResultErrOption<T,E>(const aR: specialize TResult<T,E>): specialize TOption<E>;
 begin
-  if R.IsErr then Exit(specialize TOption<E>.Some(R.UnwrapErr)) else Exit(specialize TOption<E>.None);
+  if aR.IsErr then Exit(specialize TOption<E>.Some(aR.GetErrUnchecked))  // ✅ OPT
+  else Exit(specialize TOption<E>.None);
 end;
 
 // FromNullable 实现
 
-generic function OptionFromBool<T>(B: Boolean; const WhenTrue: T): specialize TOption<T>;
+generic function OptionFromBool<T>(aB: Boolean; const aWhenTrue: T): specialize TOption<T>;
 begin
-  if B then Exit(specialize TOption<T>.Some(WhenTrue)) else Exit(specialize TOption<T>.None);
+  if aB then Exit(specialize TOption<T>.Some(aWhenTrue)) else Exit(specialize TOption<T>.None);
 end;
 
-function OptionFromString(const S: string; const TreatEmptyAsNone: Boolean): specialize TOption<string>;
+function OptionFromString(const aStr: string; const aTreatEmptyAsNone: Boolean): specialize TOption<string>;
 begin
-  if (not TreatEmptyAsNone) or (S <> '') then
-    Exit(specialize TOption<string>.Some(S))
+  if (not aTreatEmptyAsNone) or (aStr <> '') then
+    Exit(specialize TOption<string>.Some(aStr))
   else
     Exit(specialize TOption<string>.None);
 end;
 
-generic function OptionFromValue<T>(HasValue: Boolean; const Value: T): specialize TOption<T>;
+generic function OptionFromValue<T>(aHasValue: Boolean; const aValue: T): specialize TOption<T>;
 begin
-  if HasValue then Exit(specialize TOption<T>.Some(Value)) else Exit(specialize TOption<T>.None);
+  if aHasValue then Exit(specialize TOption<T>.Some(aValue)) else Exit(specialize TOption<T>.None);
 end;
 
-function OptionFromInterface(const V: IInterface): specialize TOption<IInterface>;
+function OptionFromInterface(const aV: IInterface): specialize TOption<IInterface>;
 begin
-  if V <> nil then Exit(specialize TOption<IInterface>.Some(V)) else Exit(specialize TOption<IInterface>.None);
+  if aV <> nil then Exit(specialize TOption<IInterface>.Some(aV)) else Exit(specialize TOption<IInterface>.None);
 end;
 
 end.
-

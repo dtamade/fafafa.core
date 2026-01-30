@@ -4,6 +4,7 @@ program slab_pool_tests;
 {$mode objfpc}{$H+}
 
 uses
+  {$IFDEF UNIX}cthreads,{$ENDIF}
   SysUtils, Classes, consoletestrunner,
   fafafa.core.mem.pool.slab.testcase;
 

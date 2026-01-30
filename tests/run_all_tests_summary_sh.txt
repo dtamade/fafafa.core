@@ -1,7 +1,8 @@
 ========================================
-Run-all summary (2025-12-17 11:00:36)
-Logs dir: /home/dtamade/projects/fafafa.core-env-android/tests/_run_all_logs_sh
+Run-all summary (2026-01-30 11:24:41)
+Logs dir: /home/dtamade/projects/fafafa.core/tests/_run_all_logs_sh
 ========================================
 Total:  1
-Passed: 1
-Failed: 0
+Passed: 0
+Failed: 1
+Failed modules: fafafa.core.atomic

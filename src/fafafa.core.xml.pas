@@ -311,11 +311,58 @@ type
 // 便捷函数（接口区声明）
 function XmlReadAllToDocument(const R: IXmlReader): IXmlDocument; overload;
 
+// XML 转义函数
+function XmlEscapeXML10Strict(const S: String): String;
+
 // 工厂
 function CreateXmlReader(AAllocator: TAllocator = nil): IXmlReader;
 function CreateXmlWriter: IXmlWriter;
 
 implementation
+
+function XmlEscapeXML10Strict(const S: String): String;
+var
+  i: SizeInt;
+  c: Char;
+  NeedEscape: Boolean;
+begin
+  // ✅ XML 1.0 严格转义：转义 <, >, &, ", ' 和控制字符
+  // 快速路径：检查是否需要转义
+  NeedEscape := False;
+  for i := 1 to Length(S) do
+  begin
+    c := S[i];
+    if (c = '<') or (c = '>') or (c = '&') or (c = '"') or (c = '''') or
+       (Ord(c) < 32) and (c <> #9) and (c <> #10) and (c <> #13) then
+    begin
+      NeedEscape := True;
+      Break;
+    end;
+  end;
+
+  if not NeedEscape then
+    Exit(S);
+
+  // 慢速路径：构建转义字符串
+  Result := '';
+  for i := 1 to Length(S) do
+  begin
+    c := S[i];
+    case c of
+      '<': Result := Result + '&lt;';
+      '>': Result := Result + '&gt;';
+      '&': Result := Result + '&amp;';
+      '"': Result := Result + '&quot;';
+      '''': Result := Result + '&apos;';
+      #9, #10, #13: Result := Result + c; // 保留合法的空白字符
+    else
+      if Ord(c) < 32 then
+        Result := Result + '&#' + IntToStr(Ord(c)) + ';' // 转义控制字符
+      else
+        Result := Result + c;
+    end;
+  end;
+end;
 
 function XmlReadAllToDocument(const R: IXmlReader): IXmlDocument; overload;
 var DocImpl: TXmlDocumentImpl; Doc: IXmlDocument; Depth: SizeUInt;
@@ -604,9 +651,8 @@ type
     function GetLine: SizeUInt; inline;
     function GetColumn: SizeUInt; inline;
     function GetPosition: SizeUInt; inline;
-  end;
     function ReadAllToDocument: IXmlDocument; inline;
-
+  end;
 
 { EXmlParseError }
 constructor EXmlParseError.Create(ACode: TXmlErrorCode; const AMsg: String; APos, ALine, ACol: SizeUInt);
@@ -943,8 +989,9 @@ begin
   FSortAttrs := False;
   FDedupAttrs := False;
   FLastWasText := False;
+end;
+
 procedure TXmlReaderImpl.NSMapClear;
-var i: SizeUInt;
 begin
   SetLength(FNSMapKeys, 0);
   SetLength(FNSMapVals, 0);
@@ -953,7 +1000,7 @@ begin
 end;
 
 procedure TXmlReaderImpl.NSMapEnsureCap(Need: SizeUInt);
-var newCap: SizeUInt;
+var newCap, i: SizeUInt;
 begin
   if FNSMapCap >= Need then Exit;
   if Need < 16 then newCap := 16 else newCap := Need;
@@ -978,23 +1025,23 @@ begin
 end;
 
 function TXmlReaderImpl.NSMapTryGet(const Key: String; out Val: String): Boolean;
-var idx, step, mask: SizeUInt;
+var idx, probe, mask: SizeUInt;
 begin
   Result := False;
   if FNSMapCap = 0 then Exit;
   mask := FNSMapCap - 1;
   idx := NSMapHash(Key) and mask;
-  step := 1;
+  probe := 1;
   while FNSMapUsed[idx] do
   begin
     if FNSMapKeys[idx] = Key then begin Val := FNSMapVals[idx]; Exit(True); end;
-    idx := (idx + step) and mask;
-    Inc(step);
+    idx := (idx + probe) and mask;
+    Inc(probe);
   end;
 end;
 
 procedure TXmlReaderImpl.NSMapPut(const Key, Val: String);
-var idx, step, mask: SizeUInt; load, i: SizeUInt; curUsed: SizeUInt;
+var idx, probe, mask: SizeUInt; load, i: SizeUInt; curUsed: SizeUInt;
 begin
   if FNSMapCap = 0 then NSMapEnsureCap(16);
   // 简单扩容策略：装载因子 > 0.7 时翻倍并重建
@@ -1010,19 +1057,15 @@ begin
   end;
   mask := FNSMapCap - 1;
   idx := NSMapHash(Key) and mask;
-  step := 1;
+  probe := 1;
   while FNSMapUsed[idx] and (FNSMapKeys[idx] <> Key) do
   begin
-    idx := (idx + step) and mask;
-    Inc(step);
+    idx := (idx + probe) and mask;
+    Inc(probe);
   end;
   FNSMapUsed[idx] := True;
   FNSMapKeys[idx] := Key;
   FNSMapVals[idx] := Val;
-end;
-
-  FLastEmittedNL := False;
-  FLastWasPI := False;
 end;
 
 procedure TXmlWriterStub.WNSPushBinding(const APrefix, AURI: String);
@@ -1282,11 +1325,6 @@ begin
   Result := CompareMem(FCur, S, L);
 end;
 
-function TXmlReaderImpl.DecodeEntities(P: PChar; L: SizeUInt): String;
-var
-  i, j, LenSrc: SizeUInt;
-  Src: AnsiString;
-  cp, base, digit: SizeUInt;
 procedure TXmlReaderImpl.ScratchClear;
 begin
   SetLength(FScratch, 0);
@@ -1302,6 +1340,11 @@ begin
   Move(P^, FScratch[oldLen+1], L);
 end;
 
+function TXmlReaderImpl.DecodeEntities(P: PChar; L: SizeUInt): String;
+var
+  i, j, LenSrc: SizeUInt;
+  Src: AnsiString;
+  cp, base, digit: SizeUInt;
   ch: Char;
   function StartsWithAt(const Lit: AnsiString): Boolean;
   var k, LL: SizeUInt;
@@ -2159,6 +2202,15 @@ begin
   end;
 end;
 
+function TXmlReaderImpl.TranscodeRefill(AMin: SizeUInt): Boolean;
+begin
+  // ✅ Stub implementation: transcoding functionality has been removed
+  // UTF-16/UTF-32 BOMs now raise errors during detection phase
+  raise EXmlParseError.Create(xecInvalidEncoding,
+    'Internal error: TranscodeRefill called but transcoding is not implemented',
+    GetPosition, GetLine, GetColumn);
+end;
+
 procedure TXmlReaderImpl.ReleaseStreamSource;
 begin
   if FRingBuf <> nil then FreeMem(FRingBuf);
@@ -2267,49 +2319,6 @@ begin
         else
           raise EXmlParseError.Create(xecInvalidEncoding, 'Unsupported encoding: UTF-32 BOM detected (only UTF-8 supported currently)', GetPosition, GetLine, GetColumn)
       end
-          try
-            if FEnd > FCur then Mem32.WriteBuffer(FCur^, (FEnd - FCur));
-            if (FSourceStream <> nil) then
-            begin
-              repeat
-                RRead := FSourceStream.Read(BufRead[0], SizeOf(BufRead));
-                if RRead > 0 then Mem32.WriteBuffer(BufRead[0], RRead);
-              until RRead <= 0;
-            end;
-            OutS32 := '';
-            PBytes := PByte(Mem32.Memory);
-            sz32 := Mem32.Size;
-            if (sz32 mod 4) <> 0 then sz32 := sz32 - (sz32 mod 4);
-            i32 := 0;
-            while i32 + 3 < sz32 do
-            begin
-              if isLE32 then cp32 := LongWord(PBytes[i32]) or (LongWord(PBytes[i32+1]) shl 8) or (LongWord(PBytes[i32+2]) shl 16) or (LongWord(PBytes[i32+3]) shl 24)
-              else cp32 := (LongWord(PBytes[i32]) shl 24) or (LongWord(PBytes[i32+1]) shl 16) or (LongWord(PBytes[i32+2]) shl 8) or LongWord(PBytes[i32+3]);
-              Inc(i32, 4);
-              // 基础校验：限制到 Unicode 范围；代理范围不应出现
-              if (cp32 > $10FFFF) or ((cp32 >= $D800) and (cp32 <= $DFFF)) then
-              begin
-                if (xrfAllowInvalidUnicode in FFlags) then cp32 := $FFFD
-                else raise EXmlParseError.Create(xecInvalidEncoding, 'Invalid Unicode code point in UTF-32 stream', GetPosition, GetLine, GetColumn);
-              end;
-              if cp32 < $80 then OutS32 := OutS32 + AnsiChar(Chr(cp32))
-              else if cp32 < $800 then OutS32 := OutS32 + AnsiChar(Chr($C0 or (cp32 shr 6))) + AnsiChar(Chr($80 or (cp32 and $3F)))
-              else if cp32 < $10000 then OutS32 := OutS32 + AnsiChar(Chr($E0 or (cp32 shr 12))) + AnsiChar(Chr($80 or ((cp32 shr 6) and $3F))) + AnsiChar(Chr($80 or (cp32 and $3F)))
-              else OutS32 := OutS32 + AnsiChar(Chr($F0 or (cp32 shr 18))) + AnsiChar(Chr($80 or ((cp32 shr 12) and $3F))) + AnsiChar(Chr($80 or ((cp32 shr 6) and $3F))) + AnsiChar(Chr($80 or (cp32 and $3F)));
-            end;
-            // 切换至字符串模式
-            ReleaseStreamSource;
-            FText := OutS32;
-            FBuf := PChar(FText); FCur := FBuf; FEnd := FBuf + Length(FText);
-            FSourceKind := skString;
-            Exit(Read);
-          finally
-            Mem32.Free;
-          end;
-        end
-        else
-          raise EXmlParseError.Create(xecInvalidEncoding, 'Unsupported encoding: UTF-32 BOM detected (only UTF-8 supported currently)', GetPosition, GetLine, GetColumn)
-      end
       // UTF-8 BOM: EF BB BF
       else if (FCur^ = #$EF) and ((FCur+1)^ = #$BB) and ((FCur+2)^ = #$BF) then
       begin
@@ -2328,68 +2337,6 @@ begin
           if isLE16 then FTransMode := tmUTF16LE else FTransMode := tmUTF16BE;
           FRingStart := 0; FRingLen := 0; FBuf := PChar(FRingBuf); FCur := FBuf; FEnd := FBuf;
           EnsureLookahead(1);
-        end
-        else
-        begin
-          // 默认 AssumeUTF8：遇到 UTF-16 BOM 直接报不支持（除非 AutoDecode 开启）
-          raise EXmlParseError.Create(xecInvalidEncoding, 'Unsupported encoding: UTF-16 BOM detected (enable xrfAutoDecodeEncoding to decode)', GetPosition, GetLine, GetColumn);
-        end;
-      end;
-          try
-            if FEnd > FCur then Mem16.WriteBuffer(FCur^, (FEnd - FCur));
-            if (FSourceStream <> nil) then
-            begin
-              repeat
-                RRead := FSourceStream.Read(BufRead[0], SizeOf(BufRead));
-                if RRead > 0 then Mem16.WriteBuffer(BufRead[0], RRead);
-              until RRead <= 0;
-            end;
-            OutS16 := '';
-            P16 := PByte(Mem16.Memory);
-            sz16 := Mem16.Size;
-            if (sz16 and 1) <> 0 then Dec(sz16);
-            i16 := 0;
-            while i16 + 1 < sz16 do
-            begin
-              if isLE16 then cu := (P16[i16]) or (P16[i16+1] shl 8) else cu := (P16[i16] shl 8) or (P16[i16+1]);
-              Inc(i16, 2);
-              if (cu >= $D800) and (cu <= $DBFF) then
-              begin
-                if i16 + 1 < sz16 then
-                begin
-                  if isLE16 then cu2 := (P16[i16]) or (P16[i16+1] shl 8) else cu2 := (P16[i16] shl 8) or (P16[i16+1]);
-                  if (cu2 >= $DC00) and (cu2 <= $DFFF) then
-                  begin
-                    Inc(i16, 2);
-                    cp16 := $10000 + ((LongWord(cu - $D800) shl 10) or LongWord(cu2 - $DC00));
-                  end
-                  else if (xrfAllowInvalidUnicode in FFlags) then cp16 := $FFFD
-                  else raise EXmlParseError.Create(xecInvalidEncoding, 'Unpaired surrogate in UTF-16 stream', GetPosition, GetLine, GetColumn);
-                end
-                else if (xrfAllowInvalidUnicode in FFlags) then cp16 := $FFFD
-                else raise EXmlParseError.Create(xecInvalidEncoding, 'Truncated surrogate pair in UTF-16 stream', GetPosition, GetLine, GetColumn);
-              end
-              else if (cu >= $DC00) and (cu <= $DFFF) then
-              begin
-                if (xrfAllowInvalidUnicode in FFlags) then cp16 := $FFFD
-                else raise EXmlParseError.Create(xecInvalidEncoding, 'Unpaired low surrogate in UTF-16 stream', GetPosition, GetLine, GetColumn);
-              end
-              else cp16 := cu;
-
-              if cp16 < $80 then OutS16 := OutS16 + AnsiChar(Chr(cp16))
-              else if cp16 < $800 then OutS16 := OutS16 + AnsiChar(Chr($C0 or (cp16 shr 6))) + AnsiChar(Chr($80 or (cp16 and $3F)))
-              else if cp16 < $10000 then OutS16 := OutS16 + AnsiChar(Chr($E0 or (cp16 shr 12))) + AnsiChar(Chr($80 or ((cp16 shr 6) and $3F))) + AnsiChar(Chr($80 or (cp16 and $3F)))
-              else OutS16 := OutS16 + AnsiChar(Chr($F0 or (cp16 shr 18))) + AnsiChar(Chr($80 or ((cp16 shr 12) and $3F))) + AnsiChar(Chr($80 or ((cp16 shr 6) and $3F))) + AnsiChar(Chr($80 or (cp16 and $3F)));
-            end;
-            // 切换至字符串模式
-            ReleaseStreamSource;
-            FText := OutS16;
-            FBuf := PChar(FText); FCur := FBuf; FEnd := FBuf + Length(FText);
-            FSourceKind := skString;
-            Exit(Read);
-          finally
-            Mem16.Free;
-          end;
         end
         else
         begin
@@ -2592,30 +2539,39 @@ begin
         FValueOwned := FScratch;
         FValueP := PChar(FValueOwned); FValueLen := Length(FValueOwned);
         FTokP := FValueP; FTokLine := FLine; FTokColumn := FColumn;
+        FToken := xtText;
+        Exit(True);
+      end;
+    end;
+  end;
+
+  Result := False;
+end;
+
 function TXmlNodeIntf.GetAttributeLocalName(AIndex: SizeUInt): String;
+var
+  p: SizeInt;
 begin
   if (FDoc=nil) or (FIndex>=SizeUInt(Length(FDoc.FNodes))) then Exit('');
   if AIndex<SizeUInt(Length(FDoc.FNodes[FIndex].AttrNames)) then
   begin
     Result := FDoc.FNodes[FIndex].AttrNames[AIndex];
-    {$PUSH}{$HINTS OFF}
-    var p := Pos(':', Result);
-    {$POP}
+    p := Pos(':', Result);
     if p>0 then Result := Copy(Result, p+1, MaxInt);
   end
   else Result := '';
 end;
 
 function TXmlNodeIntf.GetAttributePrefix(AIndex: SizeUInt): String;
+var
+  p: SizeInt;
 begin
   Result := '';
   if (FDoc=nil) or (FIndex>=SizeUInt(Length(FDoc.FNodes))) then Exit('');
   if AIndex<SizeUInt(Length(FDoc.FNodes[FIndex].AttrNames)) then
   begin
     Result := FDoc.FNodes[FIndex].AttrNames[AIndex];
-    {$PUSH}{$HINTS OFF}
-    var p := Pos(':', Result);
-    {$POP}
+    p := Pos(':', Result);
     if p>0 then Result := Copy(Result, 1, p-1) else Result := '';
   end;
 end;
@@ -2631,207 +2587,6 @@ begin
   if (FDoc=nil) or (FIndex>=SizeUInt(Length(FDoc.FNodes))) then Exit('');
   if AIndex<SizeUInt(Length(FDoc.FNodes[FIndex].AttrNS)) then
     Result := FDoc.FNodes[FIndex].AttrNS[AIndex];
-end;
-
-        FToken := xtText; FNeedCompact := True; Exit(True);
-      end
-      else
-      begin
-        // 单独 CDATA 作为一个 token 返回
-        FToken := xtCData;
-        if FScratch<>'' then begin FValueP := PChar(FScratch); FValueLen := Length(FScratch); end
-        else begin FValueP := S; FValueLen := 0; end;
-        FTokP := FValueP; FTokLine := FLine; FTokColumn := FColumn;
-        Exit(True);
-      end;
-    end
-    else if EnsureLookahead(1) and (FCur^='?') then
-    begin
-      Step;
-      if not ParseName(FNameP, FNameLen) then begin FToken := xtEndDocument; Exit(True); end;
-      S := FCur;
-      FScratch := '';
-      while True do
-      begin
-        if EnsureLookahead(2) and (FCur^='?') and ((FCur+1)^='>') then Break;
-        if (FCur < FEnd) then Inc(FCur) else
-        begin
-          if FCur > S then
-          begin
-            if FScratch = '' then SetString(FScratch, S, FCur - S)
-            else ScratchAppend(S, FCur - S);
-          end;
-          S := FCur;
-          if not EnsureLookahead(1) then Break;
-        end;
-      end;
-      if not EnsureLookahead(2) then
-        raise EXmlParseError.Create(xecMalformedXml, 'Unterminated PI', GetPosition, GetLine, GetColumn);
-      if FCur > S then begin SetString(SegBuf, S, FCur - S); if FScratch='' then FScratch:=SegBuf else ScratchAppend(PChar(SegBuf), Length(SegBuf)); end;
-      FToken := xtPI;
-      if FScratch<>'' then begin FValueP := PChar(FScratch); FValueLen := Length(FScratch); end
-      else begin FValueP := S; FValueLen := 0; end;
-      FTokP := FValueP; FTokLine := FLine; FTokColumn := FColumn;
-      SkipN(2);
-      Exit(True);
-    end
-    else if EnsureLookahead(1) and (FCur^ = '/') then
-    begin
-      Inc(FCur);
-      if not ParseName(FNameP, FNameLen) then begin FToken := xtEndDocument; Exit(True); end;
-      while True do
-      begin
-        if EnsureLookahead(1) and (FCur^ = '>') then begin Inc(FCur); Break; end;
-        if (FCur < FEnd) then Inc(FCur) else if not EnsureLookahead(1) then Break;
-      end;
-      if (FCur <= FEnd) then
-      begin
-        if (FStackLen = 0) or ( (FStack[FStackLen-1].L <> FNameLen) or (not CompareMem(FStack[FStackLen-1].P, FNameP, FNameLen)) ) then
-          raise EXmlParseError.Create(xecMalformedXml, 'Mismatched end tag', GetPosition, GetLine, GetColumn);
-        FToken := xtEndElement;
-        FTokP := FNameP; FTokLine := FLine; FTokColumn := FColumn;
-        if FDepth > 0 then Dec(FDepth);
-        StackPop;
-        NSPopToMark;
-        // DOM 构建：遇到 EndElement 弹出当前父节点
-        if FNodeIdxLen>0 then Dec(FNodeIdxLen);
-        Exit(True);
-      end;
-    end
-    else
-    begin
-      if not ParseName(FNameP, FNameLen) then begin FToken := xtEndDocument; Exit(True); end;
-      // 流式：持久化开始标签名称到临时变量
-      if FSourceKind = skStream then
-      begin
-        SetString(FNameOwned, FNameP, FNameLen);
-        FNameP := PChar(FNameOwned); FNameLen := Length(FNameOwned);
-      NSMapClear; NSMapEnsureCap(16);
-
-      end;
-      FTokP := FNameP; FTokLine := FLine; FTokColumn := FColumn;
-      NSPushMark;
-      if not ParseAttributes then begin FToken := xtEndDocument; Exit(True); end;
-
-
-
-      // 在流式下，可能在 '/>' 或 '>' 的边界处读不到足够的 lookahead
-      // 采用等待式判定，直到能确定是 '/>' 还是 '>' 再返回 StartElement
-      while True do
-      begin
-        if EnsureLookahead(2) and (FCur^ = '/') and ((FCur+1)^ = '>') then
-        begin
-          Inc(FCur, 2);
-          FEmpty := True;
-          FToken := xtStartElement;
-          Inc(FDepth);
-          StackPush(FNameP, FNameLen);
-          FPendingAutoEnd := True;
-          if GetPrefix <> '' then if NSResolve(GetPrefix) = '' then
-            raise EXmlParseError.Create(xecMalformedXml, 'Unbound prefix', GetPosition, GetLine, GetColumn);
-
-          Exit(True);
-        end;
-        if EnsureLookahead(1) and (FCur^ = '>') then
-        begin
-          Inc(FCur);
-          FEmpty := False;
-          FToken := xtStartElement;
-          Inc(FDepth);
-          StackPush(FNameP, FNameLen);
-          if GetPrefix <> '' then if NSResolve(GetPrefix) = '' then
-            raise EXmlParseError.Create(xecMalformedXml, 'Unbound prefix', GetPosition, GetLine, GetColumn);
-
-          Exit(True);
-        end;
-        // 无法确定，继续补给；若此刻没有数据并且未 EOF，强制推进 1 字节避免空转
-        if not EnsureLookahead(1) then
-        begin
-          if FEOF then
-            raise EXmlParseError.Create(xecMalformedXml, 'Unterminated start tag', GetPosition, GetLine, GetColumn);
-          Continue;
-        end
-        else
-        begin
-          // 确认有数据但仍未判定为 '/>' 或 '>'，推进 1 字节以避免空转
-          Step;
-        end;
-      end;
-    end;
-    end
-  else
-  begin
-    // 文本节点（跨块拼接）：直到遇到 '<' 结束；若开启合并，则吸收后续 CDATA
-    S := FCur;
-    FScratch := '';
-    while True do
-    begin
-      if (FCur < FEnd) and (FCur^ <> '<') then begin Inc(FCur); Continue; end;
-      if (FCur >= FEnd) then
-      begin
-        if FCur > S then
-        begin
-          if FScratch = '' then SetString(FScratch, S, FCur - S)
-          else ScratchAppend(S, FCur - S);
-        end;
-        if not EnsureLookahead(1) then Break;
-        S := FCur; Continue;
-      end;
-      Break;
-    end;
-    // 若需要合并文本：继续吸收紧接的 CDATA 段
-    if (xrfCoalesceText in FFlags) then
-    begin
-      if FCur > S then begin SetString(SegBuf, S, FCur - S); if FScratch='' then FScratch:=SegBuf else ScratchAppend(PChar(SegBuf), Length(SegBuf)); end;
-      // 如果后续是 CDATA，则粘连
-      while EnsureLookahead(9) and (FCur^='<') and ((FCur+1)^='!') and ((FCur+2)^='[') and ((FCur+3)^='C') and ((FCur+4)^='D') and ((FCur+5)^='A') and ((FCur+6)^='T') and ((FCur+7)^='A') and ((FCur+8)^='[') do
-      begin
-        SkipN(9);
-        S := FCur;
-        while True do
-        begin
-          if EnsureLookahead(3) and (FCur^=']') and ((FCur+1)^=']') and ((FCur+2)^='>') then Break;
-          if (FCur < FEnd) then Inc(FCur) else if not EnsureLookahead(1) then Break;
-        end;
-        if not EnsureLookahead(3) then Break;
-        if FCur > S then begin SetString(SegBuf, S, FCur - S); if FScratch='' then FScratch:=SegBuf else ScratchAppend(PChar(SegBuf), Length(SegBuf)); end;
-        SkipN(3);
-        // 吸收 CDATA 后，继续尝试吸收后续文本片段
-        S := FCur;
-        while True do
-        begin
-          if (FCur < FEnd) and (FCur^ <> '<') then Inc(FCur) else Break;
-          if (FCur >= FEnd) and EnsureLookahead(1) then Continue else if (FCur >= FEnd) then Break;
-        end;
-        if FCur > S then begin SetString(SegBuf, S, FCur - S); if FScratch='' then FScratch:=SegBuf else ScratchAppend(PChar(SegBuf), Length(SegBuf)); end;
-      end;
-      FValueOwned := FScratch;
-      FValueP := PChar(FValueOwned); FValueLen := Length(FValueOwned);
-      FTokP := FValueP; FTokLine := FLine; FTokColumn := FColumn;
-      FToken := xtText; FNeedCompact := True;
-      Exit(True);
-    end
-    else
-    begin
-      if FScratch <> '' then
-      begin
-        if FCur > S then begin SetString(SegBuf, S, FCur - S); ScratchAppend(PChar(SegBuf), Length(SegBuf)); end;
-        FValueOwned := FScratch;
-        FValueP := PChar(FValueOwned); FValueLen := Length(FValueOwned);
-      end
-      else
-      begin
-        if FCur > S then SetString(FValueOwned, S, FCur - S) else FValueOwned := '';
-        FValueP := PChar(FValueOwned); FValueLen := Length(FValueOwned);
-      end;
-      FTokP := FValueP; FTokLine := FLine; FTokColumn := FColumn;
-      FToken := xtText; FNeedCompact := True;
-      Exit(True);
-    end;
-  end;
-
-  // token 产出后标记压实
-  FNeedCompact := True;
 end;
 
 function TXmlReaderImpl.TryGetAttributeN(const AName: PChar; ANameLen: SizeUInt; out P: PChar; out Len: SizeUInt): Boolean;

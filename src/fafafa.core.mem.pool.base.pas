@@ -5,10 +5,6 @@ unit fafafa.core.mem.pool.base;
 
 interface
 
-uses
-  fafafa.core.base,
-  fafafa.core.mem.allocator.base;
-
 type
   // 最小基座接口（可用于统一抽象，但不强制大小语义）
   IPool = interface

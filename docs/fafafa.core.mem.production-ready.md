@@ -1,4 +1,5 @@
 # fafafa.core.mem 生产级改进报告
+> 说明：本文档为阶段性记录，内容可能与当前代码不一致；以 `docs/fafafa.core.mem.md` 与 `tests/fafafa.core.mem/README.md` 为准。
 
 ## 🎯 改进目标
 

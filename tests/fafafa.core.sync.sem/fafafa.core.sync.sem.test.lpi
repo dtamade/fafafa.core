@@ -13,12 +13,12 @@
         <CompilerOptions>
           <Version Value="11"/>
           <Target>
-            <Filename Value="bin\fafafa.core.sync.sem.test.exe"/>
+            <Filename Value="bin/fafafa.core.sync.sem.test"/>
           </Target>
           <SearchPaths>
             <OtherUnitFiles Value="..\..\src"/>
             <IncludeFiles Value="../../src"/>
-            <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+            <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <Linking>
             <Debugging>
@@ -36,12 +36,12 @@
         <CompilerOptions>
           <Version Value="11"/>
           <Target>
-            <Filename Value="bin\fafafa.core.sync.sem.test.exe"/>
+            <Filename Value="bin/fafafa.core.sync.sem.test"/>
           </Target>
           <SearchPaths>
             <OtherUnitFiles Value="..\..\src"/>
             <IncludeFiles Value="../../src"/>
-            <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+            <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <CodeGeneration>
             <SmartLinkUnit Value="True"/>
@@ -57,7 +57,7 @@
     </BuildModes>
     <Units>
       <Unit>
-        <Filename Value="fafafa.core.sync.sem.test.lpr"/>
+        <Filename Value="bin/fafafa.core.sync.sem.test"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>
@@ -66,12 +66,12 @@
     <Version Value="11"/>
     <PathDelim Value="\"/>
     <Target>
-      <Filename Value="bin\fafafa.core.sync.sem.test.exe"/>
+      <Filename Value="bin/fafafa.core.sync.sem.test"/>
     </Target>
     <SearchPaths>
       <IncludeFiles Value="../../src"/>
       <OtherUnitFiles Value="..\..\src"/>
-      <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+      <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Linking>
       <Debugging>

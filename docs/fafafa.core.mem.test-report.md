@@ -1,4 +1,5 @@
 # fafafa.core.mem 测试报告
+> 说明：本文档为阶段性记录，内容可能与当前代码不一致；以 `docs/fafafa.core.mem.md` 与 `tests/fafafa.core.mem/README.md` 为准。
 
 ## 📋 测试环境状态
 
@@ -123,7 +124,7 @@ LAllocator := GetRtlAllocator; // 重新导出正常
 // 模块化验证
 uses fafafa.core.mem.memPool;   // 独立模块
 uses fafafa.core.mem.stackPool; // 独立模块
-uses fafafa.core.mem.slabPool;  // 独立模块
+uses fafafa.core.mem.pool.slab;  // 独立模块
 ```
 
 ### nginx风格Slab验证

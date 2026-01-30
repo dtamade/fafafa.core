@@ -5,10 +5,12 @@ unit fafafa.core.mem.pool.fixedSlab;
 {$I fafafa.core.settings.inc}
 {.$define FAFAFA_SLAB_TESTGUARD} // enable when diagnosing
 
+{$PUSH}
+{$WARN 4055 OFF} // pointer/ordinal conversions in slab internals
+
 interface
 
 uses
-  fafafa.core.mem.pool.base,
   fafafa.core.mem.pool.memoryPool,
   fafafa.core.mem.allocator,
   fafafa.core.mem.allocator.base;
@@ -68,9 +70,9 @@ type
 
     function Acquire(out AUnit: Pointer): Boolean;
     function TryAcquire(out AUnit: Pointer): Boolean; inline;
-    function AcquireN(out AUnits: array of Pointer; aCount: Integer): Integer; inline;
+    function AcquireN(out AUnits: array of Pointer; aCount: Integer): Integer;
     procedure Release(AUnit: Pointer);
-    procedure ReleaseN(const AUnits: array of Pointer; aCount: Integer); inline;
+    procedure ReleaseN(const AUnits: array of Pointer; aCount: Integer);
     procedure Reset;
 
     function GetCapacity: SizeUInt;
@@ -486,7 +488,6 @@ end;
 // ngx_slab_alloc_locked 的字节级移植
 function ngx_slab_alloc_locked(pool: Pngx_slab_pool_t; size: SizeUInt): Pointer;
 var
-  s: SizeUInt;
   p, m, mask: PtrUInt;
   bitmap: ^PtrUInt;
   i, n, slot, shift, map: SizeUInt;
@@ -1001,8 +1002,13 @@ begin
 end;
 
 function TFixedSlabPool.Acquire(out AUnit: Pointer): Boolean;
+var
+  LUnitSize: SizeUInt;
 begin
-  AUnit := GetMem(SizeOf(Pointer));
+  LUnitSize := SizeUInt(1) shl FMinShift;
+  if LUnitSize < SizeOf(Pointer) then
+    LUnitSize := SizeOf(Pointer);
+  AUnit := GetMem(LUnitSize);
   Result := AUnit <> nil;
 end;
 
@@ -1012,13 +1018,23 @@ begin
 end;
 
 function TFixedSlabPool.AcquireN(out AUnits: array of Pointer; aCount: Integer): Integer;
-var i: Integer; p: Pointer;
+var
+  LIdx: Integer;
+  LPtr: Pointer;
+  LUnitSize: SizeUInt;
 begin
   Result := 0;
-  for i := 0 to aCount-1 do begin
-    p := GetMem(SizeOf(Pointer));
-    if p = nil then Exit;
-    AUnits[i] := p;
+  LUnitSize := SizeUInt(1) shl FMinShift;
+  if LUnitSize < SizeOf(Pointer) then
+    LUnitSize := SizeOf(Pointer);
+  for LIdx := 0 to aCount - 1 do
+  begin
+    if LIdx > High(AUnits) then
+      Break;
+    LPtr := GetMem(LUnitSize);
+    if LPtr = nil then
+      Break;
+    AUnits[LIdx] := LPtr;
     Inc(Result);
   end;
 end;
@@ -1310,6 +1326,8 @@ initialization
   ngx_slab_exact_shift := 0;
   ngx_pagesize := NGX_SLAB_PAGE_SIZE;
   ngx_pagesize_shift := NGX_SLAB_PAGE_SHIFT;
+
+{$POP}
 
 end.
 

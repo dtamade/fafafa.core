@@ -19,6 +19,7 @@ uses
   DateUtils,
   fpcunit,
   testregistry,
+  fafafa.core.math,
   fafafa.core.id.base,
   fafafa.core.id.xid,
   fafafa.core.id.xid.typed,

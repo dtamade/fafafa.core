@@ -25,6 +25,7 @@ interface
 
 uses
   SysUtils, DateUtils, SyncObjs,
+  fafafa.core.base,   // ✅ XID-001: 引入 ECore 基类
   fafafa.core.id.base;  // ✅ P1: 统一类型定义
 
 { 注意: TXid96, TXid96Array 现在在 fafafa.core.id.base 中定义 }
@@ -40,7 +41,7 @@ type
   end;
 
   { 无效 XID 异常 }
-  EInvalidXid = class(Exception);
+  EInvalidXid = class(ECore);  // ✅ XID-001: 继承自 ECore
 
 const
   { XID 字符串长度 (Base32 编码) }

@@ -5,6 +5,9 @@ unit fafafa.core.time.duration;
 
 interface
 
+uses
+  fafafa.core.math;
+
 type
   {**
    * TDuration - 时间距离/时长类型
@@ -56,7 +59,7 @@ type
     class function Day: TDuration; static; inline;
     {** 返回 1 周时长 (7 天) *}
     class function Week: TDuration; static; inline;
-    
+
     // ===== TryFrom 构造器 (安全，检测溢出) =====
     {** 从纳秒创建，始终成功 *}
     class function TryFromNs(const ANs: Int64; out D: TDuration): Boolean; static; inline;
@@ -104,7 +107,7 @@ type
     function AsSec: Int64; inline;
     {** 返回浮点秒数（可能丢失精度） *}
     function AsSecF: Double; inline;
-    
+
     // ===== Whole* 分解方法 (v1.2.0) =====
     {** 返回完整天数（截断向零） *}
     function WholeDays: Int64; inline;
@@ -114,7 +117,7 @@ type
     function WholeMinutes: Int64; inline;
     {** 返回完整秒数（截断向零），等同 AsSec *}
     function WholeSeconds: Int64; inline;
-    
+
     // ===== Subsec* 亚秒分解方法 (v1.2.0) =====
     {** 返回亚秒纳秒部分 (0-999999999) *}
     function SubsecNanos: Integer; inline;
@@ -156,14 +159,14 @@ type
     // ===== 扩展算术方法 =====
     {** 乘法（同 * 运算符） *}
     function Mul(const Factor: Int64): TDuration; inline;
-    
+
     /// <summary>
     ///   整数除法。
     ///   ⚠️ 注意：当 Divisor = 0 时，使用饱和策略：返回 High(Int64) 或 Low(Int64)。
     ///   这是有意的设计选择，以避免异常开销。如需检测除零，请使用 CheckedDivBy。
     /// </summary>
     function Divi(const Divisor: Int64): TDuration; inline;
-    
+
     /// <summary>
     ///   求模运算。
     ///   ⚠️ 注意：当 Divisor = 0 时，使用饱和策略：返回 0。
@@ -223,7 +226,7 @@ type
     class function Min(const A, B: TDuration): TDuration; static; inline;
     {** 返回较大值 *}
     class function Max(const A, B: TDuration): TDuration; static; inline;
-    
+
     // ===== ISO 8601 序列化 =====
     {**
      * 转换为 ISO 8601 Duration 格式
@@ -232,7 +235,7 @@ type
      * @remarks 不支持年/月（因为它们是可变长度的）
      *}
     function ToISO8601: string;
-    
+
     {**
      * 从 ISO 8601 Duration 格式解析
      * @param AStr 输入字符串，格式: P[n]W|P[n]DT[n]H[n]M[n]S 或 -P...
@@ -787,7 +790,7 @@ var
 begin
   Ns := FNs;
   Negative := Ns < 0;
-  
+
   if Negative then
   begin
     if Ns = Low(Int64) then
@@ -797,32 +800,32 @@ begin
   end
   else
     AbsNs := Ns;
-  
+
   // 分解为天、小时、分钟、秒、亚秒
   Days := AbsNs div NS_PER_DAY;
   AbsNs := AbsNs mod NS_PER_DAY;
-  
+
   Hours := AbsNs div NS_PER_HOUR;
   AbsNs := AbsNs mod NS_PER_HOUR;
-  
+
   Minutes := AbsNs div NS_PER_MIN;
   AbsNs := AbsNs mod NS_PER_MIN;
-  
+
   Seconds := AbsNs div NS_PER_SEC;
   SubSecNs := AbsNs mod NS_PER_SEC;
-  
+
   // 构建日期部分 (P[n]D)
   DatePart := '';
   if Days > 0 then
     DatePart := IntToStr(Days) + 'D';
-  
+
   // 构建时间部分 (T[n]H[n]M[n]S)
   TimePart := '';
   if Hours > 0 then
     TimePart := TimePart + IntToStr(Hours) + 'H';
   if Minutes > 0 then
     TimePart := TimePart + IntToStr(Minutes) + 'M';
-  
+
   // 秒（含小数部分）
   if (Seconds > 0) or (SubSecNs > 0) then
   begin
@@ -846,13 +849,13 @@ begin
     // 零时长
     TimePart := '0S';
   end;
-  
+
   // 组合结果
   if TimePart <> '' then
     Result := 'P' + DatePart + 'T' + TimePart
   else
     Result := 'P' + DatePart;
-  
+
   if Negative then
     Result := '-' + Result;
 end;
@@ -878,10 +881,10 @@ begin
   Result := False;
   TotalNs := 0;
   InTimePart := False;
-  
+
   S := Trim(AStr);
   if Length(S) < 2 then Exit;
-  
+
   // 检查负号
   Negative := False;
   I := 1;
@@ -890,26 +893,26 @@ begin
     Negative := True;
     Inc(I);
   end;
-  
+
   // 必须以 P 开头
   if (I > Length(S)) or (UpCase(S[I]) <> 'P') then Exit;
   Inc(I);
-  
+
   if I > Length(S) then Exit;  // P 后面必须有内容
-  
+
   Start := I;
-  
+
   while I <= Length(S) do
   begin
     C := UpCase(S[I]);
-    
+
     case C of
       'T':
         begin
           InTimePart := True;
           Start := I + 1;
         end;
-      
+
       'W':  // 周
         begin
           NumStr := Copy(S, Start, I - Start);
@@ -917,7 +920,7 @@ begin
           TotalNs := TotalNs + Num * NS_PER_WEEK;
           Start := I + 1;
         end;
-      
+
       'D':  // 天（日期部分）
         begin
           if InTimePart then Exit;  // D 不应在 T 后面
@@ -926,7 +929,7 @@ begin
           TotalNs := TotalNs + Num * NS_PER_DAY;
           Start := I + 1;
         end;
-      
+
       'H':  // 小时（时间部分）
         begin
           if not InTimePart then Exit;  // H 必须在 T 后面
@@ -935,7 +938,7 @@ begin
           TotalNs := TotalNs + Num * NS_PER_HOUR;
           Start := I + 1;
         end;
-      
+
       'M':  // 月（日期部分）或 分钟（时间部分）
         begin
           NumStr := Copy(S, Start, I - Start);
@@ -952,10 +955,10 @@ begin
           end;
           Start := I + 1;
         end;
-      
+
       'Y':  // 年 - 不支持！
         Exit;
-      
+
       'S':  // 秒（时间部分）
         begin
           if not InTimePart then Exit;  // S 必须在 T 后面
@@ -973,20 +976,20 @@ begin
           end;
           Start := I + 1;
         end;
-      
+
       '0'..'9', '.', '-', '+':
         ; // 数字或符号，继续累积
-      
+
       else
         Exit;  // 无效字符
     end;
-    
+
     Inc(I);
   end;
-  
+
   // 检查是否有未处理的内容
   if Start <= Length(S) then Exit;
-  
+
   // 检查是否有效（至少包含一个数值）
   // PT 单独应该失败，因为 T 后面没有时间部分
   if (TotalNs = 0) and InTimePart and (Start = 3 + Ord(Negative)) then
@@ -995,10 +998,10 @@ begin
     // 但是 P0D 或 PT0S 是有效的，他们会被解析并设置 TotalNs=0
     Exit;
   end;
-  
+
   if Negative then
     TotalNs := -TotalNs;
-  
+
   ADuration.FNs := TotalNs;
   Result := True;
 end;

@@ -7,6 +7,7 @@ interface
 
 uses
   SysUtils,
+  fafafa.core.base,
   fafafa.core.time.cpu;
 
 type
@@ -19,7 +20,7 @@ type
    *   便于捕获和处理各种同步操作错误。
    *
    * @inheritance
-   *   继承自标准的 Exception 类，具备完整的异常处理能力。
+   *   继承自 ECore 类，与框架异常体系保持一致。
    *
    * @usage
    *   try
@@ -29,7 +30,7 @@ type
    *       // 处理所有同步相关异常
    *   end;
    *}
-  ESyncError = class(Exception);
+  ESyncError = class(ECore);
 
   {**
    * ELockError - 锁操作异常类
@@ -46,18 +47,19 @@ type
   ELockError = class(ESyncError);
 
   {**
-   * ETimeoutError - 超时异常类
+   * ESyncTimeoutError - 同步超时异常类
    *
    * @desc
    *   当同步操作超过指定的超时时间时抛出的异常。
    *   用于区分超时和其他类型的失败。
+   *   注意：此类型专用于 sync 模块，与 fafafa.core.base.ETimeoutError 区分。
    *
    * @scenarios
    *   - 带超时的锁获取操作超时
    *   - 等待信号量超时
    *   - 条件变量等待超时
    *}
-  ETimeoutError = class(ESyncError);
+  ESyncTimeoutError = class(ESyncError);
 
   {**
    * EDeadlockError - 死锁检测异常类
@@ -320,7 +322,7 @@ type
    *}
   ISynchronizable = interface
     ['{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}']
-    
+
     {**
      * GetData - 获取同步对象关联的用户数据
      *
@@ -400,6 +402,27 @@ type
      *   手动释放锁。多次调用是安全的（幂等）。
      *}
     procedure Release;
+
+    {**
+     * Unlock - 释放守护持有的锁（Release 的别名）
+     *
+     * @desc
+     *   与 Release 功能相同，提供更直观的 API（与 Lock 对称）。
+     *   多次调用是安全的（幂等）。
+     *
+     * @usage
+     *   var guard := mutex.Lock();
+     *   try
+     *     // 临界区代码
+     *   finally
+     *     guard.Unlock();  // 或 guard.Release()
+     *   end;
+     *
+     * @note
+     *   此方法是 Release 的别名，两者功能完全相同。
+     *   推荐使用 Unlock，因为它与 Lock 更对称。
+     *}
+    procedure Unlock;
   end;
 
   ILockGuard = interface(IGuard)
@@ -411,8 +434,8 @@ type
    * ILock - 基础锁接口
    *
    * @desc
-   *   定义了最基本的锁操作：获取和释放。
-   *   这是所有锁类型的基础接口，提供阻塞式的锁操作。
+   *   定义了完整的锁操作功能，包括阻塞获取、非阻塞尝试和带超时尝试。
+   *   这是所有锁类型的基础接口，提供传统 API 和现代 RAII API。
    *
    * @inheritance
    *   继承自 ISynchronizable，具备用户数据关联能力。
@@ -437,6 +460,13 @@ type
    *   // 临界区代码
    *   // Guard 超出作用域时自动释放
    *
+   *   // 带超时的现代用法
+   *   var Guard := Lock.TryLockFor(1000);  // 1秒超时
+   *   if Assigned(Guard) then
+   *   begin
+   *     // 临界区代码
+   *   end;
+   *
    *   // 传统用法 - 仍然支持
    *   Lock.Acquire;
    *   try
@@ -444,6 +474,10 @@ type
    *   finally
    *     Lock.Release;
    *   end;
+   *
+   * @thread_safety 线程安全
+   * @rust_equivalent std::sync::Mutex (部分)
+   * @java_equivalent java.util.concurrent.locks.Lock
    *}
   ILock = interface(ISynchronizable)
     ['{B8F5A2E1-4C3D-4F2A-9B1E-8D7C6A5F4E3D}']
@@ -501,6 +535,33 @@ type
      *}
     function TryLock: ILockGuard;
 
+    {**
+     * TryLockFor - 带超时的尝试获取锁
+     *
+     * @param ATimeoutMs 超时时间（毫秒），0 表示立即返回
+     * @return 成功返回锁守卫，超时返回 nil
+     *
+     * @desc
+     *   在指定时间内尝试获取锁。如果超时仍未获取到锁，返回 nil。
+     *
+     * @timeout
+     *   超时时间以毫秒为单位。0 表示立即返回（等价于 TryLock）。
+     *
+     * @rust_equivalent
+     *   类似 Rust 的 Mutex::try_lock_for()
+     *
+     * @usage
+     *   var Guard := Lock.TryLockFor(1000);  // 1秒超时
+     *   if Assigned(Guard) then
+     *   begin
+     *     // 成功获取锁
+     *     // 临界区代码
+     *   end
+     *   else
+     *     // 超时，锁不可用
+     *}
+    function TryLockFor(ATimeoutMs: Cardinal): ILockGuard;
+
     // ===== 传统 API - 为兼容性保留 =====
 
     {**
@@ -512,7 +573,7 @@ type
      *
      * @blocking
      *   这是一个阻塞操作，可能导致线程挂起。
-     *   如果需要非阻塞操作，请使用 ITryLock.TryAcquire。
+     *   如果需要非阻塞操作，请使用 TryAcquire。
      *
      * @thread_safety
      *   线程安全，可以从多个线程同时调用。
@@ -588,7 +649,60 @@ type
      *   推荐使用 Lock() 返回的 Guard，它会自动释放锁。
      *}
     procedure Release;
-  
+
+    {**
+     * TryAcquire - 非阻塞尝试获取锁（传统 API）
+     *
+     * @return True 如果成功获取锁，False 如果锁当前被其他线程持有
+     *
+     * @desc
+     *   尝试立即获取锁，不阻塞。成功返回 True，失败返回 False。
+     *
+     * @nonblocking
+     *   立即返回，不会阻塞线程。
+     *
+     * @usage
+     *   if Lock.TryAcquire then
+     *   try
+     *     // 成功获取锁，临界区代码
+     *   finally
+     *     Lock.Release;
+     *   end
+     *   else
+     *     // 锁不可用，执行替代逻辑
+     *
+     * @deprecated_hint
+     *   推荐使用 TryLock() 方法代替，它返回 RAII 守卫更安全。
+     *}
+    function TryAcquire: Boolean; overload;
+
+    {**
+     * TryAcquire - 带超时的尝试获取锁（传统 API）
+     *
+     * @param ATimeoutMs 超时时间（毫秒），0 表示立即返回
+     * @return True 如果在超时时间内成功获取锁，False 如果超时
+     *
+     * @desc
+     *   在指定时间内尝试获取锁。如果超时仍未获取到锁，返回 False。
+     *
+     * @timeout
+     *   超时时间以毫秒为单位。0 表示立即返回（等价于 TryAcquire()）。
+     *
+     * @usage
+     *   if Lock.TryAcquire(1000) then  // 1秒超时
+     *   try
+     *     // 成功获取锁，临界区代码
+     *   finally
+     *     Lock.Release;
+     *   end
+     *   else
+     *     // 超时，锁不可用
+     *
+     * @deprecated_hint
+     *   推荐使用 TryLockFor() 方法代替，它返回 RAII 守卫更安全。
+     *}
+    function TryAcquire(ATimeoutMs: Cardinal): Boolean; overload;
+
     {**
      * LockGuard - 创建 RAII 锁守卫（兼容别名）
      *
@@ -646,24 +760,26 @@ type
    * @desc
    *   实现 ILock 接口的抽象基类，提供锁的基本框架。
    *   继承自 TSynchronizable，具备用户数据关联能力。
-   *   子类必须实现具体的 Acquire 和 Release 方法。
+   *   子类必须实现具体的 Acquire、Release 和 TryAcquire 方法。
    *
    * @abstract
    *   这是一个抽象类，不能直接实例化。
-   *   Acquire 和 Release 方法必须由子类实现。
+   *   Acquire、Release 和 TryAcquire 方法必须由子类实现。
    *
    * @inheritance_hierarchy
    *   TLock -> TTryLock -> 具体锁实现（如 TMutex, TSpinLock 等）
    *
    * @provided_functionality
    *   - 用户数据关联（继承自 TSynchronizable）
-   *   - RAII 锁守卫创建（LockGuard 方法）
+   *   - RAII 锁守卫创建（Lock、TryLock、TryLockFor 方法）
    *   - 接口实现框架
    *
    * @subclass_responsibility
    *   子类必须实现：
    *   - Acquire: 获取锁的具体逻辑
    *   - Release: 释放锁的具体逻辑
+   *   - TryAcquire: 非阻塞尝试获取锁的具体逻辑
+   *   - TryAcquire(ATimeoutMs): 带超时尝试获取锁的具体逻辑
    *}
   TLock = class(TSynchronizable, ILock)
   public
@@ -692,6 +808,31 @@ type
     procedure Release; virtual; abstract;
 
     {**
+     * TryAcquire - 非阻塞尝试获取锁（抽象方法）
+     *
+     * @return True 如果成功获取锁，False 如果锁当前被其他线程持有
+     *
+     * @desc
+     *   抽象方法，子类必须实现具体的非阻塞尝试逻辑。
+     *
+     * @abstract
+     *   必须由子类重写实现。
+     *}
+    function TryAcquire: Boolean; overload; virtual; abstract;
+
+    {**
+     * TryAcquire - 带超时的尝试获取锁（虚方法）
+     *
+     * @param ATimeoutMs 超时时间（毫秒），0 表示立即返回
+     * @return True 如果在超时时间内成功获取锁，False 如果超时
+     *
+     * @desc
+     *   基类实现使用简单的轮询策略。
+     *   子类（如 TTryLock）应重写此方法提供更高效的实现。
+     *}
+    function TryAcquire(ATimeoutMs: Cardinal): Boolean; overload; virtual;
+
+    {**
      * Lock - 阻塞获取锁并返回 RAII 守卫
      *
      * @return 锁守卫接口，超出作用域时自动释放锁
@@ -708,10 +849,20 @@ type
      * @return 成功返回锁守卫，失败返回 nil
      *
      * @desc
-     *   基类实现总是返回 nil（表示不支持）。
-     *   子类（如 TTryLock）应重写此方法提供实际实现。
+     *   尝试立即获取锁，不阻塞。成功返回 Guard，失败返回 nil。
      *}
     function TryLock: ILockGuard; virtual;
+
+    {**
+     * TryLockFor - 带超时的尝试获取锁
+     *
+     * @param ATimeoutMs 超时时间（毫秒），0 表示立即返回
+     * @return 成功返回锁守卫，超时返回 nil
+     *
+     * @desc
+     *   在指定时间内尝试获取锁。如果超时仍未获取到锁，返回 nil。
+     *}
+    function TryLockFor(ATimeoutMs: Cardinal): ILockGuard; virtual;
 
     {**
      * LockGuard - 创建 RAII 锁守卫（兼容别名）
@@ -745,42 +896,28 @@ type
   TLockClass = class of TLock;
 
   {**
-   * ITryLock - 支持超时尝试的锁接口
+   * ITryLock - 支持超时尝试的锁接口（已废弃）
+   *
+   * @deprecated 使用 ILock 接口代替，ILock 现在包含所有锁操作
    *
    * @desc
-   *   提供非阻塞和带超时的锁获取方法。
-   *   内部使用三段式等待策略（紧密自旋 → 退避 → 阻塞）。
+   *   此接口已废弃，所有方法已移至 ILock 接口。
+   *   为保持向后兼容性，此接口仍然存在，但新代码应使用 ILock。
    *
-   * @tuning
-   *   如需调整等待策略参数，请使用 ITryLockTuning 接口：
-   *   (Lock as ITryLockTuning).TightSpin := 5000;
+   * @migration
+   *   将所有 ITryLock 引用替换为 ILock：
+   *   - 旧代码：var Lock: ITryLock;
+   *   - 新代码：var Lock: ILock;
+   *   代码行为保持不变，编译器会发出废弃警告。
+   *
+   * @removal_timeline
+   *   此接口将在未来版本中移除，请尽快迁移到 ILock。
    *}
   ITryLock = interface(ILock)
     ['{C8F5A2E1-4C3D-4F2A-9B1E-8D7C6A5F4E3D}']
-
-    {**
-     * TryLockFor - 带超时的尝试获取锁
-     *
-     * @param ATimeoutMs 超时时间（毫秒）
-     * @return 成功返回锁守卫，超时返回 nil
-     *}
-    function TryLockFor(ATimeoutMs: Cardinal): ILockGuard;
-
-    {**
-     * TryAcquire - 非阻塞尝试获取锁
-     *
-     * @return True 如果成功获取锁，False 如果锁当前被其他线程持有
-     *}
-    function TryAcquire: Boolean; overload;
-
-    {**
-     * TryAcquire - 带超时的尝试获取锁
-     *
-     * @param ATimeoutMs 超时时间（毫秒），0 表示立即返回
-     * @return True 如果在超时时间内成功获取锁，False 如果超时
-     *}
-    function TryAcquire(ATimeoutMs: Cardinal): Boolean; overload;
-  end;
+    // 所有方法已移至 ILock 接口
+    // 此接口保留仅为向后兼容
+  end deprecated 'Use ILock instead - all methods are now in ILock';
 
   {**
    * ITryLockTuning - 三段式等待策略调优接口
@@ -965,7 +1102,7 @@ type
 
   public
     constructor Create; virtual;
-    
+
     function TryAcquire: Boolean; overload; virtual; abstract;
     function TryAcquire(ATimeoutMs: Cardinal): Boolean; overload; virtual;
 
@@ -1112,6 +1249,21 @@ type
      *   使用内联优化，确保最佳性能。
      *}
     procedure Release; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+
+    {**
+     * Unlock - 手动释放锁（Release 的别名）
+     *
+     * @desc
+     *   与 Release 功能相同，提供更直观的 API（与 Lock 对称）。
+     *   手动释放守卫持有的锁。
+     *
+     * @idempotent
+     *   多次调用是安全的，重复释放不会产生副作用。
+     *
+     * @inline
+     *   使用内联优化，确保最佳性能。
+     *}
+    procedure Unlock; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
   end;
 
 {**
@@ -1194,6 +1346,12 @@ begin
   end;
 end;
 
+procedure TLockGuard.Unlock;
+begin
+  // Unlock 是 Release 的别名，直接调用 Release
+  Release;
+end;
+
 
 { TSynchronizable - 基础同步对象实现 }
 
@@ -1236,9 +1394,45 @@ end;
 
 function TLock.TryLock: ILockGuard;
 begin
-  // 基类不支持非阻塞尝试，返回 nil
-  // 子类（TTryLock）应重写此方法
-  Result := nil;
+  if TryAcquire then
+    Result := MakeLockGuardFromAcquired(Self)
+  else
+    Result := nil;
+end;
+
+function TLock.TryLockFor(ATimeoutMs: Cardinal): ILockGuard;
+begin
+  if TryAcquire(ATimeoutMs) then
+    Result := MakeLockGuardFromAcquired(Self)
+  else
+    Result := nil;
+end;
+
+function TLock.TryAcquire(ATimeoutMs: Cardinal): Boolean;
+var
+  LEndTime: UInt64;
+  LSleepMs: Cardinal;
+begin
+  // 简单的轮询实现，子类应重写提供更高效的实现
+  if ATimeoutMs = 0 then
+    Exit(TryAcquire());
+
+  LEndTime := GetTickCount64 + ATimeoutMs;
+  LSleepMs := 1;
+
+  repeat
+    if TryAcquire() then
+      Exit(True);
+
+    Sleep(LSleepMs);
+
+    // 渐进式增加睡眠时间：1ms -> 2ms -> 4ms -> 8ms -> 16ms -> 32ms (最大)
+    if LSleepMs < 32 then
+      LSleepMs := LSleepMs shl 1;
+
+  until GetTickCount64 >= LEndTime;
+
+  Result := False;
 end;
 
 function TLock.LockGuard: ILockGuard;
@@ -1698,4 +1892,3 @@ end;
 
 
 end.
-

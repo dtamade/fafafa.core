@@ -1,8 +1,8 @@
 program example_align_exceptions;
-{$APPTYPE CONSOLE}
-{$MODE ObjFPC}{$H+}
-{$CODEPAGE UTF8}
+{$IFDEF WINDOWS}{$APPTYPE CONSOLE}{$ENDIF}
+{$mode objfpc}{$H+}
 {$I ../../src/fafafa.core.settings.inc}
+{$IFDEF WINDOWS}{$CODEPAGE UTF8}{$ENDIF}
 
 uses
   SysUtils,
@@ -11,35 +11,35 @@ uses
 
 procedure Demo;
 var
-  P: Pointer;
+  LPtr: Pointer;
 begin
-  GetMem(P, 64);
+  GetMem(LPtr, 64);
   try
-    Writeln('示例: 对齐函数 AlignUp/AlignDown 的异常语义 (非 2 的幂 → EInvalidArgument)');
+    Writeln('示例: 对齐函数 AlignUp/AlignDown 的异常语义 (非 2 的幂 -> EInvalidArgument)');
 
     // 正例：2 的幂对齐
-    Writeln(Format('AlignUp(Ptr, 16) = %p', [AlignUp(P, 16)]));
-    Writeln(Format('AlignDown(Ptr, 16) = %p', [AlignDown(P, 16)]));
+    Writeln(Format('AlignUp(Ptr, 16) = %p', [AlignUp(LPtr, 16)]));
+    Writeln(Format('AlignDown(Ptr, 16) = %p', [AlignDown(LPtr, 16)]));
 
     // 反例：非 2 的幂对齐，期望抛出 EInvalidArgument
     try
-      AlignUp(P, 3);
+      AlignUp(LPtr, 3);
       Writeln('ERROR: 预期抛出 EInvalidArgument，但未抛出');
     except
-      on E: EInvalidArgument do Writeln('OK: AlignUp(P, 3) 抛出 EInvalidArgument: ', E.Message);
-      on E: Exception do Writeln('ERROR: AlignUp(P, 3) 抛出非预期异常: ', E.ClassName, ' - ', E.Message);
+      on E: EInvalidArgument do Writeln('OK: AlignUp(Ptr, 3) 抛出 EInvalidArgument: ', E.Message);
+      on E: Exception do Writeln('ERROR: AlignUp(Ptr, 3) 抛出非预期异常: ', E.ClassName, ' - ', E.Message);
     end;
 
     try
-      AlignDown(P, 6);
+      AlignDown(LPtr, 6);
       Writeln('ERROR: 预期抛出 EInvalidArgument，但未抛出');
     except
-      on E: EInvalidArgument do Writeln('OK: AlignDown(P, 6) 抛出 EInvalidArgument: ', E.Message);
-      on E: Exception do Writeln('ERROR: AlignDown(P, 6) 抛出非预期异常: ', E.ClassName, ' - ', E.Message);
+      on E: EInvalidArgument do Writeln('OK: AlignDown(Ptr, 6) 抛出 EInvalidArgument: ', E.Message);
+      on E: Exception do Writeln('ERROR: AlignDown(Ptr, 6) 抛出非预期异常: ', E.ClassName, ' - ', E.Message);
     end;
 
   finally
-    FreeMem(P);
+    FreeMem(LPtr);
   end;
 end;
 
@@ -54,4 +54,3 @@ begin
     end;
   end;
 end.
-

@@ -811,7 +811,7 @@ function memmove(aDst, aSrc : pointer; aSize : SizeUInt): Pointer; cdecl externa
 
 function IsOverlap(aPtr1: Pointer; aSize1: SizeUInt; aPtr2: Pointer; aSize2: SizeUInt): Boolean;
 var
-  Start1, Start2: PtrUInt;
+  LStart1, LStart2: PtrUInt;
 
 
 
@@ -822,16 +822,16 @@ begin
   // Start1 := PPtrUInt(@aPtr1)^; // 抛弃这种方式,对效率不友好, 多一次内存访问
   // Start2 := PPtrUInt(@aPtr2)^;
   {$PUSH}{$WARN 4055 OFF}
-  Start1 := PtrUInt(aPtr1);
-  Start2 := PtrUInt(aPtr2);
+  LStart1 := PtrUInt(aPtr1);
+  LStart2 := PtrUInt(aPtr2);
   {$POP}
 
   { 检查是否溢出 }
 
-  if IsAddOverflow(Start1, aSize1) then
+  if IsAddOverflow(LStart1, aSize1) then
     raise EOutOfRange.CreateFmt('aSize1 (%d) is too large for aPtr1 (%p), causing address calculation to overflow.', [aSize1, aPtr1]);
 
-  if IsAddOverflow(Start2, aSize2) then
+  if IsAddOverflow(LStart2, aSize2) then
     raise EOutOfRange.CreateFmt('aSize2 (%d) is too large for aPtr2 (%p), causing address calculation to overflow.', [aSize2, aPtr2]);
 
   Result := IsOverlapUnChecked(aPtr1, aSize1, aPtr2, aSize2);

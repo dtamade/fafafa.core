@@ -35,9 +35,9 @@
 
 重新导出自 `fafafa.core.mem.allocator`：
 
-- 分配器类型：本框架示例与测试统一使用 `TAllocator`（不在门面层导出接口类型）
-- 具体实现：`TCallbackAllocator`, `TRtlAllocator`, `TCrtAllocator`
-- 获取函数：`GetRtlAllocator`, `GetCrtAllocator`
+- 分配器接口：`IAllocator`（默认入口），`TAllocator` 为抽象基类（自定义实现基类）
+- 具体实现：`TRtlAllocator`, `TCrtAllocator`（条件编译）, `TCallbackAllocator`
+- 获取函数：`GetRtlAllocator`, `GetCrtAllocator`, `GetMimallocAllocator`, `TryGetMimallocAllocator`
 
 ### 基础池（按需直接 uses 子单元）
 
@@ -186,10 +186,12 @@ end;
 #### 获取分配器 Getting Allocators
 
 ```pascal
-function GetRtlAllocator: TAllocator;
+function GetRtlAllocator: IAllocator;
 {$IFDEF FAFAFA_CORE_CRT_ALLOCATOR}
-function GetCrtAllocator: TAllocator;
+function GetCrtAllocator: IAllocator;
 {$ENDIF}
+function GetMimallocAllocator: IAllocator;
+function TryGetMimallocAllocator(out A: IAllocator): Boolean;
 ```
 
 获取系统分配器实例。
@@ -205,14 +207,20 @@ function GetCrtAllocator: TAllocator;
 - `SupportsAligned`: 是否原生支持对齐分配（当前均为 False；请使用 `fafafa.core.mem.aligned` 或桥接器）
 - `HasMemSize`: 是否支持查询已分配块大小（当前均为 False；未来若接入 `mi_usable_size` 等再开启）
 
-#### 分配器类型（本框架不使用接口）
+#### 分配器类型（接口优先）
+
+- `IAllocator` 为统一接口（推荐）
+- `TAllocator` 为抽象基类，便于继承封装
 
 ```pascal
 type
-  TAllocator = class
+  IAllocator = interface
     function GetMem(aSize: SizeUInt): Pointer;
+    function AllocMem(aSize: SizeUInt): Pointer;
     function ReallocMem(aPtr: Pointer; aSize: SizeUInt): Pointer;
     procedure FreeMem(aPtr: Pointer);
+    function AllocAligned(aSize, aAlignment: SizeUInt): Pointer;
+    procedure FreeAligned(aPtr: Pointer);
   end;
 ```
 
@@ -258,7 +266,7 @@ end;
 uses fafafa.core.mem;
 
 var
-  LAllocator: TAllocator;
+  LAllocator: IAllocator;
   LPtr: Pointer;
 begin
   LAllocator := GetRtlAllocator;
@@ -307,7 +315,7 @@ end;
 - 所有重新导出的函数都是内联的，没有额外的函数调用开销
 - 内存操作函数针对不同场景进行了优化
 - 分配器提供了统一的接口，便于性能测试和优化
-- 基准测试：mem 模块暂不提供独立 benchmark 工具。统一的 benchmark 能力将由框架层（fafafa.core.benchmark）提供与维护；当前可参考 examples 中的演示程序与 Slab 的 Diagnostics/PerfCounters。
+- 基准测试：mem 模块暂不提供独立 benchmark 工具。统一的 benchmark 能力将由框架层（fafafa.core.benchmark）提供与维护；当前可参考 examples 中的演示程序与 Slab 的 Stats/PerfCounters。
 
 ### 分配器级统计与故障注入（宏控，默认关闭） Allocator Instrumentation (macro-controlled)
 
@@ -342,13 +350,13 @@ end;
 
 - 门面职责仅限：
   - 基础内存操作：Fill/Copy/Zero/Compare/Equal/对齐/Overlap
-  - 分配器：TAllocator/TRtlAllocator/TCrtAllocator/TCallbackAllocator
+  - 分配器：IAllocator/TRtlAllocator/TCrtAllocator/TCallbackAllocator
 
 ### 接口抽象（预研）
 - 新增接口单元：`src/fafafa.core.mem.interfaces.pas`（仅声明接口，不改变现有类用法）
 - 目标（P2）：
   - IMemPool/IStackPool/ISlabPool/IAllocator 抽象
-  - 未来通过适配器或装饰器对接现有实现与线程安全版本
+  - 未来通过适配器或装饰器对接现有实现与线程安全版本（目前 slab 已提供 concurrent/sharded 变体，见 `src/fafafa.core.mem.pool.slab.concurrent.pas` 与 `src/fafafa.core.mem.pool.slab.sharded.pas`）
 
   - 可选基础池类型：TMemPool/TStackPool/TSlabPool（直接 uses 对应单元）
 - 不由门面导出的功能：
@@ -366,9 +374,9 @@ end;
 - 分配器功能测试
 - 基础池（MemPool/StackPool/SlabPool）测试
 - 边界用例（Edge Cases）：
-  - MemPool：Free(nil) / Double Free / Free 非池指针（分别抛 EMemPoolInvalidPointer/EMemPoolDoubleFree）
+  - MemPool：Free(nil) 为安全空操作；Double Free / Free 非池指针分别抛 EMemPoolDoubleFree / EMemPoolInvalidPointer
   - StackPool：超容量分配返回 nil；RestoreState 越界输入被忽略
-  - SlabPool：Warmup 计数；Double Free 宽容断言（抛 ESlabPoolCorruption 或安全忽略）
+  - SlabPool：Warmup 计数；双重释放/释放非本池指针抛 `ESlabPoolCorruption`；大对象默认走 fallback 分配（仍可 `FreeMem` 释放）
 
 **测试统计 Test Statistics:**
 - 样例（以当前环境为准）：Number of run tests: 106; Errors: 0; Failures: 0
@@ -480,34 +488,29 @@ end;
 
 ### 示例输出参考 Example Output (may vary)
 
-- example_mem_pool_config（节选）：
+- example_mem_pool_config（--perf，节选）：
 
 ```
 --- TSlabPool Config Demo ---
+Warmup units: 128
 Allocated 128 and 256 bytes
-Pages: total=8 free=8 partial=0 full=0
-Objects: total=208 free=208
---- Diagnostics ---
-SlabPool Detailed Diagnostics
-=============================
-Pool Size: 32768 bytes (8 pages)
-...
-Page Distribution:
-  Free Pages: 8
-  Partial Pages: 0
-  Full Pages: 0
-...
+Stats: segments=1 total_capacity=32768 total_used=0
+Fallback: allocs=0 bytes=0
+Perf: alloc_calls=2 free_calls=2
+Perf: alloc_time=0 free_time=0
+Perf: page_merges=0 merged_pages=0
 ```
 
 ## 注意事项 Notes / Best Practices
 
-- 销毁实例：TMemPool/TSlabPool 定义了 `Free(aPtr: Pointer)` 方法，为避免与 `TObject.Free` 同名冲突，请在销毁实例时使用 `Destroy`。
+- 销毁实例：TSlabPool 定义了 `Free(aPtr: Pointer)` 方法，为避免与 `TObject.Free` 同名冲突，请在销毁实例时使用 `Destroy`。
 - 释放块内存推荐使用 `ReleasePtr(APtr)`；销毁实例使用 `Destroy`
 - 零大小策略：对零大小的分配统一返回 `nil`（不抛异常）
 - Try 系列 API：`MemPool.TryAlloc(out P) / StackPool.TryAlloc(Size, out P, Align) / SlabPool.TryAlloc(Size, out P)`（不抛异常）
 - SlabPool：`Free(nil)` 安全；双重释放抛 `ESlabPoolCorruption`
 - 对齐分配：
-  - 不要混用 `FreeMem` 与 `FreeAligned`（使用何种分配方式就用相应释放方式）
+  - `fafafa.core.mem.aligned` 的 `AllocAligned/FreeAligned` 必须成对使用，不要与 `IAllocator.FreeMem` 混用
+  - `TSlabPool/TSlabPoolConcurrent/TSlabPoolSharded` 的 `AllocAligned` 可用 `FreeMem` 或 `FreeAligned` 释放（等价）
   - `alignment` 必须为 2 的幂（例如 8/16/32/64）；建议在 SIMD/设备对齐场景显式传入
   - 需要批量/短生命周期时优先用 `TStackPool.Alloc(ASize, AAlignment)`；需要独立生命周期/跨边界交互时用 `AllocAligned/FreeAligned`
 
@@ -524,9 +527,10 @@ Page Distribution:
   var A: IAllocator;
   begin
     if TryGetMimallocAllocator(A) then Exit;
+    {$IFDEF FAFAFA_CORE_CRT_ALLOCATOR}
     if TryGetCrtAllocator(A) then Exit;
-    if TryGetRtlAllocator(A) then Exit;
-    // 若仍失败（极少见），记录日志或进入保底路径
+    {$ENDIF}
+    A := GetRtlAllocator; // 保底使用 RTL 分配器
   end;
   ```
 
@@ -548,13 +552,14 @@ Page Distribution:
   ```
 
 
-- Free(nil) 策略：当前 MemPool 抛 `EMemPoolInvalidPointer`；SlabPool 为安全空操作。收尾阶段评估是否统一为“抛异常”。
+- Free(nil) 策略：MemPool/SlabPool 均为安全空操作（与 ReleasePtr 语义一致）。
 - 统计：使用 `fafafa.core.mem.stats` 获取只读统计快照（Mem/Stack/Slab）
 
 - 空操作原则：对零大小的分配/重分配，返回 `nil` 且不进行实际操作；对 `FreeMem(nil)` 将按测试条件编译控制（通常禁止）。
-- MemPool.Free 异常语义：
-  - 传入 `nil`：抛 `EMemPoolInvalidPointer`
+- MemPool.ReleasePtr 异常语义：
+  - 传入 `nil`：安全空操作
   - 重复释放同一指针：抛 `EMemPoolDoubleFree`
+  - 非池指针：抛 `EMemPoolInvalidPointer`
 
 ### 一键构建与示例运行指南
 - 单元测试（Debug+泄漏跟踪）
@@ -564,7 +569,6 @@ Page Distribution:
 - 集成 Runner（示例验证，非单测）
   - examples\\fafafa.core.mem\\bin\\example_mem_integration_runner_debug.exe
 
-  - 非池指针：抛 `EMemPoolInvalidPointer`
 - StackPool 状态恢复：`RestoreState(aState)` 仅在 `aState <= TotalSize` 时生效，越界输入被忽略（不修改状态）。
 - 对齐：StackPool 的 `Alloc(aSize, aAlignment)` 默认按指针大小对齐；如需特定对齐，显式传入 `aAlignment`。需要严格校验失败即报错的场景，使用 `AllocAligned/TryAllocAligned`（对齐必须为 2 的幂）。
 - 构建：推荐使用 lazbuild；Debug 模式启用 `-gh -gl` 便于内存泄漏诊断；示例与测试的输出路径统一在各自项目目录的 `bin/` 子目录（tests/.../bin、examples/.../bin、play/.../bin）。
@@ -578,7 +582,7 @@ Page Distribution:
 - SlabPool：SizeClass（大小类）、Page（页，empty/partial/full）、Double Free（双重释放）
 
 ### 版本与获取 Version & Query
-- 当前版本常量：`FAFAFA_CORE_MEM_VERSION = '1.1.0'`
+- 当前版本常量：`FAFAFA_CORE_MEM_VERSION = '2.0.0'`
 - mimalloc（延迟加载）Linux 说明：
   - 动态库加载顺序：`$FAFAFA_MIMALLOC_SO`（如设置）→ `libmimalloc.so` → `libmimalloc.so.2` → `mimalloc`
   - Windows 加载顺序：`mimalloc.dll` → `mimalloc-redirect.dll`
@@ -586,11 +590,15 @@ Page Distribution:
 - 运行期获取：`MemVersion` 函数返回当前版本串
 
 ### 版本历史 Version History
+- v2.0.0 (2025-12-24)
+  - Rust 风格接口：IAlloc/IBlockPool/IArena
+  - TMemLayout/TAllocResult/TAllocCaps
+  - 热路径 inline，尽量零开销抽象
 - v1.1.0 (2025-08-10)
   - 设计收束：接口优先建议、TryAlloc 系列、ReleasePtr 别名
   - 统计助手：GetSlabPoolStats 增补、注意事项/使用提示完善
   - 示例：新增 interface-first 与 microbench；批量脚本纳入
-  - 文档：术语对照、Free(nil) 跨池差异说明
+  - 文档：术语对照、Free(nil) 语义说明
 
 
 - 运行期泄漏：确保回调分配器、池类实例都在 finally 中 Destroy；对象内存释放与实例销毁分开处理。

@@ -8,6 +8,7 @@ interface
 
 uses
   SysUtils, Classes, RegExpr,
+  fafafa.core.base,  // ✅ ARGS-001: 引入 ECore 基类
   fafafa.core.args,
   fafafa.core.args.base,  // TStringArray
   fafafa.core.args.errors,
@@ -47,7 +48,7 @@ type
     ValidValues: TStringArray;
     CustomValidator: TCustomValidator;
     ErrorMessage: string;
-    
+
     class function Required(const AKey: string): TValidationRule; static;
     class function Optional(const AKey: string): TValidationRule; static;
     class function Range(const AKey: string; AMin, AMax: Int64): TValidationRule; static;
@@ -68,7 +69,7 @@ type
   TValidationResult = record
     IsValid: Boolean;
     Errors: array of TArgsError;
-    
+
     class function Success: TValidationResult; static;
     class function Failure(const AErrors: array of TArgsError): TValidationResult; static;
     function AddError(const AError: TArgsError): TValidationResult;
@@ -83,7 +84,7 @@ type
     FArgs: IArgs;
     FRules: array of TValidationRule;
     FStopOnFirstError: Boolean;
-    
+
     function ValidateRule(const Rule: TValidationRule): TArgsError;
     function ValidateRequired(const Key: string): TArgsError;
     function ValidateRange(const Key: string; Min, Max: Int64): TArgsError;
@@ -97,10 +98,10 @@ type
     function ValidateFileExists(const Key: string): TArgsError;
     function ValidateDirectoryExists(const Key: string): TArgsError;
     function ValidateCustom(const Key: string; Validator: TCustomValidator; const ErrorMsg: string): TArgsError;
-    
+
   public
     constructor Create(const AArgs: IArgs);
-    
+
     // 添加验证规则
     function AddRule(const Rule: TValidationRule): TArgsValidator;
     function Required(const Key: string): TArgsValidator;
@@ -117,10 +118,10 @@ type
     function FileExists(const Key: string): TArgsValidator;
     function DirectoryExists(const Key: string): TArgsValidator;
     function Custom(const Key: string; Validator: TCustomValidator; const ErrorMsg: string = ''): TArgsValidator;
-    
+
     // 配置选项
     function StopOnFirstError(AStop: Boolean = True): TArgsValidator;
-    
+
     // 执行验证
     function Validate: TValidationResult;
     function ValidateAndThrow: Boolean;  // 验证失败时抛出异常
@@ -129,7 +130,7 @@ type
   // 验证异常
   TArgsErrors = array of TArgsError;
 
-  EArgsValidationException = class(Exception)
+  EArgsValidationException = class(ECore)  // ✅ ARGS-001: 继承自 ECore
   private
     FErrors: TArgsErrors;
   public
@@ -650,7 +651,7 @@ var
   Error: TArgsError;
 begin
   Result := TValidationResult.Success;
-  
+
   for i := Low(FRules) to High(FRules) do
   begin
     Error := ValidateRule(FRules[i]);
@@ -683,7 +684,7 @@ begin
   SetLength(FErrors, Length(AErrors));
   for i := Low(AErrors) to High(AErrors) do
     FErrors[i] := AErrors[i];
-  
+
   if Length(AErrors) = 1 then
     Msg := AErrors[0].ToString
   else
@@ -692,7 +693,7 @@ begin
     for i := Low(AErrors) to High(AErrors) do
       Msg := Msg + sLineBreak + '  - ' + AErrors[i].ToString;
   end;
-  
+
   inherited Create(Msg);
 end;
 

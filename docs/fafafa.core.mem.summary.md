@@ -1,4 +1,5 @@
 # fafafa.core.mem 项目总结
+> 说明：本文档为阶段性记录，内容可能与当前代码不一致；以 `docs/fafafa.core.mem.md` 与 `tests/fafafa.core.mem/README.md` 为准。
 
 ## 🎯 项目概述
 
@@ -18,7 +19,7 @@ fafafa.core.mem/
 ├── fafafa.core.mem.pas           # 主门面模块 (140行)
 ├── fafafa.core.mem.memPool.pas   # 通用内存池 (200行)
 ├── fafafa.core.mem.stackPool.pas # 栈式内存池 (180行)
-└── fafafa.core.mem.slabPool.pas  # nginx风格Slab (393行)
+└── fafafa.core.mem.pool.slab.pas  # nginx风格Slab (393行)
 ```
 
 ## 🚀 核心特性

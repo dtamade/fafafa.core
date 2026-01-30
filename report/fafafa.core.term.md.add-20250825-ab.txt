@@ -1,2 +1,0 @@
-2025-08-25 AB steps done: A) unix mouse protocol 1006-first ordering/comment; B) default stdout binding via THandleStream on FPC, fallback to memory stream; full test suite still passes. TODO next: VT input flag behind-a-flag, script noise further reduction.
-

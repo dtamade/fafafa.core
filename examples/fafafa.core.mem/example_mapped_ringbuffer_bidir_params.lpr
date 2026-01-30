@@ -1,6 +1,6 @@
 program example_mapped_ringbuffer_bidir_params;
 {$mode objfpc}{$H+}
-{$I fafafa.core.settings.inc}
+{$I ../../src/fafafa.core.settings.inc}
 
 uses
   SysUtils, Classes, fafafa.core.mem.mappedRingBuffer;

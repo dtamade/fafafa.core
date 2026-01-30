@@ -4,7 +4,8 @@ program tests_xml;
 {$mode objfpc}{$H+}
 
 uses
-  Windows, SysUtils, consoletestrunner,
+  {$IFDEF MSWINDOWS}Windows,{$ENDIF}
+  SysUtils, consoletestrunner,
   // 显式 uses 所有测试单元，保证 initialization 执行
   Test_fafafa_core_xml,
   Test_fafafa_core_xml_reader,

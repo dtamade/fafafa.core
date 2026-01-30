@@ -1,0 +1,5 @@
+Building atomic tests...
+[BUILD] Using lazbuild: /home/dtamade/projects/fafafa.core/tests/fafafa.core.atomic/tests_atomic.lpi
+SetPrimaryConfigPath NewValue="/tmp/fpcupdeluxe/config_lazarus"
+Hint: (lazbuild) Primary config path: "/tmp/fpcupdeluxe/config_lazarus"
+Error: (lazbuild) Invalid Lazarus directory "": directory lcl not found

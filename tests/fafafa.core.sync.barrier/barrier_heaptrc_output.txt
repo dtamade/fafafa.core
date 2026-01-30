@@ -1,0 +1,32 @@
+
+0.3
+
+Usage: 
+  --format=FMT        Select output format. FMT is one of:
+    latex            output as latex
+    plain            output as plain ASCII source
+    plainnotiming    output as plain ASCII source, skip timings
+    xml              output as XML source (default)
+    junit            output as JUnit compatible XML source
+  --skiptiming              Do not output timings (useful for diffs of testruns)
+  -r or --sparse            Produce Less output (errors/failures only)
+  -n or --no-addresses      Do not display address info
+  -y or --stylesheet=<reference>   add stylesheet reference
+  --file=<filename>         output results to file
+
+  -l or --list              show a list of registered tests
+  -a or --all               run all tests
+  -p or --progress          show progress
+  -u or --status            show status messages on stderr
+  -s or --suite=MyTestSuiteName   run single test suite class
+  -x or --no-exitcode       do not set exit code on errors
+
+Defaults for long options will be read from ini file /home/dtamade/projects/fafafa.core/tests/fafafa.core.sync.barrier/bin/testdefaults.ini
+The results can be redirected to a file,
+for example: /home/dtamade/projects/fafafa.core/tests/fafafa.core.sync.barrier/bin/fafafa.core.sync.barrier.test --all > results.xml
+Heap dump by heaptrc unit of "./bin/fafafa.core.sync.barrier.test"
+206 memory blocks allocated : 15317
+206 memory blocks freed     : 15317
+0 unfreed memory blocks : 0
+True heap size : 131072
+True free heap : 131072

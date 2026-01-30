@@ -1,7 +1,7 @@
-{$CODEPAGE UTF8}
 program example_mem_tryalloc_config;
-
 {$mode objfpc}{$H+}
+{$I ../../src/fafafa.core.settings.inc}
+{$IFDEF WINDOWS}{$CODEPAGE UTF8}{$ENDIF}
 
 uses
   SysUtils,
@@ -10,66 +10,57 @@ uses
 
 procedure DemoMemPool_TryAlloc_Config;
 var
-  C: TMemPoolConfig;
-  M: TMemPool;
-  P: Pointer;
+  LConfig: TMemPoolConfig;
+  LPool: TMemPool;
+  LPtr: Pointer;
 begin
   WriteLn('--- MemPool TryAlloc + Config ---');
-  C.BlockSize := 64;
-  C.Capacity := 2;
-  C.Alignment := SizeOf(Pointer);
-  C.ZeroOnAlloc := False;
-  C.Allocator := nil; // 使用默认 RTL 分配器
-  M := TMemPool.Create(C);
+  LConfig.BlockSize := 64;
+  LConfig.Capacity := 2;
+  LConfig.Alignment := SizeOf(Pointer);
+  LConfig.ZeroOnAlloc := False;
+  LConfig.Allocator := nil; // 使用默认 RTL 分配器
+  LPool := TMemPool.Create(LConfig);
   try
-    if M.TryAlloc(P) then
+    if LPool.TryAlloc(LPtr) then
     begin
       try
         WriteLn('TryAlloc succeeded (block size=64)');
       finally
-        M.ReleasePtr(P);
+        LPool.ReleasePtr(LPtr);
       end;
     end
     else
       WriteLn('TryAlloc failed');
   finally
-    M.Destroy;
+    LPool.Destroy;
   end;
 end;
 
 procedure DemoStackPool_TryAlloc_Config;
 var
-  C: TStackPoolConfig;
-  S: TStackPool;
-  P: Pointer;
+  LConfig: TStackPoolConfig;
+  LPool: TStackPool;
+  LPtr: Pointer;
 begin
   WriteLn('--- StackPool TryAlloc + Config ---');
-  C.TotalSize := 1024;
-  C.Alignment := SizeOf(Pointer);
-  C.ZeroOnAlloc := True; // 构造后清零缓冲
-  C.Allocator := nil;
-  S := TStackPool.Create(C);
+  LConfig.TotalSize := 1024;
+  LConfig.Alignment := SizeOf(Pointer);
+  LConfig.ZeroOnAlloc := True; // 构造后清零缓冲
+  LConfig.Allocator := nil;
+  LPool := TStackPool.Create(LConfig);
   try
-    if S.TryAlloc(128, P) then
+    if LPool.TryAlloc(128, LPtr) then
       WriteLn('TryAlloc(128) succeeded')
     else
       WriteLn('TryAlloc(128) failed');
-    S.Reset;
+    LPool.Reset;
   finally
-    S.Destroy;
+    LPool.Destroy;
   end;
 end;
 
 begin
-  try
-    DemoMemPool_TryAlloc_Config;
-    DemoStackPool_TryAlloc_Config;
-    WriteLn('Demo completed.');
-  except
-    on E: Exception do begin
-      WriteLn('Error: ', E.Message);
-      Halt(1);
-    end;
-  end;
+  DemoMemPool_TryAlloc_Config;
+  DemoStackPool_TryAlloc_Config;
 end.
-

@@ -13,12 +13,12 @@
         <CompilerOptions>
           <Version Value="11"/>
           <Target>
-            <Filename Value="bin\quick_test_runner.exe"/>
+            <Filename Value="bin/quick_test_runner"/>
           </Target>
           <SearchPaths>
             <OtherUnitFiles Value="..\..\src"/>
             <IncludeFiles Value="../../src"/>
-            <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+            <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <Linking>
             <Debugging>
@@ -38,11 +38,11 @@
     </RequiredPackages>
     <Units>
       <Unit>
-        <Filename Value="quick_test_runner.lpr"/>
+        <Filename Value="bin/quick_test_runner"/>
         <IsPartOfProject Value="True"/>
       </Unit>
       <Unit>
-        <Filename Value="quick_test.pas"/>
+        <Filename Value="bin/quick_test_runner"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>
@@ -50,12 +50,12 @@
   <CompilerOptions>
     <Version Value="11"/>
     <Target>
-      <Filename Value="bin\quick_test_runner.exe"/>
+      <Filename Value="bin/quick_test_runner"/>
     </Target>
     <SearchPaths>
       <OtherUnitFiles Value="..\..\src"/>
       <IncludeFiles Value="../../src"/>
-      <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+      <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Linking>
       <Debugging>

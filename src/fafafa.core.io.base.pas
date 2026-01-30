@@ -21,7 +21,8 @@ unit fafafa.core.io.base;
 interface
 
 uses
-  SysUtils;
+  SysUtils,
+  fafafa.core.base;  // ✅ IO-001: 引入 ECore 基类
 
 const
   { Seek 起点常量 }
@@ -64,17 +65,17 @@ type
   );
 
   { IO 异常基类
-  
+
     结构化字段：
     - Kind: 错误类型
     - Op: 操作名称 (open/read/write/seek/close)
     - Path: 相关文件路径 (可为空)
     - Code: 原始系统错误码 (errno/winerr, 0=未知)
     - Cause: 底层错误描述
-    
+
     参考: Rust std::io::Error
   }
-  EIOError = class(Exception)
+  EIOError = class(ECore)  // ✅ IO-001: 继承自 ECore
   private
     FKind: TIOErrorKind;
     FOp: string;
@@ -87,9 +88,9 @@ type
     { 带 Kind 的构造 }
     constructor Create(AKind: TIOErrorKind; const AMessage: string); overload;
     { 完整结构化构造 }
-    constructor Create(AKind: TIOErrorKind; const AOp, APath: string; 
+    constructor Create(AKind: TIOErrorKind; const AOp, APath: string;
       ACode: Integer; const ACause: string); overload;
-    
+
     property Kind: TIOErrorKind read FKind;
     property Op: string read FOp;
     property Path: string read FPath;
@@ -404,7 +405,7 @@ begin
     Msg := Msg + ' ' + APath;
   if ACause <> '' then
     Msg := Msg + ': ' + ACause;
-  
+
   inherited Create(Msg);
   FKind := AKind;
   FOp := AOp;
@@ -438,4 +439,3 @@ begin
 end;
 
 end.
-

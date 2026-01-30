@@ -30,7 +30,7 @@
     </RequiredPackages>
     <Units>
       <Unit>
-        <Filename Value="example_multi_thread_coordination.lpr"/>
+        <Filename Value="bin/example_multi_thread_coordination"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>

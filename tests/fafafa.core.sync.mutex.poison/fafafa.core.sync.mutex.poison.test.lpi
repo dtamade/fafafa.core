@@ -25,7 +25,7 @@
     </RunParams>
     <Units>
       <Unit>
-        <Filename Value="fafafa.core.sync.mutex.poison.test.lpr"/>
+        <Filename Value="bin/fafafa.core.sync.mutex.poison.test"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>
@@ -33,7 +33,7 @@
   <CompilerOptions>
     <Version Value="11"/>
     <Target>
-      <Filename Value="fafafa.core.sync.mutex.poison.test"/>
+      <Filename Value="bin/fafafa.core.sync.mutex.poison.test"/>
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir);../../src"/>

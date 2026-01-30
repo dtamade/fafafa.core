@@ -129,8 +129,8 @@ begin
   // 使用现代 futex 实现（高性能）
   Result := TFutexMutex.Create;
   {$ELSE}
-  // 回退到 pthread_mutex 实现
-  Result := TMutex.Create;
+  // 回退到 pthread_mutex 实现（使用 ERRORCHECK 类型检测重入）
+  Result := TMutex.Create(False);  // False = 使用 PTHREAD_MUTEX_ERRORCHECK
   {$ENDIF}
 end;
 

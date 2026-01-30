@@ -29,6 +29,7 @@ interface
 
 uses
   SysUtils, DateUtils, SyncObjs,
+  fafafa.core.base,   // ✅ TIMEFLAKE-001: 引入 ECore 基类
   fafafa.core.id.base;  // ✅ P1: 统一类型定义
 
 const
@@ -39,7 +40,7 @@ const
 
 type
   { EInvalidTimeflake - Invalid Timeflake string exception }
-  EInvalidTimeflake = class(Exception);
+  EInvalidTimeflake = class(ECore);  // ✅ TIMEFLAKE-001: 继承自 ECore
 
   { ITimeflakeGenerator - Timeflake generator interface }
   // ✅ T1.2: 统一接口方法名 - 添加 NextRaw 规范命名

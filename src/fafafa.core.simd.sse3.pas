@@ -90,9 +90,12 @@ end;
 
 // Sum all 4 floats using SSE3 horizontal add (faster than SSE2 shuffle method)
 function SSE3ReduceAddF32x4(const a: TVecF32x4): Single;
+var
+  pa: Pointer;
 begin
+  pa := @a;
   asm
-    lea     rax, a
+    mov     rax, pa
     movups  xmm0, [rax]
     haddps  xmm0, xmm0     // [a0+a1, a2+a3, a0+a1, a2+a3]
     haddps  xmm0, xmm0     // [sum, sum, sum, sum]
@@ -176,10 +179,14 @@ end;
 // Using HADD for final reduction
 
 function SSE3DotF32x4(const a, b: TVecF32x4): Single;
+var
+  pa, pb: Pointer;
 begin
+  pa := @a;
+  pb := @b;
   asm
-    lea     rax, a
-    lea     rdx, b
+    mov     rax, pa
+    mov     rdx, pb
     movups  xmm0, [rax]
     movups  xmm1, [rdx]
     mulps   xmm0, xmm1      // Element-wise multiply
@@ -213,9 +220,12 @@ end;
 // === SSE3 Optimized Length ===
 
 function SSE3LengthF32x4(const a: TVecF32x4): Single;
+var
+  pa: Pointer;
 begin
+  pa := @a;
   asm
-    lea     rax, a
+    mov     rax, pa
     movups  xmm0, [rax]
     mulps   xmm0, xmm0      // Square each element
     haddps  xmm0, xmm0      // Sum pairs

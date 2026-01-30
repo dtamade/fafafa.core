@@ -1,4 +1,6 @@
-# fafafa.core.mem.slabPool - nginx风格实现
+# fafafa.core.mem.pool.slab - nginx风格实现
+
+> 注意：当前实现已演进为「分段 FixedSlab + fallback」的 SlabPool，本文结构为概念说明；实际以 `src/fafafa.core.mem.pool.slab.pas` 为准。
 
 ## 📋 概述
 
@@ -46,7 +48,7 @@ private
   FStart: Pointer;           // 内存池起始地址
   FEnd: Pointer;             // 内存池结束地址
   FSize: SizeUInt;           // 内存池大小
-  FBaseAllocator: TAllocator;
+  FBaseAllocator: IAllocator;
 
   FPages: PSlabPage;         // 页面数组
   FPageCount: SizeUInt;      // 页面数量
@@ -59,7 +61,6 @@ private
   // 统计信息
   FTotalAllocs: SizeUInt;
   FTotalFrees: SizeUInt;
-  FFailedAllocs: SizeUInt;
 ```
 
 ## 🚀 核心算法
@@ -99,7 +100,7 @@ begin
   try
     LPtr := LPool.Alloc(64);  // 分配64字节
     // 使用内存...
-    LPool.Free(LPtr);         // 释放内存
+    LPool.ReleasePtr(LPtr);   // 释放内存
   finally
     LPool.Free;
   end;
@@ -122,10 +123,10 @@ begin
     // 使用内存...
     
     // 释放所有内存
-    LPool.Free(LPtrs[0]);
-    LPool.Free(LPtrs[1]);
-    LPool.Free(LPtrs[2]);
-    LPool.Free(LPtrs[3]);
+    LPool.ReleasePtr(LPtrs[0]);
+    LPool.ReleasePtr(LPtrs[1]);
+    LPool.ReleasePtr(LPtrs[2]);
+    LPool.ReleasePtr(LPtrs[3]);
   finally
     LPool.Free;
   end;
@@ -136,16 +137,19 @@ end;
 ```pascal
 var
   LPool: TSlabPool;
+  LStats: TSlabPoolStats;
+  LPerf: TSlabPerfCounters;
 begin
   LPool := TSlabPool.Create(4096);
   try
     // 进行一些分配和释放操作...
     
-    WriteLn('总分配次数: ', LPool.TotalAllocs);
-    WriteLn('总释放次数: ', LPool.TotalFrees);
-    WriteLn('失败次数: ', LPool.FailedAllocs);
-    WriteLn('池大小: ', LPool.PoolSize);
-    WriteLn('页面数: ', LPool.PageCount);
+    LStats := GetSlabPoolStats(LPool);
+    LPerf := LPool.GetPerfCounters;
+
+    WriteLn('容量: ', LStats.TotalUsed, '/', LStats.TotalCapacity);
+    WriteLn('Fallback: ', LStats.FallbackAllocCount);
+    WriteLn('分配/释放: ', LPerf.AllocCalls, '/', LPerf.FreeCalls);
   finally
     LPool.Free;
   end;

@@ -11,7 +11,7 @@ fafafa.core.mem/
 ├── fafafa.core.mem.pas           # 主门面模块
 ├── fafafa.core.mem.memPool.pas   # 通用内存池
 ├── fafafa.core.mem.stackPool.pas # 栈式内存池
-└── fafafa.core.mem.slabPool.pas  # nginx风格Slab分配器
+└── fafafa.core.mem.pool.slab.pas  # nginx风格Slab分配器
 ```
 
 ## 🚀 快速开始
@@ -23,7 +23,7 @@ uses
   fafafa.core.mem;
 
 var
-  LAllocator: TAllocator;
+  LAllocator: IAllocator;
   LPtr1, LPtr2: Pointer;
 begin
   // 获取RTL分配器
@@ -76,7 +76,7 @@ begin
     if LPtr <> nil then
     begin
       // 使用内存...
-      LPool.Free(LPtr);
+      LPool.ReleasePtr(LPtr);
     end;
   finally
     LPool.Free;
@@ -133,11 +133,14 @@ end;
 
 ```pascal
 uses
-  fafafa.core.mem.slabPool;
+  fafafa.core.mem.pool.slab,
+  fafafa.core.mem.stats;
 
 var
   LPool: TSlabPool;
   LPtr1, LPtr2: Pointer;
+  LStats: TSlabPoolStats;
+  LPerf: TSlabPerfCounters;
 begin
   LPool := TSlabPool.Create(8192); // 2个页面
   try
@@ -146,12 +149,15 @@ begin
     
     // 使用内存...
     
-    LPool.Free(LPtr1);
-    LPool.Free(LPtr2);
+    LPool.ReleasePtr(LPtr1);
+    LPool.ReleasePtr(LPtr2);
     
     // 查看统计
-    WriteLn('分配次数: ', LPool.TotalAllocs);
-    WriteLn('释放次数: ', LPool.TotalFrees);
+    LStats := GetSlabPoolStats(LPool);
+    LPerf := LPool.GetPerfCounters;
+    WriteLn('容量: ', LStats.TotalUsed, '/', LStats.TotalCapacity);
+    WriteLn('Fallback: ', LStats.FallbackAllocCount);
+    WriteLn('分配/释放: ', LPerf.AllocCalls, '/', LPerf.FreeCalls);
   finally
     LPool.Free;
   end;
@@ -171,7 +177,7 @@ end;
 ### 自定义分配器
 ```pascal
 var
-  LCustomAllocator: TAllocator;
+  LCustomAllocator: IAllocator;
   LPool: TMemPool;
 begin
   LCustomAllocator := GetCrtAllocator; // 使用CRT分配器
@@ -245,9 +251,10 @@ end;
 
 ### 4. 监控内存使用
 ```pascal
-// 对于SlabPool，定期检查统计信息
-if LSlabPool.FailedAllocs > 0 then
-  WriteLn('警告：有分配失败，考虑增加池大小');
+// 对于SlabPool，定期检查使用率
+LSlabStats := GetSlabPoolStats(LSlabPool);
+if (LSlabStats.TotalCapacity > 0) and (LSlabStats.TotalUsed * 4 > LSlabStats.TotalCapacity * 3) then
+  WriteLn('使用率偏高，考虑增加池大小');
 ```
 
 ### 5. 避免内存泄漏
@@ -256,7 +263,7 @@ LPtr := LPool.Alloc;
 try
   // 使用内存...
 finally
-  LPool.Free(LPtr); // 确保释放
+  LPool.ReleasePtr(LPtr); // 确保释放
 end;
 ```
 
@@ -273,18 +280,23 @@ end;
 ### 内存使用统计
 ```pascal
 // TMemPool
-WriteLn('已分配: ', LMemPool.AllocatedCount, '/', LMemPool.Capacity);
+LMemStats := GetMemPoolStats(LMemPool);
+WriteLn('已分配: ', LMemStats.AllocatedCount, '/', LMemStats.Capacity);
 
 // TStackPool  
-WriteLn('已使用: ', LStackPool.UsedSize, '/', LStackPool.TotalSize);
+LStackStats := GetStackPoolStats(LStackPool);
+WriteLn('已使用: ', LStackStats.UsedSize, '/', LStackStats.TotalSize);
 
 // TSlabPool
-WriteLn('分配: ', LSlabPool.TotalAllocs, ', 失败: ', LSlabPool.FailedAllocs);
+LSlabStats := GetSlabPoolStats(LSlabPool);
+LSlabPerf := LSlabPool.GetPerfCounters;
+WriteLn('容量: ', LSlabStats.TotalUsed, '/', LSlabStats.TotalCapacity);
+WriteLn('分配/释放: ', LSlabPerf.AllocCalls, '/', LSlabPerf.FreeCalls);
 ```
 
 ### 内存状态检查
 ```pascal
-if LMemPool.IsFull then
+if LMemPool.Available = 0 then
   WriteLn('内存池已满，考虑增加容量');
   
 if LStackPool.AvailableSize < 1024 then

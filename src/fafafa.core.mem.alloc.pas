@@ -236,6 +236,9 @@ function GetAlignedAlloc: IAlloc;
 
 implementation
 
+{$PUSH}
+{$WARN 4055 OFF} // pointer/ordinal conversions in aligned allocation
+
 var
   GSystemAlloc: IAlloc = nil;
   GAlignedAlloc: IAlloc = nil;
@@ -447,7 +450,6 @@ var
   LActualSize: SizeUInt;
   LRawPtr: Pointer;
   LAlignedPtr: Pointer;
-  LOffset: SizeUInt;
 begin
   // 默认对齐使用系统堆
   if aAlign <= MEM_DEFAULT_ALIGN then
@@ -532,5 +534,7 @@ finalization
   // 清理全局单例，避免 HeapTrc 报告内存泄漏
   GSystemAlloc := nil;
   GAlignedAlloc := nil;
+
+{$POP}
 
 end.

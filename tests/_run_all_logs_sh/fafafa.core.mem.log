@@ -1,20 +1,30 @@
 ========================================
 Module: fafafa.core.mem
 Script: /home/dtamade/projects/fafafa.core/tests/fafafa.core.mem/BuildOrTest.sh
-Started: 2026-01-01 21:17:24
+Started: 2026-01-24 21:13:43
 ========================================
 Building project: /home/dtamade/projects/fafafa.core/tests/fafafa.core.mem/tests_mem_allocator_only.lpi (Debug)
-SetPrimaryConfigPath NewValue="/home/dtamade/freePascal/config_lazarus"
-Hint: (lazbuild) Primary config path: "/home/dtamade/freePascal/config_lazarus"
+Hint: (lazbuild) Opt: "lazarusdir=/opt/fpcupdeluxe/lazarus"
+SetPrimaryConfigPath NewValue="/tmp/fpcupdeluxe/config_lazarus"
+Hint: (lazbuild) Primary config path: "/tmp/fpcupdeluxe/config_lazarus"
+SetupCompilerFilename: Searching compiler ...
+SearchCompilerCandidates Value=fpc File=/opt/fpcupdeluxe/fpc/bin/x86_64-linux/fpc
+Hint: (lazarus) [RunTool] "/opt/fpcupdeluxe/fpc/bin/x86_64-linux/fpc" "-iWTOTP"
+Hint: (lazarus) [RunTool] "/opt/fpcupdeluxe/fpc/bin/x86_64-linux/fpc" "-va" "/tmp/fpcupdeluxe/config_lazarus/compilertest.pas", WorkDir="/tmp/fpcupdeluxe/config_lazarus/"
+Hint: [TPCTargetConfigCache.Update] has changed
+SetupCompilerFilename: using /opt/fpcupdeluxe/fpc/bin/x86_64-linux/fpc
+Hint: (lazarus) [RunTool] "/opt/fpcupdeluxe/fpc/bin/x86_64-linux/fpc" "-iWTOTP" "-Px86_64" "-Tlinux"
+Hint: (lazarus) [RunTool] "/opt/fpcupdeluxe/fpc/bin/x86_64-linux/fpc" "-va" "/tmp/fpcupdeluxe/config_lazarus/compilertest.pas" "-Px86_64" "-Tlinux", WorkDir="/tmp/fpcupdeluxe/config_lazarus/"
+Hint: [TPCTargetConfigCache.Update] has changed
 Hint: (lazarus) [TBuildManager.SetBuildTarget] Old=x86_64-linux--gtk2 New=x86_64-linux--gtk2 Changed: OS/CPU=True LCL=False
 Hint: (lazarus) [TBuildManager.SetBuildTarget] Old=x86_64-linux--gtk2 New=x86_64-linux--gtk2 Changed: OS/CPU=True LCL=False
-Hint: (lazarus) Compiler filename changed for FCL 1.0.1
-  Old="/home/dtamade/freePascal/fpc/bin/x86_64-linux/fpc"
-  Now="/home/dtamade/freePascal/fpc/bin/x86_64-linux/fpc.sh"
-  State file="/home/dtamade/freePascal/lazarus/packager/units/x86_64-linux/fcl.compiled"
+Hint: (lazarus) Compiler params changed for FCL 1.0.1
+  Old="-MObjFPC -Scghi -Cg -O1 -g -gl -Fu/opt/fpcupdeluxe/lazarus/packager/registration/ -FU/opt/fpcupdeluxe/lazarus/packager/units/x86_64-linux/ -g -gl -O1 fcllaz.pas"
+  Now="-MObjFPC -Scghi -Cg -O1 -g -gl -Fu/opt/fpcupdeluxe/lazarus/packager/registration/ -FU/opt/fpcupdeluxe/lazarus/packager/units/x86_64-linux/ fcllaz.pas"
+  State file="/opt/fpcupdeluxe/lazarus/packager/units/x86_64-linux/fcl.compiled"
 Info: (lazarus) Execute Title="Compile package FCL 1.0.1"
-Info: (lazarus) Working Directory="/home/dtamade/freePascal/lazarus/packager/registration/"
-Info: (lazarus) Executable="/home/dtamade/freePascal/fpc/bin/x86_64-linux/fpc.sh"
+Info: (lazarus) Working Directory="/opt/fpcupdeluxe/lazarus/packager/registration/"
+Info: (lazarus) Executable="/opt/fpcupdeluxe/fpc/bin/x86_64-linux/fpc"
 Info: (lazarus) Param[0]="-MObjFPC"
 Info: (lazarus) Param[1]="-Scghi"
 Info: (lazarus) Param[2]="-Cg"
@@ -23,13 +33,13 @@ Info: (lazarus) Param[4]="-g"
 Info: (lazarus) Param[5]="-gl"
 Info: (lazarus) Param[6]="-l"
 Info: (lazarus) Param[7]="-vewnhibq"
-Info: (lazarus) Param[8]="-Fu/home/dtamade/freePascal/lazarus/packager/registration/"
-Info: (lazarus) Param[9]="-FU/home/dtamade/freePascal/lazarus/packager/units/x86_64-linux/"
+Info: (lazarus) Param[8]="-Fu/opt/fpcupdeluxe/lazarus/packager/registration/"
+Info: (lazarus) Param[9]="-FU/opt/fpcupdeluxe/lazarus/packager/units/x86_64-linux/"
 Info: (lazarus) Param[10]="fcllaz.pas"
 Info: (lazarus) Param[11]="-B"
-Hint: (11030) Start of reading config file /home/dtamade/freePascal/fpc/bin/x86_64-linux/fpc.cfg
-Hint: (11031) End of reading config file /home/dtamade/freePascal/fpc/bin/x86_64-linux/fpc.cfg
-Free Pascal Compiler version 3.3.1-18766-gc75982a639-dirty [2025/10/23] for x86_64
+Hint: (11030) Start of reading config file /home/dtamade/.fpc.cfg
+Hint: (11031) End of reading config file /home/dtamade/.fpc.cfg
+Free Pascal Compiler version 3.3.1-19195-gebfc7485b1-dirty [2026/01/07] for x86_64
 Copyright (c) 1993-2025 by Florian Klaempfl and others
 (1002) Target OS: Linux for x86-64
 (3104) Compiling fcllaz.pas
@@ -40,7 +50,7 @@ TProject.DoLoadStateFile Statefile not found: /home/dtamade/projects/fafafa.core
 Hint: (lazarus) Project needs building: No state file for Project
 Info: (lazarus) Execute Title="Compile Project, Target: /home/dtamade/projects/fafafa.core/tests/fafafa.core.mem/bin/tests_mem_allocator_only"
 Info: (lazarus) Working Directory="/home/dtamade/projects/fafafa.core/tests/fafafa.core.mem/"
-Info: (lazarus) Executable="/home/dtamade/freePascal/fpc/bin/x86_64-linux/fpc.sh"
+Info: (lazarus) Executable="/opt/fpcupdeluxe/fpc/bin/x86_64-linux/fpc"
 Info: (lazarus) Param[0]="-MObjFPC"
 Info: (lazarus) Param[1]="-Scghi"
 Info: (lazarus) Param[2]="-Cg"
@@ -54,103 +64,229 @@ Info: (lazarus) Param[9]="-Fi/home/dtamade/projects/fafafa.core/tests/fafafa.cor
 Info: (lazarus) Param[10]="-Fi/home/dtamade/projects/fafafa.core/src"
 Info: (lazarus) Param[11]="-Fu/home/dtamade/projects/fafafa.core/tests/fafafa.core.mem/"
 Info: (lazarus) Param[12]="-Fu/home/dtamade/projects/fafafa.core/src"
-Info: (lazarus) Param[13]="-Fu/home/dtamade/freePascal/lazarus/packager/units/x86_64-linux"
+Info: (lazarus) Param[13]="-Fu/opt/fpcupdeluxe/lazarus/packager/units/x86_64-linux"
 Info: (lazarus) Param[14]="-FU/home/dtamade/projects/fafafa.core/tests/fafafa.core.mem/lib/x86_64-linux/"
 Info: (lazarus) Param[15]="-FE/home/dtamade/projects/fafafa.core/tests/fafafa.core.mem/bin/"
 Info: (lazarus) Param[16]="-o/home/dtamade/projects/fafafa.core/tests/fafafa.core.mem/bin/tests_mem_allocator_only"
 Info: (lazarus) Param[17]="tests_mem_allocator_only.lpr"
 Info: (lazarus) Param[18]="-B"
-Hint: (11030) Start of reading config file /home/dtamade/freePascal/fpc/bin/x86_64-linux/fpc.cfg
-Hint: (11031) End of reading config file /home/dtamade/freePascal/fpc/bin/x86_64-linux/fpc.cfg
-Free Pascal Compiler version 3.3.1-18766-gc75982a639-dirty [2025/10/23] for x86_64
+Hint: (11030) Start of reading config file /home/dtamade/.fpc.cfg
+Hint: (11031) End of reading config file /home/dtamade/.fpc.cfg
+Free Pascal Compiler version 3.3.1-19195-gebfc7485b1-dirty [2026/01/07] for x86_64
 Copyright (c) 1993-2025 by Florian Klaempfl and others
 (1002) Target OS: Linux for x86-64
 (3104) Compiling tests_mem_allocator_only.lpr
 (3104) Compiling test_mimalloc_manager_optional_smoke.pas
 (3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.base.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.instrumentation.pas
-/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.instrumentation.pas(68,13) Hint: (5058) Variable "S" does not seem to be initialized
 (3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.base.pas
-/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.base.pas(73,11) Hint: (4055) Conversion between ordinals and pointers is not portable
-/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.base.pas(75,13) Hint: (4055) Conversion between ordinals and pointers is not portable
-/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.base.pas(161,32) Hint: (4055) Conversion between ordinals and pointers is not portable
-/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.base.pas(161,24) Hint: (4055) Conversion between ordinals and pointers is not portable
-/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.base.pas(162,25) Hint: (4055) Conversion between ordinals and pointers is not portable
-/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.base.pas(162,16) Hint: (4055) Conversion between ordinals and pointers is not portable
-/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.base.pas(172,25) Hint: (4055) Conversion between ordinals and pointers is not portable
-/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.base.pas(172,16) Hint: (4055) Conversion between ordinals and pointers is not portable
-/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.base.pas(11,3) Hint: (5023) Unit "fafafa.core.mem.allocator.instrumentation" not used in fafafa.core.mem.allocator.base
 (3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.mimalloc.pas
-(3104) Compiling test_stackpool.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.stackPool.pas
+(3104) Compiling test_interfaces.pas
 (3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.pas
 (3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.crtAllocator.pas
-/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.crtAllocator.pas(10,3) Hint: (5023) Unit "fafafa.core.base" not used in fafafa.core.mem.allocator.crtAllocator
 (3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.callbackAllocator.pas
 (3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.rtlAllocator.pas
-/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.rtlAllocator.pas(10,3) Hint: (5023) Unit "fafafa.core.base" not used in fafafa.core.mem.allocator.rtlAllocator
-/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.allocator.pas(24,3) Hint: (5023) Unit "fafafa.core.base" not used in fafafa.core.mem.allocator
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.utils.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.adapters.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.interfaces.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.memPool.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.pool.fixed.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.error.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.pool.base.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.stackPool.pas
 (3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.math.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.math.array_.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.math.arrays.pas
 (3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.math.dispatch.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.simd.arrays.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.simd.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.simd.avx2.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.simd.base.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.simd.dispatch.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.simd.sse42.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.simd.sse41.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.simd.ssse3.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.simd.sse3.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.simd.sse2.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.simd.memutils.pas
+/home/dtamade/projects/fafafa.core/src/fafafa.core.simd.memutils.pas(154,17) Note: (6058) Call to subroutine "function AlignUp(ptr:Pointer;alignment:NativeUInt):System.Pointer;" marked as inline is not inlined
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.simd.cpuinfo.base.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.simd.cpuinfo.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.simd.cpuinfo.unix.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(1419,85) Note: (6058) Call to subroutine "function atomic_exchange_64(var aObj:Int64;aDesired:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(1427,13) Note: (6058) Call to subroutine "function atomic_exchange_64(var aObj:Int64;aDesired:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(1432,21) Note: (6058) Call to subroutine "function atomic_exchange_64(var aObj:Int64;aDesired:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(1437,21) Note: (6058) Call to subroutine "function atomic_exchange_64(var aObj:Int64;aDesired:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(1437,21) Note: (6058) Call to subroutine "function atomic_exchange_64(var aObj:Int64;aDesired:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(1521,13) Note: (6058) Call to subroutine "function atomic_compare_exchange_strong_64(var aObj:Int64;var aExpected:Int64;aDesired:Int64;aSuccessOrder:memory_order_t;aFailureOrder:memory_order_t):System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(1528,13) Note: (6058) Call to subroutine "function atomic_compare_exchange_strong_64(var aObj:Int64;var aExpected:Int64;aDesired:Int64;aSuccessOrder:memory_order_t;aFailureOrder:memory_order_t):System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(1536,13) Note: (6058) Call to subroutine "function atomic_compare_exchange_strong(var aObj:LongInt;var aExpected:LongInt;aDesired:LongInt;aSuccessOrder:memory_order_t;aFailureOrder:memory_order_t):System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(1543,13) Note: (6058) Call to subroutine "function atomic_compare_exchange_strong(var aObj:LongInt;var aExpected:LongInt;aDesired:LongInt;aSuccessOrder:memory_order_t;aFailureOrder:memory_order_t):System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(1551,13) Note: (6058) Call to subroutine "function atomic_compare_exchange_strong(var aObj:Int64;var aExpected:Int64;aDesired:Int64;aSuccessOrder:memory_order_t;aFailureOrder:memory_order_t):System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(1557,13) Note: (6058) Call to subroutine "function atomic_compare_exchange_strong(var aObj:QWord;var aExpected:QWord;aDesired:QWord;aSuccessOrder:memory_order_t;aFailureOrder:memory_order_t):System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(1564,13) Note: (6058) Call to subroutine "function atomic_compare_exchange_strong(var aObj:Pointer;var aExpected:Pointer;aDesired:Pointer;aSuccessOrder:memory_order_t;aFailureOrder:memory_order_t):System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(1569,13) Note: (6058) Call to subroutine "function atomic_compare_exchange_strong(var aObj:LongInt;var aExpected:LongInt;aDesired:LongInt;aSuccessOrder:memory_order_t;aFailureOrder:memory_order_t):System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(1569,13) Note: (6058) Call to subroutine "function atomic_compare_exchange_strong(var aObj:LongInt;var aExpected:LongInt;aDesired:LongInt;aSuccessOrder:memory_order_t;aFailureOrder:memory_order_t):System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(1576,13) Note: (6058) Call to subroutine "function atomic_compare_exchange_strong(var aObj:LongInt;var aExpected:LongInt;aDesired:LongInt;aSuccessOrder:memory_order_t;aFailureOrder:memory_order_t):System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(1583,13) Note: (6058) Call to subroutine "function atomic_compare_exchange_strong(var aObj:Int64;var aExpected:Int64;aDesired:Int64;aSuccessOrder:memory_order_t;aFailureOrder:memory_order_t):System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(1583,13) Note: (6058) Call to subroutine "function atomic_compare_exchange_strong(var aObj:Int64;var aExpected:Int64;aDesired:Int64;aSuccessOrder:memory_order_t;aFailureOrder:memory_order_t):System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(1588,13) Note: (6058) Call to subroutine "function atomic_compare_exchange_strong(var aObj:Int64;var aExpected:Int64;aDesired:Int64;aSuccessOrder:memory_order_t;aFailureOrder:memory_order_t):System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(1597,13) Note: (6058) Call to subroutine "function atomic_compare_exchange_strong_64(var aObj:Int64;var aExpected:Int64;aDesired:Int64;aSuccessOrder:memory_order_t;aFailureOrder:memory_order_t):System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(1603,13) Note: (6058) Call to subroutine "function atomic_compare_exchange_strong_64(var aObj:Int64;var aExpected:Int64;aDesired:Int64;aSuccessOrder:memory_order_t;aFailureOrder:memory_order_t):System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(1603,13) Note: (6058) Call to subroutine "function atomic_compare_exchange_strong_64(var aObj:Int64;var aExpected:Int64;aDesired:Int64;aSuccessOrder:memory_order_t;aFailureOrder:memory_order_t):System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(1609,13) Note: (6058) Call to subroutine "function atomic_compare_exchange_strong(var aObj:Pointer;var aExpected:Pointer;aDesired:Pointer;aSuccessOrder:memory_order_t;aFailureOrder:memory_order_t):System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(1609,13) Note: (6058) Call to subroutine "function atomic_compare_exchange_strong(var aObj:Pointer;var aExpected:Pointer;aDesired:Pointer;aSuccessOrder:memory_order_t;aFailureOrder:memory_order_t):System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(1614,13) Note: (6058) Call to subroutine "function atomic_compare_exchange_strong(var aObj:Pointer;var aExpected:Pointer;aDesired:Pointer;aSuccessOrder:memory_order_t;aFailureOrder:memory_order_t):System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(1614,13) Note: (6058) Call to subroutine "function atomic_compare_exchange_strong(var aObj:Pointer;var aExpected:Pointer;aDesired:Pointer;aSuccessOrder:memory_order_t;aFailureOrder:memory_order_t):System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(1614,13) Note: (6058) Call to subroutine "function atomic_compare_exchange_strong(var aObj:Pointer;var aExpected:Pointer;aDesired:Pointer;aSuccessOrder:memory_order_t;aFailureOrder:memory_order_t):System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(1619,13) Note: (6058) Call to subroutine "function atomic_compare_exchange_strong(var aObj:LongInt;var aExpected:LongInt;aDesired:LongInt;aSuccessOrder:memory_order_t;aFailureOrder:memory_order_t):System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(1619,13) Note: (6058) Call to subroutine "function atomic_compare_exchange_strong(var aObj:LongInt;var aExpected:LongInt;aDesired:LongInt;aSuccessOrder:memory_order_t;aFailureOrder:memory_order_t):System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(1626,13) Note: (6058) Call to subroutine "function atomic_compare_exchange_strong(var aObj:LongInt;var aExpected:LongInt;aDesired:LongInt;aSuccessOrder:memory_order_t;aFailureOrder:memory_order_t):System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(1633,13) Note: (6058) Call to subroutine "function atomic_compare_exchange_strong(var aObj:Int64;var aExpected:Int64;aDesired:Int64;aSuccessOrder:memory_order_t;aFailureOrder:memory_order_t):System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(1633,13) Note: (6058) Call to subroutine "function atomic_compare_exchange_strong(var aObj:Int64;var aExpected:Int64;aDesired:Int64;aSuccessOrder:memory_order_t;aFailureOrder:memory_order_t):System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(1638,13) Note: (6058) Call to subroutine "function atomic_compare_exchange_strong(var aObj:Int64;var aExpected:Int64;aDesired:Int64;aSuccessOrder:memory_order_t;aFailureOrder:memory_order_t):System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(1645,13) Note: (6058) Call to subroutine "function atomic_compare_exchange_strong_64(var aObj:Int64;var aExpected:Int64;aDesired:Int64;aSuccessOrder:memory_order_t;aFailureOrder:memory_order_t):System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(1645,13) Note: (6058) Call to subroutine "function atomic_compare_exchange_strong_64(var aObj:Int64;var aExpected:Int64;aDesired:Int64;aSuccessOrder:memory_order_t;aFailureOrder:memory_order_t):System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(1652,13) Note: (6058) Call to subroutine "function atomic_compare_exchange_strong_64(var aObj:Int64;var aExpected:Int64;aDesired:Int64;aSuccessOrder:memory_order_t;aFailureOrder:memory_order_t):System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(1661,13) Note: (6058) Call to subroutine "function atomic_fetch_add_64(var aObj:Int64;aArg:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(1668,20) Note: (6058) Call to subroutine "function atomic_fetch_add_64(var aObj:Int64;aArg:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(1675,13) Note: (6058) Call to subroutine "function atomic_compare_exchange_strong(var aObj:Pointer;var aExpected:Pointer;aDesired:Pointer;aSuccessOrder:memory_order_t;aFailureOrder:memory_order_t):System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(1675,13) Note: (6058) Call to subroutine "function atomic_compare_exchange_strong(var aObj:Pointer;var aExpected:Pointer;aDesired:Pointer;aSuccessOrder:memory_order_t;aFailureOrder:memory_order_t):System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2046,13) Note: (6058) Call to subroutine "function atomic_fetch_add(var aObj:LongInt;aArg:LongInt;aOrder:memory_order_t):System.LongInt;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2053,20) Note: (6058) Call to subroutine "function atomic_fetch_add(var aObj:LongInt;aArg:LongInt;aOrder:memory_order_t):System.LongInt;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2065,58) Note: (6058) Call to subroutine "function atomic_fetch_add_64(var aObj:Int64;aArg:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2077,23) Note: (6058) Call to subroutine "function atomic_fetch_add_64(var aObj:Int64;aArg:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2087,13) Note: (6058) Call to subroutine "function atomic_fetch_add_64(var aObj:Int64;aArg:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2094,20) Note: (6058) Call to subroutine "function atomic_fetch_add_64(var aObj:Int64;aArg:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2102,13) Note: (6058) Call to subroutine "function atomic_fetch_add(var aObj:LongInt;aArg:LongInt;aOrder:memory_order_t):System.LongInt;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2109,20) Note: (6058) Call to subroutine "function atomic_fetch_add(var aObj:LongInt;aArg:LongInt;aOrder:memory_order_t):System.LongInt;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2121,58) Note: (6058) Call to subroutine "function atomic_fetch_add_64(var aObj:Int64;aArg:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2130,21) Note: (6058) Call to subroutine "function atomic_fetch_add_64(var aObj:Int64;aArg:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2139,13) Note: (6058) Call to subroutine "function atomic_fetch_add_64(var aObj:Int64;aArg:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2146,20) Note: (6058) Call to subroutine "function atomic_fetch_add_64(var aObj:Int64;aArg:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2154,13) Note: (6058) Call to subroutine "function atomic_fetch_add(var aObj:LongInt;aArg:LongInt;aOrder:memory_order_t):System.LongInt;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2161,20) Note: (6058) Call to subroutine "function atomic_fetch_add(var aObj:LongInt;aArg:LongInt;aOrder:memory_order_t):System.LongInt;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2171,86) Note: (6058) Call to subroutine "function atomic_fetch_add_64(var aObj:Int64;aArg:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2179,21) Note: (6058) Call to subroutine "function atomic_fetch_add(var aObj:Int64;aArg:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2191,23) Note: (6058) Call to subroutine "function atomic_fetch_add_64(var aObj:Int64;aArg:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2199,13) Note: (6058) Call to subroutine "function atomic_fetch_add_64(var aObj:Int64;aArg:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2204,20) Note: (6058) Call to subroutine "function atomic_fetch_add_64(var aObj:Int64;aArg:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2210,13) Note: (6058) Call to subroutine "function atomic_fetch_add(var aObj:LongInt;aArg:LongInt;aOrder:memory_order_t):System.LongInt;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2217,20) Note: (6058) Call to subroutine "function atomic_fetch_add(var aObj:LongInt;aArg:LongInt;aOrder:memory_order_t):System.LongInt;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2227,74) Note: (6058) Call to subroutine "function atomic_fetch_add_64(var aObj:Int64;aArg:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2235,21) Note: (6058) Call to subroutine "function atomic_fetch_add_64(var aObj:Int64;aArg:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2242,13) Note: (6058) Call to subroutine "function atomic_fetch_add_64(var aObj:Int64;aArg:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2249,13) Note: (6058) Call to subroutine "function atomic_fetch_and_64(var aObj:Int64;aArg:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2256,20) Note: (6058) Call to subroutine "function atomic_fetch_and_64(var aObj:Int64;aArg:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2265,13) Note: (6058) Call to subroutine "function atomic_fetch_and(var aObj:LongInt;aArg:LongInt;aOrder:memory_order_t):System.LongInt;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2272,20) Note: (6058) Call to subroutine "function atomic_fetch_and(var aObj:LongInt;aArg:LongInt;aOrder:memory_order_t):System.LongInt;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2282,74) Note: (6058) Call to subroutine "function atomic_fetch_and_64(var aObj:Int64;aArg:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2288,21) Note: (6058) Call to subroutine "function atomic_fetch_and_64(var aObj:Int64;aArg:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2296,13) Note: (6058) Call to subroutine "function atomic_fetch_or_64(var aObj:Int64;aArg:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2303,20) Note: (6058) Call to subroutine "function atomic_fetch_or_64(var aObj:Int64;aArg:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2310,13) Note: (6058) Call to subroutine "function atomic_fetch_or(var aObj:LongInt;aArg:LongInt;aOrder:memory_order_t):System.LongInt;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2317,20) Note: (6058) Call to subroutine "function atomic_fetch_or(var aObj:LongInt;aArg:LongInt;aOrder:memory_order_t):System.LongInt;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2327,73) Note: (6058) Call to subroutine "function atomic_fetch_or_64(var aObj:Int64;aArg:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2333,21) Note: (6058) Call to subroutine "function atomic_fetch_or_64(var aObj:Int64;aArg:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2341,13) Note: (6058) Call to subroutine "function atomic_fetch_xor_64(var aObj:Int64;aArg:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2348,20) Note: (6058) Call to subroutine "function atomic_fetch_xor_64(var aObj:Int64;aArg:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2355,13) Note: (6058) Call to subroutine "function atomic_fetch_xor(var aObj:LongInt;aArg:LongInt;aOrder:memory_order_t):System.LongInt;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2362,20) Note: (6058) Call to subroutine "function atomic_fetch_xor(var aObj:LongInt;aArg:LongInt;aOrder:memory_order_t):System.LongInt;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2372,74) Note: (6058) Call to subroutine "function atomic_fetch_xor_64(var aObj:Int64;aArg:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2378,21) Note: (6058) Call to subroutine "function atomic_fetch_xor_64(var aObj:Int64;aArg:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2429,82) Note: (6058) Call to subroutine "function atomic_fetch_add_64(var aObj:Int64;aArg:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2437,21) Note: (6058) Call to subroutine "function atomic_fetch_add_64(var aObj:Int64;aArg:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2504,82) Note: (6058) Call to subroutine "function atomic_fetch_sub_64(var aObj:Int64;aArg:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2512,21) Note: (6058) Call to subroutine "function atomic_fetch_sub_64(var aObj:Int64;aArg:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2582,82) Note: (6058) Call to subroutine "function atomic_fetch_and_64(var aObj:Int64;aArg:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2588,21) Note: (6058) Call to subroutine "function atomic_fetch_and_64(var aObj:Int64;aArg:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2681,81) Note: (6058) Call to subroutine "function atomic_fetch_or_64(var aObj:Int64;aArg:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2687,21) Note: (6058) Call to subroutine "function atomic_fetch_or_64(var aObj:Int64;aArg:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2780,82) Note: (6058) Call to subroutine "function atomic_fetch_xor_64(var aObj:Int64;aArg:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(2786,21) Note: (6058) Call to subroutine "function atomic_fetch_xor_64(var aObj:Int64;aArg:Int64;aOrder:memory_order_t):System.Int64;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(3276,3) Note: (5025) Local variable "LExpected32" not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(3302,3) Note: (5025) Local variable "LExpected32" not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas(3152,3) Hint: (5028) Local const "TAG_BITS" is not used
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.simd.cpuinfo.x86.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.simd.cpuinfo.x86.x86_64.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.simd.cpuinfo.x86.base.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.simd.scalar.pas
+/home/dtamade/projects/fafafa.core/src/fafafa.core.simd.avx2.pas(753,23) Warning: (7121) Check size of memory operand "[movsd mem,xmmreg0]: memory-operand-size is 64 bits, but expected [128 bits]"
+/home/dtamade/projects/fafafa.core/src/fafafa.core.simd.avx2.pas(864,20) Hint: (5060) Function result variable does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.simd.avx2.pas(880,20) Hint: (5060) Function result variable does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.simd.avx2.pas(2194,24) Warning: (7121) Check size of memory operand "[movsd mem,xmmreg0]: memory-operand-size is 64 bits, but expected [128 bits]"
+/home/dtamade/projects/fafafa.core/src/fafafa.core.simd.dispatch.pas(563,3) Note: (5027) Local variable "g_DispatchInitialized" is assigned but never used
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.math.internal.pas
+/home/dtamade/projects/fafafa.core/src/fafafa.core.math.internal.pas(294,21) Hint: (5060) Function result variable does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.math.internal.pas(168,22) Hint: (5026) Value parameter "aBits" is assigned but never used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.math.internal.pas(299,21) Hint: (5060) Function result variable does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.math.internal.pas(177,22) Hint: (5026) Value parameter "aBits" is assigned but never used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.math.internal.pas(306,20) Hint: (5057) Local variable "bits" does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.math.internal.pas(186,19) Hint: (5026) Value parameter "aValue" is assigned but never used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.math.internal.pas(316,20) Hint: (5057) Local variable "bits" does not seem to be initialized
+/home/dtamade/projects/fafafa.core/src/fafafa.core.math.internal.pas(195,19) Hint: (5026) Value parameter "aValue" is assigned but never used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.math.dispatch.pas(281,3) Hint: (5023) Unit "fafafa.core.math.arrays" not used in fafafa.core.math.dispatch
 (3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.math.intutil.pas
 (3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.math.safeint.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.math.base.pas
 (3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.math.float.pas
-/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.utils.pas(837,13) Note: (6058) Call to subroutine "function IsOverlapUnChecked(aPtr1:Pointer;aSize1:QWord;aPtr2:Pointer;aSize2:QWord):System.Boolean;" marked as inline is not inlined
-/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.utils.pas(874,3) Note: (6058) Call to subroutine "procedure CopyUnChecked(aSrc:Pointer;aDst:Pointer;aSize:QWord);" marked as inline is not inlined
-/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.utils.pas(903,3) Note: (6058) Call to subroutine "procedure CopyNonOverlapUnChecked(aSrc:Pointer;aDst:Pointer;aSize:QWord);" marked as inline is not inlined
-/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.utils.pas(917,3) Note: (6058) Call to subroutine "procedure Fill8(aDst:Pointer;aCount:Int64;aValue:Byte);" marked as inline is not inlined
-/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.utils.pas(922,3) Note: (6058) Call to subroutine "procedure Fill8(aDst:Pointer;aCount:QWord;aValue:Byte);" marked as inline is not inlined
-/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.utils.pas(1119,13) Note: (6058) Call to subroutine "function Compare8(aPtr1:Pointer;aPtr2:Pointer;aCount:QWord):System.LongInt;" marked as inline is not inlined
-/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.utils.pas(1124,13) Note: (6058) Call to subroutine "function Compare8(aPtr1:Pointer;aPtr2:Pointer;aCount:Int64):System.LongInt;" marked as inline is not inlined
-/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.utils.pas(1148,16) Note: (6058) Call to subroutine "function Compare8(aPtr1:Pointer;aPtr2:Pointer;aCount:Int64):System.LongInt;" marked as inline is not inlined
-/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.utils.pas(1187,16) Note: (6058) Call to subroutine "function Compare16(aPtr1:Pointer;aPtr2:Pointer;aCount:Int64):System.LongInt;" marked as inline is not inlined
-/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.utils.pas(1229,16) Note: (6058) Call to subroutine "function Compare32(aPtr1:Pointer;aPtr2:Pointer;aCount:Int64):System.LongInt;" marked as inline is not inlined
-/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.utils.pas(1278,10) Note: (6058) Call to subroutine "function IsPowerOfTwo(N:QWord):System.Boolean;" marked as inline is not inlined
-/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.utils.pas(1281,13) Note: (6058) Call to subroutine "function AlignUpUnChecked(aPtr:Pointer;aAlignment:QWord=`8`):System.Pointer;" marked as inline is not inlined
-/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.utils.pas(1305,13) Note: (6058) Call to subroutine "function AlignDownUnChecked(aPtr:Pointer;aAlignment:QWord=`8`):System.Pointer;" marked as inline is not inlined
-/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.stackPool.pas(147,3) Hint: (5023) Unit "fafafa.core.mem.utils" not used in fafafa.core.mem.stackPool
-/home/dtamade/projects/fafafa.core/tests/fafafa.core.mem/test_stackpool.pas(95,27) Hint: (4055) Conversion between ordinals and pointers is not portable
-/home/dtamade/projects/fafafa.core/tests/fafafa.core.mem/test_stackpool.pas(95,41) Hint: (4055) Conversion between ordinals and pointers is not portable
-/home/dtamade/projects/fafafa.core/tests/fafafa.core.mem/test_stackpool.pas(96,27) Hint: (4055) Conversion between ordinals and pointers is not portable
-/home/dtamade/projects/fafafa.core/tests/fafafa.core.mem/test_stackpool.pas(96,41) Hint: (4055) Conversion between ordinals and pointers is not portable
-/home/dtamade/projects/fafafa.core/tests/fafafa.core.mem/test_stackpool.pas(173,27) Hint: (4055) Conversion between ordinals and pointers is not portable
-/home/dtamade/projects/fafafa.core/tests/fafafa.core.mem/test_stackpool.pas(173,41) Hint: (4055) Conversion between ordinals and pointers is not portable
-/home/dtamade/projects/fafafa.core/tests/fafafa.core.mem/test_stackpool.pas(226,3) Note: (5027) Local variable "P" is assigned but never used
-/home/dtamade/projects/fafafa.core/tests/fafafa.core.mem/test_stackpool.pas(255,3) Note: (5027) Local variable "P" is assigned but never used
-/home/dtamade/projects/fafafa.core/tests/fafafa.core.mem/test_stackpool.pas(275,3) Note: (5027) Local variable "P" is assigned but never used
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.pool.slab.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.pool.fixedSlab.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.pool.memoryPool.pas
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.pool.slab.pas(670,14) Note: (6058) Call to subroutine "function TSlabPool.FindOwnerSegment(aPtr:Pointer):System.LongInt;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.pool.slab.pas(681,14) Note: (6058) Call to subroutine "function TSlabPool.FindOwnerSegment(aPtr:Pointer):System.LongInt;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.adapters.pas(139,18) Note: (6058) Call to subroutine "function TStackPool.Alloc(aSize:QWord;aAlignment:QWord=`8`):System.Pointer;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.adapters.pas(144,18) Note: (6058) Call to subroutine "function TStackPool.TryAlloc(aSize:QWord;out APtr:Pointer;aAlignment:QWord=`8`):System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.adapters.pas(149,3) Note: (6058) Call to subroutine "procedure TStackPool.Reset;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.adapters.pas(154,3) Note: (6058) Call to subroutine "procedure TStackPool.RestoreState(aState:QWord);" marked as inline is not inlined
+(3104) Compiling test_stats.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.stats.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.blockpool.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.layout.pas
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.blockpool.pas(547,5) Note: (6058) Call to subroutine "procedure TBlockPool.Release(aPtr:Pointer);" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.blockpool.pas(560,10) Note: (6058) Call to subroutine "function TBlockPool.Owns(aPtr:Pointer):System.Boolean;" marked as inline is not inlined
+(3104) Compiling test_stackPool_edgecases.pas
+(3104) Compiling test_memPool_edgecases.pas
+(3104) Compiling test_arena_growable.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.blockpool.concurrent.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.mutex.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.mutex.unix.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.time.cpu.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.base.pas
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.base.pas(1006,14) Warning: (3057) An inherited method is hidden by "TryLockFor(LongWord):ILockGuard;"
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.base.pas(1106,14) Warning: (3057) An inherited method is hidden by "TryAcquire:System.Boolean;"
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.base.pas(1107,14) Warning: (3057) An inherited method is hidden by "TryAcquire(LongWord):System.Boolean;"
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.base.pas(1331,3) Note: (6058) Call to subroutine "procedure TLockGuard.Release;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.base.pas(1514,10) Note: (6058) Call to subroutine "function TTryLock.DoTight:System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.base.pas(1521,10) Note: (6058) Call to subroutine "function TTryLock.DoTight(aEndTick:QWord):System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.base.pas(1541,12) Note: (6058) Call to subroutine "function TTryLock.DoBackOffNoCheckNoYield:System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.base.pas(1548,12) Note: (6058) Call to subroutine "function TTryLock.DoBackOffNoCheck:System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.base.pas(1558,12) Note: (6058) Call to subroutine "function TTryLock.DoBackOffNoYield(aEndTick:QWord):System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.base.pas(1565,12) Note: (6058) Call to subroutine "function TTryLock.DoBackOff(aEndTick:QWord):System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.base.pas(1584,10) Note: (6058) Call to subroutine "function TTryLock.DoBlock:System.Boolean;" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.base.pas(1591,10) Note: (6058) Call to subroutine "function TTryLock.DoBlock(aEndTick:QWord):System.Boolean;" marked as inline is not inlined
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.mutex.base.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.arena.growable.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.alloc.pas
+(3104) Compiling test_blockpool_sharded.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.blockpool.sharded.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.blockpool.growable.pas
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.blockpool.sharded.pas(885,7) Note: (6058) Call to subroutine "procedure TShardedBlockPool.InvalidateThreadCacheNode(aNode:TShardedBlockPool.PThreadCacheNode);" marked as inline is not inlined
+/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.blockpool.sharded.pas(895,9) Note: (6058) Call to subroutine "procedure TShardedBlockPool.InvalidateThreadCacheNode(aNode:TShardedBlockPool.PThreadCacheNode);" marked as inline is not inlined
+(3104) Compiling test_blockpool_growable.pas
+(3104) Compiling test_blockpool_batch.pas
+(3104) Compiling test_blockpool.pas
+(3104) Compiling test_stackpool.pas
 (3104) Compiling test_fixedpool.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.pool.fixed.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.pool.base.pas
-/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.pool.base.pas(9,3) Hint: (5023) Unit "fafafa.core.base" not used in fafafa.core.mem.pool.base
-/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.pool.base.pas(10,3) Hint: (5023) Unit "fafafa.core.mem.allocator.base" not used in fafafa.core.mem.pool.base
-/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.pool.fixed.pas(190,12) Hint: (4055) Conversion between ordinals and pointers is not portable
-/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.pool.fixed.pas(193,14) Hint: (4055) Conversion between ordinals and pointers is not portable
-/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.pool.fixed.pas(138,3) Note: (5025) Local variable "LAlign" not used
-/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.pool.fixed.pas(335,4) Note: (3123) "open array" not yet supported inside inline procedure/function
-/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.pool.fixed.pas(335,4) Hint: (3124) Inlining disabled
-/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.pool.fixed.pas(347,4) Note: (3123) "open array" not yet supported inside inline procedure/function
-/home/dtamade/projects/fafafa.core/src/fafafa.core.mem.pool.fixed.pas(347,4) Hint: (3124) Inlining disabled
-/home/dtamade/projects/fafafa.core/tests/fafafa.core.mem/test_fixedpool.pas(105,42) Hint: (4055) Conversion between ordinals and pointers is not portable
-/home/dtamade/projects/fafafa.core/tests/fafafa.core.mem/test_fixedpool.pas(158,34) Hint: (4055) Conversion between ordinals and pointers is not portable
-/home/dtamade/projects/fafafa.core/tests/fafafa.core.mem/test_fixedpool.pas(158,47) Hint: (4055) Conversion between ordinals and pointers is not portable
-/home/dtamade/projects/fafafa.core/tests/fafafa.core.mem/test_fixedpool.pas(304,3) Note: (5027) Local variable "P" is assigned but never used
 (3104) Compiling test_aligned.pas
-/home/dtamade/projects/fafafa.core/tests/fafafa.core.mem/test_aligned.pas(35,58) Hint: (4055) Conversion between ordinals and pointers is not portable
-/home/dtamade/projects/fafafa.core/tests/fafafa.core.mem/test_aligned.pas(53,58) Hint: (4055) Conversion between ordinals and pointers is not portable
-/home/dtamade/projects/fafafa.core/tests/fafafa.core.mem/test_aligned.pas(66,58) Hint: (4055) Conversion between ordinals and pointers is not portable
-/home/dtamade/projects/fafafa.core/tests/fafafa.core.mem/test_aligned.pas(79,59) Hint: (4055) Conversion between ordinals and pointers is not portable
-/home/dtamade/projects/fafafa.core/tests/fafafa.core.mem/tests_mem_allocator_only.lpr(7,13) Hint: (5023) Unit "StrUtils" not used in tests_mem_allocator_only
 (9015) Linking /home/dtamade/projects/fafafa.core/tests/fafafa.core.mem/bin/tests_mem_allocator_only
-(1008) 19801 lines compiled, 0.6 sec, 1052352 bytes code, 1575520 bytes data
-(1022) 36 hint(s) issued
-(1023) 20 note(s) issued
+(1008) 85023 lines compiled, 2.1 sec, 1370960 bytes code, 1725336 bytes data
+(1021) 5 warning(s) issued
+(1022) 14 hint(s) issued
+(1023) 114 note(s) issued
 Info: (lazarus) [TCompiler.Compile] end
 
 Build successful.
 Running tests...
- Time:00.001 N:36 E:0 F:0 I:0
+ Time:00.518 N:93 E:0 F:0 I:0
   TTestCase_Aligned Time:00.000 N:5 E:0 F:0 I:0
     00.000  Test_AllocAligned_Basic
     00.000  Test_AllocAligned_InvalidAlignment
@@ -189,10 +325,77 @@ Running tests...
     00.000  Test_SaveState_RestoreState
     00.000  Test_Properties
     00.000  Test_IsEmpty_IsFull
+  TTestCase_BlockPool Time:00.000 N:9 E:0 F:0 I:0
+    00.000  Test_Create_Basic
+    00.000  Test_Create_InvalidArgs
+    00.000  Test_Acquire_Release_Basic
+    00.000  Test_Exhaustion_TryAcquire
+    00.000  Test_Release_InvalidPointer_Raises
+    00.000  Test_Release_MisalignedPointer_Raises
+    00.000  Test_DoubleFree_Raises
+    00.000  Test_Reset_InvalidatesOldPointer
+    00.000  Test_GetRange_Owns
+  TTestCase_Arena Time:00.000 N:7 E:0 F:0 I:0
+    00.000  Test_Create_InvalidSize
+    00.000  Test_Alloc_InvalidLayout_ReturnsErr
+    00.000  Test_Alloc_Alignment
+    00.000  Test_Alloc_Exhaustion
+    00.000  Test_SaveMark_Restore
+    00.000  Test_AllocZeroed
+    00.000  Test_RestoreToMark_OutOfRange_Raises
+  TTestCase_BlockPoolBatch Time:00.000 N:3 E:0 F:0 I:0
+    00.000  Test_BlockPool_AcquireN_ReleaseN
+    00.000  Test_GrowingBlockPool_AcquireN_ReleaseN
+    00.000  Test_ShardedBlockPool_AcquireN_ReleaseN
+  TTestCase_GrowingBlockPool Time:00.000 N:6 E:0 F:0 I:0
+    00.000  Test_Create_Basic
+    00.000  Test_Growth_Acquire
+    00.000  Test_Alignment
+    00.000  Test_Release_InvalidPointer_Raises
+    00.000  Test_DoubleFree_Raises
+    00.000  Test_Reset_InvalidatesOldPointer
+  TTestCase_ShardedBlockPool Time:00.517 N:8 E:0 F:0 I:0
+    00.000  Test_Create_Basic
+    00.101  Test_Concurrent_AcquireRelease
+    00.100  Test_Concurrent_AcquireRelease_ThreadCache_StatsOff
+    00.101  Test_CrossThread_Release
+    00.100  Test_CrossThread_Release_StatsOff
+    00.014  Test_CrossThread_Release_ThreadCache_Batched
+    00.000  Test_ThreadCache_DoubleFree
+    00.101  Test_BlockPool_Sharded_HighContention_MaintainsConsistency
+  TTestCase_GrowingArena Time:00.000 N:8 E:0 F:0 I:0
+    00.000  Test_Create_Basic
+    00.000  Test_Growth_Alloc
+    00.000  Test_LargeAlloc_DoesNotExplodeGrowth
+    00.000  Test_SaveMark_Restore_AcrossSegments
+    00.000  Test_Alignment
+    00.000  Test_Reset
+    00.000  Test_RestoreToMark_OutOfRange_Raises
+    00.000  Test_Concurrent_Wrappers_Basic
+  TTestCase_MemPool_EdgeCases Time:00.000 N:3 E:0 F:0 I:0
+    00.000  Test_Release_NilPointer_NoOp
+    00.000  Test_DoubleFree_Raises
+    00.000  Test_Release_InvalidPointer_Raises
+  TTestCase_StackPool_EdgeCases Time:00.000 N:2 E:0 F:0 I:0
+    00.000  Test_Alloc_OverCapacity_ReturnsNil
+    00.000  Test_RestoreState_OutOfRange_Ignored
+  TTestCase_Stats Time:00.001 N:5 E:0 F:0 I:0
+    00.000  Test_MemPool_Stats_Basic
+    00.000  Test_StackPool_Stats_Basic
+    00.000  Test_BlockPool_Stats_Basic
+    00.000  Test_SlabPool_Stats_Basic
+    00.000  Test_SlabPool_PerfCounters
+  TTestCase_Interfaces Time:00.000 N:6 E:0 F:0 I:0
+    00.000  Test_MemPool_Adapter_Basic
+    00.000  Test_StackPool_Adapter_Basic
+    00.000  Test_SlabPool_Adapter_Basic
+    00.000  Test_Adapter_Create_With_Nil_Impl_Raises
+    00.000  Test_MemPool_Adapter_Free_Nil_NoOp
+    00.000  Test_SlabPool_Adapter_Free_Nil_NoOp
   TTestCase_Mimalloc_Manager_Optional Time:00.000 N:1 E:0 F:0 I:0
     00.000  Test_Install_Uninstall_Smoke
 
-Number of run tests: 36
+Number of run tests: 93
 Number of errors:    0
 Number of failures:  0
 

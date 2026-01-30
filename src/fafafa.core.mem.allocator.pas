@@ -21,7 +21,6 @@ interface
 
 uses
   SysUtils,
-  fafafa.core.base,
   fafafa.core.mem.allocator.base,
   fafafa.core.mem.allocator.rtlAllocator,
   fafafa.core.mem.allocator.callbackAllocator,

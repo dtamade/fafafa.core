@@ -25,7 +25,7 @@
     </RunParams>
     <Units>
       <Unit>
-        <Filename Value="verify_shm.lpr"/>
+        <Filename Value="bin/verify_shm"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>
@@ -33,7 +33,7 @@
   <CompilerOptions>
     <Version Value="11"/>
     <Target>
-      <Filename Value="verify_shm"/>
+      <Filename Value="bin/verify_shm"/>
     </Target>
     <SearchPaths>
       <IncludeFiles Value="../../src"/>

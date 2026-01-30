@@ -21,12 +21,12 @@
           <Version Value="11"/>
           <PathDelim Value="\"/>
           <Target>
-            <Filename Value="bin\tests_sync"/>
+            <Filename Value="bin/tests_sync"/>
           </Target>
           <SearchPaths>
             <IncludeFiles Value="../../src"/>
             <OtherUnitFiles Value="..\..\src"/>
-            <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+            <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <Parsing>
             <SyntaxOptions>
@@ -60,12 +60,12 @@
           <Version Value="11"/>
           <PathDelim Value="\"/>
           <Target>
-            <Filename Value="bin\tests_sync"/>
+            <Filename Value="bin/tests_sync"/>
           </Target>
           <SearchPaths>
             <IncludeFiles Value="../../src"/>
             <OtherUnitFiles Value="..\..\src"/>
-            <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+            <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <CodeGeneration>
             <SmartLinkUnit Value="True"/>
@@ -96,11 +96,11 @@
     </RequiredPackages>
     <Units>
       <Unit>
-        <Filename Value="tests_sync.lpr"/>
+        <Filename Value="bin/tests_sync"/>
         <IsPartOfProject Value="True"/>
       </Unit>
       <Unit>
-        <Filename Value="Test_sync.pas"/>
+        <Filename Value="bin/tests_sync"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>
@@ -109,12 +109,12 @@
     <Version Value="11"/>
     <PathDelim Value="\"/>
     <Target>
-      <Filename Value="bin\tests_sync"/>
+      <Filename Value="bin/tests_sync"/>
     </Target>
     <SearchPaths>
       <IncludeFiles Value="../../src"/>
       <OtherUnitFiles Value="..\..\src"/>
-      <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+      <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Linking>
       <Debugging>

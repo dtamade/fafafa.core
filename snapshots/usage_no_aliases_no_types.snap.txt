@@ -1,9 +1,0 @@
-
-Flags:
-           times
-  --count  [required] [default=1]  Number of 
-           JSON
-  --json     Output 
-Args:
-        path
-  file  [required]  Input file 

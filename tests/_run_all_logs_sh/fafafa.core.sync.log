@@ -1,21 +1,29 @@
 ========================================
 Module: fafafa.core.sync
 Script: /home/dtamade/projects/fafafa.core/tests/fafafa.core.sync/BuildOrTest.sh
-Started: 2026-01-01 21:14:53
+Started: 2026-01-24 21:14:33
 ========================================
 ========================================
 fafafa.core.sync BuildOrTest
 ========================================
 Building project: /home/dtamade/projects/fafafa.core/tests/fafafa.core.sync/tests_sync.lpi (Debug)
-SetPrimaryConfigPath NewValue="/home/dtamade/freePascal/config_lazarus"
-Hint: (lazbuild) Primary config path: "/home/dtamade/freePascal/config_lazarus"
+Hint: (lazbuild) Opt: "build-mode=Debug"
+SetPrimaryConfigPath NewValue="/tmp/fpcupdeluxe/config_lazarus"
+Hint: (lazbuild) Primary config path: "/tmp/fpcupdeluxe/config_lazarus"
+Hint: (lazarus) [RunTool] "/opt/fpcupdeluxe/fpc/bin/x86_64-linux/fpc" "-iWTOTP"
+Hint: (lazarus) [RunTool] "/opt/fpcupdeluxe/fpc/bin/x86_64-linux/fpc" "-va" "/tmp/fpcupdeluxe/config_lazarus/compilertest.pas", WorkDir="/tmp/fpcupdeluxe/config_lazarus/"
+Hint: [TPCTargetConfigCache.Update] has changed
+Hint: (lazarus) [RunTool] "/opt/fpcupdeluxe/fpc/bin/x86_64-linux/fpc" "-iWTOTP" "-Px86_64" "-Tlinux"
+Hint: (lazarus) [RunTool] "/opt/fpcupdeluxe/fpc/bin/x86_64-linux/fpc" "-va" "/tmp/fpcupdeluxe/config_lazarus/compilertest.pas" "-Px86_64" "-Tlinux", WorkDir="/tmp/fpcupdeluxe/config_lazarus/"
+Hint: [TPCTargetConfigCache.Update] has changed
 Hint: (lazarus) [TBuildManager.SetBuildTarget] Old=x86_64-linux--gtk2 New=x86_64-linux--gtk2 Changed: OS/CPU=True LCL=False
+TProject.ReadProject file exists twice in lpi file: ignoring "/home/dtamade/projects/fafafa.core/tests/fafafa.core.sync/bin/tests_sync"
 Hint: (lazarus) [TBuildManager.SetBuildTarget] Old=x86_64-linux--gtk2 New=x86_64-linux--gtk2 Changed: OS/CPU=True LCL=False
 TProject.DoLoadStateFile Statefile not found: /home/dtamade/projects/fafafa.core/tests/fafafa.core.sync/lib/x86_64-linux/tests_sync.compiled
 Hint: (lazarus) Project needs building: No state file for Project
-Info: (lazarus) Execute Title="Compile Project, Mode: Debug, Target: /home/dtamade/projects/fafafa.core/tests/fafafa.core.sync/bin/tests_sync"
+Info: (lazarus) Execute Title="编译项目,模式: Debug，目标：/home/dtamade/projects/fafafa.core/tests/fafafa.core.sync/bin/tests_sync"
 Info: (lazarus) Working Directory="/home/dtamade/projects/fafafa.core/tests/fafafa.core.sync/"
-Info: (lazarus) Executable="/home/dtamade/freePascal/fpc/bin/x86_64-linux/fpc.sh"
+Info: (lazarus) Executable="/opt/fpcupdeluxe/fpc/bin/x86_64-linux/fpc"
 Info: (lazarus) Param[0]="-MObjFPC"
 Info: (lazarus) Param[1]="-Scaghi"
 Info: (lazarus) Param[2]="-Cg"
@@ -28,239 +36,26 @@ Info: (lazarus) Param[8]="-Xg"
 Info: (lazarus) Param[9]="-gt"
 Info: (lazarus) Param[10]="-l"
 Info: (lazarus) Param[11]="-vewnhibq"
-Info: (lazarus) Param[12]="-Fi/home/dtamade/projects/fafafa.core/tests/fafafa.core.sync/lib/x86_64-linux"
-Info: (lazarus) Param[13]="-Fi/home/dtamade/projects/fafafa.core/src"
-Info: (lazarus) Param[14]="-Fu/home/dtamade/projects/fafafa.core/tests/fafafa.core.sync/"
-Info: (lazarus) Param[15]="-Fu/home/dtamade/projects/fafafa.core/src"
-Info: (lazarus) Param[16]="-Fu/home/dtamade/freePascal/lazarus/packager/units/x86_64-linux"
-Info: (lazarus) Param[17]="-FU/home/dtamade/projects/fafafa.core/tests/fafafa.core.sync/lib/x86_64-linux/"
-Info: (lazarus) Param[18]="-FE/home/dtamade/projects/fafafa.core/tests/fafafa.core.sync/bin/"
-Info: (lazarus) Param[19]="-o/home/dtamade/projects/fafafa.core/tests/fafafa.core.sync/bin/tests_sync"
-Info: (lazarus) Param[20]="-dDEBUG"
-Info: (lazarus) Param[21]="tests_sync.lpr"
-Info: (lazarus) Param[22]="-B"
-Hint: (11030) Start of reading config file /home/dtamade/freePascal/fpc/bin/x86_64-linux/fpc.cfg
+Info: (lazarus) Param[12]="-Fi/home/dtamade/projects/fafafa.core/src"
+Info: (lazarus) Param[13]="-Fu/home/dtamade/projects/fafafa.core/tests/fafafa.core.sync/"
+Info: (lazarus) Param[14]="-Fu/home/dtamade/projects/fafafa.core/src"
+Info: (lazarus) Param[15]="-Fu/opt/fpcupdeluxe/lazarus/packager/units/x86_64-linux"
+Info: (lazarus) Param[16]="-FU/home/dtamade/projects/fafafa.core/tests/fafafa.core.sync/lib/x86_64-linux/"
+Info: (lazarus) Param[17]="-FE/home/dtamade/projects/fafafa.core/tests/fafafa.core.sync/bin/"
+Info: (lazarus) Param[18]="-o/home/dtamade/projects/fafafa.core/tests/fafafa.core.sync/bin/tests_sync"
+Info: (lazarus) Param[19]="-dDEBUG"
+Info: (lazarus) Param[20]="bin/tests_sync"
+Info: (lazarus) Param[21]="-B"
+Hint: (11030) Start of reading config file /home/dtamade/.fpc.cfg
 Compiling Debug Version
-Hint: (11031) End of reading config file /home/dtamade/freePascal/fpc/bin/x86_64-linux/fpc.cfg
-Free Pascal Compiler version 3.3.1-18766-gc75982a639-dirty [2025/10/23] for x86_64
+Hint: (11031) End of reading config file /home/dtamade/.fpc.cfg
+Free Pascal Compiler version 3.3.1-19195-gebfc7485b1-dirty [2026/01/07] for x86_64
 Copyright (c) 1993-2025 by Florian Klaempfl and others
 (1002) Target OS: Linux for x86-64
-(3104) Compiling tests_sync.lpr
-(3104) Compiling fafafa.core.sync.deadlock.testcase.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.base.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.time.cpu.pas
-/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.base.pas(1179,3) Note: (6058) Call to subroutine "procedure TLockGuard.Release;" marked as inline is not inlined
-/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.base.pas(1320,10) Note: (6058) Call to subroutine "function TTryLock.DoTight:System.Boolean;" marked as inline is not inlined
-/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.base.pas(1327,10) Note: (6058) Call to subroutine "function TTryLock.DoTight(aEndTick:QWord):System.Boolean;" marked as inline is not inlined
-/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.base.pas(1347,12) Note: (6058) Call to subroutine "function TTryLock.DoBackOffNoCheckNoYield:System.Boolean;" marked as inline is not inlined
-/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.base.pas(1354,12) Note: (6058) Call to subroutine "function TTryLock.DoBackOffNoCheck:System.Boolean;" marked as inline is not inlined
-/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.base.pas(1364,12) Note: (6058) Call to subroutine "function TTryLock.DoBackOffNoYield(aEndTick:QWord):System.Boolean;" marked as inline is not inlined
-/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.base.pas(1371,12) Note: (6058) Call to subroutine "function TTryLock.DoBackOff(aEndTick:QWord):System.Boolean;" marked as inline is not inlined
-/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.base.pas(1390,10) Note: (6058) Call to subroutine "function TTryLock.DoBlock:System.Boolean;" marked as inline is not inlined
-/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.base.pas(1397,10) Note: (6058) Call to subroutine "function TTryLock.DoBlock(aEndTick:QWord):System.Boolean;" marked as inline is not inlined
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.rwlock.base.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.atomic.pas
-/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.rwlock.base.pas(431,4) Note: (3123) "assembler" not yet supported inside inline procedure/function
-/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.rwlock.base.pas(431,4) Hint: (3124) Inlining disabled
-/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.rwlock.base.pas(446,4) Note: (3123) "assembler" not yet supported inside inline procedure/function
-/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.rwlock.base.pas(446,4) Hint: (3124) Inlining disabled
-/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.rwlock.base.pas(461,4) Note: (3123) "assembler" not yet supported inside inline procedure/function
-/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.rwlock.base.pas(461,4) Hint: (3124) Inlining disabled
-/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.rwlock.base.pas(477,4) Note: (3123) "assembler" not yet supported inside inline procedure/function
-/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.rwlock.base.pas(477,4) Hint: (3124) Inlining disabled
-/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.rwlock.base.pas(493,4) Note: (3123) "assembler" not yet supported inside inline procedure/function
-/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.rwlock.base.pas(493,4) Hint: (3124) Inlining disabled
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.rwlock.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.rwlock.unix.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.math.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.math.array_.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.math.dispatch.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.math.intutil.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.math.safeint.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.base.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.math.float.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.rwlock.reentry.unix.pas
-/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.rwlock.unix.pas(103,44) Hint: (5024) Parameter "AOperation" not used
-/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.rwlock.unix.pas(112,59) Hint: (5024) Parameter "SpinCount" not used
-/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.rwlock.unix.pas(68,5) Note: (5029) Private field "TRWLock.FPadding1" is never used
-/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.rwlock.unix.pas(89,5) Note: (5029) Private field "TRWLock.FPadding2" is never used
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.mutex.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.mutex.unix.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.mutex.base.pas
-/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.mutex.unix.pas(305,11) Hint: (4055) Conversion between ordinals and pointers is not portable
-/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.mutex.unix.pas(308,11) Hint: (4055) Conversion between ordinals and pointers is not portable
-/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.mutex.unix.pas(325,11) Hint: (4055) Conversion between ordinals and pointers is not portable
-/home/dtamade/projects/fafafa.core/tests/fafafa.core.sync/fafafa.core.sync.deadlock.testcase.pas(381,12) Note: (5027) Local variable "Val" is assigned but never used
-(3104) Compiling fafafa.core.sync.boundary.testcase.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.event.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.event.unix.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.event.base.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.spin.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.spin.base.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.spin.unix.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.condvar.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.condvar.unix.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.condvar.base.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.barrier.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.barrier.base.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.barrier.unix.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.sem.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.sem.base.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.sem.unix.pas
-(3104) Compiling Test_sync_modern.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.namedRWLock.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.namedRWLock.unix.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.timespec.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.namedRWLock.base.pas
-/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.namedRWLock.unix.pas(126,59) Hint: (5024) Parameter "AInitialOwner" not used
-/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.namedRWLock.pas(66,60) Note: (6058) Call to subroutine "function DefaultNamedRWLockConfig:fafafa.core.sync.namedRWLock.base.TNamedRWLockConfig;" marked as inline is not inlined
-/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.namedRWLock.pas(73,14) Note: (6058) Call to subroutine "function DefaultNamedRWLockConfig:fafafa.core.sync.namedRWLock.base.TNamedRWLockConfig;" marked as inline is not inlined
-/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.namedRWLock.pas(80,59) Note: (6058) Call to subroutine "function GlobalNamedRWLockConfig:fafafa.core.sync.namedRWLock.base.TNamedRWLockConfig;" marked as inline is not inlined
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.namedCondvar.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.namedCondvar.unix.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.namedMutex.base.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.namedCondvar.base.pas
-/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.namedCondvar.unix.pas(52,45) Hint: (5024) Parameter "AName" not used
-/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.namedCondvar.unix.pas(53,43) Hint: (5024) Parameter "AName" not used
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.namedBarrier.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.namedBarrier.base.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.namedBarrier.unix.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.namedSemaphore.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.namedSemaphore.unix.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.namedSemaphore.base.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.namedEvent.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.namedEvent.unix.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.namedEvent.base.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.namedMutex.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.namedMutex.unix.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.oncelock.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.builder.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.latch.base.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.time.duration.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.waitgroup.base.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.once.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.once.unix.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.once.base.pas
-/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.once.unix.pas(53,5) Note: (5029) Private field "TOnce.FPadding1" is never used
-/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.once.unix.pas(60,5) Note: (5029) Private field "TOnce.FPadding2" is never used
-(1010) Writing Resource String Table file: fafafa.core.sync.once.unix.rsj
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.waitgroup.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.waitgroup.unix.pas
-(1010) Writing Resource String Table file: fafafa.core.sync.waitgroup.unix.rsj
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.latch.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.latch.unix.pas
-(1010) Writing Resource String Table file: fafafa.core.sync.latch.unix.rsj
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.parker.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.parker.base.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.parker.unix.pas
-(1010) Writing Resource String Table file: fafafa.core.sync.parker.unix.rsj
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.recMutex.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.recMutex.unix.pas
-(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.recMutex.base.pas
-(9015) Linking /home/dtamade/projects/fafafa.core/tests/fafafa.core.sync/bin/tests_sync
-(1008) 62857 lines compiled, 1.4 sec, 1234032 bytes code, 1645128 bytes data
-(1022) 15 hint(s) issued
-(1023) 22 note(s) issued
+(3104) Compiling bin/tests_sync
+Fatal: (2012) Cannot open file "tests_sync"
+Fatal: (1018) Compilation aborted
+Error: /opt/fpcupdeluxe/fpc/bin/x86_64-linux/ppcx64 returned an error exitcode
+Error: (lazarus) 编译项目,模式: Debug，目标：/home/dtamade/projects/fafafa.core/tests/fafafa.core.sync/bin/tests_sync: stopped with exit code 1
 Info: (lazarus) [TCompiler.Compile] end
-
-Build successful.
-Running tests...
-
-========================================
-fafafa.core.sync ??????
-========================================
-
-....................................??: Mutex ?????????
-???????: Re-entrant acquire on non-reentrant mutex
-????
-.??: Mutex ?????
-????????
-????
-.??: RWLock ???????????
-???????: Potential deadlock detected: upgrade not allowed, Thread: 135701887563584
-????
-.??: RWLock ?????
-????
-.??: RWLock ?????
-????
-.??: RWLock ???????
-????
-.??: ?????????????
-???????
-?????????
-????
-.??: ?????????????????
-??1??M2: TRUE
-??2??M1: TRUE
-???????????????
-.??: ????????????
-??????: 8/8
-??????: 4000
-????
-. Time:00.257 N:45 E:0 F:0 I:0
-  TTestCase_Sync_Smoke Time:00.002 N:5 E:0 F:0 I:0
-    00.000  Test_Mutex_Basic
-    00.000  Test_Spin_Basic
-    00.001  Test_Event_Basic
-    00.001  Test_NamedEvent_Factory
-    00.000  Test_Once_Basic
-  TTestCase_Mutex_Boundary Time:00.000 N:5 E:0 F:0 I:0
-    00.000  Test_TryAcquire_ZeroTimeout
-    00.000  Test_TryAcquire_SmallTimeout
-    00.000  Test_TryAcquire_LargeTimeout
-    00.000  Test_Acquire_Release_Sequence
-    00.000  Test_Multiple_TryAcquire_Same_Thread
-  TTestCase_RWLock_Boundary Time:00.000 N:5 E:0 F:0 I:0
-    00.000  Test_ReadLock_ZeroTimeout
-    00.000  Test_WriteLock_ZeroTimeout
-    00.000  Test_Multiple_ReadLocks
-    00.000  Test_ReadLock_After_WriteLock_Released
-    00.000  Test_WriteLock_Blocks_ReadLock
-  TTestCase_Semaphore_Boundary Time:00.000 N:5 E:0 F:0 I:0
-    00.000  Test_Create_ZeroInitialCount
-    00.000  Test_Create_MaxCount_One
-    00.000  Test_TryAcquire_ZeroTimeout
-    00.000  Test_Release_To_MaxCount
-    00.000  Test_Acquire_Count_Larger_Than_Available
-  TTestCase_Barrier_Boundary Time:00.000 N:3 E:0 F:0 I:0
-    00.000  Test_SingleParticipant
-    00.000  Test_TwoParticipants_Sequential
-    00.000  Test_LargeParticipantCount
-  TTestCase_CondVar_Boundary Time:00.001 N:4 E:0 F:0 I:0
-    00.000  Test_Wait_ZeroTimeout
-    00.000  Test_Signal_NoWaiters
-    00.000  Test_Broadcast_NoWaiters
-    00.001  Test_Wait_SmallTimeout
-  TTestCase_Spin_Boundary Time:00.001 N:4 E:0 F:0 I:0
-    00.000  Test_TryAcquire_Immediate
-    00.000  Test_TryAcquire_ZeroTimeout
-    00.000  Test_TryAcquire_SmallTimeout
-    00.001  Test_Acquire_Release_Rapid
-  TTestCase_Event_Boundary Time:00.000 N:5 E:0 F:0 I:0
-    00.000  Test_Wait_ZeroTimeout_NotSignaled
-    00.000  Test_Wait_ZeroTimeout_Signaled
-    00.000  Test_SetReset_Rapid
-    00.000  Test_AutoReset_Behavior
-    00.000  Test_ManualReset_Behavior
-  TTestCase_DeadlockDetection Time:00.253 N:9 E:0 F:0 I:0
-    00.000  Test_Mutex_Reentrant_ShouldRaiseDeadlock
-    00.000  Test_Mutex_CrossThread_Timeout
-    00.000  Test_RWLock_ReadToWriteUpgrade_ShouldRaiseDeadlock
-    00.000  Test_RWLock_WriteReentrant_ShouldSucceed
-    00.000  Test_RWLock_ReadReentrant_ShouldSucceed
-    00.101  Test_RWLock_CrossThread_WriteBlocked
-    00.000  Test_NestedLocks_SameOrder_NoDeadlock
-    00.051  Test_NestedLocks_Timeout_Detection
-    00.101  Test_Stress_NoDeadlock_MultiThread
-
-Number of run tests: 45
-Number of errors:    0
-Number of failures:  0
-
-
-
-
-========================================
-????
-========================================
+Error: (lazbuild) Failed compiling of project "/home/dtamade/projects/fafafa.core/tests/fafafa.core.sync/tests_sync.lpi"

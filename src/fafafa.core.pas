@@ -9,6 +9,7 @@ uses
   classes,
   SysUtils,
   { fafafa.core }
+  fafafa.core.base,
   fafafa.core.mem.utils,
   fafafa.core.mem.allocator,
   fafafa.core.collections.elementManager
@@ -95,8 +96,8 @@ begin
   Result := GetRtlAllocator();
 end;
 
-function CreateCallbackAllocator(aGetMem: TGetMemCallback; 
-  aAllocMem: TAllocMemCallback; aReallocMem: TReallocMemCallback; 
+function CreateCallbackAllocator(aGetMem: TGetMemCallback;
+  aAllocMem: TAllocMemCallback; aReallocMem: TReallocMemCallback;
   aFreeMem: TFreeMemCallback): TCallbackAllocator;
 begin
   Result := fafafa.core.mem.allocator.CreateCallbackAllocator(aGetMem, aAllocMem, aReallocMem, aFreeMem);

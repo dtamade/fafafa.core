@@ -1,7 +1,9 @@
 ========================================
 Module: fafafa.core.xml
 Script: /home/dtamade/projects/fafafa.core/tests/fafafa.core.xml/BuildOrTest.sh
-Started: 2026-01-01 21:14:53
+Started: 2026-01-24 21:13:42
 ========================================
 Building project: tests_xml.lpi...
-./BuildOrTest.sh: 行 10: /home/dtamade/projects/fafafa.core/tests/fafafa.core.xml/../../tools/lazbuild.bat: 没有那个文件或目录
+SetPrimaryConfigPath NewValue="/tmp/fpcupdeluxe/config_lazarus"
+Hint: (lazbuild) Primary config path: "/tmp/fpcupdeluxe/config_lazarus"
+Error: (lazbuild) Invalid Lazarus directory "": directory lcl not found

@@ -1,7 +1,7 @@
-{$CODEPAGE UTF8}
 program example_mem_pool_exceptions;
-
 {$mode objfpc}{$H+}
+{$I ../../src/fafafa.core.settings.inc}
+{$IFDEF WINDOWS}{$CODEPAGE UTF8}{$ENDIF}
 
 uses
   SysUtils,
@@ -10,41 +10,37 @@ uses
 
 procedure DemoMemPoolExceptions;
 var
-  Pool: TMemPool;
-  P: Pointer;
+  LPool: TMemPool;
+  LPtr: Pointer;
 begin
   WriteLn('--- MemPool Exceptions Demo ---');
-  Pool := TMemPool.Create(32, 2);
+  LPool := TMemPool.Create(32, 2);
   try
-    // nil 指针释放
+    LPool.ReleasePtr(nil);
+    WriteLn('ReleasePtr(nil) is a no-op');
+
+    LPtr := LPool.Alloc;
+    LPool.ReleasePtr(LPtr);
     try
-      Pool.Free(nil);
-    except on E: EMemPoolInvalidPointer do
-      WriteLn('Caught expected EMemPoolInvalidPointer: ', E.Message);
+      LPool.ReleasePtr(LPtr);
+    except
+      on E: EMemPoolDoubleFree do
+        WriteLn('Caught expected EMemPoolDoubleFree: ', E.Message);
     end;
 
-    // Double free
-    P := Pool.Alloc;
-    Pool.Free(P);
-    try
-      Pool.Free(P);
-    except on E: EMemPoolDoubleFree do
-      WriteLn('Caught expected EMemPoolDoubleFree: ', E.Message);
-    end;
-
-    // 非池指针
-    P := GetRtlAllocator.GetMem(8);
+    LPtr := GetRtlAllocator.GetMem(8);
     try
       try
-        Pool.Free(P);
-      except on E: EMemPoolInvalidPointer do
-        WriteLn('Caught expected EMemPoolInvalidPointer (foreign): ', E.Message);
+        LPool.ReleasePtr(LPtr);
+      except
+        on E: EMemPoolInvalidPointer do
+          WriteLn('Caught expected EMemPoolInvalidPointer (foreign): ', E.Message);
       end;
     finally
-      GetRtlAllocator.FreeMem(P);
+      GetRtlAllocator.FreeMem(LPtr);
     end;
   finally
-    Pool.Destroy;
+    LPool.Destroy;
   end;
 end;
 
@@ -52,10 +48,10 @@ begin
   try
     DemoMemPoolExceptions;
   except
-    on E: Exception do begin
+    on E: Exception do
+    begin
       WriteLn('Error: ', E.Message);
       Halt(1);
     end;
   end;
 end.
-

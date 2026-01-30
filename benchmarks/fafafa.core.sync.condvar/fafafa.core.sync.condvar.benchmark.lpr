@@ -173,23 +173,33 @@ begin
   repeat
     FMutex.Acquire;
     try
+      // 修复：在等待前检查时间,避免永久阻塞
+      LCurrentTime := GetHighResTime;
+      if CalcElapsedNs(FStartTime, LCurrentTime) >= FDurationNs then
+      begin
+        FMutex.Release;
+        Break;
+      end;
+      
       while FCounter^ = 0 do
       begin
-        FCondVar.Wait(FMutex);  // 修复：使用手动 Acquire/Release 模式
+        // 使用超时等待,避免永久阻塞
+        if not FCondVar.Wait(FMutex, 10) then  // 10ms 超时
+        begin
+          // 超时后检查时间
+          LCurrentTime := GetHighResTime;
+          if CalcElapsedNs(FStartTime, LCurrentTime) >= FDurationNs then
+          begin
+            FMutex.Release;
+            Exit;  // 直接退出
+          end;
+        end;
       end;
       Dec(FCounter^);
     finally
       FMutex.Release;
     end;
     Inc(LLocalOps);
-
-    // Check time every 256 operations
-    if (LLocalOps and $FF) = 0 then
-    begin
-      LCurrentTime := GetHighResTime;
-      if CalcElapsedNs(FStartTime, LCurrentTime) >= FDurationNs then
-        Break;
-    end;
   until Terminated;
 
   InterlockedExchangeAdd64(FOperations^, LLocalOps);

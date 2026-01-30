@@ -779,29 +779,51 @@ end;
 // ============================================================================
 
 procedure TTestSaturating.Test_SaturatingAddU32_Max_One_ReturnsMax;
+var
+  a, b: UInt32;
 begin
-  AssertEquals('MAX + 1 should saturate to MAX', MAX_UINT32, SaturatingAdd(UInt32(MAX_UINT32), UInt32(1)));
+  a := MAX_UINT32;
+  b := 1;
+  AssertEquals('MAX + 1 should saturate to MAX', QWord(MAX_UINT32), QWord(SaturatingAdd(a, b)));
 end;
 
 procedure TTestSaturating.Test_SaturatingAddU32_Max_Max_ReturnsMax;
+var
+  a, b: UInt32;
 begin
-  AssertEquals('MAX + MAX should saturate to MAX', MAX_UINT32, SaturatingAdd(UInt32(MAX_UINT32), UInt32(MAX_UINT32)));
+  a := MAX_UINT32;
+  b := MAX_UINT32;
+  AssertEquals('MAX + MAX should saturate to MAX', QWord(MAX_UINT32), QWord(SaturatingAdd(a, b)));
 end;
 
 procedure TTestSaturating.Test_SaturatingSubU32_Zero_One_ReturnsZero;
+var
+  a, b: UInt32;
 begin
-  AssertEquals('0 - 1 should saturate to 0', UInt32(0), SaturatingAdd(UInt32(0), UInt32(0)));
-  AssertEquals('0 - 1 should saturate to 0', UInt32(0), SaturatingSub(UInt32(0), UInt32(1)));
+  a := 0;
+  b := 0;
+  AssertEquals('0 + 0 should be 0', QWord(0), QWord(SaturatingAdd(a, b)));
+  a := 0;
+  b := 1;
+  AssertEquals('0 - 1 should saturate to 0', QWord(0), QWord(SaturatingSub(a, b)));
 end;
 
 procedure TTestSaturating.Test_SaturatingSubU32_Zero_Max_ReturnsZero;
+var
+  a, b: UInt32;
 begin
-  AssertEquals('0 - MAX should saturate to 0', UInt32(0), SaturatingSub(UInt32(0), UInt32(MAX_UINT32)));
+  a := 0;
+  b := MAX_UINT32;
+  AssertEquals('0 - MAX should saturate to 0', QWord(0), QWord(SaturatingSub(a, b)));
 end;
 
 procedure TTestSaturating.Test_SaturatingMulU32_Max_Two_ReturnsMax;
+var
+  a, b: UInt32;
 begin
-  AssertEquals('MAX * 2 should saturate to MAX', MAX_UINT32, SaturatingMul(UInt32(MAX_UINT32), UInt32(2)));
+  a := MAX_UINT32;
+  b := 2;
+  AssertEquals('MAX * 2 should saturate to MAX', QWord(MAX_UINT32), QWord(SaturatingMul(a, b)));
 end;
 
 procedure TTestSaturating.Test_SaturatingAddI32_MaxInt_One_ReturnsMaxInt;

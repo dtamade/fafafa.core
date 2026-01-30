@@ -51,12 +51,12 @@ end;
 
 procedure TMappedRingBufferSharded.Close;
 var
-  i: Integer;
+  LIndex: Integer;
 begin
-  for i := 0 to High(FShards) do
+  for LIndex := 0 to High(FShards) do
   begin
-    if FShards[i] <> nil then FShards[i].Free;
-    FShards[i] := nil;
+    if FShards[LIndex] <> nil then FShards[LIndex].Free;
+    FShards[LIndex] := nil;
   end;
   SetLength(FShards, 0);
   FShardCount := 0;
@@ -65,8 +65,8 @@ end;
 
 function TMappedRingBufferSharded.CreateShared(const BaseName: string; ShardCount: Integer; Capacity: UInt64; ElemSize: UInt32): Boolean;
 var
-  i: Integer;
-  nm: string;
+  LIndex: Integer;
+  LName: string;
 begin
   Close;
   Result := False;
@@ -74,11 +74,11 @@ begin
   FBaseName := BaseName;
   FShardCount := ShardCount;
   SetLength(FShards, ShardCount);
-  for i := 0 to ShardCount-1 do
+  for LIndex := 0 to ShardCount-1 do
   begin
-    FShards[i] := TMappedRingBuffer.Create;
-    nm := Format('%s_sh%0.2d', [BaseName, i]);
-    if not FShards[i].CreateShared(nm, Capacity, ElemSize) then Exit;
+    FShards[LIndex] := TMappedRingBuffer.Create;
+    LName := Format('%s_sh%0.2d', [BaseName, LIndex]);
+    if not FShards[LIndex].CreateShared(LName, Capacity, ElemSize) then Exit;
   end;
   FInit := True;
   Result := True;
@@ -86,8 +86,8 @@ end;
 
 function TMappedRingBufferSharded.OpenShared(const BaseName: string; ShardCount: Integer): Boolean;
 var
-  i: Integer;
-  nm: string;
+  LIndex: Integer;
+  LName: string;
 begin
   Close;
   Result := False;
@@ -95,11 +95,11 @@ begin
   FBaseName := BaseName;
   FShardCount := ShardCount;
   SetLength(FShards, ShardCount);
-  for i := 0 to ShardCount-1 do
+  for LIndex := 0 to ShardCount-1 do
   begin
-    FShards[i] := TMappedRingBuffer.Create;
-    nm := Format('%s_sh%0.2d', [BaseName, i]);
-    if not FShards[i].OpenShared(nm) then Exit;
+    FShards[LIndex] := TMappedRingBuffer.Create;
+    LName := Format('%s_sh%0.2d', [BaseName, LIndex]);
+    if not FShards[LIndex].OpenShared(LName) then Exit;
   end;
   FInit := True;
   Result := True;
@@ -107,58 +107,58 @@ end;
 
 function TMappedRingBufferSharded.Push(Data: Pointer): Boolean;
 var
-  i, start: Integer;
+  LIndex, LStart: Integer;
 begin
   if not FInit then Exit(False);
   EnterCriticalSection(FCSel);
   try
-    start := FPushIdx;
+    LStart := FPushIdx;
     FPushIdx := (FPushIdx + 1) mod FShardCount;
   finally
     LeaveCriticalSection(FCSel);
   end;
-  for i := 0 to FShardCount-1 do
+  for LIndex := 0 to FShardCount-1 do
   begin
-    if FShards[(start + i) mod FShardCount].Push(Data) then Exit(True);
+    if FShards[(LStart + LIndex) mod FShardCount].Push(Data) then Exit(True);
   end;
   Result := False;
 end;
 
 function TMappedRingBufferSharded.Pop(Data: Pointer): Boolean;
 var
-  i, start: Integer;
+  LIndex, LStart: Integer;
 begin
   if not FInit then Exit(False);
   EnterCriticalSection(FCSel);
   try
-    start := FPopIdx;
+    LStart := FPopIdx;
     FPopIdx := (FPopIdx + 1) mod FShardCount;
   finally
     LeaveCriticalSection(FCSel);
   end;
-  for i := 0 to FShardCount-1 do
+  for LIndex := 0 to FShardCount-1 do
   begin
-    if FShards[(start + i) mod FShardCount].Pop(Data) then Exit(True);
+    if FShards[(LStart + LIndex) mod FShardCount].Pop(Data) then Exit(True);
   end;
   Result := False;
 end;
 
 function TMappedRingBufferSharded.TryPush(Data: Pointer; MaxTries: Integer): Boolean;
 var
-  tries: Integer;
+  LTries: Integer;
 begin
   if MaxTries <= 0 then MaxTries := FShardCount;
-  for tries := 1 to MaxTries do
+  for LTries := 1 to MaxTries do
     if Push(Data) then Exit(True);
   Result := False;
 end;
 
 function TMappedRingBufferSharded.TryPop(Data: Pointer; MaxTries: Integer): Boolean;
 var
-  tries: Integer;
+  LTries: Integer;
 begin
   if MaxTries <= 0 then MaxTries := FShardCount;
-  for tries := 1 to MaxTries do
+  for LTries := 1 to MaxTries do
     if Pop(Data) then Exit(True);
   Result := False;
 end;

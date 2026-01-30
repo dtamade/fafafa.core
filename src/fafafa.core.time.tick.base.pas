@@ -39,6 +39,7 @@ interface
 
 uses
   SysUtils,
+  fafafa.core.base,  // ✅ TICK-001: 引入 ECore 基类
   fafafa.core.time.consts;
 
 const
@@ -48,7 +49,7 @@ const
 
 type
 
-  ETickError        = class(Exception);
+  ETickError        = class(ECore);  // ✅ TICK-001: 继承自 ECore
   ETickNotAvailable = class(ETickError);
 
   // Tick 类型（简化）
@@ -67,7 +68,7 @@ type
     function GetTickType: TTickType;
 
     function Tick: UInt64;
-    
+
     property Resolution:  UInt64    read GetResolution;
     property IsMonotonic: Boolean   read GetIsMonotonic;
     property TickType:    TTickType read GetTickType;

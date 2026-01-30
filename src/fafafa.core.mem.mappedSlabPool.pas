@@ -330,17 +330,17 @@ end;
 
 function TMappedSlabPool.CalculateRequiredSize(aPoolSize: UInt64): UInt64;
 var
-  PageCount: UInt64;
-  PageDescriptorSize: UInt64;
+  LPageCount: UInt64;
+  LPageDescriptorSize: UInt64;
 begin
   // 计算页面数量
-  PageCount := (aPoolSize + FPageSize - 1) div FPageSize;
+  LPageCount := (aPoolSize + FPageSize - 1) div FPageSize;
 
   // 页面描述符大小（简化的 slab 页面结构）
-  PageDescriptorSize := PageCount * 32; // 每个页面描述符32字节
+  LPageDescriptorSize := LPageCount * 32; // 每个页面描述符32字节
 
   // 总大小 = 头部 + 页面描述符 + 数据区域
-  Result := HEADER_SIZE + PageDescriptorSize + aPoolSize;
+  Result := HEADER_SIZE + LPageDescriptorSize + aPoolSize;
 
   // 对齐到页面边界
   Result := ((Result + FPageSize - 1) div FPageSize) * FPageSize;
@@ -348,67 +348,67 @@ end;
 
 procedure TMappedSlabPool.InitializeHeader(aPoolSize: UInt64; aPageSize: UInt32; aMaxSizeClass: UInt32);
 var
-  Header: PMappedSlabHeader;
+  LHeader: PMappedSlabHeader;
 begin
-  Header := PMappedSlabHeader(FHeader);
-  Header^.Magic := SLAB_MAGIC;
-  Header^.Version := SLAB_VERSION;
-  Header^.PoolSize := aPoolSize;
-  Header^.PageSize := aPageSize;
-  Header^.MaxSizeClass := aMaxSizeClass;
-  Header^.TotalPages := aPoolSize div aPageSize;
-  Header^.UsedPages := 0;
-  Header^.TotalAllocs := 0;
-  Header^.TotalFrees := 0;
-  Header^.FailedAllocs := 0;
-  FillChar(Header^.Reserved, SizeOf(Header^.Reserved), 0);
+  LHeader := PMappedSlabHeader(FHeader);
+  LHeader^.Magic := SLAB_MAGIC;
+  LHeader^.Version := SLAB_VERSION;
+  LHeader^.PoolSize := aPoolSize;
+  LHeader^.PageSize := aPageSize;
+  LHeader^.MaxSizeClass := aMaxSizeClass;
+  LHeader^.TotalPages := aPoolSize div aPageSize;
+  LHeader^.UsedPages := 0;
+  LHeader^.TotalAllocs := 0;
+  LHeader^.TotalFrees := 0;
+  LHeader^.FailedAllocs := 0;
+  FillChar(LHeader^.Reserved, SizeOf(LHeader^.Reserved), 0);
 end;
 
 function TMappedSlabPool.ValidateHeader: Boolean;
 var
-  Header: PMappedSlabHeader;
+  LHeader: PMappedSlabHeader;
 begin
   Result := False;
   if FHeader = nil then Exit;
 
-  Header := PMappedSlabHeader(FHeader);
-  if (Header^.Magic <> SLAB_MAGIC) or (Header^.Version <> SLAB_VERSION) then
+  LHeader := PMappedSlabHeader(FHeader);
+  if (LHeader^.Magic <> SLAB_MAGIC) or (LHeader^.Version <> SLAB_VERSION) then
     Exit;
 
-  FPoolSize := Header^.PoolSize;
-  FPageSize := Header^.PageSize;
-  FMaxSizeClass := Header^.MaxSizeClass;
+  FPoolSize := LHeader^.PoolSize;
+  FPageSize := LHeader^.PageSize;
+  FMaxSizeClass := LHeader^.MaxSizeClass;
   Result := True;
 end;
 
 procedure TMappedSlabPool.InitializeSlabStructures;
 var
-  PageCount: UInt64;
-  PageDescriptorSize: UInt64;
+  LPageCount: UInt64;
+  LPageDescriptorSize: UInt64;
 begin
-  PageCount := FPoolSize div FPageSize;
-  PageDescriptorSize := PageCount * 32;
+  LPageCount := FPoolSize div FPageSize;
+  LPageDescriptorSize := LPageCount * 32;
 
   // 设置内存布局指针
   FPages := Pointer(PByte(FHeader) + HEADER_SIZE);
-  FDataArea := Pointer(PByte(FPages) + PageDescriptorSize);
+  FDataArea := Pointer(PByte(FPages) + LPageDescriptorSize);
 
   // 初始化页面描述符（简化实现）
   if FIsCreator then
-    FillChar(FPages^, PageDescriptorSize, 0);
+    FillChar(FPages^, LPageDescriptorSize, 0);
 end;
 
 function TMappedSlabPool.CreateFile(const aFileName: string; aPoolSize: UInt64;
   aPageSize: UInt32; aMaxSizeClass: UInt32): Boolean;
 var
-  RequiredSize: UInt64;
+  LRequiredSize: UInt64;
 begin
   Result := False;
   Close;
 
   FPageSize := aPageSize;
   FMaxSizeClass := aMaxSizeClass;
-  RequiredSize := CalculateRequiredSize(aPoolSize);
+  LRequiredSize := CalculateRequiredSize(aPoolSize);
 
   FMemoryMap := TMemoryMap.Create;
   try
@@ -423,7 +423,7 @@ begin
       // 创建新文件
       with TFileStream.Create(aFileName, fmCreate) do
       try
-        Size := RequiredSize;
+        Size := LRequiredSize;
       finally
         Free;
       end;
@@ -478,18 +478,18 @@ end;
 function TMappedSlabPool.CreateShared(const aName: string; aPoolSize: UInt64;
   aPageSize: UInt32; aMaxSizeClass: UInt32): Boolean;
 var
-  RequiredSize: UInt64;
+  LRequiredSize: UInt64;
 begin
   Result := False;
   Close;
 
   FPageSize := aPageSize;
   FMaxSizeClass := aMaxSizeClass;
-  RequiredSize := CalculateRequiredSize(aPoolSize);
+  LRequiredSize := CalculateRequiredSize(aPoolSize);
 
   FSharedMemory := TSharedMemory.Create;
   try
-    if FSharedMemory.CreateShared(aName, RequiredSize, mmaReadWrite) then
+    if FSharedMemory.CreateShared(aName, LRequiredSize, mmaReadWrite) then
     begin
       FIsCreator := FSharedMemory.IsCreator;
     end
@@ -544,18 +544,18 @@ end;
 function TMappedSlabPool.CreateAnonymous(aPoolSize: UInt64;
   aPageSize: UInt32; aMaxSizeClass: UInt32): Boolean;
 var
-  RequiredSize: UInt64;
+  LRequiredSize: UInt64;
 begin
   Result := False;
   Close;
 
   FPageSize := aPageSize;
   FMaxSizeClass := aMaxSizeClass;
-  RequiredSize := CalculateRequiredSize(aPoolSize);
+  LRequiredSize := CalculateRequiredSize(aPoolSize);
 
   FMemoryMap := TMemoryMap.Create;
   try
-    if not FMemoryMap.CreateAnonymous(RequiredSize, mmaReadWrite) then Exit;
+    if not FMemoryMap.CreateAnonymous(LRequiredSize, mmaReadWrite) then Exit;
 
     FMode := mspAnonymous;
     FIsCreator := True;
@@ -594,10 +594,10 @@ end;
 
 function TMappedSlabPool.Alloc(aSize: UInt64): Pointer;
 var
-  Header: PMappedSlabHeader;
-  AlignedSize: UInt64;
-  PageIndex: UInt32;
-  Offset: UInt64;
+  LHeader: PMappedSlabHeader;
+  LAlignedSize: UInt64;
+  LPageIndex: UInt32;
+  LOffset: UInt64;
 begin
   Result := nil;
   if not IsValid or (aSize = 0) or (aSize > FMaxSizeClass) then
@@ -607,44 +607,44 @@ begin
     Exit;
   end;
 
-  Header := PMappedSlabHeader(FHeader);
+  LHeader := PMappedSlabHeader(FHeader);
 
   // 简化的分配算法：线性分配（实际应该实现完整的 slab 算法）
-  AlignedSize := (aSize + 7) and not 7; // 8字节对齐
+  LAlignedSize := (aSize + 7) and not 7; // 8字节对齐
 
   // 查找可用空间（简化实现）
-  if Header^.UsedPages * FPageSize + AlignedSize <= FPoolSize then
+  if LHeader^.UsedPages * FPageSize + LAlignedSize <= FPoolSize then
   begin
-    PageIndex := Header^.UsedPages;
-    Offset := (PageIndex * FPageSize) + (AlignedSize * (Header^.TotalAllocs mod (FPageSize div AlignedSize)));
+    LPageIndex := LHeader^.UsedPages;
+    LOffset := (LPageIndex * FPageSize) + (LAlignedSize * (LHeader^.TotalAllocs mod (FPageSize div LAlignedSize)));
 
-    if Offset + AlignedSize <= FPoolSize then
+    if LOffset + LAlignedSize <= FPoolSize then
     begin
-      Result := Pointer(PByte(FDataArea) + Offset);
-      Inc(Header^.TotalAllocs);
+      Result := Pointer(PByte(FDataArea) + LOffset);
+      Inc(LHeader^.TotalAllocs);
 
       // 简单的页面使用跟踪
-      if (Header^.TotalAllocs mod (FPageSize div AlignedSize)) = 0 then
-        Inc(Header^.UsedPages);
+      if (LHeader^.TotalAllocs mod (FPageSize div LAlignedSize)) = 0 then
+        Inc(LHeader^.UsedPages);
     end
     else
-      Inc(Header^.FailedAllocs);
+      Inc(LHeader^.FailedAllocs);
   end
   else
-    Inc(Header^.FailedAllocs);
+    Inc(LHeader^.FailedAllocs);
 end;
 
 procedure TMappedSlabPool.FreeBlock(aPtr: Pointer);
 var
-  Header: PMappedSlabHeader;
+  LHeader: PMappedSlabHeader;
 begin
   if not IsValid or (aPtr = nil) then Exit;
 
-  Header := PMappedSlabHeader(FHeader);
+  LHeader := PMappedSlabHeader(FHeader);
 
   // 简化的释放实现：只增加计数器
   // 实际应该实现完整的 slab 释放算法
-  Inc(Header^.TotalFrees);
+  Inc(LHeader^.TotalFrees);
 end;
 
 function TMappedSlabPool.Flush: Boolean;
@@ -668,16 +668,16 @@ end;
 procedure TMappedSlabPool.GetStats(out aTotalAllocs, aTotalFrees, aFailedAllocs: UInt64;
   out aUsedPages, aTotalPages: UInt32);
 var
-  Header: PMappedSlabHeader;
+  LHeader: PMappedSlabHeader;
 begin
   if IsValid then
   begin
-    Header := PMappedSlabHeader(FHeader);
-    aTotalAllocs := Header^.TotalAllocs;
-    aTotalFrees := Header^.TotalFrees;
-    aFailedAllocs := Header^.FailedAllocs;
-    aUsedPages := Header^.UsedPages;
-    aTotalPages := Header^.TotalPages;
+    LHeader := PMappedSlabHeader(FHeader);
+    aTotalAllocs := LHeader^.TotalAllocs;
+    aTotalFrees := LHeader^.TotalFrees;
+    aFailedAllocs := LHeader^.FailedAllocs;
+    aUsedPages := LHeader^.UsedPages;
+    aTotalPages := LHeader^.TotalPages;
   end
   else
   begin
@@ -691,15 +691,15 @@ end;
 
 procedure TMappedSlabPool.Reset;
 var
-  Header: PMappedSlabHeader;
+  LHeader: PMappedSlabHeader;
 begin
   if not IsValid then Exit;
 
-  Header := PMappedSlabHeader(FHeader);
-  Header^.UsedPages := 0;
-  Header^.TotalAllocs := 0;
-  Header^.TotalFrees := 0;
-  Header^.FailedAllocs := 0;
+  LHeader := PMappedSlabHeader(FHeader);
+  LHeader^.UsedPages := 0;
+  LHeader^.TotalAllocs := 0;
+  LHeader^.TotalFrees := 0;
+  LHeader^.FailedAllocs := 0;
 
   // 重置页面描述符
   if FPages <> nil then
@@ -739,27 +739,27 @@ end;
 
 procedure TMappedSlabPoolManager.InitializePools(aMode: TMappedSlabPoolMode);
 var
-  i: Integer;
-  FileName, SharedName: string;
+  LIndex: Integer;
+  LFileName, LSharedName: string;
 begin
-  for i := 0 to High(FPools) do
+  for LIndex := 0 to High(FPools) do
   begin
-    FPools[i] := TMappedSlabPool.Create;
+    FPools[LIndex] := TMappedSlabPool.Create;
 
     case aMode of
       mspFile:
       begin
-        FileName := FBasePath + Format('slab_pool_%d.dat', [i]);
-        FPools[i].CreateFile(FileName, FPoolSizes[i]);
+        LFileName := FBasePath + Format('slab_pool_%d.dat', [LIndex]);
+        FPools[LIndex].CreateFile(LFileName, FPoolSizes[LIndex]);
       end;
       mspShared:
       begin
-        SharedName := FSharedPrefix + Format('SlabPool_%d', [i]);
-        FPools[i].CreateShared(SharedName, FPoolSizes[i]);
+        LSharedName := FSharedPrefix + Format('SlabPool_%d', [LIndex]);
+        FPools[LIndex].CreateShared(LSharedName, FPoolSizes[LIndex]);
       end;
       mspAnonymous:
       begin
-        FPools[i].CreateAnonymous(FPoolSizes[i]);
+        FPools[LIndex].CreateAnonymous(FPoolSizes[LIndex]);
       end;
     end;
   end;
@@ -767,29 +767,29 @@ end;
 
 procedure TMappedSlabPoolManager.DestroyPools;
 var
-  i: Integer;
+  LIndex: Integer;
 begin
-  for i := 0 to High(FPools) do
+  for LIndex := 0 to High(FPools) do
   begin
-    if Assigned(FPools[i]) then
+    if Assigned(FPools[LIndex]) then
     begin
       // 避免与 TMappedSlabPool.Free(APtr: Pointer) 同名导致的方法解析歧义
-      TObject(FPools[i]).Free;
-      FPools[i] := nil;
+      TObject(FPools[LIndex]).Free;
+      FPools[LIndex] := nil;
     end;
   end;
 end;
 
 function TMappedSlabPoolManager.GetPoolForSize(aSize: UInt64): TMappedSlabPool;
 var
-  i: Integer;
+  LIndex: Integer;
 begin
   // 选择第一个能容纳该大小的池
-  for i := 0 to High(FPools) do
+  for LIndex := 0 to High(FPools) do
   begin
-    if (aSize <= FPools[i].MaxSizeClass) and FPools[i].IsValid then
+    if (aSize <= FPools[LIndex].MaxSizeClass) and FPools[LIndex].IsValid then
     begin
-      Result := FPools[i];
+      Result := FPools[LIndex];
       Exit;
     end;
   end;
@@ -800,7 +800,7 @@ end;
 
 function TMappedSlabPoolManager.AllocAny(aSize: UInt64): Pointer;
 var
-  Pool: TMappedSlabPool;
+  LPool: TMappedSlabPool;
 begin
   if aSize > FLargeObjectThreshold then
   begin
@@ -809,9 +809,9 @@ begin
   end
   else
   begin
-    Pool := GetPoolForSize(aSize);
-    if Pool <> nil then
-      Result := Pool.Alloc(aSize)
+    LPool := GetPoolForSize(aSize);
+    if LPool <> nil then
+      Result := LPool.Alloc(aSize)
     else
       Result := nil;
   end;
@@ -821,26 +821,26 @@ end;
 {$WARN 4055 OFF} // 局部屏蔽：指针与整型转换
 procedure TMappedSlabPoolManager.FreeAny(aPtr: Pointer);
 var
-  i: Integer;
-  Pool: TMappedSlabPool;
-  BaseAddr: Pointer;
-  PtrAddr: SizeUInt;
+  LIndex: Integer;
+  LPool: TMappedSlabPool;
+  LBaseAddr: Pointer;
+  LPtrAddr: SizeUInt;
 begin
   if aPtr = nil then Exit;
 
   // 尝试在各个池中查找该指针
   // 使用指针算术避免 4055 提示
-  PtrAddr := SizeUInt(aPtr); // 仅作无符号比较，不做算术
-  for i := 0 to High(FPools) do
+  LPtrAddr := SizeUInt(aPtr); // 仅作无符号比较，不做算术
+  for LIndex := 0 to High(FPools) do
   begin
-    Pool := FPools[i];
-    if Pool.IsValid then
+    LPool := FPools[LIndex];
+    if LPool.IsValid then
     begin
-      BaseAddr := Pool.BaseAddress;
-      if (PtrAddr >= SizeUInt(BaseAddr)) and
-         (PtrAddr - SizeUInt(BaseAddr) < Pool.PoolSize) then
+      LBaseAddr := LPool.BaseAddress;
+      if (LPtrAddr >= SizeUInt(LBaseAddr)) and
+         (LPtrAddr - SizeUInt(LBaseAddr) < LPool.PoolSize) then
       begin
-        Pool.Free(aPtr);
+        LPool.FreeBlock(aPtr);
         Exit;
       end;
     end;
@@ -853,22 +853,22 @@ end;
 
 function TMappedSlabPoolManager.FlushAll: Boolean;
 var
-  i: Integer;
+  LIndex: Integer;
 begin
   Result := True;
-  for i := 0 to High(FPools) do
+  for LIndex := 0 to High(FPools) do
   begin
-    if FPools[i].IsValid then
-      Result := Result and FPools[i].Flush;
+    if FPools[LIndex].IsValid then
+      Result := Result and FPools[LIndex].Flush;
   end;
 end;
 
 procedure TMappedSlabPoolManager.GetTotalStats(out aTotalAllocs, aTotalFrees, aFailedAllocs: UInt64;
   out aUsedMemory, aTotalMemory: UInt64);
 var
-  i: Integer;
-  Allocs, Frees, Failed: UInt64;
-  UsedPages, TotalPages: UInt32;
+  LIndex: Integer;
+  LAllocs, LFrees, LFailed: UInt64;
+  LUsedPages, LTotalPages: UInt32;
 begin
   aTotalAllocs := 0;
   aTotalFrees := 0;
@@ -876,16 +876,16 @@ begin
   aUsedMemory := 0;
   aTotalMemory := 0;
 
-  for i := 0 to High(FPools) do
+  for LIndex := 0 to High(FPools) do
   begin
-    if FPools[i].IsValid then
+    if FPools[LIndex].IsValid then
     begin
-      FPools[i].GetStats(Allocs, Frees, Failed, UsedPages, TotalPages);
-      aTotalAllocs := aTotalAllocs + Allocs;
-      aTotalFrees := aTotalFrees + Frees;
-      aFailedAllocs := aFailedAllocs + Failed;
-      aUsedMemory := aUsedMemory + (UsedPages * FPools[i].PageSize);
-      aTotalMemory := aTotalMemory + FPools[i].PoolSize;
+      FPools[LIndex].GetStats(LAllocs, LFrees, LFailed, LUsedPages, LTotalPages);
+      aTotalAllocs := aTotalAllocs + LAllocs;
+      aTotalFrees := aTotalFrees + LFrees;
+      aFailedAllocs := aFailedAllocs + LFailed;
+      aUsedMemory := aUsedMemory + (LUsedPages * FPools[LIndex].PageSize);
+      aTotalMemory := aTotalMemory + FPools[LIndex].PoolSize;
     end;
   end;
 end;

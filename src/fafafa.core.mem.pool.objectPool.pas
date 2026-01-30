@@ -29,6 +29,88 @@ type
     procedure ReleaseObject(aObject: T);
   end;
 
+  {**
+   * TObjectPool<T>
+   *
+   * @desc
+   *   泛型对象池，用于管理可重用对象的生命周期，减少频繁创建/销毁对象的开销。
+   *   Generic object pool for managing reusable object lifecycles, reducing overhead from frequent creation/destruction.
+   *
+   * @usage
+   *   适用于需要频繁创建和销毁相同类型对象的场景，如数据库连接池、线程池、消息对象池等。
+   *   Ideal for scenarios requiring frequent creation/destruction of same-type objects like DB connection pools, thread pools, message object pools.
+   *
+   * @features
+   *   - 自动对象管理：自动创建、初始化和终结对象
+   *   - Builder 模式配置：使用 TConfig 简化配置
+   *   - 生命周期回调：支持自定义创建、初始化和终结逻辑
+   *   - 容量控制：可配置最大对象数量
+   *   - 统计信息：跟踪总创建数和池中可用数
+   *   - P0-1 修复：修复了 GUID 冲突、回调存储和计数语义问题
+   *
+   * @thread_safety
+   *   不是线程安全的。多线程环境请使用外部同步或实现线程安全包装器。
+   *   Not thread-safe. Use external synchronization or implement thread-safe wrapper for multi-threaded scenarios.
+   *
+   * @example
+   *   // 定义可重用对象
+   *   type
+   *     TConnection = class
+   *       Host: string;
+   *       Port: Integer;
+   *       procedure Connect;
+   *       procedure Disconnect;
+   *     end;
+   *
+   *   // 创建对象池（使用 Builder 模式）
+   *   var Pool: specialize TObjectPool<TConnection>;
+   *   Pool := specialize TObjectPool<TConnection>.Create(
+   *     specialize TObjectPool<TConnection>.TConfig.Default
+   *       .WithMaxSize(10)
+   *       .WithCreator(
+   *         function: TConnection
+   *         begin
+   *           Result := TConnection.Create;
+   *         end)
+   *       .WithInit(
+   *         procedure(Conn: TConnection)
+   *         begin
+   *           Conn.Connect;
+   *         end)
+   *       .WithFinalize(
+   *         procedure(Conn: TConnection)
+   *         begin
+   *           Conn.Disconnect;
+   *         end)
+   *   );
+   *   try
+   *     // 获取对象
+   *     var Conn: TConnection;
+   *     if Pool.AcquireObject(Conn) then
+   *     begin
+   *       try
+   *         // 使用连接...
+   *       finally
+   *         Pool.ReleaseObject(Conn);
+   *       end;
+   *     end;
+   *   finally
+   *     Pool.Free;
+   *   end;
+   *
+   * @performance
+   *   - 获取：O(1) 从池中获取，O(1) 创建新对象（如果池为空）
+   *   - 释放：O(1) 返回到池中
+   *   - 内存开销：每个对象约 8 字节（指针）+ 对象本身大小
+   *
+   * @use_cases
+   *   - 数据库连接池：管理数据库连接的重用
+   *   - HTTP 客户端池：重用 HTTP 客户端对象
+   *   - 缓冲区池：管理字节缓冲区的重用
+   *   - 工作线程池：管理工作线程对象
+   *
+   * @see TConfig, IObjectPool, IPool, TFixedPool
+   *}
   generic TObjectPool<T: TObject> = class(TInterfacedObject, IPool)
   type
     TObjectCreatorFunc     = function: T;

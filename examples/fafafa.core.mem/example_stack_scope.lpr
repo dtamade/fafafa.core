@@ -1,7 +1,7 @@
-{$CODEPAGE UTF8}
 program example_stack_scope;
-
 {$mode objfpc}{$H+}
+{$I ../../src/fafafa.core.settings.inc}
+{$IFDEF WINDOWS}{$CODEPAGE UTF8}{$ENDIF}
 
 uses
   SysUtils,
@@ -10,29 +10,27 @@ uses
 
 procedure ScopeDemo;
 var
-  S: TStackPool;
-  Guard: TStackScopeGuard;
-  P1, P2: Pointer;
+  LStack: TStackPool;
+  LGuard: TStackScopeGuard;
+  LPtr1: Pointer;
+  LPtr2: Pointer;
 begin
   WriteLn('--- StackPool Scope Demo (Guard) ---');
-  S := TStackPool.Create(1024);
+  LStack := TStackPool.Create(1024);
   try
-    // 进入作用域：保存状态（RAII风格）
-    Guard := TStackScopeGuard.Enter(S);
+    LGuard := TStackScopeGuard.Enter(LStack);
     try
-      P1 := S.Alloc(128);
-      P2 := S.Alloc(256, 16); // 对齐分配
-      WriteLn('UsedSize after allocs = ', S.UsedSize);
-      if (P1 = nil) or (P2 = nil) then
+      LPtr1 := LStack.Alloc(128);
+      LPtr2 := LStack.Alloc(256, 16);
+      WriteLn('UsedSize after allocs = ', LStack.UsedSize);
+      if (LPtr1 = nil) or (LPtr2 = nil) then
         raise Exception.Create('Allocation failed in scope');
-      // 在此作用域内使用 P1/P2 ...
     finally
-      // 离开作用域：恢复状态（隐式释放作用域内分配的全部内存）
-      Guard.Leave;
-      WriteLn('UsedSize after restore = ', S.UsedSize);
+      LGuard.Leave;
+      WriteLn('UsedSize after restore = ', LStack.UsedSize);
     end;
   finally
-    S.Destroy;
+    LStack.Destroy;
   end;
 end;
 
@@ -40,10 +38,10 @@ begin
   try
     ScopeDemo;
   except
-    on E: Exception do begin
+    on E: Exception do
+    begin
       WriteLn('Error: ', E.Message);
       Halt(1);
     end;
   end;
 end.
-

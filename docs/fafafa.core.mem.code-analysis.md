@@ -1,4 +1,5 @@
 # fafafa.core.mem 静态代码分析报告
+> 说明：本文档为阶段性记录，内容可能与当前代码不一致；以 `docs/fafafa.core.mem.md` 与 `tests/fafafa.core.mem/README.md` 为准。
 
 ## 🔍 代码质量分析
 
@@ -97,7 +98,7 @@ end;
 
 **分析结果**: ✅ 栈式管理正确，状态保存/恢复机制合理
 
-#### 4. fafafa.core.mem.slabPool.pas (nginx风格Slab)
+#### 4. fafafa.core.mem.pool.slab.pas (nginx风格Slab)
 ```pascal
 // ✅ nginx风格设计正确
 TSlabPool = class

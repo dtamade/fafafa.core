@@ -1,138 +1,133 @@
 program helper_sharedmem;
 
+{$IFDEF WINDOWS}{$APPTYPE CONSOLE}{$ENDIF}
 {$mode objfpc}{$H+}
-{$APPTYPE CONSOLE}
+{$I ../../src/fafafa.core.settings.inc}
+{$IFDEF WINDOWS}{$CODEPAGE UTF8}{$ENDIF}
 
 uses
-  SysUtils, Classes,
+  SysUtils, StrUtils,
   fafafa.core.mem,
   fafafa.core.mem.memoryMap;
 
-function HexToBytes(const s: string): RawByteString;
+function HexToBytes(const aHex: string): RawByteString;
 var
-  i, n: Integer;
-  b: Byte;
-  function HexVal(ch: Char): Integer;
+  LIndex: Integer;
+  LCount: Integer;
+  LByte: Byte;
+  function HexVal(aCh: Char): Integer;
   begin
-    case ch of
-      '0'..'9': Result := Ord(ch) - Ord('0');
-      'A'..'F': Result := Ord(ch) - Ord('A') + 10;
-      'a'..'f': Result := Ord(ch) - Ord('a') + 10;
+    case aCh of
+      '0'..'9': Result := Ord(aCh) - Ord('0');
+      'A'..'F': Result := Ord(aCh) - Ord('A') + 10;
+      'a'..'f': Result := Ord(aCh) - Ord('a') + 10;
     else
       Result := 0;
     end;
   end;
 begin
-  n := Length(s) div 2;
-  SetLength(Result, n);
-  for i := 0 to n - 1 do
+  LCount := Length(aHex) div 2;
+  SetLength(Result, LCount);
+  for LIndex := 0 to LCount - 1 do
   begin
-    b := (HexVal(s[2*i+1]) shl 4) or HexVal(s[2*i+2]);
-    Result[ i + 1 ] := AnsiChar(Chr(b));
+    LByte := (HexVal(aHex[2 * LIndex + 1]) shl 4) or HexVal(aHex[2 * LIndex + 2]);
+    Result[LIndex + 1] := AnsiChar(Chr(LByte));
   end;
 end;
 
-function BytesToHex(const buf: RawByteString): string;
+function BytesToHex(const aBuf: RawByteString): string;
 const
   Hex: PChar = '0123456789ABCDEF';
 var
-  i: Integer;
-  b: Byte;
+  LIndex: Integer;
+  LByte: Byte;
 begin
-  SetLength(Result, Length(buf)*2);
-  for i := 1 to Length(buf) do
+  SetLength(Result, Length(aBuf) * 2);
+  for LIndex := 1 to Length(aBuf) do
   begin
-    b := Byte(buf[i]);
-    Result[2*i-1] := Hex[(b shr 4) and $0F];
-    Result[2*i]   := Hex[b and $0F];
+    LByte := Byte(aBuf[LIndex]);
+    Result[2 * LIndex - 1] := Hex[(LByte shr 4) and $0F];
+    Result[2 * LIndex] := Hex[LByte and $0F];
   end;
 end;
 
-function GetArgValue(const key: string; const def: string = ''): string;
+function GetArgValue(const aKey: string; const aDefault: string = ''): string;
 var
-  i, p: Integer;
-  param, k: string;
+  LIndex: Integer;
+  LParam: string;
+  LPrefix: string;
 begin
-  Result := def;
-  k := '--' + key + '=';
-  for i := 1 to ParamCount do
+  Result := aDefault;
+  LPrefix := '--' + aKey + '=';
+  for LIndex := 1 to ParamCount do
   begin
-    param := ParamStr(i);
-    if LeftStr(param, Length(k)) = k then
+    LParam := ParamStr(LIndex);
+    if LeftStr(LParam, Length(LPrefix)) = LPrefix then
     begin
-      Result := Copy(param, Length(k)+1, MaxInt);
+      Result := System.Copy(LParam, Length(LPrefix) + 1, MaxInt);
       Exit;
     end;
   end;
 end;
 
-procedure WriteBytes(p: PByte; const buf: RawByteString);
 var
-  L: UInt32;
-begin
-  L := Length(buf);
-  Move(L, p^, SizeOf(L));
-  Inc(p, SizeOf(L));
-  if L > 0 then Move(buf[1], p^, L);
-end;
-
-function ReadBytes(p: PByte): RawByteString;
-var
-  L: UInt32;
-begin
-  Move(p^, L, SizeOf(L));
-  Inc(p, SizeOf(L));
-  SetLength(Result, L);
-  if L > 0 then Move(p^, Result[1], L);
-end;
-
-var
-  mode, name, datahex: string;
-  sh: TSharedMemory;
-  data: RawByteString;
-  base: PByte;
+  LMode: string;
+  LName: string;
+  LDataHex: string;
+  LShared: TSharedMemory;
+  LData: RawByteString;
+  LHoldMs: Integer;
 begin
   try
-    mode := GetArgValue('mode');
-    name := GetArgValue('name');
-    datahex := GetArgValue('data');
+    LMode := GetArgValue('mode');
+    LName := GetArgValue('name');
+    LDataHex := GetArgValue('data');
+    LHoldMs := StrToIntDef(GetArgValue('hold', '0'), 0);
 
-    if (mode = '') or (name = '') then
+    if (LMode = '') or (LName = '') then
     begin
       Writeln('ERR: missing args');
       Halt(2);
     end;
 
-    if SameText(mode, 'writer') then
+    if SameText(LMode, 'writer') then
     begin
-      data := HexToBytes(datahex);
-      sh := TSharedMemory.Create;
+      LData := HexToBytes(LDataHex);
+      LShared := TSharedMemory.Create;
       try
-        if not sh.CreateShared(name, 4 + Length(data), mmaReadWrite) then
+        if not LShared.CreateShared(LName, SizeOf(UInt32) + Length(LData), mmaReadWrite) then
         begin
           Writeln('ERR: create failed');
           Halt(3);
         end;
-        base := PByte(sh.BaseAddress);
-        WriteBytes(base, data);
-        // no output on success
+        if not LShared.WriteLPBytes(0, LData) then
+        begin
+          Writeln('ERR: write failed');
+          Halt(6);
+        end;
+        if LHoldMs > 0 then
+          Sleep(LHoldMs);
       finally
-        sh.Free;
+        LShared.Free;
       end;
     end
-    else if SameText(mode, 'reader') then
+    else if SameText(LMode, 'reader') then
     begin
-      sh := TSharedMemory.Create;
+      LShared := TSharedMemory.Create;
       try
-        if not sh.OpenShared(name, mmaReadWrite) then
+        if not LShared.OpenShared(LName, mmaReadWrite) then
         begin
           Writeln('ERR: open failed');
           Halt(4);
         end;
-        data := ReadBytes(PByte(sh.BaseAddress));
-        Writeln(BytesToHex(data));
+        if not LShared.ReadLPBytes(0, LData) then
+        begin
+          Writeln('ERR: read failed');
+          Halt(7);
+        end;
+        Writeln(BytesToHex(LData));
       finally
-        sh.Free;
+        LShared.Free;
       end;
     end
     else
@@ -150,4 +145,3 @@ begin
     end;
   end;
 end.
-

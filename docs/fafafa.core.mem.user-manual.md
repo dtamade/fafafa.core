@@ -19,21 +19,24 @@ ls src/fafafa.core.mem.allocator.pas
 ```batch
 # Windows
 cd tests\fafafa.core.mem
-BuildAndTest.bat
+tests\fafafa.core.mem\BuildOrTest.bat
+```
 
+```bash
 # Linux/macOS
 cd tests/fafafa.core.mem
-chmod +x BuildOrTest.sh
-./BuildOrTest.sh
+bash BuildOrTest.sh
 ```
 
 #### 3. 运行测试
 ```batch
-# 运行完整测试套件
-RunAllTests.bat
+# Windows
+tests\fafafa.core.mem\BuildOrTest.bat test
+```
 
-# 运行单个测试
-..\..\bin\integration_test.exe
+```bash
+# Linux/macOS
+bash tests/fafafa.core.mem/BuildOrTest.sh
 ```
 
 ### 📋 模块选择指南
@@ -46,20 +49,20 @@ RunAllTests.bat
 
 **使用示例:**
 ```pascal
+uses
+  fafafa.core.mem.memPool;
+
 var
   LPool: TMemPool;
-  LNode: PMyNode;
+  LPtr: Pointer;
 begin
-  LPool := TMemPool.Create(SizeOf(TMyNode), 1000);
+  LPool := TMemPool.Create(64, 10);
   try
-    LNode := PMyNode(LPool.Alloc);
-    if LNode <> nil then
-    begin
-      // 使用节点...
-      LPool.Free(LNode);
-    end;
+    LPtr := LPool.Alloc;
+    if LPtr <> nil then
+      LPool.ReleasePtr(LPtr);
   finally
-    LPool.Free;
+    LPool.Destroy;
   end;
 end;
 ```
@@ -105,9 +108,15 @@ end;
 
 **使用示例:**
 ```pascal
+uses
+  fafafa.core.mem.pool.slab,
+  fafafa.core.mem.stats;
+
 var
   LPool: TSlabPool;
   LSmallPtr, LLargePtr: Pointer;
+  LStats: TSlabPoolStats;
+  LPerf: TSlabPerfCounters;
 begin
   LPool := TSlabPool.Create(16 * 1024); // 16KB
   try
@@ -120,18 +129,22 @@ begin
       // 使用内存...
       
       // 单独释放
-      LPool.Free(LSmallPtr);
-      LPool.Free(LLargePtr);
+      LPool.ReleasePtr(LSmallPtr);
+      LPool.ReleasePtr(LLargePtr);
     end;
     
     // 查看统计
-    WriteLn('分配: ', LPool.TotalAllocs);
-    WriteLn('释放: ', LPool.TotalFrees);
+    LStats := GetSlabPoolStats(LPool);
+    LPerf := LPool.GetPerfCounters;
+    WriteLn('容量: ', LStats.TotalUsed, '/', LStats.TotalCapacity);
+    WriteLn('Fallback: ', LStats.FallbackAllocCount);
+    WriteLn('分配/释放: ', LPerf.AllocCalls, '/', LPerf.FreeCalls);
   finally
-    LPool.Free;
+    LPool.Destroy;
   end;
 end;
 ```
+
 
 ### 🎯 性能优化建议
 
@@ -171,58 +184,70 @@ end;
 
 ### 🔧 调试和监控
 
-#### 1. 使用内存监控工具
+#### 1. 运行单测（含 heaptrc）
 ```batch
-# 运行内存监控
-..\..\bin\memory_monitor.exe
+# Windows
+tests\fafafa.core.mem\BuildOrTest.bat test
 ```
 
-#### 2. 检查内存泄漏
-```batch
-# 运行泄漏检测
-..\..\bin\leak_test.exe
+```bash
+# Linux/macOS
+bash tests/fafafa.core.mem/BuildOrTest.sh
 ```
 
-#### 3. 性能基准测试
+#### 2. 性能对比
 ```batch
-# 运行性能测试
-..\..\bin\benchmark.exe
+# Windows
+tests\fafafa.core.mem\VerifyImprovements.bat
 ```
 
-#### 4. 压力测试
+```bash
+# Linux/macOS
+tests/fafafa.core.mem/bin/tests_mem_debug --suite=TTestCase_SlabPool_PerformanceBenchmark --format=plain
+```
+
+#### 3. 示例运行
 ```batch
-# 运行压力测试
-..\..\bin\stress_test.exe
+# Windows
+examples\fafafa.core.mem\BuildAndRun.bat debug run
+```
+
+```bash
+# Linux/macOS
+./examples/fafafa.core.mem/BuildAndRun.sh debug run
 ```
 
 ### 📊 监控和统计
 
+> 统计快照使用 `fafafa.core.mem.stats`（只读，不改变池行为）
+
 #### TMemPool 统计
 ```pascal
-WriteLn('块大小: ', LMemPool.BlockSize);
-WriteLn('容量: ', LMemPool.Capacity);
-WriteLn('已分配: ', LMemPool.AllocatedCount);
-WriteLn('可用: ', LMemPool.AvailableCount);
-WriteLn('是否为空: ', LMemPool.IsEmpty);
-WriteLn('是否满: ', LMemPool.IsFull);
+LMemStats := GetMemPoolStats(LMemPool);
+WriteLn('块大小: ', LMemStats.BlockSize);
+WriteLn('容量: ', LMemStats.Capacity);
+WriteLn('已分配: ', LMemStats.AllocatedCount);
+WriteLn('可用: ', LMemStats.AvailableCount);
+WriteLn('利用率: ', LMemStats.Utilization:0:2);
 ```
 
 #### TStackPool 统计
 ```pascal
-WriteLn('总大小: ', LStackPool.TotalSize);
-WriteLn('已用大小: ', LStackPool.UsedSize);
-WriteLn('可用大小: ', LStackPool.AvailableSize);
-WriteLn('是否为空: ', LStackPool.IsEmpty);
-WriteLn('是否满: ', LStackPool.IsFull);
+LStackStats := GetStackPoolStats(LStackPool);
+WriteLn('总大小: ', LStackStats.TotalSize);
+WriteLn('已用大小: ', LStackStats.UsedSize);
+WriteLn('可用大小: ', LStackStats.AvailableSize);
+WriteLn('利用率: ', LStackStats.Utilization:0:2);
 ```
 
 #### TSlabPool 统计
 ```pascal
-WriteLn('池大小: ', LSlabPool.PoolSize);
-WriteLn('页面数: ', LSlabPool.PageCount);
-WriteLn('总分配: ', LSlabPool.TotalAllocs);
-WriteLn('总释放: ', LSlabPool.TotalFrees);
-WriteLn('失败分配: ', LSlabPool.FailedAllocs);
+LSlabStats := GetSlabPoolStats(LSlabPool);
+LSlabPerf := LSlabPool.GetPerfCounters;
+
+WriteLn('容量: ', LSlabStats.TotalUsed, '/', LSlabStats.TotalCapacity);
+WriteLn('Fallback: ', LSlabStats.FallbackAllocCount);
+WriteLn('分配/释放: ', LSlabPerf.AllocCalls, '/', LSlabPerf.FreeCalls);
 ```
 
 ### ⚠️ 注意事项
@@ -235,8 +260,7 @@ WriteLn('失败分配: ', LSlabPool.FailedAllocs);
 
 #### 2. 线程安全
 ```pascal
-// 当前版本不支持多线程
-// 在多线程环境下需要外部同步
+// 基础池默认非线程安全；并发场景请使用 concurrent/sharded 版本或外部锁
 ```
 
 #### 3. 错误处理
@@ -252,9 +276,9 @@ end;
 
 #### 4. 重复释放
 ```pascal
-// 所有内存池都能安全处理重复释放
-LPool.Free(LPtr);
-LPool.Free(LPtr); // 安全，会被忽略
+// 避免重复释放，同一指针只释放一次
+LPool.ReleasePtr(LPtr);
+LPtr := nil; // 清空引用，防止误用
 ```
 
 ### 🛠️ 故障排除
@@ -272,12 +296,12 @@ LPool.Free(LPtr); // 安全，会被忽略
 #### 性能问题
 1. 选择合适的内存池类型
 2. 调整容量设置
-3. 运行性能基准测试对比
+3. 运行性能对比：tests\fafafa.core.mem\VerifyImprovements.bat 或 tests_mem_debug 性能套件
 
 ### 📞 获取帮助
 
 1. **查看文档** - docs/ 目录下的完整文档
-2. **运行示例** - tests/fafafa.core.mem/examples/ 目录
+2. **运行示例** - examples/fafafa.core.mem/ 目录
 3. **查看测试** - 了解正确的使用方式
 4. **联系作者** - dtamade@gmail.com
 

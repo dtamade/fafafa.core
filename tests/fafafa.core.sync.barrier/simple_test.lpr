@@ -30,14 +30,8 @@ begin
         WriteLn('✗ GetParticipantCount failed: ', E.Message);
     end;
     
-    // Test 3: Check error state
-    WriteLn('Test 3: Checking initial error state...');
-    try
-      WriteLn('✓ Last error: ', Ord(Barrier.GetLastError));
-    except
-      on E: Exception do
-        WriteLn('✗ GetLastError failed: ', E.Message);
-    end;
+    // Test 3: Check error state (removed - GetLastError not available)
+    WriteLn('Test 3: Skipped (GetLastError not available in current API)');
     
     // Test 4: Single participant barrier
     WriteLn('Test 4: Creating single participant barrier...');

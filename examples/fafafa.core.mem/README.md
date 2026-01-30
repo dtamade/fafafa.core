@@ -8,7 +8,7 @@
 示例清单：
 - example_mem.lpr：内存操作、分配器、对齐的基础演示
 - example_mem_pool_basic.lpr：MemPool/StackPool/SlabPool 的最小用法
-- example_mem_pool_config.lpr：SlabPool 自定义配置、预热与统计（含 Diagnostics 输出）
+- example_mem_pool_config.lpr：SlabPool 自定义配置、预热与统计（含性能计数输出）
 
 - example_mem_integration_runner.lpr：集成/跨域示例 Runner（仅示例使用，不属于单测）
 
@@ -22,6 +22,7 @@
 
 常见问题（FAQ）：
 - TMemPool/TSlabPool 定义了 Free(aPtr: Pointer) 方法，为避免与 TObject.Free 同名冲突，建议在销毁实例时使用 Destroy。
+- Unix/Linux 共享内存默认使用 `/dev/shm`；若环境限制导致 `shm_open` 失败，可设置 `FAFAFA_SHM_DIR` 指向可写目录（如 `/tmp`），将自动退化为文件映射实现。
 
 迁移说明：
 - 原 tests/fafafa.core.mem/examples 下的演示示例已迁移至此目录或 play/ 目录。

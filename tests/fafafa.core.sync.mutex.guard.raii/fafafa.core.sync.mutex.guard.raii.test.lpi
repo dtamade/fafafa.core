@@ -27,7 +27,7 @@
     </RequiredPackages>
     <Units>
       <Unit>
-        <Filename Value="fafafa.core.sync.mutex.guard.raii.test.lpr"/>
+        <Filename Value="bin/fafafa.core.sync.mutex.guard.raii.test"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>
@@ -36,7 +36,7 @@
     <Version Value="11"/>
     <PathDelim Value="/"/>
     <Target>
-      <Filename Value="fafafa.core.sync.mutex.guard.raii.test"/>
+      <Filename Value="bin/fafafa.core.sync.mutex.guard.raii.test"/>
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir);../../src"/>

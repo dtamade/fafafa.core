@@ -46,7 +46,7 @@ type
    *   var OldPool: IMemPool := TMemPool.Create(64, 100);
    *   var NewPool: IBlockPool := TMemPoolToBlockPoolAdapter.Create(OldPool);
    *}
-  TMemPoolToBlockPoolAdapter = class(TInterfacedObject, IBlockPool)
+  TMemPoolToBlockPoolAdapter = class(TInterfacedObject, IBlockPool, IBlockPoolBatch)
   private
     FPool: IMemPool;
   public
@@ -62,6 +62,10 @@ type
     function Available: SizeUInt;
     function InUse: SizeUInt;
 
+    { IBlockPoolBatch }
+    function AcquireN(out aPtrs: array of Pointer; aCount: Integer): Integer;
+    procedure ReleaseN(const aPtrs: array of Pointer; aCount: Integer);
+
     property Pool: IMemPool read FPool;
   end;
 
@@ -72,7 +76,7 @@ type
    *       Adapts IBlockPool (v2.0) to IMemPool (v1.x)
    *
    * @example
-   *   var NewPool: IBlockPool := TSimpleBlockPool.Create(64, 100);
+   *   var NewPool: IBlockPool := TBlockPool.Create(64, 100);
    *   var OldPool: IMemPool := TBlockPoolToMemPoolAdapter.Create(NewPool);
    *}
   TBlockPoolToMemPoolAdapter = class(TInterfacedObject, IMemPool)
@@ -129,7 +133,7 @@ type
    *       Adapts IArena (v2.0) to IStackPool (v1.x)
    *
    * @example
-   *   var NewArena: IArena := TSimpleArena.Create(64 * 1024);
+   *   var NewArena: IArena := TArena.Create(64 * 1024);
    *   var OldPool: IStackPool := TArenaToStackPoolAdapter.Create(NewArena);
    *}
   TArenaToStackPoolAdapter = class(TInterfacedObject, IStackPool)
@@ -196,6 +200,38 @@ end;
 function TMemPoolToBlockPoolAdapter.TryAcquire(out aPtr: Pointer): Boolean;
 begin
   Result := FPool.TryAlloc(aPtr, FPool.GetBlockSize);
+end;
+
+function TMemPoolToBlockPoolAdapter.AcquireN(out aPtrs: array of Pointer; aCount: Integer): Integer;
+var
+  LIdx: Integer;
+  LPtr: Pointer;
+begin
+  Result := 0;
+  if aCount <= 0 then Exit(0);
+  for LIdx := 0 to aCount - 1 do
+  begin
+    if LIdx > High(aPtrs) then
+      Break;
+    LPtr := Acquire;
+    if LPtr = nil then
+      Break;
+    aPtrs[LIdx] := LPtr;
+    Inc(Result);
+  end;
+end;
+
+procedure TMemPoolToBlockPoolAdapter.ReleaseN(const aPtrs: array of Pointer; aCount: Integer);
+var
+  LIdx: Integer;
+begin
+  if aCount <= 0 then Exit;
+  for LIdx := 0 to aCount - 1 do
+  begin
+    if LIdx > High(aPtrs) then
+      Break;
+    Release(aPtrs[LIdx]);
+  end;
 end;
 
 procedure TMemPoolToBlockPoolAdapter.Release(aPtr: Pointer);

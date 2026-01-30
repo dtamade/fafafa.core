@@ -13,12 +13,12 @@
         <CompilerOptions>
           <Version Value="11"/>
           <Target>
-            <Filename Value="bin\simple_test.exe"/>
+            <Filename Value="bin/simple_test"/>
           </Target>
           <SearchPaths>
             <OtherUnitFiles Value="..\..\src"/>
             <IncludeFiles Value="../../src"/>
-            <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+            <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <Linking>
             <Debugging>
@@ -35,7 +35,7 @@
     </BuildModes>
     <Units>
       <Unit>
-        <Filename Value="simple_test.lpr"/>
+        <Filename Value="bin/simple_test"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>
@@ -43,12 +43,12 @@
   <CompilerOptions>
     <Version Value="11"/>
     <Target>
-      <Filename Value="bin\simple_test.exe"/>
+      <Filename Value="bin/simple_test"/>
     </Target>
     <SearchPaths>
       <OtherUnitFiles Value="..\..\src"/>
       <IncludeFiles Value="../../src"/>
-      <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+      <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Linking>
       <Debugging>

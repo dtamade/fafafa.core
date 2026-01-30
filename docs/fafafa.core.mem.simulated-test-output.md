@@ -1,4 +1,5 @@
 # fafafa.core.mem 模拟测试输出
+> 说明：本文档为阶段性记录，内容可能与当前代码不一致；以 `docs/fafafa.core.mem.md` 与 `tests/fafafa.core.mem/README.md` 为准。
 
 ## 🎯 由于环境问题无法实际运行，这里展示预期的测试输出
 

@@ -40,18 +40,18 @@ end;
 
 function AlignUpPtr(P: Pointer; AAlignment: SizeUInt): Pointer; inline;
 var
-  Addr, Mask: PtrUInt;
+  LAddr, LMask: PtrUInt;
 begin
-  Addr := PtrUInt(P);
-  Mask := PtrUInt(AAlignment - 1);
-  Result := Pointer((Addr + Mask) and not Mask);
+  LAddr := PtrUInt(P);
+  LMask := PtrUInt(AAlignment - 1);
+  Result := Pointer((LAddr + LMask) and not LMask);
 end;
 
 function AllocAligned(ASize: SizeUInt; AAlignment: SizeUInt): Pointer;
 var
-  Raw: Pointer;
-  Needed: SizeUInt;
-  HeaderPtr: PPointer;
+  LRaw: Pointer;
+  LNeeded: SizeUInt;
+  LHeaderPtr: PPointer;
 begin
   if ASize = 0 then Exit(nil);
   if (AAlignment < SizeOf(Pointer)) or (not IsPowerOfTwo(AAlignment)) then
@@ -63,28 +63,28 @@ begin
   {$ENDIF}
 
   {$IFDEF UNIX}
-  Raw := nil;
-  if posix_memalign(@Raw, AAlignment, ASize) = 0 then
+  LRaw := nil;
+  if posix_memalign(@LRaw, AAlignment, ASize) = 0 then
   begin
-    Result := Raw;
+    Result := LRaw;
     Exit;
   end;
   // fall through to over-allocate if posix_memalign failed for some reason
   {$ENDIF}
 
   // Generic fallback: over-allocate and store the original pointer just before the aligned block
-  Needed := ASize + AAlignment - 1 + SizeOf(Pointer);
-  Raw := SysGetMem(Needed);
-  if Raw = nil then Exit(nil);
-  Result := AlignUpPtr(Pointer(PtrUInt(Raw) + SizeOf(Pointer)), AAlignment);
-  HeaderPtr := PPointer(PtrUInt(Result) - SizeOf(Pointer));
-  HeaderPtr^ := Raw; // store original pointer
+  LNeeded := ASize + AAlignment - 1 + SizeOf(Pointer);
+  LRaw := SysGetMem(LNeeded);
+  if LRaw = nil then Exit(nil);
+  Result := AlignUpPtr(Pointer(PtrUInt(LRaw) + SizeOf(Pointer)), AAlignment);
+  LHeaderPtr := PPointer(PtrUInt(Result) - SizeOf(Pointer));
+  LHeaderPtr^ := LRaw; // store original pointer
 end;
 
 procedure FreeAligned(APtr: Pointer);
 var
-  Raw: Pointer;
-  HeaderPtr: PPointer;
+  LRaw: Pointer;
+  LHeaderPtr: PPointer;
 begin
   if APtr = nil then Exit;
 
@@ -100,9 +100,9 @@ begin
   {$ENDIF}
 
   // Fallback: load original pointer and free it
-  HeaderPtr := PPointer(PtrUInt(APtr) - SizeOf(Pointer));
-  Raw := HeaderPtr^;
-  SysFreeMem(Raw);
+  LHeaderPtr := PPointer(PtrUInt(APtr) - SizeOf(Pointer));
+  LRaw := LHeaderPtr^;
+  SysFreeMem(LRaw);
 end;
 
 end.

@@ -28,7 +28,7 @@
     </RunParams>
     <Units>
       <Unit>
-        <Filename Value="example_advanced_patterns.lpr"/>
+        <Filename Value="bin/example_advanced_patterns"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>

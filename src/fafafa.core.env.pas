@@ -9,7 +9,8 @@ unit fafafa.core.env;
 interface
 
 uses
-  SysUtils, Classes
+  SysUtils, Classes,
+  fafafa.core.base  // ✅ ENV-001: 引入 ECore 基类
   {$IFDEF ANDROID}
   , BaseUnix
   {$ENDIF}
@@ -162,7 +163,7 @@ type
   end;
 
   // Exception
-  EEnvVarNotFound = class(Exception);
+  EEnvVarNotFound = class(ECore);  // ✅ ENV-001: 继承自 ECore
 
 {$IFDEF FAFAFA_ENV_ENABLE_RESULT}
   // Result types
@@ -2015,4 +2016,3 @@ begin
 end;
 
 end.
-

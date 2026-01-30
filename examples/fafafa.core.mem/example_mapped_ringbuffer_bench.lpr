@@ -1,6 +1,6 @@
 program example_mapped_ringbuffer_bench;
 {$mode objfpc}{$H+}
-{$I fafafa.core.settings.inc}
+{$I ../../src/fafafa.core.settings.inc}
 
 uses
   SysUtils, Classes, Math, fafafa.core.mem.mappedRingBuffer,

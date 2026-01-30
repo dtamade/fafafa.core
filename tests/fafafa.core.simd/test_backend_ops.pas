@@ -4,6 +4,7 @@ program test_backend_ops;
 
 uses
   SysUtils,
+  fafafa.core.math,
   fafafa.core.simd.base,
   fafafa.core.simd.backend.iface,
   fafafa.core.simd.backend.adapter,

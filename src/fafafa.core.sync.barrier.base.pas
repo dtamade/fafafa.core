@@ -36,6 +36,19 @@ unit fafafa.core.sync.barrier.base;
   - The base barrier deliberately provides no timeout/reset/interruption semantics;
     use higher-level constructs (e.g., namedBarrier or a CyclicBarrier-style API)
     if such features are required.
+
+  Reuse Mechanism (Automatic Generation Advancement):
+  - The barrier supports automatic reuse through a generation counter mechanism.
+  - After all participants reach the barrier, it automatically advances to the
+    next generation (phase), allowing the same barrier to be reused for multiple
+    synchronization points.
+  - This design is similar to Java's CyclicBarrier (automatic reuse) rather than
+    CountDownLatch (one-time use).
+  - No manual Reset() method is provided by design, as automatic generation
+    advancement is safer in concurrent environments and avoids race conditions
+    where some threads might still be waiting when Reset() is called.
+  - The generation number can be retrieved via WaitEx().Generation to track
+    which phase the barrier is in.
 }
 
 interface

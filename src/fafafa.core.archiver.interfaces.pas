@@ -7,10 +7,11 @@ unit fafafa.core.archiver.interfaces;
 interface
 
 uses
-  Classes, SysUtils;
+  Classes, SysUtils,
+  fafafa.core.base;  // ✅ ARCHIVER-001: 引入 ECore 基类
 
 type
-  EArchiverError = class(Exception);
+  EArchiverError = class(ECore);  // ✅ ARCHIVER-001: 继承自 ECore
 
   TArchiveFormat = (
     afTar,
@@ -69,4 +70,3 @@ type
 implementation
 
 end.
-

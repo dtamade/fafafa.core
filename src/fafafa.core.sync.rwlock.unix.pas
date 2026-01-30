@@ -34,6 +34,7 @@ type
     // IRWLockReadGuard 接口 (继承自 IGuard)
     function IsLocked: Boolean;
     procedure Release;
+    procedure Unlock;  // Alias for Release
   end;
 
   // ===== 写锁守卫实现 =====
@@ -51,6 +52,7 @@ type
     // IRWLockWriteGuard 接口 (继承自 IGuard)
     function IsLocked: Boolean;
     procedure Release;
+    procedure Unlock;  // Alias for Release
     function Downgrade: IRWLockReadGuard;
   end;
 
@@ -158,6 +160,9 @@ type
     function IsPoisoned: Boolean;
     procedure ClearPoison;
     procedure MarkPoisoned(const AExceptionMessage: string);
+
+    // ===== 公平性策略查询 =====
+    function GetFairness: TRWLockFairness;
 
     // ===== 性能监控接口实现 =====
     function GetPerformanceStats: TLockPerformanceStats;
@@ -287,6 +292,11 @@ begin
   end;
 end;
 
+procedure TRWLockReadGuard.Unlock;
+begin
+  Release;  // Unlock is an alias for Release
+end;
+
 { TRWLockWriteGuard }
 
 function TRWLockWriteGuard.GetLock: TRWLock;
@@ -342,6 +352,11 @@ begin
       FReleased := True;
     end;
   end;
+end;
+
+procedure TRWLockWriteGuard.Unlock;
+begin
+  Release;  // Unlock is an alias for Release
 end;
 
 function TRWLockWriteGuard.Downgrade: IRWLockReadGuard;
@@ -1940,6 +1955,11 @@ begin
     FPoisoningThreadId := GetCurrentThreadId;
     FPoisoningException := AExceptionMessage;
   end;
+end;
+
+function TRWLock.GetFairness: TRWLockFairness;
+begin
+  Result := FOptions.Fairness;
 end;
 
 end.

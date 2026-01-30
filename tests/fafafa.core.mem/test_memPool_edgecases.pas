@@ -15,29 +15,23 @@ type
   { TTestCase_MemPool_EdgeCases }
   TTestCase_MemPool_EdgeCases = class(TTestCase)
   published
-    procedure Test_Free_NilPointer_Raises;
+    procedure Test_Release_NilPointer_NoOp;
     procedure Test_DoubleFree_Raises;
-    procedure Test_Free_InvalidPointer_Raises;
+    procedure Test_Release_InvalidPointer_Raises;
   end;
 
 implementation
 
 { TTestCase_MemPool_EdgeCases }
 
-procedure TTestCase_MemPool_EdgeCases.Test_Free_NilPointer_Raises;
+procedure TTestCase_MemPool_EdgeCases.Test_Release_NilPointer_NoOp;
 var
   LPool: TMemPool;
 begin
   LPool := TMemPool.Create(16, 2);
   try
-    try
-      LPool.Free(nil);
-      Fail('Expected EMemPoolInvalidPointer to be raised for nil pointer');
-    except
-      on E: EMemPoolInvalidPointer do ;
-      on E: Exception do
-        Fail('Unexpected exception type: ' + E.ClassName + ' - ' + E.Message);
-    end;
+    LPool.ReleasePtr(nil);
+    AssertEquals(0, LPool.AllocatedCount);
   finally
     LPool.Destroy;
   end;
@@ -52,9 +46,9 @@ begin
   try
     P := LPool.Alloc;
     AssertNotNull('Allocation should succeed', P);
-    LPool.Free(P); // first free OK
+    LPool.ReleasePtr(P); // first free OK
     try
-      LPool.Free(P); // second free should raise
+      LPool.ReleasePtr(P); // second free should raise
       Fail('Expected EMemPoolDoubleFree to be raised on double free');
     except
       on E: EMemPoolDoubleFree do ;
@@ -66,7 +60,7 @@ begin
   end;
 end;
 
-procedure TTestCase_MemPool_EdgeCases.Test_Free_InvalidPointer_Raises;
+procedure TTestCase_MemPool_EdgeCases.Test_Release_InvalidPointer_Raises;
 var
   LPool: TMemPool;
   LInvalid: Pointer;
@@ -77,7 +71,7 @@ begin
     LInvalid := GetRtlAllocator.GetMem(8);
     try
       try
-        LPool.Free(LInvalid);
+        LPool.ReleasePtr(LInvalid);
         Fail('Expected EMemPoolInvalidPointer to be raised for foreign pointer');
       except
         on E: EMemPoolInvalidPointer do ;

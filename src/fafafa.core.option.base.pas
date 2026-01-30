@@ -19,17 +19,30 @@ unit fafafa.core.option.base;
 interface
 
 uses
-  SysUtils;
+  SysUtils,
+  fafafa.core.base;  // ✅ OPT-001: 引入 ECore 基类
+
+const
+  {** 模块版本 | Module version *}
+  FAFAFA_CORE_OPTION_BASE_VERSION = '1.0.0';
 
 type
   { EOptionUnwrapError - Option 解包错误 }
-  EOptionUnwrapError = class(Exception);
+  EOptionUnwrapError = class(ECore);  // ✅ OPT-001: 继承自 ECore
 
   { 函数类型定义 }
+  {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
   generic TOptionFunc<TArg, TRes> = reference to function (const Arg: TArg): TRes;
   generic TOptionProc<TArg> = reference to procedure (const Arg: TArg);
   generic TOptionThunk<TResult> = reference to function: TResult;
   generic TOptionBiPred<T1, T2> = reference to function(const A: T1; const B: T2): Boolean;
+  {$ELSE}
+  // FPC 3.2.x 兼容：使用传统函数指针类型
+  generic TOptionFunc<TArg, TRes> = function (const Arg: TArg): TRes;
+  generic TOptionProc<TArg> = procedure (const Arg: TArg);
+  generic TOptionThunk<TResult> = function: TResult;
+  generic TOptionBiPred<T1, T2> = function(const A: T1; const B: T2): Boolean;
+  {$ENDIF}
 
   { TOption<T> - 可选值类型
 
@@ -48,12 +61,13 @@ type
   private
     FHas: Boolean;
     FValue: T;
+    class operator Initialize(var aRec: TOption);  // ✅ FIX: 确保默认为 None
   public
     { 内部使用：无检查访问器 }
     function GetValueUnchecked: T; inline;
 
     { 构造 }
-    class function Some(const AValue: T): TOption; static; inline;
+    class function Some(const aValue: T): TOption; static; inline;
     class function None: TOption; static; inline;
 
     { 查询 }
@@ -62,38 +76,44 @@ type
 
     { 取值 }
     function Unwrap: T; inline;              // None -> EOptionUnwrapError
-    function UnwrapOr(const ADefault: T): T; inline;
-    function UnwrapOrElse(const F: specialize TOptionThunk<T>): T; inline;
+    function UnwrapOr(const aDefault: T): T; inline;
+    function UnwrapOrElse(const aF: specialize TOptionThunk<T>): T; inline;
     function UnwrapOrDefault: T; inline;
-    function Expect(const AMsg: string): T; inline; // None -> EOptionUnwrapError(AMsg)
+    function Expect(const aMsg: string): T; inline; // None -> EOptionUnwrapError(aMsg)
 
     { 安全取值 }
-    function TryUnwrap(out AValue: T): Boolean; inline;
+    function TryUnwrap(out aValue: T): Boolean; inline;
 
     { 组合子方法 }
-    function Inspect(const F: specialize TOptionProc<T>): TOption; inline;
-    function ToDebugString(const Printer: specialize TOptionFunc<T, string>): string;
+    function Inspect(const aF: specialize TOptionProc<T>): TOption; inline;
+    function ToDebugString(const aPrinter: specialize TOptionFunc<T, string>): string;
 
     { 谓词检查 }
-    function IsSomeAnd(const Pred: specialize TOptionFunc<T, Boolean>): Boolean; inline;
-    function Contains(const V: T; const Eq: specialize TOptionBiPred<T, T>): Boolean; inline;
+    function IsSomeAnd(const aPred: specialize TOptionFunc<T, Boolean>): Boolean; inline;
+    function Contains(const aValue: T; const aEq: specialize TOptionBiPred<T, T>): Boolean; inline;
 
     { 逻辑组合 }
-    function Or_(const Other: TOption): TOption; inline;
-    function And_(const Other: TOption): TOption; inline;
-    function Xor_(const Other: TOption): TOption; inline;
+    function Or_(const aOther: TOption): TOption; inline;
+    function And_(const aOther: TOption): TOption; inline;
+    function Xor_(const aOther: TOption): TOption; inline;
   end;
 
 implementation
 
-uses
-  fafafa.core.base;
-
 { TOption<T> }
-class function TOption.Some(const AValue: T): TOption;
+
+class operator TOption.Initialize(var aRec: TOption);
+begin
+  // ✅ FIX: 确保未初始化的变量默认为 None 状态
+  // 与 TResult 保持一致的初始化语义
+  aRec.FHas := False;
+  aRec.FValue := Default(T);
+end;
+
+class function TOption.Some(const aValue: T): TOption;
 begin
   Result.FHas := True;
-  Result.FValue := AValue;
+  Result.FValue := aValue;
 end;
 
 class function TOption.None: TOption;
@@ -119,23 +139,23 @@ begin
   Result := FValue;
 end;
 
-function TOption.UnwrapOr(const ADefault: T): T;
+function TOption.UnwrapOr(const aDefault: T): T;
 begin
   if FHas then
     Result := FValue
   else
-    Result := ADefault;
+    Result := aDefault;
 end;
 
-function TOption.UnwrapOrElse(const F: specialize TOptionThunk<T>): T;
+function TOption.UnwrapOrElse(const aF: specialize TOptionThunk<T>): T;
 begin
   if FHas then
     Exit(FValue);
 
-  if F = nil then
-    raise EArgumentNil.Create('F is nil');
+  if aF = nil then
+    raise EArgumentNil.Create('aF is nil');
 
-  Result := F();
+  Result := aF();
 end;
 
 function TOption.UnwrapOrDefault: T;
@@ -146,23 +166,23 @@ begin
     Result := Default(T);
 end;
 
-function TOption.Expect(const AMsg: string): T;
+function TOption.Expect(const aMsg: string): T;
 begin
   if not FHas then
-    raise EOptionUnwrapError.Create(AMsg);
+    raise EOptionUnwrapError.Create(aMsg);
   Result := FValue;
 end;
 
-function TOption.TryUnwrap(out AValue: T): Boolean;
+function TOption.TryUnwrap(out aValue: T): Boolean;
 begin
   if FHas then
   begin
-    AValue := FValue;
+    aValue := FValue;
     Result := True;
   end
   else
   begin
-    AValue := Default(T);
+    aValue := Default(T);
     Result := False;
   end;
 end;
@@ -172,23 +192,23 @@ begin
   Result := FValue;
 end;
 
-function TOption.Inspect(const F: specialize TOptionProc<T>): TOption;
+function TOption.Inspect(const aF: specialize TOptionProc<T>): TOption;
 begin
   if FHas then
   begin
-    if F = nil then
-      raise EArgumentNil.Create('F is nil');
-    F(FValue);
+    if aF = nil then
+      raise EArgumentNil.Create('aF is nil');
+    aF(FValue);
   end;
   Result := Self;
 end;
 
-function TOption.ToDebugString(const Printer: specialize TOptionFunc<T, string>): string;
+function TOption.ToDebugString(const aPrinter: specialize TOptionFunc<T, string>): string;
 begin
   if FHas then
   begin
-    if Assigned(Printer) then
-      Result := 'Some(' + Printer(FValue) + ')'
+    if Assigned(aPrinter) then
+      Result := 'Some(' + aPrinter(FValue) + ')'
     else
       Result := 'Some(?)';
   end
@@ -196,52 +216,52 @@ begin
     Result := 'None';
 end;
 
-function TOption.IsSomeAnd(const Pred: specialize TOptionFunc<T, Boolean>): Boolean;
+function TOption.IsSomeAnd(const aPred: specialize TOptionFunc<T, Boolean>): Boolean;
 begin
   if FHas then
   begin
-    if Pred = nil then
-      raise EArgumentNil.Create('Pred is nil');
-    Result := Pred(FValue);
+    if aPred = nil then
+      raise EArgumentNil.Create('aPred is nil');
+    Result := aPred(FValue);
   end
   else
     Result := False;
 end;
 
-function TOption.Contains(const V: T; const Eq: specialize TOptionBiPred<T, T>): Boolean;
+function TOption.Contains(const aValue: T; const aEq: specialize TOptionBiPred<T, T>): Boolean;
 begin
   if FHas then
   begin
-    if Eq = nil then
-      raise EArgumentNil.Create('Eq is nil');
-    Result := Eq(FValue, V);
+    if aEq = nil then
+      raise EArgumentNil.Create('aEq is nil');
+    Result := aEq(FValue, aValue);
   end
   else
     Result := False;
 end;
 
-function TOption.Or_(const Other: TOption): TOption;
+function TOption.Or_(const aOther: TOption): TOption;
 begin
   if FHas then
     Result := Self
   else
-    Result := Other;
+    Result := aOther;
 end;
 
-function TOption.And_(const Other: TOption): TOption;
+function TOption.And_(const aOther: TOption): TOption;
 begin
   if FHas then
-    Result := Other
+    Result := aOther
   else
     Result := Self;
 end;
 
-function TOption.Xor_(const Other: TOption): TOption;
+function TOption.Xor_(const aOther: TOption): TOption;
 begin
-  if FHas and (not Other.FHas) then
+  if FHas and (not aOther.FHas) then
     Result := Self
-  else if (not FHas) and Other.FHas then
-    Result := Other
+  else if (not FHas) and aOther.FHas then
+    Result := aOther
   else
     Result := specialize TOption<T>.None;
 end;

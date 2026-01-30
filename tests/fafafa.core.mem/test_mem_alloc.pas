@@ -168,14 +168,14 @@ begin
   Check(LResult.Ptr = nil, 'Realloc to zero returns nil');
 end;
 
-procedure TestSimpleBlockPool;
+procedure TestBlockPool;
 var
   LPool: IBlockPool;
   LP1, LP2, LP3: Pointer;
 begin
-  WriteLn('=== TSimpleBlockPool ===');
+  WriteLn('=== TBlockPool ===');
 
-  LPool := TSimpleBlockPool.Create(64, 10);
+  LPool := TBlockPool.Create(64, 10);
   Check(LPool.BlockSize = 64, 'BlockSize = 64');
   Check(LPool.Capacity = 10, 'Capacity = 10');
   Check(LPool.Available = 10, 'Initially all available');
@@ -230,7 +230,7 @@ var
 begin
   WriteLn('=== BlockPool Exhaustion ===');
 
-  LPool := TSimpleBlockPool.Create(32, 10);
+  LPool := TBlockPool.Create(32, 10);
 
   // 分配所有
   for I := 0 to 9 do
@@ -259,16 +259,16 @@ begin
   LPool.Reset;
 end;
 
-procedure TestSimpleArena;
+procedure TestArena;
 var
   LArena: IArena;
   LResult: TAllocResult;
   LP1, LP2, LP3: Pointer;
   LMark: TArenaMarker;
 begin
-  WriteLn('=== TSimpleArena ===');
+  WriteLn('=== TArena ===');
 
-  LArena := TSimpleArena.Create(4096);
+  LArena := TArena.Create(4096);
   Check(LArena.TotalSize = 4096, 'TotalSize = 4096');
   Check(LArena.UsedSize = 0, 'Initially UsedSize = 0');
   Check(LArena.RemainingSize = 4096, 'Initially RemainingSize = 4096');
@@ -317,7 +317,7 @@ var
 begin
   WriteLn('=== Arena Exhaustion ===');
 
-  LArena := TSimpleArena.Create(1024);
+  LArena := TArena.Create(1024);
 
   // 分配接近满
   LResult := LArena.Alloc(TMemLayout.Create(900, 8));
@@ -343,7 +343,7 @@ var
 begin
   WriteLn('=== AllocZeroed ===');
 
-  LArena := TSimpleArena.Create(4096);
+  LArena := TArena.Create(4096);
 
   // 先分配并填充非零数据
   LResult := LArena.Alloc(TMemLayout.Create(256, 8));
@@ -377,9 +377,9 @@ begin
   TestSystemAlloc;
   TestAlignedAlloc;
   TestRealloc;
-  TestSimpleBlockPool;
+  TestBlockPool;
   TestBlockPoolExhaustion;
-  TestSimpleArena;
+  TestArena;
   TestArenaExhaustion;
   TestAllocZeroed;
 

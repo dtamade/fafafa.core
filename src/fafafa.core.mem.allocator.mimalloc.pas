@@ -58,19 +58,61 @@ implementation
     _mi_free: procedure(aPtr: Pointer); cdecl = nil;
     GLoadLock: TRTLCriticalSection;
 
+  function GetPlatformLibSubdir: string;
+  begin
+    // 使用 FPC 内置的目标平台常量，与 lazbuild 输出目录一致
+    Result := LowerCase({$I %FPCTARGETCPU%}) + '-' + LowerCase({$I %FPCTARGETOS%});
+  end;
+
+  function TryLoadFromPath(const aBasePath, aLibName: string): TLibHandle;
+  var
+    FullPath: string;
+  begin
+    FullPath := aBasePath + aLibName;
+    Result := LoadLibrary(PChar(FullPath));
+  end;
+
   function TryLoadMimallocLibrary: TLibHandle;
   var
-    EnvPath: AnsiString;
+    EnvPath, ExePath, LibSubdir: AnsiString;
   begin
     Result := 0;
+
+    // 1. 环境变量优先（用户可完全控制）
+    {$IFDEF MSWINDOWS}
+    EnvPath := GetEnvironmentVariable('FAFAFA_MIMALLOC_DLL');
+    {$ELSE}
+    EnvPath := GetEnvironmentVariable('FAFAFA_MIMALLOC_SO');
+    {$ENDIF}
+    if (EnvPath <> '') then
+    begin
+      Result := LoadLibrary(PChar(EnvPath));
+      if Result <> 0 then Exit;
+    end;
+
+    // 2. 程序目录下的 lib/<platform>/ 目录
+    ExePath := ExtractFilePath(ParamStr(0));
+    LibSubdir := GetPlatformLibSubdir;
+    if LibSubdir <> '' then
+    begin
+      {$IFDEF MSWINDOWS}
+      Result := TryLoadFromPath(ExePath + 'lib' + DirectorySeparator + LibSubdir + DirectorySeparator, 'mimalloc.dll');
+      if Result = 0 then
+        Result := TryLoadFromPath(ExePath + 'lib' + DirectorySeparator + LibSubdir + DirectorySeparator, 'mimalloc-redirect.dll');
+      {$ELSE}
+      Result := TryLoadFromPath(ExePath + 'lib' + DirectorySeparator + LibSubdir + DirectorySeparator, 'libmimalloc.so');
+      if Result = 0 then
+        Result := TryLoadFromPath(ExePath + 'lib' + DirectorySeparator + LibSubdir + DirectorySeparator, 'libmimalloc.so.2');
+      {$ENDIF}
+      if Result <> 0 then Exit;
+    end;
+
+    // 3. 系统路径回退
     {$IFDEF MSWINDOWS}
     Result := LoadLibrary('mimalloc.dll');
     if Result = 0 then Result := LoadLibrary('mimalloc-redirect.dll');
     {$ELSE}
-    // Allow env override: FAFAFA_MIMALLOC_SO=/custom/path/libmimalloc.so
-    EnvPath := GetEnvironmentVariable('FAFAFA_MIMALLOC_SO');
-    if (EnvPath <> '') then Result := LoadLibrary(PChar(EnvPath));
-    if Result = 0 then Result := LoadLibrary('libmimalloc.so');
+    Result := LoadLibrary('libmimalloc.so');
     if Result = 0 then Result := LoadLibrary('libmimalloc.so.2');
     if Result = 0 then Result := LoadLibrary('mimalloc');
     {$ENDIF}

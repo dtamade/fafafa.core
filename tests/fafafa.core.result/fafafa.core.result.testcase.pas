@@ -212,6 +212,48 @@ type
     procedure Test_OptionTranspose_SomeErr_ReturnsErr;
   end;
 
+  { 边界情况测试 - Phase 3.2 }
+  TTestCase_TResult_EdgeCases = class(TTestCase)
+  published
+    { Batch 1: TryUnwrapErr 边界测试 }
+    procedure Test_TryUnwrapErr_Ok_OverwritesOutParam;
+    procedure Test_TryUnwrapErr_Err_MultipleCallsSameVar;
+    { Batch 2: UnwrapUnchecked 边界测试 }
+    procedure Test_UnwrapUnchecked_Performance_Comparison;
+    procedure Test_UnwrapErrUnchecked_Performance_Comparison;
+    { Batch 3: 复杂嵌套测试 }
+    procedure Test_Flatten_TripleNested;
+    procedure Test_Transpose_ComplexNesting;
+  end;
+
+  { 增强边界测试 - Phase 3.6 }
+  TTestCase_TResult_EnhancedBoundary = class(TTestCase)
+  published
+    { Batch 1: 默认初始化和边界测试 }
+    procedure Test_Default_Init_IsErr_ReturnsTrue;
+    procedure Test_Default_Init_Unwrap_Raises;
+    procedure Test_Ok_EmptyString_Operations;
+    procedure Test_Err_EmptyString_Operations;
+    procedure Test_Ok_MaxInt64_Unwrap;
+    procedure Test_Ok_MinInt64_Unwrap;
+    { Batch 2: 组合子链式调用测试 }
+    procedure Test_Map_AndThen_MapErr_LongChain;
+    procedure Test_Filter_Map_OrElse_Chain;
+    procedure Test_Inspect_Map_InspectErr_Chain;
+    procedure Test_Flatten_QuadrupleNested;
+    procedure Test_MapBoth_AndThen_Chain;
+    procedure Test_Swap_Swap_Identity;
+    procedure Test_OrElse_AndThen_Chain;
+    { Batch 3: 错误上下文和边界测试 }
+    procedure Test_TErrorCtx_EmptyMsg;
+    procedure Test_TErrorCtx_NestedErrorCtx;
+    procedure Test_ResultContextE_MultipleChain;
+    procedure Test_Equals_CustomEq_CaseInsensitive;
+    procedure Test_ToString_SpecialChars;
+    procedure Test_TryCollectPtrIntoArray_EmptyArray;
+    procedure Test_ResultZip_MultipleResults;
+  end;
+
   { 快速接口测试 - Phase 5 (M3) }
   TTestCase_TResult_FastAPI = class(TTestCase)
   published
@@ -260,6 +302,8 @@ uses
 type
   TIntResult = specialize TResult<Integer, string>;
   TStrResult = specialize TResult<string, Integer>;
+  TTupIntInt = specialize TTuple2<Integer, Integer>;
+  TTupIntIntResult = specialize TResult<TTupIntInt, string>;
 
 { 辅助函数 }
 function IncOne(const X: Integer): Integer;
@@ -297,6 +341,11 @@ begin
   Result := A = B;
 end;
 
+function StrToStrFunc(const S: string): string;
+begin
+  Result := S;
+end;
+
 function IsPositive(const X: Integer): Boolean;
 begin
   Result := X > 0;
@@ -332,6 +381,28 @@ end;
 function StrToEx(const S: string): Exception;
 begin
   Result := Exception.Create(S);
+end;
+
+{ Batch 2 辅助函数 }
+function IncOneResult(const X: Integer): TIntResult;
+begin
+  Result := TIntResult.Ok(X + 1);
+end;
+
+function MakeErrMsg(const X: Integer): string;
+begin
+  Result := 'Error: ' + IntToStr(X);
+end;
+
+function AppendBangResult(const S: string): TStrResult;
+begin
+  Result := TStrResult.Ok(S + '!');
+end;
+
+function RecoverFromErr(const E: string): TIntResult;
+begin
+  if E = E then; // suppress hint
+  Result := TIntResult.Ok(0);
 end;
 
 var
@@ -1405,15 +1476,23 @@ var
   R: TIntResult;
   F: specialize TResultFunc<Integer, Integer>;
 begin
+  {$IFDEF DEBUG}
+  // ✅ Phase 4.2.2: nil 检查仅在 Debug 模式下有效
+  // Release 模式下跳过此测试，因为 nil 检查已被移除以提升性能
   R := TIntResult.Ok(1);
   F := nil;
   try
     specialize ResultMap<Integer, string, Integer>(R, F);
-    Fail('Expected exception: F is nil');
+    Fail('Expected exception: aF is nil');
   except
     on E: EArgumentNil do
-      CheckEquals('F is nil', E.Message);
+      CheckEquals('aF is nil', E.Message);
   end;
+  {$ELSE}
+  // Release 模式：nil 检查已移除，测试自动通过
+  if R.IsOk then; // suppress unused variable warning
+  if F = F then;  // suppress unused variable warning
+  {$ENDIF}
 end;
 
 procedure TTestCase_TResult_CallbackContracts.Test_ResultMapErr_Err_NilMapper_Raises;
@@ -1421,15 +1500,22 @@ var
   R: TIntResult;
   F: specialize TResultFunc<string, Integer>;
 begin
+  {$IFDEF DEBUG}
+  // ✅ Phase 4.2.2: nil 检查仅在 Debug 模式下有效
   R := TIntResult.Err('e');
   F := nil;
   try
     specialize ResultMapErr<Integer, string, Integer>(R, F);
-    Fail('Expected exception: F is nil');
+    Fail('Expected exception: aF is nil');
   except
     on E: EArgumentNil do
-      CheckEquals('F is nil', E.Message);
+      CheckEquals('aF is nil', E.Message);
   end;
+  {$ELSE}
+  // Release 模式：nil 检查已移除，测试自动通过
+  if R.IsErr then; // suppress unused variable warning
+  if F = F then;   // suppress unused variable warning
+  {$ENDIF}
 end;
 
 procedure TTestCase_TResult_CallbackContracts.Test_ResultAndThen_Ok_NilFunc_Raises;
@@ -1437,15 +1523,22 @@ var
   R: TIntResult;
   F: specialize TResultFunc<Integer, TIntResult>;
 begin
+  {$IFDEF DEBUG}
+  // ✅ Phase 4.2.2: nil 检查仅在 Debug 模式下有效
   R := TIntResult.Ok(1);
   F := nil;
   try
     specialize ResultAndThen<Integer, string, Integer>(R, F);
-    Fail('Expected exception: F is nil');
+    Fail('Expected exception: aF is nil');
   except
     on E: EArgumentNil do
-      CheckEquals('F is nil', E.Message);
+      CheckEquals('aF is nil', E.Message);
   end;
+  {$ELSE}
+  // Release 模式：nil 检查已移除，测试自动通过
+  if R.IsOk then; // suppress unused variable warning
+  if F = F then;  // suppress unused variable warning
+  {$ENDIF}
 end;
 
 procedure TTestCase_TResult_CallbackContracts.Test_ResultOrElse_Err_NilRecover_Raises;
@@ -1453,15 +1546,22 @@ var
   R: TIntResult;
   F: specialize TResultFunc<string, TIntResult>;
 begin
+  {$IFDEF DEBUG}
+  // ✅ Phase 4.2.2: nil 检查仅在 Debug 模式下有效
   R := TIntResult.Err('e');
   F := nil;
   try
     specialize ResultOrElse<Integer, string, string>(R, F);
-    Fail('Expected exception: F is nil');
+    Fail('Expected exception: aF is nil');
   except
     on E: EArgumentNil do
-      CheckEquals('F is nil', E.Message);
+      CheckEquals('aF is nil', E.Message);
   end;
+  {$ELSE}
+  // Release 模式：nil 检查已移除，测试自动通过
+  if R.IsErr then; // suppress unused variable warning
+  if F = F then;   // suppress unused variable warning
+  {$ENDIF}
 end;
 
 procedure TTestCase_TResult_CallbackContracts.Test_ResultMapOr_Ok_NilMapper_Raises;
@@ -1470,16 +1570,24 @@ var
   F: specialize TResultFunc<Integer, Integer>;
   V: Integer;
 begin
+  {$IFDEF DEBUG}
+  // ✅ Phase 4.2.2: nil 检查仅在 Debug 模式下有效
   R := TIntResult.Ok(1);
   F := nil;
   try
     V := specialize ResultMapOr<Integer, string, Integer>(R, 0, F);
     if V = V then; // suppress hint
-    Fail('Expected exception: F is nil');
+    Fail('Expected exception: aF is nil');
   except
     on E: EArgumentNil do
-      CheckEquals('F is nil', E.Message);
+      CheckEquals('aF is nil', E.Message);
   end;
+  {$ELSE}
+  // Release 模式：nil 检查已移除，测试自动通过
+  if R.IsOk then; // suppress unused variable warning
+  if F = F then;  // suppress unused variable warning
+  V := 0;         // suppress unused variable warning
+  {$ENDIF}
 end;
 
 procedure TTestCase_TResult_CallbackContracts.Test_ResultMapOrElse_Ok_NilOkMapper_Raises;
@@ -1489,6 +1597,8 @@ var
   Fok: specialize TResultFunc<Integer, Integer>;
   V: Integer;
 begin
+  {$IFDEF DEBUG}
+  // ✅ Phase 4.2.2: nil 检查仅在 Debug 模式下有效
   R := TIntResult.Ok(1);
   Ferr := function(const S: string): Integer
   begin
@@ -1499,11 +1609,18 @@ begin
   try
     V := specialize ResultMapOrElse<Integer, string, Integer>(R, Ferr, Fok);
     if V = V then; // suppress hint
-    Fail('Expected exception: Fok is nil');
+    Fail('Expected exception: aFok is nil');
   except
     on E: EArgumentNil do
-      CheckEquals('Fok is nil', E.Message);
+      CheckEquals('aFok is nil', E.Message);
   end;
+  {$ELSE}
+  // Release 模式：nil 检查已移除，测试自动通过
+  if R.IsOk then;  // suppress unused variable warning
+  Ferr := nil;     // suppress unused variable warning
+  Fok := nil;      // suppress unused variable warning
+  V := 0;          // suppress unused variable warning
+  {$ENDIF}
 end;
 
 procedure TTestCase_TResult_CallbackContracts.Test_ResultMapOrElse_Err_NilErrMapper_Raises;
@@ -1513,6 +1630,8 @@ var
   Fok: specialize TResultFunc<Integer, Integer>;
   V: Integer;
 begin
+  {$IFDEF DEBUG}
+  // ✅ Phase 4.2.2: nil 检查仅在 Debug 模式下有效
   R := TIntResult.Err('abc');
   Ferr := nil;
   Fok := function(const X: Integer): Integer
@@ -1523,11 +1642,18 @@ begin
   try
     V := specialize ResultMapOrElse<Integer, string, Integer>(R, Ferr, Fok);
     if V = V then; // suppress hint
-    Fail('Expected exception: Ferr is nil');
+    Fail('Expected exception: aFerr is nil');
   except
     on E: EArgumentNil do
-      CheckEquals('Ferr is nil', E.Message);
+      CheckEquals('aFerr is nil', E.Message);
   end;
+  {$ELSE}
+  // Release 模式：nil 检查已移除，测试自动通过
+  if R.IsErr then; // suppress unused variable warning
+  Ferr := nil;     // suppress unused variable warning
+  Fok := nil;      // suppress unused variable warning
+  V := 0;          // suppress unused variable warning
+  {$ENDIF}
 end;
 
 procedure TTestCase_TResult_CallbackContracts.Test_ResultMatch_Ok_NilOkHandler_Raises;
@@ -1537,6 +1663,8 @@ var
   Ferr: specialize TResultFunc<string, Integer>;
   V: Integer;
 begin
+  {$IFDEF DEBUG}
+  // ✅ Phase 4.2.2: nil 检查仅在 Debug 模式下有效
   R := TIntResult.Ok(1);
   Fok := nil;
   Ferr := function(const S: string): Integer
@@ -1547,11 +1675,18 @@ begin
   try
     V := specialize ResultMatch<Integer, string, Integer>(R, Fok, Ferr);
     if V = V then; // suppress hint
-    Fail('Expected exception: Fok is nil');
+    Fail('Expected exception: aFok is nil');
   except
     on E: EArgumentNil do
-      CheckEquals('Fok is nil', E.Message);
+      CheckEquals('aFok is nil', E.Message);
   end;
+  {$ELSE}
+  // Release 模式：nil 检查已移除，测试自动通过
+  if R.IsOk then; // suppress unused variable warning
+  Fok := nil;     // suppress unused variable warning
+  Ferr := nil;    // suppress unused variable warning
+  V := 0;         // suppress unused variable warning
+  {$ENDIF}
 end;
 
 procedure TTestCase_TResult_CallbackContracts.Test_ResultMatch_Err_NilErrHandler_Raises;
@@ -1561,6 +1696,8 @@ var
   Ferr: specialize TResultFunc<string, Integer>;
   V: Integer;
 begin
+  {$IFDEF DEBUG}
+  // ✅ Phase 4.2.2: nil 检查仅在 Debug 模式下有效
   R := TIntResult.Err('abc');
   Fok := function(const X: Integer): Integer
   begin
@@ -1571,11 +1708,18 @@ begin
   try
     V := specialize ResultMatch<Integer, string, Integer>(R, Fok, Ferr);
     if V = V then; // suppress hint
-    Fail('Expected exception: Ferr is nil');
+    Fail('Expected exception: aFerr is nil');
   except
     on E: EArgumentNil do
-      CheckEquals('Ferr is nil', E.Message);
+      CheckEquals('aFerr is nil', E.Message);
   end;
+  {$ELSE}
+  // Release 模式：nil 检查已移除，测试自动通过
+  if R.IsErr then; // suppress unused variable warning
+  Fok := nil;      // suppress unused variable warning
+  Ferr := nil;     // suppress unused variable warning
+  V := 0;          // suppress unused variable warning
+  {$ENDIF}
 end;
 
 procedure TTestCase_TResult_CallbackContracts.Test_ResultMapBoth_Ok_NilOkMapper_Raises;
@@ -1585,6 +1729,8 @@ var
   Ferr: specialize TResultFunc<string, Integer>;
   OutR: specialize TResult<Integer, Integer>;
 begin
+  {$IFDEF DEBUG}
+  // ✅ Phase 4.2.2: nil 检查仅在 Debug 模式下有效
   R := TIntResult.Ok(1);
   Fok := nil;
   Ferr := function(const S: string): Integer
@@ -1595,11 +1741,18 @@ begin
   try
     OutR := specialize ResultMapBoth<Integer, string, Integer, Integer>(R, Fok, Ferr);
     if OutR.IsOk then; // suppress hint
-    Fail('Expected exception: Fok is nil');
+    Fail('Expected exception: aFok is nil');
   except
     on E: EArgumentNil do
-      CheckEquals('Fok is nil', E.Message);
+      CheckEquals('aFok is nil', E.Message);
   end;
+  {$ELSE}
+  // Release 模式：nil 检查已移除，测试自动通过
+  if R.IsOk then;   // suppress unused variable warning
+  Fok := nil;       // suppress unused variable warning
+  Ferr := nil;      // suppress unused variable warning
+  if OutR.IsOk then; // suppress unused variable warning
+  {$ENDIF}
 end;
 
 procedure TTestCase_TResult_CallbackContracts.Test_ResultMapBoth_Err_NilErrMapper_Raises;
@@ -1609,6 +1762,8 @@ var
   Ferr: specialize TResultFunc<string, Integer>;
   OutR: specialize TResult<Integer, Integer>;
 begin
+  {$IFDEF DEBUG}
+  // ✅ Phase 4.2.2: nil 检查仅在 Debug 模式下有效
   R := TIntResult.Err('abc');
   Fok := function(const X: Integer): Integer
   begin
@@ -1619,11 +1774,18 @@ begin
   try
     OutR := specialize ResultMapBoth<Integer, string, Integer, Integer>(R, Fok, Ferr);
     if OutR.IsErr then; // suppress hint
-    Fail('Expected exception: Ferr is nil');
+    Fail('Expected exception: aFerr is nil');
   except
     on E: EArgumentNil do
-      CheckEquals('Ferr is nil', E.Message);
+      CheckEquals('aFerr is nil', E.Message);
   end;
+  {$ELSE}
+  // Release 模式：nil 检查已移除，测试自动通过
+  if R.IsErr then;  // suppress unused variable warning
+  Fok := nil;       // suppress unused variable warning
+  Ferr := nil;      // suppress unused variable warning
+  if OutR.IsErr then; // suppress unused variable warning
+  {$ENDIF}
 end;
 
 procedure TTestCase_TResult_CallbackContracts.Test_ResultFilterOrElse_Ok_NilPred_Raises;
@@ -1633,6 +1795,8 @@ var
   Ferr: specialize TResultFunc<Integer, string>;
   OutR: TIntResult;
 begin
+  {$IFDEF DEBUG}
+  // ✅ Phase 4.2.2: nil 检查仅在 Debug 模式下有效
   R := TIntResult.Ok(1);
   Pred := nil;
   Ferr := function(const X: Integer): string
@@ -1644,11 +1808,18 @@ begin
   try
     OutR := specialize ResultFilterOrElse<Integer, string>(R, Pred, Ferr);
     if OutR.IsOk then; // suppress hint
-    Fail('Expected exception: Pred is nil');
+    Fail('Expected exception: aPred is nil');
   except
     on E: EArgumentNil do
-      CheckEquals('Pred is nil', E.Message);
+      CheckEquals('aPred is nil', E.Message);
   end;
+  {$ELSE}
+  // Release 模式：nil 检查已移除，测试自动通过
+  if R.IsOk then;  // suppress unused variable warning
+  Pred := nil;     // suppress unused variable warning
+  Ferr := nil;     // suppress unused variable warning
+  OutR := R;       // suppress unused variable warning
+  {$ENDIF}
 end;
 
 procedure TTestCase_TResult_CallbackContracts.Test_ResultFilterOrElse_Ok_PredFalse_NilErrFactory_Raises;
@@ -1658,6 +1829,8 @@ var
   Ferr: specialize TResultFunc<Integer, string>;
   OutR: TIntResult;
 begin
+  {$IFDEF DEBUG}
+  // ✅ Phase 4.2.2: nil 检查仅在 Debug 模式下有效
   R := TIntResult.Ok(1);
   Pred := function(const X: Integer): Boolean
   begin
@@ -1669,11 +1842,18 @@ begin
   try
     OutR := specialize ResultFilterOrElse<Integer, string>(R, Pred, Ferr);
     if OutR.IsErr then; // suppress hint
-    Fail('Expected exception: Ferr is nil');
+    Fail('Expected exception: aFerr is nil');
   except
     on E: EArgumentNil do
-      CheckEquals('Ferr is nil', E.Message);
+      CheckEquals('aFerr is nil', E.Message);
   end;
+  {$ELSE}
+  // Release 模式：nil 检查已移除，测试自动通过
+  if R.IsOk then;  // suppress unused variable warning
+  Pred := nil;     // suppress unused variable warning
+  Ferr := nil;     // suppress unused variable warning
+  OutR := R;       // suppress unused variable warning
+  {$ENDIF}
 end;
 
 procedure TTestCase_TResult_CallbackContracts.Test_ResultEnsureWith_False_NilThunk_Raises;
@@ -1728,10 +1908,10 @@ begin
   try
     Z := specialize ResultZipWith<Integer, string, string, string>(A, B, F);
     if Z.IsOk then; // suppress hint
-    Fail('Expected exception: F is nil');
+    Fail('Expected exception: aF is nil');
   except
     on E: EArgumentNil do
-      CheckEquals('F is nil', E.Message);
+      CheckEquals('aF is nil', E.Message);
   end;
 end;
 
@@ -1851,10 +2031,10 @@ begin
   try
     V := R.UnwrapOrElse(F);
     if V = V then; // suppress hint
-    Fail('Expected exception: F is nil');
+    Fail('Expected exception: aF is nil');
   except
     on E: EArgumentNil do
-      CheckEquals('F is nil', E.Message);
+      CheckEquals('aF is nil', E.Message);
   end;
 end;
 
@@ -1869,10 +2049,10 @@ begin
   try
     R2 := R.OrElseThunk(F);
     if R2.IsOk then; // suppress hint
-    Fail('Expected exception: F is nil');
+    Fail('Expected exception: aF is nil');
   except
     on E: EArgumentNil do
-      CheckEquals('F is nil', E.Message);
+      CheckEquals('aF is nil', E.Message);
   end;
 end;
 
@@ -1887,10 +2067,10 @@ begin
   try
     R2 := R.Inspect(F);
     if R2.IsOk then; // suppress hint
-    Fail('Expected exception: F is nil');
+    Fail('Expected exception: aF is nil');
   except
     on E: EArgumentNil do
-      CheckEquals('F is nil', E.Message);
+      CheckEquals('aF is nil', E.Message);
   end;
 end;
 
@@ -1905,10 +2085,10 @@ begin
   try
     R2 := R.InspectErr(F);
     if R2.IsErr then; // suppress hint
-    Fail('Expected exception: F is nil');
+    Fail('Expected exception: aF is nil');
   except
     on E: EArgumentNil do
-      CheckEquals('F is nil', E.Message);
+      CheckEquals('aF is nil', E.Message);
   end;
 end;
 
@@ -1924,10 +2104,10 @@ begin
   try
     B := R.IsOkAnd(Pred);
     if B then; // suppress hint
-    Fail('Expected exception: Pred is nil');
+    Fail('Expected exception: aPred is nil');
   except
     on E: EArgumentNil do
-      CheckEquals('Pred is nil', E.Message);
+      CheckEquals('aPred is nil', E.Message);
   end;
 end;
 
@@ -1943,10 +2123,10 @@ begin
   try
     B := R.IsErrAnd(Pred);
     if B then; // suppress hint
-    Fail('Expected exception: Pred is nil');
+    Fail('Expected exception: aPred is nil');
   except
     on E: EArgumentNil do
-      CheckEquals('Pred is nil', E.Message);
+      CheckEquals('aPred is nil', E.Message);
   end;
 end;
 
@@ -1962,10 +2142,10 @@ begin
   try
     B := R.Contains(1, Eq);
     if B then; // suppress hint
-    Fail('Expected exception: Eq is nil');
+    Fail('Expected exception: aEq is nil');
   except
     on E: EArgumentNil do
-      CheckEquals('Eq is nil', E.Message);
+      CheckEquals('aEq is nil', E.Message);
   end;
 end;
 
@@ -1981,10 +2161,10 @@ begin
   try
     B := R.ContainsErr('e', Eq);
     if B then; // suppress hint
-    Fail('Expected exception: Eq is nil');
+    Fail('Expected exception: aEq is nil');
   except
     on E: EArgumentNil do
-      CheckEquals('Eq is nil', E.Message);
+      CheckEquals('aEq is nil', E.Message);
   end;
 end;
 
@@ -2003,10 +2183,10 @@ begin
   try
     Res := A.Equals(B, EqT, EqE);
     if Res then; // suppress hint
-    Fail('Expected exception: EqT is nil');
+    Fail('Expected exception: aEqT is nil');
   except
     on E: EArgumentNil do
-      CheckEquals('EqT is nil', E.Message);
+      CheckEquals('aEqT is nil', E.Message);
   end;
 end;
 
@@ -2025,10 +2205,10 @@ begin
   try
     Res := A.Equals(B, EqT, EqE);
     if Res then; // suppress hint
-    Fail('Expected exception: EqE is nil');
+    Fail('Expected exception: aEqE is nil');
   except
     on E: EArgumentNil do
-      CheckEquals('EqE is nil', E.Message);
+      CheckEquals('aEqE is nil', E.Message);
   end;
 end;
 
@@ -2199,10 +2379,10 @@ begin
   try
     V := O.UnwrapOrElse(Thunk);
     if V = V then; // suppress hint
-    Fail('Expected exception: F is nil');
+    Fail('Expected exception: aF is nil');
   except
     on E: EArgumentNil do
-      CheckEquals('F is nil', E.Message);
+      CheckEquals('aF is nil', E.Message);
   end;
 end;
 
@@ -2219,10 +2399,10 @@ begin
   try
     O := O.Inspect(Proc);
     if O.IsSome then; // suppress hint
-    Fail('Expected exception: F is nil');
+    Fail('Expected exception: aF is nil');
   except
     on E: EArgumentNil do
-      CheckEquals('F is nil', E.Message);
+      CheckEquals('aF is nil', E.Message);
   end;
 end;
 
@@ -2240,10 +2420,10 @@ begin
   try
     B := O.IsSomeAnd(Pred);
     if B then; // suppress hint
-    Fail('Expected exception: Pred is nil');
+    Fail('Expected exception: aPred is nil');
   except
     on E: EArgumentNil do
-      CheckEquals('Pred is nil', E.Message);
+      CheckEquals('aPred is nil', E.Message);
   end;
 end;
 
@@ -2261,10 +2441,10 @@ begin
   try
     B := O.Contains(1, Eq);
     if B then; // suppress hint
-    Fail('Expected exception: Eq is nil');
+    Fail('Expected exception: aEq is nil');
   except
     on E: EArgumentNil do
-      CheckEquals('Eq is nil', E.Message);
+      CheckEquals('aEq is nil', E.Message);
   end;
 end;
 
@@ -2490,13 +2670,13 @@ var
   Pred: specialize TOptionFunc<Integer, Boolean>;
 begin
   Pred := function(const X: Integer): Boolean begin Result := X > 0; end;
-  
+
   O := TIntOption.Some(5);
   CheckTrue(O.IsSomeAnd(Pred));
-  
+
   O := TIntOption.Some(-1);
   CheckFalse(O.IsSomeAnd(Pred));
-  
+
   O := TIntOption.None;
   CheckFalse(O.IsSomeAnd(Pred));
 end;
@@ -2508,7 +2688,7 @@ begin
   O := TIntOption.Some(42);
   CheckTrue(O.Contains(42, @IntEqForOption));
   CheckFalse(O.Contains(99, @IntEqForOption));
-  
+
   O := TIntOption.None;
   CheckFalse(O.Contains(42, @IntEqForOption));
 end;
@@ -2522,12 +2702,12 @@ begin
   C := A.Or_(B);
   CheckTrue(C.IsSome);
   CheckEquals(1, C.Unwrap); // Some.Or_(*) returns first
-  
+
   A := TIntOption.None;
   C := A.Or_(B);
   CheckTrue(C.IsSome);
   CheckEquals(2, C.Unwrap); // None.Or_(Some) returns second
-  
+
   A := TIntOption.None;
   B := TIntOption.None;
   C := A.Or_(B);
@@ -2543,12 +2723,12 @@ begin
   C := A.And_(B);
   CheckTrue(C.IsSome);
   CheckEquals(2, C.Unwrap); // Some.And_(Some) returns second
-  
+
   A := TIntOption.Some(1);
   B := TIntOption.None;
   C := A.And_(B);
   CheckTrue(C.IsNone); // Some.And_(None) returns None
-  
+
   A := TIntOption.None;
   B := TIntOption.Some(2);
   C := A.And_(B);
@@ -2564,18 +2744,18 @@ begin
   C := A.Xor_(B);
   CheckTrue(C.IsSome);
   CheckEquals(1, C.Unwrap);
-  
+
   A := TIntOption.None;
   B := TIntOption.Some(2);
   C := A.Xor_(B);
   CheckTrue(C.IsSome);
   CheckEquals(2, C.Unwrap);
-  
+
   A := TIntOption.Some(1);
   B := TIntOption.Some(2);
   C := A.Xor_(B);
   CheckTrue(C.IsNone); // Both Some -> None
-  
+
   A := TIntOption.None;
   B := TIntOption.None;
   C := A.Xor_(B);
@@ -2593,7 +2773,7 @@ begin
   Flat := specialize OptionFlatten<Integer>(Outer);
   CheckTrue(Flat.IsSome);
   CheckEquals(42, Flat.Unwrap);
-  
+
   Outer := specialize TOption<TIntOption>.None;
   Flat := specialize OptionFlatten<Integer>(Outer);
   CheckTrue(Flat.IsNone);
@@ -2603,7 +2783,7 @@ procedure TTestCase_TOption_NewAPI.Test_Zip;
 var
   A: TIntOption;
   B: specialize TOption<string>;
-  Zipped: specialize TOption<specialize TPair<Integer, string>>;
+  Zipped: specialize TOption<specialize TTuple2<Integer, string>>;
 begin
   A := TIntOption.Some(42);
   B := specialize TOption<string>.Some('hello');
@@ -2611,7 +2791,7 @@ begin
   CheckTrue(Zipped.IsSome);
   CheckEquals(42, Zipped.Unwrap.First);
   CheckEquals('hello', Zipped.Unwrap.Second);
-  
+
   A := TIntOption.None;
   Zipped := specialize OptionZip<Integer, string>(A, B);
   CheckTrue(Zipped.IsNone);
@@ -3203,6 +3383,791 @@ begin
   CheckEquals('failed', R.UnwrapErr);
 end;
 
+{ TTestCase_TResult_EdgeCases - Phase 3.2 }
+
+procedure TTestCase_TResult_EdgeCases.Test_TryUnwrapErr_Ok_OverwritesOutParam;
+var
+  R: TIntResult;
+  E: string;
+begin
+  // 测试 Ok 时 out 参数是否被覆盖为默认值
+  E := 'previous value';
+  R := TIntResult.Ok(42);
+
+  CheckFalse(R.TryUnwrapErr(E), 'TryUnwrapErr on Ok should return false');
+  CheckEquals('', E, 'Out param should be overwritten with default value');
+end;
+
+procedure TTestCase_TResult_EdgeCases.Test_TryUnwrapErr_Err_MultipleCallsSameVar;
+var
+  R1, R2: TIntResult;
+  E: string;
+begin
+  // 测试连续调用 TryUnwrapErr 到同一个变量
+  R1 := TIntResult.Err('first error');
+  R2 := TIntResult.Err('second error');
+
+  CheckTrue(R1.TryUnwrapErr(E), 'First TryUnwrapErr should succeed');
+  CheckEquals('first error', E, 'First error should be extracted');
+
+  CheckTrue(R2.TryUnwrapErr(E), 'Second TryUnwrapErr should succeed');
+  CheckEquals('second error', E, 'Second error should overwrite first');
+end;
+
+procedure TTestCase_TResult_EdgeCases.Test_UnwrapUnchecked_Performance_Comparison;
+var
+  R: TIntResult;
+  I, Iterations: Integer;
+  StartTime, EndTime: QWord;
+  UncheckedTime, CheckedTime: QWord;
+begin
+  // 性能对比测试：UnwrapUnchecked vs Unwrap
+  Iterations := 1000000;
+  R := TIntResult.Ok(42);
+
+  // 测试 UnwrapUnchecked 性能
+  StartTime := GetTickCount64;
+  for I := 1 to Iterations do
+    R.UnwrapUnchecked;
+  EndTime := GetTickCount64;
+  UncheckedTime := EndTime - StartTime;
+
+  // 测试 Unwrap 性能
+  StartTime := GetTickCount64;
+  for I := 1 to Iterations do
+    R.Unwrap;
+  EndTime := GetTickCount64;
+  CheckedTime := EndTime - StartTime;
+
+  // UnwrapUnchecked 应该更快或相当（允许一些误差）
+  CheckTrue(UncheckedTime <= CheckedTime + 100,
+    Format('UnwrapUnchecked (%d ms) should be faster than or equal to Unwrap (%d ms)',
+    [UncheckedTime, CheckedTime]));
+end;
+
+procedure TTestCase_TResult_EdgeCases.Test_UnwrapErrUnchecked_Performance_Comparison;
+var
+  R: TIntResult;
+  I, Iterations: Integer;
+  StartTime, EndTime: QWord;
+  UncheckedTime, CheckedTime: QWord;
+begin
+  // 性能对比测试：UnwrapErrUnchecked vs UnwrapErr
+  Iterations := 1000000;
+  R := TIntResult.Err('error');
+
+  // 测试 UnwrapErrUnchecked 性能
+  StartTime := GetTickCount64;
+  for I := 1 to Iterations do
+    R.UnwrapErrUnchecked;
+  EndTime := GetTickCount64;
+  UncheckedTime := EndTime - StartTime;
+
+  // 测试 UnwrapErr 性能
+  StartTime := GetTickCount64;
+  for I := 1 to Iterations do
+    R.UnwrapErr;
+  EndTime := GetTickCount64;
+  CheckedTime := EndTime - StartTime;
+
+  // UnwrapErrUnchecked 应该更快或相当（允许一些误差）
+  CheckTrue(UncheckedTime <= CheckedTime + 100,
+    Format('UnwrapErrUnchecked (%d ms) should be faster than or equal to UnwrapErr (%d ms)',
+    [UncheckedTime, CheckedTime]));
+end;
+
+procedure TTestCase_TResult_EdgeCases.Test_Flatten_TripleNested;
+var
+  Innermost: TIntResult;
+  Middle: specialize TResult<TIntResult, string>;
+  Outer: specialize TResult<specialize TResult<TIntResult, string>, string>;
+  FlatOnce: specialize TResult<TIntResult, string>;
+  FlatTwice: TIntResult;
+begin
+  // 测试三层嵌套：Result<Result<Result<Int, Str>, Str>, Str>
+
+  // Ok(Ok(Ok(99))) -> 展平两次 -> Ok(99)
+  Innermost := TIntResult.Ok(99);
+  Middle := specialize TResult<TIntResult, string>.Ok(Innermost);
+  Outer := specialize TResult<specialize TResult<TIntResult, string>, string>.Ok(Middle);
+
+  FlatOnce := specialize ResultFlatten<TIntResult, string>(Outer);
+  CheckTrue(FlatOnce.IsOk, 'First flatten should be Ok');
+
+  FlatTwice := specialize ResultFlatten<Integer, string>(FlatOnce);
+  CheckTrue(FlatTwice.IsOk, 'Second flatten should be Ok');
+  CheckEquals(99, FlatTwice.Unwrap, 'Final value should be 99');
+
+  // Ok(Ok(Err(e))) -> 展平两次 -> Err(e)
+  Innermost := TIntResult.Err('inner error');
+  Middle := specialize TResult<TIntResult, string>.Ok(Innermost);
+  Outer := specialize TResult<specialize TResult<TIntResult, string>, string>.Ok(Middle);
+
+  FlatOnce := specialize ResultFlatten<TIntResult, string>(Outer);
+  FlatTwice := specialize ResultFlatten<Integer, string>(FlatOnce);
+  CheckTrue(FlatTwice.IsErr, 'Should be Err');
+  CheckEquals('inner error', FlatTwice.UnwrapErr, 'Inner error should propagate');
+
+  // Ok(Err(e)) -> 展平一次 -> Err(e)
+  Middle := specialize TResult<TIntResult, string>.Err('middle error');
+  Outer := specialize TResult<specialize TResult<TIntResult, string>, string>.Ok(Middle);
+
+  FlatOnce := specialize ResultFlatten<TIntResult, string>(Outer);
+  CheckTrue(FlatOnce.IsErr, 'Should be Err');
+  CheckEquals('middle error', FlatOnce.UnwrapErr, 'Middle error should propagate');
+
+  // Err(e) -> 展平一次 -> Err(e)
+  Outer := specialize TResult<specialize TResult<TIntResult, string>, string>.Err('outer error');
+
+  FlatOnce := specialize ResultFlatten<TIntResult, string>(Outer);
+  CheckTrue(FlatOnce.IsErr, 'Should be Err');
+  CheckEquals('outer error', FlatOnce.UnwrapErr, 'Outer error should propagate');
+end;
+
+procedure TTestCase_TResult_EdgeCases.Test_Transpose_ComplexNesting;
+var
+  // 测试链式 Transpose：先 Option->Result，再 Result->Option
+  OptResult: specialize TOption<TIntResult>;
+  ResultOpt: specialize TResult<specialize TOption<Integer>, string>;
+  TransposedBack: specialize TOption<TIntResult>;
+  FinalResult: TIntResult;
+  FinalOpt: specialize TOption<Integer>;
+  // 多层 Option 嵌套类型
+  NestedOpt: specialize TOption<specialize TOption<Integer>>;
+  InnerOpt: specialize TOption<Integer>;
+begin
+  // 测试复杂嵌套：链式应用 Transpose
+
+  // 场景 1: Some(Ok(42)) -> Ok(Some(42)) -> Some(Ok(42))
+  OptResult := specialize TOption<TIntResult>.Some(TIntResult.Ok(42));
+
+  // 第一次转置：Option<Result<T,E>> -> Result<Option<T>,E>
+  ResultOpt := specialize OptionTransposeResult<Integer, string>(OptResult);
+  CheckTrue(ResultOpt.IsOk, 'First transpose should be Ok');
+  FinalOpt := ResultOpt.Unwrap;
+  CheckTrue(FinalOpt.IsSome, 'Should be Some');
+  CheckEquals(42, FinalOpt.Unwrap, 'Value should be 42');
+
+  // 第二次转置：Result<Option<T>,E> -> Option<Result<T,E>>
+  TransposedBack := specialize ResultTranspose<Integer, string>(ResultOpt);
+  CheckTrue(TransposedBack.IsSome, 'Second transpose should be Some');
+  FinalResult := TransposedBack.Unwrap;
+  CheckTrue(FinalResult.IsOk, 'Final should be Ok');
+  CheckEquals(42, FinalResult.Unwrap, 'Final value should be 42');
+
+  // 场景 2: Some(Err(e)) -> Err(e) (第一次转置后就是 Err，无法继续)
+  OptResult := specialize TOption<TIntResult>.Some(TIntResult.Err('error'));
+  ResultOpt := specialize OptionTransposeResult<Integer, string>(OptResult);
+  CheckTrue(ResultOpt.IsErr, 'Should be Err');
+  CheckEquals('error', ResultOpt.UnwrapErr, 'Error should propagate');
+
+  // 场景 3: None -> Ok(None) -> None
+  OptResult := specialize TOption<TIntResult>.None;
+  ResultOpt := specialize OptionTransposeResult<Integer, string>(OptResult);
+  CheckTrue(ResultOpt.IsOk, 'Should be Ok');
+  FinalOpt := ResultOpt.Unwrap;
+  CheckTrue(FinalOpt.IsNone, 'Should be None');
+
+  // 第二次转置
+  TransposedBack := specialize ResultTranspose<Integer, string>(ResultOpt);
+  CheckTrue(TransposedBack.IsNone, 'Should be None after second transpose');
+
+  // 场景 4: 测试多层 Option 嵌套
+  // Some(Some(42))
+  NestedOpt := specialize TOption<specialize TOption<Integer>>.Some(
+    specialize TOption<Integer>.Some(42)
+  );
+  CheckTrue(NestedOpt.IsSome, 'Outer should be Some');
+  InnerOpt := NestedOpt.Unwrap;
+  CheckTrue(InnerOpt.IsSome, 'Inner should be Some');
+  CheckEquals(42, InnerOpt.Unwrap, 'Value should be 42');
+
+  // Some(None)
+  NestedOpt := specialize TOption<specialize TOption<Integer>>.Some(
+    specialize TOption<Integer>.None
+  );
+  CheckTrue(NestedOpt.IsSome, 'Outer should be Some');
+  InnerOpt := NestedOpt.Unwrap;
+  CheckTrue(InnerOpt.IsNone, 'Inner should be None');
+
+  // None
+  NestedOpt := specialize TOption<specialize TOption<Integer>>.None;
+  CheckTrue(NestedOpt.IsNone, 'Should be None');
+end;
+
+{ TTestCase_TResult_EnhancedBoundary }
+
+procedure TTestCase_TResult_EnhancedBoundary.Test_Default_Init_IsErr_ReturnsTrue;
+var
+  R: TIntResult;
+begin
+  // 默认初始化的 Result 应该是 Err 状态
+  CheckTrue(R.IsErr, 'Default initialized Result should be Err');
+  CheckFalse(R.IsOk, 'Default initialized Result should not be Ok');
+end;
+
+procedure TTestCase_TResult_EnhancedBoundary.Test_Default_Init_Unwrap_Raises;
+var
+  R: TIntResult;
+  ExceptionRaised: Boolean;
+begin
+  // 默认初始化的 Result 调用 Unwrap 应该抛出异常
+  ExceptionRaised := False;
+  try
+    R.Unwrap;
+  except
+    on E: EResultUnwrapError do
+      ExceptionRaised := True;
+  end;
+  CheckTrue(ExceptionRaised, 'Unwrap on default initialized Result should raise EResultUnwrapError');
+end;
+
+procedure TTestCase_TResult_EnhancedBoundary.Test_Ok_EmptyString_Operations;
+var
+  R: specialize TResult<string, Integer>;
+  Value: string;
+begin
+  // 测试 Ok('') 的各种操作
+  R := specialize TResult<string, Integer>.Ok('');
+
+  CheckTrue(R.IsOk, 'Ok with empty string should be Ok');
+  CheckFalse(R.IsErr, 'Ok with empty string should not be Err');
+
+  Value := R.Unwrap;
+  CheckEquals('', Value, 'Unwrap should return empty string');
+
+  Value := R.UnwrapOr('default');
+  CheckEquals('', Value, 'UnwrapOr should return empty string, not default');
+
+  CheckTrue(R.TryUnwrap(Value), 'TryUnwrap should return True');
+  CheckEquals('', Value, 'TryUnwrap should set value to empty string');
+end;
+
+procedure TTestCase_TResult_EnhancedBoundary.Test_Err_EmptyString_Operations;
+var
+  R: specialize TResult<Integer, string>;
+  ErrValue: string;
+begin
+  // 测试 Err('') 的各种操作
+  R := specialize TResult<Integer, string>.Err('');
+
+  CheckTrue(R.IsErr, 'Err with empty string should be Err');
+  CheckFalse(R.IsOk, 'Err with empty string should not be Ok');
+
+  ErrValue := R.UnwrapErr;
+  CheckEquals('', ErrValue, 'UnwrapErr should return empty string');
+
+  CheckTrue(R.TryUnwrapErr(ErrValue), 'TryUnwrapErr should return True');
+  CheckEquals('', ErrValue, 'TryUnwrapErr should set error to empty string');
+
+  CheckEquals(42, R.UnwrapOr(42), 'UnwrapOr should return default value');
+end;
+
+procedure TTestCase_TResult_EnhancedBoundary.Test_Ok_MaxInt64_Unwrap;
+var
+  R: specialize TResult<Int64, string>;
+  Value: Int64;
+begin
+  // 测试 Ok(High(Int64)) 的行为
+  R := specialize TResult<Int64, string>.Ok(High(Int64));
+
+  CheckTrue(R.IsOk, 'Ok with High(Int64) should be Ok');
+
+  Value := R.Unwrap;
+  CheckEquals(High(Int64), Value, 'Unwrap should return High(Int64)');
+
+  Value := R.UnwrapOr(0);
+  CheckEquals(High(Int64), Value, 'UnwrapOr should return High(Int64), not default');
+
+  CheckTrue(R.TryUnwrap(Value), 'TryUnwrap should return True');
+  CheckEquals(High(Int64), Value, 'TryUnwrap should set value to High(Int64)');
+end;
+
+procedure TTestCase_TResult_EnhancedBoundary.Test_Ok_MinInt64_Unwrap;
+var
+  R: specialize TResult<Int64, string>;
+  Value: Int64;
+begin
+  // 测试 Ok(Low(Int64)) 的行为
+  R := specialize TResult<Int64, string>.Ok(Low(Int64));
+
+  CheckTrue(R.IsOk, 'Ok with Low(Int64) should be Ok');
+
+  Value := R.Unwrap;
+  CheckEquals(Low(Int64), Value, 'Unwrap should return Low(Int64)');
+
+  Value := R.UnwrapOr(0);
+  CheckEquals(Low(Int64), Value, 'UnwrapOr should return Low(Int64), not default');
+
+  CheckTrue(R.TryUnwrap(Value), 'TryUnwrap should return True');
+  CheckEquals(Low(Int64), Value, 'TryUnwrap should set value to Low(Int64)');
+end;
+
+{ Batch 2: 组合子链式调用测试 }
+
+procedure TTestCase_TResult_EnhancedBoundary.Test_Map_AndThen_MapErr_LongChain;
+var
+  R: TIntResult;
+  R2: TIntResult;
+  R3: TIntResult;
+begin
+  // 测试 Map → AndThen → MapErr 长链式调用
+  // 场景 1: Ok 路径
+  R := TIntResult.Ok(10);
+
+  // Map: 10 -> 20
+  R2 := specialize ResultMap<Integer, string, Integer>(R, @DoubleIt);
+  CheckTrue(R2.IsOk, 'After Map should be Ok');
+  CheckEquals(20, R2.Unwrap, 'Map should double the value');
+
+  // AndThen: 20 -> Ok(21)
+  R3 := specialize ResultAndThen<Integer, string, Integer>(R2, @IncOneResult);
+  CheckTrue(R3.IsOk, 'After AndThen should be Ok');
+  CheckEquals(21, R3.Unwrap, 'AndThen should increment the value');
+
+  // MapErr: 不应该被调用（因为是 Ok）
+  R3 := specialize ResultMapErr<Integer, string, string>(R3, @AppendBang);
+  CheckTrue(R3.IsOk, 'After MapErr should still be Ok');
+  CheckEquals(21, R3.Unwrap, 'Value should remain unchanged');
+
+  // 场景 2: Err 路径
+  R := TIntResult.Err('error');
+
+  // Map: 不应该被调用
+  R2 := specialize ResultMap<Integer, string, Integer>(R, @DoubleIt);
+  CheckTrue(R2.IsErr, 'After Map should be Err');
+  CheckEquals('error', R2.UnwrapErr, 'Error should propagate');
+
+  // AndThen: 不应该被调用
+  R3 := specialize ResultAndThen<Integer, string, Integer>(R2, @IncOneResult);
+  CheckTrue(R3.IsErr, 'After AndThen should be Err');
+  CheckEquals('error', R3.UnwrapErr, 'Error should propagate');
+
+  // MapErr: 应该被调用
+  R3 := specialize ResultMapErr<Integer, string, string>(R3, @AppendBang);
+  CheckTrue(R3.IsErr, 'After MapErr should be Err');
+  CheckEquals('error!', R3.UnwrapErr, 'MapErr should append bang');
+end;
+
+procedure TTestCase_TResult_EnhancedBoundary.Test_Filter_Map_OrElse_Chain;
+var
+  R: TIntResult;
+  R2: TIntResult;
+  R3: TIntResult;
+begin
+  // 测试 FilterOrElse → Map → OrElse 链式调用
+  // 场景 1: Filter 通过
+  R := TIntResult.Ok(10);
+
+  // FilterOrElse: 10 > 5, 通过
+  R2 := specialize ResultFilterOrElse<Integer, string>(R, @IsPositive, @MakeErrMsg);
+  CheckTrue(R2.IsOk, 'Filter should pass for positive value');
+  CheckEquals(10, R2.Unwrap, 'Value should remain unchanged');
+
+  // Map: 10 -> 20
+  R3 := specialize ResultMap<Integer, string, Integer>(R2, @DoubleIt);
+  CheckTrue(R3.IsOk, 'After Map should be Ok');
+  CheckEquals(20, R3.Unwrap, 'Map should double the value');
+
+  // OrElse: 不应该被调用（因为是 Ok）
+  R3 := R3.Or_(TIntResult.Ok(999));
+  CheckTrue(R3.IsOk, 'After OrElse should be Ok');
+  CheckEquals(20, R3.Unwrap, 'Value should remain unchanged');
+
+  // 场景 2: Filter 失败
+  R := TIntResult.Ok(-5);
+
+  // FilterOrElse: -5 < 0, 失败
+  R2 := specialize ResultFilterOrElse<Integer, string>(R, @IsPositive, @MakeErrMsg);
+  CheckTrue(R2.IsErr, 'Filter should fail for negative value');
+
+  // Map: 不应该被调用
+  R3 := specialize ResultMap<Integer, string, Integer>(R2, @DoubleIt);
+  CheckTrue(R3.IsErr, 'After Map should be Err');
+
+  // OrElse: 应该被调用
+  R3 := R3.Or_(TIntResult.Ok(999));
+  CheckTrue(R3.IsOk, 'After OrElse should be Ok');
+  CheckEquals(999, R3.Unwrap, 'OrElse should provide fallback value');
+end;
+
+procedure TTestCase_TResult_EnhancedBoundary.Test_Inspect_Map_InspectErr_Chain;
+var
+  R: TIntResult;
+  R2: TIntResult;
+  R3: TIntResult;
+  InspectCalled: Boolean;
+  InspectErrCalled: Boolean;
+begin
+  // 测试 Inspect → Map → InspectErr 链式调用
+  InspectCalled := False;
+  InspectErrCalled := False;
+
+  // 场景 1: Ok 路径
+  R := TIntResult.Ok(10);
+
+  // Inspect: 应该被调用
+  R2 := R.Inspect(
+    procedure(const V: Integer)
+    begin
+      InspectCalled := True;
+      CheckEquals(10, V, 'Inspect should receive correct value');
+    end
+  );
+  CheckTrue(InspectCalled, 'Inspect should be called for Ok');
+  CheckTrue(R2.IsOk, 'After Inspect should be Ok');
+  CheckEquals(10, R2.Unwrap, 'Value should remain unchanged');
+
+  // Map: 10 -> 20
+  R3 := specialize ResultMap<Integer, string, Integer>(R2, @DoubleIt);
+  CheckTrue(R3.IsOk, 'After Map should be Ok');
+  CheckEquals(20, R3.Unwrap, 'Map should double the value');
+
+  // InspectErr: 不应该被调用（因为是 Ok）
+  R3 := R3.InspectErr(
+    procedure(const E: string)
+    begin
+      InspectErrCalled := True;
+    end
+  );
+  CheckFalse(InspectErrCalled, 'InspectErr should not be called for Ok');
+  CheckTrue(R3.IsOk, 'After InspectErr should be Ok');
+  CheckEquals(20, R3.Unwrap, 'Value should remain unchanged');
+
+  // 场景 2: Err 路径
+  InspectCalled := False;
+  InspectErrCalled := False;
+  R := TIntResult.Err('error');
+
+  // Inspect: 不应该被调用
+  R2 := R.Inspect(
+    procedure(const V: Integer)
+    begin
+      InspectCalled := True;
+    end
+  );
+  CheckFalse(InspectCalled, 'Inspect should not be called for Err');
+  CheckTrue(R2.IsErr, 'After Inspect should be Err');
+
+  // Map: 不应该被调用
+  R3 := specialize ResultMap<Integer, string, Integer>(R2, @DoubleIt);
+  CheckTrue(R3.IsErr, 'After Map should be Err');
+
+  // InspectErr: 应该被调用
+  R3 := R3.InspectErr(
+    procedure(const E: string)
+    begin
+      InspectErrCalled := True;
+      CheckEquals('error', E, 'InspectErr should receive correct error');
+    end
+  );
+  CheckTrue(InspectErrCalled, 'InspectErr should be called for Err');
+  CheckTrue(R3.IsErr, 'After InspectErr should be Err');
+  CheckEquals('error', R3.UnwrapErr, 'Error should remain unchanged');
+end;
+
+procedure TTestCase_TResult_EnhancedBoundary.Test_Flatten_QuadrupleNested;
+var
+  Quadruple: specialize TResult<specialize TResult<specialize TResult<TIntResult, string>, string>, string>;
+  Triple: specialize TResult<specialize TResult<TIntResult, string>, string>;
+  Double: specialize TResult<TIntResult, string>;
+  Single: TIntResult;
+begin
+  // 测试四层嵌套 Flatten
+  // 场景 1: Ok(Ok(Ok(Ok(42))))
+  Quadruple := specialize TResult<specialize TResult<specialize TResult<TIntResult, string>, string>, string>.Ok(
+    specialize TResult<specialize TResult<TIntResult, string>, string>.Ok(
+      specialize TResult<TIntResult, string>.Ok(
+        TIntResult.Ok(42)
+      )
+    )
+  );
+
+  // 第一次 Flatten
+  Triple := specialize ResultFlatten<specialize TResult<TIntResult, string>, string>(Quadruple);
+  CheckTrue(Triple.IsOk, 'First flatten should be Ok');
+
+  // 第二次 Flatten
+  Double := specialize ResultFlatten<TIntResult, string>(Triple);
+  CheckTrue(Double.IsOk, 'Second flatten should be Ok');
+
+  // 第三次 Flatten
+  Single := specialize ResultFlatten<Integer, string>(Double);
+  CheckTrue(Single.IsOk, 'Third flatten should be Ok');
+  CheckEquals(42, Single.Unwrap, 'Final value should be 42');
+
+  // 场景 2: Ok(Ok(Err(e)))
+  Quadruple := specialize TResult<specialize TResult<specialize TResult<TIntResult, string>, string>, string>.Ok(
+    specialize TResult<specialize TResult<TIntResult, string>, string>.Ok(
+      specialize TResult<TIntResult, string>.Err('inner error')
+    )
+  );
+
+  // 第一次 Flatten
+  Triple := specialize ResultFlatten<specialize TResult<TIntResult, string>, string>(Quadruple);
+  CheckTrue(Triple.IsOk, 'First flatten should be Ok');
+
+  // 第二次 Flatten
+  Double := specialize ResultFlatten<TIntResult, string>(Triple);
+  CheckTrue(Double.IsErr, 'Second flatten should be Err');
+  CheckEquals('inner error', Double.UnwrapErr, 'Error should propagate');
+
+  // 场景 3: Err(e)
+  Quadruple := specialize TResult<specialize TResult<specialize TResult<TIntResult, string>, string>, string>.Err('outer error');
+
+  // 第一次 Flatten
+  Triple := specialize ResultFlatten<specialize TResult<TIntResult, string>, string>(Quadruple);
+  CheckTrue(Triple.IsErr, 'First flatten should be Err');
+  CheckEquals('outer error', Triple.UnwrapErr, 'Outer error should propagate');
+end;
+
+procedure TTestCase_TResult_EnhancedBoundary.Test_MapBoth_AndThen_Chain;
+var
+  R: TIntResult;
+  R2: specialize TResult<string, Integer>;
+  R3: specialize TResult<string, Integer>;
+begin
+  // 测试 MapBoth → AndThen 链式调用
+  // 场景 1: Ok 路径
+  R := TIntResult.Ok(10);
+
+  // MapBoth: Ok(10) -> Ok("10")
+  R2 := specialize ResultMapBoth<Integer, string, string, Integer>(R, @IntToStrFunc, @StrLen);
+  CheckTrue(R2.IsOk, 'MapBoth should be Ok');
+  CheckEquals('10', R2.Unwrap, 'MapBoth should convert to string');
+
+  // AndThen: "10" -> Ok("10!")
+  R3 := specialize ResultAndThen<string, Integer, string>(R2, @AppendBangResult);
+  CheckTrue(R3.IsOk, 'AndThen should be Ok');
+  CheckEquals('10!', R3.Unwrap, 'AndThen should append bang');
+
+  // 场景 2: Err 路径
+  R := TIntResult.Err('error');
+
+  // MapBoth: Err("error") -> Err(5)
+  R2 := specialize ResultMapBoth<Integer, string, string, Integer>(R, @IntToStrFunc, @StrLen);
+  CheckTrue(R2.IsErr, 'MapBoth should be Err');
+  CheckEquals(5, R2.UnwrapErr, 'MapBoth should convert error to length');
+
+  // AndThen: 不应该被调用（因为是 Err）
+  R3 := specialize ResultAndThen<string, Integer, string>(R2, @AppendBangResult);
+  CheckTrue(R3.IsErr, 'AndThen should be Err');
+  CheckEquals(5, R3.UnwrapErr, 'Error should propagate');
+end;
+
+procedure TTestCase_TResult_EnhancedBoundary.Test_Swap_Swap_Identity;
+var
+  R: TIntResult;
+  R2: TStrResult;
+  R3: TIntResult;
+begin
+  // 测试 Swap → Swap 应该返回原值
+  // 场景 1: Ok(42)
+  R := TIntResult.Ok(42);
+
+  // 第一次 Swap: Ok(42) -> Err(42)
+  R2 := specialize ResultSwap<Integer, string>(R);
+  CheckTrue(R2.IsErr, 'First swap should be Err');
+  CheckEquals(42, R2.UnwrapErr, 'Error should be original value');
+
+  // 第二次 Swap: Err(42) -> Ok(42)
+  R3 := specialize ResultSwap<string, Integer>(R2);
+  CheckTrue(R3.IsOk, 'Second swap should be Ok');
+  CheckEquals(42, R3.Unwrap, 'Value should be original value');
+
+  // 场景 2: Err("error")
+  R := TIntResult.Err('error');
+
+  // 第一次 Swap: Err("error") -> Ok("error")
+  R2 := specialize ResultSwap<Integer, string>(R);
+  CheckTrue(R2.IsOk, 'First swap should be Ok');
+  CheckEquals('error', R2.Unwrap, 'Value should be original error');
+
+  // 第二次 Swap: Ok("error") -> Err("error")
+  R3 := specialize ResultSwap<string, Integer>(R2);
+  CheckTrue(R3.IsErr, 'Second swap should be Err');
+  CheckEquals('error', R3.UnwrapErr, 'Error should be original error');
+end;
+
+procedure TTestCase_TResult_EnhancedBoundary.Test_OrElse_AndThen_Chain;
+var
+  R: TIntResult;
+  R2: TIntResult;
+  R3: TIntResult;
+begin
+  // 测试 OrElse → AndThen 链式调用
+  // 场景 1: Ok 路径
+  R := TIntResult.Ok(10);
+
+  // OrElse: 不应该被调用（因为是 Ok）
+  R2 := specialize ResultOrElse<Integer, string, string>(R, @RecoverFromErr);
+  CheckTrue(R2.IsOk, 'OrElse should be Ok');
+  CheckEquals(10, R2.Unwrap, 'Value should remain unchanged');
+
+  // AndThen: 10 -> Ok(11)
+  R3 := specialize ResultAndThen<Integer, string, Integer>(R2, @IncOneResult);
+  CheckTrue(R3.IsOk, 'AndThen should be Ok');
+  CheckEquals(11, R3.Unwrap, 'AndThen should increment the value');
+
+  // 场景 2: Err 路径
+  R := TIntResult.Err('error');
+
+  // OrElse: 应该被调用
+  R2 := specialize ResultOrElse<Integer, string, string>(R, @RecoverFromErr);
+  CheckTrue(R2.IsOk, 'OrElse should recover to Ok');
+  CheckEquals(0, R2.Unwrap, 'OrElse should provide fallback value');
+
+  // AndThen: 0 -> Ok(1)
+  R3 := specialize ResultAndThen<Integer, string, Integer>(R2, @IncOneResult);
+  CheckTrue(R3.IsOk, 'AndThen should be Ok');
+  CheckEquals(1, R3.Unwrap, 'AndThen should increment the value');
+end;
+
+{ Batch 3: 错误上下文和边界测试 }
+
+procedure TTestCase_TResult_EnhancedBoundary.Test_TErrorCtx_EmptyMsg;
+var
+  Ctx: TIntErrorCtx;
+begin
+  // 测试空消息的 TErrorCtx
+  Ctx := TIntErrorCtx.Create('', 404);
+  CheckEquals('', Ctx.Msg, 'Empty message should be preserved');
+  CheckEquals(404, Ctx.Inner, 'Inner error should be preserved');
+  CheckEquals(' (caused by: 404)', Ctx.ToDebugString(@IntPrinterForCtx), 'Empty message should show only inner error');
+end;
+
+procedure TTestCase_TResult_EnhancedBoundary.Test_TErrorCtx_NestedErrorCtx;
+type
+  TNestedErrorCtx = specialize TErrorCtx<TIntErrorCtx>;
+  TNestedCtxResult = specialize TResult<Integer, TNestedErrorCtx>;
+var
+  InnerCtx: TIntErrorCtx;
+  OuterCtx: TNestedErrorCtx;
+  R: TNestedCtxResult;
+begin
+  // 测试 TErrorCtx<TErrorCtx<E>> 嵌套
+  InnerCtx := TIntErrorCtx.Create('database error', 500);
+  OuterCtx := TNestedErrorCtx.Create('operation failed', InnerCtx);
+
+  CheckEquals('operation failed', OuterCtx.Msg, 'Outer message should be preserved');
+  CheckEquals('database error', OuterCtx.Inner.Msg, 'Inner message should be preserved');
+  CheckEquals(500, OuterCtx.Inner.Inner, 'Innermost error should be preserved');
+
+  // 测试嵌套 Result
+  R := TNestedCtxResult.Err(OuterCtx);
+  CheckTrue(R.IsErr, 'Result should be Err');
+  CheckEquals('operation failed', R.UnwrapErr.Msg, 'Outer message should be accessible');
+end;
+
+procedure TTestCase_TResult_EnhancedBoundary.Test_ResultContextE_MultipleChain;
+var
+  R: TIntErrResult;
+  R2: TIntCtxResult;
+  R3: specialize TResult<Integer, specialize TErrorCtx<TIntErrorCtx>>;
+  ErrCtx: specialize TErrorCtx<TIntErrorCtx>;
+begin
+  // 测试多次 ResultContextE 链式调用
+  R := TIntErrResult.Err(404);
+
+  // 第一次添加上下文
+  R2 := specialize ResultContextE<Integer, Integer>(R, 'file not found');
+  CheckTrue(R2.IsErr, 'First context should be Err');
+  CheckEquals('file not found', R2.UnwrapErr.Msg, 'First context message should be correct');
+
+  // 第二次添加上下文（嵌套）
+  R3 := specialize ResultContextE<Integer, TIntErrorCtx>(R2, 'operation failed');
+  CheckTrue(R3.IsErr, 'Second context should be Err');
+  ErrCtx := R3.UnwrapErr;
+  CheckEquals('operation failed', ErrCtx.Msg, 'Outer context message should be correct');
+  CheckEquals('file not found', ErrCtx.Inner.Msg, 'Inner context message should be correct');
+  CheckEquals(404, ErrCtx.Inner.Inner, 'Original error should be preserved');
+end;
+
+procedure TTestCase_TResult_EnhancedBoundary.Test_Equals_CustomEq_CaseInsensitive;
+var
+  R1, R2: TStrResult;
+
+  function CaseInsensitiveEq(const A, B: string): Boolean;
+  begin
+    Result := LowerCase(A) = LowerCase(B);
+  end;
+
+begin
+  // 测试大小写不敏感的相等性
+  R1 := TStrResult.Ok('Hello');
+  R2 := TStrResult.Ok('HELLO');
+
+  // 默认相等性（大小写敏感）
+  CheckFalse(R1.Equals(R2, @StrEq, @IntEq),
+    'Default equality should be case-sensitive');
+
+  // 自定义相等性（大小写不敏感）
+  CheckTrue(R1.Equals(R2, @CaseInsensitiveEq, @IntEq),
+    'Custom equality should be case-insensitive');
+end;
+
+procedure TTestCase_TResult_EnhancedBoundary.Test_ToString_SpecialChars;
+var
+  R: TStrResult;
+  S: string;
+begin
+  // 测试 ToString 的基本行为
+  R := TStrResult.Ok('Hello'#10'World'#13#10'!');
+  S := R.ToString('Ok: value', 'Err: error');
+  CheckEquals('Ok: value', S, 'ToString should return Ok label for Ok result');
+
+  // 测试错误情况
+  R := TStrResult.Err(123);
+  S := R.ToString('Ok: value', 'Err: error');
+  CheckEquals('Err: error', S, 'ToString should return Err label for Err result');
+
+  // 测试空标签
+  R := TStrResult.Ok('test');
+  S := R.ToString('', '');
+  CheckEquals('', S, 'ToString should return empty string for empty Ok label');
+end;
+
+procedure TTestCase_TResult_EnhancedBoundary.Test_TryCollectPtrIntoArray_EmptyArray;
+var
+  Arr: array of TIntResult;
+  OutArr: array of Integer;
+  OutErr: string;
+  Success: Boolean;
+begin
+  // 测试空数组的 collect
+  SetLength(Arr, 0);
+  Success := specialize TryCollectPtrIntoArray<Integer, string>(nil, 0, OutArr, OutErr);
+
+  CheckTrue(Success, 'Empty array should succeed');
+  CheckEquals(0, Length(OutArr), 'Output array should be empty');
+  CheckEquals('', OutErr, 'Error should be empty');
+end;
+
+procedure TTestCase_TResult_EnhancedBoundary.Test_ResultZip_MultipleResults;
+var
+  R1, R2, R3: TIntResult;
+  R12: TTupIntIntResult;
+  R123: specialize TResult<specialize TTuple2<TTupIntInt, Integer>, string>;
+begin
+  // 测试多个 Result 的 Zip 操作
+  R1 := TIntResult.Ok(1);
+  R2 := TIntResult.Ok(2);
+  R3 := TIntResult.Ok(3);
+
+  // 先 Zip R1 和 R2
+  R12 := specialize ResultZip<Integer, Integer, string>(R1, R2);
+  CheckTrue(R12.IsOk, 'First zip should be Ok');
+  CheckEquals(1, R12.Unwrap.First, 'First value should be 1');
+  CheckEquals(2, R12.Unwrap.Second, 'Second value should be 2');
+
+  // 再 Zip R12 和 R3
+  R123 := specialize ResultZip<TTupIntInt, Integer, string>(R12, R3);
+  CheckTrue(R123.IsOk, 'Second zip should be Ok');
+  CheckEquals(1, R123.Unwrap.First.First, 'First value should be 1');
+  CheckEquals(2, R123.Unwrap.First.Second, 'Second value should be 2');
+  CheckEquals(3, R123.Unwrap.Second, 'Third value should be 3');
+end;
+
 initialization
   RegisterTest(TTestCase_TResult_Basic);
   RegisterTest(TTestCase_TResult_ToString);
@@ -3216,4 +4181,6 @@ initialization
   RegisterTest(TTestCase_TResult_Context);
   RegisterTest(TTestCase_TResult_Transpose);
   RegisterTest(TTestCase_TResult_FastAPI);
+  RegisterTest(TTestCase_TResult_EdgeCases);
+  RegisterTest(TTestCase_TResult_EnhancedBoundary);
 end.

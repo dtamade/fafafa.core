@@ -1,12 +1,12 @@
 unit fafafa.core.simd.backend.consistency.testcase;
 
 {$mode objfpc}{$H+}
-{$I fafafa.core.settings.inc}
+{$I ../../src/fafafa.core.settings.inc}
 
 interface
 
 uses
-  SysUtils,
+  SysUtils, Math,
   fafafa.core.simd.base,
   fafafa.core.simd.dispatch,
   fafafa.core.simd.scalar;
@@ -141,7 +141,6 @@ var
   a, b, expected, actual: TVecF32x4;
   maxDiff: Double;
   diffIdx: Integer;
-  oldBackend: TSimdBackend;
 begin
   Result.TestName := 'F32x4 Arithmetic';
   Result.Backend := backend;
@@ -150,13 +149,16 @@ begin
   Result.MaxDiff := 0;
   Result.DiffLocation := -1;
 
-  // 保存当前后端并切换
-  oldBackend := GetActiveBackend;
-
   if not IsBackendRegistered(backend) then
   begin
-    Result.Passed := True;  // 跳过未注册的后端
     Result.ErrorMessage := 'Backend not registered (skipped)';
+    Exit;
+  end;
+
+  // NOTE: Use TrySetActiveBackend to avoid false positives when SetActiveBackend falls back.
+  if not TrySetActiveBackend(backend) then
+  begin
+    Result.ErrorMessage := 'Backend not available on this CPU/OS (skipped)';
     Exit;
   end;
 
@@ -237,7 +239,8 @@ begin
     end;
 
   finally
-    SetActiveBackend(oldBackend);
+    // Avoid leaking forced backend selection into other tests.
+    ResetToAutomaticBackend;
   end;
 end;
 
@@ -248,10 +251,9 @@ end;
 function TestF32x4Math(backend: TSimdBackend): TConsistencyTestResult;
 var
   dispatch: PSimdDispatchTable;
-  a, b, c, expected, actual: TVecF32x4;
+  a, b, expected, actual: TVecF32x4;
   maxDiff: Double;
   diffIdx: Integer;
-  oldBackend: TSimdBackend;
 begin
   Result.TestName := 'F32x4 Math';
   Result.Backend := backend;
@@ -260,11 +262,15 @@ begin
   Result.MaxDiff := 0;
   Result.DiffLocation := -1;
 
-  oldBackend := GetActiveBackend;
-
   if not IsBackendRegistered(backend) then
   begin
     Result.ErrorMessage := 'Backend not registered (skipped)';
+    Exit;
+  end;
+
+  if not TrySetActiveBackend(backend) then
+  begin
+    Result.ErrorMessage := 'Backend not available on this CPU/OS (skipped)';
     Exit;
   end;
 
@@ -272,7 +278,6 @@ begin
     // 测试向量（使用正数以支持 Sqrt）
     a := MakeVecF32x4(1.5, 2.0, 3.25, 4.0);
     b := MakeVecF32x4(0.5, 3.0, 1.0, 2.0);
-    c := MakeVecF32x4(0.1, 0.2, 0.3, 0.4);
 
     // 测试 Abs
     a := MakeVecF32x4(-1.5, 2.0, -3.25, 0.0);
@@ -346,7 +351,7 @@ begin
     end;
 
   finally
-    SetActiveBackend(oldBackend);
+    ResetToAutomaticBackend;
   end;
 end;
 
@@ -359,7 +364,6 @@ var
   dispatch: PSimdDispatchTable;
   a, b: TVecF32x4;
   expectedMask, actualMask: TMask4;
-  oldBackend: TSimdBackend;
 begin
   Result.TestName := 'F32x4 Comparison';
   Result.Backend := backend;
@@ -368,11 +372,15 @@ begin
   Result.MaxDiff := 0;
   Result.DiffLocation := -1;
 
-  oldBackend := GetActiveBackend;
-
   if not IsBackendRegistered(backend) then
   begin
     Result.ErrorMessage := 'Backend not registered (skipped)';
+    Exit;
+  end;
+
+  if not TrySetActiveBackend(backend) then
+  begin
+    Result.ErrorMessage := 'Backend not available on this CPU/OS (skipped)';
     Exit;
   end;
 
@@ -429,7 +437,7 @@ begin
     end;
 
   finally
-    SetActiveBackend(oldBackend);
+    ResetToAutomaticBackend;
   end;
 end;
 
@@ -442,7 +450,6 @@ var
   dispatch: PSimdDispatchTable;
   a: TVecF32x4;
   expectedVal, actualVal: Single;
-  oldBackend: TSimdBackend;
 begin
   Result.TestName := 'F32x4 Reduction';
   Result.Backend := backend;
@@ -451,11 +458,15 @@ begin
   Result.MaxDiff := 0;
   Result.DiffLocation := -1;
 
-  oldBackend := GetActiveBackend;
-
   if not IsBackendRegistered(backend) then
   begin
     Result.ErrorMessage := 'Backend not registered (skipped)';
+    Exit;
+  end;
+
+  if not TrySetActiveBackend(backend) then
+  begin
+    Result.ErrorMessage := 'Backend not available on this CPU/OS (skipped)';
     Exit;
   end;
 
@@ -531,7 +542,7 @@ begin
     end;
 
   finally
-    SetActiveBackend(oldBackend);
+    ResetToAutomaticBackend;
   end;
 end;
 
@@ -544,7 +555,6 @@ var
   dispatch: PSimdDispatchTable;
   a, b, expected, actual: TVecI32x4;
   diffIdx: Integer;
-  oldBackend: TSimdBackend;
 begin
   Result.TestName := 'I32x4 Arithmetic';
   Result.Backend := backend;
@@ -553,11 +563,15 @@ begin
   Result.MaxDiff := 0;
   Result.DiffLocation := -1;
 
-  oldBackend := GetActiveBackend;
-
   if not IsBackendRegistered(backend) then
   begin
     Result.ErrorMessage := 'Backend not registered (skipped)';
+    Exit;
+  end;
+
+  if not TrySetActiveBackend(backend) then
+  begin
+    Result.ErrorMessage := 'Backend not available on this CPU/OS (skipped)';
     Exit;
   end;
 
@@ -617,7 +631,7 @@ begin
     end;
 
   finally
-    SetActiveBackend(oldBackend);
+    ResetToAutomaticBackend;
   end;
 end;
 
@@ -630,7 +644,6 @@ var
   dispatch: PSimdDispatchTable;
   a, b, expected, actual: TVecI32x4;
   diffIdx: Integer;
-  oldBackend: TSimdBackend;
 begin
   Result.TestName := 'I32x4 Bitwise';
   Result.Backend := backend;
@@ -639,17 +652,22 @@ begin
   Result.MaxDiff := 0;
   Result.DiffLocation := -1;
 
-  oldBackend := GetActiveBackend;
-
   if not IsBackendRegistered(backend) then
   begin
     Result.ErrorMessage := 'Backend not registered (skipped)';
     Exit;
   end;
 
+  if not TrySetActiveBackend(backend) then
+  begin
+    Result.ErrorMessage := 'Backend not available on this CPU/OS (skipped)';
+    Exit;
+  end;
+
   try
-    a := MakeVecI32x4($FF00FF00, $0F0F0F0F, $12345678, $FFFFFFFF);
-    b := MakeVecI32x4($00FF00FF, $F0F0F0F0, $87654321, $00000000);
+    // NOTE: Use signed literals that are in Int32 range (Debug build enables range checking).
+    a := MakeVecI32x4(-16711936, $0F0F0F0F, $12345678, -1);
+    b := MakeVecI32x4($00FF00FF, -252645136, -2023406815, 0);
 
     // 测试 And
     SetActiveBackend(sbScalar);
@@ -716,7 +734,7 @@ begin
     end;
 
   finally
-    SetActiveBackend(oldBackend);
+    ResetToAutomaticBackend;
   end;
 end;
 
@@ -732,7 +750,6 @@ var
   expectedBool, actualBool: Boolean;
   expectedIdx, actualIdx: PtrInt;
   expectedSum, actualSum: UInt64;
-  oldBackend: TSimdBackend;
 begin
   Result.TestName := 'Facade MemOps';
   Result.Backend := backend;
@@ -741,11 +758,15 @@ begin
   Result.MaxDiff := 0;
   Result.DiffLocation := -1;
 
-  oldBackend := GetActiveBackend;
-
   if not IsBackendRegistered(backend) then
   begin
     Result.ErrorMessage := 'Backend not registered (skipped)';
+    Exit;
+  end;
+
+  if not TrySetActiveBackend(backend) then
+  begin
+    Result.ErrorMessage := 'Backend not available on this CPU/OS (skipped)';
     Exit;
   end;
 
@@ -821,7 +842,7 @@ begin
     end;
 
   finally
-    SetActiveBackend(oldBackend);
+    ResetToAutomaticBackend;
   end;
 end;
 
@@ -836,12 +857,17 @@ var
   i, resultIdx: Integer;
 begin
   // 获取要测试的后端列表
-  SetLength(backends, 5);
+  // NOTE: Keep this list aligned with dispatch tier order so we cover all x86_64 tiers.
+  SetLength(backends, 9);
   backends[0] := sbSSE2;
-  backends[1] := sbAVX2;
-  backends[2] := sbAVX512;
-  backends[3] := sbNEON;
-  backends[4] := sbRISCVV;
+  backends[1] := sbSSE3;
+  backends[2] := sbSSSE3;
+  backends[3] := sbSSE41;
+  backends[4] := sbSSE42;
+  backends[5] := sbAVX2;
+  backends[6] := sbAVX512;
+  backends[7] := sbNEON;
+  backends[8] := sbRISCVV;
 
   // 每个后端 7 个测试
   SetLength(Result, Length(backends) * 7);

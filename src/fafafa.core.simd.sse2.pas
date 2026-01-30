@@ -54,122 +54,182 @@ uses
 //   - For const record params, pointer is passed
 
 function SSE2AddF32x4(const a, b: TVecF32x4): TVecF32x4;
+var
+  pa, pb, pr: Pointer;
 begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
   asm
-    lea    rax, a
-    lea    rdx, b
+    mov    rax, pa
+    mov    rdx, pb
+    mov    rcx, pr
     movups xmm0, [rax]
     movups xmm1, [rdx]
     addps  xmm0, xmm1
-    movups [result], xmm0
+    movups [rcx], xmm0
   end;
 end;
 
 function SSE2SubF32x4(const a, b: TVecF32x4): TVecF32x4;
+var
+  pa, pb, pr: Pointer;
 begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
   asm
-    lea    rax, a
-    lea    rdx, b
+    mov    rax, pa
+    mov    rdx, pb
+    mov    rcx, pr
     movups xmm0, [rax]
     movups xmm1, [rdx]
     subps  xmm0, xmm1
-    movups [result], xmm0
+    movups [rcx], xmm0
   end;
 end;
 
 function SSE2MulF32x4(const a, b: TVecF32x4): TVecF32x4;
+var
+  pa, pb, pr: Pointer;
 begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
   asm
-    lea    rax, a
-    lea    rdx, b
+    mov    rax, pa
+    mov    rdx, pb
+    mov    rcx, pr
     movups xmm0, [rax]
     movups xmm1, [rdx]
     mulps  xmm0, xmm1
-    movups [result], xmm0
+    movups [rcx], xmm0
   end;
 end;
 
 function SSE2DivF32x4(const a, b: TVecF32x4): TVecF32x4;
+var
+  pa, pb, pr: Pointer;
 begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
   asm
-    lea    rax, a
-    lea    rdx, b
+    mov    rax, pa
+    mov    rdx, pb
+    mov    rcx, pr
     movups xmm0, [rax]
     movups xmm1, [rdx]
     divps  xmm0, xmm1
-    movups [result], xmm0
+    movups [rcx], xmm0
   end;
 end;
 
 function SSE2AddF64x2(const a, b: TVecF64x2): TVecF64x2;
+var
+  pa, pb, pr: Pointer;
 begin
+  pa := @a;
+  pb := @b;
+  pr := @Result;
   asm
-    lea    rax, a
-    lea    rdx, b
+    mov    rax, pa
+    mov    rdx, pb
+    mov    rcx, pr
     movupd xmm0, [rax]
     movupd xmm1, [rdx]
     addpd  xmm0, xmm1
-    movupd [result], xmm0
+    movupd [rcx], xmm0
   end;
 end;
 
 function SSE2SubF64x2(const a, b: TVecF64x2): TVecF64x2;
+var
+  pa, pb, pr: Pointer;
 begin
+  pa := @a;
+  pb := @b;
+  pr := @Result;
   asm
-    lea    rax, a
-    lea    rdx, b
+    mov    rax, pa
+    mov    rdx, pb
+    mov    rcx, pr
     movupd xmm0, [rax]
     movupd xmm1, [rdx]
     subpd  xmm0, xmm1
-    movupd [result], xmm0
+    movupd [rcx], xmm0
   end;
 end;
 
 function SSE2MulF64x2(const a, b: TVecF64x2): TVecF64x2;
+var
+  pa, pb, pr: Pointer;
 begin
+  pa := @a;
+  pb := @b;
+  pr := @Result;
   asm
-    lea    rax, a
-    lea    rdx, b
+    mov    rax, pa
+    mov    rdx, pb
+    mov    rcx, pr
     movupd xmm0, [rax]
     movupd xmm1, [rdx]
     mulpd  xmm0, xmm1
-    movupd [result], xmm0
+    movupd [rcx], xmm0
   end;
 end;
 
 function SSE2DivF64x2(const a, b: TVecF64x2): TVecF64x2;
+var
+  pa, pb, pr: Pointer;
 begin
+  pa := @a;
+  pb := @b;
+  pr := @Result;
   asm
-    lea    rax, a
-    lea    rdx, b
+    mov    rax, pa
+    mov    rdx, pb
+    mov    rcx, pr
     movupd xmm0, [rax]
     movupd xmm1, [rdx]
     divpd  xmm0, xmm1
-    movupd [result], xmm0
+    movupd [rcx], xmm0
   end;
 end;
 
 function SSE2AddI32x4(const a, b: TVecI32x4): TVecI32x4;
+var
+  pa, pb, pr: Pointer;
 begin
+  pa := @a;
+  pb := @b;
+  pr := @Result;
   asm
-    lea    rax, a
-    lea    rdx, b
+    mov    rax, pa
+    mov    rdx, pb
+    mov    rcx, pr
     movdqu xmm0, [rax]
     movdqu xmm1, [rdx]
     paddd  xmm0, xmm1
-    movdqu [result], xmm0
+    movdqu [rcx], xmm0
   end;
 end;
 
 function SSE2SubI32x4(const a, b: TVecI32x4): TVecI32x4;
+var
+  pa, pb, pr: Pointer;
 begin
+  pa := @a;
+  pb := @b;
+  pr := @Result;
   asm
-    lea    rax, a
-    lea    rdx, b
+    mov    rax, pa
+    mov    rdx, pb
+    mov    rcx, pr
     movdqu xmm0, [rax]
     movdqu xmm1, [rdx]
     psubd  xmm0, xmm1
-    movdqu [result], xmm0
+    movdqu [rcx], xmm0
   end;
 end;
 
@@ -186,11 +246,15 @@ end;
 // === SSE2 Comparison Operations ===
 
 function SSE2CmpEqF32x4(const a, b: TVecF32x4): TMask4;
-var mask: Integer;
+var
+  pa, pb: Pointer;
+  mask: Integer;
 begin
+  pa := @a;
+  pb := @b;
   asm
-    lea      rax, a
-    lea      rdx, b
+    mov      rax, pa
+    mov      rdx, pb
     movups   xmm0, [rax]
     movups   xmm1, [rdx]
     cmpeqps  xmm0, xmm1
@@ -201,11 +265,15 @@ begin
 end;
 
 function SSE2CmpLtF32x4(const a, b: TVecF32x4): TMask4;
-var mask: Integer;
+var
+  pa, pb: Pointer;
+  mask: Integer;
 begin
+  pa := @a;
+  pb := @b;
   asm
-    lea      rax, a
-    lea      rdx, b
+    mov      rax, pa
+    mov      rdx, pb
     movups   xmm0, [rax]
     movups   xmm1, [rdx]
     cmpltps  xmm0, xmm1
@@ -216,11 +284,15 @@ begin
 end;
 
 function SSE2CmpLeF32x4(const a, b: TVecF32x4): TMask4;
-var mask: Integer;
+var
+  pa, pb: Pointer;
+  mask: Integer;
 begin
+  pa := @a;
+  pb := @b;
   asm
-    lea      rax, a
-    lea      rdx, b
+    mov      rax, pa
+    mov      rdx, pb
     movups   xmm0, [rax]
     movups   xmm1, [rdx]
     cmpleps  xmm0, xmm1
@@ -231,12 +303,16 @@ begin
 end;
 
 function SSE2CmpGtF32x4(const a, b: TVecF32x4): TMask4;
-var mask: Integer;
+var
+  pa, pb: Pointer;
+  mask: Integer;
 begin
   // GT: swap operands and use LT
+  pa := @a;
+  pb := @b;
   asm
-    lea      rax, b
-    lea      rdx, a
+    mov      rax, pb
+    mov      rdx, pa
     movups   xmm0, [rax]
     movups   xmm1, [rdx]
     cmpltps  xmm0, xmm1
@@ -247,12 +323,16 @@ begin
 end;
 
 function SSE2CmpGeF32x4(const a, b: TVecF32x4): TMask4;
-var mask: Integer;
+var
+  pa, pb: Pointer;
+  mask: Integer;
 begin
   // GE: swap operands and use LE
+  pa := @a;
+  pb := @b;
   asm
-    lea      rax, b
-    lea      rdx, a
+    mov      rax, pb
+    mov      rdx, pa
     movups   xmm0, [rax]
     movups   xmm1, [rdx]
     cmpleps  xmm0, xmm1
@@ -263,11 +343,15 @@ begin
 end;
 
 function SSE2CmpNeF32x4(const a, b: TVecF32x4): TMask4;
-var mask: Integer;
+var
+  pa, pb: Pointer;
+  mask: Integer;
 begin
+  pa := @a;
+  pb := @b;
   asm
-    lea      rax, a
-    lea      rdx, b
+    mov      rax, pa
+    mov      rdx, pb
     movups   xmm0, [rax]
     movups   xmm1, [rdx]
     cmpneqps xmm0, xmm1
@@ -280,57 +364,82 @@ end;
 // === SSE2 Math Functions ===
 
 function SSE2AbsF32x4(const a: TVecF32x4): TVecF32x4;
+var
+  pa, pr: Pointer;
 begin
+  pr := @Result;
+  pa := @a;
   asm
-    lea     rax, a
+    mov     rax, pa
+    mov     rdx, pr
     movups  xmm0, [rax]
     pcmpeqd xmm1, xmm1       // all 1s
     psrld   xmm1, 1          // shift right to get 0x7FFFFFFF
     andps   xmm0, xmm1
-    movups  [result], xmm0
+    movups  [rdx], xmm0
   end;
 end;
 
 function SSE2SqrtF32x4(const a: TVecF32x4): TVecF32x4;
+var
+  pa, pr: Pointer;
 begin
+  pr := @Result;
+  pa := @a;
   asm
-    lea    rax, a
+    mov    rax, pa
+    mov    rdx, pr
     movups xmm0, [rax]
     sqrtps xmm0, xmm0
-    movups [result], xmm0
+    movups [rdx], xmm0
   end;
 end;
 
 function SSE2MinF32x4(const a, b: TVecF32x4): TVecF32x4;
+var
+  pa, pb, pr: Pointer;
 begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
   asm
-    lea    rax, a
-    lea    rdx, b
+    mov    rax, pa
+    mov    rdx, pb
+    mov    rcx, pr
     movups xmm0, [rax]
     movups xmm1, [rdx]
     minps  xmm0, xmm1
-    movups [result], xmm0
+    movups [rcx], xmm0
   end;
 end;
 
 function SSE2MaxF32x4(const a, b: TVecF32x4): TVecF32x4;
+var
+  pa, pb, pr: Pointer;
 begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
   asm
-    lea    rax, a
-    lea    rdx, b
+    mov    rax, pa
+    mov    rdx, pb
+    mov    rcx, pr
     movups xmm0, [rax]
     movups xmm1, [rdx]
     maxps  xmm0, xmm1
-    movups [result], xmm0
+    movups [rcx], xmm0
   end;
 end;
 
 // === SSE2 Reduction Operations ===
 
 function SSE2ReduceAddF32x4(const a: TVecF32x4): Single;
+var
+  pa: Pointer;
 begin
+  pa := @a;
   asm
-    lea     rax, a
+    mov     rax, pa
     movups  xmm0, [rax]
     movaps  xmm1, xmm0
     shufps  xmm1, xmm1, $4E
@@ -343,9 +452,12 @@ begin
 end;
 
 function SSE2ReduceMinF32x4(const a: TVecF32x4): Single;
+var
+  pa: Pointer;
 begin
+  pa := @a;
   asm
-    lea     rax, a
+    mov     rax, pa
     movups  xmm0, [rax]
     movaps  xmm1, xmm0
     shufps  xmm1, xmm1, $4E
@@ -358,9 +470,12 @@ begin
 end;
 
 function SSE2ReduceMaxF32x4(const a: TVecF32x4): Single;
+var
+  pa: Pointer;
 begin
+  pa := @a;
   asm
-    lea     rax, a
+    mov     rax, pa
     movups  xmm0, [rax]
     movaps  xmm1, xmm0
     shufps  xmm1, xmm1, $4E
@@ -373,9 +488,12 @@ begin
 end;
 
 function SSE2ReduceMulF32x4(const a: TVecF32x4): Single;
+var
+  pa: Pointer;
 begin
+  pa := @a;
   asm
-    lea     rax, a
+    mov     rax, pa
     movups  xmm0, [rax]
     movaps  xmm1, xmm0
     shufps  xmm1, xmm1, $4E
@@ -390,52 +508,66 @@ end;
 // === SSE2 Memory Operations ===
 
 function SSE2LoadF32x4(p: PSingle): TVecF32x4;
+var
+  pr: Pointer;
 begin
   // ✅ Safety check: Assert for nil pointer
   Assert(p <> nil, 'SSE2LoadF32x4: pointer is nil');
+  pr := @Result;
   asm
     mov    rax, p
+    mov    rdx, pr
     movups xmm0, [rax]
-    movups [result], xmm0
+    movups [rdx], xmm0
   end;
 end;
 
 function SSE2LoadF32x4Aligned(p: PSingle): TVecF32x4;
+var
+  pr: Pointer;
 begin
   // ✅ Safety check: Assert for nil pointer and 16-byte alignment
   Assert(p <> nil, 'SSE2LoadF32x4Aligned: pointer is nil');
   {$PUSH}{$WARN 4055 OFF}
   Assert((PtrUInt(p) and $F) = 0, 'SSE2LoadF32x4Aligned: Pointer must be 16-byte aligned');
   {$POP}
+  pr := @Result;
   asm
     mov    rax, p
+    mov    rdx, pr
     movaps xmm0, [rax]
-    movups [result], xmm0
+    movups [rdx], xmm0
   end;
 end;
 
 procedure SSE2StoreF32x4(p: PSingle; const a: TVecF32x4);
+var
+  pa: Pointer;
 begin
   // ✅ Safety check: Assert for nil pointer
   Assert(p <> nil, 'SSE2StoreF32x4: pointer is nil');
+  pa := @a;
   asm
     mov    rax, p
-    lea    rdx, a
+    mov    rdx, pa
     movups xmm0, [rdx]
     movups [rax], xmm0
   end;
 end;
 
 procedure SSE2StoreF32x4Aligned(p: PSingle; const a: TVecF32x4);
+var
+  pa: Pointer;
 begin
   // ✅ Safety check: Assert for nil pointer and 16-byte alignment
   Assert(p <> nil, 'SSE2StoreF32x4Aligned: pointer is nil');
   {$PUSH}{$WARN 4055 OFF}
   Assert((PtrUInt(p) and $F) = 0, 'SSE2StoreF32x4Aligned: Pointer must be 16-byte aligned');
   {$POP}
+  pa := @a;
   asm
     mov    rax, p
-    lea    rdx, a
+    mov    rdx, pa
     movups xmm0, [rdx]
     movaps [rax], xmm0
   end;
@@ -444,19 +576,27 @@ end;
 // === SSE2 Utility Operations ===
 
 function SSE2SplatF32x4(value: Single): TVecF32x4;
+var
+  pr: Pointer;
 begin
+  pr := @Result;
   asm
+    mov    rax, pr
     movss  xmm0, value
     shufps xmm0, xmm0, 0
-    movups [result], xmm0
+    movups [rax], xmm0
   end;
 end;
 
 function SSE2ZeroF32x4: TVecF32x4;
+var
+  pr: Pointer;
 begin
+  pr := @Result;
   asm
+    mov    rax, pr
     xorps  xmm0, xmm0
-    movups [result], xmm0
+    movups [rax], xmm0
   end;
 end;
 
@@ -645,8 +785,9 @@ begin
 end;
 
 procedure MemCopy_SSE2(src, dst: Pointer; len: SizeUInt); assembler; nostackframe;
-// RDI = src, RSI = dst, RDX = len
 asm
+  {$IFDEF UNIX}
+  // RDI = src, RSI = dst, RDX = len
   test rdx, rdx
   jz @done
   test rdi, rdi
@@ -676,11 +817,44 @@ asm
   jmp @remainder
 
 @done:
+  {$ELSE}
+  // Windows x64: RCX = src, RDX = dst, R8 = len
+  test r8, r8
+  jz @done
+  test rcx, rcx
+  jz @done
+  test rdx, rdx
+  jz @done
+  cmp rcx, rdx
+  je @done
+
+  xor r9, r9            // i = 0
+
+@loop16:
+  lea rax, [r9 + 16]
+  cmp rax, r8
+  ja @remainder
+  movdqu xmm0, [rcx + r9]
+  movdqu [rdx + r9], xmm0
+  add r9, 16
+  jmp @loop16
+
+@remainder:
+  cmp r9, r8
+  jae @done
+  mov al, [rcx + r9]
+  mov [rdx + r9], al
+  inc r9
+  jmp @remainder
+
+@done:
+  {$ENDIF}
 end;
 
 procedure MemSet_SSE2(dst: Pointer; len: SizeUInt; value: Byte); assembler; nostackframe;
-// RDI = dst, RSI = len, RDX = value
 asm
+  {$IFDEF UNIX}
+  // RDI = dst, RSI = len, RDX = value
   test rsi, rsi
   jz @done
   test rdi, rdi
@@ -710,6 +884,40 @@ asm
   jmp @remainder
 
 @done:
+  {$ELSE}
+  // Windows x64: RCX = dst, RDX = len, R8 = value
+  test rdx, rdx
+  jz @done
+  test rcx, rcx
+  jz @done
+
+  // Broadcast value to all 16 bytes
+  movzx r8d, r8b
+  movd xmm0, r8d
+  punpcklbw xmm0, xmm0
+  pshuflw xmm0, xmm0, 0
+  punpcklqdq xmm0, xmm0
+
+  xor r9, r9             // i = 0
+  mov al, r8b
+
+@loop16:
+  lea rax, [r9 + 16]
+  cmp rax, rdx
+  ja @remainder
+  movdqu [rcx + r9], xmm0
+  add r9, 16
+  jmp @loop16
+
+@remainder:
+  cmp r9, rdx
+  jae @done
+  mov [rcx + r9], al
+  inc r9
+  jmp @remainder
+
+@done:
+  {$ENDIF}
 end;
 
 function SumBytes_SSE2(p: Pointer; len: SizeUInt): UInt64;
@@ -763,9 +971,11 @@ begin
 end;
 
 function CountByte_SSE2(p: Pointer; len: SizeUInt; value: Byte): SizeUInt; assembler; nostackframe;
-// RDI = p, RSI = len, RDX = value
+// SysV: RDI = p, RSI = len, RDX = value
+// Win64: RCX = p, RDX = len, R8 = value
 // Use SWAR popcount for 16-bit mask
 asm
+  {$IFDEF UNIX}
   xor rax, rax           // count = 0
   test rsi, rsi
   jz @done
@@ -773,6 +983,7 @@ asm
   jz @done
 
   // Broadcast value to all 16 bytes in xmm1
+  movzx edx, dl
   movd xmm1, edx
   punpcklbw xmm1, xmm1
   pshuflw xmm1, xmm1, 0
@@ -821,45 +1032,120 @@ asm
   jmp @remainder
 
 @done:
+  {$ELSE}
+  xor rax, rax           // count = 0
+  test rdx, rdx
+  jz @done
+  test rcx, rcx
+  jz @done
+
+  // Broadcast value to all 16 bytes in xmm1
+  movzx r8d, r8b
+  movd xmm1, r8d
+  punpcklbw xmm1, xmm1
+  pshuflw xmm1, xmm1, 0
+  punpcklqdq xmm1, xmm1
+
+  xor r9, r9             // i = 0
+
+@loop16:
+  lea r10, [r9 + 16]
+  cmp r10, rdx
+  ja @remainder
+  movdqu xmm0, [rcx + r9]
+  pcmpeqb xmm0, xmm1
+  pmovmskb r10d, xmm0
+  // Popcount using SWAR
+  mov r11d, r10d
+  shr r11d, 1
+  and r11d, $5555
+  sub r10d, r11d
+  mov r11d, r10d
+  shr r11d, 2
+  and r10d, $3333
+  and r11d, $3333
+  add r10d, r11d
+  mov r11d, r10d
+  shr r11d, 4
+  add r10d, r11d
+  and r10d, $0F0F
+  mov r11d, r10d
+  shr r11d, 8
+  add r10d, r11d
+  and r10d, $FF
+  add rax, r10
+  add r9, 16
+  jmp @loop16
+
+@remainder:
+  cmp r9, rdx
+  jae @done
+  movzx r10d, byte ptr [rcx + r9]
+  cmp r10d, r8d
+  jne @skip
+  inc rax
+@skip:
+  inc r9
+  jmp @remainder
+
+@done:
+  {$ENDIF}
 end;
 
 // === Extended Math Functions ===
 
 // FMA emulation: a*b + c (SSE2 has no native FMA)
 function SSE2FmaF32x4(const a, b, c: TVecF32x4): TVecF32x4;
+var
+  pa, pb, pc, pr: Pointer;
 begin
+  pa := @a;
+  pb := @b;
+  pc := @c;
+  pr := @Result;
   asm
-    lea    rax, a
-    lea    rdx, b
-    lea    rcx, c
+    mov    rax, pa
+    mov    rdx, pb
+    mov    rcx, pc
+    mov    r8, pr
     movups xmm0, [rax]
     movups xmm1, [rdx]
     movups xmm2, [rcx]
     mulps  xmm0, xmm1
     addps  xmm0, xmm2
-    movups [result], xmm0
+    movups [r8], xmm0
   end;
 end;
 
 // Reciprocal approximation (1/x)
 function SSE2RcpF32x4(const a: TVecF32x4): TVecF32x4;
+var
+  pa, pr: Pointer;
 begin
+  pa := @a;
+  pr := @Result;
   asm
-    lea    rax, a
+    mov    rax, pa
+    mov    rcx, pr
     movups xmm0, [rax]
     rcpps  xmm0, xmm0     // Approximate reciprocal (12-bit precision)
-    movups [result], xmm0
+    movups [rcx], xmm0
   end;
 end;
 
 // Reciprocal square root approximation (1/sqrt(x))
 function SSE2RsqrtF32x4(const a: TVecF32x4): TVecF32x4;
+var
+  pa, pr: Pointer;
 begin
+  pa := @a;
+  pr := @Result;
   asm
-    lea    rax, a
+    mov    rax, pa
+    mov    rcx, pr
     movups xmm0, [rax]
     rsqrtps xmm0, xmm0    // Approximate rsqrt (12-bit precision)
-    movups [result], xmm0
+    movups [rcx], xmm0
   end;
 end;
 
@@ -903,17 +1189,22 @@ begin
 end;
 
 function SSE2FloorF32x4(const a: TVecF32x4): TVecF32x4;
-var i: Integer;
+var
+  pa, pr: Pointer;
+  i: Integer;
 begin
   CheckSSE41;
   if g_HasSSE41 then
   begin
+    pa := @a;
+    pr := @Result;
     asm
-      lea    rax, a
+      mov    rax, pa
+      mov    rcx, pr
       movups xmm0, [rax]
       // roundps xmm0, xmm0, 1  (floor)
       db $66, $0F, $3A, $08, $C0, $01
-      movups [result], xmm0
+      movups [rcx], xmm0
     end;
   end
   else
@@ -928,17 +1219,22 @@ begin
 end;
 
 function SSE2CeilF32x4(const a: TVecF32x4): TVecF32x4;
-var i: Integer;
+var
+  pa, pr: Pointer;
+  i: Integer;
 begin
   CheckSSE41;
   if g_HasSSE41 then
   begin
+    pa := @a;
+    pr := @Result;
     asm
-      lea    rax, a
+      mov    rax, pa
+      mov    rcx, pr
       movups xmm0, [rax]
       // roundps xmm0, xmm0, 2  (ceil)
       db $66, $0F, $3A, $08, $C0, $02
-      movups [result], xmm0
+      movups [rcx], xmm0
     end;
   end
   else
@@ -953,17 +1249,22 @@ begin
 end;
 
 function SSE2RoundF32x4(const a: TVecF32x4): TVecF32x4;
-var i: Integer;
+var
+  pa, pr: Pointer;
+  i: Integer;
 begin
   CheckSSE41;
   if g_HasSSE41 then
   begin
+    pa := @a;
+    pr := @Result;
     asm
-      lea    rax, a
+      mov    rax, pa
+      mov    rcx, pr
       movups xmm0, [rax]
       // roundps xmm0, xmm0, 0  (round to nearest even)
       db $66, $0F, $3A, $08, $C0, $00
-      movups [result], xmm0
+      movups [rcx], xmm0
     end;
   end
   else
@@ -974,17 +1275,22 @@ begin
 end;
 
 function SSE2TruncF32x4(const a: TVecF32x4): TVecF32x4;
-var i: Integer;
+var
+  pa, pr: Pointer;
+  i: Integer;
 begin
   CheckSSE41;
   if g_HasSSE41 then
   begin
+    pa := @a;
+    pr := @Result;
     asm
-      lea    rax, a
+      mov    rax, pa
+      mov    rcx, pr
       movups xmm0, [rax]
       // roundps xmm0, xmm0, 3  (truncate)
       db $66, $0F, $3A, $08, $C0, $03
-      movups [result], xmm0
+      movups [rcx], xmm0
     end;
   end
   else
@@ -996,17 +1302,24 @@ end;
 
 // Clamp using SSE2 min/max
 function SSE2ClampF32x4(const a, minVal, maxVal: TVecF32x4): TVecF32x4;
+var
+  pa, pMin, pMax, pr: Pointer;
 begin
+  pa := @a;
+  pMin := @minVal;
+  pMax := @maxVal;
+  pr := @Result;
   asm
-    lea    rax, a
-    lea    rdx, minVal
-    lea    rcx, maxVal
+    mov    rax, pa
+    mov    rdx, pMin
+    mov    rcx, pMax
+    mov    r8, pr
     movups xmm0, [rax]
     movups xmm1, [rdx]
     movups xmm2, [rcx]
     maxps  xmm0, xmm1     // max(a, minVal)
     minps  xmm0, xmm2     // min(result, maxVal)
-    movups [result], xmm0
+    movups [r8], xmm0
   end;
 end;
 
@@ -1014,10 +1327,14 @@ end;
 
 // Dot product (4 elements)
 function SSE2DotF32x4(const a, b: TVecF32x4): Single;
+var
+  pa, pb: Pointer;
 begin
+  pa := @a;
+  pb := @b;
   asm
-    lea     rax, a
-    lea     rdx, b
+    mov     rax, pa
+    mov     rdx, pb
     movups  xmm0, [rax]
     movups  xmm1, [rdx]
     mulps   xmm0, xmm1     // Element-wise multiply
@@ -1034,11 +1351,15 @@ end;
 
 // Dot product (3 elements, ignore w)
 function SSE2DotF32x3(const a, b: TVecF32x4): Single;
-var t: TVecF32x4;
+var
+  t: TVecF32x4;
+  pa, pb: Pointer;
 begin
+  pa := @a;
+  pb := @b;
   asm
-    lea     rax, a
-    lea     rdx, b
+    mov     rax, pa
+    mov     rdx, pb
     movups  xmm0, [rax]
     movups  xmm1, [rdx]
     mulps   xmm0, xmm1
@@ -1055,11 +1376,17 @@ end;
 
 // Cross product (3D)
 function SSE2CrossF32x3(const a, b: TVecF32x4): TVecF32x4;
+var
+  pa, pb, pr: Pointer;
 begin
   // Cross = (a.y*b.z - a.z*b.y, a.z*b.x - a.x*b.z, a.x*b.y - a.y*b.x, 0)
+  pa := @a;
+  pb := @b;
+  pr := @Result;
   asm
-    lea     rax, a
-    lea     rdx, b
+    mov     rax, pa
+    mov     rdx, pb
+    mov     rcx, pr
     movups  xmm0, [rax]        // a = [x, y, z, w]
     movups  xmm1, [rdx]        // b = [x, y, z, w]
     
@@ -1085,16 +1412,19 @@ begin
     
     subps   xmm2, xmm4         // Subtract to get [x', y', z', w']
     
-    movups  [result], xmm2
+    movups  [rcx], xmm2
   end;
   Result.f[3] := 0.0; // Ensure w=0
 end;
 
 // Vector length (4 elements)
 function SSE2LengthF32x4(const a: TVecF32x4): Single;
+var
+  pa: Pointer;
 begin
+  pa := @a;
   asm
-    lea     rax, a
+    mov     rax, pa
     movups  xmm0, [rax]
     mulps   xmm0, xmm0      // Square each element
     // Horizontal add
@@ -1111,9 +1441,12 @@ end;
 
 // Vector length (3 elements)
 function SSE2LengthF32x3(const a: TVecF32x4): Single;
+var
+  pa: Pointer;
 begin
+  pa := @a;
   asm
-    lea     rax, a
+    mov     rax, pa
     movups  xmm0, [rax]
     // Zero w before squaring
     pcmpeqd xmm1, xmm1
@@ -1134,18 +1467,23 @@ end;
 
 // Normalize vector (4 elements)
 function SSE2NormalizeF32x4(const a: TVecF32x4): TVecF32x4;
-var len: Single;
+var
+  pa, pr: Pointer;
+  len: Single;
 begin
   len := SSE2LengthF32x4(a);
   if len > 0 then
   begin
+    pa := @a;
+    pr := @Result;
     asm
-      lea     rax, a
+      mov     rax, pa
+      mov     rcx, pr
       movups  xmm0, [rax]
       movss   xmm1, len
       shufps  xmm1, xmm1, 0   // Broadcast length
       divps   xmm0, xmm1      // Divide each element by length
-      movups  [result], xmm0
+      movups  [rcx], xmm0
     end;
   end
   else
@@ -1154,18 +1492,23 @@ end;
 
 // Normalize vector (3 elements, w=0)
 function SSE2NormalizeF32x3(const a: TVecF32x4): TVecF32x4;
-var len: Single;
+var
+  pa, pr: Pointer;
+  len: Single;
 begin
   len := SSE2LengthF32x3(a);
   if len > 0 then
   begin
+    pa := @a;
+    pr := @Result;
     asm
-      lea     rax, a
+      mov     rax, pa
+      mov     rcx, pr
       movups  xmm0, [rax]
       movss   xmm1, len
       shufps  xmm1, xmm1, 0
       divps   xmm0, xmm1
-      movups  [result], xmm0
+      movups  [rcx], xmm0
     end;
     Result.f[3] := 0.0;
   end
@@ -1912,17 +2255,24 @@ end;
 // 位为 1 时选择 a，位为 0 时选择 b
 function SSE2SelectF64x2(const mask: TMask2; const a, b: TVecF64x2): TVecF64x2;
 var
+  pa, pb, pm, pr: Pointer;
   expandedMask: TVecI64x2;
 begin
   // 将 mask 扩展为 64-bit 掉码
   if (mask and 1) <> 0 then expandedMask.i[0] := Int64(-1) else expandedMask.i[0] := 0;
   if (mask and 2) <> 0 then expandedMask.i[1] := Int64(-1) else expandedMask.i[1] := 0;
 
+  pa := @a;
+  pb := @b;
+  pm := @expandedMask;
+  pr := @Result;
+
   // result = (a AND mask) OR (b AND NOT mask)
   asm
-    lea rax, a
-    lea rdx, b
-    lea rcx, expandedMask
+    mov   rax, pa
+    mov   rdx, pb
+    mov   rcx, pm
+    mov   r8, pr
 
     movupd xmm0, [rax]     // a
     movupd xmm1, [rdx]     // b
@@ -1932,7 +2282,7 @@ begin
     andnpd xmm2, xmm1      // b AND (NOT mask)  (andnpd: ~src1 AND src2)
     orpd   xmm0, xmm2      // combine
 
-    movupd [result], xmm0
+    movupd [r8], xmm0
   end;
 end;
 
@@ -1963,8 +2313,6 @@ begin
   end;
 
   // Vector-related operations default to Scalar reference implementations.
-  // You can enable SSE2 vector ops for experimentation via SetVectorAsmEnabled(True)
-  // (note: SSE2 asm path is not yet fully validated under FPC's calling conventions).
 
   if IsVectorAsmEnabled then
   begin

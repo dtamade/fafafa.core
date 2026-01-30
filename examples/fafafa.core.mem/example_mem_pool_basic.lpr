@@ -1,34 +1,37 @@
-{$CODEPAGE UTF8}
 program example_mem_pool_basic;
-
 {$mode objfpc}{$H+}
+{$I ../../src/fafafa.core.settings.inc}
+{$IFDEF WINDOWS}{$CODEPAGE UTF8}{$ENDIF}
 
 uses
   SysUtils,
-  fafafa.core.mem.allocator,
   fafafa.core.mem.memPool,
   fafafa.core.mem.stackPool,
-  //fafafa.core.mem.stack_scope_helpers,
-  fafafa.core.mem.pool.slab;
+  fafafa.core.mem.blockpool,
+  fafafa.core.mem.pool.slab,
+  fafafa.core.mem.stats;
 
 procedure DemoMemPool;
 var
   LPool: TMemPool;
-  P1, P2: Pointer;
+  LPtr1: Pointer;
+  LPtr2: Pointer;
+  LStats: TMemPoolStats;
 begin
   WriteLn('--- TMemPool Demo ---');
   LPool := TMemPool.Create(64, 4);
   try
-    P1 := LPool.Alloc;
-    P2 := LPool.Alloc;
-    if (P1 <> nil) and (P2 <> nil) then
+    LPtr1 := LPool.Alloc;
+    LPtr2 := LPool.Alloc;
+    if (LPtr1 <> nil) and (LPtr2 <> nil) then
       WriteLn('Allocated 2 blocks of 64 bytes');
-    LPool.ReleasePtr(P2);
-    LPool.ReleasePtr(P1);
+    LStats := GetMemPoolStats(LPool);
+    WriteLn('MemPool: ', LStats.AllocatedCount, '/', LStats.Capacity);
+    LPool.ReleasePtr(LPtr2);
+    LPool.ReleasePtr(LPtr1);
     LPool.Reset;
     WriteLn('TMemPool reset complete');
   finally
-    // 注意：TMemPool 定义了 Free(aPtr: Pointer) 方法，避免与 TObject.Free 冲突，这里用 Destroy
     LPool.Destroy;
   end;
 end;
@@ -36,49 +39,83 @@ end;
 procedure DemoStackPool;
 var
   LPool: TStackPool;
-  P1, P2: Pointer;
+  LPtr1: Pointer;
+  LPtr2: Pointer;
+  LStats: TStackPoolStats;
 begin
   WriteLn('--- TStackPool Demo ---');
   LPool := TStackPool.Create(1024);
   try
-    P1 := LPool.Alloc(128);
-    P2 := LPool.Alloc(256, 16);
-    if (P1 <> nil) and (P2 <> nil) then
+    LPtr1 := LPool.Alloc(128);
+    LPtr2 := LPool.Alloc(256, 16);
+    if (LPtr1 <> nil) and (LPtr2 <> nil) then
       WriteLn('Allocated 128 and 256 bytes (aligned)');
+    LStats := GetStackPoolStats(LPool);
+    WriteLn('StackPool: ', LStats.UsedSize, '/', LStats.TotalSize);
     LPool.Reset;
     WriteLn('TStackPool reset complete');
   finally
     LPool.Destroy;
   end;
   { 可选：也可使用作用域守卫风格 }
-  //var G: TStackScopeGuard;
-  //G := TStackScopeGuard.Enter(LPool);
+  //var LGuard: TStackScopeGuard;
+  //LGuard := TStackScopeGuard.Enter(LPool);
   //try
-  //  P1 := LPool.Alloc(128);
-  //  P2 := LPool.Alloc(256, 16);
+  //  LPtr1 := LPool.Alloc(128);
+  //  LPtr2 := LPool.Alloc(256, 16);
   //finally
-  //  G.Leave;
+  //  LGuard.Leave;
   //end;
+end;
 
+procedure DemoBlockPool;
+var
+  LPool: TBlockPool;
+  LPtr1: Pointer;
+  LPtr2: Pointer;
+  LStats: TBlockPoolStats;
+begin
+  WriteLn('--- TBlockPool Demo ---');
+  LPool := TBlockPool.Create(32, 8);
+  try
+    LPtr1 := LPool.Acquire;
+    LPtr2 := LPool.Acquire;
+    if (LPtr1 <> nil) and (LPtr2 <> nil) then
+      WriteLn('Acquired 2 blocks of 32 bytes');
+    LStats := GetBlockPoolStats(LPool);
+    WriteLn('BlockPool: ', LStats.InUse, '/', LStats.Capacity);
+    LPool.Release(LPtr2);
+    LPool.Release(LPtr1);
+    WriteLn('BlockPool release complete');
+  finally
+    LPool.Destroy;
+  end;
 end;
 
 procedure DemoSlabPool;
 var
   LPool: TSlabPool;
-  P1, P2: Pointer;
+  LPtr1: Pointer;
+  LPtr2: Pointer;
+  LStats: TSlabPoolStats;
+  LPerf: TSlabPerfCounters;
 begin
   WriteLn('--- TSlabPool Demo ---');
   LPool := TSlabPool.Create(64*1024);
   try
-    P1 := LPool.Alloc(128);
-    P2 := LPool.Alloc(64);
-    if (P1 <> nil) and (P2 <> nil) then
+    LPtr1 := LPool.Alloc(128);
+    LPtr2 := LPool.Alloc(64);
+    if (LPtr1 <> nil) and (LPtr2 <> nil) then
       WriteLn('Allocated 128 and 64 bytes from SlabPool');
-    LPool.ReleasePtr(P2);
-    LPool.ReleasePtr(P1);
-    WriteLn('Freed Slab allocations');
+    LStats := GetSlabPoolStats(LPool);
+    LPerf := LPool.GetPerfCounters;
+    WriteLn('Slab: ', LStats.TotalUsed, '/', LStats.TotalCapacity,
+      ', allocs: ', LPerf.AllocCalls);
+    LPool.ReleasePtr(LPtr2);
+    LPool.ReleasePtr(LPtr1);
+    LPerf := LPool.GetPerfCounters;
+    WriteLn('Slab frees: ', LPerf.FreeCalls);
   finally
-    // 与 TObject.Free 冲突，使用 Destroy
     LPool.Destroy;
   end;
 end;
@@ -87,13 +124,14 @@ begin
   try
     DemoMemPool;
     DemoStackPool;
+    DemoBlockPool;
     DemoSlabPool;
     WriteLn('All pool demos completed.');
   except
-    on E: Exception do begin
+    on E: Exception do
+    begin
       WriteLn('Error: ', E.Message);
       Halt(1);
     end;
   end;
 end.
-

@@ -31,7 +31,7 @@
     </RequiredPackages>
     <Units>
       <Unit>
-        <Filename Value="fafafa.core.sync.rwlock.poison.test.lpr"/>
+        <Filename Value="bin/fafafa.core.sync.rwlock.poison.test"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>

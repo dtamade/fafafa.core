@@ -28,6 +28,7 @@ interface
 
 uses
   SysUtils, DateUtils, SyncObjs,
+  fafafa.core.base,   // ✅ OBJECTID-001: 引入 ECore 基类
   fafafa.core.id.base;  // ✅ P1: 统一类型定义
 
 const
@@ -38,7 +39,7 @@ const
 
 type
   { EInvalidObjectId - Invalid ObjectId string exception }
-  EInvalidObjectId = class(Exception);
+  EInvalidObjectId = class(ECore);  // ✅ OBJECTID-001: 继承自 ECore
 
   { IObjectIdGenerator - ObjectId generator interface }
   // ✅ T1.2: 统一接口方法名 - 添加 NextRaw 规范命名

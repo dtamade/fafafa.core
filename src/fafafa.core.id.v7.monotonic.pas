@@ -15,6 +15,7 @@ interface
 
 uses
   SysUtils, SyncObjs,
+  fafafa.core.base,        // ✅ UUIDV7-001: 引入 ECore 基类
   fafafa.core.id,            // TUuid128, UuidToString
   fafafa.core.crypto.random, // GetSecureRandom
   fafafa.core.time,          // TDuration, SleepFor
@@ -35,7 +36,7 @@ type
     BackwardPolicy: TUuidV7BackwardPolicy; // default bpWait
   end;
 
-  EUuidClockRollback = class(Exception);
+  EUuidClockRollback = class(ECore);  // ✅ UUIDV7-001: 继承自 ECore
 
 function CreateUuidV7Monotonic: IUuidV7Generator;
 function CreateUuidV7MonotonicEx(const Opts: TUuidV7Options): IUuidV7Generator;
@@ -196,4 +197,3 @@ begin
 end;
 
 end.
-

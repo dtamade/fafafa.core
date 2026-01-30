@@ -25,23 +25,23 @@
     </RunParams>
     <Units>
       <Unit>
-        <Filename Value="tests_atomic.lpr"/>
+        <Filename Value="bin/tests_atomic"/>
         <IsPartOfProject Value="True"/>
       </Unit>
       <Unit>
-        <Filename Value="Test_fafafa.core.atomic.pas"/>
+        <Filename Value="bin/tests_atomic"/>
         <IsPartOfProject Value="True"/>
       </Unit>
       <Unit>
-        <Filename Value="Test_fafafa.core.atomic.base.pas"/>
+        <Filename Value="bin/tests_atomic"/>
         <IsPartOfProject Value="True"/>
       </Unit>
       <Unit>
-        <Filename Value="Test_fafafa.core.atomic.contract.pas"/>
+        <Filename Value="bin/tests_atomic"/>
         <IsPartOfProject Value="True"/>
       </Unit>
       <Unit>
-        <Filename Value="Test_fafafa.core.atomic.compat.contract.pas"/>
+        <Filename Value="bin/tests_atomic"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>
@@ -50,12 +50,12 @@
     <Version Value="11"/>
     <PathDelim Value="\"/>
     <Target>
-      <Filename Value="bin\tests_atomic"/>
+      <Filename Value="bin/tests_atomic"/>
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir);..;..\..\src"/>
       <OtherUnitFiles Value="..;..\..\src;..\..\src\ui;..\..\src\tests"/>
-      <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+      <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
   </CompilerOptions>
 </CONFIG>

@@ -242,6 +242,10 @@ type
     FSize: UInt64;
     FMemoryMap: TMemoryMap;
     FIsCreator: Boolean;
+    {$IFNDEF WINDOWS}
+    FFallbackFile: string;
+    FIsFileBacked: Boolean;
+    {$ENDIF}
 
   public
     {**
@@ -331,6 +335,30 @@ function munlock(addr: Pointer; len: size_t): cint; cdecl; external 'c';
 
 const
   MS_SYNC = 4;  // msync flags: synchronous memory sync
+
+function ShouldFallbackShm(aErr: cint): Boolean; inline;
+begin
+  Result := (aErr = ESysENOENT) or (aErr = ESysEACCES) or (aErr = ESysEPERM) or (aErr = ESysENOSYS);
+end;
+
+function BuildSharedFallbackPath(const aName: string): string;
+var
+  LDir: string;
+  LBase: string;
+begin
+  LDir := GetEnvironmentVariable('FAFAFA_SHM_DIR');
+  if LDir = '' then
+    LDir := GetTempDir;
+  if LDir = '' then
+    LDir := '/tmp';
+
+  LBase := aName;
+  if (LBase <> '') and (LBase[1] = '/') then
+    Delete(LBase, 1, 1);
+  LBase := StringReplace(LBase, '/', '_', [rfReplaceAll]);
+
+  Result := IncludeTrailingPathDelimiter(LDir) + 'fafafa_shm_' + LBase;
+end;
 {$ENDIF}
 
 { TMemoryMap }
@@ -464,7 +492,7 @@ var
   LDesiredAccess: DWORD;
   LCreationDisposition: DWORD;
   LFileSizeHigh, LFileSizeLow: DWORD;
-  NewPtrHigh, NewPtrLow: DWORD;
+  LNewPtrHigh, LNewPtrLow: DWORD;
   {$ELSE}
   LOpenFlags: Integer;
   LStatBuf: TStat;
@@ -526,9 +554,9 @@ begin
   begin
     // 扩展文件：FPC 3.3 兼容写法，避免内联 var 声明
     {$IFDEF WINDOWS}
-    NewPtrHigh := Hi(FSize);
-    NewPtrLow := Lo(FSize);
-    if (SetFilePointer(FFileHandle, Integer(NewPtrLow), @NewPtrHigh, FILE_BEGIN) = INVALID_SET_FILE_POINTER)
+    LNewPtrHigh := Hi(FSize);
+    LNewPtrLow := Lo(FSize);
+    if (SetFilePointer(FFileHandle, Integer(LNewPtrLow), @LNewPtrHigh, FILE_BEGIN) = INVALID_SET_FILE_POINTER)
        and (GetLastError() <> NO_ERROR) then
     begin
       CloseFile;
@@ -540,9 +568,9 @@ begin
       Exit;
     end;
     // 复位到文件开头
-    NewPtrHigh := 0;
-    NewPtrLow := 0;
-    SetFilePointer(FFileHandle, 0, @NewPtrHigh, FILE_BEGIN);
+    LNewPtrHigh := 0;
+    LNewPtrLow := 0;
+    SetFilePointer(FFileHandle, 0, @LNewPtrHigh, FILE_BEGIN);
     {$ELSE}
     // 非 Windows 平台已在下方统一处理
     {$ENDIF}
@@ -689,6 +717,32 @@ begin
   end;
 end;
 
+function GetSystemPageSize: UInt64;
+{$IFDEF WINDOWS}
+var
+  LInfo: SYSTEM_INFO;
+begin
+  GetSystemInfo(LInfo);
+  Result := LInfo.dwPageSize;
+end;
+{$ELSE}
+{$IFDEF HASFPSYSCONF}
+var
+  LPage: clong;
+begin
+  LPage := fpSysConf(_SC_PAGESIZE);
+  if LPage <= 0 then
+    Result := 4096
+  else
+    Result := UInt64(LPage);
+end;
+{$ELSE}
+begin
+  Result := 4096;
+end;
+{$ENDIF}
+{$ENDIF}
+
 function TMemoryMap.Flush(aOffset: UInt64; aSize: UInt64): Boolean;
 var
   LFlushSize: UInt64;
@@ -714,9 +768,35 @@ begin
 end;
 
 function TMemoryMap.FlushRange(aOffset: UInt64; aSize: UInt64): Boolean;
+var
+  LPageSize: UInt64;
+  LAlignedOffset: UInt64;
+  LAlignedSize: UInt64;
+  LDelta: UInt64;
 begin
-  if aSize = 0 then Exit(False);
-  Result := Flush(aOffset, aSize);
+  Result := False;
+  if aSize = 0 then Exit;
+  if not IsValid then Exit;
+  if aOffset >= FSize then Exit;
+
+  LPageSize := GetSystemPageSize;
+  if (LPageSize <> 0) and ((LPageSize and (LPageSize - 1)) = 0) then
+  begin
+    LAlignedOffset := aOffset and not (LPageSize - 1);
+    LDelta := aOffset - LAlignedOffset;
+    LAlignedSize := aSize + LDelta;
+    LAlignedSize := (LAlignedSize + LPageSize - 1) and not (LPageSize - 1);
+  end
+  else
+  begin
+    LAlignedOffset := aOffset;
+    LAlignedSize := aSize;
+  end;
+
+  if LAlignedOffset + LAlignedSize > FSize then
+    LAlignedSize := FSize - LAlignedOffset;
+
+  Result := Flush(LAlignedOffset, LAlignedSize);
 end;
 
 {$PUSH}
@@ -727,7 +807,7 @@ var
   LOldAccess: TMemoryMapAccess;
   LOldFlags: TMemoryMapFlags;
   {$IFDEF WINDOWS}
-  NewPtrHigh, NewPtrLow: DWORD;
+  LNewPtrHigh, LNewPtrLow: DWORD;
   {$ENDIF}
 begin
   Result := False;
@@ -756,9 +836,9 @@ begin
     nil, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, 0);
   if FFileHandle <> INVALID_HANDLE_VALUE then
   begin
-    NewPtrHigh := Hi(aNewSize);
-    NewPtrLow := Lo(aNewSize);
-    if (SetFilePointer(FFileHandle, Integer(NewPtrLow), @NewPtrHigh, FILE_BEGIN) <> INVALID_SET_FILE_POINTER)
+    LNewPtrHigh := Hi(aNewSize);
+    LNewPtrLow := Lo(aNewSize);
+    if (SetFilePointer(FFileHandle, Integer(LNewPtrLow), @LNewPtrHigh, FILE_BEGIN) <> INVALID_SET_FILE_POINTER)
        or (GetLastError() = NO_ERROR) then
     begin
       SetEndOfFile(FFileHandle);
@@ -837,29 +917,29 @@ end;
 
 function TMemoryMap.WriteLPBytes(aOffset: UInt64; const aBuf: RawByteString): Boolean;
 var
-  P: PByte;
-  L: UInt32;
-  Need: UInt64;
+  LPtr: PByte;
+  LLen: UInt32;
+  LNeed: UInt64;
 begin
   Result := False;
   if not IsValid then Exit;
   // 只读映射不允许写入，避免触发访问冲突
   if FAccess = mmaRead then Exit;
-  L := Length(aBuf);
-  Need := SizeOf(L) + UInt64(L);
-  if (aOffset + Need) > FSize then Exit;
-  P := PByte(PByte(FBaseAddress) + aOffset);
-  Move(L, P^, SizeOf(L));
-  Inc(P, SizeOf(L));
-  if L > 0 then Move(aBuf[1], P^, L);
+  LLen := Length(aBuf);
+  LNeed := SizeOf(LLen) + UInt64(LLen);
+  if (aOffset + LNeed) > FSize then Exit;
+  LPtr := PByte(PByte(FBaseAddress) + aOffset);
+  Move(LLen, LPtr^, SizeOf(LLen));
+  Inc(LPtr, SizeOf(LLen));
+  if LLen > 0 then Move(aBuf[1], LPtr^, LLen);
   Result := True;
 end;
 
 function TMemoryMap.ReadLPBytes(aOffset: UInt64; out aBuf: RawByteString): Boolean;
 var
-  P: PByte;
-  L: UInt32;
-  Need: UInt64;
+  LPtr: PByte;
+  LLen: UInt32;
+  LNeed: UInt64;
 {$PUSH}
 {$WARN 5057 OFF} // L/Need 后续会被 Move/计算赋值，抑制“似乎未初始化”
 {$POP}
@@ -867,34 +947,34 @@ begin
   Result := False;
   aBuf := '';
   if not IsValid then Exit;
-  if (aOffset + SizeOf(L)) > FSize then Exit;
-  P := PByte(PByte(FBaseAddress) + aOffset);
-  Move(P^, L, SizeOf(L));
-  Need := SizeOf(L) + UInt64(L);
-  if (aOffset + Need) > FSize then Exit;
-  Inc(P, SizeOf(L));
-  SetLength(aBuf, L);
-  if L > 0 then Move(P^, aBuf[1], L);
+  if (aOffset + SizeOf(LLen)) > FSize then Exit;
+  LPtr := PByte(PByte(FBaseAddress) + aOffset);
+  Move(LPtr^, LLen, SizeOf(LLen));
+  LNeed := SizeOf(LLen) + UInt64(LLen);
+  if (aOffset + LNeed) > FSize then Exit;
+  Inc(LPtr, SizeOf(LLen));
+  SetLength(aBuf, LLen);
+  if LLen > 0 then Move(LPtr^, aBuf[1], LLen);
   Result := True;
 end;
 
 function TMemoryMap.WriteLPUTF8(aOffset: UInt64; const S: UnicodeString): Boolean;
 var
-  bytes: RawByteString;
+  LBytes: RawByteString;
 begin
-  bytes := UTF8Encode(S);
-  Result := WriteLPBytes(aOffset, bytes);
+  LBytes := UTF8Encode(S);
+  Result := WriteLPBytes(aOffset, LBytes);
 end;
 
 function TMemoryMap.ReadLPUTF8(aOffset: UInt64; out S: UTF8String): Boolean;
 var
-  bytes: RawByteString;
+  LBytes: RawByteString;
 begin
-  Result := ReadLPBytes(aOffset, bytes);
+  Result := ReadLPBytes(aOffset, LBytes);
   if Result then
   begin
-    SetCodePage(bytes, CP_UTF8, False);
-    S := UTF8String(bytes);
+    SetCodePage(LBytes, CP_UTF8, False);
+    S := UTF8String(LBytes);
   end;
 end;
 
@@ -907,6 +987,10 @@ begin
   FSize := 0;
   FMemoryMap := TMemoryMap.Create;
   FIsCreator := False;
+  {$IFNDEF WINDOWS}
+  FFallbackFile := '';
+  FIsFileBacked := False;
+  {$ENDIF}
 end;
 
 destructor TSharedMemory.Destroy;
@@ -930,6 +1014,9 @@ var
 var
   LSharedName: string;
   LFileHandle: Integer;
+  LError: cint;
+  LFallback: string;
+  LExists: Boolean;
 {$ENDIF}
 begin
   Result := False;
@@ -939,6 +1026,10 @@ begin
 
   FName := aName;
   FSize := aSize;
+  {$IFNDEF WINDOWS}
+  FFallbackFile := '';
+  FIsFileBacked := False;
+  {$ENDIF}
 
   if (FName = '') or (FSize = 0) then Exit;
 
@@ -1000,7 +1091,22 @@ begin
   begin
     // 已存在则仅打开
     LFileHandle := shm_open(PChar(LSharedName), O_RDWR, 0);
-    if LFileHandle = -1 then Exit;
+    if LFileHandle = -1 then
+    begin
+      LError := fpgeterrno;
+      if ShouldFallbackShm(LError) then
+      begin
+        LFallback := BuildSharedFallbackPath(FName);
+        LExists := FileExists(LFallback);
+        if not FMemoryMap.OpenFile(LFallback, aAccess, [mmfShared], FSize, 0) then Exit;
+        FIsCreator := not LExists;
+        FIsFileBacked := True;
+        FFallbackFile := LFallback;
+        FSize := FMemoryMap.Size;
+        Result := True;
+      end;
+      Exit;
+    end;
     FIsCreator := False;
   end
   else
@@ -1053,6 +1159,8 @@ var
   LSharedName: string;
   LFileHandle: Integer;
   LStatBuf: TStat;
+  LError: cint;
+  LFallback: string;
 {$ENDIF}
 begin
   Result := False;
@@ -1062,6 +1170,10 @@ begin
 
   FName := aName;
   FIsCreator := False;
+  {$IFNDEF WINDOWS}
+  FFallbackFile := '';
+  FIsFileBacked := False;
+  {$ENDIF}
 
   if FName = '' then Exit;
 
@@ -1123,7 +1235,22 @@ begin
   else
     LFileHandle := shm_open(PChar(LSharedName), O_RDWR, 0);
   end;
-  if LFileHandle = -1 then Exit;
+  if LFileHandle = -1 then
+  begin
+    LError := fpgeterrno;
+    if ShouldFallbackShm(LError) then
+    begin
+      LFallback := BuildSharedFallbackPath(FName);
+      if not FileExists(LFallback) then Exit;
+      if not FMemoryMap.OpenFile(LFallback, aAccess, [mmfShared], 0, 0) then Exit;
+      FIsFileBacked := True;
+      FFallbackFile := LFallback;
+      FSize := FMemoryMap.Size;
+      Result := True;
+      Exit;
+    end;
+    Exit;
+  end;
 
   // 获取大小
   if FpFStat(LFileHandle, LStatBuf) <> 0 then
@@ -1171,7 +1298,14 @@ begin
 
     {$IFNDEF WINDOWS}
     // Unix/Linux: 如果是创建者，删除共享内存对象
-    if FIsCreator and (FName <> '') then
+    if FIsFileBacked then
+    begin
+      if FIsCreator and (FFallbackFile <> '') then
+        DeleteFile(FFallbackFile);
+      FFallbackFile := '';
+      FIsFileBacked := False;
+    end
+    else if FIsCreator and (FName <> '') then
     begin
       if (Length(FName) = 0) or (FName[1] <> '/') then
         LSharedName := '/' + FName

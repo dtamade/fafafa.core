@@ -1,18 +1,7 @@
 ========================================
 Module: fafafa.core.fs
 Script: /home/dtamade/projects/fafafa.core/tests/fafafa.core.fs/BuildOrTest.sh
-Started: 2026-01-01 21:16:24
+Started: 2026-01-24 21:13:43
 ========================================
 [BUILD] Project: /home/dtamade/projects/fafafa.core/tests/fafafa.core.fs/tests_fs.lpi (mode=Debug)
-[BUILD] OK
-[CHECK] Found warnings/hints from src/ in build log:
-24:/home/dtamade/projects/fafafa.core/src/fafafa.core.os.pas(218,35) Hint: (5024) Parameter "flags" not used
-25:/home/dtamade/projects/fafafa.core/src/fafafa.core.os.unix.inc(244,17) Hint: (5057) Local variable "uts" does not seem to be initialized
-26:/home/dtamade/projects/fafafa.core/src/fafafa.core.os.unix.inc(515,18) Warning: (5093) Function result variable of a managed type does not seem to be initialized
-27:/home/dtamade/projects/fafafa.core/src/fafafa.core.os.unix.inc(575,18) Hint: (5057) Local variable "un" does not seem to be initialized
-41:/home/dtamade/projects/fafafa.core/src/fafafa.core.env.pas(387,4) Hint: (3124) Inlining disabled
-66:/home/dtamade/projects/fafafa.core/src/fafafa.core.fs.copyaccel.pas(63,63) Hint: (4055) Conversion between ordinals and pointers is not portable
-67:/home/dtamade/projects/fafafa.core/src/fafafa.core.fs.copyaccel.pas(64,24) Hint: (4055) Conversion between ordinals and pointers is not portable
-68:/home/dtamade/projects/fafafa.core/src/fafafa.core.fs.copyaccel.pas(72,5) Hint: (4055) Conversion between ordinals and pointers is not portable
-69:/home/dtamade/projects/fafafa.core/src/fafafa.core.fs.fileio.pas(99,26) Hint: (5026) Value parameter "ABuffer" is assigned but never used
-70:/home/dtamade/projects/fafafa.core/src/fafafa.core.fs.fileio.pas(106,27) Hint: (5026) Value parameter "ABuffer" is assigned but never used
+[BUILD] FAILED rc=7 (see /home/dtamade/projects/fafafa.core/tests/fafafa.core.fs/logs/build.txt)

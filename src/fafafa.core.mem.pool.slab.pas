@@ -3,13 +3,16 @@ unit fafafa.core.mem.pool.slab;
 {$mode objfpc}{$H+}
 {$I fafafa.core.settings.inc}
 
+{$PUSH}
+{$HINTS OFF} // pointer/ordinal conversions in slab internals
+
 interface
 
 uses
   SysUtils,
+  fafafa.core.base,
   fafafa.core.mem.allocator,
   fafafa.core.mem.allocator.base,
-  fafafa.core.mem.pool.base,
   fafafa.core.mem.pool.memoryPool,
   fafafa.core.mem.pool.fixedSlab,
   fafafa.core.mem.error;        // EAllocError, TAllocError
@@ -26,11 +29,31 @@ type
     MergedPages: QWord;
   end;
 
+  // 只读统计快照（不改变池行为）
+  TSlabPoolStats = record
+    SegmentCount: Integer;
+    TotalCapacity: SizeUInt;
+    TotalUsed: SizeUInt;
+    FallbackAllocCount: Integer;
+    FallbackBytes: SizeUInt;
+  end;
+
   // 兼容配置
   TSlabConfig = record
     MinShift: SizeUInt;            // 默认 3 (8B)
     EnablePageMerging: Boolean;    // 兼容字段（当前未用）
-    MaxAllocSize: SizeUInt;        // 0=不限制（无限扩展）；>0 时限制单次分配
+    MaxAllocSize: SizeUInt;        // 0=不限制；>0 时限制单次分配（超过返回 nil）
+    EnablePerfMonitoring: Boolean; // 性能计数开关（默认启用）
+    EnableDebug: Boolean;          // 调试开关（预留）
+    PageSize: SizeUInt;            // 兼容字段（默认 4096）
+  end;
+
+  // Fallback allocation record (oversize / high-alignment allocations)
+  TSlabFallbackAlloc = record
+    UserPtr: Pointer;
+    RawPtr: Pointer;
+    Size: SizeUInt;
+    Alignment: SizeUInt;
   end;
 
   {** 无效大小异常（继承自 EAllocError）| Invalid size exception *}
@@ -39,7 +62,50 @@ type
   ESlabPoolCorruption  = class(EAllocError);
 
 
-  // Auto-expanding slab pool built atop TFixedSlabPool segments
+  {**
+   * TSlabPool
+   *
+   * @desc
+   *   自动扩展的 Slab 内存池，基于 TFixedSlabPool 段构建。
+   *   Auto-expanding slab pool built atop TFixedSlabPool segments.
+   *
+   * @usage
+   *   适用于频繁分配/释放小对象的场景，提供 O(1) 分配和释放性能。
+   *   Ideal for frequent allocation/deallocation of small objects with O(1) performance.
+   *
+   * @features
+   *   - 自动扩展：按需添加新段
+   *   - 多尺寸支持：8B-2048B 的对象
+   *   - 回退机制：超大对象使用标准分配器
+   *   - 性能监控：可选的性能计数器
+   *
+   * @thread_safety
+   *   不是线程安全的。多线程环境请使用 TSlabPoolConcurrent。
+   *   Not thread-safe. Use TSlabPoolConcurrent for multi-threaded scenarios.
+   *
+   * @example
+   *   // 创建 Slab 池
+   *   var Pool: TSlabPool;
+   *   Pool := TSlabPool.Create(4096);  // 初始容量 4KB
+   *   try
+   *     // 分配小对象
+   *     Ptr := Pool.GetMem(64);
+   *     try
+   *       // 使用内存...
+   *     finally
+   *       Pool.FreeMem(Ptr);
+   *     end;
+   *   finally
+   *     Pool.Free;
+   *   end;
+   *
+   * @performance
+   *   - 分配：O(1) 平均，最坏 O(n) 当需要扩展时
+   *   - 释放：O(1)
+   *   - 内存开销：每段约 5-10% 元数据开销
+   *
+   * @see TFixedSlabPool, TSlabPoolConcurrent, IMemoryPool
+   *}
   TSlabPool = class(TInterfacedObject, IMemoryPool, IAllocator)
   private
     FAllocator: IAllocator;
@@ -52,6 +118,16 @@ type
     FTotalAllocs: SizeUInt;
     FTotalFrees: SizeUInt;
     FPerf: TSlabPerfCounters;
+    // Fallback allocations tracking (oversize / high-alignment)
+    FFbKeys: array of PtrUInt;      // 0 = empty, 1 = tombstone
+    FFbRawPtrs: array of Pointer;   // raw pointer (for FreeMem)
+    FFbSizes: array of SizeUInt;    // requested size
+    FFbAlignments: array of SizeUInt;// requested alignment (power of two)
+    FFbMask: SizeUInt;
+    FFbHighShift: SizeUInt;
+    FFbCount: SizeUInt;             // live entries
+    FFbFill: SizeUInt;              // live + tombstones
+    FFbBytes: SizeUInt;             // sum of live sizes
     // Page -> segment hash map (O(1) owner lookup)
     FPageKeys: array of PtrUInt;  // store key+1; 0 = empty
     FPageVals: array of Integer;  // segment index
@@ -65,6 +141,22 @@ type
     function NewSegmentCapacity: SizeUInt; inline;
     function FindOwnerSegment(aPtr: Pointer): Integer; inline; // fallback scan
     function IsOversize(const aSize: SizeUInt): Boolean; inline;
+    function ShouldUseFallback(const aSize: SizeUInt): Boolean; inline;
+    function NaturalAlignmentForSize(const aSize: SizeUInt): SizeUInt; inline;
+    function AllocFallback(const aSize, aAlignment: SizeUInt): Pointer;
+    function TryGetFallbackAlloc(const aPtr: Pointer; out aAlloc: TSlabFallbackAlloc): Boolean; inline;
+    function TryUntrackFallbackAlloc(const aPtr: Pointer; out aAlloc: TSlabFallbackAlloc): Boolean;
+    procedure FreeAllFallbackAllocs;
+    function GetFallbackAllocCount: Integer; inline;
+    // fallback map helpers
+    procedure FbMapInit(aMinCapacity: SizeUInt);
+    procedure FbMapClear;
+    procedure FbMapRehash(aNewCapacity: SizeUInt);
+    procedure FbMapGrowIfNeeded(aNeedMore: SizeUInt);
+    procedure FbMapInsert(aUserPtr, aRawPtr: Pointer; aSize, aAlignment: SizeUInt);
+    function FbMapLookup(aUserPtr: Pointer; out aRawPtr: Pointer; out aSize, aAlignment: SizeUInt): Boolean; inline;
+    function FbMapDelete(aUserPtr: Pointer; out aRawPtr: Pointer; out aSize, aAlignment: SizeUInt): Boolean;
+    function GetSegmentCount: Integer; inline;
     // page map helpers
     function PageKeyOf(aPtr: Pointer): PtrUInt; inline;
     procedure PageMapInit(aMinCapacity: SizeUInt);
@@ -91,7 +183,18 @@ type
     // Compatibility helpers for older tests
     function Alloc(aSize: SizeUInt): Pointer; inline;
     procedure Free(aPtr: Pointer); overload; inline;
+    procedure ReleasePtr(aPtr: Pointer); inline;
     function Warmup(aUnitSize: SizeUInt; aMinPages: SizeUInt): SizeUInt;
+    // 诊断/自省 helpers
+    function Owns(aPtr: Pointer): Boolean; inline;
+    function MemSizeOf(aPtr: Pointer): SizeUInt;
+    function Stats: TSlabPoolStats;
+    // 性能计数器快照（只读）
+    function GetPerfCounters: TSlabPerfCounters; inline;
+    function GetSegmentRegion(aIndex: Integer; out aStart, aEnd: PByte; out aPageShift: SizeUInt): Boolean;
+    function TryGetFallbackAllocInfo(aPtr: Pointer; out aSize, aAlignment: SizeUInt): Boolean;
+    property SegmentCount: Integer read GetSegmentCount;
+    property FallbackAllocCount: Integer read GetFallbackAllocCount;
 
     function GetMem(aSize: SizeUInt): Pointer;
     function AllocMem(aSize: SizeUInt): Pointer;
@@ -111,6 +214,7 @@ implementation
 
 const
   HASH_MIN_CAP = 64;
+  FB_TOMBSTONE = PtrUInt(1);
 
 {$push}
 {$Q-}
@@ -125,6 +229,9 @@ begin
   Result.MinShift := 3;
   Result.EnablePageMerging := False;
   Result.MaxAllocSize := 0; // unlimited by default
+  Result.EnablePerfMonitoring := True;
+  Result.EnableDebug := False;
+  Result.PageSize := 4096;
 end;
 
 function CreateSlabConfigWithPageMerging: TSlabConfig;
@@ -135,13 +242,506 @@ end;
 
 function TSlabPool.IsOversize(const aSize: SizeUInt): Boolean; inline;
 begin
-  if aSize=0 then Exit(False);
-  if FConfig.MaxAllocSize>0 then Exit(aSize>FConfig.MaxAllocSize);
-  // 兼容旧测试：若不配置上限，则单次申请不得超过初始容量（可按需调整为 False 以完全无限）
-  Exit(aSize > FInitialCapacity);
+  // 兼容字段：仅用于“硬限制”单次分配的最大尺寸
+  Result := (aSize <> 0) and (FConfig.MaxAllocSize > 0) and (aSize > FConfig.MaxAllocSize);
 end;
 
+function IsPowerOfTwoSize(aValue: SizeUInt): Boolean; inline;
+begin
+  Result := (aValue <> 0) and ((aValue and (aValue - 1)) = 0);
+end;
 
+function AlignUpPtrLocal(aPtr: Pointer; aAlignment: SizeUInt): Pointer; inline;
+var
+  LAddr, LMask: PtrUInt;
+begin
+  LAddr := PtrUInt(aPtr);
+  LMask := PtrUInt(aAlignment - 1);
+  Result := Pointer((LAddr + LMask) and not LMask);
+end;
+
+function NextPow2(const aValue: SizeUInt): SizeUInt; inline;
+var
+  LResult: SizeUInt;
+begin
+  if aValue <= 1 then Exit(1);
+  LResult := 1;
+  while LResult < aValue do
+    LResult := LResult shl 1;
+  Result := LResult;
+end;
+
+function TSlabPool.ShouldUseFallback(const aSize: SizeUInt): Boolean; inline;
+begin
+  // 专业策略：大对象不进入 slab（避免一次性大申请导致 segment 巨大扩容）
+  Result := aSize > FInitialCapacity;
+end;
+
+function TSlabPool.NaturalAlignmentForSize(const aSize: SizeUInt): SizeUInt; inline;
+var
+  LMinSize, LPageSize: SizeUInt;
+begin
+  // nginx slab：小对象按 2^k chunk；大对象按 page 分配
+  if aSize = 0 then Exit(SizeOf(Pointer));
+  LMinSize := SizeUInt(1) shl FMinShift;
+  if aSize <= LMinSize then Exit(LMinSize);
+  LPageSize := SizeUInt(1) shl FSegments[0].PageShift;
+  if aSize >= (LPageSize shr 1) then Exit(LPageSize);
+  Result := NextPow2(aSize);
+end;
+
+function TSlabPool.GetFallbackAllocCount: Integer; inline;
+begin
+  if FFbCount > SizeUInt(High(Integer)) then
+    Result := High(Integer)
+  else
+    Result := Integer(FFbCount);
+end;
+
+procedure TSlabPool.FbMapInit(aMinCapacity: SizeUInt);
+var
+  LCap, LIdx, LLog, LTmp: SizeUInt;
+begin
+  LCap := HASH_MIN_CAP;
+  while LCap < aMinCapacity do
+    LCap := LCap shl 1;
+
+  SetLength(FFbKeys, LCap);
+  SetLength(FFbRawPtrs, LCap);
+  SetLength(FFbSizes, LCap);
+  SetLength(FFbAlignments, LCap);
+
+  for LIdx := 0 to LCap - 1 do
+  begin
+    FFbKeys[LIdx] := 0;
+    FFbRawPtrs[LIdx] := nil;
+    FFbSizes[LIdx] := 0;
+    FFbAlignments[LIdx] := 0;
+  end;
+
+  FFbMask := LCap - 1;
+  LLog := 0;
+  LTmp := LCap;
+  while LTmp > 1 do
+  begin
+    Inc(LLog);
+    LTmp := LTmp shr 1;
+  end;
+  FFbHighShift := SizeUInt(64 - LLog);
+
+  FFbCount := 0;
+  FFbFill := 0;
+  FFbBytes := 0;
+end;
+
+procedure TSlabPool.FbMapClear;
+var
+  LIdx: SizeUInt;
+begin
+  if Length(FFbKeys) = 0 then
+  begin
+    FFbMask := 0;
+    FFbHighShift := 0;
+    FFbCount := 0;
+    FFbFill := 0;
+    FFbBytes := 0;
+    Exit;
+  end;
+
+  for LIdx := 0 to FFbMask do
+  begin
+    FFbKeys[LIdx] := 0;
+    FFbRawPtrs[LIdx] := nil;
+    FFbSizes[LIdx] := 0;
+    FFbAlignments[LIdx] := 0;
+  end;
+  FFbCount := 0;
+  FFbFill := 0;
+  FFbBytes := 0;
+end;
+
+procedure TSlabPool.FbMapRehash(aNewCapacity: SizeUInt);
+var
+  LOldKeys: array of PtrUInt;
+  LOldRawPtrs: array of Pointer;
+  LOldSizes: array of SizeUInt;
+  LOldAlignments: array of SizeUInt;
+  LOldCap: SizeUInt;
+
+  LIdx, LLog, LTmp: SizeUInt;
+  LKey: PtrUInt;
+  LPos: SizeUInt;
+  LHash: QWord;
+begin
+  if aNewCapacity < HASH_MIN_CAP then
+    aNewCapacity := HASH_MIN_CAP;
+  if not IsPowerOfTwoSize(aNewCapacity) then
+    aNewCapacity := NextPow2(aNewCapacity);
+
+  LOldCap := SizeUInt(Length(FFbKeys));
+  LOldKeys := FFbKeys;
+  LOldRawPtrs := FFbRawPtrs;
+  LOldSizes := FFbSizes;
+  LOldAlignments := FFbAlignments;
+
+  SetLength(FFbKeys, aNewCapacity);
+  SetLength(FFbRawPtrs, aNewCapacity);
+  SetLength(FFbSizes, aNewCapacity);
+  SetLength(FFbAlignments, aNewCapacity);
+  FFbMask := aNewCapacity - 1;
+
+  LLog := 0;
+  LTmp := aNewCapacity;
+  while LTmp > 1 do
+  begin
+    Inc(LLog);
+    LTmp := LTmp shr 1;
+  end;
+  FFbHighShift := SizeUInt(64 - LLog);
+
+  for LIdx := 0 to FFbMask do
+  begin
+    FFbKeys[LIdx] := 0;
+    FFbRawPtrs[LIdx] := nil;
+    FFbSizes[LIdx] := 0;
+    FFbAlignments[LIdx] := 0;
+  end;
+  FFbCount := 0;
+  FFbFill := 0;
+  FFbBytes := 0;
+
+  for LIdx := 0 to LOldCap - 1 do
+  begin
+    LKey := LOldKeys[LIdx];
+    if (LKey <> 0) and (LKey <> FB_TOMBSTONE) then
+    begin
+      LHash := MulHash64(LKey);
+      LPos := (LHash shr FFbHighShift) and FFbMask;
+      while FFbKeys[LPos] <> 0 do
+        LPos := (LPos + 1) and FFbMask;
+
+      FFbKeys[LPos] := LKey;
+      FFbRawPtrs[LPos] := LOldRawPtrs[LIdx];
+      FFbSizes[LPos] := LOldSizes[LIdx];
+      FFbAlignments[LPos] := LOldAlignments[LIdx];
+      Inc(FFbCount);
+      Inc(FFbFill);
+      Inc(FFbBytes, LOldSizes[LIdx]);
+    end;
+  end;
+end;
+
+procedure TSlabPool.FbMapGrowIfNeeded(aNeedMore: SizeUInt);
+begin
+  if Length(FFbKeys) = 0 then
+    FbMapInit(HASH_MIN_CAP);
+  if (FFbFill + aNeedMore) <= ((FFbMask + 1) shr 1) then Exit; // load <= 0.5 (incl tombstones)
+  FbMapRehash((FFbMask + 1) shl 1);
+end;
+
+procedure TSlabPool.FbMapInsert(aUserPtr, aRawPtr: Pointer; aSize, aAlignment: SizeUInt);
+var
+  LKey: PtrUInt;
+  LPos, LTomb: SizeUInt;
+  LHash: QWord;
+begin
+  if aUserPtr = nil then
+    raise EInvalidArgument.Create('TSlabPool.FbMapInsert: aUserPtr is nil');
+
+  LKey := PtrUInt(aUserPtr);
+  if (LKey = 0) or (LKey = FB_TOMBSTONE) then
+    raise EInvalidArgument.Create('TSlabPool.FbMapInsert: invalid pointer key');
+
+  FbMapGrowIfNeeded(1);
+  LHash := MulHash64(LKey);
+  LPos := (LHash shr FFbHighShift) and FFbMask;
+  LTomb := High(SizeUInt);
+  while True do
+  begin
+    if FFbKeys[LPos] = 0 then Break;
+    if FFbKeys[LPos] = LKey then
+    begin
+      // replace existing entry (should be rare)
+      if FFbSizes[LPos] <= FFbBytes then
+        Dec(FFbBytes, FFbSizes[LPos])
+      else
+        FFbBytes := 0;
+      FFbRawPtrs[LPos] := aRawPtr;
+      FFbSizes[LPos] := aSize;
+      FFbAlignments[LPos] := aAlignment;
+      Inc(FFbBytes, aSize);
+      Exit;
+    end;
+    if (LTomb = High(SizeUInt)) and (FFbKeys[LPos] = FB_TOMBSTONE) then
+      LTomb := LPos;
+    LPos := (LPos + 1) and FFbMask;
+  end;
+
+  if LTomb <> High(SizeUInt) then
+    LPos := LTomb
+  else
+    Inc(FFbFill); // used a previously empty slot
+
+  FFbKeys[LPos] := LKey;
+  FFbRawPtrs[LPos] := aRawPtr;
+  FFbSizes[LPos] := aSize;
+  FFbAlignments[LPos] := aAlignment;
+  Inc(FFbCount);
+  Inc(FFbBytes, aSize);
+end;
+
+function TSlabPool.FbMapLookup(aUserPtr: Pointer; out aRawPtr: Pointer; out aSize, aAlignment: SizeUInt): Boolean; inline;
+var
+  LKey: PtrUInt;
+  LPos: SizeUInt;
+  LHash: QWord;
+begin
+  aRawPtr := nil;
+  aSize := 0;
+  aAlignment := 0;
+
+  if aUserPtr = nil then Exit(False);
+  if Length(FFbKeys) = 0 then Exit(False);
+
+  LKey := PtrUInt(aUserPtr);
+  if (LKey = 0) or (LKey = FB_TOMBSTONE) then Exit(False);
+
+  LHash := MulHash64(LKey);
+  LPos := (LHash shr FFbHighShift) and FFbMask;
+  while True do
+  begin
+    if FFbKeys[LPos] = 0 then Exit(False);
+    if FFbKeys[LPos] = LKey then
+    begin
+      aRawPtr := FFbRawPtrs[LPos];
+      aSize := FFbSizes[LPos];
+      aAlignment := FFbAlignments[LPos];
+      Exit(True);
+    end;
+    LPos := (LPos + 1) and FFbMask;
+  end;
+end;
+
+function TSlabPool.FbMapDelete(aUserPtr: Pointer; out aRawPtr: Pointer; out aSize, aAlignment: SizeUInt): Boolean;
+var
+  LKey: PtrUInt;
+  LPos: SizeUInt;
+  LHash: QWord;
+begin
+  aRawPtr := nil;
+  aSize := 0;
+  aAlignment := 0;
+  Result := False;
+
+  if aUserPtr = nil then Exit(False);
+  if Length(FFbKeys) = 0 then Exit(False);
+
+  LKey := PtrUInt(aUserPtr);
+  if (LKey = 0) or (LKey = FB_TOMBSTONE) then Exit(False);
+
+  LHash := MulHash64(LKey);
+  LPos := (LHash shr FFbHighShift) and FFbMask;
+  while True do
+  begin
+    if FFbKeys[LPos] = 0 then Exit(False);
+    if FFbKeys[LPos] = LKey then
+    begin
+      aRawPtr := FFbRawPtrs[LPos];
+      aSize := FFbSizes[LPos];
+      aAlignment := FFbAlignments[LPos];
+
+      FFbKeys[LPos] := FB_TOMBSTONE;
+      FFbRawPtrs[LPos] := nil;
+      FFbSizes[LPos] := 0;
+      FFbAlignments[LPos] := 0;
+
+      if FFbCount > 0 then
+        Dec(FFbCount);
+      if aSize <= FFbBytes then
+        Dec(FFbBytes, aSize)
+      else
+        FFbBytes := 0;
+      Result := True;
+      Exit;
+    end;
+    LPos := (LPos + 1) and FFbMask;
+  end;
+end;
+
+function TSlabPool.TryGetFallbackAlloc(const aPtr: Pointer; out aAlloc: TSlabFallbackAlloc): Boolean; inline;
+var
+  LRaw: Pointer;
+  LSize, LAlign: SizeUInt;
+begin
+  aAlloc.UserPtr := nil;
+  aAlloc.RawPtr := nil;
+  aAlloc.Size := 0;
+  aAlloc.Alignment := 0;
+
+  Result := FbMapLookup(aPtr, LRaw, LSize, LAlign);
+  if Result then
+  begin
+    aAlloc.UserPtr := aPtr;
+    aAlloc.RawPtr := LRaw;
+    aAlloc.Size := LSize;
+    aAlloc.Alignment := LAlign;
+  end;
+end;
+
+function TSlabPool.TryUntrackFallbackAlloc(const aPtr: Pointer; out aAlloc: TSlabFallbackAlloc): Boolean;
+var
+  LRaw: Pointer;
+  LSize, LAlign: SizeUInt;
+begin
+  aAlloc.UserPtr := nil;
+  aAlloc.RawPtr := nil;
+  aAlloc.Size := 0;
+  aAlloc.Alignment := 0;
+
+  Result := FbMapDelete(aPtr, LRaw, LSize, LAlign);
+  if Result then
+  begin
+    aAlloc.UserPtr := aPtr;
+    aAlloc.RawPtr := LRaw;
+    aAlloc.Size := LSize;
+    aAlloc.Alignment := LAlign;
+  end;
+end;
+
+procedure TSlabPool.FreeAllFallbackAllocs;
+var
+  LIdx: SizeUInt;
+  LKey: PtrUInt;
+begin
+  if (FAllocator <> nil) and (Length(FFbKeys) > 0) then
+    for LIdx := 0 to FFbMask do
+    begin
+      LKey := FFbKeys[LIdx];
+      if (LKey <> 0) and (LKey <> FB_TOMBSTONE) then
+        if FFbRawPtrs[LIdx] <> nil then
+          FAllocator.FreeMem(FFbRawPtrs[LIdx]);
+    end;
+  FbMapClear;
+end;
+
+function TSlabPool.AllocFallback(const aSize, aAlignment: SizeUInt): Pointer;
+var
+  LAlign, LNeeded: SizeUInt;
+  LRaw, LUser: Pointer;
+begin
+  Result := nil;
+  if (aSize = 0) or (FAllocator = nil) then Exit(nil);
+
+  LAlign := aAlignment;
+  if LAlign = 0 then
+    LAlign := 16;
+  if LAlign < SizeOf(Pointer) then
+    LAlign := SizeOf(Pointer);
+  if not IsPowerOfTwoSize(LAlign) then
+    raise EInvalidArgument.Create('TSlabPool.AllocFallback: aAlignment must be power of two and >= pointer size');
+
+  // over-allocate for alignment; raw pointer is tracked out-of-band
+  LNeeded := aSize + (LAlign - 1);
+  LRaw := FAllocator.GetMem(LNeeded);
+  if LRaw = nil then Exit(nil);
+
+  LUser := AlignUpPtrLocal(LRaw, LAlign);
+  try
+    FbMapInsert(LUser, LRaw, aSize, LAlign);
+  except
+    // strong exception safety: do not leak raw pointer
+    FAllocator.FreeMem(LRaw);
+    raise;
+  end;
+  Result := LUser;
+end;
+
+function TSlabPool.GetSegmentCount: Integer; inline;
+begin
+  Result := Length(FSegments);
+end;
+
+function TSlabPool.Owns(aPtr: Pointer): Boolean; inline;
+var
+  LSegIdx: Integer;
+  LAlloc: TSlabFallbackAlloc;
+begin
+  if aPtr = nil then Exit(False);
+  LSegIdx := FindOwnerSegment(aPtr);
+  if LSegIdx >= 0 then Exit(True);
+  Result := TryGetFallbackAlloc(aPtr, LAlloc);
+end;
+
+function TSlabPool.MemSizeOf(aPtr: Pointer): SizeUInt;
+var
+  LSegIdx: Integer;
+  LAlloc: TSlabFallbackAlloc;
+begin
+  if aPtr = nil then Exit(0);
+  LSegIdx := FindOwnerSegment(aPtr);
+  if LSegIdx >= 0 then
+    Exit(FSegments[LSegIdx].MemSizeOf(aPtr));
+  if TryGetFallbackAlloc(aPtr, LAlloc) then
+    Exit(LAlloc.Size);
+  Result := 0;
+end;
+
+function TSlabPool.Stats: TSlabPoolStats;
+var
+  LIdx: Integer;
+  LTotalCapacity: SizeUInt;
+  LTotalUsed: SizeUInt;
+begin
+  LTotalCapacity := 0;
+  LTotalUsed := 0;
+  for LIdx := 0 to High(FSegments) do
+    if FSegments[LIdx] <> nil then
+    begin
+      Inc(LTotalCapacity, FSegments[LIdx].Capacity);
+      Inc(LTotalUsed, FSegments[LIdx].Used);
+    end;
+
+  Result.SegmentCount := Length(FSegments);
+  Result.TotalCapacity := LTotalCapacity;
+  Result.TotalUsed := LTotalUsed;
+  Result.FallbackAllocCount := GetFallbackAllocCount;
+  Result.FallbackBytes := FFbBytes;
+end;
+
+function TSlabPool.GetPerfCounters: TSlabPerfCounters; inline;
+begin
+  Result := FPerf;
+end;
+
+function TSlabPool.GetSegmentRegion(aIndex: Integer; out aStart, aEnd: PByte; out aPageShift: SizeUInt): Boolean;
+begin
+  Result := False;
+  aStart := nil;
+  aEnd := nil;
+  aPageShift := 0;
+
+  if (aIndex < 0) or (aIndex > High(FSegments)) then Exit(False);
+  if FSegments[aIndex] = nil then Exit(False);
+
+  aStart := FSegments[aIndex].RegionStart;
+  aEnd := FSegments[aIndex].RegionEnd;
+  aPageShift := FSegments[aIndex].PageShift;
+  Result := (aStart <> nil) and (aEnd <> nil);
+end;
+
+function TSlabPool.TryGetFallbackAllocInfo(aPtr: Pointer; out aSize, aAlignment: SizeUInt): Boolean;
+var
+  LAlloc: TSlabFallbackAlloc;
+begin
+  aSize := 0;
+  aAlignment := 0;
+  Result := TryGetFallbackAlloc(aPtr, LAlloc);
+  if Result then
+  begin
+    aSize := LAlloc.Size;
+    aAlignment := LAlloc.Alignment;
+  end;
+end;
 
 function TSlabPool.PageKeyOf(aPtr: Pointer): PtrUInt; inline;
 begin
@@ -149,116 +749,179 @@ begin
 end;
 
 procedure TSlabPool.PageMapInit(aMinCapacity: SizeUInt);
-var cap, i, m, tmp: SizeUInt;
+var
+  LCap, LIndex, LLog, LTmp: SizeUInt;
 begin
-  cap := HASH_MIN_CAP;
-  while cap < aMinCapacity do cap := cap shl 1;
-  SetLength(FPageKeys, cap);
-  SetLength(FPageVals, cap);
-  for i := 0 to cap-1 do begin FPageKeys[i] := 0; FPageVals[i] := -1; end;
-  FPageMask := cap-1;
+  LCap := HASH_MIN_CAP;
+  while LCap < aMinCapacity do
+    LCap := LCap shl 1;
+  SetLength(FPageKeys, LCap);
+  SetLength(FPageVals, LCap);
+  for LIndex := 0 to LCap - 1 do
+  begin
+    FPageKeys[LIndex] := 0;
+    FPageVals[LIndex] := -1;
+  end;
+  FPageMask := LCap - 1;
   // compute high-bit shift = 64 - log2(cap)
-  m := 0; tmp := cap;
-  while tmp > 1 do begin Inc(m); tmp := tmp shr 1; end;
-  FPageHighShift := SizeUInt(64 - m);
+  LLog := 0;
+  LTmp := LCap;
+  while LTmp > 1 do
+  begin
+    Inc(LLog);
+    LTmp := LTmp shr 1;
+  end;
+  FPageHighShift := SizeUInt(64 - LLog);
   FPageCount := 0;
 end;
 
 procedure TSlabPool.PageMapClear;
-var i: SizeUInt;
+var
+  LIndex: SizeUInt;
 begin
-  for i := 0 to FPageMask do begin FPageKeys[i] := 0; FPageVals[i] := -1; end;
+  for LIndex := 0 to FPageMask do
+  begin
+    FPageKeys[LIndex] := 0;
+    FPageVals[LIndex] := -1;
+  end;
   FPageCount := 0;
 end;
 
 procedure TSlabPool.PageMapGrowIfNeeded(aNeedMore: SizeUInt);
-var oldKeys: array of PtrUInt; oldVals: array of Integer; oldCap, i, m, tmp: SizeUInt; key: PtrUInt; val, idx: Integer; h: QWord;
+var
+  LOldKeys: array of PtrUInt;
+  LOldVals: array of Integer;
+  LOldCap, LIndex, LLog, LTmp: SizeUInt;
+  LKey: PtrUInt;
+  LVal: Integer;
+  LPos: SizeUInt;
+  LHash: QWord;
 begin
-  if (FPageCount + aNeedMore) <= ((FPageMask+1) shr 1) then Exit; // load <= 0.5
-  oldCap := FPageMask+1;
-  oldKeys := FPageKeys; oldVals := FPageVals;
-  SetLength(FPageKeys, oldCap shl 1);
-  SetLength(FPageVals, oldCap shl 1);
-  FPageMask := (oldCap shl 1) - 1;
+  if (FPageCount + aNeedMore) <= ((FPageMask + 1) shr 1) then Exit; // load <= 0.5
+  LOldCap := FPageMask + 1;
+  LOldKeys := FPageKeys;
+  LOldVals := FPageVals;
+  SetLength(FPageKeys, LOldCap shl 1);
+  SetLength(FPageVals, LOldCap shl 1);
+  FPageMask := (LOldCap shl 1) - 1;
   // recompute high shift
-  m := 0; tmp := (FPageMask + 1);
-  while tmp > 1 do begin Inc(m); tmp := tmp shr 1; end;
-  FPageHighShift := SizeUInt(64 - m);
-  for i := 0 to FPageMask do begin FPageKeys[i] := 0; FPageVals[i] := -1; end;
+  LLog := 0;
+  LTmp := (FPageMask + 1);
+  while LTmp > 1 do
+  begin
+    Inc(LLog);
+    LTmp := LTmp shr 1;
+  end;
+  FPageHighShift := SizeUInt(64 - LLog);
+  for LIndex := 0 to FPageMask do
+  begin
+    FPageKeys[LIndex] := 0;
+    FPageVals[LIndex] := -1;
+  end;
   FPageCount := 0;
-  for i := 0 to oldCap-1 do begin
-    key := oldKeys[i];
-    if key <> 0 then begin
-      val := oldVals[i];
+  for LIndex := 0 to LOldCap - 1 do
+  begin
+    LKey := LOldKeys[LIndex];
+    if LKey <> 0 then
+    begin
+      LVal := LOldVals[LIndex];
       // reinsert
-      h := MulHash64(key);
-      idx := (h shr FPageHighShift) and FPageMask;
-      while FPageKeys[idx] <> 0 do idx := (idx + 1) and FPageMask;
-      FPageKeys[idx] := key; FPageVals[idx] := val; Inc(FPageCount);
+      LHash := MulHash64(LKey);
+      LPos := (LHash shr FPageHighShift) and FPageMask;
+      while FPageKeys[LPos] <> 0 do
+        LPos := (LPos + 1) and FPageMask;
+      FPageKeys[LPos] := LKey;
+      FPageVals[LPos] := LVal;
+      Inc(FPageCount);
     end;
   end;
 end;
 
 procedure TSlabPool.PageMapInsert(aKey: PtrUInt; aSegIdx: Integer);
-var idx: SizeUInt; h: QWord;
+var
+  LIndex: SizeUInt;
+  LHash: QWord;
 begin
   if aKey = 0 then aKey := 1; // reserve 0 as empty
-  h := MulHash64(aKey);
-  idx := (h shr FPageHighShift) and FPageMask;
-  while FPageKeys[idx] <> 0 do idx := (idx + 1) and FPageMask;
-  FPageKeys[idx] := aKey; FPageVals[idx] := aSegIdx; Inc(FPageCount);
+  LHash := MulHash64(aKey);
+  LIndex := (LHash shr FPageHighShift) and FPageMask;
+  while FPageKeys[LIndex] <> 0 do
+    LIndex := (LIndex + 1) and FPageMask;
+  FPageKeys[LIndex] := aKey;
+  FPageVals[LIndex] := aSegIdx;
+  Inc(FPageCount);
 end;
 
 function TSlabPool.PageMapLookup(aKey: PtrUInt; out aSegIdx: Integer): Boolean; inline;
-var idx: SizeUInt; h: QWord;
+var
+  LIndex: SizeUInt;
+  LHash: QWord;
 begin
   if aKey = 0 then aKey := 1;
-  h := MulHash64(aKey);
-  idx := (h shr FPageHighShift) and FPageMask;
+  LHash := MulHash64(aKey);
+  LIndex := (LHash shr FPageHighShift) and FPageMask;
   while True do
   begin
-    if FPageKeys[idx] = 0 then Exit(False);
-    if FPageKeys[idx] = aKey then begin aSegIdx := FPageVals[idx]; Exit(True); end;
-    idx := (idx + 1) and FPageMask;
+    if FPageKeys[LIndex] = 0 then Exit(False);
+    if FPageKeys[LIndex] = aKey then
+    begin
+      aSegIdx := FPageVals[LIndex];
+      Exit(True);
+    end;
+    LIndex := (LIndex + 1) and FPageMask;
   end;
 end;
 
 procedure TSlabPool.IndexSegmentPages(aSegIdx: Integer);
-var p, e: PByte; step: SizeUInt; need, cnt: SizeUInt; key: PtrUInt;
+var
+  LPtr, LEnd: PByte;
+  LStep, LNeed, LCount: SizeUInt;
+  LKey: PtrUInt;
 begin
-  p := FSegments[aSegIdx].RegionStart;
-  e := FSegments[aSegIdx].RegionEnd;
-  step := SizeUInt(1) shl FSegments[aSegIdx].PageShift;
-  if p=nil then Exit;
+  LPtr := FSegments[aSegIdx].RegionStart;
+  LEnd := FSegments[aSegIdx].RegionEnd;
+  LStep := SizeUInt(1) shl FSegments[aSegIdx].PageShift;
+  if LPtr = nil then Exit;
   // estimate number of pages to grow
-  need := (PtrUInt(e) - PtrUInt(p)) shr FSegments[aSegIdx].PageShift;
-  if need=0 then Exit;
-  PageMapGrowIfNeeded(need);
-  cnt := 0;
-  while PtrUInt(p) < PtrUInt(e) do
+  LNeed := (PtrUInt(LEnd) - PtrUInt(LPtr)) shr FSegments[aSegIdx].PageShift;
+  if LNeed = 0 then Exit;
+  PageMapGrowIfNeeded(LNeed);
+  LCount := 0;
+  while PtrUInt(LPtr) < PtrUInt(LEnd) do
   begin
-    key := (PtrUInt(p) shr FSegments[aSegIdx].PageShift);
-    PageMapInsert(key, aSegIdx);
-    Inc(cnt);
-    Inc(PtrUInt(p), step);
+    LKey := (PtrUInt(LPtr) shr FSegments[aSegIdx].PageShift);
+    PageMapInsert(LKey, aSegIdx);
+    Inc(LCount);
+    Inc(PtrUInt(LPtr), LStep);
   end;
 end;
 
 constructor TSlabPool.Create(aCapacity: SizeUInt; aAllocator: IAllocator; aMinShift: SizeUInt);
-var S: TFixedSlabPool;
+var
+  LSegment: TFixedSlabPool;
 begin
   inherited Create;
   if aAllocator=nil then FAllocator:=fafafa.core.mem.allocator.GetRtlAllocator else FAllocator:=aAllocator;
   if aCapacity=0 then aCapacity:=64*1024;
   if aMinShift=0 then aMinShift:=3;
 
+  if FConfig.MinShift = 0 then
+  begin
+    FConfig := CreateDefaultSlabConfig;
+    FConfig.MinShift := aMinShift;
+  end;
+  if FConfig.PageSize = 0 then
+    FConfig.PageSize := 4096;
+
 
   FInitialCapacity:=aCapacity; FMinShift:=aMinShift; FActive:=0;
+  FillChar(FPerf, SizeOf(FPerf), 0);
   SetLength(FSegments,1);
-  S:=TFixedSlabPool.Create(aCapacity,FAllocator,aMinShift);
-  FSegments[0]:=S;
+  LSegment:=TFixedSlabPool.Create(aCapacity,FAllocator,aMinShift);
+  FSegments[0]:=LSegment;
   FAvailCount := 0;  // 显式初始化
-  PageMapInit( (aCapacity shr S.PageShift) * 2 );
+  FbMapInit(8);
+  PageMapInit( (aCapacity shr LSegment.PageShift) * 2 );
   IndexSegmentPages(0);
 end;
 
@@ -289,38 +952,46 @@ begin
   FreeMem(aPtr);
 end;
 
+procedure TSlabPool.ReleasePtr(aPtr: Pointer); inline;
+begin
+  FreeMem(aPtr);
+end;
+
 
 
 
 
 function TSlabPool.Warmup(aUnitSize: SizeUInt; aMinPages: SizeUInt): SizeUInt;
 var
-  i: SizeUInt;
-  perPage, needUnits: SizeUInt;
-  tmp: array of Pointer;
+  LIndex: SizeUInt;
+  LPerPage, LNeedUnits: SizeUInt;
+  LTmp: array of Pointer;
 begin
   if aUnitSize = 0 then Exit(0);
-  perPage := (SizeUInt(1) shl FSegments[0].PageShift) div aUnitSize;
-  if perPage = 0 then perPage := 1;
-  needUnits := perPage * aMinPages;
-  SetLength(tmp, needUnits);
+  LTmp := nil;
+  LPerPage := (SizeUInt(1) shl FSegments[0].PageShift) div aUnitSize;
+  if LPerPage = 0 then LPerPage := 1;
+  LNeedUnits := LPerPage * aMinPages;
+  SetLength(LTmp, LNeedUnits);
   Result := 0;
-  for i := 0 to needUnits-1 do
+  for LIndex := 0 to LNeedUnits-1 do
   begin
-    tmp[i] := GetMem(aUnitSize);
-    if tmp[i] <> nil then Inc(Result) else Break;
+    LTmp[LIndex] := GetMem(aUnitSize);
+    if LTmp[LIndex] <> nil then Inc(Result) else Break;
   end;
-  for i := 0 to Result-1 do
-    FreeMem(tmp[i]);
+  for LIndex := 0 to Result-1 do
+    FreeMem(LTmp[LIndex]);
 end;
 
 
 
 
 destructor TSlabPool.Destroy;
-var i:Integer;
+var
+  LIndex: Integer;
 begin
-  for i:=0 to High(FSegments) do if FSegments[i]<>nil then FSegments[i].Free;
+  FreeAllFallbackAllocs;
+  for LIndex:=0 to High(FSegments) do if FSegments[LIndex]<>nil then FSegments[LIndex].Free;
   inherited Destroy;
 end;
 
@@ -339,126 +1010,212 @@ begin
 end;
 
 procedure TSlabPool.PushAvail(const aIdx: Integer); inline;
-var cap: Integer;
+var
+  LCap: Integer;
 begin
-  cap := Length(FAvail);
-  if FAvailCount >= cap then
+  LCap := Length(FAvail);
+  if FAvailCount >= LCap then
   begin
     // 容量倍增策略，最小 8
-    if cap < 8 then cap := 8
-    else cap := cap * 2;
-    SetLength(FAvail, cap);
+    if LCap < 8 then LCap := 8
+    else LCap := LCap * 2;
+    SetLength(FAvail, LCap);
   end;
   FAvail[FAvailCount] := aIdx;
   Inc(FAvailCount);
 end;
 
 function TSlabPool.NewSegmentCapacity: SizeUInt; inline;
-var cur:SizeUInt;
+var
+  LCurrent: SizeUInt;
 begin
-  if (FActive>=0) and (FActive<=High(FSegments)) and (FSegments[FActive]<>nil) then cur:=FSegments[FActive].Capacity else cur:=FInitialCapacity;
-  if cur< FInitialCapacity then cur:=FInitialCapacity;
-  if cur> (High(SizeUInt) shr 1) then Exit(cur);
-  Result:=cur shl 1;
+  if (FActive>=0) and (FActive<=High(FSegments)) and (FSegments[FActive]<>nil) then LCurrent:=FSegments[FActive].Capacity else LCurrent:=FInitialCapacity;
+  if LCurrent< FInitialCapacity then LCurrent:=FInitialCapacity;
+  if LCurrent> (High(SizeUInt) shr 1) then Exit(LCurrent);
+  Result:=LCurrent shl 1;
 end;
 
 function TSlabPool.FindOwnerSegment(aPtr: Pointer): Integer;
-var key: PtrUInt; seg: Integer;
+var
+  LKey: PtrUInt;
+  LSeg: Integer;
 begin
   if aPtr=nil then Exit(-1);
-  key := PageKeyOf(aPtr);
-  if PageMapLookup(key, seg) then Exit(seg) else Exit(-1);
+  LKey := PageKeyOf(aPtr);
+  if PageMapLookup(LKey, LSeg) then Exit(LSeg) else Exit(-1);
 end;
 
 function TSlabPool.Acquire(out aPtr: Pointer): Boolean;
-begin aPtr:=GetMem(SizeOf(Pointer)); Result:=aPtr<>nil; end;
+var
+  LUnitSize: SizeUInt;
+begin
+  LUnitSize := SizeUInt(1) shl FMinShift;
+  if LUnitSize < SizeOf(Pointer) then
+    LUnitSize := SizeOf(Pointer);
+  aPtr := GetMem(LUnitSize);
+  Result := aPtr <> nil;
+end;
 
 procedure TSlabPool.Release(aPtr: Pointer);
 begin FreeMem(aPtr); end;
 
 function TSlabPool.GetMem(aSize: SizeUInt): Pointer;
-var idx:Integer; p:Pointer;
+var
+  LIndex: Integer;
+  LPtr: Pointer;
+  LNewSeg: TFixedSlabPool;
+  LPerfEnabled: Boolean;
+  LStart: QWord;
 begin
   if aSize=0 then Exit(nil);
-  if IsOversize(aSize) then Exit(nil);
-  p:=TryAllocFromSeg(FActive,aSize);
-  if p<>nil then begin Inc(FTotalAllocs); Exit(p); end;
-  while PopAvail(idx) do begin p:=TryAllocFromSeg(idx,aSize); if p<>nil then begin FActive:=idx; Inc(FTotalAllocs); Exit(p); end; end;
-  idx:=Length(FSegments);
-  SetLength(FSegments,idx+1);
-  FSegments[idx]:=TFixedSlabPool.Create(NewSegmentCapacity,FAllocator,FMinShift);
-  IndexSegmentPages(idx);
-  FActive:=idx;
-  Result:=FSegments[idx].GetMem(aSize);
-  if Result<>nil then Inc(FTotalAllocs);
+  LPerfEnabled := FConfig.EnablePerfMonitoring;
+  if LPerfEnabled then
+  begin
+    Inc(FPerf.AllocCalls);
+    LStart := GetTickCount64;
+  end;
+  try
+    if IsOversize(aSize) then Exit(nil);
+    if ShouldUseFallback(aSize) then
+    begin
+      Result := AllocFallback(aSize, 16);
+      if Result <> nil then Inc(FTotalAllocs);
+      Exit;
+    end;
+    LPtr:=TryAllocFromSeg(FActive,aSize);
+    if LPtr<>nil then
+    begin
+      Inc(FTotalAllocs);
+      Exit(LPtr);
+    end;
+    while PopAvail(LIndex) do
+    begin
+      LPtr:=TryAllocFromSeg(LIndex,aSize);
+      if LPtr<>nil then
+      begin
+        FActive:=LIndex;
+        Inc(FTotalAllocs);
+        Exit(LPtr);
+      end;
+    end;
+    LIndex:=Length(FSegments);
+    SetLength(FSegments,LIndex+1);
+    // ✅ P1-1: 添加 OOM 检查，防止 TFixedSlabPool.Create 失败后崩溃
+    try
+      LNewSeg := TFixedSlabPool.Create(NewSegmentCapacity,FAllocator,FMinShift);
+    except
+      on LError: Exception do
+      begin
+        SetLength(FSegments, LIndex); // 回滚数组长度
+        Exit(nil);
+      end;
+    end;
+    FSegments[LIndex] := LNewSeg;
+    IndexSegmentPages(LIndex);
+    FActive:=LIndex;
+    Result:=FSegments[LIndex].GetMem(aSize);
+    if Result<>nil then Inc(FTotalAllocs);
+  finally
+    if LPerfEnabled then
+      Inc(FPerf.AllocTime, GetTickCount64 - LStart);
+  end;
 end;
 
 function TSlabPool.AllocMem(aSize: SizeUInt): Pointer;
 begin Result:=GetMem(aSize); if Result<>nil then FillChar(Result^,aSize,0); end;
 
 function TSlabPool.ReallocMem(aDst: Pointer; aSize: SizeUInt): Pointer;
-var idx:Integer; oldSize, copySize: SizeUInt;
+var
+  LIndex: Integer;
+  LOldSize, LCopySize: SizeUInt;
+  LAlloc: TSlabFallbackAlloc;
+  LNew: Pointer;
 begin
   if aDst=nil then Exit(GetMem(aSize));
   if aSize=0 then begin FreeMem(aDst); Exit(nil); end;
-  idx:=FindOwnerSegment(aDst);
-  if idx>=0 then
+  if IsOversize(aSize) then Exit(nil);
+  LIndex:=FindOwnerSegment(aDst);
+  if LIndex>=0 then
   begin
-    Result:=FSegments[idx].ReallocMem(aDst,aSize);
+    Result:=FSegments[LIndex].ReallocMem(aDst,aSize);
     if Result<>nil then Exit;
     // 跨段：安全拷贝再释放旧指针
     Result := GetMem(aSize);
     if Result=nil then Exit(nil);
-    oldSize := FSegments[idx].MemSizeOf(aDst);
-    if oldSize > aSize then copySize := aSize else copySize := oldSize;
-    if copySize>0 then Move(aDst^, Result^, copySize);
-    FSegments[idx].FreeMem(aDst);
+    LOldSize := FSegments[LIndex].MemSizeOf(aDst);
+    if LOldSize > aSize then LCopySize := aSize else LCopySize := LOldSize;
+    if LCopySize>0 then Move(aDst^, Result^, LCopySize);
+    FSegments[LIndex].FreeMem(aDst);
     Exit;
   end;
-  // ✅ P0-3: 未知归属指针处理 - 可能来自 AllocAligned 的 fallback 路径
-  // 必须尝试用 FAllocator 处理，否则会导致内存泄漏
-  if FAllocator <> nil then
-  begin
-    // 使用 fallback allocator 的 ReallocMem
-    // 注意：这里无法获取旧大小，依赖 FAllocator 的实现
-    Result := FAllocator.ReallocMem(aDst, aSize);
-  end
-  else
-  begin
-    // 无 fallback allocator：返回 nil 表示失败，不修改原指针
-    // 这比之前的"分配新内存但不拷贝不释放"更安全
-    Result := nil;
-  end;
+  // Fallback 路径：只有本池创建的 fallback 指针才允许被 Realloc
+  if not TryGetFallbackAlloc(aDst, LAlloc) then
+    raise ESlabPoolCorruption.Create(aeInvalidPointer, 'Pointer does not belong to this pool');
+
+  // 尽可能保持对齐语义（复用原分配时的 Alignment）
+  LNew := AllocAligned(aSize, LAlloc.Alignment);
+  if LNew = nil then Exit(nil); // 失败时不修改原指针
+
+  if LAlloc.Size > aSize then LCopySize := aSize else LCopySize := LAlloc.Size;
+  if LCopySize > 0 then Move(aDst^, LNew^, LCopySize);
+
+  // 释放旧块并移除 tracking（注意：先分配成功再销毁旧块）
+  if TryUntrackFallbackAlloc(aDst, LAlloc) then
+    if (FAllocator <> nil) and (LAlloc.RawPtr <> nil) then
+      FAllocator.FreeMem(LAlloc.RawPtr);
+
+  Result := LNew;
 end;
 
 procedure TSlabPool.FreeMem(aDst: Pointer);
-var idx:Integer;
+var
+  LIndex: Integer;
+  LAlloc: TSlabFallbackAlloc;
+  LPerfEnabled: Boolean;
+  LStart: QWord;
 begin
   if aDst=nil then Exit;
-  idx:=FindOwnerSegment(aDst);
-  if idx>=0 then
+  LPerfEnabled := FConfig.EnablePerfMonitoring;
+  if LPerfEnabled then
   begin
-    FSegments[idx].FreeMem(aDst);
-    PushAvail(idx);
-    Inc(FTotalFrees);
-  end
-  else if FAllocator <> nil then
-  begin
-    // ✅ P0-3: 未知归属指针可能来自 AllocAligned 的 fallback 路径
-    // 尝试用 FAllocator.FreeMem 释放
-    FAllocator.FreeMem(aDst);
-    Inc(FTotalFrees);
+    Inc(FPerf.FreeCalls);
+    LStart := GetTickCount64;
   end;
-  // 如果没有 FAllocator 且指针不属于任何段，则无法释放（静默忽略）
-  // 这可能是调用者的错误，但我们不能崩溃
+  try
+    LIndex:=FindOwnerSegment(aDst);
+    if LIndex>=0 then
+    begin
+      FSegments[LIndex].FreeMem(aDst);
+      PushAvail(LIndex);
+      Inc(FTotalFrees);
+    end
+    else if TryUntrackFallbackAlloc(aDst, LAlloc) then
+    begin
+      if (FAllocator <> nil) and (LAlloc.RawPtr <> nil) then
+        FAllocator.FreeMem(LAlloc.RawPtr);
+      Inc(FTotalFrees);
+    end
+    else
+      raise ESlabPoolCorruption.Create(aeInvalidPointer, 'Pointer does not belong to this pool');
+  finally
+    if LPerfEnabled then
+      Inc(FPerf.FreeTime, GetTickCount64 - LStart);
+  end;
 end;
 
 procedure TSlabPool.Reset;
-var i:Integer;
+var
+  LIndex: Integer;
 begin
-  for i:=0 to High(FSegments) do if FSegments[i]<>nil then FSegments[i].Reset;
+  FreeAllFallbackAllocs;
+  for LIndex:=0 to High(FSegments) do if FSegments[LIndex]<>nil then FSegments[LIndex].Reset;
   FAvailCount := 0;  // 只重置计数，保留容量
   FActive:=0;
+  // ✅ P0-1: Reset 必须清理并重建 PageMap，否则查找不一致
+  PageMapClear;
+  for LIndex := 0 to High(FSegments) do
+    if FSegments[LIndex] <> nil then
+      IndexSegmentPages(LIndex);
 end;
 
 function TSlabPool.TryAcquire(out aPtr: Pointer): Boolean;
@@ -468,12 +1225,14 @@ end;
 
 function TSlabPool.AcquireN(out aUnits: array of Pointer; aCount: Integer): Integer;
 var
-  i: Integer;
+  LIdx: Integer;
 begin
   Result := 0;
-  for i := 0 to aCount - 1 do
+  for LIdx := 0 to aCount - 1 do
   begin
-    if not Acquire(aUnits[i]) then
+    if LIdx > High(aUnits) then
+      Break;
+    if not Acquire(aUnits[LIdx]) then
       Break;
     Inc(Result);
   end;
@@ -481,38 +1240,77 @@ end;
 
 procedure TSlabPool.ReleaseN(const aUnits: array of Pointer; aCount: Integer);
 var
-  i: Integer;
+  LIdx: Integer;
 begin
-  for i := 0 to aCount - 1 do
-    Release(aUnits[i]);
+  for LIdx := 0 to aCount - 1 do
+  begin
+    if LIdx > High(aUnits) then
+      Break;
+    Release(aUnits[LIdx]);
+  end;
 end;
 
 function TSlabPool.AllocAligned(aSize, aAlignment: SizeUInt): Pointer;
+var
+  LNaturalAlign: SizeUInt;
+  LPerfEnabled: Boolean;
+  LStart: QWord;
 begin
-  // Slab size classes already provide natural alignment based on block size
-  if (aAlignment <= 8) or (aAlignment <= aSize) then
+  if aSize = 0 then Exit(nil);
+  if IsOversize(aSize) then Exit(nil);
+
+  LPerfEnabled := FConfig.EnablePerfMonitoring;
+
+  if aAlignment < SizeOf(Pointer) then
+    aAlignment := SizeOf(Pointer);
+  if not IsPowerOfTwoSize(aAlignment) then
+    raise EInvalidArgument.Create('TSlabPool.AllocAligned: aAlignment must be power of two and >= pointer size');
+
+  if ShouldUseFallback(aSize) then
+  begin
+    if LPerfEnabled then
+    begin
+      Inc(FPerf.AllocCalls);
+      LStart := GetTickCount64;
+      try
+        Result := AllocFallback(aSize, aAlignment);
+      finally
+        Inc(FPerf.AllocTime, GetTickCount64 - LStart);
+      end;
+    end
+    else
+      Result := AllocFallback(aSize, aAlignment);
+    if Result <> nil then Inc(FTotalAllocs);
+    Exit;
+  end;
+
+  LNaturalAlign := NaturalAlignmentForSize(aSize);
+  if aAlignment <= LNaturalAlign then
     Result := GetMem(aSize)
-  else if FAllocator <> nil then
-    Result := FAllocator.AllocAligned(aSize, aAlignment)
   else
-    Result := nil;
+  begin
+    if LPerfEnabled then
+    begin
+      Inc(FPerf.AllocCalls);
+      LStart := GetTickCount64;
+      try
+        Result := AllocFallback(aSize, aAlignment);
+      finally
+        Inc(FPerf.AllocTime, GetTickCount64 - LStart);
+      end;
+    end
+    else
+      Result := AllocFallback(aSize, aAlignment);
+    if Result <> nil then Inc(FTotalAllocs);
+  end;
 end;
 
 procedure TSlabPool.FreeAligned(aPtr: Pointer);
-var
-  idx: Integer;
 begin
-  if aPtr = nil then Exit;
-  idx := FindOwnerSegment(aPtr);
-  if idx >= 0 then
-  begin
-    FSegments[idx].FreeMem(aPtr);
-    PushAvail(idx);
-    Inc(FTotalFrees);
-  end
-  else if FAllocator <> nil then
-    FAllocator.FreeAligned(aPtr);
+  // 与 FreeMem 语义保持一致：只要是本池分配的指针（slab / fallback）都可安全释放
+  FreeMem(aPtr);
 end;
 
-end.
+{$POP}
 
+end.

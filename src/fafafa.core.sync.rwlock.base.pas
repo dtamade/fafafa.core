@@ -7,11 +7,94 @@ interface
 
 uses
   SysUtils,
+  fafafa.core.base,  // ✅ RWLOCK-001: 引入 ECore 基类
   fafafa.core.sync.base, fafafa.core.atomic;
 
 type
   // ===== 类型定义 =====
   TThreadIDArray = array of TThreadID;
+
+  {**
+   * @desc 读写锁公平性策略枚举
+   * @details 定义读写锁的公平性行为，影响读者和写者的调度优先级
+   *
+   * @fairness_strategies
+   *
+   * **WriterPreferred（写优先）**:
+   * - 语义：写者优先获取锁，读者可能饥饿
+   * - 用途：写操作频繁的场景，需要保证写入及时性
+   * - 性能：写操作延迟低，读操作可能延迟高
+   * - 适用场景：
+   *   - 日志系统：频繁写入日志，偶尔读取
+   *   - 数据库写入：写操作优先，保证数据一致性
+   *   - 缓存更新：写入优先，避免读取过期数据
+   * - 示例：
+   *   ```pascal
+   *   var rwlock := MakeRWLock(WriterPreferred);
+   *   // 写者优先，适合写多读少场景
+   *   ```
+   *
+   * **ReaderPreferred（读优先）**:
+   * - 语义：读者优先获取锁，写者可能饥饿
+   * - 用途：读操作频繁的场景，需要保证读取吞吐量
+   * - 性能：读操作延迟低，写操作可能延迟高
+   * - 适用场景：
+   *   - 配置读取：频繁读取配置，偶尔更新
+   *   - 缓存查询：大量并发读取，少量写入
+   *   - 只读数据库：读操作为主，写入很少
+   * - 示例：
+   *   ```pascal
+   *   var rwlock := MakeRWLock(ReaderPreferred);
+   *   // 读者优先，适合读多写少场景
+   *   ```
+   *
+   * **Fair（公平模式）**:
+   * - 语义：按照请求顺序获取锁（FIFO），无优先级
+   * - 用途：需要公平性保证的场景，防止饥饿
+   * - 性能：中等，无饥饿，但可能降低吞吐量
+   * - 适用场景：
+   *   - 任务调度：公平调度，避免任务饥饿
+   *   - 资源分配：公平分配资源，保证公平性
+   *   - 实时系统：需要可预测的延迟
+   * - 示例：
+   *   ```pascal
+   *   var rwlock := MakeRWLock(Fair);
+   *   // 公平模式，适合需要公平性保证的场景
+   *   ```
+   *
+   * @performance_guide
+   * - **默认选择**: 使用 WriterPreferred（性能最好，适合大多数场景）
+   * - **读多写少**: 使用 ReaderPreferred（提高读取吞吐量）
+   * - **防止饥饿**: 使用 Fair（保证公平性，避免饥饿）
+   * - **性能对比**:
+   *   - WriterPreferred: 写延迟最低，读延迟可能高
+   *   - ReaderPreferred: 读延迟最低，写延迟可能高
+   *   - Fair: 延迟中等，无饥饿
+   *
+   * @trade_offs
+   * - **WriterPreferred vs ReaderPreferred**:
+   *   - WriterPreferred: 保证写入及时性，但可能导致读者饥饿
+   *   - ReaderPreferred: 保证读取吞吐量，但可能导致写者饥饿
+   * - **Fair vs Preferred**:
+   *   - Fair: 公平性好，无饥饿，但吞吐量可能降低
+   *   - Preferred: 吞吐量高，但可能导致饥饿
+   *
+   * @rust_equivalent
+   *   - parking_lot::RwLock (WriterPreferred)
+   *   - parking_lot::RwLockFair (Fair)
+   *
+   * @java_equivalent
+   *   - ReentrantReadWriteLock(fair = false) (WriterPreferred)
+   *   - ReentrantReadWriteLock(fair = true) (Fair)
+   *
+   * @cpp_equivalent
+   *   - std::shared_mutex (通常是 WriterPreferred)
+   *}
+  TRWLockFairness = (
+    WriterPreferred,  // 写优先（默认）- 写者优先获取锁
+    ReaderPreferred,  // 读优先 - 读者优先获取锁
+    Fair              // 公平模式（FIFO）- 按请求顺序获取锁
+  );
 
   // ===== 版本化原子计数器（防止 ABA 问题）=====
   // 使用 64 位打包：高 32 位 = Version，低 32 位 = Count
@@ -52,15 +135,39 @@ type
     LastResetTime: QWord;             // 上次重置时间
   end;
 
-  // ===== 锁配置选项 =====
+  {**
+   * @desc 读写锁配置选项
+   * @details 定义读写锁的行为配置，包括公平性策略、重入性、毒化检测等
+   *
+   * @fields
+   *   - Fairness: 公平性策略（默认 WriterPreferred）
+   *   - AllowReentrancy: 是否允许可重入（默认 True）
+   *   - MaxReaders: 最大读者数量（默认 1024）
+   *   - SpinCount: 初始自旋次数（默认 4000）
+   *   - EnablePoisoning: 是否启用毒化检测（默认 True，类似 Rust）
+   *
+   * @deprecated_fields
+   *   以下字段已废弃，请使用 Fairness 字段代替：
+   *   - FairMode: 使用 Fairness = Fair 代替
+   *   - WriterPriority: 使用 Fairness = WriterPreferred 代替
+   *   - ReaderBiasEnabled: 使用 Fairness = ReaderPreferred 代替
+   *
+   * @usage
+   *   var options: TRWLockOptions;
+   *   options.Fairness := Fair;  // 公平模式
+   *   options.AllowReentrancy := True;
+   *   options.MaxReaders := 1024;
+   *   var rwlock := MakeRWLock(options);
+   *}
   TRWLockOptions = record
+    Fairness: TRWLockFairness;  // 公平性策略（默认 WriterPreferred）
     AllowReentrancy: Boolean;   // 是否允许可重入（默认 True）
-    FairMode: Boolean;          // 公平模式：FIFO 调度（默认 False）
-    WriterPriority: Boolean;    // 写者优先模式（默认 False）
+    FairMode: Boolean deprecated 'Use Fairness field instead';          // 公平模式：FIFO 调度（默认 False）- 已废弃
+    WriterPriority: Boolean deprecated 'Use Fairness field instead';    // 写者优先模式（默认 False）- 已废弃
     MaxReaders: Integer;        // 最大读者数量（默认 1024）
     SpinCount: Integer;         // 初始自旋次数（默认 4000）
     EnablePoisoning: Boolean;   // 是否启用毒化检测（默认 True，类似 Rust）
-    ReaderBiasEnabled: Boolean; // 读偏向优化（默认 True，适合读多写少场景）
+    ReaderBiasEnabled: Boolean deprecated 'Use Fairness field instead'; // 读偏向优化（默认 True，适合读多写少场景）- 已废弃
   end;
 
   // ===== 锁操作结果枚�?=====
@@ -74,7 +181,7 @@ type
   // ===== 异常类型定义 =====
 
   { 读写锁基础异常 }
-  ERWLockError = class(Exception)
+  ERWLockError = class(ECore)  // ✅ RWLOCK-001: 继承自 ECore
   private
     FLockResult: TLockResult;
     FThreadId: TThreadID;
@@ -222,18 +329,40 @@ type
     // ===== 毒化支持 (Rust-style Poisoning) =====
     function IsPoisoned: Boolean;
     procedure ClearPoison;
+
+    // ===== 公平性策略查询 =====
+    {**
+     * GetFairness - 获取当前的公平性策略
+     *
+     * @return 当前使用的公平性策略
+     *
+     * @desc
+     *   返回读写锁当前使用的公平性策略。
+     *   公平性策略在锁创建时设置，运行时不可更改。
+     *
+     * @usage
+     *   var fairness := rwlock.GetFairness();
+     *   case fairness of
+     *     WriterPreferred: WriteLn('写者优先模式');
+     *     ReaderPreferred: WriteLn('读者优先模式');
+     *     Fair: WriteLn('公平模式');
+     *   end;
+     *
+     * @thread_safety 线程安全
+     *}
+    function GetFairness: TRWLockFairness;
   end;
 
   { IRWLockDiagnostics - 性能诊断接口（从 IRWLock 分离）
-    
+
     此接口包含用于调试和性能分析的方法，与核心锁功能分离。
     生产代码通常不需要此接口，仅在需要性能监控时使用。
-    
+
     获取方式：
       var Diagnostics: IRWLockDiagnostics;
       if Supports(MyRWLock, IRWLockDiagnostics, Diagnostics) then
         WriteLn('Contention rate: ', Diagnostics.GetContentionRate:0:2);
-    
+
     @experimental 此接口可能在未来版本中更改
   }
   IRWLockDiagnostics = interface

@@ -13,7 +13,7 @@ program test_simd_boundary;
  *}
 
 uses
-  SysUtils, Math,
+  SysUtils, fafafa.core.math,
   fafafa.core.simd.base,
   fafafa.core.simd.dispatch,
   fafafa.core.simd.scalar;

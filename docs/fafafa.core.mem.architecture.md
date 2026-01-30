@@ -11,7 +11,7 @@ fafafa.core.mem/
 ├── fafafa.core.mem.pas           # 主门面模块 (140行)
 ├── fafafa.core.mem.memPool.pas   # 通用内存池 (200行)
 ├── fafafa.core.mem.stackPool.pas # 栈式内存池 (180行)
-└── fafafa.core.mem.slabPool.pas  # Slab分配器 (425行)
+└── fafafa.core.mem.pool.slab.pas  # Slab分配器 (425行)
 ```
 
 ## 🎯 设计原则
@@ -50,11 +50,13 @@ type
   TAllocator = fafafa.core.mem.allocator.TAllocator;
   // ...
 
-// 注意：所有 Pool 类都统一使用 TAllocator 而不是 IAllocator
+// 注意：Pool 类统一使用 IAllocator 接口
 
 // 分配器获取函数
-function GetRtlAllocator: TAllocator;
-function GetCrtAllocator: TAllocator; // 条件编译
+function GetRtlAllocator: IAllocator;
+function GetCrtAllocator: IAllocator; // 条件编译
+function GetMimallocAllocator: IAllocator;
+function TryGetMimallocAllocator(out A: IAllocator): Boolean;
 ```
 
 ### fafafa.core.mem.memPool (通用内存池)
@@ -70,20 +72,17 @@ function GetCrtAllocator: TAllocator; // 条件编译
 ```pascal
 type
   TMemPool = class
-    constructor Create(aBlockSize: SizeUInt; aCapacity: Integer; aAllocator: TAllocator = nil);
+    constructor Create(aBlockSize: SizeUInt; aCapacity: Integer; aAllocator: IAllocator = nil);
     destructor Destroy; override;
     
     function Alloc: Pointer;
-    procedure Free(aPtr: Pointer);
+    procedure ReleasePtr(aPtr: Pointer);
     procedure Reset;
     
     property BlockSize: SizeUInt read FBlockSize;
     property Capacity: Integer read FCapacity;
     property AllocatedCount: Integer read FAllocatedCount;
-    property AvailableCount: Integer read GetAvailableCount;
-    
-    function IsEmpty: Boolean;
-    function IsFull: Boolean;
+    property Available: Integer read GetAvailable;
   end;
 ```
 
@@ -105,7 +104,7 @@ type
 ```pascal
 type
   TStackPool = class
-    constructor Create(aSize: SizeUInt; aAllocator: TAllocator = nil);
+    constructor Create(aSize: SizeUInt; aAllocator: IAllocator = nil);
     destructor Destroy; override;
     
     function Alloc(aSize: SizeUInt; aAlignment: SizeUInt = SizeOf(Pointer)): Pointer;
@@ -128,7 +127,7 @@ type
 - 需要批量释放的场景
 - 解析器、编译器等需要大量临时内存的场景
 
-### fafafa.core.mem.slabPool (nginx风格Slab分配器)
+### fafafa.core.mem.pool.slab (nginx风格Slab分配器)
 
 **职责**: 提供 nginx 风格的页面管理 Slab 分配器
 
@@ -143,18 +142,19 @@ type
 ```pascal
 type
   TSlabPool = class
-    constructor Create(aSize: SizeUInt; aAllocator: TAllocator = nil);
+    constructor Create(aCapacity: SizeUInt; aAllocator: IAllocator = nil; aMinShift: SizeUInt = 3);
     destructor Destroy; override;
 
     function Alloc(aSize: SizeUInt): Pointer;
-    procedure Free(aPtr: Pointer);
+    procedure ReleasePtr(aPtr: Pointer);
     procedure Reset;
 
-    property PoolSize: SizeUInt read FSize;
-    property PageCount: SizeUInt read FPageCount;
+    function Stats: TSlabPoolStats;
+    function GetPerfCounters: TSlabPerfCounters;
     property TotalAllocs: SizeUInt read FTotalAllocs;
     property TotalFrees: SizeUInt read FTotalFrees;
-    property FailedAllocs: SizeUInt read FFailedAllocs;
+    property SegmentCount: Integer read GetSegmentCount;
+    property FallbackAllocCount: Integer read GetFallbackAllocCount;
   end;
 ```
 
@@ -201,7 +201,7 @@ begin
   try
     LPtr := LPool.Alloc;
     // 使用内存...
-    LPool.Free(LPtr);
+    LPool.ReleasePtr(LPtr);
   finally
     LPool.Free;
   end;
@@ -238,11 +238,14 @@ end;
 
 ```pascal
 uses
-  fafafa.core.mem.slabPool;
+  fafafa.core.mem.pool.slab,
+  fafafa.core.mem.stats;
 
 var
   LPool: TSlabPool;
   LPtr1, LPtr2: Pointer;
+  LStats: TSlabPoolStats;
+  LPerf: TSlabPerfCounters;
 begin
   LPool := TSlabPool.Create(8192); // 2个页面的池
   try
@@ -251,13 +254,15 @@ begin
 
     // 使用内存...
 
-    LPool.Free(LPtr1);
-    LPool.Free(LPtr2);
+    LPool.ReleasePtr(LPtr1);
+    LPool.ReleasePtr(LPtr2);
 
     // 查看统计信息
-    WriteLn('总分配: ', LPool.TotalAllocs);
-    WriteLn('总释放: ', LPool.TotalFrees);
-    WriteLn('失败数: ', LPool.FailedAllocs);
+    LStats := GetSlabPoolStats(LPool);
+    LPerf := LPool.GetPerfCounters;
+    WriteLn('容量: ', LStats.TotalUsed, '/', LStats.TotalCapacity);
+    WriteLn('Fallback: ', LStats.FallbackAllocCount);
+    WriteLn('分配/释放: ', LPerf.AllocCalls, '/', LPerf.FreeCalls);
   finally
     LPool.Free;
   end;

@@ -1,0 +1,118 @@
+ Time:35.700 N:83 E:0 F:0 I:0
+  fafafa Time:35.700 N:83 E:0 F:0 I:0
+    core Time:35.700 N:83 E:0 F:0 I:0
+      atomic Time:35.700 N:83 E:0 F:0 I:0
+        Global Time:00.000 N:42 E:0 F:0 I:0
+          TTestCase_Global Time:00.000 N:42 E:0 F:0 I:0
+            00.000  Test_atomic_fetch_and_32
+            00.000  Test_atomic_fetch_or_32
+            00.000  Test_atomic_fetch_xor_32
+            00.000  Test_atomic_fetch_and_64
+            00.000  Test_atomic_fetch_or_64
+            00.000  Test_atomic_fetch_xor_64
+            00.000  Test_atomic_fetch_add_ptr_bytes
+            00.000  Test_atomic_fetch_sub_ptr_bytes
+            00.000  Test_atomic_load_store_32
+            00.000  Test_atomic_exchange_ptr
+            00.000  Test_atomic_compare_exchange_strong_32
+            00.000  Test_atomic_compare_exchange_weak_32
+            00.000  Test_atomic_increment_decrement_32
+            00.000  Test_atomic_load_store_64
+            00.000  Test_atomic_exchange_64
+            00.000  Test_atomic_compare_exchange_strong_64
+            00.000  Test_atomic_compare_exchange_weak_64
+            00.000  Test_atomic_increment_decrement_64
+            00.000  Test_atomic_flag
+            00.000  Test_atomic_is_lock_free
+            00.000  Test_atomic_thread_fence_smoke
+            00.000  Test_atomic_load_store_orders_32
+            00.000  Test_atomic_load_store_orders_ptr
+            00.000  Test_atomic_load_store_orders_64
+            00.000  Test_atomic_compare_exchange_strong_ptr
+            00.000  Test_atomic_compare_exchange_weak_ptr
+            00.000  Test_atomic_compare_exchange_strong_ptrint
+            00.000  Test_atomic_fetch_sub_ptr_bytes_variant
+            00.000  Test_atomic_uint32_fetch_ops
+            00.000  Test_atomic_bitmask_variants_32
+            00.000  Test_atomic_fetch_add_sub_boundaries_32
+            00.000  Test_atomic_fetch_add_sub_boundaries_64
+            00.000  Test_atomic_uint64_fetch_ops
+            00.000  Test_ptruint_pointer_fetch_smoke
+            00.000  Test_uint64_add_sub_fetch_paths
+            00.000  Test_uint64_bitwise_boundary_extremes
+            00.000  Test_compare_exchange_expected_writeback_consistency
+            00.000  Test_pointer_fetch_add_negative_boundary
+            00.000  Test_tagged_ptr_weak_and_exchange
+            00.000  Test_tagged_ptr_round_trip_allocated_ptr
+            00.000  Test_tagged_ptr_tag_wraparound
+            00.000  Test_atomic_compare_exchange_loops_32
+        Concurrent Time:35.699 N:10 E:0 F:0 I:0
+          TTestCase_Concurrent Time:35.699 N:10 E:0 F:0 I:0
+            00.101  Test_concurrent_fetch_add_32
+            00.101  Test_concurrent_bit_or_32
+            00.100  Test_concurrent_tagged_ptr_increment_tag
+            00.101  Test_concurrent_cas_increment_32
+            00.100  Test_thread_fence_visibility
+            00.100  Test_seq_cst_total_order_three_threads
+            10.026  Test_litmus_message_passing
+            10.025  Test_litmus_store_buffering
+            10.027  Test_litmus_load_buffering
+            05.018  Test_litmus_independent_reads
+        base Time:00.000 N:29 E:0 F:0 I:0
+          TAtomicInt32 Time:00.000 N:13 E:0 F:0 I:0
+            TTestCase_AtomicInt32 Time:00.000 N:13 E:0 F:0 I:0
+              00.000  Test_Create_and_Load
+              00.000  Test_Store_and_Load
+              00.000  Test_Exchange
+              00.000  Test_CompareExchangeStrong
+              00.000  Test_CompareExchangeWeak
+              00.000  Test_FetchAdd
+              00.000  Test_FetchSub
+              00.000  Test_FetchAnd
+              00.000  Test_FetchOr
+              00.000  Test_FetchXor
+              00.000  Test_Increment_Decrement
+              00.000  Test_GetMut_IntoInner
+              00.000  Test_MemoryOrders
+          TAtomicBool Time:00.000 N:8 E:0 F:0 I:0
+            TTestCase_AtomicBool Time:00.000 N:8 E:0 F:0 I:0
+              00.000  Test_Create_and_Load
+              00.000  Test_Store_and_Load
+              00.000  Test_Exchange
+              00.000  Test_CompareExchange
+              00.000  Test_FetchAnd
+              00.000  Test_FetchOr
+              00.000  Test_FetchXor
+              00.000  Test_FetchNand
+          TAtomicInt64 Time:00.000 N:4 E:0 F:0 I:0
+            TTestCase_AtomicInt64 Time:00.000 N:4 E:0 F:0 I:0
+              00.000  Test_Create_and_Load
+              00.000  Test_Store_and_Load
+              00.000  Test_FetchAdd
+              00.000  Test_Increment_Decrement
+          TAtomicPtr Time:00.000 N:4 E:0 F:0 I:0
+            TTestCase_AtomicPtr Time:00.000 N:4 E:0 F:0 I:0
+              00.000  Test_Create_and_Load
+              00.000  Test_Store_and_Load
+              00.000  Test_Exchange
+              00.000  Test_CompareExchange
+        Contract Time:00.000 N:1 E:0 F:0 I:0
+          TTestCase_AtomicContract Time:00.000 N:1 E:0 F:0 I:0
+            00.000  Test_api_compile_contract
+        compat Time:00.001 N:1 E:0 F:0 I:0
+          contract Time:00.000 N:1 E:0 F:0 I:0
+            TTestCase_AtomicCompatContract Time:00.000 N:1 E:0 F:0 I:0
+              00.000  Test_api_compat_compile_contract
+
+Number of run tests: 83
+Number of errors:    0
+Number of failures:  0
+
+
+
+Heap dump by heaptrc unit of "./bin/tests_atomic"
+3731 memory blocks allocated : 287637
+3731 memory blocks freed     : 287637
+0 unfreed memory blocks : 0
+True heap size : 196608
+True free heap : 196608

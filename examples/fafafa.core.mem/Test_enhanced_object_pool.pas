@@ -2,7 +2,7 @@
 unit Test_enhanced_object_pool;
 
 {$mode objfpc}{$H+}
-{$I fafafa.core.settings.inc}
+{$I ../../src/fafafa.core.settings.inc}
 
 interface
 

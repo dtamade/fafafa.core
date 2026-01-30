@@ -24,6 +24,7 @@ interface
 
 uses
   SysUtils,
+  fafafa.core.base,  // ✅ TYPEID-001: 引入 ECore 基类
   fafafa.core.id,      // TUuid128, UuidV7_Raw
   fafafa.core.id.uuid;
 
@@ -45,8 +46,8 @@ type
   end;
 
   { 无效前缀异常 }
-  EInvalidTypeIdPrefix = class(Exception);
-  EInvalidTypeId = class(Exception);
+  EInvalidTypeIdPrefix = class(ECore);  // ✅ TYPEID-001: 继承自 ECore
+  EInvalidTypeId = class(ECore);  // ✅ TYPEID-002: 继承自 ECore
 
 const
   { TypeID 前缀最大长度 (规范定义) }

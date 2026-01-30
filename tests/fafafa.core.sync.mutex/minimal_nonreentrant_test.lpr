@@ -4,6 +4,9 @@ program minimal_nonreentrant_test;
 {$I fafafa.core.settings.inc}
 
 uses
+  {$IFDEF UNIX}
+  cthreads,
+  {$ENDIF}
   SysUtils,
   fafafa.core.sync.base,
   fafafa.core.sync.mutex;

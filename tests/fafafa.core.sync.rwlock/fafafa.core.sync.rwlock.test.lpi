@@ -34,11 +34,11 @@
     </RequiredPackages>
     <Units>
       <Unit>
-        <Filename Value="fafafa.core.sync.rwlock.test.lpr"/>
+        <Filename Value="bin/fafafa.core.sync.rwlock.test"/>
         <IsPartOfProject Value="True"/>
       </Unit>
       <Unit>
-        <Filename Value="fafafa.core.sync.rwlock.testcase.pas"/>
+        <Filename Value="bin/fafafa.core.sync.rwlock.test"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>

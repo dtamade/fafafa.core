@@ -21,7 +21,7 @@ lazbuild --build-mode=Debug fafafa.core.sync.namedBarrier.test.lpi
 
 if %ERRORLEVEL% neq 0 (
     echo 编译失败！
-    pause
+if "%FAFAFA_INTERACTIVE%"=="1" if "%FAFAFA_INTERACTIVE%"=="1" pause
     exit /b 1
 )
 
@@ -48,4 +48,4 @@ if %TEST_RESULT% equ 0 (
 
 echo.
 echo 测试完成。
-pause
+if "%FAFAFA_INTERACTIVE%"=="1" if "%FAFAFA_INTERACTIVE%"=="1" pause

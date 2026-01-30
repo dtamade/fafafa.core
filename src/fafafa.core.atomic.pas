@@ -64,17 +64,136 @@ interface
 
 type
 
+  {**
+   * @desc 内存序枚举
+   * @details 定义原子操作的内存顺序语义，影响多线程环境下的内存可见性和操作顺序
+   *
+   * @memory_order_semantics
+   *
+   * **mo_relaxed（松弛序）**:
+   * - 语义：只保证原子性，不提供同步或顺序保证
+   * - 用途：计数器、统计信息等不需要同步的场景
+   * - 性能：最快，无额外开销
+   * - 示例：
+   *   ```pascal
+   *   atomic_fetch_add(counter, 1, mo_relaxed);  // 简单计数
+   *   ```
+   *
+   * **mo_consume（消费序）**:
+   * - 语义：数据依赖顺序（C++17 已废弃，当前实现等价于 mo_acquire）
+   * - 用途：不推荐使用，使用 mo_acquire 代替
+   * - 性能：等价于 mo_acquire
+   * - 注意：为了跨平台一致性，实现为更强的 mo_acquire
+   *
+   * **mo_acquire（获取序）**:
+   * - 语义：获取语义，确保此操作之后的读写不会被重排到此操作之前
+   * - 用途：读取共享数据，与 mo_release 配对使用
+   * - 性能：中等，可能需要内存屏障
+   * - 示例：
+   *   ```pascal
+   *   // 消费者读取数据
+   *   if atomic_load(flag, mo_acquire) = 1 then
+   *     value := atomic_load(data, mo_relaxed);  // 保证 data 已写入
+   *   ```
+   *
+   * **mo_release（释放序）**:
+   * - 语义：释放语义，确保此操作之前的读写不会被重排到此操作之后
+   * - 用途：写入共享数据，与 mo_acquire 配对使用
+   * - 性能：中等，可能需要内存屏障
+   * - 示例：
+   *   ```pascal
+   *   // 生产者写入数据
+   *   atomic_store(data, 42, mo_relaxed);
+   *   atomic_store(flag, 1, mo_release);  // 确保 data 写入对消费者可见
+   *   ```
+   *
+   * **mo_acq_rel（获取-释放序）**:
+   * - 语义：获取+释放语义，结合两者的效果
+   * - 用途：读-修改-写操作（如 fetch_add, compare_exchange）
+   * - 性能：中等，可能需要内存屏障
+   * - 示例：
+   *   ```pascal
+   *   // 原子递增
+   *   old_value := atomic_fetch_add(counter, 1, mo_acq_rel);
+   *   ```
+   *
+   * **mo_seq_cst（顺序一致性）**:
+   * - 语义：最强的同步保证，所有线程看到相同的操作顺序
+   * - 用途：默认选择，适用于大多数场景
+   * - 性能：最慢，可能需要全局同步
+   * - 示例：
+   *   ```pascal
+   *   // 默认使用 seq_cst
+   *   atomic_store(flag, 1);  // 等价于 atomic_store(flag, 1, mo_seq_cst)
+   *   ```
+   *
+   * @performance_guide
+   * - 优先使用 mo_seq_cst（默认），除非性能分析表明需要优化
+   * - 对于简单计数器，可以使用 mo_relaxed
+   * - 对于生产者-消费者模式，使用 mo_release/mo_acquire 配对
+   * - 对于读-修改-写操作，使用 mo_acq_rel
+   *
+   * @cpp_equivalent std::memory_order
+   * @rust_equivalent std::sync::atomic::Ordering
+   *}
   memory_order_t = (
-    mo_relaxed,   // 只保证原子性
-    mo_consume,   // 当前实现：等价 mo_acquire（更强；跨平台一致性）
-    mo_acquire,   // acquire 语义
-    mo_release,   // store 用
-    mo_acq_rel,   // RMW 用，load 部分当 acquire
-    mo_seq_cst    // 最强顺序
+    mo_relaxed,   // 只保证原子性，无同步
+    mo_consume,   // 数据依赖顺序（已废弃，等价于 mo_acquire）
+    mo_acquire,   // 获取语义
+    mo_release,   // 释放语义
+    mo_acq_rel,   // 获取+释放语义
+    mo_seq_cst    // 顺序一致性（默认）
   );
 
 // cpu_pause: self-spin hint (PAUSE/YIELD/no-op), useful for CAS loops.
 procedure cpu_pause;
+
+//┌────────────────────────────────────────────────────────────────────────────┐
+//│                            Memory Fences                                   │
+//└────────────────────────────────────────────────────────────────────────────┘
+
+{**
+ * @desc 线程间内存屏障
+ * @details 建立线程间的同步关系，确保屏障前的内存操作对其他线程可见
+ *
+ * @param aOrder 内存序
+ *   - mo_acquire: 获取屏障，确保屏障后的读操作不会被重排到屏障前
+ *   - mo_release: 释放屏障，确保屏障前的写操作不会被重排到屏障后
+ *   - mo_acq_rel: 获取+释放屏障，结合两者的效果
+ *   - mo_seq_cst: 顺序一致性屏障，最强的同步保证
+ *   - mo_relaxed: 无效，会触发运行时错误
+ *
+ * @usage
+ *   // 生产者-消费者模式
+ *   atomic_store(data, 42, mo_relaxed);
+ *   atomic_thread_fence(mo_release);  // 确保 data 写入对消费者可见
+ *   atomic_store(flag, 1, mo_relaxed);
+ *
+ * @thread_safety 线程安全
+ * @performance 性能开销取决于内存序和硬件平台
+ * @rust_equivalent std::sync::atomic::fence
+ * @cpp_equivalent std::atomic_thread_fence
+ *}
+procedure atomic_thread_fence(aOrder: memory_order_t);
+
+{**
+ * @desc 编译器内存屏障（信号处理器屏障）
+ * @details 防止编译器重排序，但不影响硬件层面的内存可见性
+ *          主要用于信号处理器和当前线程之间的同步
+ *
+ * @param aOrder 内存序（语义同 atomic_thread_fence）
+ *
+ * @usage
+ *   // 信号处理器中使用
+ *   atomic_store(flag, 1, mo_relaxed);
+ *   atomic_signal_fence(mo_release);  // 防止编译器重排序
+ *
+ * @thread_safety 线程安全
+ * @performance 零开销（仅编译器指令）
+ * @rust_equivalent std::sync::atomic::compiler_fence
+ * @cpp_equivalent std::atomic_signal_fence
+ *}
+procedure atomic_signal_fence(aOrder: memory_order_t);
 
 //┌────────────────────────────────────────────────────────────────────────────┐
 //│                                atomic_load                                 │
@@ -249,6 +368,84 @@ function atomic_compare_exchange_weak_64(var aObj: UInt64; var aExpected: UInt64
 {$ENDIF}
 function atomic_compare_exchange_weak(var aObj: Pointer; var aExpected: Pointer; aDesired: Pointer;
   aSuccessOrder, aFailureOrder: memory_order_t): Boolean; overload; inline;
+
+// ✅ P1-002: CAS 带单内存序参数 (aOrder) - 简化常见用法（成功和失败使用相同内存序）
+{**
+ * @desc 原子比较并交换操作（单内存序版本）
+ * @details 简化版本，成功和失败情况使用相同的内存序
+ *
+ * @memory_order_usage
+ * 此版本适用于不需要区分成功和失败内存序的常见场景：
+ * - 使用 mo_seq_cst：最安全，适合大多数场景
+ * - 使用 mo_acq_rel：获取-释放语义，适合同步场景
+ * - 使用 mo_acquire：仅需要获取语义
+ * - 使用 mo_release：仅需要释放语义（较少使用）
+ * - 使用 mo_relaxed：仅保证原子性，无同步（高级用法）
+ *
+ * @when_to_use
+ * - 当成功和失败都需要相同的内存序时
+ * - 当不确定如何选择不同的内存序时
+ * - 当代码简洁性比性能优化更重要时
+ *
+ * @performance
+ * 性能与双内存序版本相同，但代码更简洁易读。
+ *
+ * @example
+ *   var counter: Int32 := 0;
+ *   var expected: Int32 := 0;
+ *   // 使用 seq_cst 保证顺序一致性
+ *   if atomic_compare_exchange_strong(counter, expected, 1, mo_seq_cst) then
+ *     WriteLn('CAS succeeded');
+ *
+ *   // 使用 acq_rel 进行同步
+ *   if atomic_compare_exchange_strong(counter, expected, 2, mo_acq_rel) then
+ *     WriteLn('CAS succeeded with acquire-release semantics');
+ *
+ * @cpp_equivalent
+ *   std::atomic<T>::compare_exchange_strong(expected, desired, order)
+ *   std::atomic<T>::compare_exchange_weak(expected, desired, order)
+ *
+ * @rust_equivalent
+ *   AtomicT::compare_exchange(expected, desired, order, order)
+ *   AtomicT::compare_exchange_weak(expected, desired, order, order)
+ *}
+function atomic_compare_exchange_strong(var aObj: Int32; var aExpected: Int32; aDesired: Int32;
+  aOrder: memory_order_t): Boolean; overload; inline;
+function atomic_compare_exchange_strong(var aObj: UInt32; var aExpected: UInt32; aDesired: UInt32;
+  aOrder: memory_order_t): Boolean; overload; inline;
+{$IFDEF CPU64}
+function atomic_compare_exchange_strong(var aObj: PtrInt; var aExpected: PtrInt; aDesired: PtrInt;
+  aOrder: memory_order_t): Boolean; overload; inline;
+function atomic_compare_exchange_strong(var aObj: PtrUInt; var aExpected: PtrUInt; aDesired: PtrUInt;
+  aOrder: memory_order_t): Boolean; overload; inline;
+{$ENDIF}
+{$IF DEFINED(CPU64) OR DEFINED(CPUX86)}
+function atomic_compare_exchange_strong_64(var aObj: Int64; var aExpected: Int64; aDesired: Int64;
+  aOrder: memory_order_t): Boolean; overload; inline;
+function atomic_compare_exchange_strong_64(var aObj: UInt64; var aExpected: UInt64; aDesired: UInt64;
+  aOrder: memory_order_t): Boolean; overload; inline;
+{$ENDIF}
+function atomic_compare_exchange_strong(var aObj: Pointer; var aExpected: Pointer; aDesired: Pointer;
+  aOrder: memory_order_t): Boolean; overload; inline;
+
+function atomic_compare_exchange_weak(var aObj: Int32; var aExpected: Int32; aDesired: Int32;
+  aOrder: memory_order_t): Boolean; overload; inline;
+function atomic_compare_exchange_weak(var aObj: UInt32; var aExpected: UInt32; aDesired: UInt32;
+  aOrder: memory_order_t): Boolean; overload; inline;
+{$IFDEF CPU64}
+function atomic_compare_exchange_weak(var aObj: PtrInt; var aExpected: PtrInt; aDesired: PtrInt;
+  aOrder: memory_order_t): Boolean; overload; inline;
+function atomic_compare_exchange_weak(var aObj: PtrUInt; var aExpected: PtrUInt; aDesired: PtrUInt;
+  aOrder: memory_order_t): Boolean; overload; inline;
+{$ENDIF}
+{$IF DEFINED(CPU64) OR DEFINED(CPUX86)}
+function atomic_compare_exchange_weak_64(var aObj: Int64; var aExpected: Int64; aDesired: Int64;
+  aOrder: memory_order_t): Boolean; overload; inline;
+function atomic_compare_exchange_weak_64(var aObj: UInt64; var aExpected: UInt64; aDesired: UInt64;
+  aOrder: memory_order_t): Boolean; overload; inline;
+{$ENDIF}
+function atomic_compare_exchange_weak(var aObj: Pointer; var aExpected: Pointer; aDesired: Pointer;
+  aOrder: memory_order_t): Boolean; overload; inline;
 
 //┌────────────────────────────────────────────────────────────────────────────┐
 //│                              atomic_increment                              │
@@ -465,8 +662,6 @@ function  atomic_tagged_ptr_compare_exchange_weak(var aObj: atomic_tagged_ptr_t;
 function  atomic_tagged_ptr_next(const aTaggedPtr: atomic_tagged_ptr_t): {$IFDEF CPU64}UInt16{$ELSE}UInt32{$ENDIF}; inline;
 procedure atomic_tagged_ptr_update(var aObj: atomic_tagged_ptr_t; aPtr: Pointer); inline;
 procedure atomic_tagged_ptr_update_tag(var aObj: atomic_tagged_ptr_t; aTag: {$IFDEF CPU64}UInt16{$ELSE}UInt32{$ENDIF}); inline;
-
-procedure atomic_thread_fence(aOrder: memory_order_t); inline;
 
 implementation
 
@@ -1747,6 +1942,102 @@ function atomic_compare_exchange_weak(var aObj: Pointer; var aExpected: Pointer;
   aSuccessOrder, aFailureOrder: memory_order_t): Boolean;
 begin
   Result := atomic_compare_exchange_strong(aObj, aExpected, aDesired, aSuccessOrder, aFailureOrder);
+end;
+
+// ✅ P1-002: CAS 单内存序版本实现 - 简化常见用法（成功和失败使用相同内存序）
+// 说明: 这些函数调用双内存序版本，将相同的内存序用于成功和失败情况
+
+function atomic_compare_exchange_strong(var aObj: Int32; var aExpected: Int32; aDesired: Int32;
+  aOrder: memory_order_t): Boolean;
+begin
+  Result := atomic_compare_exchange_strong(aObj, aExpected, aDesired, aOrder, aOrder);
+end;
+
+function atomic_compare_exchange_strong(var aObj: UInt32; var aExpected: UInt32; aDesired: UInt32;
+  aOrder: memory_order_t): Boolean;
+begin
+  Result := atomic_compare_exchange_strong(aObj, aExpected, aDesired, aOrder, aOrder);
+end;
+
+{$IFDEF CPU64}
+function atomic_compare_exchange_strong(var aObj: PtrInt; var aExpected: PtrInt; aDesired: PtrInt;
+  aOrder: memory_order_t): Boolean;
+begin
+  Result := atomic_compare_exchange_strong(aObj, aExpected, aDesired, aOrder, aOrder);
+end;
+
+function atomic_compare_exchange_strong(var aObj: PtrUInt; var aExpected: PtrUInt; aDesired: PtrUInt;
+  aOrder: memory_order_t): Boolean;
+begin
+  Result := atomic_compare_exchange_strong(aObj, aExpected, aDesired, aOrder, aOrder);
+end;
+{$ENDIF}
+
+{$IF DEFINED(CPU64) OR DEFINED(CPUX86)}
+function atomic_compare_exchange_strong_64(var aObj: Int64; var aExpected: Int64; aDesired: Int64;
+  aOrder: memory_order_t): Boolean;
+begin
+  Result := atomic_compare_exchange_strong_64(aObj, aExpected, aDesired, aOrder, aOrder);
+end;
+
+function atomic_compare_exchange_strong_64(var aObj: UInt64; var aExpected: UInt64; aDesired: UInt64;
+  aOrder: memory_order_t): Boolean;
+begin
+  Result := atomic_compare_exchange_strong_64(aObj, aExpected, aDesired, aOrder, aOrder);
+end;
+{$ENDIF}
+
+function atomic_compare_exchange_strong(var aObj: Pointer; var aExpected: Pointer; aDesired: Pointer;
+  aOrder: memory_order_t): Boolean;
+begin
+  Result := atomic_compare_exchange_strong(aObj, aExpected, aDesired, aOrder, aOrder);
+end;
+
+// weak 版本 - 单内存序
+function atomic_compare_exchange_weak(var aObj: Int32; var aExpected: Int32; aDesired: Int32;
+  aOrder: memory_order_t): Boolean;
+begin
+  Result := atomic_compare_exchange_weak(aObj, aExpected, aDesired, aOrder, aOrder);
+end;
+
+function atomic_compare_exchange_weak(var aObj: UInt32; var aExpected: UInt32; aDesired: UInt32;
+  aOrder: memory_order_t): Boolean;
+begin
+  Result := atomic_compare_exchange_weak(aObj, aExpected, aDesired, aOrder, aOrder);
+end;
+
+{$IFDEF CPU64}
+function atomic_compare_exchange_weak(var aObj: PtrInt; var aExpected: PtrInt; aDesired: PtrInt;
+  aOrder: memory_order_t): Boolean;
+begin
+  Result := atomic_compare_exchange_weak(aObj, aExpected, aDesired, aOrder, aOrder);
+end;
+
+function atomic_compare_exchange_weak(var aObj: PtrUInt; var aExpected: PtrUInt; aDesired: PtrUInt;
+  aOrder: memory_order_t): Boolean;
+begin
+  Result := atomic_compare_exchange_weak(aObj, aExpected, aDesired, aOrder, aOrder);
+end;
+{$ENDIF}
+
+{$IF DEFINED(CPU64) OR DEFINED(CPUX86)}
+function atomic_compare_exchange_weak_64(var aObj: Int64; var aExpected: Int64; aDesired: Int64;
+  aOrder: memory_order_t): Boolean;
+begin
+  Result := atomic_compare_exchange_weak_64(aObj, aExpected, aDesired, aOrder, aOrder);
+end;
+
+function atomic_compare_exchange_weak_64(var aObj: UInt64; var aExpected: UInt64; aDesired: UInt64;
+  aOrder: memory_order_t): Boolean;
+begin
+  Result := atomic_compare_exchange_weak_64(aObj, aExpected, aDesired, aOrder, aOrder);
+end;
+{$ENDIF}
+
+function atomic_compare_exchange_weak(var aObj: Pointer; var aExpected: Pointer; aDesired: Pointer;
+  aOrder: memory_order_t): Boolean;
+begin
+  Result := atomic_compare_exchange_weak(aObj, aExpected, aDesired, aOrder, aOrder);
 end;
 
 function atomic_increment(var aObj: Int32): Int32;
@@ -3041,6 +3332,20 @@ begin
     mo_release: WriteBarrier;          // 写入屏障，防止 release 前写入重排到后面
     mo_acq_rel: ReadWriteBarrier;      // 同时防止前后读取和写入重排
     mo_seq_cst: ReadWriteBarrier;      // 最强顺序，保证全序
+  end;
+end;
+
+procedure atomic_signal_fence(aOrder: memory_order_t);
+begin
+  // 编译器屏障：只防止编译器重排序，不产生硬件屏障指令
+  // 使用 ReadWriteBarrier 作为编译器屏障（零开销）
+  case aOrder of
+    mo_relaxed:;                       // 不产生任何屏障
+    mo_consume: ReadWriteBarrier;      // 当前实现：按 acquire 处理
+    mo_acquire: ReadWriteBarrier;      // 编译器屏障，防止后续读取重排到前面
+    mo_release: ReadWriteBarrier;      // 编译器屏障，防止前面写入重排到后面
+    mo_acq_rel: ReadWriteBarrier;      // 编译器屏障，防止前后读写重排
+    mo_seq_cst: ReadWriteBarrier;      // 编译器屏障，最强顺序
   end;
 end;
 

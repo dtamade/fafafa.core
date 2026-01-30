@@ -1,7 +1,7 @@
-{$CODEPAGE UTF8}
 program example_mapped_runner;
-
 {$mode objfpc}{$H+}
+{$I ../../src/fafafa.core.settings.inc}
+{$IFDEF WINDOWS}{$CODEPAGE UTF8}{$ENDIF}
 
 uses
   SysUtils, Classes, consoletestrunner,
@@ -10,16 +10,15 @@ uses
   Test_mapped_slab_pool;
 
 var
-  Application: TTestRunner;
+  LApplication: TTestRunner;
 begin
   DefaultFormat := fPlain;
-  Application := TTestRunner.Create(nil);
+  LApplication := TTestRunner.Create(nil);
   try
-    Application.Title := 'fafafa.core.mem mapped_* 示例 Runner';
-    Application.Initialize;
-    Application.Run;
+    LApplication.Title := 'fafafa.core.mem mapped_* 示例 Runner';
+    LApplication.Initialize;
+    LApplication.Run;
   finally
-    Application.Free;
+    LApplication.Free;
   end;
 end.
-

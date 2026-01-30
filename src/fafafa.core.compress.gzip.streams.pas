@@ -8,11 +8,12 @@ interface
 
 uses
   Classes, SysUtils,
+  fafafa.core.base,  // ✅ GZIP-001: 引入 ECore 基类
   fafafa.core.compress.deflate.raw.paszlib;
 
 type
   { EGZipError }
-  EGZipError = class(Exception);
+  EGZipError = class(ECore);  // ✅ GZIP-001: 继承自 ECore
 
   { CRC32 工具（基于全局表，避免在 record 中使用 class var 以兼容性） }
   TGZipCRC32 = record end;

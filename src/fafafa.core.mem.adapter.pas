@@ -199,37 +199,37 @@ begin
 end;
 procedure TAllocToAllocatorAdapter.TrackSize(aPtr: Pointer; aSize: SizeUInt);
 var
-  Idx: SizeInt;
+  LIndex: SizeInt;
 begin
   if aPtr = nil then Exit;
   if FSizeMap = nil then
     FSizeMap := specialize TFPGMap<Pointer, SizeUInt>.Create;
-  Idx := FSizeMap.IndexOf(aPtr);
-  if Idx < 0 then
+  LIndex := FSizeMap.IndexOf(aPtr);
+  if LIndex < 0 then
     FSizeMap.Add(aPtr, aSize)
   else
-    FSizeMap.Data[Idx] := aSize;
+    FSizeMap.Data[LIndex] := aSize;
 end;
 
 procedure TAllocToAllocatorAdapter.UntrackSize(aPtr: Pointer);
 var
-  Idx: SizeInt;
+  LIndex: SizeInt;
 begin
   if (FSizeMap = nil) or (aPtr = nil) then Exit;
-  Idx := FSizeMap.IndexOf(aPtr);
-  if Idx >= 0 then
-    FSizeMap.Delete(Idx);
+  LIndex := FSizeMap.IndexOf(aPtr);
+  if LIndex >= 0 then
+    FSizeMap.Delete(LIndex);
 end;
 
 function TAllocToAllocatorAdapter.LookupSize(aPtr: Pointer): SizeUInt;
 var
-  Idx: SizeInt;
+  LIndex: SizeInt;
 begin
   if (FSizeMap = nil) or (aPtr = nil) then
     Exit(0);
-  Idx := FSizeMap.IndexOf(aPtr);
-  if Idx >= 0 then
-    Result := FSizeMap.Data[Idx]
+  LIndex := FSizeMap.IndexOf(aPtr);
+  if LIndex >= 0 then
+    Result := FSizeMap.Data[LIndex]
   else
     Result := 0;
 end;

@@ -2,7 +2,7 @@
 unit Test_memory_performance;
 
 {$mode objfpc}{$H+}
-{$I fafafa.core.settings.inc}
+{$I ../../src/fafafa.core.settings.inc}
 
 interface
 

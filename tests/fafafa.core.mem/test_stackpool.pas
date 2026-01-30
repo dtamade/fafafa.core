@@ -40,6 +40,9 @@ type
 
 implementation
 
+{$PUSH}
+{$WARN 4055 OFF} // pointer/ordinal conversions in tests
+
 procedure TTestCase_StackPool.Test_Create_Basic;
 var
   Pool: TStackPool;
@@ -223,18 +226,17 @@ procedure TTestCase_StackPool.Test_SaveState_RestoreState;
 var
   Pool: TStackPool;
   State1, State2: SizeUInt;
-  P: Pointer;
 begin
   Pool := TStackPool.Create(512);
   try
     State1 := Pool.SaveState;
     AssertEquals('Initial state', 0, State1);
 
-    P := Pool.Alloc(100);
+    AssertTrue('Alloc(100) returns non-nil', Pool.Alloc(100) <> nil);
     State2 := Pool.SaveState;
     AssertTrue('State2 > State1', State2 > State1);
 
-    P := Pool.Alloc(100);
+    AssertTrue('Second Alloc(100) returns non-nil', Pool.Alloc(100) <> nil);
     AssertTrue('More allocated', Pool.UsedSize > State2);
 
     // 恢复到 State2
@@ -252,7 +254,6 @@ end;
 procedure TTestCase_StackPool.Test_Properties;
 var
   Pool: TStackPool;
-  P: Pointer;
 begin
   Pool := TStackPool.Create(512);
   try
@@ -260,7 +261,7 @@ begin
     AssertEquals('Initial UsedSize', 0, Pool.UsedSize);
     AssertEquals('Initial AvailableSize', 512, Pool.AvailableSize);
 
-    P := Pool.Alloc(100);
+    AssertTrue('Alloc(100) returns non-nil', Pool.Alloc(100) <> nil);
     AssertTrue('UsedSize >= 100', Pool.UsedSize >= 100);
     AssertTrue('AvailableSize <= 412', Pool.AvailableSize <= 412);
     AssertEquals('TotalSize unchanged', 512, Pool.TotalSize);
@@ -272,18 +273,17 @@ end;
 procedure TTestCase_StackPool.Test_IsEmpty_IsFull;
 var
   Pool: TStackPool;
-  P: Pointer;
 begin
   Pool := TStackPool.Create(64);
   try
     AssertTrue('Initial IsEmpty', Pool.IsEmpty);
     AssertFalse('Initial not IsFull', Pool.IsFull);
 
-    P := Pool.Alloc(32);
+    AssertTrue('Alloc(32) returns non-nil', Pool.Alloc(32) <> nil);
     AssertFalse('After alloc not IsEmpty', Pool.IsEmpty);
     AssertFalse('After partial alloc not IsFull', Pool.IsFull);
 
-    P := Pool.Alloc(32);
+    AssertTrue('Second Alloc(32) returns non-nil', Pool.Alloc(32) <> nil);
     AssertFalse('After full alloc not IsEmpty', Pool.IsEmpty);
     AssertTrue('After full alloc IsFull', Pool.IsFull);
 
@@ -296,5 +296,7 @@ end;
 
 initialization
   RegisterTest(TTestCase_StackPool);
+
+{$POP}
 
 end.

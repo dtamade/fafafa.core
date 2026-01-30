@@ -30,7 +30,7 @@
     </RequiredPackages>
     <Units>
       <Unit>
-        <Filename Value="example_mpmc_queue.lpr"/>
+        <Filename Value="bin/example_mpmc_queue"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>

@@ -5,6 +5,7 @@
   - 快速上手：示例输出
   - 构建与运行示例
   - API 概览
+  - Result-based API 迁移指南（推荐）
   - 设计与实现说明
   - 平台差异与回退策略（摘要）
   - 版本映射与时区解析（细化）
@@ -16,6 +17,7 @@
 - 基础系统信息（主机名、用户名、CPU 数、页大小、临时目录、可执行路径等）
 - 统一的 `TPlatformInfo` 汇总结构
 - 增强系统信息（CPU/内存/存储/网络/负载，带 Result 版本）
+- **Result-based API**：统一错误处理，支持链式操作（推荐使用）
 
 参考设计：
 - Rust: std::env, std::fs (信息侧), std::process（接口边界）
@@ -237,6 +239,7 @@ macOS 示例 JSON 片段（example_capabilities --json --pretty，示例化）�
 
 ## API 概览
 
+### 基础 API（简单场景）
 - function os_getenv(const AName: string): string;
 - function os_setenv(const AName, AValue: string): Boolean;
 - function os_unsetenv(const AName: string): Boolean;
@@ -249,23 +252,130 @@ macOS 示例 JSON 片段（example_capabilities --json --pretty，示例化）�
 - function os_cpu_count: Integer;
 - function os_page_size: Integer;
 - function os_platform_info: TPlatformInfo;
-- function os_kernel_version: string; // Windows 优先从注册表读取 CurrentVersion/CurrentBuildNumber
+- function os_kernel_version: string;
 - function os_uptime: QWord;
-
 - function os_memory_info(out totalBytes, freeBytes: QWord): Boolean;
 - function os_boot_time: QWord;
 - function os_timezone: string;
-- 严格语义变体（Boolean + out）：
-  - function os_exe_path_ex(out APath: string): Boolean
-  - function os_home_dir_ex(out APath: string): Boolean
-  - function os_username_ex(out AName: string): Boolean
-
-- function os_timezone_iana: string;  // Windows: 将 StandardName 映射为 IANA（最佳努力）；Unix: 直接返回 os_timezone
+- function os_timezone_iana: string;
 - function os_is_admin: Boolean;
 - function os_is_wsl: Boolean;
 - function os_is_container: Boolean;
 - function os_is_ci: Boolean;
 
+### 严格语义变体（Boolean + out）
+- function os_exe_path_ex(out APath: string): Boolean
+- function os_home_dir_ex(out APath: string): Boolean
+- function os_username_ex(out AName: string): Boolean
+- function os_hostname_ex(out S: string): Boolean
+- function os_temp_dir_ex(out S: string): Boolean
+- function os_kernel_version_ex(out S: string): Boolean
+- function os_timezone_ex(out S: string): Boolean
+- function os_timezone_iana_ex(out S: string): Boolean
+- function os_os_version_detailed_ex(out V: TOSVersionDetailed): Boolean
+- function os_exe_dir_ex(out ADir: string): Boolean
+
+### Result-based API（推荐使用）
+- function os_getenv_result(const AName: string): TOSStringResult;
+- function os_lookupenv_result(const AName: string): TOSStringResult;
+- function os_setenv_result(const AName, AValue: string): TOSBoolResult;
+- function os_unsetenv_result(const AName: string): TOSBoolResult;
+- function os_hostname_result: TOSStringResult;
+- function os_username_result: TOSStringResult;
+- function os_home_dir_result: TOSStringResult;
+- function os_temp_dir_result: TOSStringResult;
+- function os_exe_path_result: TOSStringResult;
+- function os_exe_dir_result: TOSStringResult;
+- function os_kernel_version_result: TOSStringResult;
+- function os_timezone_result: TOSStringResult;
+- function os_timezone_iana_result: TOSStringResult;
+- function os_cpu_model_result: TOSStringResult;
+- function os_locale_current_result: TOSStringResult;
+- function os_cpu_count_result: TOSIntResult;
+- function os_page_size_result: TOSIntResult;
+- function os_uptime_result: TOSQWordResult;
+- function os_boot_time_result: TOSQWordResult;
+- function os_is_admin_result: TOSBoolResult;
+- function os_is_wsl_result: TOSBoolResult;
+- function os_is_container_result: TOSBoolResult;
+- function os_is_ci_result: TOSBoolResult;
+
+### 增强系统信息 API（Result 版本）
+- function os_cpu_info: TCPUInfoResult;
+- function os_memory_info_detailed: TMemoryInfoResult;
+- function os_storage_info: TStorageInfoArrayResult;
+- function os_network_interfaces: TNetworkInterfaceArrayResult;
+- function os_system_load: TSystemLoadResult;
+- function os_system_info: TSystemInfoResult;
+
+## Result-based API 迁移指南（推荐）
+
+### 为什么使用 Result-based API？
+Result-based API 提供统一的错误处理机制，灵感来自 Rust 的 Result 类型：
+- **明确的错误类型**：通过 TOSError 枚举区分不同错误原因
+- **链式操作**：支持 Map、MapErr 等函数式操作
+- **无异常**：所有错误通过返回值传递，不抛出异常
+- **类型安全**：编译时检查错误处理
+
+### 迁移示例
+
+**旧代码（基础 API）：**
+```pascal
+var
+  LHostname: string;
+begin
+  LHostname := os_hostname;
+  if LHostname = '' then
+    WriteLn('获取主机名失败')
+  else
+    WriteLn('主机名: ', LHostname);
+end;
+```
+
+**新代码（Result-based API）：**
+```pascal
+var
+  LResult: TOSStringResult;
+begin
+  LResult := os_hostname_result;
+  if LResult.IsOk then
+    WriteLn('主机名: ', LResult.Unwrap)
+  else
+    WriteLn('获取主机名失败: ', OSErrorToString(LResult.UnwrapErr));
+end;
+```
+
+### 错误处理示例
+
+```pascal
+var
+  LResult: TOSStringResult;
+begin
+  LResult := os_getenv_result('MY_VAR');
+  case LResult.IsOk of
+    True: WriteLn('值: ', LResult.Unwrap);
+    False:
+      case LResult.UnwrapErr of
+        oseNotFound: WriteLn('环境变量不存在');
+        oseInvalidInput: WriteLn('无效的变量名');
+        else WriteLn('系统错误');
+      end;
+  end;
+end;
+```
+
+### API 对照表
+
+| 基础 API | Result-based API | 说明 |
+|----------|------------------|------|
+| os_getenv | os_getenv_result | 获取环境变量 |
+| os_hostname | os_hostname_result | 获取主机名 |
+| os_username | os_username_result | 获取用户名 |
+| os_home_dir | os_home_dir_result | 获取主目录 |
+| os_temp_dir | os_temp_dir_result | 获取临时目录 |
+| os_exe_path | os_exe_path_result | 获取可执行文件路径 |
+| os_cpu_count | os_cpu_count_result | 获取 CPU 核心数 |
+| os_is_admin | os_is_admin_result | 检测管理员权限 |
 
 ### TOSVersionDetailed 字段说明
 - Name：系统名称（Windows/Linux/macOS 等）

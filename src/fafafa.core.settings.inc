@@ -86,8 +86,10 @@
 {$ENDIF}
 
 {$IFDEF UNIX}
-{ 启用 Linux/FreeBSD 现代的低开销 Mutex 实现（差距大约5~10 倍，默认开启, 如果目标os不支持请关闭）}
-{$DEFINE FAFAFA_CORE_USE_FUTEX}
+{ 启用 Linux/FreeBSD 现代的低开销 Mutex 实现（差距大约5~10 倍）}
+{ 注意：Futex 实现不支持重入检测，适用于性能敏感且代码保证不会重入的场景 }
+{ 默认关闭，使用 pthread_mutex ERRORCHECK 类型（支持重入检测）}
+{.$DEFINE FAFAFA_CORE_USE_FUTEX}
 {$ENDIF}
 
 { RWLock diagnostics & adaptive spin toggles }

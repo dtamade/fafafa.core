@@ -19,7 +19,7 @@
     </RunParams>
     <Units>
       <Unit>
-        <Filename Value="diagnostic_test.lpr"/>
+        <Filename Value="bin/diagnostic_test"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>
@@ -27,7 +27,7 @@
   <CompilerOptions>
     <Version Value="11"/>
     <Target>
-      <Filename Value="diagnostic_test"/>
+      <Filename Value="bin/diagnostic_test"/>
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir);../../src"/>

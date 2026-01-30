@@ -1,77 +1,85 @@
-{$CODEPAGE UTF8}
 program example_mem_pool_config;
-
 {$mode objfpc}{$H+}
+{$I ../../src/fafafa.core.settings.inc}
+{$IFDEF WINDOWS}{$CODEPAGE UTF8}{$ENDIF}
 
 uses
   SysUtils,
-  fafafa.core.mem.pool.slab;
+  fafafa.core.mem.pool.slab,
+  fafafa.core.mem.stats;
 
-procedure DemoCustomSlabConfig;
+procedure PrintPerfCounters(const aPerf: TSlabPerfCounters);
+begin
+  WriteLn('Perf: alloc_calls=', aPerf.AllocCalls,
+          ' free_calls=', aPerf.FreeCalls);
+  WriteLn('Perf: alloc_time=', aPerf.AllocTime,
+          ' free_time=', aPerf.FreeTime);
+  WriteLn('Perf: page_merges=', aPerf.PageMerges,
+          ' merged_pages=', aPerf.MergedPages);
+end;
+
+procedure DemoCustomSlabConfig(const aShowPerf: Boolean);
 var
-  C: TSlabConfig;
-  P: TSlabPool;
-  A, B: Pointer;
-  Stats: TSlabStats;
+  LConfig: TSlabConfig;
+  LPool: TSlabPool;
+  LPtrA: Pointer;
+  LPtrB: Pointer;
+  LStats: TSlabPoolStats;
+  LPerf: TSlabPerfCounters;
+  LWarmupUnits: SizeUInt;
 begin
   WriteLn('--- TSlabPool Config Demo ---');
-  // 基于默认配置，启用页面合并，预热2页
-  C := CreateDefaultSlabConfig;
-  C.EnablePageMerging := True;
-  C.WarmupPages := 2;
 
-  // 使用配置创建池（32KB 池）
-  P := TSlabPool.Create(32*1024, C);
+  LConfig := CreateDefaultSlabConfig;
+  LConfig.EnablePageMerging := True;
+  LConfig.EnablePerfMonitoring := True;
+
+  LPool := TSlabPool.Create(32 * 1024, LConfig);
   try
-    // 可选：手动预热指定类别
-    P.Warmup(64, 1);
+    LWarmupUnits := LPool.Warmup(64, 2);
+    WriteLn('Warmup units: ', LWarmupUnits);
 
-    // 分配/释放演示
-    A := P.Alloc(128);
-    B := P.Alloc(256);
-    if (A <> nil) and (B <> nil) then
+    LPtrA := LPool.Alloc(128);
+    LPtrB := LPool.Alloc(256);
+    if (LPtrA <> nil) and (LPtrB <> nil) then
       WriteLn('Allocated 128 and 256 bytes');
-    P.Free(B);
-    P.Free(A);
 
-    // 获取统计并打印关键信息
-    Stats := P.GetStats;
-    WriteLn('Pages: total=', Stats.TotalPages,
-            ' free=', Stats.FreePages,
-            ' partial=', Stats.PartialPages,
-            ' full=', Stats.FullPages);
-    WriteLn('Objects: total=', Stats.TotalObjects,
-            ' free=', Stats.FreeObjects);
+    LPool.ReleasePtr(LPtrB);
+    LPool.ReleasePtr(LPtrA);
 
-    // 打印更详细的诊断（可选）
-    WriteLn('--- Diagnostics ---');
-    WriteLn(P.GetDetailedDiagnostics);
+    LStats := GetSlabPoolStats(LPool);
+    WriteLn('Stats: segments=', LStats.SegmentCount,
+            ' total_capacity=', LStats.TotalCapacity,
+            ' total_used=', LStats.TotalUsed);
+    WriteLn('Fallback: allocs=', LStats.FallbackAllocCount,
+            ' bytes=', LStats.FallbackBytes);
+
+    if aShowPerf then
+    begin
+      LPerf := LPool.GetPerfCounters;
+      PrintPerfCounters(LPerf);
+    end;
   finally
-    P.Destroy;
+    LPool.Destroy;
   end;
 end;
 
-function HasArg(const S: string): Boolean;
+function HasArg(const aName: string): Boolean;
 var
-  I: Integer;
+  LIndex: Integer;
 begin
   Result := False;
-  for I := 1 to ParamCount do
-    if SameText(ParamStr(I), S) then Exit(True);
+  for LIndex := 1 to ParamCount do
+    if SameText(ParamStr(LIndex), aName) then Exit(True);
 end;
 
 begin
   try
-    if HasArg('--perf') then
-    begin
-      WriteLn('[Perf] Diagnostics enabled');
-      // Perf/Diagnostics 已默认打印；未来可在此扩展更细粒度统计输出
-    end;
-
-    DemoCustomSlabConfig;
+    DemoCustomSlabConfig(HasArg('--perf'));
     WriteLn('Config demo completed.');
   except
-    on E: Exception do begin
+    on E: Exception do
+    begin
       WriteLn('Error: ', E.Message);
       Halt(1);
     end;

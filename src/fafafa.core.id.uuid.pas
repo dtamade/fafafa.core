@@ -15,11 +15,12 @@ interface
 
 uses
   SysUtils,
+  fafafa.core.base,  // ✅ UUID-001: 引入 ECore 基类
   fafafa.core.id;
 
 
 type
-  EUuidParseError = class(Exception);
+  EUuidParseError = class(ECore);  // ✅ UUID-001: 继承自 ECore
 
   TUUID = record
   private
@@ -306,4 +307,3 @@ begin
 end;
 
 end.
-

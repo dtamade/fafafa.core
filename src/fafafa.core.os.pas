@@ -256,7 +256,7 @@ function os_platform_info: TPlatformInfo;
 function OSErrorToString(Error: TOSError): string;
 function SystemErrorToOSError(SystemCode: Integer): TOSError;
 
-// New Result-based APIs (统一错误处理版本)
+// New Result-based APIs (缂備胶鍠嶇粩鎾煥濞嗘帩鍤栧璺哄閹﹪鎮ч崼鐔告嫳)
 function os_getenv_result(const AName: string): TOSStringResult;
 function os_lookupenv_result(const AName: string): TOSStringResult;
 function os_setenv_result(const AName, AValue: string): TOSBoolResult;
@@ -295,7 +295,8 @@ function os_system_info_ex(out Info: TSystemInfo): Boolean;
 implementation
 
 uses
-  {$IFDEF WINDOWS} Windows {$ELSE} BaseUnix, Unix {$ENDIF}, DateUtils, fafafa.core.math, StrUtils, ctypes, Sockets;
+  {$IFDEF WINDOWS} Windows, WinSock2 {$ELSE} BaseUnix, Unix {$ENDIF}, DateUtils, fafafa.core.math, StrUtils, ctypes
+  {$IFDEF UNIX}, Sockets {$ENDIF};
 
 {$IFDEF UNIX}
 type
@@ -491,14 +492,14 @@ end;
 function os_timezone_ex(out S: string): Boolean;
 begin
   S := os_timezone;
-  // Success 表示探测流程成功完成；值可能为空（系统未配置）。
+  // Success 閻炴稏鍔庨妵姘跺箳閵忥紕銈存繛缈犺兌閳诲ジ骞嬮幇顒€顫犻悗鐟版湰閸ㄦ岸鏁嶅☉妯峰亾閻撳骸璁查柤铏灊鐠愮喓绮氶悮瀵哥缂侇垵宕电划娲嫉椤忓牆甯崇紓鍐惧櫙缁辨岸濡?
   Result := True;
 end;
 
 function os_timezone_iana_ex(out S: string): Boolean;
 begin
   S := os_timezone_iana;
-  // Success 表示探测流程成功完成；值可能为空（无法映射或未配置）。
+  // Success 閻炴稏鍔庨妵姘跺箳閵忥紕銈存繛缈犺兌閳诲ジ骞嬮幇顒€顫犻悗鐟版湰閸ㄦ岸鏁嶅☉妯峰亾閻撳骸璁查柤铏灊鐠愮喓绮氶悮瀵哥闁哄啰濮电涵鍫曞及閻樿尙娈搁柟瀛樼墬濠€顓㈡煀瀹ュ洨鏋傞柨娑橆槶閳?
   Result := True;
 end;
 
@@ -597,8 +598,8 @@ var
 begin
   try
     Value := os_getenv(AName);
-    // 注意：os_getenv 返回空字符串可能表示变量不存在或值为空
-    // 我们需要用 os_lookupenv 来区分
+    // 婵炲鍔嶉崜浼存晬濮濈殜_getenv 閺夆晜鏌ㄥú鏍矚閸濆嫮鎽熺紒妤嬬細鐟曞棝宕ｉ婵嗗幋閻炴稏鍔庨妵姘跺矗濮椻偓閸ｇ儤绋夊鍛憼闁革负鍔嶉崹銊╁磹闂傜绀嬬紒?
+    // 闁瑰瓨鍨冲鎴︽閳ь剛鎲版担鐑樻殢 os_lookupenv 闁哄鍎辩亸顖炲礆?
     if os_lookupenv(AName, Value) then
       Result := TOSStringResult.Ok(Value)
     else
@@ -812,8 +813,8 @@ var
 begin
   try
     Value := os_getenv(AName);
-    // 注意：os_getenv 返回空字符串可能表示变量不存在或值为空
-    // 我们需要用 os_lookupenv 来区分
+    // 婵炲鍔嶉崜浼存晬濮濈殜_getenv 閺夆晜鏌ㄥú鏍矚閸濆嫮鎽熺紒妤嬬細鐟曞棝宕ｉ婵嗗幋閻炴稏鍔庨妵姘跺矗濮椻偓閸ｇ儤绋夊鍛憼闁革负鍔嶉崹銊╁磹闂傜绀嬬紒?
+    // 闁瑰瓨鍨冲鎴︽閳ь剛鎲版担鐑樻殢 os_lookupenv 闁哄鍎辩亸顖炲礆?
     if os_lookupenv(AName, Value) then
       Result := TOSStringResult.Ok(Value)
     else
@@ -1144,12 +1145,83 @@ begin
   end;
 end;
 {$ELSE}
+{$IFDEF WINDOWS}
 var
-  totalBytes, freeBytes: QWord;
+  LMemStatus: TMemoryStatusEx;
+  LTotalBytes, LFreeBytes: QWord;
 begin
   Info := Default(TMemoryInfo);
-  Result := False; // advanced memory probe unsupported on non-Linux platforms
+  Info.Pressure := -1; // Unknown
+
+  try
+    FillChar(LMemStatus, SizeOf(LMemStatus), 0);
+    LMemStatus.dwLength := SizeOf(LMemStatus);
+
+    if GlobalMemoryStatusEx(LMemStatus) then
+    begin
+      Info.Total := LMemStatus.ullTotalPhys;
+      Info.Available := LMemStatus.ullAvailPhys;
+      Info.Free := LMemStatus.ullAvailPhys;
+      Info.Used := Info.Total - Info.Available;
+
+      // Windows doesn't distinguish cached/buffers like Linux
+      Info.Cached := 0;
+      Info.Buffers := 0;
+
+      // Swap (Page File) information
+      Info.Swap.Total := LMemStatus.ullTotalPageFile;
+      Info.Swap.Available := LMemStatus.ullAvailPageFile;
+      Info.Swap.Used := Info.Swap.Total - Info.Swap.Available;
+
+      // Memory pressure (load percentage from Windows)
+      if Info.Total > 0 then
+        Info.Pressure := Info.Used / Info.Total;
+
+      Result := True;
+    end
+    else
+    begin
+      // Fallback to basic API
+      if os_memory_info(LTotalBytes, LFreeBytes) then
+      begin
+        Info.Total := LTotalBytes;
+        Info.Available := LFreeBytes;
+        Info.Free := LFreeBytes;
+        Info.Used := LTotalBytes - LFreeBytes;
+        if Info.Total > 0 then
+          Info.Pressure := Info.Used / Info.Total;
+        Result := True;
+      end
+      else
+        Result := False;
+    end;
+  except
+    Info := Default(TMemoryInfo);
+    Result := False;
+  end;
 end;
+{$ELSE}
+// Other platforms (macOS, BSD, etc.) - fallback implementation
+var
+  LTotalBytes, LFreeBytes: QWord;
+begin
+  Info := Default(TMemoryInfo);
+  Info.Pressure := -1;
+  // Try basic memory info as fallback
+  if os_memory_info(LTotalBytes, LFreeBytes) then
+  begin
+    Info.Total := LTotalBytes;
+    Info.Available := LFreeBytes;
+    Info.Free := LFreeBytes;
+    Info.Used := LTotalBytes - LFreeBytes;
+    if Info.Total > 0 then
+      Info.Pressure := Info.Used / Info.Total;
+    Result := True;
+  end
+  else
+    Result := False;
+end;
+{$ENDIF}
 {$ENDIF}
 
 function os_storage_info_ex(out Info: TStorageInfoArray): Boolean;
@@ -1252,10 +1324,89 @@ begin
   end;
 end;
 {$ELSE}
+{$IFDEF WINDOWS}
+var
+  LDrives: DWORD;
+  LDriveLetter: Char;
+  LDrivePath: string;
+  LIdx: Integer;
+  LTotal, LFree: Int64;
+  LDriveType: UINT;
+  LVolumeName: array[0..MAX_PATH] of WideChar;
+  LFileSystem: array[0..MAX_PATH] of WideChar;
+  LSerialNumber, LMaxComponentLen, LFileSystemFlags: DWORD;
 begin
   Info := nil;
-  Result := False; // storage enumeration not implemented on this platform
+  try
+    LDrives := GetLogicalDrives;
+    if LDrives = 0 then
+    begin
+      Result := False;
+      Exit;
+    end;
+
+    LIdx := 0;
+    for LDriveLetter := 'A' to 'Z' do
+    begin
+      if (LDrives and (1 shl (Ord(LDriveLetter) - Ord('A')))) <> 0 then
+      begin
+        LDrivePath := LDriveLetter + ':\';
+        LDriveType := GetDriveTypeW(PWideChar(UnicodeString(LDrivePath)));
+
+        // Skip network drives and CD-ROMs for now
+        if (LDriveType = DRIVE_FIXED) or (LDriveType = DRIVE_REMOVABLE) then
+        begin
+          SetLength(Info, LIdx + 1);
+          Info[LIdx].Path := LDrivePath;
+          Info[LIdx].IsRemovable := (LDriveType = DRIVE_REMOVABLE);
+          Info[LIdx].IsReadOnly := False;
+
+          // Get volume information
+          FillChar(LVolumeName, SizeOf(LVolumeName), 0);
+          FillChar(LFileSystem, SizeOf(LFileSystem), 0);
+          if GetVolumeInformationW(PWideChar(UnicodeString(LDrivePath)),
+                                   @LVolumeName[0], MAX_PATH,
+                                   @LSerialNumber, LMaxComponentLen, LFileSystemFlags,
+                                   @LFileSystem[0], MAX_PATH) then
+          begin
+            Info[LIdx].FileSystem := string(PWideChar(@LFileSystem[0]));
+          end
+          else
+            Info[LIdx].FileSystem := 'Unknown';
+
+          // Get disk space
+          if GetDiskFreeSpaceExW(PWideChar(UnicodeString(LDrivePath)),
+                                 nil, @LTotal, @LFree) then
+          begin
+            Info[LIdx].Total := QWord(LTotal);
+            Info[LIdx].Available := QWord(LFree);
+            Info[LIdx].Used := Info[LIdx].Total - Info[LIdx].Available;
+          end
+          else
+          begin
+            Info[LIdx].Total := 0;
+            Info[LIdx].Available := 0;
+            Info[LIdx].Used := 0;
+          end;
+
+          Inc(LIdx);
+        end;
+      end;
+    end;
+
+    Result := Length(Info) > 0;
+  except
+    Info := nil;
+    Result := False;
+  end;
 end;
+{$ELSE}
+// Other platforms (macOS, BSD, etc.) - not yet implemented
+begin
+  Info := nil;
+  Result := False;
+end;
+{$ENDIF}
 {$ENDIF}
 
 function os_network_interfaces_ex(out Info: TNetworkInterfaceArray): Boolean;
@@ -1429,10 +1580,251 @@ begin
   end;
 end;
 {$ELSE}
+{$IFDEF WINDOWS}
+// Windows implementation using GetAdaptersAddresses API
+const
+  GAA_FLAG_INCLUDE_PREFIX = $0010;
+  GAA_FLAG_SKIP_ANYCAST = $0002;
+  GAA_FLAG_SKIP_MULTICAST = $0004;
+  GAA_FLAG_SKIP_DNS_SERVER = $0008;
+  IF_TYPE_ETHERNET_CSMACD = 6;
+  IF_TYPE_IEEE80211 = 71;
+  IF_TYPE_SOFTWARE_LOOPBACK = 24;
+  IfOperStatusUp = 1;
+  ERROR_BUFFER_OVERFLOW_LOCAL = 111;
+type
+  PIP_ADAPTER_UNICAST_ADDRESS_LH = ^IP_ADAPTER_UNICAST_ADDRESS_LH;
+  IP_ADAPTER_UNICAST_ADDRESS_LH = record
+    Alignment: ULONGLONG;
+    Next: PIP_ADAPTER_UNICAST_ADDRESS_LH;
+    Address: record
+      lpSockaddr: PSockAddr;
+      iSockaddrLength: Integer;
+    end;
+    PrefixOrigin: Integer;
+    SuffixOrigin: Integer;
+    DadState: Integer;
+    ValidLifetime: ULONG;
+    PreferredLifetime: ULONG;
+    LeaseLifetime: ULONG;
+    OnLinkPrefixLength: Byte;
+  end;
+  PIP_ADAPTER_ADDRESSES_LH = ^IP_ADAPTER_ADDRESSES_LH;
+  IP_ADAPTER_ADDRESSES_LH = record
+    Alignment: ULONGLONG;
+    Next: PIP_ADAPTER_ADDRESSES_LH;
+    AdapterName: PAnsiChar;
+    FirstUnicastAddress: PIP_ADAPTER_UNICAST_ADDRESS_LH;
+    FirstAnycastAddress: Pointer;
+    FirstMulticastAddress: Pointer;
+    FirstDnsServerAddress: Pointer;
+    DnsSuffix: PWideChar;
+    Description: PWideChar;
+    FriendlyName: PWideChar;
+    PhysicalAddress: array[0..7] of Byte;
+    PhysicalAddressLength: DWORD;
+    Flags: DWORD;
+    Mtu: DWORD;
+    IfType: DWORD;
+    OperStatus: Integer;
+    Ipv6IfIndex: DWORD;
+    ZoneIndices: array[0..15] of DWORD;
+    FirstPrefix: Pointer;
+    TransmitLinkSpeed: ULONGLONG;
+    ReceiveLinkSpeed: ULONGLONG;
+  end;
+var
+  LBufSize: ULONG;
+  LAdapters, LCurAdapter: PIP_ADAPTER_ADDRESSES_LH;
+  LUnicast: PIP_ADAPTER_UNICAST_ADDRESS_LH;
+  LIdx, Li: Integer;
+  LIpStr: string;
+  LSockAddrIn: PSockAddrIn;
+  LSockAddrIn6: PSockAddrIn6;
+  LGetAdaptersAddresses: function(Family: ULONG; Flags: ULONG; Reserved: Pointer;
+    AdapterAddresses: PIP_ADAPTER_ADDRESSES_LH; SizePointer: PULONG): DWORD; stdcall;
+  LIphlpapi: HMODULE;
+  LRet: DWORD;
+  function FormatMAC(const aPhysAddr: array of Byte; aLen: DWORD): string;
+  var Lj: Integer;
+  begin
+    Result := '';
+    for Lj := 0 to Integer(aLen) - 1 do
+    begin
+      if Lj > 0 then Result := Result + ':';
+      Result := Result + IntToHex(aPhysAddr[Lj], 2);
+    end;
+    Result := LowerCase(Result);
+  end;
+  function SockAddrToStr(aSockAddr: PSockAddr): string;
+  var Lii: Integer;
+  begin
+    Result := '';
+    if aSockAddr = nil then Exit;
+    case aSockAddr^.sa_family of
+      AF_INET:
+        begin
+          LSockAddrIn := PSockAddrIn(aSockAddr);
+          Result := Format('%d.%d.%d.%d', [
+            LSockAddrIn^.sin_addr.S_un_b.s_b1,
+            LSockAddrIn^.sin_addr.S_un_b.s_b2,
+            LSockAddrIn^.sin_addr.S_un_b.s_b3,
+            LSockAddrIn^.sin_addr.S_un_b.s_b4]);
+        end;
+      AF_INET6:
+        begin
+          LSockAddrIn6 := PSockAddrIn6(aSockAddr);
+          Result := '';
+          for Lii := 0 to 7 do
+          begin
+            if Lii > 0 then Result := Result + ':';
+            Result := Result + IntToHex(
+              (LSockAddrIn6^.sin6_addr.s6_addr[Lii*2] shl 8) or
+               LSockAddrIn6^.sin6_addr.s6_addr[Lii*2+1], 1);
+          end;
+          Result := LowerCase(Result);
+        end;
+    end;
+  end;
+  procedure AddIPToInterface(aIdx: Integer; const aIP: string);
+  var Lk: Integer;
+  begin
+    if (aIdx < 0) or (aIdx > High(Info)) or (aIP = '') then Exit;
+    for Lk := 0 to High(Info[aIdx].IPAddresses) do
+      if Info[aIdx].IPAddresses[Lk] = aIP then Exit;
+    SetLength(Info[aIdx].IPAddresses, Length(Info[aIdx].IPAddresses) + 1);
+    Info[aIdx].IPAddresses[High(Info[aIdx].IPAddresses)] := aIP;
+  end;
 begin
   Info := nil;
-  Result := False; // network interface enumeration not implemented on this platform
+  try
+    LIphlpapi := LoadLibraryW('iphlpapi.dll');
+    if LIphlpapi = 0 then
+    begin
+      SetLength(Info, 1);
+      Info[0] := Default(TNetworkInterface);
+      Info[0].Name := 'lo'; Info[0].DisplayName := 'Loopback';
+      Info[0].HardwareAddress := '00:00:00:00:00:00';
+      Info[0].IsLoopback := True; Info[0].IsUp := True;
+      SetLength(Info[0].IPAddresses, 2);
+      Info[0].IPAddresses[0] := '127.0.0.1'; Info[0].IPAddresses[1] := '::1';
+      Exit(True);
+    end;
+    try
+      Pointer(LGetAdaptersAddresses) := GetProcAddress(LIphlpapi, 'GetAdaptersAddresses');
+      if not Assigned(LGetAdaptersAddresses) then
+      begin
+        SetLength(Info, 1);
+        Info[0] := Default(TNetworkInterface);
+        Info[0].Name := 'lo'; Info[0].DisplayName := 'Loopback';
+        Info[0].HardwareAddress := '00:00:00:00:00:00';
+        Info[0].IsLoopback := True; Info[0].IsUp := True;
+        SetLength(Info[0].IPAddresses, 2);
+        Info[0].IPAddresses[0] := '127.0.0.1'; Info[0].IPAddresses[1] := '::1';
+        Exit(True);
+      end;
+      LBufSize := 0;
+      LRet := LGetAdaptersAddresses(AF_UNSPEC,
+        GAA_FLAG_INCLUDE_PREFIX or GAA_FLAG_SKIP_ANYCAST or
+        GAA_FLAG_SKIP_MULTICAST or GAA_FLAG_SKIP_DNS_SERVER,
+        nil, nil, @LBufSize);
+      if (LRet <> ERROR_BUFFER_OVERFLOW_LOCAL) and (LRet <> ERROR_SUCCESS) then
+      begin
+        SetLength(Info, 1);
+        Info[0] := Default(TNetworkInterface);
+        Info[0].Name := 'lo'; Info[0].DisplayName := 'Loopback';
+        Info[0].HardwareAddress := '00:00:00:00:00:00';
+        Info[0].IsLoopback := True; Info[0].IsUp := True;
+        SetLength(Info[0].IPAddresses, 2);
+        Info[0].IPAddresses[0] := '127.0.0.1'; Info[0].IPAddresses[1] := '::1';
+        Exit(True);
+      end;
+      GetMem(LAdapters, LBufSize);
+      try
+        LRet := LGetAdaptersAddresses(AF_UNSPEC,
+          GAA_FLAG_INCLUDE_PREFIX or GAA_FLAG_SKIP_ANYCAST or
+          GAA_FLAG_SKIP_MULTICAST or GAA_FLAG_SKIP_DNS_SERVER,
+          nil, LAdapters, @LBufSize);
+        if LRet <> ERROR_SUCCESS then
+        begin
+          SetLength(Info, 1);
+          Info[0] := Default(TNetworkInterface);
+          Info[0].Name := 'lo'; Info[0].DisplayName := 'Loopback';
+          Info[0].HardwareAddress := '00:00:00:00:00:00';
+          Info[0].IsLoopback := True; Info[0].IsUp := True;
+          SetLength(Info[0].IPAddresses, 2);
+          Info[0].IPAddresses[0] := '127.0.0.1'; Info[0].IPAddresses[1] := '::1';
+          Exit(True);
+        end;
+        LCurAdapter := LAdapters;
+        while LCurAdapter <> nil do
+        begin
+          SetLength(Info, Length(Info) + 1);
+          LIdx := High(Info);
+          Info[LIdx] := Default(TNetworkInterface);
+          if LCurAdapter^.AdapterName <> nil then
+            Info[LIdx].Name := string(LCurAdapter^.AdapterName)
+          else
+            Info[LIdx].Name := 'unknown';
+          if LCurAdapter^.FriendlyName <> nil then
+            Info[LIdx].DisplayName := UTF8Encode(WideString(LCurAdapter^.FriendlyName))
+          else
+            Info[LIdx].DisplayName := Info[LIdx].Name;
+          if LCurAdapter^.PhysicalAddressLength > 0 then
+            Info[LIdx].HardwareAddress := FormatMAC(LCurAdapter^.PhysicalAddress, LCurAdapter^.PhysicalAddressLength)
+          else
+            Info[LIdx].HardwareAddress := '00:00:00:00:00:00';
+          Info[LIdx].IsLoopback := (LCurAdapter^.IfType = IF_TYPE_SOFTWARE_LOOPBACK);
+          Info[LIdx].IsWireless := (LCurAdapter^.IfType = IF_TYPE_IEEE80211);
+          Info[LIdx].IsUp := (LCurAdapter^.OperStatus = IfOperStatusUp);
+          Info[LIdx].MTU := Integer(LCurAdapter^.Mtu);
+          Info[LIdx].Speed := LCurAdapter^.ReceiveLinkSpeed;
+          Info[LIdx].BytesSent := 0;
+          Info[LIdx].BytesReceived := 0;
+          LUnicast := LCurAdapter^.FirstUnicastAddress;
+          while LUnicast <> nil do
+          begin
+            LIpStr := SockAddrToStr(LUnicast^.Address.lpSockaddr);
+            if LIpStr <> '' then AddIPToInterface(LIdx, LIpStr);
+            LUnicast := LUnicast^.Next;
+          end;
+          LCurAdapter := LCurAdapter^.Next;
+        end;
+      finally
+        FreeMem(LAdapters);
+      end;
+    finally
+      FreeLibrary(LIphlpapi);
+    end;
+    if Length(Info) = 0 then
+    begin
+      SetLength(Info, 1);
+      Info[0] := Default(TNetworkInterface);
+      Info[0].Name := 'lo'; Info[0].DisplayName := 'Loopback';
+      Info[0].HardwareAddress := '00:00:00:00:00:00';
+      Info[0].IsLoopback := True; Info[0].IsUp := True;
+      SetLength(Info[0].IPAddresses, 2);
+      Info[0].IPAddresses[0] := '127.0.0.1'; Info[0].IPAddresses[1] := '::1';
+    end;
+    Result := Length(Info) > 0;
+  except
+    SetLength(Info, 1);
+    Info[0] := Default(TNetworkInterface);
+    Info[0].Name := 'lo'; Info[0].DisplayName := 'Loopback';
+    Info[0].HardwareAddress := '00:00:00:00:00:00';
+    Info[0].IsLoopback := True; Info[0].IsUp := True;
+    SetLength(Info[0].IPAddresses, 2);
+    Info[0].IPAddresses[0] := '127.0.0.1'; Info[0].IPAddresses[1] := '::1';
+    Result := True;
+  end;
 end;
+{$ELSE}
+// Other platforms (macOS, BSD, etc.) - not yet implemented
+begin
+  Info := nil;
+  Result := False;
+end;
+{$ENDIF}
 {$ENDIF}
 
 function os_system_load_ex(out Info: TSystemLoad): Boolean;
@@ -1486,10 +1878,25 @@ begin
   end;
 end;
 {$ELSE}
+{$IFDEF WINDOWS}
+begin
+  // Windows doesn't have Unix-style load averages
+  // Return -1 for all values to indicate "unknown"
+  Info := Default(TSystemLoad);
+  Info.Load1Min := -1;
+  Info.Load5Min := -1;
+  Info.Load15Min := -1;
+  Info.RunningProcesses := -1;
+  Info.TotalProcesses := -1;
+  Result := True; // Return true - values are valid (just unknown)
+end;
+{$ELSE}
+// Other platforms (macOS, BSD, etc.) - not yet implemented
 begin
   Info := Default(TSystemLoad);
-  Result := False; // load averages not implemented on this platform
+  Result := False;
 end;
+{$ENDIF}
 {$ENDIF}
 
 function os_system_info_ex(out Info: TSystemInfo): Boolean;

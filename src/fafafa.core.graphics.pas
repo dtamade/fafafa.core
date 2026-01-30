@@ -12,7 +12,7 @@ type
   // Basic color type - 32-bit ARGB
   TColor32 = Cardinal;
   PColor32 = ^TColor32;
-  
+
   // Color constants
   const
     clBlack32   = TColor32($FF000000);
@@ -42,7 +42,7 @@ type
     bmDifference,
     bmExclusion
   );
-  
+
   // Pixel formats
   TPixelFormat = (
     pfUnknown,
@@ -51,16 +51,16 @@ type
     pf24bit,
     pf32bit
   );
-  
+
   // Forward declarations
   TBitmap32 = class;
-  
+
   // Custom exception types
-  EGraphicsError = class(Exception);
+  EGraphicsError = class(ECore);  // ✅ GRAPHICS-001: 继承自 ECore
   EImageFormatError = class(EGraphicsError);
   EInvalidDimension = class(EGraphicsError);
   EOutOfMemory = class(EGraphicsError);
-  
+
   { TBitmap32 }
   TBitmap32 = class(TPersistent)
   private
@@ -69,7 +69,7 @@ type
     FBits: PColor32;
     FAllocated: Boolean;
     FStride: Integer;
-    
+
     function GetPixel(X, Y: Integer): TColor32; inline;
     procedure SetPixel(X, Y: Integer; Value: TColor32); inline;
     function GetScanLine(Y: Integer): PColor32; inline;
@@ -81,11 +81,11 @@ type
   public
     constructor Create;
     destructor Destroy; override;
-    
+
     procedure SetSize(AWidth, AHeight: Integer);
     procedure Clear(Color: TColor32 = clBlack32);
     procedure Assign(Source: TPersistent); override;
-    
+
     // Basic operations
     procedure FlipHorizontal;
     procedure FlipVertical;
@@ -94,7 +94,7 @@ type
     procedure Rotate270;
     procedure Crop(X, Y, Width, Height: Integer);
     procedure Resize(NewWidth, NewHeight: Integer);
-    
+
     // Effects
     procedure Grayscale;
     procedure Invert;
@@ -103,13 +103,13 @@ type
     procedure AdjustGamma(Gamma: Double);
     procedure GaussianBlur(Radius: Double);
     procedure Sharpen(Amount: Double);
-    
+
     // Alpha channel
     function HasAlpha: Boolean;
     procedure SetAlpha(Alpha: Byte);
     procedure PreMultiplyAlpha;
     procedure UnPreMultiplyAlpha;
-    
+
     // Properties
     property Width: Integer read FWidth;
     property Height: Integer read FHeight;
@@ -118,7 +118,7 @@ type
     property Pixel[X, Y: Integer]: TColor32 read GetPixel write SetPixel; default;
     property ScanLine[Y: Integer]: PColor32 read GetScanLine;
   end;
-  
+
 // Color functions
 function Color32(R, G, B: Byte; A: Byte = 255): TColor32; inline;
 function RedComponent(Color: TColor32): Byte; inline;
@@ -213,13 +213,13 @@ procedure TBitmap32.CheckDimensions(AWidth, AHeight: Integer);
 begin
   if (AWidth < 0) or (AHeight < 0) then
     raise EInvalidDimension.Create('Bitmap dimensions cannot be negative');
-    
+
   if (AWidth = 0) or (AHeight = 0) then
     raise EInvalidDimension.Create('Bitmap dimensions cannot be zero');
-    
+
   if (AWidth > MAX_BITMAP_SIZE) or (AHeight > MAX_BITMAP_SIZE) then
     raise EInvalidDimension.CreateFmt('Bitmap dimensions exceed maximum (%d)', [MAX_BITMAP_SIZE]);
-    
+
   // Check for integer overflow
   if Int64(AWidth) * Int64(AHeight) > MAX_TOTAL_PIXELS then
     raise EInvalidDimension.Create('Total pixel count exceeds maximum');
@@ -231,12 +231,12 @@ var
 begin
   if FAllocated then
     FreeMemory;
-    
+
   if (FWidth > 0) and (FHeight > 0) then
   begin
     FStride := FWidth * SizeOf(TColor32);
     Size := NativeUInt(FStride) * NativeUInt(FHeight);
-    
+
     try
       GetMem(FBits, Size);
       FillChar(FBits^, Size, 0);
@@ -265,7 +265,7 @@ end;
 procedure TBitmap32.SetSize(AWidth, AHeight: Integer);
 begin
   CheckDimensions(AWidth, AHeight);
-  
+
   if (AWidth <> FWidth) or (AHeight <> FHeight) then
   begin
     FWidth := AWidth;
@@ -281,7 +281,7 @@ var
 begin
   if not FAllocated then
     Exit;
-    
+
   P := FBits;
   for I := 0 to FWidth * FHeight - 1 do
   begin
@@ -343,7 +343,7 @@ var
 begin
   if not FAllocated then
     Exit;
-    
+
   for Y := 0 to FHeight - 1 do
   begin
     Line := ScanLine[Y];
@@ -364,7 +364,7 @@ var
 begin
   if not FAllocated then
     Exit;
-    
+
   LineSize := FStride;
   GetMem(TempLine, LineSize);
   try
@@ -386,15 +386,15 @@ var
 begin
   if not FAllocated then
     Exit;
-    
+
   NewBitmap := TBitmap32.Create;
   try
     NewBitmap.SetSize(FHeight, FWidth);
-    
+
     for Y := 0 to FHeight - 1 do
       for X := 0 to FWidth - 1 do
         NewBitmap.Pixel[FHeight - 1 - Y, X] := Pixel[X, Y];
-    
+
     // Swap dimensions and data
     SetSize(NewBitmap.Width, NewBitmap.Height);
     Move(NewBitmap.FBits^, FBits^, FStride * FHeight);
@@ -411,7 +411,7 @@ var
 begin
   if not FAllocated then
     Exit;
-    
+
   for Y := 0 to (FHeight div 2) - 1 do
   begin
     for X := 0 to FWidth - 1 do
@@ -423,7 +423,7 @@ begin
       P2^ := Temp;
     end;
   end;
-  
+
   // Handle middle row for odd height
   if Odd(FHeight) then
   begin
@@ -446,15 +446,15 @@ var
 begin
   if not FAllocated then
     Exit;
-    
+
   NewBitmap := TBitmap32.Create;
   try
     NewBitmap.SetSize(FHeight, FWidth);
-    
+
     for Y := 0 to FHeight - 1 do
       for X := 0 to FWidth - 1 do
         NewBitmap.Pixel[Y, FWidth - 1 - X] := Pixel[X, Y];
-    
+
     // Swap dimensions and data
     SetSize(NewBitmap.Width, NewBitmap.Height);
     Move(NewBitmap.FBits^, FBits^, FStride * FHeight);
@@ -470,20 +470,20 @@ var
 begin
   if not FAllocated then
     Exit;
-    
+
   // Validate crop region
   if X < 0 then begin Width := Width + X; X := 0; end;
   if Y < 0 then begin Height := Height + Y; Y := 0; end;
   if X + Width > FWidth then Width := FWidth - X;
   if Y + Height > FHeight then Height := FHeight - Y;
-  
+
   if (Width <= 0) or (Height <= 0) then
     raise EInvalidDimension.Create('Invalid crop dimensions');
-    
+
   NewBitmap := TBitmap32.Create;
   try
     NewBitmap.SetSize(Width, Height);
-    
+
     for DstY := 0 to Height - 1 do
     begin
       SrcY := Y + DstY;
@@ -491,7 +491,7 @@ begin
            NewBitmap.ScanLine[DstY]^,
            Width * SizeOf(TColor32));
     end;
-    
+
     SetSize(NewBitmap.Width, NewBitmap.Height);
     Move(NewBitmap.FBits^, FBits^, FStride * FHeight);
   finally
@@ -508,19 +508,19 @@ var
 begin
   if not FAllocated then
     Exit;
-    
+
   CheckDimensions(NewWidth, NewHeight);
-  
+
   if (NewWidth = FWidth) and (NewHeight = FHeight) then
     Exit;
-    
+
   NewBitmap := TBitmap32.Create;
   try
     NewBitmap.SetSize(NewWidth, NewHeight);
-    
+
     XRatio := FWidth / NewWidth;
     YRatio := FHeight / NewHeight;
-    
+
     // Simple nearest neighbor scaling
     for Y := 0 to NewHeight - 1 do
     begin
@@ -531,7 +531,7 @@ begin
         NewBitmap.Pixel[X, Y] := Pixel[SrcX, SrcY];
       end;
     end;
-    
+
     SetSize(NewBitmap.Width, NewBitmap.Height);
     Move(NewBitmap.FBits^, FBits^, FStride * FHeight);
   finally
@@ -548,7 +548,7 @@ var
 begin
   if not FAllocated then
     Exit;
-    
+
   P := FBits;
   for I := 0 to FWidth * FHeight - 1 do
   begin
@@ -556,10 +556,10 @@ begin
     R := RedComponent(Color);
     G := GreenComponent(Color);
     B := BlueComponent(Color);
-    
+
     // Use standard luminance formula
     Gray := Round(0.299 * R + 0.587 * G + 0.114 * B);
-    
+
     P^ := Color32(Gray, Gray, Gray, AlphaComponent(Color));
     Inc(P);
   end;
@@ -573,7 +573,7 @@ var
 begin
   if not FAllocated then
     Exit;
-    
+
   P := FBits;
   for I := 0 to FWidth * FHeight - 1 do
   begin
@@ -596,7 +596,7 @@ var
 begin
   if not FAllocated then
     Exit;
-    
+
   P := FBits;
   for I := 0 to FWidth * FHeight - 1 do
   begin
@@ -620,16 +620,16 @@ var
 begin
   if not FAllocated then
     Exit;
-    
+
   P := FBits;
   for I := 0 to FWidth * FHeight - 1 do
   begin
     Color := P^;
-    
+
     R := Round((RedComponent(Color) - 128) * Factor + 128);
     G := Round((GreenComponent(Color) - 128) * Factor + 128);
     B := Round((BlueComponent(Color) - 128) * Factor + 128);
-    
+
     P^ := Color32(ClampByte(R), ClampByte(G), ClampByte(B), AlphaComponent(Color));
     Inc(P);
   end;
@@ -644,11 +644,11 @@ var
 begin
   if not FAllocated then
     Exit;
-    
+
   // Build gamma lookup table
   for I := 0 to 255 do
     GammaTable[I] := ClampByte(Round(Power(I / 255.0, 1.0 / Gamma) * 255));
-    
+
   P := FBits;
   for I := 0 to FWidth * FHeight - 1 do
   begin
@@ -695,7 +695,7 @@ begin
   Result := False;
   if not FAllocated then
     Exit;
-    
+
   P := FBits;
   for I := 0 to FWidth * FHeight - 1 do
   begin
@@ -715,7 +715,7 @@ var
 begin
   if not FAllocated then
     Exit;
-    
+
   P := FBits;
   for I := 0 to FWidth * FHeight - 1 do
   begin
@@ -733,7 +733,7 @@ var
 begin
   if not FAllocated then
     Exit;
-    
+
   P := FBits;
   for I := 0 to FWidth * FHeight - 1 do
   begin
@@ -761,7 +761,7 @@ var
 begin
   if not FAllocated then
     Exit;
-    
+
   P := FBits;
   for I := 0 to FWidth * FHeight - 1 do
   begin
@@ -806,7 +806,7 @@ begin
       DstR := RedComponent(Dest);
       DstG := GreenComponent(Dest);
       DstB := BlueComponent(Dest);
-      
+
       OutA := SrcA + DstA - (SrcA * DstA) div 255;
       if OutA = 0 then
         Dest := 0
@@ -815,7 +815,7 @@ begin
         OutR := (SrcR * SrcA + DstR * DstA * (255 - SrcA) div 255) div OutA;
         OutG := (SrcG * SrcA + DstG * DstA * (255 - SrcA) div 255) div OutA;
         OutB := (SrcB * SrcA + DstB * DstA * (255 - SrcA) div 255) div OutA;
-        
+
         Dest := Color32(ClampByte(OutR), ClampByte(OutG), ClampByte(OutB), OutA);
       end;
     end;
@@ -830,7 +830,7 @@ var
 begin
   if (Src.Width <> Dest.Width) or (Src.Height <> Dest.Height) then
     Exit;
-    
+
   for Y := 0 to Src.Height - 1 do
   begin
     SrcP := Src.ScanLine[Y];

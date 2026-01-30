@@ -40,12 +40,14 @@ type
   EOnceLockError = class(ESyncError);
   EOnceLockEmpty = class(EOnceLockError);
   EOnceLockAlreadySet = class(EOnceLockError);
+  EOnceLockPoisoned = class(EOnceLockError);
 
-  { OnceLock 状态（三态，用于正确的内存模型） }
+  { OnceLock 状态（四态，用于正确的内存模型和错误处理） }
   TOnceLockState = (
     olsUnset,      // 0: 未设置
     olsSetting,    // 1: 正在设置（某线程正在写入值）
-    olsSet         // 2: 已设置（值可见）
+    olsSet,        // 2: 已设置（值可见）
+    olsPoisoned    // 3: 毒化状态（初始化失败）
   );
 
   { 泛型初始化器函数类型 }
@@ -84,6 +86,16 @@ type
      * @return True 如果已设置值
      *}
     function IsSet: Boolean; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+
+    {**
+     * IsPoisoned - 检查是否处于毒化状态
+     *
+     * @return True 如果初始化失败导致毒化
+     *
+     * @rust_equivalent
+     *   类似 Mutex::is_poisoned()
+     *}
+    function IsPoisoned: Boolean; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
 
     {**
      * SetValue - 设置值（如果已设置则抛出异常）
@@ -226,6 +238,21 @@ begin
     ReadBarrier;  // Acquire 语义：确保后续读取 FValue 可见
 end;
 
+function TOnceLock.IsPoisoned: Boolean;
+var
+  State: TOnceLockState;
+begin
+  // 使用原子读取状态
+  State := TOnceLockState(InterlockedCompareExchange(FState, 0, 0));
+  if State = olsSetting then
+  begin
+    // 正在设置中，等待完成
+    WaitForSet;
+    State := TOnceLockState(InterlockedCompareExchange(FState, 0, 0));
+  end;
+  Result := State = olsPoisoned;
+end;
+
 procedure TOnceLock.SetValue(const AValue: T);
 begin
   if not TrySet(AValue) then
@@ -282,18 +309,28 @@ begin
   if IsSet then  // IsSet 已经包含了 ReadBarrier
     Exit(FValue);
 
+  // 检查是否已经毒化
+  if IsPoisoned then
+    raise EOnceLockPoisoned.Create('OnceLock: Initialization previously failed (poisoned state)');
+
   // 慢路径：尝试初始化
   OldState := InterlockedCompareExchange(FState, LongInt(olsSetting), LongInt(olsUnset));
-  
+
   if TOnceLockState(OldState) = olsUnset then
   begin
-    // 赢得初始化权限
-    // 正确顺序：先写值，再发布状态
-    FValue := AInitializer();
-    WriteBarrier;  // Release 语义
-    InterlockedExchange(FState, LongInt(olsSet));
-    ReadBarrier;
-    Result := FValue;
+    try
+      // 赢得初始化权限
+      // 正确顺序：先写值，再发布状态
+      FValue := AInitializer();
+      WriteBarrier;  // Release 语义
+      InterlockedExchange(FState, LongInt(olsSet));
+      ReadBarrier;
+      Result := FValue;
+    except
+      // 初始化失败，设置为毒化状态
+      InterlockedExchange(FState, LongInt(olsPoisoned));
+      raise;  // 重新抛出异常
+    end;
   end
   else if TOnceLockState(OldState) = olsSetting then
   begin
@@ -306,8 +343,15 @@ begin
       ReadBarrier;  // Acquire 语义
       Result := FValue;
     end
+    else if State = olsPoisoned then
+      raise EOnceLockPoisoned.Create('OnceLock: Initialization failed in another thread (poisoned state)')
     else
-      Result := Default(T);  // 初始化失败，返回默认值
+      Result := Default(T);  // 不应该到达这里
+  end
+  else if TOnceLockState(OldState) = olsPoisoned then
+  begin
+    // 已经毒化
+    raise EOnceLockPoisoned.Create('OnceLock: Initialization previously failed (poisoned state)');
   end
   else
   begin
@@ -324,14 +368,21 @@ var
 begin
   AError := nil;
   Result := Default(T);
-  
+
   // 快速路径：已经设置
   if IsSet then  // IsSet 已经包含了 ReadBarrier
     Exit(FValue);
 
+  // 检查是否已经毒化
+  if IsPoisoned then
+  begin
+    AError := EOnceLockPoisoned.Create('OnceLock: Initialization previously failed (poisoned state)');
+    Exit;
+  end;
+
   // 慢速路径：尝试初始化
   OldState := InterlockedCompareExchange(FState, LongInt(olsSetting), LongInt(olsUnset));
-  
+
   if TOnceLockState(OldState) = olsUnset then
   begin
     try
@@ -343,8 +394,8 @@ begin
     except
       on E: Exception do
       begin
-        // 初始化失败，恢复状态
-        InterlockedExchange(FState, LongInt(olsUnset));
+        // 初始化失败，设置为毒化状态
+        InterlockedExchange(FState, LongInt(olsPoisoned));
         // 保留原始异常对象（调用者负责释放）
         AError := Exception(AcquireExceptionObject);
       end;
@@ -354,14 +405,23 @@ begin
   begin
     // 另一个线程正在初始化，等待完成
     WaitForSet;
-    // 验证状态确实是 Set（可能初始化失败导致状态变回 Unset）
+    // 验证状态（可能是 Set 或 Poisoned）
     State := TOnceLockState(InterlockedCompareExchange(FState, 0, 0));
     if State = olsSet then
     begin
       ReadBarrier;
       Result := FValue;
+    end
+    else if State = olsPoisoned then
+    begin
+      AError := EOnceLockPoisoned.Create('OnceLock: Initialization failed in another thread (poisoned state)');
     end;
-    // 如果状态不是 Set，返回默认值（AError 仍为 nil，调用者应检查 IsSet）
+    // 如果状态不是 Set 或 Poisoned，返回默认值
+  end
+  else if TOnceLockState(OldState) = olsPoisoned then
+  begin
+    // 已经毒化
+    AError := EOnceLockPoisoned.Create('OnceLock: Initialization previously failed (poisoned state)');
   end
   else
   begin

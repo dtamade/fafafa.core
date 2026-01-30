@@ -17,10 +17,11 @@ interface
 
 uses
   SysUtils,
+  fafafa.core.base,  // ✅ KSUID-001: 引入 ECore 基类
   fafafa.core.id.ksuid;
 
 type
-  EKsuidParseError = class(Exception);
+  EKsuidParseError = class(ECore);  // ✅ KSUID-001: 继承自 ECore
 
   TKSUID = record
   private

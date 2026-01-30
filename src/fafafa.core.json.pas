@@ -14,7 +14,8 @@ uses
   fafafa.core.json.ptr;
 
 type
-  EJsonValueError = class(Exception)
+  { EJsonValueError - JSON 值错误异常 }
+  EJsonValueError = class(Exception)  // ✅ JSON-005: 直接继承自 Exception，避免循环依赖
   private
     FCode: TJsonErrorCode;
   public
@@ -22,7 +23,8 @@ type
     property Code: TJsonErrorCode read FCode;
   end;
 
-  EJsonParseError = class(Exception)
+  { EJsonParseError - JSON 解析错误异常 }
+  EJsonParseError = class(Exception)  // ✅ JSON-006: 直接继承自 Exception，避免循环依赖
   private
     FCode: TJsonErrorCode;
     FPosition: SizeUInt;
@@ -66,11 +68,11 @@ type
   IJsonDocument = interface
     ['{A1B2C3D4-E5F6-1234-ABCD-567890ABCDEF}']
     function GetRoot: IJsonValue;
-    function GetAllocator: TAllocator;
+    function GetAllocator: IAllocator;
     function GetBytesRead: SizeUInt;
     function GetValuesRead: SizeUInt;
     property Root: IJsonValue read GetRoot;
-    property Allocator: TAllocator read GetAllocator;
+    property Allocator: IAllocator read GetAllocator;
     property BytesRead: SizeUInt read GetBytesRead;
     property ValuesRead: SizeUInt read GetValuesRead;
   end;
@@ -102,8 +104,7 @@ type
     procedure Reset;
   end;
 
-  // 工厂
-  function NewJsonStreamReader(ABufferCapacity: SizeUInt; AAllocator: TAllocator = nil; AFlags: TJsonReadFlags = []): IJsonStreamReader;
+type
   // 可选：Reader/Writer 配置对象（资源限额等）
   TJsonReadOptions = record
     Flags: TJsonReadFlags;
@@ -120,20 +121,14 @@ type
     class function Default: TJsonWriteOptions; static;
   end;
 
-  function NewJsonReader(AAllocator: TAllocator = nil): IJsonReader;
-  function NewJsonWriter: IJsonWriter;
-  function CreateJsonReader(AAllocator: TAllocator = nil): IJsonReader; deprecated 'Use NewJsonReader';
-  function CreateJsonWriter: IJsonWriter; deprecated 'Use NewJsonWriter';
-  function NewJsonStreamReader(ABufferCapacity: SizeUInt; AAllocator: TAllocator = nil; AFlags: TJsonReadFlags = []): IJsonStreamReader;
-  // 可选重载：从 Options 构造 Reader（未来扩展）
-  // function NewJsonReaderWithOptions(const Opt: TJsonReadOptions; AAllocator: TAllocator = nil): IJsonReader;
-
-
 // 工厂（与框架风格对齐，提供 New*，保留 Create* 兼容）
-function NewJsonReader(AAllocator: TAllocator = nil): IJsonReader;
+function NewJsonReader(AAllocator: IAllocator = nil): IJsonReader;
 function NewJsonWriter: IJsonWriter;
-function CreateJsonReader(AAllocator: TAllocator = nil): IJsonReader; deprecated 'Use NewJsonReader';
+function CreateJsonReader(AAllocator: IAllocator = nil): IJsonReader; deprecated 'Use NewJsonReader';
 function CreateJsonWriter: IJsonWriter; deprecated 'Use NewJsonWriter';
+function NewJsonStreamReader(ABufferCapacity: SizeUInt; AAllocator: IAllocator = nil; AFlags: TJsonReadFlags = []): IJsonStreamReader;
+// 可选重载：从 Options 构造 Reader（未来扩展）
+// function NewJsonReaderWithOptions(const Opt: TJsonReadOptions; AAllocator: IAllocator = nil): IJsonReader;
 // 将 fixed 文档包装为 IJsonDocument（接口持有并释放底层文档）
 function JsonWrapDocument(ADoc: TJsonDocument): IJsonDocument;
 // JSON Pointer 便捷方法（只读）：基于接口包装，内部委派到 fixed.ptr
@@ -242,21 +237,6 @@ function JsonObjectForEachRaw(ARoot: IJsonValue; AEach: TJsonObjectEachRawFunc):
   function JsonGetIntOrDefault(ARoot: IJsonValue; ADefault: Int64 = 0): Int64;
   function JsonGetUIntOrDefault(ARoot: IJsonValue; ADefault: UInt64 = 0): UInt64;
   function JsonGetBoolOrDefault(ARoot: IJsonValue; ADefault: Boolean = False): Boolean;
-class function TJsonReadOptions.Default: TJsonReadOptions;
-begin
-  Result.Flags := [];
-  Result.MaxDepth := 512;
-  Result.MaxValues := 1_000_000;
-  Result.MaxStringBytes := 16 * 1024 * 1024; // 16MB
-  Result.MaxDocBytes := 128 * 1024 * 1024;   // 128MB
-end;
-
-class function TJsonWriteOptions.Default: TJsonWriteOptions;
-begin
-  Result.Flags := [];
-  Result.MaxDepth := 1024;
-end;
-
   function JsonGetFloatOrDefault(ARoot: IJsonValue; ADefault: Double = 0.0): Double;
   function JsonGetStrOrDefault(ARoot: IJsonValue; const ADefault: String = ''): String;
   // UTF-8 friendly OrDefault
@@ -297,9 +277,6 @@ type
     function GetOwnerIntf: IJsonDocumentIntf; // keep owner interface to ensure lifetime
   end;
 
-
-
-
 { EJsonValueError }
 constructor EJsonValueError.Create(ACode: TJsonErrorCode; const AMsg: string);
 begin
@@ -311,7 +288,27 @@ end;
 constructor EJsonParseError.Create(ACode: TJsonErrorCode; const AMsg: string; APos, ALine, ACol: SizeUInt);
 begin
   inherited Create(AMsg);
-  FCode := ACode; FPosition := APos; FLine := ALine; FColumn := ACol;
+  FCode := ACode;
+  FPosition := APos;
+  FLine := ALine;
+  FColumn := ACol;
+end;
+
+{ TJsonReadOptions }
+class function TJsonReadOptions.Default: TJsonReadOptions;
+begin
+  Result.Flags := [];
+  Result.MaxDepth := 512;
+  Result.MaxValues := 1000000;
+  Result.MaxStringBytes := 16 * 1024 * 1024; // 16MB
+  Result.MaxDocBytes := 128 * 1024 * 1024;   // 128MB
+end;
+
+{ TJsonWriteOptions }
+class function TJsonWriteOptions.Default: TJsonWriteOptions;
+begin
+  Result.Flags := [];
+  Result.MaxDepth := 1024;
 end;
 
 type
@@ -365,16 +362,16 @@ type
     function GetDoc: TJsonDocument; inline;
     // IJsonDocument
     function GetRoot: IJsonValue;
-    function GetAllocator: TAllocator;
+    function GetAllocator: IAllocator;
     function GetBytesRead: SizeUInt;
     function GetValuesRead: SizeUInt;
   end;
 
   TJsonReaderImpl = class(TInterfacedObject, IJsonReader)
   private
-    FAllocator: TAllocator;
+    FAllocator: IAllocator;
   public
-    constructor Create(AAllocator: TAllocator);
+    constructor Create(AAllocator: IAllocator);
     function ReadFromString(const AJson: String; AFlags: TJsonReadFlags = []): IJsonDocument;
     function ReadFromStringN(const AJson: PChar; ALength: SizeUInt; AFlags: TJsonReadFlags = []): IJsonDocument;
     function ReadFromFile(const APath: String; AFlags: TJsonReadFlags = []): IJsonDocument;
@@ -391,11 +388,11 @@ type
   TJsonStreamReaderImpl = class(TInterfacedObject, IJsonStreamReader)
   private
     FState: PJsonIncrState;
-    FAllocator: TAllocator;
+    FAllocator: IAllocator;
     FFlags: TJsonReadFlags;
     FBuffer: RawByteString;
   public
-    constructor Create(ABufferCapacity: SizeUInt; AAllocator: TAllocator; AFlags: TJsonReadFlags);
+    constructor Create(ABufferCapacity: SizeUInt; AAllocator: IAllocator; AFlags: TJsonReadFlags);
     destructor Destroy; override;
     function Feed(const AChunk: PChar; ALength: SizeUInt): Integer;
     function TryRead(out ADoc: IJsonDocument): Integer;
@@ -582,7 +579,7 @@ begin
     Result := nil;
 end;
 function TJsonReaderImpl.ReadFromFile(const APath: String; AFlags: TJsonReadFlags): IJsonDocument;
-var Err: TJsonError; Doc: TJsonDocument; Alc: TAllocator; Opt: TJsonReadOptions;
+var Err: TJsonError; Doc: TJsonDocument; Alc: IAllocator; Opt: TJsonReadOptions;
 begin
   Opt := TJsonReadOptions.Default;
   JsonMaxDepth := Opt.MaxDepth; JsonMaxValues := Opt.MaxValues;
@@ -647,19 +644,19 @@ begin
     Result := nil;
 end;
 
-function TJsonDocumentImpl.GetAllocator: TAllocator; begin if Assigned(FDoc) then Result := FDoc.Allocator else Result := nil; end;
+function TJsonDocumentImpl.GetAllocator: IAllocator; begin if Assigned(FDoc) then Result := FDoc.Allocator else Result := nil; end;
 function TJsonDocumentImpl.GetBytesRead: SizeUInt; begin if Assigned(FDoc) then Result := FDoc.BytesRead else Result := 0; end;
 function TJsonDocumentImpl.GetValuesRead: SizeUInt; begin if Assigned(FDoc) then Result := FDoc.ValuesRead else Result := 0; end;
 
 { TJsonReaderImpl }
-constructor TJsonReaderImpl.Create(AAllocator: TAllocator);
+constructor TJsonReaderImpl.Create(AAllocator: IAllocator);
 begin
   inherited Create;
   FAllocator := AAllocator;
 end;
 
 function TJsonReaderImpl.ReadFromString(const AJson: String; AFlags: TJsonReadFlags): IJsonDocument;
-var Err: TJsonError; Doc: TJsonDocument; Alc: TAllocator; Opt: TJsonReadOptions;
+var Err: TJsonError; Doc: TJsonDocument; Alc: IAllocator; Opt: TJsonReadOptions;
 begin
   // 注入默认限额（可在未来通过 NewJsonReaderWithOptions 定制）
   Opt := TJsonReadOptions.Default;
@@ -677,7 +674,7 @@ begin
 end;
 
 function TJsonReaderImpl.ReadFromStringN(const AJson: PChar; ALength: SizeUInt; AFlags: TJsonReadFlags): IJsonDocument;
-var Err: TJsonError; Doc: TJsonDocument; Alc: TAllocator; Opt: TJsonReadOptions;
+var Err: TJsonError; Doc: TJsonDocument; Alc: IAllocator; Opt: TJsonReadOptions;
 begin
   Opt := TJsonReadOptions.Default;
   JsonMaxDepth := Opt.MaxDepth; JsonMaxValues := Opt.MaxValues;
@@ -703,10 +700,10 @@ begin
   Result := JsonWriteToString(D, AFlags);
 end;
 
-function NewJsonReader(AAllocator: TAllocator): IJsonReader; begin Result := TJsonReaderImpl.Create(AAllocator); end;
+function NewJsonReader(AAllocator: IAllocator): IJsonReader; begin Result := TJsonReaderImpl.Create(AAllocator); end;
 function NewJsonWriter: IJsonWriter; begin Result := TJsonWriterImpl.Create; end;
-function NewJsonStreamReader(ABufferCapacity: SizeUInt; AAllocator: TAllocator; AFlags: TJsonReadFlags): IJsonStreamReader; begin Result := TJsonStreamReaderImpl.Create(ABufferCapacity, AAllocator, AFlags); end;
-function CreateJsonReader(AAllocator: TAllocator): IJsonReader; begin Result := NewJsonReader(AAllocator); end;
+function NewJsonStreamReader(ABufferCapacity: SizeUInt; AAllocator: IAllocator; AFlags: TJsonReadFlags): IJsonStreamReader; begin Result := TJsonStreamReaderImpl.Create(ABufferCapacity, AAllocator, AFlags); end;
+function CreateJsonReader(AAllocator: IAllocator): IJsonReader; begin Result := NewJsonReader(AAllocator); end;
 function CreateJsonWriter: IJsonWriter; begin Result := NewJsonWriter; end;
 
 function JsonWrapDocument(ADoc: TJsonDocument): IJsonDocument;
@@ -720,14 +717,6 @@ var DocIntf: IJsonDocumentIntf; D: TJsonDocument; Err: TJsonWriteError;
 begin
   Result := False;
   if (ADocument = nil) then Exit;
-procedure JsonSetReadLimits(const Opt: TJsonReadOptions);
-begin
-  JsonMaxDepth := Opt.MaxDepth;
-  JsonMaxValues := Opt.MaxValues;
-  JsonMaxStringBytes := Opt.MaxStringBytes;
-  JsonMaxDocBytes := Opt.MaxDocBytes;
-end;
-
   if not Supports(ADocument, IJsonDocumentIntf, DocIntf) then Exit;
   D := DocIntf.GetDoc;
   Result := fafafa.core.json.core.JsonWriteFile(APath, D, AFlags, D.Allocator, Err);
@@ -770,64 +759,6 @@ begin
   begin
     FInited := True;
     if (FRoot <> nil) and Supports(FRoot, IJsonValueIntf, VIntf) and JsonIsArr(VIntf.GetRaw) then
-function NewJsonStreamReader(ABufferCapacity: SizeUInt; AAllocator: TAllocator; AFlags: TJsonReadFlags): IJsonStreamReader;
-begin
-  Result := TJsonStreamReaderImpl.Create(ABufferCapacity, AAllocator, AFlags);
-end;
-
-{ TJsonStreamReaderImpl }
-constructor TJsonStreamReaderImpl.Create(ABufferCapacity: SizeUInt; AAllocator: TAllocator; AFlags: TJsonReadFlags);
-begin
-  inherited Create;
-  if ABufferCapacity = 0 then ABufferCapacity := 64 * 1024;
-  SetLength(FBuffer, ABufferCapacity);
-  FAllocator := AAllocator;
-  FFlags := AFlags;
-  FState := JsonIncrNew(PChar(Pointer(FBuffer)), Length(FBuffer), FFlags, FAllocator);
-end;
-
-destructor TJsonStreamReaderImpl.Destroy;
-begin
-  if Assigned(FState) then JsonIncrFree(FState);
-  FState := nil;
-  FBuffer := '';
-  inherited Destroy;
-end;
-
-function TJsonStreamReaderImpl.Feed(const AChunk: PChar; ALength: SizeUInt): Integer;
-begin
-  if (FState = nil) or (AChunk = nil) or (ALength = 0) then Exit(Ord(jecInvalidParameter));
-  // 直接喂入到预分配缓冲，内部维护 Avail/Consumed
-  // 注意：JsonIncrRead 会根据 AFeedLen 推进 Avail 并解析
-  // 这里仅校验总容量是否足够（保守：满时返回 InvalidParameter）
-  if (FState^.Avail + ALength > FState^.BufCap) then Exit(Ord(jecInvalidParameter));
-  Move(AChunk^, (FState^.Buf + FState^.Avail)^, ALength);
-  Inc(FState^.Avail, ALength);
-  Exit(0);
-end;
-
-function TJsonStreamReaderImpl.TryRead(out ADoc: IJsonDocument): Integer;
-var Err: TJsonError; Doc: TJsonDocument;
-begin
-  ADoc := nil; Err := Default(TJsonError);
-  if (FState = nil) then Exit(Ord(jecInvalidParameter));
-  Doc := JsonIncrRead(FState, 0, Err);
-  if Assigned(Doc) then
-  begin
-    ADoc := TJsonDocumentImpl.Create(Doc);
-    Exit(0);
-  end;
-  Exit(Ord(Err.Code));
-end;
-
-procedure TJsonStreamReaderImpl.Reset;
-begin
-  if Assigned(FState) then
-  begin
-    FState^.Avail := 0; FState^.Consumed := 0; FState^.PendingUtf8 := 0;
-  end;
-end;
-
       JsonArrIterInit(VIntf.GetRaw, @FIter);
   end;
   if not JsonArrIterHasNext(@FIter) then Exit(False);

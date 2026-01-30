@@ -23,9 +23,11 @@ type
     procedure Test_AutoGrowth_Geometric;
     procedure Test_IPool_Interface;
     procedure Test_InvalidPointer_Raises;
+    procedure Test_DoubleFree_Raises;
     procedure Test_Reset_RebuildsFreeStack;
     procedure Test_ShrinkTo_ReleasesTailArenas;
     procedure Test_MaxCapacity_Limit;
+    procedure Test_GrowthFactor_TakesEffect;
   end;
 
 procedure RegisterTests;
@@ -103,6 +105,21 @@ begin
   end;
 end;
 
+procedure TTestCase_TGrowingFixedPool.Test_DoubleFree_Raises;
+var
+  p: Pointer;
+begin
+  CheckTrue(FPool.Acquire(p));
+  FPool.Release(p);
+  try
+    FPool.Release(p);
+    Fail('Expected double free');
+  except
+    on E: EGrowingFixedPoolDoubleFree do
+      CheckTrue(Pos('Double free', E.Message) > 0);
+  end;
+end;
+
 procedure TTestCase_TGrowingFixedPool.Test_Reset_RebuildsFreeStack;
 var
   i: Integer; p: Pointer;
@@ -163,6 +180,31 @@ begin
   until not ok;
 
   CheckEquals(3, count);
+end;
+
+procedure TTestCase_TGrowingFixedPool.Test_GrowthFactor_TakesEffect;
+var
+  C: TGrowingFixedPoolConfig;
+  G: TGrowingFixedPool;
+  i: Integer;
+  arr: array[0..4] of Pointer;
+begin
+  // 初始 4，因子 3.0：第一次扩容后总容量应达到 12
+  FillChar(C, SizeOf(C), 0);
+  C.BlockSize := 16;
+  C.InitialCapacity := 4;
+  C.GrowthKind := gkGeometric;
+  C.GrowthFactor := 3.0;
+  G := TGrowingFixedPool.Create(C);
+  try
+    for i := 0 to High(arr) do
+      CheckTrue(G.Acquire(arr[i]));
+    CheckEquals(SizeUInt(12), G.TotalCapacity);
+    for i := 0 to High(arr) do
+      G.Release(arr[i]);
+  finally
+    G.Free;
+  end;
 end;
 
 end.

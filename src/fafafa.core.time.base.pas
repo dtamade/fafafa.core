@@ -102,7 +102,7 @@ type
    *       // 处理所有时间相关异常
    *   end;
    *}
-  ETimeError = class(Exception);
+  ETimeError = class(ECore);  // ✅ TIME-001: 继承自 ECore
 
   {**
    * ETimeoutError - 超时异常类
@@ -277,5 +277,3 @@ begin
 end;
 
 end.
-
-

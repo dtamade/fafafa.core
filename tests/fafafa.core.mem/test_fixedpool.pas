@@ -46,6 +46,9 @@ type
 
 implementation
 
+{$PUSH}
+{$WARN 4055 OFF} // pointer/ordinal conversions in tests
+
 procedure TTestCase_FixedPool.Test_Create_Basic;
 var
   Pool: TFixedPool;
@@ -301,13 +304,12 @@ end;
 procedure TTestCase_FixedPool.Test_Reset;
 var
   Pool: TFixedPool;
-  P: Pointer;
 begin
   Pool := TFixedPool.Create(64, 10);
   try
-    P := Pool.Alloc;
-    P := Pool.Alloc;
-    P := Pool.Alloc;
+    AssertTrue('Alloc #1', Pool.Alloc <> nil);
+    AssertTrue('Alloc #2', Pool.Alloc <> nil);
+    AssertTrue('Alloc #3', Pool.Alloc <> nil);
     AssertEquals('Before reset', 3, Pool.AllocatedCount);
 
     Pool.Reset;
@@ -359,5 +361,7 @@ end;
 
 initialization
   RegisterTest(TTestCase_FixedPool);
+
+{$POP}
 
 end.

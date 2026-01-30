@@ -19,7 +19,7 @@
             <Filename Value="bin/example_mapped_ringbuffer_bench.exe"/>
           </Target>
           <SearchPaths>
-            <IncludeFiles Value="lib\$TargetCPU-$TargetOS"/>
+            <IncludeFiles Value="lib\$TargetCPU-$TargetOS;../../src"/>
             <OtherUnitFiles Value="../../src"/>
             <UnitOutputDirectory Value="lib\$TargetCPU-$TargetOS"/>
           </SearchPaths>
@@ -53,7 +53,7 @@
       <Filename Value="bin/example_mapped_ringbuffer_bench.exe"/>
     </Target>
     <SearchPaths>
-      <IncludeFiles Value="lib\$TargetCPU-$TargetOS"/>
+      <IncludeFiles Value="lib\$TargetCPU-$TargetOS;../../src"/>
       <OtherUnitFiles Value="../../src"/>
       <UnitOutputDirectory Value="lib\$TargetCPU-$TargetOS"/>
     </SearchPaths>

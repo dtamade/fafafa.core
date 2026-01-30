@@ -1,6 +1,7 @@
 unit fafafa.core.mem.interfaces;
 
 {$mode objfpc}{$H+}
+{$I fafafa.core.settings.inc}
 
 interface
 
@@ -53,4 +54,3 @@ type
 implementation
 
 end.
-

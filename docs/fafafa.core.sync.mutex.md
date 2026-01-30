@@ -48,6 +48,107 @@ end;
 
 ## 工厂函数
 
+### MakeMutex - 创建默认互斥锁（推荐）
+
+```pascal
+function MakeMutex: IMutex;
+```
+
+**返回**: pthread_mutex 实现（安全，有重入检测）
+
+**特性**:
+- ✅ 支持重入检测（同一线程重复 Acquire 会抛出 `EDeadlockError`）
+- ✅ 符合 POSIX 标准，跨平台兼容性好
+- ✅ 内核级别的死锁检测，无竞态条件
+- ⚠️ 性能略低于 Futex（约 10-20%）
+
+**适用场景**:
+- 需要重入检测的场景
+- 安全性优先的应用
+- 跨平台兼容性要求高
+
+**示例**:
+```pascal
+var
+  LMutex: IMutex;
+begin
+  LMutex := MakeMutex;  // 默认：安全优先
+  LMutex.Acquire;
+  try
+    // 临界区代码
+  finally
+    LMutex.Release;
+  end;
+end;
+```
+
+### MakeFastMutex / MakeFutexMutex - 创建高性能互斥锁（可选）
+
+```pascal
+function MakeFastMutex: IMutex;
+function MakeFutexMutex: IMutex;  // 别名
+```
+
+**返回**: Futex 实现（高性能，无重入检测）
+
+**特性**:
+- ✅ 高性能（比 pthread_mutex 快 10-20%）
+- ✅ 用户态实现，减少系统调用
+- ⚠️ **不支持重入检测**（会导致死锁）
+
+**适用场景**:
+- 性能敏感的应用
+- 代码保证不会重入
+- 高频 mutex 操作（每秒百万次以上）
+
+**重要警告**:
+```pascal
+// ❌ 错误：使用 Futex 时重入会导致死锁
+LMutex := MakeFastMutex;
+LMutex.Acquire;
+LMutex.Acquire;  // 死锁！程序挂起
+
+// ✅ 正确：使用 pthread_mutex 时重入会抛出异常
+LMutex := MakeMutex;
+LMutex.Acquire;
+LMutex.Acquire;  // 抛出 EDeadlockError
+```
+
+**示例**:
+```pascal
+var
+  LMutex: IMutex;
+begin
+  LMutex := MakeFastMutex;  // 性能优先
+  LMutex.Acquire;
+  try
+    // 临界区代码
+    // ⚠️ 确保不会重入，否则会死锁
+  finally
+    LMutex.Release;
+  end;
+end;
+```
+
+### MakePthreadMutex - 创建 pthread 互斥锁（特殊用途）
+
+```pascal
+function MakePthreadMutex: IMutex;
+```
+
+**返回**: pthread_mutex 实现（NORMAL 类型，用于 CondVar）
+
+**特性**:
+- 使用 `PTHREAD_MUTEX_NORMAL` 类型
+- 与 `pthread_cond_*` 兼容
+- 不检测重入（性能优化）
+
+**适用场景**:
+- 与条件变量配合使用
+- 需要与 pthread_cond_* API 兼容
+
+
+
 ### MakeMutex
 
 ```pascal

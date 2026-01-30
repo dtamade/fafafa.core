@@ -9,7 +9,6 @@ interface
 
 uses
   SysUtils, fpcunit, testregistry,
-  fafafa.core.mem.objectPool,
   fafafa.core.mem.pool.objectPool;
 
 type
@@ -71,13 +70,13 @@ end;
 
 procedure TTestCase_ObjectPool.Test_Preallocate_Clear_NoFinalizer;
 var
-  LPool: fafafa.core.mem.objectPool.TObjectPool;
+  LPool: fafafa.core.mem.pool.objectPool.TObjectPool;
 begin
   TMyObj.ResetCounters;
   GInitCount := 0;
   GFinalCount := 0;
 
-  LPool := fafafa.core.mem.objectPool.TObjectPool.Create(TMyObj, 8, @FactoryFn, @InitializerFn, @FinalizerFn, nil);
+  LPool := fafafa.core.mem.pool.objectPool.TObjectPool.Create(TMyObj, 8, @FactoryFn, @InitializerFn, @FinalizerFn, nil);
   try
     LPool.Preallocate(3);
     AssertEquals('Preallocate should not call Initializer', 0, GInitCount);
@@ -152,4 +151,3 @@ initialization
   RegisterTest(TTestCase_ObjectPool);
 
 end.
-

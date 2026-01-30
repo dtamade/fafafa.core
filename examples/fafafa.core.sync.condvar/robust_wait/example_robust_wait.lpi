@@ -30,7 +30,7 @@
     </RequiredPackages>
     <Units>
       <Unit>
-        <Filename Value="example_robust_wait.lpr"/>
+        <Filename Value="bin/example_robust_wait"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>

@@ -132,6 +132,40 @@ function MakeMutex: IMutex;
 function MakePthreadMutex: IMutex;
 {$ENDIF}
 
+{**
+ * MakeFutexMutex
+ *
+ * @desc 创建一个高性能的 Futex 互斥锁（仅 Unix 平台）
+ *
+ * @return 返回一个 IMutex 接口实例，使用 Futex 实现
+ *
+ * @remark
+ *   此函数返回基于 Futex 的高性能互斥锁实现。
+ *   
+ *   性能特点：
+ *   - 比 pthread_mutex 快约 10-20%
+ *   - 用户态实现，减少系统调用
+ *   
+ *   重要限制：
+ *   - ⚠️ 不支持重入检测（同一线程重复 Acquire 会导致死锁）
+ *   - ⚠️ 仅适用于性能敏感且代码保证不会重入的场景
+ *   
+ *   如果 FAFAFA_CORE_USE_FUTEX 宏未定义，此函数会回退到 pthread_mutex 实现。
+ *   
+ *   推荐使用场景：
+ *   - 高频 mutex 操作（每秒百万次以上）
+ *   - 性能敏感的应用
+ *   - 代码保证不会重入
+ *   
+ *   不推荐使用场景：
+ *   - 需要重入检测的场景
+ *   - 安全性优先的应用
+ *   - 不确定是否会重入的代码
+ *}
+{$IFDEF UNIX}
+function MakeFutexMutex: IMutex;
+{$ENDIF}
+
 
 implementation
 
@@ -150,6 +184,11 @@ end;
 function MakePthreadMutex: IMutex;
 begin
   Result := fafafa.core.sync.mutex.unix.MakePthreadMutex();
+end;
+
+function MakeFutexMutex: IMutex;
+begin
+  Result := fafafa.core.sync.mutex.unix.MakeFutexMutex();
 end;
 {$ENDIF}
 

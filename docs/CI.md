@@ -236,6 +236,5 @@ if ! cmp -s src/fafafa.core.settings.inc release/src/fafafa.core.settings.inc; t
 - 本地快速路径：
   - `tests/fafafa.core.lockfree/Run_Micro_BatchMatrix_Quick.bat`（脚本末尾已自动归一化 + 摘要）
 
-附注：HashMap 选型指南请参阅 docs/README_LOCKFREE.md（开放寻址 OA 与分离链接 MM 的差异与选择）。
-
+附注：HashMap 选型指南请参阅 docs/topics/lockfree/README_LOCKFREE.md（开放寻址 OA 与分离链接 MM 的差异与选择）。
 

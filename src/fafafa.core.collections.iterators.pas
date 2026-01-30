@@ -45,14 +45,14 @@ type
   public
     procedure Init(const aSource: TSourceIter; aStartIndex: SizeUInt = 0);
     class function Create(const aSource: TSourceIter; aStartIndex: SizeUInt = 0): specialize TEnumerateIter<T>; static;
-    
+
     function MoveNext: Boolean;
     function GetCurrent: T; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
     function GetIndex: SizeUInt; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
-    
+
     // For TIter<T> compatibility
     function ToIter: TSourceIter;
-    
+
     property Current: T read GetCurrent;
     property Index: SizeUInt read GetIndex;
   end;
@@ -76,11 +76,11 @@ type
   public
     procedure Init(const aFirst: TFirstIter; const aSecond: TSecondIter);
     class function Create(const aFirst: TFirstIter; const aSecond: TSecondIter): specialize TZipIter<T, U>; static;
-    
+
     function MoveNext: Boolean;
     function GetFirst: T; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
     function GetSecond: U; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
-    
+
     property First: T read GetFirst;
     property Second: U read GetSecond;
   end;
@@ -103,10 +103,10 @@ type
   public
     procedure Init(const aFirst: TSourceIter; const aSecond: TSourceIter);
     class function Create(const aFirst: TSourceIter; const aSecond: TSourceIter): specialize TChainIter<T>; static;
-    
+
     function MoveNext: Boolean;
     function GetCurrent: T; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
-    
+
     property Current: T read GetCurrent;
   end;
 
@@ -128,10 +128,10 @@ type
   public
     procedure Init(const aSource: TSourceIter; aMapper: TMapperFunc; aData: Pointer);
     class function Create(const aSource: TSourceIter; aMapper: TMapperFunc; aData: Pointer): specialize TMapIter<T, U>; static;
-    
+
     function MoveNext: Boolean;
     function GetCurrent: U; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
-    
+
     property Current: U read GetCurrent;
   end;
 
@@ -153,13 +153,13 @@ type
   public
     procedure Init(const aSource: TSourceIter; aPredicate: TPredicateFunc; aData: Pointer);
     class function Create(const aSource: TSourceIter; aPredicate: TPredicateFunc; aData: Pointer): specialize TFilterIter<T>; static;
-    
+
     function MoveNext: Boolean;
     function GetCurrent: T; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
-    
+
     // For TIter<T> compatibility
     function ToIter: TSourceIter;
-    
+
     property Current: T read GetCurrent;
   end;
 
@@ -179,10 +179,10 @@ type
   public
     procedure Init(const aSource: TSourceIter; aCount: SizeUInt);
     class function Create(const aSource: TSourceIter; aCount: SizeUInt): specialize TTakeIter<T>; static;
-    
+
     function MoveNext: Boolean;
     function GetCurrent: T; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
-    
+
     property Current: T read GetCurrent;
   end;
 
@@ -205,10 +205,10 @@ type
   public
     procedure Init(const aSource: TSourceIter);
     class function Create(const aSource: TSourceIter): specialize TRevIter<T>; static;
-    
+
     function MoveNext: Boolean;
     function GetCurrent: T; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
-    
+
     property Current: T read GetCurrent;
   end;
 
@@ -229,13 +229,94 @@ type
   public
     procedure Init(const aSource: TSourceIter; aCount: SizeUInt);
     class function Create(const aSource: TSourceIter; aCount: SizeUInt): specialize TSkipIter<T>; static;
-    
+
     function MoveNext: Boolean;
     function GetCurrent: T; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
-    
-    // For TIter<T> compatibility  
+
+    // For TIter<T> compatibility
     function ToIter: TSourceIter;
-    
+
+    property Current: T read GetCurrent;
+  end;
+
+  {**
+   * TTakeWhileIter<T> - 条件取元素迭代器
+   *
+   * 只要谓词返回 True 就继续返回元素，一旦谓词返回 False 就停止
+   * 类似 Rust 的 .take_while()
+   *}
+  generic TTakeWhileIter<T> = record
+  public type
+    TSourceIter = specialize TIter<T>;
+    TPredicateFunc = function(const aElement: T; aData: Pointer): Boolean;
+  private
+    FSource: TSourceIter;
+    FPredicate: TPredicateFunc;
+    FData: Pointer;
+    FCurrent: T;
+    FDone: Boolean;
+  public
+    procedure Init(const aSource: TSourceIter; aPredicate: TPredicateFunc; aData: Pointer);
+    class function Create(const aSource: TSourceIter; aPredicate: TPredicateFunc; aData: Pointer): specialize TTakeWhileIter<T>; static;
+
+    function MoveNext: Boolean;
+    function GetCurrent: T; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+
+    property Current: T read GetCurrent;
+  end;
+
+  {**
+   * TSkipWhileIter<T> - 条件跳过迭代器
+   *
+   * 跳过所有满足谓词的元素，一旦谓词返回 False 就开始返回剩余元素
+   * 类似 Rust 的 .skip_while()
+   *}
+  generic TSkipWhileIter<T> = record
+  public type
+    TSourceIter = specialize TIter<T>;
+    TPredicateFunc = function(const aElement: T; aData: Pointer): Boolean;
+  private
+    FSource: TSourceIter;
+    FPredicate: TPredicateFunc;
+    FData: Pointer;
+    FCurrent: T;
+    FSkipping: Boolean;
+  public
+    procedure Init(const aSource: TSourceIter; aPredicate: TPredicateFunc; aData: Pointer);
+    class function Create(const aSource: TSourceIter; aPredicate: TPredicateFunc; aData: Pointer): specialize TSkipWhileIter<T>; static;
+
+    function MoveNext: Boolean;
+    function GetCurrent: T; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+
+    property Current: T read GetCurrent;
+  end;
+
+  {**
+   * TFlattenIter<T> - 扁平化迭代器
+   *
+   * 将嵌套的迭代器扁平化为单层迭代器
+   * 类似 Rust 的 .flatten()
+   *
+   * 注意：此实现用于将 IVec<IVec<T>> 扁平化为 T 的迭代器
+   *}
+  generic TFlattenIter<T> = record
+  public type
+    TInnerVec = specialize IVec<T>;
+    TOuterVec = specialize IVec<TInnerVec>;
+    TOuterIter = specialize TIter<TInnerVec>;
+    TInnerIter = specialize TIter<T>;
+  private
+    FOuterIter: TOuterIter;
+    FInnerIter: TInnerIter;
+    FHasInner: Boolean;
+    FCurrent: T;
+  public
+    procedure Init(const aSource: TOuterIter);
+    class function Create(const aSource: TOuterIter): specialize TFlattenIter<T>; static;
+
+    function MoveNext: Boolean;
+    function GetCurrent: T; {$IFDEF FAFAFA_CORE_INLINE} inline;{$ENDIF}
+
     property Current: T read GetCurrent;
   end;
 
@@ -269,6 +350,203 @@ generic function CollectTakeToVec<T>(var aIter: specialize TTakeIter<T>): specia
  * 消费链接迭代器中的所有元素，构造一个新的 Vec
  *}
 generic function CollectChainToVec<T>(var aIter: specialize TChainIter<T>): specialize IVec<T>;
+
+// ==== 终结组合子 (Terminal Combinators) ====
+// 消费迭代器并产生单一结果
+
+{**
+ * IterFold<T, TAcc> - 折叠迭代器
+ *
+ * 使用累加器函数将迭代器中的所有元素折叠为单一值
+ * 类似 Rust 的 .fold()
+ *
+ * @param aIter - 源迭代器
+ * @param aInit - 初始累加值
+ * @param aFolder - 折叠函数 (acc, element) -> acc
+ * @param aData - 传递给折叠函数的用户数据
+ * @return 最终累加值
+ *}
+type
+  generic TFolderFunc<T, TAcc> = function(const aAcc: TAcc; const aElement: T; aData: Pointer): TAcc;
+
+generic function IterFold<T, TAcc>(var aIter: specialize TIter<T>;
+  const aInit: TAcc;
+  aFolder: specialize TFolderFunc<T, TAcc>;
+  aData: Pointer): TAcc;
+
+{**
+ * IterReduce<T> - 归约迭代器
+ *
+ * 使用二元函数将迭代器中的所有元素归约为单一值
+ * 第一个元素作为初始值
+ * 类似 Rust 的 .reduce()
+ *
+ * @param aIter - 源迭代器
+ * @param aReducer - 归约函数 (acc, element) -> acc
+ * @param aData - 传递给归约函数的用户数据
+ * @param aResult - 输出结果
+ * @return 如果迭代器非空返回 True，否则返回 False
+ *}
+type
+  generic TReducerFunc<T> = function(const aAcc: T; const aElement: T; aData: Pointer): T;
+
+generic function IterReduce<T>(var aIter: specialize TIter<T>;
+  aReducer: specialize TReducerFunc<T>;
+  aData: Pointer;
+  out aResult: T): Boolean;
+
+{**
+ * IterFind<T> - 查找元素
+ *
+ * 查找第一个满足谓词的元素
+ * 类似 Rust 的 .find()
+ *
+ * @param aIter - 源迭代器
+ * @param aPredicate - 谓词函数
+ * @param aData - 传递给谓词函数的用户数据
+ * @param aResult - 输出找到的元素
+ * @return 如果找到返回 True，否则返回 False
+ *}
+type
+  generic TIterPredicateFunc<T> = function(const aElement: T; aData: Pointer): Boolean;
+
+generic function IterFind<T>(var aIter: specialize TIter<T>;
+  aPredicate: specialize TIterPredicateFunc<T>;
+  aData: Pointer;
+  out aResult: T): Boolean;
+
+{**
+ * IterAny<T> - 任意匹配
+ *
+ * 检查是否存在任意元素满足谓词
+ * 类似 Rust 的 .any()
+ *
+ * @param aIter - 源迭代器
+ * @param aPredicate - 谓词函数
+ * @param aData - 传递给谓词函数的用户数据
+ * @return 如果存在满足条件的元素返回 True
+ *}
+generic function IterAny<T>(var aIter: specialize TIter<T>;
+  aPredicate: specialize TIterPredicateFunc<T>;
+  aData: Pointer): Boolean;
+
+{**
+ * IterAll<T> - 全部匹配
+ *
+ * 检查是否所有元素都满足谓词
+ * 类似 Rust 的 .all()
+ *
+ * @param aIter - 源迭代器
+ * @param aPredicate - 谓词函数
+ * @param aData - 传递给谓词函数的用户数据
+ * @return 如果所有元素都满足条件返回 True（空迭代器返回 True）
+ *}
+generic function IterAll<T>(var aIter: specialize TIter<T>;
+  aPredicate: specialize TIterPredicateFunc<T>;
+  aData: Pointer): Boolean;
+
+{**
+ * IterForEach<T> - 遍历执行
+ *
+ * 对每个元素执行副作用操作
+ * 类似 Rust 的 .for_each()
+ *
+ * @param aIter - 源迭代器
+ * @param aAction - 操作函数
+ * @param aData - 传递给操作函数的用户数据
+ *}
+type
+  generic TActionFunc<T> = procedure(const aElement: T; aData: Pointer);
+
+generic procedure IterForEach<T>(var aIter: specialize TIter<T>;
+  aAction: specialize TActionFunc<T>;
+  aData: Pointer);
+
+{**
+ * IterCount<T> - 计数
+ *
+ * 返回迭代器中的元素数量
+ * 类似 Rust 的 .count()
+ *
+ * @param aIter - 源迭代器
+ * @return 元素数量
+ *}
+generic function IterCount<T>(var aIter: specialize TIter<T>): SizeUInt;
+
+{**
+ * IterCountIf<T> - 条件计数
+ *
+ * 返回满足谓词的元素数量
+ *
+ * @param aIter - 源迭代器
+ * @param aPredicate - 谓词函数
+ * @param aData - 传递给谓词函数的用户数据
+ * @return 满足条件的元素数量
+ *}
+generic function IterCountIf<T>(var aIter: specialize TIter<T>;
+  aPredicate: specialize TIterPredicateFunc<T>;
+  aData: Pointer): SizeUInt;
+
+{**
+ * IterSum - 求和（整数）
+ *
+ * 计算迭代器中所有整数元素的和
+ *
+ * @param aIter - 源迭代器
+ * @return 元素之和
+ *}
+function IterSumInt(var aIter: specialize TIter<Integer>): Int64;
+function IterSumInt64(var aIter: specialize TIter<Int64>): Int64;
+
+{**
+ * IterMin/IterMax<T> - 最小/最大值
+ *
+ * 查找迭代器中的最小或最大元素
+ *
+ * @param aIter - 源迭代器
+ * @param aComparer - 比较函数，返回负数表示 a < b
+ * @param aData - 传递给比较函数的用户数据
+ * @param aResult - 输出结果
+ * @return 如果迭代器非空返回 True
+ *}
+type
+  generic TComparerFunc<T> = function(const aA, aB: T; aData: Pointer): Integer;
+
+generic function IterMin<T>(var aIter: specialize TIter<T>;
+  aComparer: specialize TComparerFunc<T>;
+  aData: Pointer;
+  out aResult: T): Boolean;
+
+generic function IterMax<T>(var aIter: specialize TIter<T>;
+  aComparer: specialize TComparerFunc<T>;
+  aData: Pointer;
+  out aResult: T): Boolean;
+
+{**
+ * IterNth<T> - 获取第 N 个元素
+ *
+ * 获取迭代器中的第 N 个元素（0-indexed）
+ *
+ * @param aIter - 源迭代器
+ * @param aIndex - 索引（从 0 开始）
+ * @param aResult - 输出结果
+ * @return 如果索引有效返回 True
+ *}
+generic function IterNth<T>(var aIter: specialize TIter<T>;
+  aIndex: SizeUInt;
+  out aResult: T): Boolean;
+
+{**
+ * IterLast<T> - 获取最后一个元素
+ *
+ * 获取迭代器中的最后一个元素
+ *
+ * @param aIter - 源迭代器
+ * @param aResult - 输出结果
+ * @return 如果迭代器非空返回 True
+ *}
+generic function IterLast<T>(var aIter: specialize TIter<T>;
+  out aResult: T): Boolean;
 
 implementation
 
@@ -382,7 +660,7 @@ begin
     // First exhausted, switch to second
     FFirstExhausted := True;
   end;
-  
+
   // Try second iterator
   Result := FSecond.MoveNext;
   if Result then
@@ -481,7 +759,7 @@ function TTakeIter.MoveNext: Boolean;
 begin
   if FRemaining = 0 then
     Exit(False);
-    
+
   Result := FSource.MoveNext;
   if Result then
   begin
@@ -507,7 +785,7 @@ begin
   LCapacity := 16;
   LCount := 0;
   SetLength(FElements, LCapacity);
-  
+
   while LSource.MoveNext do
   begin
     if LCount >= LCapacity then
@@ -518,10 +796,10 @@ begin
     FElements[LCount] := LSource.Current;
     Inc(LCount);
   end;
-  
+
   // Trim to actual size
   SetLength(FElements, LCount);
-  
+
   // Initialize for reverse iteration
   FIndex := SizeInt(LCount);  // Start past the end
   FInitialized := True;
@@ -541,7 +819,7 @@ begin
   LCapacity := 16;
   LCount := 0;
   SetLength(Result.FElements, LCapacity);
-  
+
   while LSource.MoveNext do
   begin
     if LCount >= LCapacity then
@@ -552,10 +830,10 @@ begin
     Result.FElements[LCount] := LSource.Current;
     Inc(LCount);
   end;
-  
+
   // Trim to actual size
   SetLength(Result.FElements, LCount);
-  
+
   // Initialize for reverse iteration
   Result.FIndex := SizeInt(LCount);  // Start past the end
   Result.FInitialized := True;
@@ -605,7 +883,7 @@ begin
     while (FSkipCount > 0) and FSource.MoveNext do
       Dec(FSkipCount);
   end;
-  
+
   // Now return remaining elements
   Result := FSource.MoveNext;
   if Result then
@@ -620,6 +898,139 @@ end;
 function TSkipIter.ToIter: TSourceIter;
 begin
   Result := FSource;
+end;
+
+{ TTakeWhileIter<T> }
+
+procedure TTakeWhileIter.Init(const aSource: TSourceIter; aPredicate: TPredicateFunc; aData: Pointer);
+begin
+  FSource := aSource;
+  FPredicate := aPredicate;
+  FData := aData;
+  FDone := False;
+  FillChar(FCurrent, SizeOf(FCurrent), 0);
+end;
+
+class function TTakeWhileIter.Create(const aSource: TSourceIter; aPredicate: TPredicateFunc; aData: Pointer): specialize TTakeWhileIter<T>;
+begin
+  Result.Init(aSource, aPredicate, aData);
+end;
+
+function TTakeWhileIter.MoveNext: Boolean;
+begin
+  if FDone then
+    Exit(False);
+
+  Result := FSource.MoveNext;
+  if Result then
+  begin
+    FCurrent := FSource.Current;
+    // Check predicate - if false, we're done
+    if not FPredicate(FCurrent, FData) then
+    begin
+      FDone := True;
+      Result := False;
+    end;
+  end;
+end;
+
+function TTakeWhileIter.GetCurrent: T;
+begin
+  Result := FCurrent;
+end;
+
+{ TSkipWhileIter<T> }
+
+procedure TSkipWhileIter.Init(const aSource: TSourceIter; aPredicate: TPredicateFunc; aData: Pointer);
+begin
+  FSource := aSource;
+  FPredicate := aPredicate;
+  FData := aData;
+  FSkipping := True;
+  FillChar(FCurrent, SizeOf(FCurrent), 0);
+end;
+
+class function TSkipWhileIter.Create(const aSource: TSourceIter; aPredicate: TPredicateFunc; aData: Pointer): specialize TSkipWhileIter<T>;
+begin
+  Result.Init(aSource, aPredicate, aData);
+end;
+
+function TSkipWhileIter.MoveNext: Boolean;
+begin
+  // Skip elements while predicate is true
+  while FSkipping do
+  begin
+    Result := FSource.MoveNext;
+    if not Result then
+      Exit(False);
+
+    FCurrent := FSource.Current;
+    if not FPredicate(FCurrent, FData) then
+    begin
+      FSkipping := False;
+      Exit(True);
+    end;
+  end;
+
+  // After skipping phase, just pass through
+  Result := FSource.MoveNext;
+  if Result then
+    FCurrent := FSource.Current;
+end;
+
+function TSkipWhileIter.GetCurrent: T;
+begin
+  Result := FCurrent;
+end;
+
+{ TFlattenIter<T> }
+
+procedure TFlattenIter.Init(const aSource: TOuterIter);
+begin
+  FOuterIter := aSource;
+  FHasInner := False;
+  FillChar(FCurrent, SizeOf(FCurrent), 0);
+end;
+
+class function TFlattenIter.Create(const aSource: TOuterIter): specialize TFlattenIter<T>;
+begin
+  Result.Init(aSource);
+end;
+
+function TFlattenIter.MoveNext: Boolean;
+var
+  InnerVec: TInnerVec;
+begin
+  // Try to get next element from current inner iterator
+  while True do
+  begin
+    if FHasInner then
+    begin
+      if FInnerIter.MoveNext then
+      begin
+        FCurrent := FInnerIter.Current;
+        Exit(True);
+      end;
+      // Current inner exhausted, try next outer
+      FHasInner := False;
+    end;
+
+    // Get next inner iterator from outer
+    if not FOuterIter.MoveNext then
+      Exit(False);
+
+    InnerVec := FOuterIter.Current;
+    if InnerVec <> nil then
+    begin
+      FInnerIter := InnerVec.Iter;
+      FHasInner := True;
+    end;
+  end;
+end;
+
+function TFlattenIter.GetCurrent: T;
+begin
+  Result := FCurrent;
 end;
 
 { Collect 收集器函数实现 }
@@ -650,6 +1061,178 @@ begin
   Result := specialize TVec<T>.Create;
   while aIter.MoveNext do
     Result.Push(aIter.Current);
+end;
+
+{ 终结组合子实现 }
+
+generic function IterFold<T, TAcc>(var aIter: specialize TIter<T>;
+  const aInit: TAcc;
+  aFolder: specialize TFolderFunc<T, TAcc>;
+  aData: Pointer): TAcc;
+begin
+  Result := aInit;
+  while aIter.MoveNext do
+    Result := aFolder(Result, aIter.Current, aData);
+end;
+
+generic function IterReduce<T>(var aIter: specialize TIter<T>;
+  aReducer: specialize TReducerFunc<T>;
+  aData: Pointer;
+  out aResult: T): Boolean;
+begin
+  // 第一个元素作为初始值
+  if not aIter.MoveNext then
+    Exit(False);
+
+  aResult := aIter.Current;
+  while aIter.MoveNext do
+    aResult := aReducer(aResult, aIter.Current, aData);
+  Result := True;
+end;
+
+generic function IterFind<T>(var aIter: specialize TIter<T>;
+  aPredicate: specialize TIterPredicateFunc<T>;
+  aData: Pointer;
+  out aResult: T): Boolean;
+begin
+  while aIter.MoveNext do
+  begin
+    if aPredicate(aIter.Current, aData) then
+    begin
+      aResult := aIter.Current;
+      Exit(True);
+    end;
+  end;
+  Result := False;
+end;
+
+generic function IterAny<T>(var aIter: specialize TIter<T>;
+  aPredicate: specialize TIterPredicateFunc<T>;
+  aData: Pointer): Boolean;
+begin
+  while aIter.MoveNext do
+  begin
+    if aPredicate(aIter.Current, aData) then
+      Exit(True);
+  end;
+  Result := False;
+end;
+
+generic function IterAll<T>(var aIter: specialize TIter<T>;
+  aPredicate: specialize TIterPredicateFunc<T>;
+  aData: Pointer): Boolean;
+begin
+  while aIter.MoveNext do
+  begin
+    if not aPredicate(aIter.Current, aData) then
+      Exit(False);
+  end;
+  Result := True;  // 空迭代器返回 True
+end;
+
+generic procedure IterForEach<T>(var aIter: specialize TIter<T>;
+  aAction: specialize TActionFunc<T>;
+  aData: Pointer);
+begin
+  while aIter.MoveNext do
+    aAction(aIter.Current, aData);
+end;
+
+generic function IterCount<T>(var aIter: specialize TIter<T>): SizeUInt;
+begin
+  Result := 0;
+  while aIter.MoveNext do
+    Inc(Result);
+end;
+
+generic function IterCountIf<T>(var aIter: specialize TIter<T>;
+  aPredicate: specialize TIterPredicateFunc<T>;
+  aData: Pointer): SizeUInt;
+begin
+  Result := 0;
+  while aIter.MoveNext do
+  begin
+    if aPredicate(aIter.Current, aData) then
+      Inc(Result);
+  end;
+end;
+
+function IterSumInt(var aIter: specialize TIter<Integer>): Int64;
+begin
+  Result := 0;
+  while aIter.MoveNext do
+    Inc(Result, aIter.Current);
+end;
+
+function IterSumInt64(var aIter: specialize TIter<Int64>): Int64;
+begin
+  Result := 0;
+  while aIter.MoveNext do
+    Inc(Result, aIter.Current);
+end;
+
+generic function IterMin<T>(var aIter: specialize TIter<T>;
+  aComparer: specialize TComparerFunc<T>;
+  aData: Pointer;
+  out aResult: T): Boolean;
+begin
+  if not aIter.MoveNext then
+    Exit(False);
+
+  aResult := aIter.Current;
+  while aIter.MoveNext do
+  begin
+    if aComparer(aIter.Current, aResult, aData) < 0 then
+      aResult := aIter.Current;
+  end;
+  Result := True;
+end;
+
+generic function IterMax<T>(var aIter: specialize TIter<T>;
+  aComparer: specialize TComparerFunc<T>;
+  aData: Pointer;
+  out aResult: T): Boolean;
+begin
+  if not aIter.MoveNext then
+    Exit(False);
+
+  aResult := aIter.Current;
+  while aIter.MoveNext do
+  begin
+    if aComparer(aIter.Current, aResult, aData) > 0 then
+      aResult := aIter.Current;
+  end;
+  Result := True;
+end;
+
+generic function IterNth<T>(var aIter: specialize TIter<T>;
+  aIndex: SizeUInt;
+  out aResult: T): Boolean;
+var
+  LCount: SizeUInt;
+begin
+  LCount := 0;
+  while aIter.MoveNext do
+  begin
+    if LCount = aIndex then
+    begin
+      aResult := aIter.Current;
+      Exit(True);
+    end;
+    Inc(LCount);
+  end;
+  Result := False;
+end;
+
+generic function IterLast<T>(var aIter: specialize TIter<T>;
+  out aResult: T): Boolean;
+begin
+  Result := False;
+  while aIter.MoveNext do
+  begin
+    aResult := aIter.Current;
+    Result := True;
+  end;
 end;
 
 end.

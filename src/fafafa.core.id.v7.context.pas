@@ -16,12 +16,13 @@ interface
 
 uses
   SysUtils, SyncObjs,
+  fafafa.core.base,  // ✅ UUIDV7-002: 引入 ECore 基类
   fafafa.core.id,
   fafafa.core.crypto.random,
   fafafa.core.id.time;
 
 type
-  EUuidV7OverflowError = class(Exception);
+  EUuidV7OverflowError = class(ECore);  // ✅ UUIDV7-002: 继承自 ECore
 
   { TContextV7 - Thread-safe context for monotonic UUID v7 generation }
   TContextV7 = class

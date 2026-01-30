@@ -2,7 +2,7 @@
 unit Test_shared_memory_crossproc_unix;
 
 {$mode objfpc}{$H+}
-{$I fafafa.core.settings.inc}
+{$I ../../src/fafafa.core.settings.inc}
 
 interface
 

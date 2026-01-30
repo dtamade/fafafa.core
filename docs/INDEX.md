@@ -16,6 +16,15 @@
 - 专项规范（fafafa.core.color）：[docs/CONTRIBUTING.color.md](CONTRIBUTING.color.md)
 - 通用贡献流程与模板：[CONTRIBUTING.md](../CONTRIBUTING.md)
 
+## 开发规范与流程
+- 文档说明（入口）：[docs/README.md](README.md)
+- 目录结构规范：[docs/standards/DIRECTORY_STANDARDS.md](standards/DIRECTORY_STANDARDS.md)
+- 工程规范：[docs/standards/ENGINEERING_STANDARDS.md](standards/ENGINEERING_STANDARDS.md)
+- 命名规范：[docs/standards/NAMING_CONVENTION_PROJECT.md](standards/NAMING_CONVENTION_PROJECT.md)
+
+## Layer 1（atomic + sync.*）
+- 接口审查报告：[docs/layer1/LAYER1_INTERFACE_REVIEW_REPORT.md](layer1/LAYER1_INTERFACE_REVIEW_REPORT.md)
+
 ## 颜色模块（fafafa.core.color）
 - 模块文档：[docs/fafafa.core.color.md](fafafa.core.color.md)
 - 示例工程与脚本：
@@ -75,7 +84,7 @@
 
 ## 线程与并发（fafafa.core.thread / lockfree）
 - 指南与最佳实践：docs/fafafa.core.thread.md
-- LockFree 门面与 API：docs/README_LOCKFREE.md，docs/LOCKFREE_API.md
+- LockFree 门面与 API：docs/topics/lockfree/README_LOCKFREE.md，docs/topics/lockfree/LockFree_API.md
 
 ## 网络与其他模块
 - Socket 模块：docs/fafafa.core.socket.md（含“测试与示例快速开始”）
@@ -83,8 +92,8 @@
 
 ## JSON / YAML 等数据模块
 - JSON 模块：docs/fafafa.core.json.md（含 Flags 索引与注意事项）
-- JSON Core 运行说明：docs/json-core-usage-notes.md
-- YAML 模块说明：docs/yaml-parser-notes.md
+- JSON Core 运行说明：docs/topics/json/json-core-usage-notes.md
+- YAML 模块说明：docs/topics/yaml/yaml-parser-notes.md
 
 ## 最佳实践与常用参考
 - 最佳实践速查（中文/英文）：docs/BestPractices-Cheatsheet.md，docs/BestPractices-Cheatsheet.en.md
@@ -103,7 +112,6 @@
 
 ## FAQ 与其他
 - 常见问题（FAQ）：docs/FAQ.md（英文：FAQ.en.md）
-- 项目状态报告：PROJECT_STATUS_REPORT.md
+- 项目工作状态：`WORKING.md`
 
 —— 若有新增模块或文档，请同步更新本索引页。
-

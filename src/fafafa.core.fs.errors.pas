@@ -6,7 +6,8 @@ unit fafafa.core.fs.errors;
 interface
 
 uses
-  SysUtils;
+  SysUtils,
+  fafafa.core.base;  // ✅ FS-001: 引入 ECore 基类
 
 type
   // 文件系统错误代码枚举 (按递增顺序排列)
@@ -26,7 +27,7 @@ type
   );
 
   // 文件系统异常类
-  EFsError = class(Exception)
+  EFsError = class(ECore)  // ✅ FS-001: 继承自 ECore
   private
     FErrorCode: TFsErrorCode;
     FSystemErrorCode: Integer;

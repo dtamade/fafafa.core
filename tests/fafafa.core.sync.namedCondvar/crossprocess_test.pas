@@ -24,7 +24,7 @@ procedure RunProducer;
 begin
   WriteLn('[Producer] 启动生产者进程');
 
-  LMutex := Sync.MakeNamedMutex(TEST_MUTEX_NAME);
+  LMutex := MakeNamedMutex(TEST_MUTEX_NAME);
   LCondVar := MakeNamedConditionVariable(TEST_CONDVAR_NAME);
 
   WriteLn('[Producer] 等待2秒后发送信号...');
@@ -48,7 +48,7 @@ var
 begin
   WriteLn('[Consumer] 启动消费者进程');
 
-  LMutex := Sync.MakeNamedMutex(TEST_MUTEX_NAME);
+  LMutex := MakeNamedMutex(TEST_MUTEX_NAME);
   LCondVar := MakeNamedConditionVariable(TEST_CONDVAR_NAME);
 
   LStartTime := GetTickCount64;

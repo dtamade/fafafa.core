@@ -2,7 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LAZBUILD="$SCRIPT_DIR/../tools/lazbuild.sh"
+LAZBUILD="${LAZBUILD:-lazbuild}"
 PROJECT="tests_term_ui.lpi"
 TEST_EXECUTABLE="./bin/tests"
 

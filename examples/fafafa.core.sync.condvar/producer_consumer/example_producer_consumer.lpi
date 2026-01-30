@@ -30,7 +30,7 @@
     </RequiredPackages>
     <Units>
       <Unit>
-        <Filename Value="example_producer_consumer.lpr"/>
+        <Filename Value="bin/example_producer_consumer"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>

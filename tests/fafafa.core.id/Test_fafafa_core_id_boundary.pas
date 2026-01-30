@@ -14,7 +14,7 @@ unit Test_fafafa_core_id_boundary;
 interface
 
 uses
-  Classes, SysUtils, fpcunit, testregistry, DateUtils;
+  Classes, SysUtils, fpcunit, testregistry, DateUtils, fafafa.core.math;
 
 type
   TBoundaryTest = class(TTestCase)

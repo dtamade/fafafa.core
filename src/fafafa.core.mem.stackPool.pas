@@ -56,6 +56,9 @@ type
    *
    * @desc 栈式内存池，提供快速的顺序分配和批量释放
    *       Stack-based memory pool for fast sequential allocation and bulk deallocation
+   *
+   * @threadsafety 非线程安全，需要外部同步
+   *               Not thread-safe, requires external synchronization
    *}
   TStackPool = class
   protected
@@ -246,6 +249,12 @@ type
    *
    * @desc 作用域栈池，支持嵌套作用域、自动回收、RAII 等高级功能
    *       原名 TEnhancedStackPool，整合命名规范后改名
+   *
+   * @threadsafety 非线程安全，需要外部同步
+   *               Not thread-safe, requires external synchronization
+   *
+   * @warning 启用 EnableAutoGrow 时，扩容会使之前分配的指针失效。
+   *          如果有活跃作用域，扩容将抛出异常以防止指针悬空。
    *}
   TScopedStackPool = class(TStackPool)
   private
@@ -384,10 +393,6 @@ var
   LAlignedOffset: SizeUInt;
 begin
   Result := nil;
-
-
-
-
   if aSize = 0 then
     Exit;
 
@@ -449,8 +454,11 @@ end;
 function TStackPool.AllocAligned(aSize: SizeUInt; aAlignment: SizeUInt): Pointer;
 begin
   if aSize = 0 then Exit(nil);
+  // ✅ M-4: 统一对齐验证逻辑，与 TAllocator.AllocAligned 保持一致
   if aAlignment = 0 then
     raise EInvalidArgument.Create('TStackPool.AllocAligned: aAlignment is 0');
+  if aAlignment < SizeOf(Pointer) then
+    raise EInvalidArgument.Create('TStackPool.AllocAligned: aAlignment must be >= pointer size');
   if (aAlignment and (aAlignment - 1)) <> 0 then
     raise EInvalidArgument.Create('TStackPool.AllocAligned: aAlignment must be power of two');
   Result := Alloc(aSize, aAlignment);
@@ -604,13 +612,15 @@ end;
 
 procedure TStackPoolScopeManager.PopScope;
 var
-  Scope: TStackPoolScope;
+  LScope: TStackPoolScope;
 begin
   if FScopes.Count = 0 then Exit;
 
-  Scope := TStackPoolScope(FScopes.Last);
+  LScope := TStackPoolScope(FScopes.Last);
   FScopes.Delete(FScopes.Count - 1);
-  Scope.Free;
+  // ✅ M-5: 设置 FPool 为 nil，避免 Destroy 中重复调用 RemoveScope
+  LScope.FPool := nil;
+  LScope.Free;
 
   if FPool.Policy.EnableStatistics then
     FPool.FStatistics.CurrentScopeDepth := FScopes.Count;
@@ -618,12 +628,12 @@ end;
 
 procedure TStackPoolScopeManager.RemoveScope(aScope: TStackPoolScope);
 var
-  Idx: Integer;
+  LIndex: Integer;
 begin
-  Idx := FScopes.IndexOf(aScope);
-  if Idx >= 0 then
+  LIndex := FScopes.IndexOf(aScope);
+  if LIndex >= 0 then
   begin
-    FScopes.Delete(Idx);
+    FScopes.Delete(LIndex);
     if FPool.Policy.EnableStatistics then
       FPool.FStatistics.CurrentScopeDepth := FScopes.Count;
   end;
@@ -644,10 +654,10 @@ end;
 
 procedure TStackPoolScopeManager.ClearAllScopes;
 var
-  i: Integer;
+  LIndex: Integer;
 begin
-  for i := FScopes.Count - 1 downto 0 do
-    TStackPoolScope(FScopes[i]).Free;
+  for LIndex := FScopes.Count - 1 downto 0 do
+    TStackPoolScope(FScopes[LIndex]).Free;
   FScopes.Clear;
 
   if FPool.Policy.EnableStatistics then
@@ -766,6 +776,9 @@ function TScopedStackPool.AllocArray(aElementSize: SizeUInt; aCount: SizeUInt; a
 var
   LTotalSize: SizeUInt;
 begin
+  // ✅ m-3: 添加溢出检查
+  if (aCount > 0) and (aElementSize > High(SizeUInt) div aCount) then
+    Exit(nil);  // 溢出，返回 nil
   LTotalSize := aElementSize * aCount;
   Result := AllocZeroed(LTotalSize, aAlignment);
 end;
@@ -824,42 +837,47 @@ end;
 
 procedure TScopedStackPool.GrowPool(aRequiredSize: SizeUInt);
 var
-  NewSize, MinRequired: SizeUInt;
-  NewBuffer: Pointer;
-  OldUsedSize: SizeUInt;
+  LNewSize, LMinRequired: SizeUInt;
+  LNewBuffer: Pointer;
+  LOldUsedSize: SizeUInt;
 begin
   if not FPolicy.EnableAutoGrow then Exit;
 
+  // ✅ C-2: 安全检查 - 如果有活跃作用域，禁止扩容（避免指针悬空）
+  if Assigned(FScopeManager) and (FScopeManager.GetScopeDepth > 0) then
+    raise EStackPoolError.Create(aeInternalError,
+      'Cannot grow pool while scopes are active (would invalidate existing pointers)');
+
   // 计算最小所需大小
-  MinRequired := UsedSize + aRequiredSize;
+  LMinRequired := UsedSize + aRequiredSize;
 
   // 按增长因子计算新大小
-  NewSize := Round(FSize * FPolicy.GrowthFactor);
+  LNewSize := Round(FSize * FPolicy.GrowthFactor);
 
   // 确保新大小足够容纳所需
-  if NewSize < MinRequired then
-    NewSize := MinRequired;
+  if LNewSize < LMinRequired then
+    LNewSize := LMinRequired;
 
-  if NewSize > FPolicy.MaxSize then
-    NewSize := FPolicy.MaxSize;
+  if LNewSize > FPolicy.MaxSize then
+    LNewSize := FPolicy.MaxSize;
 
-  if NewSize <= FSize then Exit; // 无法增长
+  if LNewSize <= FSize then Exit; // 无法增长
 
   // 分配新缓冲区
-  NewBuffer := FBaseAllocator.GetMem(NewSize);
-  if NewBuffer = nil then Exit;
+  LNewBuffer := FBaseAllocator.GetMem(LNewSize);
+  if LNewBuffer = nil then Exit;
 
   // 复制现有数据
-  OldUsedSize := UsedSize;
-  if OldUsedSize > 0 then
-    Move(FBuffer^, NewBuffer^, OldUsedSize);
+  LOldUsedSize := UsedSize;
+  if LOldUsedSize > 0 then
+    Move(FBuffer^, LNewBuffer^, LOldUsedSize);
 
   // 释放旧缓冲区
   FBaseAllocator.FreeMem(FBuffer);
 
   // 更新池状态
-  FBuffer := NewBuffer;
-  FSize := NewSize;
+  FBuffer := LNewBuffer;
+  FSize := LNewSize;
 end;
 
 function TScopedStackPool.CalculateFragmentation: Double;

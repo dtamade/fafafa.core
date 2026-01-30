@@ -342,11 +342,15 @@ end;
 
 function SSE42CmpGtI64x2(const a, b: TVecI64x2): TMask2;
 var
+  pa, pb: Pointer;
   maskVal: Integer;
 begin
+  // Win64 ABI: avoid addressing const records directly in inline asm.
+  pa := @a;
+  pb := @b;
   asm
-    lea      rax, a
-    lea      rdx, b
+    mov      rax, pa
+    mov      rdx, pb
     movdqu   xmm0, [rax]
     movdqu   xmm1, [rdx]
     pcmpgtq  xmm0, xmm1

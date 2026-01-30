@@ -28,7 +28,7 @@
     </RunParams>
     <Units>
       <Unit>
-        <Filename Value="example_basic_usage.lpr"/>
+        <Filename Value="bin/example_basic_usage"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>

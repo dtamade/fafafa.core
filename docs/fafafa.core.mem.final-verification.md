@@ -1,4 +1,5 @@
 # fafafa.core.mem 最终验证报告
+> 说明：本文档为阶段性记录，内容可能与当前代码不一致；以 `docs/fafafa.core.mem.md` 与 `tests/fafafa.core.mem/README.md` 为准。
 
 ## 🎯 项目验证结果
 
@@ -8,7 +9,7 @@
 - ✅ `src/fafafa.core.mem.pas` - 主门面模块存在
 - ✅ `src/fafafa.core.mem.memPool.pas` - 通用内存池存在
 - ✅ `src/fafafa.core.mem.stackPool.pas` - 栈式内存池存在
-- ✅ `src/fafafa.core.mem.slabPool.pas` - nginx风格Slab存在
+- ✅ `src/fafafa.core.mem.pool.slab.pas` - nginx风格Slab存在
 
 ### ✅ 测试程序验证 (8/8)
 - ✅ `tests/fafafa.core.mem/examples/integration_test.pas` - 集成测试存在

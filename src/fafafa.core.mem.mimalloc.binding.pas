@@ -7,20 +7,54 @@
     \/_/     \/_/\/_/   \/_/     \/_/\/_/   \/_/     \/_/\/_/  Studio
 
 ```
-# fafafa.core.mem.mimalloc.binding - Mimalloc C Library Binding (Dynamic)
+# fafafa.core.mem.mimalloc.binding - Mimalloc C Library Binding
 
 ## Abstract 摘要
 
-Dynamic FFI binding to Microsoft's mimalloc C library.
-使用动态加载绑定微软 mimalloc C 库的 FFI 接口。
-支持运行时检测库是否可用，自动回退到 Pascal 实现。
+FFI binding to Microsoft's mimalloc C library.
+支持静态链接和动态加载两种方式绑定微软 mimalloc C 库的 FFI 接口。
 
-## Prerequisites 前置条件
+## Supported Platforms 支持的平台
 
-Linux: sudo apt install libmimalloc-dev
-       或从源码编译: https://github.com/microsoft/mimalloc
+| Platform | Architectures | Static | Dynamic |
+|----------|---------------|--------|---------|
+| Windows  | i386, x86_64, arm64 | ✓ | ✓ |
+| Linux    | i386, x86_64, arm64, arm | ✓ | ✓ |
+| macOS    | x86_64, arm64 | ✓ | ✓ |
+| Android  | x86_64, arm, arm64 | ✓ | ✓ |
 
-Windows: 下载预编译 DLL 或从源码编译
+## Linking Modes 链接模式
+
+### 动态链接（默认）
+- 运行时检测库是否可用，自动回退到 Pascal 实现
+- 需要系统安装 mimalloc 库或将库文件放在可执行文件目录
+
+### 静态链接
+- 在 fafafa.core.settings.inc 中启用 FAFAFA_CORE_MIMALLOC_STATIC
+- 编译时链接静态库，无需运行时依赖
+- 需要在链接器搜索路径中包含对应平台的 lib 目录
+
+## Library Locations 库文件位置
+
+### Windows
+- i386:   lib/i386-win32/mimalloc.lib + mimalloc.dll
+- x86_64: lib/x86_64-win64/mimalloc.lib + mimalloc.dll
+- arm64:  lib/aarch64-win64/mimalloc.lib + mimalloc.dll
+
+### Linux
+- i386:   lib/i386-linux/libmimalloc.a + libmimalloc.so
+- x86_64: lib/x86_64-linux/libmimalloc.a + libmimalloc.so
+- arm64:  lib/aarch64-linux/libmimalloc.a + libmimalloc.so
+- arm:    lib/arm-linux/libmimalloc.a + libmimalloc.so
+
+### macOS
+- x86_64: lib/x86_64-darwin/libmimalloc.a + libmimalloc.dylib
+- arm64:  lib/aarch64-darwin/libmimalloc.a + libmimalloc.dylib
+
+### Android
+- x86_64: lib/x86_64-android/libmimalloc.a + libmimalloc.so
+- arm:    lib/arm-android/libmimalloc.a + libmimalloc.so
+- arm64:  lib/aarch64-android/libmimalloc.a + libmimalloc.so
 
 ## Declaration 声明
 
@@ -42,17 +76,122 @@ uses
   fafafa.core.mem.error,
   fafafa.core.mem.alloc;
 
+{------------------------------------------------------------------------------
+  平台和架构检测 - Platform and Architecture Detection
+
+  支持的平台/架构组合 Supported platform/architecture combinations:
+  - Windows: i386, x86_64, aarch64
+  - Linux: i386, x86_64, aarch64, arm
+  - macOS (Darwin): x86_64, aarch64
+  - Android: x86_64, arm, aarch64
+------------------------------------------------------------------------------}
+
 const
   {$IFDEF WINDOWS}
   MIMALLOC_LIB = 'mimalloc.dll';
   MIMALLOC_LIB_ALT = 'mimalloc.dll';
-  {$ELSE}
-  MIMALLOC_LIB = 'libmimalloc.so.2';
+  {$ENDIF}
+
+  {$IFDEF DARWIN}
+  MIMALLOC_LIB = 'libmimalloc.2.dylib';
+  MIMALLOC_LIB_ALT = 'libmimalloc.dylib';
+  {$ENDIF}
+
+  {$IFDEF ANDROID}
+  MIMALLOC_LIB = 'libmimalloc.so';
   MIMALLOC_LIB_ALT = 'libmimalloc.so';
   {$ENDIF}
 
+  {$IFDEF LINUX}
+    {$IFNDEF ANDROID}
+  MIMALLOC_LIB = 'libmimalloc.so.2';
+  MIMALLOC_LIB_ALT = 'libmimalloc.so';
+    {$ENDIF}
+  {$ENDIF}
+
+{$IFDEF FAFAFA_CORE_MIMALLOC_STATIC}
 {------------------------------------------------------------------------------
-  Mimalloc C API 函数类型定义
+  静态链接声明 - Static Linking Declarations
+  使用 external 在链接期绑定 mimalloc 库
+  注意：使用 static 修饰符强制链接静态库 (.a/.lib)
+
+  库文件位置 Library file locations:
+  - Windows i386:     lib/i386-win32/mimalloc.lib
+  - Windows x86_64:   lib/x86_64-win64/mimalloc.lib
+  - Windows arm64:    lib/aarch64-win64/mimalloc.lib
+  - Linux i386:       lib/i386-linux/libmimalloc.a
+  - Linux x86_64:     lib/x86_64-linux/libmimalloc.a
+  - Linux arm64:      lib/aarch64-linux/libmimalloc.a
+  - Linux arm:        lib/arm-linux/libmimalloc.a
+  - macOS x86_64:     lib/x86_64-darwin/libmimalloc.a
+  - macOS arm64:      lib/aarch64-darwin/libmimalloc.a
+  - Android x86_64:   lib/x86_64-android/libmimalloc.a
+  - Android arm:      lib/arm-android/libmimalloc.a
+  - Android arm64:    lib/aarch64-android/libmimalloc.a
+------------------------------------------------------------------------------}
+
+{$IFDEF WINDOWS}
+  // Windows: 使用 MSVC 编译的静态库，无需额外依赖
+  {$LINKLIB mimalloc, static}
+{$ENDIF}
+
+{$IFDEF DARWIN}
+  // macOS: 需要链接系统库
+  {$LINKLIB mimalloc, static}
+  {$LINKLIB pthread}
+  {$LINKLIB c}
+{$ENDIF}
+
+{$IFDEF ANDROID}
+  // Android: NDK 编译，libc 已内置 pthread
+  {$LINKLIB mimalloc, static}
+  {$LINKLIB c}
+{$ENDIF}
+
+{$IFDEF LINUX}
+  {$IFNDEF ANDROID}
+  // Linux: 需要链接 pthread, c, gcc (用于 __popcountdi2 等内置函数)
+  {$LINKLIB mimalloc, static}
+  {$LINKLIB pthread}
+  {$LINKLIB c}
+  {$LINKLIB gcc}
+  {$ENDIF}
+{$ENDIF}
+
+type
+  mi_heap_t = Pointer;
+
+{** 基础分配函数 - 静态链接 *}
+function mi_malloc(size: SizeUInt): Pointer; cdecl; external;
+function mi_calloc(count: SizeUInt; size: SizeUInt): Pointer; cdecl; external;
+function mi_realloc(p: Pointer; newsize: SizeUInt): Pointer; cdecl; external;
+procedure mi_free(p: Pointer); cdecl; external;
+
+{** 对齐分配函数 - 静态链接 *}
+function mi_malloc_aligned(size: SizeUInt; alignment: SizeUInt): Pointer; cdecl; external;
+function mi_zalloc_aligned(size: SizeUInt; alignment: SizeUInt): Pointer; cdecl; external;
+function mi_realloc_aligned(p: Pointer; newsize: SizeUInt; alignment: SizeUInt): Pointer; cdecl; external;
+
+{** 清零分配函数 - 静态链接 *}
+function mi_zalloc(size: SizeUInt): Pointer; cdecl; external;
+
+{** 扩展函数 - 静态链接 *}
+function mi_malloc_size(p: Pointer): SizeUInt; cdecl; external;
+function mi_good_size(size: SizeUInt): SizeUInt; cdecl; external;
+
+{** 堆管理函数 - 静态链接 *}
+function mi_heap_new: mi_heap_t; cdecl; external;
+procedure mi_heap_delete(heap: mi_heap_t); cdecl; external;
+procedure mi_heap_destroy(heap: mi_heap_t); cdecl; external;
+function mi_heap_malloc(heap: mi_heap_t; size: SizeUInt): Pointer; cdecl; external;
+function mi_heap_zalloc(heap: mi_heap_t; size: SizeUInt): Pointer; cdecl; external;
+function mi_heap_malloc_aligned(heap: mi_heap_t; size: SizeUInt; alignment: SizeUInt): Pointer; cdecl; external;
+function mi_heap_realloc(heap: mi_heap_t; p: Pointer; newsize: SizeUInt): Pointer; cdecl; external;
+
+{$ELSE}
+
+{------------------------------------------------------------------------------
+  Mimalloc C API 函数类型定义 (动态加载)
   Function type definitions for dynamic loading
 ------------------------------------------------------------------------------}
 
@@ -87,8 +226,10 @@ type
   Tmi_heap_malloc_aligned = function(heap: mi_heap_t; size: SizeUInt; alignment: SizeUInt): Pointer; cdecl;
   Tmi_heap_realloc = function(heap: mi_heap_t; p: Pointer; newsize: SizeUInt): Pointer; cdecl;
 
+{$ENDIF}
+
 {------------------------------------------------------------------------------
-  IAlloc 适配器 - 包装 mimalloc C API (动态加载)
+  IAlloc 适配器 - 包装 mimalloc C API
 ------------------------------------------------------------------------------}
 
 type
@@ -175,11 +316,14 @@ procedure UnloadMimalloc;
 implementation
 
 uses
+  {$IFNDEF FAFAFA_CORE_MIMALLOC_STATIC}
   DynLibs,
+  {$ENDIF}
   SysUtils;
 
 var
   GMimallocBinding: IAlloc = nil;
+  {$IFNDEF FAFAFA_CORE_MIMALLOC_STATIC}
   GMimallocLib: TLibHandle = NilHandle;
   GMimallocLoaded: Boolean = False;
   GMimallocChecked: Boolean = False;
@@ -202,14 +346,21 @@ var
   _mi_heap_zalloc: Tmi_heap_zalloc = nil;
   _mi_heap_malloc_aligned: Tmi_heap_malloc_aligned = nil;
   _mi_heap_realloc: Tmi_heap_realloc = nil;
+  {$ENDIF}
 
+{$IFNDEF FAFAFA_CORE_MIMALLOC_STATIC}
 function TryLoadLibrary(const aName: string): TLibHandle;
 begin
   Result := LoadLibrary(aName);
 end;
+{$ENDIF}
 
 function LoadMimalloc: Boolean;
 begin
+  {$IFDEF FAFAFA_CORE_MIMALLOC_STATIC}
+  // 静态链接模式：始终可用
+  Result := True;
+  {$ELSE}
   if GMimallocLoaded then
     Exit(True);
 
@@ -250,10 +401,12 @@ begin
 
   GMimallocLoaded := True;
   Result := True;
+  {$ENDIF}
 end;
 
 procedure UnloadMimalloc;
 begin
+  {$IFNDEF FAFAFA_CORE_MIMALLOC_STATIC}
   if GMimallocLib <> NilHandle then
   begin
     UnloadLibrary(GMimallocLib);
@@ -279,16 +432,22 @@ begin
   _mi_heap_zalloc := nil;
   _mi_heap_malloc_aligned := nil;
   _mi_heap_realloc := nil;
+  {$ENDIF}
 end;
 
 function IsMimallocAvailable: Boolean;
 begin
+  {$IFDEF FAFAFA_CORE_MIMALLOC_STATIC}
+  // 静态链接模式：始终可用
+  Result := True;
+  {$ELSE}
   if not GMimallocChecked then
   begin
     GMimallocChecked := True;
     LoadMimalloc;
   end;
   Result := GMimallocLoaded;
+  {$ENDIF}
 end;
 
 { TMimallocBinding }
@@ -311,21 +470,51 @@ begin
   inherited Create(LCaps);
 
   FUsePrivateHeap := aUsePrivateHeap;
+  {$IFDEF FAFAFA_CORE_MIMALLOC_STATIC}
+  if FUsePrivateHeap then
+    FHeap := mi_heap_new()
+  else
+    FHeap := nil;  // 使用默认堆
+  {$ELSE}
   if FUsePrivateHeap and Assigned(_mi_heap_new) then
     FHeap := _mi_heap_new()
   else
     FHeap := nil;  // 使用默认堆
+  {$ENDIF}
 end;
 
 destructor TMimallocBinding.Destroy;
 begin
+  {$IFDEF FAFAFA_CORE_MIMALLOC_STATIC}
+  if FUsePrivateHeap and (FHeap <> nil) then
+    mi_heap_destroy(FHeap);
+  {$ELSE}
   if FUsePrivateHeap and (FHeap <> nil) and Assigned(_mi_heap_destroy) then
     _mi_heap_destroy(FHeap);
+  {$ENDIF}
   inherited Destroy;
 end;
 
 function TMimallocBinding.DoAlloc(aSize: SizeUInt; aAlign: SizeUInt): Pointer;
 begin
+  {$IFDEF FAFAFA_CORE_MIMALLOC_STATIC}
+  if aAlign <= MEM_DEFAULT_ALIGN then
+  begin
+    // 默认对齐
+    if FUsePrivateHeap and (FHeap <> nil) then
+      Result := mi_heap_malloc(FHeap, aSize)
+    else
+      Result := mi_malloc(aSize);
+  end
+  else
+  begin
+    // 自定义对齐
+    if FUsePrivateHeap and (FHeap <> nil) then
+      Result := mi_heap_malloc_aligned(FHeap, aSize, aAlign)
+    else
+      Result := mi_malloc_aligned(aSize, aAlign);
+  end;
+  {$ELSE}
   if aAlign <= MEM_DEFAULT_ALIGN then
   begin
     // 默认对齐
@@ -344,17 +533,36 @@ begin
     else
       Result := _mi_malloc(aSize);  // 回退
   end;
+  {$ENDIF}
 end;
 
 procedure TMimallocBinding.DoDealloc(aPtr: Pointer; aSize: SizeUInt; aAlign: SizeUInt);
 begin
   // mimalloc 的 mi_free 可以释放任何 mi_malloc* 分配的内存
   // 对齐信息不需要，mimalloc 内部跟踪
+  {$IFDEF FAFAFA_CORE_MIMALLOC_STATIC}
+  mi_free(aPtr);
+  {$ELSE}
   _mi_free(aPtr);
+  {$ENDIF}
 end;
 
 function TMimallocBinding.DoRealloc(aPtr: Pointer; aOldSize, aNewSize, aAlign: SizeUInt): Pointer;
 begin
+  {$IFDEF FAFAFA_CORE_MIMALLOC_STATIC}
+  if aAlign <= MEM_DEFAULT_ALIGN then
+  begin
+    if FUsePrivateHeap and (FHeap <> nil) then
+      Result := mi_heap_realloc(FHeap, aPtr, aNewSize)
+    else
+      Result := mi_realloc(aPtr, aNewSize);
+  end
+  else
+  begin
+    // 对齐 realloc
+    Result := mi_realloc_aligned(aPtr, aNewSize, aAlign);
+  end;
+  {$ELSE}
   if aAlign <= MEM_DEFAULT_ALIGN then
   begin
     if FUsePrivateHeap and (FHeap <> nil) and Assigned(_mi_heap_realloc) then
@@ -370,6 +578,7 @@ begin
     else
       Result := _mi_realloc(aPtr, aNewSize);  // 回退
   end;
+  {$ENDIF}
 end;
 
 { Global accessors }

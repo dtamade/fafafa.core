@@ -25,6 +25,9 @@ type
 
 implementation
 
+{$PUSH}
+{$WARN 4055 OFF} // pointer/ordinal conversions in tests
+
 procedure TTestCase_Aligned.Test_AllocAligned_Basic;
 var
   P: Pointer;
@@ -86,6 +89,8 @@ end;
 
 initialization
   RegisterTest(TTestCase_Aligned);
+
+{$POP}
 
 end.
 

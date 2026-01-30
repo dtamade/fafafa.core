@@ -30,7 +30,7 @@
     </RequiredPackages>
     <Units>
       <Unit>
-        <Filename Value="example_wait_notify.lpr"/>
+        <Filename Value="bin/example_wait_notify"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>

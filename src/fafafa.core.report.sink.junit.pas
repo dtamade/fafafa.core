@@ -5,7 +5,7 @@ unit fafafa.core.report.sink.junit;
 
 interface
 
-uses SysUtils, Classes, fafafa.core.report.sink.intf, fafafa.core.base, fafafa.core.report.common;
+uses SysUtils, Classes, fafafa.core.report.sink.intf, fafafa.core.xml, fafafa.core.report.common;
 
 type
   // Sink that writes JUnit XML using the same formatting as TJUnitTestListener

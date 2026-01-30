@@ -1,0 +1,22 @@
+========================================================================================================================
+CondVar Performance Benchmark (Producer-Consumer Pattern)
+========================================================================================================================
+
+--- 1 Producer, 1 Consumer ---
+CondVar/1P1C                              2 threads:      2227472 ops in 1000.954 ms |      2225349 ops/sec |   449.37 ns/op
+
+--- 2 Producers, 2 Consumers ---
+CondVar/2P2C                              4 threads:      1545896 ops in 1001.101 ms |      1544195 ops/sec |   647.59 ns/op
+
+--- 4 Producers, 4 Consumers ---
+CondVar/4P4C                              8 threads:      1405610 ops in 1001.240 ms |      1403869 ops/sec |   712.32 ns/op
+
+--- 1 Producer, 4 Consumers (Fan-Out) ---
+CondVar/1P4C                              5 threads:       513935 ops in 1001.100 ms |       513371 ops/sec |  1947.91 ns/op
+
+--- 4 Producers, 1 Consumer (Fan-In) ---
+CondVar/4P1C                              5 threads:      1994706 ops in 1101.169 ms |      1811444 ops/sec |   552.05 ns/op
+
+========================================================================================================================
+Benchmark Complete
+========================================================================================================================

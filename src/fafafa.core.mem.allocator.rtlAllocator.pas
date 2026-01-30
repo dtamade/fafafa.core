@@ -7,7 +7,6 @@ interface
 
 uses
   SysUtils,
-  fafafa.core.base,
   fafafa.core.mem.allocator.base;
 
 type

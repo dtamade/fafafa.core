@@ -29,7 +29,8 @@ unit fafafa.core.mem.error;
 interface
 
 uses
-  SysUtils;
+  SysUtils,
+  fafafa.core.base;  // ✅ MEM-002: 引入 ECore 基类
 
 type
   {**
@@ -197,7 +198,7 @@ type
    *
    * @note 仅在需要异常语义时使用，热路径不应抛异常
    *}
-  EAllocError = class(Exception)
+  EAllocError = class(ECore)  // ✅ MEM-002: 继承自 ECore
   private
     FError: TAllocError;
   public
@@ -266,10 +267,9 @@ end;
 
 function TAllocResult.Unwrap: Pointer;
 begin
-  if FError = aeNone then
-    Result := FPtr
-  else
-    Result := nil;
+  // ✅ OPT: 直接返回 FPtr，因为 Err() 构造时已将 FPtr 设为 nil
+  // 无需条件判断，减少分支预测开销
+  Result := FPtr;
 end;
 
 function TAllocResult.UnwrapOr(aDefault: Pointer): Pointer;
@@ -281,16 +281,31 @@ begin
 end;
 
 function TAllocResult.ExpectPtr(const aMsg: string): Pointer;
+
+  procedure RaiseSpecificException(aError: TAllocError; const aMessage: string);
+  begin
+    case aError of
+      aeOutOfMemory:
+        raise EOutOfMemory.Create(aError, aMessage);
+      aeInvalidLayout, aeAlignmentNotSupported, aeSizeMismatch:
+        raise EInvalidLayout.Create(aError, aMessage);
+      aeInvalidPointer, aeCapacityExhausted, aePoolClosed, aeReallocNotSupported:
+        raise EInvalidPointer.Create(aError, aMessage);
+      aeDoubleFree:
+        raise EDoubleFree.Create(aError, aMessage);
+      aeInternalError:
+        raise EAllocError.Create(aError, aMessage);  // ✅ m-5: 显式处理 aeInternalError
+    else
+      raise EAllocError.Create(aError, aMessage);
+    end;
+  end;
+
 begin
+  Result := nil;  // ✅ C-1: 初始化 Result 避免编译器警告
   if FError = aeNone then
     Result := FPtr
   else
-  begin
-    if aMsg <> '' then
-      raise EAllocError.Create(FError, aMsg)
-    else
-      raise EAllocError.Create(FError);
-  end;
+    RaiseSpecificException(FError, aMsg);
 end;
 
 { EAllocError }

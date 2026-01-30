@@ -24,14 +24,14 @@ echo 编译测试项目...
 %LAZBUILD% --build-mode=Debug %PROJECT_FILE%
 if errorlevel 1 (
     echo 编译失败！
-    pause
+if "%FAFAFA_INTERACTIVE%"=="1" if "%FAFAFA_INTERACTIVE%"=="1" pause
     exit /b 1
 )
 
 REM 检查可执行文件是否存在
 if not exist "%EXE_FILE%" (
     echo 可执行文件未生成！
-    pause
+if "%FAFAFA_INTERACTIVE%"=="1" if "%FAFAFA_INTERACTIVE%"=="1" pause
     exit /b 1
 )
 
@@ -53,5 +53,5 @@ if %TEST_RESULT% equ 0 (
 
 echo.
 echo 测试完成。按任意键退出...
-pause >nul
+if "%FAFAFA_INTERACTIVE%"=="1" pause >nul
 exit /b %TEST_RESULT%

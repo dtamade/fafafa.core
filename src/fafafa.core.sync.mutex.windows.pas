@@ -148,15 +148,19 @@ procedure TMutex.Acquire;
 var
   Cur: DWORD;
 begin
-  // ✅ P0-1 Fix: 使用框架内 atomic 操作读取 FOwnerThreadId 避免竞态条件
-  // 非重入：同一线程重复获取直接抛异常
+  // ✅ 修复 TOCTOU 竞态条件：先获取锁，再在锁内检查重入
   Cur := GetCurrentThreadId;
-  // 原子读取当前持有者，避免读取撕裂和内存可见性问题
-  if atomic_load(FOwnerThreadId, mo_acquire) = Cur then
-    raise EDeadlockError.Create('Re-entrant acquire on non-reentrant mutex');
-
   EnterCriticalSection(FCriticalSection);
-  // 进入后原子设置所有者
+  
+  // 在锁内检查重入（避免竞态条件）
+  if atomic_load(FOwnerThreadId, mo_acquire) = Cur then
+  begin
+    // 检测到重入，释放锁并抛异常
+    LeaveCriticalSection(FCriticalSection);
+    raise EDeadlockError.Create('Re-entrant acquire on non-reentrant mutex');
+  end;
+  
+  // 设置所有者
   atomic_store(FOwnerThreadId, Cur, mo_release);
 
   // Poisoning 检查：获取锁后检查是否被毒化
@@ -180,14 +184,19 @@ function TMutex.TryAcquire: Boolean;
 var
   Cur: DWORD;
 begin
-  // ✅ P0-1 Fix: 使用框架内 atomic 操作避免竞态条件
+  // ✅ 修复 TOCTOU 竞态条件：先尝试获取锁，再在锁内检查重入
   Cur := GetCurrentThreadId;
-  if atomic_load(FOwnerThreadId, mo_acquire) = Cur then
-    raise EDeadlockError.Create('Re-entrant try-acquire on non-reentrant mutex');
-
   Result := TryEnterCriticalSection(FCriticalSection);
   if Result then
   begin
+    // 在锁内检查重入（避免竞态条件）
+    if atomic_load(FOwnerThreadId, mo_acquire) = Cur then
+    begin
+      // 检测到重入，释放锁并抛异常
+      LeaveCriticalSection(FCriticalSection);
+      raise EDeadlockError.Create('Re-entrant try-acquire on non-reentrant mutex');
+    end;
+    
     atomic_store(FOwnerThreadId, Cur, mo_release);
     // Poisoning 检查：获取锁后检查是否被毒化
     if FPoisoned then
@@ -252,12 +261,18 @@ procedure TSRWMutex.Acquire;
 var
   Cur: DWORD;
 begin
-  // ✅ P0-1 Fix: 使用框架内 atomic 操作避免竞态条件
+  // ✅ 修复 TOCTOU 竞态条件：先获取锁，再在锁内检查重入
   Cur := GetCurrentThreadId;
-  if atomic_load(FOwnerThreadId, mo_acquire) = Cur then
-    raise EDeadlockError.Create('Re-entrant acquire on non-reentrant mutex');
-
   AcquireSRWLockExclusive(FLock);
+  
+  // 在锁内检查重入（避免竞态条件）
+  if atomic_load(FOwnerThreadId, mo_acquire) = Cur then
+  begin
+    // 检测到重入，释放锁并抛异常
+    ReleaseSRWLockExclusive(FLock);
+    raise EDeadlockError.Create('Re-entrant acquire on non-reentrant mutex');
+  end;
+  
   atomic_store(FOwnerThreadId, Cur, mo_release);
 
   // Poisoning 检查：获取锁后检查是否被毒化
@@ -281,14 +296,19 @@ function TSRWMutex.TryAcquire: Boolean;
 var
   Cur: DWORD;
 begin
-  // ✅ P0-1 Fix: 使用框架内 atomic 操作避免竞态条件
+  // ✅ 修复 TOCTOU 竞态条件：先尝试获取锁，再在锁内检查重入
   Cur := GetCurrentThreadId;
-  if atomic_load(FOwnerThreadId, mo_acquire) = Cur then
-    raise EDeadlockError.Create('Re-entrant try-acquire on non-reentrant mutex');
-
   Result := TryAcquireSRWLockExclusive(FLock);
   if Result then
   begin
+    // 在锁内检查重入（避免竞态条件）
+    if atomic_load(FOwnerThreadId, mo_acquire) = Cur then
+    begin
+      // 检测到重入，释放锁并抛异常
+      ReleaseSRWLockExclusive(FLock);
+      raise EDeadlockError.Create('Re-entrant try-acquire on non-reentrant mutex');
+    end;
+    
     atomic_store(FOwnerThreadId, Cur, mo_release);
     // Poisoning 检查：获取锁后检查是否被毒化
     if FPoisoned then

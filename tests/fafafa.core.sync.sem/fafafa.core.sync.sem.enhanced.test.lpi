@@ -13,12 +13,12 @@
         <CompilerOptions>
           <Version Value="11"/>
           <Target>
-            <Filename Value="bin\fafafa.core.sync.sem.enhanced.test.exe"/>
+            <Filename Value="bin/afafa.core.sync.sem.enhanced.test"/>
           </Target>
           <SearchPaths>
             <OtherUnitFiles Value="..\..\src"/>
             <IncludeFiles Value="../../src"/>
-            <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+            <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <Parsing>
             <SyntaxOptions>
@@ -56,11 +56,11 @@
     </BuildModes>
     <Units>
       <Unit>
-        <Filename Value="fafafa.core.sync.sem.enhanced.test.lpr"/>
+        <Filename Value="bin/afafa.core.sync.sem.enhanced.test"/>
         <IsPartOfProject Value="True"/>
       </Unit>
       <Unit>
-        <Filename Value="fafafa.core.sync.sem.enhanced.testcase.pas"/>
+        <Filename Value="bin/afafa.core.sync.sem.enhanced.test"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>
@@ -68,12 +68,12 @@
   <CompilerOptions>
     <Version Value="11"/>
     <Target>
-      <Filename Value="bin\fafafa.core.sync.sem.enhanced.test.exe"/>
+      <Filename Value="bin/afafa.core.sync.sem.enhanced.test"/>
     </Target>
     <SearchPaths>
       <OtherUnitFiles Value="..\..\src"/>
       <IncludeFiles Value="../../src"/>
-      <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+      <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Parsing>
       <SyntaxOptions>

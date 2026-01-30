@@ -19,7 +19,7 @@ type
   IAsyncFile = interface;
   IAsyncTimer = interface;
   generic IAsyncStream<T> = interface;
-  
+
   // 异步任务类型
   {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
   generic TAsyncTask<T> = reference to function: specialize IFuture<T>;
@@ -27,7 +27,7 @@ type
   generic TAsyncPredicate<T> = reference to function(const Value: T): specialize IFuture<Boolean>;
   generic TAsyncAction<T> = reference to procedure(const Value: T);
   generic TAsyncGenerator<T> = reference to function: specialize IAsyncStream<T>;
-  
+
   // 异步事件类型
   TAsyncEvent = reference to procedure;
   TAsyncDataEvent = reference to procedure(const Data: TBytes);
@@ -45,13 +45,13 @@ type
     {$ENDIF}
     function Take(Count: Integer): specialize IAsyncStream<T>;
     function Skip(Count: Integer): specialize IAsyncStream<T>;
-    
+
     // 聚合操作
     function ToArray: specialize IFuture<specialize TArray<T>>;
     function Count: specialize IFuture<Integer>;
     function First: specialize IFuture<T>;
     function Last: specialize IFuture<T>;
-    
+
     // 订阅操作
     {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
     function ForEach(const Action: specialize TAsyncAction<T>): specialize IFuture<Boolean>;
@@ -66,16 +66,16 @@ type
     function Receive(MaxSize: Integer = 4096): specialize IFuture<TBytes>;
     function ReceiveText: specialize IFuture<string>;
     function Close: specialize IFuture<Boolean>;
-    
+
     // 流式接口
     function AsStream: specialize IAsyncStream<TBytes>;
     function AsTextStream: specialize IAsyncStream<string>;
-    
+
     // 属性
     function GetRemoteAddress: string;
     function GetRemotePort: Word;
     function IsConnected: Boolean;
-    
+
     property RemoteAddress: string read GetRemoteAddress;
     property RemotePort: Word read GetRemotePort;
     property Connected: Boolean read IsConnected;
@@ -86,16 +86,16 @@ type
   ['{ASYNC-SERVER-INTERFACE-GUID}']
     function Accept: specialize IAsyncStream<IAsyncClient>;
     function Stop: specialize IFuture<Boolean>;
-    
+
     // 配置
     procedure SetMaxConnections(Count: Integer);
     procedure SetKeepAlive(Enabled: Boolean; TimeoutMs: Cardinal = 30000);
-    
+
     // 属性
     function GetLocalAddress: string;
     function GetLocalPort: Word;
     function IsListening: Boolean;
-    
+
     property LocalAddress: string read GetLocalAddress;
     property LocalPort: Word read GetLocalPort;
     property Listening: Boolean read IsListening;
@@ -106,10 +106,10 @@ type
   ['{ASYNC-TIMER-INTERFACE-GUID}']
     function Stop: specialize IFuture<Boolean>;
     function Reset(MilliSeconds: Cardinal): specialize IFuture<Boolean>;
-    
+
     function GetInterval: Cardinal;
     function IsActive: Boolean;
-    
+
     property Interval: Cardinal read GetInterval;
     property Active: Boolean read IsActive;
   end;
@@ -125,10 +125,10 @@ type
     function GetSize: specialize IFuture<Int64>;
     function Flush: specialize IFuture<Boolean>;
     function Close: specialize IFuture<Boolean>;
-    
+
     function GetFileName: string;
     function IsOpen: Boolean;
-    
+
     property FileName: string read GetFileName;
     property Open: Boolean read IsOpen;
   end;
@@ -138,7 +138,7 @@ type
   private
     class var FInitialized: Boolean;
     class var FLock: TCriticalSection;
-    
+
     class procedure EnsureInitialized;
     class procedure InternalInitialize;
     class procedure InternalFinalize;
@@ -148,35 +148,35 @@ type
     class function Listen(const Host: string; Port: Word): specialize IFuture<IAsyncServer>;
     class function HttpGet(const URL: string): specialize IFuture<string>;
     class function HttpPost(const URL, Data: string): specialize IFuture<string>;
-    
+
     // === 文件操作 ===
     class function ReadFile(const Path: string): specialize IFuture<TBytes>;
     class function WriteFile(const Path: string; const Data: TBytes): specialize IFuture<Boolean>;
     class function ReadText(const Path: string): specialize IFuture<string>;
     class function WriteText(const Path: string; const Text: string): specialize IFuture<Boolean>;
     class function OpenFile(const Path: string; Mode: TFileMode): specialize IFuture<IAsyncFile>;
-    
+
     // === 定时器操作 ===
     class function Delay(MilliSeconds: Cardinal): specialize IFuture<Boolean>;
     class function Timeout<T>(Future: specialize IFuture<T>; TimeoutMs: Cardinal): specialize IFuture<T>;
     {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
     class function Interval(MilliSeconds: Cardinal; const Action: TAsyncEvent): IAsyncTimer;
     {$ENDIF}
-    
+
     // === 并发控制 ===
     class function WhenAll<T>(const Futures: array of specialize IFuture<T>): specialize IFuture<specialize TArray<T>>;
     class function WhenAny<T>(const Futures: array of specialize IFuture<T>): specialize IFuture<T>;
     {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
     class function Parallel<T>(const Tasks: array of specialize TAsyncTask<T>): specialize IFuture<specialize TArray<T>>;
     {$ENDIF}
-    
+
     // === 流操作 ===
     class function FromArray<T>(const Items: array of T): specialize IAsyncStream<T>;
     class function Range(Start, Count: Integer): specialize IAsyncStream<Integer>;
     {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
     class function Generate<T>(const Generator: specialize TAsyncGenerator<T>): specialize IAsyncStream<T>;
     {$ENDIF}
-    
+
     // === 运行时控制 ===
     class procedure Run; // 启动异步运行时（可选调用）
     class procedure Shutdown; // 优雅关闭
@@ -184,7 +184,7 @@ type
   end;
 
   // 异常类型
-  EAsyncException = class(Exception);
+  EAsyncException = class(ECore);  // ✅ ASYNC-001: 继承自 ECore
   EAsyncTimeoutException = class(EAsyncException);
   EAsyncConnectionException = class(EAsyncException);
   EAsyncIOException = class(EAsyncException);

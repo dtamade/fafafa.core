@@ -19,7 +19,7 @@
     </RunParams>
     <Units>
       <Unit>
-        <Filename Value="crossprocess_test_producer.lpr"/>
+        <Filename Value="bin/crossprocess_test_producer"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>
@@ -27,7 +27,7 @@
   <CompilerOptions>
     <Version Value="11"/>
     <Target>
-      <Filename Value="crossprocess_test_producer"/>
+      <Filename Value="bin/crossprocess_test_producer"/>
     </Target>
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir);../../src"/>

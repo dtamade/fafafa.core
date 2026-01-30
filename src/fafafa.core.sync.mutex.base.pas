@@ -26,39 +26,78 @@ type
     property PoisoningException: string read FPoisoningException;
   end;
 
+  {**
+   * @desc 互斥锁接口
+   * @details 提供互斥锁功能，支持 Poison 机制
+   *
+   * @poison_mechanism
+   * Poison 机制用于检测线程在持有锁时发生异常的情况：
+   *
+   * 1. **Poison 触发条件**：
+   *    - 线程在持有锁时抛出未捕获的异常
+   *    - 守卫析构时检测到异常状态
+   *
+   * 2. **Poison 状态**：
+   *    - 锁被标记为 "poisoned"
+   *    - `IsPoisoned()` 返回 True
+   *
+   * 3. **Poison 影响**：
+   *    - 后续 `Lock()` 调用返回 poisoned 守卫
+   *    - 守卫的 `IsPoisoned()` 方法返回 True
+   *    - 可以选择忽略 poison 状态继续使用
+   *
+   * 4. **Poison 恢复**：
+   *    - 调用 `ClearPoison()` 清除 poison 状态
+   *    - 或者通过守卫继续使用（自行承担风险）
+   *
+   * @usage
+   *   // 基本使用
+   *   var guard := mutex.Lock();
+   *   try
+   *     // 临界区代码
+   *   finally
+   *     guard := nil;
+   *   end;
+   *
+   *   // 检查 Poison 状态
+   *   if mutex.IsPoisoned() then
+   *   begin
+   *     WriteLn('Warning: Mutex is poisoned!');
+   *     mutex.ClearPoison();  // 清除 poison 状态
+   *   end;
+   *
+   *   // 使用 poisoned 守卫
+   *   var guard := mutex.Lock();
+   *   if guard.IsPoisoned() then
+   *   begin
+   *     WriteLn('Warning: Guard is poisoned, but continuing...');
+   *     // 自行承担风险继续使用
+   *   end;
+   *
+   * @thread_safety 线程安全
+   * @rust_equivalent std::sync::Mutex
+   *}
   IMutex = interface(ITryLock)
     ['{55391DAE-AC96-4911-B998-FC8D2675FA2A}']
     function GetHandle: Pointer; // 返回平台特定的句柄
 
     // ===== Poisoning 支持 (Rust-style) =====
     {**
-     * IsPoisoned - 检查 Mutex 是否被毒化
-     *
-     * @return True 如果 Mutex 已被毒化
-     *
-     * @desc
-     *   当持有锁的线程在异常中死亡时，Mutex 会被标记为毒化。
-     *   后续的获取操作将失败或抛出异常。
+     * @desc 检查锁是否处于 poisoned 状态
+     * @returns 如果锁被 poison 返回 True，否则返回 False
      *}
     function IsPoisoned: Boolean;
 
     {**
-     * ClearPoison - 清除毒化状态
-     *
-     * @desc
-     *   恢复 Mutex 到正常状态。
-     *   通常用于确认数据已被恢复或不需要关心后。
+     * @desc 清除锁的 poison 状态
+     * @details 清除后，锁恢复正常状态，可以安全使用
      *}
     procedure ClearPoison;
 
     {**
-     * MarkPoisoned - 标记为毒化
-     *
+     * @desc 标记锁为 poisoned 状态
      * @param AExceptionMessage 导致毒化的异常信息
-     *
-     * @desc
-     *   手动标记 Mutex 为毒化状态。
-     *   通常由 Guard 在异常时自动调用。
+     * @details 手动标记 Mutex 为毒化状态，通常由 Guard 在异常时自动调用
      *}
     procedure MarkPoisoned(const AExceptionMessage: string);
   end;

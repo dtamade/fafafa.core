@@ -608,6 +608,22 @@ begin
       Exit(True);
 end;
 
+function IsBackendMarkedAvailableForDispatch(backend: TSimdBackend): Boolean; inline;
+begin
+  // Scalar is always usable.
+  if backend = sbScalar then
+    Exit(True);
+
+  // Never consider unregistered backends dispatch-available.
+  if not IsBackendRegistered(backend) then
+    Exit(False);
+
+  // Observe a fully initialized dispatch table once registration is visible.
+  // RegisterBackend publishes g_BackendTables before g_BackendRegistered using WriteBarrier.
+  ReadBarrier;
+  Result := g_BackendTables[backend].BackendInfo.Available;
+end;
+
 // ✅ Thread-safe dispatch initialization using atomic operations
 procedure DoInitializeDispatch;
 var
@@ -628,26 +644,41 @@ begin
     // Backends register themselves during unit initialization,
     // and we don't want to lose that registration.
 
+    // Precompute CPU/OS-usable backends once.
+    backends := GetAvailableBackends;
+
     // Find best available backend
     if g_BackendForced then
     begin
       bestBackend := g_ForcedBackend;
-      if not IsBackendRegistered(bestBackend) then
-        bestBackend := sbScalar;
+
+      // Forced backend must be:
+      //   - registered in this binary
+      //   - available on current CPU/OS (cpuinfo)
+      //   - marked available by the backend implementation (BackendInfo.Available)
+      if bestBackend <> sbScalar then
+      begin
+        if not IsBackendRegistered(bestBackend) then
+          bestBackend := sbScalar
+        else if not IsBackendAvailable(bestBackend, backends) then
+          bestBackend := sbScalar
+        else if not IsBackendMarkedAvailableForDispatch(bestBackend) then
+          bestBackend := sbScalar;
+      end;
     end
     else
     begin
-      backends := GetAvailableBackends;
       bestBackend := sbScalar;
 
       for i := Low(BACKEND_PRIORITY) to High(BACKEND_PRIORITY) do
       begin
-        if IsBackendRegistered(BACKEND_PRIORITY[i]) and
-           IsBackendAvailable(BACKEND_PRIORITY[i], backends) then
-        begin
-          bestBackend := BACKEND_PRIORITY[i];
-          Break;
-        end;
+        if IsBackendRegistered(BACKEND_PRIORITY[i]) then
+          if IsBackendAvailable(BACKEND_PRIORITY[i], backends) then
+            if IsBackendMarkedAvailableForDispatch(BACKEND_PRIORITY[i]) then
+            begin
+              bestBackend := BACKEND_PRIORITY[i];
+              Break;
+            end;
       end;
     end;
 
@@ -719,6 +750,11 @@ begin
     Exit(False);
 
   if not IsBackendAvailableOnCPU(backend) then
+    Exit(False);
+
+  // Backend must also be marked available by its own dispatch table wiring.
+  // This covers cases where cpuinfo is less strict than a backend's required sub-features.
+  if not IsBackendMarkedAvailableForDispatch(backend) then
     Exit(False);
 
   // Backend is valid, force it
@@ -815,11 +851,14 @@ end;
 
 function IsBackendRegistered(backend: TSimdBackend): Boolean;
 begin
+  ReadBarrier;
   Result := g_BackendRegistered[backend];
 end;
 
 function GetBackendInfo(backend: TSimdBackend): TSimdBackendInfo;
 begin
+  // Ensure consistent view of registration flag and table contents.
+  ReadBarrier;
   if g_BackendRegistered[backend] then
     Result := g_BackendTables[backend].BackendInfo
   else

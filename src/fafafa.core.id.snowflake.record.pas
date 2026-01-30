@@ -16,11 +16,12 @@ interface
 
 uses
   SysUtils,
+  fafafa.core.base,  // ✅ SNOWFLAKE-002: 引入 ECore 基类
   fafafa.core.id.snowflake;
 
 type
   // Specialized exceptions for Snowflake
-  ESnowflakeError = class(Exception);
+  ESnowflakeError = class(ECore);  // ✅ SNOWFLAKE-002: 继承自 ECore
   ESnowflakeClockRollback = class(ESnowflakeError);
   ESnowflakeInvalidConfig = class(ESnowflakeError);
   ESnowflakeSequenceOverflow = class(ESnowflakeError);

@@ -2,7 +2,7 @@
 unit Test_mapped_ring_buffer;
 
 {$mode objfpc}{$H+}
-{$I fafafa.core.settings.inc}
+{$I ../../src/fafafa.core.settings.inc}
 
 interface
 

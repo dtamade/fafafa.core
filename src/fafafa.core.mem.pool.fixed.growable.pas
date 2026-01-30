@@ -7,11 +7,13 @@ interface
 
 uses
   SysUtils,
+  fafafa.core.math,              // ✅ Math facade (for trunc)
+  fafafa.core.mem.error,
   fafafa.core.mem.pool.base,     // IPool (decoupled)
   fafafa.core.mem.allocator;     // IAllocator + GetRtlAllocator
 
 type
-  EGrowingFixedPoolError = class(Exception);
+  EGrowingFixedPoolError = class(EAllocError);
   EGrowingFixedPoolInvalidPointer = class(EGrowingFixedPoolError);
   EGrowingFixedPoolDoubleFree = class(EGrowingFixedPoolError);
 
@@ -32,19 +34,21 @@ type
   TGrowingFixedPool = class(TInterfacedObject, IPool)
   private
     type
-      PArena = ^TArena;
       TArena = record
         Base: Pointer;
         Blocks: SizeUInt; // number of blocks in this arena
         Size: SizeUInt;   // bytes = Blocks * BlockSize
+        // per-block allocation tracking (1 = allocated, 0 = free)
+        AllocBits: array of QWord;
       end;
   private
     FBlockSize: SizeUInt;
+    FBlockShift: SizeUInt; // log2(BlockSize), BlockSize is power of two
+    FBlockMask: SizeUInt;  // BlockSize - 1
     FTotalCapacity: SizeUInt;
     FAllocatedCount: SizeUInt;
 
     FArenas: array of TArena;
-    FArenaCount: SizeUInt;
 
     FFreeStack: array of Pointer;
     FFreeTop: SizeUInt;
@@ -53,187 +57,348 @@ type
 
     FConfig: TGrowingFixedPoolConfig;
 
-    procedure PushFree(APtr: Pointer); inline;
-    function PopFree(out APtr: Pointer): Boolean; inline;
-    procedure AddArena(ABlocks: SizeUInt);
+    function GetArenaCount: SizeUInt; inline;
+    procedure PushFree(aPtr: Pointer); inline;
+    function PopFree(out aPtr: Pointer): Boolean; inline;
+    procedure AddArena(aBlocks: SizeUInt);
     function NextGrowthSize: SizeUInt;
-    function FindArena(APtr: Pointer; out AIndex: SizeInt): Boolean;
-    function PointerBelongsToArena(APtr: Pointer; const A: TArena): Boolean; inline;
+    function FindArena(aPtr: Pointer; out aIndex: SizeInt): Boolean;
+    function PointerBelongsToArena(aPtr: Pointer; const aArena: TArena): Boolean; inline;
+    function IsAllocatedBitSet(aArenaIndex: SizeInt; aBlockIndex: SizeUInt): Boolean; inline;
+    procedure SetAllocatedBit(aArenaIndex: SizeInt; aBlockIndex: SizeUInt); inline;
+    procedure ClearAllocatedBit(aArenaIndex: SizeInt; aBlockIndex: SizeUInt); inline;
+    procedure ClearArenaAllocBits(aArenaIndex: SizeInt); inline;
   public
-    constructor Create(const C: TGrowingFixedPoolConfig);
+    constructor Create(const aConfig: TGrowingFixedPoolConfig);
     destructor Destroy; override;
 
     // IPool
-    function Acquire(out AUnit: Pointer): Boolean; inline;
-    function TryAcquire(out APtr: Pointer): Boolean; inline;
+    function Acquire(out aUnit: Pointer): Boolean; inline;
+    function TryAcquire(out aPtr: Pointer): Boolean; inline;
     function AcquireN(out aPtrs: array of Pointer; aCount: Integer): Integer;
-    procedure Release(AUnit: Pointer); inline;
+    procedure Release(aUnit: Pointer); inline;
     procedure ReleaseN(const aPtrs: array of Pointer; aCount: Integer);
     procedure Reset; inline;
 
     // 管理
-    function ShrinkTo(AMinCapacity: SizeUInt): SizeUInt; // returns freed blocks
+    function ShrinkTo(aMinCapacity: SizeUInt): SizeUInt; // returns freed blocks
 
     // Props
     property BlockSize: SizeUInt read FBlockSize;
     property TotalCapacity: SizeUInt read FTotalCapacity;
     property AllocatedCount: SizeUInt read FAllocatedCount;
-    property ArenaCount: SizeUInt read FArenaCount;
+    property ArenaCount: SizeUInt read GetArenaCount;
     function FreeCount: SizeUInt; inline;
   end;
 
 implementation
 
-function CmpPtr(L, R: Pointer): Integer; inline;
+function TGrowingFixedPool.GetArenaCount: SizeUInt;
 begin
-  if L = R then Exit(0);
-  if PtrUInt(L) < PtrUInt(R) then Exit(-1) else Exit(1);
+  Result := SizeUInt(Length(FArenas));
 end;
 
-function TGrowingFixedPool.PointerBelongsToArena(APtr: Pointer; const A: TArena): Boolean;
+function TGrowingFixedPool.PointerBelongsToArena(aPtr: Pointer; const aArena: TArena): Boolean;
+var
+  LPtrU, LBaseU: PtrUInt;
 begin
-  Result := (PtrUInt(APtr) >= PtrUInt(A.Base)) and (PtrUInt(APtr) < PtrUInt(A.Base) + PtrUInt(A.Size));
+  if (aPtr = nil) or (aArena.Base = nil) then
+    Exit(False);
+  LPtrU := PtrUInt(aPtr);
+  LBaseU := PtrUInt(aArena.Base);
+  if LPtrU < LBaseU then
+    Exit(False);
+  Result := (LPtrU - LBaseU) < PtrUInt(aArena.Size);
+end;
+
+function TGrowingFixedPool.IsAllocatedBitSet(aArenaIndex: SizeInt; aBlockIndex: SizeUInt): Boolean;
+var
+  LWordIndex: SizeUInt;
+  LMask: QWord;
+begin
+  if (aArenaIndex < 0) or (aArenaIndex > High(FArenas)) then
+    Exit(False);
+  LWordIndex := aBlockIndex shr 6;
+  if LWordIndex >= SizeUInt(Length(FArenas[aArenaIndex].AllocBits)) then
+    Exit(False);
+  LMask := QWord(1) shl (aBlockIndex and 63);
+  Result := (FArenas[aArenaIndex].AllocBits[LWordIndex] and LMask) <> 0;
+end;
+
+procedure TGrowingFixedPool.SetAllocatedBit(aArenaIndex: SizeInt; aBlockIndex: SizeUInt);
+var
+  LWordIndex: SizeUInt;
+  LMask: QWord;
+begin
+  LWordIndex := aBlockIndex shr 6;
+  if (aArenaIndex < 0) or (aArenaIndex > High(FArenas)) or
+     (LWordIndex >= SizeUInt(Length(FArenas[aArenaIndex].AllocBits))) then
+    raise EGrowingFixedPoolError.Create(aeInternalError, 'TGrowingFixedPool: allocation bitmap out of range');
+  LMask := QWord(1) shl (aBlockIndex and 63);
+  if (FArenas[aArenaIndex].AllocBits[LWordIndex] and LMask) <> 0 then
+    raise EGrowingFixedPoolError.Create(aeInternalError, 'TGrowingFixedPool: free stack corruption (double allocate)');
+  FArenas[aArenaIndex].AllocBits[LWordIndex] := FArenas[aArenaIndex].AllocBits[LWordIndex] or LMask;
+end;
+
+procedure TGrowingFixedPool.ClearAllocatedBit(aArenaIndex: SizeInt; aBlockIndex: SizeUInt);
+var
+  LWordIndex: SizeUInt;
+  LMask: QWord;
+begin
+  LWordIndex := aBlockIndex shr 6;
+  if (aArenaIndex < 0) or (aArenaIndex > High(FArenas)) or
+     (LWordIndex >= SizeUInt(Length(FArenas[aArenaIndex].AllocBits))) then
+    raise EGrowingFixedPoolError.Create(aeInternalError, 'TGrowingFixedPool: allocation bitmap out of range');
+  LMask := QWord(1) shl (aBlockIndex and 63);
+  FArenas[aArenaIndex].AllocBits[LWordIndex] := FArenas[aArenaIndex].AllocBits[LWordIndex] and (not LMask);
+end;
+
+procedure TGrowingFixedPool.ClearArenaAllocBits(aArenaIndex: SizeInt);
+var
+  LLen: SizeInt;
+begin
+  if (aArenaIndex < 0) or (aArenaIndex > High(FArenas)) then
+    Exit;
+  LLen := Length(FArenas[aArenaIndex].AllocBits);
+  if LLen <= 0 then
+    Exit;
+  FillChar(FArenas[aArenaIndex].AllocBits[0], SizeUInt(LLen) * SizeOf(QWord), 0);
 end;
 
 
 { TGrowingFixedPool }
 
-constructor TGrowingFixedPool.Create(const C: TGrowingFixedPoolConfig);
+constructor TGrowingFixedPool.Create(const aConfig: TGrowingFixedPoolConfig);
 var
-  InitCap: SizeUInt;
+  LInitCap: SizeUInt;
+  LShift: SizeUInt;
+  LTmp: SizeUInt;
 begin
   inherited Create;
-  if (C.BlockSize = 0) then
-    raise EGrowingFixedPoolError.Create('Block size cannot be zero');
-  // 强制 2 的幂：启用位运算路径，提高释放/校验效率
-  if (C.BlockSize and (C.BlockSize - 1)) <> 0 then
-    raise EGrowingFixedPoolError.Create('Block size must be power of two');
-  if (SizeOf(Pointer) <> 0) and ((C.BlockSize mod SizeOf(Pointer)) <> 0) then
-    raise EGrowingFixedPoolError.Create('Block size must be a multiple of pointer size');
 
-  FConfig := C;
-  FBlockSize := C.BlockSize;
-  if C.Allocator = nil then
+  if (aConfig.BlockSize = 0) then
+    raise EGrowingFixedPoolError.Create(aeInvalidLayout, 'Block size cannot be zero');
+  // 强制 2 的幂：启用位运算路径，提高释放/校验效率
+  if (aConfig.BlockSize and (aConfig.BlockSize - 1)) <> 0 then
+    raise EGrowingFixedPoolError.Create(aeInvalidLayout, 'Block size must be power of two');
+  if (SizeOf(Pointer) <> 0) and ((aConfig.BlockSize mod SizeOf(Pointer)) <> 0) then
+    raise EGrowingFixedPoolError.Create(aeInvalidLayout, 'Block size must be a multiple of pointer size');
+
+  FConfig := aConfig;
+  FBlockSize := aConfig.BlockSize;
+  FBlockMask := FBlockSize - 1;
+
+  // 计算 log2(BlockSize)
+  LShift := 0;
+  LTmp := FBlockSize;
+  while LTmp > 1 do
+  begin
+    Inc(LShift);
+    LTmp := LTmp shr 1;
+  end;
+  FBlockShift := LShift;
+
+  if aConfig.Allocator = nil then
     FAllocator := fafafa.core.mem.allocator.GetRtlAllocator
   else
-    FAllocator := C.Allocator;
+    FAllocator := aConfig.Allocator;
 
   SetLength(FArenas, 0);
-  FArenaCount := 0;
   SetLength(FFreeStack, 0);
   FFreeTop := 0;
   FTotalCapacity := 0;
   FAllocatedCount := 0;
 
+  // sanitize growth config
+  if (FConfig.GrowthKind = gkGeometric) and (FConfig.GrowthFactor < 1.1) then
+    FConfig.GrowthFactor := 2.0;
+  if (FConfig.GrowthKind = gkLinear) and (FConfig.GrowthStep = 0) then
+    FConfig.GrowthStep := 64;
+
   // initial arena
-  InitCap := C.InitialCapacity;
-  if InitCap = 0 then InitCap := 64;
-  AddArena(InitCap);
+  LInitCap := aConfig.InitialCapacity;
+  if LInitCap = 0 then
+    LInitCap := 64;
+  AddArena(LInitCap);
 end;
 
-procedure TGrowingFixedPool.AddArena(ABlocks: SizeUInt);
+procedure TGrowingFixedPool.AddArena(aBlocks: SizeUInt);
 var
-  Bytes: SizeUInt;
-  Arena: TArena;
-  I: SizeUInt;
-  NewTop: SizeUInt;
-  NewLen: SizeUInt;
-  BasePtr: PByte;
+  LBytes: SizeUInt;
+  LArena: TArena;
+  LBlockIndex: SizeUInt;
+  LNewTop: SizeUInt;
+  LNewLen: SizeUInt;
+  LBasePtr: PByte;
+  LInsert: SizeInt;
+  LWordLen: SizeUInt;
 begin
-  if (ABlocks = 0) then Exit;
-  if (FConfig.MaxCapacity <> 0) and (FTotalCapacity + ABlocks > FConfig.MaxCapacity) then
-    ABlocks := FConfig.MaxCapacity - FTotalCapacity;
-  if ABlocks = 0 then Exit;
+  if aBlocks = 0 then
+    Exit;
 
-  Bytes := ABlocks * FBlockSize;
-  if (FBlockSize <> 0) and ((Bytes div FBlockSize) <> ABlocks) then
-    raise EGrowingFixedPoolError.Create('Total size overflow');
+  if (FConfig.MaxCapacity <> 0) then
+  begin
+    if FTotalCapacity >= FConfig.MaxCapacity then
+      Exit;
+    if aBlocks > (FConfig.MaxCapacity - FTotalCapacity) then
+      aBlocks := FConfig.MaxCapacity - FTotalCapacity;
+    if aBlocks = 0 then
+      Exit;
+  end;
 
-  Arena.Base := FAllocator.GetMem(Bytes);
-  if Arena.Base = nil then
-    raise EGrowingFixedPoolError.Create('Failed to allocate arena');
-  Arena.Blocks := ABlocks;
-  Arena.Size := Bytes;
+  LBytes := aBlocks * FBlockSize;
+  if (FBlockSize <> 0) and ((LBytes div FBlockSize) <> aBlocks) then
+    raise EGrowingFixedPoolError.Create(aeOutOfMemory, 'Total size overflow');
+
+  LArena.Base := FAllocator.GetMem(LBytes);
+  if LArena.Base = nil then
+    raise EGrowingFixedPoolError.Create(aeOutOfMemory, 'Failed to allocate arena');
+  LArena.Blocks := aBlocks;
+  LArena.Size := LBytes;
+
+  // allocation bitmap (default all-free = 0)
+  LWordLen := (aBlocks + 63) shr 6;
+  SetLength(LArena.AllocBits, LWordLen);
+  if LWordLen > 0 then
+    FillChar(LArena.AllocBits[0], LWordLen * SizeOf(QWord), 0);
 
   if FConfig.ZeroOnInit then
-    FillChar(Arena.Base^, Arena.Size, 0);
+    FillChar(LArena.Base^, LArena.Size, 0);
 
   // append arena
-  SetLength(FArenas, FArenaCount + 1);
-  FArenas[FArenaCount] := Arena;
-  Inc(FArenaCount);
+  SetLength(FArenas, Length(FArenas) + 1);
+  FArenas[High(FArenas)] := LArena;
 
   // grow free stack space and push all blocks
-  NewLen := FFreeTop + ABlocks;
-  if Length(FFreeStack) < NewLen then
-    SetLength(FFreeStack, NewLen);
+  if FFreeTop > (High(SizeUInt) - aBlocks) then
+    raise EGrowingFixedPoolError.Create(aeOutOfMemory, 'Free stack size overflow');
+  LNewLen := FFreeTop + aBlocks;
+  if SizeUInt(Length(FFreeStack)) < LNewLen then
+    SetLength(FFreeStack, LNewLen);
 
-  BasePtr := PByte(Arena.Base);
-  NewTop := FFreeTop;
-  for I := 0 to ABlocks - 1 do
+  LBasePtr := PByte(LArena.Base);
+  LNewTop := FFreeTop;
+  for LBlockIndex := 0 to aBlocks - 1 do
   begin
-    FFreeStack[NewTop] := Pointer(BasePtr + I * FBlockSize);
-    Inc(NewTop);
+    FFreeStack[LNewTop] := Pointer(LBasePtr + LBlockIndex * FBlockSize);
+    Inc(LNewTop);
   end;
-  FFreeTop := NewTop;
+  FFreeTop := LNewTop;
 
-  Inc(FTotalCapacity, ABlocks);
+  Inc(FTotalCapacity, aBlocks);
 
   // keep arenas sorted by Base for binary search in Release
-  // naive insertion sort (M is small typically)
-  if FArenaCount > 1 then
+  // insertion sort (arena count is expected to be small)
+  if Length(FArenas) > 1 then
   begin
-    I := FArenaCount - 1;
-    while (I > 0) and (PtrUInt(FArenas[I-1].Base) > PtrUInt(FArenas[I].Base)) do
+    LInsert := High(FArenas);
+    while (LInsert > 0) and (PtrUInt(FArenas[LInsert - 1].Base) > PtrUInt(FArenas[LInsert].Base)) do
     begin
-      Arena := FArenas[I-1];
-      FArenas[I-1] := FArenas[I];
-      FArenas[I] := Arena;
-      Dec(I);
+      LArena := FArenas[LInsert - 1];
+      FArenas[LInsert - 1] := FArenas[LInsert];
+      FArenas[LInsert] := LArena;
+      Dec(LInsert);
     end;
   end;
 end;
 
 function TGrowingFixedPool.NextGrowthSize: SizeUInt;
+var
+  LStep: SizeUInt;
+  LFactor: Double;
+  LDesiredTotalF: Double;
+  LDesiredTotal: SizeUInt;
+  LAdd: SizeUInt;
 begin
+  if (FConfig.MaxCapacity <> 0) and (FTotalCapacity >= FConfig.MaxCapacity) then
+    Exit(0);
+
+  Result := 64;
   case FConfig.GrowthKind of
     gkLinear:
-      if FConfig.GrowthStep <> 0 then Exit(FConfig.GrowthStep) else Exit(64);
-  else
-    if FTotalCapacity = 0 then Exit(64)
-    else Exit(FTotalCapacity); // double capacity per AddArena call
+    begin
+      LStep := FConfig.GrowthStep;
+      if LStep = 0 then
+        LStep := 64;
+      Result := LStep;
+    end;
+
+    gkGeometric:
+    begin
+      if FTotalCapacity = 0 then
+        Exit(64);
+
+      LFactor := FConfig.GrowthFactor;
+      if LFactor < 1.1 then
+        LFactor := 2.0;
+
+      LDesiredTotalF := Double(FTotalCapacity) * LFactor;
+      if LDesiredTotalF > Double(High(SizeUInt)) then
+        LDesiredTotal := High(SizeUInt)
+      else
+      begin
+        LDesiredTotal := SizeUInt(Trunc(LDesiredTotalF));
+        if Double(LDesiredTotal) < LDesiredTotalF then
+          Inc(LDesiredTotal);
+      end;
+
+      if LDesiredTotal <= FTotalCapacity then
+      begin
+        if FTotalCapacity > (High(SizeUInt) - FTotalCapacity) then
+          LDesiredTotal := High(SizeUInt)
+        else
+          LDesiredTotal := FTotalCapacity + FTotalCapacity;
+      end;
+
+      LAdd := LDesiredTotal - FTotalCapacity;
+      if LAdd = 0 then
+        LAdd := 1;
+      Result := LAdd;
+    end;
   end;
+
+  if (FConfig.MaxCapacity <> 0) and (Result > (FConfig.MaxCapacity - FTotalCapacity)) then
+    Result := FConfig.MaxCapacity - FTotalCapacity;
 end;
 
-function TGrowingFixedPool.FindArena(APtr: Pointer; out AIndex: SizeInt): Boolean;
+function TGrowingFixedPool.FindArena(aPtr: Pointer; out aIndex: SizeInt): Boolean;
 var
-  L, R, M: SizeInt;
-  P: PtrUInt;
-  BaseU, EndU: PtrUInt;
+  LLeft, LRight, LMid: SizeInt;
+  LPtrU: PtrUInt;
+  LBaseU: PtrUInt;
+  LDiff: PtrUInt;
 begin
   Result := False;
-  AIndex := -1;
-  if FArenaCount = 0 then Exit;
-  L := 0; R := FArenaCount - 1;
-  P := PtrUInt(APtr);
-  while L <= R do
+  aIndex := -1;
+  if (aPtr = nil) or (Length(FArenas) = 0) then
+    Exit;
+
+  LLeft := 0;
+  LRight := High(FArenas);
+  LPtrU := PtrUInt(aPtr);
+  while LLeft <= LRight do
   begin
-    M := (L + R) shr 1;
-    BaseU := PtrUInt(FArenas[M].Base);
-    EndU := BaseU + PtrUInt(FArenas[M].Size);
-    if (P >= BaseU) and (P < EndU) then
+    LMid := (LLeft + LRight) shr 1;
+    LBaseU := PtrUInt(FArenas[LMid].Base);
+    if LPtrU < LBaseU then
     begin
-      AIndex := M;
-      Exit(True);
+      LRight := LMid - 1;
+      Continue;
     end
-    else if P < BaseU then
-      R := M - 1
     else
-      L := M + 1;
+    begin
+      LDiff := LPtrU - LBaseU;
+      if LDiff < PtrUInt(FArenas[LMid].Size) then
+      begin
+        aIndex := LMid;
+        Exit(True);
+      end;
+      LLeft := LMid + 1;
+    end;
   end;
 end;
 
-procedure TGrowingFixedPool.PushFree(APtr: Pointer);
+procedure TGrowingFixedPool.PushFree(aPtr: Pointer);
 begin
   if FFreeTop >= SizeUInt(Length(FFreeStack)) then
   begin
@@ -242,68 +407,110 @@ begin
     else
       SetLength(FFreeStack, FFreeTop + 1);
   end;
-  FFreeStack[FFreeTop] := APtr;
+  FFreeStack[FFreeTop] := aPtr;
   Inc(FFreeTop);
 end;
 
-function TGrowingFixedPool.PopFree(out APtr: Pointer): Boolean;
+function TGrowingFixedPool.PopFree(out aPtr: Pointer): Boolean;
 begin
   if FFreeTop = 0 then Exit(False);
   Dec(FFreeTop);
-  APtr := FFreeStack[FFreeTop];
+  aPtr := FFreeStack[FFreeTop];
   Result := True;
 end;
 
-function TGrowingFixedPool.Acquire(out AUnit: Pointer): Boolean;
+function TGrowingFixedPool.Acquire(out aUnit: Pointer): Boolean;
+var
+  LArenaIndex: SizeInt;
+  LArena: TArena;
+  LDiff: PtrUInt;
+  LBlockIndex: SizeUInt;
 begin
-  if not PopFree(AUnit) then
+  aUnit := nil;
+  if not PopFree(aUnit) then
   begin
     AddArena(NextGrowthSize);
-    Result := PopFree(AUnit);
-  end
-  else
-    Result := True;
-  if Result then Inc(FAllocatedCount);
+    if not PopFree(aUnit) then
+      Exit(False);
+  end;
+
+  if not FindArena(aUnit, LArenaIndex) then
+    raise EGrowingFixedPoolError.Create(aeInternalError, 'TGrowingFixedPool: free stack corruption (unknown arena)');
+
+  LArena := FArenas[LArenaIndex];
+  LDiff := PtrUInt(aUnit) - PtrUInt(LArena.Base);
+  if (LDiff >= PtrUInt(LArena.Size)) or ((LDiff and PtrUInt(FBlockMask)) <> 0) then
+    raise EGrowingFixedPoolError.Create(aeInternalError, 'TGrowingFixedPool: free stack corruption (misaligned pointer)');
+
+  LBlockIndex := SizeUInt(LDiff shr FBlockShift);
+  if LBlockIndex >= LArena.Blocks then
+    raise EGrowingFixedPoolError.Create(aeInternalError, 'TGrowingFixedPool: free stack corruption (block index out of range)');
+
+  SetAllocatedBit(LArenaIndex, LBlockIndex);
+  Inc(FAllocatedCount);
+  Result := True;
 end;
 
-procedure TGrowingFixedPool.Release(AUnit: Pointer);
+procedure TGrowingFixedPool.Release(aUnit: Pointer);
 var
-  Idx: SizeInt;
-  Arena: TArena;
-  Diff: SizeUInt;
-  Offset: SizeUInt;
+  LArenaIndex: SizeInt;
+  LArena: TArena;
+  LPtrU, LBaseU: PtrUInt;
+  LDiff: PtrUInt;
+  LBlockIndex: SizeUInt;
 begin
-  if AUnit = nil then Exit;
-  if not FindArena(AUnit, Idx) then
-    raise EGrowingFixedPoolInvalidPointer.Create('Pointer does not belong to this pool');
-  Arena := FArenas[Idx];
-  Diff := SizeUInt(PByte(AUnit) - PByte(Arena.Base));
-  if (Diff >= Arena.Size) then
-    raise EGrowingFixedPoolInvalidPointer.Create('Pointer out of range');
-  // 位对齐检查（FBlockSize 为 2 的幂）
-  if (Diff and (FBlockSize - 1)) <> 0 then
-    raise EGrowingFixedPoolInvalidPointer.Create('Pointer is not aligned to block size');
+  if aUnit = nil then
+    Exit;
 
-  // NOTE: 双重释放检测在 growable 版本默认不持久记录（可在 DEBUG 启用 bitset）
-  // 这里先直接 push 回 free stack，保持 O(1)
-  PushFree(AUnit);
+  if not FindArena(aUnit, LArenaIndex) then
+    raise EGrowingFixedPoolInvalidPointer.Create(aeInvalidPointer, 'Pointer does not belong to this pool');
+
+  LArena := FArenas[LArenaIndex];
+  LPtrU := PtrUInt(aUnit);
+  LBaseU := PtrUInt(LArena.Base);
+  if LPtrU < LBaseU then
+    raise EGrowingFixedPoolInvalidPointer.Create(aeInvalidPointer, 'Pointer out of range');
+  LDiff := LPtrU - LBaseU;
+  if LDiff >= PtrUInt(LArena.Size) then
+    raise EGrowingFixedPoolInvalidPointer.Create(aeInvalidPointer, 'Pointer out of range');
+  // 位对齐检查（FBlockSize 为 2 的幂）
+  if (LDiff and PtrUInt(FBlockMask)) <> 0 then
+    raise EGrowingFixedPoolInvalidPointer.Create(aeInvalidPointer, 'Pointer is not aligned to block size');
+
+  LBlockIndex := SizeUInt(LDiff shr FBlockShift);
+  if LBlockIndex >= LArena.Blocks then
+    raise EGrowingFixedPoolInvalidPointer.Create(aeInvalidPointer, 'Pointer block index out of range');
+
+  if not IsAllocatedBitSet(LArenaIndex, LBlockIndex) then
+    raise EGrowingFixedPoolDoubleFree.Create(aeDoubleFree, 'Double free detected');
+  ClearAllocatedBit(LArenaIndex, LBlockIndex);
+
+  if FAllocatedCount = 0 then
+    raise EGrowingFixedPoolError.Create(aeInternalError, 'TGrowingFixedPool: allocated counter underflow');
+
+  PushFree(aUnit);
   Dec(FAllocatedCount);
 end;
 
 procedure TGrowingFixedPool.Reset;
 var
-  I, J: SizeUInt;
-  BasePtr: PByte;
+  LArenaIndex: SizeInt;
+  LBlockIndex: SizeUInt;
+  LBasePtr: PByte;
 begin
   // 重建自由栈
   FFreeTop := 0;
-  SetLength(FFreeStack, FTotalCapacity);
-  for I := 0 to FArenaCount - 1 do
+  if FTotalCapacity = 0 then
+    SetLength(FFreeStack, 0)
+  else
+    SetLength(FFreeStack, FTotalCapacity);
+  for LArenaIndex := 0 to High(FArenas) do
   begin
-    BasePtr := PByte(FArenas[I].Base);
-    for J := 0 to FArenas[I].Blocks - 1 do
+    ClearArenaAllocBits(LArenaIndex);
+    LBasePtr := PByte(FArenas[LArenaIndex].Base);
+    for LBlockIndex := 0 to FArenas[LArenaIndex].Blocks - 1 do
     begin
-      FFreeStack[FFreeTop] := Pointer(BasePtr + J * FBlockSize);
+      FFreeStack[FFreeTop] := Pointer(LBasePtr + LBlockIndex * FBlockSize);
       Inc(FFreeTop);
     end;
   end;
@@ -315,94 +522,107 @@ begin
   Result := FTotalCapacity - FAllocatedCount;
 end;
 
-function TGrowingFixedPool.ShrinkTo(AMinCapacity: SizeUInt): SizeUInt;
+function TGrowingFixedPool.ShrinkTo(aMinCapacity: SizeUInt): SizeUInt;
 var
-  Keep: SizeUInt;
-  I: SizeInt;
-  Removed: SizeUInt;
-  A: TArena;
-  K: SizeUInt;
-  J: SizeInt;
-  P: Pointer;
+  LKeep: SizeUInt;
+  LArenaIndex: SizeInt;
+  LArena: TArena;
+  LRemoved: SizeUInt;
+  LScan: SizeInt;
+  LPtr: Pointer;
+  LWordIndex: SizeInt;
+  LHasAlloc: Boolean;
 begin
   Result := 0;
-  if FArenaCount = 0 then Exit;
-  if AMinCapacity < FAllocatedCount then
-    Keep := FAllocatedCount
+  if Length(FArenas) = 0 then
+    Exit;
+  if aMinCapacity < FAllocatedCount then
+    LKeep := FAllocatedCount
   else
-    Keep := AMinCapacity;
+    LKeep := aMinCapacity;
 
-  I := FArenaCount - 1;
-  while (I >= 0) and (FTotalCapacity > Keep) do
+  LArenaIndex := High(FArenas);
+  while (LArenaIndex >= 0) and (FTotalCapacity > LKeep) do
   begin
-    A := FArenas[I];
-    if (FTotalCapacity - A.Blocks) < Keep then Break;
+    LArena := FArenas[LArenaIndex];
+    if (FTotalCapacity - LArena.Blocks) < LKeep then
+      Break;
+
+    // 若该 arena 仍有已分配块，则按“只释放尾部 arena”的语义停止收缩
+    LHasAlloc := False;
+    for LWordIndex := 0 to High(LArena.AllocBits) do
+      if LArena.AllocBits[LWordIndex] <> 0 then
+      begin
+        LHasAlloc := True;
+        Break;
+      end;
+    if LHasAlloc then
+      Break;
 
     // 统计并移除自由栈中属于该 Arena 的空闲块
-    Removed := 0;
-    J := FFreeTop - 1;
-    while (J >= 0) and (Removed < A.Blocks) do
+    LRemoved := 0;
+    if FFreeTop = 0 then
+      Break;
+    LScan := SizeInt(FFreeTop) - 1;
+    while (LScan >= 0) and (LRemoved < LArena.Blocks) do
     begin
-      P := FFreeStack[J];
-      if PointerBelongsToArena(P, A) then
+      LPtr := FFreeStack[LScan];
+      if PointerBelongsToArena(LPtr, LArena) then
       begin
-        // swap-remove at J with top-1; do not decrement J, re-examine swapped element
-        FFreeStack[J] := FFreeStack[FFreeTop - 1];
+        // swap-remove at LScan with top-1; do not decrement LScan, re-examine swapped element
+        FFreeStack[LScan] := FFreeStack[FFreeTop - 1];
         Dec(FFreeTop);
-        Inc(Removed);
+        Inc(LRemoved);
         Continue;
       end;
-      Dec(J);
+      Dec(LScan);
     end;
 
-    if Removed = A.Blocks then
+    if LRemoved = LArena.Blocks then
     begin
-      FAllocator.FreeMem(A.Base);
-      Dec(FTotalCapacity, A.Blocks);
-      // 删除该 Arena
-      for K := I to FArenaCount - 2 do
-        FArenas[K] := FArenas[K + 1];
-      Dec(FArenaCount);
-      SetLength(FArenas, FArenaCount);
-      Inc(Result, A.Blocks);
+      FAllocator.FreeMem(LArena.Base);
+      Dec(FTotalCapacity, LArena.Blocks);
+      // 删除尾部 arena（数组按 Base 排序，尾部即最大 Base）
+      SetLength(FArenas, LArenaIndex);
+      Inc(Result, LArena.Blocks);
     end
     else
       Break;
 
-    Dec(I);
+    Dec(LArenaIndex);
   end;
 end;
 
 destructor TGrowingFixedPool.Destroy;
 var
-  I: SizeInt;
+  LArenaIndex: SizeInt;
 begin
-  for I := 0 to FArenaCount - 1 do
-    if FArenas[I].Base <> nil then
-      FAllocator.FreeMem(FArenas[I].Base);
+  for LArenaIndex := 0 to High(FArenas) do
+    if FArenas[LArenaIndex].Base <> nil then
+      FAllocator.FreeMem(FArenas[LArenaIndex].Base);
   SetLength(FArenas, 0);
   SetLength(FFreeStack, 0);
   inherited Destroy;
 end;
 
-function TGrowingFixedPool.TryAcquire(out APtr: Pointer): Boolean;
+function TGrowingFixedPool.TryAcquire(out aPtr: Pointer): Boolean;
 begin
-  Result := Acquire(APtr);
+  Result := Acquire(aPtr);
 end;
 
 function TGrowingFixedPool.AcquireN(out aPtrs: array of Pointer; aCount: Integer): Integer;
 var
-  I: Integer;
-  P: Pointer;
+  LIdx: Integer;
+  LPtr: Pointer;
 begin
   Result := 0;
-  for I := 0 to aCount - 1 do
+  for LIdx := 0 to aCount - 1 do
   begin
-    if I > High(aPtrs) then
+    if LIdx > High(aPtrs) then
       Break;
-    if Acquire(P) then
+    if Acquire(LPtr) then
     begin
-      aPtrs[I] := P;
+      aPtrs[LIdx] := LPtr;
       Inc(Result);
     end
     else
@@ -412,17 +632,15 @@ end;
 
 procedure TGrowingFixedPool.ReleaseN(const aPtrs: array of Pointer; aCount: Integer);
 var
-  I: Integer;
+  LIdx: Integer;
 begin
-  for I := 0 to aCount - 1 do
+  for LIdx := 0 to aCount - 1 do
   begin
-    if I > High(aPtrs) then
+    if LIdx > High(aPtrs) then
       Break;
-    Release(aPtrs[I]);
+    Release(aPtrs[LIdx]);
   end;
 end;
 
 
 end.
-
-

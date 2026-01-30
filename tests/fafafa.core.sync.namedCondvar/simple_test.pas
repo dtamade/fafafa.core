@@ -32,7 +32,7 @@ begin
     
     // 测试与命名互斥锁配合
     WriteLn('3. 测试与命名互斥锁配合...');
-    LMutex := Sync.MakeNamedMutex('test_simple_mutex');
+    LMutex := MakeNamedMutex('test_simple_mutex');
     LGuard := LMutex.Lock;
     try
       WriteLn('   ✓ 成功获取互斥锁');

@@ -14,7 +14,6 @@ uses
   fafafa.core.simd.bench,
   fafafa.core.simd.cpuinfo,
   fafafa.core.simd.dispatch,
-  fafafa.core.simd.types,
   fafafa.core.simd.api,
   fafafa.core.simd.scalar
   {$IFDEF CPUX86_64}
@@ -69,6 +68,7 @@ begin
   WriteLn('  TTestCase_Global');
   {$IFDEF CPUX86_64}
   WriteLn('  TTestCase_BackendConsistency');
+  WriteLn('  TTestCase_BackendVectorConsistency');
   {$ENDIF}
   WriteLn('  TTestCase_BackendSmoke');
   {$IFDEF CPUX86_64}
@@ -278,19 +278,25 @@ begin
       {$IFDEF CPUX86_64}
       if ShouldRunSuite('TTestCase_BackendConsistency') then
         testSuite.AddTest(TTestCase_BackendConsistency.Suite);
+      if ShouldRunSuite('TTestCase_BackendVectorConsistency') then
+        testSuite.AddTest(TTestCase_BackendVectorConsistency.Suite);
       {$ENDIF}
       if ShouldRunSuite('TTestCase_BackendSmoke') then
         testSuite.AddTest(TTestCase_BackendSmoke.Suite);
       {$IFDEF CPUX86_64}
+      {$IFDEF SIMD_BACKEND_AVX512}
       if ShouldRunSuite('TTestCase_AVX512BackendRequirements') then
         testSuite.AddTest(TTestCase_AVX512BackendRequirements.Suite);
+      {$ENDIF}
       {$ENDIF}
       {$IFDEF UNIX}
       {$IFDEF CPUX86_64}
       if ShouldRunSuite('TTestCase_AVX2VectorAsm') then
         testSuite.AddTest(TTestCase_AVX2VectorAsm.Suite);
+      {$IFDEF SIMD_BACKEND_AVX512}
       if ShouldRunSuite('TTestCase_AVX512VectorAsm') then
         testSuite.AddTest(TTestCase_AVX512VectorAsm.Suite);
+      {$ENDIF}
       {$ENDIF}
       {$ENDIF}
       if ShouldRunSuite('TTestCase_VectorOps') then

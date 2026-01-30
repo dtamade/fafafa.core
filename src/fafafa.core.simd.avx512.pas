@@ -1869,197 +1869,147 @@ end;
 // I8x16 有符号饱和加法 (VPADDSB)
 function AVX512I8x16SatAdd(const a, b: TVecI8x16): TVecI8x16; assembler; nostackframe;
 asm
-  // NOTE:
-  //   TVec* (16-byte variant record) 在 x86_64 上按 INTEGER 类传参/返回：
-  //   - SysV:  a.lowQ=RDI, a.highQ=RSI, b.lowQ=RDX, b.highQ=RCX; return RAX/RDX
-  //   - Win64: a.lowQ=RCX, a.highQ=RDX, b.lowQ=R8,  b.highQ=R9;  return RAX/RDX
-  sub rsp, 32
   {$IFDEF UNIX}
-  mov qword ptr [rsp], rdi
-  mov qword ptr [rsp + 8], rsi
-  mov qword ptr [rsp + 16], rdx
-  mov qword ptr [rsp + 24], rcx
-  {$ELSE}
-  mov qword ptr [rsp], rcx
-  mov qword ptr [rsp + 8], rdx
-  mov qword ptr [rsp + 16], r8
-  mov qword ptr [rsp + 24], r9
-  {$ENDIF}
-  vmovdqu xmm0, [rsp]
-  vmovdqu xmm1, [rsp + 16]
+  // SysV ABI: a -> RDI, b -> RSI, Result -> RAX
+  vmovdqu xmm0, [rdi]
+  vmovdqu xmm1, [rsi]
   vpaddsb xmm0, xmm0, xmm1
-  vmovdqu [rsp], xmm0
-  mov rax, qword ptr [rsp]
-  mov rdx, qword ptr [rsp + 8]
-  add rsp, 32
+  vmovdqu [rax], xmm0
+  vzeroupper
+  {$ELSE}
+  // Win64 ABI: a -> RCX, b -> RDX, Result -> RAX
+  vmovdqu xmm0, [rcx]
+  vmovdqu xmm1, [rdx]
+  vpaddsb xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  vzeroupper
+  {$ENDIF}
 end;
 
 // I8x16 有符号饱和减法 (VPSUBSB)
 function AVX512I8x16SatSub(const a, b: TVecI8x16): TVecI8x16; assembler; nostackframe;
 asm
-  sub rsp, 32
   {$IFDEF UNIX}
-  mov qword ptr [rsp], rdi
-  mov qword ptr [rsp + 8], rsi
-  mov qword ptr [rsp + 16], rdx
-  mov qword ptr [rsp + 24], rcx
-  {$ELSE}
-  mov qword ptr [rsp], rcx
-  mov qword ptr [rsp + 8], rdx
-  mov qword ptr [rsp + 16], r8
-  mov qword ptr [rsp + 24], r9
-  {$ENDIF}
-  vmovdqu xmm0, [rsp]
-  vmovdqu xmm1, [rsp + 16]
+  vmovdqu xmm0, [rdi]
+  vmovdqu xmm1, [rsi]
   vpsubsb xmm0, xmm0, xmm1
-  vmovdqu [rsp], xmm0
-  mov rax, qword ptr [rsp]
-  mov rdx, qword ptr [rsp + 8]
-  add rsp, 32
+  vmovdqu [rax], xmm0
+  vzeroupper
+  {$ELSE}
+  vmovdqu xmm0, [rcx]
+  vmovdqu xmm1, [rdx]
+  vpsubsb xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  vzeroupper
+  {$ENDIF}
 end;
 
 // I16x8 有符号饱和加法 (VPADDSW)
 function AVX512I16x8SatAdd(const a, b: TVecI16x8): TVecI16x8; assembler; nostackframe;
 asm
-  sub rsp, 32
   {$IFDEF UNIX}
-  mov qword ptr [rsp], rdi
-  mov qword ptr [rsp + 8], rsi
-  mov qword ptr [rsp + 16], rdx
-  mov qword ptr [rsp + 24], rcx
-  {$ELSE}
-  mov qword ptr [rsp], rcx
-  mov qword ptr [rsp + 8], rdx
-  mov qword ptr [rsp + 16], r8
-  mov qword ptr [rsp + 24], r9
-  {$ENDIF}
-  vmovdqu xmm0, [rsp]
-  vmovdqu xmm1, [rsp + 16]
+  vmovdqu xmm0, [rdi]
+  vmovdqu xmm1, [rsi]
   vpaddsw xmm0, xmm0, xmm1
-  vmovdqu [rsp], xmm0
-  mov rax, qword ptr [rsp]
-  mov rdx, qword ptr [rsp + 8]
-  add rsp, 32
+  vmovdqu [rax], xmm0
+  vzeroupper
+  {$ELSE}
+  vmovdqu xmm0, [rcx]
+  vmovdqu xmm1, [rdx]
+  vpaddsw xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  vzeroupper
+  {$ENDIF}
 end;
 
 // I16x8 有符号饱和减法 (VPSUBSW)
 function AVX512I16x8SatSub(const a, b: TVecI16x8): TVecI16x8; assembler; nostackframe;
 asm
-  sub rsp, 32
   {$IFDEF UNIX}
-  mov qword ptr [rsp], rdi
-  mov qword ptr [rsp + 8], rsi
-  mov qword ptr [rsp + 16], rdx
-  mov qword ptr [rsp + 24], rcx
-  {$ELSE}
-  mov qword ptr [rsp], rcx
-  mov qword ptr [rsp + 8], rdx
-  mov qword ptr [rsp + 16], r8
-  mov qword ptr [rsp + 24], r9
-  {$ENDIF}
-  vmovdqu xmm0, [rsp]
-  vmovdqu xmm1, [rsp + 16]
+  vmovdqu xmm0, [rdi]
+  vmovdqu xmm1, [rsi]
   vpsubsw xmm0, xmm0, xmm1
-  vmovdqu [rsp], xmm0
-  mov rax, qword ptr [rsp]
-  mov rdx, qword ptr [rsp + 8]
-  add rsp, 32
+  vmovdqu [rax], xmm0
+  vzeroupper
+  {$ELSE}
+  vmovdqu xmm0, [rcx]
+  vmovdqu xmm1, [rdx]
+  vpsubsw xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  vzeroupper
+  {$ENDIF}
 end;
 
 // U8x16 无符号饱和加法 (VPADDUSB)
 function AVX512U8x16SatAdd(const a, b: TVecU8x16): TVecU8x16; assembler; nostackframe;
 asm
-  sub rsp, 32
   {$IFDEF UNIX}
-  mov qword ptr [rsp], rdi
-  mov qword ptr [rsp + 8], rsi
-  mov qword ptr [rsp + 16], rdx
-  mov qword ptr [rsp + 24], rcx
-  {$ELSE}
-  mov qword ptr [rsp], rcx
-  mov qword ptr [rsp + 8], rdx
-  mov qword ptr [rsp + 16], r8
-  mov qword ptr [rsp + 24], r9
-  {$ENDIF}
-  vmovdqu xmm0, [rsp]
-  vmovdqu xmm1, [rsp + 16]
+  vmovdqu xmm0, [rdi]
+  vmovdqu xmm1, [rsi]
   vpaddusb xmm0, xmm0, xmm1
-  vmovdqu [rsp], xmm0
-  mov rax, qword ptr [rsp]
-  mov rdx, qword ptr [rsp + 8]
-  add rsp, 32
+  vmovdqu [rax], xmm0
+  vzeroupper
+  {$ELSE}
+  vmovdqu xmm0, [rcx]
+  vmovdqu xmm1, [rdx]
+  vpaddusb xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  vzeroupper
+  {$ENDIF}
 end;
 
 // U8x16 无符号饱和减法 (VPSUBUSB)
 function AVX512U8x16SatSub(const a, b: TVecU8x16): TVecU8x16; assembler; nostackframe;
 asm
-  sub rsp, 32
   {$IFDEF UNIX}
-  mov qword ptr [rsp], rdi
-  mov qword ptr [rsp + 8], rsi
-  mov qword ptr [rsp + 16], rdx
-  mov qword ptr [rsp + 24], rcx
-  {$ELSE}
-  mov qword ptr [rsp], rcx
-  mov qword ptr [rsp + 8], rdx
-  mov qword ptr [rsp + 16], r8
-  mov qword ptr [rsp + 24], r9
-  {$ENDIF}
-  vmovdqu xmm0, [rsp]
-  vmovdqu xmm1, [rsp + 16]
+  vmovdqu xmm0, [rdi]
+  vmovdqu xmm1, [rsi]
   vpsubusb xmm0, xmm0, xmm1
-  vmovdqu [rsp], xmm0
-  mov rax, qword ptr [rsp]
-  mov rdx, qword ptr [rsp + 8]
-  add rsp, 32
+  vmovdqu [rax], xmm0
+  vzeroupper
+  {$ELSE}
+  vmovdqu xmm0, [rcx]
+  vmovdqu xmm1, [rdx]
+  vpsubusb xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  vzeroupper
+  {$ENDIF}
 end;
 
 // U16x8 无符号饱和加法 (VPADDUSW)
 function AVX512U16x8SatAdd(const a, b: TVecU16x8): TVecU16x8; assembler; nostackframe;
 asm
-  sub rsp, 32
   {$IFDEF UNIX}
-  mov qword ptr [rsp], rdi
-  mov qword ptr [rsp + 8], rsi
-  mov qword ptr [rsp + 16], rdx
-  mov qword ptr [rsp + 24], rcx
-  {$ELSE}
-  mov qword ptr [rsp], rcx
-  mov qword ptr [rsp + 8], rdx
-  mov qword ptr [rsp + 16], r8
-  mov qword ptr [rsp + 24], r9
-  {$ENDIF}
-  vmovdqu xmm0, [rsp]
-  vmovdqu xmm1, [rsp + 16]
+  vmovdqu xmm0, [rdi]
+  vmovdqu xmm1, [rsi]
   vpaddusw xmm0, xmm0, xmm1
-  vmovdqu [rsp], xmm0
-  mov rax, qword ptr [rsp]
-  mov rdx, qword ptr [rsp + 8]
-  add rsp, 32
+  vmovdqu [rax], xmm0
+  vzeroupper
+  {$ELSE}
+  vmovdqu xmm0, [rcx]
+  vmovdqu xmm1, [rdx]
+  vpaddusw xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  vzeroupper
+  {$ENDIF}
 end;
 
 // U16x8 无符号饱和减法 (VPSUBUSW)
 function AVX512U16x8SatSub(const a, b: TVecU16x8): TVecU16x8; assembler; nostackframe;
 asm
-  sub rsp, 32
   {$IFDEF UNIX}
-  mov qword ptr [rsp], rdi
-  mov qword ptr [rsp + 8], rsi
-  mov qword ptr [rsp + 16], rdx
-  mov qword ptr [rsp + 24], rcx
-  {$ELSE}
-  mov qword ptr [rsp], rcx
-  mov qword ptr [rsp + 8], rdx
-  mov qword ptr [rsp + 16], r8
-  mov qword ptr [rsp + 24], r9
-  {$ENDIF}
-  vmovdqu xmm0, [rsp]
-  vmovdqu xmm1, [rsp + 16]
+  vmovdqu xmm0, [rdi]
+  vmovdqu xmm1, [rsi]
   vpsubusw xmm0, xmm0, xmm1
-  vmovdqu [rsp], xmm0
-  mov rax, qword ptr [rsp]
-  mov rdx, qword ptr [rsp + 8]
-  add rsp, 32
+  vmovdqu [rax], xmm0
+  vzeroupper
+  {$ELSE}
+  vmovdqu xmm0, [rcx]
+  vmovdqu xmm1, [rdx]
+  vpsubusw xmm0, xmm0, xmm1
+  vmovdqu [rax], xmm0
+  vzeroupper
+  {$ENDIF}
 end;
 
 // === Fallback Functions ===

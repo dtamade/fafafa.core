@@ -17,6 +17,7 @@ interface
 
 uses
   SysUtils, SyncObjs,
+  fafafa.core.base,  // ✅ ULID-002: 引入 ECore 基类
   fafafa.core.id.ulid,
   fafafa.core.crypto.random,
   fafafa.core.id.time;
@@ -30,7 +31,7 @@ type
   );
 
   { ULID overflow exception }
-  EUlidOverflow = class(Exception);
+  EUlidOverflow = class(ECore);  // ✅ ULID-002: 继承自 ECore
 
   { IUlidGenerator - Interface for configurable ULID generation }
   IUlidGenerator = interface

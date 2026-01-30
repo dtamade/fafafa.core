@@ -15,6 +15,7 @@ interface
 
 uses
   SysUtils, DateUtils, SyncObjs,
+  fafafa.core.base,  // ✅ SNOWFLAKE-001: 引入 ECore 基类
   fafafa.core.time,
   fafafa.core.id.time;
 
@@ -22,7 +23,7 @@ type
   TSnowflakeID = QWord; // 64-bit
 
   // Specialized exceptions
-  ESnowflakeError = class(Exception);
+  ESnowflakeError = class(ECore);  // ✅ SNOWFLAKE-001: 继承自 ECore
   ESnowflakeClockRollback = class(ESnowflakeError);
   ESnowflakeInvalidConfig = class(ESnowflakeError);
 
@@ -212,4 +213,3 @@ begin
 end;
 
 end.
-

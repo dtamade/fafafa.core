@@ -1,0 +1,15 @@
+{**
+ * fafafa.core.math
+ *
+ * @desc
+ *   Cross-platform mathematical routines with Rust-style safe arithmetic operations.
+ *   提供跨平台数学函数和 Rust 风格的安全算术运算。
+ *
+ * @author    fafafaStudio
+ * @contact   dtamade@gmail.com
+ * @copyright (c) 2025 fafafaStudio. All rights reserved.
+ *
+ * @see docs/fafafa.core.math.md for complete documentation
+ *      完整文档请参见 docs/fafafa.core.math.md
+ *}
+

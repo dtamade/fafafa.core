@@ -22,22 +22,16 @@ var
   g_cache_cs_inited: Boolean = False;
   g_cache_cs: TRTLCriticalSection;
 
-procedure _cache_lock;
+procedure _cache_lock; inline;
 begin
-  // 延迟初始化临界区，确保线程安全
-  if not g_cache_cs_inited then
-  begin
-    InitCriticalSection(g_cache_cs);
-    g_cache_cs_inited := True;
-  end;
+  // CriticalSection 在 initialization 中初始化
+  // 这里只需要进入临界区
   EnterCriticalSection(g_cache_cs);
 end;
 
-procedure _cache_unlock;
+procedure _cache_unlock; inline;
 begin
-  // 安全释放临界区锁
-  if g_cache_cs_inited then
-    LeaveCriticalSection(g_cache_cs);
+  LeaveCriticalSection(g_cache_cs);
 end;
 {$ENDIF}
 
@@ -221,7 +215,6 @@ begin
     Result := ExcludeTrailingPathDelimiter(Result);
 end;
 function os_kernel_version: string;
-
 var
   reg: HKEY;
   buf: array[0..255] of WideChar;
@@ -234,6 +227,16 @@ var
   dotPos: Integer;
   vi: OSVERSIONINFO;
 begin
+  {$IFDEF FAFAFA_OS_CACHE_PROBES}
+  // Fast path: check cache without lock
+  if g_cached_kernel_ver_inited then Exit(g_cached_kernel_ver);
+
+  // Slow path: acquire lock and double-check
+  _cache_lock;
+  try
+    if g_cached_kernel_ver_inited then Exit(g_cached_kernel_ver);
+  {$ENDIF}
+
   Result := '';
   if RegOpenKeyExW(HKEY_LOCAL_MACHINE, 'SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion', 0, KEY_READ, reg) = ERROR_SUCCESS then
   begin
@@ -286,9 +289,8 @@ begin
     else
       Result := '';
   end;
+
   {$IFDEF FAFAFA_OS_CACHE_PROBES}
-  _cache_lock;
-  try
     g_cached_kernel_ver := Result;
     g_cached_kernel_ver_inited := True;
   finally
@@ -597,7 +599,9 @@ begin
   finally
     _cache_unlock;
   end;
-  Result := g_cached_is_admin;
+  {$ELSE}
+  Result := isMember;
+  {$ENDIF}
 end;
 
 function os_is_wsl: Boolean;
@@ -632,7 +636,6 @@ end;
 
 function os_os_version_detailed: TOSVersionDetailed;
 var
-
   reg: HKEY;
   buf: array[0..255] of WideChar;
   datasize, dtype: DWORD;
@@ -642,6 +645,15 @@ var
   major, minor, buildNum: Integer;
   vi: OSVERSIONINFO;
 begin
+  {$IFDEF FAFAFA_OS_CACHE_PROBES}
+  // Fast path: check cache without lock
+  if g_cached_osver_inited then Exit(g_cached_osver);
+
+  // Slow path: acquire lock and double-check
+  _cache_lock;
+  try
+    if g_cached_osver_inited then Exit(g_cached_osver);
+  {$ENDIF}
 
   System.Initialize(Result);
   major := 0; minor := 0; buildNum := 0;
@@ -863,9 +875,8 @@ begin
       Result.ID := 'windows';
     end;
   end;
+
   {$IFDEF FAFAFA_OS_CACHE_PROBES}
-  _cache_lock;
-  try
     g_cached_osver := Result;
     g_cached_osver_inited := True;
   finally

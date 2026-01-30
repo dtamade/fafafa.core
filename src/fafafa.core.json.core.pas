@@ -420,7 +420,7 @@ function JsonEqualsStrN(AVal: PJsonValue; const AStr: PChar; ALen: SizeUInt): Bo
 // 高级读取器 API (严格对应 yyjson_read_* 函数)
 function JsonRead(const AData: PChar; ALen: SizeUInt; AFlags: TJsonReadFlags): TJsonDocument; inline;
 function JsonReadOpts(const AData: PChar; ALen: SizeUInt; AFlags: TJsonReadFlags;
-  AAllocator: TAllocator; var AError: TJsonError): TJsonDocument; inline;
+  AAllocator: IAllocator; var AError: TJsonError): TJsonDocument; inline;
 function JsonReadFile(const APath: String; AFlags: TJsonReadFlags;
   AAllocator: IAllocator; var AError: TJsonError): TJsonDocument; inline;
 function JsonReadMaxMemoryUsage(ALen: SizeUInt; AFlags: TJsonReadFlags): SizeUInt; inline;
@@ -432,7 +432,7 @@ function JsonReadNumber(const AData: PChar; ALen: SizeUInt): Double; inline;
 function JsonWrite(ADoc: TJsonDocument; AFlags: TJsonWriteFlags; var ALen: SizeUInt): PChar;
 function JsonWrite(ADoc: TJsonDocument; out ALen: SizeUInt): PChar; inline; // 便捷重载，默认 flags=[]
 function JsonWriteToString(ADoc: TJsonDocument; AFlags: TJsonWriteFlags = []): String; inline;
-function JsonWriteOpts(ADoc: TJsonDocument; AFlags: TJsonWriteFlags; AAllocator: TAllocator;
+function JsonWriteOpts(ADoc: TJsonDocument; AFlags: TJsonWriteFlags; AAllocator: IAllocator;
   var ALen: SizeUInt; var AError: TJsonWriteError): PChar;
 function JsonWriteFile(const APath: String; ADoc: TJsonDocument; AFlags: TJsonWriteFlags;
   AAllocator: IAllocator; var AError: TJsonWriteError): Boolean;
@@ -2787,7 +2787,7 @@ end;
 
 
 function JsonWriteToString(ADoc: TJsonDocument; AFlags: TJsonWriteFlags): String; inline;
-var L: SizeUInt; P: PChar; Alc: TAllocator;
+var L: SizeUInt; P: PChar; Alc: IAllocator;
 begin
   Result := '';
   if (ADoc = nil) then Exit;

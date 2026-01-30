@@ -19,6 +19,7 @@ interface
 
 uses
   SysUtils,
+  fafafa.core.base,  // ✅ FS-002: 引入 ECore 基类
   fafafa.core.thread.future,
   fafafa.core.thread.cancel;
 
@@ -36,7 +37,7 @@ type
   );
 
   // 异步文件操作异常
-  EAsyncFileError = class(Exception)
+  EAsyncFileError = class(ECore)  // ✅ FS-002: 继承自 ECore
   private
     FErrorCode: Integer;
   public
@@ -79,4 +80,3 @@ begin
 end;
 
 end.
-

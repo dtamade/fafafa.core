@@ -39,8 +39,13 @@ type
   TLazyState = (
     lsUninit,       // 未初始化
     lsInitializing, // 正在初始化（某线程正在执行）
-    lsInitialized   // 已初始化
+    lsInitialized,  // 已初始化
+    lsPoisoned      // 毒化状态（初始化失败）
   );
+
+  { 异常类型 }
+  ELazyLockError = class(Exception);
+  ELazyLockPoisoned = class(ELazyLockError);
 
   { TLazyLock - 线程安全懒加载容器 }
   generic TLazyLock<T> = class
@@ -91,6 +96,16 @@ type
      * 检查是否已初始化
      *}
     function IsInitialized: Boolean; inline;
+
+    {**
+     * IsPoisoned - 检查是否处于毒化状态
+     *
+     * @return True 如果初始化失败导致毒化
+     *
+     * @rust_equivalent
+     *   类似 Mutex::is_poisoned()
+     *}
+    function IsPoisoned: Boolean; inline;
 
     {**
      * ForceInit - 强制初始化，返回是否首次初始化
@@ -152,6 +167,10 @@ begin
   if FState = lsInitialized then
     Exit(False);
 
+  // 检查是否已经毒化
+  if FState = lsPoisoned then
+    raise ELazyLockPoisoned.Create('LazyLock: Initialization previously failed (poisoned state)');
+
   // 慢路径：尝试获取初始化权
   OldState := InterlockedCompareExchange(
     LongInt(FState),
@@ -169,18 +188,28 @@ begin
         FState := lsInitialized;
         Result := True;
       except
-        FState := lsUninit;  // 初始化失败，恢复状态
+        // 初始化失败，设置为毒化状态
+        FState := lsPoisoned;
         raise;
       end;
     end;
-    
+
     lsInitializing:
     begin
       // 另一个线程正在初始化，等待完成
       WaitForInitialized;
+      // 等待完成后检查状态
+      if FState = lsPoisoned then
+        raise ELazyLockPoisoned.Create('LazyLock: Initialization failed in another thread (poisoned state)');
       Result := False;
     end;
-    
+
+    lsPoisoned:
+    begin
+      // 已经毒化
+      raise ELazyLockPoisoned.Create('LazyLock: Initialization previously failed (poisoned state)');
+    end;
+
     else  // lsInitialized
       Result := False;
   end;
@@ -212,6 +241,11 @@ end;
 function TLazyLock.IsInitialized: Boolean;
 begin
   Result := FState = lsInitialized;
+end;
+
+function TLazyLock.IsPoisoned: Boolean;
+begin
+  Result := FState = lsPoisoned;
 end;
 
 function TLazyLock.ForceInit: Boolean;

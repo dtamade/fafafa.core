@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="UTF-8"?>
-<CONFIG>
-  <Compiler Value="/home/dtamade/freePascal/fpc/bin/x86_64-linux/fpc.sh" Date="1761279526"/>
-  <Params Value="-Tlinux -Px86_64 -MObjFPC -Scgi -Cg -O1 -g -gl -l -vewnhibq -Fu/home/dtamade/projects/fafafa.core/ -o/home/dtamade/projects/fafafa.core/test_msg -Fu./src test_msg.lpr"/>
-</CONFIG>

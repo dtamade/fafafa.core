@@ -1,4 +1,5 @@
 # fafafa.core.mem 终极完成报告
+> 说明：本文档为阶段性记录，内容可能与当前代码不一致；以 `docs/fafafa.core.mem.md` 与 `tests/fafafa.core.mem/README.md` 为准。
 
 ## 🎉 项目状态：完美完成
 
@@ -13,7 +14,7 @@
 - ✅ `fafafa.core.mem.pas` - 主门面模块，统一入口
 - ✅ `fafafa.core.mem.memPool.pas` - 通用内存池
 - ✅ `fafafa.core.mem.stackPool.pas` - 栈式内存池
-- ✅ `fafafa.core.mem.slabPool.pas` - nginx风格Slab分配器
+- ✅ `fafafa.core.mem.pool.slab.pas` - nginx风格Slab分配器
 - ✅ `fafafa.core.mem.advanced.pas` - 高级内存池和线程安全
 - ✅ `fafafa.core.mem.config.pas` - 配置管理系统
 - ✅ `fafafa.core.mem.factory.pas` - 内存池工厂

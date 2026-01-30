@@ -17,10 +17,11 @@ interface
 
 uses
   SysUtils,
+  fafafa.core.base,  // ✅ ULID-001: 引入 ECore 基类
   fafafa.core.id.ulid;
 
 type
-  EUlidParseError = class(Exception);
+  EUlidParseError = class(ECore);  // ✅ ULID-001: 继承自 ECore
 
   TULID = record
   private

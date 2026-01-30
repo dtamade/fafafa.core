@@ -21,7 +21,7 @@ unit fafafa.core.lockfree;
  *   - 统一门面导出，便于使用和维护
  *   - 提供常用类型的别名与 Create… 便捷构造函数
  *
- * 提示: HashMap 选型指南请参见 docs/README_LOCKFREE.md（OA vs MM 的差异与选择）
+ * 提示: HashMap 选型指南请参见 docs/topics/lockfree/README_LOCKFREE.md（OA vs MM 的差异与选择）
 
  *
  * 作者: fafafa.core 开发团队
@@ -31,6 +31,7 @@ unit fafafa.core.lockfree;
 
 {$mode objfpc}{$H+}
 {$modeswitch advancedrecords}
+{$I fafafa.core.settings.inc}
 
 interface
 

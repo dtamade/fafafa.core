@@ -25,7 +25,7 @@
     </RunParams>
     <Units>
       <Unit>
-        <Filename Value="debug_shm.lpr"/>
+        <Filename Value="bin/debug_shm"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>
@@ -33,7 +33,7 @@
   <CompilerOptions>
     <Version Value="11"/>
     <Target>
-      <Filename Value="debug_shm"/>
+      <Filename Value="bin/debug_shm"/>
     </Target>
     <SearchPaths>
       <IncludeFiles Value="../../src"/>

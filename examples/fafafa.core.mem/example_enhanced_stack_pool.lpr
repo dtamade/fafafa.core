@@ -1,7 +1,7 @@
-{$CODEPAGE UTF8}
 program example_enhanced_stack_pool;
-
 {$mode objfpc}{$H+}
+{$I ../../src/fafafa.core.settings.inc}
+{$IFDEF WINDOWS}{$CODEPAGE UTF8}{$ENDIF}
 
 uses
   SysUtils,
@@ -25,4 +25,3 @@ begin
     LPool.Free;
   end;
 end.
-

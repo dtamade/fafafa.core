@@ -14,10 +14,13 @@ uses
   fafafa.core.simd.api,
   fafafa.core.simd.dispatch,
   fafafa.core.simd.scalar,
+  fafafa.core.simd.backend.consistency.testcase,
   {$IFDEF CPUX86_64}
   fafafa.core.simd.sse2,
   fafafa.core.simd.avx2,
+  {$IFDEF SIMD_BACKEND_AVX512}
   fafafa.core.simd.avx512,
+  {$ENDIF}
   {$ENDIF}
   fafafa.core.simd.cpuinfo,
   fafafa.core.simd.cpuinfo.base,
@@ -86,6 +89,12 @@ type
     procedure Test_MemDiffRange_Consistency;
     procedure Test_BytesIndexOf_Consistency;
   end;
+
+  // SIMD 向量运算一致性测试（跨后端 vs Scalar）
+  TTestCase_BackendVectorConsistency = class(TTestCase)
+  published
+    procedure Test_VectorOps_Consistency;
+  end;
   {$ENDIF}
 
   // 后端烟雾测试 - 验证 backend 选择后基础向量操作不会崩溃且结果正确
@@ -113,9 +122,11 @@ type
     procedure Test_TrySetActiveBackend_Scalar_ReturnsTrue;
     procedure Test_TrySetActiveBackend_Unavailable_NoChange;
     procedure Test_SetActiveBackend_Unavailable_FallsBackToScalar;
+    procedure Test_BackendInfoAvailableFalse_IsNotSelectable;
   end;
 
   {$IFDEF CPUX86_64}
+  {$IFDEF SIMD_BACKEND_AVX512}
   // AVX-512 后端需求判定测试（纯逻辑，不依赖当前硬件）
   TTestCase_AVX512BackendRequirements = class(TTestCase)
   published
@@ -124,6 +135,7 @@ type
     procedure Test_AVX512Backend_DispatchTable_Overrides512BitLoadStoreAndSelect;
     procedure Test_AVX512Backend_DispatchTable_Overrides512BitFloatCompare;
   end;
+  {$ENDIF}
   {$ENDIF}
 
   {$IFDEF UNIX}
@@ -200,6 +212,7 @@ type
     procedure Test_Facade_BytesIndexOf_ABI_CalleeSavedRegisters_Preserved;
   end;
 
+  {$IFDEF SIMD_BACKEND_AVX512}
   // AVX-512 VectorAsm 专项测试：聚焦于 512-bit 向量汇编路径的正确性
   // 全面覆盖所有 AVX-512 注册函数
   TTestCase_AVX512VectorAsm = class(TTestCase)
@@ -256,6 +269,7 @@ type
     procedure Test_VecF32x16_ABI_CalleeSavedRegisters_Preserved;
     procedure Test_VecI32x16_ABI_CalleeSavedRegisters_Preserved;
   end;
+  {$ENDIF}  // SIMD_BACKEND_AVX512
   {$ENDIF}
   {$ENDIF}
 
@@ -1202,14 +1216,18 @@ begin
   // 测试相等情况
   resScalar := MemEqual_Scalar(@buf1[0], @buf2[0], 256);
   resSSE2 := MemEqual_SSE2(@buf1[0], @buf2[0], 256);
-  if HasAVX2 then
+  if HasAVX2 and IsBackendRegistered(sbAVX2) then
     resAVX2 := MemEqual_AVX2(@buf1[0], @buf2[0], 256)
   else
     resAVX2 := resScalar;
+  {$IFDEF SIMD_BACKEND_AVX512}
   if HasAVX512 then
     resAVX512 := MemEqual_AVX512(@buf1[0], @buf2[0], 256)
   else
     resAVX512 := resScalar;
+  {$ELSE}
+  resAVX512 := resScalar;
+  {$ENDIF}
   
   AssertTrue('Scalar should return true for equal buffers', resScalar);
   AssertEquals('SSE2 should match Scalar (equal)', resScalar, resSSE2);
@@ -1220,14 +1238,18 @@ begin
   buf2[128] := 255;
   resScalar := MemEqual_Scalar(@buf1[0], @buf2[0], 256);
   resSSE2 := MemEqual_SSE2(@buf1[0], @buf2[0], 256);
-  if HasAVX2 then
+  if HasAVX2 and IsBackendRegistered(sbAVX2) then
     resAVX2 := MemEqual_AVX2(@buf1[0], @buf2[0], 256)
   else
     resAVX2 := resScalar;
+  {$IFDEF SIMD_BACKEND_AVX512}
   if HasAVX512 then
     resAVX512 := MemEqual_AVX512(@buf1[0], @buf2[0], 256)
   else
     resAVX512 := resScalar;
+  {$ELSE}
+  resAVX512 := resScalar;
+  {$ENDIF}
   
   AssertFalse('Scalar should return false for different buffers', resScalar);
   AssertEquals('SSE2 should match Scalar (different)', resScalar, resSSE2);
@@ -1247,14 +1269,18 @@ begin
   // 查找存在的字节
   resScalar := MemFindByte_Scalar(@buf[0], 256, 64);
   resSSE2 := MemFindByte_SSE2(@buf[0], 256, 64);
-  if HasAVX2 then
+  if HasAVX2 and IsBackendRegistered(sbAVX2) then
     resAVX2 := MemFindByte_AVX2(@buf[0], 256, 64)
   else
     resAVX2 := resScalar;
+  {$IFDEF SIMD_BACKEND_AVX512}
   if HasAVX512 then
     resAVX512 := MemFindByte_AVX512(@buf[0], 256, 64)
   else
     resAVX512 := resScalar;
+  {$ELSE}
+  resAVX512 := resScalar;
+  {$ENDIF}
   
   AssertEquals('SSE2 should match Scalar (found)', resScalar, resSSE2);
   AssertEquals('AVX2 should match Scalar (found)', resScalar, resAVX2);
@@ -1263,14 +1289,18 @@ begin
   // 查找不存在的字节
   resScalar := MemFindByte_Scalar(@buf[0], 256, 200);
   resSSE2 := MemFindByte_SSE2(@buf[0], 256, 200);
-  if HasAVX2 then
+  if HasAVX2 and IsBackendRegistered(sbAVX2) then
     resAVX2 := MemFindByte_AVX2(@buf[0], 256, 200)
   else
     resAVX2 := resScalar;
+  {$IFDEF SIMD_BACKEND_AVX512}
   if HasAVX512 then
     resAVX512 := MemFindByte_AVX512(@buf[0], 256, 200)
   else
     resAVX512 := resScalar;
+  {$ELSE}
+  resAVX512 := resScalar;
+  {$ENDIF}
   
   AssertEquals('SSE2 should match Scalar (not found)', resScalar, resSSE2);
   AssertEquals('AVX2 should match Scalar (not found)', resScalar, resAVX2);
@@ -1288,14 +1318,18 @@ begin
   
   resScalar := SumBytes_Scalar(@buf[0], 256);
   resSSE2 := SumBytes_SSE2(@buf[0], 256);
-  if HasAVX2 then
+  if HasAVX2 and IsBackendRegistered(sbAVX2) then
     resAVX2 := SumBytes_AVX2(@buf[0], 256)
   else
     resAVX2 := resScalar;
+  {$IFDEF SIMD_BACKEND_AVX512}
   if HasAVX512 then
     resAVX512 := SumBytes_AVX512(@buf[0], 256)
   else
     resAVX512 := resScalar;
+  {$ELSE}
+  resAVX512 := resScalar;
+  {$ENDIF}
   
   // 0+1+2+...+255 = 255*256/2 = 32640
   AssertEquals('Scalar sum should be 32640', 32640, resScalar);
@@ -1315,14 +1349,18 @@ begin
   
   resScalar := CountByte_Scalar(@buf[0], 256, 5);
   resSSE2 := CountByte_SSE2(@buf[0], 256, 5);
-  if HasAVX2 then
+  if HasAVX2 and IsBackendRegistered(sbAVX2) then
     resAVX2 := CountByte_AVX2(@buf[0], 256, 5)
   else
     resAVX2 := resScalar;
+  {$IFDEF SIMD_BACKEND_AVX512}
   if HasAVX512 then
     resAVX512 := CountByte_AVX512(@buf[0], 256, 5)
   else
     resAVX512 := resScalar;
+  {$ELSE}
+  resAVX512 := resScalar;
+  {$ENDIF}
   
   AssertEquals('Scalar count should be 16', 16, resScalar);
   AssertEquals('SSE2 should match Scalar', resScalar, resSSE2);
@@ -1340,13 +1378,14 @@ begin
     buf[i] := Byte((i * 7 + 13) mod 256);  // 伪随机分布
   
   MinMaxBytes_Scalar(@buf[0], 256, minScalar, maxScalar);
-  if HasAVX2 then
+  if HasAVX2 and IsBackendRegistered(sbAVX2) then
     MinMaxBytes_AVX2(@buf[0], 256, minAVX2, maxAVX2)
   else
   begin
     minAVX2 := minScalar;
     maxAVX2 := maxScalar;
   end;
+  {$IFDEF SIMD_BACKEND_AVX512}
   if HasAVX512 then
     MinMaxBytes_AVX512(@buf[0], 256, minAVX512, maxAVX512)
   else
@@ -1354,6 +1393,10 @@ begin
     minAVX512 := minScalar;
     maxAVX512 := maxScalar;
   end;
+  {$ELSE}
+  minAVX512 := minScalar;
+  maxAVX512 := maxScalar;
+  {$ENDIF}
   
   AssertEquals('AVX2 min should match Scalar', minScalar, minAVX2);
   AssertEquals('AVX2 max should match Scalar', maxScalar, maxAVX2);
@@ -1372,14 +1415,18 @@ begin
     buf[i] := Byte((i * 13 + 7) mod 256);
   
   resScalar := BitsetPopCount_Scalar(@buf[0], 256);
-  if HasAVX2 then
+  if HasAVX2 and IsBackendRegistered(sbAVX2) then
     resAVX2 := BitsetPopCount_AVX2(@buf[0], 256)
   else
     resAVX2 := resScalar;
+  {$IFDEF SIMD_BACKEND_AVX512}
   if HasAVX512 then
     resAVX512 := BitsetPopCount_AVX512(@buf[0], 256)
   else
     resAVX512 := resScalar;
+  {$ELSE}
+  resAVX512 := resScalar;
+  {$ENDIF}
   
   AssertEquals('AVX2 popcount should match Scalar', resScalar, resAVX2);
   AssertEquals('AVX512 popcount should match Scalar', resScalar, resAVX512);
@@ -1404,7 +1451,7 @@ var
 begin
   // 测试 1: 有效 ASCII
   resScalar := Utf8Validate_Scalar(@ValidASCII[0], 5);
-  if HasAVX2 then
+  if HasAVX2 and IsBackendRegistered(sbAVX2) then
     resAVX2 := Utf8Validate_AVX2(@ValidASCII[0], 5)
   else
     resAVX2 := resScalar;
@@ -1413,7 +1460,7 @@ begin
   
   // 测试 2: 有效 2 字节 UTF-8
   resScalar := Utf8Validate_Scalar(@Valid2Byte[0], 2);
-  if HasAVX2 then
+  if HasAVX2 and IsBackendRegistered(sbAVX2) then
     resAVX2 := Utf8Validate_AVX2(@Valid2Byte[0], 2)
   else
     resAVX2 := resScalar;
@@ -1422,7 +1469,7 @@ begin
   
   // 测试 3: 有效 3 字节 UTF-8
   resScalar := Utf8Validate_Scalar(@Valid3Byte[0], 3);
-  if HasAVX2 then
+  if HasAVX2 and IsBackendRegistered(sbAVX2) then
     resAVX2 := Utf8Validate_AVX2(@Valid3Byte[0], 3)
   else
     resAVX2 := resScalar;
@@ -1431,7 +1478,7 @@ begin
   
   // 测试 4: 有效 4 字节 UTF-8
   resScalar := Utf8Validate_Scalar(@Valid4Byte[0], 4);
-  if HasAVX2 then
+  if HasAVX2 and IsBackendRegistered(sbAVX2) then
     resAVX2 := Utf8Validate_AVX2(@Valid4Byte[0], 4)
   else
     resAVX2 := resScalar;
@@ -1440,7 +1487,7 @@ begin
   
   // 测试 5: 无效超长编码
   resScalar := Utf8Validate_Scalar(@InvalidOverlong[0], 2);
-  if HasAVX2 then
+  if HasAVX2 and IsBackendRegistered(sbAVX2) then
     resAVX2 := Utf8Validate_AVX2(@InvalidOverlong[0], 2)
   else
     resAVX2 := resScalar;
@@ -1449,7 +1496,7 @@ begin
   
   // 测试 6: 不完整序列
   resScalar := Utf8Validate_Scalar(@InvalidIncomplete[0], 1);
-  if HasAVX2 then
+  if HasAVX2 and IsBackendRegistered(sbAVX2) then
     resAVX2 := Utf8Validate_AVX2(@InvalidIncomplete[0], 1)
   else
     resAVX2 := resScalar;
@@ -1470,7 +1517,7 @@ begin
   end;
   
   MemReverse_Scalar(@bufScalar[0], 256);
-  if HasAVX2 then
+  if HasAVX2 and IsBackendRegistered(sbAVX2) then
     MemReverse_AVX2(@bufAVX2[0], 256)
   else
     MemReverse_Scalar(@bufAVX2[0], 256);
@@ -1494,7 +1541,7 @@ begin
   end;
   
   resScalar := AsciiIEqual_Scalar(@buf1[0], @buf2[0], 64);
-  if HasAVX2 then
+  if HasAVX2 and IsBackendRegistered(sbAVX2) then
     resAVX2 := AsciiIEqual_AVX2(@buf1[0], @buf2[0], 64)
   else
     resAVX2 := resScalar;
@@ -1505,7 +1552,7 @@ begin
   // 测试 2: 不同字符串
   buf2[32] := Byte(48);  // '0' != 'q'
   resScalar := AsciiIEqual_Scalar(@buf1[0], @buf2[0], 64);
-  if HasAVX2 then
+  if HasAVX2 and IsBackendRegistered(sbAVX2) then
     resAVX2 := AsciiIEqual_AVX2(@buf1[0], @buf2[0], 64)
   else
     resAVX2 := resScalar;
@@ -1530,7 +1577,7 @@ begin
   end;
   
   ToLowerAscii_Scalar(@bufScalar[0], 128);
-  if HasAVX2 then
+  if HasAVX2 and IsBackendRegistered(sbAVX2) then
     ToLowerAscii_AVX2(@bufAVX2[0], 128)
   else
     ToLowerAscii_Scalar(@bufAVX2[0], 128);
@@ -1556,7 +1603,7 @@ begin
   end;
   
   ToUpperAscii_Scalar(@bufScalar[0], 128);
-  if HasAVX2 then
+  if HasAVX2 and IsBackendRegistered(sbAVX2) then
     ToUpperAscii_AVX2(@bufAVX2[0], 128)
   else
     ToUpperAscii_Scalar(@bufAVX2[0], 128);
@@ -1586,7 +1633,7 @@ begin
   buf2[150] := 253;
   
   resScalar := MemDiffRange_Scalar(@buf1[0], @buf2[0], 256, firstScalar, lastScalar);
-  if HasAVX2 then
+  if HasAVX2 and IsBackendRegistered(sbAVX2) then
     resAVX2 := MemDiffRange_AVX2(@buf1[0], @buf2[0], 256, firstAVX2, lastAVX2)
   else
   begin
@@ -1605,7 +1652,7 @@ begin
     buf2[i] := Byte(i);
   
   resScalar := MemDiffRange_Scalar(@buf1[0], @buf2[0], 256, firstScalar, lastScalar);
-  if HasAVX2 then
+  if HasAVX2 and IsBackendRegistered(sbAVX2) then
     resAVX2 := MemDiffRange_AVX2(@buf1[0], @buf2[0], 256, firstAVX2, lastAVX2)
   else
     resAVX2 := resScalar;
@@ -1632,7 +1679,7 @@ begin
   needle[3] := 67;
   
   resScalar := BytesIndexOf_Scalar(@haystack[0], 256, @needle[0], 4);
-  if HasAVX2 then
+  if HasAVX2 and IsBackendRegistered(sbAVX2) then
     resAVX2 := BytesIndexOf_AVX2(@haystack[0], 256, @needle[0], 4)
   else
     resAVX2 := resScalar;
@@ -1647,13 +1694,65 @@ begin
   needle[3] := 203;
   
   resScalar := BytesIndexOf_Scalar(@haystack[0], 256, @needle[0], 4);
-  if HasAVX2 then
+  if HasAVX2 and IsBackendRegistered(sbAVX2) then
     resAVX2 := BytesIndexOf_AVX2(@haystack[0], 256, @needle[0], 4)
   else
     resAVX2 := resScalar;
   
   AssertEquals('Scalar should not find needle', -1, resScalar);
   AssertEquals('AVX2 should match Scalar (not found)', resScalar, resAVX2);
+end;
+
+procedure TTestCase_BackendVectorConsistency.Test_VectorOps_Consistency;
+var
+  results: TConsistencyTestResults;
+  i: Integer;
+  failMsg: string;
+
+  function BackendName(b: TSimdBackend): string;
+  begin
+    case b of
+      sbScalar: Result := 'Scalar';
+      sbSSE2: Result := 'SSE2';
+      sbSSE3: Result := 'SSE3';
+      sbSSSE3: Result := 'SSSE3';
+      sbSSE41: Result := 'SSE4.1';
+      sbSSE42: Result := 'SSE4.2';
+      sbAVX2: Result := 'AVX2';
+      sbAVX512: Result := 'AVX512';
+      sbNEON: Result := 'NEON';
+      sbRISCVV: Result := 'RISCVV';
+    else
+      Result := 'Unknown';
+    end;
+  end;
+
+begin
+  try
+    results := RunAllConsistencyTests;
+
+    failMsg := '';
+    for i := 0 to High(results) do
+    begin
+      if Pos('skipped', LowerCase(results[i].ErrorMessage)) > 0 then
+        Continue;
+
+      if not results[i].Passed then
+      begin
+        failMsg := failMsg + Format('%s / %s - %s',
+          [BackendName(results[i].Backend), results[i].TestName, results[i].ErrorMessage]) + LineEnding;
+
+        if results[i].MaxDiff > 0 then
+          failMsg := failMsg + Format('  Max diff: %g at index %d',
+            [results[i].MaxDiff, results[i].DiffLocation]) + LineEnding;
+      end;
+    end;
+
+    if failMsg <> '' then
+      Fail(failMsg);
+  finally
+    ResetToAutomaticBackend;
+  end;
 end;
 
 {$ENDIF}
@@ -2018,6 +2117,7 @@ begin
 end;
 
 {$IFDEF CPUX86_64}
+{$IFDEF SIMD_BACKEND_AVX512}
 
 { TTestCase_AVX512BackendRequirements }
 
@@ -2101,6 +2201,7 @@ begin
   AssertTrue('CmpNeF64x8 should be overridden', dt.CmpNeF64x8 <> @ScalarCmpNeF64x8);
 end;
 
+{$ENDIF}
 {$ENDIF}
 
 {$IFDEF UNIX}
@@ -7777,6 +7878,7 @@ begin
   AssertEquals('ABI BytesIndexOf not found', expected, actual);
 end;
 
+{$IFDEF SIMD_BACKEND_AVX512}
 { TTestCase_AVX512VectorAsm }
 
 procedure TTestCase_AVX512VectorAsm.SetUp;
@@ -9061,8 +9163,9 @@ begin
     AssertEquals('I32x16 Or result lane ' + IntToStr(i), a.i[i] or b.i[i], resultV.i[i]);
 end;
 
-{$ENDIF}
-{$ENDIF}
+{$ENDIF}  // SIMD_BACKEND_AVX512
+{$ENDIF}  // CPUX86_64
+{$ENDIF}  // UNIX
 
 { TTestCase_VectorOps }
 
@@ -13422,18 +13525,64 @@ begin
   end;
 end;
 
+procedure TTestCase_DispatchAPI.Test_BackendInfoAvailableFalse_IsNotSelectable;
+var
+  originalBackend: TSimdBackend;
+  beforeTry: TSimdBackend;
+  afterAuto: TSimdBackend;
+  dtOrig, dtMod: TSimdDispatchTable;
+begin
+  ResetToAutomaticBackend;
+  originalBackend := GetActiveBackend;
+
+  // If we ended up on Scalar, there's nothing meaningful to test.
+  if originalBackend = sbScalar then
+    Exit;
+
+  AssertTrue('Active backend should be registered',
+             TryGetRegisteredBackendDispatchTable(originalBackend, dtOrig));
+
+  dtMod := dtOrig;
+  dtMod.BackendInfo.Available := False;
+
+  // Re-register same backend but mark it unavailable.
+  RegisterBackend(originalBackend, dtMod);
+  try
+    // Forced selection must now fail.
+    beforeTry := GetActiveBackend;
+    AssertFalse('TrySetActiveBackend should fail when BackendInfo.Available=False',
+                TrySetActiveBackend(originalBackend));
+    AssertEquals('Active backend should remain unchanged after failed TrySetActiveBackend',
+                 Ord(beforeTry), Ord(GetActiveBackend));
+
+    // Automatic selection must not pick this backend anymore.
+    ResetToAutomaticBackend;
+    afterAuto := GetActiveBackend;
+    AssertTrue('Automatic selection should skip backend marked unavailable', afterAuto <> originalBackend);
+  finally
+    // Restore original table.
+    RegisterBackend(originalBackend, dtOrig);
+    ResetToAutomaticBackend;
+  end;
+end;
+
 initialization
   RegisterTest(TTestCase_Global);
   {$IFDEF CPUX86_64}
   RegisterTest(TTestCase_BackendConsistency);
+  RegisterTest(TTestCase_BackendVectorConsistency);
+  {$IFDEF SIMD_BACKEND_AVX512}
   RegisterTest(TTestCase_AVX512BackendRequirements);
+  {$ENDIF}
   {$ENDIF}
   RegisterTest(TTestCase_BackendSmoke);
   RegisterTest(TTestCase_DispatchAPI);
   {$IFDEF UNIX}
   {$IFDEF CPUX86_64}
   RegisterTest(TTestCase_AVX2VectorAsm);
+  {$IFDEF SIMD_BACKEND_AVX512}
   RegisterTest(TTestCase_AVX512VectorAsm);
+  {$ENDIF}
   {$ENDIF}
   {$ENDIF}
   RegisterTest(TTestCase_VectorOps);

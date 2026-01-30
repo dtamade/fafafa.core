@@ -52,6 +52,77 @@ type
   TOnceAnonymousProc = reference to procedure;
   {$ENDIF}
 
+  {**
+   * @design_note_return_values
+   * **为什么 IOnce 不支持返回值？**
+   *
+   * IOnce 设计用于副作用初始化（side-effect initialization），不返回值。
+   * 这与 Rust 的 `std::sync::Once` 设计一致。
+   *
+   * **使用场景对比**：
+   *
+   * 1. **IOnce（无返回值）**：
+   *    - 用途：副作用初始化，如设置全局状态、注册回调、初始化日志系统
+   *    - 示例：
+   *      ```pascal
+   *      var once := MakeOnce;
+   *      once.Execute(procedure begin
+   *        InitializeLoggingSystem;  // 副作用：初始化全局日志
+   *      end);
+   *      ```
+   *
+   * 2. **IOnceLock（有返回值）**：
+   *    - 用途：延迟初始化并返回值，如单例对象、配置加载、资源创建
+   *    - 示例：
+   *      ```pascal
+   *      var onceLock := MakeOnceLock<TConfig>;
+   *      var config := onceLock.GetOrInit(function: TConfig begin
+   *        Result := LoadConfigFromFile('config.json');  // 返回配置对象
+   *      end);
+   *      ```
+   *
+   * **为什么分离这两种类型？**
+   *
+   * 1. **语义清晰**：
+   *    - IOnce：强调"执行一次"的动作
+   *    - IOnceLock：强调"获取或初始化"的值
+   *
+   * 2. **类型安全**：
+   *    - IOnceLock 是泛型类型，提供类型安全的值存储
+   *    - IOnce 不需要泛型，更简单轻量
+   *
+   * 3. **Free Pascal 限制**：
+   *    - Free Pascal 的泛型方法在接口中支持有限
+   *    - 分离类型避免了复杂的泛型接口设计
+   *
+   * 4. **主流语言实践**：
+   *    - Rust: `Once` (无返回值) vs `OnceLock<T>` (有返回值)
+   *    - Go: `sync.Once` (无返回值) vs `sync.OnceValue[T]` (有返回值，Go 1.21+)
+   *    - Java: 使用 `AtomicReference` + `compareAndSet` 模式
+   *
+   * **迁移指南**：
+   *
+   * 如果你需要初始化并返回值，请使用 IOnceLock：
+   *
+   * ```pascal
+   * // ❌ 错误：IOnce 不支持返回值
+   * var once := MakeOnce;
+   * var result := once.Execute(function: Integer begin
+   *   Result := ExpensiveComputation();
+   * end);  // 编译错误
+   *
+   * // ✅ 正确：使用 IOnceLock
+   * var onceLock := MakeOnceLock<Integer>;
+   * var result := onceLock.GetOrInit(function: Integer begin
+   *   Result := ExpensiveComputation();
+   * end);
+   * ```
+   *
+   * @see fafafa.core.sync.oncelock.pas - IOnceLock 接口定义
+   * @rust_reference std::sync::Once, std::sync::OnceLock
+   * @go_reference sync.Once, sync.OnceValue
+   *}
+
   // ===== 回调存储类型 =====
   TOnceCallbackType = (
     octNone,        // 无回�?

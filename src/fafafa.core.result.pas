@@ -1,3 +1,95 @@
+{**
+ * fafafa.core.result - Rust 风格错误处理类型
+ *
+ * @desc
+ *   提供 TResult<T, E> 类型和丰富的组合子函数，用于显式、类型安全的错误处理。
+ *   Provides TResult<T, E> type and rich combinators for explicit, type-safe error handling.
+ *
+ * @design_philosophy
+ *   Result 类型将成功值和错误值统一为一个类型，强制调用者显式处理错误，避免异常的隐式控制流。
+ *   Result type unifies success and error values into one type, forcing callers to explicitly handle errors, avoiding implicit control flow of exceptions.
+ *
+ * @core_concepts
+ *   1. **Ok(T)**: 包含成功值的 Result
+ *   2. **Err(E)**: 包含错误值的 Result
+ *   3. **组合子**: 函数式操作，如 Map、AndThen、MapErr
+ *   4. **类型转换**: 与 Option 类型的互转
+ *   5. **错误上下文**: TErrorCtx 提供错误链和上下文信息
+ *
+ * @usage_patterns
+ *   // 1. 基础构造
+ *   type TIntResult = specialize TResult<Integer, string>;
+ *   var R: TIntResult;
+ *   R := TIntResult.Ok(42);
+ *   R := TIntResult.Err('Not found');
+ *
+ *   // 2. Map 转换成功值（Ok(T) -> Ok(U)）
+ *   function DoubleIt(const N: Integer): Integer;
+ *   begin
+ *     Result := N * 2;
+ *   end;
+ *   var Doubled: specialize TResult<Integer, string>;
+ *   Doubled := ResultMap(R, @DoubleIt);  // Ok(42) -> Ok(84)
+ *
+ *   // 3. MapErr 转换错误值（Err(E) -> Err(E2)）
+ *   function AddContext(const Err: string): string;
+ *   begin
+ *     Result := 'Error: ' + Err;
+ *   end;
+ *   var WithContext: specialize TResult<Integer, string>;
+ *   WithContext := ResultMapErr(R, @AddContext);
+ *
+ *   // 4. AndThen 链式操作（Ok(T) -> Result<U, E>）
+ *   function SafeDivide(const N: Integer): specialize TResult<Integer, string>;
+ *   begin
+ *     if N = 0 then
+ *       Exit(specialize TResult<Integer, string>.Err('Division by zero'));
+ *     Result := specialize TResult<Integer, string>.Ok(100 div N);
+ *   end;
+ *   var Divided: specialize TResult<Integer, string>;
+ *   Divided := ResultAndThen(R, @SafeDivide);
+ *
+ *   // 5. Match 模式匹配
+ *   function HandleResult(const N: Integer): string;
+ *   begin
+ *     Result := 'Success: ' + IntToStr(N);
+ *   end;
+ *   function HandleError(const Err: string): string;
+ *   begin
+ *     Result := 'Failed: ' + Err;
+ *   end;
+ *   var Message: string;
+ *   Message := ResultMatch(R, @HandleResult, @HandleError);
+ *
+ * @combinators
+ *   - **Map**: 转换 Ok 中的值，Err 保持不变
+ *   - **MapErr**: 转换 Err 中的错误，Ok 保持不变
+ *   - **AndThen**: 链式操作，可能返回 Err
+ *   - **OrElse**: 错误恢复，提供备选 Result
+ *   - **MapOr**: 提供默认值的 Map
+ *   - **MapOrElse**: 提供默认值生成函数的 Map
+ *   - **Match/Fold**: 模式匹配，处理 Ok 和 Err 两种情况
+ *   - **Flatten**: 展平嵌套的 Result<Result<T, E>, E>
+ *   - **Swap**: 交换 Ok 和 Err 的位置
+ *   - **Zip**: 组合两个 Result 为元组
+ *   - **ZipWith**: 组合两个 Result 并应用函数
+ *
+ * @error_handling_strategies
+ *   1. **显式处理**: 使用 Match/Fold 处理所有情况
+ *   2. **传播错误**: 使用 AndThen 链式传播
+ *   3. **提供默认值**: 使用 UnwrapOr/MapOr
+ *   4. **错误转换**: 使用 MapErr 添加上下文
+ *   5. **错误恢复**: 使用 OrElse 提供备选方案
+ *
+ * @best_practices
+ *   1. 优先使用 Result 而非异常处理可预期的错误
+ *   2. 使用 AndThen 构建错误传播链
+ *   3. 使用 MapErr 为错误添加上下文信息
+ *   4. 使用 Match 显式处理所有情况
+ *   5. 避免使用 Unwrap，优先使用 UnwrapOr 或 Match
+ *
+ * @see fafafa.core.option, fafafa.core.option.base, TOption, TErrorCtx
+ *}
 unit fafafa.core.result;
 
 {$mode objfpc}{$H+}
@@ -8,16 +100,29 @@ interface
 
 uses
   SysUtils,
+  fafafa.core.base,
   fafafa.core.option.base;
 
-type
-  EResultUnwrapError = class(Exception);
+const
+  {** 模块版本 | Module version *}
+  FAFAFA_CORE_RESULT_VERSION = '1.0.0';
 
-  { 函数类型定义 - 统一使用 reference to }
+type
+  EResultUnwrapError = class(ECore);
+
+  { 函数类型定义 }
+  {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
   generic TResultFunc<TArg, TRes> = reference to function(const Arg: TArg): TRes;
   generic TResultProc<TArg> = reference to procedure(const Arg: TArg);
   generic TResultThunk<TRes> = reference to function: TRes;
   generic TResultBiPred<T1, T2> = reference to function(const A: T1; const B: T2): Boolean;
+  {$ELSE}
+  // FPC 3.2.x 兼容：使用传统函数指针类型
+  generic TResultFunc<TArg, TRes> = function(const Arg: TArg): TRes;
+  generic TResultProc<TArg> = procedure(const Arg: TArg);
+  generic TResultThunk<TRes> = function: TRes;
+  generic TResultBiPred<T1, T2> = function(const A: T1; const B: T2): Boolean;
+  {$ENDIF}
 
   { TValueArray<T> - 动态数组别名（用于 collect/sequence 输出） }
   generic TValueArray<T> = array of T;
@@ -28,14 +133,10 @@ type
   TUnit = record
   end;
 
-  { TTuple2<TFirst, TSecond> - 二元元组
+  { TTuple2 - 从 fafafa.core.base 重新导出
     用于 zip 等组合子返回值，字段命名为 First/Second。
+    注意：类型定义在 fafafa.core.base 中，此处仅为文档说明。
   }
-  generic TTuple2<TFirst, TSecond> = record
-    First: TFirst;
-    Second: TSecond;
-    class function Create(const AFirst: TFirst; const ASecond: TSecond): TTuple2; static; inline;
-  end;
 
   { TErrorCtx<E> - 轻量错误上下文链类型
     封装原始错误并添加上下文消息，类似 Rust anyhow 的 Context 但保留原始错误类型。
@@ -111,18 +212,20 @@ type
     { 组合子方法 - 仅限不引入新泛型参数的操作 }
     function Inspect(const F: specialize TResultProc<T>): TResult; inline;
     function InspectErr(const F: specialize TResultProc<E>): TResult; inline;
-    
+
     function IsOkAnd(const Pred: specialize TResultFunc<T, Boolean>): Boolean; inline;
     function IsErrAnd(const Pred: specialize TResultFunc<E, Boolean>): Boolean; inline;
-    
+
     function Contains(const V: T; const Eq: specialize TResultBiPred<T, T>): Boolean; inline;
     function ContainsErr(const EVal: E; const Eq: specialize TResultBiPred<E, E>): Boolean; inline;
-    
+
     function Equals(const Other: TResult; const EqT: specialize TResultBiPred<T, T>; const EqE: specialize TResultBiPred<E, E>): Boolean;
   end;
 
+{$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
 { 全局组合子 - 需要改变泛型类型的操作 }
 { 由于 FPC 不支持在泛型记录中定义泛型方法，这些必须作为全局函数存在 }
+{ 注意：这些函数需要 FPC 3.3.1+ 的 generic function 语法支持 }
 
 generic function ResultMap<T, E, U>(const R: specialize TResult<T, E>;
   const F: specialize TResultFunc<T, U>): specialize TResult<U, E>; inline;
@@ -263,11 +366,9 @@ generic function ResultWithContextE<T, E>(const R: specialize TResult<T, E>;
 }
 generic function ResultTranspose<T, E>(const R: specialize TResult<specialize TOption<T>, E>):
   specialize TOption<specialize TResult<T, E>>;
+{$ENDIF FAFAFA_CORE_ANONYMOUS_REFERENCES}
 
 implementation
-
-uses
-  fafafa.core.base;
 
 { TErrorCtx<E> }
 
@@ -285,21 +386,14 @@ begin
   Result := Msg + ' (caused by: ' + InnerPrinter(Inner) + ')';
 end;
 
-{ TTuple2<TFirst, TSecond> }
-
-class function TTuple2.Create(const AFirst: TFirst; const ASecond: TSecond): TTuple2;
-begin
-  Result.First := AFirst;
-  Result.Second := ASecond;
-end;
-
 { TResult<T,E> }
 
 class operator TResult.Initialize(var aRec: TResult);
 begin
+  // ✅ Phase 4.2 优化：仅初始化标志位，减少不必要的初始化开销
+  // 值字段将在 Ok/Err 构造时按需初始化
   aRec.FIsOk := False; // 默认为 Err 状态，防止未初始化的 Ok
-  aRec.FOk := Default(T);
-  aRec.FErr := Default(E);
+  // 注意：FOk 和 FErr 不在此处初始化，由 Ok/Err 构造函数负责
 end;
 
 function TResult.GetOkUnchecked: T;
@@ -314,16 +408,20 @@ end;
 
 class function TResult.Ok(const AValue: T): TResult;
 begin
-  Result := Default(TResult);
+  // ✅ Phase 4.2 优化：避免 Default(TResult) 调用，直接初始化必要字段
+  // 性能提升：减少不必要的 Initialize 操作符调用和 FErr 初始化
   Result.FIsOk := True;
   Result.FOk := AValue;
+  Result.FErr := Default(E);  // 仅初始化 FErr 为默认值，避免未定义行为
 end;
 
 class function TResult.Err(const AError: E): TResult;
 begin
-  Result := Default(TResult);
+  // ✅ Phase 4.2 优化：避免 Default(TResult) 调用，直接初始化必要字段
+  // 性能提升：减少不必要的 Initialize 操作符调用和 FOk 初始化
   Result.FIsOk := False;
   Result.FErr := AError;
+  Result.FOk := Default(T);  // 仅初始化 FOk 为默认值，避免未定义行为
 end;
 
 function TResult.IsOk: Boolean;
@@ -354,7 +452,7 @@ begin
     Exit(FOk);
 
   if F = nil then
-    raise EArgumentNil.Create('F is nil');
+    raise EArgumentNil.Create('aF is nil');
 
   Result := F();
 end;
@@ -472,6 +570,7 @@ begin
     Result := TErrOption.Some(FErr);
 end;
 
+{$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
 { Collect 实现 }
 
 generic function TryCollectPtrIntoArray<T, E>(const ItemsPtr: Pointer; const Count: SizeUInt;
@@ -519,8 +618,10 @@ generic function ResultMap<T, E, U>(const R: specialize TResult<T, E>;
 begin
   if R.IsOk then
   begin
+    {$IFDEF DEBUG}
     if F = nil then
-      raise EArgumentNil.Create('F is nil');
+      raise EArgumentNil.Create('aF is nil');
+    {$ENDIF}
     Result := specialize TResult<U, E>.Ok(F(R.GetOkUnchecked));
   end
   else
@@ -534,8 +635,10 @@ begin
     Result := specialize TResult<T, E2>.Ok(R.GetOkUnchecked)
   else
   begin
+    {$IFDEF DEBUG}
     if F = nil then
-      raise EArgumentNil.Create('F is nil');
+      raise EArgumentNil.Create('aF is nil');
+    {$ENDIF}
     Result := specialize TResult<T, E2>.Err(F(R.GetErrUnchecked));
   end;
 end;
@@ -545,8 +648,10 @@ generic function ResultAndThen<T, E, U>(const R: specialize TResult<T, E>;
 begin
   if R.IsOk then
   begin
+    {$IFDEF DEBUG}
     if F = nil then
-      raise EArgumentNil.Create('F is nil');
+      raise EArgumentNil.Create('aF is nil');
+    {$ENDIF}
     Result := F(R.GetOkUnchecked);
   end
   else
@@ -560,8 +665,10 @@ begin
     Result := specialize TResult<T, E2>.Ok(R.GetOkUnchecked)
   else
   begin
+    {$IFDEF DEBUG}
     if F = nil then
-      raise EArgumentNil.Create('F is nil');
+      raise EArgumentNil.Create('aF is nil');
+    {$ENDIF}
     Result := F(R.GetErrUnchecked);
   end;
 end;
@@ -571,8 +678,10 @@ generic function ResultMapOr<T, E, U>(const R: specialize TResult<T, E>;
 begin
   if R.IsOk then
   begin
+    {$IFDEF DEBUG}
     if F = nil then
-      raise EArgumentNil.Create('F is nil');
+      raise EArgumentNil.Create('aF is nil');
+    {$ENDIF}
     Result := F(R.GetOkUnchecked);
   end
   else
@@ -584,14 +693,18 @@ generic function ResultMapOrElse<T, E, U>(const R: specialize TResult<T, E>;
 begin
   if R.IsOk then
   begin
+    {$IFDEF DEBUG}
     if Fok = nil then
-      raise EArgumentNil.Create('Fok is nil');
+      raise EArgumentNil.Create('aFok is nil');
+    {$ENDIF}
     Result := Fok(R.GetOkUnchecked);
   end
   else
   begin
+    {$IFDEF DEBUG}
     if Ferr = nil then
-      raise EArgumentNil.Create('Ferr is nil');
+      raise EArgumentNil.Create('aFerr is nil');
+    {$ENDIF}
     Result := Ferr(R.GetErrUnchecked);
   end;
 end;
@@ -601,14 +714,18 @@ generic function ResultMatch<T, E, U>(const R: specialize TResult<T, E>;
 begin
   if R.IsOk then
   begin
+    {$IFDEF DEBUG}
     if Fok = nil then
-      raise EArgumentNil.Create('Fok is nil');
+      raise EArgumentNil.Create('aFok is nil');
+    {$ENDIF}
     Result := Fok(R.GetOkUnchecked);
   end
   else
   begin
+    {$IFDEF DEBUG}
     if Ferr = nil then
-      raise EArgumentNil.Create('Ferr is nil');
+      raise EArgumentNil.Create('aFerr is nil');
+    {$ENDIF}
     Result := Ferr(R.GetErrUnchecked);
   end;
 end;
@@ -640,14 +757,18 @@ generic function ResultMapBoth<T, E, U, F>(const R: specialize TResult<T, E>;
 begin
   if R.IsOk then
   begin
+    {$IFDEF DEBUG}
     if Fok = nil then
-      raise EArgumentNil.Create('Fok is nil');
+      raise EArgumentNil.Create('aFok is nil');
+    {$ENDIF}
     Result := specialize TResult<U, F>.Ok(Fok(R.GetOkUnchecked));
   end
   else
   begin
+    {$IFDEF DEBUG}
     if Ferr = nil then
-      raise EArgumentNil.Create('Ferr is nil');
+      raise EArgumentNil.Create('aFerr is nil');
+    {$ENDIF}
     Result := specialize TResult<U, F>.Err(Ferr(R.GetErrUnchecked));
   end;
 end;
@@ -660,22 +781,27 @@ var
 begin
   if R.IsOk then
   begin
+    {$IFDEF DEBUG}
     if Pred = nil then
-      raise EArgumentNil.Create('Pred is nil');
+      raise EArgumentNil.Create('aPred is nil');
+    {$ENDIF}
 
     V := R.GetOkUnchecked;
     if Pred(V) then
       Result := R
     else
     begin
+      {$IFDEF DEBUG}
       if Ferr = nil then
-        raise EArgumentNil.Create('Ferr is nil');
+        raise EArgumentNil.Create('aFerr is nil');
+      {$ENDIF}
       Result := specialize TResult<T, E>.Err(Ferr(V));
     end;
   end
   else
     Result := R;
 end;
+{$ENDIF FAFAFA_CORE_ANONYMOUS_REFERENCES}
 
 function TResult.And_(const B: TResult): TResult;
 begin
@@ -703,7 +829,7 @@ begin
     Exit(Self);
 
   if F = nil then
-    raise EArgumentNil.Create('F is nil');
+    raise EArgumentNil.Create('aF is nil');
 
   Result := F();
 end;
@@ -713,7 +839,7 @@ begin
   if IsOk then
   begin
     if F = nil then
-      raise EArgumentNil.Create('F is nil');
+      raise EArgumentNil.Create('aF is nil');
     F(GetOkUnchecked);
   end;
   Result := Self;
@@ -724,7 +850,7 @@ begin
   if IsErr then
   begin
     if F = nil then
-      raise EArgumentNil.Create('F is nil');
+      raise EArgumentNil.Create('aF is nil');
     F(GetErrUnchecked);
   end;
   Result := Self;
@@ -735,7 +861,7 @@ begin
   if IsOk then
   begin
     if Pred = nil then
-      raise EArgumentNil.Create('Pred is nil');
+      raise EArgumentNil.Create('aPred is nil');
     Result := Pred(GetOkUnchecked);
   end
   else
@@ -747,7 +873,7 @@ begin
   if IsErr then
   begin
     if Pred = nil then
-      raise EArgumentNil.Create('Pred is nil');
+      raise EArgumentNil.Create('aPred is nil');
     Result := Pred(GetErrUnchecked);
   end
   else
@@ -759,7 +885,7 @@ begin
   if IsOk then
   begin
     if Eq = nil then
-      raise EArgumentNil.Create('Eq is nil');
+      raise EArgumentNil.Create('aEq is nil');
     Result := Eq(GetOkUnchecked, V);
   end
   else
@@ -771,7 +897,7 @@ begin
   if IsErr then
   begin
     if Eq = nil then
-      raise EArgumentNil.Create('Eq is nil');
+      raise EArgumentNil.Create('aEq is nil');
     Result := Eq(GetErrUnchecked, EVal);
   end
   else
@@ -784,19 +910,20 @@ begin
   if IsOk and Other.IsOk then
   begin
     if EqT = nil then
-      raise EArgumentNil.Create('EqT is nil');
+      raise EArgumentNil.Create('aEqT is nil');
     Result := EqT(GetOkUnchecked, Other.GetOkUnchecked);
   end
   else if IsErr and Other.IsErr then
   begin
     if EqE = nil then
-      raise EArgumentNil.Create('EqE is nil');
+      raise EArgumentNil.Create('aEqE is nil');
     Result := EqE(GetErrUnchecked, Other.GetErrUnchecked);
   end
   else
     Result := False;
 end;
 
+{$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
 { 全局帮助函数实现 }
 
 generic function ResultToTry<T, E>(const R: specialize TResult<T, E>;
@@ -920,7 +1047,7 @@ begin
     Exit(TResultU.Err(B.GetErrUnchecked));
 
   if F = nil then
-    raise EArgumentNil.Create('F is nil');
+    raise EArgumentNil.Create('aF is nil');
 
   P := TTup.Create(A.GetOkUnchecked, B.GetOkUnchecked);
   Result := TResultU.Ok(F(P));
@@ -1002,5 +1129,6 @@ begin
     // Ok(None) -> None
     Result := TOutOpt.None;
 end;
+{$ENDIF FAFAFA_CORE_ANONYMOUS_REFERENCES}
 
 end.

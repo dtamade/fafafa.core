@@ -1,0 +1,76 @@
+fafafa.core.sync.mutex ?????? (???? API)
+==================================================
+????:
+1. ???? API - ?????
+2. ??? parking_lot - ??????
+3. ???? - ?????
+
+??: Unix/Linux
+?? API: pthread_mutex
+parking_lot: futex ????
+
+=== ?? Unix/Linux API ?? ===
+Unix ?????? parking_lot ???????
+=== ??? parking_lot Mutex ===
+测试: ParkingLot Mutex (1线程) (1线程, 5秒)
+  操作数: 172088320
+  耗时: 5000.012 ms
+  吞吐量: 34417580 ops/sec
+  平均延迟: 29.05 ns/op
+
+测试: ParkingLot Mutex (2线程) (2线程, 5秒)
+  操作数: 106396672
+  耗时: 5000.341 ms
+  吞吐量: 21277884 ops/sec
+  平均延迟: 47.00 ns/op (含竞争)
+
+测试: ParkingLot Mutex (4线程) (4线程, 5秒)
+  操作数: 40170496
+  耗时: 5000.431 ms
+  吞吐量: 8033406 ops/sec
+  平均延迟: 124.48 ns/op (含竞争)
+
+测试: ParkingLot Mutex (8线程) (8线程, 5秒)
+  操作数: 18162688
+  耗时: 5001.000 ms
+  吞吐量: 3631811 ops/sec
+  平均延迟: 275.34 ns/op (含竞争)
+
+=== ?????? (MakeMutex) ===
+测试: Default MakeMutex (1线程) (1线程, 5秒)
+  操作数: 200107008
+  耗时: 5000.021 ms
+  吞吐量: 40021240 ops/sec
+  平均延迟: 24.99 ns/op
+
+测试: Default MakeMutex (2线程) (2线程, 5秒)
+  操作数: 34564096
+  耗时: 5000.246 ms
+  吞吐量: 6912479 ops/sec
+  平均延迟: 144.67 ns/op (含竞争)
+
+测试: Default MakeMutex (4线程) (4线程, 5秒)
+  操作数: 20251014
+  耗时: 5000.322 ms
+  吞吐量: 4049942 ops/sec
+  平均延迟: 246.92 ns/op (含竞争)
+
+测试: Default MakeMutex (8线程) (8线程, 5秒)
+  操作数: 12022881
+  耗时: 5000.356 ms
+  吞吐量: 2404405 ops/sec
+  平均延迟: 415.90 ns/op (含竞争)
+
+==================================================
+?????????? (??????)
+==================================================
+Default MakeMutex (1线程)        :   40021240 ops/sec ( 24.99 ns/op)
+ParkingLot Mutex (1线程)         :   34417580 ops/sec ( 29.05 ns/op)
+ParkingLot Mutex (2线程)         :   21277884 ops/sec ( 47.00 ns/op)
+ParkingLot Mutex (4线程)         :    8033406 ops/sec (124.48 ns/op)
+Default MakeMutex (2线程)        :    6912479 ops/sec (144.67 ns/op)
+Default MakeMutex (4线程)        :    4049942 ops/sec (246.92 ns/op)
+ParkingLot Mutex (8线程)         :    3631811 ops/sec (275.34 ns/op)
+Default MakeMutex (8线程)        :    2404405 ops/sec (415.90 ns/op)
+
+?????????

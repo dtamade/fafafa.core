@@ -14,7 +14,7 @@ where lazbuild >nul 2>&1
 if %errorlevel% neq 0 (
     echo 错误: 找不到 lazbuild 命令
     echo 请确保 Lazarus 已安装并且 lazbuild 在 PATH 中
-    pause
+if "%FAFAFA_INTERACTIVE%"=="1" if "%FAFAFA_INTERACTIVE%"=="1" pause
     exit /b 1
 )
 
@@ -31,7 +31,7 @@ lazbuild --build-mode=Debug %PROJECT_FILE%
 if %errorlevel% neq 0 (
     echo.
     echo 构建失败！
-    pause
+if "%FAFAFA_INTERACTIVE%"=="1" if "%FAFAFA_INTERACTIVE%"=="1" pause
     exit /b 1
 )
 
@@ -41,7 +41,7 @@ echo 构建成功！
 :: 检查可执行文件是否存在
 if not exist %EXECUTABLE% (
     echo 错误: 找不到可执行文件 %EXECUTABLE%
-    pause
+if "%FAFAFA_INTERACTIVE%"=="1" if "%FAFAFA_INTERACTIVE%"=="1" pause
     exit /b 1
 )
 
@@ -63,5 +63,5 @@ if %TEST_RESULT% equ 0 (
 
 echo.
 echo 按任意键退出...
-pause >nul
+if "%FAFAFA_INTERACTIVE%"=="1" pause >nul
 exit /b %TEST_RESULT%

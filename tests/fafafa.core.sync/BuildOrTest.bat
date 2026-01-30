@@ -91,9 +91,6 @@ if %TEST_RESULT% equ 0 (
 )
 echo ========================================
 
-:: Skip pause when running tests or in automation
-if /i "%1"=="test" goto no_pause
-if /i "%1"=="run" goto no_pause
-pause
-:no_pause
+:: Only pause in interactive mode
+if "%FAFAFA_INTERACTIVE%"=="1" pause
 exit /b %TEST_RESULT%

@@ -6,8 +6,8 @@ echo fafafa.core.simd Test Build Script
 echo ========================================
 
 :: Create necessary directories
-if not exist "bin" mkdir bin
-if not exist "lib" mkdir lib
+if not exist "bin2" mkdir bin2
+if not exist "lib2" mkdir lib2
 
 :: Set compiler path
 set LAZBUILD_PATH=lazbuild
@@ -26,8 +26,8 @@ goto :debug
 
 :clean
 echo Cleaning build files...
-if exist "bin" rmdir /s /q bin
-if exist "lib" rmdir /s /q lib
+if exist "bin2" rmdir /s /q bin2
+if exist "lib2" rmdir /s /q lib2
 echo Clean completed.
 goto :end
 
@@ -53,7 +53,7 @@ goto :test
 
 :test
 echo Running tests...
-if not exist "bin\fafafa.core.simd.test.exe" (
+if not exist "bin2\fafafa.core.simd.test.exe" (
     echo Test executable does not exist, please build first.
     exit /b 1
 )
@@ -64,7 +64,7 @@ echo Starting SIMD facade function tests
 echo ========================================
 echo.
 
-bin\fafafa.core.simd.test.exe --all --progress --format=plain
+bin2\fafafa.core.simd.test.exe
 
 set TEST_RESULT=%errorlevel%
 

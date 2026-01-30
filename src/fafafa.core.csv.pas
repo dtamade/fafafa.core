@@ -61,7 +61,7 @@ type
   end;
 
   // 错误类型：包含行列定位信息 + 错误码
-  ECSVError = class(Exception)
+  ECSVError = class(ECore)  // ✅ CSV-001: 继承自 ECore
   private
     FLine: SizeInt;
     FColumn: SizeInt;
@@ -2678,6 +2678,3 @@ begin
 end;
 
 end.
-
-
-

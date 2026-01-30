@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LAZBUILD="${SCRIPT_DIR}/../../tools/lazbuild.bat"
+LAZBUILD="${LAZBUILD:-lazbuild}"
 PROJECT="tests_toml.lpi"
 TEST_EXECUTABLE="./bin/tests_toml"
 

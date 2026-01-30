@@ -3,7 +3,7 @@ program test_mask_f64x2_api;
 {$mode objfpc}{$H+}
 
 uses
-  SysUtils, Math,
+  SysUtils, fafafa.core.math,
   fafafa.core.simd,
   fafafa.core.simd.dispatch;
 

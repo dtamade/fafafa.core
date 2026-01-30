@@ -32,6 +32,7 @@ Type
     // ILock - 现代 API
     function Lock: ILockGuard;
     function TryLock: ILockGuard;
+    function TryLockFor(ATimeoutMs: LongWord): ILockGuard;
     // ILock - 传统 API
     procedure Acquire; virtual;
     procedure Release; virtual;
@@ -128,6 +129,14 @@ end;
 function TBadLock.TryAcquire(ATimeoutMs: Cardinal): Boolean;
 begin
   Result := TryAcquire;
+end;
+
+function TBadLock.TryLockFor(ATimeoutMs: LongWord): ILockGuard;
+begin
+  if TryAcquire(ATimeoutMs) then
+    Result := MakeLockGuard(Self)
+  else
+    Result := nil;
 end;
 
 { TWaiter }

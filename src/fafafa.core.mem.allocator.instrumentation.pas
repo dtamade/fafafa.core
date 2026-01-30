@@ -65,7 +65,7 @@ begin
   {$IFDEF FAFAFA_CORE_ALLOCATOR_INSTRUMENTATION}
   S := GStats;
   {$ELSE}
-  FillChar(S, SizeOf(S), 0);
+  FillChar(S, SizeOf(TAllocatorStats), 0);
   {$ENDIF}
 end;
 

@@ -30,7 +30,7 @@
     </RequiredPackages>
     <Units>
       <Unit>
-        <Filename Value="example_timeout.lpr"/>
+        <Filename Value="bin/example_timeout"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>
