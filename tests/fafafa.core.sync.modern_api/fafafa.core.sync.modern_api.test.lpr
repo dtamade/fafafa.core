@@ -144,27 +144,21 @@ procedure Test_TryLock_WhenHeldBySelf_NonReentrant;
 var
   Mutex: IMutex;
   Guard1: ILockGuard;
-  GotException: Boolean;
+  TryResult: Boolean;
 begin
-  // Arrange: TMutex 是非可重入的，同线程再次获取会抛出 EDeadlockError
+  // Arrange: TMutex 是非可重入的
   Mutex := MakeMutex;
-  
+
   // Act: 第一次获取锁
   Guard1 := Mutex.Lock;
-  
+
   // Act: 尝试第二次获取锁（同线程）
-  // 注意：TMutex 是非可重入的，会抛出异常
-  GotException := False;
-  try
-    Mutex.TryAcquire;
-  except
-    on E: EDeadlockError do
-      GotException := True;
-  end;
-  
-  // Assert: 非可重入锁应该报错
-  AssertTrue(GotException, 'TryAcquire() 非可重入锁被同线程持有时应抛出 EDeadlockError');
-  
+  // 注意：TryAcquire 应该返回 False 而不是抛出异常（Try 语义）
+  TryResult := Mutex.TryAcquire;
+
+  // Assert: 非可重入锁同线程再次获取应返回 False
+  AssertFalse(TryResult, 'TryAcquire() 非可重入锁被同线程持有时应返回 False');
+
   Guard1 := nil;
 end;
 
@@ -193,27 +187,20 @@ end;
 procedure Test_TryLockFor_ZeroTimeout_BehavesLikeTryLock;
 var
   Mutex: IMutex;
-  Guard1: ILockGuard;
-  GotException: Boolean;
+  Guard1, Guard2: ILockGuard;
 begin
   // Arrange
   Mutex := MakeMutex;
-  
+
   // Act: 锁空闲时
   Guard1 := Mutex.TryLockFor(0);
   AssertTrue(Assigned(Guard1), 'TryLockFor(0) 锁空闲时应该返回 Guard');
-  
-  // Act: 锁被持有时，非可重入锁会抛出异常
-  GotException := False;
-  try
-    Mutex.TryLockFor(0);
-  except
-    on E: EDeadlockError do
-      GotException := True;
-  end;
-  
-  AssertTrue(GotException, 'TryLockFor(0) 非可重入锁被同线程持有时应抛出 EDeadlockError');
-  
+
+  // Act: 锁被持有时，非可重入锁应返回 nil（Try 语义）
+  Guard2 := Mutex.TryLockFor(0);
+
+  AssertFalse(Assigned(Guard2), 'TryLockFor(0) 非可重入锁被同线程持有时应返回 nil');
+
   Guard1 := nil;
 end;
 

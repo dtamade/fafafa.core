@@ -38,15 +38,15 @@ begin
   RW := MakeRWLock(FairRWLockOptions);
   WriteLn('  Acquiring write lock...');
   WG := RW.Write;
-  Check(WG.IsValid, 'Write guard is valid');
+  Check(WG.IsLocked, 'Write guard is valid');
   Check(RW.IsWriteLocked, 'RWLock is write locked');
   
   // Downgrade: write -> read
   WriteLn('  Downgrading...');
   RG := WG.Downgrade;
   
-  Check(RG.IsValid, 'Downgrade returns valid read guard');
-  Check(not WG.IsValid, 'Original write guard is invalidated');
+  Check(RG.IsLocked, 'Downgrade returns valid read guard');
+  Check(not WG.IsLocked, 'Original write guard is invalidated');
   Check(not RW.IsWriteLocked, 'RWLock is no longer write locked');
   Check(RW.GetReaderCount >= 1, 'RWLock has at least one reader');
   
@@ -79,12 +79,12 @@ begin
   // Downgrade to read
   WriteLn('  Downgrading...');
   RG1 := WG.Downgrade;
-  Check(RG1.IsValid, 'First read guard valid after downgrade');
+  Check(RG1.IsLocked, 'First read guard valid after downgrade');
   
   // Now another reader should be able to acquire
   WriteLn('  Acquiring second reader...');
   RG2 := RW.TryRead(100);
-  Check(RG2.IsValid, 'Second reader can acquire after downgrade');
+  Check(RG2.IsLocked, 'Second reader can acquire after downgrade');
   Check(RW.GetReaderCount >= 2, 'RWLock has multiple readers');
   
   // Explicit cleanup
@@ -115,7 +115,7 @@ begin
   
   // Downgrade to read - should be atomic
   RG := WG.Downgrade;
-  Check(RG.IsValid, 'Read guard valid after downgrade');
+  Check(RG.IsLocked, 'Read guard valid after downgrade');
   
   // Another writer should NOT be able to acquire immediately
   // Note: TryWrite returns nil when it cannot acquire the lock
@@ -128,7 +128,7 @@ begin
   
   // Now writer should be able to acquire
   WG2 := RW.TryWrite(100);
-  Check((WG2 <> nil) and WG2.IsValid, 'Writer can acquire after read released');
+  Check((WG2 <> nil) and WG2.IsLocked, 'Writer can acquire after read released');
   
   // Cleanup
   if WG2 <> nil then
@@ -158,7 +158,7 @@ begin
   
   // Should transition atomically: never unlocked between
   Check(RW.IsReadLocked, 'Now read locked');
-  Check(RG.IsValid, 'Read guard is valid');
+  Check(RG.IsLocked, 'Read guard is valid');
   
   // Explicit cleanup
   RG.Release;
@@ -179,12 +179,12 @@ begin
   RG := WG.Downgrade;
   
   // Write guard should be invalidated
-  Check(not WG.IsValid, 'Write guard invalidated after downgrade');
+  Check(not WG.IsLocked, 'Write guard invalidated after downgrade');
   
   // Calling Release on invalidated guard should be safe (no-op)
   WG.Release;  // Should not crash or double-release
   
-  Check(RG.IsValid, 'Read guard still valid');
+  Check(RG.IsLocked, 'Read guard still valid');
   Check(RW.GetReaderCount >= 1, 'Reader count still positive');
   
   // Explicit cleanup

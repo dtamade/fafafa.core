@@ -17,6 +17,7 @@ uses
   {$ENDIF}
   Classes, SysUtils,
   fafafa.core.sync.base,
+  fafafa.core.sync.rwlock.base,  // 需要这个单元来捕获 TRwLockGuard 抛出的 ELockError
   fafafa.core.sync.rwlock.guard;
 
 var
@@ -152,7 +153,7 @@ begin
     try
       P := Guard.TryReadLock;
     except
-      on E: ELockError do
+      on E: fafafa.core.sync.rwlock.base.ELockError do
         Raised := True;
     end;
     AssertTrue(Raised, '第二次 TryReadLock 应该抛出 ELockError');
@@ -176,7 +177,7 @@ begin
     try
       P := Guard.TryWriteLock;
     except
-      on E: ELockError do
+      on E: fafafa.core.sync.rwlock.base.ELockError do
         Raised := True;
     end;
     AssertTrue(Raised, '第二次 TryWriteLock 应该抛出 ELockError');

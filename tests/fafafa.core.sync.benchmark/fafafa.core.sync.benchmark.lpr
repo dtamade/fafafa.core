@@ -489,7 +489,7 @@ var
   I: Integer;
   Start, EndT: TInstant;
 begin
-  M := Sync.Sync.MakeNamedMutex('bench_mutex_' + IntToStr(Random(100000)));
+  M := CreateNamedMutex('bench_mutex_' + IntToStr(Random(100000)));
   
   // Warmup
   for I := 1 to WARMUP_ITERATIONS div 10 do
@@ -546,7 +546,7 @@ begin
   Start := NowInstant;
   for I := 1 to CREATE_ITERATIONS do
   begin
-    M := Sync.Sync.MakeNamedMutex('bench_create_mutex_' + IntToStr(I));
+    M := CreateNamedMutex('bench_create_mutex_' + IntToStr(I));
     M := nil;  // Force cleanup
   end;
   EndT := NowInstant;
