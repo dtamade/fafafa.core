@@ -11,8 +11,7 @@ uses
   { fafafa.core }
   fafafa.core.base,
   fafafa.core.mem.utils,
-  fafafa.core.mem.allocator,
-  fafafa.core.collections.elementManager
+  fafafa.core.mem.allocator
   ;
 
   ///
@@ -58,12 +57,12 @@ uses
   ///
   /// 容器
   ///
-
-  type
-
-    IElementManager = fafafa.core.collections.elementManager.IElementManager;
-    TElementManager = fafafa.core.collections.elementManager.TElementManager;
-
+  /// 注意: IElementManager<T> 和 TElementManager<T> 是泛型类型，
+  /// 不能直接作为类型别名导出。请直接使用：
+  ///   uses fafafa.core.collections.elementManager;
+  /// 然后使用 specialize 关键字特化泛型：
+  ///   type TMyElementManager = specialize TElementManager<TMyType>;
+  ///
 
   ///
   /// MemPool 内存池

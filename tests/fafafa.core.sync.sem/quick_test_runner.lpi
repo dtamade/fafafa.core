@@ -2,7 +2,7 @@
 <CONFIG>
   <ProjectOptions>
     <Version Value="12"/>
-    <PathDelim Value="\"/>
+    <PathDelim Value="/"/>
     <General>
       <Title Value="Quick Test Runner"/>
       <ResourceType Value="res"/>
@@ -38,11 +38,7 @@
     </RequiredPackages>
     <Units>
       <Unit>
-        <Filename Value="bin/quick_test_runner"/>
-        <IsPartOfProject Value="True"/>
-      </Unit>
-      <Unit>
-        <Filename Value="bin/quick_test_runner"/>
+        <Filename Value="quick_test_runner.lpr"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>

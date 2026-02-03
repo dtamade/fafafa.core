@@ -25,7 +25,7 @@ MODE="${FAFAFA_BUILD_MODE:-Debug}"
 build_project() {
   echo "[BUILD] Project: ${PROJ} (mode=${MODE})"
   : >"${BUILD_LOG}"
-  if "${LAZBUILD_BIN}" "${LZ_Q[@]}" --build-mode="${MODE}" --build-all "${PROJ}" >"${BUILD_LOG}" 2>&1; then
+  if "${LAZBUILD_BIN}" "${LZ_Q[@]}" --build-all "${PROJ}" >"${BUILD_LOG}" 2>&1; then
     echo "[BUILD] OK"
   else
     local rc=$?

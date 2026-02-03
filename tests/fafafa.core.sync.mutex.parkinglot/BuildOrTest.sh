@@ -5,7 +5,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 
 ACTION="${1:-test}"
 PROJECT_LPI="${PROJECT_LPI:-fafafa.core.sync.mutex.parkinglot.test.lpi}"
-TEST_BIN="${TEST_BIN:-bin/fafafa.core.sync.mutex.parkinglot.test}"
+TEST_BIN="${TEST_BIN:-bin/fafafa.core.sync.mutex.parkinglot}"
 
 LAZBUILD_BIN="${LAZBUILD:-lazbuild}"
 
@@ -19,8 +19,8 @@ rm -rf ./bin
 rm -rf ./lib/*-*/
 mkdir -p ./bin ./lib
 
-echo "[BUILD] ${LAZBUILD_BIN} --build-mode=Default ${PROJECT_LPI}"
-"${LAZBUILD_BIN}" --build-mode=Default "${PROJECT_LPI}"
+echo "[BUILD] ${LAZBUILD_BIN} ${PROJECT_LPI}"
+"${LAZBUILD_BIN}" "${PROJECT_LPI}"
 
 if [[ "${ACTION}" == "test" || "${ACTION}" == "run" ]]; then
   echo "[RUN] ${TEST_BIN}"

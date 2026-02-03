@@ -70,10 +70,6 @@
         <Filename Value="fafafa.core.bytes.buf.test.lpr"/>
         <IsPartOfProject Value="True"/>
       </Unit>
-      <Unit>
-        <Filename Value="fafafa.core.bytes.buf.testcase.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

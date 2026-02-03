@@ -2,7 +2,7 @@
 <CONFIG>
   <ProjectOptions>
     <Version Value="12"/>
-    <PathDelim Value="\"/>
+    <PathDelim Value="/"/>
     <General>
       <SessionStorage Value="InProjectDir"/>
       <Title Value="test_backend_ops"/>
@@ -19,7 +19,7 @@
       <Item Name="Debug">
         <CompilerOptions>
           <Version Value="11"/>
-          <PathDelim Value="\"/>
+          <PathDelim Value="/"/>
           <Target>
             <Filename Value="bin/test_backend_ops"/>
           </Target>
@@ -70,14 +70,14 @@
     </RequiredPackages>
     <Units>
       <Unit>
-        <Filename Value="test_backend_ops.pas"/>
+        <Filename Value="fafafa.core.simd.test.lpr"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
     <Version Value="11"/>
-    <PathDelim Value="\"/>
+    <PathDelim Value="/"/>
     <Target>
       <Filename Value="bin/test_backend_ops"/>
     </Target>

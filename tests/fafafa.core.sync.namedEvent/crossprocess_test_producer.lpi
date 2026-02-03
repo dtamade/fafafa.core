@@ -19,7 +19,7 @@
     </RunParams>
     <Units>
       <Unit>
-        <Filename Value="bin/crossprocess_test_producer"/>
+        <Filename Value="crossprocess_test_producer.lpr"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>

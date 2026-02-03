@@ -60,7 +60,7 @@
     </RunParams>
     <Units>
       <Unit>
-        <Filename Value="minimal_crossprocess_test.pas"/>
+        <Filename Value="fafafa.core.sync.namedCondvar.test.lpr"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>

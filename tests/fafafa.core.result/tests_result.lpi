@@ -60,15 +60,11 @@
         </Item>
       </RequiredPackages>
       <Units>
-        <Unit>
-          <Filename Value="tests_result.lpr"/>
-          <IsPartOfProject Value="True"/>
-        </Unit>
-        <Unit>
-          <Filename Value="Test_fafafa_core_result.pas"/>
-          <IsPartOfProject Value="True"/>
-        </Unit>
-      </Units>
+      <Unit>
+        <Filename Value="tests_result.lpr"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+    </Units>
   </ProjectOptions>
   <CompilerOptions>
     <Version Value="11"/>

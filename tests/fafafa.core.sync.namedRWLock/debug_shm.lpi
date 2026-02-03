@@ -25,7 +25,7 @@
     </RunParams>
     <Units>
       <Unit>
-        <Filename Value="bin/debug_shm"/>
+        <Filename Value="debug_shm.lpr"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>

@@ -10,7 +10,7 @@ rm -rf "$SCRIPT_DIR/bin" "$SCRIPT_DIR/lib"
 
 # Build with lazbuild (must be in PATH)
 echo "Building project: $PROJECT ..."
-lazbuild "$PROJECT"
+lazbuild --lazarusdir="/opt/fpcupdeluxe/lazarus" "$PROJECT"
 
 echo
 echo "Build successful."

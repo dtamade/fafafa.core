@@ -23,7 +23,7 @@ rm -rf "${BIN_DIR}" "${LIB_DIR}"
 mkdir -p "${BIN_DIR}" "${LIB_DIR}"
 
 echo "Building project: ${PROJECT_FILE} (Debug)"
-lazbuild --build-mode=Debug "${PROJECT_FILE}"
+lazbuild --lazarusdir="/opt/fpcupdeluxe/lazarus" "${PROJECT_FILE}"
 
 echo
 

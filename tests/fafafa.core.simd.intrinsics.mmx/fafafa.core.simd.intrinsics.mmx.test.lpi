@@ -99,10 +99,6 @@
         <Filename Value="fafafa.core.simd.intrinsics.mmx.test.lpr"/>
         <IsPartOfProject Value="True"/>
       </Unit>
-      <Unit>
-        <Filename Value="fafafa.core.simd.intrinsics.mmx.testcase.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

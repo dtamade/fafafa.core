@@ -36,10 +36,6 @@
         <Filename Value="fafafa.core.simd.intrinsics.sse.test.lpr"/>
         <IsPartOfProject Value="True"/>
       </Unit>
-      <Unit>
-        <Filename Value="fafafa.core.simd.intrinsics.sse.testcase.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

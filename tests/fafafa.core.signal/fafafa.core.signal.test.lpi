@@ -36,26 +36,6 @@
         <Filename Value="fafafa.core.signal.test.lpr"/>
         <IsPartOfProject Value="True"/>
       </Unit>
-      <Unit>
-        <Filename Value="fafafa.core.signal.testcase.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit>
-      <Unit>
-        <Filename Value="fafafa.core.signal.channel.testcase.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit>
-      <Unit>
-        <Filename Value="fafafa.core.signal.extra.testcase.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit>
-      <Unit>
-        <Filename Value="fafafa.core.signal.extra2.testcase.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit>
-      <Unit>
-        <Filename Value="fafafa.core.signal.owner.testcase.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
@@ -84,7 +64,7 @@
     </CodeGeneration>
     <Units>
       <Unit>
-        <Filename Value="fafafa.core.signal.debounce.testcase.pas"/>
+        <Filename Value="fafafa.core.signal.test.lpr"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>

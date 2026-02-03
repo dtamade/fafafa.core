@@ -2,7 +2,7 @@
 <CONFIG>
   <ProjectOptions>
     <Version Value="12"/>
-    <PathDelim Value="\"/>
+    <PathDelim Value="/"/>
     <General>
       <SessionStorage Value="InProjectDir"/>
       <Title Value="fafafa.core.sync.namedSemaphore.test"/>
@@ -19,7 +19,7 @@
       <Item Name="Debug">
         <CompilerOptions>
           <Version Value="11"/>
-          <PathDelim Value="\"/>
+          <PathDelim Value="/"/>
           <Target>
             <Filename Value="bin/fafafa.core.sync.namedSemaphore.test"/>
           </Target>
@@ -58,7 +58,7 @@
       <Item Name="Release">
         <CompilerOptions>
           <Version Value="11"/>
-          <PathDelim Value="\"/>
+          <PathDelim Value="/"/>
           <Target>
             <Filename Value="bin/fafafa.core.sync.namedSemaphore.test"/>
           </Target>
@@ -102,15 +102,11 @@
         <Filename Value="fafafa.core.sync.namedSemaphore.test.lpr"/>
         <IsPartOfProject Value="True"/>
       </Unit>
-      <Unit>
-        <Filename Value="fafafa.core.sync.namedSemaphore.testcase.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
     <Version Value="11"/>
-    <PathDelim Value="\"/>
+    <PathDelim Value="/"/>
     <Target>
       <Filename Value="bin/fafafa.core.sync.namedSemaphore.test"/>
     </Target>

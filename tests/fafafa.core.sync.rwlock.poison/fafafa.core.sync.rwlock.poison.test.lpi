@@ -2,7 +2,7 @@
 <CONFIG>
   <ProjectOptions>
     <Version Value="12"/>
-    <PathDelim Value="\"/>
+    <PathDelim Value="/"/>
     <General>
       <SessionStorage Value="InProjectDir"/>
       <Title Value="fafafa.core.sync.rwlock.poison.test"/>
@@ -31,14 +31,14 @@
     </RequiredPackages>
     <Units>
       <Unit>
-        <Filename Value="bin/fafafa.core.sync.rwlock.poison.test"/>
+        <Filename Value="fafafa.core.sync.rwlock.poison.test.lpr"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>
   </ProjectOptions>
   <CompilerOptions>
     <Version Value="11"/>
-    <PathDelim Value="\"/>
+    <PathDelim Value="/"/>
     <Target>
       <Filename Value="bin/fafafa.core.sync.rwlock.poison.test"/>
     </Target>

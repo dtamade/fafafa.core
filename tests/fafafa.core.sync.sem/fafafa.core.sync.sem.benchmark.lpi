@@ -88,10 +88,6 @@
         <Filename Value="fafafa.core.sync.sem.benchmark.lpr"/>
         <IsPartOfProject Value="True"/>
       </Unit>
-      <Unit>
-        <Filename Value="fafafa.core.sync.sem.benchmark.pas"/>
-        <IsPartOfProject Value="True"/>
-      </Unit>
     </Units>
   </ProjectOptions>
   <CompilerOptions>

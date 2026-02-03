@@ -71,7 +71,7 @@
   </ProjectRequirements>
   <CompilerOptions>
     <Version Value="11"/>
-    <PathDelim Value="\"/>
+    <PathDelim Value="/"/>
     <Target>
       <Filename Value="bin/tests_xml"/>
     </Target>

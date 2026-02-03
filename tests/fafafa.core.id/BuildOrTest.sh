@@ -11,7 +11,7 @@ rm -rf "${SCRIPT_DIR}/bin" "${SCRIPT_DIR}/lib"
 mkdir -p "${SCRIPT_DIR}/bin" "${SCRIPT_DIR}/lib"
 
 echo "Building project: ${PROJECT} (Debug)"
-if ! lazbuild --build-mode=Debug "${PROJECT}"; then
+if ! lazbuild --lazarusdir="/opt/fpcupdeluxe/lazarus" "${PROJECT}"; then
   echo
   echo "Build failed."
   exit 1
@@ -30,7 +30,7 @@ if [[ "${1:-}" == "test" ]]; then
 elif [[ "${1:-}" == "leak" ]]; then
   echo "Building leak test..."
   LEAK_PROJECT="${SCRIPT_DIR}/test_id_leak.lpi"
-  if ! lazbuild --build-mode=Debug "${LEAK_PROJECT}"; then
+  if ! lazbuild --lazarusdir="/opt/fpcupdeluxe/lazarus" "${LEAK_PROJECT}"; then
     echo "Leak test build failed."
     exit 1
   fi

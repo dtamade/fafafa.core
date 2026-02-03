@@ -27,7 +27,7 @@
     </RequiredPackages>
     <Units>
       <Unit>
-        <Filename Value="bin/fafafa.core.sync.facade.test"/>
+        <Filename Value="fafafa.core.sync.facade.test.lpr"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>

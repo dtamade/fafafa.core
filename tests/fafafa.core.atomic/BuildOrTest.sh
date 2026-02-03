@@ -14,7 +14,9 @@ echo "Building atomic tests..."
 
 if command -v lazbuild >/dev/null 2>&1; then
   echo "[BUILD] Using lazbuild: $PROJECT_LPI"
-  lazbuild "$PROJECT_LPI"
+  # Use --lazarusdir to ensure lazbuild finds the LCL directory
+  LAZARUS_DIR="${LAZARUS_DIR:-/opt/fpcupdeluxe/lazarus}"
+  lazbuild --lazarusdir="$LAZARUS_DIR" "$PROJECT_LPI"
 else
   echo "[BUILD] lazbuild not found; falling back to plain fpc: $PROJECT_LPR"
 

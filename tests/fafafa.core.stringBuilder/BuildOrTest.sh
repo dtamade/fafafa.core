@@ -20,7 +20,7 @@ fi
 build_project() {
   echo "[BUILD] Project: $PROJ"
   : >"$BUILD_LOG"
-  if lazbuild "${LZ_Q[@]}" --build-mode=Debug --build-all "$PROJ" >"$BUILD_LOG" 2>&1; then
+  if lazbuild --lazarusdir="/opt/fpcupdeluxe/lazarus" "${LZ_Q[@]}" --build-all "$PROJ" >"$BUILD_LOG" 2>&1; then
     echo "[BUILD] OK"
   else
     local rc=$?

@@ -25,7 +25,7 @@
     </RunParams>
     <Units>
       <Unit>
-        <Filename Value="bin/fafafa.core.sync.namedBarrier.result.test"/>
+        <Filename Value="fafafa.core.sync.namedBarrier.result.test.lpr"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>

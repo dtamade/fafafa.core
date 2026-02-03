@@ -59,7 +59,7 @@ RC_OFF=0
 
 # Pass 1: anon=ON
 echo "Building project (anon=ON): ${PROJECT}..."
-"${LAZBUILD_EXE}" --build-mode="${BUILD_MODE}" "${PROJECT}"
+"${LAZBUILD_EXE}" "${PROJECT}"
 if [[ $? -ne 0 ]]; then
   echo
   echo "Build failed (anon=ON)."
@@ -88,7 +88,7 @@ fi
 if [[ ${NO_NOANON} -eq 0 ]]; then
   echo
   echo "Building project (anon=OFF): ${PROJECT}..."
-  "${LAZBUILD_EXE}" --build-mode=Release-NoAnon "${PROJECT}"
+  "${LAZBUILD_EXE}" "${PROJECT}"
   if [[ $? -ne 0 ]]; then
     echo
     echo "Build failed (anon=OFF)."

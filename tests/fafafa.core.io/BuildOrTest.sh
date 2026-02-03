@@ -10,7 +10,7 @@ rm -rf "${SCRIPT_DIR}/bin" "${SCRIPT_DIR}/lib"
 mkdir -p "${SCRIPT_DIR}/bin" "${SCRIPT_DIR}/lib"
 
 echo "Building project: ${PROJECT} (Debug)"
-if ! lazbuild --build-mode=Debug "${PROJECT}"; then
+if ! lazbuild --lazarusdir="/opt/fpcupdeluxe/lazarus" "${PROJECT}"; then
   echo
   echo "Build failed."
   exit 1

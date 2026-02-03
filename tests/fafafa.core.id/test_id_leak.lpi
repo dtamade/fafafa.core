@@ -48,7 +48,7 @@
     </BuildModes>
     <Units>
       <Unit>
-        <Filename Value="test_id_leak.pas"/>
+        <Filename Value="tests_id.lpr"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>

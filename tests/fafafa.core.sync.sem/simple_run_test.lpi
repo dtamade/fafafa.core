@@ -2,7 +2,7 @@
 <CONFIG>
   <ProjectOptions>
     <Version Value="12"/>
-    <PathDelim Value="\"/>
+    <PathDelim Value="/"/>
     <General>
       <Title Value="Simple Run Test"/>
       <ResourceType Value="res"/>
@@ -30,7 +30,7 @@
     </BuildModes>
     <Units>
       <Unit>
-        <Filename Value="bin/simple_run_test"/>
+        <Filename Value="simple_run_test.lpr"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>

@@ -19,7 +19,7 @@ rm -rf "$BIN_DIR" "$LIB_DIR"
 mkdir -p "$BIN_DIR" "$LIB_DIR" "$TMP_DIR"
 
 echo "Building project: $PROJECT_FILE (Debug)"
-"$LAZBUILD_BIN" --build-mode=Debug "$PROJECT_FILE"
+"$LAZBUILD_BIN" "$PROJECT_FILE"
 
 echo
 
