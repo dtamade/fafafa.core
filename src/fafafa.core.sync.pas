@@ -24,6 +24,8 @@ uses
   fafafa.core.sync.parker,     // Phase 1.3: Rust-style Parker
   fafafa.core.sync.builder,    // Phase 2: Builder pattern for sync primitives
   fafafa.core.sync.oncelock,   // Phase 3.1: Rust-style OnceLock<T>
+  fafafa.core.sync.seqlock,    // Phase 5.1: Linux-style SeqLock
+  fafafa.core.sync.scopedlock, // Phase 5.2: C++ std::scoped_lock
   // Named synchronization primitives
   fafafa.core.sync.namedMutex,
   fafafa.core.sync.namedEvent,
@@ -60,6 +62,10 @@ type
   IWaitGroup         = fafafa.core.sync.waitgroup.IWaitGroup;  // Phase 1.1
   ILatch             = fafafa.core.sync.latch.ILatch;          // Phase 1.2
   IParker            = fafafa.core.sync.parker.IParker;        // Phase 1.3
+
+  // SeqLock and ScopedLock (Phase 5)
+  ISeqLock           = fafafa.core.sync.seqlock.ISeqLock;      // Phase 5.1
+  IMultiLockGuard    = fafafa.core.sync.scopedlock.IMultiLockGuard;  // Phase 5.2
 
   // Named synchronization primitives interfaces
   INamedMutex             = fafafa.core.sync.namedMutex.INamedMutex;
@@ -161,6 +167,18 @@ function MakeEvent(AManualReset: Boolean = False; AInitialState: Boolean = False
 function MakeWaitGroup: IWaitGroup; inline;  // Phase 1.1: Go-style WaitGroup
 function MakeLatch(ACount: Integer): ILatch; inline;  // Phase 1.2: CountDownLatch
 function MakeParker: IParker; inline;                  // Phase 1.3: Rust-style Parker
+
+// SeqLock factory functions (Phase 5.1)
+function MakeSeqLock: ISeqLock; inline;
+
+// ScopedLock factory functions (Phase 5.2)
+function ScopedLock(const ALocks: array of ILock): IMultiLockGuard;
+function ScopedLock2(ALock1, ALock2: ILock): IMultiLockGuard; inline;
+function ScopedLock3(ALock1, ALock2, ALock3: ILock): IMultiLockGuard; inline;
+function ScopedLock4(ALock1, ALock2, ALock3, ALock4: ILock): IMultiLockGuard; inline;
+function TryScopedLock(const ALocks: array of ILock; out AGuard: IMultiLockGuard): Boolean;
+function TryScopedLockFor(const ALocks: array of ILock; ATimeoutMs: Cardinal;
+  out AGuard: IMultiLockGuard): Boolean;
 
 // Builder pattern factory functions (Phase 2)
 function MutexBuilder: TMutexBuilder; inline;
@@ -323,6 +341,8 @@ function MakeGlobalNamedSemaphore(const AName: string; AInitialCount: Integer; A
 function MakeNamedBarrier(const AName: string; AParticipantCount: Integer): INamedBarrier;
 function MakeNamedCondVar(const AName: string): INamedCondVar;
 function MakeNamedRWLock(const AName: string): INamedRWLock;
+function MakeNamedEvent(const AName: string): INamedEvent; overload;
+function MakeNamedEvent(const AName: string; AManualReset: Boolean; AInitialState: Boolean): INamedEvent; overload;
 
 // Named cross-process primitives factory functions (Phase 4)
 function MakeNamedOnce(const AName: string): INamedOnce; overload;
@@ -389,6 +409,44 @@ end;
 function MakeParker: IParker;
 begin
   Result := fafafa.core.sync.parker.MakeParker;
+end;
+
+// SeqLock implementation (Phase 5.1)
+function MakeSeqLock: ISeqLock;
+begin
+  Result := fafafa.core.sync.seqlock.MakeSeqLock;
+end;
+
+// ScopedLock implementations (Phase 5.2)
+function ScopedLock(const ALocks: array of ILock): IMultiLockGuard;
+begin
+  Result := fafafa.core.sync.scopedlock.ScopedLock(ALocks);
+end;
+
+function ScopedLock2(ALock1, ALock2: ILock): IMultiLockGuard;
+begin
+  Result := fafafa.core.sync.scopedlock.ScopedLock2(ALock1, ALock2);
+end;
+
+function ScopedLock3(ALock1, ALock2, ALock3: ILock): IMultiLockGuard;
+begin
+  Result := fafafa.core.sync.scopedlock.ScopedLock3(ALock1, ALock2, ALock3);
+end;
+
+function ScopedLock4(ALock1, ALock2, ALock3, ALock4: ILock): IMultiLockGuard;
+begin
+  Result := fafafa.core.sync.scopedlock.ScopedLock4(ALock1, ALock2, ALock3, ALock4);
+end;
+
+function TryScopedLock(const ALocks: array of ILock; out AGuard: IMultiLockGuard): Boolean;
+begin
+  Result := fafafa.core.sync.scopedlock.TryScopedLock(ALocks, AGuard);
+end;
+
+function TryScopedLockFor(const ALocks: array of ILock; ATimeoutMs: Cardinal;
+  out AGuard: IMultiLockGuard): Boolean;
+begin
+  Result := fafafa.core.sync.scopedlock.TryScopedLockFor(ALocks, ATimeoutMs, AGuard);
 end;
 
 // Builder pattern implementations
