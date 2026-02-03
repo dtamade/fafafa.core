@@ -7,7 +7,7 @@ unit fafafa.core.csv;
 interface
 
 uses
-  Classes, SysUtils;
+  Classes, SysUtils, fafafa.core.base;
 
 type
   TStringArray = array of UnicodeString;
