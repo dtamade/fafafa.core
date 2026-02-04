@@ -24,12 +24,12 @@
           </Target>
           <SearchPaths>
             <IncludeFiles Value="../../src"/>
-            <OtherUnitFiles Value="../../src"/>
+            <OtherUnitFiles Value="../../src;../fafafa.core.sync"/>
             <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <Parsing>
             <SyntaxOptions>
-              <SyntaxMode Value="delphi"/>
+              <SyntaxMode Value="objfpc"/>
             </SyntaxOptions>
           </Parsing>
           <Linking>
@@ -48,7 +48,11 @@
     </RunParams>
     <Units>
       <Unit>
-        <Filename Value="fafafa.core.sync.latch.test.lpr"/>
+        <Filename Value="tests_latch.lpr"/>
+        <IsPartOfProject Value="True"/>
+      </Unit>
+      <Unit>
+        <Filename Value="fafafa.core.sync.latch.testcase.pas"/>
         <IsPartOfProject Value="True"/>
       </Unit>
     </Units>
@@ -61,12 +65,12 @@
     </Target>
     <SearchPaths>
       <IncludeFiles Value="../../src"/>
-      <OtherUnitFiles Value="../../src"/>
+      <OtherUnitFiles Value="../../src;../fafafa.core.sync"/>
       <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Parsing>
       <SyntaxOptions>
-        <SyntaxMode Value="delphi"/>
+        <SyntaxMode Value="objfpc"/>
       </SyntaxOptions>
     </Parsing>
     <Linking>
