@@ -21,7 +21,7 @@ implementation
 
 procedure TTestCase_JsonPointer_EscapeEdges.Test_TildeEscapes;
 var
-  Doc: TJsonDocument; Err: TJsonError; Root, V: PJsonValue; Al: TAllocator;
+  Doc: TJsonDocument; Err: TJsonError; Root, V: PJsonValue; Al: IAllocator;
   S: String;
 begin
   Err := Default(TJsonError);

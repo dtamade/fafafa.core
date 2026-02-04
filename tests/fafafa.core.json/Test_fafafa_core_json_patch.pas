@@ -21,7 +21,7 @@ type
 implementation
 
 procedure TTestCase_JsonPatch.Test_MergePatch_ObjectMergeAndNullDelete;
-var Al: TAllocator; M: TJsonMutDocument; Root, Obj: PJsonMutValue; PatchDoc: TJsonDocument;
+var Al: IAllocator; M: TJsonMutDocument; Root, Obj: PJsonMutValue; PatchDoc: TJsonDocument;
     PatchStr: String; Res: PJsonMutValue;
     O, Keep, NewK: PJsonMutValue;
 begin
@@ -57,7 +57,7 @@ begin
 end;
 
 procedure TTestCase_JsonPatch.Test_JsonPatch_Add_Replace_Remove;
-var Al: TAllocator; M: TJsonMutDocument; Root, Arr: PJsonMutValue; PatchText: String;
+var Al: IAllocator; M: TJsonMutDocument; Root, Arr: PJsonMutValue; PatchText: String;
     PatchDoc: TJsonDocument; ok: Boolean; errMsg: String;
     A, V: PJsonMutValue; It: TJsonMutArrayIterator;
 begin

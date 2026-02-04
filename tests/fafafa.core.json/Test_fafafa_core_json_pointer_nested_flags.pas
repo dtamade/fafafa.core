@@ -21,7 +21,7 @@ implementation
 
 procedure TTestCase_JsonPointer_NestedFlags.Test_Obj_Arr_Interleaved_With_Comments_And_TrailingCommas;
 var
-  Doc: TJsonDocument; Err: TJsonError; Al: TAllocator; S: String;
+  Doc: TJsonDocument; Err: TJsonError; Al: IAllocator; S: String;
   Root, X, Y: PJsonValue;
 begin
   Err := Default(TJsonError);

@@ -21,7 +21,7 @@ type
 implementation
 
 procedure TTestCase_JsonPointer.Test_Ptr_Immutable_Basic;
-var Doc: TJsonDocument; Err: TJsonError; Al: TAllocator; S: String; R: PJsonValue;
+var Doc: TJsonDocument; Err: TJsonError; Al: IAllocator; S: String; R: PJsonValue;
 begin
   Err := Default(TJsonError);
   Al := GetRtlAllocator();
@@ -35,7 +35,7 @@ begin
 end;
 
 procedure TTestCase_JsonPointer.Test_Ptr_Mutable_Basic;
-var M: TJsonMutDocument; Root, Arr, Obj: PJsonMutValue; Al: TAllocator; V: PJsonMutValue;
+var M: TJsonMutDocument; Root, Arr, Obj: PJsonMutValue; Al: IAllocator; V: PJsonMutValue;
 begin
   Al := GetRtlAllocator();
   M := JsonMutDocNew(Al);

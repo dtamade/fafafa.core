@@ -21,7 +21,7 @@ implementation
 
 procedure TTestCase_JsonPointer_RootTrailingFlags.Test_Root_Object_With_Comments_And_TrailingCommas;
 var
-  Doc: TJsonDocument; Err: TJsonError; Al: TAllocator; S: String;
+  Doc: TJsonDocument; Err: TJsonError; Al: IAllocator; S: String;
   Root, V: PJsonValue;
 begin
   Err := Default(TJsonError);

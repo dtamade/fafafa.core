@@ -21,7 +21,7 @@ implementation
 
 procedure TTestCase_JsonPointer_BOMCommentsTrailing_RootArray.Test_BOM_Comments_Trailing_RootArray;
 var
-  Doc: TJsonDocument; Err: TJsonError; Root, V: PJsonValue; Al: TAllocator; S: RawByteString;
+  Doc: TJsonDocument; Err: TJsonError; Root, V: PJsonValue; Al: IAllocator; S: RawByteString;
 begin
   Err := Default(TJsonError);
   Al := GetRtlAllocator();

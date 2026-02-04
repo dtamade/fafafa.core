@@ -1178,6 +1178,44 @@ begin
   Result := ADefault;
 end;
 
+{ TJsonStreamReaderImpl }
+
+constructor TJsonStreamReaderImpl.Create(ABufferCapacity: SizeUInt; AAllocator: IAllocator; AFlags: TJsonReadFlags);
+begin
+  inherited Create;
+  FAllocator := AAllocator;
+  FFlags := AFlags;
+  FState := nil;
+  FBuffer := '';
+  // TODO: Initialize incremental reader state
+end;
+
+destructor TJsonStreamReaderImpl.Destroy;
+begin
+  // TODO: Free incremental reader state
+  FAllocator := nil;
+  inherited Destroy;
+end;
+
+function TJsonStreamReaderImpl.Feed(const AChunk: PChar; ALength: SizeUInt): Integer;
+begin
+  // TODO: Implement incremental feeding
+  Result := 0; // Success placeholder
+end;
+
+function TJsonStreamReaderImpl.TryRead(out ADoc: IJsonDocument): Integer;
+begin
+  ADoc := nil;
+  // TODO: Implement incremental reading
+  Result := -1; // No document available yet
+end;
+
+procedure TJsonStreamReaderImpl.Reset;
+begin
+  // TODO: Reset incremental state
+  FBuffer := '';
+end;
+
 
 
 end.

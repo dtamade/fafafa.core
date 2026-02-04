@@ -29,7 +29,7 @@ type
 implementation
 
 procedure TTestCase_Mutable.Test_Create_Primitives_And_DocRoot;
-var Al: TAllocator; MD: TJsonMutDocument; R: PJsonMutValue;
+var Al: IAllocator; MD: TJsonMutDocument; R: PJsonMutValue;
 begin
   Al := GetRtlAllocator();
   MD := JsonMutDocNew(Al); AssertTrue(Assigned(MD));
@@ -44,7 +44,7 @@ begin
 end;
 
 procedure TTestCase_Mutable.Test_Array_Append_Insert_Remove_Clear_Iter;
-var Al: TAllocator; MD: TJsonMutDocument; Arr, V1, V2, V3, Tmp: PJsonMutValue; It: TJsonMutArrayIterator; S: SizeUInt;
+var Al: IAllocator; MD: TJsonMutDocument; Arr, V1, V2, V3, Tmp: PJsonMutValue; It: TJsonMutArrayIterator; S: SizeUInt;
 begin
   Al := GetRtlAllocator(); MD := JsonMutDocNew(Al);
   Arr := JsonMutArr(MD); AssertTrue(Assigned(Arr));
@@ -74,7 +74,7 @@ begin
 end;
 
 procedure TTestCase_Mutable.Test_Object_Add_Put_Remove_Get_Iter;
-var Al: TAllocator; MD: TJsonMutDocument; Obj, V: PJsonMutValue; It: TJsonMutObjectIterator; Key: PJsonMutValue; Cnt: SizeUInt;
+var Al: IAllocator; MD: TJsonMutDocument; Obj, V: PJsonMutValue; It: TJsonMutObjectIterator; Key: PJsonMutValue; Cnt: SizeUInt;
 begin
   Al := GetRtlAllocator(); MD := JsonMutDocNew(Al);
   Obj := JsonMutObj(MD); AssertTrue(Assigned(Obj));
@@ -100,7 +100,7 @@ end;
 
 
 procedure TTestCase_Mutable.Test_Object_Delete_Edges_And_Order;
-var Al: TAllocator; MD: TJsonMutDocument; Obj, V, Rm: PJsonMutValue; It: TJsonMutObjectIterator; Keys: array of String;
+var Al: IAllocator; MD: TJsonMutDocument; Obj, V, Rm: PJsonMutValue; It: TJsonMutObjectIterator; Keys: array of String;
 begin
   Keys := nil;
   Al := GetRtlAllocator(); MD := JsonMutDocNew(Al); Obj := JsonMutObj(MD);
@@ -132,7 +132,7 @@ begin
 end;
 
 procedure TTestCase_Mutable.Test_Array_IterRemove;
-var Al: TAllocator; MD: TJsonMutDocument; Arr, V: PJsonMutValue; It: TJsonMutArrayIterator; Count: SizeUInt;
+var Al: IAllocator; MD: TJsonMutDocument; Arr, V: PJsonMutValue; It: TJsonMutArrayIterator; Count: SizeUInt;
 begin
   Al := GetRtlAllocator(); MD := JsonMutDocNew(Al); Arr := JsonMutArr(MD);
   AssertTrue(JsonMutArrAppend(Arr, JsonMutUint(MD, 1)));
@@ -152,7 +152,7 @@ begin
 end;
 
 procedure TTestCase_Mutable.Test_Object_IterRemove;
-var Al: TAllocator; MD: TJsonMutDocument; Obj, K: PJsonMutValue; It: TJsonMutObjectIterator; Keys: array of String; Count: SizeUInt;
+var Al: IAllocator; MD: TJsonMutDocument; Obj, K: PJsonMutValue; It: TJsonMutObjectIterator; Keys: array of String; Count: SizeUInt;
 begin
   Keys := nil;
   Al := GetRtlAllocator(); MD := JsonMutDocNew(Al); Obj := JsonMutObj(MD);

@@ -43,6 +43,47 @@ begin
   Result := Ord(ACode);
 end;
 
+// FPC 3.3.1 bug workaround: Helper functions to avoid named exception variables
+function HandleJsonParseException(out Err: TJsonError): Integer;
+var
+  ExObj: TObject;
+  ParseErr: EJsonParseError;
+begin
+  ExObj := ExceptObject;
+  if ExObj is EJsonParseError then
+  begin
+    ParseErr := EJsonParseError(ExObj);
+    Err.Code := ParseErr.Code;
+    Err.Position := ParseErr.Position;
+    if ParseErr.Message <> '' then
+      Err.Message := ParseErr.Message
+    else
+      Err.Message := JsonFormatErrorMessage(Err, True);
+    Result := ToUnifiedJsonErrorCode(ParseErr.Code);
+  end
+  else
+  begin
+    Err.Code := jecInvalidParameter;
+    Err.Position := 0;
+    if (ExObj is Exception) and (Exception(ExObj).Message <> '') then
+      Err.Message := Exception(ExObj).Message
+    else
+      Err.Message := JsonDefaultMessageFor(jecInvalidParameter);
+    Result := Ord(jecInvalidParameter);
+  end;
+end;
+
+function GetJsonParseErrorCode: Integer;
+var
+  ExObj: TObject;
+begin
+  ExObj := ExceptObject;
+  if ExObj is EJsonParseError then
+    Result := ToUnifiedJsonErrorCode(EJsonParseError(ExObj).Code)
+  else
+    Result := Ord(jecInvalidParameter);
+end;
+
 class function TJsonReaderNoExcept.New(AAllocator: TAllocator): TJsonReaderNoExcept;
 begin
   Result.Reader := NewJsonReader(AAllocator);
@@ -54,10 +95,8 @@ begin
     Doc := Reader.ReadFromString(AJson, AFlags);
     Exit(0);
   except
-    on E: EJsonParseError do
-      Exit(ToUnifiedJsonErrorCode(E.Code));
-    on E: Exception do
-      Exit(Ord(jecInvalidParameter));
+    // FPC 3.3.1 bug workaround: don't use named exception variable
+    Result := GetJsonParseErrorCode;
   end;
 end;
 
@@ -67,10 +106,8 @@ begin
     Doc := Reader.ReadFromStringN(AJson, ALength, AFlags);
     Exit(0);
   except
-    on E: EJsonParseError do
-      Exit(ToUnifiedJsonErrorCode(E.Code));
-    on E: Exception do
-      Exit(Ord(jecInvalidParameter));
+    // FPC 3.3.1 bug workaround
+    Result := GetJsonParseErrorCode;
   end;
 end;
 
@@ -81,20 +118,8 @@ begin
     Doc := Reader.ReadFromString(AJson, AFlags);
     Exit(0);
   except
-    on E: EJsonParseError do
-    begin
-      Err.Code := E.Code; Err.Position := E.Position;
-      if (E.Message <> '') then Err.Message := E.Message
-      else Err.Message := JsonFormatErrorMessage(Err, True);
-      Exit(ToUnifiedJsonErrorCode(E.Code));
-    end;
-    on E: Exception do
-    begin
-      Err.Code := jecInvalidParameter; Err.Position := 0;
-      if (E.Message <> '') then Err.Message := E.Message
-      else Err.Message := JsonDefaultMessageFor(jecInvalidParameter);
-      Exit(Ord(jecInvalidParameter));
-    end;
+    // FPC 3.3.1 bug workaround
+    Result := HandleJsonParseException(Err);
   end;
 end;
 
@@ -105,20 +130,8 @@ begin
     Doc := Reader.ReadFromStringN(AJson, ALength, AFlags);
     Exit(0);
   except
-    on E: EJsonParseError do
-    begin
-      Err.Code := E.Code; Err.Position := E.Position;
-      if (E.Message <> '') then Err.Message := E.Message
-      else Err.Message := JsonFormatErrorMessage(Err, True);
-      Exit(ToUnifiedJsonErrorCode(E.Code));
-    end;
-    on E: Exception do
-    begin
-      Err.Code := jecInvalidParameter; Err.Position := 0;
-      if (E.Message <> '') then Err.Message := E.Message
-      else Err.Message := JsonDefaultMessageFor(jecInvalidParameter);
-      Exit(Ord(jecInvalidParameter));
-    end;
+    // FPC 3.3.1 bug workaround
+    Result := HandleJsonParseException(Err);
   end;
 end;
 
@@ -133,10 +146,8 @@ begin
     S := NewJsonWriter.WriteToString(ADocument, AFlags);
     Exit(0);
   except
-    on E: EJsonParseError do
-      Exit(ToUnifiedJsonErrorCode(E.Code));
-    on E: Exception do
-      Exit(Ord(jecInvalidParameter));
+    // FPC 3.3.1 bug workaround
+    Result := GetJsonParseErrorCode;
   end;
 end;
 

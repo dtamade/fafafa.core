@@ -87,7 +87,7 @@ uses
 function TryApplyJsonMergePatch(ADoc: IJsonDocument; const PatchJson: String;
   out Updated: IJsonDocument; out ErrMsg: String): Boolean;
 var
-  Al: TAllocator;
+  Al: IAllocator;
   SrcText, OutText: String;
   SrcDoc, PatchDoc: TJsonDocument;
   MutDoc: TJsonMutDocument;
@@ -140,7 +140,7 @@ end;
 function TryApplyJsonPatch(ADoc: IJsonDocument; const PatchJson: String;
   out Updated: IJsonDocument; out ErrMsg: String): Boolean;
 var
-  Al: TAllocator;
+  Al: IAllocator;
   SrcText, OutText: String;
   SrcDoc, PatchDoc: TJsonDocument;
   MutDoc: TJsonMutDocument;

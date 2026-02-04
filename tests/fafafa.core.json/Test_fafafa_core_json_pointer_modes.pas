@@ -20,7 +20,7 @@ type
 implementation
 
 procedure TTestCase_JsonPointer_Modes.Test_Compat_SlashOnly_Invalid;
-var Doc: TJsonDocument; Err: TJsonError; Al: TAllocator; S: String; Root, R: PJsonValue;
+var Doc: TJsonDocument; Err: TJsonError; Al: IAllocator; S: String; Root, R: PJsonValue;
 begin
   Err := Default(TJsonError);
   Al := GetRtlAllocator();
@@ -35,7 +35,7 @@ begin
 end;
 
 procedure TTestCase_JsonPointer_Modes.Test_Compat_EmptyToken_Invalid;
-var Doc: TJsonDocument; Err: TJsonError; Al: TAllocator; S: String; Root, R: PJsonValue;
+var Doc: TJsonDocument; Err: TJsonError; Al: IAllocator; S: String; Root, R: PJsonValue;
 begin
   Err := Default(TJsonError);
   Al := GetRtlAllocator();
@@ -50,7 +50,7 @@ begin
 end;
 
 procedure TTestCase_JsonPointer_Modes.Test_Strict_SlashOnly_EmptyToken_RootOrKey;
-var Doc: TJsonDocument; Err: TJsonError; Al: TAllocator; S: String; Root, R: PJsonValue;
+var Doc: TJsonDocument; Err: TJsonError; Al: IAllocator; S: String; Root, R: PJsonValue;
 begin
   Err := Default(TJsonError);
   Al := GetRtlAllocator();

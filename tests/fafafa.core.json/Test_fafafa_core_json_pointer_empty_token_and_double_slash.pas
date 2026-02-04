@@ -22,7 +22,7 @@ implementation
 
 procedure TTestCase_JsonPointer_EmptyTokenAndDoubleSlash.Test_Empty_Key_Token;
 var
-  Doc: TJsonDocument; Err: TJsonError; Root, V: PJsonValue; Al: TAllocator; S: String;
+  Doc: TJsonDocument; Err: TJsonError; Root, V: PJsonValue; Al: IAllocator; S: String;
 begin
   Err := Default(TJsonError);
   Al := GetRtlAllocator();
@@ -39,7 +39,7 @@ end;
 
 procedure TTestCase_JsonPointer_EmptyTokenAndDoubleSlash.Test_Double_Slash_Invalid;
 var
-  Doc: TJsonDocument; Err: TJsonError; Root, V: PJsonValue; Al: TAllocator; S: String;
+  Doc: TJsonDocument; Err: TJsonError; Root, V: PJsonValue; Al: IAllocator; S: String;
 begin
   Err := Default(TJsonError);
   Al := GetRtlAllocator();

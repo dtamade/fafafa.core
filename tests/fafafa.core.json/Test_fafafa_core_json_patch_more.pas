@@ -29,7 +29,7 @@ type
 implementation
 
 procedure TTestCase_JsonPatch_More.Test_Copy_ObjectKey;
-var Al: TAllocator; M: TJsonMutDocument; Root, Obj: PJsonMutValue; PatchText: String;
+var Al: IAllocator; M: TJsonMutDocument; Root, Obj: PJsonMutValue; PatchText: String;
     PatchDoc: TJsonDocument; ok: Boolean; errMsg: String; V: PJsonMutValue;
 begin
   Al := GetRtlAllocator();
@@ -52,7 +52,7 @@ begin
 end;
 
 procedure TTestCase_JsonPatch_More.Test_Move_ArrayToAppend;
-var Al: TAllocator; M: TJsonMutDocument; Root, Arr: PJsonMutValue; PatchText: String;
+var Al: IAllocator; M: TJsonMutDocument; Root, Arr: PJsonMutValue; PatchText: String;
     PatchDoc: TJsonDocument; ok: Boolean; errMsg: String; V: PJsonMutValue;
 begin
   Al := GetRtlAllocator();
@@ -77,7 +77,7 @@ begin
 end;
 
 procedure TTestCase_JsonPatch_More.Test_Test_DeepEqual;
-var Al: TAllocator; M: TJsonMutDocument; Root, Obj: PJsonMutValue; PatchText: String;
+var Al: IAllocator; M: TJsonMutDocument; Root, Obj: PJsonMutValue; PatchText: String;
     PatchDoc: TJsonDocument; ok: Boolean; errMsg: String;
 begin
   Al := GetRtlAllocator();
@@ -95,7 +95,7 @@ begin
 end;
 
 procedure TTestCase_JsonPatch_More.Test_Add_Object_ExistingKey_Replaces;
-var Al: TAllocator; M: TJsonMutDocument; Root, Obj: PJsonMutValue; PatchText: String;
+var Al: IAllocator; M: TJsonMutDocument; Root, Obj: PJsonMutValue; PatchText: String;
     PatchDoc: TJsonDocument; ok: Boolean; errMsg: String; V: PJsonMutValue;
 begin
   Al := GetRtlAllocator();
@@ -117,7 +117,7 @@ begin
 end;
 
 procedure TTestCase_JsonPatch_More.Test_Replace_Array_Dash_Invalid;
-var Al: TAllocator; M: TJsonMutDocument; Root, Arr: PJsonMutValue; PatchText: String;
+var Al: IAllocator; M: TJsonMutDocument; Root, Arr: PJsonMutValue; PatchText: String;
     PatchDoc: TJsonDocument; ok: Boolean; errMsg: String;
 begin
   Al := GetRtlAllocator();
@@ -135,7 +135,7 @@ begin
 end;
 
 procedure TTestCase_JsonPatch_More.Test_Move_Into_Descendant_Not_Allowed;
-var Al: TAllocator; M: TJsonMutDocument; Root, Obj, Inner: PJsonMutValue; PatchText: String;
+var Al: IAllocator; M: TJsonMutDocument; Root, Obj, Inner: PJsonMutValue; PatchText: String;
     PatchDoc: TJsonDocument; ok: Boolean; errMsg: String;
 begin
   Al := GetRtlAllocator();
@@ -155,7 +155,7 @@ begin
 end;
 
 procedure TTestCase_JsonPatch_More.Test_Copy_Array_Insert_Middle;
-var Al: TAllocator; M: TJsonMutDocument; Root, Arr: PJsonMutValue; PatchText: String;
+var Al: IAllocator; M: TJsonMutDocument; Root, Arr: PJsonMutValue; PatchText: String;
     PatchDoc: TJsonDocument; ok: Boolean; errMsg: String; V: PJsonMutValue;
 begin
   Al := GetRtlAllocator();
@@ -182,7 +182,7 @@ begin
 end;
 
 procedure TTestCase_JsonPatch_More.Test_Add_Parent_Not_Found;
-var Al: TAllocator; M: TJsonMutDocument; Root: PJsonMutValue; PatchText: String;
+var Al: IAllocator; M: TJsonMutDocument; Root: PJsonMutValue; PatchText: String;
     PatchDoc: TJsonDocument; ok: Boolean; errMsg: String;
 begin
   Al := GetRtlAllocator();

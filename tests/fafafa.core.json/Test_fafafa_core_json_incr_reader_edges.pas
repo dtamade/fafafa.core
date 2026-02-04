@@ -21,7 +21,7 @@ type
 implementation
 
 procedure TTestCase_IncrReader_Edges.Test_Incr_StringEscapes_CrossChunk;
-var Al: TAllocator; Err: TJsonError; Doc: TJsonDocument; St: PJsonIncrState;
+var Al: IAllocator; Err: TJsonError; Doc: TJsonDocument; St: PJsonIncrState;
     Buf: AnsiString; Mem: PAnsiChar; Len: SizeUInt; Cut1, Cut2: SizeUInt; Root, V: PJsonValue;
 begin
   Err := Default(TJsonError);
@@ -54,7 +54,7 @@ begin
 end;
 
 procedure TTestCase_IncrReader_Edges.Test_Incr_UTF8_Multibyte_CrossChunk;
-var Al: TAllocator; Err: TJsonError; Doc: TJsonDocument; St: PJsonIncrState;
+var Al: IAllocator; Err: TJsonError; Doc: TJsonDocument; St: PJsonIncrState;
     S, Buf: UTF8String; Mem: PAnsiChar; Len: SizeUInt; Cut: SizeUInt; Root, V: PJsonValue;
 begin
   Err := Default(TJsonError);
@@ -84,7 +84,7 @@ begin
 end;
 
 procedure TTestCase_IncrReader_Edges.Test_Incr_LargeNumber_CrossChunk;
-var Al: TAllocator; Err: TJsonError; Doc: TJsonDocument; St: PJsonIncrState;
+var Al: IAllocator; Err: TJsonError; Doc: TJsonDocument; St: PJsonIncrState;
     Buf: AnsiString; Mem: PAnsiChar; Len: SizeUInt; Cut: SizeUInt; Root, V: PJsonValue;
 begin
   Err := Default(TJsonError);
@@ -110,7 +110,7 @@ begin
 end;
 
 procedure TTestCase_IncrReader_Edges.Test_Incr_Comments_TrailingCommas_WithFlags;
-var Al: TAllocator; Err: TJsonError; Doc: TJsonDocument; St: PJsonIncrState;
+var Al: IAllocator; Err: TJsonError; Doc: TJsonDocument; St: PJsonIncrState;
     Buf: AnsiString; Mem: PAnsiChar; Len: SizeUInt; Ch1, Ch2: SizeUInt; Root, Arr, ObjV: PJsonValue;
 begin
   Err := Default(TJsonError);

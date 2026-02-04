@@ -19,7 +19,7 @@ type
 implementation
 
 procedure TTestCase_IncrReader.Test_Incr_FullFeed_Once;
-var Al: TAllocator; Err: TJsonError; Doc: TJsonDocument; S: String;
+var Al: IAllocator; Err: TJsonError; Doc: TJsonDocument; S: String;
     St: PJsonIncrState; Buf: String;
 begin
   Err := Default(TJsonError);
@@ -36,7 +36,7 @@ begin
 end;
 
 procedure TTestCase_IncrReader.Test_Incr_Feed_InChunks;
-var Al: TAllocator; Err: TJsonError; Doc: TJsonDocument; S: String;
+var Al: IAllocator; Err: TJsonError; Doc: TJsonDocument; S: String;
     St: PJsonIncrState; Buf: String; Ch1, Ch2, Ch3: SizeUInt;
 begin
   Err := Default(TJsonError);

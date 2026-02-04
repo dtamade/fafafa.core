@@ -20,7 +20,7 @@ type
 implementation
 
 procedure TTestCase_JsonPointer_NestedArrays.Test_Obj_Arr_Interleaved_Nesting;
-var Doc: TJsonDocument; Err: TJsonError; Al: TAllocator; S: String; Root, X, Y: PJsonValue;
+var Doc: TJsonDocument; Err: TJsonError; Al: IAllocator; S: String; Root, X, Y: PJsonValue;
 begin
   Err := Default(TJsonError);
   Al := GetRtlAllocator();

@@ -25,7 +25,7 @@ type
 implementation
 
 procedure TTestCase_JsonPointer_Edges.Test_Empty_Pointer_Returns_Root;
-var Doc: TJsonDocument; Err: TJsonError; Al: TAllocator; S: String; Root, R: PJsonValue;
+var Doc: TJsonDocument; Err: TJsonError; Al: IAllocator; S: String; Root, R: PJsonValue;
 begin
   Err := Default(TJsonError);
   Al := GetRtlAllocator();
@@ -39,7 +39,7 @@ begin
 end;
 
 procedure TTestCase_JsonPointer_Edges.Test_Slash_Only_Pointer_Invalid;
-var Doc: TJsonDocument; Err: TJsonError; Al: TAllocator; S: String; Root, R: PJsonValue;
+var Doc: TJsonDocument; Err: TJsonError; Al: IAllocator; S: String; Root, R: PJsonValue;
 begin
   Err := Default(TJsonError);
   Al := GetRtlAllocator();
@@ -53,7 +53,7 @@ begin
 end;
 
 procedure TTestCase_JsonPointer_Edges.Test_Unescape_Tokens;
-var Doc: TJsonDocument; Err: TJsonError; Al: TAllocator; S: String; Root, R: PJsonValue;
+var Doc: TJsonDocument; Err: TJsonError; Al: IAllocator; S: String; Root, R: PJsonValue;
 begin
   Err := Default(TJsonError);
   Al := GetRtlAllocator();
@@ -69,7 +69,7 @@ begin
 end;
 
 procedure TTestCase_JsonPointer_Edges.Test_Index_Out_Of_Range;
-var Doc: TJsonDocument; Err: TJsonError; Al: TAllocator; S: String; Root, R: PJsonValue;
+var Doc: TJsonDocument; Err: TJsonError; Al: IAllocator; S: String; Root, R: PJsonValue;
 begin
   Err := Default(TJsonError);
   Al := GetRtlAllocator();
@@ -83,7 +83,7 @@ begin
 end;
 
 procedure TTestCase_JsonPointer_Edges.Test_Type_Mismatch_Object_vs_Array;
-var Doc: TJsonDocument; Err: TJsonError; Al: TAllocator; S: String; Root, R: PJsonValue;
+var Doc: TJsonDocument; Err: TJsonError; Al: IAllocator; S: String; Root, R: PJsonValue;
 begin
   Err := Default(TJsonError);
   Al := GetRtlAllocator();
@@ -104,7 +104,7 @@ begin
 end;
 
 procedure TTestCase_JsonPointer_Edges.Test_Mutable_Edges_Basic;
-var M: TJsonMutDocument; Al: TAllocator; Root, Arr, Obj, V: PJsonMutValue;
+var M: TJsonMutDocument; Al: IAllocator; Root, Arr, Obj, V: PJsonMutValue;
 begin
   Al := GetRtlAllocator();
   M := JsonMutDocNew(Al);

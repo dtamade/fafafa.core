@@ -221,9 +221,10 @@ function UnsafeGetStr(AVal: PJsonValue): PChar; inline;
 
 
   // 空白与注释跳过（支持 jrfAllowComments）
-  procedure SkipComments(var ACur: PByte; AEnd: PByte); inline;
+  // Note: inline removed due to FPC 3.3.1 ICE 200104143
+  procedure SkipComments(var ACur: PByte; AEnd: PByte);
 
-  procedure SkipSpaces(var ACur: PByte; AEnd: PByte; Flags: TJsonReadFlags); inline;
+  procedure SkipSpaces(var ACur: PByte; AEnd: PByte; Flags: TJsonReadFlags);
 
 // 字面量读取函数
 function ReadTrue(var ACur: PByte; AVal: PJsonValue): Boolean;
@@ -420,9 +421,9 @@ function JsonEqualsStrN(AVal: PJsonValue; const AStr: PChar; ALen: SizeUInt): Bo
 // 高级读取器 API (严格对应 yyjson_read_* 函数)
 function JsonRead(const AData: PChar; ALen: SizeUInt; AFlags: TJsonReadFlags): TJsonDocument; inline;
 function JsonReadOpts(const AData: PChar; ALen: SizeUInt; AFlags: TJsonReadFlags;
-  AAllocator: IAllocator; var AError: TJsonError): TJsonDocument; inline;
+  AAllocator: IAllocator; var AError: TJsonError): TJsonDocument; // inline removed due to FPC 3.3.1 ICE
 function JsonReadFile(const APath: String; AFlags: TJsonReadFlags;
-  AAllocator: IAllocator; var AError: TJsonError): TJsonDocument; inline;
+  AAllocator: IAllocator; var AError: TJsonError): TJsonDocument; // inline removed due to FPC 3.3.1 ICE
 function JsonReadMaxMemoryUsage(ALen: SizeUInt; AFlags: TJsonReadFlags): SizeUInt; inline;
 function JsonReadNumber(const AData: PChar; ALen: SizeUInt): Double; inline;
 
@@ -2412,13 +2413,10 @@ begin
       LFileStream.Free;
     end;
   except
-    on E: Exception do
-    begin
-      AError.Position := 0;
-      AError.Code := jecFileReadError;
-      // 保留底层异常信息以便诊断
-      AError.Message := 'failed to read file: ' + E.Message;
-    end;
+    // FPC 3.3.1 bug workaround: don't use named exception variable
+    AError.Position := 0;
+    AError.Code := jecFileReadError;
+    AError.Message := 'failed to read file';
   end;
 end;
 
@@ -2907,13 +2905,11 @@ begin
     end;
 
   except
-    on E: Exception do
-    begin
-      AError.Code := jwecInvalidValueType;
-      AError.Message := 'Serialization error: ' + E.Message;
-      if Assigned(LResult) then
-        AAllocator.FreeMem(LResult);
-    end;
+    // FPC 3.3.1 bug workaround: don't use named exception variable
+    AError.Code := jwecInvalidValueType;
+    AError.Message := 'Serialization error';
+    if Assigned(LResult) then
+      AAllocator.FreeMem(LResult);
   end;
 end;
 
@@ -2960,12 +2956,9 @@ begin
       LFileStream.Free;
     end;
   except
-
-    on E: Exception do
-    begin
-      AError.Code := jwecFileWriteError;
-      AError.Message := 'File write error: ' + E.Message;
-    end;
+    // FPC 3.3.1 bug workaround: don't use named exception variable
+    AError.Code := jwecFileWriteError;
+    AError.Message := 'File write error';
   end;
 
   // 释放序列化数据
@@ -5770,15 +5763,14 @@ begin
       try
         LFileStream.Free;
       except
-        on E: Exception do begin AError.Code := jwecFileWriteError; AError.Message := 'failed to close file'; end;
+        // FPC 3.3.1 bug workaround
+        AError.Code := jwecFileWriteError; AError.Message := 'failed to close file';
       end;
     end;
   except
-    on E: Exception do
-    begin
-      AError.Code := jwecFileWriteError;
-      AError.Message := 'failed to write file';
-    end;
+    // FPC 3.3.1 bug workaround
+    AError.Code := jwecFileWriteError;
+    AError.Message := 'failed to write file';
   end;
 
   // 释放序列化数据

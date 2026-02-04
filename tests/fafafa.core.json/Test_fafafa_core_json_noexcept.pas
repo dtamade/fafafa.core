@@ -26,7 +26,7 @@ type
 procedure TTestCase_NoExcept.Test_Read_FromString_Ok;
 var R: TJsonReaderNoExcept; D: IJsonDocument; Code: Integer;
 begin
-  R := TJsonReaderNoExcept.New(GetRtlAllocator);
+  R := TJsonReaderNoExcept.New(nil);
   Code := R.ReadFromString('{"a":1}', D);
   AssertEquals(0, Code);
   AssertTrue(D <> nil);
@@ -36,7 +36,7 @@ end;
 procedure TTestCase_NoExcept.Test_Read_FromString_Error;
 var R: TJsonReaderNoExcept; D: IJsonDocument; Code: Integer;
 begin
-  R := TJsonReaderNoExcept.New(GetRtlAllocator);
+  R := TJsonReaderNoExcept.New(nil);
   Code := R.ReadFromString('{"a":,}', D);
   AssertTrue(Code <> 0);
   AssertTrue(D = nil);

@@ -26,7 +26,7 @@ type
 implementation
 
 procedure TTestCase_JsonPatch_Edges.Test_Invalid_Op;
-var Al: TAllocator; M: TJsonMutDocument; Root: PJsonMutValue; PatchText: String; PatchDoc: TJsonDocument; ok: Boolean; err: String;
+var Al: IAllocator; M: TJsonMutDocument; Root: PJsonMutValue; PatchText: String; PatchDoc: TJsonDocument; ok: Boolean; err: String;
 begin
   Al := GetRtlAllocator();
   M := JsonMutDocNew(Al);
@@ -40,7 +40,7 @@ begin
 end;
 
 procedure TTestCase_JsonPatch_Edges.Test_Add_Index_OutOfRange;
-var Al: TAllocator; M: TJsonMutDocument; Root, Arr: PJsonMutValue; PatchText: String; PatchDoc: TJsonDocument; ok: Boolean; err: String;
+var Al: IAllocator; M: TJsonMutDocument; Root, Arr: PJsonMutValue; PatchText: String; PatchDoc: TJsonDocument; ok: Boolean; err: String;
 begin
   Al := GetRtlAllocator();
   M := JsonMutDocNew(Al);
@@ -56,7 +56,7 @@ begin
 end;
 
 procedure TTestCase_JsonPatch_Edges.Test_Replace_Path_Not_Exist;
-var Al: TAllocator; M: TJsonMutDocument; Root: PJsonMutValue; PatchText: String; PatchDoc: TJsonDocument; ok: Boolean; err: String;
+var Al: IAllocator; M: TJsonMutDocument; Root: PJsonMutValue; PatchText: String; PatchDoc: TJsonDocument; ok: Boolean; err: String;
 begin
   Al := GetRtlAllocator();
   M := JsonMutDocNew(Al);
@@ -70,7 +70,7 @@ begin
 end;
 
 procedure TTestCase_JsonPatch_Edges.Test_Remove_Path_Not_Exist;
-var Al: TAllocator; M: TJsonMutDocument; Root: PJsonMutValue; PatchText: String; PatchDoc: TJsonDocument; ok: Boolean; err: String;
+var Al: IAllocator; M: TJsonMutDocument; Root: PJsonMutValue; PatchText: String; PatchDoc: TJsonDocument; ok: Boolean; err: String;
 begin
   Al := GetRtlAllocator();
   M := JsonMutDocNew(Al);
@@ -84,7 +84,7 @@ begin
 end;
 
 procedure TTestCase_JsonPatch_Edges.Test_Copy_From_Not_Exist;
-var Al: TAllocator; M: TJsonMutDocument; Root: PJsonMutValue; PatchText: String; PatchDoc: TJsonDocument; ok: Boolean; err: String;
+var Al: IAllocator; M: TJsonMutDocument; Root: PJsonMutValue; PatchText: String; PatchDoc: TJsonDocument; ok: Boolean; err: String;
 begin
   Al := GetRtlAllocator();
   M := JsonMutDocNew(Al);
@@ -98,7 +98,7 @@ begin
 end;
 
 procedure TTestCase_JsonPatch_Edges.Test_Move_From_Not_Exist;
-var Al: TAllocator; M: TJsonMutDocument; Root: PJsonMutValue; PatchText: String; PatchDoc: TJsonDocument; ok: Boolean; err: String;
+var Al: IAllocator; M: TJsonMutDocument; Root: PJsonMutValue; PatchText: String; PatchDoc: TJsonDocument; ok: Boolean; err: String;
 begin
   Al := GetRtlAllocator();
   M := JsonMutDocNew(Al);
@@ -112,7 +112,7 @@ begin
 end;
 
 procedure TTestCase_JsonPatch_Edges.Test_Test_DeepEqual_Fail;
-var Al: TAllocator; M: TJsonMutDocument; Root, Obj: PJsonMutValue; PatchText: String; PatchDoc: TJsonDocument; ok: Boolean; err: String;
+var Al: IAllocator; M: TJsonMutDocument; Root, Obj: PJsonMutValue; PatchText: String; PatchDoc: TJsonDocument; ok: Boolean; err: String;
 begin
   Al := GetRtlAllocator();
   M := JsonMutDocNew(Al);

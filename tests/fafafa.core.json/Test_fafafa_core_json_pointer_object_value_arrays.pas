@@ -20,7 +20,7 @@ type
 implementation
 
 procedure TTestCase_JsonPointer_ObjectValueArrays.Test_Obj_With_Two_Array_Values;
-var Doc: TJsonDocument; Err: TJsonError; Al: TAllocator; S: String; Root, A1, A2: PJsonValue;
+var Doc: TJsonDocument; Err: TJsonError; Al: IAllocator; S: String; Root, A1, A2: PJsonValue;
 begin
   Err := Default(TJsonError);
   Al := GetRtlAllocator();
