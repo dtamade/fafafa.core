@@ -315,7 +315,7 @@ function XmlReadAllToDocument(const R: IXmlReader): IXmlDocument; overload;
 function XmlEscapeXML10Strict(const S: String): String;
 
 // 工厂
-function CreateXmlReader(AAllocator: TAllocator = nil): IXmlReader;
+function CreateXmlReader(AAllocator: IAllocator = nil): IXmlReader;
 function CreateXmlWriter: IXmlWriter;
 
 implementation
@@ -3692,7 +3692,7 @@ begin
   end;
 end;
 
-function CreateXmlReader(AAllocator: TAllocator): IXmlReader;
+function CreateXmlReader(AAllocator: IAllocator): IXmlReader;
 begin
   Result := TXmlReaderImpl.Create;
 end;
