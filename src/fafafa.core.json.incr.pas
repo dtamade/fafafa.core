@@ -17,18 +17,18 @@ type
     Avail: SizeUInt;       // 当前可用长度（已喂入）
     Consumed: SizeUInt;    // 已消费长度（上一份文档已读取的前缀）
     Flags: TJsonReadFlags; // 读取标志
-    Allocator: TAllocator; // 分配器
+    Allocator: IAllocator; // 分配器（接口优先）
     // 跨块 UTF-8 续字节需求（0 表示无）
     PendingUtf8: Byte;
   end;
 
-function JsonIncrNew(ABuf: PChar; ABufLen: SizeUInt; AFlags: TJsonReadFlags; AAllocator: TAllocator): PJsonIncrState;
+function JsonIncrNew(ABuf: PChar; ABufLen: SizeUInt; AFlags: TJsonReadFlags; AAllocator: IAllocator): PJsonIncrState;
 function JsonIncrRead(AState: PJsonIncrState; AFeedLen: SizeUInt; var AError: TJsonError): TJsonDocument;
 procedure JsonIncrFree(AState: PJsonIncrState);
 
 implementation
 
-function JsonIncrNew(ABuf: PChar; ABufLen: SizeUInt; AFlags: TJsonReadFlags; AAllocator: TAllocator): PJsonIncrState;
+function JsonIncrNew(ABuf: PChar; ABufLen: SizeUInt; AFlags: TJsonReadFlags; AAllocator: IAllocator): PJsonIncrState;
 begin
   Result := nil;
   if (ABuf = nil) or (ABufLen = 0) then Exit;

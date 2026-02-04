@@ -19,7 +19,7 @@ type
   // 返回 0 表示成功，非 0 为错误（映射自 TJsonErrorCode）
   TJsonReaderNoExcept = record
     Reader: IJsonReader;
-    class function New(AAllocator: TAllocator = nil): TJsonReaderNoExcept; static;
+    class function New(AAllocator: IAllocator = nil): TJsonReaderNoExcept; static;
     // 不抛异常，返回错误码；成功时返回 0 并填充 Doc
     function ReadFromString(const AJson: String; out Doc: IJsonDocument; AFlags: TJsonReadFlags = []): Integer;
     function ReadFromStringN(const AJson: PChar; ALength: SizeUInt; out Doc: IJsonDocument; AFlags: TJsonReadFlags = []): Integer;
@@ -84,7 +84,7 @@ begin
     Result := Ord(jecInvalidParameter);
 end;
 
-class function TJsonReaderNoExcept.New(AAllocator: TAllocator): TJsonReaderNoExcept;
+class function TJsonReaderNoExcept.New(AAllocator: IAllocator): TJsonReaderNoExcept;
 begin
   Result.Reader := NewJsonReader(AAllocator);
 end;

@@ -29,12 +29,12 @@ function JsonPointerGet(ARoot: IJsonValue; const APointer: String): IJsonValue; 
 function JsonPointerGet(ADoc: IJsonDocument; const APointer: String): IJsonValue; overload;
 
 // 工厂函数：委派到门面
-function CreateJsonReader(AAllocator: TAllocator = nil): IJsonReader;
+function CreateJsonReader(AAllocator: IAllocator = nil): IJsonReader;
 function CreateJsonWriter: IJsonWriter;
 
 implementation
 
-function CreateJsonReader(AAllocator: TAllocator): IJsonReader;
+function CreateJsonReader(AAllocator: IAllocator): IJsonReader;
 begin
   Result := fafafa.core.json.CreateJsonReader(AAllocator);
 end;

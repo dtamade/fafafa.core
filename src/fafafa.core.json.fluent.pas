@@ -83,7 +83,7 @@ Type
     function IsCursorObj: Boolean; inline;
     function IsCursorArr: Boolean; inline;
   public
-    constructor Create(AAllocator: TAllocator);
+    constructor Create(AAllocator: IAllocator);
     destructor Destroy; override;
 
     // Root constructors
@@ -125,15 +125,15 @@ Type
   JsonF = record
   public
     class function Parse(const AText: String): IJsonDocF; static; overload;
-    class function Parse(const AText: String; AFlags: TJsonReadFlags; AAllocator: TAllocator;
+    class function Parse(const AText: String; AFlags: TJsonReadFlags; AAllocator: IAllocator;
       out AError: TJsonError): IJsonDocF; static; overload;
     class function ParseFile(const APath: String): IJsonDocF; static; overload;
-    class function ParseFile(const APath: String; AFlags: TJsonReadFlags; AAllocator: TAllocator;
+    class function ParseFile(const APath: String; AFlags: TJsonReadFlags; AAllocator: IAllocator;
       out AError: TJsonError): IJsonDocF; static; overload;
     class function ParseStream(AStream: TStream): IJsonDocF; static; overload;
-    class function ParseStream(AStream: TStream; AFlags: TJsonReadFlags; AAllocator: TAllocator;
+    class function ParseStream(AStream: TStream; AFlags: TJsonReadFlags; AAllocator: IAllocator;
       out AError: TJsonError): IJsonDocF; static; overload;
-    class function NewBuilder(AAllocator: TAllocator = nil): TJsonBuilderF; static;
+    class function NewBuilder(AAllocator: IAllocator = nil): TJsonBuilderF; static;
   end;
 
 implementation
@@ -189,7 +189,7 @@ begin
 end;
 
 function TJsonDocF.SaveToFile(const APath: String; AFlags: TJsonWriteFlags): Boolean;
-var Err: TJsonWriteError; Alc: TAllocator;
+var Err: TJsonWriteError; Alc: IAllocator;
 begin
   Alc := GetRtlAllocator();
   Err := Default(TJsonWriteError);
@@ -199,7 +199,7 @@ end;
 
 
 { TJsonBuilderF }
-constructor TJsonBuilderF.Create(AAllocator: TAllocator);
+constructor TJsonBuilderF.Create(AAllocator: IAllocator);
 begin
   inherited Create;
   if not Assigned(AAllocator) then
@@ -579,13 +579,13 @@ end;
 
 { JsonF }
 class function JsonF.Parse(const AText: String): IJsonDocF;
-var E: TJsonError; Alc: TAllocator;
+var E: TJsonError; Alc: IAllocator;
 begin
   Alc := GetRtlAllocator();
   Result := JsonF.Parse(AText, [], Alc, E);
 end;
 
-class function JsonF.Parse(const AText: String; AFlags: TJsonReadFlags; AAllocator: TAllocator;
+class function JsonF.Parse(const AText: String; AFlags: TJsonReadFlags; AAllocator: IAllocator;
   out AError: TJsonError): IJsonDocF;
 var Doc: TJsonDocument;
 begin
@@ -599,19 +599,19 @@ begin
     Result := nil;
 end;
 
-class function JsonF.NewBuilder(AAllocator: TAllocator): TJsonBuilderF;
+class function JsonF.NewBuilder(AAllocator: IAllocator): TJsonBuilderF;
 begin
   Result := TJsonBuilderF.Create(AAllocator);
 end;
 
 class function JsonF.ParseFile(const APath: String): IJsonDocF;
-var E: TJsonError; Alc: TAllocator;
+var E: TJsonError; Alc: IAllocator;
 begin
   Alc := GetRtlAllocator();
   Result := JsonF.ParseFile(APath, [], Alc, E);
 end;
 
-class function JsonF.ParseFile(const APath: String; AFlags: TJsonReadFlags; AAllocator: TAllocator;
+class function JsonF.ParseFile(const APath: String; AFlags: TJsonReadFlags; AAllocator: IAllocator;
   out AError: TJsonError): IJsonDocF;
 var Doc: TJsonDocument;
 begin
@@ -626,7 +626,7 @@ begin
 end;
 
 class function JsonF.ParseStream(AStream: TStream): IJsonDocF;
-var S: String; E: TJsonError; Alc: TAllocator;
+var S: String; E: TJsonError; Alc: IAllocator;
 begin
   S := '';
   SetLength(S, AStream.Size);
@@ -635,7 +635,7 @@ begin
   Result := JsonF.Parse(S, [], Alc, E);
 end;
 
-class function JsonF.ParseStream(AStream: TStream; AFlags: TJsonReadFlags; AAllocator: TAllocator;
+class function JsonF.ParseStream(AStream: TStream; AFlags: TJsonReadFlags; AAllocator: IAllocator;
   out AError: TJsonError): IJsonDocF;
 var S: String;
 begin
