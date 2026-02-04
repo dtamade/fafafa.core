@@ -15,6 +15,11 @@ fi
 echo "Building tests..."
 $LAZBUILD *.lpi
 
-# 运行测试
+# 运行测试 - 排除 .dbg 文件
 echo "Running tests..."
-./bin/*
+for exe in ./bin/*; do
+    if [[ -x "$exe" && ! "$exe" == *.dbg ]]; then
+        echo "[RUN] $exe --all --format=plain"
+        "$exe" --all --format=plain || exit 1
+    fi
+done
