@@ -48,6 +48,93 @@ type
   end;
 
   {**
+   * 工作线程类 - 用于并发计数器测试（带 Sleep 让出 CPU）
+   *}
+  TWorkerThread = class(TThread)
+  private
+    FTestMutex: IParkingLotMutex;
+    FCounter: PInteger;
+    FErrorCount: PInteger;
+    FIterations: Integer;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(AMutex: IParkingLotMutex; ACounter, AErrorCount: PInteger; AIterations: Integer);
+  end;
+
+  {**
+   * 简单计数器线程类 - 用于短临界区测试
+   *}
+  TSimpleCounterThread = class(TThread)
+  private
+    FTestMutex: IParkingLotMutex;
+    FCounter: PInteger;
+    FIterations: Integer;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(AMutex: IParkingLotMutex; ACounter: PInteger; AIterations: Integer);
+  end;
+
+  {**
+   * 长临界区线程类 - 用于长临界区测试
+   *}
+  TLongCriticalSectionThread = class(TThread)
+  private
+    FTestMutex: IParkingLotMutex;
+    FCounter: PInteger;
+    FIterations: Integer;
+    FBusyLoopCount: Integer;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(AMutex: IParkingLotMutex; ACounter: PInteger; AIterations, ABusyLoopCount: Integer);
+  end;
+
+  {**
+   * 公平性测试线程类 - 记录获取锁的时间戳
+   *}
+  TFairnessTestThread = class(TThread)
+  private
+    FTestMutex: IParkingLotMutex;
+    FResultTime: PInteger;
+    FStartDelay: Integer;
+    FTimeout: Cardinal;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(AMutex: IParkingLotMutex; AResultTime: PInteger; AStartDelay: Integer; ATimeout: Cardinal);
+  end;
+
+  {**
+   * 超时测试线程类 - 用于超时相关测试
+   *}
+  TTimeoutTestThread = class(TThread)
+  private
+    FTestMutex: IParkingLotMutex;
+    FTimeout: Cardinal;
+    FResult: Boolean;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(AMutex: IParkingLotMutex; ATimeout: Cardinal);
+    property TestResult: Boolean read FResult;
+  end;
+
+  {**
+   * 释放线程类 - 用于从不同线程释放锁的测试
+   *}
+  TReleaseThread = class(TThread)
+  private
+    FTestMutex: IParkingLotMutex;
+    FExceptionOccurred: PBoolean;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(AMutex: IParkingLotMutex; AExceptionOccurred: PBoolean);
+  end;
+
+  {**
    * TTestCase_Global - 测试全局工厂函数
    *}
   TTestCase_Global = class(TTestCase)
@@ -95,9 +182,7 @@ type
     FMutex: IParkingLotMutex;
     FCounter: Integer;
     FErrorCount: Integer;
-    
-    procedure WorkerThreadProc(AThreadId: Integer; AIterations: Integer);
-    
+
   protected
     procedure SetUp; override;
     procedure TearDown; override;
@@ -302,6 +387,154 @@ begin
     FResult := True;
   except
     FResult := False;
+  end;
+end;
+
+{ TWorkerThread }
+
+constructor TWorkerThread.Create(AMutex: IParkingLotMutex; ACounter, AErrorCount: PInteger; AIterations: Integer);
+begin
+  FTestMutex := AMutex;
+  FCounter := ACounter;
+  FErrorCount := AErrorCount;
+  FIterations := AIterations;
+  inherited Create(False);
+end;
+
+procedure TWorkerThread.Execute;
+var
+  i: Integer;
+begin
+  try
+    for i := 1 to FIterations do
+    begin
+      FTestMutex.Acquire;
+      try
+        Inc(FCounter^);
+        // 模拟一些工作
+        if (FCounter^ mod 100) = 0 then
+          Sleep(0); // 偶尔让出 CPU
+      finally
+        FTestMutex.Release;
+      end;
+    end;
+  except
+    on E: Exception do
+      InterlockedIncrement(FErrorCount^);
+  end;
+end;
+
+{ TSimpleCounterThread }
+
+constructor TSimpleCounterThread.Create(AMutex: IParkingLotMutex; ACounter: PInteger; AIterations: Integer);
+begin
+  FTestMutex := AMutex;
+  FCounter := ACounter;
+  FIterations := AIterations;
+  inherited Create(False);
+end;
+
+procedure TSimpleCounterThread.Execute;
+var
+  i: Integer;
+begin
+  for i := 1 to FIterations do
+  begin
+    FTestMutex.Acquire;
+    try
+      Inc(FCounter^); // 非常短的临界区
+    finally
+      FTestMutex.Release;
+    end;
+  end;
+end;
+
+{ TLongCriticalSectionThread }
+
+constructor TLongCriticalSectionThread.Create(AMutex: IParkingLotMutex; ACounter: PInteger; AIterations, ABusyLoopCount: Integer);
+begin
+  FTestMutex := AMutex;
+  FCounter := ACounter;
+  FIterations := AIterations;
+  FBusyLoopCount := ABusyLoopCount;
+  inherited Create(False);
+end;
+
+procedure TLongCriticalSectionThread.Execute;
+var
+  i, k: Integer;
+begin
+  for i := 1 to FIterations do
+  begin
+    FTestMutex.Acquire;
+    try
+      Inc(FCounter^);
+      // 模拟较长的临界区
+      for k := 1 to FBusyLoopCount do
+        ; // 空循环
+    finally
+      FTestMutex.Release;
+    end;
+  end;
+end;
+
+{ TFairnessTestThread }
+
+constructor TFairnessTestThread.Create(AMutex: IParkingLotMutex; AResultTime: PInteger; AStartDelay: Integer; ATimeout: Cardinal);
+begin
+  FTestMutex := AMutex;
+  FResultTime := AResultTime;
+  FStartDelay := AStartDelay;
+  FTimeout := ATimeout;
+  inherited Create(False);
+end;
+
+procedure TFairnessTestThread.Execute;
+begin
+  Sleep(FStartDelay); // 确保启动顺序
+  if FTestMutex.TryAcquire(FTimeout) then
+  begin
+    try
+      FResultTime^ := GetTickCount;
+    finally
+      FTestMutex.ReleaseFair; // 使用公平释放
+    end;
+  end;
+end;
+
+{ TTimeoutTestThread }
+
+constructor TTimeoutTestThread.Create(AMutex: IParkingLotMutex; ATimeout: Cardinal);
+begin
+  FTestMutex := AMutex;
+  FTimeout := ATimeout;
+  FResult := False;
+  inherited Create(False);
+end;
+
+procedure TTimeoutTestThread.Execute;
+begin
+  FResult := FTestMutex.TryAcquire(FTimeout);
+  if FResult then
+    FTestMutex.Release;
+end;
+
+{ TReleaseThread }
+
+constructor TReleaseThread.Create(AMutex: IParkingLotMutex; AExceptionOccurred: PBoolean);
+begin
+  FTestMutex := AMutex;
+  FExceptionOccurred := AExceptionOccurred;
+  inherited Create(False);
+end;
+
+procedure TReleaseThread.Execute;
+begin
+  try
+    FTestMutex.Release; // 从不同线程释放
+  except
+    on E: Exception do
+      FExceptionOccurred^ := True;
   end;
 end;
 
@@ -517,13 +750,10 @@ begin
 end;
 
 procedure TTestCase_IParkingLotMutex.Test_NonReentrant_SameThread;
-var
-  ExceptionRaised: Boolean;
 begin
   // 测试不可重入特性 - 同一线程重复获取应该失败
   FMutex.Acquire;
   try
-    ExceptionRaised := False;
     try
       // 尝试重入，应该失败
       if FMutex.TryAcquire then
@@ -533,7 +763,7 @@ begin
       end;
     except
       on E: Exception do
-        ExceptionRaised := True;
+        ; // 忽略异常，这是预期行为
     end;
 
     // TryAcquire 应该返回 False 或抛出异常
@@ -636,49 +866,15 @@ begin
   inherited TearDown;
 end;
 
-procedure TTestCase_Concurrency.WorkerThreadProc(AThreadId: Integer; AIterations: Integer);
-var
-  i: Integer;
-begin
-  try
-    for i := 1 to AIterations do
-    begin
-      FMutex.Acquire;
-      try
-        Inc(FCounter);
-        // 模拟一些工作
-        if (FCounter mod 100) = 0 then
-          Sleep(0); // 偶尔让出 CPU
-      finally
-        FMutex.Release;
-      end;
-    end;
-  except
-    on E: Exception do
-      InterlockedIncrement(FErrorCount);
-  end;
-end;
-
 procedure TTestCase_Concurrency.Test_TwoThreads_Counter;
 var
-  Thread1, Thread2: TThread;
+  Thread1, Thread2: TWorkerThread;
 const
   ITERATIONS = 5000;
 begin
-  Thread1 := TThread.CreateAnonymousThread(
-    procedure
-    begin
-      WorkerThreadProc(1, ITERATIONS);
-    end);
+  Thread1 := TWorkerThread.Create(FMutex, @FCounter, @FErrorCount, ITERATIONS);
+  Thread2 := TWorkerThread.Create(FMutex, @FCounter, @FErrorCount, ITERATIONS);
 
-  Thread2 := TThread.CreateAnonymousThread(
-    procedure
-    begin
-      WorkerThreadProc(2, ITERATIONS);
-    end);
-
-  Thread1.Start;
-  Thread2.Start;
   Thread1.WaitFor;
   Thread2.WaitFor;
   Thread1.Free;
@@ -690,22 +886,13 @@ end;
 
 procedure TTestCase_Concurrency.Test_FourThreads_Counter;
 var
-  Threads: array[1..4] of TThread;
+  Threads: array[1..4] of TWorkerThread;
   i: Integer;
 const
   ITERATIONS = 2500;
 begin
   for i := 1 to 4 do
-  begin
-    Threads[i] := TThread.CreateAnonymousThread(
-      procedure
-      begin
-        WorkerThreadProc(i, ITERATIONS);
-      end);
-  end;
-
-  for i := 1 to 4 do
-    Threads[i].Start;
+    Threads[i] := TWorkerThread.Create(FMutex, @FCounter, @FErrorCount, ITERATIONS);
 
   for i := 1 to 4 do
   begin
@@ -719,22 +906,13 @@ end;
 
 procedure TTestCase_Concurrency.Test_EightThreads_Counter;
 var
-  Threads: array[1..8] of TThread;
+  Threads: array[1..8] of TWorkerThread;
   i: Integer;
 const
   ITERATIONS = 1250;
 begin
   for i := 1 to 8 do
-  begin
-    Threads[i] := TThread.CreateAnonymousThread(
-      procedure
-      begin
-        WorkerThreadProc(i, ITERATIONS);
-      end);
-  end;
-
-  for i := 1 to 8 do
-    Threads[i].Start;
+    Threads[i] := TWorkerThread.Create(FMutex, @FCounter, @FErrorCount, ITERATIONS);
 
   for i := 1 to 8 do
   begin
@@ -748,7 +926,7 @@ end;
 
 procedure TTestCase_Concurrency.Test_HighContention_ManyThreads;
 var
-  Threads: array[1..16] of TThread;
+  Threads: array[1..16] of TWorkerThread;
   i: Integer;
   StartTime, EndTime: QWord;
 const
@@ -758,16 +936,7 @@ begin
 
   // 创建大量线程产生高竞争
   for i := 1 to 16 do
-  begin
-    Threads[i] := TThread.CreateAnonymousThread(
-      procedure
-      begin
-        WorkerThreadProc(i, ITERATIONS);
-      end);
-  end;
-
-  for i := 1 to 16 do
-    Threads[i].Start;
+    Threads[i] := TWorkerThread.Create(FMutex, @FCounter, @FErrorCount, ITERATIONS);
 
   for i := 1 to 16 do
   begin
@@ -784,7 +953,7 @@ end;
 
 procedure TTestCase_Concurrency.Test_HighContention_ShortCriticalSection;
 var
-  Threads: array[1..8] of TThread;
+  Threads: array[1..8] of TSimpleCounterThread;
   i: Integer;
   LocalCounter: Integer;
 const
@@ -793,25 +962,7 @@ begin
   LocalCounter := 0;
 
   for i := 1 to 8 do
-  begin
-    Threads[i] := TThread.CreateAnonymousThread(
-      procedure
-      var j: Integer;
-      begin
-        for j := 1 to ITERATIONS do
-        begin
-          FMutex.Acquire;
-          try
-            Inc(LocalCounter); // 非常短的临界区
-          finally
-            FMutex.Release;
-          end;
-        end;
-      end);
-  end;
-
-  for i := 1 to 8 do
-    Threads[i].Start;
+    Threads[i] := TSimpleCounterThread.Create(FMutex, @LocalCounter, ITERATIONS);
 
   for i := 1 to 8 do
   begin
@@ -824,37 +975,17 @@ end;
 
 procedure TTestCase_Concurrency.Test_HighContention_LongCriticalSection;
 var
-  Threads: array[1..4] of TThread;
+  Threads: array[1..4] of TLongCriticalSectionThread;
   i: Integer;
   LocalCounter: Integer;
 const
   ITERATIONS = 100;
+  BUSY_LOOP = 1000;
 begin
   LocalCounter := 0;
 
   for i := 1 to 4 do
-  begin
-    Threads[i] := TThread.CreateAnonymousThread(
-      procedure
-      var j, k: Integer;
-      begin
-        for j := 1 to ITERATIONS do
-        begin
-          FMutex.Acquire;
-          try
-            Inc(LocalCounter);
-            // 模拟较长的临界区
-            for k := 1 to 1000 do
-              ; // 空循环
-          finally
-            FMutex.Release;
-          end;
-        end;
-      end);
-  end;
-
-  for i := 1 to 4 do
-    Threads[i].Start;
+    Threads[i] := TLongCriticalSectionThread.Create(FMutex, @LocalCounter, ITERATIONS, BUSY_LOOP);
 
   for i := 1 to 4 do
   begin
@@ -867,7 +998,7 @@ end;
 
 procedure TTestCase_Concurrency.Test_Fairness_FIFO_Order;
 var
-  Threads: array[1..4] of TThread;
+  Threads: array[1..4] of TFairnessTestThread;
   Results: array[1..4] of Integer;
   i: Integer;
 begin
@@ -879,26 +1010,7 @@ begin
 
   // 创建等待线程
   for i := 1 to 4 do
-  begin
-    Threads[i] := TThread.CreateAnonymousThread(
-      procedure
-      var ThreadIndex: Integer;
-      begin
-        ThreadIndex := i; // 捕获循环变量
-        Sleep(ThreadIndex); // 确保启动顺序
-        if FMutex.TryAcquire(1000) then
-        begin
-          try
-            Results[ThreadIndex] := GetTickCount;
-          finally
-            FMutex.ReleaseFair; // 使用公平释放
-          end;
-        end;
-      end);
-  end;
-
-  for i := 1 to 4 do
-    Threads[i].Start;
+    Threads[i] := TFairnessTestThread.Create(FMutex, @Results[i], i, 1000);
 
   Sleep(50); // 让所有线程开始等待
   FMutex.Release; // 释放锁开始链式传递
@@ -923,34 +1035,25 @@ end;
 
 procedure TTestCase_Concurrency.Test_Timeout_UnderContention;
 var
-  Thread: TThread;
+  Thread: TTimeoutTestThread;
   StartTime, EndTime: QWord;
-  TimeoutResult: Boolean;
 const
   TIMEOUT_MS = 100;
 begin
   FMutex.Acquire;
 
   StartTime := GetTickCount64;
-  TimeoutResult := True;
 
-  Thread := TThread.CreateAnonymousThread(
-    procedure
-    begin
-      TimeoutResult := FMutex.TryAcquire(TIMEOUT_MS);
-      if TimeoutResult then
-        FMutex.Release;
-    end);
-
-  Thread.Start;
+  Thread := TTimeoutTestThread.Create(FMutex, TIMEOUT_MS);
   Thread.WaitFor;
-  Thread.Free;
+
   EndTime := GetTickCount64;
 
-  FMutex.Release;
-
-  AssertFalse('应该因超时而失败', TimeoutResult);
+  AssertFalse('应该因超时而失败', Thread.TestResult);
   AssertTrue('应该等待指定的超时时间', (EndTime - StartTime) >= TIMEOUT_MS);
+
+  Thread.Free;
+  FMutex.Release;
 end;
 
 procedure TTestCase_Concurrency.Test_Timeout_ZeroTimeout;
@@ -969,28 +1072,20 @@ end;
 
 procedure TTestCase_Concurrency.Test_Timeout_LongTimeout;
 var
-  Thread: TThread;
-  Success: Boolean;
+  Thread: TTimeoutTestThread;
 begin
   FMutex.Acquire;
-  Success := False;
 
-  Thread := TThread.CreateAnonymousThread(
-    procedure
-    begin
-      Success := FMutex.TryAcquire(5000); // 5秒超时
-      if Success then
-        FMutex.Release;
-    end);
+  Thread := TTimeoutTestThread.Create(FMutex, 5000); // 5秒超时
 
-  Thread.Start;
   Sleep(100); // 短暂等待后释放锁
   FMutex.Release;
 
   Thread.WaitFor;
-  Thread.Free;
 
-  AssertTrue('长超时应该成功获取锁', Success);
+  AssertTrue('长超时应该成功获取锁', Thread.TestResult);
+
+  Thread.Free;
 end;
 
 { TTestCase_Performance }
@@ -1119,23 +1214,22 @@ end;
 
 procedure TTestCase_Performance.Test_Performance_LowContention;
 var
-  Threads: array[0..1] of TTestHelperThread;
+  Threads: array[0..1] of TCounterTestThread;
   StartTime, EndTime: QWord;
   i: Integer;
+  Counter: Integer;
 const
   THREAD_COUNT = 2;
   ITERATIONS_PER_THREAD = 5000;
 begin
+  Counter := 0;
+
   // 创建少量线程进行低竞争测试
   for i := 0 to THREAD_COUNT - 1 do
-    Threads[i] := TTestHelperThread.Create(FMutex, False);
+    Threads[i] := TCounterTestThread.Create(FMutex, @Counter, ITERATIONS_PER_THREAD);
 
   try
     StartTime := GetTickCount64;
-
-    // 启动所有线程
-    for i := 0 to THREAD_COUNT - 1 do
-      Threads[i].Start;
 
     // 等待所有线程完成
     for i := 0 to THREAD_COUNT - 1 do
@@ -1162,23 +1256,22 @@ end;
 
 procedure TTestCase_Performance.Test_Performance_MediumContention;
 var
-  Threads: array[0..3] of TTestHelperThread;
+  Threads: array[0..3] of TCounterTestThread;
   StartTime, EndTime: QWord;
   i: Integer;
+  Counter: Integer;
 const
   THREAD_COUNT = 4;
   ITERATIONS_PER_THREAD = 2500;
 begin
+  Counter := 0;
+
   // 创建中等数量线程进行中等竞争测试
   for i := 0 to THREAD_COUNT - 1 do
-    Threads[i] := TTestHelperThread.Create(FMutex, False);
+    Threads[i] := TCounterTestThread.Create(FMutex, @Counter, ITERATIONS_PER_THREAD);
 
   try
     StartTime := GetTickCount64;
-
-    // 启动所有线程
-    for i := 0 to THREAD_COUNT - 1 do
-      Threads[i].Start;
 
     // 等待所有线程完成
     for i := 0 to THREAD_COUNT - 1 do
@@ -1205,23 +1298,22 @@ end;
 
 procedure TTestCase_Performance.Test_Performance_HighContention;
 var
-  Threads: array[0..7] of TTestHelperThread;
+  Threads: array[0..7] of TCounterTestThread;
   StartTime, EndTime: QWord;
   i: Integer;
+  Counter: Integer;
 const
   THREAD_COUNT = 8;
   ITERATIONS_PER_THREAD = 1250;
 begin
+  Counter := 0;
+
   // 创建较多线程进行高竞争测试
   for i := 0 to THREAD_COUNT - 1 do
-    Threads[i] := TTestHelperThread.Create(FMutex, False);
+    Threads[i] := TCounterTestThread.Create(FMutex, @Counter, ITERATIONS_PER_THREAD);
 
   try
     StartTime := GetTickCount64;
-
-    // 启动所有线程
-    for i := 0 to THREAD_COUNT - 1 do
-      Threads[i].Start;
 
     // 等待所有线程完成
     for i := 0 to THREAD_COUNT - 1 do
@@ -1304,27 +1396,18 @@ end;
 
 procedure TTestCase_EdgeCases.Test_VeryLongTimeout;
 var
-  Thread: TThread;
-  Success: Boolean;
+  Thread: TTimeoutTestThread;
 begin
-  Success := False;
+  Thread := TTimeoutTestThread.Create(FMutex, 60000); // 60秒超时
 
-  Thread := TThread.CreateAnonymousThread(
-    procedure
-    begin
-      Success := FMutex.TryAcquire(60000); // 60秒超时
-      if Success then
-        FMutex.Release;
-    end);
-
-  Thread.Start;
   Sleep(10); // 短暂等待确保线程开始
   // 不获取锁，让线程立即成功
 
   Thread.WaitFor;
-  Thread.Free;
 
-  AssertTrue('长超时应该成功', Success);
+  AssertTrue('长超时应该成功', Thread.TestResult);
+
+  Thread.Free;
 end;
 
 procedure TTestCase_EdgeCases.Test_ReleaseUnlockedMutex;
@@ -1357,30 +1440,21 @@ end;
 
 procedure TTestCase_EdgeCases.Test_ReleaseFromDifferentThread;
 var
-  Thread: TThread;
+  Thread: TReleaseThread;
   ExceptionOccurred: Boolean;
 begin
   // 测试从不同线程释放锁
   FMutex.Acquire;
 
   ExceptionOccurred := False;
-  Thread := TThread.CreateAnonymousThread(
-    procedure
-    begin
-      try
-        FMutex.Release; // 从不同线程释放
-      except
-        on E: Exception do
-          ExceptionOccurred := True;
-      end;
-    end);
+  Thread := TReleaseThread.Create(FMutex, @ExceptionOccurred);
 
-  Thread.Start;
   Thread.WaitFor;
   Thread.Free;
 
   // 从不同线程释放可能是允许的或不允许的，取决于实现
   // 这里主要确保不会崩溃
+  // ExceptionOccurred 变量记录了是否发生异常
   AssertTrue('从不同线程释放应该处理得当', True);
 
   // 清理：确保锁被释放
@@ -1421,7 +1495,6 @@ begin
   try
     // 创建一个线程尝试获取锁（会被阻塞）
     Thread := TTestHelperThread.Create(TestMutex, True, 1000); // 1秒超时
-    Thread.Start;
 
     // 等待一小段时间确保线程开始等待
     Sleep(100);
@@ -1781,6 +1854,6 @@ initialization
   RegisterTest(TTestCase_Performance);
   RegisterTest(TTestCase_EdgeCases);
   RegisterTest(TTestCase_Platform);
-  // RegisterTest(TTestCase_StressTests); // 暂时禁用压力测试
+  RegisterTest(TTestCase_StressTests); // 压力测试已启用（占位符实现）
 
 end.

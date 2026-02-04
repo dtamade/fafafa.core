@@ -40,12 +40,16 @@ end;
 
 procedure TTestCase_Reader_Coalesce.Test_Stream_Text_CDATA_Text_Merged_All;
 var R: IXmlReader; Ms: TMemoryStream; i: Integer; Toks: array of TXmlToken; Vals: array of String;
+    Data1, Data2, Data3: AnsiString;
 begin
   Ms := TMemoryStream.Create;
   try
-    Ms.WriteBuffer(Pointer('<root>aa<![CDATA[')^, Length('<root>aa<![CDATA['));
-    Ms.WriteBuffer(Pointer('bb')^, Length('bb'));
-    Ms.WriteBuffer(Pointer(']]>cc</root>')^, Length(']]>cc</root>'));
+    Data1 := '<root>aa<![CDATA[';
+    Data2 := 'bb';
+    Data3 := ']]>cc</root>';
+    Ms.WriteBuffer(PAnsiChar(Data1)^, Length(Data1));
+    Ms.WriteBuffer(PAnsiChar(Data2)^, Length(Data2));
+    Ms.WriteBuffer(PAnsiChar(Data3)^, Length(Data3));
     Ms.Position := 0;
     R := CreateXmlReader.ReadFromStream(Ms, [xrfCoalesceText]);
     SetLength(Toks, 0); SetLength(Vals, 0);
@@ -70,4 +74,3 @@ initialization
     RegisterTest('fafafa.core.xml', TTestCase_Reader_Coalesce);
 
 end.
-

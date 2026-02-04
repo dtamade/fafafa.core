@@ -173,7 +173,9 @@ begin
   // 简单冒泡排序（锁数量很少，性能不是问题）
   for i := 0 to High(ALocks) - 1 do
     for j := i + 1 to High(ALocks) do
+      {$PUSH}{$WARN 4055 OFF}  // 指针转换是安全的，用于地址比较
       if PtrUInt(Pointer(ALocks[i])) > PtrUInt(Pointer(ALocks[j])) then
+      {$POP}
       begin
         Temp := ALocks[i];
         ALocks[i] := ALocks[j];
@@ -333,7 +335,7 @@ end;
 
 function TryScopedLock(const ALocks: array of ILock; out AGuard: IMultiLockGuard): Boolean;
 var
-  SortedLocks: array of ILock;
+  SortedLocks: array of ILock = nil;
   i, j: Integer;
 begin
   Result := False;
@@ -371,7 +373,7 @@ end;
 
 function TryScopedLockFor(const ALocks: array of ILock; ATimeoutMs: Cardinal; out AGuard: IMultiLockGuard): Boolean;
 var
-  SortedLocks: array of ILock;
+  SortedLocks: array of ILock = nil;
   i, j: Integer;
   StartTime: QWord;
   Elapsed: QWord;

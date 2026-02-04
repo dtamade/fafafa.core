@@ -126,19 +126,19 @@ type
    *
    * **Unix/Linux 平台**：
    * - 命名对象映射到文件系统路径
-   * - POSIX 信号量：/dev/shm/sem.{name}
-   * - POSIX 共享内存：/dev/shm/{name}
+   * - POSIX 信号量：/dev/shm/sem.<name>
+   * - POSIX 共享内存：/dev/shm/<name>
    * - 命名空间隔离：通过路径前缀实现
    *
    * **Windows 平台**：
    * - 本地命名空间（默认）：
-   *   - 路径：Local\{name}
+   *   - 路径：Local\<name>
    *   - 作用域：当前登录会话
    *   - 权限：当前用户
    *   - 适用：单用户应用
    *
    * - 全局命名空间（UseGlobalNamespace = True）：
-   *   - 路径：Global\{name}
+   *   - 路径：Global\<name>
    *   - 作用域：所有会话（包括服务）
    *   - 权限：需要管理员权限或 SeCreateGlobalPrivilege
    *   - 适用：跨会话通信、系统服务
@@ -223,10 +223,10 @@ type
    *    ```pascal
    *    // Unix: 手动清理 /dev/shm/ 中的孤儿对象
    *    // 注意：仅在确认对象不再使用时清理
-   *    {$IFDEF UNIX}
+   *    (*$IFDEF UNIX*)
    *    if FileExists('/dev/shm/sem.myapp_lock') then
    *      DeleteFile('/dev/shm/sem.myapp_lock');
-   *    {$ENDIF}
+   *    (*$ENDIF*)
    *    ```
    *
    * **常见错误处理**：
@@ -469,7 +469,7 @@ type
    *
    * 2. **处理平台差异**：
    *    ```pascal
-   *    {$IFDEF UNIX}
+   *    (*$IFDEF UNIX*)
    *    // Unix: 需要手动清理
    *    try
    *      mutex := MakeNamedMutex('my_mutex');
@@ -479,9 +479,9 @@ type
    *      // 可选：手动清理
    *      DeleteFile('/dev/shm/my_mutex');
    *    end;
-   *    {$ENDIF}
+   *    (*$ENDIF*)
    *
-   *    {$IFDEF WINDOWS}
+   *    (*$IFDEF WINDOWS*)
    *    // Windows: 自动清理
    *    try
    *      mutex := MakeNamedMutex('my_mutex');
@@ -489,7 +489,7 @@ type
    *    finally
    *      mutex := nil; // 自动清理
    *    end;
-   *    {$ENDIF}
+   *    (*$ENDIF*)
    *    ```
    *
    * 3. **测试跨平台行为**：
@@ -541,17 +541,17 @@ type
    * 3. **程序化诊断**：
    *    ```pascal
    *    // 检测平台能力
-   *    {$IFDEF UNIX}
+   *    (*$IFDEF UNIX*)
    *    WriteLn('Platform: Unix/Linux');
    *    WriteLn('Robust Mutex: Supported');
    *    WriteLn('Global Namespace: Not Supported');
-   *    {$ENDIF}
+   *    (*$ENDIF*)
    *
-   *    {$IFDEF WINDOWS}
+   *    (*$IFDEF WINDOWS*)
    *    WriteLn('Platform: Windows');
    *    WriteLn('Robust Mutex: Supported (WAIT_ABANDONED)');
    *    WriteLn('Global Namespace: Supported (requires admin)');
-   *    {$ENDIF}
+   *    (*$ENDIF*)
    *    ```
    *
    * @see fafafa.core.sync.namedMutex.unix.pas - Unix 实现细节

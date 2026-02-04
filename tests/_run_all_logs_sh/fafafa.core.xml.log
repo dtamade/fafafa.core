@@ -1,9 +1,82 @@
 ========================================
 Module: fafafa.core.xml
 Script: /home/dtamade/projects/fafafa.core/tests/fafafa.core.xml/BuildOrTest.sh
-Started: 2026-01-24 21:13:42
+Started: 2026-02-04 06:59:39
 ========================================
 Building project: tests_xml.lpi...
 SetPrimaryConfigPath NewValue="/tmp/fpcupdeluxe/config_lazarus"
 Hint: (lazbuild) Primary config path: "/tmp/fpcupdeluxe/config_lazarus"
-Error: (lazbuild) Invalid Lazarus directory "": directory lcl not found
+Hint: (lazarus) [RunTool] "/opt/fpcupdeluxe/fpc/bin/x86_64-linux/fpc" "-iWTOTP"
+Hint: (lazarus) [RunTool] "/opt/fpcupdeluxe/fpc/bin/x86_64-linux/fpc" "-va" "/tmp/fpcupdeluxe/config_lazarus/compilertest.pas", WorkDir="/tmp/fpcupdeluxe/config_lazarus/"
+Hint: [TPCTargetConfigCache.Update] has changed
+Hint: (lazarus) [RunTool] "/opt/fpcupdeluxe/fpc/bin/x86_64-linux/fpc" "-iWTOTP" "-Px86_64" "-Tlinux"
+Hint: (lazarus) [RunTool] "/opt/fpcupdeluxe/fpc/bin/x86_64-linux/fpc" "-va" "/tmp/fpcupdeluxe/config_lazarus/compilertest.pas" "-Px86_64" "-Tlinux", WorkDir="/tmp/fpcupdeluxe/config_lazarus/"
+Hint: [TPCTargetConfigCache.Update] has changed
+Hint: (lazarus) [TBuildManager.SetBuildTarget] Old=x86_64-linux--gtk2 New=x86_64-linux--gtk2 Changed: OS/CPU=True LCL=False
+Hint: (lazarus) [TBuildManager.SetBuildTarget] Old=x86_64-linux--gtk2 New=x86_64-linux--gtk2 Changed: OS/CPU=True LCL=False
+Hint: (lazarus) Build Project: nothing to do.
+Info: (lazarus) Execute Title="编译项目，目标：/home/dtamade/projects/fafafa.core/tests/fafafa.core.xml/bin/tests_xml"
+Info: (lazarus) Working Directory="/home/dtamade/projects/fafafa.core/tests/fafafa.core.xml/"
+Info: (lazarus) Executable="/opt/fpcupdeluxe/fpc/bin/x86_64-linux/fpc"
+Info: (lazarus) Param[0]="-MObjFPC"
+Info: (lazarus) Param[1]="-Scaghi"
+Info: (lazarus) Param[2]="-Cg"
+Info: (lazarus) Param[3]="-O1"
+Info: (lazarus) Param[4]="-gw2"
+Info: (lazarus) Param[5]="-godwarfsets"
+Info: (lazarus) Param[6]="-gl"
+Info: (lazarus) Param[7]="-gh"
+Info: (lazarus) Param[8]="-l"
+Info: (lazarus) Param[9]="-vewnhibq"
+Info: (lazarus) Param[10]="-Fi/home/dtamade/projects/fafafa.core/tests/fafafa.core.xml/lib/x86_64-linux"
+Info: (lazarus) Param[11]="-Fi/home/dtamade/projects/fafafa.core/src"
+Info: (lazarus) Param[12]="-Fu/home/dtamade/projects/fafafa.core/tests/fafafa.core.xml/"
+Info: (lazarus) Param[13]="-Fu/home/dtamade/projects/fafafa.core/src"
+Info: (lazarus) Param[14]="-FU/home/dtamade/projects/fafafa.core/tests/fafafa.core.xml/lib/x86_64-linux/"
+Info: (lazarus) Param[15]="-FE/home/dtamade/projects/fafafa.core/tests/fafafa.core.xml/bin/"
+Info: (lazarus) Param[16]="-o/home/dtamade/projects/fafafa.core/tests/fafafa.core.xml/bin/tests_xml"
+Info: (lazarus) Param[17]="tests_xml.lpr"
+Hint: (11030) Start of reading config file /home/dtamade/.fpc.cfg
+Hint: (11031) End of reading config file /home/dtamade/.fpc.cfg
+Free Pascal Compiler version 3.3.1-19195-gebfc7485b1-dirty [2026/01/07] for x86_64
+Copyright (c) 1993-2025 by Florian Klaempfl and others
+(1002) Target OS: Linux for x86-64
+(3104) Compiling tests_xml.lpr
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.xml/tests_xml.lpr(39,3) Hint: (5023) Unit "Test_fafafa_core_xml_reader_attr_crosschunk_smallbuf_linc" not used in tests_xml
+(9015) Linking /home/dtamade/projects/fafafa.core/tests/fafafa.core.xml/bin/tests_xml
+(1008) 71 lines compiled, 0.7 sec, 1145968 bytes code, 1626272 bytes data
+(1022) 3 hint(s) issued
+Info: (lazarus) [TCompiler.Compile] end
+
+Build successful.
+
+Running tests...
+Registering TTestCase_Reader
+Registering TTestCase_XmlErrors
+Registering TTestCase_Xml_NS_Reader
+FPCUnit Console test runner for fafafa.core.xml
+0.3
+
+Usage: 
+  --format=FMT        Select output format. FMT is one of:
+    latex            output as latex
+    plain            output as plain ASCII source
+    plainnotiming    output as plain ASCII source, skip timings
+    xml              output as XML source (default)
+    junit            output as JUnit compatible XML source
+  --skiptiming              Do not output timings (useful for diffs of testruns)
+  -r or --sparse            Produce Less output (errors/failures only)
+  -n or --no-addresses      Do not display address info
+  -y or --stylesheet=<reference>   add stylesheet reference
+  --file=<filename>         output results to file
+
+  -l or --list              show a list of registered tests
+  -a or --all               run all tests
+  -p or --progress          show progress
+  -u or --status            show status messages on stderr
+  -s or --suite=MyTestSuiteName   run single test suite class
+  -x or --no-exitcode       do not set exit code on errors
+
+Defaults for long options will be read from ini file /home/dtamade/projects/fafafa.core/tests/fafafa.core.xml/bin/testdefaults.ini
+The results can be redirected to a file,
+for example: /home/dtamade/projects/fafafa.core/tests/fafafa.core.xml/bin/tests_xml --all > results.xml

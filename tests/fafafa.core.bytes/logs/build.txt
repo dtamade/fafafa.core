@@ -1,1 +1,69 @@
-Error: (lazbuild) Invalid Lazarus directory "": directory lcl not found
+Hint: (lazarus) State file of LCL 4.99 is newer than state file of 项目： fafafa.core.bytes.test
+Hint: (11030) Start of reading config file /home/dtamade/.fpc.cfg
+Hint: (11031) End of reading config file /home/dtamade/.fpc.cfg
+Free Pascal Compiler version 3.3.1-19195-gebfc7485b1-dirty [2026/01/07] for x86_64
+Copyright (c) 1993-2025 by Florian Klaempfl and others
+(1002) Target OS: Linux for x86-64
+(3104) Compiling fafafa.core.bytes.test.lpr
+(3104) Compiling test_peek_contract.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.bytes.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.io.base.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.base.pas
+/home/dtamade/projects/fafafa.core/src/fafafa.core.bytes.pas(599,3) Note: (5025) Local variable "v1" not used
+/home/dtamade/projects/fafafa.core/src/fafafa.core.bytes.pas(599,7) Note: (5025) Local variable "v2" not used
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/test_peek_contract.pas(30,16) Hint: (4055) Conversion between ordinals and pointers is not portable
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/test_peek_contract.pas(30,32) Hint: (4055) Conversion between ordinals and pointers is not portable
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/test_peek_contract.pas(8,12) Hint: (5023) Unit "testutils" not used in test_peek_contract
+(3104) Compiling fafafa.core.bytes.testcase.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.io.streams.pas
+(3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.io.error.pas
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.testcase.pas(154,14) Hint: (5091) Local variable "B" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.testcase.pas(168,5) Note: (5027) Local variable "Tmp" is assigned but never used
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.testcase.pas(177,9) Warning: (5066) Symbol "TryHexToBytesLoose" is deprecated: "Use TryParseHexLoose instead"
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.testcase.pas(199,14) Hint: (5091) Local variable "B" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.testcase.pas(257,14) Hint: (5091) Local variable "B" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.testcase.pas(640,33) Hint: (5057) Local variable "buf" does not seem to be initialized
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.testcase.pas(648,18) Hint: (5091) Local variable "arr" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.testcase.pas(715,14) Hint: (4055) Conversion between ordinals and pointers is not portable
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.testcase.pas(715,31) Hint: (4055) Conversion between ordinals and pointers is not portable
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.testcase.pas(732,16) Hint: (4055) Conversion between ordinals and pointers is not portable
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.testcase.pas(732,31) Hint: (4055) Conversion between ordinals and pointers is not portable
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.testcase.pas(748,16) Hint: (4055) Conversion between ordinals and pointers is not portable
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.testcase.pas(748,31) Hint: (4055) Conversion between ordinals and pointers is not portable
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.testcase.pas(755,52) Note: (5027) Local variable "capBefore" is assigned but never used
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.testcase.pas(835,21) Warning: (5093) Function result variable of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.testcase.pas(850,21) Warning: (5093) Function result variable of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.testcase.pas(44,24) Hint: (5026) Value parameter "Value" is assigned but never used
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.testcase.pas(910,17) Hint: (5091) Local variable "data" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.testcase.pas(907,124) Note: (5025) Local variable "P" not used
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.testcase.pas(907,136) Note: (5025) Local variable "N" not used
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.testcase.pas(949,17) Hint: (5091) Local variable "data" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.testcase.pas(1003,17) Hint: (5091) Local variable "data" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.testcase.pas(1026,17) Hint: (5091) Local variable "data" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.testcase.pas(1048,18) Hint: (5091) Local variable "data1" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.testcase.pas(1052,18) Hint: (5091) Local variable "data2" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.testcase.pas(1060,23) Hint: (5091) Local variable "prefixData" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.testcase.pas(1066,23) Hint: (5091) Local variable "suffixData" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.testcase.pas(1075,17) Hint: (5091) Local variable "data" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.testcase.pas(1080,24) Hint: (5091) Local variable "patternData" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.testcase.pas(1096,17) Hint: (5091) Local variable "data" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.testcase.pas(1146,17) Hint: (5091) Local variable "data" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.testcase.pas(1171,14) Hint: (5091) Local variable "a" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.testcase.pas(1172,14) Hint: (5091) Local variable "b" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.testcase.pas(1173,14) Hint: (5091) Local variable "c" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.testcase.pas(1188,17) Hint: (5091) Local variable "data" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.testcase.pas(1191,19) Hint: (5091) Local variable "prefix" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.testcase.pas(1192,19) Hint: (5091) Local variable "suffix" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.testcase.pas(1205,17) Hint: (5091) Local variable "data" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.testcase.pas(1209,20) Hint: (5091) Local variable "pattern" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.testcase.pas(1227,17) Hint: (5091) Local variable "data" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.testcase.pas(1231,23) Hint: (5091) Local variable "oldPattern" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.testcase.pas(1232,23) Hint: (5091) Local variable "newPattern" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.testcase.pas(1253,17) Hint: (5091) Local variable "data" of a managed type does not seem to be initialized
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.test.lpr(11,3) Hint: (5023) Unit "fafafa.core.base" not used in fafafa.core.bytes.test
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/fafafa.core.bytes.test.lpr(12,3) Hint: (5023) Unit "fafafa.core.bytes" not used in fafafa.core.bytes.test
+(9015) Linking /home/dtamade/projects/fafafa.core/tests/fafafa.core.bytes/bin/fafafa.core.bytes.test
+(1008) 8973 lines compiled, 0.7 sec, 1053120 bytes code, 1576504 bytes data
+(1021) 3 warning(s) issued
+(1022) 43 hint(s) issued
+(1023) 6 note(s) issued

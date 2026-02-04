@@ -1,9 +1,52 @@
 ========================================
 Module: fafafa.core.term.ui
 Script: /home/dtamade/projects/fafafa.core/tests/fafafa.core.term.ui/BuildOrTest.sh
-Started: 2026-01-24 21:13:43
+Started: 2026-02-04 07:03:08
 ========================================
 [BUILD] Project: tests_term_ui.lpi
 SetPrimaryConfigPath NewValue="/tmp/fpcupdeluxe/config_lazarus"
 Hint: (lazbuild) Primary config path: "/tmp/fpcupdeluxe/config_lazarus"
-Error: (lazbuild) Invalid Lazarus directory "": directory lcl not found
+Hint: (lazarus) [RunTool] "/opt/fpcupdeluxe/fpc/bin/x86_64-linux/fpc" "-iWTOTP"
+Hint: (lazarus) [RunTool] "/opt/fpcupdeluxe/fpc/bin/x86_64-linux/fpc" "-va" "/tmp/fpcupdeluxe/config_lazarus/compilertest.pas", WorkDir="/tmp/fpcupdeluxe/config_lazarus/"
+Hint: [TPCTargetConfigCache.Update] has changed
+Hint: (lazarus) [RunTool] "/opt/fpcupdeluxe/fpc/bin/x86_64-linux/fpc" "-iWTOTP" "-Px86_64" "-Tlinux"
+Hint: (lazarus) [RunTool] "/opt/fpcupdeluxe/fpc/bin/x86_64-linux/fpc" "-va" "/tmp/fpcupdeluxe/config_lazarus/compilertest.pas" "-Px86_64" "-Tlinux", WorkDir="/tmp/fpcupdeluxe/config_lazarus/"
+Hint: [TPCTargetConfigCache.Update] has changed
+Hint: (lazarus) [TBuildManager.SetBuildTarget] Old=x86_64-linux--gtk2 New=x86_64-linux--gtk2 Changed: OS/CPU=True LCL=False
+Hint: (lazarus) [TBuildManager.SetBuildTarget] Old=x86_64-linux--gtk2 New=x86_64-linux--gtk2 Changed: OS/CPU=True LCL=False
+Hint: (lazarus) Project needs building: Compile was incomplete for Project
+Info: (lazarus) Execute Title="编译项目，目标：/home/dtamade/projects/fafafa.core/tests/fafafa.core.term.ui/bin/tests"
+Info: (lazarus) Working Directory="/home/dtamade/projects/fafafa.core/tests/fafafa.core.term.ui/"
+Info: (lazarus) Executable="/opt/fpcupdeluxe/fpc/bin/x86_64-linux/fpc"
+Info: (lazarus) Param[0]="-MObjFPC"
+Info: (lazarus) Param[1]="-Scaghi"
+Info: (lazarus) Param[2]="-Cg"
+Info: (lazarus) Param[3]="-Cirot"
+Info: (lazarus) Param[4]="-gw2"
+Info: (lazarus) Param[5]="-godwarfsets"
+Info: (lazarus) Param[6]="-gl"
+Info: (lazarus) Param[7]="-gh"
+Info: (lazarus) Param[8]="-Xg"
+Info: (lazarus) Param[9]="-l"
+Info: (lazarus) Param[10]="-vewnhibq"
+Info: (lazarus) Param[11]="-Fi/home/dtamade/projects/fafafa.core/src"
+Info: (lazarus) Param[12]="-Fu/home/dtamade/projects/fafafa.core/tests/fafafa.core.term.ui/"
+Info: (lazarus) Param[13]="-Fu/home/dtamade/projects/fafafa.core/src"
+Info: (lazarus) Param[14]="-Fu/home/dtamade/projects/fafafa.core/src/ui"
+Info: (lazarus) Param[15]="-FU/home/dtamade/projects/fafafa.core/tests/fafafa.core.term.ui/lib/"
+Info: (lazarus) Param[16]="-FE/home/dtamade/projects/fafafa.core/tests/fafafa.core.term.ui/bin/"
+Info: (lazarus) Param[17]="-o/home/dtamade/projects/fafafa.core/tests/fafafa.core.term.ui/bin/tests"
+Info: (lazarus) Param[18]="tests_term_ui.lpr"
+Hint: (11030) Start of reading config file /home/dtamade/.fpc.cfg
+Hint: (11031) End of reading config file /home/dtamade/.fpc.cfg
+Free Pascal Compiler version 3.3.1-19195-gebfc7485b1-dirty [2026/01/07] for x86_64
+Copyright (c) 1993-2025 by Florian Klaempfl and others
+(1002) Target OS: Linux for x86-64
+(3104) Compiling tests_term_ui.lpr
+(3104) Compiling Test_fafafa_core_term_ui_with_view_fillrect.pas
+/home/dtamade/projects/fafafa.core/tests/fafafa.core.term.ui/Test_fafafa_core_term_ui_with_view_fillrect.pas(11,3) Fatal: (10022) Can't find unit ui_backend used by Test_fafafa_core_term_ui_with_view_fillrect
+Fatal: (1018) Compilation aborted
+Error: /opt/fpcupdeluxe/fpc/bin/x86_64-linux/ppcx64 returned an error exitcode
+Error: (lazarus) 编译项目，目标：/home/dtamade/projects/fafafa.core/tests/fafafa.core.term.ui/bin/tests: stopped with exit code 1
+Info: (lazarus) [TCompiler.Compile] end
+Error: (lazbuild) Failed compiling of project "/home/dtamade/projects/fafafa.core/tests/fafafa.core.term.ui/tests_term_ui.lpi"

@@ -20,12 +20,14 @@ implementation
 
 procedure TTestCase_Reader_Coalesce_Edges.Test_Stream_Alternate_Text_CDATA_Text_AllMerged;
 var R: IXmlReader; MS: TMemoryStream; Vals: array of String; i: Integer;
+    Data: AnsiString;
 begin
   MS := TMemoryStream.Create;
   try
     // 交替：Text CDATA Text CDATA Text
     // 期待合并为单个 xtText
-    MS.WriteBuffer(Pointer('<r>t1<![CDATA[c2]]>t3<![CDATA[c4]]>t5</r>')^, Length('<r>t1<![CDATA[c2]]>t3<![CDATA[c4]]>t5</r>'));
+    Data := '<r>t1<![CDATA[c2]]>t3<![CDATA[c4]]>t5</r>';
+    MS.WriteBuffer(PAnsiChar(Data)^, Length(Data));
     MS.Position := 0;
     R := CreateXmlReader.ReadFromStream(MS, [xrfCoalesceText]);
     SetLength(Vals, 0);
@@ -63,11 +65,13 @@ end;
 
 procedure TTestCase_Reader_Coalesce_Edges.Test_Stream_BreakBy_Comment_PI_NotMerged;
 var R: IXmlReader; MS: TMemoryStream; Vals: array of String; i: Integer;
+    Data: AnsiString;
 begin
   // 有 Comment 与 PI 介入：应打断合并，得到两个文本 token
   MS := TMemoryStream.Create;
   try
-    MS.WriteBuffer(Pointer('<r>a<!--c--><?pi x?>b</r>')^, Length('<r>a<!--c--><?pi x?>b</r>'));
+    Data := '<r>a<!--c--><?pi x?>b</r>';
+    MS.WriteBuffer(PAnsiChar(Data)^, Length(Data));
     MS.Position := 0;
     R := CreateXmlReader.ReadFromStream(MS, [xrfCoalesceText]);
     SetLength(Vals, 0);
@@ -86,4 +90,3 @@ initialization
     RegisterTest('fafafa.core.xml', TTestCase_Reader_Coalesce_Edges);
 
 end.
-

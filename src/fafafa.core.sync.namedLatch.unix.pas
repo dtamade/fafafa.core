@@ -236,6 +236,7 @@ var
   CurrentCount: Int32;
   RemainingMs: Cardinal;
 begin
+  Result := False;  // 默认值，实际上所有路径都通过 Exit() 返回
   if FShared = nil then
   begin
     FLastError := weInvalidState;

@@ -1003,7 +1003,7 @@ type
      * @param ATimeoutMs 超时时间（毫秒）
      * @return 成功返回锁守卫，超时返回 nil
      *}
-    function TryLockFor(ATimeoutMs: Cardinal): ILockGuard; virtual;
+    function TryLockFor(ATimeoutMs: Cardinal): ILockGuard; reintroduce; virtual;
   protected
     {**
      * GetDefaultTightSpin - 获取紧密自旋阶段的默认最大自旋次数
@@ -1103,8 +1103,8 @@ type
   public
     constructor Create; virtual;
 
-    function TryAcquire: Boolean; overload; virtual; abstract;
-    function TryAcquire(ATimeoutMs: Cardinal): Boolean; overload; virtual;
+    function TryAcquire: Boolean; reintroduce; overload; virtual; abstract;
+    function TryAcquire(ATimeoutMs: Cardinal): Boolean; reintroduce; overload; virtual;
 
 
     function  GetTightSpin: UInt32;

@@ -52,7 +52,12 @@ begin
 end;
 
 procedure TTestCase_Reader_Decl_Encoding_More.Test_BOM_UTF16_Decl_UTF32_Conflict_ShouldFail;
-var R: IXmlReader; MS: TMemoryStream; Raised: Boolean;
+var
+  R: IXmlReader;
+  MS: TMemoryStream;
+  Raised: Boolean;
+  Decl: RawByteString;
+  i: SizeInt;
 begin
   // BOM 指示 UTF-16LE，但声明 encoding="UTF-32"，视为冲突，抛错
   MS := TMemoryStream.Create;
@@ -60,8 +65,7 @@ begin
     // UTF-16 LE BOM FF FE + ASCII 内容 "<?xml version=... encoding=\"UTF-32\"?><r/>"
     MS.WriteBuffer(PAnsiChar(#$FF#$FE)^, 2);
     // 将 ASCII 串写为 UTF-16LE 字节序（每字节后 0x00）
-    var Decl: RawByteString := '<?xml version="1.0" encoding="UTF-32"?><r/>';
-    var i: SizeInt;
+    Decl := '<?xml version="1.0" encoding="UTF-32"?><r/>';
     for i := 1 to Length(Decl) do begin MS.WriteByte(Byte(Decl[i])); MS.WriteByte(0); end;
     MS.Position := 0;
     R := CreateXmlReader.ReadFromStream(MS, [xrfAutoDecodeEncoding]);

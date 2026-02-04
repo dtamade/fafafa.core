@@ -1,54 +1,23 @@
 ========================================
 Module: fafafa.core.mem
 Script: /home/dtamade/projects/fafafa.core/tests/fafafa.core.mem/BuildOrTest.sh
-Started: 2026-01-24 21:13:43
+Started: 2026-02-04 07:03:09
 ========================================
 Building project: /home/dtamade/projects/fafafa.core/tests/fafafa.core.mem/tests_mem_allocator_only.lpi (Debug)
 Hint: (lazbuild) Opt: "lazarusdir=/opt/fpcupdeluxe/lazarus"
 SetPrimaryConfigPath NewValue="/tmp/fpcupdeluxe/config_lazarus"
 Hint: (lazbuild) Primary config path: "/tmp/fpcupdeluxe/config_lazarus"
-SetupCompilerFilename: Searching compiler ...
-SearchCompilerCandidates Value=fpc File=/opt/fpcupdeluxe/fpc/bin/x86_64-linux/fpc
 Hint: (lazarus) [RunTool] "/opt/fpcupdeluxe/fpc/bin/x86_64-linux/fpc" "-iWTOTP"
 Hint: (lazarus) [RunTool] "/opt/fpcupdeluxe/fpc/bin/x86_64-linux/fpc" "-va" "/tmp/fpcupdeluxe/config_lazarus/compilertest.pas", WorkDir="/tmp/fpcupdeluxe/config_lazarus/"
 Hint: [TPCTargetConfigCache.Update] has changed
-SetupCompilerFilename: using /opt/fpcupdeluxe/fpc/bin/x86_64-linux/fpc
 Hint: (lazarus) [RunTool] "/opt/fpcupdeluxe/fpc/bin/x86_64-linux/fpc" "-iWTOTP" "-Px86_64" "-Tlinux"
 Hint: (lazarus) [RunTool] "/opt/fpcupdeluxe/fpc/bin/x86_64-linux/fpc" "-va" "/tmp/fpcupdeluxe/config_lazarus/compilertest.pas" "-Px86_64" "-Tlinux", WorkDir="/tmp/fpcupdeluxe/config_lazarus/"
 Hint: [TPCTargetConfigCache.Update] has changed
 Hint: (lazarus) [TBuildManager.SetBuildTarget] Old=x86_64-linux--gtk2 New=x86_64-linux--gtk2 Changed: OS/CPU=True LCL=False
 Hint: (lazarus) [TBuildManager.SetBuildTarget] Old=x86_64-linux--gtk2 New=x86_64-linux--gtk2 Changed: OS/CPU=True LCL=False
-Hint: (lazarus) Compiler params changed for FCL 1.0.1
-  Old="-MObjFPC -Scghi -Cg -O1 -g -gl -Fu/opt/fpcupdeluxe/lazarus/packager/registration/ -FU/opt/fpcupdeluxe/lazarus/packager/units/x86_64-linux/ -g -gl -O1 fcllaz.pas"
-  Now="-MObjFPC -Scghi -Cg -O1 -g -gl -Fu/opt/fpcupdeluxe/lazarus/packager/registration/ -FU/opt/fpcupdeluxe/lazarus/packager/units/x86_64-linux/ fcllaz.pas"
-  State file="/opt/fpcupdeluxe/lazarus/packager/units/x86_64-linux/fcl.compiled"
-Info: (lazarus) Execute Title="Compile package FCL 1.0.1"
-Info: (lazarus) Working Directory="/opt/fpcupdeluxe/lazarus/packager/registration/"
-Info: (lazarus) Executable="/opt/fpcupdeluxe/fpc/bin/x86_64-linux/fpc"
-Info: (lazarus) Param[0]="-MObjFPC"
-Info: (lazarus) Param[1]="-Scghi"
-Info: (lazarus) Param[2]="-Cg"
-Info: (lazarus) Param[3]="-O1"
-Info: (lazarus) Param[4]="-g"
-Info: (lazarus) Param[5]="-gl"
-Info: (lazarus) Param[6]="-l"
-Info: (lazarus) Param[7]="-vewnhibq"
-Info: (lazarus) Param[8]="-Fu/opt/fpcupdeluxe/lazarus/packager/registration/"
-Info: (lazarus) Param[9]="-FU/opt/fpcupdeluxe/lazarus/packager/units/x86_64-linux/"
-Info: (lazarus) Param[10]="fcllaz.pas"
-Info: (lazarus) Param[11]="-B"
-Hint: (11030) Start of reading config file /home/dtamade/.fpc.cfg
-Hint: (11031) End of reading config file /home/dtamade/.fpc.cfg
-Free Pascal Compiler version 3.3.1-19195-gebfc7485b1-dirty [2026/01/07] for x86_64
-Copyright (c) 1993-2025 by Florian Klaempfl and others
-(1002) Target OS: Linux for x86-64
-(3104) Compiling fcllaz.pas
-(3104) Compiling lazaruspackageintf.pas
-(1008) 197 lines compiled, 0.1 sec
-(1022) 2 hint(s) issued
 TProject.DoLoadStateFile Statefile not found: /home/dtamade/projects/fafafa.core/tests/fafafa.core.mem/lib/x86_64-linux/tests_mem_allocator_only.compiled
 Hint: (lazarus) Project needs building: No state file for Project
-Info: (lazarus) Execute Title="Compile Project, Target: /home/dtamade/projects/fafafa.core/tests/fafafa.core.mem/bin/tests_mem_allocator_only"
+Info: (lazarus) Execute Title="编译项目，目标：/home/dtamade/projects/fafafa.core/tests/fafafa.core.mem/bin/tests_mem_allocator_only"
 Info: (lazarus) Working Directory="/home/dtamade/projects/fafafa.core/tests/fafafa.core.mem/"
 Info: (lazarus) Executable="/opt/fpcupdeluxe/fpc/bin/x86_64-linux/fpc"
 Info: (lazarus) Param[0]="-MObjFPC"
@@ -264,6 +233,7 @@ Copyright (c) 1993-2025 by Florian Klaempfl and others
 /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.base.pas(1584,10) Note: (6058) Call to subroutine "function TTryLock.DoBlock:System.Boolean;" marked as inline is not inlined
 /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.base.pas(1591,10) Note: (6058) Call to subroutine "function TTryLock.DoBlock(aEndTick:QWord):System.Boolean;" marked as inline is not inlined
 (3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.sync.mutex.base.pas
+/home/dtamade/projects/fafafa.core/src/fafafa.core.sync.mutex.unix.pas(12,3) Hint: (5023) Unit "fafafa.core.time.cpu" not used in fafafa.core.sync.mutex.unix
 (3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.arena.growable.pas
 (3104) Compiling /home/dtamade/projects/fafafa.core/src/fafafa.core.mem.alloc.pas
 (3104) Compiling test_blockpool_sharded.pas
@@ -278,15 +248,15 @@ Copyright (c) 1993-2025 by Florian Klaempfl and others
 (3104) Compiling test_fixedpool.pas
 (3104) Compiling test_aligned.pas
 (9015) Linking /home/dtamade/projects/fafafa.core/tests/fafafa.core.mem/bin/tests_mem_allocator_only
-(1008) 85023 lines compiled, 2.1 sec, 1370960 bytes code, 1725336 bytes data
+(1008) 85208 lines compiled, 2.7 sec, 1367920 bytes code, 1724600 bytes data
 (1021) 5 warning(s) issued
-(1022) 14 hint(s) issued
+(1022) 15 hint(s) issued
 (1023) 114 note(s) issued
 Info: (lazarus) [TCompiler.Compile] end
 
 Build successful.
 Running tests...
- Time:00.518 N:93 E:0 F:0 I:0
+ Time:00.613 N:93 E:0 F:0 I:0
   TTestCase_Aligned Time:00.000 N:5 E:0 F:0 I:0
     00.000  Test_AllocAligned_Basic
     00.000  Test_AllocAligned_InvalidAlignment
@@ -311,7 +281,7 @@ Running tests...
     00.000  Test_Reset
     00.000  Test_Statistics
     00.000  Test_IPool_Interface
-  TTestCase_StackPool Time:00.000 N:13 E:0 F:0 I:0
+  TTestCase_StackPool Time:00.001 N:13 E:0 F:0 I:0
     00.000  Test_Create_Basic
     00.000  Test_Create_ZeroSize
     00.000  Test_Alloc_Basic
@@ -354,13 +324,13 @@ Running tests...
     00.000  Test_Release_InvalidPointer_Raises
     00.000  Test_DoubleFree_Raises
     00.000  Test_Reset_InvalidatesOldPointer
-  TTestCase_ShardedBlockPool Time:00.517 N:8 E:0 F:0 I:0
+  TTestCase_ShardedBlockPool Time:00.611 N:8 E:0 F:0 I:0
     00.000  Test_Create_Basic
-    00.101  Test_Concurrent_AcquireRelease
-    00.100  Test_Concurrent_AcquireRelease_ThreadCache_StatsOff
-    00.101  Test_CrossThread_Release
-    00.100  Test_CrossThread_Release_StatsOff
-    00.014  Test_CrossThread_Release_ThreadCache_Batched
+    00.100  Test_Concurrent_AcquireRelease
+    00.101  Test_Concurrent_AcquireRelease_ThreadCache_StatsOff
+    00.100  Test_CrossThread_Release
+    00.101  Test_CrossThread_Release_StatsOff
+    00.108  Test_CrossThread_Release_ThreadCache_Batched
     00.000  Test_ThreadCache_DoubleFree
     00.101  Test_BlockPool_Sharded_HighContention_MaintainsConsistency
   TTestCase_GrowingArena Time:00.000 N:8 E:0 F:0 I:0
@@ -379,7 +349,7 @@ Running tests...
   TTestCase_StackPool_EdgeCases Time:00.000 N:2 E:0 F:0 I:0
     00.000  Test_Alloc_OverCapacity_ReturnsNil
     00.000  Test_RestoreState_OutOfRange_Ignored
-  TTestCase_Stats Time:00.001 N:5 E:0 F:0 I:0
+  TTestCase_Stats Time:00.000 N:5 E:0 F:0 I:0
     00.000  Test_MemPool_Stats_Basic
     00.000  Test_StackPool_Stats_Basic
     00.000  Test_BlockPool_Stats_Basic
@@ -392,8 +362,8 @@ Running tests...
     00.000  Test_Adapter_Create_With_Nil_Impl_Raises
     00.000  Test_MemPool_Adapter_Free_Nil_NoOp
     00.000  Test_SlabPool_Adapter_Free_Nil_NoOp
-  TTestCase_Mimalloc_Manager_Optional Time:00.000 N:1 E:0 F:0 I:0
-    00.000  Test_Install_Uninstall_Smoke
+  TTestCase_Mimalloc_Manager_Optional Time:00.001 N:1 E:0 F:0 I:0
+    00.001  Test_Install_Uninstall_Smoke
 
 Number of run tests: 93
 Number of errors:    0

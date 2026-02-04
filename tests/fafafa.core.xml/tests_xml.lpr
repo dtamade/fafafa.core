@@ -4,6 +4,7 @@ program tests_xml;
 {$mode objfpc}{$H+}
 
 uses
+  {$IFDEF UNIX}cthreads,{$ENDIF}
   {$IFDEF MSWINDOWS}Windows,{$ENDIF}
   SysUtils, consoletestrunner,
   // 显式 uses 所有测试单元，保证 initialization 执行
@@ -49,12 +50,20 @@ uses
   Test_fafafa_core_xml_stream_transcode_smallbuf,
   Test_fafafa_core_xml_invalid_surrogates_strict_lenient;
 
+{$IFDEF UNIX}
+function setenv(name: PAnsiChar; value: PAnsiChar; overwrite: Integer): Integer; cdecl; external 'c';
+{$ENDIF}
+
 var
   Application: TTestRunner;
 begin
   Application := TTestRunner.Create(nil);
   Application.Title := 'FPCUnit Console test runner for fafafa.core.xml';
+  {$IFDEF UNIX}
+  setenv('FAFAFA_TEST_SILENT_REG', '1', 1);
+  {$ELSE}
   SetEnvironmentVariable('FAFAFA_TEST_SILENT_REG', '1');
+  {$ENDIF}
   Application.Initialize;
   Application.Run;
   Application.Free;

@@ -449,7 +449,7 @@ var
   I: Integer;
   LCurrentCount: Integer;
   LFailedAt: Integer;
-  LErrno: cint;
+  LErrno: cint = 0;
 begin
   if ACount <= 0 then
     raise EInvalidArgument.CreateFmt('Release count must be positive: %d', [ACount]);
