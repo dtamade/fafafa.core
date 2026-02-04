@@ -50,6 +50,14 @@
 | **WaitGroup** | `IWaitGroup` | Go `sync.WaitGroup` | 等待组 |
 | **Latch** | `ILatch` | Java `CountDownLatch` | 倒计时门闩 |
 | **SpinLock** | `ISpin` | - | 自旋锁 |
+| **Notify** | `INotify` | `tokio::sync::Notify` | 轻量级线程通知 |
+| **AtomicCell** | `TAtomicCell<T>` | `crossbeam::AtomicCell` | 泛型原子容器 |
+| **ShardedLock** | `TShardedLock<K,V>` | `parking_lot::RwLock` | 分片读写锁 |
+| **StampedLock** | `IStampedLock` | Java `StampedLock` | 乐观读写锁 |
+| **Phaser** | `IPhaser` | Java `Phaser` | 可重用阶段屏障 |
+| **Exchanger** | `TExchanger<T>` | Java `Exchanger` | 线程间数据交换 |
+| **AtomicOption** | `TAtomicOption<T>` | Rust `Option` | 原子可选值 |
+| **ReentrantRWLock** | `IReentrantRWLock` | Java `ReentrantRWLock` | 可重入读写锁 |
 
 ### 1. 互斥锁 (Mutex)
 
