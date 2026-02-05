@@ -1259,6 +1259,48 @@ asm
   vse32.v v0, (a0)        // a0 = p
 end;
 
+procedure RISCVVStoreF32x4Aligned(p: PSingle; const a: TVecF32x4); assembler; nostackframe;
+asm
+  vsetivli zero, 4, e32, m1, ta, ma
+  vle32.v v0, (a1)
+  vse32.v v0, (a0)
+end;
+
+procedure RISCVVStoreF32x8(p: PSingle; const a: TVecF32x8); assembler; nostackframe;
+asm
+  vsetivli zero, 8, e32, m2, ta, ma
+  vle32.v v0, (a1)
+  vse32.v v0, (a0)
+end;
+
+procedure RISCVVStoreF32x16(p: PSingle; const a: TVecF32x16); assembler; nostackframe;
+asm
+  vsetivli zero, 16, e32, m4, ta, ma
+  vle32.v v0, (a1)
+  vse32.v v0, (a0)
+end;
+
+procedure RISCVVStoreF64x4(p: PDouble; const a: TVecF64x4); assembler; nostackframe;
+asm
+  vsetivli zero, 4, e64, m2, ta, ma
+  vle64.v v0, (a1)
+  vse64.v v0, (a0)
+end;
+
+procedure RISCVVStoreF64x8(p: PDouble; const a: TVecF64x8); assembler; nostackframe;
+asm
+  vsetivli zero, 8, e64, m4, ta, ma
+  vle64.v v0, (a1)
+  vse64.v v0, (a0)
+end;
+
+procedure RISCVVStoreI64x4(p: PInt64; const a: TVecI64x4); assembler; nostackframe;
+asm
+  vsetivli zero, 4, e64, m2, ta, ma
+  vle64.v v0, (a1)
+  vse64.v v0, (a0)
+end;
+
 function RISCVVSplatF32x4(value: Single): TVecF32x4; assembler; nostackframe;
 asm
   vsetivli zero, 4, e32, m1, ta, ma
