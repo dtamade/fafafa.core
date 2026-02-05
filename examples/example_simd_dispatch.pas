@@ -7,8 +7,10 @@ program example_simd_dispatch;
 
 uses
   SysUtils, DateUtils,
-  fafafa.core.simd.types,
-  fafafa.core.simd.cpuinfo;
+  fafafa.core.simd.base,
+  fafafa.core.simd.cpuinfo.base,
+  fafafa.core.simd.cpuinfo,
+  fafafa.core.simd.dispatch;
 
 type
   // Function pointer for vector addition
