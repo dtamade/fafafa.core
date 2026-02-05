@@ -1,0 +1,414 @@
+diff --git a/compiler/riscv/agrvgas.pas b/compiler/riscv/agrvgas.pas
+index b296c687f2..7c84129d1c 100644
+--- a/compiler/riscv/agrvgas.pas
++++ b/compiler/riscv/agrvgas.pas
+@@ -248,8 +248,8 @@     TRVGNUAssembler=class(TGNUassembler)
+           ('','rv32imafdc','rv32imafdc_zicsr_zifencei','rv32imafd','rv32imfd','rv32ifd','rv32efd','rv32imcfd','rv32imcfd_zicsr_zifencei','rv32imafdc','rv32imafc','rv32imaf','rv32imafd','rv32ecfd','rv32gc','rv32gc_zba_zbb_zbs')
+ {$endif RISCV32}
+ {$ifdef RISCV64}
+-          ('','rv64imac','rv64ima','rv64im','rv64i','rv64imafdc','rv64imafd','rv64gc','rv64gc_zba_zbb_zbs'),
+-          ('','rv64imafdc','rv64imafd','rv64imfd','rv64ifd','rv64imafdc','rv64imafd','rv64gc','rv64gc_zba_zbb_zbs')
++          ('','rv64imac','rv64ima','rv64im','rv64i','rv64imafdc','rv64imafd','rv64gc','rv64gc_zba_zbb_zbs','rv64gcv'),
++          ('','rv64imafdc','rv64imafd','rv64imfd','rv64ifd','rv64imafdc','rv64imafd','rv64gc','rv64gc_zba_zbb_zbs','rv64gcv')
+ {$endif RISCV64}
+         );
+       begin
+diff --git a/compiler/riscv/cpubase.pas b/compiler/riscv/cpubase.pas
+index 98132807d7..d904dab0a3 100644
+--- a/compiler/riscv/cpubase.pas
++++ b/compiler/riscv/cpubase.pas
+@@ -191,11 +191,160 @@ interface
+ 
+         { pseudo instructions for accessing control and status registers }
+         A_RDINSTRET,A_RDINSTRETH,A_RDCYCLE,A_RDCYCLEH,A_RDTIME,A_RDTIMEH,A_CSRR,A_CSRW,A_CSRS,A_CSRC,A_CSRWI,
+-        A_CSRSI,A_CSRCI
++        A_CSRSI,A_CSRCI,
++
++        { V-extension (RVV 1.0) - Vector Configuration }
++        A_VSETVLI,A_VSETIVLI,A_VSETVL,
++
++        { V-extension - Unit-stride Load/Store }
++        A_VLE8_V,A_VLE16_V,A_VLE32_V,A_VLE64_V,
++        A_VSE8_V,A_VSE16_V,A_VSE32_V,A_VSE64_V,
++
++        { V-extension - Strided Load/Store }
++        A_VLSE8_V,A_VLSE16_V,A_VLSE32_V,A_VLSE64_V,
++        A_VSSE8_V,A_VSSE16_V,A_VSSE32_V,A_VSSE64_V,
++
++        { V-extension - Indexed Load/Store }
++        A_VLUXEI8_V,A_VLUXEI16_V,A_VLUXEI32_V,A_VLUXEI64_V,
++        A_VLOXEI8_V,A_VLOXEI16_V,A_VLOXEI32_V,A_VLOXEI64_V,
++        A_VSUXEI8_V,A_VSUXEI16_V,A_VSUXEI32_V,A_VSUXEI64_V,
++        A_VSOXEI8_V,A_VSOXEI16_V,A_VSOXEI32_V,A_VSOXEI64_V,
++
++        { V-extension - Whole Register Load/Store }
++        A_VL1RE8_V,A_VL1RE16_V,A_VL1RE32_V,A_VL1RE64_V,
++        A_VL2RE8_V,A_VL2RE16_V,A_VL2RE32_V,A_VL2RE64_V,
++        A_VL4RE8_V,A_VL4RE16_V,A_VL4RE32_V,A_VL4RE64_V,
++        A_VL8RE8_V,A_VL8RE16_V,A_VL8RE32_V,A_VL8RE64_V,
++        A_VS1R_V,A_VS2R_V,A_VS4R_V,A_VS8R_V,
++
++        { V-extension - Integer Arithmetic (vector-vector) }
++        A_VADD_VV,A_VSUB_VV,A_VRSUB_VV,
++        A_VMINU_VV,A_VMIN_VV,A_VMAXU_VV,A_VMAX_VV,
++        A_VAND_VV,A_VOR_VV,A_VXOR_VV,
++        A_VNOT_V,  { pseudo instruction: vnot.v vd,vs = vxor.vi vd,vs,-1 }
++
++        { V-extension - Integer Arithmetic (vector-scalar) }
++        A_VADD_VX,A_VSUB_VX,A_VRSUB_VX,
++        A_VMINU_VX,A_VMIN_VX,A_VMAXU_VX,A_VMAX_VX,
++        A_VAND_VX,A_VOR_VX,A_VXOR_VX,
++
++        { V-extension - Integer Arithmetic (vector-immediate) }
++        A_VADD_VI,A_VRSUB_VI,
++        A_VAND_VI,A_VOR_VI,A_VXOR_VI,
++
++        { V-extension - Integer Shift }
++        A_VSLL_VV,A_VSRL_VV,A_VSRA_VV,
++        A_VSLL_VX,A_VSRL_VX,A_VSRA_VX,
++        A_VSLL_VI,A_VSRL_VI,A_VSRA_VI,
++
++        { V-extension - Integer Multiply }
++        A_VMUL_VV,A_VMULH_VV,A_VMULHU_VV,A_VMULHSU_VV,
++        A_VMUL_VX,A_VMULH_VX,A_VMULHU_VX,A_VMULHSU_VX,
++
++        { V-extension - Integer Divide }
++        A_VDIVU_VV,A_VDIV_VV,A_VREMU_VV,A_VREM_VV,
++        A_VDIVU_VX,A_VDIV_VX,A_VREMU_VX,A_VREM_VX,
++
++        { V-extension - Integer Widening }
++        A_VWADDU_VV,A_VWADD_VV,A_VWSUBU_VV,A_VWSUB_VV,
++        A_VWADDU_VX,A_VWADD_VX,A_VWSUBU_VX,A_VWSUB_VX,
++        A_VWADDU_WV,A_VWADD_WV,A_VWSUBU_WV,A_VWSUB_WV,
++        A_VWADDU_WX,A_VWADD_WX,A_VWSUBU_WX,A_VWSUB_WX,
++        A_VWMUL_VV,A_VWMULU_VV,A_VWMULSU_VV,
++        A_VWMUL_VX,A_VWMULU_VX,A_VWMULSU_VX,
++
++        { V-extension - Integer Narrowing }
++        A_VNSRL_WV,A_VNSRA_WV,
++        A_VNSRL_WX,A_VNSRA_WX,
++        A_VNSRL_WI,A_VNSRA_WI,
++
++        { V-extension - Integer Merge/Move }
++        A_VMV_V_V,A_VMV_V_X,A_VMV_V_I,
++        A_VMERGE_VVM,A_VMERGE_VXM,A_VMERGE_VIM,
++
++        { V-extension - Integer Comparison }
++        A_VMSEQ_VV,A_VMSNE_VV,A_VMSLTU_VV,A_VMSLT_VV,A_VMSLEU_VV,A_VMSLE_VV,
++        A_VMSEQ_VX,A_VMSNE_VX,A_VMSLTU_VX,A_VMSLT_VX,A_VMSLEU_VX,A_VMSLE_VX,A_VMSGTU_VX,A_VMSGT_VX,
++        A_VMSEQ_VI,A_VMSNE_VI,A_VMSLEU_VI,A_VMSLE_VI,A_VMSGTU_VI,A_VMSGT_VI,
++        A_VMSGT_VV,A_VMSGTU_VV,  { pseudo instructions: vmsgt.vv vd,va,vb = vmslt.vv vd,vb,va }
++
++        { V-extension - Integer Reduction }
++        A_VREDSUM_VS,A_VREDMAXU_VS,A_VREDMAX_VS,A_VREDMINU_VS,A_VREDMIN_VS,
++        A_VREDAND_VS,A_VREDOR_VS,A_VREDXOR_VS,
++
++        { V-extension - Integer Saturating }
++        A_VSADDU_VV,A_VSADD_VV,A_VSSUBU_VV,A_VSSUB_VV,
++        A_VSADDU_VX,A_VSADD_VX,A_VSSUBU_VX,A_VSSUB_VX,
++        A_VSADDU_VI,A_VSADD_VI,
++
++        { V-extension - Floating-Point Arithmetic (vector-vector) }
++        A_VFADD_VV,A_VFSUB_VV,A_VFMUL_VV,A_VFDIV_VV,
++        A_VFMIN_VV,A_VFMAX_VV,
++        A_VFSGNJ_VV,A_VFSGNJN_VV,A_VFSGNJX_VV,
++
++        { V-extension - Floating-Point Arithmetic (vector-scalar) }
++        A_VFADD_VF,A_VFSUB_VF,A_VFRSUB_VF,A_VFMUL_VF,A_VFDIV_VF,A_VFRDIV_VF,
++        A_VFMIN_VF,A_VFMAX_VF,
++        A_VFSGNJ_VF,A_VFSGNJN_VF,A_VFSGNJX_VF,
++
++        { V-extension - Floating-Point Unary }
++        A_VFSQRT_V,A_VFRSQRT7_V,A_VFREC7_V,A_VFCLASS_V,
++        A_VFABS_V,A_VFNEG_V,  { pseudo instructions }
++
++        { V-extension - Floating-Point FMA }
++        A_VFMACC_VV,A_VFNMACC_VV,A_VFMSAC_VV,A_VFNMSAC_VV,
++        A_VFMADD_VV,A_VFNMADD_VV,A_VFMSUB_VV,A_VFNMSUB_VV,
++        A_VFMACC_VF,A_VFNMACC_VF,A_VFMSAC_VF,A_VFNMSAC_VF,
++        A_VFMADD_VF,A_VFNMADD_VF,A_VFMSUB_VF,A_VFNMSUB_VF,
++
++        { V-extension - Floating-Point Widening }
++        A_VFWADD_VV,A_VFWSUB_VV,A_VFWMUL_VV,
++        A_VFWADD_VF,A_VFWSUB_VF,A_VFWMUL_VF,
++        A_VFWADD_WV,A_VFWSUB_WV,
++        A_VFWADD_WF,A_VFWSUB_WF,
++
++        { V-extension - Floating-Point Comparison }
++        A_VMFEQ_VV,A_VMFLE_VV,A_VMFLT_VV,A_VMFNE_VV,
++        A_VMFGT_VV,A_VMFGE_VV,  { pseudo instructions: vmfgt.vv vd,va,vb = vmflt.vv vd,vb,va }
++        A_VMFEQ_VF,A_VMFLE_VF,A_VMFLT_VF,A_VMFNE_VF,A_VMFGT_VF,A_VMFGE_VF,
++
++        { V-extension - Floating-Point Reduction }
++        A_VFREDOSUM_VS,A_VFREDUSUM_VS,A_VFREDMAX_VS,A_VFREDMIN_VS,
++
++        { V-extension - Floating-Point Conversion }
++        A_VFCVT_XU_F_V,A_VFCVT_X_F_V,A_VFCVT_RTZ_XU_F_V,A_VFCVT_RTZ_X_F_V,
++        A_VFCVT_F_XU_V,A_VFCVT_F_X_V,
++        A_VFWCVT_XU_F_V,A_VFWCVT_X_F_V,A_VFWCVT_RTZ_XU_F_V,A_VFWCVT_RTZ_X_F_V,
++        A_VFWCVT_F_XU_V,A_VFWCVT_F_X_V,A_VFWCVT_F_F_V,
++        A_VFNCVT_XU_F_W,A_VFNCVT_X_F_W,A_VFNCVT_RTZ_XU_F_W,A_VFNCVT_RTZ_X_F_W,
++        A_VFNCVT_F_XU_W,A_VFNCVT_F_X_W,A_VFNCVT_F_F_W,A_VFNCVT_ROD_F_F_W,
++
++        { V-extension - Floating-Point Move }
++        A_VFMV_V_F,A_VFMV_F_S,A_VFMV_S_F,
++        A_VFMERGE_VFM,
++
++        { V-extension - Mask Operations }
++        A_VMAND_MM,A_VMNAND_MM,A_VMANDN_MM,
++        A_VMOR_MM,A_VMNOR_MM,A_VMORN_MM,
++        A_VMXOR_MM,A_VMXNOR_MM,
++        A_VMNOT_M,  { pseudo instruction: vmnot.m vd,vs = vmnand.mm vd,vs,vs }
++        A_VCPOP_M,A_VFIRST_M,
++        A_VMSBF_M,A_VMSIF_M,A_VMSOF_M,
++        A_VIOTA_M,A_VID_V,
++
++        { V-extension - Permutation }
++        A_VMV_X_S,A_VMV_S_X,
++        A_VSLIDEUP_VX,A_VSLIDEUP_VI,A_VSLIDEDOWN_VX,A_VSLIDEDOWN_VI,
++        A_VSLIDE1UP_VX,A_VFSLIDE1UP_VF,A_VSLIDE1DOWN_VX,A_VFSLIDE1DOWN_VF,
++        A_VRGATHER_VV,A_VRGATHER_VX,A_VRGATHER_VI,A_VRGATHEREI16_VV,
++        A_VCOMPRESS_VM,
++
++        { V-extension - Whole Register Move }
++        A_VMV1R_V,A_VMV2R_V,A_VMV4R_V,A_VMV8R_V
+       );
+ 
+       { This should define the array of instructions as string }
+-      op2strtable=array[tasmop] of string[8];
++      op2strtable=array[tasmop] of string[18];
+ 
+     Const
+       { First value of opcode enumeration }
+diff --git a/compiler/riscv/cpuinfo.inc b/compiler/riscv/cpuinfo.inc
+index 5e66f9b0ed..121e1248e7 100644
+--- a/compiler/riscv/cpuinfo.inc
++++ b/compiler/riscv/cpuinfo.inc
+@@ -49,7 +49,8 @@
+       CPURV_HAS_ZHINX,
+       CPURV_HAS_ZHINXMIN,
+       CPURV_HAS_ZICOND,
+-      CPURV_HAS_ZMMUL
++      CPURV_HAS_ZMMUL,
++      CPURV_HAS_V                   { V-extension (RVV 1.0) }
+      );
+ 
+   tfputype =
+diff --git a/compiler/riscv/itcpugas.pas b/compiler/riscv/itcpugas.pas
+index e60622a77a..9a9e3ca00a 100644
+--- a/compiler/riscv/itcpugas.pas
++++ b/compiler/riscv/itcpugas.pas
+@@ -29,7 +29,7 @@
+       cpubase, cgbase;
+ 
+     const
+-      gas_op2str: array[tasmop] of string[14] = ('<none>',
++      gas_op2str: array[tasmop] of string[18] = ('<none>',
+         'nop','call','la','lla','lga','li','mv','not','neg','negw',
+         'sext.b','sext.h','zext.b','zext.h','seqz','sneg','sltz','sgtz',
+         'fmv.s','fabs.s','fneg.s','fmv.d','fabs.d','fneg.d','fneg.q',
+@@ -176,7 +176,156 @@
+ 
+         { pseudo instructions for accessing control and status registers }
+         'rdinstret','rdinstreth','rdcycle','rdcycleh','rdtime','rdtimeh','csrr','csrw','csrs','csrc','csrwi',
+-        'csrsi','csrci'
++        'csrsi','csrci',
++
++        { V-extension (RVV 1.0) - Vector Configuration }
++        'vsetvli','vsetivli','vsetvl',
++
++        { V-extension - Unit-stride Load/Store }
++        'vle8.v','vle16.v','vle32.v','vle64.v',
++        'vse8.v','vse16.v','vse32.v','vse64.v',
++
++        { V-extension - Strided Load/Store }
++        'vlse8.v','vlse16.v','vlse32.v','vlse64.v',
++        'vsse8.v','vsse16.v','vsse32.v','vsse64.v',
++
++        { V-extension - Indexed Load/Store }
++        'vluxei8.v','vluxei16.v','vluxei32.v','vluxei64.v',
++        'vloxei8.v','vloxei16.v','vloxei32.v','vloxei64.v',
++        'vsuxei8.v','vsuxei16.v','vsuxei32.v','vsuxei64.v',
++        'vsoxei8.v','vsoxei16.v','vsoxei32.v','vsoxei64.v',
++
++        { V-extension - Whole Register Load/Store }
++        'vl1re8.v','vl1re16.v','vl1re32.v','vl1re64.v',
++        'vl2re8.v','vl2re16.v','vl2re32.v','vl2re64.v',
++        'vl4re8.v','vl4re16.v','vl4re32.v','vl4re64.v',
++        'vl8re8.v','vl8re16.v','vl8re32.v','vl8re64.v',
++        'vs1r.v','vs2r.v','vs4r.v','vs8r.v',
++
++        { V-extension - Integer Arithmetic (vector-vector) }
++        'vadd.vv','vsub.vv','vrsub.vv',
++        'vminu.vv','vmin.vv','vmaxu.vv','vmax.vv',
++        'vand.vv','vor.vv','vxor.vv',
++        'vnot.v',
++
++        { V-extension - Integer Arithmetic (vector-scalar) }
++        'vadd.vx','vsub.vx','vrsub.vx',
++        'vminu.vx','vmin.vx','vmaxu.vx','vmax.vx',
++        'vand.vx','vor.vx','vxor.vx',
++
++        { V-extension - Integer Arithmetic (vector-immediate) }
++        'vadd.vi','vrsub.vi',
++        'vand.vi','vor.vi','vxor.vi',
++
++        { V-extension - Integer Shift }
++        'vsll.vv','vsrl.vv','vsra.vv',
++        'vsll.vx','vsrl.vx','vsra.vx',
++        'vsll.vi','vsrl.vi','vsra.vi',
++
++        { V-extension - Integer Multiply }
++        'vmul.vv','vmulh.vv','vmulhu.vv','vmulhsu.vv',
++        'vmul.vx','vmulh.vx','vmulhu.vx','vmulhsu.vx',
++
++        { V-extension - Integer Divide }
++        'vdivu.vv','vdiv.vv','vremu.vv','vrem.vv',
++        'vdivu.vx','vdiv.vx','vremu.vx','vrem.vx',
++
++        { V-extension - Integer Widening }
++        'vwaddu.vv','vwadd.vv','vwsubu.vv','vwsub.vv',
++        'vwaddu.vx','vwadd.vx','vwsubu.vx','vwsub.vx',
++        'vwaddu.wv','vwadd.wv','vwsubu.wv','vwsub.wv',
++        'vwaddu.wx','vwadd.wx','vwsubu.wx','vwsub.wx',
++        'vwmul.vv','vwmulu.vv','vwmulsu.vv',
++        'vwmul.vx','vwmulu.vx','vwmulsu.vx',
++
++        { V-extension - Integer Narrowing }
++        'vnsrl.wv','vnsra.wv',
++        'vnsrl.wx','vnsra.wx',
++        'vnsrl.wi','vnsra.wi',
++
++        { V-extension - Integer Merge/Move }
++        'vmv.v.v','vmv.v.x','vmv.v.i',
++        'vmerge.vvm','vmerge.vxm','vmerge.vim',
++
++        { V-extension - Integer Comparison }
++        'vmseq.vv','vmsne.vv','vmsltu.vv','vmslt.vv','vmsleu.vv','vmsle.vv',
++        'vmseq.vx','vmsne.vx','vmsltu.vx','vmslt.vx','vmsleu.vx','vmsle.vx','vmsgtu.vx','vmsgt.vx',
++        'vmseq.vi','vmsne.vi','vmsleu.vi','vmsle.vi','vmsgtu.vi','vmsgt.vi',
++        'vmsgt.vv','vmsgtu.vv',
++
++        { V-extension - Integer Reduction }
++        'vredsum.vs','vredmaxu.vs','vredmax.vs','vredminu.vs','vredmin.vs',
++        'vredand.vs','vredor.vs','vredxor.vs',
++
++        { V-extension - Integer Saturating }
++        'vsaddu.vv','vsadd.vv','vssubu.vv','vssub.vv',
++        'vsaddu.vx','vsadd.vx','vssubu.vx','vssub.vx',
++        'vsaddu.vi','vsadd.vi',
++
++        { V-extension - Floating-Point Arithmetic (vector-vector) }
++        'vfadd.vv','vfsub.vv','vfmul.vv','vfdiv.vv',
++        'vfmin.vv','vfmax.vv',
++        'vfsgnj.vv','vfsgnjn.vv','vfsgnjx.vv',
++
++        { V-extension - Floating-Point Arithmetic (vector-scalar) }
++        'vfadd.vf','vfsub.vf','vfrsub.vf','vfmul.vf','vfdiv.vf','vfrdiv.vf',
++        'vfmin.vf','vfmax.vf',
++        'vfsgnj.vf','vfsgnjn.vf','vfsgnjx.vf',
++
++        { V-extension - Floating-Point Unary }
++        'vfsqrt.v','vfrsqrt7.v','vfrec7.v','vfclass.v',
++        'vfabs.v','vfneg.v',
++
++        { V-extension - Floating-Point FMA }
++        'vfmacc.vv','vfnmacc.vv','vfmsac.vv','vfnmsac.vv',
++        'vfmadd.vv','vfnmadd.vv','vfmsub.vv','vfnmsub.vv',
++        'vfmacc.vf','vfnmacc.vf','vfmsac.vf','vfnmsac.vf',
++        'vfmadd.vf','vfnmadd.vf','vfmsub.vf','vfnmsub.vf',
++
++        { V-extension - Floating-Point Widening }
++        'vfwadd.vv','vfwsub.vv','vfwmul.vv',
++        'vfwadd.vf','vfwsub.vf','vfwmul.vf',
++        'vfwadd.wv','vfwsub.wv',
++        'vfwadd.wf','vfwsub.wf',
++
++        { V-extension - Floating-Point Comparison }
++        'vmfeq.vv','vmfle.vv','vmflt.vv','vmfne.vv',
++        'vmfgt.vv','vmfge.vv',
++        'vmfeq.vf','vmfle.vf','vmflt.vf','vmfne.vf','vmfgt.vf','vmfge.vf',
++
++        { V-extension - Floating-Point Reduction }
++        'vfredosum.vs','vfredusum.vs','vfredmax.vs','vfredmin.vs',
++
++        { V-extension - Floating-Point Conversion }
++        'vfcvt.xu.f.v','vfcvt.x.f.v','vfcvt.rtz.xu.f.v','vfcvt.rtz.x.f.v',
++        'vfcvt.f.xu.v','vfcvt.f.x.v',
++        'vfwcvt.xu.f.v','vfwcvt.x.f.v','vfwcvt.rtz.xu.f.v','vfwcvt.rtz.x.f.v',
++        'vfwcvt.f.xu.v','vfwcvt.f.x.v','vfwcvt.f.f.v',
++        'vfncvt.xu.f.w','vfncvt.x.f.w','vfncvt.rtz.xu.f.w','vfncvt.rtz.x.f.w',
++        'vfncvt.f.xu.w','vfncvt.f.x.w','vfncvt.f.f.w','vfncvt.rod.f.f.w',
++
++        { V-extension - Floating-Point Move }
++        'vfmv.v.f','vfmv.f.s','vfmv.s.f',
++        'vfmerge.vfm',
++
++        { V-extension - Mask Operations }
++        'vmand.mm','vmnand.mm','vmandn.mm',
++        'vmor.mm','vmnor.mm','vmorn.mm',
++        'vmxor.mm','vmxnor.mm',
++        'vmnot.m',
++        'vcpop.m','vfirst.m',
++        'vmsbf.m','vmsif.m','vmsof.m',
++        'viota.m','vid.v',
++
++        { V-extension - Permutation }
++        'vmv.x.s','vmv.s.x',
++        'vslideup.vx','vslideup.vi','vslidedown.vx','vslidedown.vi',
++        'vslide1up.vx','vfslide1up.vf','vslide1down.vx','vfslide1down.vf',
++        'vrgather.vv','vrgather.vx','vrgather.vi','vrgatherei16.vv',
++        'vcompress.vm',
++
++        { V-extension - Whole Register Move }
++        'vmv1r.v','vmv2r.v','vmv4r.v','vmv8r.v'
+         );
+ 
+     function gas_regnum_search(const s: string): Tregister;
+diff --git a/compiler/riscv/nrvutil.pas b/compiler/riscv/nrvutil.pas
+index c49af0ff17..faadf53db2 100644
+--- a/compiler/riscv/nrvutil.pas
++++ b/compiler/riscv/nrvutil.pas
+@@ -107,6 +107,8 @@ implementation
+             attr_arch:=attr_arch+'_zbc1p0';
+           if CPURV_HAS_ZBS in cpu_capabilities[current_settings.cputype] then
+             attr_arch:=attr_arch+'_zbs1p0';
++          if CPURV_HAS_V in cpu_capabilities[current_settings.cputype] then
++            attr_arch:=attr_arch+'_v1p0';
+           current_asmdata.asmlists[al_start].Concat(tai_attribute.create(ait_attribute,tag_arch,attr_arch));
+         end;
+     end;
+diff --git a/compiler/riscv64/cpuinfo.pas b/compiler/riscv64/cpuinfo.pas
+index cabfc18f88..328df5ac91 100644
+--- a/compiler/riscv64/cpuinfo.pas
++++ b/compiler/riscv64/cpuinfo.pas
+@@ -33,7 +33,8 @@ interface
+     cpu_rv64imafdc,
+     cpu_rv64imafd,
+     cpu_rv64gc,
+-    cpu_rv64gcb
++    cpu_rv64gcb,
++    cpu_rv64gcv       { RVV 1.0 Vector Extension }
+   );
+ 
+   tcontrollertype =
+@@ -82,7 +83,8 @@   tcontrollerdatatype = record
+     'RV64IMAFDC',
+     'RV64IMAFD',
+     'RV64GC',
+-    'RV64GCB'
++    'RV64GCB',
++    'RV64GCV'
+     );
+ 
+    { Supported optimizations, only used for information }
+@@ -111,7 +113,8 @@   tcontrollerdatatype = record
+        { cpu_rv64imafdc } [CPURV_HAS_MUL,CPURV_HAS_ATOMIC,CPURV_HAS_COMPACT,CPURV_HAS_F,CPURV_HAS_D],
+        { cpu_rv64imafd  } [CPURV_HAS_MUL,CPURV_HAS_ATOMIC,CPURV_HAS_F,CPURV_HAS_D],
+        { cpu_rv64gc     } [CPURV_HAS_MUL,CPURV_HAS_ATOMIC,CPURV_HAS_COMPACT,CPURV_HAS_CSR_INSTRUCTIONS,CPURV_HAS_FETCH_FENCE,CPURV_HAS_F,CPURV_HAS_D],
+-       { cpu_rv64gcb    } [CPURV_HAS_MUL,CPURV_HAS_ATOMIC,CPURV_HAS_COMPACT,CPURV_HAS_CSR_INSTRUCTIONS,CPURV_HAS_FETCH_FENCE,CPURV_HAS_F,CPURV_HAS_D,CPURV_HAS_ZBA,CPURV_HAS_ZBB,CPURV_HAS_ZBS]
++       { cpu_rv64gcb    } [CPURV_HAS_MUL,CPURV_HAS_ATOMIC,CPURV_HAS_COMPACT,CPURV_HAS_CSR_INSTRUCTIONS,CPURV_HAS_FETCH_FENCE,CPURV_HAS_F,CPURV_HAS_D,CPURV_HAS_ZBA,CPURV_HAS_ZBB,CPURV_HAS_ZBS],
++       { cpu_rv64gcv    } [CPURV_HAS_MUL,CPURV_HAS_ATOMIC,CPURV_HAS_COMPACT,CPURV_HAS_CSR_INSTRUCTIONS,CPURV_HAS_FETCH_FENCE,CPURV_HAS_F,CPURV_HAS_D,CPURV_HAS_V]
+      );
+ 
+ implementation
