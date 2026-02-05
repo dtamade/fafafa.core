@@ -11,6 +11,7 @@ uses
   fpcunit, testregistry,
   fafafa.core.simd.testcase,
   fafafa.core.simd.direct.testcase,
+  fafafa.core.simd.concurrent.testcase,  // ✅ Phase 5.4: Concurrent SIMD tests (12 tests)
   fafafa.core.simd.bench,
   fafafa.core.simd.cpuinfo,
   fafafa.core.simd.dispatch,
@@ -96,6 +97,15 @@ begin
   WriteLn('  TTestCase_Memutils');
   WriteLn('  TTestCase_RustStyleAliases');
   WriteLn('  TTestCase_SaturatingArithmetic');
+  WriteLn('  TTestCase_NarrowIntegerOps');
+  WriteLn('  TTestCase_VecI32x8');
+  WriteLn('  TTestCase_VecU32x8');
+  WriteLn('  TTestCase_VecF32x8');
+  WriteLn('  TTestCase_VecF64x4');
+  WriteLn('  TTestCase_IEEE754_F64');
+  WriteLn('  TTestCase_IEEE754EdgeCases');
+  WriteLn('  TTestCase_DispatchAPI');
+  WriteLn('  TTestCase_SimdConcurrent');  // ✅ Phase 5.4
 end;
 
 procedure AddSuiteFilter(const value: string);
@@ -331,6 +341,24 @@ begin
         testSuite.AddTest(TTestCase_RustStyleAliases.Suite);
       if ShouldRunSuite('TTestCase_SaturatingArithmetic') then
         testSuite.AddTest(TTestCase_SaturatingArithmetic.Suite);
+      if ShouldRunSuite('TTestCase_NarrowIntegerOps') then
+        testSuite.AddTest(TTestCase_NarrowIntegerOps.Suite);
+      if ShouldRunSuite('TTestCase_VecI32x8') then
+        testSuite.AddTest(TTestCase_VecI32x8.Suite);
+      if ShouldRunSuite('TTestCase_VecU32x8') then
+        testSuite.AddTest(TTestCase_VecU32x8.Suite);
+      if ShouldRunSuite('TTestCase_VecF32x8') then
+        testSuite.AddTest(TTestCase_VecF32x8.Suite);
+      if ShouldRunSuite('TTestCase_VecF64x4') then
+        testSuite.AddTest(TTestCase_VecF64x4.Suite);
+      if ShouldRunSuite('TTestCase_IEEE754_F64') then
+        testSuite.AddTest(TTestCase_IEEE754_F64.Suite);
+      if ShouldRunSuite('TTestCase_IEEE754EdgeCases') then
+        testSuite.AddTest(TTestCase_IEEE754EdgeCases.Suite);
+      if ShouldRunSuite('TTestCase_DispatchAPI') then
+        testSuite.AddTest(TTestCase_DispatchAPI.Suite);
+      if ShouldRunSuite('TTestCase_SimdConcurrent') then
+        testSuite.AddTest(TTestCase_SimdConcurrent.Suite);  // ✅ Phase 5.4
 
       // Create test result
       testResult := TTestResult.Create;
