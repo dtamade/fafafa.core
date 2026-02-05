@@ -55,8 +55,8 @@
 // 获取 CPU 信息（线程安全）
 function GetCPUInfo: TCPUInfo;
 
-// 检查后端可用性
-function IsBackendAvailable(backend: TSimdBackend): Boolean;
+// 检查后端可用性（基于 CPU 特性）
+function IsBackendAvailableOnCPU(backend: TSimdBackend): Boolean;
 
 // 获取可用后端列表（按优先级排序）
 function GetAvailableBackends: TSimdBackendArray;
@@ -76,26 +76,76 @@ procedure ResetCPUInfo;
 ```pascal
 // CPU 信息结构
 TCPUInfo = record
-  Vendor: string;           // CPU 厂商
-  Model: string;            // CPU 型号
-  X86: TX86Features;        // x86 特性
-  ARM: TARMFeatures;        // ARM 特性
+  Arch: TCPUArch;                     // CPU 架构 (caUnknown, caX86, caARM, caRISCV)
+  Vendor: string;                     // CPU 厂商
+  Model: string;                      // CPU 型号
+  LogicalCores: Integer;              // 逻辑核心数
+  PhysicalCores: Integer;             // 物理核心数
+  Cache: TCacheInfo;                  // 缓存信息
+  OSXSAVE: Boolean;                   // OS 是否启用 XSAVE (AVX 状态保存)
+  XCR0: UInt64;                       // 扩展控制寄存器 0 (用于检测 AVX/AVX-512 OS 支持)
+  GenericRaw: TGenericFeatureSet;     // CPU 报告的通用特性 (原始值)
+  GenericUsable: TGenericFeatureSet;  // 实际可用的通用特性 (考虑 OS 门槛)
+  X86: TX86Features;                  // x86 特性 (条件编译: SIMD_X86_AVAILABLE)
+  ARM: TARMFeatures;                  // ARM 特性 (条件编译: SIMD_ARM_AVAILABLE)
+  RISCV: TRISCVFeatures;              // RISC-V 特性 (条件编译: SIMD_RISCV_AVAILABLE)
+end;
+
+// CPU 架构枚举
+TCPUArch = (caUnknown, caX86, caARM, caRISCV);
+
+// 通用特性枚举 (跨架构抽象)
+TGenericFeature = (
+  gfSimd128,   // 128-bit SIMD 可用
+  gfSimd256,   // 256-bit SIMD 可用
+  gfSimd512,   // 512-bit SIMD 可用
+  gfAES,       // AES 指令
+  gfSHA,       // SHA 指令
+  gfFMA        // 融合乘加
+);
+TGenericFeatureSet = set of TGenericFeature;
+
+// 缓存信息结构
+TCacheInfo = record
+  L1DataKB: Integer;    // L1 数据缓存大小 (KB)
+  L1InstrKB: Integer;   // L1 指令缓存大小 (KB)
+  L2KB: Integer;        // L2 缓存大小 (KB)
+  L3KB: Integer;        // L3 缓存大小 (KB)
+  LineSize: Integer;    // 缓存行大小 (字节)
 end;
 
 // x86 特性
 TX86Features = record
+  HasMMX: Boolean;
   HasSSE: Boolean;
   HasSSE2: Boolean;
   HasSSE3: Boolean;
   HasSSSE3: Boolean;
   HasSSE41: Boolean;
   HasSSE42: Boolean;
+  HasPOPCNT: Boolean;
+
   HasAVX: Boolean;
   HasAVX2: Boolean;
-  HasFMA: Boolean;
   HasAVX512F: Boolean;
   HasAVX512DQ: Boolean;
   HasAVX512BW: Boolean;
+  HasAVX512VL: Boolean;
+  HasAVX512VBMI: Boolean;
+
+  HasFMA: Boolean;
+  HasFMA4: Boolean;
+
+  HasBMI1: Boolean;
+  HasBMI2: Boolean;
+
+  HasAES: Boolean;
+  HasPCLMULQDQ: Boolean;
+  HasSHA: Boolean;
+
+  HasRDRAND: Boolean;
+  HasRDSEED: Boolean;
+  HasF16C: Boolean;
 end;
 
 // ARM 特性
@@ -107,13 +157,30 @@ TARMFeatures = record
   HasCrypto: Boolean;
 end;
 
+// RISC-V 特性
+TRISCVFeatures = record
+  HasRV32I: Boolean;    // 32-bit 基础整数指令集
+  HasRV64I: Boolean;    // 64-bit 基础整数指令集
+  HasM: Boolean;        // 整数乘除扩展
+  HasA: Boolean;        // 原子操作扩展
+  HasF: Boolean;        // 单精度浮点扩展
+  HasD: Boolean;        // 双精度浮点扩展
+  HasC: Boolean;        // 压缩指令扩展
+  HasV: Boolean;        // 向量扩展
+end;
+
 // SIMD 后端枚举
 TSimdBackend = (
   sbScalar,     // 标量实现（总是可用）
   sbSSE2,       // SSE2 实现
+  sbSSE3,       // SSE3 实现 - 水平运算指令 (HADDPS, MOVDDUP 等)
+  sbSSSE3,      // SSSE3 实现 - 补充 SSE3 (PSHUFB, PALIGNR 等)
+  sbSSE41,      // SSE4.1 实现 - 扩展整数/浮点指令 (ROUNDPS, PBLENDVB 等)
+  sbSSE42,      // SSE4.2 实现 - 字符串处理/CRC32 (PCMPESTRI, CRC32 等)
   sbAVX2,       // AVX2 实现
   sbAVX512,     // AVX-512 实现
-  sbNEON        // ARM NEON 实现
+  sbNEON,       // ARM NEON 实现
+  sbRISCVV      // RISC-V V 扩展实现 (实验性)
 );
 ```
 
@@ -166,12 +233,12 @@ begin
   end;
   
   // 选择特定后端
-  if IsBackendAvailable(sbAVX2) then
+  if IsBackendAvailableOnCPU(sbAVX2) then
   begin
     WriteLn('Using AVX2 backend');
     // 使用 AVX2 实现
   end
-  else if IsBackendAvailable(sbSSE2) then
+  else if IsBackendAvailableOnCPU(sbSSE2) then
   begin
     WriteLn('Using SSE2 backend');
     // 使用 SSE2 实现

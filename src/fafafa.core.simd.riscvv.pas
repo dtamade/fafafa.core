@@ -82,7 +82,7 @@ function BitsetPopCount_RISCVV(p: Pointer; byteLen: SizeUInt): SizeUInt;
 implementation
 
 uses
-  fafafa.core.math,
+  Math,  // RTL Math 单元
   SysUtils,
   fafafa.core.simd.scalar;
 
@@ -606,6 +606,33 @@ begin
       Result := Result or (1 shl i);
 end;
 
+function RISCVVCmpLeI32x4(const a, b: TVecI32x4): TMask4;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 3 do
+    if a.i[i] <= b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpGeI32x4(const a, b: TVecI32x4): TMask4;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 3 do
+    if a.i[i] >= b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpNeI32x4(const a, b: TVecI32x4): TMask4;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 3 do
+    if a.i[i] <> b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
 // =============================================================
 // I32x4 Extended Operations
 // =============================================================
@@ -1059,6 +1086,33 @@ begin
       Result := Result or (1 shl i);
 end;
 
+function RISCVVCmpLeI32x8(const a, b: TVecI32x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.i[i] <= b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpGeI32x8(const a, b: TVecI32x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.i[i] >= b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpNeI32x8(const a, b: TVecI32x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.i[i] <> b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
 function RISCVVMinI32x8(const a, b: TVecI32x8): TVecI32x8;
 var i: Integer;
 begin
@@ -1187,6 +1241,33 @@ begin
       Result := Result or (1 shl i);
 end;
 
+function RISCVVCmpLeI32x16(const a, b: TVecI32x16): TMask16;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 15 do
+    if a.i[i] <= b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpGeI32x16(const a, b: TVecI32x16): TMask16;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 15 do
+    if a.i[i] >= b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpNeI32x16(const a, b: TVecI32x16): TMask16;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 15 do
+    if a.i[i] <> b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
 function RISCVVMinI32x16(const a, b: TVecI32x16): TVecI32x16;
 var i: Integer;
 begin
@@ -1269,6 +1350,2839 @@ var i: Integer;
 begin
   for i := 0 to 7 do
     Result.d[i] := a.d[i] / b.d[i];
+end;
+
+// =============================================================
+// F32x8 Comparison Operations (256-bit, 8x Single)
+// =============================================================
+
+function RISCVVCmpEqF32x8(const a, b: TVecF32x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.f[i] = b.f[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpLtF32x8(const a, b: TVecF32x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.f[i] < b.f[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpLeF32x8(const a, b: TVecF32x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.f[i] <= b.f[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpGtF32x8(const a, b: TVecF32x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.f[i] > b.f[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpGeF32x8(const a, b: TVecF32x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.f[i] >= b.f[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpNeF32x8(const a, b: TVecF32x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.f[i] <> b.f[i] then
+      Result := Result or (1 shl i);
+end;
+
+// =============================================================
+// F64x4 Comparison Operations (256-bit, 4x Double)
+// =============================================================
+
+function RISCVVCmpEqF64x4(const a, b: TVecF64x4): TMask4;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 3 do
+    if a.d[i] = b.d[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpLtF64x4(const a, b: TVecF64x4): TMask4;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 3 do
+    if a.d[i] < b.d[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpLeF64x4(const a, b: TVecF64x4): TMask4;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 3 do
+    if a.d[i] <= b.d[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpGtF64x4(const a, b: TVecF64x4): TMask4;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 3 do
+    if a.d[i] > b.d[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpGeF64x4(const a, b: TVecF64x4): TMask4;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 3 do
+    if a.d[i] >= b.d[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpNeF64x4(const a, b: TVecF64x4): TMask4;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 3 do
+    if a.d[i] <> b.d[i] then
+      Result := Result or (1 shl i);
+end;
+
+// =============================================================
+// F64x8 Comparison Operations (512-bit, 8x Double)
+// =============================================================
+
+function RISCVVCmpEqF64x8(const a, b: TVecF64x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.d[i] = b.d[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpLtF64x8(const a, b: TVecF64x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.d[i] < b.d[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpLeF64x8(const a, b: TVecF64x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.d[i] <= b.d[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpGtF64x8(const a, b: TVecF64x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.d[i] > b.d[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpGeF64x8(const a, b: TVecF64x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.d[i] >= b.d[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpNeF64x8(const a, b: TVecF64x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.d[i] <> b.d[i] then
+      Result := Result or (1 shl i);
+end;
+
+// =============================================================
+// F32x16 Comparison Operations (512-bit, 16x Single)
+// =============================================================
+
+function RISCVVCmpEqF32x16(const a, b: TVecF32x16): TMask16;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 15 do
+    if a.f[i] = b.f[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpLtF32x16(const a, b: TVecF32x16): TMask16;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 15 do
+    if a.f[i] < b.f[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpLeF32x16(const a, b: TVecF32x16): TMask16;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 15 do
+    if a.f[i] <= b.f[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpGtF32x16(const a, b: TVecF32x16): TMask16;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 15 do
+    if a.f[i] > b.f[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpGeF32x16(const a, b: TVecF32x16): TMask16;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 15 do
+    if a.f[i] >= b.f[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpNeF32x16(const a, b: TVecF32x16): TMask16;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 15 do
+    if a.f[i] <> b.f[i] then
+      Result := Result or (1 shl i);
+end;
+
+// =============================================================
+// TMask4 Operations (4 有效位)
+// =============================================================
+
+function RISCVVMask4All(mask: TMask4): Boolean;
+begin
+  Result := (mask and $0F) = $0F;
+end;
+
+function RISCVVMask4Any(mask: TMask4): Boolean;
+begin
+  Result := (mask and $0F) <> 0;
+end;
+
+function RISCVVMask4None(mask: TMask4): Boolean;
+begin
+  Result := (mask and $0F) = 0;
+end;
+
+function RISCVVMask4PopCount(mask: TMask4): Integer;
+var
+  m: Byte;
+begin
+  m := mask and $0F;
+  Result := 0;
+  while m <> 0 do
+  begin
+    Inc(Result, m and 1);
+    m := m shr 1;
+  end;
+end;
+
+function RISCVVMask4FirstSet(mask: TMask4): Integer;
+var
+  m: Byte;
+  i: Integer;
+begin
+  m := mask and $0F;
+  if m = 0 then
+  begin
+    Result := -1;
+    Exit;
+  end;
+  for i := 0 to 3 do
+  begin
+    if (m and (1 shl i)) <> 0 then
+    begin
+      Result := i;
+      Exit;
+    end;
+  end;
+  Result := -1;
+end;
+
+// =============================================================
+// TMask8 Operations (8 有效位)
+// =============================================================
+
+function RISCVVMask8All(mask: TMask8): Boolean;
+begin
+  Result := mask = $FF;
+end;
+
+function RISCVVMask8Any(mask: TMask8): Boolean;
+begin
+  Result := mask <> 0;
+end;
+
+function RISCVVMask8None(mask: TMask8): Boolean;
+begin
+  Result := mask = 0;
+end;
+
+function RISCVVMask8PopCount(mask: TMask8): Integer;
+var
+  m: Byte;
+begin
+  m := mask;
+  Result := 0;
+  while m <> 0 do
+  begin
+    Inc(Result, m and 1);
+    m := m shr 1;
+  end;
+end;
+
+function RISCVVMask8FirstSet(mask: TMask8): Integer;
+var
+  m: Byte;
+  i: Integer;
+begin
+  m := mask;
+  if m = 0 then
+  begin
+    Result := -1;
+    Exit;
+  end;
+  for i := 0 to 7 do
+  begin
+    if (m and (1 shl i)) <> 0 then
+    begin
+      Result := i;
+      Exit;
+    end;
+  end;
+  Result := -1;
+end;
+
+// =============================================================
+// TMask16 Operations (16 有效位)
+// =============================================================
+
+function RISCVVMask16All(mask: TMask16): Boolean;
+begin
+  Result := mask = $FFFF;
+end;
+
+function RISCVVMask16Any(mask: TMask16): Boolean;
+begin
+  Result := mask <> 0;
+end;
+
+function RISCVVMask16None(mask: TMask16): Boolean;
+begin
+  Result := mask = 0;
+end;
+
+function RISCVVMask16PopCount(mask: TMask16): Integer;
+var
+  m: Word;
+begin
+  m := mask;
+  Result := 0;
+  while m <> 0 do
+  begin
+    Inc(Result, m and 1);
+    m := m shr 1;
+  end;
+end;
+
+function RISCVVMask16FirstSet(mask: TMask16): Integer;
+var
+  m: Word;
+  i: Integer;
+begin
+  m := mask;
+  if m = 0 then
+  begin
+    Result := -1;
+    Exit;
+  end;
+  for i := 0 to 15 do
+  begin
+    if (m and (1 shl i)) <> 0 then
+    begin
+      Result := i;
+      Exit;
+    end;
+  end;
+  Result := -1;
+end;
+
+// =============================================================
+// Mask Logical Operations (TMask4)
+// =============================================================
+
+function RISCVVMask4And(a, b: TMask4): TMask4;
+begin
+  Result := (a and b) and $0F;
+end;
+
+function RISCVVMask4Or(a, b: TMask4): TMask4;
+begin
+  Result := (a or b) and $0F;
+end;
+
+function RISCVVMask4Xor(a, b: TMask4): TMask4;
+begin
+  Result := (a xor b) and $0F;
+end;
+
+function RISCVVMask4Not(a: TMask4): TMask4;
+begin
+  Result := (not a) and $0F;
+end;
+
+// =============================================================
+// Mask Logical Operations (TMask8)
+// =============================================================
+
+function RISCVVMask8And(a, b: TMask8): TMask8;
+begin
+  Result := a and b;
+end;
+
+function RISCVVMask8Or(a, b: TMask8): TMask8;
+begin
+  Result := a or b;
+end;
+
+function RISCVVMask8Xor(a, b: TMask8): TMask8;
+begin
+  Result := a xor b;
+end;
+
+function RISCVVMask8Not(a: TMask8): TMask8;
+begin
+  Result := not a;
+end;
+
+// =============================================================
+// Mask Logical Operations (TMask16)
+// =============================================================
+
+function RISCVVMask16And(a, b: TMask16): TMask16;
+begin
+  Result := a and b;
+end;
+
+function RISCVVMask16Or(a, b: TMask16): TMask16;
+begin
+  Result := a or b;
+end;
+
+function RISCVVMask16Xor(a, b: TMask16): TMask16;
+begin
+  Result := a xor b;
+end;
+
+function RISCVVMask16Not(a: TMask16): TMask16;
+begin
+  Result := not a;
+end;
+
+// =============================================================
+// F32x8 Select Operation
+// =============================================================
+
+function RISCVVSelectF32x8(const mask: TMask8; const a, b: TVecF32x8): TVecF32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    if (mask and (1 shl i)) <> 0 then
+      Result.f[i] := a.f[i]
+    else
+      Result.f[i] := b.f[i];
+end;
+
+// =============================================================
+// F64x4 Select Operation
+// =============================================================
+
+function RISCVVSelectF64x4(const mask: TMask4; const a, b: TVecF64x4): TVecF64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    if (mask and (1 shl i)) <> 0 then
+      Result.d[i] := a.d[i]
+    else
+      Result.d[i] := b.d[i];
+end;
+
+// =============================================================
+// F32x16 Select Operation
+// =============================================================
+
+function RISCVVSelectF32x16(const mask: TMask16; const a, b: TVecF32x16): TVecF32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    if (mask and (1 shl i)) <> 0 then
+      Result.f[i] := a.f[i]
+    else
+      Result.f[i] := b.f[i];
+end;
+
+// =============================================================
+// F64x8 Select Operation
+// =============================================================
+
+function RISCVVSelectF64x8(const mask: TMask8; const a, b: TVecF64x8): TVecF64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    if (mask and (1 shl i)) <> 0 then
+      Result.d[i] := a.d[i]
+    else
+      Result.d[i] := b.d[i];
+end;
+
+// =============================================================
+// Additional Operations for 100% Coverage
+// =============================================================
+// Generated implementations for missing operations
+// =============================================================
+
+function RISCVVMask2All(mask: TMask2): Boolean;
+begin
+  Result := (mask and $03) = $03;
+end;
+
+function RISCVVMask2Any(mask: TMask2): Boolean;
+begin
+  Result := (mask and $03) <> 0;
+end;
+
+function RISCVVMask2None(mask: TMask2): Boolean;
+begin
+  Result := (mask and $03) = 0;
+end;
+
+function RISCVVMask2PopCount(mask: TMask2): Integer;
+var m: Byte;
+begin
+  m := mask and $03;
+  Result := (m and 1) + ((m shr 1) and 1);
+end;
+
+function RISCVVMask2FirstSet(mask: TMask2): Integer;
+var m: Byte;
+begin
+  m := mask and $03;
+  if m = 0 then Result := -1
+  else if (m and 1) <> 0 then Result := 0
+  else Result := 1;
+end;
+
+function RISCVVAbsF32x16(const a: TVecF32x16): TVecF32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.f[i] := Abs(a.f[i]);
+end;
+
+function RISCVVAbsF32x8(const a: TVecF32x8): TVecF32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.f[i] := Abs(a.f[i]);
+end;
+
+function RISCVVAbsF64x2(const a: TVecF64x2): TVecF64x2;
+var i: Integer;
+begin
+  for i := 0 to 1 do
+    Result.d[i] := Abs(a.d[i]);
+end;
+
+function RISCVVAbsF64x4(const a: TVecF64x4): TVecF64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.d[i] := Abs(a.d[i]);
+end;
+
+function RISCVVAbsF64x8(const a: TVecF64x8): TVecF64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.d[i] := Abs(a.d[i]);
+end;
+
+function RISCVVAddI16x8(const a, b: TVecI16x8): TVecI16x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.i[i] := a.i[i] + b.i[i];
+end;
+
+function RISCVVAddI64x4(const a, b: TVecI64x4): TVecI64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.i[i] := a.i[i] + b.i[i];
+end;
+
+function RISCVVAddI64x8(const a, b: TVecI64x8): TVecI64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.i[i] := a.i[i] + b.i[i];
+end;
+
+function RISCVVAddI8x16(const a, b: TVecI8x16): TVecI8x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.i[i] := a.i[i] + b.i[i];
+end;
+
+function RISCVVAddU16x8(const a, b: TVecU16x8): TVecU16x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.u[i] := a.u[i] + b.u[i];
+end;
+
+function RISCVVAddU32x4(const a, b: TVecU32x4): TVecU32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.u[i] := a.u[i] + b.u[i];
+end;
+
+function RISCVVAddU64x4(const a, b: TVecU64x4): TVecU64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.u[i] := a.u[i] + b.u[i];
+end;
+
+// ✅ U32x8 Operations (256-bit)
+function RISCVVAddU32x8(const a, b: TVecU32x8): TVecU32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.u[i] := a.u[i] + b.u[i];
+end;
+
+function RISCVVSubU32x8(const a, b: TVecU32x8): TVecU32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.u[i] := a.u[i] - b.u[i];
+end;
+
+function RISCVVMulU32x8(const a, b: TVecU32x8): TVecU32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.u[i] := a.u[i] * b.u[i];
+end;
+
+function RISCVVAndU32x8(const a, b: TVecU32x8): TVecU32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.u[i] := a.u[i] and b.u[i];
+end;
+
+function RISCVVOrU32x8(const a, b: TVecU32x8): TVecU32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.u[i] := a.u[i] or b.u[i];
+end;
+
+function RISCVVXorU32x8(const a, b: TVecU32x8): TVecU32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.u[i] := a.u[i] xor b.u[i];
+end;
+
+function RISCVVNotU32x8(const a: TVecU32x8): TVecU32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.u[i] := not a.u[i];
+end;
+
+function RISCVVAndNotU32x8(const a, b: TVecU32x8): TVecU32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.u[i] := (not a.u[i]) and b.u[i];
+end;
+
+function RISCVVShiftLeftU32x8(const a: TVecU32x8; count: Integer): TVecU32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.u[i] := a.u[i] shl count;
+end;
+
+function RISCVVShiftRightU32x8(const a: TVecU32x8; count: Integer): TVecU32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.u[i] := a.u[i] shr count;
+end;
+
+function RISCVVCmpEqU32x8(const a, b: TVecU32x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.u[i] = b.u[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpLtU32x8(const a, b: TVecU32x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.u[i] < b.u[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpLeU32x8(const a, b: TVecU32x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.u[i] <= b.u[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpGtU32x8(const a, b: TVecU32x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.u[i] > b.u[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpGeU32x8(const a, b: TVecU32x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.u[i] >= b.u[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpNeU32x8(const a, b: TVecU32x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.u[i] <> b.u[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVMinU32x8(const a, b: TVecU32x8): TVecU32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    if a.u[i] < b.u[i] then
+      Result.u[i] := a.u[i]
+    else
+      Result.u[i] := b.u[i];
+end;
+
+function RISCVVMaxU32x8(const a, b: TVecU32x8): TVecU32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    if a.u[i] > b.u[i] then
+      Result.u[i] := a.u[i]
+    else
+      Result.u[i] := b.u[i];
+end;
+
+// ✅ RcpF64x4 (Reciprocal)
+function RISCVVRcpF64x4(const a: TVecF64x4): TVecF64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    if a.d[i] <> 0.0 then
+      Result.d[i] := 1.0 / a.d[i]
+    else
+      Result.d[i] := 0.0;
+end;
+
+function RISCVVAddU8x16(const a, b: TVecU8x16): TVecU8x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.u[i] := a.u[i] + b.u[i];
+end;
+
+function RISCVVAndI16x8(const a, b: TVecI16x8): TVecI16x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.i[i] := a.i[i] and b.i[i];
+end;
+
+function RISCVVAndI64x4(const a, b: TVecI64x4): TVecI64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.i[i] := a.i[i] and b.i[i];
+end;
+
+function RISCVVAndI64x8(const a, b: TVecI64x8): TVecI64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.i[i] := a.i[i] and b.i[i];
+end;
+
+function RISCVVAndI8x16(const a, b: TVecI8x16): TVecI8x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.i[i] := a.i[i] and b.i[i];
+end;
+
+function RISCVVAndNotI16x8(const a, b: TVecI16x8): TVecI16x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.i[i] := (not a.i[i]) and b.i[i];
+end;
+
+function RISCVVAndNotI64x4(const a, b: TVecI64x4): TVecI64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.i[i] := (not a.i[i]) and b.i[i];
+end;
+
+function RISCVVAndNotU32x4(const a, b: TVecU32x4): TVecU32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.u[i] := (not a.u[i]) and b.u[i];
+end;
+
+function RISCVVAndU16x8(const a, b: TVecU16x8): TVecU16x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.u[i] := a.u[i] and b.u[i];
+end;
+
+function RISCVVAndU32x4(const a, b: TVecU32x4): TVecU32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.u[i] := a.u[i] and b.u[i];
+end;
+
+function RISCVVAndU64x4(const a, b: TVecU64x4): TVecU64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.u[i] := a.u[i] and b.u[i];
+end;
+
+function RISCVVAndU8x16(const a, b: TVecU8x16): TVecU8x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.u[i] := a.u[i] and b.u[i];
+end;
+
+function RISCVVCeilF32x16(const a: TVecF32x16): TVecF32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.f[i] := Ceil(a.f[i]);
+end;
+
+function RISCVVCeilF32x8(const a: TVecF32x8): TVecF32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.f[i] := Ceil(a.f[i]);
+end;
+
+function RISCVVCeilF64x2(const a: TVecF64x2): TVecF64x2;
+var i: Integer;
+begin
+  for i := 0 to 1 do
+    Result.d[i] := Ceil(a.d[i]);
+end;
+
+function RISCVVCeilF64x4(const a: TVecF64x4): TVecF64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.d[i] := Ceil(a.d[i]);
+end;
+
+function RISCVVCeilF64x8(const a: TVecF64x8): TVecF64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.d[i] := Ceil(a.d[i]);
+end;
+
+function RISCVVClampF32x16(const a, minVal, maxVal: TVecF32x16): TVecF32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+  begin
+    if a.f[i] < minVal.f[i] then
+      Result.f[i] := minVal.f[i]
+    else if a.f[i] > maxVal.f[i] then
+      Result.f[i] := maxVal.f[i]
+    else
+      Result.f[i] := a.f[i];
+  end;
+end;
+
+function RISCVVClampF32x8(const a, minVal, maxVal: TVecF32x8): TVecF32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+  begin
+    if a.f[i] < minVal.f[i] then
+      Result.f[i] := minVal.f[i]
+    else if a.f[i] > maxVal.f[i] then
+      Result.f[i] := maxVal.f[i]
+    else
+      Result.f[i] := a.f[i];
+  end;
+end;
+
+function RISCVVClampF64x2(const a, minVal, maxVal: TVecF64x2): TVecF64x2;
+var i: Integer;
+begin
+  for i := 0 to 1 do
+  begin
+    if a.d[i] < minVal.d[i] then
+      Result.d[i] := minVal.d[i]
+    else if a.d[i] > maxVal.d[i] then
+      Result.d[i] := maxVal.d[i]
+    else
+      Result.d[i] := a.d[i];
+  end;
+end;
+
+function RISCVVClampF64x4(const a, minVal, maxVal: TVecF64x4): TVecF64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+  begin
+    if a.d[i] < minVal.d[i] then
+      Result.d[i] := minVal.d[i]
+    else if a.d[i] > maxVal.d[i] then
+      Result.d[i] := maxVal.d[i]
+    else
+      Result.d[i] := a.d[i];
+  end;
+end;
+
+function RISCVVClampF64x8(const a, minVal, maxVal: TVecF64x8): TVecF64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+  begin
+    if a.d[i] < minVal.d[i] then
+      Result.d[i] := minVal.d[i]
+    else if a.d[i] > maxVal.d[i] then
+      Result.d[i] := maxVal.d[i]
+    else
+      Result.d[i] := a.d[i];
+  end;
+end;
+
+function RISCVVCmpEqF64x2(const a, b: TVecF64x2): TMask2;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 1 do
+    if a.d[i] = b.d[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpEqI16x8(const a, b: TVecI16x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.i[i] = b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpEqI64x2(const a, b: TVecI64x2): TMask2;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 1 do
+    if a.i[i] = b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpEqI64x4(const a, b: TVecI64x4): TMask4;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 3 do
+    if a.i[i] = b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpEqI64x8(const a, b: TVecI64x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.i[i] = b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpEqI8x16(const a, b: TVecI8x16): TMask16;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 15 do
+    if a.i[i] = b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpEqU16x8(const a, b: TVecU16x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.u[i] = b.u[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpEqU32x4(const a, b: TVecU32x4): TMask4;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 3 do
+    if a.u[i] = b.u[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpEqU64x4(const a, b: TVecU64x4): TMask4;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 3 do
+    if a.u[i] = b.u[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpEqU8x16(const a, b: TVecU8x16): TMask16;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 15 do
+    if a.u[i] = b.u[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpGeF64x2(const a, b: TVecF64x2): TMask2;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 1 do
+    if a.d[i] >= b.d[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpGeI16x8(const a, b: TVecI16x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.i[i] >= b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpGeI64x2(const a, b: TVecI64x2): TMask2;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 1 do
+    if a.i[i] >= b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpGeI64x4(const a, b: TVecI64x4): TMask4;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 3 do
+    if a.i[i] >= b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpGeI64x8(const a, b: TVecI64x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.i[i] >= b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpGeI8x16(const a, b: TVecI8x16): TMask16;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 15 do
+    if a.i[i] >= b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpGeU16x8(const a, b: TVecU16x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.u[i] >= b.u[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpGeU32x4(const a, b: TVecU32x4): TMask4;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 3 do
+    if a.u[i] >= b.u[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpGeU64x4(const a, b: TVecU64x4): TMask4;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 3 do
+    if a.u[i] >= b.u[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpGeU8x16(const a, b: TVecU8x16): TMask16;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 15 do
+    if a.u[i] >= b.u[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpGtF64x2(const a, b: TVecF64x2): TMask2;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 1 do
+    if a.d[i] > b.d[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpGtI16x8(const a, b: TVecI16x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.i[i] > b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpGtI64x2(const a, b: TVecI64x2): TMask2;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 1 do
+    if a.i[i] > b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpGtI64x4(const a, b: TVecI64x4): TMask4;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 3 do
+    if a.i[i] > b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpGtI64x8(const a, b: TVecI64x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.i[i] > b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpGtI8x16(const a, b: TVecI8x16): TMask16;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 15 do
+    if a.i[i] > b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpGtU16x8(const a, b: TVecU16x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.u[i] > b.u[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpGtU32x4(const a, b: TVecU32x4): TMask4;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 3 do
+    if a.u[i] > b.u[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpGtU64x4(const a, b: TVecU64x4): TMask4;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 3 do
+    if a.u[i] > b.u[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpGtU8x16(const a, b: TVecU8x16): TMask16;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 15 do
+    if a.u[i] > b.u[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpLeF64x2(const a, b: TVecF64x2): TMask2;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 1 do
+    if a.d[i] <= b.d[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpLeI16x8(const a, b: TVecI16x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.i[i] <= b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpLeI64x2(const a, b: TVecI64x2): TMask2;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 1 do
+    if a.i[i] <= b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpLeI64x4(const a, b: TVecI64x4): TMask4;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 3 do
+    if a.i[i] <= b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpLeI64x8(const a, b: TVecI64x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.i[i] <= b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpLeI8x16(const a, b: TVecI8x16): TMask16;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 15 do
+    if a.i[i] <= b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpLeU16x8(const a, b: TVecU16x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.u[i] <= b.u[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpLeU32x4(const a, b: TVecU32x4): TMask4;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 3 do
+    if a.u[i] <= b.u[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpLeU64x4(const a, b: TVecU64x4): TMask4;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 3 do
+    if a.u[i] <= b.u[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpLeU8x16(const a, b: TVecU8x16): TMask16;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 15 do
+    if a.u[i] <= b.u[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpLtF64x2(const a, b: TVecF64x2): TMask2;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 1 do
+    if a.d[i] < b.d[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpLtI16x8(const a, b: TVecI16x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.i[i] < b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpLtI64x2(const a, b: TVecI64x2): TMask2;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 1 do
+    if a.i[i] < b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpLtI64x4(const a, b: TVecI64x4): TMask4;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 3 do
+    if a.i[i] < b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpLtI64x8(const a, b: TVecI64x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.i[i] < b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpLtI8x16(const a, b: TVecI8x16): TMask16;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 15 do
+    if a.i[i] < b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpLtU16x8(const a, b: TVecU16x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.u[i] < b.u[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpLtU32x4(const a, b: TVecU32x4): TMask4;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 3 do
+    if a.u[i] < b.u[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpLtU64x4(const a, b: TVecU64x4): TMask4;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 3 do
+    if a.u[i] < b.u[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpLtU8x16(const a, b: TVecU8x16): TMask16;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 15 do
+    if a.u[i] < b.u[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpNeF64x2(const a, b: TVecF64x2): TMask2;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 1 do
+    if a.d[i] <> b.d[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpNeI16x8(const a, b: TVecI16x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.i[i] <> b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpNeI64x2(const a, b: TVecI64x2): TMask2;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 1 do
+    if a.i[i] <> b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpNeI64x4(const a, b: TVecI64x4): TMask4;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 3 do
+    if a.i[i] <> b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpNeI64x8(const a, b: TVecI64x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.i[i] <> b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpNeI8x16(const a, b: TVecI8x16): TMask16;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 15 do
+    if a.i[i] <> b.i[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpNeU16x8(const a, b: TVecU16x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.u[i] <> b.u[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpNeU64x4(const a, b: TVecU64x4): TMask4;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 3 do
+    if a.u[i] <> b.u[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVCmpNeU8x16(const a, b: TVecU8x16): TMask16;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 15 do
+    if a.u[i] <> b.u[i] then
+      Result := Result or (1 shl i);
+end;
+
+function RISCVVExtractF32x16(const a: TVecF32x16; index: Integer): Single;
+begin
+  if index < 0 then index := 0
+  else if index > 15 then index := 15;
+  Result := a.f[index];
+end;
+
+function RISCVVExtractF32x8(const a: TVecF32x8; index: Integer): Single;
+begin
+  if index < 0 then index := 0
+  else if index > 7 then index := 7;
+  Result := a.f[index];
+end;
+
+function RISCVVExtractF64x2(const a: TVecF64x2; index: Integer): Double;
+begin
+  if index < 0 then index := 0
+  else if index > 1 then index := 1;
+  Result := a.d[index];
+end;
+
+function RISCVVExtractF64x4(const a: TVecF64x4; index: Integer): Double;
+begin
+  if index < 0 then index := 0
+  else if index > 3 then index := 3;
+  Result := a.d[index];
+end;
+
+function RISCVVExtractI32x16(const a: TVecI32x16; index: Integer): Int32;
+begin
+  if index < 0 then index := 0
+  else if index > 15 then index := 15;
+  Result := a.i[index];
+end;
+
+function RISCVVExtractI32x4(const a: TVecI32x4; index: Integer): Int32;
+begin
+  if index < 0 then index := 0
+  else if index > 3 then index := 3;
+  Result := a.i[index];
+end;
+
+function RISCVVExtractI32x8(const a: TVecI32x8; index: Integer): Int32;
+begin
+  if index < 0 then index := 0
+  else if index > 7 then index := 7;
+  Result := a.i[index];
+end;
+
+function RISCVVExtractI64x2(const a: TVecI64x2; index: Integer): Int64;
+begin
+  if index < 0 then index := 0
+  else if index > 1 then index := 1;
+  Result := a.i[index];
+end;
+
+function RISCVVExtractI64x4(const a: TVecI64x4; index: Integer): Int64;
+begin
+  if index < 0 then index := 0
+  else if index > 3 then index := 3;
+  Result := a.i[index];
+end;
+
+function RISCVVFloorF32x16(const a: TVecF32x16): TVecF32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.f[i] := Floor(a.f[i]);
+end;
+
+function RISCVVFloorF32x8(const a: TVecF32x8): TVecF32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.f[i] := Floor(a.f[i]);
+end;
+
+function RISCVVFloorF64x2(const a: TVecF64x2): TVecF64x2;
+var i: Integer;
+begin
+  for i := 0 to 1 do
+    Result.d[i] := Floor(a.d[i]);
+end;
+
+function RISCVVFloorF64x4(const a: TVecF64x4): TVecF64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.d[i] := Floor(a.d[i]);
+end;
+
+function RISCVVFloorF64x8(const a: TVecF64x8): TVecF64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.d[i] := Floor(a.d[i]);
+end;
+
+function RISCVVFmaF32x16(const a, b, c: TVecF32x16): TVecF32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.f[i] := a.f[i] * b.f[i] + c.f[i];
+end;
+
+function RISCVVFmaF32x8(const a, b, c: TVecF32x8): TVecF32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.f[i] := a.f[i] * b.f[i] + c.f[i];
+end;
+
+function RISCVVFmaF64x2(const a, b, c: TVecF64x2): TVecF64x2;
+var i: Integer;
+begin
+  for i := 0 to 1 do
+    Result.d[i] := a.d[i] * b.d[i] + c.d[i];
+end;
+
+function RISCVVFmaF64x4(const a, b, c: TVecF64x4): TVecF64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.d[i] := a.d[i] * b.d[i] + c.d[i];
+end;
+
+function RISCVVFmaF64x8(const a, b, c: TVecF64x8): TVecF64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.d[i] := a.d[i] * b.d[i] + c.d[i];
+end;
+
+function RISCVVSatAddI8x16(const a, b: TVecI8x16): TVecI8x16;
+var i: Integer;
+    sum: Int16;
+begin
+  for i := 0 to 15 do
+  begin
+    sum := Int16(a.i[i]) + Int16(b.i[i]);
+    if sum > 127 then
+      Result.i[i] := 127
+    else if sum < -128 then
+      Result.i[i] := -128
+    else
+      Result.i[i] := Int8(sum);
+  end;
+end;
+
+function RISCVVSatSubI8x16(const a, b: TVecI8x16): TVecI8x16;
+var i: Integer;
+    diff: Int16;
+begin
+  for i := 0 to 15 do
+  begin
+    diff := Int16(a.i[i]) - Int16(b.i[i]);
+    if diff > 127 then
+      Result.i[i] := 127
+    else if diff < -128 then
+      Result.i[i] := -128
+    else
+      Result.i[i] := Int8(diff);
+  end;
+end;
+
+function RISCVVSatAddI16x8(const a, b: TVecI16x8): TVecI16x8;
+var i: Integer;
+    sum: Int32;
+begin
+  for i := 0 to 7 do
+  begin
+    sum := Int32(a.i[i]) + Int32(b.i[i]);
+    if sum > 32767 then
+      Result.i[i] := 32767
+    else if sum < -32768 then
+      Result.i[i] := -32768
+    else
+      Result.i[i] := Int16(sum);
+  end;
+end;
+
+function RISCVVSatSubI16x8(const a, b: TVecI16x8): TVecI16x8;
+var i: Integer;
+    diff: Int32;
+begin
+  for i := 0 to 7 do
+  begin
+    diff := Int32(a.i[i]) - Int32(b.i[i]);
+    if diff > 32767 then
+      Result.i[i] := 32767
+    else if diff < -32768 then
+      Result.i[i] := -32768
+    else
+      Result.i[i] := Int16(diff);
+  end;
+end;
+
+function RISCVVSatAddU8x16(const a, b: TVecU8x16): TVecU8x16;
+var i: Integer;
+    sum: Word;
+begin
+  for i := 0 to 15 do
+  begin
+    sum := Word(a.u[i]) + Word(b.u[i]);
+    if sum > 255 then
+      Result.u[i] := 255
+    else
+      Result.u[i] := Byte(sum);
+  end;
+end;
+
+function RISCVVSatSubU8x16(const a, b: TVecU8x16): TVecU8x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+  begin
+    if a.u[i] > b.u[i] then
+      Result.u[i] := a.u[i] - b.u[i]
+    else
+      Result.u[i] := 0;
+  end;
+end;
+
+function RISCVVSatAddU16x8(const a, b: TVecU16x8): TVecU16x8;
+var i: Integer;
+    sum: UInt32;
+begin
+  for i := 0 to 7 do
+  begin
+    sum := UInt32(a.u[i]) + UInt32(b.u[i]);
+    if sum > 65535 then
+      Result.u[i] := 65535
+    else
+      Result.u[i] := Word(sum);
+  end;
+end;
+
+function RISCVVSatSubU16x8(const a, b: TVecU16x8): TVecU16x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+  begin
+    if a.u[i] > b.u[i] then
+      Result.u[i] := a.u[i] - b.u[i]
+    else
+      Result.u[i] := 0;
+  end;
+end;
+
+function RISCVVInsertF32x16(const a: TVecF32x16; value: Single; index: Integer): TVecF32x16;
+begin
+  if index < 0 then index := 0
+  else if index > 15 then index := 15;
+  Result := a;
+  Result.f[index] := value;
+end;
+
+function RISCVVInsertF32x8(const a: TVecF32x8; value: Single; index: Integer): TVecF32x8;
+begin
+  if index < 0 then index := 0
+  else if index > 7 then index := 7;
+  Result := a;
+  Result.f[index] := value;
+end;
+
+function RISCVVInsertF64x2(const a: TVecF64x2; value: Double; index: Integer): TVecF64x2;
+begin
+  if index < 0 then index := 0
+  else if index > 1 then index := 1;
+  Result := a;
+  Result.d[index] := value;
+end;
+
+function RISCVVInsertF64x4(const a: TVecF64x4; value: Double; index: Integer): TVecF64x4;
+begin
+  if index < 0 then index := 0
+  else if index > 3 then index := 3;
+  Result := a;
+  Result.d[index] := value;
+end;
+
+function RISCVVInsertI32x16(const a: TVecI32x16; value: Int32; index: Integer): TVecI32x16;
+begin
+  if index < 0 then index := 0
+  else if index > 15 then index := 15;
+  Result := a;
+  Result.i[index] := value;
+end;
+
+function RISCVVInsertI32x4(const a: TVecI32x4; value: Int32; index: Integer): TVecI32x4;
+begin
+  if index < 0 then index := 0
+  else if index > 3 then index := 3;
+  Result := a;
+  Result.i[index] := value;
+end;
+
+function RISCVVInsertI32x8(const a: TVecI32x8; value: Int32; index: Integer): TVecI32x8;
+begin
+  if index < 0 then index := 0
+  else if index > 7 then index := 7;
+  Result := a;
+  Result.i[index] := value;
+end;
+
+function RISCVVInsertI64x2(const a: TVecI64x2; value: Int64; index: Integer): TVecI64x2;
+begin
+  if index < 0 then index := 0
+  else if index > 1 then index := 1;
+  Result := a;
+  Result.i[index] := value;
+end;
+
+function RISCVVInsertI64x4(const a: TVecI64x4; value: Int64; index: Integer): TVecI64x4;
+begin
+  if index < 0 then index := 0
+  else if index > 3 then index := 3;
+  Result := a;
+  Result.i[index] := value;
+end;
+
+function RISCVVLoadF32x16(p: PSingle): TVecF32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.f[i] := p[i];
+end;
+
+function RISCVVLoadF32x8(p: PSingle): TVecF32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.f[i] := p[i];
+end;
+
+function RISCVVLoadF64x2(p: PDouble): TVecF64x2;
+var i: Integer;
+begin
+  for i := 0 to 1 do
+    Result.d[i] := p[i];
+end;
+
+function RISCVVLoadF64x4(p: PDouble): TVecF64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.d[i] := p[i];
+end;
+
+function RISCVVLoadF64x8(p: PDouble): TVecF64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.d[i] := p[i];
+end;
+
+function RISCVVLoadI64x4(p: PInt64): TVecI64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.i[i] := p[i];
+end;
+
+function RISCVVMaxF32x16(const a, b: TVecF32x16): TVecF32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    if a.f[i] > b.f[i] then
+      Result.f[i] := a.f[i]
+    else
+      Result.f[i] := b.f[i];
+end;
+
+function RISCVVMaxF32x8(const a, b: TVecF32x8): TVecF32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    if a.f[i] > b.f[i] then
+      Result.f[i] := a.f[i]
+    else
+      Result.f[i] := b.f[i];
+end;
+
+function RISCVVMaxF64x2(const a, b: TVecF64x2): TVecF64x2;
+var i: Integer;
+begin
+  for i := 0 to 1 do
+    if a.d[i] > b.d[i] then
+      Result.d[i] := a.d[i]
+    else
+      Result.d[i] := b.d[i];
+end;
+
+function RISCVVMaxF64x4(const a, b: TVecF64x4): TVecF64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    if a.d[i] > b.d[i] then
+      Result.d[i] := a.d[i]
+    else
+      Result.d[i] := b.d[i];
+end;
+
+function RISCVVMaxF64x8(const a, b: TVecF64x8): TVecF64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    if a.d[i] > b.d[i] then
+      Result.d[i] := a.d[i]
+    else
+      Result.d[i] := b.d[i];
+end;
+
+function RISCVVMaxI16x8(const a, b: TVecI16x8): TVecI16x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    if a.i[i] > b.i[i] then
+      Result.i[i] := a.i[i]
+    else
+      Result.i[i] := b.i[i];
+end;
+
+function RISCVVMaxI8x16(const a, b: TVecI8x16): TVecI8x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    if a.i[i] > b.i[i] then
+      Result.i[i] := a.i[i]
+    else
+      Result.i[i] := b.i[i];
+end;
+
+function RISCVVMaxU16x8(const a, b: TVecU16x8): TVecU16x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    if a.u[i] > b.u[i] then
+      Result.u[i] := a.u[i]
+    else
+      Result.u[i] := b.u[i];
+end;
+
+function RISCVVMaxU32x4(const a, b: TVecU32x4): TVecU32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    if a.u[i] > b.u[i] then
+      Result.u[i] := a.u[i]
+    else
+      Result.u[i] := b.u[i];
+end;
+
+function RISCVVMaxU8x16(const a, b: TVecU8x16): TVecU8x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    if a.u[i] > b.u[i] then
+      Result.u[i] := a.u[i]
+    else
+      Result.u[i] := b.u[i];
+end;
+
+function RISCVVMinF32x16(const a, b: TVecF32x16): TVecF32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    if a.f[i] < b.f[i] then
+      Result.f[i] := a.f[i]
+    else
+      Result.f[i] := b.f[i];
+end;
+
+function RISCVVMinF32x8(const a, b: TVecF32x8): TVecF32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    if a.f[i] < b.f[i] then
+      Result.f[i] := a.f[i]
+    else
+      Result.f[i] := b.f[i];
+end;
+
+function RISCVVMinF64x2(const a, b: TVecF64x2): TVecF64x2;
+var i: Integer;
+begin
+  for i := 0 to 1 do
+    if a.d[i] < b.d[i] then
+      Result.d[i] := a.d[i]
+    else
+      Result.d[i] := b.d[i];
+end;
+
+function RISCVVMinF64x4(const a, b: TVecF64x4): TVecF64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    if a.d[i] < b.d[i] then
+      Result.d[i] := a.d[i]
+    else
+      Result.d[i] := b.d[i];
+end;
+
+function RISCVVMinF64x8(const a, b: TVecF64x8): TVecF64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    if a.d[i] < b.d[i] then
+      Result.d[i] := a.d[i]
+    else
+      Result.d[i] := b.d[i];
+end;
+
+function RISCVVMinI16x8(const a, b: TVecI16x8): TVecI16x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    if a.i[i] < b.i[i] then
+      Result.i[i] := a.i[i]
+    else
+      Result.i[i] := b.i[i];
+end;
+
+function RISCVVMinI8x16(const a, b: TVecI8x16): TVecI8x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    if a.i[i] < b.i[i] then
+      Result.i[i] := a.i[i]
+    else
+      Result.i[i] := b.i[i];
+end;
+
+function RISCVVMinU16x8(const a, b: TVecU16x8): TVecU16x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    if a.u[i] < b.u[i] then
+      Result.u[i] := a.u[i]
+    else
+      Result.u[i] := b.u[i];
+end;
+
+function RISCVVMinU32x4(const a, b: TVecU32x4): TVecU32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    if a.u[i] < b.u[i] then
+      Result.u[i] := a.u[i]
+    else
+      Result.u[i] := b.u[i];
+end;
+
+function RISCVVMinU8x16(const a, b: TVecU8x16): TVecU8x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    if a.u[i] < b.u[i] then
+      Result.u[i] := a.u[i]
+    else
+      Result.u[i] := b.u[i];
+end;
+
+function RISCVVMulI16x8(const a, b: TVecI16x8): TVecI16x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.i[i] := a.i[i] * b.i[i];
+end;
+
+function RISCVVMulU16x8(const a, b: TVecU16x8): TVecU16x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.u[i] := a.u[i] * b.u[i];
+end;
+
+function RISCVVMulU32x4(const a, b: TVecU32x4): TVecU32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.u[i] := a.u[i] * b.u[i];
+end;
+
+function RISCVVNotI16x8(const a: TVecI16x8): TVecI16x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.i[i] := not a.i[i];
+end;
+
+function RISCVVNotI64x4(const a: TVecI64x4): TVecI64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.i[i] := not a.i[i];
+end;
+
+function RISCVVNotI64x8(const a: TVecI64x8): TVecI64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.i[i] := not a.i[i];
+end;
+
+function RISCVVNotI8x16(const a: TVecI8x16): TVecI8x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.i[i] := not a.i[i];
+end;
+
+function RISCVVNotU16x8(const a: TVecU16x8): TVecU16x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.u[i] := not a.u[i];
+end;
+
+function RISCVVNotU32x4(const a: TVecU32x4): TVecU32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.u[i] := not a.u[i];
+end;
+
+function RISCVVNotU64x4(const a: TVecU64x4): TVecU64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.u[i] := not a.u[i];
+end;
+
+function RISCVVNotU8x16(const a: TVecU8x16): TVecU8x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.u[i] := not a.u[i];
+end;
+
+function RISCVVOrI16x8(const a, b: TVecI16x8): TVecI16x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.i[i] := a.i[i] or b.i[i];
+end;
+
+function RISCVVOrI64x4(const a, b: TVecI64x4): TVecI64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.i[i] := a.i[i] or b.i[i];
+end;
+
+function RISCVVOrI64x8(const a, b: TVecI64x8): TVecI64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.i[i] := a.i[i] or b.i[i];
+end;
+
+function RISCVVOrI8x16(const a, b: TVecI8x16): TVecI8x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.i[i] := a.i[i] or b.i[i];
+end;
+
+function RISCVVOrU16x8(const a, b: TVecU16x8): TVecU16x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.u[i] := a.u[i] or b.u[i];
+end;
+
+function RISCVVOrU32x4(const a, b: TVecU32x4): TVecU32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.u[i] := a.u[i] or b.u[i];
+end;
+
+function RISCVVOrU64x4(const a, b: TVecU64x4): TVecU64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.u[i] := a.u[i] or b.u[i];
+end;
+
+function RISCVVOrU8x16(const a, b: TVecU8x16): TVecU8x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.u[i] := a.u[i] or b.u[i];
+end;
+
+function RISCVVReduceAddF32x16(const a: TVecF32x16): Single;
+var i: Integer;
+begin
+  Result := a.f[0];
+  for i := 1 to 15 do
+    Result := Result + a.f[i];
+end;
+
+function RISCVVReduceAddF32x8(const a: TVecF32x8): Single;
+var i: Integer;
+begin
+  Result := a.f[0];
+  for i := 1 to 7 do
+    Result := Result + a.f[i];
+end;
+
+function RISCVVReduceAddF64x2(const a: TVecF64x2): Double;
+var i: Integer;
+begin
+  Result := a.d[0];
+  for i := 1 to 1 do
+    Result := Result + a.d[i];
+end;
+
+function RISCVVReduceAddF64x4(const a: TVecF64x4): Double;
+var i: Integer;
+begin
+  Result := a.d[0];
+  for i := 1 to 3 do
+    Result := Result + a.d[i];
+end;
+
+function RISCVVReduceAddF64x8(const a: TVecF64x8): Double;
+var i: Integer;
+begin
+  Result := a.d[0];
+  for i := 1 to 7 do
+    Result := Result + a.d[i];
+end;
+
+function RISCVVReduceMaxF32x16(const a: TVecF32x16): Single;
+var i: Integer;
+begin
+  Result := a.f[0];
+  for i := 1 to 15 do
+    if a.f[i] > Result then
+      Result := a.f[i];
+end;
+
+function RISCVVReduceMaxF32x8(const a: TVecF32x8): Single;
+var i: Integer;
+begin
+  Result := a.f[0];
+  for i := 1 to 7 do
+    if a.f[i] > Result then
+      Result := a.f[i];
+end;
+
+function RISCVVReduceMaxF64x2(const a: TVecF64x2): Double;
+var i: Integer;
+begin
+  Result := a.d[0];
+  for i := 1 to 1 do
+    if a.d[i] > Result then
+      Result := a.d[i];
+end;
+
+function RISCVVReduceMaxF64x4(const a: TVecF64x4): Double;
+var i: Integer;
+begin
+  Result := a.d[0];
+  for i := 1 to 3 do
+    if a.d[i] > Result then
+      Result := a.d[i];
+end;
+
+function RISCVVReduceMaxF64x8(const a: TVecF64x8): Double;
+var i: Integer;
+begin
+  Result := a.d[0];
+  for i := 1 to 7 do
+    if a.d[i] > Result then
+      Result := a.d[i];
+end;
+
+function RISCVVReduceMinF32x16(const a: TVecF32x16): Single;
+var i: Integer;
+begin
+  Result := a.f[0];
+  for i := 1 to 15 do
+    if a.f[i] < Result then
+      Result := a.f[i];
+end;
+
+function RISCVVReduceMinF32x8(const a: TVecF32x8): Single;
+var i: Integer;
+begin
+  Result := a.f[0];
+  for i := 1 to 7 do
+    if a.f[i] < Result then
+      Result := a.f[i];
+end;
+
+function RISCVVReduceMinF64x2(const a: TVecF64x2): Double;
+var i: Integer;
+begin
+  Result := a.d[0];
+  for i := 1 to 1 do
+    if a.d[i] < Result then
+      Result := a.d[i];
+end;
+
+function RISCVVReduceMinF64x4(const a: TVecF64x4): Double;
+var i: Integer;
+begin
+  Result := a.d[0];
+  for i := 1 to 3 do
+    if a.d[i] < Result then
+      Result := a.d[i];
+end;
+
+function RISCVVReduceMinF64x8(const a: TVecF64x8): Double;
+var i: Integer;
+begin
+  Result := a.d[0];
+  for i := 1 to 7 do
+    if a.d[i] < Result then
+      Result := a.d[i];
+end;
+
+function RISCVVReduceMulF32x16(const a: TVecF32x16): Single;
+var i: Integer;
+begin
+  Result := a.f[0];
+  for i := 1 to 15 do
+    Result := Result * a.f[i];
+end;
+
+function RISCVVReduceMulF32x8(const a: TVecF32x8): Single;
+var i: Integer;
+begin
+  Result := a.f[0];
+  for i := 1 to 7 do
+    Result := Result * a.f[i];
+end;
+
+function RISCVVReduceMulF64x2(const a: TVecF64x2): Double;
+var i: Integer;
+begin
+  Result := a.d[0];
+  for i := 1 to 1 do
+    Result := Result * a.d[i];
+end;
+
+function RISCVVReduceMulF64x4(const a: TVecF64x4): Double;
+var i: Integer;
+begin
+  Result := a.d[0];
+  for i := 1 to 3 do
+    Result := Result * a.d[i];
+end;
+
+function RISCVVReduceMulF64x8(const a: TVecF64x8): Double;
+var i: Integer;
+begin
+  Result := a.d[0];
+  for i := 1 to 7 do
+    Result := Result * a.d[i];
+end;
+
+function RISCVVRoundF32x16(const a: TVecF32x16): TVecF32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.f[i] := Round(a.f[i]);
+end;
+
+function RISCVVRoundF32x8(const a: TVecF32x8): TVecF32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.f[i] := Round(a.f[i]);
+end;
+
+function RISCVVRoundF64x2(const a: TVecF64x2): TVecF64x2;
+var i: Integer;
+begin
+  for i := 0 to 1 do
+    Result.d[i] := Round(a.d[i]);
+end;
+
+function RISCVVRoundF64x4(const a: TVecF64x4): TVecF64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.d[i] := Round(a.d[i]);
+end;
+
+function RISCVVRoundF64x8(const a: TVecF64x8): TVecF64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.d[i] := Round(a.d[i]);
+end;
+
+function RISCVVSelectF32x8(const mask: TVecU32x8; const a, b: TVecF32x8): TVecF32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    if mask.u[i] <> 0 then
+      Result.f[i] := a.f[i]
+    else
+      Result.f[i] := b.f[i];
+end;
+
+function RISCVVSelectF64x2(const mask: TMask2; const a, b: TVecF64x2): TVecF64x2;
+var i: Integer;
+begin
+  for i := 0 to 1 do
+    if (mask and (1 shl i)) <> 0 then
+      Result.d[i] := a.d[i]
+    else
+      Result.d[i] := b.d[i];
+end;
+
+function RISCVVSelectF64x4(const mask: TVecU64x4; const a, b: TVecF64x4): TVecF64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    if mask.u[i] <> 0 then
+      Result.d[i] := a.d[i]
+    else
+      Result.d[i] := b.d[i];
+end;
+
+function RISCVVSelectI32x4(const mask: TVecI32x4; const a, b: TVecI32x4): TVecI32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    if mask.i[i] <> 0 then
+      Result.i[i] := a.i[i]
+    else
+      Result.i[i] := b.i[i];
+end;
+
+function RISCVVShiftLeftI16x8(const a: TVecI16x8; count: Integer): TVecI16x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.i[i] := a.i[i] shl count;
+end;
+
+function RISCVVShiftLeftI64x4(const a: TVecI64x4; count: Integer): TVecI64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.i[i] := a.i[i] shl count;
+end;
+
+function RISCVVShiftLeftU16x8(const a: TVecU16x8; count: Integer): TVecU16x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.u[i] := a.u[i] shl count;
+end;
+
+function RISCVVShiftLeftU32x4(const a: TVecU32x4; count: Integer): TVecU32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.u[i] := a.u[i] shl count;
+end;
+
+function RISCVVShiftLeftU64x4(const a: TVecU64x4; count: Integer): TVecU64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.u[i] := a.u[i] shl count;
+end;
+
+function RISCVVShiftRightArithI16x8(const a: TVecI16x8; count: Integer): TVecI16x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.i[i] := SarSmallint(a.i[i], count);
+end;
+
+function RISCVVShiftRightI16x8(const a: TVecI16x8; count: Integer): TVecI16x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.i[i] := a.i[i] shr count;
+end;
+
+function RISCVVShiftRightI64x4(const a: TVecI64x4; count: Integer): TVecI64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.i[i] := a.i[i] shr count;
+end;
+
+function RISCVVShiftRightU16x8(const a: TVecU16x8; count: Integer): TVecU16x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.u[i] := a.u[i] shr count;
+end;
+
+function RISCVVShiftRightU32x4(const a: TVecU32x4; count: Integer): TVecU32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.u[i] := a.u[i] shr count;
+end;
+
+function RISCVVShiftRightU64x4(const a: TVecU64x4; count: Integer): TVecU64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.u[i] := a.u[i] shr count;
+end;
+
+function RISCVVSplatF32x16(value: Single): TVecF32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.f[i] := value;
+end;
+
+function RISCVVSplatF32x8(value: Single): TVecF32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.f[i] := value;
+end;
+
+function RISCVVSplatF64x2(value: Double): TVecF64x2;
+var i: Integer;
+begin
+  for i := 0 to 1 do
+    Result.d[i] := value;
+end;
+
+function RISCVVSplatF64x4(value: Double): TVecF64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.d[i] := value;
+end;
+
+function RISCVVSplatF64x8(value: Double): TVecF64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.d[i] := value;
+end;
+
+function RISCVVSplatI64x4(value: Int64): TVecI64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.i[i] := value;
+end;
+
+function RISCVVSqrtF32x16(const a: TVecF32x16): TVecF32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.f[i] := Sqrt(a.f[i]);
+end;
+
+function RISCVVSqrtF32x8(const a: TVecF32x8): TVecF32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.f[i] := Sqrt(a.f[i]);
+end;
+
+function RISCVVSqrtF64x2(const a: TVecF64x2): TVecF64x2;
+var i: Integer;
+begin
+  for i := 0 to 1 do
+    Result.d[i] := Sqrt(a.d[i]);
+end;
+
+function RISCVVSqrtF64x4(const a: TVecF64x4): TVecF64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.d[i] := Sqrt(a.d[i]);
+end;
+
+function RISCVVSqrtF64x8(const a: TVecF64x8): TVecF64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.d[i] := Sqrt(a.d[i]);
+end;
+
+procedure RISCVVStoreF32x16(p: PSingle; const a: TVecF32x16);
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    p[i] := a.f[i];
+end;
+
+procedure RISCVVStoreF32x8(p: PSingle; const a: TVecF32x8);
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    p[i] := a.f[i];
+end;
+
+procedure RISCVVStoreF64x2(p: PDouble; const a: TVecF64x2);
+var i: Integer;
+begin
+  for i := 0 to 1 do
+    p[i] := a.d[i];
+end;
+
+procedure RISCVVStoreF64x4(p: PDouble; const a: TVecF64x4);
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    p[i] := a.d[i];
+end;
+
+procedure RISCVVStoreF64x8(p: PDouble; const a: TVecF64x8);
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    p[i] := a.d[i];
+end;
+
+procedure RISCVVStoreI64x4(p: PInt64; const a: TVecI64x4);
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    p[i] := a.i[i];
+end;
+
+function RISCVVSubI16x8(const a, b: TVecI16x8): TVecI16x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.i[i] := a.i[i] - b.i[i];
+end;
+
+function RISCVVSubI64x4(const a, b: TVecI64x4): TVecI64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.i[i] := a.i[i] - b.i[i];
+end;
+
+function RISCVVSubI64x8(const a, b: TVecI64x8): TVecI64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.i[i] := a.i[i] - b.i[i];
+end;
+
+function RISCVVSubI8x16(const a, b: TVecI8x16): TVecI8x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.i[i] := a.i[i] - b.i[i];
+end;
+
+function RISCVVSubU16x8(const a, b: TVecU16x8): TVecU16x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.u[i] := a.u[i] - b.u[i];
+end;
+
+function RISCVVSubU32x4(const a, b: TVecU32x4): TVecU32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.u[i] := a.u[i] - b.u[i];
+end;
+
+function RISCVVSubU64x4(const a, b: TVecU64x4): TVecU64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.u[i] := a.u[i] - b.u[i];
+end;
+
+function RISCVVSubU8x16(const a, b: TVecU8x16): TVecU8x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.u[i] := a.u[i] - b.u[i];
+end;
+
+function RISCVVTruncF32x16(const a: TVecF32x16): TVecF32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.f[i] := Trunc(a.f[i]);
+end;
+
+function RISCVVTruncF32x8(const a: TVecF32x8): TVecF32x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.f[i] := Trunc(a.f[i]);
+end;
+
+function RISCVVTruncF64x2(const a: TVecF64x2): TVecF64x2;
+var i: Integer;
+begin
+  for i := 0 to 1 do
+    Result.d[i] := Trunc(a.d[i]);
+end;
+
+function RISCVVTruncF64x4(const a: TVecF64x4): TVecF64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.d[i] := Trunc(a.d[i]);
+end;
+
+function RISCVVTruncF64x8(const a: TVecF64x8): TVecF64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.d[i] := Trunc(a.d[i]);
+end;
+
+function RISCVVXorI16x8(const a, b: TVecI16x8): TVecI16x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.i[i] := a.i[i] xor b.i[i];
+end;
+
+function RISCVVXorI64x4(const a, b: TVecI64x4): TVecI64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.i[i] := a.i[i] xor b.i[i];
+end;
+
+function RISCVVXorI64x8(const a, b: TVecI64x8): TVecI64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.i[i] := a.i[i] xor b.i[i];
+end;
+
+function RISCVVXorI8x16(const a, b: TVecI8x16): TVecI8x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.i[i] := a.i[i] xor b.i[i];
+end;
+
+function RISCVVXorU16x8(const a, b: TVecU16x8): TVecU16x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.u[i] := a.u[i] xor b.u[i];
+end;
+
+function RISCVVXorU32x4(const a, b: TVecU32x4): TVecU32x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.u[i] := a.u[i] xor b.u[i];
+end;
+
+function RISCVVXorU64x4(const a, b: TVecU64x4): TVecU64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    Result.u[i] := a.u[i] xor b.u[i];
+end;
+
+function RISCVVXorU8x16(const a, b: TVecU8x16): TVecU8x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.u[i] := a.u[i] xor b.u[i];
+end;
+
+function RISCVVZeroF32x16: TVecF32x16;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+end;
+
+function RISCVVZeroF32x8: TVecF32x8;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+end;
+
+function RISCVVZeroF64x2: TVecF64x2;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+end;
+
+function RISCVVZeroF64x4: TVecF64x4;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+end;
+
+function RISCVVZeroF64x8: TVecF64x8;
+begin
+  FillChar(Result, SizeOf(Result), 0);
+end;
+
+function RISCVVZeroI64x4: TVecI64x4;
+begin
+  FillChar(Result, SizeOf(Result), 0);
 end;
 
 // =============================================================
@@ -1359,7 +4273,10 @@ procedure RegisterRISCVVBackend;
 var
   table: TSimdDispatchTable;
 begin
-  FillChar(table, SizeOf(table), 0);
+  // ✅ 使用 FillBaseDispatchTable 填充标量后备实现，而不是 FillChar
+  // 这确保所有未注册的函数都有有效的后备实现，避免空指针异常
+  table := Default(TSimdDispatchTable);
+  FillBaseDispatchTable(table);
 
   // Backend info
   table.Backend := sbRISCVV;
@@ -1461,6 +4378,9 @@ begin
   table.CmpEqI32x4 := @RISCVVCmpEqI32x4;
   table.CmpLtI32x4 := @RISCVVCmpLtI32x4;
   table.CmpGtI32x4 := @RISCVVCmpGtI32x4;
+  table.CmpLeI32x4 := @RISCVVCmpLeI32x4;  // ✅ Task 6.4: Added
+  table.CmpGeI32x4 := @RISCVVCmpGeI32x4;  // ✅ Task 6.4: Added
+  table.CmpNeI32x4 := @RISCVVCmpNeI32x4;  // ✅ Task 6.4: Added
 
   // I32x4 Min/Max
   table.MinI32x4 := @RISCVVMinI32x4;
@@ -1480,11 +4400,27 @@ begin
   table.MulF32x8 := @RISCVVMulF32x8;
   table.DivF32x8 := @RISCVVDivF32x8;
 
+  // F32x8 Comparison - ✅ Task 6.4: Added
+  table.CmpEqF32x8 := @RISCVVCmpEqF32x8;
+  table.CmpLtF32x8 := @RISCVVCmpLtF32x8;
+  table.CmpLeF32x8 := @RISCVVCmpLeF32x8;
+  table.CmpGtF32x8 := @RISCVVCmpGtF32x8;
+  table.CmpGeF32x8 := @RISCVVCmpGeF32x8;
+  table.CmpNeF32x8 := @RISCVVCmpNeF32x8;
+
   // === F64x4 Operations ===
   table.AddF64x4 := @RISCVVAddF64x4;
   table.SubF64x4 := @RISCVVSubF64x4;
   table.MulF64x4 := @RISCVVMulF64x4;
   table.DivF64x4 := @RISCVVDivF64x4;
+
+  // F64x4 Comparison - ✅ Task 6.4: Added
+  table.CmpEqF64x4 := @RISCVVCmpEqF64x4;
+  table.CmpLtF64x4 := @RISCVVCmpLtF64x4;
+  table.CmpLeF64x4 := @RISCVVCmpLeF64x4;
+  table.CmpGtF64x4 := @RISCVVCmpGtF64x4;
+  table.CmpGeF64x4 := @RISCVVCmpGeF64x4;
+  table.CmpNeF64x4 := @RISCVVCmpNeF64x4;
 
   // === I32x8 Operations ===
   table.AddI32x8 := @RISCVVAddI32x8;
@@ -1501,6 +4437,9 @@ begin
   table.CmpEqI32x8 := @RISCVVCmpEqI32x8;
   table.CmpLtI32x8 := @RISCVVCmpLtI32x8;
   table.CmpGtI32x8 := @RISCVVCmpGtI32x8;
+  table.CmpLeI32x8 := @RISCVVCmpLeI32x8;  // ✅ Task 6.4: Added
+  table.CmpGeI32x8 := @RISCVVCmpGeI32x8;  // ✅ Task 6.4: Added
+  table.CmpNeI32x8 := @RISCVVCmpNeI32x8;  // ✅ Task 6.4: Added
   table.MinI32x8 := @RISCVVMinI32x8;
   table.MaxI32x8 := @RISCVVMaxI32x8;
 
@@ -1519,6 +4458,9 @@ begin
   table.CmpEqI32x16 := @RISCVVCmpEqI32x16;
   table.CmpLtI32x16 := @RISCVVCmpLtI32x16;
   table.CmpGtI32x16 := @RISCVVCmpGtI32x16;
+  table.CmpLeI32x16 := @RISCVVCmpLeI32x16;  // ✅ Task 6.4: Added
+  table.CmpGeI32x16 := @RISCVVCmpGeI32x16;  // ✅ Task 6.4: Added
+  table.CmpNeI32x16 := @RISCVVCmpNeI32x16;  // ✅ Task 6.4: Added
   table.MinI32x16 := @RISCVVMinI32x16;
   table.MaxI32x16 := @RISCVVMaxI32x16;
 
@@ -1528,11 +4470,379 @@ begin
   table.MulF32x16 := @RISCVVMulF32x16;
   table.DivF32x16 := @RISCVVDivF32x16;
 
+  // F32x16 Comparison - ✅ Task 6.4: Added
+  table.CmpEqF32x16 := @RISCVVCmpEqF32x16;
+  table.CmpLtF32x16 := @RISCVVCmpLtF32x16;
+  table.CmpLeF32x16 := @RISCVVCmpLeF32x16;
+  table.CmpGtF32x16 := @RISCVVCmpGtF32x16;
+  table.CmpGeF32x16 := @RISCVVCmpGeF32x16;
+  table.CmpNeF32x16 := @RISCVVCmpNeF32x16;
+  table.SelectF32x16 := @RISCVVSelectF32x16;
+
   // === F64x8 Operations (512-bit, 8x Double) ===
   table.AddF64x8 := @RISCVVAddF64x8;
   table.SubF64x8 := @RISCVVSubF64x8;
   table.MulF64x8 := @RISCVVMulF64x8;
   table.DivF64x8 := @RISCVVDivF64x8;
+
+  // F64x8 Comparison - ✅ Task 6.4: Added
+  table.CmpEqF64x8 := @RISCVVCmpEqF64x8;
+  table.CmpLtF64x8 := @RISCVVCmpLtF64x8;
+  table.CmpLeF64x8 := @RISCVVCmpLeF64x8;
+  table.CmpGtF64x8 := @RISCVVCmpGtF64x8;
+  table.CmpGeF64x8 := @RISCVVCmpGeF64x8;
+  table.CmpNeF64x8 := @RISCVVCmpNeF64x8;
+  table.SelectF64x8 := @RISCVVSelectF64x8;
+
+  // === Mask Operations - ✅ Task 6.4: Added ===
+  // TMask4 Operations
+  table.Mask4All := @RISCVVMask4All;
+  table.Mask4Any := @RISCVVMask4Any;
+  table.Mask4None := @RISCVVMask4None;
+  table.Mask4PopCount := @RISCVVMask4PopCount;
+  table.Mask4FirstSet := @RISCVVMask4FirstSet;
+
+  // TMask8 Operations
+  table.Mask8All := @RISCVVMask8All;
+  table.Mask8Any := @RISCVVMask8Any;
+  table.Mask8None := @RISCVVMask8None;
+  table.Mask8PopCount := @RISCVVMask8PopCount;
+  table.Mask8FirstSet := @RISCVVMask8FirstSet;
+
+  // TMask16 Operations
+  table.Mask16All := @RISCVVMask16All;
+  table.Mask16Any := @RISCVVMask16Any;
+  table.Mask16None := @RISCVVMask16None;
+  table.Mask16PopCount := @RISCVVMask16PopCount;
+  table.Mask16FirstSet := @RISCVVMask16FirstSet;
+
+  // =============================================================
+  // Additional Operations Registration (100% Coverage)
+  // =============================================================
+
+  // TMask2 Operations
+  table.Mask2All := @RISCVVMask2All;
+  table.Mask2Any := @RISCVVMask2Any;
+  table.Mask2None := @RISCVVMask2None;
+  table.Mask2PopCount := @RISCVVMask2PopCount;
+  table.Mask2FirstSet := @RISCVVMask2FirstSet;
+
+  // Wide Float Operations (Abs, Sqrt, Min, Max, Clamp)
+  table.AbsF32x16 := @RISCVVAbsF32x16;
+  table.AbsF32x8 := @RISCVVAbsF32x8;
+  table.AbsF64x2 := @RISCVVAbsF64x2;
+  table.AbsF64x4 := @RISCVVAbsF64x4;
+  table.AbsF64x8 := @RISCVVAbsF64x8;
+  table.SqrtF32x16 := @RISCVVSqrtF32x16;
+  table.SqrtF32x8 := @RISCVVSqrtF32x8;
+  table.SqrtF64x2 := @RISCVVSqrtF64x2;
+  table.SqrtF64x4 := @RISCVVSqrtF64x4;
+  table.SqrtF64x8 := @RISCVVSqrtF64x8;
+  table.MinF32x16 := @RISCVVMinF32x16;
+  table.MinF32x8 := @RISCVVMinF32x8;
+  table.MinF64x2 := @RISCVVMinF64x2;
+  table.MinF64x4 := @RISCVVMinF64x4;
+  table.MinF64x8 := @RISCVVMinF64x8;
+  table.MaxF32x16 := @RISCVVMaxF32x16;
+  table.MaxF32x8 := @RISCVVMaxF32x8;
+  table.MaxF64x2 := @RISCVVMaxF64x2;
+  table.MaxF64x4 := @RISCVVMaxF64x4;
+  table.MaxF64x8 := @RISCVVMaxF64x8;
+  table.ClampF32x16 := @RISCVVClampF32x16;
+  table.ClampF32x8 := @RISCVVClampF32x8;
+  table.ClampF64x2 := @RISCVVClampF64x2;
+  table.ClampF64x4 := @RISCVVClampF64x4;
+  table.ClampF64x8 := @RISCVVClampF64x8;
+
+  // Wide Float Extended Math (Ceil, Floor, Round, Trunc, Fma)
+  table.CeilF32x16 := @RISCVVCeilF32x16;
+  table.CeilF32x8 := @RISCVVCeilF32x8;
+  table.CeilF64x2 := @RISCVVCeilF64x2;
+  table.CeilF64x4 := @RISCVVCeilF64x4;
+  table.CeilF64x8 := @RISCVVCeilF64x8;
+  table.FloorF32x16 := @RISCVVFloorF32x16;
+  table.FloorF32x8 := @RISCVVFloorF32x8;
+  table.FloorF64x2 := @RISCVVFloorF64x2;
+  table.FloorF64x4 := @RISCVVFloorF64x4;
+  table.FloorF64x8 := @RISCVVFloorF64x8;
+  table.RoundF32x16 := @RISCVVRoundF32x16;
+  table.RoundF32x8 := @RISCVVRoundF32x8;
+  table.RoundF64x2 := @RISCVVRoundF64x2;
+  table.RoundF64x4 := @RISCVVRoundF64x4;
+  table.RoundF64x8 := @RISCVVRoundF64x8;
+  table.TruncF32x16 := @RISCVVTruncF32x16;
+  table.TruncF32x8 := @RISCVVTruncF32x8;
+  table.TruncF64x2 := @RISCVVTruncF64x2;
+  table.TruncF64x4 := @RISCVVTruncF64x4;
+  table.TruncF64x8 := @RISCVVTruncF64x8;
+  table.FmaF32x16 := @RISCVVFmaF32x16;
+  table.FmaF32x8 := @RISCVVFmaF32x8;
+  table.FmaF64x2 := @RISCVVFmaF64x2;
+  table.FmaF64x4 := @RISCVVFmaF64x4;
+  table.FmaF64x8 := @RISCVVFmaF64x8;
+
+  // Wide Float Reduction
+  table.ReduceAddF32x16 := @RISCVVReduceAddF32x16;
+  table.ReduceAddF32x8 := @RISCVVReduceAddF32x8;
+  table.ReduceAddF64x2 := @RISCVVReduceAddF64x2;
+  table.ReduceAddF64x4 := @RISCVVReduceAddF64x4;
+  table.ReduceAddF64x8 := @RISCVVReduceAddF64x8;
+  table.ReduceMaxF32x16 := @RISCVVReduceMaxF32x16;
+  table.ReduceMaxF32x8 := @RISCVVReduceMaxF32x8;
+  table.ReduceMaxF64x2 := @RISCVVReduceMaxF64x2;
+  table.ReduceMaxF64x4 := @RISCVVReduceMaxF64x4;
+  table.ReduceMaxF64x8 := @RISCVVReduceMaxF64x8;
+  table.ReduceMinF32x16 := @RISCVVReduceMinF32x16;
+  table.ReduceMinF32x8 := @RISCVVReduceMinF32x8;
+  table.ReduceMinF64x2 := @RISCVVReduceMinF64x2;
+  table.ReduceMinF64x4 := @RISCVVReduceMinF64x4;
+  table.ReduceMinF64x8 := @RISCVVReduceMinF64x8;
+  table.ReduceMulF32x16 := @RISCVVReduceMulF32x16;
+  table.ReduceMulF32x8 := @RISCVVReduceMulF32x8;
+  table.ReduceMulF64x2 := @RISCVVReduceMulF64x2;
+  table.ReduceMulF64x4 := @RISCVVReduceMulF64x4;
+  table.ReduceMulF64x8 := @RISCVVReduceMulF64x8;
+
+  // F64x2 Comparison
+  table.CmpEqF64x2 := @RISCVVCmpEqF64x2;
+  table.CmpLtF64x2 := @RISCVVCmpLtF64x2;
+  table.CmpLeF64x2 := @RISCVVCmpLeF64x2;
+  table.CmpGtF64x2 := @RISCVVCmpGtF64x2;
+  table.CmpGeF64x2 := @RISCVVCmpGeF64x2;
+  table.CmpNeF64x2 := @RISCVVCmpNeF64x2;
+
+  // Wide Float Memory/Utility
+  table.LoadF32x16 := @RISCVVLoadF32x16;
+  table.LoadF32x8 := @RISCVVLoadF32x8;
+  table.LoadF64x2 := @RISCVVLoadF64x2;
+  table.LoadF64x4 := @RISCVVLoadF64x4;
+  table.LoadF64x8 := @RISCVVLoadF64x8;
+  table.StoreF32x16 := @RISCVVStoreF32x16;
+  table.StoreF32x8 := @RISCVVStoreF32x8;
+  table.StoreF64x2 := @RISCVVStoreF64x2;
+  table.StoreF64x4 := @RISCVVStoreF64x4;
+  table.StoreF64x8 := @RISCVVStoreF64x8;
+  table.SplatF32x16 := @RISCVVSplatF32x16;
+  table.SplatF32x8 := @RISCVVSplatF32x8;
+  table.SplatF64x2 := @RISCVVSplatF64x2;
+  table.SplatF64x4 := @RISCVVSplatF64x4;
+  table.SplatF64x8 := @RISCVVSplatF64x8;
+  table.ZeroF32x16 := @RISCVVZeroF32x16;
+  table.ZeroF32x8 := @RISCVVZeroF32x8;
+  table.ZeroF64x2 := @RISCVVZeroF64x2;
+  table.ZeroF64x4 := @RISCVVZeroF64x4;
+  table.ZeroF64x8 := @RISCVVZeroF64x8;
+
+  // Wide Float Extract/Insert
+  table.ExtractF32x16 := @RISCVVExtractF32x16;
+  table.ExtractF32x8 := @RISCVVExtractF32x8;
+  table.ExtractF64x2 := @RISCVVExtractF64x2;
+  table.ExtractF64x4 := @RISCVVExtractF64x4;
+  table.InsertF32x16 := @RISCVVInsertF32x16;
+  table.InsertF32x8 := @RISCVVInsertF32x8;
+  table.InsertF64x2 := @RISCVVInsertF64x2;
+  table.InsertF64x4 := @RISCVVInsertF64x4;
+
+  // Wide Float Select
+  table.SelectF32x8 := @RISCVVSelectF32x8;
+  table.SelectF64x2 := @RISCVVSelectF64x2;
+  table.SelectF64x4 := @RISCVVSelectF64x4;
+  table.SelectI32x4 := @RISCVVSelectI32x4;
+
+  // I64x2 Comparison
+  table.CmpEqI64x2 := @RISCVVCmpEqI64x2;
+  table.CmpLtI64x2 := @RISCVVCmpLtI64x2;
+  table.CmpLeI64x2 := @RISCVVCmpLeI64x2;
+  table.CmpGtI64x2 := @RISCVVCmpGtI64x2;
+  table.CmpGeI64x2 := @RISCVVCmpGeI64x2;
+  table.CmpNeI64x2 := @RISCVVCmpNeI64x2;
+
+  // I64x4 Operations
+  table.AddI64x4 := @RISCVVAddI64x4;
+  table.SubI64x4 := @RISCVVSubI64x4;
+  table.AndI64x4 := @RISCVVAndI64x4;
+  table.OrI64x4 := @RISCVVOrI64x4;
+  table.XorI64x4 := @RISCVVXorI64x4;
+  table.NotI64x4 := @RISCVVNotI64x4;
+  table.AndNotI64x4 := @RISCVVAndNotI64x4;
+  table.ShiftLeftI64x4 := @RISCVVShiftLeftI64x4;
+  table.ShiftRightI64x4 := @RISCVVShiftRightI64x4;
+  table.CmpEqI64x4 := @RISCVVCmpEqI64x4;
+  table.CmpLtI64x4 := @RISCVVCmpLtI64x4;
+  table.CmpLeI64x4 := @RISCVVCmpLeI64x4;
+  table.CmpGtI64x4 := @RISCVVCmpGtI64x4;
+  table.CmpGeI64x4 := @RISCVVCmpGeI64x4;
+  table.CmpNeI64x4 := @RISCVVCmpNeI64x4;
+  table.LoadI64x4 := @RISCVVLoadI64x4;
+  table.StoreI64x4 := @RISCVVStoreI64x4;
+  table.SplatI64x4 := @RISCVVSplatI64x4;
+  table.ZeroI64x4 := @RISCVVZeroI64x4;
+  table.ExtractI64x4 := @RISCVVExtractI64x4;
+  table.InsertI64x4 := @RISCVVInsertI64x4;
+
+  // I64x8 Operations
+  table.AddI64x8 := @RISCVVAddI64x8;
+  table.SubI64x8 := @RISCVVSubI64x8;
+  table.AndI64x8 := @RISCVVAndI64x8;
+  table.OrI64x8 := @RISCVVOrI64x8;
+  table.XorI64x8 := @RISCVVXorI64x8;
+  table.NotI64x8 := @RISCVVNotI64x8;
+  table.CmpEqI64x8 := @RISCVVCmpEqI64x8;
+  table.CmpLtI64x8 := @RISCVVCmpLtI64x8;
+  table.CmpLeI64x8 := @RISCVVCmpLeI64x8;
+  table.CmpGtI64x8 := @RISCVVCmpGtI64x8;
+  table.CmpGeI64x8 := @RISCVVCmpGeI64x8;
+  table.CmpNeI64x8 := @RISCVVCmpNeI64x8;
+
+  // I32x4/I32x8/I32x16 Extract/Insert
+  table.ExtractI32x4 := @RISCVVExtractI32x4;
+  table.InsertI32x4 := @RISCVVInsertI32x4;
+  table.ExtractI32x8 := @RISCVVExtractI32x8;
+  table.InsertI32x8 := @RISCVVInsertI32x8;
+  table.ExtractI32x16 := @RISCVVExtractI32x16;
+  table.InsertI32x16 := @RISCVVInsertI32x16;
+  table.ExtractI64x2 := @RISCVVExtractI64x2;
+  table.InsertI64x2 := @RISCVVInsertI64x2;
+
+  // Narrow Integer Types: I16x8
+  table.AddI16x8 := @RISCVVAddI16x8;
+  table.SubI16x8 := @RISCVVSubI16x8;
+  table.MulI16x8 := @RISCVVMulI16x8;
+  table.AndI16x8 := @RISCVVAndI16x8;
+  table.OrI16x8 := @RISCVVOrI16x8;
+  table.XorI16x8 := @RISCVVXorI16x8;
+  table.NotI16x8 := @RISCVVNotI16x8;
+  table.AndNotI16x8 := @RISCVVAndNotI16x8;
+  table.ShiftLeftI16x8 := @RISCVVShiftLeftI16x8;
+  table.ShiftRightI16x8 := @RISCVVShiftRightI16x8;
+  table.ShiftRightArithI16x8 := @RISCVVShiftRightArithI16x8;
+  table.CmpEqI16x8 := @RISCVVCmpEqI16x8;
+  table.CmpLtI16x8 := @RISCVVCmpLtI16x8;
+  table.CmpLeI16x8 := @RISCVVCmpLeI16x8;
+  table.CmpGtI16x8 := @RISCVVCmpGtI16x8;
+  table.CmpGeI16x8 := @RISCVVCmpGeI16x8;
+  table.CmpNeI16x8 := @RISCVVCmpNeI16x8;
+  table.MinI16x8 := @RISCVVMinI16x8;
+  table.MaxI16x8 := @RISCVVMaxI16x8;
+
+  // Narrow Integer Types: I8x16
+  table.AddI8x16 := @RISCVVAddI8x16;
+  table.SubI8x16 := @RISCVVSubI8x16;
+  table.AndI8x16 := @RISCVVAndI8x16;
+  table.OrI8x16 := @RISCVVOrI8x16;
+  table.XorI8x16 := @RISCVVXorI8x16;
+  table.NotI8x16 := @RISCVVNotI8x16;
+  table.CmpEqI8x16 := @RISCVVCmpEqI8x16;
+  table.CmpLtI8x16 := @RISCVVCmpLtI8x16;
+  table.CmpLeI8x16 := @RISCVVCmpLeI8x16;
+  table.CmpGtI8x16 := @RISCVVCmpGtI8x16;
+  table.CmpGeI8x16 := @RISCVVCmpGeI8x16;
+  table.CmpNeI8x16 := @RISCVVCmpNeI8x16;
+  table.MinI8x16 := @RISCVVMinI8x16;
+  table.MaxI8x16 := @RISCVVMaxI8x16;
+
+  // Unsigned Integer Types: U32x4
+  table.AddU32x4 := @RISCVVAddU32x4;
+  table.SubU32x4 := @RISCVVSubU32x4;
+  table.MulU32x4 := @RISCVVMulU32x4;
+  table.AndU32x4 := @RISCVVAndU32x4;
+  table.OrU32x4 := @RISCVVOrU32x4;
+  table.XorU32x4 := @RISCVVXorU32x4;
+  table.NotU32x4 := @RISCVVNotU32x4;
+  table.AndNotU32x4 := @RISCVVAndNotU32x4;
+  table.ShiftLeftU32x4 := @RISCVVShiftLeftU32x4;
+  table.ShiftRightU32x4 := @RISCVVShiftRightU32x4;
+  table.CmpEqU32x4 := @RISCVVCmpEqU32x4;
+  table.CmpLtU32x4 := @RISCVVCmpLtU32x4;
+  table.CmpLeU32x4 := @RISCVVCmpLeU32x4;
+  table.CmpGtU32x4 := @RISCVVCmpGtU32x4;
+  table.CmpGeU32x4 := @RISCVVCmpGeU32x4;
+  table.MinU32x4 := @RISCVVMinU32x4;
+  table.MaxU32x4 := @RISCVVMaxU32x4;
+
+  // Unsigned Integer Types: U64x4
+  table.AddU64x4 := @RISCVVAddU64x4;
+  table.SubU64x4 := @RISCVVSubU64x4;
+  table.AndU64x4 := @RISCVVAndU64x4;
+  table.OrU64x4 := @RISCVVOrU64x4;
+  table.XorU64x4 := @RISCVVXorU64x4;
+  table.NotU64x4 := @RISCVVNotU64x4;
+  table.ShiftLeftU64x4 := @RISCVVShiftLeftU64x4;
+  table.ShiftRightU64x4 := @RISCVVShiftRightU64x4;
+  table.CmpEqU64x4 := @RISCVVCmpEqU64x4;
+  table.CmpLtU64x4 := @RISCVVCmpLtU64x4;
+  table.CmpLeU64x4 := @RISCVVCmpLeU64x4;
+  table.CmpGtU64x4 := @RISCVVCmpGtU64x4;
+  table.CmpGeU64x4 := @RISCVVCmpGeU64x4;
+  table.CmpNeU64x4 := @RISCVVCmpNeU64x4;
+
+  // ✅ Unsigned Integer Types: U32x8 (256-bit)
+  table.AddU32x8 := @RISCVVAddU32x8;
+  table.SubU32x8 := @RISCVVSubU32x8;
+  table.MulU32x8 := @RISCVVMulU32x8;
+  table.AndU32x8 := @RISCVVAndU32x8;
+  table.OrU32x8 := @RISCVVOrU32x8;
+  table.XorU32x8 := @RISCVVXorU32x8;
+  table.NotU32x8 := @RISCVVNotU32x8;
+  table.AndNotU32x8 := @RISCVVAndNotU32x8;
+  table.ShiftLeftU32x8 := @RISCVVShiftLeftU32x8;
+  table.ShiftRightU32x8 := @RISCVVShiftRightU32x8;
+  table.CmpEqU32x8 := @RISCVVCmpEqU32x8;
+  table.CmpLtU32x8 := @RISCVVCmpLtU32x8;
+  table.CmpLeU32x8 := @RISCVVCmpLeU32x8;
+  table.CmpGtU32x8 := @RISCVVCmpGtU32x8;
+  table.CmpGeU32x8 := @RISCVVCmpGeU32x8;
+  table.CmpNeU32x8 := @RISCVVCmpNeU32x8;
+  table.MinU32x8 := @RISCVVMinU32x8;
+  table.MaxU32x8 := @RISCVVMaxU32x8;
+
+  // ✅ RcpF64x4 (Reciprocal)
+  table.RcpF64x4 := @RISCVVRcpF64x4;
+
+  // Unsigned Integer Types: U16x8
+  table.AddU16x8 := @RISCVVAddU16x8;
+  table.SubU16x8 := @RISCVVSubU16x8;
+  table.MulU16x8 := @RISCVVMulU16x8;
+  table.AndU16x8 := @RISCVVAndU16x8;
+  table.OrU16x8 := @RISCVVOrU16x8;
+  table.XorU16x8 := @RISCVVXorU16x8;
+  table.NotU16x8 := @RISCVVNotU16x8;
+  table.ShiftLeftU16x8 := @RISCVVShiftLeftU16x8;
+  table.ShiftRightU16x8 := @RISCVVShiftRightU16x8;
+  table.CmpEqU16x8 := @RISCVVCmpEqU16x8;
+  table.CmpLtU16x8 := @RISCVVCmpLtU16x8;
+  table.CmpLeU16x8 := @RISCVVCmpLeU16x8;
+  table.CmpGtU16x8 := @RISCVVCmpGtU16x8;
+  table.CmpGeU16x8 := @RISCVVCmpGeU16x8;
+  table.CmpNeU16x8 := @RISCVVCmpNeU16x8;
+  table.MinU16x8 := @RISCVVMinU16x8;
+  table.MaxU16x8 := @RISCVVMaxU16x8;
+
+  // Unsigned Integer Types: U8x16
+  table.AddU8x16 := @RISCVVAddU8x16;
+  table.SubU8x16 := @RISCVVSubU8x16;
+  table.AndU8x16 := @RISCVVAndU8x16;
+  table.OrU8x16 := @RISCVVOrU8x16;
+  table.XorU8x16 := @RISCVVXorU8x16;
+  table.NotU8x16 := @RISCVVNotU8x16;
+  table.CmpEqU8x16 := @RISCVVCmpEqU8x16;
+  table.CmpLtU8x16 := @RISCVVCmpLtU8x16;
+  table.CmpLeU8x16 := @RISCVVCmpLeU8x16;
+  table.CmpGtU8x16 := @RISCVVCmpGtU8x16;
+  table.CmpGeU8x16 := @RISCVVCmpGeU8x16;
+  table.CmpNeU8x16 := @RISCVVCmpNeU8x16;
+  table.MinU8x16 := @RISCVVMinU8x16;
+  table.MaxU8x16 := @RISCVVMaxU8x16;
+
+  // Saturating Arithmetic
+  table.I8x16SatAdd := @RISCVVSatAddI8x16;
+  table.I8x16SatSub := @RISCVVSatSubI8x16;
+  table.I16x8SatAdd := @RISCVVSatAddI16x8;
+  table.I16x8SatSub := @RISCVVSatSubI16x8;
+  table.U8x16SatAdd := @RISCVVSatAddU8x16;
+  table.U8x16SatSub := @RISCVVSatSubU8x16;
+  table.U16x8SatAdd := @RISCVVSatAddU16x8;
+  table.U16x8SatSub := @RISCVVSatSubU16x8;
 
   // === Facade Functions ===
   table.MemEqual := @MemEqual_RISCVV;

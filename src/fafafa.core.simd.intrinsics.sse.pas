@@ -129,7 +129,7 @@ procedure sse_setcsr(Value: Integer);
 implementation
 
 uses
-  fafafa.core.math;
+  Math;  // RTL Math 单元 (Round, Trunc)
 
 // 辅助函数：检查浮点数是否�?NaN
 function IsNaN(Value: Single): Boolean;

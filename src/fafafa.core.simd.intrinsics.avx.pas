@@ -122,7 +122,7 @@ procedure avx_zeroall;
 implementation
 
 uses
-  fafafa.core.math;
+  Math;  // RTL Math 单元 (Sqrt)
 
 // === 基础函数实现 (Pascal 版本) ===
 function avx_load_ps256(const Ptr: Pointer): TM256;

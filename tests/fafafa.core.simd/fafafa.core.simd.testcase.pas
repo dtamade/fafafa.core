@@ -16909,7 +16909,7 @@ begin
 
   AssertEquals('Div[0] = 10.0 / 4.0', 2.5, r.d[0], F64_TOLERANCE);
   AssertEquals('Div[1] = 7.0 / 2.0', 3.5, r.d[1], F64_TOLERANCE);
-  AssertEquals('Div[2] = 5.0 / 3.0', 5.0/3.0, r.d[2], F64_TOLERANCE);
+  AssertEquals('Div[2] = 5.0 / 3.0', Double(5.0)/Double(3.0), r.d[2], F64_TOLERANCE);
   AssertEquals('Div[3] = 1.0 / 8.0', 0.125, r.d[3], F64_TOLERANCE);
 end;
 

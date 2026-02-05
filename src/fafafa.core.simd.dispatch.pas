@@ -154,6 +154,67 @@ type
     MinI32x8: function(const a, b: TVecI32x8): TVecI32x8;
     MaxI32x8: function(const a, b: TVecI32x8): TVecI32x8;
 
+    // ✅ NEW: I64x4 Operations (256-bit AVX2)
+    AddI64x4: function(const a, b: TVecI64x4): TVecI64x4;
+    SubI64x4: function(const a, b: TVecI64x4): TVecI64x4;
+    AndI64x4: function(const a, b: TVecI64x4): TVecI64x4;
+    OrI64x4: function(const a, b: TVecI64x4): TVecI64x4;
+    XorI64x4: function(const a, b: TVecI64x4): TVecI64x4;
+    NotI64x4: function(const a: TVecI64x4): TVecI64x4;
+    AndNotI64x4: function(const a, b: TVecI64x4): TVecI64x4;
+    ShiftLeftI64x4: function(const a: TVecI64x4; count: Integer): TVecI64x4;
+    ShiftRightI64x4: function(const a: TVecI64x4; count: Integer): TVecI64x4;
+    CmpEqI64x4: function(const a, b: TVecI64x4): TMask4;
+    CmpLtI64x4: function(const a, b: TVecI64x4): TMask4;
+    CmpGtI64x4: function(const a, b: TVecI64x4): TMask4;
+    CmpLeI64x4: function(const a, b: TVecI64x4): TMask4;
+    CmpGeI64x4: function(const a, b: TVecI64x4): TMask4;
+    CmpNeI64x4: function(const a, b: TVecI64x4): TMask4;
+    // I64x4 Utility operations
+    LoadI64x4: function(p: PInt64): TVecI64x4;
+    StoreI64x4: procedure(p: PInt64; const a: TVecI64x4);
+    SplatI64x4: function(value: Int64): TVecI64x4;
+    ZeroI64x4: function: TVecI64x4;
+
+    // ✅ NEW: U32x8 Operations (256-bit AVX2)
+    AddU32x8: function(const a, b: TVecU32x8): TVecU32x8;
+    SubU32x8: function(const a, b: TVecU32x8): TVecU32x8;
+    MulU32x8: function(const a, b: TVecU32x8): TVecU32x8;
+    AndU32x8: function(const a, b: TVecU32x8): TVecU32x8;
+    OrU32x8: function(const a, b: TVecU32x8): TVecU32x8;
+    XorU32x8: function(const a, b: TVecU32x8): TVecU32x8;
+    NotU32x8: function(const a: TVecU32x8): TVecU32x8;
+    AndNotU32x8: function(const a, b: TVecU32x8): TVecU32x8;
+    ShiftLeftU32x8: function(const a: TVecU32x8; count: Integer): TVecU32x8;
+    ShiftRightU32x8: function(const a: TVecU32x8; count: Integer): TVecU32x8;
+    CmpEqU32x8: function(const a, b: TVecU32x8): TMask8;
+    CmpLtU32x8: function(const a, b: TVecU32x8): TMask8;
+    CmpGtU32x8: function(const a, b: TVecU32x8): TMask8;
+    CmpLeU32x8: function(const a, b: TVecU32x8): TMask8;
+    CmpGeU32x8: function(const a, b: TVecU32x8): TMask8;
+    CmpNeU32x8: function(const a, b: TVecU32x8): TMask8;
+    MinU32x8: function(const a, b: TVecU32x8): TVecU32x8;
+    MaxU32x8: function(const a, b: TVecU32x8): TVecU32x8;
+
+    // ✅ NEW: U64x4 Operations (256-bit AVX2)
+    AddU64x4: function(const a, b: TVecU64x4): TVecU64x4;
+    SubU64x4: function(const a, b: TVecU64x4): TVecU64x4;
+    AndU64x4: function(const a, b: TVecU64x4): TVecU64x4;
+    OrU64x4: function(const a, b: TVecU64x4): TVecU64x4;
+    XorU64x4: function(const a, b: TVecU64x4): TVecU64x4;
+    NotU64x4: function(const a: TVecU64x4): TVecU64x4;
+    ShiftLeftU64x4: function(const a: TVecU64x4; count: Integer): TVecU64x4;
+    ShiftRightU64x4: function(const a: TVecU64x4; count: Integer): TVecU64x4;
+    CmpEqU64x4: function(const a, b: TVecU64x4): TMask4;
+    CmpLtU64x4: function(const a, b: TVecU64x4): TMask4;
+    CmpGtU64x4: function(const a, b: TVecU64x4): TMask4;
+    CmpLeU64x4: function(const a, b: TVecU64x4): TMask4;
+    CmpGeU64x4: function(const a, b: TVecU64x4): TMask4;
+    CmpNeU64x4: function(const a, b: TVecU64x4): TMask4;
+
+    // ✅ NEW: F64x4 Extended Math
+    RcpF64x4: function(const a: TVecF64x4): TVecF64x4;
+
     // Arithmetic operations - I32x16 (512-bit AVX-512)
     AddI32x16: function(const a, b: TVecI32x16): TVecI32x16;
     SubI32x16: function(const a, b: TVecI32x16): TVecI32x16;
@@ -237,7 +298,23 @@ type
     CmpGtF64x8: function(const a, b: TVecF64x8): TMask8;
     CmpGeF64x8: function(const a, b: TVecF64x8): TMask8;
     CmpNeF64x8: function(const a, b: TVecF64x8): TMask8;
-    
+
+    // ✅ NEW: 256-bit floating-point comparisons
+    // F32x8 (256-bit)
+    CmpEqF32x8: function(const a, b: TVecF32x8): TMask8;
+    CmpLtF32x8: function(const a, b: TVecF32x8): TMask8;
+    CmpLeF32x8: function(const a, b: TVecF32x8): TMask8;
+    CmpGtF32x8: function(const a, b: TVecF32x8): TMask8;
+    CmpGeF32x8: function(const a, b: TVecF32x8): TMask8;
+    CmpNeF32x8: function(const a, b: TVecF32x8): TMask8;
+    // F64x4 (256-bit)
+    CmpEqF64x4: function(const a, b: TVecF64x4): TMask4;
+    CmpLtF64x4: function(const a, b: TVecF64x4): TMask4;
+    CmpLeF64x4: function(const a, b: TVecF64x4): TMask4;
+    CmpGtF64x4: function(const a, b: TVecF64x4): TMask4;
+    CmpGeF64x4: function(const a, b: TVecF64x4): TMask4;
+    CmpNeF64x4: function(const a, b: TVecF64x4): TMask4;
+
     // Math functions
     AbsF32x4: function(const a: TVecF32x4): TVecF32x4;
     SqrtF32x4: function(const a: TVecF32x4): TVecF32x4;
@@ -326,6 +403,11 @@ type
     LengthF32x3: function(const a: TVecF32x4): Single;          // Length (3 elements)
     NormalizeF32x4: function(const a: TVecF32x4): TVecF32x4;    // Normalize (4 elements)
     NormalizeF32x3: function(const a: TVecF32x4): TVecF32x4;    // Normalize (3 elements, w=0)
+
+    // ✅ Iteration 6.4: FMA-optimized Dot Product Functions
+    DotF32x8: function(const a, b: TVecF32x8): Single;          // Dot product (8 elements)
+    DotF64x2: function(const a, b: TVecF64x2): Double;          // Dot product (2 elements)
+    DotF64x4: function(const a, b: TVecF64x4): Double;          // Dot product (4 elements)
     
     // Reduction operations
     ReduceAddF32x4: function(const a: TVecF32x4): Single;
@@ -371,6 +453,35 @@ type
     SelectF32x4: function(const mask: TMask4; const a, b: TVecF32x4): TVecF32x4;
     ExtractF32x4: function(const a: TVecF32x4; index: Integer): Single;
     InsertF32x4: function(const a: TVecF32x4; value: Single; index: Integer): TVecF32x4;
+
+    // ✅ Task 5.3: Extract/Insert Lane Operations
+    // F64x2 (128-bit)
+    ExtractF64x2: function(const a: TVecF64x2; index: Integer): Double;
+    InsertF64x2: function(const a: TVecF64x2; value: Double; index: Integer): TVecF64x2;
+    // I32x4 (128-bit)
+    ExtractI32x4: function(const a: TVecI32x4; index: Integer): Int32;
+    InsertI32x4: function(const a: TVecI32x4; value: Int32; index: Integer): TVecI32x4;
+    // I64x2 (128-bit)
+    ExtractI64x2: function(const a: TVecI64x2; index: Integer): Int64;
+    InsertI64x2: function(const a: TVecI64x2; value: Int64; index: Integer): TVecI64x2;
+    // F32x8 (256-bit)
+    ExtractF32x8: function(const a: TVecF32x8; index: Integer): Single;
+    InsertF32x8: function(const a: TVecF32x8; value: Single; index: Integer): TVecF32x8;
+    // F64x4 (256-bit)
+    ExtractF64x4: function(const a: TVecF64x4; index: Integer): Double;
+    InsertF64x4: function(const a: TVecF64x4; value: Double; index: Integer): TVecF64x4;
+    // I32x8 (256-bit)
+    ExtractI32x8: function(const a: TVecI32x8; index: Integer): Int32;
+    InsertI32x8: function(const a: TVecI32x8; value: Int32; index: Integer): TVecI32x8;
+    // I64x4 (256-bit)
+    ExtractI64x4: function(const a: TVecI64x4; index: Integer): Int64;
+    InsertI64x4: function(const a: TVecI64x4; value: Int64; index: Integer): TVecI64x4;
+    // F32x16 (512-bit)
+    ExtractF32x16: function(const a: TVecF32x16; index: Integer): Single;
+    InsertF32x16: function(const a: TVecF32x16; value: Single; index: Integer): TVecF32x16;
+    // I32x16 (512-bit)
+    ExtractI32x16: function(const a: TVecI32x16; index: Integer): Int32;
+    InsertI32x16: function(const a: TVecI32x16; value: Int32; index: Integer): TVecI32x16;
 
     // ✅ P1-5: Wide vector Load/Store/Splat/Zero
     // F64x2 (128-bit)
@@ -437,6 +548,97 @@ type
     U16x8SatAdd: function(const a, b: TVecU16x8): TVecU16x8;
     U16x8SatSub: function(const a, b: TVecU16x8): TVecU16x8;
 
+    // ✅ I16x8 完整操作 (8×Int16)
+    AddI16x8: function(const a, b: TVecI16x8): TVecI16x8;
+    SubI16x8: function(const a, b: TVecI16x8): TVecI16x8;
+    MulI16x8: function(const a, b: TVecI16x8): TVecI16x8;
+    AndI16x8: function(const a, b: TVecI16x8): TVecI16x8;
+    OrI16x8: function(const a, b: TVecI16x8): TVecI16x8;
+    XorI16x8: function(const a, b: TVecI16x8): TVecI16x8;
+    NotI16x8: function(const a: TVecI16x8): TVecI16x8;
+    AndNotI16x8: function(const a, b: TVecI16x8): TVecI16x8;
+    ShiftLeftI16x8: function(const a: TVecI16x8; count: Integer): TVecI16x8;
+    ShiftRightI16x8: function(const a: TVecI16x8; count: Integer): TVecI16x8;
+    ShiftRightArithI16x8: function(const a: TVecI16x8; count: Integer): TVecI16x8;
+    CmpEqI16x8: function(const a, b: TVecI16x8): TMask8;
+    CmpLtI16x8: function(const a, b: TVecI16x8): TMask8;
+    CmpGtI16x8: function(const a, b: TVecI16x8): TMask8;
+    CmpLeI16x8: function(const a, b: TVecI16x8): TMask8;  // ✅ NEW: Le/Ge/Ne for narrow integers
+    CmpGeI16x8: function(const a, b: TVecI16x8): TMask8;
+    CmpNeI16x8: function(const a, b: TVecI16x8): TMask8;
+    MinI16x8: function(const a, b: TVecI16x8): TVecI16x8;
+    MaxI16x8: function(const a, b: TVecI16x8): TVecI16x8;
+
+    // ✅ I8x16 完整操作 (16×Int8)
+    AddI8x16: function(const a, b: TVecI8x16): TVecI8x16;
+    SubI8x16: function(const a, b: TVecI8x16): TVecI8x16;
+    AndI8x16: function(const a, b: TVecI8x16): TVecI8x16;
+    OrI8x16: function(const a, b: TVecI8x16): TVecI8x16;
+    XorI8x16: function(const a, b: TVecI8x16): TVecI8x16;
+    NotI8x16: function(const a: TVecI8x16): TVecI8x16;
+    CmpEqI8x16: function(const a, b: TVecI8x16): TMask16;
+    CmpLtI8x16: function(const a, b: TVecI8x16): TMask16;
+    CmpGtI8x16: function(const a, b: TVecI8x16): TMask16;
+    CmpLeI8x16: function(const a, b: TVecI8x16): TMask16;  // ✅ NEW: Le/Ge/Ne for narrow integers
+    CmpGeI8x16: function(const a, b: TVecI8x16): TMask16;
+    CmpNeI8x16: function(const a, b: TVecI8x16): TMask16;
+    MinI8x16: function(const a, b: TVecI8x16): TVecI8x16;
+    MaxI8x16: function(const a, b: TVecI8x16): TVecI8x16;
+
+    // ✅ U32x4 完整操作 (4×UInt32)
+    AddU32x4: function(const a, b: TVecU32x4): TVecU32x4;
+    SubU32x4: function(const a, b: TVecU32x4): TVecU32x4;
+    MulU32x4: function(const a, b: TVecU32x4): TVecU32x4;
+    AndU32x4: function(const a, b: TVecU32x4): TVecU32x4;
+    OrU32x4: function(const a, b: TVecU32x4): TVecU32x4;
+    XorU32x4: function(const a, b: TVecU32x4): TVecU32x4;
+    NotU32x4: function(const a: TVecU32x4): TVecU32x4;
+    AndNotU32x4: function(const a, b: TVecU32x4): TVecU32x4;
+    ShiftLeftU32x4: function(const a: TVecU32x4; count: Integer): TVecU32x4;
+    ShiftRightU32x4: function(const a: TVecU32x4; count: Integer): TVecU32x4;
+    CmpEqU32x4: function(const a, b: TVecU32x4): TMask4;
+    CmpLtU32x4: function(const a, b: TVecU32x4): TMask4;
+    CmpGtU32x4: function(const a, b: TVecU32x4): TMask4;
+    CmpLeU32x4: function(const a, b: TVecU32x4): TMask4;
+    CmpGeU32x4: function(const a, b: TVecU32x4): TMask4;
+    MinU32x4: function(const a, b: TVecU32x4): TVecU32x4;
+    MaxU32x4: function(const a, b: TVecU32x4): TVecU32x4;
+
+    // ✅ U16x8 完整操作 (8×UInt16)
+    AddU16x8: function(const a, b: TVecU16x8): TVecU16x8;
+    SubU16x8: function(const a, b: TVecU16x8): TVecU16x8;
+    MulU16x8: function(const a, b: TVecU16x8): TVecU16x8;
+    AndU16x8: function(const a, b: TVecU16x8): TVecU16x8;
+    OrU16x8: function(const a, b: TVecU16x8): TVecU16x8;
+    XorU16x8: function(const a, b: TVecU16x8): TVecU16x8;
+    NotU16x8: function(const a: TVecU16x8): TVecU16x8;
+    ShiftLeftU16x8: function(const a: TVecU16x8; count: Integer): TVecU16x8;
+    ShiftRightU16x8: function(const a: TVecU16x8; count: Integer): TVecU16x8;
+    CmpEqU16x8: function(const a, b: TVecU16x8): TMask8;
+    CmpLtU16x8: function(const a, b: TVecU16x8): TMask8;
+    CmpGtU16x8: function(const a, b: TVecU16x8): TMask8;
+    CmpLeU16x8: function(const a, b: TVecU16x8): TMask8;  // ✅ NEW: Le/Ge/Ne for narrow integers
+    CmpGeU16x8: function(const a, b: TVecU16x8): TMask8;
+    CmpNeU16x8: function(const a, b: TVecU16x8): TMask8;
+    MinU16x8: function(const a, b: TVecU16x8): TVecU16x8;
+    MaxU16x8: function(const a, b: TVecU16x8): TVecU16x8;
+
+    // ✅ U8x16 完整操作 (16×UInt8)
+    AddU8x16: function(const a, b: TVecU8x16): TVecU8x16;
+    SubU8x16: function(const a, b: TVecU8x16): TVecU8x16;
+    AndU8x16: function(const a, b: TVecU8x16): TVecU8x16;
+    OrU8x16: function(const a, b: TVecU8x16): TVecU8x16;
+    XorU8x16: function(const a, b: TVecU8x16): TVecU8x16;
+    NotU8x16: function(const a: TVecU8x16): TVecU8x16;
+    CmpEqU8x16: function(const a, b: TVecU8x16): TMask16;
+    CmpLtU8x16: function(const a, b: TVecU8x16): TMask16;
+    CmpGtU8x16: function(const a, b: TVecU8x16): TMask16;
+    CmpLeU8x16: function(const a, b: TVecU8x16): TMask16;  // ✅ NEW: Le/Ge/Ne for narrow integers
+    CmpGeU8x16: function(const a, b: TVecU8x16): TMask16;
+    CmpNeU8x16: function(const a, b: TVecU8x16): TMask16;
+    MinU8x16: function(const a, b: TVecU8x16): TVecU8x16;
+    MaxU8x16: function(const a, b: TVecU8x16): TVecU8x16;
+
     // ✅ P2-2: Mask 类型操作 (条件分支优化)
     // TMask2 操作 (2 元素)
     Mask2All: function(mask: TMask2): Boolean;
@@ -469,6 +671,11 @@ type
     // ✅ NEW: 512-bit Select operations
     SelectF32x16: function(const mask: TMask16; const a, b: TVecF32x16): TVecF32x16;
     SelectF64x8: function(const mask: TMask8; const a, b: TVecF64x8): TVecF64x8;
+
+    // ✅ NEW: 缺失的 Select 操作 (条件选择: mask ? a : b)
+    SelectI32x4: function(const mask: TVecI32x4; const a, b: TVecI32x4): TVecI32x4;
+    SelectF32x8: function(const mask: TVecU32x8; const a, b: TVecF32x8): TVecF32x8;
+    SelectF64x4: function(const mask: TVecU64x4; const a, b: TVecF64x4): TVecF64x4;
   end;
 
 // Pointer to dispatch table
@@ -971,6 +1178,52 @@ begin
   dispatchTable.CmpGeI64x2 := @ScalarCmpGeI64x2;
   dispatchTable.CmpNeI64x2 := @ScalarCmpNeI64x2;
 
+  // === ✅ Task 5.2: I64x4 Operations (256-bit AVX2) ===
+  // I64x4 Arithmetic
+  dispatchTable.AddI64x4 := @ScalarAddI64x4;
+  dispatchTable.SubI64x4 := @ScalarSubI64x4;
+  // I64x4 Bitwise
+  dispatchTable.AndI64x4 := @ScalarAndI64x4;
+  dispatchTable.OrI64x4 := @ScalarOrI64x4;
+  dispatchTable.XorI64x4 := @ScalarXorI64x4;
+  dispatchTable.NotI64x4 := @ScalarNotI64x4;
+  dispatchTable.AndNotI64x4 := @ScalarAndNotI64x4;
+  // I64x4 Shift
+  dispatchTable.ShiftLeftI64x4 := @ScalarShiftLeftI64x4;
+  dispatchTable.ShiftRightI64x4 := @ScalarShiftRightI64x4;
+  // I64x4 Comparison
+  dispatchTable.CmpEqI64x4 := @ScalarCmpEqI64x4;
+  dispatchTable.CmpLtI64x4 := @ScalarCmpLtI64x4;
+  dispatchTable.CmpGtI64x4 := @ScalarCmpGtI64x4;
+  dispatchTable.CmpLeI64x4 := @ScalarCmpLeI64x4;
+  dispatchTable.CmpGeI64x4 := @ScalarCmpGeI64x4;
+  dispatchTable.CmpNeI64x4 := @ScalarCmpNeI64x4;
+  // I64x4 Utility
+  dispatchTable.LoadI64x4 := @ScalarLoadI64x4;
+  dispatchTable.StoreI64x4 := @ScalarStoreI64x4;
+  dispatchTable.SplatI64x4 := @ScalarSplatI64x4;
+  dispatchTable.ZeroI64x4 := @ScalarZeroI64x4;
+
+  // === ✅ Task 5.2: U64x4 Operations (256-bit AVX2) ===
+  // U64x4 Arithmetic
+  dispatchTable.AddU64x4 := @ScalarAddU64x4;
+  dispatchTable.SubU64x4 := @ScalarSubU64x4;
+  // U64x4 Bitwise
+  dispatchTable.AndU64x4 := @ScalarAndU64x4;
+  dispatchTable.OrU64x4 := @ScalarOrU64x4;
+  dispatchTable.XorU64x4 := @ScalarXorU64x4;
+  dispatchTable.NotU64x4 := @ScalarNotU64x4;
+  // U64x4 Shift
+  dispatchTable.ShiftLeftU64x4 := @ScalarShiftLeftU64x4;
+  dispatchTable.ShiftRightU64x4 := @ScalarShiftRightU64x4;
+  // U64x4 Comparison (unsigned)
+  dispatchTable.CmpEqU64x4 := @ScalarCmpEqU64x4;
+  dispatchTable.CmpLtU64x4 := @ScalarCmpLtU64x4;
+  dispatchTable.CmpGtU64x4 := @ScalarCmpGtU64x4;
+  dispatchTable.CmpLeU64x4 := @ScalarCmpLeU64x4;
+  dispatchTable.CmpGeU64x4 := @ScalarCmpGeU64x4;
+  dispatchTable.CmpNeU64x4 := @ScalarCmpNeU64x4;
+
   // === F64x4 Arithmetic (256-bit) ===
   dispatchTable.AddF64x4 := @ScalarAddF64x4;
   dispatchTable.SubF64x4 := @ScalarSubF64x4;
@@ -1076,6 +1329,20 @@ begin
   dispatchTable.CmpGtF64x2 := @ScalarCmpGtF64x2;
   dispatchTable.CmpGeF64x2 := @ScalarCmpGeF64x2;
   dispatchTable.CmpNeF64x2 := @ScalarCmpNeF64x2;
+
+  // === F32x8/F64x4 Comparison (256-bit) ===
+  dispatchTable.CmpEqF32x8 := @ScalarCmpEqF32x8;
+  dispatchTable.CmpLtF32x8 := @ScalarCmpLtF32x8;
+  dispatchTable.CmpLeF32x8 := @ScalarCmpLeF32x8;
+  dispatchTable.CmpGtF32x8 := @ScalarCmpGtF32x8;
+  dispatchTable.CmpGeF32x8 := @ScalarCmpGeF32x8;
+  dispatchTable.CmpNeF32x8 := @ScalarCmpNeF32x8;
+  dispatchTable.CmpEqF64x4 := @ScalarCmpEqF64x4;
+  dispatchTable.CmpLtF64x4 := @ScalarCmpLtF64x4;
+  dispatchTable.CmpLeF64x4 := @ScalarCmpLeF64x4;
+  dispatchTable.CmpGtF64x4 := @ScalarCmpGtF64x4;
+  dispatchTable.CmpGeF64x4 := @ScalarCmpGeF64x4;
+  dispatchTable.CmpNeF64x4 := @ScalarCmpNeF64x4;
 
   // === F32x16/F64x8 Comparison (512-bit) ===
   dispatchTable.CmpEqF32x16 := @ScalarCmpEqF32x16;
@@ -1184,6 +1451,11 @@ begin
   dispatchTable.NormalizeF32x4 := @ScalarNormalizeF32x4;
   dispatchTable.NormalizeF32x3 := @ScalarNormalizeF32x3;
 
+  // === ✅ Iteration 6.4: FMA-optimized Dot Product ===
+  dispatchTable.DotF32x8 := @ScalarDotF32x8;
+  dispatchTable.DotF64x2 := @ScalarDotF64x2;
+  dispatchTable.DotF64x4 := @ScalarDotF64x4;
+
   // === F32x4 Reduction ===
   dispatchTable.ReduceAddF32x4 := @ScalarReduceAddF32x4;
   dispatchTable.ReduceMinF32x4 := @ScalarReduceMinF32x4;
@@ -1231,6 +1503,35 @@ begin
   dispatchTable.SelectF32x4 := @ScalarSelectF32x4;
   dispatchTable.ExtractF32x4 := @ScalarExtractF32x4;
   dispatchTable.InsertF32x4 := @ScalarInsertF32x4;
+
+  // === ✅ Task 5.3: Extract/Insert Lane Operations ===
+  // F64x2 (128-bit)
+  dispatchTable.ExtractF64x2 := @ScalarExtractF64x2;
+  dispatchTable.InsertF64x2 := @ScalarInsertF64x2;
+  // I32x4 (128-bit)
+  dispatchTable.ExtractI32x4 := @ScalarExtractI32x4;
+  dispatchTable.InsertI32x4 := @ScalarInsertI32x4;
+  // I64x2 (128-bit)
+  dispatchTable.ExtractI64x2 := @ScalarExtractI64x2;
+  dispatchTable.InsertI64x2 := @ScalarInsertI64x2;
+  // F32x8 (256-bit)
+  dispatchTable.ExtractF32x8 := @ScalarExtractF32x8;
+  dispatchTable.InsertF32x8 := @ScalarInsertF32x8;
+  // F64x4 (256-bit)
+  dispatchTable.ExtractF64x4 := @ScalarExtractF64x4;
+  dispatchTable.InsertF64x4 := @ScalarInsertF64x4;
+  // I32x8 (256-bit)
+  dispatchTable.ExtractI32x8 := @ScalarExtractI32x8;
+  dispatchTable.InsertI32x8 := @ScalarInsertI32x8;
+  // I64x4 (256-bit)
+  dispatchTable.ExtractI64x4 := @ScalarExtractI64x4;
+  dispatchTable.InsertI64x4 := @ScalarInsertI64x4;
+  // F32x16 (512-bit)
+  dispatchTable.ExtractF32x16 := @ScalarExtractF32x16;
+  dispatchTable.InsertF32x16 := @ScalarInsertF32x16;
+  // I32x16 (512-bit)
+  dispatchTable.ExtractI32x16 := @ScalarExtractI32x16;
+  dispatchTable.InsertI32x16 := @ScalarInsertI32x16;
 
   // === ✅ P1-5: Wide Vector Load/Store/Splat/Zero ===
   // F64x2
@@ -1316,6 +1617,104 @@ begin
   // === 512-bit Select ===
   dispatchTable.SelectF32x16 := @ScalarSelectF32x16;
   dispatchTable.SelectF64x8 := @ScalarSelectF64x8;
+
+  // === ✅ NEW: 缺失的 Select 操作 ===
+  dispatchTable.SelectI32x4 := @ScalarSelectI32x4;
+  dispatchTable.SelectF32x8 := @ScalarSelectF32x8;
+  dispatchTable.SelectF64x4 := @ScalarSelectF64x4;
+
+  // === ✅ P3-1: Narrow Integer Types (I16x8, I8x16, U32x4, U16x8, U8x16) ===
+
+  // --- I16x8 完整操作 (8×Int16) ---
+  dispatchTable.AddI16x8 := @ScalarAddI16x8;
+  dispatchTable.SubI16x8 := @ScalarSubI16x8;
+  dispatchTable.MulI16x8 := @ScalarMulI16x8;
+  dispatchTable.AndI16x8 := @ScalarAndI16x8;
+  dispatchTable.OrI16x8 := @ScalarOrI16x8;
+  dispatchTable.XorI16x8 := @ScalarXorI16x8;
+  dispatchTable.NotI16x8 := @ScalarNotI16x8;
+  dispatchTable.AndNotI16x8 := @ScalarAndNotI16x8;
+  dispatchTable.ShiftLeftI16x8 := @ScalarShiftLeftI16x8;
+  dispatchTable.ShiftRightI16x8 := @ScalarShiftRightI16x8;
+  dispatchTable.ShiftRightArithI16x8 := @ScalarShiftRightArithI16x8;
+  dispatchTable.CmpEqI16x8 := @ScalarCmpEqI16x8;
+  dispatchTable.CmpLtI16x8 := @ScalarCmpLtI16x8;
+  dispatchTable.CmpGtI16x8 := @ScalarCmpGtI16x8;
+  dispatchTable.CmpLeI16x8 := @ScalarCmpLeI16x8;  // ✅ NEW
+  dispatchTable.CmpGeI16x8 := @ScalarCmpGeI16x8;  // ✅ NEW
+  dispatchTable.CmpNeI16x8 := @ScalarCmpNeI16x8;  // ✅ NEW
+  dispatchTable.MinI16x8 := @ScalarMinI16x8;
+  dispatchTable.MaxI16x8 := @ScalarMaxI16x8;
+
+  // --- I8x16 完整操作 (16×Int8) ---
+  dispatchTable.AddI8x16 := @ScalarAddI8x16;
+  dispatchTable.SubI8x16 := @ScalarSubI8x16;
+  dispatchTable.AndI8x16 := @ScalarAndI8x16;
+  dispatchTable.OrI8x16 := @ScalarOrI8x16;
+  dispatchTable.XorI8x16 := @ScalarXorI8x16;
+  dispatchTable.NotI8x16 := @ScalarNotI8x16;
+  dispatchTable.CmpEqI8x16 := @ScalarCmpEqI8x16;
+  dispatchTable.CmpLtI8x16 := @ScalarCmpLtI8x16;
+  dispatchTable.CmpGtI8x16 := @ScalarCmpGtI8x16;
+  dispatchTable.CmpLeI8x16 := @ScalarCmpLeI8x16;  // ✅ NEW
+  dispatchTable.CmpGeI8x16 := @ScalarCmpGeI8x16;  // ✅ NEW
+  dispatchTable.CmpNeI8x16 := @ScalarCmpNeI8x16;  // ✅ NEW
+  dispatchTable.MinI8x16 := @ScalarMinI8x16;
+  dispatchTable.MaxI8x16 := @ScalarMaxI8x16;
+
+  // --- U32x4 完整操作 (4×UInt32) ---
+  dispatchTable.AddU32x4 := @ScalarAddU32x4;
+  dispatchTable.SubU32x4 := @ScalarSubU32x4;
+  dispatchTable.MulU32x4 := @ScalarMulU32x4;
+  dispatchTable.AndU32x4 := @ScalarAndU32x4;
+  dispatchTable.OrU32x4 := @ScalarOrU32x4;
+  dispatchTable.XorU32x4 := @ScalarXorU32x4;
+  dispatchTable.NotU32x4 := @ScalarNotU32x4;
+  dispatchTable.AndNotU32x4 := @ScalarAndNotU32x4;
+  dispatchTable.ShiftLeftU32x4 := @ScalarShiftLeftU32x4;
+  dispatchTable.ShiftRightU32x4 := @ScalarShiftRightU32x4;
+  dispatchTable.CmpEqU32x4 := @ScalarCmpEqU32x4;
+  dispatchTable.CmpLtU32x4 := @ScalarCmpLtU32x4;
+  dispatchTable.CmpGtU32x4 := @ScalarCmpGtU32x4;
+  dispatchTable.CmpLeU32x4 := @ScalarCmpLeU32x4;
+  dispatchTable.CmpGeU32x4 := @ScalarCmpGeU32x4;
+  dispatchTable.MinU32x4 := @ScalarMinU32x4;
+  dispatchTable.MaxU32x4 := @ScalarMaxU32x4;
+
+  // --- U16x8 完整操作 (8×UInt16) ---
+  dispatchTable.AddU16x8 := @ScalarAddU16x8;
+  dispatchTable.SubU16x8 := @ScalarSubU16x8;
+  dispatchTable.MulU16x8 := @ScalarMulU16x8;
+  dispatchTable.AndU16x8 := @ScalarAndU16x8;
+  dispatchTable.OrU16x8 := @ScalarOrU16x8;
+  dispatchTable.XorU16x8 := @ScalarXorU16x8;
+  dispatchTable.NotU16x8 := @ScalarNotU16x8;
+  dispatchTable.ShiftLeftU16x8 := @ScalarShiftLeftU16x8;
+  dispatchTable.ShiftRightU16x8 := @ScalarShiftRightU16x8;
+  dispatchTable.CmpEqU16x8 := @ScalarCmpEqU16x8;
+  dispatchTable.CmpLtU16x8 := @ScalarCmpLtU16x8;
+  dispatchTable.CmpGtU16x8 := @ScalarCmpGtU16x8;
+  dispatchTable.CmpLeU16x8 := @ScalarCmpLeU16x8;  // ✅ NEW
+  dispatchTable.CmpGeU16x8 := @ScalarCmpGeU16x8;  // ✅ NEW
+  dispatchTable.CmpNeU16x8 := @ScalarCmpNeU16x8;  // ✅ NEW
+  dispatchTable.MinU16x8 := @ScalarMinU16x8;
+  dispatchTable.MaxU16x8 := @ScalarMaxU16x8;
+
+  // --- U8x16 完整操作 (16×UInt8) ---
+  dispatchTable.AddU8x16 := @ScalarAddU8x16;
+  dispatchTable.SubU8x16 := @ScalarSubU8x16;
+  dispatchTable.AndU8x16 := @ScalarAndU8x16;
+  dispatchTable.OrU8x16 := @ScalarOrU8x16;
+  dispatchTable.XorU8x16 := @ScalarXorU8x16;
+  dispatchTable.NotU8x16 := @ScalarNotU8x16;
+  dispatchTable.CmpEqU8x16 := @ScalarCmpEqU8x16;
+  dispatchTable.CmpLtU8x16 := @ScalarCmpLtU8x16;
+  dispatchTable.CmpGtU8x16 := @ScalarCmpGtU8x16;
+  dispatchTable.CmpLeU8x16 := @ScalarCmpLeU8x16;  // ✅ NEW
+  dispatchTable.CmpGeU8x16 := @ScalarCmpGeU8x16;  // ✅ NEW
+  dispatchTable.CmpNeU8x16 := @ScalarCmpNeU8x16;  // ✅ NEW
+  dispatchTable.MinU8x16 := @ScalarMinU8x16;
+  dispatchTable.MaxU8x16 := @ScalarMaxU8x16;
 end;
 
 // ✅ 修复 P0-1: 允许 tier 后端从 SSE2 继承实现，而非从标量基线开始

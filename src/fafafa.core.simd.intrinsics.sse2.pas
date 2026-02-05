@@ -224,7 +224,7 @@ procedure simd_clflush(const Ptr: Pointer);
 implementation
 
 uses
-  fafafa.core.math;
+  Math;  // RTL Math 单元 (Sqrt)
 
 // === 基础函数实现 (Pascal 版本) ===
 // 这里只实现几个关键函数作为示例，完整实现将在后续添加

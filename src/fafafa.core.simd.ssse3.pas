@@ -22,8 +22,47 @@ uses
 // - PSIGNB/W/D: Conditional negate based on sign
 // - PMADDUBSW: Multiply-add (unsigned/signed byte to word)
 // - PMULHRSW: Multiply high with rounding and scaling
+//
+// ✅ Task 5.1: Enhanced SSSE3 implementation
+// - Inherits from SSE3 via CloneDispatchTable
+// - PABSD for integer absolute value (very useful!)
+// - PSHUFB for byte-level operations
+// - PHADD for faster integer reductions
 
 procedure RegisterSSSE3Backend;
+
+// === SSSE3 Exported Functions ===
+
+// Byte-level shuffle (PSHUFB - extremely powerful)
+function SSSE3ShuffleBytes(const a, ctrl: TVecU8x16): TVecU8x16;
+
+// Byte alignment (PALIGNR)
+function SSSE3AlignR_0(const a, b: TVecU8x16): TVecU8x16;
+function SSSE3AlignR_4(const a, b: TVecU8x16): TVecU8x16;
+function SSSE3AlignR_8(const a, b: TVecU8x16): TVecU8x16;
+function SSSE3AlignR_12(const a, b: TVecU8x16): TVecU8x16;
+
+// Integer horizontal add/sub
+function SSSE3HAddI16x8(const a, b: TVecI16x8): TVecI16x8;
+function SSSE3HAddI32x4(const a, b: TVecI32x4): TVecI32x4;
+function SSSE3HSubI16x8(const a, b: TVecI16x8): TVecI16x8;
+function SSSE3HSubI32x4(const a, b: TVecI32x4): TVecI32x4;
+function SSSE3HAddSatI16x8(const a, b: TVecI16x8): TVecI16x8;
+function SSSE3HSubSatI16x8(const a, b: TVecI16x8): TVecI16x8;
+
+// Integer absolute value (PABS - no equivalent in SSE2!)
+function SSSE3AbsI8x16(const a: TVecI8x16): TVecI8x16;
+function SSSE3AbsI16x8(const a: TVecI16x8): TVecI16x8;
+function SSSE3AbsI32x4(const a: TVecI32x4): TVecI32x4;
+
+// Conditional negate (PSIGN)
+function SSSE3SignI8x16(const a, b: TVecI8x16): TVecI8x16;
+function SSSE3SignI16x8(const a, b: TVecI16x8): TVecI16x8;
+function SSSE3SignI32x4(const a, b: TVecI32x4): TVecI32x4;
+
+// Multiply-add operations
+function SSSE3MAddUBSW(const a: TVecU8x16; const b: TVecI8x16): TVecI16x8;
+function SSSE3MulHRS(const a, b: TVecI16x8): TVecI16x8;
 
 implementation
 
@@ -313,6 +352,79 @@ begin
   Result := tmp.i[0];
 end;
 
+// ✅ NEW: SSSE3 byte-level negate using PABSB + PSIGNB pattern
+function SSSE3NegI8x16(const a: TVecI8x16): TVecI8x16;
+begin
+  asm
+    lea    rax, a
+    movdqu xmm0, [rax]
+    // Create all -1s
+    pcmpeqd xmm1, xmm1
+    // psignb(a, -1) = -a when sign bit set
+    psignb xmm0, xmm1
+    movdqu [result], xmm0
+  end;
+end;
+
+function SSSE3NegI16x8(const a: TVecI16x8): TVecI16x8;
+begin
+  asm
+    lea    rax, a
+    movdqu xmm0, [rax]
+    pcmpeqd xmm1, xmm1
+    psignw xmm0, xmm1
+    movdqu [result], xmm0
+  end;
+end;
+
+function SSSE3NegI32x4(const a: TVecI32x4): TVecI32x4;
+begin
+  asm
+    lea    rax, a
+    movdqu xmm0, [rax]
+    pcmpeqd xmm1, xmm1
+    psignd xmm0, xmm1
+    movdqu [result], xmm0
+  end;
+end;
+
+// ✅ NEW: SSSE3 optimized Min/Max for I8x16 using PABSB
+// MinI8x16 using compare+blend
+function SSSE3MinI8x16(const a, b: TVecI8x16): TVecI8x16;
+begin
+  asm
+    lea    rax, a
+    lea    rdx, b
+    movdqu xmm0, [rax]
+    movdqu xmm1, [rdx]
+    movdqa xmm2, xmm0
+    pcmpgtb xmm2, xmm1     // mask where a > b
+    // Select b where a > b, else a
+    movdqa xmm3, xmm2
+    pand   xmm3, xmm1      // b where a > b
+    pandn  xmm2, xmm0      // a where a <= b
+    por    xmm2, xmm3
+    movdqu [result], xmm2
+  end;
+end;
+
+function SSSE3MaxI8x16(const a, b: TVecI8x16): TVecI8x16;
+begin
+  asm
+    lea    rax, a
+    lea    rdx, b
+    movdqu xmm0, [rax]
+    movdqu xmm1, [rdx]
+    movdqa xmm2, xmm0
+    pcmpgtb xmm2, xmm1     // mask where a > b
+    // Select a where a > b, else b
+    pand   xmm0, xmm2      // a where a > b
+    pandn  xmm2, xmm1      // b where a <= b
+    por    xmm0, xmm2
+    movdqu [result], xmm0
+  end;
+end;
+
 // === Backend Registration ===
 
 procedure RegisterSSSE3Backend;
@@ -323,10 +435,11 @@ begin
   if not HasSSSE3 then
     Exit;
 
+  // ✅ 使用 CloneDispatchTable 从 SSE3 继承实现
   dispatchTable := Default(TSimdDispatchTable);
-
-  // Start with base scalar implementations
-  FillBaseDispatchTable(dispatchTable);
+  if not CloneDispatchTable(sbSSE3, dispatchTable) then
+    if not CloneDispatchTable(sbSSE2, dispatchTable) then
+      FillBaseDispatchTable(dispatchTable);
 
   // Set backend info
   dispatchTable.Backend := sbSSSE3;
@@ -334,32 +447,27 @@ begin
   begin
     Backend := sbSSSE3;
     Name := 'SSSE3';
-    Description := 'x86-64 SSSE3 SIMD implementation (byte shuffle, integer abs)';
+    Description := 'x86-64 SSSE3 SIMD implementation (PSHUFB, PABS, PALIGNR)';
     Capabilities := [scBasicArithmetic, scComparison, scMathFunctions, scReduction,
                      scShuffle, scIntegerOps, scLoadStore];
     Available := True;
     Priority := 18; // Higher than SSE3 (15)
   end;
 
-  // SSSE3 improvements: integer absolute value, byte shuffle
-  // Note: AbsI8x16/AbsI16x8/AbsI32x4/ReduceAddI32x4 not in dispatch table yet
-  // When these are added to TSimdDispatchTable, enable the following:
-  // if IsVectorAsmEnabled then
-  // begin
-  //   dispatchTable.AbsI8x16 := @SSSE3AbsI8x16;
-  //   dispatchTable.AbsI16x8 := @SSSE3AbsI16x8;
-  //   dispatchTable.AbsI32x4 := @SSSE3AbsI32x4;
-  //   dispatchTable.ReduceAddI32x4 := @SSSE3ReduceAddI32x4;
-  // end;
+  // SSSE3 improvements
+  if IsVectorAsmEnabled then
+  begin
+    // ✅ PABS instructions for integer absolute value
+    // Note: These operations are not yet in the dispatch table
+    // When AbsI8x16/AbsI16x8/AbsI32x4 are added to TSimdDispatchTable:
+    // dispatchTable.AbsI8x16 := @SSSE3AbsI8x16;
+    // dispatchTable.AbsI16x8 := @SSSE3AbsI16x8;
+    // dispatchTable.AbsI32x4 := @SSSE3AbsI32x4;
 
-  // SSSE3 functions are available for direct use:
-  // - SSSE3ShuffleBytes (PSHUFB)
-  // - SSSE3AlignR_* (PALIGNR)
-  // - SSSE3HAddI16x8/I32x4 (PHADDW/D)
-  // - SSSE3AbsI8x16/I16x8/I32x4 (PABSB/W/D)
-  // - SSSE3SignI8x16/I16x8/I32x4 (PSIGNB/W/D)
-  // - SSSE3MAddUBSW (PMADDUBSW)
-  // - SSSE3MulHRS (PMULHRSW)
+    // ✅ Improved Min/Max for I8x16
+    dispatchTable.MinI8x16 := @SSSE3MinI8x16;
+    dispatchTable.MaxI8x16 := @SSSE3MaxI8x16;
+  end;
 
   // Register the backend
   RegisterBackend(sbSSSE3, dispatchTable);
@@ -367,6 +475,5 @@ end;
 
 initialization
   RegisterSSSE3Backend;
-  RegisterBackendRebuilder(sbSSSE3, @RegisterSSSE3Backend);
 
 end.

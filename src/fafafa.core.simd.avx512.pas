@@ -1863,6 +1863,1176 @@ begin
   end;
 end;
 
+// === I32x16 Load/Store/Splat/Zero/Select Operations ===
+
+function AVX512LoadI32x16(p: PInt32): TVecI32x16;
+var
+  pp, pr: Pointer;
+begin
+  pr := @Result;
+  pp := p;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pp
+    vmovdqu64 zmm0, [rdx]
+    vmovdqu64 [rax], zmm0
+    vzeroupper
+  end;
+end;
+
+procedure AVX512StoreI32x16(p: PInt32; const a: TVecI32x16);
+var
+  pp, pa: Pointer;
+begin
+  pp := p;
+  pa := @a;
+
+  asm
+    mov     rax, pp
+    mov     rdx, pa
+    vmovdqu64 zmm0, [rdx]
+    vmovdqu64 [rax], zmm0
+    vzeroupper
+  end;
+end;
+
+function AVX512SplatI32x16(value: Int32): TVecI32x16;
+var
+  pr: Pointer;
+begin
+  pr := @Result;
+
+  asm
+    mov     rax, pr
+    vpbroadcastd zmm0, value
+    vmovdqu64 [rax], zmm0
+    vzeroupper
+  end;
+end;
+
+function AVX512ZeroI32x16: TVecI32x16;
+var
+  pr: Pointer;
+begin
+  pr := @Result;
+
+  asm
+    mov     rax, pr
+    vpxord  zmm0, zmm0, zmm0
+    vmovdqu64 [rax], zmm0
+    vzeroupper
+  end;
+end;
+
+function AVX512SelectI32x16(const mask: TMask16; const a, b: TVecI32x16): TVecI32x16;
+var
+  pa, pb, pr: Pointer;
+  m: Word;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+  m := Word(mask);
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    kmovw   k1, m
+    vmovdqu64 zmm0, [rcx]
+    vmovdqu64 zmm0 {k1}, [rdx]
+    vmovdqu64 [rax], zmm0
+    vzeroupper
+  end;
+end;
+
+// === I64x8 Arithmetic Operations (512-bit) ===
+
+function AVX512AddI64x8(const a, b: TVecI64x8): TVecI64x8;
+var
+  pa, pb, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu64 zmm0, [rdx]
+    vpaddq  zmm0, zmm0, [rcx]
+    vmovdqu64 [rax], zmm0
+    vzeroupper
+  end;
+end;
+
+function AVX512SubI64x8(const a, b: TVecI64x8): TVecI64x8;
+var
+  pa, pb, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu64 zmm0, [rdx]
+    vpsubq  zmm0, zmm0, [rcx]
+    vmovdqu64 [rax], zmm0
+    vzeroupper
+  end;
+end;
+
+// === I64x8 Bitwise Operations ===
+
+function AVX512AndI64x8(const a, b: TVecI64x8): TVecI64x8;
+var
+  pa, pb, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu64 zmm0, [rdx]
+    vpandq  zmm0, zmm0, [rcx]
+    vmovdqu64 [rax], zmm0
+    vzeroupper
+  end;
+end;
+
+function AVX512OrI64x8(const a, b: TVecI64x8): TVecI64x8;
+var
+  pa, pb, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu64 zmm0, [rdx]
+    vporq   zmm0, zmm0, [rcx]
+    vmovdqu64 [rax], zmm0
+    vzeroupper
+  end;
+end;
+
+function AVX512XorI64x8(const a, b: TVecI64x8): TVecI64x8;
+var
+  pa, pb, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu64 zmm0, [rdx]
+    vpxorq  zmm0, zmm0, [rcx]
+    vmovdqu64 [rax], zmm0
+    vzeroupper
+  end;
+end;
+
+function AVX512NotI64x8(const a: TVecI64x8): TVecI64x8;
+var
+  pa, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    vmovdqu64 zmm0, [rdx]
+    vpternlogq zmm0, zmm0, zmm0, $55   // NOT A
+    vmovdqu64 [rax], zmm0
+    vzeroupper
+  end;
+end;
+
+// === I64x8 Comparison Operations ===
+
+function AVX512CmpEqI64x8(const a, b: TVecI64x8): TMask8;
+var
+  pa, pb: Pointer;
+  mask: Byte;
+begin
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu64 zmm0, [rdx]
+    vpcmpeqq k1, zmm0, [rcx]
+    kmovb   mask, k1
+    vzeroupper
+  end;
+
+  Result := TMask8(mask);
+end;
+
+function AVX512CmpLtI64x8(const a, b: TVecI64x8): TMask8;
+var
+  pa, pb: Pointer;
+  mask: Byte;
+begin
+  pa := @a;
+  pb := @b;
+
+  // a < b is equivalent to b > a
+  asm
+    mov     rdx, pb
+    mov     rcx, pa
+    vmovdqu64 zmm0, [rdx]
+    vpcmpgtq k1, zmm0, [rcx]    // b > a
+    kmovb   mask, k1
+    vzeroupper
+  end;
+
+  Result := TMask8(mask);
+end;
+
+function AVX512CmpGtI64x8(const a, b: TVecI64x8): TMask8;
+var
+  pa, pb: Pointer;
+  mask: Byte;
+begin
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu64 zmm0, [rdx]
+    vpcmpgtq k1, zmm0, [rcx]
+    kmovb   mask, k1
+    vzeroupper
+  end;
+
+  Result := TMask8(mask);
+end;
+
+function AVX512CmpLeI64x8(const a, b: TVecI64x8): TMask8;
+var
+  pa, pb: Pointer;
+  mask: Byte;
+begin
+  pa := @a;
+  pb := @b;
+
+  // vpcmpq with imm8=2 means LE
+  asm
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu64 zmm0, [rdx]
+    vpcmpq  k1, zmm0, [rcx], 2    // imm8=2: LE
+    kmovb   mask, k1
+    vzeroupper
+  end;
+
+  Result := TMask8(mask);
+end;
+
+function AVX512CmpGeI64x8(const a, b: TVecI64x8): TMask8;
+var
+  pa, pb: Pointer;
+  mask: Byte;
+begin
+  pa := @a;
+  pb := @b;
+
+  // vpcmpq with imm8=5 means GE (NLT)
+  asm
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu64 zmm0, [rdx]
+    vpcmpq  k1, zmm0, [rcx], 5    // imm8=5: GE
+    kmovb   mask, k1
+    vzeroupper
+  end;
+
+  Result := TMask8(mask);
+end;
+
+function AVX512CmpNeI64x8(const a, b: TVecI64x8): TMask8;
+var
+  pa, pb: Pointer;
+  mask: Byte;
+begin
+  pa := @a;
+  pb := @b;
+
+  // vpcmpq with imm8=4 means NE
+  asm
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu64 zmm0, [rdx]
+    vpcmpq  k1, zmm0, [rcx], 4    // imm8=4: NE
+    kmovb   mask, k1
+    vzeroupper
+  end;
+
+  Result := TMask8(mask);
+end;
+
+// === F32x16 Comparison Operations ===
+
+function AVX512CmpEqF32x16(const a, b: TVecF32x16): TMask16;
+var
+  pa, pb: Pointer;
+  mask: Word;
+begin
+  pa := @a;
+  pb := @b;
+
+  // vcmpps with imm8=0 means EQ
+  asm
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovups zmm0, [rdx]
+    vcmpps  k1, zmm0, [rcx], 0    // imm8=0: EQ
+    kmovw   mask, k1
+    vzeroupper
+  end;
+
+  Result := TMask16(mask);
+end;
+
+function AVX512CmpLtF32x16(const a, b: TVecF32x16): TMask16;
+var
+  pa, pb: Pointer;
+  mask: Word;
+begin
+  pa := @a;
+  pb := @b;
+
+  // vcmpps with imm8=1 means LT
+  asm
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovups zmm0, [rdx]
+    vcmpps  k1, zmm0, [rcx], 1    // imm8=1: LT
+    kmovw   mask, k1
+    vzeroupper
+  end;
+
+  Result := TMask16(mask);
+end;
+
+function AVX512CmpLeF32x16(const a, b: TVecF32x16): TMask16;
+var
+  pa, pb: Pointer;
+  mask: Word;
+begin
+  pa := @a;
+  pb := @b;
+
+  // vcmpps with imm8=2 means LE
+  asm
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovups zmm0, [rdx]
+    vcmpps  k1, zmm0, [rcx], 2    // imm8=2: LE
+    kmovw   mask, k1
+    vzeroupper
+  end;
+
+  Result := TMask16(mask);
+end;
+
+function AVX512CmpGtF32x16(const a, b: TVecF32x16): TMask16;
+var
+  pa, pb: Pointer;
+  mask: Word;
+begin
+  pa := @a;
+  pb := @b;
+
+  // vcmpps with imm8=14 means GT (NLE)
+  asm
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovups zmm0, [rdx]
+    vcmpps  k1, zmm0, [rcx], 14   // imm8=14: GT (NLE)
+    kmovw   mask, k1
+    vzeroupper
+  end;
+
+  Result := TMask16(mask);
+end;
+
+function AVX512CmpGeF32x16(const a, b: TVecF32x16): TMask16;
+var
+  pa, pb: Pointer;
+  mask: Word;
+begin
+  pa := @a;
+  pb := @b;
+
+  // vcmpps with imm8=13 means GE (NLT)
+  asm
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovups zmm0, [rdx]
+    vcmpps  k1, zmm0, [rcx], 13   // imm8=13: GE (NLT)
+    kmovw   mask, k1
+    vzeroupper
+  end;
+
+  Result := TMask16(mask);
+end;
+
+function AVX512CmpNeF32x16(const a, b: TVecF32x16): TMask16;
+var
+  pa, pb: Pointer;
+  mask: Word;
+begin
+  pa := @a;
+  pb := @b;
+
+  // vcmpps with imm8=4 means NE (unordered)
+  asm
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovups zmm0, [rdx]
+    vcmpps  k1, zmm0, [rcx], 4    // imm8=4: NEQ
+    kmovw   mask, k1
+    vzeroupper
+  end;
+
+  Result := TMask16(mask);
+end;
+
+// === F64x8 Comparison Operations ===
+
+function AVX512CmpEqF64x8(const a, b: TVecF64x8): TMask8;
+var
+  pa, pb: Pointer;
+  mask: Byte;
+begin
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovupd zmm0, [rdx]
+    vcmppd  k1, zmm0, [rcx], 0    // imm8=0: EQ
+    kmovb   mask, k1
+    vzeroupper
+  end;
+
+  Result := TMask8(mask);
+end;
+
+function AVX512CmpLtF64x8(const a, b: TVecF64x8): TMask8;
+var
+  pa, pb: Pointer;
+  mask: Byte;
+begin
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovupd zmm0, [rdx]
+    vcmppd  k1, zmm0, [rcx], 1    // imm8=1: LT
+    kmovb   mask, k1
+    vzeroupper
+  end;
+
+  Result := TMask8(mask);
+end;
+
+function AVX512CmpLeF64x8(const a, b: TVecF64x8): TMask8;
+var
+  pa, pb: Pointer;
+  mask: Byte;
+begin
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovupd zmm0, [rdx]
+    vcmppd  k1, zmm0, [rcx], 2    // imm8=2: LE
+    kmovb   mask, k1
+    vzeroupper
+  end;
+
+  Result := TMask8(mask);
+end;
+
+function AVX512CmpGtF64x8(const a, b: TVecF64x8): TMask8;
+var
+  pa, pb: Pointer;
+  mask: Byte;
+begin
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovupd zmm0, [rdx]
+    vcmppd  k1, zmm0, [rcx], 14   // imm8=14: GT (NLE)
+    kmovb   mask, k1
+    vzeroupper
+  end;
+
+  Result := TMask8(mask);
+end;
+
+function AVX512CmpGeF64x8(const a, b: TVecF64x8): TMask8;
+var
+  pa, pb: Pointer;
+  mask: Byte;
+begin
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovupd zmm0, [rdx]
+    vcmppd  k1, zmm0, [rcx], 13   // imm8=13: GE (NLT)
+    kmovb   mask, k1
+    vzeroupper
+  end;
+
+  Result := TMask8(mask);
+end;
+
+function AVX512CmpNeF64x8(const a, b: TVecF64x8): TMask8;
+var
+  pa, pb: Pointer;
+  mask: Byte;
+begin
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovupd zmm0, [rdx]
+    vcmppd  k1, zmm0, [rcx], 4    // imm8=4: NEQ
+    kmovb   mask, k1
+    vzeroupper
+  end;
+
+  Result := TMask8(mask);
+end;
+
+// === F32x16 Math Functions ===
+
+function AVX512AbsF32x16(const a: TVecF32x16): TVecF32x16;
+var
+  pa, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+
+  // Abs by clearing sign bit: AND with 0x7FFFFFFF
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     ecx, $7FFFFFFF
+    vpbroadcastd zmm1, ecx
+    vmovups zmm0, [rdx]
+    vpandd  zmm0, zmm0, zmm1
+    vmovups [rax], zmm0
+    vzeroupper
+  end;
+end;
+
+function AVX512SqrtF32x16(const a: TVecF32x16): TVecF32x16;
+var
+  pa, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    vmovups zmm0, [rdx]
+    vsqrtps zmm0, zmm0
+    vmovups [rax], zmm0
+    vzeroupper
+  end;
+end;
+
+function AVX512MinF32x16(const a, b: TVecF32x16): TVecF32x16;
+var
+  pa, pb, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovups zmm0, [rdx]
+    vminps  zmm0, zmm0, [rcx]
+    vmovups [rax], zmm0
+    vzeroupper
+  end;
+end;
+
+function AVX512MaxF32x16(const a, b: TVecF32x16): TVecF32x16;
+var
+  pa, pb, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovups zmm0, [rdx]
+    vmaxps  zmm0, zmm0, [rcx]
+    vmovups [rax], zmm0
+    vzeroupper
+  end;
+end;
+
+function AVX512ClampF32x16(const a, minVal, maxVal: TVecF32x16): TVecF32x16;
+var
+  pa, pmin, pmax, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pmin := @minVal;
+  pmax := @maxVal;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pmin
+    mov     r8, pmax
+    vmovups zmm0, [rdx]
+    vmaxps  zmm0, zmm0, [rcx]    // max(a, minVal)
+    vminps  zmm0, zmm0, [r8]     // min(result, maxVal)
+    vmovups [rax], zmm0
+    vzeroupper
+  end;
+end;
+
+// === F64x8 Math Functions ===
+
+function AVX512AbsF64x8(const a: TVecF64x8): TVecF64x8;
+var
+  pa, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+
+  // Abs by clearing sign bit: AND with 0x7FFFFFFFFFFFFFFF
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, $7FFFFFFFFFFFFFFF
+    vpbroadcastq zmm1, rcx
+    vmovupd zmm0, [rdx]
+    vpandq  zmm0, zmm0, zmm1
+    vmovupd [rax], zmm0
+    vzeroupper
+  end;
+end;
+
+function AVX512SqrtF64x8(const a: TVecF64x8): TVecF64x8;
+var
+  pa, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    vmovupd zmm0, [rdx]
+    vsqrtpd zmm0, zmm0
+    vmovupd [rax], zmm0
+    vzeroupper
+  end;
+end;
+
+function AVX512MinF64x8(const a, b: TVecF64x8): TVecF64x8;
+var
+  pa, pb, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovupd zmm0, [rdx]
+    vminpd  zmm0, zmm0, [rcx]
+    vmovupd [rax], zmm0
+    vzeroupper
+  end;
+end;
+
+function AVX512MaxF64x8(const a, b: TVecF64x8): TVecF64x8;
+var
+  pa, pb, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovupd zmm0, [rdx]
+    vmaxpd  zmm0, zmm0, [rcx]
+    vmovupd [rax], zmm0
+    vzeroupper
+  end;
+end;
+
+function AVX512ClampF64x8(const a, minVal, maxVal: TVecF64x8): TVecF64x8;
+var
+  pa, pmin, pmax, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pmin := @minVal;
+  pmax := @maxVal;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pmin
+    mov     r8, pmax
+    vmovupd zmm0, [rdx]
+    vmaxpd  zmm0, zmm0, [rcx]
+    vminpd  zmm0, zmm0, [r8]
+    vmovupd [rax], zmm0
+    vzeroupper
+  end;
+end;
+
+// === F32x16 FMA and Rounding Operations ===
+
+function AVX512FmaF32x16(const a, b, c: TVecF32x16): TVecF32x16;
+var
+  pa, pb, pc, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+  pc := @c;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    mov     r8, pc
+    vmovups zmm0, [rdx]
+    vmovups zmm1, [rcx]
+    vmovups zmm2, [r8]
+    vfmadd213ps zmm0, zmm1, zmm2   // a*b+c
+    vmovups [rax], zmm0
+    vzeroupper
+  end;
+end;
+
+function AVX512FloorF32x16(const a: TVecF32x16): TVecF32x16;
+var
+  pa, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    vmovups zmm0, [rdx]
+    vrndscaleps zmm0, zmm0, 1    // imm8=1: floor (round toward -inf)
+    vmovups [rax], zmm0
+    vzeroupper
+  end;
+end;
+
+function AVX512CeilF32x16(const a: TVecF32x16): TVecF32x16;
+var
+  pa, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    vmovups zmm0, [rdx]
+    vrndscaleps zmm0, zmm0, 2    // imm8=2: ceil (round toward +inf)
+    vmovups [rax], zmm0
+    vzeroupper
+  end;
+end;
+
+function AVX512RoundF32x16(const a: TVecF32x16): TVecF32x16;
+var
+  pa, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    vmovups zmm0, [rdx]
+    vrndscaleps zmm0, zmm0, 0    // imm8=0: round to nearest even
+    vmovups [rax], zmm0
+    vzeroupper
+  end;
+end;
+
+function AVX512TruncF32x16(const a: TVecF32x16): TVecF32x16;
+var
+  pa, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    vmovups zmm0, [rdx]
+    vrndscaleps zmm0, zmm0, 3    // imm8=3: truncate (round toward zero)
+    vmovups [rax], zmm0
+    vzeroupper
+  end;
+end;
+
+// === F64x8 FMA and Rounding Operations ===
+
+function AVX512FmaF64x8(const a, b, c: TVecF64x8): TVecF64x8;
+var
+  pa, pb, pc, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+  pc := @c;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    mov     r8, pc
+    vmovupd zmm0, [rdx]
+    vmovupd zmm1, [rcx]
+    vmovupd zmm2, [r8]
+    vfmadd213pd zmm0, zmm1, zmm2
+    vmovupd [rax], zmm0
+    vzeroupper
+  end;
+end;
+
+function AVX512FloorF64x8(const a: TVecF64x8): TVecF64x8;
+var
+  pa, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    vmovupd zmm0, [rdx]
+    vrndscalepd zmm0, zmm0, 1
+    vmovupd [rax], zmm0
+    vzeroupper
+  end;
+end;
+
+function AVX512CeilF64x8(const a: TVecF64x8): TVecF64x8;
+var
+  pa, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    vmovupd zmm0, [rdx]
+    vrndscalepd zmm0, zmm0, 2
+    vmovupd [rax], zmm0
+    vzeroupper
+  end;
+end;
+
+function AVX512RoundF64x8(const a: TVecF64x8): TVecF64x8;
+var
+  pa, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    vmovupd zmm0, [rdx]
+    vrndscalepd zmm0, zmm0, 0
+    vmovupd [rax], zmm0
+    vzeroupper
+  end;
+end;
+
+function AVX512TruncF64x8(const a: TVecF64x8): TVecF64x8;
+var
+  pa, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    vmovupd zmm0, [rdx]
+    vrndscalepd zmm0, zmm0, 3
+    vmovupd [rax], zmm0
+    vzeroupper
+  end;
+end;
+
+// === F32x16 Reduction Operations ===
+
+function AVX512ReduceAddF32x16(const a: TVecF32x16): Single;
+var
+  pa: Pointer;
+begin
+  pa := @a;
+
+  asm
+    mov     rdx, pa
+    vmovups zmm0, [rdx]
+    // Extract upper 256 bits and add to lower
+    vextractf64x4 ymm1, zmm0, 1
+    vaddps  ymm0, ymm0, ymm1
+    // Extract upper 128 bits and add to lower
+    vextractf128 xmm1, ymm0, 1
+    vaddps  xmm0, xmm0, xmm1
+    // Horizontal add within 128 bits
+    vhaddps xmm0, xmm0, xmm0
+    vhaddps xmm0, xmm0, xmm0
+    vmovss  Result, xmm0
+    vzeroupper
+  end;
+end;
+
+function AVX512ReduceMinF32x16(const a: TVecF32x16): Single;
+var
+  pa: Pointer;
+begin
+  pa := @a;
+
+  asm
+    mov     rdx, pa
+    vmovups zmm0, [rdx]
+    vextractf64x4 ymm1, zmm0, 1
+    vminps  ymm0, ymm0, ymm1
+    vextractf128 xmm1, ymm0, 1
+    vminps  xmm0, xmm0, xmm1
+    vshufps xmm1, xmm0, xmm0, $4E  // Swap high/low 64 bits
+    vminps  xmm0, xmm0, xmm1
+    vshufps xmm1, xmm0, xmm0, $B1  // Swap adjacent pairs
+    vminps  xmm0, xmm0, xmm1
+    vmovss  Result, xmm0
+    vzeroupper
+  end;
+end;
+
+function AVX512ReduceMaxF32x16(const a: TVecF32x16): Single;
+var
+  pa: Pointer;
+begin
+  pa := @a;
+
+  asm
+    mov     rdx, pa
+    vmovups zmm0, [rdx]
+    vextractf64x4 ymm1, zmm0, 1
+    vmaxps  ymm0, ymm0, ymm1
+    vextractf128 xmm1, ymm0, 1
+    vmaxps  xmm0, xmm0, xmm1
+    vshufps xmm1, xmm0, xmm0, $4E
+    vmaxps  xmm0, xmm0, xmm1
+    vshufps xmm1, xmm0, xmm0, $B1
+    vmaxps  xmm0, xmm0, xmm1
+    vmovss  Result, xmm0
+    vzeroupper
+  end;
+end;
+
+function AVX512ReduceMulF32x16(const a: TVecF32x16): Single;
+var
+  pa: Pointer;
+begin
+  pa := @a;
+
+  asm
+    mov     rdx, pa
+    vmovups zmm0, [rdx]
+    vextractf64x4 ymm1, zmm0, 1
+    vmulps  ymm0, ymm0, ymm1
+    vextractf128 xmm1, ymm0, 1
+    vmulps  xmm0, xmm0, xmm1
+    vshufps xmm1, xmm0, xmm0, $4E
+    vmulps  xmm0, xmm0, xmm1
+    vshufps xmm1, xmm0, xmm0, $B1
+    vmulps  xmm0, xmm0, xmm1
+    vmovss  Result, xmm0
+    vzeroupper
+  end;
+end;
+
+// === F64x8 Reduction Operations ===
+
+function AVX512ReduceAddF64x8(const a: TVecF64x8): Double;
+var
+  pa: Pointer;
+begin
+  pa := @a;
+
+  asm
+    mov     rdx, pa
+    vmovupd zmm0, [rdx]
+    vextractf64x4 ymm1, zmm0, 1
+    vaddpd  ymm0, ymm0, ymm1
+    vextractf128 xmm1, ymm0, 1
+    vaddpd  xmm0, xmm0, xmm1
+    vhaddpd xmm0, xmm0, xmm0
+    vmovsd  Result, xmm0
+    vzeroupper
+  end;
+end;
+
+function AVX512ReduceMinF64x8(const a: TVecF64x8): Double;
+var
+  pa: Pointer;
+begin
+  pa := @a;
+
+  asm
+    mov     rdx, pa
+    vmovupd zmm0, [rdx]
+    vextractf64x4 ymm1, zmm0, 1
+    vminpd  ymm0, ymm0, ymm1
+    vextractf128 xmm1, ymm0, 1
+    vminpd  xmm0, xmm0, xmm1
+    vshufpd xmm1, xmm0, xmm0, 1
+    vminpd  xmm0, xmm0, xmm1
+    vmovsd  Result, xmm0
+    vzeroupper
+  end;
+end;
+
+function AVX512ReduceMaxF64x8(const a: TVecF64x8): Double;
+var
+  pa: Pointer;
+begin
+  pa := @a;
+
+  asm
+    mov     rdx, pa
+    vmovupd zmm0, [rdx]
+    vextractf64x4 ymm1, zmm0, 1
+    vmaxpd  ymm0, ymm0, ymm1
+    vextractf128 xmm1, ymm0, 1
+    vmaxpd  xmm0, xmm0, xmm1
+    vshufpd xmm1, xmm0, xmm0, 1
+    vmaxpd  xmm0, xmm0, xmm1
+    vmovsd  Result, xmm0
+    vzeroupper
+  end;
+end;
+
+function AVX512ReduceMulF64x8(const a: TVecF64x8): Double;
+var
+  pa: Pointer;
+begin
+  pa := @a;
+
+  asm
+    mov     rdx, pa
+    vmovupd zmm0, [rdx]
+    vextractf64x4 ymm1, zmm0, 1
+    vmulpd  ymm0, ymm0, ymm1
+    vextractf128 xmm1, ymm0, 1
+    vmulpd  xmm0, xmm0, xmm1
+    vshufpd xmm1, xmm0, xmm0, 1
+    vmulpd  xmm0, xmm0, xmm1
+    vmovsd  Result, xmm0
+    vzeroupper
+  end;
+end;
+
+// === TMask16 Operations (AVX-512 Optimized) ===
+
+function AVX512Mask16All(mask: TMask16): Boolean; assembler; nostackframe;
+// RDI = mask (16-bit)
+asm
+  cmp     di, $FFFF
+  sete    al
+end;
+
+function AVX512Mask16Any(mask: TMask16): Boolean; assembler; nostackframe;
+asm
+  test    di, di
+  setne   al
+end;
+
+function AVX512Mask16None(mask: TMask16): Boolean; assembler; nostackframe;
+asm
+  test    di, di
+  sete    al
+end;
+
+function AVX512Mask16PopCount(mask: TMask16): Integer; assembler; nostackframe;
+asm
+  movzx   eax, di
+  popcnt  eax, eax
+end;
+
+function AVX512Mask16FirstSet(mask: TMask16): Integer; assembler; nostackframe;
+asm
+  movzx   eax, di
+  test    eax, eax
+  jz      @none
+  bsf     eax, eax
+  ret
+@none:
+  mov     eax, -1
+end;
+
 // === ✅ P2: Saturating Arithmetic (EVEX-encoded 128-bit) ===
 // 使用 EVEX 编码的 128-bit 指令，保持 API 一致性
 
@@ -2046,9 +3216,12 @@ begin
   // Runtime dispatch/forcing still prevents executing AVX-512 on unsupported CPUs.
   isAvailable := HasAVX512 and X86HasAVX512BackendRequiredFeatures(GetX86CPUInfo);
 
-  // Fill with base scalar implementations (provides fallback for all operations)
+  // ✅ AVX-512 inherits all 128-bit and 256-bit operations from AVX2
+  // This provides full coverage for F32x4, F64x2, I32x4, I64x2, F32x8, F64x4, etc.
+  // AVX-512 only needs to override 512-bit operations and AVX-512-specific optimizations.
   dispatchTable := Default(TSimdDispatchTable);
-  FillBaseDispatchTable(dispatchTable);
+  if not CloneDispatchTable(sbAVX2, dispatchTable) then
+    FillBaseDispatchTable(dispatchTable);
 
   // Set backend info
   dispatchTable.Backend := sbAVX512;
@@ -2136,6 +3309,79 @@ begin
   // I32x16 (512-bit integer) - Min/Max
   dispatchTable.MinI32x16 := @AVX512MinI32x16;
   dispatchTable.MaxI32x16 := @AVX512MaxI32x16;
+
+  // === I64x8 (512-bit 64-bit integer) ===
+  dispatchTable.AddI64x8 := @AVX512AddI64x8;
+  dispatchTable.SubI64x8 := @AVX512SubI64x8;
+  dispatchTable.AndI64x8 := @AVX512AndI64x8;
+  dispatchTable.OrI64x8 := @AVX512OrI64x8;
+  dispatchTable.XorI64x8 := @AVX512XorI64x8;
+  dispatchTable.NotI64x8 := @AVX512NotI64x8;
+  dispatchTable.CmpEqI64x8 := @AVX512CmpEqI64x8;
+  dispatchTable.CmpLtI64x8 := @AVX512CmpLtI64x8;
+  dispatchTable.CmpGtI64x8 := @AVX512CmpGtI64x8;
+  dispatchTable.CmpLeI64x8 := @AVX512CmpLeI64x8;
+  dispatchTable.CmpGeI64x8 := @AVX512CmpGeI64x8;
+  dispatchTable.CmpNeI64x8 := @AVX512CmpNeI64x8;
+
+  // === F32x16 Comparison Operations ===
+  dispatchTable.CmpEqF32x16 := @AVX512CmpEqF32x16;
+  dispatchTable.CmpLtF32x16 := @AVX512CmpLtF32x16;
+  dispatchTable.CmpLeF32x16 := @AVX512CmpLeF32x16;
+  dispatchTable.CmpGtF32x16 := @AVX512CmpGtF32x16;
+  dispatchTable.CmpGeF32x16 := @AVX512CmpGeF32x16;
+  dispatchTable.CmpNeF32x16 := @AVX512CmpNeF32x16;
+
+  // === F64x8 Comparison Operations ===
+  dispatchTable.CmpEqF64x8 := @AVX512CmpEqF64x8;
+  dispatchTable.CmpLtF64x8 := @AVX512CmpLtF64x8;
+  dispatchTable.CmpLeF64x8 := @AVX512CmpLeF64x8;
+  dispatchTable.CmpGtF64x8 := @AVX512CmpGtF64x8;
+  dispatchTable.CmpGeF64x8 := @AVX512CmpGeF64x8;
+  dispatchTable.CmpNeF64x8 := @AVX512CmpNeF64x8;
+
+  // === F32x16 Math Functions ===
+  dispatchTable.AbsF32x16 := @AVX512AbsF32x16;
+  dispatchTable.SqrtF32x16 := @AVX512SqrtF32x16;
+  dispatchTable.MinF32x16 := @AVX512MinF32x16;
+  dispatchTable.MaxF32x16 := @AVX512MaxF32x16;
+  dispatchTable.ClampF32x16 := @AVX512ClampF32x16;
+  dispatchTable.FmaF32x16 := @AVX512FmaF32x16;
+  dispatchTable.FloorF32x16 := @AVX512FloorF32x16;
+  dispatchTable.CeilF32x16 := @AVX512CeilF32x16;
+  dispatchTable.RoundF32x16 := @AVX512RoundF32x16;
+  dispatchTable.TruncF32x16 := @AVX512TruncF32x16;
+
+  // === F64x8 Math Functions ===
+  dispatchTable.AbsF64x8 := @AVX512AbsF64x8;
+  dispatchTable.SqrtF64x8 := @AVX512SqrtF64x8;
+  dispatchTable.MinF64x8 := @AVX512MinF64x8;
+  dispatchTable.MaxF64x8 := @AVX512MaxF64x8;
+  dispatchTable.ClampF64x8 := @AVX512ClampF64x8;
+  dispatchTable.FmaF64x8 := @AVX512FmaF64x8;
+  dispatchTable.FloorF64x8 := @AVX512FloorF64x8;
+  dispatchTable.CeilF64x8 := @AVX512CeilF64x8;
+  dispatchTable.RoundF64x8 := @AVX512RoundF64x8;
+  dispatchTable.TruncF64x8 := @AVX512TruncF64x8;
+
+  // === F32x16 Reduction Operations ===
+  dispatchTable.ReduceAddF32x16 := @AVX512ReduceAddF32x16;
+  dispatchTable.ReduceMinF32x16 := @AVX512ReduceMinF32x16;
+  dispatchTable.ReduceMaxF32x16 := @AVX512ReduceMaxF32x16;
+  dispatchTable.ReduceMulF32x16 := @AVX512ReduceMulF32x16;
+
+  // === F64x8 Reduction Operations ===
+  dispatchTable.ReduceAddF64x8 := @AVX512ReduceAddF64x8;
+  dispatchTable.ReduceMinF64x8 := @AVX512ReduceMinF64x8;
+  dispatchTable.ReduceMaxF64x8 := @AVX512ReduceMaxF64x8;
+  dispatchTable.ReduceMulF64x8 := @AVX512ReduceMulF64x8;
+
+  // === Mask16 Operations (AVX-512 Optimized) ===
+  dispatchTable.Mask16All := @AVX512Mask16All;
+  dispatchTable.Mask16Any := @AVX512Mask16Any;
+  dispatchTable.Mask16None := @AVX512Mask16None;
+  dispatchTable.Mask16PopCount := @AVX512Mask16PopCount;
+  dispatchTable.Mask16FirstSet := @AVX512Mask16FirstSet;
 
   // ✅ P2: Saturating Arithmetic (EVEX-encoded, always enabled)
   dispatchTable.I8x16SatAdd := @AVX512I8x16SatAdd;

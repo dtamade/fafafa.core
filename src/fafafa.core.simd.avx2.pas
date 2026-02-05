@@ -294,6 +294,84 @@ begin
   end;
 end;
 
+// ✅ Iteration 6.4: FMA-optimized Dot Product Functions
+
+function AVX2DotF32x8(const a, b: TVecF32x8): Single;
+var
+  pa, pb: Pointer;
+  res: Single;
+begin
+  pa := @a;
+  pb := @b;
+  asm
+    mov    rax, pa
+    mov    rdx, pb
+    vmovups ymm0, [rax]      // 加载 a
+    vmovups ymm1, [rdx]      // 加载 b
+    vmulps  ymm0, ymm0, ymm1 // a * b
+
+    // 水平规约 (horizontal reduction)
+    vhaddps ymm0, ymm0, ymm0 // [0+1, 2+3, 0+1, 2+3, 4+5, 6+7, 4+5, 6+7]
+    vhaddps ymm0, ymm0, ymm0 // [0+1+2+3, ..., 4+5+6+7, ...]
+
+    // 将高 128 位和低 128 位相加
+    vextractf128 xmm1, ymm0, 1 // 提取高 128 位
+    addss   xmm0, xmm1         // 相加低位标量
+
+    movss   res, xmm0
+    vzeroupper               // 清理 YMM 寄存器状态
+  end;
+  Result := res;
+end;
+
+function AVX2DotF64x2(const a, b: TVecF64x2): Double;
+var
+  res: Double;
+begin
+  asm
+    lea    rax, a
+    lea    rdx, b
+    vmovupd xmm0, [rax]      // 加载 a
+    vmovupd xmm1, [rdx]      // 加载 b
+    vmulpd  xmm0, xmm0, xmm1 // a * b
+
+    // 水平加法: xmm0[1] + xmm0[0]
+    vshufpd xmm1, xmm0, xmm0, 1 // 交换两个元素
+    addsd   xmm0, xmm1           // 相加
+
+    movsd   res, xmm0
+  end;
+  Result := res;
+end;
+
+function AVX2DotF64x4(const a, b: TVecF64x4): Double;
+var
+  pa, pb: Pointer;
+  res: Double;
+begin
+  pa := @a;
+  pb := @b;
+  asm
+    mov    rax, pa
+    mov    rdx, pb
+    vmovupd ymm0, [rax]      // 加载 a
+    vmovupd ymm1, [rdx]      // 加载 b
+    vmulpd  ymm0, ymm0, ymm1 // a * b
+
+    // 水平规约
+    vhaddpd ymm0, ymm0, ymm0 // [0+1, 0+1, 2+3, 2+3]
+
+    // 将高 128 位和低 128 位相加
+    vextractf128 xmm1, ymm0, 1 // 提取高 128 位
+    addsd   xmm0, xmm1          // 相加低位标量
+
+    movsd   res, xmm0
+    vzeroupper               // 清理 YMM 寄存器状态
+  end;
+  Result := res;
+end;
+
+
 function AVX2CrossF32x3(const a, b: TVecF32x4): TVecF32x4;
 begin
   // Cross = (a.y*b.z - a.z*b.y, a.z*b.x - a.x*b.z, a.x*b.y - a.y*b.x, 0)
@@ -1034,6 +1112,1167 @@ begin
   end;
 end;
 
+// === I16x8 Arithmetic Operations (128-bit) ===
+
+function AVX2AddI16x8(const a, b: TVecI16x8): TVecI16x8;
+begin
+  asm
+    lea     rax, a
+    lea     rdx, b
+    vmovdqu xmm0, [rax]
+    vpaddw  xmm0, xmm0, [rdx]
+    vmovdqu [result], xmm0
+  end;
+end;
+
+function AVX2SubI16x8(const a, b: TVecI16x8): TVecI16x8;
+begin
+  asm
+    lea     rax, a
+    lea     rdx, b
+    vmovdqu xmm0, [rax]
+    vpsubw  xmm0, xmm0, [rdx]
+    vmovdqu [result], xmm0
+  end;
+end;
+
+function AVX2MulI16x8(const a, b: TVecI16x8): TVecI16x8;
+begin
+  asm
+    lea     rax, a
+    lea     rdx, b
+    vmovdqu xmm0, [rax]
+    vpmullw xmm0, xmm0, [rdx]
+    vmovdqu [result], xmm0
+  end;
+end;
+
+// === I16x8 Bitwise Operations (128-bit) ===
+
+function AVX2AndI16x8(const a, b: TVecI16x8): TVecI16x8;
+begin
+  asm
+    lea     rax, a
+    lea     rdx, b
+    vmovdqu xmm0, [rax]
+    vpand   xmm0, xmm0, [rdx]
+    vmovdqu [result], xmm0
+  end;
+end;
+
+function AVX2OrI16x8(const a, b: TVecI16x8): TVecI16x8;
+begin
+  asm
+    lea     rax, a
+    lea     rdx, b
+    vmovdqu xmm0, [rax]
+    vpor    xmm0, xmm0, [rdx]
+    vmovdqu [result], xmm0
+  end;
+end;
+
+function AVX2XorI16x8(const a, b: TVecI16x8): TVecI16x8;
+begin
+  asm
+    lea     rax, a
+    lea     rdx, b
+    vmovdqu xmm0, [rax]
+    vpxor   xmm0, xmm0, [rdx]
+    vmovdqu [result], xmm0
+  end;
+end;
+
+function AVX2NotI16x8(const a: TVecI16x8): TVecI16x8;
+begin
+  asm
+    lea     rax, a
+    vmovdqu xmm0, [rax]
+    vpcmpeqw xmm1, xmm1, xmm1  // Set all bits to 1
+    vpxor   xmm0, xmm0, xmm1   // XOR with all 1s = NOT
+    vmovdqu [result], xmm0
+  end;
+end;
+
+function AVX2AndNotI16x8(const a, b: TVecI16x8): TVecI16x8;
+begin
+  asm
+    lea     rax, a
+    lea     rdx, b
+    vmovdqu xmm0, [rax]
+    vpandn  xmm0, xmm0, [rdx]  // andnot: ~a & b
+    vmovdqu [result], xmm0
+  end;
+end;
+
+// === I16x8 Shift Operations (128-bit) ===
+
+function AVX2ShiftLeftI16x8(const a: TVecI16x8; count: Integer): TVecI16x8;
+begin
+  asm
+    lea     rax, a
+    vmovdqu xmm0, [rax]
+    mov     eax, count
+    vmovd   xmm1, eax
+    vpsllw  xmm0, xmm0, xmm1
+    vmovdqu [result], xmm0
+  end;
+end;
+
+function AVX2ShiftRightI16x8(const a: TVecI16x8; count: Integer): TVecI16x8;
+begin
+  asm
+    lea     rax, a
+    vmovdqu xmm0, [rax]
+    mov     eax, count
+    vmovd   xmm1, eax
+    vpsrlw  xmm0, xmm0, xmm1   // Logical right shift
+    vmovdqu [result], xmm0
+  end;
+end;
+
+function AVX2ShiftRightArithI16x8(const a: TVecI16x8; count: Integer): TVecI16x8;
+begin
+  asm
+    lea     rax, a
+    vmovdqu xmm0, [rax]
+    mov     eax, count
+    vmovd   xmm1, eax
+    vpsraw  xmm0, xmm0, xmm1   // Arithmetic right shift
+    vmovdqu [result], xmm0
+  end;
+end;
+
+// === I16x8 Comparison Operations (128-bit) ===
+
+function AVX2CmpEqI16x8(const a, b: TVecI16x8): TMask8;
+var mask: Integer;
+begin
+  asm
+    lea      rax, a
+    lea      rdx, b
+    vmovdqu  xmm0, [rax]
+    vpcmpeqw xmm0, xmm0, [rdx]
+    vpmovmskb eax, xmm0        // Get byte mask (16 bits for 8×Int16)
+    mov      mask, eax
+  end;
+  Result := TMask8(mask);
+end;
+
+function AVX2CmpLtI16x8(const a, b: TVecI16x8): TMask8;
+var mask: Integer;
+begin
+  asm
+    lea      rax, a
+    lea      rdx, b
+    vmovdqu  xmm0, [rax]
+    vmovdqu  xmm1, [rdx]
+    vpcmpgtw xmm1, xmm1, xmm0  // b > a (swap operands)
+    vpmovmskb eax, xmm1
+    mov      mask, eax
+  end;
+  Result := TMask8(mask);
+end;
+
+function AVX2CmpGtI16x8(const a, b: TVecI16x8): TMask8;
+var mask: Integer;
+begin
+  asm
+    lea      rax, a
+    lea      rdx, b
+    vmovdqu  xmm0, [rax]
+    vpcmpgtw xmm0, xmm0, [rdx]  // a > b
+    vpmovmskb eax, xmm0
+    mov      mask, eax
+  end;
+  Result := TMask8(mask);
+end;
+
+// ✅ NEW: CmpLe/CmpGe/CmpNe for I16x8 using NOT + base comparison (AVX2 VEX encoding)
+function AVX2CmpLeI16x8(const a, b: TVecI16x8): TMask8;
+var mask: Integer;
+begin
+  // LE: a <= b is same as NOT(a > b)
+  asm
+    lea      rax, a
+    lea      rdx, b
+    vmovdqu  xmm0, [rax]
+    vpcmpgtw xmm0, xmm0, [rdx]  // a > b
+    vpcmpeqw xmm1, xmm1, xmm1  // all ones
+    vpxor    xmm0, xmm0, xmm1  // NOT(a > b) = a <= b
+    vpmovmskb eax, xmm0
+    mov      mask, eax
+  end;
+  Result := TMask8(mask);
+end;
+
+function AVX2CmpGeI16x8(const a, b: TVecI16x8): TMask8;
+var mask: Integer;
+begin
+  // GE: a >= b is same as NOT(a < b) = NOT(b > a)
+  asm
+    lea      rax, a
+    lea      rdx, b
+    vmovdqu  xmm1, [rdx]
+    vpcmpgtw xmm1, xmm1, [rax]  // b > a (i.e., a < b)
+    vpcmpeqw xmm2, xmm2, xmm2  // all ones
+    vpxor    xmm1, xmm1, xmm2  // NOT(a < b) = a >= b
+    vpmovmskb eax, xmm1
+    mov      mask, eax
+  end;
+  Result := TMask8(mask);
+end;
+
+function AVX2CmpNeI16x8(const a, b: TVecI16x8): TMask8;
+var mask: Integer;
+begin
+  // NE: a != b is same as NOT(a == b)
+  asm
+    lea      rax, a
+    lea      rdx, b
+    vmovdqu  xmm0, [rax]
+    vpcmpeqw xmm0, xmm0, [rdx]  // a == b
+    vpcmpeqw xmm1, xmm1, xmm1  // all ones
+    vpxor    xmm0, xmm0, xmm1  // NOT(a == b) = a != b
+    vpmovmskb eax, xmm0
+    mov      mask, eax
+  end;
+  Result := TMask8(mask);
+end;
+
+// === I16x8 Min/Max Operations (128-bit) ===
+
+function AVX2MinI16x8(const a, b: TVecI16x8): TVecI16x8;
+begin
+  asm
+    lea     rax, a
+    lea     rdx, b
+    vmovdqu xmm0, [rax]
+    vpminsw xmm0, xmm0, [rdx]   // Signed min
+    vmovdqu [result], xmm0
+  end;
+end;
+
+function AVX2MaxI16x8(const a, b: TVecI16x8): TVecI16x8;
+begin
+  asm
+    lea     rax, a
+    lea     rdx, b
+    vmovdqu xmm0, [rax]
+    vpmaxsw xmm0, xmm0, [rdx]   // Signed max
+    vmovdqu [result], xmm0
+  end;
+end;
+
+// === I8x16 Arithmetic Operations (128-bit) ===
+
+function AVX2AddI8x16(const a, b: TVecI8x16): TVecI8x16;
+begin
+  asm
+    lea     rax, a
+    lea     rdx, b
+    vmovdqu xmm0, [rax]
+    vpaddb  xmm0, xmm0, [rdx]
+    vmovdqu [result], xmm0
+  end;
+end;
+
+function AVX2SubI8x16(const a, b: TVecI8x16): TVecI8x16;
+begin
+  asm
+    lea     rax, a
+    lea     rdx, b
+    vmovdqu xmm0, [rax]
+    vpsubb  xmm0, xmm0, [rdx]
+    vmovdqu [result], xmm0
+  end;
+end;
+
+// === I8x16 Bitwise Operations (128-bit) ===
+
+function AVX2AndI8x16(const a, b: TVecI8x16): TVecI8x16;
+begin
+  asm
+    lea     rax, a
+    lea     rdx, b
+    vmovdqu xmm0, [rax]
+    vpand   xmm0, xmm0, [rdx]
+    vmovdqu [result], xmm0
+  end;
+end;
+
+function AVX2OrI8x16(const a, b: TVecI8x16): TVecI8x16;
+begin
+  asm
+    lea     rax, a
+    lea     rdx, b
+    vmovdqu xmm0, [rax]
+    vpor    xmm0, xmm0, [rdx]
+    vmovdqu [result], xmm0
+  end;
+end;
+
+function AVX2XorI8x16(const a, b: TVecI8x16): TVecI8x16;
+begin
+  asm
+    lea     rax, a
+    lea     rdx, b
+    vmovdqu xmm0, [rax]
+    vpxor   xmm0, xmm0, [rdx]
+    vmovdqu [result], xmm0
+  end;
+end;
+
+function AVX2NotI8x16(const a: TVecI8x16): TVecI8x16;
+begin
+  asm
+    lea     rax, a
+    vmovdqu xmm0, [rax]
+    vpcmpeqb xmm1, xmm1, xmm1  // Set all bits to 1
+    vpxor   xmm0, xmm0, xmm1   // XOR with all 1s = NOT
+    vmovdqu [result], xmm0
+  end;
+end;
+
+// === I8x16 Comparison Operations (128-bit) ===
+
+function AVX2CmpEqI8x16(const a, b: TVecI8x16): TMask16;
+var mask: Integer;
+begin
+  asm
+    lea      rax, a
+    lea      rdx, b
+    vmovdqu  xmm0, [rax]
+    vpcmpeqb xmm0, xmm0, [rdx]
+    vpmovmskb eax, xmm0
+    mov      mask, eax
+  end;
+  Result := TMask16(mask);
+end;
+
+function AVX2CmpLtI8x16(const a, b: TVecI8x16): TMask16;
+var mask: Integer;
+begin
+  asm
+    lea      rax, a
+    lea      rdx, b
+    vmovdqu  xmm0, [rax]
+    vmovdqu  xmm1, [rdx]
+    vpcmpgtb xmm1, xmm1, xmm0  // b > a (swap operands)
+    vpmovmskb eax, xmm1
+    mov      mask, eax
+  end;
+  Result := TMask16(mask);
+end;
+
+function AVX2CmpGtI8x16(const a, b: TVecI8x16): TMask16;
+var mask: Integer;
+begin
+  asm
+    lea      rax, a
+    lea      rdx, b
+    vmovdqu  xmm0, [rax]
+    vpcmpgtb xmm0, xmm0, [rdx]  // a > b
+    vpmovmskb eax, xmm0
+    mov      mask, eax
+  end;
+  Result := TMask16(mask);
+end;
+
+// ✅ NEW: CmpLe/CmpGe/CmpNe for I8x16 using NOT + base comparison (AVX2 VEX encoding)
+function AVX2CmpLeI8x16(const a, b: TVecI8x16): TMask16;
+var mask: Integer;
+begin
+  // LE: a <= b is same as NOT(a > b)
+  asm
+    lea      rax, a
+    lea      rdx, b
+    vmovdqu  xmm0, [rax]
+    vpcmpgtb xmm0, xmm0, [rdx]  // a > b
+    vpcmpeqb xmm1, xmm1, xmm1  // all ones
+    vpxor    xmm0, xmm0, xmm1  // NOT(a > b) = a <= b
+    vpmovmskb eax, xmm0
+    mov      mask, eax
+  end;
+  Result := TMask16(mask);
+end;
+
+function AVX2CmpGeI8x16(const a, b: TVecI8x16): TMask16;
+var mask: Integer;
+begin
+  // GE: a >= b is same as NOT(a < b) = NOT(b > a)
+  asm
+    lea      rax, a
+    lea      rdx, b
+    vmovdqu  xmm1, [rdx]
+    vpcmpgtb xmm1, xmm1, [rax]  // b > a (i.e., a < b)
+    vpcmpeqb xmm2, xmm2, xmm2  // all ones
+    vpxor    xmm1, xmm1, xmm2  // NOT(a < b) = a >= b
+    vpmovmskb eax, xmm1
+    mov      mask, eax
+  end;
+  Result := TMask16(mask);
+end;
+
+function AVX2CmpNeI8x16(const a, b: TVecI8x16): TMask16;
+var mask: Integer;
+begin
+  // NE: a != b is same as NOT(a == b)
+  asm
+    lea      rax, a
+    lea      rdx, b
+    vmovdqu  xmm0, [rax]
+    vpcmpeqb xmm0, xmm0, [rdx]  // a == b
+    vpcmpeqb xmm1, xmm1, xmm1  // all ones
+    vpxor    xmm0, xmm0, xmm1  // NOT(a == b) = a != b
+    vpmovmskb eax, xmm0
+    mov      mask, eax
+  end;
+  Result := TMask16(mask);
+end;
+
+// === I8x16 Min/Max Operations (128-bit) ===
+
+function AVX2MinI8x16(const a, b: TVecI8x16): TVecI8x16;
+begin
+  asm
+    lea     rax, a
+    lea     rdx, b
+    vmovdqu xmm0, [rax]
+    vpminsb xmm0, xmm0, [rdx]   // Signed min (AVX2)
+    vmovdqu [result], xmm0
+  end;
+end;
+
+function AVX2MaxI8x16(const a, b: TVecI8x16): TVecI8x16;
+begin
+  asm
+    lea     rax, a
+    lea     rdx, b
+    vmovdqu xmm0, [rax]
+    vpmaxsb xmm0, xmm0, [rdx]   // Signed max (AVX2)
+    vmovdqu [result], xmm0
+  end;
+end;
+
+// === U32x4 Arithmetic Operations (128-bit) ===
+
+function AVX2AddU32x4(const a, b: TVecU32x4): TVecU32x4;
+begin
+  asm
+    lea     rax, a
+    lea     rdx, b
+    vmovdqu xmm0, [rax]
+    vpaddd  xmm0, xmm0, [rdx]
+    vmovdqu [result], xmm0
+  end;
+end;
+
+function AVX2SubU32x4(const a, b: TVecU32x4): TVecU32x4;
+begin
+  asm
+    lea     rax, a
+    lea     rdx, b
+    vmovdqu xmm0, [rax]
+    vpsubd  xmm0, xmm0, [rdx]
+    vmovdqu [result], xmm0
+  end;
+end;
+
+function AVX2MulU32x4(const a, b: TVecU32x4): TVecU32x4;
+begin
+  asm
+    lea     rax, a
+    lea     rdx, b
+    vmovdqu xmm0, [rax]
+    vpmulld xmm0, xmm0, [rdx]
+    vmovdqu [result], xmm0
+  end;
+end;
+
+// === U32x4 Bitwise Operations (128-bit) ===
+
+function AVX2AndU32x4(const a, b: TVecU32x4): TVecU32x4;
+begin
+  asm
+    lea     rax, a
+    lea     rdx, b
+    vmovdqu xmm0, [rax]
+    vpand   xmm0, xmm0, [rdx]
+    vmovdqu [result], xmm0
+  end;
+end;
+
+function AVX2OrU32x4(const a, b: TVecU32x4): TVecU32x4;
+begin
+  asm
+    lea     rax, a
+    lea     rdx, b
+    vmovdqu xmm0, [rax]
+    vpor    xmm0, xmm0, [rdx]
+    vmovdqu [result], xmm0
+  end;
+end;
+
+function AVX2XorU32x4(const a, b: TVecU32x4): TVecU32x4;
+begin
+  asm
+    lea     rax, a
+    lea     rdx, b
+    vmovdqu xmm0, [rax]
+    vpxor   xmm0, xmm0, [rdx]
+    vmovdqu [result], xmm0
+  end;
+end;
+
+function AVX2NotU32x4(const a: TVecU32x4): TVecU32x4;
+begin
+  asm
+    lea     rax, a
+    vmovdqu xmm0, [rax]
+    vpcmpeqd xmm1, xmm1, xmm1  // Set all bits to 1
+    vpxor   xmm0, xmm0, xmm1   // XOR with all 1s = NOT
+    vmovdqu [result], xmm0
+  end;
+end;
+
+function AVX2AndNotU32x4(const a, b: TVecU32x4): TVecU32x4;
+begin
+  asm
+    lea     rax, a
+    lea     rdx, b
+    vmovdqu xmm0, [rax]
+    vpandn  xmm0, xmm0, [rdx]  // andnot: ~a & b
+    vmovdqu [result], xmm0
+  end;
+end;
+
+// === U32x4 Shift Operations (128-bit) ===
+
+function AVX2ShiftLeftU32x4(const a: TVecU32x4; count: Integer): TVecU32x4;
+begin
+  asm
+    lea     rax, a
+    vmovdqu xmm0, [rax]
+    mov     eax, count
+    vmovd   xmm1, eax
+    vpslld  xmm0, xmm0, xmm1
+    vmovdqu [result], xmm0
+  end;
+end;
+
+function AVX2ShiftRightU32x4(const a: TVecU32x4; count: Integer): TVecU32x4;
+begin
+  asm
+    lea     rax, a
+    vmovdqu xmm0, [rax]
+    mov     eax, count
+    vmovd   xmm1, eax
+    vpsrld  xmm0, xmm0, xmm1
+    vmovdqu [result], xmm0
+  end;
+end;
+
+// === U32x4 Comparison Operations (128-bit) ===
+
+function AVX2CmpEqU32x4(const a, b: TVecU32x4): TMask4;
+var mask: Integer;
+begin
+  asm
+    lea      rax, a
+    lea      rdx, b
+    vmovdqu  xmm0, [rax]
+    vpcmpeqd xmm0, xmm0, [rdx]
+    vmovmskps eax, xmm0
+    mov      mask, eax
+  end;
+  Result := TMask4(mask);
+end;
+
+function AVX2CmpLtU32x4(const a, b: TVecU32x4): TMask4;
+var mask: Integer;
+begin
+  // Unsigned comparison: flip sign bit and use signed compare
+  asm
+    lea      rax, a
+    lea      rdx, b
+    mov      ecx, $80000000
+    vmovd    xmm2, ecx
+    vpshufd  xmm2, xmm2, 0      // Broadcast sign bit
+    vmovdqu  xmm0, [rax]
+    vpxor    xmm0, xmm0, xmm2   // Flip sign bit of a
+    vmovdqu  xmm1, [rdx]
+    vpxor    xmm1, xmm1, xmm2   // Flip sign bit of b
+    vpcmpgtd xmm1, xmm1, xmm0   // Signed compare: b > a
+    vmovmskps eax, xmm1
+    mov      mask, eax
+  end;
+  Result := TMask4(mask);
+end;
+
+function AVX2CmpGtU32x4(const a, b: TVecU32x4): TMask4;
+var mask: Integer;
+begin
+  // Unsigned comparison: flip sign bit and use signed compare
+  asm
+    lea      rax, a
+    lea      rdx, b
+    mov      ecx, $80000000
+    vmovd    xmm2, ecx
+    vpshufd  xmm2, xmm2, 0      // Broadcast sign bit
+    vmovdqu  xmm0, [rax]
+    vpxor    xmm0, xmm0, xmm2   // Flip sign bit of a
+    vmovdqu  xmm1, [rdx]
+    vpxor    xmm1, xmm1, xmm2   // Flip sign bit of b
+    vpcmpgtd xmm0, xmm0, xmm1   // Signed compare: a > b
+    vmovmskps eax, xmm0
+    mov      mask, eax
+  end;
+  Result := TMask4(mask);
+end;
+
+function AVX2CmpLeU32x4(const a, b: TVecU32x4): TMask4;
+var mask: Integer;
+begin
+  // LE = NOT(GT)
+  asm
+    lea      rax, a
+    lea      rdx, b
+    mov      ecx, $80000000
+    vmovd    xmm2, ecx
+    vpshufd  xmm2, xmm2, 0
+    vmovdqu  xmm0, [rax]
+    vpxor    xmm0, xmm0, xmm2
+    vmovdqu  xmm1, [rdx]
+    vpxor    xmm1, xmm1, xmm2
+    vpcmpgtd xmm0, xmm0, xmm1   // a > b
+    vpcmpeqd xmm2, xmm2, xmm2   // All 1s
+    vpxor    xmm0, xmm0, xmm2   // NOT
+    vmovmskps eax, xmm0
+    mov      mask, eax
+  end;
+  Result := TMask4(mask);
+end;
+
+function AVX2CmpGeU32x4(const a, b: TVecU32x4): TMask4;
+var mask: Integer;
+begin
+  // GE = NOT(LT)
+  asm
+    lea      rax, a
+    lea      rdx, b
+    mov      ecx, $80000000
+    vmovd    xmm2, ecx
+    vpshufd  xmm2, xmm2, 0
+    vmovdqu  xmm0, [rax]
+    vpxor    xmm0, xmm0, xmm2
+    vmovdqu  xmm1, [rdx]
+    vpxor    xmm1, xmm1, xmm2
+    vpcmpgtd xmm1, xmm1, xmm0   // b > a (= a < b)
+    vpcmpeqd xmm2, xmm2, xmm2   // All 1s
+    vpxor    xmm1, xmm1, xmm2   // NOT
+    vmovmskps eax, xmm1
+    mov      mask, eax
+  end;
+  Result := TMask4(mask);
+end;
+
+// === U32x4 Min/Max Operations (128-bit) ===
+
+function AVX2MinU32x4(const a, b: TVecU32x4): TVecU32x4;
+begin
+  asm
+    lea     rax, a
+    lea     rdx, b
+    vmovdqu xmm0, [rax]
+    vpminud xmm0, xmm0, [rdx]   // Unsigned min (AVX2)
+    vmovdqu [result], xmm0
+  end;
+end;
+
+function AVX2MaxU32x4(const a, b: TVecU32x4): TVecU32x4;
+begin
+  asm
+    lea     rax, a
+    lea     rdx, b
+    vmovdqu xmm0, [rax]
+    vpmaxud xmm0, xmm0, [rdx]   // Unsigned max (AVX2)
+    vmovdqu [result], xmm0
+  end;
+end;
+
+// === U16x8 Arithmetic Operations (128-bit) ===
+
+function AVX2AddU16x8(const a, b: TVecU16x8): TVecU16x8;
+begin
+  asm
+    lea     rax, a
+    lea     rdx, b
+    vmovdqu xmm0, [rax]
+    vpaddw  xmm0, xmm0, [rdx]
+    vmovdqu [result], xmm0
+  end;
+end;
+
+function AVX2SubU16x8(const a, b: TVecU16x8): TVecU16x8;
+begin
+  asm
+    lea     rax, a
+    lea     rdx, b
+    vmovdqu xmm0, [rax]
+    vpsubw  xmm0, xmm0, [rdx]
+    vmovdqu [result], xmm0
+  end;
+end;
+
+function AVX2MulU16x8(const a, b: TVecU16x8): TVecU16x8;
+begin
+  asm
+    lea     rax, a
+    lea     rdx, b
+    vmovdqu xmm0, [rax]
+    vpmullw xmm0, xmm0, [rdx]
+    vmovdqu [result], xmm0
+  end;
+end;
+
+// === U16x8 Bitwise Operations (128-bit) ===
+
+function AVX2AndU16x8(const a, b: TVecU16x8): TVecU16x8;
+begin
+  asm
+    lea     rax, a
+    lea     rdx, b
+    vmovdqu xmm0, [rax]
+    vpand   xmm0, xmm0, [rdx]
+    vmovdqu [result], xmm0
+  end;
+end;
+
+function AVX2OrU16x8(const a, b: TVecU16x8): TVecU16x8;
+begin
+  asm
+    lea     rax, a
+    lea     rdx, b
+    vmovdqu xmm0, [rax]
+    vpor    xmm0, xmm0, [rdx]
+    vmovdqu [result], xmm0
+  end;
+end;
+
+function AVX2XorU16x8(const a, b: TVecU16x8): TVecU16x8;
+begin
+  asm
+    lea     rax, a
+    lea     rdx, b
+    vmovdqu xmm0, [rax]
+    vpxor   xmm0, xmm0, [rdx]
+    vmovdqu [result], xmm0
+  end;
+end;
+
+function AVX2NotU16x8(const a: TVecU16x8): TVecU16x8;
+begin
+  asm
+    lea     rax, a
+    vmovdqu xmm0, [rax]
+    vpcmpeqw xmm1, xmm1, xmm1  // Set all bits to 1
+    vpxor   xmm0, xmm0, xmm1   // XOR with all 1s = NOT
+    vmovdqu [result], xmm0
+  end;
+end;
+
+// === U16x8 Shift Operations (128-bit) ===
+
+function AVX2ShiftLeftU16x8(const a: TVecU16x8; count: Integer): TVecU16x8;
+begin
+  asm
+    lea     rax, a
+    vmovdqu xmm0, [rax]
+    mov     eax, count
+    vmovd   xmm1, eax
+    vpsllw  xmm0, xmm0, xmm1
+    vmovdqu [result], xmm0
+  end;
+end;
+
+function AVX2ShiftRightU16x8(const a: TVecU16x8; count: Integer): TVecU16x8;
+begin
+  asm
+    lea     rax, a
+    vmovdqu xmm0, [rax]
+    mov     eax, count
+    vmovd   xmm1, eax
+    vpsrlw  xmm0, xmm0, xmm1
+    vmovdqu [result], xmm0
+  end;
+end;
+
+// === U16x8 Comparison Operations (128-bit) ===
+
+function AVX2CmpEqU16x8(const a, b: TVecU16x8): TMask8;
+var mask: Integer;
+begin
+  asm
+    lea      rax, a
+    lea      rdx, b
+    vmovdqu  xmm0, [rax]
+    vpcmpeqw xmm0, xmm0, [rdx]
+    vpmovmskb eax, xmm0
+    mov      mask, eax
+  end;
+  Result := TMask8(mask);
+end;
+
+function AVX2CmpLtU16x8(const a, b: TVecU16x8): TMask8;
+var mask: Integer;
+begin
+  // Unsigned comparison: flip sign bit and use signed compare
+  asm
+    lea      rax, a
+    lea      rdx, b
+    mov      ecx, $8000
+    vmovd    xmm2, ecx
+    vpshuflw xmm2, xmm2, 0      // Broadcast to low 4 words
+    vpshufhw xmm2, xmm2, 0      // Broadcast to high 4 words
+    vmovdqu  xmm0, [rax]
+    vpxor    xmm0, xmm0, xmm2
+    vmovdqu  xmm1, [rdx]
+    vpxor    xmm1, xmm1, xmm2
+    vpcmpgtw xmm1, xmm1, xmm0   // b > a
+    vpmovmskb eax, xmm1
+    mov      mask, eax
+  end;
+  Result := TMask8(mask);
+end;
+
+function AVX2CmpGtU16x8(const a, b: TVecU16x8): TMask8;
+var mask: Integer;
+begin
+  // Unsigned comparison: flip sign bit and use signed compare
+  asm
+    lea      rax, a
+    lea      rdx, b
+    mov      ecx, $8000
+    vmovd    xmm2, ecx
+    vpshuflw xmm2, xmm2, 0
+    vpshufhw xmm2, xmm2, 0
+    vmovdqu  xmm0, [rax]
+    vpxor    xmm0, xmm0, xmm2
+    vmovdqu  xmm1, [rdx]
+    vpxor    xmm1, xmm1, xmm2
+    vpcmpgtw xmm0, xmm0, xmm1   // a > b
+    vpmovmskb eax, xmm0
+    mov      mask, eax
+  end;
+  Result := TMask8(mask);
+end;
+
+// ✅ NEW: CmpLe/CmpGe/CmpNe for U16x8 using NOT + base comparison (AVX2 VEX encoding)
+function AVX2CmpLeU16x8(const a, b: TVecU16x8): TMask8;
+var mask: Integer;
+begin
+  // LE: a <= b is same as NOT(a > b)
+  asm
+    lea      rax, a
+    lea      rdx, b
+    mov      ecx, $8000
+    vmovd    xmm2, ecx
+    vpshuflw xmm2, xmm2, 0
+    vpshufhw xmm2, xmm2, 0
+    vmovdqu  xmm0, [rax]
+    vpxor    xmm0, xmm0, xmm2
+    vmovdqu  xmm1, [rdx]
+    vpxor    xmm1, xmm1, xmm2
+    vpcmpgtw xmm0, xmm0, xmm1   // a > b
+    vpcmpeqw xmm3, xmm3, xmm3  // all ones
+    vpxor    xmm0, xmm0, xmm3  // NOT(a > b) = a <= b
+    vpmovmskb eax, xmm0
+    mov      mask, eax
+  end;
+  Result := TMask8(mask);
+end;
+
+function AVX2CmpGeU16x8(const a, b: TVecU16x8): TMask8;
+var mask: Integer;
+begin
+  // GE: a >= b is same as NOT(a < b) = NOT(b > a)
+  asm
+    lea      rax, a
+    lea      rdx, b
+    mov      ecx, $8000
+    vmovd    xmm2, ecx
+    vpshuflw xmm2, xmm2, 0
+    vpshufhw xmm2, xmm2, 0
+    vmovdqu  xmm0, [rax]
+    vpxor    xmm0, xmm0, xmm2
+    vmovdqu  xmm1, [rdx]
+    vpxor    xmm1, xmm1, xmm2
+    vpcmpgtw xmm1, xmm1, xmm0   // b > a (i.e., a < b)
+    vpcmpeqw xmm3, xmm3, xmm3  // all ones
+    vpxor    xmm1, xmm1, xmm3  // NOT(a < b) = a >= b
+    vpmovmskb eax, xmm1
+    mov      mask, eax
+  end;
+  Result := TMask8(mask);
+end;
+
+function AVX2CmpNeU16x8(const a, b: TVecU16x8): TMask8;
+var mask: Integer;
+begin
+  // NE: a != b is same as NOT(a == b)
+  asm
+    lea      rax, a
+    lea      rdx, b
+    vmovdqu  xmm0, [rax]
+    vpcmpeqw xmm0, xmm0, [rdx]  // a == b
+    vpcmpeqw xmm1, xmm1, xmm1  // all ones
+    vpxor    xmm0, xmm0, xmm1  // NOT(a == b) = a != b
+    vpmovmskb eax, xmm0
+    mov      mask, eax
+  end;
+  Result := TMask8(mask);
+end;
+
+// === U16x8 Min/Max Operations (128-bit) ===
+
+function AVX2MinU16x8(const a, b: TVecU16x8): TVecU16x8;
+begin
+  asm
+    lea     rax, a
+    lea     rdx, b
+    vmovdqu xmm0, [rax]
+    vpminuw xmm0, xmm0, [rdx]   // Unsigned min (SSE4.1)
+    vmovdqu [result], xmm0
+  end;
+end;
+
+function AVX2MaxU16x8(const a, b: TVecU16x8): TVecU16x8;
+begin
+  asm
+    lea     rax, a
+    lea     rdx, b
+    vmovdqu xmm0, [rax]
+    vpmaxuw xmm0, xmm0, [rdx]   // Unsigned max (SSE4.1)
+    vmovdqu [result], xmm0
+  end;
+end;
+
+// === U8x16 Arithmetic Operations (128-bit) ===
+
+function AVX2AddU8x16(const a, b: TVecU8x16): TVecU8x16;
+begin
+  asm
+    lea     rax, a
+    lea     rdx, b
+    vmovdqu xmm0, [rax]
+    vpaddb  xmm0, xmm0, [rdx]
+    vmovdqu [result], xmm0
+  end;
+end;
+
+function AVX2SubU8x16(const a, b: TVecU8x16): TVecU8x16;
+begin
+  asm
+    lea     rax, a
+    lea     rdx, b
+    vmovdqu xmm0, [rax]
+    vpsubb  xmm0, xmm0, [rdx]
+    vmovdqu [result], xmm0
+  end;
+end;
+
+// === U8x16 Bitwise Operations (128-bit) ===
+
+function AVX2AndU8x16(const a, b: TVecU8x16): TVecU8x16;
+begin
+  asm
+    lea     rax, a
+    lea     rdx, b
+    vmovdqu xmm0, [rax]
+    vpand   xmm0, xmm0, [rdx]
+    vmovdqu [result], xmm0
+  end;
+end;
+
+function AVX2OrU8x16(const a, b: TVecU8x16): TVecU8x16;
+begin
+  asm
+    lea     rax, a
+    lea     rdx, b
+    vmovdqu xmm0, [rax]
+    vpor    xmm0, xmm0, [rdx]
+    vmovdqu [result], xmm0
+  end;
+end;
+
+function AVX2XorU8x16(const a, b: TVecU8x16): TVecU8x16;
+begin
+  asm
+    lea     rax, a
+    lea     rdx, b
+    vmovdqu xmm0, [rax]
+    vpxor   xmm0, xmm0, [rdx]
+    vmovdqu [result], xmm0
+  end;
+end;
+
+function AVX2NotU8x16(const a: TVecU8x16): TVecU8x16;
+begin
+  asm
+    lea     rax, a
+    vmovdqu xmm0, [rax]
+    vpcmpeqb xmm1, xmm1, xmm1  // Set all bits to 1
+    vpxor   xmm0, xmm0, xmm1   // XOR with all 1s = NOT
+    vmovdqu [result], xmm0
+  end;
+end;
+
+// === U8x16 Comparison Operations (128-bit) ===
+
+function AVX2CmpEqU8x16(const a, b: TVecU8x16): TMask16;
+var mask: Integer;
+begin
+  asm
+    lea      rax, a
+    lea      rdx, b
+    vmovdqu  xmm0, [rax]
+    vpcmpeqb xmm0, xmm0, [rdx]
+    vpmovmskb eax, xmm0
+    mov      mask, eax
+  end;
+  Result := TMask16(mask);
+end;
+
+function AVX2CmpLtU8x16(const a, b: TVecU8x16): TMask16;
+var mask: Integer;
+begin
+  // Unsigned comparison: flip sign bit and use signed compare
+  asm
+    lea      rax, a
+    lea      rdx, b
+    mov      al, $80
+    vmovd    xmm2, eax
+    vpbroadcastb xmm2, xmm2     // Broadcast sign bit (AVX2)
+    vmovdqu  xmm0, [rax]
+    vpxor    xmm0, xmm0, xmm2
+    vmovdqu  xmm1, [rdx]
+    vpxor    xmm1, xmm1, xmm2
+    vpcmpgtb xmm1, xmm1, xmm0   // b > a
+    vpmovmskb eax, xmm1
+    mov      mask, eax
+  end;
+  Result := TMask16(mask);
+end;
+
+function AVX2CmpGtU8x16(const a, b: TVecU8x16): TMask16;
+var mask: Integer;
+begin
+  // Unsigned comparison: flip sign bit and use signed compare
+  asm
+    lea      rax, a
+    lea      rdx, b
+    mov      al, $80
+    vmovd    xmm2, eax
+    vpbroadcastb xmm2, xmm2
+    vmovdqu  xmm0, [rax]
+    vpxor    xmm0, xmm0, xmm2
+    vmovdqu  xmm1, [rdx]
+    vpxor    xmm1, xmm1, xmm2
+    vpcmpgtb xmm0, xmm0, xmm1   // a > b
+    vpmovmskb eax, xmm0
+    mov      mask, eax
+  end;
+  Result := TMask16(mask);
+end;
+
+// ✅ NEW: CmpLe/CmpGe/CmpNe for U8x16 using NOT + base comparison (AVX2 VEX encoding)
+function AVX2CmpLeU8x16(const a, b: TVecU8x16): TMask16;
+var mask: Integer;
+begin
+  // LE: a <= b is same as NOT(a > b)
+  asm
+    lea      rax, a
+    lea      rdx, b
+    mov      al, $80
+    vmovd    xmm2, eax
+    vpbroadcastb xmm2, xmm2
+    vmovdqu  xmm0, [rax]
+    vpxor    xmm0, xmm0, xmm2
+    vmovdqu  xmm1, [rdx]
+    vpxor    xmm1, xmm1, xmm2
+    vpcmpgtb xmm0, xmm0, xmm1   // a > b
+    vpcmpeqb xmm3, xmm3, xmm3  // all ones
+    vpxor    xmm0, xmm0, xmm3  // NOT(a > b) = a <= b
+    vpmovmskb eax, xmm0
+    mov      mask, eax
+  end;
+  Result := TMask16(mask);
+end;
+
+function AVX2CmpGeU8x16(const a, b: TVecU8x16): TMask16;
+var mask: Integer;
+begin
+  // GE: a >= b is same as NOT(a < b) = NOT(b > a)
+  asm
+    lea      rax, a
+    lea      rdx, b
+    mov      al, $80
+    vmovd    xmm2, eax
+    vpbroadcastb xmm2, xmm2
+    vmovdqu  xmm0, [rax]
+    vpxor    xmm0, xmm0, xmm2
+    vmovdqu  xmm1, [rdx]
+    vpxor    xmm1, xmm1, xmm2
+    vpcmpgtb xmm1, xmm1, xmm0   // b > a (i.e., a < b)
+    vpcmpeqb xmm3, xmm3, xmm3  // all ones
+    vpxor    xmm1, xmm1, xmm3  // NOT(a < b) = a >= b
+    vpmovmskb eax, xmm1
+    mov      mask, eax
+  end;
+  Result := TMask16(mask);
+end;
+
+function AVX2CmpNeU8x16(const a, b: TVecU8x16): TMask16;
+var mask: Integer;
+begin
+  // NE: a != b is same as NOT(a == b)
+  asm
+    lea      rax, a
+    lea      rdx, b
+    vmovdqu  xmm0, [rax]
+    vpcmpeqb xmm0, xmm0, [rdx]  // a == b
+    vpcmpeqb xmm1, xmm1, xmm1  // all ones
+    vpxor    xmm0, xmm0, xmm1  // NOT(a == b) = a != b
+    vpmovmskb eax, xmm0
+    mov      mask, eax
+  end;
+  Result := TMask16(mask);
+end;
+
+// === U8x16 Min/Max Operations (128-bit) ===
+
+function AVX2MinU8x16(const a, b: TVecU8x16): TVecU8x16;
+begin
+  asm
+    lea     rax, a
+    lea     rdx, b
+    vmovdqu xmm0, [rax]
+    vpminub xmm0, xmm0, [rdx]   // Unsigned min (SSE2)
+    vmovdqu [result], xmm0
+  end;
+end;
+
+function AVX2MaxU8x16(const a, b: TVecU8x16): TVecU8x16;
+begin
+  asm
+    lea     rax, a
+    lea     rdx, b
+    vmovdqu xmm0, [rax]
+    vpmaxub xmm0, xmm0, [rdx]   // Unsigned max (SSE2)
+    vmovdqu [result], xmm0
+  end;
+end;
+
 // === AVX2 Comparison Operations ===
 
 function AVX2CmpEqF32x4(const a, b: TVecF32x4): TMask4;
@@ -1436,6 +2675,254 @@ begin
     vmovups [rax], ymm0
     vzeroupper
   end;
+end;
+
+// === F32x8 Comparison Operations (256-bit AVX) ===
+
+function AVX2CmpEqF32x8(const a, b: TVecF32x8): TMask8;
+var
+  pa, pb: Pointer;
+  mask: Integer;
+begin
+  pa := @a;
+  pb := @b;
+  asm
+    mov      rax, pa
+    mov      rdx, pb
+    vmovups  ymm0, [rax]
+    // vcmpps ymm0, ymm0, [rdx], 0  (imm8=0: EQ_OQ)
+    db $C5, $FC, $C2, $02, $00
+    vmovmskps eax, ymm0
+    mov      mask, eax
+    vzeroupper
+  end;
+  Result := TMask8(mask);
+end;
+
+function AVX2CmpLtF32x8(const a, b: TVecF32x8): TMask8;
+var
+  pa, pb: Pointer;
+  mask: Integer;
+begin
+  pa := @a;
+  pb := @b;
+  asm
+    mov      rax, pa
+    mov      rdx, pb
+    vmovups  ymm0, [rax]
+    // vcmpps ymm0, ymm0, [rdx], 1  (imm8=1: LT_OS)
+    db $C5, $FC, $C2, $02, $01
+    vmovmskps eax, ymm0
+    mov      mask, eax
+    vzeroupper
+  end;
+  Result := TMask8(mask);
+end;
+
+function AVX2CmpLeF32x8(const a, b: TVecF32x8): TMask8;
+var
+  pa, pb: Pointer;
+  mask: Integer;
+begin
+  pa := @a;
+  pb := @b;
+  asm
+    mov      rax, pa
+    mov      rdx, pb
+    vmovups  ymm0, [rax]
+    // vcmpps ymm0, ymm0, [rdx], 2  (imm8=2: LE_OS)
+    db $C5, $FC, $C2, $02, $02
+    vmovmskps eax, ymm0
+    mov      mask, eax
+    vzeroupper
+  end;
+  Result := TMask8(mask);
+end;
+
+function AVX2CmpGtF32x8(const a, b: TVecF32x8): TMask8;
+var
+  pa, pb: Pointer;
+  mask: Integer;
+begin
+  // GT = swap operands and use LT (b < a)
+  pa := @b;
+  pb := @a;
+  asm
+    mov      rax, pa
+    mov      rdx, pb
+    vmovups  ymm0, [rax]
+    // vcmpps ymm0, ymm0, [rdx], 1  (imm8=1: LT_OS)
+    db $C5, $FC, $C2, $02, $01
+    vmovmskps eax, ymm0
+    mov      mask, eax
+    vzeroupper
+  end;
+  Result := TMask8(mask);
+end;
+
+function AVX2CmpGeF32x8(const a, b: TVecF32x8): TMask8;
+var
+  pa, pb: Pointer;
+  mask: Integer;
+begin
+  // GE = swap operands and use LE (b <= a)
+  pa := @b;
+  pb := @a;
+  asm
+    mov      rax, pa
+    mov      rdx, pb
+    vmovups  ymm0, [rax]
+    // vcmpps ymm0, ymm0, [rdx], 2  (imm8=2: LE_OS)
+    db $C5, $FC, $C2, $02, $02
+    vmovmskps eax, ymm0
+    mov      mask, eax
+    vzeroupper
+  end;
+  Result := TMask8(mask);
+end;
+
+function AVX2CmpNeF32x8(const a, b: TVecF32x8): TMask8;
+var
+  pa, pb: Pointer;
+  mask: Integer;
+begin
+  pa := @a;
+  pb := @b;
+  asm
+    mov      rax, pa
+    mov      rdx, pb
+    vmovups  ymm0, [rax]
+    // vcmpps ymm0, ymm0, [rdx], 4  (imm8=4: NEQ_UQ)
+    db $C5, $FC, $C2, $02, $04
+    vmovmskps eax, ymm0
+    mov      mask, eax
+    vzeroupper
+  end;
+  Result := TMask8(mask);
+end;
+
+// === F64x4 Comparison Operations (256-bit AVX) ===
+
+function AVX2CmpEqF64x4(const a, b: TVecF64x4): TMask4;
+var
+  pa, pb: Pointer;
+  mask: Integer;
+begin
+  pa := @a;
+  pb := @b;
+  asm
+    mov      rax, pa
+    mov      rdx, pb
+    vmovupd  ymm0, [rax]
+    // vcmppd ymm0, ymm0, [rdx], 0  (imm8=0: EQ_OQ)
+    db $C5, $FD, $C2, $02, $00
+    vmovmskpd eax, ymm0
+    mov      mask, eax
+    vzeroupper
+  end;
+  Result := TMask4(mask);
+end;
+
+function AVX2CmpLtF64x4(const a, b: TVecF64x4): TMask4;
+var
+  pa, pb: Pointer;
+  mask: Integer;
+begin
+  pa := @a;
+  pb := @b;
+  asm
+    mov      rax, pa
+    mov      rdx, pb
+    vmovupd  ymm0, [rax]
+    // vcmppd ymm0, ymm0, [rdx], 1  (imm8=1: LT_OS)
+    db $C5, $FD, $C2, $02, $01
+    vmovmskpd eax, ymm0
+    mov      mask, eax
+    vzeroupper
+  end;
+  Result := TMask4(mask);
+end;
+
+function AVX2CmpLeF64x4(const a, b: TVecF64x4): TMask4;
+var
+  pa, pb: Pointer;
+  mask: Integer;
+begin
+  pa := @a;
+  pb := @b;
+  asm
+    mov      rax, pa
+    mov      rdx, pb
+    vmovupd  ymm0, [rax]
+    // vcmppd ymm0, ymm0, [rdx], 2  (imm8=2: LE_OS)
+    db $C5, $FD, $C2, $02, $02
+    vmovmskpd eax, ymm0
+    mov      mask, eax
+    vzeroupper
+  end;
+  Result := TMask4(mask);
+end;
+
+function AVX2CmpGtF64x4(const a, b: TVecF64x4): TMask4;
+var
+  pa, pb: Pointer;
+  mask: Integer;
+begin
+  // GT = swap operands and use LT (b < a)
+  pa := @b;
+  pb := @a;
+  asm
+    mov      rax, pa
+    mov      rdx, pb
+    vmovupd  ymm0, [rax]
+    // vcmppd ymm0, ymm0, [rdx], 1  (imm8=1: LT_OS)
+    db $C5, $FD, $C2, $02, $01
+    vmovmskpd eax, ymm0
+    mov      mask, eax
+    vzeroupper
+  end;
+  Result := TMask4(mask);
+end;
+
+function AVX2CmpGeF64x4(const a, b: TVecF64x4): TMask4;
+var
+  pa, pb: Pointer;
+  mask: Integer;
+begin
+  // GE = swap operands and use LE (b <= a)
+  pa := @b;
+  pb := @a;
+  asm
+    mov      rax, pa
+    mov      rdx, pb
+    vmovupd  ymm0, [rax]
+    // vcmppd ymm0, ymm0, [rdx], 2  (imm8=2: LE_OS)
+    db $C5, $FD, $C2, $02, $02
+    vmovmskpd eax, ymm0
+    mov      mask, eax
+    vzeroupper
+  end;
+  Result := TMask4(mask);
+end;
+
+function AVX2CmpNeF64x4(const a, b: TVecF64x4): TMask4;
+var
+  pa, pb: Pointer;
+  mask: Integer;
+begin
+  pa := @a;
+  pb := @b;
+  asm
+    mov      rax, pa
+    mov      rdx, pb
+    vmovupd  ymm0, [rax]
+    // vcmppd ymm0, ymm0, [rdx], 4  (imm8=4: NEQ_UQ)
+    db $C5, $FD, $C2, $02, $04
+    vmovmskpd eax, ymm0
+    mov      mask, eax
+    vzeroupper
+  end;
+  Result := TMask4(mask);
 end;
 
 // === F32x8 Math Operations (256-bit AVX) ===
@@ -3947,6 +5434,1206 @@ begin
   Result := TMask2(maskVal);
 end;
 
+// === ✅ I64x4 Operations (native 256-bit AVX2) ===
+// 4×Int64 向量操作，使用原生 AVX2 256-bit 指令
+
+// I64x4 加法 (VPADDQ ymm)
+function AVX2AddI64x4(const a, b: TVecI64x4): TVecI64x4;
+var
+  pa, pb, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vpaddq  ymm0, ymm0, [rcx]
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+// I64x4 减法 (VPSUBQ ymm)
+function AVX2SubI64x4(const a, b: TVecI64x4): TVecI64x4;
+var
+  pa, pb, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vpsubq  ymm0, ymm0, [rcx]
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+// I64x4 位与 (VPAND ymm)
+function AVX2AndI64x4(const a, b: TVecI64x4): TVecI64x4;
+var
+  pa, pb, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vpand   ymm0, ymm0, [rcx]
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+// I64x4 位或 (VPOR ymm)
+function AVX2OrI64x4(const a, b: TVecI64x4): TVecI64x4;
+var
+  pa, pb, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vpor    ymm0, ymm0, [rcx]
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+// I64x4 位异或 (VPXOR ymm)
+function AVX2XorI64x4(const a, b: TVecI64x4): TVecI64x4;
+var
+  pa, pb, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vpxor   ymm0, ymm0, [rcx]
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+// I64x4 位非 (VPXOR with all 1s)
+function AVX2NotI64x4(const a: TVecI64x4): TVecI64x4;
+var
+  pa, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    vpcmpeqd ymm1, ymm1, ymm1   // all 1s
+    vmovdqu ymm0, [rdx]
+    vpxor   ymm0, ymm0, ymm1    // NOT = XOR with all 1s
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+// I64x4 位与非 (VPANDN ymm) - (NOT a) AND b
+function AVX2AndNotI64x4(const a, b: TVecI64x4): TVecI64x4;
+var
+  pa, pb, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vpandn  ymm0, ymm0, [rcx]   // (NOT a) AND b
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+// I64x4 Shift Operations
+
+// I64x4 逻辑左移 (VPSLLQ ymm)
+function AVX2ShiftLeftI64x4(const a: TVecI64x4; count: Integer): TVecI64x4;
+var
+  pa, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+
+  if (count < 0) or (count >= 64) then
+  begin
+    FillChar(Result, SizeOf(Result), 0);
+    Exit;
+  end;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    vmovdqu ymm0, [rdx]
+    vmovd   xmm1, count
+    vpsllq  ymm0, ymm0, xmm1
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+// I64x4 逻辑右移 (VPSRLQ ymm)
+function AVX2ShiftRightI64x4(const a: TVecI64x4; count: Integer): TVecI64x4;
+var
+  pa, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+
+  if (count < 0) or (count >= 64) then
+  begin
+    FillChar(Result, SizeOf(Result), 0);
+    Exit;
+  end;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    vmovdqu ymm0, [rdx]
+    vmovd   xmm1, count
+    vpsrlq  ymm0, ymm0, xmm1    // Logical right shift
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+// I64x4 Comparison Operations
+
+// I64x4 相等比较 (VPCMPEQQ ymm)
+function AVX2CmpEqI64x4(const a, b: TVecI64x4): TMask4;
+var
+  pa, pb: Pointer;
+  mask: Integer;
+begin
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vpcmpeqq ymm0, ymm0, [rcx]
+    vmovmskpd eax, ymm0         // Extract sign bits (1 bit per 64-bit element)
+    mov     mask, eax
+    vzeroupper
+  end;
+
+  Result := TMask4(mask);
+end;
+
+// I64x4 大于比较 (VPCMPGTQ ymm)
+function AVX2CmpGtI64x4(const a, b: TVecI64x4): TMask4;
+var
+  pa, pb: Pointer;
+  mask: Integer;
+begin
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vpcmpgtq ymm0, ymm0, [rcx]
+    vmovmskpd eax, ymm0
+    mov     mask, eax
+    vzeroupper
+  end;
+
+  Result := TMask4(mask);
+end;
+
+// I64x4 小于比较 (a < b = b > a)
+function AVX2CmpLtI64x4(const a, b: TVecI64x4): TMask4;
+var
+  pa, pb: Pointer;
+  mask: Integer;
+begin
+  pa := @a;
+  pb := @b;
+
+  // a < b is equivalent to b > a
+  asm
+    mov     rdx, pb
+    mov     rcx, pa
+    vmovdqu ymm0, [rdx]
+    vpcmpgtq ymm0, ymm0, [rcx]  // b > a
+    vmovmskpd eax, ymm0
+    mov     mask, eax
+    vzeroupper
+  end;
+
+  Result := TMask4(mask);
+end;
+
+// I64x4 小于等于 (a <= b = NOT(a > b))
+function AVX2CmpLeI64x4(const a, b: TVecI64x4): TMask4;
+var
+  pa, pb: Pointer;
+  mask: Integer;
+begin
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vpcmpgtq ymm0, ymm0, [rcx]   // a > b
+    vmovmskpd eax, ymm0
+    xor     eax, $0F              // NOT (4 bits for 4 elements)
+    mov     mask, eax
+    vzeroupper
+  end;
+
+  Result := TMask4(mask);
+end;
+
+// I64x4 大于等于 (a >= b = NOT(a < b) = NOT(b > a))
+function AVX2CmpGeI64x4(const a, b: TVecI64x4): TMask4;
+var
+  pa, pb: Pointer;
+  mask: Integer;
+begin
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rdx, pb
+    mov     rcx, pa
+    vmovdqu ymm0, [rdx]
+    vpcmpgtq ymm0, ymm0, [rcx]   // b > a = a < b
+    vmovmskpd eax, ymm0
+    xor     eax, $0F              // NOT (4 bits for 4 elements)
+    mov     mask, eax
+    vzeroupper
+  end;
+
+  Result := TMask4(mask);
+end;
+
+// I64x4 不等比较 (a != b = NOT(a == b))
+function AVX2CmpNeI64x4(const a, b: TVecI64x4): TMask4;
+var
+  pa, pb: Pointer;
+  mask: Integer;
+begin
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vpcmpeqq ymm0, ymm0, [rcx]   // a == b
+    vmovmskpd eax, ymm0
+    xor     eax, $0F              // NOT (4 bits for 4 elements)
+    mov     mask, eax
+    vzeroupper
+  end;
+
+  Result := TMask4(mask);
+end;
+
+// I64x4 Utility Operations
+
+// I64x4 加载 (从内存加载 4×Int64)
+function AVX2LoadI64x4(p: PInt64): TVecI64x4;
+var
+  pr: Pointer;
+begin
+  pr := @Result;
+
+  asm
+    mov     rax, pr
+    mov     rdx, p
+    vmovdqu ymm0, [rdx]
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+// I64x4 存储 (存储 4×Int64 到内存)
+procedure AVX2StoreI64x4(p: PInt64; const a: TVecI64x4);
+var
+  pa: Pointer;
+begin
+  pa := @a;
+
+  asm
+    mov     rax, p
+    mov     rdx, pa
+    vmovdqu ymm0, [rdx]
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+// I64x4 广播 (将单个值广播到所有通道)
+function AVX2SplatI64x4(value: Int64): TVecI64x4;
+var
+  pr: Pointer;
+begin
+  pr := @Result;
+
+  asm
+    mov     rax, pr
+    vmovq   xmm0, value
+    vpbroadcastq ymm0, xmm0
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+// I64x4 零向量
+function AVX2ZeroI64x4: TVecI64x4;
+var
+  pr: Pointer;
+begin
+  pr := @Result;
+
+  asm
+    mov     rax, pr
+    vpxor   ymm0, ymm0, ymm0
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+// === ✅ U32x8 Operations (native 256-bit AVX2) ===
+// 8×UInt32 向量操作，使用原生 AVX2 256-bit 指令
+
+// U32x8 加法 (VPADDD ymm) - 与有符号相同
+function AVX2AddU32x8(const a, b: TVecU32x8): TVecU32x8;
+var
+  pa, pb, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vpaddd  ymm0, ymm0, [rcx]
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+// U32x8 减法 (VPSUBD ymm) - 与有符号相同
+function AVX2SubU32x8(const a, b: TVecU32x8): TVecU32x8;
+var
+  pa, pb, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vpsubd  ymm0, ymm0, [rcx]
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+// U32x8 乘法 (低32位) (VPMULLD ymm)
+function AVX2MulU32x8(const a, b: TVecU32x8): TVecU32x8;
+var
+  pa, pb, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vpmulld ymm0, ymm0, [rcx]
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+// U32x8 位与 (VPAND ymm)
+function AVX2AndU32x8(const a, b: TVecU32x8): TVecU32x8;
+var
+  pa, pb, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vpand   ymm0, ymm0, [rcx]
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+// U32x8 位或 (VPOR ymm)
+function AVX2OrU32x8(const a, b: TVecU32x8): TVecU32x8;
+var
+  pa, pb, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vpor    ymm0, ymm0, [rcx]
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+// U32x8 位异或 (VPXOR ymm)
+function AVX2XorU32x8(const a, b: TVecU32x8): TVecU32x8;
+var
+  pa, pb, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vpxor   ymm0, ymm0, [rcx]
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+// U32x8 位非 (VPXOR with all 1s)
+function AVX2NotU32x8(const a: TVecU32x8): TVecU32x8;
+var
+  pa, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    vpcmpeqd ymm1, ymm1, ymm1   // all 1s
+    vmovdqu ymm0, [rdx]
+    vpxor   ymm0, ymm0, ymm1    // NOT = XOR with all 1s
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+// U32x8 位与非 (VPANDN ymm) - (NOT a) AND b
+function AVX2AndNotU32x8(const a, b: TVecU32x8): TVecU32x8;
+var
+  pa, pb, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vpandn  ymm0, ymm0, [rcx]   // (NOT a) AND b
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+// U32x8 逻辑左移 (VPSLLD ymm)
+function AVX2ShiftLeftU32x8(const a: TVecU32x8; count: Integer): TVecU32x8;
+var
+  pa, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+
+  if (count < 0) or (count >= 32) then
+  begin
+    FillChar(Result, SizeOf(Result), 0);
+    Exit;
+  end;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    vmovdqu ymm0, [rdx]
+    vmovd   xmm1, count
+    vpslld  ymm0, ymm0, xmm1
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+// U32x8 逻辑右移 (VPSRLD ymm)
+function AVX2ShiftRightU32x8(const a: TVecU32x8; count: Integer): TVecU32x8;
+var
+  pa, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+
+  if (count < 0) or (count >= 32) then
+  begin
+    FillChar(Result, SizeOf(Result), 0);
+    Exit;
+  end;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    vmovdqu ymm0, [rdx]
+    vmovd   xmm1, count
+    vpsrld  ymm0, ymm0, xmm1    // Logical right shift
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+// U32x8 无符号比较操作
+// 无符号比较使用符号位翻转技巧: 将 $80000000 XOR 到两个操作数，然后使用有符号比较
+
+// U32x8 相等比较 (无符号与有符号相同)
+function AVX2CmpEqU32x8(const a, b: TVecU32x8): TMask8;
+var
+  pa, pb: Pointer;
+  mask: Integer;
+begin
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vpcmpeqd ymm0, ymm0, [rcx]
+    vmovmskps eax, ymm0         // Extract sign bits (1 bit per 32-bit element)
+    mov     mask, eax
+    vzeroupper
+  end;
+
+  Result := TMask8(mask);
+end;
+
+// U32x8 大于比较 (使用符号位翻转技巧)
+function AVX2CmpGtU32x8(const a, b: TVecU32x8): TMask8;
+var
+  pa, pb: Pointer;
+  mask: Integer;
+const
+  SIGN_BIT: UInt32 = $80000000;
+begin
+  pa := @a;
+  pb := @b;
+
+  // 无符号比较: XOR $80000000 转换为有符号比较
+  asm
+    mov     rdx, pa
+    mov     rcx, pb
+    // 创建符号位掩码
+    mov     eax, $80000000
+    vmovd   xmm2, eax
+    vpbroadcastd ymm2, xmm2     // ymm2 = [$80000000, $80000000, ...]
+    // 加载并翻转符号位
+    vmovdqu ymm0, [rdx]
+    vpxor   ymm0, ymm0, ymm2    // a XOR $80000000
+    vmovdqu ymm1, [rcx]
+    vpxor   ymm1, ymm1, ymm2    // b XOR $80000000
+    // 有符号比较
+    vpcmpgtd ymm0, ymm0, ymm1
+    vmovmskps eax, ymm0
+    mov     mask, eax
+    vzeroupper
+  end;
+
+  Result := TMask8(mask);
+end;
+
+// U32x8 小于比较 (a < b = b > a，使用符号位翻转)
+function AVX2CmpLtU32x8(const a, b: TVecU32x8): TMask8;
+var
+  pa, pb: Pointer;
+  mask: Integer;
+begin
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rdx, pb             // swap: load b first
+    mov     rcx, pa
+    // 创建符号位掩码
+    mov     eax, $80000000
+    vmovd   xmm2, eax
+    vpbroadcastd ymm2, xmm2
+    // 加载并翻转符号位
+    vmovdqu ymm0, [rdx]
+    vpxor   ymm0, ymm0, ymm2    // b XOR $80000000
+    vmovdqu ymm1, [rcx]
+    vpxor   ymm1, ymm1, ymm2    // a XOR $80000000
+    // 有符号比较 b > a
+    vpcmpgtd ymm0, ymm0, ymm1
+    vmovmskps eax, ymm0
+    mov     mask, eax
+    vzeroupper
+  end;
+
+  Result := TMask8(mask);
+end;
+
+// U32x8 小于等于 (a <= b = NOT(a > b))
+function AVX2CmpLeU32x8(const a, b: TVecU32x8): TMask8;
+var
+  pa, pb: Pointer;
+  mask: Integer;
+begin
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rdx, pa
+    mov     rcx, pb
+    // 创建符号位掩码
+    mov     eax, $80000000
+    vmovd   xmm2, eax
+    vpbroadcastd ymm2, xmm2
+    // 加载并翻转符号位
+    vmovdqu ymm0, [rdx]
+    vpxor   ymm0, ymm0, ymm2    // a XOR $80000000
+    vmovdqu ymm1, [rcx]
+    vpxor   ymm1, ymm1, ymm2    // b XOR $80000000
+    // 有符号比较 a > b
+    vpcmpgtd ymm0, ymm0, ymm1
+    vmovmskps eax, ymm0
+    xor     eax, $FF            // NOT (8 bits)
+    mov     mask, eax
+    vzeroupper
+  end;
+
+  Result := TMask8(mask);
+end;
+
+// U32x8 大于等于 (a >= b = NOT(a < b))
+function AVX2CmpGeU32x8(const a, b: TVecU32x8): TMask8;
+var
+  pa, pb: Pointer;
+  mask: Integer;
+begin
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rdx, pb             // swap: load b first
+    mov     rcx, pa
+    // 创建符号位掩码
+    mov     eax, $80000000
+    vmovd   xmm2, eax
+    vpbroadcastd ymm2, xmm2
+    // 加载并翻转符号位
+    vmovdqu ymm0, [rdx]
+    vpxor   ymm0, ymm0, ymm2    // b XOR $80000000
+    vmovdqu ymm1, [rcx]
+    vpxor   ymm1, ymm1, ymm2    // a XOR $80000000
+    // 有符号比较 b > a = a < b
+    vpcmpgtd ymm0, ymm0, ymm1
+    vmovmskps eax, ymm0
+    xor     eax, $FF            // NOT
+    mov     mask, eax
+    vzeroupper
+  end;
+
+  Result := TMask8(mask);
+end;
+
+// U32x8 不等比较 (无符号与有符号相同)
+function AVX2CmpNeU32x8(const a, b: TVecU32x8): TMask8;
+var
+  pa, pb: Pointer;
+  mask: Integer;
+begin
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vpcmpeqd ymm0, ymm0, [rcx]   // a == b
+    vmovmskps eax, ymm0
+    xor     eax, $FF              // NOT (8 bits)
+    mov     mask, eax
+    vzeroupper
+  end;
+
+  Result := TMask8(mask);
+end;
+
+// U32x8 无符号最小值 (VPMINUD ymm)
+function AVX2MinU32x8(const a, b: TVecU32x8): TVecU32x8;
+var
+  pa, pb, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vpminud ymm0, ymm0, [rcx]   // Unsigned min
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+// U32x8 无符号最大值 (VPMAXUD ymm)
+function AVX2MaxU32x8(const a, b: TVecU32x8): TVecU32x8;
+var
+  pa, pb, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vpmaxud ymm0, ymm0, [rcx]   // Unsigned max
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+// === ✅ U64x4 Operations (native 256-bit AVX2) ===
+// 4×UInt64 向量操作，使用原生 AVX2 256-bit 指令
+
+// U64x4 加法 (VPADDQ ymm) - 与有符号相同
+function AVX2AddU64x4(const a, b: TVecU64x4): TVecU64x4;
+var
+  pa, pb, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vpaddq  ymm0, ymm0, [rcx]
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+// U64x4 减法 (VPSUBQ ymm) - 与有符号相同
+function AVX2SubU64x4(const a, b: TVecU64x4): TVecU64x4;
+var
+  pa, pb, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vpsubq  ymm0, ymm0, [rcx]
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+// U64x4 位与 (VPAND ymm)
+function AVX2AndU64x4(const a, b: TVecU64x4): TVecU64x4;
+var
+  pa, pb, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vpand   ymm0, ymm0, [rcx]
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+// U64x4 位或 (VPOR ymm)
+function AVX2OrU64x4(const a, b: TVecU64x4): TVecU64x4;
+var
+  pa, pb, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vpor    ymm0, ymm0, [rcx]
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+// U64x4 位异或 (VPXOR ymm)
+function AVX2XorU64x4(const a, b: TVecU64x4): TVecU64x4;
+var
+  pa, pb, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vpxor   ymm0, ymm0, [rcx]
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+// U64x4 位非 (VPXOR with all 1s)
+function AVX2NotU64x4(const a: TVecU64x4): TVecU64x4;
+var
+  pa, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    vpcmpeqd ymm1, ymm1, ymm1   // all 1s
+    vmovdqu ymm0, [rdx]
+    vpxor   ymm0, ymm0, ymm1    // NOT = XOR with all 1s
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+// U64x4 逻辑左移 (VPSLLQ ymm)
+function AVX2ShiftLeftU64x4(const a: TVecU64x4; count: Integer): TVecU64x4;
+var
+  pa, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+
+  if (count < 0) or (count >= 64) then
+  begin
+    FillChar(Result, SizeOf(Result), 0);
+    Exit;
+  end;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    vmovdqu ymm0, [rdx]
+    vmovd   xmm1, count
+    vpsllq  ymm0, ymm0, xmm1
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+// U64x4 逻辑右移 (VPSRLQ ymm)
+function AVX2ShiftRightU64x4(const a: TVecU64x4; count: Integer): TVecU64x4;
+var
+  pa, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+
+  if (count < 0) or (count >= 64) then
+  begin
+    FillChar(Result, SizeOf(Result), 0);
+    Exit;
+  end;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    vmovdqu ymm0, [rdx]
+    vmovd   xmm1, count
+    vpsrlq  ymm0, ymm0, xmm1    // Logical right shift
+    vmovdqu [rax], ymm0
+    vzeroupper
+  end;
+end;
+
+// U64x4 无符号比较操作
+// 无符号 64-bit 比较使用 $8000000000000000 XOR 技巧
+
+// U64x4 相等比较 (无符号与有符号相同)
+function AVX2CmpEqU64x4(const a, b: TVecU64x4): TMask4;
+var
+  pa, pb: Pointer;
+  mask: Integer;
+begin
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vpcmpeqq ymm0, ymm0, [rcx]
+    vmovmskpd eax, ymm0         // Extract sign bits (1 bit per 64-bit element)
+    mov     mask, eax
+    vzeroupper
+  end;
+
+  Result := TMask4(mask);
+end;
+
+// U64x4 大于比较 (使用符号位翻转技巧)
+function AVX2CmpGtU64x4(const a, b: TVecU64x4): TMask4;
+var
+  pa, pb: Pointer;
+  mask: Integer;
+begin
+  pa := @a;
+  pb := @b;
+
+  // 无符号比较: XOR $8000000000000000 转换为有符号比较
+  asm
+    mov     rdx, pa
+    mov     rcx, pb
+    // 创建符号位掩码 (64-bit)
+    mov     rax, $8000000000000000
+    vmovq   xmm2, rax
+    vpbroadcastq ymm2, xmm2     // ymm2 = [$8000..., $8000..., ...]
+    // 加载并翻转符号位
+    vmovdqu ymm0, [rdx]
+    vpxor   ymm0, ymm0, ymm2    // a XOR $8000...
+    vmovdqu ymm1, [rcx]
+    vpxor   ymm1, ymm1, ymm2    // b XOR $8000...
+    // 有符号比较
+    vpcmpgtq ymm0, ymm0, ymm1
+    vmovmskpd eax, ymm0
+    mov     mask, eax
+    vzeroupper
+  end;
+
+  Result := TMask4(mask);
+end;
+
+// U64x4 小于比较 (a < b = b > a)
+function AVX2CmpLtU64x4(const a, b: TVecU64x4): TMask4;
+var
+  pa, pb: Pointer;
+  mask: Integer;
+begin
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rdx, pb             // swap: load b first
+    mov     rcx, pa
+    // 创建符号位掩码 (64-bit)
+    mov     rax, $8000000000000000
+    vmovq   xmm2, rax
+    vpbroadcastq ymm2, xmm2
+    // 加载并翻转符号位
+    vmovdqu ymm0, [rdx]
+    vpxor   ymm0, ymm0, ymm2    // b XOR $8000...
+    vmovdqu ymm1, [rcx]
+    vpxor   ymm1, ymm1, ymm2    // a XOR $8000...
+    // 有符号比较 b > a
+    vpcmpgtq ymm0, ymm0, ymm1
+    vmovmskpd eax, ymm0
+    mov     mask, eax
+    vzeroupper
+  end;
+
+  Result := TMask4(mask);
+end;
+
+// U64x4 小于等于 (a <= b = NOT(a > b))
+function AVX2CmpLeU64x4(const a, b: TVecU64x4): TMask4;
+var
+  pa, pb: Pointer;
+  mask: Integer;
+begin
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rdx, pa
+    mov     rcx, pb
+    // 创建符号位掩码 (64-bit)
+    mov     rax, $8000000000000000
+    vmovq   xmm2, rax
+    vpbroadcastq ymm2, xmm2
+    // 加载并翻转符号位
+    vmovdqu ymm0, [rdx]
+    vpxor   ymm0, ymm0, ymm2    // a XOR $8000...
+    vmovdqu ymm1, [rcx]
+    vpxor   ymm1, ymm1, ymm2    // b XOR $8000...
+    // 有符号比较 a > b
+    vpcmpgtq ymm0, ymm0, ymm1
+    vmovmskpd eax, ymm0
+    xor     eax, $0F            // NOT (4 bits)
+    mov     mask, eax
+    vzeroupper
+  end;
+
+  Result := TMask4(mask);
+end;
+
+// U64x4 大于等于 (a >= b = NOT(a < b))
+function AVX2CmpGeU64x4(const a, b: TVecU64x4): TMask4;
+var
+  pa, pb: Pointer;
+  mask: Integer;
+begin
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rdx, pb             // swap: load b first
+    mov     rcx, pa
+    // 创建符号位掩码 (64-bit)
+    mov     rax, $8000000000000000
+    vmovq   xmm2, rax
+    vpbroadcastq ymm2, xmm2
+    // 加载并翻转符号位
+    vmovdqu ymm0, [rdx]
+    vpxor   ymm0, ymm0, ymm2    // b XOR $8000...
+    vmovdqu ymm1, [rcx]
+    vpxor   ymm1, ymm1, ymm2    // a XOR $8000...
+    // 有符号比较 b > a = a < b
+    vpcmpgtq ymm0, ymm0, ymm1
+    vmovmskpd eax, ymm0
+    xor     eax, $0F            // NOT
+    mov     mask, eax
+    vzeroupper
+  end;
+
+  Result := TMask4(mask);
+end;
+
+// U64x4 不等比较 (无符号与有符号相同)
+function AVX2CmpNeU64x4(const a, b: TVecU64x4): TMask4;
+var
+  pa, pb: Pointer;
+  mask: Integer;
+begin
+  pa := @a;
+  pb := @b;
+
+  asm
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vpcmpeqq ymm0, ymm0, [rcx]   // a == b
+    vmovmskpd eax, ymm0
+    xor     eax, $0F              // NOT (4 bits)
+    mov     mask, eax
+    vzeroupper
+  end;
+
+  Result := TMask4(mask);
+end;
+
+// === ✅ F64x4 扩展数学函数 ===
+
+// F64x4 钳位操作 (已存在于 AVX2ClampF64x4，此处添加 RcpF64x4)
+
+// F64x4 倒数近似 (1/x)
+// 注意: 没有原生 vrcppd 指令，使用 vdivpd 实现精确倒数
+function AVX2RcpF64x4(const a: TVecF64x4): TVecF64x4;
+var
+  pa, pr: Pointer;
+begin
+  pr := @Result;
+  pa := @a;
+
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    // 创建全1.0的向量
+    mov     rcx, $3FF0000000000000    // 1.0 in IEEE 754 double
+    vmovq   xmm1, rcx
+    vpbroadcastq ymm1, xmm1           // ymm1 = [1.0, 1.0, 1.0, 1.0]
+    vmovupd ymm0, [rdx]
+    vdivpd  ymm0, ymm1, ymm0          // 1.0 / a
+    vmovupd [rax], ymm0
+    vzeroupper
+  end;
+end;
+
 // === ✅ P1: Mask Operations SIMD Implementation (AVX2) ===
 // AVX2 CPU 都支持 popcnt 指令（SSE4.2），可以使用原生指令
 // 使用 bsf (bit scan forward) 和 popcnt 指令
@@ -4222,7 +6909,7 @@ begin
     lea rcx, expandedMask
 
     vmovupd xmm0, [rax]      // a (first source)
-    vmovupd xmm1, [rdx]      // b (second source)  
+    vmovupd xmm1, [rdx]      // b (second source)
     vmovdqu xmm2, [rcx]      // expanded mask
 
     // vblendvpd xmm0, xmm1, xmm0, xmm2
@@ -4232,6 +6919,898 @@ begin
     vmovupd [result], xmm0
     vzeroupper
   end;
+end;
+
+// ✅ NEW: 缺失的 Select 操作实现
+
+// SelectI32x4: 使用 VPAND + VPANDN + VPOR 实现 (AVX)
+// Result = (a AND mask) OR (b AND NOT mask)
+function AVX2SelectI32x4(const mask: TVecI32x4; const a, b: TVecI32x4): TVecI32x4;
+begin
+  asm
+    lea rax, mask
+    lea rdx, a
+    lea rcx, b
+
+    vmovdqu xmm2, [rax]      // xmm2 = mask
+    vmovdqu xmm0, [rdx]      // xmm0 = a
+    vmovdqu xmm1, [rcx]      // xmm1 = b
+
+    // Result = (a AND mask) OR (b AND NOT mask)
+    vpand   xmm0, xmm0, xmm2 // xmm0 = a AND mask
+    vpandn  xmm2, xmm2, xmm1 // xmm2 = (NOT mask) AND b
+    vpor    xmm0, xmm0, xmm2 // xmm0 = combine
+
+    vmovdqu [result], xmm0
+    // 不需要 vzeroupper (只使用 XMM 寄存器)
+  end;
+end;
+
+// SelectF32x8: 使用 VBLENDVPS 指令 (AVX)
+// VBLENDVPS: 当 mask 最高位为 1 时选择第二个源
+function AVX2SelectF32x8(const mask: TVecU32x8; const a, b: TVecF32x8): TVecF32x8;
+var
+  pMask, pA, pB, pR: Pointer;
+begin
+  pMask := @mask;
+  pA := @a;
+  pB := @b;
+  pR := @Result;
+  asm
+    mov rax, pMask
+    mov rdx, pA
+    mov rcx, pB
+    mov r8, pR
+
+    vmovups ymm2, [rax]      // ymm2 = mask
+    vmovups ymm0, [rdx]      // ymm0 = a (选择当 mask 非零)
+    vmovups ymm1, [rcx]      // ymm1 = b (选择当 mask 为零)
+
+    // vblendvps: 根据掩码最高位选择
+    // 如果 mask[i] 最高位为 1，选择 ymm0[i]，否则选择 ymm1[i]
+    vblendvps ymm0, ymm1, ymm0, ymm2
+
+    vmovups [r8], ymm0
+    vzeroupper
+  end;
+end;
+
+// SelectF64x4: 使用 VBLENDVPD 指令 (AVX)
+function AVX2SelectF64x4(const mask: TVecU64x4; const a, b: TVecF64x4): TVecF64x4;
+var
+  pMask, pA, pB, pR: Pointer;
+begin
+  pMask := @mask;
+  pA := @a;
+  pB := @b;
+  pR := @Result;
+  asm
+    mov rax, pMask
+    mov rdx, pA
+    mov rcx, pB
+    mov r8, pR
+
+    vmovupd ymm2, [rax]      // ymm2 = mask
+    vmovupd ymm0, [rdx]      // ymm0 = a (选择当 mask 非零)
+    vmovupd ymm1, [rcx]      // ymm1 = b (选择当 mask 为零)
+
+    // vblendvpd: 根据掩码最高位选择
+    // 如果 mask[i] 最高位为 1，选择 ymm0[i]，否则选择 ymm1[i]
+    vblendvpd ymm0, ymm1, ymm0, ymm2
+
+    vmovupd [r8], ymm0
+    vzeroupper
+  end;
+end;
+
+// ============================================================================
+// === 512-bit 向量的 AVX2 仿真实现 (2×256-bit 操作) ===
+// ============================================================================
+
+// === F32x16 操作 (16×Float32) - 使用 2×F32x8 ===
+
+function AVX2AddF32x16(const a, b: TVecF32x16): TVecF32x16; inline;
+begin
+  Result.lo := AVX2AddF32x8(a.lo, b.lo);
+  Result.hi := AVX2AddF32x8(a.hi, b.hi);
+end;
+
+function AVX2SubF32x16(const a, b: TVecF32x16): TVecF32x16; inline;
+begin
+  Result.lo := AVX2SubF32x8(a.lo, b.lo);
+  Result.hi := AVX2SubF32x8(a.hi, b.hi);
+end;
+
+function AVX2MulF32x16(const a, b: TVecF32x16): TVecF32x16; inline;
+begin
+  Result.lo := AVX2MulF32x8(a.lo, b.lo);
+  Result.hi := AVX2MulF32x8(a.hi, b.hi);
+end;
+
+function AVX2DivF32x16(const a, b: TVecF32x16): TVecF32x16; inline;
+begin
+  Result.lo := AVX2DivF32x8(a.lo, b.lo);
+  Result.hi := AVX2DivF32x8(a.hi, b.hi);
+end;
+
+function AVX2AbsF32x16(const a: TVecF32x16): TVecF32x16; inline;
+begin
+  Result.lo := AVX2AbsF32x8(a.lo);
+  Result.hi := AVX2AbsF32x8(a.hi);
+end;
+
+function AVX2SqrtF32x16(const a: TVecF32x16): TVecF32x16; inline;
+begin
+  Result.lo := AVX2SqrtF32x8(a.lo);
+  Result.hi := AVX2SqrtF32x8(a.hi);
+end;
+
+function AVX2MinF32x16(const a, b: TVecF32x16): TVecF32x16; inline;
+begin
+  Result.lo := AVX2MinF32x8(a.lo, b.lo);
+  Result.hi := AVX2MinF32x8(a.hi, b.hi);
+end;
+
+function AVX2MaxF32x16(const a, b: TVecF32x16): TVecF32x16; inline;
+begin
+  Result.lo := AVX2MaxF32x8(a.lo, b.lo);
+  Result.hi := AVX2MaxF32x8(a.hi, b.hi);
+end;
+
+function AVX2FmaF32x16(const a, b, c: TVecF32x16): TVecF32x16; inline;
+begin
+  Result.lo := AVX2FmaF32x8(a.lo, b.lo, c.lo);
+  Result.hi := AVX2FmaF32x8(a.hi, b.hi, c.hi);
+end;
+
+function AVX2FloorF32x16(const a: TVecF32x16): TVecF32x16; inline;
+begin
+  Result.lo := AVX2FloorF32x8(a.lo);
+  Result.hi := AVX2FloorF32x8(a.hi);
+end;
+
+function AVX2CeilF32x16(const a: TVecF32x16): TVecF32x16; inline;
+begin
+  Result.lo := AVX2CeilF32x8(a.lo);
+  Result.hi := AVX2CeilF32x8(a.hi);
+end;
+
+function AVX2RoundF32x16(const a: TVecF32x16): TVecF32x16; inline;
+begin
+  Result.lo := AVX2RoundF32x8(a.lo);
+  Result.hi := AVX2RoundF32x8(a.hi);
+end;
+
+function AVX2TruncF32x16(const a: TVecF32x16): TVecF32x16; inline;
+begin
+  Result.lo := AVX2TruncF32x8(a.lo);
+  Result.hi := AVX2TruncF32x8(a.hi);
+end;
+
+function AVX2ClampF32x16(const a, minVal, maxVal: TVecF32x16): TVecF32x16; inline;
+begin
+  Result.lo := AVX2ClampF32x8(a.lo, minVal.lo, maxVal.lo);
+  Result.hi := AVX2ClampF32x8(a.hi, minVal.hi, maxVal.hi);
+end;
+
+function AVX2ReduceAddF32x16(const a: TVecF32x16): Single; inline;
+begin
+  Result := AVX2ReduceAddF32x8(a.lo) + AVX2ReduceAddF32x8(a.hi);
+end;
+
+function AVX2ReduceMinF32x16(const a: TVecF32x16): Single; inline;
+var
+  minLo, minHi: Single;
+begin
+  minLo := AVX2ReduceMinF32x8(a.lo);
+  minHi := AVX2ReduceMinF32x8(a.hi);
+  if minLo < minHi then
+    Result := minLo
+  else
+    Result := minHi;
+end;
+
+function AVX2ReduceMaxF32x16(const a: TVecF32x16): Single; inline;
+var
+  maxLo, maxHi: Single;
+begin
+  maxLo := AVX2ReduceMaxF32x8(a.lo);
+  maxHi := AVX2ReduceMaxF32x8(a.hi);
+  if maxLo > maxHi then
+    Result := maxLo
+  else
+    Result := maxHi;
+end;
+
+function AVX2ReduceMulF32x16(const a: TVecF32x16): Single; inline;
+begin
+  Result := AVX2ReduceMulF32x8(a.lo) * AVX2ReduceMulF32x8(a.hi);
+end;
+
+function AVX2LoadF32x16(p: PSingle): TVecF32x16; inline;
+begin
+  Result.lo := AVX2LoadF32x8(p);
+  Result.hi := AVX2LoadF32x8(p + 8);
+end;
+
+procedure AVX2StoreF32x16(p: PSingle; const a: TVecF32x16); inline;
+begin
+  AVX2StoreF32x8(p, a.lo);
+  AVX2StoreF32x8(p + 8, a.hi);
+end;
+
+function AVX2SplatF32x16(value: Single): TVecF32x16; inline;
+begin
+  Result.lo := AVX2SplatF32x8(value);
+  Result.hi := AVX2SplatF32x8(value);
+end;
+
+function AVX2ZeroF32x16: TVecF32x16; inline;
+begin
+  Result.lo := AVX2ZeroF32x8;
+  Result.hi := AVX2ZeroF32x8;
+end;
+
+function AVX2CmpEqF32x16(const a, b: TVecF32x16): TMask16;
+var
+  i: Integer;
+  mask: Word;
+begin
+  mask := 0;
+  for i := 0 to 15 do
+  begin
+    if a.f[i] = b.f[i] then
+      mask := mask or (1 shl i);
+  end;
+  Result := mask;
+end;
+
+function AVX2CmpLtF32x16(const a, b: TVecF32x16): TMask16;
+var
+  i: Integer;
+  mask: Word;
+begin
+  mask := 0;
+  for i := 0 to 15 do
+  begin
+    if a.f[i] < b.f[i] then
+      mask := mask or (1 shl i);
+  end;
+  Result := mask;
+end;
+
+function AVX2CmpLeF32x16(const a, b: TVecF32x16): TMask16;
+var
+  i: Integer;
+  mask: Word;
+begin
+  mask := 0;
+  for i := 0 to 15 do
+  begin
+    if a.f[i] <= b.f[i] then
+      mask := mask or (1 shl i);
+  end;
+  Result := mask;
+end;
+
+function AVX2CmpGtF32x16(const a, b: TVecF32x16): TMask16;
+var
+  i: Integer;
+  mask: Word;
+begin
+  mask := 0;
+  for i := 0 to 15 do
+  begin
+    if a.f[i] > b.f[i] then
+      mask := mask or (1 shl i);
+  end;
+  Result := mask;
+end;
+
+function AVX2CmpGeF32x16(const a, b: TVecF32x16): TMask16;
+var
+  i: Integer;
+  mask: Word;
+begin
+  mask := 0;
+  for i := 0 to 15 do
+  begin
+    if a.f[i] >= b.f[i] then
+      mask := mask or (1 shl i);
+  end;
+  Result := mask;
+end;
+
+function AVX2CmpNeF32x16(const a, b: TVecF32x16): TMask16;
+var
+  i: Integer;
+  mask: Word;
+begin
+  mask := 0;
+  for i := 0 to 15 do
+  begin
+    if a.f[i] <> b.f[i] then
+      mask := mask or (1 shl i);
+  end;
+  Result := mask;
+end;
+
+function AVX2SelectF32x16(const mask: TMask16; const a, b: TVecF32x16): TVecF32x16;
+var
+  i: Integer;
+begin
+  for i := 0 to 15 do
+  begin
+    if (mask and (1 shl i)) <> 0 then
+      Result.f[i] := a.f[i]
+    else
+      Result.f[i] := b.f[i];
+  end;
+end;
+
+// === F64x8 操作 (8×Float64) - 使用 2×F64x4 ===
+
+function AVX2AddF64x8(const a, b: TVecF64x8): TVecF64x8; inline;
+begin
+  Result.lo := AVX2AddF64x4(a.lo, b.lo);
+  Result.hi := AVX2AddF64x4(a.hi, b.hi);
+end;
+
+function AVX2SubF64x8(const a, b: TVecF64x8): TVecF64x8; inline;
+begin
+  Result.lo := AVX2SubF64x4(a.lo, b.lo);
+  Result.hi := AVX2SubF64x4(a.hi, b.hi);
+end;
+
+function AVX2MulF64x8(const a, b: TVecF64x8): TVecF64x8; inline;
+begin
+  Result.lo := AVX2MulF64x4(a.lo, b.lo);
+  Result.hi := AVX2MulF64x4(a.hi, b.hi);
+end;
+
+function AVX2DivF64x8(const a, b: TVecF64x8): TVecF64x8; inline;
+begin
+  Result.lo := AVX2DivF64x4(a.lo, b.lo);
+  Result.hi := AVX2DivF64x4(a.hi, b.hi);
+end;
+
+function AVX2AbsF64x8(const a: TVecF64x8): TVecF64x8; inline;
+begin
+  Result.lo := AVX2AbsF64x4(a.lo);
+  Result.hi := AVX2AbsF64x4(a.hi);
+end;
+
+function AVX2SqrtF64x8(const a: TVecF64x8): TVecF64x8; inline;
+begin
+  Result.lo := AVX2SqrtF64x4(a.lo);
+  Result.hi := AVX2SqrtF64x4(a.hi);
+end;
+
+function AVX2MinF64x8(const a, b: TVecF64x8): TVecF64x8; inline;
+begin
+  Result.lo := AVX2MinF64x4(a.lo, b.lo);
+  Result.hi := AVX2MinF64x4(a.hi, b.hi);
+end;
+
+function AVX2MaxF64x8(const a, b: TVecF64x8): TVecF64x8; inline;
+begin
+  Result.lo := AVX2MaxF64x4(a.lo, b.lo);
+  Result.hi := AVX2MaxF64x4(a.hi, b.hi);
+end;
+
+function AVX2FmaF64x8(const a, b, c: TVecF64x8): TVecF64x8; inline;
+begin
+  Result.lo := AVX2FmaF64x4(a.lo, b.lo, c.lo);
+  Result.hi := AVX2FmaF64x4(a.hi, b.hi, c.hi);
+end;
+
+function AVX2FloorF64x8(const a: TVecF64x8): TVecF64x8; inline;
+begin
+  Result.lo := AVX2FloorF64x4(a.lo);
+  Result.hi := AVX2FloorF64x4(a.hi);
+end;
+
+function AVX2CeilF64x8(const a: TVecF64x8): TVecF64x8; inline;
+begin
+  Result.lo := AVX2CeilF64x4(a.lo);
+  Result.hi := AVX2CeilF64x4(a.hi);
+end;
+
+function AVX2RoundF64x8(const a: TVecF64x8): TVecF64x8; inline;
+begin
+  Result.lo := AVX2RoundF64x4(a.lo);
+  Result.hi := AVX2RoundF64x4(a.hi);
+end;
+
+function AVX2TruncF64x8(const a: TVecF64x8): TVecF64x8; inline;
+begin
+  Result.lo := AVX2TruncF64x4(a.lo);
+  Result.hi := AVX2TruncF64x4(a.hi);
+end;
+
+function AVX2ClampF64x8(const a, minVal, maxVal: TVecF64x8): TVecF64x8; inline;
+begin
+  Result.lo := AVX2ClampF64x4(a.lo, minVal.lo, maxVal.lo);
+  Result.hi := AVX2ClampF64x4(a.hi, minVal.hi, maxVal.hi);
+end;
+
+function AVX2ReduceAddF64x8(const a: TVecF64x8): Double; inline;
+begin
+  Result := AVX2ReduceAddF64x4(a.lo) + AVX2ReduceAddF64x4(a.hi);
+end;
+
+function AVX2ReduceMinF64x8(const a: TVecF64x8): Double; inline;
+var
+  minLo, minHi: Double;
+begin
+  minLo := AVX2ReduceMinF64x4(a.lo);
+  minHi := AVX2ReduceMinF64x4(a.hi);
+  if minLo < minHi then
+    Result := minLo
+  else
+    Result := minHi;
+end;
+
+function AVX2ReduceMaxF64x8(const a: TVecF64x8): Double; inline;
+var
+  maxLo, maxHi: Double;
+begin
+  maxLo := AVX2ReduceMaxF64x4(a.lo);
+  maxHi := AVX2ReduceMaxF64x4(a.hi);
+  if maxLo > maxHi then
+    Result := maxLo
+  else
+    Result := maxHi;
+end;
+
+function AVX2ReduceMulF64x8(const a: TVecF64x8): Double; inline;
+begin
+  Result := AVX2ReduceMulF64x4(a.lo) * AVX2ReduceMulF64x4(a.hi);
+end;
+
+function AVX2LoadF64x8(p: PDouble): TVecF64x8; inline;
+begin
+  Result.lo := AVX2LoadF64x4(p);
+  Result.hi := AVX2LoadF64x4(p + 4);
+end;
+
+procedure AVX2StoreF64x8(p: PDouble; const a: TVecF64x8); inline;
+begin
+  AVX2StoreF64x4(p, a.lo);
+  AVX2StoreF64x4(p + 4, a.hi);
+end;
+
+function AVX2SplatF64x8(value: Double): TVecF64x8; inline;
+begin
+  Result.lo := AVX2SplatF64x4(value);
+  Result.hi := AVX2SplatF64x4(value);
+end;
+
+function AVX2ZeroF64x8: TVecF64x8; inline;
+begin
+  Result.lo := AVX2ZeroF64x4;
+  Result.hi := AVX2ZeroF64x4;
+end;
+
+function AVX2CmpEqF64x8(const a, b: TVecF64x8): TMask8;
+var
+  i: Integer;
+  mask: Byte;
+begin
+  mask := 0;
+  for i := 0 to 7 do
+  begin
+    if a.d[i] = b.d[i] then
+      mask := mask or (1 shl i);
+  end;
+  Result := mask;
+end;
+
+function AVX2CmpLtF64x8(const a, b: TVecF64x8): TMask8;
+var
+  i: Integer;
+  mask: Byte;
+begin
+  mask := 0;
+  for i := 0 to 7 do
+  begin
+    if a.d[i] < b.d[i] then
+      mask := mask or (1 shl i);
+  end;
+  Result := mask;
+end;
+
+function AVX2CmpLeF64x8(const a, b: TVecF64x8): TMask8;
+var
+  i: Integer;
+  mask: Byte;
+begin
+  mask := 0;
+  for i := 0 to 7 do
+  begin
+    if a.d[i] <= b.d[i] then
+      mask := mask or (1 shl i);
+  end;
+  Result := mask;
+end;
+
+function AVX2CmpGtF64x8(const a, b: TVecF64x8): TMask8;
+var
+  i: Integer;
+  mask: Byte;
+begin
+  mask := 0;
+  for i := 0 to 7 do
+  begin
+    if a.d[i] > b.d[i] then
+      mask := mask or (1 shl i);
+  end;
+  Result := mask;
+end;
+
+function AVX2CmpGeF64x8(const a, b: TVecF64x8): TMask8;
+var
+  i: Integer;
+  mask: Byte;
+begin
+  mask := 0;
+  for i := 0 to 7 do
+  begin
+    if a.d[i] >= b.d[i] then
+      mask := mask or (1 shl i);
+  end;
+  Result := mask;
+end;
+
+function AVX2CmpNeF64x8(const a, b: TVecF64x8): TMask8;
+var
+  i: Integer;
+  mask: Byte;
+begin
+  mask := 0;
+  for i := 0 to 7 do
+  begin
+    if a.d[i] <> b.d[i] then
+      mask := mask or (1 shl i);
+  end;
+  Result := mask;
+end;
+
+function AVX2SelectF64x8(const mask: TMask8; const a, b: TVecF64x8): TVecF64x8;
+var
+  i: Integer;
+begin
+  for i := 0 to 7 do
+  begin
+    if (mask and (1 shl i)) <> 0 then
+      Result.d[i] := a.d[i]
+    else
+      Result.d[i] := b.d[i];
+  end;
+end;
+
+// === I32x16 操作 (16×Int32) - 使用 2×I32x8 ===
+
+function AVX2AddI32x16(const a, b: TVecI32x16): TVecI32x16; inline;
+begin
+  Result.lo := AVX2AddI32x8(a.lo, b.lo);
+  Result.hi := AVX2AddI32x8(a.hi, b.hi);
+end;
+
+function AVX2SubI32x16(const a, b: TVecI32x16): TVecI32x16; inline;
+begin
+  Result.lo := AVX2SubI32x8(a.lo, b.lo);
+  Result.hi := AVX2SubI32x8(a.hi, b.hi);
+end;
+
+function AVX2MulI32x16(const a, b: TVecI32x16): TVecI32x16; inline;
+begin
+  Result.lo := AVX2MulI32x8(a.lo, b.lo);
+  Result.hi := AVX2MulI32x8(a.hi, b.hi);
+end;
+
+function AVX2AndI32x16(const a, b: TVecI32x16): TVecI32x16; inline;
+begin
+  Result.lo := AVX2AndI32x8(a.lo, b.lo);
+  Result.hi := AVX2AndI32x8(a.hi, b.hi);
+end;
+
+function AVX2OrI32x16(const a, b: TVecI32x16): TVecI32x16; inline;
+begin
+  Result.lo := AVX2OrI32x8(a.lo, b.lo);
+  Result.hi := AVX2OrI32x8(a.hi, b.hi);
+end;
+
+function AVX2XorI32x16(const a, b: TVecI32x16): TVecI32x16; inline;
+begin
+  Result.lo := AVX2XorI32x8(a.lo, b.lo);
+  Result.hi := AVX2XorI32x8(a.hi, b.hi);
+end;
+
+function AVX2NotI32x16(const a: TVecI32x16): TVecI32x16; inline;
+begin
+  Result.lo := AVX2NotI32x8(a.lo);
+  Result.hi := AVX2NotI32x8(a.hi);
+end;
+
+function AVX2AndNotI32x16(const a, b: TVecI32x16): TVecI32x16; inline;
+begin
+  Result.lo := AVX2AndNotI32x8(a.lo, b.lo);
+  Result.hi := AVX2AndNotI32x8(a.hi, b.hi);
+end;
+
+function AVX2ShiftLeftI32x16(const a: TVecI32x16; count: Integer): TVecI32x16; inline;
+begin
+  Result.lo := AVX2ShiftLeftI32x8(a.lo, count);
+  Result.hi := AVX2ShiftLeftI32x8(a.hi, count);
+end;
+
+function AVX2ShiftRightI32x16(const a: TVecI32x16; count: Integer): TVecI32x16; inline;
+begin
+  Result.lo := AVX2ShiftRightI32x8(a.lo, count);
+  Result.hi := AVX2ShiftRightI32x8(a.hi, count);
+end;
+
+function AVX2ShiftRightArithI32x16(const a: TVecI32x16; count: Integer): TVecI32x16; inline;
+begin
+  Result.lo := AVX2ShiftRightArithI32x8(a.lo, count);
+  Result.hi := AVX2ShiftRightArithI32x8(a.hi, count);
+end;
+
+function AVX2CmpEqI32x16(const a, b: TVecI32x16): TMask16; inline;
+begin
+  Result := (AVX2CmpEqI32x8(a.lo, b.lo) and $FF) or ((AVX2CmpEqI32x8(a.hi, b.hi) and $FF) shl 8);
+end;
+
+function AVX2CmpLtI32x16(const a, b: TVecI32x16): TMask16; inline;
+begin
+  Result := (AVX2CmpLtI32x8(a.lo, b.lo) and $FF) or ((AVX2CmpLtI32x8(a.hi, b.hi) and $FF) shl 8);
+end;
+
+function AVX2CmpGtI32x16(const a, b: TVecI32x16): TMask16; inline;
+begin
+  Result := (AVX2CmpGtI32x8(a.lo, b.lo) and $FF) or ((AVX2CmpGtI32x8(a.hi, b.hi) and $FF) shl 8);
+end;
+
+function AVX2CmpLeI32x16(const a, b: TVecI32x16): TMask16; inline;
+begin
+  Result := (AVX2CmpLeI32x8(a.lo, b.lo) and $FF) or ((AVX2CmpLeI32x8(a.hi, b.hi) and $FF) shl 8);
+end;
+
+function AVX2CmpGeI32x16(const a, b: TVecI32x16): TMask16; inline;
+begin
+  Result := (AVX2CmpGeI32x8(a.lo, b.lo) and $FF) or ((AVX2CmpGeI32x8(a.hi, b.hi) and $FF) shl 8);
+end;
+
+function AVX2CmpNeI32x16(const a, b: TVecI32x16): TMask16; inline;
+begin
+  Result := (AVX2CmpNeI32x8(a.lo, b.lo) and $FF) or ((AVX2CmpNeI32x8(a.hi, b.hi) and $FF) shl 8);
+end;
+
+function AVX2MinI32x16(const a, b: TVecI32x16): TVecI32x16; inline;
+begin
+  Result.lo := AVX2MinI32x8(a.lo, b.lo);
+  Result.hi := AVX2MinI32x8(a.hi, b.hi);
+end;
+
+function AVX2MaxI32x16(const a, b: TVecI32x16): TVecI32x16; inline;
+begin
+  Result.lo := AVX2MaxI32x8(a.lo, b.lo);
+  Result.hi := AVX2MaxI32x8(a.hi, b.hi);
+end;
+
+// === I64x8 Operations (512-bit emulated via 2×I64x4) ===
+
+function AVX2AddI64x8(const a, b: TVecI64x8): TVecI64x8; inline;
+begin
+  Result.lo := AVX2AddI64x4(a.lo, b.lo);
+  Result.hi := AVX2AddI64x4(a.hi, b.hi);
+end;
+
+function AVX2SubI64x8(const a, b: TVecI64x8): TVecI64x8; inline;
+begin
+  Result.lo := AVX2SubI64x4(a.lo, b.lo);
+  Result.hi := AVX2SubI64x4(a.hi, b.hi);
+end;
+
+function AVX2AndI64x8(const a, b: TVecI64x8): TVecI64x8; inline;
+begin
+  Result.lo := AVX2AndI64x4(a.lo, b.lo);
+  Result.hi := AVX2AndI64x4(a.hi, b.hi);
+end;
+
+function AVX2OrI64x8(const a, b: TVecI64x8): TVecI64x8; inline;
+begin
+  Result.lo := AVX2OrI64x4(a.lo, b.lo);
+  Result.hi := AVX2OrI64x4(a.hi, b.hi);
+end;
+
+function AVX2XorI64x8(const a, b: TVecI64x8): TVecI64x8; inline;
+begin
+  Result.lo := AVX2XorI64x4(a.lo, b.lo);
+  Result.hi := AVX2XorI64x4(a.hi, b.hi);
+end;
+
+function AVX2NotI64x8(const a: TVecI64x8): TVecI64x8; inline;
+begin
+  Result.lo := AVX2NotI64x4(a.lo);
+  Result.hi := AVX2NotI64x4(a.hi);
+end;
+
+function AVX2CmpEqI64x8(const a, b: TVecI64x8): TMask8; inline;
+begin
+  Result := (AVX2CmpEqI64x4(a.lo, b.lo) and $F) or ((AVX2CmpEqI64x4(a.hi, b.hi) and $F) shl 4);
+end;
+
+function AVX2CmpLtI64x8(const a, b: TVecI64x8): TMask8; inline;
+begin
+  Result := (AVX2CmpLtI64x4(a.lo, b.lo) and $F) or ((AVX2CmpLtI64x4(a.hi, b.hi) and $F) shl 4);
+end;
+
+function AVX2CmpGtI64x8(const a, b: TVecI64x8): TMask8; inline;
+begin
+  Result := (AVX2CmpGtI64x4(a.lo, b.lo) and $F) or ((AVX2CmpGtI64x4(a.hi, b.hi) and $F) shl 4);
+end;
+
+function AVX2CmpLeI64x8(const a, b: TVecI64x8): TMask8; inline;
+begin
+  Result := (AVX2CmpLeI64x4(a.lo, b.lo) and $F) or ((AVX2CmpLeI64x4(a.hi, b.hi) and $F) shl 4);
+end;
+
+function AVX2CmpGeI64x8(const a, b: TVecI64x8): TMask8; inline;
+begin
+  Result := (AVX2CmpGeI64x4(a.lo, b.lo) and $F) or ((AVX2CmpGeI64x4(a.hi, b.hi) and $F) shl 4);
+end;
+
+function AVX2CmpNeI64x8(const a, b: TVecI64x8): TMask8; inline;
+begin
+  Result := (AVX2CmpNeI64x4(a.lo, b.lo) and $F) or ((AVX2CmpNeI64x4(a.hi, b.hi) and $F) shl 4);
+end;
+
+// === Extract/Insert Operations ===
+
+// F32x8 (256-bit): 使用 VEXTRACTF128 提取高/低半部分
+function AVX2ExtractF32x8(const a: TVecF32x8; index: Integer): Single;
+begin
+  if (index < 0) or (index > 7) then
+    Result := 0.0
+  else
+    Result := a.f[index];
+end;
+
+function AVX2InsertF32x8(const a: TVecF32x8; value: Single; index: Integer): TVecF32x8;
+begin
+  Result := a;
+  if (index >= 0) and (index <= 7) then
+    Result.f[index] := value;
+end;
+
+// F64x2 (128-bit)
+function AVX2ExtractF64x2(const a: TVecF64x2; index: Integer): Double;
+begin
+  if (index < 0) or (index > 1) then
+    Result := 0.0
+  else
+    Result := a.d[index];
+end;
+
+function AVX2InsertF64x2(const a: TVecF64x2; value: Double; index: Integer): TVecF64x2;
+begin
+  Result := a;
+  if (index >= 0) and (index <= 1) then
+    Result.d[index] := value;
+end;
+
+// F64x4 (256-bit)
+function AVX2ExtractF64x4(const a: TVecF64x4; index: Integer): Double;
+begin
+  if (index < 0) or (index > 3) then
+    Result := 0.0
+  else
+    Result := a.d[index];
+end;
+
+function AVX2InsertF64x4(const a: TVecF64x4; value: Double; index: Integer): TVecF64x4;
+begin
+  Result := a;
+  if (index >= 0) and (index <= 3) then
+    Result.d[index] := value;
+end;
+
+// I32x4 (128-bit)
+function AVX2ExtractI32x4(const a: TVecI32x4; index: Integer): Int32;
+begin
+  if (index < 0) or (index > 3) then
+    Result := 0
+  else
+    Result := a.i[index];
+end;
+
+function AVX2InsertI32x4(const a: TVecI32x4; value: Int32; index: Integer): TVecI32x4;
+begin
+  Result := a;
+  if (index >= 0) and (index <= 3) then
+    Result.i[index] := value;
+end;
+
+// I32x8 (256-bit)
+function AVX2ExtractI32x8(const a: TVecI32x8; index: Integer): Int32;
+begin
+  if (index < 0) or (index > 7) then
+    Result := 0
+  else
+    Result := a.i[index];
+end;
+
+function AVX2InsertI32x8(const a: TVecI32x8; value: Int32; index: Integer): TVecI32x8;
+begin
+  Result := a;
+  if (index >= 0) and (index <= 7) then
+    Result.i[index] := value;
+end;
+
+// I64x2 (128-bit)
+function AVX2ExtractI64x2(const a: TVecI64x2; index: Integer): Int64;
+begin
+  if (index < 0) or (index > 1) then
+    Result := 0
+  else
+    Result := a.i[index];
+end;
+
+function AVX2InsertI64x2(const a: TVecI64x2; value: Int64; index: Integer): TVecI64x2;
+begin
+  Result := a;
+  if (index >= 0) and (index <= 1) then
+    Result.i[index] := value;
+end;
+
+// I64x4 (256-bit)
+function AVX2ExtractI64x4(const a: TVecI64x4; index: Integer): Int64;
+begin
+  if (index < 0) or (index > 3) then
+    Result := 0
+  else
+    Result := a.i[index];
+end;
+
+function AVX2InsertI64x4(const a: TVecI64x4; value: Int64; index: Integer): TVecI64x4;
+begin
+  Result := a;
+  if (index >= 0) and (index <= 3) then
+    Result.i[index] := value;
+end;
+
+// F32x16 (512-bit)
+function AVX2ExtractF32x16(const a: TVecF32x16; index: Integer): Single;
+begin
+  if (index < 0) or (index > 15) then
+    Result := 0.0
+  else
+    Result := a.f[index];
+end;
+
+function AVX2InsertF32x16(const a: TVecF32x16; value: Single; index: Integer): TVecF32x16;
+begin
+  Result := a;
+  if (index >= 0) and (index <= 15) then
+    Result.f[index] := value;
+end;
+
+// I32x16 (512-bit)
+function AVX2ExtractI32x16(const a: TVecI32x16; index: Integer): Int32;
+begin
+  if (index < 0) or (index > 15) then
+    Result := 0
+  else
+    Result := a.i[index];
+end;
+
+function AVX2InsertI32x16(const a: TVecI32x16; value: Int32; index: Integer): TVecI32x16;
+begin
+  Result := a;
+  if (index >= 0) and (index <= 15) then
+    Result.i[index] := value;
 end;
 
 // === Backend Registration ===
@@ -4303,6 +7882,115 @@ begin
     dispatchTable.MinI32x4 := @AVX2MinI32x4;
     dispatchTable.MaxI32x4 := @AVX2MaxI32x4;
 
+    // I16x8 Arithmetic operations
+    dispatchTable.AddI16x8 := @AVX2AddI16x8;
+    dispatchTable.SubI16x8 := @AVX2SubI16x8;
+    dispatchTable.MulI16x8 := @AVX2MulI16x8;
+    // I16x8 Bitwise operations
+    dispatchTable.AndI16x8 := @AVX2AndI16x8;
+    dispatchTable.OrI16x8 := @AVX2OrI16x8;
+    dispatchTable.XorI16x8 := @AVX2XorI16x8;
+    dispatchTable.NotI16x8 := @AVX2NotI16x8;
+    dispatchTable.AndNotI16x8 := @AVX2AndNotI16x8;
+    // I16x8 Shift operations
+    dispatchTable.ShiftLeftI16x8 := @AVX2ShiftLeftI16x8;
+    dispatchTable.ShiftRightI16x8 := @AVX2ShiftRightI16x8;
+    dispatchTable.ShiftRightArithI16x8 := @AVX2ShiftRightArithI16x8;
+    // I16x8 Comparison operations
+    dispatchTable.CmpEqI16x8 := @AVX2CmpEqI16x8;
+    dispatchTable.CmpLtI16x8 := @AVX2CmpLtI16x8;
+    dispatchTable.CmpGtI16x8 := @AVX2CmpGtI16x8;
+    dispatchTable.CmpLeI16x8 := @AVX2CmpLeI16x8;  // ✅ NEW
+    dispatchTable.CmpGeI16x8 := @AVX2CmpGeI16x8;  // ✅ NEW
+    dispatchTable.CmpNeI16x8 := @AVX2CmpNeI16x8;  // ✅ NEW
+    // I16x8 Min/Max operations
+    dispatchTable.MinI16x8 := @AVX2MinI16x8;
+    dispatchTable.MaxI16x8 := @AVX2MaxI16x8;
+
+    // I8x16 Arithmetic operations
+    dispatchTable.AddI8x16 := @AVX2AddI8x16;
+    dispatchTable.SubI8x16 := @AVX2SubI8x16;
+    // I8x16 Bitwise operations
+    dispatchTable.AndI8x16 := @AVX2AndI8x16;
+    dispatchTable.OrI8x16 := @AVX2OrI8x16;
+    dispatchTable.XorI8x16 := @AVX2XorI8x16;
+    dispatchTable.NotI8x16 := @AVX2NotI8x16;
+    // I8x16 Comparison operations
+    dispatchTable.CmpEqI8x16 := @AVX2CmpEqI8x16;
+    dispatchTable.CmpLtI8x16 := @AVX2CmpLtI8x16;
+    dispatchTable.CmpGtI8x16 := @AVX2CmpGtI8x16;
+    dispatchTable.CmpLeI8x16 := @AVX2CmpLeI8x16;  // ✅ NEW
+    dispatchTable.CmpGeI8x16 := @AVX2CmpGeI8x16;  // ✅ NEW
+    dispatchTable.CmpNeI8x16 := @AVX2CmpNeI8x16;  // ✅ NEW
+    // I8x16 Min/Max operations
+    dispatchTable.MinI8x16 := @AVX2MinI8x16;
+    dispatchTable.MaxI8x16 := @AVX2MaxI8x16;
+
+    // U32x4 Arithmetic operations
+    dispatchTable.AddU32x4 := @AVX2AddU32x4;
+    dispatchTable.SubU32x4 := @AVX2SubU32x4;
+    dispatchTable.MulU32x4 := @AVX2MulU32x4;
+    // U32x4 Bitwise operations
+    dispatchTable.AndU32x4 := @AVX2AndU32x4;
+    dispatchTable.OrU32x4 := @AVX2OrU32x4;
+    dispatchTable.XorU32x4 := @AVX2XorU32x4;
+    dispatchTable.NotU32x4 := @AVX2NotU32x4;
+    dispatchTable.AndNotU32x4 := @AVX2AndNotU32x4;
+    // U32x4 Shift operations
+    dispatchTable.ShiftLeftU32x4 := @AVX2ShiftLeftU32x4;
+    dispatchTable.ShiftRightU32x4 := @AVX2ShiftRightU32x4;
+    // U32x4 Comparison operations
+    dispatchTable.CmpEqU32x4 := @AVX2CmpEqU32x4;
+    dispatchTable.CmpLtU32x4 := @AVX2CmpLtU32x4;
+    dispatchTable.CmpGtU32x4 := @AVX2CmpGtU32x4;
+    dispatchTable.CmpLeU32x4 := @AVX2CmpLeU32x4;
+    dispatchTable.CmpGeU32x4 := @AVX2CmpGeU32x4;
+    // U32x4 Min/Max operations
+    dispatchTable.MinU32x4 := @AVX2MinU32x4;
+    dispatchTable.MaxU32x4 := @AVX2MaxU32x4;
+
+    // U16x8 Arithmetic operations
+    dispatchTable.AddU16x8 := @AVX2AddU16x8;
+    dispatchTable.SubU16x8 := @AVX2SubU16x8;
+    dispatchTable.MulU16x8 := @AVX2MulU16x8;
+    // U16x8 Bitwise operations
+    dispatchTable.AndU16x8 := @AVX2AndU16x8;
+    dispatchTable.OrU16x8 := @AVX2OrU16x8;
+    dispatchTable.XorU16x8 := @AVX2XorU16x8;
+    dispatchTable.NotU16x8 := @AVX2NotU16x8;
+    // U16x8 Shift operations
+    dispatchTable.ShiftLeftU16x8 := @AVX2ShiftLeftU16x8;
+    dispatchTable.ShiftRightU16x8 := @AVX2ShiftRightU16x8;
+    // U16x8 Comparison operations
+    dispatchTable.CmpEqU16x8 := @AVX2CmpEqU16x8;
+    dispatchTable.CmpLtU16x8 := @AVX2CmpLtU16x8;
+    dispatchTable.CmpGtU16x8 := @AVX2CmpGtU16x8;
+    dispatchTable.CmpLeU16x8 := @AVX2CmpLeU16x8;  // ✅ NEW
+    dispatchTable.CmpGeU16x8 := @AVX2CmpGeU16x8;  // ✅ NEW
+    dispatchTable.CmpNeU16x8 := @AVX2CmpNeU16x8;  // ✅ NEW
+    // U16x8 Min/Max operations
+    dispatchTable.MinU16x8 := @AVX2MinU16x8;
+    dispatchTable.MaxU16x8 := @AVX2MaxU16x8;
+
+    // U8x16 Arithmetic operations
+    dispatchTable.AddU8x16 := @AVX2AddU8x16;
+    dispatchTable.SubU8x16 := @AVX2SubU8x16;
+    // U8x16 Bitwise operations
+    dispatchTable.AndU8x16 := @AVX2AndU8x16;
+    dispatchTable.OrU8x16 := @AVX2OrU8x16;
+    dispatchTable.XorU8x16 := @AVX2XorU8x16;
+    dispatchTable.NotU8x16 := @AVX2NotU8x16;
+    // U8x16 Comparison operations
+    dispatchTable.CmpEqU8x16 := @AVX2CmpEqU8x16;
+    dispatchTable.CmpLtU8x16 := @AVX2CmpLtU8x16;
+    dispatchTable.CmpGtU8x16 := @AVX2CmpGtU8x16;
+    dispatchTable.CmpLeU8x16 := @AVX2CmpLeU8x16;  // ✅ NEW
+    dispatchTable.CmpGeU8x16 := @AVX2CmpGeU8x16;  // ✅ NEW
+    dispatchTable.CmpNeU8x16 := @AVX2CmpNeU8x16;  // ✅ NEW
+    // U8x16 Min/Max operations
+    dispatchTable.MinU8x16 := @AVX2MinU8x16;
+    dispatchTable.MaxU8x16 := @AVX2MaxU8x16;
+
     // ✅ P3: I64x2 arithmetic, bitwise, and comparison
     dispatchTable.AddI64x2 := @AVX2AddI64x2;
     dispatchTable.SubI64x2 := @AVX2SubI64x2;
@@ -4344,6 +8032,66 @@ begin
     dispatchTable.MinI32x8 := @AVX2MinI32x8;
     dispatchTable.MaxI32x8 := @AVX2MaxI32x8;
 
+    // ✅ NEW: I64x4 Operations (256-bit AVX2)
+    dispatchTable.AddI64x4 := @AVX2AddI64x4;
+    dispatchTable.SubI64x4 := @AVX2SubI64x4;
+    dispatchTable.AndI64x4 := @AVX2AndI64x4;
+    dispatchTable.OrI64x4 := @AVX2OrI64x4;
+    dispatchTable.XorI64x4 := @AVX2XorI64x4;
+    dispatchTable.NotI64x4 := @AVX2NotI64x4;
+    dispatchTable.AndNotI64x4 := @AVX2AndNotI64x4;
+    dispatchTable.ShiftLeftI64x4 := @AVX2ShiftLeftI64x4;
+    dispatchTable.ShiftRightI64x4 := @AVX2ShiftRightI64x4;
+    dispatchTable.CmpEqI64x4 := @AVX2CmpEqI64x4;
+    dispatchTable.CmpLtI64x4 := @AVX2CmpLtI64x4;
+    dispatchTable.CmpGtI64x4 := @AVX2CmpGtI64x4;
+    dispatchTable.CmpLeI64x4 := @AVX2CmpLeI64x4;
+    dispatchTable.CmpGeI64x4 := @AVX2CmpGeI64x4;
+    dispatchTable.CmpNeI64x4 := @AVX2CmpNeI64x4;
+    dispatchTable.LoadI64x4 := @AVX2LoadI64x4;
+    dispatchTable.StoreI64x4 := @AVX2StoreI64x4;
+    dispatchTable.SplatI64x4 := @AVX2SplatI64x4;
+    dispatchTable.ZeroI64x4 := @AVX2ZeroI64x4;
+
+    // ✅ NEW: U32x8 Operations (256-bit AVX2)
+    dispatchTable.AddU32x8 := @AVX2AddU32x8;
+    dispatchTable.SubU32x8 := @AVX2SubU32x8;
+    dispatchTable.MulU32x8 := @AVX2MulU32x8;
+    dispatchTable.AndU32x8 := @AVX2AndU32x8;
+    dispatchTable.OrU32x8 := @AVX2OrU32x8;
+    dispatchTable.XorU32x8 := @AVX2XorU32x8;
+    dispatchTable.NotU32x8 := @AVX2NotU32x8;
+    dispatchTable.AndNotU32x8 := @AVX2AndNotU32x8;
+    dispatchTable.ShiftLeftU32x8 := @AVX2ShiftLeftU32x8;
+    dispatchTable.ShiftRightU32x8 := @AVX2ShiftRightU32x8;
+    dispatchTable.CmpEqU32x8 := @AVX2CmpEqU32x8;
+    dispatchTable.CmpLtU32x8 := @AVX2CmpLtU32x8;
+    dispatchTable.CmpGtU32x8 := @AVX2CmpGtU32x8;
+    dispatchTable.CmpLeU32x8 := @AVX2CmpLeU32x8;
+    dispatchTable.CmpGeU32x8 := @AVX2CmpGeU32x8;
+    dispatchTable.CmpNeU32x8 := @AVX2CmpNeU32x8;
+    dispatchTable.MinU32x8 := @AVX2MinU32x8;
+    dispatchTable.MaxU32x8 := @AVX2MaxU32x8;
+
+    // ✅ NEW: U64x4 Operations (256-bit AVX2)
+    dispatchTable.AddU64x4 := @AVX2AddU64x4;
+    dispatchTable.SubU64x4 := @AVX2SubU64x4;
+    dispatchTable.AndU64x4 := @AVX2AndU64x4;
+    dispatchTable.OrU64x4 := @AVX2OrU64x4;
+    dispatchTable.XorU64x4 := @AVX2XorU64x4;
+    dispatchTable.NotU64x4 := @AVX2NotU64x4;
+    dispatchTable.ShiftLeftU64x4 := @AVX2ShiftLeftU64x4;
+    dispatchTable.ShiftRightU64x4 := @AVX2ShiftRightU64x4;
+    dispatchTable.CmpEqU64x4 := @AVX2CmpEqU64x4;
+    dispatchTable.CmpLtU64x4 := @AVX2CmpLtU64x4;
+    dispatchTable.CmpGtU64x4 := @AVX2CmpGtU64x4;
+    dispatchTable.CmpLeU64x4 := @AVX2CmpLeU64x4;
+    dispatchTable.CmpGeU64x4 := @AVX2CmpGeU64x4;
+    dispatchTable.CmpNeU64x4 := @AVX2CmpNeU64x4;
+
+    // ✅ NEW: F64x4 Extended Math
+    dispatchTable.RcpF64x4 := @AVX2RcpF64x4;
+
     // Override with AVX2 comparison operations
     dispatchTable.CmpEqF32x4 := @AVX2CmpEqF32x4;
     dispatchTable.CmpLtF32x4 := @AVX2CmpLtF32x4;
@@ -4351,6 +8099,22 @@ begin
     dispatchTable.CmpGtF32x4 := @AVX2CmpGtF32x4;
     dispatchTable.CmpGeF32x4 := @AVX2CmpGeF32x4;
     dispatchTable.CmpNeF32x4 := @AVX2CmpNeF32x4;
+
+    // ✅ NEW: F32x8 Comparison (256-bit)
+    dispatchTable.CmpEqF32x8 := @AVX2CmpEqF32x8;
+    dispatchTable.CmpLtF32x8 := @AVX2CmpLtF32x8;
+    dispatchTable.CmpLeF32x8 := @AVX2CmpLeF32x8;
+    dispatchTable.CmpGtF32x8 := @AVX2CmpGtF32x8;
+    dispatchTable.CmpGeF32x8 := @AVX2CmpGeF32x8;
+    dispatchTable.CmpNeF32x8 := @AVX2CmpNeF32x8;
+
+    // ✅ NEW: F64x4 Comparison (256-bit)
+    dispatchTable.CmpEqF64x4 := @AVX2CmpEqF64x4;
+    dispatchTable.CmpLtF64x4 := @AVX2CmpLtF64x4;
+    dispatchTable.CmpLeF64x4 := @AVX2CmpLeF64x4;
+    dispatchTable.CmpGtF64x4 := @AVX2CmpGtF64x4;
+    dispatchTable.CmpGeF64x4 := @AVX2CmpGeF64x4;
+    dispatchTable.CmpNeF64x4 := @AVX2CmpNeF64x4;
 
     // Override with AVX2 math functions
     dispatchTable.AbsF32x4 := @AVX2AbsF32x4;
@@ -4375,6 +8139,11 @@ begin
     dispatchTable.LengthF32x4 := @AVX2LengthF32x4;
     dispatchTable.LengthF32x3 := @AVX2LengthF32x3;
     dispatchTable.NormalizeF32x4 := @AVX2NormalizeF32x4;
+
+    // ✅ Iteration 6.4: FMA-optimized Dot Product
+    dispatchTable.DotF32x8 := @AVX2DotF32x8;
+    dispatchTable.DotF64x2 := @AVX2DotF64x2;
+    dispatchTable.DotF64x4 := @AVX2DotF64x4;
     dispatchTable.NormalizeF32x3 := @AVX2NormalizeF32x3;
 
     // Override with AVX2 reduction operations
@@ -4469,6 +8238,133 @@ begin
     dispatchTable.SplatF64x4 := @AVX2SplatF64x4;
     dispatchTable.ZeroF64x4 := @AVX2ZeroF64x4;
 
+    // ✅ 512-bit 向量的 AVX2 仿真实现 (2×256-bit 操作)
+
+    // F32x16 Arithmetic (512-bit emulated via 2×F32x8)
+    dispatchTable.AddF32x16 := @AVX2AddF32x16;
+    dispatchTable.SubF32x16 := @AVX2SubF32x16;
+    dispatchTable.MulF32x16 := @AVX2MulF32x16;
+    dispatchTable.DivF32x16 := @AVX2DivF32x16;
+
+    // F32x16 Math (512-bit)
+    dispatchTable.AbsF32x16 := @AVX2AbsF32x16;
+    dispatchTable.SqrtF32x16 := @AVX2SqrtF32x16;
+    dispatchTable.MinF32x16 := @AVX2MinF32x16;
+    dispatchTable.MaxF32x16 := @AVX2MaxF32x16;
+    dispatchTable.ClampF32x16 := @AVX2ClampF32x16;
+
+    // F32x16 Extended Math (512-bit)
+    dispatchTable.FmaF32x16 := @AVX2FmaF32x16;
+    dispatchTable.FloorF32x16 := @AVX2FloorF32x16;
+    dispatchTable.CeilF32x16 := @AVX2CeilF32x16;
+    dispatchTable.RoundF32x16 := @AVX2RoundF32x16;
+    dispatchTable.TruncF32x16 := @AVX2TruncF32x16;
+
+    // F32x16 Reduction (512-bit)
+    dispatchTable.ReduceAddF32x16 := @AVX2ReduceAddF32x16;
+    dispatchTable.ReduceMinF32x16 := @AVX2ReduceMinF32x16;
+    dispatchTable.ReduceMaxF32x16 := @AVX2ReduceMaxF32x16;
+    dispatchTable.ReduceMulF32x16 := @AVX2ReduceMulF32x16;
+
+    // F32x16 Load/Store/Splat/Zero (512-bit)
+    dispatchTable.LoadF32x16 := @AVX2LoadF32x16;
+    dispatchTable.StoreF32x16 := @AVX2StoreF32x16;
+    dispatchTable.SplatF32x16 := @AVX2SplatF32x16;
+    dispatchTable.ZeroF32x16 := @AVX2ZeroF32x16;
+
+    // F32x16 Comparison (512-bit)
+    dispatchTable.CmpEqF32x16 := @AVX2CmpEqF32x16;
+    dispatchTable.CmpLtF32x16 := @AVX2CmpLtF32x16;
+    dispatchTable.CmpLeF32x16 := @AVX2CmpLeF32x16;
+    dispatchTable.CmpGtF32x16 := @AVX2CmpGtF32x16;
+    dispatchTable.CmpGeF32x16 := @AVX2CmpGeF32x16;
+    dispatchTable.CmpNeF32x16 := @AVX2CmpNeF32x16;
+    dispatchTable.SelectF32x16 := @AVX2SelectF32x16;
+
+    // F64x8 Arithmetic (512-bit emulated via 2×F64x4)
+    dispatchTable.AddF64x8 := @AVX2AddF64x8;
+    dispatchTable.SubF64x8 := @AVX2SubF64x8;
+    dispatchTable.MulF64x8 := @AVX2MulF64x8;
+    dispatchTable.DivF64x8 := @AVX2DivF64x8;
+
+    // F64x8 Math (512-bit)
+    dispatchTable.AbsF64x8 := @AVX2AbsF64x8;
+    dispatchTable.SqrtF64x8 := @AVX2SqrtF64x8;
+    dispatchTable.MinF64x8 := @AVX2MinF64x8;
+    dispatchTable.MaxF64x8 := @AVX2MaxF64x8;
+    dispatchTable.ClampF64x8 := @AVX2ClampF64x8;
+
+    // F64x8 Extended Math (512-bit)
+    dispatchTable.FmaF64x8 := @AVX2FmaF64x8;
+    dispatchTable.FloorF64x8 := @AVX2FloorF64x8;
+    dispatchTable.CeilF64x8 := @AVX2CeilF64x8;
+    dispatchTable.RoundF64x8 := @AVX2RoundF64x8;
+    dispatchTable.TruncF64x8 := @AVX2TruncF64x8;
+
+    // F64x8 Reduction (512-bit)
+    dispatchTable.ReduceAddF64x8 := @AVX2ReduceAddF64x8;
+    dispatchTable.ReduceMinF64x8 := @AVX2ReduceMinF64x8;
+    dispatchTable.ReduceMaxF64x8 := @AVX2ReduceMaxF64x8;
+    dispatchTable.ReduceMulF64x8 := @AVX2ReduceMulF64x8;
+
+    // F64x8 Load/Store/Splat/Zero (512-bit)
+    dispatchTable.LoadF64x8 := @AVX2LoadF64x8;
+    dispatchTable.StoreF64x8 := @AVX2StoreF64x8;
+    dispatchTable.SplatF64x8 := @AVX2SplatF64x8;
+    dispatchTable.ZeroF64x8 := @AVX2ZeroF64x8;
+
+    // F64x8 Comparison (512-bit)
+    dispatchTable.CmpEqF64x8 := @AVX2CmpEqF64x8;
+    dispatchTable.CmpLtF64x8 := @AVX2CmpLtF64x8;
+    dispatchTable.CmpLeF64x8 := @AVX2CmpLeF64x8;
+    dispatchTable.CmpGtF64x8 := @AVX2CmpGtF64x8;
+    dispatchTable.CmpGeF64x8 := @AVX2CmpGeF64x8;
+    dispatchTable.CmpNeF64x8 := @AVX2CmpNeF64x8;
+    dispatchTable.SelectF64x8 := @AVX2SelectF64x8;
+
+    // I32x16 Arithmetic (512-bit emulated via 2×I32x8)
+    dispatchTable.AddI32x16 := @AVX2AddI32x16;
+    dispatchTable.SubI32x16 := @AVX2SubI32x16;
+    dispatchTable.MulI32x16 := @AVX2MulI32x16;
+
+    // I32x16 Bitwise (512-bit)
+    dispatchTable.AndI32x16 := @AVX2AndI32x16;
+    dispatchTable.OrI32x16 := @AVX2OrI32x16;
+    dispatchTable.XorI32x16 := @AVX2XorI32x16;
+    dispatchTable.NotI32x16 := @AVX2NotI32x16;
+    dispatchTable.AndNotI32x16 := @AVX2AndNotI32x16;
+
+    // I32x16 Shift (512-bit)
+    dispatchTable.ShiftLeftI32x16 := @AVX2ShiftLeftI32x16;
+    dispatchTable.ShiftRightI32x16 := @AVX2ShiftRightI32x16;
+    dispatchTable.ShiftRightArithI32x16 := @AVX2ShiftRightArithI32x16;
+
+    // I32x16 Comparison (512-bit)
+    dispatchTable.CmpEqI32x16 := @AVX2CmpEqI32x16;
+    dispatchTable.CmpLtI32x16 := @AVX2CmpLtI32x16;
+    dispatchTable.CmpGtI32x16 := @AVX2CmpGtI32x16;
+    dispatchTable.CmpLeI32x16 := @AVX2CmpLeI32x16;
+    dispatchTable.CmpGeI32x16 := @AVX2CmpGeI32x16;
+    dispatchTable.CmpNeI32x16 := @AVX2CmpNeI32x16;
+
+    // I32x16 Min/Max (512-bit)
+    dispatchTable.MinI32x16 := @AVX2MinI32x16;
+    dispatchTable.MaxI32x16 := @AVX2MaxI32x16;
+
+    // ✅ NEW: I64x8 Operations (512-bit emulated via 2×I64x4)
+    dispatchTable.AddI64x8 := @AVX2AddI64x8;
+    dispatchTable.SubI64x8 := @AVX2SubI64x8;
+    dispatchTable.AndI64x8 := @AVX2AndI64x8;
+    dispatchTable.OrI64x8 := @AVX2OrI64x8;
+    dispatchTable.XorI64x8 := @AVX2XorI64x8;
+    dispatchTable.NotI64x8 := @AVX2NotI64x8;
+    dispatchTable.CmpEqI64x8 := @AVX2CmpEqI64x8;
+    dispatchTable.CmpLtI64x8 := @AVX2CmpLtI64x8;
+    dispatchTable.CmpGtI64x8 := @AVX2CmpGtI64x8;
+    dispatchTable.CmpLeI64x8 := @AVX2CmpLeI64x8;
+    dispatchTable.CmpGeI64x8 := @AVX2CmpGeI64x8;
+    dispatchTable.CmpNeI64x8 := @AVX2CmpNeI64x8;
+
     // Override with AVX2 memory operations
     dispatchTable.LoadF32x4 := @AVX2LoadF32x4;
     dispatchTable.LoadF32x4Aligned := @AVX2LoadF32x4Aligned;
@@ -4482,8 +8378,42 @@ begin
     dispatchTable.ExtractF32x4 := @AVX2ExtractF32x4;
     dispatchTable.InsertF32x4 := @AVX2InsertF32x4;
 
+    // ✅ NEW: Extract/Insert Operations
+    // F32x8 (256-bit)
+    dispatchTable.ExtractF32x8 := @AVX2ExtractF32x8;
+    dispatchTable.InsertF32x8 := @AVX2InsertF32x8;
+    // F64x2 (128-bit)
+    dispatchTable.ExtractF64x2 := @AVX2ExtractF64x2;
+    dispatchTable.InsertF64x2 := @AVX2InsertF64x2;
+    // F64x4 (256-bit)
+    dispatchTable.ExtractF64x4 := @AVX2ExtractF64x4;
+    dispatchTable.InsertF64x4 := @AVX2InsertF64x4;
+    // I32x4 (128-bit)
+    dispatchTable.ExtractI32x4 := @AVX2ExtractI32x4;
+    dispatchTable.InsertI32x4 := @AVX2InsertI32x4;
+    // I32x8 (256-bit)
+    dispatchTable.ExtractI32x8 := @AVX2ExtractI32x8;
+    dispatchTable.InsertI32x8 := @AVX2InsertI32x8;
+    // I64x2 (128-bit)
+    dispatchTable.ExtractI64x2 := @AVX2ExtractI64x2;
+    dispatchTable.InsertI64x2 := @AVX2InsertI64x2;
+    // I64x4 (256-bit)
+    dispatchTable.ExtractI64x4 := @AVX2ExtractI64x4;
+    dispatchTable.InsertI64x4 := @AVX2InsertI64x4;
+    // F32x16 (512-bit)
+    dispatchTable.ExtractF32x16 := @AVX2ExtractF32x16;
+    dispatchTable.InsertF32x16 := @AVX2InsertF32x16;
+    // I32x16 (512-bit)
+    dispatchTable.ExtractI32x16 := @AVX2ExtractI32x16;
+    dispatchTable.InsertI32x16 := @AVX2InsertI32x16;
+
     // ✅ P4: SelectF64x2
     dispatchTable.SelectF64x2 := @AVX2SelectF64x2;
+
+    // ✅ NEW: 缺失的 Select 操作
+    dispatchTable.SelectI32x4 := @AVX2SelectI32x4;
+    dispatchTable.SelectF32x8 := @AVX2SelectF32x8;
+    dispatchTable.SelectF64x4 := @AVX2SelectF64x4;
   end;
   // else: keep scalar implementations from FillBaseDispatchTable
 
@@ -4501,7 +8431,9 @@ begin
   dispatchTable.ToUpperAscii := @ToUpperAscii_AVX2;
   dispatchTable.BytesIndexOf := @BytesIndexOf_AVX2;
   dispatchTable.BitsetPopCount := @BitsetPopCount_AVX2;
-  // Note: MemCopy, MemSet keep scalar implementations (FPC's Move/FillChar are already optimized)
+  // ✅ NEW: MemCopy, MemSet (使用 FPC 内置函数，已足够优化)
+  dispatchTable.MemCopy := @MemCopy_AVX2;
+  dispatchTable.MemSet := @MemSet_AVX2;
 
   // ✅ P2: Override with AVX2 saturating arithmetic (VEX-encoded, always enabled)
   dispatchTable.I8x16SatAdd := @AVX2I8x16SatAdd;

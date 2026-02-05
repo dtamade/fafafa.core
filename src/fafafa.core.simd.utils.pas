@@ -235,7 +235,7 @@ function VecF64x8ExtractHi(const a: TVecF64x8): TVecF64x4; inline;
 implementation
 
 uses
-  fafafa.core.math;
+  Math;  // RTL Math 单元 (Trunc)
 
 // === Shuffle/Swizzle 实现 ===
 function MM_SHUFFLE(d, c, b, a: Byte): Byte; inline;

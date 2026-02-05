@@ -61,7 +61,7 @@ implementation
 
 uses
   SysUtils,
-  fafafa.core.math;
+  Math;  // RTL Math 单元 (Round)
 
 // === 常量定义 ===
 const

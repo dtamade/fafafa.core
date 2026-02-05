@@ -1,0 +1,54 @@
+feat(simd): SSE2 512-bit 操作转换为 4×128-bit ASM 内联实现
+
+### 改进内容
+
+将 16 个 SSE2 512-bit 仿真操作从 Pascal lo/hi 递归调用转换为高效的 4×128-bit 内联汇编实现：
+
+**F32x16 操作 (8 个)**:
+- Add, Sub, Mul, Div (addps, subps, mulps, divps)
+- Abs, Sqrt, Min, Max (andps, sqrtps, minps, maxps)
+
+**F64x8 操作 (8 个)**:
+- Add, Sub, Mul, Div (addpd, subpd, mulpd, divpd)
+- Abs, Sqrt, Min, Max (andpd, sqrtpd, minpd, maxpd)
+
+### 性能优势
+
+- ✅ 消除函数调用开销 (从 3 级调用降为 1 级)
+- ✅ 消除 lo/hi 字段访问
+- ✅ 充分利用 xmm0-xmm7 寄存器
+- ✅ 改善指令级并行潜力
+- ✅ 纯直线代码，无条件分支
+
+### 实现技术
+
+- 使用 4×128-bit 操作直接访问 64 字节向量
+- 寄存器分配: xmm0-xmm3 (第一操作数), xmm4-xmm7 (第二操作数)
+- 内存访问: movups/movupd (非对齐访问)
+- 偏移模式: 0, 16, 32, 48 字节
+
+### 验证
+
+- 编译: ✅ fpc -O3 编译通过 (8753 行, 0.3秒)
+- 测试: ✅ 所有 SIMD 测试通过
+- 泄漏: ✅ HeapTrc 无泄漏
+- 手动: ✅ 16 个操作功能验证通过
+- 汇编: ✅ 生成的机器码质量优秀
+
+### 修改文件
+
+- src/fafafa.core.simd.sse2.pas (16 个函数, ~400 行新代码)
+
+### 后续工作
+
+可选的进一步优化:
+- FMA 操作 (当前仍使用 lo/hi 递归)
+- Floor/Ceil/Round/Trunc (更复杂)
+- Clamp (可转换为 min+max)
+- 整数 512-bit 操作 (I32x16, I64x8)
+
+---
+
+Iteration: 4.3
+Status: ✅ 完成
+Date: 2026-02-05
