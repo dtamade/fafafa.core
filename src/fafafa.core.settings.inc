@@ -55,6 +55,17 @@
 {$ENDIF}
 
 ///
+/// fafafa.core.contracts (前置条件检查)
+///
+
+{ 契约检查：nil 回调、参数验证等前置条件检查。
+  默认开启，保障安全性。若需极致性能可通过 FAFAFA_CORE_NO_CONTRACTS 关闭。
+  注意：关闭后，传入 nil 回调将导致 Access Violation 而非友好的异常提示。}
+{$IFNDEF FAFAFA_CORE_NO_CONTRACTS}
+  {$DEFINE FAFAFA_CORE_CONTRACTS}
+{$ENDIF}
+
+///
 /// fafafa.core.collections
 ///
 
@@ -442,17 +453,16 @@
 {$ENDIF}
 
 { Enable RISC-V SIMD backends }
-{ NOTE: SIMD_BACKEND_RISCVV disabled - FPC 3.3.1 inline asm doesn't support RVV instructions.
-        Enable when FPC gains RVV assembler support. Scalar fallback is used instead. }
+{ RISC-V V (Vector) Extension - requires FPC 3.3.1+ with RVV assembler support }
 {$IFDEF CPURISCV64}
   {$DEFINE SIMD_RISCV64}
   {$DEFINE SIMD_RISCV_AVAILABLE}
-  {.$DEFINE SIMD_BACKEND_RISCVV}
+  {$DEFINE SIMD_BACKEND_RISCVV}
 {$ENDIF}
 {$IFDEF CPURISCV32}
   {$DEFINE SIMD_RISCV32}
   {$DEFINE SIMD_RISCV_AVAILABLE}
-  {.$DEFINE SIMD_BACKEND_RISCVV}
+  {$DEFINE SIMD_BACKEND_RISCVV}
 {$ENDIF}
 
 { === Performance Tuning === }

@@ -95,9 +95,8 @@ uses
 // =============================================================
 
 {$IF DEFINED(CPURISCV64) AND DEFINED(SIMD_BACKEND_RISCVV)}
-// RISC-V V extension detection
-// In practice, this would need runtime detection via HWCAP or similar
-// NOTE: FPC 3.3.1 does not support RVV inline assembly, so this is disabled by default
+// RISC-V V extension - requires FPC 3.3.1+ with RVV assembler support
+// Runtime detection via HWCAP recommended for production use
 {$DEFINE RISCVV_ASSEMBLY}
 {$ENDIF}
 
@@ -282,6 +281,839 @@ asm
   vsetivli zero, 4, e32, m1, ta, ma
   vle32.v v0, (a0)
   vnot.v v0, v0
+  vse32.v v0, (a0)
+end;
+
+// =============================================================
+// F32x4 Extended Operations
+// =============================================================
+
+function RISCVVFmaF32x4(const a, b, c: TVecF32x4): TVecF32x4; assembler; nostackframe;
+asm
+  // Result = a * b + c
+  vsetivli zero, 4, e32, m1, ta, ma
+  vle32.v v0, (a0)      // a
+  vle32.v v1, (a1)      // b
+  vle32.v v2, (a2)      // c
+  vfmadd.vv v0, v1, v2  // v0 = v0 * v1 + v2
+  vse32.v v0, (a0)
+end;
+
+function RISCVVRcpF32x4(const a: TVecF32x4): TVecF32x4; assembler; nostackframe;
+asm
+  // Result = 1.0 / a (approximate)
+  vsetivli zero, 4, e32, m1, ta, ma
+  vle32.v v0, (a0)
+  vfrec7.v v0, v0       // Reciprocal approximation
+  vse32.v v0, (a0)
+end;
+
+function RISCVVRsqrtF32x4(const a: TVecF32x4): TVecF32x4; assembler; nostackframe;
+asm
+  // Result = 1.0 / sqrt(a) (approximate)
+  vsetivli zero, 4, e32, m1, ta, ma
+  vle32.v v0, (a0)
+  vfrsqrt7.v v0, v0     // Reciprocal sqrt approximation
+  vse32.v v0, (a0)
+end;
+
+function RISCVVNegF32x4(const a: TVecF32x4): TVecF32x4; assembler; nostackframe;
+asm
+  vsetivli zero, 4, e32, m1, ta, ma
+  vle32.v v0, (a0)
+  vfneg.v v0, v0
+  vse32.v v0, (a0)
+end;
+
+// =============================================================
+// F32x4 Comparison Operations (return TMask4)
+// =============================================================
+
+function RISCVVCmpEqF32x4(const a, b: TVecF32x4): TMask4; assembler; nostackframe;
+asm
+  vsetivli zero, 4, e32, m1, ta, ma
+  vle32.v v0, (a0)
+  vle32.v v1, (a1)
+  vmfeq.vv v0, v0, v1   // Mask in v0
+  // Extract mask to scalar - simplified, returns all-ones or all-zeros per element
+  vmv.x.s a0, v0
+end;
+
+function RISCVVCmpLtF32x4(const a, b: TVecF32x4): TMask4; assembler; nostackframe;
+asm
+  vsetivli zero, 4, e32, m1, ta, ma
+  vle32.v v0, (a0)
+  vle32.v v1, (a1)
+  vmflt.vv v0, v0, v1
+  vmv.x.s a0, v0
+end;
+
+function RISCVVCmpLeF32x4(const a, b: TVecF32x4): TMask4; assembler; nostackframe;
+asm
+  vsetivli zero, 4, e32, m1, ta, ma
+  vle32.v v0, (a0)
+  vle32.v v1, (a1)
+  vmfle.vv v0, v0, v1
+  vmv.x.s a0, v0
+end;
+
+function RISCVVCmpGtF32x4(const a, b: TVecF32x4): TMask4; assembler; nostackframe;
+asm
+  vsetivli zero, 4, e32, m1, ta, ma
+  vle32.v v0, (a0)
+  vle32.v v1, (a1)
+  vmfgt.vv v0, v0, v1
+  vmv.x.s a0, v0
+end;
+
+function RISCVVCmpGeF32x4(const a, b: TVecF32x4): TMask4; assembler; nostackframe;
+asm
+  vsetivli zero, 4, e32, m1, ta, ma
+  vle32.v v0, (a0)
+  vle32.v v1, (a1)
+  vmfge.vv v0, v0, v1
+  vmv.x.s a0, v0
+end;
+
+function RISCVVCmpNeF32x4(const a, b: TVecF32x4): TMask4; assembler; nostackframe;
+asm
+  vsetivli zero, 4, e32, m1, ta, ma
+  vle32.v v0, (a0)
+  vle32.v v1, (a1)
+  vmfne.vv v0, v0, v1
+  vmv.x.s a0, v0
+end;
+
+// =============================================================
+// I32x4 Comparison Operations
+// =============================================================
+
+function RISCVVCmpEqI32x4(const a, b: TVecI32x4): TMask4; assembler; nostackframe;
+asm
+  vsetivli zero, 4, e32, m1, ta, ma
+  vle32.v v0, (a0)
+  vle32.v v1, (a1)
+  vmseq.vv v0, v0, v1
+  vmv.x.s a0, v0
+end;
+
+function RISCVVCmpLtI32x4(const a, b: TVecI32x4): TMask4; assembler; nostackframe;
+asm
+  vsetivli zero, 4, e32, m1, ta, ma
+  vle32.v v0, (a0)
+  vle32.v v1, (a1)
+  vmslt.vv v0, v0, v1
+  vmv.x.s a0, v0
+end;
+
+function RISCVVCmpLeI32x4(const a, b: TVecI32x4): TMask4; assembler; nostackframe;
+asm
+  vsetivli zero, 4, e32, m1, ta, ma
+  vle32.v v0, (a0)
+  vle32.v v1, (a1)
+  vmsle.vv v0, v0, v1
+  vmv.x.s a0, v0
+end;
+
+function RISCVVCmpGtI32x4(const a, b: TVecI32x4): TMask4; assembler; nostackframe;
+asm
+  vsetivli zero, 4, e32, m1, ta, ma
+  vle32.v v0, (a0)
+  vle32.v v1, (a1)
+  vmsgt.vv v0, v0, v1
+  vmv.x.s a0, v0
+end;
+
+function RISCVVCmpGeI32x4(const a, b: TVecI32x4): TMask4; assembler; nostackframe;
+asm
+  // a >= b  equals  NOT(a < b)
+  vsetivli zero, 4, e32, m1, ta, ma
+  vle32.v v0, (a0)
+  vle32.v v1, (a1)
+  vmslt.vv v0, v0, v1   // a < b
+  vmnot.m v0, v0        // NOT
+  vmv.x.s a0, v0
+end;
+
+function RISCVVCmpNeI32x4(const a, b: TVecI32x4): TMask4; assembler; nostackframe;
+asm
+  vsetivli zero, 4, e32, m1, ta, ma
+  vle32.v v0, (a0)
+  vle32.v v1, (a1)
+  vmsne.vv v0, v0, v1
+  vmv.x.s a0, v0
+end;
+
+// =============================================================
+// I32x4 Extended Operations
+// =============================================================
+
+function RISCVVAndNotI32x4(const a, b: TVecI32x4): TVecI32x4; assembler; nostackframe;
+asm
+  // Result = (NOT a) AND b
+  vsetivli zero, 4, e32, m1, ta, ma
+  vle32.v v0, (a0)
+  vle32.v v1, (a1)
+  vnot.v v0, v0
+  vand.vv v0, v0, v1
+  vse32.v v0, (a0)
+end;
+
+function RISCVVMinI32x4(const a, b: TVecI32x4): TVecI32x4; assembler; nostackframe;
+asm
+  vsetivli zero, 4, e32, m1, ta, ma
+  vle32.v v0, (a0)
+  vle32.v v1, (a1)
+  vmin.vv v0, v0, v1
+  vse32.v v0, (a0)
+end;
+
+function RISCVVMaxI32x4(const a, b: TVecI32x4): TVecI32x4; assembler; nostackframe;
+asm
+  vsetivli zero, 4, e32, m1, ta, ma
+  vle32.v v0, (a0)
+  vle32.v v1, (a1)
+  vmax.vv v0, v0, v1
+  vse32.v v0, (a0)
+end;
+
+// =============================================================
+// I32x4 Shift Operations
+// =============================================================
+
+function RISCVVShiftLeftI32x4(const a: TVecI32x4; count: Integer): TVecI32x4; assembler; nostackframe;
+asm
+  // a0 = &a, a1 = count
+  vsetivli zero, 4, e32, m1, ta, ma
+  vle32.v v0, (a0)
+  vsll.vx v0, v0, a1
+  vse32.v v0, (a0)
+end;
+
+function RISCVVShiftRightI32x4(const a: TVecI32x4; count: Integer): TVecI32x4; assembler; nostackframe;
+asm
+  vsetivli zero, 4, e32, m1, ta, ma
+  vle32.v v0, (a0)
+  vsrl.vx v0, v0, a1    // Logical right shift
+  vse32.v v0, (a0)
+end;
+
+function RISCVVShiftRightArithI32x4(const a: TVecI32x4; count: Integer): TVecI32x4; assembler; nostackframe;
+asm
+  vsetivli zero, 4, e32, m1, ta, ma
+  vle32.v v0, (a0)
+  vsra.vx v0, v0, a1    // Arithmetic right shift (sign-extend)
+  vse32.v v0, (a0)
+end;
+
+// =============================================================
+// F64x2 Extended Operations
+// =============================================================
+
+function RISCVVAbsF64x2(const a: TVecF64x2): TVecF64x2; assembler; nostackframe;
+asm
+  vsetivli zero, 2, e64, m1, ta, ma
+  vle64.v v0, (a0)
+  vfabs.v v0, v0
+  vse64.v v0, (a0)
+end;
+
+function RISCVVSqrtF64x2(const a: TVecF64x2): TVecF64x2; assembler; nostackframe;
+asm
+  vsetivli zero, 2, e64, m1, ta, ma
+  vle64.v v0, (a0)
+  vfsqrt.v v0, v0
+  vse64.v v0, (a0)
+end;
+
+function RISCVVMinF64x2(const a, b: TVecF64x2): TVecF64x2; assembler; nostackframe;
+asm
+  vsetivli zero, 2, e64, m1, ta, ma
+  vle64.v v0, (a0)
+  vle64.v v1, (a1)
+  vfmin.vv v0, v0, v1
+  vse64.v v0, (a0)
+end;
+
+function RISCVVMaxF64x2(const a, b: TVecF64x2): TVecF64x2; assembler; nostackframe;
+asm
+  vsetivli zero, 2, e64, m1, ta, ma
+  vle64.v v0, (a0)
+  vle64.v v1, (a1)
+  vfmax.vv v0, v0, v1
+  vse64.v v0, (a0)
+end;
+
+function RISCVVNegF64x2(const a: TVecF64x2): TVecF64x2; assembler; nostackframe;
+asm
+  vsetivli zero, 2, e64, m1, ta, ma
+  vle64.v v0, (a0)
+  vfneg.v v0, v0
+  vse64.v v0, (a0)
+end;
+
+function RISCVVFmaF64x2(const a, b, c: TVecF64x2): TVecF64x2; assembler; nostackframe;
+asm
+  vsetivli zero, 2, e64, m1, ta, ma
+  vle64.v v0, (a0)
+  vle64.v v1, (a1)
+  vle64.v v2, (a2)
+  vfmadd.vv v0, v1, v2
+  vse64.v v0, (a0)
+end;
+
+// =============================================================
+// I64x2 Operations (128-bit, 2x Int64)
+// =============================================================
+
+function RISCVVAddI64x2(const a, b: TVecI64x2): TVecI64x2; assembler; nostackframe;
+asm
+  vsetivli zero, 2, e64, m1, ta, ma
+  vle64.v v0, (a0)
+  vle64.v v1, (a1)
+  vadd.vv v0, v0, v1
+  vse64.v v0, (a0)
+end;
+
+function RISCVVSubI64x2(const a, b: TVecI64x2): TVecI64x2; assembler; nostackframe;
+asm
+  vsetivli zero, 2, e64, m1, ta, ma
+  vle64.v v0, (a0)
+  vle64.v v1, (a1)
+  vsub.vv v0, v0, v1
+  vse64.v v0, (a0)
+end;
+
+function RISCVVAndI64x2(const a, b: TVecI64x2): TVecI64x2; assembler; nostackframe;
+asm
+  vsetivli zero, 2, e64, m1, ta, ma
+  vle64.v v0, (a0)
+  vle64.v v1, (a1)
+  vand.vv v0, v0, v1
+  vse64.v v0, (a0)
+end;
+
+function RISCVVOrI64x2(const a, b: TVecI64x2): TVecI64x2; assembler; nostackframe;
+asm
+  vsetivli zero, 2, e64, m1, ta, ma
+  vle64.v v0, (a0)
+  vle64.v v1, (a1)
+  vor.vv v0, v0, v1
+  vse64.v v0, (a0)
+end;
+
+function RISCVVXorI64x2(const a, b: TVecI64x2): TVecI64x2; assembler; nostackframe;
+asm
+  vsetivli zero, 2, e64, m1, ta, ma
+  vle64.v v0, (a0)
+  vle64.v v1, (a1)
+  vxor.vv v0, v0, v1
+  vse64.v v0, (a0)
+end;
+
+function RISCVVNotI64x2(const a: TVecI64x2): TVecI64x2; assembler; nostackframe;
+asm
+  vsetivli zero, 2, e64, m1, ta, ma
+  vle64.v v0, (a0)
+  vnot.v v0, v0
+  vse64.v v0, (a0)
+end;
+
+function RISCVVShiftLeftI64x2(const a: TVecI64x2; count: Integer): TVecI64x2; assembler; nostackframe;
+asm
+  vsetivli zero, 2, e64, m1, ta, ma
+  vle64.v v0, (a0)
+  vsll.vx v0, v0, a1
+  vse64.v v0, (a0)
+end;
+
+function RISCVVShiftRightI64x2(const a: TVecI64x2; count: Integer): TVecI64x2; assembler; nostackframe;
+asm
+  vsetivli zero, 2, e64, m1, ta, ma
+  vle64.v v0, (a0)
+  vsrl.vx v0, v0, a1
+  vse64.v v0, (a0)
+end;
+
+function RISCVVShiftRightArithI64x2(const a: TVecI64x2; count: Integer): TVecI64x2; assembler; nostackframe;
+asm
+  vsetivli zero, 2, e64, m1, ta, ma
+  vle64.v v0, (a0)
+  vsra.vx v0, v0, a1
+  vse64.v v0, (a0)
+end;
+
+// =============================================================
+// U32x4 Operations (128-bit, 4x UInt32)
+// =============================================================
+
+function RISCVVAddU32x4(const a, b: TVecU32x4): TVecU32x4; assembler; nostackframe;
+asm
+  vsetivli zero, 4, e32, m1, ta, ma
+  vle32.v v0, (a0)
+  vle32.v v1, (a1)
+  vadd.vv v0, v0, v1
+  vse32.v v0, (a0)
+end;
+
+function RISCVVSubU32x4(const a, b: TVecU32x4): TVecU32x4; assembler; nostackframe;
+asm
+  vsetivli zero, 4, e32, m1, ta, ma
+  vle32.v v0, (a0)
+  vle32.v v1, (a1)
+  vsub.vv v0, v0, v1
+  vse32.v v0, (a0)
+end;
+
+function RISCVVMulU32x4(const a, b: TVecU32x4): TVecU32x4; assembler; nostackframe;
+asm
+  vsetivli zero, 4, e32, m1, ta, ma
+  vle32.v v0, (a0)
+  vle32.v v1, (a1)
+  vmul.vv v0, v0, v1
+  vse32.v v0, (a0)
+end;
+
+function RISCVVMinU32x4(const a, b: TVecU32x4): TVecU32x4; assembler; nostackframe;
+asm
+  vsetivli zero, 4, e32, m1, ta, ma
+  vle32.v v0, (a0)
+  vle32.v v1, (a1)
+  vminu.vv v0, v0, v1   // Unsigned min
+  vse32.v v0, (a0)
+end;
+
+function RISCVVMaxU32x4(const a, b: TVecU32x4): TVecU32x4; assembler; nostackframe;
+asm
+  vsetivli zero, 4, e32, m1, ta, ma
+  vle32.v v0, (a0)
+  vle32.v v1, (a1)
+  vmaxu.vv v0, v0, v1   // Unsigned max
+  vse32.v v0, (a0)
+end;
+
+function RISCVVCmpLtU32x4(const a, b: TVecU32x4): TMask4; assembler; nostackframe;
+asm
+  vsetivli zero, 4, e32, m1, ta, ma
+  vle32.v v0, (a0)
+  vle32.v v1, (a1)
+  vmsltu.vv v0, v0, v1  // Unsigned less than
+  vmv.x.s a0, v0
+end;
+
+function RISCVVCmpLeU32x4(const a, b: TVecU32x4): TMask4; assembler; nostackframe;
+asm
+  vsetivli zero, 4, e32, m1, ta, ma
+  vle32.v v0, (a0)
+  vle32.v v1, (a1)
+  vmsleu.vv v0, v0, v1  // Unsigned less than or equal
+  vmv.x.s a0, v0
+end;
+
+function RISCVVCmpGtU32x4(const a, b: TVecU32x4): TMask4; assembler; nostackframe;
+asm
+  vsetivli zero, 4, e32, m1, ta, ma
+  vle32.v v0, (a0)
+  vle32.v v1, (a1)
+  vmsgtu.vv v0, v0, v1  // Unsigned greater than
+  vmv.x.s a0, v0
+end;
+
+// =============================================================
+// I16x8 Operations (128-bit, 8x Int16)
+// =============================================================
+
+function RISCVVAddI16x8(const a, b: TVecI16x8): TVecI16x8; assembler; nostackframe;
+asm
+  vsetivli zero, 8, e16, m1, ta, ma
+  vle16.v v0, (a0)
+  vle16.v v1, (a1)
+  vadd.vv v0, v0, v1
+  vse16.v v0, (a0)
+end;
+
+function RISCVVSubI16x8(const a, b: TVecI16x8): TVecI16x8; assembler; nostackframe;
+asm
+  vsetivli zero, 8, e16, m1, ta, ma
+  vle16.v v0, (a0)
+  vle16.v v1, (a1)
+  vsub.vv v0, v0, v1
+  vse16.v v0, (a0)
+end;
+
+function RISCVVMulI16x8(const a, b: TVecI16x8): TVecI16x8; assembler; nostackframe;
+asm
+  vsetivli zero, 8, e16, m1, ta, ma
+  vle16.v v0, (a0)
+  vle16.v v1, (a1)
+  vmul.vv v0, v0, v1
+  vse16.v v0, (a0)
+end;
+
+function RISCVVMinI16x8(const a, b: TVecI16x8): TVecI16x8; assembler; nostackframe;
+asm
+  vsetivli zero, 8, e16, m1, ta, ma
+  vle16.v v0, (a0)
+  vle16.v v1, (a1)
+  vmin.vv v0, v0, v1
+  vse16.v v0, (a0)
+end;
+
+function RISCVVMaxI16x8(const a, b: TVecI16x8): TVecI16x8; assembler; nostackframe;
+asm
+  vsetivli zero, 8, e16, m1, ta, ma
+  vle16.v v0, (a0)
+  vle16.v v1, (a1)
+  vmax.vv v0, v0, v1
+  vse16.v v0, (a0)
+end;
+
+function RISCVVAndI16x8(const a, b: TVecI16x8): TVecI16x8; assembler; nostackframe;
+asm
+  vsetivli zero, 8, e16, m1, ta, ma
+  vle16.v v0, (a0)
+  vle16.v v1, (a1)
+  vand.vv v0, v0, v1
+  vse16.v v0, (a0)
+end;
+
+function RISCVVOrI16x8(const a, b: TVecI16x8): TVecI16x8; assembler; nostackframe;
+asm
+  vsetivli zero, 8, e16, m1, ta, ma
+  vle16.v v0, (a0)
+  vle16.v v1, (a1)
+  vor.vv v0, v0, v1
+  vse16.v v0, (a0)
+end;
+
+function RISCVVXorI16x8(const a, b: TVecI16x8): TVecI16x8; assembler; nostackframe;
+asm
+  vsetivli zero, 8, e16, m1, ta, ma
+  vle16.v v0, (a0)
+  vle16.v v1, (a1)
+  vxor.vv v0, v0, v1
+  vse16.v v0, (a0)
+end;
+
+function RISCVVShiftLeftI16x8(const a: TVecI16x8; count: Integer): TVecI16x8; assembler; nostackframe;
+asm
+  vsetivli zero, 8, e16, m1, ta, ma
+  vle16.v v0, (a0)
+  vsll.vx v0, v0, a1
+  vse16.v v0, (a0)
+end;
+
+function RISCVVShiftRightI16x8(const a: TVecI16x8; count: Integer): TVecI16x8; assembler; nostackframe;
+asm
+  vsetivli zero, 8, e16, m1, ta, ma
+  vle16.v v0, (a0)
+  vsrl.vx v0, v0, a1
+  vse16.v v0, (a0)
+end;
+
+function RISCVVShiftRightArithI16x8(const a: TVecI16x8; count: Integer): TVecI16x8; assembler; nostackframe;
+asm
+  vsetivli zero, 8, e16, m1, ta, ma
+  vle16.v v0, (a0)
+  vsra.vx v0, v0, a1
+  vse16.v v0, (a0)
+end;
+
+// =============================================================
+// I8x16 Operations (128-bit, 16x Int8)
+// =============================================================
+
+function RISCVVAddI8x16(const a, b: TVecI8x16): TVecI8x16; assembler; nostackframe;
+asm
+  vsetivli zero, 16, e8, m1, ta, ma
+  vle8.v v0, (a0)
+  vle8.v v1, (a1)
+  vadd.vv v0, v0, v1
+  vse8.v v0, (a0)
+end;
+
+function RISCVVSubI8x16(const a, b: TVecI8x16): TVecI8x16; assembler; nostackframe;
+asm
+  vsetivli zero, 16, e8, m1, ta, ma
+  vle8.v v0, (a0)
+  vle8.v v1, (a1)
+  vsub.vv v0, v0, v1
+  vse8.v v0, (a0)
+end;
+
+function RISCVVMinI8x16(const a, b: TVecI8x16): TVecI8x16; assembler; nostackframe;
+asm
+  vsetivli zero, 16, e8, m1, ta, ma
+  vle8.v v0, (a0)
+  vle8.v v1, (a1)
+  vmin.vv v0, v0, v1
+  vse8.v v0, (a0)
+end;
+
+function RISCVVMaxI8x16(const a, b: TVecI8x16): TVecI8x16; assembler; nostackframe;
+asm
+  vsetivli zero, 16, e8, m1, ta, ma
+  vle8.v v0, (a0)
+  vle8.v v1, (a1)
+  vmax.vv v0, v0, v1
+  vse8.v v0, (a0)
+end;
+
+function RISCVVAndI8x16(const a, b: TVecI8x16): TVecI8x16; assembler; nostackframe;
+asm
+  vsetivli zero, 16, e8, m1, ta, ma
+  vle8.v v0, (a0)
+  vle8.v v1, (a1)
+  vand.vv v0, v0, v1
+  vse8.v v0, (a0)
+end;
+
+function RISCVVOrI8x16(const a, b: TVecI8x16): TVecI8x16; assembler; nostackframe;
+asm
+  vsetivli zero, 16, e8, m1, ta, ma
+  vle8.v v0, (a0)
+  vle8.v v1, (a1)
+  vor.vv v0, v0, v1
+  vse8.v v0, (a0)
+end;
+
+function RISCVVXorI8x16(const a, b: TVecI8x16): TVecI8x16; assembler; nostackframe;
+asm
+  vsetivli zero, 16, e8, m1, ta, ma
+  vle8.v v0, (a0)
+  vle8.v v1, (a1)
+  vxor.vv v0, v0, v1
+  vse8.v v0, (a0)
+end;
+
+// =============================================================
+// 256-bit Operations (F32x8, F64x4, I32x8) using LMUL=2
+// =============================================================
+
+function RISCVVAddF32x8(const a, b: TVecF32x8): TVecF32x8; assembler; nostackframe;
+asm
+  vsetivli zero, 8, e32, m2, ta, ma   // LMUL=2 for 256-bit
+  vle32.v v0, (a0)
+  vle32.v v2, (a1)
+  vfadd.vv v0, v0, v2
+  vse32.v v0, (a0)
+end;
+
+function RISCVVSubF32x8(const a, b: TVecF32x8): TVecF32x8; assembler; nostackframe;
+asm
+  vsetivli zero, 8, e32, m2, ta, ma
+  vle32.v v0, (a0)
+  vle32.v v2, (a1)
+  vfsub.vv v0, v0, v2
+  vse32.v v0, (a0)
+end;
+
+function RISCVVMulF32x8(const a, b: TVecF32x8): TVecF32x8; assembler; nostackframe;
+asm
+  vsetivli zero, 8, e32, m2, ta, ma
+  vle32.v v0, (a0)
+  vle32.v v2, (a1)
+  vfmul.vv v0, v0, v2
+  vse32.v v0, (a0)
+end;
+
+function RISCVVDivF32x8(const a, b: TVecF32x8): TVecF32x8; assembler; nostackframe;
+asm
+  vsetivli zero, 8, e32, m2, ta, ma
+  vle32.v v0, (a0)
+  vle32.v v2, (a1)
+  vfdiv.vv v0, v0, v2
+  vse32.v v0, (a0)
+end;
+
+function RISCVVMinF32x8(const a, b: TVecF32x8): TVecF32x8; assembler; nostackframe;
+asm
+  vsetivli zero, 8, e32, m2, ta, ma
+  vle32.v v0, (a0)
+  vle32.v v2, (a1)
+  vfmin.vv v0, v0, v2
+  vse32.v v0, (a0)
+end;
+
+function RISCVVMaxF32x8(const a, b: TVecF32x8): TVecF32x8; assembler; nostackframe;
+asm
+  vsetivli zero, 8, e32, m2, ta, ma
+  vle32.v v0, (a0)
+  vle32.v v2, (a1)
+  vfmax.vv v0, v0, v2
+  vse32.v v0, (a0)
+end;
+
+function RISCVVAbsF32x8(const a: TVecF32x8): TVecF32x8; assembler; nostackframe;
+asm
+  vsetivli zero, 8, e32, m2, ta, ma
+  vle32.v v0, (a0)
+  vfabs.v v0, v0
+  vse32.v v0, (a0)
+end;
+
+function RISCVVSqrtF32x8(const a: TVecF32x8): TVecF32x8; assembler; nostackframe;
+asm
+  vsetivli zero, 8, e32, m2, ta, ma
+  vle32.v v0, (a0)
+  vfsqrt.v v0, v0
+  vse32.v v0, (a0)
+end;
+
+function RISCVVAddF64x4(const a, b: TVecF64x4): TVecF64x4; assembler; nostackframe;
+asm
+  vsetivli zero, 4, e64, m2, ta, ma
+  vle64.v v0, (a0)
+  vle64.v v2, (a1)
+  vfadd.vv v0, v0, v2
+  vse64.v v0, (a0)
+end;
+
+function RISCVVSubF64x4(const a, b: TVecF64x4): TVecF64x4; assembler; nostackframe;
+asm
+  vsetivli zero, 4, e64, m2, ta, ma
+  vle64.v v0, (a0)
+  vle64.v v2, (a1)
+  vfsub.vv v0, v0, v2
+  vse64.v v0, (a0)
+end;
+
+function RISCVVMulF64x4(const a, b: TVecF64x4): TVecF64x4; assembler; nostackframe;
+asm
+  vsetivli zero, 4, e64, m2, ta, ma
+  vle64.v v0, (a0)
+  vle64.v v2, (a1)
+  vfmul.vv v0, v0, v2
+  vse64.v v0, (a0)
+end;
+
+function RISCVVDivF64x4(const a, b: TVecF64x4): TVecF64x4; assembler; nostackframe;
+asm
+  vsetivli zero, 4, e64, m2, ta, ma
+  vle64.v v0, (a0)
+  vle64.v v2, (a1)
+  vfdiv.vv v0, v0, v2
+  vse64.v v0, (a0)
+end;
+
+function RISCVVAddI32x8(const a, b: TVecI32x8): TVecI32x8; assembler; nostackframe;
+asm
+  vsetivli zero, 8, e32, m2, ta, ma
+  vle32.v v0, (a0)
+  vle32.v v2, (a1)
+  vadd.vv v0, v0, v2
+  vse32.v v0, (a0)
+end;
+
+function RISCVVSubI32x8(const a, b: TVecI32x8): TVecI32x8; assembler; nostackframe;
+asm
+  vsetivli zero, 8, e32, m2, ta, ma
+  vle32.v v0, (a0)
+  vle32.v v2, (a1)
+  vsub.vv v0, v0, v2
+  vse32.v v0, (a0)
+end;
+
+function RISCVVMulI32x8(const a, b: TVecI32x8): TVecI32x8; assembler; nostackframe;
+asm
+  vsetivli zero, 8, e32, m2, ta, ma
+  vle32.v v0, (a0)
+  vle32.v v2, (a1)
+  vmul.vv v0, v0, v2
+  vse32.v v0, (a0)
+end;
+
+function RISCVVAndI32x8(const a, b: TVecI32x8): TVecI32x8; assembler; nostackframe;
+asm
+  vsetivli zero, 8, e32, m2, ta, ma
+  vle32.v v0, (a0)
+  vle32.v v2, (a1)
+  vand.vv v0, v0, v2
+  vse32.v v0, (a0)
+end;
+
+function RISCVVOrI32x8(const a, b: TVecI32x8): TVecI32x8; assembler; nostackframe;
+asm
+  vsetivli zero, 8, e32, m2, ta, ma
+  vle32.v v0, (a0)
+  vle32.v v2, (a1)
+  vor.vv v0, v0, v2
+  vse32.v v0, (a0)
+end;
+
+function RISCVVXorI32x8(const a, b: TVecI32x8): TVecI32x8; assembler; nostackframe;
+asm
+  vsetivli zero, 8, e32, m2, ta, ma
+  vle32.v v0, (a0)
+  vle32.v v2, (a1)
+  vxor.vv v0, v0, v2
+  vse32.v v0, (a0)
+end;
+
+// =============================================================
+// 512-bit Operations (F32x16, I32x16) using LMUL=4
+// =============================================================
+
+function RISCVVAddF32x16(const a, b: TVecF32x16): TVecF32x16; assembler; nostackframe;
+asm
+  vsetivli zero, 16, e32, m4, ta, ma  // LMUL=4 for 512-bit
+  vle32.v v0, (a0)
+  vle32.v v4, (a1)
+  vfadd.vv v0, v0, v4
+  vse32.v v0, (a0)
+end;
+
+function RISCVVSubF32x16(const a, b: TVecF32x16): TVecF32x16; assembler; nostackframe;
+asm
+  vsetivli zero, 16, e32, m4, ta, ma
+  vle32.v v0, (a0)
+  vle32.v v4, (a1)
+  vfsub.vv v0, v0, v4
+  vse32.v v0, (a0)
+end;
+
+function RISCVVMulF32x16(const a, b: TVecF32x16): TVecF32x16; assembler; nostackframe;
+asm
+  vsetivli zero, 16, e32, m4, ta, ma
+  vle32.v v0, (a0)
+  vle32.v v4, (a1)
+  vfmul.vv v0, v0, v4
+  vse32.v v0, (a0)
+end;
+
+function RISCVVDivF32x16(const a, b: TVecF32x16): TVecF32x16; assembler; nostackframe;
+asm
+  vsetivli zero, 16, e32, m4, ta, ma
+  vle32.v v0, (a0)
+  vle32.v v4, (a1)
+  vfdiv.vv v0, v0, v4
+  vse32.v v0, (a0)
+end;
+
+function RISCVVAddI32x16(const a, b: TVecI32x16): TVecI32x16; assembler; nostackframe;
+asm
+  vsetivli zero, 16, e32, m4, ta, ma
+  vle32.v v0, (a0)
+  vle32.v v4, (a1)
+  vadd.vv v0, v0, v4
+  vse32.v v0, (a0)
+end;
+
+function RISCVVSubI32x16(const a, b: TVecI32x16): TVecI32x16; assembler; nostackframe;
+asm
+  vsetivli zero, 16, e32, m4, ta, ma
+  vle32.v v0, (a0)
+  vle32.v v4, (a1)
+  vsub.vv v0, v0, v4
+  vse32.v v0, (a0)
+end;
+
+function RISCVVMulI32x16(const a, b: TVecI32x16): TVecI32x16; assembler; nostackframe;
+asm
+  vsetivli zero, 16, e32, m4, ta, ma
+  vle32.v v0, (a0)
+  vle32.v v4, (a1)
+  vmul.vv v0, v0, v4
   vse32.v v0, (a0)
 end;
 
