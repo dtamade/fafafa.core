@@ -26,14 +26,19 @@
 
 - Windows（推荐）：
   - 在仓库根目录执行：
-    - `set STOP_ON_FAIL=1 && tests\run_all_tests.bat fafafa.core.collections.arr fafafa.core.collections.base fafafa.core.collections.vec fafafa.core.collections.vecdeque`
+    - `set STOP_ON_FAIL=1 && tests\run_all_tests.bat fafafa.core.collections`
+    - （更快，仅 Vec/VecDeque）：`set STOP_ON_FAIL=1 && tests\run_all_tests.bat fafafa.core.collections.vec fafafa.core.collections.vecdeque`
 
 - Linux/macOS（推荐）：
   - 在仓库根目录执行：
-    - `STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.collections.arr fafafa.core.collections.base fafafa.core.collections.vec fafafa.core.collections.vecdeque`
+    - `STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.collections`
+    - （更快，仅 Vec/VecDeque）：`STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.collections.vec fafafa.core.collections.vecdeque`
 
 说明：
-- 参数为“模块目录名”（tests/ 下的二级目录名），用于过滤只跑这些模块
+- 参数为“模块名”，由 `tests/` 下的**相对目录路径**推导：路径分隔符（`/` 或 `\`）会被转换为 `.`
+  - 例：`tests/fafafa.core.json` → `fafafa.core.json`
+  - 例：`tests/fafafa.core.collections/vec` → `fafafa.core.collections.vec`
+- 过滤兼容：仍支持传入叶子目录名（如 `vec`），以及前缀组过滤（如 `fafafa.core.collections` 会命中 `fafafa.core.collections.*`）
 - 环境变量 STOP_ON_FAIL=1 代表“失败即停”，便于快速定位第一个失败点
 
 ---
@@ -59,7 +64,8 @@
   - Linux/macOS：`tests/_run_all_logs_sh/*.log`
 - 返回码：
   - 0：所有选中模块执行成功
-  - 非 0：存在失败模块（或 STOP_ON_FAIL 触发提前结束）
+  - 1：存在失败模块（或 STOP_ON_FAIL 触发提前结束）
+  - 2：传入了过滤参数，但 0 命中（用于避免“假绿”）
 
 在控制台看不到明细时，请优先查看上述日志与汇总文件。
 
@@ -67,8 +73,8 @@
 
 ### 过滤与失败即停
 - 仅运行指定模块（示例为 4 个关键模块）：
-  - Windows：`tests\run_all_tests.bat fafafa.core.collections.arr fafafa.core.collections.base fafafa.core.collections.vec fafafa.core.collections.vecdeque`
-  - Linux/macOS：`bash tests/run_all_tests.sh fafafa.core.collections.arr fafafa.core.collections.base fafafa.core.collections.vec fafafa.core.collections.vecdeque`
+  - Windows：`tests\run_all_tests.bat fafafa.core.collections.vec fafafa.core.collections.vecdeque`
+  - Linux/macOS：`bash tests/run_all_tests.sh fafafa.core.collections.vec fafafa.core.collections.vecdeque`
 - 失败即停：
   - Windows：`set STOP_ON_FAIL=1 && tests\run_all_tests.bat ...`
   - Linux/macOS：`STOP_ON_FAIL=1 bash tests/run_all_tests.sh ...`
@@ -87,7 +93,7 @@
   - `tests\fafafa.core.collections.arr\BuildOrTest.bat`
 
 3) 跑全量太慢？
-- 提交前仅跑关键模块（上面的 4 个）
+- 提交前仅跑关键模块（如 `fafafa.core.collections.vec` / `fafafa.core.collections.vecdeque`）
 - 夜间/CI 跑全量，或分组并行（在 CI 编排层面并发多个 run_all_tests.sh/bat，分别过滤不同模块）
 
 4) 是否有“测试规范命名”？
@@ -107,13 +113,13 @@
 ### 典型命令速查
 - Windows：
   - 关键模块（失败即停）：
-    - `set STOP_ON_FAIL=1 && tests\run_all_tests.bat fafafa.core.collections.arr fafafa.core.collections.base fafafa.core.collections.vec fafafa.core.collections.vecdeque`
+    - `set STOP_ON_FAIL=1 && tests\run_all_tests.bat fafafa.core.collections`
   - 全量：
     - `tests\run_all_tests.bat`
 
 - Linux/macOS：
   - 关键模块（失败即停）：
-    - `STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.collections.arr fafafa.core.collections.base fafafa.core.collections.vec fafafa.core.collections.vecdeque`
+    - `STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.collections`
   - 全量：
     - `bash tests/run_all_tests.sh`
 

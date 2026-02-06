@@ -30,6 +30,9 @@ tests/fafafa.core.os/lib/
 tests/fafafa.core.os/logs/
 
 # Generated logs/artifacts (local runs)
+tests/run_all_tests_summary*.txt
+tests/_run_all_logs/
+tests/_run_all_logs_ps/
 tests/*/logs/
 tests/*/*/logs/
 tests/_run_all_logs_sh/
