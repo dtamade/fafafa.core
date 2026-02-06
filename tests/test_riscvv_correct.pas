@@ -3,7 +3,8 @@ program test_riscvv_correct;
 {$mode objfpc}{$H+}
 
 uses
-  SysUtils;
+  SysUtils,
+  fafafa.core.math;
 
 type
   TVec4 = record

@@ -64,10 +64,7 @@ interface
 uses
   SysUtils, Classes,
   // 底层模块
-  fafafa.core.fs,
   fafafa.core.fs.errors,
-  fafafa.core.fs.path,
-  fafafa.core.fs.options,
   // Rust 风格模块
   fafafa.core.fs.types,
   fafafa.core.fs.open,

@@ -30,7 +30,7 @@ end;
 procedure FillSeq(var B: TBytes; Seed: Byte);
 var i: Integer;
 begin
-  for i := 0 to High(B) do B[i] := Seed + i;
+  for i := 0 to High(B) do B[i] := Byte((Seed + i) and $FF);
 end;
 
 procedure RunOnce(const Mode: String; const iters: Integer; var outUS: Int64);

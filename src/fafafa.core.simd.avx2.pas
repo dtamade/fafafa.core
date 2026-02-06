@@ -325,8 +325,6 @@ begin
 end;
 
 function AVX2DotF64x2(const a, b: TVecF64x2): Double;
-var
-  res: Double;
 begin
   asm
     lea    rax, a
@@ -339,15 +337,13 @@ begin
     vshufpd xmm1, xmm0, xmm0, 1 // 交换两个元素
     addsd   xmm0, xmm1           // 相加
 
-    movsd   res, xmm0
+    vmovsd  [result], xmm0
   end;
-  Result := res;
 end;
 
 function AVX2DotF64x4(const a, b: TVecF64x4): Double;
 var
   pa, pb: Pointer;
-  res: Double;
 begin
   pa := @a;
   pb := @b;
@@ -365,10 +361,9 @@ begin
     vextractf128 xmm1, ymm0, 1 // 提取高 128 位
     addsd   xmm0, xmm1          // 相加低位标量
 
-    movsd   res, xmm0
+    vmovsd  [result], xmm0
     vzeroupper               // 清理 YMM 寄存器状态
   end;
-  Result := res;
 end;
 
 
@@ -828,7 +823,7 @@ end;
 function AVX2SplatF64x2(value: Double): TVecF64x2;
 begin
   asm
-    movsd       xmm0, value
+    vmovsd      xmm0, value
     vmovddup    xmm0, xmm0     // duplicate to both lanes
     vmovupd     [result], xmm0
   end;
@@ -939,7 +934,7 @@ function AVX2ShiftLeftI32x4(const a: TVecI32x4; count: Integer): TVecI32x4;
 begin
   if (count < 0) or (count >= 32) then
   begin
-    FillChar(Result, SizeOf(Result), 0);
+    Result := Default(TVecI32x4);
     Exit;
   end;
   asm
@@ -955,7 +950,7 @@ function AVX2ShiftRightI32x4(const a: TVecI32x4; count: Integer): TVecI32x4;
 begin
   if (count < 0) or (count >= 32) then
   begin
-    FillChar(Result, SizeOf(Result), 0);
+    Result := Default(TVecI32x4);
     Exit;
   end;
   asm
@@ -3678,7 +3673,7 @@ begin
   pr := @Result;
   asm
     mov          rax, pr
-    movsd        xmm0, value
+    vmovsd       xmm0, value
     vbroadcastsd ymm0, xmm0     // broadcast to all 4 lanes
     vmovupd      [rax], ymm0
     vzeroupper

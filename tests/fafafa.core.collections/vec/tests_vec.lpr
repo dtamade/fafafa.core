@@ -10,8 +10,7 @@ uses
   Test_vec_growstrategy_interface_regression,
   Test_vec_hysteresis,
   Test_vec_reserve_overflow_freebuffer,
-  Test_vec_trimtosize_alias,
-  Test_vec_capacity_convergence;
+  Test_vec_span;
 
 
 var

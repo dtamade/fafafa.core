@@ -27,7 +27,7 @@ end;
 procedure FillBytes(var B: TBytes; Seed: Byte);
 var i: Integer;
 begin
-  for i := 0 to High(B) do B[i] := Seed + i;
+  for i := 0 to High(B) do B[i] := Byte((Seed + i) and $FF);
 end;
 
 procedure TTestCase_GHash_Precomp_Bench.Bench_GHash_Pure_Precomp_vs_Baseline;

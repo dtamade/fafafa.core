@@ -64,7 +64,9 @@ var
 begin
   WriteLn('测试: Mutex 重入应该检测到死锁');
 
-  M := MakePthreadMutex;  // 非重入互斥锁
+  // MakePthreadMutex 使用 PTHREAD_MUTEX_NORMAL（用于 CondVar 兼容），同线程重入会阻塞导致测试卡死。
+  // 这里应使用默认 mutex（ERRORCHECK / 或 futex 实现）来验证“重入死锁检测”行为。
+  M := MakeMutex;
   DeadlockDetected := False;
 
   M.Acquire;

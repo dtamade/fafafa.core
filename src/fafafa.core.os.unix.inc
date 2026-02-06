@@ -223,6 +223,7 @@ function os_kernel_version: string;
 var
   uts: UtsName;
 begin
+  uts := Default(UtsName);
   {$IFDEF FAFAFA_OS_CACHE_PROBES}
   // Fast path: check cache without lock
   if g_unix_cached_kernel_ver_inited then Exit(g_unix_cached_kernel_ver);
@@ -514,6 +515,7 @@ begin
     if g_unix_cached_osver_inited then Exit(g_unix_cached_osver);
   {$ENDIF}
   FillChar(Result, SizeOf(Result), 0);
+  un := Default(UtsName);
   {$IFDEF DARWIN}
   // macOS: map Darwin kernel major to macOS version (best-effort)
   // uname -r returns like: 23.4.0 for macOS 14.x (Sonoma), 24.x for macOS 15 (Sequoia)

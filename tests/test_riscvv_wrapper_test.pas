@@ -4,6 +4,7 @@ program test_riscvv_wrapper_test;
 
 uses
   SysUtils,
+  fafafa.core.math,
   fafafa.core.simd.base,
   test_riscvv_wrapper_unit;
 

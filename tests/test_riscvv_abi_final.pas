@@ -3,7 +3,8 @@ program test_riscvv_abi_final;
 {$mode objfpc}{$H+}
 
 uses
-  SysUtils;
+  SysUtils,
+  fafafa.core.math;
 
 type
   TRec = record

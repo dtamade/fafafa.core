@@ -498,8 +498,9 @@ end;
 
 procedure TTestCase_TMutex.SetUp;
 begin
-  // 使用 pthread mutex 而非 futex，测试是否是 futex 实现问题
-  FMutex := MakePthreadMutex;
+  // MakePthreadMutex 使用 PTHREAD_MUTEX_NORMAL（用于 CondVar 兼容），同线程重入会阻塞导致测试卡死。
+  // 这里使用默认 mutex（ERRORCHECK / 或 futex 实现）来验证互斥锁语义与死锁检测。
+  FMutex := MakeMutex;
 end;
 
 procedure TTestCase_TMutex.TearDown;

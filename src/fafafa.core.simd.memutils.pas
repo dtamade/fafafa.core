@@ -278,6 +278,9 @@ begin
   Assert(IsAligned(src, alignment), 'Source not aligned');
   Assert(IsAligned(dst, alignment), 'Destination not aligned');
   {$ENDIF}
+
+  // Always reference alignment to keep builds hint-clean when SIMD_DEBUG_ASSERTIONS is off.
+  if alignment = 0 then ;
   
   // Use optimized copy for aligned memory
   // For now, just use Move - could be optimized with SIMD
@@ -289,6 +292,9 @@ begin
   {$IFDEF SIMD_DEBUG_ASSERTIONS}
   Assert(IsAligned(dst, alignment), 'Destination not aligned');
   {$ENDIF}
+
+  // Always reference alignment to keep builds hint-clean when SIMD_DEBUG_ASSERTIONS is off.
+  if alignment = 0 then ;
   
   // Use optimized fill for aligned memory
   FillChar(dst^, size, value);

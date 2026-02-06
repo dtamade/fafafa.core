@@ -55,7 +55,8 @@ var
 begin
   V := specialize TVec<Integer>.Create;
   try
-    // 构造溢出：FCount + High(SizeUInt) 必然溢出；TryReserveExact 应返回 False，不抛异常
+    // 构造溢出：让 Count > 0，再加 High(SizeUInt) 必然溢出；TryReserveExact 应返回 False，不抛异常
+    V.Push(1);
     AssertFalse('TryReserveExact overflow should return False', V.TryReserveExact(High(SizeUInt)));
   finally
     V.Free;
@@ -68,6 +69,7 @@ var
 begin
   V := specialize TVec<Integer>.Create;
   try
+    V.Push(1);
     AssertFalse('TryReserve overflow should return False', V.TryReserve(High(SizeUInt)));
   finally
     V.Free;
@@ -97,6 +99,7 @@ begin
   V := specialize TVec<Integer>.Create;
   try
     try
+      V.Push(1);
       V.ReserveExact(High(SizeUInt));
       Fail('ReserveExact on overflow should raise');
     except

@@ -278,7 +278,6 @@ function Debug_GetDispatchTrace: TMathDispatchTrace;
 implementation
 
 uses
-  fafafa.core.math.arrays,
   fafafa.core.math.internal,
   fafafa.core.simd.arrays;
 

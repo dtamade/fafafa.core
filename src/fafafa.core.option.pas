@@ -151,8 +151,8 @@ generic function OptionMap<T,U>(const aO: specialize TOption<T>; const aF: speci
 begin
   if aO.IsSome then
   begin
-    {$IFDEF DEBUG}
-    // ✅ Phase 4.4 优化：仅在 Debug 模式保留 nil 检查
+    {$IFDEF FAFAFA_CORE_CONTRACTS}
+    // 契约：启用合约检查时，禁止 nil 回调
     if aF = nil then
       raise EArgumentNil.Create('aF is nil');
     {$ENDIF}
@@ -166,8 +166,8 @@ generic function OptionAndThen<T,U>(const aO: specialize TOption<T>; const aF: s
 begin
   if aO.IsSome then
   begin
-    {$IFDEF DEBUG}
-    // ✅ Phase 4.4 优化：仅在 Debug 模式保留 nil 检查
+    {$IFDEF FAFAFA_CORE_CONTRACTS}
+    // 契约：启用合约检查时，禁止 nil 回调
     if aF = nil then
       raise EArgumentNil.Create('aF is nil');
     {$ENDIF}
@@ -181,8 +181,8 @@ generic function OptionMapOr<T,U>(const aO: specialize TOption<T>; const aDefaul
 begin
   if aO.IsSome then
   begin
-    {$IFDEF DEBUG}
-    // ✅ Phase 4.4 优化：仅在 Debug 模式保留 nil 检查
+    {$IFDEF FAFAFA_CORE_CONTRACTS}
+    // 契约：启用合约检查时，禁止 nil 回调
     if aF = nil then
       raise EArgumentNil.Create('aF is nil');
     {$ENDIF}
@@ -196,16 +196,16 @@ generic function OptionMapOrElse<T,U>(const aO: specialize TOption<T>; const aFn
 begin
   if aO.IsSome then
   begin
-    {$IFDEF DEBUG}
-    // ✅ Phase 4.4 优化：仅在 Debug 模式保留 nil 检查
+    {$IFDEF FAFAFA_CORE_CONTRACTS}
+    // 契约：启用合约检查时，禁止 nil 回调
     if aFok = nil then
       raise EArgumentNil.Create('aFok is nil');
     {$ENDIF}
     Exit(aFok(aO.GetValueUnchecked));
   end;
 
-  {$IFDEF DEBUG}
-  // ✅ Phase 4.4 优化：仅在 Debug 模式保留 nil 检查
+  {$IFDEF FAFAFA_CORE_CONTRACTS}
+  // 契约：启用合约检查时，禁止 nil 回调
   if aFnone = nil then
     raise EArgumentNil.Create('aFnone is nil');
   {$ENDIF}
@@ -217,8 +217,8 @@ generic function OptionFilter<T>(const aO: specialize TOption<T>; const aPred: s
 begin
   if aO.IsSome then
   begin
-    {$IFDEF DEBUG}
-    // ✅ Phase 4.4 优化：仅在 Debug 模式保留 nil 检查
+    {$IFDEF FAFAFA_CORE_CONTRACTS}
+    // 契约：启用合约检查时，禁止 nil 回调
     if aPred = nil then
       raise EArgumentNil.Create('aPred is nil');
     {$ENDIF}
@@ -264,8 +264,8 @@ var
 begin
   if aA.IsSome and aB.IsSome then
   begin
-    {$IFDEF DEBUG}
-    // ✅ Phase 4.4 优化：仅在 Debug 模式保留 nil 检查
+    {$IFDEF FAFAFA_CORE_CONTRACTS}
+    // 契约：启用合约检查时，禁止 nil 回调
     if aF = nil then
       raise EArgumentNil.Create('aF is nil');
     {$ENDIF}
@@ -289,8 +289,8 @@ begin
   if aO.IsSome then
     Exit(specialize TResult<T,E>.Ok(aO.GetValueUnchecked));
 
-  {$IFDEF DEBUG}
-  // ✅ Phase 4.4 优化：仅在 Debug 模式保留 nil 检查
+  {$IFDEF FAFAFA_CORE_CONTRACTS}
+  // 契约：启用合约检查时，禁止 nil 回调
   if aFerrThunk = nil then
     raise EArgumentNil.Create('aFerrThunk is nil');
   {$ENDIF}

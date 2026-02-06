@@ -17,4 +17,4 @@ $LAZBUILD *.lpi
 
 # 运行测试
 echo "Running tests..."
-./bin/*
+./bin/* --all --format=plain --progress

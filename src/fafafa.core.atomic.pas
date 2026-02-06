@@ -45,6 +45,7 @@ unit fafafa.core.atomic;
 
 {$mode objfpc}{$H+}
 {$I fafafa.core.settings.inc}
+{$WARN 5024 off} // memory_order params are API-compat placeholders on some backends
 
 // fafafa.core.atomic
 // Tagged pointer: tag bits (low-bit tagging mode)
@@ -665,6 +666,8 @@ procedure atomic_tagged_ptr_update_tag(var aObj: atomic_tagged_ptr_t; aTag: {$IF
 
 implementation
 
+{$WARN 5024 off} // keep implementation hint-clean on platforms where order params are intentionally ignored
+
 //┌────────────────────────────────────────────────────────────────────────────┐
 //│              Phase 4: cpu_pause - 减少自旋等待开销                          │
 //└────────────────────────────────────────────────────────────────────────────┘
@@ -718,6 +721,18 @@ begin
   ReadBarrier;
 end;
 {$ENDIF}
+
+procedure _consume_memory_order(const aOrder: memory_order_t); inline;
+begin
+  // Keep builds hint-clean on platforms where memory_order is intentionally ignored.
+  if aOrder = mo_relaxed then ;
+end;
+
+procedure _consume_memory_orders(const aSuccessOrder, aFailureOrder: memory_order_t); inline;
+begin
+  _consume_memory_order(aSuccessOrder);
+  _consume_memory_order(aFailureOrder);
+end;
 
 //┌────────────────────────────────────────────────────────────────────────────┐
 //│       Phase 1: 32 位 x86 上的 64 位原子操作底层实现                      │
@@ -1359,6 +1374,10 @@ end;
 // ✅ Phase 3: atomic_exchange 带 memory_order 参数实现
 function atomic_exchange(var aObj: Int32; aDesired: Int32; aOrder: memory_order_t): Int32;
 begin
+  {$IF DEFINED(CPUX86_64) OR DEFINED(CPUX86)}
+  _consume_memory_order(aOrder);
+  {$ENDIF}
+
   // Exchange is a RMW.
   // On x86/x86_64, InterlockedExchange is implemented via XCHG/LOCK and already provides a full fence.
   {$IF NOT (DEFINED(CPUX86_64) OR DEFINED(CPUX86))}
@@ -1441,6 +1460,10 @@ end;
 {$IF DEFINED(CPU64) OR DEFINED(CPUX86)}
 function atomic_exchange_64(var aObj: Int64; aDesired: Int64; aOrder: memory_order_t): Int64;
 begin
+  {$IF DEFINED(CPUX86_64) OR DEFINED(CPUX86)}
+  _consume_memory_order(aOrder);
+  {$ENDIF}
+
   // Exchange is a RMW.
   // On x86/x86_64, the underlying locked RMW already provides a full fence.
   {$IF NOT (DEFINED(CPUX86_64) OR DEFINED(CPUX86))}
@@ -1684,6 +1707,10 @@ function atomic_compare_exchange_strong(var aObj: Int32; var aExpected: Int32; a
 var
   LOld: Int32;
 begin
+  {$IF DEFINED(CPUX86_64) OR DEFINED(CPUX86)}
+  _consume_memory_orders(aSuccessOrder, aFailureOrder);
+  {$ENDIF}
+
   // CAS is a locked RMW on x86/x86_64 and already provides a full fence.
   {$IF NOT (DEFINED(CPUX86_64) OR DEFINED(CPUX86))}
   // 成功路径的 release 屏障
@@ -1747,6 +1774,10 @@ function atomic_compare_exchange_strong(var aObj: PtrInt; var aExpected: PtrInt;
 var
   LOld: Int64;
 begin
+  {$IF DEFINED(CPUX86_64) OR DEFINED(CPUX86)}
+  _consume_memory_orders(aSuccessOrder, aFailureOrder);
+  {$ENDIF}
+
   {$IF NOT (DEFINED(CPUX86_64) OR DEFINED(CPUX86))}
   case aSuccessOrder of
     mo_seq_cst:
@@ -1810,6 +1841,10 @@ var
   LOld: Int64;
 {$ENDIF}
 begin
+  {$IF DEFINED(CPUX86_64) OR DEFINED(CPUX86)}
+  _consume_memory_orders(aSuccessOrder, aFailureOrder);
+  {$ENDIF}
+
   {$IF NOT (DEFINED(CPUX86_64) OR DEFINED(CPUX86))}
   case aSuccessOrder of
     mo_seq_cst:
@@ -2386,6 +2421,10 @@ end;
 // ✅ Phase 3: atomic_fetch_add 带 memory_order 参数
 function atomic_fetch_add(var aObj: Int32; aArg: Int32; aOrder: memory_order_t): Int32;
 begin
+  {$IF DEFINED(CPUX86_64) OR DEFINED(CPUX86)}
+  _consume_memory_order(aOrder);
+  {$ENDIF}
+
   // x86/x86_64: InterlockedExchangeAdd uses LOCK XADD and already provides a full fence.
   {$IF NOT (DEFINED(CPUX86_64) OR DEFINED(CPUX86))}
   case aOrder of
@@ -2442,6 +2481,10 @@ end;
 {$IF DEFINED(CPU64) OR DEFINED(CPUX86)}
 function atomic_fetch_add_64(var aObj: Int64; aArg: Int64; aOrder: memory_order_t): Int64;
 begin
+  {$IF DEFINED(CPUX86_64) OR DEFINED(CPUX86)}
+  _consume_memory_order(aOrder);
+  {$ENDIF}
+
   // x86/x86_64: locked RMW already provides a full fence.
   {$IF NOT (DEFINED(CPUX86_64) OR DEFINED(CPUX86))}
   case aOrder of
@@ -2535,6 +2578,10 @@ function atomic_fetch_and(var aObj: Int32; aArg: Int32; aOrder: memory_order_t):
 var
   LOld, LNew: Int32;
 begin
+  {$IF DEFINED(CPUX86_64) OR DEFINED(CPUX86)}
+  _consume_memory_order(aOrder);
+  {$ENDIF}
+
   {$IF NOT (DEFINED(CPUX86_64) OR DEFINED(CPUX86))}
   case aOrder of
     mo_seq_cst:
@@ -2595,6 +2642,10 @@ function atomic_fetch_and_64(var aObj: Int64; aArg: Int64; aOrder: memory_order_
 var
   LOld, LNew: Int64;
 begin
+  {$IF DEFINED(CPUX86_64) OR DEFINED(CPUX86)}
+  _consume_memory_order(aOrder);
+  {$ENDIF}
+
   {$IF NOT (DEFINED(CPUX86_64) OR DEFINED(CPUX86))}
   case aOrder of
     mo_seq_cst:
@@ -2638,6 +2689,10 @@ function atomic_fetch_or(var aObj: Int32; aArg: Int32; aOrder: memory_order_t): 
 var
   LOld, LNew: Int32;
 begin
+  {$IF DEFINED(CPUX86_64) OR DEFINED(CPUX86)}
+  _consume_memory_order(aOrder);
+  {$ENDIF}
+
   {$IF NOT (DEFINED(CPUX86_64) OR DEFINED(CPUX86))}
   case aOrder of
     mo_seq_cst:
@@ -2694,6 +2749,10 @@ function atomic_fetch_or_64(var aObj: Int64; aArg: Int64; aOrder: memory_order_t
 var
   LOld, LNew: Int64;
 begin
+  {$IF DEFINED(CPUX86_64) OR DEFINED(CPUX86)}
+  _consume_memory_order(aOrder);
+  {$ENDIF}
+
   {$IF NOT (DEFINED(CPUX86_64) OR DEFINED(CPUX86))}
   case aOrder of
     mo_seq_cst:
@@ -2737,6 +2796,10 @@ function atomic_fetch_xor(var aObj: Int32; aArg: Int32; aOrder: memory_order_t):
 var
   LOld, LNew: Int32;
 begin
+  {$IF DEFINED(CPUX86_64) OR DEFINED(CPUX86)}
+  _consume_memory_order(aOrder);
+  {$ENDIF}
+
   {$IF NOT (DEFINED(CPUX86_64) OR DEFINED(CPUX86))}
   case aOrder of
     mo_seq_cst:
@@ -2793,6 +2856,10 @@ function atomic_fetch_xor_64(var aObj: Int64; aArg: Int64; aOrder: memory_order_
 var
   LOld, LNew: Int64;
 begin
+  {$IF DEFINED(CPUX86_64) OR DEFINED(CPUX86)}
+  _consume_memory_order(aOrder);
+  {$ENDIF}
+
   {$IF NOT (DEFINED(CPUX86_64) OR DEFINED(CPUX86))}
   case aOrder of
     mo_seq_cst:
@@ -2840,6 +2907,10 @@ function atomic_fetch_max(var aObj: Int32; aArg: Int32; aOrder: memory_order_t):
 var
   LOld, LNew: Int32;
 begin
+  {$IF DEFINED(CPUX86_64) OR DEFINED(CPUX86)}
+  _consume_memory_order(aOrder);
+  {$ENDIF}
+
   {$IF NOT (DEFINED(CPUX86_64) OR DEFINED(CPUX86))}
   case aOrder of
     mo_seq_cst:
@@ -2880,6 +2951,10 @@ function atomic_fetch_max_64(var aObj: Int64; aArg: Int64; aOrder: memory_order_
 var
   LOld, LNew: Int64;
 begin
+  {$IF DEFINED(CPUX86_64) OR DEFINED(CPUX86)}
+  _consume_memory_order(aOrder);
+  {$ENDIF}
+
   {$IF NOT (DEFINED(CPUX86_64) OR DEFINED(CPUX86))}
   case aOrder of
     mo_seq_cst:
@@ -2926,6 +3001,10 @@ function atomic_fetch_min(var aObj: Int32; aArg: Int32; aOrder: memory_order_t):
 var
   LOld, LNew: Int32;
 begin
+  {$IF DEFINED(CPUX86_64) OR DEFINED(CPUX86)}
+  _consume_memory_order(aOrder);
+  {$ENDIF}
+
   {$IF NOT (DEFINED(CPUX86_64) OR DEFINED(CPUX86))}
   case aOrder of
     mo_seq_cst:
@@ -2966,6 +3045,10 @@ function atomic_fetch_min_64(var aObj: Int64; aArg: Int64; aOrder: memory_order_
 var
   LOld, LNew: Int64;
 begin
+  {$IF DEFINED(CPUX86_64) OR DEFINED(CPUX86)}
+  _consume_memory_order(aOrder);
+  {$ENDIF}
+
   {$IF NOT (DEFINED(CPUX86_64) OR DEFINED(CPUX86))}
   case aOrder of
     mo_seq_cst:
@@ -3012,6 +3095,10 @@ function atomic_fetch_nand(var aObj: Int32; aArg: Int32; aOrder: memory_order_t)
 var
   LOld, LNew: Int32;
 begin
+  {$IF DEFINED(CPUX86_64) OR DEFINED(CPUX86)}
+  _consume_memory_order(aOrder);
+  {$ENDIF}
+
   {$IF NOT (DEFINED(CPUX86_64) OR DEFINED(CPUX86))}
   case aOrder of
     mo_seq_cst:
@@ -3049,6 +3136,10 @@ function atomic_fetch_nand_64(var aObj: Int64; aArg: Int64; aOrder: memory_order
 var
   LOld, LNew: Int64;
 begin
+  {$IF DEFINED(CPUX86_64) OR DEFINED(CPUX86)}
+  _consume_memory_order(aOrder);
+  {$ENDIF}
+
   {$IF NOT (DEFINED(CPUX86_64) OR DEFINED(CPUX86))}
   case aOrder of
     mo_seq_cst:
@@ -3150,8 +3241,8 @@ end;
 const
   // x86_64: pointers are effectively 48-bit canonical in user-space; keep 16-bit tag in high bits.
   TAG_BITS  = 16;
-  TAG_SHIFT = 48;
-  PTR_MASK: PtrUInt = PtrUInt($0000FFFFFFFFFFFF); // low 48 bits pointer, high 16 bits tag
+  TAG_SHIFT = (SizeOf(PtrUInt) * 8) - TAG_BITS;
+  PTR_MASK: PtrUInt = (PtrUInt(1) shl TAG_SHIFT) - 1; // low TAG_SHIFT bits pointer, high TAG_BITS bits tag
 {$ELSE}
 const
   // Other targets: avoid assuming 48-bit pointers (AArch64 can be 52-bit, etc.).

@@ -10,9 +10,11 @@ echo "========================================"
 # 获取脚本所在目录
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$SCRIPT_DIR/../.."
+REPO_ROOT="$PROJECT_ROOT/.."
 PROJECT_FILE="$SCRIPT_DIR/tests_vecdeque.lpi"
 OUTPUT_DIR="$PROJECT_ROOT/bin"
 LIB_DIR="$SCRIPT_DIR/lib"
+LOCAL_BIN_DIR="$SCRIPT_DIR/bin"
 
 # 检查 lazbuild 是否可用
 if ! command -v lazbuild &> /dev/null; then
@@ -24,6 +26,7 @@ fi
 # 创建输出目录
 mkdir -p "$OUTPUT_DIR"
 mkdir -p "$LIB_DIR"
+mkdir -p "$LOCAL_BIN_DIR"
 
 echo ""
 echo "正在编译测试项目..."
@@ -59,15 +62,15 @@ if command -v fpc &> /dev/null; then
   echo ""
   set +e
   fpc -Mobjfpc -Sh -O1 -g -gl -l -vewnhibq \
-      -I"$PROJECT_ROOT/src" -Fu"$PROJECT_ROOT/src" \
-      -FU"$LIB_DIR" -FE"$SCRIPT_DIR/bin" \
+      -I"$REPO_ROOT/src" -Fu"$REPO_ROOT/src" \
+      -FU"$LIB_DIR" -FE"$LOCAL_BIN_DIR" \
       "$SCRIPT_DIR/test_strategy_pow2_rounding.pas"
   BUILD_RC=$?
   set -e
   if [ $BUILD_RC -eq 0 ]; then
-    echo "运行: $SCRIPT_DIR/bin/test_strategy_pow2_rounding"
+    echo "运行: $LOCAL_BIN_DIR/test_strategy_pow2_rounding"
     set +e
-    "$SCRIPT_DIR/bin/test_strategy_pow2_rounding"
+    "$LOCAL_BIN_DIR/test_strategy_pow2_rounding"
     RUN_RC=$?
     set -e
     if [ $RUN_RC -ne 0 ]; then
@@ -101,7 +104,7 @@ echo ""
 
 # 运行测试并捕获退出代码
 set +e
-"$TEST_EXE"
+"$TEST_EXE" --all --format=plain --progress
 TEST_RESULT=$?
 set -e
 

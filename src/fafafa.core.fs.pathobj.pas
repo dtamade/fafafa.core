@@ -314,6 +314,7 @@ var
   List: TStringList;
   I: Integer;
 begin
+  Result := nil;
   List := EnumeratePathComponents(FValue);
   try
     SetLength(Result, List.Count);

@@ -1,7 +1,7 @@
 program test_strategy_pow2_rounding;
 
 {$mode objfpc}{$H+}
-{$I ../../src/fafafa.core.settings.inc}
+{$I fafafa.core.settings.inc}
 
 uses
   SysUtils;

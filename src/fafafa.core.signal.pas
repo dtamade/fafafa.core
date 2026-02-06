@@ -146,7 +146,7 @@ Type
     procedure SetRunning(aOn: Boolean);
   {$IFDEF UNIX}
   private
-    class procedure SigHandler(sig: cint); cdecl; static;
+    class procedure SigHandler(sig: cint; info: psiginfo; context: PSigContext); cdecl; static;
     class var GPipeWr: cint; // static for handler
   {$ENDIF}
   {$IFDEF WINDOWS}
@@ -233,14 +233,15 @@ var
   LSig: TSignal;
   {$IFDEF UNIX}
   buf: array[0..63] of byte;
-  n, i: ssizeint;
+  n, i: SizeInt;
+  rfds: TFDSet;
+  tv: TTimeVal;
   {$ENDIF}
 begin
   {$IFDEF UNIX}
   // select + non-blocking read to reduce syscalls
   while not Terminated do
   begin
-    var rfds: TFDSet; var tv: TTimeVal;
     fpFD_ZERO(rfds); fpFD_SET(FOwner.FPipeRd, rfds);
     tv.tv_sec := 0; tv.tv_usec := 200000; // 200ms
     if fpSelect(FOwner.FPipeRd+1, @rfds, nil, nil, @tv) > 0 then
@@ -317,6 +318,7 @@ end;
 procedure TSignalCenterImpl.Start;
 {$IFDEF UNIX}
 var act: SigActionRec;
+  fds: TFilDes;
 {$ENDIF}
 begin
   // 全流程互斥，避免 Start/Stop 竞态
@@ -328,16 +330,20 @@ begin
       raise Exception.Create('signal: test injected start failure');
     {$IFDEF UNIX}
     // self-pipe initialization (non-blocking + close-on-exec)
-    if fpPipe(FPipeRd, FPipeWr) <> 0 then
+    if fpPipe(fds) <> 0 then
       raise Exception.Create('signal: pipe creation failed');
+    FPipeRd := fds[0];
+    FPipeWr := fds[1];
     SetNonBlockCloseExec(FPipeRd);
     SetNonBlockCloseExec(FPipeWr);
     GPipeWr := FPipeWr; // static for handler
 
     FillChar(act, SizeOf(act), 0);
     act.sa_handler := @TSignalCenterImpl.SigHandler;
-    sigemptyset(act.sa_mask);
-    act.sa_flags := SA_RESTART;
+    {$IF DECLARED(fpSigEmptySet)}
+    fpSigEmptySet(act.sa_mask);
+    {$ENDIF}
+    act.sa_flags := SA_RESTART or SA_SIGINFO;
     {$IFDEF FAFAFA_SIGNAL_ENABLE_SIGINT}  fpSigAction(SIGINT, @act, @FOldAct_INT);   {$ENDIF}
     {$IFDEF FAFAFA_SIGNAL_ENABLE_SIGTERM} fpSigAction(SIGTERM, @act, @FOldAct_TERM); {$ENDIF}
     {$IFDEF FAFAFA_SIGNAL_ENABLE_SIGHUP}  {$IFDEF SIGHUP}   fpSigAction(SIGHUP, @act, @FOldAct_HUP);   {$ENDIF} {$ENDIF}
@@ -844,9 +850,11 @@ end;
 
 
 {$IFDEF UNIX}
-class procedure TSignalCenterImpl.SigHandler(sig: cint); cdecl;
+class procedure TSignalCenterImpl.SigHandler(sig: cint; info: psiginfo; context: PSigContext); cdecl;
 var b: byte;
 begin
+  if info = nil then ;
+  if context = nil then ;
   // write a single byte to self-pipe; ignore errors
   b := byte(sig);
   if GPipeWr <> -1 then fpWrite(GPipeWr, @b, 1);

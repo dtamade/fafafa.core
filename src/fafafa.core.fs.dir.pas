@@ -87,7 +87,7 @@ type
   private
     FPath: string;
     FEntries: TStringList;
-    FTypes: TList;
+    FTypes: array of TfsDirEntType;
     FIndex: Integer;
     FValid: Boolean;
     FError: Integer;
@@ -221,7 +221,7 @@ begin
   inherited Create;
   FPath := APath;
   FEntries := TStringList.Create;
-  FTypes := TList.Create;
+  FTypes := nil;
   FIndex := 0;
   FValid := False;
   FError := 0;
@@ -234,10 +234,11 @@ begin
     begin
       FValid := True;
       // 复制条目，类型暂时设为 Unknown（需要时再查询）
+      SetLength(FTypes, LEntries.Count);
       for I := 0 to LEntries.Count - 1 do
       begin
         FEntries.Add(LEntries[I]);
-        FTypes.Add(Pointer(PtrInt(fsDETUnknown)));
+        FTypes[I] := fsDETUnknown;
       end;
     end;
   finally
@@ -248,7 +249,6 @@ end;
 destructor TFsReadDir.Destroy;
 begin
   FEntries.Free;
-  FTypes.Free;
   inherited Destroy;
 end;
 
@@ -263,7 +263,7 @@ begin
   if FIndex >= FEntries.Count then Exit;
 
   LName := FEntries[FIndex];
-  LType := TfsDirEntType(PtrInt(FTypes[FIndex]));
+  LType := FTypes[FIndex];
   LPath := IncludeTrailingPathDelimiter(FPath) + LName;
 
   AEntry.Init(LPath, LName, LType);

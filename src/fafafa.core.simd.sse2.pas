@@ -738,7 +738,7 @@ var
 begin
   pr := @Result;
   asm
-    movsd  xmm0, value
+    movlpd xmm0, value
     unpcklpd xmm0, xmm0  // duplicate to both lanes
     mov    rcx, pr
     movupd [rcx], xmm0
@@ -6398,7 +6398,7 @@ begin
     movapd xmm1, xmm0
     shufpd xmm1, xmm1, 1      // swap high/low double
     addpd  xmm0, xmm1
-    movsd  res, xmm0
+    movlpd res, xmm0
   end;
   Result := res;
 {$ELSE}
@@ -6422,7 +6422,7 @@ begin
     movapd xmm1, xmm0
     shufpd xmm1, xmm1, 1
     minpd  xmm0, xmm1
-    movsd  res, xmm0
+    movlpd res, xmm0
   end;
   Result := res;
 {$ELSE}
@@ -6450,7 +6450,7 @@ begin
     movapd xmm1, xmm0
     shufpd xmm1, xmm1, 1
     maxpd  xmm0, xmm1
-    movsd  res, xmm0
+    movlpd res, xmm0
   end;
   Result := res;
 {$ELSE}
@@ -6478,7 +6478,7 @@ begin
     movapd xmm1, xmm0
     shufpd xmm1, xmm1, 1
     mulpd  xmm0, xmm1
-    movsd  res, xmm0
+    movlpd res, xmm0
   end;
   Result := res;
 {$ELSE}

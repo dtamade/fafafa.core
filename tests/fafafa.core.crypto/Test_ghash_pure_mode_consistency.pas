@@ -28,7 +28,7 @@ function MakeBytes(const Len: Integer; const Seed: Byte): TBytes;
 var i: Integer;
 begin
   SetLength(Result, Len);
-  for i := 0 to Len-1 do Result[i] := Seed + i;
+  for i := 0 to Len-1 do Result[i] := Byte((Seed + i) and $FF);
 end;
 
 function NowUS: Int64;

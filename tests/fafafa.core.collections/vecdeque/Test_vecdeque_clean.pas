@@ -2,7 +2,7 @@
 unit Test_vecdeque_clean;
 
 {$mode objfpc}{$H+}
-{$I ../../src/fafafa.core.settings.inc}
+{$I fafafa.core.settings.inc}
 
 interface
 
@@ -529,6 +529,12 @@ function GIsOdd(const V: Integer; Data: Pointer): Boolean; inline;
 begin
   Result := (V and 1) = 1;
 end;
+
+function GDescCompareInt(const aLeft, aRight: Integer; aData: Pointer): SizeInt; inline;
+begin
+  Result := SizeInt(aRight) - SizeInt(aLeft);
+end;
+
 function GDeterministicRandomFunc(aRange: Int64; aData: Pointer): Int64; inline;
 var
   LState: PSizeInt;
@@ -1874,6 +1880,7 @@ end;
 procedure TTestCase_VecDeque.Test_FindIF_PredicateMethod;
 var
   LIdx: SizeInt;
+  LCalls: Integer;
 begin
   FVecDeque.Clear;
   FVecDeque.Append([1, 4, 7]);
@@ -1888,8 +1895,10 @@ begin
 
   FVecDeque.Clear;
   FVecDeque.Append([8]);
-  LIdx := FVecDeque.FindIF(@PredicateEvenMethod, Pointer(1));
+  LCalls := 0;
+  LIdx := FVecDeque.FindIF(@PredicateEvenMethod, @LCalls);
   AssertEquals('FindIF method predicate should accept non-nil data parameter', 0, LIdx);
+  AssertTrue('FindIF method predicate should receive data parameter', LCalls > 0);
 end;
 
 procedure TTestCase_VecDeque.Test_FindIF_PredicateRefFunc;
@@ -1937,15 +1946,18 @@ end;
 procedure TTestCase_VecDeque.Test_FindIFUnChecked_PredicateMethod;
 var
   LIdx: Int64;
+  LCalls: Integer;
 begin
   FVecDeque.Clear;
-  FVecDeque.Append([1, 4, 6, 8]);
+  FVecDeque.Append([1, 4, 6, 7]);
 
   LIdx := FVecDeque.FindIFUnChecked(0, FVecDeque.GetCount, @PredicateEvenMethod, nil);
   AssertEquals('FindIFUnChecked method predicate should find first even index', Int64(1), LIdx);
 
-  LIdx := FVecDeque.FindIFUnChecked(2, 2, @PredicateEvenMethod, Pointer(1));
+  LCalls := 0;
+  LIdx := FVecDeque.FindIFUnChecked(2, 2, @PredicateEvenMethod, @LCalls);
   AssertEquals('FindIFUnChecked method predicate should honor start/count and data', Int64(2), LIdx);
+  AssertTrue('FindIFUnChecked method predicate should receive data parameter', LCalls > 0);
 
   LIdx := FVecDeque.FindIFUnChecked(3, 1, @PredicateEvenMethod, nil);
   AssertEquals('FindIFUnChecked method predicate should return -1 when slice has no match', Int64(-1), LIdx);
@@ -1992,6 +2004,7 @@ end;
 procedure TTestCase_VecDeque.Test_FindIFNotUnChecked_PredicateMethod;
 var
   LIdx: Int64;
+  LCalls: Integer;
 begin
   FVecDeque.Clear;
   FVecDeque.Append([2, 4, 3, 6]);
@@ -2001,8 +2014,10 @@ begin
 
   FVecDeque.Clear;
   FVecDeque.Append([2, 4, 6]);
-  LIdx := FVecDeque.FindIFNotUnChecked(0, FVecDeque.GetCount, @PredicateEvenMethod, Pointer(1));
+  LCalls := 0;
+  LIdx := FVecDeque.FindIFNotUnChecked(0, FVecDeque.GetCount, @PredicateEvenMethod, @LCalls);
   AssertEquals('FindIFNotUnChecked method predicate should return -1 when predicate always True', Int64(-1), LIdx);
+  AssertTrue('FindIFNotUnChecked method predicate should receive data parameter', LCalls > 0);
 end;
 
 procedure TTestCase_VecDeque.Test_FindIFNotUnChecked_PredicateRefFunc;
@@ -3050,14 +3065,17 @@ end;
 procedure TTestCase_VecDeque.Test_CountIF_PredicateMethod;
 var
   LCount: SizeUInt;
+  LCalls: Integer;
 begin
   FVecDeque.Clear;
   FVecDeque.Append([1, 2, 3, 4, 6]);
   LCount := FVecDeque.CountIF(@PredicateEvenMethod, nil);
   AssertEquals('CountIF predicate method should count evens', SizeUInt(3), LCount);
 
-  LCount := FVecDeque.CountIF(@PredicateEvenMethod, Pointer(1));
+  LCalls := 0;
+  LCount := FVecDeque.CountIF(@PredicateEvenMethod, @LCalls);
   AssertEquals('CountIF predicate method should honor data parameter', SizeUInt(3), LCount);
+  AssertTrue('CountIF predicate method should receive data parameter', LCalls > 0);
 
   FVecDeque.Clear;
   FVecDeque.Append([1, 3, 5]);
@@ -3847,9 +3865,9 @@ end;
 procedure TTestCase_VecDeque.Test_Sort_StartIndex_CompareMethod;
 begin
   FVecDeque.Clear;
-  FVecDeque.Append([10, 7, 6, 5, 4]);
+  FVecDeque.Append([10, 4, 7, 6, 5]);
 
-  FVecDeque.Sort;
+  FVecDeque.Sort(1, @DescCompareIntMethod, nil);
 
   ExpectSeq([10, 7, 6, 5, 4]);
 end;
@@ -3880,25 +3898,21 @@ begin
 end;
 
 procedure TTestCase_VecDeque.Test_Sort_StartIndex_Count_CompareFunc;
-  function Desc(const aLeft, aRight: Integer; aData: Pointer): Integer;
-  begin
-    Result := aRight - aLeft;
-  end;
 begin
   FVecDeque.Clear;
   FVecDeque.Append([0, 1, 2, 3, 4, 5, 6]);
 
-  FVecDeque.Sort;
+  FVecDeque.Sort(2, 3, @GDescCompareInt, nil);
 
-  ExpectSeq([0, 1, 5, 4, 3, 5, 6]);
+  ExpectSeq([0, 1, 4, 3, 2, 5, 6]);
 end;
 
 procedure TTestCase_VecDeque.Test_Sort_StartIndex_Count_CompareMethod;
 begin
   FVecDeque.Clear;
-  FVecDeque.Append([9, 3, 2, 1, 0, 8]);
+  FVecDeque.Append([9, 1, 3, 2, 0, 8]);
 
-  FVecDeque.Sort;
+  FVecDeque.Sort(1, 4, @DescCompareIntMethod, nil);
 
   ExpectSeq([9, 3, 2, 1, 0, 8]);
 end;
@@ -3930,15 +3944,11 @@ begin
 end;
 
 procedure TTestCase_VecDeque.Test_SortUnChecked_StartIndex_Count_CompareFunc;
-  function Desc(const aLeft, aRight: Integer; aData: Pointer): Integer;
-  begin
-    Result := aRight - aLeft;
-  end;
 begin
   FVecDeque.Clear;
   FVecDeque.Append([0, 1, 2, 3, 4, 5]);
 
-  FVecDeque.Sort;
+  FVecDeque.SortUnChecked(1, 4, @GDescCompareInt, nil);
 
   ExpectSeq([0, 4, 3, 2, 1, 5]);
 end;
@@ -3948,7 +3958,7 @@ begin
   FVecDeque.Clear;
   FVecDeque.Append([10, 20, 30, 40]);
 
-  FVecDeque.Sort;
+  FVecDeque.SortUnChecked(0, FVecDeque.GetCount, @DescCompareIntMethod, nil);
 
   ExpectSeq([40, 30, 20, 10]);
 end;
@@ -3959,7 +3969,7 @@ begin
   FVecDeque.Clear;
   FVecDeque.Append([0, 1, 2, 3, 4, 5]);
   FVecDeque.SortUnChecked(1, 4,
-    reference to function (const aLeft, aRight: Integer): SizeInt
+    function (const aLeft, aRight: Integer): SizeInt
     begin
       Result := SizeInt(aRight) - SizeInt(aLeft);
     end);
@@ -4002,7 +4012,7 @@ begin
   FVecDeque.Clear;
   FVecDeque.Append([0, 1, 2, 3, 4, 5]);
   FVecDeque.SortWith(1, 4, saMergeSort,
-    reference to function (const aLeft, aRight: Integer): SizeInt
+    function (const aLeft, aRight: Integer): SizeInt
     begin
       Result := SizeInt(aRight) - SizeInt(aLeft);
     end);

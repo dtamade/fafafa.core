@@ -22,8 +22,8 @@
             <Filename Value="../../bin/tests_vec"/>
           </Target>
           <SearchPaths>
-            <IncludeFiles Value="$(ProjOutDir);../../src"/>
-            <OtherUnitFiles Value="../../src"/>
+            <IncludeFiles Value="$(ProjOutDir);../../../src"/>
+            <OtherUnitFiles Value="../../../src"/>
             <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <Parsing>
@@ -62,8 +62,8 @@
             <Filename Value="../../bin/tests_vec"/>
           </Target>
           <SearchPaths>
-            <IncludeFiles Value="$(ProjOutDir);../../src"/>
-            <OtherUnitFiles Value="../../src"/>
+            <IncludeFiles Value="$(ProjOutDir);../../../src"/>
+            <OtherUnitFiles Value="../../../src"/>
             <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <CodeGeneration>
@@ -117,8 +117,8 @@
       <Filename Value="../../bin/tests_vec"/>
     </Target>
     <SearchPaths>
-      <IncludeFiles Value="$(ProjOutDir);../../src"/>
-      <OtherUnitFiles Value="../../src"/>
+      <IncludeFiles Value="$(ProjOutDir);../../../src"/>
+      <OtherUnitFiles Value="../../../src"/>
       <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Linking>

@@ -2,9 +2,11 @@ unit fafafa.core.env;
 
 {$mode objfpc}{$H+}
 {$CODEPAGE UTF8}
+{$INLINE ON}
 
 {$modeswitch advancedrecords}
 {$I fafafa.core.settings.inc}
+{$WARN 3124 OFF} // suppress "Inlining disabled" noise in strict 0-hints builds
 
 interface
 
@@ -361,31 +363,23 @@ begin
 end;
 
 function env_override_unset(const AName: string): TEnvOverrideGuard; inline;
-var
-  __chk: string;
 begin
-  // Build guard manually and force empty value during override period (env_get returns '' by contract)
+  // Build guard manually and force *undefined* during override period.
+  // NOTE: empty string is a valid value; "unset" must behave as undefined (lookup=false).
   Result.FName := AName;
   Result.FOriginalValue := '';
   Result.FHadOriginal := env_lookup(AName, Result.FOriginalValue);
-  // Try set empty first; if still non-empty, try unset; then set empty again as final fallback
-  env_set(AName, '');
-  __chk := env_get(AName);
-  if __chk <> '' then
-  begin
-    env_unset(AName);
-    __chk := env_get(AName);
-    if __chk <> '' then
-      env_set(AName, '');
-  end;
+  env_unset(AName);
   Result.FActive := True;
 end;
 
 
+{$PUSH}{$HINTS OFF} // suppress FPC "Inlining disabled" hint in strict 0-hints builds
 function env_overrides(const Pairs: array of TEnvKV): TEnvOverridesGuard;
 begin
   Result := TEnvOverridesGuard.BeginBatch(Pairs);
 end;
+{$POP}
 
 class function TEnvOverridesGuard.BeginBatch(const Pairs: array of TEnvKV): TEnvOverridesGuard;
 var

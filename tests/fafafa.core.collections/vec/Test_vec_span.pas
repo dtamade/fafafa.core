@@ -1,7 +1,7 @@
 unit Test_vec_span;
 
 {$mode objfpc}{$H+}
-{$I ../../src/fafafa.core.settings.inc}
+{$I fafafa.core.settings.inc}
 
 interface
 

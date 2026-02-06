@@ -20,6 +20,7 @@ type
   TBytes = fafafa.core.crypto.interfaces.TBytes;
   EInvalidArgument = fafafa.core.crypto.interfaces.EInvalidArgument;
   EInvalidData = fafafa.core.crypto.interfaces.EInvalidData;
+  TChaChaState = array[0..15] of LongWord;
 
 const
   TAG_SIZE = 16;
@@ -79,19 +80,22 @@ begin
   c := c + d; b := b xor c; b := RotL32(b, 7);
 end;
 
-procedure QRArr(var S: array of LongWord; a,b,c,d: Integer); inline;
+procedure QRArr(var S: TChaChaState; a, b, c, d: Integer); inline;
+{$push}
+{$R-}
 begin
   S[a] := S[a] + S[b]; S[d] := S[d] xor S[a]; S[d] := RotL32(S[d], 16);
   S[c] := S[c] + S[d]; S[b] := S[b] xor S[c]; S[b] := RotL32(S[b], 12);
   S[a] := S[a] + S[b]; S[d] := S[d] xor S[a]; S[d] := RotL32(S[d], 8);
   S[c] := S[c] + S[d]; S[b] := S[b] xor S[c]; S[b] := RotL32(S[b], 7);
 end;
+{$pop}
 
 procedure ChaCha20Block(const Key, Nonce: TBytes; Counter: LongWord; out Block: TBytes);
 {$push}
 {$R-}
 var
-  S, W: array[0..15] of LongWord;
+  S, W: TChaChaState;
   I: Integer;
 begin
   // constants "expand 32-byte k"
@@ -164,6 +168,7 @@ end;
 function Poly1305Tag(const Key: TBytes; const Msg: TBytes): TBytes;
 {$push}
 {$R-}
+{$Q-}
 {$hints off}
 // Key: 32 bytes (r||s), where r is clamped, s added at end. Little-endian limbs 26-bit.
 var

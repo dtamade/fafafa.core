@@ -23,7 +23,7 @@ var
 begin
   SetLength(H, 16); for i := 0 to 15 do H[i] := i;
   SetLength(A, 64); for i := 0 to 63 do A[i] := 255 - i;
-  SetLength(C, 64); for i := 0 to 63 do C[i] := i*7;
+  SetLength(C, 64); for i := 0 to 63 do C[i] := Byte((i * 7) and $FF);
 
   // bit
   GHash_SetPureMode('bit');

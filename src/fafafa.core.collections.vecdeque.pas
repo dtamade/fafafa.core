@@ -2486,6 +2486,7 @@ begin
       Result := True;
       Exit;
     end;
+    LPhysicalIndex := WrapAdd(LPhysicalIndex, 1);
   end;
   Result := False;
 end;
@@ -2540,6 +2541,7 @@ begin
       Result := Int64(aIndex + i);
       Exit;
     end;
+    LPhysicalIndex := WrapAdd(LPhysicalIndex, 1);
   end;
   Result := -1;
 end;

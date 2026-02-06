@@ -55,7 +55,7 @@ begin
 
   try
     SetLength(H, 16); for i := 0 to 15 do H[i] := i;
-    SetLength(AAD, 128); for i := 0 to 127 do AAD[i] := i*3;
+    SetLength(AAD, 128); for i := 0 to 127 do AAD[i] := Byte((i * 3) and $FF);
     SetLength(C,   512); for i := 0 to 511 do C[i] := 255 - (i and $FF);
 
     {$IFDEF MSWINDOWS}

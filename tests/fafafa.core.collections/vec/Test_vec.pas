@@ -811,29 +811,25 @@ procedure TTestCase_Vec.Test_Create_Allocator_GrowStrategy;
 var
   LVec: specialize TVec<Integer>;
   LAllocator: IAllocator;
-  LGrowStrategy: TGrowthStrategy;
+  LGrowStrategy: IGrowthStrategy;
 begin
   { 测试 Create(aAllocator: TAllocator; aGrowStrategy: TGrowthStrategy) }
   LAllocator := TRtlAllocator.Create;
   try
     LGrowStrategy := TFixedGrowStrategy.Create(8);
+    LVec := specialize TVec<Integer>.Create(LAllocator, LGrowStrategy);
     try
-      LVec := specialize TVec<Integer>.Create(LAllocator, LGrowStrategy);
-      try
-        AssertNotNull('Create(aAllocator, aGrowStrategy) should create valid vector', LVec);
-        AssertNotNull('Vector should have allocator', LVec.GetAllocator);
-        // 接口化统一后，GetGrowStrategy（对象）已弃用；改为行为断言：
-    AssertTrue('Growth behavior should reflect provided strategy', LVec.GetCapacity >= LVec.GetCount);
-    AssertNotNull('Interface grow strategy should not be nil', LVec.GetGrowStrategy);
-        AssertTrue('Vector should be empty', LVec.IsEmpty);
-        AssertEquals('Vector count should be 0', Int64(0), Int64(LVec.GetCount));
-        AssertEquals('Vector capacity should be 0', Int64(0), Int64(LVec.GetCapacity));
-        AssertTrue('Vector data should be nil', LVec.GetData = nil);
-      finally
-        LVec.Free;
-      end;
+      AssertNotNull('Create(aAllocator, aGrowStrategy) should create valid vector', LVec);
+      AssertNotNull('Vector should have allocator', LVec.GetAllocator);
+      // 接口化统一后，GetGrowStrategy（对象）已弃用；改为行为断言：
+      AssertTrue('Growth behavior should reflect provided strategy', LVec.GetCapacity >= LVec.GetCount);
+      AssertNotNull('Interface grow strategy should not be nil', LVec.GetGrowStrategy);
+      AssertTrue('Vector should be empty', LVec.IsEmpty);
+      AssertEquals('Vector count should be 0', Int64(0), Int64(LVec.GetCount));
+      AssertEquals('Vector capacity should be 0', Int64(0), Int64(LVec.GetCapacity));
+      AssertTrue('Vector data should be nil', LVec.GetData = nil);
     finally
-      LGrowStrategy.Free;
+      LVec.Free;
     end;
   finally
     LAllocator := nil;
@@ -844,30 +840,26 @@ procedure TTestCase_Vec.Test_Create_Allocator_GrowStrategy_Data;
 var
   LVec: specialize TVec<Integer>;
   LAllocator: IAllocator;
-  LGrowStrategy: TGrowthStrategy;
+  LGrowStrategy: IGrowthStrategy;
   LTestData: Pointer;
 begin
   { 测试 Create(aAllocator: TAllocator; aGrowStrategy: TGrowthStrategy; aData: Pointer) }
   LAllocator := TRtlAllocator.Create;
   try
     LGrowStrategy := TDoublingGrowStrategy.Create;
+    LTestData := Pointer($ABCDEF00);
+    LVec := specialize TVec<Integer>.Create(LAllocator, LGrowStrategy, LTestData);
     try
-      LTestData := Pointer($ABCDEF00);
-      LVec := specialize TVec<Integer>.Create(LAllocator, LGrowStrategy, LTestData);
-      try
-        AssertNotNull('Create(aAllocator, aGrowStrategy, aData) should create valid vector', LVec);
-        AssertTrue('Vector should use provided allocator', LVec.GetAllocator = LAllocator);
-        AssertTrue('Growth behavior should reflect provided strategy', LVec.GetCapacity >= LVec.GetCount);
-    AssertNotNull('Interface grow strategy should not be nil', LVec.GetGrowStrategy);
-        AssertTrue('Vector should store provided data', LVec.GetData = LTestData);
-        AssertTrue('Vector should be empty', LVec.IsEmpty);
-        AssertEquals('Vector count should be 0', Int64(0), Int64(LVec.GetCount));
-        AssertEquals('Vector capacity should be 0', Int64(0), Int64(LVec.GetCapacity));
-      finally
-        LVec.Free;
-      end;
+      AssertNotNull('Create(aAllocator, aGrowStrategy, aData) should create valid vector', LVec);
+      AssertTrue('Vector should use provided allocator', LVec.GetAllocator = LAllocator);
+      AssertTrue('Growth behavior should reflect provided strategy', LVec.GetCapacity >= LVec.GetCount);
+      AssertNotNull('Interface grow strategy should not be nil', LVec.GetGrowStrategy);
+      AssertTrue('Vector should store provided data', LVec.GetData = LTestData);
+      AssertTrue('Vector should be empty', LVec.IsEmpty);
+      AssertEquals('Vector count should be 0', Int64(0), Int64(LVec.GetCount));
+      AssertEquals('Vector capacity should be 0', Int64(0), Int64(LVec.GetCapacity));
     finally
-      LGrowStrategy.Free;
+      LVec.Free;
     end;
   finally
     LAllocator := nil;
@@ -934,29 +926,25 @@ procedure TTestCase_Vec.Test_Create_Capacity_Allocator_GrowStrategy;
 var
   LVec: specialize TVec<Integer>;
   LAllocator: IAllocator;
-  LGrowStrategy: TGrowthStrategy;
+  LGrowStrategy: IGrowthStrategy;
 begin
   { 测试 Create(aCapacity: SizeUInt; aAllocator: TAllocator; aGrowStrategy: TGrowthStrategy) }
   LAllocator := TRtlAllocator.Create;
   try
     LGrowStrategy := TGoldenRatioGrowStrategy.Create;
+    LVec := specialize TVec<Integer>.Create(20, LAllocator, LGrowStrategy);
     try
-      LVec := specialize TVec<Integer>.Create(20, LAllocator, LGrowStrategy);
-      try
-        AssertNotNull('Create(aCapacity, aAllocator, aGrowStrategy) should create valid vector', LVec);
-        AssertTrue('Vector should use provided allocator', LVec.GetAllocator = LAllocator);
-        AssertTrue('Growth behavior should reflect provided strategy', LVec.GetCapacity >= LVec.GetCount);
-    AssertNotNull('Interface grow strategy should not be nil', LVec.GetGrowStrategy);
-        AssertTrue('Vector should be empty', LVec.IsEmpty);
-        AssertEquals('Vector count should be 0', Int64(0), Int64(LVec.GetCount));
-        AssertEquals('Vector capacity should match parameter', Int64(20), Int64(LVec.GetCapacity));
-        AssertTrue('Vector data should be nil', LVec.GetData = nil);
-        AssertNotNull('Vector memory should be allocated', LVec.GetMemory);
-      finally
-        LVec.Free;
-      end;
+      AssertNotNull('Create(aCapacity, aAllocator, aGrowStrategy) should create valid vector', LVec);
+      AssertTrue('Vector should use provided allocator', LVec.GetAllocator = LAllocator);
+      AssertTrue('Growth behavior should reflect provided strategy', LVec.GetCapacity >= LVec.GetCount);
+      AssertNotNull('Interface grow strategy should not be nil', LVec.GetGrowStrategy);
+      AssertTrue('Vector should be empty', LVec.IsEmpty);
+      AssertEquals('Vector count should be 0', Int64(0), Int64(LVec.GetCount));
+      AssertEquals('Vector capacity should match parameter', Int64(20), Int64(LVec.GetCapacity));
+      AssertTrue('Vector data should be nil', LVec.GetData = nil);
+      AssertNotNull('Vector memory should be allocated', LVec.GetMemory);
     finally
-      LGrowStrategy.Free;
+      LVec.Free;
     end;
   finally
     LAllocator := nil;
@@ -967,31 +955,27 @@ procedure TTestCase_Vec.Test_Create_Capacity_Allocator_GrowStrategy_Data;
 var
   LVec: specialize TVec<Integer>;
   LAllocator: IAllocator;
-  LGrowStrategy: TGrowthStrategy;
+  LGrowStrategy: IGrowthStrategy;
   LTestData: Pointer;
 begin
   { 测试 Create(aCapacity: SizeUInt; aAllocator: TAllocator; aGrowStrategy: TGrowthStrategy; aData: Pointer) }
   LAllocator := TRtlAllocator.Create;
   try
     LGrowStrategy := TPowerOfTwoGrowStrategy.Create;
+    LTestData := Pointer($DEADBEEF);
+    LVec := specialize TVec<Integer>.Create(25, LAllocator, LGrowStrategy, LTestData);
     try
-      LTestData := Pointer($DEADBEEF);
-      LVec := specialize TVec<Integer>.Create(25, LAllocator, LGrowStrategy, LTestData);
-      try
-        AssertNotNull('Create(aCapacity, aAllocator, aGrowStrategy, aData) should create valid vector', LVec);
-        AssertTrue('Vector should use provided allocator', LVec.GetAllocator = LAllocator);
-        AssertTrue('Growth behavior should reflect provided strategy', LVec.GetCapacity >= LVec.GetCount);
-    AssertNotNull('Interface grow strategy should not be nil', LVec.GetGrowStrategy);
-        AssertTrue('Vector should store provided data', LVec.GetData = LTestData);
-        AssertTrue('Vector should be empty', LVec.IsEmpty);
-        AssertEquals('Vector count should be 0', Int64(0), Int64(LVec.GetCount));
-        AssertEquals('Vector capacity should match parameter', Int64(25), Int64(LVec.GetCapacity));
-        AssertNotNull('Vector memory should be allocated', LVec.GetMemory);
-      finally
-        LVec.Free;
-      end;
+      AssertNotNull('Create(aCapacity, aAllocator, aGrowStrategy, aData) should create valid vector', LVec);
+      AssertTrue('Vector should use provided allocator', LVec.GetAllocator = LAllocator);
+      AssertTrue('Growth behavior should reflect provided strategy', LVec.GetCapacity >= LVec.GetCount);
+      AssertNotNull('Interface grow strategy should not be nil', LVec.GetGrowStrategy);
+      AssertTrue('Vector should store provided data', LVec.GetData = LTestData);
+      AssertTrue('Vector should be empty', LVec.IsEmpty);
+      AssertEquals('Vector count should be 0', Int64(0), Int64(LVec.GetCount));
+      AssertEquals('Vector capacity should match parameter', Int64(25), Int64(LVec.GetCapacity));
+      AssertNotNull('Vector memory should be allocated', LVec.GetMemory);
     finally
-      LGrowStrategy.Free;
+      LVec.Free;
     end;
   finally
     LAllocator := nil;
@@ -1206,7 +1190,7 @@ procedure TTestCase_Vec.Test_Create_Collection_Allocator_GrowStrategy;
 var
   LSourceVec, LTargetVec: specialize TVec<Integer>;
   LAllocator: IAllocator;
-  LGrowStrategy: TGrowthStrategy;
+  LGrowStrategy: IGrowthStrategy;
 begin
   { 测试 Create(const aSrc: TCollection; aAllocator: TAllocator; aGrowStrategy: TGrowthStrategy) }
   LSourceVec := specialize TVec<Integer>.Create([1, 2, 3, 4, 5]);
@@ -1214,24 +1198,20 @@ begin
     LAllocator := TRtlAllocator.Create;
     try
       LGrowStrategy := TFixedGrowStrategy.Create(10);
+      LTargetVec := specialize TVec<Integer>.Create(LSourceVec, LAllocator, LGrowStrategy);
       try
-        LTargetVec := specialize TVec<Integer>.Create(LSourceVec, LAllocator, LGrowStrategy);
-        try
-          AssertNotNull('Create(aSrc, aAllocator, aGrowStrategy) should create valid vector', LTargetVec);
-          AssertTrue('Vector should use provided allocator', LTargetVec.GetAllocator = LAllocator);
-          AssertTrue('Growth behavior should reflect provided strategy', LTargetVec.GetCapacity >= LTargetVec.GetCount);
-    AssertNotNull('Interface grow strategy should not be nil', LTargetVec.GetGrowStrategy);
-          AssertEquals('Vector should have same count as source', Int64(5), Int64(LTargetVec.GetCount));
-          AssertEquals('Vector should contain same data as source', 1, LTargetVec[0]);
-          AssertEquals('Vector should contain same data as source', 2, LTargetVec[1]);
-          AssertEquals('Vector should contain same data as source', 3, LTargetVec[2]);
-          AssertEquals('Vector should contain same data as source', 4, LTargetVec[3]);
-          AssertEquals('Vector should contain same data as source', 5, LTargetVec[4]);
-        finally
-          LTargetVec.Free;
-        end;
+        AssertNotNull('Create(aSrc, aAllocator, aGrowStrategy) should create valid vector', LTargetVec);
+        AssertTrue('Vector should use provided allocator', LTargetVec.GetAllocator = LAllocator);
+        AssertTrue('Growth behavior should reflect provided strategy', LTargetVec.GetCapacity >= LTargetVec.GetCount);
+        AssertNotNull('Interface grow strategy should not be nil', LTargetVec.GetGrowStrategy);
+        AssertEquals('Vector should have same count as source', Int64(5), Int64(LTargetVec.GetCount));
+        AssertEquals('Vector should contain same data as source', 1, LTargetVec[0]);
+        AssertEquals('Vector should contain same data as source', 2, LTargetVec[1]);
+        AssertEquals('Vector should contain same data as source', 3, LTargetVec[2]);
+        AssertEquals('Vector should contain same data as source', 4, LTargetVec[3]);
+        AssertEquals('Vector should contain same data as source', 5, LTargetVec[4]);
       finally
-        LGrowStrategy.Free;
+        LTargetVec.Free;
       end;
     finally
       LAllocator := nil;
@@ -1245,7 +1225,7 @@ procedure TTestCase_Vec.Test_Create_Collection_Allocator_GrowStrategy_Data;
 var
   LSourceVec, LTargetVec: specialize TVec<Integer>;
   LAllocator: IAllocator;
-  LGrowStrategy: TGrowthStrategy;
+  LGrowStrategy: IGrowthStrategy;
   LTestData: Pointer;
 begin
   { 测试 Create(const aSrc: TCollection; aAllocator: TAllocator; aGrowStrategy: TGrowthStrategy; aData: Pointer) }
@@ -1254,24 +1234,20 @@ begin
     LAllocator := TRtlAllocator.Create;
     try
       LGrowStrategy := TDoublingGrowStrategy.Create;
+      LTestData := Pointer($FEEDFACE);
+      LTargetVec := specialize TVec<Integer>.Create(LSourceVec, LAllocator, LGrowStrategy, LTestData);
       try
-        LTestData := Pointer($FEEDFACE);
-        LTargetVec := specialize TVec<Integer>.Create(LSourceVec, LAllocator, LGrowStrategy, LTestData);
-        try
-          AssertNotNull('Create(aSrc, aAllocator, aGrowStrategy, aData) should create valid vector', LTargetVec);
-          AssertTrue('Vector should use provided allocator', LTargetVec.GetAllocator = LAllocator);
-          AssertTrue('Growth behavior should reflect provided strategy', LTargetVec.GetCapacity >= LTargetVec.GetCount);
-    AssertNotNull('Interface grow strategy should not be nil', LTargetVec.GetGrowStrategy);
-          AssertTrue('Vector should store provided data', LTargetVec.GetData = LTestData);
-          AssertEquals('Vector should have same count as source', Int64(3), Int64(LTargetVec.GetCount));
-          AssertEquals('Vector should contain same data as source', 99, LTargetVec[0]);
-          AssertEquals('Vector should contain same data as source', 88, LTargetVec[1]);
-          AssertEquals('Vector should contain same data as source', 77, LTargetVec[2]);
-        finally
-          LTargetVec.Free;
-        end;
+        AssertNotNull('Create(aSrc, aAllocator, aGrowStrategy, aData) should create valid vector', LTargetVec);
+        AssertTrue('Vector should use provided allocator', LTargetVec.GetAllocator = LAllocator);
+        AssertTrue('Growth behavior should reflect provided strategy', LTargetVec.GetCapacity >= LTargetVec.GetCount);
+        AssertNotNull('Interface grow strategy should not be nil', LTargetVec.GetGrowStrategy);
+        AssertTrue('Vector should store provided data', LTargetVec.GetData = LTestData);
+        AssertEquals('Vector should have same count as source', Int64(3), Int64(LTargetVec.GetCount));
+        AssertEquals('Vector should contain same data as source', 99, LTargetVec[0]);
+        AssertEquals('Vector should contain same data as source', 88, LTargetVec[1]);
+        AssertEquals('Vector should contain same data as source', 77, LTargetVec[2]);
       finally
-        LGrowStrategy.Free;
+        LTargetVec.Free;
       end;
     finally
       LAllocator := nil;
@@ -1370,7 +1346,7 @@ procedure TTestCase_Vec.Test_Create_Pointer_Count_Allocator_GrowStrategy;
 var
   LVec: specialize TVec<Integer>;
   LAllocator: IAllocator;
-  LGrowStrategy: TGrowthStrategy;
+  LGrowStrategy: IGrowthStrategy;
   LData: array[0..4] of Integer;
 begin
   { 测试 Create(const aSrc: Pointer; aCount: SizeUInt; aAllocator: TAllocator; aGrowStrategy: TGrowthStrategy) }
@@ -1383,24 +1359,20 @@ begin
   LAllocator := TRtlAllocator.Create;
   try
     LGrowStrategy := TGoldenRatioGrowStrategy.Create;
+    LVec := specialize TVec<Integer>.Create(@LData[0], 5, LAllocator, LGrowStrategy);
     try
-      LVec := specialize TVec<Integer>.Create(@LData[0], 5, LAllocator, LGrowStrategy);
-      try
-        AssertNotNull('Create(aSrc, aCount, aAllocator, aGrowStrategy) should create valid vector', LVec);
-        AssertTrue('Vector should use provided allocator', LVec.GetAllocator = LAllocator);
-        AssertTrue('Growth behavior should reflect provided strategy', LVec.GetCapacity >= LVec.GetCount);
-    AssertNotNull('Interface grow strategy should not be nil', LVec.GetGrowStrategy);
-        AssertEquals('Vector should have correct count', Int64(5), Int64(LVec.GetCount));
-        AssertEquals('Vector should contain same data as source', 11, LVec[0]);
-        AssertEquals('Vector should contain same data as source', 22, LVec[1]);
-        AssertEquals('Vector should contain same data as source', 33, LVec[2]);
-        AssertEquals('Vector should contain same data as source', 44, LVec[3]);
-        AssertEquals('Vector should contain same data as source', 55, LVec[4]);
-      finally
-        LVec.Free;
-      end;
+      AssertNotNull('Create(aSrc, aCount, aAllocator, aGrowStrategy) should create valid vector', LVec);
+      AssertTrue('Vector should use provided allocator', LVec.GetAllocator = LAllocator);
+      AssertTrue('Growth behavior should reflect provided strategy', LVec.GetCapacity >= LVec.GetCount);
+      AssertNotNull('Interface grow strategy should not be nil', LVec.GetGrowStrategy);
+      AssertEquals('Vector should have correct count', Int64(5), Int64(LVec.GetCount));
+      AssertEquals('Vector should contain same data as source', 11, LVec[0]);
+      AssertEquals('Vector should contain same data as source', 22, LVec[1]);
+      AssertEquals('Vector should contain same data as source', 33, LVec[2]);
+      AssertEquals('Vector should contain same data as source', 44, LVec[3]);
+      AssertEquals('Vector should contain same data as source', 55, LVec[4]);
     finally
-      LGrowStrategy.Free;
+      LVec.Free;
     end;
   finally
     LAllocator := nil;
@@ -1411,7 +1383,7 @@ procedure TTestCase_Vec.Test_Create_Pointer_Count_Allocator_GrowStrategy_Data;
 var
   LVec: specialize TVec<Integer>;
   LAllocator: IAllocator;
-  LGrowStrategy: TGrowthStrategy;
+  LGrowStrategy: IGrowthStrategy;
   LTestData: Pointer;
   LData: array[0..2] of Integer;
 begin
@@ -1423,24 +1395,20 @@ begin
   LAllocator := TRtlAllocator.Create;
   try
     LGrowStrategy := TPowerOfTwoGrowStrategy.Create;
+    LTestData := Pointer($FACEFEED);
+    LVec := specialize TVec<Integer>.Create(@LData[0], 3, LAllocator, LGrowStrategy, LTestData);
     try
-      LTestData := Pointer($FACEFEED);
-      LVec := specialize TVec<Integer>.Create(@LData[0], 3, LAllocator, LGrowStrategy, LTestData);
-      try
-        AssertNotNull('Create(aSrc, aCount, aAllocator, aGrowStrategy, aData) should create valid vector', LVec);
-        AssertTrue('Vector should use provided allocator', LVec.GetAllocator = LAllocator);
-        AssertTrue('Growth behavior should reflect provided strategy', LVec.GetCapacity >= LVec.GetCount);
-    AssertNotNull('Interface grow strategy should not be nil', LVec.GetGrowStrategy);
-        AssertTrue('Vector should store provided data', LVec.GetData = LTestData);
-        AssertEquals('Vector should have correct count', Int64(3), Int64(LVec.GetCount));
-        AssertEquals('Vector should contain same data as source', 999, LVec[0]);
-        AssertEquals('Vector should contain same data as source', 888, LVec[1]);
-        AssertEquals('Vector should contain same data as source', 777, LVec[2]);
-      finally
-        LVec.Free;
-      end;
+      AssertNotNull('Create(aSrc, aCount, aAllocator, aGrowStrategy, aData) should create valid vector', LVec);
+      AssertTrue('Vector should use provided allocator', LVec.GetAllocator = LAllocator);
+      AssertTrue('Growth behavior should reflect provided strategy', LVec.GetCapacity >= LVec.GetCount);
+      AssertNotNull('Interface grow strategy should not be nil', LVec.GetGrowStrategy);
+      AssertTrue('Vector should store provided data', LVec.GetData = LTestData);
+      AssertEquals('Vector should have correct count', Int64(3), Int64(LVec.GetCount));
+      AssertEquals('Vector should contain same data as source', 999, LVec[0]);
+      AssertEquals('Vector should contain same data as source', 888, LVec[1]);
+      AssertEquals('Vector should contain same data as source', 777, LVec[2]);
     finally
-      LGrowStrategy.Free;
+      LVec.Free;
     end;
   finally
     LAllocator := nil;
@@ -1553,29 +1521,25 @@ procedure TTestCase_Vec.Test_Create_Array_Allocator_GrowStrategy;
 var
   LVec: specialize TVec<Integer>;
   LAllocator: IAllocator;
-  LGrowStrategy: TGrowthStrategy;
+  LGrowStrategy: IGrowthStrategy;
 begin
   { 测试 Create(const aSrc: array of T; aAllocator: TAllocator; aGrowStrategy: TGrowthStrategy) }
   LAllocator := TRtlAllocator.Create;
   try
     LGrowStrategy := TFixedGrowStrategy.Create(5);
+    LVec := specialize TVec<Integer>.Create([1000, 2000, 3000, 4000], LAllocator, LGrowStrategy);
     try
-      LVec := specialize TVec<Integer>.Create([1000, 2000, 3000, 4000], LAllocator, LGrowStrategy);
-      try
-        AssertNotNull('Create(aSrc, aAllocator, aGrowStrategy) should create valid vector', LVec);
-        AssertTrue('Vector should use provided allocator', LVec.GetAllocator = LAllocator);
-        AssertTrue('Growth behavior should reflect provided strategy', LVec.GetCapacity >= LVec.GetCount);
-    AssertNotNull('Interface grow strategy should not be nil', LVec.GetGrowStrategy);
-        AssertEquals('Vector should have correct count', Int64(4), Int64(LVec.GetCount));
-        AssertEquals('Vector should contain same data as source', 1000, LVec[0]);
-        AssertEquals('Vector should contain same data as source', 2000, LVec[1]);
-        AssertEquals('Vector should contain same data as source', 3000, LVec[2]);
-        AssertEquals('Vector should contain same data as source', 4000, LVec[3]);
-      finally
-        LVec.Free;
-      end;
+      AssertNotNull('Create(aSrc, aAllocator, aGrowStrategy) should create valid vector', LVec);
+      AssertTrue('Vector should use provided allocator', LVec.GetAllocator = LAllocator);
+      AssertTrue('Growth behavior should reflect provided strategy', LVec.GetCapacity >= LVec.GetCount);
+      AssertNotNull('Interface grow strategy should not be nil', LVec.GetGrowStrategy);
+      AssertEquals('Vector should have correct count', Int64(4), Int64(LVec.GetCount));
+      AssertEquals('Vector should contain same data as source', 1000, LVec[0]);
+      AssertEquals('Vector should contain same data as source', 2000, LVec[1]);
+      AssertEquals('Vector should contain same data as source', 3000, LVec[2]);
+      AssertEquals('Vector should contain same data as source', 4000, LVec[3]);
     finally
-      LGrowStrategy.Free;
+      LVec.Free;
     end;
   finally
     LAllocator := nil;
@@ -1586,30 +1550,26 @@ procedure TTestCase_Vec.Test_Create_Array_Allocator_GrowStrategy_Data;
 var
   LVec: specialize TVec<Integer>;
   LAllocator: IAllocator;
-  LGrowStrategy: TGrowthStrategy;
+  LGrowStrategy: IGrowthStrategy;
   LTestData: Pointer;
 begin
   { 测试 Create(const aSrc: array of T; aAllocator: TAllocator; aGrowStrategy: TGrowthStrategy; aData: Pointer) }
   LAllocator := TRtlAllocator.Create;
   try
     LGrowStrategy := TDoublingGrowStrategy.Create;
+    LTestData := Pointer($DEADC0DE);
+    LVec := specialize TVec<Integer>.Create([5000, 6000], LAllocator, LGrowStrategy, LTestData);
     try
-      LTestData := Pointer($DEADC0DE);
-      LVec := specialize TVec<Integer>.Create([5000, 6000], LAllocator, LGrowStrategy, LTestData);
-      try
-        AssertNotNull('Create(aSrc, aAllocator, aGrowStrategy, aData) should create valid vector', LVec);
-        AssertTrue('Vector should use provided allocator', LVec.GetAllocator = LAllocator);
-        AssertTrue('Growth behavior should reflect provided strategy', LVec.GetCapacity >= LVec.GetCount);
-    AssertNotNull('Interface grow strategy should not be nil', LVec.GetGrowStrategy);
-        AssertTrue('Vector should store provided data', LVec.GetData = LTestData);
-        AssertEquals('Vector should have correct count', Int64(2), Int64(LVec.GetCount));
-        AssertEquals('Vector should contain same data as source', 5000, LVec[0]);
-        AssertEquals('Vector should contain same data as source', 6000, LVec[1]);
-      finally
-        LVec.Free;
-      end;
+      AssertNotNull('Create(aSrc, aAllocator, aGrowStrategy, aData) should create valid vector', LVec);
+      AssertTrue('Vector should use provided allocator', LVec.GetAllocator = LAllocator);
+      AssertTrue('Growth behavior should reflect provided strategy', LVec.GetCapacity >= LVec.GetCount);
+      AssertNotNull('Interface grow strategy should not be nil', LVec.GetGrowStrategy);
+      AssertTrue('Vector should store provided data', LVec.GetData = LTestData);
+      AssertEquals('Vector should have correct count', Int64(2), Int64(LVec.GetCount));
+      AssertEquals('Vector should contain same data as source', 5000, LVec[0]);
+      AssertEquals('Vector should contain same data as source', 6000, LVec[1]);
     finally
-      LGrowStrategy.Free;
+      LVec.Free;
     end;
   finally
     LAllocator := nil;

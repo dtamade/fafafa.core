@@ -265,6 +265,7 @@ function TFsBufReader.ReadBytes(ACount: Integer): TBytes;
 var
   N: Integer;
 begin
+  Result := nil;
   SetLength(Result, ACount);
   if ACount = 0 then
     Exit;
@@ -336,6 +337,9 @@ var
   ChunkCount, TotalLen, I, Offset: Integer;
   Chunk: TBytes;
 begin
+  Result := nil;
+  Chunks := nil;
+  Chunk := nil;
   ChunkCount := 0;
   TotalLen := 0;
   SetLength(Chunks, 0);

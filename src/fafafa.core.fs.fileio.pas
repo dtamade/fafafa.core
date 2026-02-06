@@ -446,6 +446,7 @@ end;
 function TFsFileNoExcept.Write(const ABuffer; ACount: Integer; out N: Integer): Integer;
 begin
   if FileIntf = nil then begin N := 0; Result := Integer(FS_ERROR_INVALID_HANDLE); Exit; end;
+  if @ABuffer = nil then ;
   try
     N := FileIntf.Write(ABuffer, ACount);
     Result := 0;
@@ -530,6 +531,7 @@ end;
 function TFsFileNoExcept.PWrite(const ABuffer; ACount: Integer; AOffset: Int64; out N: Integer): Integer;
 begin
   if FileIntf = nil then begin N := 0; Result := Integer(FS_ERROR_INVALID_HANDLE); Exit; end;
+  if @ABuffer = nil then ;
   try
     N := FileIntf.PWrite(ABuffer, ACount, AOffset);
     Result := 0;

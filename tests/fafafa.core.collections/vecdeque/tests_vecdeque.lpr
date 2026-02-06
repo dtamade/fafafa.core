@@ -3,7 +3,7 @@ program tests_vecdeque;
 
 {$CODEPAGE UTF8}
 {$mode objfpc}{$H+}
-{$I ../../src/fafafa.core.settings.inc}
+{$I fafafa.core.settings.inc}
 
 uses
   consoletestrunner,

@@ -272,6 +272,7 @@ function TFile.ReadBytes(ACount: Integer): TBytes;
 var
   N: Integer;
 begin
+  Result := nil;
   SetLength(Result, ACount);
   if ACount = 0 then Exit;
   N := fs_read(FHandle, @Result[0], ACount, -1);
@@ -286,6 +287,7 @@ var
   LSize, LPos: Int64;
   N: Integer;
 begin
+  Result := nil;
   LPos := Tell;
   LSize := Size - LPos;
   if LSize <= 0 then

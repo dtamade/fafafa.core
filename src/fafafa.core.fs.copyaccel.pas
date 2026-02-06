@@ -55,6 +55,9 @@ const
   // sendfile 系统调用号 (x86_64)
   SYS_sendfile = 40;
 
+{$PUSH}
+{$WARN 4055 OFF} // syscall param marshalling uses pointer-sized integer plumbing
+
 // copy_file_range(2) wrapper
 // Linux >= 4.5: 零拷贝内核复制
 function copy_file_range(fd_in: cint; off_in: PInt64; fd_out: cint; off_out: PInt64;
@@ -71,6 +74,8 @@ begin
   Result := do_SysCall(SYS_sendfile, TSysParam(out_fd), TSysParam(in_fd),
     TSysParam(offset), TSysParam(count));
 end;
+
+{$POP}
 
 // ✅ Issue #6: Linux 加速复制实现
 function LinuxCopyFileAccel(const aSrc, aDst: string; aOverwrite: Boolean): Integer;

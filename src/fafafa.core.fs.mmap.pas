@@ -79,14 +79,16 @@ const
   {$IF NOT DECLARED(MS_ASYNC)}
   MS_ASYNC = 1;
   MS_SYNC  = 4;
-  MS_INVALIDATE = 2;
   {$ENDIF}
 
 // msync wrapper (如果 syscall 单元未提供)
 {$IF NOT DECLARED(fpmsync)}
 function fpmsync(aAddr: Pointer; aLen: size_t; aFlags: cint): cint;
 begin
+  {$PUSH}
+  {$WARN 4055 OFF}
   Result := do_syscall(syscall_nr_msync, TSysParam(aAddr), TSysParam(aLen), TSysParam(aFlags));
+  {$POP}
 end;
 {$ENDIF}
 {$ENDIF}
@@ -245,7 +247,7 @@ begin
     raise EFsError.Create(GetLastFsError(), 'Failed to map file', fpgeterrno);
 
   // 计算用户期望的地址（页内偏移）
-  FUserMemory := Pointer(PtrUInt(FMappedMemory) + FOffsetAdjustment);
+  FUserMemory := PByte(FMappedMemory) + SizeInt(FOffsetAdjustment);
   FIsMapped := True;
 end;
 {$ENDIF}
@@ -385,7 +387,7 @@ begin
   if not FIsMapped then
     raise EFsError.Create(FS_ERROR_INVALID_PARAMETER, 'Not mapped', 0);
 
-  LPtr := Pointer(PtrUInt(FMappedMemory) + PtrUInt(aOffset));
+  LPtr := PByte(FMappedMemory) + SizeInt(aOffset);
   if not FlushViewOfFile(LPtr, aSize) then
     raise EFsError.Create(GetLastFsError(), 'Failed to sync memory range', GetLastError());
 end;
@@ -397,7 +399,7 @@ begin
   if not FIsMapped then
     raise EFsError.Create(FS_ERROR_INVALID_PARAMETER, 'Not mapped', 0);
 
-  LPtr := Pointer(PtrUInt(FMappedMemory) + PtrUInt(aOffset));
+  LPtr := PByte(FMappedMemory) + SizeInt(aOffset);
   
   if aAsync then
     LFlags := MS_ASYNC

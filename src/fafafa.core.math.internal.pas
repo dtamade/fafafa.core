@@ -291,19 +291,26 @@ end;
 
 function F64FromBits(aBits: QWord): Double;
 begin
-  Move(aBits, Result, SizeOf(Double));
+  // Ensure parameters/results are explicitly initialized to keep builds hint-clean.
+  if @aBits = nil then ;
+  Result := 0.0;
+  Move(aBits, Result, SizeOf(Result));
 end;
 
 function F32FromBits(aBits: UInt32): Single;
 begin
-  Move(aBits, Result, SizeOf(Single));
+  if @aBits = nil then ;
+  Result := 0.0;
+  Move(aBits, Result, SizeOf(Result));
 end;
 
 function IsNaNF64(aValue: Double): Boolean;
 var
   bits: UInt64;
 begin
-  Move(aValue, bits, SizeOf(Double));
+  if @aValue = nil then ;
+  bits := 0;
+  Move(aValue, bits, SizeOf(bits));
   // NaN: exponent all 1s, fraction non-zero
   Result := ((bits and $7FF0000000000000) = $7FF0000000000000) and
             ((bits and $000FFFFFFFFFFFFF) <> 0);
@@ -313,7 +320,9 @@ function IsNaNF32(aValue: Single): Boolean;
 var
   bits: UInt32;
 begin
-  Move(aValue, bits, SizeOf(Single));
+  if @aValue = nil then ;
+  bits := 0;
+  Move(aValue, bits, SizeOf(bits));
   // NaN: exponent all 1s, fraction non-zero
   Result := ((bits and $7F800000) = $7F800000) and
             ((bits and $007FFFFF) <> 0);

@@ -35,9 +35,9 @@ build_project() {
 
 run_test() {
     if [ ! -f "$EXECUTABLE" ]; then
-        echo "Executable not found, please build first"
-        echo "    File path: $EXECUTABLE"
-        return 1
+        echo "Executable not found, building first..."
+        build_project || return 1
+        echo
     fi
     
     echo "Running tests: $EXECUTABLE"
