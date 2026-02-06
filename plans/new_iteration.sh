@@ -4,6 +4,27 @@ set -euo pipefail
 TOPIC="${1:-iteration}"
 DATE="$(date +%Y-%m-%d)"
 
+short_hash() {
+  local s="$1"
+
+  if command -v sha256sum >/dev/null 2>&1; then
+    printf '%s' "$s" | sha256sum | cut -d' ' -f1 | cut -c1-8
+    return 0
+  fi
+
+  if command -v shasum >/dev/null 2>&1; then
+    printf '%s' "$s" | shasum -a 256 | cut -d' ' -f1 | cut -c1-8
+    return 0
+  fi
+
+  if command -v md5sum >/dev/null 2>&1; then
+    printf '%s' "$s" | md5sum | cut -d' ' -f1 | cut -c1-8
+    return 0
+  fi
+
+  date +%H%M%S
+}
+
 slugify() {
   # keep it filesystem-friendly and stable
   # - lowercase
@@ -24,13 +45,21 @@ sed_escape_repl() {
 }
 
 SLUG="$(slugify "$TOPIC")"
-ARCHIVE_DIR="plans/archive/${DATE}-${SLUG}"
+
+if [[ "$SLUG" == "iteration" && "$TOPIC" != "iteration" ]]; then
+  SLUG="iteration-$(short_hash "$TOPIC")"
+fi
+
+ARCHIVE_DIR_BASE="plans/archive/${DATE}-${SLUG}"
+ARCHIVE_DIR="$ARCHIVE_DIR_BASE"
+ARCHIVE_N=2
+
+while [[ -e "$ARCHIVE_DIR" ]]; do
+  ARCHIVE_DIR="${ARCHIVE_DIR_BASE}-${ARCHIVE_N}"
+  ARCHIVE_N=$((ARCHIVE_N + 1))
+done
 
 mkdir -p "plans/archive"
-if [[ -e "$ARCHIVE_DIR" ]]; then
-  echo "ERROR: archive dir already exists: $ARCHIVE_DIR" >&2
-  exit 1
-fi
 mkdir -p "$ARCHIVE_DIR"
 
 move_file() {
@@ -75,4 +104,3 @@ render_template "plans/templates/progress.md" "progress.md"
 echo "OK: new iteration initialized"
 echo "Topic:   $TOPIC"
 echo "Archive: $ARCHIVE_DIR"
-
