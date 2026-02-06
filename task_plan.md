@@ -1,63 +1,64 @@
-# Task Plan: fafafa.core 夜间回归与修复
+# Task Plan: Layer0+Layer1 梳理 + SIMD 整理
 
 ## Goal
-在你离线（约 10 小时）期间：跑通关键/全量测试；若存在失败则修复并补齐回归验证；输出清晰的结果与后续建议。
+输出一份可执行的 Layer0/Layer1 问题清单（含复现/优先级/建议修复路径），并对 SIMD 模块建立“单元地图 + 测试矩阵 + 完成定义”，完成第一批高优先级修复与回归验证。
 
-## Backlog
-- 长期维护入口：`backlog.md`
-- 本轮相关条目：P0/tests（run_all_tests runner）、P0/quality（0 warnings/hints）
-
-## Roles (人物)
-| 角色 | 负责内容 |
-|------|----------|
-| Maintainer（我） | 发现问题、制定方案、实施修复、验证与记录 |
-| CI/Runner Owner（我） | 维护 `tests/run_all_tests.*`、避免假绿与阻塞 |
-| Module Owner（我） | 针对失败模块做最小修复与回归用例补齐 |
+## Scope
+- In:
+  - SIMD：梳理架构/依赖/命名、测试覆盖与缺口；输出完成定义；修复高优先级问题
+  - Layer0/Layer1：汇总历史发现与当前状态，形成可执行的修复清单（sync/simd 优先）
+- Out:
+  - 大规模重构（跨多个模块的拆分/重命名/迁移）除非必要且先达成一致
+  - 追求“一次性全量全平台全通过”（本轮以建立基线与收敛关键风险为主）
 
 ## Current Phase
 Phase 1
 
 ## Phases
 
-### Phase 1: Baseline & Discovery
-- [x] 建立 `task_plan.md` / `findings.md` / `progress.md`
-- [x] 建立长期维护入口：`backlog.md` + `plans/README.md`
-- [x] 确认工具链可用（`fpc` / `lazbuild`）
-- [ ] 跑关键模块测试（STOP_ON_FAIL=1）
-- [x] 先通过严格 0 warning/hint 检查：`fafafa.core.fs` / `fafafa.core.simd`
-- [ ] 如关键模块通过，再跑全量回归
-- [ ] 记录汇总与关键日志路径到 progress.md
-- [ ] 修复 run_all_tests 的“假绿/阻塞”风险并验证
+### Phase 1: Requirements & Baseline
+- [ ] 从 `backlog.md` 选定 1–3 个条目并贴链接（P0/simd、P0/layer0+layer1）
+- [ ] 建立 SIMD 单元地图（文件清单/分类/依赖关系）
+- [ ] 建立 SIMD 测试矩阵（用例分类 × ISA/backends × 平台）
+- [ ] 汇总 Layer0/Layer1 现存问题与证据指针（文档/日志/测试/issue）
+- [ ] 将关键发现写入 `findings.md`
 - **Status:** in_progress
 
-### Phase 2: Triage & Root Cause
-- [ ] 汇总失败模块与错误类型（编译/运行/断言）
-- [ ] 最小化复现（单模块 BuildOrTest）
-- [ ] 把根因与候选方案写入 findings.md
+### Phase 2: Plan & Design
+- [ ] 明确最小改动方案（必要时先写 design note）
+- [ ] 定义验证口径与命令（写入本文件 Verification）
 - **Status:** pending
 
-### Phase 3: Fix (Batch Execution)
-- [ ] 对每个失败点：补回归测试/用例（如缺失）
-- [ ] 实施最小修复（避免不必要重构）
-- [ ] 每批修复后：回跑相关模块测试并记录
+### Phase 3: Implementation
+- [ ] 分批实现（每批都能独立验证）
+- [ ] 重要决策与替代方案写入 `findings.md`
 - **Status:** pending
 
 ### Phase 4: Verification
-- [ ] 回跑关键模块
-- [ ] 回跑全量回归（或至少覆盖受影响模块集）
-- [ ] 记录验证命令、退出码、汇总文件位置
+- [ ] 回归测试（优先模块级，再全量）
+- [ ] 记录命令、退出码、关键日志路径到 `progress.md`
 - **Status:** pending
 
-### Phase 5: Delivery
-- [ ] 汇总改动点、风险、以及建议的后续动作
-- [ ] 指出任何仍需你确认/决策的事项
+### Phase 5: Delivery & Archive
+- [ ] 更新 `backlog.md`（Done/Next/链接归档）
+- [ ] 归档三文件到 `plans/archive/2026-02-06-<topic>/`
 - **Status:** pending
+
+## Key Questions
+1. SIMD “完成”意味着什么？（API 稳定性、后端覆盖、跨平台一致性、性能基准）
+2. SIMD 目前的主要混乱点是什么？（命名/重复实现/依赖层级/测试组织/平台条件编译）
 
 ## Decisions Made
 | Decision | Rationale |
 |----------|-----------|
-| 默认工作目标 = “跑测试→修复失败→验证” | 你只给了流程要求但未给具体功能需求；这是最稳妥且可独立推进的长任务。 |
+|          |           |
+
+## Verification
+- `bash tests/fafafa.core.simd/BuildOrTest.sh check`
+- `STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.atomic fafafa.core.option fafafa.core.math fafafa.core.simd`
+- `STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.sync`（若本轮涉及 sync）
 
 ## Errors Encountered
-| Error | Resolution |
-|-------|------------|
+| Error | Attempt | Resolution |
+|-------|---------|------------|
+|       | 1       |            |

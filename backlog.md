@@ -9,10 +9,8 @@
 - 收尾：将三文件归档到 `plans/archive/YYYY-MM-DD-<topic>/`，并在本条目下补归档链接
 
 ## Now（进行中）
-- [ ] **P0 / tests**：确认并收敛 `run_all_tests` Runner 改进（过滤命中、0 命中失败、避免交互阻塞、Windows/Linus 一致）  
-  参考：`docs/plans/2026-02-06-run-all-tests-runner-design.md`、`docs/plans/2026-02-06-run-all-tests-runner.md`
-- [ ] **P0 / quality**：维持并扩展 “0 warnings/hints” 洁净构建覆盖面（至少 FS + SIMD）  
-  参考：`docs/plans/2026-02-06-zero-warnings-hints-fs-simd-design.md`、`docs/plans/2026-02-06-zero-warnings-hints-fs-simd.md`
+- [ ] **P0 / simd**：梳理 SIMD 模块完成度与架构（API/单元地图/依赖与命名/测试矩阵），收敛混乱点并给出“完成定义”
+- [ ] **P0 / layer0+layer1**：汇总 Layer0/Layer1 历史发现问题 → 形成可执行的修复清单（优先：sync & SIMD）
 
 ## Next（下一步）
 - [ ] **P0 / sync**：继续 Layer1 验证：修复 `Condvar` / `Barrier` / `Once` / `Spin` 并补回归  
@@ -25,5 +23,4 @@
 - [ ] CI 结构化输出（JUnit/JSON）统一化与稳定路径约定落地
 
 ## Done（已完成）
-- （把每轮迭代归档链接追加在这里）
-
+- [x] 2026-02-06：`run_all_tests` runner 改进 + FS/SIMD 0 warnings/hints 回归 + 关键模块回归（归档：`plans/archive/2026-02-06-fafafa-core/`）
