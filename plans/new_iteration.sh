@@ -44,13 +44,38 @@ sed_escape_repl() {
   printf '%s' "$1" | sed -e 's/[\\/&]/\\&/g'
 }
 
-SLUG="$(slugify "$TOPIC")"
+extract_current_topic() {
+  # Extract topic from the current task_plan.md title line:
+  #   "# Task Plan: <topic>"
+  if [[ ! -f "task_plan.md" ]]; then
+    return 1
+  fi
 
-if [[ "$SLUG" == "iteration" && "$TOPIC" != "iteration" ]]; then
-  SLUG="iteration-$(short_hash "$TOPIC")"
+  local first_line
+  first_line="$(head -n 1 task_plan.md || true)"
+
+  if [[ "$first_line" == \#\ Task\ Plan:* ]]; then
+    printf '%s' "${first_line#\# Task Plan: }"
+    return 0
+  fi
+
+  return 1
+}
+
+ARCHIVE_TOPIC=""
+if ARCHIVE_TOPIC="$(extract_current_topic)"; then
+  :
+else
+  ARCHIVE_TOPIC="$TOPIC"
 fi
 
-ARCHIVE_DIR_BASE="plans/archive/${DATE}-${SLUG}"
+ARCHIVE_SLUG="$(slugify "$ARCHIVE_TOPIC")"
+
+if [[ "$ARCHIVE_SLUG" == "iteration" && "$ARCHIVE_TOPIC" != "iteration" ]]; then
+  ARCHIVE_SLUG="iteration-$(short_hash "$ARCHIVE_TOPIC")"
+fi
+
+ARCHIVE_DIR_BASE="plans/archive/${DATE}-${ARCHIVE_SLUG}"
 ARCHIVE_DIR="$ARCHIVE_DIR_BASE"
 ARCHIVE_N=2
 
