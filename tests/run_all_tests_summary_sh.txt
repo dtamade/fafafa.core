@@ -1,8 +1,0 @@
-========================================
-Run-all summary (2026-02-04 07:06:01)
-Logs dir: /home/dtamade/projects/fafafa.core/tests/_run_all_logs_sh
-========================================
-Total:  85
-Passed: 60
-Failed: 25
-Failed modules: fafafa.core.toml,fafafa.core.json,fafafa.core.xml,fafafa.core.result,fafafa.core.mem.manager.rtl,fafafa.core.mem.manager.crt,fafafa.core.term,fafafa.core.crypto,fafafa.core.mem.allocator.mimalloc,fafafa.core.math,fafafa.core.fs,vecdeque,vec,fafafa.core.term.ui,fafafa.core.env,fafafa.core.base,fafafa.core.sync.mutex.parkinglot,fafafa.core.tick,fafafa.core.fs.mmap,fafafa.core.sync,fafafa.core.option,memory_leak,fafafa.core.thread,fafafa.core.lockfree,fafafa.core.lockfree

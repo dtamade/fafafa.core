@@ -1,5 +1,0 @@
-Heap dump by heaptrc unit of "D:\projects\Pascal\lazarus\My\libs\fafafa.collections5\bin\tests_thread.exe"
-118388 memory blocks allocated : 9146751
-118388 memory blocks freed     : 9146751
-0 unfreed memory blocks : 0
-True heap size : 393216 (480 used i
