@@ -7953,6 +7953,7 @@ end;
 procedure RegisterAVX2Backend;
 var
   dispatchTable: TSimdDispatchTable;
+  LEnableVectorAsm: Boolean;
 begin
   // Only register if AVX2 is available
   if not HasAVX2 then
@@ -7974,8 +7975,13 @@ begin
   // Vector-related operations default to Scalar reference implementations.
   // You can enable AVX2 vector ops for experimentation via SetVectorAsmEnabled(True)
   // (note: AVX2 asm path is not yet fully validated under FPC's calling conventions).
+  LEnableVectorAsm := IsVectorAsmEnabled;
+  {$IFDEF WINDOWS}
+  // Win64 lane: keep AVX2 registered, but avoid vector-asm path until ABI validation is complete.
+  LEnableVectorAsm := False;
+  {$ENDIF}
 
-  if IsVectorAsmEnabled then
+  if LEnableVectorAsm then
   begin
     // Override with AVX2 arithmetic operations
     dispatchTable.AddF32x4 := @AVX2AddF32x4;
@@ -8575,6 +8581,24 @@ begin
   end;
   // else: keep scalar implementations from FillBaseDispatchTable
 
+  {$IFDEF WINDOWS}
+  // Win64 lane currently uses scalar-safe facade ops to avoid ABI-sensitive AVX2 asm entrypoints.
+  dispatchTable.MemEqual := @MemEqual_Scalar;
+  dispatchTable.MemFindByte := @MemFindByte_Scalar;
+  dispatchTable.SumBytes := @SumBytes_Scalar;
+  dispatchTable.CountByte := @CountByte_Scalar;
+  dispatchTable.MemDiffRange := @MemDiffRange_Scalar;
+  dispatchTable.MemReverse := @MemReverse_Scalar;
+  dispatchTable.MinMaxBytes := @MinMaxBytes_Scalar;
+  dispatchTable.Utf8Validate := @Utf8Validate_Scalar;
+  dispatchTable.AsciiIEqual := @AsciiIEqual_Scalar;
+  dispatchTable.ToLowerAscii := @ToLowerAscii_Scalar;
+  dispatchTable.ToUpperAscii := @ToUpperAscii_Scalar;
+  dispatchTable.BytesIndexOf := @BytesIndexOf_Scalar;
+  dispatchTable.BitsetPopCount := @BitsetPopCount_Scalar;
+  dispatchTable.MemCopy := @MemCopy_Scalar;
+  dispatchTable.MemSet := @MemSet_Scalar;
+  {$ELSE}
   // Override facade functions with AVX2-accelerated versions
   dispatchTable.MemEqual := @MemEqual_AVX2;
   dispatchTable.MemFindByte := @MemFindByte_AVX2;
@@ -8592,6 +8616,7 @@ begin
   // ✅ NEW: MemCopy, MemSet (使用 FPC 内置函数，已足够优化)
   dispatchTable.MemCopy := @MemCopy_AVX2;
   dispatchTable.MemSet := @MemSet_AVX2;
+  {$ENDIF}
 
   // ✅ P2: Override with AVX2 saturating arithmetic (VEX-encoded, always enabled)
   dispatchTable.I8x16SatAdd := @AVX2I8x16SatAdd;
