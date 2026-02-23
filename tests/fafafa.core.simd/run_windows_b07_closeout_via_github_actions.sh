@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "${ROOT}/../.." && pwd)"
-WORKFLOW_FILE=".github/workflows/simd-windows-b07-evidence.yml"
+WORKFLOW_FILE="simd-windows-b07-evidence.yml"
 ARTIFACT_NAME="${SIMD_WIN_EVIDENCE_ARTIFACT_NAME:-simd-windows-b07-evidence}"
 EVIDENCE_LOG="${SIMD_WIN_EVIDENCE_LOG_FILE:-${ROOT}/logs/windows_b07_gate.log}"
 BATCH_ID="${1:-SIMD-$(date '+%Y%m%d')-152}"
