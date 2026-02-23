@@ -99,12 +99,12 @@ find_latest_run_id_for_head() {
     return 0
   fi
 
-  printf '%s' "${LJson}" | python3 - "${aHeadSha}" <<'PY'
+  python3 - "${aHeadSha}" "${LJson}" <<'PY'
 import json
 import sys
 
 head_sha = sys.argv[1].strip().lower()
-raw = sys.stdin.read().strip()
+raw = sys.argv[2].strip()
 if not raw:
     sys.exit(0)
 
