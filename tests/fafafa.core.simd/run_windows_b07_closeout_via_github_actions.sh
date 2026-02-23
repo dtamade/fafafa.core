@@ -41,17 +41,27 @@ require_cmd() {
 
 find_latest_run_id_for_head() {
   local aHeadSha
+  local LJson
   aHeadSha="$1"
-  gh run list \
+  LJson="$(gh run list \
     --workflow "${WORKFLOW_FILE}" \
     --limit 30 \
-    --json databaseId,headSha,event,status,conclusion,createdAt \
-    | python3 - "${aHeadSha}" <<'PY'
+    --json databaseId,headSha,event,status,conclusion,createdAt 2>/dev/null || true)"
+
+  if [[ -z "${LJson}" ]]; then
+    return 0
+  fi
+
+  printf '%s' "${LJson}" | python3 - "${aHeadSha}" <<'PY'
 import json
 import sys
 
 head_sha = sys.argv[1].strip().lower()
-rows = json.load(sys.stdin)
+raw = sys.stdin.read().strip()
+if not raw:
+    sys.exit(0)
+
+rows = json.loads(raw)
 for row in rows:
     row_sha = str(row.get("headSha", "")).strip().lower()
     if row_sha != head_sha:
