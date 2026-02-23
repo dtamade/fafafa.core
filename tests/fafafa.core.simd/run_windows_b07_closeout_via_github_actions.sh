@@ -39,6 +39,53 @@ require_cmd() {
   fi
 }
 
+wait_for_run_completion() {
+  local aRunId
+  local aPollSeconds
+  local aPollMaxTries
+  local LJson
+  local LStatus
+  local LConclusion
+
+  aRunId="$1"
+  aPollSeconds="$2"
+  aPollMaxTries="$3"
+
+  for ((LTry = 1; LTry <= aPollMaxTries; LTry++)); do
+    LJson="$(gh run view "${aRunId}" --json status,conclusion,url 2>/dev/null || true)"
+    if [[ -n "${LJson}" ]]; then
+      read -r LStatus LConclusion < <(python3 - "${LJson}" <<'PY'
+import json
+import sys
+
+raw = sys.argv[1].strip()
+if not raw:
+    print(" ")
+    sys.exit(0)
+
+obj = json.loads(raw)
+status = obj.get("status", "") or ""
+conclusion = obj.get("conclusion", "") or ""
+print(f"{status} {conclusion}")
+PY
+)
+
+      if [[ "${LStatus}" == "completed" ]]; then
+        if [[ "${LConclusion}" == "success" ]]; then
+          return 0
+        fi
+        echo "[WIN-EVIDENCE-GH] Workflow failed: run=${aRunId}, conclusion=${LConclusion}"
+        gh run view "${aRunId}" || true
+        return 1
+      fi
+    fi
+    sleep "${aPollSeconds}"
+  done
+
+  echo "[WIN-EVIDENCE-GH] Timeout waiting for workflow run completion: ${aRunId}"
+  return 1
+}
+
 find_latest_run_id_for_head() {
   local aHeadSha
   local LJson
@@ -112,7 +159,9 @@ if [[ -z "${LRunId}" ]]; then
 fi
 
 echo "[WIN-EVIDENCE-GH] Watching run: ${LRunId}"
-gh run watch "${LRunId}" --exit-status
+if ! wait_for_run_completion "${LRunId}" "${LPollSeconds}" "${LPollMaxTries}"; then
+  exit 1
+fi
 
 LTempDir="$(mktemp -d)"
 cleanup() {
