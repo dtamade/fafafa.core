@@ -6,7 +6,8 @@ unit fafafa.core.simd.cpuinfo.x86;
 interface
 
 uses
-  fafafa.core.simd.cpuinfo.base;
+  fafafa.core.simd.cpuinfo.base,
+  fafafa.core.simd.cpuinfo.x86.base;
 
 {$IFDEF SIMD_X86_AVAILABLE}
 
@@ -149,56 +150,74 @@ end;
 
 function GetVendorString: string; inline;
 var
-  eax, ebx, ecx, edx: DWord;
-  vendor: array[0..12] of AnsiChar;
+  LEax: DWord;
+  LEbx: DWord;
+  LEcx: DWord;
+  LEdx: DWord;
+  LLeaf0: TX86CPUIDRegs;
 begin
-  eax := 0; ebx := 0; ecx := 0; edx := 0;
-  vendor[0] := #0;
+  LEax := 0;
+  LEbx := 0;
+  LEcx := 0;
+  LEdx := 0;
 
-  CPUID(0, eax, ebx, ecx, edx);
-  Move(ebx, vendor[0], 4);
-  Move(edx, vendor[4], 4);
-  Move(ecx, vendor[8], 4);
-  vendor[12] := #0;
-  Result := string(vendor);
+  CPUID(0, LEax, LEbx, LEcx, LEdx);
+  LLeaf0 := MakeX86CPUIDRegs(LEax, LEbx, LEcx, LEdx);
+  Result := X86VendorStringFromLeaf0(LLeaf0);
 end;
 
 function GetBrandString: string; inline;
 var
-  eax, ebx, ecx, edx: DWord;
-  brand: array[0..48] of AnsiChar;
+  LEax: DWord;
+  LEbx: DWord;
+  LEcx: DWord;
+  LEdx: DWord;
+  LMaxExtLeaf: DWord;
+  LLeaf2: TX86CPUIDRegs;
+  LLeaf3: TX86CPUIDRegs;
+  LLeaf4: TX86CPUIDRegs;
+  LVendor: string;
 begin
-  eax := 0; ebx := 0; ecx := 0; edx := 0;
-  brand[0] := #0;
-  FillChar(brand, SizeOf(brand), 0);
+  LEax := 0;
+  LEbx := 0;
+  LEcx := 0;
+  LEdx := 0;
+  LMaxExtLeaf := 0;
+  LLeaf2 := MakeX86CPUIDRegs(0, 0, 0, 0);
+  LLeaf3 := MakeX86CPUIDRegs(0, 0, 0, 0);
+  LLeaf4 := MakeX86CPUIDRegs(0, 0, 0, 0);
 
-  CPUID($80000000, eax, ebx, ecx, edx);
-  if eax >= $80000004 then
+  LVendor := GetVendorString;
+  CPUID($80000000, LMaxExtLeaf, LEbx, LEcx, LEdx);
+  if LMaxExtLeaf >= $80000002 then
   begin
-    eax := 0; ebx := 0; ecx := 0; edx := 0;
-    CPUID($80000002, eax, ebx, ecx, edx);
-    Move(eax, brand[0], 4);
-    Move(ebx, brand[4], 4);
-    Move(ecx, brand[8], 4);
-    Move(edx, brand[12], 4);
+    LEax := 0;
+    LEbx := 0;
+    LEcx := 0;
+    LEdx := 0;
+    CPUID($80000002, LEax, LEbx, LEcx, LEdx);
+    LLeaf2 := MakeX86CPUIDRegs(LEax, LEbx, LEcx, LEdx);
+  end;
+  if LMaxExtLeaf >= $80000003 then
+  begin
+    LEax := 0;
+    LEbx := 0;
+    LEcx := 0;
+    LEdx := 0;
+    CPUID($80000003, LEax, LEbx, LEcx, LEdx);
+    LLeaf3 := MakeX86CPUIDRegs(LEax, LEbx, LEcx, LEdx);
+  end;
+  if LMaxExtLeaf >= $80000004 then
+  begin
+    LEax := 0;
+    LEbx := 0;
+    LEcx := 0;
+    LEdx := 0;
+    CPUID($80000004, LEax, LEbx, LEcx, LEdx);
+    LLeaf4 := MakeX86CPUIDRegs(LEax, LEbx, LEcx, LEdx);
+  end;
 
-    eax := 0; ebx := 0; ecx := 0; edx := 0;
-    CPUID($80000003, eax, ebx, ecx, edx);
-    Move(eax, brand[16], 4);
-    Move(ebx, brand[20], 4);
-    Move(ecx, brand[24], 4);
-    Move(edx, brand[28], 4);
-
-    eax := 0; ebx := 0; ecx := 0; edx := 0;
-    CPUID($80000004, eax, ebx, ecx, edx);
-    Move(eax, brand[32], 4);
-    Move(ebx, brand[36], 4);
-    Move(ecx, brand[40], 4);
-    Move(edx, brand[44], 4);
-    Result := string(brand);
-  end
-  else
-    Result := GetVendorString + ' Processor';
+  Result := X86BrandStringFromExtendedLeaves(LVendor, LMaxExtLeaf, LLeaf2, LLeaf3, LLeaf4);
 end;
 
 {$ENDIF SIMD_X86_AVAILABLE}

@@ -128,143 +128,141 @@ end;
 
 function DetectX86Features: TX86Features;
 var
-  eax, ebx, ecx, edx: DWord;
-  maxLeaf, maxExtLeaf: DWord;
-  xcr0: UInt64;
-  osxsave: Boolean;
+  LEax: DWord;
+  LEbx: DWord;
+  LEcx: DWord;
+  LEdx: DWord;
+  LMaxLeaf: DWord;
+  LMaxExtLeaf: DWord;
+  LXCR0: UInt64;
+  LLeaf1: TX86CPUIDRegs;
+  LLeaf7: TX86CPUIDRegs;
+  LExtLeaf1: TX86CPUIDRegs;
 begin
-  Result := Default(TX86Features);
+  LEax := 0;
+  LEbx := 0;
+  LEcx := 0;
+  LEdx := 0;
+  LMaxLeaf := 0;
+  LMaxExtLeaf := 0;
+  LLeaf1 := MakeX86CPUIDRegs(0, 0, 0, 0);
+  LLeaf7 := MakeX86CPUIDRegs(0, 0, 0, 0);
+  LExtLeaf1 := MakeX86CPUIDRegs(0, 0, 0, 0);
 
-  // Pre-initialize locals passed via "var" to avoid FPC initialization hints.
-  eax := 0; ebx := 0; ecx := 0; edx := 0;
-  maxLeaf := 0;
-  maxExtLeaf := 0;
-
-  CPUID(0, maxLeaf, ebx, ecx, edx);
-  if maxLeaf < 1 then Exit;
-
-  eax := 0; ebx := 0; ecx := 0; edx := 0;
-  CPUID(1, eax, ebx, ecx, edx);
-  Result.HasMMX := (edx and (1 shl 23)) <> 0;
-  Result.HasSSE := (edx and (1 shl 25)) <> 0;
-  Result.HasSSE2 := (edx and (1 shl 26)) <> 0;
-  Result.HasSSE3 := (ecx and (1 shl 0)) <> 0;
-  Result.HasPCLMULQDQ := (ecx and (1 shl 1)) <> 0;
-  Result.HasSSSE3 := (ecx and (1 shl 9)) <> 0;
-  Result.HasFMA := (ecx and (1 shl 12)) <> 0;
-  Result.HasSSE41 := (ecx and (1 shl 19)) <> 0;
-  Result.HasSSE42 := (ecx and (1 shl 20)) <> 0;
-  Result.HasPOPCNT := (ecx and (1 shl 23)) <> 0;
-  Result.HasAES := (ecx and (1 shl 25)) <> 0;
-  Result.HasAVX := (ecx and (1 shl 28)) <> 0;
-  Result.HasF16C := (ecx and (1 shl 29)) <> 0;
-  Result.HasRDRAND := (ecx and (1 shl 30)) <> 0;
-  osxsave := (ecx and (1 shl 27)) <> 0;
-  if osxsave then xcr0 := ReadXCR0 else xcr0 := 0;
-  if Result.HasAVX then Result.HasAVX := XCR0HasAVX(xcr0);
-
-  if maxLeaf >= 7 then
+  CPUID(0, LMaxLeaf, LEbx, LEcx, LEdx);
+  if LMaxLeaf >= 1 then
   begin
-    eax := 0; ebx := 0; ecx := 0; edx := 0;
-    CPUIDEX(7, 0, eax, ebx, ecx, edx);
-    Result.HasBMI1 := (ebx and (1 shl 3)) <> 0;
-    Result.HasAVX2 := (ebx and (1 shl 5)) <> 0;
-    Result.HasBMI2 := (ebx and (1 shl 8)) <> 0;
-    Result.HasAVX512F := (ebx and (1 shl 16)) <> 0;
-    Result.HasAVX512DQ := (ebx and (1 shl 17)) <> 0;
-    Result.HasAVX512BW := (ebx and (1 shl 30)) <> 0;
-    Result.HasAVX512VL := (ebx and (1 shl 31)) <> 0;
-    Result.HasAVX512VBMI := (ecx and (1 shl 1)) <> 0;
-    Result.HasSHA := (ebx and (1 shl 29)) <> 0;
-    Result.HasRDSEED := (ecx and (1 shl 18)) <> 0;
-    if not Result.HasAVX then
-    begin
-      Result.HasAVX2 := False;
-      Result.HasFMA := False;
-    end;
-    if not Result.HasAVX2 then
-    begin
-      Result.HasAVX512F := False;
-      Result.HasAVX512DQ := False;
-      Result.HasAVX512BW := False;
-      Result.HasAVX512VL := False;
-      Result.HasAVX512VBMI := False;
-    end;
-    if not XCR0HasAVX512(xcr0) then
-    begin
-      Result.HasAVX512F := False;
-      Result.HasAVX512DQ := False;
-      Result.HasAVX512BW := False;
-      Result.HasAVX512VL := False;
-      Result.HasAVX512VBMI := False;
-    end;
+    LEax := 0;
+    LEbx := 0;
+    LEcx := 0;
+    LEdx := 0;
+    CPUID(1, LEax, LEbx, LEcx, LEdx);
+    LLeaf1 := MakeX86CPUIDRegs(LEax, LEbx, LEcx, LEdx);
+    if (LLeaf1.ECX and (1 shl 27)) <> 0 then
+      LXCR0 := ReadXCR0
+    else
+      LXCR0 := 0;
+  end
+  else
+    LXCR0 := 0;
+
+  if LMaxLeaf >= 7 then
+  begin
+    LEax := 0;
+    LEbx := 0;
+    LEcx := 0;
+    LEdx := 0;
+    CPUIDEX(7, 0, LEax, LEbx, LEcx, LEdx);
+    LLeaf7 := MakeX86CPUIDRegs(LEax, LEbx, LEcx, LEdx);
   end;
 
-  ebx := 0; ecx := 0; edx := 0;
-  CPUID($80000000, maxExtLeaf, ebx, ecx, edx);
-  if maxExtLeaf >= $80000001 then
+  LEbx := 0;
+  LEcx := 0;
+  LEdx := 0;
+  CPUID($80000000, LMaxExtLeaf, LEbx, LEcx, LEdx);
+  if LMaxExtLeaf >= $80000001 then
   begin
-    eax := 0; ebx := 0; ecx := 0; edx := 0;
-    CPUID($80000001, eax, ebx, ecx, edx);
-    Result.HasFMA4 := (ecx and (1 shl 16)) <> 0;
+    LEax := 0;
+    LEbx := 0;
+    LEcx := 0;
+    LEdx := 0;
+    CPUID($80000001, LEax, LEbx, LEcx, LEdx);
+    LExtLeaf1 := MakeX86CPUIDRegs(LEax, LEbx, LEcx, LEdx);
   end;
+
+  Result := X86FeaturesFromCPUID(LMaxLeaf, LMaxExtLeaf, LLeaf1, LLeaf7, LExtLeaf1, LXCR0);
 end;
 
 procedure DetectX86VendorAndModel(var cpuInfo: TCPUInfo);
 var
-  eax, ebx, ecx, edx: DWord;
-  vendorString: array[0..12] of AnsiChar;
-  brandString: array[0..48] of AnsiChar;
+  LEax: DWord;
+  LEbx: DWord;
+  LEcx: DWord;
+  LEdx: DWord;
+  LMaxExtLeaf: DWord;
+  LLeaf0: TX86CPUIDRegs;
+  LLeaf2: TX86CPUIDRegs;
+  LLeaf3: TX86CPUIDRegs;
+  LLeaf4: TX86CPUIDRegs;
 begin
-  eax := 0; ebx := 0; ecx := 0; edx := 0;
-  vendorString[0] := #0;
-  brandString[0] := #0;
+  LEax := 0;
+  LEbx := 0;
+  LEcx := 0;
+  LEdx := 0;
+  LMaxExtLeaf := 0;
+  LLeaf2 := MakeX86CPUIDRegs(0, 0, 0, 0);
+  LLeaf3 := MakeX86CPUIDRegs(0, 0, 0, 0);
+  LLeaf4 := MakeX86CPUIDRegs(0, 0, 0, 0);
 
-  // Pre-zero buffers to avoid initialization hints on Move/FillChar.
-  FillChar(vendorString, SizeOf(vendorString), 0);
-  FillChar(brandString, SizeOf(brandString), 0);
+  CPUID(0, LEax, LEbx, LEcx, LEdx);
+  LLeaf0 := MakeX86CPUIDRegs(LEax, LEbx, LEcx, LEdx);
+  cpuInfo.Vendor := X86VendorStringFromLeaf0(LLeaf0);
 
-  CPUID(0, eax, ebx, ecx, edx);
-  Move(ebx, vendorString[0], 4);
-  Move(edx, vendorString[4], 4);
-  Move(ecx, vendorString[8], 4);
-  vendorString[12] := #0;
-  cpuInfo.Vendor := string(vendorString);
-  
-  // 检测OSXSAVE和XCR0
-  eax := 0; ebx := 0; ecx := 0; edx := 0;
-  CPUID(1, eax, ebx, ecx, edx);
-  cpuInfo.OSXSAVE := (ecx and (1 shl 27)) <> 0;
+  LEax := 0;
+  LEbx := 0;
+  LEcx := 0;
+  LEdx := 0;
+  CPUID(1, LEax, LEbx, LEcx, LEdx);
+  cpuInfo.OSXSAVE := (LEcx and (1 shl 27)) <> 0;
   if cpuInfo.OSXSAVE then
     cpuInfo.XCR0 := ReadXCR0
   else
     cpuInfo.XCR0 := 0;
 
-  eax := 0; ebx := 0; ecx := 0; edx := 0;
-  CPUID($80000000, eax, ebx, ecx, edx);
-  if eax >= $80000004 then
+  LEax := 0;
+  LEbx := 0;
+  LEcx := 0;
+  LEdx := 0;
+  CPUID($80000000, LMaxExtLeaf, LEbx, LEcx, LEdx);
+  if LMaxExtLeaf >= $80000002 then
   begin
-    CPUID($80000002, eax, ebx, ecx, edx);
-    Move(eax, brandString[0], 4);
-    Move(ebx, brandString[4], 4);
-    Move(ecx, brandString[8], 4);
-    Move(edx, brandString[12], 4);
-    CPUID($80000003, eax, ebx, ecx, edx);
-    Move(eax, brandString[16], 4);
-    Move(ebx, brandString[20], 4);
-    Move(ecx, brandString[24], 4);
-    Move(edx, brandString[28], 4);
-    CPUID($80000004, eax, ebx, ecx, edx);
-    Move(eax, brandString[32], 4);
-    Move(ebx, brandString[36], 4);
-    Move(ecx, brandString[40], 4);
-    Move(edx, brandString[44], 4);
-    cpuInfo.Model := string(brandString);
-  end
-  else
-  begin
-    cpuInfo.Model := cpuInfo.Vendor + ' Processor';
+    LEax := 0;
+    LEbx := 0;
+    LEcx := 0;
+    LEdx := 0;
+    CPUID($80000002, LEax, LEbx, LEcx, LEdx);
+    LLeaf2 := MakeX86CPUIDRegs(LEax, LEbx, LEcx, LEdx);
   end;
+  if LMaxExtLeaf >= $80000003 then
+  begin
+    LEax := 0;
+    LEbx := 0;
+    LEcx := 0;
+    LEdx := 0;
+    CPUID($80000003, LEax, LEbx, LEcx, LEdx);
+    LLeaf3 := MakeX86CPUIDRegs(LEax, LEbx, LEcx, LEdx);
+  end;
+  if LMaxExtLeaf >= $80000004 then
+  begin
+    LEax := 0;
+    LEbx := 0;
+    LEcx := 0;
+    LEdx := 0;
+    CPUID($80000004, LEax, LEbx, LEcx, LEdx);
+    LLeaf4 := MakeX86CPUIDRegs(LEax, LEbx, LEcx, LEdx);
+  end;
+
+  cpuInfo.Model := X86BrandStringFromExtendedLeaves(cpuInfo.Vendor, LMaxExtLeaf, LLeaf2, LLeaf3, LLeaf4);
   if cpuInfo.Model = '' then
     cpuInfo.Model := cpuInfo.Vendor + ' Processor';
 end;
