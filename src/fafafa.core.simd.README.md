@@ -2,6 +2,36 @@
 
 高性能、跨平台的 SIMD (单指令多数据) 向量运算框架，为 FreePascal 提供类似 Rust portable-simd 的 API。
 
+## 先看什么
+
+如果你是第一次进入这个模块，建议按下面顺序读：
+
+- **想直接使用公开 API**：先看 `docs/fafafa.core.simd.api.md`，再看 `examples/simd_ops_demo.lpr`
+- **想理解模块全貌**：看 `docs/fafafa.core.simd.md`
+- **想维护或修改实现**：看 `docs/fafafa.core.simd.map.md`、`docs/fafafa.core.simd.maintenance.md`、`docs/fafafa.core.simd.checklist.md`
+- **想知道当前稳定边界**：看 `docs/fafafa.core.simd.handoff.md` 与 `src/fafafa.core.simd.STABLE`
+- **想快速看这轮收尾结果和回归矩阵**：看 `docs/fafafa.core.simd.closeout.md`
+
+有两个文件需要特别区分：
+
+- `src/fafafa.core.simd.architecture.md`：当前实现导向的架构说明，适合维护者阅读
+- `src/fafafa.core.simd.next-steps.md`：历史草案，保留是为了追溯背景，不应再作为当前 API / 架构真相源
+
+## 示例入口
+
+- `examples/simd_ops_demo.lpr`：更接近真实公开 API 的使用方式，适合作为入门示例
+- `examples/example_simd_dispatch.pas`：概念演示（conceptual demo），用来解释“按 CPU 特性挑选实现”的思路，不代表真实后端注册或派发接线方式
+
+## Stable / Experimental 边界
+
+先看结论：`fafafa.core.simd` 的**公开 façade / ABI** 可以按稳定入口来理解，但**后端成熟度并不完全相同**。
+
+- **稳定面**：`fafafa.core.simd` / `fafafa.core.simd.api` 对外暴露的公开 façade，以及 `TSimdDispatchTable` 这类已明确写入稳定约束的 ABI 边界
+- **后端成熟度有差异**：`Scalar`、`SSE2`、`AVX2`、`NEON` 更接近当前默认维护主线；`AVX-512` 受构建配置和验证范围影响；`sbRISCVV` 仍应视为 experimental / 受限成熟度后端
+- **experimental intrinsics 默认隔离**：实验性 intrinsics 已有默认入口隔离检查，不属于默认 stable surface；默认入口链路不会把这些实验单元直接暴露成常规公开入口
+
+这意味着：**可以把公开 API 当成稳定入口使用，但不要把每个 backend 都默认理解成同等成熟、同等验证深度。**
+
 ## 特性
 
 - **多后端支持**: Scalar / SSE2 / SSE3 / SSSE3 / SSE4.1 / SSE4.2 / AVX2 / AVX-512 / ARM NEON
@@ -21,11 +51,11 @@ begin
   // 创建向量
   a := VecF32x4Splat(1.5);     // [1.5, 1.5, 1.5, 1.5]
   b := VecF32x4Splat(2.0);     // [2.0, 2.0, 2.0, 2.0]
-  
+
   // 算术运算
   c := VecF32x4Add(a, b);      // [3.5, 3.5, 3.5, 3.5]
   c := VecF32x4Mul(a, b);      // [3.0, 3.0, 3.0, 3.0]
-  
+
   // 聚合运算
   WriteLn(VecF32x4ReduceAdd(c));  // 输出: 12.0
 end;
@@ -212,7 +242,22 @@ BitsetPopCount(p, len)     // 位集合 popcount
 └─────────────────────────────────────────┘
 ```
 
-详细架构设计参见 `fafafa.core.simd.architecture.md`。
+详细架构设计参见 `src/fafafa.core.simd.architecture.md`。
+
+## 代码组织
+
+当前代码组织采用“主单元 + include 片段”的方式收口大文件：
+
+- `fafafa.core.simd.pas` 已拆出 `types` / `framework` 相关 include，保持对外 API 不变。
+- `fafafa.core.simd.dispatch.pas` 已拆出 hook 管理；`fafafa.core.simd.cpuinfo.pas` 已拆出 backend 选择逻辑。
+- `AVX2`、`AVX-512`、`NEON` 的 register / facade / family / fallback 区块已经按注释边界拆出。
+- `SSE2` 仍然保留更多主体实现；这是有意为之，因为它已经接近“继续物理拆分风险大于收益”的边界。
+
+如果你要理解当前实现，建议先从 `fafafa.core.simd.pas`、`fafafa.core.simd.dispatch.pas`、`fafafa.core.simd.cpuinfo.pas` 读起，再看各 backend 的 `*.register.inc` 和 `*.facade.inc`。
+
+更偏维护视角的说明，见 `docs/fafafa.core.simd.maintenance.md`；更短的阅读地图见 `docs/fafafa.core.simd.map.md`。
+
+
 
 ## 许可证
 

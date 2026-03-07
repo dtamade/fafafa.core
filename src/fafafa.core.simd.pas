@@ -30,7 +30,7 @@ uses
   , fafafa.core.simd.neon
   {$ENDIF}
   {$IFDEF SIMD_RISCV_AVAILABLE}
-  , fafafa.core.simd.riscvv
+  , fafafa.core.simd.riscvv  // ⚠️ Experimental backend: wired into the umbrella unit, but not the same maturity level as the stable public façade.
   {$ENDIF}
   ;
 
@@ -61,70 +61,7 @@ uses
 *}
 
 // === Re-export Core Types ===
-type
-  // Vector types (re-exported from types unit)
-  TVecF32x4 = fafafa.core.simd.base.TVecF32x4;
-  TVecF32x8 = fafafa.core.simd.base.TVecF32x8;
-  TVecF64x2 = fafafa.core.simd.base.TVecF64x2;
-  TVecF64x4 = fafafa.core.simd.base.TVecF64x4;
-  TVecI32x4 = fafafa.core.simd.base.TVecI32x4;
-  TVecI32x8 = fafafa.core.simd.base.TVecI32x8;
-  TVecI64x2 = fafafa.core.simd.base.TVecI64x2;
-  TVecI16x8 = fafafa.core.simd.base.TVecI16x8;
-  TVecI8x16 = fafafa.core.simd.base.TVecI8x16;
-  TVecU32x4 = fafafa.core.simd.base.TVecU32x4;
-  TVecU64x2 = fafafa.core.simd.base.TVecU64x2;
-  TVecU16x8 = fafafa.core.simd.base.TVecU16x8;
-  TVecU8x16 = fafafa.core.simd.base.TVecU8x16;
-  TVecU32x8 = fafafa.core.simd.base.TVecU32x8;
-  TVecU64x4 = fafafa.core.simd.base.TVecU64x4;  // ✅ NEW: 用于 SelectF64x4
-  TVecI64x4 = fafafa.core.simd.base.TVecI64x4;  // ✅ Task 5.2: 256-bit signed 64-bit integer vector
-  TVecF32x16 = fafafa.core.simd.base.TVecF32x16;
-  TVecF64x8 = fafafa.core.simd.base.TVecF64x8;
-  TVecI32x16 = fafafa.core.simd.base.TVecI32x16;
-  
-  // Mask types
-  TMask2 = fafafa.core.simd.base.TMask2;
-  TMask4 = fafafa.core.simd.base.TMask4;
-  TMask8 = fafafa.core.simd.base.TMask8;
-  TMask16 = fafafa.core.simd.base.TMask16;
-  TMask32 = fafafa.core.simd.base.TMask32;
-  
-  // Backend types
-  TSimdBackend = fafafa.core.simd.base.TSimdBackend;
-  TSimdBackendInfo = fafafa.core.simd.base.TSimdBackendInfo;
-  TCPUInfo = fafafa.core.simd.cpuinfo.base.TCPUInfo;
-  TSimdBackendArray = fafafa.core.simd.cpuinfo.TSimdBackendArray;
-
-  // === Rust-Style Short Aliases (portable-simd compatible naming) ===
-  // 128-bit float vectors
-  f32x4 = TVecF32x4;   // Rust: Simd<f32, 4>
-  f64x2 = TVecF64x2;   // Rust: Simd<f64, 2>
-  
-  // 128-bit signed integer vectors
-  i8x16  = TVecI8x16;   // Rust: Simd<i8, 16>
-  i16x8  = TVecI16x8;   // Rust: Simd<i16, 8>
-  i32x4  = TVecI32x4;   // Rust: Simd<i32, 4>
-  i64x2  = TVecI64x2;   // Rust: Simd<i64, 2>
-  
-  // 128-bit unsigned integer vectors
-  u8x16  = TVecU8x16;   // Rust: Simd<u8, 16>
-  u16x8  = TVecU16x8;   // Rust: Simd<u16, 8>
-  u32x4  = TVecU32x4;   // Rust: Simd<u32, 4>
-  u64x2  = TVecU64x2;   // Rust: Simd<u64, 2>
-  
-  // 256-bit vectors (AVX)
-  f32x8  = TVecF32x8;   // Rust: Simd<f32, 8>
-  f64x4  = TVecF64x4;   // Rust: Simd<f64, 4>
-  i32x8  = TVecI32x8;   // Rust: Simd<i32, 8>
-  i64x4  = TVecI64x4;   // Rust: Simd<i64, 4> - ✅ Task 5.2
-  u32x8  = TVecU32x8;   // Rust: Simd<u32, 8>
-  u64x4  = TVecU64x4;   // Rust: Simd<u64, 4> - ✅ Task 5.2
-  
-  // 512-bit vectors (AVX-512)
-  f32x16 = TVecF32x16;  // Rust: Simd<f32, 16>
-  f64x8  = TVecF64x8;   // Rust: Simd<f64, 8>
-  i32x16 = TVecI32x16;  // Rust: Simd<i32, 16>
+{$I fafafa.core.simd.types.inc}
 
 // === High-Level Vector Operations ===
 
@@ -645,6 +582,7 @@ function VecU32x8CmpLt(const a, b: TVecU32x8): TMask8; inline;
 function VecU32x8CmpGt(const a, b: TVecU32x8): TMask8; inline;
 function VecU32x8CmpLe(const a, b: TVecU32x8): TMask8; inline;
 function VecU32x8CmpGe(const a, b: TVecU32x8): TMask8; inline;
+function VecU32x8CmpNe(const a, b: TVecU32x8): TMask8; inline;
 
 // U32x8 min/max (unsigned)
 function VecU32x8Min(const a, b: TVecU32x8): TVecU32x8; inline;
@@ -667,6 +605,7 @@ function VecI64x4AndNot(const a, b: TVecI64x4): TVecI64x4; inline;
 // I64x4 shift operations (logical)
 function VecI64x4ShiftLeft(const a: TVecI64x4; count: Integer): TVecI64x4; inline;
 function VecI64x4ShiftRight(const a: TVecI64x4; count: Integer): TVecI64x4; inline;
+function VecI64x4ShiftRightArith(const a: TVecI64x4; count: Integer): TVecI64x4; inline;
 
 // I64x4 comparison
 function VecI64x4CmpEq(const a, b: TVecI64x4): TMask4; inline;
@@ -822,6 +761,7 @@ function VecF64x4Add(const a, b: TVecF64x4): TVecF64x4; inline;
 function VecF64x4Sub(const a, b: TVecF64x4): TVecF64x4; inline;
 function VecF64x4Mul(const a, b: TVecF64x4): TVecF64x4; inline;
 function VecF64x4Div(const a, b: TVecF64x4): TVecF64x4; inline;
+function VecF64x4Rcp(const a: TVecF64x4): TVecF64x4; inline;
 
 // F64x4 comparison
 function VecF64x4CmpEq(const a, b: TVecF64x4): TMask4; inline;
@@ -865,12 +805,27 @@ function VecF64x8Abs(const a: TVecF64x8): TVecF64x8; inline;
 function VecF64x8Sqrt(const a: TVecF64x8): TVecF64x8; inline;
 function VecF64x8Min(const a, b: TVecF64x8): TVecF64x8; inline;
 function VecF64x8Max(const a, b: TVecF64x8): TVecF64x8; inline;
+function VecF64x8Clamp(const a, minVal, maxVal: TVecF64x8): TVecF64x8; inline;
+
+// F64x8 extended math
+function VecF64x8Fma(const a, b, c: TVecF64x8): TVecF64x8; inline;
+function VecF64x8Floor(const a: TVecF64x8): TVecF64x8; inline;
+function VecF64x8Ceil(const a: TVecF64x8): TVecF64x8; inline;
+function VecF64x8Round(const a: TVecF64x8): TVecF64x8; inline;
+function VecF64x8Trunc(const a: TVecF64x8): TVecF64x8; inline;
 
 // F64x8 reduction
 function VecF64x8ReduceAdd(const a: TVecF64x8): Double; inline;
 function VecF64x8ReduceMin(const a: TVecF64x8): Double; inline;
 function VecF64x8ReduceMax(const a: TVecF64x8): Double; inline;
 function VecF64x8ReduceMul(const a: TVecF64x8): Double; inline;
+
+// F64x8 memory/util
+function VecF64x8Load(p: PDouble): TVecF64x8; inline;
+procedure VecF64x8Store(p: PDouble; const a: TVecF64x8); inline;
+function VecF64x8Splat(value: Double): TVecF64x8; inline;
+function VecF64x8Zero: TVecF64x8; inline;
+function VecF64x8Select(const mask: TMask8; const a, b: TVecF64x8): TVecF64x8; inline;
 
 // === F32x16 Operations (512-bit Float, AVX-512) ===
 // ✅ P3.2: 添加 F32x16 高级 API
@@ -894,12 +849,27 @@ function VecF32x16Abs(const a: TVecF32x16): TVecF32x16; inline;
 function VecF32x16Sqrt(const a: TVecF32x16): TVecF32x16; inline;
 function VecF32x16Min(const a, b: TVecF32x16): TVecF32x16; inline;
 function VecF32x16Max(const a, b: TVecF32x16): TVecF32x16; inline;
+function VecF32x16Clamp(const a, minVal, maxVal: TVecF32x16): TVecF32x16; inline;
+
+// F32x16 extended math
+function VecF32x16Fma(const a, b, c: TVecF32x16): TVecF32x16; inline;
+function VecF32x16Floor(const a: TVecF32x16): TVecF32x16; inline;
+function VecF32x16Ceil(const a: TVecF32x16): TVecF32x16; inline;
+function VecF32x16Round(const a: TVecF32x16): TVecF32x16; inline;
+function VecF32x16Trunc(const a: TVecF32x16): TVecF32x16; inline;
 
 // F32x16 reduction
 function VecF32x16ReduceAdd(const a: TVecF32x16): Single; inline;
 function VecF32x16ReduceMin(const a: TVecF32x16): Single; inline;
 function VecF32x16ReduceMax(const a: TVecF32x16): Single; inline;
 function VecF32x16ReduceMul(const a: TVecF32x16): Single; inline;
+
+// F32x16 memory/util
+function VecF32x16Load(p: PSingle): TVecF32x16; inline;
+procedure VecF32x16Store(p: PSingle; const a: TVecF32x16); inline;
+function VecF32x16Splat(value: Single): TVecF32x16; inline;
+function VecF32x16Zero: TVecF32x16; inline;
+function VecF32x16Select(const mask: TMask16; const a, b: TVecF32x16): TVecF32x16; inline;
 
 // === I32x16 Operations (512-bit Integer, AVX-512) ===
 // ✅ P1.2: 添加 I32x16 高级 API
@@ -933,6 +903,106 @@ function VecI32x16CmpNe(const a, b: TVecI32x16): TMask16; inline;  // ✅ P0-C: 
 function VecI32x16Min(const a, b: TVecI32x16): TVecI32x16; inline;
 function VecI32x16Max(const a, b: TVecI32x16): TVecI32x16; inline;
 
+// === I64x8 Operations (512-bit Integer, AVX-512) ===
+// I64x8 arithmetic
+function VecI64x8Add(const a, b: TVecI64x8): TVecI64x8; inline;
+function VecI64x8Sub(const a, b: TVecI64x8): TVecI64x8; inline;
+
+// I64x8 bitwise operations
+function VecI64x8And(const a, b: TVecI64x8): TVecI64x8; inline;
+function VecI64x8Or(const a, b: TVecI64x8): TVecI64x8; inline;
+function VecI64x8Xor(const a, b: TVecI64x8): TVecI64x8; inline;
+function VecI64x8Not(const a: TVecI64x8): TVecI64x8; inline;
+
+// I64x8 comparison
+function VecI64x8CmpEq(const a, b: TVecI64x8): TMask8; inline;
+function VecI64x8CmpLt(const a, b: TVecI64x8): TMask8; inline;
+function VecI64x8CmpGt(const a, b: TVecI64x8): TMask8; inline;
+function VecI64x8CmpLe(const a, b: TVecI64x8): TMask8; inline;
+function VecI64x8CmpGe(const a, b: TVecI64x8): TMask8; inline;
+function VecI64x8CmpNe(const a, b: TVecI64x8): TMask8; inline;
+
+// === 512-bit Integer Wide Operations ===
+// U32x16
+function VecU32x16Add(const a, b: TVecU32x16): TVecU32x16; inline;
+function VecU32x16Sub(const a, b: TVecU32x16): TVecU32x16; inline;
+function VecU32x16Mul(const a, b: TVecU32x16): TVecU32x16; inline;
+function VecU32x16And(const a, b: TVecU32x16): TVecU32x16; inline;
+function VecU32x16Or(const a, b: TVecU32x16): TVecU32x16; inline;
+function VecU32x16Xor(const a, b: TVecU32x16): TVecU32x16; inline;
+function VecU32x16Not(const a: TVecU32x16): TVecU32x16; inline;
+function VecU32x16AndNot(const a, b: TVecU32x16): TVecU32x16; inline;
+function VecU32x16ShiftLeft(const a: TVecU32x16; count: Integer): TVecU32x16; inline;
+function VecU32x16ShiftRight(const a: TVecU32x16; count: Integer): TVecU32x16; inline;
+function VecU32x16CmpEq(const a, b: TVecU32x16): TMask16; inline;
+function VecU32x16CmpLt(const a, b: TVecU32x16): TMask16; inline;
+function VecU32x16CmpGt(const a, b: TVecU32x16): TMask16; inline;
+function VecU32x16CmpLe(const a, b: TVecU32x16): TMask16; inline;
+function VecU32x16CmpGe(const a, b: TVecU32x16): TMask16; inline;
+function VecU32x16CmpNe(const a, b: TVecU32x16): TMask16; inline;
+function VecU32x16Min(const a, b: TVecU32x16): TVecU32x16; inline;
+function VecU32x16Max(const a, b: TVecU32x16): TVecU32x16; inline;
+
+// U64x8
+function VecU64x8Add(const a, b: TVecU64x8): TVecU64x8; inline;
+function VecU64x8Sub(const a, b: TVecU64x8): TVecU64x8; inline;
+function VecU64x8And(const a, b: TVecU64x8): TVecU64x8; inline;
+function VecU64x8Or(const a, b: TVecU64x8): TVecU64x8; inline;
+function VecU64x8Xor(const a, b: TVecU64x8): TVecU64x8; inline;
+function VecU64x8Not(const a: TVecU64x8): TVecU64x8; inline;
+function VecU64x8ShiftLeft(const a: TVecU64x8; count: Integer): TVecU64x8; inline;
+function VecU64x8ShiftRight(const a: TVecU64x8; count: Integer): TVecU64x8; inline;
+function VecU64x8CmpEq(const a, b: TVecU64x8): TMask8; inline;
+function VecU64x8CmpLt(const a, b: TVecU64x8): TMask8; inline;
+function VecU64x8CmpGt(const a, b: TVecU64x8): TMask8; inline;
+function VecU64x8CmpLe(const a, b: TVecU64x8): TMask8; inline;
+function VecU64x8CmpGe(const a, b: TVecU64x8): TMask8; inline;
+function VecU64x8CmpNe(const a, b: TVecU64x8): TMask8; inline;
+
+// I16x32
+function VecI16x32Add(const a, b: TVecI16x32): TVecI16x32; inline;
+function VecI16x32Sub(const a, b: TVecI16x32): TVecI16x32; inline;
+function VecI16x32And(const a, b: TVecI16x32): TVecI16x32; inline;
+function VecI16x32Or(const a, b: TVecI16x32): TVecI16x32; inline;
+function VecI16x32Xor(const a, b: TVecI16x32): TVecI16x32; inline;
+function VecI16x32Not(const a: TVecI16x32): TVecI16x32; inline;
+function VecI16x32AndNot(const a, b: TVecI16x32): TVecI16x32; inline;
+function VecI16x32ShiftLeft(const a: TVecI16x32; count: Integer): TVecI16x32; inline;
+function VecI16x32ShiftRight(const a: TVecI16x32; count: Integer): TVecI16x32; inline;
+function VecI16x32ShiftRightArith(const a: TVecI16x32; count: Integer): TVecI16x32; inline;
+function VecI16x32CmpEq(const a, b: TVecI16x32): TMask32; inline;
+function VecI16x32CmpLt(const a, b: TVecI16x32): TMask32; inline;
+function VecI16x32CmpGt(const a, b: TVecI16x32): TMask32; inline;
+function VecI16x32Min(const a, b: TVecI16x32): TVecI16x32; inline;
+function VecI16x32Max(const a, b: TVecI16x32): TVecI16x32; inline;
+
+// I8x64
+function VecI8x64Add(const a, b: TVecI8x64): TVecI8x64; inline;
+function VecI8x64Sub(const a, b: TVecI8x64): TVecI8x64; inline;
+function VecI8x64And(const a, b: TVecI8x64): TVecI8x64; inline;
+function VecI8x64Or(const a, b: TVecI8x64): TVecI8x64; inline;
+function VecI8x64Xor(const a, b: TVecI8x64): TVecI8x64; inline;
+function VecI8x64Not(const a: TVecI8x64): TVecI8x64; inline;
+function VecI8x64AndNot(const a, b: TVecI8x64): TVecI8x64; inline;
+function VecI8x64CmpEq(const a, b: TVecI8x64): TMask64; inline;
+function VecI8x64CmpLt(const a, b: TVecI8x64): TMask64; inline;
+function VecI8x64CmpGt(const a, b: TVecI8x64): TMask64; inline;
+function VecI8x64Min(const a, b: TVecI8x64): TVecI8x64; inline;
+function VecI8x64Max(const a, b: TVecI8x64): TVecI8x64; inline;
+
+// U8x64
+function VecU8x64Add(const a, b: TVecU8x64): TVecU8x64; inline;
+function VecU8x64Sub(const a, b: TVecU8x64): TVecU8x64; inline;
+function VecU8x64And(const a, b: TVecU8x64): TVecU8x64; inline;
+function VecU8x64Or(const a, b: TVecU8x64): TVecU8x64; inline;
+function VecU8x64Xor(const a, b: TVecU8x64): TVecU8x64; inline;
+function VecU8x64Not(const a: TVecU8x64): TVecU8x64; inline;
+function VecU8x64CmpEq(const a, b: TVecU8x64): TMask64; inline;
+function VecU8x64CmpLt(const a, b: TVecU8x64): TMask64; inline;
+function VecU8x64CmpGt(const a, b: TVecU8x64): TMask64; inline;
+function VecU8x64Min(const a, b: TVecU8x64): TVecU8x64; inline;
+function VecU8x64Max(const a, b: TVecU8x64): TVecU8x64; inline;
+
 // === ✅ P2-1: Saturating Arithmetic (音视频处理必需) ===
 // 有符号饱和: I8 范围 [-128, 127], I16 范围 [-32768, 32767]
 function VecI8x16SatAdd(const a, b: TVecI8x16): TVecI8x16; inline;
@@ -948,18 +1018,7 @@ function VecU16x8SatSub(const a, b: TVecU16x8): TVecU16x8; inline;
 // === Framework Information ===
 
 // Get current backend information
-function GetCurrentBackend: TSimdBackend;
-function GetCurrentBackendInfo: TSimdBackendInfo;
-
-// Get CPU information
-function GetCPUInformation: TCPUInfo;
-
-// Get list of available backends
-function GetAvailableBackendList: TSimdBackendArray;
-
-// Force a specific backend (for testing)
-procedure ForceBackend(backend: TSimdBackend);
-procedure ResetBackendSelection;
+{$I fafafa.core.simd.framework.intf.inc}
 
 // === Shuffle/Permute Operations (re-exported from simd.utils) ===
 
@@ -1030,15 +1089,6 @@ function VecI32x4CastToF32x4(const a: TVecI32x4): TVecF32x4; inline;
   @returns(result[i] = (int)trunc(a[i]))
 *}
 function VecF32x4CastToI32x4(const a: TVecF32x4): TVecI32x4; inline;
-
-// === Memory Utilities (Re-exported) ===
-
-// Aligned memory allocation
-function AllocateAligned(size: NativeUInt; alignment: NativeUInt = 32): Pointer;
-procedure FreeAligned(ptr: Pointer);
-
-// Alignment checking
-function IsPointerAligned(ptr: Pointer; alignment: NativeUInt = 32): Boolean;
 
 implementation
 
@@ -1354,16 +1404,35 @@ end;
 
 function VecF32x4Extract(const a: TVecF32x4; index: Integer): Single;
 var dispatch: PSimdDispatchTable;
+    LIndex: Integer;
 begin
   dispatch := GetDispatchTable;
-  Result := dispatch^.ExtractF32x4(a, index);
+  if (dispatch <> nil) and Assigned(dispatch^.ExtractF32x4) then
+    Result := dispatch^.ExtractF32x4(a, index)
+  else
+  begin
+    LIndex := index;
+    if LIndex < 0 then LIndex := 0
+    else if LIndex > 3 then LIndex := 3;
+    Result := a.f[LIndex];
+  end;
 end;
 
 function VecF32x4Insert(const a: TVecF32x4; value: Single; index: Integer): TVecF32x4;
 var dispatch: PSimdDispatchTable;
+    LIndex: Integer;
 begin
   dispatch := GetDispatchTable;
-  Result := dispatch^.InsertF32x4(a, value, index);
+  if (dispatch <> nil) and Assigned(dispatch^.InsertF32x4) then
+    Result := dispatch^.InsertF32x4(a, value, index)
+  else
+  begin
+    LIndex := index;
+    if LIndex < 0 then LIndex := 0
+    else if LIndex > 3 then LIndex := 3;
+    Result := a;
+    Result.f[LIndex] := value;
+  end;
 end;
 
 // === ✅ Task 5.3: Extract/Insert Lane Operations Implementation ===
@@ -1371,136 +1440,371 @@ end;
 // F64x2 (128-bit)
 function VecF64x2Extract(const a: TVecF64x2; index: Integer): Double;
 var dispatch: PSimdDispatchTable;
+    LIndex: Integer;
 begin
   dispatch := GetDispatchTable;
-  Result := dispatch^.ExtractF64x2(a, index);
+  if (dispatch <> nil) and Assigned(dispatch^.ExtractF64x2) then
+    Result := dispatch^.ExtractF64x2(a, index)
+  else
+  begin
+    LIndex := index;
+    if LIndex < 0 then LIndex := 0
+    else if LIndex > 1 then LIndex := 1;
+    Result := a.d[LIndex];
+  end;
 end;
 
 function VecF64x2Insert(const a: TVecF64x2; value: Double; index: Integer): TVecF64x2;
 var dispatch: PSimdDispatchTable;
+    LIndex: Integer;
 begin
   dispatch := GetDispatchTable;
-  Result := dispatch^.InsertF64x2(a, value, index);
+  if (dispatch <> nil) and Assigned(dispatch^.InsertF64x2) then
+    Result := dispatch^.InsertF64x2(a, value, index)
+  else
+  begin
+    LIndex := index;
+    if LIndex < 0 then LIndex := 0
+    else if LIndex > 1 then LIndex := 1;
+    Result := a;
+    Result.d[LIndex] := value;
+  end;
 end;
 
 // I32x4 (128-bit)
 function VecI32x4Extract(const a: TVecI32x4; index: Integer): Int32;
 var dispatch: PSimdDispatchTable;
+    LIndex: Integer;
 begin
   dispatch := GetDispatchTable;
-  Result := dispatch^.ExtractI32x4(a, index);
+  if (dispatch <> nil) and Assigned(dispatch^.ExtractI32x4) then
+    Result := dispatch^.ExtractI32x4(a, index)
+  else
+  begin
+    LIndex := index;
+    if LIndex < 0 then LIndex := 0
+    else if LIndex > 3 then LIndex := 3;
+    Result := a.i[LIndex];
+  end;
 end;
 
 function VecI32x4Insert(const a: TVecI32x4; value: Int32; index: Integer): TVecI32x4;
 var dispatch: PSimdDispatchTable;
+    LIndex: Integer;
 begin
   dispatch := GetDispatchTable;
-  Result := dispatch^.InsertI32x4(a, value, index);
+  if (dispatch <> nil) and Assigned(dispatch^.InsertI32x4) then
+    Result := dispatch^.InsertI32x4(a, value, index)
+  else
+  begin
+    LIndex := index;
+    if LIndex < 0 then LIndex := 0
+    else if LIndex > 3 then LIndex := 3;
+    Result := a;
+    Result.i[LIndex] := value;
+  end;
 end;
 
 // I64x2 (128-bit)
 function VecI64x2Extract(const a: TVecI64x2; index: Integer): Int64;
 var dispatch: PSimdDispatchTable;
+    LIndex: Integer;
 begin
   dispatch := GetDispatchTable;
-  Result := dispatch^.ExtractI64x2(a, index);
+  if (dispatch <> nil) and Assigned(dispatch^.ExtractI64x2) then
+    Result := dispatch^.ExtractI64x2(a, index)
+  else
+  begin
+    LIndex := index;
+    if LIndex < 0 then LIndex := 0
+    else if LIndex > 1 then LIndex := 1;
+    Result := a.i[LIndex];
+  end;
 end;
 
 function VecI64x2Insert(const a: TVecI64x2; value: Int64; index: Integer): TVecI64x2;
 var dispatch: PSimdDispatchTable;
+    LIndex: Integer;
 begin
   dispatch := GetDispatchTable;
-  Result := dispatch^.InsertI64x2(a, value, index);
+  if (dispatch <> nil) and Assigned(dispatch^.InsertI64x2) then
+    Result := dispatch^.InsertI64x2(a, value, index)
+  else
+  begin
+    LIndex := index;
+    if LIndex < 0 then LIndex := 0
+    else if LIndex > 1 then LIndex := 1;
+    Result := a;
+    Result.i[LIndex] := value;
+  end;
 end;
 
 // F32x8 (256-bit)
 function VecF32x8Extract(const a: TVecF32x8; index: Integer): Single;
 var dispatch: PSimdDispatchTable;
+    LIndex: Integer;
 begin
   dispatch := GetDispatchTable;
-  Result := dispatch^.ExtractF32x8(a, index);
+  if (dispatch <> nil) and Assigned(dispatch^.ExtractF32x8) then
+    Result := dispatch^.ExtractF32x8(a, index)
+  else
+  begin
+    LIndex := index;
+    if LIndex < 0 then LIndex := 0
+    else if LIndex > 7 then LIndex := 7;
+    Result := a.f[LIndex];
+  end;
 end;
 
 function VecF32x8Insert(const a: TVecF32x8; value: Single; index: Integer): TVecF32x8;
 var dispatch: PSimdDispatchTable;
+    LIndex: Integer;
 begin
   dispatch := GetDispatchTable;
-  Result := dispatch^.InsertF32x8(a, value, index);
+  if (dispatch <> nil) and Assigned(dispatch^.InsertF32x8) then
+    Result := dispatch^.InsertF32x8(a, value, index)
+  else
+  begin
+    LIndex := index;
+    if LIndex < 0 then LIndex := 0
+    else if LIndex > 7 then LIndex := 7;
+    Result := a;
+    Result.f[LIndex] := value;
+  end;
 end;
 
 // F64x4 (256-bit)
 function VecF64x4Extract(const a: TVecF64x4; index: Integer): Double;
 var dispatch: PSimdDispatchTable;
+    LIndex: Integer;
 begin
   dispatch := GetDispatchTable;
-  Result := dispatch^.ExtractF64x4(a, index);
+  if (dispatch <> nil) and Assigned(dispatch^.ExtractF64x4) then
+    Result := dispatch^.ExtractF64x4(a, index)
+  else
+  begin
+    LIndex := index;
+    if LIndex < 0 then LIndex := 0
+    else if LIndex > 3 then LIndex := 3;
+    Result := a.d[LIndex];
+  end;
 end;
 
 function VecF64x4Insert(const a: TVecF64x4; value: Double; index: Integer): TVecF64x4;
 var dispatch: PSimdDispatchTable;
+    LIndex: Integer;
 begin
   dispatch := GetDispatchTable;
-  Result := dispatch^.InsertF64x4(a, value, index);
+  if (dispatch <> nil) and Assigned(dispatch^.InsertF64x4) then
+    Result := dispatch^.InsertF64x4(a, value, index)
+  else
+  begin
+    LIndex := index;
+    if LIndex < 0 then LIndex := 0
+    else if LIndex > 3 then LIndex := 3;
+    Result := a;
+    Result.d[LIndex] := value;
+  end;
 end;
 
 // I32x8 (256-bit)
 function VecI32x8Extract(const a: TVecI32x8; index: Integer): Int32;
 var dispatch: PSimdDispatchTable;
+    LIndex: Integer;
 begin
   dispatch := GetDispatchTable;
-  Result := dispatch^.ExtractI32x8(a, index);
+  if (dispatch <> nil) and Assigned(dispatch^.ExtractI32x8) then
+    Result := dispatch^.ExtractI32x8(a, index)
+  else
+  begin
+    LIndex := index;
+    if LIndex < 0 then LIndex := 0
+    else if LIndex > 7 then LIndex := 7;
+    Result := a.i[LIndex];
+  end;
 end;
 
 function VecI32x8Insert(const a: TVecI32x8; value: Int32; index: Integer): TVecI32x8;
 var dispatch: PSimdDispatchTable;
+    LIndex: Integer;
 begin
   dispatch := GetDispatchTable;
-  Result := dispatch^.InsertI32x8(a, value, index);
+  if (dispatch <> nil) and Assigned(dispatch^.InsertI32x8) then
+    Result := dispatch^.InsertI32x8(a, value, index)
+  else
+  begin
+    LIndex := index;
+    if LIndex < 0 then LIndex := 0
+    else if LIndex > 7 then LIndex := 7;
+    Result := a;
+    Result.i[LIndex] := value;
+  end;
 end;
 
 // I64x4 (256-bit)
 function VecI64x4Extract(const a: TVecI64x4; index: Integer): Int64;
 var dispatch: PSimdDispatchTable;
+    LIndex: Integer;
 begin
   dispatch := GetDispatchTable;
-  Result := dispatch^.ExtractI64x4(a, index);
+  if (dispatch <> nil) and Assigned(dispatch^.ExtractI64x4) then
+    Result := dispatch^.ExtractI64x4(a, index)
+  else
+  begin
+    LIndex := index;
+    if LIndex < 0 then LIndex := 0
+    else if LIndex > 3 then LIndex := 3;
+    Result := a.i[LIndex];
+  end;
 end;
 
 function VecI64x4Insert(const a: TVecI64x4; value: Int64; index: Integer): TVecI64x4;
 var dispatch: PSimdDispatchTable;
+    LIndex: Integer;
 begin
   dispatch := GetDispatchTable;
-  Result := dispatch^.InsertI64x4(a, value, index);
+  if (dispatch <> nil) and Assigned(dispatch^.InsertI64x4) then
+    Result := dispatch^.InsertI64x4(a, value, index)
+  else
+  begin
+    LIndex := index;
+    if LIndex < 0 then LIndex := 0
+    else if LIndex > 3 then LIndex := 3;
+    Result := a;
+    Result.i[LIndex] := value;
+  end;
 end;
 
 // F32x16 (512-bit)
 function VecF32x16Extract(const a: TVecF32x16; index: Integer): Single;
 var dispatch: PSimdDispatchTable;
+    LIndex: Integer;
 begin
   dispatch := GetDispatchTable;
-  Result := dispatch^.ExtractF32x16(a, index);
+  if (dispatch <> nil) and Assigned(dispatch^.ExtractF32x16) then
+    Result := dispatch^.ExtractF32x16(a, index)
+  else
+  begin
+    LIndex := index;
+    if LIndex < 0 then LIndex := 0
+    else if LIndex > 15 then LIndex := 15;
+    Result := a.f[LIndex];
+  end;
 end;
 
 function VecF32x16Insert(const a: TVecF32x16; value: Single; index: Integer): TVecF32x16;
 var dispatch: PSimdDispatchTable;
+    LIndex: Integer;
 begin
   dispatch := GetDispatchTable;
-  Result := dispatch^.InsertF32x16(a, value, index);
+  if (dispatch <> nil) and Assigned(dispatch^.InsertF32x16) then
+    Result := dispatch^.InsertF32x16(a, value, index)
+  else
+  begin
+    LIndex := index;
+    if LIndex < 0 then LIndex := 0
+    else if LIndex > 15 then LIndex := 15;
+    Result := a;
+    Result.f[LIndex] := value;
+  end;
+end;
+
+function VecF32x16Load(p: PSingle): TVecF32x16;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.LoadF32x16(p);
+end;
+
+procedure VecF32x16Store(p: PSingle; const a: TVecF32x16);
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  LDispatch^.StoreF32x16(p, a);
+end;
+
+function VecF32x16Splat(value: Single): TVecF32x16;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.SplatF32x16(value);
+end;
+
+function VecF32x16Zero: TVecF32x16;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.ZeroF32x16();
+end;
+
+function VecF64x8Load(p: PDouble): TVecF64x8;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.LoadF64x8(p);
+end;
+
+procedure VecF64x8Store(p: PDouble; const a: TVecF64x8);
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  LDispatch^.StoreF64x8(p, a);
+end;
+
+function VecF64x8Splat(value: Double): TVecF64x8;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.SplatF64x8(value);
+end;
+
+function VecF64x8Zero: TVecF64x8;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.ZeroF64x8();
 end;
 
 // I32x16 (512-bit)
 function VecI32x16Extract(const a: TVecI32x16; index: Integer): Int32;
 var dispatch: PSimdDispatchTable;
+    LIndex: Integer;
 begin
   dispatch := GetDispatchTable;
-  Result := dispatch^.ExtractI32x16(a, index);
+  if (dispatch <> nil) and Assigned(dispatch^.ExtractI32x16) then
+    Result := dispatch^.ExtractI32x16(a, index)
+  else
+  begin
+    LIndex := index;
+    if LIndex < 0 then LIndex := 0
+    else if LIndex > 15 then LIndex := 15;
+    Result := a.i[LIndex];
+  end;
 end;
 
 function VecI32x16Insert(const a: TVecI32x16; value: Int32; index: Integer): TVecI32x16;
 var dispatch: PSimdDispatchTable;
+    LIndex: Integer;
 begin
   dispatch := GetDispatchTable;
-  Result := dispatch^.InsertI32x16(a, value, index);
+  if (dispatch <> nil) and Assigned(dispatch^.InsertI32x16) then
+    Result := dispatch^.InsertI32x16(a, value, index)
+  else
+  begin
+    LIndex := index;
+    if LIndex < 0 then LIndex := 0
+    else if LIndex > 15 then LIndex := 15;
+    Result := a;
+    Result.i[LIndex] := value;
+  end;
 end;
 
 // === F64x2 Operations Implementation ===
@@ -2113,48 +2417,81 @@ end;
 
 function VecI32x4ShiftLeft(const a: TVecI32x4; count: Integer): TVecI32x4;
 var dispatch: PSimdDispatchTable;
+    LCount: Integer;
 begin
+  LCount := count;
+  if (LCount < 0) or (LCount >= 32) then
+  begin
+    Result.i[0] := 0;
+    Result.i[1] := 0;
+    Result.i[2] := 0;
+    Result.i[3] := 0;
+    Exit;
+  end;
+
   dispatch := GetDispatchTable;
   if (dispatch <> nil) and Assigned(dispatch^.ShiftLeftI32x4) then
-    Result := dispatch^.ShiftLeftI32x4(a, count)
+    Result := dispatch^.ShiftLeftI32x4(a, LCount)
   else
   begin
-    Result.i[0] := a.i[0] shl count;
-    Result.i[1] := a.i[1] shl count;
-    Result.i[2] := a.i[2] shl count;
-    Result.i[3] := a.i[3] shl count;
+    Result.i[0] := a.i[0] shl LCount;
+    Result.i[1] := a.i[1] shl LCount;
+    Result.i[2] := a.i[2] shl LCount;
+    Result.i[3] := a.i[3] shl LCount;
   end;
 end;
 
 function VecI32x4ShiftRight(const a: TVecI32x4; count: Integer): TVecI32x4;
 var dispatch: PSimdDispatchTable;
+    LCount: Integer;
 begin
+  LCount := count;
+  if (LCount < 0) or (LCount >= 32) then
+  begin
+    Result.i[0] := 0;
+    Result.i[1] := 0;
+    Result.i[2] := 0;
+    Result.i[3] := 0;
+    Exit;
+  end;
+
   dispatch := GetDispatchTable;
   if (dispatch <> nil) and Assigned(dispatch^.ShiftRightI32x4) then
-    Result := dispatch^.ShiftRightI32x4(a, count)
+    Result := dispatch^.ShiftRightI32x4(a, LCount)
   else
   begin
     // Logical shift (unsigned)
-    Result.i[0] := Int32(UInt32(a.i[0]) shr count);
-    Result.i[1] := Int32(UInt32(a.i[1]) shr count);
-    Result.i[2] := Int32(UInt32(a.i[2]) shr count);
-    Result.i[3] := Int32(UInt32(a.i[3]) shr count);
+    Result.i[0] := Int32(UInt32(a.i[0]) shr LCount);
+    Result.i[1] := Int32(UInt32(a.i[1]) shr LCount);
+    Result.i[2] := Int32(UInt32(a.i[2]) shr LCount);
+    Result.i[3] := Int32(UInt32(a.i[3]) shr LCount);
   end;
 end;
 
 function VecI32x4ShiftRightArith(const a: TVecI32x4; count: Integer): TVecI32x4;
 var dispatch: PSimdDispatchTable;
+    LCount: Integer;
 begin
+  LCount := count;
+  if (LCount < 0) or (LCount >= 32) then
+  begin
+    Result.i[0] := 0;
+    Result.i[1] := 0;
+    Result.i[2] := 0;
+    Result.i[3] := 0;
+    Exit;
+  end;
+
   dispatch := GetDispatchTable;
   if (dispatch <> nil) and Assigned(dispatch^.ShiftRightArithI32x4) then
-    Result := dispatch^.ShiftRightArithI32x4(a, count)
+    Result := dispatch^.ShiftRightArithI32x4(a, LCount)
   else
   begin
     // Arithmetic shift (signed)
-    Result.i[0] := SarLongint(a.i[0], count);
-    Result.i[1] := SarLongint(a.i[1], count);
-    Result.i[2] := SarLongint(a.i[2], count);
-    Result.i[3] := SarLongint(a.i[3], count);
+    Result.i[0] := SarLongint(a.i[0], LCount);
+    Result.i[1] := SarLongint(a.i[1], LCount);
+    Result.i[2] := SarLongint(a.i[2], LCount);
+    Result.i[3] := SarLongint(a.i[3], LCount);
   end;
 end;
 
@@ -2319,191 +2656,441 @@ begin
 end;
 
 function VecI64x2And(const a, b: TVecI64x2): TVecI64x2;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  // Bitwise operations - scalar fallback (no dispatch entry)
-  Result.i[0] := a.i[0] and b.i[0];
-  Result.i[1] := a.i[1] and b.i[1];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.AndI64x2) then
+    Result := LDispatch^.AndI64x2(a, b)
+  else
+  begin
+    Result.i[0] := a.i[0] and b.i[0];
+    Result.i[1] := a.i[1] and b.i[1];
+  end;
 end;
 
 function VecI64x2Or(const a, b: TVecI64x2): TVecI64x2;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result.i[0] := a.i[0] or b.i[0];
-  Result.i[1] := a.i[1] or b.i[1];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.OrI64x2) then
+    Result := LDispatch^.OrI64x2(a, b)
+  else
+  begin
+    Result.i[0] := a.i[0] or b.i[0];
+    Result.i[1] := a.i[1] or b.i[1];
+  end;
 end;
 
 function VecI64x2Xor(const a, b: TVecI64x2): TVecI64x2;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result.i[0] := a.i[0] xor b.i[0];
-  Result.i[1] := a.i[1] xor b.i[1];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.XorI64x2) then
+    Result := LDispatch^.XorI64x2(a, b)
+  else
+  begin
+    Result.i[0] := a.i[0] xor b.i[0];
+    Result.i[1] := a.i[1] xor b.i[1];
+  end;
 end;
 
 function VecI64x2Not(const a: TVecI64x2): TVecI64x2;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result.i[0] := not a.i[0];
-  Result.i[1] := not a.i[1];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.NotI64x2) then
+    Result := LDispatch^.NotI64x2(a)
+  else
+  begin
+    Result.i[0] := not a.i[0];
+    Result.i[1] := not a.i[1];
+  end;
 end;
 
 function VecI64x2AndNot(const a, b: TVecI64x2): TVecI64x2;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  // (~a) and b
-  Result.i[0] := (not a.i[0]) and b.i[0];
-  Result.i[1] := (not a.i[1]) and b.i[1];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.AndNotI64x2) then
+    Result := LDispatch^.AndNotI64x2(a, b)
+  else
+  begin
+    // (~a) and b
+    Result.i[0] := (not a.i[0]) and b.i[0];
+    Result.i[1] := (not a.i[1]) and b.i[1];
+  end;
 end;
 
 // ✅ P5.2: I64x2 完整 API 实现 - 移位/比较/Min/Max
 
 function VecI64x2ShiftLeft(const a: TVecI64x2; count: Integer): TVecI64x2;
+var
+  LDispatch: PSimdDispatchTable;
+  LCount: Integer;
 begin
-  Result.i[0] := a.i[0] shl count;
-  Result.i[1] := a.i[1] shl count;
+  LCount := count;
+  if (LCount < 0) or (LCount >= 64) then
+  begin
+    Result.i[0] := 0;
+    Result.i[1] := 0;
+    Exit;
+  end;
+
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.ShiftLeftI64x2) then
+    Result := LDispatch^.ShiftLeftI64x2(a, LCount)
+  else
+  begin
+    Result.i[0] := a.i[0] shl LCount;
+    Result.i[1] := a.i[1] shl LCount;
+  end;
 end;
 
 function VecI64x2ShiftRight(const a: TVecI64x2; count: Integer): TVecI64x2;
+var
+  LDispatch: PSimdDispatchTable;
+  LCount: Integer;
 begin
-  // 逻辑右移 (无符号)
-  Result.i[0] := Int64(UInt64(a.i[0]) shr count);
-  Result.i[1] := Int64(UInt64(a.i[1]) shr count);
+  LCount := count;
+  if (LCount < 0) or (LCount >= 64) then
+  begin
+    Result.i[0] := 0;
+    Result.i[1] := 0;
+    Exit;
+  end;
+
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.ShiftRightI64x2) then
+    Result := LDispatch^.ShiftRightI64x2(a, LCount)
+  else
+  begin
+    // 逻辑右移 (无符号)
+    Result.i[0] := Int64(UInt64(a.i[0]) shr LCount);
+    Result.i[1] := Int64(UInt64(a.i[1]) shr LCount);
+  end;
 end;
 
 function VecI64x2ShiftRightArith(const a: TVecI64x2; count: Integer): TVecI64x2;
+var
+  LDispatch: PSimdDispatchTable;
+  LCount: Integer;
 begin
-  // 算术右移 (保留符号位)
-  Result.i[0] := SarInt64(a.i[0], count);
-  Result.i[1] := SarInt64(a.i[1], count);
+  LCount := count;
+  if (LCount < 0) or (LCount >= 64) then
+  begin
+    Result.i[0] := 0;
+    Result.i[1] := 0;
+    Exit;
+  end;
+
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.ShiftRightArithI64x2) then
+    Result := LDispatch^.ShiftRightArithI64x2(a, LCount)
+  else
+  begin
+    // 算术右移 (保留符号位)
+    Result.i[0] := SarInt64(a.i[0], LCount);
+    Result.i[1] := SarInt64(a.i[1], LCount);
+  end;
 end;
 
 function VecI64x2CmpEq(const a, b: TVecI64x2): TMask2;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result := 0;
-  if a.i[0] = b.i[0] then Result := Result or 1;
-  if a.i[1] = b.i[1] then Result := Result or 2;
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.CmpEqI64x2) then
+    Result := LDispatch^.CmpEqI64x2(a, b)
+  else
+  begin
+    Result := 0;
+    if a.i[0] = b.i[0] then Result := Result or 1;
+    if a.i[1] = b.i[1] then Result := Result or 2;
+  end;
 end;
 
 function VecI64x2CmpLt(const a, b: TVecI64x2): TMask2;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result := 0;
-  if a.i[0] < b.i[0] then Result := Result or 1;
-  if a.i[1] < b.i[1] then Result := Result or 2;
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.CmpLtI64x2) then
+    Result := LDispatch^.CmpLtI64x2(a, b)
+  else
+  begin
+    Result := 0;
+    if a.i[0] < b.i[0] then Result := Result or 1;
+    if a.i[1] < b.i[1] then Result := Result or 2;
+  end;
 end;
 
 function VecI64x2CmpGt(const a, b: TVecI64x2): TMask2;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result := 0;
-  if a.i[0] > b.i[0] then Result := Result or 1;
-  if a.i[1] > b.i[1] then Result := Result or 2;
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.CmpGtI64x2) then
+    Result := LDispatch^.CmpGtI64x2(a, b)
+  else
+  begin
+    Result := 0;
+    if a.i[0] > b.i[0] then Result := Result or 1;
+    if a.i[1] > b.i[1] then Result := Result or 2;
+  end;
 end;
 
 // ✅ P0-C: 添加 I64x2 缺失比较函数
 function VecI64x2CmpLe(const a, b: TVecI64x2): TMask2;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result := 0;
-  if a.i[0] <= b.i[0] then Result := Result or 1;
-  if a.i[1] <= b.i[1] then Result := Result or 2;
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.CmpLeI64x2) then
+    Result := LDispatch^.CmpLeI64x2(a, b)
+  else
+  begin
+    Result := 0;
+    if a.i[0] <= b.i[0] then Result := Result or 1;
+    if a.i[1] <= b.i[1] then Result := Result or 2;
+  end;
 end;
 
 function VecI64x2CmpGe(const a, b: TVecI64x2): TMask2;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result := 0;
-  if a.i[0] >= b.i[0] then Result := Result or 1;
-  if a.i[1] >= b.i[1] then Result := Result or 2;
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.CmpGeI64x2) then
+    Result := LDispatch^.CmpGeI64x2(a, b)
+  else
+  begin
+    Result := 0;
+    if a.i[0] >= b.i[0] then Result := Result or 1;
+    if a.i[1] >= b.i[1] then Result := Result or 2;
+  end;
 end;
 
 function VecI64x2CmpNe(const a, b: TVecI64x2): TMask2;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result := 0;
-  if a.i[0] <> b.i[0] then Result := Result or 1;
-  if a.i[1] <> b.i[1] then Result := Result or 2;
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.CmpNeI64x2) then
+    Result := LDispatch^.CmpNeI64x2(a, b)
+  else
+  begin
+    Result := 0;
+    if a.i[0] <> b.i[0] then Result := Result or 1;
+    if a.i[1] <> b.i[1] then Result := Result or 2;
+  end;
 end;
 
 function VecI64x2Min(const a, b: TVecI64x2): TVecI64x2;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  if a.i[0] < b.i[0] then Result.i[0] := a.i[0] else Result.i[0] := b.i[0];
-  if a.i[1] < b.i[1] then Result.i[1] := a.i[1] else Result.i[1] := b.i[1];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.MinI64x2) then
+    Result := LDispatch^.MinI64x2(a, b)
+  else
+  begin
+    if a.i[0] < b.i[0] then Result.i[0] := a.i[0] else Result.i[0] := b.i[0];
+    if a.i[1] < b.i[1] then Result.i[1] := a.i[1] else Result.i[1] := b.i[1];
+  end;
 end;
 
 function VecI64x2Max(const a, b: TVecI64x2): TVecI64x2;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  if a.i[0] > b.i[0] then Result.i[0] := a.i[0] else Result.i[0] := b.i[0];
-  if a.i[1] > b.i[1] then Result.i[1] := a.i[1] else Result.i[1] := b.i[1];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.MaxI64x2) then
+    Result := LDispatch^.MaxI64x2(a, b)
+  else
+  begin
+    if a.i[0] > b.i[0] then Result.i[0] := a.i[0] else Result.i[0] := b.i[0];
+    if a.i[1] > b.i[1] then Result.i[1] := a.i[1] else Result.i[1] := b.i[1];
+  end;
 end;
 
 // === U64x2 Operations Implementation ===
 // ✅ P3.3: U64x2 (128-bit, 2x UInt64) 高级 API 实现
 
 function VecU64x2Add(const a, b: TVecU64x2): TVecU64x2;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result.u[0] := a.u[0] + b.u[0];
-  Result.u[1] := a.u[1] + b.u[1];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.AddU64x2) then
+    Result := LDispatch^.AddU64x2(a, b)
+  else
+  begin
+    Result.u[0] := a.u[0] + b.u[0];
+    Result.u[1] := a.u[1] + b.u[1];
+  end;
 end;
 
 function VecU64x2Sub(const a, b: TVecU64x2): TVecU64x2;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result.u[0] := a.u[0] - b.u[0];
-  Result.u[1] := a.u[1] - b.u[1];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.SubU64x2) then
+    Result := LDispatch^.SubU64x2(a, b)
+  else
+  begin
+    Result.u[0] := a.u[0] - b.u[0];
+    Result.u[1] := a.u[1] - b.u[1];
+  end;
 end;
 
 function VecU64x2And(const a, b: TVecU64x2): TVecU64x2;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result.u[0] := a.u[0] and b.u[0];
-  Result.u[1] := a.u[1] and b.u[1];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.AndU64x2) then
+    Result := LDispatch^.AndU64x2(a, b)
+  else
+  begin
+    Result.u[0] := a.u[0] and b.u[0];
+    Result.u[1] := a.u[1] and b.u[1];
+  end;
 end;
 
 function VecU64x2Or(const a, b: TVecU64x2): TVecU64x2;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result.u[0] := a.u[0] or b.u[0];
-  Result.u[1] := a.u[1] or b.u[1];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.OrU64x2) then
+    Result := LDispatch^.OrU64x2(a, b)
+  else
+  begin
+    Result.u[0] := a.u[0] or b.u[0];
+    Result.u[1] := a.u[1] or b.u[1];
+  end;
 end;
 
 function VecU64x2Xor(const a, b: TVecU64x2): TVecU64x2;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result.u[0] := a.u[0] xor b.u[0];
-  Result.u[1] := a.u[1] xor b.u[1];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.XorU64x2) then
+    Result := LDispatch^.XorU64x2(a, b)
+  else
+  begin
+    Result.u[0] := a.u[0] xor b.u[0];
+    Result.u[1] := a.u[1] xor b.u[1];
+  end;
 end;
 
 function VecU64x2Not(const a: TVecU64x2): TVecU64x2;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result.u[0] := not a.u[0];
-  Result.u[1] := not a.u[1];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.NotU64x2) then
+    Result := LDispatch^.NotU64x2(a)
+  else
+  begin
+    Result.u[0] := not a.u[0];
+    Result.u[1] := not a.u[1];
+  end;
 end;
 
 function VecU64x2AndNot(const a, b: TVecU64x2): TVecU64x2;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  // (~a) and b
-  Result.u[0] := (not a.u[0]) and b.u[0];
-  Result.u[1] := (not a.u[1]) and b.u[1];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.AndNotU64x2) then
+    Result := LDispatch^.AndNotU64x2(a, b)
+  else
+  begin
+    // (~a) and b
+    Result.u[0] := (not a.u[0]) and b.u[0];
+    Result.u[1] := (not a.u[1]) and b.u[1];
+  end;
 end;
 
 function VecU64x2CmpEq(const a, b: TVecU64x2): TMask2;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result := 0;
-  if a.u[0] = b.u[0] then Result := Result or 1;
-  if a.u[1] = b.u[1] then Result := Result or 2;
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.CmpEqU64x2) then
+    Result := LDispatch^.CmpEqU64x2(a, b)
+  else
+  begin
+    Result := 0;
+    if a.u[0] = b.u[0] then Result := Result or 1;
+    if a.u[1] = b.u[1] then Result := Result or 2;
+  end;
 end;
 
 function VecU64x2CmpLt(const a, b: TVecU64x2): TMask2;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result := 0;
-  if a.u[0] < b.u[0] then Result := Result or 1;  // 无符号比较
-  if a.u[1] < b.u[1] then Result := Result or 2;
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.CmpLtU64x2) then
+    Result := LDispatch^.CmpLtU64x2(a, b)
+  else
+  begin
+    Result := 0;
+    if a.u[0] < b.u[0] then Result := Result or 1;  // 无符号比较
+    if a.u[1] < b.u[1] then Result := Result or 2;
+  end;
 end;
 
 function VecU64x2CmpGt(const a, b: TVecU64x2): TMask2;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result := 0;
-  if a.u[0] > b.u[0] then Result := Result or 1;  // 无符号比较
-  if a.u[1] > b.u[1] then Result := Result or 2;
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.CmpGtU64x2) then
+    Result := LDispatch^.CmpGtU64x2(a, b)
+  else
+  begin
+    Result := 0;
+    if a.u[0] > b.u[0] then Result := Result or 1;  // 无符号比较
+    if a.u[1] > b.u[1] then Result := Result or 2;
+  end;
 end;
 
 function VecU64x2Min(const a, b: TVecU64x2): TVecU64x2;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  if a.u[0] < b.u[0] then Result.u[0] := a.u[0] else Result.u[0] := b.u[0];
-  if a.u[1] < b.u[1] then Result.u[1] := a.u[1] else Result.u[1] := b.u[1];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.MinU64x2) then
+    Result := LDispatch^.MinU64x2(a, b)
+  else
+  begin
+    if a.u[0] < b.u[0] then Result.u[0] := a.u[0] else Result.u[0] := b.u[0];
+    if a.u[1] < b.u[1] then Result.u[1] := a.u[1] else Result.u[1] := b.u[1];
+  end;
 end;
 
 function VecU64x2Max(const a, b: TVecU64x2): TVecU64x2;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  if a.u[0] > b.u[0] then Result.u[0] := a.u[0] else Result.u[0] := b.u[0];
-  if a.u[1] > b.u[1] then Result.u[1] := a.u[1] else Result.u[1] := b.u[1];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.MaxU64x2) then
+    Result := LDispatch^.MaxU64x2(a, b)
+  else
+  begin
+    if a.u[0] > b.u[0] then Result.u[0] := a.u[0] else Result.u[0] := b.u[0];
+    if a.u[1] > b.u[1] then Result.u[1] := a.u[1] else Result.u[1] := b.u[1];
+  end;
 end;
 
 // === U32x4 Operations Implementation ===
@@ -2611,25 +3198,43 @@ end;
 function VecU32x4ShiftLeft(const a: TVecU32x4; count: Integer): TVecU32x4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
+    LCount: Integer;
 begin
+  LCount := count;
+  if (LCount < 0) or (LCount >= 32) then
+  begin
+    for i := 0 to 3 do
+      Result.u[i] := 0;
+    Exit;
+  end;
+
   dispatch := GetDispatchTable;
   if (dispatch <> nil) and Assigned(dispatch^.ShiftLeftU32x4) then
-    Result := dispatch^.ShiftLeftU32x4(a, count)
+    Result := dispatch^.ShiftLeftU32x4(a, LCount)
   else
     for i := 0 to 3 do
-      Result.u[i] := a.u[i] shl count;
+      Result.u[i] := a.u[i] shl LCount;
 end;
 
 function VecU32x4ShiftRight(const a: TVecU32x4; count: Integer): TVecU32x4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
+    LCount: Integer;
 begin
+  LCount := count;
+  if (LCount < 0) or (LCount >= 32) then
+  begin
+    for i := 0 to 3 do
+      Result.u[i] := 0;
+    Exit;
+  end;
+
   dispatch := GetDispatchTable;
   if (dispatch <> nil) and Assigned(dispatch^.ShiftRightU32x4) then
-    Result := dispatch^.ShiftRightU32x4(a, count)
+    Result := dispatch^.ShiftRightU32x4(a, LCount)
   else
     for i := 0 to 3 do
-      Result.u[i] := a.u[i] shr count;  // 逻辑右移 (无符号)
+      Result.u[i] := a.u[i] shr LCount;  // 逻辑右移 (无符号)
 end;
 
 function VecU32x4CmpEq(const a, b: TVecU32x4): TMask4;
@@ -2892,37 +3497,61 @@ begin
 end;
 
 function VecF32x8Abs(const a: TVecF32x8): TVecF32x8;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
 begin
-  for i := 0 to 7 do
-    Result.f[i] := Abs(a.f[i]);
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.AbsF32x8) then
+    Result := LDispatch^.AbsF32x8(a)
+  else
+    for LIndex := 0 to 7 do
+      Result.f[LIndex] := Abs(a.f[LIndex]);
 end;
 
 function VecF32x8Sqrt(const a: TVecF32x8): TVecF32x8;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
 begin
-  for i := 0 to 7 do
-    Result.f[i] := Sqrt(a.f[i]);
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.SqrtF32x8) then
+    Result := LDispatch^.SqrtF32x8(a)
+  else
+    for LIndex := 0 to 7 do
+      Result.f[LIndex] := Sqrt(a.f[LIndex]);
 end;
 
 function VecF32x8Min(const a, b: TVecF32x8): TVecF32x8;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
 begin
-  for i := 0 to 7 do
-    if a.f[i] < b.f[i] then
-      Result.f[i] := a.f[i]
-    else
-      Result.f[i] := b.f[i];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.MinF32x8) then
+    Result := LDispatch^.MinF32x8(a, b)
+  else
+    for LIndex := 0 to 7 do
+      if a.f[LIndex] < b.f[LIndex] then
+        Result.f[LIndex] := a.f[LIndex]
+      else
+        Result.f[LIndex] := b.f[LIndex];
 end;
 
 function VecF32x8Max(const a, b: TVecF32x8): TVecF32x8;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
 begin
-  for i := 0 to 7 do
-    if a.f[i] > b.f[i] then
-      Result.f[i] := a.f[i]
-    else
-      Result.f[i] := b.f[i];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.MaxF32x8) then
+    Result := LDispatch^.MaxF32x8(a, b)
+  else
+    for LIndex := 0 to 7 do
+      if a.f[LIndex] > b.f[LIndex] then
+        Result.f[LIndex] := a.f[LIndex]
+      else
+        Result.f[LIndex] := b.f[LIndex];
 end;
 
 function VecF32x8ReduceAdd(const a: TVecF32x8): Single;
@@ -3075,42 +3704,69 @@ end;
 function VecI32x8ShiftLeft(const a: TVecI32x8; count: Integer): TVecI32x8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
+    LCount: Integer;
 begin
+  LCount := count;
+  if (LCount < 0) or (LCount >= 32) then
+  begin
+    for i := 0 to 7 do
+      Result.i[i] := 0;
+    Exit;
+  end;
+
   dispatch := GetDispatchTable;
   if (dispatch <> nil) and Assigned(dispatch^.ShiftLeftI32x8) then
-    Result := dispatch^.ShiftLeftI32x8(a, count)
+    Result := dispatch^.ShiftLeftI32x8(a, LCount)
   else
   begin
     for i := 0 to 7 do
-      Result.i[i] := a.i[i] shl count;
+      Result.i[i] := a.i[i] shl LCount;
   end;
 end;
 
 function VecI32x8ShiftRight(const a: TVecI32x8; count: Integer): TVecI32x8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
+    LCount: Integer;
 begin
+  LCount := count;
+  if (LCount < 0) or (LCount >= 32) then
+  begin
+    for i := 0 to 7 do
+      Result.i[i] := 0;
+    Exit;
+  end;
+
   dispatch := GetDispatchTable;
   if (dispatch <> nil) and Assigned(dispatch^.ShiftRightI32x8) then
-    Result := dispatch^.ShiftRightI32x8(a, count)
+    Result := dispatch^.ShiftRightI32x8(a, LCount)
   else
   begin
     for i := 0 to 7 do
-      Result.i[i] := Int32(UInt32(a.i[i]) shr count);
+      Result.i[i] := Int32(UInt32(a.i[i]) shr LCount);
   end;
 end;
 
 function VecI32x8ShiftRightArith(const a: TVecI32x8; count: Integer): TVecI32x8;
 var dispatch: PSimdDispatchTable;
     i: Integer;
+    LCount: Integer;
 begin
+  LCount := count;
+  if (LCount < 0) or (LCount >= 32) then
+  begin
+    for i := 0 to 7 do
+      Result.i[i] := 0;
+    Exit;
+  end;
+
   dispatch := GetDispatchTable;
   if (dispatch <> nil) and Assigned(dispatch^.ShiftRightArithI32x8) then
-    Result := dispatch^.ShiftRightArithI32x8(a, count)
+    Result := dispatch^.ShiftRightArithI32x8(a, LCount)
   else
   begin
     for i := 0 to 7 do
-      Result.i[i] := SarLongint(a.i[i], count);
+      Result.i[i] := SarLongint(a.i[i], LCount);
   end;
 end;
 
@@ -3243,133 +3899,285 @@ end;
 // ✅ P2.1: U32x8 (256-bit Unsigned) 高级 API 实现
 
 function VecU32x8Add(const a, b: TVecU32x8): TVecU32x8;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
 begin
-  for i := 0 to 7 do
-    Result.u[i] := a.u[i] + b.u[i];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.AddU32x8) then
+    Result := LDispatch^.AddU32x8(a, b)
+  else
+    for LIndex := 0 to 7 do
+      Result.u[LIndex] := a.u[LIndex] + b.u[LIndex];
 end;
 
 function VecU32x8Sub(const a, b: TVecU32x8): TVecU32x8;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
 begin
-  for i := 0 to 7 do
-    Result.u[i] := a.u[i] - b.u[i];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.SubU32x8) then
+    Result := LDispatch^.SubU32x8(a, b)
+  else
+    for LIndex := 0 to 7 do
+      Result.u[LIndex] := a.u[LIndex] - b.u[LIndex];
 end;
 
 function VecU32x8Mul(const a, b: TVecU32x8): TVecU32x8;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
 begin
-  for i := 0 to 7 do
-    Result.u[i] := a.u[i] * b.u[i];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.MulU32x8) then
+    Result := LDispatch^.MulU32x8(a, b)
+  else
+    for LIndex := 0 to 7 do
+      Result.u[LIndex] := a.u[LIndex] * b.u[LIndex];
 end;
 
 function VecU32x8And(const a, b: TVecU32x8): TVecU32x8;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
 begin
-  for i := 0 to 7 do
-    Result.u[i] := a.u[i] and b.u[i];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.AndU32x8) then
+    Result := LDispatch^.AndU32x8(a, b)
+  else
+    for LIndex := 0 to 7 do
+      Result.u[LIndex] := a.u[LIndex] and b.u[LIndex];
 end;
 
 function VecU32x8Or(const a, b: TVecU32x8): TVecU32x8;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
 begin
-  for i := 0 to 7 do
-    Result.u[i] := a.u[i] or b.u[i];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.OrU32x8) then
+    Result := LDispatch^.OrU32x8(a, b)
+  else
+    for LIndex := 0 to 7 do
+      Result.u[LIndex] := a.u[LIndex] or b.u[LIndex];
 end;
 
 function VecU32x8Xor(const a, b: TVecU32x8): TVecU32x8;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
 begin
-  for i := 0 to 7 do
-    Result.u[i] := a.u[i] xor b.u[i];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.XorU32x8) then
+    Result := LDispatch^.XorU32x8(a, b)
+  else
+    for LIndex := 0 to 7 do
+      Result.u[LIndex] := a.u[LIndex] xor b.u[LIndex];
 end;
 
 function VecU32x8Not(const a: TVecU32x8): TVecU32x8;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
 begin
-  for i := 0 to 7 do
-    Result.u[i] := not a.u[i];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.NotU32x8) then
+    Result := LDispatch^.NotU32x8(a)
+  else
+    for LIndex := 0 to 7 do
+      Result.u[LIndex] := not a.u[LIndex];
 end;
 
 function VecU32x8AndNot(const a, b: TVecU32x8): TVecU32x8;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
 begin
-  for i := 0 to 7 do
-    Result.u[i] := (not a.u[i]) and b.u[i];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.AndNotU32x8) then
+    Result := LDispatch^.AndNotU32x8(a, b)
+  else
+    for LIndex := 0 to 7 do
+      Result.u[LIndex] := (not a.u[LIndex]) and b.u[LIndex];
 end;
 
 function VecU32x8ShiftLeft(const a: TVecU32x8; count: Integer): TVecU32x8;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
+  LCount: Integer;
 begin
-  for i := 0 to 7 do
-    Result.u[i] := a.u[i] shl count;
+  LCount := count;
+  if (LCount < 0) or (LCount >= 32) then
+  begin
+    for LIndex := 0 to 7 do
+      Result.u[LIndex] := 0;
+    Exit;
+  end;
+
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.ShiftLeftU32x8) then
+    Result := LDispatch^.ShiftLeftU32x8(a, LCount)
+  else
+    for LIndex := 0 to 7 do
+      Result.u[LIndex] := a.u[LIndex] shl LCount;
 end;
 
 function VecU32x8ShiftRight(const a: TVecU32x8; count: Integer): TVecU32x8;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
+  LCount: Integer;
 begin
-  for i := 0 to 7 do
-    Result.u[i] := a.u[i] shr count;  // 逻辑右移 (无符号)
+  LCount := count;
+  if (LCount < 0) or (LCount >= 32) then
+  begin
+    for LIndex := 0 to 7 do
+      Result.u[LIndex] := 0;
+    Exit;
+  end;
+
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.ShiftRightU32x8) then
+    Result := LDispatch^.ShiftRightU32x8(a, LCount)
+  else
+    for LIndex := 0 to 7 do
+      Result.u[LIndex] := a.u[LIndex] shr LCount;
 end;
 
 function VecU32x8CmpEq(const a, b: TVecU32x8): TMask8;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
 begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.u[i] = b.u[i] then Result := Result or (1 shl i);
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.CmpEqU32x8) then
+    Result := LDispatch^.CmpEqU32x8(a, b)
+  else
+  begin
+    Result := 0;
+    for LIndex := 0 to 7 do
+      if a.u[LIndex] = b.u[LIndex] then
+        Result := Result or (TMask8(1) shl LIndex);
+  end;
 end;
 
 function VecU32x8CmpLt(const a, b: TVecU32x8): TMask8;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
 begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.u[i] < b.u[i] then Result := Result or (1 shl i);
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.CmpLtU32x8) then
+    Result := LDispatch^.CmpLtU32x8(a, b)
+  else
+  begin
+    Result := 0;
+    for LIndex := 0 to 7 do
+      if a.u[LIndex] < b.u[LIndex] then
+        Result := Result or (TMask8(1) shl LIndex);
+  end;
 end;
 
 function VecU32x8CmpGt(const a, b: TVecU32x8): TMask8;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
 begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.u[i] > b.u[i] then Result := Result or (1 shl i);
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.CmpGtU32x8) then
+    Result := LDispatch^.CmpGtU32x8(a, b)
+  else
+  begin
+    Result := 0;
+    for LIndex := 0 to 7 do
+      if a.u[LIndex] > b.u[LIndex] then
+        Result := Result or (TMask8(1) shl LIndex);
+  end;
 end;
 
 function VecU32x8CmpLe(const a, b: TVecU32x8): TMask8;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
 begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.u[i] <= b.u[i] then Result := Result or (1 shl i);
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.CmpLeU32x8) then
+    Result := LDispatch^.CmpLeU32x8(a, b)
+  else
+  begin
+    Result := 0;
+    for LIndex := 0 to 7 do
+      if a.u[LIndex] <= b.u[LIndex] then
+        Result := Result or (TMask8(1) shl LIndex);
+  end;
 end;
 
 function VecU32x8CmpGe(const a, b: TVecU32x8): TMask8;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
 begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.u[i] >= b.u[i] then Result := Result or (1 shl i);
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.CmpGeU32x8) then
+    Result := LDispatch^.CmpGeU32x8(a, b)
+  else
+  begin
+    Result := 0;
+    for LIndex := 0 to 7 do
+      if a.u[LIndex] >= b.u[LIndex] then
+        Result := Result or (TMask8(1) shl LIndex);
+  end;
+end;
+
+function VecU32x8CmpNe(const a, b: TVecU32x8): TMask8;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
+begin
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.CmpNeU32x8) then
+    Result := LDispatch^.CmpNeU32x8(a, b)
+  else
+  begin
+    Result := 0;
+    for LIndex := 0 to 7 do
+      if a.u[LIndex] <> b.u[LIndex] then
+        Result := Result or (TMask8(1) shl LIndex);
+  end;
 end;
 
 function VecU32x8Min(const a, b: TVecU32x8): TVecU32x8;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
 begin
-  for i := 0 to 7 do
-    if a.u[i] < b.u[i] then
-      Result.u[i] := a.u[i]
-    else
-      Result.u[i] := b.u[i];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.MinU32x8) then
+    Result := LDispatch^.MinU32x8(a, b)
+  else
+    for LIndex := 0 to 7 do
+      if a.u[LIndex] < b.u[LIndex] then
+        Result.u[LIndex] := a.u[LIndex]
+      else
+        Result.u[LIndex] := b.u[LIndex];
 end;
 
 function VecU32x8Max(const a, b: TVecU32x8): TVecU32x8;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
 begin
-  for i := 0 to 7 do
-    if a.u[i] > b.u[i] then
-      Result.u[i] := a.u[i]
-    else
-      Result.u[i] := b.u[i];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.MaxU32x8) then
+    Result := LDispatch^.MaxU32x8(a, b)
+  else
+    for LIndex := 0 to 7 do
+      if a.u[LIndex] > b.u[LIndex] then
+        Result.u[LIndex] := a.u[LIndex]
+      else
+        Result.u[LIndex] := b.u[LIndex];
 end;
 
 // === I64x4 Operations Implementation ===
@@ -3463,31 +4271,65 @@ end;
 function VecI64x4ShiftLeft(const a: TVecI64x4; count: Integer): TVecI64x4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
+    LCount: Integer;
 begin
+  LCount := count;
+  if (LCount < 0) or (LCount >= 64) then
+  begin
+    for i := 0 to 3 do
+      Result.i[i] := 0;
+    Exit;
+  end;
+
   dispatch := GetDispatchTable;
   if (dispatch <> nil) and Assigned(dispatch^.ShiftLeftI64x4) then
-    Result := dispatch^.ShiftLeftI64x4(a, count)
+    Result := dispatch^.ShiftLeftI64x4(a, LCount)
   else
     for i := 0 to 3 do
-      if (count >= 0) and (count < 64) then
-        Result.i[i] := a.i[i] shl count
-      else
-        Result.i[i] := 0;
+      Result.i[i] := a.i[i] shl LCount;
 end;
 
 function VecI64x4ShiftRight(const a: TVecI64x4; count: Integer): TVecI64x4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
+    LCount: Integer;
 begin
+  LCount := count;
+  if (LCount < 0) or (LCount >= 64) then
+  begin
+    for i := 0 to 3 do
+      Result.i[i] := 0;
+    Exit;
+  end;
+
   dispatch := GetDispatchTable;
   if (dispatch <> nil) and Assigned(dispatch^.ShiftRightI64x4) then
-    Result := dispatch^.ShiftRightI64x4(a, count)
+    Result := dispatch^.ShiftRightI64x4(a, LCount)
   else
     for i := 0 to 3 do
-      if (count >= 0) and (count < 64) then
-        Result.i[i] := Int64(UInt64(a.i[i]) shr count)  // logical shift
-      else
-        Result.i[i] := 0;
+      Result.i[i] := Int64(UInt64(a.i[i]) shr LCount);  // logical shift
+end;
+
+function VecI64x4ShiftRightArith(const a: TVecI64x4; count: Integer): TVecI64x4;
+var
+  dispatch: PSimdDispatchTable;
+  i: Integer;
+  LCount: Integer;
+begin
+  LCount := count;
+  if (LCount < 0) or (LCount >= 64) then
+  begin
+    for i := 0 to 3 do
+      Result.i[i] := 0;
+    Exit;
+  end;
+
+  dispatch := GetDispatchTable;
+  if (dispatch <> nil) and Assigned(dispatch^.ShiftRightArithI64x4) then
+    Result := dispatch^.ShiftRightArithI64x4(a, LCount)
+  else
+    for i := 0 to 3 do
+      Result.i[i] := SarInt64(a.i[i], LCount);
 end;
 
 function VecI64x4CmpEq(const a, b: TVecI64x4): TMask4;
@@ -3713,31 +4555,43 @@ end;
 function VecU64x4ShiftLeft(const a: TVecU64x4; count: Integer): TVecU64x4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
+    LCount: Integer;
 begin
+  LCount := count;
+  if (LCount < 0) or (LCount >= 64) then
+  begin
+    for i := 0 to 3 do
+      Result.u[i] := 0;
+    Exit;
+  end;
+
   dispatch := GetDispatchTable;
   if (dispatch <> nil) and Assigned(dispatch^.ShiftLeftU64x4) then
-    Result := dispatch^.ShiftLeftU64x4(a, count)
+    Result := dispatch^.ShiftLeftU64x4(a, LCount)
   else
     for i := 0 to 3 do
-      if (count >= 0) and (count < 64) then
-        Result.u[i] := a.u[i] shl count
-      else
-        Result.u[i] := 0;
+      Result.u[i] := a.u[i] shl LCount;
 end;
 
 function VecU64x4ShiftRight(const a: TVecU64x4; count: Integer): TVecU64x4;
 var dispatch: PSimdDispatchTable;
     i: Integer;
+    LCount: Integer;
 begin
+  LCount := count;
+  if (LCount < 0) or (LCount >= 64) then
+  begin
+    for i := 0 to 3 do
+      Result.u[i] := 0;
+    Exit;
+  end;
+
   dispatch := GetDispatchTable;
   if (dispatch <> nil) and Assigned(dispatch^.ShiftRightU64x4) then
-    Result := dispatch^.ShiftRightU64x4(a, count)
+    Result := dispatch^.ShiftRightU64x4(a, LCount)
   else
     for i := 0 to 3 do
-      if (count >= 0) and (count < 64) then
-        Result.u[i] := a.u[i] shr count
-      else
-        Result.u[i] := 0;
+      Result.u[i] := a.u[i] shr LCount;
 end;
 
 function VecU64x4CmpEq(const a, b: TVecU64x4): TMask4;
@@ -4140,11 +4994,20 @@ begin
 end;
 
 function VecI8x16AndNot(const a, b: TVecI8x16): TVecI8x16;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
 begin
-  // Note: AndNotI8x16 not in dispatch table, use scalar fallback
-  for i := 0 to 15 do
-    Result.i[i] := (not a.i[i]) and b.i[i];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.AndNotI8x16) then
+    Result := LDispatch^.AndNotI8x16(a, b)
+  else if (LDispatch <> nil) and Assigned(LDispatch^.NotI8x16) and Assigned(LDispatch^.AndI8x16) then
+  begin
+    Result := LDispatch^.AndI8x16(LDispatch^.NotI8x16(a), b);
+  end
+  else
+    for LIndex := 0 to 15 do
+      Result.i[LIndex] := (not a.i[LIndex]) and b.i[LIndex];
 end;
 
 function VecI8x16CmpEq(const a, b: TVecI8x16): TMask16;
@@ -4299,11 +5162,20 @@ begin
 end;
 
 function VecU8x16AndNot(const a, b: TVecU8x16): TVecU8x16;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
 begin
-  // Note: AndNotU8x16 not in dispatch table, use scalar fallback
-  for i := 0 to 15 do
-    Result.u[i] := (not a.u[i]) and b.u[i];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.AndNotU8x16) then
+    Result := LDispatch^.AndNotU8x16(a, b)
+  else if (LDispatch <> nil) and Assigned(LDispatch^.NotU8x16) and Assigned(LDispatch^.AndU8x16) then
+  begin
+    Result := LDispatch^.AndU8x16(LDispatch^.NotU8x16(a), b);
+  end
+  else
+    for LIndex := 0 to 15 do
+      Result.u[LIndex] := (not a.u[LIndex]) and b.u[LIndex];
 end;
 
 function VecU8x16CmpEq(const a, b: TVecU8x16): TMask16;
@@ -4470,11 +5342,20 @@ begin
 end;
 
 function VecU16x8AndNot(const a, b: TVecU16x8): TVecU16x8;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
 begin
-  // Note: AndNotU16x8 not in dispatch table, use scalar fallback
-  for i := 0 to 7 do
-    Result.u[i] := (not a.u[i]) and b.u[i];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.AndNotU16x8) then
+    Result := LDispatch^.AndNotU16x8(a, b)
+  else if (LDispatch <> nil) and Assigned(LDispatch^.NotU16x8) and Assigned(LDispatch^.AndU16x8) then
+  begin
+    Result := LDispatch^.AndU16x8(LDispatch^.NotU16x8(a), b);
+  end
+  else
+    for LIndex := 0 to 7 do
+      Result.u[LIndex] := (not a.u[LIndex]) and b.u[LIndex];
 end;
 
 function VecU16x8ShiftLeft(const a: TVecU16x8; count: Integer): TVecU16x8;
@@ -4580,31 +5461,68 @@ end;
 // ✅ P2.3: F64x4 (256-bit, 4x Double) 高级 API 实现
 
 function VecF64x4Add(const a, b: TVecF64x4): TVecF64x4;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
 begin
-  for i := 0 to 3 do
-    Result.d[i] := a.d[i] + b.d[i];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.AddF64x4) then
+    Result := LDispatch^.AddF64x4(a, b)
+  else
+    for LIndex := 0 to 3 do
+      Result.d[LIndex] := a.d[LIndex] + b.d[LIndex];
 end;
 
 function VecF64x4Sub(const a, b: TVecF64x4): TVecF64x4;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
 begin
-  for i := 0 to 3 do
-    Result.d[i] := a.d[i] - b.d[i];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.SubF64x4) then
+    Result := LDispatch^.SubF64x4(a, b)
+  else
+    for LIndex := 0 to 3 do
+      Result.d[LIndex] := a.d[LIndex] - b.d[LIndex];
 end;
 
 function VecF64x4Mul(const a, b: TVecF64x4): TVecF64x4;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
 begin
-  for i := 0 to 3 do
-    Result.d[i] := a.d[i] * b.d[i];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.MulF64x4) then
+    Result := LDispatch^.MulF64x4(a, b)
+  else
+    for LIndex := 0 to 3 do
+      Result.d[LIndex] := a.d[LIndex] * b.d[LIndex];
 end;
 
 function VecF64x4Div(const a, b: TVecF64x4): TVecF64x4;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
 begin
-  for i := 0 to 3 do
-    Result.d[i] := a.d[i] / b.d[i];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.DivF64x4) then
+    Result := LDispatch^.DivF64x4(a, b)
+  else
+    for LIndex := 0 to 3 do
+      Result.d[LIndex] := a.d[LIndex] / b.d[LIndex];
+end;
+
+function VecF64x4Rcp(const a: TVecF64x4): TVecF64x4;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
+begin
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.RcpF64x4) then
+    Result := LDispatch^.RcpF64x4(a)
+  else
+    for LIndex := 0 to 3 do
+      Result.d[LIndex] := 1.0 / a.d[LIndex];
 end;
 
 function VecF64x4CmpEq(const a, b: TVecF64x4): TMask4;
@@ -4704,37 +5622,61 @@ begin
 end;
 
 function VecF64x4Abs(const a: TVecF64x4): TVecF64x4;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
 begin
-  for i := 0 to 3 do
-    Result.d[i] := Abs(a.d[i]);
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.AbsF64x4) then
+    Result := LDispatch^.AbsF64x4(a)
+  else
+    for LIndex := 0 to 3 do
+      Result.d[LIndex] := Abs(a.d[LIndex]);
 end;
 
 function VecF64x4Sqrt(const a: TVecF64x4): TVecF64x4;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
 begin
-  for i := 0 to 3 do
-    Result.d[i] := Sqrt(a.d[i]);
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.SqrtF64x4) then
+    Result := LDispatch^.SqrtF64x4(a)
+  else
+    for LIndex := 0 to 3 do
+      Result.d[LIndex] := Sqrt(a.d[LIndex]);
 end;
 
 function VecF64x4Min(const a, b: TVecF64x4): TVecF64x4;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
 begin
-  for i := 0 to 3 do
-    if a.d[i] < b.d[i] then
-      Result.d[i] := a.d[i]
-    else
-      Result.d[i] := b.d[i];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.MinF64x4) then
+    Result := LDispatch^.MinF64x4(a, b)
+  else
+    for LIndex := 0 to 3 do
+      if a.d[LIndex] < b.d[LIndex] then
+        Result.d[LIndex] := a.d[LIndex]
+      else
+        Result.d[LIndex] := b.d[LIndex];
 end;
 
 function VecF64x4Max(const a, b: TVecF64x4): TVecF64x4;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
 begin
-  for i := 0 to 3 do
-    if a.d[i] > b.d[i] then
-      Result.d[i] := a.d[i]
-    else
-      Result.d[i] := b.d[i];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.MaxF64x4) then
+    Result := LDispatch^.MaxF64x4(a, b)
+  else
+    for LIndex := 0 to 3 do
+      if a.d[LIndex] > b.d[LIndex] then
+        Result.d[LIndex] := a.d[LIndex]
+      else
+        Result.d[LIndex] := b.d[LIndex];
 end;
 
 function VecF64x4ReduceAdd(const a: TVecF64x4): Double;
@@ -4767,290 +5709,406 @@ end;
 // ✅ P2.3: F64x8 (512-bit, 8x Double) 高级 API 实现
 
 function VecF64x8Add(const a, b: TVecF64x8): TVecF64x8;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  for i := 0 to 7 do
-    Result.d[i] := a.d[i] + b.d[i];
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.AddF64x8(a, b);
 end;
 
 function VecF64x8Sub(const a, b: TVecF64x8): TVecF64x8;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  for i := 0 to 7 do
-    Result.d[i] := a.d[i] - b.d[i];
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.SubF64x8(a, b);
 end;
 
 function VecF64x8Mul(const a, b: TVecF64x8): TVecF64x8;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  for i := 0 to 7 do
-    Result.d[i] := a.d[i] * b.d[i];
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.MulF64x8(a, b);
 end;
 
 function VecF64x8Div(const a, b: TVecF64x8): TVecF64x8;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  for i := 0 to 7 do
-    Result.d[i] := a.d[i] / b.d[i];
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.DivF64x8(a, b);
 end;
 
 function VecF64x8CmpEq(const a, b: TVecF64x8): TMask8;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.d[i] = b.d[i] then Result := Result or (1 shl i);
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.CmpEqF64x8(a, b);
 end;
 
 function VecF64x8CmpLt(const a, b: TVecF64x8): TMask8;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.d[i] < b.d[i] then Result := Result or (1 shl i);
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.CmpLtF64x8(a, b);
 end;
 
 function VecF64x8CmpLe(const a, b: TVecF64x8): TMask8;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.d[i] <= b.d[i] then Result := Result or (1 shl i);
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.CmpLeF64x8(a, b);
 end;
 
 function VecF64x8CmpGt(const a, b: TVecF64x8): TMask8;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.d[i] > b.d[i] then Result := Result or (1 shl i);
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.CmpGtF64x8(a, b);
 end;
 
 function VecF64x8CmpGe(const a, b: TVecF64x8): TMask8;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.d[i] >= b.d[i] then Result := Result or (1 shl i);
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.CmpGeF64x8(a, b);
 end;
 
 function VecF64x8CmpNe(const a, b: TVecF64x8): TMask8;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result := 0;
-  for i := 0 to 7 do
-    if a.d[i] <> b.d[i] then Result := Result or (1 shl i);
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.CmpNeF64x8(a, b);
 end;
 
 function VecF64x8Abs(const a: TVecF64x8): TVecF64x8;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  for i := 0 to 7 do
-    Result.d[i] := Abs(a.d[i]);
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.AbsF64x8(a);
 end;
 
 function VecF64x8Sqrt(const a: TVecF64x8): TVecF64x8;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  for i := 0 to 7 do
-    Result.d[i] := Sqrt(a.d[i]);
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.SqrtF64x8(a);
 end;
 
 function VecF64x8Min(const a, b: TVecF64x8): TVecF64x8;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  for i := 0 to 7 do
-    if a.d[i] < b.d[i] then
-      Result.d[i] := a.d[i]
-    else
-      Result.d[i] := b.d[i];
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.MinF64x8(a, b);
 end;
 
 function VecF64x8Max(const a, b: TVecF64x8): TVecF64x8;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  for i := 0 to 7 do
-    if a.d[i] > b.d[i] then
-      Result.d[i] := a.d[i]
-    else
-      Result.d[i] := b.d[i];
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.MaxF64x8(a, b);
+end;
+
+function VecF64x8Clamp(const a, minVal, maxVal: TVecF64x8): TVecF64x8;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.ClampF64x8(a, minVal, maxVal);
+end;
+
+function VecF64x8Fma(const a, b, c: TVecF64x8): TVecF64x8;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.FmaF64x8(a, b, c);
+end;
+
+function VecF64x8Floor(const a: TVecF64x8): TVecF64x8;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.FloorF64x8(a);
+end;
+
+function VecF64x8Ceil(const a: TVecF64x8): TVecF64x8;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.CeilF64x8(a);
+end;
+
+function VecF64x8Round(const a: TVecF64x8): TVecF64x8;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.RoundF64x8(a);
+end;
+
+function VecF64x8Trunc(const a: TVecF64x8): TVecF64x8;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.TruncF64x8(a);
 end;
 
 function VecF64x8ReduceAdd(const a: TVecF64x8): Double;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result := a.d[0];
-  for i := 1 to 7 do
-    Result := Result + a.d[i];
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.ReduceAddF64x8(a);
 end;
 
 function VecF64x8ReduceMin(const a: TVecF64x8): Double;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result := a.d[0];
-  for i := 1 to 7 do
-    if a.d[i] < Result then Result := a.d[i];
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.ReduceMinF64x8(a);
 end;
 
 function VecF64x8ReduceMax(const a: TVecF64x8): Double;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result := a.d[0];
-  for i := 1 to 7 do
-    if a.d[i] > Result then Result := a.d[i];
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.ReduceMaxF64x8(a);
 end;
 
 function VecF64x8ReduceMul(const a: TVecF64x8): Double;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result := a.d[0];
-  for i := 1 to 7 do
-    Result := Result * a.d[i];
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.ReduceMulF64x8(a);
+end;
+
+function VecF64x8Select(const mask: TMask8; const a, b: TVecF64x8): TVecF64x8;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.SelectF64x8(mask, a, b);
 end;
 
 // === F32x16 Operations Implementation ===
 // ✅ P3.2: F32x16 (512-bit, 16x Single) 高级 API 实现
 
 function VecF32x16Add(const a, b: TVecF32x16): TVecF32x16;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  for i := 0 to 15 do
-    Result.f[i] := a.f[i] + b.f[i];
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.AddF32x16(a, b);
 end;
 
 function VecF32x16Sub(const a, b: TVecF32x16): TVecF32x16;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  for i := 0 to 15 do
-    Result.f[i] := a.f[i] - b.f[i];
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.SubF32x16(a, b);
 end;
 
 function VecF32x16Mul(const a, b: TVecF32x16): TVecF32x16;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  for i := 0 to 15 do
-    Result.f[i] := a.f[i] * b.f[i];
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.MulF32x16(a, b);
 end;
 
 function VecF32x16Div(const a, b: TVecF32x16): TVecF32x16;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  for i := 0 to 15 do
-    Result.f[i] := a.f[i] / b.f[i];
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.DivF32x16(a, b);
 end;
 
 function VecF32x16CmpEq_Mask(const a, b: TVecF32x16): TMask16;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result := 0;
-  for i := 0 to 15 do
-    if a.f[i] = b.f[i] then Result := Result or (1 shl i);
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.CmpEqF32x16(a, b);
 end;
 
 function VecF32x16CmpLt_Mask(const a, b: TVecF32x16): TMask16;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result := 0;
-  for i := 0 to 15 do
-    if a.f[i] < b.f[i] then Result := Result or (1 shl i);
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.CmpLtF32x16(a, b);
 end;
 
 function VecF32x16CmpLe_Mask(const a, b: TVecF32x16): TMask16;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result := 0;
-  for i := 0 to 15 do
-    if a.f[i] <= b.f[i] then Result := Result or (1 shl i);
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.CmpLeF32x16(a, b);
 end;
 
 function VecF32x16CmpGt_Mask(const a, b: TVecF32x16): TMask16;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result := 0;
-  for i := 0 to 15 do
-    if a.f[i] > b.f[i] then Result := Result or (1 shl i);
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.CmpGtF32x16(a, b);
 end;
 
 function VecF32x16CmpGe_Mask(const a, b: TVecF32x16): TMask16;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result := 0;
-  for i := 0 to 15 do
-    if a.f[i] >= b.f[i] then Result := Result or (1 shl i);
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.CmpGeF32x16(a, b);
 end;
 
 function VecF32x16CmpNe_Mask(const a, b: TVecF32x16): TMask16;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result := 0;
-  for i := 0 to 15 do
-    if a.f[i] <> b.f[i] then Result := Result or (1 shl i);
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.CmpNeF32x16(a, b);
 end;
 
 function VecF32x16Abs(const a: TVecF32x16): TVecF32x16;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  for i := 0 to 15 do
-    Result.f[i] := Abs(a.f[i]);
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.AbsF32x16(a);
 end;
 
 function VecF32x16Sqrt(const a: TVecF32x16): TVecF32x16;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  for i := 0 to 15 do
-    Result.f[i] := Sqrt(a.f[i]);
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.SqrtF32x16(a);
 end;
 
 function VecF32x16Min(const a, b: TVecF32x16): TVecF32x16;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  for i := 0 to 15 do
-    if a.f[i] < b.f[i] then
-      Result.f[i] := a.f[i]
-    else
-      Result.f[i] := b.f[i];
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.MinF32x16(a, b);
 end;
 
 function VecF32x16Max(const a, b: TVecF32x16): TVecF32x16;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  for i := 0 to 15 do
-    if a.f[i] > b.f[i] then
-      Result.f[i] := a.f[i]
-    else
-      Result.f[i] := b.f[i];
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.MaxF32x16(a, b);
+end;
+
+function VecF32x16Clamp(const a, minVal, maxVal: TVecF32x16): TVecF32x16;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.ClampF32x16(a, minVal, maxVal);
+end;
+
+function VecF32x16Fma(const a, b, c: TVecF32x16): TVecF32x16;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.FmaF32x16(a, b, c);
+end;
+
+function VecF32x16Floor(const a: TVecF32x16): TVecF32x16;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.FloorF32x16(a);
+end;
+
+function VecF32x16Ceil(const a: TVecF32x16): TVecF32x16;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.CeilF32x16(a);
+end;
+
+function VecF32x16Round(const a: TVecF32x16): TVecF32x16;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.RoundF32x16(a);
+end;
+
+function VecF32x16Trunc(const a: TVecF32x16): TVecF32x16;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.TruncF32x16(a);
 end;
 
 function VecF32x16ReduceAdd(const a: TVecF32x16): Single;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result := a.f[0];
-  for i := 1 to 15 do
-    Result := Result + a.f[i];
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.ReduceAddF32x16(a);
 end;
 
 function VecF32x16ReduceMin(const a: TVecF32x16): Single;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result := a.f[0];
-  for i := 1 to 15 do
-    if a.f[i] < Result then Result := a.f[i];
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.ReduceMinF32x16(a);
 end;
 
 function VecF32x16ReduceMax(const a: TVecF32x16): Single;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result := a.f[0];
-  for i := 1 to 15 do
-    if a.f[i] > Result then Result := a.f[i];
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.ReduceMaxF32x16(a);
 end;
 
 function VecF32x16ReduceMul(const a: TVecF32x16): Single;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result := a.f[0];
-  for i := 1 to 15 do
-    Result := Result * a.f[i];
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.ReduceMulF32x16(a);
+end;
+
+function VecF32x16Select(const mask: TMask16; const a, b: TVecF32x16): TVecF32x16;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.SelectF32x16(mask, a, b);
 end;
 
 // === I32x16 Operations Implementation ===
@@ -5171,42 +6229,69 @@ end;
 function VecI32x16ShiftLeft(const a: TVecI32x16; count: Integer): TVecI32x16;
 var dispatch: PSimdDispatchTable;
     i: Integer;
+    LCount: Integer;
 begin
+  LCount := count;
+  if (LCount < 0) or (LCount >= 32) then
+  begin
+    for i := 0 to 15 do
+      Result.i[i] := 0;
+    Exit;
+  end;
+
   dispatch := GetDispatchTable;
   if (dispatch <> nil) and Assigned(dispatch^.ShiftLeftI32x16) then
-    Result := dispatch^.ShiftLeftI32x16(a, count)
+    Result := dispatch^.ShiftLeftI32x16(a, LCount)
   else
   begin
     for i := 0 to 15 do
-      Result.i[i] := a.i[i] shl count;
+      Result.i[i] := a.i[i] shl LCount;
   end;
 end;
 
 function VecI32x16ShiftRight(const a: TVecI32x16; count: Integer): TVecI32x16;
 var dispatch: PSimdDispatchTable;
     i: Integer;
+    LCount: Integer;
 begin
+  LCount := count;
+  if (LCount < 0) or (LCount >= 32) then
+  begin
+    for i := 0 to 15 do
+      Result.i[i] := 0;
+    Exit;
+  end;
+
   dispatch := GetDispatchTable;
   if (dispatch <> nil) and Assigned(dispatch^.ShiftRightI32x16) then
-    Result := dispatch^.ShiftRightI32x16(a, count)
+    Result := dispatch^.ShiftRightI32x16(a, LCount)
   else
   begin
     for i := 0 to 15 do
-      Result.i[i] := Int32(UInt32(a.i[i]) shr count);
+      Result.i[i] := Int32(UInt32(a.i[i]) shr LCount);
   end;
 end;
 
 function VecI32x16ShiftRightArith(const a: TVecI32x16; count: Integer): TVecI32x16;
 var dispatch: PSimdDispatchTable;
     i: Integer;
+    LCount: Integer;
 begin
+  LCount := count;
+  if (LCount < 0) or (LCount >= 32) then
+  begin
+    for i := 0 to 15 do
+      Result.i[i] := 0;
+    Exit;
+  end;
+
   dispatch := GetDispatchTable;
   if (dispatch <> nil) and Assigned(dispatch^.ShiftRightArithI32x16) then
-    Result := dispatch^.ShiftRightArithI32x16(a, count)
+    Result := dispatch^.ShiftRightArithI32x16(a, LCount)
   else
   begin
     for i := 0 to 15 do
-      Result.i[i] := SarLongint(a.i[i], count);
+      Result.i[i] := SarLongint(a.i[i], LCount);
   end;
 end;
 
@@ -5335,6 +6420,760 @@ begin
   end;
 end;
 
+// === I64x8 Operations Implementation ===
+
+function VecI64x8Add(const a, b: TVecI64x8): TVecI64x8;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
+begin
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.AddI64x8) then
+    Result := LDispatch^.AddI64x8(a, b)
+  else
+  begin
+    for LIndex := 0 to 7 do
+      Result.i[LIndex] := a.i[LIndex] + b.i[LIndex];
+  end;
+end;
+
+function VecI64x8Sub(const a, b: TVecI64x8): TVecI64x8;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
+begin
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.SubI64x8) then
+    Result := LDispatch^.SubI64x8(a, b)
+  else
+  begin
+    for LIndex := 0 to 7 do
+      Result.i[LIndex] := a.i[LIndex] - b.i[LIndex];
+  end;
+end;
+
+function VecI64x8And(const a, b: TVecI64x8): TVecI64x8;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
+begin
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.AndI64x8) then
+    Result := LDispatch^.AndI64x8(a, b)
+  else
+  begin
+    for LIndex := 0 to 7 do
+      Result.i[LIndex] := a.i[LIndex] and b.i[LIndex];
+  end;
+end;
+
+function VecI64x8Or(const a, b: TVecI64x8): TVecI64x8;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
+begin
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.OrI64x8) then
+    Result := LDispatch^.OrI64x8(a, b)
+  else
+  begin
+    for LIndex := 0 to 7 do
+      Result.i[LIndex] := a.i[LIndex] or b.i[LIndex];
+  end;
+end;
+
+function VecI64x8Xor(const a, b: TVecI64x8): TVecI64x8;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
+begin
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.XorI64x8) then
+    Result := LDispatch^.XorI64x8(a, b)
+  else
+  begin
+    for LIndex := 0 to 7 do
+      Result.i[LIndex] := a.i[LIndex] xor b.i[LIndex];
+  end;
+end;
+
+function VecI64x8Not(const a: TVecI64x8): TVecI64x8;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
+begin
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.NotI64x8) then
+    Result := LDispatch^.NotI64x8(a)
+  else
+  begin
+    for LIndex := 0 to 7 do
+      Result.i[LIndex] := not a.i[LIndex];
+  end;
+end;
+
+function VecI64x8CmpEq(const a, b: TVecI64x8): TMask8;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
+begin
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.CmpEqI64x8) then
+    Result := LDispatch^.CmpEqI64x8(a, b)
+  else
+  begin
+    Result := 0;
+    for LIndex := 0 to 7 do
+      if a.i[LIndex] = b.i[LIndex] then
+        Result := Result or (1 shl LIndex);
+  end;
+end;
+
+function VecI64x8CmpLt(const a, b: TVecI64x8): TMask8;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
+begin
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.CmpLtI64x8) then
+    Result := LDispatch^.CmpLtI64x8(a, b)
+  else
+  begin
+    Result := 0;
+    for LIndex := 0 to 7 do
+      if a.i[LIndex] < b.i[LIndex] then
+        Result := Result or (1 shl LIndex);
+  end;
+end;
+
+function VecI64x8CmpGt(const a, b: TVecI64x8): TMask8;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
+begin
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.CmpGtI64x8) then
+    Result := LDispatch^.CmpGtI64x8(a, b)
+  else
+  begin
+    Result := 0;
+    for LIndex := 0 to 7 do
+      if a.i[LIndex] > b.i[LIndex] then
+        Result := Result or (1 shl LIndex);
+  end;
+end;
+
+function VecI64x8CmpLe(const a, b: TVecI64x8): TMask8;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
+begin
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.CmpLeI64x8) then
+    Result := LDispatch^.CmpLeI64x8(a, b)
+  else
+  begin
+    Result := 0;
+    for LIndex := 0 to 7 do
+      if a.i[LIndex] <= b.i[LIndex] then
+        Result := Result or (1 shl LIndex);
+  end;
+end;
+
+function VecI64x8CmpGe(const a, b: TVecI64x8): TMask8;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
+begin
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.CmpGeI64x8) then
+    Result := LDispatch^.CmpGeI64x8(a, b)
+  else
+  begin
+    Result := 0;
+    for LIndex := 0 to 7 do
+      if a.i[LIndex] >= b.i[LIndex] then
+        Result := Result or (1 shl LIndex);
+  end;
+end;
+
+function VecI64x8CmpNe(const a, b: TVecI64x8): TMask8;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
+begin
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.CmpNeI64x8) then
+    Result := LDispatch^.CmpNeI64x8(a, b)
+  else
+  begin
+    Result := 0;
+    for LIndex := 0 to 7 do
+      if a.i[LIndex] <> b.i[LIndex] then
+        Result := Result or (1 shl LIndex);
+  end;
+end;
+
+function VecU32x16Add(const a, b: TVecU32x16): TVecU32x16;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.AddU32x16(a, b);
+end;
+
+function VecU32x16Sub(const a, b: TVecU32x16): TVecU32x16;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.SubU32x16(a, b);
+end;
+
+function VecU32x16Mul(const a, b: TVecU32x16): TVecU32x16;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.MulU32x16(a, b);
+end;
+
+function VecU32x16And(const a, b: TVecU32x16): TVecU32x16;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.AndU32x16(a, b);
+end;
+
+function VecU32x16Or(const a, b: TVecU32x16): TVecU32x16;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.OrU32x16(a, b);
+end;
+
+function VecU32x16Xor(const a, b: TVecU32x16): TVecU32x16;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.XorU32x16(a, b);
+end;
+
+function VecU32x16Not(const a: TVecU32x16): TVecU32x16;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.NotU32x16(a);
+end;
+
+function VecU32x16AndNot(const a, b: TVecU32x16): TVecU32x16;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.AndNotU32x16(a, b);
+end;
+
+function VecU32x16ShiftLeft(const a: TVecU32x16; count: Integer): TVecU32x16;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.ShiftLeftU32x16(a, count);
+end;
+
+function VecU32x16ShiftRight(const a: TVecU32x16; count: Integer): TVecU32x16;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.ShiftRightU32x16(a, count);
+end;
+
+function VecU32x16CmpEq(const a, b: TVecU32x16): TMask16;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.CmpEqU32x16(a, b);
+end;
+
+function VecU32x16CmpLt(const a, b: TVecU32x16): TMask16;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.CmpLtU32x16(a, b);
+end;
+
+function VecU32x16CmpGt(const a, b: TVecU32x16): TMask16;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.CmpGtU32x16(a, b);
+end;
+
+function VecU32x16CmpLe(const a, b: TVecU32x16): TMask16;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.CmpLeU32x16(a, b);
+end;
+
+function VecU32x16CmpGe(const a, b: TVecU32x16): TMask16;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.CmpGeU32x16(a, b);
+end;
+
+function VecU32x16CmpNe(const a, b: TVecU32x16): TMask16;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.CmpNeU32x16(a, b);
+end;
+
+function VecU32x16Min(const a, b: TVecU32x16): TVecU32x16;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.MinU32x16(a, b);
+end;
+
+function VecU32x16Max(const a, b: TVecU32x16): TVecU32x16;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.MaxU32x16(a, b);
+end;
+
+function VecU64x8Add(const a, b: TVecU64x8): TVecU64x8;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.AddU64x8(a, b);
+end;
+
+function VecU64x8Sub(const a, b: TVecU64x8): TVecU64x8;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.SubU64x8(a, b);
+end;
+
+function VecU64x8And(const a, b: TVecU64x8): TVecU64x8;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.AndU64x8(a, b);
+end;
+
+function VecU64x8Or(const a, b: TVecU64x8): TVecU64x8;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.OrU64x8(a, b);
+end;
+
+function VecU64x8Xor(const a, b: TVecU64x8): TVecU64x8;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.XorU64x8(a, b);
+end;
+
+function VecU64x8Not(const a: TVecU64x8): TVecU64x8;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.NotU64x8(a);
+end;
+
+function VecU64x8ShiftLeft(const a: TVecU64x8; count: Integer): TVecU64x8;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.ShiftLeftU64x8(a, count);
+end;
+
+function VecU64x8ShiftRight(const a: TVecU64x8; count: Integer): TVecU64x8;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.ShiftRightU64x8(a, count);
+end;
+
+function VecU64x8CmpEq(const a, b: TVecU64x8): TMask8;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.CmpEqU64x8(a, b);
+end;
+
+function VecU64x8CmpLt(const a, b: TVecU64x8): TMask8;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.CmpLtU64x8(a, b);
+end;
+
+function VecU64x8CmpGt(const a, b: TVecU64x8): TMask8;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.CmpGtU64x8(a, b);
+end;
+
+function VecU64x8CmpLe(const a, b: TVecU64x8): TMask8;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.CmpLeU64x8(a, b);
+end;
+
+function VecU64x8CmpGe(const a, b: TVecU64x8): TMask8;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.CmpGeU64x8(a, b);
+end;
+
+function VecU64x8CmpNe(const a, b: TVecU64x8): TMask8;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.CmpNeU64x8(a, b);
+end;
+
+function VecI16x32Add(const a, b: TVecI16x32): TVecI16x32;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.AddI16x32(a, b);
+end;
+
+function VecI16x32Sub(const a, b: TVecI16x32): TVecI16x32;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.SubI16x32(a, b);
+end;
+
+function VecI16x32And(const a, b: TVecI16x32): TVecI16x32;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.AndI16x32(a, b);
+end;
+
+function VecI16x32Or(const a, b: TVecI16x32): TVecI16x32;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.OrI16x32(a, b);
+end;
+
+function VecI16x32Xor(const a, b: TVecI16x32): TVecI16x32;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.XorI16x32(a, b);
+end;
+
+function VecI16x32Not(const a: TVecI16x32): TVecI16x32;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.NotI16x32(a);
+end;
+
+function VecI16x32AndNot(const a, b: TVecI16x32): TVecI16x32;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.AndNotI16x32(a, b);
+end;
+
+function VecI16x32ShiftLeft(const a: TVecI16x32; count: Integer): TVecI16x32;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.ShiftLeftI16x32(a, count);
+end;
+
+function VecI16x32ShiftRight(const a: TVecI16x32; count: Integer): TVecI16x32;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.ShiftRightI16x32(a, count);
+end;
+
+function VecI16x32ShiftRightArith(const a: TVecI16x32; count: Integer): TVecI16x32;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.ShiftRightArithI16x32(a, count);
+end;
+
+function VecI16x32CmpEq(const a, b: TVecI16x32): TMask32;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.CmpEqI16x32(a, b);
+end;
+
+function VecI16x32CmpLt(const a, b: TVecI16x32): TMask32;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.CmpLtI16x32(a, b);
+end;
+
+function VecI16x32CmpGt(const a, b: TVecI16x32): TMask32;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.CmpGtI16x32(a, b);
+end;
+
+function VecI16x32Min(const a, b: TVecI16x32): TVecI16x32;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.MinI16x32(a, b);
+end;
+
+function VecI16x32Max(const a, b: TVecI16x32): TVecI16x32;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.MaxI16x32(a, b);
+end;
+
+function VecI8x64Add(const a, b: TVecI8x64): TVecI8x64;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.AddI8x64(a, b);
+end;
+
+function VecI8x64Sub(const a, b: TVecI8x64): TVecI8x64;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.SubI8x64(a, b);
+end;
+
+function VecI8x64And(const a, b: TVecI8x64): TVecI8x64;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.AndI8x64(a, b);
+end;
+
+function VecI8x64Or(const a, b: TVecI8x64): TVecI8x64;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.OrI8x64(a, b);
+end;
+
+function VecI8x64Xor(const a, b: TVecI8x64): TVecI8x64;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.XorI8x64(a, b);
+end;
+
+function VecI8x64Not(const a: TVecI8x64): TVecI8x64;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.NotI8x64(a);
+end;
+
+function VecI8x64AndNot(const a, b: TVecI8x64): TVecI8x64;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.AndNotI8x64(a, b);
+end;
+
+function VecI8x64CmpEq(const a, b: TVecI8x64): TMask64;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.CmpEqI8x64(a, b);
+end;
+
+function VecI8x64CmpLt(const a, b: TVecI8x64): TMask64;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.CmpLtI8x64(a, b);
+end;
+
+function VecI8x64CmpGt(const a, b: TVecI8x64): TMask64;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.CmpGtI8x64(a, b);
+end;
+
+function VecI8x64Min(const a, b: TVecI8x64): TVecI8x64;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.MinI8x64(a, b);
+end;
+
+function VecI8x64Max(const a, b: TVecI8x64): TVecI8x64;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.MaxI8x64(a, b);
+end;
+
+function VecU8x64Add(const a, b: TVecU8x64): TVecU8x64;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.AddU8x64(a, b);
+end;
+
+function VecU8x64Sub(const a, b: TVecU8x64): TVecU8x64;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.SubU8x64(a, b);
+end;
+
+function VecU8x64And(const a, b: TVecU8x64): TVecU8x64;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.AndU8x64(a, b);
+end;
+
+function VecU8x64Or(const a, b: TVecU8x64): TVecU8x64;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.OrU8x64(a, b);
+end;
+
+function VecU8x64Xor(const a, b: TVecU8x64): TVecU8x64;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.XorU8x64(a, b);
+end;
+
+function VecU8x64Not(const a: TVecU8x64): TVecU8x64;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.NotU8x64(a);
+end;
+
+function VecU8x64CmpEq(const a, b: TVecU8x64): TMask64;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.CmpEqU8x64(a, b);
+end;
+
+function VecU8x64CmpLt(const a, b: TVecU8x64): TMask64;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.CmpLtU8x64(a, b);
+end;
+
+function VecU8x64CmpGt(const a, b: TVecU8x64): TMask64;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.CmpGtU8x64(a, b);
+end;
+
+function VecU8x64Min(const a, b: TVecU8x64): TVecU8x64;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.MinU8x64(a, b);
+end;
+
+function VecU8x64Max(const a, b: TVecU8x64): TVecU8x64;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  Result := LDispatch^.MaxU8x64(a, b);
+end;
+
 // === ✅ P2-1: Saturating Arithmetic Implementation ===
 // 饱和算术：结果被钳制到类型范围，而不是溢出回绕
 
@@ -5450,54 +7289,7 @@ begin
   Result := fafafa.core.simd.utils.VecF32x4CastToI32x4(a);
 end;
 
-// === Framework Information ===
-
-function GetCurrentBackend: TSimdBackend;
-begin
-  Result := GetActiveBackend;
-end;
-
-function GetCurrentBackendInfo: TSimdBackendInfo;
-begin
-  Result := GetBackendInfo(GetActiveBackend);
-end;
-
-function GetCPUInformation: TCPUInfo;
-begin
-  Result := GetCPUInfo;
-end;
-
-function GetAvailableBackendList: TSimdBackendArray;
-begin
-  Result := GetAvailableBackends;
-end;
-
-procedure ForceBackend(backend: TSimdBackend);
-begin
-  SetActiveBackend(backend);
-end;
-
-procedure ResetBackendSelection;
-begin
-  ResetToAutomaticBackend;
-end;
-
-// === Memory Utilities ===
-
-function AllocateAligned(size: NativeUInt; alignment: NativeUInt): Pointer;
-begin
-  Result := AlignedAlloc(size, alignment);
-end;
-
-procedure FreeAligned(ptr: Pointer);
-begin
-  AlignedFree(ptr);
-end;
-
-function IsPointerAligned(ptr: Pointer; alignment: NativeUInt): Boolean;
-begin
-  Result := fafafa.core.simd.memutils.IsAligned(ptr, alignment);
-end;
+{$I fafafa.core.simd.framework.impl.inc}
 
 end.
 

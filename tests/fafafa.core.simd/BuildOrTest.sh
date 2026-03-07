@@ -35,6 +35,7 @@ WIN_CLOSEOUT_3CMD_SCRIPT="${ROOT}/print_windows_b07_closeout_3cmd.sh"
 FREEZE_STATUS_SCRIPT="${ROOT}/evaluate_simd_freeze_status.py"
 WIN_CLOSEOUT_FINALIZE_SCRIPT="${ROOT}/run_windows_b07_closeout_finalize.sh"
 FREEZE_REHEARSAL_SCRIPT="${ROOT}/rehearse_freeze_status.sh"
+WIN_EVIDENCE_PREFLIGHT_SCRIPT="${ROOT}/preflight_windows_b07_evidence_gh.sh"
 
 mkdir -p "${ROOT}/bin2" "${ROOT}/lib2" "${LOG_DIR}"
 
@@ -45,7 +46,7 @@ if [[ "${FAFAFA_BUILD_QUIET:-1}" != "0" ]]; then
   LZ_Q+=("--quiet")
 fi
 
-MODE="${FAFAFA_BUILD_MODE:-Debug}"
+MODE="${FAFAFA_BUILD_MODE:-Release}"
 
 detect_lazarusdir() {
   # Prefer explicit override.
@@ -83,7 +84,7 @@ build_project() {
   echo "[BUILD] Project: ${PROJ} (mode=${MODE})"
   : >"${BUILD_LOG}"
   if [[ -n "${LLazarusDir}" ]]; then
-    if "${LAZBUILD_BIN}" "${LZ_Q[@]}" --lazarusdir="${LLazarusDir}" --build-all "${PROJ}" >"${BUILD_LOG}" 2>&1; then
+    if "${LAZBUILD_BIN}" "${LZ_Q[@]}" --lazarusdir="${LLazarusDir}" --build-mode="${MODE}" --build-all "${PROJ}" >"${BUILD_LOG}" 2>&1; then
       echo "[BUILD] OK"
     else
       local rc=$?
@@ -93,7 +94,7 @@ build_project() {
     return 0
   fi
 
-  if "${LAZBUILD_BIN}" "${LZ_Q[@]}" --build-all "${PROJ}" >"${BUILD_LOG}" 2>&1; then
+  if "${LAZBUILD_BIN}" "${LZ_Q[@]}" --build-mode="${MODE}" --build-all "${PROJ}" >"${BUILD_LOG}" 2>&1; then
     echo "[BUILD] OK"
   else
     local rc=$?
@@ -122,7 +123,7 @@ run_tests() {
   : >"${TEST_LOG}"
 
   if "${BIN}" "$@" >"${TEST_LOG}" 2>&1; then
-    echo "[TEST] OK"
+    :
   else
     local rc=$?
     echo "[TEST] FAILED rc=${rc} (see ${TEST_LOG})"
@@ -135,6 +136,14 @@ run_tests() {
     grep -nE '^Invalid option' "${TEST_LOG}" || true
     return 2
   fi
+
+  if grep -nE '^[[:space:]]*Number of failures:[[:space:]]*[1-9][0-9]*|^[[:space:]]*Number of errors:[[:space:]]*[1-9][0-9]*|Time:[^[:cntrl:]]*[[:space:]]E:[1-9][0-9]*|Time:[^[:cntrl:]]*[[:space:]]F:[1-9][0-9]*' "${TEST_LOG}" >/dev/null; then
+    echo "[TEST] FAILED: test runner reports failures/errors (see ${TEST_LOG})"
+    grep -nE '^[[:space:]]*Number of failures:[[:space:]]*[0-9]+|^[[:space:]]*Number of errors:[[:space:]]*[0-9]+|Time:[^[:cntrl:]]*[[:space:]]E:[0-9]+|Time:[^[:cntrl:]]*[[:space:]]F:[0-9]+' "${TEST_LOG}" || true
+    return 1
+  fi
+
+  echo "[TEST] OK"
 }
 
 run_suite_repeat() {
@@ -166,6 +175,82 @@ run_suite_repeat() {
   echo "[REPEAT] OK suite=${aSuite} rounds=${aRounds}"
 }
 
+run_cpuinfo_lazy_repeat() {
+  local aTestsRoot
+  local aRounds
+  local LRound
+  local LCpuinfoRunner
+  local LCpuinfoLogDir
+  local LCpuinfoSuiteLog
+  local LCpuinfoTargetCPU
+  local LCpuinfoTargetOS
+  local LCpuinfoTargetLog
+  local LPerRunLog
+
+  aTestsRoot="${1:-}"
+  aRounds="${2:-5}"
+
+  if [[ -z "${aTestsRoot}" ]]; then
+    echo "[CPUINFO-LAZY] Missing tests root"
+    return 2
+  fi
+
+  if ! [[ "${aRounds}" =~ ^[1-9][0-9]*$ ]]; then
+    echo "[CPUINFO-LAZY] Invalid rounds: ${aRounds} (expect positive integer)"
+    return 2
+  fi
+
+  LCpuinfoRunner="${aTestsRoot}/fafafa.core.simd.cpuinfo/BuildOrTest.sh"
+  LCpuinfoLogDir="${aTestsRoot}/fafafa.core.simd.cpuinfo/logs"
+  LCpuinfoSuiteLog="${LCpuinfoLogDir}/test.txt"
+
+  if [[ ! -x "${LCpuinfoRunner}" ]]; then
+    echo "[CPUINFO-LAZY] Missing runner: ${LCpuinfoRunner}"
+    return 2
+  fi
+
+  LCpuinfoTargetCPU="$(fpc -iTP 2>/dev/null | tr '[:upper:]' '[:lower:]' || true)"
+  LCpuinfoTargetOS="$(fpc -iTO 2>/dev/null | tr '[:upper:]' '[:lower:]' || true)"
+  if [[ -z "${LCpuinfoTargetCPU}" ]]; then
+    LCpuinfoTargetCPU="unknowncpu"
+  fi
+  if [[ -z "${LCpuinfoTargetOS}" ]]; then
+    LCpuinfoTargetOS="unknownos"
+  fi
+  LCpuinfoTargetLog="${LCpuinfoLogDir}/${LCpuinfoTargetCPU}-${LCpuinfoTargetOS}/test.txt"
+
+  bash "${LCpuinfoRunner}" test --list-suites || return $?
+  if [[ -f "${LCpuinfoTargetLog}" ]]; then
+    LCpuinfoSuiteLog="${LCpuinfoTargetLog}"
+  fi
+  if [[ ! -f "${LCpuinfoSuiteLog}" ]] || ! grep -q "TTestCase_LazyCPUInfo" "${LCpuinfoSuiteLog}"; then
+    echo "[CPUINFO-LAZY] Missing suite TTestCase_LazyCPUInfo (see ${LCpuinfoSuiteLog})"
+    return 2
+  fi
+
+  for ((LRound = 1; LRound <= aRounds; LRound++)); do
+    echo "[CPUINFO-LAZY] ${LRound}/${aRounds} suite=TTestCase_LazyCPUInfo"
+    bash "${LCpuinfoRunner}" test --suite=TTestCase_LazyCPUInfo || return $?
+    if [[ -f "${LCpuinfoTargetLog}" ]]; then
+      LCpuinfoSuiteLog="${LCpuinfoTargetLog}"
+    fi
+
+    LPerRunLog="${LCpuinfoLogDir}/repeat.TTestCase_LazyCPUInfo.${LRound}.txt"
+    cp "${LCpuinfoSuiteLog}" "${LPerRunLog}" || true
+  done
+
+  echo "[CPUINFO-LAZY] OK suite=TTestCase_LazyCPUInfo rounds=${aRounds}"
+}
+
+run_cpuinfo_lazy_repeat_action() {
+  local LTestsRoot
+  local LRounds
+
+  LTestsRoot="$(cd "${ROOT}/.." && pwd)"
+  LRounds="${1:-${SIMD_CPUINFO_LAZY_REPEAT_ROUNDS:-5}}"
+  run_cpuinfo_lazy_repeat "${LTestsRoot}" "${LRounds}" || return $?
+}
+
 check_heap_leaks() {
   # heaptrc prints e.g. "0 unfreed memory blocks : 0" or "2 unfreed memory blocks : 38".
   if grep -nE '^[1-9][0-9]* unfreed memory blocks' "${TEST_LOG}" >/dev/null; then
@@ -194,6 +279,7 @@ check_windows_runner_parity() {
     'if /I "%ACTION%"=="check" goto :check'
     'if /I "%ACTION%"=="test" goto :test'
     'if /I "%ACTION%"=="test-concurrent-repeat" goto :test_concurrent_repeat'
+    'if /I "%ACTION%"=="cpuinfo-lazy-repeat" goto :cpuinfo_lazy_repeat'
     'if /I "%ACTION%"=="gate" goto :gate'
     'if /I "%ACTION%"=="gate-strict" goto :gate_strict'
     'if /I "%ACTION%"=="interface-completeness" goto :interface_completeness'
@@ -204,13 +290,21 @@ check_windows_runner_parity() {
     'if /I "%ACTION%"=="nonx86-ieee754" goto :nonx86_ieee754'
     'if /I "%ACTION%"=="backend-bench" goto :backend_bench'
     'if /I "%ACTION%"=="qemu-nonx86-evidence" goto :qemu_nonx86_evidence'
+    'if /I "%ACTION%"=="qemu-cpuinfo-nonx86-evidence" goto :qemu_cpuinfo_nonx86_evidence'
+    'if /I "%ACTION%"=="qemu-cpuinfo-nonx86-full-evidence" goto :qemu_cpuinfo_nonx86_full_evidence'
+    'if /I "%ACTION%"=="qemu-cpuinfo-nonx86-full-repeat" goto :qemu_cpuinfo_nonx86_full_repeat'
+    'if /I "%ACTION%"=="qemu-cpuinfo-nonx86-suite-repeat" goto :qemu_cpuinfo_nonx86_suite_repeat'
     'if /I "%ACTION%"=="qemu-arch-matrix-evidence" goto :qemu_arch_matrix_evidence'
     'if /I "%ACTION%"=="qemu-nonx86-experimental-asm" goto :qemu_nonx86_experimental_asm'
     'if /I "%ACTION%"=="qemu-experimental-report" goto :qemu_experimental_report'
     'if /I "%ACTION%"=="qemu-experimental-baseline-check" goto :qemu_experimental_baseline_check'
     'if /I "%ACTION%"=="evidence-win" goto :evidence_win'
+    'if /I "%ACTION%"=="win-evidence-preflight" goto :win_evidence_preflight'
     'if /I "%ACTION%"=="verify-win-evidence" goto :verify_win_evidence'
     'if /I "%ACTION%"=="evidence-win-verify" goto :evidence_win_verify'
+    'if /I "%ACTION%"=="finalize-win-evidence" goto :finalize_win_evidence'
+    'if /I "%ACTION%"=="win-closeout-3cmd" goto :win_closeout_3cmd'
+    'if /I "%ACTION%"=="win-closeout-finalize" goto :win_closeout_finalize'
     'if /I "%ACTION%"=="wiring-sync" goto :wiring_sync'
     'if /I "%ACTION%"=="gate-summary" goto :gate_summary'
     'if /I "%ACTION%"=="gate-summary-sample" goto :gate_summary_sample'
@@ -218,9 +312,10 @@ check_windows_runner_parity() {
     'if /I "%ACTION%"=="gate-summary-inject" goto :gate_summary_inject'
     'if /I "%ACTION%"=="gate-summary-rollback" goto :gate_summary_rollback'
     'if /I "%ACTION%"=="gate-summary-backups" goto :gate_summary_backups'
-    'echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|debug^|release^|gate^|gate-strict^|interface-completeness^|adapter-sync-pascal^|adapter-sync^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|perf-smoke^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-win^|verify-win-evidence^|evidence-win-verify] [test-args...]'
+    'echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|interface-completeness^|adapter-sync-pascal^|adapter-sync^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|perf-smoke^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-win^|win-evidence-preflight^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-3cmd^|win-closeout-finalize] [test-args...]'
     'findstr /r /c:"src\\fafafa\.core\.simd\..*Warning:" /c:"src\\fafafa\.core\.simd\..*Hint:" "%BUILD_LOG%" >nul 2>nul'
     'findstr /b /c:"Invalid option" "%TEST_LOG%" >nul 2>nul'
+    'findstr /r /c:"Number of failures:[ ]*[1-9][0-9]*" /c:"Number of errors:[ ]*[1-9][0-9]*" /c:"Time:.* E:[1-9][0-9]*" /c:"Time:.* F:[1-9][0-9]*" "%TEST_LOG%" >nul 2>nul'
     'findstr /r /c:"^[1-9][0-9]* unfreed memory blocks" "%TEST_LOG%" >nul 2>nul'
     'call "%SELF%" check'
     'if /I "%SIMD_CHECK_WIRING_SYNC%"=="1" ('
@@ -232,6 +327,9 @@ check_windows_runner_parity() {
     'call "%SELF%" nonx86-ieee754'
     'call "%TESTS_ROOT%\fafafa.core.simd.cpuinfo\buildOrTest.bat" test --list-suites'
     'call "%TESTS_ROOT%\fafafa.core.simd.cpuinfo\buildOrTest.bat" test --suite=TTestCase_PlatformSpecific'
+    'if /I "%SIMD_GATE_CPUINFO_LAZY_REPEAT%"=="0" ('
+    'echo [GATE] SKIP optional cpuinfo lazy repeat ^(set SIMD_GATE_CPUINFO_LAZY_REPEAT=5 to enable^)'
+    'call "%SELF%" cpuinfo-lazy-repeat %SIMD_GATE_CPUINFO_LAZY_REPEAT%'
     'call "%TESTS_ROOT%\fafafa.core.simd.cpuinfo.x86\buildOrTest.bat" test --list-suites'
     'call "%TESTS_ROOT%\fafafa.core.simd.cpuinfo.x86\buildOrTest.bat" test --suite=TTestCase_Global'
     'call "%TESTS_ROOT%\run_all_tests.bat" =fafafa.core.simd =fafafa.core.simd.cpuinfo =fafafa.core.simd.cpuinfo.x86 =fafafa.core.simd.intrinsics.sse =fafafa.core.simd.intrinsics.mmx'
@@ -244,6 +342,15 @@ check_windows_runner_parity() {
     'if /I "%SIMD_GATE_QEMU_NONX86_EVIDENCE%"=="1" ('
     'echo [GATE] SKIP optional qemu non-x86 evidence ^(set SIMD_GATE_QEMU_NONX86_EVIDENCE=1 to enable^)'
     'call "%SELF%" qemu-nonx86-evidence'
+    'if /I "%SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE%"=="1" ('
+    'echo [GATE] SKIP optional qemu cpuinfo non-x86 evidence ^(set SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 to enable^)'
+    'call "%SELF%" qemu-cpuinfo-nonx86-evidence'
+    'if /I "%SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE%"=="1" ('
+    'echo [GATE] SKIP optional qemu cpuinfo non-x86 full evidence ^(set SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=1 to enable^)'
+    'call "%SELF%" qemu-cpuinfo-nonx86-full-evidence'
+    'if /I "%SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT%"=="1" ('
+    'echo [GATE] SKIP optional qemu cpuinfo non-x86 full repeat ^(set SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=1 to enable^)'
+    'call "%SELF%" qemu-cpuinfo-nonx86-full-repeat'
     'if /I "%SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE%"=="1" ('
     'echo [GATE] SKIP optional qemu arch matrix evidence ^(set SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=1 to enable^)'
     'call "%SELF%" qemu-arch-matrix-evidence'
@@ -256,8 +363,13 @@ check_windows_runner_parity() {
     'echo [GATE] SKIP evidence verify ^(windows log not present: %WIN_EVIDENCE_LOG%^)'
     'set "SIMD_GATE_PERF_SMOKE=1"'
     'set "SIMD_GATE_NONX86_IEEE754=1"'
+    'if "%SIMD_GATE_CPUINFO_LAZY_REPEAT%"=="" set "SIMD_GATE_CPUINFO_LAZY_REPEAT=3"'
     'set "SIMD_GATE_QEMU_NONX86_EVIDENCE=0"'
+    'set "SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1"'
+    'set "SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=1"'
+    'set "SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=1"'
     'set "SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=1"'
+    'if "%SIMD_QEMU_CPUINFO_REPEAT_ROUNDS%"=="" set "SIMD_QEMU_CPUINFO_REPEAT_ROUNDS=1"'
     'set "SIMD_GATE_INTERFACE_COMPLETENESS=1"'
     'set "SIMD_GATE_ADAPTER_SYNC_PASCAL=1"'
     'set "SIMD_GATE_ADAPTER_SYNC=1"'
@@ -278,6 +390,9 @@ check_windows_runner_parity() {
     'set "QEMU_SCRIPT=%ROOT%docker\run_multiarch_qemu.sh"'
     'echo [QEMU] SKIP ^(bash not found^)'
     'bash "%QEMU_SCRIPT%" nonx86-evidence %NORMALIZED_TEST_ARGS%'
+    'bash "%QEMU_SCRIPT%" cpuinfo-nonx86-evidence %NORMALIZED_TEST_ARGS%'
+    'bash "%QEMU_SCRIPT%" cpuinfo-nonx86-full-evidence %NORMALIZED_TEST_ARGS%'
+    'bash "%QEMU_SCRIPT%" cpuinfo-nonx86-full-repeat %NORMALIZED_TEST_ARGS%'
     'bash "%QEMU_SCRIPT%" arch-matrix-evidence %NORMALIZED_TEST_ARGS%'
     'bash "%QEMU_SCRIPT%" nonx86-experimental-asm %NORMALIZED_TEST_ARGS%'
     'set "QEMU_EXP_REPORT_SCRIPT=%ROOT%report_qemu_experimental_blockers.py"'
@@ -338,6 +453,7 @@ check_cpuinfo_runner_parity() {
   LRequired=(
     'if [[ "${LArg}" == "--list-suites" ]]; then'
     'LArgs+=("--list")'
+    'check_build_log'
     "if grep -nE '^Invalid option' \"\${TEST_LOG}\" >/dev/null; then"
     "if grep -nE '^[1-9][0-9]* unfreed memory blocks' \"\${TEST_LOG}\" >/dev/null; then"
   )
@@ -716,6 +832,20 @@ gate_step_cpuinfo_portable() {
   bash "${LTestsRoot}/fafafa.core.simd.cpuinfo/BuildOrTest.sh" test --suite=TTestCase_PlatformSpecific || return $?
 }
 
+gate_step_cpuinfo_lazy_repeat() {
+  local LTestsRoot
+  local LRounds
+
+  LTestsRoot="${1}"
+  LRounds="${SIMD_GATE_CPUINFO_LAZY_REPEAT:-0}"
+  if ! [[ "${LRounds}" =~ ^[1-9][0-9]*$ ]]; then
+    echo "[GATE] Invalid SIMD_GATE_CPUINFO_LAZY_REPEAT: ${LRounds} (expect positive integer)"
+    return 2
+  fi
+
+  run_cpuinfo_lazy_repeat "${LTestsRoot}" "${LRounds}" || return $?
+}
+
 gate_step_cpuinfo_x86() {
   local LTestsRoot
 
@@ -745,6 +875,18 @@ gate_step_concurrent_repeat() {
 
 gate_step_qemu_nonx86_evidence() {
   run_qemu_multiarch "nonx86-evidence" || return $?
+}
+
+gate_step_qemu_cpuinfo_nonx86_evidence() {
+  run_qemu_multiarch "cpuinfo-nonx86-evidence" || return $?
+}
+
+gate_step_qemu_cpuinfo_nonx86_full_evidence() {
+  run_qemu_multiarch "cpuinfo-nonx86-full-evidence" || return $?
+}
+
+gate_step_qemu_cpuinfo_nonx86_full_repeat() {
+  run_qemu_multiarch "cpuinfo-nonx86-full-repeat" || return $?
 }
 
 gate_step_qemu_arch_matrix_evidence() {
@@ -947,17 +1089,46 @@ run_gate() {
   local LWiringEvent
   local LRunAllLogDir
   local LRunAllSummary
+  local LGateInterfaceCompleteness
+  local LGateAdapterSyncPascal
+  local LGateAdapterSync
+  local LGateParitySuites
+  local LGateWiringSync
+  local LGateCoverage
+  local LGateProfile
+  local LEvidenceLog
+  local LEvidenceStartMs
+  local LEvidenceEndMs
+  local LEvidenceDurationMs
+  local LEvidenceEvent
+  local LEvidenceRC
 
   LTestsRoot="$(cd "${ROOT}/.." && pwd)"
   LRunAllLogDir="${LTestsRoot}/_run_all_logs_sh"
   LRunAllSummary="${LTestsRoot}/run_all_tests_summary_sh.txt"
   LGateStartMs="$(now_ms)"
+  LGateInterfaceCompleteness="${SIMD_GATE_INTERFACE_COMPLETENESS:-1}"
+  LGateAdapterSyncPascal="${SIMD_GATE_ADAPTER_SYNC_PASCAL:-1}"
+  LGateAdapterSync="${SIMD_GATE_ADAPTER_SYNC:-1}"
+  LGateParitySuites="${SIMD_GATE_PARITY_SUITES:-1}"
+  LGateWiringSync="${SIMD_GATE_WIRING_SYNC:-1}"
+  LGateCoverage="${SIMD_GATE_COVERAGE:-1}"
+  LGateProfile="${SIMD_GATE_PROFILE:-fast-gate}"
+  LEvidenceLog="${ROOT}/logs/windows_b07_gate.log"
 
   if [[ "${SIMD_GATE_SUMMARY_APPEND:-0}" == "0" ]]; then
     reset_gate_summary
   fi
 
-  append_gate_summary "gate" "START" "mode=${MODE}; interface-completeness=${SIMD_GATE_INTERFACE_COMPLETENESS:-0}; adapter-sync-pascal=${SIMD_GATE_ADAPTER_SYNC_PASCAL:-0}; adapter-sync=${SIMD_GATE_ADAPTER_SYNC:-0}; parity-suites=${SIMD_GATE_PARITY_SUITES:-0}; wiring=${SIMD_GATE_WIRING_SYNC:-0}; coverage=${SIMD_GATE_COVERAGE:-0}; perf=${SIMD_GATE_PERF_SMOKE:-0}; experimental=${SIMD_GATE_EXPERIMENTAL:-1}; experimental-tests=${SIMD_GATE_EXPERIMENTAL_TESTS:-0}; nonx86-ieee754=${SIMD_GATE_NONX86_IEEE754:-0}; qemu-nonx86-evidence=${SIMD_GATE_QEMU_NONX86_EVIDENCE:-0}; qemu-arch-matrix=${SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE:-0}; require-win-evidence=${SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE:-0}; concurrent-repeat=${SIMD_GATE_CONCURRENT_REPEAT:-0}" "-" "START" "${BUILD_LOG}; ${TEST_LOG}; ${SIMD_WIRING_SYNC_LOG_FILE:-${WIRING_SYNC_LOG}}"
+  append_gate_summary "gate" "START" "profile=${LGateProfile}; mode=${MODE}; interface-completeness=${LGateInterfaceCompleteness}; adapter-sync-pascal=${LGateAdapterSyncPascal}; adapter-sync=${LGateAdapterSync}; parity-suites=${LGateParitySuites}; wiring=${LGateWiringSync}; coverage=${LGateCoverage}; perf=${SIMD_GATE_PERF_SMOKE:-0}; experimental=${SIMD_GATE_EXPERIMENTAL:-1}; experimental-tests=${SIMD_GATE_EXPERIMENTAL_TESTS:-0}; nonx86-ieee754=${SIMD_GATE_NONX86_IEEE754:-0}; cpuinfo-lazy-repeat=${SIMD_GATE_CPUINFO_LAZY_REPEAT:-0}; qemu-nonx86-evidence=${SIMD_GATE_QEMU_NONX86_EVIDENCE:-0}; qemu-cpuinfo-nonx86-evidence=${SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE:-0}; qemu-cpuinfo-nonx86-full-evidence=${SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE:-0}; qemu-cpuinfo-nonx86-full-repeat=${SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT:-0}; qemu-arch-matrix=${SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE:-0}; require-win-evidence=${SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE:-0}; concurrent-repeat=${SIMD_GATE_CONCURRENT_REPEAT:-0}" "-" "START" "${BUILD_LOG}; ${TEST_LOG}; ${SIMD_WIRING_SYNC_LOG_FILE:-${WIRING_SYNC_LOG}}"
+
+  if [[ "${LGateProfile}" == "release-gate" ]]; then
+    echo "[GATE] Profile: release-gate (发布/closeout 完整门禁)"
+  else
+    echo "[GATE] Profile: fast-gate (日常改动快门禁/基础门禁)"
+  fi
+  echo "[GATE] Experimental boundary: default entry chain keeps experimental intrinsics isolated."
+  echo "[GATE] Note: gate/gate-strict PASS does not imply every experimental path is release-grade."
 
   echo "[GATE] 1/6 Build + check SIMD module"
   if ! run_gate_step "build-check" "build/check/parity passed" "see ${BUILD_LOG}" "${BUILD_LOG}" gate_step_build_check; then
@@ -967,7 +1138,7 @@ run_gate() {
     return 1
   fi
 
-  if [[ "${SIMD_GATE_INTERFACE_COMPLETENESS:-0}" != "0" ]]; then
+  if [[ "${LGateInterfaceCompleteness}" != "0" ]]; then
     echo "[GATE] Optional interface completeness check"
     if ! run_gate_step "interface-completeness" "interface completeness passed" "interface completeness check failed" "${SIMD_INTERFACE_COMPLETENESS_JSON_FILE:-${INTERFACE_COMPLETENESS_JSON_LOG}}; ${SIMD_INTERFACE_COMPLETENESS_MD_FILE:-${INTERFACE_COMPLETENESS_MD_LOG}}" gate_step_interface_completeness; then
       LGateEndMs="$(now_ms)"
@@ -979,7 +1150,7 @@ run_gate() {
     append_gate_summary "interface-completeness" "SKIP" "SIMD_GATE_INTERFACE_COMPLETENESS=0" "-" "SKIP" "${SIMD_INTERFACE_COMPLETENESS_JSON_FILE:-${INTERFACE_COMPLETENESS_JSON_LOG}}; ${SIMD_INTERFACE_COMPLETENESS_MD_FILE:-${INTERFACE_COMPLETENESS_MD_LOG}}"
   fi
 
-  if [[ "${SIMD_GATE_ADAPTER_SYNC_PASCAL:-0}" != "0" ]]; then
+  if [[ "${LGateAdapterSyncPascal}" != "0" ]]; then
     echo "[GATE] Optional backend adapter sync Pascal smoke"
     if ! run_gate_step "adapter-sync-pascal" "backend adapter pascal smoke passed" "backend adapter pascal smoke failed" "${TEST_LOG}" gate_step_adapter_sync_pascal; then
       LGateEndMs="$(now_ms)"
@@ -991,9 +1162,9 @@ run_gate() {
     append_gate_summary "adapter-sync-pascal" "SKIP" "SIMD_GATE_ADAPTER_SYNC_PASCAL=0" "-" "SKIP" "${TEST_LOG}"
   fi
 
-  if [[ "${SIMD_GATE_ADAPTER_SYNC:-0}" != "0" ]]; then
+  if [[ "${LGateAdapterSync}" != "0" ]]; then
     echo "[GATE] Optional backend adapter sync"
-    if [[ "${SIMD_GATE_ADAPTER_SYNC_PASCAL:-0}" != "0" ]]; then
+    if [[ "${LGateAdapterSyncPascal}" != "0" ]]; then
       if ! run_gate_step "adapter-sync" "backend adapter sync passed (python-only; pascal smoke in adapter-sync-pascal step)" "backend adapter sync failed" "${SIMD_ADAPTER_SYNC_LOG_FILE:-${ADAPTER_SYNC_LOG}}; ${SIMD_ADAPTER_SYNC_JSON_FILE:-${ADAPTER_SYNC_JSON_LOG}}" gate_step_adapter_sync_python_only; then
         LGateEndMs="$(now_ms)"
         LGateDurationMs="$(( LGateEndMs - LGateStartMs ))"
@@ -1012,7 +1183,7 @@ run_gate() {
     append_gate_summary "adapter-sync" "SKIP" "SIMD_GATE_ADAPTER_SYNC=0" "-" "SKIP" "${SIMD_ADAPTER_SYNC_LOG_FILE:-${ADAPTER_SYNC_LOG}}; ${SIMD_ADAPTER_SYNC_JSON_FILE:-${ADAPTER_SYNC_JSON_LOG}}"
   fi
 
-  if [[ "${SIMD_GATE_WIRING_SYNC:-0}" != "0" ]]; then
+  if [[ "${LGateWiringSync}" != "0" ]]; then
     echo "[GATE] Optional wiring-sync enabled"
     LWiringStartMs="$(now_ms)"
     if run_wiring_sync; then
@@ -1053,7 +1224,7 @@ run_gate() {
     return 1
   fi
 
-  if [[ "${SIMD_GATE_PARITY_SUITES:-0}" != "0" ]]; then
+  if [[ "${LGateParitySuites}" != "0" ]]; then
     echo "[GATE] Optional cross-backend parity suites"
     if ! run_gate_step "cross-backend-parity" "dispatch slot/api parity suites passed" "cross-backend parity suites failed" "${TEST_LOG}" gate_step_cross_backend_parity; then
       LGateEndMs="$(now_ms)"
@@ -1083,6 +1254,18 @@ run_gate() {
     LGateDurationMs="$(( LGateEndMs - LGateStartMs ))"
     append_gate_summary "gate" "FAIL" "failed-step=cpuinfo-portable" "${LGateDurationMs}" "FAILED"
     return 1
+  fi
+
+  if [[ "${SIMD_GATE_CPUINFO_LAZY_REPEAT:-0}" != "0" ]]; then
+    echo "[GATE] Optional cpuinfo lazy repeat (${SIMD_GATE_CPUINFO_LAZY_REPEAT} rounds)"
+    if ! run_gate_step "cpuinfo-lazy-repeat" "cpuinfo lazy suite repeat passed; rounds=${SIMD_GATE_CPUINFO_LAZY_REPEAT}" "cpuinfo lazy suite repeat failed; rounds=${SIMD_GATE_CPUINFO_LAZY_REPEAT}" "${LTestsRoot}/fafafa.core.simd.cpuinfo/logs/repeat.TTestCase_LazyCPUInfo.*.txt" gate_step_cpuinfo_lazy_repeat "${LTestsRoot}"; then
+      LGateEndMs="$(now_ms)"
+      LGateDurationMs="$(( LGateEndMs - LGateStartMs ))"
+      append_gate_summary "gate" "FAIL" "failed-step=cpuinfo-lazy-repeat" "${LGateDurationMs}" "FAILED"
+      return 1
+    fi
+  else
+    append_gate_summary "cpuinfo-lazy-repeat" "SKIP" "SIMD_GATE_CPUINFO_LAZY_REPEAT=0" "-" "SKIP" "${LTestsRoot}/fafafa.core.simd.cpuinfo/logs/repeat.TTestCase_LazyCPUInfo.*.txt"
   fi
 
   echo "[GATE] 5/6 CPUInfo x86 suites"
@@ -1137,7 +1320,7 @@ run_gate() {
     append_gate_summary "experimental-tests" "SKIP" "SIMD_GATE_EXPERIMENTAL_TESTS=0" "-" "SKIP" "${ROOT}/../fafafa.core.simd.intrinsics.experimental"
   fi
 
-  if [[ "${SIMD_GATE_COVERAGE:-0}" != "0" ]]; then
+  if [[ "${LGateCoverage}" != "0" ]]; then
     echo "[GATE] Optional intrinsics coverage"
     if ! run_gate_step "coverage" "coverage passed" "coverage check failed" "${ROOT}/check_intrinsics_coverage.py" run_coverage; then
       LGateEndMs="$(now_ms)"
@@ -1173,6 +1356,42 @@ run_gate() {
     append_gate_summary "qemu-nonx86-evidence" "SKIP" "SIMD_GATE_QEMU_NONX86_EVIDENCE=0" "-" "SKIP" "${ROOT}/logs/qemu-multiarch-*"
   fi
 
+  if [[ "${SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE:-0}" != "0" ]]; then
+    echo "[GATE] Optional qemu cpuinfo non-x86 evidence"
+    if ! run_gate_step "qemu-cpuinfo-nonx86-evidence" "qemu cpuinfo non-x86 evidence passed" "qemu cpuinfo non-x86 evidence failed" "${ROOT}/logs/qemu-multiarch-*" gate_step_qemu_cpuinfo_nonx86_evidence; then
+      LGateEndMs="$(now_ms)"
+      LGateDurationMs="$(( LGateEndMs - LGateStartMs ))"
+      append_gate_summary "gate" "FAIL" "failed-step=qemu-cpuinfo-nonx86-evidence" "${LGateDurationMs}" "FAILED"
+      return 1
+    fi
+  else
+    append_gate_summary "qemu-cpuinfo-nonx86-evidence" "SKIP" "SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=0" "-" "SKIP" "${ROOT}/logs/qemu-multiarch-*"
+  fi
+
+  if [[ "${SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE:-0}" != "0" ]]; then
+    echo "[GATE] Optional qemu cpuinfo non-x86 full evidence"
+    if ! run_gate_step "qemu-cpuinfo-nonx86-full-evidence" "qemu cpuinfo non-x86 full evidence passed" "qemu cpuinfo non-x86 full evidence failed" "${ROOT}/logs/qemu-multiarch-*" gate_step_qemu_cpuinfo_nonx86_full_evidence; then
+      LGateEndMs="$(now_ms)"
+      LGateDurationMs="$(( LGateEndMs - LGateStartMs ))"
+      append_gate_summary "gate" "FAIL" "failed-step=qemu-cpuinfo-nonx86-full-evidence" "${LGateDurationMs}" "FAILED"
+      return 1
+    fi
+  else
+    append_gate_summary "qemu-cpuinfo-nonx86-full-evidence" "SKIP" "SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0" "-" "SKIP" "${ROOT}/logs/qemu-multiarch-*"
+  fi
+
+  if [[ "${SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT:-0}" != "0" ]]; then
+    echo "[GATE] Optional qemu cpuinfo non-x86 full repeat"
+    if ! run_gate_step "qemu-cpuinfo-nonx86-full-repeat" "qemu cpuinfo non-x86 full repeat passed" "qemu cpuinfo non-x86 full repeat failed" "${ROOT}/logs/qemu-multiarch-*" gate_step_qemu_cpuinfo_nonx86_full_repeat; then
+      LGateEndMs="$(now_ms)"
+      LGateDurationMs="$(( LGateEndMs - LGateStartMs ))"
+      append_gate_summary "gate" "FAIL" "failed-step=qemu-cpuinfo-nonx86-full-repeat" "${LGateDurationMs}" "FAILED"
+      return 1
+    fi
+  else
+    append_gate_summary "qemu-cpuinfo-nonx86-full-repeat" "SKIP" "SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0" "-" "SKIP" "${ROOT}/logs/qemu-multiarch-*"
+  fi
+
   if [[ "${SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE:-0}" != "0" ]]; then
     echo "[GATE] Optional qemu arch matrix evidence"
     if ! run_gate_step "qemu-arch-matrix-evidence" "qemu arch matrix evidence passed" "qemu arch matrix evidence failed" "${ROOT}/logs/qemu-multiarch-*" gate_step_qemu_arch_matrix_evidence; then
@@ -1186,11 +1405,38 @@ run_gate() {
   fi
 
   echo "[GATE] Evidence verify (windows log optional unless SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1)"
-  if ! run_gate_step "evidence-verify" "verify/skip completed" "verify-win-evidence failed" "${ROOT}/logs/windows_b07_gate.log" gate_step_evidence_verify; then
+  if [[ -f "${LEvidenceLog}" ]]; then
+    if [[ "${SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE:-0}" != "0" ]]; then
+      if ! run_gate_step "evidence-verify" "verify passed" "verify-win-evidence failed" "${LEvidenceLog}" gate_step_evidence_verify; then
+        LGateEndMs="$(now_ms)"
+        LGateDurationMs="$(( LGateEndMs - LGateStartMs ))"
+        append_gate_summary "gate" "FAIL" "failed-step=evidence-verify" "${LGateDurationMs}" "FAILED"
+        return 1
+      fi
+    else
+      LEvidenceStartMs="$(now_ms)"
+      if gate_step_evidence_verify; then
+        LEvidenceEndMs="$(now_ms)"
+        LEvidenceDurationMs="$(( LEvidenceEndMs - LEvidenceStartMs ))"
+        LEvidenceEvent="$(gate_step_event "${LEvidenceDurationMs}")"
+        append_gate_summary "evidence-verify" "PASS" "verify passed" "${LEvidenceDurationMs}" "${LEvidenceEvent}" "${LEvidenceLog}"
+      else
+        LEvidenceRC=$?
+        LEvidenceEndMs="$(now_ms)"
+        LEvidenceDurationMs="$(( LEvidenceEndMs - LEvidenceStartMs ))"
+        append_gate_summary "evidence-verify" "SKIP" "optional evidence verify failed rc=${LEvidenceRC}; set SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 to enforce fail-close" "${LEvidenceDurationMs}" "SKIP" "${LEvidenceLog}"
+        echo "[GATE] SKIP optional evidence verify (rc=${LEvidenceRC}; set SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 to enforce)"
+      fi
+    fi
+  elif [[ "${SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE:-0}" != "0" ]]; then
+    append_gate_summary "evidence-verify" "FAIL" "required windows evidence log missing: ${LEvidenceLog}" "-" "FAILED" "${LEvidenceLog}"
     LGateEndMs="$(now_ms)"
     LGateDurationMs="$(( LGateEndMs - LGateStartMs ))"
     append_gate_summary "gate" "FAIL" "failed-step=evidence-verify" "${LGateDurationMs}" "FAILED"
     return 1
+  else
+    echo "[GATE] SKIP evidence verify (windows log not present: ${LEvidenceLog})"
+    append_gate_summary "evidence-verify" "SKIP" "windows evidence log missing (optional in gate)" "-" "SKIP" "${LEvidenceLog}"
   fi
 
   LGateEndMs="$(now_ms)"
@@ -1198,6 +1444,36 @@ run_gate() {
   LGateEvent="$(gate_step_event "${LGateDurationMs}")"
   append_gate_summary "gate" "PASS" "all steps passed" "${LGateDurationMs}" "${LGateEvent}"
   echo "[GATE] OK"
+}
+
+run_gate_strict() {
+  echo "[GATE] Running gate-strict as release-gate profile"
+  echo "[GATE] Note: release-gate adds stronger evidence, but experimental paths still keep a separate maturity boundary"
+  SIMD_GATE_INTERFACE_COMPLETENESS=1 \
+  SIMD_GATE_ADAPTER_SYNC_PASCAL=1 \
+  SIMD_GATE_ADAPTER_SYNC=1 \
+  SIMD_GATE_PARITY_SUITES=1 \
+  SIMD_GATE_WIRING_SYNC=1 \
+  SIMD_WIRING_SYNC_STRICT_EXTRA=1 \
+  SIMD_GATE_COVERAGE=1 \
+  SIMD_COVERAGE_STRICT_EXTRA=1 \
+  SIMD_COVERAGE_REQUIRE_AVX2=1 \
+  SIMD_COVERAGE_REQUIRE_EXPERIMENTAL=1 \
+  SIMD_GATE_PERF_SMOKE=1 \
+  SIMD_GATE_EXPERIMENTAL=1 \
+  SIMD_GATE_EXPERIMENTAL_TESTS=1 \
+  SIMD_GATE_NONX86_IEEE754=1 \
+  SIMD_GATE_CPUINFO_LAZY_REPEAT="${SIMD_GATE_CPUINFO_LAZY_REPEAT:-3}" \
+  SIMD_GATE_QEMU_NONX86_EVIDENCE=0 \
+  SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 \
+  SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=1 \
+  SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=1 \
+  SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=1 \
+  SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 \
+  SIMD_QEMU_CPUINFO_REPEAT_ROUNDS="${SIMD_QEMU_CPUINFO_REPEAT_ROUNDS:-1}" \
+  SIMD_GATE_CONCURRENT_REPEAT="${SIMD_GATE_CONCURRENT_REPEAT:-10}" \
+  SIMD_GATE_PROFILE=release-gate \
+  run_gate
 }
 
 write_gate_summary_json() {
@@ -1432,6 +1708,12 @@ PY_JSON_CHECK
     fi
   fi
 
+  if ! run_freeze_status_rehearsal >/dev/null; then
+    echo "[GATE-SUMMARY-SELFCHECK] FAILED: freeze-status-rehearsal"
+    rm -f "${LTmpJson}"
+    return 1
+  fi
+
   rm -f "${LTmpJson}"
   echo "[GATE-SUMMARY-SELFCHECK] OK"
 }
@@ -1478,7 +1760,7 @@ finalize_windows_evidence() {
 run_windows_closeout_dryrun() {
   local LSimScript
   local LSimLog
-  local LSummaryLog
+  local LVerifyRC
 
   LSimScript="${ROOT}/simulate_windows_b07_evidence.sh"
   if [[ ! -x "${LSimScript}" ]]; then
@@ -1487,13 +1769,20 @@ run_windows_closeout_dryrun() {
   fi
 
   LSimLog="${ROOT}/logs/windows_b07_gate.simulated.log"
-  LSummaryLog="${ROOT}/logs/windows_b07_closeout_summary.simulated.md"
 
   "${LSimScript}" "${LSimLog}"
-  verify_windows_evidence "${LSimLog}"
-  finalize_windows_evidence "${LSimLog}" "${LSummaryLog}"
+  if verify_windows_evidence "${LSimLog}"; then
+    echo "[CLOSEOUT] DRYRUN FAILED: simulated evidence unexpectedly passed strict verifier"
+    return 1
+  else
+    LVerifyRC=$?
+  fi
+  if [[ "${LVerifyRC}" -ne 1 ]]; then
+    echo "[CLOSEOUT] DRYRUN FAILED: verifier returned unexpected rc=${LVerifyRC}"
+    return "${LVerifyRC}"
+  fi
 
-  echo "[CLOSEOUT] DRYRUN OK: ${LSummaryLog}"
+  echo "[CLOSEOUT] DRYRUN OK: strict verifier rejected simulated evidence as expected"
 }
 
 windows_closeout_snippets() {
@@ -1563,6 +1852,30 @@ run_freeze_status_rehearsal() {
   "${LRehearsalScript}" "$@"
 }
 
+run_win_evidence_preflight() {
+  local LPreflightScript
+
+  LPreflightScript="${WIN_EVIDENCE_PREFLIGHT_SCRIPT:-${ROOT}/preflight_windows_b07_evidence_gh.sh}"
+  if [[ ! -x "${LPreflightScript}" ]]; then
+    echo "[PREFLIGHT] Missing script: ${LPreflightScript}"
+    return 2
+  fi
+
+  "${LPreflightScript}" "$@"
+}
+
+run_win_evidence_via_gh() {
+  local LViaGHScript
+
+  LViaGHScript="${WIN_EVIDENCE_VIA_GH_SCRIPT:-${ROOT}/run_windows_b07_closeout_via_github_actions.sh}"
+  if [[ ! -f "${LViaGHScript}" ]]; then
+    echo "[WIN-EVIDENCE-GH] Missing script: ${LViaGHScript}"
+    return 2
+  fi
+
+  bash "${LViaGHScript}" "$@"
+}
+
 case "${ACTION}" in
   clean)
     echo "[CLEAN] Removing bin2/, lib2/, logs/"
@@ -1600,6 +1913,12 @@ case "${ACTION}" in
     build_project
     run_tests "$@"
     check_heap_leaks
+    if [[ "${SIMD_RELEASE_STRICT_GATE:-1}" != "0" ]]; then
+      echo "[RELEASE] Running strict gate (set SIMD_RELEASE_STRICT_GATE=0 to skip)"
+      run_gate_strict
+    else
+      echo "[RELEASE] SKIP strict gate (SIMD_RELEASE_STRICT_GATE=0)"
+    fi
     ;;
   test)
     build_project
@@ -1609,28 +1928,16 @@ case "${ACTION}" in
   test-concurrent-repeat)
     run_suite_repeat "TTestCase_SimdConcurrent" "${1:-${SIMD_CONCURRENT_REPEAT_ROUNDS:-10}}"
     ;;
+  cpuinfo-lazy-repeat)
+    run_cpuinfo_lazy_repeat_action "${1:-${SIMD_CPUINFO_LAZY_REPEAT_ROUNDS:-5}}"
+    ;;
   gate)
+    echo "[GATE] Running fast-gate profile (日常改动/基础门禁)"
     run_gate
     ;;
   gate-strict)
-    SIMD_GATE_INTERFACE_COMPLETENESS=1
-    SIMD_GATE_ADAPTER_SYNC_PASCAL=1
-    SIMD_GATE_ADAPTER_SYNC=1
-    SIMD_GATE_PARITY_SUITES=1
-    SIMD_GATE_WIRING_SYNC=1
-    SIMD_WIRING_SYNC_STRICT_EXTRA=1
-    SIMD_GATE_COVERAGE=1
-    SIMD_COVERAGE_STRICT_EXTRA=1
-    SIMD_COVERAGE_REQUIRE_AVX2=1
-    SIMD_COVERAGE_REQUIRE_EXPERIMENTAL=1
-    SIMD_GATE_PERF_SMOKE=1
-    SIMD_GATE_EXPERIMENTAL=1
-    SIMD_GATE_EXPERIMENTAL_TESTS=1
-    SIMD_GATE_NONX86_IEEE754=1
-    SIMD_GATE_QEMU_NONX86_EVIDENCE=0
-    SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=1
-    SIMD_GATE_CONCURRENT_REPEAT="${SIMD_GATE_CONCURRENT_REPEAT:-10}"
-    run_gate
+    echo "[GATE] Running release-gate profile (发布/closeout 完整门禁)"
+    run_gate_strict
     ;;
   interface-completeness)
     run_interface_completeness
@@ -1679,6 +1986,18 @@ case "${ACTION}" in
   qemu-nonx86-evidence)
     run_qemu_multiarch nonx86-evidence "$@"
     ;;
+  qemu-cpuinfo-nonx86-evidence)
+    run_qemu_multiarch cpuinfo-nonx86-evidence "$@"
+    ;;
+  qemu-cpuinfo-nonx86-full-evidence)
+    run_qemu_multiarch cpuinfo-nonx86-full-evidence "$@"
+    ;;
+  qemu-cpuinfo-nonx86-full-repeat)
+    run_qemu_multiarch cpuinfo-nonx86-full-repeat "$@"
+    ;;
+  qemu-cpuinfo-nonx86-suite-repeat)
+    run_qemu_multiarch cpuinfo-nonx86-suite-repeat "$@"
+    ;;
   qemu-arch-matrix-evidence)
     run_qemu_multiarch arch-matrix-evidence "$@"
     ;;
@@ -1709,6 +2028,12 @@ case "${ACTION}" in
   evidence-linux)
     run_evidence_linux "$@"
     ;;
+  win-evidence-preflight)
+    run_win_evidence_preflight "$@"
+    ;;
+  win-evidence-via-gh)
+    run_win_evidence_via_gh "$@"
+    ;;
   verify-win-evidence)
     verify_windows_evidence "$@"
     ;;
@@ -1737,7 +2062,12 @@ case "${ACTION}" in
     run_freeze_status_rehearsal "$@"
     ;;
   *)
-    echo "Usage: $0 [clean|build|check|test|test-concurrent-repeat|debug|release|gate|gate-strict|interface-completeness|adapter-sync-pascal|adapter-sync|parity-suites|gate-summary|gate-summary-sample|gate-summary-rehearsal|gate-summary-inject|gate-summary-rollback|gate-summary-backups|gate-summary-selfcheck|perf-smoke|nonx86-ieee754|backend-bench|qemu-nonx86-evidence|qemu-arch-matrix-evidence|qemu-nonx86-experimental-asm|riscvv-opcode-lane|qemu-experimental-report|qemu-experimental-baseline-check|coverage|wiring-sync|experimental-intrinsics|experimental-intrinsics-tests|evidence-linux|verify-win-evidence|finalize-win-evidence|win-closeout-dryrun|win-closeout-snippets|win-closeout-3cmd|freeze-status|freeze-status-linux|win-closeout-finalize|freeze-status-rehearsal] [test-args...]"
+    echo "Usage: $0 [clean|build|check|test|test-concurrent-repeat|cpuinfo-lazy-repeat|debug|release|gate|gate-strict|interface-completeness|adapter-sync-pascal|adapter-sync|parity-suites|gate-summary|gate-summary-sample|gate-summary-rehearsal|gate-summary-inject|gate-summary-rollback|gate-summary-backups|gate-summary-selfcheck|perf-smoke|nonx86-ieee754|backend-bench|qemu-nonx86-evidence|qemu-cpuinfo-nonx86-evidence|qemu-cpuinfo-nonx86-full-evidence|qemu-cpuinfo-nonx86-full-repeat|qemu-cpuinfo-nonx86-suite-repeat|qemu-arch-matrix-evidence|qemu-nonx86-experimental-asm|riscvv-opcode-lane|qemu-experimental-report|qemu-experimental-baseline-check|coverage|wiring-sync|experimental-intrinsics|experimental-intrinsics-tests|evidence-linux|win-evidence-preflight|win-evidence-via-gh|verify-win-evidence|finalize-win-evidence|win-closeout-dryrun|win-closeout-snippets|win-closeout-3cmd|freeze-status|freeze-status-linux|win-closeout-finalize|freeze-status-rehearsal] [test-args...]"
+    echo "  Experimental note: default entry chain isolates experimental intrinsics behind dedicated checks."
+    echo "  gate/gate-strict PASS is not blanket release-grade approval for every experimental path."
+    echo "  gate         Fast/base gate for routine SIMD changes"
+    echo "  gate-strict  Release/closeout gate with perf, repeats, and evidence checks"
+    echo "Suggested flow: check -> targeted suites -> gate; use gate-strict before release/closeout."
     echo "QEMU env: SIMD_QEMU_BUILD_POLICY=always|if-missing|skip (default: if-missing)"
     exit 2
     ;;

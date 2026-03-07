@@ -37,20 +37,20 @@ if "%LAZBUILD_EXE%"=="" set "LAZBUILD_EXE=%ProgramFiles%\Lazarus\lazbuild.exe"
 if not exist "%LAZBUILD_EXE%" set "LAZBUILD_EXE=lazbuild"
 
 set "MODE=%FAFAFA_BUILD_MODE%"
-if "%MODE%"=="" set "MODE=Debug"
+if "%MODE%"=="" set "MODE=Release"
 
 if /I "%ACTION%"=="clean" goto :clean
 if /I "%ACTION%"=="build" goto :build
 if /I "%ACTION%"=="check" goto :check
 if /I "%ACTION%"=="test" goto :test
 if /I "%ACTION%"=="test-concurrent-repeat" goto :test_concurrent_repeat
+if /I "%ACTION%"=="cpuinfo-lazy-repeat" goto :cpuinfo_lazy_repeat
 if /I "%ACTION%"=="debug" (
   set "MODE=Debug"
   goto :test
 )
 if /I "%ACTION%"=="release" (
-  set "MODE=Release"
-  goto :test
+  goto :release
 )
 if /I "%ACTION%"=="gate" goto :gate
 if /I "%ACTION%"=="gate-strict" goto :gate_strict
@@ -68,6 +68,10 @@ if /I "%ACTION%"=="perf-smoke" goto :perf_smoke
 if /I "%ACTION%"=="nonx86-ieee754" goto :nonx86_ieee754
 if /I "%ACTION%"=="backend-bench" goto :backend_bench
 if /I "%ACTION%"=="qemu-nonx86-evidence" goto :qemu_nonx86_evidence
+if /I "%ACTION%"=="qemu-cpuinfo-nonx86-evidence" goto :qemu_cpuinfo_nonx86_evidence
+if /I "%ACTION%"=="qemu-cpuinfo-nonx86-full-evidence" goto :qemu_cpuinfo_nonx86_full_evidence
+if /I "%ACTION%"=="qemu-cpuinfo-nonx86-full-repeat" goto :qemu_cpuinfo_nonx86_full_repeat
+if /I "%ACTION%"=="qemu-cpuinfo-nonx86-suite-repeat" goto :qemu_cpuinfo_nonx86_suite_repeat
 if /I "%ACTION%"=="qemu-arch-matrix-evidence" goto :qemu_arch_matrix_evidence
 if /I "%ACTION%"=="qemu-nonx86-experimental-asm" goto :qemu_nonx86_experimental_asm
 if /I "%ACTION%"=="riscvv-opcode-lane" goto :riscvv_opcode_lane
@@ -78,10 +82,19 @@ if /I "%ACTION%"=="wiring-sync" goto :wiring_sync
 if /I "%ACTION%"=="experimental-intrinsics" goto :experimental_intrinsics
 if /I "%ACTION%"=="experimental-intrinsics-tests" goto :experimental_intrinsics_tests
 if /I "%ACTION%"=="evidence-win" goto :evidence_win
+if /I "%ACTION%"=="win-evidence-preflight" goto :win_evidence_preflight
 if /I "%ACTION%"=="verify-win-evidence" goto :verify_win_evidence
 if /I "%ACTION%"=="evidence-win-verify" goto :evidence_win_verify
+if /I "%ACTION%"=="finalize-win-evidence" goto :finalize_win_evidence
+if /I "%ACTION%"=="win-closeout-3cmd" goto :win_closeout_3cmd
+if /I "%ACTION%"=="win-closeout-finalize" goto :win_closeout_finalize
 
-echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|debug^|release^|gate^|gate-strict^|interface-completeness^|adapter-sync-pascal^|adapter-sync^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|perf-smoke^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-win^|verify-win-evidence^|evidence-win-verify] [test-args...]
+echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|interface-completeness^|adapter-sync-pascal^|adapter-sync^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|perf-smoke^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-win^|win-evidence-preflight^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-3cmd^|win-closeout-finalize] [test-args...]
+echo   Experimental note: default entry chain isolates experimental intrinsics behind dedicated checks.
+echo   gate/gate-strict PASS is not blanket release-grade approval for every experimental path.
+echo   gate         Fast/base gate for routine SIMD changes
+echo   gate-strict  Release/closeout gate with perf, repeats, and evidence checks
+echo Suggested flow: check -^> targeted suites -^> gate; use gate-strict before release/closeout.
 echo QEMU env: SIMD_QEMU_BUILD_POLICY=always^|if-missing^|skip ^(default: if-missing^)
 exit /b 2
 
@@ -191,6 +204,7 @@ if /I "%SIMD_ADAPTER_SYNC_STRICT%"=="0" set "ADAPTER_SYNC_NO_STRICT=--no-strict"
 where py >nul 2>nul
 if not errorlevel 1 (
   echo [ADAPTER-SYNC] Running: py -3 %ADAPTER_SYNC_SCRIPT% --summary-line %ADAPTER_SYNC_NO_STRICT%
+  echo [ADAPTER-SYNC] Checker now also verifies dispatch slot existence and FillBaseDispatchTable coverage.
   py -3 "%ADAPTER_SYNC_SCRIPT%" --summary-line %ADAPTER_SYNC_NO_STRICT%
   exit /b %ERRORLEVEL%
 )
@@ -198,6 +212,7 @@ if not errorlevel 1 (
 where python >nul 2>nul
 if not errorlevel 1 (
   echo [ADAPTER-SYNC] Running: python %ADAPTER_SYNC_SCRIPT% --summary-line %ADAPTER_SYNC_NO_STRICT%
+  echo [ADAPTER-SYNC] Checker now also verifies dispatch slot existence and FillBaseDispatchTable coverage.
   python "%ADAPTER_SYNC_SCRIPT%" --summary-line %ADAPTER_SYNC_NO_STRICT%
   exit /b %ERRORLEVEL%
 )
@@ -318,6 +333,18 @@ if not errorlevel 1 (
 echo [LEAK] OK
 exit /b 0
 
+:release
+set "MODE=Release"
+call :test
+if errorlevel 1 exit /b 1
+if /I "%SIMD_RELEASE_STRICT_GATE%"=="0" (
+  echo [RELEASE] SKIP strict gate ^(SIMD_RELEASE_STRICT_GATE=0^)
+  exit /b 0
+)
+echo [RELEASE] Running strict gate ^(set SIMD_RELEASE_STRICT_GATE=0 to skip^)
+call "%~f0" gate-strict
+exit /b %ERRORLEVEL%
+
 :test
 call :build
 if errorlevel 1 exit /b 1
@@ -340,6 +367,12 @@ if not errorlevel 1 (
   echo [TEST] FAILED: unsupported test argument (see %TEST_LOG%)
   type "%TEST_LOG%"
   exit /b 2
+)
+findstr /r /c:"Number of failures:[ ]*[1-9][0-9]*" /c:"Number of errors:[ ]*[1-9][0-9]*" /c:"Time:.* E:[1-9][0-9]*" /c:"Time:.* F:[1-9][0-9]*" "%TEST_LOG%" >nul 2>nul
+if not errorlevel 1 (
+  echo [TEST] FAILED: test runner reports failures/errors (see %TEST_LOG%)
+  type "%TEST_LOG%"
+  exit /b 1
 )
 echo [TEST] OK
 
@@ -376,12 +409,59 @@ for /L %%I in (1,1,%REPEAT_ROUNDS%) do (
     type "%TEST_LOG%"
     exit /b 2
   )
+  findstr /r /c:"Number of failures:[ ]*[1-9][0-9]*" /c:"Number of errors:[ ]*[1-9][0-9]*" /c:"Time:.* E:[1-9][0-9]*" /c:"Time:.* F:[1-9][0-9]*" "%TEST_LOG%" >nul 2>nul
+  if not errorlevel 1 (
+    echo [TEST] FAILED: test runner reports failures/errors (see %TEST_LOG%)
+    type "%TEST_LOG%"
+    exit /b 1
+  )
   call :check_heap_leaks
   if errorlevel 1 exit /b 1
   copy /y "%TEST_LOG%" "%LOG_DIR%\repeat.TTestCase_SimdConcurrent.%%I.txt" >nul
 )
 
 echo [REPEAT] OK suite=TTestCase_SimdConcurrent rounds=%REPEAT_ROUNDS%
+exit /b 0
+
+:cpuinfo_lazy_repeat
+set "TESTS_ROOT=%ROOT%.."
+set "CPUINFO_RUNNER=%TESTS_ROOT%\fafafa.core.simd.cpuinfo\buildOrTest.bat"
+set "CPUINFO_TEST_LOG=%TESTS_ROOT%\fafafa.core.simd.cpuinfo\logs\test.txt"
+set "CPUINFO_LOG_DIR=%TESTS_ROOT%\fafafa.core.simd.cpuinfo\logs"
+
+if not exist "%CPUINFO_RUNNER%" (
+  echo [CPUINFO-LAZY] Missing runner: %CPUINFO_RUNNER%
+  exit /b 2
+)
+
+set "CPUINFO_REPEAT_ROUNDS="
+for /f "tokens=1" %%R in ("%NORMALIZED_TEST_ARGS%") do set "CPUINFO_REPEAT_ROUNDS=%%R"
+if "%CPUINFO_REPEAT_ROUNDS%"=="" set "CPUINFO_REPEAT_ROUNDS=%SIMD_CPUINFO_LAZY_REPEAT_ROUNDS%"
+if "%CPUINFO_REPEAT_ROUNDS%"=="" set "CPUINFO_REPEAT_ROUNDS=5"
+
+echo(%CPUINFO_REPEAT_ROUNDS%| findstr /r "^[1-9][0-9]*$" >nul
+if errorlevel 1 (
+  echo [CPUINFO-LAZY] Invalid rounds: %CPUINFO_REPEAT_ROUNDS% ^(expect positive integer^)
+  exit /b 2
+)
+
+call "%CPUINFO_RUNNER%" test --list-suites
+if errorlevel 1 exit /b 1
+
+findstr /c:"TTestCase_LazyCPUInfo" "%CPUINFO_TEST_LOG%" >nul 2>nul
+if errorlevel 1 (
+  echo [CPUINFO-LAZY] Missing suite TTestCase_LazyCPUInfo ^(see %CPUINFO_TEST_LOG%^)
+  exit /b 2
+)
+
+for /L %%I in (1,1,%CPUINFO_REPEAT_ROUNDS%) do (
+  echo [CPUINFO-LAZY] %%I/%CPUINFO_REPEAT_ROUNDS% suite=TTestCase_LazyCPUInfo
+  call "%CPUINFO_RUNNER%" test --suite=TTestCase_LazyCPUInfo
+  if errorlevel 1 exit /b 1
+  copy /y "%CPUINFO_TEST_LOG%" "%CPUINFO_LOG_DIR%\repeat.TTestCase_LazyCPUInfo.%%I.txt" >nul
+)
+
+echo [CPUINFO-LAZY] OK suite=TTestCase_LazyCPUInfo rounds=%CPUINFO_REPEAT_ROUNDS%
 exit /b 0
 
 :nonx86_ieee754
@@ -423,6 +503,86 @@ if "!QEMU_BUILD_POLICY!"=="" set "QEMU_BUILD_POLICY=if-missing"
 echo [QEMU] Build policy: !QEMU_BUILD_POLICY! ^(always^|if-missing^|skip^)
 echo [QEMU] Running: bash %QEMU_SCRIPT% nonx86-evidence %NORMALIZED_TEST_ARGS%
 bash "%QEMU_SCRIPT%" nonx86-evidence %NORMALIZED_TEST_ARGS%
+exit /b %ERRORLEVEL%
+
+:qemu_cpuinfo_nonx86_evidence
+set "QEMU_SCRIPT=%ROOT%docker\run_multiarch_qemu.sh"
+if not exist "%QEMU_SCRIPT%" (
+  echo [QEMU] Missing script: %QEMU_SCRIPT%
+  exit /b 2
+)
+
+where bash >nul 2>nul
+if errorlevel 1 (
+  echo [QEMU] SKIP ^(bash not found^)
+  exit /b 0
+)
+
+set "QEMU_BUILD_POLICY=%SIMD_QEMU_BUILD_POLICY%"
+if "!QEMU_BUILD_POLICY!"=="" set "QEMU_BUILD_POLICY=if-missing"
+echo [QEMU] Build policy: !QEMU_BUILD_POLICY! ^(always^|if-missing^|skip^)
+echo [QEMU] Running: bash %QEMU_SCRIPT% cpuinfo-nonx86-evidence %NORMALIZED_TEST_ARGS%
+bash "%QEMU_SCRIPT%" cpuinfo-nonx86-evidence %NORMALIZED_TEST_ARGS%
+exit /b %ERRORLEVEL%
+
+:qemu_cpuinfo_nonx86_full_evidence
+set "QEMU_SCRIPT=%ROOT%docker\run_multiarch_qemu.sh"
+if not exist "%QEMU_SCRIPT%" (
+  echo [QEMU] Missing script: %QEMU_SCRIPT%
+  exit /b 2
+)
+
+where bash >nul 2>nul
+if errorlevel 1 (
+  echo [QEMU] SKIP ^(bash not found^)
+  exit /b 0
+)
+
+set "QEMU_BUILD_POLICY=%SIMD_QEMU_BUILD_POLICY%"
+if "!QEMU_BUILD_POLICY!"=="" set "QEMU_BUILD_POLICY=if-missing"
+echo [QEMU] Build policy: !QEMU_BUILD_POLICY! ^(always^|if-missing^|skip^)
+echo [QEMU] Running: bash %QEMU_SCRIPT% cpuinfo-nonx86-full-evidence %NORMALIZED_TEST_ARGS%
+bash "%QEMU_SCRIPT%" cpuinfo-nonx86-full-evidence %NORMALIZED_TEST_ARGS%
+exit /b %ERRORLEVEL%
+
+:qemu_cpuinfo_nonx86_full_repeat
+set "QEMU_SCRIPT=%ROOT%docker\run_multiarch_qemu.sh"
+if not exist "%QEMU_SCRIPT%" (
+  echo [QEMU] Missing script: %QEMU_SCRIPT%
+  exit /b 2
+)
+
+where bash >nul 2>nul
+if errorlevel 1 (
+  echo [QEMU] SKIP ^(bash not found^)
+  exit /b 0
+)
+
+set "QEMU_BUILD_POLICY=%SIMD_QEMU_BUILD_POLICY%"
+if "!QEMU_BUILD_POLICY!"=="" set "QEMU_BUILD_POLICY=if-missing"
+echo [QEMU] Build policy: !QEMU_BUILD_POLICY! ^(always^|if-missing^|skip^)
+echo [QEMU] Running: bash %QEMU_SCRIPT% cpuinfo-nonx86-full-repeat %NORMALIZED_TEST_ARGS%
+bash "%QEMU_SCRIPT%" cpuinfo-nonx86-full-repeat %NORMALIZED_TEST_ARGS%
+exit /b %ERRORLEVEL%
+
+:qemu_cpuinfo_nonx86_suite_repeat
+set "QEMU_SCRIPT=%ROOT%docker\run_multiarch_qemu.sh"
+if not exist "%QEMU_SCRIPT%" (
+  echo [QEMU] Missing script: %QEMU_SCRIPT%
+  exit /b 2
+)
+
+where bash >nul 2>nul
+if errorlevel 1 (
+  echo [QEMU] SKIP ^(bash not found^)
+  exit /b 0
+)
+
+set "QEMU_BUILD_POLICY=%SIMD_QEMU_BUILD_POLICY%"
+if "!QEMU_BUILD_POLICY!"=="" set "QEMU_BUILD_POLICY=if-missing"
+echo [QEMU] Build policy: !QEMU_BUILD_POLICY! ^(always^|if-missing^|skip^)
+echo [QEMU] Running: bash %QEMU_SCRIPT% cpuinfo-nonx86-suite-repeat %NORMALIZED_TEST_ARGS%
+bash "%QEMU_SCRIPT%" cpuinfo-nonx86-suite-repeat %NORMALIZED_TEST_ARGS%
 exit /b %ERRORLEVEL%
 
 :qemu_arch_matrix_evidence
@@ -582,6 +742,8 @@ echo [PERF] OK
 exit /b 0
 
 :gate_strict
+echo [GATE] Running gate-strict as release-gate profile
+echo [GATE] Note: release-gate adds stronger evidence, but experimental paths still keep a separate maturity boundary
 set "SIMD_GATE_INTERFACE_COMPLETENESS=1"
 set "SIMD_GATE_ADAPTER_SYNC_PASCAL=1"
 set "SIMD_GATE_ADAPTER_SYNC=1"
@@ -596,8 +758,14 @@ set "SIMD_GATE_PERF_SMOKE=1"
 set "SIMD_GATE_EXPERIMENTAL=1"
 set "SIMD_GATE_EXPERIMENTAL_TESTS=1"
 set "SIMD_GATE_NONX86_IEEE754=1"
+if "%SIMD_GATE_CPUINFO_LAZY_REPEAT%"=="" set "SIMD_GATE_CPUINFO_LAZY_REPEAT=3"
 set "SIMD_GATE_QEMU_NONX86_EVIDENCE=0"
+set "SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1"
+set "SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=1"
+set "SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=1"
 set "SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=1"
+set "SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1"
+if "%SIMD_QEMU_CPUINFO_REPEAT_ROUNDS%"=="" set "SIMD_QEMU_CPUINFO_REPEAT_ROUNDS=1"
 if "%SIMD_GATE_CONCURRENT_REPEAT%"=="" set "SIMD_GATE_CONCURRENT_REPEAT=10"
 call "%~f0" gate
 exit /b %ERRORLEVEL%
@@ -605,6 +773,20 @@ exit /b %ERRORLEVEL%
 :gate
 set "SELF=%~f0"
 set "TESTS_ROOT=%ROOT%.."
+if "%SIMD_GATE_INTERFACE_COMPLETENESS%"=="" set "SIMD_GATE_INTERFACE_COMPLETENESS=1"
+if "%SIMD_GATE_ADAPTER_SYNC_PASCAL%"=="" set "SIMD_GATE_ADAPTER_SYNC_PASCAL=1"
+if "%SIMD_GATE_ADAPTER_SYNC%"=="" set "SIMD_GATE_ADAPTER_SYNC=1"
+if "%SIMD_GATE_PARITY_SUITES%"=="" set "SIMD_GATE_PARITY_SUITES=1"
+if "%SIMD_GATE_WIRING_SYNC%"=="" set "SIMD_GATE_WIRING_SYNC=1"
+if "%SIMD_GATE_COVERAGE%"=="" set "SIMD_GATE_COVERAGE=1"
+
+if /I "%SIMD_GATE_EXPERIMENTAL_TESTS%"=="1" (
+  echo [GATE] Profile: release-gate ^(release/closeout complete gate^)
+) else (
+  echo [GATE] Profile: fast-gate ^(routine/base gate^)
+)
+echo [GATE] Experimental boundary: default entry chain keeps experimental intrinsics isolated.
+echo [GATE] Note: gate/gate-strict PASS does not imply every experimental path is release-grade.
 
 echo [GATE] 1/6 Build + check SIMD module
 call "%SELF%" check
@@ -666,6 +848,14 @@ call "%TESTS_ROOT%\fafafa.core.simd.cpuinfo\buildOrTest.bat" test --list-suites
 if errorlevel 1 exit /b 1
 call "%TESTS_ROOT%\fafafa.core.simd.cpuinfo\buildOrTest.bat" test --suite=TTestCase_PlatformSpecific
 if errorlevel 1 exit /b 1
+
+if /I "%SIMD_GATE_CPUINFO_LAZY_REPEAT%"=="0" (
+  echo [GATE] SKIP optional cpuinfo lazy repeat ^(set SIMD_GATE_CPUINFO_LAZY_REPEAT=5 to enable^)
+) else (
+  echo [GATE] Optional cpuinfo lazy repeat ^(%SIMD_GATE_CPUINFO_LAZY_REPEAT% rounds^)
+  call "%SELF%" cpuinfo-lazy-repeat %SIMD_GATE_CPUINFO_LAZY_REPEAT%
+  if errorlevel 1 exit /b 1
+)
 
 echo [GATE] 5/6 CPUInfo x86 suites
 call "%TESTS_ROOT%\fafafa.core.simd.cpuinfo.x86\buildOrTest.bat" test --list-suites
@@ -732,6 +922,30 @@ if /I "%SIMD_GATE_QEMU_NONX86_EVIDENCE%"=="1" (
   echo [GATE] SKIP optional qemu non-x86 evidence ^(set SIMD_GATE_QEMU_NONX86_EVIDENCE=1 to enable^)
 )
 
+if /I "%SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE%"=="1" (
+  echo [GATE] Optional qemu cpuinfo non-x86 evidence
+  call "%SELF%" qemu-cpuinfo-nonx86-evidence
+  if errorlevel 1 exit /b 1
+) else (
+  echo [GATE] SKIP optional qemu cpuinfo non-x86 evidence ^(set SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 to enable^)
+)
+
+if /I "%SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE%"=="1" (
+  echo [GATE] Optional qemu cpuinfo non-x86 full evidence
+  call "%SELF%" qemu-cpuinfo-nonx86-full-evidence
+  if errorlevel 1 exit /b 1
+) else (
+  echo [GATE] SKIP optional qemu cpuinfo non-x86 full evidence ^(set SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=1 to enable^)
+)
+
+if /I "%SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT%"=="1" (
+  echo [GATE] Optional qemu cpuinfo non-x86 full repeat
+  call "%SELF%" qemu-cpuinfo-nonx86-full-repeat
+  if errorlevel 1 exit /b 1
+) else (
+  echo [GATE] SKIP optional qemu cpuinfo non-x86 full repeat ^(set SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=1 to enable^)
+)
+
 if /I "%SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE%"=="1" (
   echo [GATE] Optional qemu arch matrix evidence
   call "%SELF%" qemu-arch-matrix-evidence
@@ -742,9 +956,19 @@ if /I "%SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE%"=="1" (
 
 set "WIN_EVIDENCE_LOG=%ROOT%logs\windows_b07_gate.log"
 if exist "%WIN_EVIDENCE_LOG%" (
-  echo [GATE] Evidence verify ^(windows log present^)
-  call "%SELF%" verify-win-evidence "%WIN_EVIDENCE_LOG%"
-  if errorlevel 1 exit /b 1
+  if /I "%SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE%"=="1" (
+    echo [GATE] Evidence verify ^(required^)
+    call "%SELF%" verify-win-evidence "%WIN_EVIDENCE_LOG%"
+    if errorlevel 1 exit /b 1
+  ) else (
+    echo [GATE] Optional evidence verify ^(set SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 to enforce^)
+    call "%SELF%" verify-win-evidence "%WIN_EVIDENCE_LOG%"
+    if errorlevel 1 (
+      echo [GATE] SKIP optional evidence verify ^(verification failed; set SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 to enforce^)
+    ) else (
+      echo [GATE] Optional evidence verify PASS
+    )
+  )
 ) else (
   if /I "%SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE%"=="1" (
     echo [GATE] FAIL required windows evidence log missing: %WIN_EVIDENCE_LOG%
@@ -766,6 +990,21 @@ if not exist "%EVIDENCE_SCRIPT%" (
 call "%EVIDENCE_SCRIPT%"
 exit /b %ERRORLEVEL%
 
+:win_evidence_preflight
+set "PREFLIGHT_SCRIPT=%ROOT%preflight_windows_b07_evidence_gh.sh"
+if not exist "%PREFLIGHT_SCRIPT%" (
+  echo [PREFLIGHT] Missing script: %PREFLIGHT_SCRIPT%
+  exit /b 2
+)
+where bash >nul 2>nul
+if errorlevel 1 (
+  echo [PREFLIGHT] Missing bash ^(require Git Bash / WSL^)
+  exit /b 2
+)
+echo [PREFLIGHT] Running: bash %PREFLIGHT_SCRIPT% %NORMALIZED_TEST_ARGS%
+bash "%PREFLIGHT_SCRIPT%" %NORMALIZED_TEST_ARGS%
+exit /b %ERRORLEVEL%
+
 :verify_win_evidence
 set "VERIFY_SCRIPT=%ROOT%verify_windows_b07_evidence.bat"
 if not exist "%VERIFY_SCRIPT%" (
@@ -779,6 +1018,68 @@ exit /b %ERRORLEVEL%
 call "%~f0" evidence-win
 if errorlevel 1 exit /b 1
 call "%~f0" verify-win-evidence %NORMALIZED_TEST_ARGS%
+exit /b %ERRORLEVEL%
+
+:finalize_win_evidence
+set "FINALIZE_SCRIPT=%ROOT%finalize_windows_b07_closeout.sh"
+if not exist "%FINALIZE_SCRIPT%" (
+  echo [CLOSEOUT] Missing finalize script: %FINALIZE_SCRIPT%
+  exit /b 2
+)
+where bash >nul 2>nul
+if errorlevel 1 (
+  echo [CLOSEOUT] Missing bash ^(require Git Bash / WSL^)
+  exit /b 2
+)
+echo [CLOSEOUT] Running: bash %FINALIZE_SCRIPT% %NORMALIZED_TEST_ARGS%
+bash "%FINALIZE_SCRIPT%" %NORMALIZED_TEST_ARGS%
+exit /b %ERRORLEVEL%
+
+:win_closeout_3cmd
+set "BATCH_ID="
+for /f "tokens=1" %%A in ("%NORMALIZED_TEST_ARGS%") do set "BATCH_ID=%%A"
+if "%BATCH_ID%"=="" set "BATCH_ID=SIMD-YYYYMMDD-152"
+echo [CLOSEOUT] Windows evidence closeout: recommended command chain
+echo.
+echo 0^) Preflight GH blockage ^(Git Bash / WSL, recommended^)
+echo    bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight
+echo.
+echo 1^) Collect and verify evidence ^(PowerShell/CMD^)
+echo    tests\fafafa.core.simd\buildOrTest.bat evidence-win-verify
+echo.
+echo 2^) Backfill cross gate with fail-close ^(Git Bash / WSL^)
+echo    SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate
+echo.
+echo 3^) One-shot closeout ^(Git Bash / WSL^)
+echo    bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize %BATCH_ID%
+echo.
+echo 4^) Confirm freeze status ^(Git Bash / WSL^)
+echo    bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status
+echo.
+echo Notes:
+echo    Step 3 runs finalize ^> freeze-status ^> apply, and apply is blocked unless freeze_ready=true.
+echo    If step 0 returns RECENT_BILLING_BLOCK, fix GitHub Billing/quota first.
+exit /b 0
+
+:win_closeout_finalize
+set "RUNNER_SCRIPT=%ROOT%run_windows_b07_closeout_finalize.sh"
+if not exist "%RUNNER_SCRIPT%" (
+  echo [CLOSEOUT] Missing runner: %RUNNER_SCRIPT%
+  exit /b 2
+)
+where bash >nul 2>nul
+if errorlevel 1 (
+  echo [CLOSEOUT] Missing bash ^(require Git Bash / WSL^)
+  exit /b 2
+)
+call "%~f0" evidence-win-verify
+if errorlevel 1 exit /b 1
+set "SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1"
+echo [CLOSEOUT] Backfill cross gate ^(SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1^)
+bash "%ROOT%BuildOrTest.sh" gate
+if errorlevel 1 exit /b 1
+echo [CLOSEOUT] Running: bash %RUNNER_SCRIPT% %NORMALIZED_TEST_ARGS%
+bash "%RUNNER_SCRIPT%" %NORMALIZED_TEST_ARGS%
 exit /b %ERRORLEVEL%
 
 :gate_summary_sample

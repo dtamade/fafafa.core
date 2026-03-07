@@ -1,5 +1,9 @@
 # fafafa.core.simd 模块文档
 
+> 这页负责讲清模块全貌、阅读顺序和维护边界。
+>
+> 如果你只想查公开 API，请优先看 `docs/fafafa.core.simd.api.md`；如果你只想落地维护，请优先看 `docs/fafafa.core.simd.map.md`、`docs/fafafa.core.simd.maintenance.md` 和 `docs/fafafa.core.simd.checklist.md`。
+
 ## 概述
 
 `fafafa.core.simd` 是一个高性能、跨平台的 SIMD 优化模块，为 FreePascal 应用程序提供内存、文本、位集和搜索操作的硬件加速。
@@ -18,23 +22,60 @@
 - **小而精**：优先覆盖高 ROI 原语（mem/text/bitset/search 的核心路径）
 - **命名统一**：全部指令集名称使用全大写（SSE2/AVX2/NEON/AVX-512/SVE）
 
+## 建议阅读顺序
+
+- **使用者入口**：`src/fafafa.core.simd.README.md`
+- **公开 API 参考**：`docs/fafafa.core.simd.api.md`
+- **阅读地图**：`docs/fafafa.core.simd.map.md`
+- **维护策略**：`docs/fafafa.core.simd.maintenance.md`
+- **极简行动清单**：`docs/fafafa.core.simd.checklist.md`
+- **本轮收尾与回归矩阵**：`docs/fafafa.core.simd.closeout.md`
+- **历史背景**：`src/fafafa.core.simd.next-steps.md`（历史草案，不是当前真相源）
+
+## 示例定位
+
+- `examples/simd_ops_demo.lpr`：更贴近当前公开 API 的实际用法，适合作为教程入口
+- `examples/example_simd_dispatch.pas`：概念演示（conceptual demo），重点是解释“按 CPU 特性挑选实现”的思路，不代表真实后端注册或派发接线方式
+
+## Stable / Experimental 边界
+
+这个模块有两个需要同时成立的判断：
+
+- **公开 façade 是稳定面**：调用方正常接触到的 `fafafa.core.simd` / `fafafa.core.simd.api` 入口，仍然按 stable surface 理解
+- **后端成熟度不是单一等级**：同一个 façade 背后可以连接不同成熟度的 backend；`sbRISCVV` 目前应继续按 experimental / 受限成熟度理解，而不是与 `SSE2` / `AVX2` / `NEON` 视为同等稳定级别
+- **experimental intrinsics 默认不在稳定面内**：这些单元已有默认入口隔离检查，默认入口链只保证它们不会泄漏进常规 façade，而不意味着它们已经自动进入发布级保证范围
+
+如果你在维护时需要一句最短判断，可以用这句：**stable 的是公开 façade 与其 ABI 约束，不是“所有 backend 都已达到相同成熟度”。**
+
 ## 架构设计
 
 ### 模块结构
 
 ```
 src/
-├── fafafa.core.simd.pas           # 主用户入口：向量运算 + 类型重导出
-├── fafafa.core.simd.api.pas       # 门面函数 API：MemEqual/SumBytes/Utf8Validate 等
-├── fafafa.core.simd.base.pas      # 类型定义：TVecF32x4/TMask4 等
-├── fafafa.core.simd.dispatch.pas  # 运行时派发：后端选择和函数表
-├── fafafa.core.simd.cpuinfo.pas   # CPU 能力检测：CPUID/XGETBV 等
-├── fafafa.core.simd.memutils.pas  # 内存工具：对齐分配
-├── fafafa.core.simd.scalar.pas    # 后端：标量回退实现
-├── fafafa.core.simd.sse2.pas      # 后端：SSE2 128-bit 实现
-├── fafafa.core.simd.avx2.pas      # 后端：AVX2 256-bit 实现
-└── fafafa.core.simd.avx512.pas    # 后端：AVX-512 512-bit 实现
+├── fafafa.core.simd.pas                 # 主用户入口；当前已拆出 types/framework 等 include
+├── fafafa.core.simd.api.pas             # 门面函数 API：MemEqual/SumBytes/Utf8Validate 等
+├── fafafa.core.simd.base.pas            # 类型定义：TVecF32x4/TMask4 等
+├── fafafa.core.simd.dispatch.pas        # 运行时派发；当前已拆出 hook 管理 include
+├── fafafa.core.simd.cpuinfo.pas         # CPU 能力检测；当前已拆出 backend 选择 include
+├── fafafa.core.simd.memutils.pas        # 内存工具：对齐分配
+├── fafafa.core.simd.scalar.pas          # 后端：标量回退实现
+├── fafafa.core.simd.sse2.pas            # 后端：SSE2；当前保持相对稳态，不建议继续高风险细拆
+├── fafafa.core.simd.avx2.pas            # 后端：AVX2；family / facade 已按 include 收口
+├── fafafa.core.simd.avx512.pas          # 后端：AVX-512；512-bit family 已按 include 收口
+├── fafafa.core.simd.neon.pas            # 后端：NEON；facade / fallback / family 已按 include 收口
+└── fafafa.core.simd.*.inc               # 低风险物理拆分出的 types/framework/register/family/helper 区块
 ```
+
+### 当前代码组织（2026-03）
+
+当前代码已经从“少量超大单元”收口到“主单元 + include 片段”的结构：
+
+- `fafafa.core.simd.pas` 负责对外 API，内部通过 `types` / `framework` include 保持主入口稳定。
+- `dispatch` / `cpuinfo` 负责运行时选择与能力判定，当前把 hook、backend 选择等机制拆成独立 include。
+- `AVX2` / `AVX-512` / `NEON` 的注册区、门面区和若干 family 区已拆出，便于审查与回归。
+- 维护入口：结构收口与稳定边界说明见 `docs/fafafa.core.simd.maintenance.md`。
+- `SSE2` 仍然是重要但相对脆弱的基线后端；继续做细颗粒物理拆分的收益已经变小，风险开始上升。
 
 ### 支持的指令集
 
@@ -43,7 +84,7 @@ src/
 - **规划支持**：AVX-512VL, AVX-512BW（部分子集）
 
 #### AArch64 架构
-- **当前支持**：NEON (占位符阶段)
+- **当前支持**：NEON（支持原生 AArch64 汇编路径；不满足编译器/平台条件时自动回退到标量实现）
 - **规划支持**：CRC32, AES, PMULL, SVE
 
 ### 性能等级
@@ -65,7 +106,7 @@ src/
 | AVX2 | 359 | 448 | 80.1% | ✅ 优秀 |
 | NEON | 326 | 765 | 42.6% | ✅ 良好 |
 | SSE2 | 225 | 726 | 30.9% | ✅ 改进 |
-| RISC-V V | 19 | 481 | 4% | ⚠️ 受限 (FPC 编译器限制) |
+| RISC-V V | 19 | 481 | 4% | ⚠️ 实验性 / 受限成熟度（含 FPC 编译器限制） |
 
 **说明**：
 - **ASM 块**：使用真正 SIMD 汇编指令的函数数量
@@ -151,11 +192,11 @@ begin
   result := a + b;  // [6.0, 8.0, 10.0, 12.0]
   result := a * b;  // [5.0, 12.0, 21.0, 32.0]
   result := -a;     // [-1.0, -2.0, -3.0, -4.0]
-  
+
   // Shuffle 操作
   result := VecF32x4Shuffle(a, MM_SHUFFLE(0,0,0,0));  // 广播 a[0]
   result := VecF32x4Reverse(a);  // [4.0, 3.0, 2.0, 1.0]
-  
+
   // 数学函数（示例：使用已实现的 API）
   result := VecF32x4Sqrt(a);
   result := VecF32x4Abs(result);
@@ -171,15 +212,15 @@ begin
   // 排序网络 - 4 元素排序
   v.i[0] := 4; v.i[1] := 1; v.i[2] := 3; v.i[3] := 2;
   v := SortNet4I32(v, True);  // 升序 [1, 2, 3, 4]
-  
+
   // 前缀和
   v.i[0] := 1; v.i[1] := 2; v.i[2] := 3; v.i[3] := 4;
   v := PrefixSumI32x4(v, True);  // inclusive [1, 3, 6, 10]
-  
+
   // 数组前缀和
   arr[0] := 1; arr[1] := 2; arr[2] := 3; arr[3] := 4;
   PrefixSumArrayI32(@arr[0], @out_arr[0], 4);  // [1, 3, 6, 10]
-  
+
   // 字符串搜索
   pos := StrFindChar(@text[0], Length(text), Ord('x'));
 end;
@@ -289,7 +330,7 @@ function AsciiIEqual(a, b: Pointer; len: SizeUInt): Boolean;
 **优化**：x86_64 使用 SSE2/AVX2，AArch64 使用 NEON
 实现与配置（以代码为准）
 - 后端选择/强制：使用 `fafafa.core.simd.dispatch` 的 `SetActiveBackend` / `TrySetActiveBackend` / `ResetToAutomaticBackend`。
-- VectorAsm 开关：编译期定义 `SIMD_VECTOR_ASM_DISABLED`；运行时可调用 `SetVectorAsmEnabled`（仅在 dispatch 初始化前有效）。
+- VectorAsm 开关：编译期定义 `SIMD_VECTOR_ASM_DISABLED`；运行时可调用 `SetVectorAsmEnabled`（支持初始化后切换，并触发 backend 重建；建议用于启动/测试阶段，而非业务热路径并发写切换）。
 - 测试入口：
   - bash tests/fafafa.core.simd/BuildOrTest.sh check
   - bash tests/fafafa.core.simd/BuildOrTest.sh test
@@ -532,7 +573,7 @@ begin
   // 方式 1: 通过元素数组访问
   v.f[0] := 1.0;
   v.f[1] := 2.0;
-  
+
   // 方式 2: 通过 raw 字节数组访问
   WriteLn(v.raw[0]);  // 访问底层字节
 end;
@@ -888,7 +929,7 @@ begin
   v.i[0] := 1; v.i[1] := 2; v.i[2] := 3; v.i[3] := 4;
   r := PrefixSumI32x4(v, True);   // [1, 3, 6, 10]
   r := PrefixSumI32x4(v, False);  // [0, 1, 3, 6]
-  
+
   // 数组前缀和
   arr[0] := 1; arr[1] := 2; arr[2] := 3; arr[3] := 4;
   PrefixSumArrayI32(@arr[0], @out_arr[0], 4);  // [1, 3, 6, 10]

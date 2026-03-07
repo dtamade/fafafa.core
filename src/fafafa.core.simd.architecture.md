@@ -1,5 +1,9 @@
 # fafafa.core.simd 技术架构分析
 
+> 这份文档描述的是**当前实现导向的架构视图**。
+>
+> 其中少量代码块是概念示意，不保证逐字可编译；遇到 API 名称、类型布局、后端接线细节时，以 `src/fafafa.core.simd.pas`、`src/fafafa.core.simd.base.pas`、`src/fafafa.core.simd.dispatch.pas` 为准。
+
 ## 🏗️ 架构设计原则
 
 ### 1. 分层抽象 (Layered Abstraction)
@@ -31,11 +35,30 @@
 
 ### 类型系统设计
 ```pascal
-// 向量类型层次
-TVecF32x4 = record Data: array[0..3] of Single; end;  // 128位
-TVecF32x8 = record Data: array[0..7] of Single; end;  // 256位
-TVecF64x2 = record Data: array[0..1] of Double; end;  // 128位
-TVecI32x4 = record Data: array[0..3] of Int32; end;   // 128位
+// 向量类型层次（示意；真实定义见 fafafa.core.simd.base）
+TVecF32x4 = record
+  case Integer of
+    0: (f: array[0..3] of Single);
+    1: (raw: array[0..15] of Byte);
+end;
+
+TVecF32x8 = record
+  case Integer of
+    0: (f: array[0..7] of Single);
+    1: (raw: array[0..31] of Byte);
+end;
+
+TVecF64x2 = record
+  case Integer of
+    0: (d: array[0..1] of Double);
+    1: (raw: array[0..15] of Byte);
+end;
+
+TVecI32x4 = record
+  case Integer of
+    0: (i: array[0..3] of Int32);
+    1: (raw: array[0..15] of Byte);
+end;
 
 // 掩码类型层次
 TMask4  = type Byte;   // 4位掩码  (F32x4, I32x4)
@@ -50,7 +73,7 @@ type TSimdDispatchTable = record
   // 后端信息
   Backend: TSimdBackend;
   BackendInfo: TSimdBackendInfo;
-  
+
   // 函数指针 (零开销派发)
   AddF32x4: function(const a, b: TVecF32x4): TVecF32x4;
   MulF32x4: function(const a, b: TVecF32x4): TVecF32x4;
@@ -68,6 +91,9 @@ end;
 ```
 
 ### 后端注册机制
+
+当前实现中，后端注册代码通常已经从主单元抽到 `*.register.inc`，主文件保留接入点，便于控制单文件体积并减少 review 噪音。
+
 ```pascal
 // 后端自注册模式
 procedure RegisterSSE2Backend;
@@ -77,12 +103,12 @@ begin
   dispatchTable.AddF32x4 := @SSE2_AddF32x4;
   dispatchTable.MulF32x4 := @SSE2_MulF32x4;
   // ...
-  
+
   // 注册到全局系统
   RegisterBackend(sbSSE2, dispatchTable);
 end;
 
-// 单元初始化时自动注册
+// 单元初始化时自动注册（实际项目中通常位于 `*.register.inc`）
 initialization
   RegisterSSE2Backend;
 ```
@@ -130,7 +156,7 @@ procedure VecF32x4AddArray(src1, src2, dst: PSingle; count: NativeUInt);
 ### SSE2 后端架构
 ```pascal
 {$IFDEF SIMD_BACKEND_SSE2}
-unit fafafa.core.simd.x86.sse2;
+unit fafafa.core.simd.sse2;
 
 // 内联汇编实现
 function SSE2_AddF32x4(const a, b: TVecF32x4): TVecF32x4; inline;
@@ -231,11 +257,11 @@ begin
     // 生成随机输入
     GenerateRandomVector(a);
     GenerateRandomVector(b);
-    
+
     // 对比结果
     scalarResult := ScalarAdd(a, b);
     simdResult := VecF32x4Add(a, b);
-    
+
     // 验证一致性 (考虑浮点误差)
     AssertVectorEqual(scalarResult, simdResult, 1e-6);
   end;
@@ -257,12 +283,12 @@ end;
 // 使用示例
 var result: TBenchmarkResult;
 begin
-  result := TSimdBenchmark.MeasureOperation('VecF32x4Add', 
+  result := TSimdBenchmark.MeasureOperation('VecF32x4Add',
     function(const a, b: TVecF32x4): TVecF32x4
     begin
       Result := VecF32x4Add(a, b);
     end);
-    
+
   WriteLn(Format('Throughput: %.2f GOps/sec', [result.ThroughputGOps]));
   WriteLn(Format('Latency: %.2f ns', [result.LatencyNs]));
 end;
@@ -281,9 +307,9 @@ begin
   scalarTime := BenchmarkScalar;
   simdTime := BenchmarkSIMD;
   speedup := scalarTime / simdTime;
-  
+
   if speedup < EXPECTED_SPEEDUP then
-    raise Exception.CreateFmt('Performance regression detected: %.2fx < %.2fx', 
+    raise Exception.CreateFmt('Performance regression detected: %.2fx < %.2fx',
                              [speedup, EXPECTED_SPEEDUP]);
 end;
 ```

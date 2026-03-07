@@ -3,6 +3,10 @@
 > **模块状态**: STABLE | 2025-12-27
 >
 > 本文档以代码为准；不包含“审计报告/测试计数”等不可自动验证的断言。
+>
+> 本文档描述的是 `fafafa.core.simd` / `fafafa.core.simd.api` 对外公开的 façade。像 `TSimdDispatchTable`、`TSimdBackendOps`、后端 `*_Scalar` / `*_AVX2` / `*_SSE2` 之类符号，属于实现细节或后端扩展接口，不是常规使用入口。
+>
+> 这里的“稳定”首先指公开 façade 与 ABI 约束；并不表示每个 backend 都具有同样的成熟度或验证深度。特别是 `sbRISCVV` 仍应视为 experimental / 受限成熟度后端。
 
 ## 概述
 
@@ -20,10 +24,17 @@
 | SSE3 | x86-64 | 128-bit |
 | SSE2 | x86-64 | 128-bit |
 | NEON | ARM64 | 128-bit |
-| RISC-V V | RISC-V | 可变 |
+| RISC-V V | RISC-V | 可变（experimental / 受限成熟度） |
 | Scalar | 全平台 | N/A |
 
 ## 设计原则
+
+### Stable / Experimental 口径
+
+- **稳定面**：公开 façade、已声明稳定的 ABI 边界，以及默认入口链
+- **实验面**：实验性 intrinsics 与受限成熟度 backend，不默认计入 stable surface
+- **默认隔离**：experimental intrinsics 默认入口链已隔离；默认 façade 可见，不等于这些实验单元自动进入发布级保证
+
 
 ### 1. Rust 级别代码质量标准
 
@@ -36,25 +47,27 @@
 
 ### 2. 命名规范
 
-#### 低级向量操作（前缀风格）
+#### 公开 façade（推荐直接使用）
 
 ```pascal
-// 格式: <Backend><Operation><Type>
-ScalarAddF32x4(a, b)    // Scalar 后端的 F32x4 加法
-SSE2MulF32x4(a, b)      // SSE2 后端的 F32x4 乘法
-AVX2DivF32x8(a, b)      // AVX2 后端的 F32x8 除法
+// 公开 API 以语义和向量族命名为主
+VecF32x4Add(a, b)
+VecF32x4LoadAligned(p)
+VecF32x4Store(p, v)
+MemEqual(a, b, len)
+Utf8Validate(p, len)
 ```
 
-#### 高级 Facade 操作（后缀风格）
+#### 后端实现 / 调试符号（通常不是常规入口）
 
 ```pascal
-// 格式: <Operation>_<Backend>
-MemEqual_Scalar(a, b, len)    // Scalar 后端的内存比较
-MemCopy_AVX2(src, dst, len)   // AVX2 后端的内存拷贝
-Utf8Validate_SSE2(p, len)     // SSE2 后端的 UTF-8 验证
+// 这类名称更偏实现细节、后端扩展或调试上下文
+ScalarAddF32x4(a, b)
+SSE2MulF32x4(a, b)
+AVX2DivF32x8(a, b)
 ```
 
-这种区分有助于快速识别操作类型。
+如果你只是正常使用模块，请优先查 `Vec*` / `Mask*` / `Mem*` / `Utf8*` / `Ascii*` 这些公开 façade，而不是从后端私有符号开始读。
 
 ## 安全要求
 
@@ -62,10 +75,10 @@ Utf8Validate_SSE2(p, len)     // SSE2 后端的 UTF-8 验证
 
 | 函数 | 对齐要求 | 失败行为 |
 |------|----------|----------|
-| `LoadF32x4Aligned` | 16 字节 | Assert 失败 |
-| `StoreF32x4Aligned` | 16 字节 | Assert 失败 |
-| `LoadF32x4` | 无要求 | 正常工作 |
-| `StoreF32x4` | 无要求 | 正常工作 |
+| `VecF32x4LoadAligned` | 16 字节 | Assert 失败 |
+| `VecF32x4StoreAligned` | 16 字节 | Assert 失败 |
+| `VecF32x4Load` | 无要求 | 正常工作 |
+| `VecF32x4Store` | 无要求 | 正常工作 |
 
 **示例**:
 ```pascal
@@ -78,10 +91,10 @@ begin
   aligned := PSingle((PtrUInt(@buf[0]) + 15) and not PtrUInt(15));
 
   // 安全: 使用对齐地址
-  v := LoadF32x4Aligned(aligned);
+  v := VecF32x4LoadAligned(aligned);
 
   // 安全: 非对齐加载无要求
-  v := LoadF32x4(@buf[1]);
+  v := VecF32x4Load(@buf[1]);
 end;
 ```
 
@@ -91,13 +104,13 @@ end;
 
 ```pascal
 // 索引 < 0 饱和到 0
-Extract(v, -1)   // 返回 v.f[0]
+VecF32x4Extract(v, -1)   // 返回 v.f[0]
 
 // 索引 > 3 饱和到 3
-Extract(v, 99)   // 返回 v.f[3]
+VecF32x4Extract(v, 99)   // 返回 v.f[3]
 
 // 正常索引
-Extract(v, 2)    // 返回 v.f[2]
+VecF32x4Extract(v, 2)    // 返回 v.f[2]
 ```
 
 **设计理由**: 性能优先，避免异常开销。
@@ -131,10 +144,10 @@ begin
   a.f[0] := NaN;
   b.f[0] := 1.0;
 
-  r := AddF32x4(a, b);
+  r := VecF32x4Add(a, b);
   // r.f[0] = NaN  (NaN 传播)
 
-  r := MulF32x4(a, b);
+  r := VecF32x4Mul(a, b);
   // r.f[0] = NaN
 end;
 ```
@@ -166,8 +179,6 @@ end;
 uses fafafa.core.simd;
 
 begin
-  InitializeDispatch;  // 自动在 initialization 调用
-
   // 获取当前后端
   WriteLn(GetActiveBackend);  // sbAVX2, sbSSE2, sbScalar 等
 end;
@@ -185,19 +196,7 @@ ResetToAutomaticBackend;
 
 ### 线程安全
 
-后端切换使用内存屏障保护：
-
-```pascal
-procedure SetActiveBackend(backend: TSimdBackend);
-begin
-  g_ForcedBackend := backend;
-  g_BackendForced := True;
-  WriteBarrier;           // 确保写入可见
-  g_DispatchInitialized := False;
-  MemoryBarrier;          // 完整屏障
-  InitializeDispatch;
-end;
-```
+对外语义上，dispatch 初始化是线程安全的；但**运行时切换后端**更适合发生在启动阶段、测试阶段，或者受控切换点，而不是高并发热路径中。调用方应把 `SetActiveBackend` / `ResetToAutomaticBackend` 视为“控制面操作”，不要把它们当作普通数据面 API 高频调用。
 
 ## 使用示例
 
@@ -208,15 +207,12 @@ uses fafafa.core.simd;
 
 var
   a, b, c: TVecF32x4;
-  dt: PSimdDispatchTable;
 begin
-  dt := GetDispatchTable;
+  a := VecF32x4Splat(1.0);
+  b := VecF32x4Splat(2.0);
+  c := VecF32x4Add(a, b);
 
-  a := dt^.SplatF32x4(1.0);
-  b := dt^.SplatF32x4(2.0);
-  c := dt^.AddF32x4(a, b);
-
-  WriteLn(dt^.ExtractF32x4(c, 0));  // 输出: 3.0
+  WriteLn(VecF32x4Extract(c, 0));  // 输出: 3.0
 end;
 ```
 
@@ -225,24 +221,24 @@ end;
 ```pascal
 var
   buf1, buf2: array[0..1023] of Byte;
-  dt: PSimdDispatchTable;
+  idx: PtrInt;
 begin
-  dt := GetDispatchTable;
-
   // 内存比较
-  if dt^.MemEqual(@buf1[0], @buf2[0], 1024) then
+  if MemEqual(@buf1[0], @buf2[0], 1024) then
     WriteLn('相等');
 
   // 查找字节
-  idx := dt^.MemFindByte(@buf1[0], 1024, $FF);
+  idx := MemFindByte(@buf1[0], 1024, $FF);
 
   // UTF-8 验证
-  if dt^.Utf8Validate(@buf1[0], 1024) then
+  if Utf8Validate(@buf1[0], 1024) then
     WriteLn('有效 UTF-8');
 end;
 ```
 
-### 新接口（TSimdBackendOps）
+### 高级扩展：`TSimdBackendOps`
+
+这一节面向后端接入或内部扩展，不是普通调用方入口。
 
 ```pascal
 uses
