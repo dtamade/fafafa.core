@@ -28,3 +28,25 @@
 - `tests/fafafa.core.simd/logs/windows_b07_gate.log`
 - `tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md`
 - `tests/fafafa.core.simd/logs/freeze_status.json`
+
+## SIMD Full-Platform Expansion Notes (2026-03-09)
+
+- `evaluate_simd_freeze_status.py` 当前 required 项只包含 Linux gate + Windows evidence / closeout，QEMU / RISCVV 不在 required 集合内。
+- `src/fafafa.core.simd.STABLE` 与 `docs/fafafa.core.simd.closeout.md` 仍明确把 `sbRISCVV` 定义为 experimental / limited-maturity backend。
+- `tests/fafafa.core.simd/docker/run_multiarch_qemu.sh` 已支持 `nonx86-evidence` / `arch-matrix-evidence` / `nonx86-experimental-asm` / `cpuinfo-*` alias，但默认 gate 不把这些设成 required。
+- `tests/fafafa.core.simd/docs/simd_completeness_matrix.md` 仍有 `QEMU CPUInfo opt-in 证据链已对齐` 未完成项。
+- Windows closeout is no longer the blocker; cross-platform freeze is already `ready=True`.
+- Next scope is stronger than current freeze: QEMU / non-x86 evidence and RISCVV maturity.
+- Current docs still state `sbRISCVV` is explicit opt-in experimental and not part of stable/platform-complete support.
+- Current QEMU actions exist, but are not required by the cross-platform freeze gate.
+- 本机环境具备 `docker` 与 `qemu-riscv64/qemu-aarch64/qemu-x86_64`，可直接重跑 QEMU / non-x86 evidence。
+- 当前 `qemu_experimental_report` 报的是“missing experimental summary directory”，说明不是环境缺失，而是尚无最新 `nonx86-experimental-asm` 汇总产物。
+- 因此下一步应直接跑 QEMU scenario，先得到真实 non-x86 / RISCVV 证据，再决定是补脚本还是补实现。
+- QEMU / non-x86 的真实缺口不只是“还没纳入 gate”，还包括 raw evidence retention、CPUInfo alias 只是折叠到 `nonx86-evidence`、以及 docs/checklist/matrix 未拆成可验收条目。
+- `freeze-status` 当前完全不看 QEMU/non-x86 产物，因此现有 `ready=True` 不能代表“全平台完整实现”。
+- 现成最小收敛路径应至少覆盖：`qemu-arch-matrix-evidence`、`qemu-nonx86-evidence`、`qemu-nonx86-experimental-asm` / baseline，以及对应文档/状态机接线。
+- `src/fafafa.core.simd.riscvv.pas` 是一个非常大的已注册 backend，但它仍然走老的 `TSimdDispatchTable` 路线，且大量 façade 能力只是 scalar delegation。
+- `cpuinfo.riscv` 当前 `HasV` 判定过于宽松（`Pos('v', isa) > 0`），会误导 dispatch 把 `sbRISCVV` 当成可用 backend。
+- `riscv32` 当前会注册 `sbRISCVV`，但 asm 只在 `CPURISCV64 + SIMD_BACKEND_RISCVV` 下启用，因此形成“注册了 RISCVV、实际却是 scalar fallback”的假象。
+- 真正的 RVV 运行覆盖不足：现在主要是 demo / wrapper 级验证，缺少正式 backend smoke / activation / CI lane。
+- 源码 opt-in 宏 `SIMD_EXPERIMENTAL_RISCVV` 与 docker/QEMU lane 使用的 `FAFAFA_SIMD_*` 宏目前不一致，脚本和源码口径分裂。

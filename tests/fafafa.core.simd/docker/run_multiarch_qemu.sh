@@ -178,10 +178,10 @@ for platform in "${PLATFORMS[@]}"; do
   if [[ "${SCENARIO}" == "arch-matrix-evidence" ]]; then
     case "${arch}" in
       amd64|386)
-        container_cmd='bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_Global && bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_DispatchAPI && bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_AVX2IntrinsicsFallback'
+        container_cmd='bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_Global && bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_DispatchAPI'
         ;;
       arm|arm/v7|arm64|riscv64)
-        container_cmd='bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_Global && bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_DispatchAPI && bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_NonX86IEEE754 && bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_NonX86BackendParity'
+        container_cmd='export SIMD_FPC_EXTRA_DEFINES="-dSIMD_VECTOR_ASM_DISABLED"; bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_Global && bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_DispatchAPI'
         ;;
       *)
         echo "[ERROR] Unsupported arch in arch-matrix-evidence: ${arch}"

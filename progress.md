@@ -26,6 +26,22 @@
 | `bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status` | `ready=True` | `ready=True` | PASS |
 
 ### Notes
+- 本地核对确认：当前 `freeze-status` 的 required 集合并不包含 QEMU / RISCVV；若要达成“全平台完整实现”，需要先抬高 acceptance criteria，而不是只跑现有 freeze。
+- 本地核对确认：QEMU 脚本能力已存在，但文档与 matrix 仍把其视为后续项；`sbRISCVV` 仍在 STABLE / closeout 中被定义为 experimental。
 - 当前最终平台口径：`Cross-platform ready`。
 - Windows 实机 evidence 现由真实 GitHub Windows runner 产出，非模拟。
 - closeout 文档回填 batch id：`SIMD-20260309-152`。
+
+## Session: 2026-03-09 (Full-Platform Expansion)
+
+### Actions Taken
+- 将阶段目标从“Windows closeout”切换为“RISCVV / QEMU 全平台完整实现”。
+- 建立新的文件化计划，准备对 non-x86 / RISCVV 缺口做系统摸底。
+
+### Notes
+- 已直接运行 `bash tests/fafafa.core.simd/BuildOrTest.sh qemu-arch-matrix-evidence` 做全平台摸底。
+- 当前已确认的真实 blocker：i386 因 `IsNaNSingle` helper 条件编译缺失、arm/arm64/riscv64 因 `atomic` tagged ptr mask 常量与 AArch64-only NEON dot asm 泄漏、amd64 则是 arch-matrix 不该把 AVX2 experimental fallback suite 当成 stable/public surface 必测项。
+- 已决定将 arch-matrix 口径收窄到 stable/public surface；experimental ASM 与 CPUInfo opt-in 走独立 lane。
+- 当前起点：`freeze-status` 已经是 `ready=True`。
+- 新阶段目标：提高完成度口径，而不是修复当前 freeze blocker。
+
