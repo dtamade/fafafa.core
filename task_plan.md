@@ -1,64 +1,67 @@
-# Task Plan: Layer0+Layer1 梳理 + SIMD 整理
+# Task Plan: SIMD Windows closeout to cross-platform ready
 
 ## Goal
-输出一份可执行的 Layer0/Layer1 问题清单（含复现/优先级/建议修复路径），并对 SIMD 模块建立“单元地图 + 测试矩阵 + 完成定义”，完成第一批高优先级修复与回归验证。
-
-## Scope
-- In:
-  - SIMD：梳理架构/依赖/命名、测试覆盖与缺口；输出完成定义；修复高优先级问题
-  - Layer0/Layer1：汇总历史发现与当前状态，形成可执行的修复清单（sync/simd 优先）
-- Out:
-  - 大规模重构（跨多个模块的拆分/重命名/迁移）除非必要且先达成一致
-  - 追求“一次性全量全平台全通过”（本轮以建立基线与收敛关键风险为主）
+Bring `fafafa.core.simd` to a truthful `Cross-platform ready` state by preserving Linux green status, obtaining real Windows B07 evidence, finalizing closeout docs, and verifying `freeze-status` returns `ready=True`.
 
 ## Current Phase
-Phase 1
+Phase 5
 
 ## Phases
 
-### Phase 1: Requirements & Baseline
-- [ ] 从 `backlog.md` 选定 1–3 个条目并贴链接（P0/simd、P0/layer0+layer1）
-- [ ] 建立 SIMD 单元地图（文件清单/分类/依赖关系）
-- [ ] 建立 SIMD 测试矩阵（用例分类 × ISA/backends × 平台）
-- [ ] 汇总 Layer0/Layer1 现存问题与证据指针（文档/日志/测试/issue）
-- [ ] 将关键发现写入 `findings.md`
-- **Status:** in_progress
+### Phase 1: Baseline & Discovery
+- [x] Confirm Linux mainline gate baseline
+- [x] Confirm Windows evidence is the only real blocker
+- [x] Record current state in planning files
+- **Status:** complete
 
-### Phase 2: Plan & Design
-- [ ] 明确最小改动方案（必要时先写 design note）
-- [ ] 定义验证口径与命令（写入本文件 Verification）
-- **Status:** pending
+### Phase 2: Linux No-Regression
+- [x] Re-run Linux evidence path
+- [x] Re-run isolated Linux gate
+- [x] Re-run backend bench
+- **Status:** complete
 
-### Phase 3: Implementation
-- [ ] 分批实现（每批都能独立验证）
-- [ ] 重要决策与替代方案写入 `findings.md`
-- **Status:** pending
+### Phase 3: Windows Evidence Enablement
+- [x] Diagnose Windows CI blockers
+- [x] Fix workflow checkout / staging / toolchain path issues
+- [x] Fix Windows batch collector / verifier / dispatch issues
+- **Status:** complete
 
-### Phase 4: Verification
-- [ ] 回归测试（优先模块级，再全量）
-- [ ] 记录命令、退出码、关键日志路径到 `progress.md`
-- **Status:** pending
+### Phase 4: Windows Evidence & Closeout
+- [x] Produce real `windows_b07_gate.log`
+- [x] Verify Windows evidence with strict verifier
+- [x] Generate Windows closeout summary
+- [x] Apply roadmap / RC / matrix closeout updates
+- **Status:** complete
 
-### Phase 5: Delivery & Archive
-- [ ] 更新 `backlog.md`（Done/Next/链接归档）
-- [ ] 归档三文件到 `plans/archive/2026-02-06-<topic>/`
-- **Status:** pending
+### Phase 5: Freeze & Handoff
+- [x] Refresh `freeze-status` to `ready=True`
+- [x] Update `docs/fafafa.core.simd.handoff.md`
+- [x] Update `findings.md` and `progress.md`
+- **Status:** complete
 
 ## Key Questions
-1. SIMD “完成”意味着什么？（API 稳定性、后端覆盖、跨平台一致性、性能基准）
-2. SIMD 目前的主要混乱点是什么？（命名/重复实现/依赖层级/测试组织/平台条件编译）
+1. Is Linux still green after closeout changes? → Yes.
+2. Is Windows evidence real and verifier-clean? → Yes.
+3. Is cross-platform freeze now ready? → Yes.
 
 ## Decisions Made
 | Decision | Rationale |
 |----------|-----------|
-|          |           |
-
-## Verification
-- `bash tests/fafafa.core.simd/BuildOrTest.sh check`
-- `STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.atomic fafafa.core.option fafafa.core.math fafafa.core.simd`
-- `STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.sync`（若本轮涉及 sync）
+| Use file-based planning plus existing `findings.md` / `progress.md` | Keep long closeout work persistent and resumable |
+| Use Linux staging artifact + Windows download in workflow | Avoid Windows checkout invalid-path blocker |
+| Keep verifier strict and only add CRLF normalization | Preserve acceptance criteria while supporting Windows line endings |
+| Use explicit Windows collector closeout steps | Remove fragile dependency on historical batch gate path |
 
 ## Errors Encountered
 | Error | Attempt | Resolution |
 |-------|---------|------------|
-|       | 1       |            |
+| GitHub Actions billing blocked Windows run | 1 | Switched after account/public repo change; reran workflow |
+| Windows checkout invalid path | 2 | Reworked workflow to Linux-stage source and Windows-download artifact |
+| Windows batch self/root resolution failures | 3 | Added explicit root handling and simplified collector/verifier flow |
+| Windows verifier failed on CRLF logs | 4 | Normalize `\r` in verifier before regex checks |
+| Windows evidence workflow path/dispatch regressions | 5 | Inline dispatch and direct workflow invocation of collector+verifier |
+
+## Notes
+- Final batch id: `SIMD-20260309-152`
+- Final platform claim: `Cross-platform ready`
+- Evidence anchor: `tests/fafafa.core.simd/logs/windows_b07_gate.log`
