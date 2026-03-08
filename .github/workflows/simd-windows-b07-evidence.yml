@@ -89,7 +89,9 @@ jobs:
           dir tests
           dir tests\fafafa.core.simd
           set "SIMD_SCRIPT_ROOT=%GITHUB_WORKSPACE%\tests\fafafa.core.simd\"
-          call "%GITHUB_WORKSPACE%\tests\fafafa.core.simd\buildOrTest.bat" evidence-win-verify
+          call "%GITHUB_WORKSPACE%\tests\fafafa.core.simd\collect_windows_b07_evidence.bat"
+          if errorlevel 1 exit /b 1
+          call "%GITHUB_WORKSPACE%\tests\fafafa.core.simd\verify_windows_b07_evidence.bat" "%GITHUB_WORKSPACE%\tests\fafafa.core.simd\logs\windows_b07_gate.log"
 
       - name: Upload Windows Evidence Artifact
         if: always()
