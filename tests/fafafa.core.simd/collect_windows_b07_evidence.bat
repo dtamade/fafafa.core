@@ -52,8 +52,19 @@ if errorlevel 1 goto :gate_failed
 set /a PASSED_VALUE+=1
 
 >> "%TMP_OUT%" echo [GATE] 3/3 Backend adapter sync Pascal smoke
-call "%SELF%" adapter-sync-pascal >> "%TMP_OUT%" 2>&1
+set "SIMD_TEST_BIN=%ROOT%\bin2\fafafa.core.simd.test.exe"
+if not exist "%SIMD_TEST_BIN%" (
+  >> "%TMP_OUT%" echo [TEST] Missing binary: %SIMD_TEST_BIN%
+  goto :gate_failed
+)
+>> "%TMP_OUT%" echo [TEST] Running: %SIMD_TEST_BIN% --suite TTestCase_DispatchAPI
+"%SIMD_TEST_BIN%" --suite TTestCase_DispatchAPI >> "%TMP_OUT%" 2>&1
 if errorlevel 1 goto :gate_failed
+findstr /c:"Failures: 0" "%TMP_OUT%" >nul 2>nul
+if errorlevel 1 goto :gate_failed
+findstr /c:"Errors: 0" "%TMP_OUT%" >nul 2>nul
+if errorlevel 1 goto :gate_failed
+>> "%TMP_OUT%" echo [TEST] OK
 set /a PASSED_VALUE+=1
 
 >> "%TMP_OUT%" echo [GATE] OK
