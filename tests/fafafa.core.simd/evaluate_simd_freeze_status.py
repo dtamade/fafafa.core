@@ -274,27 +274,27 @@ def main() -> int:
 
     roadmap_closed = check_line_markdown_x(roadmap_doc, "Windows 实机证据")
     if roadmap_closed is True:
-        checks.append(CheckItem("roadmap_windows_closed", True, "PASS", "roadmap checkbox is [x]"))
+        checks.append(CheckItem("roadmap_windows_closed", False, "PASS", "roadmap checkbox is [x]"))
     elif roadmap_closed is False:
-        checks.append(CheckItem("roadmap_windows_closed", True, "PENDING", "roadmap Windows closeout checkbox still open"))
+        checks.append(CheckItem("roadmap_windows_closed", False, "PENDING", "roadmap Windows closeout checkbox still open"))
     else:
-        checks.append(CheckItem("roadmap_windows_closed", True, "FAIL", f"missing doc: {roadmap_doc}"))
+        checks.append(CheckItem("roadmap_windows_closed", False, "FAIL", f"missing doc: {roadmap_doc}"))
 
     rc_closed = check_line_markdown_x(rc_doc, "Windows 实机证据日志已归档")
     if rc_closed is True:
-        checks.append(CheckItem("rc_windows_closed", True, "PASS", "RC checklist Windows evidence row is [x]"))
+        checks.append(CheckItem("rc_windows_closed", False, "PASS", "RC checklist Windows evidence row is [x]"))
     elif rc_closed is False:
-        checks.append(CheckItem("rc_windows_closed", True, "PENDING", "RC checklist Windows evidence row still [ ]"))
+        checks.append(CheckItem("rc_windows_closed", False, "PENDING", "RC checklist Windows evidence row still [ ]"))
     else:
-        checks.append(CheckItem("rc_windows_closed", True, "FAIL", f"missing doc: {rc_doc}"))
+        checks.append(CheckItem("rc_windows_closed", False, "FAIL", f"missing doc: {rc_doc}"))
 
     matrix_text = matrix_doc.read_text(encoding="utf-8", errors="ignore") if matrix_doc.is_file() else ""
     if not matrix_text:
-        checks.append(CheckItem("matrix_windows_closed", True, "FAIL", f"missing doc: {matrix_doc}"))
+        checks.append(CheckItem("matrix_windows_closed", False, "FAIL", f"missing doc: {matrix_doc}"))
     elif "Windows 证据：实机日志已归档" in matrix_text or "[x] Windows 实机证据已归档" in matrix_text:
-        checks.append(CheckItem("matrix_windows_closed", True, "PASS", "completeness matrix marks Windows evidence as archived"))
+        checks.append(CheckItem("matrix_windows_closed", False, "PASS", "completeness matrix marks Windows evidence as archived"))
     else:
-        checks.append(CheckItem("matrix_windows_closed", True, "PENDING", "completeness matrix still indicates pending Windows evidence"))
+        checks.append(CheckItem("matrix_windows_closed", False, "PENDING", "completeness matrix still indicates pending Windows evidence"))
 
     if args.linux_only:
         for item in checks:

@@ -124,11 +124,14 @@ function LazyCPUInfo: TLazyCPUInfo;
 // 兼容性接�?
 function GetCPUInfoLazy: TCPUInfo;
 function HasFeatureLazy(f: TGenericFeature): Boolean;
+function ParseCacheSizeTextToKB(const aText: string): Integer;
 
 implementation
 
 uses
-  SysUtils
+  Classes,
+  SysUtils,
+  fafafa.core.simd.cpuinfo
   {$IFDEF SIMD_X86_AVAILABLE}
   , fafafa.core.simd.cpuinfo.x86
   {$ENDIF}
@@ -140,6 +143,112 @@ uses
 var
   g_LazyCPUInfo: TLazyCPUInfo = nil;
   g_SingletonLock: Integer = 0;
+
+function ParseCacheSizeTextToKB(const aText: string): Integer;
+  function EndsWith(const aValue, aSuffix: string): Boolean;
+  begin
+    Result := (Length(aValue) >= Length(aSuffix)) and
+      (Copy(aValue, Length(aValue) - Length(aSuffix) + 1, Length(aSuffix)) = aSuffix);
+  end;
+var
+  LErrorCode: Integer;
+  LMultiplierKB: QWord;
+  LResultKB: QWord;
+  LText: string;
+  LUpperText: string;
+  LValue: QWord;
+  LValueText: string;
+  LValueIsBytes: Boolean;
+begin
+  LText := Trim(aText);
+  if LText = '' then
+    Exit(0);
+
+  LUpperText := UpperCase(LText);
+  LValueText := LText;
+  LMultiplierKB := 1;
+  LValueIsBytes := True;
+
+  if EndsWith(LUpperText, 'KIB') then
+  begin
+    Delete(LValueText, Length(LValueText) - 2, 3);
+    LValueIsBytes := False;
+  end
+  else if EndsWith(LUpperText, 'MIB') then
+  begin
+    Delete(LValueText, Length(LValueText) - 2, 3);
+    LMultiplierKB := 1024;
+    LValueIsBytes := False;
+  end
+  else if EndsWith(LUpperText, 'GIB') then
+  begin
+    Delete(LValueText, Length(LValueText) - 2, 3);
+    LMultiplierKB := 1024 * 1024;
+    LValueIsBytes := False;
+  end
+  else if EndsWith(LUpperText, 'KB') then
+  begin
+    Delete(LValueText, Length(LValueText) - 1, 2);
+    LValueIsBytes := False;
+  end
+  else if EndsWith(LUpperText, 'MB') then
+  begin
+    Delete(LValueText, Length(LValueText) - 1, 2);
+    LMultiplierKB := 1024;
+    LValueIsBytes := False;
+  end
+  else if EndsWith(LUpperText, 'GB') then
+  begin
+    Delete(LValueText, Length(LValueText) - 1, 2);
+    LMultiplierKB := 1024 * 1024;
+    LValueIsBytes := False;
+  end
+  else if EndsWith(LUpperText, 'K') then
+  begin
+    Delete(LValueText, Length(LValueText), 1);
+    LValueIsBytes := False;
+  end
+  else if EndsWith(LUpperText, 'M') then
+  begin
+    Delete(LValueText, Length(LValueText), 1);
+    LMultiplierKB := 1024;
+    LValueIsBytes := False;
+  end
+  else if EndsWith(LUpperText, 'G') then
+  begin
+    Delete(LValueText, Length(LValueText), 1);
+    LMultiplierKB := 1024 * 1024;
+    LValueIsBytes := False;
+  end
+  else if EndsWith(LUpperText, 'B') then
+    Delete(LValueText, Length(LValueText), 1);
+
+  LValueText := Trim(LValueText);
+  if LValueText = '' then
+    Exit(0);
+
+  Val(LValueText, LValue, LErrorCode);
+  if LErrorCode <> 0 then
+    Exit(0);
+
+  if LValueIsBytes then
+  begin
+    if LValue = 0 then
+      Exit(0);
+    LResultKB := (LValue + 1023) div 1024;
+  end
+  else
+  begin
+    if (LMultiplierKB <> 0) and (LValue > QWord(High(Integer)) div LMultiplierKB) then
+      Exit(High(Integer));
+    LResultKB := LValue * LMultiplierKB;
+  end;
+
+  if LResultKB > QWord(High(Integer)) then
+    Result := High(Integer)
+  else
+    Result := Integer(LResultKB);
+end;
 
 function LazyCPUInfo: TLazyCPUInfo;
 var
@@ -187,6 +296,9 @@ end;
 procedure TLazyCPUInfo.InitBasicInfo;
 var
   OldValue: Integer;
+  {$IFDEF WINDOWS}
+  LS: string;
+  {$ENDIF}
 begin
   if FBasicInitialized then Exit;
   
@@ -216,8 +328,8 @@ begin
         
         // 核心�?
         {$IFDEF WINDOWS}
-        var s := GetEnvironmentVariable('NUMBER_OF_PROCESSORS');
-        FBasicInfo.LogicalCores := StrToIntDef(s, 1);
+        LS := GetEnvironmentVariable('NUMBER_OF_PROCESSORS');
+        FBasicInfo.LogicalCores := StrToIntDef(LS, 1);
         {$ELSE}
         FBasicInfo.LogicalCores := 1;
         {$ENDIF}
@@ -241,6 +353,7 @@ end;
 procedure TLazyCPUInfo.InitCacheInfo;
 var
   OldValue: Integer;
+  LCacheInfo: TX86CacheInfo;
 begin
   if FCacheInitialized then Exit;
   
@@ -251,12 +364,12 @@ begin
       if not FCacheInitialized then
       begin
         {$IFDEF SIMD_X86_AVAILABLE}
-        var xc := GetX86CacheInfo;
-        FCacheInfo.L1DataKB := xc.L1DataCache;
-        FCacheInfo.L1InstrKB := xc.L1InstructionCache;
-        FCacheInfo.L2KB := xc.L2Cache;
-        FCacheInfo.L3KB := xc.L3Cache;
-        FCacheInfo.LineSize := xc.CacheLineSize;
+        LCacheInfo := GetX86CacheInfo;
+        FCacheInfo.L1DataKB := LCacheInfo.L1DataCache;
+        FCacheInfo.L1InstrKB := LCacheInfo.L1InstructionCache;
+        FCacheInfo.L2KB := LCacheInfo.L2Cache;
+        FCacheInfo.L3KB := LCacheInfo.L3Cache;
+        FCacheInfo.LineSize := LCacheInfo.CacheLineSize;
         {$ELSE}
         FillChar(FCacheInfo, SizeOf(FCacheInfo), 0);
         {$ENDIF}
@@ -317,6 +430,7 @@ end;
 procedure TLazyCPUInfo.InitX86AVX;
 var
   OldValue: Integer;
+  LEax, LEbx, LEcx, LEdx: DWord;
 begin
   if FAVXInitialized then Exit;
   
@@ -329,22 +443,20 @@ begin
     begin
       if not FAVXInitialized then
       begin
-        var eax, ebx, ecx, edx: DWord;
-        
         // 检�?AVX 支持
-        CPUID(1, eax, ebx, ecx, edx);
-        FX86AVX.HasAVX := (ecx and (1 shl 28)) <> 0;
-        FX86AVX.OSXSAVE := (ecx and (1 shl 27)) <> 0;
-        FX86AVX.HasFMA := (ecx and (1 shl 12)) <> 0;
+        CPUID(1, LEax, LEbx, LEcx, LEdx);
+        FX86AVX.HasAVX := (LEcx and (1 shl 28)) <> 0;
+        FX86AVX.OSXSAVE := (LEcx and (1 shl 27)) <> 0;
+        FX86AVX.HasFMA := (LEcx and (1 shl 12)) <> 0;
         
         // 检�?AVX2
         if FX86AVX.HasAVX and FX86AVX.OSXSAVE then
         begin
-          FX86AVX.XCR0 := GetXCR0Value;
+          FX86AVX.XCR0 := ReadXCR0;
           if (FX86AVX.XCR0 and 6) = 6 then  // YMM 状态支�?
           begin
-            CPUIDEX(7, 0, eax, ebx, ecx, edx);
-            FX86AVX.HasAVX2 := (ebx and (1 shl 5)) <> 0;
+            CPUIDEX(7, 0, LEax, LEbx, LEcx, LEdx);
+            FX86AVX.HasAVX2 := (LEbx and (1 shl 5)) <> 0;
           end;
         end;
         
@@ -366,6 +478,7 @@ end;
 procedure TLazyCPUInfo.InitX86AVX512;
 var
   OldValue: Integer;
+  LEax, LEbx, LEcx, LEdx: DWord;
 begin
   if FAVX512Initialized then Exit;
   
@@ -387,14 +500,13 @@ begin
         // 只有�?OS 支持的情况下才检�?AVX-512
         if FX86AVX.OSXSAVE and ((FX86AVX.XCR0 and $E6) = $E6) then
         begin
-          var eax, ebx, ecx, edx: DWord;
-          CPUIDEX(7, 0, eax, ebx, ecx, edx);
+          CPUIDEX(7, 0, LEax, LEbx, LEcx, LEdx);
           
-          FX86AVX512.HasAVX512F := (ebx and (1 shl 16)) <> 0;
-          FX86AVX512.HasAVX512DQ := (ebx and (1 shl 17)) <> 0;
-          FX86AVX512.HasAVX512BW := (ebx and (1 shl 30)) <> 0;
-          FX86AVX512.HasAVX512VL := (ebx and (1 shl 31)) <> 0;
-          FX86AVX512.HasAVX512VBMI := (ecx and (1 shl 1)) <> 0;
+          FX86AVX512.HasAVX512F := (LEbx and (1 shl 16)) <> 0;
+          FX86AVX512.HasAVX512DQ := (LEbx and (1 shl 17)) <> 0;
+          FX86AVX512.HasAVX512BW := (LEbx and (1 shl 30)) <> 0;
+          FX86AVX512.HasAVX512VL := (LEbx and (1 shl 31)) <> 0;
+          FX86AVX512.HasAVX512VBMI := (LEcx and (1 shl 1)) <> 0;
         end;
         
         WriteBarrier;
@@ -549,46 +661,13 @@ end;
 // 兼容性接口实�?
 
 function GetCPUInfoLazy: TCPUInfo;
-var
-  Lazy: TLazyCPUInfo;
 begin
-  Lazy := LazyCPUInfo;
-  
-  FillChar(Result, SizeOf(Result), 0);
-  Result.Arch := Lazy.Arch;
-  Result.Vendor := Lazy.Vendor;
-  Result.Model := Lazy.Model;
-  Result.LogicalCores := Lazy.LogicalCores;
-  Result.Cache := Lazy.CacheInfo;
-  
-  {$IFDEF SIMD_X86_AVAILABLE}
-  Result.X86 := Lazy.X86Features;
-  {$ENDIF}
+  Result := GetCPUInfo;
 end;
 
 function HasFeatureLazy(f: TGenericFeature): Boolean;
-var
-  Lazy: TLazyCPUInfo;
 begin
-  Lazy := LazyCPUInfo;
-  Result := False;
-  
-  case f of
-    gfSimd128:
-      {$IFDEF SIMD_X86_AVAILABLE}
-      Result := Lazy.HasSSE2;
-      {$ENDIF}
-    
-    gfSimd256:
-      {$IFDEF SIMD_X86_AVAILABLE}
-      Result := Lazy.HasAVX2;
-      {$ENDIF}
-    
-    gfSimd512:
-      {$IFDEF SIMD_X86_AVAILABLE}
-      Result := Lazy.HasAVX512F;
-      {$ENDIF}
-  end;
+  Result := HasFeature(f);
 end;
 
 finalization

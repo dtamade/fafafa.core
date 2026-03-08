@@ -51,41 +51,56 @@ type
   TBenchFunc = function: Int64;
 
 function MeasureOpsPerSec(Func: TBenchFunc; var TotalOps: Int64): Double;
+const
+  MAX_ITERATIONS = 100000000;
 var
-  StartTick, EndTick: UInt64;
-  Iterations, i: Integer;
-  ElapsedMs: Double;
+  LStartTick, LEndTick: UInt64;
+  LIterations, LProbeIterations: Integer;
+  LIndex: Integer;
+  LElapsedMs: Double;
 begin
-  // Warmup
-  for i := 1 to WARMUP_ITERATIONS do
+  for LIndex := 1 to WARMUP_ITERATIONS do
     Func();
-  
-  // Determine iteration count for target time
-  Iterations := MIN_ITERATIONS;
-  StartTick := GetTickCount64;
-  for i := 1 to MIN_ITERATIONS do
-    Func();
-  EndTick := GetTickCount64;
-  ElapsedMs := EndTick - StartTick;
-  
-  if ElapsedMs > 0 then
-    Iterations := Trunc(MIN_ITERATIONS * TARGET_TIME_MS / ElapsedMs)
+
+  LProbeIterations := MIN_ITERATIONS;
+  repeat
+    LStartTick := GetTickCount64;
+    for LIndex := 1 to LProbeIterations do
+      Func();
+    LEndTick := GetTickCount64;
+    LElapsedMs := LEndTick - LStartTick;
+    if (LElapsedMs = 0) and (LProbeIterations < MAX_ITERATIONS) then
+      LProbeIterations := LProbeIterations * 10;
+  until (LElapsedMs > 0) or (LProbeIterations >= MAX_ITERATIONS);
+
+  if LElapsedMs > 0 then
+    LIterations := Trunc(LProbeIterations * TARGET_TIME_MS / LElapsedMs)
   else
-    Iterations := MIN_ITERATIONS * 10;
-  
-  if Iterations < MIN_ITERATIONS then
-    Iterations := MIN_ITERATIONS;
-  
-  // Actual measurement
-  StartTick := GetTickCount64;
-  for i := 1 to Iterations do
-    Func();
-  EndTick := GetTickCount64;
-  
-  TotalOps := Int64(Iterations);
-  ElapsedMs := EndTick - StartTick;
-  if ElapsedMs > 0 then
-    Result := (Iterations * 1000.0) / ElapsedMs
+    LIterations := LProbeIterations;
+
+  if LIterations < MIN_ITERATIONS then
+    LIterations := MIN_ITERATIONS;
+  if LIterations > MAX_ITERATIONS then
+    LIterations := MAX_ITERATIONS;
+
+  repeat
+    LStartTick := GetTickCount64;
+    for LIndex := 1 to LIterations do
+      Func();
+    LEndTick := GetTickCount64;
+    LElapsedMs := LEndTick - LStartTick;
+    if (LElapsedMs = 0) and (LIterations < MAX_ITERATIONS) then
+    begin
+      if LIterations > (MAX_ITERATIONS div 10) then
+        LIterations := MAX_ITERATIONS
+      else
+        LIterations := LIterations * 10;
+    end;
+  until (LElapsedMs > 0) or (LIterations >= MAX_ITERATIONS);
+
+  TotalOps := Int64(LIterations);
+  if LElapsedMs > 0 then
+    Result := (LIterations * 1000.0) / LElapsedMs
   else
     Result := 0;
 end;

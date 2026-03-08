@@ -191,7 +191,7 @@ asm
     movd dword ptr [rdi], mm0
   {$ENDIF}
 {$ELSE}
-  // x86: 参数通过栈传�?  movq mm0, qword ptr [Src]
+  movq mm0, qword ptr [Src]
   mov eax, Dest
   movd dword ptr [eax], mm0
 {$ENDIF}
@@ -237,7 +237,7 @@ asm
     movq qword ptr [rdi], mm0
   {$ENDIF}
 {$ELSE}
-  // x86: 参数通过栈传�?  movq mm0, qword ptr [Src]
+  movq mm0, qword ptr [Src]
   mov eax, Dest
   movq qword ptr [eax], mm0
 {$ENDIF}
@@ -272,7 +272,10 @@ asm
     // SysV x64: EDI = Value (�?�?
     movd mm0, edi
   {$ENDIF}
-  punpcklbw mm0, mm0  // 复制�?6�?  punpcklwd mm0, mm0  // 复制�?2�?  punpckldq mm0, mm0  // 复制�?4�?  movq rax, mm0
+  punpcklbw mm0, mm0
+  punpcklwd mm0, mm0
+  punpckldq mm0, mm0
+  movq rax, mm0
   movq qword ptr [Result], mm0
 {$ELSE}
   movd mm0, Value
@@ -300,7 +303,9 @@ asm
   {$ELSE}
     movd mm0, edi
   {$ENDIF}
-  punpcklwd mm0, mm0  // 复制�?2�?  punpckldq mm0, mm0  // 复制�?4�?  movq rax, mm0
+  punpcklwd mm0, mm0
+  punpckldq mm0, mm0
+  movq rax, mm0
   movq qword ptr [Result], mm0
 {$ELSE}
   movd mm0, Value
@@ -326,7 +331,8 @@ asm
   {$ELSE}
     movd mm0, edi
   {$ENDIF}
-  punpckldq mm0, mm0  // 复制�?4�?  movq rax, mm0
+  punpckldq mm0, mm0
+  movq rax, mm0
   movq qword ptr [Result], mm0
 {$ELSE}
   movd mm0, Value
@@ -356,81 +362,33 @@ end;
 
 // 功能：设�?�?6位整数到MMX寄存器（从高到低�?// 输入：a3-a0 - 4�?6位有符号整数
 // 输出：TM64 - 包含指定�?�?6位整�
-function mmx_set_pi16(a3, a2, a1, a0: SmallInt): TM64; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    // Windows x64: RCX=a3, RDX=a2, R8=a1, R9=a0
-    push rbp
-    mov rbp, rsp
-    sub rsp, 8
-    mov word ptr [rsp], cx     // a3
-    mov word ptr [rsp+2], dx   // a2
-    mov word ptr [rsp+4], r8w  // a1
-    mov word ptr [rsp+6], r9w  // a0
-    movq mm0, qword ptr [rsp]
-    add rsp, 8
-    pop rbp
-  {$ELSE}
-    // SysV x64: RDI=a3, RSI=a2, RDX=a1, RCX=a0
-    push rbp
-    mov rbp, rsp
-    sub rsp, 8
-    mov word ptr [rsp], di
-    mov word ptr [rsp+2], si
-    mov word ptr [rsp+4], dx
-    mov word ptr [rsp+6], cx
-    movq mm0, qword ptr [rsp]
-    add rsp, 8
-    pop rbp
-  {$ENDIF}
-  movq rax, mm0
-  movq qword ptr [Result], mm0
-{$ELSE}
-  // x86: 参数通过栈传�?  push ebp
-  mov ebp, esp
-  sub esp, 8
-  mov ax, word ptr [ebp+8]   // a0
-  mov word ptr [esp+6], ax
-  mov ax, word ptr [ebp+12]  // a1
-  mov word ptr [esp+4], ax
-  mov ax, word ptr [ebp+16]  // a2
-  mov word ptr [esp+2], ax
-  mov ax, word ptr [ebp+20]  // a3
-  mov word ptr [esp], ax
-  movq mm0, qword ptr [esp]
-  movd eax, mm0
-  psrlq mm0, 32
-  movd edx, mm0
-  movq mm0, qword ptr [esp]
-  movq qword ptr [Result], mm0
-  add esp, 8
-  pop ebp
-{$ENDIF}
+function mmx_set_pi16(a3, a2, a1, a0: SmallInt): TM64;
+begin
+  Result.mm_i16[0] := a0;
+  Result.mm_i16[1] := a1;
+  Result.mm_i16[2] := a2;
+  Result.mm_i16[3] := a3;
 end;
 
-// 功能：设�?�?2位整数到MMX寄存器（从高到低�?// 输入：a1, a0 - 2�?2位有符号整数
-// 输出：TM64 - 包含指定�?�?2位整�
 function mmx_set_pi32(a1, a0: LongInt): TM64; {$IFDEF FPC}assembler;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     // Windows x64: RCX=a1, RDX=a0
-    movd mm0, edx  // a0 到低32�?    movd mm1, ecx  // a1 到临时寄存器
-    psllq mm1, 32  // a1 移到�?2�?    por mm0, mm1   // 合并
+    movd mm0, edx
+    movd mm1, ecx
+    psllq mm1, 32
+    por mm0, mm1
   {$ELSE}
     // SysV x64: RDI=a1, RSI=a0
-    movd mm0, esi  // a0 到低32�?    movd mm1, edi  // a1 到临时寄存器
-    psllq mm1, 32  // a1 移到�?2�?    por mm0, mm1   // 合并
+    movd mm0, esi
+    movd mm1, edi
+    psllq mm1, 32
+    por mm0, mm1
   {$ENDIF}
   movq rax, mm0
   movq qword ptr [Result], mm0
 {$ELSE}
-  // x86: 参数通过栈传�?  movd mm0, a0   // a0 到低32�?  movd mm1, a1   // a1 到临时寄存器
-  psllq mm1, 32  // a1 移到�?2�?  por mm0, mm1   // 合并
-  movd eax, mm0
-  psrlq mm0, 32
-  movd edx, mm0
   movd mm0, a0
   movd mm1, a1
   psllq mm1, 32
@@ -459,7 +417,7 @@ asm
   movq rax, mm0
   movq qword ptr [Result], mm0
 {$ELSE}
-  // x86: 参数通过栈传�?  movq mm0, qword ptr [a]
+  movq mm0, qword ptr [a]
   movq mm1, qword ptr [b]
   paddb mm0, mm1
   movd eax, mm0
@@ -2125,7 +2083,8 @@ var
   i: Integer;
   temp: TM64;
 begin
-  // 这是一个模拟实现，因为原始MMX没有此指�?  for i := 0 to 1 do
+  // 这是一个模拟实现，因为原始 MMX 没有此指令
+  for i := 0 to 1 do
   begin
     if a.mm_u32[i] > 65535 then
       temp.mm_u16[i] := 65535

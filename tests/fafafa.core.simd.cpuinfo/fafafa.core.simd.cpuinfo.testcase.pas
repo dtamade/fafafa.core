@@ -1,5 +1,6 @@
 unit fafafa.core.simd.cpuinfo.testcase;
 
+{$mode objfpc}{$H+}
 {$I fafafa.core.settings.inc}
 {$CODEPAGE UTF8}
 

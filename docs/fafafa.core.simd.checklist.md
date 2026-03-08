@@ -44,6 +44,20 @@ bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict
 
 `gate-strict` 会在 `gate` 的基础上额外打开性能烟测、repeat、non-x86 / evidence 等更重的检查，更适合发布前或阶段性收口时运行。
 
+如果你是在同一台机器上并发跑多个 `SIMD` helper，或者只是想做不落默认产物目录的 dry-run，优先设置 `SIMD_OUTPUT_ROOT`。
+
+```bash
+SIMD_OUTPUT_ROOT=/tmp/simd-run-123 bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict
+```
+
+或者：
+
+```bash
+SIMD_OUTPUT_ROOT=/tmp/simd-run-123 bash tests/fafafa.core.simd/BuildOrTest.sh evidence-linux
+```
+
+这不会替代 Windows 实机 evidence；它只是把 `bin2/lib2/logs` 改写到隔离目录，方便预演与并发回归。
+
 ## 现在不要做什么
 
 ### 1. 不要继续硬拆 `SSE2`

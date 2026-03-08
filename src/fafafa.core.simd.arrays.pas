@@ -284,8 +284,7 @@ implementation
 
 uses
   fafafa.core.simd.base,
-  fafafa.core.simd.dispatch,
-  fafafa.core.simd;
+  fafafa.core.simd.dispatch;
 
 const
   // IEEE-754 special values for infinity (avoiding Math unit dependency)

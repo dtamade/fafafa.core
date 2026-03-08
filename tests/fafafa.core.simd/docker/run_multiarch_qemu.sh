@@ -7,6 +7,7 @@ LOG_ROOT="${ROOT_DIR}/tests/fafafa.core.simd/logs"
 
 IMAGE_BASE="${SIMD_QEMU_IMAGE_BASE:-fafafa-core-simd-test}"
 SCENARIO="${1:-${SIMD_QEMU_SCENARIO:-basic}}"
+REQUESTED_SCENARIO="${SCENARIO}"
 PLATFORMS_STRING="${SIMD_QEMU_PLATFORMS:-}"
 DOCKER_BUILD_NETWORK="${DOCKER_BUILD_NETWORK:-default}"
 RETRIES="${SIMD_QEMU_RETRIES:-3}"
@@ -22,7 +23,7 @@ EXPERIMENTAL_BACKEND_ASM_PROBE_MODE="${SIMD_QEMU_BACKEND_ASM_PROBE_MODE:-1}"
 NETWORK_BUILD_FALLBACK="${SIMD_QEMU_NETWORK_BUILD_FALLBACK:-1}"
 ARCH_MATRIX_REQUIRED_PLATFORMS="linux/386 linux/amd64 linux/arm/v7 linux/arm64 linux/riscv64"
 
-TS="$(date +%Y%m%d-%H%M%S)"
+TS="$(date +%Y%m%d-%H%M%S)-$$"
 REPORT_DIR="${LOG_ROOT}/qemu-multiarch-${TS}"
 SUMMARY_FILE="${REPORT_DIR}/summary.md"
 
@@ -60,6 +61,12 @@ run_with_retry() {
 }
 
 case "${SCENARIO}" in
+  cpuinfo-nonx86-evidence|cpuinfo-nonx86-full-evidence|cpuinfo-nonx86-full-repeat|cpuinfo-nonx86-suite-repeat)
+    SCENARIO="nonx86-evidence"
+    ;;
+esac
+
+case "${SCENARIO}" in
   basic)
     CONTAINER_CMD='bash tests/fafafa.core.simd/docker/run_fpc_tests.sh'
     ;;
@@ -77,7 +84,7 @@ case "${SCENARIO}" in
     ;;
   *)
     echo "[ERROR] Unknown scenario: ${SCENARIO}"
-    echo "[ERROR] Supported: basic | nonx86-evidence | nonx86-experimental-asm | linux-evidence | arch-matrix-evidence"
+    echo "[ERROR] Supported: basic | nonx86-evidence | cpuinfo-nonx86-evidence | cpuinfo-nonx86-full-evidence | cpuinfo-nonx86-full-repeat | cpuinfo-nonx86-suite-repeat | nonx86-experimental-asm | linux-evidence | arch-matrix-evidence"
     exit 2
     ;;
 esac
@@ -128,6 +135,7 @@ cat > "${SUMMARY_FILE}" <<EOF_SUMMARY
 
 - time: $(date -Is)
 - scenario: ${SCENARIO}
+- requested-scenario: ${REQUESTED_SCENARIO}
 - platforms: ${PLATFORMS_STRING}
 
 | Platform | Status | Log |
@@ -136,6 +144,9 @@ EOF_SUMMARY
 
 echo "[INFO] Repo: ${ROOT_DIR}"
 echo "[INFO] Scenario: ${SCENARIO}"
+if [[ "${REQUESTED_SCENARIO}" != "${SCENARIO}" ]]; then
+  echo "[INFO] Requested scenario alias: ${REQUESTED_SCENARIO}"
+fi
 echo "[INFO] Platforms: ${PLATFORMS_STRING}"
 echo "[INFO] Build policy: ${BUILD_POLICY}"
 echo "[INFO] Report dir: ${REPORT_DIR}"

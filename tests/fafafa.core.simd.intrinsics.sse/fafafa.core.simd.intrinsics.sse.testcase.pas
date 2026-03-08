@@ -676,7 +676,7 @@ begin
   a := sse_set_ps(4.0, nan_val, 2.0, 1.0);
   b := sse_set_ps(3.0, 5.0, nan_val, 3.0);
   result := sse_cmpord_ps(a, b);
-  AssertEquals('cmpord_ps[0]', $00000000, result.m128i_u32[0]);
+  AssertEquals('cmpord_ps[0]', $FFFFFFFF, result.m128i_u32[0]);
   AssertEquals('cmpord_ps[1]', $00000000, result.m128i_u32[1]);
   AssertEquals('cmpord_ps[2]', $00000000, result.m128i_u32[2]);
   AssertEquals('cmpord_ps[3]', $FFFFFFFF, result.m128i_u32[3]);
@@ -704,7 +704,7 @@ begin
   a := sse_set_ps(4.0, nan_val, 2.0, 1.0);
   b := sse_set_ps(3.0, 5.0, nan_val, 3.0);
   result := sse_cmpunord_ps(a, b);
-  AssertEquals('cmpunord_ps[0]', $FFFFFFFF, result.m128i_u32[0]);
+  AssertEquals('cmpunord_ps[0]', $00000000, result.m128i_u32[0]);
   AssertEquals('cmpunord_ps[1]', $FFFFFFFF, result.m128i_u32[1]);
   AssertEquals('cmpunord_ps[2]', $FFFFFFFF, result.m128i_u32[2]);
   AssertEquals('cmpunord_ps[3]', $00000000, result.m128i_u32[3]);
@@ -793,7 +793,7 @@ begin
   a := sse_set_ps(4.0, 3.0, 2.0, 1.0);
   b := sse_set_ps(8.0, 7.0, 6.0, 5.0);
   result := sse_movhl_ps(a, b);
-  AssertTM128SingleArray([6.0, 7.0, 3.0, 4.0], result, 'movhl_ps');
+  AssertTM128SingleArray([7.0, 8.0, 3.0, 4.0], result, 'movhl_ps');
 end;
 
 procedure TTestCase_TM128.Test_sse_movlh_ps;

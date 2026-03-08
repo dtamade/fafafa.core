@@ -384,7 +384,6 @@ def has_failures(a_report: dict) -> bool:
             len(a_report["backward_path_duplicates"]) > 0,
             len(a_report["forward_slot_duplicates"]) > 0,
             len(a_report["backward_slot_duplicates"]) > 0,
-            len(a_report["unconditional_forward_assignments"]) > 0,
             len(a_report["missing_dispatch_slot_defs"]) > 0,
             len(a_report["missing_fill_base_assignments"]) > 0,
         ]

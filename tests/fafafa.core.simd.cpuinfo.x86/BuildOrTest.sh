@@ -5,13 +5,25 @@ ACTION="${1:-test}"
 shift || true
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
+OUTPUT_ROOT="${SIMD_OUTPUT_ROOT:-${ROOT}}"
 PROJ="${ROOT}/fafafa.core.simd.cpuinfo.x86.test.lpi"
-BIN="${ROOT}/bin/fafafa.core.simd.cpuinfo.x86.test"
-LOG_DIR="${ROOT}/logs"
+FPC_BIN="${FPC_BIN:-fpc}"
+TARGET_CPU="$(${FPC_BIN} -iTP 2>/dev/null | tr '[:upper:]' '[:lower:]' || true)"
+TARGET_OS="$(${FPC_BIN} -iTO 2>/dev/null | tr '[:upper:]' '[:lower:]' || true)"
+if [[ -z "${TARGET_CPU}" ]]; then
+  TARGET_CPU="nativecpu"
+fi
+if [[ -z "${TARGET_OS}" ]]; then
+  TARGET_OS="nativeos"
+fi
+BIN_DIR="${OUTPUT_ROOT}/bin"
+LIB_DIR="${OUTPUT_ROOT}/lib/${TARGET_CPU}-${TARGET_OS}"
+BIN="${BIN_DIR}/fafafa.core.simd.cpuinfo.x86.test"
+LOG_DIR="${OUTPUT_ROOT}/logs"
 BUILD_LOG="${LOG_DIR}/build.txt"
 TEST_LOG="${LOG_DIR}/test.txt"
 
-mkdir -p "${ROOT}/bin" "${ROOT}/lib" "${LOG_DIR}"
+mkdir -p "${BIN_DIR}" "${LIB_DIR}" "${LOG_DIR}"
 
 LAZBUILD_BIN="${LAZBUILD:-lazbuild}"
 
@@ -23,19 +35,35 @@ fi
 MODE="${FAFAFA_BUILD_MODE:-Debug}"
 
 build_project() {
-  echo "[BUILD] Project: ${PROJ} (mode=${MODE})"
+  echo "[BUILD] Project: ${PROJ} (mode=${MODE}, output_root=${OUTPUT_ROOT})"
   : >"${BUILD_LOG}"
-  if "${LAZBUILD_BIN}" "${LZ_Q[@]}" --build-all "${PROJ}" >"${BUILD_LOG}" 2>&1; then
+  mkdir -p "${BIN_DIR}" "${LIB_DIR}" "${LOG_DIR}"
+  if "${LAZBUILD_BIN}" "${LZ_Q[@]}" --build-mode="${MODE}" --build-all --opt="-FE${BIN_DIR}" --opt="-FU${LIB_DIR}" "${PROJ}" >"${BUILD_LOG}" 2>&1; then
     echo "[BUILD] OK"
   else
-    local rc=$?
-    echo "[BUILD] FAILED rc=${rc} (see ${BUILD_LOG})"
-    return "${rc}"
+    local LRC=$?
+    echo "[BUILD] FAILED rc=${LRC} (see ${BUILD_LOG})"
+    return "${LRC}"
   fi
 }
 
+normalize_test_args() {
+  local LArg
+  local -a LArgs
+
+  LArgs=()
+  for LArg in "$@"; do
+    if [[ "${LArg}" == "--list-suites" ]]; then
+      LArgs+=("--list")
+    else
+      LArgs+=("${LArg}")
+    fi
+  done
+
+  printf '%s\0' "${LArgs[@]}"
+}
+
 check_build_log() {
-  # Module acceptance criteria: no warnings/hints emitted from src/ during module-only build.
   if grep -nE '(^|.*/)src/.*(Warning:|Hint:)' "${BUILD_LOG}" >/dev/null; then
     echo "[CHECK] Found warnings/hints from src/ in build log:"
     grep -nE '(^|.*/)src/.*(Warning:|Hint:)' "${BUILD_LOG}" || true
@@ -45,21 +73,37 @@ check_build_log() {
 }
 
 run_tests() {
+  local -a LArgs
+  local LArg
+
   if [[ ! -x "${BIN}" ]]; then
     echo "[TEST] Missing binary: ${BIN} (did build succeed?)"
     return 2
   fi
 
-  echo "[TEST] Running: ${BIN} $*"
+  LArgs=()
+  if [[ $# -gt 0 ]]; then
+    while IFS= read -r -d '' LArg; do
+      LArgs+=("${LArg}")
+    done < <(normalize_test_args "$@")
+  fi
+
+  echo "[TEST] Running: ${BIN} ${LArgs[*]}"
   : >"${TEST_LOG}"
 
-  if "${BIN}" "$@" >"${TEST_LOG}" 2>&1; then
+  if "${BIN}" "${LArgs[@]}" >"${TEST_LOG}" 2>&1; then
     echo "[TEST] OK"
   else
-    local rc=$?
-    echo "[TEST] FAILED rc=${rc} (see ${TEST_LOG})"
+    local LRC=$?
+    echo "[TEST] FAILED rc=${LRC} (see ${TEST_LOG})"
     tail -n 120 "${TEST_LOG}" || true
-    return "${rc}"
+    return "${LRC}"
+  fi
+
+  if grep -nE '^Invalid option' "${TEST_LOG}" >/dev/null; then
+    echo "[TEST] FAILED: invalid option reported by test runner"
+    grep -nE '^Invalid option' "${TEST_LOG}" || true
+    return 2
   fi
 }
 
@@ -74,8 +118,8 @@ check_heap_leaks() {
 
 case "${ACTION}" in
   clean)
-    echo "[CLEAN] Removing bin/, lib/, logs/"
-    rm -rf "${ROOT}/bin" "${ROOT}/lib" "${ROOT}/logs"
+    echo "[CLEAN] Removing ${BIN_DIR}, ${OUTPUT_ROOT}/lib, ${LOG_DIR}"
+    rm -rf "${BIN_DIR}" "${OUTPUT_ROOT}/lib" "${LOG_DIR}"
     ;;
   build)
     build_project

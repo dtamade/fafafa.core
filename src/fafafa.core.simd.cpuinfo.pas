@@ -41,11 +41,13 @@ function DetectCPUArchitecture: TCPUArch;
 // Feature query helpers (quick checks)
 function HasFeature(feature: TGenericFeature): Boolean;
 function GetSupportedBackends: TSimdBackendArray;
+function IsBackendSupportedOnCPU(const aBackend: TSimdBackend): Boolean;
 function GetAvailableBackends: TSimdBackendArray; // alias for backward compatibility
 
 // ✅ P2: 添加 GetBestBackend 别名函数（向后兼容）
 // 注意：此函数委托给 dispatch 模块的 GetActiveBackend
 function GetBestBackend: TSimdBackend;
+function GetBestBackendOnCPU: TSimdBackend;
 
 // Cache and lifecycle helpers
 procedure ResetCPUInfo; // safe reset for re-initialization
@@ -366,6 +368,7 @@ var
     L[n] := B;
   end;
 begin
+  L := nil;
   C := GetCPUInfo;
   // Always include scalar
   Add(sbScalar);
@@ -411,7 +414,7 @@ begin
   if cpuInfo.Arch = caX86 then
     Result := cpuInfo.X86
   else
-    FillChar(Result, SizeOf(Result), 0);
+    Result := Default(TX86Features);
 end;
 {$ENDIF}
 
@@ -441,6 +444,18 @@ begin
 end;
 {$ENDIF}
 
+function IsBackendSupportedOnCPU(const aBackend: TSimdBackend): Boolean;
+var
+  LBackend: TSimdBackend;
+  LBackends: TSimdBackendArray;
+begin
+  LBackends := GetSupportedBackends;
+  for LBackend in LBackends do
+    if LBackend = aBackend then
+      Exit(True);
+  Result := False;
+end;
+
 // Backward-compatible alias
 function GetAvailableBackends: TSimdBackendArray;
 begin
@@ -455,19 +470,25 @@ const
     sbAVX512, sbAVX2, sbSSE42, sbSSE41, sbSSSE3, sbSSE3, sbSSE2, sbNEON, sbRISCVV, sbScalar
   );
 var
-  backends: TSimdBackendArray;
-  i, j: Integer;
+  LBackends: TSimdBackendArray;
+  LIndex: Integer;
+  LPriorityIndex: Integer;
 begin
-  backends := GetSupportedBackends;
+  LBackends := GetSupportedBackends;
 
   // 按优先级顺序查找第一个可用的后端
-  for i := Low(BACKEND_PRIORITY) to High(BACKEND_PRIORITY) do
-    for j := 0 to High(backends) do
-      if backends[j] = BACKEND_PRIORITY[i] then
-        Exit(BACKEND_PRIORITY[i]);
+  for LPriorityIndex := Low(BACKEND_PRIORITY) to High(BACKEND_PRIORITY) do
+    for LIndex := 0 to High(LBackends) do
+      if LBackends[LIndex] = BACKEND_PRIORITY[LPriorityIndex] then
+        Exit(BACKEND_PRIORITY[LPriorityIndex]);
 
   // 默认回退到 Scalar
   Result := sbScalar;
+end;
+
+function GetBestBackendOnCPU: TSimdBackend;
+begin
+  Result := GetBestBackend;
 end;
 
 // Safe reset to force re-detection on next query

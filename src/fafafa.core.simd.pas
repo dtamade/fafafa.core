@@ -10,7 +10,6 @@ uses
   fafafa.core.simd.dispatch,
   fafafa.core.simd.cpuinfo,
   fafafa.core.simd.cpuinfo.base,
-  fafafa.core.simd.memutils,
   fafafa.core.simd.utils      // ✅ Shuffle, Blend, Convert operations
   {$IFDEF CPUX86_64}  // x86-64 SIMD backends use 64-bit assembly
   , fafafa.core.simd.sse2
@@ -29,8 +28,8 @@ uses
   {$IFDEF SIMD_ARM_AVAILABLE}
   , fafafa.core.simd.neon
   {$ENDIF}
-  {$IFDEF SIMD_RISCV_AVAILABLE}
-  , fafafa.core.simd.riscvv  // ⚠️ Experimental backend: wired into the umbrella unit, but not the same maturity level as the stable public façade.
+  {$IF DEFINED(SIMD_RISCV_AVAILABLE) AND DEFINED(SIMD_EXPERIMENTAL_RISCVV)}
+  , fafafa.core.simd.riscvv  // ⚠️ Experimental backend: opt-in only; not wired into the default stable public façade.
   {$ENDIF}
   ;
 

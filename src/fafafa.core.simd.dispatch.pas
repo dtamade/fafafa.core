@@ -116,6 +116,10 @@ type
     OrI64x2: function(const a, b: TVecI64x2): TVecI64x2;
     XorI64x2: function(const a, b: TVecI64x2): TVecI64x2;
     NotI64x2: function(const a: TVecI64x2): TVecI64x2;
+    AndNotI64x2: function(const a, b: TVecI64x2): TVecI64x2;
+    ShiftLeftI64x2: function(const a: TVecI64x2; count: Integer): TVecI64x2;
+    ShiftRightI64x2: function(const a: TVecI64x2; count: Integer): TVecI64x2;
+    ShiftRightArithI64x2: function(const a: TVecI64x2; count: Integer): TVecI64x2;
     // Comparison operations - I64x2 (✅ P0-5: Added)
     CmpEqI64x2: function(const a, b: TVecI64x2): TMask2;
     CmpLtI64x2: function(const a, b: TVecI64x2): TMask2;
@@ -123,6 +127,22 @@ type
     CmpLeI64x2: function(const a, b: TVecI64x2): TMask2;
     CmpGeI64x2: function(const a, b: TVecI64x2): TMask2;
     CmpNeI64x2: function(const a, b: TVecI64x2): TMask2;
+    MinI64x2: function(const a, b: TVecI64x2): TVecI64x2;
+    MaxI64x2: function(const a, b: TVecI64x2): TVecI64x2;
+
+    // Arithmetic / Bitwise / Comparison - U64x2 (128-bit)
+    AddU64x2: function(const a, b: TVecU64x2): TVecU64x2;
+    SubU64x2: function(const a, b: TVecU64x2): TVecU64x2;
+    AndU64x2: function(const a, b: TVecU64x2): TVecU64x2;
+    OrU64x2: function(const a, b: TVecU64x2): TVecU64x2;
+    XorU64x2: function(const a, b: TVecU64x2): TVecU64x2;
+    NotU64x2: function(const a: TVecU64x2): TVecU64x2;
+    AndNotU64x2: function(const a, b: TVecU64x2): TVecU64x2;
+    CmpEqU64x2: function(const a, b: TVecU64x2): TMask2;
+    CmpLtU64x2: function(const a, b: TVecU64x2): TMask2;
+    CmpGtU64x2: function(const a, b: TVecU64x2): TMask2;
+    MinU64x2: function(const a, b: TVecU64x2): TVecU64x2;
+    MaxU64x2: function(const a, b: TVecU64x2): TVecU64x2;
 
     // Arithmetic operations - F64x4 (256-bit AVX)
     AddF64x4: function(const a, b: TVecF64x4): TVecF64x4;
@@ -164,6 +184,7 @@ type
     AndNotI64x4: function(const a, b: TVecI64x4): TVecI64x4;
     ShiftLeftI64x4: function(const a: TVecI64x4; count: Integer): TVecI64x4;
     ShiftRightI64x4: function(const a: TVecI64x4; count: Integer): TVecI64x4;
+    ShiftRightArithI64x4: function(const a: TVecI64x4; count: Integer): TVecI64x4;
     CmpEqI64x4: function(const a, b: TVecI64x4): TMask4;
     CmpLtI64x4: function(const a, b: TVecI64x4): TMask4;
     CmpGtI64x4: function(const a, b: TVecI64x4): TMask4;
@@ -576,6 +597,7 @@ type
     OrI8x16: function(const a, b: TVecI8x16): TVecI8x16;
     XorI8x16: function(const a, b: TVecI8x16): TVecI8x16;
     NotI8x16: function(const a: TVecI8x16): TVecI8x16;
+    AndNotI8x16: function(const a, b: TVecI8x16): TVecI8x16;
     CmpEqI8x16: function(const a, b: TVecI8x16): TMask16;
     CmpLtI8x16: function(const a, b: TVecI8x16): TMask16;
     CmpGtI8x16: function(const a, b: TVecI8x16): TMask16;
@@ -612,6 +634,7 @@ type
     OrU16x8: function(const a, b: TVecU16x8): TVecU16x8;
     XorU16x8: function(const a, b: TVecU16x8): TVecU16x8;
     NotU16x8: function(const a: TVecU16x8): TVecU16x8;
+    AndNotU16x8: function(const a, b: TVecU16x8): TVecU16x8;
     ShiftLeftU16x8: function(const a: TVecU16x8; count: Integer): TVecU16x8;
     ShiftRightU16x8: function(const a: TVecU16x8; count: Integer): TVecU16x8;
     CmpEqU16x8: function(const a, b: TVecU16x8): TMask8;
@@ -630,6 +653,7 @@ type
     OrU8x16: function(const a, b: TVecU8x16): TVecU8x16;
     XorU8x16: function(const a, b: TVecU8x16): TVecU8x16;
     NotU8x16: function(const a: TVecU8x16): TVecU8x16;
+    AndNotU8x16: function(const a, b: TVecU8x16): TVecU8x16;
     CmpEqU8x16: function(const a, b: TVecU8x16): TMask16;
     CmpLtU8x16: function(const a, b: TVecU8x16): TMask16;
     CmpGtU8x16: function(const a, b: TVecU8x16): TMask16;
@@ -638,6 +662,87 @@ type
     CmpNeU8x16: function(const a, b: TVecU8x16): TMask16;
     MinU8x16: function(const a, b: TVecU8x16): TVecU8x16;
     MaxU8x16: function(const a, b: TVecU8x16): TVecU8x16;
+
+    // ✅ P0: 512-bit integer façade dispatch slots
+    // U32x16 (512-bit)
+    AddU32x16: function(const a, b: TVecU32x16): TVecU32x16;
+    SubU32x16: function(const a, b: TVecU32x16): TVecU32x16;
+    MulU32x16: function(const a, b: TVecU32x16): TVecU32x16;
+    AndU32x16: function(const a, b: TVecU32x16): TVecU32x16;
+    OrU32x16: function(const a, b: TVecU32x16): TVecU32x16;
+    XorU32x16: function(const a, b: TVecU32x16): TVecU32x16;
+    NotU32x16: function(const a: TVecU32x16): TVecU32x16;
+    AndNotU32x16: function(const a, b: TVecU32x16): TVecU32x16;
+    ShiftLeftU32x16: function(const a: TVecU32x16; count: Integer): TVecU32x16;
+    ShiftRightU32x16: function(const a: TVecU32x16; count: Integer): TVecU32x16;
+    CmpEqU32x16: function(const a, b: TVecU32x16): TMask16;
+    CmpLtU32x16: function(const a, b: TVecU32x16): TMask16;
+    CmpGtU32x16: function(const a, b: TVecU32x16): TMask16;
+    CmpLeU32x16: function(const a, b: TVecU32x16): TMask16;
+    CmpGeU32x16: function(const a, b: TVecU32x16): TMask16;
+    CmpNeU32x16: function(const a, b: TVecU32x16): TMask16;
+    MinU32x16: function(const a, b: TVecU32x16): TVecU32x16;
+    MaxU32x16: function(const a, b: TVecU32x16): TVecU32x16;
+
+    // U64x8 (512-bit)
+    AddU64x8: function(const a, b: TVecU64x8): TVecU64x8;
+    SubU64x8: function(const a, b: TVecU64x8): TVecU64x8;
+    AndU64x8: function(const a, b: TVecU64x8): TVecU64x8;
+    OrU64x8: function(const a, b: TVecU64x8): TVecU64x8;
+    XorU64x8: function(const a, b: TVecU64x8): TVecU64x8;
+    NotU64x8: function(const a: TVecU64x8): TVecU64x8;
+    ShiftLeftU64x8: function(const a: TVecU64x8; count: Integer): TVecU64x8;
+    ShiftRightU64x8: function(const a: TVecU64x8; count: Integer): TVecU64x8;
+    CmpEqU64x8: function(const a, b: TVecU64x8): TMask8;
+    CmpLtU64x8: function(const a, b: TVecU64x8): TMask8;
+    CmpGtU64x8: function(const a, b: TVecU64x8): TMask8;
+    CmpLeU64x8: function(const a, b: TVecU64x8): TMask8;
+    CmpGeU64x8: function(const a, b: TVecU64x8): TMask8;
+    CmpNeU64x8: function(const a, b: TVecU64x8): TMask8;
+
+    // I16x32 (512-bit)
+    AddI16x32: function(const a, b: TVecI16x32): TVecI16x32;
+    SubI16x32: function(const a, b: TVecI16x32): TVecI16x32;
+    AndI16x32: function(const a, b: TVecI16x32): TVecI16x32;
+    OrI16x32: function(const a, b: TVecI16x32): TVecI16x32;
+    XorI16x32: function(const a, b: TVecI16x32): TVecI16x32;
+    NotI16x32: function(const a: TVecI16x32): TVecI16x32;
+    AndNotI16x32: function(const a, b: TVecI16x32): TVecI16x32;
+    ShiftLeftI16x32: function(const a: TVecI16x32; count: Integer): TVecI16x32;
+    ShiftRightI16x32: function(const a: TVecI16x32; count: Integer): TVecI16x32;
+    ShiftRightArithI16x32: function(const a: TVecI16x32; count: Integer): TVecI16x32;
+    CmpEqI16x32: function(const a, b: TVecI16x32): TMask32;
+    CmpLtI16x32: function(const a, b: TVecI16x32): TMask32;
+    CmpGtI16x32: function(const a, b: TVecI16x32): TMask32;
+    MinI16x32: function(const a, b: TVecI16x32): TVecI16x32;
+    MaxI16x32: function(const a, b: TVecI16x32): TVecI16x32;
+
+    // I8x64 (512-bit)
+    AddI8x64: function(const a, b: TVecI8x64): TVecI8x64;
+    SubI8x64: function(const a, b: TVecI8x64): TVecI8x64;
+    AndI8x64: function(const a, b: TVecI8x64): TVecI8x64;
+    OrI8x64: function(const a, b: TVecI8x64): TVecI8x64;
+    XorI8x64: function(const a, b: TVecI8x64): TVecI8x64;
+    NotI8x64: function(const a: TVecI8x64): TVecI8x64;
+    AndNotI8x64: function(const a, b: TVecI8x64): TVecI8x64;
+    CmpEqI8x64: function(const a, b: TVecI8x64): TMask64;
+    CmpLtI8x64: function(const a, b: TVecI8x64): TMask64;
+    CmpGtI8x64: function(const a, b: TVecI8x64): TMask64;
+    MinI8x64: function(const a, b: TVecI8x64): TVecI8x64;
+    MaxI8x64: function(const a, b: TVecI8x64): TVecI8x64;
+
+    // U8x64 (512-bit)
+    AddU8x64: function(const a, b: TVecU8x64): TVecU8x64;
+    SubU8x64: function(const a, b: TVecU8x64): TVecU8x64;
+    AndU8x64: function(const a, b: TVecU8x64): TVecU8x64;
+    OrU8x64: function(const a, b: TVecU8x64): TVecU8x64;
+    XorU8x64: function(const a, b: TVecU8x64): TVecU8x64;
+    NotU8x64: function(const a: TVecU8x64): TVecU8x64;
+    CmpEqU8x64: function(const a, b: TVecU8x64): TMask64;
+    CmpLtU8x64: function(const a, b: TVecU8x64): TMask64;
+    CmpGtU8x64: function(const a, b: TVecU8x64): TMask64;
+    MinU8x64: function(const a, b: TVecU8x64): TVecU8x64;
+    MaxU8x64: function(const a, b: TVecU8x64): TVecU8x64;
 
     // ✅ P2-2: Mask 类型操作 (条件分支优化)
     // TMask2 操作 (2 元素)
@@ -785,6 +890,804 @@ var
   g_DispatchChangedHook: TSimdDispatchChangedHook = nil;
 
   // ⚠️ REMOVED: g_BackendRebuilders array - rebuilder mechanism deprecated for thread safety
+
+function DispatchSarInt64(aValue: Int64; aCount: Integer): Int64; inline;
+var
+  LUnsigned: UInt64;
+begin
+  if aCount <= 0 then
+    Exit(aValue);
+
+  if aCount >= 64 then
+  begin
+    if aValue < 0 then
+      Exit(-1);
+    Exit(0);
+  end;
+
+  LUnsigned := UInt64(aValue) shr aCount;
+  if aValue < 0 then
+    LUnsigned := LUnsigned or (not UInt64(0) shl (64 - aCount));
+  Result := Int64(LUnsigned);
+end;
+
+function DispatchFallbackAndNotI8x16(const aLeft, aRight: TVecI8x16): TVecI8x16;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    Result.i[LIndex] := (not aLeft.i[LIndex]) and aRight.i[LIndex];
+end;
+
+function DispatchFallbackAndNotU16x8(const aLeft, aRight: TVecU16x8): TVecU16x8;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 7 do
+    Result.u[LIndex] := (not aLeft.u[LIndex]) and aRight.u[LIndex];
+end;
+
+function DispatchFallbackAndNotU8x16(const aLeft, aRight: TVecU8x16): TVecU8x16;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    Result.u[LIndex] := (not aLeft.u[LIndex]) and aRight.u[LIndex];
+end;
+
+function DispatchFallbackAndNotI64x2(const aLeft, aRight: TVecI64x2): TVecI64x2;
+begin
+  Result.i[0] := (not aLeft.i[0]) and aRight.i[0];
+  Result.i[1] := (not aLeft.i[1]) and aRight.i[1];
+end;
+
+function DispatchFallbackShiftLeftI64x2(const aValue: TVecI64x2; aCount: Integer): TVecI64x2;
+begin
+  if (aCount < 0) or (aCount >= 64) then
+  begin
+    Result.i[0] := 0;
+    Result.i[1] := 0;
+    Exit;
+  end;
+
+  Result.i[0] := aValue.i[0] shl aCount;
+  Result.i[1] := aValue.i[1] shl aCount;
+end;
+
+function DispatchFallbackShiftRightI64x2(const aValue: TVecI64x2; aCount: Integer): TVecI64x2;
+begin
+  if (aCount < 0) or (aCount >= 64) then
+  begin
+    Result.i[0] := 0;
+    Result.i[1] := 0;
+    Exit;
+  end;
+
+  Result.i[0] := Int64(UInt64(aValue.i[0]) shr aCount);
+  Result.i[1] := Int64(UInt64(aValue.i[1]) shr aCount);
+end;
+
+function DispatchFallbackShiftRightArithI64x2(const aValue: TVecI64x2; aCount: Integer): TVecI64x2;
+begin
+  if (aCount < 0) or (aCount >= 64) then
+  begin
+    Result.i[0] := 0;
+    Result.i[1] := 0;
+    Exit;
+  end;
+
+  Result.i[0] := DispatchSarInt64(aValue.i[0], aCount);
+  Result.i[1] := DispatchSarInt64(aValue.i[1], aCount);
+end;
+
+function DispatchFallbackMinI64x2(const aLeft, aRight: TVecI64x2): TVecI64x2;
+begin
+  if aLeft.i[0] < aRight.i[0] then Result.i[0] := aLeft.i[0] else Result.i[0] := aRight.i[0];
+  if aLeft.i[1] < aRight.i[1] then Result.i[1] := aLeft.i[1] else Result.i[1] := aRight.i[1];
+end;
+
+function DispatchFallbackMaxI64x2(const aLeft, aRight: TVecI64x2): TVecI64x2;
+begin
+  if aLeft.i[0] > aRight.i[0] then Result.i[0] := aLeft.i[0] else Result.i[0] := aRight.i[0];
+  if aLeft.i[1] > aRight.i[1] then Result.i[1] := aLeft.i[1] else Result.i[1] := aRight.i[1];
+end;
+
+function DispatchFallbackAddU64x2(const aLeft, aRight: TVecU64x2): TVecU64x2;
+begin
+  Result.u[0] := aLeft.u[0] + aRight.u[0];
+  Result.u[1] := aLeft.u[1] + aRight.u[1];
+end;
+
+function DispatchFallbackSubU64x2(const aLeft, aRight: TVecU64x2): TVecU64x2;
+begin
+  Result.u[0] := aLeft.u[0] - aRight.u[0];
+  Result.u[1] := aLeft.u[1] - aRight.u[1];
+end;
+
+function DispatchFallbackAndU64x2(const aLeft, aRight: TVecU64x2): TVecU64x2;
+begin
+  Result.u[0] := aLeft.u[0] and aRight.u[0];
+  Result.u[1] := aLeft.u[1] and aRight.u[1];
+end;
+
+function DispatchFallbackOrU64x2(const aLeft, aRight: TVecU64x2): TVecU64x2;
+begin
+  Result.u[0] := aLeft.u[0] or aRight.u[0];
+  Result.u[1] := aLeft.u[1] or aRight.u[1];
+end;
+
+function DispatchFallbackXorU64x2(const aLeft, aRight: TVecU64x2): TVecU64x2;
+begin
+  Result.u[0] := aLeft.u[0] xor aRight.u[0];
+  Result.u[1] := aLeft.u[1] xor aRight.u[1];
+end;
+
+function DispatchFallbackNotU64x2(const aValue: TVecU64x2): TVecU64x2;
+begin
+  Result.u[0] := not aValue.u[0];
+  Result.u[1] := not aValue.u[1];
+end;
+
+function DispatchFallbackAndNotU64x2(const aLeft, aRight: TVecU64x2): TVecU64x2;
+begin
+  Result.u[0] := (not aLeft.u[0]) and aRight.u[0];
+  Result.u[1] := (not aLeft.u[1]) and aRight.u[1];
+end;
+
+function DispatchFallbackCmpEqU64x2(const aLeft, aRight: TVecU64x2): TMask2;
+begin
+  Result := 0;
+  if aLeft.u[0] = aRight.u[0] then Result := Result or 1;
+  if aLeft.u[1] = aRight.u[1] then Result := Result or 2;
+end;
+
+function DispatchFallbackCmpLtU64x2(const aLeft, aRight: TVecU64x2): TMask2;
+begin
+  Result := 0;
+  if aLeft.u[0] < aRight.u[0] then Result := Result or 1;
+  if aLeft.u[1] < aRight.u[1] then Result := Result or 2;
+end;
+
+function DispatchFallbackCmpGtU64x2(const aLeft, aRight: TVecU64x2): TMask2;
+begin
+  Result := 0;
+  if aLeft.u[0] > aRight.u[0] then Result := Result or 1;
+  if aLeft.u[1] > aRight.u[1] then Result := Result or 2;
+end;
+
+function DispatchFallbackMinU64x2(const aLeft, aRight: TVecU64x2): TVecU64x2;
+begin
+  if aLeft.u[0] < aRight.u[0] then Result.u[0] := aLeft.u[0] else Result.u[0] := aRight.u[0];
+  if aLeft.u[1] < aRight.u[1] then Result.u[1] := aLeft.u[1] else Result.u[1] := aRight.u[1];
+end;
+
+function DispatchFallbackMaxU64x2(const aLeft, aRight: TVecU64x2): TVecU64x2;
+begin
+  if aLeft.u[0] > aRight.u[0] then Result.u[0] := aLeft.u[0] else Result.u[0] := aRight.u[0];
+  if aLeft.u[1] > aRight.u[1] then Result.u[1] := aLeft.u[1] else Result.u[1] := aRight.u[1];
+end;
+
+function DispatchFallbackShiftRightArithI64x4(const aValue: TVecI64x4; aCount: Integer): TVecI64x4;
+var
+  LIndex: Integer;
+begin
+  if (aCount < 0) or (aCount >= 64) then
+  begin
+    Result := Default(TVecI64x4);
+    Exit;
+  end;
+
+  for LIndex := 0 to 3 do
+    Result.i[LIndex] := DispatchSarInt64(aValue.i[LIndex], aCount);
+end;
+
+// === P0: 512-bit integer fallback coverage for U32x16 ===
+function DispatchFallbackAddU32x16(const aLeft, aRight: TVecU32x16): TVecU32x16;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    Result.u[LIndex] := UInt32(aLeft.u[LIndex] + aRight.u[LIndex]);
+end;
+function DispatchFallbackSubU32x16(const aLeft, aRight: TVecU32x16): TVecU32x16;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    Result.u[LIndex] := UInt32(aLeft.u[LIndex] - aRight.u[LIndex]);
+end;
+function DispatchFallbackMulU32x16(const aLeft, aRight: TVecU32x16): TVecU32x16;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    Result.u[LIndex] := UInt32(aLeft.u[LIndex] * aRight.u[LIndex]);
+end;
+function DispatchFallbackAndU32x16(const aLeft, aRight: TVecU32x16): TVecU32x16;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    Result.u[LIndex] := UInt32(aLeft.u[LIndex] and aRight.u[LIndex]);
+end;
+function DispatchFallbackOrU32x16(const aLeft, aRight: TVecU32x16): TVecU32x16;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    Result.u[LIndex] := UInt32(aLeft.u[LIndex] or aRight.u[LIndex]);
+end;
+function DispatchFallbackXorU32x16(const aLeft, aRight: TVecU32x16): TVecU32x16;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    Result.u[LIndex] := UInt32(aLeft.u[LIndex] xor aRight.u[LIndex]);
+end;
+function DispatchFallbackNotU32x16(const aValue: TVecU32x16): TVecU32x16;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    Result.u[LIndex] := UInt32(not aValue.u[LIndex]);
+end;
+function DispatchFallbackAndNotU32x16(const aLeft, aRight: TVecU32x16): TVecU32x16;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    Result.u[LIndex] := UInt32((not aLeft.u[LIndex]) and aRight.u[LIndex]);
+end;
+function DispatchFallbackShiftLeftU32x16(const aValue: TVecU32x16; aCount: Integer): TVecU32x16;
+var
+  LIndex: Integer;
+begin
+  if (aCount < 0) or (aCount >= 32) then
+  begin
+    Result := Default(TVecU32x16);
+    Exit;
+  end;
+
+  for LIndex := 0 to 15 do
+    Result.u[LIndex] := UInt32(aValue.u[LIndex] shl aCount);
+end;
+function DispatchFallbackShiftRightU32x16(const aValue: TVecU32x16; aCount: Integer): TVecU32x16;
+var
+  LIndex: Integer;
+begin
+  if (aCount < 0) or (aCount >= 32) then
+  begin
+    Result := Default(TVecU32x16);
+    Exit;
+  end;
+
+  for LIndex := 0 to 15 do
+    Result.u[LIndex] := UInt32(aValue.u[LIndex] shr aCount);
+end;
+function DispatchFallbackCmpEqU32x16(const aLeft, aRight: TVecU32x16): TMask16;
+var
+  LIndex: Integer;
+begin
+  Result := 0;
+  for LIndex := 0 to 15 do
+    if aLeft.u[LIndex] = aRight.u[LIndex] then
+      Result := Result or (TMask16(1) shl LIndex);
+end;
+function DispatchFallbackCmpLtU32x16(const aLeft, aRight: TVecU32x16): TMask16;
+var
+  LIndex: Integer;
+begin
+  Result := 0;
+  for LIndex := 0 to 15 do
+    if aLeft.u[LIndex] < aRight.u[LIndex] then
+      Result := Result or (TMask16(1) shl LIndex);
+end;
+function DispatchFallbackCmpGtU32x16(const aLeft, aRight: TVecU32x16): TMask16;
+var
+  LIndex: Integer;
+begin
+  Result := 0;
+  for LIndex := 0 to 15 do
+    if aLeft.u[LIndex] > aRight.u[LIndex] then
+      Result := Result or (TMask16(1) shl LIndex);
+end;
+function DispatchFallbackCmpLeU32x16(const aLeft, aRight: TVecU32x16): TMask16;
+var
+  LIndex: Integer;
+begin
+  Result := 0;
+  for LIndex := 0 to 15 do
+    if aLeft.u[LIndex] <= aRight.u[LIndex] then
+      Result := Result or (TMask16(1) shl LIndex);
+end;
+function DispatchFallbackCmpGeU32x16(const aLeft, aRight: TVecU32x16): TMask16;
+var
+  LIndex: Integer;
+begin
+  Result := 0;
+  for LIndex := 0 to 15 do
+    if aLeft.u[LIndex] >= aRight.u[LIndex] then
+      Result := Result or (TMask16(1) shl LIndex);
+end;
+function DispatchFallbackCmpNeU32x16(const aLeft, aRight: TVecU32x16): TMask16;
+var
+  LIndex: Integer;
+begin
+  Result := 0;
+  for LIndex := 0 to 15 do
+    if aLeft.u[LIndex] <> aRight.u[LIndex] then
+      Result := Result or (TMask16(1) shl LIndex);
+end;
+function DispatchFallbackMinU32x16(const aLeft, aRight: TVecU32x16): TVecU32x16;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    if aLeft.u[LIndex] < aRight.u[LIndex] then
+      Result.u[LIndex] := aLeft.u[LIndex]
+    else
+      Result.u[LIndex] := aRight.u[LIndex];
+end;
+function DispatchFallbackMaxU32x16(const aLeft, aRight: TVecU32x16): TVecU32x16;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    if aLeft.u[LIndex] > aRight.u[LIndex] then
+      Result.u[LIndex] := aLeft.u[LIndex]
+    else
+      Result.u[LIndex] := aRight.u[LIndex];
+end;
+
+// === P0: 512-bit integer fallback coverage for U64x8 ===
+function DispatchFallbackAddU64x8(const aLeft, aRight: TVecU64x8): TVecU64x8;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 7 do
+    Result.u[LIndex] := UInt64(aLeft.u[LIndex] + aRight.u[LIndex]);
+end;
+function DispatchFallbackSubU64x8(const aLeft, aRight: TVecU64x8): TVecU64x8;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 7 do
+    Result.u[LIndex] := UInt64(aLeft.u[LIndex] - aRight.u[LIndex]);
+end;
+function DispatchFallbackAndU64x8(const aLeft, aRight: TVecU64x8): TVecU64x8;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 7 do
+    Result.u[LIndex] := UInt64(aLeft.u[LIndex] and aRight.u[LIndex]);
+end;
+function DispatchFallbackOrU64x8(const aLeft, aRight: TVecU64x8): TVecU64x8;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 7 do
+    Result.u[LIndex] := UInt64(aLeft.u[LIndex] or aRight.u[LIndex]);
+end;
+function DispatchFallbackXorU64x8(const aLeft, aRight: TVecU64x8): TVecU64x8;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 7 do
+    Result.u[LIndex] := UInt64(aLeft.u[LIndex] xor aRight.u[LIndex]);
+end;
+function DispatchFallbackNotU64x8(const aValue: TVecU64x8): TVecU64x8;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 7 do
+    Result.u[LIndex] := UInt64(not aValue.u[LIndex]);
+end;
+function DispatchFallbackShiftLeftU64x8(const aValue: TVecU64x8; aCount: Integer): TVecU64x8;
+var
+  LIndex: Integer;
+begin
+  if (aCount < 0) or (aCount >= 64) then
+  begin
+    Result := Default(TVecU64x8);
+    Exit;
+  end;
+
+  for LIndex := 0 to 7 do
+    Result.u[LIndex] := UInt64(aValue.u[LIndex] shl aCount);
+end;
+function DispatchFallbackShiftRightU64x8(const aValue: TVecU64x8; aCount: Integer): TVecU64x8;
+var
+  LIndex: Integer;
+begin
+  if (aCount < 0) or (aCount >= 64) then
+  begin
+    Result := Default(TVecU64x8);
+    Exit;
+  end;
+
+  for LIndex := 0 to 7 do
+    Result.u[LIndex] := UInt64(aValue.u[LIndex] shr aCount);
+end;
+function DispatchFallbackCmpEqU64x8(const aLeft, aRight: TVecU64x8): TMask8;
+var
+  LIndex: Integer;
+begin
+  Result := 0;
+  for LIndex := 0 to 7 do
+    if aLeft.u[LIndex] = aRight.u[LIndex] then
+      Result := Result or (TMask8(1) shl LIndex);
+end;
+function DispatchFallbackCmpLtU64x8(const aLeft, aRight: TVecU64x8): TMask8;
+var
+  LIndex: Integer;
+begin
+  Result := 0;
+  for LIndex := 0 to 7 do
+    if aLeft.u[LIndex] < aRight.u[LIndex] then
+      Result := Result or (TMask8(1) shl LIndex);
+end;
+function DispatchFallbackCmpGtU64x8(const aLeft, aRight: TVecU64x8): TMask8;
+var
+  LIndex: Integer;
+begin
+  Result := 0;
+  for LIndex := 0 to 7 do
+    if aLeft.u[LIndex] > aRight.u[LIndex] then
+      Result := Result or (TMask8(1) shl LIndex);
+end;
+function DispatchFallbackCmpLeU64x8(const aLeft, aRight: TVecU64x8): TMask8;
+var
+  LIndex: Integer;
+begin
+  Result := 0;
+  for LIndex := 0 to 7 do
+    if aLeft.u[LIndex] <= aRight.u[LIndex] then
+      Result := Result or (TMask8(1) shl LIndex);
+end;
+function DispatchFallbackCmpGeU64x8(const aLeft, aRight: TVecU64x8): TMask8;
+var
+  LIndex: Integer;
+begin
+  Result := 0;
+  for LIndex := 0 to 7 do
+    if aLeft.u[LIndex] >= aRight.u[LIndex] then
+      Result := Result or (TMask8(1) shl LIndex);
+end;
+function DispatchFallbackCmpNeU64x8(const aLeft, aRight: TVecU64x8): TMask8;
+var
+  LIndex: Integer;
+begin
+  Result := 0;
+  for LIndex := 0 to 7 do
+    if aLeft.u[LIndex] <> aRight.u[LIndex] then
+      Result := Result or (TMask8(1) shl LIndex);
+end;
+
+// === P0: 512-bit integer fallback coverage for I16x32 ===
+function DispatchFallbackAddI16x32(const aLeft, aRight: TVecI16x32): TVecI16x32;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 31 do
+    Result.i[LIndex] := Int16(aLeft.i[LIndex] + aRight.i[LIndex]);
+end;
+function DispatchFallbackSubI16x32(const aLeft, aRight: TVecI16x32): TVecI16x32;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 31 do
+    Result.i[LIndex] := Int16(aLeft.i[LIndex] - aRight.i[LIndex]);
+end;
+function DispatchFallbackAndI16x32(const aLeft, aRight: TVecI16x32): TVecI16x32;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 31 do
+    Result.i[LIndex] := Int16(aLeft.i[LIndex] and aRight.i[LIndex]);
+end;
+function DispatchFallbackOrI16x32(const aLeft, aRight: TVecI16x32): TVecI16x32;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 31 do
+    Result.i[LIndex] := Int16(aLeft.i[LIndex] or aRight.i[LIndex]);
+end;
+function DispatchFallbackXorI16x32(const aLeft, aRight: TVecI16x32): TVecI16x32;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 31 do
+    Result.i[LIndex] := Int16(aLeft.i[LIndex] xor aRight.i[LIndex]);
+end;
+function DispatchFallbackNotI16x32(const aValue: TVecI16x32): TVecI16x32;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 31 do
+    Result.i[LIndex] := Int16(not aValue.i[LIndex]);
+end;
+function DispatchFallbackAndNotI16x32(const aLeft, aRight: TVecI16x32): TVecI16x32;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 31 do
+    Result.i[LIndex] := Int16((not aLeft.i[LIndex]) and aRight.i[LIndex]);
+end;
+function DispatchFallbackShiftLeftI16x32(const aValue: TVecI16x32; aCount: Integer): TVecI16x32;
+var
+  LIndex: Integer;
+begin
+  if (aCount < 0) or (aCount >= 16) then
+  begin
+    Result := Default(TVecI16x32);
+    Exit;
+  end;
+
+  for LIndex := 0 to 31 do
+    Result.i[LIndex] := Int16(aValue.i[LIndex] shl aCount);
+end;
+function DispatchFallbackShiftRightI16x32(const aValue: TVecI16x32; aCount: Integer): TVecI16x32;
+var
+  LIndex: Integer;
+begin
+  if (aCount < 0) or (aCount >= 16) then
+  begin
+    Result := Default(TVecI16x32);
+    Exit;
+  end;
+
+  for LIndex := 0 to 31 do
+    Result.i[LIndex] := Int16(UInt16(aValue.i[LIndex]) shr aCount);
+end;
+function DispatchFallbackShiftRightArithI16x32(const aValue: TVecI16x32; aCount: Integer): TVecI16x32;
+var
+  LIndex: Integer;
+begin
+  if (aCount < 0) or (aCount >= 16) then
+  begin
+    Result := Default(TVecI16x32);
+    Exit;
+  end;
+
+  for LIndex := 0 to 31 do
+    Result.i[LIndex] := Int16(DispatchSarInt64(aValue.i[LIndex], aCount));
+end;
+function DispatchFallbackCmpEqI16x32(const aLeft, aRight: TVecI16x32): TMask32;
+var
+  LIndex: Integer;
+begin
+  Result := 0;
+  for LIndex := 0 to 31 do
+    if aLeft.i[LIndex] = aRight.i[LIndex] then
+      Result := Result or (TMask32(1) shl LIndex);
+end;
+function DispatchFallbackCmpLtI16x32(const aLeft, aRight: TVecI16x32): TMask32;
+var
+  LIndex: Integer;
+begin
+  Result := 0;
+  for LIndex := 0 to 31 do
+    if aLeft.i[LIndex] < aRight.i[LIndex] then
+      Result := Result or (TMask32(1) shl LIndex);
+end;
+function DispatchFallbackCmpGtI16x32(const aLeft, aRight: TVecI16x32): TMask32;
+var
+  LIndex: Integer;
+begin
+  Result := 0;
+  for LIndex := 0 to 31 do
+    if aLeft.i[LIndex] > aRight.i[LIndex] then
+      Result := Result or (TMask32(1) shl LIndex);
+end;
+function DispatchFallbackMinI16x32(const aLeft, aRight: TVecI16x32): TVecI16x32;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 31 do
+    if aLeft.i[LIndex] < aRight.i[LIndex] then
+      Result.i[LIndex] := aLeft.i[LIndex]
+    else
+      Result.i[LIndex] := aRight.i[LIndex];
+end;
+function DispatchFallbackMaxI16x32(const aLeft, aRight: TVecI16x32): TVecI16x32;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 31 do
+    if aLeft.i[LIndex] > aRight.i[LIndex] then
+      Result.i[LIndex] := aLeft.i[LIndex]
+    else
+      Result.i[LIndex] := aRight.i[LIndex];
+end;
+
+// === P0: 512-bit integer fallback coverage for I8x64 ===
+function DispatchFallbackAddI8x64(const aLeft, aRight: TVecI8x64): TVecI8x64;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 63 do
+    Result.i[LIndex] := Int8(aLeft.i[LIndex] + aRight.i[LIndex]);
+end;
+function DispatchFallbackSubI8x64(const aLeft, aRight: TVecI8x64): TVecI8x64;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 63 do
+    Result.i[LIndex] := Int8(aLeft.i[LIndex] - aRight.i[LIndex]);
+end;
+function DispatchFallbackAndI8x64(const aLeft, aRight: TVecI8x64): TVecI8x64;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 63 do
+    Result.i[LIndex] := Int8(aLeft.i[LIndex] and aRight.i[LIndex]);
+end;
+function DispatchFallbackOrI8x64(const aLeft, aRight: TVecI8x64): TVecI8x64;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 63 do
+    Result.i[LIndex] := Int8(aLeft.i[LIndex] or aRight.i[LIndex]);
+end;
+function DispatchFallbackXorI8x64(const aLeft, aRight: TVecI8x64): TVecI8x64;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 63 do
+    Result.i[LIndex] := Int8(aLeft.i[LIndex] xor aRight.i[LIndex]);
+end;
+function DispatchFallbackNotI8x64(const aValue: TVecI8x64): TVecI8x64;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 63 do
+    Result.i[LIndex] := Int8(not aValue.i[LIndex]);
+end;
+function DispatchFallbackAndNotI8x64(const aLeft, aRight: TVecI8x64): TVecI8x64;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 63 do
+    Result.i[LIndex] := Int8((not aLeft.i[LIndex]) and aRight.i[LIndex]);
+end;
+function DispatchFallbackCmpEqI8x64(const aLeft, aRight: TVecI8x64): TMask64;
+var
+  LIndex: Integer;
+begin
+  Result := 0;
+  for LIndex := 0 to 63 do
+    if aLeft.i[LIndex] = aRight.i[LIndex] then
+      Result := Result or (TMask64(1) shl LIndex);
+end;
+function DispatchFallbackCmpLtI8x64(const aLeft, aRight: TVecI8x64): TMask64;
+var
+  LIndex: Integer;
+begin
+  Result := 0;
+  for LIndex := 0 to 63 do
+    if aLeft.i[LIndex] < aRight.i[LIndex] then
+      Result := Result or (TMask64(1) shl LIndex);
+end;
+function DispatchFallbackCmpGtI8x64(const aLeft, aRight: TVecI8x64): TMask64;
+var
+  LIndex: Integer;
+begin
+  Result := 0;
+  for LIndex := 0 to 63 do
+    if aLeft.i[LIndex] > aRight.i[LIndex] then
+      Result := Result or (TMask64(1) shl LIndex);
+end;
+function DispatchFallbackMinI8x64(const aLeft, aRight: TVecI8x64): TVecI8x64;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 63 do
+    if aLeft.i[LIndex] < aRight.i[LIndex] then
+      Result.i[LIndex] := aLeft.i[LIndex]
+    else
+      Result.i[LIndex] := aRight.i[LIndex];
+end;
+function DispatchFallbackMaxI8x64(const aLeft, aRight: TVecI8x64): TVecI8x64;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 63 do
+    if aLeft.i[LIndex] > aRight.i[LIndex] then
+      Result.i[LIndex] := aLeft.i[LIndex]
+    else
+      Result.i[LIndex] := aRight.i[LIndex];
+end;
+
+// === P0: 512-bit integer fallback coverage for U8x64 ===
+function DispatchFallbackAddU8x64(const aLeft, aRight: TVecU8x64): TVecU8x64;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 63 do
+    Result.u[LIndex] := UInt8(aLeft.u[LIndex] + aRight.u[LIndex]);
+end;
+function DispatchFallbackSubU8x64(const aLeft, aRight: TVecU8x64): TVecU8x64;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 63 do
+    Result.u[LIndex] := UInt8(aLeft.u[LIndex] - aRight.u[LIndex]);
+end;
+function DispatchFallbackAndU8x64(const aLeft, aRight: TVecU8x64): TVecU8x64;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 63 do
+    Result.u[LIndex] := UInt8(aLeft.u[LIndex] and aRight.u[LIndex]);
+end;
+function DispatchFallbackOrU8x64(const aLeft, aRight: TVecU8x64): TVecU8x64;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 63 do
+    Result.u[LIndex] := UInt8(aLeft.u[LIndex] or aRight.u[LIndex]);
+end;
+function DispatchFallbackXorU8x64(const aLeft, aRight: TVecU8x64): TVecU8x64;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 63 do
+    Result.u[LIndex] := UInt8(aLeft.u[LIndex] xor aRight.u[LIndex]);
+end;
+function DispatchFallbackNotU8x64(const aValue: TVecU8x64): TVecU8x64;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 63 do
+    Result.u[LIndex] := UInt8(not aValue.u[LIndex]);
+end;
+function DispatchFallbackCmpEqU8x64(const aLeft, aRight: TVecU8x64): TMask64;
+var
+  LIndex: Integer;
+begin
+  Result := 0;
+  for LIndex := 0 to 63 do
+    if aLeft.u[LIndex] = aRight.u[LIndex] then
+      Result := Result or (TMask64(1) shl LIndex);
+end;
+function DispatchFallbackCmpLtU8x64(const aLeft, aRight: TVecU8x64): TMask64;
+var
+  LIndex: Integer;
+begin
+  Result := 0;
+  for LIndex := 0 to 63 do
+    if aLeft.u[LIndex] < aRight.u[LIndex] then
+      Result := Result or (TMask64(1) shl LIndex);
+end;
+function DispatchFallbackCmpGtU8x64(const aLeft, aRight: TVecU8x64): TMask64;
+var
+  LIndex: Integer;
+begin
+  Result := 0;
+  for LIndex := 0 to 63 do
+    if aLeft.u[LIndex] > aRight.u[LIndex] then
+      Result := Result or (TMask64(1) shl LIndex);
+end;
+function DispatchFallbackMinU8x64(const aLeft, aRight: TVecU8x64): TVecU8x64;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 63 do
+    if aLeft.u[LIndex] < aRight.u[LIndex] then
+      Result.u[LIndex] := aLeft.u[LIndex]
+    else
+      Result.u[LIndex] := aRight.u[LIndex];
+end;
+function DispatchFallbackMaxU8x64(const aLeft, aRight: TVecU8x64): TVecU8x64;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 63 do
+    if aLeft.u[LIndex] > aRight.u[LIndex] then
+      Result.u[LIndex] := aLeft.u[LIndex]
+    else
+      Result.u[LIndex] := aRight.u[LIndex];
+end;
 
 // === Initialization ===
 
@@ -1071,7 +1974,7 @@ begin
   else
   begin
     // Return empty info for unregistered backend
-    FillChar(Result, SizeOf(Result), 0);
+    Result := Default(TSimdBackendInfo);
     Result.Backend := backend;
     Result.Available := False;
   end;
@@ -1088,7 +1991,7 @@ begin
     Exit(True);
   end;
 
-  FillChar(dispatchTable, SizeOf(dispatchTable), 0);
+  dispatchTable := Default(TSimdDispatchTable);
   Result := False;
 end;
 
@@ -1109,7 +2012,7 @@ end;
 procedure FillBaseDispatchTable(var dispatchTable: TSimdDispatchTable);
 begin
   // Initialize dispatch table to zeros
-  FillChar(dispatchTable, SizeOf(TSimdDispatchTable), 0);
+  dispatchTable := Default(TSimdDispatchTable);
 
   // Note: Backend and BackendInfo are NOT set here - caller must set them.
 
@@ -1169,6 +2072,10 @@ begin
   dispatchTable.OrI64x2 := @ScalarOrI64x2;
   dispatchTable.XorI64x2 := @ScalarXorI64x2;
   dispatchTable.NotI64x2 := @ScalarNotI64x2;
+  dispatchTable.AndNotI64x2 := @DispatchFallbackAndNotI64x2;
+  dispatchTable.ShiftLeftI64x2 := @DispatchFallbackShiftLeftI64x2;
+  dispatchTable.ShiftRightI64x2 := @DispatchFallbackShiftRightI64x2;
+  dispatchTable.ShiftRightArithI64x2 := @DispatchFallbackShiftRightArithI64x2;
 
   // === I64x2 Comparison === (✅ P0-5: Added full set)
   dispatchTable.CmpEqI64x2 := @ScalarCmpEqI64x2;
@@ -1177,6 +2084,22 @@ begin
   dispatchTable.CmpLeI64x2 := @ScalarCmpLeI64x2;
   dispatchTable.CmpGeI64x2 := @ScalarCmpGeI64x2;
   dispatchTable.CmpNeI64x2 := @ScalarCmpNeI64x2;
+  dispatchTable.MinI64x2 := @DispatchFallbackMinI64x2;
+  dispatchTable.MaxI64x2 := @DispatchFallbackMaxI64x2;
+
+  // === U64x2 Arithmetic / Bitwise / Comparison ===
+  dispatchTable.AddU64x2 := @DispatchFallbackAddU64x2;
+  dispatchTable.SubU64x2 := @DispatchFallbackSubU64x2;
+  dispatchTable.AndU64x2 := @DispatchFallbackAndU64x2;
+  dispatchTable.OrU64x2 := @DispatchFallbackOrU64x2;
+  dispatchTable.XorU64x2 := @DispatchFallbackXorU64x2;
+  dispatchTable.NotU64x2 := @DispatchFallbackNotU64x2;
+  dispatchTable.AndNotU64x2 := @DispatchFallbackAndNotU64x2;
+  dispatchTable.CmpEqU64x2 := @DispatchFallbackCmpEqU64x2;
+  dispatchTable.CmpLtU64x2 := @DispatchFallbackCmpLtU64x2;
+  dispatchTable.CmpGtU64x2 := @DispatchFallbackCmpGtU64x2;
+  dispatchTable.MinU64x2 := @DispatchFallbackMinU64x2;
+  dispatchTable.MaxU64x2 := @DispatchFallbackMaxU64x2;
 
   // === ✅ Task 5.2: I64x4 Operations (256-bit AVX2) ===
   // I64x4 Arithmetic
@@ -1191,6 +2114,7 @@ begin
   // I64x4 Shift
   dispatchTable.ShiftLeftI64x4 := @ScalarShiftLeftI64x4;
   dispatchTable.ShiftRightI64x4 := @ScalarShiftRightI64x4;
+  dispatchTable.ShiftRightArithI64x4 := @DispatchFallbackShiftRightArithI64x4;
   // I64x4 Comparison
   dispatchTable.CmpEqI64x4 := @ScalarCmpEqI64x4;
   dispatchTable.CmpLtI64x4 := @ScalarCmpLtI64x4;
@@ -1229,6 +2153,7 @@ begin
   dispatchTable.SubF64x4 := @ScalarSubF64x4;
   dispatchTable.MulF64x4 := @ScalarMulF64x4;
   dispatchTable.DivF64x4 := @ScalarDivF64x4;
+  dispatchTable.RcpF64x4 := @ScalarRcpF64x4;
 
   // === I32x8 Arithmetic (256-bit) ===
   dispatchTable.AddI32x8 := @ScalarAddI32x8;
@@ -1258,6 +2183,26 @@ begin
   // === I32x8 MinMax ===
   dispatchTable.MinI32x8 := @ScalarMinI32x8;
   dispatchTable.MaxI32x8 := @ScalarMaxI32x8;
+
+  // === U32x8 Arithmetic / Bitwise / Shift / Comparison ===
+  dispatchTable.AddU32x8 := @ScalarAddU32x8;
+  dispatchTable.SubU32x8 := @ScalarSubU32x8;
+  dispatchTable.MulU32x8 := @ScalarMulU32x8;
+  dispatchTable.AndU32x8 := @ScalarAndU32x8;
+  dispatchTable.OrU32x8 := @ScalarOrU32x8;
+  dispatchTable.XorU32x8 := @ScalarXorU32x8;
+  dispatchTable.NotU32x8 := @ScalarNotU32x8;
+  dispatchTable.AndNotU32x8 := @ScalarAndNotU32x8;
+  dispatchTable.ShiftLeftU32x8 := @ScalarShiftLeftU32x8;
+  dispatchTable.ShiftRightU32x8 := @ScalarShiftRightU32x8;
+  dispatchTable.CmpEqU32x8 := @ScalarCmpEqU32x8;
+  dispatchTable.CmpLtU32x8 := @ScalarCmpLtU32x8;
+  dispatchTable.CmpGtU32x8 := @ScalarCmpGtU32x8;
+  dispatchTable.CmpLeU32x8 := @ScalarCmpLeU32x8;
+  dispatchTable.CmpGeU32x8 := @ScalarCmpGeU32x8;
+  dispatchTable.CmpNeU32x8 := @ScalarCmpNeU32x8;
+  dispatchTable.MinU32x8 := @ScalarMinU32x8;
+  dispatchTable.MaxU32x8 := @ScalarMaxU32x8;
 
   // === F32x16 Arithmetic (512-bit) ===
   dispatchTable.AddF32x16 := @ScalarAddF32x16;
@@ -1313,6 +2258,87 @@ begin
   dispatchTable.CmpLeI64x8 := @ScalarCmpLeI64x8;
   dispatchTable.CmpGeI64x8 := @ScalarCmpGeI64x8;
   dispatchTable.CmpNeI64x8 := @ScalarCmpNeI64x8;
+
+  // === P0: 512-bit integer fallback coverage ===
+  // U32x16
+  dispatchTable.AddU32x16 := @DispatchFallbackAddU32x16;
+  dispatchTable.SubU32x16 := @DispatchFallbackSubU32x16;
+  dispatchTable.MulU32x16 := @DispatchFallbackMulU32x16;
+  dispatchTable.AndU32x16 := @DispatchFallbackAndU32x16;
+  dispatchTable.OrU32x16 := @DispatchFallbackOrU32x16;
+  dispatchTable.XorU32x16 := @DispatchFallbackXorU32x16;
+  dispatchTable.NotU32x16 := @DispatchFallbackNotU32x16;
+  dispatchTable.AndNotU32x16 := @DispatchFallbackAndNotU32x16;
+  dispatchTable.ShiftLeftU32x16 := @DispatchFallbackShiftLeftU32x16;
+  dispatchTable.ShiftRightU32x16 := @DispatchFallbackShiftRightU32x16;
+  dispatchTable.CmpEqU32x16 := @DispatchFallbackCmpEqU32x16;
+  dispatchTable.CmpLtU32x16 := @DispatchFallbackCmpLtU32x16;
+  dispatchTable.CmpGtU32x16 := @DispatchFallbackCmpGtU32x16;
+  dispatchTable.CmpLeU32x16 := @DispatchFallbackCmpLeU32x16;
+  dispatchTable.CmpGeU32x16 := @DispatchFallbackCmpGeU32x16;
+  dispatchTable.CmpNeU32x16 := @DispatchFallbackCmpNeU32x16;
+  dispatchTable.MinU32x16 := @DispatchFallbackMinU32x16;
+  dispatchTable.MaxU32x16 := @DispatchFallbackMaxU32x16;
+
+  // U64x8
+  dispatchTable.AddU64x8 := @DispatchFallbackAddU64x8;
+  dispatchTable.SubU64x8 := @DispatchFallbackSubU64x8;
+  dispatchTable.AndU64x8 := @DispatchFallbackAndU64x8;
+  dispatchTable.OrU64x8 := @DispatchFallbackOrU64x8;
+  dispatchTable.XorU64x8 := @DispatchFallbackXorU64x8;
+  dispatchTable.NotU64x8 := @DispatchFallbackNotU64x8;
+  dispatchTable.ShiftLeftU64x8 := @DispatchFallbackShiftLeftU64x8;
+  dispatchTable.ShiftRightU64x8 := @DispatchFallbackShiftRightU64x8;
+  dispatchTable.CmpEqU64x8 := @DispatchFallbackCmpEqU64x8;
+  dispatchTable.CmpLtU64x8 := @DispatchFallbackCmpLtU64x8;
+  dispatchTable.CmpGtU64x8 := @DispatchFallbackCmpGtU64x8;
+  dispatchTable.CmpLeU64x8 := @DispatchFallbackCmpLeU64x8;
+  dispatchTable.CmpGeU64x8 := @DispatchFallbackCmpGeU64x8;
+  dispatchTable.CmpNeU64x8 := @DispatchFallbackCmpNeU64x8;
+
+  // I16x32
+  dispatchTable.AddI16x32 := @DispatchFallbackAddI16x32;
+  dispatchTable.SubI16x32 := @DispatchFallbackSubI16x32;
+  dispatchTable.AndI16x32 := @DispatchFallbackAndI16x32;
+  dispatchTable.OrI16x32 := @DispatchFallbackOrI16x32;
+  dispatchTable.XorI16x32 := @DispatchFallbackXorI16x32;
+  dispatchTable.NotI16x32 := @DispatchFallbackNotI16x32;
+  dispatchTable.AndNotI16x32 := @DispatchFallbackAndNotI16x32;
+  dispatchTable.ShiftLeftI16x32 := @DispatchFallbackShiftLeftI16x32;
+  dispatchTable.ShiftRightI16x32 := @DispatchFallbackShiftRightI16x32;
+  dispatchTable.ShiftRightArithI16x32 := @DispatchFallbackShiftRightArithI16x32;
+  dispatchTable.CmpEqI16x32 := @DispatchFallbackCmpEqI16x32;
+  dispatchTable.CmpLtI16x32 := @DispatchFallbackCmpLtI16x32;
+  dispatchTable.CmpGtI16x32 := @DispatchFallbackCmpGtI16x32;
+  dispatchTable.MinI16x32 := @DispatchFallbackMinI16x32;
+  dispatchTable.MaxI16x32 := @DispatchFallbackMaxI16x32;
+
+  // I8x64
+  dispatchTable.AddI8x64 := @DispatchFallbackAddI8x64;
+  dispatchTable.SubI8x64 := @DispatchFallbackSubI8x64;
+  dispatchTable.AndI8x64 := @DispatchFallbackAndI8x64;
+  dispatchTable.OrI8x64 := @DispatchFallbackOrI8x64;
+  dispatchTable.XorI8x64 := @DispatchFallbackXorI8x64;
+  dispatchTable.NotI8x64 := @DispatchFallbackNotI8x64;
+  dispatchTable.AndNotI8x64 := @DispatchFallbackAndNotI8x64;
+  dispatchTable.CmpEqI8x64 := @DispatchFallbackCmpEqI8x64;
+  dispatchTable.CmpLtI8x64 := @DispatchFallbackCmpLtI8x64;
+  dispatchTable.CmpGtI8x64 := @DispatchFallbackCmpGtI8x64;
+  dispatchTable.MinI8x64 := @DispatchFallbackMinI8x64;
+  dispatchTable.MaxI8x64 := @DispatchFallbackMaxI8x64;
+
+  // U8x64
+  dispatchTable.AddU8x64 := @DispatchFallbackAddU8x64;
+  dispatchTable.SubU8x64 := @DispatchFallbackSubU8x64;
+  dispatchTable.AndU8x64 := @DispatchFallbackAndU8x64;
+  dispatchTable.OrU8x64 := @DispatchFallbackOrU8x64;
+  dispatchTable.XorU8x64 := @DispatchFallbackXorU8x64;
+  dispatchTable.NotU8x64 := @DispatchFallbackNotU8x64;
+  dispatchTable.CmpEqU8x64 := @DispatchFallbackCmpEqU8x64;
+  dispatchTable.CmpLtU8x64 := @DispatchFallbackCmpLtU8x64;
+  dispatchTable.CmpGtU8x64 := @DispatchFallbackCmpGtU8x64;
+  dispatchTable.MinU8x64 := @DispatchFallbackMinU8x64;
+  dispatchTable.MaxU8x64 := @DispatchFallbackMaxU8x64;
 
   // === F32x4 Comparison ===
   dispatchTable.CmpEqF32x4 := @ScalarCmpEqF32x4;
@@ -1653,6 +2679,7 @@ begin
   dispatchTable.OrI8x16 := @ScalarOrI8x16;
   dispatchTable.XorI8x16 := @ScalarXorI8x16;
   dispatchTable.NotI8x16 := @ScalarNotI8x16;
+  dispatchTable.AndNotI8x16 := @DispatchFallbackAndNotI8x16;
   dispatchTable.CmpEqI8x16 := @ScalarCmpEqI8x16;
   dispatchTable.CmpLtI8x16 := @ScalarCmpLtI8x16;
   dispatchTable.CmpGtI8x16 := @ScalarCmpGtI8x16;
@@ -1689,6 +2716,7 @@ begin
   dispatchTable.OrU16x8 := @ScalarOrU16x8;
   dispatchTable.XorU16x8 := @ScalarXorU16x8;
   dispatchTable.NotU16x8 := @ScalarNotU16x8;
+  dispatchTable.AndNotU16x8 := @DispatchFallbackAndNotU16x8;
   dispatchTable.ShiftLeftU16x8 := @ScalarShiftLeftU16x8;
   dispatchTable.ShiftRightU16x8 := @ScalarShiftRightU16x8;
   dispatchTable.CmpEqU16x8 := @ScalarCmpEqU16x8;
@@ -1707,6 +2735,7 @@ begin
   dispatchTable.OrU8x16 := @ScalarOrU8x16;
   dispatchTable.XorU8x16 := @ScalarXorU8x16;
   dispatchTable.NotU8x16 := @ScalarNotU8x16;
+  dispatchTable.AndNotU8x16 := @DispatchFallbackAndNotU8x16;
   dispatchTable.CmpEqU8x16 := @ScalarCmpEqU8x16;
   dispatchTable.CmpLtU8x16 := @ScalarCmpLtU8x16;
   dispatchTable.CmpGtU8x16 := @ScalarCmpGtU8x16;

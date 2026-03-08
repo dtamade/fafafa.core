@@ -28,6 +28,7 @@
 
 - **稳定面**：`fafafa.core.simd` / `fafafa.core.simd.api` 对外暴露的公开 façade，以及 `TSimdDispatchTable` 这类已明确写入稳定约束的 ABI 边界
 - **后端成熟度有差异**：`Scalar`、`SSE2`、`AVX2`、`NEON` 更接近当前默认维护主线；`AVX-512` 受构建配置和验证范围影响；`sbRISCVV` 仍应视为 experimental / 受限成熟度后端
+- **`sbRISCVV` 现在是显式 opt-in**：即使平台满足，`fafafa.core.simd` 也不会默认接线 `riscvv`；只有定义 `SIMD_EXPERIMENTAL_RISCVV` 时才会把它接入 umbrella unit
 - **experimental intrinsics 默认隔离**：实验性 intrinsics 已有默认入口隔离检查，不属于默认 stable surface；默认入口链路不会把这些实验单元直接暴露成常规公开入口
 
 这意味着：**可以把公开 API 当成稳定入口使用，但不要把每个 backend 都默认理解成同等成熟、同等验证深度。**

@@ -10,6 +10,7 @@ uses
   Classes, SysUtils,
   fpcunit, testregistry,
   fafafa.core.simd.testcase,
+  fafafa.core.simd.intrinsics.avx2.testcase,
   fafafa.core.simd.direct.testcase,
   fafafa.core.simd.concurrent.testcase,  // ✅ Phase 5.4: Concurrent SIMD tests (12 tests)
   fafafa.core.simd.bench,
@@ -79,6 +80,7 @@ begin
   {$IFDEF CPUX86_64}
   WriteLn('  TTestCase_AVX2VectorAsm');
   WriteLn('  TTestCase_AVX512VectorAsm');
+  WriteLn('  TTestCase_AVX2IntrinsicsFallback');
   {$ENDIF}
   {$ENDIF}
   WriteLn('  TTestCase_VectorOps');
@@ -303,6 +305,8 @@ begin
       {$IFDEF CPUX86_64}
       if ShouldRunSuite('TTestCase_AVX2VectorAsm') then
         testSuite.AddTest(TTestCase_AVX2VectorAsm.Suite);
+      if ShouldRunSuite('TTestCase_AVX2IntrinsicsFallback') then
+        testSuite.AddTest(TTestCase_AVX2IntrinsicsFallback.Suite);
       {$IFDEF SIMD_BACKEND_AVX512}
       if ShouldRunSuite('TTestCase_AVX512VectorAsm') then
         testSuite.AddTest(TTestCase_AVX512VectorAsm.Suite);

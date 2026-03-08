@@ -102,7 +102,23 @@ Run:
 bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict
 ```
 
-`gate-strict` 是发布门禁，不是日常快门禁。它会补上更重的 perf / repeat / evidence 路径。
+`gate-strict` 是发布门禁，不是日常快门禁。它会补上更重的 repeat 与结构一致性路径。
+
+如果你是在 Linux 上做 dry-run、对比不同脚本口径，或者同一轮里要并发跑 `gate` / `gate-strict` / `evidence-linux`，建议显式设置 `SIMD_OUTPUT_ROOT`，避免互相覆盖默认 `bin2/lib2/logs`。
+
+Run:
+```bash
+SIMD_OUTPUT_ROOT=/tmp/simd-closeout-123 bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict
+```
+
+或者：
+```bash
+SIMD_OUTPUT_ROOT=/tmp/simd-closeout-123 bash tests/fafafa.core.simd/BuildOrTest.sh evidence-linux
+```
+
+这类隔离运行适合预演和并发回归，但**不会替代** Windows 实机 evidence。真正收口仍然要回到 `evidence-win-verify` / `finalize-win-evidence` 这条链。
+`perf-smoke`、QEMU / Windows evidence 仍保留为显式可选项；如果你要把这些重证据也纳入发布门禁，可先设置对应 `SIMD_GATE_*` 开关再运行。
+它也会把 `wiring-sync`、`interface-completeness`、`adapter-sync` 这类结构一致性检查一起带上。
 
 ### Windows
 
@@ -147,6 +163,28 @@ Run:
 tests\fafafa.core.simd\buildOrTest.bat gate-strict
 ```
 
+## 建议最小提交面
+
+如果现在的目标是“先把 Linux 侧 closeout 相关修复稳定落地”，而不是一次性把所有 `SIMD` 文档/历史整理都带上，建议按下面三类处理：
+
+### 必须保留
+
+- **运行时修复**：`src/fafafa.core.simd.intrinsics.sse.pas`、`src/fafafa.core.simd.intrinsics.mmx.pas`、`tests/fafafa.core.simd/fafafa.core.simd.bench.pas`、`tests/fafafa.core.simd.intrinsics.sse/fafafa.core.simd.intrinsics.sse.testcase.pas`
+- **门禁与 evidence helper**：`tests/fafafa.core.simd/BuildOrTest.sh`、`tests/fafafa.core.simd/buildOrTest.bat`、`tests/fafafa.core.simd/run_backend_benchmarks.sh`、`tests/fafafa.core.simd/collect_linux_simd_evidence.sh`、`tests/fafafa.core.simd/docker/run_multiarch_qemu.sh`
+- **gate / freeze 语义**：`tests/fafafa.core.simd/generate_gate_summary_sample.py`、`tests/fafafa.core.simd/export_gate_summary_json.py`、`tests/fafafa.core.simd/rehearse_freeze_status.sh`、`tests/fafafa.core.simd/evaluate_simd_freeze_status.py`
+- **`cpuinfo` 子 runner 隔离**：`tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh`、`tests/fafafa.core.simd.cpuinfo/buildOrTest.bat`、`tests/fafafa.core.simd.cpuinfo.x86/BuildOrTest.sh`、`tests/fafafa.core.simd.cpuinfo.x86/buildOrTest.bat`
+
+### 可以后移
+
+- `docs/fafafa.core.simd.md`
+- `src/fafafa.core.simd.README.md`
+- 其他偏阅读地图 / 维护叙事增强、但不直接影响 closeout 路径是否可跑通的文档整理
+
+### 必须等 Windows 实证
+
+- Windows evidence 真正通过 verifier 之前，不要把 release candidate checklist / completeness matrix / closeout roadmap 里的 Windows 项自动勾成完成
+- 同理，不要把 cross-platform freeze 说成 ready；当前仍然只能说 **Linux ready，cross-platform pending**
+
 ## 还有哪些债没收完
 
 这些不是“现在坏了”，而是后续最值得继续清理的地方：
@@ -163,9 +201,32 @@ tests\fafafa.core.simd\buildOrTest.bat gate-strict
    - Windows 脚本口径已经对齐
    - 但脚本文案对齐不等于所有 Windows 实机场景都已重新验证
 
+   Windows 实机 evidence 过 verifier 时，日志至少要包含这些字段：
+   - `Source: collect_windows_b07_evidence.bat`
+   - `HostOS: Windows_NT`
+   - `CmdVer: Microsoft Windows ...`
+   - `Working dir: C:\\...`（Windows 风格路径）
+
+   Windows 日志一旦到位，按这个顺序收口：
+
+   Run:
+   ```bat
+   tests\fafafa.core.simd\buildOrTest.bat evidence-win-verify
+   ```
+
+   Then:
+   ```bash
+   bash tests/fafafa.core.simd/BuildOrTest.sh finalize-win-evidence
+   bash tests/fafafa.core.simd/apply_windows_b07_closeout_updates.sh --apply --batch-id SIMD-YYYYMMDD-152
+   ```
+
 4. **非 x86 / QEMU 证据链仍然是发布前话题**
    - 日常快门禁不会默认把这些重路径都打开
    - closeout 时仍然应该靠 `gate-strict` 和对应 evidence 路径补强
+
+5. **`perf-smoke` 仍是环境敏感证据**
+   - 适合在固定机器 / 固定基线下显式开启
+   - 不再作为默认 `gate-strict` 阻塞项；需要时请设置 `SIMD_GATE_PERF_SMOKE=1`
 
 ## 维护时最容易踩的坑
 

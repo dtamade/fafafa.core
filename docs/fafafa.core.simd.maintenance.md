@@ -60,11 +60,11 @@
 - dispatch table 选择
 - runtime hook / backend rebuild
 
-已经拆出的关键 include：
+当前更值得关注的真相源：
 
-- `src/fafafa.core.simd.dispatch.hooks.intf.inc`
-- `src/fafafa.core.simd.dispatch.hooks.impl.inc`
-- `src/fafafa.core.simd.cpuinfo.backends.impl.inc`
+- `src/fafafa.core.simd.dispatch.pas`：`TSimdDispatchTable` 与 base fallback 的事实真相源
+- `src/fafafa.core.simd.cpuinfo.pas`：可用后端判断与 CPU/OS 能力入口
+- `src/fafafa.core.simd.STABLE`：稳定 ABI / 公开边界约束
 
 ### 后端层
 
@@ -90,9 +90,10 @@
 - `src/fafafa.core.simd.types.inc`
 - `src/fafafa.core.simd.framework.intf.inc`
 - `src/fafafa.core.simd.framework.impl.inc`
-- `src/fafafa.core.simd.dispatch.hooks.intf.inc`
-- `src/fafafa.core.simd.dispatch.hooks.impl.inc`
-- `src/fafafa.core.simd.cpuinfo.backends.impl.inc`
+- `src/fafafa.core.simd.dispatch.pas`
+- `src/fafafa.core.simd.cpuinfo.pas`
+- `tests/fafafa.core.simd/check_backend_adapter_sync.py`
+- `tests/fafafa.core.simd/check_intrinsics_experimental_status.py`
 
 ### 后端注册
 
@@ -156,7 +157,7 @@
    - 而不是把主题放前面，避免排序和 grep 时失焦
 
 2. **名字描述“边界”而不是“意图”**
-   - `mask_sat.inc`、`wide_loadstore.inc`、`dispatch.hooks.impl.inc` 这种命名更容易定位真实内容
+   - `mask_sat.inc`、`wide_loadstore.inc`、`framework.impl.inc` 这种命名更容易定位真实内容
    - 避免 `misc.inc`、`helpers2.inc` 这种泛名
 
 如果一段代码很难起一个清晰名字，通常也意味着它还不适合继续物理拆分。
@@ -167,8 +168,8 @@
 
 | 主题 | include 数量 | 说明 |
 |------|-------------|------|
-| `dispatch` | 2 | hook 管理已经抽离 |
-| `cpuinfo` | 1 | backend 选择逻辑已抽离 |
+| `dispatch` | 0 | 主逻辑仍集中在 `src/fafafa.core.simd.dispatch.pas` |
+| `cpuinfo` | 0 | 后端判断主逻辑仍集中在 `src/fafafa.core.simd.cpuinfo.pas` |
 | `sse2` | 14 | 已有一定拆分，但继续细拆风险明显升高 |
 | `avx2` | 16 | family/facade 收口较充分 |
 | `avx512` | 29 | family 拆分最充分 |
@@ -229,6 +230,24 @@ bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict
 - 日常改动、局部修正、文档同步：优先跑 `check` + 定向 suites + `gate`。
 - closeout、发布前回归、需要更强证据链时：在上面的基础上再跑 `gate-strict`。
 - 如果你只是确认脚本/文档口径没有漂移，先看 `BuildOrTest.sh` 的 `gate` / `gate-strict` usage 和 gate-summary profile 字段。
+
+### 并发或预演时用隔离输出
+
+如果你在同一台机器上并发跑多个 `SIMD` helper，或者只是想预演 closeout 而不污染默认 `bin2/lib2/logs`，优先设置 `SIMD_OUTPUT_ROOT`。
+
+Run:
+```bash
+SIMD_OUTPUT_ROOT=/tmp/simd-run-123 bash tests/fafafa.core.simd/BuildOrTest.sh gate
+```
+
+或者：
+```bash
+SIMD_OUTPUT_ROOT=/tmp/simd-run-123 bash tests/fafafa.core.simd/BuildOrTest.sh evidence-linux
+```
+
+这会把主 runner 的 `bin2/lib2/logs` 改写到新根目录下；`cpuinfo` 与 `cpuinfo.x86` 子 runner 在 shell 链路里也会自动落到 `cpuinfo/` 与 `cpuinfo.x86/` 子目录。
+
+Windows batch runner 也已经接入同名环境变量，但这部分目前仍缺 Windows 实机验证。
 
 ### 什么时候该停手
 
