@@ -154,7 +154,7 @@ echo [CHECK] OK (no SIMD-unit warnings/hints on stable path)
 
 if /I "%SIMD_CHECK_WIRING_SYNC%"=="1" (
   echo [CHECK] Optional wiring-sync enabled
-  call "%~f0" wiring-sync
+  call "%ROOT%buildOrTest.bat" wiring-sync
   if errorlevel 1 exit /b 1
 ) else (
   echo [CHECK] SKIP optional wiring-sync ^(set SIMD_CHECK_WIRING_SYNC=1 to enable^)
@@ -164,7 +164,7 @@ if /I "%SIMD_CHECK_EXPERIMENTAL%"=="0" (
   echo [CHECK] SKIP optional experimental isolation ^(set SIMD_CHECK_EXPERIMENTAL=1 to enable^)
 ) else (
   echo [CHECK] Experimental intrinsics isolation
-  call "%~f0" experimental-intrinsics
+  call "%ROOT%buildOrTest.bat" experimental-intrinsics
   if errorlevel 1 exit /b 1
 )
 
@@ -199,7 +199,7 @@ exit /b 0
 
 :adapter_sync_pascal
 echo [ADAPTER-SYNC-PASCAL] suite=TTestCase_DispatchAPI
-call "%~f0" test --suite=TTestCase_DispatchAPI
+call "%ROOT%buildOrTest.bat" test --suite=TTestCase_DispatchAPI
 if errorlevel 1 exit /b 1
 exit /b 0
 
@@ -243,9 +243,9 @@ echo [ADAPTER-SYNC] SKIP (python runtime not found)
 exit /b 0
 
 :parity_suites
-call "%~f0" test --suite=TTestCase_DispatchAPI
+call "%ROOT%buildOrTest.bat" test --suite=TTestCase_DispatchAPI
 if errorlevel 1 exit /b 1
-call "%~f0" test --suite=TTestCase_DispatchAPI
+call "%ROOT%buildOrTest.bat" test --suite=TTestCase_DispatchAPI
 if errorlevel 1 exit /b 1
 echo [PARITY] OK
 exit /b 0
@@ -364,7 +364,7 @@ if /I "%SIMD_RELEASE_STRICT_GATE%"=="0" (
   exit /b 0
 )
 echo [RELEASE] Running strict gate ^(set SIMD_RELEASE_STRICT_GATE=0 to skip^)
-call "%~f0" gate-strict
+call "%ROOT%buildOrTest.bat" gate-strict
 exit /b %ERRORLEVEL%
 
 :test
@@ -494,14 +494,14 @@ echo [CPUINFO-LAZY] OK suite=TTestCase_LazyCPUInfo rounds=%CPUINFO_REPEAT_ROUNDS
 exit /b 0
 
 :nonx86_ieee754
-call "%~f0" test --list-suites
+call "%ROOT%buildOrTest.bat" test --list-suites
 if errorlevel 1 exit /b 1
 findstr /c:"TTestCase_NonX86IEEE754" "%TEST_LOG%" >nul 2>nul
 if errorlevel 1 (
   echo [NONX86-IEEE754] SKIP (suite TTestCase_NonX86IEEE754 not present in this build)
   exit /b 0
 )
-call "%~f0" test --suite=TTestCase_NonX86IEEE754
+call "%ROOT%buildOrTest.bat" test --suite=TTestCase_NonX86IEEE754
 exit /b %ERRORLEVEL%
 
 :backend_bench
@@ -803,11 +803,11 @@ if "%SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE%"=="" set "SIMD_GATE_QEMU_ARCH_MATRIX_E
 if "%SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE%"=="" set "SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0"
 if "%SIMD_QEMU_CPUINFO_REPEAT_ROUNDS%"=="" set "SIMD_QEMU_CPUINFO_REPEAT_ROUNDS=1"
 if "%SIMD_GATE_CONCURRENT_REPEAT%"=="" set "SIMD_GATE_CONCURRENT_REPEAT=10"
-call "%~f0" gate
+call "%ROOT%buildOrTest.bat" gate
 exit /b %ERRORLEVEL%
 
 :gate
-set "SELF=%~f0"
+set "SELF=%ROOT%buildOrTest.bat"
 set "TESTS_ROOT=%ROOT%.."
 if "%SIMD_GATE_INTERFACE_COMPLETENESS%"=="" set "SIMD_GATE_INTERFACE_COMPLETENESS=1"
 if "%SIMD_GATE_ADAPTER_SYNC_PASCAL%"=="" set "SIMD_GATE_ADAPTER_SYNC_PASCAL=1"
@@ -1138,7 +1138,7 @@ if errorlevel 1 (
   echo [CLOSEOUT] Missing bash ^(require Git Bash / WSL^)
   exit /b 2
 )
-call "%~f0" evidence-win-verify
+call "%ROOT%buildOrTest.bat" evidence-win-verify
 if errorlevel 1 exit /b 1
 set "SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1"
 echo [CLOSEOUT] Backfill cross gate ^(SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1^)
