@@ -11,7 +11,6 @@ set "LOG_DIR=%ROOT%\logs"
 set "LOG_PATH=%SIMD_WIN_EVIDENCE_LOG_FILE%"
 if "%LOG_PATH%"=="" set "LOG_PATH=%LOG_DIR%\windows_b07_gate.log"
 set "SELF=%ROOT%\buildOrTest.bat"
-set "SUMMARY_FILE=%ROOT%\..\run_all_tests_summary.txt"
 set "TMP_OUT=%LOG_DIR%\windows_b07_gate.capture.tmp"
 
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
@@ -37,32 +36,31 @@ for /f "usebackq delims=" %%I in (`cmd /c ver`) do set "CMD_VER=%%I"
 ) > "%LOG_PATH%"
 
 set "SIMD_SUPPRESS_BUILD_WARNINGS=1"
-call "%SELF%" gate > "%TMP_OUT%" 2>&1
-set "GATE_EXIT_CODE=%ERRORLEVEL%"
+set /a TOTAL_VALUE=0
+set /a PASSED_VALUE=0
+set /a FAILED_VALUE=0
+set "GATE_EXIT_CODE=0"
 
+call :run_gate_step "Build + check SIMD module" check
+if errorlevel 1 goto :gate_failed
+call :run_gate_step "Interface completeness" interface-completeness
+if errorlevel 1 goto :gate_failed
+call :run_gate_step "Backend adapter sync Pascal smoke" adapter-sync-pascal
+if errorlevel 1 goto :gate_failed
+
+>> "%TMP_OUT%" echo [GATE] OK
+set "GATE_EXIT_CODE=0"
+goto :gate_done
+
+:gate_failed
+set "GATE_EXIT_CODE=1"
+
+:gate_done
 type "%TMP_OUT%" >> "%LOG_PATH%"
 >> "%LOG_PATH%" echo.
 >> "%LOG_PATH%" echo [B07] GATE_EXIT_CODE=%GATE_EXIT_CODE%
 >> "%LOG_PATH%" echo.
 >> "%LOG_PATH%" echo [B07] run_all summary snapshot
-
-set "TOTAL_VALUE=0"
-set "PASSED_VALUE=0"
-set "FAILED_VALUE=0"
-if exist "%SUMMARY_FILE%" (
-  for /f "usebackq delims=" %%L in (`findstr /R /C:"^Total:[ ]*[0-9][0-9]*$" /C:"^Passed:[ ]*[0-9][0-9]*$" /C:"^Failed:[ ]*[0-9][0-9]*$" "%SUMMARY_FILE%"`) do (
-    >> "%LOG_PATH%" echo %%L
-  )
-  for /f "tokens=1,* delims=:" %%A in ('findstr /R /C:"^Total:[ ]*[0-9][0-9]*$" /C:"^Passed:[ ]*[0-9][0-9]*$" /C:"^Failed:[ ]*[0-9][0-9]*$" "%SUMMARY_FILE%"') do (
-    set "LINE_KEY=%%A"
-    set "LINE_VALUE=%%B"
-    call :trim_line LINE_VALUE
-    if /I "!LINE_KEY!"=="Total" set "TOTAL_VALUE=!LINE_VALUE!"
-    if /I "!LINE_KEY!"=="Passed" set "PASSED_VALUE=!LINE_VALUE!"
-    if /I "!LINE_KEY!"=="Failed" set "FAILED_VALUE=!LINE_VALUE!"
-  )
-)
-
 >> "%LOG_PATH%" echo [B07] Total: %TOTAL_VALUE%
 >> "%LOG_PATH%" echo [B07] Passed: %PASSED_VALUE%
 >> "%LOG_PATH%" echo [B07] Failed: %FAILED_VALUE%
@@ -71,9 +69,16 @@ type "%LOG_PATH%"
 del /q "%TMP_OUT%" >nul 2>nul
 exit /b %GATE_EXIT_CODE%
 
-:trim_line
-setlocal EnableDelayedExpansion
-set "VALUE=!%~1!"
-for /f "tokens=* delims= " %%Z in ("!VALUE!") do set "VALUE=%%Z"
-endlocal & set "%~1=%VALUE%"
-exit /b 0
+:run_gate_step
+set /a TOTAL_VALUE+=1
+set "STEP_TITLE=%~1"
+shift
+>> "%TMP_OUT%" echo [GATE] %TOTAL_VALUE%/3 %STEP_TITLE%
+call "%SELF%" %* >> "%TMP_OUT%" 2>&1
+set "STEP_RC=%ERRORLEVEL%"
+if "%STEP_RC%"=="0" (
+  set /a PASSED_VALUE+=1
+) else (
+  set /a FAILED_VALUE+=1
+)
+exit /b %STEP_RC%
