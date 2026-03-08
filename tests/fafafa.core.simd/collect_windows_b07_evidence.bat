@@ -36,23 +36,32 @@ for /f "usebackq delims=" %%I in (`cmd /c ver`) do set "CMD_VER=%%I"
 ) > "%LOG_PATH%"
 
 set "SIMD_SUPPRESS_BUILD_WARNINGS=1"
-set /a TOTAL_VALUE=0
+set /a TOTAL_VALUE=3
 set /a PASSED_VALUE=0
 set /a FAILED_VALUE=0
 set "GATE_EXIT_CODE=0"
 
-call :run_gate_step "Build + check SIMD module" check
+>> "%TMP_OUT%" echo [GATE] 1/3 Build + check SIMD module
+call "%SELF%" check >> "%TMP_OUT%" 2>&1
 if errorlevel 1 goto :gate_failed
-call :run_gate_step "Interface completeness" interface-completeness
+set /a PASSED_VALUE+=1
+
+>> "%TMP_OUT%" echo [GATE] 2/3 Interface completeness
+call "%SELF%" interface-completeness >> "%TMP_OUT%" 2>&1
 if errorlevel 1 goto :gate_failed
-call :run_gate_step "Backend adapter sync Pascal smoke" adapter-sync-pascal
+set /a PASSED_VALUE+=1
+
+>> "%TMP_OUT%" echo [GATE] 3/3 Backend adapter sync Pascal smoke
+call "%SELF%" adapter-sync-pascal >> "%TMP_OUT%" 2>&1
 if errorlevel 1 goto :gate_failed
+set /a PASSED_VALUE+=1
 
 >> "%TMP_OUT%" echo [GATE] OK
 set "GATE_EXIT_CODE=0"
 goto :gate_done
 
 :gate_failed
+set /a FAILED_VALUE=TOTAL_VALUE-PASSED_VALUE
 set "GATE_EXIT_CODE=1"
 
 :gate_done
@@ -68,17 +77,3 @@ type "%TMP_OUT%" >> "%LOG_PATH%"
 type "%LOG_PATH%"
 del /q "%TMP_OUT%" >nul 2>nul
 exit /b %GATE_EXIT_CODE%
-
-:run_gate_step
-set /a TOTAL_VALUE+=1
-set "STEP_TITLE=%~1"
-shift
->> "%TMP_OUT%" echo [GATE] %TOTAL_VALUE%/3 %STEP_TITLE%
-call "%SELF%" %* >> "%TMP_OUT%" 2>&1
-set "STEP_RC=%ERRORLEVEL%"
-if "%STEP_RC%"=="0" (
-  set /a PASSED_VALUE+=1
-) else (
-  set /a FAILED_VALUE+=1
-)
-exit /b %STEP_RC%
