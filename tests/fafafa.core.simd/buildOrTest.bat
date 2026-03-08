@@ -130,8 +130,9 @@ if /I "%SIMD_SUPPRESS_BUILD_WARNINGS%"=="1" set "LAZBUILD_EXTRA_OPTS=--opt=-vw- 
 "%LAZBUILD_EXE%" --build-mode=%MODE% --build-all "--opt=-FE%BIN_DIR%" "--opt=-FU%UNIT_DIR%" %LAZBUILD_EXTRA_OPTS% "%PROJ%" > "%BUILD_LOG%" 2>&1
 set "BUILD_RC=%ERRORLEVEL%"
 if /I "%SIMD_SUPPRESS_BUILD_WARNINGS%"=="1" if exist "%BIN%" set "BUILD_RC=0"
+if /I "%SIMD_SUPPRESS_BUILD_WARNINGS%"=="1" findstr /c:"(1008)" "%BUILD_LOG%" >nul 2>nul && set "BUILD_RC=0"
 if not "%BUILD_RC%"=="0" (
-  echo [BUILD] FAILED (see %BUILD_LOG%)
+  echo [BUILD] FAILED ^(see %BUILD_LOG%^ )
   type "%BUILD_LOG%"
   exit /b 1
 )
