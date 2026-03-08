@@ -62,6 +62,7 @@ jobs:
           echo [DEBUG] workspace=%GITHUB_WORKSPACE%
           dir tests
           dir tests\fafafa.core.simd
+          set "SIMD_SCRIPT_ROOT=%GITHUB_WORKSPACE%\tests\fafafa.core.simd\"
           call "%GITHUB_WORKSPACE%\tests\fafafa.core.simd\buildOrTest.bat" evidence-win-verify
 
       - name: Upload Windows Evidence Artifact
