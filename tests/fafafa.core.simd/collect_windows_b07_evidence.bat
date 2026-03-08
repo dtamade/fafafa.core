@@ -4,6 +4,8 @@ setlocal EnableExtensions EnableDelayedExpansion
 set "ROOT=%SIMD_SCRIPT_ROOT%"
 if "%ROOT%"=="" set "ROOT=%~dp0"
 if not "%ROOT%"=="" if not "%ROOT:~-1%"=="\" set "ROOT=%ROOT%\"
+if not exist "%ROOT%buildOrTest.bat" set "ROOT=%CD%\tests\fafafa.core.simd\"
+if not "%ROOT:~-1%"=="\" set "ROOT=%ROOT%\"
 if "%ROOT:~-1%"=="\" set "ROOT=%ROOT:~0,-1%"
 set "LOG_DIR=%ROOT%\logs"
 set "LOG_PATH=%SIMD_WIN_EVIDENCE_LOG_FILE%"

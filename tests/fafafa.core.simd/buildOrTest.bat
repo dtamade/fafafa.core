@@ -20,6 +20,8 @@ goto :collect_args
 set "ROOT=%SIMD_SCRIPT_ROOT%"
 if "%ROOT%"=="" set "ROOT=%~dp0"
 if not "%ROOT%"=="" if not "%ROOT:~-1%"=="\" set "ROOT=%ROOT%\"
+if not exist "%ROOT%buildOrTest.bat" set "ROOT=%CD%\tests\fafafa.core.simd\"
+if not "%ROOT:~-1%"=="\" set "ROOT=%ROOT%\"
 set "OUTPUT_ROOT=%SIMD_OUTPUT_ROOT%"
 if "%OUTPUT_ROOT%"=="" set "OUTPUT_ROOT=%ROOT%"
 set "PROJ=%ROOT%fafafa.core.simd.test.lpi"
