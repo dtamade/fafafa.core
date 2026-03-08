@@ -67,6 +67,12 @@ jobs:
           foreach ($candidate in $candidates) {
             if (Test-Path $candidate) {
               "LAZBUILD=$candidate" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+              Split-Path $candidate -Parent | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+              $fpcDir = 'C:\lazarus\fpc\3.2.2\bin\x86_64-win64'
+              if (Test-Path $fpcDir) {
+                $fpcDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+                Write-Host "[FPC] Added $fpcDir to PATH"
+              }
               Write-Host "[LAZBUILD] Using $candidate"
               exit 0
             }
