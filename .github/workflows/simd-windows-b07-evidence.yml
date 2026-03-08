@@ -59,7 +59,10 @@ jobs:
       - name: Collect and Verify Windows Evidence
         shell: cmd
         run: |
-          call tests\fafafa.core.simd\buildOrTest.bat evidence-win-verify
+          echo [DEBUG] workspace=%GITHUB_WORKSPACE%
+          dir tests
+          dir tests\fafafa.core.simd
+          call "%GITHUB_WORKSPACE%\tests\fafafa.core.simd\buildOrTest.bat" evidence-win-verify
 
       - name: Upload Windows Evidence Artifact
         if: always()
