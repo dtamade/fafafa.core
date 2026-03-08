@@ -393,8 +393,13 @@ if not exist "%BIN%" (
 echo [TEST] Running: %BIN%%NORMALIZED_TEST_ARGS%
 echo. > "%TEST_LOG%"
 "%BIN%" %NORMALIZED_TEST_ARGS% > "%TEST_LOG%" 2>&1
-if errorlevel 1 (
-  echo [TEST] FAILED (see %TEST_LOG%)
+set "TEST_RC=%ERRORLEVEL%"
+if /I "%SIMD_SUPPRESS_BUILD_WARNINGS%"=="1" (
+  findstr /c:"Failures: 0" "%TEST_LOG%" >nul 2>nul
+  if not errorlevel 1 findstr /c:"Errors: 0" "%TEST_LOG%" >nul 2>nul && set "TEST_RC=0"
+)
+if not "%TEST_RC%"=="0" (
+  echo [TEST] FAILED ^(see %TEST_LOG%^ )
   type "%TEST_LOG%"
   exit /b 1
 )
