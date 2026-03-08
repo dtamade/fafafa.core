@@ -2634,6 +2634,45 @@ end;
 {$ENDIF}
 {$ENDIF}
 
+{$IFNDEF UNIX}
+function SingleFromBits(bits: DWord): Single; inline;
+begin
+  Move(bits, Result, SizeOf(Result));
+end;
+
+function BitsFromSingle(const value: Single): DWord; inline;
+begin
+  Move(value, Result, SizeOf(Result));
+end;
+
+function IsNaNSingle(const value: Single): Boolean; inline;
+var
+  bits: DWord;
+begin
+  bits := BitsFromSingle(value);
+  Result := ((bits and $7F800000) = $7F800000) and ((bits and $007FFFFF) <> 0);
+end;
+
+function DoubleFromBits(bits: QWord): Double; inline;
+begin
+  Move(bits, Result, SizeOf(Result));
+end;
+
+function BitsFromDouble(const value: Double): QWord; inline;
+begin
+  Move(value, Result, SizeOf(Result));
+end;
+
+function IsNaNDouble(const value: Double): Boolean; inline;
+var
+  bits: QWord;
+begin
+  bits := BitsFromDouble(value);
+  Result := ((bits and QWord($7FF0000000000000)) = QWord($7FF0000000000000)) and
+            ((bits and QWord($000FFFFFFFFFFFFF)) <> 0);
+end;
+{$ENDIF}
+
 {$IFDEF UNIX}
 {$IFDEF CPUX86_64}
 
