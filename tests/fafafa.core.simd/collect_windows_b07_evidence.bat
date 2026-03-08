@@ -36,6 +36,7 @@ for /f "usebackq delims=" %%I in (`cmd /c ver`) do set "CMD_VER=%%I"
   echo.
 ) > "%LOG_PATH%"
 
+set "SIMD_SUPPRESS_BUILD_WARNINGS=1"
 call "%SELF%" gate > "%TMP_OUT%" 2>&1
 set "GATE_EXIT_CODE=%ERRORLEVEL%"
 
