@@ -1370,4 +1370,10 @@ if /I "%SIMD_GATE_SUMMARY_JSON%"=="1" (
     python "%EXPORT_SCRIPT%" --input "%SUMMARY_FILE%" --output "%SUMMARY_JSON_FILE%" --filter "%SUMMARY_FILTER%" --warn-ms %SIMD_GATE_STEP_WARN_MS% --fail-ms %SIMD_GATE_STEP_FAIL_MS%
     if errorlevel 1 exit /b 1
     echo [GATE-SUMMARY] json=%SUMMARY_JSON_FILE%
-   
+    exit /b 0
+  )
+
+  echo [GATE-SUMMARY] SKIP JSON export ^(python runtime not found^)
+)
+
+exit /b 0
