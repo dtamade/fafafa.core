@@ -1067,9 +1067,19 @@ call "%VERIFY_SCRIPT%" %NORMALIZED_TEST_ARGS%
 exit /b %ERRORLEVEL%
 
 :evidence_win_verify
-call "%~f0" evidence-win
+set "EVIDENCE_SCRIPT=%ROOT%collect_windows_b07_evidence.bat"
+set "VERIFY_SCRIPT=%ROOT%verify_windows_b07_evidence.bat"
+if not exist "%EVIDENCE_SCRIPT%" (
+  echo [EVIDENCE] Missing collector: %EVIDENCE_SCRIPT%
+  exit /b 2
+)
+if not exist "%VERIFY_SCRIPT%" (
+  echo [EVIDENCE] Missing verifier: %VERIFY_SCRIPT%
+  exit /b 2
+)
+call "%EVIDENCE_SCRIPT%"
 if errorlevel 1 exit /b 1
-call "%~f0" verify-win-evidence %NORMALIZED_TEST_ARGS%
+call "%VERIFY_SCRIPT%" %NORMALIZED_TEST_ARGS%
 exit /b %ERRORLEVEL%
 
 :finalize_win_evidence
