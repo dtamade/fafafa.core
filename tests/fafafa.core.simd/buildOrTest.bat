@@ -96,8 +96,35 @@ if /I "%ACTION%"=="experimental-intrinsics" goto :experimental_intrinsics
 if /I "%ACTION%"=="experimental-intrinsics-tests" goto :experimental_intrinsics_tests
 if /I "%ACTION%"=="evidence-win" goto :evidence_win
 if /I "%ACTION%"=="win-evidence-preflight" goto :win_evidence_preflight
-if /I "%ACTION%"=="verify-win-evidence" goto :verify_win_evidence
-if /I "%ACTION%"=="evidence-win-verify" goto :evidence_win_verify
+if /I "%ACTION%"=="verify-win-evidence" (
+  set "VERIFY_SCRIPT=%ROOT%verify_windows_b07_evidence.bat"
+  set "VERIFY_ARGS=%NORMALIZED_TEST_ARGS%"
+  if "%VERIFY_ARGS%"=="" set "VERIFY_ARGS=%ROOT%logs\windows_b07_gate.log"
+  if not exist "%VERIFY_SCRIPT%" (
+    echo [EVIDENCE] Missing verifier: %VERIFY_SCRIPT%
+    exit /b 2
+  )
+  call "%VERIFY_SCRIPT%" "%VERIFY_ARGS%"
+  exit /b %ERRORLEVEL%
+)
+if /I "%ACTION%"=="evidence-win-verify" (
+  set "EVIDENCE_SCRIPT=%ROOT%collect_windows_b07_evidence.bat"
+  set "VERIFY_SCRIPT=%ROOT%verify_windows_b07_evidence.bat"
+  set "VERIFY_ARGS=%NORMALIZED_TEST_ARGS%"
+  if "%VERIFY_ARGS%"=="" set "VERIFY_ARGS=%ROOT%logs\windows_b07_gate.log"
+  if not exist "%EVIDENCE_SCRIPT%" (
+    echo [EVIDENCE] Missing collector: %EVIDENCE_SCRIPT%
+    exit /b 2
+  )
+  if not exist "%VERIFY_SCRIPT%" (
+    echo [EVIDENCE] Missing verifier: %VERIFY_SCRIPT%
+    exit /b 2
+  )
+  call "%EVIDENCE_SCRIPT%"
+  if errorlevel 1 exit /b 1
+  call "%VERIFY_SCRIPT%" "%VERIFY_ARGS%"
+  exit /b %ERRORLEVEL%
+)
 if /I "%ACTION%"=="finalize-win-evidence" goto :finalize_win_evidence
 if /I "%ACTION%"=="win-closeout-3cmd" goto :win_closeout_3cmd
 if /I "%ACTION%"=="win-closeout-finalize" goto :win_closeout_finalize
