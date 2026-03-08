@@ -4,24 +4,52 @@ on:
   workflow_dispatch:
 
 jobs:
-  collect-windows-b07-evidence:
-    runs-on: windows-latest
-    name: Collect Windows B07 Evidence
+  prepare-windows-b07-source:
+    runs-on: ubuntu-latest
+    name: Prepare Windows SIMD Source
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Stage SIMD source subset
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="${GITHUB_WORKSPACE}"
+          STAGE="${RUNNER_TEMP}/simd-windows-b07-source"
+
+          rm -rf "${STAGE}"
+          mkdir -p "${STAGE}/tests"
+
+          cp -a "${ROOT}/src" "${STAGE}/"
+          cp -a "${ROOT}/docs" "${STAGE}/"
+          cp -a "${ROOT}/tests/fafafa.core.simd" "${STAGE}/tests/"
+          cp -a "${ROOT}/tests/fafafa.core.simd.cpuinfo" "${STAGE}/tests/"
+          cp -a "${ROOT}/tests/fafafa.core.simd.cpuinfo.x86" "${STAGE}/tests/"
+          cp -a "${ROOT}/tests/fafafa.core.simd.intrinsics.experimental" "${STAGE}/tests/"
+          cp "${ROOT}/tests/run_all_tests.bat" "${STAGE}/tests/"
+          cp "${ROOT}/fafafa.core.settings.inc" "${STAGE}/"
+
+      - name: Upload staged SIMD source
+        uses: actions/upload-artifact@v4
         with:
-          sparse-checkout: |
-            .github
-            src
-            tests/fafafa.core.simd
-            tests/fafafa.core.simd.cpuinfo
-            tests/fafafa.core.simd.cpuinfo.x86
-            tests/fafafa.core.simd.intrinsics.experimental
-            tests/run_all_tests.bat
-            fafafa.core.settings.inc
-          sparse-checkout-cone-mode: false
+          name: simd-windows-b07-source
+          if-no-files-found: error
+          retention-days: 1
+          path: ${{ runner.temp }}/simd-windows-b07-source
+
+  collect-windows-b07-evidence:
+    needs: prepare-windows-b07-source
+    runs-on: windows-latest
+    name: Collect Windows B07 Evidence
+
+    steps:
+      - name: Download prepared SIMD source
+        uses: actions/download-artifact@v4
+        with:
+          name: simd-windows-b07-source
+          path: ${{ github.workspace }}
 
       - name: Install FreePascal + Lazarus
         run: |
