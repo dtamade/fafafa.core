@@ -1,27 +1,30 @@
 # fafafa.core.simd handoff
 
-## 2026-03-08 状态
+## 2026-03-09 状态
 
-这一轮先把最容易导致 clean build / gate 假绿的问题收掉了。
+- Platform claim: `Cross-platform ready`
+- Linux gate baseline remains green.
+- Windows B07 real evidence is archived and verifier-clean.
+- Freeze status is now `ready=True`.
 
-## 已经收口的点
+## Acceptance Summary
 
-- `TSimdDispatchTable` 已重新对齐到 `src/fafafa.core.simd.pas` 当前实际访问的公开 slot
-- `FillBaseDispatchTable` 已为新增宽向量 slot 补上 fallback，clean build 不再卡在 `Identifier idents no member`
-- `src/fafafa.core.simd.types.inc`、`src/fafafa.core.simd.framework.intf.inc`、`src/fafafa.core.simd.framework.impl.inc` 已补齐，公开 façade 不再引用缺失 include
-- `tests/fafafa.core.simd/BuildOrTest.sh check` 现在可通过，且不再被缺失脚本卡住
-- `adapter-sync` 入口现在会先重建，旧二进制不再有机会掩盖当前源码编译问题
-- `sbRISCVV` 不再因为平台满足就默认接线；只有定义 `SIMD_EXPERIMENTAL_RISCVV` 时才会带入 `fafafa.core.simd.riscvv`
+- Interface status: `TSimdDispatchTable` / facade / base fill completeness checks pass.
+- Architecture status: stable facade + dispatch + adapter contract remains intact; Windows closeout uses real evidence instead of relaxed verification.
+- Implementation status: Linux gate, Windows evidence collection, closeout summary, doc apply, and freeze evaluation all complete.
 
-## 现在怎么理解真相源
+## Evidence Paths
 
-- 稳定 ABI / 公开边界：`src/fafafa.core.simd.STABLE`
-- flat dispatch table：`src/fafafa.core.simd.dispatch.pas`
-- 公开 façade：`src/fafafa.core.simd.pas`
-- adapter 结构与映射：`src/fafafa.core.simd.backend.iface.pas`、`src/fafafa.core.simd.backend.adapter.pas`、`tests/fafafa.core.simd/check_backend_adapter_sync.py`
+- Linux evidence summary: `tests/fafafa.core.simd/logs/evidence-20260309-004805-405472/summary.md`
+- Backend bench summary: `tests/fafafa.core.simd/logs/backend-bench-20260309-004805-405593/summary.md`
+- Windows evidence log: `tests/fafafa.core.simd/logs/windows_b07_gate.log`
+- Windows closeout summary: `tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md`
+- Freeze JSON: `tests/fafafa.core.simd/logs/freeze_status.json`
 
-## 还值得继续做的事
+## Windows Evidence Commands
 
-- 把 `TSimdDispatchTable` / façade / adapter 映射进一步收成可生成或可校验的单真相源
-- 继续压缩超大后端单元，至少把新增宽向量族优先拆到更稳定的 include 边界
-- 继续把 portable cpuinfo 独立 runner 收口到和 x86 runner 同样稳定的 CI 形态
+- GitHub Actions workflow: `.github/workflows/simd-windows-b07-evidence.yml`
+- Windows collector: `tests\fafafa.core.simd\collect_windows_b07_evidence.bat`
+- Windows verifier: `tests\fafafa.core.simd\verify_windows_b07_evidence.bat`
+- Operator-equivalent command: `tests\fafafa.core.simd\buildOrTest.bat evidence-win-verify`
+- Final apply batch id: `SIMD-20260309-152`

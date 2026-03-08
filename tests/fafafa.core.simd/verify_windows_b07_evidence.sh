@@ -12,10 +12,14 @@ if [[ ! -f "${LOG_PATH}" ]]; then
   exit 2
 fi
 
+LSANITIZED_LOG="$(mktemp)"
+trap 'rm -f "${LSANITIZED_LOG}"' EXIT
+tr -d '' < "${LOG_PATH}" > "${LSANITIZED_LOG}"
+
 require_regex() {
   local aPattern
   aPattern="$1"
-  if ! grep -Eq "${aPattern}" "${LOG_PATH}"; then
+  if ! grep -Eq "${aPattern}" "${LSANITIZED_LOG}"; then
     echo "[EVIDENCE] Missing regex: ${aPattern}"
     return 1
   fi
