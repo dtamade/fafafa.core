@@ -27,7 +27,9 @@ jobs:
           cp -a "${ROOT}/tests/fafafa.core.simd" "${STAGE}/tests/"
           cp -a "${ROOT}/tests/fafafa.core.simd.cpuinfo" "${STAGE}/tests/"
           cp -a "${ROOT}/tests/fafafa.core.simd.cpuinfo.x86" "${STAGE}/tests/"
-          cp -a "${ROOT}/tests/fafafa.core.simd.intrinsics.experimental" "${STAGE}/tests/"
+          if [[ -d "${ROOT}/tests/fafafa.core.simd.intrinsics.experimental" ]]; then
+            cp -a "${ROOT}/tests/fafafa.core.simd.intrinsics.experimental" "${STAGE}/tests/"
+          fi
           cp "${ROOT}/tests/run_all_tests.bat" "${STAGE}/tests/"
           cp "${ROOT}/fafafa.core.settings.inc" "${STAGE}/"
 
