@@ -1082,11 +1082,13 @@ exit /b %ERRORLEVEL%
 
 :verify_win_evidence
 set "VERIFY_SCRIPT=%ROOT%verify_windows_b07_evidence.bat"
+set "VERIFY_ARGS=%NORMALIZED_TEST_ARGS%"
+if "%VERIFY_ARGS%"=="" set "VERIFY_ARGS=%ROOT%logs\windows_b07_gate.log"
 if not exist "%VERIFY_SCRIPT%" (
   echo [EVIDENCE] Missing verifier: %VERIFY_SCRIPT%
   exit /b 2
 )
-call "%VERIFY_SCRIPT%" %NORMALIZED_TEST_ARGS%
+call "%VERIFY_SCRIPT%" "%VERIFY_ARGS%"
 exit /b %ERRORLEVEL%
 
 :evidence_win_verify
@@ -1102,7 +1104,9 @@ if not exist "%VERIFY_SCRIPT%" (
 )
 call "%EVIDENCE_SCRIPT%"
 if errorlevel 1 exit /b 1
-call "%VERIFY_SCRIPT%" %NORMALIZED_TEST_ARGS%
+set "VERIFY_ARGS=%NORMALIZED_TEST_ARGS%"
+if "%VERIFY_ARGS%"=="" set "VERIFY_ARGS=%ROOT%logs\windows_b07_gate.log"
+call "%VERIFY_SCRIPT%" "%VERIFY_ARGS%"
 exit /b %ERRORLEVEL%
 
 :finalize_win_evidence
@@ -1366,10 +1370,4 @@ if /I "%SIMD_GATE_SUMMARY_JSON%"=="1" (
     python "%EXPORT_SCRIPT%" --input "%SUMMARY_FILE%" --output "%SUMMARY_JSON_FILE%" --filter "%SUMMARY_FILTER%" --warn-ms %SIMD_GATE_STEP_WARN_MS% --fail-ms %SIMD_GATE_STEP_FAIL_MS%
     if errorlevel 1 exit /b 1
     echo [GATE-SUMMARY] json=%SUMMARY_JSON_FILE%
-    exit /b 0
-  )
-
-  echo [GATE-SUMMARY] SKIP JSON export ^(python runtime not found^)
-)
-
-exit /b 0
+   
