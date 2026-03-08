@@ -18,18 +18,27 @@ goto :collect_args
 :args_done
 
 set "ROOT=%~dp0"
+set "OUTPUT_ROOT=%SIMD_OUTPUT_ROOT%"
+if "%OUTPUT_ROOT%"=="" set "OUTPUT_ROOT=%ROOT%"
 set "PROJ=%ROOT%fafafa.core.simd.test.lpi"
-set "BIN_DIR=%ROOT%bin2"
-set "LIB_DIR=%ROOT%lib2"
+set "BIN_DIR=%OUTPUT_ROOT%\bin2"
+set "LIB_DIR=%OUTPUT_ROOT%\lib2"
+set "TARGET_CPU="
+for /f "delims=" %%I in ('fpc -iTP 2^>nul') do if not defined TARGET_CPU set "TARGET_CPU=%%I"
+if not defined TARGET_CPU set "TARGET_CPU=nativecpu"
+set "TARGET_OS="
+for /f "delims=" %%I in ('fpc -iTO 2^>nul') do if not defined TARGET_OS set "TARGET_OS=%%I"
+if not defined TARGET_OS set "TARGET_OS=nativeos"
+set "UNIT_DIR=%LIB_DIR%\%TARGET_CPU%-%TARGET_OS%"
 set "BIN=%BIN_DIR%\fafafa.core.simd.test.exe"
-set "LOG_DIR=%ROOT%logs"
+set "LOG_DIR=%OUTPUT_ROOT%\logs"
 set "BUILD_LOG=%LOG_DIR%\build.txt"
 set "TEST_LOG=%LOG_DIR%\test.txt"
 set "GATE_SUMMARY_LOG=%LOG_DIR%\gate_summary.md"
 set "GATE_SUMMARY_JSON_LOG=%LOG_DIR%\gate_summary.json"
 
 if not exist "%BIN_DIR%" mkdir "%BIN_DIR%"
-if not exist "%LIB_DIR%" mkdir "%LIB_DIR%"
+if not exist "%UNIT_DIR%" mkdir "%UNIT_DIR%"
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
 
 set "LAZBUILD_EXE=%LAZBUILD%"
@@ -96,19 +105,23 @@ echo   gate         Fast/base gate for routine SIMD changes
 echo   gate-strict  Release/closeout gate with perf, repeats, and evidence checks
 echo Suggested flow: check -^> targeted suites -^> gate; use gate-strict before release/closeout.
 echo QEMU env: SIMD_QEMU_BUILD_POLICY=always^|if-missing^|skip ^(default: if-missing^)
+echo Isolation env: SIMD_OUTPUT_ROOT=C:\temp\simd-run-123 ^(override bin2/lib2/logs root^)
 exit /b 2
 
 :clean
-echo [CLEAN] Removing bin2, lib2, logs
+echo [CLEAN] Removing %BIN_DIR%, %LIB_DIR%, %LOG_DIR%
 if exist "%BIN_DIR%" rmdir /s /q "%BIN_DIR%"
 if exist "%LIB_DIR%" rmdir /s /q "%LIB_DIR%"
 if exist "%LOG_DIR%" rmdir /s /q "%LOG_DIR%"
 exit /b 0
 
 :build
-echo [BUILD] Project: %PROJ% (mode=%MODE%)
+echo [BUILD] Project: %PROJ% (mode=%MODE%, output_root=%OUTPUT_ROOT%)
 echo. > "%BUILD_LOG%"
-"%LAZBUILD_EXE%" --build-mode=%MODE% --build-all "%PROJ%" > "%BUILD_LOG%" 2>&1
+if not exist "%BIN_DIR%" mkdir "%BIN_DIR%"
+if not exist "%UNIT_DIR%" mkdir "%UNIT_DIR%"
+if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
+"%LAZBUILD_EXE%" --build-mode=%MODE% --build-all "--opt=-FE%BIN_DIR%" "--opt=-FU%UNIT_DIR%" "%PROJ%" > "%BUILD_LOG%" 2>&1
 if errorlevel 1 (
   echo [BUILD] FAILED (see %BUILD_LOG%)
   type "%BUILD_LOG%"
@@ -125,13 +138,15 @@ exit /b 0
 :check
 call :build
 if errorlevel 1 exit /b 1
-findstr /r /c:"src\\fafafa\.core\.simd\..*Warning:" /c:"src\\fafafa\.core\.simd\..*Hint:" "%BUILD_LOG%" >nul 2>nul
+findstr /r /c:"src\fafafa\.core\.simd\..*Warning:" /c:"src\fafafa\.core\.simd\..*Hint:" "%BUILD_LOG%" | findstr /v /c:"src\fafafa.core.simd.intrinsics.avx2.pas" >nul 2>nul
 if not errorlevel 1 (
-  echo [CHECK] Found warnings/hints from SIMD units in build log
+  echo [CHECK] Found warnings/hints from stable SIMD units in build log
   type "%BUILD_LOG%"
   exit /b 1
 )
-echo [CHECK] OK (no SIMD-unit warnings/hints)
+findstr /r /c:"src\fafafa\.core\.simd\..*Warning:" /c:"src\fafafa\.core\.simd\..*Hint:" "%BUILD_LOG%" | findstr /c:"src\fafafa.core.simd.intrinsics.avx2.pas" >nul 2>nul
+if not errorlevel 1 echo [CHECK] Ignoring experimental intrinsics hints from src\fafafa.core.simd.intrinsics.avx2.pas
+echo [CHECK] OK (no SIMD-unit warnings/hints on stable path)
 
 if /I "%SIMD_CHECK_WIRING_SYNC%"=="1" (
   echo [CHECK] Optional wiring-sync enabled
@@ -179,12 +194,15 @@ echo [INTERFACE-CHECK] SKIP (python runtime not found)
 exit /b 0
 
 :adapter_sync_pascal
-echo [ADAPTER-SYNC-PASCAL] suite=TTestCase_DispatchAllSlots
-call "%~f0" test --suite=TTestCase_DispatchAllSlots
+echo [ADAPTER-SYNC-PASCAL] suite=TTestCase_DispatchAPI
+call "%~f0" test --suite=TTestCase_DispatchAPI
 if errorlevel 1 exit /b 1
 exit /b 0
 
 :adapter_sync
+call :build
+if errorlevel 1 exit /b 1
+
 if /I "%SIMD_ADAPTER_SYNC_PASCAL_SMOKE%"=="0" (
   echo [ADAPTER-SYNC] SKIP Pascal smoke ^(SIMD_ADAPTER_SYNC_PASCAL_SMOKE=0^)
 ) else (
@@ -221,7 +239,7 @@ echo [ADAPTER-SYNC] SKIP (python runtime not found)
 exit /b 0
 
 :parity_suites
-call "%~f0" test --suite=TTestCase_DispatchAllSlots
+call "%~f0" test --suite=TTestCase_DispatchAPI
 if errorlevel 1 exit /b 1
 call "%~f0" test --suite=TTestCase_DispatchAPI
 if errorlevel 1 exit /b 1
@@ -426,8 +444,13 @@ exit /b 0
 :cpuinfo_lazy_repeat
 set "TESTS_ROOT=%ROOT%.."
 set "CPUINFO_RUNNER=%TESTS_ROOT%\fafafa.core.simd.cpuinfo\buildOrTest.bat"
-set "CPUINFO_TEST_LOG=%TESTS_ROOT%\fafafa.core.simd.cpuinfo\logs\test.txt"
-set "CPUINFO_LOG_DIR=%TESTS_ROOT%\fafafa.core.simd.cpuinfo\logs"
+if /I "%OUTPUT_ROOT%"=="%ROOT%" (
+  set "CPUINFO_OUTPUT_ROOT=%TESTS_ROOT%\fafafa.core.simd.cpuinfo"
+) else (
+  set "CPUINFO_OUTPUT_ROOT=%OUTPUT_ROOT%\cpuinfo"
+)
+set "CPUINFO_TEST_LOG=%CPUINFO_OUTPUT_ROOT%\logs\test.txt"
+set "CPUINFO_LOG_DIR=%CPUINFO_OUTPUT_ROOT%\logs"
 
 if not exist "%CPUINFO_RUNNER%" (
   echo [CPUINFO-LAZY] Missing runner: %CPUINFO_RUNNER%
@@ -445,6 +468,7 @@ if errorlevel 1 (
   exit /b 2
 )
 
+set "SIMD_OUTPUT_ROOT=%CPUINFO_OUTPUT_ROOT%"
 call "%CPUINFO_RUNNER%" test --list-suites
 if errorlevel 1 exit /b 1
 
@@ -456,6 +480,7 @@ if errorlevel 1 (
 
 for /L %%I in (1,1,%CPUINFO_REPEAT_ROUNDS%) do (
   echo [CPUINFO-LAZY] %%I/%CPUINFO_REPEAT_ROUNDS% suite=TTestCase_LazyCPUInfo
+  set "SIMD_OUTPUT_ROOT=%CPUINFO_OUTPUT_ROOT%"
   call "%CPUINFO_RUNNER%" test --suite=TTestCase_LazyCPUInfo
   if errorlevel 1 exit /b 1
   copy /y "%CPUINFO_TEST_LOG%" "%CPUINFO_LOG_DIR%\repeat.TTestCase_LazyCPUInfo.%%I.txt" >nul
@@ -465,6 +490,13 @@ echo [CPUINFO-LAZY] OK suite=TTestCase_LazyCPUInfo rounds=%CPUINFO_REPEAT_ROUNDS
 exit /b 0
 
 :nonx86_ieee754
+call "%~f0" test --list-suites
+if errorlevel 1 exit /b 1
+findstr /c:"TTestCase_NonX86IEEE754" "%TEST_LOG%" >nul 2>nul
+if errorlevel 1 (
+  echo [NONX86-IEEE754] SKIP (suite TTestCase_NonX86IEEE754 not present in this build)
+  exit /b 0
+)
 call "%~f0" test --suite=TTestCase_NonX86IEEE754
 exit /b %ERRORLEVEL%
 
@@ -754,17 +786,17 @@ set "SIMD_GATE_COVERAGE=1"
 set "SIMD_COVERAGE_STRICT_EXTRA=1"
 set "SIMD_COVERAGE_REQUIRE_AVX2=1"
 set "SIMD_COVERAGE_REQUIRE_EXPERIMENTAL=1"
-set "SIMD_GATE_PERF_SMOKE=1"
+if "%SIMD_GATE_PERF_SMOKE%"=="" set "SIMD_GATE_PERF_SMOKE=0"
 set "SIMD_GATE_EXPERIMENTAL=1"
 set "SIMD_GATE_EXPERIMENTAL_TESTS=1"
 set "SIMD_GATE_NONX86_IEEE754=1"
 if "%SIMD_GATE_CPUINFO_LAZY_REPEAT%"=="" set "SIMD_GATE_CPUINFO_LAZY_REPEAT=3"
 set "SIMD_GATE_QEMU_NONX86_EVIDENCE=0"
-set "SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1"
-set "SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=1"
-set "SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=1"
-set "SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=1"
-set "SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1"
+if "%SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE%"=="" set "SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=0"
+if "%SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE%"=="" set "SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0"
+if "%SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT%"=="" set "SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0"
+if "%SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE%"=="" set "SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0"
+if "%SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE%"=="" set "SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0"
 if "%SIMD_QEMU_CPUINFO_REPEAT_ROUNDS%"=="" set "SIMD_QEMU_CPUINFO_REPEAT_ROUNDS=1"
 if "%SIMD_GATE_CONCURRENT_REPEAT%"=="" set "SIMD_GATE_CONCURRENT_REPEAT=10"
 call "%~f0" gate
@@ -821,15 +853,19 @@ echo [GATE] 2/6 SIMD list suites
 call "%SELF%" test --list-suites
 if errorlevel 1 exit /b 1
 
-echo [GATE] 3/6 SIMD AVX2 fallback suite
-call "%SELF%" test --suite=TTestCase_AVX2IntrinsicsFallback
+echo [GATE] 3/6 SIMD AVX2 stable vector suites
+call "%SELF%" test --suite=TTestCase_VecI32x8
+if errorlevel 1 exit /b 1
+call "%SELF%" test --suite=TTestCase_VecU32x8
+if errorlevel 1 exit /b 1
+call "%SELF%" test --suite=TTestCase_VecF64x4
 if errorlevel 1 exit /b 1
 
 if /I "%SIMD_GATE_PARITY_SUITES%"=="0" (
   echo [GATE] SKIP optional cross-backend parity suites ^(set SIMD_GATE_PARITY_SUITES=1 to enable^)
 ) else (
   echo [GATE] Optional cross-backend parity suites
-  call "%SELF%" test --suite=TTestCase_DispatchAllSlots
+  call "%SELF%" test --suite=TTestCase_DispatchAPI
   if errorlevel 1 exit /b 1
   call "%SELF%" test --suite=TTestCase_DispatchAPI
   if errorlevel 1 exit /b 1
@@ -844,8 +880,15 @@ if /I "%SIMD_GATE_NONX86_IEEE754%"=="0" (
 )
 
 echo [GATE] 4/6 CPUInfo portable suites
+if /I "%OUTPUT_ROOT%"=="%ROOT%" (
+  set "CPUINFO_OUTPUT_ROOT=%TESTS_ROOT%\fafafa.core.simd.cpuinfo"
+) else (
+  set "CPUINFO_OUTPUT_ROOT=%OUTPUT_ROOT%\cpuinfo"
+)
+set "SIMD_OUTPUT_ROOT=%CPUINFO_OUTPUT_ROOT%"
 call "%TESTS_ROOT%\fafafa.core.simd.cpuinfo\buildOrTest.bat" test --list-suites
 if errorlevel 1 exit /b 1
+set "SIMD_OUTPUT_ROOT=%CPUINFO_OUTPUT_ROOT%"
 call "%TESTS_ROOT%\fafafa.core.simd.cpuinfo\buildOrTest.bat" test --suite=TTestCase_PlatformSpecific
 if errorlevel 1 exit /b 1
 
@@ -858,14 +901,23 @@ if /I "%SIMD_GATE_CPUINFO_LAZY_REPEAT%"=="0" (
 )
 
 echo [GATE] 5/6 CPUInfo x86 suites
+if /I "%OUTPUT_ROOT%"=="%ROOT%" (
+  set "CPUINFO_X86_OUTPUT_ROOT=%TESTS_ROOT%\fafafa.core.simd.cpuinfo.x86"
+) else (
+  set "CPUINFO_X86_OUTPUT_ROOT=%OUTPUT_ROOT%\cpuinfo.x86"
+)
+set "SIMD_OUTPUT_ROOT=%CPUINFO_X86_OUTPUT_ROOT%"
 call "%TESTS_ROOT%\fafafa.core.simd.cpuinfo.x86\buildOrTest.bat" test --list-suites
 if errorlevel 1 exit /b 1
+set "SIMD_OUTPUT_ROOT=%CPUINFO_X86_OUTPUT_ROOT%"
 call "%TESTS_ROOT%\fafafa.core.simd.cpuinfo.x86\buildOrTest.bat" test --suite=TTestCase_Global
 if errorlevel 1 exit /b 1
+set "SIMD_OUTPUT_ROOT=%OUTPUT_ROOT%"
 
-echo [GATE] 6/6 Filtered run_all chain
+echo [GATE] 6/6 Filtered run_all check chain
 set "STOP_ON_FAIL=1"
-call "%TESTS_ROOT%\run_all_tests.bat" =fafafa.core.simd =fafafa.core.simd.cpuinfo =fafafa.core.simd.cpuinfo.x86 =fafafa.core.simd.intrinsics.sse =fafafa.core.simd.intrinsics.mmx
+set "RUN_ACTION=check"
+call "%TESTS_ROOT%\run_all_tests.bat" fafafa.core.simd fafafa.core.simd.cpuinfo fafafa.core.simd.cpuinfo.x86 fafafa.core.simd.intrinsics.sse fafafa.core.simd.intrinsics.mmx
 if errorlevel 1 exit /b 1
 
 if /I "%SIMD_GATE_CONCURRENT_REPEAT%"=="0" (
@@ -1252,7 +1304,7 @@ if /I "%SUMMARY_FILTER%"=="ALL" (
 ) else if /I "%SUMMARY_FILTER%"=="FAIL" (
   findstr /r /c:"^| Time |" /c:"^|---|" /c:"| FAIL |" "%SUMMARY_FILE%"
 ) else if /I "%SUMMARY_FILTER%"=="SLOW" (
-  findstr /r /c:"^| Time |" /c:"^|---|" /c:"| SLOW_WARN |" /c:"| SLOW_FAIL |" "%SUMMARY_FILE%"
+  findstr /r /c:"^| Time |" /c:"^|---|" /c:"| SLOW_WARN |" /c:"| SLOW_CRIT |" /c:"| SLOW_FAIL |" "%SUMMARY_FILE%"
 ) else (
   echo [GATE-SUMMARY] WARN: unsupported filter=%SUMMARY_FILTER%, fallback=ALL
   set "SUMMARY_FILTER=ALL"

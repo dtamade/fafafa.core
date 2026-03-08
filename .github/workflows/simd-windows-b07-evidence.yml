@@ -11,6 +11,17 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            .github
+            src
+            tests/fafafa.core.simd
+            tests/fafafa.core.simd.cpuinfo
+            tests/fafafa.core.simd.cpuinfo.x86
+            tests/fafafa.core.simd.intrinsics.experimental
+            tests/run_all_tests.bat
+            fafafa.core.settings.inc
+          sparse-checkout-cone-mode: false
 
       - name: Install FreePascal + Lazarus
         run: |
