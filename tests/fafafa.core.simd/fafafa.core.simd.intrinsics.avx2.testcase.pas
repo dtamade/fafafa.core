@@ -283,6 +283,7 @@ begin
       LA.m256i_i8[LIndex] - LB.m256i_i8[LIndex],
       LSub.m256i_i8[LIndex]);
   end;
+  {$POP}
 end;
 
 procedure TTestCase_AVX2IntrinsicsFallback.Test_Bitwise_TruthTablesAndAndNotSemantics;
@@ -704,6 +705,8 @@ begin
   LA.m256i_i32[6] := 123456789;       LB.m256i_i32[6] := 17;
   LA.m256i_i32[7] := -123456789;      LB.m256i_i32[7] := 17;
 
+  {$PUSH}{$WARN 6018 OFF}
+  {$PUSH}{$WARN 6018 OFF}
   if AVX2_ARITH_CHECKS_ON then
   begin
     LRaised := False;
@@ -728,6 +731,7 @@ begin
         MulLoI32Unchecked(LA.m256i_i32[LIndex], LB.m256i_i32[LIndex]),
         LResult.m256i_i32[LIndex]);
   end;
+  {$POP}
 
   LA.m256i_i16[0] := High(SmallInt);  LB.m256i_i16[0] := High(SmallInt);
   LA.m256i_i16[1] := Low(SmallInt);   LB.m256i_i16[1] := 2;

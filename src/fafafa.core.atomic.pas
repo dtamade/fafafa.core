@@ -995,6 +995,7 @@ end;
 
 function atomic_load(var aObj: Int32; aOrder: memory_order_t): Int32;
 begin
+  Result := aObj;
   case aOrder of
     mo_relaxed:
       Result := aObj;
@@ -1061,6 +1062,7 @@ end;
 {$IF DEFINED(CPU64) OR DEFINED(CPUX86)}
 function atomic_load_64(var aObj: Int64; aOrder: memory_order_t): Int64;
 begin
+  Result := aObj;
   {$IF DEFINED(CPUX86) AND NOT DEFINED(CPU64)}
   // 32-bit x86: use CMPXCHG8B-based atomic load
   Result := _atomic_load_64_x86(aObj);
