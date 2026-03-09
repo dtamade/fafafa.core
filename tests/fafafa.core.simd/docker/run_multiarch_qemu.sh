@@ -14,7 +14,7 @@ RETRIES="${SIMD_QEMU_RETRIES:-3}"
 BUILD_POLICY="${SIMD_QEMU_BUILD_POLICY:-if-missing}"
 EXPERIMENTAL_DEFINE="${SIMD_QEMU_EXPERIMENTAL_DEFINE:--dFAFAFA_SIMD_EXPERIMENTAL_BACKEND_ASM}"
 EXPERIMENTAL_ARM64_DEFINE="${SIMD_QEMU_EXPERIMENTAL_ARM64_DEFINE:--dFAFAFA_SIMD_ENABLE_NEON_ASM}"
-EXPERIMENTAL_RISCV64_DEFINE="${SIMD_QEMU_EXPERIMENTAL_RISCV64_DEFINE:--dFAFAFA_SIMD_ENABLE_RISCVV_ASM}"
+EXPERIMENTAL_RISCV64_DEFINE="${SIMD_QEMU_EXPERIMENTAL_RISCV64_DEFINE:--dSIMD_EXPERIMENTAL_RISCVV}"
 EXPERIMENTAL_ARM64_COMPILER_DEFINE="${SIMD_QEMU_EXPERIMENTAL_ARM64_COMPILER_DEFINE:-}"
 EXPERIMENTAL_RISCV64_COMPILER_DEFINE="${SIMD_QEMU_EXPERIMENTAL_RISCV64_COMPILER_DEFINE:-}"
 EXPERIMENTAL_RISCV64_OPCODE_DEFINE="${SIMD_QEMU_EXPERIMENTAL_RISCV64_OPCODE_DEFINE:-}"
@@ -28,6 +28,16 @@ REPORT_DIR="${LOG_ROOT}/qemu-multiarch-${TS}"
 SUMMARY_FILE="${REPORT_DIR}/summary.md"
 
 mkdir -p "${REPORT_DIR}"
+
+probe_outcomes=()
+
+append_probe_outcome() {
+  local aPlatform
+  local aOutcome
+  aPlatform="$1"
+  aOutcome="$2"
+  probe_outcomes+=("${aPlatform}:${aOutcome}")
+}
 
 run_with_retry() {
   local aMax
@@ -65,7 +75,7 @@ case "${SCENARIO}" in
     CONTAINER_CMD='bash tests/fafafa.core.simd/docker/run_fpc_tests.sh'
     ;;
   nonx86-evidence)
-    CONTAINER_CMD='bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_NonX86IEEE754 && bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_NonX86BackendParity && bash tests/fafafa.core.simd/run_backend_benchmarks.sh'
+    CONTAINER_CMD='bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_Global && bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_DispatchAPI && bash tests/fafafa.core.simd/run_backend_benchmarks.sh'
     ;;
   cpuinfo-nonx86-evidence)
     CONTAINER_CMD='bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh test --suite=TTestCase_PlatformSpecific'
@@ -82,6 +92,11 @@ case "${SCENARIO}" in
   nonx86-experimental-asm)
     CONTAINER_CMD="__NONX86_EXPERIMENTAL_ASM__"
     ;;
+  arm64-experimental-asm)
+    SCENARIO="arm64-experimental-asm"
+    PLATFORMS_STRING="linux/arm64"
+    CONTAINER_CMD="__NONX86_EXPERIMENTAL_ASM__"
+    ;;
   linux-evidence)
     CONTAINER_CMD='bash tests/fafafa.core.simd/collect_linux_simd_evidence.sh'
     ;;
@@ -90,7 +105,7 @@ case "${SCENARIO}" in
     ;;
   *)
     echo "[ERROR] Unknown scenario: ${SCENARIO}"
-    echo "[ERROR] Supported: basic | nonx86-evidence | cpuinfo-nonx86-evidence | cpuinfo-nonx86-full-evidence | cpuinfo-nonx86-full-repeat | cpuinfo-nonx86-suite-repeat | nonx86-experimental-asm | linux-evidence | arch-matrix-evidence"
+    echo "[ERROR] Supported: basic | nonx86-evidence | cpuinfo-nonx86-evidence | cpuinfo-nonx86-full-evidence | cpuinfo-nonx86-full-repeat | cpuinfo-nonx86-suite-repeat | nonx86-experimental-asm | arm64-experimental-asm | linux-evidence | arch-matrix-evidence"
     exit 2
     ;;
 esac
@@ -181,6 +196,8 @@ for platform in "${PLATFORMS[@]}"; do
   fi
 
   container_cmd="${CONTAINER_CMD}"
+  container_output_root="/work/tests/fafafa.core.simd/logs/$(basename "${REPORT_DIR}")/${arch_tag}-probe"
+  fallback_output_root="/work/tests/fafafa.core.simd/logs/$(basename "${REPORT_DIR}")/${arch_tag}-fallback"
   if [[ "${SCENARIO}" == "arch-matrix-evidence" ]]; then
     case "${arch}" in
       amd64|386)
@@ -196,7 +213,7 @@ for platform in "${PLATFORMS[@]}"; do
     esac
   fi
 
-  if [[ "${SCENARIO}" == "nonx86-experimental-asm" ]]; then
+  if [[ "${SCENARIO}" == "nonx86-experimental-asm" || "${SCENARIO}" == "arm64-experimental-asm" ]]; then
     experimental_defines="${EXPERIMENTAL_DEFINE}"
     if [[ "${EXPERIMENTAL_ENABLE_BACKEND_ASM}" == "1" ]]; then
       case "${arch}" in
@@ -224,7 +241,7 @@ for platform in "${PLATFORMS[@]}"; do
     else
       echo "[INFO] ${platform} backend-asm=off (set SIMD_QEMU_ENABLE_BACKEND_ASM=1 to enable per-backend asm defines)"
     fi
-    container_cmd="SIMD_FPC_EXTRA_DEFINES='${experimental_defines}' bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_NonX86IEEE754"
+    container_cmd="SIMD_OUTPUT_ROOT='${container_output_root}' SIMD_FPC_EXTRA_DEFINES='${experimental_defines}' bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_Global && SIMD_OUTPUT_ROOT='${container_output_root}' SIMD_FPC_EXTRA_DEFINES='${experimental_defines}' bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_DispatchAPI"
   fi
 
   set +e
@@ -277,11 +294,14 @@ for platform in "${PLATFORMS[@]}"; do
   set -e
 
   if (( platform_rc == 0 )); then
+    if [[ ("${SCENARIO}" == "nonx86-experimental-asm" || "${SCENARIO}" == "arm64-experimental-asm") && "${allow_probe_failure}" == "1" ]]; then
+      append_probe_outcome "${platform}" "probe-pass"
+    fi
     echo "| ${platform} | PASS | \`${arch_log}\` |" >> "${SUMMARY_FILE}"
   else
     if (( allow_probe_failure == 1 )); then
-      fallback_defines="${EXPERIMENTAL_DEFINE}"
-      fallback_cmd="SIMD_FPC_EXTRA_DEFINES='${fallback_defines}' bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_NonX86IEEE754"
+      fallback_defines="-dSIMD_VECTOR_ASM_DISABLED"
+      fallback_cmd="SIMD_OUTPUT_ROOT='${fallback_output_root}' SIMD_FPC_EXTRA_DEFINES='${fallback_defines}' bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_Global && SIMD_OUTPUT_ROOT='${fallback_output_root}' SIMD_FPC_EXTRA_DEFINES='${fallback_defines}' bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_DispatchAPI"
       echo "[WARN] Platform ${platform} failed in backend-asm probe mode (rc=${platform_rc}), retry fallback path without per-backend asm define."
 
       set +e
@@ -299,9 +319,11 @@ for platform in "${PLATFORMS[@]}"; do
       set -e
 
       if (( fallback_rc == 0 )); then
+        append_probe_outcome "${platform}" "fallback-pass"
         echo "| ${platform} | PASS | \`${arch_log}\` |" >> "${SUMMARY_FILE}"
         echo "[WARN] Platform ${platform} backend-asm probe failed but fallback path passed."
       else
+        append_probe_outcome "${platform}" "fallback-fail"
         overall_failures=$((overall_failures + 1))
         echo "| ${platform} | FAIL | \`${arch_log}\` |" >> "${SUMMARY_FILE}"
         echo "[WARN] Platform ${platform} backend-asm probe failed and fallback path also failed (rc=${fallback_rc})."
@@ -341,6 +363,17 @@ for platform in "${PLATFORMS[@]}"; do
     fi
   fi
 done
+
+if [[ ("${SCENARIO}" == "nonx86-experimental-asm" || "${SCENARIO}" == "arm64-experimental-asm") && ${#probe_outcomes[@]} -gt 0 ]]; then
+  {
+    echo
+    echo "## Probe Outcomes"
+    echo
+    for outcome in "${probe_outcomes[@]}"; do
+      printf -- "- %s\n" "${outcome}"
+    done
+  } >> "${SUMMARY_FILE}"
+fi
 
 if (( overall_failures > 0 )); then
   echo "[DONE] Completed with failures: ${overall_failures}"

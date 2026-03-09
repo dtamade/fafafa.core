@@ -80,6 +80,7 @@ build_project() {
   else
     local LRC=$?
     echo "[BUILD] FAILED rc=${LRC} (see ${BUILD_LOG})"
+    tail -n 120 "${BUILD_LOG}" || true
     return "${LRC}"
   fi
 }

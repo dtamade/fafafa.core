@@ -80,6 +80,8 @@ type
     HasD: Boolean;
     HasC: Boolean;
     HasV: Boolean;
+    LinuxHWCAP: QWord;
+    LinuxHWCAP2: QWord;
   end;
 
   TRISCVISA = (rvV, rvF, rvD, rvA, rvC);

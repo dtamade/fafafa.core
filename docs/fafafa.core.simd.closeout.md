@@ -7,6 +7,8 @@
 - 公开 façade 和 ABI 边界可以按 stable surface 理解
 - backend 成熟度并不完全相同，`sbRISCVV` 仍按 experimental / 受限成熟度看待
 - experimental intrinsics 默认入口链已经隔离
+- QEMU stable/public surface evidence 已在 2026-03-09 补齐 fresh arch-matrix + cpuinfo non-x86 full evidence。
+- `sbRISCVV` 仍按 experimental 看待，但 dedicated `riscvv-opcode-lane` 已完成真实 compile-only + stable smoke evidence。
 - adapter wiring 现在有更强的自动校验，但还没有走到“自动生成 Pascal 代码”的程度
 
 ## 这一轮收了什么
@@ -183,7 +185,16 @@ tests\fafafa.core.simd\buildOrTest.bat gate-strict
 ### 必须等 Windows 实证
 
 - Windows evidence 真正通过 verifier 之前，不要把 release candidate checklist / completeness matrix / closeout roadmap 里的 Windows 项自动勾成完成
-- 同理，不要把 cross-platform freeze 说成 ready；当前仍然只能说 **Linux ready，cross-platform pending**
+- 同理，不要混淆两种 freeze：当前 `freeze-status` 代表 `cross-platform ready`，而新增 `freeze-status-full-platform` 代表 stable/public surface 的 `full-platform ready`。
+
+
+### Freeze 状态怎么说
+
+- `bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`：回答 `cross-platform ready`，仍然把 Windows real-host evidence 作为必需项。
+- `bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status-full-platform`：回答 stable/public surface 是否达到 `full-platform ready`，required 项包含 fresh QEMU arch matrix、fresh non-x86 CPUInfo full evidence、fresh RVV dedicated lane。
+- `sbRISCVV` 在 `full-platform ready` 中仍按 experimental backend 处理；当前 required 的只是 dedicated compile + stable smoke evidence，不是 bench PASS。
+- arm64 experimental asm 现在有 dedicated lane：`qemu-arm64-experimental-asm`；当前最新结果是 `probe-pass`，但它仍不属于 stable/public-surface release claim。
+- arm64 dedicated lane 现已配套 `qemu-arm64-experimental-report` / `qemu-arm64-experimental-baseline-check`，可直接消费 `probe-pass` 语义，而不必再从 generic non-x86 experimental summary 猜测。
 
 ## 还有哪些债没收完
 

@@ -6,7 +6,7 @@ unit fafafa.core.simd.cpuinfo;
 interface
 
 uses
-  SysUtils,
+  Classes, SysUtils,
   fafafa.core.simd.base,
   fafafa.core.simd.cpuinfo.base,
   fafafa.core.atomic
@@ -103,6 +103,110 @@ var
   G_CPUInfo: TCPUInfo;
   // Initialization state: 0=uninitialized, 1=initializing, 2=initialized
   G_InitState: Int32 = 0;
+
+{$IFDEF UNIX}
+function ReadTrimmedTextFile(const aPath: string): string;
+var
+  LLines: TStringList;
+begin
+  if not FileExists(aPath) then
+    Exit('');
+  LLines := TStringList.Create;
+  try
+    LLines.LoadFromFile(aPath);
+    Result := Trim(LLines.Text);
+  finally
+    LLines.Free;
+  end;
+end;
+
+function ParseCacheSizeToKB(const aText: string): Integer;
+var
+  LText: string;
+  LUnit: Char;
+  LValue: Integer;
+begin
+  LText := Trim(aText);
+  if LText = '' then
+    Exit(0);
+  LUnit := UpCase(LText[Length(LText)]);
+  if (LUnit >= 'A') and (LUnit <= 'Z') then
+    LText := Trim(Copy(LText, 1, Length(LText) - 1))
+  else
+    LUnit := #0;
+  LValue := StrToIntDef(LText, 0);
+  case LUnit of
+    'M': Result := LValue * 1024;
+    'G': Result := LValue * 1024 * 1024;
+  else
+    Result := LValue;
+  end;
+end;
+
+function ReadLinuxNonX86CacheInfo(out aCache: TCacheInfo): Boolean;
+var
+  LCpuRec, LIndexRec: TSearchRec;
+  LCacheRoot, LDir, LLevelText, LTypeText, LSizeText, LLineText: string;
+  LSizeKB, LLineSize, LLevel: Integer;
+begin
+  FillChar(aCache, SizeOf(aCache), 0);
+  Result := False;
+  if FindFirst('/sys/devices/system/cpu/cpu*', faDirectory, LCpuRec) <> 0 then
+    Exit(False);
+  try
+    repeat
+      if (LCpuRec.Name = '.') or (LCpuRec.Name = '..') then
+        Continue;
+      if Pos('cpu', LCpuRec.Name) <> 1 then
+        Continue;
+      LCacheRoot := '/sys/devices/system/cpu/' + LCpuRec.Name + '/cache';
+      if not DirectoryExists(LCacheRoot) then
+        Continue;
+      if FindFirst(LCacheRoot + '/index*', faDirectory, LIndexRec) <> 0 then
+        Continue;
+      try
+        repeat
+          if (LIndexRec.Name = '.') or (LIndexRec.Name = '..') then
+            Continue;
+          LDir := LCacheRoot + '/' + LIndexRec.Name;
+          LLevelText := ReadTrimmedTextFile(LDir + '/level');
+          LTypeText := LowerCase(ReadTrimmedTextFile(LDir + '/type'));
+          LSizeText := ReadTrimmedTextFile(LDir + '/size');
+          LLineText := ReadTrimmedTextFile(LDir + '/coherency_line_size');
+          LLevel := StrToIntDef(LLevelText, 0);
+          LSizeKB := ParseCacheSizeToKB(LSizeText);
+          LLineSize := StrToIntDef(LLineText, 0);
+          if LLineSize > aCache.LineSize then
+            aCache.LineSize := LLineSize;
+          case LLevel of
+            1:
+              begin
+                if (LTypeText = 'instruction') or (LTypeText = 'unified') then
+                  if LSizeKB > aCache.L1InstrKB then
+                    aCache.L1InstrKB := LSizeKB;
+                if (LTypeText = 'data') or (LTypeText = 'unified') then
+                  if LSizeKB > aCache.L1DataKB then
+                    aCache.L1DataKB := LSizeKB;
+              end;
+            2:
+              if LSizeKB > aCache.L2KB then
+                aCache.L2KB := LSizeKB;
+            3:
+              if LSizeKB > aCache.L3KB then
+                aCache.L3KB := LSizeKB;
+          end;
+        until FindNext(LIndexRec) <> 0;
+      finally
+        FindClose(LIndexRec);
+      end;
+      Break;
+    until FindNext(LCpuRec) <> 0;
+  finally
+    FindClose(LCpuRec);
+  end;
+  Result := (aCache.L1DataKB > 0) or (aCache.L1InstrKB > 0) or (aCache.L2KB > 0) or (aCache.L3KB > 0) or (aCache.LineSize > 0);
+end;
+{$ENDIF}
 
 function X86_XCR0_EnablesAVX: Boolean; inline;
 begin
@@ -208,8 +312,8 @@ begin
     fafafa.core.simd.cpuinfo.arm.DetectARMVendorAndModel(G_CPUInfo);
     G_CPUInfo.ARM := fafafa.core.simd.cpuinfo.arm.DetectARMFeatures;
     
-    // ARM cache detection would go here
-    G_CPUInfo.Cache.LineSize := 64; // Common ARM cache line size
+    if not ReadLinuxNonX86CacheInfo(G_CPUInfo.Cache) then
+      G_CPUInfo.Cache.LineSize := 64; // Common ARM cache line size
   end;
   {$ENDIF}
   
@@ -219,8 +323,8 @@ begin
     fafafa.core.simd.cpuinfo.riscv.DetectRISCVVendorAndModel(G_CPUInfo);
     G_CPUInfo.RISCV := fafafa.core.simd.cpuinfo.riscv.DetectRISCVFeatures;
     
-    // RISC-V cache detection would go here
-    G_CPUInfo.Cache.LineSize := 64; // Common RISC-V cache line size
+    if not ReadLinuxNonX86CacheInfo(G_CPUInfo.Cache) then
+      G_CPUInfo.Cache.LineSize := 64; // Common RISC-V cache line size
   end;
   {$ENDIF}
   
@@ -280,7 +384,10 @@ begin
           Include(G_CPUInfo.GenericRaw, gfSimd256);
           Include(G_CPUInfo.GenericRaw, gfSimd512);
         end;
-        if G_CPUInfo.ARM.HasCrypto then Include(G_CPUInfo.GenericRaw, gfAES);
+        if G_CPUInfo.ARM.HasCrypto then begin
+          Include(G_CPUInfo.GenericRaw, gfAES);
+          Include(G_CPUInfo.GenericRaw, gfSHA);
+        end;
         // ARM: assume OS usability aligns with hardware availability for NEON/SVE in user space
         G_CPUInfo.GenericUsable := G_CPUInfo.GenericRaw;
       end;
@@ -494,10 +601,9 @@ end;
 // Safe reset to force re-detection on next query
 procedure ResetCPUInfo;
 begin
-  // Clear structure
-  FillChar(G_CPUInfo, SizeOf(G_CPUInfo), 0);
+  Finalize(G_CPUInfo);
+  G_CPUInfo := Default(TCPUInfo);
   atomic_thread_fence(mo_seq_cst);
-  // Reset init state
   G_InitState := 0;
 end;
 

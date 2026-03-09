@@ -35,6 +35,26 @@ def parse_summary_rows(a_summary: Path) -> tuple[dict[str, str], list[dict[str, 
     return header, rows
 
 
+
+
+def parse_probe_outcomes(a_summary: Path) -> list[dict[str, str]]:
+    outcomes: list[dict[str, str]] = []
+    in_section = False
+    for raw_line in a_summary.read_text(encoding='utf-8', errors='ignore').splitlines():
+        line = raw_line.strip()
+        if line == '## Probe Outcomes':
+            in_section = True
+            continue
+        if in_section:
+            if not line:
+                continue
+            if line.startswith('## '):
+                break
+            if line.startswith('- ') and ':' in line[2:]:
+                platform, outcome = line[2:].split(':', 1)
+                outcomes.append({'platform': platform.strip(), 'outcome': outcome.strip()})
+    return outcomes
+
 def extract_detail(a_log_path: Path) -> tuple[str, str]:
     if not a_log_path.is_file():
         return 'missing_log', f'missing log: {a_log_path}'
@@ -55,14 +75,14 @@ def extract_detail(a_log_path: Path) -> tuple[str, str]:
     return 'unknown', 'no specific blocker signature matched'
 
 
-def pick_latest_experimental_dir(a_logs_root: Path) -> Path | None:
+def pick_latest_experimental_dir(a_logs_root: Path, a_scenario: str) -> Path | None:
     latest: Path | None = None
     for directory in sorted(a_logs_root.glob('qemu-multiarch-*')):
         summary = directory / 'summary.md'
         if not summary.is_file():
             continue
         text = summary.read_text(encoding='utf-8', errors='ignore')
-        if 'scenario: nonx86-experimental-asm' in text or 'requested-scenario: nonx86-experimental-asm' in text:
+        if f'scenario: {a_scenario}' in text or f'requested-scenario: {a_scenario}' in text:
             latest = directory
     return latest
 
@@ -83,17 +103,20 @@ def main() -> int:
     parser.add_argument('--root', default=str(Path(__file__).resolve().parent))
     parser.add_argument('--latest', action='store_true')
     parser.add_argument('--dir', default='')
+    parser.add_argument('--scenario', default='nonx86-experimental-asm')
     args = parser.parse_args()
 
     root = Path(args.root).resolve()
+    scenario_slug = args.scenario.replace('/', '-').replace(' ', '-').lower()
     logs_root = root / 'logs'
-    selected_dir = Path(args.dir).resolve() if args.dir else pick_latest_experimental_dir(logs_root)
+    selected_dir = Path(args.dir).resolve() if args.dir else pick_latest_experimental_dir(logs_root, args.scenario)
     if selected_dir is None:
         print('[QEMU-EXPERIMENTAL-BASELINE] Missing experimental summary directory', file=sys.stderr)
         return 2
 
     summary = selected_dir / 'summary.md'
     header, rows = parse_summary_rows(summary)
+    probe_outcomes = parse_probe_outcomes(summary)
     actual: list[Blocker] = []
     for row in rows:
         if row['status'].upper() != 'FAIL':
@@ -108,15 +131,19 @@ def main() -> int:
     payload = {
         'selected_dir': str(selected_dir),
         'summary': str(summary),
-        'scenario': header.get('scenario', ''),
+        'scenario': header.get('scenario', '') or args.scenario,
         'allowed': sorted(f'{platform}:{category}' for platform, category in allowed),
         'actual': [asdict(item) for item in actual],
+        'probe_outcomes': probe_outcomes,
         'unexpected': [asdict(item) for item in unexpected],
         'status': 'PASS' if not unexpected else 'FAIL',
     }
 
     json_out = logs_root / 'qemu_experimental_baseline.latest.json'
     md_out = logs_root / 'qemu_experimental_baseline.latest.md'
+    if args.scenario != 'nonx86-experimental-asm':
+        json_out = logs_root / f'qemu_experimental_baseline.{scenario_slug}.latest.json'
+        md_out = logs_root / f'qemu_experimental_baseline.{scenario_slug}.latest.md'
     json_out.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
 
     md_lines = [
@@ -127,8 +154,15 @@ def main() -> int:
         f'- Scenario: {payload["scenario"] or "<unknown>"}',
         f'- Allowed: {", ".join(payload["allowed"]) if payload["allowed"] else "<none>"}',
         f'- Status: {payload["status"]}',
+        f'- Probe outcomes: {len(probe_outcomes)}',
         '',
     ]
+    if probe_outcomes:
+        md_lines.extend(['| Platform | Probe Outcome |', '|---|---|'])
+        for probe in probe_outcomes:
+            md_lines.append(f"| {probe['platform']} | {probe['outcome']} |")
+        md_lines.append('')
+
     if actual:
         md_lines.extend(['| Platform | Category | Detail | Log | Allowed |', '|---|---|---|---|---|'])
         for item in actual:
@@ -143,7 +177,7 @@ def main() -> int:
     print(
         f'[QEMU-EXPERIMENTAL-BASELINE] latest={selected_dir} '
         f'scenario={payload["scenario"] or "<unknown>"} '
-        f'actual={len(actual)} unexpected={len(unexpected)}'
+        f'actual={len(actual)} unexpected={len(unexpected)} probe_outcomes={len(probe_outcomes)}'
     )
     print(f'[QEMU-EXPERIMENTAL-BASELINE] JSON: {json_out}')
     print(f'[QEMU-EXPERIMENTAL-BASELINE] MD: {md_out}')

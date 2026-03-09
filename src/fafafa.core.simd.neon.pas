@@ -562,13 +562,9 @@ end;
 
 // === F64x2 Utility Operations ===
 
-function NEONSplatF64x2(value: Double): TVecF64x2; assembler; nostackframe;
-asm
-  // value in d0
-  dup   v0.2d, v0.d[0]
-
-  umov  x0, v0.d[0]
-  umov  x1, v0.d[1]
+function NEONSplatF64x2(value: Double): TVecF64x2;
+begin
+  Result := ScalarSplatF64x2(value);
 end;
 
 function NEONZeroF64x2: TVecF64x2; assembler; nostackframe;
@@ -614,39 +610,9 @@ asm
   umov  x1, v1.d[1]
 end;
 
-function NEONSelectF64x2(const mask: TMask2; const a, b: TVecF64x2): TVecF64x2; assembler; nostackframe;
-asm
-  // ABI: mask in w0, a: x1..x2, b: x3..x4, return: x0..x1
-  fmov  d0, x1
-  fmov  d4, x2
-  ins   v0.d[1], v4.d[0]
-
-  fmov  d1, x3
-  fmov  d4, x4
-  ins   v1.d[1], v4.d[0]
-
-  // Expand 2-bit mask to 128-bit mask
-  movi  v2.2d, #0
-
-  // Bit 0
-  tst   w0, #1
-  b.eq  .Lbit0_zero_d
-  mvni  v3.2d, #0
-  ins   v2.d[0], v3.d[0]
-.Lbit0_zero_d:
-
-  // Bit 1
-  tst   w0, #2
-  b.eq  .Lbit1_zero_d
-  mvni  v3.2d, #0
-  ins   v2.d[1], v3.d[0]
-.Lbit1_zero_d:
-
-  // Bit select: result = (a AND mask) OR (b AND NOT mask)
-  bsl   v2.16b, v0.16b, v1.16b
-
-  umov  x0, v2.d[0]
-  umov  x1, v2.d[1]
+function NEONSelectF64x2(const mask: TMask2; const a, b: TVecF64x2): TVecF64x2;
+begin
+  Result := ScalarSelectF64x2(mask, a, b);
 end;
 
 // === F64x2 Reduction Operations ===
@@ -732,78 +698,61 @@ end;
 
 // === I32x4 Shift Operations ===
 
-function NEONShiftLeftI32x4(const a: TVecI32x4; count: Integer): TVecI32x4; assembler; nostackframe;
-asm
-  // a: x0..x1, count: w2
-  fmov  d0, x0
-  fmov  d2, x1
-  ins   v0.d[1], v2.d[0]
-
-  // NEON 使用向量左移：dup shift count 到所有通道，然后使用 shl
-  dup   v1.4s, w2
-  shl   v0.4s, v0.4s, v1.4s
-
-  umov  x0, v0.d[0]
-  umov  x1, v0.d[1]
+function NEONShiftLeftI32x4(const a: TVecI32x4; count: Integer): TVecI32x4;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 3 do
+    if (count >= 0) and (count < 32) then
+      Result.i[LIndex] := a.i[LIndex] shl count
+    else
+      Result.i[LIndex] := 0;
 end;
 
-function NEONShiftRightI32x4(const a: TVecI32x4; count: Integer): TVecI32x4; assembler; nostackframe;
-asm
-  // 逻辑右移（无符号）
-  fmov  d0, x0
-  fmov  d2, x1
-  ins   v0.d[1], v2.d[0]
-
-  // 右移需要负的 shift count
-  neg   w2, w2
-  dup   v1.4s, w2
-  shl   v0.4s, v0.4s, v1.4s  // 使用 shl 配合负数 = 逻辑右移
-
-  umov  x0, v0.d[0]
-  umov  x1, v0.d[1]
+function NEONShiftRightI32x4(const a: TVecI32x4; count: Integer): TVecI32x4;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 3 do
+    if (count >= 0) and (count < 32) then
+      Result.i[LIndex] := Int32(UInt32(a.i[LIndex]) shr count)
+    else
+      Result.i[LIndex] := 0;
 end;
 
-function NEONShiftRightArithI32x4(const a: TVecI32x4; count: Integer): TVecI32x4; assembler; nostackframe;
-asm
-  // 算术右移（保留符号位）
-  fmov  d0, x0
-  fmov  d2, x1
-  ins   v0.d[1], v2.d[0]
-
-  // 使用 sshr 进行算术右移
-  dup   v1.4s, w2
-  neg   v1.4s, v1.4s         // 取反移位量
-  sshl  v0.4s, v0.4s, v1.4s  // 有符号移位
-
-  umov  x0, v0.d[0]
-  umov  x1, v0.d[1]
+function NEONShiftRightArithI32x4(const a: TVecI32x4; count: Integer): TVecI32x4;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 3 do
+    if (count >= 0) and (count < 32) then
+      Result.i[LIndex] := a.i[LIndex] shr count
+    else if a.i[LIndex] < 0 then
+      Result.i[LIndex] := -1
+    else
+      Result.i[LIndex] := 0;
 end;
 
-function NEONShiftLeftU32x4(const a: TVecU32x4; count: Integer): TVecU32x4; assembler; nostackframe;
-asm
-  fmov  d0, x0
-  fmov  d2, x1
-  ins   v0.d[1], v2.d[0]
-
-  dup   v1.4s, w2
-  shl   v0.4s, v0.4s, v1.4s
-
-  umov  x0, v0.d[0]
-  umov  x1, v0.d[1]
+function NEONShiftLeftU32x4(const a: TVecU32x4; count: Integer): TVecU32x4;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 3 do
+    if (count >= 0) and (count < 32) then
+      Result.u[LIndex] := a.u[LIndex] shl count
+    else
+      Result.u[LIndex] := 0;
 end;
 
-function NEONShiftRightU32x4(const a: TVecU32x4; count: Integer): TVecU32x4; assembler; nostackframe;
-asm
-  fmov  d0, x0
-  fmov  d2, x1
-  ins   v0.d[1], v2.d[0]
-
-  neg   w2, w2
-  dup   v1.4s, w2
-  shl   v0.4s, v0.4s, v1.4s
-
-  umov  x0, v0.d[0]
-  umov  x1, v0.d[1]
+function NEONShiftRightU32x4(const a: TVecU32x4; count: Integer): TVecU32x4;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 3 do
+    if (count >= 0) and (count < 32) then
+      Result.u[LIndex] := a.u[LIndex] shr count
+    else
+      Result.u[LIndex] := 0;
 end;
 
 // === I32x4 Bitwise Operations ===
@@ -886,145 +835,71 @@ end;
 
 // === I64x2 Shift Operations ===
 
-function NEONShiftLeftI64x2(const a: TVecI64x2; count: Integer): TVecI64x2; assembler; nostackframe;
-asm
-  fmov  d0, x0
-  fmov  d2, x1
-  ins   v0.d[1], v2.d[0]
-
-  dup   v1.2d, x2
-  shl   v0.2d, v0.2d, v1.2d
-
-  umov  x0, v0.d[0]
-  umov  x1, v0.d[1]
+function NEONShiftLeftI64x2(const a: TVecI64x2; count: Integer): TVecI64x2;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 1 do
+    Result.i[LIndex] := a.i[LIndex] shl count;
 end;
 
-function NEONShiftRightI64x2(const a: TVecI64x2; count: Integer): TVecI64x2; assembler; nostackframe;
-asm
-  fmov  d0, x0
-  fmov  d2, x1
-  ins   v0.d[1], v2.d[0]
-
-  neg   w2, w2
-  sxtw  x2, w2               // 符号扩展到 64 位
-  dup   v1.2d, x2
-  shl   v0.2d, v0.2d, v1.2d
-
-  umov  x0, v0.d[0]
-  umov  x1, v0.d[1]
+function NEONShiftRightI64x2(const a: TVecI64x2; count: Integer): TVecI64x2;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 1 do
+    Result.i[LIndex] := Int64(QWord(a.i[LIndex]) shr count);
 end;
 
-function NEONShiftRightArithI64x2(const a: TVecI64x2; count: Integer): TVecI64x2; assembler; nostackframe;
-asm
-  fmov  d0, x0
-  fmov  d2, x1
-  ins   v0.d[1], v2.d[0]
-
-  neg   w2, w2
-  sxtw  x2, w2
-  dup   v1.2d, x2
-  sshl  v0.2d, v0.2d, v1.2d
-
-  umov  x0, v0.d[0]
-  umov  x1, v0.d[1]
+function NEONShiftRightArithI64x2(const a: TVecI64x2; count: Integer): TVecI64x2;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 1 do
+    Result.i[LIndex] := a.i[LIndex] shr count;
 end;
 
-function NEONShiftLeftU64x2(const a: TVecU64x2; count: Integer): TVecU64x2; assembler; nostackframe;
-asm
-  fmov  d0, x0
-  fmov  d2, x1
-  ins   v0.d[1], v2.d[0]
-
-  dup   v1.2d, x2
-  shl   v0.2d, v0.2d, v1.2d
-
-  umov  x0, v0.d[0]
-  umov  x1, v0.d[1]
+function NEONShiftLeftU64x2(const a: TVecU64x2; count: Integer): TVecU64x2;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 1 do
+    Result.u[LIndex] := a.u[LIndex] shl count;
 end;
 
-function NEONShiftRightU64x2(const a: TVecU64x2; count: Integer): TVecU64x2; assembler; nostackframe;
-asm
-  fmov  d0, x0
-  fmov  d2, x1
-  ins   v0.d[1], v2.d[0]
-
-  neg   w2, w2
-  sxtw  x2, w2
-  dup   v1.2d, x2
-  shl   v0.2d, v0.2d, v1.2d
-
-  umov  x0, v0.d[0]
-  umov  x1, v0.d[1]
+function NEONShiftRightU64x2(const a: TVecU64x2; count: Integer): TVecU64x2;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 1 do
+    Result.u[LIndex] := a.u[LIndex] shr count;
 end;
 
 // === I16x8 Shift Operations ===
 
-function NEONShiftLeftI16x8(const a: TVecI16x8; count: Integer): TVecI16x8; assembler; nostackframe;
-asm
-  fmov  d0, x0
-  fmov  d2, x1
-  ins   v0.d[1], v2.d[0]
-
-  dup   v1.8h, w2
-  shl   v0.8h, v0.8h, v1.8h
-
-  umov  x0, v0.d[0]
-  umov  x1, v0.d[1]
+function NEONShiftLeftI16x8(const a: TVecI16x8; count: Integer): TVecI16x8;
+begin
+  Result := ScalarShiftLeftI16x8(a, count);
 end;
 
-function NEONShiftRightI16x8(const a: TVecI16x8; count: Integer): TVecI16x8; assembler; nostackframe;
-asm
-  fmov  d0, x0
-  fmov  d2, x1
-  ins   v0.d[1], v2.d[0]
-
-  neg   w2, w2
-  dup   v1.8h, w2
-  shl   v0.8h, v0.8h, v1.8h
-
-  umov  x0, v0.d[0]
-  umov  x1, v0.d[1]
+function NEONShiftRightI16x8(const a: TVecI16x8; count: Integer): TVecI16x8;
+begin
+  Result := ScalarShiftRightI16x8(a, count);
 end;
 
-function NEONShiftRightArithI16x8(const a: TVecI16x8; count: Integer): TVecI16x8; assembler; nostackframe;
-asm
-  fmov  d0, x0
-  fmov  d2, x1
-  ins   v0.d[1], v2.d[0]
-
-  neg   w2, w2
-  dup   v1.8h, w2
-  sshl  v0.8h, v0.8h, v1.8h
-
-  umov  x0, v0.d[0]
-  umov  x1, v0.d[1]
+function NEONShiftRightArithI16x8(const a: TVecI16x8; count: Integer): TVecI16x8;
+begin
+  Result := ScalarShiftRightArithI16x8(a, count);
 end;
 
-function NEONShiftLeftU16x8(const a: TVecU16x8; count: Integer): TVecU16x8; assembler; nostackframe;
-asm
-  fmov  d0, x0
-  fmov  d2, x1
-  ins   v0.d[1], v2.d[0]
-
-  dup   v1.8h, w2
-  shl   v0.8h, v0.8h, v1.8h
-
-  umov  x0, v0.d[0]
-  umov  x1, v0.d[1]
+function NEONShiftLeftU16x8(const a: TVecU16x8; count: Integer): TVecU16x8;
+begin
+  Result := ScalarShiftLeftU16x8(a, count);
 end;
 
-function NEONShiftRightU16x8(const a: TVecU16x8; count: Integer): TVecU16x8; assembler; nostackframe;
-asm
-  fmov  d0, x0
-  fmov  d2, x1
-  ins   v0.d[1], v2.d[0]
-
-  neg   w2, w2
-  dup   v1.8h, w2
-  shl   v0.8h, v0.8h, v1.8h
-
-  umov  x0, v0.d[0]
-  umov  x1, v0.d[1]
+function NEONShiftRightU16x8(const a: TVecU16x8; count: Integer): TVecU16x8;
+begin
+  Result := ScalarShiftRightU16x8(a, count);
 end;
 
 // === F32x8 (2x 128-bit operations) ===
@@ -1364,74 +1239,58 @@ end;
 
 // === I32x8 Shift Operations (256-bit = 2x128-bit NEON) ===
 
-function NEONShiftLeftI32x8(const a: TVecI32x8; count: Integer): TVecI32x8; assembler; nostackframe;
-asm
-  ldp   q0, q1, [x0]
-  dup   v2.4s, w1
-  shl   v0.4s, v0.4s, v2.4s
-  shl   v1.4s, v1.4s, v2.4s
-  stp   q0, q1, [x8]
+function NEONShiftLeftI32x8(const a: TVecI32x8; count: Integer): TVecI32x8;
+begin
+  Result.lo := NEONShiftLeftI32x4(a.lo, count);
+  Result.hi := NEONShiftLeftI32x4(a.hi, count);
 end;
 
-function NEONShiftRightI32x8(const a: TVecI32x8; count: Integer): TVecI32x8; assembler; nostackframe;
-asm
-  ldp   q0, q1, [x0]
-  neg   w1, w1
-  dup   v2.4s, w1
-  shl   v0.4s, v0.4s, v2.4s
-  shl   v1.4s, v1.4s, v2.4s
-  stp   q0, q1, [x8]
+function NEONShiftRightI32x8(const a: TVecI32x8; count: Integer): TVecI32x8;
+begin
+  Result.lo := NEONShiftRightI32x4(a.lo, count);
+  Result.hi := NEONShiftRightI32x4(a.hi, count);
 end;
 
-function NEONShiftRightArithI32x8(const a: TVecI32x8; count: Integer): TVecI32x8; assembler; nostackframe;
-asm
-  ldp   q0, q1, [x0]
-  neg   w1, w1
-  dup   v2.4s, w1
-  sshl  v0.4s, v0.4s, v2.4s
-  sshl  v1.4s, v1.4s, v2.4s
-  stp   q0, q1, [x8]
+function NEONShiftRightArithI32x8(const a: TVecI32x8; count: Integer): TVecI32x8;
+begin
+  Result.lo := NEONShiftRightArithI32x4(a.lo, count);
+  Result.hi := NEONShiftRightArithI32x4(a.hi, count);
 end;
 
-function NEONShiftLeftU32x8(const a: TVecU32x8; count: Integer): TVecU32x8; assembler; nostackframe;
-asm
-  ldp   q0, q1, [x0]
-  dup   v2.4s, w1
-  shl   v0.4s, v0.4s, v2.4s
-  shl   v1.4s, v1.4s, v2.4s
-  stp   q0, q1, [x8]
+function NEONShiftLeftU32x8(const a: TVecU32x8; count: Integer): TVecU32x8;
+begin
+  Result.lo := NEONShiftLeftU32x4(a.lo, count);
+  Result.hi := NEONShiftLeftU32x4(a.hi, count);
 end;
 
-function NEONShiftRightU32x8(const a: TVecU32x8; count: Integer): TVecU32x8; assembler; nostackframe;
-asm
-  ldp   q0, q1, [x0]
-  neg   w1, w1
-  dup   v2.4s, w1
-  shl   v0.4s, v0.4s, v2.4s
-  shl   v1.4s, v1.4s, v2.4s
-  stp   q0, q1, [x8]
+function NEONShiftRightU32x8(const a: TVecU32x8; count: Integer): TVecU32x8;
+begin
+  Result.lo := NEONShiftRightU32x4(a.lo, count);
+  Result.hi := NEONShiftRightU32x4(a.hi, count);
 end;
 
 // === I64x4 Shift Operations (256-bit = 2x128-bit NEON) ===
 
-function NEONShiftLeftI64x4(const a: TVecI64x4; count: Integer): TVecI64x4; assembler; nostackframe;
-asm
-  ldp   q0, q1, [x0]
-  dup   v2.2d, x1
-  shl   v0.2d, v0.2d, v2.2d
-  shl   v1.2d, v1.2d, v2.2d
-  stp   q0, q1, [x8]
+function NEONShiftLeftI64x4(const a: TVecI64x4; count: Integer): TVecI64x4;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 3 do
+    if (count >= 0) and (count < 64) then
+      Result.i[LIndex] := a.i[LIndex] shl count
+    else
+      Result.i[LIndex] := 0;
 end;
 
-function NEONShiftRightI64x4(const a: TVecI64x4; count: Integer): TVecI64x4; assembler; nostackframe;
-asm
-  ldp   q0, q1, [x0]
-  neg   w1, w1
-  sxtw  x1, w1
-  dup   v2.2d, x1
-  shl   v0.2d, v0.2d, v2.2d
-  shl   v1.2d, v1.2d, v2.2d
-  stp   q0, q1, [x8]
+function NEONShiftRightI64x4(const a: TVecI64x4; count: Integer): TVecI64x4;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 3 do
+    if (count >= 0) and (count < 64) then
+      Result.i[LIndex] := Int64(UInt64(a.i[LIndex]) shr count)
+    else
+      Result.i[LIndex] := 0;
 end;
 
 function NEONShiftRightArithI64x4(const a: TVecI64x4; count: Integer): TVecI64x4; assembler; nostackframe;
@@ -1445,24 +1304,26 @@ asm
   stp   q0, q1, [x8]
 end;
 
-function NEONShiftLeftU64x4(const a: TVecU64x4; count: Integer): TVecU64x4; assembler; nostackframe;
-asm
-  ldp   q0, q1, [x0]
-  dup   v2.2d, x1
-  shl   v0.2d, v0.2d, v2.2d
-  shl   v1.2d, v1.2d, v2.2d
-  stp   q0, q1, [x8]
+function NEONShiftLeftU64x4(const a: TVecU64x4; count: Integer): TVecU64x4;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 3 do
+    if (count >= 0) and (count < 64) then
+      Result.u[LIndex] := a.u[LIndex] shl count
+    else
+      Result.u[LIndex] := 0;
 end;
 
-function NEONShiftRightU64x4(const a: TVecU64x4; count: Integer): TVecU64x4; assembler; nostackframe;
-asm
-  ldp   q0, q1, [x0]
-  neg   w1, w1
-  sxtw  x1, w1
-  dup   v2.2d, x1
-  shl   v0.2d, v0.2d, v2.2d
-  shl   v1.2d, v1.2d, v2.2d
-  stp   q0, q1, [x8]
+function NEONShiftRightU64x4(const a: TVecU64x4; count: Integer): TVecU64x4;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 3 do
+    if (count >= 0) and (count < 64) then
+      Result.u[LIndex] := a.u[LIndex] shr count
+    else
+      Result.u[LIndex] := 0;
 end;
 
 // === I64x4 Bitwise Operations (256-bit = 2x128-bit NEON) ===
@@ -1737,46 +1598,22 @@ end;
 // I32x16 = {lo, hi: TVecI32x8}, 每个 I32x8 = {lo, hi: TVecI32x4}
 // 需要操作 4 个 128-bit 寄存器
 
-function NEONShiftLeftI32x16(const a: TVecI32x16; count: Integer): TVecI32x16; assembler; nostackframe;
-asm
-  // a: pointer in x0, count: w1, return: pointer in x8
-  ldp   q0, q1, [x0]        // 加载 a.lo (2x128-bit)
-  ldp   q2, q3, [x0, #32]   // 加载 a.hi (2x128-bit)
-  dup   v4.4s, w1           // 复制移位量
-  shl   v0.4s, v0.4s, v4.4s
-  shl   v1.4s, v1.4s, v4.4s
-  shl   v2.4s, v2.4s, v4.4s
-  shl   v3.4s, v3.4s, v4.4s
-  stp   q0, q1, [x8]
-  stp   q2, q3, [x8, #32]
+function NEONShiftLeftI32x16(const a: TVecI32x16; count: Integer): TVecI32x16;
+begin
+  Result.lo := NEONShiftLeftI32x8(a.lo, count);
+  Result.hi := NEONShiftLeftI32x8(a.hi, count);
 end;
 
-function NEONShiftRightI32x16(const a: TVecI32x16; count: Integer): TVecI32x16; assembler; nostackframe;
-asm
-  ldp   q0, q1, [x0]
-  ldp   q2, q3, [x0, #32]
-  neg   w1, w1
-  dup   v4.4s, w1
-  shl   v0.4s, v0.4s, v4.4s
-  shl   v1.4s, v1.4s, v4.4s
-  shl   v2.4s, v2.4s, v4.4s
-  shl   v3.4s, v3.4s, v4.4s
-  stp   q0, q1, [x8]
-  stp   q2, q3, [x8, #32]
+function NEONShiftRightI32x16(const a: TVecI32x16; count: Integer): TVecI32x16;
+begin
+  Result.lo := NEONShiftRightI32x8(a.lo, count);
+  Result.hi := NEONShiftRightI32x8(a.hi, count);
 end;
 
-function NEONShiftRightArithI32x16(const a: TVecI32x16; count: Integer): TVecI32x16; assembler; nostackframe;
-asm
-  ldp   q0, q1, [x0]
-  ldp   q2, q3, [x0, #32]
-  neg   w1, w1
-  dup   v4.4s, w1
-  sshl  v0.4s, v0.4s, v4.4s
-  sshl  v1.4s, v1.4s, v4.4s
-  sshl  v2.4s, v2.4s, v4.4s
-  sshl  v3.4s, v3.4s, v4.4s
-  stp   q0, q1, [x8]
-  stp   q2, q3, [x8, #32]
+function NEONShiftRightArithI32x16(const a: TVecI32x16; count: Integer): TVecI32x16;
+begin
+  Result.lo := NEONShiftRightArithI32x8(a.lo, count);
+  Result.hi := NEONShiftRightArithI32x8(a.hi, count);
 end;
 
 // === Math Functions ===
@@ -2241,17 +2078,9 @@ end;
 
 // === Reduction Operations ===
 
-function NEONReduceAddF32x4(const a: TVecF32x4): Single; assembler; nostackframe;
-asm
-  // a: x0..x1
-  fmov  d0, x0
-  fmov  d2, x1
-  ins   v0.d[1], v2.d[0]
-
-  // ✅ Horizontal sum using faddp (pairwise add)
-  faddp v0.4s, v0.4s, v0.4s  // [a0+a1, a2+a3, a0+a1, a2+a3]
-  faddp s0, v0.2s             // [sum(a0..a3), ...]
-  // Result in s0 (v0.s[0])
+function NEONReduceAddF32x4(const a: TVecF32x4): Single;
+begin
+  Result := ScalarReduceAddF32x4(a);
 end;
 
 function NEONReduceMinF32x4(const a: TVecF32x4): Single; assembler; nostackframe;
@@ -6435,22 +6264,26 @@ end;
 
 function NEONAddF32x8(const a, b: TVecF32x8): TVecF32x8;
 begin
-  Result := ScalarAddF32x8(a, b);
+  Result.lo := NEONAddF32x4(a.lo, b.lo);
+  Result.hi := NEONAddF32x4(a.hi, b.hi);
 end;
 
 function NEONSubF32x8(const a, b: TVecF32x8): TVecF32x8;
 begin
-  Result := ScalarSubF32x8(a, b);
+  Result.lo := NEONSubF32x4(a.lo, b.lo);
+  Result.hi := NEONSubF32x4(a.hi, b.hi);
 end;
 
 function NEONMulF32x8(const a, b: TVecF32x8): TVecF32x8;
 begin
-  Result := ScalarMulF32x8(a, b);
+  Result.lo := NEONMulF32x4(a.lo, b.lo);
+  Result.hi := NEONMulF32x4(a.hi, b.hi);
 end;
 
 function NEONDivF32x8(const a, b: TVecF32x8): TVecF32x8;
 begin
-  Result := ScalarDivF32x8(a, b);
+  Result.lo := NEONDivF32x4(a.lo, b.lo);
+  Result.hi := NEONDivF32x4(a.hi, b.hi);
 end;
 
 function NEONAddF64x2(const a, b: TVecF64x2): TVecF64x2;
@@ -6935,43 +6768,123 @@ end;
 // 用于 FPC < 3.3.1 或非 ARM 平台
 
 function NEONI8x16SatAdd(const a, b: TVecI8x16): TVecI8x16;
+var
+  LIndex: Integer;
+  LValue: Integer;
 begin
-  Result := ScalarI8x16SatAdd(a, b);
+  for LIndex := 0 to 15 do
+  begin
+    LValue := Integer(a.i[LIndex]) + Integer(b.i[LIndex]);
+    if LValue > High(Int8) then
+      Result.i[LIndex] := High(Int8)
+    else if LValue < Low(Int8) then
+      Result.i[LIndex] := Low(Int8)
+    else
+      Result.i[LIndex] := Int8(LValue);
+  end;
 end;
 
 function NEONI8x16SatSub(const a, b: TVecI8x16): TVecI8x16;
+var
+  LIndex: Integer;
+  LValue: Integer;
 begin
-  Result := ScalarI8x16SatSub(a, b);
+  for LIndex := 0 to 15 do
+  begin
+    LValue := Integer(a.i[LIndex]) - Integer(b.i[LIndex]);
+    if LValue > High(Int8) then
+      Result.i[LIndex] := High(Int8)
+    else if LValue < Low(Int8) then
+      Result.i[LIndex] := Low(Int8)
+    else
+      Result.i[LIndex] := Int8(LValue);
+  end;
 end;
 
 function NEONI16x8SatAdd(const a, b: TVecI16x8): TVecI16x8;
+var
+  LIndex: Integer;
+  LValue: Integer;
 begin
-  Result := ScalarI16x8SatAdd(a, b);
+  for LIndex := 0 to 7 do
+  begin
+    LValue := Integer(a.i[LIndex]) + Integer(b.i[LIndex]);
+    if LValue > High(Int16) then
+      Result.i[LIndex] := High(Int16)
+    else if LValue < Low(Int16) then
+      Result.i[LIndex] := Low(Int16)
+    else
+      Result.i[LIndex] := Int16(LValue);
+  end;
 end;
 
 function NEONI16x8SatSub(const a, b: TVecI16x8): TVecI16x8;
+var
+  LIndex: Integer;
+  LValue: Integer;
 begin
-  Result := ScalarI16x8SatSub(a, b);
+  for LIndex := 0 to 7 do
+  begin
+    LValue := Integer(a.i[LIndex]) - Integer(b.i[LIndex]);
+    if LValue > High(Int16) then
+      Result.i[LIndex] := High(Int16)
+    else if LValue < Low(Int16) then
+      Result.i[LIndex] := Low(Int16)
+    else
+      Result.i[LIndex] := Int16(LValue);
+  end;
 end;
 
 function NEONU8x16SatAdd(const a, b: TVecU8x16): TVecU8x16;
+var
+  LIndex: Integer;
+  LValue: Integer;
 begin
-  Result := ScalarU8x16SatAdd(a, b);
+  for LIndex := 0 to 15 do
+  begin
+    LValue := Integer(a.u[LIndex]) + Integer(b.u[LIndex]);
+    if LValue > High(Byte) then
+      Result.u[LIndex] := High(Byte)
+    else
+      Result.u[LIndex] := Byte(LValue);
+  end;
 end;
 
 function NEONU8x16SatSub(const a, b: TVecU8x16): TVecU8x16;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarU8x16SatSub(a, b);
+  for LIndex := 0 to 15 do
+    if a.u[LIndex] < b.u[LIndex] then
+      Result.u[LIndex] := 0
+    else
+      Result.u[LIndex] := a.u[LIndex] - b.u[LIndex];
 end;
 
 function NEONU16x8SatAdd(const a, b: TVecU16x8): TVecU16x8;
+var
+  LIndex: Integer;
+  LValue: Integer;
 begin
-  Result := ScalarU16x8SatAdd(a, b);
+  for LIndex := 0 to 7 do
+  begin
+    LValue := Integer(a.u[LIndex]) + Integer(b.u[LIndex]);
+    if LValue > High(Word) then
+      Result.u[LIndex] := High(Word)
+    else
+      Result.u[LIndex] := Word(LValue);
+  end;
 end;
 
 function NEONU16x8SatSub(const a, b: TVecU16x8): TVecU16x8;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarU16x8SatSub(a, b);
+  for LIndex := 0 to 7 do
+    if a.u[LIndex] < b.u[LIndex] then
+      Result.u[LIndex] := 0
+    else
+      Result.u[LIndex] := a.u[LIndex] - b.u[LIndex];
 end;
 
 // ✅ Task 6.2: Narrow Integer Types Scalar Fallback
@@ -6979,172 +6892,525 @@ end;
 
 // --- I16x8 Scalar Fallback ---
 function NEONAddI16x8(const a, b: TVecI16x8): TVecI16x8;
-begin Result := ScalarAddI16x8(a, b); end;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 7 do
+    Result.i[LIndex] := a.i[LIndex] + b.i[LIndex];
+end;
 
 function NEONSubI16x8(const a, b: TVecI16x8): TVecI16x8;
-begin Result := ScalarSubI16x8(a, b); end;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 7 do
+    Result.i[LIndex] := a.i[LIndex] - b.i[LIndex];
+end;
 
 function NEONMulI16x8(const a, b: TVecI16x8): TVecI16x8;
-begin Result := ScalarMulI16x8(a, b); end;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 7 do
+    Result.i[LIndex] := a.i[LIndex] * b.i[LIndex];
+end;
 
 function NEONAndI16x8(const a, b: TVecI16x8): TVecI16x8;
-begin Result := ScalarAndI16x8(a, b); end;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 7 do
+    Result.i[LIndex] := a.i[LIndex] and b.i[LIndex];
+end;
 
 function NEONOrI16x8(const a, b: TVecI16x8): TVecI16x8;
-begin Result := ScalarOrI16x8(a, b); end;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 7 do
+    Result.i[LIndex] := a.i[LIndex] or b.i[LIndex];
+end;
 
 function NEONXorI16x8(const a, b: TVecI16x8): TVecI16x8;
-begin Result := ScalarXorI16x8(a, b); end;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 7 do
+    Result.i[LIndex] := a.i[LIndex] xor b.i[LIndex];
+end;
 
 function NEONNotI16x8(const a: TVecI16x8): TVecI16x8;
-begin Result := ScalarNotI16x8(a); end;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 7 do
+    Result.i[LIndex] := not a.i[LIndex];
+end;
 
 function NEONAndNotI16x8(const a, b: TVecI16x8): TVecI16x8;
-begin Result := ScalarAndNotI16x8(a, b); end;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 7 do
+    Result.i[LIndex] := a.i[LIndex] and (not b.i[LIndex]);
+end;
 
 function NEONMinI16x8(const a, b: TVecI16x8): TVecI16x8;
-begin Result := ScalarMinI16x8(a, b); end;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 7 do
+    if a.i[LIndex] < b.i[LIndex] then
+      Result.i[LIndex] := a.i[LIndex]
+    else
+      Result.i[LIndex] := b.i[LIndex];
+end;
 
 function NEONMaxI16x8(const a, b: TVecI16x8): TVecI16x8;
-begin Result := ScalarMaxI16x8(a, b); end;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 7 do
+    if a.i[LIndex] > b.i[LIndex] then
+      Result.i[LIndex] := a.i[LIndex]
+    else
+      Result.i[LIndex] := b.i[LIndex];
+end;
 
 // --- I8x16 Scalar Fallback ---
 function NEONAddI8x16(const a, b: TVecI8x16): TVecI8x16;
-begin Result := ScalarAddI8x16(a, b); end;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    Result.i[LIndex] := a.i[LIndex] + b.i[LIndex];
+end;
 
 function NEONSubI8x16(const a, b: TVecI8x16): TVecI8x16;
-begin Result := ScalarSubI8x16(a, b); end;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    Result.i[LIndex] := a.i[LIndex] - b.i[LIndex];
+end;
 
 function NEONAndI8x16(const a, b: TVecI8x16): TVecI8x16;
-begin Result := ScalarAndI8x16(a, b); end;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    Result.i[LIndex] := a.i[LIndex] and b.i[LIndex];
+end;
 
 function NEONOrI8x16(const a, b: TVecI8x16): TVecI8x16;
-begin Result := ScalarOrI8x16(a, b); end;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    Result.i[LIndex] := a.i[LIndex] or b.i[LIndex];
+end;
 
 function NEONXorI8x16(const a, b: TVecI8x16): TVecI8x16;
-begin Result := ScalarXorI8x16(a, b); end;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    Result.i[LIndex] := a.i[LIndex] xor b.i[LIndex];
+end;
 
 function NEONNotI8x16(const a: TVecI8x16): TVecI8x16;
-begin Result := ScalarNotI8x16(a); end;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    Result.i[LIndex] := not a.i[LIndex];
+end;
 
 function NEONMinI8x16(const a, b: TVecI8x16): TVecI8x16;
-begin Result := ScalarMinI8x16(a, b); end;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    if a.i[LIndex] < b.i[LIndex] then
+      Result.i[LIndex] := a.i[LIndex]
+    else
+      Result.i[LIndex] := b.i[LIndex];
+end;
 
 function NEONMaxI8x16(const a, b: TVecI8x16): TVecI8x16;
-begin Result := ScalarMaxI8x16(a, b); end;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    if a.i[LIndex] > b.i[LIndex] then
+      Result.i[LIndex] := a.i[LIndex]
+    else
+      Result.i[LIndex] := b.i[LIndex];
+end;
 
 // --- U16x8 Scalar Fallback ---
 function NEONAddU16x8(const a, b: TVecU16x8): TVecU16x8;
-begin Result := ScalarAddU16x8(a, b); end;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 7 do
+    Result.u[LIndex] := a.u[LIndex] + b.u[LIndex];
+end;
 
 function NEONSubU16x8(const a, b: TVecU16x8): TVecU16x8;
-begin Result := ScalarSubU16x8(a, b); end;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 7 do
+    Result.u[LIndex] := a.u[LIndex] - b.u[LIndex];
+end;
 
 function NEONMulU16x8(const a, b: TVecU16x8): TVecU16x8;
-begin Result := ScalarMulU16x8(a, b); end;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 7 do
+    Result.u[LIndex] := a.u[LIndex] * b.u[LIndex];
+end;
 
 function NEONAndU16x8(const a, b: TVecU16x8): TVecU16x8;
-begin Result := ScalarAndU16x8(a, b); end;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 7 do
+    Result.u[LIndex] := a.u[LIndex] and b.u[LIndex];
+end;
 
 function NEONOrU16x8(const a, b: TVecU16x8): TVecU16x8;
-begin Result := ScalarOrU16x8(a, b); end;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 7 do
+    Result.u[LIndex] := a.u[LIndex] or b.u[LIndex];
+end;
 
 function NEONXorU16x8(const a, b: TVecU16x8): TVecU16x8;
-begin Result := ScalarXorU16x8(a, b); end;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 7 do
+    Result.u[LIndex] := a.u[LIndex] xor b.u[LIndex];
+end;
 
 function NEONNotU16x8(const a: TVecU16x8): TVecU16x8;
-begin Result := ScalarNotU16x8(a); end;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 7 do
+    Result.u[LIndex] := not a.u[LIndex];
+end;
 
 function NEONMinU16x8(const a, b: TVecU16x8): TVecU16x8;
-begin Result := ScalarMinU16x8(a, b); end;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 7 do
+    if a.u[LIndex] < b.u[LIndex] then
+      Result.u[LIndex] := a.u[LIndex]
+    else
+      Result.u[LIndex] := b.u[LIndex];
+end;
 
 function NEONMaxU16x8(const a, b: TVecU16x8): TVecU16x8;
-begin Result := ScalarMaxU16x8(a, b); end;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 7 do
+    if a.u[LIndex] > b.u[LIndex] then
+      Result.u[LIndex] := a.u[LIndex]
+    else
+      Result.u[LIndex] := b.u[LIndex];
+end;
 
 // --- U8x16 Scalar Fallback ---
 function NEONAddU8x16(const a, b: TVecU8x16): TVecU8x16;
-begin Result := ScalarAddU8x16(a, b); end;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    Result.u[LIndex] := a.u[LIndex] + b.u[LIndex];
+end;
 
 function NEONSubU8x16(const a, b: TVecU8x16): TVecU8x16;
-begin Result := ScalarSubU8x16(a, b); end;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    Result.u[LIndex] := a.u[LIndex] - b.u[LIndex];
+end;
 
 function NEONAndU8x16(const a, b: TVecU8x16): TVecU8x16;
-begin Result := ScalarAndU8x16(a, b); end;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    Result.u[LIndex] := a.u[LIndex] and b.u[LIndex];
+end;
 
 function NEONOrU8x16(const a, b: TVecU8x16): TVecU8x16;
-begin Result := ScalarOrU8x16(a, b); end;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    Result.u[LIndex] := a.u[LIndex] or b.u[LIndex];
+end;
 
 function NEONXorU8x16(const a, b: TVecU8x16): TVecU8x16;
-begin Result := ScalarXorU8x16(a, b); end;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    Result.u[LIndex] := a.u[LIndex] xor b.u[LIndex];
+end;
 
 function NEONNotU8x16(const a: TVecU8x16): TVecU8x16;
-begin Result := ScalarNotU8x16(a); end;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    Result.u[LIndex] := not a.u[LIndex];
+end;
 
 function NEONMinU8x16(const a, b: TVecU8x16): TVecU8x16;
-begin Result := ScalarMinU8x16(a, b); end;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    if a.u[LIndex] < b.u[LIndex] then
+      Result.u[LIndex] := a.u[LIndex]
+    else
+      Result.u[LIndex] := b.u[LIndex];
+end;
 
 function NEONMaxU8x16(const a, b: TVecU8x16): TVecU8x16;
-begin Result := ScalarMaxU8x16(a, b); end;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 15 do
+    if a.u[LIndex] > b.u[LIndex] then
+      Result.u[LIndex] := a.u[LIndex]
+    else
+      Result.u[LIndex] := b.u[LIndex];
+end;
 
 // ✅ P3: I64x2 Scalar Fallback (用于 FPC < 3.3.1 或非 ARM 平台)
 function NEONAddI64x2(const a, b: TVecI64x2): TVecI64x2;
 begin
-  Result := ScalarAddI64x2(a, b);
+  Result.i[0] := a.i[0] + b.i[0];
+  Result.i[1] := a.i[1] + b.i[1];
 end;
 
 function NEONSubI64x2(const a, b: TVecI64x2): TVecI64x2;
 begin
-  Result := ScalarSubI64x2(a, b);
+  Result.i[0] := a.i[0] - b.i[0];
+  Result.i[1] := a.i[1] - b.i[1];
 end;
 
 function NEONAndI64x2(const a, b: TVecI64x2): TVecI64x2;
 begin
-  Result := ScalarAndI64x2(a, b);
+  Result.i[0] := a.i[0] and b.i[0];
+  Result.i[1] := a.i[1] and b.i[1];
 end;
 
 function NEONOrI64x2(const a, b: TVecI64x2): TVecI64x2;
 begin
-  Result := ScalarOrI64x2(a, b);
+  Result.i[0] := a.i[0] or b.i[0];
+  Result.i[1] := a.i[1] or b.i[1];
 end;
 
 function NEONXorI64x2(const a, b: TVecI64x2): TVecI64x2;
 begin
-  Result := ScalarXorI64x2(a, b);
+  Result.i[0] := a.i[0] xor b.i[0];
+  Result.i[1] := a.i[1] xor b.i[1];
 end;
 
 function NEONNotI64x2(const a: TVecI64x2): TVecI64x2;
 begin
-  Result := ScalarNotI64x2(a);
+  Result.i[0] := not a.i[0];
+  Result.i[1] := not a.i[1];
 end;
 
 function NEONCmpEqI64x2(const a, b: TVecI64x2): TMask2;
 begin
-  Result := ScalarCmpEqI64x2(a, b);
+  Result := 0;
+  if a.i[0] = b.i[0] then Result := Result or 1;
+  if a.i[1] = b.i[1] then Result := Result or 2;
 end;
 
 function NEONCmpLtI64x2(const a, b: TVecI64x2): TMask2;
 begin
-  Result := ScalarCmpLtI64x2(a, b);
+  Result := 0;
+  if a.i[0] < b.i[0] then Result := Result or 1;
+  if a.i[1] < b.i[1] then Result := Result or 2;
 end;
 
 function NEONCmpGtI64x2(const a, b: TVecI64x2): TMask2;
 begin
-  Result := ScalarCmpGtI64x2(a, b);
+  Result := 0;
+  if a.i[0] > b.i[0] then Result := Result or 1;
+  if a.i[1] > b.i[1] then Result := Result or 2;
 end;
 
 function NEONCmpLeI64x2(const a, b: TVecI64x2): TMask2;
 begin
-  Result := ScalarCmpLeI64x2(a, b);
+  Result := 0;
+  if a.i[0] <= b.i[0] then Result := Result or 1;
+  if a.i[1] <= b.i[1] then Result := Result or 2;
 end;
 
 function NEONCmpGeI64x2(const a, b: TVecI64x2): TMask2;
 begin
-  Result := ScalarCmpGeI64x2(a, b);
+  Result := 0;
+  if a.i[0] >= b.i[0] then Result := Result or 1;
+  if a.i[1] >= b.i[1] then Result := Result or 2;
 end;
 
 function NEONCmpNeI64x2(const a, b: TVecI64x2): TMask2;
 begin
-  Result := ScalarCmpNeI64x2(a, b);
+  Result := 0;
+  if a.i[0] <> b.i[0] then Result := Result or 1;
+  if a.i[1] <> b.i[1] then Result := Result or 2;
+end;
+
+// ✅ P1: Mask Operations (Scalar Fallback)
+// NEON 没有直接的 popcount/bsf 指令，使用本地位操作实现
+function NEONMask2All(mask: TMask2): Boolean;
+begin Result := (mask and $03) = $03; end;
+
+function NEONMask2Any(mask: TMask2): Boolean;
+begin Result := (mask and $03) <> 0; end;
+
+function NEONMask2None(mask: TMask2): Boolean;
+begin Result := (mask and $03) = 0; end;
+
+function NEONMask2PopCount(mask: TMask2): Integer;
+var
+  LMask: Byte;
+begin
+  LMask := mask and $03;
+  Result := (LMask and 1) + ((LMask shr 1) and 1);
+end;
+
+function NEONMask2FirstSet(mask: TMask2): Integer;
+var
+  LMask: Byte;
+begin
+  LMask := mask and $03;
+  if LMask = 0 then
+    Result := -1
+  else if (LMask and 1) <> 0 then
+    Result := 0
+  else
+    Result := 1;
+end;
+
+function NEONMask4All(mask: TMask4): Boolean;
+begin Result := (mask and $0F) = $0F; end;
+
+function NEONMask4Any(mask: TMask4): Boolean;
+begin Result := (mask and $0F) <> 0; end;
+
+function NEONMask4None(mask: TMask4): Boolean;
+begin Result := (mask and $0F) = 0; end;
+
+function NEONMask4PopCount(mask: TMask4): Integer;
+var
+  LMask: Byte;
+begin
+  LMask := mask and $0F;
+  Result := 0;
+  while LMask <> 0 do
+  begin
+    Inc(Result, LMask and 1);
+    LMask := LMask shr 1;
+  end;
+end;
+
+function NEONMask4FirstSet(mask: TMask4): Integer;
+var
+  LMask: Byte;
+  LIndex: Integer;
+begin
+  LMask := mask and $0F;
+  if LMask = 0 then
+    Exit(-1);
+  for LIndex := 0 to 3 do
+    if (LMask and (1 shl LIndex)) <> 0 then
+      Exit(LIndex);
+  Result := -1;
+end;
+
+function NEONMask8All(mask: TMask8): Boolean;
+begin Result := mask = $FF; end;
+
+function NEONMask8Any(mask: TMask8): Boolean;
+begin Result := mask <> 0; end;
+
+function NEONMask8None(mask: TMask8): Boolean;
+begin Result := mask = 0; end;
+
+function NEONMask8PopCount(mask: TMask8): Integer;
+var
+  LMask: Byte;
+begin
+  LMask := mask;
+  Result := 0;
+  while LMask <> 0 do
+  begin
+    Inc(Result, LMask and 1);
+    LMask := LMask shr 1;
+  end;
+end;
+
+function NEONMask8FirstSet(mask: TMask8): Integer;
+var
+  LIndex: Integer;
+begin
+  if mask = 0 then
+    Exit(-1);
+  for LIndex := 0 to 7 do
+    if (mask and (1 shl LIndex)) <> 0 then
+      Exit(LIndex);
+  Result := -1;
+end;
+
+function NEONMask16All(mask: TMask16): Boolean;
+begin Result := mask = $FFFF; end;
+
+function NEONMask16Any(mask: TMask16): Boolean;
+begin Result := mask <> 0; end;
+
+function NEONMask16None(mask: TMask16): Boolean;
+begin Result := mask = 0; end;
+
+function NEONMask16PopCount(mask: TMask16): Integer;
+var
+  LMask: Word;
+begin
+  LMask := mask;
+  Result := 0;
+  while LMask <> 0 do
+  begin
+    Inc(Result, LMask and 1);
+    LMask := LMask shr 1;
+  end;
+end;
+
+function NEONMask16FirstSet(mask: TMask16): Integer;
+var
+  LIndex: Integer;
+begin
+  if mask = 0 then
+    Exit(-1);
+  for LIndex := 0 to 15 do
+    if (mask and (1 shl LIndex)) <> 0 then
+      Exit(LIndex);
+  Result := -1;
 end;
 
 // ✅ P4: SelectF64x2 (Pascal Implementation)
@@ -7158,79 +7424,100 @@ begin
       Result.d[i] := b.d[i];
 end;
 
-// ✅ P1: Mask Operations (Scalar Fallback)
-// NEON 没有直接的 popcount/bsf 指令，使用标量回退
-function NEONMask2All(mask: TMask2): Boolean;
-begin Result := ScalarMask2All(mask); end;
-
-function NEONMask2Any(mask: TMask2): Boolean;
-begin Result := ScalarMask2Any(mask); end;
-
-function NEONMask2None(mask: TMask2): Boolean;
-begin Result := ScalarMask2None(mask); end;
-
-function NEONMask2PopCount(mask: TMask2): Integer;
-begin Result := ScalarMask2PopCount(mask); end;
-
-function NEONMask2FirstSet(mask: TMask2): Integer;
-begin Result := ScalarMask2FirstSet(mask); end;
-
-function NEONMask4All(mask: TMask4): Boolean;
-begin Result := ScalarMask4All(mask); end;
-
-function NEONMask4Any(mask: TMask4): Boolean;
-begin Result := ScalarMask4Any(mask); end;
-
-function NEONMask4None(mask: TMask4): Boolean;
-begin Result := ScalarMask4None(mask); end;
-
-function NEONMask4PopCount(mask: TMask4): Integer;
-begin Result := ScalarMask4PopCount(mask); end;
-
-function NEONMask4FirstSet(mask: TMask4): Integer;
-begin Result := ScalarMask4FirstSet(mask); end;
-
-function NEONMask8All(mask: TMask8): Boolean;
-begin Result := ScalarMask8All(mask); end;
-
-function NEONMask8Any(mask: TMask8): Boolean;
-begin Result := ScalarMask8Any(mask); end;
-
-function NEONMask8None(mask: TMask8): Boolean;
-begin Result := ScalarMask8None(mask); end;
-
-function NEONMask8PopCount(mask: TMask8): Integer;
-begin Result := ScalarMask8PopCount(mask); end;
-
-function NEONMask8FirstSet(mask: TMask8): Integer;
-begin Result := ScalarMask8FirstSet(mask); end;
-
-function NEONMask16All(mask: TMask16): Boolean;
-begin Result := ScalarMask16All(mask); end;
-
-function NEONMask16Any(mask: TMask16): Boolean;
-begin Result := ScalarMask16Any(mask); end;
-
-function NEONMask16None(mask: TMask16): Boolean;
-begin Result := ScalarMask16None(mask); end;
-
-function NEONMask16PopCount(mask: TMask16): Integer;
-begin Result := ScalarMask16PopCount(mask); end;
-
-function NEONMask16FirstSet(mask: TMask16): Integer;
-begin Result := ScalarMask16FirstSet(mask); end;
-
 // === Auto-generated NEON Wrapper Functions (Scalar Fallback) ===
 // These wrappers delegate to scalar implementations for 100% coverage
 
+function NEONCmpEqF32x8(const a, b: TVecF32x8): TMask8; forward;
+function NEONCmpGeF32x8(const a, b: TVecF32x8): TMask8; forward;
+function NEONCmpGtF32x8(const a, b: TVecF32x8): TMask8; forward;
+function NEONCmpLeF32x8(const a, b: TVecF32x8): TMask8; forward;
+function NEONCmpLtF32x8(const a, b: TVecF32x8): TMask8; forward;
+function NEONCmpNeF32x8(const a, b: TVecF32x8): TMask8; forward;
+
+function CombineMask4(const aLo, aHi: TMask2): TMask4;
+begin
+  Result := TMask4(Byte(aLo) or (Byte(aHi) shl 2));
+end;
+
+function CombineMask8(const aLo, aHi: TMask4): TMask8;
+begin
+  Result := TMask8(Byte(aLo) or (Byte(aHi) shl 4));
+end;
+
+function CombineMask16(const aLo, aHi: TMask8): TMask16;
+begin
+  Result := TMask16(Word(aLo) or (Word(aHi) shl 8));
+end;
+
+function Mask4FromU32x4(const aMask: TVecU32x4): TMask4;
+begin
+  Result := 0;
+  if aMask.u[0] <> 0 then Result := Result or TMask4(1);
+  if aMask.u[1] <> 0 then Result := Result or TMask4(2);
+  if aMask.u[2] <> 0 then Result := Result or TMask4(4);
+  if aMask.u[3] <> 0 then Result := Result or TMask4(8);
+end;
+
+function Mask2FromU64x2(const aMask: TVecU64x2): TMask2;
+begin
+  Result := 0;
+  if aMask.u[0] <> 0 then Result := Result or TMask2(1);
+  if aMask.u[1] <> 0 then Result := Result or TMask2(2);
+end;
+
+function NEONAbsF32x8(const a: TVecF32x8): TVecF32x8; forward;
+function NEONCeilF32x8(const a: TVecF32x8): TVecF32x8; forward;
+function NEONClampF32x8(const a, minVal, maxVal: TVecF32x8): TVecF32x8; forward;
+function NEONFloorF32x8(const a: TVecF32x8): TVecF32x8; forward;
+function NEONFmaF32x8(const a, b, c: TVecF32x8): TVecF32x8; forward;
+function NEONMaxF32x8(const a, b: TVecF32x8): TVecF32x8; forward;
+function NEONMinF32x8(const a, b: TVecF32x8): TVecF32x8; forward;
+function NEONRoundF32x8(const a: TVecF32x8): TVecF32x8; forward;
+function NEONSqrtF32x8(const a: TVecF32x8): TVecF32x8; forward;
+function NEONTruncF32x8(const a: TVecF32x8): TVecF32x8; forward;
+
+function NEONExtractF32x8(const a: TVecF32x8; index: Integer): Single; forward;
+function NEONInsertF32x8(const a: TVecF32x8; value: Single; index: Integer): TVecF32x8; forward;
+function NEONLoadF32x8(p: PSingle): TVecF32x8; forward;
+function NEONSelectF32x8(const mask: TVecU32x8; const a, b: TVecF32x8): TVecF32x8; forward;
+
+function NEONAndI32x8(const a, b: TVecI32x8): TVecI32x8; forward;
+function NEONAndNotI32x8(const a, b: TVecI32x8): TVecI32x8; forward;
+function NEONNotI32x8(const a: TVecI32x8): TVecI32x8; forward;
+function NEONOrI32x8(const a, b: TVecI32x8): TVecI32x8; forward;
+function NEONXorI32x8(const a, b: TVecI32x8): TVecI32x8; forward;
+
+function NEONAddI32x8(const a, b: TVecI32x8): TVecI32x8; forward;
+function NEONSubI32x8(const a, b: TVecI32x8): TVecI32x8; forward;
+function NEONMulI32x8(const a, b: TVecI32x8): TVecI32x8; forward;
+function NEONMaxI32x8(const a, b: TVecI32x8): TVecI32x8; forward;
+function NEONMinI32x8(const a, b: TVecI32x8): TVecI32x8; forward;
+
+function NEONCmpEqI32x8(const a, b: TVecI32x8): TMask8; forward;
+function NEONCmpGeI32x8(const a, b: TVecI32x8): TMask8; forward;
+function NEONCmpGtI32x8(const a, b: TVecI32x8): TMask8; forward;
+function NEONCmpLeI32x8(const a, b: TVecI32x8): TMask8; forward;
+function NEONCmpLtI32x8(const a, b: TVecI32x8): TMask8; forward;
+function NEONCmpNeI32x8(const a, b: TVecI32x8): TMask8; forward;
+function NEONShiftLeftI32x8(const a: TVecI32x8; count: Integer): TVecI32x8; forward;
+function NEONShiftRightArithI32x8(const a: TVecI32x8; count: Integer): TVecI32x8; forward;
+function NEONShiftRightI32x8(const a: TVecI32x8; count: Integer): TVecI32x8; forward;
+function NEONShiftLeftU32x8(const a: TVecU32x8; count: Integer): TVecU32x8; forward;
+function NEONShiftRightU32x8(const a: TVecU32x8; count: Integer): TVecU32x8; forward;
+
+function NEONExtractI32x8(const a: TVecI32x8; index: Integer): Int32; forward;
+function NEONInsertI32x8(const a: TVecI32x8; value: Int32; index: Integer): TVecI32x8; forward;
+
 function NEONAbsF32x16(const a: TVecF32x16): TVecF32x16;
 begin
-  Result := ScalarAbsF32x16(a);
+  Result.lo := NEONAbsF32x8(a.lo);
+  Result.hi := NEONAbsF32x8(a.hi);
 end;
 
 function NEONAbsF32x8(const a: TVecF32x8): TVecF32x8;
 begin
-  Result := ScalarAbsF32x8(a);
+  Result.lo := NEONAbsF32x4(a.lo);
+  Result.hi := NEONAbsF32x4(a.hi);
 end;
 
 function NEONAbsF64x2(const a: TVecF64x2): TVecF64x2;
@@ -7241,142 +7528,184 @@ end;
 
 function NEONAbsF64x4(const a: TVecF64x4): TVecF64x4;
 begin
-  Result := ScalarAbsF64x4(a);
+  Result.lo := NEONAbsF64x2(a.lo);
+  Result.hi := NEONAbsF64x2(a.hi);
 end;
 
 function NEONAbsF64x8(const a: TVecF64x8): TVecF64x8;
 begin
-  Result := ScalarAbsF64x8(a);
+  Result.lo := NEONAbsF64x4(a.lo);
+  Result.hi := NEONAbsF64x4(a.hi);
 end;
 
 function NEONAddF32x16(const a, b: TVecF32x16): TVecF32x16;
 begin
-  Result := ScalarAddF32x16(a, b);
+  Result.lo := NEONAddF32x8(a.lo, b.lo);
+  Result.hi := NEONAddF32x8(a.hi, b.hi);
 end;
 
 function NEONAddF64x4(const a, b: TVecF64x4): TVecF64x4;
 begin
-  Result := ScalarAddF64x4(a, b);
+  Result.lo := NEONAddF64x2(a.lo, b.lo);
+  Result.hi := NEONAddF64x2(a.hi, b.hi);
 end;
 
 function NEONAddF64x8(const a, b: TVecF64x8): TVecF64x8;
 begin
-  Result := ScalarAddF64x8(a, b);
+  Result.lo := NEONAddF64x4(a.lo, b.lo);
+  Result.hi := NEONAddF64x4(a.hi, b.hi);
 end;
 
 function NEONAddI32x16(const a, b: TVecI32x16): TVecI32x16;
 begin
-  Result := ScalarAddI32x16(a, b);
+  Result.lo := NEONAddI32x8(a.lo, b.lo);
+  Result.hi := NEONAddI32x8(a.hi, b.hi);
 end;
 
 function NEONAddI32x8(const a, b: TVecI32x8): TVecI32x8;
 begin
-  Result := ScalarAddI32x8(a, b);
+  Result.lo := NEONAddI32x4(a.lo, b.lo);
+  Result.hi := NEONAddI32x4(a.hi, b.hi);
 end;
 
 function NEONAddI64x4(const a, b: TVecI64x4): TVecI64x4;
 begin
-  Result := ScalarAddI64x4(a, b);
+  Result.lo := NEONAddI64x2(a.lo, b.lo);
+  Result.hi := NEONAddI64x2(a.hi, b.hi);
 end;
 
 function NEONAddI64x8(const a, b: TVecI64x8): TVecI64x8;
 begin
-  Result := ScalarAddI64x8(a, b);
+  Result.lo := NEONAddI64x4(a.lo, b.lo);
+  Result.hi := NEONAddI64x4(a.hi, b.hi);
 end;
 
 function NEONAddU32x4(const a, b: TVecU32x4): TVecU32x4;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarAddU32x4(a, b);
+  for LIndex := 0 to 3 do
+    Result.u[LIndex] := a.u[LIndex] + b.u[LIndex];
 end;
 
 function NEONAddU32x8(const a, b: TVecU32x8): TVecU32x8;
 begin
-  Result := ScalarAddU32x8(a, b);
+  Result.lo := NEONAddU32x4(a.lo, b.lo);
+  Result.hi := NEONAddU32x4(a.hi, b.hi);
 end;
 
 function NEONAddU64x4(const a, b: TVecU64x4): TVecU64x4;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarAddU64x4(a, b);
+  for LIndex := 0 to 3 do
+    Result.u[LIndex] := a.u[LIndex] + b.u[LIndex];
 end;
 
 function NEONAndI32x16(const a, b: TVecI32x16): TVecI32x16;
 begin
-  Result := ScalarAndI32x16(a, b);
+  Result.lo := NEONAndI32x8(a.lo, b.lo);
+  Result.hi := NEONAndI32x8(a.hi, b.hi);
 end;
 
 function NEONAndI32x4(const a, b: TVecI32x4): TVecI32x4;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarAndI32x4(a, b);
+  for LIndex := 0 to 3 do
+    Result.i[LIndex] := a.i[LIndex] and b.i[LIndex];
 end;
 
 function NEONAndI32x8(const a, b: TVecI32x8): TVecI32x8;
 begin
-  Result := ScalarAndI32x8(a, b);
+  Result.lo := NEONAndI32x4(a.lo, b.lo);
+  Result.hi := NEONAndI32x4(a.hi, b.hi);
 end;
 
 function NEONAndI64x4(const a, b: TVecI64x4): TVecI64x4;
 begin
-  Result := ScalarAndI64x4(a, b);
+  Result.lo := NEONAndI64x2(a.lo, b.lo);
+  Result.hi := NEONAndI64x2(a.hi, b.hi);
 end;
 
 function NEONAndI64x8(const a, b: TVecI64x8): TVecI64x8;
 begin
-  Result := ScalarAndI64x8(a, b);
+  Result.lo := NEONAndI64x4(a.lo, b.lo);
+  Result.hi := NEONAndI64x4(a.hi, b.hi);
 end;
 
 function NEONAndNotI32x16(const a, b: TVecI32x16): TVecI32x16;
 begin
-  Result := ScalarAndNotI32x16(a, b);
+  Result.lo := NEONAndNotI32x8(a.lo, b.lo);
+  Result.hi := NEONAndNotI32x8(a.hi, b.hi);
 end;
 
 function NEONAndNotI32x4(const a, b: TVecI32x4): TVecI32x4;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarAndNotI32x4(a, b);
+  for LIndex := 0 to 3 do
+    Result.i[LIndex] := a.i[LIndex] and (not b.i[LIndex]);
 end;
 
 function NEONAndNotI32x8(const a, b: TVecI32x8): TVecI32x8;
 begin
-  Result := ScalarAndNotI32x8(a, b);
+  Result.lo := NEONAndNotI32x4(a.lo, b.lo);
+  Result.hi := NEONAndNotI32x4(a.hi, b.hi);
 end;
 
 function NEONAndNotI64x4(const a, b: TVecI64x4): TVecI64x4;
 begin
-  Result := ScalarAndNotI64x4(a, b);
+  Result.lo := NEONAndI64x2(a.lo, NEONNotI64x2(b.lo));
+  Result.hi := NEONAndI64x2(a.hi, NEONNotI64x2(b.hi));
 end;
 
 function NEONAndNotU32x4(const a, b: TVecU32x4): TVecU32x4;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarAndNotU32x4(a, b);
+  for LIndex := 0 to 3 do
+    Result.u[LIndex] := a.u[LIndex] and not b.u[LIndex];
 end;
 
 function NEONAndNotU32x8(const a, b: TVecU32x8): TVecU32x8;
 begin
-  Result := ScalarAndNotU32x8(a, b);
+  Result.lo := NEONAndNotU32x4(a.lo, b.lo);
+  Result.hi := NEONAndNotU32x4(a.hi, b.hi);
 end;
 
 function NEONAndU32x4(const a, b: TVecU32x4): TVecU32x4;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarAndU32x4(a, b);
+  for LIndex := 0 to 3 do
+    Result.u[LIndex] := a.u[LIndex] and b.u[LIndex];
 end;
 
 function NEONAndU32x8(const a, b: TVecU32x8): TVecU32x8;
 begin
-  Result := ScalarAndU32x8(a, b);
+  Result.lo := NEONAndU32x4(a.lo, b.lo);
+  Result.hi := NEONAndU32x4(a.hi, b.hi);
 end;
 
 function NEONAndU64x4(const a, b: TVecU64x4): TVecU64x4;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarAndU64x4(a, b);
+  for LIndex := 0 to 3 do
+    Result.u[LIndex] := a.u[LIndex] and b.u[LIndex];
 end;
 
 function NEONCeilF32x16(const a: TVecF32x16): TVecF32x16;
 begin
-  Result := ScalarCeilF32x16(a);
+  Result.lo := NEONCeilF32x8(a.lo);
+  Result.hi := NEONCeilF32x8(a.hi);
 end;
 
 function NEONCeilF32x8(const a: TVecF32x8): TVecF32x8;
 begin
-  Result := ScalarCeilF32x8(a);
+  Result.lo := NEONCeilF32x4(a.lo);
+  Result.hi := NEONCeilF32x4(a.hi);
 end;
 
 function NEONCeilF64x2(const a: TVecF64x2): TVecF64x2;
@@ -7387,22 +7716,26 @@ end;
 
 function NEONCeilF64x4(const a: TVecF64x4): TVecF64x4;
 begin
-  Result := ScalarCeilF64x4(a);
+  Result.lo := NEONCeilF64x2(a.lo);
+  Result.hi := NEONCeilF64x2(a.hi);
 end;
 
 function NEONCeilF64x8(const a: TVecF64x8): TVecF64x8;
 begin
-  Result := ScalarCeilF64x8(a);
+  Result.lo := NEONCeilF64x4(a.lo);
+  Result.hi := NEONCeilF64x4(a.hi);
 end;
 
 function NEONClampF32x16(const a, minVal, maxVal: TVecF32x16): TVecF32x16;
 begin
-  Result := ScalarClampF32x16(a, minVal, maxVal);
+  Result.lo := NEONClampF32x8(a.lo, minVal.lo, maxVal.lo);
+  Result.hi := NEONClampF32x8(a.hi, minVal.hi, maxVal.hi);
 end;
 
 function NEONClampF32x8(const a, minVal, maxVal: TVecF32x8): TVecF32x8;
 begin
-  Result := ScalarClampF32x8(a, minVal, maxVal);
+  Result.lo := NEONClampF32x4(a.lo, minVal.lo, maxVal.lo);
+  Result.hi := NEONClampF32x4(a.hi, minVal.hi, maxVal.hi);
 end;
 
 function NEONClampF64x2(const a, minVal, maxVal: TVecF64x2): TVecF64x2;
@@ -7421,22 +7754,24 @@ end;
 
 function NEONClampF64x4(const a, minVal, maxVal: TVecF64x4): TVecF64x4;
 begin
-  Result := ScalarClampF64x4(a, minVal, maxVal);
+  Result.lo := NEONClampF64x2(a.lo, minVal.lo, maxVal.lo);
+  Result.hi := NEONClampF64x2(a.hi, minVal.hi, maxVal.hi);
 end;
 
 function NEONClampF64x8(const a, minVal, maxVal: TVecF64x8): TVecF64x8;
 begin
-  Result := ScalarClampF64x8(a, minVal, maxVal);
+  Result.lo := NEONClampF64x4(a.lo, minVal.lo, maxVal.lo);
+  Result.hi := NEONClampF64x4(a.hi, minVal.hi, maxVal.hi);
 end;
 
 function NEONCmpEqF32x16(const a, b: TVecF32x16): TMask16;
 begin
-  Result := ScalarCmpEqF32x16(a, b);
+  Result := CombineMask16(NEONCmpEqF32x8(a.lo, b.lo), NEONCmpEqF32x8(a.hi, b.hi));
 end;
 
 function NEONCmpEqF32x8(const a, b: TVecF32x8): TMask8;
 begin
-  Result := ScalarCmpEqF32x8(a, b);
+  Result := CombineMask8(NEONCmpEqF32x4(a.lo, b.lo), NEONCmpEqF32x4(a.hi, b.hi));
 end;
 
 function NEONCmpEqF64x2(const a, b: TVecF64x2): TMask2;
@@ -7448,82 +7783,114 @@ end;
 
 function NEONCmpEqF64x4(const a, b: TVecF64x4): TMask4;
 begin
-  Result := ScalarCmpEqF64x4(a, b);
+  Result := CombineMask4(NEONCmpEqF64x2(a.lo, b.lo), NEONCmpEqF64x2(a.hi, b.hi));
 end;
 
 function NEONCmpEqF64x8(const a, b: TVecF64x8): TMask8;
 begin
-  Result := ScalarCmpEqF64x8(a, b);
+  Result := CombineMask8(NEONCmpEqF64x4(a.lo, b.lo), NEONCmpEqF64x4(a.hi, b.hi));
 end;
 
 function NEONCmpEqI16x8(const a, b: TVecI16x8): TMask8;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarCmpEqI16x8(a, b);
+  Result := 0;
+  for LIndex := 0 to 7 do
+    if a.i[LIndex] = b.i[LIndex] then
+      Result := Result or (1 shl LIndex);
 end;
 
 function NEONCmpEqI32x16(const a, b: TVecI32x16): TMask16;
 begin
-  Result := ScalarCmpEqI32x16(a, b);
+  Result := CombineMask16(NEONCmpEqI32x8(a.lo, b.lo), NEONCmpEqI32x8(a.hi, b.hi));
 end;
 
 function NEONCmpEqI32x4(const a, b: TVecI32x4): TMask4;
 begin
-  Result := ScalarCmpEqI32x4(a, b);
+  Result := 0;
+  if a.i[0] = b.i[0] then Result := Result or 1;
+  if a.i[1] = b.i[1] then Result := Result or 2;
+  if a.i[2] = b.i[2] then Result := Result or 4;
+  if a.i[3] = b.i[3] then Result := Result or 8;
 end;
 
 function NEONCmpEqI32x8(const a, b: TVecI32x8): TMask8;
 begin
-  Result := ScalarCmpEqI32x8(a, b);
+  Result := CombineMask8(NEONCmpEqI32x4(a.lo, b.lo), NEONCmpEqI32x4(a.hi, b.hi));
 end;
 
 function NEONCmpEqI64x4(const a, b: TVecI64x4): TMask4;
 begin
-  Result := ScalarCmpEqI64x4(a, b);
+  Result := CombineMask4(NEONCmpEqI64x2(a.lo, b.lo), NEONCmpEqI64x2(a.hi, b.hi));
 end;
 
 function NEONCmpEqI64x8(const a, b: TVecI64x8): TMask8;
 begin
-  Result := ScalarCmpEqI64x8(a, b);
+  Result := CombineMask8(NEONCmpEqI64x4(a.lo, b.lo), NEONCmpEqI64x4(a.hi, b.hi));
 end;
 
 function NEONCmpEqI8x16(const a, b: TVecI8x16): TMask16;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarCmpEqI8x16(a, b);
+  Result := 0;
+  for LIndex := 0 to 15 do
+    if a.i[LIndex] = b.i[LIndex] then
+      Result := Result or (1 shl LIndex);
 end;
 
 function NEONCmpEqU16x8(const a, b: TVecU16x8): TMask8;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarCmpEqU16x8(a, b);
+  Result := 0;
+  for LIndex := 0 to 7 do
+    if a.u[LIndex] = b.u[LIndex] then
+      Result := Result or (1 shl LIndex);
 end;
 
 function NEONCmpEqU32x4(const a, b: TVecU32x4): TMask4;
 begin
-  Result := ScalarCmpEqU32x4(a, b);
+  Result := 0;
+  if a.u[0] = b.u[0] then Result := Result or 1;
+  if a.u[1] = b.u[1] then Result := Result or 2;
+  if a.u[2] = b.u[2] then Result := Result or 4;
+  if a.u[3] = b.u[3] then Result := Result or 8;
 end;
 
 function NEONCmpEqU32x8(const a, b: TVecU32x8): TMask8;
 begin
-  Result := ScalarCmpEqU32x8(a, b);
+  Result := CombineMask8(NEONCmpEqU32x4(a.lo, b.lo), NEONCmpEqU32x4(a.hi, b.hi));
 end;
 
 function NEONCmpEqU64x4(const a, b: TVecU64x4): TMask4;
 begin
-  Result := ScalarCmpEqU64x4(a, b);
+  Result := 0;
+  if a.u[0] = b.u[0] then Result := Result or 1;
+  if a.u[1] = b.u[1] then Result := Result or 2;
+  if a.u[2] = b.u[2] then Result := Result or 4;
+  if a.u[3] = b.u[3] then Result := Result or 8;
 end;
 
 function NEONCmpEqU8x16(const a, b: TVecU8x16): TMask16;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarCmpEqU8x16(a, b);
+  Result := 0;
+  for LIndex := 0 to 15 do
+    if a.u[LIndex] = b.u[LIndex] then
+      Result := Result or (1 shl LIndex);
 end;
 
 function NEONCmpGeF32x16(const a, b: TVecF32x16): TMask16;
 begin
-  Result := ScalarCmpGeF32x16(a, b);
+  Result := CombineMask16(NEONCmpGeF32x8(a.lo, b.lo), NEONCmpGeF32x8(a.hi, b.hi));
 end;
 
 function NEONCmpGeF32x8(const a, b: TVecF32x8): TMask8;
 begin
-  Result := ScalarCmpGeF32x8(a, b);
+  Result := CombineMask8(NEONCmpGeF32x4(a.lo, b.lo), NEONCmpGeF32x4(a.hi, b.hi));
 end;
 
 function NEONCmpGeF64x2(const a, b: TVecF64x2): TMask2;
@@ -7535,82 +7902,114 @@ end;
 
 function NEONCmpGeF64x4(const a, b: TVecF64x4): TMask4;
 begin
-  Result := ScalarCmpGeF64x4(a, b);
+  Result := CombineMask4(NEONCmpGeF64x2(a.lo, b.lo), NEONCmpGeF64x2(a.hi, b.hi));
 end;
 
 function NEONCmpGeF64x8(const a, b: TVecF64x8): TMask8;
 begin
-  Result := ScalarCmpGeF64x8(a, b);
+  Result := CombineMask8(NEONCmpGeF64x4(a.lo, b.lo), NEONCmpGeF64x4(a.hi, b.hi));
 end;
 
 function NEONCmpGeI16x8(const a, b: TVecI16x8): TMask8;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarCmpGeI16x8(a, b);
+  Result := 0;
+  for LIndex := 0 to 7 do
+    if a.i[LIndex] >= b.i[LIndex] then
+      Result := Result or (1 shl LIndex);
 end;
 
 function NEONCmpGeI32x16(const a, b: TVecI32x16): TMask16;
 begin
-  Result := ScalarCmpGeI32x16(a, b);
+  Result := CombineMask16(NEONCmpGeI32x8(a.lo, b.lo), NEONCmpGeI32x8(a.hi, b.hi));
 end;
 
 function NEONCmpGeI32x4(const a, b: TVecI32x4): TMask4;
 begin
-  Result := ScalarCmpGeI32x4(a, b);
+  Result := 0;
+  if a.i[0] >= b.i[0] then Result := Result or 1;
+  if a.i[1] >= b.i[1] then Result := Result or 2;
+  if a.i[2] >= b.i[2] then Result := Result or 4;
+  if a.i[3] >= b.i[3] then Result := Result or 8;
 end;
 
 function NEONCmpGeI32x8(const a, b: TVecI32x8): TMask8;
 begin
-  Result := ScalarCmpGeI32x8(a, b);
+  Result := CombineMask8(NEONCmpGeI32x4(a.lo, b.lo), NEONCmpGeI32x4(a.hi, b.hi));
 end;
 
 function NEONCmpGeI64x4(const a, b: TVecI64x4): TMask4;
 begin
-  Result := ScalarCmpGeI64x4(a, b);
+  Result := CombineMask4(NEONCmpGeI64x2(a.lo, b.lo), NEONCmpGeI64x2(a.hi, b.hi));
 end;
 
 function NEONCmpGeI64x8(const a, b: TVecI64x8): TMask8;
 begin
-  Result := ScalarCmpGeI64x8(a, b);
+  Result := CombineMask8(NEONCmpGeI64x4(a.lo, b.lo), NEONCmpGeI64x4(a.hi, b.hi));
 end;
 
 function NEONCmpGeI8x16(const a, b: TVecI8x16): TMask16;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarCmpGeI8x16(a, b);
+  Result := 0;
+  for LIndex := 0 to 15 do
+    if a.i[LIndex] >= b.i[LIndex] then
+      Result := Result or (1 shl LIndex);
 end;
 
 function NEONCmpGeU16x8(const a, b: TVecU16x8): TMask8;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarCmpGeU16x8(a, b);
+  Result := 0;
+  for LIndex := 0 to 7 do
+    if a.u[LIndex] >= b.u[LIndex] then
+      Result := Result or (1 shl LIndex);
 end;
 
 function NEONCmpGeU32x4(const a, b: TVecU32x4): TMask4;
 begin
-  Result := ScalarCmpGeU32x4(a, b);
+  Result := 0;
+  if a.u[0] >= b.u[0] then Result := Result or 1;
+  if a.u[1] >= b.u[1] then Result := Result or 2;
+  if a.u[2] >= b.u[2] then Result := Result or 4;
+  if a.u[3] >= b.u[3] then Result := Result or 8;
 end;
 
 function NEONCmpGeU32x8(const a, b: TVecU32x8): TMask8;
 begin
-  Result := ScalarCmpGeU32x8(a, b);
+  Result := CombineMask8(NEONCmpGeU32x4(a.lo, b.lo), NEONCmpGeU32x4(a.hi, b.hi));
 end;
 
 function NEONCmpGeU64x4(const a, b: TVecU64x4): TMask4;
 begin
-  Result := ScalarCmpGeU64x4(a, b);
+  Result := 0;
+  if a.u[0] >= b.u[0] then Result := Result or 1;
+  if a.u[1] >= b.u[1] then Result := Result or 2;
+  if a.u[2] >= b.u[2] then Result := Result or 4;
+  if a.u[3] >= b.u[3] then Result := Result or 8;
 end;
 
 function NEONCmpGeU8x16(const a, b: TVecU8x16): TMask16;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarCmpGeU8x16(a, b);
+  Result := 0;
+  for LIndex := 0 to 15 do
+    if a.u[LIndex] >= b.u[LIndex] then
+      Result := Result or (1 shl LIndex);
 end;
 
 function NEONCmpGtF32x16(const a, b: TVecF32x16): TMask16;
 begin
-  Result := ScalarCmpGtF32x16(a, b);
+  Result := CombineMask16(NEONCmpGtF32x8(a.lo, b.lo), NEONCmpGtF32x8(a.hi, b.hi));
 end;
 
 function NEONCmpGtF32x8(const a, b: TVecF32x8): TMask8;
 begin
-  Result := ScalarCmpGtF32x8(a, b);
+  Result := CombineMask8(NEONCmpGtF32x4(a.lo, b.lo), NEONCmpGtF32x4(a.hi, b.hi));
 end;
 
 function NEONCmpGtF64x2(const a, b: TVecF64x2): TMask2;
@@ -7622,82 +8021,114 @@ end;
 
 function NEONCmpGtF64x4(const a, b: TVecF64x4): TMask4;
 begin
-  Result := ScalarCmpGtF64x4(a, b);
+  Result := CombineMask4(NEONCmpGtF64x2(a.lo, b.lo), NEONCmpGtF64x2(a.hi, b.hi));
 end;
 
 function NEONCmpGtF64x8(const a, b: TVecF64x8): TMask8;
 begin
-  Result := ScalarCmpGtF64x8(a, b);
+  Result := CombineMask8(NEONCmpGtF64x4(a.lo, b.lo), NEONCmpGtF64x4(a.hi, b.hi));
 end;
 
 function NEONCmpGtI16x8(const a, b: TVecI16x8): TMask8;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarCmpGtI16x8(a, b);
+  Result := 0;
+  for LIndex := 0 to 7 do
+    if a.i[LIndex] > b.i[LIndex] then
+      Result := Result or (1 shl LIndex);
 end;
 
 function NEONCmpGtI32x16(const a, b: TVecI32x16): TMask16;
 begin
-  Result := ScalarCmpGtI32x16(a, b);
+  Result := CombineMask16(NEONCmpGtI32x8(a.lo, b.lo), NEONCmpGtI32x8(a.hi, b.hi));
 end;
 
 function NEONCmpGtI32x4(const a, b: TVecI32x4): TMask4;
 begin
-  Result := ScalarCmpGtI32x4(a, b);
+  Result := 0;
+  if a.i[0] > b.i[0] then Result := Result or 1;
+  if a.i[1] > b.i[1] then Result := Result or 2;
+  if a.i[2] > b.i[2] then Result := Result or 4;
+  if a.i[3] > b.i[3] then Result := Result or 8;
 end;
 
 function NEONCmpGtI32x8(const a, b: TVecI32x8): TMask8;
 begin
-  Result := ScalarCmpGtI32x8(a, b);
+  Result := CombineMask8(NEONCmpGtI32x4(a.lo, b.lo), NEONCmpGtI32x4(a.hi, b.hi));
 end;
 
 function NEONCmpGtI64x4(const a, b: TVecI64x4): TMask4;
 begin
-  Result := ScalarCmpGtI64x4(a, b);
+  Result := CombineMask4(NEONCmpGtI64x2(a.lo, b.lo), NEONCmpGtI64x2(a.hi, b.hi));
 end;
 
 function NEONCmpGtI64x8(const a, b: TVecI64x8): TMask8;
 begin
-  Result := ScalarCmpGtI64x8(a, b);
+  Result := CombineMask8(NEONCmpGtI64x4(a.lo, b.lo), NEONCmpGtI64x4(a.hi, b.hi));
 end;
 
 function NEONCmpGtI8x16(const a, b: TVecI8x16): TMask16;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarCmpGtI8x16(a, b);
+  Result := 0;
+  for LIndex := 0 to 15 do
+    if a.i[LIndex] > b.i[LIndex] then
+      Result := Result or (1 shl LIndex);
 end;
 
 function NEONCmpGtU16x8(const a, b: TVecU16x8): TMask8;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarCmpGtU16x8(a, b);
+  Result := 0;
+  for LIndex := 0 to 7 do
+    if a.u[LIndex] > b.u[LIndex] then
+      Result := Result or (1 shl LIndex);
 end;
 
 function NEONCmpGtU32x4(const a, b: TVecU32x4): TMask4;
 begin
-  Result := ScalarCmpGtU32x4(a, b);
+  Result := 0;
+  if a.u[0] > b.u[0] then Result := Result or 1;
+  if a.u[1] > b.u[1] then Result := Result or 2;
+  if a.u[2] > b.u[2] then Result := Result or 4;
+  if a.u[3] > b.u[3] then Result := Result or 8;
 end;
 
 function NEONCmpGtU32x8(const a, b: TVecU32x8): TMask8;
 begin
-  Result := ScalarCmpGtU32x8(a, b);
+  Result := CombineMask8(NEONCmpGtU32x4(a.lo, b.lo), NEONCmpGtU32x4(a.hi, b.hi));
 end;
 
 function NEONCmpGtU64x4(const a, b: TVecU64x4): TMask4;
 begin
-  Result := ScalarCmpGtU64x4(a, b);
+  Result := 0;
+  if a.u[0] > b.u[0] then Result := Result or 1;
+  if a.u[1] > b.u[1] then Result := Result or 2;
+  if a.u[2] > b.u[2] then Result := Result or 4;
+  if a.u[3] > b.u[3] then Result := Result or 8;
 end;
 
 function NEONCmpGtU8x16(const a, b: TVecU8x16): TMask16;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarCmpGtU8x16(a, b);
+  Result := 0;
+  for LIndex := 0 to 15 do
+    if a.u[LIndex] > b.u[LIndex] then
+      Result := Result or (1 shl LIndex);
 end;
 
 function NEONCmpLeF32x16(const a, b: TVecF32x16): TMask16;
 begin
-  Result := ScalarCmpLeF32x16(a, b);
+  Result := CombineMask16(NEONCmpLeF32x8(a.lo, b.lo), NEONCmpLeF32x8(a.hi, b.hi));
 end;
 
 function NEONCmpLeF32x8(const a, b: TVecF32x8): TMask8;
 begin
-  Result := ScalarCmpLeF32x8(a, b);
+  Result := CombineMask8(NEONCmpLeF32x4(a.lo, b.lo), NEONCmpLeF32x4(a.hi, b.hi));
 end;
 
 function NEONCmpLeF64x2(const a, b: TVecF64x2): TMask2;
@@ -7709,82 +8140,114 @@ end;
 
 function NEONCmpLeF64x4(const a, b: TVecF64x4): TMask4;
 begin
-  Result := ScalarCmpLeF64x4(a, b);
+  Result := CombineMask4(NEONCmpLeF64x2(a.lo, b.lo), NEONCmpLeF64x2(a.hi, b.hi));
 end;
 
 function NEONCmpLeF64x8(const a, b: TVecF64x8): TMask8;
 begin
-  Result := ScalarCmpLeF64x8(a, b);
+  Result := CombineMask8(NEONCmpLeF64x4(a.lo, b.lo), NEONCmpLeF64x4(a.hi, b.hi));
 end;
 
 function NEONCmpLeI16x8(const a, b: TVecI16x8): TMask8;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarCmpLeI16x8(a, b);
+  Result := 0;
+  for LIndex := 0 to 7 do
+    if a.i[LIndex] <= b.i[LIndex] then
+      Result := Result or (1 shl LIndex);
 end;
 
 function NEONCmpLeI32x16(const a, b: TVecI32x16): TMask16;
 begin
-  Result := ScalarCmpLeI32x16(a, b);
+  Result := CombineMask16(NEONCmpLeI32x8(a.lo, b.lo), NEONCmpLeI32x8(a.hi, b.hi));
 end;
 
 function NEONCmpLeI32x4(const a, b: TVecI32x4): TMask4;
 begin
-  Result := ScalarCmpLeI32x4(a, b);
+  Result := 0;
+  if a.i[0] <= b.i[0] then Result := Result or 1;
+  if a.i[1] <= b.i[1] then Result := Result or 2;
+  if a.i[2] <= b.i[2] then Result := Result or 4;
+  if a.i[3] <= b.i[3] then Result := Result or 8;
 end;
 
 function NEONCmpLeI32x8(const a, b: TVecI32x8): TMask8;
 begin
-  Result := ScalarCmpLeI32x8(a, b);
+  Result := CombineMask8(NEONCmpLeI32x4(a.lo, b.lo), NEONCmpLeI32x4(a.hi, b.hi));
 end;
 
 function NEONCmpLeI64x4(const a, b: TVecI64x4): TMask4;
 begin
-  Result := ScalarCmpLeI64x4(a, b);
+  Result := CombineMask4(NEONCmpLeI64x2(a.lo, b.lo), NEONCmpLeI64x2(a.hi, b.hi));
 end;
 
 function NEONCmpLeI64x8(const a, b: TVecI64x8): TMask8;
 begin
-  Result := ScalarCmpLeI64x8(a, b);
+  Result := CombineMask8(NEONCmpLeI64x4(a.lo, b.lo), NEONCmpLeI64x4(a.hi, b.hi));
 end;
 
 function NEONCmpLeI8x16(const a, b: TVecI8x16): TMask16;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarCmpLeI8x16(a, b);
+  Result := 0;
+  for LIndex := 0 to 15 do
+    if a.i[LIndex] <= b.i[LIndex] then
+      Result := Result or (1 shl LIndex);
 end;
 
 function NEONCmpLeU16x8(const a, b: TVecU16x8): TMask8;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarCmpLeU16x8(a, b);
+  Result := 0;
+  for LIndex := 0 to 7 do
+    if a.u[LIndex] <= b.u[LIndex] then
+      Result := Result or (1 shl LIndex);
 end;
 
 function NEONCmpLeU32x4(const a, b: TVecU32x4): TMask4;
 begin
-  Result := ScalarCmpLeU32x4(a, b);
+  Result := 0;
+  if a.u[0] <= b.u[0] then Result := Result or 1;
+  if a.u[1] <= b.u[1] then Result := Result or 2;
+  if a.u[2] <= b.u[2] then Result := Result or 4;
+  if a.u[3] <= b.u[3] then Result := Result or 8;
 end;
 
 function NEONCmpLeU32x8(const a, b: TVecU32x8): TMask8;
 begin
-  Result := ScalarCmpLeU32x8(a, b);
+  Result := CombineMask8(NEONCmpLeU32x4(a.lo, b.lo), NEONCmpLeU32x4(a.hi, b.hi));
 end;
 
 function NEONCmpLeU64x4(const a, b: TVecU64x4): TMask4;
 begin
-  Result := ScalarCmpLeU64x4(a, b);
+  Result := 0;
+  if a.u[0] <= b.u[0] then Result := Result or 1;
+  if a.u[1] <= b.u[1] then Result := Result or 2;
+  if a.u[2] <= b.u[2] then Result := Result or 4;
+  if a.u[3] <= b.u[3] then Result := Result or 8;
 end;
 
 function NEONCmpLeU8x16(const a, b: TVecU8x16): TMask16;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarCmpLeU8x16(a, b);
+  Result := 0;
+  for LIndex := 0 to 15 do
+    if a.u[LIndex] <= b.u[LIndex] then
+      Result := Result or (1 shl LIndex);
 end;
 
 function NEONCmpLtF32x16(const a, b: TVecF32x16): TMask16;
 begin
-  Result := ScalarCmpLtF32x16(a, b);
+  Result := CombineMask16(NEONCmpLtF32x8(a.lo, b.lo), NEONCmpLtF32x8(a.hi, b.hi));
 end;
 
 function NEONCmpLtF32x8(const a, b: TVecF32x8): TMask8;
 begin
-  Result := ScalarCmpLtF32x8(a, b);
+  Result := CombineMask8(NEONCmpLtF32x4(a.lo, b.lo), NEONCmpLtF32x4(a.hi, b.hi));
 end;
 
 function NEONCmpLtF64x2(const a, b: TVecF64x2): TMask2;
@@ -7796,82 +8259,123 @@ end;
 
 function NEONCmpLtF64x4(const a, b: TVecF64x4): TMask4;
 begin
-  Result := ScalarCmpLtF64x4(a, b);
+  Result := CombineMask4(NEONCmpLtF64x2(a.lo, b.lo), NEONCmpLtF64x2(a.hi, b.hi));
 end;
 
 function NEONCmpLtF64x8(const a, b: TVecF64x8): TMask8;
 begin
-  Result := ScalarCmpLtF64x8(a, b);
+  Result := CombineMask8(NEONCmpLtF64x4(a.lo, b.lo), NEONCmpLtF64x4(a.hi, b.hi));
 end;
 
 function NEONCmpLtI16x8(const a, b: TVecI16x8): TMask8;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarCmpLtI16x8(a, b);
+  Result := 0;
+  for LIndex := 0 to 7 do
+    if a.i[LIndex] < b.i[LIndex] then
+      Result := Result or (1 shl LIndex);
 end;
 
 function NEONCmpLtI32x16(const a, b: TVecI32x16): TMask16;
 begin
-  Result := ScalarCmpLtI32x16(a, b);
+  Result := CombineMask16(NEONCmpLtI32x8(a.lo, b.lo), NEONCmpLtI32x8(a.hi, b.hi));
 end;
 
 function NEONCmpLtI32x4(const a, b: TVecI32x4): TMask4;
 begin
-  Result := ScalarCmpLtI32x4(a, b);
+  Result := 0;
+  if a.i[0] < b.i[0] then Result := Result or 1;
+  if a.i[1] < b.i[1] then Result := Result or 2;
+  if a.i[2] < b.i[2] then Result := Result or 4;
+  if a.i[3] < b.i[3] then Result := Result or 8;
 end;
 
 function NEONCmpLtI32x8(const a, b: TVecI32x8): TMask8;
 begin
-  Result := ScalarCmpLtI32x8(a, b);
+  Result := CombineMask8(NEONCmpLtI32x4(a.lo, b.lo), NEONCmpLtI32x4(a.hi, b.hi));
 end;
 
 function NEONCmpLtI64x4(const a, b: TVecI64x4): TMask4;
 begin
-  Result := ScalarCmpLtI64x4(a, b);
+  Result := CombineMask4(NEONCmpLtI64x2(a.lo, b.lo), NEONCmpLtI64x2(a.hi, b.hi));
 end;
 
 function NEONCmpLtI64x8(const a, b: TVecI64x8): TMask8;
 begin
-  Result := ScalarCmpLtI64x8(a, b);
+  Result := CombineMask8(NEONCmpLtI64x4(a.lo, b.lo), NEONCmpLtI64x4(a.hi, b.hi));
 end;
 
 function NEONCmpLtI8x16(const a, b: TVecI8x16): TMask16;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarCmpLtI8x16(a, b);
+  Result := 0;
+  for LIndex := 0 to 15 do
+    if a.i[LIndex] < b.i[LIndex] then
+      Result := Result or (1 shl LIndex);
 end;
 
 function NEONCmpLtU16x8(const a, b: TVecU16x8): TMask8;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarCmpLtU16x8(a, b);
+  Result := 0;
+  for LIndex := 0 to 7 do
+    if a.u[LIndex] < b.u[LIndex] then
+      Result := Result or (1 shl LIndex);
 end;
 
 function NEONCmpLtU32x4(const a, b: TVecU32x4): TMask4;
 begin
-  Result := ScalarCmpLtU32x4(a, b);
+  Result := 0;
+  if a.u[0] < b.u[0] then Result := Result or 1;
+  if a.u[1] < b.u[1] then Result := Result or 2;
+  if a.u[2] < b.u[2] then Result := Result or 4;
+  if a.u[3] < b.u[3] then Result := Result or 8;
 end;
 
 function NEONCmpLtU32x8(const a, b: TVecU32x8): TMask8;
 begin
-  Result := ScalarCmpLtU32x8(a, b);
+  Result := CombineMask8(NEONCmpLtU32x4(a.lo, b.lo), NEONCmpLtU32x4(a.hi, b.hi));
+end;
+
+function NEONCmpNeU32x4(const a, b: TVecU32x4): TMask4;
+begin
+  Result := 0;
+  if a.u[0] <> b.u[0] then Result := Result or 1;
+  if a.u[1] <> b.u[1] then Result := Result or 2;
+  if a.u[2] <> b.u[2] then Result := Result or 4;
+  if a.u[3] <> b.u[3] then Result := Result or 8;
 end;
 
 function NEONCmpLtU64x4(const a, b: TVecU64x4): TMask4;
 begin
-  Result := ScalarCmpLtU64x4(a, b);
+  Result := 0;
+  if a.u[0] < b.u[0] then Result := Result or 1;
+  if a.u[1] < b.u[1] then Result := Result or 2;
+  if a.u[2] < b.u[2] then Result := Result or 4;
+  if a.u[3] < b.u[3] then Result := Result or 8;
 end;
 
 function NEONCmpLtU8x16(const a, b: TVecU8x16): TMask16;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarCmpLtU8x16(a, b);
+  Result := 0;
+  for LIndex := 0 to 15 do
+    if a.u[LIndex] < b.u[LIndex] then
+      Result := Result or (1 shl LIndex);
 end;
 
 function NEONCmpNeF32x16(const a, b: TVecF32x16): TMask16;
 begin
-  Result := ScalarCmpNeF32x16(a, b);
+  Result := CombineMask16(NEONCmpNeF32x8(a.lo, b.lo), NEONCmpNeF32x8(a.hi, b.hi));
 end;
 
 function NEONCmpNeF32x8(const a, b: TVecF32x8): TMask8;
 begin
-  Result := ScalarCmpNeF32x8(a, b);
+  Result := CombineMask8(NEONCmpNeF32x4(a.lo, b.lo), NEONCmpNeF32x4(a.hi, b.hi));
 end;
 
 function NEONCmpNeF64x2(const a, b: TVecF64x2): TMask2;
@@ -7883,92 +8387,147 @@ end;
 
 function NEONCmpNeF64x4(const a, b: TVecF64x4): TMask4;
 begin
-  Result := ScalarCmpNeF64x4(a, b);
+  Result := CombineMask4(NEONCmpNeF64x2(a.lo, b.lo), NEONCmpNeF64x2(a.hi, b.hi));
 end;
 
 function NEONCmpNeF64x8(const a, b: TVecF64x8): TMask8;
 begin
-  Result := ScalarCmpNeF64x8(a, b);
+  Result := CombineMask8(NEONCmpNeF64x4(a.lo, b.lo), NEONCmpNeF64x4(a.hi, b.hi));
 end;
 
 function NEONCmpNeI16x8(const a, b: TVecI16x8): TMask8;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarCmpNeI16x8(a, b);
+  Result := 0;
+  for LIndex := 0 to 7 do
+    if a.i[LIndex] <> b.i[LIndex] then
+      Result := Result or (1 shl LIndex);
 end;
 
 function NEONCmpNeI32x16(const a, b: TVecI32x16): TMask16;
 begin
-  Result := ScalarCmpNeI32x16(a, b);
+  Result := CombineMask16(NEONCmpNeI32x8(a.lo, b.lo), NEONCmpNeI32x8(a.hi, b.hi));
 end;
 
 function NEONCmpNeI32x4(const a, b: TVecI32x4): TMask4;
 begin
-  Result := ScalarCmpNeI32x4(a, b);
+  Result := 0;
+  if a.i[0] <> b.i[0] then Result := Result or 1;
+  if a.i[1] <> b.i[1] then Result := Result or 2;
+  if a.i[2] <> b.i[2] then Result := Result or 4;
+  if a.i[3] <> b.i[3] then Result := Result or 8;
 end;
 
 function NEONCmpNeI32x8(const a, b: TVecI32x8): TMask8;
 begin
-  Result := ScalarCmpNeI32x8(a, b);
+  Result := CombineMask8(NEONCmpNeI32x4(a.lo, b.lo), NEONCmpNeI32x4(a.hi, b.hi));
 end;
 
 function NEONCmpNeI64x4(const a, b: TVecI64x4): TMask4;
 begin
-  Result := ScalarCmpNeI64x4(a, b);
+  Result := CombineMask4(NEONCmpNeI64x2(a.lo, b.lo), NEONCmpNeI64x2(a.hi, b.hi));
 end;
 
 function NEONCmpNeI64x8(const a, b: TVecI64x8): TMask8;
 begin
-  Result := ScalarCmpNeI64x8(a, b);
+  Result := CombineMask8(NEONCmpNeI64x4(a.lo, b.lo), NEONCmpNeI64x4(a.hi, b.hi));
 end;
 
 function NEONCmpNeI8x16(const a, b: TVecI8x16): TMask16;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarCmpNeI8x16(a, b);
+  Result := 0;
+  for LIndex := 0 to 15 do
+    if a.i[LIndex] <> b.i[LIndex] then
+      Result := Result or (1 shl LIndex);
 end;
 
 function NEONCmpNeU16x8(const a, b: TVecU16x8): TMask8;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarCmpNeU16x8(a, b);
+  Result := 0;
+  for LIndex := 0 to 7 do
+    if a.u[LIndex] <> b.u[LIndex] then
+      Result := Result or (1 shl LIndex);
 end;
 
 function NEONCmpNeU32x8(const a, b: TVecU32x8): TMask8;
 begin
-  Result := ScalarCmpNeU32x8(a, b);
+  Result := CombineMask8(NEONCmpNeU32x4(a.lo, b.lo), NEONCmpNeU32x4(a.hi, b.hi));
 end;
 
 function NEONCmpNeU64x4(const a, b: TVecU64x4): TMask4;
 begin
-  Result := ScalarCmpNeU64x4(a, b);
+  Result := 0;
+  if a.u[0] <> b.u[0] then Result := Result or 1;
+  if a.u[1] <> b.u[1] then Result := Result or 2;
+  if a.u[2] <> b.u[2] then Result := Result or 4;
+  if a.u[3] <> b.u[3] then Result := Result or 8;
 end;
 
 function NEONCmpNeU8x16(const a, b: TVecU8x16): TMask16;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarCmpNeU8x16(a, b);
+  Result := 0;
+  for LIndex := 0 to 15 do
+    if a.u[LIndex] <> b.u[LIndex] then
+      Result := Result or (1 shl LIndex);
 end;
 
 function NEONDivF32x16(const a, b: TVecF32x16): TVecF32x16;
 begin
-  Result := ScalarDivF32x16(a, b);
+  Result.lo := NEONDivF32x8(a.lo, b.lo);
+  Result.hi := NEONDivF32x8(a.hi, b.hi);
 end;
 
 function NEONDivF64x4(const a, b: TVecF64x4): TVecF64x4;
 begin
-  Result := ScalarDivF64x4(a, b);
+  Result.lo := NEONDivF64x2(a.lo, b.lo);
+  Result.hi := NEONDivF64x2(a.hi, b.hi);
 end;
 
 function NEONDivF64x8(const a, b: TVecF64x8): TVecF64x8;
 begin
-  Result := ScalarDivF64x8(a, b);
+  Result.lo := NEONDivF64x4(a.lo, b.lo);
+  Result.hi := NEONDivF64x4(a.hi, b.hi);
 end;
 
 function NEONExtractF32x16(const a: TVecF32x16; index: Integer): Single;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarExtractF32x16(a, index);
+  if index < 0 then
+    LIndex := 0
+  else if index > 15 then
+    LIndex := 15
+  else
+    LIndex := index;
+
+  if LIndex < 8 then
+    Result := NEONExtractF32x8(a.lo, LIndex)
+  else
+    Result := NEONExtractF32x8(a.hi, LIndex - 8);
 end;
 
 function NEONExtractF32x8(const a: TVecF32x8; index: Integer): Single;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarExtractF32x8(a, index);
+  if index < 0 then
+    LIndex := 0
+  else if index > 7 then
+    LIndex := 7
+  else
+    LIndex := index;
+
+  if LIndex < 4 then
+    Result := NEONExtractF32x4(a.lo, LIndex)
+  else
+    Result := NEONExtractF32x4(a.hi, LIndex - 4);
 end;
 
 function NEONExtractF64x2(const a: TVecF64x2; index: Integer): Double;
@@ -7981,43 +8540,109 @@ begin
 end;
 
 function NEONExtractF64x4(const a: TVecF64x4; index: Integer): Double;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarExtractF64x4(a, index);
+  if index < 0 then
+    LIndex := 0
+  else if index > 3 then
+    LIndex := 3
+  else
+    LIndex := index;
+
+  if LIndex < 2 then
+    Result := NEONExtractF64x2(a.lo, LIndex)
+  else
+    Result := NEONExtractF64x2(a.hi, LIndex - 2);
 end;
 
 function NEONExtractI32x16(const a: TVecI32x16; index: Integer): Int32;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarExtractI32x16(a, index);
+  if index < 0 then
+    LIndex := 0
+  else if index > 15 then
+    LIndex := 15
+  else
+    LIndex := index;
+
+  if LIndex < 8 then
+    Result := NEONExtractI32x8(a.lo, LIndex)
+  else
+    Result := NEONExtractI32x8(a.hi, LIndex - 8);
 end;
 
 function NEONExtractI32x4(const a: TVecI32x4; index: Integer): Int32;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarExtractI32x4(a, index);
+  if index < 0 then
+    LIndex := 0
+  else if index > 3 then
+    LIndex := 3
+  else
+    LIndex := index;
+  Result := a.i[LIndex];
 end;
 
 function NEONExtractI32x8(const a: TVecI32x8; index: Integer): Int32;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarExtractI32x8(a, index);
+  if index < 0 then
+    LIndex := 0
+  else if index > 7 then
+    LIndex := 7
+  else
+    LIndex := index;
+
+  if LIndex < 4 then
+    Result := NEONExtractI32x4(a.lo, LIndex)
+  else
+    Result := NEONExtractI32x4(a.hi, LIndex - 4);
 end;
 
 function NEONExtractI64x2(const a: TVecI64x2; index: Integer): Int64;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarExtractI64x2(a, index);
+  if index < 0 then
+    LIndex := 0
+  else if index > 1 then
+    LIndex := 1
+  else
+    LIndex := index;
+  Result := a.i[LIndex];
 end;
 
 function NEONExtractI64x4(const a: TVecI64x4; index: Integer): Int64;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarExtractI64x4(a, index);
+  if index < 0 then
+    LIndex := 0
+  else if index > 3 then
+    LIndex := 3
+  else
+    LIndex := index;
+
+  if LIndex < 2 then
+    Result := NEONExtractI64x2(a.lo, LIndex)
+  else
+    Result := NEONExtractI64x2(a.hi, LIndex - 2);
 end;
 
 function NEONFloorF32x16(const a: TVecF32x16): TVecF32x16;
 begin
-  Result := ScalarFloorF32x16(a);
+  Result.lo := NEONFloorF32x8(a.lo);
+  Result.hi := NEONFloorF32x8(a.hi);
 end;
 
 function NEONFloorF32x8(const a: TVecF32x8): TVecF32x8;
 begin
-  Result := ScalarFloorF32x8(a);
+  Result.lo := NEONFloorF32x4(a.lo);
+  Result.hi := NEONFloorF32x4(a.hi);
 end;
 
 function NEONFloorF64x2(const a: TVecF64x2): TVecF64x2;
@@ -8028,22 +8653,26 @@ end;
 
 function NEONFloorF64x4(const a: TVecF64x4): TVecF64x4;
 begin
-  Result := ScalarFloorF64x4(a);
+  Result.lo := NEONFloorF64x2(a.lo);
+  Result.hi := NEONFloorF64x2(a.hi);
 end;
 
 function NEONFloorF64x8(const a: TVecF64x8): TVecF64x8;
 begin
-  Result := ScalarFloorF64x8(a);
+  Result.lo := NEONFloorF64x4(a.lo);
+  Result.hi := NEONFloorF64x4(a.hi);
 end;
 
 function NEONFmaF32x16(const a, b, c: TVecF32x16): TVecF32x16;
 begin
-  Result := ScalarFmaF32x16(a, b, c);
+  Result.lo := NEONFmaF32x8(a.lo, b.lo, c.lo);
+  Result.hi := NEONFmaF32x8(a.hi, b.hi, c.hi);
 end;
 
 function NEONFmaF32x8(const a, b, c: TVecF32x8): TVecF32x8;
 begin
-  Result := ScalarFmaF32x8(a, b, c);
+  Result.lo := NEONFmaF32x4(a.lo, b.lo, c.lo);
+  Result.hi := NEONFmaF32x4(a.hi, b.hi, c.hi);
 end;
 
 function NEONFmaF64x2(const a, b, c: TVecF64x2): TVecF64x2;
@@ -8055,22 +8684,50 @@ end;
 
 function NEONFmaF64x4(const a, b, c: TVecF64x4): TVecF64x4;
 begin
-  Result := ScalarFmaF64x4(a, b, c);
+  Result.lo := NEONFmaF64x2(a.lo, b.lo, c.lo);
+  Result.hi := NEONFmaF64x2(a.hi, b.hi, c.hi);
 end;
 
 function NEONFmaF64x8(const a, b, c: TVecF64x8): TVecF64x8;
 begin
-  Result := ScalarFmaF64x8(a, b, c);
+  Result.lo := NEONFmaF64x4(a.lo, b.lo, c.lo);
+  Result.hi := NEONFmaF64x4(a.hi, b.hi, c.hi);
 end;
 
 function NEONInsertF32x16(const a: TVecF32x16; value: Single; index: Integer): TVecF32x16;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarInsertF32x16(a, value, index);
+  if index < 0 then
+    LIndex := 0
+  else if index > 15 then
+    LIndex := 15
+  else
+    LIndex := index;
+
+  Result := a;
+  if LIndex < 8 then
+    Result.lo := NEONInsertF32x8(a.lo, value, LIndex)
+  else
+    Result.hi := NEONInsertF32x8(a.hi, value, LIndex - 8);
 end;
 
 function NEONInsertF32x8(const a: TVecF32x8; value: Single; index: Integer): TVecF32x8;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarInsertF32x8(a, value, index);
+  if index < 0 then
+    LIndex := 0
+  else if index > 7 then
+    LIndex := 7
+  else
+    LIndex := index;
+
+  Result := a;
+  if LIndex < 4 then
+    Result.lo := NEONInsertF32x4(a.lo, value, LIndex)
+  else
+    Result.hi := NEONInsertF32x4(a.hi, value, LIndex - 4);
 end;
 
 function NEONInsertF64x2(const a: TVecF64x2; value: Double; index: Integer): TVecF64x2;
@@ -8084,50 +8741,127 @@ begin
 end;
 
 function NEONInsertF64x4(const a: TVecF64x4; value: Double; index: Integer): TVecF64x4;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarInsertF64x4(a, value, index);
+  if index < 0 then
+    LIndex := 0
+  else if index > 3 then
+    LIndex := 3
+  else
+    LIndex := index;
+
+  Result := a;
+  if LIndex < 2 then
+    Result.lo := NEONInsertF64x2(a.lo, value, LIndex)
+  else
+    Result.hi := NEONInsertF64x2(a.hi, value, LIndex - 2);
 end;
 
 function NEONInsertI32x16(const a: TVecI32x16; value: Int32; index: Integer): TVecI32x16;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarInsertI32x16(a, value, index);
+  if index < 0 then
+    LIndex := 0
+  else if index > 15 then
+    LIndex := 15
+  else
+    LIndex := index;
+
+  Result := a;
+  if LIndex < 8 then
+    Result.lo := NEONInsertI32x8(a.lo, value, LIndex)
+  else
+    Result.hi := NEONInsertI32x8(a.hi, value, LIndex - 8);
 end;
 
 function NEONInsertI32x4(const a: TVecI32x4; value: Int32; index: Integer): TVecI32x4;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarInsertI32x4(a, value, index);
+  if index < 0 then
+    LIndex := 0
+  else if index > 3 then
+    LIndex := 3
+  else
+    LIndex := index;
+  Result := a;
+  Result.i[LIndex] := value;
 end;
 
 function NEONInsertI32x8(const a: TVecI32x8; value: Int32; index: Integer): TVecI32x8;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarInsertI32x8(a, value, index);
+  if index < 0 then
+    LIndex := 0
+  else if index > 7 then
+    LIndex := 7
+  else
+    LIndex := index;
+
+  Result := a;
+  if LIndex < 4 then
+    Result.lo := NEONInsertI32x4(a.lo, value, LIndex)
+  else
+    Result.hi := NEONInsertI32x4(a.hi, value, LIndex - 4);
 end;
 
 function NEONInsertI64x2(const a: TVecI64x2; value: Int64; index: Integer): TVecI64x2;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarInsertI64x2(a, value, index);
+  if index < 0 then
+    LIndex := 0
+  else if index > 1 then
+    LIndex := 1
+  else
+    LIndex := index;
+  Result := a;
+  Result.i[LIndex] := value;
 end;
 
 function NEONInsertI64x4(const a: TVecI64x4; value: Int64; index: Integer): TVecI64x4;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarInsertI64x4(a, value, index);
+  if index < 0 then
+    LIndex := 0
+  else if index > 3 then
+    LIndex := 3
+  else
+    LIndex := index;
+  Result := a;
+  if LIndex < 2 then
+    Result.lo := NEONInsertI64x2(a.lo, value, LIndex)
+  else
+    Result.hi := NEONInsertI64x2(a.hi, value, LIndex - 2);
 end;
 
 function NEONLoadF32x16(p: PSingle): TVecF32x16;
+var
+  LHi: PSingle;
 begin
   {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   Result := NEONLoadF32x16_ASM(p);
   {$ELSE}
-  Result := ScalarLoadF32x16(p);
+  LHi := PSingle(PByte(p) + SizeOf(Single) * 8);
+  Result.lo := NEONLoadF32x8(p);
+  Result.hi := NEONLoadF32x8(LHi);
   {$ENDIF}
 end;
 
 function NEONLoadF32x8(p: PSingle): TVecF32x8;
+var
+  LHi: PSingle;
 begin
   {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   Result := NEONLoadF32x8_ASM(p);
   {$ELSE}
-  Result := ScalarLoadF32x8(p);
+  LHi := PSingle(PByte(p) + SizeOf(Single) * 4);
+  Result.lo := NEONLoadF32x4(p);
+  Result.hi := NEONLoadF32x4(LHi);
   {$ENDIF}
 end;
 
@@ -8137,20 +8871,28 @@ begin
 end;
 
 function NEONLoadF64x4(p: PDouble): TVecF64x4;
+var
+  LHi: PDouble;
 begin
   {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   Result := NEONLoadF64x4_ASM(p);
   {$ELSE}
-  Result := ScalarLoadF64x4(p);
+  LHi := PDouble(PByte(p) + SizeOf(Double) * 2);
+  Result.lo := NEONLoadF64x2(p);
+  Result.hi := NEONLoadF64x2(LHi);
   {$ENDIF}
 end;
 
 function NEONLoadF64x8(p: PDouble): TVecF64x8;
+var
+  LHi: PDouble;
 begin
   {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   Result := NEONLoadF64x8_ASM(p);
   {$ELSE}
-  Result := ScalarLoadF64x8(p);
+  LHi := PDouble(PByte(p) + SizeOf(Double) * 4);
+  Result.lo := NEONLoadF64x4(p);
+  Result.hi := NEONLoadF64x4(LHi);
   {$ENDIF}
 end;
 
@@ -8159,18 +8901,21 @@ begin
   {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   Result := NEONLoadI64x4_ASM(p);
   {$ELSE}
-  Result := ScalarLoadI64x4(p);
+  Move(p^, Result.lo, SizeOf(TVecI64x2));
+  Move((p + 2)^, Result.hi, SizeOf(TVecI64x2));
   {$ENDIF}
 end;
 
 function NEONMaxF32x16(const a, b: TVecF32x16): TVecF32x16;
 begin
-  Result := ScalarMaxF32x16(a, b);
+  Result.lo := NEONMaxF32x8(a.lo, b.lo);
+  Result.hi := NEONMaxF32x8(a.hi, b.hi);
 end;
 
 function NEONMaxF32x8(const a, b: TVecF32x8): TVecF32x8;
 begin
-  Result := ScalarMaxF32x8(a, b);
+  Result.lo := NEONMaxF32x4(a.lo, b.lo);
+  Result.hi := NEONMaxF32x4(a.hi, b.hi);
 end;
 
 function NEONMaxF64x2(const a, b: TVecF64x2): TVecF64x2;
@@ -8181,47 +8926,66 @@ end;
 
 function NEONMaxF64x4(const a, b: TVecF64x4): TVecF64x4;
 begin
-  Result := ScalarMaxF64x4(a, b);
+  Result.lo := NEONMaxF64x2(a.lo, b.lo);
+  Result.hi := NEONMaxF64x2(a.hi, b.hi);
 end;
 
 function NEONMaxF64x8(const a, b: TVecF64x8): TVecF64x8;
 begin
-  Result := ScalarMaxF64x8(a, b);
+  Result.lo := NEONMaxF64x4(a.lo, b.lo);
+  Result.hi := NEONMaxF64x4(a.hi, b.hi);
 end;
 
 function NEONMaxI32x16(const a, b: TVecI32x16): TVecI32x16;
 begin
-  Result := ScalarMaxI32x16(a, b);
+  Result.lo := NEONMaxI32x8(a.lo, b.lo);
+  Result.hi := NEONMaxI32x8(a.hi, b.hi);
 end;
 
 function NEONMaxI32x4(const a, b: TVecI32x4): TVecI32x4;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarMaxI32x4(a, b);
+  for LIndex := 0 to 3 do
+    if a.i[LIndex] > b.i[LIndex] then
+      Result.i[LIndex] := a.i[LIndex]
+    else
+      Result.i[LIndex] := b.i[LIndex];
 end;
 
 function NEONMaxI32x8(const a, b: TVecI32x8): TVecI32x8;
 begin
-  Result := ScalarMaxI32x8(a, b);
+  Result.lo := NEONMaxI32x4(a.lo, b.lo);
+  Result.hi := NEONMaxI32x4(a.hi, b.hi);
 end;
 
 function NEONMaxU32x4(const a, b: TVecU32x4): TVecU32x4;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarMaxU32x4(a, b);
+  for LIndex := 0 to 3 do
+    if a.u[LIndex] > b.u[LIndex] then
+      Result.u[LIndex] := a.u[LIndex]
+    else
+      Result.u[LIndex] := b.u[LIndex];
 end;
 
 function NEONMaxU32x8(const a, b: TVecU32x8): TVecU32x8;
 begin
-  Result := ScalarMaxU32x8(a, b);
+  Result.lo := NEONMaxU32x4(a.lo, b.lo);
+  Result.hi := NEONMaxU32x4(a.hi, b.hi);
 end;
 
 function NEONMinF32x16(const a, b: TVecF32x16): TVecF32x16;
 begin
-  Result := ScalarMinF32x16(a, b);
+  Result.lo := NEONMinF32x8(a.lo, b.lo);
+  Result.hi := NEONMinF32x8(a.hi, b.hi);
 end;
 
 function NEONMinF32x8(const a, b: TVecF32x8): TVecF32x8;
 begin
-  Result := ScalarMinF32x8(a, b);
+  Result.lo := NEONMinF32x4(a.lo, b.lo);
+  Result.hi := NEONMinF32x4(a.hi, b.hi);
 end;
 
 function NEONMinF64x2(const a, b: TVecF64x2): TVecF64x2;
@@ -8232,152 +8996,206 @@ end;
 
 function NEONMinF64x4(const a, b: TVecF64x4): TVecF64x4;
 begin
-  Result := ScalarMinF64x4(a, b);
+  Result.lo := NEONMinF64x2(a.lo, b.lo);
+  Result.hi := NEONMinF64x2(a.hi, b.hi);
 end;
 
 function NEONMinF64x8(const a, b: TVecF64x8): TVecF64x8;
 begin
-  Result := ScalarMinF64x8(a, b);
+  Result.lo := NEONMinF64x4(a.lo, b.lo);
+  Result.hi := NEONMinF64x4(a.hi, b.hi);
 end;
 
 function NEONMinI32x16(const a, b: TVecI32x16): TVecI32x16;
 begin
-  Result := ScalarMinI32x16(a, b);
+  Result.lo := NEONMinI32x8(a.lo, b.lo);
+  Result.hi := NEONMinI32x8(a.hi, b.hi);
 end;
 
 function NEONMinI32x4(const a, b: TVecI32x4): TVecI32x4;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarMinI32x4(a, b);
+  for LIndex := 0 to 3 do
+    if a.i[LIndex] < b.i[LIndex] then
+      Result.i[LIndex] := a.i[LIndex]
+    else
+      Result.i[LIndex] := b.i[LIndex];
 end;
 
 function NEONMinI32x8(const a, b: TVecI32x8): TVecI32x8;
 begin
-  Result := ScalarMinI32x8(a, b);
+  Result.lo := NEONMinI32x4(a.lo, b.lo);
+  Result.hi := NEONMinI32x4(a.hi, b.hi);
 end;
 
 function NEONMinU32x4(const a, b: TVecU32x4): TVecU32x4;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarMinU32x4(a, b);
+  for LIndex := 0 to 3 do
+    if a.u[LIndex] < b.u[LIndex] then
+      Result.u[LIndex] := a.u[LIndex]
+    else
+      Result.u[LIndex] := b.u[LIndex];
 end;
 
 function NEONMinU32x8(const a, b: TVecU32x8): TVecU32x8;
 begin
-  Result := ScalarMinU32x8(a, b);
+  Result.lo := NEONMinU32x4(a.lo, b.lo);
+  Result.hi := NEONMinU32x4(a.hi, b.hi);
 end;
 
 function NEONMulF32x16(const a, b: TVecF32x16): TVecF32x16;
 begin
-  Result := ScalarMulF32x16(a, b);
+  Result.lo := NEONMulF32x8(a.lo, b.lo);
+  Result.hi := NEONMulF32x8(a.hi, b.hi);
 end;
 
 function NEONMulF64x4(const a, b: TVecF64x4): TVecF64x4;
 begin
-  Result := ScalarMulF64x4(a, b);
+  Result.lo := NEONMulF64x2(a.lo, b.lo);
+  Result.hi := NEONMulF64x2(a.hi, b.hi);
 end;
 
 function NEONMulF64x8(const a, b: TVecF64x8): TVecF64x8;
 begin
-  Result := ScalarMulF64x8(a, b);
+  Result.lo := NEONMulF64x4(a.lo, b.lo);
+  Result.hi := NEONMulF64x4(a.hi, b.hi);
 end;
 
 function NEONMulI32x16(const a, b: TVecI32x16): TVecI32x16;
 begin
-  Result := ScalarMulI32x16(a, b);
+  Result.lo := NEONMulI32x8(a.lo, b.lo);
+  Result.hi := NEONMulI32x8(a.hi, b.hi);
 end;
 
 function NEONMulI32x8(const a, b: TVecI32x8): TVecI32x8;
 begin
-  Result := ScalarMulI32x8(a, b);
+  Result.lo := NEONMulI32x4(a.lo, b.lo);
+  Result.hi := NEONMulI32x4(a.hi, b.hi);
 end;
 
 function NEONMulU32x4(const a, b: TVecU32x4): TVecU32x4;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarMulU32x4(a, b);
+  for LIndex := 0 to 3 do
+    Result.u[LIndex] := a.u[LIndex] * b.u[LIndex];
 end;
 
 function NEONMulU32x8(const a, b: TVecU32x8): TVecU32x8;
 begin
-  Result := ScalarMulU32x8(a, b);
+  Result.lo := NEONMulU32x4(a.lo, b.lo);
+  Result.hi := NEONMulU32x4(a.hi, b.hi);
 end;
 
 function NEONNotI32x16(const a: TVecI32x16): TVecI32x16;
 begin
-  Result := ScalarNotI32x16(a);
+  Result.lo := NEONNotI32x8(a.lo);
+  Result.hi := NEONNotI32x8(a.hi);
 end;
 
 function NEONNotI32x4(const a: TVecI32x4): TVecI32x4;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarNotI32x4(a);
+  for LIndex := 0 to 3 do
+    Result.i[LIndex] := not a.i[LIndex];
 end;
 
 function NEONNotI32x8(const a: TVecI32x8): TVecI32x8;
 begin
-  Result := ScalarNotI32x8(a);
+  Result.lo := NEONNotI32x4(a.lo);
+  Result.hi := NEONNotI32x4(a.hi);
 end;
 
 function NEONNotI64x4(const a: TVecI64x4): TVecI64x4;
 begin
-  Result := ScalarNotI64x4(a);
+  Result.lo := NEONNotI64x2(a.lo);
+  Result.hi := NEONNotI64x2(a.hi);
 end;
 
 function NEONNotI64x8(const a: TVecI64x8): TVecI64x8;
 begin
-  Result := ScalarNotI64x8(a);
+  Result.lo := NEONNotI64x4(a.lo);
+  Result.hi := NEONNotI64x4(a.hi);
 end;
 
 function NEONNotU32x4(const a: TVecU32x4): TVecU32x4;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarNotU32x4(a);
+  for LIndex := 0 to 3 do
+    Result.u[LIndex] := not a.u[LIndex];
 end;
 
 function NEONNotU32x8(const a: TVecU32x8): TVecU32x8;
 begin
-  Result := ScalarNotU32x8(a);
+  Result.lo := NEONNotU32x4(a.lo);
+  Result.hi := NEONNotU32x4(a.hi);
 end;
 
 function NEONNotU64x4(const a: TVecU64x4): TVecU64x4;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarNotU64x4(a);
+  for LIndex := 0 to 3 do
+    Result.u[LIndex] := not a.u[LIndex];
 end;
 
 function NEONOrI32x16(const a, b: TVecI32x16): TVecI32x16;
 begin
-  Result := ScalarOrI32x16(a, b);
+  Result.lo := NEONOrI32x8(a.lo, b.lo);
+  Result.hi := NEONOrI32x8(a.hi, b.hi);
 end;
 
 function NEONOrI32x4(const a, b: TVecI32x4): TVecI32x4;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarOrI32x4(a, b);
+  for LIndex := 0 to 3 do
+    Result.i[LIndex] := a.i[LIndex] or b.i[LIndex];
 end;
 
 function NEONOrI32x8(const a, b: TVecI32x8): TVecI32x8;
 begin
-  Result := ScalarOrI32x8(a, b);
+  Result.lo := NEONOrI32x4(a.lo, b.lo);
+  Result.hi := NEONOrI32x4(a.hi, b.hi);
 end;
 
 function NEONOrI64x4(const a, b: TVecI64x4): TVecI64x4;
 begin
-  Result := ScalarOrI64x4(a, b);
+  Result.lo := NEONOrI64x2(a.lo, b.lo);
+  Result.hi := NEONOrI64x2(a.hi, b.hi);
 end;
 
 function NEONOrI64x8(const a, b: TVecI64x8): TVecI64x8;
 begin
-  Result := ScalarOrI64x8(a, b);
+  Result.lo := NEONOrI64x4(a.lo, b.lo);
+  Result.hi := NEONOrI64x4(a.hi, b.hi);
 end;
 
 function NEONOrU32x4(const a, b: TVecU32x4): TVecU32x4;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarOrU32x4(a, b);
+  for LIndex := 0 to 3 do
+    Result.u[LIndex] := a.u[LIndex] or b.u[LIndex];
 end;
 
 function NEONOrU32x8(const a, b: TVecU32x8): TVecU32x8;
 begin
-  Result := ScalarOrU32x8(a, b);
+  Result.lo := NEONOrU32x4(a.lo, b.lo);
+  Result.hi := NEONOrU32x4(a.hi, b.hi);
 end;
 
 function NEONOrU64x4(const a, b: TVecU64x4): TVecU64x4;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarOrU64x4(a, b);
+  for LIndex := 0 to 3 do
+    Result.u[LIndex] := a.u[LIndex] or b.u[LIndex];
 end;
 
 function NEONRcpF64x4(const a: TVecF64x4): TVecF64x4;
@@ -8551,12 +9369,14 @@ end;
 
 function NEONRoundF32x16(const a: TVecF32x16): TVecF32x16;
 begin
-  Result := ScalarRoundF32x16(a);
+  Result.lo := NEONRoundF32x8(a.lo);
+  Result.hi := NEONRoundF32x8(a.hi);
 end;
 
 function NEONRoundF32x8(const a: TVecF32x8): TVecF32x8;
 begin
-  Result := ScalarRoundF32x8(a);
+  Result.lo := NEONRoundF32x4(a.lo);
+  Result.hi := NEONRoundF32x4(a.hi);
 end;
 
 function NEONRoundF64x2(const a: TVecF64x2): TVecF64x2;
@@ -8567,37 +9387,53 @@ end;
 
 function NEONRoundF64x4(const a: TVecF64x4): TVecF64x4;
 begin
-  Result := ScalarRoundF64x4(a);
+  Result.lo := NEONRoundF64x2(a.lo);
+  Result.hi := NEONRoundF64x2(a.hi);
 end;
 
 function NEONRoundF64x8(const a: TVecF64x8): TVecF64x8;
 begin
-  Result := ScalarRoundF64x8(a);
+  Result.lo := NEONRoundF64x4(a.lo);
+  Result.hi := NEONRoundF64x4(a.hi);
 end;
 
 function NEONSelectF32x16(const mask: TMask16; const a, b: TVecF32x16): TVecF32x16;
 begin
-  Result := ScalarSelectF32x16(mask, a, b);
+  Result.lo.lo := NEONSelectF32x4(TMask4(mask and TMask16($000F)), a.lo.lo, b.lo.lo);
+  Result.lo.hi := NEONSelectF32x4(TMask4((mask shr 4) and TMask16($000F)), a.lo.hi, b.lo.hi);
+  Result.hi.lo := NEONSelectF32x4(TMask4((mask shr 8) and TMask16($000F)), a.hi.lo, b.hi.lo);
+  Result.hi.hi := NEONSelectF32x4(TMask4((mask shr 12) and TMask16($000F)), a.hi.hi, b.hi.hi);
 end;
 
 function NEONSelectF32x8(const mask: TVecU32x8; const a, b: TVecF32x8): TVecF32x8;
 begin
-  Result := ScalarSelectF32x8(mask, a, b);
+  Result.lo := NEONSelectF32x4(Mask4FromU32x4(mask.lo), a.lo, b.lo);
+  Result.hi := NEONSelectF32x4(Mask4FromU32x4(mask.hi), a.hi, b.hi);
 end;
 
 function NEONSelectF64x4(const mask: TVecU64x4; const a, b: TVecF64x4): TVecF64x4;
 begin
-  Result := ScalarSelectF64x4(mask, a, b);
+  Result.lo := NEONSelectF64x2(Mask2FromU64x2(mask.lo), a.lo, b.lo);
+  Result.hi := NEONSelectF64x2(Mask2FromU64x2(mask.hi), a.hi, b.hi);
 end;
 
 function NEONSelectF64x8(const mask: TMask8; const a, b: TVecF64x8): TVecF64x8;
 begin
-  Result := ScalarSelectF64x8(mask, a, b);
+  Result.lo.lo := NEONSelectF64x2(TMask2(mask and TMask8($03)), a.lo.lo, b.lo.lo);
+  Result.lo.hi := NEONSelectF64x2(TMask2((mask shr 2) and TMask8($03)), a.lo.hi, b.lo.hi);
+  Result.hi.lo := NEONSelectF64x2(TMask2((mask shr 4) and TMask8($03)), a.hi.lo, b.hi.lo);
+  Result.hi.hi := NEONSelectF64x2(TMask2((mask shr 6) and TMask8($03)), a.hi.hi, b.hi.hi);
 end;
 
 function NEONSelectI32x4(const mask: TVecI32x4; const a, b: TVecI32x4): TVecI32x4;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarSelectI32x4(mask, a, b);
+  for LIndex := 0 to 3 do
+    if mask.i[LIndex] <> 0 then
+      Result.i[LIndex] := a.i[LIndex]
+    else
+      Result.i[LIndex] := b.i[LIndex];
 end;
 
 function NEONShiftLeftI16x8(const a: TVecI16x8; count: Integer): TVecI16x8;
@@ -8607,22 +9443,36 @@ end;
 
 function NEONShiftLeftI32x16(const a: TVecI32x16; count: Integer): TVecI32x16;
 begin
-  Result := ScalarShiftLeftI32x16(a, count);
+  Result.lo := NEONShiftLeftI32x8(a.lo, count);
+  Result.hi := NEONShiftLeftI32x8(a.hi, count);
 end;
 
 function NEONShiftLeftI32x4(const a: TVecI32x4; count: Integer): TVecI32x4;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarShiftLeftI32x4(a, count);
+  for LIndex := 0 to 3 do
+    if (count >= 0) and (count < 32) then
+      Result.i[LIndex] := a.i[LIndex] shl count
+    else
+      Result.i[LIndex] := 0;
 end;
 
 function NEONShiftLeftI32x8(const a: TVecI32x8; count: Integer): TVecI32x8;
 begin
-  Result := ScalarShiftLeftI32x8(a, count);
+  Result.lo := NEONShiftLeftI32x4(a.lo, count);
+  Result.hi := NEONShiftLeftI32x4(a.hi, count);
 end;
 
 function NEONShiftLeftI64x4(const a: TVecI64x4; count: Integer): TVecI64x4;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarShiftLeftI64x4(a, count);
+  for LIndex := 0 to 3 do
+    if (count >= 0) and (count < 64) then
+      Result.i[LIndex] := a.i[LIndex] shl count
+    else
+      Result.i[LIndex] := 0;
 end;
 
 function NEONShiftLeftU16x8(const a: TVecU16x8; count: Integer): TVecU16x8;
@@ -8631,18 +9481,31 @@ begin
 end;
 
 function NEONShiftLeftU32x4(const a: TVecU32x4; count: Integer): TVecU32x4;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarShiftLeftU32x4(a, count);
+  for LIndex := 0 to 3 do
+    if (count >= 0) and (count < 32) then
+      Result.u[LIndex] := a.u[LIndex] shl count
+    else
+      Result.u[LIndex] := 0;
 end;
 
 function NEONShiftLeftU32x8(const a: TVecU32x8; count: Integer): TVecU32x8;
 begin
-  Result := ScalarShiftLeftU32x8(a, count);
+  Result.lo := NEONShiftLeftU32x4(a.lo, count);
+  Result.hi := NEONShiftLeftU32x4(a.hi, count);
 end;
 
 function NEONShiftLeftU64x4(const a: TVecU64x4; count: Integer): TVecU64x4;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarShiftLeftU64x4(a, count);
+  for LIndex := 0 to 3 do
+    if (count >= 0) and (count < 64) then
+      Result.u[LIndex] := a.u[LIndex] shl count
+    else
+      Result.u[LIndex] := 0;
 end;
 
 function NEONShiftRightArithI16x8(const a: TVecI16x8; count: Integer): TVecI16x8;
@@ -8652,17 +9515,27 @@ end;
 
 function NEONShiftRightArithI32x16(const a: TVecI32x16; count: Integer): TVecI32x16;
 begin
-  Result := ScalarShiftRightArithI32x16(a, count);
+  Result.lo := NEONShiftRightArithI32x8(a.lo, count);
+  Result.hi := NEONShiftRightArithI32x8(a.hi, count);
 end;
 
 function NEONShiftRightArithI32x4(const a: TVecI32x4; count: Integer): TVecI32x4;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarShiftRightArithI32x4(a, count);
+  for LIndex := 0 to 3 do
+    if (count >= 0) and (count < 32) then
+      Result.i[LIndex] := a.i[LIndex] shr count
+    else if a.i[LIndex] < 0 then
+      Result.i[LIndex] := -1
+    else
+      Result.i[LIndex] := 0;
 end;
 
 function NEONShiftRightArithI32x8(const a: TVecI32x8; count: Integer): TVecI32x8;
 begin
-  Result := ScalarShiftRightArithI32x8(a, count);
+  Result.lo := NEONShiftRightArithI32x4(a.lo, count);
+  Result.hi := NEONShiftRightArithI32x4(a.hi, count);
 end;
 
 function NEONShiftRightI16x8(const a: TVecI16x8; count: Integer): TVecI16x8;
@@ -8672,22 +9545,36 @@ end;
 
 function NEONShiftRightI32x16(const a: TVecI32x16; count: Integer): TVecI32x16;
 begin
-  Result := ScalarShiftRightI32x16(a, count);
+  Result.lo := NEONShiftRightI32x8(a.lo, count);
+  Result.hi := NEONShiftRightI32x8(a.hi, count);
 end;
 
 function NEONShiftRightI32x4(const a: TVecI32x4; count: Integer): TVecI32x4;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarShiftRightI32x4(a, count);
+  for LIndex := 0 to 3 do
+    if (count >= 0) and (count < 32) then
+      Result.i[LIndex] := Int32(UInt32(a.i[LIndex]) shr count)
+    else
+      Result.i[LIndex] := 0;
 end;
 
 function NEONShiftRightI32x8(const a: TVecI32x8; count: Integer): TVecI32x8;
 begin
-  Result := ScalarShiftRightI32x8(a, count);
+  Result.lo := NEONShiftRightI32x4(a.lo, count);
+  Result.hi := NEONShiftRightI32x4(a.hi, count);
 end;
 
 function NEONShiftRightI64x4(const a: TVecI64x4; count: Integer): TVecI64x4;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarShiftRightI64x4(a, count);
+  for LIndex := 0 to 3 do
+    if (count >= 0) and (count < 64) then
+      Result.i[LIndex] := Int64(UInt64(a.i[LIndex]) shr count)
+    else
+      Result.i[LIndex] := 0;
 end;
 
 function NEONShiftRightU16x8(const a: TVecU16x8; count: Integer): TVecU16x8;
@@ -8696,18 +9583,31 @@ begin
 end;
 
 function NEONShiftRightU32x4(const a: TVecU32x4; count: Integer): TVecU32x4;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarShiftRightU32x4(a, count);
+  for LIndex := 0 to 3 do
+    if (count >= 0) and (count < 32) then
+      Result.u[LIndex] := a.u[LIndex] shr count
+    else
+      Result.u[LIndex] := 0;
 end;
 
 function NEONShiftRightU32x8(const a: TVecU32x8; count: Integer): TVecU32x8;
 begin
-  Result := ScalarShiftRightU32x8(a, count);
+  Result.lo := NEONShiftRightU32x4(a.lo, count);
+  Result.hi := NEONShiftRightU32x4(a.hi, count);
 end;
 
 function NEONShiftRightU64x4(const a: TVecU64x4; count: Integer): TVecU64x4;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarShiftRightU64x4(a, count);
+  for LIndex := 0 to 3 do
+    if (count >= 0) and (count < 64) then
+      Result.u[LIndex] := a.u[LIndex] shr count
+    else
+      Result.u[LIndex] := 0;
 end;
 
 function NEONSplatF32x16(value: Single): TVecF32x16;
@@ -8753,22 +9653,27 @@ begin
 end;
 
 function NEONSplatI64x4(value: Int64): TVecI64x4;
+var
+  LIndex: Integer;
 begin
   {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
   Result := NEONSplatI64x4_ASM(value);
   {$ELSE}
-  Result := ScalarSplatI64x4(value);
+  for LIndex := 0 to 3 do
+    Result.i[LIndex] := value;
   {$ENDIF}
 end;
 
 function NEONSqrtF32x16(const a: TVecF32x16): TVecF32x16;
 begin
-  Result := ScalarSqrtF32x16(a);
+  Result.lo := NEONSqrtF32x8(a.lo);
+  Result.hi := NEONSqrtF32x8(a.hi);
 end;
 
 function NEONSqrtF32x8(const a: TVecF32x8): TVecF32x8;
 begin
-  Result := ScalarSqrtF32x8(a);
+  Result.lo := NEONSqrtF32x4(a.lo);
+  Result.hi := NEONSqrtF32x4(a.hi);
 end;
 
 function NEONSqrtF64x2(const a: TVecF64x2): TVecF64x2;
@@ -8779,12 +9684,14 @@ end;
 
 function NEONSqrtF64x4(const a: TVecF64x4): TVecF64x4;
 begin
-  Result := ScalarSqrtF64x4(a);
+  Result.lo := NEONSqrtF64x2(a.lo);
+  Result.hi := NEONSqrtF64x2(a.hi);
 end;
 
 function NEONSqrtF64x8(const a: TVecF64x8): TVecF64x8;
 begin
-  Result := ScalarSqrtF64x8(a);
+  Result.lo := NEONSqrtF64x4(a.lo);
+  Result.hi := NEONSqrtF64x4(a.hi);
 end;
 
 procedure NEONStoreF32x16(p: PSingle; const a: TVecF32x16);
@@ -8839,62 +9746,78 @@ end;
 
 function NEONSubF32x16(const a, b: TVecF32x16): TVecF32x16;
 begin
-  Result := ScalarSubF32x16(a, b);
+  Result.lo := NEONSubF32x8(a.lo, b.lo);
+  Result.hi := NEONSubF32x8(a.hi, b.hi);
 end;
 
 function NEONSubF64x4(const a, b: TVecF64x4): TVecF64x4;
 begin
-  Result := ScalarSubF64x4(a, b);
+  Result.lo := NEONSubF64x2(a.lo, b.lo);
+  Result.hi := NEONSubF64x2(a.hi, b.hi);
 end;
 
 function NEONSubF64x8(const a, b: TVecF64x8): TVecF64x8;
 begin
-  Result := ScalarSubF64x8(a, b);
+  Result.lo := NEONSubF64x4(a.lo, b.lo);
+  Result.hi := NEONSubF64x4(a.hi, b.hi);
 end;
 
 function NEONSubI32x16(const a, b: TVecI32x16): TVecI32x16;
 begin
-  Result := ScalarSubI32x16(a, b);
+  Result.lo := NEONSubI32x8(a.lo, b.lo);
+  Result.hi := NEONSubI32x8(a.hi, b.hi);
 end;
 
 function NEONSubI32x8(const a, b: TVecI32x8): TVecI32x8;
 begin
-  Result := ScalarSubI32x8(a, b);
+  Result.lo := NEONSubI32x4(a.lo, b.lo);
+  Result.hi := NEONSubI32x4(a.hi, b.hi);
 end;
 
 function NEONSubI64x4(const a, b: TVecI64x4): TVecI64x4;
 begin
-  Result := ScalarSubI64x4(a, b);
+  Result.lo := NEONSubI64x2(a.lo, b.lo);
+  Result.hi := NEONSubI64x2(a.hi, b.hi);
 end;
 
 function NEONSubI64x8(const a, b: TVecI64x8): TVecI64x8;
 begin
-  Result := ScalarSubI64x8(a, b);
+  Result.lo := NEONSubI64x4(a.lo, b.lo);
+  Result.hi := NEONSubI64x4(a.hi, b.hi);
 end;
 
 function NEONSubU32x4(const a, b: TVecU32x4): TVecU32x4;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarSubU32x4(a, b);
+  for LIndex := 0 to 3 do
+    Result.u[LIndex] := a.u[LIndex] - b.u[LIndex];
 end;
 
 function NEONSubU32x8(const a, b: TVecU32x8): TVecU32x8;
 begin
-  Result := ScalarSubU32x8(a, b);
+  Result.lo := NEONSubU32x4(a.lo, b.lo);
+  Result.hi := NEONSubU32x4(a.hi, b.hi);
 end;
 
 function NEONSubU64x4(const a, b: TVecU64x4): TVecU64x4;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarSubU64x4(a, b);
+  for LIndex := 0 to 3 do
+    Result.u[LIndex] := a.u[LIndex] - b.u[LIndex];
 end;
 
 function NEONTruncF32x16(const a: TVecF32x16): TVecF32x16;
 begin
-  Result := ScalarTruncF32x16(a);
+  Result.lo := NEONTruncF32x8(a.lo);
+  Result.hi := NEONTruncF32x8(a.hi);
 end;
 
 function NEONTruncF32x8(const a: TVecF32x8): TVecF32x8;
 begin
-  Result := ScalarTruncF32x8(a);
+  Result.lo := NEONTruncF32x4(a.lo);
+  Result.hi := NEONTruncF32x4(a.hi);
 end;
 
 function NEONTruncF64x2(const a: TVecF64x2): TVecF64x2;
@@ -8905,17 +9828,20 @@ end;
 
 function NEONTruncF64x4(const a: TVecF64x4): TVecF64x4;
 begin
-  Result := ScalarTruncF64x4(a);
+  Result.lo := NEONTruncF64x2(a.lo);
+  Result.hi := NEONTruncF64x2(a.hi);
 end;
 
 function NEONTruncF64x8(const a: TVecF64x8): TVecF64x8;
 begin
-  Result := ScalarTruncF64x8(a);
+  Result.lo := NEONTruncF64x4(a.lo);
+  Result.hi := NEONTruncF64x4(a.hi);
 end;
 
 function NEONXorI32x16(const a, b: TVecI32x16): TVecI32x16;
 begin
-  Result := ScalarXorI32x16(a, b);
+  Result.lo := NEONXorI32x8(a.lo, b.lo);
+  Result.hi := NEONXorI32x8(a.hi, b.hi);
 end;
 
 function NEONXorI32x4(const a, b: TVecI32x4): TVecI32x4;
@@ -8925,32 +9851,42 @@ end;
 
 function NEONXorI32x8(const a, b: TVecI32x8): TVecI32x8;
 begin
-  Result := ScalarXorI32x8(a, b);
+  Result.lo := NEONXorI32x4(a.lo, b.lo);
+  Result.hi := NEONXorI32x4(a.hi, b.hi);
 end;
 
 function NEONXorI64x4(const a, b: TVecI64x4): TVecI64x4;
 begin
-  Result := ScalarXorI64x4(a, b);
+  Result.lo := NEONXorI64x2(a.lo, b.lo);
+  Result.hi := NEONXorI64x2(a.hi, b.hi);
 end;
 
 function NEONXorI64x8(const a, b: TVecI64x8): TVecI64x8;
 begin
-  Result := ScalarXorI64x8(a, b);
+  Result.lo := NEONXorI64x4(a.lo, b.lo);
+  Result.hi := NEONXorI64x4(a.hi, b.hi);
 end;
 
 function NEONXorU32x4(const a, b: TVecU32x4): TVecU32x4;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarXorU32x4(a, b);
+  for LIndex := 0 to 3 do
+    Result.u[LIndex] := a.u[LIndex] xor b.u[LIndex];
 end;
 
 function NEONXorU32x8(const a, b: TVecU32x8): TVecU32x8;
 begin
-  Result := ScalarXorU32x8(a, b);
+  Result.lo := NEONXorU32x4(a.lo, b.lo);
+  Result.hi := NEONXorU32x4(a.hi, b.hi);
 end;
 
 function NEONXorU64x4(const a, b: TVecU64x4): TVecU64x4;
+var
+  LIndex: Integer;
 begin
-  Result := ScalarXorU64x4(a, b);
+  for LIndex := 0 to 3 do
+    Result.u[LIndex] := a.u[LIndex] xor b.u[LIndex];
 end;
 
 function NEONZeroF32x16: TVecF32x16;
@@ -9009,25 +9945,12 @@ end;
 
 // --- F32x8 Reduction (256-bit = 2 × F32x4) ---
 
-function NEONReduceAddF32x8_ASM(const a: TVecF32x8): Single; assembler; nostackframe;
-asm
-  // a.lo in x0..x1, a.hi in x2..x3
-  // Load lo (x0..x1) into v0
-  fmov  d0, x0
-  fmov  d2, x1
-  ins   v0.d[1], v2.d[0]
-
-  // Load hi (x2..x3) into v1
-  fmov  d1, x2
-  fmov  d3, x3
-  ins   v1.d[1], v3.d[0]
-
-  // Combine lo + hi
-  fadd  v0.4s, v0.4s, v1.4s
-
-  // Horizontal sum (pairwise)
-  faddp v0.4s, v0.4s, v0.4s
-  faddp s0, v0.2s
+function NEONReduceAddF32x8_ASM(const a: TVecF32x8): Single;
+var
+  LOnes: TVecF32x4;
+begin
+  LOnes := NEONSplatF32x4(1.0);
+  Result := NEONDotF32x4(a.lo, LOnes) + NEONDotF32x4(a.hi, LOnes);
 end;
 
 function NEONReduceMinF32x8_ASM(const a: TVecF32x8): Single; assembler; nostackframe;
@@ -9140,37 +10063,9 @@ end;
 
 // --- F32x16 Reduction (512-bit = 2 × F32x8) ---
 
-function NEONReduceAddF32x16_ASM(const a: TVecF32x16): Single; assembler; nostackframe;
-asm
-  // a.lo (F32x8) in x0..x3, a.hi (F32x8) in x4..x7
-  // Load lo.lo into v0
-  fmov  d0, x0
-  fmov  d2, x1
-  ins   v0.d[1], v2.d[0]
-
-  // Load lo.hi into v1
-  fmov  d1, x2
-  fmov  d3, x3
-  ins   v1.d[1], v3.d[0]
-
-  // Load hi.lo into v4
-  fmov  d4, x4
-  fmov  d6, x5
-  ins   v4.d[1], v6.d[0]
-
-  // Load hi.hi into v5
-  fmov  d5, x6
-  fmov  d7, x7
-  ins   v5.d[1], v7.d[0]
-
-  // Combine all 4 F32x4 vectors
-  fadd  v0.4s, v0.4s, v1.4s
-  fadd  v4.4s, v4.4s, v5.4s
-  fadd  v0.4s, v0.4s, v4.4s
-
-  // Horizontal sum
-  faddp v0.4s, v0.4s, v0.4s
-  faddp s0, v0.2s
+function NEONReduceAddF32x16_ASM(const a: TVecF32x16): Single;
+begin
+  Result := NEONReduceAddF32x8_ASM(a.lo) + NEONReduceAddF32x8_ASM(a.hi);
 end;
 
 function NEONReduceMinF32x16_ASM(const a: TVecF32x16): Single; assembler; nostackframe;
@@ -9423,16 +10318,13 @@ asm
   stp   q0, q1, [x0]
 end;
 
-function NEONSplatF64x4_ASM(value: Double): TVecF64x4; assembler; nostackframe;
-asm
-  // value in d0
-  dup   v0.2d, v0.d[0]
-  dup   v1.2d, v0.d[0]
-
-  umov  x0, v0.d[0]
-  umov  x1, v0.d[1]
-  umov  x2, v1.d[0]
-  umov  x3, v1.d[1]
+function NEONSplatF64x4_ASM(value: Double): TVecF64x4;
+var
+  LSplat: TVecF64x2;
+begin
+  LSplat := NEONSplatF64x2(value);
+  Result.lo := LSplat;
+  Result.hi := LSplat;
 end;
 
 function NEONZeroF64x4_ASM: TVecF64x4; assembler; nostackframe;
@@ -9556,21 +10448,13 @@ asm
   stp   q2, q3, [x0, #32]
 end;
 
-function NEONSplatF64x8_ASM(value: Double): TVecF64x8; assembler; nostackframe;
-asm
-  dup   v0.2d, v0.d[0]
-  dup   v1.2d, v0.d[0]
-  dup   v2.2d, v0.d[0]
-  dup   v3.2d, v0.d[0]
-
-  umov  x0, v0.d[0]
-  umov  x1, v0.d[1]
-  umov  x2, v1.d[0]
-  umov  x3, v1.d[1]
-  umov  x4, v2.d[0]
-  umov  x5, v2.d[1]
-  umov  x6, v3.d[0]
-  umov  x7, v3.d[1]
+function NEONSplatF64x8_ASM(value: Double): TVecF64x8;
+var
+  LSplat: TVecF64x4;
+begin
+  LSplat := NEONSplatF64x4(value);
+  Result.lo := LSplat;
+  Result.hi := LSplat;
 end;
 
 function NEONZeroF64x8_ASM: TVecF64x8; assembler; nostackframe;
@@ -9667,97 +10551,50 @@ begin
   Result := BytesIndexOf_Scalar(haystack, haystackLen, needle, needleLen);
 end;
 
+{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+function NEONMask2All(mask: TMask2): Boolean; begin Result := ScalarMask2All(mask); end;
+function NEONMask2Any(mask: TMask2): Boolean; begin Result := ScalarMask2Any(mask); end;
+function NEONMask2None(mask: TMask2): Boolean; begin Result := ScalarMask2None(mask); end;
+function NEONMask2PopCount(mask: TMask2): Integer; begin Result := ScalarMask2PopCount(mask); end;
+function NEONMask2FirstSet(mask: TMask2): Integer; begin Result := ScalarMask2FirstSet(mask); end;
+function NEONMask4All(mask: TMask4): Boolean; begin Result := ScalarMask4All(mask); end;
+function NEONMask4Any(mask: TMask4): Boolean; begin Result := ScalarMask4Any(mask); end;
+function NEONMask4None(mask: TMask4): Boolean; begin Result := ScalarMask4None(mask); end;
+function NEONMask4PopCount(mask: TMask4): Integer; begin Result := ScalarMask4PopCount(mask); end;
+function NEONMask4FirstSet(mask: TMask4): Integer; begin Result := ScalarMask4FirstSet(mask); end;
+function NEONMask8All(mask: TMask8): Boolean; begin Result := ScalarMask8All(mask); end;
+function NEONMask8Any(mask: TMask8): Boolean; begin Result := ScalarMask8Any(mask); end;
+function NEONMask8None(mask: TMask8): Boolean; begin Result := ScalarMask8None(mask); end;
+function NEONMask8PopCount(mask: TMask8): Integer; begin Result := ScalarMask8PopCount(mask); end;
+function NEONMask8FirstSet(mask: TMask8): Integer; begin Result := ScalarMask8FirstSet(mask); end;
+function NEONMask16All(mask: TMask16): Boolean; begin Result := ScalarMask16All(mask); end;
+function NEONMask16Any(mask: TMask16): Boolean; begin Result := ScalarMask16Any(mask); end;
+function NEONMask16None(mask: TMask16): Boolean; begin Result := ScalarMask16None(mask); end;
+function NEONMask16PopCount(mask: TMask16): Integer; begin Result := ScalarMask16PopCount(mask); end;
+function NEONMask16FirstSet(mask: TMask16): Integer; begin Result := ScalarMask16FirstSet(mask); end;
+{$ENDIF}
+
 // === Dot Product Functions (needed by RegisterNEONBackend) ===
 
 // ✅ Iteration 6.4: FMA-optimized Dot Product Functions (NEON)
 
 {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-function NEONDotF32x8(const a, b: TVecF32x8): Single; assembler; nostackframe;
-asm
-  // a: x0..x3 (2 registers), b: x4..x7 (2 registers)
-  // Load a (256-bit) -> v0, v1
-  fmov  d0, x0
-  fmov  d4, x1
-  ins   v0.d[1], v4.d[0]  // v0 = a[0..3]
-
-  fmov  d1, x2
-  fmov  d4, x3
-  ins   v1.d[1], v4.d[0]  // v1 = a[4..7]
-
-  // Load b (256-bit) -> v2, v3
-  fmov  d2, x4
-  fmov  d4, x5
-  ins   v2.d[1], v4.d[0]  // v2 = b[0..3]
-
-  fmov  d3, x6
-  fmov  d4, x7
-  ins   v3.d[1], v4.d[0]  // v3 = b[4..7]
-
-  // Multiply
-  fmul  v0.4s, v0.4s, v2.4s  // v0 = a[0..3] * b[0..3]
-  fmul  v1.4s, v1.4s, v3.4s  // v1 = a[4..7] * b[4..7]
-
-  // Add the two halves
-  fadd  v0.4s, v0.4s, v1.4s
-
-  // Horizontal sum of v0
-  faddp v0.4s, v0.4s, v0.4s  // pairwise add
-  faddp s0, v0.2s            // final sum
-
-  // Result in s0
+function NEONDotF32x8(const a, b: TVecF32x8): Single;
+begin
+  Result := NEONDotF32x4(a.lo, b.lo) + NEONDotF32x4(a.hi, b.hi);
 end;
 
-function NEONDotF64x2(const a, b: TVecF64x2): Double; assembler; nostackframe;
-asm
-  // a: x0..x1, b: x2..x3
-  fmov  d0, x0
-  fmov  d2, x1
-  ins   v0.d[1], v2.d[0]  // v0 = a[0..1]
-
-  fmov  d1, x2
-  fmov  d2, x3
-  ins   v1.d[1], v2.d[0]  // v1 = b[0..1]
-
-  fmul  v0.2d, v0.2d, v1.2d  // v0 = a * b
-
-  // Horizontal sum
-  faddp d0, v0.2d            // sum both elements
-
-  // Result in d0
+function NEONDotF64x2(const a, b: TVecF64x2): Double;
+var
+  LProduct: TVecF64x2;
+begin
+  LProduct := NEONMulF64x2(a, b);
+  Result := NEONReduceAddF64x2(LProduct);
 end;
 
-function NEONDotF64x4(const a, b: TVecF64x4): Double; assembler; nostackframe;
-asm
-  // a: x0..x3, b: x4..x7
-  // Load a (256-bit) -> v0, v1
-  fmov  d0, x0
-  fmov  d4, x1
-  ins   v0.d[1], v4.d[0]  // v0 = a[0..1]
-
-  fmov  d1, x2
-  fmov  d4, x3
-  ins   v1.d[1], v4.d[0]  // v1 = a[2..3]
-
-  // Load b (256-bit) -> v2, v3
-  fmov  d2, x4
-  fmov  d4, x5
-  ins   v2.d[1], v4.d[0]  // v2 = b[0..1]
-
-  fmov  d3, x6
-  fmov  d4, x7
-  ins   v3.d[1], v4.d[0]  // v3 = b[2..3]
-
-  // Multiply
-  fmul  v0.2d, v0.2d, v2.2d  // v0 = a[0..1] * b[0..1]
-  fmul  v1.2d, v1.2d, v3.2d  // v1 = a[2..3] * b[2..3]
-
-  // Add the two halves
-  fadd  v0.2d, v0.2d, v1.2d
-
-  // Horizontal sum
-  faddp d0, v0.2d
-
-  // Result in d0
+function NEONDotF64x4(const a, b: TVecF64x4): Double;
+begin
+  Result := NEONDotF64x2(a.lo, b.lo) + NEONDotF64x2(a.hi, b.hi);
 end;
 {$ELSE}
 function NEONDotF32x8(const a, b: TVecF32x8): Single;
@@ -9773,6 +10610,371 @@ end;
 function NEONDotF64x4(const a, b: TVecF64x4): Double;
 begin
   Result := ScalarDotF64x4(a, b);
+end;
+{$ENDIF}
+
+procedure ApplyNEONMaskOverrides(var table: TSimdDispatchTable);
+begin
+  table.Mask2All := @NEONMask2All;
+  table.Mask2Any := @NEONMask2Any;
+  table.Mask2None := @NEONMask2None;
+  table.Mask2PopCount := @NEONMask2PopCount;
+  table.Mask2FirstSet := @NEONMask2FirstSet;
+  table.Mask4All := @NEONMask4All;
+  table.Mask4Any := @NEONMask4Any;
+  table.Mask4None := @NEONMask4None;
+  table.Mask4PopCount := @NEONMask4PopCount;
+  table.Mask4FirstSet := @NEONMask4FirstSet;
+  table.Mask8All := @NEONMask8All;
+  table.Mask8Any := @NEONMask8Any;
+  table.Mask8None := @NEONMask8None;
+  table.Mask8PopCount := @NEONMask8PopCount;
+  table.Mask8FirstSet := @NEONMask8FirstSet;
+  table.Mask16All := @NEONMask16All;
+  table.Mask16Any := @NEONMask16Any;
+  table.Mask16None := @NEONMask16None;
+  table.Mask16PopCount := @NEONMask16PopCount;
+  table.Mask16FirstSet := @NEONMask16FirstSet;
+end;
+
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+procedure ApplyNEONExperimentalWideF32Overrides(var table: TSimdDispatchTable);
+begin
+  table.AbsF32x16 := @NEONAbsF32x16;
+  table.AbsF32x8 := @NEONAbsF32x8;
+  table.AddF32x16 := @NEONAddF32x16;
+  table.CeilF32x16 := @NEONCeilF32x16;
+  table.CeilF32x8 := @NEONCeilF32x8;
+  table.ClampF32x16 := @NEONClampF32x16;
+  table.ClampF32x8 := @NEONClampF32x8;
+  table.CmpEqF32x16 := @NEONCmpEqF32x16;
+  table.CmpEqF32x8 := @NEONCmpEqF32x8;
+  table.CmpGeF32x16 := @NEONCmpGeF32x16;
+  table.CmpGeF32x8 := @NEONCmpGeF32x8;
+  table.CmpGtF32x16 := @NEONCmpGtF32x16;
+  table.CmpGtF32x8 := @NEONCmpGtF32x8;
+  table.CmpLeF32x16 := @NEONCmpLeF32x16;
+  table.CmpLeF32x8 := @NEONCmpLeF32x8;
+  table.CmpLtF32x16 := @NEONCmpLtF32x16;
+  table.CmpLtF32x8 := @NEONCmpLtF32x8;
+  table.CmpNeF32x16 := @NEONCmpNeF32x16;
+  table.CmpNeF32x8 := @NEONCmpNeF32x8;
+  table.DivF32x16 := @NEONDivF32x16;
+  table.ExtractF32x16 := @NEONExtractF32x16;
+  table.ExtractF32x8 := @NEONExtractF32x8;
+  table.FloorF32x16 := @NEONFloorF32x16;
+  table.FloorF32x8 := @NEONFloorF32x8;
+  table.FmaF32x16 := @NEONFmaF32x16;
+  table.FmaF32x8 := @NEONFmaF32x8;
+  table.InsertF32x16 := @NEONInsertF32x16;
+  table.InsertF32x8 := @NEONInsertF32x8;
+  table.LoadF32x16 := @NEONLoadF32x16;
+  table.LoadF32x8 := @NEONLoadF32x8;
+  table.MaxF32x16 := @NEONMaxF32x16;
+  table.MaxF32x8 := @NEONMaxF32x8;
+  table.MinF32x16 := @NEONMinF32x16;
+  table.MinF32x8 := @NEONMinF32x8;
+  table.MulF32x16 := @NEONMulF32x16;
+  table.ReduceAddF32x16 := @NEONReduceAddF32x16;
+  table.ReduceAddF32x8 := @NEONReduceAddF32x8;
+  table.ReduceMaxF32x16 := @NEONReduceMaxF32x16;
+  table.ReduceMaxF32x8 := @NEONReduceMaxF32x8;
+  table.ReduceMinF32x16 := @NEONReduceMinF32x16;
+  table.ReduceMinF32x8 := @NEONReduceMinF32x8;
+  table.ReduceMulF32x16 := @NEONReduceMulF32x16;
+  table.ReduceMulF32x8 := @NEONReduceMulF32x8;
+  table.RoundF32x16 := @NEONRoundF32x16;
+  table.RoundF32x8 := @NEONRoundF32x8;
+  table.SelectF32x16 := @NEONSelectF32x16;
+  table.SelectF32x8 := @NEONSelectF32x8;
+  table.SplatF32x16 := @NEONSplatF32x16;
+  table.SplatF32x8 := @NEONSplatF32x8;
+  table.SqrtF32x16 := @NEONSqrtF32x16;
+  table.SqrtF32x8 := @NEONSqrtF32x8;
+  table.StoreF32x16 := @NEONStoreF32x16;
+  table.StoreF32x8 := @NEONStoreF32x8;
+  table.SubF32x16 := @NEONSubF32x16;
+  table.TruncF32x16 := @NEONTruncF32x16;
+  table.TruncF32x8 := @NEONTruncF32x8;
+  table.ZeroF32x16 := @NEONZeroF32x16;
+  table.ZeroF32x8 := @NEONZeroF32x8;
+end;
+
+procedure ApplyNEONExperimentalWideF64Overrides(var table: TSimdDispatchTable);
+begin
+  table.AbsF64x2 := @NEONAbsF64x2;
+  table.AbsF64x4 := @NEONAbsF64x4;
+  table.AbsF64x8 := @NEONAbsF64x8;
+  table.AddF64x4 := @NEONAddF64x4;
+  table.AddF64x8 := @NEONAddF64x8;
+  table.CeilF64x2 := @NEONCeilF64x2;
+  table.CeilF64x4 := @NEONCeilF64x4;
+  table.CeilF64x8 := @NEONCeilF64x8;
+  table.ClampF64x2 := @NEONClampF64x2;
+  table.ClampF64x4 := @NEONClampF64x4;
+  table.ClampF64x8 := @NEONClampF64x8;
+  table.CmpEqF64x2 := @NEONCmpEqF64x2;
+  table.CmpEqF64x4 := @NEONCmpEqF64x4;
+  table.CmpEqF64x8 := @NEONCmpEqF64x8;
+  table.CmpGeF64x2 := @NEONCmpGeF64x2;
+  table.CmpGeF64x4 := @NEONCmpGeF64x4;
+  table.CmpGeF64x8 := @NEONCmpGeF64x8;
+  table.CmpGtF64x2 := @NEONCmpGtF64x2;
+  table.CmpGtF64x4 := @NEONCmpGtF64x4;
+  table.CmpGtF64x8 := @NEONCmpGtF64x8;
+  table.CmpLeF64x2 := @NEONCmpLeF64x2;
+  table.CmpLeF64x4 := @NEONCmpLeF64x4;
+  table.CmpLeF64x8 := @NEONCmpLeF64x8;
+  table.CmpLtF64x2 := @NEONCmpLtF64x2;
+  table.CmpLtF64x4 := @NEONCmpLtF64x4;
+  table.CmpLtF64x8 := @NEONCmpLtF64x8;
+  table.CmpNeF64x2 := @NEONCmpNeF64x2;
+  table.CmpNeF64x4 := @NEONCmpNeF64x4;
+  table.CmpNeF64x8 := @NEONCmpNeF64x8;
+  table.DivF64x4 := @NEONDivF64x4;
+  table.DivF64x8 := @NEONDivF64x8;
+  table.ExtractF64x2 := @NEONExtractF64x2;
+  table.ExtractF64x4 := @NEONExtractF64x4;
+  table.FloorF64x2 := @NEONFloorF64x2;
+  table.FloorF64x4 := @NEONFloorF64x4;
+  table.FloorF64x8 := @NEONFloorF64x8;
+  table.FmaF64x2 := @NEONFmaF64x2;
+  table.FmaF64x4 := @NEONFmaF64x4;
+  table.FmaF64x8 := @NEONFmaF64x8;
+  table.InsertF64x2 := @NEONInsertF64x2;
+  table.InsertF64x4 := @NEONInsertF64x4;
+  table.LoadF64x2 := @NEONLoadF64x2;
+  table.LoadF64x4 := @NEONLoadF64x4;
+  table.LoadF64x8 := @NEONLoadF64x8;
+  table.MaxF64x2 := @NEONMaxF64x2;
+  table.MaxF64x4 := @NEONMaxF64x4;
+  table.MaxF64x8 := @NEONMaxF64x8;
+  table.MinF64x2 := @NEONMinF64x2;
+  table.MinF64x4 := @NEONMinF64x4;
+  table.MinF64x8 := @NEONMinF64x8;
+  table.MulF64x4 := @NEONMulF64x4;
+  table.MulF64x8 := @NEONMulF64x8;
+  table.RcpF64x4 := @NEONRcpF64x4;
+  table.ReduceAddF64x2 := @NEONReduceAddF64x2;
+  table.ReduceAddF64x4 := @NEONReduceAddF64x4;
+  table.ReduceAddF64x8 := @NEONReduceAddF64x8;
+  table.ReduceMaxF64x2 := @NEONReduceMaxF64x2;
+  table.ReduceMaxF64x4 := @NEONReduceMaxF64x4;
+  table.ReduceMaxF64x8 := @NEONReduceMaxF64x8;
+  table.ReduceMinF64x2 := @NEONReduceMinF64x2;
+  table.ReduceMinF64x4 := @NEONReduceMinF64x4;
+  table.ReduceMinF64x8 := @NEONReduceMinF64x8;
+  table.ReduceMulF64x2 := @NEONReduceMulF64x2;
+  table.ReduceMulF64x4 := @NEONReduceMulF64x4;
+  table.ReduceMulF64x8 := @NEONReduceMulF64x8;
+  table.RoundF64x2 := @NEONRoundF64x2;
+  table.RoundF64x4 := @NEONRoundF64x4;
+  table.RoundF64x8 := @NEONRoundF64x8;
+  table.SelectF64x4 := @NEONSelectF64x4;
+  table.SelectF64x8 := @NEONSelectF64x8;
+  table.SplatF64x2 := @NEONSplatF64x2;
+  table.SplatF64x4 := @NEONSplatF64x4;
+  table.SplatF64x8 := @NEONSplatF64x8;
+  table.SqrtF64x2 := @NEONSqrtF64x2;
+  table.SqrtF64x4 := @NEONSqrtF64x4;
+  table.SqrtF64x8 := @NEONSqrtF64x8;
+  table.StoreF64x2 := @NEONStoreF64x2;
+  table.StoreF64x4 := @NEONStoreF64x4;
+  table.StoreF64x8 := @NEONStoreF64x8;
+  table.SubF64x4 := @NEONSubF64x4;
+  table.SubF64x8 := @NEONSubF64x8;
+  table.TruncF64x2 := @NEONTruncF64x2;
+  table.TruncF64x4 := @NEONTruncF64x4;
+  table.TruncF64x8 := @NEONTruncF64x8;
+  table.ZeroF64x2 := @NEONZeroF64x2;
+  table.ZeroF64x4 := @NEONZeroF64x4;
+  table.ZeroF64x8 := @NEONZeroF64x8;
+end;
+
+procedure ApplyNEONExperimentalWideNarrowIntOverrides(var table: TSimdDispatchTable);
+begin
+  table.CmpEqI16x8 := @NEONCmpEqI16x8;
+  table.CmpEqI8x16 := @NEONCmpEqI8x16;
+  table.CmpEqU16x8 := @NEONCmpEqU16x8;
+  table.CmpEqU8x16 := @NEONCmpEqU8x16;
+  table.CmpGeI16x8 := @NEONCmpGeI16x8;
+  table.CmpGeI8x16 := @NEONCmpGeI8x16;
+  table.CmpGeU16x8 := @NEONCmpGeU16x8;
+  table.CmpGeU8x16 := @NEONCmpGeU8x16;
+  table.CmpGtI16x8 := @NEONCmpGtI16x8;
+  table.CmpGtI8x16 := @NEONCmpGtI8x16;
+  table.CmpGtU16x8 := @NEONCmpGtU16x8;
+  table.CmpGtU8x16 := @NEONCmpGtU8x16;
+  table.CmpLeI16x8 := @NEONCmpLeI16x8;
+  table.CmpLeI8x16 := @NEONCmpLeI8x16;
+  table.CmpLeU16x8 := @NEONCmpLeU16x8;
+  table.CmpLeU8x16 := @NEONCmpLeU8x16;
+  table.CmpLtI16x8 := @NEONCmpLtI16x8;
+  table.CmpLtI8x16 := @NEONCmpLtI8x16;
+  table.CmpLtU16x8 := @NEONCmpLtU16x8;
+  table.CmpLtU8x16 := @NEONCmpLtU8x16;
+  table.CmpNeI16x8 := @NEONCmpNeI16x8;
+  table.CmpNeI8x16 := @NEONCmpNeI8x16;
+  table.CmpNeU16x8 := @NEONCmpNeU16x8;
+  table.CmpNeU8x16 := @NEONCmpNeU8x16;
+  table.ShiftLeftI16x8 := @NEONShiftLeftI16x8;
+  table.ShiftLeftU16x8 := @NEONShiftLeftU16x8;
+  table.ShiftRightArithI16x8 := @NEONShiftRightArithI16x8;
+  table.ShiftRightI16x8 := @NEONShiftRightI16x8;
+  table.ShiftRightU16x8 := @NEONShiftRightU16x8;
+end;
+
+procedure ApplyNEONExperimentalWideI32U32Overrides(var table: TSimdDispatchTable);
+begin
+  table.AddI32x16 := @NEONAddI32x16;
+  table.AddI32x8 := @NEONAddI32x8;
+  table.AddU32x4 := @NEONAddU32x4;
+  table.AddU32x8 := @NEONAddU32x8;
+  table.AndI32x16 := @NEONAndI32x16;
+  table.AndI32x4 := @NEONAndI32x4;
+  table.AndI32x8 := @NEONAndI32x8;
+  table.AndNotI32x16 := @NEONAndNotI32x16;
+  table.AndNotI32x4 := @NEONAndNotI32x4;
+  table.AndNotI32x8 := @NEONAndNotI32x8;
+  table.AndNotU32x4 := @NEONAndNotU32x4;
+  table.AndNotU32x8 := @NEONAndNotU32x8;
+  table.AndU32x4 := @NEONAndU32x4;
+  table.AndU32x8 := @NEONAndU32x8;
+  table.CmpEqI32x16 := @NEONCmpEqI32x16;
+  table.CmpEqI32x4 := @NEONCmpEqI32x4;
+  table.CmpEqI32x8 := @NEONCmpEqI32x8;
+  table.CmpEqU32x4 := @NEONCmpEqU32x4;
+  table.CmpEqU32x8 := @NEONCmpEqU32x8;
+  table.CmpGeI32x16 := @NEONCmpGeI32x16;
+  table.CmpGeI32x4 := @NEONCmpGeI32x4;
+  table.CmpGeI32x8 := @NEONCmpGeI32x8;
+  table.CmpGeU32x4 := @NEONCmpGeU32x4;
+  table.CmpGeU32x8 := @NEONCmpGeU32x8;
+  table.CmpGtI32x16 := @NEONCmpGtI32x16;
+  table.CmpGtI32x4 := @NEONCmpGtI32x4;
+  table.CmpGtI32x8 := @NEONCmpGtI32x8;
+  table.CmpGtU32x4 := @NEONCmpGtU32x4;
+  table.CmpGtU32x8 := @NEONCmpGtU32x8;
+  table.CmpLeI32x16 := @NEONCmpLeI32x16;
+  table.CmpLeI32x4 := @NEONCmpLeI32x4;
+  table.CmpLeI32x8 := @NEONCmpLeI32x8;
+  table.CmpLeU32x4 := @NEONCmpLeU32x4;
+  table.CmpLeU32x8 := @NEONCmpLeU32x8;
+  table.CmpLtI32x16 := @NEONCmpLtI32x16;
+  table.CmpLtI32x4 := @NEONCmpLtI32x4;
+  table.CmpLtI32x8 := @NEONCmpLtI32x8;
+  table.CmpLtU32x4 := @NEONCmpLtU32x4;
+  table.CmpLtU32x8 := @NEONCmpLtU32x8;
+  table.CmpNeI32x16 := @NEONCmpNeI32x16;
+  table.CmpNeI32x4 := @NEONCmpNeI32x4;
+  table.CmpNeI32x8 := @NEONCmpNeI32x8;
+  table.CmpNeU32x8 := @NEONCmpNeU32x8;
+  table.ExtractI32x16 := @NEONExtractI32x16;
+  table.ExtractI32x4 := @NEONExtractI32x4;
+  table.ExtractI32x8 := @NEONExtractI32x8;
+  table.InsertI32x16 := @NEONInsertI32x16;
+  table.InsertI32x4 := @NEONInsertI32x4;
+  table.InsertI32x8 := @NEONInsertI32x8;
+  table.MaxI32x16 := @NEONMaxI32x16;
+  table.MaxI32x4 := @NEONMaxI32x4;
+  table.MaxI32x8 := @NEONMaxI32x8;
+  table.MaxU32x4 := @NEONMaxU32x4;
+  table.MaxU32x8 := @NEONMaxU32x8;
+  table.MinI32x16 := @NEONMinI32x16;
+  table.MinI32x4 := @NEONMinI32x4;
+  table.MinI32x8 := @NEONMinI32x8;
+  table.MinU32x4 := @NEONMinU32x4;
+  table.MinU32x8 := @NEONMinU32x8;
+  table.MulI32x16 := @NEONMulI32x16;
+  table.MulI32x8 := @NEONMulI32x8;
+  table.MulU32x4 := @NEONMulU32x4;
+  table.MulU32x8 := @NEONMulU32x8;
+  table.NotI32x16 := @NEONNotI32x16;
+  table.NotI32x4 := @NEONNotI32x4;
+  table.NotI32x8 := @NEONNotI32x8;
+  table.NotU32x4 := @NEONNotU32x4;
+  table.NotU32x8 := @NEONNotU32x8;
+  table.OrI32x16 := @NEONOrI32x16;
+  table.OrI32x4 := @NEONOrI32x4;
+  table.OrI32x8 := @NEONOrI32x8;
+  table.OrU32x4 := @NEONOrU32x4;
+  table.OrU32x8 := @NEONOrU32x8;
+  table.SelectI32x4 := @NEONSelectI32x4;
+  table.ShiftLeftI32x16 := @NEONShiftLeftI32x16;
+  table.ShiftLeftI32x4 := @NEONShiftLeftI32x4;
+  table.ShiftLeftI32x8 := @NEONShiftLeftI32x8;
+  table.ShiftLeftU32x4 := @NEONShiftLeftU32x4;
+  table.ShiftLeftU32x8 := @NEONShiftLeftU32x8;
+  table.ShiftRightArithI32x16 := @NEONShiftRightArithI32x16;
+  table.ShiftRightArithI32x4 := @NEONShiftRightArithI32x4;
+  table.ShiftRightArithI32x8 := @NEONShiftRightArithI32x8;
+  table.ShiftRightI32x16 := @NEONShiftRightI32x16;
+  table.ShiftRightI32x4 := @NEONShiftRightI32x4;
+  table.ShiftRightI32x8 := @NEONShiftRightI32x8;
+  table.ShiftRightU32x4 := @NEONShiftRightU32x4;
+  table.ShiftRightU32x8 := @NEONShiftRightU32x8;
+  table.SubI32x16 := @NEONSubI32x16;
+  table.SubI32x8 := @NEONSubI32x8;
+  table.SubU32x4 := @NEONSubU32x4;
+  table.SubU32x8 := @NEONSubU32x8;
+  table.XorI32x16 := @NEONXorI32x16;
+  table.XorI32x4 := @NEONXorI32x4;
+  table.XorI32x8 := @NEONXorI32x8;
+  table.XorU32x4 := @NEONXorU32x4;
+  table.XorU32x8 := @NEONXorU32x8;
+end;
+
+procedure ApplyNEONExperimentalWideI64U64Overrides(var table: TSimdDispatchTable);
+begin
+  table.AddI64x4 := @NEONAddI64x4;
+  table.AddI64x8 := @NEONAddI64x8;
+  table.AddU64x4 := @NEONAddU64x4;
+  table.AndI64x4 := @NEONAndI64x4;
+  table.AndI64x8 := @NEONAndI64x8;
+  table.AndNotI64x4 := @NEONAndNotI64x4;
+  table.AndU64x4 := @NEONAndU64x4;
+  table.CmpEqI64x4 := @NEONCmpEqI64x4;
+  table.CmpEqI64x8 := @NEONCmpEqI64x8;
+  table.CmpEqU64x4 := @NEONCmpEqU64x4;
+  table.CmpGeI64x4 := @NEONCmpGeI64x4;
+  table.CmpGeI64x8 := @NEONCmpGeI64x8;
+  table.CmpGeU64x4 := @NEONCmpGeU64x4;
+  table.CmpGtI64x4 := @NEONCmpGtI64x4;
+  table.CmpGtI64x8 := @NEONCmpGtI64x8;
+  table.CmpGtU64x4 := @NEONCmpGtU64x4;
+  table.CmpLeI64x4 := @NEONCmpLeI64x4;
+  table.CmpLeI64x8 := @NEONCmpLeI64x8;
+  table.CmpLeU64x4 := @NEONCmpLeU64x4;
+  table.CmpLtI64x4 := @NEONCmpLtI64x4;
+  table.CmpLtI64x8 := @NEONCmpLtI64x8;
+  table.CmpLtU64x4 := @NEONCmpLtU64x4;
+  table.CmpNeI64x4 := @NEONCmpNeI64x4;
+  table.CmpNeI64x8 := @NEONCmpNeI64x8;
+  table.CmpNeU64x4 := @NEONCmpNeU64x4;
+  table.ExtractI64x2 := @NEONExtractI64x2;
+  table.ExtractI64x4 := @NEONExtractI64x4;
+  table.InsertI64x2 := @NEONInsertI64x2;
+  table.InsertI64x4 := @NEONInsertI64x4;
+  table.LoadI64x4 := @NEONLoadI64x4;
+  table.NotI64x4 := @NEONNotI64x4;
+  table.NotI64x8 := @NEONNotI64x8;
+  table.NotU64x4 := @NEONNotU64x4;
+  table.OrI64x4 := @NEONOrI64x4;
+  table.OrI64x8 := @NEONOrI64x8;
+  table.OrU64x4 := @NEONOrU64x4;
+  table.ShiftLeftI64x4 := @NEONShiftLeftI64x4;
+  table.ShiftLeftU64x4 := @NEONShiftLeftU64x4;
+  table.ShiftRightI64x4 := @NEONShiftRightI64x4;
+  table.ShiftRightU64x4 := @NEONShiftRightU64x4;
+  table.SplatI64x4 := @NEONSplatI64x4;
+  table.StoreI64x4 := @NEONStoreI64x4;
+  table.SubI64x4 := @NEONSubI64x4;
+  table.SubI64x8 := @NEONSubI64x8;
+  table.SubU64x4 := @NEONSubU64x4;
+  table.XorI64x4 := @NEONXorI64x4;
+  table.XorI64x8 := @NEONXorI64x8;
+  table.XorU64x4 := @NEONXorU64x4;
+  table.ZeroI64x4 := @NEONZeroI64x4;
 end;
 {$ENDIF}
 
@@ -9795,6 +10997,7 @@ begin
                                      scReduction, scIntegerOps, scLoadStore, scFMA];
   table.BackendInfo.Priority := 40;  // Higher than Scalar (0), lower than AVX2 (60)
 
+  // Stable Core Registration Overrides
   // Override with NEON-accelerated operations
   // Arithmetic operations - F32x4
   table.AddF32x4 := @NEONAddF32x4;
@@ -9964,347 +11167,16 @@ begin
   table.SelectF64x2 := @NEONSelectF64x2;
 
   // ✅ P1: Mask Operations
-  table.Mask2All := @NEONMask2All;
-  table.Mask2Any := @NEONMask2Any;
-  table.Mask2None := @NEONMask2None;
-  table.Mask2PopCount := @NEONMask2PopCount;
-  table.Mask2FirstSet := @NEONMask2FirstSet;
-  table.Mask4All := @NEONMask4All;
-  table.Mask4Any := @NEONMask4Any;
-  table.Mask4None := @NEONMask4None;
-  table.Mask4PopCount := @NEONMask4PopCount;
-  table.Mask4FirstSet := @NEONMask4FirstSet;
-  table.Mask8All := @NEONMask8All;
-  table.Mask8Any := @NEONMask8Any;
-  table.Mask8None := @NEONMask8None;
-  table.Mask8PopCount := @NEONMask8PopCount;
-  table.Mask8FirstSet := @NEONMask8FirstSet;
-  table.Mask16All := @NEONMask16All;
-  table.Mask16Any := @NEONMask16Any;
-  table.Mask16None := @NEONMask16None;
-  table.Mask16PopCount := @NEONMask16PopCount;
-  table.Mask16FirstSet := @NEONMask16FirstSet;
+  ApplyNEONMaskOverrides(table);
 
-  // === Auto-generated Registration for 100% Coverage ===
-  table.AbsF32x16 := @NEONAbsF32x16;
-  table.AbsF32x8 := @NEONAbsF32x8;
-  table.AbsF64x2 := @NEONAbsF64x2;
-  table.AbsF64x4 := @NEONAbsF64x4;
-  table.AbsF64x8 := @NEONAbsF64x8;
-  table.AddF32x16 := @NEONAddF32x16;
-  table.AddF64x4 := @NEONAddF64x4;
-  table.AddF64x8 := @NEONAddF64x8;
-  table.AddI32x16 := @NEONAddI32x16;
-  table.AddI32x8 := @NEONAddI32x8;
-  table.AddI64x4 := @NEONAddI64x4;
-  table.AddI64x8 := @NEONAddI64x8;
-  table.AddU32x4 := @NEONAddU32x4;
-  table.AddU32x8 := @NEONAddU32x8;
-  table.AddU64x4 := @NEONAddU64x4;
-  table.AndI32x16 := @NEONAndI32x16;
-  table.AndI32x4 := @NEONAndI32x4;
-  table.AndI32x8 := @NEONAndI32x8;
-  table.AndI64x4 := @NEONAndI64x4;
-  table.AndI64x8 := @NEONAndI64x8;
-  table.AndNotI32x16 := @NEONAndNotI32x16;
-  table.AndNotI32x4 := @NEONAndNotI32x4;
-  table.AndNotI32x8 := @NEONAndNotI32x8;
-  table.AndNotI64x4 := @NEONAndNotI64x4;
-  table.AndNotU32x4 := @NEONAndNotU32x4;
-  table.AndNotU32x8 := @NEONAndNotU32x8;
-  table.AndU32x4 := @NEONAndU32x4;
-  table.AndU32x8 := @NEONAndU32x8;
-  table.AndU64x4 := @NEONAndU64x4;
-  table.CeilF32x16 := @NEONCeilF32x16;
-  table.CeilF32x8 := @NEONCeilF32x8;
-  table.CeilF64x2 := @NEONCeilF64x2;
-  table.CeilF64x4 := @NEONCeilF64x4;
-  table.CeilF64x8 := @NEONCeilF64x8;
-  table.ClampF32x16 := @NEONClampF32x16;
-  table.ClampF32x8 := @NEONClampF32x8;
-  table.ClampF64x2 := @NEONClampF64x2;
-  table.ClampF64x4 := @NEONClampF64x4;
-  table.ClampF64x8 := @NEONClampF64x8;
-  table.CmpEqF32x16 := @NEONCmpEqF32x16;
-  table.CmpEqF32x8 := @NEONCmpEqF32x8;
-  table.CmpEqF64x2 := @NEONCmpEqF64x2;
-  table.CmpEqF64x4 := @NEONCmpEqF64x4;
-  table.CmpEqF64x8 := @NEONCmpEqF64x8;
-  table.CmpEqI16x8 := @NEONCmpEqI16x8;
-  table.CmpEqI32x16 := @NEONCmpEqI32x16;
-  table.CmpEqI32x4 := @NEONCmpEqI32x4;
-  table.CmpEqI32x8 := @NEONCmpEqI32x8;
-  table.CmpEqI64x4 := @NEONCmpEqI64x4;
-  table.CmpEqI64x8 := @NEONCmpEqI64x8;
-  table.CmpEqI8x16 := @NEONCmpEqI8x16;
-  table.CmpEqU16x8 := @NEONCmpEqU16x8;
-  table.CmpEqU32x4 := @NEONCmpEqU32x4;
-  table.CmpEqU32x8 := @NEONCmpEqU32x8;
-  table.CmpEqU64x4 := @NEONCmpEqU64x4;
-  table.CmpEqU8x16 := @NEONCmpEqU8x16;
-  table.CmpGeF32x16 := @NEONCmpGeF32x16;
-  table.CmpGeF32x8 := @NEONCmpGeF32x8;
-  table.CmpGeF64x2 := @NEONCmpGeF64x2;
-  table.CmpGeF64x4 := @NEONCmpGeF64x4;
-  table.CmpGeF64x8 := @NEONCmpGeF64x8;
-  table.CmpGeI16x8 := @NEONCmpGeI16x8;
-  table.CmpGeI32x16 := @NEONCmpGeI32x16;
-  table.CmpGeI32x4 := @NEONCmpGeI32x4;
-  table.CmpGeI32x8 := @NEONCmpGeI32x8;
-  table.CmpGeI64x4 := @NEONCmpGeI64x4;
-  table.CmpGeI64x8 := @NEONCmpGeI64x8;
-  table.CmpGeI8x16 := @NEONCmpGeI8x16;
-  table.CmpGeU16x8 := @NEONCmpGeU16x8;
-  table.CmpGeU32x4 := @NEONCmpGeU32x4;
-  table.CmpGeU32x8 := @NEONCmpGeU32x8;
-  table.CmpGeU64x4 := @NEONCmpGeU64x4;
-  table.CmpGeU8x16 := @NEONCmpGeU8x16;
-  table.CmpGtF32x16 := @NEONCmpGtF32x16;
-  table.CmpGtF32x8 := @NEONCmpGtF32x8;
-  table.CmpGtF64x2 := @NEONCmpGtF64x2;
-  table.CmpGtF64x4 := @NEONCmpGtF64x4;
-  table.CmpGtF64x8 := @NEONCmpGtF64x8;
-  table.CmpGtI16x8 := @NEONCmpGtI16x8;
-  table.CmpGtI32x16 := @NEONCmpGtI32x16;
-  table.CmpGtI32x4 := @NEONCmpGtI32x4;
-  table.CmpGtI32x8 := @NEONCmpGtI32x8;
-  table.CmpGtI64x4 := @NEONCmpGtI64x4;
-  table.CmpGtI64x8 := @NEONCmpGtI64x8;
-  table.CmpGtI8x16 := @NEONCmpGtI8x16;
-  table.CmpGtU16x8 := @NEONCmpGtU16x8;
-  table.CmpGtU32x4 := @NEONCmpGtU32x4;
-  table.CmpGtU32x8 := @NEONCmpGtU32x8;
-  table.CmpGtU64x4 := @NEONCmpGtU64x4;
-  table.CmpGtU8x16 := @NEONCmpGtU8x16;
-  table.CmpLeF32x16 := @NEONCmpLeF32x16;
-  table.CmpLeF32x8 := @NEONCmpLeF32x8;
-  table.CmpLeF64x2 := @NEONCmpLeF64x2;
-  table.CmpLeF64x4 := @NEONCmpLeF64x4;
-  table.CmpLeF64x8 := @NEONCmpLeF64x8;
-  table.CmpLeI16x8 := @NEONCmpLeI16x8;
-  table.CmpLeI32x16 := @NEONCmpLeI32x16;
-  table.CmpLeI32x4 := @NEONCmpLeI32x4;
-  table.CmpLeI32x8 := @NEONCmpLeI32x8;
-  table.CmpLeI64x4 := @NEONCmpLeI64x4;
-  table.CmpLeI64x8 := @NEONCmpLeI64x8;
-  table.CmpLeI8x16 := @NEONCmpLeI8x16;
-  table.CmpLeU16x8 := @NEONCmpLeU16x8;
-  table.CmpLeU32x4 := @NEONCmpLeU32x4;
-  table.CmpLeU32x8 := @NEONCmpLeU32x8;
-  table.CmpLeU64x4 := @NEONCmpLeU64x4;
-  table.CmpLeU8x16 := @NEONCmpLeU8x16;
-  table.CmpLtF32x16 := @NEONCmpLtF32x16;
-  table.CmpLtF32x8 := @NEONCmpLtF32x8;
-  table.CmpLtF64x2 := @NEONCmpLtF64x2;
-  table.CmpLtF64x4 := @NEONCmpLtF64x4;
-  table.CmpLtF64x8 := @NEONCmpLtF64x8;
-  table.CmpLtI16x8 := @NEONCmpLtI16x8;
-  table.CmpLtI32x16 := @NEONCmpLtI32x16;
-  table.CmpLtI32x4 := @NEONCmpLtI32x4;
-  table.CmpLtI32x8 := @NEONCmpLtI32x8;
-  table.CmpLtI64x4 := @NEONCmpLtI64x4;
-  table.CmpLtI64x8 := @NEONCmpLtI64x8;
-  table.CmpLtI8x16 := @NEONCmpLtI8x16;
-  table.CmpLtU16x8 := @NEONCmpLtU16x8;
-  table.CmpLtU32x4 := @NEONCmpLtU32x4;
-  table.CmpLtU32x8 := @NEONCmpLtU32x8;
-  table.CmpLtU64x4 := @NEONCmpLtU64x4;
-  table.CmpLtU8x16 := @NEONCmpLtU8x16;
-  table.CmpNeF32x16 := @NEONCmpNeF32x16;
-  table.CmpNeF32x8 := @NEONCmpNeF32x8;
-  table.CmpNeF64x2 := @NEONCmpNeF64x2;
-  table.CmpNeF64x4 := @NEONCmpNeF64x4;
-  table.CmpNeF64x8 := @NEONCmpNeF64x8;
-  table.CmpNeI16x8 := @NEONCmpNeI16x8;
-  table.CmpNeI32x16 := @NEONCmpNeI32x16;
-  table.CmpNeI32x4 := @NEONCmpNeI32x4;
-  table.CmpNeI32x8 := @NEONCmpNeI32x8;
-  table.CmpNeI64x4 := @NEONCmpNeI64x4;
-  table.CmpNeI64x8 := @NEONCmpNeI64x8;
-  table.CmpNeI8x16 := @NEONCmpNeI8x16;
-  table.CmpNeU16x8 := @NEONCmpNeU16x8;
-  table.CmpNeU32x8 := @NEONCmpNeU32x8;
-  table.CmpNeU64x4 := @NEONCmpNeU64x4;
-  table.CmpNeU8x16 := @NEONCmpNeU8x16;
-  table.DivF32x16 := @NEONDivF32x16;
-  table.DivF64x4 := @NEONDivF64x4;
-  table.DivF64x8 := @NEONDivF64x8;
-  table.ExtractF32x16 := @NEONExtractF32x16;
-  table.ExtractF32x8 := @NEONExtractF32x8;
-  table.ExtractF64x2 := @NEONExtractF64x2;
-  table.ExtractF64x4 := @NEONExtractF64x4;
-  table.ExtractI32x16 := @NEONExtractI32x16;
-  table.ExtractI32x4 := @NEONExtractI32x4;
-  table.ExtractI32x8 := @NEONExtractI32x8;
-  table.ExtractI64x2 := @NEONExtractI64x2;
-  table.ExtractI64x4 := @NEONExtractI64x4;
-  table.FloorF32x16 := @NEONFloorF32x16;
-  table.FloorF32x8 := @NEONFloorF32x8;
-  table.FloorF64x2 := @NEONFloorF64x2;
-  table.FloorF64x4 := @NEONFloorF64x4;
-  table.FloorF64x8 := @NEONFloorF64x8;
-  table.FmaF32x16 := @NEONFmaF32x16;
-  table.FmaF32x8 := @NEONFmaF32x8;
-  table.FmaF64x2 := @NEONFmaF64x2;
-  table.FmaF64x4 := @NEONFmaF64x4;
-  table.FmaF64x8 := @NEONFmaF64x8;
-  table.InsertF32x16 := @NEONInsertF32x16;
-  table.InsertF32x8 := @NEONInsertF32x8;
-  table.InsertF64x2 := @NEONInsertF64x2;
-  table.InsertF64x4 := @NEONInsertF64x4;
-  table.InsertI32x16 := @NEONInsertI32x16;
-  table.InsertI32x4 := @NEONInsertI32x4;
-  table.InsertI32x8 := @NEONInsertI32x8;
-  table.InsertI64x2 := @NEONInsertI64x2;
-  table.InsertI64x4 := @NEONInsertI64x4;
-  table.LoadF32x16 := @NEONLoadF32x16;
-  table.LoadF32x8 := @NEONLoadF32x8;
-  table.LoadF64x2 := @NEONLoadF64x2;
-  table.LoadF64x4 := @NEONLoadF64x4;
-  table.LoadF64x8 := @NEONLoadF64x8;
-  table.LoadI64x4 := @NEONLoadI64x4;
-  table.MaxF32x16 := @NEONMaxF32x16;
-  table.MaxF32x8 := @NEONMaxF32x8;
-  table.MaxF64x2 := @NEONMaxF64x2;
-  table.MaxF64x4 := @NEONMaxF64x4;
-  table.MaxF64x8 := @NEONMaxF64x8;
-  table.MaxI32x16 := @NEONMaxI32x16;
-  table.MaxI32x4 := @NEONMaxI32x4;
-  table.MaxI32x8 := @NEONMaxI32x8;
-  table.MaxU32x4 := @NEONMaxU32x4;
-  table.MaxU32x8 := @NEONMaxU32x8;
-  table.MinF32x16 := @NEONMinF32x16;
-  table.MinF32x8 := @NEONMinF32x8;
-  table.MinF64x2 := @NEONMinF64x2;
-  table.MinF64x4 := @NEONMinF64x4;
-  table.MinF64x8 := @NEONMinF64x8;
-  table.MinI32x16 := @NEONMinI32x16;
-  table.MinI32x4 := @NEONMinI32x4;
-  table.MinI32x8 := @NEONMinI32x8;
-  table.MinU32x4 := @NEONMinU32x4;
-  table.MinU32x8 := @NEONMinU32x8;
-  table.MulF32x16 := @NEONMulF32x16;
-  table.MulF64x4 := @NEONMulF64x4;
-  table.MulF64x8 := @NEONMulF64x8;
-  table.MulI32x16 := @NEONMulI32x16;
-  table.MulI32x8 := @NEONMulI32x8;
-  table.MulU32x4 := @NEONMulU32x4;
-  table.MulU32x8 := @NEONMulU32x8;
-  table.NotI32x16 := @NEONNotI32x16;
-  table.NotI32x4 := @NEONNotI32x4;
-  table.NotI32x8 := @NEONNotI32x8;
-  table.NotI64x4 := @NEONNotI64x4;
-  table.NotI64x8 := @NEONNotI64x8;
-  table.NotU32x4 := @NEONNotU32x4;
-  table.NotU32x8 := @NEONNotU32x8;
-  table.NotU64x4 := @NEONNotU64x4;
-  table.OrI32x16 := @NEONOrI32x16;
-  table.OrI32x4 := @NEONOrI32x4;
-  table.OrI32x8 := @NEONOrI32x8;
-  table.OrI64x4 := @NEONOrI64x4;
-  table.OrI64x8 := @NEONOrI64x8;
-  table.OrU32x4 := @NEONOrU32x4;
-  table.OrU32x8 := @NEONOrU32x8;
-  table.OrU64x4 := @NEONOrU64x4;
-  table.RcpF64x4 := @NEONRcpF64x4;
-  table.ReduceAddF32x16 := @NEONReduceAddF32x16;
-  table.ReduceAddF32x8 := @NEONReduceAddF32x8;
-  table.ReduceAddF64x2 := @NEONReduceAddF64x2;
-  table.ReduceAddF64x4 := @NEONReduceAddF64x4;
-  table.ReduceAddF64x8 := @NEONReduceAddF64x8;
-  table.ReduceMaxF32x16 := @NEONReduceMaxF32x16;
-  table.ReduceMaxF32x8 := @NEONReduceMaxF32x8;
-  table.ReduceMaxF64x2 := @NEONReduceMaxF64x2;
-  table.ReduceMaxF64x4 := @NEONReduceMaxF64x4;
-  table.ReduceMaxF64x8 := @NEONReduceMaxF64x8;
-  table.ReduceMinF32x16 := @NEONReduceMinF32x16;
-  table.ReduceMinF32x8 := @NEONReduceMinF32x8;
-  table.ReduceMinF64x2 := @NEONReduceMinF64x2;
-  table.ReduceMinF64x4 := @NEONReduceMinF64x4;
-  table.ReduceMinF64x8 := @NEONReduceMinF64x8;
-  table.ReduceMulF32x16 := @NEONReduceMulF32x16;
-  table.ReduceMulF32x8 := @NEONReduceMulF32x8;
-  table.ReduceMulF64x2 := @NEONReduceMulF64x2;
-  table.ReduceMulF64x4 := @NEONReduceMulF64x4;
-  table.ReduceMulF64x8 := @NEONReduceMulF64x8;
-  table.RoundF32x16 := @NEONRoundF32x16;
-  table.RoundF32x8 := @NEONRoundF32x8;
-  table.RoundF64x2 := @NEONRoundF64x2;
-  table.RoundF64x4 := @NEONRoundF64x4;
-  table.RoundF64x8 := @NEONRoundF64x8;
-  table.SelectF32x16 := @NEONSelectF32x16;
-  table.SelectF32x8 := @NEONSelectF32x8;
-  table.SelectF64x4 := @NEONSelectF64x4;
-  table.SelectF64x8 := @NEONSelectF64x8;
-  table.SelectI32x4 := @NEONSelectI32x4;
-  table.ShiftLeftI16x8 := @NEONShiftLeftI16x8;
-  table.ShiftLeftI32x16 := @NEONShiftLeftI32x16;
-  table.ShiftLeftI32x4 := @NEONShiftLeftI32x4;
-  table.ShiftLeftI32x8 := @NEONShiftLeftI32x8;
-  table.ShiftLeftI64x4 := @NEONShiftLeftI64x4;
-  table.ShiftLeftU16x8 := @NEONShiftLeftU16x8;
-  table.ShiftLeftU32x4 := @NEONShiftLeftU32x4;
-  table.ShiftLeftU32x8 := @NEONShiftLeftU32x8;
-  table.ShiftLeftU64x4 := @NEONShiftLeftU64x4;
-  table.ShiftRightArithI16x8 := @NEONShiftRightArithI16x8;
-  table.ShiftRightArithI32x16 := @NEONShiftRightArithI32x16;
-  table.ShiftRightArithI32x4 := @NEONShiftRightArithI32x4;
-  table.ShiftRightArithI32x8 := @NEONShiftRightArithI32x8;
-  table.ShiftRightI16x8 := @NEONShiftRightI16x8;
-  table.ShiftRightI32x16 := @NEONShiftRightI32x16;
-  table.ShiftRightI32x4 := @NEONShiftRightI32x4;
-  table.ShiftRightI32x8 := @NEONShiftRightI32x8;
-  table.ShiftRightI64x4 := @NEONShiftRightI64x4;
-  table.ShiftRightU16x8 := @NEONShiftRightU16x8;
-  table.ShiftRightU32x4 := @NEONShiftRightU32x4;
-  table.ShiftRightU32x8 := @NEONShiftRightU32x8;
-  table.ShiftRightU64x4 := @NEONShiftRightU64x4;
-  table.SplatF32x16 := @NEONSplatF32x16;
-  table.SplatF32x8 := @NEONSplatF32x8;
-  table.SplatF64x2 := @NEONSplatF64x2;
-  table.SplatF64x4 := @NEONSplatF64x4;
-  table.SplatF64x8 := @NEONSplatF64x8;
-  table.SplatI64x4 := @NEONSplatI64x4;
-  table.SqrtF32x16 := @NEONSqrtF32x16;
-  table.SqrtF32x8 := @NEONSqrtF32x8;
-  table.SqrtF64x2 := @NEONSqrtF64x2;
-  table.SqrtF64x4 := @NEONSqrtF64x4;
-  table.SqrtF64x8 := @NEONSqrtF64x8;
-  table.StoreF32x16 := @NEONStoreF32x16;
-  table.StoreF32x8 := @NEONStoreF32x8;
-  table.StoreF64x2 := @NEONStoreF64x2;
-  table.StoreF64x4 := @NEONStoreF64x4;
-  table.StoreF64x8 := @NEONStoreF64x8;
-  table.StoreI64x4 := @NEONStoreI64x4;
-  table.SubF32x16 := @NEONSubF32x16;
-  table.SubF64x4 := @NEONSubF64x4;
-  table.SubF64x8 := @NEONSubF64x8;
-  table.SubI32x16 := @NEONSubI32x16;
-  table.SubI32x8 := @NEONSubI32x8;
-  table.SubI64x4 := @NEONSubI64x4;
-  table.SubI64x8 := @NEONSubI64x8;
-  table.SubU32x4 := @NEONSubU32x4;
-  table.SubU32x8 := @NEONSubU32x8;
-  table.SubU64x4 := @NEONSubU64x4;
-  table.TruncF32x16 := @NEONTruncF32x16;
-  table.TruncF32x8 := @NEONTruncF32x8;
-  table.TruncF64x2 := @NEONTruncF64x2;
-  table.TruncF64x4 := @NEONTruncF64x4;
-  table.TruncF64x8 := @NEONTruncF64x8;
-  table.XorI32x16 := @NEONXorI32x16;
-  table.XorI32x4 := @NEONXorI32x4;
-  table.XorI32x8 := @NEONXorI32x8;
-  table.XorI64x4 := @NEONXorI64x4;
-  table.XorI64x8 := @NEONXorI64x8;
-  table.XorU32x4 := @NEONXorU32x4;
-  table.XorU32x8 := @NEONXorU32x8;
-  table.XorU64x4 := @NEONXorU64x4;
-  table.ZeroF32x16 := @NEONZeroF32x16;
-  table.ZeroF32x8 := @NEONZeroF32x8;
-  table.ZeroF64x2 := @NEONZeroF64x2;
-  table.ZeroF64x4 := @NEONZeroF64x4;
-  table.ZeroF64x8 := @NEONZeroF64x8;
-  table.ZeroI64x4 := @NEONZeroI64x4;
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+  // === Experimental-Wide Registration Overrides ===
+  ApplyNEONExperimentalWideF32Overrides(table);
+  ApplyNEONExperimentalWideF64Overrides(table);
+  ApplyNEONExperimentalWideNarrowIntOverrides(table);
+  ApplyNEONExperimentalWideI32U32Overrides(table);
+  ApplyNEONExperimentalWideI64U64Overrides(table);
+{$ENDIF}
 
   // Register the backend
   RegisterBackend(sbNEON, table);
