@@ -91,6 +91,19 @@ function neon_vminq_f32(const a, b: TNeon128): TNeon128;
 
 implementation
 
+uses
+  SysUtils;
+
+procedure EnsureExperimentalIntrinsicsEnabled; inline;
+begin
+  {$IFNDEF FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS}
+  raise ENotSupportedException.Create(
+    'fafafa.core.simd.intrinsics.neon is experimental placeholder semantics. ' +
+    'Define FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS to opt in.'
+  );
+  {$ENDIF}
+end;
+
 {$IFDEF CPUARM}
 
 // === NEON 函数实现 (Pascal 版本) ===
@@ -333,6 +346,9 @@ end;
 {$ELSE}
 // �?ARM 平台的空实现
 {$ENDIF} // CPUARM
+
+initialization
+  EnsureExperimentalIntrinsicsEnabled;
 
 end.
 

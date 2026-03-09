@@ -1,10 +1,11 @@
 # Multi-arch SIMD test image
-# - i386: Debian bookworm (Ubuntu 24.04 dropped i386)
+# - i386/arm(32-bit): Debian bookworm
 # - arm64/amd64: Ubuntu 24.04
 # - riscv64: Ubuntu 24.04 + FPC snapshot
 # - arm64 with USE_FPC_SNAPSHOT=1: FPC 3.3.1 snapshot (for NEON ASM testing)
 ARG TARGETARCH
 FROM debian:bookworm AS base-386
+FROM debian:bookworm AS base-arm
 FROM ubuntu:24.04 AS base-arm64
 FROM ubuntu:24.04 AS base-amd64
 FROM ubuntu:24.04 AS base-riscv64

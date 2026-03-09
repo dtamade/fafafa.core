@@ -826,11 +826,36 @@ begin
 end;
 
 function WideningMulU64(aA, aB: UInt64): TUInt128;
+var
+  LA0: UInt64;
+  LA1: UInt64;
+  LB0: UInt64;
+  LB1: UInt64;
+  LP0: UInt64;
+  LP1: UInt64;
+  LP2: UInt64;
+  LP3: UInt64;
+  LMiddleLow: UInt64;
+  LMiddleHigh: UInt64;
+  LCarry: UInt64;
 begin
-  // Simple implementation: returns low 64 bits, high bits set to 0
-  // Full 128-bit multiply would require extended precision arithmetic
-  Result.Lo := aA * aB;
-  Result.Hi := 0;  // Stub: proper implementation needs multi-precision math
+  LA0 := aA and $FFFFFFFF;
+  LA1 := aA shr 32;
+  LB0 := aB and $FFFFFFFF;
+  LB1 := aB shr 32;
+
+  LP0 := LA0 * LB0;
+  LP1 := LA0 * LB1;
+  LP2 := LA1 * LB0;
+  LP3 := LA1 * LB1;
+
+  LMiddleLow := (LP1 and $FFFFFFFF) + (LP2 and $FFFFFFFF) + (LP0 shr 32);
+  LCarry := LMiddleLow shr 32;
+
+  Result.Lo := (LP0 and $FFFFFFFF) or ((LMiddleLow and $FFFFFFFF) shl 32);
+
+  LMiddleHigh := (LP1 shr 32) + (LP2 shr 32) + LCarry;
+  Result.Hi := LP3 + LMiddleHigh;
 end;
 
 // Euclidean division for signed integers

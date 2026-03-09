@@ -49,6 +49,19 @@ function sse42_crc32_u64(crc: UInt64; data: UInt64): UInt64;
 
 implementation
 
+uses
+  SysUtils;
+
+procedure EnsureExperimentalIntrinsicsEnabled; inline;
+begin
+  {$IFNDEF FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS}
+  raise ENotSupportedException.Create(
+    'fafafa.core.simd.intrinsics.sse42 is experimental placeholder semantics. ' +
+    'Define FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS to opt in.'
+  );
+  {$ENDIF}
+end;
+
 // === 字符串比较指令的简化实�?===
 function sse42_cmpestrm(const a: TM128; la: Integer; const b: TM128; lb: Integer; imm8: Byte): TM128;
 begin
@@ -160,6 +173,9 @@ begin
   Result := sse42_crc32_u32(Cardinal(crc), Cardinal(data));
   Result := sse42_crc32_u32(Cardinal(Result), Cardinal(data shr 32));
 end;
+
+initialization
+  EnsureExperimentalIntrinsicsEnabled;
 
 end.
 

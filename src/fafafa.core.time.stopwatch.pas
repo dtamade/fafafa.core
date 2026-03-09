@@ -40,7 +40,6 @@ interface
 
 uses
   SysUtils,
-  fafafa.core.time.base,
   fafafa.core.time.duration,
   fafafa.core.time.tick;
 

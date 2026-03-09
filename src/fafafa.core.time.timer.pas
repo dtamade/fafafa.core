@@ -844,21 +844,33 @@ var
 begin
   Shutdown;
   FThread.Free;
-  // ✅ Phase 3.1: 使用后端接口清理未释放的条目
+
+  // Destructor safety: do not free entries still referenced by ITimer handles.
   FLock.Acquire;
   try
     while not FBackend.IsEmpty do
     begin
       entry := PTimerEntry(FBackend.Dequeue);
       if entry <> nil then
-        Dispose(entry);
+      begin
+        entry^.InHeap := False;
+        entry^.HeapIndex := -1;
+        entry^.Dead := True;
+        entry^.Cancelled := True;
+        entry^.Owner := nil;
+        entry^.CancellationToken := nil;
+
+        if entry^.RefCount <= 0 then
+          Dispose(entry);
+      end;
     end;
     FBackend.Clear;
   finally
     FLock.Release;
   end;
-  FBackend := nil;  // ✅ 释放后端接口引用
-  FCallbackPool := nil; // 释放线程池引用
+
+  FBackend := nil;
+  FCallbackPool := nil;
   inherited Destroy;
 end;
 

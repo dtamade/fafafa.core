@@ -42,6 +42,19 @@ function avx512_maskz_add_ps512(const a, b: TM512; mask: UInt16): TM512;
 
 implementation
 
+uses
+  SysUtils;
+
+procedure EnsureExperimentalIntrinsicsEnabled; inline;
+begin
+  {$IFNDEF FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS}
+  raise ENotSupportedException.Create(
+    'fafafa.core.simd.intrinsics.avx512 is experimental placeholder semantics. ' +
+    'Define FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS to opt in.'
+  );
+  {$ENDIF}
+end;
+
 // === 基础函数实现 (Pascal 版本) ===
 function avx512_load_ps512(const Ptr: Pointer): TM512;
 begin
@@ -129,6 +142,9 @@ begin
     else
       Result.m512_f32[i] := 0.0;
 end;
+
+initialization
+  EnsureExperimentalIntrinsicsEnabled;
 
 end.
 

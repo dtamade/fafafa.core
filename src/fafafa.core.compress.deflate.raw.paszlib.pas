@@ -66,6 +66,12 @@ uses zlib;
 type
   Pz_stream = ^z_stream;
 
+// Helpers to silence unused-parameter hints without changing behavior.
+procedure _unused_ptr(const P: Pointer); inline; begin if P <> nil then; end;
+procedure _unused_i32(const V: Longint); inline; begin if V <> 0 then; end;
+procedure _unused_i64(const V: Int64); inline; begin if V <> 0 then; end;
+procedure _unused_seekorigin(const V: TSeekOrigin); inline; begin if V <> soBeginning then; end;
+
 { TRawDeflateStream }
 
 constructor TRawDeflateStream.Create(const ADest: TStream; const AOwnsDest: Boolean; const ALevel: Integer);
@@ -120,6 +126,8 @@ end;
 
 function TRawDeflateStream.Read(var Buffer; Count: Longint): Longint;
 begin
+  _unused_ptr(@Buffer);
+  _unused_i32(Count);
   Result := 0; // 写流，不支持读
 end;
 
@@ -150,6 +158,8 @@ end;
 
 function TRawDeflateStream.Seek(const Offset: Int64; Origin: TSeekOrigin): Int64;
 begin
+  _unused_i64(Offset);
+  _unused_seekorigin(Origin);
   Result := -1;
 end;
 
@@ -197,6 +207,8 @@ end;
 
 function TRawInflateStream.ReadUnconsumed(var Buffer; Count: Longint): Longint;
 begin
+  _unused_ptr(@Buffer);
+  _unused_i32(Count);
   Result := 0;
 end;
 
@@ -251,11 +263,15 @@ end;
 
 function TRawInflateStream.Write(const Buffer; Count: Longint): Longint;
 begin
+  _unused_ptr(@Buffer);
+  _unused_i32(Count);
   Result := 0; // 读流，不支持写
 end;
 
 function TRawInflateStream.Seek(const Offset: Int64; Origin: TSeekOrigin): Int64;
 begin
+  _unused_i64(Offset);
+  _unused_seekorigin(Origin);
   // 支持 Position 查询为已输出的总字节数较复杂，这里返回 -1 表示不支持
   Result := -1;
 end;

@@ -80,6 +80,9 @@ type
     HasD: Boolean;
     HasC: Boolean;
     HasV: Boolean;
+    // Raw Linux auxv evidence for diagnostics/future extension mapping.
+    LinuxHWCAP: QWord;
+    LinuxHWCAP2: QWord;
   end;
 
   TRISCVISA = (rvV, rvF, rvD, rvA, rvC);
@@ -125,7 +128,134 @@ type
     {$ENDIF}
   end;
 
+// Parse Linux sysfs cache-size text into KB.
+// Supports K/KB/KiB, M/MB/MiB, G/GB/GiB and raw bytes.
+// Saturates at High(Integer) on overflow.
+function ParseCacheSizeTextToKB(const aText: string): Integer;
+
 implementation
+
+uses
+  SysUtils;
+
+function ParseCacheSizeTextToKB(const aText: string): Integer;
+var
+  LText: string;
+  LNumText: string;
+  LCode: Integer;
+  LValue: Int64;
+  LUnit: Char;
+
+  function ClampKBToInteger(const aValue: Int64): Integer; inline;
+  begin
+    if aValue <= 0 then
+      Exit(0);
+    if aValue > High(Integer) then
+      Exit(High(Integer));
+    Result := Integer(aValue);
+  end;
+
+  function BytesToKB(const aBytes: Int64): Integer; inline;
+  var
+    LKBValue: Int64;
+  begin
+    if aBytes <= 0 then
+      Exit(0);
+    // ceil(bytes/1024) without risking (bytes + 1023) overflow.
+    LKBValue := ((aBytes - 1) div 1024) + 1;
+    Result := ClampKBToInteger(LKBValue);
+  end;
+begin
+  Result := 0;
+  LText := UpperCase(Trim(aText));
+  if LText = '' then
+    Exit;
+
+  LText := StringReplace(LText, ' ', '', [rfReplaceAll]);
+  LText := StringReplace(LText, #9, '', [rfReplaceAll]);
+  if LText = '' then
+    Exit;
+
+  if (Length(LText) >= 3) and (Copy(LText, Length(LText) - 2, 3) = 'KIB') then
+  begin
+    LUnit := 'K';
+    LNumText := Copy(LText, 1, Length(LText) - 3);
+  end
+  else if (Length(LText) >= 3) and (Copy(LText, Length(LText) - 2, 3) = 'MIB') then
+  begin
+    LUnit := 'M';
+    LNumText := Copy(LText, 1, Length(LText) - 3);
+  end
+  else if (Length(LText) >= 3) and (Copy(LText, Length(LText) - 2, 3) = 'GIB') then
+  begin
+    LUnit := 'G';
+    LNumText := Copy(LText, 1, Length(LText) - 3);
+  end
+  else if (Length(LText) >= 2) and (Copy(LText, Length(LText) - 1, 2) = 'KB') then
+  begin
+    LUnit := 'K';
+    LNumText := Copy(LText, 1, Length(LText) - 2);
+  end
+  else if (Length(LText) >= 2) and (Copy(LText, Length(LText) - 1, 2) = 'MB') then
+  begin
+    LUnit := 'M';
+    LNumText := Copy(LText, 1, Length(LText) - 2);
+  end
+  else if (Length(LText) >= 2) and (Copy(LText, Length(LText) - 1, 2) = 'GB') then
+  begin
+    LUnit := 'G';
+    LNumText := Copy(LText, 1, Length(LText) - 2);
+  end
+  else if (Length(LText) >= 1) and (LText[Length(LText)] in ['K', 'M', 'G']) then
+  begin
+    LUnit := LText[Length(LText)];
+    LNumText := Copy(LText, 1, Length(LText) - 1);
+  end
+  else if (Length(LText) >= 1) and (LText[Length(LText)] = 'B') then
+  begin
+    LNumText := Copy(LText, 1, Length(LText) - 1);
+    Val(LNumText, LValue, LCode);
+    if (LCode = 0) and (LValue > 0) then
+      Result := BytesToKB(LValue);
+    Exit;
+  end
+  else
+  begin
+    Val(LText, LValue, LCode);
+    if (LCode = 0) and (LValue > 0) then
+      Result := BytesToKB(LValue);
+    Exit;
+  end;
+
+  Val(LNumText, LValue, LCode);
+  if (LCode <> 0) or (LValue <= 0) then
+    Exit;
+
+  case LUnit of
+    'K':
+      Result := ClampKBToInteger(LValue);
+    'M':
+      begin
+        if LValue > (High(Integer) div 1024) then
+          Result := High(Integer)
+        else
+          Result := Integer(LValue * 1024);
+      end;
+    'G':
+      begin
+        if LValue > (High(Integer) div (1024 * 1024)) then
+          Result := High(Integer)
+        else
+          Result := Integer(LValue * 1024 * 1024);
+      end;
+  else
+    Val(LText, LValue, LCode);
+    if (LCode = 0) and (LValue > 0) then
+      Result := BytesToKB(LValue)
+    else
+      Result := 0;
+  end;
+end;
 
 end.
 

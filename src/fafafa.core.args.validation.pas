@@ -9,12 +9,10 @@ interface
 uses
   SysUtils, Classes, RegExpr,
   fafafa.core.base,  // ✅ ARGS-001: 引入 ECore 基类
-  fafafa.core.args,
   fafafa.core.args.base,  // TStringArray
   fafafa.core.args.errors,
   fafafa.core.args.schema,
-  fafafa.core.args.utils,
-  fafafa.core.result;
+  fafafa.core.args.utils;
 
 type
   // 验证器类型
@@ -466,8 +464,6 @@ begin
     vtFile: Result := ValidateFileExists(Rule.Key);
     vtDirectory: Result := ValidateDirectoryExists(Rule.Key);
     vtCustom: Result := ValidateCustom(Rule.Key, Rule.CustomValidator, Rule.ErrorMessage);
-  else
-    Result := TArgsError.ParseError('Unknown validation rule type');
   end;
 end;
 
@@ -740,6 +736,7 @@ var
   Aliases: fafafa.core.args.schema.TStringArray;
   IsBool: Boolean;
 begin
+  if Opts.CaseInsensitiveKeys then;
   Result := False;
   if (Args = nil) or (F = nil) then Exit;
 

@@ -77,7 +77,7 @@ function ParseDottedKey(var P: TParserV2; out KeyPath: String): Boolean;
 var parts: array of String; part: String; i: Integer;
 begin
   Result := False;
-  SetLength(parts, 0);
+  parts := nil;
   if not (TokIs(P, ttIdent) or TokIs(P, ttString) or TokIs(P, ttLiteralString)) then Exit(False);
   repeat
     part := ReadKeyPart(P.Tok);
@@ -214,20 +214,46 @@ begin
 end;
 
 function ParseStrictFloat(const raw: String; out outVal: Double; out ErrMsg: String): Boolean;
-var sgn: Integer; body, tmp: String; pDot, pE: SizeInt; FS: TFormatSettings;
+var
+  sgn: Integer;
+  body, tmp: String;
+  pDot, pE: SizeInt;
+  LMantissaEnd: SizeInt;
+  LIntPart: String;
+  LIntPartClean: String;
+  FS: TFormatSettings;
 begin
-  Result := False; ErrMsg := '';
+  Result := False;
+  ErrMsg := '';
   if not StripSign(raw, sgn, body) then Exit(False);
   if not ValidateUnderscoresRaw(body, '.eE+-') then begin ErrMsg := 'invalid float underscore'; Exit(False); end;
   if (Pos('.', body) = 0) and (Pos('e', body) = 0) and (Pos('E', body) = 0) then begin ErrMsg := 'invalid float format'; Exit(False); end;
+
   pDot := Pos('.', body);
+  pE := Pos('e', body);
+  if pE = 0 then pE := Pos('E', body);
+
+  // 提取整数部分（到 '.' 或 'e/E' 之前），用于前导零约束
+  LMantissaEnd := Length(body) + 1;
+  if (pDot > 0) and (pDot < LMantissaEnd) then LMantissaEnd := pDot;
+  if (pE > 0) and (pE < LMantissaEnd) then LMantissaEnd := pE;
+  if LMantissaEnd <= 1 then begin ErrMsg := 'invalid float format'; Exit(False); end;
+
+  LIntPart := Copy(body, 1, LMantissaEnd - 1);
+  LIntPartClean := StripUnderscores(LIntPart);
+  if (Length(LIntPartClean) > 1) and (LIntPartClean[1] = '0') then begin ErrMsg := 'invalid float leading zero'; Exit(False); end;
+
   if pDot > 0 then
   begin
     if (pDot = 1) or (pDot = Length(body)) then begin ErrMsg := 'invalid float format'; Exit(False); end;
-    if not (IsDecDigit(body[pDot-1]) or (body[pDot-1] = '_')) then begin ErrMsg := 'invalid float format'; Exit(False); end;
-    if not (IsDecDigit(body[pDot+1]) or (body[pDot+1] = '_')) then begin ErrMsg := 'invalid float format'; Exit(False); end;
+
+    // 禁止小数点邻接下划线（1_.2 / 1._2）
+    if (body[pDot-1] = '_') or (body[pDot+1] = '_') then begin ErrMsg := 'invalid float underscore'; Exit(False); end;
+
+    if not IsDecDigit(body[pDot-1]) then begin ErrMsg := 'invalid float format'; Exit(False); end;
+    if not IsDecDigit(body[pDot+1]) then begin ErrMsg := 'invalid float format'; Exit(False); end;
   end;
-  pE := Pos('e', body); if pE = 0 then pE := Pos('E', body);
+
   if pE > 0 then
   begin
     if pE = Length(body) then begin ErrMsg := 'invalid float format'; Exit(False); end;
@@ -238,13 +264,14 @@ begin
     end
     else if not IsDecDigit(body[pE+1]) then begin ErrMsg := 'invalid float format'; Exit(False); end;
   end;
+
   tmp := StripUnderscores(body);
-  FS := DefaultFormatSettings; FS.DecimalSeparator := '.';
+  FS := DefaultFormatSettings;
+  FS.DecimalSeparator := '.';
   if not TryStrToFloat(tmp, outVal, FS) then begin ErrMsg := 'invalid float'; Exit(False); end;
   if sgn < 0 then outVal := -outVal;
   Result := True;
 end;
-
 
 
 // AoT 表头：[[a.b]]
@@ -354,6 +381,15 @@ var
 
 begin
   Result := False;
+  tmpIntArr := nil;
+  innerI := nil;
+  innerF := nil;
+  innerB := nil;
+  innerS := nil;
+  itemsI := nil;
+  itemsF := nil;
+  itemsB := nil;
+  itemsS := nil;
   // 禁用相对写入优化：统一使用绝对路径，避免上下文与栈不同步导致的误写
   useRelative := False;
   keyOnly := LastKeyOf(FullPath);
@@ -811,8 +847,8 @@ var P: TParserV2;
 begin
   AErr.Clear;
   ADoc := nil;
-  // 初始化记录，避免释放未初始化指针
-  FillChar(P, SizeOf(P), 0);
+  // 记录包含 managed fields（string/dyn array/interface），用 Default 安全初始化
+  P := Default(TParserV2);
 
   P.B := NewDoc;
   InitSets(P);

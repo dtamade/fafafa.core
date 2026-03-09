@@ -1923,7 +1923,7 @@ begin
           Exit('');
         end
         else
-          Result := NormalizeJsonFloatString(FloatToStrF(V, ffGeneral, 17, 0, DefaultFormatSettings));
+          Result := NormalizeJsonFloatString(FloatToStrF(V, ffGeneral, 15, 0, DefaultFormatSettings));
       end;
   else
     Result := 'null';
@@ -2562,14 +2562,59 @@ begin
     if I > Last then _WriteRaw(AStream, @AStr[Last], I - Last);
     // handle special/escape
     case C of
-      '"': begin _WriteRaw(AStream, PChar('"'), 2); Inc(I); end;
-      '\': begin _WriteRaw(AStream, PChar('\\'), 2); Inc(I); end;
-      '/':  begin if EscSlashes then begin _WriteRaw(AStream, PChar('\/'), 2); end else _WriteChar(AStream, '/'); Inc(I); end;
-      #8:   begin _WriteRaw(AStream, PChar('\b'), 2); Inc(I); end;
-      #9:   begin _WriteRaw(AStream, PChar('\t'), 2); Inc(I); end;
-      #10:  begin _WriteRaw(AStream, PChar('\n'), 2); Inc(I); end;
-      #12:  begin _WriteRaw(AStream, PChar('\f'), 2); Inc(I); end;
-      #13:  begin _WriteRaw(AStream, PChar('\r'), 2); Inc(I); end;
+      '"':
+        begin
+          _WriteChar(AStream, AnsiChar(92));
+          _WriteChar(AStream, '"');
+          Inc(I);
+        end;
+      '\':
+        begin
+          _WriteChar(AStream, AnsiChar(92));
+          _WriteChar(AStream, AnsiChar(92));
+          Inc(I);
+        end;
+      '/':
+        begin
+          if EscSlashes then
+          begin
+            _WriteChar(AStream, AnsiChar(92));
+            _WriteChar(AStream, '/');
+          end
+          else
+            _WriteChar(AStream, '/');
+          Inc(I);
+        end;
+      #8:
+        begin
+          _WriteChar(AStream, AnsiChar(92));
+          _WriteChar(AStream, 'b');
+          Inc(I);
+        end;
+      #9:
+        begin
+          _WriteChar(AStream, AnsiChar(92));
+          _WriteChar(AStream, 't');
+          Inc(I);
+        end;
+      #10:
+        begin
+          _WriteChar(AStream, AnsiChar(92));
+          _WriteChar(AStream, 'n');
+          Inc(I);
+        end;
+      #12:
+        begin
+          _WriteChar(AStream, AnsiChar(92));
+          _WriteChar(AStream, 'f');
+          Inc(I);
+        end;
+      #13:
+        begin
+          _WriteChar(AStream, AnsiChar(92));
+          _WriteChar(AStream, 'r');
+          Inc(I);
+        end;
     else
       if Ord(C) < 32 then
       begin
@@ -2660,7 +2705,7 @@ begin
         end
         else
         begin
-          S := NormalizeJsonFloatString(FloatToStrF(V, ffGeneral, 17, 0, DefaultFormatSettings));
+          S := NormalizeJsonFloatString(FloatToStrF(V, ffGeneral, 15, 0, DefaultFormatSettings));
           _WriteStr(AStream, S);
         end;
       end;

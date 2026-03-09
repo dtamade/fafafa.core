@@ -47,6 +47,12 @@ type
     procedure Test_Concurrent_Dispatch_Access;
     {** 并发查询后端信息 *}
     procedure Test_Concurrent_Backend_Query;
+    {** vector-asm 开关与 dispatch 并发读写保护 *}
+    procedure Test_Concurrent_VectorAsmToggle_DispatchRead;
+    {** 多 writer 竞争下的 vector-asm 开关并发安全 *}
+    procedure Test_Concurrent_VectorAsmToggle_MultiWriter_DispatchRead;
+    {** SetActiveBackend/Reset/GetDispatchTable/SetVectorAsmEnabled 混合并发控制 *}
+    procedure Test_Concurrent_DispatchMixed_ControlPlane;
 
     // === 混合操作并发测试 ===
     {** 混合数学运算并发操作 *}
@@ -201,6 +207,65 @@ type
     constructor Create(AWorkerIndex: Integer);
     property Result: TSimdBackend read FResult;
     property Success: Boolean read FSuccess;
+  end;
+
+  {** vector-asm 开关写线程 *}
+  TVectorAsmToggleWorker = class(TThread)
+  private
+    FIterations: Integer;
+    FInitialValue: Boolean;
+    FSuccess: Boolean;
+    FErrorMsg: string;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(AIterations: Integer; AInitialValue: Boolean);
+    property Success: Boolean read FSuccess;
+    property ErrorMsg: string read FErrorMsg;
+  end;
+
+  {** 多 writer 场景下的 vector-asm 开关写线程 *}
+  TVectorAsmMultiToggleWorker = class(TThread)
+  private
+    FIterations: Integer;
+    FWriterPhase: Integer;
+    FSuccess: Boolean;
+    FErrorMsg: string;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(AIterations, AWriterPhase: Integer);
+    property Success: Boolean read FSuccess;
+    property ErrorMsg: string read FErrorMsg;
+  end;
+
+  {** dispatch 只读工作线程（与开关写线程并发） *}
+  TVectorAsmReadWorker = class(TThread)
+  private
+    FIterations: Integer;
+    FSuccess: Boolean;
+    FErrorMsg: string;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(AIterations: Integer);
+    property Success: Boolean read FSuccess;
+    property ErrorMsg: string read FErrorMsg;
+  end;
+
+  {** dispatch 控制面混合并发线程 *}
+  TDispatchMixedControlWorker = class(TThread)
+  private
+    FIterations: Integer;
+    FWorkerPhase: Integer;
+    FSuccess: Boolean;
+    FErrorMsg: string;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(AIterations, AWorkerPhase: Integer);
+    property Success: Boolean read FSuccess;
+    property ErrorMsg: string read FErrorMsg;
   end;
 
   {** 大数据处理工作线程 *}
@@ -678,6 +743,238 @@ begin
   end;
 end;
 
+// === TVectorAsmToggleWorker ===
+
+constructor TVectorAsmToggleWorker.Create(AIterations: Integer; AInitialValue: Boolean);
+begin
+  inherited Create(True);
+  FreeOnTerminate := False;
+  FIterations := AIterations;
+  FInitialValue := AInitialValue;
+  FSuccess := False;
+  FErrorMsg := '';
+end;
+
+procedure TVectorAsmToggleWorker.Execute;
+var
+  LIndex: Integer;
+  LExpected: Boolean;
+  LCurrent: Boolean;
+  LDispatch: PSimdDispatchTable;
+begin
+  try
+    for LIndex := 0 to FIterations - 1 do
+    begin
+      if (LIndex and 1) = 0 then
+        LExpected := not FInitialValue
+      else
+        LExpected := FInitialValue;
+
+      SetVectorAsmEnabled(LExpected);
+      LCurrent := IsVectorAsmEnabled;
+      if LCurrent <> LExpected then
+      begin
+        FErrorMsg := Format('toggle mismatch at iter %d: expected=%s got=%s',
+          [LIndex, BoolToStr(LExpected, True), BoolToStr(LCurrent, True)]);
+        Exit;
+      end;
+
+      LDispatch := GetDispatchTable;
+      if (LDispatch = nil) or (not Assigned(LDispatch^.AddF32x4)) then
+      begin
+        FErrorMsg := Format('dispatch unavailable at iter %d', [LIndex]);
+        Exit;
+      end;
+    end;
+    FSuccess := True;
+  except
+    on E: Exception do
+      FErrorMsg := 'toggle worker exception: ' + E.Message;
+  end;
+end;
+
+// === TVectorAsmMultiToggleWorker ===
+
+constructor TVectorAsmMultiToggleWorker.Create(AIterations, AWriterPhase: Integer);
+begin
+  inherited Create(True);
+  FreeOnTerminate := False;
+  FIterations := AIterations;
+  FWriterPhase := AWriterPhase;
+  FSuccess := False;
+  FErrorMsg := '';
+end;
+
+procedure TVectorAsmMultiToggleWorker.Execute;
+var
+  LIndex: Integer;
+  LTargetEnabled: Boolean;
+  LDispatch: PSimdDispatchTable;
+  LA, LB, LC: TVecF32x4;
+  LValue: Single;
+begin
+  try
+    for LIndex := 0 to FIterations - 1 do
+    begin
+      LTargetEnabled := ((LIndex + FWriterPhase) and 1) = 0;
+      SetVectorAsmEnabled(LTargetEnabled);
+
+      LDispatch := GetDispatchTable;
+      if (LDispatch = nil) or (not Assigned(LDispatch^.SubF32x4)) then
+      begin
+        FErrorMsg := Format('multi-writer dispatch unavailable at iter %d', [LIndex]);
+        Exit;
+      end;
+
+      LA := MakeSplatF32x4(4.0);
+      LB := MakeSplatF32x4(-1.0);
+      LC := LDispatch^.SubF32x4(LA, LB);
+      LValue := VecF32x4Extract(LC, 0);
+      if Abs(LValue - 5.0) > FLOAT_EPSILON then
+      begin
+        FErrorMsg := Format('multi-writer dispatch sub mismatch at iter %d: %.6f', [LIndex, LValue]);
+        Exit;
+      end;
+    end;
+    FSuccess := True;
+  except
+    on E: Exception do
+      FErrorMsg := 'multi-writer toggle exception: ' + E.Message;
+  end;
+end;
+
+// === TVectorAsmReadWorker ===
+
+constructor TVectorAsmReadWorker.Create(AIterations: Integer);
+begin
+  inherited Create(True);
+  FreeOnTerminate := False;
+  FIterations := AIterations;
+  FSuccess := False;
+  FErrorMsg := '';
+end;
+
+procedure TVectorAsmReadWorker.Execute;
+var
+  LIndex: Integer;
+  LA, LB, LC: TVecF32x4;
+  LDispatch: PSimdDispatchTable;
+  LValue: Single;
+begin
+  try
+    for LIndex := 0 to FIterations - 1 do
+    begin
+      LDispatch := GetDispatchTable;
+      if (LDispatch = nil) or (not Assigned(LDispatch^.AddF32x4)) then
+      begin
+        FErrorMsg := Format('dispatch unavailable at iter %d', [LIndex]);
+        Exit;
+      end;
+
+      LA := MakeSplatF32x4(1.0);
+      LB := MakeSplatF32x4(2.0);
+      LC := LDispatch^.AddF32x4(LA, LB);
+      LValue := VecF32x4Extract(LC, 0);
+      if Abs(LValue - 3.0) > FLOAT_EPSILON then
+      begin
+        FErrorMsg := Format('dispatch add mismatch at iter %d: %.6f', [LIndex, LValue]);
+        Exit;
+      end;
+    end;
+    FSuccess := True;
+  except
+    on E: Exception do
+      FErrorMsg := 'reader worker exception: ' + E.Message;
+  end;
+end;
+
+// === TDispatchMixedControlWorker ===
+
+constructor TDispatchMixedControlWorker.Create(AIterations, AWorkerPhase: Integer);
+begin
+  inherited Create(True);
+  FreeOnTerminate := False;
+  FIterations := AIterations;
+  FWorkerPhase := AWorkerPhase;
+  FSuccess := False;
+  FErrorMsg := '';
+end;
+
+procedure TDispatchMixedControlWorker.Execute;
+var
+  LIndex: Integer;
+  LDispatch: PSimdDispatchTable;
+  LA, LB, LC, LProbe: TVecF32x4;
+  LValue: Single;
+begin
+  try
+    for LIndex := 0 to FIterations - 1 do
+    begin
+      case ((LIndex + FWorkerPhase) mod 5) of
+        0:
+          SetVectorAsmEnabled(((LIndex + FWorkerPhase) and 1) = 0);
+        1:
+          SetActiveBackend(sbScalar);
+        2:
+          if IsBackendRegistered(sbSSE2) then
+            SetActiveBackend(sbSSE2)
+          else
+            ResetToAutomaticBackend;
+        3:
+          if IsBackendRegistered(sbAVX2) then
+            SetActiveBackend(sbAVX2)
+          else
+            ResetToAutomaticBackend;
+      else
+        ResetToAutomaticBackend;
+      end;
+
+      LDispatch := GetDispatchTable;
+      if (LDispatch = nil) or (not Assigned(LDispatch^.AddF32x4)) then
+      begin
+        FErrorMsg := Format('mixed-control dispatch unavailable at iter %d', [LIndex]);
+        Exit;
+      end;
+      if (not Assigned(LDispatch^.RoundF32x4)) or (not Assigned(LDispatch^.TruncF32x4)) then
+      begin
+        FErrorMsg := Format('mixed-control round/trunc unavailable at iter %d', [LIndex]);
+        Exit;
+      end;
+
+      LA := MakeSplatF32x4(1.0);
+      LB := MakeSplatF32x4(2.0);
+      LC := LDispatch^.AddF32x4(LA, LB);
+      LValue := VecF32x4Extract(LC, 0);
+      if Abs(LValue - 3.0) > FLOAT_EPSILON then
+      begin
+        FErrorMsg := Format('mixed-control AddF32x4 mismatch at iter %d: %.6f', [LIndex, LValue]);
+        Exit;
+      end;
+
+      LProbe := MakeSplatF32x4(-1.75);
+      LC := LDispatch^.RoundF32x4(LProbe);
+      LValue := VecF32x4Extract(LC, 0);
+      if Abs(LValue - (-2.0)) > FLOAT_EPSILON then
+      begin
+        FErrorMsg := Format('mixed-control RoundF32x4 mismatch at iter %d: %.6f', [LIndex, LValue]);
+        Exit;
+      end;
+
+      LC := LDispatch^.TruncF32x4(LProbe);
+      LValue := VecF32x4Extract(LC, 0);
+      if Abs(LValue - (-1.0)) > FLOAT_EPSILON then
+      begin
+        FErrorMsg := Format('mixed-control TruncF32x4 mismatch at iter %d: %.6f', [LIndex, LValue]);
+        Exit;
+      end;
+    end;
+    FSuccess := True;
+  except
+    on E: Exception do
+      FErrorMsg := 'mixed-control worker exception: ' + E.Message;
+  end;
+end;
+
 // === TLargeDataThread ===
 
 constructor TLargeDataThread.Create(AWorkerIndex: Integer);
@@ -699,6 +996,7 @@ var
   sum: Single;
 begin
   try
+    data := nil;
     SetLength(data, DATA_SIZE);
 
     // 初始化数据
@@ -737,6 +1035,7 @@ var
   allSuccess: Boolean;
   errorMsgs: string;
 begin
+  workers := nil;
   SetLength(workers, DEFAULT_THREAD_COUNT);
 
   // 创建并启动所有线程
@@ -773,6 +1072,7 @@ var
   allSuccess: Boolean;
   errorMsgs: string;
 begin
+  workers := nil;
   SetLength(workers, DEFAULT_THREAD_COUNT);
 
   for i := 0 to High(workers) do
@@ -806,6 +1106,7 @@ var
   allSuccess: Boolean;
   errorMsgs: string;
 begin
+  workers := nil;
   SetLength(workers, DEFAULT_THREAD_COUNT);
 
   for i := 0 to High(workers) do
@@ -839,6 +1140,7 @@ var
   allSuccess: Boolean;
   errorMsgs: string;
 begin
+  workers := nil;
   SetLength(workers, DEFAULT_THREAD_COUNT);
 
   for i := 0 to High(workers) do
@@ -872,6 +1174,7 @@ var
   allSuccess: Boolean;
   errorMsgs: string;
 begin
+  workers := nil;
   SetLength(workers, DEFAULT_THREAD_COUNT);
 
   for i := 0 to High(workers) do
@@ -908,6 +1211,7 @@ begin
   // 获取预期后端
   expectedBackend := GetActiveBackend;
 
+  threads := nil;
   SetLength(threads, DEFAULT_THREAD_COUNT);
 
   // 创建线程
@@ -936,6 +1240,225 @@ begin
   AssertTrue('Concurrent backend query failed', allSuccess);
 end;
 
+procedure TTestCase_SimdConcurrent.Test_Concurrent_VectorAsmToggle_DispatchRead;
+const
+  TOGGLE_ITERATIONS = 2000;
+  READER_THREADS = 4;
+  READER_ITERATIONS = 5000;
+var
+  LToggleWorker: TVectorAsmToggleWorker;
+  LReaders: array of TVectorAsmReadWorker;
+  LIndex: Integer;
+  LAllSuccess: Boolean;
+  LErrorMsgs: string;
+  LOldVectorAsm: Boolean;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  LToggleWorker := TVectorAsmToggleWorker.Create(TOGGLE_ITERATIONS, LOldVectorAsm);
+  LReaders := nil;
+  SetLength(LReaders, READER_THREADS);
+
+  for LIndex := 0 to High(LReaders) do
+    LReaders[LIndex] := TVectorAsmReadWorker.Create(READER_ITERATIONS);
+
+  try
+    LToggleWorker.Start;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].Start;
+
+    LToggleWorker.WaitFor;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].WaitFor;
+
+    LAllSuccess := LToggleWorker.Success;
+    LErrorMsgs := '';
+    if not LToggleWorker.Success then
+      LErrorMsgs := LErrorMsgs + LToggleWorker.ErrorMsg + '; ';
+
+    for LIndex := 0 to High(LReaders) do
+    begin
+      if not LReaders[LIndex].Success then
+      begin
+        LAllSuccess := False;
+        LErrorMsgs := LErrorMsgs + LReaders[LIndex].ErrorMsg + '; ';
+      end;
+    end;
+
+    AssertTrue('Concurrent VectorAsm toggle/read failed: ' + LErrorMsgs, LAllSuccess);
+  finally
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].Free;
+    LToggleWorker.Free;
+    SetVectorAsmEnabled(LOldVectorAsm);
+  end;
+end;
+
+procedure TTestCase_SimdConcurrent.Test_Concurrent_VectorAsmToggle_MultiWriter_DispatchRead;
+const
+  WRITER_THREADS = 4;
+  WRITER_ITERATIONS = 2500;
+  READER_THREADS = 4;
+  READER_ITERATIONS = 5000;
+var
+  LWriters: array of TVectorAsmMultiToggleWorker;
+  LReaders: array of TVectorAsmReadWorker;
+  LIndex: Integer;
+  LAllSuccess: Boolean;
+  LErrorMsgs: string;
+  LOldVectorAsm: Boolean;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  LWriters := nil;
+  LReaders := nil;
+  SetLength(LWriters, WRITER_THREADS);
+  SetLength(LReaders, READER_THREADS);
+
+  for LIndex := 0 to High(LWriters) do
+    LWriters[LIndex] := TVectorAsmMultiToggleWorker.Create(WRITER_ITERATIONS, LIndex);
+  for LIndex := 0 to High(LReaders) do
+    LReaders[LIndex] := TVectorAsmReadWorker.Create(READER_ITERATIONS);
+
+  try
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].Start;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].Start;
+
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].WaitFor;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].WaitFor;
+
+    LAllSuccess := True;
+    LErrorMsgs := '';
+    for LIndex := 0 to High(LWriters) do
+      if not LWriters[LIndex].Success then
+      begin
+        LAllSuccess := False;
+        LErrorMsgs := LErrorMsgs + LWriters[LIndex].ErrorMsg + '; ';
+      end;
+
+    for LIndex := 0 to High(LReaders) do
+      if not LReaders[LIndex].Success then
+      begin
+        LAllSuccess := False;
+        LErrorMsgs := LErrorMsgs + LReaders[LIndex].ErrorMsg + '; ';
+      end;
+
+    AssertTrue('Concurrent VectorAsm multi-writer/read failed: ' + LErrorMsgs, LAllSuccess);
+  finally
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].Free;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].Free;
+    SetVectorAsmEnabled(LOldVectorAsm);
+  end;
+end;
+
+procedure TTestCase_SimdConcurrent.Test_Concurrent_DispatchMixed_ControlPlane;
+const
+  ROUNDS = 4;
+  WORKER_THREADS = 8;
+  READER_THREADS = 4;
+  WORKER_ITERATIONS = 3000;
+  READER_ITERATIONS = 4500;
+var
+  LRound, LIndex: Integer;
+  LWorkers: array of TDispatchMixedControlWorker;
+  LReaders: array of TVectorAsmReadWorker;
+  LAllSuccess: Boolean;
+  LErrorMsgs: string;
+  LOldVectorAsm: Boolean;
+  LDispatch: PSimdDispatchTable;
+  LA, LB, LC, LProbe: TVecF32x4;
+  LValue: Single;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  LWorkers := nil;
+  LReaders := nil;
+
+  try
+    for LRound := 1 to ROUNDS do
+    begin
+      SetLength(LWorkers, WORKER_THREADS);
+      SetLength(LReaders, READER_THREADS);
+      for LIndex := 0 to High(LWorkers) do
+        LWorkers[LIndex] := TDispatchMixedControlWorker.Create(WORKER_ITERATIONS, LRound + LIndex);
+      for LIndex := 0 to High(LReaders) do
+        LReaders[LIndex] := TVectorAsmReadWorker.Create(READER_ITERATIONS);
+
+      for LIndex := 0 to High(LWorkers) do
+        LWorkers[LIndex].Start;
+      for LIndex := 0 to High(LReaders) do
+        LReaders[LIndex].Start;
+      for LIndex := 0 to High(LWorkers) do
+        LWorkers[LIndex].WaitFor;
+      for LIndex := 0 to High(LReaders) do
+        LReaders[LIndex].WaitFor;
+
+      LAllSuccess := True;
+      LErrorMsgs := '';
+      for LIndex := 0 to High(LWorkers) do
+      begin
+        if not LWorkers[LIndex].Success then
+        begin
+          LAllSuccess := False;
+          LErrorMsgs := LErrorMsgs + LWorkers[LIndex].ErrorMsg + '; ';
+        end;
+        LWorkers[LIndex].Free;
+        LWorkers[LIndex] := nil;
+      end;
+      for LIndex := 0 to High(LReaders) do
+      begin
+        if not LReaders[LIndex].Success then
+        begin
+          LAllSuccess := False;
+          LErrorMsgs := LErrorMsgs + LReaders[LIndex].ErrorMsg + '; ';
+        end;
+        LReaders[LIndex].Free;
+        LReaders[LIndex] := nil;
+      end;
+
+      AssertTrue('Dispatch mixed control round ' + IntToStr(LRound) + ' failed: ' + LErrorMsgs, LAllSuccess);
+
+      ResetToAutomaticBackend;
+      LDispatch := GetDispatchTable;
+      AssertTrue('Post-round dispatch should be available',
+        (LDispatch <> nil) and Assigned(LDispatch^.AddF32x4) and
+        Assigned(LDispatch^.RoundF32x4) and Assigned(LDispatch^.TruncF32x4));
+
+      LA := MakeSplatF32x4(1.0);
+      LB := MakeSplatF32x4(2.0);
+      LC := LDispatch^.AddF32x4(LA, LB);
+      LValue := VecF32x4Extract(LC, 0);
+      AssertTrue('Post-round AddF32x4 sanity mismatch on round ' + IntToStr(LRound),
+        Abs(LValue - 3.0) <= FLOAT_EPSILON);
+
+      LProbe := MakeSplatF32x4(-1.75);
+      LC := LDispatch^.RoundF32x4(LProbe);
+      LValue := VecF32x4Extract(LC, 0);
+      AssertTrue('Post-round RoundF32x4 sanity mismatch on round ' + IntToStr(LRound),
+        Abs(LValue - (-2.0)) <= FLOAT_EPSILON);
+      LC := LDispatch^.TruncF32x4(LProbe);
+      LValue := VecF32x4Extract(LC, 0);
+      AssertTrue('Post-round TruncF32x4 sanity mismatch on round ' + IntToStr(LRound),
+        Abs(LValue - (-1.0)) <= FLOAT_EPSILON);
+
+      SetLength(LWorkers, 0);
+      SetLength(LReaders, 0);
+    end;
+  finally
+    for LIndex := 0 to High(LWorkers) do
+      if Assigned(LWorkers[LIndex]) then
+        LWorkers[LIndex].Free;
+    for LIndex := 0 to High(LReaders) do
+      if Assigned(LReaders[LIndex]) then
+        LReaders[LIndex].Free;
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
 procedure TTestCase_SimdConcurrent.Test_Concurrent_Mixed_MathOps;
 var
   workers: array of TMixedMathWorker;
@@ -943,6 +1466,7 @@ var
   allSuccess: Boolean;
   errorMsgs: string;
 begin
+  workers := nil;
   SetLength(workers, DEFAULT_THREAD_COUNT);
 
   for i := 0 to High(workers) do
@@ -976,6 +1500,7 @@ var
   allSuccess: Boolean;
   errorMsgs: string;
 begin
+  workers := nil;
   SetLength(workers, DEFAULT_THREAD_COUNT);
 
   for i := 0 to High(workers) do
@@ -1010,6 +1535,7 @@ var
   errorMsgs: string;
   totalOps: Int64;
 begin
+  workers := nil;
   SetLength(workers, STRESS_THREAD_COUNT);
 
   for i := 0 to High(workers) do
@@ -1056,6 +1582,7 @@ begin
   // 运行直到达到时间限制
   while (GetTickCount64 - startTime) < QWord(LONG_RUNNING_SECONDS * 1000) do
   begin
+    workers := nil;
     SetLength(workers, 4);  // 使用较少线程以便快速迭代
 
     for i := 0 to High(workers) do
@@ -1134,6 +1661,7 @@ var
   allSuccess: Boolean;
   errorMsgs: string;
 begin
+  threads := nil;
   SetLength(threads, DEFAULT_THREAD_COUNT);
 
   for i := 0 to High(threads) do

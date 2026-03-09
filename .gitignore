@@ -114,3 +114,10 @@ test_diagnostic_report.txt
 out/*
 !out/.gitkeep
 vendor/
+# Additional generated test logs at module root/reports
+tests/*/*.log
+tests/*/reports/*.log
+
+# Generated crypto test reports
+tests/fafafa.core.crypto/reports/tests_crypto*.xml
+tests/fafafa.core.crypto/reports/tests_list.txt

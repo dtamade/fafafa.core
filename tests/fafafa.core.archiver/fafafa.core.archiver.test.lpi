@@ -11,7 +11,7 @@
       <UseAppBundle Value="False"/>
       <ResourceType Value="res"/>
       <Target>
-        <Filename Value="..\bin\tests_archiver"/>
+        <Filename Value="bin/fafafa.core.archiver.test"/>
       </Target>
     </General>
     <BuildModes Count="1">
@@ -21,10 +21,10 @@
           <SearchPaths>
             <IncludeFiles Value="$(ProjOutDir);..\.."/>
             <OtherUnitFiles Value="..\..\src;..\..;."/>
-            <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+            <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
           </SearchPaths>
           <Target>
-            <Filename Value="..\bin\tests_archiver"/>
+            <Filename Value="bin/fafafa.core.archiver.test"/>
           </Target>
           <Parsing>
             <SyntaxOptions>
@@ -72,7 +72,7 @@
     <SearchPaths>
       <IncludeFiles Value="$(ProjOutDir);..\.."/>
       <OtherUnitFiles Value="..\..\src;."/>
-      <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+      <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Parsing>
       <SyntaxOptions>

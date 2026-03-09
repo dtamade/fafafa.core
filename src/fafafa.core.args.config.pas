@@ -1,14 +1,16 @@
 unit fafafa.core.args.config;
 
 {$mode objfpc}{$H+}
+{$INLINE ON}
 {$I fafafa.core.settings.inc}
+{$WARN 3124 OFF} // suppress "Inlining disabled" noise in strict 0-hints builds
 
 interface
 
 uses
   SysUtils, Classes,
   fafafa.core.option.base,
-  fafafa.core.option, fafafa.core.result, fafafa.core.env
+  fafafa.core.result, fafafa.core.env
   {$IFDEF FAFAFA_ARGS_CONFIG_TOML}
   , fafafa.core.toml
   {$ENDIF}
@@ -51,7 +53,7 @@ uses
 
 // ── 内部辅助函数 ──────────────────────────────────────────────
 
-function LowerDash(const S: string): string; inline;
+function LowerDash(const S: string): string;
 var i: Integer; R: string;
 begin
   R := LowerCase(S);
@@ -60,7 +62,7 @@ begin
   Result := R;
 end;
 
-function ToEnvName(const Prefix, Key: string): string; inline;
+function ToEnvName(const Prefix, Key: string): string;
 var i: Integer; K: string;
 begin
   K := Key;
@@ -70,12 +72,12 @@ begin
   Result := UpperCase(Prefix) + K;
 end;
 
-function StartsWithCI(const S, Prefix: string): Boolean; inline;
+function StartsWithCI(const S, Prefix: string): Boolean;
 begin
   Result := AnsiSameText(Copy(S, 1, Length(Prefix)), Prefix);
 end;
 
-function InSetCI(const S: string; const Arr: array of string): Boolean; inline;
+function InSetCI(const S: string; const Arr: array of string): Boolean;
 var i: Integer;
 begin
   if Length(Arr) = 0 then Exit(False);
@@ -84,7 +86,7 @@ begin
   Result := False;
 end;
 
-function MaybeNormalizeValue(const V: string; const Flags: TEnvFlags): string; inline;
+function MaybeNormalizeValue(const V: string; const Flags: TEnvFlags): string;
 var s: string;
 begin
   s := V;
@@ -166,7 +168,7 @@ var
   kvp: TEnvKVPair;
   name, value, pfx, norm: string;
 
-  procedure AddToken(const Tok: string); inline;
+  procedure AddToken(const Tok: string);
   begin
     SetLength(Result, Length(Result) + 1);
     Result[High(Result)] := Tok;
@@ -202,7 +204,7 @@ var
   kvp: TEnvKVPair;
   name, value, pfx, norm: string;
 
-  procedure AddToken(const Tok: string); inline;
+  procedure AddToken(const Tok: string);
   begin
     SetLength(Result, Length(Result) + 1);
     Result[High(Result)] := Tok;
@@ -231,7 +233,7 @@ end;
 
 
 {$IFDEF FAFAFA_ARGS_CONFIG_TOML}
-procedure AppendToken(var Arr: TStringArray; const Tok: string); inline;
+procedure AppendToken(var Arr: TStringArray; const Tok: string);
 begin
   SetLength(Arr, Length(Arr)+1);
   Arr[High(Arr)] := Tok;
@@ -249,6 +251,8 @@ begin
     tvtBoolean: if V.TryGetBoolean(b) then Exit(LowerCase(BoolToStr(b, True)));
     tvtLocalDateTime, tvtLocalDate, tvtLocalTime, tvtOffsetDateTime:
       if V.TryGetTemporalText(t) then Exit(t);
+  else
+    // non-scalar / unsupported types: keep Result=''
   end;
 end;
 
@@ -288,7 +292,7 @@ end;
 function ArgsArgvFromToml(const Path: string): TStringArray;
 var Doc: ITomlDocument; Err: TTomlError;
 begin
-  SetLength(Result, 0);
+  Result := nil;
   if (Path='') or (not FileExists(Path)) then Exit;
   Err.Clear;
   if not ParseFile(Path, Doc, Err) then Exit;
@@ -299,13 +303,14 @@ end;
 {$ELSE}
 function ArgsArgvFromToml(const Path: string): TStringArray;
 begin
-  SetLength(Result, 0); // feature disabled or dependency unavailable
+  if Path <> '' then;
+  Result := nil; // feature disabled or dependency unavailable
 end;
 {$ENDIF}
 
 
 {$IFDEF FAFAFA_ARGS_CONFIG_JSON}
-function JSONScalarToString(const D: TJSONData): string; inline;
+function JSONScalarToString(const D: TJSONData): string;
 begin
   if D=nil then Exit('');
   case D.JSONType of
@@ -359,7 +364,7 @@ var
   P: TJSONParser;
   Root: TJSONData;
 begin
-  SetLength(Result, 0);
+  Result := nil;
   if (Path='') or (not FileExists(Path)) then Exit;
 
   Root := nil;
@@ -387,7 +392,7 @@ begin
       WalkJson('', Root, Result);
     except
       // Parse/IO errors: return empty argv by contract
-      SetLength(Result, 0);
+      Result := nil;
     end;
   finally
     if Root <> nil then
@@ -398,7 +403,8 @@ end;
 {$ELSE}
 function ArgsArgvFromJson(const Path: string): TStringArray;
 begin
-  SetLength(Result, 0);
+  if Path <> '' then;
+  Result := nil;
 end;
 {$ENDIF}
 
@@ -407,12 +413,14 @@ function ArgsArgvFromYaml(const Path: string): TStringArray;
 begin
   // YAML support is not ready; reserved for future implementation.
   // Prefer ArgsArgvFromYamlOpt for an explicit unsupported signal.
-  SetLength(Result, 0);
+  if Path <> '' then;
+  Result := nil;
 end;
 
 function ArgsArgvFromYamlOpt(const Path: string): specialize TOption<TStringArray>;
 begin
   // YAML support is not ready; reserved for future implementation.
+  if Path <> '' then;
   Result := specialize TOption<TStringArray>.None;
 end;
 

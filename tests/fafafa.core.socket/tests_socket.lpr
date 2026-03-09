@@ -4,6 +4,7 @@ program tests_socket;
 {$CODEPAGE UTF8}
 
 uses
+  {$IFDEF UNIX}cthreads,{$ENDIF}
   Classes, SysUtils
   {$IFDEF WINDOWS}, Windows{$ENDIF},
   consoletestrunner,

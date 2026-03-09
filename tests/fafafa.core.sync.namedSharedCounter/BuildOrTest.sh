@@ -6,12 +6,29 @@ cd "$(dirname "${BASH_SOURCE[0]}")"
 ACTION="${1:-test}"
 PROJECT_LPI="${PROJECT_LPI:-fafafa.core.sync.namedSharedCounter.test.lpi}"
 TEST_BIN="${TEST_BIN:-bin/fafafa.core.sync.namedSharedCounter.test}"
+FORCE_NAMED_SYNC_TESTS="${FAFAFA_FORCE_NAMED_SYNC_TESTS:-0}"
 
 LAZBUILD_BIN="${LAZBUILD:-lazbuild}"
 
 if ! command -v "${LAZBUILD_BIN}" >/dev/null 2>&1; then
   echo "[ERROR] lazbuild not found in PATH" >&2
   exit 1
+fi
+
+if [[ "${ACTION}" == "test" || "${ACTION}" == "run" ]]; then
+  if [[ "${FORCE_NAMED_SYNC_TESTS}" != "1" ]]; then
+    if [[ ! -d "/dev/shm" ]]; then
+      echo "[SKIP] /dev/shm 不存在，跳过 fafafa.core.sync.namedSharedCounter（可设置 FAFAFA_FORCE_NAMED_SYNC_TESTS=1 强制运行）"
+      exit 0
+    fi
+
+    PROBE_FILE="/dev/shm/fafafa_named_probe_$$"
+    if ! (umask 077 && : > "${PROBE_FILE}") 2>/dev/null; then
+      echo "[SKIP] /dev/shm 不可写，跳过 fafafa.core.sync.namedSharedCounter（受限环境常见；可设置 FAFAFA_FORCE_NAMED_SYNC_TESTS=1 强制运行）"
+      exit 0
+    fi
+    rm -f "${PROBE_FILE}" 2>/dev/null || true
+  fi
 fi
 
 rm -rf ./bin ./lib/*-*/

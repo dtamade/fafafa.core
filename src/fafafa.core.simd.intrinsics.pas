@@ -114,7 +114,8 @@ function simd_mul_pd(const a, b: TM128): TM128;
 implementation
 
 uses
-  fafafa.core.simd.cpuinfo;
+  fafafa.core.simd.cpuinfo,
+  fafafa.core.simd.cpuinfo.base;
 
 // 暂时只提供基础 Pascal 实现，后续会添加具体指令集模块的调用
 //
@@ -172,9 +173,13 @@ begin
 end;
 
 function simd_has_avx: Boolean;
+var
+  LCPUInfo: TCPUInfo;
 begin
   {$IFDEF SIMD_X86_AVAILABLE}
-  Result := GetCPUInfo.X86.HasAVX;
+  LCPUInfo := GetCPUInfo;
+  Result := (LCPUInfo.Arch = caX86) and LCPUInfo.X86.HasAVX and
+            (gfSimd256 in LCPUInfo.GenericUsable);
   {$ELSE}
   Result := False;
   {$ENDIF}
@@ -193,27 +198,39 @@ begin
 end;
 
 function simd_has_aes: Boolean;
+var
+  LCPUInfo: TCPUInfo;
 begin
   {$IFDEF SIMD_X86_AVAILABLE}
-  Result := GetCPUInfo.X86.HasAES;
+  LCPUInfo := GetCPUInfo;
+  Result := (LCPUInfo.Arch = caX86) and LCPUInfo.X86.HasAES and
+            (gfAES in LCPUInfo.GenericUsable);
   {$ELSE}
   Result := False;
   {$ENDIF}
 end;
 
 function simd_has_sha: Boolean;
+var
+  LCPUInfo: TCPUInfo;
 begin
   {$IFDEF SIMD_X86_AVAILABLE}
-  Result := GetCPUInfo.X86.HasSHA;
+  LCPUInfo := GetCPUInfo;
+  Result := (LCPUInfo.Arch = caX86) and LCPUInfo.X86.HasSHA and
+            (gfSHA in LCPUInfo.GenericUsable);
   {$ELSE}
   Result := False;
   {$ENDIF}
 end;
 
 function simd_has_fma3: Boolean;
+var
+  LCPUInfo: TCPUInfo;
 begin
   {$IFDEF SIMD_X86_AVAILABLE}
-  Result := GetCPUInfo.X86.HasFMA;
+  LCPUInfo := GetCPUInfo;
+  Result := (LCPUInfo.Arch = caX86) and LCPUInfo.X86.HasFMA and
+            (gfFMA in LCPUInfo.GenericUsable);
   {$ELSE}
   Result := False;
   {$ENDIF}

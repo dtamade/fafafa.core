@@ -340,7 +340,7 @@ begin
   begin
     s := s + 'Commands:';
     // collect children
-    SetLength(arr, 0);
+    arr := nil;
     SetLength(arr, Node.ChildCount);
     for i := 0 to Node.ChildCount-1 do arr[i] := Node.ChildAt(i);
     // ✅ P1 修复: 使用快速排序 O(n log n) 替代冒泡排序 O(n²)
@@ -385,6 +385,7 @@ begin
         else
           s := s + LineEnding;
         // collect flags into arrays for grouping/sorting
+        flags := nil;
         SetLength(flags, spec.FlagCount);
         for j := 0 to spec.FlagCount-1 do flags[j] := spec.FlagAt(j);
         // compute label width using helper - ✅ P2-1: 使用 BuildFlagItem
@@ -417,6 +418,7 @@ begin
         else
           s := s + LineEnding;
         // collect positionals
+        poss := nil;
         SetLength(poss, spec.PositionalCount);
         for j := 0 to spec.PositionalCount-1 do poss[j] := spec.PositionalAt(j);
         // compute label width using helper - ✅ P2-1: 使用 BuildPositionalItem

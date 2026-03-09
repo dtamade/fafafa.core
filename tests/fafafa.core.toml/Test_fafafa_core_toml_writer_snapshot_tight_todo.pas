@@ -10,21 +10,21 @@ uses
   fafafa.core.toml;
 
 type
-  // TODO: Writer 紧凑等号（key=value）快照占位用例
-  // 说明：当前实现默认为 key = value（两侧空格），twfSpacesAroundEquals 与默认等价。
-  // 当未来提供“紧凑等号”开关时，将把本用例改为严格比较紧凑快照。
-  TTestCase_Writer_Snapshot_Tight_TODO = class(TTestCase)
+  // Writer 默认快照（带空格等号）语义用例
+  // 说明：默认输出为 key = value；开启 twfTightEquals 后输出为 key=value。
+  TTestCase_Writer_Snapshot_DefaultSpacing = class(TTestCase)
   published
-    procedure Test_Writer_Full_Snapshot_Tight_Equals_TODO;
+    procedure Test_Writer_Full_Snapshot_Default_Spaces_And_Tight_Differs;
   end;
 
 implementation
 
-procedure TTestCase_Writer_Snapshot_Tight_TODO.Test_Writer_Full_Snapshot_Tight_Equals_TODO;
+procedure TTestCase_Writer_Snapshot_DefaultSpacing.Test_Writer_Full_Snapshot_Default_Spaces_And_Tight_Differs;
 var
   LDoc: ITomlDocument;
   LErr: TTomlError;
-  S, ExpectedTight: String;
+  LDefault: String;
+  LTight: String;
 begin
   LErr.Clear;
   AssertTrue(Parse(RawByteString(
@@ -48,42 +48,19 @@ begin
   ), LDoc, LErr));
   AssertFalse(LErr.HasError);
 
-  // 当前实现：默认含空格等号
-  S := String(ToToml(LDoc, []));
+  LDefault := String(ToToml(LDoc, []));
+  LTight := String(ToToml(LDoc, [twfTightEquals]));
 
-  // 未来紧凑等号期望（示例）：
-  ExpectedTight :=
-    'app_version="1.2.3"' + LineEnding +
-    'name="demo"' + LineEnding +
-    LineEnding +
-    '[misc]' + LineEnding +
-    'note="ok"' + LineEnding +
-    LineEnding +
-    '[svc]' + LineEnding +
-    'enabled=true' + LineEnding +
-    LineEnding +
-    '[[svc.nodes]]' + LineEnding +
-    'id=1' + LineEnding +
-    LineEnding +
-    '[svc.nodes.meta]' + LineEnding +
-    'role="primary"' + LineEnding +
-    LineEnding +
-    '[[svc.nodes]]' + LineEnding +
-    'id=2' + LineEnding +
-    LineEnding +
-    '[svc.nodes.meta]' + LineEnding +
-    'role="replica"' + LineEnding +
-    LineEnding +
-    '[svc.db]' + LineEnding +
-    'host="localhost"' + LineEnding +
-    'port=3306';
+  AssertTrue('Default writer output should contain spaced equals', Pos(' = ', LDefault) > 0);
+  AssertTrue('Default snapshot should keep spaced app_version assignment', Pos('app_version = "1.2.3"', LDefault) > 0);
 
-  // TODO: 暂保持观察，不做失败断言，等“紧凑等号”策略落地后改为严格比较：
-  // AssertEquals('Snapshot(tight) mismatch', ExpectedTight, S);
-  AssertTrue(Length(S) > 0);
+  AssertTrue('Tight output should contain compact assignment for app_version', Pos('app_version="1.2.3"', LTight) > 0);
+  AssertEquals('Tight output should not keep spaced app_version assignment', 0, Pos('app_version = "1.2.3"', LTight));
+
+  AssertTrue('Default output and tight output should differ', LDefault <> LTight);
 end;
 
 initialization
-  RegisterTest(TTestCase_Writer_Snapshot_Tight_TODO);
+  RegisterTest(TTestCase_Writer_Snapshot_DefaultSpacing);
 end.
 

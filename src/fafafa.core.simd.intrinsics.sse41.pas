@@ -55,7 +55,18 @@ function sse41_mullo_epi32(const a, b: TM128): TM128;              // 32位乘�
 implementation
 
 uses
+  SysUtils,
   Math;  // RTL Math 单元 (Round, Int)
+
+procedure EnsureExperimentalIntrinsicsEnabled; inline;
+begin
+  {$IFNDEF FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS}
+  raise ENotSupportedException.Create(
+    'fafafa.core.simd.intrinsics.sse41 is experimental placeholder semantics. ' +
+    'Define FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS to opt in.'
+  );
+  {$ENDIF}
+end;
 
 // === Min/Max 操作实现 ===
 function sse41_max_epi8(const a, b: TM128): TM128;
@@ -527,6 +538,9 @@ begin
       Result.m128i_u16[i + 4] := UInt16(temp);
   end;
 end;
+
+initialization
+  EnsureExperimentalIntrinsicsEnabled;
 
 end.
 

@@ -9,7 +9,6 @@ uses
   BaseUnix, Unix, UnixType, pthreads,
   fafafa.core.sync.base,
   fafafa.core.sync.mutex.base,
-  fafafa.core.time.cpu,
   fafafa.core.atomic;  // ✅ P1-1 Fix: 统一使用框架内的原子操作
 
 {$IFDEF LINUX}

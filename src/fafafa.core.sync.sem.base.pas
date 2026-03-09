@@ -91,6 +91,7 @@ begin
   if (not FReleased) and Assigned(FSem) and (FCount > 0) then
   begin
     FSem.Release(FCount);
+    FCount := 0;  // 手动释放后计数归零，保证 GetCount 语义一致
     FReleased := True;
   end;
 end;

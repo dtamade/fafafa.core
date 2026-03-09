@@ -5,6 +5,7 @@ program fafafa_core_socket_async_test;
 {$CODEPAGE UTF8}
 
 uses
+  {$IFDEF UNIX}cthreads,{$ENDIF}
   SysUtils, Classes, fpcunit, testregistry, consoletestrunner,
   fafafa.core.socket.async.testcase;
 
@@ -39,7 +40,7 @@ begin
   WriteLn('fafafa.core.socket.async 异步Socket测试套件');
   WriteLn('===========================================');
   WriteLn('');
-  
+
   Application := TMyTestRunner.Create(nil);
   try
     Application.Initialize;

@@ -338,6 +338,7 @@ begin
   if (not FReleased) and Assigned(FSem) and (FCount > 0) then
   begin
     FSem.Release(FCount);
+    FCount := 0;  // 与 Windows 路径一致：手动释放后不再持有许可
     FReleased := True;
   end;
 end;

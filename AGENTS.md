@@ -38,17 +38,19 @@
   - Linux/macOS:
     - bash tests/<模块目录>/BuildOrTest.sh
   - 说明：<模块目录> 为 tests/ 下的二级目录名（如 tests\fafafa.core.collections.vec）
-- SIMD CPU 信息子系统（本仓库 test/ 下的独立测试程序）
-  - 使用 FPC 配置直接构建并运行（无交互，适合自动化）：
-    - 编译：fpc @test\fpc.cfg test\run_cpuinfo_tests.lpr
-    - 运行：
-      - test\run_cpuinfo_tests.exe --quick
-      - test\run_cpuinfo_tests.exe --category performance
-      - test\run_cpuinfo_tests.exe --report test\cpuinfo_test_report.txt
-      - test\run_cpuinfo_tests.exe --verbose
-  - 或使用 Lazarus 工程构建演示程序（注意部分程序运行末尾 ReadLn 需要交互）：
-    - lazbuild -B -vewnhibq test\test_cpuinfo.lpi
-    - test\test_cpuinfo.exe
+- SIMD CPU 信息子系统（tests/ 下的独立模块）
+  - Linux/macOS（bash，无交互，适合自动化）：
+    - 统一 gate（推荐）：
+      - bash tests/fafafa.core.simd/BuildOrTest.sh gate
+    - 或分别跑 cpuinfo 模块：
+      - bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh test --list-suites
+      - bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh test --suite=TTestCase_PlatformSpecific
+      - bash tests/fafafa.core.simd.cpuinfo.x86/BuildOrTest.sh test --list-suites
+      - bash tests/fafafa.core.simd.cpuinfo.x86/BuildOrTest.sh test --suite=TTestCase_Global
+  - Windows（PowerShell/CMD）：
+    - tests\fafafa.core.simd\buildOrTest.bat gate
+    - tests\fafafa.core.simd.cpuinfo\buildOrTest.bat test --list-suites
+    - tests\fafafa.core.simd.cpuinfo.x86\buildOrTest.bat test --list-suites
 - 清理构建产物
   - Windows: .\clean.bat
   - Linux/macOS: ./clean.sh
@@ -72,10 +74,13 @@
   - 按平台拆分实现通过 .inc 文件注入（如 src\fafafa.core.fs.windows.inc / .unix.inc、os/windows/unix.inc、socket/windows/linux.inc 等）
   - tests/：按模块分目录，提供 BuildOrTest.{bat,sh} 与 LPI/LPR 进行构建与运行；仓库根提供 tests/run_all_tests.{bat,sh} 统一编排
   - examples/：最小可运行示例与演示；benchmarks/：性能与对比基准；docs/：设计、API、测试与 CI 规范
-- SIMD CPU 信息子系统（与本仓库 test/ 目录联动）
-  - 门面与类型：fafafa.core.simd.cpuinfo（总入口）、fafafa.core.simd.cpuinfo.base、fafafa.core.simd.types
+- SIMD CPU 信息子系统（与 tests/ 目录联动）
+  - 门面与类型：fafafa.core.simd.cpuinfo（总入口）、fafafa.core.simd.cpuinfo.base、fafafa.core.simd.base
   - 平台/架构实现：fafafa.core.simd.cpuinfo.x86（及其子单元）、.arm、.riscv；延迟检测与诊断：.lazy、.diagnostic
-  - 测试组织：test\test_cpuinfo_suite.pas 提供分类（basic、performance、integration 等），test\run_cpuinfo_tests.lpr 暴露 --category / --report / --quick / --verbose 等命令行
+  - 测试组织：
+    - portable：`tests/fafafa.core.simd.cpuinfo/`（FPC 直编译 runner）
+    - x86：`tests/fafafa.core.simd.cpuinfo.x86/`（Lazarus 工程 runner）
+    - 统一验证入口：`tests/fafafa.core.simd/BuildOrTest.sh gate`（Linux），或 `tests\\fafafa.core.simd\\buildOrTest.bat gate`（Windows）
 - 测试执行约定（统一脚本）
   - run_all_tests.{bat,sh} 递归发现各模块 BuildOrTest 脚本并执行；支持按参数过滤模块名；支持 STOP_ON_FAIL 环境变量
   - 输出与汇总位置、返回码语义详见 docs/TESTING.md

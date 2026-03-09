@@ -171,7 +171,8 @@ type
     // === Batch 3.3: Widening Multiplication (Phase 3.7) ===
     procedure Test_WideningMulU32_MaxValues_NoOverflow;
     procedure Test_WideningMulU32_Normal_ReturnsU64;
-    // NOTE: WideningMulU64 tests skipped - implementation raises arithmetic overflow exceptions
+    procedure Test_WideningMulU64_MaxValues_Returns128Parts;
+    procedure Test_WideningMulU64_MaxTimesTwo_ReturnsExpected;
 
     // === Batch 3.4: Euclidean Division (Phase 3.7) ===
     // DivEuclid/RemEuclid
@@ -3413,8 +3414,23 @@ begin
   AssertEquals(UInt64(1000000000000), Result);
 end;
 
-// NOTE: WideningMulU64 tests skipped - implementation raises arithmetic overflow exceptions
-// instead of properly handling large UInt64 multiplications in TUInt128 result type.
+procedure TTestMath.Test_WideningMulU64_MaxValues_Returns128Parts;
+var
+  LResult: TUInt128;
+begin
+  LResult := WideningMulU64(High(UInt64), High(UInt64));
+  AssertEquals('Low 64 bits should be 1', UInt64(1), LResult.Lo);
+  AssertEquals('High 64 bits should be 2^64-2', UInt64(High(UInt64) - 1), LResult.Hi);
+end;
+
+procedure TTestMath.Test_WideningMulU64_MaxTimesTwo_ReturnsExpected;
+var
+  LResult: TUInt128;
+begin
+  LResult := WideningMulU64(High(UInt64), 2);
+  AssertEquals('Low 64 bits should wrap to 2^64-2', UInt64(High(UInt64) - 1), LResult.Lo);
+  AssertEquals('High 64 bits should carry 1', UInt64(1), LResult.Hi);
+end;
 
 // ============================================================================
 // Batch 3.4: Euclidean Division (Phase 3.7)

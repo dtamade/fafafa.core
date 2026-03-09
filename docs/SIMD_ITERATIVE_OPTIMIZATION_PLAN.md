@@ -1,5 +1,8 @@
 # SIMD 真正优化 - 迭代开发计划
 
+> **NOTE (INTERNAL)**：本文档为内部规划记录，内容可能与当前实现不一致。  
+> 对外口径请以 `docs/fafafa.core.simd*.md` 与 `src/fafafa.core.simd.STABLE` 为准。
+
 ## 目标
 将所有后端从 "Dispatch 注册 100%" 提升到 "真正 SIMD 优化 100%"
 

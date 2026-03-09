@@ -33,6 +33,9 @@ type
   TTestCase_IBarrier = class(TTestCase)
   private
     FBarrier: IBarrier;
+    procedure AssertBarrierRounds(const aBarrier: IBarrier; aParticipants, aRounds, aSleepMod: Integer; const aLabel: String);
+    procedure AssertBarrierWaitExRounds(const aBarrier: IBarrier; aRounds: Integer; const aLabel: String);
+    procedure AssertPerformanceBaseline(aParticipants, aRounds: Integer; aMaxElapsedMs: QWord; const aLabel: String);
   protected
     procedure SetUp; override;
     procedure TearDown; override;
@@ -143,13 +146,22 @@ type
 implementation
 
 function IsStressModeEnabled: Boolean;
-var i: Integer; s: String;
+var
+  LIndex: Integer;
+  LArg: String;
+  LEnv: String;
 begin
   Result := False;
-  for i := 1 to ParamCount do
+
+  LEnv := LowerCase(Trim(GetEnvironmentVariable('FAFAFA_STRESS')));
+  if (LEnv = '1') or (LEnv = 'true') or (LEnv = 'yes') or (LEnv = 'on') then
+    Exit(True);
+
+  for LIndex := 1 to ParamCount do
   begin
-    s := ParamStr(i);
-    if (s = '--stress') or (s = '-S') then Exit(True);
+    LArg := ParamStr(LIndex);
+    if (LArg = '--stress') or (LArg = '-S') then
+      Exit(True);
   end;
 end;
 
@@ -365,6 +377,107 @@ begin
   inherited TearDown;
 end;
 
+procedure TTestCase_IBarrier.AssertBarrierRounds(const aBarrier: IBarrier; aParticipants, aRounds, aSleepMod: Integer; const aLabel: String);
+var
+  LWorkers: array of TBarrierWorkerThread;
+  LSerialFlags: array of Boolean;
+  LDoneCount: Integer;
+  LRound: Integer;
+  LIndex: Integer;
+  LSleepMs: Integer;
+begin
+  AssertTrue(aLabel + ': participants must be >= 1', aParticipants >= 1);
+
+  if aParticipants = 1 then
+  begin
+    for LRound := 1 to aRounds do
+      AssertTrue(Format('%s round %d single participant should be serial', [aLabel, LRound]), aBarrier.Wait);
+    Exit;
+  end;
+
+  SetLength(LWorkers, aParticipants - 1);
+  SetLength(LSerialFlags, aParticipants);
+
+  for LRound := 1 to aRounds do
+  begin
+    FillChar(LSerialFlags[0], Length(LSerialFlags) * SizeOf(Boolean), 0);
+    LDoneCount := 0;
+
+    for LIndex := 0 to High(LWorkers) do
+    begin
+      if aSleepMod > 0 then
+        LSleepMs := (LRound + LIndex) mod aSleepMod
+      else
+        LSleepMs := 0;
+
+      LWorkers[LIndex] := TBarrierWorkerThread.Create(aBarrier, @LDoneCount, @LSerialFlags[LIndex + 1], LSleepMs);
+    end;
+
+    try
+      LSerialFlags[0] := aBarrier.Wait;
+      for LIndex := 0 to High(LWorkers) do
+        LWorkers[LIndex].WaitFor;
+
+      AssertEquals(Format('%s round %d done count', [aLabel, LRound]), aParticipants - 1, LDoneCount);
+      AssertEquals(Format('%s round %d serial count', [aLabel, LRound]), 1, CountTrue(LSerialFlags));
+    finally
+      for LIndex := 0 to High(LWorkers) do
+        LWorkers[LIndex].Free;
+    end;
+  end;
+end;
+
+procedure TTestCase_IBarrier.AssertBarrierWaitExRounds(const aBarrier: IBarrier; aRounds: Integer; const aLabel: String);
+var
+  LRound: Integer;
+  LDoneCount: Integer;
+  LWorkerIsLeader: Boolean;
+  LWorkerGeneration: Cardinal;
+  LWorker: TWaitExWorkerThread;
+  LMainResult: TBarrierWaitResult;
+  LLeaderCount: Integer;
+begin
+  for LRound := 1 to aRounds do
+  begin
+    LDoneCount := 0;
+    LWorkerIsLeader := False;
+    LWorkerGeneration := 0;
+
+    LWorker := TWaitExWorkerThread.Create(aBarrier, @LWorkerIsLeader, @LWorkerGeneration, @LDoneCount);
+    try
+      LMainResult := aBarrier.WaitEx;
+      LWorker.WaitFor;
+
+      LLeaderCount := Integer(LMainResult.IsLeader) + Integer(LWorkerIsLeader);
+
+      AssertEquals(Format('%s round %d done count', [aLabel, LRound]), 1, LDoneCount);
+      AssertEquals(Format('%s round %d leader count', [aLabel, LRound]), 1, LLeaderCount);
+      AssertEquals(Format('%s round %d generation agreement', [aLabel, LRound]), LMainResult.Generation, LWorkerGeneration);
+      AssertEquals(Format('%s round %d generation sequence', [aLabel, LRound]), Cardinal(LRound), LMainResult.Generation);
+    finally
+      LWorker.Free;
+    end;
+  end;
+end;
+
+procedure TTestCase_IBarrier.AssertPerformanceBaseline(aParticipants, aRounds: Integer; aMaxElapsedMs: QWord; const aLabel: String);
+var
+  LBarrier: IBarrier;
+  LStartTick: QWord;
+  LElapsed: QWord;
+begin
+  LBarrier := MakeBarrier(aParticipants);
+
+  LStartTick := GetTickCount64;
+  AssertBarrierRounds(LBarrier, aParticipants, aRounds, 2, aLabel);
+  LElapsed := GetTickCount64 - LStartTick;
+
+  AssertTrue(
+    Format('%s elapsed %dms should be <= %dms', [aLabel, Int64(LElapsed), Int64(aMaxElapsedMs)]),
+    LElapsed <= aMaxElapsedMs
+  );
+end;
+
 // Basic functionality tests
 
 procedure TTestCase_IBarrier.Test_GetParticipantCount_SingleParticipant;
@@ -437,142 +550,504 @@ end;
 // Stub implementations for remaining tests
 
 procedure TTestCase_IBarrier.Test_Wait_MultipleParticipants_OneSerial;
+var
+  LBarrier: IBarrier;
+  LWorkers: array[0..2] of TBarrierWorkerThread;
+  LSerialFlags: array[0..3] of Boolean;
+  LDoneCount: Integer;
+  LIndex: Integer;
 begin
-  AssertTrue('Multiple participants one serial test placeholder', True);
+  LBarrier := MakeBarrier(4);
+  LDoneCount := 0;
+  FillChar(LSerialFlags[0], SizeOf(LSerialFlags), 0);
+
+  for LIndex := 0 to High(LWorkers) do
+    LWorkers[LIndex] := TBarrierWorkerThread.Create(LBarrier, @LDoneCount, @LSerialFlags[LIndex + 1], LIndex * 2);
+
+  try
+    LSerialFlags[0] := LBarrier.Wait;
+    for LIndex := 0 to High(LWorkers) do
+      LWorkers[LIndex].WaitFor;
+
+    AssertEquals('All worker threads should complete', 3, LDoneCount);
+    AssertEquals('Exactly one thread should be serial', 1, CountTrue(LSerialFlags));
+  finally
+    for LIndex := 0 to High(LWorkers) do
+      LWorkers[LIndex].Free;
+  end;
 end;
 
 procedure TTestCase_IBarrier.Test_Wait_SerialThread_Identification;
+var
+  LBarrier: IBarrier;
+  LWorker: TBarrierWorkerThread;
+  LWorkerSerial: Boolean;
+  LMainSerial: Boolean;
+  LDoneCount: Integer;
+  LRound: Integer;
+  LMainSerialCount: Integer;
+  LWorkerSerialCount: Integer;
 begin
-  AssertTrue('Serial thread identification test placeholder', True);
+  LBarrier := MakeBarrier(2);
+  LMainSerialCount := 0;
+  LWorkerSerialCount := 0;
+
+  for LRound := 0 to 9 do
+  begin
+    LDoneCount := 0;
+    LWorkerSerial := False;
+    if (LRound mod 2) = 0 then
+      LWorker := TBarrierWorkerThread.Create(LBarrier, @LDoneCount, @LWorkerSerial, 16)
+    else
+      LWorker := TBarrierWorkerThread.Create(LBarrier, @LDoneCount, @LWorkerSerial, 0);
+
+    try
+      if (LRound mod 2) <> 0 then
+        Sleep(16);
+      LMainSerial := LBarrier.Wait;
+      LWorker.WaitFor;
+
+      if LMainSerial then Inc(LMainSerialCount);
+      if LWorkerSerial then Inc(LWorkerSerialCount);
+
+      AssertEquals('Exactly one serial thread per round', 1,
+        Integer(LMainSerial) + Integer(LWorkerSerial));
+      AssertEquals('Worker should complete each round', 1, LDoneCount);
+    finally
+      LWorker.Free;
+    end;
+  end;
+
+  AssertTrue('Main thread should be serial in some rounds', LMainSerialCount > 0);
+  AssertTrue('Worker thread should be serial in some rounds', LWorkerSerialCount > 0);
 end;
 
 procedure TTestCase_IBarrier.Test_Wait_NonSerialThread_ReturnsFalse;
+var
+  LBarrier: IBarrier;
+  LWorker: TBarrierWorkerThread;
+  LWorkerSerial: Boolean;
+  LMainSerial: Boolean;
+  LDoneCount: Integer;
 begin
-  AssertTrue('Non-serial thread returns false test placeholder', True);
+  LBarrier := MakeBarrier(2);
+  LDoneCount := 0;
+  LWorkerSerial := False;
+
+  LWorker := TBarrierWorkerThread.Create(LBarrier, @LDoneCount, @LWorkerSerial, 8);
+  try
+    LMainSerial := LBarrier.Wait;
+    LWorker.WaitFor;
+
+    AssertEquals('Exactly one serial thread expected', 1,
+      Integer(LMainSerial) + Integer(LWorkerSerial));
+    AssertEquals('Exactly one non-serial thread expected', 1,
+      Integer(not LMainSerial) + Integer(not LWorkerSerial));
+    AssertEquals('Worker should complete', 1, LDoneCount);
+
+    if LMainSerial then
+      AssertFalse('Worker must be non-serial when main is serial', LWorkerSerial)
+    else
+      AssertFalse('Main must be non-serial when worker is serial', LMainSerial);
+  finally
+    LWorker.Free;
+  end;
 end;
 
 procedure TTestCase_IBarrier.Test_Wait_Barrier_Reuse_MultipleRounds;
+const
+  ROUNDS = 12;
+var
+  LBarrier: IBarrier;
+  LWorkers: array[0..2] of TBarrierWorkerThread;
+  LSerialFlags: array[0..3] of Boolean;
+  LDoneCount: Integer;
+  LRound: Integer;
+  LIndex: Integer;
+  LTotalSerialCount: Integer;
 begin
-  AssertTrue('Barrier reuse multiple rounds test placeholder', True);
+  LBarrier := MakeBarrier(4);
+  LTotalSerialCount := 0;
+
+  for LRound := 1 to ROUNDS do
+  begin
+    FillChar(LSerialFlags[0], SizeOf(LSerialFlags), 0);
+    LDoneCount := 0;
+    for LIndex := 0 to High(LWorkers) do
+      LWorkers[LIndex] := TBarrierWorkerThread.Create(LBarrier, @LDoneCount, @LSerialFlags[LIndex + 1], (LRound + LIndex) mod 3);
+
+    try
+      LSerialFlags[0] := LBarrier.Wait;
+      for LIndex := 0 to High(LWorkers) do
+        LWorkers[LIndex].WaitFor;
+
+      AssertEquals(Format('Round %d worker completion count', [LRound]), 3, LDoneCount);
+      AssertEquals(Format('Round %d serial count', [LRound]), 1, CountTrue(LSerialFlags));
+      Inc(LTotalSerialCount, CountTrue(LSerialFlags));
+    finally
+      for LIndex := 0 to High(LWorkers) do
+        LWorkers[LIndex].Free;
+    end;
+  end;
+
+  AssertEquals('Reuse across rounds should keep one serial per round', ROUNDS, LTotalSerialCount);
 end;
 
 procedure TTestCase_IBarrier.Test_Wait_Barrier_Reuse_DifferentThreadCounts;
+var
+  LParticipantSets: array[0..2] of Integer;
+  LParticipants: Integer;
+  LBarrier: IBarrier;
+  LWorkers: array of TBarrierWorkerThread;
+  LSerialFlags: array of Boolean;
+  LDoneCount: Integer;
+  LRound: Integer;
+  LIndex: Integer;
 begin
-  AssertTrue('Barrier reuse different thread counts test placeholder', True);
+  LParticipantSets[0] := 2;
+  LParticipantSets[1] := 3;
+  LParticipantSets[2] := 5;
+
+  for LParticipants in LParticipantSets do
+  begin
+    LBarrier := MakeBarrier(LParticipants);
+    SetLength(LWorkers, LParticipants - 1);
+    SetLength(LSerialFlags, LParticipants);
+
+    for LRound := 1 to 4 do
+    begin
+      FillChar(LSerialFlags[0], Length(LSerialFlags) * SizeOf(Boolean), 0);
+      LDoneCount := 0;
+
+      for LIndex := 0 to High(LWorkers) do
+        LWorkers[LIndex] := TBarrierWorkerThread.Create(LBarrier, @LDoneCount, @LSerialFlags[LIndex + 1], (LIndex + LRound) mod 2);
+
+      try
+        LSerialFlags[0] := LBarrier.Wait;
+        for LIndex := 0 to High(LWorkers) do
+          LWorkers[LIndex].WaitFor;
+
+        AssertEquals(Format('Participants=%d round=%d worker done', [LParticipants, LRound]),
+          LParticipants - 1, LDoneCount);
+        AssertEquals(Format('Participants=%d round=%d serial count', [LParticipants, LRound]),
+          1, CountTrue(LSerialFlags));
+      finally
+        for LIndex := 0 to High(LWorkers) do
+          LWorkers[LIndex].Free;
+      end;
+    end;
+  end;
 end;
 
 procedure TTestCase_IBarrier.Test_Wait_Sequential_Rounds_SerialDistribution;
+const
+  ROUNDS = 10;
+var
+  LBarrier: IBarrier;
+  LWorker: TBarrierWorkerThread;
+  LWorkerSerial: Boolean;
+  LMainSerial: Boolean;
+  LDoneCount: Integer;
+  LRound: Integer;
+  LTotalMainSerial: Integer;
+  LTotalWorkerSerial: Integer;
 begin
-  AssertTrue('Sequential rounds serial distribution test placeholder', True);
+  LBarrier := MakeBarrier(2);
+  LTotalMainSerial := 0;
+  LTotalWorkerSerial := 0;
+
+  for LRound := 1 to ROUNDS do
+  begin
+    LDoneCount := 0;
+    LWorkerSerial := False;
+    LWorker := TBarrierWorkerThread.Create(LBarrier, @LDoneCount, @LWorkerSerial, LRound mod 3);
+    try
+      LMainSerial := LBarrier.Wait;
+      LWorker.WaitFor;
+
+      if LMainSerial then Inc(LTotalMainSerial);
+      if LWorkerSerial then Inc(LTotalWorkerSerial);
+
+      AssertEquals(Format('Round %d exactly one serial', [LRound]), 1,
+        Integer(LMainSerial) + Integer(LWorkerSerial));
+      AssertEquals(Format('Round %d worker done', [LRound]), 1, LDoneCount);
+    finally
+      LWorker.Free;
+    end;
+  end;
+
+  AssertEquals('Serial distribution total should equal rounds', ROUNDS,
+    LTotalMainSerial + LTotalWorkerSerial);
 end;
 
 procedure TTestCase_IBarrier.Test_Wait_Concurrent_Threads_Synchronization;
+var
+  LBarrier: IBarrier;
+  LWorker: TBarrierWorkerThread;
+  LWorkerSerial: Boolean;
+  LMainSerial: Boolean;
+  LDoneCount: Integer;
+  LStartTick: QWord;
+  LElapsed: QWord;
 begin
-  AssertTrue('Concurrent threads synchronization test placeholder', True);
+  LBarrier := MakeBarrier(2);
+  LDoneCount := 0;
+  LWorkerSerial := False;
+
+  LWorker := TBarrierWorkerThread.Create(LBarrier, @LDoneCount, @LWorkerSerial, 80);
+  try
+    LStartTick := GetTickCount64;
+    LMainSerial := LBarrier.Wait;
+    LElapsed := GetTickCount64 - LStartTick;
+    LWorker.WaitFor;
+
+    AssertTrue('Main wait should block until worker reaches barrier', LElapsed >= 50);
+    AssertEquals('Worker should complete exactly once', 1, LDoneCount);
+    AssertEquals('Exactly one serial result expected', 1,
+      Integer(LMainSerial) + Integer(LWorkerSerial));
+  finally
+    LWorker.Free;
+  end;
 end;
 
 procedure TTestCase_IBarrier.Test_Wait_Concurrent_Barriers_Independence;
+var
+  LBarrierA: IBarrier;
+  LBarrierB: IBarrier;
+  LWorkerA: TBarrierWorkerThread;
+  LWorkerB: TBarrierWorkerThread;
+  LWorkerASerial: Boolean;
+  LWorkerBSerial: Boolean;
+  LMainASerial: Boolean;
+  LMainBSerial: Boolean;
+  LDoneA: Integer;
+  LDoneB: Integer;
 begin
-  AssertTrue('Concurrent barriers independence test placeholder', True);
+  LBarrierA := MakeBarrier(2);
+  LBarrierB := MakeBarrier(2);
+  LDoneA := 0;
+  LDoneB := 0;
+  LWorkerASerial := False;
+  LWorkerBSerial := False;
+
+  LWorkerA := TBarrierWorkerThread.Create(LBarrierA, @LDoneA, @LWorkerASerial, 10);
+  LWorkerB := TBarrierWorkerThread.Create(LBarrierB, @LDoneB, @LWorkerBSerial, 0);
+  try
+    LMainASerial := LBarrierA.Wait;
+    LMainBSerial := LBarrierB.Wait;
+    LWorkerA.WaitFor;
+    LWorkerB.WaitFor;
+
+    AssertEquals('Barrier A worker completion', 1, LDoneA);
+    AssertEquals('Barrier B worker completion', 1, LDoneB);
+    AssertEquals('Barrier A serial count', 1, Integer(LMainASerial) + Integer(LWorkerASerial));
+    AssertEquals('Barrier B serial count', 1, Integer(LMainBSerial) + Integer(LWorkerBSerial));
+  finally
+    LWorkerA.Free;
+    LWorkerB.Free;
+  end;
 end;
 
 procedure TTestCase_IBarrier.Test_Wait_Thread_Safety_Multiple_Barriers;
+const
+  BARRIER_COUNT = 3;
+  PARTICIPANTS = 3;
+  ROUNDS = 6;
+var
+  LBarriers: array[0..BARRIER_COUNT - 1] of IBarrier;
+  LWorkers: array[0..BARRIER_COUNT - 1, 0..PARTICIPANTS - 2] of TBarrierWorkerThread;
+  LSerialFlags: array[0..BARRIER_COUNT - 1, 0..PARTICIPANTS - 1] of Boolean;
+  LDoneCounts: array[0..BARRIER_COUNT - 1] of Integer;
+  LBarrierIndex: Integer;
+  LWorkerIndex: Integer;
+  LRound: Integer;
+  LSerialCount: Integer;
+  LParticipantIndex: Integer;
 begin
-  AssertTrue('Thread safety multiple barriers test placeholder', True);
+  for LBarrierIndex := 0 to BARRIER_COUNT - 1 do
+    LBarriers[LBarrierIndex] := MakeBarrier(PARTICIPANTS);
+
+  for LRound := 1 to ROUNDS do
+  begin
+    for LBarrierIndex := 0 to BARRIER_COUNT - 1 do
+    begin
+      LDoneCounts[LBarrierIndex] := 0;
+      for LParticipantIndex := 0 to PARTICIPANTS - 1 do
+        LSerialFlags[LBarrierIndex, LParticipantIndex] := False;
+
+      for LWorkerIndex := 0 to PARTICIPANTS - 2 do
+        LWorkers[LBarrierIndex, LWorkerIndex] := TBarrierWorkerThread.Create(
+          LBarriers[LBarrierIndex],
+          @LDoneCounts[LBarrierIndex],
+          @LSerialFlags[LBarrierIndex, LWorkerIndex + 1],
+          (LRound + LBarrierIndex + LWorkerIndex) mod 4
+        );
+    end;
+
+    try
+      for LBarrierIndex := 0 to BARRIER_COUNT - 1 do
+        LSerialFlags[LBarrierIndex, 0] := LBarriers[LBarrierIndex].Wait;
+
+      for LBarrierIndex := 0 to BARRIER_COUNT - 1 do
+        for LWorkerIndex := 0 to PARTICIPANTS - 2 do
+          LWorkers[LBarrierIndex, LWorkerIndex].WaitFor;
+
+      for LBarrierIndex := 0 to BARRIER_COUNT - 1 do
+      begin
+        LSerialCount := 0;
+        for LParticipantIndex := 0 to PARTICIPANTS - 1 do
+          if LSerialFlags[LBarrierIndex, LParticipantIndex] then
+            Inc(LSerialCount);
+
+        AssertEquals(Format('Thread-safety round %d barrier %d done', [LRound, LBarrierIndex]), PARTICIPANTS - 1, LDoneCounts[LBarrierIndex]);
+        AssertEquals(Format('Thread-safety round %d barrier %d serial', [LRound, LBarrierIndex]), 1, LSerialCount);
+      end;
+    finally
+      for LBarrierIndex := 0 to BARRIER_COUNT - 1 do
+        for LWorkerIndex := 0 to PARTICIPANTS - 2 do
+          LWorkers[LBarrierIndex, LWorkerIndex].Free;
+    end;
+  end;
 end;
 
 procedure TTestCase_IBarrier.Test_Wait_Race_Conditions_Prevention;
+var
+  LBarrier: IBarrier;
 begin
-  AssertTrue('Race conditions prevention test placeholder', True);
+  LBarrier := MakeBarrier(6);
+  AssertBarrierRounds(LBarrier, 6, 24, 5, 'Race prevention');
 end;
 
 procedure TTestCase_IBarrier.Test_Wait_Large_Participant_Count;
+var
+  LBarrier: IBarrier;
 begin
   if not IsStressModeEnabled then Exit;
-  AssertTrue('Large participant count test placeholder', True);
+
+  LBarrier := MakeBarrier(24);
+  AssertBarrierRounds(LBarrier, 24, 4, 3, 'Large participant count');
 end;
 
 procedure TTestCase_IBarrier.Test_Wait_Rapid_Sequential_Calls;
+var
+  LBarrier: IBarrier;
 begin
   if not IsStressModeEnabled then Exit;
-  AssertTrue('Rapid sequential calls test placeholder', True);
+
+  LBarrier := MakeBarrier(2);
+  AssertBarrierRounds(LBarrier, 2, 160, 0, 'Rapid sequential calls');
 end;
 
 procedure TTestCase_IBarrier.Test_Wait_Mixed_Thread_Priorities;
+var
+  LBarrier: IBarrier;
 begin
-  AssertTrue('Mixed thread priorities test placeholder', True);
+  LBarrier := MakeBarrier(4);
+  AssertBarrierRounds(LBarrier, 4, 12, 6, 'Mixed thread timing');
 end;
 
 {$IFDEF WINDOWS}
 procedure TTestCase_IBarrier.Test_Wait_Windows_Native_Barrier;
+var
+  LBarrier: IBarrier;
 begin
-  AssertTrue('Windows native barrier test placeholder', True);
+  LBarrier := MakeBarrier(4);
+  AssertBarrierRounds(LBarrier, 4, 10, 3, 'Windows native barrier compatibility');
 end;
 
 procedure TTestCase_IBarrier.Test_Wait_Windows_Fallback_Implementation;
+var
+  LBarrier: IBarrier;
 begin
-  AssertTrue('Windows fallback implementation test placeholder', True);
+  LBarrier := MakeBarrier(2);
+  AssertBarrierWaitExRounds(LBarrier, 12, 'Windows fallback compatibility');
 end;
 {$ENDIF}
 
 {$IFDEF UNIX}
 procedure TTestCase_IBarrier.Test_Wait_Unix_Posix_Barrier;
+var
+  LBarrier: IBarrier;
 begin
-  AssertTrue('Unix POSIX barrier test placeholder', True);
+  LBarrier := MakeBarrier(4);
+  AssertBarrierRounds(LBarrier, 4, 10, 4, 'Unix POSIX compatibility');
 end;
 
 procedure TTestCase_IBarrier.Test_Wait_Unix_Fallback_Implementation;
+var
+  LBarrier: IBarrier;
 begin
-  AssertTrue('Unix fallback implementation test placeholder', True);
+  LBarrier := MakeBarrier(2);
+  AssertBarrierWaitExRounds(LBarrier, 12, 'Unix fallback compatibility');
 end;
 {$ENDIF}
 
 procedure TTestCase_IBarrier.Test_Stress_High_Frequency_Barriers;
+var
+  LBarrier: IBarrier;
 begin
   if not IsStressModeEnabled then Exit;
-  AssertTrue('High frequency barriers stress test placeholder', True);
+
+  LBarrier := MakeBarrier(2);
+  AssertBarrierRounds(LBarrier, 2, 320, 0, 'Stress high frequency');
 end;
 
 procedure TTestCase_IBarrier.Test_Stress_Long_Running_Barriers;
+var
+  LBarrier: IBarrier;
 begin
   if not IsStressModeEnabled then Exit;
-  AssertTrue('Long running barriers stress test placeholder', True);
+
+  LBarrier := MakeBarrier(4);
+  AssertBarrierRounds(LBarrier, 4, 80, 5, 'Stress long running');
 end;
 
 procedure TTestCase_IBarrier.Test_Stress_Memory_Pressure_Barriers;
+var
+  LIteration: Integer;
+  LBarrier: IBarrier;
 begin
   if not IsStressModeEnabled then Exit;
-  AssertTrue('Memory pressure barriers stress test placeholder', True);
+
+  for LIteration := 1 to 120 do
+  begin
+    LBarrier := MakeBarrier(3);
+    AssertBarrierRounds(LBarrier, 3, 1, 3, Format('Stress memory pressure iter %d', [LIteration]));
+  end;
 end;
 
 procedure TTestCase_IBarrier.Test_Stress_Thread_Exhaustion_Barriers;
+var
+  LBarrier: IBarrier;
 begin
   if not IsStressModeEnabled then Exit;
-  AssertTrue('Thread exhaustion barriers stress test placeholder', True);
+
+  LBarrier := MakeBarrier(12);
+  AssertBarrierRounds(LBarrier, 12, 25, 2, 'Stress thread exhaustion');
 end;
 
 procedure TTestCase_IBarrier.Test_Performance_Baseline_2_Threads;
 begin
   if not IsStressModeEnabled then Exit;
-  AssertTrue('2-thread performance baseline test placeholder', True);
+  AssertPerformanceBaseline(2, 120, 8000, 'Performance baseline 2 threads');
 end;
 
 procedure TTestCase_IBarrier.Test_Performance_Baseline_4_Threads;
 begin
   if not IsStressModeEnabled then Exit;
-  AssertTrue('4-thread performance baseline test placeholder', True);
+  AssertPerformanceBaseline(4, 100, 10000, 'Performance baseline 4 threads');
 end;
 
 procedure TTestCase_IBarrier.Test_Performance_Baseline_8_Threads;
 begin
   if not IsStressModeEnabled then Exit;
-  AssertTrue('8-thread performance baseline test placeholder', True);
+  AssertPerformanceBaseline(8, 80, 14000, 'Performance baseline 8 threads');
 end;
 
 procedure TTestCase_IBarrier.Test_Performance_Baseline_16_Threads;
 begin
   if not IsStressModeEnabled then Exit;
-  AssertTrue('16-thread performance baseline test placeholder', True);
+  AssertPerformanceBaseline(16, 50, 20000, 'Performance baseline 16 threads');
 end;
 
 { TWaitExWorkerThread }

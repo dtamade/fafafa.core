@@ -4,6 +4,7 @@
 // {$mode objfpc} - FreePascal 限制：mode 指令不能在 include 文件中，必须在主单元文件中声明
 {$CODEPAGE UTF8}
 {$H+}
+{$WARN 3124 OFF} // suppress "Inlining disabled" noise in strict 0-hints builds
 
 {$IF DEFINED(MSWINDOWS) OR DEFINED(WINDOWS)}
   {$DEFINE WINDOWS}
@@ -29,8 +30,21 @@
   {$endif}
 {$ENDIF}
 
-{ Enable inline 开启内联}
-{$DEFINE FAFAFA_CORE_INLINE}
+{ Enable inline 开启内联（仅在启用优化时）
+  - Debug/Lazarus 默认常关闭优化，强行标记 inline 会产生 (3124) Inlining disabled 提示噪音
+  - Release/优化构建再开启以获得性能收益 }
+{$IFOPT O+}
+  {$DEFINE FAFAFA_CORE_INLINE}
+{$ENDIF}
+
+{ SIMD experimental intrinsics hard safety gate:
+  - default build must never carry FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS
+  - only test harnesses may enable it with FAFAFA_SIMD_EXPERIMENTAL_TEST_BUILD }
+{$IFDEF FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS}
+  {$IFNDEF FAFAFA_SIMD_EXPERIMENTAL_TEST_BUILD}
+    {$FATAL FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS is test-only. Define FAFAFA_SIMD_EXPERIMENTAL_TEST_BUILD in dedicated test harnesses only.}
+  {$ENDIF}
+{$ENDIF}
 
 { Enable Result-based APIs for env module and others 默认启用 Result 风格 API }
 {$DEFINE FAFAFA_ENV_ENABLE_RESULT}

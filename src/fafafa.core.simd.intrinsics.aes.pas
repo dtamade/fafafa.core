@@ -3,82 +3,89 @@ unit fafafa.core.simd.intrinsics.aes;
 {$mode objfpc}
 {$I fafafa.core.settings.inc}
 
-{
-  === fafafa.core.simd.intrinsics.aes ===
-  AES-NI (Advanced Encryption Standard New Instructions) 指令集支�?  
-  AES-NI �?Intel �?2010 年引入的加密指令集扩�?  提供硬件加速的 AES 加密/解密操作
-  
-  特性：
-  - AES 加密/解密轮次操作
-  - AES 密钥扩展
-  - 逆混合列操作
-  - 高性能加密处理
-  
-  兼容性：Intel Westmere (2010) 及更新的处理�?}
-
 interface
 
 uses
   fafafa.core.simd.intrinsics.base;
 
-// === AES-NI 指令 ===
-// AES 加密轮次
+{
+  Experimental status:
+  - This unit intentionally does NOT provide hardware-accurate AES-NI semantics.
+  - By default, public APIs raise ENotSupportedException to avoid silent misuse.
+  - Define FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS to opt-in placeholder behavior.
+}
+
+// AES round operations
 function aes_aesenc_si128(const data, round_key: TM128): TM128;
 function aes_aesenclast_si128(const data, round_key: TM128): TM128;
 
-// AES 解密轮次
+// AES inverse round operations
 function aes_aesdec_si128(const data, round_key: TM128): TM128;
 function aes_aesdeclast_si128(const data, round_key: TM128): TM128;
 
-// AES 密钥扩展
+// AES key schedule helper
 function aes_aeskeygenassist_si128(const key: TM128; rcon: Byte): TM128;
 
-// 逆混合列
+// AES inverse mix columns
 function aes_aesimc_si128(const data: TM128): TM128;
 
 implementation
 
-// === AES-NI 指令的简化实�?===
-// 注意：这些是简化的 Pascal 实现，实际的 AES-NI 指令会提供硬件加�?
+uses
+  SysUtils;
+
+procedure EnsureExperimentalIntrinsicsEnabled(const aFunctionName: string); inline;
+begin
+  {$IFNDEF FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS}
+  raise ENotSupportedException.CreateFmt(
+    '%s is experimental placeholder semantics. Define FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS to opt in.',
+    [aFunctionName]
+  );
+  {$ELSE}
+  if aFunctionName = '' then
+    ;
+  {$ENDIF}
+end;
+
 function aes_aesenc_si128(const data, round_key: TM128): TM128;
 begin
-  // 简化实现：实际应该执行 AES 加密轮次操作
-  // 这里只是简单的异或操作作为占位�?  Result.m128i_u64[0] := data.m128i_u64[0] xor round_key.m128i_u64[0];
+  EnsureExperimentalIntrinsicsEnabled('aes_aesenc_si128');
+  Result.m128i_u64[0] := data.m128i_u64[0] xor round_key.m128i_u64[0];
   Result.m128i_u64[1] := data.m128i_u64[1] xor round_key.m128i_u64[1];
 end;
 
 function aes_aesenclast_si128(const data, round_key: TM128): TM128;
 begin
-  // 简化实现：最后一轮加密操�?  Result.m128i_u64[0] := data.m128i_u64[0] xor round_key.m128i_u64[0];
+  EnsureExperimentalIntrinsicsEnabled('aes_aesenclast_si128');
+  Result.m128i_u64[0] := data.m128i_u64[0] xor round_key.m128i_u64[0];
   Result.m128i_u64[1] := data.m128i_u64[1] xor round_key.m128i_u64[1];
 end;
 
 function aes_aesdec_si128(const data, round_key: TM128): TM128;
 begin
-  // 简化实现：AES 解密轮次操作
+  EnsureExperimentalIntrinsicsEnabled('aes_aesdec_si128');
   Result.m128i_u64[0] := data.m128i_u64[0] xor round_key.m128i_u64[0];
   Result.m128i_u64[1] := data.m128i_u64[1] xor round_key.m128i_u64[1];
 end;
 
 function aes_aesdeclast_si128(const data, round_key: TM128): TM128;
 begin
-  // 简化实现：最后一轮解密操�?  Result.m128i_u64[0] := data.m128i_u64[0] xor round_key.m128i_u64[0];
+  EnsureExperimentalIntrinsicsEnabled('aes_aesdeclast_si128');
+  Result.m128i_u64[0] := data.m128i_u64[0] xor round_key.m128i_u64[0];
   Result.m128i_u64[1] := data.m128i_u64[1] xor round_key.m128i_u64[1];
 end;
 
 function aes_aeskeygenassist_si128(const key: TM128; rcon: Byte): TM128;
 begin
-  // 简化实现：密钥扩展辅助
+  EnsureExperimentalIntrinsicsEnabled('aes_aeskeygenassist_si128');
   Result := key;
   Result.m128i_u8[0] := Result.m128i_u8[0] xor rcon;
 end;
 
 function aes_aesimc_si128(const data: TM128): TM128;
 begin
-  // 简化实现：逆混合列操作
+  EnsureExperimentalIntrinsicsEnabled('aes_aesimc_si128');
   Result := data;
 end;
 
 end.
-
-

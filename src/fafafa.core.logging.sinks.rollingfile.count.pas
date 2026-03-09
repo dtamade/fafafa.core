@@ -11,7 +11,7 @@ uses
   fafafa.core.io,
   fafafa.core.logging.interfaces
   {$IFDEF WINDOWS}, Windows{$ENDIF}
-  {$IFDEF UNIX}, BaseUnix{$ENDIF};
+  {$IFDEF UNIX}, BaseUnix, Unix{$ENDIF};
 
 type
   { 按行数滚动的文本文件 Sink：basePath.count-TS.NNNN，保留 MaxFiles 个历史 }
@@ -152,23 +152,24 @@ end;
 
 procedure TRollingCountTextFileSink.WriteLine(const S: string);
 var
-  LAuto: TAutoLock;
   U: UTF8String;
+  LE: UTF8String;
 begin
-  LAuto := TAutoLock.Create(FLock);
+  FLock.Acquire;
   try
     EnsureOpen;
     // 到达阈值则先滚动
     if FCurLines >= FMaxLines then
       Rotate;
     U := UTF8String(S);
+    LE := UTF8String(LineEnding);
     if Length(U) > 0 then
       FStream.WriteBuffer(U[1], Length(U));
-    if Length(LineEnding) > 0 then
-      FStream.WriteBuffer(LineEnding[1], Length(LineEnding));
+    if Length(LE) > 0 then
+      FStream.WriteBuffer(LE[1], Length(LE));
     Inc(FCurLines);
   finally
-    LAuto.Free;
+    FLock.Release;
   end;
 end;
 

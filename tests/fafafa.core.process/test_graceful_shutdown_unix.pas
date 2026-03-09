@@ -36,7 +36,7 @@ begin
          .Exe('/bin/sh')
          .Args(['-c','sleep 1'])
          .Start;
-  CheckTrue('应在时间内退出', C.GracefulShutdown(3000));
+  CheckTrue(C.GracefulShutdown(3000), '应在时间内退出');
 end;
 
 procedure TTestCase_GracefulShutdown_Unix.Test_GracefulShutdown_TimesOut_ThenKill_Unix;
@@ -53,7 +53,7 @@ begin
   if TimedOut then
   begin
     C.Kill;
-    CheckTrue('Kill 后应尽快退出', C.WaitForExit(3000));
+    CheckTrue(C.WaitForExit(3000), 'Kill 后应尽快退出');
   end;
 end;
 

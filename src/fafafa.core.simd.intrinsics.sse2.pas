@@ -22,6 +22,13 @@ interface
 uses
   fafafa.core.simd.intrinsics.base;
 
+{
+  Experimental status (2026-02-17):
+  - This unit currently mixes valid helpers with many placeholder bodies.
+  - It is intentionally excluded from default SIMD facade/gate entry paths.
+  - Keep for incremental bring-up only; do not treat as production semantic source.
+}
+
 // === SSE2 整数函数 ===
 // Load/Store
 function simd_load_si128(const Ptr: Pointer): TM128;
@@ -224,7 +231,18 @@ procedure simd_clflush(const Ptr: Pointer);
 implementation
 
 uses
+  SysUtils,
   Math;  // RTL Math 单元 (Sqrt)
+
+procedure EnsureExperimentalIntrinsicsEnabled; inline;
+begin
+  {$IFNDEF FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS}
+  raise ENotSupportedException.Create(
+    'fafafa.core.simd.intrinsics.sse2 is experimental placeholder semantics. ' +
+    'Define FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS to opt in.'
+  );
+  {$ENDIF}
+end;
 
 // === 基础函数实现 (Pascal 版本) ===
 // 这里只实现几个关键函数作为示例，完整实现将在后续添加
@@ -768,6 +786,9 @@ procedure simd_lfence; begin end;
 procedure simd_mfence; begin end;
 procedure simd_pause; begin end;
 procedure simd_clflush(const Ptr: Pointer); begin end;
+
+initialization
+  EnsureExperimentalIntrinsicsEnabled;
 
 end.
 

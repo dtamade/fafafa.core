@@ -27,13 +27,20 @@ type
 
 implementation
 
+{$IFDEF UNIX}
+function c_setenv(name, value: PChar; replace: LongInt): LongInt; cdecl; external 'c' name 'setenv';
+function c_unsetenv(name: PChar): LongInt; cdecl; external 'c' name 'unsetenv';
+{$ENDIF}
+
+
 procedure TemporarilySetEnv(const Name, Value: string; out OldValue: string);
 begin
   OldValue := SysUtils.GetEnvironmentVariable(Name);
   {$IFDEF WINDOWS}
   Windows.SetEnvironmentVariable(PChar(Name), PChar(Value));
   {$ELSE}
-  fpSetEnv(PChar(Name + '=' + Value));
+  if c_setenv(PChar(Name), PChar(Value), 1) <> 0 then
+    raise Exception.CreateFmt('setenv failed: %s', [Name]);
   {$ENDIF}
 end;
 
@@ -43,7 +50,16 @@ begin
   if OldValue = '' then Windows.SetEnvironmentVariable(PChar(Name), nil)
   else Windows.SetEnvironmentVariable(PChar(Name), PChar(OldValue));
   {$ELSE}
-  if OldValue = '' then fpUnsetEnv(PChar(Name)) else fpSetEnv(PChar(Name + '=' + OldValue));
+  if OldValue = '' then
+  begin
+    if c_unsetenv(PChar(Name)) <> 0 then
+      raise Exception.CreateFmt('unsetenv failed: %s', [Name]);
+  end
+  else
+  begin
+    if c_setenv(PChar(Name), PChar(OldValue), 1) <> 0 then
+      raise Exception.CreateFmt('setenv restore failed: %s', [Name]);
+  end;
   {$ENDIF}
 end;
 

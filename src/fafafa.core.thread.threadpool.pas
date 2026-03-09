@@ -1428,6 +1428,7 @@ var
   LQueueLen: Integer;
   LIdleWorkers: Integer;
   LEffectiveQueue: Integer;
+  LEffectiveQueueAfterEnqueue: Integer;
   LShouldScaleUp: Boolean;
 begin
   if FShutdown then
@@ -1469,8 +1470,15 @@ begin
       LEffectiveQueue := LQueueLen - LIdleWorkers;
       if LEffectiveQueue < 0 then LEffectiveQueue := 0;
 
+      // NOTE:
+      // Queue 容量语义为“最多允许多少个排队任务”。判满应基于“入队后的有效长度”。
+      // - capacity=0 表示不允许排队，但允许空闲线程即时领取任务（避免所有 Submit 都被拒绝）
+      // - capacity=N 允许排队 N 个任务；只有在入队后有效长度 > N 时才拒绝
+      LEffectiveQueueAfterEnqueue := (LQueueLen + 1) - LIdleWorkers;
+      if LEffectiveQueueAfterEnqueue < 0 then LEffectiveQueueAfterEnqueue := 0;
+
       // “队列已满”判定改用有效长度
-      if (FQueueCapacity >= 0) and (LEffectiveQueue >= FQueueCapacity) then
+      if (FQueueCapacity >= 0) and (LEffectiveQueueAfterEnqueue > FQueueCapacity) then
       begin
         case FRejectPolicy of
           rpAbort:
@@ -1491,6 +1499,7 @@ begin
               // 决策：在调用线程执行，避免入队导致的竞态（只执行一次，不丢不重）
               LExecInCaller := True;
               Inc(FRejectedCaller);
+              Inc(FTotalSubmitted);
               LExecTask := ATaskItem;
               ATaskItem := nil; // 转移所有权，防止后续路径误用/双重释放
             end;
@@ -1533,6 +1542,7 @@ begin
               if Assigned(ATaskItem) then ATaskItem^.EnqueueTick := GetTickCount64;
               FTaskQueue.PushBack(ATaskItem);
               ATaskItem := nil;
+              Inc(FTotalSubmitted);
               // 入队后更新队列峰值（在队列锁内）
               if FTaskQueue.GetCount > FQueuePeak then FQueuePeak := FTaskQueue.GetCount;
               // 入队后触发扩容（若可扩）：依据 Active+Queue 是否超过 Workers
@@ -1555,8 +1565,10 @@ begin
           Inc(FCallerRunsAtMax);
           // 达到最大线程数：调用线程直接执行，避免入队后被并发工作线程重复领取
           LExecInCaller := True;
+          Inc(FRejectedCaller);
           LExecTask := ATaskItem;
           ATaskItem := nil; // 转移所有权，确保只在 CallerRuns 路径释放
+          Inc(FTotalSubmitted);
         end
         else
         begin
@@ -1568,6 +1580,7 @@ begin
           if Assigned(ATaskItem) then ATaskItem^.EnqueueTick := GetTickCount64;
           FTaskQueue.PushBack(ATaskItem);
           ATaskItem := nil;
+          Inc(FTotalSubmitted);
           // 入队后若 Active+Queue 超过 Workers 且未达上限，触发扩容
           LQueueLen := FTaskQueue.GetCount;
           if (LWorkersSnap < LMaxSnap) and ((LActiveSnap + LQueueLen) > LWorkersSnap) then

@@ -1,0 +1,10 @@
+function GetCurrentBackend: TSimdBackend;
+function GetCurrentBackendInfo: TSimdBackendInfo;
+function GetCPUInformation: TCPUInfo;
+function GetAvailableBackendList: TSimdBackendArray;
+function TryForceBackend(aBackend: TSimdBackend): Boolean;
+procedure ForceBackend(backend: TSimdBackend);
+procedure ResetBackendSelection;
+function AllocateAligned(size: NativeUInt; alignment: NativeUInt = 32): Pointer;
+procedure FreeAligned(ptr: Pointer);
+function IsPointerAligned(ptr: Pointer; alignment: NativeUInt = 32): Boolean;

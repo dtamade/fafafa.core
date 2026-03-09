@@ -139,6 +139,7 @@ function CpuHasRDTSCP: Boolean;
 var
   LA, LB, LC, LD, LMaxExt: LongWord;
 begin
+  LA := 0; LB := 0; LC := 0; LD := 0; LMaxExt := 0; // Initialize for CPUID output
   Result := False;
   if not HasCPUID then Exit;
   CPUID($80000000, LMaxExt, LB, LC, LD);
@@ -151,6 +152,7 @@ function CpuHasInvariantTSC: Boolean;
 var
   LA, LB, LC, LD, LMaxExt: LongWord;
 begin
+  LA := 0; LB := 0; LC := 0; LD := 0; LMaxExt := 0; // Initialize for CPUID output
   Result := False;
   if not HasCPUID then Exit;
   CPUID($80000000, LMaxExt, LB, LC, LD);

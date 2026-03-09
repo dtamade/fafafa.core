@@ -102,7 +102,6 @@ const
 {$IFDEF FAFAFA_POSIX_SPAWN_CHDIR_NP}
 function posix_spawn_file_actions_addchdir_np(var actions: Pointer; path: PChar): LongInt; cdecl; external 'c' name 'posix_spawn_file_actions_addchdir_np';
 {$ENDIF}
-{$ENDIF}
 
 function TProcess.StartUnixUsingPosixSpawn: Boolean;
 var
@@ -194,8 +193,6 @@ begin
       begin
         if posix_spawn_file_actions_addchdir_np(Actions, PChar(FStartInfo.WorkingDirectory)) <> 0 then Exit;
       end;
-      {$ENDIF}
-
       {$ELSE}
       if (FStartInfo.WorkingDirectory <> '') then Exit; // 不支持 chdir_np 时回退
       {$ENDIF}
@@ -207,6 +204,7 @@ begin
     {$ELSE}
     // 未启用 file_actions 绑定时，不支持重定向/工作目录 -> 回退
     if DoRedirect or (FStartInfo.WorkingDirectory <> '') then Exit;
+    Actions := nil;
     {$ENDIF}
 
     // 调用 posix_spawnp（PATH 搜索由其处理）
@@ -255,7 +253,7 @@ begin
     LPid := fpfork;
 
     if LPid = -1 then
-      raise EProcessError.CreateFmt('无法创建子进程: %s', [StrError(fpgeterrno)])
+      raise EProcessError.CreateFmt('无法创建子进程: %s', [SysErrorMessage(fpgeterrno)])
     else if LPid = 0 then
     begin
       // 子进程
@@ -263,7 +261,7 @@ begin
         {$IFDEF FAFAFA_PROCESS_GROUPS}
         // 将子进程置入以自身 PID 为 PGID 的新进程组，便于后续统一 killpg
         // 忽略失败（某些环境可能返回 EPERM/EINVAL）
-        fpSetpgid(0, 0);
+        setpgid(0, 0);
         {$ENDIF}
 
         // 设置流重定向
@@ -416,13 +414,15 @@ begin
     else if LResult = -1 then
     begin
       // 在某些并发 wait 条件下，可能已无子进程可等待（ECHILD），视为已退出
-      if fpgeterrno = ECHILD then
+      {$if declared(ESysECHILD)}
+      if fpgeterrno = ESysECHILD then
       begin
         Result := True;
         Exit;
       end
       else
-        raise EProcessError.CreateFmt('等待进程失败: %s', [StrError(fpgeterrno)]);
+      {$endif}
+        raise EProcessError.CreateFmt('等待进程失败: %s', [SysErrorMessage(fpgeterrno)]);
     end;
 
     // 检查超时
@@ -445,7 +445,7 @@ begin
   begin
     // 发送 SIGKILL 信号进行强制终止
     if fpkill(FProcessId_Unix, SIGKILL) = -1 then
-      raise EProcessError.CreateFmt('无法强制终止进程: %s', [StrError(fpgeterrno)]);
+      raise EProcessError.CreateFmt('无法强制终止进程: %s', [SysErrorMessage(fpgeterrno)]);
 
     FState := psTerminated;
     FExitTime := Now;
@@ -459,7 +459,7 @@ begin
   begin
     // 发送 SIGTERM 信号进行优雅终止
     if fpkill(FProcessId_Unix, SIGTERM) = -1 then
-      raise EProcessError.CreateFmt('无法优雅终止进程: %s', [StrError(fpgeterrno)]);
+      raise EProcessError.CreateFmt('无法优雅终止进程: %s', [SysErrorMessage(fpgeterrno)]);
 
     FState := psTerminated;
     FExitTime := Now;
@@ -473,7 +473,7 @@ begin
   if FStartInfo.RedirectStandardInput then
   begin
     if fppipe(FInputPipe) = -1 then
-      raise EProcessError.CreateFmt('创建输入管道失败: %s', [StrError(fpgeterrno)]);
+      raise EProcessError.CreateFmt('创建输入管道失败: %s', [SysErrorMessage(fpgeterrno)]);
   end;
 
   // 创建输出管道
@@ -486,7 +486,7 @@ begin
         fpclose(FInputPipe[0]);
         fpclose(FInputPipe[1]);
       end;
-      raise EProcessError.CreateFmt('创建输出管道失败: %s', [StrError(fpgeterrno)]);
+      raise EProcessError.CreateFmt('创建输出管道失败: %s', [SysErrorMessage(fpgeterrno)]);
     end;
   end;
 
@@ -505,7 +505,7 @@ begin
         fpclose(FOutputPipe[0]);
         fpclose(FOutputPipe[1]);
       end;
-      raise EProcessError.CreateFmt('创建错误管道失败: %s', [StrError(fpgeterrno)]);
+      raise EProcessError.CreateFmt('创建错误管道失败: %s', [SysErrorMessage(fpgeterrno)]);
     end;
   end;
 end;

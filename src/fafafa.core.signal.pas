@@ -844,7 +844,11 @@ begin
   end;
   // FD_CLOEXEC
   flags := fpFcntl(fd, F_GETFD);
+  {$IFDEF FD_CLOEXEC}
   if flags <> -1 then fpFcntl(fd, F_SETFD, flags or FD_CLOEXEC);
+  {$ELSE}
+  if flags <> -1 then fpFcntl(fd, F_SETFD, flags or 1);
+  {$ENDIF}
 end;
 {$ENDIF}
 

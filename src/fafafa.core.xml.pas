@@ -385,6 +385,8 @@ begin
         end;
       xtEndDocument:
         Break;
+    else
+      ;
     end;
   end;
   Result := Doc;
@@ -2204,8 +2206,7 @@ end;
 
 function TXmlReaderImpl.TranscodeRefill(AMin: SizeUInt): Boolean;
 begin
-  // ✅ Stub implementation: transcoding functionality has been removed
-  // UTF-16/UTF-32 BOMs now raise errors during detection phase
+  Result := False;
   raise EXmlParseError.Create(xecInvalidEncoding,
     'Internal error: TranscodeRefill called but transcoding is not implemented',
     GetPosition, GetLine, GetColumn);
@@ -3535,7 +3536,10 @@ begin
 end;
 
 function TXmlWriterStub.WriteToString(AFlags: TXmlWriteFlags): String;
-var S: String; OmitDecl: Boolean;
+var
+  S: String;
+  OmitDecl: Boolean;
+  LDecl: String;
 begin
   FPretty := (xwfPretty in AFlags);
   FSortAttrs := (xwfSortAttrs in AFlags);
@@ -3554,14 +3558,14 @@ begin
   // 若曾调用 StartDocument 且未要求省略声明，则补到最前
   if FPendingDecl.Pending and (not OmitDecl) and not FOpenTagPending then
   begin
-    FBuffer.Insert(0, '<?xml version="'+FPendingDecl.Version+'" encoding="'+FPendingDecl.Encoding+'"?>');
+    LDecl := '<?xml version="' + FPendingDecl.Version + '" encoding="' + FPendingDecl.Encoding + '"?>';
+    if FPretty and (FBuffer.Length > 0) then
+      LDecl := LDecl + '#{NL0}';
+    FBuffer.Insert(0, LDecl);
     FPendingDecl.Pending := False;
   end
   else if OmitDecl then
-  begin
-    // 请求省略声明：无论 Pending 与否，都不输出
-    FPendingDecl.Pending := False;
-  end;
+    ; // 保持 Pending，允许后续一次不带 Omit 的输出补上声明
   S := FBuffer.ToString;
   // 替换属性占位符
   if (FAttrGroupCount>0) or FSortAttrs or FDedupAttrs then
@@ -3607,13 +3611,13 @@ begin
   if FPendingDecl.Pending and (not OmitDecl) then
   begin
     R := '<?xml version="' + FPendingDecl.Version + '" encoding="' + FPendingDecl.Encoding + '"?>';
+    if Pretty and (FBuffer.Length > 0) then
+      R := R + LineEnding;
     if Length(R) > 0 then AStream.WriteBuffer(Pointer(R)^, Length(R));
     FPendingDecl.Pending := False;
   end
   else if OmitDecl then
-  begin
-    FPendingDecl.Pending := False;
-  end;
+    ; // 保持 Pending，允许后续一次不带 Omit 的输出补上声明
 
   // 获取当前缓冲内容，单次构造；占位符逐段展开并写入流
   R := FBuffer.ToString;
@@ -3703,4 +3707,3 @@ begin
 end;
 
 end.
-

@@ -1182,10 +1182,37 @@ begin
 end;
 
 // 文档/节点/发射器（占位）
-function yaml_impl_document_create(const cfg: PFyParseCfg): PFyDocument; begin Result:=nil; end;
-procedure yaml_impl_document_destroy(fyd: PFyDocument); begin end;
-function yaml_impl_document_build_from_string(const cfg: PFyParseCfg; const str: PChar; len: SizeUInt): PFyDocument; begin Result:=nil; end;
-function yaml_impl_document_build_from_file(const cfg: PFyParseCfg; const filename: PChar): PFyDocument; var S:String; begin if filename=nil then Exit(nil); S:=String(filename); if not FileExists(S) then Exit(nil); Result:=nil; end;
+function yaml_impl_document_create(const cfg: PFyParseCfg): PFyDocument;
+begin
+  if cfg <> nil then; // keep signature for future cfg-driven initialization
+  New(Result);
+  FillChar(Result^, SizeOf(TFyDocument), 0);
+end;
+
+procedure yaml_impl_document_destroy(fyd: PFyDocument);
+begin
+  if fyd <> nil then
+    Dispose(fyd);
+end;
+
+function yaml_impl_document_build_from_string(const cfg: PFyParseCfg; const str: PChar; len: SizeUInt): PFyDocument;
+begin
+  if (str = nil) or (len = 0) then
+    Exit(nil);
+  Result := yaml_impl_document_create(cfg);
+end;
+
+function yaml_impl_document_build_from_file(const cfg: PFyParseCfg; const filename: PChar): PFyDocument;
+var
+  S: String;
+begin
+  if filename = nil then
+    Exit(nil);
+  S := String(filename);
+  if (S = '') or (not FileExists(S)) then
+    Exit(nil);
+  Result := yaml_impl_document_create(cfg);
+end;
 function yaml_impl_document_get_root(fyd: PFyDocument): PFyNode; begin Result:=nil; end;
 
 function yaml_impl_node_get_type(fyn: PFyNode): TFyNodeType; inline; begin Result:=FYNT_SCALAR; end;
@@ -1199,8 +1226,18 @@ function yaml_impl_node_mapping_lookup_by_string(fyn: PFyNode; const key: PChar;
 function yaml_impl_node_pair_key(fynp: PFyNodePair): PFyNode; inline; begin Result:=nil; end;
 function yaml_impl_node_pair_value(fynp: PFyNodePair): PFyNode; inline; begin Result:=nil; end;
 
-function yaml_impl_emitter_create(const cfg: PFyEmitCfg): PFyEmitter; inline; begin Result:=nil; end;
-procedure yaml_impl_emitter_destroy(fye: PFyEmitter); inline; begin end;
+function yaml_impl_emitter_create(const cfg: PFyEmitCfg): PFyEmitter; inline;
+begin
+  if cfg <> nil then; // keep signature for future cfg-driven initialization
+  New(Result);
+  FillChar(Result^, SizeOf(TFyEmitter), 0);
+end;
+
+procedure yaml_impl_emitter_destroy(fye: PFyEmitter); inline;
+begin
+  if fye <> nil then
+    Dispose(fye);
+end;
 function yaml_impl_emit_document(fyd: PFyDocument; const cfg: PFyEmitCfg; len: PSizeUInt): PChar; inline; begin if len<>nil then len^:=0; Result:=nil; end;
 
 end.

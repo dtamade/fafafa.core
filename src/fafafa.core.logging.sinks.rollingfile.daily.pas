@@ -169,25 +169,23 @@ begin
 end;
 
 procedure TRollingDailyTextFileSink.WriteLine(const S: string);
-var LAuto: TAutoLock;
 begin
-  LAuto := TAutoLock.Create(FLock);
+  FLock.Acquire;
   try
     EnsureOpen;
     System.WriteLn(FFile, S);
   finally
-    LAuto.Free;
+    FLock.Release;
   end;
 end;
 
 procedure TRollingDailyTextFileSink.Flush;
-var LAuto: TAutoLock;
 begin
-  LAuto := TAutoLock.Create(FLock);
+  FLock.Acquire;
   try
     if FOpened then System.Flush(FFile);
   finally
-    LAuto.Free;
+    FLock.Release;
   end;
 end;
 

@@ -47,6 +47,7 @@ function TGZipProvider.WrapEncodeWithOptions(const Dest: TStream; const Level: I
 begin
   // Level 暂不直通到 raw deflate（内部 TRawDeflateStream 目前使用默认级别）
   // 为保持接口一致性，优先保留 Hook；后续可在 TRawDeflateStream 支持级别后接通
+  if Level <> 0 then; // suppress unused parameter hint (reserved)
   Result := TGZipEncodeStream.Create(Dest);
 end;
 

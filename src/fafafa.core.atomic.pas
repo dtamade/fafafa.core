@@ -3253,9 +3253,9 @@ const
   TAG_BITS = FAFAFA_ATOMIC_TAG_BITS_32; // default=2; requires pointer alignment to 2^TAG_BITS
   {$ENDIF}
   TAG_MASK: PtrUInt = (PtrUInt(1) shl TAG_BITS) - 1;
-  // NOTE: Keep this expression self-contained for older FPC constant folding (e.g. 3.2.2/i386).
-  // Compute a mask with low TAG_BITS cleared without producing signed intermediates (e.g. -4 on i386).
-  PTR_MASK: PtrUInt = ((PtrUInt(1) shl (SizeOf(PtrUInt) * 8 - TAG_BITS)) - 1) shl TAG_BITS;
+  // NOTE: Keep this expression friendly to older FPC constant folding on non-x86_64 targets.
+  // Avoid referencing typed-const TAG_MASK here (some FPC versions reject it in const-folding).
+  PTR_MASK: PtrUInt = ((not PtrUInt(0)) shr TAG_BITS) shl TAG_BITS;
 {$ENDIF}
 
 function atomic_tagged_ptr(aPtr: Pointer; aTag: {$IFDEF CPU64}UInt16{$ELSE}UInt32{$ENDIF}): atomic_tagged_ptr_t;

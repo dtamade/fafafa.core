@@ -11,6 +11,8 @@ PLATFORMS_STRING="${SIMD_QEMU_PLATFORMS:-}"
 DOCKER_BUILD_NETWORK="${DOCKER_BUILD_NETWORK:-default}"
 RETRIES="${SIMD_QEMU_RETRIES:-3}"
 BUILD_POLICY="${SIMD_QEMU_BUILD_POLICY:-if-missing}"
+CPUINFO_REPEAT_ROUNDS="${SIMD_QEMU_CPUINFO_REPEAT_ROUNDS:-3}"
+CPUINFO_SUITE_REPEAT_ROUNDS="${SIMD_QEMU_CPUINFO_SUITE_REPEAT_ROUNDS:-5}"
 EXPERIMENTAL_DEFINE="${SIMD_QEMU_EXPERIMENTAL_DEFINE:--dFAFAFA_SIMD_EXPERIMENTAL_BACKEND_ASM}"
 EXPERIMENTAL_ARM64_DEFINE="${SIMD_QEMU_EXPERIMENTAL_ARM64_DEFINE:--dFAFAFA_SIMD_ENABLE_NEON_ASM}"
 EXPERIMENTAL_RISCV64_DEFINE="${SIMD_QEMU_EXPERIMENTAL_RISCV64_DEFINE:--dFAFAFA_SIMD_ENABLE_RISCVV_ASM}"
@@ -49,6 +51,7 @@ run_with_retry() {
     if (( LRC == 0 )); then
       return 0
     fi
+    emit_cpuinfo_retry_diagnostics "${aDesc}" "${LRC}" "${LAttempt}" "${aMax}"
     if (( LAttempt >= aMax )); then
       echo "[ERROR] ${aDesc} failed after ${LAttempt} attempt(s), rc=${LRC}"
       return "${LRC}"
@@ -59,12 +62,180 @@ run_with_retry() {
   done
 }
 
+cpuinfo_target_from_platform() {
+  local aPlatform
+
+  aPlatform="${1:-}"
+  case "${aPlatform}" in
+    linux/arm|linux/arm/v7)
+      echo "arm-linux"
+      ;;
+    linux/arm64)
+      echo "aarch64-linux"
+      ;;
+    linux/riscv64)
+      echo "riscv64-linux"
+      ;;
+    linux/amd64)
+      echo "x86_64-linux"
+      ;;
+    linux/386)
+      echo "i386-linux"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+emit_cpuinfo_retry_diagnostics() {
+  local aDesc
+  local aRC
+  local aAttempt
+  local aMax
+  local LPlatform
+  local LScenario
+  local LTargetTriple
+  local LCpuinfoLogRoot
+  local LTargetBuildLog
+  local LTargetTestLog
+  local LLegacyBuildLog
+  local LLegacyTestLog
+  local LTailLines
+
+  aDesc="${1:-}"
+  aRC="${2:-1}"
+  aAttempt="${3:-1}"
+  aMax="${4:-1}"
+  LPlatform="${RETRY_CONTEXT_PLATFORM:-}"
+  LScenario="${RETRY_CONTEXT_SCENARIO:-${SCENARIO}}"
+  LTailLines="${SIMD_QEMU_CPUINFO_RETRY_LOG_TAIL_LINES:-60}"
+
+  case "${LScenario}" in
+    cpuinfo-nonx86-evidence|cpuinfo-nonx86-full-evidence|cpuinfo-nonx86-full-repeat|cpuinfo-nonx86-suite-repeat)
+      ;;
+    *)
+      return 0
+      ;;
+  esac
+
+  if [[ "${aDesc}" != *run* ]]; then
+    return 0
+  fi
+
+  LCpuinfoLogRoot="${ROOT_DIR}/tests/fafafa.core.simd.cpuinfo/logs"
+  LTargetTriple="$(cpuinfo_target_from_platform "${LPlatform}" || true)"
+  LTargetBuildLog=""
+  LTargetTestLog=""
+  if [[ -n "${LTargetTriple}" ]]; then
+    LTargetBuildLog="${LCpuinfoLogRoot}/${LTargetTriple}/build.txt"
+    LTargetTestLog="${LCpuinfoLogRoot}/${LTargetTriple}/test.txt"
+  fi
+  LLegacyBuildLog="${LCpuinfoLogRoot}/build.txt"
+  LLegacyTestLog="${LCpuinfoLogRoot}/test.txt"
+
+  echo "[DIAG] cpuinfo retry context: scenario=${LScenario}, platform=${LPlatform:-unknown}, target=${LTargetTriple:-unknown}, attempt=${aAttempt}/${aMax}, rc=${aRC}, desc=${aDesc}"
+
+  if [[ -n "${LTargetBuildLog}" ]] && [[ -f "${LTargetBuildLog}" ]]; then
+    echo "[DIAG] target build log: ${LTargetBuildLog}"
+    tail -n "${LTailLines}" "${LTargetBuildLog}" || true
+  elif [[ -f "${LLegacyBuildLog}" ]]; then
+    echo "[DIAG] legacy build log: ${LLegacyBuildLog}"
+    tail -n "${LTailLines}" "${LLegacyBuildLog}" || true
+  else
+    echo "[DIAG] missing build log under ${LCpuinfoLogRoot}"
+  fi
+
+  if [[ -n "${LTargetTestLog}" ]] && [[ -f "${LTargetTestLog}" ]]; then
+    echo "[DIAG] target test log: ${LTargetTestLog}"
+    tail -n "${LTailLines}" "${LTargetTestLog}" || true
+  elif [[ -f "${LLegacyTestLog}" ]]; then
+    echo "[DIAG] legacy test log: ${LLegacyTestLog}"
+    tail -n "${LTailLines}" "${LLegacyTestLog}" || true
+  fi
+}
+
+inject_cpuinfo_fail_once_cmd() {
+  local aCmd
+  local aScenario
+  local aPlatform
+  local aArchTag
+  local LEnabled
+  local LScenarioFilter
+  local LPlatformFilter
+  local LStampDir
+  local LStampFile
+  local LExitCode
+
+  aCmd="${1:-}"
+  aScenario="${2:-}"
+  aPlatform="${3:-}"
+  aArchTag="${4:-}"
+
+  LEnabled="${SIMD_QEMU_CPUINFO_FAIL_ONCE:-0}"
+  LScenarioFilter="${SIMD_QEMU_CPUINFO_FAIL_ONCE_SCENARIO:-}"
+  LPlatformFilter="${SIMD_QEMU_CPUINFO_FAIL_ONCE_PLATFORM:-}"
+  LExitCode="${SIMD_QEMU_CPUINFO_FAIL_ONCE_EXIT_CODE:-85}"
+
+  case "${aScenario}" in
+    cpuinfo-nonx86-evidence|cpuinfo-nonx86-full-evidence|cpuinfo-nonx86-full-repeat|cpuinfo-nonx86-suite-repeat)
+      ;;
+    *)
+      printf '%s\n' "${aCmd}"
+      return 0
+      ;;
+  esac
+
+  if [[ "${LEnabled}" == "0" ]]; then
+    printf '%s\n' "${aCmd}"
+    return 0
+  fi
+
+  if [[ -n "${LScenarioFilter}" ]] && [[ "${LScenarioFilter}" != "${aScenario}" ]]; then
+    printf '%s\n' "${aCmd}"
+    return 0
+  fi
+
+  if [[ -n "${LPlatformFilter}" ]] && [[ "${LPlatformFilter}" != "${aPlatform}" ]]; then
+    printf '%s\n' "${aCmd}"
+    return 0
+  fi
+
+  if ! [[ "${LExitCode}" =~ ^[1-9][0-9]*$ ]] || (( LExitCode > 255 )); then
+    LExitCode=85
+  fi
+
+  LStampDir="tests/fafafa.core.simd/logs/.qemu-retry-inject/${TS}"
+  LStampFile="${LStampDir}/${aScenario}.${aArchTag}.once"
+  printf '%s\n' "mkdir -p ${LStampDir} && if [[ ! -f ${LStampFile} ]]; then echo \"[INJECT] cpuinfo fail-once scenario=${aScenario} platform=${aPlatform} exit=${LExitCode}\"; touch ${LStampFile}; exit ${LExitCode}; fi && ${aCmd}"
+}
+
 case "${SCENARIO}" in
   basic)
     CONTAINER_CMD='bash tests/fafafa.core.simd/docker/run_fpc_tests.sh'
     ;;
   nonx86-evidence)
     CONTAINER_CMD='bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_NonX86IEEE754 && bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_NonX86BackendParity && bash tests/fafafa.core.simd/run_backend_benchmarks.sh'
+    ;;
+  cpuinfo-nonx86-evidence)
+    CONTAINER_CMD='FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh check && FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh test --list-suites && LTARGET_CPU="$(fpc -iTP 2>/dev/null | tr "[:upper:]" "[:lower:]" || true)" && LTARGET_OS="$(fpc -iTO 2>/dev/null | tr "[:upper:]" "[:lower:]" || true)" && LTARGET_LOG="tests/fafafa.core.simd.cpuinfo/logs/${LTARGET_CPU:-unknowncpu}-${LTARGET_OS:-unknownos}/test.txt" && LSUITES="$(cat "$LTARGET_LOG" 2>/dev/null || cat tests/fafafa.core.simd.cpuinfo/logs/test.txt 2>/dev/null || true)" && if printf "%s\n" "$LSUITES" | grep -q "TTestCase_LazyCPUInfo"; then FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh test --suite=TTestCase_LazyCPUInfo; else echo "[TEST] SKIP lazy cpuinfo suite (not available on this target)"; fi && FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh test --suite=TTestCase_PlatformSpecific'
+    ;;
+  cpuinfo-nonx86-full-evidence)
+    CONTAINER_CMD='FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh check && FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh test'
+    ;;
+  cpuinfo-nonx86-full-repeat)
+    if ! [[ "${CPUINFO_REPEAT_ROUNDS}" =~ ^[1-9][0-9]*$ ]]; then
+      echo "[ERROR] SIMD_QEMU_CPUINFO_REPEAT_ROUNDS must be a positive integer (got: ${CPUINFO_REPEAT_ROUNDS})"
+      exit 2
+    fi
+    CONTAINER_CMD="FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh check && LROUNDS=${CPUINFO_REPEAT_ROUNDS} && for LRound in \$(seq 1 \"\$LROUNDS\"); do echo \"[REPEAT] \${LRound}/\${LROUNDS} cpuinfo-full\"; FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh test; done"
+    ;;
+  cpuinfo-nonx86-suite-repeat)
+    if ! [[ "${CPUINFO_SUITE_REPEAT_ROUNDS}" =~ ^[1-9][0-9]*$ ]]; then
+      echo "[ERROR] SIMD_QEMU_CPUINFO_SUITE_REPEAT_ROUNDS must be a positive integer (got: ${CPUINFO_SUITE_REPEAT_ROUNDS})"
+      exit 2
+    fi
+    CONTAINER_CMD="FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh check && FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh test --list-suites && LTARGET_CPU=\"\$(fpc -iTP 2>/dev/null | tr '[:upper:]' '[:lower:]' || true)\" && LTARGET_OS=\"\$(fpc -iTO 2>/dev/null | tr '[:upper:]' '[:lower:]' || true)\" && LTARGET_LOG=\"tests/fafafa.core.simd.cpuinfo/logs/\${LTARGET_CPU:-unknowncpu}-\${LTARGET_OS:-unknownos}/test.txt\" && LSUITES=\"\$(cat \"\$LTARGET_LOG\" 2>/dev/null || cat tests/fafafa.core.simd.cpuinfo/logs/test.txt 2>/dev/null || true)\" && LHAS_LAZY=0 && if printf \"%s\n\" \"\$LSUITES\" | grep -q \"TTestCase_LazyCPUInfo\"; then LHAS_LAZY=1; fi && LROUNDS=${CPUINFO_SUITE_REPEAT_ROUNDS} && for LRound in \$(seq 1 \"\$LROUNDS\"); do echo \"[REPEAT] \${LRound}/\${LROUNDS} cpuinfo-platform-specific\"; FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh test --suite=TTestCase_PlatformSpecific; if [[ \"\$LHAS_LAZY\" == \"1\" ]]; then echo \"[REPEAT] \${LRound}/\${LROUNDS} cpuinfo-lazy\"; FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh test --suite=TTestCase_LazyCPUInfo; else echo \"[REPEAT] \${LRound}/\${LROUNDS} cpuinfo-lazy SKIP (suite unavailable)\"; fi; done"
     ;;
   nonx86-experimental-asm)
     CONTAINER_CMD="__NONX86_EXPERIMENTAL_ASM__"
@@ -77,17 +248,23 @@ case "${SCENARIO}" in
     ;;
   *)
     echo "[ERROR] Unknown scenario: ${SCENARIO}"
-    echo "[ERROR] Supported: basic | nonx86-evidence | nonx86-experimental-asm | linux-evidence | arch-matrix-evidence"
+    echo "[ERROR] Supported: basic | nonx86-evidence | cpuinfo-nonx86-evidence | cpuinfo-nonx86-full-evidence | cpuinfo-nonx86-full-repeat | cpuinfo-nonx86-suite-repeat | nonx86-experimental-asm | linux-evidence | arch-matrix-evidence"
     exit 2
     ;;
 esac
 
 if [[ -z "${PLATFORMS_STRING}" ]]; then
-  if [[ "${SCENARIO}" == "arch-matrix-evidence" ]]; then
-    PLATFORMS_STRING="${ARCH_MATRIX_REQUIRED_PLATFORMS}"
-  else
-    PLATFORMS_STRING="linux/arm64 linux/riscv64"
-  fi
+  case "${SCENARIO}" in
+    arch-matrix-evidence)
+      PLATFORMS_STRING="${ARCH_MATRIX_REQUIRED_PLATFORMS}"
+      ;;
+    nonx86-evidence|cpuinfo-nonx86-evidence|cpuinfo-nonx86-full-evidence|cpuinfo-nonx86-full-repeat|cpuinfo-nonx86-suite-repeat|linux-evidence|nonx86-experimental-asm)
+      PLATFORMS_STRING="${SIMD_QEMU_PLATFORMS_NONX86:-linux/arm/v7 linux/arm64 linux/riscv64}"
+      ;;
+    *)
+      PLATFORMS_STRING="linux/arm64 linux/riscv64"
+      ;;
+  esac
 fi
 
 read -r -a PLATFORMS <<< "${PLATFORMS_STRING}"
@@ -150,9 +327,11 @@ for platform in "${PLATFORMS[@]}"; do
   arm64_snapshot="${SIMD_QEMU_ARM64_FPC_SNAPSHOT:-}"
   build_args=()
   allow_probe_failure=0
+  RETRY_CONTEXT_PLATFORM="${platform}"
+  RETRY_CONTEXT_SCENARIO="${SCENARIO}"
 
   if [[ -z "${arm64_snapshot}" ]]; then
-    if [[ "${SCENARIO}" == "nonx86-evidence" || "${SCENARIO}" == "linux-evidence" || "${SCENARIO}" == "nonx86-experimental-asm" ]]; then
+    if [[ "${SCENARIO}" == "nonx86-evidence" || "${SCENARIO}" == "cpuinfo-nonx86-evidence" || "${SCENARIO}" == "cpuinfo-nonx86-full-evidence" || "${SCENARIO}" == "cpuinfo-nonx86-full-repeat" || "${SCENARIO}" == "cpuinfo-nonx86-suite-repeat" || "${SCENARIO}" == "linux-evidence" || "${SCENARIO}" == "nonx86-experimental-asm" ]]; then
       arm64_snapshot="1"
     else
       arm64_snapshot="0"
@@ -209,6 +388,8 @@ for platform in "${PLATFORMS[@]}"; do
     fi
     container_cmd="SIMD_FPC_EXTRA_DEFINES='${experimental_defines}' bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_NonX86IEEE754"
   fi
+
+  container_cmd="$(inject_cpuinfo_fail_once_cmd "${container_cmd}" "${SCENARIO}" "${platform}" "${arch_tag}")"
 
   set +e
   {
@@ -324,6 +505,9 @@ for platform in "${PLATFORMS[@]}"; do
     fi
   fi
 done
+
+RETRY_CONTEXT_PLATFORM=""
+RETRY_CONTEXT_SCENARIO=""
 
 if (( overall_failures > 0 )); then
   echo "[DONE] Completed with failures: ${overall_failures}"

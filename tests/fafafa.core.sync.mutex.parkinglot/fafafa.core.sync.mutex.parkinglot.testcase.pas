@@ -32,6 +32,19 @@ type
   end;
 
   {**
+   * 竞争线程 - 持续抢占锁，用于制造可测的竞争基线
+   * 注意：用于性能/行为测试，不用于业务逻辑。
+   *}
+  TMutexContentionThread = class(TThread)
+  private
+    FTestMutex: IParkingLotMutex;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(AMutex: IParkingLotMutex);
+  end;
+
+  {**
    * 计数器测试线程类 - 用于原子操作测试
    *}
   TCounterTestThread = class(TThread)
@@ -356,6 +369,34 @@ begin
   except
     // 确保线程异常不会导致资源泄漏
     FResult := False;
+  end;
+end;
+
+{ TMutexContentionThread }
+
+constructor TMutexContentionThread.Create(AMutex: IParkingLotMutex);
+begin
+  FTestMutex := AMutex;
+  inherited Create(False);
+end;
+
+procedure TMutexContentionThread.Execute;
+begin
+  try
+    while not Terminated do
+    begin
+      FTestMutex.Acquire;
+      try
+        // 极短的临界区：保持“轻微竞争”，避免把测试变成 sleep/调度测试
+      finally
+        FTestMutex.Release;
+      end;
+
+      // 偶尔让出 CPU，避免在单核/高负载环境下造成不必要的饥饿
+      Sleep(0);
+    end;
+  except
+    // Ignore: 竞争线程失败不应影响主测试逻辑（主测试会用断言验证行为）
   end;
 end;
 
@@ -1155,49 +1196,59 @@ end;
 
 procedure TTestCase_Performance.Test_Performance_FastPath_Optimization;
 var
-  StartTime, EndTime: QWord;
-  NoContentionTime, ContentionTime: QWord;
-  Thread: TTestHelperThread;
-  i: Integer;
+  LStartTime, LEndTime: QWord;
+  LNoContentionTime, LContentionTime: QWord;
+  LAllowedMaxNoContentionTime: QWord;
+  LThread: TMutexContentionThread;
+  LIteration: Integer;
 const
-  ITERATIONS = 10000;
+  // GetTickCount64 的分辨率为毫秒；迭代次数过小会导致 0ms/抖动，从而产生误报。
+  ITERATIONS = 200000;
+  // 在 CI/高负载环境下，轻微竞争线程可能被调度器偏置，故引入“比例+绝对裕量”。
+  CONTENTION_RATIO_TOLERANCE = 3;
+  ABSOLUTE_TOLERANCE_MS = 20;
 begin
   // 测试 1: 无竞争情况下的快速路径
-  StartTime := GetTickCount64;
-  for i := 1 to ITERATIONS do
+  LStartTime := GetTickCount64;
+  for LIteration := 1 to ITERATIONS do
   begin
     FMutex.Acquire;
     FMutex.Release;
   end;
-  EndTime := GetTickCount64;
-  NoContentionTime := EndTime - StartTime;
+  LEndTime := GetTickCount64;
+  LNoContentionTime := LEndTime - LStartTime;
 
   // 测试 2: 有轻微竞争情况
-  Thread := TTestHelperThread.Create(FMutex, False);
+  LThread := TMutexContentionThread.Create(FMutex);
   try
-    Thread.Start;
+    LThread.Start;
+    Sleep(10); // 确保竞争线程进入循环（避免“无竞争”假阴性）
 
-    StartTime := GetTickCount64;
-    for i := 1 to ITERATIONS do
+    LStartTime := GetTickCount64;
+    for LIteration := 1 to ITERATIONS do
     begin
       FMutex.Acquire;
       // 极短的临界区
       FMutex.Release;
     end;
-    EndTime := GetTickCount64;
-    ContentionTime := EndTime - StartTime;
+    LEndTime := GetTickCount64;
+    LContentionTime := LEndTime - LStartTime;
 
-    Thread.Terminate;
-    Thread.WaitFor;
+    LThread.Terminate;
+    LThread.WaitFor;
   finally
-    Thread.Free;
+    LThread.Free;
   end;
 
-  // 验证快速路径确实更快（允许一定的误差）
-  AssertTrue('快速路径应该更高效', NoContentionTime <= ContentionTime * 2);
+  // 记录性能数据（放在断言前，便于失败时诊断）
+  WriteLn(Format('无竞争时间: %d ms, 有竞争时间: %d ms', [LNoContentionTime, LContentionTime]));
 
-  // 记录性能数据
-  WriteLn(Format('无竞争时间: %d ms, 有竞争时间: %d ms', [NoContentionTime, ContentionTime]));
+  // 验证快速路径确实更快（允许计时抖动与调度噪声）
+  LAllowedMaxNoContentionTime := LContentionTime * CONTENTION_RATIO_TOLERANCE + ABSOLUTE_TOLERANCE_MS;
+  AssertTrue(
+    Format('快速路径应该更高效 (no=%dms, contention=%dms, limit=%dms)',
+      [LNoContentionTime, LContentionTime, LAllowedMaxNoContentionTime]),
+    LNoContentionTime <= LAllowedMaxNoContentionTime);
 end;
 
 procedure TTestCase_Performance.Test_Performance_vs_StandardMutex;
@@ -1782,64 +1833,542 @@ begin
 end;
 
 procedure TTestCase_StressTests.Test_LongRunning_ContinuousOperation;
+var
+  LMutex: IParkingLotMutex;
+  LThreads: array[1..4] of TWorkerThread;
+  LCounter: Integer;
+  LIndex: Integer;
+const
+  ITERATIONS = 1000;
 begin
-  // 暂时禁用 - 需要修复原子操作调用
-  AssertTrue('压力测试暂时禁用', True);
+  LMutex := MakeParkingLotMutex;
+  LCounter := 0;
+  FErrorCount := 0;
+
+  for LIndex := 1 to 4 do
+    LThreads[LIndex] := TWorkerThread.Create(LMutex, @LCounter, @FErrorCount, ITERATIONS);
+
+  for LIndex := 1 to 4 do
+  begin
+    LThreads[LIndex].WaitFor;
+    LThreads[LIndex].Free;
+  end;
+
+  FOperationCount := LCounter;
+
+  AssertEquals('连续运行错误计数应为0', 0, FErrorCount);
+  AssertEquals('连续运行计数应正确', ITERATIONS * 4, LCounter);
+  AssertTrue('连续操作计数应大于0', FOperationCount > 0);
 end;
 
 procedure TTestCase_StressTests.Test_LongRunning_MemoryStability;
+var
+  LMutex: IParkingLotMutex;
+  LThreads: array[1..4] of TWorkerThread;
+  LCounter: Integer;
+  LCurrentErrors: Integer;
+  LRound: Integer;
+  LIndex: Integer;
+const
+  ITERATIONS = 500;
+  ROUNDS = 5;
 begin
-  AssertTrue('压力测试暂时禁用', True);
+  LMutex := MakeParkingLotMutex;
+  FOperationCount := 0;
+  FErrorCount := 0;
+
+  for LRound := 1 to ROUNDS do
+  begin
+    LCounter := 0;
+    LCurrentErrors := 0;
+
+    for LIndex := 1 to 4 do
+      LThreads[LIndex] := TWorkerThread.Create(LMutex, @LCounter, @LCurrentErrors, ITERATIONS);
+
+    for LIndex := 1 to 4 do
+    begin
+      LThreads[LIndex].WaitFor;
+      LThreads[LIndex].Free;
+    end;
+
+    AssertEquals('每轮错误计数应为0', 0, LCurrentErrors);
+    AssertEquals('每轮计数应精确匹配', ITERATIONS * 4, LCounter);
+
+    FErrorCount := FErrorCount + LCurrentErrors;
+    FOperationCount := FOperationCount + LCounter;
+    AssertEquals('累计计数应按轮次线性增长', ITERATIONS * 4 * LRound, FOperationCount);
+  end;
+
+  AssertEquals('总错误计数应为0', 0, FErrorCount);
+  AssertEquals('总操作计数应匹配预期', ITERATIONS * 4 * ROUNDS, FOperationCount);
+  AssertTrue('内存稳定性测试应执行实际操作', FOperationCount > 0);
 end;
 
 procedure TTestCase_StressTests.Test_LongRunning_ThreadChurn;
+var
+  LMutex: IParkingLotMutex;
+  LThreads: array[1..8] of TWorkerThread;
+  LCounter: Integer;
+  LCurrentErrors: Integer;
+  LRound: Integer;
+  LIndex: Integer;
+const
+  THREADS_PER_ROUND = 8;
+  ITERATIONS = 200;
+  ROUNDS = 8;
 begin
-  AssertTrue('压力测试暂时禁用', True);
+  LMutex := MakeParkingLotMutex;
+  FOperationCount := 0;
+  FErrorCount := 0;
+
+  for LRound := 1 to ROUNDS do
+  begin
+    LCounter := 0;
+    LCurrentErrors := 0;
+
+    for LIndex := 1 to THREADS_PER_ROUND do
+      LThreads[LIndex] := TWorkerThread.Create(LMutex, @LCounter, @LCurrentErrors, ITERATIONS);
+
+    for LIndex := 1 to THREADS_PER_ROUND do
+    begin
+      LThreads[LIndex].WaitFor;
+      LThreads[LIndex].Free;
+      LThreads[LIndex] := nil;
+    end;
+
+    AssertEquals('每轮线程切换错误计数应为0', 0, LCurrentErrors);
+    AssertEquals('每轮线程切换计数应精确匹配', THREADS_PER_ROUND * ITERATIONS, LCounter);
+
+    FErrorCount := FErrorCount + LCurrentErrors;
+    FOperationCount := FOperationCount + LCounter;
+  end;
+
+  AssertEquals('线程 churn 总错误计数应为0', 0, FErrorCount);
+  AssertEquals('线程 churn 总操作计数应匹配预期', THREADS_PER_ROUND * ITERATIONS * ROUNDS, FOperationCount);
+  AssertTrue('线程 churn 测试应执行实际操作', FOperationCount > 0);
 end;
 
 procedure TTestCase_StressTests.Test_ExtremeContention_ManyThreads;
+var
+  LMutex: IParkingLotMutex;
+  LThreads: array[1..16] of TWorkerThread;
+  LCounter: Integer;
+  LCurrentErrors: Integer;
+  LRound: Integer;
+  LIndex: Integer;
+const
+  THREADS_PER_ROUND = 16;
+  ITERATIONS = 300;
+  ROUNDS = 4;
 begin
-  AssertTrue('压力测试暂时禁用', True);
+  LMutex := MakeParkingLotMutex;
+  FOperationCount := 0;
+  FErrorCount := 0;
+
+  for LRound := 1 to ROUNDS do
+  begin
+    LCounter := 0;
+    LCurrentErrors := 0;
+
+    for LIndex := 1 to THREADS_PER_ROUND do
+      LThreads[LIndex] := TWorkerThread.Create(LMutex, @LCounter, @LCurrentErrors, ITERATIONS);
+
+    for LIndex := 1 to THREADS_PER_ROUND do
+    begin
+      LThreads[LIndex].WaitFor;
+      LThreads[LIndex].Free;
+      LThreads[LIndex] := nil;
+    end;
+
+    AssertEquals('每轮极限并发错误计数应为0', 0, LCurrentErrors);
+    AssertEquals('每轮极限并发计数应精确匹配', THREADS_PER_ROUND * ITERATIONS, LCounter);
+
+    FErrorCount := FErrorCount + LCurrentErrors;
+    FOperationCount := FOperationCount + LCounter;
+  end;
+
+  AssertEquals('极限并发总错误计数应为0', 0, FErrorCount);
+  AssertEquals('极限并发总操作计数应匹配预期', THREADS_PER_ROUND * ITERATIONS * ROUNDS, FOperationCount);
+  AssertTrue('极限并发测试应执行实际操作', FOperationCount > 0);
 end;
 
 procedure TTestCase_StressTests.Test_ExtremeContention_HighFrequency;
+var
+  LMutex: IParkingLotMutex;
+  LThreads: array[1..8] of TWorkerThread;
+  LCounter: Integer;
+  LCurrentErrors: Integer;
+  LRound: Integer;
+  LIndex: Integer;
+const
+  THREADS_PER_ROUND = 8;
+  ITERATIONS = 100;
+  ROUNDS = 20;
 begin
-  AssertTrue('压力测试暂时禁用', True);
+  LMutex := MakeParkingLotMutex;
+  FOperationCount := 0;
+  FErrorCount := 0;
+
+  for LRound := 1 to ROUNDS do
+  begin
+    LCounter := 0;
+    LCurrentErrors := 0;
+
+    for LIndex := 1 to THREADS_PER_ROUND do
+      LThreads[LIndex] := TWorkerThread.Create(LMutex, @LCounter, @LCurrentErrors, ITERATIONS);
+
+    for LIndex := 1 to THREADS_PER_ROUND do
+    begin
+      LThreads[LIndex].WaitFor;
+      LThreads[LIndex].Free;
+      LThreads[LIndex] := nil;
+    end;
+
+    AssertEquals('每轮高频竞争错误计数应为0', 0, LCurrentErrors);
+    AssertEquals('每轮高频竞争计数应精确匹配', THREADS_PER_ROUND * ITERATIONS, LCounter);
+
+    FErrorCount := FErrorCount + LCurrentErrors;
+    FOperationCount := FOperationCount + LCounter;
+  end;
+
+  AssertEquals('高频竞争总错误计数应为0', 0, FErrorCount);
+  AssertEquals('高频竞争总操作计数应匹配预期', THREADS_PER_ROUND * ITERATIONS * ROUNDS, FOperationCount);
+  AssertTrue('高频竞争测试应执行实际操作', FOperationCount > 0);
 end;
 
 procedure TTestCase_StressTests.Test_ExtremeContention_MixedOperations;
+var
+  LMutex: IParkingLotMutex;
+  LThreads: array[1..16] of TWorkerThread;
+  LCounter: Integer;
+  LCurrentErrors: Integer;
+  LThreadCount: Integer;
+  LIterations: Integer;
+  LStage: Integer;
+  LIndex: Integer;
+  LExpectedStageOps: Int64;
+  LExpectedTotalOps: Int64;
 begin
-  AssertTrue('压力测试暂时禁用', True);
+  LMutex := MakeParkingLotMutex;
+  FOperationCount := 0;
+  FErrorCount := 0;
+  LExpectedTotalOps := 0;
+
+  for LStage := 1 to 3 do
+  begin
+    case LStage of
+      1:
+      begin
+        LThreadCount := 8;
+        LIterations := 120;
+      end;
+      2:
+      begin
+        LThreadCount := 16;
+        LIterations := 60;
+      end;
+    else
+      begin
+        LThreadCount := 4;
+        LIterations := 240;
+      end;
+    end;
+
+    LCounter := 0;
+    LCurrentErrors := 0;
+
+    for LIndex := 1 to LThreadCount do
+      LThreads[LIndex] := TWorkerThread.Create(LMutex, @LCounter, @LCurrentErrors, LIterations);
+
+    for LIndex := 1 to LThreadCount do
+    begin
+      LThreads[LIndex].WaitFor;
+      LThreads[LIndex].Free;
+      LThreads[LIndex] := nil;
+    end;
+
+    LExpectedStageOps := LThreadCount * LIterations;
+    AssertEquals('每阶段混合竞争错误计数应为0', 0, LCurrentErrors);
+    AssertEquals('每阶段混合竞争计数应精确匹配', LExpectedStageOps, LCounter);
+
+    FErrorCount := FErrorCount + LCurrentErrors;
+    FOperationCount := FOperationCount + LCounter;
+    LExpectedTotalOps := LExpectedTotalOps + LExpectedStageOps;
+  end;
+
+  AssertEquals('混合竞争总错误计数应为0', 0, FErrorCount);
+  AssertEquals('混合竞争总操作计数应匹配预期', LExpectedTotalOps, FOperationCount);
+  AssertTrue('混合竞争测试应执行实际操作', FOperationCount > 0);
 end;
 
 procedure TTestCase_StressTests.Test_MemoryPressure_ManyMutexes;
+var
+  LMutexes: array of IParkingLotMutex;
+  LIndex: Integer;
+  LErrorCount: Integer;
+  LOperationCount: Int64;
+const
+  MUTEX_COUNT = 1024;
 begin
-  AssertTrue('压力测试暂时禁用', True);
+  LErrorCount := 0;
+  LOperationCount := 0;
+  SetLength(LMutexes, MUTEX_COUNT);
+
+  for LIndex := 0 to High(LMutexes) do
+  begin
+    LMutexes[LIndex] := MakeParkingLotMutex;
+    if not Assigned(LMutexes[LIndex]) then
+      Inc(LErrorCount);
+  end;
+
+  AssertEquals('内存压力创建错误计数应为0', 0, LErrorCount);
+
+  for LIndex := 0 to High(LMutexes) do
+  begin
+    try
+      LMutexes[LIndex].Acquire;
+      LMutexes[LIndex].Release;
+      Inc(LOperationCount);
+    except
+      Inc(LErrorCount);
+    end;
+  end;
+
+  FOperationCount := LOperationCount;
+  AssertEquals('内存压力操作错误计数应为0', 0, LErrorCount);
+  AssertEquals('内存压力操作计数应匹配预期', MUTEX_COUNT, FOperationCount);
+  AssertTrue('内存压力测试应执行实际操作', FOperationCount > 0);
+
+  SetLength(LMutexes, 0);
 end;
 
 procedure TTestCase_StressTests.Test_MemoryPressure_FrequentCreation;
+var
+  LMutex: IParkingLotMutex;
+  LIndex: Integer;
+  LErrorCount: Integer;
+  LOperationCount: Int64;
+const
+  CREATION_ROUNDS = 2000;
 begin
-  AssertTrue('压力测试暂时禁用', True);
+  LErrorCount := 0;
+  LOperationCount := 0;
+
+  for LIndex := 1 to CREATION_ROUNDS do
+  begin
+    try
+      LMutex := MakeParkingLotMutex;
+      if not Assigned(LMutex) then
+      begin
+        Inc(LErrorCount);
+        Continue;
+      end;
+
+      LMutex.Acquire;
+      LMutex.Release;
+      Inc(LOperationCount);
+      LMutex := nil;
+    except
+      Inc(LErrorCount);
+    end;
+  end;
+
+  FOperationCount := LOperationCount;
+  AssertEquals('高频创建错误计数应为0', 0, LErrorCount);
+  AssertEquals('高频创建操作计数应匹配预期', CREATION_ROUNDS, FOperationCount);
+  AssertTrue('高频创建测试应执行实际操作', FOperationCount > 0);
 end;
 
 procedure TTestCase_StressTests.Test_MemoryPressure_LowMemory;
+var
+  LBatch: Integer;
+  LIndex: Integer;
+  LErrorCount: Integer;
+  LOperationCount: Int64;
+  LMutexes: array of IParkingLotMutex;
+const
+  BATCHES = 64;
+  MUTEX_PER_BATCH = 128;
 begin
-  AssertTrue('压力测试暂时禁用', True);
+  LErrorCount := 0;
+  LOperationCount := 0;
+
+  for LBatch := 1 to BATCHES do
+  begin
+    SetLength(LMutexes, MUTEX_PER_BATCH);
+
+    for LIndex := 0 to High(LMutexes) do
+    begin
+      LMutexes[LIndex] := MakeParkingLotMutex;
+      if not Assigned(LMutexes[LIndex]) then
+      begin
+        Inc(LErrorCount);
+        Continue;
+      end;
+
+      try
+        LMutexes[LIndex].Acquire;
+        LMutexes[LIndex].Release;
+        Inc(LOperationCount);
+      except
+        Inc(LErrorCount);
+      end;
+    end;
+
+    SetLength(LMutexes, 0);
+  end;
+
+  FOperationCount := LOperationCount;
+  AssertEquals('低内存压力错误计数应为0', 0, LErrorCount);
+  AssertEquals('低内存压力操作计数应匹配预期', BATCHES * MUTEX_PER_BATCH, FOperationCount);
+  AssertTrue('低内存压力测试应执行实际操作', FOperationCount > 0);
 end;
 
 procedure TTestCase_StressTests.Test_ResourceExhaustion_ThreadLimit;
+var
+  LMutex: IParkingLotMutex;
+  LThreads: array[1..24] of TWorkerThread;
+  LCounter: Integer;
+  LCurrentErrors: Integer;
+  LRound: Integer;
+  LIndex: Integer;
+const
+  THREADS_PER_ROUND = 24;
+  ITERATIONS = 80;
+  ROUNDS = 6;
 begin
-  AssertTrue('压力测试暂时禁用', True);
+  LMutex := MakeParkingLotMutex;
+  FOperationCount := 0;
+  FErrorCount := 0;
+
+  for LRound := 1 to ROUNDS do
+  begin
+    LCounter := 0;
+    LCurrentErrors := 0;
+
+    for LIndex := 1 to THREADS_PER_ROUND do
+      LThreads[LIndex] := TWorkerThread.Create(LMutex, @LCounter, @LCurrentErrors, ITERATIONS);
+
+    for LIndex := 1 to THREADS_PER_ROUND do
+    begin
+      LThreads[LIndex].WaitFor;
+      LThreads[LIndex].Free;
+      LThreads[LIndex] := nil;
+    end;
+
+    AssertEquals('每轮线程资源压力错误计数应为0', 0, LCurrentErrors);
+    AssertEquals('每轮线程资源压力计数应精确匹配', THREADS_PER_ROUND * ITERATIONS, LCounter);
+
+    FErrorCount := FErrorCount + LCurrentErrors;
+    FOperationCount := FOperationCount + LCounter;
+  end;
+
+  AssertEquals('线程资源压力总错误计数应为0', 0, FErrorCount);
+  AssertEquals('线程资源压力总操作计数应匹配预期', THREADS_PER_ROUND * ITERATIONS * ROUNDS, FOperationCount);
+  AssertTrue('线程资源压力测试应执行实际操作', FOperationCount > 0);
 end;
 
 procedure TTestCase_StressTests.Test_ResourceExhaustion_HandleLimit;
+var
+  LRound: Integer;
+  LIndex: Integer;
+  LErrorCount: Integer;
+  LOperationCount: Int64;
+  LMutexes: array of IParkingLotMutex;
+const
+  ROUNDS = 32;
+  MUTEX_PER_ROUND = 512;
 begin
-  AssertTrue('压力测试暂时禁用', True);
+  LErrorCount := 0;
+  LOperationCount := 0;
+
+  for LRound := 1 to ROUNDS do
+  begin
+    SetLength(LMutexes, MUTEX_PER_ROUND);
+
+    for LIndex := 0 to High(LMutexes) do
+    begin
+      LMutexes[LIndex] := MakeParkingLotMutex;
+      if not Assigned(LMutexes[LIndex]) then
+      begin
+        Inc(LErrorCount);
+        Continue;
+      end;
+
+      try
+        LMutexes[LIndex].Acquire;
+        LMutexes[LIndex].Release;
+        Inc(LOperationCount);
+      except
+        Inc(LErrorCount);
+      end;
+    end;
+
+    SetLength(LMutexes, 0);
+  end;
+
+  FOperationCount := LOperationCount;
+  AssertEquals('句柄资源压力错误计数应为0', 0, LErrorCount);
+  AssertEquals('句柄资源压力操作计数应匹配预期', ROUNDS * MUTEX_PER_ROUND, FOperationCount);
+  AssertTrue('句柄资源压力测试应执行实际操作', FOperationCount > 0);
 end;
 
 procedure TTestCase_StressTests.Test_ResourceExhaustion_Recovery;
+var
+  LStressMutex: IParkingLotMutex;
+  LRecoveryMutex: IParkingLotMutex;
+  LThreads: array[1..8] of TWorkerThread;
+  LCounter: Integer;
+  LCurrentErrors: Integer;
+  LIndex: Integer;
+  LRecoveryCount: Integer;
+const
+  STRESS_ITERATIONS = 150;
+  RECOVERY_ITERATIONS = 1000;
 begin
-  AssertTrue('压力测试暂时禁用', True);
+  FErrorCount := 0;
+  FOperationCount := 0;
+
+  LStressMutex := MakeParkingLotMutex;
+  LCounter := 0;
+  LCurrentErrors := 0;
+
+  for LIndex := 1 to 8 do
+    LThreads[LIndex] := TWorkerThread.Create(LStressMutex, @LCounter, @LCurrentErrors, STRESS_ITERATIONS);
+
+  for LIndex := 1 to 8 do
+  begin
+    LThreads[LIndex].WaitFor;
+    LThreads[LIndex].Free;
+    LThreads[LIndex] := nil;
+  end;
+
+  AssertEquals('恢复前压力阶段错误计数应为0', 0, LCurrentErrors);
+  AssertEquals('恢复前压力阶段计数应精确匹配', 8 * STRESS_ITERATIONS, LCounter);
+
+  FErrorCount := FErrorCount + LCurrentErrors;
+  FOperationCount := FOperationCount + LCounter;
+
+  // 恢复阶段：新建锁并验证仍可稳定工作
+  LRecoveryMutex := MakeParkingLotMutex;
+  LRecoveryCount := 0;
+
+  for LIndex := 1 to RECOVERY_ITERATIONS do
+  begin
+    LRecoveryMutex.Acquire;
+    try
+      Inc(LRecoveryCount);
+    finally
+      LRecoveryMutex.Release;
+    end;
+  end;
+
+  FOperationCount := FOperationCount + LRecoveryCount;
+
+  AssertEquals('恢复阶段计数应精确匹配', RECOVERY_ITERATIONS, LRecoveryCount);
+  AssertEquals('恢复后总错误计数应为0', 0, FErrorCount);
+  AssertEquals('恢复后总操作计数应匹配预期', 8 * STRESS_ITERATIONS + RECOVERY_ITERATIONS, FOperationCount);
+  AssertTrue('资源恢复测试应执行实际操作', FOperationCount > 0);
 end;
 
 {$IFDEF DISABLED_STRESS_TESTS}

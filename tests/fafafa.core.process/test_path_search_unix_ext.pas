@@ -32,6 +32,25 @@ implementation
 
 {$IFDEF UNIX}
 
+function c_setenv(name, value: PChar; replace: LongInt): LongInt; cdecl; external 'c' name 'setenv';
+
+function fpSetEnv(AEnv: PChar): LongInt;
+var
+  LEnv: string;
+  LEqPos: SizeInt;
+  LName: string;
+  LValue: string;
+begin
+  Result := -1;
+  if AEnv = nil then Exit;
+  LEnv := string(AEnv);
+  LEqPos := Pos('=', LEnv);
+  if LEqPos <= 1 then Exit;
+  LName := Copy(LEnv, 1, LEqPos - 1);
+  LValue := Copy(LEnv, LEqPos + 1, MaxInt);
+  Result := c_setenv(PChar(LName), PChar(LValue), 1);
+end;
+
 function TTestCase_PathSearch_Unix_Ext.MakeTempDir: string;
 var
   Base: string;

@@ -12,6 +12,55 @@ TEST_DIR="$SCRIPT_DIR"
 BIN_DIR="$TEST_DIR/bin"
 LIB_DIR="$TEST_DIR/lib"
 
+detect_lazarusdir() {
+    if [ -n "${FAFAFA_LAZARUSDIR:-}" ] && [ -d "${FAFAFA_LAZARUSDIR}/lcl" ]; then
+        echo "${FAFAFA_LAZARUSDIR}"
+        return 0
+    fi
+
+    if [ -n "${LAZARUS_DIR:-}" ] && [ -d "${LAZARUS_DIR}/lcl" ]; then
+        echo "${LAZARUS_DIR}"
+        return 0
+    fi
+
+    for LCandidate in \
+        "/opt/fpcupdeluxe/lazarus" \
+        "/usr/lib/lazarus" \
+        "/usr/local/share/lazarus" \
+        "/usr/share/lazarus"; do
+        if [ -d "${LCandidate}/lcl" ]; then
+            echo "${LCandidate}"
+            return 0
+        fi
+    done
+
+    LLazbuildPath="$(command -v lazbuild 2>/dev/null || true)"
+    if [ -n "${LLazbuildPath}" ]; then
+        LMaybeRoot="$(cd "$(dirname "${LLazbuildPath}")" && pwd)"
+        if [ -d "${LMaybeRoot}/lcl" ]; then
+            echo "${LMaybeRoot}"
+            return 0
+        fi
+        LMaybeRoot="$(cd "${LMaybeRoot}/.." 2>/dev/null && pwd || true)"
+        if [ -n "${LMaybeRoot}" ] && [ -d "${LMaybeRoot}/lcl" ]; then
+            echo "${LMaybeRoot}"
+            return 0
+        fi
+    fi
+
+    echo ""
+    return 0
+}
+
+LAZARUS_DIR="$(detect_lazarusdir)"
+if [ -z "${LAZARUS_DIR}" ]; then
+    echo "错误: 找不到 Lazarus 根目录（缺少 lcl 子目录）"
+    echo "请设置 FAFAFA_LAZARUSDIR 或 LAZARUS_DIR，例如 /opt/fpcupdeluxe/lazarus"
+    exit 2
+fi
+
+PCP_DIR="$TEST_DIR/.lazarus"
+
 echo "项目根目录: $PROJECT_ROOT"
 echo "测试目录: $TEST_DIR"
 echo "输出目录: $BIN_DIR"
@@ -36,11 +85,15 @@ if [ ! -d "$LIB_DIR" ]; then
     mkdir -p "$LIB_DIR"
 fi
 
+if [ ! -d "$PCP_DIR" ]; then
+    mkdir -p "$PCP_DIR"
+fi
+
 echo "========================================"
 echo "构建测试项目 (Debug 模式)"
 echo "========================================"
 
-lazbuild --build-mode=Debug "$TEST_DIR/tests_socket.lpi"
+lazbuild --pcp="$PCP_DIR" --lazarusdir="$LAZARUS_DIR" --build-mode=Debug "$TEST_DIR/tests_socket.lpi"
 if [ $? -ne 0 ]; then
     echo "错误: 测试项目构建失败"
     exit 1
@@ -159,7 +212,7 @@ case "$MODE" in
     ADV_EXE="$BIN_DIR/tests_socket_adv"
 
     echo "构建: $ADV_LPI"
-    lazbuild "$ADV_LPI"
+    lazbuild --pcp="$PCP_DIR" --lazarusdir="$LAZARUS_DIR" "$ADV_LPI"
     if [ $? -ne 0 ]; then
         echo "错误: ADVANCED 项目构建失败"
         exit 1

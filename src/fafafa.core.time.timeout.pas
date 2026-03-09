@@ -43,11 +43,9 @@ interface
 uses
   SysUtils,
   Classes,
-  fafafa.core.time.base,
   fafafa.core.time.duration,
   fafafa.core.time.instant,
-  fafafa.core.time.clock,
-  fafafa.core.thread.cancel;
+  fafafa.core.time.clock;
 
 type
   {$IFDEF FAFAFA_TIMEOUT_EXPERIMENTAL}

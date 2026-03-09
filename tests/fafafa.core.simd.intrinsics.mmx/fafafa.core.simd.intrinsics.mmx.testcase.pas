@@ -29,6 +29,8 @@ type
     procedure Test_mmx_movd_mm_store;
     procedure Test_mmx_movq_mm;
     procedure Test_mmx_movq_mm_store;
+    procedure Test_mmx_movd_r32;
+    procedure Test_mmx_movd_r32_to_mm;
     
     // === 2️⃣ Set / Zero 测试 ===
     procedure Test_mmx_setzero_si64;
@@ -91,6 +93,9 @@ type
     procedure Test_mmx_psrad;
     procedure Test_mmx_psraw_imm;
     procedure Test_mmx_psrad_imm;
+    procedure Test_mmx_psllw_mm;
+    procedure Test_mmx_psrlw_mm;
+    procedure Test_mmx_psraw_mm;
     
     // === 10️⃣ Pack / Unpack 测试 ===
     procedure Test_mmx_packsswb;
@@ -102,6 +107,10 @@ type
     procedure Test_mmx_punpcklbw;
     procedure Test_mmx_punpcklwd;
     procedure Test_mmx_punpckldq;
+    procedure Test_mmx_packusdw;
+    procedure Test_mmx_punpcklbw_mem;
+    procedure Test_mmx_punpcklwd_mem;
+    procedure Test_mmx_punpckldq_mem;
     
     // === 11️⃣ Miscellaneous 测试 ===
     procedure Test_mmx_emms;
@@ -147,30 +156,38 @@ end;
 
 procedure TTestCase_TM64.Test_mmx_movd_mm;
 var
-  value: LongInt;
-  result: TM64;
+  LValue: LongInt;
+  LResult: TM64;
 begin
-  // 测试加载 32 位整数
-  value := $12345678;
-  result := mmx_movd_mm(@value);
-  
-  AssertEquals('movd_mm: 低32位应该等于输入值', $12345678, result.mm_u32[0]);
-  AssertEquals('movd_mm: 高32位应该为0', $00000000, result.mm_u32[1]);
+  // 正数输入
+  LValue := $12345678;
+  LResult := mmx_movd_mm(@LValue);
+  AssertEquals('movd_mm: low32 positive', $12345678, LResult.mm_u32[0]);
+  AssertEquals('movd_mm: high32 positive', $00000000, LResult.mm_u32[1]);
+
+  // 负数输入（符号位应保留在低32位，高32位仍清零）
+  LValue := -1;
+  LResult := mmx_movd_mm(@LValue);
+  AssertEquals('movd_mm: low32 negative', UInt32($FFFFFFFF), LResult.mm_u32[0]);
+  AssertEquals('movd_mm: high32 negative', $00000000, LResult.mm_u32[1]);
 end;
 
 procedure TTestCase_TM64.Test_mmx_movd_mm_store;
 var
-  src: TM64;
-  dest: LongInt;
+  LSrc: TM64;
+  LDest: LongInt;
 begin
-  // 设置源数据
-  src.mm_u64 := UInt64($FEDCBA9876543210);
-  dest := 0; // 初始化
+  // 正常低32位存储
+  LSrc.mm_u64 := UInt64($FEDCBA9876543210);
+  LDest := 0;
+  mmx_movd_mm_store(LDest, LSrc);
+  AssertEquals('movd_mm_store: low32 positive', LongInt($76543210), LDest);
 
-  // 存储低32位
-  mmx_movd_mm_store(dest, src);
-
-  AssertEquals('movd_mm_store: 应该存储低32位', LongInt($76543210), dest);
+  // 负值低32位存储
+  LSrc.mm_u64 := UInt64($00000000FFFFFFFF);
+  LDest := 0;
+  mmx_movd_mm_store(LDest, LSrc);
+  AssertEquals('movd_mm_store: low32 negative', -1, LDest);
 end;
 
 procedure TTestCase_TM64.Test_mmx_movq_mm;
@@ -198,6 +215,25 @@ begin
   mmx_movq_mm_store(dest, src);
 
   AssertEquals('movq_mm_store: 应该存储完整的64位值', UInt64($FEDCBA9876543210), dest);
+end;
+
+procedure TTestCase_TM64.Test_mmx_movd_r32;
+var
+  LSrc: TM64;
+  LResult: LongWord;
+begin
+  LSrc.mm_u64 := UInt64($0123456789ABCDEF);
+  LResult := mmx_movd_r32(LSrc);
+  AssertEquals('movd_r32: low32', LongWord($89ABCDEF), LResult);
+end;
+
+procedure TTestCase_TM64.Test_mmx_movd_r32_to_mm;
+var
+  LResult: TM64;
+begin
+  LResult := mmx_movd_r32_to_mm(LongWord($89ABCDEF));
+  AssertEquals('movd_r32_to_mm: low32', LongWord($89ABCDEF), LResult.mm_u32[0]);
+  AssertEquals('movd_r32_to_mm: high32', LongWord(0), LResult.mm_u32[1]);
 end;
 
 // === 2️⃣ Set / Zero 测试实现 ===
@@ -919,6 +955,39 @@ begin
   AssertTM64DWordArray([-1, -1], result, 'psrad_imm shift by 32 (sign extend)');
 end;
 
+procedure TTestCase_TM64.Test_mmx_psllw_mm;
+var
+  a, count, result: TM64;
+begin
+  a := mmx_set_pi16(8, 4, 2, 1);
+  count := mmx_setzero_si64;
+  count.mm_u8[0] := 3;
+  result := mmx_psllw_mm(a, count);
+  AssertTM64WordArray([8, 16, 32, 64], result, 'psllw_mm shift by 3');
+end;
+
+procedure TTestCase_TM64.Test_mmx_psrlw_mm;
+var
+  a, count, result: TM64;
+begin
+  a := mmx_set_pi16(64, 32, 16, 8);
+  count := mmx_setzero_si64;
+  count.mm_u8[0] := 3;
+  result := mmx_psrlw_mm(a, count);
+  AssertTM64WordArray([1, 2, 4, 8], result, 'psrlw_mm shift by 3');
+end;
+
+procedure TTestCase_TM64.Test_mmx_psraw_mm;
+var
+  a, count, result: TM64;
+begin
+  a := mmx_set_pi16(-64, -32, -16, -8);
+  count := mmx_setzero_si64;
+  count.mm_u8[0] := 4;
+  result := mmx_psraw_mm(a, count);
+  AssertTM64WordArray([-1, -1, -2, -4], result, 'psraw_mm arithmetic shift');
+end;
+
 // === 10️⃣ Pack / Unpack 测试实现 ===
 
 procedure TTestCase_TM64.Test_mmx_packsswb;
@@ -1036,6 +1105,67 @@ begin
   result := mmx_punpckldq(a, b);
   // 交织低1个双字：a[0] 和 b[0]
   AssertTM64DWordArray([2, 20], result, 'punpckldq');
+end;
+
+procedure TTestCase_TM64.Test_mmx_packusdw;
+var
+  a, b, result: TM64;
+begin
+  a := mmx_set_pi32($0000FFFF, $00010000);
+  b := mmx_set_pi32(-1, 42);
+  result := mmx_packusdw(a, b);
+
+  AssertEquals('packusdw lane0', UInt16($FFFF), result.mm_u16[0]);
+  AssertEquals('packusdw lane1', UInt16($FFFF), result.mm_u16[1]);
+  AssertEquals('packusdw lane2', UInt16(42), result.mm_u16[2]);
+  AssertEquals('packusdw lane3', UInt16(0), result.mm_u16[3]);
+end;
+
+procedure TTestCase_TM64.Test_mmx_punpcklbw_mem;
+var
+  a, result: TM64;
+  LMem: array[0..7] of Byte;
+begin
+  a := mmx_set_pi8(1, 2, 3, 4, 5, 6, 7, 8);
+  LMem[0] := 80;
+  LMem[1] := 70;
+  LMem[2] := 60;
+  LMem[3] := 50;
+  LMem[4] := 40;
+  LMem[5] := 30;
+  LMem[6] := 20;
+  LMem[7] := 10;
+
+  result := mmx_punpcklbw_mem(a, @LMem[0]);
+  AssertTM64ByteArray([8, 80, 7, 70, 6, 60, 5, 50], result, 'punpcklbw_mem');
+end;
+
+procedure TTestCase_TM64.Test_mmx_punpcklwd_mem;
+var
+  a, result: TM64;
+  LMem: array[0..3] of Word;
+begin
+  a := mmx_set_pi16(1, 2, 3, 4);
+  LMem[0] := 400;
+  LMem[1] := 300;
+  LMem[2] := 200;
+  LMem[3] := 100;
+
+  result := mmx_punpcklwd_mem(a, @LMem[0]);
+  AssertTM64WordArray([4, 400, 3, 300], result, 'punpcklwd_mem');
+end;
+
+procedure TTestCase_TM64.Test_mmx_punpckldq_mem;
+var
+  a, result: TM64;
+  LMem: array[0..1] of LongInt;
+begin
+  a := mmx_set_pi32(1, 2);
+  LMem[0] := 2000000;
+  LMem[1] := 1000000;
+
+  result := mmx_punpckldq_mem(a, @LMem[0]);
+  AssertTM64DWordArray([2, 2000000], result, 'punpckldq_mem');
 end;
 
 // === 11️⃣ Miscellaneous 测试实现 ===

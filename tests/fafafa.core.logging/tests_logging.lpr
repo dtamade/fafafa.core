@@ -5,7 +5,7 @@ program tests_logging;
 {$I ../../src/fafafa.core.settings.inc}
 
 uses
-  Classes, SysUtils, consoletestrunner,
+  Classes, SysUtils, consoletestrunner, testregistry,
   Test_fafafa_core_logging,
   Test_fafafa_core_logging_bytes_roll,
   Test_fafafa_core_logging_filter_enricher,

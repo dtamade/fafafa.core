@@ -3,13 +3,14 @@ unit fafafa.core.color.oklch.gamut.props.edge.testcase;
 {$mode objfpc}{$H+}
 {$CODEPAGE UTF8}
 {$I ../../src/fafafa.core.settings.inc}
-{$I testutils.color.tolerances.inc}
 
 interface
 
 uses
   Classes, SysUtils, fafafa.core.math, fpcunit, testregistry,
   fafafa.core.color;
+
+{$I testutils.color.tolerances.inc}
 
 type
   TTestCase_OKLCHGamutProps_Edge = class(TTestCase)
@@ -75,4 +76,3 @@ initialization
   RegisterTest(TTestCase_OKLCHGamutProps_Edge);
 
 end.
-

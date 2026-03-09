@@ -530,7 +530,7 @@ type
     Value: string;
     LastAccess: Int64;  // 使用 GetTickCount64 时间戳
   end;
-  PLRUCacheEntry = ^TLRUCacheEntry;
+  // PLRUCacheEntry = ^TLRUCacheEntry; // 暂未使用
 
   {**
    * TLRUCache - 简单 LRU 缓存实现
@@ -1567,6 +1567,9 @@ end;
 
 function TTimeParser.MatchPattern(const AInput, APattern: string; out AMatches: TStringArray): Boolean;
 begin
+  // TODO: 实现正则匹配
+  if (AInput <> '') or (APattern <> '') then; // suppress unused parameter hints
+  AMatches := nil; // Initialize managed type before SetLength
   SetLength(AMatches, 0);
   Result := False;
 end;
@@ -1574,6 +1577,8 @@ end;
 function TTimeParser.ExtractComponents(const AMatches: TStringArray; const AFormat: string;
   out AYear, AMonth, ADay, AHour, AMinute, ASecond, AMillisecond: Integer): Boolean;
 begin
+  // TODO: 实现组件提取
+  if (Length(AMatches) > 0) or (AFormat <> '') then; // suppress unused parameter hints
   AYear := 0; AMonth := 0; ADay := 0; AHour := 0; AMinute := 0; ASecond := 0; AMillisecond := 0;
   Result := False;
 end;
@@ -1598,95 +1603,266 @@ begin
     Result := True;
 end;
 
+function ExtractPartialPrefix(const AInput: string): string;
+const
+  PARTIAL_DELIMS: TSysCharSet = [' ', #9, ',', ';', '|', '(', '[', '{'];
+var
+  LIndex: Integer;
+begin
+  Result := Trim(AInput);
+  if Result = '' then
+    Exit;
+
+  for LIndex := 1 to Length(Result) do
+  begin
+    if CharInSet(Result[LIndex], PARTIAL_DELIMS) then
+    begin
+      Result := Trim(Copy(Result, 1, LIndex - 1));
+      Exit;
+    end;
+  end;
+end;
+
+function ApplyPartialDateTimeParse(const AInput: string; out ADateTime: TDateTime): TParseResult;
+var
+  LPrefix: string;
+begin
+  LPrefix := ExtractPartialPrefix(AInput);
+  if (LPrefix = '') or SameText(LPrefix, Trim(AInput)) then
+    Exit(TParseResult.CreateErrorCode(pecInvalidDateTime, 0));
+
+  Result := DefaultTimeParser.ParseDateTime(LPrefix, ADateTime);
+end;
+
+function ApplyPartialDateParse(const AInput: string; out ADate: TDate): TParseResult;
+var
+  LPrefix: string;
+begin
+  LPrefix := ExtractPartialPrefix(AInput);
+  if (LPrefix = '') or SameText(LPrefix, Trim(AInput)) then
+    Exit(TParseResult.CreateErrorCode(pecInvalidDate, 0));
+
+  Result := DefaultTimeParser.ParseDate(LPrefix, ADate);
+end;
+
+function ApplyPartialTimeParse(const AInput: string; out ATime: TTimeOfDay): TParseResult;
+var
+  LPrefix: string;
+begin
+  LPrefix := ExtractPartialPrefix(AInput);
+  if (LPrefix = '') or SameText(LPrefix, Trim(AInput)) then
+    Exit(TParseResult.CreateErrorCode(pecInvalidTime, 0));
+
+  Result := DefaultTimeParser.ParseTime(LPrefix, ATime);
+end;
+
+function ApplyPartialDurationParse(const AInput: string; out ADuration: TDuration): TParseResult;
+var
+  LPrefix: string;
+begin
+  LPrefix := ExtractPartialPrefix(AInput);
+  if (LPrefix = '') or SameText(LPrefix, Trim(AInput)) then
+    Exit(TParseResult.CreateErrorCode(pecInvalidDuration, 0));
+
+  Result := DefaultTimeParser.ParseDuration(LPrefix, ADuration);
+end;
+
 function TTimeParser.ParseDateTime(const ADateTimeStr: string; out ADateTime: TDateTime): TParseResult;
 var
-  ok: Boolean;
+  LOk: Boolean;
+  LSmartResult: TParseResult;
 begin
   // ISSUE-47: 输入长度限制（防止DoS）
   if not CheckInputLength(ADateTimeStr, Result) then
     Exit;
-  
-  ok := TryStrToDateTime(ADateTimeStr, ADateTime);
-  if ok then
-    Exit(TParseResult.CreateSuccess(Length(ADateTimeStr), 'auto'))
-  else
-    Exit(TParseResult.CreateErrorCode(pecInvalidDateTime, 0));
+
+  LOk := TryStrToDateTime(ADateTimeStr, ADateTime);
+  if LOk then
+    Exit(TParseResult.CreateSuccess(Length(ADateTimeStr), 'auto'));
+
+  LSmartResult := SmartParse(ADateTimeStr, ADateTime);
+  if LSmartResult.Success then
+    Exit(LSmartResult);
+
+  Exit(TParseResult.CreateErrorCode(pecInvalidDateTime, 0));
 end;
 
 function TTimeParser.ParseDateTime(const ADateTimeStr: string; const AFormat: string; out ADateTime: TDateTime): TParseResult;
 var
-  pattern: string;
+  LPattern: string;
+  LNormalizedInput: string;
 begin
+  // ISSUE-47: 输入长度限制（防止DoS）
+  if not CheckInputLength(ADateTimeStr, Result) then
+    Exit;
+
   // 第1层防护：验证格式字符串
   try
-    pattern := BuildRegexPattern(AFormat);  // 内部会验证安全性
+    LPattern := BuildRegexPattern(AFormat);  // 内部会验证安全性
   except
     on E: EInvalidTimeFormat do
       Exit(TParseResult.CreateError(pecUnsafeFormat, '格式字符串不安全或危险：' + E.Message, 0));
   end;
-  
-  // 简化：忽略格式，调用基本解析
-  Result := ParseDateTime(ADateTimeStr, ADateTime);
+
+  if LPattern <> '' then; // suppress unused local variable hint
+
+  // 使用 ScanDateTime 按指定格式解析，并通过回格式化验证完整匹配
+  try
+    ADateTime := ScanDateTime(AFormat, ADateTimeStr);
+  except
+    on E: Exception do
+      Exit(TParseResult.CreateErrorCode(pecFormatMismatch, 0));
+  end;
+
+  LNormalizedInput := Trim(ADateTimeStr);
+  if SysUtils.FormatDateTime(AFormat, ADateTime) <> LNormalizedInput then
+    Exit(TParseResult.CreateErrorCode(pecFormatMismatch, 0));
+
+  Result := TParseResult.CreateSuccess(Length(ADateTimeStr), AFormat);
 end;
 
 function TTimeParser.ParseDateTime(const ADateTimeStr: string; const AOptions: TParseOptions; out ADateTime: TDateTime): TParseResult;
 begin
-  // 简化：忽略选项，调用基本解析
-  Result := ParseDateTime(ADateTimeStr, ADateTime);
+  case AOptions.Mode of
+    pmSmart:
+      Result := SmartParse(ADateTimeStr, ADateTime);
+  else
+    Result := ParseDateTime(ADateTimeStr, ADateTime);
+  end;
+
+  if (not Result.Success) and AOptions.AllowPartialMatch then
+    Result := ApplyPartialDateTimeParse(ADateTimeStr, ADateTime);
 end;
 
 function TTimeParser.ParseDate(const ADateStr: string; out ADate: TDate): TParseResult;
 var
-  ok: Boolean;
+  LOk: Boolean;
 begin
   // ISSUE-47: 输入长度限制（防止DoS）
   if not CheckInputLength(ADateStr, Result) then
     Exit;
-  
-  ok := TDate.TryParse(ADateStr, ADate);
-  if ok then
-    Exit(TParseResult.CreateSuccess(Length(ADateStr), FORMAT_ISO8601_DATE))
-  else
-    Exit(TParseResult.CreateErrorCode(pecInvalidDate, 0));
+
+  LOk := TDate.TryParse(ADateStr, ADate);
+  if LOk then
+    Exit(TParseResult.CreateSuccess(Length(ADateStr), FORMAT_ISO8601_DATE));
+
+  Result := SmartParse(ADateStr, ADate);
+  if not Result.Success then
+    Result := TParseResult.CreateErrorCode(pecInvalidDate, 0);
 end;
 
 function TTimeParser.ParseDate(const ADateStr: string; const AFormat: string; out ADate: TDate): TParseResult;
+var
+  LPattern: string;
+  LDateTime: TDateTime;
+  LNormalizedInput: string;
 begin
-  // 简化：忽略格式，调用基本解析
-  Result := ParseDate(ADateStr, ADate);
+  // ISSUE-47: 输入长度限制（防止DoS）
+  if not CheckInputLength(ADateStr, Result) then
+    Exit;
+
+  // 第1层防护：验证格式字符串
+  try
+    LPattern := BuildRegexPattern(AFormat);
+  except
+    on E: EInvalidTimeFormat do
+      Exit(TParseResult.CreateError(pecUnsafeFormat, '格式字符串不安全或危险：' + E.Message, 0));
+  end;
+
+  if LPattern <> '' then; // suppress unused local variable hint
+
+  try
+    LDateTime := ScanDateTime(AFormat, ADateStr);
+  except
+    on E: Exception do
+      Exit(TParseResult.CreateErrorCode(pecFormatMismatch, 0));
+  end;
+
+  LNormalizedInput := Trim(ADateStr);
+  if SysUtils.FormatDateTime(AFormat, LDateTime) <> LNormalizedInput then
+    Exit(TParseResult.CreateErrorCode(pecFormatMismatch, 0));
+
+  ADate := TDate.FromDateTime(LDateTime);
+  Result := TParseResult.CreateSuccess(Length(ADateStr), AFormat);
 end;
 
 function TTimeParser.ParseDate(const ADateStr: string; const AOptions: TParseOptions; out ADate: TDate): TParseResult;
 begin
-  // 简化：忽略选项，调用基本解析
-  Result := ParseDate(ADateStr, ADate);
+  case AOptions.Mode of
+    pmSmart:
+      Result := SmartParse(ADateStr, ADate);
+  else
+    Result := ParseDate(ADateStr, ADate);
+  end;
+
+  if (not Result.Success) and AOptions.AllowPartialMatch then
+    Result := ApplyPartialDateParse(ADateStr, ADate);
 end;
 
 function TTimeParser.ParseTime(const ATimeStr: string; out ATime: TTimeOfDay): TParseResult;
 var
-  ok: Boolean;
+  LOk: Boolean;
 begin
   // ISSUE-47: 输入长度限制（防止DoS）
   if not CheckInputLength(ATimeStr, Result) then
     Exit;
-  
-  ok := TTimeOfDay.TryParse(ATimeStr, ATime);
-  if ok then
-    Exit(TParseResult.CreateSuccess(Length(ATimeStr), FORMAT_ISO8601_TIME))
-  else
-    Exit(TParseResult.CreateErrorCode(pecInvalidTime, 0));
+
+  LOk := TTimeOfDay.TryParse(ATimeStr, ATime);
+  if LOk then
+    Exit(TParseResult.CreateSuccess(Length(ATimeStr), FORMAT_ISO8601_TIME));
+
+  Result := SmartParse(ATimeStr, ATime);
+  if not Result.Success then
+    Result := TParseResult.CreateErrorCode(pecInvalidTime, 0);
 end;
 
 function TTimeParser.ParseTime(const ATimeStr: string; const AFormat: string; out ATime: TTimeOfDay): TParseResult;
+var
+  LPattern: string;
+  LDateTime: TDateTime;
+  LNormalizedInput: string;
 begin
-  Result := ParseTime(ATimeStr, ATime);
+  // ISSUE-47: 输入长度限制（防止DoS）
+  if not CheckInputLength(ATimeStr, Result) then
+    Exit;
+
+  // 第1层防护：验证格式字符串
+  try
+    LPattern := BuildRegexPattern(AFormat);
+  except
+    on E: EInvalidTimeFormat do
+      Exit(TParseResult.CreateError(pecUnsafeFormat, '格式字符串不安全或危险：' + E.Message, 0));
+  end;
+
+  if LPattern <> '' then; // suppress unused local variable hint
+
+  try
+    LDateTime := ScanDateTime(AFormat, ATimeStr);
+  except
+    on E: Exception do
+      Exit(TParseResult.CreateErrorCode(pecFormatMismatch, 0));
+  end;
+
+  LNormalizedInput := Trim(ATimeStr);
+  if SysUtils.FormatDateTime(AFormat, LDateTime) <> LNormalizedInput then
+    Exit(TParseResult.CreateErrorCode(pecFormatMismatch, 0));
+
+  ATime := TTimeOfDay.FromTime(Frac(LDateTime));
+  Result := TParseResult.CreateSuccess(Length(ATimeStr), AFormat);
 end;
 
 function TTimeParser.ParseTime(const ATimeStr: string; const AOptions: TParseOptions; out ATime: TTimeOfDay): TParseResult;
 begin
-  Result := ParseTime(ATimeStr, ATime);
-end;
+  case AOptions.Mode of
+    pmSmart:
+      Result := SmartParse(ATimeStr, ATime);
+  else
+    Result := ParseTime(ATimeStr, ATime);
+  end;
 
+  if (not Result.Success) and AOptions.AllowPartialMatch then
+    Result := ApplyPartialTimeParse(ATimeStr, ATime);
+end;
 function TTimeParser.DetectFormat(const ATimeStr: string): string;
 begin
   // ISSUE-47: 输入长度限制（防止DoS）
@@ -1724,7 +1900,10 @@ begin
     Exit;
   
   if TryStrToDateTime(ATimeStr, dt) then
-    Exit(TParseResult.CreateSuccess(Length(ATimeStr), 'auto'))
+  begin
+    ADateTime := dt;
+    Exit(TParseResult.CreateSuccess(Length(ATimeStr), 'auto'));
+  end
   else if TDate.TryParse(ATimeStr, d) then
   begin
     ADateTime := d.ToDateTime;
@@ -1786,50 +1965,40 @@ begin
 end;
 
 function TTimeParser.ParseDuration(const ADurationStr: string; out ADuration: TDuration): TParseResult;
-var
-  s: string;
-  v32: LongInt;
 begin
   // ISSUE-47: 输入长度限制（防止DoS）
   if not CheckInputLength(ADurationStr, Result) then
     Exit;
-  
-  s := Trim(LowerCase(ADurationStr));
-  if (s = '') then Exit(TParseResult.CreateErrorCode(pecEmptyInput, 0));
 
-  // 简化：仅支持纯毫秒数字、尾随 h/m/s/ms
-  if (RightStr(s,2) = 'ms') and TryStrToInt(Copy(s,1,Length(s)-2), v32) then
-  begin
-    ADuration := TDuration.FromMs(v32);
-    Exit(TParseResult.CreateSuccess(Length(ADurationStr), FORMAT_DURATION_PRECISE));
-  end
-  else if (RightStr(s,1) = 's') and TryStrToInt(Copy(s,1,Length(s)-1), v32) then
-  begin
-    ADuration := TDuration.FromSec(v32);
-    Exit(TParseResult.CreateSuccess(Length(ADurationStr), FORMAT_DURATION_COMPACT));
-  end
-  else if (RightStr(s,1) = 'm') and TryStrToInt(Copy(s,1,Length(s)-1), v32) then
-  begin
-    ADuration := TDuration.FromSec(v32*60);
-    Exit(TParseResult.CreateSuccess(Length(ADurationStr), FORMAT_DURATION_COMPACT));
-  end
-  else if (RightStr(s,1) = 'h') and TryStrToInt(Copy(s,1,Length(s)-1), v32) then
-  begin
-    ADuration := TDuration.FromSec(v32*3600);
-    Exit(TParseResult.CreateSuccess(Length(ADurationStr), FORMAT_DURATION_COMPACT));
-  end
-  else
-    Exit(TParseResult.CreateErrorCode(pecInvalidDuration, 0));
+  // 委托给统一的 Duration 智能解析器，避免基础入口能力受限
+  Result := DefaultDurationParser.SmartParse(ADurationStr, ADuration);
 end;
 
 function TTimeParser.ParseDuration(const ADurationStr: string; const AFormat: string; out ADuration: TDuration): TParseResult;
 begin
-  Result := ParseDuration(ADurationStr, ADuration);
+  // ISSUE-47: 输入长度限制（防止DoS）
+  if not CheckInputLength(ADurationStr, Result) then
+    Exit;
+
+  // 走 Duration 解析器的格式化路径，避免忽略 AFormat
+  Result := DefaultDurationParser.Parse(ADurationStr, AFormat, ADuration);
 end;
 
 function TTimeParser.ParseDuration(const ADurationStr: string; const AOptions: TParseOptions; out ADuration: TDuration): TParseResult;
 begin
-  Result := ParseDuration(ADurationStr, ADuration);
+  // ISSUE-47: 输入长度限制（防止DoS）
+  if not CheckInputLength(ADurationStr, Result) then
+    Exit;
+
+  case AOptions.Mode of
+    pmSmart:
+      Result := DefaultDurationParser.SmartParse(ADurationStr, ADuration);
+  else
+    Result := ParseDuration(ADurationStr, ADuration);
+  end;
+
+  if (not Result.Success) and AOptions.AllowPartialMatch then
+    Result := ApplyPartialDurationParse(ADurationStr, ADuration);
 end;
 
 function TTimeParser.SmartParse(const ATimeStr: string; out ADuration: TDuration): TParseResult;
@@ -1861,6 +2030,8 @@ end;
 
 constructor TDurationParser.Create(const ALocale: string);
 begin
+  // TODO: 使用 ALocale 进行本地化
+  if ALocale <> '' then; // suppress unused parameter hint
   FOptions := TParseOptions.Default;
 end;
 
@@ -2063,7 +2234,7 @@ end;
  *}
 function TDurationParser.ParsePreciseInternal(const ADurationStr: string; out ADuration: TDuration): Boolean;
 const
-  NS_PER_MS   = Int64(1000000);
+  // NS_PER_MS   = Int64(1000000); // 暂未使用
   NS_PER_SEC  = Int64(1000000000);
   NS_PER_MIN  = Int64(60) * NS_PER_SEC;
   NS_PER_HOUR = Int64(3600) * NS_PER_SEC;
@@ -2085,6 +2256,7 @@ begin
   Minutes := 0;
   Seconds := 0;
   FracNs := 0;
+  Parts := nil; // Initialize managed type
 
   S := Trim(ADurationStr);
   if Length(S) = 0 then Exit;
@@ -2175,9 +2347,22 @@ begin
 end;
 
 function TDurationParser.Parse(const ADurationStr: string; const AOptions: TParseOptions; out ADuration: TDuration): TParseResult;
+var
+  LPrefix: string;
 begin
-  // 目前忽略选项，使用智能解析
-  Result := SmartParse(ADurationStr, ADuration);
+  case AOptions.Mode of
+    pmSmart:
+      Result := SmartParse(ADurationStr, ADuration);
+  else
+    Result := Parse(ADurationStr, ADuration);
+  end;
+
+  if (not Result.Success) and AOptions.AllowPartialMatch then
+  begin
+    LPrefix := ExtractPartialPrefix(ADurationStr);
+    if (LPrefix <> '') and (not SameText(LPrefix, Trim(ADurationStr))) then
+      Result := SmartParse(LPrefix, ADuration);
+  end;
 end;
 
 function TDurationParser.ParseISO8601(const ADurationStr: string; out ADuration: TDuration): TParseResult;

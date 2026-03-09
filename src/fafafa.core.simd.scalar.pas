@@ -7,7 +7,8 @@ interface
 
 uses
   fafafa.core.simd.base,
-  fafafa.core.simd.dispatch;
+  fafafa.core.simd.dispatch,
+  fafafa.core.simd.backend.priority;
 
 // === Scalar Backend Implementation ===
 // This provides the reference implementation for all SIMD operations
@@ -101,6 +102,10 @@ function ScalarAndI64x2(const a, b: TVecI64x2): TVecI64x2;
 function ScalarOrI64x2(const a, b: TVecI64x2): TVecI64x2;
 function ScalarXorI64x2(const a, b: TVecI64x2): TVecI64x2;
 function ScalarNotI64x2(const a: TVecI64x2): TVecI64x2;
+function ScalarAndNotI64x2(const a, b: TVecI64x2): TVecI64x2;
+function ScalarShiftLeftI64x2(const a: TVecI64x2; count: Integer): TVecI64x2;
+function ScalarShiftRightI64x2(const a: TVecI64x2; count: Integer): TVecI64x2;
+function ScalarShiftRightArithI64x2(const a: TVecI64x2; count: Integer): TVecI64x2;
 // ✅ P0-5: I64x2 Comparison (added full set)
 function ScalarCmpEqI64x2(const a, b: TVecI64x2): TMask2;
 function ScalarCmpLtI64x2(const a, b: TVecI64x2): TMask2;
@@ -108,6 +113,22 @@ function ScalarCmpGtI64x2(const a, b: TVecI64x2): TMask2;
 function ScalarCmpLeI64x2(const a, b: TVecI64x2): TMask2;
 function ScalarCmpGeI64x2(const a, b: TVecI64x2): TMask2;
 function ScalarCmpNeI64x2(const a, b: TVecI64x2): TMask2;
+function ScalarMinI64x2(const a, b: TVecI64x2): TVecI64x2;
+function ScalarMaxI64x2(const a, b: TVecI64x2): TVecI64x2;
+
+// U64x2 Operations
+function ScalarAddU64x2(const a, b: TVecU64x2): TVecU64x2;
+function ScalarSubU64x2(const a, b: TVecU64x2): TVecU64x2;
+function ScalarAndU64x2(const a, b: TVecU64x2): TVecU64x2;
+function ScalarOrU64x2(const a, b: TVecU64x2): TVecU64x2;
+function ScalarXorU64x2(const a, b: TVecU64x2): TVecU64x2;
+function ScalarNotU64x2(const a: TVecU64x2): TVecU64x2;
+function ScalarAndNotU64x2(const a, b: TVecU64x2): TVecU64x2;
+function ScalarCmpEqU64x2(const a, b: TVecU64x2): TMask2;
+function ScalarCmpLtU64x2(const a, b: TVecU64x2): TMask2;
+function ScalarCmpGtU64x2(const a, b: TVecU64x2): TMask2;
+function ScalarMinU64x2(const a, b: TVecU64x2): TVecU64x2;
+function ScalarMaxU64x2(const a, b: TVecU64x2): TVecU64x2;
 
 // ✅ Task 5.2: I64x4 Operations (256-bit, 4x64-bit signed)
 // I64x4 Arithmetic
@@ -122,6 +143,7 @@ function ScalarAndNotI64x4(const a, b: TVecI64x4): TVecI64x4;
 // I64x4 Shift
 function ScalarShiftLeftI64x4(const a: TVecI64x4; count: Integer): TVecI64x4;
 function ScalarShiftRightI64x4(const a: TVecI64x4; count: Integer): TVecI64x4;
+function ScalarShiftRightArithI64x4(const a: TVecI64x4; count: Integer): TVecI64x4;
 // I64x4 Comparison
 function ScalarCmpEqI64x4(const a, b: TVecI64x4): TMask4;
 function ScalarCmpLtI64x4(const a, b: TVecI64x4): TMask4;
@@ -230,6 +252,86 @@ function ScalarCmpGtI64x8(const a, b: TVecI64x8): TMask8;
 function ScalarCmpLeI64x8(const a, b: TVecI64x8): TMask8;
 function ScalarCmpGeI64x8(const a, b: TVecI64x8): TMask8;
 function ScalarCmpNeI64x8(const a, b: TVecI64x8): TMask8;
+
+// U32x16 Arithmetic/Bitwise/Shift/Comparison/MinMax (512-bit)
+function ScalarAddU32x16(const a, b: TVecU32x16): TVecU32x16;
+function ScalarSubU32x16(const a, b: TVecU32x16): TVecU32x16;
+function ScalarMulU32x16(const a, b: TVecU32x16): TVecU32x16;
+function ScalarAndU32x16(const a, b: TVecU32x16): TVecU32x16;
+function ScalarOrU32x16(const a, b: TVecU32x16): TVecU32x16;
+function ScalarXorU32x16(const a, b: TVecU32x16): TVecU32x16;
+function ScalarNotU32x16(const a: TVecU32x16): TVecU32x16;
+function ScalarAndNotU32x16(const a, b: TVecU32x16): TVecU32x16;
+function ScalarShiftLeftU32x16(const a: TVecU32x16; count: Integer): TVecU32x16;
+function ScalarShiftRightU32x16(const a: TVecU32x16; count: Integer): TVecU32x16;
+function ScalarCmpEqU32x16(const a, b: TVecU32x16): TMask16;
+function ScalarCmpLtU32x16(const a, b: TVecU32x16): TMask16;
+function ScalarCmpGtU32x16(const a, b: TVecU32x16): TMask16;
+function ScalarCmpLeU32x16(const a, b: TVecU32x16): TMask16;
+function ScalarCmpGeU32x16(const a, b: TVecU32x16): TMask16;
+function ScalarCmpNeU32x16(const a, b: TVecU32x16): TMask16;
+function ScalarMinU32x16(const a, b: TVecU32x16): TVecU32x16;
+function ScalarMaxU32x16(const a, b: TVecU32x16): TVecU32x16;
+
+// U64x8 Arithmetic/Bitwise/Shift/Comparison (512-bit)
+function ScalarAddU64x8(const a, b: TVecU64x8): TVecU64x8;
+function ScalarSubU64x8(const a, b: TVecU64x8): TVecU64x8;
+function ScalarAndU64x8(const a, b: TVecU64x8): TVecU64x8;
+function ScalarOrU64x8(const a, b: TVecU64x8): TVecU64x8;
+function ScalarXorU64x8(const a, b: TVecU64x8): TVecU64x8;
+function ScalarNotU64x8(const a: TVecU64x8): TVecU64x8;
+function ScalarShiftLeftU64x8(const a: TVecU64x8; count: Integer): TVecU64x8;
+function ScalarShiftRightU64x8(const a: TVecU64x8; count: Integer): TVecU64x8;
+function ScalarCmpEqU64x8(const a, b: TVecU64x8): TMask8;
+function ScalarCmpLtU64x8(const a, b: TVecU64x8): TMask8;
+function ScalarCmpGtU64x8(const a, b: TVecU64x8): TMask8;
+function ScalarCmpLeU64x8(const a, b: TVecU64x8): TMask8;
+function ScalarCmpGeU64x8(const a, b: TVecU64x8): TMask8;
+function ScalarCmpNeU64x8(const a, b: TVecU64x8): TMask8;
+
+// I16x32 Arithmetic/Bitwise/Shift/Comparison/MinMax (512-bit)
+function ScalarAddI16x32(const a, b: TVecI16x32): TVecI16x32;
+function ScalarSubI16x32(const a, b: TVecI16x32): TVecI16x32;
+function ScalarAndI16x32(const a, b: TVecI16x32): TVecI16x32;
+function ScalarOrI16x32(const a, b: TVecI16x32): TVecI16x32;
+function ScalarXorI16x32(const a, b: TVecI16x32): TVecI16x32;
+function ScalarNotI16x32(const a: TVecI16x32): TVecI16x32;
+function ScalarAndNotI16x32(const a, b: TVecI16x32): TVecI16x32;
+function ScalarShiftLeftI16x32(const a: TVecI16x32; count: Integer): TVecI16x32;
+function ScalarShiftRightI16x32(const a: TVecI16x32; count: Integer): TVecI16x32;
+function ScalarShiftRightArithI16x32(const a: TVecI16x32; count: Integer): TVecI16x32;
+function ScalarCmpEqI16x32(const a, b: TVecI16x32): TMask32;
+function ScalarCmpLtI16x32(const a, b: TVecI16x32): TMask32;
+function ScalarCmpGtI16x32(const a, b: TVecI16x32): TMask32;
+function ScalarMinI16x32(const a, b: TVecI16x32): TVecI16x32;
+function ScalarMaxI16x32(const a, b: TVecI16x32): TVecI16x32;
+
+// I8x64 Arithmetic/Bitwise/Comparison/MinMax (512-bit)
+function ScalarAddI8x64(const a, b: TVecI8x64): TVecI8x64;
+function ScalarSubI8x64(const a, b: TVecI8x64): TVecI8x64;
+function ScalarAndI8x64(const a, b: TVecI8x64): TVecI8x64;
+function ScalarOrI8x64(const a, b: TVecI8x64): TVecI8x64;
+function ScalarXorI8x64(const a, b: TVecI8x64): TVecI8x64;
+function ScalarNotI8x64(const a: TVecI8x64): TVecI8x64;
+function ScalarAndNotI8x64(const a, b: TVecI8x64): TVecI8x64;
+function ScalarCmpEqI8x64(const a, b: TVecI8x64): TMask64;
+function ScalarCmpLtI8x64(const a, b: TVecI8x64): TMask64;
+function ScalarCmpGtI8x64(const a, b: TVecI8x64): TMask64;
+function ScalarMinI8x64(const a, b: TVecI8x64): TVecI8x64;
+function ScalarMaxI8x64(const a, b: TVecI8x64): TVecI8x64;
+
+// U8x64 Arithmetic/Bitwise/Comparison/MinMax (512-bit)
+function ScalarAddU8x64(const a, b: TVecU8x64): TVecU8x64;
+function ScalarSubU8x64(const a, b: TVecU8x64): TVecU8x64;
+function ScalarAndU8x64(const a, b: TVecU8x64): TVecU8x64;
+function ScalarOrU8x64(const a, b: TVecU8x64): TVecU8x64;
+function ScalarXorU8x64(const a, b: TVecU8x64): TVecU8x64;
+function ScalarNotU8x64(const a: TVecU8x64): TVecU8x64;
+function ScalarCmpEqU8x64(const a, b: TVecU8x64): TMask64;
+function ScalarCmpLtU8x64(const a, b: TVecU8x64): TMask64;
+function ScalarCmpGtU8x64(const a, b: TVecU8x64): TMask64;
+function ScalarMinU8x64(const a, b: TVecU8x64): TVecU8x64;
+function ScalarMaxU8x64(const a, b: TVecU8x64): TVecU8x64;
 
 // Comparison
 function ScalarCmpEqF32x4(const a, b: TVecF32x4): TMask4;
@@ -647,8 +749,40 @@ uses
   Math,  // RTL Math 单元 (Abs, Sqrt, Min, Max, Floor, Ceil, Round, Trunc)
   SysUtils;
 
+function ScalarNormalizeSignedZeroSingle(const aInput, aOutput: Single): Single; inline;
+var
+  LBits: DWord;
+  LInput: Single;
+begin
+  Result := aOutput;
+  if aOutput = 0.0 then
+  begin
+    LBits := 0;
+    LInput := aInput;
+    Move(LInput, LBits, SizeOf(LBits));
+    if (LBits and DWord($80000000)) <> 0 then
+      Result := -0.0;
+  end;
+end;
+
+function ScalarNormalizeSignedZeroDouble(const aInput, aOutput: Double): Double; inline;
+var
+  LBits: QWord;
+  LInput: Double;
+begin
+  Result := aOutput;
+  if aOutput = 0.0 then
+  begin
+    LBits := 0;
+    LInput := aInput;
+    Move(LInput, LBits, SizeOf(LBits));
+    if (LBits and QWord($8000000000000000)) <> 0 then
+      Result := -0.0;
+  end;
+end;
+
 // === Arithmetic Operations ===
-// Using types from fafafa.core.simd.types:
+// Using types from fafafa.core.simd.base:
 //   TVecF32x4.f[0..3], TVecF64x2.d[0..1], TVecI32x4.i[0..3], etc.
 
 function ScalarAddF32x4(const a, b: TVecF32x4): TVecF32x4;
@@ -974,6 +1108,60 @@ begin
     Result.i[j] := not a.i[j];
 end;
 
+function ScalarAndNotI64x2(const a, b: TVecI64x2): TVecI64x2;
+begin
+  Result.i[0] := (not a.i[0]) and b.i[0];
+  Result.i[1] := (not a.i[1]) and b.i[1];
+end;
+
+function ScalarShiftLeftI64x2(const a: TVecI64x2; count: Integer): TVecI64x2;
+var
+  LCount: Integer;
+begin
+  LCount := count;
+  if (LCount < 0) or (LCount >= 64) then
+  begin
+    Result.i[0] := 0;
+    Result.i[1] := 0;
+    Exit;
+  end;
+
+  Result.i[0] := a.i[0] shl LCount;
+  Result.i[1] := a.i[1] shl LCount;
+end;
+
+function ScalarShiftRightI64x2(const a: TVecI64x2; count: Integer): TVecI64x2;
+var
+  LCount: Integer;
+begin
+  LCount := count;
+  if (LCount < 0) or (LCount >= 64) then
+  begin
+    Result.i[0] := 0;
+    Result.i[1] := 0;
+    Exit;
+  end;
+
+  Result.i[0] := Int64(UInt64(a.i[0]) shr LCount);
+  Result.i[1] := Int64(UInt64(a.i[1]) shr LCount);
+end;
+
+function ScalarShiftRightArithI64x2(const a: TVecI64x2; count: Integer): TVecI64x2;
+var
+  LCount: Integer;
+begin
+  LCount := count;
+  if (LCount < 0) or (LCount >= 64) then
+  begin
+    Result.i[0] := 0;
+    Result.i[1] := 0;
+    Exit;
+  end;
+
+  Result.i[0] := SarInt64(a.i[0], LCount);
+  Result.i[1] := SarInt64(a.i[1], LCount);
+end;
+
 // ✅ P0-5: I64x2 Comparison Operations (missing from dispatch table)
 function ScalarCmpEqI64x2(const a, b: TVecI64x2): TMask2;
 begin
@@ -1015,6 +1203,93 @@ begin
   Result := 0;
   if a.i[0] <> b.i[0] then Result := Result or 1;
   if a.i[1] <> b.i[1] then Result := Result or 2;
+end;
+
+function ScalarMinI64x2(const a, b: TVecI64x2): TVecI64x2;
+begin
+  if a.i[0] < b.i[0] then Result.i[0] := a.i[0] else Result.i[0] := b.i[0];
+  if a.i[1] < b.i[1] then Result.i[1] := a.i[1] else Result.i[1] := b.i[1];
+end;
+
+function ScalarMaxI64x2(const a, b: TVecI64x2): TVecI64x2;
+begin
+  if a.i[0] > b.i[0] then Result.i[0] := a.i[0] else Result.i[0] := b.i[0];
+  if a.i[1] > b.i[1] then Result.i[1] := a.i[1] else Result.i[1] := b.i[1];
+end;
+
+function ScalarAddU64x2(const a, b: TVecU64x2): TVecU64x2;
+begin
+  Result.u[0] := a.u[0] + b.u[0];
+  Result.u[1] := a.u[1] + b.u[1];
+end;
+
+function ScalarSubU64x2(const a, b: TVecU64x2): TVecU64x2;
+begin
+  Result.u[0] := a.u[0] - b.u[0];
+  Result.u[1] := a.u[1] - b.u[1];
+end;
+
+function ScalarAndU64x2(const a, b: TVecU64x2): TVecU64x2;
+begin
+  Result.u[0] := a.u[0] and b.u[0];
+  Result.u[1] := a.u[1] and b.u[1];
+end;
+
+function ScalarOrU64x2(const a, b: TVecU64x2): TVecU64x2;
+begin
+  Result.u[0] := a.u[0] or b.u[0];
+  Result.u[1] := a.u[1] or b.u[1];
+end;
+
+function ScalarXorU64x2(const a, b: TVecU64x2): TVecU64x2;
+begin
+  Result.u[0] := a.u[0] xor b.u[0];
+  Result.u[1] := a.u[1] xor b.u[1];
+end;
+
+function ScalarNotU64x2(const a: TVecU64x2): TVecU64x2;
+begin
+  Result.u[0] := not a.u[0];
+  Result.u[1] := not a.u[1];
+end;
+
+function ScalarAndNotU64x2(const a, b: TVecU64x2): TVecU64x2;
+begin
+  Result.u[0] := (not a.u[0]) and b.u[0];
+  Result.u[1] := (not a.u[1]) and b.u[1];
+end;
+
+function ScalarCmpEqU64x2(const a, b: TVecU64x2): TMask2;
+begin
+  Result := 0;
+  if a.u[0] = b.u[0] then Result := Result or 1;
+  if a.u[1] = b.u[1] then Result := Result or 2;
+end;
+
+function ScalarCmpLtU64x2(const a, b: TVecU64x2): TMask2;
+begin
+  Result := 0;
+  if a.u[0] < b.u[0] then Result := Result or 1;
+  if a.u[1] < b.u[1] then Result := Result or 2;
+end;
+
+function ScalarCmpGtU64x2(const a, b: TVecU64x2): TMask2;
+begin
+  Result := 0;
+  if a.u[0] > b.u[0] then Result := Result or 1;
+  if a.u[1] > b.u[1] then Result := Result or 2;
+end;
+
+function ScalarMinU64x2(const a, b: TVecU64x2): TVecU64x2;
+begin
+  if a.u[0] < b.u[0] then Result.u[0] := a.u[0] else Result.u[0] := b.u[0];
+  if a.u[1] < b.u[1] then Result.u[1] := a.u[1] else Result.u[1] := b.u[1];
+end;
+
+function ScalarMaxU64x2(const a, b: TVecU64x2): TVecU64x2;
+begin
+  if a.u[0] > b.u[0] then Result.u[0] := a.u[0] else Result.u[0] := b.u[0];
+  if a.u[1] > b.u[1] then Result.u[1] := a.u[1] else Result.u[1] := b.u[1];
 end;
 
 // ✅ Task 5.2: I64x4 Scalar Operations (256-bit, 4x64-bit signed)
@@ -1084,6 +1359,16 @@ begin
   for i := 0 to 3 do
     if (count >= 0) and (count < 64) then
       Result.i[i] := Int64(UInt64(a.i[i]) shr count)  // logical shift
+    else
+      Result.i[i] := 0;
+end;
+
+function ScalarShiftRightArithI64x4(const a: TVecI64x4; count: Integer): TVecI64x4;
+var i: Integer;
+begin
+  for i := 0 to 3 do
+    if (count >= 0) and (count < 64) then
+      Result.i[i] := SarInt64(a.i[i], count)
     else
       Result.i[i] := 0;
 end;
@@ -1861,6 +2146,601 @@ begin
     if a.i[i] <> b.i[i] then
       Result := Result or (1 shl i);
 end;
+
+// === U32x16 Arithmetic/Bitwise/Shift/Comparison/MinMax (512-bit) ===
+function ScalarAddU32x16(const a, b: TVecU32x16): TVecU32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.u[i] := a.u[i] + b.u[i];
+end;
+
+function ScalarSubU32x16(const a, b: TVecU32x16): TVecU32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.u[i] := a.u[i] - b.u[i];
+end;
+
+function ScalarMulU32x16(const a, b: TVecU32x16): TVecU32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.u[i] := a.u[i] * b.u[i];
+end;
+
+function ScalarAndU32x16(const a, b: TVecU32x16): TVecU32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.u[i] := a.u[i] and b.u[i];
+end;
+
+function ScalarOrU32x16(const a, b: TVecU32x16): TVecU32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.u[i] := a.u[i] or b.u[i];
+end;
+
+function ScalarXorU32x16(const a, b: TVecU32x16): TVecU32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.u[i] := a.u[i] xor b.u[i];
+end;
+
+function ScalarNotU32x16(const a: TVecU32x16): TVecU32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.u[i] := not a.u[i];
+end;
+
+function ScalarAndNotU32x16(const a, b: TVecU32x16): TVecU32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    Result.u[i] := (not a.u[i]) and b.u[i];
+end;
+
+function ScalarShiftLeftU32x16(const a: TVecU32x16; count: Integer): TVecU32x16;
+var i: Integer;
+begin
+  if (count < 0) or (count >= 32) then
+    for i := 0 to 15 do
+      Result.u[i] := 0
+  else
+    for i := 0 to 15 do
+      Result.u[i] := a.u[i] shl count;
+end;
+
+function ScalarShiftRightU32x16(const a: TVecU32x16; count: Integer): TVecU32x16;
+var i: Integer;
+begin
+  if (count < 0) or (count >= 32) then
+    for i := 0 to 15 do
+      Result.u[i] := 0
+  else
+    for i := 0 to 15 do
+      Result.u[i] := a.u[i] shr count;
+end;
+
+function ScalarCmpEqU32x16(const a, b: TVecU32x16): TMask16;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 15 do
+    if a.u[i] = b.u[i] then
+      Result := Result or (1 shl i);
+end;
+
+function ScalarCmpLtU32x16(const a, b: TVecU32x16): TMask16;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 15 do
+    if a.u[i] < b.u[i] then
+      Result := Result or (1 shl i);
+end;
+
+function ScalarCmpGtU32x16(const a, b: TVecU32x16): TMask16;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 15 do
+    if a.u[i] > b.u[i] then
+      Result := Result or (1 shl i);
+end;
+
+function ScalarCmpLeU32x16(const a, b: TVecU32x16): TMask16;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 15 do
+    if a.u[i] <= b.u[i] then
+      Result := Result or (1 shl i);
+end;
+
+function ScalarCmpGeU32x16(const a, b: TVecU32x16): TMask16;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 15 do
+    if a.u[i] >= b.u[i] then
+      Result := Result or (1 shl i);
+end;
+
+function ScalarCmpNeU32x16(const a, b: TVecU32x16): TMask16;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 15 do
+    if a.u[i] <> b.u[i] then
+      Result := Result or (1 shl i);
+end;
+
+function ScalarMinU32x16(const a, b: TVecU32x16): TVecU32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    if a.u[i] < b.u[i] then
+      Result.u[i] := a.u[i]
+    else
+      Result.u[i] := b.u[i];
+end;
+
+function ScalarMaxU32x16(const a, b: TVecU32x16): TVecU32x16;
+var i: Integer;
+begin
+  for i := 0 to 15 do
+    if a.u[i] > b.u[i] then
+      Result.u[i] := a.u[i]
+    else
+      Result.u[i] := b.u[i];
+end;
+
+// === U64x8 Arithmetic/Bitwise/Shift/Comparison (512-bit) ===
+function ScalarAddU64x8(const a, b: TVecU64x8): TVecU64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.u[i] := a.u[i] + b.u[i];
+end;
+
+function ScalarSubU64x8(const a, b: TVecU64x8): TVecU64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.u[i] := a.u[i] - b.u[i];
+end;
+
+function ScalarAndU64x8(const a, b: TVecU64x8): TVecU64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.u[i] := a.u[i] and b.u[i];
+end;
+
+function ScalarOrU64x8(const a, b: TVecU64x8): TVecU64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.u[i] := a.u[i] or b.u[i];
+end;
+
+function ScalarXorU64x8(const a, b: TVecU64x8): TVecU64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.u[i] := a.u[i] xor b.u[i];
+end;
+
+function ScalarNotU64x8(const a: TVecU64x8): TVecU64x8;
+var i: Integer;
+begin
+  for i := 0 to 7 do
+    Result.u[i] := not a.u[i];
+end;
+
+function ScalarShiftLeftU64x8(const a: TVecU64x8; count: Integer): TVecU64x8;
+var i: Integer;
+begin
+  if (count < 0) or (count >= 64) then
+    for i := 0 to 7 do
+      Result.u[i] := 0
+  else
+    for i := 0 to 7 do
+      Result.u[i] := a.u[i] shl count;
+end;
+
+function ScalarShiftRightU64x8(const a: TVecU64x8; count: Integer): TVecU64x8;
+var i: Integer;
+begin
+  if (count < 0) or (count >= 64) then
+    for i := 0 to 7 do
+      Result.u[i] := 0
+  else
+    for i := 0 to 7 do
+      Result.u[i] := a.u[i] shr count;
+end;
+
+function ScalarCmpEqU64x8(const a, b: TVecU64x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.u[i] = b.u[i] then
+      Result := Result or (1 shl i);
+end;
+
+function ScalarCmpLtU64x8(const a, b: TVecU64x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.u[i] < b.u[i] then
+      Result := Result or (1 shl i);
+end;
+
+function ScalarCmpGtU64x8(const a, b: TVecU64x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.u[i] > b.u[i] then
+      Result := Result or (1 shl i);
+end;
+
+function ScalarCmpLeU64x8(const a, b: TVecU64x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.u[i] <= b.u[i] then
+      Result := Result or (1 shl i);
+end;
+
+function ScalarCmpGeU64x8(const a, b: TVecU64x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.u[i] >= b.u[i] then
+      Result := Result or (1 shl i);
+end;
+
+function ScalarCmpNeU64x8(const a, b: TVecU64x8): TMask8;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 7 do
+    if a.u[i] <> b.u[i] then
+      Result := Result or (1 shl i);
+end;
+
+// === I16x32 Arithmetic/Bitwise/Shift/Comparison/MinMax (512-bit) ===
+function ScalarAddI16x32(const a, b: TVecI16x32): TVecI16x32;
+var i: Integer;
+begin
+  for i := 0 to 31 do
+    Result.i[i] := a.i[i] + b.i[i];
+end;
+
+function ScalarSubI16x32(const a, b: TVecI16x32): TVecI16x32;
+var i: Integer;
+begin
+  for i := 0 to 31 do
+    Result.i[i] := a.i[i] - b.i[i];
+end;
+
+function ScalarAndI16x32(const a, b: TVecI16x32): TVecI16x32;
+var i: Integer;
+begin
+  for i := 0 to 31 do
+    Result.i[i] := a.i[i] and b.i[i];
+end;
+
+function ScalarOrI16x32(const a, b: TVecI16x32): TVecI16x32;
+var i: Integer;
+begin
+  for i := 0 to 31 do
+    Result.i[i] := a.i[i] or b.i[i];
+end;
+
+function ScalarXorI16x32(const a, b: TVecI16x32): TVecI16x32;
+var i: Integer;
+begin
+  for i := 0 to 31 do
+    Result.i[i] := a.i[i] xor b.i[i];
+end;
+
+function ScalarNotI16x32(const a: TVecI16x32): TVecI16x32;
+var i: Integer;
+begin
+  for i := 0 to 31 do
+    Result.i[i] := not a.i[i];
+end;
+
+function ScalarAndNotI16x32(const a, b: TVecI16x32): TVecI16x32;
+var i: Integer;
+begin
+  for i := 0 to 31 do
+    Result.i[i] := (not a.i[i]) and b.i[i];
+end;
+
+function ScalarShiftLeftI16x32(const a: TVecI16x32; count: Integer): TVecI16x32;
+var i: Integer;
+begin
+  if (count < 0) or (count >= 16) then
+    for i := 0 to 31 do
+      Result.i[i] := 0
+  else
+    for i := 0 to 31 do
+      Result.i[i] := a.i[i] shl count;
+end;
+
+function ScalarShiftRightI16x32(const a: TVecI16x32; count: Integer): TVecI16x32;
+var i: Integer;
+begin
+  if (count < 0) or (count >= 16) then
+    for i := 0 to 31 do
+      Result.i[i] := 0
+  else
+    for i := 0 to 31 do
+      Result.i[i] := Int16(UInt16(a.i[i]) shr count);
+end;
+
+function ScalarShiftRightArithI16x32(const a: TVecI16x32; count: Integer): TVecI16x32;
+var i: Integer;
+begin
+  if count < 0 then
+    for i := 0 to 31 do
+      Result.i[i] := a.i[i]
+  else if count >= 16 then
+    for i := 0 to 31 do
+      if a.i[i] < 0 then
+        Result.i[i] := -1
+      else
+        Result.i[i] := 0
+  else
+    for i := 0 to 31 do
+      Result.i[i] := Int16(SarLongint(a.i[i], count));
+end;
+
+function ScalarCmpEqI16x32(const a, b: TVecI16x32): TMask32;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 31 do
+    if a.i[i] = b.i[i] then
+      Result := Result or TMask32(DWord(1) shl i);
+end;
+
+function ScalarCmpLtI16x32(const a, b: TVecI16x32): TMask32;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 31 do
+    if a.i[i] < b.i[i] then
+      Result := Result or TMask32(DWord(1) shl i);
+end;
+
+function ScalarCmpGtI16x32(const a, b: TVecI16x32): TMask32;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 31 do
+    if a.i[i] > b.i[i] then
+      Result := Result or TMask32(DWord(1) shl i);
+end;
+
+function ScalarMinI16x32(const a, b: TVecI16x32): TVecI16x32;
+var i: Integer;
+begin
+  for i := 0 to 31 do
+    if a.i[i] < b.i[i] then
+      Result.i[i] := a.i[i]
+    else
+      Result.i[i] := b.i[i];
+end;
+
+function ScalarMaxI16x32(const a, b: TVecI16x32): TVecI16x32;
+var i: Integer;
+begin
+  for i := 0 to 31 do
+    if a.i[i] > b.i[i] then
+      Result.i[i] := a.i[i]
+    else
+      Result.i[i] := b.i[i];
+end;
+
+// === I8x64 Arithmetic/Bitwise/Comparison/MinMax (512-bit) ===
+function ScalarAddI8x64(const a, b: TVecI8x64): TVecI8x64;
+var i: Integer;
+begin
+  for i := 0 to 63 do
+    Result.i[i] := a.i[i] + b.i[i];
+end;
+
+function ScalarSubI8x64(const a, b: TVecI8x64): TVecI8x64;
+var i: Integer;
+begin
+  for i := 0 to 63 do
+    Result.i[i] := a.i[i] - b.i[i];
+end;
+
+function ScalarAndI8x64(const a, b: TVecI8x64): TVecI8x64;
+var i: Integer;
+begin
+  for i := 0 to 63 do
+    Result.i[i] := a.i[i] and b.i[i];
+end;
+
+function ScalarOrI8x64(const a, b: TVecI8x64): TVecI8x64;
+var i: Integer;
+begin
+  for i := 0 to 63 do
+    Result.i[i] := a.i[i] or b.i[i];
+end;
+
+function ScalarXorI8x64(const a, b: TVecI8x64): TVecI8x64;
+var i: Integer;
+begin
+  for i := 0 to 63 do
+    Result.i[i] := a.i[i] xor b.i[i];
+end;
+
+function ScalarNotI8x64(const a: TVecI8x64): TVecI8x64;
+var i: Integer;
+begin
+  for i := 0 to 63 do
+    Result.i[i] := not a.i[i];
+end;
+
+function ScalarAndNotI8x64(const a, b: TVecI8x64): TVecI8x64;
+var i: Integer;
+begin
+  for i := 0 to 63 do
+    Result.i[i] := (not a.i[i]) and b.i[i];
+end;
+
+function ScalarCmpEqI8x64(const a, b: TVecI8x64): TMask64;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 63 do
+    if a.i[i] = b.i[i] then
+      Result := Result or TMask64(QWord(1) shl i);
+end;
+
+function ScalarCmpLtI8x64(const a, b: TVecI8x64): TMask64;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 63 do
+    if a.i[i] < b.i[i] then
+      Result := Result or TMask64(QWord(1) shl i);
+end;
+
+function ScalarCmpGtI8x64(const a, b: TVecI8x64): TMask64;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 63 do
+    if a.i[i] > b.i[i] then
+      Result := Result or TMask64(QWord(1) shl i);
+end;
+
+function ScalarMinI8x64(const a, b: TVecI8x64): TVecI8x64;
+var i: Integer;
+begin
+  for i := 0 to 63 do
+    if a.i[i] < b.i[i] then
+      Result.i[i] := a.i[i]
+    else
+      Result.i[i] := b.i[i];
+end;
+
+function ScalarMaxI8x64(const a, b: TVecI8x64): TVecI8x64;
+var i: Integer;
+begin
+  for i := 0 to 63 do
+    if a.i[i] > b.i[i] then
+      Result.i[i] := a.i[i]
+    else
+      Result.i[i] := b.i[i];
+end;
+
+// === U8x64 Arithmetic/Bitwise/Comparison/MinMax (512-bit) ===
+function ScalarAddU8x64(const a, b: TVecU8x64): TVecU8x64;
+var i: Integer;
+begin
+  for i := 0 to 63 do
+    Result.u[i] := a.u[i] + b.u[i];
+end;
+
+function ScalarSubU8x64(const a, b: TVecU8x64): TVecU8x64;
+var i: Integer;
+begin
+  for i := 0 to 63 do
+    Result.u[i] := a.u[i] - b.u[i];
+end;
+
+function ScalarAndU8x64(const a, b: TVecU8x64): TVecU8x64;
+var i: Integer;
+begin
+  for i := 0 to 63 do
+    Result.u[i] := a.u[i] and b.u[i];
+end;
+
+function ScalarOrU8x64(const a, b: TVecU8x64): TVecU8x64;
+var i: Integer;
+begin
+  for i := 0 to 63 do
+    Result.u[i] := a.u[i] or b.u[i];
+end;
+
+function ScalarXorU8x64(const a, b: TVecU8x64): TVecU8x64;
+var i: Integer;
+begin
+  for i := 0 to 63 do
+    Result.u[i] := a.u[i] xor b.u[i];
+end;
+
+function ScalarNotU8x64(const a: TVecU8x64): TVecU8x64;
+var i: Integer;
+begin
+  for i := 0 to 63 do
+    Result.u[i] := not a.u[i];
+end;
+
+function ScalarCmpEqU8x64(const a, b: TVecU8x64): TMask64;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 63 do
+    if a.u[i] = b.u[i] then
+      Result := Result or TMask64(QWord(1) shl i);
+end;
+
+function ScalarCmpLtU8x64(const a, b: TVecU8x64): TMask64;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 63 do
+    if a.u[i] < b.u[i] then
+      Result := Result or TMask64(QWord(1) shl i);
+end;
+
+function ScalarCmpGtU8x64(const a, b: TVecU8x64): TMask64;
+var i: Integer;
+begin
+  Result := 0;
+  for i := 0 to 63 do
+    if a.u[i] > b.u[i] then
+      Result := Result or TMask64(QWord(1) shl i);
+end;
+
+function ScalarMinU8x64(const a, b: TVecU8x64): TVecU8x64;
+var i: Integer;
+begin
+  for i := 0 to 63 do
+    if a.u[i] < b.u[i] then
+      Result.u[i] := a.u[i]
+    else
+      Result.u[i] := b.u[i];
+end;
+
+function ScalarMaxU8x64(const a, b: TVecU8x64): TVecU8x64;
+var i: Integer;
+begin
+  for i := 0 to 63 do
+    if a.u[i] > b.u[i] then
+      Result.u[i] := a.u[i]
+    else
+      Result.u[i] := b.u[i];
+end;
 {$POP}
 
 // === Comparison Operations ===
@@ -2239,28 +3119,58 @@ function ScalarFloorF32x4(const a: TVecF32x4): TVecF32x4;
 var i: Integer;
 begin
   for i := 0 to 3 do
-    Result.f[i] := Floor(a.f[i]);
+  begin
+    if IsNan(a.f[i]) or IsInfinite(a.f[i]) then
+      Result.f[i] := a.f[i]
+    else
+      Result.f[i] := Floor(a.f[i]);
+  end;
 end;
 
 function ScalarCeilF32x4(const a: TVecF32x4): TVecF32x4;
 var i: Integer;
 begin
   for i := 0 to 3 do
-    Result.f[i] := Ceil(a.f[i]);
+  begin
+    if IsNan(a.f[i]) or IsInfinite(a.f[i]) then
+      Result.f[i] := a.f[i]
+    else
+      Result.f[i] := Ceil(a.f[i]);
+  end;
 end;
 
 function ScalarRoundF32x4(const a: TVecF32x4): TVecF32x4;
-var i: Integer;
+var
+  i: Integer;
+  LRounded: Single;
 begin
   for i := 0 to 3 do
-    Result.f[i] := Round(a.f[i]);
+  begin
+    if IsNan(a.f[i]) or IsInfinite(a.f[i]) then
+      Result.f[i] := a.f[i]
+    else
+    begin
+      LRounded := Round(a.f[i]);
+      Result.f[i] := ScalarNormalizeSignedZeroSingle(a.f[i], LRounded);
+    end;
+  end;
 end;
 
 function ScalarTruncF32x4(const a: TVecF32x4): TVecF32x4;
-var i: Integer;
+var
+  i: Integer;
+  LTrunced: Single;
 begin
   for i := 0 to 3 do
-    Result.f[i] := Trunc(a.f[i]);
+  begin
+    if IsNan(a.f[i]) or IsInfinite(a.f[i]) then
+      Result.f[i] := a.f[i]
+    else
+    begin
+      LTrunced := Trunc(a.f[i]);
+      Result.f[i] := ScalarNormalizeSignedZeroSingle(a.f[i], LTrunced);
+    end;
+  end;
 end;
 
 function ScalarClampF32x4(const a, minVal, maxVal: TVecF32x4): TVecF32x4;
@@ -2458,26 +3368,70 @@ end;
 
 function ScalarFloorF64x2(const a: TVecF64x2): TVecF64x2;
 begin
-  Result.d[0] := Floor(a.d[0]);
-  Result.d[1] := Floor(a.d[1]);
+  if IsNan(a.d[0]) or IsInfinite(a.d[0]) then
+    Result.d[0] := a.d[0]
+  else
+    Result.d[0] := Floor(a.d[0]);
+
+  if IsNan(a.d[1]) or IsInfinite(a.d[1]) then
+    Result.d[1] := a.d[1]
+  else
+    Result.d[1] := Floor(a.d[1]);
 end;
 
 function ScalarCeilF64x2(const a: TVecF64x2): TVecF64x2;
 begin
-  Result.d[0] := Ceil(a.d[0]);
-  Result.d[1] := Ceil(a.d[1]);
+  if IsNan(a.d[0]) or IsInfinite(a.d[0]) then
+    Result.d[0] := a.d[0]
+  else
+    Result.d[0] := Ceil(a.d[0]);
+
+  if IsNan(a.d[1]) or IsInfinite(a.d[1]) then
+    Result.d[1] := a.d[1]
+  else
+    Result.d[1] := Ceil(a.d[1]);
 end;
 
 function ScalarRoundF64x2(const a: TVecF64x2): TVecF64x2;
+var
+  LRounded: Double;
 begin
-  Result.d[0] := Round(a.d[0]);
-  Result.d[1] := Round(a.d[1]);
+  if IsNan(a.d[0]) or IsInfinite(a.d[0]) then
+    Result.d[0] := a.d[0]
+  else
+  begin
+    LRounded := Round(a.d[0]);
+    Result.d[0] := ScalarNormalizeSignedZeroDouble(a.d[0], LRounded);
+  end;
+
+  if IsNan(a.d[1]) or IsInfinite(a.d[1]) then
+    Result.d[1] := a.d[1]
+  else
+  begin
+    LRounded := Round(a.d[1]);
+    Result.d[1] := ScalarNormalizeSignedZeroDouble(a.d[1], LRounded);
+  end;
 end;
 
 function ScalarTruncF64x2(const a: TVecF64x2): TVecF64x2;
+var
+  LTrunced: Double;
 begin
-  Result.d[0] := Trunc(a.d[0]);
-  Result.d[1] := Trunc(a.d[1]);
+  if IsNan(a.d[0]) or IsInfinite(a.d[0]) then
+    Result.d[0] := a.d[0]
+  else
+  begin
+    LTrunced := Trunc(a.d[0]);
+    Result.d[0] := ScalarNormalizeSignedZeroDouble(a.d[0], LTrunced);
+  end;
+
+  if IsNan(a.d[1]) or IsInfinite(a.d[1]) then
+    Result.d[1] := a.d[1]
+  else
+  begin
+    LTrunced := Trunc(a.d[1]);
+    Result.d[1] := ScalarNormalizeSignedZeroDouble(a.d[1], LTrunced);
+  end;
 end;
 
 // F32x8 (256-bit)
@@ -2492,28 +3446,50 @@ function ScalarFloorF32x8(const a: TVecF32x8): TVecF32x8;
 var i: Integer;
 begin
   for i := 0 to 7 do
-    Result.f[i] := Floor(a.f[i]);
+    if IsNan(a.f[i]) or IsInfinite(a.f[i]) then
+      Result.f[i] := a.f[i]
+    else
+      Result.f[i] := Floor(a.f[i]);
 end;
 
 function ScalarCeilF32x8(const a: TVecF32x8): TVecF32x8;
 var i: Integer;
 begin
   for i := 0 to 7 do
-    Result.f[i] := Ceil(a.f[i]);
+    if IsNan(a.f[i]) or IsInfinite(a.f[i]) then
+      Result.f[i] := a.f[i]
+    else
+      Result.f[i] := Ceil(a.f[i]);
 end;
 
 function ScalarRoundF32x8(const a: TVecF32x8): TVecF32x8;
-var i: Integer;
+var
+  i: Integer;
+  LRounded: Single;
 begin
   for i := 0 to 7 do
-    Result.f[i] := Round(a.f[i]);
+    if IsNan(a.f[i]) or IsInfinite(a.f[i]) then
+      Result.f[i] := a.f[i]
+    else
+    begin
+      LRounded := Round(a.f[i]);
+      Result.f[i] := ScalarNormalizeSignedZeroSingle(a.f[i], LRounded);
+    end;
 end;
 
 function ScalarTruncF32x8(const a: TVecF32x8): TVecF32x8;
-var i: Integer;
+var
+  i: Integer;
+  LTrunced: Single;
 begin
   for i := 0 to 7 do
-    Result.f[i] := Trunc(a.f[i]);
+    if IsNan(a.f[i]) or IsInfinite(a.f[i]) then
+      Result.f[i] := a.f[i]
+    else
+    begin
+      LTrunced := Trunc(a.f[i]);
+      Result.f[i] := ScalarNormalizeSignedZeroSingle(a.f[i], LTrunced);
+    end;
 end;
 
 // F64x4 (256-bit)
@@ -2528,28 +3504,50 @@ function ScalarFloorF64x4(const a: TVecF64x4): TVecF64x4;
 var i: Integer;
 begin
   for i := 0 to 3 do
-    Result.d[i] := Floor(a.d[i]);
+    if IsNan(a.d[i]) or IsInfinite(a.d[i]) then
+      Result.d[i] := a.d[i]
+    else
+      Result.d[i] := Floor(a.d[i]);
 end;
 
 function ScalarCeilF64x4(const a: TVecF64x4): TVecF64x4;
 var i: Integer;
 begin
   for i := 0 to 3 do
-    Result.d[i] := Ceil(a.d[i]);
+    if IsNan(a.d[i]) or IsInfinite(a.d[i]) then
+      Result.d[i] := a.d[i]
+    else
+      Result.d[i] := Ceil(a.d[i]);
 end;
 
 function ScalarRoundF64x4(const a: TVecF64x4): TVecF64x4;
-var i: Integer;
+var
+  i: Integer;
+  LRounded: Double;
 begin
   for i := 0 to 3 do
-    Result.d[i] := Round(a.d[i]);
+    if IsNan(a.d[i]) or IsInfinite(a.d[i]) then
+      Result.d[i] := a.d[i]
+    else
+    begin
+      LRounded := Round(a.d[i]);
+      Result.d[i] := ScalarNormalizeSignedZeroDouble(a.d[i], LRounded);
+    end;
 end;
 
 function ScalarTruncF64x4(const a: TVecF64x4): TVecF64x4;
-var i: Integer;
+var
+  i: Integer;
+  LTrunced: Double;
 begin
   for i := 0 to 3 do
-    Result.d[i] := Trunc(a.d[i]);
+    if IsNan(a.d[i]) or IsInfinite(a.d[i]) then
+      Result.d[i] := a.d[i]
+    else
+    begin
+      LTrunced := Trunc(a.d[i]);
+      Result.d[i] := ScalarNormalizeSignedZeroDouble(a.d[i], LTrunced);
+    end;
 end;
 
 function ScalarRcpF64x4(const a: TVecF64x4): TVecF64x4;
@@ -2571,28 +3569,50 @@ function ScalarFloorF32x16(const a: TVecF32x16): TVecF32x16;
 var i: Integer;
 begin
   for i := 0 to 15 do
-    Result.f[i] := Floor(a.f[i]);
+    if IsNan(a.f[i]) or IsInfinite(a.f[i]) then
+      Result.f[i] := a.f[i]
+    else
+      Result.f[i] := Floor(a.f[i]);
 end;
 
 function ScalarCeilF32x16(const a: TVecF32x16): TVecF32x16;
 var i: Integer;
 begin
   for i := 0 to 15 do
-    Result.f[i] := Ceil(a.f[i]);
+    if IsNan(a.f[i]) or IsInfinite(a.f[i]) then
+      Result.f[i] := a.f[i]
+    else
+      Result.f[i] := Ceil(a.f[i]);
 end;
 
 function ScalarRoundF32x16(const a: TVecF32x16): TVecF32x16;
-var i: Integer;
+var
+  i: Integer;
+  LRounded: Single;
 begin
   for i := 0 to 15 do
-    Result.f[i] := Round(a.f[i]);
+    if IsNan(a.f[i]) or IsInfinite(a.f[i]) then
+      Result.f[i] := a.f[i]
+    else
+    begin
+      LRounded := Round(a.f[i]);
+      Result.f[i] := ScalarNormalizeSignedZeroSingle(a.f[i], LRounded);
+    end;
 end;
 
 function ScalarTruncF32x16(const a: TVecF32x16): TVecF32x16;
-var i: Integer;
+var
+  i: Integer;
+  LTrunced: Single;
 begin
   for i := 0 to 15 do
-    Result.f[i] := Trunc(a.f[i]);
+    if IsNan(a.f[i]) or IsInfinite(a.f[i]) then
+      Result.f[i] := a.f[i]
+    else
+    begin
+      LTrunced := Trunc(a.f[i]);
+      Result.f[i] := ScalarNormalizeSignedZeroSingle(a.f[i], LTrunced);
+    end;
 end;
 
 // F64x8 (512-bit)
@@ -2607,28 +3627,50 @@ function ScalarFloorF64x8(const a: TVecF64x8): TVecF64x8;
 var i: Integer;
 begin
   for i := 0 to 7 do
-    Result.d[i] := Floor(a.d[i]);
+    if IsNan(a.d[i]) or IsInfinite(a.d[i]) then
+      Result.d[i] := a.d[i]
+    else
+      Result.d[i] := Floor(a.d[i]);
 end;
 
 function ScalarCeilF64x8(const a: TVecF64x8): TVecF64x8;
 var i: Integer;
 begin
   for i := 0 to 7 do
-    Result.d[i] := Ceil(a.d[i]);
+    if IsNan(a.d[i]) or IsInfinite(a.d[i]) then
+      Result.d[i] := a.d[i]
+    else
+      Result.d[i] := Ceil(a.d[i]);
 end;
 
 function ScalarRoundF64x8(const a: TVecF64x8): TVecF64x8;
-var i: Integer;
+var
+  i: Integer;
+  LRounded: Double;
 begin
   for i := 0 to 7 do
-    Result.d[i] := Round(a.d[i]);
+    if IsNan(a.d[i]) or IsInfinite(a.d[i]) then
+      Result.d[i] := a.d[i]
+    else
+    begin
+      LRounded := Round(a.d[i]);
+      Result.d[i] := ScalarNormalizeSignedZeroDouble(a.d[i], LRounded);
+    end;
 end;
 
 function ScalarTruncF64x8(const a: TVecF64x8): TVecF64x8;
-var i: Integer;
+var
+  i: Integer;
+  LTrunced: Double;
 begin
   for i := 0 to 7 do
-    Result.d[i] := Trunc(a.d[i]);
+    if IsNan(a.d[i]) or IsInfinite(a.d[i]) then
+      Result.d[i] := a.d[i]
+    else
+    begin
+      LTrunced := Trunc(a.d[i]);
+      Result.d[i] := ScalarNormalizeSignedZeroDouble(a.d[i], LTrunced);
+    end;
 end;
 
 // === 3D/4D Vector Math ===
@@ -3385,7 +4427,7 @@ begin
     Description := 'Pure scalar reference implementation';
     Capabilities := [scBasicArithmetic, scComparison, scMathFunctions, scReduction, scLoadStore];
     Available := True;
-    Priority := 0; // Lowest priority
+    Priority := GetSimdBackendPriorityValue(sbScalar);
   end;
 
   // Register the backend
@@ -4700,7 +5742,7 @@ var
   i: Integer;
 begin
   for i := 0 to 3 do
-    Result.u[i] := a.u[i] and (not b.u[i]);
+    Result.u[i] := (not a.u[i]) and b.u[i];
 end;
 
 function ScalarShiftLeftU32x4(const a: TVecU32x4; count: Integer): TVecU32x4;
@@ -5308,4 +6350,3 @@ initialization
   RegisterScalarBackend;
 
 end.
-

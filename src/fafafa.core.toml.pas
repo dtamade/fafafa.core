@@ -3,12 +3,12 @@ unit fafafa.core.toml;
 {$MODE OBJFPC}{$H+}
 {$modeswitch advancedrecords}
 {$I fafafa.core.settings.inc}
+{$WARN 3124 OFF} // suppress "Inlining disabled" noise in strict 0-hints builds
 
 interface
 
 uses
-  SysUtils, Classes,
-  fafafa.core.mem.allocator;
+  SysUtils, Classes;
 
 type
   {**
@@ -580,6 +580,7 @@ begin
   LNewMask := 1;
   while LNewMask < ANewCapPow2 do LNewMask := LNewMask shl 1;
   Dec(LNewMask);
+  LNewBuckets := nil;
   SetLength(LNewBuckets, LNewMask + 1);
   for I := 0 to High(LNewBuckets) do LNewBuckets[I] := -1;
 
@@ -1152,12 +1153,43 @@ end;
 function _Parse_Internal_V1(const AText: RawByteString; out ADoc: ITomlDocument; out AErr: TTomlError; const AFlags: TTomlReadFlags): Boolean; forward;
 function ValidateDocLimits(const ADoc: ITomlDocument; const ALimits: TTomlLimits; out AErr: TTomlError): Boolean; forward;
 
+function HasNestedArrayLiteral(const AText: RawByteString): Boolean;
+var
+  LIndex: SizeInt;
+  LLen: SizeInt;
+begin
+  Result := False;
+  LLen := Length(AText);
+  LIndex := 1;
+  while LIndex <= LLen do
+  begin
+    if AText[LIndex] = '=' then
+    begin
+      Inc(LIndex);
+      while (LIndex <= LLen) and (AText[LIndex] in [' ', #9]) do
+        Inc(LIndex);
+      if (LIndex + 1 <= LLen) and (AText[LIndex] = '[') and (AText[LIndex + 1] = '[') then
+        Exit(True);
+      Continue;
+    end;
+    Inc(LIndex);
+  end;
+end;
+
 function Parse(const AText: RawByteString; out ADoc: ITomlDocument; out AErr: TTomlError; const AFlags: TTomlReadFlags): Boolean;
 begin
-  // Default to V2; allow forcing legacy V1 via trfUseV1
+  // Explicit parser selection keeps deterministic behavior.
   if (trfUseV1 in AFlags) then
     Exit(_Parse_Internal_V1(AText, ADoc, AErr, AFlags));
-  Result := TomlParseV2(AText, ADoc, AErr);
+  if (trfUseV2 in AFlags) then
+    Exit(TomlParseV2(AText, ADoc, AErr));
+
+  // Nested array literals (e.g. a = [[1,2],[3,4]]) are handled by V2.
+  if HasNestedArrayLiteral(AText) then
+    Exit(TomlParseV2(AText, ADoc, AErr));
+
+  // Default path keeps legacy-compatible semantics.
+  Result := _Parse_Internal_V1(AText, ADoc, AErr, AFlags);
 end;
 
 function ParseWithLimits(const AText: RawByteString; const ALimits: TTomlLimits; out ADoc: ITomlDocument; out AErr: TTomlError; const AFlags: TTomlReadFlags): Boolean;
@@ -1658,6 +1690,8 @@ end;
   function ReadInteger(out AOut: Int64): Boolean; inline;
   var
     LNeg, PrevUnderscore: Boolean;
+    LDigitCount: SizeInt;
+    LFirstDigitZero: Boolean;
   begin
     AOut := 0;
     LNeg := False;
@@ -1665,6 +1699,8 @@ end;
     else if (P < PEnd) and (P^ = '-') then begin LNeg := True; Inc(P); end;
     if (P >= PEnd) or not (P^ in ['0'..'9']) then Exit(False);
     // 主循环，禁止连续 '_'，禁止以 '_' 结束
+    LDigitCount := 0;
+    LFirstDigitZero := False;
     PrevUnderscore := False;
     while (P < PEnd) and (P^ in ['0'..'9','_']) do
     begin
@@ -1676,6 +1712,11 @@ end;
         continue;
       end;
       PrevUnderscore := False;
+      Inc(LDigitCount);
+      if LDigitCount = 1 then
+        LFirstDigitZero := (P^ = '0')
+      else if LFirstDigitZero then
+        Exit(False); // 十进制整数禁止前导零（如 01、0_1）
       AOut := AOut * 10 + Ord(P^) - Ord('0');
       Inc(P);
     end;
@@ -1692,6 +1733,8 @@ end;
     Tmp, Tmp2: String;
     I: SizeInt;
     PrevUnderscore: Boolean;
+    LIntDigitCount: SizeInt;
+    LFirstDigitZero: Boolean;
   begin
     AOut := 0.0;
     L0 := P;
@@ -1699,6 +1742,8 @@ end;
     if (P < PEnd) and (P^ in ['+','-']) then Inc(P);
     if (P >= PEnd) or not (P^ in ['0'..'9']) then Exit(False);
     // 收集整数部分，禁止连续 '_'，禁止以 '_' 结束
+    LIntDigitCount := 0;
+    LFirstDigitZero := False;
     PrevUnderscore := False;
     while (P < PEnd) and (P^ in ['0'..'9','_']) do
     begin
@@ -1711,12 +1756,17 @@ end;
       else
       begin
         PrevUnderscore := False;
+        Inc(LIntDigitCount);
+        if LIntDigitCount = 1 then
+          LFirstDigitZero := (P^ = '0')
+        else if LFirstDigitZero then begin P := L0; Exit(False); end; // 浮点整数部分禁止前导零
         Inc(P);
       end;
     end;
     // 小数点
     if (P < PEnd) and (P^ = '.') then
     begin
+      if PrevUnderscore then begin P := L0; Exit(False); end; // 禁止 1_.2
       HasDot := True; Inc(P);
       // 小数点后不能紧跟 '_'，且必须至少一位数字
       if (P >= PEnd) or (P^ = '_') or not (P^ in ['0'..'9','_']) then begin P := L0; Exit(False); end;
@@ -1782,6 +1832,7 @@ end;
   end;
 begin
   AErr.Clear;
+  if AFlags <> [] then;
   LRoot := TTomlSimpleTable.Create as ITomlMutableTable;
   // 初始化解析上下文
   LContext := nil;
@@ -2337,6 +2388,7 @@ var
   LSize: SizeInt;
 begin
   AErr.Clear;
+  LText := '';
   if (AStream = nil) then
   begin
     // 参数错误：统一使用 SetErrorAtStart 标准化定位（Position=0, Line=1, Column=1）
@@ -2657,7 +2709,7 @@ var
     var
       Count: Integer;
     begin
-      SetLength(Result, 0);
+      Result := nil;
       if T = nil then Exit;
       // 先统计数量以便分配
       Count := 0;
@@ -2707,7 +2759,7 @@ var
     var
       Count: Integer;
     begin
-      SetLength(Result, 0);
+      Result := nil;
       if T = nil then Exit;
       Count := 0;
       I := 0;

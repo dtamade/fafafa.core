@@ -30,6 +30,19 @@ function sve2_mul_lane_u32(const a: TSVEVector; const b: TSVEVector; lane: Integ
 
 implementation
 
+uses
+  SysUtils;
+
+procedure EnsureExperimentalIntrinsicsEnabled; inline;
+begin
+  {$IFNDEF FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS}
+  raise ENotSupportedException.Create(
+    'fafafa.core.simd.intrinsics.sve2 is experimental placeholder semantics. ' +
+    'Define FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS to opt in.'
+  );
+  {$ENDIF}
+end;
+
 {$IFDEF CPUAARCH64}
 
 // === SVE2 函数的简化实�?===
@@ -95,6 +108,9 @@ end;
 {$ELSE}
 // �?AArch64 平台的空实现
 {$ENDIF} // CPUAARCH64
+
+initialization
+  EnsureExperimentalIntrinsicsEnabled;
 
 end.
 

@@ -95,6 +95,10 @@ implementation
 uses
   fafafa.core.math;
 
+type
+  TTarBlockBuf = array[0..511] of Byte;
+  TTarIOBuf = array[0..8191] of Byte;
+
 { TTarEntry }
 
 function TTarEntry.GetName: string; begin Result := FName; end;
@@ -109,9 +113,9 @@ begin
   Result := Round((DT - 25569) * 86400.0);
 end;
 
-procedure ZeroFill(var H: TTarHeader);
+procedure ZeroFill(out H: TTarHeader);
 begin
-  FillChar(H, SizeOf(H), 0);
+  H := Default(TTarHeader);
 end;
 
 procedure PutString(var Dest; MaxLen: SizeInt; const S: AnsiString);
@@ -167,7 +171,7 @@ begin
 end;
 
 procedure WritePaxExtendedHeader(const Dest: TStream; const Path: string; const MTime: Int64; IncludeMTime: Boolean);
-var H: TTarHeader; payload: TMemoryStream; paxPath: AnsiString; pad: Int64; zeros: array[0..511] of byte; chunk: SizeInt;
+var H: TTarHeader; payload: TMemoryStream; paxPath: AnsiString; pad: Int64; zeros: TTarBlockBuf; chunk: SizeInt;
 begin
   payload := TMemoryStream.Create;
   try
@@ -195,7 +199,7 @@ begin
       Dest.CopyFrom(payload, payload.Size);
       pad := (512 - (payload.Size mod 512)) mod 512;
       if pad > 0 then begin
-        FillChar(zeros, SizeOf(zeros), 0);
+        zeros := Default(TTarBlockBuf);
         while pad > 0 do begin
           if pad > SizeOf(zeros) then chunk := SizeOf(zeros) else chunk := pad;
           Dest.WriteBuffer(zeros, chunk);
@@ -254,9 +258,9 @@ begin
 end;
 
 procedure WriteZeros(const Dest: TStream; Count: Int64);
-var buf: array[0..511] of byte; n: Int64;
+var buf: TTarBlockBuf; n: Int64;
 begin
-  FillChar(buf, SizeOf(buf), 0);
+  buf := Default(TTarBlockBuf);
   while Count > 0 do begin
     if Count >= SizeOf(buf) then n := SizeOf(buf) else n := Count;
     Dest.WriteBuffer(buf, n);
@@ -308,7 +312,7 @@ end;
 
 
 procedure TTarWriter.AddStream(const ArchivePath: string; const Source: TStream; const ModifiedUtc: TDateTime);
-var name, norm: string; mtime: Int64; size: Int64; buf: array[0..8191] of byte; n: SizeInt; remain, pad: Int64;
+var name, norm: string; mtime: Int64; size: Int64; buf: TTarIOBuf; n: SizeInt; remain, pad: Int64;
 begin
   name := ArchivePath;
   if (name <> '') and (name[Length(name)] = '/') then
@@ -326,6 +330,7 @@ begin
     WritePaxExtendedHeader(FDest, name, mtime, not FDeterministic);
   WriteHeader(FDest, name, size, mtime, False, FDeterministic);
   // copy payload
+  buf := Default(TTarIOBuf);
   remain := size;
   while remain > 0 do begin
     if remain > SizeOf(buf) then n := SizeOf(buf) else n := remain;
@@ -348,9 +353,11 @@ begin
 end;
 
 procedure ParsePaxPayload(const Src: TStream; Count: Int64; out OutPath: string; out HavePath: Boolean; out OutMTime: Int64; out HaveMTime: Boolean);
-var buf: array[0..8191] of byte; tmp: RawByteString; n: SizeInt; s: RawByteString; i, sp: SizeInt; line: RawByteString; L: Integer; key, val: string;
+var buf: TTarIOBuf; tmp: RawByteString; n: SizeInt; s: RawByteString; i, sp: SizeInt; line: RawByteString; L: Integer; key, val: string;
 begin
   HavePath := False; HaveMTime := False; OutPath := ''; OutMTime := 0;
+  buf := Default(TTarIOBuf);
+  tmp := '';
   while Count > 0 do begin
     if Count > SizeOf(buf) then n := SizeOf(buf) else n := Count;
     n := Src.Read(buf, n);
@@ -380,7 +387,7 @@ begin
       if sp > 0 then begin
         key := Copy(string(line), 1, sp-1);
         val := Copy(string(line), sp+1, MaxInt);
-        if key = 'path' then begin OutPath := UTF8Decode(AnsiString(val)); HavePath := True; end
+        if key = 'path' then begin OutPath := AnsiString(UTF8Decode(AnsiString(val))); HavePath := True; end
         else if key = 'mtime' then begin HaveMTime := TryStrToInt64(val, OutMTime); end;
       end;
     end;
@@ -448,9 +455,10 @@ end;
 
 procedure ConsumeBytes(const S: TStream; Count: Int64);
 var
-  buf: array[0..8191] of byte;
+  buf: TTarIOBuf;
   n: Integer;
 begin
+  buf := Default(TTarIOBuf);
   while Count > 0 do
   begin
     if Count > SizeOf(buf) then n := SizeOf(buf) else n := Count;
@@ -524,6 +532,7 @@ begin
   if FRemain > 0 then ConsumeBytes(FSource, FRemain + FPad);
   FRemain := 0; FPad := 0; FCurrent := nil;
 
+  H := Default(TTarHeader);
   r := FSource.Read(H, SizeOf(H));
   if r = 0 then exit(False);
   if r <> SizeOf(H) then raise EArchiverError.Create('tar: short read');
@@ -535,11 +544,13 @@ begin
     FPad := (512 - (size mod 512)) mod 512;
     if FPad > 0 then ConsumeBytes(FSource, FPad);
     // 读取下一头部
+    H := Default(TTarHeader);
     r := FSource.Read(H, SizeOf(H));
     if r <> SizeOf(H) then raise EArchiverError.Create('tar: short read after pax');
   end;
   if IsAllZero(H, SizeOf(H)) then begin
     // 读到第一个全零块；再读一块确认
+    H := Default(TTarHeader);
     r := FSource.Read(H, SizeOf(H));
     if (r = SizeOf(H)) and IsAllZero(H, SizeOf(H)) then begin FEOF := True; exit(False); end
     else begin
@@ -592,10 +603,11 @@ begin
 end;
 
 procedure TTarReader.ExtractCurrentToStream(const Dest: TStream);
-var buf: array[0..8191] of byte; toRead, n: SizeInt;
+var buf: TTarIOBuf; toRead, n: SizeInt;
 begin
   if (FCurrent = nil) then raise EArchiverError.Create('tar: no current entry');
   if FCurrent.FIsDir then exit; // 目录无内容
+  buf := Default(TTarIOBuf);
   toRead := 0;
   while FRemain > 0 do begin
     if FRemain > SizeOf(buf) then toRead := SizeOf(buf) else toRead := FRemain;

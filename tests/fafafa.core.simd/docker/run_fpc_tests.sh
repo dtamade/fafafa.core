@@ -19,19 +19,62 @@ LOG_DIR="logs"
 
 BUILD_LOG="${LOG_DIR}/fpc_build_${TARGET}.txt"
 TEST_LOG="${LOG_DIR}/fpc_test_${TARGET}.txt"
+MODE="${FAFAFA_BUILD_MODE:-Release}"
+FPC_EXTRA_DEFINES_STRING="${SIMD_FPC_EXTRA_DEFINES:-}"
+FPC_EXTRA_ARGS_STRING="${SIMD_FPC_EXTRA_ARGS:-}"
+FPC_EXTRA_DEFINES=()
+FPC_EXTRA_ARGS=()
+
+normalize_mode() {
+  case "${MODE}" in
+    Debug|debug)
+      MODE="Debug"
+      ;;
+    Release|release)
+      MODE="Release"
+      ;;
+    *)
+      echo "[ERROR] Unsupported FAFAFA_BUILD_MODE=${MODE} (expect Debug|Release)"
+      exit 2
+      ;;
+  esac
+}
+
+if [[ -n "${FPC_EXTRA_DEFINES_STRING}" ]]; then
+  read -r -a FPC_EXTRA_DEFINES <<< "${FPC_EXTRA_DEFINES_STRING}"
+fi
+if [[ -n "${FPC_EXTRA_ARGS_STRING}" ]]; then
+  read -r -a FPC_EXTRA_ARGS <<< "${FPC_EXTRA_ARGS_STRING}"
+fi
 
 mkdir -p "${BIN_DIR}" "${UNIT_DIR}" "${LOG_DIR}"
+normalize_mode
 
-echo "[FPC] version=$(fpc -iV) target=${TARGET}"
+echo "[FPC] version=$(fpc -iV) target=${TARGET} mode=${MODE}"
+if [[ -n "${FPC_EXTRA_DEFINES_STRING}" ]]; then
+  echo "[FPC] extra-defines=${FPC_EXTRA_DEFINES_STRING}"
+fi
+if [[ -n "${FPC_EXTRA_ARGS_STRING}" ]]; then
+  echo "[FPC] extra-args=${FPC_EXTRA_ARGS_STRING}"
+fi
 
 echo "[BUILD] fpc fafafa.core.simd.test.lpr"
 : >"${BUILD_LOG}"
 
-# DEBUG define enables the project's debug assertions/bounds checks via fafafa.core.settings.inc
-# -gh enables heaptrc leak reporting.
-if fpc -B -Mobjfpc -Sc -Si -O1 -g -gl -gh -dDEBUG \
+FPC_MODE_FLAGS=()
+if [[ "${MODE}" == "Debug" ]]; then
+  # Debug: keep assertions and debug define.
+  FPC_MODE_FLAGS=(-O1 -g -gl -gh -dDEBUG)
+else
+  # Release: no DEBUG define, keep heaptrc for leak gate parity.
+  FPC_MODE_FLAGS=(-O2 -gl -gh)
+fi
+
+if fpc -B -Mobjfpc -Sc -Si "${FPC_MODE_FLAGS[@]}" \
   -Fu../../src -Fi../../src \
   -FE"${BIN_DIR}" -FU"${UNIT_DIR}" \
+  "${FPC_EXTRA_DEFINES[@]}" \
+  "${FPC_EXTRA_ARGS[@]}" \
   fafafa.core.simd.test.lpr >"${BUILD_LOG}" 2>&1; then
   echo "[BUILD] OK"
 else
@@ -49,6 +92,11 @@ if grep -nE '(^|.*/)src/fafafa\.core\.simd\..*(Warning:|Hint:)' "${BUILD_LOG}" >
 fi
 
 echo "[CHECK] OK (no SIMD-unit warnings/hints)"
+
+if [[ "${SIMD_RUN_ONLY_BUILD:-0}" != "0" ]]; then
+  echo "[TEST] SKIP (SIMD_RUN_ONLY_BUILD=${SIMD_RUN_ONLY_BUILD})"
+  exit 0
+fi
 
 BIN="${BIN_DIR}/fafafa.core.simd.test"
 if [[ ! -x "${BIN}" ]]; then

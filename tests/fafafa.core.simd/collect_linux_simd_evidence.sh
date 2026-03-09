@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+TS="$(date +%Y%m%d-%H%M%S)"
+OUT_DIR="${SCRIPT_DIR}/logs/evidence-${TS}"
+mkdir -p "${OUT_DIR}"
+ENABLE_QEMU_EXPERIMENTAL="${SIMD_EVIDENCE_QEMU_EXPERIMENTAL:-0}"
+
+run_step() {
+  local a_name="$1"
+  shift
+  local a_log_file="${OUT_DIR}/${a_name}.log"
+  echo "[EVIDENCE] >>> ${a_name}" | tee -a "${OUT_DIR}/_runner.log"
+  (
+    cd "${ROOT_DIR}"
+    "$@"
+  ) 2>&1 | tee "${a_log_file}"
+}
+
+run_step sse_intrinsics bash tests/fafafa.core.simd.intrinsics.sse/BuildOrTest.sh test
+run_step mmx_intrinsics bash tests/fafafa.core.simd.intrinsics.mmx/BuildOrTest.sh test
+run_step coverage bash tests/fafafa.core.simd/BuildOrTest.sh coverage
+run_step coverage_strict env SIMD_COVERAGE_STRICT_EXTRA=1 bash tests/fafafa.core.simd/BuildOrTest.sh coverage
+run_step wiring_sync_strict env SIMD_WIRING_SYNC_STRICT_EXTRA=1 bash tests/fafafa.core.simd/BuildOrTest.sh wiring-sync
+run_step advanced bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_AdvancedAlgorithms
+run_step nonx86_ieee754 bash tests/fafafa.core.simd/BuildOrTest.sh nonx86-ieee754
+run_step backend_bench bash tests/fafafa.core.simd/run_backend_benchmarks.sh
+if [[ "${ENABLE_QEMU_EXPERIMENTAL}" != "0" ]]; then
+  run_step qemu_experimental_report bash tests/fafafa.core.simd/BuildOrTest.sh qemu-experimental-report
+  run_step qemu_experimental_baseline bash tests/fafafa.core.simd/BuildOrTest.sh qemu-experimental-baseline-check
+else
+  {
+    echo "[QEMU-EXPERIMENTAL] SKIP (set SIMD_EVIDENCE_QEMU_EXPERIMENTAL=1 to enable)"
+  } > "${OUT_DIR}/qemu_experimental_report.log"
+  {
+    echo "[QEMU-EXPERIMENTAL] SKIP (set SIMD_EVIDENCE_QEMU_EXPERIMENTAL=1 to enable)"
+  } > "${OUT_DIR}/qemu_experimental_baseline.log"
+fi
+run_step perf_smoke bash tests/fafafa.core.simd/BuildOrTest.sh perf-smoke
+run_step gate bash tests/fafafa.core.simd/BuildOrTest.sh gate
+
+{
+  echo "# SIMD Linux Evidence (${TS})"
+  echo
+  echo "- Root: ${ROOT_DIR}"
+  echo "- Output: ${OUT_DIR}"
+  echo
+  echo "## SSE intrinsics"
+  grep -E "\[BUILD\]|\[CHECK\]|\[TEST\]|\[LEAK\]" "${OUT_DIR}/sse_intrinsics.log" || true
+  echo
+  echo "## MMX intrinsics"
+  grep -E "\[BUILD\]|\[CHECK\]|\[TEST\]|\[LEAK\]" "${OUT_DIR}/mmx_intrinsics.log" || true
+  echo
+  echo "## Coverage"
+  grep -E "declared=|\[COVERAGE\]" "${OUT_DIR}/coverage.log" || true
+  echo
+  echo "## Coverage Strict"
+  grep -E "declared=|\[COVERAGE\]" "${OUT_DIR}/coverage_strict.log" || true
+  echo
+  echo "## Wiring Sync Strict"
+  grep -E "\[WIRING-SYNC\]|WIRING_SYNC_SUMMARY" "${OUT_DIR}/wiring_sync_strict.log" || true
+  echo
+  echo "## AdvancedAlgorithms"
+  grep -E "\[BUILD\]|\[TEST\]|\[LEAK\]" "${OUT_DIR}/advanced.log" || true
+  echo
+  echo "## NonX86 IEEE754"
+  grep -E "\[BUILD\]|\[TEST\]|\[LEAK\]|No non-x86 backend available" "${OUT_DIR}/nonx86_ieee754.log" || true
+  echo
+  echo "## Backend Benchmarks"
+  grep -E "\[BENCH\]|^\[SKIP\]|^===|Average Speedup:" "${OUT_DIR}/backend_bench.log" || true
+  echo
+  echo "## QEMU Experimental Report"
+  grep -E "\[QEMU-EXPERIMENTAL|SKIP|output=|platform_rows=|parsed_errors=" "${OUT_DIR}/qemu_experimental_report.log" || true
+  echo
+  echo "## QEMU Experimental Baseline"
+  grep -E "\[QEMU-EXPERIMENTAL-BASELINE|SKIP|errors:|warnings:|OK" "${OUT_DIR}/qemu_experimental_baseline.log" || true
+  echo
+  echo "## Perf Smoke"
+  grep -E "\[BUILD\]|\[TEST\]|\[LEAK\]|\[PERF\]" "${OUT_DIR}/perf_smoke.log" || true
+  echo
+  echo "## Gate"
+  grep -E "\[GATE\]|Total:|Passed:|Failed:|\[CHECK\]" "${OUT_DIR}/gate.log" || true
+} > "${OUT_DIR}/summary.md"
+
+echo "[EVIDENCE] DONE: ${OUT_DIR}"
+echo "[EVIDENCE] SUMMARY: ${OUT_DIR}/summary.md"

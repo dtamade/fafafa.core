@@ -302,6 +302,19 @@ procedure simd_stream_si64(var Dest; Value: Int64); // Non-temporal store 64-bit
 
 implementation
 
+uses
+  SysUtils;
+
+procedure EnsureExperimentalIntrinsicsEnabled; inline;
+begin
+  {$IFNDEF FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS}
+  raise ENotSupportedException.Create(
+    'fafafa.core.simd.intrinsics.x86.sse2 is experimental placeholder semantics. ' +
+    'Define FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS to opt in.'
+  );
+  {$ENDIF}
+end;
+
 // === SSE2 Intrinsics 实现 ===
 // 目前提供占位实现，后续将添加实际的内联汇编代�?
 // === 1️⃣ Load / Store 实现 ===
@@ -4277,6 +4290,9 @@ asm
     {$ERROR Unsupported CPU}
 {$ENDIF}
 end;
+
+initialization
+  EnsureExperimentalIntrinsicsEnabled;
 
 end.
 

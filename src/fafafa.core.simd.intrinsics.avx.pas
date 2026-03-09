@@ -20,6 +20,13 @@ interface
 uses
   fafafa.core.simd.intrinsics.base;
 
+{
+  Experimental status (2026-02-17):
+  - This unit still contains placeholder implementations for several AVX APIs.
+  - It should not be used as a default public entry path.
+  - It remains available as an internal bridge for AVX2-focused tests.
+}
+
 // === AVX 256-bit 浮点运算 ===
 // Load/Store
 function avx_load_ps256(const Ptr: Pointer): TM256;
@@ -122,7 +129,18 @@ procedure avx_zeroall;
 implementation
 
 uses
+  SysUtils,
   Math;  // RTL Math 单元 (Sqrt)
+
+procedure EnsureExperimentalIntrinsicsEnabled; inline;
+begin
+  {$IFNDEF FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS}
+  raise ENotSupportedException.Create(
+    'fafafa.core.simd.intrinsics.avx is experimental placeholder semantics. ' +
+    'Define FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS to opt in.'
+  );
+  {$ENDIF}
+end;
 
 // === 基础函数实现 (Pascal 版本) ===
 function avx_load_ps256(const Ptr: Pointer): TM256;
@@ -497,6 +515,9 @@ function avx_testnzc_pd256(const a, b: TM256): Boolean; begin Result := False; e
 
 procedure avx_zeroupper; begin end;
 procedure avx_zeroall; begin end;
+
+initialization
+  EnsureExperimentalIntrinsicsEnabled;
 
 end.
 

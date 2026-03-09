@@ -391,6 +391,7 @@ type
     FAllocator: IAllocator;
     FFlags: TJsonReadFlags;
     FBuffer: RawByteString;
+    FPendingFeedLen: SizeUInt;
   public
     constructor Create(ABufferCapacity: SizeUInt; AAllocator: IAllocator; AFlags: TJsonReadFlags);
     destructor Destroy; override;
@@ -1181,39 +1182,136 @@ end;
 { TJsonStreamReaderImpl }
 
 constructor TJsonStreamReaderImpl.Create(ABufferCapacity: SizeUInt; AAllocator: IAllocator; AFlags: TJsonReadFlags);
+var
+  LCapacity: SizeUInt;
 begin
   inherited Create;
-  FAllocator := AAllocator;
+
+  if Assigned(AAllocator) then
+    FAllocator := AAllocator
+  else
+    FAllocator := GetRtlAllocator();
+
   FFlags := AFlags;
-  FState := nil;
-  FBuffer := '';
-  // TODO: Initialize incremental reader state
+  if ABufferCapacity = 0 then
+    LCapacity := 4096
+  else
+    LCapacity := ABufferCapacity;
+
+  SetLength(FBuffer, LCapacity);
+  FPendingFeedLen := 0;
+
+  if LCapacity > 0 then
+    FState := JsonIncrNew(PChar(FBuffer), LCapacity, FFlags, FAllocator)
+  else
+    FState := nil;
 end;
 
 destructor TJsonStreamReaderImpl.Destroy;
 begin
-  // TODO: Free incremental reader state
+  if Assigned(FState) then
+  begin
+    JsonIncrFree(FState);
+    FState := nil;
+  end;
+
+  FPendingFeedLen := 0;
+  FBuffer := '';
   FAllocator := nil;
+
   inherited Destroy;
 end;
 
 function TJsonStreamReaderImpl.Feed(const AChunk: PChar; ALength: SizeUInt): Integer;
+var
+  LWriteOffset: SizeUInt;
+  LDst: PByte;
 begin
-  // TODO: Implement incremental feeding
-  Result := 0; // Success placeholder
+  if not Assigned(FState) then
+    Exit(Ord(jecInvalidParameter));
+
+  if (AChunk = nil) or (ALength = 0) then
+    Exit(Ord(jecInvalidParameter));
+
+  LWriteOffset := FState^.Avail + FPendingFeedLen;
+  if (LWriteOffset + ALength > FState^.BufCap) then
+    Exit(Ord(jecInvalidParameter));
+
+  LDst := FState^.Buf + LWriteOffset;
+  Move(AChunk^, LDst^, ALength);
+  Inc(FPendingFeedLen, ALength);
+
+  Result := 0;
 end;
 
 function TJsonStreamReaderImpl.TryRead(out ADoc: IJsonDocument): Integer;
+var
+  LDoc: TJsonDocument;
+  LError: TJsonError;
+  LUseFlags: TJsonReadFlags;
+  LSliceStart: PByte;
+  LSliceLen: SizeUInt;
 begin
   ADoc := nil;
-  // TODO: Implement incremental reading
-  Result := -1; // No document available yet
+
+  if not Assigned(FState) then
+    Exit(Ord(jecInvalidParameter));
+
+  if FPendingFeedLen > 0 then
+  begin
+    LError := Default(TJsonError);
+    LDoc := JsonIncrRead(FState, FPendingFeedLen, LError);
+    FPendingFeedLen := 0;
+
+    if Assigned(LDoc) then
+    begin
+      ADoc := JsonWrapDocument(LDoc);
+      Exit(0);
+    end;
+
+    Result := Ord(LError.Code);
+    if Result = Ord(jecSuccess) then
+      Result := Ord(jecMore);
+    Exit;
+  end;
+
+  if FState^.Consumed >= FState^.Avail then
+    Exit(Ord(jecMore));
+
+  LSliceStart := FState^.Buf + FState^.Consumed;
+  LSliceLen := FState^.Avail - FState^.Consumed;
+  LUseFlags := FFlags + [jrfStopWhenDone];
+  LError := Default(TJsonError);
+
+  LDoc := JsonReadOpts(PChar(LSliceStart), LSliceLen, LUseFlags, FAllocator, LError);
+  if Assigned(LDoc) then
+  begin
+    Inc(FState^.Consumed, JsonDocGetReadSize(LDoc));
+    if FState^.Consumed >= FState^.Avail then
+    begin
+      FState^.Consumed := 0;
+      FState^.Avail := 0;
+    end;
+
+    ADoc := JsonWrapDocument(LDoc);
+    Exit(0);
+  end;
+
+  Result := Ord(LError.Code);
+  if Result = Ord(jecSuccess) then
+    Result := Ord(jecMore);
 end;
 
 procedure TJsonStreamReaderImpl.Reset;
 begin
-  // TODO: Reset incremental state
-  FBuffer := '';
+  if Assigned(FState) then
+  begin
+    FState^.Avail := 0;
+    FState^.Consumed := 0;
+    FState^.PendingUtf8 := 0;
+  end;
+
+  FPendingFeedLen := 0;
 end;
 
 

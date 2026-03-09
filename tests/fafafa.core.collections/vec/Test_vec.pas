@@ -7343,10 +7343,48 @@ begin
 end;
 
 procedure TTestCase_Vec.Test_Contains_StartIndex_RefFunc;
+var
+  LVec: specialize TVec<Integer>;
 begin
   { 测试 Contains(const aValue: T; aStartIndex: SizeUInt; aEquals: TEqualsRefFunc<T>) }
   {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
-  AssertTrue('Contains_StartIndex_RefFunc test placeholder', True);
+  LVec := specialize TVec<Integer>.Create([10, 20, 30, 40, 50]);
+  try
+    AssertTrue('Should find with custom comparison from start index',
+      LVec.Contains(31, 2,
+        function(const aValue1, aValue2: Integer): Boolean
+        begin
+          Result := aValue1 = aValue2 + 1;
+        end));  // 30 + 1 = 31（索引2）
+
+    AssertFalse('Should not find element before start index',
+      LVec.Contains(21, 2,
+        function(const aValue1, aValue2: Integer): Boolean
+        begin
+          Result := aValue1 = aValue2 + 1;
+        end));  // 20 + 1 = 21 仅在索引1
+
+    AssertFalse('Should not find non-existent element with custom comparison',
+      LVec.Contains(99, 0,
+        function(const aValue1, aValue2: Integer): Boolean
+        begin
+          Result := aValue1 = aValue2 + 1;
+        end));
+
+    AssertException(
+      'Should raise exception for out of range start index',
+      fafafa.core.base.EOutOfRange,
+      procedure
+      begin
+        LVec.Contains(11, 10,
+          function(const aValue1, aValue2: Integer): Boolean
+          begin
+            Result := aValue1 = aValue2 + 1;
+          end);
+      end);
+  finally
+    LVec.Free;
+  end;
   {$ELSE}
   AssertTrue('Anonymous functions not supported, test skipped', True);
   {$ENDIF}
@@ -7419,10 +7457,60 @@ begin
 end;
 
 procedure TTestCase_Vec.Test_Contains_StartIndex_Count_RefFunc;
+var
+  LVec: specialize TVec<Integer>;
 begin
   { 测试 Contains(const aValue: T; aStartIndex, aCount: SizeUInt; aEquals: TEqualsRefFunc<T>) }
   {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
-  AssertTrue('Contains_StartIndex_Count_RefFunc test placeholder', True);
+  LVec := specialize TVec<Integer>.Create([5, 10, 15, 20, 25, 30]);
+  try
+    AssertTrue('Should find with custom comparison in specified range',
+      LVec.Contains(16, 1, 3,
+        function(const aValue1, aValue2: Integer): Boolean
+        begin
+          Result := aValue1 = aValue2 + 1;
+        end));  // 范围[1,3]内有 15 + 1 = 16
+
+    AssertFalse('Should not find value outside specified range',
+      LVec.Contains(6, 1, 3,
+        function(const aValue1, aValue2: Integer): Boolean
+        begin
+          Result := aValue1 = aValue2 + 1;
+        end));  // 5 + 1 = 6 在索引0，不在范围内
+
+    AssertFalse('Should return false for count 0',
+      LVec.Contains(16, 1, 0,
+        function(const aValue1, aValue2: Integer): Boolean
+        begin
+          Result := aValue1 = aValue2 + 1;
+        end));
+
+    AssertException(
+      'Should raise exception for out of range start index',
+      fafafa.core.base.EOutOfRange,
+      procedure
+      begin
+        LVec.Contains(6, 10, 1,
+          function(const aValue1, aValue2: Integer): Boolean
+          begin
+            Result := aValue1 = aValue2 + 1;
+          end);
+      end);
+
+    AssertException(
+      'Should raise exception for out of range count',
+      fafafa.core.base.EOutOfRange,
+      procedure
+      begin
+        LVec.Contains(6, 4, 3,
+          function(const aValue1, aValue2: Integer): Boolean
+          begin
+            Result := aValue1 = aValue2 + 1;
+          end);  // 4 + 3 > 6
+      end);
+  finally
+    LVec.Free;
+  end;
   {$ELSE}
   AssertTrue('Anonymous functions not supported, test skipped', True);
   {$ENDIF}
@@ -7461,10 +7549,29 @@ begin
 end;
 
 procedure TTestCase_Vec.Test_Contains_RefFunc;
+var
+  LVec: specialize TVec<Integer>;
 begin
   { 测试 Contains(const aValue: T; aEquals: TEqualsRefFunc<T>) }
   {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
-  AssertTrue('Contains_RefFunc test placeholder', True);
+  LVec := specialize TVec<Integer>.Create([2, 4, 6, 8]);
+  try
+    AssertTrue('Should find with custom ref function from start',
+      LVec.Contains(12, 0,
+        function(const aValue1, aValue2: Integer): Boolean
+        begin
+          Result := aValue1 = aValue2 * 2;
+        end));  // 6 * 2 = 12
+
+    AssertFalse('Should not find non-matching value with custom ref function',
+      LVec.Contains(7, 0,
+        function(const aValue1, aValue2: Integer): Boolean
+        begin
+          Result := aValue1 = aValue2 * 2;
+        end));
+  finally
+    LVec.Free;
+  end;
   {$ELSE}
   AssertTrue('Anonymous functions not supported, test skipped', True);
   {$ENDIF}
@@ -16008,24 +16115,21 @@ var
 {$ENDIF}
 begin
   {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
-  { 暂时跳过此测试，因为匿名函数类型不匹配问题 }
-  AssertTrue('Anonymous function Sort test temporarily skipped due to type mismatch', True);
-
-  { TODO: 修复匿名函数类型匹配问题后启用此测试
   LVec := specialize TVec<Integer>.Create;
   try
     LVec.Push([100, 50, 150, 75]);
 
-    // 使用匿名函数排序（降序）
     LVec.SortUnChecked(0, LVec.Count,
-      function(const aLeft, aRight: Integer): Integer
+      function(const aLeft, aRight: Integer): SizeInt
       begin
-        if aLeft > aRight then Result := -1
-        else if aLeft < aRight then Result := 1
-        else Result := 0;
+        if aLeft > aRight then
+          Result := -1
+        else if aLeft < aRight then
+          Result := 1
+        else
+          Result := 0;
       end);
 
-    // 验证降序排序结果
     AssertEquals('Should be descending: first element', 150, LVec.Get(0));
     AssertEquals('Should be descending: second element', 100, LVec.Get(1));
     AssertEquals('Should be descending: third element', 75, LVec.Get(2));
@@ -16033,7 +16137,6 @@ begin
   finally
     LVec.Free;
   end;
-  }
   {$ELSE}
   AssertTrue('Anonymous functions not supported, test skipped', True);
   {$ENDIF}
@@ -16474,8 +16577,37 @@ var
 {$ENDIF}
 begin
   {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
-    { 暂时跳过匿名函数测试，因为类型不匹配问题 }
-    AssertTrue('IsSorted with anonymous function test temporarily skipped (type issues)', True);
+    LVec := specialize TVec<Integer>.Create;
+    try
+      LVec.Push([1, 3, 5, 7]);
+      AssertTrue('Should detect ascending sorted sequence with ref func',
+        LVec.IsSortedUnChecked(0, LVec.Count,
+          function(const aLeft, aRight: Integer): SizeInt
+          begin
+            if aLeft < aRight then
+              Result := -1
+            else if aLeft > aRight then
+              Result := 1
+            else
+              Result := 0;
+          end));
+
+      LVec.Clear;
+      LVec.Push([7, 5, 3, 1]);
+      AssertFalse('Should detect descending sequence as unsorted for ascending comparator',
+        LVec.IsSortedUnChecked(0, LVec.Count,
+          function(const aLeft, aRight: Integer): SizeInt
+          begin
+            if aLeft < aRight then
+              Result := -1
+            else if aLeft > aRight then
+              Result := 1
+            else
+              Result := 0;
+          end));
+    finally
+      LVec.Free;
+    end;
   {$ELSE}
   AssertTrue('Anonymous functions not supported, test skipped', True);
   {$ENDIF}
@@ -16528,9 +16660,43 @@ begin
 end;
 
 procedure TTestCase_Vec.Test_BinarySearchUnChecked_RefFunc;
+{$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
+var
+  LVec: specialize TVec<Integer>;
+  LIndex: SizeInt;
+{$ENDIF}
 begin
   {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
-  AssertTrue('BinarySearch with anonymous function test skipped (type issues)', True);
+  LVec := specialize TVec<Integer>.Create;
+  try
+    LVec.Push([1, 3, 5, 7, 9]);
+
+    LIndex := LVec.BinarySearchUnChecked(7, 0, LVec.Count,
+      function(const aLeft, aRight: Integer): SizeInt
+      begin
+        if aLeft < aRight then
+          Result := -1
+        else if aLeft > aRight then
+          Result := 1
+        else
+          Result := 0;
+      end);
+    AssertEquals('Should find element with ref comparer', 3, LIndex);
+
+    LIndex := LVec.BinarySearchUnChecked(4, 0, LVec.Count,
+      function(const aLeft, aRight: Integer): SizeInt
+      begin
+        if aLeft < aRight then
+          Result := -1
+        else if aLeft > aRight then
+          Result := 1
+        else
+          Result := 0;
+      end);
+    AssertTrue('Should return negative for non-existing element', LIndex < 0);
+  finally
+    LVec.Free;
+  end;
   {$ELSE}
   AssertTrue('Anonymous functions not supported, test skipped', True);
   {$ENDIF}
@@ -16590,9 +16756,46 @@ begin
 end;
 
 procedure TTestCase_Vec.Test_BinarySearchInsertUnChecked_RefFunc;
+{$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
+var
+  LVec: specialize TVec<Integer>;
+  LIndex: SizeInt;
+  LInsertPos: SizeInt;
+{$ENDIF}
 begin
   {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
-  AssertTrue('BinarySearchInsert with anonymous function test skipped (type issues)', True);
+  LVec := specialize TVec<Integer>.Create;
+  try
+    LVec.Push([1, 3, 5, 7, 9]);
+
+    LIndex := LVec.BinarySearchInsertUnChecked(4, 0, LVec.Count,
+      function(const aLeft, aRight: Integer): SizeInt
+      begin
+        if aLeft < aRight then
+          Result := -1
+        else if aLeft > aRight then
+          Result := 1
+        else
+          Result := 0;
+      end);
+    AssertTrue('Insert position should be returned as negative encoded index', LIndex < 0);
+    LInsertPos := Abs(LIndex) - 1;
+    AssertEquals('Insert position for 4 should be index 2', 2, LInsertPos);
+
+    LIndex := LVec.BinarySearchInsertUnChecked(7, 0, LVec.Count,
+      function(const aLeft, aRight: Integer): SizeInt
+      begin
+        if aLeft < aRight then
+          Result := -1
+        else if aLeft > aRight then
+          Result := 1
+        else
+          Result := 0;
+      end);
+    AssertEquals('Existing element should return direct index', 3, LIndex);
+  finally
+    LVec.Free;
+  end;
   {$ELSE}
   AssertTrue('Anonymous functions not supported, test skipped', True);
   {$ENDIF}
