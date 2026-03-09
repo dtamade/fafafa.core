@@ -21,12 +21,10 @@ function XXH3_128Hash(const AData: TBytes; ASeed: QWord = 0): TBytes;
 
 implementation
 
+{$IFDEF FAFAFA_CRYPTO_ENABLE_XXH3}
 uses
-  {$IFDEF FAFAFA_CRYPTO_ENABLE_XXH3}
   fafafa.core.crypto.hash.xxh3_64; // 复用 XXH3_kSecret、ReadLE、Mul128_Fold64、mix16/avalanche 等
-  {$ELSE}
-  SysUtils;
-  {$ENDIF}
+{$ENDIF}
 
 function ReadLE32(const P: PByte): UInt32; inline;
 begin
@@ -201,7 +199,7 @@ begin
   // 占位：在未启用 XXH3 时，返回基于长度的确定性占位，避免链接错误（不会在门面暴露）
   h_lo := QWord(Len) * PRIME64_1;
   {$ENDIF}
-  h_hi := XXH3_avalanche((~(QWord(Len) * PRIME64_2)) xor h_lo);
+  h_hi := XXH3_avalanche(not (QWord(Len) * PRIME64_2) xor h_lo);
   Result.lo := h_lo; Result.hi := h_hi;
 end;
 

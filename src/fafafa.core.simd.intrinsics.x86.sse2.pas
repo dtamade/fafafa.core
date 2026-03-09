@@ -302,6 +302,19 @@ procedure simd_stream_si64(var Dest; Value: Int64); // Non-temporal store 64-bit
 
 implementation
 
+uses
+  SysUtils;
+
+procedure EnsureExperimentalIntrinsicsEnabled; inline;
+begin
+  {$IFNDEF FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS}
+  raise ENotSupportedException.Create(
+    'fafafa.core.simd.intrinsics.x86.sse2 is experimental placeholder semantics. ' +
+    'Define FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS to opt in.'
+  );
+  {$ENDIF}
+end;
+
 // === SSE2 Intrinsics 实现 ===
 // 目前提供占位实现，后续将添加实际的内联汇编代�?
 // === 1️⃣ Load / Store 实现 ===
@@ -316,7 +329,7 @@ asm
     movdqa xmm0, [rdi]
   {$ENDIF}
 {$ELSEIF CPUX86}
-    mov eax, [esp + 4]
+    // x86 32-bit: 参数在栈�?    mov eax, [esp + 4]
     movdqa xmm0, [eax]
 {$ELSE}
     {$ERROR Unsupported CPU}
@@ -334,7 +347,7 @@ asm
     movdqu xmm0, [rdi]
   {$ENDIF}
 {$ELSEIF CPUX86}
-    mov eax, [esp + 4]
+    // x86 32-bit: 参数在栈�?    mov eax, [esp + 4]
     movdqu xmm0, [eax]
 {$ELSE}
     {$ERROR Unsupported CPU}
@@ -346,19 +359,13 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     // Windows x64: Dest �?rcx, Src �?rdx
-    movdqa xmm0, [rdx]
-    movdqa [rcx], xmm0
-    {$ELSE}
+    movdqa xmm0, [rdx]    // 对齐加载源数�?    movdqa [rcx], xmm0    // 对齐存储到目�?  {$ELSE}
     // Linux/macOS x64 System V ABI: Dest �?rdi, Src �?rsi
-    movdqa xmm0, [rsi]
-    movdqa [rdi], xmm0
-    {$ENDIF}
+    movdqa xmm0, [rsi]    // 对齐加载源数�?    movdqa [rdi], xmm0    // 对齐存储到目�?  {$ENDIF}
 {$ELSEIF CPUX86}
-    mov eax, [esp + 4]
+    // x86 32-bit: 参数在栈�?    mov eax, [esp + 4]    // Dest
     mov edx, [esp + 8]    // Src
-    movdqa xmm0, [edx]
-    movdqa [eax], xmm0
-    {$ELSE}
+    movdqa xmm0, [edx]    // 对齐加载源数�?    movdqa [eax], xmm0    // 对齐存储到目�?{$ELSE}
     {$ERROR Unsupported CPU}
 {$ENDIF}
 end;
@@ -376,7 +383,7 @@ asm
     movdqu [rdi], xmm0    // 非对齐存储到目标
   {$ENDIF}
 {$ELSEIF CPUX86}
-    mov eax, [esp + 4]
+    // x86 32-bit: 参数在栈�?    mov eax, [esp + 4]    // Dest
     mov edx, [esp + 8]    // Src
     movdqu xmm0, [edx]    // 非对齐加载源数据
     movdqu [eax], xmm0    // 非对齐存储到目标
@@ -397,7 +404,7 @@ asm
     movapd xmm0, [rdi]
   {$ENDIF}
 {$ELSEIF CPUX86}
-    mov eax, [esp + 4]
+    // x86 32-bit: 参数在栈�?    mov eax, [esp + 4]
     movapd xmm0, [eax]
 {$ELSE}
     {$ERROR Unsupported CPU}
@@ -415,7 +422,7 @@ asm
     movupd xmm0, [rdi]
   {$ENDIF}
 {$ELSEIF CPUX86}
-    mov eax, [esp + 4]
+    // x86 32-bit: 参数在栈�?    mov eax, [esp + 4]
     movupd xmm0, [eax]
 {$ELSE}
     {$ERROR Unsupported CPU}
@@ -427,19 +434,13 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     // Windows x64: Dest �?rcx, Src �?rdx
-    movapd xmm0, [rdx]
-    movapd [rcx], xmm0
-    {$ELSE}
+    movapd xmm0, [rdx]    // 对齐加载源数�?    movapd [rcx], xmm0    // 对齐存储到目�?  {$ELSE}
     // Linux/macOS x64 System V ABI: Dest �?rdi, Src �?rsi
-    movapd xmm0, [rsi]
-    movapd [rdi], xmm0
-    {$ENDIF}
+    movapd xmm0, [rsi]    // 对齐加载源数�?    movapd [rdi], xmm0    // 对齐存储到目�?  {$ENDIF}
 {$ELSEIF CPUX86}
-    mov eax, [esp + 4]
+    // x86 32-bit: 参数在栈�?    mov eax, [esp + 4]    // Dest
     mov edx, [esp + 8]    // Src
-    movapd xmm0, [edx]
-    movapd [eax], xmm0
-    {$ELSE}
+    movapd xmm0, [edx]    // 对齐加载源数�?    movapd [eax], xmm0    // 对齐存储到目�?{$ELSE}
     {$ERROR Unsupported CPU}
 {$ENDIF}
 end;
@@ -457,7 +458,7 @@ asm
     movupd [rdi], xmm0    // 非对齐存储到目标
   {$ENDIF}
 {$ELSEIF CPUX86}
-    mov eax, [esp + 4]
+    // x86 32-bit: 参数在栈�?    mov eax, [esp + 4]    // Dest
     mov edx, [esp + 8]    // Src
     movupd xmm0, [edx]    // 非对齐加载源数据
     movupd [eax], xmm0    // 非对齐存储到目标
@@ -478,7 +479,7 @@ asm
     movaps xmm0, [rdi]
   {$ENDIF}
 {$ELSEIF CPUX86}
-    mov eax, [esp + 4]
+    // x86 32-bit: 参数在栈�?    mov eax, [esp + 4]
     movaps xmm0, [eax]
 {$ELSE}
     {$ERROR Unsupported CPU}
@@ -496,7 +497,7 @@ asm
     movups xmm0, [rdi]
   {$ENDIF}
 {$ELSEIF CPUX86}
-    mov eax, [esp + 4]
+    // x86 32-bit: 参数在栈�?    mov eax, [esp + 4]
     movups xmm0, [eax]
 {$ELSE}
     {$ERROR Unsupported CPU}
@@ -508,19 +509,13 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     // Windows x64: Dest �?rcx, Src �?rdx
-    movaps xmm0, [rdx]
-    movaps [rcx], xmm0
-    {$ELSE}
+    movaps xmm0, [rdx]    // 对齐加载源数�?    movaps [rcx], xmm0    // 对齐存储到目�?  {$ELSE}
     // Linux/macOS x64 System V ABI: Dest �?rdi, Src �?rsi
-    movaps xmm0, [rsi]
-    movaps [rdi], xmm0
-    {$ENDIF}
+    movaps xmm0, [rsi]    // 对齐加载源数�?    movaps [rdi], xmm0    // 对齐存储到目�?  {$ENDIF}
 {$ELSEIF CPUX86}
-    mov eax, [esp + 4]
+    // x86 32-bit: 参数在栈�?    mov eax, [esp + 4]    // Dest
     mov edx, [esp + 8]    // Src
-    movaps xmm0, [edx]
-    movaps [eax], xmm0
-    {$ELSE}
+    movaps xmm0, [edx]    // 对齐加载源数�?    movaps [eax], xmm0    // 对齐存储到目�?{$ELSE}
     {$ERROR Unsupported CPU}
 {$ENDIF}
 end;
@@ -538,7 +533,7 @@ asm
     movups [rdi], xmm0    // 非对齐存储到目标
   {$ENDIF}
 {$ELSEIF CPUX86}
-    mov eax, [esp + 4]
+    // x86 32-bit: 参数在栈�?    mov eax, [esp + 4]    // Dest
     mov edx, [esp + 8]    // Src
     movups xmm0, [edx]    // 非对齐加载源数据
     movups [eax], xmm0    // 非对齐存储到目标
@@ -551,7 +546,7 @@ end;
 function simd_setzero_si128: TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
   // Intel 语法: pxor xmm0, xmm0
-  pxor xmm0, xmm0
+  // �?xmm0 与自己异或，结果为全�?  pxor xmm0, xmm0
 end;
 
 function simd_setzero_pd: TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
@@ -573,11 +568,9 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     // Windows x64: Value �?rcx (�?�?
-    movd xmm0, ecx
-    punpcklbw xmm0, xmm0
+    movd xmm0, ecx        // �?Value 移到 xmm0 的低32�?    punpcklbw xmm0, xmm0  // 复制字节: 01010101 -> 0011001100110011
     punpcklwd xmm0, xmm0  // 复制�? 0011 -> 00001111
-    pshufd xmm0, xmm0, 0
-    {$ELSE}
+    pshufd xmm0, xmm0, 0  // 复制双字到所有位�?  {$ELSE}
     // Linux/macOS x64 System V ABI: Value �?rdi (�?�?
     movd xmm0, edi
     punpcklbw xmm0, xmm0
@@ -585,7 +578,7 @@ asm
     pshufd xmm0, xmm0, 0
   {$ENDIF}
 {$ELSEIF CPUX86}
-    mov eax, [esp + 4]
+    // x86 32-bit: Value 在栈�?    mov eax, [esp + 4]
     movd xmm0, eax
     punpcklbw xmm0, xmm0
     punpcklwd xmm0, xmm0
@@ -600,17 +593,15 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     // Windows x64: Value �?rcx (�?6�?
-    movd xmm0, ecx
-    punpcklwd xmm0, xmm0
-    pshufd xmm0, xmm0, 0
-    {$ELSE}
+    movd xmm0, ecx        // �?Value 移到 xmm0 的低32�?    punpcklwd xmm0, xmm0  // 复制�? 01 -> 0011
+    pshufd xmm0, xmm0, 0  // 复制双字到所有位�?  {$ELSE}
     // Linux/macOS x64 System V ABI: Value �?rdi (�?6�?
     movd xmm0, edi
     punpcklwd xmm0, xmm0
     pshufd xmm0, xmm0, 0
   {$ENDIF}
 {$ELSEIF CPUX86}
-    mov eax, [esp + 4]
+    // x86 32-bit: Value 在栈�?    mov eax, [esp + 4]
     movd xmm0, eax
     punpcklwd xmm0, xmm0
     pshufd xmm0, xmm0, 0
@@ -624,15 +615,14 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     // Windows x64: Value �?rcx (�?2�?
-    movd xmm0, ecx
-    pshufd xmm0, xmm0, 0
+    movd xmm0, ecx        // �?Value 移到 xmm0 的低32�?    pshufd xmm0, xmm0, 0  // 复制到所�?�?2位位�?(00000000b = 0)
   {$ELSE}
     // Linux/macOS x64 System V ABI: Value �?rdi (�?2�?
     movd xmm0, edi
     pshufd xmm0, xmm0, 0
   {$ENDIF}
 {$ELSEIF CPUX86}
-    mov eax, [esp + 4]
+    // x86 32-bit: Value 在栈�?    mov eax, [esp + 4]
     movd xmm0, eax
     pshufd xmm0, xmm0, 0
 {$ELSE}
@@ -645,17 +635,14 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     // Windows x64: Value �?rcx (64�?
-    movq xmm0, rcx
-    punpcklqdq xmm0, xmm0
-    {$ELSE}
+    movq xmm0, rcx        // �?Value 移到 xmm0 的低64�?    punpcklqdq xmm0, xmm0 // 复制�?4位到�?4�?  {$ELSE}
     // Linux/macOS x64 System V ABI: Value �?rdi (64�?
     movq xmm0, rdi
     punpcklqdq xmm0, xmm0
   {$ENDIF}
 {$ELSEIF CPUX86}
     // x86 32-bit: Value 在栈�?(8字节)
-    movq xmm0, [esp + 4]
-    punpcklqdq xmm0, xmm0
+    movq xmm0, [esp + 4]  // 直接从栈加载64�?    punpcklqdq xmm0, xmm0
 {$ELSE}
     {$ERROR Unsupported CPU}
 {$ENDIF}
@@ -672,9 +659,8 @@ asm
     shufps xmm0, xmm0, 0
   {$ENDIF}
 {$ELSEIF CPUX86}
-    movss xmm0, [esp + 4]
-    shufps xmm0, xmm0, 0
-    {$ELSE}
+    // x86 32-bit: Value 在栈�?    movss xmm0, [esp + 4] // 加载单精度浮点数
+    shufps xmm0, xmm0, 0  // 复制到所有位�?{$ELSE}
     {$ERROR Unsupported CPU}
 {$ENDIF}
 end;
@@ -684,16 +670,14 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     // Windows x64: Value �?xmm0 (双精度浮点参�?
-    unpcklpd xmm0, xmm0
-    {$ELSE}
+    unpcklpd xmm0, xmm0   // 复制�?4位到�?4�?  {$ELSE}
     // Linux/macOS x64 System V ABI: Value �?xmm0
     unpcklpd xmm0, xmm0
   {$ENDIF}
 {$ELSEIF CPUX86}
     // x86 32-bit: Value 在栈�?(8字节)
     movsd xmm0, [esp + 4] // 加载双精度浮点数
-    unpcklpd xmm0, xmm0
-    {$ELSE}
+    unpcklpd xmm0, xmm0   // 复制到高�?{$ELSE}
     {$ERROR Unsupported CPU}
 {$ENDIF}
 end;
@@ -724,7 +708,7 @@ asm
     punpcklqdq xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
-    mov eax, [esp + 4]
+    // x86 32-bit: 参数在栈�?    mov eax, [esp + 4]    // a
     mov edx, [esp + 8]    // b
     movd xmm0, eax
     movd xmm1, edx
@@ -764,7 +748,7 @@ asm
     punpcklqdq xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
-    mov eax, [esp + 16]
+    // x86 32-bit: 参数在栈�?    mov eax, [esp + 16]   // d
     mov edx, [esp + 12]   // c
     movd xmm0, eax
     movd xmm1, edx
@@ -791,7 +775,7 @@ asm
     unpcklpd xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
-    movsd xmm0, [esp + 4]
+    // x86 32-bit: 参数在栈�?    movsd xmm0, [esp + 4]  // a (8字节)
     movsd xmm1, [esp + 12] // b (8字节)
     unpcklpd xmm0, xmm1
 {$ELSE}
@@ -805,17 +789,13 @@ asm
   {$IFDEF WINDOWS}
     // Windows x64: a在rcx, b在rdx
     // 结果: [a, b] (�?4�? �?4�?
-    movq xmm0, rdx
-    movq xmm1, rcx
-    punpcklqdq xmm0, xmm1
+    movq xmm0, rdx        // b -> �?4�?    movq xmm1, rcx        // a -> �?4�?    punpcklqdq xmm0, xmm1 // xmm0 = [a, b]
   {$ELSE}
     // Linux/macOS x64 System V ABI: a在rdi, b在rsi
-    movq xmm0, rsi
-    movq xmm1, rdi
-    punpcklqdq xmm0, xmm1
+    movq xmm0, rsi        // b -> �?4�?    movq xmm1, rdi        // a -> �?4�?    punpcklqdq xmm0, xmm1 // xmm0 = [a, b]
   {$ENDIF}
 {$ELSEIF CPUX86}
-    movq xmm0, [esp + 12]
+    // x86 32-bit: 参数在栈�?    movq xmm0, [esp + 12] // b (8字节)
     movq xmm1, [esp + 4]  // a (8字节)
     punpcklqdq xmm0, xmm1
 {$ELSE}
@@ -834,15 +814,13 @@ asm
     // Windows x64: a �?rcx, b �?rdx
     movdqu xmm0, [rcx]    // 加载 a
     movdqu xmm1, [rdx]    // 加载 b
-    paddb xmm0, xmm1
-    {$ELSE}
+    paddb xmm0, xmm1      // 16�?位整数并行加�?  {$ELSE}
     // Linux/macOS x64 System V ABI: a �?rdi, b �?rsi
     movdqu xmm0, [rdi]    // 加载 a
     movdqu xmm1, [rsi]    // 加载 b
-    paddb xmm0, xmm1
-    {$ENDIF}
+    paddb xmm0, xmm1      // 16�?位整数并行加�?  {$ENDIF}
 {$ELSEIF CPUX86}
-    mov eax, [esp + 4]
+    // x86 32-bit: 参数在栈�?    mov eax, [esp + 4]    // a
     mov edx, [esp + 8]    // b
     movdqu xmm0, [eax]
     movdqu xmm1, [edx]
@@ -856,10 +834,7 @@ function simd_cmpeq_epi8(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nosta
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]
-    movdqu xmm1, [rdx]
-    pcmpeqb xmm0, xmm1
-    {$ELSE}
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pcmpeqb xmm0, xmm1  // 8位整数相等比�?  {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pcmpeqb xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -873,10 +848,7 @@ function simd_and_si128(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostac
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]
-    movdqu xmm1, [rdx]
-    pand xmm0, xmm1
-    {$ELSE}
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pand xmm0, xmm1  // 128位逻辑�?  {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pand xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -895,15 +867,13 @@ asm
     // Windows x64: a �?rcx, b �?rdx
     movdqu xmm0, [rcx]    // 加载 a
     movdqu xmm1, [rdx]    // 加载 b
-    paddw xmm0, xmm1
-    {$ELSE}
+    paddw xmm0, xmm1      // 8�?6位整数并行加�?  {$ELSE}
     // Linux/macOS x64 System V ABI: a �?rdi, b �?rsi
     movdqu xmm0, [rdi]    // 加载 a
     movdqu xmm1, [rsi]    // 加载 b
-    paddw xmm0, xmm1
-    {$ENDIF}
+    paddw xmm0, xmm1      // 8�?6位整数并行加�?  {$ENDIF}
 {$ELSEIF CPUX86}
-    mov eax, [esp + 4]
+    // x86 32-bit: 参数在栈�?    mov eax, [esp + 4]    // a
     mov edx, [esp + 8]    // b
     movdqu xmm0, [eax]
     movdqu xmm1, [edx]
@@ -920,15 +890,13 @@ asm
     // Windows x64: a �?rcx, b �?rdx
     movdqu xmm0, [rcx]    // 加载 a
     movdqu xmm1, [rdx]    // 加载 b
-    paddd xmm0, xmm1
-    {$ELSE}
+    paddd xmm0, xmm1      // 4�?2位整数并行加�?  {$ELSE}
     // Linux/macOS x64 System V ABI: a �?rdi, b �?rsi
     movdqu xmm0, [rdi]    // 加载 a
     movdqu xmm1, [rsi]    // 加载 b
-    paddd xmm0, xmm1
-    {$ENDIF}
+    paddd xmm0, xmm1      // 4�?2位整数并行加�?  {$ENDIF}
 {$ELSEIF CPUX86}
-    mov eax, [esp + 4]
+    // x86 32-bit: 参数在栈�?    mov eax, [esp + 4]    // a
     mov edx, [esp + 8]    // b
     movdqu xmm0, [eax]
     movdqu xmm1, [edx]
@@ -945,15 +913,13 @@ asm
     // Windows x64: a �?rcx, b �?rdx
     movdqu xmm0, [rcx]    // 加载 a
     movdqu xmm1, [rdx]    // 加载 b
-    paddq xmm0, xmm1
-    {$ELSE}
+    paddq xmm0, xmm1      // 2�?4位整数并行加�?  {$ELSE}
     // Linux/macOS x64 System V ABI: a �?rdi, b �?rsi
     movdqu xmm0, [rdi]    // 加载 a
     movdqu xmm1, [rsi]    // 加载 b
-    paddq xmm0, xmm1
-    {$ENDIF}
+    paddq xmm0, xmm1      // 2�?4位整数并行加�?  {$ENDIF}
 {$ELSEIF CPUX86}
-    mov eax, [esp + 4]
+    // x86 32-bit: 参数在栈�?    mov eax, [esp + 4]    // a
     mov edx, [esp + 8]    // b
     movdqu xmm0, [eax]
     movdqu xmm1, [edx]
@@ -970,15 +936,13 @@ asm
     // Windows x64: a �?rcx, b �?rdx
     movdqu xmm0, [rcx]    // 加载 a
     movdqu xmm1, [rdx]    // 加载 b
-    psubb xmm0, xmm1
-    {$ELSE}
+    psubb xmm0, xmm1      // 16�?位整数并行减�?  {$ELSE}
     // Linux/macOS x64 System V ABI: a �?rdi, b �?rsi
     movdqu xmm0, [rdi]    // 加载 a
     movdqu xmm1, [rsi]    // 加载 b
-    psubb xmm0, xmm1
-    {$ENDIF}
+    psubb xmm0, xmm1      // 16�?位整数并行减�?  {$ENDIF}
 {$ELSEIF CPUX86}
-    mov eax, [esp + 4]
+    // x86 32-bit: 参数在栈�?    mov eax, [esp + 4]    // a
     mov edx, [esp + 8]    // b
     movdqu xmm0, [eax]
     movdqu xmm1, [edx]
@@ -1037,10 +1001,7 @@ function simd_adds_epi8(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostac
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]
-    movdqu xmm1, [rdx]
-    paddsb xmm0, xmm1
-    {$ELSE}
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; paddsb xmm0, xmm1  // 有符�?位饱和加�?  {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; paddsb xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -1054,10 +1015,7 @@ function simd_adds_epi16(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nosta
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]
-    movdqu xmm1, [rdx]
-    paddsw xmm0, xmm1
-    {$ELSE}
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; paddsw xmm0, xmm1  // 有符�?6位饱和加�?  {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; paddsw xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -1071,10 +1029,7 @@ function simd_subs_epi8(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostac
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]
-    movdqu xmm1, [rdx]
-    psubsb xmm0, xmm1
-    {$ELSE}
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; psubsb xmm0, xmm1  // 有符�?位饱和减�?  {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; psubsb xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -1088,10 +1043,7 @@ function simd_subs_epi16(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nosta
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]
-    movdqu xmm1, [rdx]
-    psubsw xmm0, xmm1
-    {$ELSE}
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; psubsw xmm0, xmm1  // 有符�?6位饱和减�?  {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; psubsw xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -1108,8 +1060,7 @@ asm
     movdqu xmm0, [rcx]    // 加载 a
     movdqu xmm1, [rdx]    // 加载 b
     movdqu xmm2, xmm0     // 复制 a
-    pcmpgtb xmm2, xmm1
-    pand xmm0, xmm2
+    pcmpgtb xmm2, xmm1    // a > b 的掩�?    pand xmm0, xmm2       // 选择 a 中较大的元素
     pandn xmm2, xmm1      // 选择 b 中较大的元素
     por xmm0, xmm2        // 合并结果
   {$ELSE}
@@ -1135,10 +1086,7 @@ function simd_max_epi16(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostac
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]
-    movdqu xmm1, [rdx]
-    pmaxsw xmm0, xmm1
-    {$ELSE}
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pmaxsw xmm0, xmm1  // 有符�?6位最大�?  {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pmaxsw xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -1155,8 +1103,7 @@ asm
     movdqu xmm0, [rcx]    // 加载 a
     movdqu xmm1, [rdx]    // 加载 b
     movdqu xmm2, xmm1     // 复制 b
-    pcmpgtb xmm2, xmm0
-    pand xmm0, xmm2
+    pcmpgtb xmm2, xmm0    // b > a 的掩�?    pand xmm0, xmm2       // 选择 a 中较小的元素
     pandn xmm2, xmm1      // 选择 b 中较小的元素
     por xmm0, xmm2        // 合并结果
   {$ELSE}
@@ -1182,10 +1129,7 @@ function simd_min_epi16(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostac
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]
-    movdqu xmm1, [rdx]
-    pminsw xmm0, xmm1
-    {$ELSE}
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pminsw xmm0, xmm1  // 有符�?6位最小�?  {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pminsw xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -1199,10 +1143,7 @@ function simd_mul_epu32(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostac
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]
-    movdqu xmm1, [rdx]
-    pmuludq xmm0, xmm1
-    {$ELSE}
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pmuludq xmm0, xmm1  // 无符�?2位乘�?-> 64位结�?  {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pmuludq xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -1216,10 +1157,7 @@ function simd_mullo_epi16(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nost
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]
-    movdqu xmm1, [rdx]
-    pmullw xmm0, xmm1
-    {$ELSE}
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pmullw xmm0, xmm1  // 16位乘法低位结�?  {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pmullw xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -1234,9 +1172,7 @@ function simd_add_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackfr
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-    movups xmm1, [rdx]
-    addps xmm0, xmm1
+    movups xmm0, [rcx]; movups xmm1, [rdx]; addps xmm0, xmm1  // 4个单精度浮点并行加法
   {$ELSE}
     movups xmm0, [rdi]; movups xmm1, [rsi]; addps xmm0, xmm1
   {$ENDIF}
@@ -1251,9 +1187,7 @@ function simd_sub_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackfr
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-    movups xmm1, [rdx]
-    subps xmm0, xmm1
+    movups xmm0, [rcx]; movups xmm1, [rdx]; subps xmm0, xmm1  // 4个单精度浮点并行减法
   {$ELSE}
     movups xmm0, [rdi]; movups xmm1, [rsi]; subps xmm0, xmm1
   {$ENDIF}
@@ -1268,9 +1202,7 @@ function simd_mul_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackfr
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-    movups xmm1, [rdx]
-    mulps xmm0, xmm1
+    movups xmm0, [rcx]; movups xmm1, [rdx]; mulps xmm0, xmm1  // 4个单精度浮点并行乘法
   {$ELSE}
     movups xmm0, [rdi]; movups xmm1, [rsi]; mulps xmm0, xmm1
   {$ENDIF}
@@ -1285,9 +1217,7 @@ function simd_div_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackfr
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-    movups xmm1, [rdx]
-    divps xmm0, xmm1
+    movups xmm0, [rcx]; movups xmm1, [rdx]; divps xmm0, xmm1  // 4个单精度浮点并行除法
   {$ELSE}
     movups xmm0, [rdi]; movups xmm1, [rsi]; divps xmm0, xmm1
   {$ENDIF}
@@ -1302,9 +1232,7 @@ function simd_sqrt_ps(const a: TM128): TM128; {$IFDEF FPC}assembler; nostackfram
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-    sqrtps xmm0, xmm0
-    {$ELSE}
+    movups xmm0, [rcx]; sqrtps xmm0, xmm0  // 4个单精度浮点并行开�?  {$ELSE}
     movups xmm0, [rdi]; sqrtps xmm0, xmm0
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -1318,9 +1246,7 @@ function simd_add_pd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackfr
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    movupd xmm1, [rdx]
-    addpd xmm0, xmm1
+    movupd xmm0, [rcx]; movupd xmm1, [rdx]; addpd xmm0, xmm1  // 2个双精度浮点并行加法
   {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; addpd xmm0, xmm1
   {$ENDIF}
@@ -1335,9 +1261,7 @@ function simd_sub_pd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackfr
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    movupd xmm1, [rdx]
-    subpd xmm0, xmm1
+    movupd xmm0, [rcx]; movupd xmm1, [rdx]; subpd xmm0, xmm1  // 2个双精度浮点并行减法
   {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; subpd xmm0, xmm1
   {$ENDIF}
@@ -1352,9 +1276,7 @@ function simd_mul_pd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackfr
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    movupd xmm1, [rdx]
-    mulpd xmm0, xmm1
+    movupd xmm0, [rcx]; movupd xmm1, [rdx]; mulpd xmm0, xmm1  // 2个双精度浮点并行乘法
   {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; mulpd xmm0, xmm1
   {$ENDIF}
@@ -1369,9 +1291,7 @@ function simd_div_pd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackfr
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    movupd xmm1, [rdx]
-    divpd xmm0, xmm1
+    movupd xmm0, [rcx]; movupd xmm1, [rdx]; divpd xmm0, xmm1  // 2个双精度浮点并行除法
   {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; divpd xmm0, xmm1
   {$ENDIF}
@@ -1386,9 +1306,7 @@ function simd_sqrt_pd(const a: TM128): TM128; {$IFDEF FPC}assembler; nostackfram
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    sqrtpd xmm0, xmm0
-    {$ELSE}
+    movupd xmm0, [rcx]; sqrtpd xmm0, xmm0  // 2个双精度浮点并行开�?  {$ELSE}
     movupd xmm0, [rdi]; sqrtpd xmm0, xmm0
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -1403,10 +1321,7 @@ function simd_or_si128(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostack
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]
-    movdqu xmm1, [rdx]
-    por xmm0, xmm1
-    {$ELSE}
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; por xmm0, xmm1  // 128位逻辑�?  {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; por xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -1420,9 +1335,7 @@ function simd_xor_si128(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostac
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]
-    movdqu xmm1, [rdx]
-    pxor xmm0, xmm1
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pxor xmm0, xmm1  // 128位逻辑异或
   {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pxor xmm0, xmm1
   {$ENDIF}
@@ -1437,9 +1350,7 @@ function simd_andnot_si128(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nos
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]
-    movdqu xmm1, [rdx]
-    pandn xmm0, xmm1
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pandn xmm0, xmm1  // 128位逻辑与非 (~a & b)
   {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pandn xmm0, xmm1
   {$ENDIF}
@@ -1455,10 +1366,7 @@ function simd_cmpeq_epi16(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nost
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]
-    movdqu xmm1, [rdx]
-    pcmpeqw xmm0, xmm1
-    {$ELSE}
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pcmpeqw xmm0, xmm1  // 16位整数相等比�?  {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pcmpeqw xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -1472,10 +1380,7 @@ function simd_cmpeq_epi32(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nost
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]
-    movdqu xmm1, [rdx]
-    pcmpeqd xmm0, xmm1
-    {$ELSE}
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pcmpeqd xmm0, xmm1  // 32位整数相等比�?  {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pcmpeqd xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -1489,10 +1394,7 @@ function simd_cmpgt_epi8(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nosta
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]
-    movdqu xmm1, [rdx]
-    pcmpgtb xmm0, xmm1
-    {$ELSE}
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pcmpgtb xmm0, xmm1  // 有符�?位整数大于比�?  {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pcmpgtb xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -1506,10 +1408,7 @@ function simd_cmpgt_epi16(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nost
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]
-    movdqu xmm1, [rdx]
-    pcmpgtw xmm0, xmm1
-    {$ELSE}
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pcmpgtw xmm0, xmm1  // 有符�?6位整数大于比�?  {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pcmpgtw xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -1523,10 +1422,7 @@ function simd_cmpgt_epi32(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nost
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]
-    movdqu xmm1, [rdx]
-    pcmpgtd xmm0, xmm1
-    {$ELSE}
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pcmpgtd xmm0, xmm1  // 有符�?2位整数大于比�?  {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pcmpgtd xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -1541,9 +1437,7 @@ function simd_cmpnlt_pd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostac
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    movupd xmm1, [rdx]
-    cmpnltpd xmm0, xmm1
+    movupd xmm0, [rcx]; movupd xmm1, [rdx]; cmpnltpd xmm0, xmm1  // 双精度非小于比较
   {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; cmpnltpd xmm0, xmm1
   {$ENDIF}
@@ -1558,9 +1452,7 @@ function simd_cmpnle_pd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostac
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    movupd xmm1, [rdx]
-    cmpnlepd xmm0, xmm1
+    movupd xmm0, [rcx]; movupd xmm1, [rdx]; cmpnlepd xmm0, xmm1  // 双精度非小于等于比较
   {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; cmpnlepd xmm0, xmm1
   {$ENDIF}
@@ -1575,9 +1467,7 @@ function simd_cmpngt_pd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostac
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    movupd xmm1, [rdx]
-    cmppd xmm0, xmm1, 2
+    movupd xmm0, [rcx]; movupd xmm1, [rdx]; cmppd xmm0, xmm1, 2  // 双精度非大于比较 (LE)
   {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; cmppd xmm0, xmm1, 2
   {$ENDIF}
@@ -1592,9 +1482,7 @@ function simd_cmpnge_pd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostac
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    movupd xmm1, [rdx]
-    cmppd xmm0, xmm1, 1
+    movupd xmm0, [rcx]; movupd xmm1, [rdx]; cmppd xmm0, xmm1, 1  // 双精度非大于等于比较 (LT)
   {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; cmppd xmm0, xmm1, 1
   {$ENDIF}
@@ -1609,9 +1497,7 @@ function simd_cmplt_epi8(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nosta
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rdx]
-    movdqu xmm1, [rcx]
-    pcmpgtb xmm0, xmm1
+    movdqu xmm0, [rdx]; movdqu xmm1, [rcx]; pcmpgtb xmm0, xmm1  // 小于 = 交换操作数的大于
   {$ELSE}
     movdqu xmm0, [rsi]; movdqu xmm1, [rdi]; pcmpgtb xmm0, xmm1
   {$ENDIF}
@@ -1626,9 +1512,7 @@ function simd_cmplt_epi16(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nost
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rdx]
-    movdqu xmm1, [rcx]
-    pcmpgtw xmm0, xmm1
+    movdqu xmm0, [rdx]; movdqu xmm1, [rcx]; pcmpgtw xmm0, xmm1  // 小于 = 交换操作数的大于
   {$ELSE}
     movdqu xmm0, [rsi]; movdqu xmm1, [rdi]; pcmpgtw xmm0, xmm1
   {$ENDIF}
@@ -1643,9 +1527,7 @@ function simd_cmplt_epi32(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nost
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rdx]
-    movdqu xmm1, [rcx]
-    pcmpgtd xmm0, xmm1
+    movdqu xmm0, [rdx]; movdqu xmm1, [rcx]; pcmpgtd xmm0, xmm1  // 小于 = 交换操作数的大于
   {$ELSE}
     movdqu xmm0, [rsi]; movdqu xmm1, [rdi]; pcmpgtd xmm0, xmm1
   {$ENDIF}
@@ -1661,10 +1543,7 @@ function simd_cmpeq_pd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostack
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    movupd xmm1, [rdx]
-    cmpeqpd xmm0, xmm1
-    {$ELSE}
+    movupd xmm0, [rcx]; movupd xmm1, [rdx]; cmpeqpd xmm0, xmm1  // 双精度相等比�?  {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; cmpeqpd xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -1678,10 +1557,7 @@ function simd_cmplt_pd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostack
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    movupd xmm1, [rdx]
-    cmpltpd xmm0, xmm1
-    {$ELSE}
+    movupd xmm0, [rcx]; movupd xmm1, [rdx]; cmpltpd xmm0, xmm1  // 双精度小于比�?  {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; cmpltpd xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -1695,10 +1571,7 @@ function simd_cmple_pd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostack
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    movupd xmm1, [rdx]
-    cmplepd xmm0, xmm1
-    {$ELSE}
+    movupd xmm0, [rcx]; movupd xmm1, [rdx]; cmplepd xmm0, xmm1  // 双精度小于等于比�?  {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; cmplepd xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -1712,9 +1585,7 @@ function simd_cmpgt_pd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostack
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rdx]
-    movupd xmm1, [rcx]
-    cmpltpd xmm0, xmm1
+    movupd xmm0, [rdx]; movupd xmm1, [rcx]; cmpltpd xmm0, xmm1  // 大于 = 交换操作数的小于
   {$ELSE}
     movupd xmm0, [rsi]; movupd xmm1, [rdi]; cmpltpd xmm0, xmm1
   {$ENDIF}
@@ -1729,9 +1600,7 @@ function simd_cmpge_pd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostack
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rdx]
-    movupd xmm1, [rcx]
-    cmplepd xmm0, xmm1
+    movupd xmm0, [rdx]; movupd xmm1, [rcx]; cmplepd xmm0, xmm1  // 大于等于 = 交换操作数的小于等于
   {$ELSE}
     movupd xmm0, [rsi]; movupd xmm1, [rdi]; cmplepd xmm0, xmm1
   {$ENDIF}
@@ -1746,9 +1615,7 @@ function simd_cmpneq_pd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostac
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    movupd xmm1, [rdx]
-    cmpneqpd xmm0, xmm1
+    movupd xmm0, [rcx]; movupd xmm1, [rdx]; cmpneqpd xmm0, xmm1  // 双精度不等于比较
   {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; cmpneqpd xmm0, xmm1
   {$ENDIF}
@@ -1771,8 +1638,7 @@ asm
     cmp dl, 2; je @imm2
     cmp dl, 3; je @imm3
     // 更多立即数值的处理...
-    pshufd xmm0, xmm0, $E4
-    jmp @done
+    pshufd xmm0, xmm0, $E4  // 默认�?    jmp @done
 @imm0: pshufd xmm0, xmm0, $00; jmp @done
 @imm1: pshufd xmm0, xmm0, $01; jmp @done
 @imm2: pshufd xmm0, xmm0, $02; jmp @done
@@ -1784,12 +1650,12 @@ asm
     cmp sil, 1; je @imm1
     cmp sil, 2; je @imm2
     cmp sil, 3; je @imm3
-    pshufd xmm0, xmm0, $E4
+    pshufd xmm0, xmm0, }
     jmp @done
-@imm0: pshufd xmm0, xmm0, $00; jmp @done
-@imm1: pshufd xmm0, xmm0, $01; jmp @done
-@imm2: pshufd xmm0, xmm0, $02; jmp @done
-@imm3: pshufd xmm0, xmm0, $03; jmp @done
+@imm0: pshufd xmm0, xmm0, }; jmp @done
+@imm1: pshufd xmm0, xmm0, }; jmp @done
+@imm2: pshufd xmm0, xmm0, }; jmp @done
+@imm3: pshufd xmm0, xmm0, }; jmp @done
 @done:
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -1799,11 +1665,11 @@ asm
     cmp dl, 1; je @imm1
     cmp dl, 2; je @imm2
     cmp dl, 3; je @imm3
-    pshufd xmm0, xmm0, $E4; jmp @done
-@imm0: pshufd xmm0, xmm0, $00; jmp @done
-@imm1: pshufd xmm0, xmm0, $01; jmp @done
-@imm2: pshufd xmm0, xmm0, $02; jmp @done
-@imm3: pshufd xmm0, xmm0, $03; jmp @done
+    pshufd xmm0, xmm0, }; jmp @done
+@imm0: pshufd xmm0, xmm0, }; jmp @done
+@imm1: pshufd xmm0, xmm0, }; jmp @done
+@imm2: pshufd xmm0, xmm0, }; jmp @done
+@imm3: pshufd xmm0, xmm0, }; jmp @done
 @done:
 {$ELSE}
     {$ERROR Unsupported CPU}
@@ -1820,10 +1686,7 @@ asm
     cmp r8b, 1; je @imm1
     cmp r8b, 2; je @imm2
     cmp r8b, 3; je @imm3
-    shufpd xmm0, xmm1, 0
-    jmp @done
-    shufpd xmm0, xmm1, 0
-    jmp @done
+    shufpd xmm0, xmm1, 0; jmp @done  // 默认�?@imm0: shufpd xmm0, xmm1, 0; jmp @done
 @imm1: shufpd xmm0, xmm1, 1; jmp @done
 @imm2: shufpd xmm0, xmm1, 2; jmp @done
 @imm3: shufpd xmm0, xmm1, 3; jmp @done
@@ -1867,43 +1730,41 @@ asm
     movups xmm0, [rcx]    // 加载 a
     movups xmm1, [rdx]    // 加载 b
     // 使用常见�?shuffle 模式
-    cmp r8b, $00; je @imm00
-    cmp r8b, $44; je @imm44
-    cmp r8b, $88; je @imm88
-    cmp r8b, $E4; je @immE4
-    shufps xmm0, xmm1, $00
-    jmp @done
-@imm00: shufps xmm0, xmm1, $00; jmp @done
-@imm44: shufps xmm0, xmm1, $44; jmp @done
-@imm88: shufps xmm0, xmm1, $88; jmp @done
-@immE4: shufps xmm0, xmm1, $E4; jmp @done
+    cmp r8b, }; je @imm00
+    cmp r8b, }; je @imm44
+    cmp r8b, }; je @imm88
+    cmp r8b, }; je @immE4
+    shufps xmm0, xmm1, }; jmp @done  // 默认�?@imm00: shufps xmm0, xmm1, }; jmp @done
+@imm44: shufps xmm0, xmm1, }; jmp @done
+@imm88: shufps xmm0, xmm1, }; jmp @done
+@immE4: shufps xmm0, xmm1, }; jmp @done
 @done:
   {$ELSE}
     movups xmm0, [rdi]
     movups xmm1, [rsi]
-    cmp dl, $00; je @imm00
-    cmp dl, $44; je @imm44
-    cmp dl, $88; je @imm88
-    cmp dl, $E4; je @immE4
-    shufps xmm0, xmm1, $00; jmp @done
-@imm00: shufps xmm0, xmm1, $00; jmp @done
-@imm44: shufps xmm0, xmm1, $44; jmp @done
-@imm88: shufps xmm0, xmm1, $88; jmp @done
-@immE4: shufps xmm0, xmm1, $E4; jmp @done
+    cmp dl, }; je @imm00
+    cmp dl, }; je @imm44
+    cmp dl, }; je @imm88
+    cmp dl, }; je @immE4
+    shufps xmm0, xmm1, }; jmp @done
+@imm00: shufps xmm0, xmm1, }; jmp @done
+@imm44: shufps xmm0, xmm1, }; jmp @done
+@imm88: shufps xmm0, xmm1, }; jmp @done
+@immE4: shufps xmm0, xmm1, }; jmp @done
 @done:
   {$ENDIF}
 {$ELSEIF CPUX86}
     mov eax, [esp + 4]; mov edx, [esp + 8]; mov ecx, [esp + 12]
     movups xmm0, [eax]; movups xmm1, [edx]
-    cmp cl, $00; je @imm00
-    cmp cl, $44; je @imm44
-    cmp cl, $88; je @imm88
-    cmp cl, $E4; je @immE4
-    shufps xmm0, xmm1, $00; jmp @done
-@imm00: shufps xmm0, xmm1, $00; jmp @done
-@imm44: shufps xmm0, xmm1, $44; jmp @done
-@imm88: shufps xmm0, xmm1, $88; jmp @done
-@immE4: shufps xmm0, xmm1, $E4; jmp @done
+    cmp cl, }; je @imm00
+    cmp cl, }; je @imm44
+    cmp cl, }; je @imm88
+    cmp cl, }; je @immE4
+    shufps xmm0, xmm1, }; jmp @done
+@imm00: shufps xmm0, xmm1, }; jmp @done
+@imm44: shufps xmm0, xmm1, }; jmp @done
+@imm88: shufps xmm0, xmm1, }; jmp @done
+@immE4: shufps xmm0, xmm1, }; jmp @done
 @done:
 {$ELSE}
     {$ERROR Unsupported CPU}
@@ -1916,42 +1777,40 @@ asm
   {$IFDEF WINDOWS}
     movdqu xmm0, [rcx]    // 加载 a
     // 使用常见�?shuffle 模式
-    cmp dl, $00; je @imm00
-    cmp dl, $44; je @imm44
-    cmp dl, $88; je @imm88
-    cmp dl, $E4; je @immE4
-    pshuflw xmm0, xmm0, $00
-    jmp @done
-@imm00: pshuflw xmm0, xmm0, $00; jmp @done
-@imm44: pshuflw xmm0, xmm0, $44; jmp @done
-@imm88: pshuflw xmm0, xmm0, $88; jmp @done
-@immE4: pshuflw xmm0, xmm0, $E4; jmp @done
+    cmp dl, }; je @imm00
+    cmp dl, }; je @imm44
+    cmp dl, }; je @imm88
+    cmp dl, }; je @immE4
+    pshuflw xmm0, xmm0, }; jmp @done  // 默认�?@imm00: pshuflw xmm0, xmm0, }; jmp @done
+@imm44: pshuflw xmm0, xmm0, }; jmp @done
+@imm88: pshuflw xmm0, xmm0, }; jmp @done
+@immE4: pshuflw xmm0, xmm0, }; jmp @done
 @done:
   {$ELSE}
     movdqu xmm0, [rdi]
-    cmp sil, $00; je @imm00
-    cmp sil, $44; je @imm44
-    cmp sil, $88; je @imm88
-    cmp sil, $E4; je @immE4
-    pshuflw xmm0, xmm0, $00; jmp @done
-@imm00: pshuflw xmm0, xmm0, $00; jmp @done
-@imm44: pshuflw xmm0, xmm0, $44; jmp @done
-@imm88: pshuflw xmm0, xmm0, $88; jmp @done
-@immE4: pshuflw xmm0, xmm0, $E4; jmp @done
+    cmp sil, }; je @imm00
+    cmp sil, }; je @imm44
+    cmp sil, }; je @imm88
+    cmp sil, }; je @immE4
+    pshuflw xmm0, xmm0, }; jmp @done
+@imm00: pshuflw xmm0, xmm0, }; jmp @done
+@imm44: pshuflw xmm0, xmm0, }; jmp @done
+@imm88: pshuflw xmm0, xmm0, }; jmp @done
+@immE4: pshuflw xmm0, xmm0, }; jmp @done
 @done:
   {$ENDIF}
 {$ELSEIF CPUX86}
     mov eax, [esp + 4]; mov edx, [esp + 8]
     movdqu xmm0, [eax]
-    cmp dl, $00; je @imm00
-    cmp dl, $44; je @imm44
-    cmp dl, $88; je @imm88
-    cmp dl, $E4; je @immE4
-    pshuflw xmm0, xmm0, $00; jmp @done
-@imm00: pshuflw xmm0, xmm0, $00; jmp @done
-@imm44: pshuflw xmm0, xmm0, $44; jmp @done
-@imm88: pshuflw xmm0, xmm0, $88; jmp @done
-@immE4: pshuflw xmm0, xmm0, $E4; jmp @done
+    cmp dl, }; je @imm00
+    cmp dl, }; je @imm44
+    cmp dl, }; je @imm88
+    cmp dl, }; je @immE4
+    pshuflw xmm0, xmm0, }; jmp @done
+@imm00: pshuflw xmm0, xmm0, }; jmp @done
+@imm44: pshuflw xmm0, xmm0, }; jmp @done
+@imm88: pshuflw xmm0, xmm0, }; jmp @done
+@immE4: pshuflw xmm0, xmm0, }; jmp @done
 @done:
 {$ELSE}
     {$ERROR Unsupported CPU}
@@ -1964,42 +1823,40 @@ asm
   {$IFDEF WINDOWS}
     movdqu xmm0, [rcx]    // 加载 a
     // 使用常见�?shuffle 模式
-    cmp dl, $00; je @imm00
-    cmp dl, $44; je @imm44
-    cmp dl, $88; je @imm88
-    cmp dl, $E4; je @immE4
-    pshufhw xmm0, xmm0, $00
-    jmp @done
-@imm00: pshufhw xmm0, xmm0, $00; jmp @done
-@imm44: pshufhw xmm0, xmm0, $44; jmp @done
-@imm88: pshufhw xmm0, xmm0, $88; jmp @done
-@immE4: pshufhw xmm0, xmm0, $E4; jmp @done
+    cmp dl, }; je @imm00
+    cmp dl, }; je @imm44
+    cmp dl, }; je @imm88
+    cmp dl, }; je @immE4
+    pshufhw xmm0, xmm0, }; jmp @done  // 默认�?@imm00: pshufhw xmm0, xmm0, }; jmp @done
+@imm44: pshufhw xmm0, xmm0, }; jmp @done
+@imm88: pshufhw xmm0, xmm0, }; jmp @done
+@immE4: pshufhw xmm0, xmm0, }; jmp @done
 @done:
   {$ELSE}
     movdqu xmm0, [rdi]
-    cmp sil, $00; je @imm00
-    cmp sil, $44; je @imm44
-    cmp sil, $88; je @imm88
-    cmp sil, $E4; je @immE4
-    pshufhw xmm0, xmm0, $00; jmp @done
-@imm00: pshufhw xmm0, xmm0, $00; jmp @done
-@imm44: pshufhw xmm0, xmm0, $44; jmp @done
-@imm88: pshufhw xmm0, xmm0, $88; jmp @done
-@immE4: pshufhw xmm0, xmm0, $E4; jmp @done
+    cmp sil, }; je @imm00
+    cmp sil, }; je @imm44
+    cmp sil, }; je @imm88
+    cmp sil, }; je @immE4
+    pshufhw xmm0, xmm0, }; jmp @done
+@imm00: pshufhw xmm0, xmm0, }; jmp @done
+@imm44: pshufhw xmm0, xmm0, }; jmp @done
+@imm88: pshufhw xmm0, xmm0, }; jmp @done
+@immE4: pshufhw xmm0, xmm0, }; jmp @done
 @done:
   {$ENDIF}
 {$ELSEIF CPUX86}
     mov eax, [esp + 4]; mov edx, [esp + 8]
     movdqu xmm0, [eax]
-    cmp dl, $00; je @imm00
-    cmp dl, $44; je @imm44
-    cmp dl, $88; je @imm88
-    cmp dl, $E4; je @immE4
-    pshufhw xmm0, xmm0, $00; jmp @done
-@imm00: pshufhw xmm0, xmm0, $00; jmp @done
-@imm44: pshufhw xmm0, xmm0, $44; jmp @done
-@imm88: pshufhw xmm0, xmm0, $88; jmp @done
-@immE4: pshufhw xmm0, xmm0, $E4; jmp @done
+    cmp dl, }; je @imm00
+    cmp dl, }; je @imm44
+    cmp dl, }; je @imm88
+    cmp dl, }; je @immE4
+    pshufhw xmm0, xmm0, }; jmp @done
+@imm00: pshufhw xmm0, xmm0, }; jmp @done
+@imm44: pshufhw xmm0, xmm0, }; jmp @done
+@imm88: pshufhw xmm0, xmm0, }; jmp @done
+@immE4: pshufhw xmm0, xmm0, }; jmp @done
 @done:
 {$ELSE}
     {$ERROR Unsupported CPU}
@@ -2010,9 +1867,7 @@ function simd_unpacklo_epi8(const a, b: TM128): TM128; {$IFDEF FPC}assembler; no
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]
-    movdqu xmm1, [rdx]
-    punpcklbw xmm0, xmm1
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; punpcklbw xmm0, xmm1  // �?字节解包
   {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; punpcklbw xmm0, xmm1
   {$ENDIF}
@@ -2027,9 +1882,7 @@ function simd_unpackhi_epi8(const a, b: TM128): TM128; {$IFDEF FPC}assembler; no
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]
-    movdqu xmm1, [rdx]
-    punpckhbw xmm0, xmm1
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; punpckhbw xmm0, xmm1  // �?字节解包
   {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; punpckhbw xmm0, xmm1
   {$ENDIF}
@@ -2044,10 +1897,7 @@ function simd_unpacklo_epi16(const a, b: TM128): TM128; {$IFDEF FPC}assembler; n
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]
-    movdqu xmm1, [rdx]
-    punpcklwd xmm0, xmm1
-    {$ELSE}
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; punpcklwd xmm0, xmm1  // �?�?6位解�?  {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; punpcklwd xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -2061,10 +1911,7 @@ function simd_unpackhi_epi16(const a, b: TM128): TM128; {$IFDEF FPC}assembler; n
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]
-    movdqu xmm1, [rdx]
-    punpckhwd xmm0, xmm1
-    {$ELSE}
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; punpckhwd xmm0, xmm1  // �?�?6位解�?  {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; punpckhwd xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -2078,10 +1925,7 @@ function simd_unpacklo_epi32(const a, b: TM128): TM128; {$IFDEF FPC}assembler; n
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]
-    movdqu xmm1, [rdx]
-    punpckldq xmm0, xmm1
-    {$ELSE}
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; punpckldq xmm0, xmm1  // �?�?2位解�?  {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; punpckldq xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -2095,10 +1939,7 @@ function simd_unpackhi_epi32(const a, b: TM128): TM128; {$IFDEF FPC}assembler; n
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]
-    movdqu xmm1, [rdx]
-    punpckhdq xmm0, xmm1
-    {$ELSE}
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; punpckhdq xmm0, xmm1  // �?�?2位解�?  {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; punpckhdq xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -2112,10 +1953,7 @@ function simd_unpacklo_epi64(const a, b: TM128): TM128; {$IFDEF FPC}assembler; n
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]
-    movdqu xmm1, [rdx]
-    punpcklqdq xmm0, xmm1
-    {$ELSE}
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; punpcklqdq xmm0, xmm1  // �?4位解�?  {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; punpcklqdq xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -2129,10 +1967,7 @@ function simd_unpackhi_epi64(const a, b: TM128): TM128; {$IFDEF FPC}assembler; n
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]
-    movdqu xmm1, [rdx]
-    punpckhqdq xmm0, xmm1
-    {$ELSE}
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; punpckhqdq xmm0, xmm1  // �?4位解�?  {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; punpckhqdq xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -2146,9 +1981,7 @@ function simd_unpacklo_pd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nost
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    movupd xmm1, [rdx]
-    unpcklpd xmm0, xmm1
+    movupd xmm0, [rcx]; movupd xmm1, [rdx]; unpcklpd xmm0, xmm1  // 低双精度解包
   {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; unpcklpd xmm0, xmm1
   {$ENDIF}
@@ -2163,9 +1996,7 @@ function simd_unpackhi_pd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nost
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    movupd xmm1, [rdx]
-    unpckhpd xmm0, xmm1
+    movupd xmm0, [rcx]; movupd xmm1, [rdx]; unpckhpd xmm0, xmm1  // 高双精度解包
   {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; unpckhpd xmm0, xmm1
   {$ENDIF}
@@ -2182,12 +2013,8 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     movdqu xmm0, [rcx]    // 加载 a
-    cmp dl, 16
-    jae @zero
-    cmp dl, 0
-    je @done
-    movd xmm1, edx
-    psllw xmm0, xmm1
+    cmp dl, 16; jae @zero // 如果移位 >= 16，结果为 0
+    cmp dl, 0; je @done   // 如果移位 = 0，不�?    movd xmm1, edx        // 加载移位�?    psllw xmm0, xmm1      // 16位逻辑左移
     jmp @done
 @zero:
     pxor xmm0, xmm0       // 清零
@@ -2221,13 +2048,8 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     movdqu xmm0, [rcx]
-    cmp dl, 32
-    jae @zero
-    cmp dl, 0
-    je @done
-    movd xmm1, edx
-    pslld xmm0, xmm1
-    jmp @done
+    cmp dl, 32; jae @zero // 如果移位 >= 32，结果为 0
+    cmp dl, 0; je @done   // 如果移位 = 0，不�?    movd xmm1, edx; pslld xmm0, xmm1; jmp @done
 @zero: pxor xmm0, xmm0
 @done:
   {$ELSE}
@@ -2255,13 +2077,8 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     movdqu xmm0, [rcx]
-    cmp dl, 64
-    jae @zero
-    cmp dl, 0
-    je @done
-    movd xmm1, edx
-    psllq xmm0, xmm1
-    jmp @done
+    cmp dl, 64; jae @zero // 如果移位 >= 64，结果为 0
+    cmp dl, 0; je @done   // 如果移位 = 0，不�?    movd xmm1, edx; psllq xmm0, xmm1; jmp @done
 @zero: pxor xmm0, xmm0
 @done:
   {$ELSE}
@@ -2289,13 +2106,8 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     movdqu xmm0, [rcx]
-    cmp dl, 16
-    jae @zero
-    cmp dl, 0
-    je @done
-    movd xmm1, edx
-    psrlw xmm0, xmm1
-    jmp @done
+    cmp dl, 16; jae @zero // 如果移位 >= 16，结果为 0
+    cmp dl, 0; je @done   // 如果移位 = 0，不�?    movd xmm1, edx; psrlw xmm0, xmm1; jmp @done
 @zero: pxor xmm0, xmm0
 @done:
   {$ELSE}
@@ -2323,13 +2135,8 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     movdqu xmm0, [rcx]
-    cmp dl, 32
-    jae @zero
-    cmp dl, 0
-    je @done
-    movd xmm1, edx
-    psrld xmm0, xmm1
-    jmp @done
+    cmp dl, 32; jae @zero // 如果移位 >= 32，结果为 0
+    cmp dl, 0; je @done   // 如果移位 = 0，不�?    movd xmm1, edx; psrld xmm0, xmm1; jmp @done
 @zero: pxor xmm0, xmm0
 @done:
   {$ELSE}
@@ -2357,13 +2164,8 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     movdqu xmm0, [rcx]
-    cmp dl, 64
-    jae @zero
-    cmp dl, 0
-    je @done
-    movd xmm1, edx
-    psrlq xmm0, xmm1
-    jmp @done
+    cmp dl, 64; jae @zero // 如果移位 >= 64，结果为 0
+    cmp dl, 0; je @done   // 如果移位 = 0，不�?    movd xmm1, edx; psrlq xmm0, xmm1; jmp @done
 @zero: pxor xmm0, xmm0
 @done:
   {$ELSE}
@@ -2391,13 +2193,7 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     movdqu xmm0, [rcx]
-    cmp dl, 16
-    jae @max
-    cmp dl, 0
-    je @done
-    movd xmm1, edx
-    psraw xmm0, xmm1
-    jmp @done
+    cmp dl, 16; jae @max  // 如果移位 >= 16，符号扩�?    cmp dl, 0; je @done   // 如果移位 = 0，不�?    movd xmm1, edx; psraw xmm0, xmm1; jmp @done
 @max: psraw xmm0, 15     // 最大移位保持符�?@done:
   {$ELSE}
     movdqu xmm0, [rdi]
@@ -2424,13 +2220,7 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     movdqu xmm0, [rcx]
-    cmp dl, 32
-    jae @max
-    cmp dl, 0
-    je @done
-    movd xmm1, edx
-    psrad xmm0, xmm1
-    jmp @done
+    cmp dl, 32; jae @max  // 如果移位 >= 32，符号扩�?    cmp dl, 0; je @done   // 如果移位 = 0，不�?    movd xmm1, edx; psrad xmm0, xmm1; jmp @done
 @max: psrad xmm0, 31     // 最大移位保持符�?@done:
   {$ELSE}
     movdqu xmm0, [rdi]
@@ -2458,18 +2248,13 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     movdqu xmm0, [rcx]    // 加载 a
-    cmp dl, 16
-    jae @zero
-    cmp dl, 0
-    je @done
-    pslldq 只接受立即数，需要分支处�?    cmp dl, 1
-    je @shift1
+    cmp dl, 16; jae @zero // 如果移位 >= 16，结果为 0
+    cmp dl, 0; je @done   // 如果移位 = 0，不�?    // pslldq 只接受立即数，需要分支处�?    cmp dl, 1; je @shift1
     cmp dl, 2; je @shift2
     cmp dl, 4; je @shift4
     cmp dl, 8; je @shift8
     cmp dl, 12; je @shift12
-    pslldq xmm0, 16
-    jmp @done
+    pslldq xmm0, 16; jmp @done  // 默认清零
 @shift1: pslldq xmm0, 1; jmp @done
 @shift2: pslldq xmm0, 2; jmp @done
 @shift4: pslldq xmm0, 4; jmp @done
@@ -2522,18 +2307,13 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     movdqu xmm0, [rcx]    // 加载 a
-    cmp dl, 16
-    jae @zero
-    cmp dl, 0
-    je @done
-    psrldq 只接受立即数，需要分支处�?    cmp dl, 1
-    je @shift1
+    cmp dl, 16; jae @zero // 如果移位 >= 16，结果为 0
+    cmp dl, 0; je @done   // 如果移位 = 0，不�?    // psrldq 只接受立即数，需要分支处�?    cmp dl, 1; je @shift1
     cmp dl, 2; je @shift2
     cmp dl, 4; je @shift4
     cmp dl, 8; je @shift8
     cmp dl, 12; je @shift12
-    psrldq xmm0, 16
-    jmp @done
+    psrldq xmm0, 16; jmp @done  // 默认清零
 @shift1: psrldq xmm0, 1; jmp @done
 @shift2: psrldq xmm0, 2; jmp @done
 @shift4: psrldq xmm0, 4; jmp @done
@@ -2587,8 +2367,7 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     movdqu xmm0, [rcx]    // 加载 a
-    cvtdq2pd xmm0, xmm0
-    {$ELSE}
+    cvtdq2pd xmm0, xmm0   // 32位整数转双精度浮�?  {$ELSE}
     movdqu xmm0, [rdi]
     cvtdq2pd xmm0, xmm0
   {$ENDIF}
@@ -2606,8 +2385,7 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     movupd xmm0, [rcx]    // 加载 a
-    cvtpd2dq xmm0, xmm0
-    {$ELSE}
+    cvtpd2dq xmm0, xmm0   // 双精度浮点转32位整数（舍入�?  {$ELSE}
     movupd xmm0, [rdi]
     cvtpd2dq xmm0, xmm0
   {$ENDIF}
@@ -2625,8 +2403,7 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     movdqu xmm0, [rcx]    // 加载 a
-    cvtdq2ps xmm0, xmm0
-    {$ELSE}
+    cvtdq2ps xmm0, xmm0   // 32位整数转单精度浮�?  {$ELSE}
     movdqu xmm0, [rdi]
     cvtdq2ps xmm0, xmm0
   {$ENDIF}
@@ -2644,8 +2421,7 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     movups xmm0, [rcx]    // 加载 a
-    cvtps2dq xmm0, xmm0
-    {$ELSE}
+    cvtps2dq xmm0, xmm0   // 单精度浮点转32位整数（舍入�?  {$ELSE}
     movups xmm0, [rdi]
     cvtps2dq xmm0, xmm0
   {$ENDIF}
@@ -2694,8 +2470,7 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     movdqu xmm0, [rcx]    // 加载 a
-    movd eax, xmm0
-    {$ELSE}
+    movd eax, xmm0        // 提取�?2�?  {$ELSE}
     movdqu xmm0, [rdi]
     movd eax, xmm0
   {$ENDIF}
@@ -2713,16 +2488,14 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     movdqu xmm0, [rcx]    // 加载 a
-    movq rax, xmm0
-    {$ELSE}
+    movq rax, xmm0        // 提取�?4�?  {$ELSE}
     movdqu xmm0, [rdi]
     movq rax, xmm0
   {$ENDIF}
 {$ELSEIF CPUX86}
     mov edx, [esp + 4]    // a
     movdqu xmm0, [edx]
-    movq [esp + 8], xmm0
-    {$ELSE}
+    movq [esp + 8], xmm0  // 返回64位值到�?{$ELSE}
     {$ERROR Unsupported CPU}
 {$ENDIF}
 end;
@@ -2733,8 +2506,7 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     movupd xmm0, [rcx]    // 加载 a
-    cvtpd2ps xmm0, xmm0
-    {$ELSE}
+    cvtpd2ps xmm0, xmm0   // 双精度转单精�?  {$ELSE}
     movupd xmm0, [rdi]
     cvtpd2ps xmm0, xmm0
   {$ENDIF}
@@ -2752,8 +2524,7 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     movups xmm0, [rcx]    // 加载 a
-    cvtps2pd xmm0, xmm0
-    {$ELSE}
+    cvtps2pd xmm0, xmm0   // 单精度转双精�?  {$ELSE}
     movups xmm0, [rdi]
     cvtps2pd xmm0, xmm0
   {$ENDIF}
@@ -2772,8 +2543,7 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     movups xmm0, [rcx]    // 加载 a
-    cvttps2dq xmm0, xmm0
-    {$ELSE}
+    cvttps2dq xmm0, xmm0  // 单精度转32位整数（截断�?  {$ELSE}
     movups xmm0, [rdi]
     cvttps2dq xmm0, xmm0
   {$ENDIF}
@@ -2791,8 +2561,7 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     movupd xmm0, [rcx]    // 加载 a
-    cvttpd2dq xmm0, xmm0
-    {$ELSE}
+    cvttpd2dq xmm0, xmm0  // 双精度转32位整数（截断�?  {$ELSE}
     movupd xmm0, [rdi]
     cvttpd2dq xmm0, xmm0
   {$ENDIF}
@@ -2809,7 +2578,7 @@ end;
 
 // === 新添加函数的占位实现 ===
 
-function simd_loadl_epi64(const Ptr: Pointer): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// Load/Store 新函�?function simd_loadl_epi64(const Ptr: Pointer): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
@@ -2822,7 +2591,7 @@ asm
     movq xmm0, [rdi]
   {$ENDIF}
 {$ELSEIF CPUX86}
-    mov eax, [esp + 4]
+    // x86 32-bit: 参数在栈�?    mov eax, [esp + 4]
     pxor xmm0, xmm0
     movq xmm0, [eax]
 {$ELSE}
@@ -2835,18 +2604,15 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     // Windows x64: Dest �?rcx, Src �?rdx
-    movq xmm0, [rdx]
-    movq [rcx], xmm0
+    movq xmm0, [rdx]      // 加载源数据的�?4�?    movq [rcx], xmm0      // 存储�?4位到目标
   {$ELSE}
     // Linux/macOS x64 System V ABI: Dest �?rdi, Src �?rsi
-    movq xmm0, [rsi]
-    movq [rdi], xmm0
+    movq xmm0, [rsi]      // 加载源数据的�?4�?    movq [rdi], xmm0      // 存储�?4位到目标
   {$ENDIF}
 {$ELSEIF CPUX86}
-    mov eax, [esp + 4]
+    // x86 32-bit: 参数在栈�?    mov eax, [esp + 4]    // Dest
     mov edx, [esp + 8]    // Src
-    movq xmm0, [edx]
-    movq [eax], xmm0
+    movq xmm0, [edx]      // 加载源数据的�?4�?    movq [eax], xmm0      // 存储�?4位到目标
 {$ELSE}
     {$ERROR Unsupported CPU}
 {$ENDIF}
@@ -2857,31 +2623,25 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     // Windows x64: Src �?rcx, Mask �?rdx, Dest �?r8
-    movdqa xmm0, [rcx]
-    movdqa xmm1, [rdx]
-    push rdi
-    mov rdi, r8
+    movdqa xmm0, [rcx]    // 加载源数�?    movdqa xmm1, [rdx]    // 加载掩码
+    push rdi              // 保存 rdi 寄存�?    mov rdi, r8           // maskmovdqu 需要目标地址�?rdi
     maskmovdqu xmm0, xmm1
-    pop rdi
-    {$ELSE}
+    pop rdi               // 恢复 rdi 寄存�?  {$ELSE}
     // Linux/macOS x64 System V ABI: Src �?rdi, Mask �?rsi, Dest �?rdx
     push rdi              // 保存原始 rdi
-    movdqa xmm0, [rdi]
-    movdqa xmm1, [rsi]
-    mov rdi, rdx
+    movdqa xmm0, [rdi]    // 加载源数�?    movdqa xmm1, [rsi]    // 加载掩码
+    mov rdi, rdx          // maskmovdqu 需要目标地址�?rdi
     maskmovdqu xmm0, xmm1
     pop rdi               // 恢复原始 rdi
   {$ENDIF}
 {$ELSEIF CPUX86}
-    mov eax, [esp + 4]
+    // x86 32-bit: 参数在栈�?    mov eax, [esp + 4]    // Src
     mov edx, [esp + 8]    // Mask
-    push edi
-    mov edi, [esp + 16]
+    push edi              // 保存 edi 寄存�?    mov edi, [esp + 16]   // Dest (注意栈偏移变�?
     movdqa xmm0, [eax]
     movdqa xmm1, [edx]
     maskmovdqu xmm0, xmm1 // 条件存储�?[edi]
-    pop edi
-    {$ELSE}
+    pop edi               // 恢复 edi 寄存�?{$ELSE}
     {$ERROR Unsupported CPU}
 {$ENDIF}
 end;
@@ -2896,10 +2656,9 @@ asm
   {$ELSE}
     // Linux/macOS x64 System V ABI: 第一个参数在 rdi
     movupd xmm0, [rdi]     // 加载两个双精度数
-    shufpd xmm0, xmm0, 1
-    {$ENDIF}
+    shufpd xmm0, xmm0, 1   // 交换高低�?  {$ENDIF}
 {$ELSEIF CPUX86}
-    mov eax, [esp + 4]
+    // x86 32-bit: 参数在栈�?    mov eax, [esp + 4]
     movupd xmm0, [eax]
     shufpd xmm0, xmm0, 1
 {$ELSE}
@@ -2912,17 +2671,11 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     // Windows x64: Dest �?rcx, Src �?rdx
-    movapd xmm0, [rdx]
-    shufpd xmm0, xmm0, 1
-    movupd [rcx], xmm0
-    {$ELSE}
+    movapd xmm0, [rdx]     // 加载源数�?    shufpd xmm0, xmm0, 1   // 交换高低�?    movupd [rcx], xmm0     // 存储到目�?  {$ELSE}
     // Linux/macOS x64 System V ABI: Dest �?rdi, Src �?rsi
-    movapd xmm0, [rsi]
-    shufpd xmm0, xmm0, 1
-    movupd [rdi], xmm0
-    {$ENDIF}
+    movapd xmm0, [rsi]     // 加载源数�?    shufpd xmm0, xmm0, 1   // 交换高低�?    movupd [rdi], xmm0     // 存储到目�?  {$ENDIF}
 {$ELSEIF CPUX86}
-    mov eax, [esp + 4]
+    // x86 32-bit: 参数在栈�?    mov eax, [esp + 4]     // Dest
     mov edx, [esp + 8]     // Src
     movapd xmm0, [edx]
     shufpd xmm0, xmm0, 1
@@ -2938,14 +2691,12 @@ asm
   {$IFDEF WINDOWS}
     // Windows x64: A �?rcx, Ptr �?rdx
     movapd xmm0, [rcx]     // 加载 A �?xmm0
-    movhpd xmm0, [rdx]
-    {$ELSE}
+    movhpd xmm0, [rdx]     // 加载 Ptr 指向的双精度到高�?  {$ELSE}
     // Linux/macOS x64 System V ABI: A �?rdi, Ptr �?rsi
     movapd xmm0, [rdi]     // 加载 A �?xmm0
-    movhpd xmm0, [rsi]
-    {$ENDIF}
+    movhpd xmm0, [rsi]     // 加载 Ptr 指向的双精度到高�?  {$ENDIF}
 {$ELSEIF CPUX86}
-    mov eax, [esp + 4]
+    // x86 32-bit: 参数在栈�?    mov eax, [esp + 4]     // A
     mov edx, [esp + 8]     // Ptr
     movapd xmm0, [eax]
     movhpd xmm0, [edx]
@@ -2960,14 +2711,12 @@ asm
   {$IFDEF WINDOWS}
     // Windows x64: A �?rcx, Ptr �?rdx
     movapd xmm0, [rcx]     // 加载 A �?xmm0
-    movlpd xmm0, [rdx]
-    {$ELSE}
+    movlpd xmm0, [rdx]     // 加载 Ptr 指向的双精度到低�?  {$ELSE}
     // Linux/macOS x64 System V ABI: A �?rdi, Ptr �?rsi
     movapd xmm0, [rdi]     // 加载 A �?xmm0
-    movlpd xmm0, [rsi]
-    {$ENDIF}
+    movlpd xmm0, [rsi]     // 加载 Ptr 指向的双精度到低�?  {$ENDIF}
 {$ELSEIF CPUX86}
-    mov eax, [esp + 4]
+    // x86 32-bit: 参数在栈�?    mov eax, [esp + 4]     // A
     mov edx, [esp + 8]     // Ptr
     movapd xmm0, [eax]
     movlpd xmm0, [edx]
@@ -2981,15 +2730,13 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     // Windows x64: Dest �?rcx, Src �?rdx
-    movapd xmm0, [rdx]
-    movhpd [rcx], xmm0
+    movapd xmm0, [rdx]     // 加载源数�?    movhpd [rcx], xmm0     // 存储高位双精度到目标
   {$ELSE}
     // Linux/macOS x64 System V ABI: Dest �?rdi, Src �?rsi
-    movapd xmm0, [rsi]
-    movhpd [rdi], xmm0
+    movapd xmm0, [rsi]     // 加载源数�?    movhpd [rdi], xmm0     // 存储高位双精度到目标
   {$ENDIF}
 {$ELSEIF CPUX86}
-    mov eax, [esp + 4]
+    // x86 32-bit: 参数在栈�?    mov eax, [esp + 4]     // Dest
     mov edx, [esp + 8]     // Src
     movapd xmm0, [edx]
     movhpd [eax], xmm0
@@ -3003,15 +2750,13 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     // Windows x64: Dest �?rcx, Src �?rdx
-    movapd xmm0, [rdx]
-    movlpd [rcx], xmm0
+    movapd xmm0, [rdx]     // 加载源数�?    movlpd [rcx], xmm0     // 存储低位双精度到目标
   {$ELSE}
     // Linux/macOS x64 System V ABI: Dest �?rdi, Src �?rsi
-    movapd xmm0, [rsi]
-    movlpd [rdi], xmm0
+    movapd xmm0, [rsi]     // 加载源数�?    movlpd [rdi], xmm0     // 存储低位双精度到目标
   {$ENDIF}
 {$ELSEIF CPUX86}
-    mov eax, [esp + 4]
+    // x86 32-bit: 参数在栈�?    mov eax, [esp + 4]     // Dest
     mov edx, [esp + 8]     // Src
     movapd xmm0, [edx]
     movlpd [eax], xmm0
@@ -3031,7 +2776,7 @@ asm
     movsd xmm0, [rdi]      // 加载标量双精度，高位自动清零
   {$ENDIF}
 {$ELSEIF CPUX86}
-    mov eax, [esp + 4]
+    // x86 32-bit: 参数在栈�?    mov eax, [esp + 4]
     movsd xmm0, [eax]
 {$ELSE}
     {$ERROR Unsupported CPU}
@@ -3043,15 +2788,11 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     // Windows x64: Dest �?rcx, Src �?rdx
-    movapd xmm0, [rdx]
-    movsd [rcx], xmm0
-    {$ELSE}
+    movapd xmm0, [rdx]     // 加载源数�?    movsd [rcx], xmm0      // 存储标量双精�?  {$ELSE}
     // Linux/macOS x64 System V ABI: Dest �?rdi, Src �?rsi
-    movapd xmm0, [rsi]
-    movsd [rdi], xmm0
-    {$ENDIF}
+    movapd xmm0, [rsi]     // 加载源数�?    movsd [rdi], xmm0      // 存储标量双精�?  {$ENDIF}
 {$ELSEIF CPUX86}
-    mov eax, [esp + 4]
+    // x86 32-bit: 参数在栈�?    mov eax, [esp + 4]     // Dest
     mov edx, [esp + 8]     // Src
     movapd xmm0, [edx]
     movsd [eax], xmm0
@@ -3060,7 +2801,7 @@ asm
 {$ENDIF}
 end;
 
-function simd_set_epi8(a15, a14, a13, a12, a11, a10, a9, a8, a7, a6, a5, a4, a3, a2, a1, a0: ShortInt): TM128;
+// Set 新函�?function simd_set_epi8(a15, a14, a13, a12, a11, a10, a9, a8, a7, a6, a5, a4, a3, a2, a1, a0: ShortInt): TM128;
 begin
   Result.m128i_i8[0] := a0; Result.m128i_i8[1] := a1; Result.m128i_i8[2] := a2; Result.m128i_i8[3] := a3;
   Result.m128i_i8[4] := a4; Result.m128i_i8[5] := a5; Result.m128i_i8[6] := a6; Result.m128i_i8[7] := a7;
@@ -3103,14 +2844,11 @@ begin
   Result.m128d_f64[0] := b; Result.m128d_f64[1] := a;
 end;
 
-function simd_adds_epu8(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// Integer Arithmetic 新函�?function simd_adds_epu8(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]
-    movdqu xmm1, [rdx]
-    paddusb xmm0, xmm1
-    {$ELSE}
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; paddusb xmm0, xmm1  // 无符�?位饱和加�?  {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; paddusb xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -3124,10 +2862,7 @@ function simd_adds_epu16(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nosta
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]
-    movdqu xmm1, [rdx]
-    paddusw xmm0, xmm1
-    {$ELSE}
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; paddusw xmm0, xmm1  // 无符�?6位饱和加�?  {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; paddusw xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -3141,10 +2876,7 @@ function simd_subs_epu8(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostac
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]
-    movdqu xmm1, [rdx]
-    psubusb xmm0, xmm1
-    {$ELSE}
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; psubusb xmm0, xmm1  // 无符�?位饱和减�?  {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; psubusb xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -3158,10 +2890,7 @@ function simd_subs_epu16(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nosta
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]
-    movdqu xmm1, [rdx]
-    psubusw xmm0, xmm1
-    {$ELSE}
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; psubusw xmm0, xmm1  // 无符�?6位饱和减�?  {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; psubusw xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -3175,10 +2904,7 @@ function simd_mulhi_epi16(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nost
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]
-    movdqu xmm1, [rdx]
-    pmulhw xmm0, xmm1
-    {$ELSE}
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pmulhw xmm0, xmm1  // 有符�?6位乘法高位结�?  {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pmulhw xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -3192,10 +2918,7 @@ function simd_mulhi_epu16(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nost
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]
-    movdqu xmm1, [rdx]
-    pmulhuw xmm0, xmm1
-    {$ELSE}
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pmulhuw xmm0, xmm1  // 无符�?6位乘法高位结�?  {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pmulhuw xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -3209,9 +2932,7 @@ function simd_madd_epi16(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nosta
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]
-    movdqu xmm1, [rdx]
-    pmaddwd xmm0, xmm1
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pmaddwd xmm0, xmm1  // 乘加运算�?6位乘�?相邻结果相加
   {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pmaddwd xmm0, xmm1
   {$ENDIF}
@@ -3226,9 +2947,7 @@ function simd_avg_epu8(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostack
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]
-    movdqu xmm1, [rdx]
-    pavgb xmm0, xmm1
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pavgb xmm0, xmm1  // 无符�?位平均�?(a+b+1)/2
   {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pavgb xmm0, xmm1
   {$ENDIF}
@@ -3243,9 +2962,7 @@ function simd_avg_epu16(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostac
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]
-    movdqu xmm1, [rdx]
-    pavgw xmm0, xmm1
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pavgw xmm0, xmm1  // 无符�?6位平均�?(a+b+1)/2
   {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pavgw xmm0, xmm1
   {$ENDIF}
@@ -3260,9 +2977,7 @@ function simd_sad_epu8(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostack
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]
-    movdqu xmm1, [rdx]
-    psadbw xmm0, xmm1
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; psadbw xmm0, xmm1  // 绝对差值和�?字节块的SAD
   {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; psadbw xmm0, xmm1
   {$ENDIF}
@@ -3273,14 +2988,11 @@ asm
 {$ENDIF}
 end;
 
-function simd_min_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+// Floating-Point 新函�?function simd_min_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-    movups xmm1, [rdx]
-    minps xmm0, xmm1
-    {$ELSE}
+    movups xmm0, [rcx]; movups xmm1, [rdx]; minps xmm0, xmm1  // 4个单精度浮点最小�?  {$ELSE}
     movups xmm0, [rdi]; movups xmm1, [rsi]; minps xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -3294,10 +3006,7 @@ function simd_max_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackfr
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-    movups xmm1, [rdx]
-    maxps xmm0, xmm1
-    {$ELSE}
+    movups xmm0, [rcx]; movups xmm1, [rdx]; maxps xmm0, xmm1  // 4个单精度浮点最大�?  {$ELSE}
     movups xmm0, [rdi]; movups xmm1, [rsi]; maxps xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -3311,10 +3020,7 @@ function simd_min_pd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackfr
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    movupd xmm1, [rdx]
-    minpd xmm0, xmm1
-    {$ELSE}
+    movupd xmm0, [rcx]; movupd xmm1, [rdx]; minpd xmm0, xmm1  // 2个双精度浮点最小�?  {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; minpd xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -3328,10 +3034,7 @@ function simd_max_pd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackfr
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    movupd xmm1, [rdx]
-    maxpd xmm0, xmm1
-    {$ELSE}
+    movupd xmm0, [rcx]; movupd xmm1, [rdx]; maxpd xmm0, xmm1  // 2个双精度浮点最大�?  {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; maxpd xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -3345,9 +3048,7 @@ function simd_add_sd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackfr
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    movsd xmm1, [rdx]
-    addsd xmm0, xmm1
+    movupd xmm0, [rcx]; movsd xmm1, [rdx]; addsd xmm0, xmm1  // 标量双精度加法，高位保持
   {$ELSE}
     movupd xmm0, [rdi]; movsd xmm1, [rsi]; addsd xmm0, xmm1
   {$ENDIF}
@@ -3362,10 +3063,7 @@ function simd_sub_sd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackfr
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    movsd xmm1, [rdx]
-    subsd xmm0, xmm1
-    {$ELSE}
+    movupd xmm0, [rcx]; movsd xmm1, [rdx]; subsd xmm0, xmm1  // 标量双精度减�?  {$ELSE}
     movupd xmm0, [rdi]; movsd xmm1, [rsi]; subsd xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -3379,10 +3077,7 @@ function simd_mul_sd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackfr
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    movsd xmm1, [rdx]
-    mulsd xmm0, xmm1
-    {$ELSE}
+    movupd xmm0, [rcx]; movsd xmm1, [rdx]; mulsd xmm0, xmm1  // 标量双精度乘�?  {$ELSE}
     movupd xmm0, [rdi]; movsd xmm1, [rsi]; mulsd xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -3396,10 +3091,7 @@ function simd_div_sd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackfr
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    movsd xmm1, [rdx]
-    divsd xmm0, xmm1
-    {$ELSE}
+    movupd xmm0, [rcx]; movsd xmm1, [rdx]; divsd xmm0, xmm1  // 标量双精度除�?  {$ELSE}
     movupd xmm0, [rdi]; movsd xmm1, [rsi]; divsd xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -3413,10 +3105,7 @@ function simd_sqrt_sd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackf
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    movsd xmm1, [rdx]
-    sqrtsd xmm0, xmm1
-    {$ELSE}
+    movupd xmm0, [rcx]; movsd xmm1, [rdx]; sqrtsd xmm0, xmm1  // 标量双精度开方，a的高位保�?  {$ELSE}
     movupd xmm0, [rdi]; movsd xmm1, [rsi]; sqrtsd xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -3430,10 +3119,7 @@ function simd_min_sd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackfr
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    movsd xmm1, [rdx]
-    minsd xmm0, xmm1
-    {$ELSE}
+    movupd xmm0, [rcx]; movsd xmm1, [rdx]; minsd xmm0, xmm1  // 标量双精度最小�?  {$ELSE}
     movupd xmm0, [rdi]; movsd xmm1, [rsi]; minsd xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -3447,10 +3133,7 @@ function simd_max_sd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackfr
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    movsd xmm1, [rdx]
-    maxsd xmm0, xmm1
-    {$ELSE}
+    movupd xmm0, [rcx]; movsd xmm1, [rdx]; maxsd xmm0, xmm1  // 标量双精度最大�?  {$ELSE}
     movupd xmm0, [rdi]; movsd xmm1, [rsi]; maxsd xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -3465,10 +3148,7 @@ function simd_and_pd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackfr
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    movupd xmm1, [rdx]
-    andpd xmm0, xmm1
-    {$ELSE}
+    movupd xmm0, [rcx]; movupd xmm1, [rdx]; andpd xmm0, xmm1  // 双精度逻辑�?  {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; andpd xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -3482,10 +3162,7 @@ function simd_or_pd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackfra
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    movupd xmm1, [rdx]
-    orpd xmm0, xmm1
-    {$ELSE}
+    movupd xmm0, [rcx]; movupd xmm1, [rdx]; orpd xmm0, xmm1  // 双精度逻辑�?  {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; orpd xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -3499,9 +3176,7 @@ function simd_xor_pd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackfr
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    movupd xmm1, [rdx]
-    xorpd xmm0, xmm1
+    movupd xmm0, [rcx]; movupd xmm1, [rdx]; xorpd xmm0, xmm1  // 双精度逻辑异或
   {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; xorpd xmm0, xmm1
   {$ENDIF}
@@ -3516,9 +3191,7 @@ function simd_andnot_pd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostac
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    movupd xmm1, [rdx]
-    andnpd xmm0, xmm1
+    movupd xmm0, [rcx]; movupd xmm1, [rdx]; andnpd xmm0, xmm1  // 双精度逻辑与非 (~a & b)
   {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; andnpd xmm0, xmm1
   {$ENDIF}
@@ -3534,10 +3207,7 @@ function simd_cmpord_pd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostac
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    movupd xmm1, [rdx]
-    cmpordpd xmm0, xmm1
-    {$ELSE}
+    movupd xmm0, [rcx]; movupd xmm1, [rdx]; cmpordpd xmm0, xmm1  // 有序比较（非NaN�?  {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; cmpordpd xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -3551,10 +3221,7 @@ function simd_cmpunord_pd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nost
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    movupd xmm1, [rdx]
-    cmpunordpd xmm0, xmm1
-    {$ELSE}
+    movupd xmm0, [rcx]; movupd xmm1, [rdx]; cmpunordpd xmm0, xmm1  // 无序比较（有NaN�?  {$ELSE}
     movupd xmm0, [rdi]; movupd xmm1, [rsi]; cmpunordpd xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -3569,9 +3236,7 @@ function simd_cmpeq_sd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostack
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    movsd xmm1, [rdx]
-    cmpeqsd xmm0, xmm1
+    movupd xmm0, [rcx]; movsd xmm1, [rdx]; cmpeqsd xmm0, xmm1  // 标量双精度相等比较，高位保持
   {$ELSE}
     movupd xmm0, [rdi]; movsd xmm1, [rsi]; cmpeqsd xmm0, xmm1
   {$ENDIF}
@@ -3586,10 +3251,7 @@ function simd_cmplt_sd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostack
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    movsd xmm1, [rdx]
-    cmpltsd xmm0, xmm1
-    {$ELSE}
+    movupd xmm0, [rcx]; movsd xmm1, [rdx]; cmpltsd xmm0, xmm1  // 标量双精度小于比�?  {$ELSE}
     movupd xmm0, [rdi]; movsd xmm1, [rsi]; cmpltsd xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -3603,10 +3265,7 @@ function simd_cmple_sd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostack
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    movsd xmm1, [rdx]
-    cmplesd xmm0, xmm1
-    {$ELSE}
+    movupd xmm0, [rcx]; movsd xmm1, [rdx]; cmplesd xmm0, xmm1  // 标量双精度小于等于比�?  {$ELSE}
     movupd xmm0, [rdi]; movsd xmm1, [rsi]; cmplesd xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -3620,10 +3279,7 @@ function simd_cmpgt_sd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostack
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    movsd xmm1, [rdx]
-    cmpnlesd xmm0, xmm1
-    {$ELSE}
+    movupd xmm0, [rcx]; movsd xmm1, [rdx]; cmpnlesd xmm0, xmm1  // 大于 = 非小于等�?  {$ELSE}
     movupd xmm0, [rdi]; movsd xmm1, [rsi]; cmpnlesd xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -3637,10 +3293,7 @@ function simd_cmpge_sd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostack
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    movsd xmm1, [rdx]
-    cmpnltsd xmm0, xmm1
-    {$ELSE}
+    movupd xmm0, [rcx]; movsd xmm1, [rdx]; cmpnltsd xmm0, xmm1  // 大于等于 = 非小�?  {$ELSE}
     movupd xmm0, [rdi]; movsd xmm1, [rsi]; cmpnltsd xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -3654,9 +3307,7 @@ function simd_cmpneq_sd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostac
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    movsd xmm1, [rdx]
-    cmpneqsd xmm0, xmm1
+    movupd xmm0, [rcx]; movsd xmm1, [rdx]; cmpneqsd xmm0, xmm1  // 标量双精度不等于比较
   {$ELSE}
     movupd xmm0, [rdi]; movsd xmm1, [rsi]; cmpneqsd xmm0, xmm1
   {$ENDIF}
@@ -3671,9 +3322,7 @@ function simd_cmpnlt_sd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostac
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    movsd xmm1, [rdx]
-    cmpnltsd xmm0, xmm1
+    movupd xmm0, [rcx]; movsd xmm1, [rdx]; cmpnltsd xmm0, xmm1  // 标量双精度非小于比较
   {$ELSE}
     movupd xmm0, [rdi]; movsd xmm1, [rsi]; cmpnltsd xmm0, xmm1
   {$ENDIF}
@@ -3688,9 +3337,7 @@ function simd_cmpnle_sd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostac
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    movsd xmm1, [rdx]
-    cmpnlesd xmm0, xmm1
+    movupd xmm0, [rcx]; movsd xmm1, [rdx]; cmpnlesd xmm0, xmm1  // 标量双精度非小于等于比较
   {$ELSE}
     movupd xmm0, [rdi]; movsd xmm1, [rsi]; cmpnlesd xmm0, xmm1
   {$ENDIF}
@@ -3705,9 +3352,7 @@ function simd_cmpngt_sd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostac
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    movsd xmm1, [rdx]
-    cmpsd xmm0, xmm1, 2
+    movupd xmm0, [rcx]; movsd xmm1, [rdx]; cmpsd xmm0, xmm1, 2  // 标量双精度非大于比较 (LE)
   {$ELSE}
     movupd xmm0, [rdi]; movsd xmm1, [rsi]; cmpsd xmm0, xmm1, 2
   {$ENDIF}
@@ -3722,9 +3367,7 @@ function simd_cmpnge_sd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostac
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    movsd xmm1, [rdx]
-    cmpsd xmm0, xmm1, 1
+    movupd xmm0, [rcx]; movsd xmm1, [rdx]; cmpsd xmm0, xmm1, 1  // 标量双精度非大于等于比较 (LT)
   {$ELSE}
     movupd xmm0, [rdi]; movsd xmm1, [rsi]; cmpsd xmm0, xmm1, 1
   {$ENDIF}
@@ -3739,10 +3382,7 @@ function simd_cmpord_sd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostac
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    movsd xmm1, [rdx]
-    cmpordsd xmm0, xmm1
-    {$ELSE}
+    movupd xmm0, [rcx]; movsd xmm1, [rdx]; cmpordsd xmm0, xmm1  // 标量双精度有序比�?  {$ELSE}
     movupd xmm0, [rdi]; movsd xmm1, [rsi]; cmpordsd xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -3756,10 +3396,7 @@ function simd_cmpunord_sd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nost
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    movsd xmm1, [rdx]
-    cmpunordsd xmm0, xmm1
-    {$ELSE}
+    movupd xmm0, [rcx]; movsd xmm1, [rdx]; cmpunordsd xmm0, xmm1  // 标量双精度无序比�?  {$ELSE}
     movupd xmm0, [rdi]; movsd xmm1, [rsi]; cmpunordsd xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -3774,11 +3411,7 @@ function simd_comieq_sd(const a, b: TM128): Integer; {$IFDEF FPC}assembler; nost
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movsd xmm0, [rcx]
-    movsd xmm1, [rdx]
-    comisd xmm0, xmm1
-    sete al
-    movzx eax, al
+    movsd xmm0, [rcx]; movsd xmm1, [rdx]; comisd xmm0, xmm1; sete al; movzx eax, al  // 有序相等比较
   {$ELSE}
     movsd xmm0, [rdi]; movsd xmm1, [rsi]; comisd xmm0, xmm1; sete al; movzx eax, al
   {$ENDIF}
@@ -3793,11 +3426,7 @@ function simd_comilt_sd(const a, b: TM128): Integer; {$IFDEF FPC}assembler; nost
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movsd xmm0, [rcx]
-    movsd xmm1, [rdx]
-    comisd xmm0, xmm1
-    setb al
-    movzx eax, al
+    movsd xmm0, [rcx]; movsd xmm1, [rdx]; comisd xmm0, xmm1; setb al; movzx eax, al  // 有序小于比较
   {$ELSE}
     movsd xmm0, [rdi]; movsd xmm1, [rsi]; comisd xmm0, xmm1; setb al; movzx eax, al
   {$ENDIF}
@@ -3812,11 +3441,7 @@ function simd_comile_sd(const a, b: TM128): Integer; {$IFDEF FPC}assembler; nost
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movsd xmm0, [rcx]
-    movsd xmm1, [rdx]
-    comisd xmm0, xmm1
-    setbe al
-    movzx eax, al
+    movsd xmm0, [rcx]; movsd xmm1, [rdx]; comisd xmm0, xmm1; setbe al; movzx eax, al  // 有序小于等于比较
   {$ELSE}
     movsd xmm0, [rdi]; movsd xmm1, [rsi]; comisd xmm0, xmm1; setbe al; movzx eax, al
   {$ENDIF}
@@ -3831,11 +3456,7 @@ function simd_comigt_sd(const a, b: TM128): Integer; {$IFDEF FPC}assembler; nost
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movsd xmm0, [rcx]
-    movsd xmm1, [rdx]
-    comisd xmm0, xmm1
-    seta al
-    movzx eax, al
+    movsd xmm0, [rcx]; movsd xmm1, [rdx]; comisd xmm0, xmm1; seta al; movzx eax, al  // 有序大于比较
   {$ELSE}
     movsd xmm0, [rdi]; movsd xmm1, [rsi]; comisd xmm0, xmm1; seta al; movzx eax, al
   {$ENDIF}
@@ -3850,11 +3471,7 @@ function simd_comige_sd(const a, b: TM128): Integer; {$IFDEF FPC}assembler; nost
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movsd xmm0, [rcx]
-    movsd xmm1, [rdx]
-    comisd xmm0, xmm1
-    setae al
-    movzx eax, al
+    movsd xmm0, [rcx]; movsd xmm1, [rdx]; comisd xmm0, xmm1; setae al; movzx eax, al  // 有序大于等于比较
   {$ELSE}
     movsd xmm0, [rdi]; movsd xmm1, [rsi]; comisd xmm0, xmm1; setae al; movzx eax, al
   {$ENDIF}
@@ -3869,12 +3486,7 @@ function simd_comineq_sd(const a, b: TM128): Integer; {$IFDEF FPC}assembler; nos
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movsd xmm0, [rcx]
-    movsd xmm1, [rdx]
-    comisd xmm0, xmm1
-    setne al
-    movzx eax, al
-    {$ELSE}
+    movsd xmm0, [rcx]; movsd xmm1, [rdx]; comisd xmm0, xmm1; setne al; movzx eax, al  // 有序不等于比�?  {$ELSE}
     movsd xmm0, [rdi]; movsd xmm1, [rsi]; comisd xmm0, xmm1; setne al; movzx eax, al
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -3889,11 +3501,7 @@ function simd_ucomieq_sd(const a, b: TM128): Integer; {$IFDEF FPC}assembler; nos
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movsd xmm0, [rcx]
-    movsd xmm1, [rdx]
-    ucomisd xmm0, xmm1
-    sete al
-    movzx eax, al
+    movsd xmm0, [rcx]; movsd xmm1, [rdx]; ucomisd xmm0, xmm1; sete al; movzx eax, al  // 无序相等比较
   {$ELSE}
     movsd xmm0, [rdi]; movsd xmm1, [rsi]; ucomisd xmm0, xmm1; sete al; movzx eax, al
   {$ENDIF}
@@ -3908,11 +3516,7 @@ function simd_ucomilt_sd(const a, b: TM128): Integer; {$IFDEF FPC}assembler; nos
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movsd xmm0, [rcx]
-    movsd xmm1, [rdx]
-    ucomisd xmm0, xmm1
-    setb al
-    movzx eax, al
+    movsd xmm0, [rcx]; movsd xmm1, [rdx]; ucomisd xmm0, xmm1; setb al; movzx eax, al  // 无序小于比较
   {$ELSE}
     movsd xmm0, [rdi]; movsd xmm1, [rsi]; ucomisd xmm0, xmm1; setb al; movzx eax, al
   {$ENDIF}
@@ -3927,11 +3531,7 @@ function simd_ucomile_sd(const a, b: TM128): Integer; {$IFDEF FPC}assembler; nos
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movsd xmm0, [rcx]
-    movsd xmm1, [rdx]
-    ucomisd xmm0, xmm1
-    setbe al
-    movzx eax, al
+    movsd xmm0, [rcx]; movsd xmm1, [rdx]; ucomisd xmm0, xmm1; setbe al; movzx eax, al  // 无序小于等于比较
   {$ELSE}
     movsd xmm0, [rdi]; movsd xmm1, [rsi]; ucomisd xmm0, xmm1; setbe al; movzx eax, al
   {$ENDIF}
@@ -3946,11 +3546,7 @@ function simd_ucomigt_sd(const a, b: TM128): Integer; {$IFDEF FPC}assembler; nos
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movsd xmm0, [rcx]
-    movsd xmm1, [rdx]
-    ucomisd xmm0, xmm1
-    seta al
-    movzx eax, al
+    movsd xmm0, [rcx]; movsd xmm1, [rdx]; ucomisd xmm0, xmm1; seta al; movzx eax, al  // 无序大于比较
   {$ELSE}
     movsd xmm0, [rdi]; movsd xmm1, [rsi]; ucomisd xmm0, xmm1; seta al; movzx eax, al
   {$ENDIF}
@@ -3965,11 +3561,7 @@ function simd_ucomige_sd(const a, b: TM128): Integer; {$IFDEF FPC}assembler; nos
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movsd xmm0, [rcx]
-    movsd xmm1, [rdx]
-    ucomisd xmm0, xmm1
-    setae al
-    movzx eax, al
+    movsd xmm0, [rcx]; movsd xmm1, [rdx]; ucomisd xmm0, xmm1; setae al; movzx eax, al  // 无序大于等于比较
   {$ELSE}
     movsd xmm0, [rdi]; movsd xmm1, [rsi]; ucomisd xmm0, xmm1; setae al; movzx eax, al
   {$ENDIF}
@@ -3984,12 +3576,7 @@ function simd_ucomineq_sd(const a, b: TM128): Integer; {$IFDEF FPC}assembler; no
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movsd xmm0, [rcx]
-    movsd xmm1, [rdx]
-    ucomisd xmm0, xmm1
-    setne al
-    movzx eax, al
-    {$ELSE}
+    movsd xmm0, [rcx]; movsd xmm1, [rdx]; ucomisd xmm0, xmm1; setne al; movzx eax, al  // 无序不等于比�?  {$ELSE}
     movsd xmm0, [rdi]; movsd xmm1, [rsi]; ucomisd xmm0, xmm1; setne al; movzx eax, al
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -4004,10 +3591,7 @@ function simd_packs_epi16(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nost
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]
-    movdqu xmm1, [rdx]
-    packsswb xmm0, xmm1
-    {$ELSE}
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; packsswb xmm0, xmm1  // 有符�?6位打包到8位（饱和�?  {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; packsswb xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -4021,10 +3605,7 @@ function simd_packs_epi32(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nost
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]
-    movdqu xmm1, [rdx]
-    packssdw xmm0, xmm1
-    {$ELSE}
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; packssdw xmm0, xmm1  // 有符�?2位打包到16位（饱和�?  {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; packssdw xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -4038,10 +3619,7 @@ function simd_packus_epi16(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nos
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]
-    movdqu xmm1, [rdx]
-    packuswb xmm0, xmm1
-    {$ELSE}
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; packuswb xmm0, xmm1  // 有符�?6位打包到无符�?位（饱和�?  {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; packuswb xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -4051,21 +3629,146 @@ asm
 {$ENDIF}
 end;
 
-function simd_insert_epi16(const a: TM128; Value: Integer; imm8: Byte): TM128;
-var
-  LIndex: Byte;
-begin
-  Result := a;
-  LIndex := imm8 and 7;
-  Result.m128i_i16[LIndex] := SmallInt(Value);
+function simd_insert_epi16(const a: TM128; Value: Integer; imm8: Byte): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+asm
+{$IFDEF CPUX86_64}
+  {$IFDEF WINDOWS}
+    movdqu xmm0, [rcx]    // 加载 a
+    movd xmm1, edx        // 加载 Value
+    // pinsrw 的位置参数必须是立即�?    cmp r8b, 0; je @pos0
+    cmp r8b, 1; je @pos1
+    cmp r8b, 2; je @pos2
+    cmp r8b, 3; je @pos3
+    cmp r8b, 4; je @pos4
+    cmp r8b, 5; je @pos5
+    cmp r8b, 6; je @pos6
+    cmp r8b, 7; je @pos7
+    pinsrw xmm0, xmm1, 0; jmp @done  // 默认位置 0
+@pos0: pinsrw xmm0, xmm1, 0; jmp @done
+@pos1: pinsrw xmm0, xmm1, 1; jmp @done
+@pos2: pinsrw xmm0, xmm1, 2; jmp @done
+@pos3: pinsrw xmm0, xmm1, 3; jmp @done
+@pos4: pinsrw xmm0, xmm1, 4; jmp @done
+@pos5: pinsrw xmm0, xmm1, 5; jmp @done
+@pos6: pinsrw xmm0, xmm1, 6; jmp @done
+@pos7: pinsrw xmm0, xmm1, 7; jmp @done
+@done:
+  {$ELSE}
+    movdqu xmm0, [rdi]
+    movd xmm1, esi
+    cmp dl, 0; je @pos0
+    cmp dl, 1; je @pos1
+    cmp dl, 2; je @pos2
+    cmp dl, 3; je @pos3
+    cmp dl, 4; je @pos4
+    cmp dl, 5; je @pos5
+    cmp dl, 6; je @pos6
+    cmp dl, 7; je @pos7
+    pinsrw xmm0, xmm1, 0; jmp @done
+@pos0: pinsrw xmm0, xmm1, 0; jmp @done
+@pos1: pinsrw xmm0, xmm1, 1; jmp @done
+@pos2: pinsrw xmm0, xmm1, 2; jmp @done
+@pos3: pinsrw xmm0, xmm1, 3; jmp @done
+@pos4: pinsrw xmm0, xmm1, 4; jmp @done
+@pos5: pinsrw xmm0, xmm1, 5; jmp @done
+@pos6: pinsrw xmm0, xmm1, 6; jmp @done
+@pos7: pinsrw xmm0, xmm1, 7; jmp @done
+@done:
+  {$ENDIF}
+{$ELSEIF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; mov ecx, [esp + 12]
+    movdqu xmm0, [eax]; movd xmm1, edx
+    cmp cl, 0; je @pos0
+    cmp cl, 1; je @pos1
+    cmp cl, 2; je @pos2
+    cmp cl, 3; je @pos3
+    cmp cl, 4; je @pos4
+    cmp cl, 5; je @pos5
+    cmp cl, 6; je @pos6
+    cmp cl, 7; je @pos7
+    pinsrw xmm0, xmm1, 0; jmp @done
+@pos0: pinsrw xmm0, xmm1, 0; jmp @done
+@pos1: pinsrw xmm0, xmm1, 1; jmp @done
+@pos2: pinsrw xmm0, xmm1, 2; jmp @done
+@pos3: pinsrw xmm0, xmm1, 3; jmp @done
+@pos4: pinsrw xmm0, xmm1, 4; jmp @done
+@pos5: pinsrw xmm0, xmm1, 5; jmp @done
+@pos6: pinsrw xmm0, xmm1, 6; jmp @done
+@pos7: pinsrw xmm0, xmm1, 7; jmp @done
+@done:
+{$ELSE}
+    {$ERROR Unsupported CPU}
+{$ENDIF}
 end;
 
-function simd_extract_epi16(const a: TM128; imm8: Byte): Integer;
-var
-  LIndex: Byte;
-begin
-  LIndex := imm8 and 7;
-  Result := a.m128i_u16[LIndex];
+function simd_extract_epi16(const a: TM128; imm8: Byte): Integer; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+asm
+{$IFDEF CPUX86_64}
+  {$IFDEF WINDOWS}
+    movdqu xmm0, [rcx]    // 加载 a
+    // pextrw 的位置参数必须是立即�?    cmp dl, 0; je @pos0
+    cmp dl, 1; je @pos1
+    cmp dl, 2; je @pos2
+    cmp dl, 3; je @pos3
+    cmp dl, 4; je @pos4
+    cmp dl, 5; je @pos5
+    cmp dl, 6; je @pos6
+    cmp dl, 7; je @pos7
+    pextrw eax, xmm0, 0; jmp @done  // 默认位置 0
+@pos0: pextrw eax, xmm0, 0; jmp @done
+@pos1: pextrw eax, xmm0, 1; jmp @done
+@pos2: pextrw eax, xmm0, 2; jmp @done
+@pos3: pextrw eax, xmm0, 3; jmp @done
+@pos4: pextrw eax, xmm0, 4; jmp @done
+@pos5: pextrw eax, xmm0, 5; jmp @done
+@pos6: pextrw eax, xmm0, 6; jmp @done
+@pos7: pextrw eax, xmm0, 7; jmp @done
+@done:
+  {$ELSE}
+    movdqu xmm0, [rdi]
+    cmp sil, 0; je @pos0
+    cmp sil, 1; je @pos1
+    cmp sil, 2; je @pos2
+    cmp sil, 3; je @pos3
+    cmp sil, 4; je @pos4
+    cmp sil, 5; je @pos5
+    cmp sil, 6; je @pos6
+    cmp sil, 7; je @pos7
+    pextrw eax, xmm0, 0; jmp @done
+@pos0: pextrw eax, xmm0, 0; jmp @done
+@pos1: pextrw eax, xmm0, 1; jmp @done
+@pos2: pextrw eax, xmm0, 2; jmp @done
+@pos3: pextrw eax, xmm0, 3; jmp @done
+@pos4: pextrw eax, xmm0, 4; jmp @done
+@pos5: pextrw eax, xmm0, 5; jmp @done
+@pos6: pextrw eax, xmm0, 6; jmp @done
+@pos7: pextrw eax, xmm0, 7; jmp @done
+@done:
+  {$ENDIF}
+{$ELSEIF CPUX86}
+    mov edx, [esp + 4]; mov ecx, [esp + 8]
+    movdqu xmm0, [edx]
+    cmp cl, 0; je @pos0
+    cmp cl, 1; je @pos1
+    cmp cl, 2; je @pos2
+    cmp cl, 3; je @pos3
+    cmp cl, 4; je @pos4
+    cmp cl, 5; je @pos5
+    cmp cl, 6; je @pos6
+    cmp cl, 7; je @pos7
+    pextrw eax, xmm0, 0; jmp @done
+@pos0: pextrw eax, xmm0, 0; jmp @done
+@pos1: pextrw eax, xmm0, 1; jmp @done
+@pos2: pextrw eax, xmm0, 2; jmp @done
+@pos3: pextrw eax, xmm0, 3; jmp @done
+@pos4: pextrw eax, xmm0, 4; jmp @done
+@pos5: pextrw eax, xmm0, 5; jmp @done
+@pos6: pextrw eax, xmm0, 6; jmp @done
+@pos7: pextrw eax, xmm0, 7; jmp @done
+@done:
+{$ELSE}
+    {$ERROR Unsupported CPU}
+{$ENDIF}
 end;
 
 function simd_move_sd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
@@ -4073,9 +3776,7 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     movupd xmm0, [rcx]    // 加载 a
-    movsd xmm1, [rdx]
-    movsd xmm0, xmm1
-    {$ELSE}
+    movsd xmm1, [rdx]     // 加载 b 的低64�?    movsd xmm0, xmm1      // 移动标量双精�?  {$ELSE}
     movupd xmm0, [rdi]
     movsd xmm1, [rsi]
     movsd xmm0, xmm1
@@ -4268,10 +3969,7 @@ function simd_unpacklo_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nost
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-    movups xmm1, [rdx]
-    unpcklps xmm0, xmm1
-    {$ELSE}
+    movups xmm0, [rcx]; movups xmm1, [rdx]; unpcklps xmm0, xmm1  // 解包低位单精�?  {$ELSE}
     movups xmm0, [rdi]; movups xmm1, [rsi]; unpcklps xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -4285,10 +3983,7 @@ function simd_unpackhi_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nost
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-    movups xmm1, [rdx]
-    unpckhps xmm0, xmm1
-    {$ELSE}
+    movups xmm0, [rcx]; movups xmm1, [rdx]; unpckhps xmm0, xmm1  // 解包高位单精�?  {$ELSE}
     movups xmm0, [rdi]; movups xmm1, [rsi]; unpckhps xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -4302,10 +3997,7 @@ function simd_cvtsd_ss(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostack
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    movsd xmm1, [rdx]
-    cvtsd2ss xmm0, xmm1
-    {$ELSE}
+    movupd xmm0, [rcx]; movsd xmm1, [rdx]; cvtsd2ss xmm0, xmm1  // 标量双精度转单精�?  {$ELSE}
     movupd xmm0, [rdi]; movsd xmm1, [rsi]; cvtsd2ss xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -4319,10 +4011,7 @@ function simd_cvtss_sd(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostack
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movupd xmm0, [rcx]
-    movss xmm1, [rdx]
-    cvtss2sd xmm0, xmm1
-    {$ELSE}
+    movupd xmm0, [rcx]; movss xmm1, [rdx]; cvtss2sd xmm0, xmm1  // 标量单精度转双精�?  {$ELSE}
     movupd xmm0, [rdi]; movss xmm1, [rsi]; cvtss2sd xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -4332,34 +4021,50 @@ asm
 {$ENDIF}
 end;
 
-function simd_cvttpd_ps(const a: TM128): TM128;
-begin
-  FillChar(Result, SizeOf(Result), 0);
-  Result.m128_f32[0] := Single(Trunc(a.m128d_f64[0]));
-  Result.m128_f32[1] := Single(Trunc(a.m128d_f64[1]));
+function simd_cvttpd_ps(const a: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+asm
+{$IFDEF CPUX86_64}
+  {$IFDEF WINDOWS}
+    movupd xmm0, [rcx]; cvttpd2ps xmm0, xmm0  // 截断双精度转单精�?
+  {$ELSE}
+    movupd xmm0, [rdi]; cvttpd2ps xmm0, xmm0
+  {$ENDIF}
+{$ELSEIF CPUX86}
+    mov eax, [esp + 4]; movupd xmm0, [eax]; cvttpd2ps xmm0, xmm0
+{$ELSE}
+    {$ERROR Unsupported CPU}
+{$ENDIF}
 end;
 
-function simd_srai_si128(const a: TM128; imm8: Byte): TM128;
-var
-  LIndex: Integer;
-  LShift: Integer;
-begin
-  FillChar(Result, SizeOf(Result), 0);
-  LShift := imm8;
-  if LShift > 15 then
-    Exit;
-  for LIndex := 0 to 15 - LShift do
-    Result.m128i_u8[LIndex] := a.m128i_u8[LIndex + LShift];
+function simd_srai_si128(const a: TM128; imm8: Byte): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+asm
+{$IFDEF CPUX86_64}
+  {$IFDEF WINDOWS}
+    movdqu xmm0, [rcx]       // 加载 a
+    movd xmm1, edx           // 加载 imm8
+    // 注意：SSE2 没有直接的算术右移字节指令，这里用逻辑右移代替
+    psrldq xmm0, xmm1       // 逻辑右移字节
+  {$ELSE}
+    movdqu xmm0, [rdi]
+    movd xmm1, esi
+    psrldq xmm0, xmm1
+  {$ENDIF}
+{$ELSEIF CPUX86}
+    mov eax, [esp + 4]       // a
+    mov edx, [esp + 8]       // imm8
+    movdqu xmm0, [eax]
+    movd xmm1, edx
+    psrldq xmm0, xmm1
+{$ELSE}
+    {$ERROR Unsupported CPU}
+{$ENDIF}
 end;
 
 function simd_max_epu8(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]
-    movdqu xmm1, [rdx]
-    pmaxub xmm0, xmm1
-    {$ELSE}
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pmaxub xmm0, xmm1  // 无符�?位最大�?  {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pmaxub xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -4373,10 +4078,7 @@ function simd_min_epu8(const a, b: TM128): TM128; {$IFDEF FPC}assembler; nostack
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movdqu xmm0, [rcx]
-    movdqu xmm1, [rdx]
-    pminub xmm0, xmm1
-    {$ELSE}
+    movdqu xmm0, [rcx]; movdqu xmm1, [rdx]; pminub xmm0, xmm1  // 无符�?位最小�?  {$ELSE}
     movdqu xmm0, [rdi]; movdqu xmm1, [rsi]; pminub xmm0, xmm1
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -4390,9 +4092,7 @@ function simd_cvtsd_si32(const a: TM128): Integer; {$IFDEF FPC}assembler; nostac
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movsd xmm0, [rcx]
-    cvtsd2si eax, xmm0
-    {$ELSE}
+    movsd xmm0, [rcx]; cvtsd2si eax, xmm0  // 标量双精度转32位整�?  {$ELSE}
     movsd xmm0, [rdi]; cvtsd2si eax, xmm0
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -4406,9 +4106,7 @@ function simd_cvtsd_si64(const a: TM128): Int64; {$IFDEF FPC}assembler; nostackf
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movsd xmm0, [rcx]
-    cvtsd2si rax, xmm0
-    {$ELSE}
+    movsd xmm0, [rcx]; cvtsd2si rax, xmm0  // 标量双精度转64位整�?  {$ELSE}
     movsd xmm0, [rdi]; cvtsd2si rax, xmm0
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -4422,9 +4120,7 @@ function simd_cvttsd_si32(const a: TM128): Integer; {$IFDEF FPC}assembler; nosta
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movsd xmm0, [rcx]
-    cvttsd2si eax, xmm0
-    {$ELSE}
+    movsd xmm0, [rcx]; cvttsd2si eax, xmm0  // 截断标量双精度转32位整�?  {$ELSE}
     movsd xmm0, [rdi]; cvttsd2si eax, xmm0
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -4438,9 +4134,7 @@ function simd_cvttsd_si64(const a: TM128): Int64; {$IFDEF FPC}assembler; nostack
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movsd xmm0, [rcx]
-    cvttsd2si rax, xmm0
-    {$ELSE}
+    movsd xmm0, [rcx]; cvttsd2si rax, xmm0  // 截断标量双精度转64位整�?  {$ELSE}
     movsd xmm0, [rdi]; cvttsd2si rax, xmm0
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -4450,16 +4144,32 @@ asm
 {$ENDIF}
 end;
 
-function simd_cvtsi32_sd(const a: TM128; b: Integer): TM128;
-begin
-  Result := a;
-  Result.m128d_f64[0] := b;
+function simd_cvtsi32_sd(const a: TM128; b: Integer): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+asm
+{$IFDEF CPUX86_64}
+  {$IFDEF WINDOWS}
+    movupd xmm0, [rcx]; movd xmm1, edx; cvtsi2sd xmm0, xmm1  // 32位整数转标量双精�?  {$ELSE}
+    movupd xmm0, [rdi]; movd xmm1, esi; cvtsi2sd xmm0, xmm1
+  {$ENDIF}
+{$ELSEIF CPUX86}
+    mov eax, [esp + 4]; mov edx, [esp + 8]; movupd xmm0, [eax]; movd xmm1, edx; cvtsi2sd xmm0, xmm1
+{$ELSE}
+    {$ERROR Unsupported CPU}
+{$ENDIF}
 end;
 
-function simd_cvtsi64_sd(const a: TM128; b: Int64): TM128;
-begin
-  Result := a;
-  Result.m128d_f64[0] := b;
+function simd_cvtsi64_sd(const a: TM128; b: Int64): TM128; {$IFDEF FPC}assembler; nostackframe;{$ENDIF}
+asm
+{$IFDEF CPUX86_64}
+  {$IFDEF WINDOWS}
+    movupd xmm0, [rcx]; movq xmm1, rdx; cvtsi2sd xmm0, xmm1  // 64位整数转标量双精�?  {$ELSE}
+    movupd xmm0, [rdi]; movq xmm1, rsi; cvtsi2sd xmm0, xmm1
+  {$ENDIF}
+{$ELSEIF CPUX86}
+    mov eax, [esp + 4]; movupd xmm0, [eax]; movq xmm1, [esp + 8]; cvtsi2sd xmm0, xmm1
+{$ELSE}
+    {$ERROR Unsupported CPU}
+{$ENDIF}
 end;
 
 // === 1️⃣1️⃣ Cache Control / Stream / Fence 实现 ===
@@ -4467,8 +4177,7 @@ procedure simd_clflush(const Ptr: Pointer); {$IFDEF FPC}assembler; nostackframe;
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    clflush [rcx]
-    {$ELSE}
+    clflush [rcx]         // 刷新缓存�?  {$ELSE}
     clflush [rdi]         // Linux/macOS x64
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -4539,11 +4248,9 @@ asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
     movdqu xmm0, [rdx]    // 加载 Src
-    movntdq [rcx], xmm0
-    {$ELSE}
+    movntdq [rcx], xmm0   // 非临时存�?28位整�?  {$ELSE}
     movdqu xmm0, [rsi]    // 加载 Src
-    movntdq [rdi], xmm0
-    {$ENDIF}
+    movntdq [rdi], xmm0   // 非临时存�?28位整�?  {$ENDIF}
 {$ELSEIF CPUX86}
     mov eax, [esp + 4]    // Dest
     mov edx, [esp + 8]    // Src
@@ -4558,8 +4265,7 @@ procedure simd_stream_si32(var Dest; Value: Integer); {$IFDEF FPC}assembler; nos
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movnti [rcx], edx
-    {$ELSE}
+    movnti [rcx], edx     // 非临时存�?2位整�?  {$ELSE}
     movnti [rdi], esi     // Linux/macOS x64
   {$ENDIF}
 {$ELSEIF CPUX86}
@@ -4575,20 +4281,18 @@ procedure simd_stream_si64(var Dest; Value: Int64); {$IFDEF FPC}assembler; nosta
 asm
 {$IFDEF CPUX86_64}
   {$IFDEF WINDOWS}
-    movnti [rcx], rdx
-    {$ELSE}
+    movnti [rcx], rdx     // 非临时存�?4位整�?  {$ELSE}
     movnti [rdi], rsi     // Linux/macOS x64
   {$ENDIF}
 {$ELSEIF CPUX86}
     mov eax, [esp + 4]    // Dest
-    mov edx, [esp + 8]
-    mov ecx, [esp + 12]
-    movnti [eax], edx
-    movnti [eax + 4], ecx
-    {$ELSE}
+    mov edx, [esp + 8]    // �?2�?    mov ecx, [esp + 12]   // �?2�?    movnti [eax], edx     // 存储�?2�?    movnti [eax + 4], ecx // 存储�?2�?{$ELSE}
     {$ERROR Unsupported CPU}
 {$ENDIF}
 end;
+
+initialization
+  EnsureExperimentalIntrinsicsEnabled;
 
 end.
 

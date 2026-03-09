@@ -46,10 +46,14 @@ uses
   {$ENDIF}
   Windows,
   {$ENDIF}
-  {$IFDEF UNIX}
+{$IFDEF UNIX}
   BaseUnix, Unix, UnixType,
-  {$ENDIF}
+{$ENDIF}
   fafafa.core.base;
+
+{$IFDEF UNIX}
+function setpgid(pid: TPid; pgid: TPid): cint; cdecl; external 'c' name 'setpgid';
+{$ENDIF}
 
 
   // 可执行查找：跨平台 LookPath（返回解析到的绝对路径；找不到返回空字符串）
@@ -892,12 +896,14 @@ uses
 
 {$IFDEF FAFAFA_PROCESS_GROUPS}
 
+{$IFDEF WINDOWS}
 // Optional graceful control events for console processes (Windows)
 // 某些 FPC 版本未公开以下声明，这里做外部声明
 function AttachConsole(dwProcessId: DWORD): LongBool; stdcall; external 'kernel32' name 'AttachConsole';
 function FreeConsole: LongBool; stdcall; external 'kernel32' name 'FreeConsole';
 function GenerateConsoleCtrlEvent(dwCtrlEvent, dwProcessGroupId: DWORD): LongBool; stdcall; external 'kernel32' name 'GenerateConsoleCtrlEvent';
 function SetConsoleCtrlHandler(HandlerRoutine: Pointer; Add: LongBool): LongBool; stdcall; external 'kernel32' name 'SetConsoleCtrlHandler';
+{$ENDIF}
 
 
 
@@ -1110,7 +1116,7 @@ begin
   else
     TargetGid := FGid;
   // 尝试将子进程加入目标 PGID（可能已在子进程中 setpgid(0,0) 完成，失败可忽略）
-  if fpSetpgid(Pid, TargetGid) <> 0 then
+  if setpgid(Pid, TargetGid) <> 0 then
   begin
     Err := fpgeterrno;
     // 忽略 EPERM/ESRCH/EACCES 等常见失败，保持组记录一致

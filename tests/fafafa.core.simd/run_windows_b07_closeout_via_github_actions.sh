@@ -8,6 +8,7 @@ ARTIFACT_NAME="${SIMD_WIN_EVIDENCE_ARTIFACT_NAME:-simd-windows-b07-evidence}"
 EVIDENCE_LOG="${SIMD_WIN_EVIDENCE_LOG_FILE:-${ROOT}/logs/windows_b07_gate.log}"
 BATCH_ID="${1:-SIMD-$(date '+%Y%m%d')-152}"
 RUN_ID_INPUT="${2:-}"
+PREFLIGHT_SCRIPT="${ROOT}/preflight_windows_b07_evidence_gh.sh"
 
 print_usage() {
   cat <<EOF
@@ -22,6 +23,7 @@ Environment:
   SIMD_WIN_EVIDENCE_LOG_FILE         Destination log file (default: tests/fafafa.core.simd/logs/windows_b07_gate.log)
   SIMD_WIN_EVIDENCE_POLL_SECONDS     Poll interval in seconds (default: 5)
   SIMD_WIN_EVIDENCE_POLL_MAX_TRIES   Poll retries (default: 60)
+  SIMD_WIN_EVIDENCE_PREFLIGHT        1=enable preflight before dispatch (default: 1)
 EOF
 }
 
@@ -39,48 +41,22 @@ require_cmd() {
   fi
 }
 
+is_billing_block_output() {
+  local aText
+  local LNormalized
 
-dispatch_workflow_with_retry() {
-  local aWorkflowFile
-  local aRef
-  local aRetries
-  local aBackoffSeconds
-  local LTry
-
-  aWorkflowFile="$1"
-  aRef="$2"
-  aRetries="$3"
-  aBackoffSeconds="$4"
-
-  for ((LTry = 1; LTry <= aRetries; LTry++)); do
-    if gh workflow run "${aWorkflowFile}" --ref "${aRef}"; then
-      return 0
-    fi
-    if [[ "${LTry}" -ge "${aRetries}" ]]; then
-      break
-    fi
-    echo "[WIN-EVIDENCE-GH] Dispatch retry ${LTry}/${aRetries} failed; retry in ${aBackoffSeconds}s"
-    sleep "${aBackoffSeconds}"
-  done
-
-  echo "[WIN-EVIDENCE-GH] Dispatch failed after ${aRetries} attempts"
-  return 1
-}
-
-show_run_failure_reason() {
-  local aRunId
-  local LViewText
-
-  aRunId="$1"
-  LViewText="$(gh run view "${aRunId}" 2>/dev/null || true)"
-  if [[ -n "${LViewText}" ]]; then
-    printf '%s\n' "${LViewText}"
+  aText="${1:-}"
+  if [[ -z "${aText}" ]]; then
+    return 1
   fi
 
-  if printf '%s\n' "${LViewText}" | grep -Eqi 'payments have failed|spending limit needs to be increased|Billing & plans'; then
-    echo "[WIN-EVIDENCE-GH] FAIL: GitHub Actions billing/quota block detected; fix Billing & plans first"
-    return 31
+  LNormalized="$(printf '%s' "${aText}" | tr '[:upper:]' '[:lower:]')"
+  if [[ "${LNormalized}" == *"recent account payments have failed"* ]] ||
+     [[ "${LNormalized}" == *"spending limit needs to be increased"* ]] ||
+     [[ "${LNormalized}" == *"billing & plans"* ]]; then
+    return 0
   fi
+
   return 1
 }
 
@@ -91,6 +67,7 @@ wait_for_run_completion() {
   local LJson
   local LStatus
   local LConclusion
+  local LRunViewText
 
   aRunId="$1"
   aPollSeconds="$2"
@@ -120,11 +97,15 @@ PY
           return 0
         fi
         echo "[WIN-EVIDENCE-GH] Workflow failed: run=${aRunId}, conclusion=${LConclusion}"
-        set +e
-        show_run_failure_reason "${aRunId}"
-        local LReasonRC=$?
-        set -e
-        return "${LReasonRC}"
+        LRunViewText="$(gh run view "${aRunId}" 2>&1 || true)"
+        if [[ -n "${LRunViewText}" ]]; then
+          echo "${LRunViewText}"
+        fi
+        if is_billing_block_output "${LRunViewText}"; then
+          echo "[WIN-EVIDENCE-GH] Billing/runner block detected (exit=31)"
+          return 31
+        fi
+        return 1
       fi
     fi
     sleep "${aPollSeconds}"
@@ -134,39 +115,76 @@ PY
   return 1
 }
 
-find_latest_run_id_for_head() {
+find_latest_run_id_for_dispatch() {
   local aHeadSha
+  local aHeadBranch
+  local aDispatchEpoch
   local LJson
+
   aHeadSha="$1"
+  aHeadBranch="$2"
+  aDispatchEpoch="$3"
   LJson="$(gh run list \
     --workflow "${WORKFLOW_FILE}" \
     --limit 30 \
-    --json databaseId,headSha,event,status,conclusion,createdAt 2>/dev/null || true)"
+    --json databaseId,headSha,headBranch,event,status,conclusion,createdAt 2>/dev/null || true)"
 
   if [[ -z "${LJson}" ]]; then
     return 0
   fi
 
-  python3 - "${aHeadSha}" "${LJson}" <<'PY'
+  python3 - "${aHeadSha}" "${aHeadBranch}" "${aDispatchEpoch}" "${LJson}" <<'PY'
 import json
 import sys
+from datetime import datetime
 
 head_sha = sys.argv[1].strip().lower()
-raw = sys.argv[2].strip()
+head_branch = sys.argv[2].strip()
+dispatch_epoch = int(sys.argv[3] or "0")
+raw = sys.argv[4].strip()
 if not raw:
     sys.exit(0)
 
 rows = json.loads(raw)
+best = None
+
+def to_epoch(created_at: str) -> int:
+    if not created_at:
+        return 0
+    try:
+        if created_at.endswith("Z"):
+            created_at = created_at[:-1] + "+00:00"
+        return int(datetime.fromisoformat(created_at).timestamp())
+    except Exception:
+        return 0
+
 for row in rows:
-    row_sha = str(row.get("headSha", "")).strip().lower()
-    if row_sha != head_sha:
-        continue
     if row.get("event") != "workflow_dispatch":
         continue
+
     run_id = row.get("databaseId")
-    if run_id is not None:
-        print(run_id)
-        break
+    if run_id is None:
+        continue
+
+    row_sha = str(row.get("headSha", "")).strip().lower()
+    row_branch = str(row.get("headBranch", "")).strip()
+    row_epoch = to_epoch(str(row.get("createdAt", "")).strip())
+
+    if head_sha and row_sha == head_sha:
+        score = 0
+    elif head_branch and row_branch == head_branch:
+        score = 1
+    elif dispatch_epoch > 0 and row_epoch >= dispatch_epoch - 10:
+        score = 2
+    else:
+        continue
+
+    candidate = (score, -row_epoch, int(run_id))
+    if best is None or candidate < best:
+        best = candidate
+
+if best is not None:
+    print(best[2])
 PY
 }
 
@@ -183,19 +201,32 @@ LRef="${SIMD_WIN_EVIDENCE_REF:-$(git -C "${REPO_ROOT}" branch --show-current || 
 if [[ -z "${LRef}" ]]; then
   LRef="$(git -C "${REPO_ROOT}" rev-parse HEAD)"
 fi
-LHeadSha="$(git -C "${REPO_ROOT}" rev-parse "${LRef}")"
+LHeadShaLocal="$(git -C "${REPO_ROOT}" rev-parse "${LRef}" 2>/dev/null || true)"
+LHeadShaRemote="$(git -C "${REPO_ROOT}" ls-remote --heads origin "${LRef}" 2>/dev/null | awk '{print $1}' | head -n 1 || true)"
+LHeadSha="${LHeadShaRemote:-${LHeadShaLocal}}"
 LPollSeconds="${SIMD_WIN_EVIDENCE_POLL_SECONDS:-5}"
 LPollMaxTries="${SIMD_WIN_EVIDENCE_POLL_MAX_TRIES:-60}"
 LDispatchRetries="${SIMD_WIN_EVIDENCE_DISPATCH_RETRIES:-3}"
 LDispatchBackoffSeconds="${SIMD_WIN_EVIDENCE_DISPATCH_BACKOFF_SECONDS:-2}"
 LRunId="${RUN_ID_INPUT}"
+LDispatchEpoch=0
 
 if [[ -z "${LRunId}" ]]; then
+  if [[ "${SIMD_WIN_EVIDENCE_PREFLIGHT:-1}" != "0" ]]; then
+    if [[ ! -x "${PREFLIGHT_SCRIPT}" ]]; then
+      echo "[WIN-EVIDENCE-GH] Missing preflight script: ${PREFLIGHT_SCRIPT}"
+      exit 2
+    fi
+    echo "[WIN-EVIDENCE-GH] Preflight before dispatch"
+    "${PREFLIGHT_SCRIPT}" --workflow "${WORKFLOW_FILE}"
+  fi
+
   echo "[WIN-EVIDENCE-GH] Dispatch workflow: ${WORKFLOW_FILE} (ref=${LRef}, head=${LHeadSha})"
-  dispatch_workflow_with_retry "${WORKFLOW_FILE}" "${LRef}" "${LDispatchRetries}" "${LDispatchBackoffSeconds}"
+  LDispatchEpoch="$(date +%s)"
+  gh workflow run "${WORKFLOW_FILE}" --ref "${LRef}"
 
   for ((LTry = 1; LTry <= LPollMaxTries; LTry++)); do
-    LRunId="$(find_latest_run_id_for_head "${LHeadSha}")"
+    LRunId="$(find_latest_run_id_for_dispatch "${LHeadSha}" "${LRef}" "${LDispatchEpoch}")"
     if [[ -n "${LRunId}" ]]; then
       break
     fi
@@ -209,13 +240,10 @@ if [[ -z "${LRunId}" ]]; then
 fi
 
 echo "[WIN-EVIDENCE-GH] Watching run: ${LRunId}"
-set +e
-wait_for_run_completion "${LRunId}" "${LPollSeconds}" "${LPollMaxTries}"
-LWaitRC=$?
-set -e
-if [[ "${LWaitRC}" != "0" ]]; then
-  exit "${LWaitRC}"
-fi
+wait_for_run_completion "${LRunId}" "${LPollSeconds}" "${LPollMaxTries}" || {
+  LWaitRc=$?
+  exit "${LWaitRc}"
+}
 
 LTempDir="$(mktemp -d)"
 cleanup() {

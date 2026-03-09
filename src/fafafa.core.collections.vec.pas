@@ -2493,7 +2493,7 @@ end;
 
 function TVec.Pop(out aElement: T): Boolean;
 begin
-  Result := TryPop(aElement);
+  Result := TryPop(@aElement, 1);
 end;
 
 function TVec.Pop: T;

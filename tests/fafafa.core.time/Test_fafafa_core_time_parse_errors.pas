@@ -1,6 +1,8 @@
 unit Test_fafafa_core_time_parse_errors;
 
 {$mode objfpc}{$H+}
+{$CODEPAGE UTF8}
+{$I ..\..\src\fafafa.core.settings.inc}
 
 interface
 
@@ -28,7 +30,25 @@ type
     procedure Test_ErrorCode_FormatTooLong;
     procedure Test_ErrorCode_FormatEmpty;
     procedure Test_ErrorCode_UnsafeFormat;
+    procedure Test_ErrorCode_FormatMismatch_DateByFormat;
+    procedure Test_ErrorCode_FormatMismatch_DateTimeByFormat;
+    procedure Test_ErrorCode_ParseDuration_FormatPrecise_ParsesClockStyle;
+    procedure Test_ErrorCode_ParseDuration_FormatPrecise_RejectsCompactStyle;
     procedure Test_ErrorCode_CannotDetectFormat;
+    procedure Test_SmartParse_DateTime_AssignsParsedValue;
+    procedure Test_OptionsMode_Smart_ParseDateTime_FromIsoDate;
+    procedure Test_OptionsMode_Smart_ParseDate_FromDateTimeInput;
+    procedure Test_OptionsMode_Smart_ParseTime_FromDateTimeInput;
+    procedure Test_OptionsMode_Smart_ParseDuration_ParsesPrecise;
+    procedure Test_Options_AllowPartialMatch_DateTime_AllowsTrailing;
+    procedure Test_Options_AllowPartialMatch_Date_AllowsTrailing;
+    procedure Test_Options_AllowPartialMatch_Time_AllowsTrailing;
+    procedure Test_Options_AllowPartialMatch_Duration_AllowsTrailing;
+    procedure Test_DurationParser_Options_AllowPartialMatch_AllowsTrailing;
+    procedure Test_ParseDuration_Base_ParsesPrecise;
+    procedure Test_ParseDateTime_Base_ParsesIsoDate;
+    procedure Test_ParseDate_Base_ParsesDateTimeInput;
+    procedure Test_ParseTime_Base_ParsesDateTimeInput;
     
     procedure Test_LocalizedMessage_English;
     procedure Test_LocalizedMessage_Chinese;
@@ -145,6 +165,236 @@ begin
   validation := ValidateFormatString('yyyy-mm-dd*');
   AssertFalse('Should fail on asterisk', validation.IsValid);
   AssertEquals('Should have UnsafeFormat error code', Ord(pecUnsafeFormat), Ord(validation.ErrorCode));
+end;
+
+procedure TTestCase_ParseErrors.Test_ErrorCode_FormatMismatch_DateByFormat;
+var
+  LDate: TDate;
+  LResult: TParseResult;
+begin
+  LResult := DefaultTimeParser.ParseDate('2024/10/15', 'yyyy-mm-dd', LDate);
+  AssertFalse('Should fail when date does not match specified format', LResult.Success);
+  AssertEquals('Should have FormatMismatch error code', Ord(pecFormatMismatch), Ord(LResult.ErrorCode));
+end;
+
+procedure TTestCase_ParseErrors.Test_ErrorCode_FormatMismatch_DateTimeByFormat;
+var
+  LDateTime: TDateTime;
+  LResult: TParseResult;
+begin
+  LResult := DefaultTimeParser.ParseDateTime('2024-10-15 12:30:00', 'yyyy-mm-dd', LDateTime);
+  AssertFalse('Should fail when datetime does not match specified format', LResult.Success);
+  AssertEquals('Should have FormatMismatch error code', Ord(pecFormatMismatch), Ord(LResult.ErrorCode));
+end;
+
+procedure TTestCase_ParseErrors.Test_ErrorCode_ParseDuration_FormatPrecise_ParsesClockStyle;
+var
+  LDuration: TDuration;
+  LResult: TParseResult;
+begin
+  LResult := DefaultTimeParser.ParseDuration('01:30:00', 'precise', LDuration);
+  AssertTrue('Should parse clock-style duration with precise format', LResult.Success);
+  AssertEquals('Duration seconds should be 5400', 5400, LDuration.AsSec);
+end;
+
+procedure TTestCase_ParseErrors.Test_ErrorCode_ParseDuration_FormatPrecise_RejectsCompactStyle;
+var
+  LDuration: TDuration;
+  LResult: TParseResult;
+begin
+  LResult := DefaultTimeParser.ParseDuration('90s', 'precise', LDuration);
+  AssertFalse('Should reject compact duration under precise format', LResult.Success);
+  AssertEquals('Should return InvalidDuration error code', Ord(pecInvalidDuration), Ord(LResult.ErrorCode));
+end;
+
+procedure TTestCase_ParseErrors.Test_SmartParse_DateTime_AssignsParsedValue;
+var
+  LDateTime: TDateTime;
+  LExpected: TDateTime;
+  LResult: TParseResult;
+begin
+  LResult := DefaultTimeParser.SmartParse('15-10-2024', LDateTime);
+  AssertTrue('SmartParse should succeed for local date format', LResult.Success);
+
+  LExpected := EncodeDate(2024, 10, 15);
+  AssertTrue('SmartParse should assign parsed datetime output', Abs(LDateTime - LExpected) < (1.0 / 86400.0));
+end;
+
+procedure TTestCase_ParseErrors.Test_OptionsMode_Smart_ParseDateTime_FromIsoDate;
+var
+  LDateTime: TDateTime;
+  LExpected: TDateTime;
+  LOptions: TParseOptions;
+  LResult: TParseResult;
+begin
+  LOptions := TParseOptions.Smart;
+  LResult := DefaultTimeParser.ParseDateTime('2024-10-15', LOptions, LDateTime);
+  AssertTrue('Smart mode should parse ISO date as datetime', LResult.Success);
+
+  LExpected := EncodeDate(2024, 10, 15);
+  AssertTrue('Parsed datetime should match expected date', Abs(LDateTime - LExpected) < (1.0 / 86400.0));
+end;
+
+procedure TTestCase_ParseErrors.Test_OptionsMode_Smart_ParseDate_FromDateTimeInput;
+var
+  LDate: TDate;
+  LOptions: TParseOptions;
+  LResult: TParseResult;
+begin
+  LOptions := TParseOptions.Smart;
+  LResult := DefaultTimeParser.ParseDate('15-10-2024 12:30:00', LOptions, LDate);
+  AssertTrue('Smart mode should extract date from datetime input', LResult.Success);
+  AssertEquals('Year should match', 2024, LDate.GetYear);
+  AssertEquals('Month should match', 10, LDate.GetMonth);
+  AssertEquals('Day should match', 15, LDate.GetDay);
+end;
+procedure TTestCase_ParseErrors.Test_OptionsMode_Smart_ParseTime_FromDateTimeInput;
+var
+  LTime: TTimeOfDay;
+  LOptions: TParseOptions;
+  LResult: TParseResult;
+begin
+  LOptions := TParseOptions.Smart;
+  LResult := DefaultTimeParser.ParseTime('15-10-2024 12:30:45', LOptions, LTime);
+  AssertTrue('Smart mode should extract time from datetime input', LResult.Success);
+  AssertEquals('Hour should match', 12, LTime.GetHour);
+  AssertEquals('Minute should match', 30, LTime.GetMinute);
+  AssertEquals('Second should match', 45, LTime.GetSecond);
+end;
+
+procedure TTestCase_ParseErrors.Test_OptionsMode_Smart_ParseDuration_ParsesPrecise;
+var
+  LDuration: TDuration;
+  LOptions: TParseOptions;
+  LResult: TParseResult;
+begin
+  LOptions := TParseOptions.Smart;
+  LResult := DefaultTimeParser.ParseDuration('01:30:00', LOptions, LDuration);
+  AssertTrue('Smart mode should parse precise duration format', LResult.Success);
+  AssertEquals('Duration seconds should be 5400', 5400, LDuration.AsSec);
+end;
+
+procedure TTestCase_ParseErrors.Test_Options_AllowPartialMatch_DateTime_AllowsTrailing;
+var
+  LDateTime: TDateTime;
+  LOptions: TParseOptions;
+  LResult: TParseResult;
+begin
+  LOptions := TParseOptions.Default;
+  LOptions.AllowPartialMatch := False;
+  LResult := DefaultTimeParser.ParseDateTime('2024-10-15 trailing', LOptions, LDateTime);
+  AssertFalse('AllowPartialMatch=False should reject trailing datetime text', LResult.Success);
+
+  LOptions.AllowPartialMatch := True;
+  LResult := DefaultTimeParser.ParseDateTime('2024-10-15 trailing', LOptions, LDateTime);
+  AssertTrue('AllowPartialMatch=True should accept trailing datetime text', LResult.Success);
+end;
+
+procedure TTestCase_ParseErrors.Test_Options_AllowPartialMatch_Date_AllowsTrailing;
+var
+  LDate: TDate;
+  LOptions: TParseOptions;
+  LResult: TParseResult;
+begin
+  LOptions := TParseOptions.Default;
+  LOptions.AllowPartialMatch := True;
+  LResult := DefaultTimeParser.ParseDate('2024-10-15 trailing', LOptions, LDate);
+  AssertTrue('AllowPartialMatch=True should accept trailing date text', LResult.Success);
+  AssertEquals('Year should match', 2024, LDate.GetYear);
+  AssertEquals('Month should match', 10, LDate.GetMonth);
+  AssertEquals('Day should match', 15, LDate.GetDay);
+end;
+
+procedure TTestCase_ParseErrors.Test_Options_AllowPartialMatch_Time_AllowsTrailing;
+var
+  LTime: TTimeOfDay;
+  LOptions: TParseOptions;
+  LResult: TParseResult;
+begin
+  LOptions := TParseOptions.Default;
+  LOptions.AllowPartialMatch := True;
+  LResult := DefaultTimeParser.ParseTime('12:30:45 trailing', LOptions, LTime);
+  AssertTrue('AllowPartialMatch=True should accept trailing time text', LResult.Success);
+  AssertEquals('Hour should match', 12, LTime.GetHour);
+  AssertEquals('Minute should match', 30, LTime.GetMinute);
+  AssertEquals('Second should match', 45, LTime.GetSecond);
+end;
+
+procedure TTestCase_ParseErrors.Test_Options_AllowPartialMatch_Duration_AllowsTrailing;
+var
+  LDuration: TDuration;
+  LOptions: TParseOptions;
+  LResult: TParseResult;
+begin
+  LOptions := TParseOptions.Default;
+  LOptions.AllowPartialMatch := True;
+  LResult := DefaultTimeParser.ParseDuration('01:30:00 trailing', LOptions, LDuration);
+  AssertTrue('AllowPartialMatch=True should accept trailing duration text', LResult.Success);
+  AssertEquals('Duration seconds should be 5400', 5400, LDuration.AsSec);
+end;
+
+procedure TTestCase_ParseErrors.Test_DurationParser_Options_AllowPartialMatch_AllowsTrailing;
+var
+  LDuration: TDuration;
+  LOptions: TParseOptions;
+  LResult: TParseResult;
+begin
+  LOptions := TParseOptions.Default;
+  LOptions.AllowPartialMatch := False;
+  LResult := DefaultDurationParser.Parse('01:30:00 trailing', LOptions, LDuration);
+  AssertFalse('AllowPartialMatch=False should reject trailing duration text (DurationParser)', LResult.Success);
+
+  LOptions.AllowPartialMatch := True;
+  LResult := DefaultDurationParser.Parse('01:30:00 trailing', LOptions, LDuration);
+  AssertTrue('AllowPartialMatch=True should accept trailing duration text (DurationParser)', LResult.Success);
+  AssertEquals('Duration seconds should be 5400 (DurationParser)', 5400, LDuration.AsSec);
+end;
+
+procedure TTestCase_ParseErrors.Test_ParseDuration_Base_ParsesPrecise;
+var
+  LDuration: TDuration;
+  LResult: TParseResult;
+begin
+  LResult := DefaultTimeParser.ParseDuration('01:30:00', LDuration);
+  AssertTrue('Base ParseDuration should parse precise duration format', LResult.Success);
+  AssertEquals('Duration seconds should be 5400', 5400, LDuration.AsSec);
+end;
+
+procedure TTestCase_ParseErrors.Test_ParseDateTime_Base_ParsesIsoDate;
+var
+  LDateTime: TDateTime;
+  LExpected: TDateTime;
+  LResult: TParseResult;
+begin
+  LResult := DefaultTimeParser.ParseDateTime('2024-10-15', LDateTime);
+  AssertTrue('Base ParseDateTime should parse ISO date', LResult.Success);
+
+  LExpected := EncodeDate(2024, 10, 15);
+  AssertTrue('Parsed datetime should match expected date', Abs(LDateTime - LExpected) < (1.0 / 86400.0));
+end;
+
+procedure TTestCase_ParseErrors.Test_ParseDate_Base_ParsesDateTimeInput;
+var
+  LDate: TDate;
+  LResult: TParseResult;
+begin
+  LResult := DefaultTimeParser.ParseDate('15-10-2024 12:30:00', LDate);
+  AssertTrue('Base ParseDate should parse datetime input', LResult.Success);
+  AssertEquals('Year should match', 2024, LDate.GetYear);
+  AssertEquals('Month should match', 10, LDate.GetMonth);
+  AssertEquals('Day should match', 15, LDate.GetDay);
+end;
+
+procedure TTestCase_ParseErrors.Test_ParseTime_Base_ParsesDateTimeInput;
+var
+  LTime: TTimeOfDay;
+  LResult: TParseResult;
+begin
+  LResult := DefaultTimeParser.ParseTime('15-10-2024 12:30:45', LTime);
+  AssertTrue('Base ParseTime should parse datetime input', LResult.Success);
+  AssertEquals('Hour should match', 12, LTime.GetHour);
+  AssertEquals('Minute should match', 30, LTime.GetMinute);
+  AssertEquals('Second should match', 45, LTime.GetSecond);
 end;
 
 procedure TTestCase_ParseErrors.Test_ErrorCode_CannotDetectFormat;

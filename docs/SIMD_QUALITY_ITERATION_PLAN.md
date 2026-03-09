@@ -1,5 +1,8 @@
 # SIMD 质量驱动迭代计划
 
+> **NOTE (INTERNAL)**：本文档为内部质量规划记录，内容可能与当前实现不一致。  
+> 对外口径请以 `docs/fafafa.core.simd*.md` 与 `src/fafafa.core.simd.STABLE` 为准。
+
 ## 核心原则
 
 **三个维度同等重要**：

@@ -97,14 +97,14 @@ function TReadOnlySpan.Get(aIndex: SizeUInt): T; inline;
 begin
   if aIndex >= FCount then
     raise fafafa.core.base.EOutOfRange.Create('Span.Get: index out of range');
-  Result := PElement(Pointer(PtrUInt(FPtr) + aIndex * FElemSize))^;
+  Result := PElement(PByte(FPtr) + aIndex * FElemSize)^;
 end;
 
 function TReadOnlySpan.TryGet(aIndex: SizeUInt; out aElement: T): Boolean; inline;
 begin
   if aIndex < FCount then
   begin
-    aElement := PElement(Pointer(PtrUInt(FPtr) + aIndex * FElemSize))^;
+    aElement := PElement(PByte(FPtr) + aIndex * FElemSize)^;
     Exit(True);
   end;
   Result := False;
@@ -114,7 +114,7 @@ function TReadOnlySpan.GetPtr(aIndex: SizeUInt): Pointer; inline;
 begin
   if aIndex >= FCount then
     raise fafafa.core.base.EOutOfRange.Create('Span.GetPtr: index out of range');
-  Result := Pointer(PtrUInt(FPtr) + aIndex * FElemSize);
+  Result := Pointer(PByte(FPtr) + aIndex * FElemSize);
 end;
 
 function TReadOnlySpan.SubSpan(aIndex, aCount: SizeUInt): TReadOnlySpan; inline;
@@ -125,7 +125,7 @@ begin
   LMax := FCount;
   if (aIndex >= LMax) or (aIndex + aCount > LMax) then
     raise fafafa.core.base.EOutOfRange.Create('Span.SubSpan: range out of bounds');
-  Result := FromPointer(Pointer(PtrUInt(FPtr) + aIndex * FElemSize), aCount, FElemSize);
+  Result := FromPointer(Pointer(PByte(FPtr) + aIndex * FElemSize), aCount, FElemSize);
 end;
 
 { TReadOnlySpan2<T> }

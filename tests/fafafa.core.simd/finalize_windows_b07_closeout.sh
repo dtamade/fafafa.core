@@ -2,134 +2,121 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
-LOG_DIR="${ROOT}/logs"
-VERIFY_SCRIPT="${ROOT}/verify_windows_b07_evidence.sh"
-ROADMAP_DOC="$(cd "${ROOT}/../.." && pwd)/docs/plans/2026-02-09-simd-unblock-closeout-roadmap.md"
-MATRIX_DOC="${ROOT}/docs/simd_completeness_matrix.md"
-RC_DOC="${ROOT}/docs/simd_release_candidate_checklist.md"
+LOG_PATH="${1:-${ROOT}/logs/windows_b07_gate.log}"
+OUT_PATH="${2:-${ROOT}/logs/windows_b07_closeout_summary.md}"
+VERIFIER="${ROOT}/verify_windows_b07_evidence.sh"
 
-LBatchId="SIMD-$(date '+%Y%m%d')-152"
-LEvidenceLog="${SIMD_WIN_EVIDENCE_LOG_FILE:-${LOG_DIR}/windows_b07_gate.log}"
-LExplicitLog=0
-
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --batch-id)
-      shift
-      LBatchId="${1:-${LBatchId}}"
-      ;;
-    --log)
-      shift
-      LEvidenceLog="${1:-${LEvidenceLog}}"
-      LExplicitLog=1
-      ;;
-    -h|--help)
-      cat <<USAGE
-Usage: $0 [--batch-id SIMD-YYYYMMDD-152] [--log path/to/windows_b07_gate.log]
-USAGE
-      exit 0
-      ;;
-    *)
-      if [[ "${LExplicitLog}" == "0" && -f "$1" ]]; then
-        LEvidenceLog="$1"
-        LExplicitLog=1
-      else
-        LBatchId="$1"
-      fi
-      ;;
-  esac
-  shift || true
-done
-
-if [[ ! -f "${LEvidenceLog}" ]]; then
-  if [[ "${LExplicitLog}" == "0" && -f "${LOG_DIR}/windows_b07_gate.simulated.log" ]]; then
-    LEvidenceLog="${LOG_DIR}/windows_b07_gate.simulated.log"
-  else
-    echo "[CLOSEOUT] Missing evidence log: ${LEvidenceLog}"
-    exit 2
-  fi
-fi
-
-LIsSimulated=0
-if grep -Eq '^\[B07\][[:space:]]+Simulated:[[:space:]]+yes$' "${LEvidenceLog}"; then
-  LIsSimulated=1
-fi
-
-if [[ "${LIsSimulated}" == "1" ]]; then
-  LSummaryPath="${LOG_DIR}/windows_b07_closeout_summary.simulated.md"
-else
-  LSummaryPath="${LOG_DIR}/windows_b07_closeout_summary.md"
-fi
-
-extract_value() {
-  local aPrefix
-  local aDefault
-  local LLine
-
-  aPrefix="$1"
-  aDefault="$2"
-  LLine="$(grep -m1 -F "${aPrefix}" "${LEvidenceLog}" || true)"
-  if [[ -z "${LLine}" ]]; then
-    printf '%s' "${aDefault}"
-    return 0
-  fi
-  if [[ "${LLine}" == "${aPrefix}"* ]]; then
-    printf '%s' "${LLine:${#aPrefix}}"
-  else
-    printf '%s' "${LLine}"
-  fi
+print_usage() {
+  echo "Usage: $0 [evidence-log-path] [summary-output-path]"
+  echo "Default log: ${ROOT}/logs/windows_b07_gate.log"
+  echo "Default summary: ${ROOT}/logs/windows_b07_closeout_summary.md"
 }
 
-LStarted="$(extract_value '[B07] Started: ' 'unknown')"
-LGateExitCode="$(extract_value '[B07] GATE_EXIT_CODE=' 'unknown')"
-LTotal="$(extract_value '[B07] Total: ' '0')"
-LPassed="$(extract_value '[B07] Passed: ' '0')"
-LFailed="$(extract_value '[B07] Failed: ' '0')"
-
-LVerifyCommand="bash tests/fafafa.core.simd/verify_windows_b07_evidence.sh \"${LEvidenceLog}\""
-set +e
-LVerifyOutput="$(bash "${VERIFY_SCRIPT}" "${LEvidenceLog}" 2>&1)"
-LVerifyRC=$?
-set -e
-LVerifyOutputOneLine="$(printf '%s' "${LVerifyOutput}" | tr '\n' ' ' | sed 's/[[:space:]]\+/ /g; s/[[:space:]]$//')"
-if [[ "${LVerifyRC}" == "0" ]]; then
-  LVerifyResult="PASS"
-else
-  LVerifyResult="FAIL (rc=${LVerifyRC})"
+if [[ "${LOG_PATH}" == "-h" || "${LOG_PATH}" == "--help" ]]; then
+  print_usage
+  exit 0
 fi
 
-mkdir -p "${LOG_DIR}"
-cat > "${LSummaryPath}" <<EOM
+if [[ ! -f "${LOG_PATH}" ]]; then
+  echo "[CLOSEOUT] Missing log: ${LOG_PATH}"
+  exit 2
+fi
+
+if [[ ! -x "${VERIFIER}" ]]; then
+  echo "[CLOSEOUT] Missing verifier: ${VERIFIER}"
+  exit 2
+fi
+
+extract_last_line() {
+  local aRegex
+  local aFile
+
+  aRegex="$1"
+  aFile="$2"
+  grep -E -- "${aRegex}" "${aFile}" | tail -n 1 || true
+}
+
+extract_metric_value() {
+  local aLine
+
+  aLine="$1"
+  echo "${aLine}" | sed -E 's/.*:[[:space:]]*([0-9]+).*/\1/'
+}
+
+LVerifierRc=0
+LVerifierOutput=""
+LVerifierResult="PASS"
+LVerifierDetail=""
+
+set +e
+LVerifierOutput="$("${VERIFIER}" "${LOG_PATH}" 2>&1)"
+LVerifierRc=$?
+set -e
+
+if [[ "${LVerifierRc}" -ne 0 ]]; then
+  LVerifierResult="FAIL (rc=${LVerifierRc})"
+fi
+
+LVerifierDetail="$(printf '%s' "${LVerifierOutput}" | tr '\n' ' ' | sed -E 's/[[:space:]]+/ /g' | sed -E 's/^[[:space:]]+|[[:space:]]+$//g')"
+if [[ -z "${LVerifierDetail}" ]]; then
+  LVerifierDetail="n/a"
+fi
+
+LStarted="$(extract_last_line '^\[B07\][[:space:]]+Started:' "${LOG_PATH}")"
+LGateRc="$(extract_last_line '^\[B07\][[:space:]]+GATE_EXIT_CODE=' "${LOG_PATH}")"
+
+LTotalLine="$(extract_last_line '^\[B07\][[:space:]]+Total:[[:space:]]+[0-9]+$' "${LOG_PATH}")"
+LPassedLine="$(extract_last_line '^\[B07\][[:space:]]+Passed:[[:space:]]+[0-9]+$' "${LOG_PATH}")"
+LFailedLine="$(extract_last_line '^\[B07\][[:space:]]+Failed:[[:space:]]+[0-9]+$' "${LOG_PATH}")"
+
+if [[ -z "${LTotalLine}" ]]; then
+  LTotalLine="$(extract_last_line '^Total:[[:space:]]+[0-9]+$' "${LOG_PATH}")"
+fi
+if [[ -z "${LPassedLine}" ]]; then
+  LPassedLine="$(extract_last_line '^Passed:[[:space:]]+[0-9]+$' "${LOG_PATH}")"
+fi
+if [[ -z "${LFailedLine}" ]]; then
+  LFailedLine="$(extract_last_line '^Failed:[[:space:]]+[0-9]+$' "${LOG_PATH}")"
+fi
+
+LTotal="$(extract_metric_value "${LTotalLine}")"
+LPassed="$(extract_metric_value "${LPassedLine}")"
+LFailed="$(extract_metric_value "${LFailedLine}")"
+
+mkdir -p "$(dirname "${OUT_PATH}")"
+
+cat > "${OUT_PATH}" <<EOM
 # SIMD Windows B07 Closeout Summary
 
 - Generated: $(date '+%Y-%m-%d %H:%M:%S %z')
-- Batch Id: ${LBatchId}
-- Evidence Log: ${LEvidenceLog}
-- [B07] Started: ${LStarted}
-- [B07] GATE_EXIT_CODE=${LGateExitCode}
-$(if [[ "${LIsSimulated}" == "1" ]]; then printf '%s\n' '- [B07] Simulated: yes'; fi)
+- Evidence Log: ${LOG_PATH}
+- ${LStarted:-[B07] Started: N/A}
+- ${LGateRc:-[B07] GATE_EXIT_CODE=N/A}
 
 ## run_all Snapshot
 
-- Total: ${LTotal}
-- Passed: ${LPassed}
-- Failed: ${LFailed}
+- Total: ${LTotal:-N/A}
+- Passed: ${LPassed:-N/A}
+- Failed: ${LFailed:-N/A}
 
 ## Verification
 
-- Verifier: ${VERIFY_SCRIPT}
-- Command: ${LVerifyCommand}
-- Result: ${LVerifyResult}
-$(if [[ -n "${LVerifyOutputOneLine}" ]]; then printf '%s\n' "- Detail: ${LVerifyOutputOneLine}"; fi)
+- Verifier: ${VERIFIER}
+- Command: bash tests/fafafa.core.simd/verify_windows_b07_evidence.sh "${LOG_PATH}"
+- Result: ${LVerifierResult}
+- Detail: ${LVerifierDetail}
 
 ## Next Doc Updates
 
-- Update: ${ROADMAP_DOC}
-- Update: ${MATRIX_DOC}
-- Update: ${RC_DOC}
+- Update: docs/plans/2026-02-09-simd-unblock-closeout-roadmap.md
+- Update: tests/fafafa.core.simd/docs/simd_completeness_matrix.md
+- Update: progress.md
 EOM
 
-echo "[CLOSEOUT] Summary updated: ${LSummaryPath}"
-if [[ "${LVerifyRC}" != "0" ]]; then
-  echo "[CLOSEOUT] Note: verifier currently fails for ${LEvidenceLog}; summary captured that state"
+if [[ "${LVerifierRc}" -eq 0 ]]; then
+  echo "[CLOSEOUT] OK: ${OUT_PATH}"
+  exit 0
 fi
+
+echo "[CLOSEOUT] FAILED: verifier rc=${LVerifierRc} (summary updated: ${OUT_PATH})"
+exit "${LVerifierRc}"

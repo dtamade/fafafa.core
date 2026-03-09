@@ -1,176 +1,182 @@
 #!/usr/bin/env python3
+"""
+Check non-x86 wiring checklist consistency between:
+1) legacy manual wiring assertions
+2) grouped wiring assertions
+3) non-x86 interface checklist markdown markers
+"""
+
 from __future__ import annotations
 
 import argparse
 import json
+import re
 import sys
-from dataclasses import asdict, dataclass
 from pathlib import Path
+from typing import Any
 
 
-@dataclass
-class CheckItem:
-    name: str
-    status: str
-    detail: str
+def extract_method_body(source_text: str, method_name: str) -> str:
+    pattern = re.compile(
+        rf"procedure\s+TTestCase_DispatchAPI\.{re.escape(method_name)}\s*;(?P<body>.*?)(?=\nprocedure\s+TTestCase_DispatchAPI\.|\ninitialization\b)",
+        re.IGNORECASE | re.DOTALL,
+    )
+    match = pattern.search(source_text)
+    if not match:
+        raise RuntimeError(f"method not found: {method_name}")
+    return match.group("body")
 
 
-def load_text(a_path: Path) -> str:
-    return a_path.read_text(encoding="utf-8", errors="ignore")
+def parse_slots_from_assigned(method_body: str) -> set[str]:
+    return set(re.findall(r"Assigned\(LTable\.([A-Za-z0-9_]+)\)", method_body))
 
 
-def write_json(a_path: Path, a_payload: dict) -> None:
-    a_path.parent.mkdir(parents=True, exist_ok=True)
-    a_path.write_text(json.dumps(a_payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+def parse_slots_from_grouped(method_body: str) -> set[str]:
+    return set(re.findall(r"Pointer\(LTable\.([A-Za-z0-9_]+)\)", method_body))
+
+
+def evaluate_exit_code(result: dict[str, Any], strict_extra: bool) -> int:
+    if result["missing_in_grouped"]:
+        return 1
+    if strict_extra and result["extra_in_grouped"]:
+        return 1
+    if result["missing_markers"]:
+        return 1
+    return 0
+
+
+def render_summary_line(result: dict[str, Any], strict_extra: bool) -> str:
+    return (
+        "WIRING_SYNC_SUMMARY "
+        f"legacy={result['legacy_count']} "
+        f"grouped={result['grouped_count']} "
+        f"missing={len(result['missing_in_grouped'])} "
+        f"extra={len(result['extra_in_grouped'])} "
+        f"markers_missing={len(result['missing_markers'])} "
+        f"strict_extra={1 if strict_extra else 0}"
+    )
+
+
+def print_human_result(result: dict[str, Any], strict_extra: bool) -> None:
+    print("[WIRING-SYNC] non-x86 wiring consistency")
+    print(f"  - legacy slots:  {result['legacy_count']}")
+    print(f"  - grouped slots: {result['grouped_count']}")
+    print(f"  - missing in grouped: {len(result['missing_in_grouped'])}")
+    print(f"  - extra in grouped:   {len(result['extra_in_grouped'])}")
+
+    if result["missing_in_grouped"]:
+        print("[WIRING-SYNC] Missing grouped slots:")
+        for slot in result["missing_in_grouped"]:
+            print(f"  - {slot}")
+
+    if result["extra_in_grouped"]:
+        if strict_extra:
+            print("[WIRING-SYNC] Extra grouped slots (strict mode):")
+        else:
+            print("[WIRING-SYNC] Extra grouped slots (non-strict, info):")
+        for slot in result["extra_in_grouped"]:
+            print(f"  - {slot}")
+
+    if result["missing_markers"]:
+        print("[WIRING-SYNC] Checklist missing markers:")
+        for marker in result["missing_markers"]:
+            print(f"  - {marker}")
 
 
 def main() -> int:
-    l_parser = argparse.ArgumentParser(description="Check non-x86 SIMD wiring sync")
-    l_parser.add_argument("--root", default=str(Path(__file__).resolve().parent))
-    l_parser.add_argument("--json", action="store_true")
-    l_parser.add_argument("--summary-line", action="store_true")
-    l_parser.add_argument("--strict-extra", action="store_true")
-    l_args = l_parser.parse_args()
+    parser = argparse.ArgumentParser(description="Check non-x86 wiring sync")
+    parser.add_argument("--strict-extra", action="store_true", help="fail when grouped slots are beyond legacy slots")
+    parser.add_argument("--json", action="store_true", help="print machine-readable JSON result")
+    parser.add_argument("--summary-line", action="store_true", help="print one-line summary for gate logs")
+    parser.add_argument("--testcase", default="tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas")
+    parser.add_argument("--checklist", default="docs/plans/2026-02-09-simd-nonx86-interface-target-checklist.md")
+    args = parser.parse_args()
 
-    l_root = Path(l_args.root).resolve()
-    l_repo_root = l_root.parent.parent
-    l_src_root = l_repo_root / "src"
-    l_docs_root = l_repo_root / "docs"
+    repo_root = Path(__file__).resolve().parents[2]
+    testcase_path = repo_root / args.testcase
+    checklist_path = repo_root / args.checklist
 
-    l_simd_pas = l_src_root / "fafafa.core.simd.pas"
-    l_cpuinfo_pas = l_src_root / "fafafa.core.simd.cpuinfo.pas"
-    l_dispatch_pas = l_src_root / "fafafa.core.simd.dispatch.pas"
-    l_readme = l_src_root / "fafafa.core.simd.README.md"
-    l_stable = l_src_root / "fafafa.core.simd.STABLE"
-    l_closeout = l_docs_root / "fafafa.core.simd.closeout.md"
-
-    l_simd_text = load_text(l_simd_pas)
-    l_cpuinfo_text = load_text(l_cpuinfo_pas)
-    l_dispatch_text = load_text(l_dispatch_pas)
-    l_readme_text = load_text(l_readme)
-    l_stable_text = load_text(l_stable)
-    l_closeout_text = load_text(l_closeout)
-
-    l_checks: list[CheckItem] = []
-
-    l_neon_guard = "{$IFDEF SIMD_ARM_AVAILABLE}" in l_simd_text and ", fafafa.core.simd.neon" in l_simd_text
-    l_riscvv_guard = (
-        "{$IF DEFINED(SIMD_RISCV_AVAILABLE) AND DEFINED(SIMD_EXPERIMENTAL_RISCVV)}" in l_simd_text
-        and ", fafafa.core.simd.riscvv" in l_simd_text
-    )
-    if l_neon_guard and l_riscvv_guard:
-        l_checks.append(CheckItem(
-            name="simd_pas_nonx86_guards",
-            status="PASS",
-            detail="NEON uses SIMD_ARM_AVAILABLE; RISCVV uses explicit SIMD_EXPERIMENTAL_RISCVV opt-in guard",
-        ))
-    else:
-        l_details: list[str] = []
-        if not l_neon_guard:
-            l_details.append("NEON guard missing or malformed")
-        if not l_riscvv_guard:
-            l_details.append("RISCVV opt-in guard missing or malformed")
-        l_checks.append(CheckItem(
-            name="simd_pas_nonx86_guards",
-            status="FAIL",
-            detail="; ".join(l_details),
-        ))
-
-    l_cpuinfo_mentions = all(l_token in l_cpuinfo_text for l_token in ("sbNEON", "sbRISCVV", "HasNEON", "HasRISCVV"))
-    l_dispatch_mentions = all(l_token in l_dispatch_text for l_token in ("sbNEON", "sbRISCVV"))
-    if l_cpuinfo_mentions and l_dispatch_mentions:
-        l_checks.append(CheckItem(
-            name="cpuinfo_dispatch_nonx86_symbols",
-            status="PASS",
-            detail="cpuinfo/dispatch both still expose NEON and RISCVV backend symbols",
-        ))
-    else:
-        l_checks.append(CheckItem(
-            name="cpuinfo_dispatch_nonx86_symbols",
-            status="FAIL",
-            detail="missing NEON/RISCVV symbol references in cpuinfo or dispatch",
-        ))
-
-    l_readme_boundary = (
-        "sbRISCVV" in l_readme_text
-        and "SIMD_EXPERIMENTAL_RISCVV" in l_readme_text
-        and "experimental" in l_readme_text.lower()
-    )
-    if l_readme_boundary:
-        l_checks.append(CheckItem(
-            name="readme_experimental_boundary",
-            status="PASS",
-            detail="README documents RISCVV experimental boundary and explicit opt-in",
-        ))
-    else:
-        l_checks.append(CheckItem(
-            name="readme_experimental_boundary",
-            status="FAIL",
-            detail="README missing RISCVV experimental/opt-in boundary wording",
-        ))
-
-    l_stable_boundary = "sbRISCVV" in l_stable_text and "experimental" in l_stable_text.lower()
-    l_closeout_boundary = "sbRISCVV" in l_closeout_text and "experimental" in l_closeout_text.lower()
-    if l_stable_boundary and l_closeout_boundary:
-        l_checks.append(CheckItem(
-            name="stable_closeout_boundary_docs",
-            status="PASS",
-            detail="STABLE and closeout docs both preserve non-x86 experimental boundary wording",
-        ))
-    else:
-        l_checks.append(CheckItem(
-            name="stable_closeout_boundary_docs",
-            status="FAIL",
-            detail="STABLE/closeout docs missing non-x86 experimental boundary wording",
-        ))
-
-    if l_args.strict_extra:
-        l_strict_ok = "SIMD_GATE_WIRING_SYNC=1" in l_stable_text and "wiring-sync" in l_closeout_text
-        if l_strict_ok:
-            l_checks.append(CheckItem(
-                name="strict_gate_docs_reference_wiring",
-                status="PASS",
-                detail="STABLE and closeout docs both reference wiring-sync gate usage",
-            ))
+    if not testcase_path.exists() or not checklist_path.exists():
+        error_result = {
+            "ok": False,
+            "error": "input-file-missing",
+            "testcase_exists": testcase_path.exists(),
+            "checklist_exists": checklist_path.exists(),
+            "testcase": str(testcase_path),
+            "checklist": str(checklist_path),
+        }
+        if args.json:
+            print(json.dumps(error_result, ensure_ascii=False, sort_keys=True))
         else:
-            l_checks.append(CheckItem(
-                name="strict_gate_docs_reference_wiring",
-                status="FAIL",
-                detail="strict wiring gate references missing in STABLE or closeout docs",
-            ))
+            if not testcase_path.exists():
+                print(f"[WIRING-SYNC] Missing testcase: {testcase_path}")
+            if not checklist_path.exists():
+                print(f"[WIRING-SYNC] Missing checklist: {checklist_path}")
+        return 2
 
-    l_failed = [l_item for l_item in l_checks if l_item.status != "PASS"]
-    l_payload = {
-        "status": "PASS" if not l_failed else "FAIL",
-        "strict_extra": l_args.strict_extra,
-        "checks": [asdict(l_item) for l_item in l_checks],
-        "files": {
-            "simd": str(l_simd_pas),
-            "cpuinfo": str(l_cpuinfo_pas),
-            "dispatch": str(l_dispatch_pas),
-            "readme": str(l_readme),
-            "stable": str(l_stable),
-            "closeout": str(l_closeout),
-        },
-    }
+    try:
+        testcase_text = testcase_path.read_text(encoding="utf-8")
+        checklist_text = checklist_path.read_text(encoding="utf-8")
 
-    if l_args.json:
-        print(json.dumps(l_payload, ensure_ascii=False, indent=2))
-    else:
-        for l_item in l_checks:
-            print(f"[WIRING-SYNC] {l_item.name}: {l_item.status} - {l_item.detail}")
-        if l_args.summary_line:
-            print(
-                "WIRING_SYNC_SUMMARY "
-                f"checks={len(l_checks)} failed={len(l_failed)} status={l_payload['status']} strict_extra={int(l_args.strict_extra)}"
-            )
+        legacy_body = extract_method_body(testcase_text, "Test_NonX86_DispatchTable_WiringChecklist")
+        grouped_body = extract_method_body(testcase_text, "Test_NonX86_DispatchTable_WiringChecklist_Grouped")
 
-    return 0 if not l_failed else 1
+        legacy_slots = parse_slots_from_assigned(legacy_body)
+        grouped_slots = parse_slots_from_grouped(grouped_body)
+
+        checklist_markers = {
+            "wiring_grouped_line": [
+                "Wiring grouped-batch assertions",
+                "Wiring 分组批量断言已落地",
+                "`Wiring` grouped-batch assertions",
+            ],
+            "wiring_grouped_method": ["Test_NonX86_DispatchTable_WiringChecklist_Grouped"],
+            "wiring_grouped_tag": ["WiringGrouped"],
+        }
+
+        missing_markers = [
+            name
+            for name, marker_candidates in checklist_markers.items()
+            if not any(marker in checklist_text for marker in marker_candidates)
+        ]
+
+        result = {
+            "legacy_count": len(legacy_slots),
+            "grouped_count": len(grouped_slots),
+            "missing_in_grouped": sorted(legacy_slots - grouped_slots),
+            "extra_in_grouped": sorted(grouped_slots - legacy_slots),
+            "missing_markers": missing_markers,
+            "strict_extra": bool(args.strict_extra),
+            "testcase": str(testcase_path),
+            "checklist": str(checklist_path),
+        }
+        exit_code = evaluate_exit_code(result, bool(args.strict_extra))
+        result["ok"] = exit_code == 0
+        result["exit_code"] = exit_code
+
+        if args.json:
+            print(json.dumps(result, ensure_ascii=False, sort_keys=True))
+        else:
+            print_human_result(result, bool(args.strict_extra))
+            if exit_code == 0:
+                print("[WIRING-SYNC] OK")
+
+        if args.summary_line:
+            print(render_summary_line(result, bool(args.strict_extra)))
+
+        return exit_code
+    except RuntimeError as exc:
+        error_result = {
+            "ok": False,
+            "error": "runtime-error",
+            "message": str(exc),
+        }
+        if args.json:
+            print(json.dumps(error_result, ensure_ascii=False, sort_keys=True))
+        else:
+            print(f"[WIRING-SYNC] ERROR: {exc}")
+        return 2
 
 
 if __name__ == "__main__":
-    try:
-        sys.exit(main())
-    except Exception as l_exc:
-        print(json.dumps({"status": "ERROR", "detail": str(l_exc)}, ensure_ascii=False), file=sys.stderr)
-        sys.exit(2)
+    sys.exit(main())

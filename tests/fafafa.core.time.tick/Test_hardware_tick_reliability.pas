@@ -91,9 +91,6 @@ type
     MaxDelta: UInt64;
     Success: Boolean;
     ErrorMsg: String;
-    {$IFDEF UNIX}
-    CPUAffinity: Integer; // 绑定到的 CPU 核心
-    {$ENDIF}
     constructor Create(AThreadID: Integer);
     procedure Execute; override;
   end;
@@ -110,6 +107,17 @@ type
 
 implementation
 
+{$IFDEF UNIX}
+{$IFDEF LINUX}
+uses ctypes;
+
+const
+  _SC_NPROCESSORS_ONLN = 84;
+
+function sysconf(name: cint): clong; cdecl; external 'c' name 'sysconf';
+{$ENDIF}
+{$ENDIF}
+
 { TTestHardwareTickReliability }
 
 function TTestHardwareTickReliability.IsHardwareAvailable: Boolean;
@@ -119,11 +127,11 @@ end;
 
 function TTestHardwareTickReliability.GetCPUCount: Integer;
 begin
-  {$IFDEF UNIX}
+  {$IFDEF LINUX}
   Result := sysconf(_SC_NPROCESSORS_ONLN);
   if Result < 1 then Result := 1;
   {$ELSE}
-  // Windows: 使用环境变量
+  // Windows and other platforms: use environment variable or default
   Result := StrToIntDef(GetEnvironmentVariable('NUMBER_OF_PROCESSORS'), 1);
   {$ENDIF}
 end;
@@ -339,9 +347,6 @@ begin
   SampleCount := 1000;
   MinDelta := High(UInt64);
   MaxDelta := 0;
-  {$IFDEF UNIX}
-  CPUAffinity := -1;
-  {$ENDIF}
 end;
 
 procedure TCrossCoreThread.Execute;
@@ -350,22 +355,11 @@ var
   I: Integer;
   Prev, Curr: UInt64;
   Delta: UInt64;
-  {$IFDEF UNIX}
-  CpuSet: TCpuSet;
-  {$ENDIF}
 begin
   try
-    {$IFDEF UNIX}
-    // 尝试绑定到特定 CPU 核心
-    if CPUAffinity >= 0 then
-    begin
-      FillChar(CpuSet, SizeOf(CpuSet), 0);
-      CPU_SET(CPUAffinity, CpuSet);
-      if FpSched_SetAffinity(FpGetTID, SizeOf(CpuSet), @CpuSet) <> 0 then
-        WriteLn(Format('Warning: Failed to set CPU affinity for thread %d', [ThreadIndex]));
-    end;
-    {$ENDIF}
-    
+    // Note: CPU affinity setting removed - FPC standard library doesn't provide
+    // portable sched_setaffinity bindings. Tests still work without pinning.
+
     Tick := MakeHWTick;
     StartValue := Tick.Tick;
     Prev := StartValue;
@@ -428,9 +422,6 @@ begin
     for I := 0 to CPUCount - 1 do
     begin
       Threads[I] := TCrossCoreThread.Create(I);
-      {$IFDEF UNIX}
-      Threads[I].CPUAffinity := I;
-      {$ENDIF}
       Threads[I].Start;
     end;
     

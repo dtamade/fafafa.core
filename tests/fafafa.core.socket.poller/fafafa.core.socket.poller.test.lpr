@@ -5,6 +5,7 @@ program fafafa_core_socket_poller_test;
 {$CODEPAGE UTF8}
 
 uses
+  {$IFDEF UNIX}cthreads,{$ENDIF}
   SysUtils, Classes, fpcunit, testregistry, consoletestrunner,
   fafafa.core.socket, fafafa.core.socket.poller,
   fafafa.core.socket.poller.testcase

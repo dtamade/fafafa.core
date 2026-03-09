@@ -44,7 +44,6 @@ procedure TConsoleLogSink.Write(const R: ILogRecord);
 var
   LFormatter: ILogFormatter;
   LLine: string;
-  LAuto: TAutoLock;
 begin
   // 优先使用全局配置中的 Formatter
   LFormatter := Logging.GetFormatter;
@@ -53,11 +52,11 @@ begin
   else
     LLine := R.RenderedMessage; // 最小回退
 
-  LAuto := TAutoLock.Create(GLock);
+  GLock.Acquire;
   try
     if GOut <> nil then GOut.WriteLine(LLine) else WriteLn(LLine);
   finally
-    LAuto.Free;
+    GLock.Release;
   end;
 end;
 

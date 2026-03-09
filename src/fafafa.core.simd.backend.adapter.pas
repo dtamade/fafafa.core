@@ -8,7 +8,8 @@ interface
 uses
   fafafa.core.simd.base,
   fafafa.core.simd.backend.iface,
-  fafafa.core.simd.dispatch;
+  fafafa.core.simd.dispatch,
+  fafafa.core.simd.backend.priority;
 
 // =============================================================================
 // SIMD Backend Adapter
@@ -58,400 +59,32 @@ uses
 
 procedure BackendOpsToDispatchTable(const ops: TSimdBackendOps; out table: TSimdDispatchTable);
 begin
-  // Initialize to zeros
-  FillChar(table, SizeOf(TSimdDispatchTable), 0);
+  // Safety baseline: start from complete scalar table to avoid nil slots.
+  // Backend-specific mappings below selectively override accelerated paths.
+  table := Default(TSimdDispatchTable);
+  FillBaseDispatchTable(table);
 
   // Copy backend info
   table.Backend := ops.Backend;
   table.BackendInfo := ops.BackendInfo;
+  {$DEFINE FAFAFA_SIMD_BACKEND_ADAPTER_FORWARD}
+  {$I fafafa.core.simd.backend.adapter.map.inc}
+  {$UNDEF FAFAFA_SIMD_BACKEND_ADAPTER_FORWARD}
 
-  // === F32x4 Arithmetic ===
-  table.AddF32x4 := ops.ArithmeticF32x4.Add;
-  table.SubF32x4 := ops.ArithmeticF32x4.Sub;
-  table.MulF32x4 := ops.ArithmeticF32x4.Mul;
-  table.DivF32x4 := ops.ArithmeticF32x4.OpDiv;
-
-  // === F32x8 Arithmetic ===
-  table.AddF32x8 := ops.ArithmeticF32x8.Add;
-  table.SubF32x8 := ops.ArithmeticF32x8.Sub;
-  table.MulF32x8 := ops.ArithmeticF32x8.Mul;
-  table.DivF32x8 := ops.ArithmeticF32x8.OpDiv;
-
-  // === F64x2 Arithmetic ===
-  table.AddF64x2 := ops.ArithmeticF64x2.Add;
-  table.SubF64x2 := ops.ArithmeticF64x2.Sub;
-  table.MulF64x2 := ops.ArithmeticF64x2.Mul;
-  table.DivF64x2 := ops.ArithmeticF64x2.OpDiv;
-
-  // === F64x4 Arithmetic ===
-  table.AddF64x4 := ops.ArithmeticF64x4.Add;
-  table.SubF64x4 := ops.ArithmeticF64x4.Sub;
-  table.MulF64x4 := ops.ArithmeticF64x4.Mul;
-  table.DivF64x4 := ops.ArithmeticF64x4.OpDiv;
-
-  // === I32x4 Arithmetic ===
-  table.AddI32x4 := ops.ArithmeticI32x4.Add;
-  table.SubI32x4 := ops.ArithmeticI32x4.Sub;
-  table.MulI32x4 := ops.ArithmeticI32x4.Mul;
-
-  // === I32x4 Bitwise ===
-  table.AndI32x4 := ops.BitwiseI32x4.OpAnd;
-  table.OrI32x4 := ops.BitwiseI32x4.OpOr;
-  table.XorI32x4 := ops.BitwiseI32x4.OpXor;
-  table.NotI32x4 := ops.BitwiseI32x4.OpNot;
-  table.AndNotI32x4 := ops.BitwiseI32x4.AndNot;
-
-  // === I32x4 Shift ===
-  table.ShiftLeftI32x4 := ops.ShiftI32x4.ShiftLeft;
-  table.ShiftRightI32x4 := ops.ShiftI32x4.ShiftRight;
-  table.ShiftRightArithI32x4 := ops.ShiftI32x4.ShiftRightArith;
-
-  // === I32x4 Comparison ===
-  table.CmpEqI32x4 := ops.ComparisonI32x4.CmpEq;
-  table.CmpLtI32x4 := ops.ComparisonI32x4.CmpLt;
-  table.CmpGtI32x4 := ops.ComparisonI32x4.CmpGt;
-
-  // === I32x4 MinMax ===
-  table.MinI32x4 := ops.MinMaxI32x4.Min;
-  table.MaxI32x4 := ops.MinMaxI32x4.Max;
-
-  // === I64x2 Arithmetic ===
-  table.AddI64x2 := ops.ArithmeticI64x2.Add;
-  table.SubI64x2 := ops.ArithmeticI64x2.Sub;
-
-  // === I64x2 Bitwise ===
-  table.AndI64x2 := ops.BitwiseI64x2.OpAnd;
-  table.OrI64x2 := ops.BitwiseI64x2.OpOr;
-  table.XorI64x2 := ops.BitwiseI64x2.OpXor;
-  table.NotI64x2 := ops.BitwiseI64x2.OpNot;
-
-  // === I32x8 Arithmetic ===
-  table.AddI32x8 := ops.ArithmeticI32x8.Add;
-  table.SubI32x8 := ops.ArithmeticI32x8.Sub;
-  table.MulI32x8 := ops.ArithmeticI32x8.Mul;
-
-  // === I32x8 Bitwise ===
-  table.AndI32x8 := ops.BitwiseI32x8.OpAnd;
-  table.OrI32x8 := ops.BitwiseI32x8.OpOr;
-  table.XorI32x8 := ops.BitwiseI32x8.OpXor;
-  table.NotI32x8 := ops.BitwiseI32x8.OpNot;
-  table.AndNotI32x8 := ops.BitwiseI32x8.AndNot;
-
-  // === I32x8 Shift ===
-  table.ShiftLeftI32x8 := ops.ShiftI32x8.ShiftLeft;
-  table.ShiftRightI32x8 := ops.ShiftI32x8.ShiftRight;
-  table.ShiftRightArithI32x8 := ops.ShiftI32x8.ShiftRightArith;
-
-  // === I32x8 Comparison ===
-  table.CmpEqI32x8 := ops.ComparisonI32x8.CmpEq;
-  table.CmpLtI32x8 := ops.ComparisonI32x8.CmpLt;
-  table.CmpGtI32x8 := ops.ComparisonI32x8.CmpGt;
-
-  // === I32x8 MinMax ===
-  table.MinI32x8 := ops.MinMaxI32x8.Min;
-  table.MaxI32x8 := ops.MinMaxI32x8.Max;
-
-  // === 512-bit F32x16 ===
-  table.AddF32x16 := ops.ArithmeticF32x16.Add;
-  table.SubF32x16 := ops.ArithmeticF32x16.Sub;
-  table.MulF32x16 := ops.ArithmeticF32x16.Mul;
-  table.DivF32x16 := ops.ArithmeticF32x16.OpDiv;
-
-  // === 512-bit F64x8 ===
-  table.AddF64x8 := ops.ArithmeticF64x8.Add;
-  table.SubF64x8 := ops.ArithmeticF64x8.Sub;
-  table.MulF64x8 := ops.ArithmeticF64x8.Mul;
-  table.DivF64x8 := ops.ArithmeticF64x8.OpDiv;
-
-  // === 512-bit I32x16 Arithmetic ===
-  table.AddI32x16 := ops.ArithmeticI32x16.Add;
-  table.SubI32x16 := ops.ArithmeticI32x16.Sub;
-  table.MulI32x16 := ops.ArithmeticI32x16.Mul;
-
-  // === 512-bit I32x16 Bitwise ===
-  table.AndI32x16 := ops.BitwiseI32x16.OpAnd;
-  table.OrI32x16 := ops.BitwiseI32x16.OpOr;
-  table.XorI32x16 := ops.BitwiseI32x16.OpXor;
-  table.NotI32x16 := ops.BitwiseI32x16.OpNot;
-  table.AndNotI32x16 := ops.BitwiseI32x16.AndNot;
-
-  // === 512-bit I32x16 Shift ===
-  table.ShiftLeftI32x16 := ops.ShiftI32x16.ShiftLeft;
-  table.ShiftRightI32x16 := ops.ShiftI32x16.ShiftRight;
-  table.ShiftRightArithI32x16 := ops.ShiftI32x16.ShiftRightArith;
-
-  // === 512-bit I32x16 Comparison ===
-  table.CmpEqI32x16 := ops.ComparisonI32x16.CmpEq;
-  table.CmpLtI32x16 := ops.ComparisonI32x16.CmpLt;
-  table.CmpGtI32x16 := ops.ComparisonI32x16.CmpGt;
-
-  // === 512-bit I32x16 MinMax ===
-  table.MinI32x16 := ops.MinMaxI32x16.Min;
-  table.MaxI32x16 := ops.MinMaxI32x16.Max;
-
-  // === F32x4 Comparison ===
-  table.CmpEqF32x4 := ops.ComparisonF32x4.CmpEq;
-  table.CmpLtF32x4 := ops.ComparisonF32x4.CmpLt;
-  table.CmpLeF32x4 := ops.ComparisonF32x4.CmpLe;
-  table.CmpGtF32x4 := ops.ComparisonF32x4.CmpGt;
-  table.CmpGeF32x4 := ops.ComparisonF32x4.CmpGe;
-  table.CmpNeF32x4 := ops.ComparisonF32x4.CmpNe;
-
-  // === F32x4 Math ===
-  table.AbsF32x4 := ops.MathF32x4.Abs;
-  table.SqrtF32x4 := ops.MathF32x4.Sqrt;
-  table.MinF32x4 := ops.MathF32x4.Min;
-  table.MaxF32x4 := ops.MathF32x4.Max;
-  table.FmaF32x4 := ops.MathF32x4.Fma;
-  table.RcpF32x4 := ops.MathF32x4.Rcp;
-  table.RsqrtF32x4 := ops.MathF32x4.Rsqrt;
-  table.FloorF32x4 := ops.MathF32x4.Floor;
-  table.CeilF32x4 := ops.MathF32x4.Ceil;
-  table.RoundF32x4 := ops.MathF32x4.Round;
-  table.TruncF32x4 := ops.MathF32x4.Trunc;
-  table.ClampF32x4 := ops.MathF32x4.Clamp;
-
-  // === F32x4 Vector Math ===
-  table.DotF32x4 := ops.VectorMathF32x4.Dot4;
-  table.DotF32x3 := ops.VectorMathF32x4.Dot3;
-  table.CrossF32x3 := ops.VectorMathF32x4.Cross3;
-  table.LengthF32x4 := ops.VectorMathF32x4.Length4;
-  table.LengthF32x3 := ops.VectorMathF32x4.Length3;
-  table.NormalizeF32x4 := ops.VectorMathF32x4.Normalize4;
-  table.NormalizeF32x3 := ops.VectorMathF32x4.Normalize3;
-
-  // === F32x4 Reduction ===
-  table.ReduceAddF32x4 := ops.ReductionF32x4.ReduceAdd;
-  table.ReduceMinF32x4 := ops.ReductionF32x4.ReduceMin;
-  table.ReduceMaxF32x4 := ops.ReductionF32x4.ReduceMax;
-  table.ReduceMulF32x4 := ops.ReductionF32x4.ReduceMul;
-
-  // === F32x4 Memory ===
-  table.LoadF32x4 := ops.MemoryF32x4.Load;
-  table.LoadF32x4Aligned := ops.MemoryF32x4.LoadAligned;
-  table.StoreF32x4 := ops.MemoryF32x4.Store;
-  table.StoreF32x4Aligned := ops.MemoryF32x4.StoreAligned;
-  table.SplatF32x4 := ops.MemoryF32x4.Splat;
-  table.ZeroF32x4 := ops.MemoryF32x4.Zero;
-  table.SelectF32x4 := ops.MemoryF32x4.Select;
-  table.ExtractF32x4 := ops.MemoryF32x4.Extract;
-  table.InsertF32x4 := ops.MemoryF32x4.Insert;
-
-  // === Facade Operations ===
-  table.MemEqual := ops.Facade.MemEqual;
-  table.MemFindByte := ops.Facade.MemFindByte;
-  table.MemDiffRange := ops.Facade.MemDiffRange;
-  table.MemCopy := ops.Facade.MemCopy;
-  table.MemSet := ops.Facade.MemSet;
-  table.MemReverse := ops.Facade.MemReverse;
-  table.SumBytes := ops.Facade.SumBytes;
-  table.MinMaxBytes := ops.Facade.MinMaxBytes;
-  table.CountByte := ops.Facade.CountByte;
-  table.Utf8Validate := ops.Facade.Utf8Validate;
-  table.AsciiIEqual := ops.Facade.AsciiIEqual;
-  table.ToLowerAscii := ops.Facade.ToLowerAscii;
-  table.ToUpperAscii := ops.Facade.ToUpperAscii;
-  table.BytesIndexOf := ops.Facade.BytesIndexOf;
-  table.BitsetPopCount := ops.Facade.BitsetPopCount;
 end;
 
 procedure DispatchTableToBackendOps(const table: TSimdDispatchTable; out ops: TSimdBackendOps);
 begin
-  // Initialize to zeros
-  FillChar(ops, SizeOf(TSimdBackendOps), 0);
+  // Explicitly initialize managed fields to keep strict zero-hint build policy.
+  ops := Default(TSimdBackendOps);
 
   // Copy backend info
   ops.Backend := table.Backend;
   ops.BackendInfo := table.BackendInfo;
+  {$DEFINE FAFAFA_SIMD_BACKEND_ADAPTER_BACKWARD}
+  {$I fafafa.core.simd.backend.adapter.map.inc}
+  {$UNDEF FAFAFA_SIMD_BACKEND_ADAPTER_BACKWARD}
 
-  // === F32x4 Arithmetic ===
-  ops.ArithmeticF32x4.Add := table.AddF32x4;
-  ops.ArithmeticF32x4.Sub := table.SubF32x4;
-  ops.ArithmeticF32x4.Mul := table.MulF32x4;
-  ops.ArithmeticF32x4.OpDiv := table.DivF32x4;
-
-  // === F32x8 Arithmetic ===
-  ops.ArithmeticF32x8.Add := table.AddF32x8;
-  ops.ArithmeticF32x8.Sub := table.SubF32x8;
-  ops.ArithmeticF32x8.Mul := table.MulF32x8;
-  ops.ArithmeticF32x8.OpDiv := table.DivF32x8;
-
-  // === F64x2 Arithmetic ===
-  ops.ArithmeticF64x2.Add := table.AddF64x2;
-  ops.ArithmeticF64x2.Sub := table.SubF64x2;
-  ops.ArithmeticF64x2.Mul := table.MulF64x2;
-  ops.ArithmeticF64x2.OpDiv := table.DivF64x2;
-
-  // === F64x4 Arithmetic ===
-  ops.ArithmeticF64x4.Add := table.AddF64x4;
-  ops.ArithmeticF64x4.Sub := table.SubF64x4;
-  ops.ArithmeticF64x4.Mul := table.MulF64x4;
-  ops.ArithmeticF64x4.OpDiv := table.DivF64x4;
-
-  // === I32x4 Arithmetic ===
-  ops.ArithmeticI32x4.Add := table.AddI32x4;
-  ops.ArithmeticI32x4.Sub := table.SubI32x4;
-  ops.ArithmeticI32x4.Mul := table.MulI32x4;
-
-  // === I32x4 Bitwise ===
-  ops.BitwiseI32x4.OpAnd := table.AndI32x4;
-  ops.BitwiseI32x4.OpOr := table.OrI32x4;
-  ops.BitwiseI32x4.OpXor := table.XorI32x4;
-  ops.BitwiseI32x4.OpNot := table.NotI32x4;
-  ops.BitwiseI32x4.AndNot := table.AndNotI32x4;
-
-  // === I32x4 Shift ===
-  ops.ShiftI32x4.ShiftLeft := table.ShiftLeftI32x4;
-  ops.ShiftI32x4.ShiftRight := table.ShiftRightI32x4;
-  ops.ShiftI32x4.ShiftRightArith := table.ShiftRightArithI32x4;
-
-  // === I32x4 Comparison ===
-  ops.ComparisonI32x4.CmpEq := table.CmpEqI32x4;
-  ops.ComparisonI32x4.CmpLt := table.CmpLtI32x4;
-  ops.ComparisonI32x4.CmpGt := table.CmpGtI32x4;
-
-  // === I32x4 MinMax ===
-  ops.MinMaxI32x4.Min := table.MinI32x4;
-  ops.MinMaxI32x4.Max := table.MaxI32x4;
-
-  // === I64x2 Arithmetic ===
-  ops.ArithmeticI64x2.Add := table.AddI64x2;
-  ops.ArithmeticI64x2.Sub := table.SubI64x2;
-
-  // === I64x2 Bitwise ===
-  ops.BitwiseI64x2.OpAnd := table.AndI64x2;
-  ops.BitwiseI64x2.OpOr := table.OrI64x2;
-  ops.BitwiseI64x2.OpXor := table.XorI64x2;
-  ops.BitwiseI64x2.OpNot := table.NotI64x2;
-
-  // === I32x8 Arithmetic ===
-  ops.ArithmeticI32x8.Add := table.AddI32x8;
-  ops.ArithmeticI32x8.Sub := table.SubI32x8;
-  ops.ArithmeticI32x8.Mul := table.MulI32x8;
-
-  // === I32x8 Bitwise ===
-  ops.BitwiseI32x8.OpAnd := table.AndI32x8;
-  ops.BitwiseI32x8.OpOr := table.OrI32x8;
-  ops.BitwiseI32x8.OpXor := table.XorI32x8;
-  ops.BitwiseI32x8.OpNot := table.NotI32x8;
-  ops.BitwiseI32x8.AndNot := table.AndNotI32x8;
-
-  // === I32x8 Shift ===
-  ops.ShiftI32x8.ShiftLeft := table.ShiftLeftI32x8;
-  ops.ShiftI32x8.ShiftRight := table.ShiftRightI32x8;
-  ops.ShiftI32x8.ShiftRightArith := table.ShiftRightArithI32x8;
-
-  // === I32x8 Comparison ===
-  ops.ComparisonI32x8.CmpEq := table.CmpEqI32x8;
-  ops.ComparisonI32x8.CmpLt := table.CmpLtI32x8;
-  ops.ComparisonI32x8.CmpGt := table.CmpGtI32x8;
-
-  // === I32x8 MinMax ===
-  ops.MinMaxI32x8.Min := table.MinI32x8;
-  ops.MinMaxI32x8.Max := table.MaxI32x8;
-
-  // === 512-bit F32x16 ===
-  ops.ArithmeticF32x16.Add := table.AddF32x16;
-  ops.ArithmeticF32x16.Sub := table.SubF32x16;
-  ops.ArithmeticF32x16.Mul := table.MulF32x16;
-  ops.ArithmeticF32x16.OpDiv := table.DivF32x16;
-
-  // === 512-bit F64x8 ===
-  ops.ArithmeticF64x8.Add := table.AddF64x8;
-  ops.ArithmeticF64x8.Sub := table.SubF64x8;
-  ops.ArithmeticF64x8.Mul := table.MulF64x8;
-  ops.ArithmeticF64x8.OpDiv := table.DivF64x8;
-
-  // === 512-bit I32x16 Arithmetic ===
-  ops.ArithmeticI32x16.Add := table.AddI32x16;
-  ops.ArithmeticI32x16.Sub := table.SubI32x16;
-  ops.ArithmeticI32x16.Mul := table.MulI32x16;
-
-  // === 512-bit I32x16 Bitwise ===
-  ops.BitwiseI32x16.OpAnd := table.AndI32x16;
-  ops.BitwiseI32x16.OpOr := table.OrI32x16;
-  ops.BitwiseI32x16.OpXor := table.XorI32x16;
-  ops.BitwiseI32x16.OpNot := table.NotI32x16;
-  ops.BitwiseI32x16.AndNot := table.AndNotI32x16;
-
-  // === 512-bit I32x16 Shift ===
-  ops.ShiftI32x16.ShiftLeft := table.ShiftLeftI32x16;
-  ops.ShiftI32x16.ShiftRight := table.ShiftRightI32x16;
-  ops.ShiftI32x16.ShiftRightArith := table.ShiftRightArithI32x16;
-
-  // === 512-bit I32x16 Comparison ===
-  ops.ComparisonI32x16.CmpEq := table.CmpEqI32x16;
-  ops.ComparisonI32x16.CmpLt := table.CmpLtI32x16;
-  ops.ComparisonI32x16.CmpGt := table.CmpGtI32x16;
-
-  // === 512-bit I32x16 MinMax ===
-  ops.MinMaxI32x16.Min := table.MinI32x16;
-  ops.MinMaxI32x16.Max := table.MaxI32x16;
-
-  // === F32x4 Comparison ===
-  ops.ComparisonF32x4.CmpEq := table.CmpEqF32x4;
-  ops.ComparisonF32x4.CmpLt := table.CmpLtF32x4;
-  ops.ComparisonF32x4.CmpLe := table.CmpLeF32x4;
-  ops.ComparisonF32x4.CmpGt := table.CmpGtF32x4;
-  ops.ComparisonF32x4.CmpGe := table.CmpGeF32x4;
-  ops.ComparisonF32x4.CmpNe := table.CmpNeF32x4;
-
-  // === F32x4 Math ===
-  ops.MathF32x4.Abs := table.AbsF32x4;
-  ops.MathF32x4.Sqrt := table.SqrtF32x4;
-  ops.MathF32x4.Min := table.MinF32x4;
-  ops.MathF32x4.Max := table.MaxF32x4;
-  ops.MathF32x4.Fma := table.FmaF32x4;
-  ops.MathF32x4.Rcp := table.RcpF32x4;
-  ops.MathF32x4.Rsqrt := table.RsqrtF32x4;
-  ops.MathF32x4.Floor := table.FloorF32x4;
-  ops.MathF32x4.Ceil := table.CeilF32x4;
-  ops.MathF32x4.Round := table.RoundF32x4;
-  ops.MathF32x4.Trunc := table.TruncF32x4;
-  ops.MathF32x4.Clamp := table.ClampF32x4;
-
-  // === F32x4 Vector Math ===
-  ops.VectorMathF32x4.Dot4 := table.DotF32x4;
-  ops.VectorMathF32x4.Dot3 := table.DotF32x3;
-  ops.VectorMathF32x4.Cross3 := table.CrossF32x3;
-  ops.VectorMathF32x4.Length4 := table.LengthF32x4;
-  ops.VectorMathF32x4.Length3 := table.LengthF32x3;
-  ops.VectorMathF32x4.Normalize4 := table.NormalizeF32x4;
-  ops.VectorMathF32x4.Normalize3 := table.NormalizeF32x3;
-
-  // === F32x4 Reduction ===
-  ops.ReductionF32x4.ReduceAdd := table.ReduceAddF32x4;
-  ops.ReductionF32x4.ReduceMin := table.ReduceMinF32x4;
-  ops.ReductionF32x4.ReduceMax := table.ReduceMaxF32x4;
-  ops.ReductionF32x4.ReduceMul := table.ReduceMulF32x4;
-
-  // === F32x4 Memory ===
-  ops.MemoryF32x4.Load := table.LoadF32x4;
-  ops.MemoryF32x4.LoadAligned := table.LoadF32x4Aligned;
-  ops.MemoryF32x4.Store := table.StoreF32x4;
-  ops.MemoryF32x4.StoreAligned := table.StoreF32x4Aligned;
-  ops.MemoryF32x4.Splat := table.SplatF32x4;
-  ops.MemoryF32x4.Zero := table.ZeroF32x4;
-  ops.MemoryF32x4.Select := table.SelectF32x4;
-  ops.MemoryF32x4.Extract := table.ExtractF32x4;
-  ops.MemoryF32x4.Insert := table.InsertF32x4;
-
-  // === Facade Operations ===
-  ops.Facade.MemEqual := table.MemEqual;
-  ops.Facade.MemFindByte := table.MemFindByte;
-  ops.Facade.MemDiffRange := table.MemDiffRange;
-  ops.Facade.MemCopy := table.MemCopy;
-  ops.Facade.MemSet := table.MemSet;
-  ops.Facade.MemReverse := table.MemReverse;
-  ops.Facade.SumBytes := table.SumBytes;
-  ops.Facade.MinMaxBytes := table.MinMaxBytes;
-  ops.Facade.CountByte := table.CountByte;
-  ops.Facade.Utf8Validate := table.Utf8Validate;
-  ops.Facade.AsciiIEqual := table.AsciiIEqual;
-  ops.Facade.ToLowerAscii := table.ToLowerAscii;
-  ops.Facade.ToUpperAscii := table.ToUpperAscii;
-  ops.Facade.BytesIndexOf := table.BytesIndexOf;
-  ops.Facade.BitsetPopCount := table.BitsetPopCount;
 end;
 
 procedure RegisterBackendOps(backend: TSimdBackend; const ops: TSimdBackendOps);
@@ -460,27 +93,26 @@ var
 begin
   // Convert new format to legacy format
   BackendOpsToDispatchTable(ops, table);
+  table.Backend := backend;
+  table.BackendInfo.Backend := backend;
   // Register using existing system
   RegisterBackend(backend, table);
 end;
 
 function GetBackendOps(backend: TSimdBackend): TSimdBackendOps;
 var
-  info: TSimdBackendInfo;
+  LTable: TSimdDispatchTable;
 begin
-  // Get backend info to check if registered
-  info := GetBackendInfo(backend);
-  if info.Available then
+  Result := Default(TSimdBackendOps);
+
+  if TryGetRegisteredBackendDispatchTable(backend, LTable) then
   begin
-    // For now, return empty ops - future: cache converted ops
-    ClearBackendOps(Result);
-    Result.Backend := backend;
-    Result.BackendInfo := info;
+    DispatchTableToBackendOps(LTable, Result);
   end
   else
   begin
     ClearBackendOps(Result);
-    Result.Backend := sbScalar;
+    Result.Backend := backend;
   end;
 end;
 
@@ -501,7 +133,7 @@ begin
   ops.BackendInfo.Description := 'Pure scalar reference implementation';
   ops.BackendInfo.Capabilities := [scBasicArithmetic, scComparison, scMathFunctions, scReduction, scLoadStore];
   ops.BackendInfo.Available := True;
-  ops.BackendInfo.Priority := 0;
+  ops.BackendInfo.Priority := GetSimdBackendPriorityValue(sbScalar);
 
   // === F32x4 Arithmetic ===
   ops.ArithmeticF32x4.Add := @ScalarAddF32x4;

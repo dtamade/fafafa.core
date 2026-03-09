@@ -1,90 +1,46 @@
 @echo off
 setlocal EnableExtensions EnableDelayedExpansion
 
-set "ROOT=%SIMD_SCRIPT_ROOT%"
-if "%ROOT%"=="" set "ROOT=%~dp0"
-if not "%ROOT%"=="" if not "%ROOT:~-1%"=="\" set "ROOT=%ROOT%\"
-if not exist "%ROOT%buildOrTest.bat" set "ROOT=%CD%\tests\fafafa.core.simd\"
-if not "%ROOT:~-1%"=="\" set "ROOT=%ROOT%\"
-if "%ROOT:~-1%"=="\" set "ROOT=%ROOT:~0,-1%"
-set "LOG_DIR=%ROOT%\logs"
-set "LOG_PATH=%SIMD_WIN_EVIDENCE_LOG_FILE%"
-if "%LOG_PATH%"=="" set "LOG_PATH=%LOG_DIR%\windows_b07_gate.log"
-set "SELF=%ROOT%\buildOrTest.bat"
-set "TMP_OUT=%LOG_DIR%\windows_b07_gate.capture.tmp"
+set "ROOT=%~dp0"
+set "TESTS_ROOT=%ROOT%.."
+set "LOG_DIR=%ROOT%logs"
+set "OUT_LOG=%LOG_DIR%\windows_b07_gate.log"
+set "SUMMARY_FILE=%TESTS_ROOT%\run_all_tests_summary.txt"
+set "CMD_VER="
 
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
+for /f "delims=" %%V in ('ver') do set "CMD_VER=%%V"
+if "%CMD_VER%"=="" set "CMD_VER=unknown"
 
-del /q "%TMP_OUT%" >nul 2>nul
+echo [B07] Windows evidence capture > "%OUT_LOG%"
+echo [B07] Source: collect_windows_b07_evidence.bat >> "%OUT_LOG%"
+echo [B07] HostOS: %OS% >> "%OUT_LOG%"
+echo [B07] CmdVer: %CMD_VER% >> "%OUT_LOG%"
+echo [B07] Started: %DATE% %TIME% >> "%OUT_LOG%"
+echo [B07] Working dir: %ROOT% >> "%OUT_LOG%"
+echo [B07] Command: buildOrTest.bat gate >> "%OUT_LOG%"
+echo. >> "%OUT_LOG%"
 
-set "STARTED="
-for /f "usebackq delims=" %%I in (`powershell -NoProfile -Command "Get-Date -Format 'yyyy-MM-dd HH:mm:ss zzz'" 2^>nul`) do set "STARTED=%%I"
-if not defined STARTED set "STARTED=%DATE% %TIME%"
+call "%ROOT%buildOrTest.bat" gate >> "%OUT_LOG%" 2>&1
+set "GATE_RC=%ERRORLEVEL%"
 
-set "CMD_VER="
-for /f "usebackq delims=" %%I in (`cmd /c ver`) do set "CMD_VER=%%I"
+echo. >> "%OUT_LOG%"
+echo [B07] GATE_EXIT_CODE=%GATE_RC% >> "%OUT_LOG%"
 
-(
-  echo [B07] Windows evidence capture
-  echo [B07] Source: collect_windows_b07_evidence.bat
-  echo [B07] HostOS: %OS%
-  if defined CMD_VER echo [B07] CmdVer: %CMD_VER%
-  echo [B07] Started: %STARTED%
-  echo [B07] Working dir: %CD%
-  echo [B07] Command: buildOrTest.bat gate
-  echo.
-) > "%LOG_PATH%"
-
-set "SIMD_SUPPRESS_BUILD_WARNINGS=1"
-set /a TOTAL_VALUE=3
-set /a PASSED_VALUE=0
-set /a FAILED_VALUE=0
-set "GATE_EXIT_CODE=0"
-
->> "%TMP_OUT%" echo [GATE] 1/3 Build + check SIMD module
-call "%SELF%" check >> "%TMP_OUT%" 2>&1
-if errorlevel 1 goto :gate_failed
-set /a PASSED_VALUE+=1
-
->> "%TMP_OUT%" echo [GATE] 2/3 Interface completeness
-call "%SELF%" interface-completeness >> "%TMP_OUT%" 2>&1
-if errorlevel 1 goto :gate_failed
-set /a PASSED_VALUE+=1
-
->> "%TMP_OUT%" echo [GATE] 3/3 Backend adapter sync Pascal smoke
-set "SIMD_TEST_BIN=%ROOT%\bin2\fafafa.core.simd.test.exe"
-if not exist "%SIMD_TEST_BIN%" (
-  >> "%TMP_OUT%" echo [TEST] Missing binary: %SIMD_TEST_BIN%
-  goto :gate_failed
+if exist "%SUMMARY_FILE%" (
+  echo. >> "%OUT_LOG%"
+  echo [B07] run_all summary snapshot >> "%OUT_LOG%"
+  type "%SUMMARY_FILE%" >> "%OUT_LOG%"
 )
->> "%TMP_OUT%" echo [TEST] Running: %SIMD_TEST_BIN% --suite TTestCase_DispatchAPI
-"%SIMD_TEST_BIN%" --suite TTestCase_DispatchAPI >> "%TMP_OUT%" 2>&1
-if errorlevel 1 goto :gate_failed
-findstr /c:"Failures: 0" "%TMP_OUT%" >nul 2>nul
-if errorlevel 1 goto :gate_failed
-findstr /c:"Errors: 0" "%TMP_OUT%" >nul 2>nul
-if errorlevel 1 goto :gate_failed
->> "%TMP_OUT%" echo [TEST] OK
-set /a PASSED_VALUE+=1
 
->> "%TMP_OUT%" echo [GATE] OK
-set "GATE_EXIT_CODE=0"
-goto :gate_done
+for /f "tokens=1,* delims=:" %%A in ('findstr /r /c:"^Total:" /c:"^Passed:" /c:"^Failed:" "%OUT_LOG%"') do (
+  set "K=%%A"
+  set "V=%%B"
+  set "V=!V:~1!"
+  echo [B07] %%A: !V!>> "%OUT_LOG%"
+)
 
-:gate_failed
-set /a FAILED_VALUE=TOTAL_VALUE-PASSED_VALUE
-set "GATE_EXIT_CODE=1"
+echo [B07] Evidence log: %OUT_LOG%
+type "%OUT_LOG%"
 
-:gate_done
-type "%TMP_OUT%" >> "%LOG_PATH%"
->> "%LOG_PATH%" echo.
->> "%LOG_PATH%" echo [B07] GATE_EXIT_CODE=%GATE_EXIT_CODE%
->> "%LOG_PATH%" echo.
->> "%LOG_PATH%" echo [B07] run_all summary snapshot
->> "%LOG_PATH%" echo [B07] Total: %TOTAL_VALUE%
->> "%LOG_PATH%" echo [B07] Passed: %PASSED_VALUE%
->> "%LOG_PATH%" echo [B07] Failed: %FAILED_VALUE%
-
-type "%LOG_PATH%"
-del /q "%TMP_OUT%" >nul 2>nul
-exit /b %GATE_EXIT_CODE%
+exit /b %GATE_RC%

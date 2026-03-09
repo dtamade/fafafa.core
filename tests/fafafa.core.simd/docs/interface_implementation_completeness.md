@@ -1,15 +1,38 @@
-# SIMD interface completeness report
+# SIMD Interface/Implementation Completeness Report
 
-Status: **PASS**
+- generated_at: 2026-03-07T00:23:40
+- dispatch_slots_total: `558`
+- strict: `True`
+- strict_level: `p2`
+- analyzer: `heuristic token/assignment scan (not semantic proof)`
 
-## Checks
+## Backend Slot Coverage
 
-- `facade_slots_declared_in_dispatch`: **PASS** — all 208 façade slot refs exist in TSimdDispatchTable
-- `facade_slots_covered_by_base_fill`: **PASS** — all 208 façade slot refs have base fallback coverage
-- `readme_simd_links_exist`: **PASS** — all 10 referenced SIMD docs/STABLE files exist
+- scalar: `558/558`
+- sse2: `463/558`
+- sse3: `10/558`
+- ssse3: `2/558`
+- sse41: `28/558`
+- sse42: `1/558`
+- avx2: `487/558`
+- avx512: `187/558`
+- neon: `485/558`
+- riscvv: `482/558`
 
-## Metrics
+## Severity Summary
 
-- facade dispatch slot refs: `208`
-- dispatch table slots: `558`
-- base fill assigned slots: `558`
+- P0: `0`
+- P1: `0`
+- P2: `0`
+
+## P0 Items
+
+- none
+
+## P1 Items (Top 80)
+
+- none
+
+## P2 Items (Top 80)
+
+- none

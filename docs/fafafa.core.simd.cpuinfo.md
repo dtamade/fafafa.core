@@ -2,7 +2,7 @@
 
 ## 概述
 
-`fafafa.core.simd.cpuinfo` 模块提供跨平台的 CPU 特性检测功能，支持 x86/x64 和 ARM 架构的 SIMD 指令集检测。
+`fafafa.core.simd.cpuinfo` 模块提供跨平台的 CPU 特性检测功能，支持 x86/x64、ARM 与 RISC-V 架构的 SIMD 指令集检测。
 
 ## 主要功能
 
@@ -28,6 +28,9 @@
 - **自动选择**: 根据 CPU 特性自动选择最佳 SIMD 后端
 - **可用性检查**: 检查特定后端是否可用
 - **优先级排序**: 按性能优先级排列可用后端
+
+### RISC-V 处理器信息
+- `GetRISCVProcessorInfo` 默认返回 `rv64i/rv32i` 基线，并尽力从 `/proc/cpuinfo` 与 Linux 设备树 `riscv,isa` 回填 `Architecture/XLEN/ISA`；当 `/proc/cpuinfo` 存在多个 ISA 键时按“含 RV 基线 + 键优先级 + 信息量”选择最佳候选；当缺失 ISA 字符串但存在可解析 `misa` 数值位图时可合成基线 ISA（如 `rv64imafdcv`）；Linux 下还会合并 `auxv(AT_HWCAP/AT_HWCAP2)` 作为 ISA 合成的兜底/补充证据
 
 ## 通用能力与架构映射
 
@@ -61,7 +64,10 @@ function IsBackendAvailableOnCPU(backend: TSimdBackend): Boolean;
 // 获取可用后端列表（按优先级排序）
 function GetAvailableBackends: TSimdBackendArray;
 
-// 获取最佳后端
+// 获取 CPU/OS 语义下的最佳后端（不受运行时 active backend 影响）
+function GetBestBackendOnCPU: TSimdBackend;
+
+// 向后兼容别名（等价于 GetBestBackendOnCPU）
 function GetBestBackend: TSimdBackend;
 
 // 获取后端详细信息
@@ -199,8 +205,8 @@ begin
   cpuInfo := GetCPUInfo;
   WriteLn('CPU: ', cpuInfo.Vendor, ' ', cpuInfo.Model);
   
-  // 获取最佳后端
-  bestBackend := GetBestBackend;
+  // 获取 CPU/OS 语义下的最佳后端
+  bestBackend := GetBestBackendOnCPU;
   WriteLn('Best SIMD backend: ', GetBackendName(bestBackend));
   
   // 检查特定特性
@@ -209,6 +215,26 @@ begin
     
   if cpuInfo.ARM.HasNEON then
     WriteLn('NEON is supported');
+end;
+```
+
+### CPU 最佳后端 vs 当前 active 后端
+
+`GetBestBackendOnCPU` 只反映“当前 CPU/OS 能用的最优后端”，不会因为 `SetActiveBackend` 被强制切换而变化。
+
+```pascal
+uses
+  fafafa.core.simd.cpuinfo,
+  fafafa.core.simd.dispatch;
+
+var
+  LBestOnCPU: TSimdBackend;
+begin
+  LBestOnCPU := GetBestBackendOnCPU;
+
+  SetActiveBackend(sbScalar); // 仅影响当前 dispatch 路径
+  // 这里仍然是 CPU 能力上的最优后端，不会变成 sbScalar
+  Assert(GetBestBackendOnCPU = LBestOnCPU);
 end;
 ```
 
@@ -275,7 +301,14 @@ end;
 
 ### Linux
 - **x86**: 任何支持 CPUID 的发行版
-- **ARM**: 通过 `/proc/cpuinfo` 检测特性
+- **ARM / RISC-V**: 优先通过 `/proc/cpuinfo` 检测 ISA 特性；Linux 下额外合并 `auxv(AT_HWCAP/AT_HWCAP2)` 作为兜底证据；RISC-V 还会合并设备树 `riscv,isa`（优先扫描 `cpus/cpu*`，并保留固定路径回退）作为次级证据源
+- **ARM / RISC-V 缓存信息**: 优先通过 `/sys/devices/system/cpu/cpu*/cache/index*/{type,level,size,coherency_line_size}` 聚合探测（每级取最大值），避免固定占位值（`size` 兼容 `K/KB/KiB/M/MiB/G/GiB`）
+- **ARM 特性解析**: 优先解析 `Features/flags/cpu feature(s)/extensions/cpu extension(s)/isa feature(s)/isa extension(s)/isa_ext/isaext` 键值并按 token 精确匹配（避免 `fp` 等子串误判）；`asimd*` 统一映射到 NEON/AdvSIMD，Crypto 采用确定性 token 族匹配：`aes/aesce/aesd/aesmc/aesimc/aes<digits>`、`pmull/pmull<digits>`、`sha/sha1/sha2/sha3/sha256/sha512`、`sm3/sm4`
+- **ARM HWCAP 兜底**: 当 `/proc/cpuinfo` 缺失/裁剪时，使用 `AT_HWCAP/AT_HWCAP2` 位图回填 `FP/NEON/AdvSIMD/SVE/Crypto`
+- **ARM Vendor/Model 解析**: `/proc/cpuinfo` 采用 key 优先级策略，避免将 `processor: 0/1/...` 误判为型号；信息不足时回退设备树 `model/compatible`
+- **RISC-V ISA 解析**: 支持 `rv64imafdc...`、`rv64i2p1_m2p0_...`、`zve*`/`zvl*`、`zv*` 等 token 形式，兼容 `key: value` / `key=value` / `riscv,isa` / `riscv,isa extensions` / `march` / `riscv march` / `riscv,march` / `isa_ext` / `isa_extensions` / `extensions` / `riscv extensions` / `riscv isa extensions` / `riscv_isa_ext` 键值；多候选场景按“含 RV 基线 + 键优先级 + 信息量”择优；并支持解析 `misa`/`csr misa` 数值位图（十进制/十六进制，含 `0x`/`$`/`_` 分隔）回填 `RV32I/RV64I + M/A/F/D/C/V`，在无 ISA 字符串时可合成基线 ISA；为避免误判，泛化 vendor `x*` token 不直接推断 `V`，且 `rv*` 仅接受带 `rv32/rv64` 基线的 compact ISA，不把 `rva23u64` 等 profile 文本当作扩展位。
+- **RISC-V HWCAP 兜底**: 当 ISA 字符串证据不足时，使用 `AT_HWCAP` 位图回填 `I/M/A/F/D/C/V` 基础能力；同时保留原始 `LinuxHWCAP/LinuxHWCAP2` 位图证据用于诊断与后续映射（`HWCAP2` 目前仍不直接推断扩展能力）
+- **RISC-V Vendor/Model 解析**: `/proc/cpuinfo` 采用 key 优先级策略并忽略 `processor: 0/1/...` 这类 hart 索引误判；当信息不足时回退设备树 `model/compatible`
 
 ### macOS
 - **x86**: macOS 10.9+
@@ -308,8 +341,104 @@ end;
 运行单元测试：
 
 ```bash
-cd tests/fafafa.core.simd.cpuinfo
-buildOrTest.bat
+FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh test --suite=TTestCase_PlatformSpecific
+
+# 校验 cpuinfo runner 日志布局（target + legacy 双路径）
+FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh log-layout-check
+
+# 非 x86 CPUInfo 独立 QEMU 证据链（arm/v7 + arm64 + riscv64）
+FAFAFA_BUILD_MODE=Release \
+SIMD_QEMU_PLATFORMS="linux/arm/v7 linux/arm64 linux/riscv64" \
+bash tests/fafafa.core.simd/BuildOrTest.sh qemu-cpuinfo-nonx86-evidence
+
+# 非 x86 CPUInfo 全量 suite QEMU 专项（arm/v7 + arm64 + riscv64）
+FAFAFA_BUILD_MODE=Release \
+SIMD_QEMU_PLATFORMS="linux/arm/v7 linux/arm64 linux/riscv64" \
+bash tests/fafafa.core.simd/BuildOrTest.sh qemu-cpuinfo-nonx86-full-evidence
+
+# 非 x86 CPUInfo 全量 suite QEMU repeat 稳定性压测（每架构重复 N 轮）
+FAFAFA_BUILD_MODE=Release \
+SIMD_QEMU_CPUINFO_REPEAT_ROUNDS=2 \
+SIMD_QEMU_PLATFORMS="linux/arm/v7 linux/arm64 linux/riscv64" \
+bash tests/fafafa.core.simd/BuildOrTest.sh qemu-cpuinfo-nonx86-full-repeat
+
+# 可控 retry 诊断演练（默认关闭；仅用于脚本链路自检）
+# 说明：首轮在指定平台注入一次失败，触发 run_with_retry，并打印 [DIAG] target/legacy 日志 tail
+FAFAFA_BUILD_MODE=Release \
+SIMD_QEMU_RETRIES=2 \
+SIMD_QEMU_CPUINFO_FAIL_ONCE=1 \
+SIMD_QEMU_CPUINFO_FAIL_ONCE_PLATFORM="linux/riscv64" \
+SIMD_QEMU_PLATFORMS="linux/riscv64" \
+bash tests/fafafa.core.simd/BuildOrTest.sh qemu-cpuinfo-nonx86-evidence
+
+# 一键重放（包含 [INJECT]/[DIAG]/summary PASS 断言）
+FAFAFA_BUILD_MODE=Release \
+SIMD_QEMU_RETRY_REHEARSAL_PLATFORMS="linux/riscv64" \
+bash tests/fafafa.core.simd/rehearse_qemu_cpuinfo_retry_diagnostics.sh qemu-cpuinfo-nonx86-evidence
+
+# CPUInfo Lazy 专项 repeat（本机架构，默认 5 轮）
+FAFAFA_BUILD_MODE=Release \
+SIMD_CPUINFO_LAZY_REPEAT_ROUNDS=3 \
+bash tests/fafafa.core.simd/BuildOrTest.sh cpuinfo-lazy-repeat
+
+# gate 中同时开启 full-evidence + full-repeat（Release）
+FAFAFA_BUILD_MODE=Release \
+SIMD_QEMU_CPUINFO_REPEAT_ROUNDS=1 \
+SIMD_GATE_CPUINFO_LAZY_REPEAT=3 \
+SIMD_GATE_QEMU_NONX86_EVIDENCE=0 \
+SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=0 \
+SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=1 \
+SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=1 \
+SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 \
+bash tests/fafafa.core.simd/BuildOrTest.sh gate
+
+# gate-strict（默认即启用 cpuinfo non-x86 full-evidence/full-repeat + arch-matrix）
+# 默认还会设置 SIMD_QEMU_CPUINFO_REPEAT_ROUNDS=1，降低严格门禁总时长
+FAFAFA_BUILD_MODE=Release \
+bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict
+
+# freeze-status 强约束：同时要求 nonx86-evidence + full-evidence + full-repeat（Release）
+FAFAFA_BUILD_MODE=Release \
+SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_EVIDENCE=1 \
+SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=1 \
+SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_FULL_REPEAT=1 \
+bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status-linux
+
+# freeze-status 强约束（含 lazy repeat）：要求 latest gate 中 cpuinfo-lazy-repeat 也为 PASS
+FAFAFA_BUILD_MODE=Release \
+SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_EVIDENCE=1 \
+SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=1 \
+SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_FULL_REPEAT=1 \
+SIMD_FREEZE_REQUIRE_CPUINFO_LAZY_REPEAT=1 \
+bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status-linux
+
+# 或直接调用底层 QEMU 脚本
+FAFAFA_BUILD_MODE=Release \
+SIMD_QEMU_PLATFORMS="linux/arm/v7 linux/arm64 linux/riscv64" \
+bash tests/fafafa.core.simd/docker/run_multiarch_qemu.sh cpuinfo-nonx86-full-evidence
+
+# 说明：该场景在每个架构容器内执行
+# 1) BuildOrTest.sh check
+# 2) BuildOrTest.sh test --list-suites
+# 3) 若 list 中存在 TTestCase_LazyCPUInfo，则额外执行该 suite（当前 non-x86 默认三平台均可执行）
+# 4) BuildOrTest.sh test --suite=TTestCase_PlatformSpecific
+# 5) full-evidence 场景执行 BuildOrTest.sh test（全量 suite）
+# 6) suite-repeat 场景：每轮固定执行 PlatformSpecific；
+#    若 --list-suites 含 TTestCase_LazyCPUInfo，则同轮追加执行 LazyCPUInfo
+#
+# 默认平台说明：
+# - 对 non-x86 相关场景（含 cpuinfo-nonx86-*），若未设置 SIMD_QEMU_PLATFORMS，
+#   默认覆盖 linux/arm/v7 linux/arm64 linux/riscv64。
+# - 可用 SIMD_QEMU_PLATFORMS_NONX86 覆盖该默认值（不影响 arch-matrix-evidence 的固定全矩阵要求）。
+# - freeze-status 在上述强约束模式下会额外校验最新 qemu summary 中
+#   `linux/arm/v7 + linux/arm64 + linux/riscv64` 三平台均为 PASS（nonx86-evidence/full-evidence/full-repeat）。
+# - cpuinfo QEMU 场景重试失败时会自动输出 target/legacy 构建日志 tail；
+#   可通过 SIMD_QEMU_CPUINFO_RETRY_LOG_TAIL_LINES 调整 tail 行数（默认 60）。
+# - 如需演练重试诊断链路，可设置：
+#   SIMD_QEMU_CPUINFO_FAIL_ONCE=1（启用一次性注入），
+#   SIMD_QEMU_CPUINFO_FAIL_ONCE_PLATFORM=<platform>（可选平台过滤），
+#   SIMD_QEMU_CPUINFO_FAIL_ONCE_SCENARIO=<scenario>（可选场景过滤），
+#   SIMD_QEMU_CPUINFO_FAIL_ONCE_EXIT_CODE=<1..255>（注入退出码，默认 85）。
 ```
 
 测试覆盖：
@@ -323,7 +452,7 @@ buildOrTest.bat
 
 1. **CPUID 实现**: 当前使用回退实现，需要真实的 CPUID 指令
 2. **AVX-512**: 实验性支持，默认禁用
-3. **ARM 检测**: 依赖 `/proc/cpuinfo`，在某些嵌入式系统上可能不可用
+3. **non-x86 特性检测**: 优先依赖 `/proc/cpuinfo`；若被裁剪会回退 `auxv/HWCAP`，但在极简运行时（两者都不可用）仍会退化为保守值
 
 ## 版本历史
 

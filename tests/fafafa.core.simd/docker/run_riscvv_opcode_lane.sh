@@ -2,70 +2,109 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "$0")/../../.." && pwd)"
-SIMD_ROOT="${ROOT_DIR}/tests/fafafa.core.simd"
-DOCKER_DIR="${SIMD_ROOT}/docker"
-LOG_ROOT="${SIMD_ROOT}/logs"
+LOG_ROOT="${ROOT_DIR}/tests/fafafa.core.simd/logs"
+BUILD_IMAGE_SCRIPT="${ROOT_DIR}/tests/fafafa.core.simd/docker/build_riscv64_rvv_image.sh"
+
+IMAGE_BASE="${SIMD_QEMU_RVV_IMAGE_BASE:-fafafa-core-simd-test-rvv}"
+IMAGE_TAG="${IMAGE_BASE}:riscv64"
+BUILD_IMAGE="${SIMD_RVV_BUILD_IMAGE:-0}"
+DOCKER_RETRIES="${SIMD_QEMU_RETRIES:-3}"
+LANE_SUITE="${SIMD_RVV_LANE_SUITE:-TTestCase_NonX86IEEE754}"
+SKIP_SUITE="${SIMD_RVV_LANE_SKIP_SUITE:-0}"
+SKIP_BENCH="${SIMD_RVV_LANE_SKIP_BENCH:-0}"
+USE_PREBUILT_COMPILER="${SIMD_RVV_USE_PREBUILT_COMPILER:-1}"
+PREBUILT_COMPILER_PATH="${SIMD_RVV_PREBUILT_COMPILER_PATH:-/opt/fpcupdeluxe/fpcsrc/compiler/ppcrossrv64_v}"
+PREBUILT_QEMU_X86_64_STATIC="${SIMD_RVV_PREBUILT_QEMU_X86_64_STATIC:-/usr/bin/qemu-x86_64-static}"
+PREBUILT_UNITS_HOST_PATH="${SIMD_RVV_PREBUILT_UNITS_HOST_PATH:-/opt/fpcupdeluxe/fpc-rvv-units/riscv64-linux}"
+PREBUILT_COMPILER_PREFIX="${SIMD_RVV_PREBUILT_COMPILER_PREFIX:-riscv64-linux-gnu-}"
+PREBUILT_CPU="${SIMD_RVV_PREBUILT_CPU:-RV64GCV}"
+
+BASE_DEFINE="${SIMD_QEMU_EXPERIMENTAL_DEFINE:--dFAFAFA_SIMD_EXPERIMENTAL_BACKEND_ASM}"
+RISCV_BACKEND_DEFINE="${SIMD_QEMU_EXPERIMENTAL_RISCV64_DEFINE:--dFAFAFA_SIMD_ENABLE_RISCVV_ASM}"
+RISCV_COMPILER_DEFINE="${SIMD_QEMU_EXPERIMENTAL_RISCV64_COMPILER_DEFINE:--dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY}"
+RISCV_OPCODE_DEFINE="${SIMD_QEMU_EXPERIMENTAL_RISCV64_OPCODE_DEFINE:--dFAFAFA_SIMD_RISCVV_ASM_OPCODE_READY}"
+LANE_DEFINES="${SIMD_RVV_LANE_DEFINES:-${BASE_DEFINE} ${RISCV_BACKEND_DEFINE} ${RISCV_COMPILER_DEFINE} ${RISCV_OPCODE_DEFINE}}"
+COMPILE_DEFINES="${SIMD_RVV_COMPILE_DEFINES:-${LANE_DEFINES}}"
+RUNTIME_DEFINES="${SIMD_RVV_RUNTIME_DEFINES:-${BASE_DEFINE} ${RISCV_BACKEND_DEFINE} ${RISCV_COMPILER_DEFINE}}"
+COMPILE_TARGET="${SIMD_RVV_COMPILE_TARGET:-project}"
+COMPILE_USE_PREBUILT_COMPILER="${SIMD_RVV_COMPILE_USE_PREBUILT_COMPILER:-${USE_PREBUILT_COMPILER}}"
+SUITE_USE_PREBUILT_COMPILER="${SIMD_RVV_SUITE_USE_PREBUILT_COMPILER:-0}"
+BENCH_USE_PREBUILT_COMPILER="${SIMD_RVV_BENCH_USE_PREBUILT_COMPILER:-0}"
+RVV_OPCODE_SMOKE_SCRIPT="${ROOT_DIR}/tests/fafafa.core.simd/docker/run_rvv_opcode_smoke.sh"
+
 TS="$(date +%Y%m%d-%H%M%S)"
 REPORT_DIR="${LOG_ROOT}/rvv-opcode-lane-${TS}"
 SUMMARY_FILE="${REPORT_DIR}/summary.md"
 COMPILE_LOG="${REPORT_DIR}/compile_only.log"
 SUITE_LOG="${REPORT_DIR}/suite.log"
 BENCH_LOG="${REPORT_DIR}/bench.log"
-ENV_SCRIPT_HOST="${REPORT_DIR}/prebuilt_fpc_env.sh"
-ENV_SCRIPT_WORK="tests/fafafa.core.simd/logs/rvv-opcode-lane-${TS}/prebuilt_fpc_env.sh"
-IMAGE_TAG="${SIMD_RVV_LANE_IMAGE:-fafafa-core-simd-test-rvv:riscv64}"
-BUILD_POLICY="${SIMD_RVV_LANE_BUILD_POLICY:-if-missing}"
-BUILD_NETWORK="${DOCKER_BUILD_NETWORK:-default}"
-HOST_PPCROSSRV64="${SIMD_RVV_PREBUILT_COMPILER:-/opt/fpcupdeluxe/fpcsrc/compiler/ppcrossrv64_v}"
-HOST_QEMU_X86="${SIMD_RVV_PREBUILT_HOST_QEMU:-/usr/bin/qemu-x86_64-static}"
-HOST_UNITS_DIR="${SIMD_RVV_PREBUILT_UNITS:-/opt/fpcupdeluxe/fpc-rvv-units}"
-COMPILER_PREFIX="${SIMD_RVV_PREBUILT_COMPILER_PREFIX:-riscv64-linux-gnu-}"
-CPU_NAME="${SIMD_RVV_PREBUILT_CPU:-RV64GCV}"
-COMPILE_DEFINES="${SIMD_RVV_OPCODE_COMPILE_DEFINES:--dFAFAFA_SIMD_EXPERIMENTAL_BACKEND_ASM -dFAFAFA_SIMD_ENABLE_RISCVV_ASM -dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY -dFAFAFA_SIMD_RISCVV_ASM_OPCODE_READY}"
-RUNTIME_DEFINES="${SIMD_RVV_OPCODE_RUNTIME_DEFINES:--dFAFAFA_SIMD_EXPERIMENTAL_BACKEND_ASM -dFAFAFA_SIMD_ENABLE_RISCVV_ASM -dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY}"
+PREBUILT_PREP_SCRIPT="${REPORT_DIR}/prebuilt_fpc_env.sh"
+PREBUILT_PREP_SCRIPT_CONTAINER=""
 
 mkdir -p "${REPORT_DIR}"
 
-write_log() {
-  local aLogFile
-  aLogFile="$1"
+run_with_retry() {
+  local aMax
+  local aDesc
+  local LAttempt
+  local LRC
+
+  aMax="${1}"
   shift
-  printf '%s\n' "$@" >"${aLogFile}"
+  aDesc="${1}"
+  shift
+  LAttempt=1
+
+  while true; do
+    set +e
+    "$@"
+    LRC=$?
+    set -e
+
+    if (( LRC == 0 )); then
+      return 0
+    fi
+    if (( LAttempt >= aMax )); then
+      echo "[RVV-LANE] ERROR: ${aDesc} failed after ${LAttempt} attempt(s), rc=${LRC}"
+      return "${LRC}"
+    fi
+    echo "[RVV-LANE] WARN: ${aDesc} failed rc=${LRC}, retry ${LAttempt}/${aMax} ..."
+    sleep $((LAttempt * 3))
+    LAttempt=$((LAttempt + 1))
+  done
 }
 
-build_image_if_needed() {
-  case "${BUILD_POLICY}" in
-    always)
-      ;;
-    if-missing)
-      if docker image inspect "${IMAGE_TAG}" >/dev/null 2>&1; then
-        return 0
-      fi
-      ;;
-    skip)
-      if docker image inspect "${IMAGE_TAG}" >/dev/null 2>&1; then
-        return 0
-      fi
-      echo "[RVV-LANE] Missing local image under skip policy: ${IMAGE_TAG}"
-      return 2
-      ;;
-    *)
-      echo "[RVV-LANE] Unsupported build policy: ${BUILD_POLICY}"
-      return 2
-      ;;
-  esac
+prepare_prebuilt_compiler_mode() {
+  if [[ "${USE_PREBUILT_COMPILER}" == "0" ]]; then
+    return 0
+  fi
 
-  docker buildx build \
-    --platform linux/riscv64 \
-    --network "${BUILD_NETWORK}" \
-    --tag "${IMAGE_TAG}" \
-    --file "${DOCKER_DIR}/Dockerfile" \
-    --load \
-    "${DOCKER_DIR}" >/dev/null
-}
+  if [[ -z "${PREBUILT_COMPILER_PATH}" ]]; then
+    echo "[RVV-LANE] ERROR: SIMD_RVV_USE_PREBUILT_COMPILER=1 but SIMD_RVV_PREBUILT_COMPILER_PATH is empty"
+    exit 2
+  fi
+  if [[ ! -f "${PREBUILT_COMPILER_PATH}" ]]; then
+    echo "[RVV-LANE] ERROR: prebuilt compiler not found: ${PREBUILT_COMPILER_PATH}"
+    exit 2
+  fi
+  if [[ ! -x "${PREBUILT_COMPILER_PATH}" ]]; then
+    echo "[RVV-LANE] ERROR: prebuilt compiler is not executable: ${PREBUILT_COMPILER_PATH}"
+    exit 2
+  fi
+  if [[ ! -f "${PREBUILT_QEMU_X86_64_STATIC}" ]]; then
+    echo "[RVV-LANE] ERROR: qemu-x86_64-static not found: ${PREBUILT_QEMU_X86_64_STATIC}"
+    exit 2
+  fi
+  if [[ ! -x "${PREBUILT_QEMU_X86_64_STATIC}" ]]; then
+    echo "[RVV-LANE] ERROR: qemu-x86_64-static is not executable: ${PREBUILT_QEMU_X86_64_STATIC}"
+    exit 2
+  fi
+  if [[ ! -d "${PREBUILT_UNITS_HOST_PATH}" ]]; then
+    echo "[RVV-LANE] ERROR: prebuilt units dir not found: ${PREBUILT_UNITS_HOST_PATH}"
+    exit 2
+  fi
 
-write_env_script() {
-  cat >"${ENV_SCRIPT_HOST}" <<EOF2
+  cat > "${PREBUILT_PREP_SCRIPT}" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
@@ -88,131 +127,194 @@ install -m 755 /host/qemu-x86_64-static /tmp/qemu-x86_64-static
 cat > /tmp/fpc <<'__RVV_FPC_WRAPPER__'
 #!/usr/bin/env bash
 set -euo pipefail
-: "\${SIMD_RVV_PREBUILT_COMPILER_PREFIX:=${COMPILER_PREFIX}}"
-: "\${SIMD_RVV_PREBUILT_DISABLE_FPC_CFG:=1}"
-: "\${SIMD_RVV_PREBUILT_CPU:=${CPU_NAME}}"
-if [[ "\$#" -gt 0 && "\$1" == -i* ]]; then
-  exec /tmp/qemu-x86_64-static /tmp/ppcrossrv64 "\$@"
-fi
-LUnitsRoot="/host/fpc-units"
-if [[ -d "/host/fpc-units/riscv64-linux" ]]; then
-  LUnitsRoot="/host/fpc-units/riscv64-linux"
-fi
+: "${SIMD_RVV_PREBUILT_COMPILER_PREFIX:=riscv64-linux-gnu-}"
+: "${SIMD_RVV_PREBUILT_DISABLE_FPC_CFG:=1}"
+: "${SIMD_RVV_PREBUILT_CPU:=RV64GCV}"
 LNoCfg=()
-if [[ "\${SIMD_RVV_PREBUILT_DISABLE_FPC_CFG}" != "0" ]]; then
+if [[ "${SIMD_RVV_PREBUILT_DISABLE_FPC_CFG}" != "0" ]]; then
   LNoCfg+=("-n")
 fi
-exec /tmp/qemu-x86_64-static /tmp/ppcrossrv64 "\${LNoCfg[@]}" "-Cp\${SIMD_RVV_PREBUILT_CPU}" "-XP\${SIMD_RVV_PREBUILT_COMPILER_PREFIX}" -Fu"\${LUnitsRoot}" -Fu"\${LUnitsRoot}"/* "\$@"
+exec /tmp/qemu-x86_64-static /tmp/ppcrossrv64 "${LNoCfg[@]}" "-Cp${SIMD_RVV_PREBUILT_CPU}" "-XP${SIMD_RVV_PREBUILT_COMPILER_PREFIX}" -Fu/host/fpc-units -Fu/host/fpc-units/* "$@"
 __RVV_FPC_WRAPPER__
 chmod +x /tmp/fpc
-export PATH="/tmp:\${PATH}"
+export PATH="/tmp:${PATH}"
 echo "[RVV-LANE] prebuilt wrapper active"
-echo "[RVV-LANE] using host compiler /host/ppcrossrv64 with units /host/fpc-units"
-EOF2
+echo "[RVV-LANE] fpc version=$(fpc -iV) target=$(fpc -iTP)-$(fpc -iTO)"
+EOF
+  chmod +x "${PREBUILT_PREP_SCRIPT}"
+  PREBUILT_PREP_SCRIPT_CONTAINER="/work/${PREBUILT_PREP_SCRIPT#"${ROOT_DIR}/"}"
 }
 
 run_container_step() {
-  local aLogFile
+  local aDesc
+  local aLog
   local aCommand
-  aLogFile="$1"
-  aCommand="$2"
+  local aUsePrebuilt
+  local LContainerCommand
+  local -a LDockerArgs
+
+  aDesc="${1}"
+  aLog="${2}"
+  aCommand="${3}"
+  aUsePrebuilt="${4:-${USE_PREBUILT_COMPILER}}"
+
+  echo "[RVV-LANE] STEP ${aDesc}"
+  : >"${aLog}"
+
+  LDockerArgs=(
+    --rm
+    --platform linux/riscv64
+    --user "$(id -u):$(id -g)"
+    --volume "${ROOT_DIR}:/work"
+    --workdir "/work"
+  )
+
+  LContainerCommand="set -euo pipefail; "
+  if [[ "${aUsePrebuilt}" != "0" ]]; then
+    LDockerArgs+=(
+      --volume "${PREBUILT_COMPILER_PATH}:/host/ppcrossrv64:ro"
+      --volume "${PREBUILT_QEMU_X86_64_STATIC}:/host/qemu-x86_64-static:ro"
+      --volume "${PREBUILT_UNITS_HOST_PATH}:/host/fpc-units:ro"
+      --env "SIMD_RVV_PREBUILT_COMPILER_PREFIX=${PREBUILT_COMPILER_PREFIX}"
+      --env "SIMD_RVV_PREBUILT_DISABLE_FPC_CFG=1"
+      --env "SIMD_RVV_PREBUILT_CPU=${PREBUILT_CPU}"
+    )
+    LContainerCommand+="source '${PREBUILT_PREP_SCRIPT_CONTAINER}'; "
+  fi
+  LContainerCommand+="${aCommand}"
+
   set +e
-  docker run --rm \
-    --platform linux/riscv64 \
-    --user "$(id -u):$(id -g)" \
-    --volume "${ROOT_DIR}:/work" \
-    --volume "${HOST_PPCROSSRV64}:/host/ppcrossrv64:ro" \
-    --volume "${HOST_QEMU_X86}:/host/qemu-x86_64-static:ro" \
-    --volume "${HOST_UNITS_DIR}:/host/fpc-units:ro" \
-    --workdir /work \
-    "${IMAGE_TAG}" \
-    bash -lc "set -euo pipefail; source '${ENV_SCRIPT_WORK}'; ${aCommand}" >"${aLogFile}" 2>&1
+  run_with_retry "${DOCKER_RETRIES}" "${aDesc}" \
+    docker run "${LDockerArgs[@]}" \
+      "${IMAGE_TAG}" \
+      bash -lc "${LContainerCommand}" 2>&1 | tee "${aLog}"
   local LRC=$?
   set -e
+
   return "${LRC}"
 }
 
-finalize_summary() {
-  local aCompileStatus
-  local aSuiteStatus
-  local aBenchStatus
-  aCompileStatus="$1"
-  aSuiteStatus="$2"
-  aBenchStatus="$3"
-
-  cat >"${SUMMARY_FILE}" <<EOF2
-# RVV Opcode Lane
-
-- generated_at: $(date -Is)
-- image: \`${IMAGE_TAG}\`
-- compile_target: \`project\`
-- compile_defines: \`${COMPILE_DEFINES}\`
-- runtime_defines: \`${RUNTIME_DEFINES}\`
-
-## Layered Acceptance
-
-| Step | Status | Log |
-|---|---|---|
-| compile-only | ${aCompileStatus} | \`${COMPILE_LOG}\` |
-| suite (TTestCase_NonX86IEEE754) | ${aSuiteStatus} | \`${SUITE_LOG}\` |
-| bench | ${aBenchStatus} | \`${BENCH_LOG}\` |
-EOF2
-}
-
-if ! command -v docker >/dev/null 2>&1; then
-  write_log "${COMPILE_LOG}" "[RVV-LANE] SKIP (docker not found)"
-  write_log "${SUITE_LOG}" "[RVV-LANE] SKIP (docker not found)"
-  write_log "${BENCH_LOG}" "[RVV-LANE] SKIP (docker not found)"
-  finalize_summary "SKIP" "SKIP" "SKIP"
-  echo "[RVV-LANE] DONE: ${REPORT_DIR}"
-  exit 0
+echo "[RVV-LANE] Repo: ${ROOT_DIR}"
+echo "[RVV-LANE] Report: ${REPORT_DIR}"
+echo "[RVV-LANE] Image: ${IMAGE_TAG}"
+echo "[RVV-LANE] Compile target: ${COMPILE_TARGET}"
+echo "[RVV-LANE] Compile defines: ${COMPILE_DEFINES}"
+echo "[RVV-LANE] Runtime defines: ${RUNTIME_DEFINES}"
+echo "[RVV-LANE] Prebuilt per-step: compile=${COMPILE_USE_PREBUILT_COMPILER} suite=${SUITE_USE_PREBUILT_COMPILER} bench=${BENCH_USE_PREBUILT_COMPILER}"
+if [[ "${COMPILE_USE_PREBUILT_COMPILER}" != "0" || "${SUITE_USE_PREBUILT_COMPILER}" != "0" || "${BENCH_USE_PREBUILT_COMPILER}" != "0" ]]; then
+  echo "[RVV-LANE] Prebuilt compiler: ENABLED"
+  echo "[RVV-LANE]   compiler: ${PREBUILT_COMPILER_PATH}"
+  echo "[RVV-LANE]   qemu: ${PREBUILT_QEMU_X86_64_STATIC}"
+  echo "[RVV-LANE]   units(host): ${PREBUILT_UNITS_HOST_PATH}"
+  echo "[RVV-LANE]   prefix: ${PREBUILT_COMPILER_PREFIX}"
+  echo "[RVV-LANE]   cpu: ${PREBUILT_CPU}"
 fi
 
-if [[ ! -f "${HOST_PPCROSSRV64}" || ! -f "${HOST_QEMU_X86}" || ! -d "${HOST_UNITS_DIR}" ]]; then
-  write_log "${COMPILE_LOG}" "[RVV-LANE] SKIP (missing prebuilt host assets: compiler=${HOST_PPCROSSRV64}, qemu=${HOST_QEMU_X86}, units=${HOST_UNITS_DIR})"
-  write_log "${SUITE_LOG}" "[RVV-LANE] SKIP (missing prebuilt host assets)"
-  write_log "${BENCH_LOG}" "[RVV-LANE] SKIP (missing prebuilt host assets)"
-  finalize_summary "SKIP" "SKIP" "SKIP"
-  echo "[RVV-LANE] DONE: ${REPORT_DIR}"
-  exit 0
+if [[ "${BUILD_IMAGE}" != "0" ]]; then
+  if [[ ! -x "${BUILD_IMAGE_SCRIPT}" ]]; then
+    echo "[RVV-LANE] Missing build-image script: ${BUILD_IMAGE_SCRIPT}"
+    exit 2
+  fi
+  echo "[RVV-LANE] Build custom RVV image (SIMD_RVV_BUILD_IMAGE=${BUILD_IMAGE})"
+  bash "${BUILD_IMAGE_SCRIPT}"
 fi
 
-write_env_script
-if ! build_image_if_needed; then
-  write_log "${COMPILE_LOG}" "[RVV-LANE] SKIP (failed to prepare image ${IMAGE_TAG})"
-  write_log "${SUITE_LOG}" "[RVV-LANE] SKIP (failed to prepare image ${IMAGE_TAG})"
-  write_log "${BENCH_LOG}" "[RVV-LANE] SKIP (failed to prepare image ${IMAGE_TAG})"
-  finalize_summary "SKIP" "SKIP" "SKIP"
-  echo "[RVV-LANE] DONE: ${REPORT_DIR}"
-  exit 0
+if ! docker image inspect "${IMAGE_TAG}" >/dev/null 2>&1; then
+  echo "[RVV-LANE] Missing image: ${IMAGE_TAG}"
+  echo "[RVV-LANE] Hint: set SIMD_RVV_BUILD_IMAGE=1 or set SIMD_QEMU_RVV_IMAGE_BASE to an existing image base."
+  exit 2
 fi
 
-COMPILE_STATUS="FAIL"
+if [[ "${COMPILE_USE_PREBUILT_COMPILER}" != "0" || "${SUITE_USE_PREBUILT_COMPILER}" != "0" || "${BENCH_USE_PREBUILT_COMPILER}" != "0" ]]; then
+  prepare_prebuilt_compiler_mode
+fi
+
+if [[ "${COMPILE_TARGET}" == "smoke" ]]; then
+  if [[ ! -x "${RVV_OPCODE_SMOKE_SCRIPT}" ]]; then
+    echo "[RVV-LANE] Missing opcode smoke script: ${RVV_OPCODE_SMOKE_SCRIPT}"
+    exit 2
+  fi
+  COMPILE_CMD="SIMD_FPC_EXTRA_DEFINES='${COMPILE_DEFINES}' bash tests/fafafa.core.simd/docker/run_rvv_opcode_smoke.sh"
+elif [[ "${COMPILE_TARGET}" == "project" ]]; then
+  COMPILE_CMD="SIMD_RUN_ONLY_BUILD=1 SIMD_FPC_EXTRA_DEFINES='${COMPILE_DEFINES}' bash tests/fafafa.core.simd/docker/run_fpc_tests.sh"
+else
+  echo "[RVV-LANE] Unknown compile target: ${COMPILE_TARGET} (expect: smoke|project)"
+  exit 2
+fi
+
+if ! run_container_step "compile-only(${COMPILE_TARGET})" "${COMPILE_LOG}" "${COMPILE_CMD}" "${COMPILE_USE_PREBUILT_COMPILER}"; then
+  {
+    echo "# RVV Opcode Lane"
+    echo
+    echo "- generated_at: $(date -Is)"
+    echo "- image: \`${IMAGE_TAG}\`"
+    echo "- compile_target: \`${COMPILE_TARGET}\`"
+    echo "- compile_defines: \`${COMPILE_DEFINES}\`"
+    echo "- runtime_defines: \`${RUNTIME_DEFINES}\`"
+    echo "- compile_only: FAIL"
+    echo "- compile_log: \`${COMPILE_LOG}\`"
+  } > "${SUMMARY_FILE}"
+  echo "[RVV-LANE] FAILED at compile-only"
+  echo "[RVV-LANE] Summary: ${SUMMARY_FILE}"
+  exit 1
+fi
+
+# Keep runtime suite/bench isolated from compile-only artifacts (especially mixed-toolchain fpcunit outputs).
+if [[ "${SKIP_SUITE}" == "0" || "${SKIP_BENCH}" == "0" ]]; then
+  rm -rf "${ROOT_DIR}/tests/fafafa.core.simd/bin2" "${ROOT_DIR}/tests/fafafa.core.simd/lib2"
+fi
+
 SUITE_STATUS="SKIP"
-BENCH_STATUS="SKIP"
-COMPILE_CMD="export SIMD_FPC_EXTRA_DEFINES=$(printf '%q' "${COMPILE_DEFINES}"); export SIMD_RUN_ONLY_BUILD=1; bash tests/fafafa.core.simd/docker/run_fpc_tests.sh"
-RUNTIME_CMD="export SIMD_FPC_EXTRA_DEFINES=$(printf '%q' "${RUNTIME_DEFINES}"); bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_NonX86IEEE754"
-BENCH_CMD="export SIMD_BENCH_EXTRA_DEFINES=$(printf '%q' "${RUNTIME_DEFINES}"); bash tests/fafafa.core.simd/run_backend_benchmarks.sh"
-
-if run_container_step "${COMPILE_LOG}" "${COMPILE_CMD}"; then
-  COMPILE_STATUS="PASS"
-  if run_container_step "${SUITE_LOG}" "${RUNTIME_CMD}"; then
+if [[ "${SKIP_SUITE}" == "0" ]]; then
+  SUITE_CMD="SIMD_FPC_EXTRA_DEFINES='${RUNTIME_DEFINES}' bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=${LANE_SUITE}"
+  if run_container_step "suite-${LANE_SUITE}" "${SUITE_LOG}" "${SUITE_CMD}" "${SUITE_USE_PREBUILT_COMPILER}"; then
     SUITE_STATUS="PASS"
-    if run_container_step "${BENCH_LOG}" "${BENCH_CMD}"; then
-      BENCH_STATUS="PASS"
-    else
-      BENCH_STATUS="FAIL"
-    fi
   else
     SUITE_STATUS="FAIL"
-    write_log "${BENCH_LOG}" "[RVV-LANE] SKIP (suite step failed)"
   fi
-else
-  write_log "${SUITE_LOG}" "[RVV-LANE] SKIP (compile-only step failed)"
-  write_log "${BENCH_LOG}" "[RVV-LANE] SKIP (compile-only step failed)"
 fi
 
-finalize_summary "${COMPILE_STATUS}" "${SUITE_STATUS}" "${BENCH_STATUS}"
-echo "[RVV-LANE] DONE: ${REPORT_DIR}"
-echo "[RVV-LANE] SUMMARY: ${SUMMARY_FILE}"
-exit 0
+BENCH_STATUS="SKIP"
+if [[ "${SKIP_BENCH}" == "0" && "${SUITE_STATUS}" != "FAIL" ]]; then
+  BENCH_CMD="SIMD_BENCH_FPC_EXTRA_DEFINES='${RUNTIME_DEFINES}' bash tests/fafafa.core.simd/run_backend_benchmarks.sh"
+  if run_container_step "bench" "${BENCH_LOG}" "${BENCH_CMD}" "${BENCH_USE_PREBUILT_COMPILER}"; then
+    BENCH_STATUS="PASS"
+  else
+    BENCH_STATUS="FAIL"
+  fi
+fi
+
+{
+  echo "# RVV Opcode Lane"
+  echo
+  echo "- generated_at: $(date -Is)"
+  echo "- image: \`${IMAGE_TAG}\`"
+  echo "- compile_target: \`${COMPILE_TARGET}\`"
+  echo "- compile_defines: \`${COMPILE_DEFINES}\`"
+  echo "- runtime_defines: \`${RUNTIME_DEFINES}\`"
+  echo
+  echo "## Layered Acceptance"
+  echo
+  echo "| Step | Status | Log |"
+  echo "|---|---|---|"
+  echo "| compile-only | PASS | \`${COMPILE_LOG}\` |"
+  if [[ "${SKIP_SUITE}" == "0" ]]; then
+    echo "| suite (${LANE_SUITE}) | ${SUITE_STATUS} | \`${SUITE_LOG}\` |"
+  else
+    echo "| suite (${LANE_SUITE}) | SKIP | \`${SUITE_LOG}\` |"
+  fi
+  if [[ "${SKIP_BENCH}" == "0" ]]; then
+    echo "| bench | ${BENCH_STATUS} | \`${BENCH_LOG}\` |"
+  else
+    echo "| bench | SKIP | \`${BENCH_LOG}\` |"
+  fi
+} > "${SUMMARY_FILE}"
+
+if [[ "${SUITE_STATUS}" == "FAIL" || "${BENCH_STATUS}" == "FAIL" ]]; then
+  echo "[RVV-LANE] FAILED"
+  echo "[RVV-LANE] Summary: ${SUMMARY_FILE}"
+  exit 1
+fi
+
+echo "[RVV-LANE] PASS"
+echo "[RVV-LANE] Summary: ${SUMMARY_FILE}"

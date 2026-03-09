@@ -10,8 +10,23 @@ uses
   Classes, SysUtils,
   fpcunit, testregistry,
   fafafa.core.simd.testcase,
-  fafafa.core.simd.intrinsics.avx2.testcase,
+  fafafa.core.simd.memutils.aliases.testcase,
+  fafafa.core.simd.narrowintegerops.testcase,
+  fafafa.core.simd.saturating.testcase,
+  fafafa.core.simd.veci32x8.testcase,
+  fafafa.core.simd.vecu32x8.testcase,
+  fafafa.core.simd.vecf32x8.testcase,
+  fafafa.core.simd.vecf64x4.testcase,
+  fafafa.core.simd.ieee754.testcase,
+  fafafa.core.simd.dispatchapi.testcase,
+  fafafa.core.simd.dispatchslots.testcase,
+  fafafa.core.simd.edgecases.testcase,
+  fafafa.core.simd.vec512types.testcase,
+  fafafa.core.simd.imageproc.testcase,
+  {$IFDEF SIMD_X86_AVAILABLE}
   fafafa.core.simd.direct.testcase,
+  {$ENDIF}
+  fafafa.core.simd.intrinsics.avx2.testcase,
   fafafa.core.simd.concurrent.testcase,  // ✅ Phase 5.4: Concurrent SIMD tests (12 tests)
   fafafa.core.simd.bench,
   fafafa.core.simd.cpuinfo,
@@ -40,6 +55,8 @@ var
   exitEarlyListSuites: Boolean;
   exitEarlyError: string;
 
+procedure ProcessAllSuites(const aListOnly: Boolean; aTargetSuite: TTestSuite); forward;
+
 procedure RunBenchmarks;
 var
   Results: TBenchResults;
@@ -67,47 +84,7 @@ end;
 procedure PrintAvailableSuites;
 begin
   WriteLn('Available suites:');
-  WriteLn('  TTestCase_Global');
-  {$IFDEF CPUX86_64}
-  WriteLn('  TTestCase_BackendConsistency');
-  WriteLn('  TTestCase_BackendVectorConsistency');
-  {$ENDIF}
-  WriteLn('  TTestCase_BackendSmoke');
-  {$IFDEF CPUX86_64}
-  WriteLn('  TTestCase_AVX512BackendRequirements');
-  {$ENDIF}
-  {$IFDEF UNIX}
-  {$IFDEF CPUX86_64}
-  WriteLn('  TTestCase_AVX2VectorAsm');
-  WriteLn('  TTestCase_AVX512VectorAsm');
-  WriteLn('  TTestCase_AVX2IntrinsicsFallback');
-  {$ENDIF}
-  {$ENDIF}
-  WriteLn('  TTestCase_VectorOps');
-  WriteLn('  TTestCase_LargeData');
-  WriteLn('  TTestCase_UnsignedVectorTypes');
-  WriteLn('  TTestCase_OperatorOverloads');
-  WriteLn('  TTestCase_VectorMaskTypes');
-  WriteLn('  TTestCase_TypeConversion');
-  WriteLn('  TTestCase_Builder');
-  WriteLn('  TTestCase_GatherScatter');
-  WriteLn('  TTestCase_ShuffleSWizzle');
-  WriteLn('  TTestCase_MathFunctions');
-  WriteLn('  TTestCase_AdvancedAlgorithms');
-  WriteLn('  TTestCase_EdgeCases');
-  WriteLn('  TTestCase_Vec512Types');
-  WriteLn('  TTestCase_Memutils');
-  WriteLn('  TTestCase_RustStyleAliases');
-  WriteLn('  TTestCase_SaturatingArithmetic');
-  WriteLn('  TTestCase_NarrowIntegerOps');
-  WriteLn('  TTestCase_VecI32x8');
-  WriteLn('  TTestCase_VecU32x8');
-  WriteLn('  TTestCase_VecF32x8');
-  WriteLn('  TTestCase_VecF64x4');
-  WriteLn('  TTestCase_IEEE754_F64');
-  WriteLn('  TTestCase_IEEE754EdgeCases');
-  WriteLn('  TTestCase_DispatchAPI');
-  WriteLn('  TTestCase_SimdConcurrent');  // ✅ Phase 5.4
+  ProcessAllSuites(True, nil);
 end;
 
 procedure AddSuiteFilter(const value: string);
@@ -140,6 +117,79 @@ begin
   if (suiteFilters = nil) or (suiteFilters.Count = 0) then
     Exit(True);
   Result := suiteFilters.IndexOf(suiteName) >= 0;
+end;
+
+procedure HandleSuite(const aName: string; const aSuite: TTest; const aListOnly: Boolean; aTargetSuite: TTestSuite);
+begin
+  if aListOnly then
+  begin
+    WriteLn('  ', aName);
+    if aSuite <> nil then
+      aSuite.Free;
+    Exit;
+  end;
+
+  if (aTargetSuite <> nil) and ShouldRunSuite(aName) then
+    aTargetSuite.AddTest(aSuite)
+  else if aSuite <> nil then
+    aSuite.Free;
+end;
+
+procedure ProcessAllSuites(const aListOnly: Boolean; aTargetSuite: TTestSuite);
+begin
+  HandleSuite('TTestCase_ImageProc', TTestCase_ImageProc.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_Global', TTestCase_Global.Suite, aListOnly, aTargetSuite);
+  {$IFDEF CPUX86_64}
+  HandleSuite('TTestCase_BackendConsistency', TTestCase_BackendConsistency.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_BackendVectorConsistency', TTestCase_BackendVectorConsistency.Suite, aListOnly, aTargetSuite);
+  {$ENDIF}
+  HandleSuite('TTestCase_BackendSmoke', TTestCase_BackendSmoke.Suite, aListOnly, aTargetSuite);
+  {$IFDEF CPUX86_64}
+  {$IFDEF SIMD_BACKEND_AVX512}
+  HandleSuite('TTestCase_AVX512BackendRequirements', TTestCase_AVX512BackendRequirements.Suite, aListOnly, aTargetSuite);
+  {$ENDIF}
+  {$ENDIF}
+  {$IFDEF UNIX}
+  {$IFDEF CPUX86_64}
+  HandleSuite('TTestCase_AVX2VectorAsm', TTestCase_AVX2VectorAsm.Suite, aListOnly, aTargetSuite);
+  {$IFDEF SIMD_BACKEND_AVX512}
+  HandleSuite('TTestCase_AVX512VectorAsm', TTestCase_AVX512VectorAsm.Suite, aListOnly, aTargetSuite);
+  {$ENDIF}
+  {$ENDIF}
+  {$ENDIF}
+  HandleSuite('TTestCase_VectorOps', TTestCase_VectorOps.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_LargeData', TTestCase_LargeData.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_UnsignedVectorTypes', TTestCase_UnsignedVectorTypes.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_OperatorOverloads', TTestCase_OperatorOverloads.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_VectorMaskTypes', TTestCase_VectorMaskTypes.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_TypeConversion', TTestCase_TypeConversion.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_Builder', TTestCase_Builder.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_GatherScatter', TTestCase_GatherScatter.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_ShuffleSWizzle', TTestCase_ShuffleSWizzle.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_MathFunctions', TTestCase_MathFunctions.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_AdvancedAlgorithms', TTestCase_AdvancedAlgorithms.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_EdgeCases', TTestCase_EdgeCases.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_Vec512Types', TTestCase_Vec512Types.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_Memutils', TTestCase_Memutils.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_RustStyleAliases', TTestCase_RustStyleAliases.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_SaturatingArithmetic', TTestCase_SaturatingArithmetic.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_NarrowIntegerOps', TTestCase_NarrowIntegerOps.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_VecI32x8', TTestCase_VecI32x8.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_VecU32x8', TTestCase_VecU32x8.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_VecF32x8', TTestCase_VecF32x8.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_VecF64x4', TTestCase_VecF64x4.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_IEEE754_F64', TTestCase_IEEE754_F64.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_IEEE754EdgeCases', TTestCase_IEEE754EdgeCases.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_AVX2RoundTruncIEEE754', TTestCase_AVX2RoundTruncIEEE754.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_NonX86IEEE754', TTestCase_NonX86IEEE754.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_NonX86BackendParity', TTestCase_NonX86BackendParity.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_DispatchAPI', TTestCase_DispatchAPI.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_DispatchAllSlots', TTestCase_DispatchAllSlots.Suite, aListOnly, aTargetSuite);
+  {$IFDEF SIMD_X86_AVAILABLE}
+  HandleSuite('TTestCase_DirectDispatch', TTestCase_DirectDispatch.Suite, aListOnly, aTargetSuite);
+  {$ENDIF}
+  HandleSuite('TTestCase_AVX2IntrinsicsFallback', TTestCase_AVX2IntrinsicsFallback.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_SimdConcurrent', TTestCase_SimdConcurrent.Suite, aListOnly, aTargetSuite);
 end;
 
 procedure ParseArgs;
@@ -257,14 +307,6 @@ begin
     // Display backend info
     // Apply experimental toggles (must happen before backend selection is queried)
     SetVectorAsmEnabled(vectorAsmEnabled);
-    if vectorAsmEnabled then
-    begin
-      {$IFDEF CPUX86_64}
-      // Re-register backends so their dispatch tables reflect the new toggle.
-      RegisterSSE2Backend;
-      RegisterAVX2Backend;
-      {$ENDIF}
-    end;
 
     WriteLn('CPU Features:');
     WriteLn('  SSE2: ', HasSSE2);
@@ -284,85 +326,8 @@ begin
     // Create test suite
     testSuite := TTestSuite.Create('SIMD Tests');
     try
-      // Add test cases
-      if ShouldRunSuite('TTestCase_Global') then
-        testSuite.AddTest(TTestCase_Global.Suite);
-      {$IFDEF CPUX86_64}
-      if ShouldRunSuite('TTestCase_BackendConsistency') then
-        testSuite.AddTest(TTestCase_BackendConsistency.Suite);
-      if ShouldRunSuite('TTestCase_BackendVectorConsistency') then
-        testSuite.AddTest(TTestCase_BackendVectorConsistency.Suite);
-      {$ENDIF}
-      if ShouldRunSuite('TTestCase_BackendSmoke') then
-        testSuite.AddTest(TTestCase_BackendSmoke.Suite);
-      {$IFDEF CPUX86_64}
-      {$IFDEF SIMD_BACKEND_AVX512}
-      if ShouldRunSuite('TTestCase_AVX512BackendRequirements') then
-        testSuite.AddTest(TTestCase_AVX512BackendRequirements.Suite);
-      {$ENDIF}
-      {$ENDIF}
-      {$IFDEF UNIX}
-      {$IFDEF CPUX86_64}
-      if ShouldRunSuite('TTestCase_AVX2VectorAsm') then
-        testSuite.AddTest(TTestCase_AVX2VectorAsm.Suite);
-      if ShouldRunSuite('TTestCase_AVX2IntrinsicsFallback') then
-        testSuite.AddTest(TTestCase_AVX2IntrinsicsFallback.Suite);
-      {$IFDEF SIMD_BACKEND_AVX512}
-      if ShouldRunSuite('TTestCase_AVX512VectorAsm') then
-        testSuite.AddTest(TTestCase_AVX512VectorAsm.Suite);
-      {$ENDIF}
-      {$ENDIF}
-      {$ENDIF}
-      if ShouldRunSuite('TTestCase_VectorOps') then
-        testSuite.AddTest(TTestCase_VectorOps.Suite);
-      if ShouldRunSuite('TTestCase_LargeData') then
-        testSuite.AddTest(TTestCase_LargeData.Suite);
-      if ShouldRunSuite('TTestCase_UnsignedVectorTypes') then
-        testSuite.AddTest(TTestCase_UnsignedVectorTypes.Suite);
-      if ShouldRunSuite('TTestCase_OperatorOverloads') then
-        testSuite.AddTest(TTestCase_OperatorOverloads.Suite);
-      if ShouldRunSuite('TTestCase_VectorMaskTypes') then
-        testSuite.AddTest(TTestCase_VectorMaskTypes.Suite);
-      if ShouldRunSuite('TTestCase_TypeConversion') then
-        testSuite.AddTest(TTestCase_TypeConversion.Suite);
-      if ShouldRunSuite('TTestCase_Builder') then
-        testSuite.AddTest(TTestCase_Builder.Suite);
-      if ShouldRunSuite('TTestCase_GatherScatter') then
-        testSuite.AddTest(TTestCase_GatherScatter.Suite);
-      if ShouldRunSuite('TTestCase_ShuffleSWizzle') then
-        testSuite.AddTest(TTestCase_ShuffleSWizzle.Suite);
-      if ShouldRunSuite('TTestCase_MathFunctions') then
-        testSuite.AddTest(TTestCase_MathFunctions.Suite);
-      if ShouldRunSuite('TTestCase_AdvancedAlgorithms') then
-        testSuite.AddTest(TTestCase_AdvancedAlgorithms.Suite);
-      if ShouldRunSuite('TTestCase_EdgeCases') then
-        testSuite.AddTest(TTestCase_EdgeCases.Suite);
-      if ShouldRunSuite('TTestCase_Vec512Types') then
-        testSuite.AddTest(TTestCase_Vec512Types.Suite);
-      if ShouldRunSuite('TTestCase_Memutils') then
-        testSuite.AddTest(TTestCase_Memutils.Suite);
-      if ShouldRunSuite('TTestCase_RustStyleAliases') then
-        testSuite.AddTest(TTestCase_RustStyleAliases.Suite);
-      if ShouldRunSuite('TTestCase_SaturatingArithmetic') then
-        testSuite.AddTest(TTestCase_SaturatingArithmetic.Suite);
-      if ShouldRunSuite('TTestCase_NarrowIntegerOps') then
-        testSuite.AddTest(TTestCase_NarrowIntegerOps.Suite);
-      if ShouldRunSuite('TTestCase_VecI32x8') then
-        testSuite.AddTest(TTestCase_VecI32x8.Suite);
-      if ShouldRunSuite('TTestCase_VecU32x8') then
-        testSuite.AddTest(TTestCase_VecU32x8.Suite);
-      if ShouldRunSuite('TTestCase_VecF32x8') then
-        testSuite.AddTest(TTestCase_VecF32x8.Suite);
-      if ShouldRunSuite('TTestCase_VecF64x4') then
-        testSuite.AddTest(TTestCase_VecF64x4.Suite);
-      if ShouldRunSuite('TTestCase_IEEE754_F64') then
-        testSuite.AddTest(TTestCase_IEEE754_F64.Suite);
-      if ShouldRunSuite('TTestCase_IEEE754EdgeCases') then
-        testSuite.AddTest(TTestCase_IEEE754EdgeCases.Suite);
-      if ShouldRunSuite('TTestCase_DispatchAPI') then
-        testSuite.AddTest(TTestCase_DispatchAPI.Suite);
-      if ShouldRunSuite('TTestCase_SimdConcurrent') then
-        testSuite.AddTest(TTestCase_SimdConcurrent.Suite);  // ✅ Phase 5.4
+      // Add test cases (single source of truth shared with --list-suites)
+      ProcessAllSuites(False, testSuite);
 
       // Create test result
       testResult := TTestResult.Create;

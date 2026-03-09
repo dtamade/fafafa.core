@@ -104,6 +104,7 @@ type
     procedure Test_os_network_sysfs_non_loopback_enumerated_linux;
     procedure Test_os_network_non_loopback_ipv4_present_linux;
     procedure Test_os_cpu_info_ex_features_frequency_linux;
+    procedure Test_os_cpu_info_ex_cache_sizes_linux;
     procedure Test_os_cpu_info_usage_linux;
     {$ENDIF}
   end;
@@ -1765,6 +1766,140 @@ begin
 
   if mhzLine <> '' then
     AssertTrue('frequency should be populated', Info.Frequency > 0);
+end;
+
+procedure TTestCase_Global.Test_os_cpu_info_ex_cache_sizes_linux;
+var
+  Info: TCPUInfo;
+  LExpectedL1: QWord;
+  LExpectedL2: QWord;
+  LExpectedL3: QWord;
+
+  function ReadFirstLineTrimmed(const aPath: string): string;
+  var
+    LFile: Text;
+    LLine: string;
+  begin
+    Result := '';
+    Assign(LFile, aPath);
+    {$I-} Reset(LFile); {$I+}
+    if IOResult <> 0 then
+      Exit;
+    try
+      if not EOF(LFile) then
+      begin
+        ReadLn(LFile, LLine);
+        Result := Trim(LLine);
+      end;
+    finally
+      Close(LFile);
+    end;
+  end;
+
+  function ParseSizeToBytes(const aText: string): QWord;
+  var
+    LText: string;
+    LCode: Integer;
+    LValue: QWord;
+    LUnit: Char;
+    LNum: string;
+  begin
+    Result := 0;
+    LText := Trim(aText);
+    if LText = '' then
+      Exit;
+
+    LUnit := UpCase(LText[Length(LText)]);
+    if (LUnit >= '0') and (LUnit <= '9') then
+    begin
+      Val(LText, LValue, LCode);
+      if LCode = 0 then
+        Result := LValue;
+      Exit;
+    end;
+
+    LNum := Trim(Copy(LText, 1, Length(LText) - 1));
+    Val(LNum, LValue, LCode);
+    if LCode <> 0 then
+      Exit;
+
+    case LUnit of
+      'K': Result := LValue * 1024;
+      'M': Result := LValue * 1024 * 1024;
+      'G': Result := LValue * 1024 * 1024 * 1024;
+    else
+      Result := LValue;
+    end;
+  end;
+
+  procedure ComputeExpectedCacheSizes;
+  var
+    LBase: string;
+    LRec: TSearchRec;
+    LDir: string;
+    LLevel: Integer;
+    LLevelText: string;
+    LSizeText: string;
+    LSize: QWord;
+  begin
+    LExpectedL1 := 0;
+    LExpectedL2 := 0;
+    LExpectedL3 := 0;
+
+    LBase := '/sys/devices/system/cpu/cpu0/cache';
+    if not DirectoryExists(LBase) then
+      Exit;
+
+    if FindFirst(LBase + '/index*', faDirectory, LRec) = 0 then
+    try
+      repeat
+        if (LRec.Name = '.') or (LRec.Name = '..') then
+          Continue;
+        if (LRec.Attr and faDirectory) = 0 then
+          Continue;
+
+        LDir := LBase + '/' + LRec.Name;
+        LLevelText := ReadFirstLineTrimmed(LDir + '/level');
+        LSizeText := ReadFirstLineTrimmed(LDir + '/size');
+
+        LLevel := StrToIntDef(LLevelText, 0);
+        LSize := ParseSizeToBytes(LSizeText);
+        if (LLevel <= 0) or (LSize = 0) then
+          Continue;
+
+        case LLevel of
+          1: Inc(LExpectedL1, LSize);
+          2: if LSize > LExpectedL2 then LExpectedL2 := LSize;
+          3: if LSize > LExpectedL3 then LExpectedL3 := LSize;
+        end;
+      until FindNext(LRec) <> 0;
+    finally
+      FindClose(LRec);
+    end;
+  end;
+
+begin
+  if not DirectoryExists('/sys/devices/system/cpu/cpu0/cache') then
+  begin
+    AssertTrue('no sysfs cache info (soft)', True);
+    Exit;
+  end;
+
+  ComputeExpectedCacheSizes;
+  if (LExpectedL1 = 0) and (LExpectedL2 = 0) and (LExpectedL3 = 0) then
+  begin
+    AssertTrue('sysfs cache sizes unreadable (soft)', True);
+    Exit;
+  end;
+
+  AssertTrue(os_cpu_info_ex(Info));
+
+  if LExpectedL1 > 0 then
+    AssertEquals('CacheL1 mismatch', Int64(LExpectedL1), Int64(Info.CacheL1));
+  if LExpectedL2 > 0 then
+    AssertEquals('CacheL2 mismatch', Int64(LExpectedL2), Int64(Info.CacheL2));
+  if LExpectedL3 > 0 then
+    AssertEquals('CacheL3 mismatch', Int64(LExpectedL3), Int64(Info.CacheL3));
 end;
 
 procedure TTestCase_Global.Test_os_cpu_info_usage_linux;

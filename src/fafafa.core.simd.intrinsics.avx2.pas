@@ -133,7 +133,10 @@ end;
 
 function avx2_setzero_si256: TM256;
 begin
-  FillChar(Result, SizeOf(Result), 0);
+  Result.m256i_u64[0] := 0;
+  Result.m256i_u64[1] := 0;
+  Result.m256i_u64[2] := 0;
+  Result.m256i_u64[3] := 0;
 end;
 
 function avx2_set1_epi32(Value: LongInt): TM256;
@@ -501,98 +504,364 @@ begin
   Result.m256_m128[1] := a;
 end;
 
-// 其他复杂函数的占位符实现
-// 说明：以下 AVX2 intrinsics 目前尚未提供正确实现。为了避免被误用导致
-// 静默错误结果，这些函数会在调用时抛出 ENotImplemented 异常。
+// 复杂函数实现（Pascal 回退语义）
+
+function ValidateGatherScale(const aScale: Integer): PtrInt; inline;
+begin
+  case aScale of
+    1, 2, 4, 8:
+      Result := aScale;
+  else
+    raise EArgumentOutOfRangeException.CreateFmt('AVX2 gather scale must be 1,2,4,8 (got %d)', [aScale]);
+  end;
+end;
+
+function SaturateI32ToI16(const aValue: LongInt): SmallInt; inline;
+begin
+  if aValue > High(SmallInt) then
+    Exit(High(SmallInt));
+  if aValue < Low(SmallInt) then
+    Exit(Low(SmallInt));
+  Result := SmallInt(aValue);
+end;
+
+function SaturateI16ToI8(const aValue: SmallInt): ShortInt; inline;
+begin
+  if aValue > High(ShortInt) then
+    Exit(High(ShortInt));
+  if aValue < Low(ShortInt) then
+    Exit(Low(ShortInt));
+  Result := ShortInt(aValue);
+end;
+
+function SaturateI32ToU16(const aValue: LongInt): Word; inline;
+begin
+  if aValue < 0 then
+    Exit(0);
+  if aValue > High(Word) then
+    Exit(High(Word));
+  Result := Word(aValue);
+end;
+
+function SaturateI16ToU8(const aValue: SmallInt): Byte; inline;
+begin
+  if aValue < 0 then
+    Exit(0);
+  if aValue > High(Byte) then
+    Exit(High(Byte));
+  Result := Byte(aValue);
+end;
 
 function avx2_gather_epi32(const base_addr: Pointer; const vindex: TM256; scale: Integer): TM256;
+var
+  LBase: PByte;
+  LScale: PtrInt;
+  LOffset: PtrInt;
+  LIndex: Integer;
 begin
-  raise ENotImplemented.Create('avx2_gather_epi32 is not implemented yet');
+  if base_addr = nil then
+    raise EArgumentNilException.Create('base_addr');
+
+  LScale := ValidateGatherScale(scale);
+  LBase := PByte(base_addr);
+
+  for LIndex := 0 to 7 do
+  begin
+    LOffset := PtrInt(vindex.m256i_i32[LIndex]) * LScale;
+    Result.m256i_i32[LIndex] := PLongInt(LBase + LOffset)^;
+  end;
 end;
 
 function avx2_gather_epi64(const base_addr: Pointer; const vindex: TM128; scale: Integer): TM256;
+var
+  LBase: PByte;
+  LScale: PtrInt;
+  LOffset: PtrInt;
+  LIndex: Integer;
 begin
-  raise ENotImplemented.Create('avx2_gather_epi64 is not implemented yet');
+  if base_addr = nil then
+    raise EArgumentNilException.Create('base_addr');
+
+  LScale := ValidateGatherScale(scale);
+  LBase := PByte(base_addr);
+
+  for LIndex := 0 to 3 do
+  begin
+    LOffset := PtrInt(vindex.m128i_i32[LIndex]) * LScale;
+    Result.m256i_i64[LIndex] := PInt64(LBase + LOffset)^;
+  end;
 end;
 
 function avx2_gather_ps(const base_addr: Pointer; const vindex: TM256; scale: Integer): TM256;
+var
+  LBase: PByte;
+  LScale: PtrInt;
+  LOffset: PtrInt;
+  LIndex: Integer;
 begin
-  raise ENotImplemented.Create('avx2_gather_ps is not implemented yet');
+  if base_addr = nil then
+    raise EArgumentNilException.Create('base_addr');
+
+  LScale := ValidateGatherScale(scale);
+  LBase := PByte(base_addr);
+
+  for LIndex := 0 to 7 do
+  begin
+    LOffset := PtrInt(vindex.m256i_i32[LIndex]) * LScale;
+    Result.m256_f32[LIndex] := PSingle(LBase + LOffset)^;
+  end;
 end;
 
 function avx2_gather_pd(const base_addr: Pointer; const vindex: TM128; scale: Integer): TM256;
+var
+  LBase: PByte;
+  LScale: PtrInt;
+  LOffset: PtrInt;
+  LIndex: Integer;
 begin
-  raise ENotImplemented.Create('avx2_gather_pd is not implemented yet');
+  if base_addr = nil then
+    raise EArgumentNilException.Create('base_addr');
+
+  LScale := ValidateGatherScale(scale);
+  LBase := PByte(base_addr);
+
+  for LIndex := 0 to 3 do
+  begin
+    LOffset := PtrInt(vindex.m128i_i32[LIndex]) * LScale;
+    Result.m256_f64[LIndex] := PDouble(LBase + LOffset)^;
+  end;
 end;
 
 function avx2_packs_epi32(const a, b: TM256): TM256;
+var
+  LLane: Integer;
+  LSrcOffset: Integer;
+  LDstOffset: Integer;
+  LInner: Integer;
 begin
-  raise ENotImplemented.Create('avx2_packs_epi32 is not implemented yet');
+  for LLane := 0 to 1 do
+  begin
+    LSrcOffset := LLane * 4;
+    LDstOffset := LLane * 8;
+
+    for LInner := 0 to 3 do
+      Result.m256i_i16[LDstOffset + LInner] := SaturateI32ToI16(a.m256i_i32[LSrcOffset + LInner]);
+    for LInner := 0 to 3 do
+      Result.m256i_i16[LDstOffset + 4 + LInner] := SaturateI32ToI16(b.m256i_i32[LSrcOffset + LInner]);
+  end;
 end;
 
 function avx2_packs_epi16(const a, b: TM256): TM256;
+var
+  LLane: Integer;
+  LSrcOffset: Integer;
+  LDstOffset: Integer;
+  LInner: Integer;
 begin
-  raise ENotImplemented.Create('avx2_packs_epi16 is not implemented yet');
+  for LLane := 0 to 1 do
+  begin
+    LSrcOffset := LLane * 8;
+    LDstOffset := LLane * 16;
+
+    for LInner := 0 to 7 do
+      Result.m256i_i8[LDstOffset + LInner] := SaturateI16ToI8(a.m256i_i16[LSrcOffset + LInner]);
+    for LInner := 0 to 7 do
+      Result.m256i_i8[LDstOffset + 8 + LInner] := SaturateI16ToI8(b.m256i_i16[LSrcOffset + LInner]);
+  end;
 end;
 
 function avx2_packus_epi32(const a, b: TM256): TM256;
+var
+  LLane: Integer;
+  LSrcOffset: Integer;
+  LDstOffset: Integer;
+  LInner: Integer;
 begin
-  raise ENotImplemented.Create('avx2_packus_epi32 is not implemented yet');
+  for LLane := 0 to 1 do
+  begin
+    LSrcOffset := LLane * 4;
+    LDstOffset := LLane * 8;
+
+    for LInner := 0 to 3 do
+      Result.m256i_u16[LDstOffset + LInner] := SaturateI32ToU16(a.m256i_i32[LSrcOffset + LInner]);
+    for LInner := 0 to 3 do
+      Result.m256i_u16[LDstOffset + 4 + LInner] := SaturateI32ToU16(b.m256i_i32[LSrcOffset + LInner]);
+  end;
 end;
 
 function avx2_packus_epi16(const a, b: TM256): TM256;
+var
+  LLane: Integer;
+  LSrcOffset: Integer;
+  LDstOffset: Integer;
+  LInner: Integer;
 begin
-  raise ENotImplemented.Create('avx2_packus_epi16 is not implemented yet');
+  for LLane := 0 to 1 do
+  begin
+    LSrcOffset := LLane * 8;
+    LDstOffset := LLane * 16;
+
+    for LInner := 0 to 7 do
+      Result.m256i_u8[LDstOffset + LInner] := SaturateI16ToU8(a.m256i_i16[LSrcOffset + LInner]);
+    for LInner := 0 to 7 do
+      Result.m256i_u8[LDstOffset + 8 + LInner] := SaturateI16ToU8(b.m256i_i16[LSrcOffset + LInner]);
+  end;
 end;
 
 function avx2_unpackhi_epi32(const a, b: TM256): TM256;
+var
+  LLane: Integer;
+  LSrcOffset: Integer;
+  LDstOffset: Integer;
 begin
-  raise ENotImplemented.Create('avx2_unpackhi_epi32 is not implemented yet');
+  for LLane := 0 to 1 do
+  begin
+    LSrcOffset := (LLane * 4) + 2;
+    LDstOffset := LLane * 4;
+
+    Result.m256i_i32[LDstOffset + 0] := a.m256i_i32[LSrcOffset + 0];
+    Result.m256i_i32[LDstOffset + 1] := b.m256i_i32[LSrcOffset + 0];
+    Result.m256i_i32[LDstOffset + 2] := a.m256i_i32[LSrcOffset + 1];
+    Result.m256i_i32[LDstOffset + 3] := b.m256i_i32[LSrcOffset + 1];
+  end;
 end;
 
 function avx2_unpackhi_epi16(const a, b: TM256): TM256;
+var
+  LLane: Integer;
+  LSrcOffset: Integer;
+  LDstOffset: Integer;
+  LInner: Integer;
 begin
-  raise ENotImplemented.Create('avx2_unpackhi_epi16 is not implemented yet');
+  for LLane := 0 to 1 do
+  begin
+    LSrcOffset := (LLane * 8) + 4;
+    LDstOffset := LLane * 8;
+
+    for LInner := 0 to 3 do
+    begin
+      Result.m256i_i16[LDstOffset + (LInner * 2)] := a.m256i_i16[LSrcOffset + LInner];
+      Result.m256i_i16[LDstOffset + (LInner * 2) + 1] := b.m256i_i16[LSrcOffset + LInner];
+    end;
+  end;
 end;
 
 function avx2_unpackhi_epi8(const a, b: TM256): TM256;
+var
+  LLane: Integer;
+  LSrcOffset: Integer;
+  LDstOffset: Integer;
+  LInner: Integer;
 begin
-  raise ENotImplemented.Create('avx2_unpackhi_epi8 is not implemented yet');
+  for LLane := 0 to 1 do
+  begin
+    LSrcOffset := (LLane * 16) + 8;
+    LDstOffset := LLane * 16;
+
+    for LInner := 0 to 7 do
+    begin
+      Result.m256i_i8[LDstOffset + (LInner * 2)] := a.m256i_i8[LSrcOffset + LInner];
+      Result.m256i_i8[LDstOffset + (LInner * 2) + 1] := b.m256i_i8[LSrcOffset + LInner];
+    end;
+  end;
 end;
 
 function avx2_unpacklo_epi32(const a, b: TM256): TM256;
+var
+  LLane: Integer;
+  LSrcOffset: Integer;
+  LDstOffset: Integer;
 begin
-  raise ENotImplemented.Create('avx2_unpacklo_epi32 is not implemented yet');
+  for LLane := 0 to 1 do
+  begin
+    LSrcOffset := LLane * 4;
+    LDstOffset := LLane * 4;
+
+    Result.m256i_i32[LDstOffset + 0] := a.m256i_i32[LSrcOffset + 0];
+    Result.m256i_i32[LDstOffset + 1] := b.m256i_i32[LSrcOffset + 0];
+    Result.m256i_i32[LDstOffset + 2] := a.m256i_i32[LSrcOffset + 1];
+    Result.m256i_i32[LDstOffset + 3] := b.m256i_i32[LSrcOffset + 1];
+  end;
 end;
 
 function avx2_unpacklo_epi16(const a, b: TM256): TM256;
+var
+  LLane: Integer;
+  LSrcOffset: Integer;
+  LDstOffset: Integer;
+  LInner: Integer;
 begin
-  raise ENotImplemented.Create('avx2_unpacklo_epi16 is not implemented yet');
+  for LLane := 0 to 1 do
+  begin
+    LSrcOffset := LLane * 8;
+    LDstOffset := LLane * 8;
+
+    for LInner := 0 to 3 do
+    begin
+      Result.m256i_i16[LDstOffset + (LInner * 2)] := a.m256i_i16[LSrcOffset + LInner];
+      Result.m256i_i16[LDstOffset + (LInner * 2) + 1] := b.m256i_i16[LSrcOffset + LInner];
+    end;
+  end;
 end;
 
 function avx2_unpacklo_epi8(const a, b: TM256): TM256;
+var
+  LLane: Integer;
+  LSrcOffset: Integer;
+  LDstOffset: Integer;
+  LInner: Integer;
 begin
-  raise ENotImplemented.Create('avx2_unpacklo_epi8 is not implemented yet');
+  for LLane := 0 to 1 do
+  begin
+    LSrcOffset := LLane * 16;
+    LDstOffset := LLane * 16;
+
+    for LInner := 0 to 7 do
+    begin
+      Result.m256i_i8[LDstOffset + (LInner * 2)] := a.m256i_i8[LSrcOffset + LInner];
+      Result.m256i_i8[LDstOffset + (LInner * 2) + 1] := b.m256i_i8[LSrcOffset + LInner];
+    end;
+  end;
 end;
 
 function avx2_permute4x64_epi64(const a: TM256; imm8: Byte): TM256;
+var
+  LIndex: Integer;
+  LSource: Integer;
 begin
-  raise ENotImplemented.Create('avx2_permute4x64_epi64 is not implemented yet');
+  for LIndex := 0 to 3 do
+  begin
+    LSource := (imm8 shr (LIndex * 2)) and $3;
+    Result.m256i_i64[LIndex] := a.m256i_i64[LSource];
+  end;
 end;
 
 function avx2_permute4x64_pd(const a: TM256; imm8: Byte): TM256;
+var
+  LIndex: Integer;
+  LSource: Integer;
 begin
-  raise ENotImplemented.Create('avx2_permute4x64_pd is not implemented yet');
+  for LIndex := 0 to 3 do
+  begin
+    LSource := (imm8 shr (LIndex * 2)) and $3;
+    Result.m256_f64[LIndex] := a.m256_f64[LSource];
+  end;
 end;
 
 function avx2_permutevar8x32_epi32(const a, idx: TM256): TM256;
+var
+  LIndex: Integer;
 begin
-  raise ENotImplemented.Create('avx2_permutevar8x32_epi32 is not implemented yet');
+  for LIndex := 0 to 7 do
+    Result.m256i_i32[LIndex] := a.m256i_i32[idx.m256i_u32[LIndex] and 7];
 end;
 
 function avx2_permutevar8x32_ps(const a: TM256; const idx: TM256): TM256;
+var
+  LIndex: Integer;
 begin
-  raise ENotImplemented.Create('avx2_permutevar8x32_ps is not implemented yet');
+  for LIndex := 0 to 7 do
+    Result.m256_f32[LIndex] := a.m256_f32[idx.m256i_u32[LIndex] and 7];
 end;
 
 end.

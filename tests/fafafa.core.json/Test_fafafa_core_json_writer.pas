@@ -86,7 +86,7 @@ begin
   OutBuf := JsonWriteOpts(Doc, [jwfPretty], GetRtlAllocator(), Len, WErr);
   SetString(S, OutBuf, Len);
   AssertTrue(Pos('[', S) = 1);
-  AssertTrue(Pos(#13#10 + '  2' + #13#10 + ']', S) > 0);
+  AssertTrue(Pos(LineEnding + '  2' + LineEnding + ']', S) > 0);
   GetRtlAllocator().FreeMem(OutBuf); Doc.Free;
 
   Doc := JsonReadOpts('{"a":1,"b":2}', 13, [], GetRtlAllocator(), Err);

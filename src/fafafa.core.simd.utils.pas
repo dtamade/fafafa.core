@@ -1130,23 +1130,36 @@ end;
 function SortNet4F32(const a: TVecF32x4; ascending: Boolean): TVecF32x4;
 var
   tmp: Single;
+  function NeedSwap(const aLeft, aRight: Single): Boolean; inline;
+  begin
+    // Deterministic NaN policy: always push NaN lanes to the tail.
+    if IsNan(aLeft) then
+      Exit(not IsNan(aRight));
+    if IsNan(aRight) then
+      Exit(False);
+
+    if ascending then
+      Result := aLeft > aRight
+    else
+      Result := aLeft < aRight;
+  end;
 begin
   Result := a;
   if ascending then
   begin
-    if Result.f[0] > Result.f[1] then begin tmp := Result.f[0]; Result.f[0] := Result.f[1]; Result.f[1] := tmp; end;
-    if Result.f[2] > Result.f[3] then begin tmp := Result.f[2]; Result.f[2] := Result.f[3]; Result.f[3] := tmp; end;
-    if Result.f[0] > Result.f[2] then begin tmp := Result.f[0]; Result.f[0] := Result.f[2]; Result.f[2] := tmp; end;
-    if Result.f[1] > Result.f[3] then begin tmp := Result.f[1]; Result.f[1] := Result.f[3]; Result.f[3] := tmp; end;
-    if Result.f[1] > Result.f[2] then begin tmp := Result.f[1]; Result.f[1] := Result.f[2]; Result.f[2] := tmp; end;
+    if NeedSwap(Result.f[0], Result.f[1]) then begin tmp := Result.f[0]; Result.f[0] := Result.f[1]; Result.f[1] := tmp; end;
+    if NeedSwap(Result.f[2], Result.f[3]) then begin tmp := Result.f[2]; Result.f[2] := Result.f[3]; Result.f[3] := tmp; end;
+    if NeedSwap(Result.f[0], Result.f[2]) then begin tmp := Result.f[0]; Result.f[0] := Result.f[2]; Result.f[2] := tmp; end;
+    if NeedSwap(Result.f[1], Result.f[3]) then begin tmp := Result.f[1]; Result.f[1] := Result.f[3]; Result.f[3] := tmp; end;
+    if NeedSwap(Result.f[1], Result.f[2]) then begin tmp := Result.f[1]; Result.f[1] := Result.f[2]; Result.f[2] := tmp; end;
   end
   else
   begin
-    if Result.f[0] < Result.f[1] then begin tmp := Result.f[0]; Result.f[0] := Result.f[1]; Result.f[1] := tmp; end;
-    if Result.f[2] < Result.f[3] then begin tmp := Result.f[2]; Result.f[2] := Result.f[3]; Result.f[3] := tmp; end;
-    if Result.f[0] < Result.f[2] then begin tmp := Result.f[0]; Result.f[0] := Result.f[2]; Result.f[2] := tmp; end;
-    if Result.f[1] < Result.f[3] then begin tmp := Result.f[1]; Result.f[1] := Result.f[3]; Result.f[3] := tmp; end;
-    if Result.f[1] < Result.f[2] then begin tmp := Result.f[1]; Result.f[1] := Result.f[2]; Result.f[2] := tmp; end;
+    if NeedSwap(Result.f[0], Result.f[1]) then begin tmp := Result.f[0]; Result.f[0] := Result.f[1]; Result.f[1] := tmp; end;
+    if NeedSwap(Result.f[2], Result.f[3]) then begin tmp := Result.f[2]; Result.f[2] := Result.f[3]; Result.f[3] := tmp; end;
+    if NeedSwap(Result.f[0], Result.f[2]) then begin tmp := Result.f[0]; Result.f[0] := Result.f[2]; Result.f[2] := tmp; end;
+    if NeedSwap(Result.f[1], Result.f[3]) then begin tmp := Result.f[1]; Result.f[1] := Result.f[3]; Result.f[3] := tmp; end;
+    if NeedSwap(Result.f[1], Result.f[2]) then begin tmp := Result.f[1]; Result.f[1] := Result.f[2]; Result.f[2] := tmp; end;
   end;
 end;
 

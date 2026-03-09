@@ -1,27 +1,42 @@
-program fafafa_core_simd_cpuinfo_test;
+program fafafa.core.simd.cpuinfo.test;
 
 {$mode objfpc}{$H+}
 {$I ../../src/fafafa.core.settings.inc}
 {$CODEPAGE UTF8}
 
 uses
-  {$IFDEF UNIX}cthreads,{$ENDIF}
-  Classes, SysUtils, fpcunit, consoletestrunner, testregistry,
+  {$IFDEF UNIX}
+  cthreads,
+  {$ENDIF}
+  Classes, SysUtils,
+  fpcunit, consoletestrunner, testregistry,
   fafafa.core.simd.cpuinfo.testcase,
-  fafafa.core.simd.cpuinfo.lazy.testcase;
+  fafafa.core.simd.cpuinfo.lazy.testcase
+  ;
 
 var
-  Application: TTestRunner;
+  LApplication: TTestRunner;
 
 begin
   DefaultFormat := fPlain;
   DefaultRunAllTests := True;
-  Application := TTestRunner.Create(nil);
+
+  {$IFDEF SIMD_RISCV_AVAILABLE}
+  // RISC-V/qemu user-mode workaround: avoid teardown path that intermittently AVs
+  // after successful execution in consoletestrunner.
+  LApplication := TTestRunner.Create(nil);
+  LApplication.Initialize;
+  LApplication.Title := 'fafafa.core.simd.cpuinfo tests';
+  LApplication.Run;
+  Halt(ExitCode);
+  {$ELSE}
+  LApplication := TTestRunner.Create(nil);
   try
-    Application.Initialize;
-    Application.Title := 'fafafa.core.simd.cpuinfo 单元测试';
-    Application.Run;
+    LApplication.Initialize;
+    LApplication.Title := 'fafafa.core.simd.cpuinfo tests';
+    LApplication.Run;
   finally
-    Application.Free;
+    LApplication.Free;
   end;
+  {$ENDIF}
 end.

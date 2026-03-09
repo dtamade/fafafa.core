@@ -8,7 +8,8 @@ interface
 
 uses
   Classes, SysUtils, fpcunit, testregistry,
-  fafafa.core.time;
+  fafafa.core.time,
+  fafafa.core.time.format;
 
 type
   TTestCase_TimeFormatExt = class(TTestCase)
@@ -16,6 +17,9 @@ type
     procedure Test_FormatDurationHuman_Defaults;
     procedure Test_FormatDurationHuman_Abbr_Toggle;
     procedure Test_FormatDurationHuman_SecPrecision;
+    procedure Test_FormatDate_Options_CustomPattern_Applied;
+    procedure Test_FormatDuration_PatternPrecise_Applied;
+    procedure Test_DurationFormatter_FormatPatternVerbose_Applied;
   end;
 
 implementation
@@ -59,6 +63,42 @@ begin
   finally
     SetDurationFormatSecPrecision(0);
   end;
+end;
+
+procedure TTestCase_TimeFormatExt.Test_FormatDate_Options_CustomPattern_Applied;
+var
+  LDate: TDate;
+  LOptions: TFormatOptions;
+  LResult: string;
+begin
+  LDate := TDate.Create(2024, 10, 4);
+  LOptions := TFormatOptions.Default;
+  LOptions.CustomPattern := 'yyyymmdd';
+
+  LResult := DefaultTimeFormatter.FormatDate(LDate, LOptions);
+  CheckEquals('20241004', LResult);
+end;
+
+procedure TTestCase_TimeFormatExt.Test_FormatDuration_PatternPrecise_Applied;
+var
+  LDuration: TDuration;
+  LResult: string;
+begin
+  LDuration := TDuration.FromSec(90);
+  LResult := DefaultTimeFormatter.FormatDuration(LDuration, 'precise');
+  CheckEquals('0:01:30', LResult);
+end;
+
+procedure TTestCase_TimeFormatExt.Test_DurationFormatter_FormatPatternVerbose_Applied;
+var
+  LFormatter: IDurationFormatter;
+  LDuration: TDuration;
+  LResult: string;
+begin
+  LFormatter := CreateDurationFormatter;
+  LDuration := TDuration.FromSec(90);
+  LResult := LFormatter.Format(LDuration, 'verbose');
+  CheckEquals('1 minute, 30 seconds', LResult);
 end;
 
 initialization

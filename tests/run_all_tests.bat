@@ -15,6 +15,8 @@ REM     tests\fafafa.core.json            -> fafafa.core.json
 REM     tests\fafafa.core.collections\vec -> fafafa.core.collections.vec
 REM - Compatibility: also accepts basename filters (e.g. "vec") and group filters
 REM   (e.g. "fafafa.core.collections" matches "fafafa.core.collections.vec").
+REM - Prefix filter with '=' for exact-only matching (no group/prefix expansion).
+REM   Example: =fafafa.core.simd
 REM - Set STOP_ON_FAIL=1 to stop on first failure
 set "FILTER=%*"
 
@@ -52,16 +54,28 @@ for %%F in (%FILTER%) do (
   set "__F_RAW=%%~F"
   set "__F_NORM=!__F_RAW:/=.!"
   set "__F_NORM=!__F_NORM:\=.!"
+  set "__EXACT_ONLY="
 
-  REM Exact match (full or leaf)
-  if /I "!__F_NORM!"=="!__MOD_FULL!" exit /b 0
-  if /I "!__F_NORM!"=="!__MOD_LEAF!" exit /b 0
+  if "!__F_NORM:~0,1!"=="=" (
+    set "__EXACT_ONLY=1"
+    set "__F_NORM=!__F_NORM:~1!"
+  )
 
-  REM Group/prefix match: "a.b" selects "a.b.c"
-  set "__PFX=!__F_NORM!."
-  call :strlen "!__PFX!" __PFX_LEN
-  call set "__START=%%__MOD_FULL:~0,%__PFX_LEN%%%"
-  if /I "!__START!"=="!__PFX!" exit /b 0
+  if "!__F_NORM!"=="" (
+    REM skip empty exact filter such as "="
+  ) else (
+    REM Exact match (full or leaf)
+    if /I "!__F_NORM!"=="!__MOD_FULL!" exit /b 0
+    if /I "!__F_NORM!"=="!__MOD_LEAF!" exit /b 0
+
+    if not defined __EXACT_ONLY (
+      REM Group/prefix match: "a.b" selects "a.b.c"
+      set "__PFX=!__F_NORM!."
+      call :strlen "!__PFX!" __PFX_LEN
+      call set "__START=%%__MOD_FULL:~0,%__PFX_LEN%%%"
+      if /I "!__START!"=="!__PFX!" exit /b 0
+    )
+  )
 )
 
 exit /b 1

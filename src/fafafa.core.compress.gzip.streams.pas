@@ -72,6 +72,19 @@ type
 
 implementation
 
+type
+  TGZipHeaderBuf = array[0..9] of Byte;
+  TGZipLen2Buf = array[0..1] of Byte;
+  TGZipCrc16Buf = array[0..1] of Byte;
+  TGZipTrailerBuf = array[0..7] of Byte;
+  TGZipSkipBuf = array[0..1023] of Byte;
+
+// Helpers to silence unused-parameter hints without changing behavior.
+procedure _unused_ptr(const P: Pointer); inline; begin if P <> nil then; end;
+procedure _unused_i32(const V: Longint); inline; begin if V <> 0 then; end;
+procedure _unused_i64(const V: Int64); inline; begin if V <> 0 then; end;
+procedure _unused_seekorigin(const V: TSeekOrigin); inline; begin if V <> soBeginning then; end;
+
 function _try_get_pos_size(S: TStream; out CurPos, TotalSize: Int64): Boolean;
 begin
   try
@@ -135,11 +148,15 @@ end;
 
 function TBoundedStream.Write(const Buffer; Count: Longint): Longint;
 begin
+  _unused_ptr(@Buffer);
+  _unused_i32(Count);
   Result := 0; // 只读
 end;
 
 function TBoundedStream.Seek(const Offset: Int64; Origin: TSeekOrigin): Int64;
 begin
+  _unused_i64(Offset);
+  _unused_seekorigin(Origin);
   Result := -1; // 不支持寻址
 end;
 
@@ -199,11 +216,15 @@ end;
 
 function TGZipEncodeStream.Read(var Buffer; Count: Longint): Longint;
 begin
+  _unused_ptr(@Buffer);
+  _unused_i32(Count);
   Result := 0; // 写流，不支持读
 end;
 
 function TGZipEncodeStream.Write(const Buffer; Count: Longint): Longint;
 begin
+  // Buffer is forwarded to other untyped routines; take its address to keep hints clean.
+  _unused_ptr(@Buffer);
   if Count > 0 then begin
     FCRC := _crc32_update(FCRC, Buffer, Count);
     Inc(FSize, DWord(Count));
@@ -229,10 +250,25 @@ end;
 { TGZipDecodeStream }
 
 procedure TGZipDecodeStream.ReadHeader;
-var hdr: array[0..9] of Byte; r: Longint; flg: Byte; b: Byte; extLen: Word;
-    buf: array[0..1023] of Byte; toSkip, got: Longint; hdr_crc: DWord;
-    len2: array[0..1] of Byte; crc16_le: array[0..1] of Byte; got16, expect16: Word;
+var
+  hdr: TGZipHeaderBuf;
+  r: Longint;
+  flg: Byte;
+  b: Byte;
+  extLen: Word;
+  buf: TGZipSkipBuf;
+  toSkip, got: Longint;
+  hdr_crc: DWord;
+  len2: TGZipLen2Buf;
+  crc16_le: TGZipCrc16Buf;
+  got16, expect16: Word;
 begin
+  hdr := Default(TGZipHeaderBuf);
+  buf := Default(TGZipSkipBuf);
+  len2 := Default(TGZipLen2Buf);
+  crc16_le := Default(TGZipCrc16Buf);
+  b := 0;
+
   r := FSource.Read(hdr, SizeOf(hdr));
   if r <> SizeOf(hdr) then raise EGZipError.Create('gzip: short header');
   if (hdr[0] <> $1F) or (hdr[1] <> $8B) or (hdr[2] <> 8) then
@@ -294,8 +330,15 @@ begin
 end;
 
 procedure TGZipDecodeStream.VerifyTrailer;
-var tr: array[0..7] of Byte; crc, isize: DWord; got, r: Longint; cur, total: Int64; need: Integer;
+var
+  tr: TGZipTrailerBuf;
+  crc, isize: DWord;
+  got, r: Longint;
+  cur, total: Int64;
+  need: Integer;
 begin
+  tr := Default(TGZipTrailerBuf);
+
   if FVerified then Exit;
   // 优先使用 inflate 未消费的前缀字节（针对非可寻址源已读入 trailer 的情况）
   got := 0;
@@ -388,6 +431,8 @@ end;
 
 function TGZipDecodeStream.Write(const Buffer; Count: Longint): Longint;
 begin
+  _unused_ptr(@Buffer);
+  _unused_i32(Count);
   Result := 0; // 读流，不支持写
 end;
 

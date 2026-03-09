@@ -8,6 +8,7 @@ interface
 uses
   Classes, SysUtils, fpcunit, testregistry, testutils,
   fafafa.core.crypto,
+  fafafa.core.crypto.hash.xxh3_64,
   fafafa.core.crypto.hash.xxh3_128;
 
 type
@@ -33,7 +34,8 @@ begin
   SetLength(Buf, Len);
   if Len = 0 then Exit;
   byteGen := PRIME32;
-  for i := 0 to Len-1 do begin
+  for i := 0 to Len - 1 do
+  begin
     Buf[i] := Byte(byteGen shr 56);
     byteGen := byteGen * PRIME64;
   end;
@@ -75,6 +77,8 @@ begin
   ExpectHashHex64_X3(32, '9feaddbdbf57eed3');
   ExpectHashHex64_X3(33, 'abfb2d081b400a10');
   ExpectHashHex64_X3(64, '9cb48487720ec49d');
+  ExpectHashHex64_X3(128, '64f23ecf1609b766');
+end;
 
 procedure TTestCase_XXH3_Vectors.Test_XXH3_64_Mid_Seed0_129to240;
   procedure ExpectHashHex64_X3(const Len: Integer; const ExpectedHexLower: string);
@@ -102,35 +106,41 @@ begin
   ExpectHashHex64_X3(4096, 'e91206429d1f48f9');
 end;
 
-
 // 片段等价性测试：分片 Update/Finalize 应与 one-shot 一致（seed=0）
 procedure TTestCase_XXH3_Vectors.Test_XXH3_64_SliceEquivalence;
 var
   Data: TBytes;
   H: IHashAlgorithm;
   B1, B2: TBytes;
-  i, off, step, n: Integer;
+  off, step, n: Integer;
   Slices: array[0..6] of Integer = (1,2,3,7,16,32,64);
   procedure RunCase(Len: Integer);
+  var
+    LSliceIdx: Integer;
   begin
     SetLength(Data, Len);
-    if Len>0 then FillTestBuffer(Data, Len);
+    if Len > 0 then
+      FillTestBuffer(Data, Len);
+
     B1 := XXH3_64Hash(Data, 0);
-    for i := 0 to High(Slices) do
+    for LSliceIdx := 0 to High(Slices) do
     begin
       H := CreateXXH3_64(0);
       if Length(Data) > 0 then
       begin
-        off := 0; step := Slices[i];
+        off := 0;
+        step := Slices[LSliceIdx];
         while off < Length(Data) do
         begin
-          n := step; if off + n > Length(Data) then n := Length(Data) - off;
+          n := step;
+          if off + n > Length(Data) then
+            n := Length(Data) - off;
           H.Update(Data[off], n);
           Inc(off, n);
         end;
       end;
       B2 := H.Finalize;
-      AssertEquals(Format('len=%d slice=%d', [Len, Slices[i]]), BytesToHex(B1), BytesToHex(B2));
+      AssertEquals(Format('len=%d slice=%d', [Len, Slices[LSliceIdx]]), BytesToHex(B1), BytesToHex(B2));
     end;
   end;
 begin
@@ -153,70 +163,38 @@ procedure TTestCase_XXH3_Vectors.Test_XXH3_128_Vectors_Basic;
 var
   got: TBytes;
   buf: TBytes;
-  function Hex128(lo, hi: QWord): string;
-  begin
-    Result := LowerCase(Format('%.16x%.16x', [hi, lo]));
-  end;
 begin
   // 0
   got := XXH3_128Hash([]);
   AssertEquals('xxh3_128 len=0', '6001c324468d497f99aa06d3014798d8', BytesToHex(got));
+
   // 16
   FillTestBuffer(buf, 16);
   got := XXH3_128Hash(buf);
   AssertEquals('xxh3_128 len=16', '562980258a998629c68c368ecf8a9c05', BytesToHex(got));
+
   // 32
   FillTestBuffer(buf, 32);
   got := XXH3_128Hash(buf);
   AssertEquals('xxh3_128 len=32', '278410a17595e3f998fc6458710dc2e8', BytesToHex(got));
+
   // 64
   FillTestBuffer(buf, 64);
   got := XXH3_128Hash(buf);
   AssertEquals('xxh3_128 len=64', 'efdb6a44690721a96d90e81a9b0fd622', BytesToHex(got));
+
   // 256
   FillTestBuffer(buf, 256);
   got := XXH3_128Hash(buf);
   AssertEquals('xxh3_128 len=256', '55de574ad89d0ac58b1c66091423d288', BytesToHex(got));
+
   // 4096
   FillTestBuffer(buf, 4096);
   got := XXH3_128Hash(buf);
   AssertEquals('xxh3_128 len=4096', 'e91206429d1f48f9b9cfaea2ca5626a4', BytesToHex(got));
 end;
 
-      H := CreateXXH3_64(0);
-      if Length(Data) > 0 then
-      begin
-        off := 0; step := Slices[i];
-        while off < Length(Data) do
-        begin
-          n := step; if off + n > Length(Data) then n := Length(Data) - off;
-          H.Update(Data[off], n);
-          Inc(off, n);
-        end;
-      end;
-      B2 := H.Finalize;
-      AssertEquals(Format('len=%d slice=%d', [Len, Slices[i]]), BytesToHex(B1), BytesToHex(B2));
-    end;
-  end;
-begin
-  RunCase(0);
-  RunCase(1);
-  RunCase(8);
-  RunCase(9);
-  RunCase(16);
-  RunCase(31);
-  RunCase(32);
-  RunCase(33);
-  RunCase(64);
-  RunCase(129);
-  RunCase(240);
-  RunCase(256);
-end;
-
-
-end;
-
 initialization
   RegisterTest(TTestCase_XXH3_Vectors);
-end.
 
+end.

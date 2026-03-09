@@ -69,10 +69,24 @@ end;
 
 procedure TTestCase_Sync_Smoke.Test_NamedEvent_Factory;
 var
-  NE: INamedEvent;
+  LNamedEvent: INamedEvent;
 begin
-  NE := MakeNamedEvent('fafafa.sync.test.event.modern');
-  CheckNotNull(NE);
+  try
+    LNamedEvent := MakeNamedEvent('fafafa.sync.test.event.modern');
+    CheckNotNull(LNamedEvent);
+  except
+    on LError: ESyncError do
+    begin
+      {$IFDEF UNIX}
+      if Pos('Permission denied', LError.Message) > 0 then
+      begin
+        CheckTrue(True, 'Skip in restricted UNIX environment: shared memory permission denied');
+        Exit;
+      end;
+      {$ENDIF}
+      raise;
+    end;
+  end;
 end;
 
 procedure TTestCase_Sync_Smoke.Test_Once_Basic;

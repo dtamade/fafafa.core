@@ -4,6 +4,7 @@ program tests_thread;
 {$mode objfpc}{$H+}
 
 uses
+  {$IFDEF UNIX}cthreads,{$ENDIF}
   Classes, consoletestrunner,
   Test_thread,
   Test_future_generic,

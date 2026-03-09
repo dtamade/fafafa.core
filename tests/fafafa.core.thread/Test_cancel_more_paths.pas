@@ -56,7 +56,7 @@ begin
   // 请求取消并等待
   Src.Cancel;
   ok := FutureWaitOrCancel(F, Src.Token, 2000);
-  AssertTrue('请求取消后，等待应尽快退出（True 表示 Future 完成或因取消视作完成）', ok);
+  AssertFalse('请求取消后，等待应尽快退出（返回 False 表示因取消提前退出）', ok);
 end;
 
 initialization

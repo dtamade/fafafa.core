@@ -13,6 +13,9 @@ type
   private
     // 各部分的初始化状�?
     FBasicInitialized: Boolean;
+    {$IFDEF SIMD_X86_AVAILABLE}
+    FX86BasicInitialized: Boolean;
+    {$ENDIF}
     FCacheInitialized: Boolean;
     FExtendedInitialized: Boolean;
     FAVXInitialized: Boolean;
@@ -124,19 +127,22 @@ function LazyCPUInfo: TLazyCPUInfo;
 // 兼容性接�?
 function GetCPUInfoLazy: TCPUInfo;
 function HasFeatureLazy(f: TGenericFeature): Boolean;
-function ParseCacheSizeTextToKB(const aText: string): Integer;
 
 implementation
 
 uses
-  Classes,
-  SysUtils,
-  fafafa.core.simd.cpuinfo
+  Classes, SysUtils
+  {$IFDEF UNIX}
+  , fafafa.core.simd.cpuinfo.unix
+  {$ENDIF}
   {$IFDEF SIMD_X86_AVAILABLE}
   , fafafa.core.simd.cpuinfo.x86
   {$ENDIF}
   {$IFDEF SIMD_ARM_AVAILABLE}
   , fafafa.core.simd.cpuinfo.arm
+  {$ENDIF}
+  {$IFDEF SIMD_RISCV_AVAILABLE}
+  , fafafa.core.simd.cpuinfo.riscv
   {$ENDIF}
   ;
 
@@ -144,111 +150,146 @@ var
   g_LazyCPUInfo: TLazyCPUInfo = nil;
   g_SingletonLock: Integer = 0;
 
-function ParseCacheSizeTextToKB(const aText: string): Integer;
-  function EndsWith(const aValue, aSuffix: string): Boolean;
-  begin
-    Result := (Length(aValue) >= Length(aSuffix)) and
-      (Copy(aValue, Length(aValue) - Length(aSuffix) + 1, Length(aSuffix)) = aSuffix);
-  end;
+{$IFDEF LINUX}
+function ReadFirstLineTrimmedLazy(const aPath: string): string;
 var
-  LErrorCode: Integer;
-  LMultiplierKB: QWord;
-  LResultKB: QWord;
-  LText: string;
-  LUpperText: string;
-  LValue: QWord;
-  LValueText: string;
-  LValueIsBytes: Boolean;
+  LFile: Text;
+  LLine: string;
 begin
-  LText := Trim(aText);
-  if LText = '' then
-    Exit(0);
-
-  LUpperText := UpperCase(LText);
-  LValueText := LText;
-  LMultiplierKB := 1;
-  LValueIsBytes := True;
-
-  if EndsWith(LUpperText, 'KIB') then
-  begin
-    Delete(LValueText, Length(LValueText) - 2, 3);
-    LValueIsBytes := False;
-  end
-  else if EndsWith(LUpperText, 'MIB') then
-  begin
-    Delete(LValueText, Length(LValueText) - 2, 3);
-    LMultiplierKB := 1024;
-    LValueIsBytes := False;
-  end
-  else if EndsWith(LUpperText, 'GIB') then
-  begin
-    Delete(LValueText, Length(LValueText) - 2, 3);
-    LMultiplierKB := 1024 * 1024;
-    LValueIsBytes := False;
-  end
-  else if EndsWith(LUpperText, 'KB') then
-  begin
-    Delete(LValueText, Length(LValueText) - 1, 2);
-    LValueIsBytes := False;
-  end
-  else if EndsWith(LUpperText, 'MB') then
-  begin
-    Delete(LValueText, Length(LValueText) - 1, 2);
-    LMultiplierKB := 1024;
-    LValueIsBytes := False;
-  end
-  else if EndsWith(LUpperText, 'GB') then
-  begin
-    Delete(LValueText, Length(LValueText) - 1, 2);
-    LMultiplierKB := 1024 * 1024;
-    LValueIsBytes := False;
-  end
-  else if EndsWith(LUpperText, 'K') then
-  begin
-    Delete(LValueText, Length(LValueText), 1);
-    LValueIsBytes := False;
-  end
-  else if EndsWith(LUpperText, 'M') then
-  begin
-    Delete(LValueText, Length(LValueText), 1);
-    LMultiplierKB := 1024;
-    LValueIsBytes := False;
-  end
-  else if EndsWith(LUpperText, 'G') then
-  begin
-    Delete(LValueText, Length(LValueText), 1);
-    LMultiplierKB := 1024 * 1024;
-    LValueIsBytes := False;
-  end
-  else if EndsWith(LUpperText, 'B') then
-    Delete(LValueText, Length(LValueText), 1);
-
-  LValueText := Trim(LValueText);
-  if LValueText = '' then
-    Exit(0);
-
-  Val(LValueText, LValue, LErrorCode);
-  if LErrorCode <> 0 then
-    Exit(0);
-
-  if LValueIsBytes then
-  begin
-    if LValue = 0 then
-      Exit(0);
-    LResultKB := (LValue + 1023) div 1024;
-  end
-  else
-  begin
-    if (LMultiplierKB <> 0) and (LValue > QWord(High(Integer)) div LMultiplierKB) then
-      Exit(High(Integer));
-    LResultKB := LValue * LMultiplierKB;
+  Result := '';
+  Assign(LFile, aPath);
+  {$I-} Reset(LFile); {$I+}
+  if IOResult <> 0 then
+    Exit;
+  try
+    if not EOF(LFile) then
+    begin
+      ReadLn(LFile, LLine);
+      Result := Trim(LLine);
+    end;
+  finally
+    Close(LFile);
   end;
-
-  if LResultKB > QWord(High(Integer)) then
-    Result := High(Integer)
-  else
-    Result := Integer(LResultKB);
 end;
+
+function ParseSizeToKBLazy(const aText: string): Integer;
+begin
+  Result := ParseCacheSizeTextToKB(aText);
+end;
+
+function IsLinuxCpuDirectoryNameLazy(const aName: string): Boolean;
+var
+  LIndex: Integer;
+begin
+  Result := (Length(aName) > 3) and (Copy(aName, 1, 3) = 'cpu');
+  if not Result then
+    Exit;
+
+  for LIndex := 4 to Length(aName) do
+    if not (aName[LIndex] in ['0'..'9']) then
+      Exit(False);
+end;
+
+procedure FillCacheInfoFromLinuxSysfsLazy(var aCache: TCacheInfo);
+var
+  LCpuBase: string;
+  LCpuCacheBase: string;
+  LCpuRec: TSearchRec;
+  LIndexRec: TSearchRec;
+  LDir: string;
+  LTypeText: string;
+  LLevelText: string;
+  LSizeText: string;
+  LLineSizeText: string;
+  LLevel: Integer;
+  LSizeKB: Integer;
+  LLineSize: Integer;
+begin
+  LCpuBase := '/sys/devices/system/cpu';
+  if not DirectoryExists(LCpuBase) then
+    Exit;
+
+  if FindFirst(LCpuBase + '/cpu*', faDirectory, LCpuRec) <> 0 then
+    Exit;
+  try
+    repeat
+      if (LCpuRec.Name = '.') or (LCpuRec.Name = '..') then
+        Continue;
+      if (LCpuRec.Attr and faDirectory) = 0 then
+        Continue;
+      if not IsLinuxCpuDirectoryNameLazy(LCpuRec.Name) then
+        Continue;
+
+      LCpuCacheBase := LCpuBase + '/' + LCpuRec.Name + '/cache';
+      if not DirectoryExists(LCpuCacheBase) then
+        Continue;
+      if FindFirst(LCpuCacheBase + '/index*', faDirectory, LIndexRec) <> 0 then
+        Continue;
+      try
+        repeat
+          if (LIndexRec.Name = '.') or (LIndexRec.Name = '..') then
+            Continue;
+          if (LIndexRec.Attr and faDirectory) = 0 then
+            Continue;
+
+          LDir := LCpuCacheBase + '/' + LIndexRec.Name;
+          LTypeText := LowerCase(ReadFirstLineTrimmedLazy(LDir + '/type'));
+          LLevelText := ReadFirstLineTrimmedLazy(LDir + '/level');
+          LSizeText := ReadFirstLineTrimmedLazy(LDir + '/size');
+          LLineSizeText := ReadFirstLineTrimmedLazy(LDir + '/coherency_line_size');
+
+          LLevel := StrToIntDef(LLevelText, 0);
+          LSizeKB := ParseSizeToKBLazy(LSizeText);
+          LLineSize := StrToIntDef(LLineSizeText, 0);
+
+          if LLineSize > aCache.LineSize then
+            aCache.LineSize := LLineSize;
+
+          if (LLevel <= 0) or (LSizeKB <= 0) then
+            Continue;
+
+          case LLevel of
+            1:
+              begin
+                if LTypeText = 'instruction' then
+                begin
+                  if LSizeKB > aCache.L1InstrKB then
+                    aCache.L1InstrKB := LSizeKB;
+                end
+                else if LTypeText = 'unified' then
+                begin
+                  if LSizeKB > aCache.L1DataKB then
+                    aCache.L1DataKB := LSizeKB;
+                  if LSizeKB > aCache.L1InstrKB then
+                    aCache.L1InstrKB := LSizeKB;
+                end
+                else
+                begin
+                  if LSizeKB > aCache.L1DataKB then
+                    aCache.L1DataKB := LSizeKB;
+                end;
+              end;
+            2:
+              begin
+                if LSizeKB > aCache.L2KB then
+                  aCache.L2KB := LSizeKB;
+              end;
+            3:
+              begin
+                if LSizeKB > aCache.L3KB then
+                  aCache.L3KB := LSizeKB;
+              end;
+          end;
+        until FindNext(LIndexRec) <> 0;
+      finally
+        FindClose(LIndexRec);
+      end;
+    until FindNext(LCpuRec) <> 0;
+  finally
+    FindClose(LCpuRec);
+  end;
+end;
+{$ENDIF}
 
 function LazyCPUInfo: TLazyCPUInfo;
 var
@@ -265,15 +306,21 @@ begin
     OldValue := InterlockedCompareExchange(g_SingletonLock, 1, 0);
     if OldValue = 0 then
     begin
-      if g_LazyCPUInfo = nil then
-        g_LazyCPUInfo := TLazyCPUInfo.Create;
-      InterlockedExchange(g_SingletonLock, 0);
-      Break;
+      try
+        if g_LazyCPUInfo = nil then
+          g_LazyCPUInfo := TLazyCPUInfo.Create;
+      finally
+        InterlockedExchange(g_SingletonLock, 0);
+      end;
+      if g_LazyCPUInfo <> nil then
+        Break;
     end
     else
     begin
-      while g_SingletonLock <> 0 do
+      while (g_LazyCPUInfo = nil) and (g_SingletonLock <> 0) do
         ThreadSwitch;
+      if g_LazyCPUInfo <> nil then
+        Break;
     end;
   until False;
   
@@ -287,6 +334,9 @@ begin
   inherited;
   FLock := 0;
   FBasicInitialized := False;
+  {$IFDEF SIMD_X86_AVAILABLE}
+  FX86BasicInitialized := False;
+  {$ENDIF}
   FCacheInitialized := False;
   FExtendedInitialized := False;
   FAVXInitialized := False;
@@ -297,7 +347,17 @@ procedure TLazyCPUInfo.InitBasicInfo;
 var
   OldValue: Integer;
   {$IFDEF WINDOWS}
-  LS: string;
+  s: string;
+  {$ENDIF}
+  {$IFDEF SIMD_ARM_AVAILABLE}
+  LARMInfo: TCPUInfo;
+  {$ENDIF}
+  {$IFDEF SIMD_RISCV_AVAILABLE}
+  LRISCVInfo: TCPUInfo;
+  {$ENDIF}
+  {$IFDEF UNIX}
+  LPhysCores: LongInt;
+  LLogCores: LongInt;
   {$ENDIF}
 begin
   if FBasicInitialized then Exit;
@@ -306,46 +366,131 @@ begin
     OldValue := InterlockedCompareExchange(FLock, 1, 0);
     if OldValue = 0 then
     begin
-      if not FBasicInitialized then
-      begin
-        // 基本架构检�?
-        {$IFDEF CPUX86_64}
-        FBasicInfo.Arch := caX86;
-        {$ELSEIF DEFINED(CPUARM)}
-        FBasicInfo.Arch := caARM;
-        {$ELSE}
-        FBasicInfo.Arch := caUnknown;
-        {$ENDIF}
-        
-        // 厂商和型号（快速检测）
-        {$IFDEF SIMD_X86_AVAILABLE}
-        FBasicInfo.Vendor := GetVendorString;
-        FBasicInfo.Model := GetBrandString;
-        {$ELSE}
-        FBasicInfo.Vendor := 'Unknown';
-        FBasicInfo.Model := 'Unknown Processor';
-        {$ENDIF}
-        
-        // 核心�?
-        {$IFDEF WINDOWS}
-        LS := GetEnvironmentVariable('NUMBER_OF_PROCESSORS');
-        FBasicInfo.LogicalCores := StrToIntDef(LS, 1);
-        {$ELSE}
-        FBasicInfo.LogicalCores := 1;
-        {$ENDIF}
-        FBasicInfo.PhysicalCores := FBasicInfo.LogicalCores;
-        
-        WriteBarrier;
-        FBasicInitialized := True;
+      try
+        if not FBasicInitialized then
+        begin
+          try
+            // 基本架构检�?
+            {$IFDEF CPUX86_64}
+            FBasicInfo.Arch := caX86;
+            {$ELSE}
+              {$IFDEF CPUI386}
+              FBasicInfo.Arch := caX86;
+              {$ELSE}
+                {$IFDEF CPUAARCH64}
+                FBasicInfo.Arch := caARM;
+                {$ELSE}
+                  {$IFDEF CPUARM}
+                  FBasicInfo.Arch := caARM;
+                  {$ELSE}
+                    {$IFDEF CPURISCV64}
+                    FBasicInfo.Arch := caRISCV;
+                    {$ELSE}
+                      {$IFDEF CPURISCV32}
+                      FBasicInfo.Arch := caRISCV;
+                      {$ELSE}
+                      FBasicInfo.Arch := caUnknown;
+                      {$ENDIF}
+                    {$ENDIF}
+                  {$ENDIF}
+                {$ENDIF}
+              {$ENDIF}
+            {$ENDIF}
+            
+            // 厂商和型号（快速检测）
+            {$IFDEF SIMD_X86_AVAILABLE}
+            FBasicInfo.Vendor := GetVendorString;
+            FBasicInfo.Model := GetBrandString;
+            {$ENDIF}
+
+            {$IFDEF SIMD_ARM_AVAILABLE}
+            if FBasicInfo.Arch = caARM then
+            begin
+              LARMInfo := Default(TCPUInfo);
+              DetectARMVendorAndModel(LARMInfo);
+              if LARMInfo.Vendor <> '' then
+                FBasicInfo.Vendor := LARMInfo.Vendor
+              else
+                FBasicInfo.Vendor := 'ARM';
+              if LARMInfo.Model <> '' then
+                FBasicInfo.Model := LARMInfo.Model
+              else
+                FBasicInfo.Model := 'Unknown ARM Processor';
+            end;
+            {$ENDIF}
+
+            {$IFDEF SIMD_RISCV_AVAILABLE}
+            if FBasicInfo.Arch = caRISCV then
+            begin
+              LRISCVInfo := Default(TCPUInfo);
+              DetectRISCVVendorAndModel(LRISCVInfo);
+              if LRISCVInfo.Vendor <> '' then
+                FBasicInfo.Vendor := LRISCVInfo.Vendor
+              else
+                FBasicInfo.Vendor := 'RISC-V';
+              if LRISCVInfo.Model <> '' then
+                FBasicInfo.Model := LRISCVInfo.Model
+              else
+                FBasicInfo.Model := 'RISC-V Processor';
+            end;
+            {$ENDIF}
+
+            if FBasicInfo.Vendor = '' then
+              FBasicInfo.Vendor := 'Unknown';
+            if FBasicInfo.Model = '' then
+              FBasicInfo.Model := 'Unknown Processor';
+
+            // 核心�?
+            {$IFDEF UNIX}
+            LPhysCores := 0;
+            LLogCores := 0;
+            {$ENDIF}
+            {$IFDEF WINDOWS}
+            s := GetEnvironmentVariable('NUMBER_OF_PROCESSORS');
+            FBasicInfo.LogicalCores := StrToIntDef(s, 1);
+            {$ELSE}
+              {$IFDEF UNIX}
+            if DetectCoreCounts(LPhysCores, LLogCores) and (LLogCores > 0) then
+              FBasicInfo.LogicalCores := LLogCores
+            else
+              FBasicInfo.LogicalCores := 1;
+              {$ELSE}
+            FBasicInfo.LogicalCores := 1;
+              {$ENDIF}
+            {$ENDIF}
+            if FBasicInfo.LogicalCores < 1 then
+              FBasicInfo.LogicalCores := 1;
+
+            {$IFDEF UNIX}
+            if (LPhysCores > 0) and (LPhysCores <= FBasicInfo.LogicalCores) then
+              FBasicInfo.PhysicalCores := LPhysCores
+            else
+              FBasicInfo.PhysicalCores := FBasicInfo.LogicalCores;
+            {$ELSE}
+            FBasicInfo.PhysicalCores := FBasicInfo.LogicalCores;
+            {$ENDIF}
+          except
+            FBasicInfo.Arch := caUnknown;
+            FBasicInfo.Vendor := 'Unknown';
+            FBasicInfo.Model := 'Unknown Processor';
+            FBasicInfo.LogicalCores := 1;
+            FBasicInfo.PhysicalCores := 1;
+          end;
+          
+          WriteBarrier;
+          FBasicInitialized := True;
+        end;
+      finally
+        InterlockedExchange(FLock, 0);
       end;
-      InterlockedExchange(FLock, 0);
       Break;
     end
     else
     begin
-      while not FBasicInitialized do
+      while (not FBasicInitialized) and (FLock <> 0) do
         ThreadSwitch;
-      Break;
+      if FBasicInitialized then
+        Break;
     end;
   until False;
 end;
@@ -353,7 +498,9 @@ end;
 procedure TLazyCPUInfo.InitCacheInfo;
 var
   OldValue: Integer;
-  LCacheInfo: TX86CacheInfo;
+  {$IFDEF SIMD_X86_AVAILABLE}
+  xc: TX86CacheInfo;
+  {$ENDIF}
 begin
   if FCacheInitialized then Exit;
   
@@ -361,30 +508,46 @@ begin
     OldValue := InterlockedCompareExchange(FLock, 1, 0);
     if OldValue = 0 then
     begin
-      if not FCacheInitialized then
-      begin
-        {$IFDEF SIMD_X86_AVAILABLE}
-        LCacheInfo := GetX86CacheInfo;
-        FCacheInfo.L1DataKB := LCacheInfo.L1DataCache;
-        FCacheInfo.L1InstrKB := LCacheInfo.L1InstructionCache;
-        FCacheInfo.L2KB := LCacheInfo.L2Cache;
-        FCacheInfo.L3KB := LCacheInfo.L3Cache;
-        FCacheInfo.LineSize := LCacheInfo.CacheLineSize;
-        {$ELSE}
-        FillChar(FCacheInfo, SizeOf(FCacheInfo), 0);
-        {$ENDIF}
-        
-        WriteBarrier;
-        FCacheInitialized := True;
+      try
+        if not FCacheInitialized then
+        begin
+          try
+            {$IFDEF SIMD_X86_AVAILABLE}
+            xc := GetX86CacheInfo;
+            FCacheInfo.L1DataKB := xc.L1DataCache;
+            FCacheInfo.L1InstrKB := xc.L1InstructionCache;
+            FCacheInfo.L2KB := xc.L2Cache;
+            FCacheInfo.L3KB := xc.L3Cache;
+            FCacheInfo.LineSize := xc.CacheLineSize;
+            {$ELSE}
+            FillChar(FCacheInfo, SizeOf(FCacheInfo), 0);
+            {$IFDEF LINUX}
+            FillCacheInfoFromLinuxSysfsLazy(FCacheInfo);
+            if FCacheInfo.LineSize = 0 then
+              FCacheInfo.LineSize := 64;
+            {$ENDIF}
+            {$ENDIF}
+          except
+            FillChar(FCacheInfo, SizeOf(FCacheInfo), 0);
+            {$IFDEF LINUX}
+            FCacheInfo.LineSize := 64;
+            {$ENDIF}
+          end;
+          
+          WriteBarrier;
+          FCacheInitialized := True;
+        end;
+      finally
+        InterlockedExchange(FLock, 0);
       end;
-      InterlockedExchange(FLock, 0);
       Break;
     end
     else
     begin
-      while not FCacheInitialized do
+      while (not FCacheInitialized) and (FLock <> 0) do
         ThreadSwitch;
-      Break;
+      if FCacheInitialized then
+        Break;
     end;
   until False;
 end;
@@ -395,34 +558,46 @@ var
   OldValue: Integer;
   eax, ebx, ecx, edx: DWord;
 begin
-  if FBasicInitialized then Exit;
+  if FX86BasicInitialized then Exit;
   
   repeat
     OldValue := InterlockedCompareExchange(FLock, 1, 0);
     if OldValue = 0 then
     begin
-      if not FBasicInitialized then
-      begin
-        // 检测基�?SSE 支持
-        CPUID(1, eax, ebx, ecx, edx);
-        
-        FX86Basic.HasSSE2 := (edx and (1 shl 26)) <> 0;
-        FX86Basic.HasSSE3 := (ecx and 1) <> 0;
-        FX86Basic.HasSSSE3 := (ecx and (1 shl 9)) <> 0;
-        FX86Basic.HasSSE41 := (ecx and (1 shl 19)) <> 0;
-        FX86Basic.HasSSE42 := (ecx and (1 shl 20)) <> 0;
-        
-        WriteBarrier;
-        FBasicInitialized := True;
+      try
+        if not FX86BasicInitialized then
+        begin
+          try
+            // 检测基�?SSE 支持
+            eax := 0;
+            ebx := 0;
+            ecx := 0;
+            edx := 0;
+            CPUID(1, eax, ebx, ecx, edx);
+            
+            FX86Basic.HasSSE2 := (edx and (1 shl 26)) <> 0;
+            FX86Basic.HasSSE3 := (ecx and 1) <> 0;
+            FX86Basic.HasSSSE3 := (ecx and (1 shl 9)) <> 0;
+            FX86Basic.HasSSE41 := (ecx and (1 shl 19)) <> 0;
+            FX86Basic.HasSSE42 := (ecx and (1 shl 20)) <> 0;
+          except
+            FillChar(FX86Basic, SizeOf(FX86Basic), 0);
+          end;
+          
+          WriteBarrier;
+          FX86BasicInitialized := True;
+        end;
+      finally
+        InterlockedExchange(FLock, 0);
       end;
-      InterlockedExchange(FLock, 0);
       Break;
     end
     else
     begin
-      while not FBasicInitialized do
+      while (not FX86BasicInitialized) and (FLock <> 0) do
         ThreadSwitch;
-      Break;
+      if FX86BasicInitialized then
+        Break;
     end;
   until False;
 end;
@@ -430,7 +605,7 @@ end;
 procedure TLazyCPUInfo.InitX86AVX;
 var
   OldValue: Integer;
-  LEax, LEbx, LEcx, LEdx: DWord;
+  eax, ebx, ecx, edx: DWord;
 begin
   if FAVXInitialized then Exit;
   
@@ -441,36 +616,54 @@ begin
     OldValue := InterlockedCompareExchange(FLock, 1, 0);
     if OldValue = 0 then
     begin
-      if not FAVXInitialized then
-      begin
-        // 检�?AVX 支持
-        CPUID(1, LEax, LEbx, LEcx, LEdx);
-        FX86AVX.HasAVX := (LEcx and (1 shl 28)) <> 0;
-        FX86AVX.OSXSAVE := (LEcx and (1 shl 27)) <> 0;
-        FX86AVX.HasFMA := (LEcx and (1 shl 12)) <> 0;
-        
-        // 检�?AVX2
-        if FX86AVX.HasAVX and FX86AVX.OSXSAVE then
+      try
+        if not FAVXInitialized then
         begin
-          FX86AVX.XCR0 := ReadXCR0;
-          if (FX86AVX.XCR0 and 6) = 6 then  // YMM 状态支�?
-          begin
-            CPUIDEX(7, 0, LEax, LEbx, LEcx, LEdx);
-            FX86AVX.HasAVX2 := (LEbx and (1 shl 5)) <> 0;
+          try
+            FillChar(FX86AVX, SizeOf(FX86AVX), 0);
+
+            // 检�?AVX 支持
+            eax := 0;
+            ebx := 0;
+            ecx := 0;
+            edx := 0;
+            CPUID(1, eax, ebx, ecx, edx);
+            FX86AVX.HasAVX := (ecx and (1 shl 28)) <> 0;
+            FX86AVX.OSXSAVE := (ecx and (1 shl 27)) <> 0;
+            FX86AVX.HasFMA := (ecx and (1 shl 12)) <> 0;
+            
+            // 检�?AVX2
+            if FX86AVX.HasAVX and FX86AVX.OSXSAVE then
+            begin
+              FX86AVX.XCR0 := ReadXCR0;
+              if (FX86AVX.XCR0 and 6) = 6 then  // YMM 状态支�?
+              begin
+                eax := 0;
+                ebx := 0;
+                ecx := 0;
+                edx := 0;
+                CPUIDEX(7, 0, eax, ebx, ecx, edx);
+                FX86AVX.HasAVX2 := (ebx and (1 shl 5)) <> 0;
+              end;
+            end;
+          except
+            FillChar(FX86AVX, SizeOf(FX86AVX), 0);
           end;
+          
+          WriteBarrier;
+          FAVXInitialized := True;
         end;
-        
-        WriteBarrier;
-        FAVXInitialized := True;
+      finally
+        InterlockedExchange(FLock, 0);
       end;
-      InterlockedExchange(FLock, 0);
       Break;
     end
     else
     begin
-      while not FAVXInitialized do
+      while (not FAVXInitialized) and (FLock <> 0) do
         ThreadSwitch;
-      Break;
+      if FAVXInitialized then
+        Break;
     end;
   until False;
 end;
@@ -478,7 +671,7 @@ end;
 procedure TLazyCPUInfo.InitX86AVX512;
 var
   OldValue: Integer;
-  LEax, LEbx, LEcx, LEdx: DWord;
+  eax, ebx, ecx, edx: DWord;
 begin
   if FAVX512Initialized then Exit;
   
@@ -489,42 +682,52 @@ begin
     OldValue := InterlockedCompareExchange(FLock, 1, 0);
     if OldValue = 0 then
     begin
-      if not FAVX512Initialized then
-      begin
-        FX86AVX512.HasAVX512F := False;
-        FX86AVX512.HasAVX512DQ := False;
-        FX86AVX512.HasAVX512BW := False;
-        FX86AVX512.HasAVX512VL := False;
-        FX86AVX512.HasAVX512VBMI := False;
-        
-        // 只有�?OS 支持的情况下才检�?AVX-512
-        if FX86AVX.OSXSAVE and ((FX86AVX.XCR0 and $E6) = $E6) then
+      try
+        if not FAVX512Initialized then
         begin
-          CPUIDEX(7, 0, LEax, LEbx, LEcx, LEdx);
+          try
+            FillChar(FX86AVX512, SizeOf(FX86AVX512), 0);
+
+            // 只有�?OS 支持的情况下才检�?AVX-512
+            if FX86AVX.OSXSAVE and ((FX86AVX.XCR0 and $E6) = $E6) then
+            begin
+              eax := 0;
+              ebx := 0;
+              ecx := 0;
+              edx := 0;
+              CPUIDEX(7, 0, eax, ebx, ecx, edx);
+              
+              FX86AVX512.HasAVX512F := (ebx and (1 shl 16)) <> 0;
+              FX86AVX512.HasAVX512DQ := (ebx and (1 shl 17)) <> 0;
+              FX86AVX512.HasAVX512BW := (ebx and (1 shl 30)) <> 0;
+              FX86AVX512.HasAVX512VL := (ebx and (1 shl 31)) <> 0;
+              FX86AVX512.HasAVX512VBMI := (ecx and (1 shl 1)) <> 0;
+            end;
+          except
+            FillChar(FX86AVX512, SizeOf(FX86AVX512), 0);
+          end;
           
-          FX86AVX512.HasAVX512F := (LEbx and (1 shl 16)) <> 0;
-          FX86AVX512.HasAVX512DQ := (LEbx and (1 shl 17)) <> 0;
-          FX86AVX512.HasAVX512BW := (LEbx and (1 shl 30)) <> 0;
-          FX86AVX512.HasAVX512VL := (LEbx and (1 shl 31)) <> 0;
-          FX86AVX512.HasAVX512VBMI := (LEcx and (1 shl 1)) <> 0;
+          WriteBarrier;
+          FAVX512Initialized := True;
         end;
-        
-        WriteBarrier;
-        FAVX512Initialized := True;
+      finally
+        InterlockedExchange(FLock, 0);
       end;
-      InterlockedExchange(FLock, 0);
       Break;
     end
     else
     begin
-      while not FAVX512Initialized do
+      while (not FAVX512Initialized) and (FLock <> 0) do
         ThreadSwitch;
-      Break;
+      if FAVX512Initialized then
+        Break;
     end;
   until False;
 end;
 
 procedure TLazyCPUInfo.InitX86Extended;
+var
+  OldValue: Integer;
 begin
   if FExtendedInitialized then Exit;
   
@@ -532,12 +735,35 @@ begin
   InitX86Basic;
   InitX86AVX;
   InitX86AVX512;
-  
-  // 获取完整特性集
-  FX86Extended := DetectX86Features;
-  
-  WriteBarrier;
-  FExtendedInitialized := True;
+
+  repeat
+    OldValue := InterlockedCompareExchange(FLock, 1, 0);
+    if OldValue = 0 then
+    begin
+      try
+        if not FExtendedInitialized then
+        begin
+          try
+            // 获取完整特性集
+            FX86Extended := DetectX86Features;
+          except
+            FillChar(FX86Extended, SizeOf(FX86Extended), 0);
+          end;
+
+          WriteBarrier;
+          FExtendedInitialized := True;
+        end;
+      finally
+        InterlockedExchange(FLock, 0);
+      end;
+      Break;
+    end;
+
+    while (not FExtendedInitialized) and (FLock <> 0) do
+      ThreadSwitch;
+    if FExtendedInitialized then
+      Break;
+  until False;
 end;
 {$ENDIF}
 
@@ -624,17 +850,31 @@ begin
 end;
 
 procedure TLazyCPUInfo.Reset;
+var
+  OldValue: Integer;
 begin
-  InterlockedExchange(FLock, 1);
-  try
-    FBasicInitialized := False;
-    FCacheInitialized := False;
-    FExtendedInitialized := False;
-    FAVXInitialized := False;
-    FAVX512Initialized := False;
-  finally
-    InterlockedExchange(FLock, 0);
-  end;
+  repeat
+    OldValue := InterlockedCompareExchange(FLock, 1, 0);
+    if OldValue = 0 then
+    begin
+      try
+        FBasicInitialized := False;
+        {$IFDEF SIMD_X86_AVAILABLE}
+        FX86BasicInitialized := False;
+        {$ENDIF}
+        FCacheInitialized := False;
+        FExtendedInitialized := False;
+        FAVXInitialized := False;
+        FAVX512Initialized := False;
+      finally
+        InterlockedExchange(FLock, 0);
+      end;
+      Break;
+    end;
+
+    while FLock <> 0 do
+      ThreadSwitch;
+  until False;
 end;
 
 function TLazyCPUInfo.GetLoadStatistics: string;
@@ -647,7 +887,7 @@ begin
     Stats.Add('Basic Info: ' + BoolToStr(FBasicInitialized, 'Loaded', 'Not Loaded'));
     Stats.Add('Cache Info: ' + BoolToStr(FCacheInitialized, 'Loaded', 'Not Loaded'));
     {$IFDEF SIMD_X86_AVAILABLE}
-    Stats.Add('X86 Basic: ' + BoolToStr(FBasicInitialized, 'Loaded', 'Not Loaded'));
+    Stats.Add('X86 Basic: ' + BoolToStr(FX86BasicInitialized, 'Loaded', 'Not Loaded'));
     Stats.Add('X86 AVX: ' + BoolToStr(FAVXInitialized, 'Loaded', 'Not Loaded'));
     Stats.Add('X86 AVX-512: ' + BoolToStr(FAVX512Initialized, 'Loaded', 'Not Loaded'));
     Stats.Add('X86 Extended: ' + BoolToStr(FExtendedInitialized, 'Loaded', 'Not Loaded'));
@@ -660,14 +900,112 @@ end;
 
 // 兼容性接口实�?
 
-function GetCPUInfoLazy: TCPUInfo;
+{$IFDEF SIMD_X86_AVAILABLE}
+function X86XCR0EnablesAVXLazy(const aXCR0: UInt64): Boolean; inline;
 begin
-  Result := GetCPUInfo;
+  Result := ((aXCR0 and (UInt64(1) shl 1)) <> 0) and
+            ((aXCR0 and (UInt64(1) shl 2)) <> 0);
+end;
+
+function X86XCR0EnablesAVX512Lazy(const aXCR0: UInt64): Boolean; inline;
+begin
+  Result := X86XCR0EnablesAVXLazy(aXCR0) and
+            ((aXCR0 and (UInt64(1) shl 5)) <> 0) and
+            ((aXCR0 and (UInt64(1) shl 6)) <> 0) and
+            ((aXCR0 and (UInt64(1) shl 7)) <> 0);
+end;
+{$ENDIF}
+
+function GetCPUInfoLazy: TCPUInfo;
+var
+  LLazy: TLazyCPUInfo;
+  {$IFDEF SIMD_X86_AVAILABLE}
+  LAVXSupportedByOS: Boolean;
+  {$ENDIF}
+begin
+  LLazy := LazyCPUInfo;
+  
+  Result := Default(TCPUInfo);
+  Result.Arch := LLazy.Arch;
+  Result.Vendor := LLazy.Vendor;
+  Result.Model := LLazy.Model;
+  Result.LogicalCores := LLazy.LogicalCores;
+  Result.PhysicalCores := LLazy.FBasicInfo.PhysicalCores;
+  Result.Cache := LLazy.CacheInfo;
+  Result.GenericRaw := [];
+  Result.GenericUsable := [];
+  
+  {$IFDEF SIMD_X86_AVAILABLE}
+  Result.X86 := LLazy.X86Features;
+  LLazy.InitX86AVX;
+  Result.OSXSAVE := LLazy.FX86AVX.OSXSAVE;
+  Result.XCR0 := LLazy.FX86AVX.XCR0;
+  LAVXSupportedByOS := fafafa.core.simd.cpuinfo.x86.IsAVXSupportedByOS;
+
+  if Result.X86.HasSSE2 then Include(Result.GenericRaw, gfSimd128);
+  if Result.X86.HasAVX or Result.X86.HasAVX2 then Include(Result.GenericRaw, gfSimd256);
+  if Result.X86.HasAVX512F then Include(Result.GenericRaw, gfSimd512);
+  if Result.X86.HasAES then Include(Result.GenericRaw, gfAES);
+  if Result.X86.HasFMA then Include(Result.GenericRaw, gfFMA);
+  if Result.X86.HasSHA then Include(Result.GenericRaw, gfSHA);
+
+  if Result.X86.HasSSE2 then Include(Result.GenericUsable, gfSimd128);
+  if (Result.X86.HasAVX or Result.X86.HasAVX2) and
+     LAVXSupportedByOS and
+     X86XCR0EnablesAVXLazy(Result.XCR0) then
+    Include(Result.GenericUsable, gfSimd256);
+  if Result.X86.HasAVX512F and
+     LAVXSupportedByOS and
+     X86XCR0EnablesAVX512Lazy(Result.XCR0) then
+    Include(Result.GenericUsable, gfSimd512);
+  if Result.X86.HasAES then Include(Result.GenericUsable, gfAES);
+  if Result.X86.HasFMA and
+     LAVXSupportedByOS and
+     X86XCR0EnablesAVXLazy(Result.XCR0) then
+    Include(Result.GenericUsable, gfFMA);
+  if Result.X86.HasSHA then Include(Result.GenericUsable, gfSHA);
+  {$ENDIF}
+
+  {$IFDEF SIMD_ARM_AVAILABLE}
+  if Result.Arch = caARM then
+  begin
+    Result.ARM := DetectARMFeatures;
+    if Result.ARM.HasNEON then Include(Result.GenericRaw, gfSimd128);
+    if Result.ARM.HasSVE then
+    begin
+      Include(Result.GenericRaw, gfSimd256);
+      Include(Result.GenericRaw, gfSimd512);
+    end;
+    if Result.ARM.HasCrypto then
+    begin
+      Include(Result.GenericRaw, gfAES);
+      Include(Result.GenericRaw, gfSHA);
+    end;
+    Result.GenericUsable := Result.GenericRaw;
+  end;
+  {$ENDIF}
+
+  {$IFDEF SIMD_RISCV_AVAILABLE}
+  if Result.Arch = caRISCV then
+  begin
+    Result.RISCV := DetectRISCVFeatures;
+    if Result.RISCV.HasV then
+    begin
+      Include(Result.GenericRaw, gfSimd128);
+      Include(Result.GenericRaw, gfSimd256);
+      Include(Result.GenericRaw, gfSimd512);
+    end;
+    Result.GenericUsable := Result.GenericRaw;
+  end;
+  {$ENDIF}
 end;
 
 function HasFeatureLazy(f: TGenericFeature): Boolean;
+var
+  LCPUInfo: TCPUInfo;
 begin
-  Result := HasFeature(f);
+  LCPUInfo := GetCPUInfoLazy;
+  Result := f in LCPUInfo.GenericUsable;
 end;
 
 finalization

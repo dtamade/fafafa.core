@@ -977,6 +977,109 @@ var
       end;
     end;
   end;
+
+  {$IFDEF LINUX}
+  function ReadFirstLineTrimmed(const aPath: string): string;
+  var
+    LFile: Text;
+    LLine: string;
+  begin
+    Result := '';
+    Assign(LFile, aPath);
+    {$I-} Reset(LFile); {$I+}
+    if IOResult <> 0 then
+      Exit;
+    try
+      if not EOF(LFile) then
+      begin
+        ReadLn(LFile, LLine);
+        Result := Trim(LLine);
+      end;
+    finally
+      Close(LFile);
+    end;
+  end;
+
+  function ParseSizeToBytes(const aText: string): QWord;
+  var
+    LText: string;
+    LCode: Integer;
+    LValue: QWord;
+    LUnit: Char;
+    LNum: string;
+  begin
+    Result := 0;
+    LText := Trim(aText);
+    if LText = '' then
+      Exit;
+
+    LUnit := UpCase(LText[Length(LText)]);
+    if (LUnit >= '0') and (LUnit <= '9') then
+    begin
+      Val(LText, LValue, LCode);
+      if LCode = 0 then
+        Result := LValue;
+      Exit;
+    end;
+
+    LNum := Trim(Copy(LText, 1, Length(LText) - 1));
+    Val(LNum, LValue, LCode);
+    if LCode <> 0 then
+      Exit;
+
+    case LUnit of
+      'K': Result := LValue * 1024;
+      'M': Result := LValue * 1024 * 1024;
+      'G': Result := LValue * 1024 * 1024 * 1024;
+    else
+      Result := LValue;
+    end;
+  end;
+
+  procedure ReadSysfsCacheInfo;
+  var
+    LBase: string;
+    LRec: TSearchRec;
+    LDir: string;
+    LLevel: Integer;
+    LLevelText: string;
+    LSizeText: string;
+    LSize: QWord;
+  begin
+    LBase := '/sys/devices/system/cpu/cpu0/cache';
+    if not DirectoryExists(LBase) then
+      Exit;
+
+    if FindFirst(LBase + '/index*', faDirectory, LRec) = 0 then
+    try
+      repeat
+        if (LRec.Name = '.') or (LRec.Name = '..') then
+          Continue;
+        if (LRec.Attr and faDirectory) = 0 then
+          Continue;
+
+        LDir := LBase + '/' + LRec.Name;
+        LLevelText := ReadFirstLineTrimmed(LDir + '/level');
+        LSizeText := ReadFirstLineTrimmed(LDir + '/size');
+
+        LLevel := StrToIntDef(LLevelText, 0);
+        LSize := ParseSizeToBytes(LSizeText);
+        if (LLevel <= 0) or (LSize = 0) then
+          Continue;
+
+        case LLevel of
+          // L1 typically exposes separate I/D caches; sum all level-1 entries.
+          1: Info.CacheL1 := Info.CacheL1 + LSize;
+          // L2/L3 may be shared; take max to avoid double-counting duplicates.
+          2: if LSize > Info.CacheL2 then Info.CacheL2 := LSize;
+          3: if LSize > Info.CacheL3 then Info.CacheL3 := LSize;
+        end;
+      until FindNext(LRec) <> 0;
+    finally
+      FindClose(LRec);
+    end;
+  end;
+  {$ENDIF}
 begin
   try
     // Initialize with default values
@@ -1004,9 +1107,8 @@ begin
     // Best-effort: enrich vendor/features/frequency via /proc/cpuinfo (Linux)
     {$IFDEF LINUX}
     ReadProcCpuInfo;
+    ReadSysfsCacheInfo;
     {$ENDIF}
-
-    // TODO: Implement cache size detection
 
     // CPU usage monitoring
     // - Linux: non-blocking cached delta via /proc/stat.

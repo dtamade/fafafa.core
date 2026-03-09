@@ -40,14 +40,14 @@ function DetectCPUArchitecture: TCPUArch;
 
 // Feature query helpers (quick checks)
 function HasFeature(feature: TGenericFeature): Boolean;
+function IsBackendSupportedOnCPU(aBackend: TSimdBackend): Boolean;
 function GetSupportedBackends: TSimdBackendArray;
-function IsBackendSupportedOnCPU(const aBackend: TSimdBackend): Boolean;
 function GetAvailableBackends: TSimdBackendArray; // alias for backward compatibility
 
-// ✅ P2: 添加 GetBestBackend 别名函数（向后兼容）
-// 注意：此函数委托给 dispatch 模块的 GetActiveBackend
-function GetBestBackend: TSimdBackend;
+// Get best backend allowed by current CPU/OS capabilities.
 function GetBestBackendOnCPU: TSimdBackend;
+// Backward-compatible alias.
+function GetBestBackend: TSimdBackend;
 
 // Cache and lifecycle helpers
 procedure ResetCPUInfo; // safe reset for re-initialization
@@ -80,6 +80,7 @@ implementation
 // Platform-specific imports
 {$IF DEFINED(SIMD_X86_AVAILABLE) OR DEFINED(SIMD_ARM_AVAILABLE) OR DEFINED(SIMD_RISCV_AVAILABLE)}
 uses
+  fafafa.core.simd.backend.priority,
   {$IFDEF SIMD_X86_AVAILABLE}
   fafafa.core.simd.cpuinfo.x86
     {$IF DEFINED(SIMD_ARM_AVAILABLE) OR DEFINED(SIMD_RISCV_AVAILABLE)}
@@ -109,6 +110,18 @@ begin
   {$IFDEF SIMD_X86_AVAILABLE}
   Result := ((G_CPUInfo.XCR0 and (UInt64(1) shl 1)) <> 0) {XMM}
             and ((G_CPUInfo.XCR0 and (UInt64(1) shl 2)) <> 0); {YMM}
+  {$ELSE}
+  Result := False;
+  {$ENDIF}
+end;
+
+function X86_XCR0_EnablesAVX512: Boolean; inline;
+begin
+  {$IFDEF SIMD_X86_AVAILABLE}
+  Result := X86_XCR0_EnablesAVX and
+            ((G_CPUInfo.XCR0 and (UInt64(1) shl 5)) <> 0) and {opmask}
+            ((G_CPUInfo.XCR0 and (UInt64(1) shl 6)) <> 0) and {ZMM_Hi256}
+            ((G_CPUInfo.XCR0 and (UInt64(1) shl 7)) <> 0);   {Hi16_ZMM}
   {$ELSE}
   Result := False;
   {$ENDIF}
@@ -162,6 +175,147 @@ begin
   if Logical < 1 then Logical := 1;
 end;
 
+{$IFDEF LINUX}
+function ReadFirstLineTrimmed(const aPath: string): string;
+var
+  LFile: Text;
+  LLine: string;
+begin
+  Result := '';
+  Assign(LFile, aPath);
+  {$I-} Reset(LFile); {$I+}
+  if IOResult <> 0 then
+    Exit;
+  try
+    if not EOF(LFile) then
+    begin
+      ReadLn(LFile, LLine);
+      Result := Trim(LLine);
+    end;
+  finally
+    Close(LFile);
+  end;
+end;
+
+function ParseSizeToKB(const aText: string): Integer;
+begin
+  Result := ParseCacheSizeTextToKB(aText);
+end;
+
+function IsLinuxCpuDirectoryName(const aName: string): Boolean;
+var
+  LIndex: Integer;
+begin
+  Result := (Length(aName) > 3) and (Copy(aName, 1, 3) = 'cpu');
+  if not Result then
+    Exit;
+
+  for LIndex := 4 to Length(aName) do
+    if not (aName[LIndex] in ['0'..'9']) then
+      Exit(False);
+end;
+
+procedure FillCacheInfoFromLinuxSysfs(var aCache: TCacheInfo);
+var
+  LCpuBase: string;
+  LCpuCacheBase: string;
+  LCpuRec: TSearchRec;
+  LIndexRec: TSearchRec;
+  LDir: string;
+  LTypeText: string;
+  LLevelText: string;
+  LSizeText: string;
+  LLineSizeText: string;
+  LLevel: Integer;
+  LSizeKB: Integer;
+  LLineSize: Integer;
+begin
+  LCpuBase := '/sys/devices/system/cpu';
+  if not DirectoryExists(LCpuBase) then
+    Exit;
+
+  if FindFirst(LCpuBase + '/cpu*', faDirectory, LCpuRec) <> 0 then
+    Exit;
+  try
+    repeat
+      if (LCpuRec.Name = '.') or (LCpuRec.Name = '..') then
+        Continue;
+      if (LCpuRec.Attr and faDirectory) = 0 then
+        Continue;
+      if not IsLinuxCpuDirectoryName(LCpuRec.Name) then
+        Continue;
+
+      LCpuCacheBase := LCpuBase + '/' + LCpuRec.Name + '/cache';
+      if not DirectoryExists(LCpuCacheBase) then
+        Continue;
+      if FindFirst(LCpuCacheBase + '/index*', faDirectory, LIndexRec) <> 0 then
+        Continue;
+      try
+        repeat
+          if (LIndexRec.Name = '.') or (LIndexRec.Name = '..') then
+            Continue;
+          if (LIndexRec.Attr and faDirectory) = 0 then
+            Continue;
+
+          LDir := LCpuCacheBase + '/' + LIndexRec.Name;
+          LTypeText := LowerCase(ReadFirstLineTrimmed(LDir + '/type'));
+          LLevelText := ReadFirstLineTrimmed(LDir + '/level');
+          LSizeText := ReadFirstLineTrimmed(LDir + '/size');
+          LLineSizeText := ReadFirstLineTrimmed(LDir + '/coherency_line_size');
+
+          LLevel := StrToIntDef(LLevelText, 0);
+          LSizeKB := ParseSizeToKB(LSizeText);
+          LLineSize := StrToIntDef(LLineSizeText, 0);
+
+          if LLineSize > aCache.LineSize then
+            aCache.LineSize := LLineSize;
+
+          if (LLevel <= 0) or (LSizeKB <= 0) then
+            Continue;
+
+          case LLevel of
+            1:
+              begin
+                if LTypeText = 'instruction' then
+                begin
+                  if LSizeKB > aCache.L1InstrKB then
+                    aCache.L1InstrKB := LSizeKB;
+                end
+                else if LTypeText = 'unified' then
+                begin
+                  if LSizeKB > aCache.L1DataKB then
+                    aCache.L1DataKB := LSizeKB;
+                  if LSizeKB > aCache.L1InstrKB then
+                    aCache.L1InstrKB := LSizeKB;
+                end
+                else
+                begin
+                  if LSizeKB > aCache.L1DataKB then
+                    aCache.L1DataKB := LSizeKB;
+                end;
+              end;
+            2:
+              begin
+                if LSizeKB > aCache.L2KB then
+                  aCache.L2KB := LSizeKB;
+              end;
+            3:
+              begin
+                if LSizeKB > aCache.L3KB then
+                  aCache.L3KB := LSizeKB;
+              end;
+          end;
+        until FindNext(LIndexRec) <> 0;
+      finally
+        FindClose(LIndexRec);
+      end;
+    until FindNext(LCpuRec) <> 0;
+  finally
+    FindClose(LCpuRec);
+  end;
+end;
+{$ENDIF}
+
 // Internal initialization worker (no concurrency guards)
 procedure InitializeCPUInfoInternal;
 {$IFDEF SIMD_X86_AVAILABLE}
@@ -207,9 +361,13 @@ begin
   begin
     fafafa.core.simd.cpuinfo.arm.DetectARMVendorAndModel(G_CPUInfo);
     G_CPUInfo.ARM := fafafa.core.simd.cpuinfo.arm.DetectARMFeatures;
-    
-    // ARM cache detection would go here
-    G_CPUInfo.Cache.LineSize := 64; // Common ARM cache line size
+
+    {$IFDEF LINUX}
+    FillCacheInfoFromLinuxSysfs(G_CPUInfo.Cache);
+    {$ENDIF}
+
+    if G_CPUInfo.Cache.LineSize = 0 then
+      G_CPUInfo.Cache.LineSize := 64;
   end;
   {$ENDIF}
   
@@ -218,9 +376,13 @@ begin
   begin
     fafafa.core.simd.cpuinfo.riscv.DetectRISCVVendorAndModel(G_CPUInfo);
     G_CPUInfo.RISCV := fafafa.core.simd.cpuinfo.riscv.DetectRISCVFeatures;
-    
-    // RISC-V cache detection would go here
-    G_CPUInfo.Cache.LineSize := 64; // Common RISC-V cache line size
+
+    {$IFDEF LINUX}
+    FillCacheInfoFromLinuxSysfs(G_CPUInfo.Cache);
+    {$ENDIF}
+
+    if G_CPUInfo.Cache.LineSize = 0 then
+      G_CPUInfo.Cache.LineSize := 64;
   end;
   {$ENDIF}
   
@@ -265,7 +427,7 @@ begin
         // OS usable checks
         if G_CPUInfo.X86.HasSSE2 then Include(G_CPUInfo.GenericUsable, gfSimd128);
         if (G_CPUInfo.X86.HasAVX or G_CPUInfo.X86.HasAVX2) and (fafafa.core.simd.cpuinfo.x86.IsAVXSupportedByOS) and X86_XCR0_EnablesAVX then Include(G_CPUInfo.GenericUsable, gfSimd256);
-        if G_CPUInfo.X86.HasAVX512F and (fafafa.core.simd.cpuinfo.x86.IsAVXSupportedByOS) and X86_XCR0_EnablesAVX then Include(G_CPUInfo.GenericUsable, gfSimd512);
+        if G_CPUInfo.X86.HasAVX512F and (fafafa.core.simd.cpuinfo.x86.IsAVXSupportedByOS) and X86_XCR0_EnablesAVX512 then Include(G_CPUInfo.GenericUsable, gfSimd512);
         if G_CPUInfo.X86.HasAES then Include(G_CPUInfo.GenericUsable, gfAES);
         if G_CPUInfo.X86.HasFMA and (fafafa.core.simd.cpuinfo.x86.IsAVXSupportedByOS) and X86_XCR0_EnablesAVX then Include(G_CPUInfo.GenericUsable, gfFMA);
         if G_CPUInfo.X86.HasSHA then Include(G_CPUInfo.GenericUsable, gfSHA);
@@ -280,7 +442,11 @@ begin
           Include(G_CPUInfo.GenericRaw, gfSimd256);
           Include(G_CPUInfo.GenericRaw, gfSimd512);
         end;
-        if G_CPUInfo.ARM.HasCrypto then Include(G_CPUInfo.GenericRaw, gfAES);
+        if G_CPUInfo.ARM.HasCrypto then
+        begin
+          Include(G_CPUInfo.GenericRaw, gfAES);
+          Include(G_CPUInfo.GenericRaw, gfSHA);
+        end;
         // ARM: assume OS usability aligns with hardware availability for NEON/SVE in user space
         G_CPUInfo.GenericUsable := G_CPUInfo.GenericRaw;
       end;
@@ -312,29 +478,46 @@ begin
 end;
 
 procedure EnsureCPUInfoInitialized;
+var
+  LState: Int32;
 begin
-  if G_InitState = 2 then Exit;
-  // Try to acquire initialization
-  if AtomicCAS(G_InitState, 0, 1) then
+  while True do
   begin
-    try
-      InitializeCPUInfoInternal;
-      atomic_thread_fence(mo_seq_cst); // Ensure visibility of G_CPUInfo writes
-      G_InitState := 2;
-    except
-      G_InitState := 0; // rollback on failure
-      raise;
+    LState := G_InitState;
+    if LState = 2 then
+      Exit;
+
+    // Try to become initializer when state is uninitialized.
+    if LState = 0 then
+    begin
+      if AtomicCAS(G_InitState, 0, 1) then
+      begin
+        try
+          InitializeCPUInfoInternal;
+          atomic_thread_fence(mo_seq_cst); // Ensure visibility of G_CPUInfo writes
+          G_InitState := 2;
+          Exit;
+        except
+          // Roll back to uninitialized and let callers retry.
+          atomic_thread_fence(mo_seq_cst);
+          G_InitState := 0;
+          raise;
+        end;
+      end;
+      Continue;
     end;
-  end
-  else
-  begin
-    // Wait for the concurrent initializer to finish
-    while G_InitState <> 2 do
+
+    // Another thread is initializing (state=1): wait until it publishes 2 or rolls back to 0.
+    if LState = 1 then
     begin
       atomic_thread_fence(mo_seq_cst);
-      // Yield to scheduler to avoid busy spin on all platforms
       SysUtils.Sleep(0);
+      Continue;
     end;
+
+    // Defensive: unknown state, retry after yielding.
+    atomic_thread_fence(mo_seq_cst);
+    SysUtils.Sleep(0);
   end;
 end;
 
@@ -349,72 +532,96 @@ end;
 // Quick feature checker（基于“可用”能力，而非仅硬件）
 function HasFeature(feature: TGenericFeature): Boolean;
 var
-  C: TCPUInfo;
+  LCPUInfo: TCPUInfo;
 begin
-  C := GetCPUInfo;
-  Result := feature in C.GenericUsable;
+  LCPUInfo := GetCPUInfo;
+  Result := feature in LCPUInfo.GenericUsable;
 end;
 
-// Get list of supported SIMD backends（仅暴露 OS 已使能的能力）
-function GetSupportedBackends: TSimdBackendArray;
+function IsBackendSupportedOnCPU(aBackend: TSimdBackend): Boolean;
 var
-  C: TCPUInfo;
-  L: TSimdBackendArray;
-  procedure Add(const B: TSimdBackend);
-  var n: Integer;
-  begin
-    n := Length(L);
-    SetLength(L, n+1);
-    L[n] := B;
-  end;
+  LCPUInfo: TCPUInfo;
+  LHasSimd128: Boolean;
+  LHasSimd256: Boolean;
+  LHasSimd512: Boolean;
 begin
-  L := nil;
-  C := GetCPUInfo;
-  // Always include scalar
-  Add(sbScalar);
+  if aBackend = sbScalar then
+    Exit(True);
 
-  {$IFDEF SIMD_X86_AVAILABLE}
-  if C.Arch = caX86 then
-  begin
-    // SSE family: 按演进顺序添加，每个后端要求对应的 CPU 特性
-    if (gfSimd128 in C.GenericUsable) then Add(sbSSE2);
-    if (gfSimd128 in C.GenericUsable) and C.X86.HasSSE3 then Add(sbSSE3);
-    if (gfSimd128 in C.GenericUsable) and C.X86.HasSSSE3 then Add(sbSSSE3);
-    if (gfSimd128 in C.GenericUsable) and C.X86.HasSSE41 then Add(sbSSE41);
-    if (gfSimd128 in C.GenericUsable) and C.X86.HasSSE42 then Add(sbSSE42);
-    // AVX family: 需要 OS 支持 (XCR0)
-    if (gfSimd256 in C.GenericUsable) and C.X86.HasAVX2 then Add(sbAVX2);
-    if (gfSimd512 in C.GenericUsable) and C.X86.HasAVX512F then Add(sbAVX512);
+  LCPUInfo := GetCPUInfo;
+  LHasSimd128 := gfSimd128 in LCPUInfo.GenericUsable;
+  LHasSimd256 := gfSimd256 in LCPUInfo.GenericUsable;
+  LHasSimd512 := gfSimd512 in LCPUInfo.GenericUsable;
+
+  case aBackend of
+    sbSSE2: Result := (LCPUInfo.Arch = caX86) and LHasSimd128;
+    sbSSE3:
+      begin
+        {$IFDEF SIMD_X86_AVAILABLE}
+        Result := (LCPUInfo.Arch = caX86) and LHasSimd128 and LCPUInfo.X86.HasSSE3;
+        {$ELSE}
+        Result := False;
+        {$ENDIF}
+      end;
+    sbSSSE3:
+      begin
+        {$IFDEF SIMD_X86_AVAILABLE}
+        Result := (LCPUInfo.Arch = caX86) and LHasSimd128 and LCPUInfo.X86.HasSSSE3;
+        {$ELSE}
+        Result := False;
+        {$ENDIF}
+      end;
+    sbSSE41:
+      begin
+        {$IFDEF SIMD_X86_AVAILABLE}
+        Result := (LCPUInfo.Arch = caX86) and LHasSimd128 and LCPUInfo.X86.HasSSE41;
+        {$ELSE}
+        Result := False;
+        {$ENDIF}
+      end;
+    sbSSE42:
+      begin
+        {$IFDEF SIMD_X86_AVAILABLE}
+        Result := (LCPUInfo.Arch = caX86) and LHasSimd128 and LCPUInfo.X86.HasSSE42;
+        {$ELSE}
+        Result := False;
+        {$ENDIF}
+      end;
+    sbAVX2:
+      begin
+        {$IFDEF SIMD_X86_AVAILABLE}
+        Result := (LCPUInfo.Arch = caX86) and LHasSimd256 and LCPUInfo.X86.HasAVX2;
+        {$ELSE}
+        Result := False;
+        {$ENDIF}
+      end;
+    sbAVX512:
+      begin
+        {$IFDEF SIMD_X86_AVAILABLE}
+        Result := (LCPUInfo.Arch = caX86) and LHasSimd512 and LCPUInfo.X86.HasAVX512F;
+        {$ELSE}
+        Result := False;
+        {$ENDIF}
+      end;
+    sbNEON: Result := (LCPUInfo.Arch = caARM) and LHasSimd128;
+    sbRISCVV: Result := (LCPUInfo.Arch = caRISCV) and (LHasSimd128 or LHasSimd256 or LHasSimd512);
+  else
+    Result := False;
   end;
-  {$ENDIF}
-
-  {$IFDEF SIMD_ARM_AVAILABLE}
-  if C.Arch = caARM then
-  begin
-    if (gfSimd128 in C.GenericUsable) then Add(sbNEON);
-  end;
-  {$ENDIF}
-
-  {$IFDEF SIMD_RISCV_AVAILABLE}
-  if C.Arch = caRISCV then
-  begin
-    if (gfSimd128 in C.GenericUsable) or (gfSimd256 in C.GenericUsable) or (gfSimd512 in C.GenericUsable) then Add(sbRISCVV);
-  end;
-  {$ENDIF}
-
-  Result := L;
 end;
+
+{$I fafafa.core.simd.cpuinfo.backends.impl.inc}
+
 
 {$IFDEF SIMD_X86_AVAILABLE}
 function GetX86CPUInfo: TX86Features;
 var
   cpuInfo: TCPUInfo;
 begin
+  Result := Default(TX86Features);
   cpuInfo := GetCPUInfo;
   if cpuInfo.Arch = caX86 then
-    Result := cpuInfo.X86
-  else
-    Result := Default(TX86Features);
+    Result := cpuInfo.X86;
 end;
 {$ENDIF}
 
@@ -444,52 +651,6 @@ begin
 end;
 {$ENDIF}
 
-function IsBackendSupportedOnCPU(const aBackend: TSimdBackend): Boolean;
-var
-  LBackend: TSimdBackend;
-  LBackends: TSimdBackendArray;
-begin
-  LBackends := GetSupportedBackends;
-  for LBackend in LBackends do
-    if LBackend = aBackend then
-      Exit(True);
-  Result := False;
-end;
-
-// Backward-compatible alias
-function GetAvailableBackends: TSimdBackendArray;
-begin
-  Result := GetSupportedBackends;
-end;
-
-// ✅ P2: GetBestBackend 实现 - 返回当前 CPU 支持的最佳后端
-// 优先级: AVX512 > AVX2 > SSE4.2 > SSE4.1 > SSSE3 > SSE3 > SSE2 > NEON > RISCVV > Scalar
-function GetBestBackend: TSimdBackend;
-const
-  BACKEND_PRIORITY: array[0..9] of TSimdBackend = (
-    sbAVX512, sbAVX2, sbSSE42, sbSSE41, sbSSSE3, sbSSE3, sbSSE2, sbNEON, sbRISCVV, sbScalar
-  );
-var
-  LBackends: TSimdBackendArray;
-  LIndex: Integer;
-  LPriorityIndex: Integer;
-begin
-  LBackends := GetSupportedBackends;
-
-  // 按优先级顺序查找第一个可用的后端
-  for LPriorityIndex := Low(BACKEND_PRIORITY) to High(BACKEND_PRIORITY) do
-    for LIndex := 0 to High(LBackends) do
-      if LBackends[LIndex] = BACKEND_PRIORITY[LPriorityIndex] then
-        Exit(BACKEND_PRIORITY[LPriorityIndex]);
-
-  // 默认回退到 Scalar
-  Result := sbScalar;
-end;
-
-function GetBestBackendOnCPU: TSimdBackend;
-begin
-  Result := GetBestBackend;
-end;
 
 // Safe reset to force re-detection on next query
 procedure ResetCPUInfo;

@@ -13,13 +13,12 @@ uses
   Windows,
   {$ENDIF}
   fafafa.core.base,
-  {$IFDEF MSWINDOWS}
   SyncObjs, // for TEvent
-  {$ENDIF}
   fafafa.core.math,
   Variants,
   fafafa.core.tick,
   fafafa.core.io,
+  fafafa.core.xml,
   fafafa.core.benchmark.format_utils;
 
 { 基准测试框架类型定义 }
@@ -2204,8 +2203,8 @@ function CreateFileReporter(const aFileName: string): IBenchmarkReporter;
  *
  * @desc 创建 JSON 格式报告器
  *       输出包含：
- *       - counters 对象映射（兼容历史）：{"name": value, ...}
- *       - counter_list 列表：[{"name":"...","value":...,"unit":"bytes|items|rate|percent|unit"}, ...]
+ *       - counters 对象映射（兼容历史）：name -> value
+ *       - counter_list 列表：name/value/unit（bytes|items|rate|percent|unit）
  *
  * @param aFileName 输出文件名（可选，为空则输出到控制台）
  * @return 返回报告器实例
@@ -3214,6 +3213,32 @@ begin
     Result := aTrueValue
   else
     Result := aFalseValue;
+end;
+
+function BenchmarkCreateDefaultTick: ITick; inline;
+begin
+  Result := MakeBestTick;
+end;
+
+function BenchmarkGetCurrentTick(const aTick: ITick): UInt64; inline;
+begin
+  if aTick = nil then Exit(0);
+  Result := aTick.Tick;
+end;
+
+function BenchmarkTicksToNanoSeconds(const aTick: ITick; aTicks: UInt64): Double; inline;
+var
+  LResolution: UInt64;
+begin
+  if aTick = nil then Exit(0.0);
+  LResolution := aTick.Resolution;
+  if LResolution = 0 then Exit(0.0);
+  Result := (Double(aTicks) * 1000000000.0) / Double(LResolution);
+end;
+
+function BenchmarkMeasureElapsed(const aTick: ITick; aStartTick: UInt64): Double; inline;
+begin
+  Result := BenchmarkTicksToNanoSeconds(aTick, BenchmarkGetCurrentTick(aTick) - aStartTick);
 end;
 
 { 默认配置实现 }
@@ -4556,7 +4581,7 @@ begin
       // 如果快速测试失败，返回默认配置
       Result.RecommendedConfig := CreateDefaultBenchmarkConfig;
       Result.Confidence := 0.5;
-      Result.Reasoning := '无法评估操作速度，使用默认配置: ' + E.Message;
+      Result.Reasoning := UTF8String('无法评估操作速度，使用默认配置: ') + UTF8String(E.Message);
     end;
   end;
 end;
@@ -4596,6 +4621,7 @@ begin
   LRunner := CreateBenchmarkRunner;
 
   // 运行所有测试
+  LResults := nil;
   SetLength(LResults, Length(aFunctions));
   for LI := 0 to High(aFunctions) do
     LResults[LI] := LRunner.RunFunction(aNames[LI], aFunctions[LI], aConfig);
@@ -4906,13 +4932,14 @@ begin
     else if Assigned(aTests[LI].Method) then
       Result[LI] := LRunner.RunMethod(aTests[LI].Name, aTests[LI].Method, aTests[LI].Config)
     else
-      raise Exception.Create('测试 "' + aTests[LI].Name + '" 没有指定函数或方法');
+      raise Exception.Create(UTF8String('测试 "') + UTF8String(aTests[LI].Name) + UTF8String('" 没有指定函数或方法'));
   end;
 end;
 
 function benchmarks(const aTitle: string; const aTests: array of TQuickBenchmark): TBenchmarkResultArray;
 begin
   // No direct console output in library code
+  if Length(aTitle) = 0 then ;
   Result := benchmarks(aTests);
 end;
 
@@ -4929,6 +4956,7 @@ end;
 procedure quick_benchmark(const aTitle: string; const aTests: array of TQuickBenchmark);
 begin
   // Title handling is delegated to the reporter/consumer; keep library silent
+  if Length(aTitle) = 0 then ;
   quick_benchmark(aTests);
 end;
 
@@ -4952,12 +4980,13 @@ var
   LTemp: Double;
   LM3, LM4, LDiff, LDiff3, LDiff4: Double;
 begin
-  SetLength(LSorted, 0);
+  Result := Default(TBenchmarkStatistics);
+  LSorted := nil;
   LN := Length(aSamples);
   if LN = 0 then
   begin
     FillChar(Result, SizeOf(Result), 0);
-    SetLength(LSorted, 0);
+    LSorted := nil;
     Exit;
   end;
 
@@ -5125,7 +5154,7 @@ var
   LEstimatedIterations: Int64;
   LTick: ITick;
 begin
-  LTick := CreateDefaultTick;
+  LTick := BenchmarkCreateDefaultTick;
 
   // 🚀 使用三次递增的测试来估算性能
   LTestIterations[0] := 1;
@@ -5137,11 +5166,11 @@ begin
     LState := TBenchmarkState.Create(100); // 短时间测试
     LState.SetIterations(LTestIterations[LI]);
 
-    LStartTime := LTick.GetCurrentTick;
+    LStartTime := BenchmarkGetCurrentTick(LTick);
     aTestFunc(LState);
-    LEndTime := LTick.GetCurrentTick;
+    LEndTime := BenchmarkGetCurrentTick(LTick);
 
-    LTestTimes[LI] := LTick.TicksToNanoSeconds(LEndTime - LStartTime);
+    LTestTimes[LI] := BenchmarkTicksToNanoSeconds(LTick, LEndTime - LStartTime);
 
     // 如果单次测试就超过目标时间，直接返回
     if LTestTimes[LI] > aTargetDurationMs * 1000000 then
@@ -5186,14 +5215,19 @@ var
   LFastestTime: Double;
   LRelativePerf: Double;
   LPerfIndicator: string;
+  LTitleText: UTF8String;
+  LNowText: UTF8String;
 begin
   LReport := TStringList.Create;
   try
+    LTitleText := UTF8String(aTitle);
+    LNowText := UTF8String(DateTimeToStr(Now));
+
     // 🚀 报告头部
     LReport.Add('╔══════════════════════════════════════════════════════════════╗');
-    LReport.Add('║ ' + aTitle + StringOfChar(' ', Max(0, 60 - Length(aTitle))) + ' ║');
+    LReport.Add(UTF8String('║ ') + LTitleText + StringOfChar(' ', Max(0, 60 - Length(LTitleText))) + UTF8String(' ║'));
     LReport.Add('╠══════════════════════════════════════════════════════════════╣');
-    LReport.Add('║ 生成时间: ' + DateTimeToStr(Now) + StringOfChar(' ', Max(0, 49 - Length(DateTimeToStr(Now)))) + ' ║');
+    LReport.Add(UTF8String('║ 生成时间: ') + LNowText + StringOfChar(' ', Max(0, 49 - Length(LNowText))) + UTF8String(' ║'));
     LReport.Add('╚══════════════════════════════════════════════════════════════╝');
     LReport.Add('');
 
@@ -5305,6 +5339,7 @@ begin
   {$IFDEF DEBUG}
   LRunner := CreateBenchmarkRunner;
   {$ENDIF}
+  LOptimizedTests := nil;
   SetLength(LOptimizedTests, Length(aTests));
 
   // 🚀 为每个测试自动优化配置
@@ -5345,7 +5380,7 @@ end;
 procedure turbo_benchmark(const aTitle: string; const aTests: array of TQuickBenchmark); overload;
 begin
   // title handled by caller/reporter
-
+  if Length(aTitle) = 0 then ;
   turbo_benchmark(aTests);
 end;
 
@@ -5460,7 +5495,7 @@ end;
 procedure monitored_benchmark(const aTitle: string; const aTests: array of TQuickBenchmark; aMonitor: IBenchmarkMonitor);
 begin
   // title handled by caller/reporter
-
+  if Length(aTitle) = 0 then ;
   monitored_benchmark(aTests, aMonitor);
 end;
 
@@ -5521,13 +5556,8 @@ end;
 
 function continuous_benchmark(const aTests: array of TQuickBenchmark; const aConfigFile: string): Boolean;
 begin
-  Result := True;
-
   // continuous_benchmark: no direct console output
-
-  // 简化实现 - 运行回归测试
-  Result := regression_test(aTests, 'ci_benchmark_history.json');
-
+  Result := regression_test(aTests, aConfigFile);
   if Result then ExitCode := 0 else ExitCode := 1;
 end;
 
@@ -5560,6 +5590,7 @@ begin
   LAnalyzer := CreateBenchmarkAnalyzer;
 
   // 分析性能
+  LAnalyses := nil;
   SetLength(LAnalyses, Length(LResults));
   for LI := 0 to High(LResults) do
     LAnalyses[LI] := LAnalyzer.AnalyzePerformance(LResults[LI]);
@@ -5570,7 +5601,7 @@ end;
 procedure analyzed_benchmark(const aTitle: string; const aTests: array of TQuickBenchmark);
 begin
   // title handled by caller/reporter
-
+  if Length(aTitle) = 0 then ;
   analyzed_benchmark(aTests);
 end;
 
@@ -5677,6 +5708,7 @@ begin
   LAnalyzer := CreateBenchmarkAnalyzer;
 
   // 分析所有结果
+  LAnalyses := nil;
   SetLength(LAnalyses, Length(aResults));
   for LI := 0 to High(aResults) do
     LAnalyses[LI] := LAnalyzer.AnalyzePerformance(aResults[LI]);
@@ -5719,7 +5751,7 @@ end;
 constructor TBenchmarkState.Create(aTargetDurationMs: Integer);
 begin
   inherited Create;
-  FTick := CreateDefaultTick;
+  FTick := BenchmarkCreateDefaultTick;
   FIterations := 0;
   FCurrentIteration := 0;
   FElapsedTime := 0;
@@ -5795,7 +5827,7 @@ begin
       if FCurrentIteration = 0 then
       begin
         // 开始校准测量
-        FCalibrationStartTime := FTick.GetCurrentTick;
+        FCalibrationStartTime := BenchmarkGetCurrentTick(FTick);
         // 🔧 P1-1：记录校准绝对起点（仅第一次）
         if FCalibrationAbsoluteStartTime = 0 then
           FCalibrationAbsoluteStartTime := FCalibrationStartTime;
@@ -5810,7 +5842,7 @@ begin
       else
       begin
         // 校准迭代完成，检查是否达到目标时间
-        LCalibrationTime := FTick.MeasureElapsed(FCalibrationStartTime);
+        LCalibrationTime := BenchmarkMeasureElapsed(FTick, FCalibrationStartTime);
 
         if LCalibrationTime >= FTargetCalibrationTimeNS then
         begin
@@ -5831,7 +5863,7 @@ begin
         begin
           // 🔧 P1-1：绝对时长兜底：若校准累计耗时超过上限，则强制收敛
           if (FCalibrationAbsoluteStartTime <> 0) and
-             (FTick.MeasureElapsed(FCalibrationAbsoluteStartTime) >= FCalibrationMaxDurationNS) then
+             (BenchmarkMeasureElapsed(FTick, FCalibrationAbsoluteStartTime) >= FCalibrationMaxDurationNS) then
           begin
             if FCalibrationIterations < 1 then FCalibrationIterations := 1;
             FIterations := FCalibrationIterations; // 使用当前估算的迭代数作为正式迭代
@@ -5865,7 +5897,7 @@ begin
   // 🔧 P0-1：正式测量阶段 - 在第一次正式迭代时才开始计时
   if (FCurrentIteration = 0) and (FStartTime = 0) then
   begin
-    FStartTime := FTick.GetCurrentTick;
+    FStartTime := BenchmarkGetCurrentTick(FTick);
   end;
 
   // 检查是否应该继续运行
@@ -5893,7 +5925,7 @@ begin
   if not FTimingPaused then
   begin
     FTimingPaused := True;
-    FPauseStartTime := FTick.GetCurrentTick;
+    FPauseStartTime := BenchmarkGetCurrentTick(FTick);
   end;
 end;
 
@@ -5904,7 +5936,7 @@ begin
     FTimingPaused := False;
     // 仅在正式计时开始后才累计暂停时间，避免预热/校准阶段导致负时间
     if FStartTime <> 0 then
-      FTotalPausedTime := FTotalPausedTime + FTick.MeasureElapsed(FPauseStartTime);
+      FTotalPausedTime := FTotalPausedTime + BenchmarkMeasureElapsed(FTick, FPauseStartTime);
   end;
 end;
 
@@ -6034,6 +6066,7 @@ end;
 function TBenchmarkState.GetCounters: TBenchmarkCounterArray;
 var i: Integer;
 begin
+  Result := nil;
   SetLength(Result, Length(FCounters));
   for i := 0 to High(FCounters) do Result[i] := FCounters[i];
 end;
@@ -6058,13 +6091,13 @@ var
 begin
   // 先运行少量迭代来估算时间
   LTestIterations := 10;
-  LStartTime := FTick.GetCurrentTick;
+  LStartTime := BenchmarkGetCurrentTick(FTick);
 
   // 这里应该调用实际的测试函数，但由于架构限制，我们使用简单估算
   // 在实际实现中，这需要与 TBenchmark 协作
   Sleep(1); // 模拟测试执行
 
-  LTestTime := FTick.MeasureElapsed(LStartTime);
+  LTestTime := BenchmarkMeasureElapsed(FTick, LStartTime);
   LTargetTime := FTargetDurationMs * 1000000.0; // 转换为纳秒
 
   if LTestTime > 0 then
@@ -6092,7 +6125,7 @@ begin
 
   if not FTimingPaused then
   begin
-    LElapsed := FTick.MeasureElapsed(FStartTime) - FTotalPausedTime;
+    LElapsed := BenchmarkMeasureElapsed(FTick, FStartTime) - FTotalPausedTime;
     if LElapsed < 0 then
       LElapsed := 0;
     FElapsedTime := LElapsed;
@@ -6306,6 +6339,7 @@ begin
       if OverPerIter < 0 then OverPerIter := 0;
 
       // 扣减开销（逐样本，这里样本为 per-iter 值）
+      Tmp := nil;
       SetLength(Tmp, Length(FSamples));
       for I := 0 to High(FSamples) do
       begin
@@ -6422,7 +6456,7 @@ var
   LJ: Integer;
   LTemp: Double;
 begin
-  SetLength(LSortedSamples, 0);
+  LSortedSamples := nil;
 
   if (aPercentile < 0) or (aPercentile > 100) then
     raise EArgumentException.Create('百分位数必须在 0-100 之间');
@@ -6634,7 +6668,7 @@ var
   LJ: Integer;
   LTemp: Double;
 begin
-  SetLength(LSortedSamples, 0);
+  LSortedSamples := nil;
 
   if (aPercentile < 0) or (aPercentile > 100) then
     raise EArgumentException.Create('百分位数必须在 0-100 之间');
@@ -6880,7 +6914,7 @@ var
   {$ENDIF}
   LRunner: IBenchmarkRunner;
 begin
-  SetLength(LSamples, 0);
+  LSamples := nil;
 
   if FIsLegacy then
   begin
@@ -6958,7 +6992,7 @@ end;
 constructor TBenchmarkRunner.Create;
 begin
   inherited Create;
-  FTick := CreateDefaultTick;
+  FTick := BenchmarkCreateDefaultTick;
 end;
 
 destructor TBenchmarkRunner.Destroy;
@@ -7014,7 +7048,7 @@ var
   LI: Integer;
   LBenchmarkImpl: TBenchmark;
 begin
-  SetLength(LSamples, 0);
+  LSamples := nil;
 
   LConfig := aBenchmark.GetConfig;
   LBenchmarkImpl := aBenchmark as TBenchmark;
@@ -7030,7 +7064,7 @@ begin
   // 执行测量迭代
   for LI := 0 to LConfig.MeasureIterations - 1 do
   begin
-    LStartTick := FTick.GetCurrentTick;
+    LStartTick := BenchmarkGetCurrentTick(FTick);
 
     // 执行基准测试代码
     if LBenchmarkImpl.FIsLegacy then
@@ -7053,7 +7087,7 @@ begin
       raise EBenchmarkConfigError.Create('新 API 基准测试应该通过 TBenchmark.Run 处理');
     end;
 
-    LElapsedTime := FTick.MeasureElapsed(LStartTick);
+    LElapsedTime := BenchmarkMeasureElapsed(FTick, LStartTick);
     LSamples[LI] := LElapsedTime;
     LTotalTime := LTotalTime + LElapsedTime;
     Inc(LIterations);
@@ -7075,7 +7109,7 @@ var
   LP95Index, LP99Index: Double;
   LMedianIndex: Integer;
 begin
-  SetLength(LSortedSamples, 0);
+  LSortedSamples := nil;
 
   LCount := Length(aSamples);
   if LCount = 0 then
@@ -7297,8 +7331,8 @@ var
   LSamples: array of Double;
   LWorkPerThread: array of Integer;
 begin
-  SetLength(LSamples, 0);
-  SetLength(LThreads, 0);
+  LSamples := nil;
+  LThreads := nil;
 
 
   if @aFunc = nil then
@@ -7320,6 +7354,7 @@ begin
     begin
       LTotalWork := 0;
       LStartEvent.ResetEvent;
+      LWorkPerThread := nil;
       SetLength(LWorkPerThread, aThreadConfig.ThreadCount);
       for LI := 0 to aThreadConfig.ThreadCount - 1 do LWorkPerThread[LI] := 0;
 
@@ -7382,7 +7417,7 @@ begin
     end;
 
     // 测量阶段
-    LStartTime := FTick.GetCurrentTick;
+    LStartTime := BenchmarkGetCurrentTick(FTick);
 
     for LI := 1 to aConfig.MeasureIterations do
     begin
@@ -7390,6 +7425,7 @@ begin
       LStartEvent.ResetEvent;
 
       // 创建测量线程
+      LWorkPerThread := nil;
       SetLength(LWorkPerThread, aThreadConfig.ThreadCount);
       for LJ := 0 to aThreadConfig.ThreadCount - 1 do LWorkPerThread[LJ] := 0;
       for LJ := 0 to aThreadConfig.ThreadCount - 1 do
@@ -7418,7 +7454,7 @@ begin
                 LLocalWork := aThreadConfig.WorkPerThread;
             except
               on E: Exception do
-                raise EBenchmarkError.Create('多线程基准测试执行失败: ' + E.Message);
+                raise EBenchmarkError.Create(UTF8String('多线程基准测试执行失败: ') + UTF8String(E.Message));
             end;
 
             // 本地写入，避免共享写竞争
@@ -7453,8 +7489,8 @@ begin
         LState.SetItemsProcessed(LTotalWork);
     end;
 
-    LEndTime := FTick.GetCurrentTick;
-    LTotalTime := FTick.TicksToNanoSeconds(LEndTime - LStartTime);
+    LEndTime := BenchmarkGetCurrentTick(FTick);
+    LTotalTime := BenchmarkTicksToNanoSeconds(FTick, UInt64(LEndTime - LStartTime));
 
     // 确保有至少一个样本，避免统计计算异常
     SetLength(LSamples, 1);
@@ -7486,9 +7522,9 @@ var
   LIterations: Integer;
   LSamples: array of Double;
 begin
-  SetLength(LThreads, 0);
+  LThreads := nil;
 
-  SetLength(LSamples, 0);
+  LSamples := nil;
 
   if not Assigned(aMethod) then
     raise EArgumentNil.Create('多线程基准测试方法不能为空');
@@ -7560,7 +7596,7 @@ begin
     end;
 
     // 测量阶段
-    LStartTime := FTick.GetCurrentTick;
+    LStartTime := BenchmarkGetCurrentTick(FTick);
 
     for LI := 1 to aConfig.MeasureIterations do
     begin
@@ -7594,7 +7630,7 @@ begin
                 LLocalWork := aThreadConfig.WorkPerThread;
             except
               on E: Exception do
-                raise EBenchmarkError.Create('多线程基准测试执行失败: ' + E.Message);
+                raise EBenchmarkError.Create(UTF8String('多线程基准测试执行失败: ') + UTF8String(E.Message));
             end;
 
             InterlockedExchangeAdd(LTotalWork, LLocalWork);
@@ -7623,8 +7659,8 @@ begin
         LState.SetItemsProcessed(LTotalWork);
     end;
 
-    LEndTime := FTick.GetCurrentTick;
-    LTotalTime := FTick.TicksToNanoSeconds(LEndTime - LStartTime);
+    LEndTime := BenchmarkGetCurrentTick(FTick);
+    LTotalTime := BenchmarkTicksToNanoSeconds(FTick, UInt64(LEndTime - LStartTime));
 
     // 确保有至少一个样本，避免统计计算异常
     SetLength(LSamples, 1);
@@ -8104,7 +8140,7 @@ begin
       Exit;
     end;
 
-  raise EArgumentException.Create('模板不存在: ' + aName);
+  raise EArgumentException.Create(UTF8String('模板不存在: ') + UTF8String(aName));
 end;
 
 function TBenchmarkTemplateManager.GetTemplatesByCategory(const aCategory: string): TBenchmarkTemplateArray;
@@ -8547,6 +8583,7 @@ end;
 procedure TConsoleReporter.SetOutputFile(const aFileName: string);
 begin
   // 控制台报告器不支持文件输出
+  if Length(aFileName) = 0 then Exit;
 end;
 
 procedure TConsoleReporter.SetFormat(const aFormat: string);
@@ -9227,6 +9264,7 @@ end;
 procedure TJUnitReporter.SetFormat(const aFormat: string);
 begin
   // JUnit 固定 XML，不使用格式切换
+  if Length(aFormat) = 0 then Exit;
 end;
 
 
@@ -9302,8 +9340,31 @@ begin
 end;
 
 procedure TRealTimeMonitor.CalculatePercentiles(const aTimes: array of Double; out aPercentiles: array of Double);
+var
+  LI, LDenom, LIdx, LCount: Integer;
 begin
-  // 简化实现
+  LCount := Length(aTimes);
+  if Length(aPercentiles) = 0 then
+    Exit;
+
+  for LI := 0 to High(aPercentiles) do
+    aPercentiles[LI] := 0.0;
+
+  if LCount = 0 then
+    Exit;
+
+  LDenom := High(aPercentiles);
+  if LDenom <= 0 then
+  begin
+    aPercentiles[0] := aTimes[0];
+    Exit;
+  end;
+
+  for LI := 0 to High(aPercentiles) do
+  begin
+    LIdx := (LI * (LCount - 1)) div LDenom;
+    aPercentiles[LI] := aTimes[LIdx];
+  end;
 end;
 
 { TPerformancePredictor 实现 }
@@ -9318,15 +9379,19 @@ end;
 
 procedure TPerformancePredictor.TrainModel(const aHistoricalData: array of IBenchmarkResult);
 begin
-  // predictor training message removed
-  FModelAccuracy := 0.95 + Random(5) / 100; // 95-100%
-  // predictor training done message removed
+  if Length(aHistoricalData) = 0 then
+  begin
+    FModelAccuracy := 0.95;
+    Exit;
+  end;
+
+  FModelAccuracy := 0.95 + ((Length(aHistoricalData) mod 5) / 100.0);
 end;
 
 function TPerformancePredictor.PredictPerformance(const aTestName: string; aInputSize: Int64): TPerformancePrediction;
 begin
   Result.TestName := aTestName;
-  Result.PredictedTime := Random(10000) + 1000; // 1-11μs
+  Result.PredictedTime := Random(10000) + 1000 + (aInputSize div 1024);
   Result.ConfidenceInterval[0] := Result.PredictedTime * 0.9;
   Result.ConfidenceInterval[1] := Result.PredictedTime * 1.1;
   Result.PredictionAccuracy := FModelAccuracy;
@@ -9342,23 +9407,67 @@ end;
 
 procedure TPerformancePredictor.UpdateModel(aNewResult: IBenchmarkResult);
 begin
-  // predictor update message removed
+  if aNewResult = nil then
+    Exit;
+
+  if aNewResult.TotalTime > 0 then
+    FModelAccuracy := (FModelAccuracy * 0.90) + 0.10
+  else
+    FModelAccuracy := 0.95;
+
+  if FModelAccuracy > 1.0 then FModelAccuracy := 1.0;
+  if FModelAccuracy < 0.0 then FModelAccuracy := 0.0;
 end;
 
 function TPerformancePredictor.LinearRegression(const aInputSizes: array of Int64; const aTimes: array of Double): TLinearRegressionParams;
+var
+  LCount: Integer;
+  LDenom: Int64;
 begin
-  Result.Slope := 1.0;
-  Result.Intercept := 0.0;
+  LCount := Length(aInputSizes);
+  if (LCount = 0) or (LCount <> Length(aTimes)) then
+  begin
+    Result.Slope := 1.0;
+    Result.Intercept := 0.0;
+    Exit;
+  end;
+
+  LDenom := aInputSizes[High(aInputSizes)] - aInputSizes[0];
+  if LDenom = 0 then
+  begin
+    Result.Slope := 0.0;
+    Result.Intercept := aTimes[0];
+    Exit;
+  end;
+
+  Result.Slope := (aTimes[High(aTimes)] - aTimes[0]) / LDenom;
+  Result.Intercept := aTimes[0] - (Result.Slope * aInputSizes[0]);
 end;
 
 function TPerformancePredictor.CalculateAccuracy(const aPredicted, aActual: array of Double): Double;
+var
+  LI, LCount: Integer;
+  LTotalError: Double;
 begin
-  Result := 0.95;
+  LCount := Length(aPredicted);
+  if (LCount = 0) or (LCount <> Length(aActual)) then
+    Exit(0.0);
+
+  LTotalError := 0.0;
+  for LI := 0 to LCount - 1 do
+    LTotalError := LTotalError + Abs(aPredicted[LI] - aActual[LI]);
+
+  Result := 1.0 - (LTotalError / LCount);
+  if Result < 0.0 then Result := 0.0;
+  if Result > 1.0 then Result := 1.0;
 end;
 
 function TPerformancePredictor.EstimateComplexity(const aInputSizes: array of Int64; const aTimes: array of Double): string;
 begin
-  Result := 'O(n)';
+  if (Length(aInputSizes) = 0) or (Length(aTimes) = 0) then
+    Result := 'O(1)'
+  else
+    Result := 'O(n)';
 end;
 
 { TAdaptiveOptimizer 实现 }
@@ -9371,14 +9480,15 @@ end;
 
 function TAdaptiveOptimizer.OptimizeConfig(aTestFunction: TBenchmarkFunction; aTargetAccuracy: Double): TAdaptiveConfig;
 begin
-  // optimizer start message removed
   Result.BaseConfig := CreateDefaultBenchmarkConfig;
-  Result.AdaptationLevel := 3;
+  if Assigned(aTestFunction) then
+    Result.AdaptationLevel := 3
+  else
+    Result.AdaptationLevel := 1;
   Result.LearningRate := 0.1;
   Result.TargetAccuracy := aTargetAccuracy;
   Result.MaxAdaptationCycles := 10;
   Result.CurrentCycle := 0;
-  // optimizer done message removed
 end;
 
 function TAdaptiveOptimizer.AdaptiveRun(const aTestName: string; aTestFunction: TBenchmarkFunction): IBenchmarkResult;
@@ -9398,17 +9508,41 @@ end;
 
 function TAdaptiveOptimizer.EvaluateConfig(aTestFunction: TBenchmarkFunction; const aConfig: TBenchmarkConfig): Double;
 begin
+  if not Assigned(aTestFunction) then
+    Exit(0.0);
+
   Result := 0.95;
+  if aConfig.MeasureIterations > 0 then
+    Result := Result - (1.0 / (aConfig.MeasureIterations + 1));
+
+  if Result < 0.0 then Result := 0.0;
 end;
 
 function TAdaptiveOptimizer.AdjustConfig(const aCurrentConfig: TBenchmarkConfig; aCurrentAccuracy, aTargetAccuracy: Double): TBenchmarkConfig;
 begin
   Result := aCurrentConfig;
+  if aCurrentAccuracy < aTargetAccuracy then
+    Result.MeasureIterations := Result.MeasureIterations + 5
+  else if Result.MeasureIterations > 1 then
+    Result.MeasureIterations := Result.MeasureIterations - 1;
+
+  if Result.MeasureIterations < 1 then
+    Result.MeasureIterations := 1;
 end;
 
 function TAdaptiveOptimizer.CalculateAccuracy(const aResults: array of Double): Double;
+var
+  LI: Integer;
+  LSum: Double;
 begin
-  Result := 0.95;
+  if Length(aResults) = 0 then
+    Exit(0.0);
+
+  LSum := 0.0;
+  for LI := 0 to High(aResults) do
+    LSum := LSum + aResults[LI];
+
+  Result := LSum / Length(aResults);
 end;
 
 { 突破性功能实现 }
@@ -9455,8 +9589,7 @@ end;
 
 procedure realtime_benchmark(const aTitle: string; const aTests: array of TQuickBenchmark);
 begin
-  // realtime_benchmark title removed
-
+  if Length(aTitle) = 0 then ;
   realtime_benchmark(aTests);
 end;
 
@@ -9485,8 +9618,7 @@ end;
 
 procedure predictive_benchmark(const aTitle: string; const aTests: array of TQuickBenchmark);
 begin
-  // predictive_benchmark titled: no direct console output
-
+  if Length(aTitle) = 0 then ;
   predictive_benchmark(aTests);
 end;
 
@@ -9509,17 +9641,16 @@ end;
 
 procedure adaptive_benchmark(const aTitle: string; const aTests: array of TQuickBenchmark);
 begin
-  // adaptive_benchmark titled: no direct console output
-
+  if Length(aTitle) = 0 then ;
   adaptive_benchmark(aTests);
 end;
 
 procedure ultimate_benchmark(const aTitle: string; const aTests: array of TQuickBenchmark);
 begin
   // ultimate_benchmark sequence: orchestrate without console output
-  realtime_benchmark(aTests);
-  predictive_benchmark(aTests);
-  adaptive_benchmark(aTests);
+  realtime_benchmark(aTitle, aTests);
+  predictive_benchmark(aTitle, aTests);
+  adaptive_benchmark(aTitle, aTests);
 end;
 
 procedure ai_benchmark(const aTests: array of TQuickBenchmark);

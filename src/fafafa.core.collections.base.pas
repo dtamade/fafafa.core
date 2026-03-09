@@ -10,7 +10,6 @@ uses
   SysUtils, Classes,typinfo,variants,
   fafafa.core.base,
   fafafa.core.math,
-  {$HINTS OFF}fafafa.core.mem.utils,{$HINTS ON}
   fafafa.core.mem.allocator,
   fafafa.core.collections.elementManager;
 
@@ -1420,7 +1419,7 @@ type
     class var FGlobal: TPowerOfTwoGrowStrategy;
     class destructor Destroy;
   protected
-    function DoGetGrowSize(aCurrentSize, aRequiredSize: SizeUInt): SizeUInt; override;
+    function DoGetGrowSize({%H-}aCurrentSize, aRequiredSize: SizeUInt): SizeUInt; override;
   public
     class function GetGlobal: TPowerOfTwoGrowStrategy; static; {$IFDEF FAFAFA_COLLECTIONS_INLINE} inline;{$ENDIF}
   end;
@@ -1465,7 +1464,7 @@ type
     class var FGlobal: TExactGrowStrategy;
     class destructor Destroy;
   protected
-    function DoGetGrowSize(aCurrentSize, aRequiredSize: SizeUInt): SizeUInt; override;
+    function DoGetGrowSize({%H-}aCurrentSize, aRequiredSize: SizeUInt): SizeUInt; override;
   public
     class function GetGlobal: TExactGrowStrategy; static; {$IFDEF FAFAFA_COLLECTIONS_INLINE} inline;{$ENDIF}
   end;
@@ -3494,8 +3493,9 @@ begin
   Result := TPowerOfTwoGrowStrategy.Create;
 end;
 
-function TPowerOfTwoGrowStrategy.DoGetGrowSize({%H-}aCurrentSize, aRequiredSize: SizeUInt): SizeUInt;
+function TPowerOfTwoGrowStrategy.DoGetGrowSize(aCurrentSize, aRequiredSize: SizeUInt): SizeUInt;
 begin
+  if aCurrentSize <> 0 then;
   if aRequiredSize = 0 then
     Exit(0);
   Result := 1;
@@ -3595,8 +3595,9 @@ begin
 end;
 
 
-function TExactGrowStrategy.DoGetGrowSize({%H-}aCurrentSize, aRequiredSize: SizeUInt): SizeUInt;
+function TExactGrowStrategy.DoGetGrowSize(aCurrentSize, aRequiredSize: SizeUInt): SizeUInt;
 begin
+  if aCurrentSize <> 0 then;
   Result := aRequiredSize;
 end;
 

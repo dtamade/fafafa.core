@@ -1,65 +1,178 @@
 #!/usr/bin/env python3
+"""Generate deterministic gate summary markdown samples for diagnostics rehearsal."""
+
 from __future__ import annotations
 
 import argparse
+from datetime import datetime, timedelta
 from pathlib import Path
-from typing import List, Tuple
 
 
-Row = Tuple[str, str, str, int, str, str, str]
-
-
-def rows_for_scenario(a_scenario: str, a_warn_ms: int, a_fail_ms: int) -> List[Row]:
-    l_scenario = a_scenario.lower()
-    if l_scenario == 'pass':
-        return [
-            ('2026-03-08 08:00:00', 'build-check', 'PASS', 5321, 'NORMAL', 'build + check passed', '-'),
-            ('2026-03-08 08:00:12', 'dispatch-api', 'PASS', 8912, 'NORMAL', 'dispatch suites passed', '-'),
-            ('2026-03-08 08:00:21', 'gate', 'PASS', 14233, 'NORMAL', 'all steps passed', '-'),
-        ]
-    if l_scenario == 'fail':
-        return [
-            ('2026-03-08 08:00:00', 'build-check', 'PASS', 6321, 'NORMAL', 'build + check passed', '-'),
-            ('2026-03-08 08:00:18', 'evidence-verify', 'FAIL', a_fail_ms + 1, 'FAILED', 'verify-win-evidence failed', 'logs/windows_b07_gate.log'),
-            ('2026-03-08 08:00:25', 'gate', 'FAIL', a_fail_ms + 20, 'FAILED', 'failed-step=evidence-verify', '-'),
-        ]
-    if l_scenario == 'slow':
-        return [
-            ('2026-03-08 08:00:00', 'build-check', 'PASS', 5120, 'NORMAL', 'build + check passed', '-'),
-            ('2026-03-08 08:00:40', 'concurrent-repeat', 'PASS', a_warn_ms + 500, 'SLOW_WARN', 'repeat suite slower than warn threshold', 'logs/repeat.txt'),
-            ('2026-03-08 08:02:45', 'gate', 'PASS', a_fail_ms + 1000, 'SLOW_CRIT', 'all steps passed', '-'),
-        ]
-    return [
-        ('2026-03-08 08:00:00', 'build-check', 'PASS', 6420, 'NORMAL', 'build + check passed', '-'),
-        ('2026-03-08 08:00:35', 'coverage', 'PASS', a_warn_ms + 250, 'SLOW_WARN', 'coverage checks passed', 'logs/coverage.json'),
-        ('2026-03-08 08:01:12', 'evidence-verify', 'FAIL', 1834, 'FAILED', 'verify-win-evidence failed', 'logs/windows_b07_gate.log'),
-        ('2026-03-08 08:02:45', 'gate', 'FAIL', a_fail_ms + 50, 'FAILED', 'failed-step=evidence-verify', '-'),
+def build_rows(scenario: str, warn_ms: int, fail_ms: int) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = [
+        {
+            "step": "gate",
+            "status": "START",
+            "duration": "-",
+            "event": "START",
+            "detail": "mode=Debug; wiring=1; coverage=0; perf=0",
+            "artifacts": "logs/build.txt; logs/test.txt; logs/wiring_sync.txt",
+        },
+        {
+            "step": "build-check",
+            "status": "PASS",
+            "duration": "6200",
+            "event": "NORMAL",
+            "detail": "build/check/parity passed",
+            "artifacts": "logs/build.txt",
+        },
+        {
+            "step": "wiring-sync",
+            "status": "PASS",
+            "duration": "180",
+            "event": "NORMAL",
+            "detail": "legacy=116 grouped=116 missing=0 extra=0 markers_missing=0 strict_extra=1",
+            "artifacts": "logs/wiring_sync.txt; logs/wiring_sync.json",
+        },
     ]
+
+    if scenario == "pass":
+        rows.extend(
+            [
+                {
+                    "step": "run-all-chain",
+                    "status": "PASS",
+                    "duration": "8500",
+                    "event": "NORMAL",
+                    "detail": "filtered run_all passed",
+                    "artifacts": "tests/_run_all_logs_sh; tests/run_all_tests_summary_sh.txt",
+                },
+                {
+                    "step": "gate",
+                    "status": "PASS",
+                    "duration": "15480",
+                    "event": "NORMAL",
+                    "detail": "all steps passed",
+                    "artifacts": "-",
+                },
+            ]
+        )
+    elif scenario == "fail":
+        rows.extend(
+            [
+                {
+                    "step": "cpuinfo-x86",
+                    "status": "FAIL",
+                    "duration": "1333",
+                    "event": "FAILED",
+                    "detail": "rc=1; cpuinfo x86 suite failed; cmd=gate_step_cpuinfo_x86 /mock/tests",
+                    "artifacts": "tests/fafafa.core.simd.cpuinfo.x86/logs/test.txt",
+                },
+                {
+                    "step": "gate",
+                    "status": "FAIL",
+                    "duration": "9800",
+                    "event": "FAILED",
+                    "detail": "failed-step=cpuinfo-x86",
+                    "artifacts": "-",
+                },
+            ]
+        )
+    elif scenario == "slow":
+        rows.extend(
+            [
+                {
+                    "step": "run-all-chain",
+                    "status": "PASS",
+                    "duration": str(warn_ms + 4500),
+                    "event": "SLOW_WARN",
+                    "detail": "filtered run_all passed; logs=tests/_run_all_logs_sh; summary=tests/run_all_tests_summary_sh.txt",
+                    "artifacts": "tests/_run_all_logs_sh; tests/run_all_tests_summary_sh.txt",
+                },
+                {
+                    "step": "gate",
+                    "status": "PASS",
+                    "duration": str(fail_ms + 5000),
+                    "event": "SLOW_FAIL",
+                    "detail": "all steps passed",
+                    "artifacts": "-",
+                },
+            ]
+        )
+    else:  # mixed
+        rows.extend(
+            [
+                {
+                    "step": "run-all-chain",
+                    "status": "PASS",
+                    "duration": str(warn_ms + 3000),
+                    "event": "SLOW_WARN",
+                    "detail": "filtered run_all passed; logs=tests/_run_all_logs_sh; summary=tests/run_all_tests_summary_sh.txt",
+                    "artifacts": "tests/_run_all_logs_sh; tests/run_all_tests_summary_sh.txt",
+                },
+                {
+                    "step": "perf-smoke",
+                    "status": "FAIL",
+                    "duration": "621",
+                    "event": "FAILED",
+                    "detail": "rc=1; perf-smoke failed; cmd=run_perf_smoke",
+                    "artifacts": "logs/test.txt",
+                },
+                {
+                    "step": "gate",
+                    "status": "FAIL",
+                    "duration": str(warn_ms + 7000),
+                    "event": "FAILED",
+                    "detail": "failed-step=perf-smoke",
+                    "artifacts": "-",
+                },
+            ]
+        )
+
+    return rows
+
+
+def write_markdown(rows: list[dict[str, str]], output_path: Path, start_time: datetime) -> None:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+
+    lines = [
+        "| Time | Step | Status | DurationMs | Event | Detail | Artifacts |",
+        "|---|---|---|---|---|---|---|",
+    ]
+
+    current = start_time
+    for row in rows:
+        lines.append(
+            "| {time} | {step} | {status} | {duration} | {event} | {detail} | {artifacts} |".format(
+                time=current.strftime("%Y-%m-%d %H:%M:%S"),
+                step=row["step"],
+                status=row["status"],
+                duration=row["duration"],
+                event=row["event"],
+                detail=row["detail"],
+                artifacts=row["artifacts"],
+            )
+        )
+        current += timedelta(seconds=1)
+
+    output_path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def main() -> int:
-    l_parser = argparse.ArgumentParser(description='Generate SIMD gate summary sample markdown')
-    l_parser.add_argument('--scenario', default='mixed', help='mixed|pass|fail|slow')
-    l_parser.add_argument('--warn-ms', type=int, default=20000)
-    l_parser.add_argument('--fail-ms', type=int, default=120000)
-    l_parser.add_argument('--output', required=True)
-    l_args = l_parser.parse_args()
+    parser = argparse.ArgumentParser(description="Generate gate_summary sample markdown")
+    parser.add_argument("--scenario", default="mixed", choices=["pass", "fail", "slow", "mixed"], help="Sample scenario")
+    parser.add_argument("--output", required=True, help="Output markdown file")
+    parser.add_argument("--warn-ms", type=int, default=20000, help="Warn threshold for slow sample")
+    parser.add_argument("--fail-ms", type=int, default=120000, help="Fail threshold for slow sample")
+    parser.add_argument("--time", default="2026-02-10 00:00:00", help="Start timestamp (YYYY-MM-DD HH:MM:SS)")
+    args = parser.parse_args()
 
-    l_output = Path(l_args.output)
-    l_output.parent.mkdir(parents=True, exist_ok=True)
-
-    l_lines = [
-        '# SIMD Gate Summary',
-        '',
-        '| Time | Step | Status | DurationMs | Event | Detail | Artifacts |',
-        '|---|---|---|---|---|---|---|',
-    ]
-    for l_row in rows_for_scenario(l_args.scenario, l_args.warn_ms, l_args.fail_ms):
-        l_lines.append('| ' + ' | '.join(str(l_item) for l_item in l_row) + ' |')
-
-    l_output.write_text('\n'.join(l_lines) + '\n', encoding='utf-8')
+    start = datetime.strptime(args.time, "%Y-%m-%d %H:%M:%S")
+    rows = build_rows(args.scenario, args.warn_ms, args.fail_ms)
+    write_markdown(rows, Path(args.output), start)
+    print(f"[GATE-SUMMARY-SAMPLE] scenario={args.scenario} rows={len(rows)} output={args.output}")
     return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     raise SystemExit(main())

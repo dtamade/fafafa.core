@@ -656,6 +656,7 @@ function WriteToSink(var BB: TBytesBuilder; const Sink: IWriter; AChunkSize: Siz
 var P: Pointer; N: SizeInt; wrote: SizeInt;
 begin
   if Sink = nil then raise EArgumentNil.Create('sink=nil');
+  if AChunkSize < 1 then; // suppress unused parameter hint (reserved for future chunked writes)
   BB.Peek(P, N);
   if (P = nil) or (N = 0) then Exit(0);
   Result := 0;

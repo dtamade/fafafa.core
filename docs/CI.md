@@ -87,6 +87,39 @@ jobs:
 
 更多细节见 docs/fafafa.core.test.md → 章节「Runner 环境变量与退出码策略」。
 
+### SIMD QEMU 链路（推荐配置）
+
+- 适用动作：
+  - `bash tests/fafafa.core.simd/BuildOrTest.sh qemu-nonx86-evidence`
+  - `bash tests/fafafa.core.simd/BuildOrTest.sh qemu-cpuinfo-nonx86-evidence`
+  - `bash tests/fafafa.core.simd/BuildOrTest.sh qemu-nonx86-experimental-asm`
+  - `bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict`（配合 `SIMD_GATE_QEMU_NONX86_EVIDENCE=1` 与 `SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1`）
+- 构建策略环境变量：
+  - `SIMD_QEMU_BUILD_POLICY=if-missing`（默认，推荐）：仅当本地镜像不存在时构建，降低外部 registry 抖动影响
+  - `SIMD_QEMU_BUILD_POLICY=always`：每次都重建镜像，适合强制冷启动验证
+  - `SIMD_QEMU_BUILD_POLICY=skip`：跳过构建，要求本地镜像已存在
+
+Linux/macOS 示例：
+```bash
+# 推荐：主线 gate / qemu 证据链路
+SIMD_QEMU_BUILD_POLICY=if-missing \
+SIMD_GATE_QEMU_NONX86_EVIDENCE=1 \
+SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 \
+bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict
+
+# CPUInfo 非 x86 专项（与 simd 主链拆分执行）
+SIMD_QEMU_BUILD_POLICY=if-missing \
+bash tests/fafafa.core.simd/BuildOrTest.sh qemu-cpuinfo-nonx86-evidence
+
+# 真 asm 工具链专项（compiler-ready）
+SIMD_QEMU_BUILD_POLICY=if-missing \
+SIMD_QEMU_ENABLE_BACKEND_ASM=1 \
+SIMD_QEMU_BACKEND_ASM_PROBE_MODE=0 \
+SIMD_QEMU_EXPERIMENTAL_ARM64_COMPILER_DEFINE='-dFAFAFA_SIMD_NEON_ASM_COMPILER_READY' \
+SIMD_QEMU_EXPERIMENTAL_RISCV64_COMPILER_DEFINE='-dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY' \
+bash tests/fafafa.core.simd/BuildOrTest.sh qemu-nonx86-experimental-asm
+```
+
 ### 一键脚本
 - Windows（PowerShell）：`scripts/run-tests-ci.ps1`（默认 --ci --fail-on-skip --top-slowest=5，自动设置报告默认路径）
 - Linux/macOS（Bash）：`scripts/run-tests-ci.sh`（同上）

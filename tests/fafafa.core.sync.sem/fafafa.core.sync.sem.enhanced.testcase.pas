@@ -85,6 +85,19 @@ type
     property Success: Boolean read FSuccess;
   end;
 
+  // 等待获取线程（用于多等待者场景，避免匿名闭包索引捕获问题）
+  TWaitAcquireThread = class(TThread)
+  private
+    FSem: ISem;
+    FTimeoutMs: Cardinal;
+    FSuccess: Boolean;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(const ASem: ISem; ATimeoutMs: Cardinal);
+    property Success: Boolean read FSuccess;
+  end;
+
   // 改进的采样线程
   TImprovedSamplerThread = class(TThread)
   private
@@ -329,15 +342,52 @@ begin
 end;
 
 procedure TTestCase_Enhanced.Test_Timeout_Cancellation;
+var
+  LSem: ISem;
+  LWaiter: TWaitAcquireThread;
 begin
-  // 简化实现
-  AssertTrue('Timeout cancellation test placeholder', True);
+  LSem := MakeSem(0, 1);
+  LWaiter := TWaitAcquireThread.Create(LSem, 40);
+  LWaiter.WaitFor;
+
+  AssertFalse('Timed waiter should timeout', LWaiter.Success);
+  LWaiter.Free;
+
+  LSem.Release;
+  AssertTrue('Timed-out waiter should not consume later permit', LSem.TryAcquire(1, 20));
+  AssertEquals('Permit should be consumed exactly once', 0, LSem.GetAvailableCount);
 end;
 
 procedure TTestCase_Enhanced.Test_Timeout_MultipleWaiters;
+const
+  WAITERS = 3;
+  TIMEOUT_MS = 220;
+var
+  LIndex: Integer;
+  LSem: ISem;
+  LSuccessCount: Integer;
+  LWaiters: array[0..WAITERS-1] of TWaitAcquireThread;
 begin
-  // 简化实现
-  AssertTrue('Multiple waiters test placeholder', True);
+  LSem := MakeSem(0, WAITERS);
+  for LIndex := 0 to WAITERS - 1 do
+    LWaiters[LIndex] := TWaitAcquireThread.Create(LSem, TIMEOUT_MS);
+
+  Sleep(20);
+  LSem.Release;   // 第一批释放 1 个
+  Sleep(20);
+  LSem.Release(2); // 第二批释放剩余 2 个
+
+  LSuccessCount := 0;
+  for LIndex := 0 to WAITERS - 1 do
+  begin
+    LWaiters[LIndex].WaitFor;
+    if LWaiters[LIndex].Success then
+      Inc(LSuccessCount);
+    LWaiters[LIndex].Free;
+  end;
+
+  AssertEquals('All waiters should pass after staged releases', WAITERS, LSuccessCount);
+  AssertEquals('Semaphore should return to zero available count', 0, LSem.GetAvailableCount);
 end;
 
 procedure TTestCase_Enhanced.Test_Recovery_AfterTimeout;
@@ -351,9 +401,29 @@ begin
 end;
 
 procedure TTestCase_Enhanced.Test_Recovery_AfterException;
+var
+  LSem: ISem;
+  LRaised: Boolean;
 begin
-  // 简化实现
-  AssertTrue('Recovery after exception test placeholder', True);
+  LSem := MakeSem(1, 1);
+  LRaised := False;
+
+  try
+    try
+      LSem.Acquire;
+      raise Exception.Create('intentional exception for recovery path');
+    finally
+      LSem.Release;
+    end;
+  except
+    on Exception do
+      LRaised := True;
+  end;
+
+  AssertTrue('Exception path should be executed', LRaised);
+  AssertEquals('Count should recover after exception path', 1, LSem.GetAvailableCount);
+  AssertTrue('Semaphore should remain usable after exception', LSem.TryAcquire(1, 20));
+  LSem.Release;
 end;
 
 
@@ -403,32 +473,35 @@ end;
 
 procedure TTestCase_Enhanced.Test_MultiWaiters_ReleaseExactlyK;
 const M=4; K=2; TimeoutMs=150;
-var i, Succeeded: Integer; Waiters: array[0..M-1] of TThread;
-    Results: array[0..M-1] of Boolean;
+var
+  i, Succeeded: Integer;
+  Waiters: array[0..M-1] of TWaitAcquireThread;
 begin
   FSem := MakeSem(0, 5);
-  FillChar(Results, SizeOf(Results), 0);
+
   // 启动 M 个等待者
   for i := 0 to M-1 do
   begin
-    Waiters[i] := TThread.CreateAnonymousThread(
-      procedure
-      var ok: Boolean;
-      begin
-        ok := FSem.TryAcquire(1, TimeoutMs);
-        Results[i] := ok;
-      end);
-    Waiters[i].Start;
+    Waiters[i] := TWaitAcquireThread.Create(FSem, TimeoutMs);
   end;
+
   // 释放恰好 K 个许可
   Sleep(20);
   for i := 1 to K do FSem.Release;
+
   // 等待全部完成
-  for i := 0 to M-1 do Waiters[i].WaitFor;
-  for i := 0 to M-1 do Waiters[i].Free;
+  for i := 0 to M-1 do
+    Waiters[i].WaitFor;
+
   // 统计成功数
   Succeeded := 0;
-  for i := 0 to M-1 do if Results[i] then Inc(Succeeded);
+  for i := 0 to M-1 do
+  begin
+    if Waiters[i].Success then
+      Inc(Succeeded);
+    Waiters[i].Free;
+  end;
+
   AssertEquals('Exactly K waiters should pass', K, Succeeded);
   AssertEquals('Available returns to 0', 0, FSem.GetAvailableCount);
 end;
@@ -494,6 +567,21 @@ begin
   FStartTime := NowMs;
   FSuccess := FSem.TryAcquire(1, FTimeoutMs);
   FActualTime := NowMs - FStartTime;
+end;
+
+{ TWaitAcquireThread }
+
+constructor TWaitAcquireThread.Create(const ASem: ISem; ATimeoutMs: Cardinal);
+begin
+  inherited Create(False);
+  FSem := ASem;
+  FTimeoutMs := ATimeoutMs;
+  FSuccess := False;
+end;
+
+procedure TWaitAcquireThread.Execute;
+begin
+  FSuccess := FSem.TryAcquire(1, FTimeoutMs);
 end;
 
 { TImprovedSamplerThread }

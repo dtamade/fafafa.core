@@ -67,9 +67,12 @@ end;
 
 initialization
   // Keep the direct pointer in sync with dispatch (including backend (re)registration).
-  SetDispatchChangedHook(@RebindDirectDispatch);
+  AddDispatchChangedHook(@RebindDirectDispatch);
 
   // Bind once at unit load (also acts as initial sync).
   RebindDirectDispatch;
+
+finalization
+  RemoveDispatchChangedHook(@RebindDirectDispatch);
 
 end.

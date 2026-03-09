@@ -1,5 +1,8 @@
 # SIMD 模块全面分析报告
 
+> **NOTE (INTERNAL)**：本文档为内部分析快照，内容可能与当前实现不一致。  
+> 对外口径请以 `docs/fafafa.core.simd*.md` 与 `src/fafafa.core.simd.STABLE` 为准。
+
 **分析日期**: 2026-02-05
 **最后更新**: 2026-02-05
 **模块版本**: fafafa.core.simd

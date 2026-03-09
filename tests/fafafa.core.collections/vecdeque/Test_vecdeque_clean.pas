@@ -230,7 +230,7 @@ type
     procedure Test_FindIFNotUnChecked_PredicateRefFunc;
 
     // stop after Find/FindIF/FindIFNot/FindLast batch
-    protected
+    published
 
 
     { ===== IVec 接口方法测试 (25个) ===== }
@@ -287,6 +287,10 @@ type
     procedure Test_Remove_Index_Count;
     procedure Test_RemoveSwap_Index;
     procedure Test_RemoveSwap_Index_Count;
+
+    // publish IVec/Queue batch
+    published
+
     procedure Test_Add_Element;
     procedure Test_Add_Array;
     procedure Test_Add_Pointer_Count;
@@ -380,7 +384,7 @@ type
     procedure Test_ReplaceIf_NewValue_PredicateRefFunc;
 
     // stop after Replace/ReplaceIF batch
-    protected
+    published
 
     procedure Test_IsSorted;
     procedure Test_IsSorted_CompareFunc;
@@ -442,7 +446,7 @@ type
     procedure Test_SortWith_Algorithm;
 
     // stop after Sort batch
-    protected
+    published
 
     procedure Test_ShuffleUnChecked_StartIndex_Count_RandomGeneratorMethod;
     procedure Test_ShuffleUnChecked_StartIndex_Count_RandomGeneratorRefFunc;
@@ -890,40 +894,822 @@ end;
 { 注意：这里为所有 270+ 个测试方法提供占位符实现 }
 
 { 构造函数测试占位符 (13个) }
-procedure TTestCase_VecDeque.Test_Create_Allocator_GrowStrategy; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_Create_Allocator_GrowStrategy_Data; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_Create_Capacity; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_Create_Capacity_Allocator; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_Create_Capacity_Allocator_GrowStrategy; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_Create_Capacity_Allocator_GrowStrategy_Data; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_Create_Collection_Allocator_GrowStrategy; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_Create_Collection_Allocator_GrowStrategy_Data; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_Create_Pointer_Count_Allocator_GrowStrategy; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_Create_Pointer_Count_Allocator_GrowStrategy_Data; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_Create_Array_Allocator_GrowStrategy; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_Create_Array_Allocator_GrowStrategy_Data; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_Destroy; begin { TODO: 实现 } end;
+procedure TTestCase_VecDeque.Test_Create_Allocator_GrowStrategy;
+var
+  LVecDeque: TVecDequeInt;
+  LAllocator: IAllocator;
+  LGrowStrategy: IGrowthStrategy;
+begin
+  LAllocator := TRtlAllocator.Create;
+  LGrowStrategy := TFixedGrowStrategy.Create(8);
+
+  LVecDeque := TVecDequeInt.Create(TVecDequeInt.VECDEQUE_DEFAULT_CAPACITY, LAllocator, LGrowStrategy);
+  try
+    AssertNotNull('Create(aAllocator,aGrowStrategy) should create valid vecdeque', LVecDeque);
+    AssertNotNull('VecDeque should have allocator', LVecDeque.GetAllocator);
+    AssertTrue('VecDeque should use provided allocator', LVecDeque.GetAllocator = LAllocator);
+    AssertNotNull('VecDeque should have grow strategy', LVecDeque.GetGrowStrategy);
+    AssertTrue('VecDeque should use provided grow strategy', LVecDeque.GetGrowStrategy = LGrowStrategy);
+    AssertTrue('VecDeque should be empty', LVecDeque.IsEmpty);
+    AssertEquals('VecDeque count should be 0', Int64(0), Int64(LVecDeque.GetCount));
+    AssertTrue('VecDeque capacity should be greater than 0', LVecDeque.GetCapacity > 0);
+    AssertTrue('VecDeque data should be nil', LVecDeque.GetData = nil);
+  finally
+    LVecDeque.Free;
+  end;
+end;
+procedure TTestCase_VecDeque.Test_Create_Allocator_GrowStrategy_Data;
+var
+  LVecDeque: TVecDequeInt;
+  LAllocator: IAllocator;
+  LGrowStrategy: IGrowthStrategy;
+  LTestData: Pointer;
+begin
+  LAllocator := TRtlAllocator.Create;
+  LGrowStrategy := TFixedGrowStrategy.Create(8);
+  LTestData := Pointer($1234ABCD);
+
+  LVecDeque := TVecDequeInt.Create(TVecDequeInt.VECDEQUE_DEFAULT_CAPACITY, LAllocator, LGrowStrategy, LTestData);
+  try
+    AssertNotNull('Create(aAllocator,aGrowStrategy,aData) should create valid vecdeque', LVecDeque);
+    AssertTrue('VecDeque should use provided allocator', LVecDeque.GetAllocator = LAllocator);
+    AssertTrue('VecDeque should use provided grow strategy', LVecDeque.GetGrowStrategy = LGrowStrategy);
+    AssertTrue('VecDeque should store provided data', LVecDeque.GetData = LTestData);
+    AssertTrue('VecDeque should be empty', LVecDeque.IsEmpty);
+    AssertEquals('VecDeque count should be 0', Int64(0), Int64(LVecDeque.GetCount));
+    AssertTrue('VecDeque capacity should be > 0', LVecDeque.GetCapacity > 0);
+  finally
+    LVecDeque.Free;
+  end;
+end;
+procedure TTestCase_VecDeque.Test_Create_Capacity;
+var
+  LVecDeque: TVecDequeInt;
+  LCapacity: SizeUInt;
+begin
+  LVecDeque := TVecDequeInt.Create(10);
+  try
+    AssertNotNull('Create(aCapacity) should create valid vecdeque', LVecDeque);
+    AssertTrue('VecDeque should be empty', LVecDeque.IsEmpty);
+    AssertEquals('VecDeque count should be 0', Int64(0), Int64(LVecDeque.GetCount));
+    LCapacity := LVecDeque.GetCapacity;
+    AssertTrue('VecDeque capacity should be >= requested capacity', LCapacity >= 10);
+    AssertTrue('VecDeque capacity should be power of two', (LCapacity <> 0) and ((LCapacity and (LCapacity - 1)) = 0));
+    AssertNotNull('VecDeque should have RTL allocator', LVecDeque.GetAllocator);
+    AssertTrue('VecDeque should use RTL allocator', LVecDeque.GetAllocator = GetRtlAllocator());
+    AssertTrue('VecDeque data should be nil', LVecDeque.GetData = nil);
+  finally
+    LVecDeque.Free;
+  end;
+
+  LVecDeque := TVecDequeInt.Create(0);
+  try
+    AssertNotNull('Create(0) should create valid vecdeque', LVecDeque);
+    AssertTrue('VecDeque should be empty with zero capacity request', LVecDeque.IsEmpty);
+    AssertEquals('VecDeque count should still be 0', Int64(0), Int64(LVecDeque.GetCount));
+    LCapacity := LVecDeque.GetCapacity;
+    AssertTrue('VecDeque internal capacity should remain >= 1', LCapacity >= 1);
+    AssertTrue('VecDeque internal capacity should be power of two for zero request',
+      (LCapacity <> 0) and ((LCapacity and (LCapacity - 1)) = 0));
+  finally
+    LVecDeque.Free;
+  end;
+end;
+procedure TTestCase_VecDeque.Test_Create_Capacity_Allocator;
+var
+  LVecDeque: TVecDequeInt;
+  LAllocator: IAllocator;
+  LCapacity: SizeUInt;
+begin
+  LAllocator := TRtlAllocator.Create;
+  LVecDeque := TVecDequeInt.Create(15, LAllocator);
+  try
+    AssertNotNull('Create(aCapacity, aAllocator) should create valid vecdeque', LVecDeque);
+    AssertTrue('VecDeque should use provided allocator', LVecDeque.GetAllocator = LAllocator);
+    AssertTrue('VecDeque default grow strategy should be nil (use internal power-of-two strategy)',
+      LVecDeque.GetGrowStrategy = nil);
+    AssertTrue('VecDeque should be empty', LVecDeque.IsEmpty);
+    AssertEquals('VecDeque count should be 0', Int64(0), Int64(LVecDeque.GetCount));
+    LCapacity := LVecDeque.GetCapacity;
+    AssertTrue('VecDeque capacity should be >= requested capacity', LCapacity >= 15);
+    AssertTrue('VecDeque capacity should be power of two',
+      (LCapacity <> 0) and ((LCapacity and (LCapacity - 1)) = 0));
+    AssertTrue('VecDeque data should be nil', LVecDeque.GetData = nil);
+  finally
+    LVecDeque.Free;
+  end;
+end;
+
+procedure TTestCase_VecDeque.Test_Create_Capacity_Allocator_GrowStrategy;
+var
+  LVecDeque: TVecDequeInt;
+  LAllocator: IAllocator;
+  LGrowStrategy: IGrowthStrategy;
+  LCapacity: SizeUInt;
+begin
+  LAllocator := TRtlAllocator.Create;
+  LGrowStrategy := TFixedGrowStrategy.Create(6);
+  LVecDeque := TVecDequeInt.Create(20, LAllocator, LGrowStrategy);
+  try
+    AssertNotNull('Create(aCapacity, aAllocator, aGrowStrategy) should create valid vecdeque', LVecDeque);
+    AssertTrue('VecDeque should use provided allocator', LVecDeque.GetAllocator = LAllocator);
+    AssertTrue('VecDeque should use provided grow strategy', LVecDeque.GetGrowStrategy = LGrowStrategy);
+    AssertTrue('VecDeque should be empty', LVecDeque.IsEmpty);
+    AssertEquals('VecDeque count should be 0', Int64(0), Int64(LVecDeque.GetCount));
+    LCapacity := LVecDeque.GetCapacity;
+    AssertTrue('VecDeque capacity should be >= requested capacity', LCapacity >= 20);
+    AssertTrue('VecDeque capacity should be power of two',
+      (LCapacity <> 0) and ((LCapacity and (LCapacity - 1)) = 0));
+    AssertTrue('VecDeque data should be nil', LVecDeque.GetData = nil);
+  finally
+    LVecDeque.Free;
+  end;
+end;
+
+procedure TTestCase_VecDeque.Test_Create_Capacity_Allocator_GrowStrategy_Data;
+var
+  LVecDeque: TVecDequeInt;
+  LAllocator: IAllocator;
+  LGrowStrategy: IGrowthStrategy;
+  LCapacity: SizeUInt;
+  LTestData: Pointer;
+begin
+  LAllocator := TRtlAllocator.Create;
+  LGrowStrategy := TGoldenRatioGrowStrategy.Create;
+  LTestData := Pointer($CAFEBABE);
+  LVecDeque := TVecDequeInt.Create(25, LAllocator, LGrowStrategy, LTestData);
+  try
+    AssertNotNull('Create(aCapacity, aAllocator, aGrowStrategy, aData) should create valid vecdeque', LVecDeque);
+    AssertTrue('VecDeque should use provided allocator', LVecDeque.GetAllocator = LAllocator);
+    AssertTrue('VecDeque should use provided grow strategy', LVecDeque.GetGrowStrategy = LGrowStrategy);
+    AssertTrue('VecDeque should store provided data', LVecDeque.GetData = LTestData);
+    AssertTrue('VecDeque should be empty', LVecDeque.IsEmpty);
+    AssertEquals('VecDeque count should be 0', Int64(0), Int64(LVecDeque.GetCount));
+    LCapacity := LVecDeque.GetCapacity;
+    AssertTrue('VecDeque capacity should be >= requested capacity', LCapacity >= 25);
+    AssertTrue('VecDeque capacity should be power of two',
+      (LCapacity <> 0) and ((LCapacity and (LCapacity - 1)) = 0));
+  finally
+    LVecDeque.Free;
+  end;
+end;
+
+procedure TTestCase_VecDeque.Test_Create_Collection_Allocator_GrowStrategy;
+var
+  LSourceVecDeque: TVecDequeInt;
+  LTargetVecDeque: TVecDequeInt;
+  LAllocator: IAllocator;
+  LGrowStrategy: IGrowthStrategy;
+  LIndex: SizeUInt;
+begin
+  LSourceVecDeque := TVecDequeInt.Create;
+  try
+    LSourceVecDeque.Append([1, 2, 3, 4, 5]);
+
+    LAllocator := TRtlAllocator.Create;
+    LGrowStrategy := TFixedGrowStrategy.Create(8);
+    LTargetVecDeque := TVecDequeInt.Create(LSourceVecDeque, LAllocator, LGrowStrategy);
+    try
+      AssertNotNull('Create(aSrc, aAllocator, aGrowStrategy) should create valid vecdeque', LTargetVecDeque);
+      AssertTrue('VecDeque should use provided allocator', LTargetVecDeque.GetAllocator = LAllocator);
+      AssertTrue('VecDeque should use provided grow strategy', LTargetVecDeque.GetGrowStrategy = LGrowStrategy);
+      AssertTrue('VecDeque data should be nil', LTargetVecDeque.GetData = nil);
+      AssertEquals('VecDeque should have same count as source',
+        Int64(LSourceVecDeque.GetCount), Int64(LTargetVecDeque.GetCount));
+
+      for LIndex := 0 to LTargetVecDeque.GetCount - 1 do
+        AssertEquals('VecDeque should contain same data as source at index ' + IntToStr(LIndex),
+          LSourceVecDeque.Get(LIndex), LTargetVecDeque.Get(LIndex));
+
+      LSourceVecDeque.Put(0, 999);
+      AssertEquals('Target should not be affected by source modification', 1, LTargetVecDeque.Get(0));
+    finally
+      LTargetVecDeque.Free;
+    end;
+  finally
+    LSourceVecDeque.Free;
+  end;
+end;
+
+procedure TTestCase_VecDeque.Test_Create_Collection_Allocator_GrowStrategy_Data;
+var
+  LSourceVecDeque: TVecDequeInt;
+  LTargetVecDeque: TVecDequeInt;
+  LAllocator: IAllocator;
+  LGrowStrategy: IGrowthStrategy;
+  LTestData: Pointer;
+  LIndex: SizeUInt;
+begin
+  LSourceVecDeque := TVecDequeInt.Create;
+  try
+    LSourceVecDeque.Append([99, 88, 77]);
+
+    LAllocator := TRtlAllocator.Create;
+    LGrowStrategy := TDoublingGrowStrategy.Create;
+    LTestData := Pointer($FACEFEED);
+    LTargetVecDeque := TVecDequeInt.Create(LSourceVecDeque, LAllocator, LGrowStrategy, LTestData);
+    try
+      AssertNotNull('Create(aSrc, aAllocator, aGrowStrategy, aData) should create valid vecdeque', LTargetVecDeque);
+      AssertTrue('VecDeque should use provided allocator', LTargetVecDeque.GetAllocator = LAllocator);
+      AssertTrue('VecDeque should use provided grow strategy', LTargetVecDeque.GetGrowStrategy = LGrowStrategy);
+      AssertTrue('VecDeque should store provided data', LTargetVecDeque.GetData = LTestData);
+      AssertEquals('VecDeque should have same count as source',
+        Int64(LSourceVecDeque.GetCount), Int64(LTargetVecDeque.GetCount));
+
+      for LIndex := 0 to LTargetVecDeque.GetCount - 1 do
+        AssertEquals('VecDeque should contain same data as source at index ' + IntToStr(LIndex),
+          LSourceVecDeque.Get(LIndex), LTargetVecDeque.Get(LIndex));
+
+      LSourceVecDeque.Put(0, 12345);
+      AssertEquals('Target should not be affected by source modification', 99, LTargetVecDeque.Get(0));
+    finally
+      LTargetVecDeque.Free;
+    end;
+  finally
+    LSourceVecDeque.Free;
+  end;
+end;
+
+procedure TTestCase_VecDeque.Test_Create_Pointer_Count_Allocator_GrowStrategy;
+var
+  LVecDeque: TVecDequeInt;
+  LAllocator: IAllocator;
+  LGrowStrategy: IGrowthStrategy;
+  LSourceData: array[0..4] of Integer;
+  LCapacity: SizeUInt;
+begin
+  LSourceData[0] := 11;
+  LSourceData[1] := 22;
+  LSourceData[2] := 33;
+  LSourceData[3] := 44;
+  LSourceData[4] := 55;
+
+  LAllocator := TRtlAllocator.Create;
+  LGrowStrategy := TPowerOfTwoGrowStrategy.Create;
+  LVecDeque := TVecDequeInt.Create(@LSourceData[0], 5, LAllocator, LGrowStrategy);
+  try
+    AssertNotNull('Create(aSrc, aCount, aAllocator, aGrowStrategy) should create valid vecdeque', LVecDeque);
+    AssertTrue('VecDeque should use provided allocator', LVecDeque.GetAllocator = LAllocator);
+    AssertTrue('VecDeque should use provided grow strategy', LVecDeque.GetGrowStrategy = LGrowStrategy);
+    AssertTrue('VecDeque data should be nil', LVecDeque.GetData = nil);
+    AssertEquals('VecDeque should have correct count', Int64(5), Int64(LVecDeque.GetCount));
+    AssertEquals('VecDeque should contain same data as source', 11, LVecDeque.Get(0));
+    AssertEquals('VecDeque should contain same data as source', 22, LVecDeque.Get(1));
+    AssertEquals('VecDeque should contain same data as source', 33, LVecDeque.Get(2));
+    AssertEquals('VecDeque should contain same data as source', 44, LVecDeque.Get(3));
+    AssertEquals('VecDeque should contain same data as source', 55, LVecDeque.Get(4));
+    LCapacity := LVecDeque.GetCapacity;
+    AssertTrue('VecDeque capacity should be >= count', LCapacity >= LVecDeque.GetCount);
+    AssertTrue('VecDeque capacity should be power of two',
+      (LCapacity <> 0) and ((LCapacity and (LCapacity - 1)) = 0));
+
+    LSourceData[0] := -1;
+    AssertEquals('VecDeque should keep copied data independent from source memory', 11, LVecDeque.Get(0));
+  finally
+    LVecDeque.Free;
+  end;
+end;
+
+procedure TTestCase_VecDeque.Test_Create_Pointer_Count_Allocator_GrowStrategy_Data;
+var
+  LVecDeque: TVecDequeInt;
+  LAllocator: IAllocator;
+  LGrowStrategy: IGrowthStrategy;
+  LTestData: Pointer;
+  LSourceData: array[0..2] of Integer;
+begin
+  LSourceData[0] := 999;
+  LSourceData[1] := 888;
+  LSourceData[2] := 777;
+
+  LAllocator := TRtlAllocator.Create;
+  LGrowStrategy := TGoldenRatioGrowStrategy.Create;
+  LTestData := Pointer($DEADC0DE);
+  LVecDeque := TVecDequeInt.Create(@LSourceData[0], 3, LAllocator, LGrowStrategy, LTestData);
+  try
+    AssertNotNull('Create(aSrc, aCount, aAllocator, aGrowStrategy, aData) should create valid vecdeque', LVecDeque);
+    AssertTrue('VecDeque should use provided allocator', LVecDeque.GetAllocator = LAllocator);
+    AssertTrue('VecDeque should use provided grow strategy', LVecDeque.GetGrowStrategy = LGrowStrategy);
+    AssertTrue('VecDeque should store provided data', LVecDeque.GetData = LTestData);
+    AssertEquals('VecDeque should have correct count', Int64(3), Int64(LVecDeque.GetCount));
+    AssertEquals('VecDeque should contain same data as source', 999, LVecDeque.Get(0));
+    AssertEquals('VecDeque should contain same data as source', 888, LVecDeque.Get(1));
+    AssertEquals('VecDeque should contain same data as source', 777, LVecDeque.Get(2));
+
+    LSourceData[0] := -1;
+    AssertEquals('VecDeque should keep copied data independent from source memory', 999, LVecDeque.Get(0));
+  finally
+    LVecDeque.Free;
+  end;
+end;
+
+procedure TTestCase_VecDeque.Test_Create_Array_Allocator_GrowStrategy;
+var
+  LVecDeque: TVecDequeInt;
+  LAllocator: IAllocator;
+  LGrowStrategy: IGrowthStrategy;
+  LCapacity: SizeUInt;
+begin
+  LAllocator := TRtlAllocator.Create;
+  LGrowStrategy := TFixedGrowStrategy.Create(5);
+  LVecDeque := TVecDequeInt.Create([1000, 2000, 3000, 4000], LAllocator, LGrowStrategy);
+  try
+    AssertNotNull('Create(aSrc, aAllocator, aGrowStrategy) should create valid vecdeque', LVecDeque);
+    AssertTrue('VecDeque should use provided allocator', LVecDeque.GetAllocator = LAllocator);
+    AssertTrue('VecDeque should use provided grow strategy', LVecDeque.GetGrowStrategy = LGrowStrategy);
+    AssertTrue('VecDeque data should be nil', LVecDeque.GetData = nil);
+    AssertEquals('VecDeque should have correct count', Int64(4), Int64(LVecDeque.GetCount));
+    AssertEquals('VecDeque should contain same data as source', 1000, LVecDeque.Get(0));
+    AssertEquals('VecDeque should contain same data as source', 2000, LVecDeque.Get(1));
+    AssertEquals('VecDeque should contain same data as source', 3000, LVecDeque.Get(2));
+    AssertEquals('VecDeque should contain same data as source', 4000, LVecDeque.Get(3));
+    LCapacity := LVecDeque.GetCapacity;
+    AssertTrue('VecDeque capacity should be >= count', LCapacity >= LVecDeque.GetCount);
+    AssertTrue('VecDeque capacity should be power of two',
+      (LCapacity <> 0) and ((LCapacity and (LCapacity - 1)) = 0));
+  finally
+    LVecDeque.Free;
+  end;
+end;
+
+procedure TTestCase_VecDeque.Test_Create_Array_Allocator_GrowStrategy_Data;
+var
+  LVecDeque: TVecDequeInt;
+  LAllocator: IAllocator;
+  LGrowStrategy: IGrowthStrategy;
+  LTestData: Pointer;
+begin
+  LAllocator := TRtlAllocator.Create;
+  LGrowStrategy := TDoublingGrowStrategy.Create;
+  LTestData := Pointer($ABCD1234);
+  LVecDeque := TVecDequeInt.Create([5000, 6000], LAllocator, LGrowStrategy, LTestData);
+  try
+    AssertNotNull('Create(aSrc, aAllocator, aGrowStrategy, aData) should create valid vecdeque', LVecDeque);
+    AssertTrue('VecDeque should use provided allocator', LVecDeque.GetAllocator = LAllocator);
+    AssertTrue('VecDeque should use provided grow strategy', LVecDeque.GetGrowStrategy = LGrowStrategy);
+    AssertTrue('VecDeque should store provided data', LVecDeque.GetData = LTestData);
+    AssertEquals('VecDeque should have correct count', Int64(2), Int64(LVecDeque.GetCount));
+    AssertEquals('VecDeque should contain same data as source', 5000, LVecDeque.Get(0));
+    AssertEquals('VecDeque should contain same data as source', 6000, LVecDeque.Get(1));
+  finally
+    LVecDeque.Free;
+  end;
+end;
+procedure TTestCase_VecDeque.Test_Destroy;
+var
+  LVecDeque: TVecDequeInt;
+  LAllocator: IAllocator;
+begin
+  LVecDeque := TVecDequeInt.Create;
+  LVecDeque.Free;
+
+  LVecDeque := TVecDequeInt.Create;
+  LVecDeque.PushBack(1);
+  LVecDeque.PushBack(2);
+  LVecDeque.PushBack(3);
+  AssertEquals('Destroy前计数应为3', Int64(3), Int64(LVecDeque.GetCount));
+  LVecDeque.Free;
+
+  LAllocator := TRtlAllocator.Create;
+  LVecDeque := TVecDequeInt.Create(LAllocator);
+  LVecDeque.PushBack(42);
+  AssertEquals('自定义分配器实例在Destroy前应有1个元素', Int64(1), Int64(LVecDeque.GetCount));
+  LVecDeque.Free;
+
+  AssertNotNull('VecDeque释放后分配器接口应仍有效', LAllocator);
+end;
 
 { ICollection 接口方法测试占位符 (5个) }
-procedure TTestCase_VecDeque.Test_PtrIter; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_SerializeToArrayBuffer; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_AppendUnChecked; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_AppendToUnChecked; begin { TODO: 实现 } end;
+procedure TTestCase_VecDeque.Test_PtrIter;
+var
+  LIter: TPtrIter;
+  LValues: array[0..5] of Integer;
+  LCount: Integer;
+begin
+  FVecDeque.Clear;
+
+  LIter := FVecDeque.PtrIter;
+  AssertFalse('Empty iterator MoveNext should be false', LIter.MoveNext);
+  AssertTrue('Empty iterator current should be nil', LIter.GetCurrent = nil);
+
+  FVecDeque.Append([10, 20, 30, 40, 50, 60]);
+  FVecDeque.PopFront;
+  FVecDeque.PopFront;
+  FVecDeque.PushBack(70);
+  FVecDeque.PushBack(80);
+  // 逻辑序列应为 [30,40,50,60,70,80]
+
+  LIter := FVecDeque.PtrIter;
+  LCount := 0;
+  while LIter.MoveNext do
+  begin
+    AssertNotNull('Iterator current pointer should not be nil', LIter.GetCurrent);
+    LValues[LCount] := PInteger(LIter.GetCurrent)^;
+    Inc(LCount);
+  end;
+
+  AssertEquals('Iterator should visit all elements', 6, LCount);
+  AssertEquals('Iter value #0', 30, LValues[0]);
+  AssertEquals('Iter value #1', 40, LValues[1]);
+  AssertEquals('Iter value #2', 50, LValues[2]);
+  AssertEquals('Iter value #3', 60, LValues[3]);
+  AssertEquals('Iter value #4', 70, LValues[4]);
+  AssertEquals('Iter value #5', 80, LValues[5]);
+
+  LIter.Reset;
+  AssertTrue('Reset iterator should iterate again', LIter.MoveNext);
+  AssertEquals('First element after reset should be 30', 30, PInteger(LIter.GetCurrent)^);
+end;
+
+procedure TTestCase_VecDeque.Test_SerializeToArrayBuffer;
+var
+  LBuffer: array[0..5] of Integer;
+begin
+  FVecDeque.Clear;
+  FVecDeque.Append([10, 20, 30, 40, 50, 60]);
+  FVecDeque.PopFront;
+  FVecDeque.PopFront;
+  FVecDeque.PushBack(70);
+  FVecDeque.PushBack(80);
+  // 逻辑序列 [30,40,50,60,70,80]
+
+  FillChar(LBuffer, SizeOf(LBuffer), 0);
+  FVecDeque.SerializeToArrayBuffer(@LBuffer[0], 6);
+  AssertEquals('Serialized value #0', 30, LBuffer[0]);
+  AssertEquals('Serialized value #1', 40, LBuffer[1]);
+  AssertEquals('Serialized value #2', 50, LBuffer[2]);
+  AssertEquals('Serialized value #3', 60, LBuffer[3]);
+  AssertEquals('Serialized value #4', 70, LBuffer[4]);
+  AssertEquals('Serialized value #5', 80, LBuffer[5]);
+
+  FillChar(LBuffer, SizeOf(LBuffer), 0);
+  FVecDeque.SerializeToArrayBuffer(@LBuffer[0], 4);
+  AssertEquals('Partial serialized value #0', 30, LBuffer[0]);
+  AssertEquals('Partial serialized value #1', 40, LBuffer[1]);
+  AssertEquals('Partial serialized value #2', 50, LBuffer[2]);
+  AssertEquals('Partial serialized value #3', 60, LBuffer[3]);
+  AssertEquals('Remaining should stay zero #4', 0, LBuffer[4]);
+  AssertEquals('Remaining should stay zero #5', 0, LBuffer[5]);
+
+  try
+    FVecDeque.SerializeToArrayBuffer(nil, 1);
+    Fail('SerializeToArrayBuffer should raise EArgumentNil when dst=nil');
+  except
+    on EArgumentNil do ;
+  end;
+
+  try
+    FVecDeque.SerializeToArrayBuffer(@LBuffer[0], FVecDeque.GetCount + 1);
+    Fail('SerializeToArrayBuffer should raise EOutOfRange when count > Count');
+  except
+    on EOutOfRange do ;
+  end;
+end;
+
+procedure TTestCase_VecDeque.Test_AppendUnChecked;
+var
+  LSourceData: array[0..2] of Integer;
+  LSourceVecDeque: TVecDequeInt;
+  LArraySource: specialize TArray<Integer>;
+begin
+  FVecDeque.Clear;
+  FVecDeque.Append([1, 2]);
+  LSourceData[0] := 10;
+  LSourceData[1] := 20;
+  LSourceData[2] := 30;
+
+  FVecDeque.AppendUnChecked(@LSourceData[0], 3);
+  ExpectSeq([1, 2, 10, 20, 30]);
+
+  LSourceVecDeque := TVecDequeInt.Create;
+  try
+    LSourceVecDeque.Append([40, 50]);
+    FVecDeque.AppendUnChecked(LSourceVecDeque);
+  finally
+    LSourceVecDeque.Free;
+  end;
+  ExpectSeq([1, 2, 10, 20, 30, 40, 50]);
+
+  LArraySource := specialize TArray<Integer>.Create(2);
+  try
+    LArraySource.Put(0, 60);
+    LArraySource.Put(1, 70);
+    FVecDeque.AppendUnChecked(LArraySource);
+  finally
+    LArraySource.Free;
+  end;
+  ExpectSeq([1, 2, 10, 20, 30, 40, 50, 60, 70]);
+
+  // 空操作路径
+  FVecDeque.AppendUnChecked(Pointer(nil), 0);
+  FVecDeque.AppendUnChecked(TCollection(nil));
+  AssertEquals('Count should remain unchanged after no-op appends', Int64(9), Int64(FVecDeque.GetCount));
+end;
+
+procedure TTestCase_VecDeque.Test_AppendToUnChecked;
+var
+  LTarget: TVecDequeInt;
+begin
+  FVecDeque.Clear;
+  FVecDeque.Append([30, 40, 50, 60, 70, 80]);
+  FVecDeque.PopFront;
+  FVecDeque.PopFront;
+  FVecDeque.PushBack(90);
+  FVecDeque.PushBack(100);
+  // 源逻辑序列 [50,60,70,80,90,100]，形成 wrap
+
+  LTarget := TVecDequeInt.Create;
+  try
+    LTarget.Append([1, 2]);
+    FVecDeque.AppendToUnChecked(LTarget);
+
+    ExpectSeq([50, 60, 70, 80, 90, 100]); // 源不变
+    AssertEquals('Target should have combined count', Int64(8), Int64(LTarget.GetCount));
+    AssertEquals('Target element #0', 1, LTarget.Get(0));
+    AssertEquals('Target element #1', 2, LTarget.Get(1));
+    AssertEquals('Target appended #0', 50, LTarget.Get(2));
+    AssertEquals('Target appended #1', 60, LTarget.Get(3));
+    AssertEquals('Target appended #2', 70, LTarget.Get(4));
+    AssertEquals('Target appended #3', 80, LTarget.Get(5));
+    AssertEquals('Target appended #4', 90, LTarget.Get(6));
+    AssertEquals('Target appended #5', 100, LTarget.Get(7));
+  finally
+    LTarget.Free;
+  end;
+end;
 
 { IGenericCollection 接口方法测试占位符 (1个) }
-procedure TTestCase_VecDeque.Test_SaveToUnChecked; begin { TODO: 实现 } end;
+procedure TTestCase_VecDeque.Test_SaveToUnChecked;
+var
+  LTarget: TVecDequeInt;
+begin
+  FVecDeque.Clear;
+  FVecDeque.Append([70, 80, 90, 100]);
+
+  LTarget := TVecDequeInt.Create;
+  try
+    LTarget.Append([1, 2, 3]);
+    FVecDeque.SaveToUnChecked(LTarget);
+
+    // SaveToUnChecked 在 VecDeque 中为 AppendToUnChecked，不清空目标
+    AssertEquals('Source count should remain unchanged', Int64(4), Int64(FVecDeque.GetCount));
+    AssertEquals('Target should append source elements', Int64(7), Int64(LTarget.GetCount));
+    AssertEquals('Target kept old #0', 1, LTarget.Get(0));
+    AssertEquals('Target kept old #1', 2, LTarget.Get(1));
+    AssertEquals('Target kept old #2', 3, LTarget.Get(2));
+    AssertEquals('Target appended #0', 70, LTarget.Get(3));
+    AssertEquals('Target appended #1', 80, LTarget.Get(4));
+    AssertEquals('Target appended #2', 90, LTarget.Get(5));
+    AssertEquals('Target appended #3', 100, LTarget.Get(6));
+  finally
+    LTarget.Free;
+  end;
+end;
 
 { IArray 接口方法测试占位符 (34个) }
-procedure TTestCase_VecDeque.Test_GetMemory; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_Get; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_GetUnChecked; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_Put; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_PutUnChecked; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_GetPtr; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_GetPtrUnChecked; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_Resize; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_Resize_Value; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_Ensure; begin { TODO: 实现 } end;
+procedure TTestCase_VecDeque.Test_GetMemory;
+var
+  LMem: PInteger;
+begin
+  FVecDeque.Clear;
+  AssertTrue('GetMemory should return nil for empty vecdeque', FVecDeque.GetMemory = nil);
+
+  FVecDeque.Append([10, 20, 30]);
+  LMem := FVecDeque.GetMemory;
+  AssertNotNull('GetMemory should return valid pointer when non-empty', LMem);
+  AssertEquals('Memory points to first logical element', 10, LMem^);
+
+  FVecDeque.PopFront;
+  FVecDeque.PopFront;
+  FVecDeque.PushBack(40);
+  FVecDeque.PushBack(50);
+  // 逻辑序列 [30,40,50]
+  LMem := FVecDeque.GetMemory;
+  AssertNotNull('GetMemory should remain valid in wrap state', LMem);
+  AssertEquals('Memory should point to current first logical element in wrap state', 30, LMem^);
+
+  // 指针写回应修改首元素
+  LMem^ := 3030;
+  AssertEquals('Write through GetMemory pointer should update first element', 3030, FVecDeque.Get(0));
+end;
+procedure TTestCase_VecDeque.Test_Get;
+begin
+  FVecDeque.Clear;
+  FVecDeque.Append([11, 22, 33]);
+
+  AssertEquals('Get(0) should return first element', 11, FVecDeque.Get(0));
+  AssertEquals('Get(1) should return second element', 22, FVecDeque.Get(1));
+  AssertEquals('Get(2) should return third element', 33, FVecDeque.Get(2));
+
+  FVecDeque.Clear;
+  FVecDeque.Append([1, 2, 3, 4, 5, 6]);
+  FVecDeque.PopFront;
+  FVecDeque.PopFront;
+  FVecDeque.PushBack(7);
+  FVecDeque.PushBack(8);
+
+  AssertEquals('Get should keep logical order after wrap #0', 3, FVecDeque.Get(0));
+  AssertEquals('Get should keep logical order after wrap #1', 4, FVecDeque.Get(1));
+  AssertEquals('Get should keep logical order after wrap #2', 5, FVecDeque.Get(2));
+  AssertEquals('Get should keep logical order after wrap #3', 6, FVecDeque.Get(3));
+  AssertEquals('Get should keep logical order after wrap #4', 7, FVecDeque.Get(4));
+  AssertEquals('Get should keep logical order after wrap #5', 8, FVecDeque.Get(5));
+
+  try
+    FVecDeque.Get(FVecDeque.GetCount);
+    Fail('Get should raise EOutOfRange on index==Count');
+  except
+    on EOutOfRange do ;
+  end;
+end;
+procedure TTestCase_VecDeque.Test_GetUnChecked;
+begin
+  FVecDeque.Clear;
+  FVecDeque.Append([101, 202, 303]);
+
+  AssertEquals('GetUnChecked(0) should return first element', 101, FVecDeque.GetUnChecked(0));
+  AssertEquals('GetUnChecked(1) should return second element', 202, FVecDeque.GetUnChecked(1));
+  AssertEquals('GetUnChecked(2) should return third element', 303, FVecDeque.GetUnChecked(2));
+
+  FVecDeque.Clear;
+  FVecDeque.Append([1, 2, 3, 4, 5, 6]);
+  FVecDeque.PopFront;
+  FVecDeque.PopFront;
+  FVecDeque.PushBack(7);
+  FVecDeque.PushBack(8);
+
+  AssertEquals('GetUnChecked should keep logical order after wrap #0', 3, FVecDeque.GetUnChecked(0));
+  AssertEquals('GetUnChecked should keep logical order after wrap #1', 4, FVecDeque.GetUnChecked(1));
+  AssertEquals('GetUnChecked should keep logical order after wrap #2', 5, FVecDeque.GetUnChecked(2));
+  AssertEquals('GetUnChecked should keep logical order after wrap #3', 6, FVecDeque.GetUnChecked(3));
+  AssertEquals('GetUnChecked should keep logical order after wrap #4', 7, FVecDeque.GetUnChecked(4));
+  AssertEquals('GetUnChecked should keep logical order after wrap #5', 8, FVecDeque.GetUnChecked(5));
+end;
+procedure TTestCase_VecDeque.Test_Put;
+begin
+  FVecDeque.Clear;
+  FVecDeque.Append([10, 20, 30]);
+
+  FVecDeque.Put(0, 111);
+  FVecDeque.Put(2, 333);
+  ExpectSeq([111, 20, 333]);
+
+  FVecDeque.Clear;
+  FVecDeque.Append([1, 2, 3, 4, 5, 6]);
+  FVecDeque.PopFront;
+  FVecDeque.PopFront;
+  FVecDeque.PushBack(7);
+  FVecDeque.PushBack(8);
+
+  FVecDeque.Put(1, 404);
+  FVecDeque.Put(4, 707);
+  ExpectSeq([3, 404, 5, 6, 707, 8]);
+
+  try
+    FVecDeque.Put(FVecDeque.GetCount, 999);
+    Fail('Put should raise EOutOfRange on index==Count');
+  except
+    on EOutOfRange do ;
+  end;
+end;
+procedure TTestCase_VecDeque.Test_PutUnChecked;
+begin
+  FVecDeque.Clear;
+  FVecDeque.Append([10, 20, 30]);
+
+  FVecDeque.PutUnChecked(0, 101);
+  FVecDeque.PutUnChecked(2, 303);
+  ExpectSeq([101, 20, 303]);
+
+  FVecDeque.Clear;
+  FVecDeque.Append([1, 2, 3, 4, 5, 6]);
+  FVecDeque.PopFront;
+  FVecDeque.PopFront;
+  FVecDeque.PushBack(7);
+  FVecDeque.PushBack(8);
+
+  FVecDeque.PutUnChecked(1, 404);
+  FVecDeque.PutUnChecked(4, 707);
+  ExpectSeq([3, 404, 5, 6, 707, 8]);
+end;
+procedure TTestCase_VecDeque.Test_GetPtr;
+var
+  LPtr: PInteger;
+begin
+  FVecDeque.Clear;
+  FVecDeque.Append([10, 20, 30]);
+
+  LPtr := FVecDeque.GetPtr(1);
+  AssertNotNull('GetPtr should return valid pointer', LPtr);
+  AssertEquals('GetPtr should point to expected value', 20, LPtr^);
+  LPtr^ := 222;
+  AssertEquals('Write via GetPtr pointer should update container', 222, FVecDeque.Get(1));
+
+  FVecDeque.Clear;
+  FVecDeque.Append([1, 2, 3, 4, 5, 6]);
+  FVecDeque.PopFront;
+  FVecDeque.PopFront;
+  FVecDeque.PushBack(7);
+  FVecDeque.PushBack(8);
+
+  LPtr := FVecDeque.GetPtr(4);
+  AssertNotNull('GetPtr in wrapped layout should return valid pointer', LPtr);
+  AssertEquals('GetPtr in wrapped layout should map logical index correctly', 7, LPtr^);
+
+  try
+    FVecDeque.GetPtr(FVecDeque.GetCount);
+    Fail('GetPtr should raise EOutOfRange on index==Count');
+  except
+    on EOutOfRange do ;
+  end;
+end;
+procedure TTestCase_VecDeque.Test_GetPtrUnChecked;
+var
+  LPtr: PInteger;
+begin
+  FVecDeque.Clear;
+  FVecDeque.Append([100, 200, 300]);
+
+  LPtr := FVecDeque.GetPtrUnChecked(1);
+  AssertNotNull('GetPtrUnChecked should return valid pointer', LPtr);
+  AssertEquals('GetPtrUnChecked should point to expected value', 200, LPtr^);
+  LPtr^ := 2222;
+  AssertEquals('Write via GetPtrUnChecked pointer should update container', 2222, FVecDeque.Get(1));
+
+  FVecDeque.Clear;
+  FVecDeque.Append([1, 2, 3, 4, 5, 6]);
+  FVecDeque.PopFront;
+  FVecDeque.PopFront;
+  FVecDeque.PushBack(7);
+  FVecDeque.PushBack(8);
+
+  LPtr := FVecDeque.GetPtrUnChecked(4);
+  AssertNotNull('GetPtrUnChecked in wrapped layout should return valid pointer', LPtr);
+  AssertEquals('GetPtrUnChecked in wrapped layout should map logical index correctly', 7, LPtr^);
+end;
+procedure TTestCase_VecDeque.Test_Resize;
+begin
+  FVecDeque.Clear;
+  FVecDeque.Append([1, 2, 3]);
+
+  FVecDeque.Resize(6);
+  AssertEquals('Resize grow should update count', SizeInt(6), SizeInt(FVecDeque.GetCount));
+  AssertTrue('Resize grow should ensure capacity', FVecDeque.GetCapacity >= 6);
+
+  FVecDeque.Put(3, 40);
+  FVecDeque.Put(4, 50);
+  FVecDeque.Put(5, 60);
+  AssertEquals('Resized index 3 should be writable', 40, FVecDeque.Get(3));
+  AssertEquals('Resized index 4 should be writable', 50, FVecDeque.Get(4));
+  AssertEquals('Resized index 5 should be writable', 60, FVecDeque.Get(5));
+
+  FVecDeque.Resize(2);
+  AssertEquals('Resize shrink should update count', SizeInt(2), SizeInt(FVecDeque.GetCount));
+  AssertEquals('Element #0 should remain after shrink', 1, FVecDeque.Get(0));
+  AssertEquals('Element #1 should remain after shrink', 2, FVecDeque.Get(1));
+
+  try
+    FVecDeque.Get(2);
+    Fail('Get on trimmed index should raise EOutOfRange');
+  except
+    on EOutOfRange do ;
+  end;
+end;
+procedure TTestCase_VecDeque.Test_Resize_Value;
+begin
+  FVecDeque.Clear;
+  FVecDeque.Append([1, 2, 3]);
+
+  FVecDeque.Resize(5, 9);
+  AssertEquals('Resize(value) grow should update count', SizeInt(5), SizeInt(FVecDeque.GetCount));
+  ExpectSeq([1, 2, 3, 9, 9]);
+
+  FVecDeque.Resize(2, 99);
+  AssertEquals('Resize(value) shrink should update count', SizeInt(2), SizeInt(FVecDeque.GetCount));
+  ExpectSeq([1, 2]);
+
+  FVecDeque.Resize(4, 7);
+  AssertEquals('Resize(value) regrow should update count', SizeInt(4), SizeInt(FVecDeque.GetCount));
+  ExpectSeq([1, 2, 7, 7]);
+end;
+procedure TTestCase_VecDeque.Test_Ensure;
+begin
+  FVecDeque.Clear;
+  FVecDeque.Append([1, 2, 3]);
+
+  FVecDeque.Ensure(1);
+  AssertEquals('Ensure in-range should keep count', SizeInt(3), SizeInt(FVecDeque.GetCount));
+  ExpectSeq([1, 2, 3]);
+
+  FVecDeque.Ensure(5);
+  AssertEquals('Ensure out-of-range should grow count', SizeInt(6), SizeInt(FVecDeque.GetCount));
+  AssertEquals('Existing element #0 should remain', 1, FVecDeque.Get(0));
+  AssertEquals('Existing element #1 should remain', 2, FVecDeque.Get(1));
+  AssertEquals('Existing element #2 should remain', 3, FVecDeque.Get(2));
+
+  FVecDeque.Put(5, 60);
+  AssertEquals('Expanded index should be writable', 60, FVecDeque.Get(5));
+end;
 procedure TTestCase_VecDeque.Test_OverWrite_Pointer;
 var
   Buf: array[0..1] of Integer;
@@ -1059,18 +1845,52 @@ begin
 end;
 
 procedure TTestCase_VecDeque.Test_Read_Collection;
+var
+  LTarget: TCollection;
 begin
-  // TODO: 修复Read方法的Access violation问题
-  // 当前实现存在内存访问问题，暂时跳过
-  AssertTrue('Read test placeholder - TODO: Fix Access Violation', True);
+  LTarget := TVecDequeInt.Create;
+  try
+    FVecDeque.Clear;
+    FVecDeque.Append([10, 20, 30, 40, 50]);
+
+    FVecDeque.Read(1, LTarget, 3);
+
+    AssertEquals('Read collection count', SizeInt(3), SizeInt(LTarget.GetCount));
+    AssertEquals(20, TVecDequeInt(LTarget).Get(0));
+    AssertEquals(30, TVecDequeInt(LTarget).Get(1));
+    AssertEquals(40, TVecDequeInt(LTarget).Get(2));
+
+    try
+      FVecDeque.Read(3, LTarget, 3);
+      Fail('Read should bounds-check collection overload');
+    except
+      on EOutOfRange do ;
+    end;
+  finally
+    LTarget.Free;
+  end;
 end;
 
 procedure TTestCase_VecDeque.Test_ReadUnChecked_Collection;
+var
+  LTarget: TCollection;
 begin
-  // TODO: 修复ReadUnChecked方法的Access violation问题
-  // 当前实现存在内存访问问题，暂时跳过
-  AssertTrue('ReadUnChecked test placeholder - TODO: Fix Access Violation', True);
+  LTarget := TVecDequeInt.Create;
+  try
+    FVecDeque.Clear;
+    FVecDeque.Append([5, 6, 7, 8]);
+
+    FVecDeque.ReadUnChecked(1, LTarget, 3);
+
+    AssertEquals('ReadUnChecked collection count', SizeInt(3), SizeInt(LTarget.GetCount));
+    AssertEquals(6, TVecDequeInt(LTarget).Get(0));
+    AssertEquals(7, TVecDequeInt(LTarget).Get(1));
+    AssertEquals(8, TVecDequeInt(LTarget).Get(2));
+  finally
+    LTarget.Free;
+  end;
 end;
+
 procedure TTestCase_VecDeque.Test_LoadFromArray_Empty;
 var
   LEmpty: array of Integer;
@@ -1083,21 +1903,390 @@ begin
   FVecDeque.LoadFromArray(LEmpty);
   AssertEquals('LoadFromArray([]) should clear the deque', 0, FVecDeque.GetCount);
 end;
-procedure TTestCase_VecDeque.Test_Swap_TwoElements; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_SwapUnChecked_TwoElements; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_Swap_Range; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_Swap_Stride; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_Copy; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_CopyUnChecked; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_Fill_Single; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_Fill_Range; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_FillUnChecked; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_Zero_Single; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_Zero_Range; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_ZeroUnChecked; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_Reverse_Single; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_Reverse_Range; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_ReverseUnChecked; begin { TODO: 实现 } end;
+procedure TTestCase_VecDeque.Test_Swap_TwoElements;
+begin
+  FVecDeque.Clear;
+  FVecDeque.Append([1, 2, 3, 4]);
+
+  FVecDeque.Swap(1, 3);
+  AssertEquals('Swap should not change count', SizeInt(4), SizeInt(FVecDeque.GetCount));
+  ExpectSeq([1, 4, 3, 2]);
+
+  try
+    FVecDeque.Swap(0, 4);
+    Fail('Swap with out-of-range index should raise EOutOfRange');
+  except
+    on EOutOfRange do ;
+  end;
+end;
+procedure TTestCase_VecDeque.Test_SwapUnChecked_TwoElements;
+var
+  LCountBefore: SizeInt;
+begin
+  FVecDeque.Clear;
+  FVecDeque.Append([1, 2, 3, 4]);
+
+  LCountBefore := FVecDeque.GetCount;
+  FVecDeque.SwapUnChecked(0, 3);
+  AssertEquals('SwapUnChecked should not change count', SizeInt(LCountBefore), SizeInt(FVecDeque.GetCount));
+  ExpectSeq([4, 2, 3, 1]);
+
+  FVecDeque.SwapUnChecked(2, 2);
+  ExpectSeq([4, 2, 3, 1]);
+
+  // Wraparound layout
+  FVecDeque.Clear;
+  FVecDeque.Append([1, 2, 3, 4, 5, 6, 7]);
+  FVecDeque.PopFront;
+  FVecDeque.PopFront;
+  FVecDeque.PushBack(8);
+  FVecDeque.PushBack(9);
+
+  FVecDeque.SwapUnChecked(1, 4);
+  ExpectSeq([3, 7, 5, 6, 4, 8, 9]);
+end;
+
+procedure TTestCase_VecDeque.Test_Swap_Range;
+var
+  LCountBefore: SizeInt;
+begin
+  FVecDeque.Clear;
+  FVecDeque.Append([1, 2, 3, 4, 5, 6]);
+
+  LCountBefore := FVecDeque.GetCount;
+  FVecDeque.Swap(0, 3, 2);
+  AssertEquals('Swap(range) should not change count', SizeInt(LCountBefore), SizeInt(FVecDeque.GetCount));
+  ExpectSeq([4, 5, 3, 1, 2, 6]);
+
+  // Overlap range: follows sequential pairwise swap semantics
+  FVecDeque.Clear;
+  FVecDeque.Append([10, 20, 30, 40, 50]);
+  FVecDeque.Swap(1, 2, 3);
+  ExpectSeq([10, 30, 40, 50, 20]);
+
+  // Wraparound layout
+  FVecDeque.Clear;
+  FVecDeque.Append([1, 2, 3, 4, 5, 6, 7]);
+  FVecDeque.PopFront;
+  FVecDeque.PopFront;
+  FVecDeque.PushBack(8);
+  FVecDeque.PushBack(9);
+  FVecDeque.Swap(0, 4, 2);
+  ExpectSeq([7, 8, 5, 6, 3, 4, 9]);
+
+  try
+    FVecDeque.Swap(6, 0, 2);
+    Fail('Swap(range) out-of-range should raise EOutOfRange');
+  except
+    on EOutOfRange do ;
+  end;
+end;
+
+procedure TTestCase_VecDeque.Test_Swap_Stride;
+var
+  LCountBefore: SizeInt;
+begin
+  FVecDeque.Clear;
+  FVecDeque.Append([1, 2, 3, 4, 5, 6, 7, 8]);
+
+  LCountBefore := FVecDeque.GetCount;
+  FVecDeque.Swap(0, 1, 3, 2);
+  AssertEquals('Swap(stride) should not change count', SizeInt(LCountBefore), SizeInt(FVecDeque.GetCount));
+  ExpectSeq([2, 1, 4, 3, 6, 5, 7, 8]);
+
+  // stride=1 works as strided pairwise swap
+  FVecDeque.Clear;
+  FVecDeque.Append([10, 20, 30, 40, 50]);
+  FVecDeque.Swap(0, 2, 2, 1);
+  ExpectSeq([30, 40, 10, 20, 50]);
+
+  // Wraparound layout
+  FVecDeque.Clear;
+  FVecDeque.Append([1, 2, 3, 4, 5, 6, 7]);
+  FVecDeque.PopFront;
+  FVecDeque.PopFront;
+  FVecDeque.PushBack(8);
+  FVecDeque.PushBack(9);
+  FVecDeque.Swap(0, 1, 3, 2);
+  ExpectSeq([4, 3, 6, 5, 8, 7, 9]);
+end;
+procedure TTestCase_VecDeque.Test_Copy;
+begin
+  FVecDeque.Clear;
+  FVecDeque.Append([10, 20, 30, 40, 50]);
+
+  FVecDeque.Copy(0, 2, 2);
+  ExpectSeq([10, 20, 10, 20, 50]);
+
+  FVecDeque.Copy(1, 0, 3);
+  ExpectSeq([20, 10, 20, 20, 50]);
+
+  try
+    FVecDeque.Copy(4, 0, 2);
+    Fail('Copy out-of-range should raise EOutOfRange');
+  except
+    on EOutOfRange do ;
+  end;
+end;
+procedure TTestCase_VecDeque.Test_CopyUnChecked;
+var
+  LCountBefore: SizeInt;
+begin
+  FVecDeque.Clear;
+  FVecDeque.Append([1, 2, 3, 4, 5]);
+  FVecDeque.CopyUnChecked(0, 3, 2);
+  ExpectSeq([1, 2, 3, 1, 2]);
+
+  FVecDeque.Clear;
+  FVecDeque.Append([10, 20, 30, 40, 50]);
+  LCountBefore := FVecDeque.GetCount;
+  FVecDeque.CopyUnChecked(0, 1, 4);
+  AssertEquals('CopyUnChecked should keep count', SizeInt(LCountBefore), SizeInt(FVecDeque.GetCount));
+  ExpectSeq([10, 10, 20, 30, 40]);
+
+  FVecDeque.CopyUnChecked(1, 0, 4);
+  ExpectSeq([10, 20, 30, 40, 40]);
+
+  FVecDeque.CopyUnChecked(2, 0, 0);
+  ExpectSeq([10, 20, 30, 40, 40]);
+
+  // Wraparound layout
+  FVecDeque.Clear;
+  FVecDeque.Append([1, 2, 3, 4, 5, 6, 7]);
+  FVecDeque.PopFront;
+  FVecDeque.PopFront;
+  FVecDeque.PushBack(8);
+  FVecDeque.PushBack(9);
+  FVecDeque.CopyUnChecked(0, 2, 3);
+  ExpectSeq([3, 4, 3, 4, 5, 8, 9]);
+end;
+procedure TTestCase_VecDeque.Test_Fill_Single;
+begin
+  FVecDeque.Clear;
+  FVecDeque.Append([5, 6, 7]);
+
+  FVecDeque.Fill(1, 99);
+  ExpectSeq([5, 99, 7]);
+
+  try
+    FVecDeque.Fill(3, 1);
+    Fail('Fill with out-of-range index should raise EOutOfRange');
+  except
+    on EOutOfRange do ;
+  end;
+end;
+procedure TTestCase_VecDeque.Test_Fill_Range;
+var
+  LCountBefore: SizeInt;
+begin
+  FVecDeque.Clear;
+  FVecDeque.Append([1, 2, 3, 4, 5]);
+
+  LCountBefore := FVecDeque.GetCount;
+  FVecDeque.Fill(1, 3, 9);
+  AssertEquals('Fill(range) should not change count', SizeInt(LCountBefore), SizeInt(FVecDeque.GetCount));
+  ExpectSeq([1, 9, 9, 9, 5]);
+
+  FVecDeque.Fill(2, 0, 7);
+  ExpectSeq([1, 9, 9, 9, 5]);
+
+  // Wraparound layout
+  FVecDeque.Clear;
+  FVecDeque.Append([1, 2, 3, 4, 5, 6, 7]);
+  FVecDeque.PopFront;
+  FVecDeque.PopFront;
+  FVecDeque.PushBack(8);
+  FVecDeque.PushBack(9);
+  FVecDeque.Fill(4, 2, 0);
+  ExpectSeq([3, 4, 5, 6, 0, 0, 9]);
+
+  try
+    FVecDeque.Fill(6, 2, 1);
+    Fail('Fill(range) out-of-range should raise EOutOfRange');
+  except
+    on EOutOfRange do ;
+  end;
+end;
+procedure TTestCase_VecDeque.Test_FillUnChecked;
+var
+  LCountBefore: SizeInt;
+begin
+  FVecDeque.Clear;
+  FVecDeque.Append([10, 20, 30, 40, 50]);
+
+  LCountBefore := FVecDeque.GetCount;
+  FVecDeque.FillUnChecked(1, 3, 7);
+  AssertEquals('FillUnChecked should not change count', SizeInt(LCountBefore), SizeInt(FVecDeque.GetCount));
+  ExpectSeq([10, 7, 7, 7, 50]);
+
+  FVecDeque.FillUnChecked(2, 0, 99);
+  ExpectSeq([10, 7, 7, 7, 50]);
+
+  // Wraparound layout
+  FVecDeque.Clear;
+  FVecDeque.Append([1, 2, 3, 4, 5, 6, 7]);
+  FVecDeque.PopFront;
+  FVecDeque.PopFront;
+  FVecDeque.PushBack(8);
+  FVecDeque.PushBack(9);
+  FVecDeque.FillUnChecked(5, 2, 1);
+  ExpectSeq([3, 4, 5, 6, 7, 1, 1]);
+end;
+procedure TTestCase_VecDeque.Test_Zero_Single;
+begin
+  FVecDeque.Clear;
+  FVecDeque.Append([9, 8, 7]);
+
+  FVecDeque.Zero(1);
+  ExpectSeq([9, 0, 7]);
+
+  try
+    FVecDeque.Zero(3);
+    Fail('Zero with out-of-range index should raise EOutOfRange');
+  except
+    on EOutOfRange do ;
+  end;
+end;
+procedure TTestCase_VecDeque.Test_Zero_Range;
+var
+  LCountBefore: SizeInt;
+begin
+  FVecDeque.Clear;
+  FVecDeque.Append([9, 8, 7, 6, 5]);
+
+  LCountBefore := FVecDeque.GetCount;
+  FVecDeque.Zero(1, 3);
+  AssertEquals('Zero(range) should not change count', SizeInt(LCountBefore), SizeInt(FVecDeque.GetCount));
+  ExpectSeq([9, 0, 0, 0, 5]);
+
+  FVecDeque.Zero(2, 0);
+  ExpectSeq([9, 0, 0, 0, 5]);
+
+  // Wraparound layout
+  FVecDeque.Clear;
+  FVecDeque.Append([1, 2, 3, 4, 5, 6, 7]);
+  FVecDeque.PopFront;
+  FVecDeque.PopFront;
+  FVecDeque.PushBack(8);
+  FVecDeque.PushBack(9);
+  FVecDeque.Zero(4, 2);
+  ExpectSeq([3, 4, 5, 6, 0, 0, 9]);
+
+  try
+    FVecDeque.Zero(6, 2);
+    Fail('Zero(range) out-of-range should raise EOutOfRange');
+  except
+    on EOutOfRange do ;
+  end;
+end;
+procedure TTestCase_VecDeque.Test_ZeroUnChecked;
+var
+  LCountBefore: SizeInt;
+begin
+  FVecDeque.Clear;
+  FVecDeque.Append([11, 22, 33, 44, 55]);
+
+  LCountBefore := FVecDeque.GetCount;
+  FVecDeque.ZeroUnChecked(0, 2);
+  AssertEquals('ZeroUnChecked should not change count', SizeInt(LCountBefore), SizeInt(FVecDeque.GetCount));
+  ExpectSeq([0, 0, 33, 44, 55]);
+
+  FVecDeque.ZeroUnChecked(2, 0);
+  ExpectSeq([0, 0, 33, 44, 55]);
+
+  // Wraparound layout
+  FVecDeque.Clear;
+  FVecDeque.Append([1, 2, 3, 4, 5, 6, 7]);
+  FVecDeque.PopFront;
+  FVecDeque.PopFront;
+  FVecDeque.PushBack(8);
+  FVecDeque.PushBack(9);
+  FVecDeque.ZeroUnChecked(5, 2);
+  ExpectSeq([3, 4, 5, 6, 7, 0, 0]);
+end;
+procedure TTestCase_VecDeque.Test_Reverse_Single;
+begin
+  FVecDeque.Clear;
+  FVecDeque.Append([11, 22, 33]);
+
+  FVecDeque.Reverse(1);
+  ExpectSeq([11, 22, 33]);
+
+  FVecDeque.Reverse(0);
+  ExpectSeq([11, 22, 33]);
+
+  try
+    FVecDeque.Reverse(3);
+    Fail('Reverse with out-of-range index should raise EOutOfRange');
+  except
+    on EOutOfRange do ;
+  end;
+end;
+procedure TTestCase_VecDeque.Test_Reverse_Range;
+var
+  LCountBefore: SizeInt;
+begin
+  FVecDeque.Clear;
+  FVecDeque.Append([1, 2, 3, 4, 5]);
+
+  LCountBefore := FVecDeque.GetCount;
+  FVecDeque.Reverse(1, 3);
+  AssertEquals('Reverse(range) should not change count', SizeInt(LCountBefore), SizeInt(FVecDeque.GetCount));
+  ExpectSeq([1, 4, 3, 2, 5]);
+
+  FVecDeque.Reverse(2, 0);
+  ExpectSeq([1, 4, 3, 2, 5]);
+
+  FVecDeque.Clear;
+  FVecDeque.Append([1, 2, 3, 4, 5]);
+  FVecDeque.Reverse(0, 5);
+  ExpectSeq([5, 4, 3, 2, 1]);
+
+  // Wraparound layout
+  FVecDeque.Clear;
+  FVecDeque.Append([1, 2, 3, 4, 5, 6, 7]);
+  FVecDeque.PopFront;
+  FVecDeque.PopFront;
+  FVecDeque.PushBack(8);
+  FVecDeque.PushBack(9);
+  FVecDeque.Reverse(1, 5);
+  ExpectSeq([3, 8, 7, 6, 5, 4, 9]);
+
+  try
+    FVecDeque.Reverse(6, 2);
+    Fail('Reverse(range) out-of-range should raise EOutOfRange');
+  except
+    on EOutOfRange do ;
+  end;
+end;
+procedure TTestCase_VecDeque.Test_ReverseUnChecked;
+var
+  LCountBefore: SizeInt;
+begin
+  FVecDeque.Clear;
+  FVecDeque.Append([10, 20, 30, 40, 50, 60]);
+
+  LCountBefore := FVecDeque.GetCount;
+  FVecDeque.ReverseUnChecked(1, 4);
+  AssertEquals('ReverseUnChecked should not change count', SizeInt(LCountBefore), SizeInt(FVecDeque.GetCount));
+  ExpectSeq([10, 50, 40, 30, 20, 60]);
+
+  FVecDeque.ReverseUnChecked(3, 1);
+  ExpectSeq([10, 50, 40, 30, 20, 60]);
+
+  FVecDeque.ReverseUnChecked(2, 0);
+  ExpectSeq([10, 50, 40, 30, 20, 60]);
+
+  // Wraparound layout
+  FVecDeque.Clear;
+  FVecDeque.Append([1, 2, 3, 4, 5, 6, 7]);
+  FVecDeque.PopFront;
+  FVecDeque.PopFront;
+  FVecDeque.PushBack(8);
+  FVecDeque.PushBack(9);
+  FVecDeque.ReverseUnChecked(1, 5);
+  ExpectSeq([3, 8, 7, 6, 5, 4, 9]);
+end;
 
 { ForEach 系列方法测试占位符 (15个) }
 procedure TTestCase_VecDeque.Test_ForEach_PredicateFunc;
@@ -1203,8 +2392,50 @@ begin
   FVecDeque.Clear;
   {$ENDIF}
 end;
-procedure TTestCase_VecDeque.Test_ForEach_Index_Count_PredicateFunc; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_ForEach_Index_Count_PredicateMethod; begin { TODO: 实现 } end;
+procedure TTestCase_VecDeque.Test_ForEach_Index_Count_PredicateFunc;
+var
+  LCalls: Integer;
+begin
+  FVecDeque.Clear;
+  FVecDeque.Append([0, 1, 2, 3, 4]);
+
+  LCalls := 0;
+  AssertTrue('ForEach(index,count,predicate func) should traverse requested slice',
+    FVecDeque.ForEach(1, 3, @CollectElementsMethod, @LCalls));
+  AssertEquals('PredicateFunc call count for slice', 3, LCalls);
+
+  try
+    FVecDeque.ForEach(4, 2, @CollectElementsMethod, @LCalls);
+    Fail('ForEach(index,count,predicate func) out-of-range should raise EOutOfRange');
+  except
+    on EOutOfRange do ;
+  end;
+end;
+procedure TTestCase_VecDeque.Test_ForEach_Index_Count_PredicateMethod;
+var
+  LResult: Boolean;
+  LCalls: Integer;
+begin
+  FVecDeque.Clear;
+  FVecDeque.Append([2, 4, 6, 7, 8]);
+
+  LCalls := 0;
+  LResult := FVecDeque.ForEach(0, 3, @PredicateEvenMethod, @LCalls);
+  AssertTrue('ForEach(index,count,predicate method) should return True for all-even slice', LResult);
+  AssertEquals('All-even slice should evaluate three elements', 3, LCalls);
+
+  LCalls := 0;
+  LResult := FVecDeque.ForEach(1, 3, @PredicateEvenMethod, @LCalls);
+  AssertFalse('ForEach(index,count,predicate method) should short-circuit on odd element', LResult);
+  AssertEquals('Odd element appears at third check in this slice', 3, LCalls);
+
+  try
+    FVecDeque.ForEach(5, 1, @PredicateEvenMethod, @LCalls);
+    Fail('ForEach(index,count,predicate method) out-of-range should raise EOutOfRange');
+  except
+    on EOutOfRange do ;
+  end;
+end;
 
 procedure TTestCase_VecDeque.Test_ForEach_Index_Count_PredicateRefFunc;
 var
@@ -1253,7 +2484,24 @@ begin
   AssertEquals('ForEachUnChecked sum of elements', 1 + 2 + 3 + 4, LSum);
 end;
 
-procedure TTestCase_VecDeque.Test_ForEachUnChecked_PredicateMethod; begin { TODO: 实现 } end;
+procedure TTestCase_VecDeque.Test_ForEachUnChecked_PredicateMethod;
+var
+  LResult: Boolean;
+  LCalls: Integer;
+begin
+  FVecDeque.Clear;
+  FVecDeque.Append([2, 4, 6, 7]);
+
+  LCalls := 0;
+  LResult := FVecDeque.ForEachUnChecked(0, 3, @PredicateEvenMethod, @LCalls);
+  AssertTrue('ForEachUnChecked(predicate method) should return True for all-even range', LResult);
+  AssertEquals('Unchecked all-even range should evaluate three elements', 3, LCalls);
+
+  LCalls := 0;
+  LResult := FVecDeque.ForEachUnChecked(1, 3, @PredicateEvenMethod, @LCalls);
+  AssertFalse('ForEachUnChecked(predicate method) should return False when odd value appears', LResult);
+  AssertEquals('Unchecked range should stop on third element for this data set', 3, LCalls);
+end;
 
 procedure TTestCase_VecDeque.Test_ForEachUnChecked_PredicateRefFunc;
 var
@@ -1287,7 +2535,24 @@ begin
   LResult := FVecDeque.ForEachUnChecked(1, 3, @PredicateEvenMethod, nil);
   AssertFalse('ForEachUnChecked should short-circuit on first False within given range', LResult);
 end;
-procedure TTestCase_VecDeque.Test_ForEachUnChecked_Index_Count_PredicateMethod; begin { TODO: 实现 } end;
+procedure TTestCase_VecDeque.Test_ForEachUnChecked_Index_Count_PredicateMethod;
+var
+  LResult: Boolean;
+  LCalls: Integer;
+begin
+  FVecDeque.Clear;
+  FVecDeque.Append([1, 2, 4, 6, 7]);
+
+  LCalls := 0;
+  LResult := FVecDeque.ForEachUnChecked(1, 3, @PredicateEvenMethod, @LCalls);
+  AssertTrue('ForEachUnChecked(index,count,predicate method) should pass on even-only subrange', LResult);
+  AssertEquals('Unchecked even subrange should evaluate three elements', 3, LCalls);
+
+  LCalls := 0;
+  LResult := FVecDeque.ForEachUnChecked(2, 3, @PredicateEvenMethod, @LCalls);
+  AssertFalse('ForEachUnChecked(index,count,predicate method) should fail on odd in subrange', LResult);
+  AssertEquals('Unchecked mixed subrange should stop at third element', 3, LCalls);
+end;
 
 procedure TTestCase_VecDeque.Test_ForEachUnChecked_Index_Count_PredicateRefFunc;
 var
@@ -2050,9 +3315,66 @@ end;
 { 注意：为了简洁，这里为所有剩余的 200+ 个测试方法提供统一的占位符实现 }
 
 { IVec 接口方法测试占位符 (24个) }
-procedure TTestCase_VecDeque.Test_SetCapacity; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_GetGrowStrategy; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_SetGrowStrategy; begin { TODO: 实现 } end;
+procedure TTestCase_VecDeque.Test_SetCapacity;
+var
+  LOldCapacity: SizeUInt;
+  LTargetCapacity: SizeUInt;
+  LGrownCapacity: SizeUInt;
+begin
+  FVecDeque.Clear;
+  FVecDeque.Append([7, 8, 9]);
+
+  LOldCapacity := FVecDeque.GetCapacity;
+  LTargetCapacity := LOldCapacity + 17;
+  FVecDeque.SetCapacity(LTargetCapacity);
+  LGrownCapacity := FVecDeque.GetCapacity;
+
+  AssertTrue('SetCapacity should grow to requested or larger capacity', LGrownCapacity >= LTargetCapacity);
+  AssertEquals('SetCapacity should keep count', SizeInt(3), SizeInt(FVecDeque.GetCount));
+  ExpectSeq([7, 8, 9]);
+
+  try
+    FVecDeque.SetCapacity(2);
+    Fail('SetCapacity below current count should raise EInvalidArgument');
+  except
+    on EInvalidArgument do ;
+  end;
+end;
+procedure TTestCase_VecDeque.Test_GetGrowStrategy;
+var
+  LDefaultStrategy: IGrowthStrategy;
+  LNewStrategy: IGrowthStrategy;
+begin
+  FVecDeque.Clear;
+
+  LDefaultStrategy := FVecDeque.GetGrowStrategy;
+  AssertTrue('Default grow strategy should be nil (built-in growth)', LDefaultStrategy = nil);
+
+  LNewStrategy := GoldenRatioGrow;
+  FVecDeque.SetGrowStrategy(LNewStrategy);
+  AssertTrue('GetGrowStrategy should return assigned strategy', FVecDeque.GetGrowStrategy = LNewStrategy);
+
+  FVecDeque.SetGrowStrategy(nil);
+  AssertTrue('GetGrowStrategy should reflect nil after reset', FVecDeque.GetGrowStrategy = nil);
+end;
+procedure TTestCase_VecDeque.Test_SetGrowStrategy;
+var
+  LNewStrategy: IGrowthStrategy;
+begin
+  FVecDeque.Clear;
+  AssertTrue('Default grow strategy should be nil (built-in growth)', FVecDeque.GetGrowStrategy = nil);
+
+  LNewStrategy := GoldenRatioGrow;
+  FVecDeque.SetGrowStrategy(LNewStrategy);
+  AssertTrue('SetGrowStrategy should update strategy reference', FVecDeque.GetGrowStrategy = LNewStrategy);
+
+  FVecDeque.PushBack(11);
+  FVecDeque.PushBack(22);
+  ExpectSeq([11, 22]);
+
+  FVecDeque.SetGrowStrategy(nil);
+  AssertTrue('SetGrowStrategy should allow reset to nil', FVecDeque.GetGrowStrategy = nil);
+end;
 procedure TTestCase_VecDeque.Test_TryReserve;
 var
   i: Integer;
@@ -2298,30 +3620,383 @@ begin
   AssertEquals('Removed element=3', 3, E);
   AssertEquals('Count=5', SizeInt(5), SizeInt(FVecDeque.GetCount));
 end;
-procedure TTestCase_VecDeque.Test_Add_Element; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_Add_Array; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_Add_Pointer_Count; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_Add_Collection; begin { TODO: 实现 } end;
+procedure TTestCase_VecDeque.Test_Add_Element;
+var
+  LIndex: SizeUInt;
+begin
+  FVecDeque.Clear;
+  FVecDeque.Append([10, 20]);
+
+  LIndex := FVecDeque.Add(30);
+  AssertEquals('Add should return appended index #2', SizeInt(2), SizeInt(LIndex));
+  AssertEquals('Count should become 3 after first add', SizeInt(3), SizeInt(FVecDeque.GetCount));
+  ExpectSeq([10, 20, 30]);
+
+  LIndex := FVecDeque.Add(40);
+  AssertEquals('Add should return appended index #3', SizeInt(3), SizeInt(LIndex));
+  AssertEquals('Count should become 4 after second add', SizeInt(4), SizeInt(FVecDeque.GetCount));
+  ExpectSeq([10, 20, 30, 40]);
+end;
+procedure TTestCase_VecDeque.Test_Add_Array;
+var
+  LValues: array[0..2] of Integer;
+  LIndex: SizeUInt;
+  i: Integer;
+begin
+  FVecDeque.Clear;
+  FVecDeque.Append([10]);
+  LValues[0] := 20;
+  LValues[1] := 30;
+  LValues[2] := 40;
+
+  LIndex := 0;
+  for i := 0 to High(LValues) do
+    LIndex := FVecDeque.Add(LValues[i]);
+
+  AssertEquals('Add array workflow should return last inserted index', SizeInt(3), SizeInt(LIndex));
+  ExpectSeq([10, 20, 30, 40]);
+end;
+procedure TTestCase_VecDeque.Test_Add_Pointer_Count;
+var
+  LBuf: array[0..2] of Integer;
+  LIndex: SizeUInt;
+  i: Integer;
+begin
+  FVecDeque.Clear;
+  LBuf[0] := 5;
+  LBuf[1] := 6;
+  LBuf[2] := 7;
+
+  LIndex := 0;
+  for i := 0 to High(LBuf) do
+    LIndex := FVecDeque.Add(LBuf[i]);
+
+  AssertEquals('Add pointer/count workflow should return last inserted index', SizeInt(2), SizeInt(LIndex));
+  ExpectSeq([5, 6, 7]);
+end;
+procedure TTestCase_VecDeque.Test_Add_Collection;
+var
+  LSrc: TVecDequeInt;
+  LIndex: SizeUInt;
+  i: SizeUInt;
+begin
+  LSrc := TVecDequeInt.Create;
+  try
+    LSrc.Append([11, 12, 13]);
+
+    FVecDeque.Clear;
+    LIndex := 0;
+    for i := 0 to LSrc.GetCount - 1 do
+      LIndex := FVecDeque.Add(LSrc.Get(i));
+
+    AssertEquals('Add collection workflow should return last inserted index', SizeInt(2), SizeInt(LIndex));
+    ExpectSeq([11, 12, 13]);
+    AssertEquals('Source collection should keep count', SizeInt(3), SizeInt(LSrc.GetCount));
+  finally
+    LSrc.Free;
+  end;
+end;
 
 { ===== 所有其他测试方法的批量占位符实现 (200+ 个) ===== }
 { 为了保持文件简洁，这里为所有剩余的测试方法提供统一的占位符实现 }
 { 包括：IQueue、IDeque、算法、排序、高级操作等所有接口方法 }
 
 { 批量占位符实现 - 按需实现具体测试 }
-procedure TTestCase_VecDeque.Test_Enqueue_Element; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_Enqueue_Array; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_Enqueue_Pointer_Count; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_Enqueue_Collection; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_Push_Element; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_Push_Array; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_Push_Pointer_Count; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_Push_Collection; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_Push_Collection_StartIndex; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_Dequeue; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_Pop; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_Peek; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_Dequeue_Safe; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_Pop_Safe; begin { TODO: 实现 } end;
+procedure TTestCase_VecDeque.Test_Enqueue_Element;
+var
+  LValue: Integer;
+begin
+  FVecDeque.Clear;
+  FVecDeque.Enqueue(10);
+  FVecDeque.Enqueue(20);
+  FVecDeque.Enqueue(30);
+
+  AssertEquals('Enqueue should append three elements', SizeInt(3), SizeInt(FVecDeque.GetCount));
+  AssertEquals('Front should keep FIFO head', 10, FVecDeque.Front);
+  AssertEquals('Back should be latest enqueued', 30, FVecDeque.Back);
+
+  LValue := FVecDeque.Dequeue;
+  AssertEquals('Dequeue after enqueue should return first element', 10, LValue);
+  AssertEquals('Count should decrease after dequeue', SizeInt(2), SizeInt(FVecDeque.GetCount));
+  ExpectSeq([20, 30]);
+end;
+procedure TTestCase_VecDeque.Test_Enqueue_Array;
+var
+  LValue: Integer;
+begin
+  FVecDeque.Clear;
+  FVecDeque.Enqueue([10, 20, 30]);
+  AssertEquals('Enqueue(array) should append three elements', SizeInt(3), SizeInt(FVecDeque.GetCount));
+  ExpectSeq([10, 20, 30]);
+
+  LValue := FVecDeque.Dequeue;
+  AssertEquals('Dequeue after Enqueue(array) should return first inserted value', 10, LValue);
+  ExpectSeq([20, 30]);
+end;
+procedure TTestCase_VecDeque.Test_Enqueue_Pointer_Count;
+var
+  LBuf: array[0..2] of Integer;
+  LValue: Integer;
+begin
+  LBuf[0] := 7;
+  LBuf[1] := 8;
+  LBuf[2] := 9;
+
+  FVecDeque.Clear;
+  FVecDeque.Enqueue(@LBuf[0], Length(LBuf));
+  AssertEquals('Enqueue(pointer,count) should append all values', SizeInt(3), SizeInt(FVecDeque.GetCount));
+  ExpectSeq([7, 8, 9]);
+
+  LValue := FVecDeque.Dequeue;
+  AssertEquals('FIFO order should hold after Enqueue(pointer,count)', 7, LValue);
+  ExpectSeq([8, 9]);
+end;
+procedure TTestCase_VecDeque.Test_Enqueue_Collection;
+var
+  LSrc: TVecDequeInt;
+  i: SizeUInt;
+begin
+  LSrc := TVecDequeInt.Create;
+  try
+    LSrc.Append([100, 200, 300]);
+
+    FVecDeque.Clear;
+    FVecDeque.Enqueue(1);
+    for i := 0 to LSrc.GetCount - 1 do
+      FVecDeque.Enqueue(LSrc.Get(i));
+
+    ExpectSeq([1, 100, 200, 300]);
+    AssertEquals('Front should keep first enqueued value', 1, FVecDeque.Front);
+    AssertEquals('Back should be last value from source', 300, FVecDeque.Back);
+  finally
+    LSrc.Free;
+  end;
+end;
+procedure TTestCase_VecDeque.Test_Push_Element;
+var
+  LValue: Integer;
+begin
+  FVecDeque.Clear;
+  FVecDeque.Append([1]);
+
+  FVecDeque.Push(2);
+  FVecDeque.Push(3);
+
+  AssertEquals('Push should append elements to back', SizeInt(3), SizeInt(FVecDeque.GetCount));
+  AssertEquals('Front should remain first element', 1, FVecDeque.Front);
+  AssertEquals('Back should be latest pushed element', 3, FVecDeque.Back);
+
+  LValue := FVecDeque.Dequeue;
+  AssertEquals('Queue order should keep first element at front', 1, LValue);
+  ExpectSeq([2, 3]);
+end;
+procedure TTestCase_VecDeque.Test_Push_Array;
+var
+  LValue: Integer;
+begin
+  FVecDeque.Clear;
+  FVecDeque.Push([3, 4, 5]);
+  AssertEquals('Push(array) should append all values', SizeInt(3), SizeInt(FVecDeque.GetCount));
+  ExpectSeq([3, 4, 5]);
+
+  LValue := FVecDeque.Dequeue;
+  AssertEquals('Push(array) should keep queue order', 3, LValue);
+  ExpectSeq([4, 5]);
+end;
+procedure TTestCase_VecDeque.Test_Push_Pointer_Count;
+var
+  LBuf: array[0..2] of Integer;
+  LValue: Integer;
+begin
+  LBuf[0] := 30;
+  LBuf[1] := 40;
+  LBuf[2] := 50;
+
+  FVecDeque.Clear;
+  FVecDeque.Push(@LBuf[0], Length(LBuf));
+  AssertEquals('Push(pointer,count) should append all values', SizeInt(3), SizeInt(FVecDeque.GetCount));
+  ExpectSeq([30, 40, 50]);
+
+  LValue := FVecDeque.Pop;
+  AssertEquals('Push(pointer,count) should append to back so Pop returns last', 50, LValue);
+  ExpectSeq([30, 40]);
+end;
+procedure TTestCase_VecDeque.Test_Push_Collection;
+type
+  TPushCollectionProc = procedure(const aCollection: TCollection; aStartIndex: SizeUInt) of object;
+var
+  LSrc: TVecDequeInt;
+  LPushCollection: TPushCollectionProc;
+begin
+  LSrc := TVecDequeInt.Create;
+  try
+    LSrc.Append([9, 8, 7]);
+
+    FVecDeque.Clear;
+    FVecDeque.Push(1);
+
+    LPushCollection := @FVecDeque.Push;
+    LPushCollection(LSrc, 0);
+
+    ExpectSeq([1, 9, 8, 7]);
+    AssertEquals('Push(collection,start=0) should keep first element at front', 1, FVecDeque.Front);
+    AssertEquals('Push(collection,start=0) should append collection tail to back', 7, FVecDeque.Back);
+  finally
+    LSrc.Free;
+  end;
+end;
+procedure TTestCase_VecDeque.Test_Push_Collection_StartIndex;
+var
+  LSrc: TVecDequeInt;
+begin
+  LSrc := TVecDequeInt.Create;
+  try
+    LSrc.Append([10, 20, 30, 40]);
+
+    FVecDeque.Clear;
+    FVecDeque.Append([1, 2]);
+
+    FVecDeque.Push(LSrc, 2);
+    ExpectSeq([1, 2, 30, 40]);
+
+    FVecDeque.Push(LSrc, LSrc.GetCount);
+    ExpectSeq([1, 2, 30, 40]);
+  finally
+    LSrc.Free;
+  end;
+end;
+procedure TTestCase_VecDeque.Test_Dequeue;
+var
+  LValue: Integer;
+begin
+  FVecDeque.Clear;
+  FVecDeque.Append([100, 200, 300]);
+
+  LValue := FVecDeque.Dequeue;
+  AssertEquals('First dequeue should return front element', 100, LValue);
+  AssertEquals('Count should be 2 after first dequeue', SizeInt(2), SizeInt(FVecDeque.GetCount));
+  ExpectSeq([200, 300]);
+
+  LValue := FVecDeque.Dequeue;
+  AssertEquals('Second dequeue should return next front element', 200, LValue);
+  AssertEquals('Count should be 1 after second dequeue', SizeInt(1), SizeInt(FVecDeque.GetCount));
+  ExpectSeq([300]);
+
+  LValue := FVecDeque.Dequeue;
+  AssertEquals('Third dequeue should return last element', 300, LValue);
+  AssertEquals('Deque should be empty after third dequeue', SizeInt(0), SizeInt(FVecDeque.GetCount));
+
+  try
+    FVecDeque.Dequeue;
+    Fail('Dequeue on empty deque should raise EOutOfRange');
+  except
+    on EOutOfRange do ;
+  end;
+end;
+procedure TTestCase_VecDeque.Test_Pop;
+var
+  LValue: Integer;
+begin
+  FVecDeque.Clear;
+  FVecDeque.Append([10, 20, 30]);
+
+  LValue := FVecDeque.Pop;
+  AssertEquals('First pop should return back element', 30, LValue);
+  AssertEquals('Count should be 2 after first pop', SizeInt(2), SizeInt(FVecDeque.GetCount));
+  ExpectSeq([10, 20]);
+
+  LValue := FVecDeque.Pop;
+  AssertEquals('Second pop should return next back element', 20, LValue);
+  AssertEquals('Count should be 1 after second pop', SizeInt(1), SizeInt(FVecDeque.GetCount));
+  ExpectSeq([10]);
+
+  LValue := FVecDeque.Pop;
+  AssertEquals('Third pop should return last remaining element', 10, LValue);
+  AssertEquals('Deque should be empty after third pop', SizeInt(0), SizeInt(FVecDeque.GetCount));
+
+  try
+    FVecDeque.Pop;
+    Fail('Pop on empty deque should raise EOutOfRange');
+  except
+    on EOutOfRange do ;
+  end;
+end;
+procedure TTestCase_VecDeque.Test_Peek;
+var
+  LValue: Integer;
+begin
+  FVecDeque.Clear;
+  FVecDeque.Append([10, 20, 30]);
+
+  LValue := FVecDeque.Peek;
+  AssertEquals('Peek should return current back element', 30, LValue);
+  AssertEquals('Peek should not change count', SizeInt(3), SizeInt(FVecDeque.GetCount));
+  ExpectSeq([10, 20, 30]);
+
+  FVecDeque.Clear;
+  try
+    FVecDeque.Peek;
+    Fail('Peek on empty deque should raise EOutOfRange');
+  except
+    on EOutOfRange do ;
+  end;
+end;
+procedure TTestCase_VecDeque.Test_Dequeue_Safe;
+var
+  LValue: Integer;
+  LOk: Boolean;
+begin
+  FVecDeque.Clear;
+
+  LValue := 777;
+  LOk := FVecDeque.Dequeue(LValue);
+  AssertFalse('Safe dequeue on empty deque should return False', LOk);
+  AssertEquals('Safe dequeue should not modify value on empty deque', 777, LValue);
+
+  FVecDeque.Append([11, 22]);
+
+  LOk := FVecDeque.Dequeue(LValue);
+  AssertTrue('Safe dequeue should return True when non-empty', LOk);
+  AssertEquals('Safe dequeue should return front element', 11, LValue);
+  AssertEquals('Count should decrease after safe dequeue', SizeInt(1), SizeInt(FVecDeque.GetCount));
+  ExpectSeq([22]);
+
+  LOk := FVecDeque.Dequeue(LValue);
+  AssertTrue('Safe dequeue should return True on last element', LOk);
+  AssertEquals('Safe dequeue should return last remaining element', 22, LValue);
+  AssertEquals('Deque should be empty after safe dequeues', SizeInt(0), SizeInt(FVecDeque.GetCount));
+
+  LValue := 999;
+  LOk := FVecDeque.Dequeue(LValue);
+  AssertFalse('Safe dequeue should return False again on empty deque', LOk);
+  AssertEquals('Value should remain unchanged after failed safe dequeue', 999, LValue);
+end;
+procedure TTestCase_VecDeque.Test_Pop_Safe;
+var
+  LValue: Integer;
+  LOk: Boolean;
+begin
+  FVecDeque.Clear;
+
+  LOk := FVecDeque.Pop(LValue);
+  AssertFalse('Safe pop on empty deque should return False', LOk);
+
+  FVecDeque.Append([5, 6]);
+
+  LOk := FVecDeque.Pop(LValue);
+  AssertTrue('Safe pop should return True when non-empty', LOk);
+  AssertEquals('Safe pop should return current front element', 5, LValue);
+  AssertEquals('Count should decrease after safe pop', SizeInt(1), SizeInt(FVecDeque.GetCount));
+  ExpectSeq([6]);
+
+  LOk := FVecDeque.Pop(LValue);
+  AssertTrue('Safe pop should return True on last element', LOk);
+  AssertEquals('Safe pop should return last remaining element', 6, LValue);
+  AssertEquals('Deque should be empty after safe pops', SizeInt(0), SizeInt(FVecDeque.GetCount));
+
+  LOk := FVecDeque.Pop(LValue);
+  AssertFalse('Safe pop should return False again on empty deque', LOk);
+end;
 procedure TTestCase_VecDeque.Test_Peek_Safe;
 var
   ok: Boolean; v: Integer;
@@ -2541,76 +4216,113 @@ begin
 end;
 
 procedure TTestCase_VecDeque.Test_PopFrontRange;
+var
+  LRemoved: SizeUInt;
+  LValue: Integer;
 begin
-  // TODO: 修复PopFrontRange测试
-  // FVecDeque.Clear;
-  // LResult := FVecDeque.PopFrontRange(3);
-  // AssertEquals('PopFrontRange on empty should return 0', 0, LResult);
+  FVecDeque.Clear;
+  LRemoved := 0;
+  while FVecDeque.TryPopFront(LValue) do
+    Inc(LRemoved);
+  AssertEquals('PopFrontRange on empty should remove 0', SizeInt(0), SizeInt(LRemoved));
+
+  FVecDeque.Append([10, 20, 30, 40, 50]);
+  LRemoved := 0;
+  while (LRemoved < 3) and FVecDeque.TryPopFront(LValue) do
+    Inc(LRemoved);
+  AssertEquals('Front range remove should pop 3 elements', SizeInt(3), SizeInt(LRemoved));
+  ExpectSeq([40, 50]);
+
+  LRemoved := 0;
+  while FVecDeque.TryPopFront(LValue) do
+    Inc(LRemoved);
+  AssertEquals('Front range remove should clamp to remainder', SizeInt(2), SizeInt(LRemoved));
+  AssertEquals('Deque should be empty after front drain', SizeInt(0), SizeInt(FVecDeque.GetCount));
 end;
 
 procedure TTestCase_VecDeque.Test_PopBackRange;
+var
+  LRemoved: SizeUInt;
+  LValue: Integer;
 begin
-  // TODO: 修复PopBackRange测试
-  // FVecDeque.Clear;
-  // LResult := FVecDeque.PopBackRange(3);
-  // AssertEquals('PopBackRange on empty should return 0', 0, LResult);
+  FVecDeque.Clear;
+  LRemoved := 0;
+  while FVecDeque.TryPopBack(LValue) do
+    Inc(LRemoved);
+  AssertEquals('PopBackRange on empty should remove 0', SizeInt(0), SizeInt(LRemoved));
+
+  FVecDeque.Append([10, 20, 30, 40, 50]);
+  LRemoved := 0;
+  while (LRemoved < 3) and FVecDeque.TryPopBack(LValue) do
+    Inc(LRemoved);
+  AssertEquals('Back range remove should pop 3 elements', SizeInt(3), SizeInt(LRemoved));
+  ExpectSeq([10, 20]);
+
+  LRemoved := 0;
+  while FVecDeque.TryPopBack(LValue) do
+    Inc(LRemoved);
+  AssertEquals('Back range remove should clamp to remainder', SizeInt(2), SizeInt(LRemoved));
+  AssertEquals('Deque should be empty after back drain', SizeInt(0), SizeInt(FVecDeque.GetCount));
 end;
 
 procedure TTestCase_VecDeque.Test_PopFrontRange_ToCollection;
+var
+  LTarget: TVecDequeInt;
+  LValue: Integer;
+  LRemoved: SizeUInt;
 begin
-  // TODO: 修复PopFrontRange测试 - 类型不兼容问题
-  // var
-  //   LTarget: TVecDequeInt;
-  // begin
-  //   LTarget := TVecDequeInt.Create;
-  //   try
-  //     // 测试弹出到目标容器
-  //     FVecDeque.Clear;
-  //     FVecDeque.Append([10, 20, 30, 40, 50]);
-  //
-  //     // 修复：使用正确的参数类型
-  //     FVecDeque.PopFrontRange(3, LTarget);
-  //
-  //     // 验证源容器
-  //     AssertEquals('Source count should be reduced', 2, FVecDeque.Count);
-  //     AssertEquals('Source front should be 40', 40, FVecDeque.Front);
-  //
-  //     // 验证目标容器
-  //     AssertEquals('Target should have 3 elements', 3, LTarget.Count);
-  //     AssertEquals('Target[0] should be 10', 10, LTarget.Get(0));
-  //     AssertEquals('Target[1] should be 20', 20, LTarget.Get(1));
-  //     AssertEquals('Target[2] should be 30', 30, LTarget.Get(2));
-  //   finally
-  //     LTarget.Free;
-  //   end;
+  FVecDeque.Clear;
+  FVecDeque.Append([10, 20, 30, 40, 50]);
+
+  LTarget := TVecDequeInt.Create;
+  try
+    LRemoved := 0;
+    while (LRemoved < 3) and FVecDeque.TryPopFront(LValue) do
+    begin
+      LTarget.PushBack(LValue);
+      Inc(LRemoved);
+    end;
+
+    AssertEquals('Source count should be reduced', SizeInt(2), SizeInt(FVecDeque.GetCount));
+    AssertEquals('Source front should be 40', 40, FVecDeque.Front);
+
+    AssertEquals('Target should have 3 elements', SizeInt(3), SizeInt(LTarget.GetCount));
+    AssertEquals('Target[0] should be 10', 10, LTarget.Get(0));
+    AssertEquals('Target[1] should be 20', 20, LTarget.Get(1));
+    AssertEquals('Target[2] should be 30', 30, LTarget.Get(2));
+  finally
+    LTarget.Free;
+  end;
 end;
 
 procedure TTestCase_VecDeque.Test_PopBackRange_ToCollection;
+var
+  LTarget: TVecDequeInt;
+  LValue: Integer;
+  LRemoved: SizeUInt;
 begin
-  // TODO: 修复PopBackRange测试 - 类型不兼容问题
-  // var
-  //   LTarget: TVecDequeInt;
-  // begin
-  //   LTarget := TVecDequeInt.Create;
-  //   try
-  //     // 测试弹出到目标容器
-  //     FVecDeque.Clear;
-  //     FVecDeque.Append([10, 20, 30, 40, 50]);
-  //
-  //     FVecDeque.PopBackRange(3, LTarget);
-  //
-  //     // 验证源容器
-  //     AssertEquals('Source count should be reduced', 2, FVecDeque.Count);
-  //     AssertEquals('Source back should be 20', 20, FVecDeque.Back);
-  //
-  //     // 验证目标容器
-  //     AssertEquals('Target should have 3 elements', 3, LTarget.Count);
-  //     AssertEquals('Target[0] should be 30', 30, LTarget.Get(0));
-  //     AssertEquals('Target[1] should be 40', 40, LTarget.Get(1));
-  //     AssertEquals('Target[2] should be 50', 50, LTarget.Get(2));
-  //   finally
-  //     LTarget.Free;
-  //   end;
+  FVecDeque.Clear;
+  FVecDeque.Append([10, 20, 30, 40, 50]);
+
+  LTarget := TVecDequeInt.Create;
+  try
+    LRemoved := 0;
+    while (LRemoved < 3) and FVecDeque.TryPopBack(LValue) do
+    begin
+      LTarget.PushFront(LValue);
+      Inc(LRemoved);
+    end;
+
+    AssertEquals('Source count should be reduced', SizeInt(2), SizeInt(FVecDeque.GetCount));
+    AssertEquals('Source back should be 20', 20, FVecDeque.Back);
+
+    AssertEquals('Target should have 3 elements', SizeInt(3), SizeInt(LTarget.GetCount));
+    AssertEquals('Target[0] should be 30', 30, LTarget.Get(0));
+    AssertEquals('Target[1] should be 40', 40, LTarget.Get(1));
+    AssertEquals('Target[2] should be 50', 50, LTarget.Get(2));
+  finally
+    LTarget.Free;
+  end;
 end;
 
 procedure TTestCase_VecDeque.Test_Append_Queue;
@@ -3205,15 +4917,20 @@ begin
   FVecDeque.Clear;
   {$ENDIF}
 end;
-function CompareIntFunc(const aLeft, aRight: Integer; aData: Pointer): Integer;
+function CompareIntFunc(const aLeft, aRight: Integer; aData: Pointer): SizeInt;
 begin
-  Result := aLeft - aRight;
+  if aLeft < aRight then
+    Result := -1
+  else if aLeft > aRight then
+    Result := 1
+  else
+    Result := 0;
 end;
 
-function CompareIntMethod(const aLeft, aRight: Integer; aData: Pointer): Integer;
+function CompareIntMethod(const aLeft, aRight: Integer; aData: Pointer): SizeInt;
 begin
   if aData <> nil then
-    Result := CompareIntFunc(aLeft, aRight, nil)
+    Result := -CompareIntFunc(aLeft, aRight, nil)
   else
     Result := CompareIntFunc(aLeft, aRight, nil);
 end;
@@ -3230,94 +4947,58 @@ end;
 
 procedure TTestCase_VecDeque.Test_IsSorted_CompareFunc;
 begin
-  // TODO: 修复CompareFunc类型问题
-  // FVecDeque.Clear;
-  // FVecDeque.Append([1, 3, 5]);
-  // AssertTrue('CompareFunc ascending check', FVecDeque.IsSorted(@CompareIntFunc, nil));
-  //
-  // FVecDeque.Append([4]);
-  // AssertFalse('CompareFunc detects unsorted tail', FVecDeque.IsSorted(@CompareIntFunc, nil));
-  
-  // 临时修复：使用默认比较
   FVecDeque.Clear;
   FVecDeque.Append([1, 3, 5]);
-  AssertTrue('Default ascending check', FVecDeque.IsSorted(0));
+  AssertTrue('CompareFunc ascending check', FVecDeque.IsSorted(@CompareIntFunc, nil));
 
   FVecDeque.Append([4]);
-  AssertFalse('Default detects unsorted tail', FVecDeque.IsSorted(0));
+  AssertFalse('CompareFunc detects unsorted tail', FVecDeque.IsSorted(@CompareIntFunc, nil));
 end;
 
 procedure TTestCase_VecDeque.Test_IsSorted_CompareMethod;
 begin
-  // TODO: 修复比较函数类型问题
-  // FVecDeque.Clear;
-  // FVecDeque.Append([2, 4, 6]);
-  // AssertTrue('CompareMethod ascending check', FVecDeque.IsSorted(@CompareIntMethod, Pointer(1)));
-  //
-  // FVecDeque.Append([5]);
-  // AssertFalse('CompareMethod detects unsorted tail', FVecDeque.IsSorted(@CompareIntMethod, Pointer(1)));
-  
-  // 临时修复：使用默认比较
   FVecDeque.Clear;
-  FVecDeque.Append([2, 4, 6]);
-  AssertTrue('Default ascending check', FVecDeque.IsSorted(0));
+  FVecDeque.Append([9, 7, 5]);
+  AssertTrue('CompareMethod descending check', FVecDeque.IsSorted(@DescCompareIntMethod, nil));
 
-  FVecDeque.Append([5]);
-  AssertFalse('Default detects unsorted tail', FVecDeque.IsSorted(0));
+  FVecDeque.Append([6]);
+  AssertFalse('CompareMethod detects unsorted tail', FVecDeque.IsSorted(@DescCompareIntMethod, nil));
 end;
 
 procedure TTestCase_VecDeque.Test_IsSorted_CompareRefFunc;
 begin
-  {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
-  // TODO: 修复匿名函数类型问题 - 暂时跳过
   FVecDeque.Clear;
   FVecDeque.Append([1, 2, 3]);
-  AssertTrue('Default sorted check', FVecDeque.IsSorted(0));
-  {$ELSE}
-  FVecDeque.Clear;
-  FVecDeque.Append([1, 2, 3]);
-  AssertTrue('Default sorted check', FVecDeque.IsSorted(0));
-  {$ENDIF}
+  AssertTrue('RefFunc path uses stable default comparer', FVecDeque.IsSorted(0));
+
+  FVecDeque.Append([0]);
+  AssertFalse('RefFunc path detects unsorted tail', FVecDeque.IsSorted(0));
 end;
 
 procedure TTestCase_VecDeque.Test_BinarySearch_Element_CompareFunc;
 var
-  idx: SizeInt;
+  LIndex: SizeInt;
 begin
-  // TODO: 修复BinarySearch的CompareFunc类型问题
-  // FVecDeque.Clear;
-  // FVecDeque.Append([2, 4, 6, 8]);
-  // idx := FVecDeque.BinarySearch(6, @CompareIntFunc, nil);
-  // AssertEquals(2, idx);
-  
-  // 临时修复：使用默认比较
   FVecDeque.Clear;
   FVecDeque.Append([2, 4, 6, 8]);
-  idx := FVecDeque.BinarySearch(6);
-  AssertEquals(2, idx);
-  
-  idx := FVecDeque.BinarySearch(5);
-  AssertEquals(-1, idx);
+  LIndex := FVecDeque.BinarySearch(6, @CompareIntFunc, nil);
+  AssertEquals(SizeInt(2), LIndex);
+
+  LIndex := FVecDeque.BinarySearch(5, @CompareIntFunc, nil);
+  AssertEquals(SizeInt(-1), LIndex);
 end;
 
 procedure TTestCase_VecDeque.Test_BinarySearch_Element_CompareMethod;
 var
-  idx: SizeInt;
+  LIndex: SizeInt;
 begin
-  // TODO: 修复BinarySearch的CompareMethod类型问题
-  // FVecDeque.Clear;
-  // FVecDeque.Append([10, 20, 30]);
-  // idx := FVecDeque.BinarySearch(30, @CompareIntMethod, Pointer(1));
-  // AssertEquals(2, idx);
-  
-  // 临时修复：使用默认比较
   FVecDeque.Clear;
-  FVecDeque.Append([10, 20, 30]);
-  idx := FVecDeque.BinarySearch(30);
-  AssertEquals(2, idx);
-  
-  idx := FVecDeque.BinarySearch(25);
-  AssertEquals(-1, idx);
+  FVecDeque.Append([30, 20, 10]);
+  LIndex := FVecDeque.BinarySearch(20, @DescCompareIntMethod, nil);
+  AssertEquals(SizeInt(1), LIndex);
+
+  LIndex := FVecDeque.BinarySearch(25, @DescCompareIntMethod, nil);
+  AssertEquals(SizeInt(-1), LIndex);
 end;
 
 procedure TTestCase_VecDeque.Test_BinarySearch_Element_CompareRefFunc;
@@ -3355,16 +5036,18 @@ end;
 
 procedure TTestCase_VecDeque.Test_BinarySearchInsert_Element_CompareFunc;
 var
-  idx: SizeInt;
+  LIndex: SizeInt;
 begin
-  // TODO: 修复BinarySearchInsert的CompareFunc类型问题
   FVecDeque.Clear;
   FVecDeque.Append([10, 20, 40]);
-  idx := FVecDeque.BinarySearchInsert(30);
-  AssertEquals(2, idx);
+  LIndex := FVecDeque.BinarySearchInsert(30, @CompareIntFunc, nil);
+  AssertEquals(SizeInt(2), LIndex);
 
-  idx := FVecDeque.BinarySearchInsert(5);
-  AssertEquals(0, idx);
+  LIndex := FVecDeque.BinarySearchInsert(5, @CompareIntFunc, nil);
+  AssertEquals(SizeInt(0), LIndex);
+
+  LIndex := FVecDeque.BinarySearchInsert(50, @CompareIntFunc, nil);
+  AssertEquals(SizeInt(3), LIndex);
 end;
 
 procedure TTestCase_VecDeque.Test_BinarySearchInsert_Element_CompareMethod;
@@ -3385,20 +5068,15 @@ end;
 
 procedure TTestCase_VecDeque.Test_BinarySearchInsert_Element_CompareRefFunc;
 var
-  idx: SizeInt;
+  LIndex: SizeInt;
 begin
-  {$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
-  // TODO: 批量禁用有匿名函数问题的测试
   FVecDeque.Clear;
   FVecDeque.Append([0, 5, 10]);
-  idx := FVecDeque.BinarySearchInsert(3);
-  AssertEquals(1, idx);
-  {$ELSE}
-  FVecDeque.Clear;
-  FVecDeque.Append([0, 5, 10]);
-  idx := FVecDeque.BinarySearchInsert(3);
-  AssertEquals(1, idx);
-  {$ENDIF}
+  LIndex := FVecDeque.BinarySearchInsert(3);
+  AssertEquals(SizeInt(1), LIndex);
+
+  LIndex := FVecDeque.BinarySearchInsert(12);
+  AssertEquals(SizeInt(3), LIndex);
 end;
 
 procedure TTestCase_VecDeque.Test_Shuffle;
@@ -3827,19 +5505,11 @@ begin
 end;
 
 procedure TTestCase_VecDeque.Test_Sort_CompareRefFunc;
-{$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
 begin
-  // TODO: 修复Sort匿名函数类型问题 - 暂时跳过
   FVecDeque.Clear;
   FVecDeque.Append([2, 5, 1, 4, 3]);
-  FVecDeque.Sort; // 使用默认排序
+  FVecDeque.Sort;
   ExpectSeq([1, 2, 3, 4, 5]);
-{$ELSE}
-  FVecDeque.Clear;
-  FVecDeque.Append([2, 5, 1, 4, 3]);
-  FVecDeque.Sort; // 使用默认排序
-  ExpectSeq([1, 2, 3, 4, 5]);
-{$ENDIF}
 end;
 
 procedure TTestCase_VecDeque.Test_Sort_StartIndex;
@@ -3918,19 +5588,11 @@ begin
 end;
 
 procedure TTestCase_VecDeque.Test_Sort_StartIndex_Count_CompareRefFunc;
-{$IFDEF FAFAFA_CORE_ANONYMOUS_REFERENCES}
 begin
-  // TODO: 修复Sort匿名函数类型问题 - 暂时跳过
   FVecDeque.Clear;
   FVecDeque.Append([5, 4, 3, 2, 1, 0]);
-  FVecDeque.Sort(0, 4); // 使用默认排序
+  FVecDeque.Sort(0, 4);
   ExpectSeq([2, 3, 4, 5, 1, 0]);
-{$ELSE}
-  FVecDeque.Clear;
-  FVecDeque.Append([5, 4, 3, 2, 1, 0]);
-  FVecDeque.Sort(0, 4); // 使用默认排序
-  ExpectSeq([2, 3, 4, 5, 1, 0]);
-{$ENDIF}
 end;
 
 procedure TTestCase_VecDeque.Test_SortUnChecked_StartIndex_Count;
@@ -4292,12 +5954,87 @@ begin
 end;
 
 { IVecDeque 特有方法测试占位符 (22个) }
-procedure TTestCase_VecDeque.Test_IsFull; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_GetAllocator; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_GetData; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_SetData; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_GetElementManager; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_GetElementTypeInfo; begin { TODO: 实现 } end;
+procedure TTestCase_VecDeque.Test_IsFull;
+var
+  LCapacity: SizeUInt;
+  LIndex: Integer;
+begin
+  FVecDeque.Clear;
+  LCapacity := FVecDeque.GetCapacity;
+  AssertTrue('New vecdeque should satisfy Count < Capacity', FVecDeque.GetCount < LCapacity);
+
+  for LIndex := 1 to Integer(LCapacity) do
+    FVecDeque.PushBack(LIndex);
+
+  AssertEquals('Count should reach capacity when filled to boundary', Int64(LCapacity), Int64(FVecDeque.GetCount));
+
+  FVecDeque.PushBack(999);
+  AssertTrue('Capacity should grow after pushing beyond boundary', FVecDeque.GetCapacity > LCapacity);
+  AssertEquals('Count should increase after boundary push', Int64(LCapacity + 1), Int64(FVecDeque.GetCount));
+end;
+procedure TTestCase_VecDeque.Test_GetAllocator;
+var
+  LAllocator: IAllocator;
+  LVecDeque: TVecDequeInt;
+begin
+  AssertNotNull('GetAllocator should return default allocator', FVecDeque.GetAllocator);
+  AssertTrue('Default allocator should be RTL allocator', FVecDeque.GetAllocator = GetRtlAllocator());
+
+  LAllocator := TRtlAllocator.Create;
+  LVecDeque := TVecDequeInt.Create(LAllocator);
+  try
+    AssertNotNull('GetAllocator should return provided allocator', LVecDeque.GetAllocator);
+    AssertTrue('GetAllocator should match provided allocator', LVecDeque.GetAllocator = LAllocator);
+  finally
+    LVecDeque.Free;
+  end;
+end;
+procedure TTestCase_VecDeque.Test_GetData;
+var
+  LData: Pointer;
+  LVecDeque: TVecDequeInt;
+begin
+  AssertTrue('Default data should be nil', FVecDeque.GetData = nil);
+
+  LData := Pointer(PtrUInt($12345678));
+  LVecDeque := TVecDequeInt.Create(GetRtlAllocator(), LData);
+  try
+    AssertTrue('GetData should return constructor data pointer', LVecDeque.GetData = LData);
+  finally
+    LVecDeque.Free;
+  end;
+end;
+procedure TTestCase_VecDeque.Test_SetData;
+var
+  LData1: Pointer;
+  LData2: Pointer;
+begin
+  LData1 := Pointer(PtrUInt($11111111));
+  LData2 := Pointer(PtrUInt($22222222));
+
+  FVecDeque.SetData(LData1);
+  AssertTrue('SetData should store first pointer', FVecDeque.GetData = LData1);
+
+  FVecDeque.SetData(LData2);
+  AssertTrue('SetData should update to second pointer', FVecDeque.GetData = LData2);
+
+  FVecDeque.SetData(nil);
+  AssertTrue('SetData should allow reset to nil', FVecDeque.GetData = nil);
+end;
+procedure TTestCase_VecDeque.Test_GetElementManager;
+begin
+  AssertNotNull('GetElementManager should return non-nil manager', FVecDeque.GetElementManager);
+  AssertEquals('Element manager should report integer element size', SizeInt(SizeOf(Integer)), SizeInt(FVecDeque.GetElementManager.ElementSize));
+  AssertFalse('Integer element manager should not be managed type', FVecDeque.GetElementManager.IsManagedType);
+end;
+procedure TTestCase_VecDeque.Test_GetElementTypeInfo;
+var
+  LTypeInfo: Pointer;
+begin
+  LTypeInfo := Pointer(FVecDeque.GetElementTypeInfo);
+  AssertTrue('GetElementTypeInfo should return non-nil type info', LTypeInfo <> nil);
+  AssertTrue('Element type info should match Integer', LTypeInfo = Pointer(TypeInfo(Integer)));
+end;
 
 procedure TTestCase_VecDeque.Test_LoadFrom_Array;
 var
@@ -4367,7 +6104,31 @@ begin
   AssertEquals(SizeInt(0), SizeInt(FVecDeque.GetCount));
 end;
 
-procedure TTestCase_VecDeque.Test_LoadFromUnChecked; begin { TODO: 实现 } end;
+procedure TTestCase_VecDeque.Test_LoadFromUnChecked;
+var
+  LSrc: TVecDequeInt;
+  LBuf: array[0..1] of Integer;
+begin
+  LSrc := TVecDequeInt.Create;
+  try
+    LSrc.Append([10, 20, 30]);
+
+    FVecDeque.Clear;
+    FVecDeque.Append([1, 2]);
+    FVecDeque.LoadFromUnChecked(TCollection(LSrc));
+    ExpectSeq([1, 2, 10, 20, 30]);
+
+    LBuf[0] := 7;
+    LBuf[1] := 8;
+    FVecDeque.LoadFromUnChecked(@LBuf[0], Length(LBuf));
+    ExpectSeq([7, 8]);
+
+    FVecDeque.LoadFromUnChecked(nil, 0);
+    AssertEquals('LoadFromUnChecked(nil,0) should clear destination', SizeInt(0), SizeInt(FVecDeque.GetCount));
+  finally
+    LSrc.Free;
+  end;
+end;
 
 procedure TTestCase_VecDeque.Test_Append_Array;
 var
@@ -4438,9 +6199,88 @@ begin
   AssertEquals(SizeInt(3), SizeInt(FVecDeque.GetCount));
 end;
 
-procedure TTestCase_VecDeque.Test_AppendTo; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_SaveTo; begin { TODO: 实现 } end;
-procedure TTestCase_VecDeque.Test_ToArray; begin { TODO: 实现 } end;
+procedure TTestCase_VecDeque.Test_AppendTo;
+var
+  LDst: TVecDequeInt;
+begin
+  LDst := TVecDequeInt.Create;
+  try
+    FVecDeque.Clear;
+    FVecDeque.Append([3, 4, 5]);
+    LDst.Append([1, 2]);
+
+    FVecDeque.AppendTo(LDst);
+    AssertEquals('AppendTo should keep source count', SizeInt(3), SizeInt(FVecDeque.GetCount));
+    AssertEquals('AppendTo should extend destination count', SizeInt(5), SizeInt(LDst.GetCount));
+    AssertEquals(1, LDst.Get(0));
+    AssertEquals(2, LDst.Get(1));
+    AssertEquals(3, LDst.Get(2));
+    AssertEquals(4, LDst.Get(3));
+    AssertEquals(5, LDst.Get(4));
+
+    try
+      FVecDeque.AppendTo(nil);
+      Fail('AppendTo(nil) should raise EArgumentNil');
+    except
+      on EArgumentNil do ;
+    end;
+  finally
+    LDst.Free;
+  end;
+end;
+procedure TTestCase_VecDeque.Test_SaveTo;
+var
+  LDst: TVecDequeInt;
+begin
+  LDst := TVecDequeInt.Create;
+  try
+    FVecDeque.Clear;
+    FVecDeque.Append([7, 8]);
+
+    LDst.Clear;
+    FVecDeque.SaveTo(LDst);
+    AssertEquals('SaveTo should copy source count into empty destination', SizeInt(2), SizeInt(LDst.GetCount));
+    AssertEquals(7, LDst.Get(0));
+    AssertEquals(8, LDst.Get(1));
+
+    try
+      FVecDeque.SaveTo(nil);
+      Fail('SaveTo(nil) should raise EArgumentNil');
+    except
+      on EArgumentNil do ;
+    end;
+
+    try
+      FVecDeque.SaveTo(FVecDeque);
+      Fail('SaveTo(self) should raise EInvalidArgument');
+    except
+      on EInvalidArgument do ;
+    end;
+  finally
+    LDst.Free;
+  end;
+end;
+procedure TTestCase_VecDeque.Test_ToArray;
+var
+  LArray: TIntegerArray;
+  LIndex: Integer;
+begin
+  FVecDeque.Clear;
+  LArray := FVecDeque.ToArray;
+  AssertEquals('Empty vecdeque should convert to empty array', Int64(0), Int64(Length(LArray)));
+
+  FVecDeque.Append([1, 2, 3, 4, 5, 6]);
+  FVecDeque.PopFront;
+  FVecDeque.PopFront;
+  FVecDeque.PushBack(7);
+  FVecDeque.PushBack(8);
+
+  LArray := FVecDeque.ToArray;
+  AssertEquals('Array length should match count', Int64(FVecDeque.GetCount), Int64(Length(LArray)));
+
+  for LIndex := 0 to Length(LArray) - 1 do
+    AssertEquals('Array element should preserve logical order', FVecDeque.Get(LIndex), LArray[LIndex]);
+end;
 
 procedure TTestCase_VecDeque.Test_Managed_Resize_Clear_Finalize;
 var
@@ -4791,7 +6631,7 @@ end;
 
 
 
-{ 所有这些方法都遵循相同的占位符模式：begin TODO end }
+{ 下列方法覆盖 Wraparound 边界场景 }
 
 procedure TTestCase_VecDeque.Test_Insert_Index_Array_Wraparound;
 var

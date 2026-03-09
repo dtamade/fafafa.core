@@ -1,5 +1,8 @@
 # SIMD 模块综合审计报告
 
+> **NOTE (INTERNAL)**：本文档为内部审计快照/跟进记录，可能与当前实现不完全一致。  
+> 对外口径请以 `docs/fafafa.core.simd*.md` 与 `src/fafafa.core.simd.STABLE` 为准。
+
 **审计日期**: 2026-02-05
 **审计范围**: fafafa.core.simd 模块全量审计
 **审计方法**: 6 个并行审计任务，涵盖文档、接口、后端、测试、跨平台、项目结构
@@ -19,6 +22,17 @@
 | **总体评分** | **77.5%** | 🟢 良好 |
 
 ---
+
+## Follow-ups（2026-02-06）
+
+本报告为 2026-02-05 的快照；以下为后续收敛进展（仅列关键项）：
+
+- ✅ `docs/fafafa.core.simd.cpuinfo.md`：`TSimdBackend` 枚举、`IsBackendAvailableOnCPU` 命名已与代码一致
+- ✅ `docs/fafafa.core.simd.md`：已不再引用不存在的 `simd.types`
+- ✅ `src/fafafa.core.simd.STABLE`：`simd.types` → `simd.base`
+- ✅ `build.bat`：改为 wrapper，重定向到 `tests\\fafafa.core.simd\\buildOrTest.bat`
+- ✅ `src/fafafa.core.simd.next-steps.md`：标记为早期草案（历史参考），并改为 `simd.base`
+- ✅ `examples/example_simd_dispatch.pas`：uses 已使用 `fafafa.core.simd.base`（不再引用 `simd.types`）
 
 ## 1. 文档审计摘要 (a2e2b70)
 
@@ -157,7 +171,7 @@
 
 | 问题 | 严重程度 | 位置 |
 |------|----------|------|
-| 示例引用不存在的单元 | **P1** | `examples/example_simd_dispatch.pas` 引用 `fafafa.core.simd.types` |
+| 示例引用不存在的单元 | **P1** | `examples/example_simd_dispatch.pas` 引用 `fafafa.core.simd.types`（已修复） |
 | mode 指令位置不统一 | P2 | `fafafa.core.simd.arrays.pas` 的 `{$mode objfpc}` 在第 31 行 |
 
 ---
@@ -166,21 +180,21 @@
 
 ### P0 - 紧急修复 (3 项)
 
-1. **文档: TSimdBackend 枚举不完整**
+1. ✅ **文档: TSimdBackend 枚举不完整**
    - 位置: `docs/fafafa.core.simd.cpuinfo.md` 第 111-117 行
    - 修复: 添加 sbSSE3/sbSSSE3/sbSSE41/sbSSE42/sbRISCVV
 
-2. **文档: 文件名引用错误**
+2. ✅ **文档: 文件名引用错误**
    - 位置: `docs/fafafa.core.simd.md` 第 29 行
    - 修复: 将 `fafafa.core.simd.types.pas` 改为 `fafafa.core.simd.base.pas`
 
-3. **文档: 函数名不一致**
+3. ✅ **文档: 函数名不一致**
    - 位置: `docs/fafafa.core.simd.cpuinfo.md` 第 59 行
    - 修复: 将 `IsBackendAvailable` 改为 `IsBackendAvailableOnCPU`
 
 ### P1 - 高优先级 (8 项)
 
-4. **示例: 引用不存在的单元**
+4. ✅ **示例: 引用不存在的单元**
    - 位置: `examples/example_simd_dispatch.pas`
    - 修复: 将 `fafafa.core.simd.types` 改为 `fafafa.core.simd.base`
 

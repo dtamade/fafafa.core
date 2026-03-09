@@ -10,8 +10,7 @@ uses
   SysUtils,
   fafafa.core.args.base,
   fafafa.core.result,
-  fafafa.core.option.base,  // TOption<T> 核心定义
-  fafafa.core.option;
+  fafafa.core.option.base;  // TOption<T> 核心定义
 
 type
   // 参数解析错误类型
@@ -247,8 +246,6 @@ begin
     aekTooFewPositionals: KindStr := 'TOO_FEW_POSITIONALS';
     aekParseError: KindStr := 'PARSE_ERROR';
     aekValidationError: KindStr := 'VALIDATION_ERROR';
-  else
-    KindStr := 'UNKNOWN';
   end;
 
   Result := Format('[%s] %s', [KindStr, Message]);

@@ -20,8 +20,8 @@ type
   private
     FInner: ILogSink;
     FLock: ILock;
-    FNotEmpty: ISemaphore;
-    FNotFull: ISemaphore;
+    FNotEmpty: ISem;
+    FNotFull: ISem;
     FCapacity: Integer;
     FBatchSize: Integer;
     FDropPolicy: TLogDropPolicy;
@@ -61,8 +61,8 @@ begin
   SetLength(FBuf, FCapacity);
   FHead := 0; FTail := 0; FCount := 0;
   FLock := TMutex.Create;
-  FNotEmpty := TSemaphore.Create(0, MaxInt);
-  FNotFull := TSemaphore.Create(ACapacity, ACapacity);
+  FNotEmpty := MakeSem(0, MaxInt);
+  FNotFull := MakeSem(ACapacity, ACapacity);
   FStopping := False;
   FWorker := SpawnBlocking(@TAsyncLogSink.WorkerEntry, Pointer(Self));
   FEnqueued := 0; FDequeued := 0; FDroppedNew := 0; FDroppedOld := 0; FWaitAttempts := 0; FMaxQ := 0;

@@ -14,7 +14,7 @@ type
   published
     procedure Test_Integer_Underscore_Leading_Should_Fail;
     procedure Test_Integer_Underscore_Trailing_Should_Fail;
-    procedure Test_Float_Underscore_NextTo_Dot_Currently_Allows_1__2_TODO;
+    procedure Test_Float_Underscore_NextTo_Dot_Should_Fail;
     procedure Test_Exponent_Missing_Digits_Should_Fail;
     procedure Test_Exponent_Underscore_At_Start_Should_Fail;
     procedure Test_Integer_Consecutive_Underscores_Should_Fail;
@@ -24,8 +24,8 @@ type
     procedure Test_Integer_Sign_Followed_By_Underscore_Should_Fail;
     procedure Test_Float_Underscore_At_Start_Should_Fail;
     procedure Test_Exponent_Consecutive_Underscores_Should_Fail;
-    procedure Test_Integer_Leading_Zero_Currently_Allows_TODO;
-    procedure Test_Float_Leading_Zero_Currently_Allows_TODO;
+    procedure Test_Integer_Leading_Zero_Should_Fail;
+    procedure Test_Float_Leading_Zero_Should_Fail;
   end;
 
 implementation
@@ -46,12 +46,18 @@ begin
   AssertTrue(Err.HasError);
 end;
 
-procedure TTestCase_Numbers_Negatives.Test_Float_Underscore_NextTo_Dot_Currently_Allows_1__2_TODO;
-var Doc: ITomlDocument; Err: TTomlError;
+procedure TTestCase_Numbers_Negatives.Test_Float_Underscore_NextTo_Dot_Should_Fail;
+var
+  LDoc: ITomlDocument;
+  LErr: TTomlError;
 begin
-  // TODO: 规范倾向禁止小数点紧邻下划线；当前实现接受 '1._2' 与 '1_.2'（待后续策略收紧再改为负例）。
-  // 暂时不作断言，避免破坏回归稳定。
-  AssertTrue(True);
+  LErr.Clear;
+  AssertFalse(Parse(RawByteString('f = 1._2'), LDoc, LErr));
+  AssertTrue(LErr.HasError);
+
+  LErr.Clear;
+  AssertFalse(Parse(RawByteString('f = 1_.2'), LDoc, LErr));
+  AssertTrue(LErr.HasError);
 end;
 
 procedure TTestCase_Numbers_Negatives.Test_Exponent_Missing_Digits_Should_Fail;
@@ -132,18 +138,24 @@ begin
   AssertTrue(Err.HasError);
 end;
 
-procedure TTestCase_Numbers_Negatives.Test_Integer_Leading_Zero_Currently_Allows_TODO;
-var Doc: ITomlDocument; Err: TTomlError;
+procedure TTestCase_Numbers_Negatives.Test_Integer_Leading_Zero_Should_Fail;
+var
+  LDoc: ITomlDocument;
+  LErr: TTomlError;
 begin
-  // 当前实现：暂允许 01；若未来策略收紧为非法，再改回 Should_Fail 断言。
-  AssertTrue(Parse(RawByteString('n = 01'), Doc, Err) or True);
+  LErr.Clear;
+  AssertFalse(Parse(RawByteString('n = 01'), LDoc, LErr));
+  AssertTrue(LErr.HasError);
 end;
 
-procedure TTestCase_Numbers_Negatives.Test_Float_Leading_Zero_Currently_Allows_TODO;
-var Doc: ITomlDocument; Err: TTomlError;
+procedure TTestCase_Numbers_Negatives.Test_Float_Leading_Zero_Should_Fail;
+var
+  LDoc: ITomlDocument;
+  LErr: TTomlError;
 begin
-  // 当前实现：暂允许 00.1；若未来策略收紧为非法，再改回 Should_Fail 断言。
-  AssertTrue(Parse(RawByteString('f = 00.1'), Doc, Err) or True);
+  LErr.Clear;
+  AssertFalse(Parse(RawByteString('f = 00.1'), LDoc, LErr));
+  AssertTrue(LErr.HasError);
 end;
 
 initialization

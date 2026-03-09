@@ -3255,13 +3255,9 @@ const
   TAG_BITS = FAFAFA_ATOMIC_TAG_BITS_32; // default=2; requires pointer alignment to 2^TAG_BITS
   {$ENDIF}
   TAG_MASK: PtrUInt = (PtrUInt(1) shl TAG_BITS) - 1;
-{$ENDIF}
-
-{$IFNDEF CPUX86_64}
-function AtomicTaggedPtrMask: PtrUInt; inline;
-begin
-  Result := not TAG_MASK;
-end;
+  // NOTE: Keep this expression friendly to older FPC constant folding on non-x86_64 targets.
+  // Avoid referencing typed-const TAG_MASK here (some FPC versions reject it in const-folding).
+  PTR_MASK: PtrUInt = ((not PtrUInt(0)) shr TAG_BITS) shl TAG_BITS;
 {$ENDIF}
 
 function atomic_tagged_ptr(aPtr: Pointer; aTag: {$IFDEF CPU64}UInt16{$ELSE}UInt32{$ENDIF}): atomic_tagged_ptr_t;
@@ -3283,7 +3279,7 @@ begin
   {$IF DEFINED(CPUX86_64)}
   Result := (PtrUInt(aPtr) and PTR_MASK) or (PtrUInt(aTag) shl TAG_SHIFT);
   {$ELSE}
-  Result := (PtrUInt(aPtr) and AtomicTaggedPtrMask) or (PtrUInt(aTag) and TAG_MASK);
+  Result := (PtrUInt(aPtr) and PTR_MASK) or (PtrUInt(aTag) and TAG_MASK);
   {$ENDIF}
   {$POP}
 end;
@@ -3292,11 +3288,7 @@ function atomic_tagged_ptr_get_ptr(const aTaggedPtr: atomic_tagged_ptr_t): Point
 begin
   {$PUSH}
   {$WARN 4055 OFF} // Conversion between ordinals and pointers is not portable
-  {$IF DEFINED(CPUX86_64)}
   Result := Pointer(PtrUInt(aTaggedPtr) and PTR_MASK);
-  {$ELSE}
-  Result := Pointer(PtrUInt(aTaggedPtr) and AtomicTaggedPtrMask);
-  {$ENDIF}
   {$POP}
 end;
 

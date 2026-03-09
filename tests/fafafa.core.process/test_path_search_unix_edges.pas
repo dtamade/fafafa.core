@@ -13,6 +13,10 @@ uses
 
 {$IFDEF UNIX}
 
+function c_setenv(name, value: PChar; replace: LongInt): LongInt; cdecl; external 'c' name 'setenv';
+
+function fpSetEnv(AEnv: PChar): LongInt;
+
 type
   TTestCase_PathSearch_Unix_Edges = class(TTestCase)
   private
@@ -32,6 +36,23 @@ type
 implementation
 
 {$IFDEF UNIX}
+
+function fpSetEnv(AEnv: PChar): LongInt;
+var
+  LEnv: string;
+  LEqPos: SizeInt;
+  LName: string;
+  LValue: string;
+begin
+  Result := -1;
+  if AEnv = nil then Exit;
+  LEnv := string(AEnv);
+  LEqPos := Pos('=', LEnv);
+  if LEqPos <= 1 then Exit;
+  LName := Copy(LEnv, 1, LEqPos - 1);
+  LValue := Copy(LEnv, LEqPos + 1, MaxInt);
+  Result := c_setenv(PChar(LName), PChar(LValue), 1);
+end;
 
 function TTestCase_PathSearch_Unix_Edges.MakeTempDir: string;
 var
@@ -159,7 +180,7 @@ begin
     B := NewProcessBuilder.Command('uxbadsh').UsePathSearch(True);
     C := B.Start;
     // 启动应失败或返回非 0 退出码
-    CheckTrue('Process should fail', not C.WaitForExit(3000) or (C.GetExitCode <> 0));
+    CheckTrue(not C.WaitForExit(3000) or (C.GetExitCode <> 0), 'Process should fail');
   finally
     try DeleteFile(ExePath); except end;
     try RemoveDir(TD); except end;

@@ -46,63 +46,48 @@ const
   
   // Data sizes
   MEM_SIZE = 4096;  // 4KB for memory benchmarks
+  NARROW_ANDNOT_INNER = 256;  // Amplify tiny vector-op differences
 
 type
   TBenchFunc = function: Int64;
 
 function MeasureOpsPerSec(Func: TBenchFunc; var TotalOps: Int64): Double;
-const
-  MAX_ITERATIONS = 100000000;
 var
-  LStartTick, LEndTick: UInt64;
-  LIterations, LProbeIterations: Integer;
-  LIndex: Integer;
-  LElapsedMs: Double;
+  StartTick, EndTick: UInt64;
+  Iterations, i: Integer;
+  ElapsedMs: Double;
 begin
-  for LIndex := 1 to WARMUP_ITERATIONS do
+  // Warmup
+  for i := 1 to WARMUP_ITERATIONS do
     Func();
-
-  LProbeIterations := MIN_ITERATIONS;
-  repeat
-    LStartTick := GetTickCount64;
-    for LIndex := 1 to LProbeIterations do
-      Func();
-    LEndTick := GetTickCount64;
-    LElapsedMs := LEndTick - LStartTick;
-    if (LElapsedMs = 0) and (LProbeIterations < MAX_ITERATIONS) then
-      LProbeIterations := LProbeIterations * 10;
-  until (LElapsedMs > 0) or (LProbeIterations >= MAX_ITERATIONS);
-
-  if LElapsedMs > 0 then
-    LIterations := Trunc(LProbeIterations * TARGET_TIME_MS / LElapsedMs)
+  
+  // Determine iteration count for target time
+  Iterations := MIN_ITERATIONS;
+  StartTick := GetTickCount64;
+  for i := 1 to MIN_ITERATIONS do
+    Func();
+  EndTick := GetTickCount64;
+  ElapsedMs := EndTick - StartTick;
+  
+  if ElapsedMs > 0 then
+    Iterations := Trunc(MIN_ITERATIONS * TARGET_TIME_MS / ElapsedMs)
   else
-    LIterations := LProbeIterations;
-
-  if LIterations < MIN_ITERATIONS then
-    LIterations := MIN_ITERATIONS;
-  if LIterations > MAX_ITERATIONS then
-    LIterations := MAX_ITERATIONS;
-
-  repeat
-    LStartTick := GetTickCount64;
-    for LIndex := 1 to LIterations do
-      Func();
-    LEndTick := GetTickCount64;
-    LElapsedMs := LEndTick - LStartTick;
-    if (LElapsedMs = 0) and (LIterations < MAX_ITERATIONS) then
-    begin
-      if LIterations > (MAX_ITERATIONS div 10) then
-        LIterations := MAX_ITERATIONS
-      else
-        LIterations := LIterations * 10;
-    end;
-  until (LElapsedMs > 0) or (LIterations >= MAX_ITERATIONS);
-
-  TotalOps := Int64(LIterations);
-  if LElapsedMs > 0 then
-    Result := (LIterations * 1000.0) / LElapsedMs
-  else
-    Result := 0;
+    Iterations := MIN_ITERATIONS * 10;
+  
+  if Iterations < MIN_ITERATIONS then
+    Iterations := MIN_ITERATIONS;
+  
+  // Actual measurement
+  StartTick := GetTickCount64;
+  for i := 1 to Iterations do
+    Func();
+  EndTick := GetTickCount64;
+  
+  TotalOps := Int64(Iterations);
+  ElapsedMs := EndTick - StartTick;
+  if ElapsedMs <= 0 then
+    ElapsedMs := 1;
+  Result := (Iterations * 1000.0) / ElapsedMs;
 end;
 
 // === Memory Operation Benchmarks ===
@@ -190,7 +175,9 @@ var
   TotalOps: Int64;
 begin
   InitMemBufs;
+  Result := nil;
   SetLength(Result, 5);
+  TotalOps := 0;
   
   // MemEqual
   OpsScalar := MeasureOpsPerSec(@BenchMemEqual_Scalar, TotalOps);
@@ -249,19 +236,37 @@ end;
 var
   g_VecA, g_VecB, g_VecR: TVecF32x4;
   g_VecIA, g_VecIB, g_VecIR: TVecI32x4;
+  g_VecI8A, g_VecI8B, g_VecI8R: TVecI8x16;
+  g_VecU16A, g_VecU16B, g_VecU16R: TVecU16x8;
+  g_VecU8A, g_VecU8B, g_VecU8R: TVecU8x16;
   g_ScalarR: Single;
 
 procedure InitVecData;
 var
-  i: Integer;
+  LIndex: Integer;
 begin
   g_VecA := VecF32x4Splat(1.5);
   g_VecB := VecF32x4Splat(2.5);
+
   // No VecI32x4Splat available, initialize manually
-  for i := 0 to 3 do
+  for LIndex := 0 to 3 do
   begin
-    g_VecIA.i[i] := 100;
-    g_VecIB.i[i] := 200;
+    g_VecIA.i[LIndex] := 100;
+    g_VecIB.i[LIndex] := 200;
+  end;
+
+  for LIndex := 0 to 15 do
+  begin
+    g_VecI8A.i[LIndex] := ShortInt((LIndex * 7) - 64);
+    g_VecI8B.i[LIndex] := ShortInt($5A xor LIndex);
+    g_VecU8A.u[LIndex] := Byte((LIndex * 13) and $FF);
+    g_VecU8B.u[LIndex] := Byte($F0 xor (LIndex * 3));
+  end;
+
+  for LIndex := 0 to 7 do
+  begin
+    g_VecU16A.u[LIndex] := Word((LIndex * 257) and $FFFF);
+    g_VecU16B.u[LIndex] := Word($FF00 xor (LIndex * 73));
   end;
 end;
 
@@ -325,14 +330,82 @@ begin
   Result := 1;
 end;
 
+function BenchVecI8x16AndNot_Scalar: Int64;
+var
+  LNotA: TVecI8x16;
+  LRepeat: Integer;
+begin
+  for LRepeat := 1 to NARROW_ANDNOT_INNER do
+  begin
+    LNotA := VecI8x16Not(g_VecI8A);
+    g_VecI8R := VecI8x16And(LNotA, g_VecI8B);
+  end;
+  Result := 1;
+end;
+
+function BenchVecI8x16AndNot_Active: Int64;
+var
+  LRepeat: Integer;
+begin
+  for LRepeat := 1 to NARROW_ANDNOT_INNER do
+    g_VecI8R := VecI8x16AndNot(g_VecI8A, g_VecI8B);
+  Result := 1;
+end;
+
+function BenchVecU16x8AndNot_Scalar: Int64;
+var
+  LNotA: TVecU16x8;
+  LRepeat: Integer;
+begin
+  for LRepeat := 1 to NARROW_ANDNOT_INNER do
+  begin
+    LNotA := VecU16x8Not(g_VecU16A);
+    g_VecU16R := VecU16x8And(LNotA, g_VecU16B);
+  end;
+  Result := 1;
+end;
+
+function BenchVecU16x8AndNot_Active: Int64;
+var
+  LRepeat: Integer;
+begin
+  for LRepeat := 1 to NARROW_ANDNOT_INNER do
+    g_VecU16R := VecU16x8AndNot(g_VecU16A, g_VecU16B);
+  Result := 1;
+end;
+
+function BenchVecU8x16AndNot_Scalar: Int64;
+var
+  LNotA: TVecU8x16;
+  LRepeat: Integer;
+begin
+  for LRepeat := 1 to NARROW_ANDNOT_INNER do
+  begin
+    LNotA := VecU8x16Not(g_VecU8A);
+    g_VecU8R := VecU8x16And(LNotA, g_VecU8B);
+  end;
+  Result := 1;
+end;
+
+function BenchVecU8x16AndNot_Active: Int64;
+var
+  LRepeat: Integer;
+begin
+  for LRepeat := 1 to NARROW_ANDNOT_INNER do
+    g_VecU8R := VecU8x16AndNot(g_VecU8A, g_VecU8B);
+  Result := 1;
+end;
+
 function BenchVectorOps: TBenchResults;
 var
   OpsScalar, OpsActive: Double;
   TotalOps: Int64;
 begin
   InitVecData;
-  SetLength(Result, 5);
-  
+  Result := nil;
+  SetLength(Result, 8);
+  TotalOps := 0;
+
   // VecF32x4Add
   OpsScalar := MeasureOpsPerSec(@BenchVecF32x4Add_Scalar, TotalOps);
   OpsActive := MeasureOpsPerSec(@BenchVecF32x4Add_Active, TotalOps);
@@ -341,7 +414,7 @@ begin
   Result[0].ScalarOpsPerSec := OpsScalar;
   Result[0].ActiveOpsPerSec := OpsActive;
   if OpsScalar > 0 then Result[0].Speedup := OpsActive / OpsScalar else Result[0].Speedup := 0;
-  
+
   // VecF32x4Mul
   OpsScalar := MeasureOpsPerSec(@BenchVecF32x4Mul_Scalar, TotalOps);
   OpsActive := MeasureOpsPerSec(@BenchVecF32x4Mul_Active, TotalOps);
@@ -350,7 +423,7 @@ begin
   Result[1].ScalarOpsPerSec := OpsScalar;
   Result[1].ActiveOpsPerSec := OpsActive;
   if OpsScalar > 0 then Result[1].Speedup := OpsActive / OpsScalar else Result[1].Speedup := 0;
-  
+
   // VecF32x4Div
   OpsScalar := MeasureOpsPerSec(@BenchVecF32x4Div_Scalar, TotalOps);
   OpsActive := MeasureOpsPerSec(@BenchVecF32x4Div_Active, TotalOps);
@@ -359,7 +432,7 @@ begin
   Result[2].ScalarOpsPerSec := OpsScalar;
   Result[2].ActiveOpsPerSec := OpsActive;
   if OpsScalar > 0 then Result[2].Speedup := OpsActive / OpsScalar else Result[2].Speedup := 0;
-  
+
   // VecI32x4Add
   OpsScalar := MeasureOpsPerSec(@BenchVecI32x4Add_Scalar, TotalOps);
   OpsActive := MeasureOpsPerSec(@BenchVecI32x4Add_Active, TotalOps);
@@ -368,7 +441,7 @@ begin
   Result[3].ScalarOpsPerSec := OpsScalar;
   Result[3].ActiveOpsPerSec := OpsActive;
   if OpsScalar > 0 then Result[3].Speedup := OpsActive / OpsScalar else Result[3].Speedup := 0;
-  
+
   // VecF32x4Dot
   OpsScalar := MeasureOpsPerSec(@BenchVecF32x4Dot_Scalar, TotalOps);
   OpsActive := MeasureOpsPerSec(@BenchVecF32x4Dot_Active, TotalOps);
@@ -377,13 +450,42 @@ begin
   Result[4].ScalarOpsPerSec := OpsScalar;
   Result[4].ActiveOpsPerSec := OpsActive;
   if OpsScalar > 0 then Result[4].Speedup := OpsActive / OpsScalar else Result[4].Speedup := 0;
-  
+
+  // VecI8x16AndNot
+  OpsScalar := MeasureOpsPerSec(@BenchVecI8x16AndNot_Scalar, TotalOps);
+  OpsActive := MeasureOpsPerSec(@BenchVecI8x16AndNot_Active, TotalOps);
+  Result[5].Name := 'VecI8x16AndNot';
+  Result[5].Size := 0;
+  Result[5].ScalarOpsPerSec := OpsScalar;
+  Result[5].ActiveOpsPerSec := OpsActive;
+  if OpsScalar > 0 then Result[5].Speedup := OpsActive / OpsScalar else Result[5].Speedup := 0;
+
+  // VecU16x8AndNot
+  OpsScalar := MeasureOpsPerSec(@BenchVecU16x8AndNot_Scalar, TotalOps);
+  OpsActive := MeasureOpsPerSec(@BenchVecU16x8AndNot_Active, TotalOps);
+  Result[6].Name := 'VecU16x8AndNot';
+  Result[6].Size := 0;
+  Result[6].ScalarOpsPerSec := OpsScalar;
+  Result[6].ActiveOpsPerSec := OpsActive;
+  if OpsScalar > 0 then Result[6].Speedup := OpsActive / OpsScalar else Result[6].Speedup := 0;
+
+  // VecU8x16AndNot
+  OpsScalar := MeasureOpsPerSec(@BenchVecU8x16AndNot_Scalar, TotalOps);
+  OpsActive := MeasureOpsPerSec(@BenchVecU8x16AndNot_Active, TotalOps);
+  Result[7].Name := 'VecU8x16AndNot';
+  Result[7].Size := 0;
+  Result[7].ScalarOpsPerSec := OpsScalar;
+  Result[7].ActiveOpsPerSec := OpsActive;
+  if OpsScalar > 0 then Result[7].Speedup := OpsActive / OpsScalar else Result[7].Speedup := 0;
+
   // Suppress unused warnings
   if g_VecR.f[0] > 0 then;
   if g_VecIR.i[0] > 0 then;
+  if g_VecI8R.i[0] > 0 then;
+  if g_VecU16R.u[0] > 0 then;
+  if g_VecU8R.u[0] > 0 then;
   if g_ScalarR > 0 then;
 end;
-
 // === Public API ===
 
 function RunAllBenchmarks: TBenchResults;
@@ -391,6 +493,7 @@ var
   MemResults, VecResults: TBenchResults;
   i, Offset: Integer;
 begin
+  Result := nil;
   MemResults := BenchMemOps;
   VecResults := BenchVectorOps;
   
@@ -421,6 +524,7 @@ var
   Backend: TSimdBackend;
 begin
   Backend := GetActiveBackend;
+  Result := 'Unknown';
   case Backend of
     sbScalar: Result := 'Scalar';
     sbSSE2:   Result := 'SSE2';
@@ -432,8 +536,6 @@ begin
     sbAVX512: Result := 'AVX-512';
     sbNEON:   Result := 'NEON';
     sbRISCVV: Result := 'RISC-V V';
-  else
-    Result := 'Unknown';
   end;
 end;
 

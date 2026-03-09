@@ -49,6 +49,19 @@ function sse42_crc32_u64(crc: UInt64; data: UInt64): UInt64;
 
 implementation
 
+uses
+  SysUtils;
+
+procedure EnsureExperimentalIntrinsicsEnabled; inline;
+begin
+  {$IFNDEF FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS}
+  raise ENotSupportedException.Create(
+    'fafafa.core.simd.intrinsics.sse42 is experimental placeholder semantics. ' +
+    'Define FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS to opt in.'
+  );
+  {$ENDIF}
+end;
+
 // === 字符串比较指令的简化实�?===
 function sse42_cmpestrm(const a: TM128; la: Integer; const b: TM128; lb: Integer; imm8: Byte): TM128;
 begin
@@ -59,25 +72,21 @@ end;
 function sse42_cmpestri(const a: TM128; la: Integer; const b: TM128; lb: Integer; imm8: Byte): Integer;
 begin
   // 简化实�?- 返回第一个匹配的索引
-  Result := 16;
-end;
+  Result := 16; // 表示未找�?end;
 
 function sse42_cmpestrc(const a: TM128; la: Integer; const b: TM128; lb: Integer; imm8: Byte): Boolean;
 begin
-  // 简化实现：返回是否有匹配
-  Result := False;
+  // 简化实�?- 返回是否有匹�?  Result := False;
 end;
 
 function sse42_cmpestro(const a: TM128; la: Integer; const b: TM128; lb: Integer; imm8: Byte): Boolean;
 begin
-  // 简化实现：返回结果的奇偶位
-  Result := False;
+  // 简化实�?- 返回结果的奇偶�?  Result := False;
 end;
 
 function sse42_cmpestrs(const a: TM128; la: Integer; const b: TM128; lb: Integer; imm8: Byte): Boolean;
 begin
-  // 简化实现：返回结果的符号位
-  Result := False;
+  // 简化实�?- 返回结果的符�?  Result := False;
 end;
 
 function sse42_cmpestrz(const a: TM128; la: Integer; const b: TM128; lb: Integer; imm8: Byte): Boolean;
@@ -88,14 +97,12 @@ end;
 
 function sse42_cmpistrm(const a, b: TM128; imm8: Byte): TM128;
 begin
-  // 简化实现：隐式长度字符串比较
-  FillChar(Result, SizeOf(Result), 0);
+  // 简化实�?- 隐式长度字符串比�?  FillChar(Result, SizeOf(Result), 0);
 end;
 
 function sse42_cmpistri(const a, b: TM128; imm8: Byte): Integer;
 begin
-  // 简化实现
-  Result := 16;
+  // 简化实�?  Result := 16;
 end;
 
 function sse42_cmpistrc(const a, b: TM128; imm8: Byte): Boolean;
@@ -125,7 +132,7 @@ var
 begin
   for i := 0 to 1 do
     if a.m128i_i64[i] > b.m128i_i64[i] then
-      Result.m128i_u64[i] := not QWord(0)
+      Result.m128i_u64[i] := $FFFFFFFFFFFFFFFF
     else
       Result.m128i_u64[i] := $0000000000000000;
 end;
@@ -166,6 +173,9 @@ begin
   Result := sse42_crc32_u32(Cardinal(crc), Cardinal(data));
   Result := sse42_crc32_u32(Cardinal(Result), Cardinal(data shr 32));
 end;
+
+initialization
+  EnsureExperimentalIntrinsicsEnabled;
 
 end.
 

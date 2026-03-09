@@ -203,6 +203,7 @@ function IsRoutingStopToken(const S: string; const Opts: TArgsOptions): boolean;
 begin
   // Keep consistent with ParseArgs contract: "--" always stops parsing.
   // StopAtDoubleDash only controls whether the token is kept as a positional.
+  if Opts.StopAtDoubleDash then;
   Result := IsDoubleDashSentinel(S);
 end;
 
@@ -421,7 +422,6 @@ begin
     child := FChildren.Get(i);
     cand := Normalize(child.Name, CaseInsensitive);
     if cand = n then Exit(child);
-    SetLength(arr, 0);
     arr := child.Aliases;
     for j := 0 to High(arr) do
       if Normalize(arr[j], CaseInsensitive) = n then Exit(child);
@@ -539,7 +539,7 @@ end;
 function TRootCommand.Run: Integer;
 var arr: TStringArray; i: Integer;
 begin
-  SetLength(arr, 0);
+  arr := nil;
   SetLength(arr, ParamCount);
   for i := 1 to ParamCount do arr[i-1] := ParamStr(i);
   Result := Run(arr, ArgsOptionsDefault);
@@ -548,7 +548,7 @@ end;
 function TRootCommand.Run(const Opts: TArgsOptions): Integer;
 var arr: TStringArray; i: Integer;
 begin
-  SetLength(arr, 0);
+  arr := nil;
   SetLength(arr, ParamCount);
   for i := 1 to ParamCount do arr[i-1] := ParamStr(i);
   Result := Run(arr, Opts);
@@ -561,7 +561,7 @@ var i, depth, idx: Integer; cur, child: ICommand;
 begin
   Result := CMD_NOT_FOUND; // non-zero default
   cur := nil;
-  SetLength(subArgs, 0);
+  subArgs := nil;
   caseInsensitive := Opts.CaseInsensitiveKeys;
   // find first command token as path start
   depth := 0;
@@ -667,7 +667,7 @@ end;
 function GetBestMatchPath(const Root: IRootCommand; const Args: array of string; const Opts: TArgsOptions): TStringArray;
 var i, firstNonOpt, depth: Integer; cur, child: ICommand; caseInsensitive, hasNextNonOpt: boolean; name: string;
 begin
-  SetLength(Result, 0);
+  Result := nil;
   if Root=nil then Exit;
   caseInsensitive := Opts.CaseInsensitiveKeys;
   // find first command token as path start

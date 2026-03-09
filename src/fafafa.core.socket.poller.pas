@@ -241,8 +241,20 @@ type
 {$ENDIF}
 
 {$ENDIF}
+{$ENDIF}
 
-{$IFDEF LINUX}
+  TEpollEvent = record
+    events: LongWord;
+    data: record
+      case Integer of
+        0: (ptr: Pointer);
+        1: (fd: Integer);
+        2: (u32: LongWord);
+        3: (u64: QWord);
+    end;
+  end;
+  PEpollEvent = ^TEpollEvent;
+
   // Linux epoll 轮询器
   TEpollSocketPoller = class(TAdvancedSocketPollerBase)
   private
@@ -262,7 +274,6 @@ type
     function GetPollerType: string; override;
     function IsHighPerformance: Boolean; override;
   end;
-{$ENDIF}
 
 {$IFDEF DARWIN}
   // macOS/BSD kqueue 轮询器
@@ -529,7 +540,6 @@ end;
     function IsHighPerformance: Boolean; override;
   end;
 {$ENDIF}
-{$ENDIF}
 
   // 增强的 Select 轮询器（跨平台兼容）
   TEnhancedSelectPoller = class(TAdvancedSocketPollerBase)
@@ -589,7 +599,6 @@ function PostQueuedCompletionStatus(CompletionPort: THandle; dwNumberOfBytesTran
 {$ENDIF}
 {$ENDIF}
 
-{$IFDEF FAFAFA_SOCKET_POLLER_EXPERIMENTAL}
 {$IFDEF LINUX}
 uses
   BaseUnix, Linux;
@@ -607,26 +616,12 @@ const
   EPOLLET = $80000000;  // Edge Triggered
   EPOLLONESHOT = $40000000;
 
-type
-  TEpollEvent = record
-    events: LongWord;
-    data: record
-      case Integer of
-        0: (ptr: Pointer);
-        1: (fd: Integer);
-        2: (u32: LongWord);
-        3: (u64: QWord);
-    end;
-  end;
-  PEpollEvent = ^TEpollEvent;
-
 // epoll API 声明
 function epoll_create(size: Integer): Integer; cdecl; external 'c';
 function epoll_create1(flags: Integer): Integer; cdecl; external 'c';
 function epoll_ctl(epfd: Integer; op: Integer; fd: Integer; event: PEpollEvent): Integer; cdecl; external 'c';
 function epoll_wait(epfd: Integer; events: PEpollEvent; maxevents: Integer; timeout: Integer): Integer; cdecl; external 'c';
 
-{$ENDIF}
 {$ENDIF}
 
 {$IFDEF DARWIN}
@@ -969,8 +964,20 @@ end;
 function TAdvancedSocketPollerBase.PollBatch(ATimeoutMs: Integer; AMaxEvents: Integer): TSocketPollResults;
 var
   LEventCount: Integer;
+  LStartTime: TDateTime;
+  LLatency: Double;
 begin
+  if FStopped then
+  begin
+    SetLength(Result, 0);
+    Exit;
+  end;
+
+  LStartTime := Now;
   LEventCount := DoPoll(ATimeoutMs, AMaxEvents);
+  LLatency := (Now - LStartTime) * 24 * 3600 * 1000;
+
+  UpdateMetrics(LEventCount, LLatency);
   Result := GetReadyEvents;
 end;
 
@@ -1670,7 +1677,6 @@ end;
 {$ENDIF} // WINDOWS
 {$ENDIF} // FAFAFA_SOCKET_POLLER_EXPERIMENTAL
 
-{$IFDEF FAFAFA_SOCKET_POLLER_EXPERIMENTAL}
 {$IFDEF LINUX}
 // ============================================================================
 // TEpollSocketPoller 实现
@@ -1767,7 +1773,7 @@ begin
 
   if Result > 0 then
   begin
-    FLock.Enter;
+    EnterCriticalSection(FLock);
     try
       SetLength(FReadyResults, Result);
 
@@ -1797,7 +1803,7 @@ begin
         end;
       end;
     finally
-      FLock.Leave;
+      LeaveCriticalSection(FLock);
     end;
   end;
 end;
@@ -1847,7 +1853,6 @@ begin
 end;
 
 {$ENDIF} // LINUX
-{$ENDIF} // FAFAFA_SOCKET_POLLER_EXPERIMENTAL
 
 // ============================================================================
 // TEnhancedSelectPoller 实现（跨平台兼容）

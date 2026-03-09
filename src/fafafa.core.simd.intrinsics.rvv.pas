@@ -52,6 +52,19 @@ function rvv_vmadd_vv_u32m1(const a, b, c: TRVVVector; vl: Integer): TRVVVector;
 
 implementation
 
+uses
+  SysUtils;
+
+procedure EnsureExperimentalIntrinsicsEnabled; inline;
+begin
+  {$IFNDEF FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS}
+  raise ENotSupportedException.Create(
+    'fafafa.core.simd.intrinsics.rvv is experimental placeholder semantics. ' +
+    'Define FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS to opt in.'
+  );
+  {$ENDIF}
+end;
+
 {$IFDEF CPURISCV64}
 
 // === RVV 函数的简化实�?===
@@ -116,6 +129,9 @@ end;
 {$ELSE}
 // �?RISC-V 平台的空实现
 {$ENDIF} // CPURISCV64
+
+initialization
+  EnsureExperimentalIntrinsicsEnabled;
 
 end.
 

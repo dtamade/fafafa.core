@@ -519,7 +519,7 @@ function avx2_broadcastsi128_si256(const a: TM128): TM256;
 
 聚集（Gather）指令允许从非连续的内存地址加载数据。
 
-**注意**: 以下函数目前尚未实现，调用时会抛出 `ENotImplemented` 异常。
+**实现状态**: 以下函数已提供纯 Pascal 回退实现，语义与 AVX2 intrinsic 保持一致。
 
 #### avx2_gather_epi32 - 聚集加载 32-bit 整数
 
@@ -564,7 +564,7 @@ function avx2_gather_pd(const base_addr: Pointer; const vindex: TM128; scale: In
 
 ### 10. 打包 / 解包操作
 
-**注意**: 以下函数目前尚未实现，调用时会抛出 `ENotImplemented` 异常。
+**实现状态**: 以下函数已提供纯 Pascal 回退实现，语义与 AVX2 intrinsic 保持一致。
 
 #### 打包操作
 
@@ -666,7 +666,7 @@ function avx2_unpacklo_epi8(const a, b: TM256): TM256;
 
 AVX2 引入了跨 128-bit 边界的置换指令。
 
-**注意**: 以下函数目前尚未实现，调用时会抛出 `ENotImplemented` 异常。
+**实现状态**: 以下函数已提供纯 Pascal 回退实现，语义与 AVX2 intrinsic 保持一致。
 
 #### avx2_permute4x64_epi64 - 置换 4 个 64-bit 整数
 
@@ -797,12 +797,45 @@ end;
 2. **开发和测试** - 便于调试和验证算法正确性
 3. **教学目的** - 清晰展示每个指令的语义
 
-以下函数尚未实现（调用时抛出 `ENotImplemented` 异常）：
-- 聚集加载：`avx2_gather_*`
-- 打包/解包：`avx2_pack*`, `avx2_unpack*`
-- 置换：`avx2_permute*`
+聚集加载（`avx2_gather_*`）、打包/解包（`avx2_pack*` / `avx2_unpack*`）和置换（`avx2_permute*`）均已实现为纯 Pascal 版本。
 
-在支持 AVX2 的平台上，可以通过内联汇编或编译器内置函数来优化性能。
+在支持 AVX2 的平台上，仍可进一步通过内联汇编或编译器内置函数做性能优化。
+
+## 回归覆盖（2026-02-07）
+
+当前 `AVX2` 回退实现由 `TTestCase_AVX2IntrinsicsFallback` 提供专项护栏，覆盖以下关键语义：
+
+- **Set/Zero 语义**
+  - `avx2_setzero_si256` 多视图一致性（`u64/i32/u8/f64` 全量为 0）
+- **Gather 语义**
+  - `avx2_gather_epi32/epi64/ps/pd` 基础加载正确性
+  - 非法参数防御：`base_addr=nil`、`scale` 非 `1/2/4/8`
+  - 负索引路径：`epi32`、`epi64`、`pd` 的回溯读取
+- **Pack/Unpack 语义**
+  - `packs/packus` 饱和规则（有符号/无符号）
+  - 128-bit lane 隔离（极值输入 + 哨兵模式，防跨 lane 串扰）
+- **Permute 语义**
+  - `permute4x64` 常见重排
+  - `permutevar8x32` 索引掩码语义（`idx and 7`）
+  - `permute4x64` 的 `imm8=0..255` 全组合验证
+
+推荐回归命令：
+
+```bash
+bash tests/fafafa.core.simd/BuildOrTest.sh check
+bash tests/fafafa.core.simd/BuildOrTest.sh gate
+bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_AVX2IntrinsicsFallback
+STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.simd fafafa.core.simd.cpuinfo fafafa.core.simd.cpuinfo.x86
+```
+
+`cpuinfo`/`cpuinfo.x86` runner 已兼容 `--list-suites`（内部转译为 `consoletestrunner` 的 `--list`），可用于稳定列出 suite 清单。
+
+Windows 证据补充：
+
+- 一键采集：`tests\fafafa.core.simd\collect_windows_b07_evidence.bat`
+- Linux 侧校验：`bash tests/fafafa.core.simd/BuildOrTest.sh verify-win-evidence`
+
+在无 Windows 证据日志时，`BuildOrTest.sh gate` 会对证据校验分支输出 `SKIP`，不会阻断主回归门禁。
 
 ## 性能考虑
 

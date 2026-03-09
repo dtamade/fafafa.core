@@ -11,7 +11,6 @@ uses
   SysUtils, Classes,
   fafafa.core.args.utils,
   fafafa.core.option.base,
-  fafafa.core.option,
   fafafa.core.sync.oncelock,
   fafafa.core.atomic  // ✅ P0 修复: 线程安全的全局缓存初始化
   {$IFDEF Windows}

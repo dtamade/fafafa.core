@@ -73,6 +73,19 @@ function lasx_xvmin_d(const a, b: TLASXVector): TLASXVector;
 
 implementation
 
+uses
+  SysUtils;
+
+procedure EnsureExperimentalIntrinsicsEnabled; inline;
+begin
+  {$IFNDEF FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS}
+  raise ENotSupportedException.Create(
+    'fafafa.core.simd.intrinsics.lasx is experimental placeholder semantics. ' +
+    'Define FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS to opt in.'
+  );
+  {$ENDIF}
+end;
+
 {$IFDEF CPULOONGARCH64}
 
 // === LASX 函数的简化实�?===
@@ -281,6 +294,9 @@ end;
 {$ELSE}
 // �?LoongArch 平台的空实现
 {$ENDIF} // CPULOONGARCH64
+
+initialization
+  EnsureExperimentalIntrinsicsEnabled;
 
 end.
 

@@ -41,7 +41,6 @@ interface
 uses
   SysUtils,
   DateUtils,
-  fafafa.core.time.base,
   fafafa.core.time.duration,
   fafafa.core.time.date,
   fafafa.core.time.timeofday;
@@ -1025,6 +1024,8 @@ function TTimeFormatter.ApplyPattern(const ADateTime: TDateTime; const APattern:
 var
   dt: TDateTime;
 begin
+  // TODO: 使用 AOptions 处理时区转换等
+  if AOptions.CustomPattern <> '' then; // suppress unused parameter hint
   dt := ADateTime; // 简化：暂不处理时区转换
   Result := SysUtils.FormatDateTime(APattern, dt);
   // 时区后缀等扩展可在此追加
@@ -1077,8 +1078,10 @@ function TTimeFormatter.FormatDate(const ADate: TDate; const AOptions: TFormatOp
 var
   patt: string;
 begin
-  // 日期仅显示日期部分
-  patt := PATTERN_ISO8601_DATE;
+  if AOptions.CustomPattern <> '' then
+    patt := AOptions.CustomPattern
+  else
+    patt := PATTERN_ISO8601_DATE;
   Result := SysUtils.FormatDateTime(patt, ADate.ToDateTime);
 end;
 
@@ -1138,10 +1141,21 @@ end;
 function TTimeFormatter.FormatDuration(const ADuration: TDuration; const APattern: string): string;
 var
   df: IDurationFormatter;
+  LPattern: string;
 begin
-  // 简化：忽略自定义模式，使用紧凑格式
   df := DefaultDurationFormatter;
-  Result := df.FormatCompact(ADuration);
+  LPattern := LowerCase(Trim(APattern));
+
+  if (Pos('precise', LPattern) > 0) or (Pos('time', LPattern) > 0) then
+    Result := df.Format(ADuration, dfPrecise)
+  else if (Pos('verbose', LPattern) > 0) or (Pos('long', LPattern) > 0) then
+    Result := df.Format(ADuration, dfVerbose)
+  else if Pos('human', LPattern) > 0 then
+    Result := df.Format(ADuration, dfHuman)
+  else if (Pos('iso', LPattern) > 0) or (Pos('8601', LPattern) > 0) then
+    Result := df.Format(ADuration, dfISO8601)
+  else
+    Result := df.Format(ADuration, dfCompact);
 end;
 
 function TTimeFormatter.FormatRelative(const ADateTime: TDateTime; const ABaseTime: TDateTime): string;
@@ -1304,9 +1318,21 @@ begin
 end;
 
 function TDurationFormatter.Format(const ADuration: TDuration; const APattern: string): string;
+var
+  LPattern: string;
 begin
-  // 简化：忽略自定义模式
-  Result := FormatCompact(ADuration);
+  LPattern := LowerCase(Trim(APattern));
+
+  if (Pos('precise', LPattern) > 0) or (Pos('time', LPattern) > 0) then
+    Result := FormatPrecise(ADuration)
+  else if (Pos('verbose', LPattern) > 0) or (Pos('long', LPattern) > 0) then
+    Result := FormatVerbose(ADuration)
+  else if Pos('human', LPattern) > 0 then
+    Result := FormatHuman(ADuration)
+  else if (Pos('iso', LPattern) > 0) or (Pos('8601', LPattern) > 0) then
+    Result := FormatISO8601(ADuration)
+  else
+    Result := FormatCompact(ADuration);
 end;
 
 function TDurationFormatter.FormatHuman(const ADuration: TDuration): string;

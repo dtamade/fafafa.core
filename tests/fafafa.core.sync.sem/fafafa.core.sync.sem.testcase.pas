@@ -291,11 +291,47 @@ begin
   AssertEquals('Max=5 should be stored', 5, S.GetMaxCount);
 end;
 
-procedure TTestCase_ISem.Test_Constructors_Invalid_MaxLEZero;\nbegin\n  AssertException(fafafa.core.sync.base.EInvalidArgument,\n    @procedure begin fafafa.core.sync.sem.MakeSem(0, 0); end);\nend;
+procedure TTestCase_ISem.Test_Constructors_Invalid_MaxLEZero;
+var
+  LRaised: Boolean;
+begin
+  LRaised := False;
+  try
+    fafafa.core.sync.sem.MakeSem(0, 0);
+  except
+    on E: fafafa.core.sync.base.EInvalidArgument do
+      LRaised := True;
+  end;
+  AssertTrue('MakeSem(0,0) should raise EInvalidArgument', LRaised);
+end;
 
-procedure TTestCase_ISem.Test_Constructors_Invalid_InitialNegative;\nbegin\n  AssertException(fafafa.core.sync.base.EInvalidArgument,\n    @procedure begin fafafa.core.sync.sem.MakeSem(-1, 1); end);\nend;
+procedure TTestCase_ISem.Test_Constructors_Invalid_InitialNegative;
+var
+  LRaised: Boolean;
+begin
+  LRaised := False;
+  try
+    fafafa.core.sync.sem.MakeSem(-1, 1);
+  except
+    on E: fafafa.core.sync.base.EInvalidArgument do
+      LRaised := True;
+  end;
+  AssertTrue('MakeSem(-1,1) should raise EInvalidArgument', LRaised);
+end;
 
-procedure TTestCase_ISem.Test_Constructors_Invalid_InitialGreaterThanMax;\nbegin\n  AssertException(fafafa.core.sync.base.EInvalidArgument,\n    @procedure begin fafafa.core.sync.sem.MakeSem(2, 1); end);\nend;
+procedure TTestCase_ISem.Test_Constructors_Invalid_InitialGreaterThanMax;
+var
+  LRaised: Boolean;
+begin
+  LRaised := False;
+  try
+    fafafa.core.sync.sem.MakeSem(2, 1);
+  except
+    on E: fafafa.core.sync.base.EInvalidArgument do
+      LRaised := True;
+  end;
+  AssertTrue('MakeSem(2,1) should raise EInvalidArgument', LRaised);
+end;
 
 procedure TTestCase_ISem.Test_Basic_AcquireRelease;
 begin

@@ -9,6 +9,7 @@ program tests_process;
 
 
 uses
+  {$IFDEF UNIX}cthreads,{$ENDIF}
   Classes,
   consoletestrunner,
   // 测试单元

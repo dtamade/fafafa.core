@@ -52,7 +52,10 @@ type
   // 日期与时间组件
   TDate      = fafafa.core.time.date.TDate;
   TTimeOfDay = fafafa.core.time.timeofday.TTimeOfDay;
-  
+
+  // 秒表计时器
+  TStopwatch = fafafa.core.time.stopwatch.TStopwatch;
+
   // 新增：构建器类型 (v1.2.0)
   TDateBuilder     = fafafa.core.time.builders.TDateBuilder;
   TTimeBuilder     = fafafa.core.time.builders.TTimeBuilder;

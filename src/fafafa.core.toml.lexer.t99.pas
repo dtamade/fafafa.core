@@ -300,7 +300,7 @@ end;
 function ReadSQString(var L: TTomlLexer; out S: RawByteString): Boolean;
 var ch: Char; buf: RawByteString;
 begin
-  Result := False; S := '';
+  Result := False; S := ''; buf := '';
   while (L.P < L.PEnd) do
   begin
     ch := L.P^; Inc(L.P); Inc(L.CurCol);
@@ -408,9 +408,17 @@ end;
 procedure TTomlLexer.Init(const AText: RawByteString);
 begin
   Input := AText;
-  if Length(Input) > 0 then Base := PChar(Input) else Base := nil;
+  if Length(Input) > 0 then
+  begin
+    Base := PChar(Input);
+    PEnd := Base + Length(Input);
+  end
+  else
+  begin
+    Base := nil;
+    PEnd := nil;
+  end;
   P := Base;
-  PEnd := PChar(PtrUInt(Base) + Length(Input));
   LineStart := P;
   CurLine := 1; CurCol := 1;
   LastErr := '';
@@ -419,6 +427,7 @@ end;
 function TTomlLexer.Next(out Tok: TTomlToken): Boolean;
 var ch: Char; startP: PChar; text: RawByteString; ok: Boolean;
 begin
+  Tok := Default(TTomlToken);
   // 跳空白/注释
   while True do
   begin

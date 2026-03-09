@@ -27,7 +27,7 @@ type
 implementation
 
 uses
-  fafafa.core.io, fafafa.core.io.async,
+  fafafa.core.io,
   fafafa.core.logging.sinks.textsink, fafafa.core.logging.sinks.console,
   fafafa.core.logging.sinks.async,
   fafafa.core.logging.formatters.text, fafafa.core.logging.formatters.json;
@@ -78,7 +78,7 @@ begin
   S := TStringSink.Create;
   Fmt := TTextLogFormatter.Create;
   // 使用异步 sink 包装 StringSink
-  Sink := TTextSinkLogSink.Create(TAsyncTextSink.Create(S, 8, 4, dpDropOld), Fmt);
+  Sink := TAsyncLogSink.Create(TTextSinkLogSink.Create(S, Fmt), 8, 4, ldpDropOld);
   // 保存并替换全局
   PrevSink := Logging.GetRootSink;
   PrevFmt := Logging.GetFormatter;

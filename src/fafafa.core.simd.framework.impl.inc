@@ -1,8 +1,3 @@
-function GetCPUInformation: TCPUInfo;
-begin
-  Result := GetCPUInfo;
-end;
-
 function GetCurrentBackend: TSimdBackend;
 begin
   Result := GetActiveBackend;
@@ -10,38 +5,45 @@ end;
 
 function GetCurrentBackendInfo: TSimdBackendInfo;
 begin
-  Result := GetBackendInfo(GetCurrentBackend);
+  Result := GetBackendInfo(GetActiveBackend);
 end;
 
-function GetBackendName(aBackend: TSimdBackend): string;
-var
-  LInfo: TSimdBackendInfo;
+function GetCPUInformation: TCPUInfo;
 begin
-  LInfo := GetBackendInfo(aBackend);
-  if LInfo.Name <> '' then
-    Exit(LInfo.Name);
-
-  Result := 'Unknown';
-  case aBackend of
-    sbScalar: Result := 'Scalar';
-    sbSSE2: Result := 'SSE2';
-    sbSSE3: Result := 'SSE3';
-    sbSSSE3: Result := 'SSSE3';
-    sbSSE41: Result := 'SSE4.1';
-    sbSSE42: Result := 'SSE4.2';
-    sbAVX2: Result := 'AVX2';
-    sbAVX512: Result := 'AVX-512';
-    sbNEON: Result := 'NEON';
-    sbRISCVV: Result := 'RISCVV';
-  end;
+  Result := GetCPUInfo;
 end;
 
-procedure ForceBackend(aBackend: TSimdBackend);
+function GetAvailableBackendList: TSimdBackendArray;
 begin
-  SetActiveBackend(aBackend);
+  Result := GetAvailableBackends;
+end;
+
+function TryForceBackend(aBackend: TSimdBackend): Boolean;
+begin
+  Result := TrySetActiveBackend(aBackend);
+end;
+
+procedure ForceBackend(backend: TSimdBackend);
+begin
+  SetActiveBackend(backend);
 end;
 
 procedure ResetBackendSelection;
 begin
   ResetToAutomaticBackend;
+end;
+
+function AllocateAligned(size: NativeUInt; alignment: NativeUInt): Pointer;
+begin
+  Result := AlignedAlloc(size, alignment);
+end;
+
+procedure FreeAligned(ptr: Pointer);
+begin
+  AlignedFree(ptr);
+end;
+
+function IsPointerAligned(ptr: Pointer; alignment: NativeUInt): Boolean;
+begin
+  Result := fafafa.core.simd.memutils.IsAligned(ptr, alignment);
 end;

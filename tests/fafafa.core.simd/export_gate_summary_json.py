@@ -1,82 +1,89 @@
 #!/usr/bin/env python3
+"""Export SIMD gate summary markdown table to machine-readable JSON."""
+
 from __future__ import annotations
 
 import argparse
 import json
+from datetime import datetime
 from pathlib import Path
-from typing import List, Dict
 
 
-def parse_rows(a_path: Path) -> List[Dict[str, str]]:
-    l_rows: List[Dict[str, str]] = []
-    for l_raw_line in a_path.read_text(encoding='utf-8', errors='ignore').splitlines():
-        l_line = l_raw_line.strip()
-        if not l_line.startswith('|'):
+def parse_markdown_rows(summary_text: str) -> list[dict[str, str]]:
+    rows: list[dict[str, str]] = []
+
+    for line in summary_text.splitlines():
+        line = line.strip()
+        if not line.startswith("|"):
             continue
-        if l_line.startswith('| Time |') or l_line.startswith('|---'):
+        if line.startswith("|---") or line.startswith("| Time "):
             continue
-        l_cells = [l_part.strip() for l_part in l_line.strip('|').split('|')]
-        if len(l_cells) < 7:
+
+        parts = [part.strip() for part in line.split("|")[1:-1]]
+        if len(parts) < 6:
             continue
-        l_rows.append(
+        if len(parts) < 7:
+            parts.append("-")
+
+        rows.append(
             {
-                'time': l_cells[0],
-                'step': l_cells[1],
-                'status': l_cells[2],
-                'duration_ms': l_cells[3],
-                'event': l_cells[4],
-                'detail': l_cells[5],
-                'artifacts': l_cells[6],
+                "time": parts[0],
+                "step": parts[1],
+                "status": parts[2],
+                "duration_ms": parts[3],
+                "event": parts[4],
+                "detail": parts[5],
+                "artifacts": parts[6],
             }
         )
-    return l_rows
+
+    return rows
 
 
-def filter_rows(a_rows: List[Dict[str, str]], a_filter: str) -> List[Dict[str, str]]:
-    l_filter = a_filter.upper()
-    if l_filter == 'ALL':
-        return a_rows
-    if l_filter == 'FAIL':
-        return [l_row for l_row in a_rows if l_row.get('status') == 'FAIL']
-    if l_filter == 'SLOW':
-        return [
-            l_row
-            for l_row in a_rows
-            if l_row.get('event') in {'SLOW_WARN', 'SLOW_CRIT', 'SLOW_FAIL'}
-        ]
-    return a_rows
+def apply_filter(rows: list[dict[str, str]], filter_mode: str) -> list[dict[str, str]]:
+    if filter_mode == "ALL":
+        return rows
+    if filter_mode == "FAIL":
+        return [row for row in rows if row.get("status") == "FAIL"]
+    if filter_mode == "SLOW":
+        return [row for row in rows if row.get("event") in {"SLOW_WARN", "SLOW_FAIL"}]
+    return rows
 
 
 def main() -> int:
-    l_parser = argparse.ArgumentParser(description='Export SIMD gate summary markdown as JSON')
-    l_parser.add_argument('--input', required=True, help='Path to gate_summary.md')
-    l_parser.add_argument('--output', required=True, help='Path to output JSON file')
-    l_parser.add_argument('--filter', default='ALL', help='ALL|FAIL|SLOW')
-    l_parser.add_argument('--warn-ms', type=int, default=20000, help='Warn threshold')
-    l_parser.add_argument('--fail-ms', type=int, default=120000, help='Fail threshold')
-    l_args = l_parser.parse_args()
+    parser = argparse.ArgumentParser(description="Export SIMD gate summary markdown to JSON")
+    parser.add_argument("--input", required=True, dest="input_path", help="Path to gate_summary.md")
+    parser.add_argument("--output", required=True, dest="output_path", help="Path to output JSON")
+    parser.add_argument("--filter", default="ALL", choices=["ALL", "FAIL", "SLOW"], help="Row filter")
+    parser.add_argument("--warn-ms", type=int, default=20000, help="Slow warning threshold")
+    parser.add_argument("--fail-ms", type=int, default=120000, help="Slow failure threshold")
+    args = parser.parse_args()
 
-    l_input = Path(l_args.input)
-    l_output = Path(l_args.output)
-    if not l_input.is_file():
-        raise SystemExit(f'missing input: {l_input}')
+    input_path = Path(args.input_path)
+    output_path = Path(args.output_path)
 
-    l_rows = parse_rows(l_input)
-    l_filtered = filter_rows(l_rows, l_args.filter)
-    l_payload = {
-        'input': str(l_input),
-        'filter': l_args.filter.upper(),
-        'warn_ms': l_args.warn_ms,
-        'fail_ms': l_args.fail_ms,
-        'total_rows': len(l_rows),
-        'matched_rows': len(l_filtered),
-        'rows': l_filtered,
+    if not input_path.exists():
+        print(f"[EXPORT-GATE-SUMMARY] Missing input: {input_path}")
+        return 2
+
+    all_rows = parse_markdown_rows(input_path.read_text(encoding="utf-8"))
+    matched_rows = apply_filter(all_rows, args.filter)
+
+    payload = {
+        "generated_at": datetime.now().isoformat(timespec="seconds"),
+        "summary_file": str(input_path),
+        "filter": args.filter,
+        "warn_ms": args.warn_ms,
+        "fail_ms": args.fail_ms,
+        "total_rows": len(all_rows),
+        "matched_rows": len(matched_rows),
+        "rows": matched_rows,
     }
 
-    l_output.parent.mkdir(parents=True, exist_ok=True)
-    l_output.write_text(json.dumps(l_payload, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     raise SystemExit(main())

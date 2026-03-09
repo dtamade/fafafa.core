@@ -1299,8 +1299,8 @@ begin
   cfg.userdata := nil;
   cfg.diag := nil;
 
-    doc := yaml_document_create(@cfg);
-  // AssertNotNull(doc, 'fy_document_create should return valid document'); // TODO: 实现后启用
+  doc := yaml_document_create(@cfg);
+  AssertNotNull('yaml_document_create should return a valid document handle', doc);
 
   yaml_document_destroy(doc);
 end;
@@ -1318,7 +1318,7 @@ begin
 
   yaml_str := 'key: value';
   doc := yaml_document_build_from_string(@cfg, yaml_str, StrLen(yaml_str));
-  // TODO: 添加断言当实现完成后
+  AssertNotNull('yaml_document_build_from_string should return a valid document handle', doc);
 
   yaml_document_destroy(doc);
 end;
@@ -1342,46 +1342,131 @@ end;
 
 // TTestCase_YamlNode 实现
 procedure TTestCase_YamlNode.Test_yaml_node_basic_operations;
+var
+  LCfg: TYamlParseCfg;
+  LDoc: PYamlDocument;
+  LRoot: PYamlNode;
+  LType: TYamlNodeType;
 begin
-  // TODO: 实现节点基本操作测试
+  LCfg.search_path := nil;
+  LCfg.flags := [];
+  LCfg.userdata := nil;
+  LCfg.diag := nil;
+
+  LDoc := yaml_document_create(@LCfg);
+  AssertNotNull('yaml_document_create should return a valid document handle', LDoc);
+  yaml_document_destroy(LDoc);
+
+  LDoc := yaml_document_build_from_string(@LCfg, 'k: v', 4);
+  AssertNotNull('yaml_document_build_from_string should return a valid document handle', LDoc);
+
+  LRoot := yaml_document_get_root(LDoc);
+  AssertNull('yaml_document_get_root is currently expected to return nil in minimal stub', LRoot);
+  yaml_document_destroy(LDoc);
+
+  LType := yaml_node_get_type(nil);
+  AssertEquals('nil node type fallback should be first enum value (scalar)', 0, Ord(LType));
+
+  AssertEquals('nil node sequence count should be 0', 0, yaml_node_sequence_item_count(nil));
+  AssertEquals('nil node mapping count should be 0', 0, yaml_node_mapping_item_count(nil));
 end;
 
 procedure TTestCase_YamlNode.Test_yaml_node_scalar_operations;
+var
+  LLen: SizeUInt;
+  LScalar: PChar;
 begin
-  // TODO: 实现标量节点操作测试
+  LLen := 123;
+  LScalar := yaml_node_get_scalar(nil, @LLen);
+  AssertNull('yaml_node_get_scalar(nil) should return nil', LScalar);
+  AssertEquals('yaml_node_get_scalar(nil) should reset len to 0', Int64(0), Int64(LLen));
+
+  LScalar := yaml_node_get_scalar(nil, nil);
+  AssertNull('yaml_node_get_scalar(nil,nil) should return nil', LScalar);
+
+  AssertNull('yaml_node_get_scalar0(nil) should return nil', yaml_node_get_scalar0(nil));
+  AssertNull('yaml_node_sequence_get_by_index(nil,0) should return nil', yaml_node_sequence_get_by_index(nil, 0));
+  AssertNull('yaml_node_mapping_get_by_index(nil,0) should return nil', yaml_node_mapping_get_by_index(nil, 0));
+  AssertNull('yaml_node_mapping_lookup_by_string(nil,...) should return nil', yaml_node_mapping_lookup_by_string(nil, 'key', 3));
+  AssertNull('yaml_node_pair_key(nil) should return nil', yaml_node_pair_key(nil));
+  AssertNull('yaml_node_pair_value(nil) should return nil', yaml_node_pair_value(nil));
 end;
 
 procedure TTestCase_YamlNode.Test_yaml_node_sequence_operations;
+var
+  LCount: Integer;
+  LItem: PYamlNode;
 begin
-  // TODO: 实现序列节点操作测试
+  LCount := yaml_node_sequence_item_count(nil);
+  AssertEquals('yaml_node_sequence_item_count(nil) should be 0', 0, LCount);
+
+  LItem := yaml_node_sequence_get_by_index(nil, 0);
+  AssertNull('yaml_node_sequence_get_by_index(nil,0) should return nil', LItem);
+
+  LItem := yaml_node_sequence_get_by_index(nil, -1);
+  AssertNull('yaml_node_sequence_get_by_index(nil,-1) should return nil', LItem);
 end;
 
 procedure TTestCase_YamlNode.Test_yaml_node_mapping_operations;
+var
+  LCount: Integer;
+  LPair: PYamlNodePair;
+  LNode: PYamlNode;
 begin
-  // TODO: 实现映射节点操作测试
+  LCount := yaml_node_mapping_item_count(nil);
+  AssertEquals('yaml_node_mapping_item_count(nil) should be 0', 0, LCount);
+
+  LPair := yaml_node_mapping_get_by_index(nil, 0);
+  AssertNull('yaml_node_mapping_get_by_index(nil,0) should return nil', LPair);
+  AssertNull('yaml_node_pair_key(nil) should return nil', yaml_node_pair_key(LPair));
+  AssertNull('yaml_node_pair_value(nil) should return nil', yaml_node_pair_value(LPair));
+
+  LNode := yaml_node_mapping_lookup_by_string(nil, 'name', 4);
+  AssertNull('yaml_node_mapping_lookup_by_string(nil,...) should return nil', LNode);
 end;
 
 // TTestCase_YamlEmitter 实现
 procedure TTestCase_YamlEmitter.Test_yaml_emitter_create_destroy;
 var
-  cfg: TYamlEmitCfg;
-  emitter: PYamlEmitter;
+  LCfg: TYamlEmitCfg;
+  LEmitter: PYamlEmitter;
 begin
-  cfg.flags := [];
-  cfg.indent := 2;
-  cfg.width := 80;
-  cfg.userdata := nil;
-  cfg.diag := nil;
+  FillChar(LCfg, SizeOf(LCfg), 0);
+  LCfg.flags := [];
+  LCfg.indent := 2;
+  LCfg.width := 80;
+  LCfg.userdata := nil;
+  LCfg.diag := nil;
 
-  emitter := yaml_emitter_create(@cfg);
-  // AssertNotNull(emitter, 'yaml_emitter_create should return valid emitter'); // TODO: 实现后启用
+  LEmitter := yaml_emitter_create(@LCfg);
+  AssertNotNull('yaml_emitter_create should return a valid emitter handle', LEmitter);
 
-  yaml_emitter_destroy(emitter);
+  yaml_emitter_destroy(LEmitter);
 end;
 
 procedure TTestCase_YamlEmitter.Test_yaml_emit_document;
+var
+  LCfg: TYamlEmitCfg;
+  LEmitter: PYamlEmitter;
+  LLen: SizeUInt;
+  LOutput: PChar;
 begin
-  // TODO: 实现文档发射测试
+  FillChar(LCfg, SizeOf(LCfg), 0);
+  LCfg.flags := [];
+  LCfg.indent := 2;
+  LCfg.width := 80;
+  LCfg.userdata := nil;
+  LCfg.diag := nil;
+
+  LEmitter := yaml_emitter_create(@LCfg);
+  AssertNotNull('yaml_emitter_create should return a valid emitter handle', LEmitter);
+
+  LLen := 77;
+  LOutput := yaml_emit_document(nil, @LCfg, @LLen);
+  AssertNull('yaml_emit_document(nil,...) should return nil', LOutput);
+  AssertEquals('yaml_emit_document(nil,...) should reset len to 0', Int64(0), Int64(LLen));
+
+  yaml_emitter_destroy(LEmitter);
 end;
 
 

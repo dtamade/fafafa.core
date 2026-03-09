@@ -77,6 +77,19 @@ function fma3_fmsubadd_pd256(const a, b, c: TM256): TM256;
 
 implementation
 
+uses
+  SysUtils;
+
+procedure EnsureExperimentalIntrinsicsEnabled; inline;
+begin
+  {$IFNDEF FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS}
+  raise ENotSupportedException.Create(
+    'fafafa.core.simd.intrinsics.fma3 is experimental placeholder semantics. ' +
+    'Define FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS to opt in.'
+  );
+  {$ENDIF}
+end;
+
 // === 128-bit 单精度浮点实�?===
 function fma3_fmadd_ps(const a, b, c: TM128): TM128;
 var
@@ -345,6 +358,9 @@ begin
     else
       Result.m256_f64[i] := a.m256_f64[i] * b.m256_f64[i] - c.m256_f64[i];
 end;
+
+initialization
+  EnsureExperimentalIntrinsicsEnabled;
 
 end.
 

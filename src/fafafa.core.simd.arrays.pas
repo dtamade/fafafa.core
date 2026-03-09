@@ -284,7 +284,8 @@ implementation
 
 uses
   fafafa.core.simd.base,
-  fafafa.core.simd.dispatch;
+  fafafa.core.simd.dispatch,
+  fafafa.core.simd;
 
 const
   // IEEE-754 special values for infinity (avoiding Math unit dependency)
@@ -301,97 +302,201 @@ const
 
 function SimdArraySumF64(aSrc: PDouble; aCount: SizeUInt): Double;
 var
-  i: SizeUInt;
-  vec: TVecF64x4;
-  acc: TVecF64x4;
-  dispatch: PSimdDispatchTable;
+  LIndex: SizeUInt;
+  LVec: TVecF64x4;
+  LDispatch: PSimdDispatchTable;
+  LHasReduceAddF64x4: Boolean;
+  LHasLoadF64x4: Boolean;
 begin
   if (aSrc = nil) or (aCount = 0) then
     Exit(0.0);
 
-  dispatch := GetDispatchTable;
+  LDispatch := GetDispatchTable;
+  LHasReduceAddF64x4 := Assigned(LDispatch^.ReduceAddF64x4);
+  LHasLoadF64x4 := Assigned(LDispatch^.LoadF64x4);
   Result := 0.0;
 
-  // Use AVX2 (4 doubles per vector) if available
-  if aCount >= 4 then
+  while aCount >= 4 do
   begin
-    // Initialize accumulator to zero
-    acc.d[0] := 0.0; acc.d[1] := 0.0; acc.d[2] := 0.0; acc.d[3] := 0.0;
-
-    // Process 4 doubles at a time
-    while aCount >= 4 do
+    if LHasLoadF64x4 then
+      LVec := LDispatch^.LoadF64x4(aSrc)
+    else
     begin
-      vec.d[0] := aSrc[0];
-      vec.d[1] := aSrc[1];
-      vec.d[2] := aSrc[2];
-      vec.d[3] := aSrc[3];
-      acc := dispatch^.AddF64x4(acc, vec);
-      Inc(aSrc, 4);
-      Dec(aCount, 4);
+      LVec.d[0] := aSrc[0];
+      LVec.d[1] := aSrc[1];
+      LVec.d[2] := aSrc[2];
+      LVec.d[3] := aSrc[3];
     end;
 
-    // Reduce accumulator to single value
-    Result := acc.d[0] + acc.d[1] + acc.d[2] + acc.d[3];
+    if LHasReduceAddF64x4 then
+      Result := Result + LDispatch^.ReduceAddF64x4(LVec)
+    else
+      Result := Result + LVec.d[0] + LVec.d[1] + LVec.d[2] + LVec.d[3];
+
+    Inc(aSrc, 4);
+    Dec(aCount, 4);
   end;
 
-  // Handle remaining elements
-  for i := 0 to aCount - 1 do
-    Result := Result + aSrc[i];
+  if aCount > 0 then
+    for LIndex := 0 to aCount - 1 do
+      Result := Result + aSrc[LIndex];
 end;
 
 function SimdArraySumKahanF64(aSrc: PDouble; aCount: SizeUInt): Double;
 var
-  i: SizeUInt;
-  sum, c, y, t: Double;
+  LIndex: SizeUInt;
+  LVec: TVecF64x4;
+  LDispatch: PSimdDispatchTable;
+  LHasLoadF64x4: Boolean;
+  LHasReduceAddF64x4: Boolean;
+  LSum, LC, LY, LT: Double;
+  LBlockSum: Double;
 begin
   if (aSrc = nil) or (aCount = 0) then
     Exit(0.0);
 
-  sum := 0.0;
-  c := 0.0;  // Compensation for lost low-order bits
+  LDispatch := GetDispatchTable;
+  LHasLoadF64x4 := Assigned(LDispatch^.LoadF64x4);
+  LHasReduceAddF64x4 := Assigned(LDispatch^.ReduceAddF64x4);
 
-  for i := 0 to aCount - 1 do
+  LSum := 0.0;
+  LC := 0.0;
+
+  while aCount >= 4 do
   begin
-    y := aSrc[i] - c;       // Compensate for previous error
-    t := sum + y;           // Alas, sum is big, y small, so low-order digits of y are lost
-    c := (t - sum) - y;     // (t - sum) recovers the high-order part of y; subtracting y recovers -(low part of y)
-    sum := t;               // Algebraically, c should always be zero. Beware overly-aggressive optimizing compilers!
+    if LHasLoadF64x4 then
+      LVec := LDispatch^.LoadF64x4(aSrc)
+    else
+    begin
+      LVec.d[0] := aSrc[0];
+      LVec.d[1] := aSrc[1];
+      LVec.d[2] := aSrc[2];
+      LVec.d[3] := aSrc[3];
+    end;
+
+    if LHasReduceAddF64x4 then
+      LBlockSum := LDispatch^.ReduceAddF64x4(LVec)
+    else
+      LBlockSum := LVec.d[0] + LVec.d[1] + LVec.d[2] + LVec.d[3];
+
+    LY := LBlockSum - LC;
+    LT := LSum + LY;
+    LC := (LT - LSum) - LY;
+    LSum := LT;
+
+    Inc(aSrc, 4);
+    Dec(aCount, 4);
   end;
 
-  Result := sum;
+  if aCount > 0 then
+    for LIndex := 0 to aCount - 1 do
+    begin
+      LY := aSrc[LIndex] - LC;
+      LT := LSum + LY;
+      LC := (LT - LSum) - LY;
+      LSum := LT;
+    end;
+
+  Result := LSum;
 end;
 
 function SimdArrayMinF64(aSrc: PDouble; aCount: SizeUInt): Double;
 var
-  i: SizeUInt;
+  LIndex: SizeUInt;
+  LVec, LVecMin: TVecF64x4;
+  LDispatch: PSimdDispatchTable;
+  LCanVectorize: Boolean;
+  LChunkMin: Double;
 begin
   if (aSrc = nil) or (aCount = 0) then
     Exit(PosInfinityF64);
 
-  // Scalar implementation (F64 Min/Max not in dispatch table yet)
+  LDispatch := GetDispatchTable;
+  LCanVectorize := Assigned(LDispatch^.LoadF64x4)
+    and Assigned(LDispatch^.MinF64x4)
+    and Assigned(LDispatch^.ReduceMinF64x4);
+
   Result := aSrc[0];
-  for i := 1 to aCount - 1 do
-    if aSrc[i] < Result then
-      Result := aSrc[i];
+  Inc(aSrc);
+  Dec(aCount);
+
+  if LCanVectorize and (aCount >= 4) then
+  begin
+    LVecMin := LDispatch^.LoadF64x4(aSrc);
+    Inc(aSrc, 4);
+    Dec(aCount, 4);
+
+    while aCount >= 4 do
+    begin
+      LVec := LDispatch^.LoadF64x4(aSrc);
+      LVecMin := LDispatch^.MinF64x4(LVecMin, LVec);
+      Inc(aSrc, 4);
+      Dec(aCount, 4);
+    end;
+
+    LChunkMin := LDispatch^.ReduceMinF64x4(LVecMin);
+    if LChunkMin < Result then
+      Result := LChunkMin;
+  end;
+
+  if aCount > 0 then
+    for LIndex := 0 to aCount - 1 do
+      if aSrc[LIndex] < Result then
+        Result := aSrc[LIndex];
 end;
 
 function SimdArrayMaxF64(aSrc: PDouble; aCount: SizeUInt): Double;
 var
-  i: SizeUInt;
+  LIndex: SizeUInt;
+  LVec, LVecMax: TVecF64x4;
+  LDispatch: PSimdDispatchTable;
+  LCanVectorize: Boolean;
+  LChunkMax: Double;
 begin
   if (aSrc = nil) or (aCount = 0) then
     Exit(NegInfinityF64);
 
-  // Scalar implementation (F64 Min/Max not in dispatch table yet)
+  LDispatch := GetDispatchTable;
+  LCanVectorize := Assigned(LDispatch^.LoadF64x4)
+    and Assigned(LDispatch^.MaxF64x4)
+    and Assigned(LDispatch^.ReduceMaxF64x4);
+
   Result := aSrc[0];
-  for i := 1 to aCount - 1 do
-    if aSrc[i] > Result then
-      Result := aSrc[i];
+  Inc(aSrc);
+  Dec(aCount);
+
+  if LCanVectorize and (aCount >= 4) then
+  begin
+    LVecMax := LDispatch^.LoadF64x4(aSrc);
+    Inc(aSrc, 4);
+    Dec(aCount, 4);
+
+    while aCount >= 4 do
+    begin
+      LVec := LDispatch^.LoadF64x4(aSrc);
+      LVecMax := LDispatch^.MaxF64x4(LVecMax, LVec);
+      Inc(aSrc, 4);
+      Dec(aCount, 4);
+    end;
+
+    LChunkMax := LDispatch^.ReduceMaxF64x4(LVecMax);
+    if LChunkMax > Result then
+      Result := LChunkMax;
+  end;
+
+  if aCount > 0 then
+    for LIndex := 0 to aCount - 1 do
+      if aSrc[LIndex] > Result then
+        Result := aSrc[LIndex];
 end;
 
 procedure SimdArrayMinMaxF64(aSrc: PDouble; aCount: SizeUInt; out aMin, aMax: Double);
 var
-  i: SizeUInt;
+  LIndex: SizeUInt;
+  LVec, LVecMin, LVecMax: TVecF64x4;
+  LDispatch: PSimdDispatchTable;
+  LCanVectorize: Boolean;
+  LChunkMin, LChunkMax: Double;
 begin
   if (aSrc = nil) or (aCount = 0) then
   begin
@@ -400,14 +505,51 @@ begin
     Exit;
   end;
 
-  // Scalar implementation (F64 Min/Max not in dispatch table yet)
+  LDispatch := GetDispatchTable;
+  LCanVectorize := Assigned(LDispatch^.LoadF64x4)
+    and Assigned(LDispatch^.MinF64x4)
+    and Assigned(LDispatch^.MaxF64x4)
+    and Assigned(LDispatch^.ReduceMinF64x4)
+    and Assigned(LDispatch^.ReduceMaxF64x4);
+
   aMin := aSrc[0];
   aMax := aSrc[0];
-  for i := 1 to aCount - 1 do
+  Inc(aSrc);
+  Dec(aCount);
+
+  if LCanVectorize and (aCount >= 4) then
   begin
-    if aSrc[i] < aMin then aMin := aSrc[i];
-    if aSrc[i] > aMax then aMax := aSrc[i];
+    LVec := LDispatch^.LoadF64x4(aSrc);
+    LVecMin := LVec;
+    LVecMax := LVec;
+    Inc(aSrc, 4);
+    Dec(aCount, 4);
+
+    while aCount >= 4 do
+    begin
+      LVec := LDispatch^.LoadF64x4(aSrc);
+      LVecMin := LDispatch^.MinF64x4(LVecMin, LVec);
+      LVecMax := LDispatch^.MaxF64x4(LVecMax, LVec);
+      Inc(aSrc, 4);
+      Dec(aCount, 4);
+    end;
+
+    LChunkMin := LDispatch^.ReduceMinF64x4(LVecMin);
+    LChunkMax := LDispatch^.ReduceMaxF64x4(LVecMax);
+    if LChunkMin < aMin then
+      aMin := LChunkMin;
+    if LChunkMax > aMax then
+      aMax := LChunkMax;
   end;
+
+  if aCount > 0 then
+    for LIndex := 0 to aCount - 1 do
+    begin
+      if aSrc[LIndex] < aMin then
+        aMin := aSrc[LIndex];
+      if aSrc[LIndex] > aMax then
+        aMax := aSrc[LIndex];
+    end;
 end;
 
 function SimdArrayMeanF64(aSrc: PDouble; aCount: SizeUInt): Double;
@@ -417,50 +559,86 @@ begin
   Result := SimdArraySumF64(aSrc, aCount) / aCount;
 end;
 
-// ✅ Welford 在线算法 - 单次遍历，更好的数值稳定性
-function SimdArrayVarianceF64(aSrc: PDouble; aCount: SizeUInt): Double;
+function SimdArrayCenteredSumSqF64(aSrc: PDouble; aCount: SizeUInt; aMean: Double): Double;
 var
-  i: SizeUInt;
-  mean, m2, delta, delta2: Double;
-begin
-  if (aSrc = nil) or (aCount <= 1) then
-    Exit(0.0);
-
-  mean := 0.0;
-  m2 := 0.0;
-
-  for i := 0 to aCount - 1 do
-  begin
-    delta := aSrc[i] - mean;
-    mean := mean + delta / Double(i + 1);
-    delta2 := aSrc[i] - mean;
-    m2 := m2 + delta * delta2;
-  end;
-
-  Result := m2 / (aCount - 1);  // Sample variance (Bessel's correction)
-end;
-
-// ✅ Welford 在线算法 - 单次遍历，更好的数值稳定性
-function SimdArrayPopulationVarianceF64(aSrc: PDouble; aCount: SizeUInt): Double;
-var
-  i: SizeUInt;
-  mean, m2, delta, delta2: Double;
+  LIndex: SizeUInt;
+  LVec, LMeanVec, LDiff, LSquare: TVecF64x4;
+  LDispatch: PSimdDispatchTable;
+  LCanVectorize: Boolean;
+  LHasReduceAddF64x4: Boolean;
+  LDelta: Double;
 begin
   if (aSrc = nil) or (aCount = 0) then
     Exit(0.0);
 
-  mean := 0.0;
-  m2 := 0.0;
+  LDispatch := GetDispatchTable;
+  LCanVectorize := Assigned(LDispatch^.LoadF64x4)
+    and Assigned(LDispatch^.SubF64x4)
+    and Assigned(LDispatch^.MulF64x4);
+  LHasReduceAddF64x4 := Assigned(LDispatch^.ReduceAddF64x4);
+  Result := 0.0;
 
-  for i := 0 to aCount - 1 do
+  if LCanVectorize then
   begin
-    delta := aSrc[i] - mean;
-    mean := mean + delta / Double(i + 1);
-    delta2 := aSrc[i] - mean;
-    m2 := m2 + delta * delta2;
+    if Assigned(LDispatch^.SplatF64x4) then
+      LMeanVec := LDispatch^.SplatF64x4(aMean)
+    else
+    begin
+      LMeanVec.d[0] := aMean;
+      LMeanVec.d[1] := aMean;
+      LMeanVec.d[2] := aMean;
+      LMeanVec.d[3] := aMean;
+    end;
+
+    while aCount >= 4 do
+    begin
+      LVec := LDispatch^.LoadF64x4(aSrc);
+      LDiff := LDispatch^.SubF64x4(LVec, LMeanVec);
+      LSquare := LDispatch^.MulF64x4(LDiff, LDiff);
+
+      if LHasReduceAddF64x4 then
+        Result := Result + LDispatch^.ReduceAddF64x4(LSquare)
+      else
+        Result := Result + LSquare.d[0] + LSquare.d[1] + LSquare.d[2] + LSquare.d[3];
+
+      Inc(aSrc, 4);
+      Dec(aCount, 4);
+    end;
   end;
 
-  Result := m2 / aCount;  // Population variance
+  if aCount > 0 then
+    for LIndex := 0 to aCount - 1 do
+    begin
+      LDelta := aSrc[LIndex] - aMean;
+      Result := Result + LDelta * LDelta;
+    end;
+end;
+
+
+function SimdArrayVarianceF64(aSrc: PDouble; aCount: SizeUInt): Double;
+var
+  LMean: Double;
+  LSumSq: Double;
+begin
+  if (aSrc = nil) or (aCount <= 1) then
+    Exit(0.0);
+
+  LMean := SimdArrayMeanF64(aSrc, aCount);
+  LSumSq := SimdArrayCenteredSumSqF64(aSrc, aCount, LMean);
+  Result := LSumSq / (aCount - 1);
+end;
+
+function SimdArrayPopulationVarianceF64(aSrc: PDouble; aCount: SizeUInt): Double;
+var
+  LMean: Double;
+  LSumSq: Double;
+begin
+  if (aSrc = nil) or (aCount = 0) then
+    Exit(0.0);
+
+  LMean := SimdArrayMeanF64(aSrc, aCount);
+  LSumSq := SimdArrayCenteredSumSqF64(aSrc, aCount, LMean);
+  Result := LSumSq / aCount;
 end;
 
 function SimdArrayStdDevF64(aSrc: PDouble; aCount: SizeUInt): Double;
@@ -475,41 +653,49 @@ end;
 
 function SimdArrayDotProductF64(aSrc1, aSrc2: PDouble; aCount: SizeUInt): Double;
 var
-  i: SizeUInt;
-  vec1, vec2, prod, acc: TVecF64x4;
-  dispatch: PSimdDispatchTable;
+  LIndex: SizeUInt;
+  LVec1, LVec2, LProd: TVecF64x4;
+  LDispatch: PSimdDispatchTable;
+  LHasDotF64x4: Boolean;
+  LHasLoadF64x4: Boolean;
 begin
   if (aSrc1 = nil) or (aSrc2 = nil) or (aCount = 0) then
     Exit(0.0);
 
-  dispatch := GetDispatchTable;
+  LDispatch := GetDispatchTable;
+  LHasDotF64x4 := Assigned(LDispatch^.DotF64x4);
+  LHasLoadF64x4 := Assigned(LDispatch^.LoadF64x4);
   Result := 0.0;
 
-  // Use AVX2 (4 doubles per vector) if available
-  if aCount >= 4 then
+  while aCount >= 4 do
   begin
-    // Initialize accumulator to zero
-    acc.d[0] := 0.0; acc.d[1] := 0.0; acc.d[2] := 0.0; acc.d[3] := 0.0;
-
-    // Process 4 doubles at a time
-    while aCount >= 4 do
+    if LHasLoadF64x4 then
     begin
-      vec1.d[0] := aSrc1[0]; vec1.d[1] := aSrc1[1]; vec1.d[2] := aSrc1[2]; vec1.d[3] := aSrc1[3];
-      vec2.d[0] := aSrc2[0]; vec2.d[1] := aSrc2[1]; vec2.d[2] := aSrc2[2]; vec2.d[3] := aSrc2[3];
-      prod := dispatch^.MulF64x4(vec1, vec2);
-      acc := dispatch^.AddF64x4(acc, prod);
-      Inc(aSrc1, 4);
-      Inc(aSrc2, 4);
-      Dec(aCount, 4);
+      LVec1 := LDispatch^.LoadF64x4(aSrc1);
+      LVec2 := LDispatch^.LoadF64x4(aSrc2);
+    end
+    else
+    begin
+      LVec1.d[0] := aSrc1[0]; LVec1.d[1] := aSrc1[1]; LVec1.d[2] := aSrc1[2]; LVec1.d[3] := aSrc1[3];
+      LVec2.d[0] := aSrc2[0]; LVec2.d[1] := aSrc2[1]; LVec2.d[2] := aSrc2[2]; LVec2.d[3] := aSrc2[3];
     end;
 
-    // Reduce accumulator to single value
-    Result := acc.d[0] + acc.d[1] + acc.d[2] + acc.d[3];
+    if LHasDotF64x4 then
+      Result := Result + LDispatch^.DotF64x4(LVec1, LVec2)
+    else
+    begin
+      LProd := LDispatch^.MulF64x4(LVec1, LVec2);
+      Result := Result + LProd.d[0] + LProd.d[1] + LProd.d[2] + LProd.d[3];
+    end;
+
+    Inc(aSrc1, 4);
+    Inc(aSrc2, 4);
+    Dec(aCount, 4);
   end;
 
-  // Handle remaining elements
-  for i := 0 to aCount - 1 do
-    Result := Result + aSrc1[i] * aSrc2[i];
+  if aCount > 0 then
+    for LIndex := 0 to aCount - 1 do
+      Result := Result + aSrc1[LIndex] * aSrc2[LIndex];
 end;
 
 function SimdArrayL2NormF64(aSrc: PDouble; aCount: SizeUInt): Double;
@@ -523,91 +709,201 @@ end;
 
 function SimdArraySumF32(aSrc: PSingle; aCount: SizeUInt): Single;
 var
-  i: SizeUInt;
-  vec, acc: TVecF32x8;
-  dispatch: PSimdDispatchTable;
+  LIndex: SizeUInt;
+  LVec: TVecF32x8;
+  LDispatch: PSimdDispatchTable;
+  LHasReduceAddF32x8: Boolean;
+  LHasLoadF32x8: Boolean;
 begin
   if (aSrc = nil) or (aCount = 0) then
     Exit(0.0);
 
-  dispatch := GetDispatchTable;
+  LDispatch := GetDispatchTable;
+  LHasReduceAddF32x8 := Assigned(LDispatch^.ReduceAddF32x8);
+  LHasLoadF32x8 := Assigned(LDispatch^.LoadF32x8);
   Result := 0.0;
 
-  // Use AVX2 (8 singles per vector) if available
-  if aCount >= 8 then
+  while aCount >= 8 do
   begin
-    // Initialize accumulator to zero
-    for i := 0 to 7 do acc.f[i] := 0.0;
-
-    // Process 8 singles at a time
-    while aCount >= 8 do
+    if LHasLoadF32x8 then
+      LVec := LDispatch^.LoadF32x8(aSrc)
+    else
     begin
-      for i := 0 to 7 do vec.f[i] := aSrc[i];
-      acc := dispatch^.AddF32x8(acc, vec);
-      Inc(aSrc, 8);
-      Dec(aCount, 8);
+      for LIndex := 0 to 7 do
+        LVec.f[LIndex] := aSrc[LIndex];
     end;
 
-    // Reduce accumulator to single value
-    for i := 0 to 7 do Result := Result + acc.f[i];
+    if LHasReduceAddF32x8 then
+      Result := Result + LDispatch^.ReduceAddF32x8(LVec)
+    else
+      Result := Result
+        + LVec.f[0] + LVec.f[1] + LVec.f[2] + LVec.f[3]
+        + LVec.f[4] + LVec.f[5] + LVec.f[6] + LVec.f[7];
+
+    Inc(aSrc, 8);
+    Dec(aCount, 8);
   end;
 
-  // Handle remaining elements
-  for i := 0 to aCount - 1 do
-    Result := Result + aSrc[i];
+  if aCount > 0 then
+    for LIndex := 0 to aCount - 1 do
+      Result := Result + aSrc[LIndex];
 end;
 
 function SimdArraySumKahanF32(aSrc: PSingle; aCount: SizeUInt): Single;
 var
-  i: SizeUInt;
-  sum, c, y, t: Single;
+  LIndex: SizeUInt;
+  LVec: TVecF32x8;
+  LDispatch: PSimdDispatchTable;
+  LHasLoadF32x8: Boolean;
+  LHasReduceAddF32x8: Boolean;
+  LSum, LC, LY, LT: Single;
+  LBlockSum: Single;
 begin
   if (aSrc = nil) or (aCount = 0) then
     Exit(0.0);
 
-  sum := 0.0;
-  c := 0.0;
+  LDispatch := GetDispatchTable;
+  LHasLoadF32x8 := Assigned(LDispatch^.LoadF32x8);
+  LHasReduceAddF32x8 := Assigned(LDispatch^.ReduceAddF32x8);
 
-  for i := 0 to aCount - 1 do
+  LSum := 0.0;
+  LC := 0.0;
+
+  while aCount >= 8 do
   begin
-    y := aSrc[i] - c;
-    t := sum + y;
-    c := (t - sum) - y;
-    sum := t;
+    if LHasLoadF32x8 then
+      LVec := LDispatch^.LoadF32x8(aSrc)
+    else
+    begin
+      for LIndex := 0 to 7 do
+        LVec.f[LIndex] := aSrc[LIndex];
+    end;
+
+    if LHasReduceAddF32x8 then
+      LBlockSum := LDispatch^.ReduceAddF32x8(LVec)
+    else
+      LBlockSum :=
+        LVec.f[0] + LVec.f[1] + LVec.f[2] + LVec.f[3]
+        + LVec.f[4] + LVec.f[5] + LVec.f[6] + LVec.f[7];
+
+    LY := LBlockSum - LC;
+    LT := LSum + LY;
+    LC := (LT - LSum) - LY;
+    LSum := LT;
+
+    Inc(aSrc, 8);
+    Dec(aCount, 8);
   end;
 
-  Result := sum;
+  if aCount > 0 then
+    for LIndex := 0 to aCount - 1 do
+    begin
+      LY := aSrc[LIndex] - LC;
+      LT := LSum + LY;
+      LC := (LT - LSum) - LY;
+      LSum := LT;
+    end;
+
+  Result := LSum;
 end;
 
 function SimdArrayMinF32(aSrc: PSingle; aCount: SizeUInt): Single;
 var
-  i: SizeUInt;
+  LIndex: SizeUInt;
+  LVec, LVecMin: TVecF32x8;
+  LDispatch: PSimdDispatchTable;
+  LCanVectorize: Boolean;
+  LChunkMin: Single;
 begin
   if (aSrc = nil) or (aCount = 0) then
     Exit(PosInfinityF32);
 
+  LDispatch := GetDispatchTable;
+  LCanVectorize := Assigned(LDispatch^.LoadF32x8)
+    and Assigned(LDispatch^.MinF32x8)
+    and Assigned(LDispatch^.ReduceMinF32x8);
+
   Result := aSrc[0];
-  for i := 1 to aCount - 1 do
-    if aSrc[i] < Result then
-      Result := aSrc[i];
+  Inc(aSrc);
+  Dec(aCount);
+
+  if LCanVectorize and (aCount >= 8) then
+  begin
+    LVecMin := LDispatch^.LoadF32x8(aSrc);
+    Inc(aSrc, 8);
+    Dec(aCount, 8);
+
+    while aCount >= 8 do
+    begin
+      LVec := LDispatch^.LoadF32x8(aSrc);
+      LVecMin := LDispatch^.MinF32x8(LVecMin, LVec);
+      Inc(aSrc, 8);
+      Dec(aCount, 8);
+    end;
+
+    LChunkMin := LDispatch^.ReduceMinF32x8(LVecMin);
+    if LChunkMin < Result then
+      Result := LChunkMin;
+  end;
+
+  if aCount > 0 then
+    for LIndex := 0 to aCount - 1 do
+      if aSrc[LIndex] < Result then
+        Result := aSrc[LIndex];
 end;
 
 function SimdArrayMaxF32(aSrc: PSingle; aCount: SizeUInt): Single;
 var
-  i: SizeUInt;
+  LIndex: SizeUInt;
+  LVec, LVecMax: TVecF32x8;
+  LDispatch: PSimdDispatchTable;
+  LCanVectorize: Boolean;
+  LChunkMax: Single;
 begin
   if (aSrc = nil) or (aCount = 0) then
     Exit(NegInfinityF32);
 
+  LDispatch := GetDispatchTable;
+  LCanVectorize := Assigned(LDispatch^.LoadF32x8)
+    and Assigned(LDispatch^.MaxF32x8)
+    and Assigned(LDispatch^.ReduceMaxF32x8);
+
   Result := aSrc[0];
-  for i := 1 to aCount - 1 do
-    if aSrc[i] > Result then
-      Result := aSrc[i];
+  Inc(aSrc);
+  Dec(aCount);
+
+  if LCanVectorize and (aCount >= 8) then
+  begin
+    LVecMax := LDispatch^.LoadF32x8(aSrc);
+    Inc(aSrc, 8);
+    Dec(aCount, 8);
+
+    while aCount >= 8 do
+    begin
+      LVec := LDispatch^.LoadF32x8(aSrc);
+      LVecMax := LDispatch^.MaxF32x8(LVecMax, LVec);
+      Inc(aSrc, 8);
+      Dec(aCount, 8);
+    end;
+
+    LChunkMax := LDispatch^.ReduceMaxF32x8(LVecMax);
+    if LChunkMax > Result then
+      Result := LChunkMax;
+  end;
+
+  if aCount > 0 then
+    for LIndex := 0 to aCount - 1 do
+      if aSrc[LIndex] > Result then
+        Result := aSrc[LIndex];
 end;
 
 procedure SimdArrayMinMaxF32(aSrc: PSingle; aCount: SizeUInt; out aMin, aMax: Single);
 var
-  i: SizeUInt;
+  LIndex: SizeUInt;
+  LVec, LVecMin, LVecMax: TVecF32x8;
+  LDispatch: PSimdDispatchTable;
+  LCanVectorize: Boolean;
+  LChunkMin, LChunkMax: Single;
 begin
   if (aSrc = nil) or (aCount = 0) then
   begin
@@ -616,13 +912,51 @@ begin
     Exit;
   end;
 
+  LDispatch := GetDispatchTable;
+  LCanVectorize := Assigned(LDispatch^.LoadF32x8)
+    and Assigned(LDispatch^.MinF32x8)
+    and Assigned(LDispatch^.MaxF32x8)
+    and Assigned(LDispatch^.ReduceMinF32x8)
+    and Assigned(LDispatch^.ReduceMaxF32x8);
+
   aMin := aSrc[0];
   aMax := aSrc[0];
-  for i := 1 to aCount - 1 do
+  Inc(aSrc);
+  Dec(aCount);
+
+  if LCanVectorize and (aCount >= 8) then
   begin
-    if aSrc[i] < aMin then aMin := aSrc[i];
-    if aSrc[i] > aMax then aMax := aSrc[i];
+    LVec := LDispatch^.LoadF32x8(aSrc);
+    LVecMin := LVec;
+    LVecMax := LVec;
+    Inc(aSrc, 8);
+    Dec(aCount, 8);
+
+    while aCount >= 8 do
+    begin
+      LVec := LDispatch^.LoadF32x8(aSrc);
+      LVecMin := LDispatch^.MinF32x8(LVecMin, LVec);
+      LVecMax := LDispatch^.MaxF32x8(LVecMax, LVec);
+      Inc(aSrc, 8);
+      Dec(aCount, 8);
+    end;
+
+    LChunkMin := LDispatch^.ReduceMinF32x8(LVecMin);
+    LChunkMax := LDispatch^.ReduceMaxF32x8(LVecMax);
+    if LChunkMin < aMin then
+      aMin := LChunkMin;
+    if LChunkMax > aMax then
+      aMax := LChunkMax;
   end;
+
+  if aCount > 0 then
+    for LIndex := 0 to aCount - 1 do
+    begin
+      if aSrc[LIndex] < aMin then
+        aMin := aSrc[LIndex];
+      if aSrc[LIndex] > aMax then
+        aMax := aSrc[LIndex];
+    end;
 end;
 
 function SimdArrayMeanF32(aSrc: PSingle; aCount: SizeUInt): Single;
@@ -632,50 +966,84 @@ begin
   Result := SimdArraySumF32(aSrc, aCount) / aCount;
 end;
 
-// ✅ Welford 在线算法 - 单次遍历，更好的数值稳定性
-function SimdArrayVarianceF32(aSrc: PSingle; aCount: SizeUInt): Single;
+function SimdArrayCenteredSumSqF32(aSrc: PSingle; aCount: SizeUInt; aMean: Single): Single;
 var
-  i: SizeUInt;
-  mean, m2, delta, delta2: Single;
-begin
-  if (aSrc = nil) or (aCount <= 1) then
-    Exit(0.0);
-
-  mean := 0.0;
-  m2 := 0.0;
-
-  for i := 0 to aCount - 1 do
-  begin
-    delta := aSrc[i] - mean;
-    mean := mean + delta / Single(i + 1);
-    delta2 := aSrc[i] - mean;
-    m2 := m2 + delta * delta2;
-  end;
-
-  Result := m2 / (aCount - 1);  // Sample variance (Bessel's correction)
-end;
-
-// ✅ Welford 在线算法 - 单次遍历，更好的数值稳定性
-function SimdArrayPopulationVarianceF32(aSrc: PSingle; aCount: SizeUInt): Single;
-var
-  i: SizeUInt;
-  mean, m2, delta, delta2: Single;
+  LIndex: SizeUInt;
+  LVec, LMeanVec, LDiff, LSquare: TVecF32x8;
+  LDispatch: PSimdDispatchTable;
+  LCanVectorize: Boolean;
+  LHasReduceAddF32x8: Boolean;
+  LDelta: Single;
 begin
   if (aSrc = nil) or (aCount = 0) then
     Exit(0.0);
 
-  mean := 0.0;
-  m2 := 0.0;
+  LDispatch := GetDispatchTable;
+  LCanVectorize := Assigned(LDispatch^.LoadF32x8)
+    and Assigned(LDispatch^.SubF32x8)
+    and Assigned(LDispatch^.MulF32x8);
+  LHasReduceAddF32x8 := Assigned(LDispatch^.ReduceAddF32x8);
+  Result := 0.0;
 
-  for i := 0 to aCount - 1 do
+  if LCanVectorize then
   begin
-    delta := aSrc[i] - mean;
-    mean := mean + delta / Single(i + 1);
-    delta2 := aSrc[i] - mean;
-    m2 := m2 + delta * delta2;
+    if Assigned(LDispatch^.SplatF32x8) then
+      LMeanVec := LDispatch^.SplatF32x8(aMean)
+    else
+      for LIndex := 0 to 7 do
+        LMeanVec.f[LIndex] := aMean;
+
+    while aCount >= 8 do
+    begin
+      LVec := LDispatch^.LoadF32x8(aSrc);
+      LDiff := LDispatch^.SubF32x8(LVec, LMeanVec);
+      LSquare := LDispatch^.MulF32x8(LDiff, LDiff);
+
+      if LHasReduceAddF32x8 then
+        Result := Result + LDispatch^.ReduceAddF32x8(LSquare)
+      else
+        Result := Result
+          + LSquare.f[0] + LSquare.f[1] + LSquare.f[2] + LSquare.f[3]
+          + LSquare.f[4] + LSquare.f[5] + LSquare.f[6] + LSquare.f[7];
+
+      Inc(aSrc, 8);
+      Dec(aCount, 8);
+    end;
   end;
 
-  Result := m2 / aCount;  // Population variance
+  if aCount > 0 then
+    for LIndex := 0 to aCount - 1 do
+    begin
+      LDelta := aSrc[LIndex] - aMean;
+      Result := Result + LDelta * LDelta;
+    end;
+end;
+
+
+function SimdArrayVarianceF32(aSrc: PSingle; aCount: SizeUInt): Single;
+var
+  LMean: Single;
+  LSumSq: Single;
+begin
+  if (aSrc = nil) or (aCount <= 1) then
+    Exit(0.0);
+
+  LMean := SimdArrayMeanF32(aSrc, aCount);
+  LSumSq := SimdArrayCenteredSumSqF32(aSrc, aCount, LMean);
+  Result := LSumSq / (aCount - 1);
+end;
+
+function SimdArrayPopulationVarianceF32(aSrc: PSingle; aCount: SizeUInt): Single;
+var
+  LMean: Single;
+  LSumSq: Single;
+begin
+  if (aSrc = nil) or (aCount = 0) then
+    Exit(0.0);
+
+  LMean := SimdArrayMeanF32(aSrc, aCount);
+  LSumSq := SimdArrayCenteredSumSqF32(aSrc, aCount, LMean);
+  Result := LSumSq / aCount;
 end;
 
 function SimdArrayStdDevF32(aSrc: PSingle; aCount: SizeUInt): Single;
@@ -690,41 +1058,54 @@ end;
 
 function SimdArrayDotProductF32(aSrc1, aSrc2: PSingle; aCount: SizeUInt): Single;
 var
-  i: SizeUInt;
-  vec1, vec2, prod, acc: TVecF32x8;
-  dispatch: PSimdDispatchTable;
+  LIndex: SizeUInt;
+  LVec1, LVec2, LProd: TVecF32x8;
+  LDispatch: PSimdDispatchTable;
+  LHasDotF32x8: Boolean;
+  LHasLoadF32x8: Boolean;
 begin
   if (aSrc1 = nil) or (aSrc2 = nil) or (aCount = 0) then
     Exit(0.0);
 
-  dispatch := GetDispatchTable;
+  LDispatch := GetDispatchTable;
+  LHasDotF32x8 := Assigned(LDispatch^.DotF32x8);
+  LHasLoadF32x8 := Assigned(LDispatch^.LoadF32x8);
   Result := 0.0;
 
-  // ✅ Use AVX2 (8 singles per vector) - consistent with F64 version
-  if aCount >= 8 then
+  while aCount >= 8 do
   begin
-    // Initialize accumulator to zero
-    for i := 0 to 7 do acc.f[i] := 0.0;
-
-    // Process 8 singles at a time using SIMD multiply-add
-    while aCount >= 8 do
+    if LHasLoadF32x8 then
     begin
-      for i := 0 to 7 do vec1.f[i] := aSrc1[i];
-      for i := 0 to 7 do vec2.f[i] := aSrc2[i];
-      prod := dispatch^.MulF32x8(vec1, vec2);
-      acc := dispatch^.AddF32x8(acc, prod);
-      Inc(aSrc1, 8);
-      Inc(aSrc2, 8);
-      Dec(aCount, 8);
+      LVec1 := LDispatch^.LoadF32x8(aSrc1);
+      LVec2 := LDispatch^.LoadF32x8(aSrc2);
+    end
+    else
+    begin
+      for LIndex := 0 to 7 do
+      begin
+        LVec1.f[LIndex] := aSrc1[LIndex];
+        LVec2.f[LIndex] := aSrc2[LIndex];
+      end;
     end;
 
-    // Reduce accumulator to single value
-    for i := 0 to 7 do Result := Result + acc.f[i];
+    if LHasDotF32x8 then
+      Result := Result + LDispatch^.DotF32x8(LVec1, LVec2)
+    else
+    begin
+      LProd := LDispatch^.MulF32x8(LVec1, LVec2);
+      Result := Result
+        + LProd.f[0] + LProd.f[1] + LProd.f[2] + LProd.f[3]
+        + LProd.f[4] + LProd.f[5] + LProd.f[6] + LProd.f[7];
+    end;
+
+    Inc(aSrc1, 8);
+    Inc(aSrc2, 8);
+    Dec(aCount, 8);
   end;
 
-  // Handle remaining elements
-  for i := 0 to aCount - 1 do
-    Result := Result + aSrc1[i] * aSrc2[i];
+  if aCount > 0 then
+    for LIndex := 0 to aCount - 1 do
+      Result := Result + aSrc1[LIndex] * aSrc2[LIndex];
 end;
 
 function SimdArrayL2NormF32(aSrc: PSingle; aCount: SizeUInt): Single;
@@ -738,108 +1119,142 @@ end;
 
 procedure SimdArrayScaleF64(aSrc, aDst: PDouble; aCount: SizeUInt; aFactor: Double);
 var
-  i: SizeUInt;
-  vecSrc, vecFactor, vecDst: TVecF64x4;
-  dispatch: PSimdDispatchTable;
+  LIndex: SizeUInt;
+  LVecSrc, LVecFactor, LVecDst: TVecF64x4;
+  LDispatch: PSimdDispatchTable;
+  LCanVectorize: Boolean;
 begin
   if (aSrc = nil) or (aDst = nil) or (aCount = 0) then
     Exit;
 
-  dispatch := GetDispatchTable;
+  LDispatch := GetDispatchTable;
+  LCanVectorize := Assigned(LDispatch^.LoadF64x4)
+    and Assigned(LDispatch^.StoreF64x4)
+    and Assigned(LDispatch^.SplatF64x4)
+    and Assigned(LDispatch^.MulF64x4);
 
-  // Splat factor to all vector lanes
-  vecFactor.d[0] := aFactor; vecFactor.d[1] := aFactor;
-  vecFactor.d[2] := aFactor; vecFactor.d[3] := aFactor;
-
-  // Process 4 doubles at a time
-  while aCount >= 4 do
+  if LCanVectorize then
   begin
-    vecSrc.d[0] := aSrc[0]; vecSrc.d[1] := aSrc[1];
-    vecSrc.d[2] := aSrc[2]; vecSrc.d[3] := aSrc[3];
-    vecDst := dispatch^.MulF64x4(vecSrc, vecFactor);
-    aDst[0] := vecDst.d[0]; aDst[1] := vecDst.d[1];
-    aDst[2] := vecDst.d[2]; aDst[3] := vecDst.d[3];
-    Inc(aSrc, 4);
-    Inc(aDst, 4);
-    Dec(aCount, 4);
+    LVecFactor := LDispatch^.SplatF64x4(aFactor);
+
+    while aCount >= 4 do
+    begin
+      LVecSrc := LDispatch^.LoadF64x4(aSrc);
+      LVecDst := LDispatch^.MulF64x4(LVecSrc, LVecFactor);
+      LDispatch^.StoreF64x4(aDst, LVecDst);
+      Inc(aSrc, 4);
+      Inc(aDst, 4);
+      Dec(aCount, 4);
+    end;
   end;
 
-  // Handle remaining elements
-  for i := 0 to aCount - 1 do
-    aDst[i] := aSrc[i] * aFactor;
+  if aCount > 0 then
+    for LIndex := 0 to aCount - 1 do
+      aDst[LIndex] := aSrc[LIndex] * aFactor;
 end;
 
 procedure SimdArrayAbsF64(aSrc, aDst: PDouble; aCount: SizeUInt);
 var
-  i: SizeUInt;
+  LIndex: SizeUInt;
+  LVecSrc, LVecDst: TVecF64x4;
+  LDispatch: PSimdDispatchTable;
+  LCanVectorize: Boolean;
 begin
   if (aSrc = nil) or (aDst = nil) or (aCount = 0) then
     Exit;
 
-  for i := 0 to aCount - 1 do
-    aDst[i] := System.Abs(aSrc[i]);
+  LDispatch := GetDispatchTable;
+  LCanVectorize := Assigned(LDispatch^.LoadF64x4)
+    and Assigned(LDispatch^.StoreF64x4)
+    and Assigned(LDispatch^.AbsF64x4);
+
+  if LCanVectorize then
+  begin
+    while aCount >= 4 do
+    begin
+      LVecSrc := LDispatch^.LoadF64x4(aSrc);
+      LVecDst := LDispatch^.AbsF64x4(LVecSrc);
+      LDispatch^.StoreF64x4(aDst, LVecDst);
+      Inc(aSrc, 4);
+      Inc(aDst, 4);
+      Dec(aCount, 4);
+    end;
+  end;
+
+  if aCount > 0 then
+    for LIndex := 0 to aCount - 1 do
+      aDst[LIndex] := System.Abs(aSrc[LIndex]);
 end;
 
 procedure SimdArrayAddF64(aSrc, aDst: PDouble; aCount: SizeUInt; aValue: Double);
 var
-  i: SizeUInt;
-  vecSrc, vecValue, vecDst: TVecF64x4;
-  dispatch: PSimdDispatchTable;
+  LIndex: SizeUInt;
+  LVecSrc, LVecValue, LVecDst: TVecF64x4;
+  LDispatch: PSimdDispatchTable;
+  LCanVectorize: Boolean;
 begin
   if (aSrc = nil) or (aDst = nil) or (aCount = 0) then
     Exit;
 
-  dispatch := GetDispatchTable;
+  LDispatch := GetDispatchTable;
+  LCanVectorize := Assigned(LDispatch^.LoadF64x4)
+    and Assigned(LDispatch^.StoreF64x4)
+    and Assigned(LDispatch^.SplatF64x4)
+    and Assigned(LDispatch^.AddF64x4);
 
-  // Splat value to all vector lanes
-  vecValue.d[0] := aValue; vecValue.d[1] := aValue;
-  vecValue.d[2] := aValue; vecValue.d[3] := aValue;
-
-  // Process 4 doubles at a time
-  while aCount >= 4 do
+  if LCanVectorize then
   begin
-    vecSrc.d[0] := aSrc[0]; vecSrc.d[1] := aSrc[1];
-    vecSrc.d[2] := aSrc[2]; vecSrc.d[3] := aSrc[3];
-    vecDst := dispatch^.AddF64x4(vecSrc, vecValue);
-    aDst[0] := vecDst.d[0]; aDst[1] := vecDst.d[1];
-    aDst[2] := vecDst.d[2]; aDst[3] := vecDst.d[3];
-    Inc(aSrc, 4);
-    Inc(aDst, 4);
-    Dec(aCount, 4);
+    LVecValue := LDispatch^.SplatF64x4(aValue);
+
+    while aCount >= 4 do
+    begin
+      LVecSrc := LDispatch^.LoadF64x4(aSrc);
+      LVecDst := LDispatch^.AddF64x4(LVecSrc, LVecValue);
+      LDispatch^.StoreF64x4(aDst, LVecDst);
+      Inc(aSrc, 4);
+      Inc(aDst, 4);
+      Dec(aCount, 4);
+    end;
   end;
 
-  // Handle remaining elements
-  for i := 0 to aCount - 1 do
-    aDst[i] := aSrc[i] + aValue;
+  if aCount > 0 then
+    for LIndex := 0 to aCount - 1 do
+      aDst[LIndex] := aSrc[LIndex] + aValue;
 end;
 
 procedure SimdArrayAddArrayF64(aSrc1, aSrc2, aDst: PDouble; aCount: SizeUInt);
 var
-  i: SizeUInt;
-  vec1, vec2, vecDst: TVecF64x4;
-  dispatch: PSimdDispatchTable;
+  LIndex: SizeUInt;
+  LVec1, LVec2, LVecDst: TVecF64x4;
+  LDispatch: PSimdDispatchTable;
+  LCanVectorize: Boolean;
 begin
   if (aSrc1 = nil) or (aSrc2 = nil) or (aDst = nil) or (aCount = 0) then
     Exit;
 
-  dispatch := GetDispatchTable;
+  LDispatch := GetDispatchTable;
+  LCanVectorize := Assigned(LDispatch^.LoadF64x4)
+    and Assigned(LDispatch^.StoreF64x4)
+    and Assigned(LDispatch^.AddF64x4);
 
-  // Process 4 doubles at a time
-  while aCount >= 4 do
+  if LCanVectorize then
   begin
-    vec1.d[0] := aSrc1[0]; vec1.d[1] := aSrc1[1]; vec1.d[2] := aSrc1[2]; vec1.d[3] := aSrc1[3];
-    vec2.d[0] := aSrc2[0]; vec2.d[1] := aSrc2[1]; vec2.d[2] := aSrc2[2]; vec2.d[3] := aSrc2[3];
-    vecDst := dispatch^.AddF64x4(vec1, vec2);
-    aDst[0] := vecDst.d[0]; aDst[1] := vecDst.d[1]; aDst[2] := vecDst.d[2]; aDst[3] := vecDst.d[3];
-    Inc(aSrc1, 4);
-    Inc(aSrc2, 4);
-    Inc(aDst, 4);
-    Dec(aCount, 4);
+    while aCount >= 4 do
+    begin
+      LVec1 := LDispatch^.LoadF64x4(aSrc1);
+      LVec2 := LDispatch^.LoadF64x4(aSrc2);
+      LVecDst := LDispatch^.AddF64x4(LVec1, LVec2);
+      LDispatch^.StoreF64x4(aDst, LVecDst);
+      Inc(aSrc1, 4);
+      Inc(aSrc2, 4);
+      Inc(aDst, 4);
+      Dec(aCount, 4);
+    end;
   end;
 
-  // Handle remaining elements
-  for i := 0 to aCount - 1 do
-    aDst[i] := aSrc1[i] + aSrc2[i];
+  if aCount > 0 then
+    for LIndex := 0 to aCount - 1 do
+      aDst[LIndex] := aSrc1[LIndex] + aSrc2[LIndex];
 end;
 
 // ============================================================================
@@ -848,102 +1263,142 @@ end;
 
 procedure SimdArrayScaleF32(aSrc, aDst: PSingle; aCount: SizeUInt; aFactor: Single);
 var
-  i: SizeUInt;
-  vecSrc, vecFactor, vecDst: TVecF32x8;
-  dispatch: PSimdDispatchTable;
+  LIndex: SizeUInt;
+  LVecSrc, LVecFactor, LVecDst: TVecF32x8;
+  LDispatch: PSimdDispatchTable;
+  LCanVectorize: Boolean;
 begin
   if (aSrc = nil) or (aDst = nil) or (aCount = 0) then
     Exit;
 
-  dispatch := GetDispatchTable;
+  LDispatch := GetDispatchTable;
+  LCanVectorize := Assigned(LDispatch^.LoadF32x8)
+    and Assigned(LDispatch^.StoreF32x8)
+    and Assigned(LDispatch^.SplatF32x8)
+    and Assigned(LDispatch^.MulF32x8);
 
-  // ✅ Splat factor to all vector lanes - consistent with F64 version
-  for i := 0 to 7 do vecFactor.f[i] := aFactor;
-
-  // Process 8 singles at a time using SIMD
-  while aCount >= 8 do
+  if LCanVectorize then
   begin
-    for i := 0 to 7 do vecSrc.f[i] := aSrc[i];
-    vecDst := dispatch^.MulF32x8(vecSrc, vecFactor);
-    for i := 0 to 7 do aDst[i] := vecDst.f[i];
-    Inc(aSrc, 8);
-    Inc(aDst, 8);
-    Dec(aCount, 8);
+    LVecFactor := LDispatch^.SplatF32x8(aFactor);
+
+    while aCount >= 8 do
+    begin
+      LVecSrc := LDispatch^.LoadF32x8(aSrc);
+      LVecDst := LDispatch^.MulF32x8(LVecSrc, LVecFactor);
+      LDispatch^.StoreF32x8(aDst, LVecDst);
+      Inc(aSrc, 8);
+      Inc(aDst, 8);
+      Dec(aCount, 8);
+    end;
   end;
 
-  // Handle remaining elements
-  for i := 0 to aCount - 1 do
-    aDst[i] := aSrc[i] * aFactor;
+  if aCount > 0 then
+    for LIndex := 0 to aCount - 1 do
+      aDst[LIndex] := aSrc[LIndex] * aFactor;
 end;
 
 procedure SimdArrayAbsF32(aSrc, aDst: PSingle; aCount: SizeUInt);
 var
-  i: SizeUInt;
+  LIndex: SizeUInt;
+  LVecSrc, LVecDst: TVecF32x8;
+  LDispatch: PSimdDispatchTable;
+  LCanVectorize: Boolean;
 begin
   if (aSrc = nil) or (aDst = nil) or (aCount = 0) then
     Exit;
 
-  for i := 0 to aCount - 1 do
-    aDst[i] := System.Abs(aSrc[i]);
+  LDispatch := GetDispatchTable;
+  LCanVectorize := Assigned(LDispatch^.LoadF32x8)
+    and Assigned(LDispatch^.StoreF32x8)
+    and Assigned(LDispatch^.AbsF32x8);
+
+  if LCanVectorize then
+  begin
+    while aCount >= 8 do
+    begin
+      LVecSrc := LDispatch^.LoadF32x8(aSrc);
+      LVecDst := LDispatch^.AbsF32x8(LVecSrc);
+      LDispatch^.StoreF32x8(aDst, LVecDst);
+      Inc(aSrc, 8);
+      Inc(aDst, 8);
+      Dec(aCount, 8);
+    end;
+  end;
+
+  if aCount > 0 then
+    for LIndex := 0 to aCount - 1 do
+      aDst[LIndex] := System.Abs(aSrc[LIndex]);
 end;
 
 procedure SimdArrayAddF32(aSrc, aDst: PSingle; aCount: SizeUInt; aValue: Single);
 var
-  i: SizeUInt;
-  vecSrc, vecValue, vecDst: TVecF32x8;
-  dispatch: PSimdDispatchTable;
+  LIndex: SizeUInt;
+  LVecSrc, LVecValue, LVecDst: TVecF32x8;
+  LDispatch: PSimdDispatchTable;
+  LCanVectorize: Boolean;
 begin
   if (aSrc = nil) or (aDst = nil) or (aCount = 0) then
     Exit;
 
-  dispatch := GetDispatchTable;
+  LDispatch := GetDispatchTable;
+  LCanVectorize := Assigned(LDispatch^.LoadF32x8)
+    and Assigned(LDispatch^.StoreF32x8)
+    and Assigned(LDispatch^.SplatF32x8)
+    and Assigned(LDispatch^.AddF32x8);
 
-  // ✅ Splat value to all vector lanes - consistent with F64 version
-  for i := 0 to 7 do vecValue.f[i] := aValue;
-
-  // Process 8 singles at a time using SIMD
-  while aCount >= 8 do
+  if LCanVectorize then
   begin
-    for i := 0 to 7 do vecSrc.f[i] := aSrc[i];
-    vecDst := dispatch^.AddF32x8(vecSrc, vecValue);
-    for i := 0 to 7 do aDst[i] := vecDst.f[i];
-    Inc(aSrc, 8);
-    Inc(aDst, 8);
-    Dec(aCount, 8);
+    LVecValue := LDispatch^.SplatF32x8(aValue);
+
+    while aCount >= 8 do
+    begin
+      LVecSrc := LDispatch^.LoadF32x8(aSrc);
+      LVecDst := LDispatch^.AddF32x8(LVecSrc, LVecValue);
+      LDispatch^.StoreF32x8(aDst, LVecDst);
+      Inc(aSrc, 8);
+      Inc(aDst, 8);
+      Dec(aCount, 8);
+    end;
   end;
 
-  // Handle remaining elements
-  for i := 0 to aCount - 1 do
-    aDst[i] := aSrc[i] + aValue;
+  if aCount > 0 then
+    for LIndex := 0 to aCount - 1 do
+      aDst[LIndex] := aSrc[LIndex] + aValue;
 end;
 
 procedure SimdArrayAddArrayF32(aSrc1, aSrc2, aDst: PSingle; aCount: SizeUInt);
 var
-  i: SizeUInt;
-  vec1, vec2, vecDst: TVecF32x8;
-  dispatch: PSimdDispatchTable;
+  LIndex: SizeUInt;
+  LVec1, LVec2, LVecDst: TVecF32x8;
+  LDispatch: PSimdDispatchTable;
+  LCanVectorize: Boolean;
 begin
   if (aSrc1 = nil) or (aSrc2 = nil) or (aDst = nil) or (aCount = 0) then
     Exit;
 
-  dispatch := GetDispatchTable;
+  LDispatch := GetDispatchTable;
+  LCanVectorize := Assigned(LDispatch^.LoadF32x8)
+    and Assigned(LDispatch^.StoreF32x8)
+    and Assigned(LDispatch^.AddF32x8);
 
-  // ✅ Process 8 singles at a time using SIMD - consistent with F64 version
-  while aCount >= 8 do
+  if LCanVectorize then
   begin
-    for i := 0 to 7 do vec1.f[i] := aSrc1[i];
-    for i := 0 to 7 do vec2.f[i] := aSrc2[i];
-    vecDst := dispatch^.AddF32x8(vec1, vec2);
-    for i := 0 to 7 do aDst[i] := vecDst.f[i];
-    Inc(aSrc1, 8);
-    Inc(aSrc2, 8);
-    Inc(aDst, 8);
-    Dec(aCount, 8);
+    while aCount >= 8 do
+    begin
+      LVec1 := LDispatch^.LoadF32x8(aSrc1);
+      LVec2 := LDispatch^.LoadF32x8(aSrc2);
+      LVecDst := LDispatch^.AddF32x8(LVec1, LVec2);
+      LDispatch^.StoreF32x8(aDst, LVecDst);
+      Inc(aSrc1, 8);
+      Inc(aSrc2, 8);
+      Inc(aDst, 8);
+      Dec(aCount, 8);
+    end;
   end;
 
-  // Handle remaining elements
-  for i := 0 to aCount - 1 do
-    aDst[i] := aSrc1[i] + aSrc2[i];
+  if aCount > 0 then
+    for LIndex := 0 to aCount - 1 do
+      aDst[LIndex] := aSrc1[LIndex] + aSrc2[LIndex];
 end;
 
 end.

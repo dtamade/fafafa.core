@@ -11,7 +11,7 @@ uses
   fafafa.core.io,
   fafafa.core.logging.interfaces
   {$IFDEF WINDOWS}, Windows{$ENDIF}
-  {$IFDEF UNIX}, BaseUnix{$ENDIF}
+  {$IFDEF UNIX}, BaseUnix, Unix{$ENDIF}
   ;
 
 type
@@ -217,17 +217,18 @@ end;
 procedure TRollingTextFileSink.WriteLine(const S: string);
 var
   bytesNeeded: QWord;
-  LAuto: TAutoLock;
   U: UTF8String;
+  LE: UTF8String;
   needRotate: Boolean;
   curBuffered: QWord;
 begin
-  LAuto := TAutoLock.Create(FLock);
+  FLock.Acquire;
   try
     EnsureOpen;
     // 以 UTF-8 字节长度 + 平台换行符字节数 估算
     U := UTF8String(S);
-    bytesNeeded := QWord(Length(U)) + QWord(Length(LineEnding));
+    LE := UTF8String(LineEnding);
+    bytesNeeded := QWord(Length(U)) + QWord(Length(LE));
 
     if FBufCap <= 0 then
     begin
@@ -244,8 +245,8 @@ begin
       end;
       if Length(U) > 0 then
         FStream.WriteBuffer(U[1], Length(U));
-      if Length(LineEnding) > 0 then
-        FStream.WriteBuffer(LineEnding[1], Length(LineEnding));
+      if Length(LE) > 0 then
+        FStream.WriteBuffer(LE[1], Length(LE));
       Inc(FCurBytes, bytesNeeded);
       Exit;
     end;
@@ -282,25 +283,23 @@ begin
       SetLength(FBuf, Length(FBuf) + Length(U));
       Move(U[1], FBuf[Length(FBuf) - Length(U) + 1], Length(U));
     end;
-    if Length(LineEnding) > 0 then
+    if Length(LE) > 0 then
     begin
-      SetLength(FBuf, Length(FBuf) + Length(LineEnding));
-      Move(LineEnding[1], FBuf[Length(FBuf) - Length(LineEnding) + 1], Length(LineEnding));
+      SetLength(FBuf, Length(FBuf) + Length(LE));
+      Move(LE[1], FBuf[Length(FBuf) - Length(LE) + 1], Length(LE));
     end;
 
     // 如果缓冲达到容量则写入
     if Length(FBuf) >= FBufCap then
       FlushBufferToFile;
   finally
-    LAuto.Free;
+    FLock.Release;
   end;
 end;
 
 procedure TRollingTextFileSink.Flush;
-var
-  LAuto: TAutoLock;
 begin
-  LAuto := TAutoLock.Create(FLock);
+  FLock.Acquire;
   try
     if FOpened then
     begin
@@ -313,7 +312,7 @@ begin
       {$ENDIF}
     end;
   finally
-    LAuto.Free;
+    FLock.Release;
   end;
 end;
 

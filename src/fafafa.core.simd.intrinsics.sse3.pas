@@ -53,6 +53,19 @@ procedure sse3_mwait(extensions, hints: Cardinal);
 
 implementation
 
+uses
+  SysUtils;
+
+procedure EnsureExperimentalIntrinsicsEnabled; inline;
+begin
+  {$IFNDEF FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS}
+  raise ENotSupportedException.Create(
+    'fafafa.core.simd.intrinsics.sse3 is experimental placeholder semantics. ' +
+    'Define FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS to opt in.'
+  );
+  {$ENDIF}
+end;
+
 // === 水平运算实现 ===
 function sse3_hadd_ps(const a, b: TM128): TM128;
 begin
@@ -156,6 +169,9 @@ begin
   // MWAIT 指令的占位符实现
   // 在实际实现中，这里应该执�?MWAIT 指令
 end;
+
+initialization
+  EnsureExperimentalIntrinsicsEnabled;
 
 end.
 

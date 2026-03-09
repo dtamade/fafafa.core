@@ -57,11 +57,11 @@ end;
 
 procedure TTextSinkLogSink.Write(const R: ILogRecord);
 var
-  LAuto: TAutoLock; LLine: string;
+  LLine: string;
 begin
   if R = nil then Exit;
   if FFmt <> nil then LLine := FFmt.Format(R) else LLine := R.RenderedMessage;
-  LAuto := TAutoLock.Create(FLock);
+  FLock.Acquire;
   try
     if FOut <> nil then FOut.WriteLine(LLine);
     Inc(FPending);
@@ -86,7 +86,7 @@ begin
       end;
     end;
   finally
-    LAuto.Free;
+    FLock.Release;
   end;
 end;
 
@@ -119,13 +119,12 @@ begin
 end;
 
 procedure TTextSinkLogSink.Flush;
-var LAuto: TAutoLock;
 begin
-  LAuto := TAutoLock.Create(FLock);
+  FLock.Acquire;
   try
     if FOut <> nil then FOut.Flush;
   finally
-    LAuto.Free;
+    FLock.Release;
   end;
 end;
 

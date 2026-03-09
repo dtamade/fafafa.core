@@ -7,7 +7,8 @@ unit fafafa.core.simd.intrinsics.experimental.testcase;
 interface
 
 uses
-  Classes, SysUtils, fpcunit, testregistry,
+  SysUtils,
+  fpcunit, testregistry,
   fafafa.core.simd.intrinsics.base,
   fafafa.core.simd.intrinsics.aes,
   fafafa.core.simd.intrinsics.sha;
@@ -21,143 +22,169 @@ type
 
 implementation
 
-function GetRepoRoot: string;
-begin
-  Result := ExpandFileName(
-    IncludeTrailingPathDelimiter(ExtractFileDir(ParamStr(0))) +
-    '..' + DirectorySeparator +
-    '..' + DirectorySeparator +
-    '..'
-  );
-end;
-
-function LoadText(const aPath: string): string;
+procedure InitM128ForXorTest(var aValue: TM128; aBase: Byte);
 var
-  LStrings: TStringList;
-begin
-  LStrings := TStringList.Create;
-  try
-    LStrings.LoadFromFile(aPath);
-    Result := LStrings.Text;
-  finally
-    LStrings.Free;
-  end;
-end;
-
-procedure InitM128U64(out aValue: TM128; const aLo, aHi: QWord);
+  LIndex: Integer;
 begin
   FillChar(aValue, SizeOf(aValue), 0);
-  aValue.m128i_u64[0] := aLo;
-  aValue.m128i_u64[1] := aHi;
-end;
-
-procedure InitM128U32(out aValue: TM128; const a0, a1, a2, a3: DWord);
-begin
-  FillChar(aValue, SizeOf(aValue), 0);
-  aValue.m128i_u32[0] := a0;
-  aValue.m128i_u32[1] := a1;
-  aValue.m128i_u32[2] := a2;
-  aValue.m128i_u32[3] := a3;
+  for LIndex := 0 to 15 do
+    aValue.m128i_u8[LIndex] := Byte(aBase + LIndex);
 end;
 
 procedure TTestCase_SimdIntrinsicsExperimental.Test_Default_AES_SHA_Rejects;
-const
-  PUBLIC_FILES: array[0..3] of string = (
-    'fafafa.core.simd.pas',
-    'fafafa.core.simd.api.pas',
-    'fafafa.core.simd.direct.pas',
-    'fafafa.core.simd.dispatch.pas'
-  );
-  FORBIDDEN_TOKENS: array[0..2] of string = (
-    'fafafa.core.simd.intrinsics.experimental',
-    'fafafa.core.simd.intrinsics.aes',
-    'fafafa.core.simd.intrinsics.sha'
-  );
 var
-  LRepoRoot: string;
-  LPath: string;
-  LText: string;
-  LFileIndex: Integer;
-  LTokenIndex: Integer;
+  LData, LKey, LResult: TM128;
+  LRaised: Boolean;
 begin
-  LRepoRoot := GetRepoRoot;
-  for LFileIndex := Low(PUBLIC_FILES) to High(PUBLIC_FILES) do
-  begin
-    LPath := IncludeTrailingPathDelimiter(LRepoRoot) + 'src' + DirectorySeparator + PUBLIC_FILES[LFileIndex];
-    AssertTrue('public entry file missing: ' + LPath, FileExists(LPath));
-    LText := LowerCase(LoadText(LPath));
-    for LTokenIndex := Low(FORBIDDEN_TOKENS) to High(FORBIDDEN_TOKENS) do
-      AssertEquals(
-        'public entry should reject experimental AES/SHA reference in ' + PUBLIC_FILES[LFileIndex],
-        0,
-        Pos(LowerCase(FORBIDDEN_TOKENS[LTokenIndex]), LText)
-      );
+  {$IFDEF FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS}
+  Exit;
+  {$ENDIF}
+
+  InitM128ForXorTest(LData, 1);
+  InitM128ForXorTest(LKey, 17);
+
+  LRaised := False;
+  try
+    LResult := aes_aesenc_si128(LData, LKey);
+    if LResult.m128i_u8[0] = 255 then
+      ;
+  except
+    on E: ENotSupportedException do
+      LRaised := True;
   end;
+  AssertTrue('aes_aesenc_si128 should reject by default', LRaised);
+
+  LRaised := False;
+  try
+    LResult := sha_sha1msg1_epu32(LData, LKey);
+    if LResult.m128i_u8[0] = 255 then
+      ;
+  except
+    on E: ENotSupportedException do
+      LRaised := True;
+  end;
+  AssertTrue('sha_sha1msg1_epu32 should reject by default', LRaised);
 end;
 
 procedure TTestCase_SimdIntrinsicsExperimental.Test_Experimental_AES_SHA_PlaceholderSemantics;
 var
-  LData: TM128;
-  LRoundKey: TM128;
-  LA: TM128;
-  LB: TM128;
-  LK: TM128;
-  LAesEnc: TM128;
-  LAesEncLast: TM128;
-  LAesDec: TM128;
-  LAesDecLast: TM128;
-  LAesKeyGen: TM128;
-  LAesImc: TM128;
-  LSha1Msg1: TM128;
-  LSha1Msg2: TM128;
-  LSha1NextE: TM128;
-  LSha1Rnds4: TM128;
-  LSha256Msg1: TM128;
-  LSha256Msg2: TM128;
-  LSha256Rnds2: TM128;
+  LData, LKey, LA, LB, LC, LResult: TM128;
   LIndex: Integer;
+  LExpectedByte: Byte;
+  LExpectedWord: DWord;
 begin
-  InitM128U64(LData,  $0102030405060708, $1112131415161718);
-  InitM128U64(LRoundKey, $1010101010101010, $2020202020202020);
-  InitM128U32(LA, 1, 2, 3, 4);
-  InitM128U32(LB, 10, 20, 30, 40);
-  InitM128U32(LK, 100, 200, 300, 400);
+  {$IFNDEF FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS}
+  Exit;
+  {$ENDIF}
 
-  LAesEnc := aes_aesenc_si128(LData, LRoundKey);
-  LAesEncLast := aes_aesenclast_si128(LData, LRoundKey);
-  LAesDec := aes_aesdec_si128(LData, LRoundKey);
-  LAesDecLast := aes_aesdeclast_si128(LData, LRoundKey);
-  LAesKeyGen := aes_aeskeygenassist_si128(LData, $5A);
-  LAesImc := aes_aesimc_si128(LData);
+  InitM128ForXorTest(LData, 3);
+  InitM128ForXorTest(LKey, 67);
 
-  AssertTrue('aesenc lo lane mismatch', LAesEnc.m128i_u64[0] = (LData.m128i_u64[0] xor LRoundKey.m128i_u64[0]));
-  AssertTrue('aesenc hi lane mismatch', LAesEnc.m128i_u64[1] = (LData.m128i_u64[1] xor LRoundKey.m128i_u64[1]));
-  AssertTrue('aesenclast lo lane mismatch', LAesEncLast.m128i_u64[0] = LAesEnc.m128i_u64[0]);
-  AssertTrue('aesdec lo lane mismatch', LAesDec.m128i_u64[0] = LAesEnc.m128i_u64[0]);
-  AssertTrue('aesdeclast hi lane mismatch', LAesDecLast.m128i_u64[1] = LAesEnc.m128i_u64[1]);
-  AssertTrue('aeskeygenassist should xor first byte with rcon', LAesKeyGen.m128i_u8[0] = (LData.m128i_u8[0] xor $5A));
-  AssertTrue('aesimc should preserve data', CompareByte(LAesImc, LData, SizeOf(TM128)) = 0);
-
-  LSha1Msg1 := sha_sha1msg1_epu32(LA, LB);
-  LSha1Msg2 := sha_sha1msg2_epu32(LA, LB);
-  LSha1NextE := sha_sha1nexte_epu32(LA, LB);
-  LSha1Rnds4 := sha_sha1rnds4_epu32(LA, LB, 7);
-  LSha256Msg1 := sha_sha256msg1_epu32(LA, LB);
-  LSha256Msg2 := sha_sha256msg2_epu32(LA, LB);
-  LSha256Rnds2 := sha_sha256rnds2_epu32(LA, LB, LK);
-
-  for LIndex := 0 to 3 do
+  LResult := aes_aesenc_si128(LData, LKey);
+  for LIndex := 0 to 15 do
   begin
-    AssertTrue('sha1msg1 lane mismatch', LSha1Msg1.m128i_u32[LIndex] = (LA.m128i_u32[LIndex] xor LB.m128i_u32[LIndex]));
-    AssertTrue('sha1msg2 lane mismatch', LSha1Msg2.m128i_u32[LIndex] = (LA.m128i_u32[LIndex] + LB.m128i_u32[LIndex]));
-    AssertTrue('sha1rnds4 lane mismatch', LSha1Rnds4.m128i_u32[LIndex] = (LA.m128i_u32[LIndex] + LB.m128i_u32[LIndex] + 7));
-    AssertTrue('sha256msg1 lane mismatch', LSha256Msg1.m128i_u32[LIndex] = (LA.m128i_u32[LIndex] + LB.m128i_u32[LIndex]));
-    AssertTrue('sha256msg2 lane mismatch', LSha256Msg2.m128i_u32[LIndex] = (LA.m128i_u32[LIndex] xor LB.m128i_u32[LIndex]));
-    AssertTrue('sha256rnds2 lane mismatch', LSha256Rnds2.m128i_u32[LIndex] = (LA.m128i_u32[LIndex] + LB.m128i_u32[LIndex] + LK.m128i_u32[LIndex]));
+    LExpectedByte := LData.m128i_u8[LIndex] xor LKey.m128i_u8[LIndex];
+    AssertEquals('aes_aesenc_si128 xor lane ' + IntToStr(LIndex),
+      LExpectedByte, LResult.m128i_u8[LIndex]);
   end;
 
-  AssertTrue('sha1nexte lane0 mismatch', LSha1NextE.m128i_u32[0] = (LA.m128i_u32[0] + LB.m128i_u32[3]));
-  AssertTrue('sha1nexte lane1 should preserve input', LSha1NextE.m128i_u32[1] = LA.m128i_u32[1]);
+  LResult := aes_aesenclast_si128(LData, LKey);
+  for LIndex := 0 to 15 do
+  begin
+    LExpectedByte := LData.m128i_u8[LIndex] xor LKey.m128i_u8[LIndex];
+    AssertEquals('aes_aesenclast_si128 xor lane ' + IntToStr(LIndex),
+      LExpectedByte, LResult.m128i_u8[LIndex]);
+  end;
+
+  LResult := aes_aesdec_si128(LData, LKey);
+  for LIndex := 0 to 15 do
+  begin
+    LExpectedByte := LData.m128i_u8[LIndex] xor LKey.m128i_u8[LIndex];
+    AssertEquals('aes_aesdec_si128 xor lane ' + IntToStr(LIndex),
+      LExpectedByte, LResult.m128i_u8[LIndex]);
+  end;
+
+  LResult := aes_aesdeclast_si128(LData, LKey);
+  for LIndex := 0 to 15 do
+  begin
+    LExpectedByte := LData.m128i_u8[LIndex] xor LKey.m128i_u8[LIndex];
+    AssertEquals('aes_aesdeclast_si128 xor lane ' + IntToStr(LIndex),
+      LExpectedByte, LResult.m128i_u8[LIndex]);
+  end;
+
+  LResult := aes_aeskeygenassist_si128(LKey, $5A);
+  AssertEquals('aes_aeskeygenassist_si128 first byte xor rcon',
+    Byte(LKey.m128i_u8[0] xor $5A), LResult.m128i_u8[0]);
+  for LIndex := 1 to 15 do
+    AssertEquals('aes_aeskeygenassist_si128 lane keep ' + IntToStr(LIndex),
+      LKey.m128i_u8[LIndex], LResult.m128i_u8[LIndex]);
+
+  LResult := aes_aesimc_si128(LData);
+  for LIndex := 0 to 15 do
+    AssertEquals('aes_aesimc_si128 identity lane ' + IntToStr(LIndex),
+      LData.m128i_u8[LIndex], LResult.m128i_u8[LIndex]);
+
+  FillChar(LA, SizeOf(LA), 0);
+  FillChar(LB, SizeOf(LB), 0);
+  FillChar(LC, SizeOf(LC), 0);
+  LA.m128i_u32[0] := 1;   LA.m128i_u32[1] := 10;  LA.m128i_u32[2] := 100;  LA.m128i_u32[3] := 1000;
+  LB.m128i_u32[0] := 2;   LB.m128i_u32[1] := 20;  LB.m128i_u32[2] := 200;  LB.m128i_u32[3] := 2000;
+  LC.m128i_u32[0] := 3;   LC.m128i_u32[1] := 30;  LC.m128i_u32[2] := 300;  LC.m128i_u32[3] := 3000;
+
+  LResult := sha_sha1msg1_epu32(LA, LB);
+  for LIndex := 0 to 3 do
+  begin
+    LExpectedWord := LA.m128i_u32[LIndex] xor LB.m128i_u32[LIndex];
+    AssertEquals('sha_sha1msg1_epu32 xor lane ' + IntToStr(LIndex),
+      LExpectedWord, LResult.m128i_u32[LIndex]);
+  end;
+
+  LResult := sha_sha1msg2_epu32(LA, LB);
+  for LIndex := 0 to 3 do
+  begin
+    LExpectedWord := LA.m128i_u32[LIndex] + LB.m128i_u32[LIndex];
+    AssertEquals('sha_sha1msg2_epu32 add lane ' + IntToStr(LIndex),
+      LExpectedWord, LResult.m128i_u32[LIndex]);
+  end;
+
+  LResult := sha_sha1nexte_epu32(LA, LB);
+  AssertEquals('sha_sha1nexte_epu32 lane0 add b3',
+    LA.m128i_u32[0] + LB.m128i_u32[3], LResult.m128i_u32[0]);
+  for LIndex := 1 to 3 do
+    AssertEquals('sha_sha1nexte_epu32 keep lane ' + IntToStr(LIndex),
+      LA.m128i_u32[LIndex], LResult.m128i_u32[LIndex]);
+
+  LResult := sha_sha1rnds4_epu32(LA, LB, 7);
+  for LIndex := 0 to 3 do
+  begin
+    LExpectedWord := LA.m128i_u32[LIndex] + LB.m128i_u32[LIndex] + 7;
+    AssertEquals('sha_sha1rnds4_epu32 add lane ' + IntToStr(LIndex),
+      LExpectedWord, LResult.m128i_u32[LIndex]);
+  end;
+
+  LResult := sha_sha256msg1_epu32(LA, LB);
+  for LIndex := 0 to 3 do
+  begin
+    LExpectedWord := LA.m128i_u32[LIndex] + LB.m128i_u32[LIndex];
+    AssertEquals('sha_sha256msg1_epu32 add lane ' + IntToStr(LIndex),
+      LExpectedWord, LResult.m128i_u32[LIndex]);
+  end;
+
+  LResult := sha_sha256msg2_epu32(LA, LB);
+  for LIndex := 0 to 3 do
+  begin
+    LExpectedWord := LA.m128i_u32[LIndex] xor LB.m128i_u32[LIndex];
+    AssertEquals('sha_sha256msg2_epu32 xor lane ' + IntToStr(LIndex),
+      LExpectedWord, LResult.m128i_u32[LIndex]);
+  end;
+
+  LResult := sha_sha256rnds2_epu32(LA, LB, LC);
+  for LIndex := 0 to 3 do
+  begin
+    LExpectedWord := LA.m128i_u32[LIndex] + LB.m128i_u32[LIndex] + LC.m128i_u32[LIndex];
+    AssertEquals('sha_sha256rnds2_epu32 add lane ' + IntToStr(LIndex),
+      LExpectedWord, LResult.m128i_u32[LIndex]);
+  end;
 end;
 
 initialization

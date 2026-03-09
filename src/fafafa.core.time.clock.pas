@@ -43,7 +43,6 @@ uses
   SysUtils,
   DateUtils,
   fafafa.core.base,
-  fafafa.core.time.base,
   fafafa.core.time.duration,
   fafafa.core.time.instant,
   fafafa.core.thread.cancel;
@@ -303,7 +302,7 @@ uses
   {$IFDEF MSWINDOWS}
   Windows
   {$ELSE}
-  BaseUnix, Unix
+  Unix
   {$IFDEF LINUX}
   , Linux
   {$ENDIF}
@@ -1219,20 +1218,24 @@ end;
 procedure TFixedClock.SleepFor(const D: TDuration);
 begin
   // 固定时钟不推进时间；此处不操作
+  if D.AsNs = 0 then; // suppress unused parameter hint
 end;
 
 procedure TFixedClock.SleepUntil(const T: TInstant);
 begin
   // 固定时钟不推进时间；此处不操作
+  if T.AsNsSinceEpoch = 0 then; // suppress unused parameter hint
 end;
 
 function TFixedClock.WaitFor(const D: TDuration; const Token: ICancellationToken): Boolean;
 begin
+  if D.AsNs = 0 then; // suppress unused parameter hint
   Result := (Token = nil) or (not Token.IsCancellationRequested);
 end;
 
 function TFixedClock.WaitUntil(const T: TInstant; const Token: ICancellationToken): Boolean;
 begin
+  if T.AsNsSinceEpoch = 0 then; // suppress unused parameter hint
   Result := (Token = nil) or (not Token.IsCancellationRequested);
 end;
 

@@ -59,7 +59,6 @@ implementation
 const
   // 浮点比较容差
   FLOAT_TOLERANCE = 1e-5;
-  FLOAT_TOLERANCE_APPROX = 1e-3;  // 用于近似函数（Rcp, Rsqrt）
 
 // =============================================================================
 // 辅助函数
@@ -856,6 +855,8 @@ var
   backend: TSimdBackend;
   i, resultIdx: Integer;
 begin
+  backends := nil;
+  Result := nil;
   // 获取要测试的后端列表
   // NOTE: Keep this list aligned with dispatch tier order so we cover all x86_64 tiers.
   SetLength(backends, 9);

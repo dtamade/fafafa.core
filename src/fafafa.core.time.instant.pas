@@ -246,8 +246,6 @@ begin
 end;
 
 function TInstant.AsUnixMs: Int64;
-const
-  MaxNsForMs = 9223372036854775807;  // High(Int64)
 begin
   // Convert nanoseconds to milliseconds
   // Check if result would overflow Int64

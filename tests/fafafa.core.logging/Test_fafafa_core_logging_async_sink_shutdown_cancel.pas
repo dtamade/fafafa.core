@@ -9,7 +9,9 @@ interface
 uses
   Classes, SysUtils, fpcunit, testregistry,
   fafafa.core.logging,
+  fafafa.core.logging.interfaces,
   fafafa.core.logging.formatters.text,
+  fafafa.core.logging.sinks.console,
   fafafa.core.logging.sinks.textsink,
   fafafa.core.logging.sinks.async;
 
@@ -24,18 +26,20 @@ implementation
 
 procedure TTestCase_Logging_AsyncSink_ShutdownCancel.Test_Destroy_NoExtraNotFullRelease_NoSemaphoreOverflow;
 var
-  Formatter: ILogFormatter;
   Inner: ILogSink;
   AsyncSink: ILogSink;
+  Logger: ILogger;
   I: Integer;
 begin
-  Formatter := TTextLogFormatter.Create;
-  Inner := TTextSinkLogSink.Create(TConsoleSink.Create, Formatter);
+  Inner := TConsoleLogSink.Create;
   AsyncSink := TAsyncLogSink.Create(Inner, 32, 8, ldpDropNew);
+
+  Logging.SetRootSink(AsyncSink);
+  Logger := GetLogger('async-shutdown-test');
 
   // 制造一定的队列压力，但不必过大
   for I := 1 to 256 do
-    Logging.Log(TLogLevel.llInfo, 'shutdown-cancel #{%d}', [I], '', AsyncSink);
+    Logger.Log(TLogLevel.llInfo, 'shutdown-cancel #{%d}', [I]);
 
   // 直接释放 AsyncSink（引用计数归零），触发 Destroy 路径
   AsyncSink := nil;

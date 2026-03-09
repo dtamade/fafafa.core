@@ -554,6 +554,22 @@ begin
   AddResult('NamedMutex: Create/Destroy', EndT.Diff(Start), CREATE_ITERATIONS);
 end;
 
+procedure RunNamedBenchmarks;
+begin
+  WriteLn('Running Named sync benchmarks...');
+  try
+    BenchNamedMutex_SingleThread;
+    BenchNamedEvent_SingleThread;
+    BenchNamedMutex_Creation;
+  except
+    on LError: Exception do
+    begin
+      WriteLn('[SKIP] Named sync benchmarks unavailable in current environment.');
+      WriteLn('       Reason: ' + LError.Message);
+    end;
+  end;
+end;
+
 // ============================================================================
 // Main
 // ============================================================================
@@ -595,10 +611,7 @@ begin
   BenchRWLock_ReadOnly_MultiThread(4, False);
   
   // Named primitives benchmarks
-  WriteLn('Running Named sync benchmarks...');
-  BenchNamedMutex_SingleThread;
-  BenchNamedEvent_SingleThread;
-  BenchNamedMutex_Creation;
+  RunNamedBenchmarks;
   
   // Print results
   PrintResults;

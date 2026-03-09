@@ -6,7 +6,7 @@ unit fafafa.core.test.listener.junit;
 interface
 
 uses
-  SysUtils, Classes, DateUtils, fafafa.core.test.core, fafafa.core.base, fafafa.core.report.common;
+  SysUtils, Classes, DateUtils, fafafa.core.test.core, fafafa.core.base, fafafa.core.xml, fafafa.core.report.common;
 
 type
   TJUnitTestListener = class(TInterfacedObject, ITestListener)

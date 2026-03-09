@@ -15,6 +15,8 @@ mkdir -p "$LOG_DIR"
 #
 # Compatibility: also accepts basename filters (e.g. "vec") and group filters
 # (e.g. "fafafa.core.collections" matches "fafafa.core.collections.vec").
+# Prefix an argument with '=' to force exact-only match and skip prefix expansion.
+# Example: '=fafafa.core.simd' matches only that module.
 #
 # STOP_ON_FAIL=1 to stop on first failure
 FILTER=("$@")
@@ -33,13 +35,25 @@ should_run() {
   if [ ${#FILTER[@]} -eq 0 ]; then return 0; fi
 
   for raw in "${FILTER[@]}"; do
+    local exact_only=0
     if [[ -z "${raw}" ]]; then continue; fi
     local f="${raw//\//.}"
     f="${f//\\/.}"
 
+    if [[ "$f" == =* ]]; then
+      exact_only=1
+      f="${f#=}"
+    fi
+
+    if [[ -z "$f" ]]; then continue; fi
+
     # Exact match
     if [[ "$f" == "$module" || "$f" == "$basename" ]]; then
       return 0
+    fi
+
+    if [[ "$exact_only" -eq 1 ]]; then
+      continue
     fi
 
     # Group/prefix match: "a.b" selects "a.b.c"

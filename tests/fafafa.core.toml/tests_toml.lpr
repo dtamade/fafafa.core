@@ -5,6 +5,7 @@ program tests_toml;
 
 uses
   SysUtils, consoletestrunner,
+  Test_fafafa_core_toml_parse_router_fallback,
   Test_fafafa_core_toml,
   Test_fafafa_core_toml_contains,
   Test_fafafa_core_toml_dotted,

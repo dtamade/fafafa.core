@@ -347,6 +347,7 @@ end;
 
 function TByteBufImpl.ReadBytes(Count: SizeInt): TBytes;
 begin
+  Result := nil; // Initialize managed type
   if (Count < 0) or ((FR + Count) > FW) then
     raise EOutOfRange.Create('Read beyond writer index');
   SetLength(Result, Count);
@@ -499,7 +500,7 @@ end;
 
 function TByteBufImpl.ToBytes: TBytes;
 begin
-  SetLength(Result, 0);
+  Result := nil; // Initialize managed type
   SetLength(Result, FW);
   if FW > 0 then
     Move(FBuf[FOffset], Result[0], FW);

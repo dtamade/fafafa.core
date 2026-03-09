@@ -1526,13 +1526,8 @@ end;
 
 constructor TVecDeque.Create(const aSrc: TCollection; aAllocator: IAllocator; aGrowStrategy: IGrowthStrategy; aData: Pointer);
 begin
-  inherited Create(aSrc, aAllocator, aData);
-  FGrowStrategy := aGrowStrategy;
-  FBuffer := TInternalArray.Create(NextPowerOfTwo(VECDEQUE_DEFAULT_CAPACITY), aAllocator);
-  FHead := 0;
-  FTail := 0;
-  FCount := 0;
-  UpdateCapacityMask;
+  Create(0, aAllocator, aGrowStrategy, aData);
+  LoadFrom(aSrc);
 end;
 
 constructor TVecDeque.Create(aSrc: Pointer; aCount: SizeUInt; aAllocator: IAllocator; aGrowStrategy: IGrowthStrategy);
@@ -6451,6 +6446,7 @@ begin
   end;
 
   Inc(FCount, aCount);
+  FTail := WrapAdd(FHead, FCount);
 end;
 
 procedure TVecDeque.Insert(aIndex: SizeUInt; const aElement: T);
@@ -6486,6 +6482,7 @@ begin
   end;
 
   Inc(FCount, SizeUInt(Length(aArray)));
+  FTail := WrapAdd(FHead, FCount);
 end;
 
 procedure TVecDeque.Insert(aIndex: SizeUInt; const aCollection: TCollection; aStartIndex: SizeUInt);
@@ -6535,6 +6532,7 @@ begin
   // zero-allocation iterator: nothing to finalize
 
   Inc(FCount, LInsertCount);
+  FTail := WrapAdd(FHead, FCount);
 
 
 end;
@@ -6939,11 +6937,13 @@ end;
 
 function TVecDeque.TryPopFront(out aElement: T): Boolean;
 begin
+  aElement := Default(T);
   Result := PopFront(aElement);
 end;
 
 function TVecDeque.TryPopBack(out aElement: T): Boolean;
 begin
+  aElement := Default(T);
   Result := PopBack(aElement);
 end;
 

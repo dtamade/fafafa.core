@@ -15,6 +15,7 @@ uses
   Test_fafafa_core_json_mutable,
   Test_fafafa_core_json_incr_reader,
   Test_fafafa_core_json_incr_reader_edges,
+  Test_fafafa_core_json_stream_reader,
   Test_fafafa_core_json_pointer_modes,
   Test_fafafa_core_json_pointer,
   Test_fafafa_core_json_pointer_edges,

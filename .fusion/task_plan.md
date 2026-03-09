@@ -1,161 +1,270 @@
-# SIMD 模块完善任务计划
+# SIMD 模块未审查部分审查任务计划
 
-**目标**: 完善 SIMD 模块，提升综合评分从 77.5% 到 85%+
-**创建时间**: 2026-02-14
+**目标**: 继续触及没有审查的 simd 模块的部分
+**创建时间**: 2026-02-15
 **执行模式**: Fusion 自主工作流
+**优先级**: P1（高优先级）
+
+---
+
+## 🎯 目标理解
+
+### 原始目标
+"继续触及没有审查的 simd 模块的部分"
+
+### 目标分析
+1. **已审查部分**：RISC-V V 后端（覆盖率 >95%，测试完善）
+2. **待审查部分**：
+   - NEON 后端（ARM 平台）
+   - AVX-512 后端（x86_64 平台）
+   - SSE2/AVX2 后端（可能需要深度审查）
+   - Intrinsics 模块（各种指令集的封装）
+   - 其他辅助模块（cpuinfo、memutils、imageproc 等）
+
+### 审查范围
+- 代码完整性审查
+- 实现质量审查
+- 测试覆盖率审查
+- 文档完整性审查
 
 ---
 
 ## 任务优先级
 
-### Phase 1: 修复 P0 级文档问题（优先级: 🔥🔥🔥）
+### Phase 1: 识别未审查的 SIMD 模块部分（优先级: 🔥🔥🔥）
 
-#### Task 1.1: 修复文档文件名引用错误
-- **状态**: PENDING
-- **优先级**: P0
-- **描述**: 修复文档中 `fafafa.core.simd.types.pas` 引用为 `fafafa.core.simd.base.pas`
+#### Task 1.1: 分析 SIMD 模块结构，识别未审查部分
+- **状态**: ✅ COMPLETED
+- **优先级**: P1
+- **完成时间**: 2026-02-15 09:32
+- **描述**: 系统分析 SIMD 模块的 59 个源文件，识别哪些部分已审查，哪些部分尚未审查
 - **影响文件**:
-  - `docs/fafafa.core.simd.md`
-  - `docs/fafafa.core.simd.api.md`
-  - `docs/fafafa.core.simd.cpuinfo.md`
-- **验收标准**: 所有文档中不再引用 `simd.types`，改为 `simd.base`
+  - `src/fafafa.core.simd*.pas`（59 个文件）
+  - `.fusion/EXECUTION_SUMMARY.md`（之前的审查记录）
+  - `~/.claude/teams/fafafa-dev-team/SIMD_STATUS_ASSESSMENT.md`（状态评估）
+- **验收标准**:
+  - ✅ 生成完整的 SIMD 模块文件清单（59 个文件）
+  - ✅ 标记已审查和未审查的部分（已审查：1 个，未审查：58 个）
+  - ✅ 识别优先审查的模块（P1/P2/P3 分类）
+  - ✅ 生成审查计划（详见 findings.md）
 
-#### Task 1.2: 补充 TSimdBackend 枚举文档
-- **状态**: PENDING
-- **优先级**: P0
-- **描述**: 在文档中补充缺失的后端（SSE3/SSSE3/SSE41/SSE42/RISCVV）
-- **影响文件**:
-  - `docs/fafafa.core.simd.cpuinfo.md`
-- **验收标准**: 文档列出所有 10 个后端
-
-#### Task 1.3: 修复函数名不一致
-- **状态**: PENDING
-- **优先级**: P0
-- **描述**: 统一文档和代码中的函数名（`IsBackendAvailable` vs `IsBackendAvailableOnCPU`）
-- **影响文件**:
-  - `docs/fafafa.core.simd.cpuinfo.md`
-  - 相关示例代码
-- **验收标准**: 文档和代码中函数名一致
-
-### Phase 2: 完善 NEON 后端（优先级: 🔥🔥）
-
-#### Task 2.1: 实现 I32x4 位运算
+#### Task 1.2: 优先级排序和审查计划
 - **状态**: PENDING
 - **优先级**: P1
-- **描述**: 实现 And/Or/Xor/Not 操作
+- **描述**: 根据 Task 1.1 的分析结果，对未审查部分进行优先级排序，制定审查计划
+- **影响文件**:
+  - `.fusion/task_plan.md`（本文件）
+  - `.fusion/findings.md`
+- **验收标准**:
+  - 生成优先级排序的审查列表
+  - 制定详细的审查计划
+  - 确定审查顺序和时间估算
+
+### Phase 2: 执行审查任务（优先级: 🔥🔥）
+
+#### Task 2.1: 审查 NEON 后端
+- **状态**: PENDING
+- **优先级**: P1
+- **描述**: 审查 NEON 后端的实现完整性、代码质量和测试覆盖率
 - **影响文件**:
   - `src/fafafa.core.simd.neon.pas`
+  - `src/fafafa.core.simd.intrinsics.neon.pas`
+  - 相关测试文件
 - **验收标准**:
-  - 实现 4 个位运算操作
-  - 添加对应测试用例
-  - 测试通过
+  - 生成 NEON 后端审查报告
+  - 识别缺失的功能和问题
+  - 提出改进建议
 
-#### Task 2.2: 实现 F64x2 数学函数
+#### Task 2.2: 审查 AVX-512 后端
 - **状态**: PENDING
 - **优先级**: P1
-- **描述**: 实现 Sqrt/Min/Max 操作
+- **描述**: 审查 AVX-512 后端的实现完整性、代码质量和测试覆盖率
 - **影响文件**:
-  - `src/fafafa.core.simd.neon.pas`
+  - `src/fafafa.core.simd.avx512.pas`
+  - `src/fafafa.core.simd.intrinsics.avx512.pas`
+  - 相关测试文件
 - **验收标准**:
-  - 实现 3 个数学函数
-  - 添加对应测试用例
-  - 测试通过
+  - 生成 AVX-512 后端审查报告
+  - 识别缺失的功能和问题
+  - 提出改进建议
 
-#### Task 2.3: 实现窄整数类型
+#### Task 2.3: 审查其他未审查模块
 - **状态**: PENDING
-- **优先级**: P1
-- **描述**: 实现 I16x8/I8x16/U16x8/U8x16 操作
+- **优先级**: P2
+- **描述**: 审查其他未审查的 SIMD 模块（根据 Task 1.2 的优先级排序）
 - **影响文件**:
-  - `src/fafafa.core.simd.neon.pas`
+  - 待确定（根据 Task 1.1 的分析结果）
 - **验收标准**:
-  - 实现窄整数类型操作
-  - 添加对应测试用例
-  - 测试通过
+  - 生成各模块的审查报告
+  - 识别缺失的功能和问题
+  - 提出改进建议
 
-#### Task 2.4: 实现饱和算术
-- **状态**: PENDING
+### Phase 3: 生成综合审查报告（优先级: 🔥）
+
+#### Task 3.1: 生成 SIMD 模块综合审查报告
+- **状态**: ✅ COMPLETED
 - **优先级**: P1
-- **描述**: 实现 SatAdd/SatSub 操作
+- **完成时间**: 2026-02-15 10:10
+- **描述**: 汇总所有审查结果，生成 SIMD 模块的综合审查报告
 - **影响文件**:
-  - `src/fafafa.core.simd.neon.pas`
+  - `.fusion/SIMD_COMPREHENSIVE_REVIEW_REPORT.md`
 - **验收标准**:
-  - 实现饱和算术操作
-  - 添加对应测试用例
-  - 测试通过
+  - ✅ 生成完整的综合审查报告
+  - ✅ 包含所有模块的审查结果
+  - ✅ 提出整体改进建议和优先级
 
-### Phase 3: 补充缺失 API（优先级: 🔥）
+### Phase 4: 性能基准测试和专用测试（优先级: 🔥🔥🔥）
 
-#### Task 3.1: 实现 256-bit 浮点比较
+#### Task 4.1: 添加 NEON vs Scalar 性能基准测试
 - **状态**: PENDING
 - **优先级**: P1
-- **描述**: 实现 CmpEqF32x8, CmpLtF32x8, CmpLeF32x8, CmpGtF32x8, CmpGeF32x8
+- **描述**: 实现 NEON 后端与 Scalar 后端的性能对比基准测试
 - **影响文件**:
-  - `src/fafafa.core.simd.avx2.pas`
+  - `tests/fafafa.core.simd/bench_neon_vs_scalar.pas`（新建）
+  - `tests/fafafa.core.simd/BuildOrTest.sh`（更新）
 - **验收标准**:
-  - 实现 5 个比较操作
-  - 添加对应测试用例
-  - 测试通过
+  - 实现至少 10 个关键操作的性能对比
+  - 生成性能报告（Markdown 格式）
+  - 测试可重复且稳定
 
-#### Task 3.2: 实现 Select 操作
+#### Task 4.2: 添加 AVX-512 vs AVX2 性能基准测试
 - **状态**: PENDING
 - **优先级**: P1
-- **描述**: 实现 SelectI32x4, SelectF32x8, SelectF64x4 操作
+- **描述**: 实现 AVX-512 后端与 AVX2 后端的性能对比基准测试
+- **影响文件**:
+  - `tests/fafafa.core.simd/bench_avx512_vs_avx2.pas`（新建）
+  - `tests/fafafa.core.simd/BuildOrTest.sh`（更新）
+- **验收标准**:
+  - 实现至少 10 个关键操作的性能对比
+  - 生成性能报告（Markdown 格式）
+  - 测试可重复且稳定
+
+#### Task 4.3: 添加 NEON 后端专用测试
+- **状态**: PENDING
+- **优先级**: P1
+- **描述**: 实现 NEON 后端的专用正确性测试
+- **影响文件**:
+  - `tests/fafafa.core.simd/test_neon_backend.pas`（新建）
+  - `tests/fafafa.core.simd/BuildOrTest.sh`（更新）
+- **验收标准**:
+  - 测试所有 NEON 特定操作
+  - 验证边界情况和特殊值
+  - 所有测试通过
+
+#### Task 4.4: 添加 AVX-512 后端专用测试
+- **状态**: PENDING
+- **优先级**: P1
+- **描述**: 实现 AVX-512 后端的专用正确性测试
+- **影响文件**:
+  - `tests/fafafa.core.simd/test_avx512_backend.pas`（新建）
+  - `tests/fafafa.core.simd/BuildOrTest.sh`（更新）
+- **验收标准**:
+  - 测试所有 AVX-512 特定操作
+  - 验证 512-bit 向量操作
+  - 所有测试通过
+
+### Phase 5: 核心框架文件审查（优先级: 🔥🔥）
+
+#### Task 5.1: 审查 dispatch.pas
+- **状态**: PENDING
+- **优先级**: P2
+- **描述**: 审查后端调度系统的实现
+- **影响文件**:
+  - `src/fafafa.core.simd.dispatch.pas`
+- **验收标准**:
+  - 生成 dispatch.pas 审查报告
+  - 识别潜在问题
+  - 提出改进建议
+
+#### Task 5.2: 审查 base.pas
+- **状态**: PENDING
+- **优先级**: P2
+- **描述**: 审查基础类型定义
+- **影响文件**:
+  - `src/fafafa.core.simd.base.pas`
+- **验收标准**:
+  - 生成 base.pas 审查报告
+  - 验证类型定义的正确性
+  - 提出改进建议
+
+#### Task 5.3: 审查 simd.pas
+- **状态**: PENDING
+- **优先级**: P2
+- **描述**: 审查主门面单元
 - **影响文件**:
   - `src/fafafa.core.simd.pas`
+- **验收标准**:
+  - 生成 simd.pas 审查报告
+  - 验证 API 设计的一致性
+  - 提出改进建议
+
+### Phase 6: 次要后端审查（优先级: 🔥）
+
+#### Task 6.1: 审查 SSE2 后端
+- **状态**: PENDING
+- **优先级**: P2
+- **描述**: 审查 SSE2 后端的实现
+- **影响文件**:
   - `src/fafafa.core.simd.sse2.pas`
+- **验收标准**:
+  - 生成 SSE2 后端审查报告
+  - 验证实现完整性
+  - 提出改进建议
+
+#### Task 6.2: 审查 AVX2 后端
+- **状态**: PENDING
+- **优先级**: P2
+- **描述**: 审查 AVX2 后端的实现
+- **影响文件**:
   - `src/fafafa.core.simd.avx2.pas`
 - **验收标准**:
-  - 实现 3 个 Select 操作
-  - 添加对应测试用例
-  - 测试通过
+  - 生成 AVX2 后端审查报告
+  - 验证实现完整性
+  - 提出改进建议
 
-### Phase 4: 完善文档（优先级: 🔥）
-
-#### Task 4.1: 补充 TCPUInfo 字段文档
+#### Task 6.3: 审查 Scalar 后端
 - **状态**: PENDING
-- **优先级**: P1
-- **描述**: 补充 Arch、LogicalCores、PhysicalCores、Cache、RISCV 等字段文档
+- **优先级**: P2
+- **描述**: 审查 Scalar 后端的实现
 - **影响文件**:
-  - `docs/fafafa.core.simd.cpuinfo.md`
-- **验收标准**: 所有 TCPUInfo 字段都有文档说明
-
-#### Task 4.2: 补充 intrinsics 文档
-- **状态**: PENDING
-- **优先级**: P1
-- **描述**: 补充 AVX2、NEON intrinsics 文档
-- **影响文件**:
-  - `docs/fafafa.core.simd.intrinsics.avx2.md`（需创建）
-  - `docs/fafafa.core.simd.intrinsics.neon.md`（需创建）
-- **验收标准**: AVX2 和 NEON intrinsics 有完整文档
+  - `src/fafafa.core.simd.scalar.pas`
+- **验收标准**:
+  - 生成 Scalar 后端审查报告
+  - 验证参考实现的正确性
+  - 提出改进建议
 
 ---
 
 ## 执行策略
 
-1. **TDD 流程**: 每个实现任务都遵循 RED → GREEN → REFACTOR 流程
-2. **测试优先**: 先写失败测试，再实现功能
-3. **增量提交**: 每完成一个任务就提交一次
-4. **持续验证**: 每次修改后运行相关测试套件
+1. **系统化审查**: 按模块逐个审查，确保覆盖所有未审查部分
+2. **优先级驱动**: 优先审查关键后端（NEON、AVX-512）
+3. **文档化**: 为每个审查任务生成详细的审查报告
+4. **问题追踪**: 识别的问题记录到 findings.md
+5. **持续更新**: 实时更新 progress.md 记录审查进度
 
 ---
 
 ## 成功标准
 
-- [ ] 所有 P0 级文档问题修复
-- [ ] NEON 后端覆盖率提升到 70%+
-- [ ] 256-bit 浮点比较操作完整实现
-- [ ] Select 操作完整实现
-- [ ] 文档完整性提升到 9/10
-- [ ] 综合审计评分提升到 85%+
+- [ ] 识别所有未审查的 SIMD 模块部分（Task 1.1 完成）
+- [ ] 制定详细的审查计划（Task 1.2 完成）
+- [ ] 完成 NEON 后端审查（Task 2.1 完成）
+- [ ] 完成 AVX-512 后端审查（Task 2.2 完成）
+- [ ] 完成其他未审查模块审查（Task 2.3 完成）
+- [ ] 生成综合审查报告（Task 3.1 完成）
 
 ---
 
 ## 风险与应对
 
-1. **NEON 后端兼容性**: 多平台测试，提供回退方案
-2. **时间估算偏差**: 分阶段交付，优先核心功能
-3. **测试覆盖率**: 确保每个新功能都有对应测试
+1. **审查范围过大**: SIMD 模块有 59 个文件，审查工作量可能超出预期
+   - 应对: 分批次审查，优先关键模块
+2. **时间估算偏差**: 审查复杂度可能超出预期
+   - 应对: 分阶段交付，优先核心功能
+3. **缺少测试环境**: 某些后端（如 AVX-512）可能缺少测试环境
+   - 应对: 基于代码审查和文档分析
 
 ---
 
-**下一步**: 开始执行 Task 1.1（修复文档文件名引用错误）
+**下一步**: 开始执行 Task 1.1（分析 SIMD 模块结构，识别未审查部分）

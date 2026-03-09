@@ -58,6 +58,11 @@ begin
   // Core=1, Max=1, queue=0, policy=CallerRuns => 第二次提交在调用线程执行，不计入 TotalRejected
   P := TThreads.CreateThreadPool(1, 1, 60000, 0, TRejectPolicy.rpCallerRuns);
   P.Submit(function(): Boolean begin BusyWork(50); Result := True; end);
+  // 等待工作线程进入执行态，避免 ActiveCount 采样窗口导致第二次提交误走入队路径
+  for i := 1 to 40 do begin
+    if P.GetActiveCount > 0 then Break;
+    Sleep(5);
+  end;
   P.Submit(function(): Boolean begin BusyWork(1); Result := True; end);
   M := GetThreadPoolMetrics(P);
   if M <> nil then begin

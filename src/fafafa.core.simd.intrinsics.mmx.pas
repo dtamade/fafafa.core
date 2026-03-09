@@ -191,7 +191,7 @@ asm
     movd dword ptr [rdi], mm0
   {$ENDIF}
 {$ELSE}
-  movq mm0, qword ptr [Src]
+  // x86: 参数通过栈传�?  movq mm0, qword ptr [Src]
   mov eax, Dest
   movd dword ptr [eax], mm0
 {$ENDIF}
@@ -237,7 +237,7 @@ asm
     movq qword ptr [rdi], mm0
   {$ENDIF}
 {$ELSE}
-  movq mm0, qword ptr [Src]
+  // x86: 参数通过栈传�?  movq mm0, qword ptr [Src]
   mov eax, Dest
   movq qword ptr [eax], mm0
 {$ENDIF}
@@ -262,88 +262,34 @@ end;
 
 // 功能：将所�?�?位整数设置为指定值（广播�?// 输入：Value - 8位有符号整数
 // 输出：TM64 - 包含8个相同Value�?位整�
-function mmx_set1_pi8(Value: ShortInt): TM64; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    // Windows x64: ECX = Value (�?�?
-    movd mm0, ecx
-  {$ELSE}
-    // SysV x64: EDI = Value (�?�?
-    movd mm0, edi
-  {$ENDIF}
-  punpcklbw mm0, mm0
-  punpcklwd mm0, mm0
-  punpckldq mm0, mm0
-  movq rax, mm0
-  movq qword ptr [Result], mm0
-{$ELSE}
-  movd mm0, Value
-  punpcklbw mm0, mm0
-  punpcklwd mm0, mm0
-  punpckldq mm0, mm0
-  movd eax, mm0
-  psrlq mm0, 32
-  movd edx, mm0
-  movq mm0, qword ptr [Value]
-  punpcklbw mm0, mm0
-  punpcklwd mm0, mm0
-  punpckldq mm0, mm0
-  movq qword ptr [Result], mm0
-{$ENDIF}
+function mmx_set1_pi8(Value: ShortInt): TM64;
+begin
+  Result.mm_i8[0] := Value;
+  Result.mm_i8[1] := Value;
+  Result.mm_i8[2] := Value;
+  Result.mm_i8[3] := Value;
+  Result.mm_i8[4] := Value;
+  Result.mm_i8[5] := Value;
+  Result.mm_i8[6] := Value;
+  Result.mm_i8[7] := Value;
 end;
 
 // 功能：将所�?�?6位整数设置为指定值（广播�?// 输入：Value - 16位有符号整数
 // 输出：TM64 - 包含4个相同Value�?6位整�
-function mmx_set1_pi16(Value: SmallInt): TM64; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movd mm0, ecx
-  {$ELSE}
-    movd mm0, edi
-  {$ENDIF}
-  punpcklwd mm0, mm0
-  punpckldq mm0, mm0
-  movq rax, mm0
-  movq qword ptr [Result], mm0
-{$ELSE}
-  movd mm0, Value
-  punpcklwd mm0, mm0
-  punpckldq mm0, mm0
-  movd eax, mm0
-  psrlq mm0, 32
-  movd edx, mm0
-  movq mm0, qword ptr [Value]
-  punpcklwd mm0, mm0
-  punpckldq mm0, mm0
-  movq qword ptr [Result], mm0
-{$ENDIF}
+function mmx_set1_pi16(Value: SmallInt): TM64;
+begin
+  Result.mm_i16[0] := Value;
+  Result.mm_i16[1] := Value;
+  Result.mm_i16[2] := Value;
+  Result.mm_i16[3] := Value;
 end;
 
 // 功能：将所�?�?2位整数设置为指定值（广播�?// 输入：Value - 32位有符号整数
 // 输出：TM64 - 包含2个相同Value�?2位整�
-function mmx_set1_pi32(Value: LongInt): TM64; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movd mm0, ecx
-  {$ELSE}
-    movd mm0, edi
-  {$ENDIF}
-  punpckldq mm0, mm0
-  movq rax, mm0
-  movq qword ptr [Result], mm0
-{$ELSE}
-  movd mm0, Value
-  punpckldq mm0, mm0
-  movd eax, mm0
-  psrlq mm0, 32
-  movd edx, mm0
-  movq mm0, qword ptr [Value]
-  punpckldq mm0, mm0
-  movq qword ptr [Result], mm0
-{$ENDIF}
+function mmx_set1_pi32(Value: LongInt): TM64;
+begin
+  Result.mm_i32[0] := Value;
+  Result.mm_i32[1] := Value;
 end;
 
 // 功能：设�?�?位整数到MMX寄存器（从高到低�?// 输入：a7-a0 - 8�?位有符号整数
@@ -370,31 +316,12 @@ begin
   Result.mm_i16[3] := a3;
 end;
 
-function mmx_set_pi32(a1, a0: LongInt): TM64; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    // Windows x64: RCX=a1, RDX=a0
-    movd mm0, edx
-    movd mm1, ecx
-    psllq mm1, 32
-    por mm0, mm1
-  {$ELSE}
-    // SysV x64: RDI=a1, RSI=a0
-    movd mm0, esi
-    movd mm1, edi
-    psllq mm1, 32
-    por mm0, mm1
-  {$ENDIF}
-  movq rax, mm0
-  movq qword ptr [Result], mm0
-{$ELSE}
-  movd mm0, a0
-  movd mm1, a1
-  psllq mm1, 32
-  por mm0, mm1
-  movq qword ptr [Result], mm0
-{$ENDIF}
+// 功能：设�?�?2位整数到MMX寄存器（从高到低�?// 输入：a1, a0 - 2�?2位有符号整数
+// 输出：TM64 - 包含指定�?�?2位整�
+function mmx_set_pi32(a1, a0: LongInt): TM64;
+begin
+  Result.mm_i32[0] := a0;
+  Result.mm_i32[1] := a1;
 end;
 
 // === 3️⃣ Integer Arithmetic 实现 ===
@@ -417,7 +344,7 @@ asm
   movq rax, mm0
   movq qword ptr [Result], mm0
 {$ELSE}
-  movq mm0, qword ptr [a]
+  // x86: 参数通过栈传�?  movq mm0, qword ptr [a]
   movq mm1, qword ptr [b]
   paddb mm0, mm1
   movd eax, mm0
@@ -2077,26 +2004,34 @@ asm
 {$ENDIF}
 end;
 
-// 功能�?2位到16位无符号打包（模拟实现，MMX没有此指令）
+// 功能：32位到16位无符号饱和打包（模拟 PACKUSDW 语义，MMX 原生无此指令）
 function mmx_packusdw(a, b: TM64): TM64;
 var
-  i: Integer;
-  temp: TM64;
+  LIndex: Integer;
+  LTemp: TM64;
+  LValue: LongInt;
 begin
-  // 这是一个模拟实现，因为原始 MMX 没有此指令
-  for i := 0 to 1 do
+  // 模拟 SSE4.1 PACKUSDW：有符号32位输入，饱和到无符号16位输出
+  for LIndex := 0 to 1 do
   begin
-    if a.mm_u32[i] > 65535 then
-      temp.mm_u16[i] := 65535
+    LValue := a.mm_i32[LIndex];
+    if LValue < 0 then
+      LTemp.mm_u16[LIndex] := 0
+    else if LValue > 65535 then
+      LTemp.mm_u16[LIndex] := 65535
     else
-      temp.mm_u16[i] := a.mm_u32[i];
+      LTemp.mm_u16[LIndex] := UInt16(LValue);
 
-    if b.mm_u32[i] > 65535 then
-      temp.mm_u16[i + 2] := 65535
+    LValue := b.mm_i32[LIndex];
+    if LValue < 0 then
+      LTemp.mm_u16[LIndex + 2] := 0
+    else if LValue > 65535 then
+      LTemp.mm_u16[LIndex + 2] := 65535
     else
-      temp.mm_u16[i + 2] := b.mm_u32[i];
+      LTemp.mm_u16[LIndex + 2] := UInt16(LValue);
   end;
-  Result := temp;
+
+  Result := LTemp;
 end;
 
 // 功能：从内存解包低位字节

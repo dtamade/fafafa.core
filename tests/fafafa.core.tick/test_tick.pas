@@ -1,34 +1,67 @@
-unit test_base;
+unit test_tick;
 
 {$MODE OBJFPC}{$H+}
-//{$I fafafa.core.settings.inc}
 
 interface
 
 uses
   Classes, SysUtils, fpcunit, testregistry,
-  fafafa.core.base;
+  fafafa.core.tick;
 
 type
 
-  { TBaseTest }
+  { TTickTest }
 
-  TBaseTest = class(TTestCase)
+  TTickTest = class(TTestCase)
   published
-    // Add tests for fafafa.core.base here in the future
-    // 未来在此处为 fafafa.core.base 添加测试
-    procedure TestPlaceholder;
+    procedure Test_GetAvailableTickTypes;
+    procedure Test_GetTickTypeName;
+    procedure Test_HasHardwareTick;
+    procedure Test_MakeTick;
+    procedure Test_MakeBestTick;
   end;
 
 implementation
 
-procedure TBaseTest.TestPlaceholder;
+procedure TTickTest.Test_GetAvailableTickTypes;
+var
+  Types: TTickTypes;
 begin
-  // This is a placeholder test to ensure the test suite compiles.
-  // 这是一个占位测试, 以确保测试套件能够编译.
+  Types := GetAvailableTickTypes;
+  // 至少应该有标准计时器
+  Check(ttStandard in Types, 'Standard tick should be available');
+end;
+
+procedure TTickTest.Test_GetTickTypeName;
+begin
+  CheckEquals('Standard Precision Timer', GetTickTypeName(ttStandard));
+  CheckEquals('High Precision Timer', GetTickTypeName(ttHighPrecision));
+  CheckEquals('Hardware Timer', GetTickTypeName(ttHardware));
+end;
+
+procedure TTickTest.Test_HasHardwareTick;
+begin
+  // 只检查函数可调用，不检查具体值（平台相关）
+  HasHardwareTick;
   Check(True);
 end;
 
+procedure TTickTest.Test_MakeTick;
+var
+  Tick: ITick;
+begin
+  Tick := MakeTick(ttStandard);
+  CheckNotNull(Tick, 'MakeTick(ttStandard) should return non-nil');
+end;
+
+procedure TTickTest.Test_MakeBestTick;
+var
+  Tick: ITick;
+begin
+  Tick := MakeBestTick;
+  CheckNotNull(Tick, 'MakeBestTick should return non-nil');
+end;
+
 initialization
-  RegisterTest(TBaseTest);
+  RegisterTest(TTickTest);
 end.

@@ -1070,7 +1070,11 @@ type
 implementation
 
 uses
-  fafafa.core.math;
+  fafafa.core.math
+  {$IFDEF UNIX}
+  , BaseUnix, Unix, Sockets, SysCall, NetDB
+  {$ENDIF}
+  ;
 
 // 包含平台特定的实现
 {$IFDEF WINDOWS}
@@ -3852,6 +3856,10 @@ end;
 
 // 向后兼容的超时设置方法
 procedure TSocket.SetSendTimeout(aMilliseconds: Integer);
+{$IFDEF UNIX}
+var
+  tv: TTimeVal;
+{$ENDIF}
 begin
   if aMilliseconds < 0 then
     raise EInvalidArgument.Create('发送超时时间不能为负数');
@@ -3860,7 +3868,6 @@ begin
   SetIntegerOption($FFFF, $1005, aMilliseconds); // SOL_SOCKET=$FFFF, SO_SNDTIMEO=$1005
   {$ELSE}
   // Unix: 使用 timeval 结构
-  var tv: TTimeVal;
   tv.tv_sec := aMilliseconds div 1000;
   tv.tv_usec := (aMilliseconds mod 1000) * 1000;
   SetSocketOption(1, 21, @tv, SizeOf(tv)); // SOL_SOCKET=1, SO_SNDTIMEO=21
@@ -3869,12 +3876,16 @@ begin
 end;
 
 function TSocket.GetSendTimeout: Integer;
+{$IFDEF UNIX}
+var
+  tv: TTimeVal;
+  sz: Integer;
+{$ENDIF}
 begin
   {$IFDEF WINDOWS}
   Result := GetIntegerOption($FFFF, $1005);
   {$ELSE}
-  var tv: TTimeVal;
-  var sz: Integer := SizeOf(tv);
+  sz := SizeOf(tv);
   FillChar(tv, SizeOf(tv), 0);
   GetSocketOption(1, 21, @tv, sz);
   Result := (tv.tv_sec * 1000) + (tv.tv_usec div 1000);
@@ -3883,6 +3894,10 @@ begin
 end;
 
 procedure TSocket.SetReceiveTimeout(aMilliseconds: Integer);
+{$IFDEF UNIX}
+var
+  tv: TTimeVal;
+{$ENDIF}
 begin
   if aMilliseconds < 0 then
     raise EInvalidArgument.Create('接收超时时间不能为负数');
@@ -3890,7 +3905,6 @@ begin
   {$IFDEF WINDOWS}
   SetIntegerOption($FFFF, $1006, aMilliseconds); // SOL_SOCKET=$FFFF, SO_RCVTIMEO=$1006
   {$ELSE}
-  var tv: TTimeVal;
   tv.tv_sec := aMilliseconds div 1000;
   tv.tv_usec := (aMilliseconds mod 1000) * 1000;
   SetSocketOption(1, 20, @tv, SizeOf(tv)); // SOL_SOCKET=1, SO_RCVTIMEO=20
@@ -3899,12 +3913,16 @@ begin
 end;
 
 function TSocket.GetReceiveTimeout: Integer;
+{$IFDEF UNIX}
+var
+  tv: TTimeVal;
+  sz: Integer;
+{$ENDIF}
 begin
   {$IFDEF WINDOWS}
   Result := GetIntegerOption($FFFF, $1006);
   {$ELSE}
-  var tv: TTimeVal;
-  var sz: Integer := SizeOf(tv);
+  sz := SizeOf(tv);
   FillChar(tv, SizeOf(tv), 0);
   GetSocketOption(1, 20, @tv, sz);
   Result := (tv.tv_sec * 1000) + (tv.tv_usec div 1000);

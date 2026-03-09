@@ -1,5 +1,8 @@
 # SIMD 质量迭代 Iteration 5.1 报告
 
+> **NOTE (INTERNAL)**：本文档为内部迭代报告快照，内容可能与当前实现不一致。  
+> 对外口径请以 `docs/fafafa.core.simd*.md` 与 `src/fafafa.core.simd.STABLE` 为准。
+
 ## 任务概述
 
 **目标**: 将 AVX-512 核心操作从继承/递归转换为真正的 512-bit AVX-512 ASM。
