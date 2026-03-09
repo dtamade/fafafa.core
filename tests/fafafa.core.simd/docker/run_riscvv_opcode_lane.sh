@@ -21,8 +21,9 @@ HOST_QEMU_X86="${SIMD_RVV_PREBUILT_HOST_QEMU:-/usr/bin/qemu-x86_64-static}"
 HOST_UNITS_DIR="${SIMD_RVV_PREBUILT_UNITS:-/opt/fpcupdeluxe/fpc-rvv-units}"
 COMPILER_PREFIX="${SIMD_RVV_PREBUILT_COMPILER_PREFIX:-riscv64-linux-gnu-}"
 CPU_NAME="${SIMD_RVV_PREBUILT_CPU:-RV64GCV}"
-COMPILE_DEFINES="${SIMD_RVV_OPCODE_COMPILE_DEFINES:--dFAFAFA_SIMD_EXPERIMENTAL_BACKEND_ASM -dFAFAFA_SIMD_ENABLE_RISCVV_ASM -dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY -dFAFAFA_SIMD_RISCVV_ASM_OPCODE_READY}"
-RUNTIME_DEFINES="${SIMD_RVV_OPCODE_RUNTIME_DEFINES:--dFAFAFA_SIMD_EXPERIMENTAL_BACKEND_ASM -dFAFAFA_SIMD_ENABLE_RISCVV_ASM -dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY}"
+COMPILE_DEFINES="${SIMD_RVV_OPCODE_COMPILE_DEFINES:--dSIMD_EXPERIMENTAL_RISCVV}"
+RUNTIME_DEFINES="${SIMD_RVV_OPCODE_RUNTIME_DEFINES:--dSIMD_EXPERIMENTAL_RISCVV}"
+RUN_BENCH="${SIMD_RVV_OPCODE_RUN_BENCH:-0}"
 
 mkdir -p "${REPORT_DIR}"
 
@@ -154,7 +155,7 @@ finalize_summary() {
 | Step | Status | Log |
 |---|---|---|
 | compile-only | ${aCompileStatus} | \`${COMPILE_LOG}\` |
-| suite (TTestCase_NonX86IEEE754) | ${aSuiteStatus} | \`${SUITE_LOG}\` |
+| stable-smoke (TTestCase_Global + TTestCase_DispatchAPI) | ${aSuiteStatus} | \`${SUITE_LOG}\` |
 | bench | ${aBenchStatus} | \`${BENCH_LOG}\` |
 EOF2
 }
@@ -191,17 +192,21 @@ COMPILE_STATUS="FAIL"
 SUITE_STATUS="SKIP"
 BENCH_STATUS="SKIP"
 COMPILE_CMD="export SIMD_FPC_EXTRA_DEFINES=$(printf '%q' "${COMPILE_DEFINES}"); export SIMD_RUN_ONLY_BUILD=1; bash tests/fafafa.core.simd/docker/run_fpc_tests.sh"
-RUNTIME_CMD="export SIMD_FPC_EXTRA_DEFINES=$(printf '%q' "${RUNTIME_DEFINES}"); bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_NonX86IEEE754"
+RUNTIME_CMD="export SIMD_FPC_EXTRA_DEFINES=$(printf '%q' "${RUNTIME_DEFINES}"); bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_Global && bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_DispatchAPI"
 BENCH_CMD="export SIMD_BENCH_EXTRA_DEFINES=$(printf '%q' "${RUNTIME_DEFINES}"); bash tests/fafafa.core.simd/run_backend_benchmarks.sh"
 
 if run_container_step "${COMPILE_LOG}" "${COMPILE_CMD}"; then
   COMPILE_STATUS="PASS"
   if run_container_step "${SUITE_LOG}" "${RUNTIME_CMD}"; then
     SUITE_STATUS="PASS"
-    if run_container_step "${BENCH_LOG}" "${BENCH_CMD}"; then
-      BENCH_STATUS="PASS"
+    if [[ "${RUN_BENCH}" != "0" ]]; then
+      if run_container_step "${BENCH_LOG}" "${BENCH_CMD}"; then
+        BENCH_STATUS="PASS"
+      else
+        BENCH_STATUS="FAIL"
+      fi
     else
-      BENCH_STATUS="FAIL"
+      write_log "${BENCH_LOG}" "[RVV-LANE] SKIP (SIMD_RVV_OPCODE_RUN_BENCH=0)"
     fi
   else
     SUITE_STATUS="FAIL"

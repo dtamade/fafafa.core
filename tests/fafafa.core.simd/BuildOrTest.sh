@@ -476,10 +476,50 @@ check_windows_runner_parity() {
   )
 
   for LPattern in "${LRequired[@]}"; do
-    if ! grep -F -- "${LPattern}" "${LBat}" >/dev/null; then
-      echo "[CHECK] Windows runner missing pattern: ${LPattern}"
-      LMissing=1
+    if grep -F -- "${LPattern}" "${LBat}" >/dev/null; then
+      continue
     fi
+
+    case "${LPattern}" in
+      'if /I "%ACTION%"=="verify-win-evidence" goto :verify_win_evidence')
+        if grep -F -- 'if /I "%ACTION%"=="verify-win-evidence" (' "${LBat}" >/dev/null; then
+          continue
+        fi
+        ;;
+      'if /I "%ACTION%"=="evidence-win-verify" goto :evidence_win_verify')
+        if grep -F -- 'if /I "%ACTION%"=="evidence-win-verify" (' "${LBat}" >/dev/null; then
+          continue
+        fi
+        ;;
+      'call "%~f0" wiring-sync')
+        if grep -F -- 'call "%SELF%" wiring-sync' "${LBat}" >/dev/null ||
+           grep -F -- 'call "%ROOT%buildOrTest.bat" wiring-sync' "${LBat}" >/dev/null; then
+          continue
+        fi
+        ;;
+      'call "%~f0" gate')
+        if grep -F -- 'call "%SELF%" gate' "${LBat}" >/dev/null ||
+           grep -F -- 'call "%ROOT%buildOrTest.bat" gate' "${LBat}" >/dev/null; then
+          continue
+        fi
+        ;;
+      'call "%~f0" evidence-win')
+        if grep -F -- 'call "%SELF%" evidence-win' "${LBat}" >/dev/null ||
+           grep -F -- 'call "%ROOT%buildOrTest.bat" evidence-win' "${LBat}" >/dev/null; then
+          continue
+        fi
+        ;;
+      'call "%~f0" verify-win-evidence %NORMALIZED_TEST_ARGS%')
+        if grep -F -- 'call "%SELF%" verify-win-evidence' "${LBat}" >/dev/null ||
+           grep -F -- 'call "%ROOT%buildOrTest.bat" verify-win-evidence' "${LBat}" >/dev/null ||
+           grep -F -- 'call "%VERIFY_SCRIPT%" "%VERIFY_ARGS%"' "${LBat}" >/dev/null; then
+          continue
+        fi
+        ;;
+    esac
+
+    echo "[CHECK] Windows runner missing pattern: ${LPattern}"
+    LMissing=1
   done
 
   if [[ "${LMissing}" != "0" ]]; then
@@ -1021,11 +1061,16 @@ run_perf_smoke() {
 run_nonx86_ieee754() {
   build_project || return $?
   run_tests --list-suites || return $?
-  if ! grep -q "TTestCase_NonX86IEEE754" "${TEST_LOG}"; then
-    echo "[NONX86-IEEE754] SKIP (suite TTestCase_NonX86IEEE754 not present in this build)"
+  if grep -q "TTestCase_NonX86IEEE754" "${TEST_LOG}"; then
+    run_tests --suite=TTestCase_NonX86IEEE754 || return $?
+    check_heap_leaks || return $?
     return 0
   fi
-  run_tests --suite=TTestCase_NonX86IEEE754 || return $?
+
+  echo "[NONX86-IEEE754] INFO (suite missing; falling back to stable smoke suites)"
+  run_tests --suite=TTestCase_Global || return $?
+  check_heap_leaks || return $?
+  run_tests --suite=TTestCase_DispatchAPI || return $?
   check_heap_leaks || return $?
 }
 
@@ -2078,14 +2123,23 @@ case "${ACTION}" in
   qemu-nonx86-experimental-asm)
     run_qemu_multiarch nonx86-experimental-asm "$@"
     ;;
+  qemu-arm64-experimental-asm)
+    SIMD_QEMU_ENABLE_BACKEND_ASM="${SIMD_QEMU_ENABLE_BACKEND_ASM:-1}" run_qemu_multiarch arm64-experimental-asm "$@"
+    ;;
   riscvv-opcode-lane)
     run_riscvv_opcode_lane "$@"
     ;;
   qemu-experimental-report)
     run_qemu_experimental_report "$@"
     ;;
+  qemu-arm64-experimental-report)
+    run_qemu_experimental_report --latest --scenario arm64-experimental-asm "$@"
+    ;;
   qemu-experimental-baseline-check)
     run_qemu_experimental_baseline_check "$@"
+    ;;
+  qemu-arm64-experimental-baseline-check)
+    run_qemu_experimental_baseline_check --latest --scenario arm64-experimental-asm "$@"
     ;;
   coverage)
     run_coverage
@@ -2129,6 +2183,9 @@ case "${ACTION}" in
   freeze-status-linux)
     run_freeze_status --linux-only "$@"
     ;;
+  freeze-status-full-platform)
+    run_freeze_status --mode full-platform "$@"
+    ;;
   win-closeout-finalize)
     run_windows_closeout_finalize "$@"
     ;;
@@ -2136,7 +2193,7 @@ case "${ACTION}" in
     run_freeze_status_rehearsal "$@"
     ;;
   *)
-    echo "Usage: $0 [clean|build|check|test|test-concurrent-repeat|cpuinfo-lazy-repeat|debug|release|gate|gate-strict|interface-completeness|adapter-sync-pascal|adapter-sync|parity-suites|gate-summary|gate-summary-sample|gate-summary-rehearsal|gate-summary-inject|gate-summary-rollback|gate-summary-backups|gate-summary-selfcheck|perf-smoke|nonx86-ieee754|backend-bench|qemu-nonx86-evidence|qemu-cpuinfo-nonx86-evidence|qemu-cpuinfo-nonx86-full-evidence|qemu-cpuinfo-nonx86-full-repeat|qemu-cpuinfo-nonx86-suite-repeat|qemu-arch-matrix-evidence|qemu-nonx86-experimental-asm|riscvv-opcode-lane|qemu-experimental-report|qemu-experimental-baseline-check|coverage|wiring-sync|experimental-intrinsics|experimental-intrinsics-tests|evidence-linux|win-evidence-preflight|win-evidence-via-gh|verify-win-evidence|finalize-win-evidence|win-closeout-dryrun|win-closeout-snippets|win-closeout-3cmd|freeze-status|freeze-status-linux|win-closeout-finalize|freeze-status-rehearsal] [test-args...]"
+    echo "Usage: $0 [clean|build|check|test|test-concurrent-repeat|cpuinfo-lazy-repeat|debug|release|gate|gate-strict|interface-completeness|adapter-sync-pascal|adapter-sync|parity-suites|gate-summary|gate-summary-sample|gate-summary-rehearsal|gate-summary-inject|gate-summary-rollback|gate-summary-backups|gate-summary-selfcheck|perf-smoke|nonx86-ieee754|backend-bench|qemu-nonx86-evidence|qemu-cpuinfo-nonx86-evidence|qemu-cpuinfo-nonx86-full-evidence|qemu-cpuinfo-nonx86-full-repeat|qemu-cpuinfo-nonx86-suite-repeat|qemu-arch-matrix-evidence|qemu-nonx86-experimental-asm|qemu-arm64-experimental-asm|riscvv-opcode-lane|qemu-experimental-report|qemu-arm64-experimental-report|qemu-experimental-baseline-check|qemu-arm64-experimental-baseline-check|coverage|wiring-sync|experimental-intrinsics|experimental-intrinsics-tests|evidence-linux|win-evidence-preflight|win-evidence-via-gh|verify-win-evidence|finalize-win-evidence|win-closeout-dryrun|win-closeout-snippets|win-closeout-3cmd|freeze-status|freeze-status-linux|freeze-status-full-platform|win-closeout-finalize|freeze-status-rehearsal] [test-args...]"
     echo "  Experimental note: default entry chain isolates experimental intrinsics behind dedicated checks."
     echo "  gate/gate-strict PASS is not blanket release-grade approval for every experimental path."
     echo "  gate         Fast/base gate for routine SIMD changes"

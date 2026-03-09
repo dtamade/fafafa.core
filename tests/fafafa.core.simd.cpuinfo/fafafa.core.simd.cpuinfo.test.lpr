@@ -21,6 +21,9 @@ begin
     Application.Initialize;
     Application.Title := 'fafafa.core.simd.cpuinfo 单元测试';
     Application.Run;
+    {$IF DEFINED(CPURISCV64) OR DEFINED(CPURISCV32)}
+    Halt(ExitCode);
+    {$ENDIF}
   finally
     Application.Free;
   end;
