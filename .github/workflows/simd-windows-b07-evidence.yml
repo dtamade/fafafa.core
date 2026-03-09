@@ -1,0 +1,36 @@
+name: SIMD Windows B07 Evidence
+
+on:
+  workflow_dispatch:
+
+jobs:
+  collect-windows-b07-evidence:
+    runs-on: windows-latest
+    name: Collect Windows B07 Evidence
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install FreePascal + Lazarus
+        run: |
+          choco install freepascal lazarus --yes
+
+      - name: Collect and Verify Windows Evidence
+        shell: cmd
+        run: |
+          call tests\fafafa.core.simd\buildOrTest.bat evidence-win-verify
+
+      - name: Upload Windows Evidence Artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: simd-windows-b07-evidence
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            tests/fafafa.core.simd/logs/windows_b07_gate.log
+            tests/fafafa.core.simd/logs/gate_summary.md
+            tests/fafafa.core.simd/logs/build.txt
+            tests/fafafa.core.simd/logs/test.txt
+            tests/run_all_tests_summary.txt
