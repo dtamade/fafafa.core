@@ -4,22 +4,94 @@ on:
   workflow_dispatch:
 
 jobs:
-  collect-windows-b07-evidence:
-    runs-on: windows-latest
-    name: Collect Windows B07 Evidence
+  prepare-windows-b07-source:
+    runs-on: ubuntu-latest
+    name: Prepare Windows SIMD Source
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Stage SIMD source subset
+        shell: bash
+        run: |
+          set -euo pipefail
+          ROOT="${GITHUB_WORKSPACE}"
+          STAGE="${RUNNER_TEMP}/simd-windows-b07-source"
+
+          rm -rf "${STAGE}"
+          mkdir -p "${STAGE}/tests"
+
+          cp -a "${ROOT}/src" "${STAGE}/"
+          cp -a "${ROOT}/docs" "${STAGE}/"
+          cp -a "${ROOT}/tests/fafafa.core.simd" "${STAGE}/tests/"
+          cp -a "${ROOT}/tests/fafafa.core.simd.cpuinfo" "${STAGE}/tests/"
+          cp -a "${ROOT}/tests/fafafa.core.simd.cpuinfo.x86" "${STAGE}/tests/"
+          if [[ -d "${ROOT}/tests/fafafa.core.simd.intrinsics.experimental" ]]; then
+            cp -a "${ROOT}/tests/fafafa.core.simd.intrinsics.experimental" "${STAGE}/tests/"
+          fi
+          cp "${ROOT}/tests/run_all_tests.bat" "${STAGE}/tests/"
+
+      - name: Upload staged SIMD source
+        uses: actions/upload-artifact@v4
+        with:
+          name: simd-windows-b07-source
+          if-no-files-found: error
+          retention-days: 1
+          path: ${{ runner.temp }}/simd-windows-b07-source
+
+  collect-windows-b07-evidence:
+    needs: prepare-windows-b07-source
+    runs-on: windows-latest
+    name: Collect Windows B07 Evidence
+
+    steps:
+      - name: Download prepared SIMD source
+        uses: actions/download-artifact@v4
+        with:
+          name: simd-windows-b07-source
+          path: ${{ github.workspace }}
+
       - name: Install FreePascal + Lazarus
         run: |
           choco install freepascal lazarus --yes
 
+      - name: Resolve lazbuild path
+        shell: pwsh
+        run: |
+          $candidates = @(
+            "$env:ProgramFiles\Lazarus\lazbuild.exe",
+            'C:\lazarus\lazbuild.exe',
+            'C:\tools\lazarus\lazbuild.exe'
+          )
+          foreach ($candidate in $candidates) {
+            if (Test-Path $candidate) {
+              "LAZBUILD=$candidate" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+              Split-Path $candidate -Parent | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+              $fpcDir = 'C:\lazarus\fpc\3.2.2\bin\x86_64-win64'
+              if (Test-Path $fpcDir) {
+                $fpcDir | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+                Write-Host "[FPC] Added $fpcDir to PATH"
+              }
+              Write-Host "[LAZBUILD] Using $candidate"
+              exit 0
+            }
+          }
+          Write-Host '[LAZBUILD] lazbuild.exe not found in common paths; probing C:\ ...'
+          Get-ChildItem -Path C:\ -Filter lazbuild.exe -Recurse -ErrorAction SilentlyContinue |
+            Select-Object -First 20 -ExpandProperty FullName
+          throw 'lazbuild.exe not found'
+
       - name: Collect and Verify Windows Evidence
         shell: cmd
         run: |
-          call tests\fafafa.core.simd\buildOrTest.bat evidence-win-verify
+          echo [DEBUG] workspace=%GITHUB_WORKSPACE%
+          dir tests
+          dir tests\fafafa.core.simd
+          set "SIMD_SCRIPT_ROOT=%GITHUB_WORKSPACE%\tests\fafafa.core.simd\"
+          call "%GITHUB_WORKSPACE%\tests\fafafa.core.simd\collect_windows_b07_evidence.bat"
+          if errorlevel 1 exit /b 1
+          call "%GITHUB_WORKSPACE%\tests\fafafa.core.simd\verify_windows_b07_evidence.bat" "%GITHUB_WORKSPACE%\tests\fafafa.core.simd\logs\windows_b07_gate.log"
 
       - name: Upload Windows Evidence Artifact
         if: always()

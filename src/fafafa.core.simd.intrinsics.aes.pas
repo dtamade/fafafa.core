@@ -42,14 +42,13 @@ implementation
 // 注意：这些是简化的 Pascal 实现，实际的 AES-NI 指令会提供硬件加�?
 function aes_aesenc_si128(const data, round_key: TM128): TM128;
 begin
-  // 简化实现：实际应该执行 AES 加密轮次操作
-  // 这里只是简单的异或操作作为占位�?  Result.m128i_u64[0] := data.m128i_u64[0] xor round_key.m128i_u64[0];
+  Result.m128i_u64[0] := data.m128i_u64[0] xor round_key.m128i_u64[0];
   Result.m128i_u64[1] := data.m128i_u64[1] xor round_key.m128i_u64[1];
 end;
 
 function aes_aesenclast_si128(const data, round_key: TM128): TM128;
 begin
-  // 简化实现：最后一轮加密操�?  Result.m128i_u64[0] := data.m128i_u64[0] xor round_key.m128i_u64[0];
+  Result.m128i_u64[0] := data.m128i_u64[0] xor round_key.m128i_u64[0];
   Result.m128i_u64[1] := data.m128i_u64[1] xor round_key.m128i_u64[1];
 end;
 
@@ -62,7 +61,7 @@ end;
 
 function aes_aesdeclast_si128(const data, round_key: TM128): TM128;
 begin
-  // 简化实现：最后一轮解密操�?  Result.m128i_u64[0] := data.m128i_u64[0] xor round_key.m128i_u64[0];
+  Result.m128i_u64[0] := data.m128i_u64[0] xor round_key.m128i_u64[0];
   Result.m128i_u64[1] := data.m128i_u64[1] xor round_key.m128i_u64[1];
 end;
 

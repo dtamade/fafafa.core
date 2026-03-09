@@ -2,6 +2,7 @@ unit fafafa.core.simd.intrinsics.avx2.testcase;
 
 {$mode objfpc}{$H+}
 {$I ../../src/fafafa.core.settings.inc}
+{$WARN 6018 OFF}
 {$CODEPAGE UTF8}
 
 interface
@@ -49,7 +50,11 @@ implementation
 const
   INDEX_PATTERN_256: array[0..7] of LongInt = (0, 2, 4, 6, 1, 3, 5, 7);
   INDEX_PATTERN_128: array[0..3] of LongInt = (0, 2, 4, 6);
-  AVX2_ARITH_CHECKS_ON = {$IFOPT R+}True{$ELSE}{$IFOPT Q+}True{$ELSE}False{$ENDIF}{$ENDIF};
+
+function Avx2ArithChecksOn: Boolean; inline;
+begin
+  Result := {$IFOPT R+}True{$ELSE}{$IFOPT Q+}True{$ELSE}False{$ENDIF}{$ENDIF};
+end;
 
 function SaturateI32ToI16(const aValue: LongInt): SmallInt; inline;
 begin
@@ -704,7 +709,7 @@ begin
   LA.m256i_i32[6] := 123456789;       LB.m256i_i32[6] := 17;
   LA.m256i_i32[7] := -123456789;      LB.m256i_i32[7] := 17;
 
-  if AVX2_ARITH_CHECKS_ON then
+      if Avx2ArithChecksOn then
   begin
     LRaised := False;
     LExceptionClass := '';
@@ -746,7 +751,7 @@ begin
   LA.m256i_i16[14] := -1024;          LB.m256i_i16[14] := 4096;
   LA.m256i_i16[15] := High(SmallInt); LB.m256i_i16[15] := Low(SmallInt);
 
-  if AVX2_ARITH_CHECKS_ON then
+  if Avx2ArithChecksOn then
   begin
     LRaised := False;
     LExceptionClass := '';

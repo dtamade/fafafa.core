@@ -1,4 +1,20 @@
-# fafafa.core.simd 下一步行动计划
+# fafafa.core.simd 下一步行动计划（历史草案）
+
+> ⚠️ **这是一份历史草案。**
+>
+> 它保留在仓库里，主要用于追溯早期设计和推进背景；**不要**再把它当作当前 API、当前架构、当前测试入口或当前待办的真相源。
+>
+> 当前更可信的入口是：
+>
+> - `src/fafafa.core.simd.README.md`：模块 landing
+> - `docs/fafafa.core.simd.md`：模块总览
+> - `docs/fafafa.core.simd.api.md`：公开 API 参考
+> - `docs/fafafa.core.simd.map.md` / `docs/fafafa.core.simd.maintenance.md` / `docs/fafafa.core.simd.checklist.md`：维护入口
+>
+> 注意（2026-02-06）：本文件是早期草案，部分内容已过时（例如：SSE2 后端已存在，类型单元已收敛为 `fafafa.core.simd.base`）。
+> 当前建议以 `backlog.md` + `task_plan.md/findings.md/progress.md` 为主线，结合审计/回归文档做收敛式修复。
+>
+> 下文正文基本按历史状态保留，**不会**继续按当前实现逐段同步修订；如果你在后文看到旧 unit 名称、旧目录结构或旧阶段计划，请把它当作历史背景，而不是当前设计结论。
 
 ## 🎯 立即行动 (接下来 2 周)
 
@@ -14,7 +30,7 @@ unit fafafa.core.simd.x86.sse2;
 
 interface
 uses
-  fafafa.core.simd.types,
+  fafafa.core.simd.base,
   fafafa.core.simd.dispatch;
 
 // SSE2 内联汇编实现

@@ -14,22 +14,38 @@ STABILITY GUARANTEES
 2. ABI Stability: TSimdDispatchTable layout is part of the ABI; changing it requires a major version bump.
 3. Behavior Stability: Same inputs produce same outputs (within documented edge-case semantics).
 
+BOUNDARY NOTES
+--------------
+- Stable first means the public façade (`fafafa.core.simd` / `fafafa.core.simd.api`) and the documented ABI boundary such as `TSimdDispatchTable`.
+- Backend maturity differs. `Scalar`, `SSE2`, `AVX2`, and `NEON` are closer to the default maintenance path; `sbRISCVV` remains experimental / limited-maturity.
+- Experimental intrinsics are kept out of the default entry chain and are not part of the default stable surface.
+
+
 MODIFICATION POLICY
 -------------------
 Before modifying any file under src/fafafa.core.simd.*:
 
 1. Run build hygiene check (no SIMD-unit warnings/hints):
    bash tests/fafafa.core.simd/BuildOrTest.sh check
-2. Run SIMD tests (and verify no leaks):
-   bash tests/fafafa.core.simd/BuildOrTest.sh test
-3. (Optional) Run the repo test runner restricted to this module:
+   - If lazbuild cannot locate Lazarus root, set `FAFAFA_LAZARUSDIR` (e.g. `/opt/fpcupdeluxe/lazarus`).
+2. Run the routine regression suites (and verify no leaks):
+   bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI
+   bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DirectDispatch
+3. Run the fast/base gate for routine changes:
+   bash tests/fafafa.core.simd/BuildOrTest.sh gate
+4. (Optional) Run the repo test runner restricted to this module:
    bash tests/run_all_tests.sh fafafa.core.simd
+5. Before release/closeout, run Linux "strict gate" (release/closeout profile):
+   bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict
+   (equivalent to:)
+   SIMD_GATE_WIRING_SYNC=1 SIMD_WIRING_SYNC_STRICT_EXTRA=1 SIMD_GATE_COVERAGE=1 SIMD_COVERAGE_STRICT_EXTRA=1 SIMD_GATE_PERF_SMOKE=1 \
+     bash tests/fafafa.core.simd/BuildOrTest.sh gate
 
 COVERED PUBLIC ENTRY POINTS
 ---------------------------
 - src/fafafa.core.simd.pas
 - src/fafafa.core.simd.api.pas
-- src/fafafa.core.simd.types.pas
+- src/fafafa.core.simd.base.pas
 - src/fafafa.core.simd.dispatch.pas
 - src/fafafa.core.simd.cpuinfo.pas
 - src/fafafa.core.simd.memutils.pas

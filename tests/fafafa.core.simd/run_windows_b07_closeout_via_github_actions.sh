@@ -39,6 +39,51 @@ require_cmd() {
   fi
 }
 
+
+dispatch_workflow_with_retry() {
+  local aWorkflowFile
+  local aRef
+  local aRetries
+  local aBackoffSeconds
+  local LTry
+
+  aWorkflowFile="$1"
+  aRef="$2"
+  aRetries="$3"
+  aBackoffSeconds="$4"
+
+  for ((LTry = 1; LTry <= aRetries; LTry++)); do
+    if gh workflow run "${aWorkflowFile}" --ref "${aRef}"; then
+      return 0
+    fi
+    if [[ "${LTry}" -ge "${aRetries}" ]]; then
+      break
+    fi
+    echo "[WIN-EVIDENCE-GH] Dispatch retry ${LTry}/${aRetries} failed; retry in ${aBackoffSeconds}s"
+    sleep "${aBackoffSeconds}"
+  done
+
+  echo "[WIN-EVIDENCE-GH] Dispatch failed after ${aRetries} attempts"
+  return 1
+}
+
+show_run_failure_reason() {
+  local aRunId
+  local LViewText
+
+  aRunId="$1"
+  LViewText="$(gh run view "${aRunId}" 2>/dev/null || true)"
+  if [[ -n "${LViewText}" ]]; then
+    printf '%s\n' "${LViewText}"
+  fi
+
+  if printf '%s\n' "${LViewText}" | grep -Eqi 'payments have failed|spending limit needs to be increased|Billing & plans'; then
+    echo "[WIN-EVIDENCE-GH] FAIL: GitHub Actions billing/quota block detected; fix Billing & plans first"
+    return 31
+  fi
+  return 1
+}
+
 wait_for_run_completion() {
   local aRunId
   local aPollSeconds
@@ -75,8 +120,11 @@ PY
           return 0
         fi
         echo "[WIN-EVIDENCE-GH] Workflow failed: run=${aRunId}, conclusion=${LConclusion}"
-        gh run view "${aRunId}" || true
-        return 1
+        set +e
+        show_run_failure_reason "${aRunId}"
+        local LReasonRC=$?
+        set -e
+        return "${LReasonRC}"
       fi
     fi
     sleep "${aPollSeconds}"
@@ -138,11 +186,13 @@ fi
 LHeadSha="$(git -C "${REPO_ROOT}" rev-parse "${LRef}")"
 LPollSeconds="${SIMD_WIN_EVIDENCE_POLL_SECONDS:-5}"
 LPollMaxTries="${SIMD_WIN_EVIDENCE_POLL_MAX_TRIES:-60}"
+LDispatchRetries="${SIMD_WIN_EVIDENCE_DISPATCH_RETRIES:-3}"
+LDispatchBackoffSeconds="${SIMD_WIN_EVIDENCE_DISPATCH_BACKOFF_SECONDS:-2}"
 LRunId="${RUN_ID_INPUT}"
 
 if [[ -z "${LRunId}" ]]; then
   echo "[WIN-EVIDENCE-GH] Dispatch workflow: ${WORKFLOW_FILE} (ref=${LRef}, head=${LHeadSha})"
-  gh workflow run "${WORKFLOW_FILE}" --ref "${LRef}"
+  dispatch_workflow_with_retry "${WORKFLOW_FILE}" "${LRef}" "${LDispatchRetries}" "${LDispatchBackoffSeconds}"
 
   for ((LTry = 1; LTry <= LPollMaxTries; LTry++)); do
     LRunId="$(find_latest_run_id_for_head "${LHeadSha}")"
@@ -159,8 +209,12 @@ if [[ -z "${LRunId}" ]]; then
 fi
 
 echo "[WIN-EVIDENCE-GH] Watching run: ${LRunId}"
-if ! wait_for_run_completion "${LRunId}" "${LPollSeconds}" "${LPollMaxTries}"; then
-  exit 1
+set +e
+wait_for_run_completion "${LRunId}" "${LPollSeconds}" "${LPollMaxTries}"
+LWaitRC=$?
+set -e
+if [[ "${LWaitRC}" != "0" ]]; then
+  exit "${LWaitRC}"
 fi
 
 LTempDir="$(mktemp -d)"

@@ -477,7 +477,8 @@ begin
   Result := simd_cmpgt_epi8(b, a);
 end;
 
-// 移位操作的简化实�?function simd_slli_epi32(const a: TM128; imm8: Byte): TM128;
+// 移位操作的简化实现
+function simd_slli_epi32(const a: TM128; imm8: Byte): TM128;
 var
   i: Integer;
 begin
@@ -576,7 +577,8 @@ end;
 // 其他函数的占位符实现...
 // 完整实现需要更多代码，这里只提供基础框架
 
-// 占位符实�?function simd_adds_epi16(const a, b: TM128): TM128; begin Result := simd_add_epi16(a, b); end;
+// 占位符实现
+function simd_adds_epi16(const a, b: TM128): TM128; begin Result := simd_add_epi16(a, b); end;
 function simd_adds_epi8(const a, b: TM128): TM128; begin Result := simd_add_epi8(a, b); end;
 function simd_adds_epu16(const a, b: TM128): TM128; begin Result := simd_add_epi16(a, b); end;
 function simd_adds_epu8(const a, b: TM128): TM128; begin Result := simd_add_epi8(a, b); end;
@@ -699,7 +701,8 @@ function simd_movemask_epi8(const a: TM128): Integer; begin Result := 0; end;
 function simd_insert_epi16(const a: TM128; Value: Integer; imm8: Byte): TM128; begin Result := a; end;
 function simd_extract_epi16(const a: TM128; imm8: Byte): Integer; begin Result := 0; end;
 
-// 双精度浮点函数的占位符实�?function simd_load_pd(const Ptr: Pointer): TM128; begin Result := PTM128(Ptr)^; end;
+// 双精度浮点函数的占位符实现
+function simd_load_pd(const Ptr: Pointer): TM128; begin Result := PTM128(Ptr)^; end;
 function simd_loadu_pd(const Ptr: Pointer): TM128; begin Result := PTM128(Ptr)^; end;
 function simd_load_sd(const Ptr: Pointer): TM128; begin FillChar(Result, SizeOf(Result), 0); Result.m128d_f64[0] := PDouble(Ptr)^; end;
 function simd_load1_pd(const Ptr: Pointer): TM128; begin Result := simd_set1_pd(PDouble(Ptr)^); end;

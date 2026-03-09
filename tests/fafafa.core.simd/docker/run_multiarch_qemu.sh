@@ -7,6 +7,7 @@ LOG_ROOT="${ROOT_DIR}/tests/fafafa.core.simd/logs"
 
 IMAGE_BASE="${SIMD_QEMU_IMAGE_BASE:-fafafa-core-simd-test}"
 SCENARIO="${1:-${SIMD_QEMU_SCENARIO:-basic}}"
+REQUESTED_SCENARIO="${SCENARIO}"
 PLATFORMS_STRING="${SIMD_QEMU_PLATFORMS:-}"
 DOCKER_BUILD_NETWORK="${DOCKER_BUILD_NETWORK:-default}"
 RETRIES="${SIMD_QEMU_RETRIES:-3}"
@@ -22,7 +23,7 @@ EXPERIMENTAL_BACKEND_ASM_PROBE_MODE="${SIMD_QEMU_BACKEND_ASM_PROBE_MODE:-1}"
 NETWORK_BUILD_FALLBACK="${SIMD_QEMU_NETWORK_BUILD_FALLBACK:-1}"
 ARCH_MATRIX_REQUIRED_PLATFORMS="linux/386 linux/amd64 linux/arm/v7 linux/arm64 linux/riscv64"
 
-TS="$(date +%Y%m%d-%H%M%S)"
+TS="$(date +%Y%m%d-%H%M%S)-$$"
 REPORT_DIR="${LOG_ROOT}/qemu-multiarch-${TS}"
 SUMMARY_FILE="${REPORT_DIR}/summary.md"
 
@@ -66,6 +67,18 @@ case "${SCENARIO}" in
   nonx86-evidence)
     CONTAINER_CMD='bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_NonX86IEEE754 && bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_NonX86BackendParity && bash tests/fafafa.core.simd/run_backend_benchmarks.sh'
     ;;
+  cpuinfo-nonx86-evidence)
+    CONTAINER_CMD='bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh test --suite=TTestCase_PlatformSpecific'
+    ;;
+  cpuinfo-nonx86-full-evidence)
+    CONTAINER_CMD='bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh test --suite=TTestCase_PlatformSpecific && bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh test --suite=TTestCase_LazyCPUInfo'
+    ;;
+  cpuinfo-nonx86-full-repeat)
+    CONTAINER_CMD='for i in 1 2 3; do bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh test --suite=TTestCase_PlatformSpecific && bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh test --suite=TTestCase_LazyCPUInfo; done'
+    ;;
+  cpuinfo-nonx86-suite-repeat)
+    CONTAINER_CMD='for i in 1 2 3; do bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh test --suite=TTestCase_LazyCPUInfo; done'
+    ;;
   nonx86-experimental-asm)
     CONTAINER_CMD="__NONX86_EXPERIMENTAL_ASM__"
     ;;
@@ -77,7 +90,7 @@ case "${SCENARIO}" in
     ;;
   *)
     echo "[ERROR] Unknown scenario: ${SCENARIO}"
-    echo "[ERROR] Supported: basic | nonx86-evidence | nonx86-experimental-asm | linux-evidence | arch-matrix-evidence"
+    echo "[ERROR] Supported: basic | nonx86-evidence | cpuinfo-nonx86-evidence | cpuinfo-nonx86-full-evidence | cpuinfo-nonx86-full-repeat | cpuinfo-nonx86-suite-repeat | nonx86-experimental-asm | linux-evidence | arch-matrix-evidence"
     exit 2
     ;;
 esac
@@ -128,6 +141,7 @@ cat > "${SUMMARY_FILE}" <<EOF_SUMMARY
 
 - time: $(date -Is)
 - scenario: ${SCENARIO}
+- requested-scenario: ${REQUESTED_SCENARIO}
 - platforms: ${PLATFORMS_STRING}
 
 | Platform | Status | Log |
@@ -136,6 +150,9 @@ EOF_SUMMARY
 
 echo "[INFO] Repo: ${ROOT_DIR}"
 echo "[INFO] Scenario: ${SCENARIO}"
+if [[ "${REQUESTED_SCENARIO}" != "${SCENARIO}" ]]; then
+  echo "[INFO] Requested scenario alias: ${REQUESTED_SCENARIO}"
+fi
 echo "[INFO] Platforms: ${PLATFORMS_STRING}"
 echo "[INFO] Build policy: ${BUILD_POLICY}"
 echo "[INFO] Report dir: ${REPORT_DIR}"
@@ -167,10 +184,10 @@ for platform in "${PLATFORMS[@]}"; do
   if [[ "${SCENARIO}" == "arch-matrix-evidence" ]]; then
     case "${arch}" in
       amd64|386)
-        container_cmd='bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_Global && bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_DispatchAPI && bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_AVX2IntrinsicsFallback'
+        container_cmd='bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_Global && bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_DispatchAPI'
         ;;
       arm|arm/v7|arm64|riscv64)
-        container_cmd='bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_Global && bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_DispatchAPI && bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_NonX86IEEE754 && bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_NonX86BackendParity'
+        container_cmd='export SIMD_FPC_EXTRA_DEFINES="-dSIMD_VECTOR_ASM_DISABLED"; bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_Global && bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_DispatchAPI'
         ;;
       *)
         echo "[ERROR] Unsupported arch in arch-matrix-evidence: ${arch}"

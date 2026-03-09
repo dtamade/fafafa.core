@@ -9671,6 +9671,7 @@ end;
 
 // ✅ Iteration 6.4: FMA-optimized Dot Product Functions (NEON)
 
+{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 function NEONDotF32x8(const a, b: TVecF32x8): Single; assembler; nostackframe;
 asm
   // a: x0..x3 (2 registers), b: x4..x7 (2 registers)
@@ -9758,6 +9759,22 @@ asm
 
   // Result in d0
 end;
+{$ELSE}
+function NEONDotF32x8(const a, b: TVecF32x8): Single;
+begin
+  Result := ScalarDotF32x8(a, b);
+end;
+
+function NEONDotF64x2(const a, b: TVecF64x2): Double;
+begin
+  Result := ScalarDotF64x2(a, b);
+end;
+
+function NEONDotF64x4(const a, b: TVecF64x4): Double;
+begin
+  Result := ScalarDotF64x4(a, b);
+end;
+{$ENDIF}
 
 // === Backend Registration ===
 

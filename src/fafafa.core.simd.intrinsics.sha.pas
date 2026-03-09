@@ -44,7 +44,7 @@ end;
 
 function sha_sha1msg2_epu32(const a, b: TM128): TM128;
 begin
-  // 简化实�?  Result.m128i_u32[0] := a.m128i_u32[0] + b.m128i_u32[0];
+  Result.m128i_u32[0] := a.m128i_u32[0] + b.m128i_u32[0];
   Result.m128i_u32[1] := a.m128i_u32[1] + b.m128i_u32[1];
   Result.m128i_u32[2] := a.m128i_u32[2] + b.m128i_u32[2];
   Result.m128i_u32[3] := a.m128i_u32[3] + b.m128i_u32[3];
@@ -52,7 +52,7 @@ end;
 
 function sha_sha1nexte_epu32(const a, b: TM128): TM128;
 begin
-  // 简化实�?  Result := a;
+  Result := a;
   Result.m128i_u32[0] := Result.m128i_u32[0] + b.m128i_u32[3];
 end;
 
@@ -77,7 +77,7 @@ end;
 
 function sha_sha256msg2_epu32(const a, b: TM128): TM128;
 begin
-  // 简化实�?  Result.m128i_u32[0] := a.m128i_u32[0] xor b.m128i_u32[0];
+  Result.m128i_u32[0] := a.m128i_u32[0] xor b.m128i_u32[0];
   Result.m128i_u32[1] := a.m128i_u32[1] xor b.m128i_u32[1];
   Result.m128i_u32[2] := a.m128i_u32[2] xor b.m128i_u32[2];
   Result.m128i_u32[3] := a.m128i_u32[3] xor b.m128i_u32[3];

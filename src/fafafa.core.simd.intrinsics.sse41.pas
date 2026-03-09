@@ -23,34 +23,69 @@ interface
 uses
   fafafa.core.simd.intrinsics.base;
 
-// === SSE4.1 扩展�?Min/Max 操作 ===
-function sse41_max_epi8(const a, b: TM128): TM128;   // 有符�?位最大�?function sse41_max_epi32(const a, b: TM128): TM128;  // 有符�?2位最大�?function sse41_max_epu16(const a, b: TM128): TM128;  // 无符�?6位最大�?function sse41_max_epu32(const a, b: TM128): TM128;  // 无符�?2位最大�?function sse41_min_epi8(const a, b: TM128): TM128;   // 有符�?位最小�?function sse41_min_epi32(const a, b: TM128): TM128;  // 有符�?2位最小�?function sse41_min_epu16(const a, b: TM128): TM128;  // 无符�?6位最小�?function sse41_min_epu32(const a, b: TM128): TM128;  // 无符�?2位最小�?
+// === SSE4.1 扩展 Min/Max 操作 ===
+function sse41_max_epi8(const a, b: TM128): TM128;
+function sse41_max_epi32(const a, b: TM128): TM128;
+function sse41_max_epu16(const a, b: TM128): TM128;
+function sse41_max_epu32(const a, b: TM128): TM128;
+function sse41_min_epi8(const a, b: TM128): TM128;
+function sse41_min_epi32(const a, b: TM128): TM128;
+function sse41_min_epu16(const a, b: TM128): TM128;
+function sse41_min_epu32(const a, b: TM128): TM128;
+
 // === SSE4.1 点积指令 ===
-function sse41_dp_ps(const a, b: TM128; imm8: Byte): TM128;  // 单精度点�?function sse41_dp_pd(const a, b: TM128; imm8: Byte): TM128;  // 双精度点�?
+function sse41_dp_ps(const a, b: TM128; imm8: Byte): TM128;
+function sse41_dp_pd(const a, b: TM128; imm8: Byte): TM128;
+
 // === SSE4.1 混合操作 ===
-function sse41_blend_ps(const a, b: TM128; imm8: Byte): TM128;     // 单精度混�?function sse41_blend_pd(const a, b: TM128; imm8: Byte): TM128;     // 双精度混�?function sse41_blendv_ps(const a, b, mask: TM128): TM128;          // 变量单精度混�?function sse41_blendv_pd(const a, b, mask: TM128): TM128;          // 变量双精度混�?function sse41_blendv_epi8(const a, b, mask: TM128): TM128;        // 变量8位整数混�?
+function sse41_blend_ps(const a, b: TM128; imm8: Byte): TM128;
+function sse41_blend_pd(const a, b: TM128; imm8: Byte): TM128;
+function sse41_blendv_ps(const a, b, mask: TM128): TM128;
+function sse41_blendv_pd(const a, b, mask: TM128): TM128;
+function sse41_blendv_epi8(const a, b, mask: TM128): TM128;
+
 // === SSE4.1 舍入指令 ===
-function sse41_round_ps(const a: TM128; rounding: Byte): TM128;    // 单精度舍�?function sse41_round_pd(const a: TM128; rounding: Byte): TM128;    // 双精度舍�?function sse41_round_ss(const a, b: TM128; rounding: Byte): TM128; // 标量单精度舍�?function sse41_round_sd(const a, b: TM128; rounding: Byte): TM128; // 标量双精度舍�?
+function sse41_round_ps(const a: TM128; rounding: Byte): TM128;
+function sse41_round_pd(const a: TM128; rounding: Byte): TM128;
+function sse41_round_ss(const a, b: TM128; rounding: Byte): TM128;
+function sse41_round_sd(const a, b: TM128; rounding: Byte): TM128;
+
 // === SSE4.1 插入/提取指令增强 ===
-function sse41_insert_ps(const a, b: TM128; imm8: Byte): TM128;    // 插入单精�?function sse41_extract_ps(const a: TM128; imm8: Byte): Cardinal;   // 提取单精�?function sse41_insert_epi8(const a: TM128; Value: Integer; imm8: Byte): TM128;  // 插入8位整�?function sse41_insert_epi32(const a: TM128; Value: Integer; imm8: Byte): TM128; // 插入32位整�?function sse41_insert_epi64(const a: TM128; Value: Int64; imm8: Byte): TM128;   // 插入64位整�?function sse41_extract_epi8(const a: TM128; imm8: Byte): Integer;  // 提取8位整�?function sse41_extract_epi32(const a: TM128; imm8: Byte): Integer; // 提取32位整�?function sse41_extract_epi64(const a: TM128; imm8: Byte): Int64;   // 提取64位整�?
-// === SSE4.1 零扩展加�?===
-function sse41_loadl_epi64(const Ptr: Pointer): TM128;             // 加载64位并零扩�?
+function sse41_insert_ps(const a, b: TM128; imm8: Byte): TM128;
+function sse41_extract_ps(const a: TM128; imm8: Byte): Cardinal;
+function sse41_insert_epi8(const a: TM128; Value: Integer; imm8: Byte): TM128;
+function sse41_insert_epi32(const a: TM128; Value: Integer; imm8: Byte): TM128;
+function sse41_insert_epi64(const a: TM128; Value: Int64; imm8: Byte): TM128;
+function sse41_extract_epi8(const a: TM128; imm8: Byte): Integer;
+function sse41_extract_epi32(const a: TM128; imm8: Byte): Integer;
+function sse41_extract_epi64(const a: TM128; imm8: Byte): Int64;
+
+// === SSE4.1 零扩展加载 ===
+function sse41_loadl_epi64(const Ptr: Pointer): TM128;
+
 // === SSE4.1 转换指令 ===
-function sse41_cvtepi8_epi16(const a: TM128): TM128;   // 8位到16位符号扩�?function sse41_cvtepi8_epi32(const a: TM128): TM128;   // 8位到32位符号扩�?function sse41_cvtepi8_epi64(const a: TM128): TM128;   // 8位到64位符号扩�?function sse41_cvtepi16_epi32(const a: TM128): TM128;  // 16位到32位符号扩�?function sse41_cvtepi16_epi64(const a: TM128): TM128;  // 16位到64位符号扩�?function sse41_cvtepi32_epi64(const a: TM128): TM128;  // 32位到64位符号扩�?
-function sse41_cvtepu8_epi16(const a: TM128): TM128;   // 8位到16位零扩展
-function sse41_cvtepu8_epi32(const a: TM128): TM128;   // 8位到32位零扩展
-function sse41_cvtepu8_epi64(const a: TM128): TM128;   // 8位到64位零扩展
-function sse41_cvtepu16_epi32(const a: TM128): TM128;  // 16位到32位零扩展
-function sse41_cvtepu16_epi64(const a: TM128): TM128;  // 16位到64位零扩展
-function sse41_cvtepu32_epi64(const a: TM128): TM128;  // 32位到64位零扩展
+function sse41_cvtepi8_epi16(const a: TM128): TM128;
+function sse41_cvtepi8_epi32(const a: TM128): TM128;
+function sse41_cvtepi8_epi64(const a: TM128): TM128;
+function sse41_cvtepi16_epi32(const a: TM128): TM128;
+function sse41_cvtepi16_epi64(const a: TM128): TM128;
+function sse41_cvtepi32_epi64(const a: TM128): TM128;
+function sse41_cvtepu8_epi16(const a: TM128): TM128;
+function sse41_cvtepu8_epi32(const a: TM128): TM128;
+function sse41_cvtepu8_epi64(const a: TM128): TM128;
+function sse41_cvtepu16_epi32(const a: TM128): TM128;
+function sse41_cvtepu16_epi64(const a: TM128): TM128;
+function sse41_cvtepu32_epi64(const a: TM128): TM128;
 
 // === SSE4.1 测试指令 ===
-function sse41_test_all_zeros(const a, mask: TM128): Boolean;      // 测试全零
-function sse41_test_all_ones(const a: TM128): Boolean;             // 测试全一
-function sse41_test_mix_ones_zeros(const a, mask: TM128): Boolean; // 测试混合
+function sse41_test_all_zeros(const a, mask: TM128): Boolean;
+function sse41_test_all_ones(const a: TM128): Boolean;
+function sse41_test_mix_ones_zeros(const a, mask: TM128): Boolean;
 
 // === SSE4.1 其他指令 ===
-function sse41_mullo_epi32(const a, b: TM128): TM128;              // 32位乘法低�?function sse41_mul_epi32(const a, b: TM128): TM128;                // 32位乘法到64�?function sse41_packus_epi32(const a, b: TM128): TM128;             // 32位打包到16位无符号饱和
+function sse41_mullo_epi32(const a, b: TM128): TM128;
+function sse41_mul_epi32(const a, b: TM128): TM128;
+function sse41_packus_epi32(const a, b: TM128): TM128;
 
 implementation
 
@@ -169,7 +204,8 @@ var
   i: Integer;
   sum: Double;
 begin
-  // 简化的双精度点积实�?  sum := 0;
+  // 简化的双精度点积实现
+  sum := 0;
   for i := 0 to 1 do
     if (imm8 and (1 shl (i + 4))) <> 0 then
       sum := sum + a.m128d_f64[i] * b.m128d_f64[i];
@@ -244,9 +280,10 @@ begin
   for i := 0 to 3 do
   begin
     case rounding and 7 of
-      0: Result.m128_f32[i] := Round(a.m128_f32[i]);      // 最近偶�?      1: Result.m128_f32[i] := Int(a.m128_f32[i] - 0.5);  // 向下
-      2: Result.m128_f32[i] := Int(a.m128_f32[i] + 0.5);  // 向上
-      3: Result.m128_f32[i] := Int(a.m128_f32[i]);        // 向零
+      0: Result.m128_f32[i] := Round(a.m128_f32[i]);
+      1: Result.m128_f32[i] := Int(a.m128_f32[i] - 0.5);
+      2: Result.m128_f32[i] := Int(a.m128_f32[i] + 0.5);
+      3: Result.m128_f32[i] := Int(a.m128_f32[i]);
       else Result.m128_f32[i] := a.m128_f32[i];
     end;
   end;
@@ -296,7 +333,8 @@ end;
 function sse41_insert_ps(const a, b: TM128; imm8: Byte): TM128;
 begin
   Result := a;
-  // 简化实�?  Result.m128_f32[imm8 and 3] := b.m128_f32[(imm8 shr 6) and 3];
+  // 简化实现
+  Result.m128_f32[imm8 and 3] := b.m128_f32[(imm8 shr 6) and 3];
 end;
 
 function sse41_extract_ps(const a: TM128; imm8: Byte): Cardinal;

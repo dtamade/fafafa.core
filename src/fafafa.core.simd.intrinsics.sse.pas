@@ -128,227 +128,114 @@ procedure sse_setcsr(Value: Integer);
 
 implementation
 
-uses
-  Math;  // RTL Math 单元 (Round, Trunc)
-
-// 辅助函数：检查浮点数是否�?NaN
-function IsNaN(Value: Single): Boolean;
+function IsNaNValue(aValue: Single): Boolean; inline;
 var
-  IntValue: LongWord absolute Value;
+  LBits: LongWord absolute aValue;
 begin
-  // IEEE 754: NaN 的指数部分全�?，尾数部分非�?  Result := ((IntValue and $7F800000) = $7F800000) and ((IntValue and $007FFFFF) <> 0);
+  Result := ((LBits and $7F800000) = $7F800000) and ((LBits and $007FFFFF) <> 0);
 end;
 
-// === SSE Load/Store 操作 (内联汇编实现) ===
-
-// 功能：从内存加载4个对齐的单精度浮点数
-function sse_load_ps(const Ptr: Pointer): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movaps xmm0, [rcx]
-  {$ELSE}
-    movaps xmm0, [rdi]
-  {$ENDIF}
-  movaps [Result], xmm0
-{$ELSE}
-  mov eax, Ptr
-  movaps xmm0, [eax]
-  movaps [Result], xmm0
-{$ENDIF}
+function Mask32(aCondition: Boolean): DWord; inline;
+begin
+  if aCondition then
+    Result := $FFFFFFFF
+  else
+    Result := 0;
 end;
 
-// 功能：从内存加载4个未对齐的单精度浮点�
-function sse_loadu_ps(const Ptr: Pointer): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-  {$ELSE}
-    movups xmm0, [rdi]
-  {$ENDIF}
-  movups [Result], xmm0
-{$ELSE}
-  mov eax, Ptr
-  movups xmm0, [eax]
-  movups [Result], xmm0
-{$ENDIF}
+function LoadTM128(const Ptr: Pointer): TM128; inline;
+begin
+  Result := Default(TM128);
+  if Ptr <> nil then
+    Result := PTM128(Ptr)^;
 end;
 
-// 功能：加载单个单精度浮点数到最低位，其他位清零
-function sse_load_ss(const Ptr: Pointer): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movss xmm0, [rcx]
-  {$ELSE}
-    movss xmm0, [rdi]
-  {$ENDIF}
-  movups [Result], xmm0
-{$ELSE}
-  mov eax, Ptr
-  movss xmm0, [eax]
-  movups [Result], xmm0
-{$ENDIF}
+procedure StoreTM128(var Dest; const Src: TM128); inline;
+begin
+  PTM128(@Dest)^ := Src;
 end;
 
-// 功能：加载单个单精度浮点数并复制到所�?个位�
-function sse_load1_ps(const Ptr: Pointer): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movss xmm0, [rcx]
-  {$ELSE}
-    movss xmm0, [rdi]
-  {$ENDIF}
-  shufps xmm0, xmm0, 0
-  movups [Result], xmm0
-{$ELSE}
-  mov eax, Ptr
-  movss xmm0, [eax]
-  shufps xmm0, xmm0, 0
-  movups [Result], xmm0
-{$ENDIF}
+function sse_load_ps(const Ptr: Pointer): TM128;
+begin
+  Result := LoadTM128(Ptr);
 end;
 
-// 功能：加�?4位整数到�?4位，�?4位清�
-function sse_movq(const Ptr: Pointer): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movq xmm0, [rcx]
-  {$ELSE}
-    movq xmm0, [rdi]
-  {$ENDIF}
-  movups [Result], xmm0
-{$ELSE}
-  mov eax, Ptr
-  movq xmm0, [eax]
-  movups [Result], xmm0
-{$ENDIF}
+function sse_loadu_ps(const Ptr: Pointer): TM128;
+begin
+  Result := LoadTM128(Ptr);
 end;
 
-// 功能：存储低64位到内存
-procedure sse_movq_store(var Dest; const Src: TM128); {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rdx]
-    movq [rcx], xmm0
-  {$ELSE}
-    movups xmm0, [rsi]
-    movq [rdi], xmm0
-  {$ENDIF}
-{$ELSE}
-  movups xmm0, [Src]
-  mov eax, Dest
-  movq [eax], xmm0
-{$ENDIF}
+function sse_load_ss(const Ptr: Pointer): TM128;
+begin
+  Result := Default(TM128);
+  if Ptr <> nil then
+    Result.m128_f32[0] := PSingle(Ptr)^;
 end;
 
-// 功能：存�?个对齐的单精度浮点数到内�
-procedure sse_store_ps(var Dest; const Src: TM128); {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rdx]
-    movaps [rcx], xmm0
-  {$ELSE}
-    movups xmm0, [rsi]
-    movaps [rdi], xmm0
-  {$ENDIF}
-{$ELSE}
-  movups xmm0, [Src]
-  mov eax, Dest
-  movaps [eax], xmm0
-{$ENDIF}
+function sse_load1_ps(const Ptr: Pointer): TM128;
+var
+  LValue: Single;
+  LIndex: Integer;
+begin
+  LValue := 0.0;
+  if Ptr <> nil then
+    Move(PByte(Ptr)^, LValue, SizeOf(Single));
+  for LIndex := 0 to 3 do
+    Result.m128_f32[LIndex] := LValue;
 end;
 
-// 功能：存�?个未对齐的单精度浮点数到内存
-procedure sse_storeu_ps(var Dest; const Src: TM128); {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rdx]
-    movups [rcx], xmm0
-  {$ELSE}
-    movups xmm0, [rsi]
-    movups [rdi], xmm0
-  {$ENDIF}
-{$ELSE}
-  movups xmm0, [Src]
-  mov eax, Dest
-  movups [eax], xmm0
-{$ENDIF}
+procedure sse_store_ps(var Dest; const Src: TM128);
+begin
+  StoreTM128(Dest, Src);
 end;
 
-// 功能：存储最低位单精度浮点数到内�
-procedure sse_store_ss(var Dest; const Src: TM128); {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rdx]
-    movss [rcx], xmm0
-  {$ELSE}
-    movups xmm0, [rsi]
-    movss [rdi], xmm0
-  {$ENDIF}
-{$ELSE}
-  movups xmm0, [Src]
-  mov eax, Dest
-  movss [eax], xmm0
-{$ENDIF}
+procedure sse_storeu_ps(var Dest; const Src: TM128);
+begin
+  StoreTM128(Dest, Src);
 end;
 
-// 功能：存储最低位单精度浮点数到内存的4个位�
-procedure sse_store1_ps(var Dest; const Src: TM128); {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rdx]
-    shufps xmm0, xmm0, 0
-    movups [rcx], xmm0
-  {$ELSE}
-    movups xmm0, [rsi]
-    shufps xmm0, xmm0, 0
-    movups [rdi], xmm0
-  {$ENDIF}
-{$ELSE}
-  movups xmm0, [Src]
-  shufps xmm0, xmm0, 0
-  mov eax, Dest
-  movups [eax], xmm0
-{$ENDIF}
+procedure sse_store_ss(var Dest; const Src: TM128);
+begin
+  PSingle(@Dest)^ := Src.m128_f32[0];
 end;
 
-// === SSE Set/Zero 操作 (内联汇编实现) ===
-
-// 功能：设置所有位为零
-function sse_setzero_ps: TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-  xorps xmm0, xmm0
-  movups [Result], xmm0
+procedure sse_store1_ps(var Dest; const Src: TM128);
+var
+  LValue: Single;
+  LIndex: Integer;
+  LDest: PSingle;
+begin
+  LValue := Src.m128_f32[0];
+  LDest := @Dest;
+  for LIndex := 0 to 3 do
+    LDest[LIndex] := LValue;
 end;
 
-// 功能：将单个值复制到所�?个位�
-function sse_set1_ps(Value: Single): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movss xmm0, Value
-  {$ELSE}
-    movss xmm0, Value
-  {$ENDIF}
-  shufps xmm0, xmm0, 0
-  movups [Result], xmm0
-{$ELSE}
-  movss xmm0, Value
-  shufps xmm0, xmm0, 0
-  movups [Result], xmm0
-{$ENDIF}
+function sse_movq(const Ptr: Pointer): TM128;
+begin
+  Result := Default(TM128);
+  if Ptr <> nil then
+    Result.m128i_u64[0] := PUInt64(Ptr)^;
 end;
 
-// 功能：设置4个单精度浮点数 (e3, e2, e1, e0)
+procedure sse_movq_store(var Dest; const Src: TM128);
+begin
+  PUInt64(@Dest)^ := Src.m128i_u64[0];
+end;
+
+function sse_setzero_ps: TM128;
+begin
+  Result := Default(TM128);
+end;
+
+function sse_set1_ps(Value: Single): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 3 do
+    Result.m128_f32[LIndex] := Value;
+end;
+
 function sse_set_ps(e3, e2, e1, e0: Single): TM128;
 begin
   Result.m128_f32[0] := e0;
@@ -357,16 +244,12 @@ begin
   Result.m128_f32[3] := e3;
 end;
 
-// 功能：设置最低位为指定值，其他位为0
 function sse_set_ss(Value: Single): TM128;
 begin
+  Result := Default(TM128);
   Result.m128_f32[0] := Value;
-  Result.m128_f32[1] := 0.0;
-  Result.m128_f32[2] := 0.0;
-  Result.m128_f32[3] := 0.0;
 end;
 
-// 功能：设置4个单精度浮点数 (反向顺序: e0, e1, e2, e3)
 function sse_setr_ps(e0, e1, e2, e3: Single): TM128;
 begin
   Result.m128_f32[0] := e0;
@@ -375,883 +258,400 @@ begin
   Result.m128_f32[3] := e3;
 end;
 
-// === SSE 算术运算操作 (内联汇编实现) ===
-
-// 功能：4个单精度浮点数并行加法
 function sse_add_ps(const a, b: TM128): TM128;
+var
+  LIndex: Integer;
 begin
-  asm
-    lea    rax, a
-    lea    rdx, b
-    movups xmm0, [rax]
-    movups xmm1, [rdx]
-    addps  xmm0, xmm1
-    movups [Result], xmm0
-  end;
+  for LIndex := 0 to 3 do
+    Result.m128_f32[LIndex] := a.m128_f32[LIndex] + b.m128_f32[LIndex];
 end;
 
-// 功能：最低位单精度浮点数加法，其他位保持不变
 function sse_add_ss(const a, b: TM128): TM128;
 begin
-  asm
-    lea    rax, a
-    lea    rdx, b
-    movups xmm0, [rax]
-    movups xmm1, [rdx]
-    addss  xmm0, xmm1
-    movups [Result], xmm0
-  end;
+  Result := a;
+  Result.m128_f32[0] := a.m128_f32[0] + b.m128_f32[0];
 end;
 
-// 功能：4个单精度浮点数并行减法
 function sse_sub_ps(const a, b: TM128): TM128;
+var
+  LIndex: Integer;
 begin
-  asm
-    lea    rax, a
-    lea    rdx, b
-    movups xmm0, [rax]
-    movups xmm1, [rdx]
-    subps  xmm0, xmm1
-    movups [Result], xmm0
-  end;
+  for LIndex := 0 to 3 do
+    Result.m128_f32[LIndex] := a.m128_f32[LIndex] - b.m128_f32[LIndex];
 end;
 
-// 功能：最低位单精度浮点数减法，其他位保持不变
 function sse_sub_ss(const a, b: TM128): TM128;
 begin
-  asm
-    lea    rax, a
-    lea    rdx, b
-    movups xmm0, [rax]
-    movups xmm1, [rdx]
-    subss  xmm0, xmm1
-    movups [Result], xmm0
-  end;
+  Result := a;
+  Result.m128_f32[0] := a.m128_f32[0] - b.m128_f32[0];
 end;
 
-// 功能：4个单精度浮点数并行乘法
 function sse_mul_ps(const a, b: TM128): TM128;
+var
+  LIndex: Integer;
 begin
-  asm
-    lea    rax, a
-    lea    rdx, b
-    movups xmm0, [rax]
-    movups xmm1, [rdx]
-    mulps  xmm0, xmm1
-    movups [Result], xmm0
-  end;
+  for LIndex := 0 to 3 do
+    Result.m128_f32[LIndex] := a.m128_f32[LIndex] * b.m128_f32[LIndex];
 end;
 
-// 功能：最低位单精度浮点数乘法，其他位保持不变
-function sse_mul_ss(const a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-    movups xmm1, [rdx]
-  {$ELSE}
-    movups xmm0, [rdi]
-    movups xmm1, [rsi]
-  {$ENDIF}
-  mulss xmm0, xmm1
-  movups [Result], xmm0
-{$ELSE}
-  movups xmm0, [a]
-  movups xmm1, [b]
-  mulss xmm0, xmm1
-  movups [Result], xmm0
-{$ENDIF}
+function sse_mul_ss(const a, b: TM128): TM128;
+begin
+  Result := a;
+  Result.m128_f32[0] := a.m128_f32[0] * b.m128_f32[0];
 end;
 
-// 功能�?个单精度浮点数并行除�
-function sse_div_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-    movups xmm1, [rdx]
-  {$ELSE}
-    movups xmm0, [rdi]
-    movups xmm1, [rsi]
-  {$ENDIF}
-  divps xmm0, xmm1
-  movups [Result], xmm0
-{$ELSE}
-  movups xmm0, [a]
-  movups xmm1, [b]
-  divps xmm0, xmm1
-  movups [Result], xmm0
-{$ENDIF}
+function sse_div_ps(const a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 3 do
+    Result.m128_f32[LIndex] := a.m128_f32[LIndex] / b.m128_f32[LIndex];
 end;
 
-// 功能：最低位单精度浮点数除法，其他位保持不变
-function sse_div_ss(const a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-    movups xmm1, [rdx]
-  {$ELSE}
-    movups xmm0, [rdi]
-    movups xmm1, [rsi]
-  {$ENDIF}
-  divss xmm0, xmm1
-  movups [Result], xmm0
-{$ELSE}
-  movups xmm0, [a]
-  movups xmm1, [b]
-  divss xmm0, xmm1
-  movups [Result], xmm0
-{$ENDIF}
+function sse_div_ss(const a, b: TM128): TM128;
+begin
+  Result := a;
+  Result.m128_f32[0] := a.m128_f32[0] / b.m128_f32[0];
 end;
 
-// === SSE 数学函数操作 (内联汇编实现) ===
-
-// 功能�?个单精度浮点数并行平方根
-function sse_sqrt_ps(const a: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-  {$ELSE}
-    movups xmm0, [rdi]
-  {$ENDIF}
-  sqrtps xmm0, xmm0
-  movups [Result], xmm0
-{$ELSE}
-  movups xmm0, [a]
-  sqrtps xmm0, xmm0
-  movups [Result], xmm0
-{$ENDIF}
+function sse_sqrt_ps(const a: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 3 do
+    Result.m128_f32[LIndex] := Sqrt(a.m128_f32[LIndex]);
 end;
 
-// 功能：最低位单精度浮点数平方根，其他位保持不�
-function sse_sqrt_ss(const a: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-  {$ELSE}
-    movups xmm0, [rdi]
-  {$ENDIF}
-  sqrtss xmm0, xmm0
-  movups [Result], xmm0
-{$ELSE}
-  movups xmm0, [a]
-  sqrtss xmm0, xmm0
-  movups [Result], xmm0
-{$ENDIF}
+function sse_sqrt_ss(const a: TM128): TM128;
+begin
+  Result := a;
+  Result.m128_f32[0] := Sqrt(a.m128_f32[0]);
 end;
 
-// 功能�?个单精度浮点数并行平方根倒数近似
-function sse_rsqrt_ps(const a: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-  {$ELSE}
-    movups xmm0, [rdi]
-  {$ENDIF}
-  rsqrtps xmm0, xmm0
-  movups [Result], xmm0
-{$ELSE}
-  movups xmm0, [a]
-  rsqrtps xmm0, xmm0
-  movups [Result], xmm0
-{$ENDIF}
+function sse_rsqrt_ps(const a: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 3 do
+    Result.m128_f32[LIndex] := 1.0 / Sqrt(a.m128_f32[LIndex]);
 end;
 
-// 功能：最低位单精度浮点数平方根倒数近似，其他位保持不变
-function sse_rsqrt_ss(const a: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-  {$ELSE}
-    movups xmm0, [rdi]
-  {$ENDIF}
-  rsqrtss xmm0, xmm0
-  movups [Result], xmm0
-{$ELSE}
-  movups xmm0, [a]
-  rsqrtss xmm0, xmm0
-  movups [Result], xmm0
-{$ENDIF}
+function sse_rsqrt_ss(const a: TM128): TM128;
+begin
+  Result := a;
+  Result.m128_f32[0] := 1.0 / Sqrt(a.m128_f32[0]);
 end;
 
-// 功能�?个单精度浮点数并行倒数近似
-function sse_rcp_ps(const a: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-  {$ELSE}
-    movups xmm0, [rdi]
-  {$ENDIF}
-  rcpps xmm0, xmm0
-  movups [Result], xmm0
-{$ELSE}
-  movups xmm0, [a]
-  rcpps xmm0, xmm0
-  movups [Result], xmm0
-{$ENDIF}
+function sse_rcp_ps(const a: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 3 do
+    Result.m128_f32[LIndex] := 1.0 / a.m128_f32[LIndex];
 end;
 
-// 功能：最低位单精度浮点数倒数近似，其他位保持不变
-function sse_rcp_ss(const a: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-  {$ELSE}
-    movups xmm0, [rdi]
-  {$ENDIF}
-  rcpss xmm0, xmm0
-  movups [Result], xmm0
-{$ELSE}
-  movups xmm0, [a]
-  rcpss xmm0, xmm0
-  movups [Result], xmm0
-{$ENDIF}
+function sse_rcp_ss(const a: TM128): TM128;
+begin
+  Result := a;
+  Result.m128_f32[0] := 1.0 / a.m128_f32[0];
 end;
 
-// === SSE 最值操�?(内联汇编实现) ===
-
-// 功能�?个单精度浮点数并行最小�
-function sse_min_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-    movups xmm1, [rdx]
-  {$ELSE}
-    movups xmm0, [rdi]
-    movups xmm1, [rsi]
-  {$ENDIF}
-  minps xmm0, xmm1
-  movups [Result], xmm0
-{$ELSE}
-  movups xmm0, [a]
-  movups xmm1, [b]
-  minps xmm0, xmm1
-  movups [Result], xmm0
-{$ENDIF}
+function sse_min_ps(const a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 3 do
+    if a.m128_f32[LIndex] <= b.m128_f32[LIndex] then
+      Result.m128_f32[LIndex] := a.m128_f32[LIndex]
+    else
+      Result.m128_f32[LIndex] := b.m128_f32[LIndex];
 end;
 
-// 功能：最低位单精度浮点数最小值，其他位保持不�
-function sse_min_ss(const a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-    movups xmm1, [rdx]
-  {$ELSE}
-    movups xmm0, [rdi]
-    movups xmm1, [rsi]
-  {$ENDIF}
-  minss xmm0, xmm1
-  movups [Result], xmm0
-{$ELSE}
-  movups xmm0, [a]
-  movups xmm1, [b]
-  minss xmm0, xmm1
-  movups [Result], xmm0
-{$ENDIF}
+function sse_min_ss(const a, b: TM128): TM128;
+begin
+  Result := a;
+  if a.m128_f32[0] <= b.m128_f32[0] then
+    Result.m128_f32[0] := a.m128_f32[0]
+  else
+    Result.m128_f32[0] := b.m128_f32[0];
 end;
 
-// 功能�?个单精度浮点数并行最大�
-function sse_max_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-    movups xmm1, [rdx]
-  {$ELSE}
-    movups xmm0, [rdi]
-    movups xmm1, [rsi]
-  {$ENDIF}
-  maxps xmm0, xmm1
-  movups [Result], xmm0
-{$ELSE}
-  movups xmm0, [a]
-  movups xmm1, [b]
-  maxps xmm0, xmm1
-  movups [Result], xmm0
-{$ENDIF}
+function sse_max_ps(const a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 3 do
+    if a.m128_f32[LIndex] >= b.m128_f32[LIndex] then
+      Result.m128_f32[LIndex] := a.m128_f32[LIndex]
+    else
+      Result.m128_f32[LIndex] := b.m128_f32[LIndex];
 end;
 
-// 功能：最低位单精度浮点数最大值，其他位保持不�
-function sse_max_ss(const a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-    movups xmm1, [rdx]
-  {$ELSE}
-    movups xmm0, [rdi]
-    movups xmm1, [rsi]
-  {$ENDIF}
-  maxss xmm0, xmm1
-  movups [Result], xmm0
-{$ELSE}
-  movups xmm0, [a]
-  movups xmm1, [b]
-  maxss xmm0, xmm1
-  movups [Result], xmm0
-{$ENDIF}
+function sse_max_ss(const a, b: TM128): TM128;
+begin
+  Result := a;
+  if a.m128_f32[0] >= b.m128_f32[0] then
+    Result.m128_f32[0] := a.m128_f32[0]
+  else
+    Result.m128_f32[0] := b.m128_f32[0];
 end;
 
-// === SSE 逻辑运算操作 (内联汇编实现) ===
-
-// 功能�?28位按位与
-function sse_and_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-    movups xmm1, [rdx]
-  {$ELSE}
-    movups xmm0, [rdi]
-    movups xmm1, [rsi]
-  {$ENDIF}
-  andps xmm0, xmm1
-  movups [Result], xmm0
-{$ELSE}
-  movups xmm0, [a]
-  movups xmm1, [b]
-  andps xmm0, xmm1
-  movups [Result], xmm0
-{$ENDIF}
+function sse_and_ps(const a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 3 do
+    Result.m128i_u32[LIndex] := a.m128i_u32[LIndex] and b.m128i_u32[LIndex];
 end;
 
-// 功能�?28位按位与�?(NOT a AND b)
-function sse_andnot_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-    movups xmm1, [rdx]
-  {$ELSE}
-    movups xmm0, [rdi]
-    movups xmm1, [rsi]
-  {$ENDIF}
-  andnps xmm0, xmm1
-  movups [Result], xmm0
-{$ELSE}
-  movups xmm0, [a]
-  movups xmm1, [b]
-  andnps xmm0, xmm1
-  movups [Result], xmm0
-{$ENDIF}
+function sse_andnot_ps(const a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 3 do
+    Result.m128i_u32[LIndex] := (not a.m128i_u32[LIndex]) and b.m128i_u32[LIndex];
 end;
 
-// 功能�?28位按位或
-function sse_or_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-    movups xmm1, [rdx]
-  {$ELSE}
-    movups xmm0, [rdi]
-    movups xmm1, [rsi]
-  {$ENDIF}
-  orps xmm0, xmm1
-  movups [Result], xmm0
-{$ELSE}
-  movups xmm0, [a]
-  movups xmm1, [b]
-  orps xmm0, xmm1
-  movups [Result], xmm0
-{$ENDIF}
+function sse_andn_ps(const a, b: TM128): TM128;
+begin
+  Result := sse_andnot_ps(a, b);
 end;
 
-// 功能�?28位按位异�
-function sse_xor_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-    movups xmm1, [rdx]
-  {$ELSE}
-    movups xmm0, [rdi]
-    movups xmm1, [rsi]
-  {$ENDIF}
-  xorps xmm0, xmm1
-  movups [Result], xmm0
-{$ELSE}
-  movups xmm0, [a]
-  movups xmm1, [b]
-  xorps xmm0, xmm1
-  movups [Result], xmm0
-{$ENDIF}
+function sse_or_ps(const a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 3 do
+    Result.m128i_u32[LIndex] := a.m128i_u32[LIndex] or b.m128i_u32[LIndex];
 end;
 
-// === SSE 比较操作 (内联汇编实现) ===
-
-// 功能�?个单精度浮点数并行相等比�
-function sse_cmpeq_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-    movups xmm1, [rdx]
-  {$ELSE}
-    movups xmm0, [rdi]
-    movups xmm1, [rsi]
-  {$ENDIF}
-  cmpeqps xmm0, xmm1
-  movups [Result], xmm0
-{$ELSE}
-  movups xmm0, [a]
-  movups xmm1, [b]
-  cmpeqps xmm0, xmm1
-  movups [Result], xmm0
-{$ENDIF}
+function sse_xor_ps(const a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 3 do
+    Result.m128i_u32[LIndex] := a.m128i_u32[LIndex] xor b.m128i_u32[LIndex];
 end;
 
-// 功能：最低位单精度浮点数相等比较，其他位保持不变
-function sse_cmpeq_ss(const a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-    movups xmm1, [rdx]
-  {$ELSE}
-    movups xmm0, [rdi]
-    movups xmm1, [rsi]
-  {$ENDIF}
-  cmpeqss xmm0, xmm1
-  movups [Result], xmm0
-{$ELSE}
-  movups xmm0, [a]
-  movups xmm1, [b]
-  cmpeqss xmm0, xmm1
-  movups [Result], xmm0
-{$ENDIF}
+function sse_cmpeq_ps(const a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 3 do
+    Result.m128i_u32[LIndex] := Mask32(a.m128_f32[LIndex] = b.m128_f32[LIndex]);
 end;
 
-// 功能�?个单精度浮点数并行小于比�
-function sse_cmplt_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-    movups xmm1, [rdx]
-  {$ELSE}
-    movups xmm0, [rdi]
-    movups xmm1, [rsi]
-  {$ENDIF}
-  cmpltps xmm0, xmm1
-  movups [Result], xmm0
-{$ELSE}
-  movups xmm0, [a]
-  movups xmm1, [b]
-  cmpltps xmm0, xmm1
-  movups [Result], xmm0
-{$ENDIF}
+function sse_cmpeq_ss(const a, b: TM128): TM128;
+begin
+  Result := a;
+  Result.m128i_u32[0] := Mask32(a.m128_f32[0] = b.m128_f32[0]);
 end;
 
-// 功能：最低位单精度浮点数小于比较，其他位保持不变
-function sse_cmplt_ss(const a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-    movups xmm1, [rdx]
-  {$ELSE}
-    movups xmm0, [rdi]
-    movups xmm1, [rsi]
-  {$ENDIF}
-  cmpltss xmm0, xmm1
-  movups [Result], xmm0
-{$ELSE}
-  movups xmm0, [a]
-  movups xmm1, [b]
-  cmpltss xmm0, xmm1
-  movups [Result], xmm0
-{$ENDIF}
+function sse_cmplt_ps(const a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 3 do
+    Result.m128i_u32[LIndex] := Mask32(a.m128_f32[LIndex] < b.m128_f32[LIndex]);
 end;
 
-// 功能�?个单精度浮点数并行小于等于比�
-function sse_cmple_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-    movups xmm1, [rdx]
-  {$ELSE}
-    movups xmm0, [rdi]
-    movups xmm1, [rsi]
-  {$ENDIF}
-  cmpleps xmm0, xmm1
-  movups [Result], xmm0
-{$ELSE}
-  movups xmm0, [a]
-  movups xmm1, [b]
-  cmpleps xmm0, xmm1
-  movups [Result], xmm0
-{$ENDIF}
+function sse_cmplt_ss(const a, b: TM128): TM128;
+begin
+  Result := a;
+  Result.m128i_u32[0] := Mask32(a.m128_f32[0] < b.m128_f32[0]);
 end;
 
-// 功能：最低位单精度浮点数小于等于比较，其他位保持不变
-function sse_cmple_ss(const a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-    movups xmm1, [rdx]
-  {$ELSE}
-    movups xmm0, [rdi]
-    movups xmm1, [rsi]
-  {$ENDIF}
-  cmpless xmm0, xmm1
-  movups [Result], xmm0
-{$ELSE}
-  movups xmm0, [a]
-  movups xmm1, [b]
-  cmpless xmm0, xmm1
-  movups [Result], xmm0
-{$ENDIF}
+function sse_cmple_ps(const a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 3 do
+    Result.m128i_u32[LIndex] := Mask32(a.m128_f32[LIndex] <= b.m128_f32[LIndex]);
 end;
 
-// 功能�?个单精度浮点数并行大于比�
-function sse_cmpgt_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-    movups xmm1, [rdx]
-  {$ELSE}
-    movups xmm0, [rdi]
-    movups xmm1, [rsi]
-  {$ENDIF}
-  cmpps xmm0, xmm1, 6
-  movups [Result], xmm0
-{$ELSE}
-  movups xmm0, [a]
-  movups xmm1, [b]
-  cmpps xmm0, xmm1, 6
-  movups [Result], xmm0
-{$ENDIF}
+function sse_cmple_ss(const a, b: TM128): TM128;
+begin
+  Result := a;
+  Result.m128i_u32[0] := Mask32(a.m128_f32[0] <= b.m128_f32[0]);
 end;
 
-// 功能：最低位单精度浮点数大于比较，其他位保持不变
-function sse_cmpgt_ss(const a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-    movups xmm1, [rdx]
-  {$ELSE}
-    movups xmm0, [rdi]
-    movups xmm1, [rsi]
-  {$ENDIF}
-  cmpss xmm0, xmm1, 6
-  movups [Result], xmm0
-{$ELSE}
-  movups xmm0, [a]
-  movups xmm1, [b]
-  cmpss xmm0, xmm1, 6
-  movups [Result], xmm0
-{$ENDIF}
+function sse_cmpgt_ps(const a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 3 do
+    Result.m128i_u32[LIndex] := Mask32(a.m128_f32[LIndex] > b.m128_f32[LIndex]);
 end;
 
-// 功能�?个单精度浮点数并行大于等于比�
-function sse_cmpge_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-    movups xmm1, [rdx]
-  {$ELSE}
-    movups xmm0, [rdi]
-    movups xmm1, [rsi]
-  {$ENDIF}
-  cmpps xmm0, xmm1, 5
-  movups [Result], xmm0
-{$ELSE}
-  movups xmm0, [a]
-  movups xmm1, [b]
-  cmpps xmm0, xmm1, 5
-  movups [Result], xmm0
-{$ENDIF}
+function sse_cmpgt_ss(const a, b: TM128): TM128;
+begin
+  Result := a;
+  Result.m128i_u32[0] := Mask32(a.m128_f32[0] > b.m128_f32[0]);
 end;
 
-// 功能：最低位单精度浮点数大于等于比较，其他位保持不变
-function sse_cmpge_ss(const a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-    movups xmm1, [rdx]
-  {$ELSE}
-    movups xmm0, [rdi]
-    movups xmm1, [rsi]
-  {$ENDIF}
-  cmpss xmm0, xmm1, 5
-  movups [Result], xmm0
-{$ELSE}
-  movups xmm0, [a]
-  movups xmm1, [b]
-  cmpss xmm0, xmm1, 5
-  movups [Result], xmm0
-{$ENDIF}
+function sse_cmpge_ps(const a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 3 do
+    Result.m128i_u32[LIndex] := Mask32(a.m128_f32[LIndex] >= b.m128_f32[LIndex]);
 end;
 
-// 功能�?个单精度浮点数并行不等于比较
-function sse_cmpneq_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-    movups xmm1, [rdx]
-  {$ELSE}
-    movups xmm0, [rdi]
-    movups xmm1, [rsi]
-  {$ENDIF}
-  cmpneqps xmm0, xmm1
-  movups [Result], xmm0
-{$ELSE}
-  movups xmm0, [a]
-  movups xmm1, [b]
-  cmpneqps xmm0, xmm1
-  movups [Result], xmm0
-{$ENDIF}
+function sse_cmpge_ss(const a, b: TM128): TM128;
+begin
+  Result := a;
+  Result.m128i_u32[0] := Mask32(a.m128_f32[0] >= b.m128_f32[0]);
 end;
 
-// 功能：最低位单精度浮点数不等于比较，其他位保持不�
-function sse_cmpneq_ss(const a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-    movups xmm1, [rdx]
-  {$ELSE}
-    movups xmm0, [rdi]
-    movups xmm1, [rsi]
-  {$ENDIF}
-  cmpneqss xmm0, xmm1
-  movups [Result], xmm0
-{$ELSE}
-  movups xmm0, [a]
-  movups xmm1, [b]
-  cmpneqss xmm0, xmm1
-  movups [Result], xmm0
-{$ENDIF}
+function sse_cmpneq_ps(const a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 3 do
+    Result.m128i_u32[LIndex] := Mask32(a.m128_f32[LIndex] <> b.m128_f32[LIndex]);
 end;
 
-// === SSE Shuffle/Unpack 操作 (内联汇编实现) ===
-
-// 功能：根据立即数重新排列4个单精度浮点�
-function sse_shuffle_ps(const a, b: TM128; imm8: Byte): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-    movups xmm1, [rdx]
-    // 使用运行时shuffle实现
-    push rax
-    push rbx
-    mov al, r8b
-    mov bl, al
-    and bl, 3           // 提取�?-1
-    shr al, 2
-    mov bh, al
-    and bh, 3           // 提取�?-3
-    shr al, 2
-    mov cl, al
-    and cl, 3           // 提取�?-5
-    shr al, 2
-    and al, 3           // 提取�?-7
-
-    // 手动构建结果
-    sub rsp, 32
-    movups [rsp], xmm0      // 保存a
-    movups [rsp+16], xmm1   // 保存b
-
-    // 提取元素并重新组�?    movzx rbx, bl
-    movss xmm2, [rsp + rbx*4]
-    movzx rbx, bh
-    movss xmm3, [rsp + rbx*4]
-    movzx rbx, cl
-    movss xmm4, [rsp + 16 + rbx*4]
-    movzx rbx, al
-    movss xmm5, [rsp + 16 + rbx*4]
-
-    unpcklps xmm2, xmm3
-    unpcklps xmm4, xmm5
-    movlhps xmm2, xmm4
-
-    add rsp, 32
-    pop rbx
-    pop rax
-    movups [Result], xmm2
-  {$ELSE}
-    // SysV x64类似实现
-    movups xmm0, [rdi]
-    movups xmm1, [rsi]
-    // 简化为Pascal实现以避免复杂的汇编
-    push rax
-    push rbx
-    mov al, sil
-    // ... 类似的实�?    pop rbx
-    pop rax
-    movups [Result], xmm0
-  {$ENDIF}
-{$ELSE}
-  // x86: 使用Pascal实现
-  push eax
-  push ebx
-  mov al, imm8
-  // 复杂的x86实现
-  pop ebx
-  pop eax
-{$ENDIF}
+function sse_cmpneq_ss(const a, b: TM128): TM128;
+begin
+  Result := a;
+  Result.m128i_u32[0] := Mask32(a.m128_f32[0] <> b.m128_f32[0]);
 end;
 
-// 功能：解包高位单精度浮点�
-function sse_unpackhi_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-    movups xmm1, [rdx]
-  {$ELSE}
-    movups xmm0, [rdi]
-    movups xmm1, [rsi]
-  {$ENDIF}
-  unpckhps xmm0, xmm1
-  movups [Result], xmm0
-{$ELSE}
-  movups xmm0, [a]
-  movups xmm1, [b]
-  unpckhps xmm0, xmm1
-  movups [Result], xmm0
-{$ENDIF}
+function sse_cmpord_ps(const a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 3 do
+    Result.m128i_u32[LIndex] := Mask32((not IsNaNValue(a.m128_f32[LIndex])) and (not IsNaNValue(b.m128_f32[LIndex])));
 end;
 
-// 功能：解包低位单精度浮点�
-function sse_unpacklo_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-    movups xmm1, [rdx]
-  {$ELSE}
-    movups xmm0, [rdi]
-    movups xmm1, [rsi]
-  {$ENDIF}
-  unpcklps xmm0, xmm1
-  movups [Result], xmm0
-{$ELSE}
-  movups xmm0, [a]
-  movups xmm1, [b]
-  unpcklps xmm0, xmm1
-  movups [Result], xmm0
-{$ENDIF}
+function sse_cmpord_ss(const a, b: TM128): TM128;
+begin
+  Result := a;
+  Result.m128i_u32[0] := Mask32((not IsNaNValue(a.m128_f32[0])) and (not IsNaNValue(b.m128_f32[0])));
 end;
 
-// === SSE 数据移动操作 (内联汇编实现) ===
-
-// 功能：移动最低位单精度浮点数，其他位保持a的�
-function sse_move_ss(const a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-    movups xmm1, [rdx]
-  {$ELSE}
-    movups xmm0, [rdi]
-    movups xmm1, [rsi]
-  {$ENDIF}
-  movss xmm0, xmm1
-  movups [Result], xmm0
-{$ELSE}
-  movups xmm0, [a]
-  movups xmm1, [b]
-  movss xmm0, xmm1
-  movups [Result], xmm0
-{$ENDIF}
+function sse_cmpunord_ps(const a, b: TM128): TM128;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 3 do
+    Result.m128i_u32[LIndex] := Mask32(IsNaNValue(a.m128_f32[LIndex]) or IsNaNValue(b.m128_f32[LIndex]));
 end;
 
-// 功能：移动高位到低位
-function sse_movehl_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-    movups xmm1, [rdx]
-  {$ELSE}
-    movups xmm0, [rdi]
-    movups xmm1, [rsi]
-  {$ENDIF}
-  movhlps xmm0, xmm1
-  movups [Result], xmm0
-{$ELSE}
-  movups xmm0, [a]
-  movups xmm1, [b]
-  movhlps xmm0, xmm1
-  movups [Result], xmm0
-{$ENDIF}
+function sse_cmpunord_ss(const a, b: TM128): TM128;
+begin
+  Result := a;
+  Result.m128i_u32[0] := Mask32(IsNaNValue(a.m128_f32[0]) or IsNaNValue(b.m128_f32[0]));
 end;
 
-// 功能：移动低位到高位
-function sse_movelh_ps(const a, b: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-    movups xmm1, [rdx]
-  {$ELSE}
-    movups xmm0, [rdi]
-    movups xmm1, [rsi]
-  {$ENDIF}
-  movlhps xmm0, xmm1
-  movups [Result], xmm0
-{$ELSE}
-  movups xmm0, [a]
-  movups xmm1, [b]
-  movlhps xmm0, xmm1
-  movups [Result], xmm0
-{$ENDIF}
+function sse_shuffle_ps(const a, b: TM128; imm8: Byte): TM128;
+begin
+  Result.m128_f32[0] := a.m128_f32[imm8 and $03];
+  Result.m128_f32[1] := a.m128_f32[(imm8 shr 2) and $03];
+  Result.m128_f32[2] := b.m128_f32[(imm8 shr 4) and $03];
+  Result.m128_f32[3] := b.m128_f32[(imm8 shr 6) and $03];
 end;
 
-// 功能：提取符号位掩码
-function sse_movemask_ps(const a: TM128): Integer; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-  {$ELSE}
-    movups xmm0, [rdi]
-  {$ENDIF}
-  movmskps eax, xmm0
-{$ELSE}
-  movups xmm0, [a]
-  movmskps eax, xmm0
-{$ENDIF}
+function sse_unpackhi_ps(const a, b: TM128): TM128;
+begin
+  Result.m128_f32[0] := a.m128_f32[2];
+  Result.m128_f32[1] := b.m128_f32[2];
+  Result.m128_f32[2] := a.m128_f32[3];
+  Result.m128_f32[3] := b.m128_f32[3];
 end;
 
-// === SSE 类型转换操作 (内联汇编实现) ===
+function sse_unpacklo_ps(const a, b: TM128): TM128;
+begin
+  Result.m128_f32[0] := a.m128_f32[0];
+  Result.m128_f32[1] := b.m128_f32[0];
+  Result.m128_f32[2] := a.m128_f32[1];
+  Result.m128_f32[3] := b.m128_f32[1];
+end;
 
-// 功能：将32位整数转换为单精度浮点数
-function sse_cvtsi2ss(const a: TM128; Value: LongInt): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-    cvtsi2ss xmm0, edx
-  {$ELSE}
-    movups xmm0, [rdi]
-    cvtsi2ss xmm0, esi
-  {$ENDIF}
-  movups [Result], xmm0
-{$ELSE}
-  movups xmm0, [a]
-  cvtsi2ss xmm0, Value
-  movups [Result], xmm0
-{$ENDIF}
+function sse_unpckhps(const a, b: TM128): TM128;
+begin
+  Result := sse_unpackhi_ps(a, b);
+end;
+
+function sse_unpcklps(const a, b: TM128): TM128;
+begin
+  Result := sse_unpacklo_ps(a, b);
+end;
+
+function sse_move_ss(const a, b: TM128): TM128;
+begin
+  Result := a;
+  Result.m128_f32[0] := b.m128_f32[0];
+end;
+
+function sse_movehl_ps(const a, b: TM128): TM128;
+begin
+  Result.m128_f32[0] := b.m128_f32[2];
+  Result.m128_f32[1] := b.m128_f32[3];
+  Result.m128_f32[2] := a.m128_f32[2];
+  Result.m128_f32[3] := a.m128_f32[3];
+end;
+
+function sse_movelh_ps(const a, b: TM128): TM128;
+begin
+  Result.m128_f32[0] := a.m128_f32[0];
+  Result.m128_f32[1] := a.m128_f32[1];
+  Result.m128_f32[2] := b.m128_f32[0];
+  Result.m128_f32[3] := b.m128_f32[1];
+end;
+
+function sse_movemask_ps(const a: TM128): Integer;
+var
+  LIndex: Integer;
+begin
+  Result := 0;
+  for LIndex := 0 to 3 do
+    if (a.m128i_u32[LIndex] and $80000000) <> 0 then
+      Result := Result or (1 shl LIndex);
+end;
+
+function sse_movaps(const a: TM128): TM128;
+begin
+  Result := a;
+end;
+
+function sse_movups(const a: TM128): TM128;
+begin
+  Result := a;
+end;
+
+function sse_movss(const a: TM128): TM128;
+begin
+  Result := Default(TM128);
+  Result.m128_f32[0] := a.m128_f32[0];
+end;
+
+function sse_movhl_ps(const a, b: TM128): TM128;
+begin
+  Result := sse_movehl_ps(a, b);
+end;
+
+function sse_movlh_ps(const a, b: TM128): TM128;
+begin
+  Result := sse_movelh_ps(a, b);
+end;
+
+function sse_movd(Value: LongInt): TM128;
+begin
+  Result := Default(TM128);
+  Result.m128i_i32[0] := Value;
+end;
+
+function sse_movd_toint(const a: TM128): LongInt;
+begin
+  Result := a.m128i_i32[0];
+end;
+
+function sse_cvtsi2ss(const a: TM128; Value: LongInt): TM128;
+begin
+  Result := a;
+  Result.m128_f32[0] := Value;
 end;
 
 function sse_cvtss2si(const a: TM128): LongInt;
@@ -1265,191 +665,42 @@ begin
 end;
 
 procedure sse_prefetch(const Ptr: Pointer; locality: Integer);
-begin
-  // 预取指令的占位符实现
-  // 在实际实现中，这里应该执行相应的预取指令
-end;
-
-// === 缺失函数的实�?===
-
-function sse_andn_ps(const a, b: TM128): TM128;
-begin
-  Result := sse_andnot_ps(a, b);
-end;
-
-function sse_cmpord_ps(const a, b: TM128): TM128;
 var
-  i: Integer;
+  LPtr: Pointer;
+  LLocality: Integer;
 begin
-  for i := 0 to 3 do
-  begin
-    if (not IsNaN(a.m128_f32[i])) and (not IsNaN(b.m128_f32[i])) then
-      Result.m128i_u32[i] := $FFFFFFFF
-    else
-      Result.m128i_u32[i] := 0;
-  end;
-end;
-
-function sse_cmpord_ss(const a, b: TM128): TM128;
-begin
-  Result := a;
-  if (not IsNaN(a.m128_f32[0])) and (not IsNaN(b.m128_f32[0])) then
-    Result.m128i_u32[0] := $FFFFFFFF
-  else
-    Result.m128i_u32[0] := 0;
-end;
-
-function sse_cmpunord_ps(const a, b: TM128): TM128;
-var
-  i: Integer;
-begin
-  for i := 0 to 3 do
-  begin
-    if IsNaN(a.m128_f32[i]) or IsNaN(b.m128_f32[i]) then
-      Result.m128i_u32[i] := $FFFFFFFF
-    else
-      Result.m128i_u32[i] := 0;
-  end;
-end;
-
-function sse_cmpunord_ss(const a, b: TM128): TM128;
-begin
-  Result := a;
-  if IsNaN(a.m128_f32[0]) or IsNaN(b.m128_f32[0]) then
-    Result.m128i_u32[0] := $FFFFFFFF
-  else
-    Result.m128i_u32[0] := 0;
-end;
-
-function sse_unpckhps(const a, b: TM128): TM128;
-begin
-  Result := sse_unpackhi_ps(a, b);
-end;
-
-function sse_unpcklps(const a, b: TM128): TM128;
-begin
-  Result := sse_unpacklo_ps(a, b);
-end;
-
-// 功能：移�?个对齐的单精度浮点数
-function sse_movaps(const a: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movaps xmm0, [rcx]
-  {$ELSE}
-    movaps xmm0, [rdi]
-  {$ENDIF}
-  movaps [Result], xmm0
-{$ELSE}
-  movaps xmm0, [a]
-  movaps [Result], xmm0
-{$ENDIF}
-end;
-
-// 功能：移�?个未对齐的单精度浮点�
-function sse_movups(const a: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-  {$ELSE}
-    movups xmm0, [rdi]
-  {$ENDIF}
-  movups [Result], xmm0
-{$ELSE}
-  movups xmm0, [a]
-  movups [Result], xmm0
-{$ENDIF}
-end;
-
-// 功能：移动单个单精度浮点数，其他位清�
-function sse_movss(const a: TM128): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    xorps xmm0, xmm0
-    movss xmm0, [rcx]
-  {$ELSE}
-    xorps xmm0, xmm0
-    movss xmm0, [rdi]
-  {$ENDIF}
-  movups [Result], xmm0
-{$ELSE}
-  xorps xmm0, xmm0
-  movss xmm0, [a]
-  movups [Result], xmm0
-{$ENDIF}
-end;
-
-function sse_movhl_ps(const a, b: TM128): TM128;
-begin
-  Result := sse_movehl_ps(a, b);
-end;
-
-function sse_movlh_ps(const a, b: TM128): TM128;
-begin
-  Result := sse_movelh_ps(a, b);
-end;
-
-// 功能：从32位整数创�?28位向量，其他位清�
-function sse_movd(Value: LongInt): TM128; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movd xmm0, ecx
-  {$ELSE}
-    movd xmm0, edi
-  {$ENDIF}
-  movups [Result], xmm0
-{$ELSE}
-  movd xmm0, Value
-  movups [Result], xmm0
-{$ENDIF}
-end;
-
-// 功能：提�?28位向量的�?2位整�
-function sse_movd_toint(const a: TM128): LongInt; {$IFDEF FPC}assembler;{$ENDIF}
-asm
-{$IFDEF CPUX86_64}
-  {$IFDEF WINDOWS}
-    movups xmm0, [rcx]
-  {$ELSE}
-    movups xmm0, [rdi]
-  {$ENDIF}
-  movd eax, xmm0
-{$ELSE}
-  movups xmm0, [a]
-  movd eax, xmm0
-{$ENDIF}
-end;
-
-procedure sse_stream_ps(var Dest; const Src: TM128);
-begin
-  // 非时态存储的占位符实�?  PTM128(@Dest)^ := Src;
-end;
-
-procedure sse_stream_si64(var Dest; const Src: TM128);
-begin
-  // 非时态存储的占位符实�?  PUInt64(@Dest)^ := Src.m128i_u64[0];
-end;
-
-function sse_getcsr: Integer;
-begin
-  // MXCSR 寄存器读取的占位符实�?  Result := 0;
-end;
-
-procedure sse_setcsr(Value: Integer);
-begin
-  // MXCSR 寄存器设置的占位符实�
+  LPtr := Ptr;
+  LLocality := locality;
+  if (LPtr = nil) and (LLocality = Low(Integer)) then
+    Exit;
 end;
 
 procedure sse_sfence;
 begin
-  // 存储栅栏指令的占位符实现
-  // 在实际实现中，这里应该执�?SFENCE 指令
+end;
+
+procedure sse_stream_ps(var Dest; const Src: TM128);
+begin
+  PTM128(@Dest)^ := Src;
+end;
+
+procedure sse_stream_si64(var Dest; const Src: TM128);
+begin
+  PUInt64(@Dest)^ := Src.m128i_u64[0];
+end;
+
+function sse_getcsr: Integer;
+begin
+  Result := 0;
+end;
+
+procedure sse_setcsr(Value: Integer);
+var
+  LValue: Integer;
+begin
+  LValue := Value;
+  if LValue = Low(Integer) then
+    Exit;
 end;
 
 end.
-
-

@@ -9,8 +9,9 @@ fi
 
 cd tests/fafafa.core.simd
 
-TARGET_CPU="$(fpc -iTP)"
-TARGET_OS="$(fpc -iTO)"
+FPC_BIN="${FPC_BIN:-fpc}"
+TARGET_CPU="$(${FPC_BIN} -iTP)"
+TARGET_OS="$(${FPC_BIN} -iTO)"
 TARGET="${TARGET_CPU}-${TARGET_OS}"
 
 BIN_DIR="bin2"
@@ -19,17 +20,28 @@ LOG_DIR="logs"
 
 BUILD_LOG="${LOG_DIR}/fpc_build_${TARGET}.txt"
 TEST_LOG="${LOG_DIR}/fpc_test_${TARGET}.txt"
+EXTRA_DEFINES_RAW="${SIMD_FPC_EXTRA_DEFINES:-}"
+RUN_ONLY_BUILD="${SIMD_RUN_ONLY_BUILD:-0}"
 
 mkdir -p "${BIN_DIR}" "${UNIT_DIR}" "${LOG_DIR}"
 
-echo "[FPC] version=$(fpc -iV) target=${TARGET}"
+EXTRA_DEFINES=()
+if [[ -n "${EXTRA_DEFINES_RAW// }" ]]; then
+  read -r -a EXTRA_DEFINES <<< "${EXTRA_DEFINES_RAW}"
+fi
+
+echo "[FPC] version=$(${FPC_BIN} -iV) target=${TARGET}"
+if [[ -n "${EXTRA_DEFINES_RAW// }" ]]; then
+  echo "[FPC] extra-defines=${EXTRA_DEFINES_RAW}"
+fi
 
 echo "[BUILD] fpc fafafa.core.simd.test.lpr"
 : >"${BUILD_LOG}"
 
 # DEBUG define enables the project's debug assertions/bounds checks via fafafa.core.settings.inc
 # -gh enables heaptrc leak reporting.
-if fpc -B -Mobjfpc -Sc -Si -O1 -g -gl -gh -dDEBUG \
+if "${FPC_BIN}" -B -Mobjfpc -Sc -Si -O1 -g -gl -gh -dDEBUG \
+  "${EXTRA_DEFINES[@]}" \
   -Fu../../src -Fi../../src \
   -FE"${BIN_DIR}" -FU"${UNIT_DIR}" \
   fafafa.core.simd.test.lpr >"${BUILD_LOG}" 2>&1; then
@@ -49,6 +61,11 @@ if grep -nE '(^|.*/)src/fafafa\.core\.simd\..*(Warning:|Hint:)' "${BUILD_LOG}" >
 fi
 
 echo "[CHECK] OK (no SIMD-unit warnings/hints)"
+
+if [[ "${RUN_ONLY_BUILD}" != "0" ]]; then
+  echo "[TEST] SKIP (SIMD_RUN_ONLY_BUILD=1)"
+  exit 0
+fi
 
 BIN="${BIN_DIR}/fafafa.core.simd.test"
 if [[ ! -x "${BIN}" ]]; then

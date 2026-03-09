@@ -264,8 +264,10 @@ var
 begin
   for i := 0 to 3 do
     if (i and 1) = 0 then
-      Result.m128_f32[i] := a.m128_f32[i] * b.m128_f32[i] - c.m128_f32[i]  // 偶数索引：减�?    else
-      Result.m128_f32[i] := a.m128_f32[i] * b.m128_f32[i] + c.m128_f32[i]; // 奇数索引：加�?end;
+      Result.m128_f32[i] := a.m128_f32[i] * b.m128_f32[i] - c.m128_f32[i]
+    else
+      Result.m128_f32[i] := a.m128_f32[i] * b.m128_f32[i] + c.m128_f32[i];
+end;
 
 function fma3_fmaddsub_pd(const a, b, c: TM128): TM128;
 var
@@ -306,8 +308,10 @@ var
 begin
   for i := 0 to 3 do
     if (i and 1) = 0 then
-      Result.m128_f32[i] := a.m128_f32[i] * b.m128_f32[i] + c.m128_f32[i]  // 偶数索引：加�?    else
-      Result.m128_f32[i] := a.m128_f32[i] * b.m128_f32[i] - c.m128_f32[i]; // 奇数索引：减�?end;
+      Result.m128_f32[i] := a.m128_f32[i] * b.m128_f32[i] + c.m128_f32[i]
+    else
+      Result.m128_f32[i] := a.m128_f32[i] * b.m128_f32[i] - c.m128_f32[i];
+end;
 
 function fma3_fmsubadd_pd(const a, b, c: TM128): TM128;
 var

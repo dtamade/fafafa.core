@@ -2634,11 +2634,6 @@ end;
 {$ENDIF}
 {$ENDIF}
 
-{$IFDEF UNIX}
-{$IFDEF CPUX86_64}
-
-{ TTestCase_AVX2VectorAsm }
-
 function SingleFromBits(bits: DWord): Single; inline;
 begin
   Move(bits, Result, SizeOf(Result));
@@ -2677,6 +2672,11 @@ begin
   Result := ((bits and QWord($7FF0000000000000)) = QWord($7FF0000000000000)) and
             ((bits and QWord($000FFFFFFFFFFFFF)) <> 0);
 end;
+
+{$IFDEF UNIX}
+{$IFDEF CPUX86_64}
+
+{ TTestCase_AVX2VectorAsm }
 
 // === ABI/Calling-convention guard helpers ===
 // 目标：在不依赖编译器生成的 wrapper 的情况下，直接用汇编调用 dispatch 函数指针，
@@ -16248,7 +16248,7 @@ var
 begin
   for i := 0 to 7 do
   begin
-    a.i[i] := $FF00FF00;
+    a.i[i] := Int32(DWord($FF00FF00));
     b.i[i] := $0F0F0F0F;
   end;
 
@@ -16265,7 +16265,7 @@ var
 begin
   for i := 0 to 7 do
   begin
-    a.i[i] := $FF000000;
+    a.i[i] := Int32(DWord($FF000000));
     b.i[i] := $00FF0000;
   end;
 
@@ -16282,7 +16282,7 @@ var
 begin
   for i := 0 to 7 do
   begin
-    a.i[i] := $FFFFFFFF;
+    a.i[i] := -1;
     b.i[i] := $0F0F0F0F;
   end;
 
@@ -16314,8 +16314,8 @@ begin
   // AndNot: NOT(a) AND b
   for i := 0 to 7 do
   begin
-    a.i[i] := $F0F0F0F0;
-    b.i[i] := $FFFFFFFF;
+    a.i[i] := Int32(DWord($F0F0F0F0));
+    b.i[i] := -1;
   end;
 
   r := VecI32x8AndNot(a, b);
@@ -18415,7 +18415,7 @@ begin
 
   // 检查 -0 * positive 的符号位
   // -0.0 的位模式是 0x8000000000000000
-  negZeroBits := $8000000000000000;
+  negZeroBits := QWord(1) shl 63;
   Move(r.d[0], resultBits, SizeOf(UInt64));
   AssertEquals('-0 * 5.0 should be -0 (check value is zero)', 0.0, r.d[0], 0.0);
   AssertEquals('-0 * 5.0 should have negative sign bit', negZeroBits, resultBits);
