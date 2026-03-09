@@ -61,17 +61,23 @@ run_with_retry() {
 }
 
 case "${SCENARIO}" in
-  cpuinfo-nonx86-evidence|cpuinfo-nonx86-full-evidence|cpuinfo-nonx86-full-repeat|cpuinfo-nonx86-suite-repeat)
-    SCENARIO="nonx86-evidence"
-    ;;
-esac
-
-case "${SCENARIO}" in
   basic)
     CONTAINER_CMD='bash tests/fafafa.core.simd/docker/run_fpc_tests.sh'
     ;;
   nonx86-evidence)
     CONTAINER_CMD='bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_NonX86IEEE754 && bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=TTestCase_NonX86BackendParity && bash tests/fafafa.core.simd/run_backend_benchmarks.sh'
+    ;;
+  cpuinfo-nonx86-evidence)
+    CONTAINER_CMD='bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh test --suite=TTestCase_PlatformSpecific'
+    ;;
+  cpuinfo-nonx86-full-evidence)
+    CONTAINER_CMD='bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh test --suite=TTestCase_PlatformSpecific && bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh test --suite=TTestCase_LazyCPUInfo'
+    ;;
+  cpuinfo-nonx86-full-repeat)
+    CONTAINER_CMD='for i in 1 2 3; do bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh test --suite=TTestCase_PlatformSpecific && bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh test --suite=TTestCase_LazyCPUInfo; done'
+    ;;
+  cpuinfo-nonx86-suite-repeat)
+    CONTAINER_CMD='for i in 1 2 3; do bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh test --suite=TTestCase_LazyCPUInfo; done'
     ;;
   nonx86-experimental-asm)
     CONTAINER_CMD="__NONX86_EXPERIMENTAL_ASM__"

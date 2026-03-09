@@ -16,7 +16,7 @@ uses
   {$IFDEF SIMD_ARM_AVAILABLE}
   fafafa.core.simd.cpuinfo.arm,
   {$ENDIF}
-  {$IFDEF SIMD_RISCV_AVAILABLE}
+  {$IF DEFINED(CPURISCV64) OR DEFINED(CPURISCV32)}
   fafafa.core.simd.cpuinfo.riscv,
   {$ENDIF}
   fafafa.core.simd.cpuinfo.lazy,
@@ -804,7 +804,7 @@ begin
     AssertEquals('NEON backend presence should match HasNEON', HasNEON, BackendInArray(sbNEON, LBackends));
   {$ENDIF}
 
-  {$IFDEF SIMD_RISCV_AVAILABLE}
+  {$IF DEFINED(CPURISCV64) OR DEFINED(CPURISCV32)}
   if LCPUInfo.Arch = caRISCV then
     AssertEquals('RISCVV backend presence should match HasRISCVV', HasRISCVV, BackendInArray(sbRISCVV, LBackends));
   {$ENDIF}
@@ -1377,12 +1377,12 @@ begin
 end;
 
 procedure TTestCase_PlatformSpecific.Test_RISCVISAParserSamples;
-{$IFDEF SIMD_RISCV_AVAILABLE}
+{$IF DEFINED(CPURISCV64) OR DEFINED(CPURISCV32)}
 var
   LFeatures: TRISCVFeatures;
 {$ENDIF}
 begin
-  {$IFDEF SIMD_RISCV_AVAILABLE}
+  {$IF DEFINED(CPURISCV64) OR DEFINED(CPURISCV32)}
   LFeatures := ParseRISCVFeaturesFromCpuInfo(
     'processor : 0' + LineEnding +
     'isa : rv64imafdcv_zicsr_zifencei' + LineEnding
@@ -1764,13 +1764,13 @@ begin
 end;
 
 procedure TTestCase_PlatformSpecific.Test_RISCVISASelectionSamples;
-{$IFDEF SIMD_RISCV_AVAILABLE}
+{$IF DEFINED(CPURISCV64) OR DEFINED(CPURISCV32)}
 var
   LISA: string;
   LFeatures: TRISCVFeatures;
 {$ENDIF}
 begin
-  {$IFDEF SIMD_RISCV_AVAILABLE}
+  {$IF DEFINED(CPURISCV64) OR DEFINED(CPURISCV32)}
   AssertTrue(
     'ISA candidate with RV base should win over extension-only candidate',
     ExtractBestRISCVISAFromCpuInfo(
@@ -1931,13 +1931,13 @@ begin
 end;
 
 procedure TTestCase_PlatformSpecific.Test_RISCVHWCAPMergeSamples;
-{$IFDEF SIMD_RISCV_AVAILABLE}
+{$IF DEFINED(CPURISCV64) OR DEFINED(CPURISCV32)}
 var
   LFeatures: TRISCVFeatures;
   LHWCAP: QWord;
 {$ENDIF}
 begin
-  {$IFDEF SIMD_RISCV_AVAILABLE}
+  {$IF DEFINED(CPURISCV64) OR DEFINED(CPURISCV32)}
   {$IFDEF LINUX}
   LHWCAP := (QWord(1) shl (Ord('I') - Ord('A'))) or
             (QWord(1) shl (Ord('M') - Ord('A'))) or
@@ -1979,13 +1979,13 @@ begin
 end;
 
 procedure TTestCase_PlatformSpecific.Test_RISCVVendorModelParserSamples;
-{$IFDEF SIMD_RISCV_AVAILABLE}
+{$IF DEFINED(CPURISCV64) OR DEFINED(CPURISCV32)}
 var
   LVendor: string;
   LModel: string;
 {$ENDIF}
 begin
-  {$IFDEF SIMD_RISCV_AVAILABLE}
+  {$IF DEFINED(CPURISCV64) OR DEFINED(CPURISCV32)}
   AssertTrue(
     'vendor/model parser should accept vendor_id + model name',
     ParseRISCVVendorModelFromCpuInfo(
@@ -2090,7 +2090,7 @@ begin
 end;
 
 procedure TTestCase_PlatformSpecific.Test_RISCVProcessorInfoBasic;
-{$IFDEF SIMD_RISCV_AVAILABLE}
+{$IF DEFINED(CPURISCV64) OR DEFINED(CPURISCV32)}
 var
   LInfo: TRISCVProcessorInfo;
   LParsed: TRISCVFeatures;
@@ -2098,7 +2098,7 @@ var
   LISA: string;
 {$ENDIF}
 begin
-  {$IFDEF SIMD_RISCV_AVAILABLE}
+  {$IF DEFINED(CPURISCV64) OR DEFINED(CPURISCV32)}
   LInfo := GetRISCVProcessorInfo;
   AssertTrue('RISC-V processor architecture should not be empty', LInfo.Architecture <> '');
   AssertTrue('RISC-V processor ISA should not be empty', LInfo.ISA <> '');
