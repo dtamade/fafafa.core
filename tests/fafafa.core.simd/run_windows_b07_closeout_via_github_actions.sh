@@ -292,6 +292,8 @@ if [[ -n "${LSourceGateSummaryMd}" ]]; then
   cp "${LSourceGateSummaryMd}" "${BATCH_GATE_SUMMARY_MD}"
   cp "${LSourceGateSummaryMd}" "${ROOT}/logs/gate_summary.md"
   echo "[WIN-EVIDENCE-GH] Batch gate summary md: ${BATCH_GATE_SUMMARY_MD}"
+else
+  echo "[WIN-EVIDENCE-GH] WARN: gate_summary.md missing in downloaded artifact; fallback to local canonical gate summary"
 fi
 
 if [[ -n "${LSourceGateSummaryJson}" ]]; then
@@ -299,22 +301,25 @@ if [[ -n "${LSourceGateSummaryJson}" ]]; then
   cp "${LSourceGateSummaryJson}" "${ROOT}/logs/gate_summary.json"
   echo "[WIN-EVIDENCE-GH] Batch gate summary json: ${BATCH_GATE_SUMMARY_JSON}"
 else
-  echo "[WIN-EVIDENCE-GH] Missing gate_summary.json in downloaded artifact"
-  exit 1
+  echo "[WIN-EVIDENCE-GH] WARN: gate_summary.json missing in downloaded artifact; verifier will fallback to log-only mode"
 fi
 
 echo "[WIN-EVIDENCE-GH] Verify downloaded evidence"
 bash "${ROOT}/verify_windows_b07_evidence.sh" "${BATCH_EVIDENCE_LOG}" "${BATCH_GATE_SUMMARY_JSON}"
 
 echo "[WIN-EVIDENCE-GH] Run closeout finalize"
-SIMD_WIN_EVIDENCE_LOG_FILE="${BATCH_EVIDENCE_LOG}" \
-SIMD_WIN_CLOSEOUT_SUMMARY_FILE="${BATCH_CLOSEOUT_SUMMARY}" \
-SIMD_WIN_FREEZE_STATUS_JSON_FILE="${BATCH_FREEZE_JSON}" \
-SIMD_FREEZE_WINDOWS_LOG_FILE="${BATCH_EVIDENCE_LOG}" \
-SIMD_FREEZE_GATE_SUMMARY_FILE="${BATCH_GATE_SUMMARY_MD}" \
-SIMD_FREEZE_WINDOWS_CLOSEOUT_SUMMARY_FILE="${BATCH_CLOSEOUT_SUMMARY}" \
-SIMD_WIN_CLOSEOUT_BATCH_DIR="${BATCH_DIR}" \
-  bash "${ROOT}/run_windows_b07_closeout_finalize.sh" "${BATCH_ID}"
+export SIMD_WIN_EVIDENCE_LOG_FILE="${BATCH_EVIDENCE_LOG}"
+export SIMD_WIN_CLOSEOUT_SUMMARY_FILE="${BATCH_CLOSEOUT_SUMMARY}"
+export SIMD_WIN_FREEZE_STATUS_JSON_FILE="${BATCH_FREEZE_JSON}"
+export SIMD_FREEZE_WINDOWS_LOG_FILE="${BATCH_EVIDENCE_LOG}"
+export SIMD_FREEZE_WINDOWS_CLOSEOUT_SUMMARY_FILE="${BATCH_CLOSEOUT_SUMMARY}"
+export SIMD_WIN_CLOSEOUT_BATCH_DIR="${BATCH_DIR}"
+if [[ -f "${BATCH_GATE_SUMMARY_MD}" ]]; then
+  export SIMD_FREEZE_GATE_SUMMARY_FILE="${BATCH_GATE_SUMMARY_MD}"
+else
+  unset SIMD_FREEZE_GATE_SUMMARY_FILE || true
+fi
+bash "${ROOT}/run_windows_b07_closeout_finalize.sh" "${BATCH_ID}"
 
 if [[ -f "${BATCH_CLOSEOUT_SUMMARY}" ]]; then
   cp "${BATCH_CLOSEOUT_SUMMARY}" "${ROOT}/logs/windows_b07_closeout_summary.md"

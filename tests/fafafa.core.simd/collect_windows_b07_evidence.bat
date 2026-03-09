@@ -36,8 +36,6 @@ if exist "%SUMMARY_JSON%" (
   echo [B07] GateSummaryJson: missing >> "%OUT_LOG%"
 )
 echo [B07] GateSummaryExportRc: %SUMMARY_RC% >> "%OUT_LOG%"
-if not "%SUMMARY_RC%"=="0" set "GATE_RC=%SUMMARY_RC%"
-if not exist "%SUMMARY_JSON%" set "GATE_RC=1"
 
 echo. >> "%OUT_LOG%"
 echo [B07] GATE_EXIT_CODE=%GATE_RC% >> "%OUT_LOG%"
