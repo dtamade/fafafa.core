@@ -9,6 +9,12 @@ EVIDENCE_LOG="${SIMD_WIN_EVIDENCE_LOG_FILE:-${ROOT}/logs/windows_b07_gate.log}"
 BATCH_ID="${1:-SIMD-$(date '+%Y%m%d')-152}"
 RUN_ID_INPUT="${2:-}"
 PREFLIGHT_SCRIPT="${ROOT}/preflight_windows_b07_evidence_gh.sh"
+BATCH_DIR="${SIMD_WIN_CLOSEOUT_BATCH_DIR:-${ROOT}/logs/windows-closeout/${BATCH_ID}}"
+BATCH_EVIDENCE_LOG="${BATCH_DIR}/windows_b07_gate.log"
+BATCH_GATE_SUMMARY_MD="${BATCH_DIR}/gate_summary.md"
+BATCH_GATE_SUMMARY_JSON="${BATCH_DIR}/gate_summary.json"
+BATCH_CLOSEOUT_SUMMARY="${BATCH_DIR}/windows_b07_closeout_summary.md"
+BATCH_FREEZE_JSON="${BATCH_DIR}/freeze_status.json"
 
 print_usage() {
   cat <<EOF
@@ -211,6 +217,19 @@ LDispatchBackoffSeconds="${SIMD_WIN_EVIDENCE_DISPATCH_BACKOFF_SECONDS:-2}"
 LRunId="${RUN_ID_INPUT}"
 LDispatchEpoch=0
 
+if [[ -n "$(git -C "${REPO_ROOT}" status --short --untracked-files=no)" ]]; then
+  echo "[WIN-EVIDENCE-GH] Refuse dispatch: local worktree has uncommitted changes."
+  echo "[WIN-EVIDENCE-GH] Commit/push or stash local SIMD changes before using GH Windows evidence."
+  exit 2
+fi
+
+if [[ -n "${LHeadShaRemote}" && -n "${LHeadShaLocal}" && "${LHeadShaRemote}" != "${LHeadShaLocal}" ]]; then
+  echo "[WIN-EVIDENCE-GH] Refuse dispatch: remote ref does not match local HEAD."
+  echo "[WIN-EVIDENCE-GH] ref=${LRef} local=${LHeadShaLocal} remote=${LHeadShaRemote}"
+  echo "[WIN-EVIDENCE-GH] Push the local closeout fixes first, then rerun win-evidence-via-gh."
+  exit 2
+fi
+
 if [[ -z "${LRunId}" ]]; then
   if [[ "${SIMD_WIN_EVIDENCE_PREFLIGHT:-1}" != "0" ]]; then
     if [[ ! -x "${PREFLIGHT_SCRIPT}" ]]; then
@@ -260,12 +279,47 @@ if [[ -z "${LSourceLog}" ]]; then
   exit 1
 fi
 
-mkdir -p "$(dirname "${EVIDENCE_LOG}")"
+LSourceGateSummaryMd="$(find "${LTempDir}" -type f -name 'gate_summary.md' | head -n 1 || true)"
+LSourceGateSummaryJson="$(find "${LTempDir}" -type f -name 'gate_summary.json' | head -n 1 || true)"
+
+mkdir -p "$(dirname "${EVIDENCE_LOG}")" "${BATCH_DIR}"
+cp "${LSourceLog}" "${BATCH_EVIDENCE_LOG}"
 cp "${LSourceLog}" "${EVIDENCE_LOG}"
 echo "[WIN-EVIDENCE-GH] Evidence log updated: ${EVIDENCE_LOG}"
+echo "[WIN-EVIDENCE-GH] Batch evidence log: ${BATCH_EVIDENCE_LOG}"
+
+if [[ -n "${LSourceGateSummaryMd}" ]]; then
+  cp "${LSourceGateSummaryMd}" "${BATCH_GATE_SUMMARY_MD}"
+  cp "${LSourceGateSummaryMd}" "${ROOT}/logs/gate_summary.md"
+  echo "[WIN-EVIDENCE-GH] Batch gate summary md: ${BATCH_GATE_SUMMARY_MD}"
+fi
+
+if [[ -n "${LSourceGateSummaryJson}" ]]; then
+  cp "${LSourceGateSummaryJson}" "${BATCH_GATE_SUMMARY_JSON}"
+  cp "${LSourceGateSummaryJson}" "${ROOT}/logs/gate_summary.json"
+  echo "[WIN-EVIDENCE-GH] Batch gate summary json: ${BATCH_GATE_SUMMARY_JSON}"
+else
+  echo "[WIN-EVIDENCE-GH] Missing gate_summary.json in downloaded artifact"
+  exit 1
+fi
 
 echo "[WIN-EVIDENCE-GH] Verify downloaded evidence"
-bash "${ROOT}/verify_windows_b07_evidence.sh" "${EVIDENCE_LOG}"
+bash "${ROOT}/verify_windows_b07_evidence.sh" "${BATCH_EVIDENCE_LOG}" "${BATCH_GATE_SUMMARY_JSON}"
 
 echo "[WIN-EVIDENCE-GH] Run closeout finalize"
-bash "${ROOT}/run_windows_b07_closeout_finalize.sh" "${BATCH_ID}"
+SIMD_WIN_EVIDENCE_LOG_FILE="${BATCH_EVIDENCE_LOG}" \
+SIMD_WIN_CLOSEOUT_SUMMARY_FILE="${BATCH_CLOSEOUT_SUMMARY}" \
+SIMD_WIN_FREEZE_STATUS_JSON_FILE="${BATCH_FREEZE_JSON}" \
+SIMD_FREEZE_WINDOWS_LOG_FILE="${BATCH_EVIDENCE_LOG}" \
+SIMD_FREEZE_GATE_SUMMARY_FILE="${BATCH_GATE_SUMMARY_MD}" \
+SIMD_FREEZE_WINDOWS_CLOSEOUT_SUMMARY_FILE="${BATCH_CLOSEOUT_SUMMARY}" \
+SIMD_WIN_CLOSEOUT_BATCH_DIR="${BATCH_DIR}" \
+  bash "${ROOT}/run_windows_b07_closeout_finalize.sh" "${BATCH_ID}"
+
+if [[ -f "${BATCH_CLOSEOUT_SUMMARY}" ]]; then
+  cp "${BATCH_CLOSEOUT_SUMMARY}" "${ROOT}/logs/windows_b07_closeout_summary.md"
+fi
+
+if [[ -f "${BATCH_FREEZE_JSON}" ]]; then
+  cp "${BATCH_FREEZE_JSON}" "${ROOT}/logs/freeze_status.json"
+fi

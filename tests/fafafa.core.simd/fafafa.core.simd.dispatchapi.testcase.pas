@@ -32,6 +32,8 @@ type
     procedure Test_SetActiveBackend_Unavailable_FallsBackToScalar;
     procedure Test_DispatchChangedHooks_MultiSubscriber_Dedup_And_Remove;
     procedure Test_BackendInfoAvailableFalse_IsNotSelectable;
+    procedure Test_BackendConceptViews_AreSelfConsistent;
+    procedure Test_GetAvailableBackendList_AliasesDispatchableView;
     procedure Test_VecI64x2_DispatchAssigned_And_Parity;
     procedure Test_VecU64x2_DispatchAssigned_And_Parity;
     procedure Test_VecU32x8_DispatchAssigned_And_Parity;
@@ -209,6 +211,68 @@ begin
     RegisterBackend(originalBackend, dtOrig);
     ResetToAutomaticBackend;
   end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_BackendConceptViews_AreSelfConsistent;
+var
+  LSupported: TSimdBackendArray;
+  LDispatchable: TSimdBackendArray;
+  LBackend: TSimdBackend;
+  LIndex: Integer;
+
+  function BackendInArray(const aItems: TSimdBackendArray; aBackend: TSimdBackend): Boolean;
+  var
+    LItemIndex: Integer;
+  begin
+    for LItemIndex := 0 to High(aItems) do
+      if aItems[LItemIndex] = aBackend then
+        Exit(True);
+    Result := False;
+  end;
+begin
+  LSupported := fafafa.core.simd.GetSupportedBackendList;
+  LDispatchable := fafafa.core.simd.GetDispatchableBackendList;
+
+  AssertTrue('Supported backend list should contain Scalar', BackendInArray(LSupported, sbScalar));
+  AssertTrue('Dispatchable backend list should contain Scalar', BackendInArray(LDispatchable, sbScalar));
+
+  for LIndex := 0 to High(LSupported) do
+  begin
+    LBackend := LSupported[LIndex];
+    AssertTrue('Supported view must satisfy cpu-support predicate for backend=' + IntToStr(Ord(LBackend)),
+      IsBackendAvailableOnCPU(LBackend));
+  end;
+
+  for LIndex := 0 to High(LDispatchable) do
+  begin
+    LBackend := LDispatchable[LIndex];
+    AssertTrue('Dispatchable view must satisfy dispatchable predicate for backend=' + IntToStr(Ord(LBackend)),
+      IsBackendDispatchable(LBackend));
+    AssertTrue('Dispatchable view must be subset of supported view for backend=' + IntToStr(Ord(LBackend)),
+      BackendInArray(LSupported, LBackend));
+  end;
+
+  AssertTrue('Best dispatchable backend must be dispatchable',
+    IsBackendDispatchable(fafafa.core.simd.GetBestDispatchableBackend));
+  AssertTrue('Best supported backend must be cpu-supported',
+    IsBackendAvailableOnCPU(fafafa.core.simd.GetBestSupportedBackend));
+end;
+
+procedure TTestCase_DispatchAPI.Test_GetAvailableBackendList_AliasesDispatchableView;
+var
+  LAvailable: TSimdBackendArray;
+  LDispatchable: TSimdBackendArray;
+  LIndex: Integer;
+begin
+  LAvailable := fafafa.core.simd.GetAvailableBackendList;
+  LDispatchable := fafafa.core.simd.GetDispatchableBackendList;
+
+  AssertEquals('Available backend list length should match dispatchable view',
+    Length(LDispatchable), Length(LAvailable));
+
+  for LIndex := 0 to High(LAvailable) do
+    AssertEquals('Available backend list should alias dispatchable ordering at index ' + IntToStr(LIndex),
+      Ord(LDispatchable[LIndex]), Ord(LAvailable[LIndex]));
 end;
 
 procedure TTestCase_DispatchAPI.Test_VecI64x2_DispatchAssigned_And_Parity;

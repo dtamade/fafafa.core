@@ -11,12 +11,13 @@ is considered stable within this repository.
 STABILITY GUARANTEES
 --------------------
 1. API Stability: Public API changes must be backward compatible within a major version.
-2. ABI Stability: TSimdDispatchTable layout is part of the ABI; changing it requires a major version bump.
+2. Dispatch Contract Stability: `TSimdDispatchTable` is treated as a stable in-repo dispatch contract for this codebase, but not as a public cross-compiler binary ABI while it still contains managed fields such as `string`.
 3. Behavior Stability: Same inputs produce same outputs (within documented edge-case semantics).
 
 BOUNDARY NOTES
 --------------
-- Stable first means the public façade (`fafafa.core.simd` / `fafafa.core.simd.api`) and the documented ABI boundary such as `TSimdDispatchTable`.
+- Stable first means the public façade (`fafafa.core.simd` / `fafafa.core.simd.api`) and the documented dispatch contract surface such as `TSimdDispatchTable`.
+- If an external/public binary ABI is needed in the future, introduce a POD-only wrapper/signature layer first; do not treat the current managed-field record layout as that ABI.
 - Backend maturity differs. `Scalar`, `SSE2`, `AVX2`, and `NEON` are closer to the default maintenance path; `sbRISCVV` remains experimental / limited-maturity.
 - Experimental intrinsics are kept out of the default entry chain and are not part of the default stable surface.
 

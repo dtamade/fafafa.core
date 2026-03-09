@@ -13,9 +13,29 @@ begin
   Result := GetCPUInfo;
 end;
 
+function GetSupportedBackendList: TSimdBackendArray;
+begin
+  Result := GetSupportedBackends;
+end;
+
+function GetBestSupportedBackend: TSimdBackend;
+begin
+  Result := GetBestBackendOnCPU;
+end;
+
+function GetDispatchableBackendList: TSimdBackendArray;
+begin
+  Result := GetDispatchableBackends;
+end;
+
+function GetBestDispatchableBackend: TSimdBackend;
+begin
+  Result := fafafa.core.simd.dispatch.GetBestDispatchableBackend;
+end;
+
 function GetAvailableBackendList: TSimdBackendArray;
 begin
-  Result := GetAvailableBackends;
+  Result := GetDispatchableBackendList;
 end;
 
 function TryForceBackend(aBackend: TSimdBackend): Boolean;

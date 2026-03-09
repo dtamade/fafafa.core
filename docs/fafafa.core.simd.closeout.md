@@ -4,10 +4,11 @@
 
 如果你只想看最短版本：
 
-- 公开 façade 和 ABI 边界可以按 stable surface 理解
+- 公开 façade 和 dispatch contract 边界可以按 stable surface 理解
 - backend 成熟度并不完全相同，`sbRISCVV` 仍按 experimental / 受限成熟度看待
 - experimental intrinsics 默认入口链已经隔离
 - adapter wiring 现在有更强的自动校验，但还没有走到“自动生成 Pascal 代码”的程度
+- façade 层现在区分了 `supported-on-cpu` 与 `dispatchable-in-this-binary` 两种后端视图
 
 ## 这一轮收了什么
 
@@ -41,13 +42,15 @@
 
 先把几个边界分开：
 
-- **稳定面**：`fafafa.core.simd` / `fafafa.core.simd.api` 对外公开的 façade，以及 `TSimdDispatchTable` 这类已明确写进稳定约束的 ABI 边界
+- **稳定面**：`fafafa.core.simd` / `fafafa.core.simd.api` 对外公开的 façade，以及 `TSimdDispatchTable` 这类已明确写进稳定约束的 dispatch contract 边界
 - **实现面**：`dispatch`、`cpuinfo`、各 backend 单元、`backend.iface` / `backend.adapter`
 - **实验面**：experimental intrinsics，以及 `sbRISCVV` 这类仍在受限成熟度区间的 backend
 
 这意味着：
 
 - 正常使用者可以把公开 API 当作稳定入口
+- `cpuinfo` 的 `GetAvailableBackends` / `GetBestBackendOnCPU` 反映的是 CPU/OS 支持视图，不等同于当前二进制真正可派发的 backend
+- façade 层的 `GetAvailableBackendList` / `GetDispatchableBackendList` 反映的是 dispatchable 视图
 - 维护者不能把“façade stable”误读成“所有 backend 都同样成熟、同样覆盖、同样适合发布级承诺”
 - 默认门禁会保护主链路，但不会自动替你证明“所有 experimental 路径都已发布级保证”
 

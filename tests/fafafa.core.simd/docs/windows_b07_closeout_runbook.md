@@ -15,16 +15,29 @@
 
 ## 推荐顺序（主路径）
 
+优先走单入口 GH 路径：
+
+1. GH/额度预检（Git Bash / WSL）  
+   `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight`
+2. 一条命令完成 dispatch + 下载 + 校验 + finalize（Git Bash / WSL）  
+   `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh SIMD-YYYYMMDD-152`
+3. 最终冻结确认（Git Bash / WSL）  
+   `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+
+说明：
+- `win-evidence-via-gh` 会把批次快照写到 `tests/fafafa.core.simd/logs/windows-closeout/<batch-id>/`，并同步回写 canonical `logs/` 指针，方便 `freeze-status` 默认入口直接消费。
+- `win-evidence-via-gh` 只消费远端 ref。如果本地还有未提交或未推送的 closeout 修复，请先提交并推到目标 ref；否则脚本会直接拒绝 dispatch，避免浪费一轮 Windows runner。
+
+## 手工 Windows 实机路径（兜底）
+
 1. GH/额度预检（Git Bash / WSL）  
    `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight`
 2. 采集 + 校验（Windows PowerShell）  
    `$env:FAFAFA_BUILD_MODE = 'Release'`  
    `tests\fafafa.core.simd\buildOrTest.bat evidence-win-verify`
-3. 回灌 cross gate（Git Bash / WSL）  
-   `FAFAFA_BUILD_MODE=Release SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
-4. 一键收口（Git Bash / WSL）  
+3. 一键收口（Git Bash / WSL）  
    `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize SIMD-YYYYMMDD-152`
-5. 最终冻结确认（Git Bash / WSL）  
+4. 最终冻结确认（Git Bash / WSL）  
    `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
 
 ## 无 Windows 实机时（GH Windows Runner 路径）

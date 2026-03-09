@@ -30,7 +30,7 @@ WIRING_SYNC_SCRIPT="${ROOT}/check_nonx86_wiring_sync.py"
 QEMU_EXPERIMENTAL_REPORT_SCRIPT="${ROOT}/report_qemu_experimental_blockers.py"
 QEMU_EXPERIMENTAL_BASELINE_SCRIPT="${ROOT}/check_experimental_failure_baseline.py"
 INTERFACE_COMPLETENESS_JSON_LOG="${LOG_DIR}/interface_completeness.json"
-INTERFACE_COMPLETENESS_MD_LOG="${ROOT}/docs/interface_implementation_completeness.md"
+INTERFACE_COMPLETENESS_MD_LOG="${LOG_DIR}/interface_completeness.md"
 ADAPTER_SYNC_LOG="${LOG_DIR}/backend_adapter_sync.txt"
 ADAPTER_SYNC_JSON_LOG="${LOG_DIR}/backend_adapter_sync.json"
 WIRING_SYNC_LOG="${LOG_DIR}/wiring_sync.txt"
@@ -383,7 +383,7 @@ check_windows_runner_parity() {
     'call "%TESTS_ROOT%\fafafa.core.simd.cpuinfo.x86\buildOrTest.bat" test --list-suites'
     'call "%TESTS_ROOT%\fafafa.core.simd.cpuinfo.x86\buildOrTest.bat" test --suite=TTestCase_Global'
     'set "RUN_ACTION=check"'
-    'call "%TESTS_ROOT%\run_all_tests.bat" fafafa.core.simd fafafa.core.simd.cpuinfo fafafa.core.simd.cpuinfo.x86 fafafa.core.simd.intrinsics.sse fafafa.core.simd.intrinsics.mmx'
+    'call "%TESTS_ROOT%\run_all_tests.bat" =fafafa.core.simd =fafafa.core.simd.cpuinfo =fafafa.core.simd.cpuinfo.x86 =fafafa.core.simd.intrinsics.sse =fafafa.core.simd.intrinsics.mmx'
     'if /I "%SIMD_GATE_CONCURRENT_REPEAT%"=="0" ('
     'echo [GATE] SKIP optional concurrent repeat ^(set SIMD_GATE_CONCURRENT_REPEAT=10 to enable^)'
     'call "%SELF%" test-concurrent-repeat %SIMD_GATE_CONCURRENT_REPEAT%'
@@ -416,7 +416,7 @@ check_windows_runner_parity() {
     'set "SIMD_GATE_NONX86_IEEE754=1"'
     'if "%SIMD_GATE_CPUINFO_LAZY_REPEAT%"=="" set "SIMD_GATE_CPUINFO_LAZY_REPEAT=3"'
     'set "SIMD_GATE_QEMU_NONX86_EVIDENCE=0"'
-    'if "%SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE%"=="" set "SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=0"'
+    'if "%SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE%"=="" set "SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1"'
     'if "%SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE%"=="" set "SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0"'
     'if "%SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT%"=="" set "SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0"'
     'if "%SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE%"=="" set "SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0"'
@@ -921,11 +921,11 @@ gate_step_filtered_run_all() {
 
   LTestsRoot="${1}"
   RUN_ACTION=check STOP_ON_FAIL=1 bash "${LTestsRoot}/run_all_tests.sh" \
-    fafafa.core.simd \
-    fafafa.core.simd.cpuinfo \
-    fafafa.core.simd.cpuinfo.x86 \
-    fafafa.core.simd.intrinsics.sse \
-    fafafa.core.simd.intrinsics.mmx
+    '=fafafa.core.simd' \
+    '=fafafa.core.simd.cpuinfo' \
+    '=fafafa.core.simd.cpuinfo.x86' \
+    '=fafafa.core.simd.intrinsics.sse' \
+    '=fafafa.core.simd.intrinsics.mmx'
 }
 
 gate_step_concurrent_repeat() {
@@ -1140,6 +1140,18 @@ verify_windows_evidence_if_present() {
   fi
 
   verify_windows_evidence "${LEvidenceLog}"
+}
+
+require_release_gate_prereqs() {
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "[GATE] Missing python3 required by release-gate"
+    return 2
+  fi
+
+  if [[ "${SIMD_GATE_EXPERIMENTAL_TESTS:-0}" != "0" ]] && ! command -v bash >/dev/null 2>&1; then
+    echo "[GATE] Missing bash required by release-gate experimental test runner"
+    return 2
+  fi
 }
 
 run_gate() {
@@ -1520,6 +1532,7 @@ run_gate() {
 run_gate_strict() {
   echo "[GATE] Running gate-strict as release-gate profile"
   echo "[GATE] Note: release-gate adds stronger evidence, but experimental paths still keep a separate maturity boundary"
+  require_release_gate_prereqs || return $?
   SIMD_GATE_INTERFACE_COMPLETENESS=1 \
   SIMD_GATE_ADAPTER_SYNC_PASCAL=1 \
   SIMD_GATE_ADAPTER_SYNC=1 \
@@ -1536,11 +1549,11 @@ run_gate_strict() {
   SIMD_GATE_NONX86_IEEE754=1 \
   SIMD_GATE_CPUINFO_LAZY_REPEAT="${SIMD_GATE_CPUINFO_LAZY_REPEAT:-3}" \
   SIMD_GATE_QEMU_NONX86_EVIDENCE=0 \
-  SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE="${SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE:-0}" \
+  SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE="${SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE:-1}" \
   SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE="${SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE:-0}" \
   SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT="${SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT:-0}" \
   SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE="${SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE:-0}" \
-  SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE="${SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE:-0}" \
+  SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE="${SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE:-1}" \
   SIMD_QEMU_CPUINFO_REPEAT_ROUNDS="${SIMD_QEMU_CPUINFO_REPEAT_ROUNDS:-1}" \
   SIMD_GATE_CONCURRENT_REPEAT="${SIMD_GATE_CONCURRENT_REPEAT:-10}" \
   SIMD_GATE_PROFILE=release-gate \

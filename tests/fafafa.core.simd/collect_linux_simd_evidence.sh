@@ -39,7 +39,9 @@ else
   } > "${OUT_DIR}/qemu_experimental_baseline.log"
 fi
 run_step perf_smoke bash tests/fafafa.core.simd/BuildOrTest.sh perf-smoke
-run_step gate bash tests/fafafa.core.simd/BuildOrTest.sh gate
+run_step gate_strict env SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict
+run_step gate_summary_json env SIMD_GATE_SUMMARY_JSON=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate-summary
+run_step freeze_status_linux env SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status-linux
 
 {
   echo "# SIMD Linux Evidence (${TS})"
@@ -80,8 +82,14 @@ run_step gate bash tests/fafafa.core.simd/BuildOrTest.sh gate
   echo "## Perf Smoke"
   grep -E "\[BUILD\]|\[TEST\]|\[LEAK\]|\[PERF\]" "${OUT_DIR}/perf_smoke.log" || true
   echo
-  echo "## Gate"
-  grep -E "\[GATE\]|Total:|Passed:|Failed:|\[CHECK\]" "${OUT_DIR}/gate.log" || true
+  echo "## Gate Strict"
+  grep -E "\[GATE\]|Total:|Passed:|Failed:|\[CHECK\]" "${OUT_DIR}/gate_strict.log" || true
+  echo
+  echo "## Gate Summary JSON"
+  grep -E "\[GATE-SUMMARY\]|json=" "${OUT_DIR}/gate_summary_json.log" || true
+  echo
+  echo "## Freeze Status Linux"
+  grep -E "\[FREEZE\]|ready=|next-actions" "${OUT_DIR}/freeze_status_linux.log" || true
 } > "${OUT_DIR}/summary.md"
 
 echo "[EVIDENCE] DONE: ${OUT_DIR}"

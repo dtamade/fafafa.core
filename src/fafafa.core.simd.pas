@@ -1091,6 +1091,9 @@ function VecF32x4CastToI32x4(const a: TVecF32x4): TVecI32x4; inline;
 
 implementation
 
+uses
+  fafafa.core.simd.memutils;
+
 // === High-Level Vector Operations Implementation ===
 
 function VecF32x4Add(const a, b: TVecF32x4): TVecF32x4;
@@ -7291,5 +7294,4 @@ end;
 {$I fafafa.core.simd.framework.impl.inc}
 
 end.
-
 

@@ -219,7 +219,7 @@ if not exist "%INTERFACE_SCRIPT%" (
 )
 if "%SIMD_INTERFACE_COMPLETENESS_STRICT_LEVEL%"=="" set "SIMD_INTERFACE_COMPLETENESS_STRICT_LEVEL=p2"
 if "%SIMD_INTERFACE_COMPLETENESS_JSON_FILE%"=="" set "SIMD_INTERFACE_COMPLETENESS_JSON_FILE=%LOG_DIR%\interface_completeness.json"
-if "%SIMD_INTERFACE_COMPLETENESS_MD_FILE%"=="" set "SIMD_INTERFACE_COMPLETENESS_MD_FILE=%ROOT%docs\interface_implementation_completeness.md"
+if "%SIMD_INTERFACE_COMPLETENESS_MD_FILE%"=="" set "SIMD_INTERFACE_COMPLETENESS_MD_FILE=%LOG_DIR%\interface_completeness.md"
 
 where py >nul 2>nul
 if not errorlevel 1 (
@@ -823,9 +823,28 @@ if not errorlevel 1 (
 echo [PERF] OK
 exit /b 0
 
+:require_release_gate_prereqs
+set "HAS_PYTHON=0"
+where py >nul 2>nul
+if not errorlevel 1 set "HAS_PYTHON=1"
+where python >nul 2>nul
+if not errorlevel 1 set "HAS_PYTHON=1"
+if "%HAS_PYTHON%"=="0" (
+  echo [GATE] Missing python runtime required by release-gate
+  exit /b 2
+)
+where bash >nul 2>nul
+if errorlevel 1 (
+  echo [GATE] Missing bash required by release-gate
+  exit /b 2
+)
+exit /b 0
+
 :gate_strict
 echo [GATE] Running gate-strict as release-gate profile
 echo [GATE] Note: release-gate adds stronger evidence, but experimental paths still keep a separate maturity boundary
+call :require_release_gate_prereqs
+if errorlevel 1 exit /b %ERRORLEVEL%
 set "SIMD_GATE_INTERFACE_COMPLETENESS=1"
 set "SIMD_GATE_ADAPTER_SYNC_PASCAL=1"
 set "SIMD_GATE_ADAPTER_SYNC=1"
@@ -842,11 +861,11 @@ set "SIMD_GATE_EXPERIMENTAL_TESTS=1"
 set "SIMD_GATE_NONX86_IEEE754=1"
 if "%SIMD_GATE_CPUINFO_LAZY_REPEAT%"=="" set "SIMD_GATE_CPUINFO_LAZY_REPEAT=3"
 set "SIMD_GATE_QEMU_NONX86_EVIDENCE=0"
-if "%SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE%"=="" set "SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=0"
+if "%SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE%"=="" set "SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1"
 if "%SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE%"=="" set "SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0"
 if "%SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT%"=="" set "SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0"
 if "%SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE%"=="" set "SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0"
-if "%SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE%"=="" set "SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0"
+if "%SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE%"=="" set "SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1"
 if "%SIMD_QEMU_CPUINFO_REPEAT_ROUNDS%"=="" set "SIMD_QEMU_CPUINFO_REPEAT_ROUNDS=1"
 if "%SIMD_GATE_CONCURRENT_REPEAT%"=="" set "SIMD_GATE_CONCURRENT_REPEAT=10"
 call "%ROOT%buildOrTest.bat" gate
@@ -967,7 +986,7 @@ set "SIMD_OUTPUT_ROOT=%OUTPUT_ROOT%"
 echo [GATE] 6/6 Filtered run_all check chain
 set "STOP_ON_FAIL=1"
 set "RUN_ACTION=check"
-call "%TESTS_ROOT%\run_all_tests.bat" fafafa.core.simd fafafa.core.simd.cpuinfo fafafa.core.simd.cpuinfo.x86 fafafa.core.simd.intrinsics.sse fafafa.core.simd.intrinsics.mmx
+call "%TESTS_ROOT%\run_all_tests.bat" =fafafa.core.simd =fafafa.core.simd.cpuinfo =fafafa.core.simd.cpuinfo.x86 =fafafa.core.simd.intrinsics.sse =fafafa.core.simd.intrinsics.mmx
 if errorlevel 1 exit /b 1
 
 if /I "%SIMD_GATE_CONCURRENT_REPEAT%"=="0" (

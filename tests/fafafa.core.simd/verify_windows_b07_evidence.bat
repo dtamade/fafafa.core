@@ -4,6 +4,8 @@ setlocal EnableExtensions EnableDelayedExpansion
 set "ROOT=%~dp0"
 set "LOG_PATH=%~1"
 if "%LOG_PATH%"=="" set "LOG_PATH=%ROOT%logs\windows_b07_gate.log"
+set "SUMMARY_JSON_PATH=%~2"
+set "SUMMARY_JSON_VERIFIER=%ROOT%verify_gate_summary_json.py"
 
 if /I "%LOG_PATH%"=="-h" goto :usage
 if /I "%LOG_PATH%"=="--help" goto :usage
@@ -11,6 +13,13 @@ if /I "%LOG_PATH%"=="--help" goto :usage
 if not exist "%LOG_PATH%" (
   echo [EVIDENCE] Missing log: %LOG_PATH%
   exit /b 2
+)
+
+if "%SUMMARY_JSON_PATH%"=="" (
+  call :extract_b07_value "GateSummaryJson" SUMMARY_JSON_PATH
+)
+if "%SUMMARY_JSON_PATH%"=="" (
+  for %%I in ("%LOG_PATH%") do set "SUMMARY_JSON_PATH=%%~dpIgate_summary.json"
 )
 
 set "FAIL=0"
@@ -24,12 +33,6 @@ call :check_regex "^\[B07\] HostOS: Windows_NT$"
 call :check_regex "^\[B07\] CmdVer: Microsoft Windows"
 call :check_regex "^\[B07\] Working dir: [A-Za-z]:\\"
 call :check_fixed "[B07] Command: buildOrTest.bat gate"
-call :check_fixed "[GATE] 1/6 Build + check SIMD module"
-call :check_fixed "[GATE] 2/6 SIMD list suites"
-call :check_fixed "[GATE] 3/6 SIMD AVX2 fallback suite"
-call :check_fixed "[GATE] 4/6 CPUInfo portable suites"
-call :check_fixed "[GATE] 5/6 CPUInfo x86 suites"
-call :check_fixed "[GATE] 6/6 Filtered run_all chain"
 call :check_fixed "[GATE] OK"
 call :check_fixed "[B07] GATE_EXIT_CODE=0"
 
@@ -49,6 +52,19 @@ if not errorlevel 1 (
 findstr /r /c:"^\[B07\] Source: simulate_windows_b07_evidence\.sh$" "%LOG_PATH%" >nul 2>nul
 if not errorlevel 1 (
   echo [EVIDENCE] Invalid source: simulator source marker detected
+  set "FAIL=1"
+)
+
+call :verify_summary_json_if_present
+set "SUMMARY_JSON_RC=%ERRORLEVEL%"
+if "%SUMMARY_JSON_RC%"=="10" (
+  call :check_fixed "[GATE] 1/6 Build + check SIMD module"
+  call :check_fixed "[GATE] 2/6 SIMD list suites"
+  call :check_fixed "[GATE] 3/6 SIMD AVX2 fallback suite"
+  call :check_fixed "[GATE] 4/6 CPUInfo portable suites"
+  call :check_fixed "[GATE] 5/6 CPUInfo x86 suites"
+  call :check_fixed "[GATE] 6/6 Filtered run_all chain"
+) else if not "%SUMMARY_JSON_RC%"=="0" (
   set "FAIL=1"
 )
 
@@ -101,7 +117,7 @@ echo [EVIDENCE] OK: %LOG_PATH%
 exit /b 0
 
 :usage
-echo Usage: %~nx0 [evidence-log-path]
+echo Usage: %~nx0 [evidence-log-path] [gate-summary-json-path]
 echo Default log: %ROOT%logs\windows_b07_gate.log
 exit /b 0
 
@@ -148,3 +164,40 @@ if defined VALUE (
 
 set "%OUTVAR%=%VALUE%"
 exit /b 0
+
+:extract_b07_value
+set "B07KEY=%~1"
+set "OUTVAR=%~2"
+set "VALUE="
+for /f "usebackq tokens=1,* delims=:" %%A in ("%LOG_PATH%") do (
+  if /I "%%A"=="[B07] !B07KEY!" (
+    set "VALUE=%%B"
+  )
+)
+if defined VALUE (
+  set "VALUE=%VALUE:~1%"
+)
+set "%OUTVAR%=%VALUE%"
+exit /b 0
+
+:verify_summary_json_if_present
+if not exist "%SUMMARY_JSON_PATH%" exit /b 10
+if not exist "%SUMMARY_JSON_VERIFIER%" (
+  echo [EVIDENCE] Missing gate summary verifier: %SUMMARY_JSON_VERIFIER%
+  exit /b 2
+)
+
+where py >nul 2>nul
+if not errorlevel 1 (
+  py -3 "%SUMMARY_JSON_VERIFIER%" --summary-json "%SUMMARY_JSON_PATH%"
+  exit /b %ERRORLEVEL%
+)
+
+where python >nul 2>nul
+if not errorlevel 1 (
+  python "%SUMMARY_JSON_VERIFIER%" --summary-json "%SUMMARY_JSON_PATH%"
+  exit /b %ERRORLEVEL%
+)
+
+echo [EVIDENCE] Missing python runtime for gate summary json verification
+exit /b 2

@@ -309,6 +309,48 @@ def freshness_check(name: str, path: Path, max_age_hours: float, required: bool 
     )
 
 
+def sources_not_newer_than_artifact_check(
+    name: str, artifact_path: Path, candidate_paths: list[Path], required: bool = True
+) -> CheckItem:
+    if not artifact_path.is_file():
+        return CheckItem(name=name, required=required, status="FAIL", detail=f"missing {artifact_path}")
+
+    file_candidates = [path for path in candidate_paths if path.is_file()]
+    if not file_candidates:
+        return CheckItem(
+            name=name,
+            required=required,
+            status="PASS",
+            detail=f"no candidate source files found for {artifact_path}",
+        )
+
+    latest_source = max(file_candidates, key=lambda path: path.stat().st_mtime)
+    latest_source_mtime = datetime.fromtimestamp(latest_source.stat().st_mtime)
+    artifact_mtime = datetime.fromtimestamp(artifact_path.stat().st_mtime)
+
+    if latest_source_mtime <= artifact_mtime:
+        return CheckItem(
+            name=name,
+            required=required,
+            status="PASS",
+            detail=(
+                f"artifact mtime={artifact_mtime:%Y-%m-%d %H:%M:%S}, "
+                f"latest_source={latest_source} ({latest_source_mtime:%Y-%m-%d %H:%M:%S})"
+            ),
+        )
+
+    return CheckItem(
+        name=name,
+        required=required,
+        status="FAIL",
+        detail=(
+            f"artifact older than latest source: artifact={artifact_path} "
+            f"({artifact_mtime:%Y-%m-%d %H:%M:%S}), latest_source={latest_source} "
+            f"({latest_source_mtime:%Y-%m-%d %H:%M:%S})"
+        ),
+    )
+
+
 def parse_default_fresh_hours() -> float:
     raw = os.environ.get("SIMD_FREEZE_MAX_AGE_HOURS", "72")
     try:
@@ -497,10 +539,18 @@ def main() -> int:
     repo_root = root.parent.parent
     logs_dir = root / "logs"
 
-    gate_summary = logs_dir / "gate_summary.md"
-    windows_log = logs_dir / "windows_b07_gate.log"
+    gate_summary_override = os.environ.get("SIMD_FREEZE_GATE_SUMMARY_FILE", "").strip()
+    gate_summary = Path(gate_summary_override).expanduser() if gate_summary_override else logs_dir / "gate_summary.md"
+
+    windows_log_override = os.environ.get("SIMD_FREEZE_WINDOWS_LOG_FILE", "").strip()
+    windows_log = Path(windows_log_override).expanduser() if windows_log_override else logs_dir / "windows_b07_gate.log"
     windows_log_sim = logs_dir / "windows_b07_gate.simulated.log"
-    closeout_summary = logs_dir / "windows_b07_closeout_summary.md"
+    closeout_summary_override = os.environ.get("SIMD_FREEZE_WINDOWS_CLOSEOUT_SUMMARY_FILE", "").strip()
+    closeout_summary = (
+        Path(closeout_summary_override).expanduser()
+        if closeout_summary_override
+        else logs_dir / "windows_b07_closeout_summary.md"
+    )
     closeout_summary_sim = logs_dir / "windows_b07_closeout_summary.simulated.md"
 
     verify_script = root / "verify_windows_b07_evidence.sh"
@@ -513,7 +563,7 @@ def main() -> int:
     next_actions: List[str] = []
     default_batch_id = f"SIMD-{datetime.now():%Y%m%d}-152"
     require_qemu_cpuinfo_nonx86_step = parse_bool_env(
-        QEMU_CPUINFO_NONX86_REQUIRE_ENV, default=False
+        QEMU_CPUINFO_NONX86_REQUIRE_ENV, default=not args.linux_only
     )
     require_qemu_cpuinfo_nonx86_full_step = parse_bool_env(
         QEMU_CPUINFO_NONX86_FULL_REQUIRE_ENV, default=False
@@ -541,6 +591,7 @@ def main() -> int:
     required_gate_steps = (
         required_gate_steps_mainline if args.linux_only else required_gate_steps_cross
     )
+    simd_source_candidates = sorted((repo_root / "src").glob("fafafa.core.simd*"))
 
     rows = parse_gate_summary_rows(gate_summary)
     latest_gate_run = extract_latest_gate_run(rows)
@@ -928,6 +979,16 @@ def main() -> int:
     checks.append(freshness_check("linux_gate_summary_freshness", gate_summary, args.fresh_hours, required=True))
     if checks[-1].status != "PASS":
         next_actions.append("bash tests/fafafa.core.simd/BuildOrTest.sh gate")
+    checks.append(
+        sources_not_newer_than_artifact_check(
+            "linux_sources_not_newer_than_gate",
+            gate_summary,
+            simd_source_candidates,
+            required=True,
+        )
+    )
+    if checks[-1].status != "PASS":
+        next_actions.append("bash tests/fafafa.core.simd/BuildOrTest.sh gate")
 
     if windows_log.is_file():
         checks.append(
@@ -964,6 +1025,17 @@ def main() -> int:
     checks.append(freshness_check("windows_evidence_freshness", windows_log, args.fresh_hours, required=True))
     if checks[-1].status != "PASS":
         next_actions.append("tests\\fafafa.core.simd\\buildOrTest.bat evidence-win-verify")
+    if not args.linux_only:
+        checks.append(
+            sources_not_newer_than_artifact_check(
+                "linux_sources_not_newer_than_windows_evidence",
+                windows_log,
+                simd_source_candidates,
+                required=True,
+            )
+        )
+        if checks[-1].status != "PASS":
+            next_actions.append("tests\\fafafa.core.simd\\buildOrTest.bat evidence-win-verify")
 
     windows_verify_ok: Optional[bool] = None
     if args.linux_only:

@@ -1,6 +1,10 @@
 function GetCurrentBackend: TSimdBackend;
 function GetCurrentBackendInfo: TSimdBackendInfo;
 function GetCPUInformation: TCPUInfo;
+function GetSupportedBackendList: TSimdBackendArray;
+function GetBestSupportedBackend: TSimdBackend;
+function GetDispatchableBackendList: TSimdBackendArray;
+function GetBestDispatchableBackend: TSimdBackend;
 function GetAvailableBackendList: TSimdBackendArray;
 function TryForceBackend(aBackend: TSimdBackend): Boolean;
 procedure ForceBackend(backend: TSimdBackend);

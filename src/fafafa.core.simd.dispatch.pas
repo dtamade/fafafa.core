@@ -28,6 +28,15 @@ function TrySetActiveBackend(backend: TSimdBackend): Boolean;
 // Check if a backend is available on current CPU
 function IsBackendAvailableOnCPU(backend: TSimdBackend): Boolean;
 
+// Check if a backend is both CPU-supported and dispatchable in this binary.
+function IsBackendDispatchable(backend: TSimdBackend): Boolean;
+
+// Enumerate backends that can actually be selected by dispatch.
+function GetDispatchableBackends: TSimdBackendArray;
+
+// Get the best backend that is both CPU-supported and dispatchable.
+function GetBestDispatchableBackend: TSimdBackend;
+
 // Reset to automatic backend selection
 procedure ResetToAutomaticBackend;
 
@@ -1040,6 +1049,40 @@ begin
   Result := fafafa.core.simd.cpuinfo.IsBackendSupportedOnCPU(backend);
 end;
 
+function IsBackendDispatchable(backend: TSimdBackend): Boolean;
+begin
+  Result := IsBackendMarkedAvailableForDispatch(backend) and IsBackendAvailableOnCPU(backend);
+end;
+
+function GetDispatchableBackends: TSimdBackendArray;
+var
+  LBackend: TSimdBackend;
+  LCount: Integer;
+begin
+  SetLength(Result, Length(SIMD_BACKEND_PRIORITY_ORDER));
+  LCount := 0;
+  for LBackend in SIMD_BACKEND_PRIORITY_ORDER do
+  begin
+    if IsBackendDispatchable(LBackend) then
+    begin
+      Result[LCount] := LBackend;
+      Inc(LCount);
+    end;
+  end;
+  SetLength(Result, LCount);
+end;
+
+function GetBestDispatchableBackend: TSimdBackend;
+var
+  LBackend: TSimdBackend;
+begin
+  for LBackend in SIMD_BACKEND_PRIORITY_ORDER do
+    if IsBackendDispatchable(LBackend) then
+      Exit(LBackend);
+
+  Result := sbScalar;
+end;
+
 // ✅ P1: TrySetActiveBackend - returns True if backend was successfully set
 function TrySetActiveBackend(backend: TSimdBackend): Boolean;
 begin
@@ -2012,5 +2055,4 @@ finalization
   DoneCriticalSection(g_VectorAsmToggleLock);
 
 end.
-
 

@@ -61,7 +61,7 @@ function GetCPUInfo: TCPUInfo;
 // 检查后端可用性（基于 CPU 特性）
 function IsBackendAvailableOnCPU(backend: TSimdBackend): Boolean;
 
-// 获取可用后端列表（按优先级排序）
+// 获取 CPU/OS 语义下可用的后端列表（按优先级排序）
 function GetAvailableBackends: TSimdBackendArray;
 
 // 获取 CPU/OS 语义下的最佳后端（不受运行时 active backend 影响）
@@ -247,7 +247,7 @@ var
   info: TSimdBackendInfo;
   i: Integer;
 begin
-  // 获取所有可用后端
+  // 获取 CPU/OS 语义下所有可用后端
   backends := GetAvailableBackends;
   
   WriteLn('Available SIMD backends:');
@@ -258,6 +258,10 @@ begin
     WriteLn('  ', info.Name, ' (Priority: ', info.Priority, ')');
   end;
   
+  // 注意：这里的“available”只表示 CPU/OS 支持。
+  // 若要查询“当前二进制真正可派发”的后端，请使用 fafafa.core.simd /
+  // fafafa.core.simd.dispatch 提供的 dispatchable 视图。
+
   // 选择特定后端
   if IsBackendAvailableOnCPU(sbAVX2) then
   begin

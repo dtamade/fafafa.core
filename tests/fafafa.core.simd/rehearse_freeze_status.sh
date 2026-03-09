@@ -181,6 +181,7 @@ cat > "${LCaseReady}/docs/simd_completeness_matrix.md" <<'EOM'
 - Windows 证据：实机日志已归档（脚本入口 + 校验入口）
 EOM
 
+SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_EVIDENCE=0 \
 python3 "${LCaseReady}/evaluate_simd_freeze_status.py" --root "${LCaseReady}" --json-file "${LCaseReady}/logs/freeze_status.json" > "${LCaseReady}/logs/freeze_stdout.txt" 2>&1
 
 if ! grep -F -- "ready=True" "${LCaseReady}/logs/freeze_stdout.txt" >/dev/null; then
@@ -218,6 +219,7 @@ cat > "${LCaseReady}/logs/windows_b07_closeout_summary.md" <<'EOM'
 EOM
 
 set +e
+SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_EVIDENCE=0 \
 python3 "${LCaseReady}/evaluate_simd_freeze_status.py" --root "${LCaseReady}" --json-file "${LCaseReady}/logs/freeze_status_stale.json" > "${LCaseReady}/logs/freeze_stdout_stale.txt" 2>&1
 LStaleRc=$?
 set -e
@@ -256,6 +258,7 @@ cat > "${LCaseReady}/logs/windows_b07_closeout_summary.md" <<'EOM'
 EOM
 
 set +e
+SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_EVIDENCE=0 \
 python3 "${LCaseReady}/evaluate_simd_freeze_status.py" --root "${LCaseReady}" --json-file "${LCaseReady}/logs/freeze_status_verifyfail.json" > "${LCaseReady}/logs/freeze_stdout_verifyfail.txt" 2>&1
 LVerifyFailRc=$?
 set -e
@@ -596,9 +599,101 @@ if grep -F -- "qemu-multiarch-20260210-000022" "${LCaseLinuxPlatforms}/logs/free
   exit 1
 fi
 
+# ---------- Case E: SOURCE NEWER THAN GATE ARTIFACT ----------
+LCaseSourceFresh="${LTmpRoot}/case_source_newer/tests/fafafa.core.simd"
+mkdir -p "${LCaseSourceFresh}/logs" "${LCaseSourceFresh}/docs" "${LTmpRoot}/case_source_newer/docs/plans" "${LTmpRoot}/case_source_newer/src"
+cp "${FREEZE_SCRIPT}" "${LCaseSourceFresh}/evaluate_simd_freeze_status.py"
+cp "${VERIFY_SCRIPT}" "${LCaseSourceFresh}/verify_windows_b07_evidence.sh"
+chmod +x "${LCaseSourceFresh}/verify_windows_b07_evidence.sh"
+
+cat > "${LCaseSourceFresh}/logs/gate_summary.md" <<'EOM'
+| Time | Step | Status | DurationMs | Event | Detail | Artifacts |
+|---|---|---|---|---|---|---|
+| 2026-02-10 00:00:00 | gate | START | - | START | mode=Release | - |
+| 2026-02-10 00:00:01 | build-check | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:02 | interface-completeness | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:03 | cross-backend-parity | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:04 | wiring-sync | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:05 | coverage | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:06 | simd-list-suites | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:07 | simd-avx2-fallback | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:08 | cpuinfo-portable | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:09 | cpuinfo-x86 | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:10 | run-all-chain | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:11 | evidence-verify | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:12 | gate | PASS | 1000 | NORMAL | all steps passed | - |
+EOM
+
+cat > "${LCaseSourceFresh}/logs/windows_b07_gate.log" <<'EOM'
+[B07] Windows evidence capture
+[B07] Source: collect_windows_b07_evidence.bat
+[B07] HostOS: Windows_NT
+[B07] CmdVer: Microsoft Windows [Version 10.0.22631.4602]
+[B07] Started: 2026/02/10 00:00:00.00
+[B07] Working dir: C:\simd\tests\fafafa.core.simd\
+[B07] Command: buildOrTest.bat gate
+[GATE] OK
+[B07] GATE_EXIT_CODE=0
+Total:  3
+Passed: 3
+Failed: 0
+[B07] Total: 3
+[B07] Passed: 3
+[B07] Failed: 0
+EOM
+
+cat > "${LCaseSourceFresh}/logs/windows_b07_closeout_summary.md" <<'EOM'
+# SIMD Windows B07 Closeout Summary
+
+## Verification
+
+- Verifier: verify_windows_b07_evidence.sh
+- Command: bash verify_windows_b07_evidence.sh "logs/windows_b07_gate.log"
+- Result: PASS
+EOM
+
+cat > "${LTmpRoot}/case_source_newer/docs/plans/2026-02-09-simd-unblock-closeout-roadmap.md" <<'EOM'
+- [x] **Windows 实机证据已归档**
+EOM
+
+cat > "${LCaseSourceFresh}/docs/simd_release_candidate_checklist.md" <<'EOM'
+- [x] Windows 实机证据日志已归档
+EOM
+
+cat > "${LCaseSourceFresh}/docs/simd_completeness_matrix.md" <<'EOM'
+- Windows 证据：实机日志已归档（脚本入口 + 校验入口）
+EOM
+
+cat > "${LTmpRoot}/case_source_newer/src/fafafa.core.simd.pas" <<'EOM'
+unit fafafa.core.simd;
+EOM
+
+touch -d '2026-02-10 00:00:30' "${LTmpRoot}/case_source_newer/src/fafafa.core.simd.pas"
+touch -d '2026-02-10 00:00:00' "${LCaseSourceFresh}/logs/gate_summary.md"
+touch -d '2026-02-10 00:00:00' "${LCaseSourceFresh}/logs/windows_b07_gate.log"
+
+set +e
+SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_EVIDENCE=0 \
+python3 "${LCaseSourceFresh}/evaluate_simd_freeze_status.py" --root "${LCaseSourceFresh}" --json-file "${LCaseSourceFresh}/logs/freeze_status_source_newer.json" > "${LCaseSourceFresh}/logs/freeze_stdout_source_newer.txt" 2>&1
+LSourceNewerRc=$?
+set -e
+
+if [[ "${LSourceNewerRc}" -eq 0 ]]; then
+  echo "[FREEZE-REHEARSAL] FAILED: case_source_newer should return non-zero"
+  cat "${LCaseSourceFresh}/logs/freeze_stdout_source_newer.txt"
+  exit 1
+fi
+
+if ! grep -F -- "linux_sources_not_newer_than_gate: artifact older than latest source" "${LCaseSourceFresh}/logs/freeze_stdout_source_newer.txt" >/dev/null; then
+  echo "[FREEZE-REHEARSAL] FAILED: case_source_newer missing source freshness failure"
+  cat "${LCaseSourceFresh}/logs/freeze_stdout_source_newer.txt"
+  exit 1
+fi
+
 echo "[FREEZE-REHEARSAL] OK"
 echo "[FREEZE-REHEARSAL] case_not_ready_rc=${LNotReadyRc}"
 echo "[FREEZE-REHEARSAL] case_stale_summary_rc=${LStaleRc}"
 echo "[FREEZE-REHEARSAL] case_verify_fail_rc=${LVerifyFailRc}"
 echo "[FREEZE-REHEARSAL] case_linux_lazy_missing_rc=${LLazyMissingRc}"
 echo "[FREEZE-REHEARSAL] case_linux_platform_missing_rc=${LPlatformMissingRc}"
+echo "[FREEZE-REHEARSAL] case_source_newer_rc=${LSourceNewerRc}"

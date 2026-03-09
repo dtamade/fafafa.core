@@ -174,8 +174,13 @@ backend := GetActiveBackend;  // 返回 TSimdBackend 枚举
 // 强制使用特定后端
 SetActiveBackend(sbAVX2);
 
-// 查询可用后端
-backends := GetAvailableBackends;  // 返回 TSimdBackendArray
+// 查询当前二进制里真正可派发的后端（CPU 支持 + 已注册 + 标记可用）
+backends := GetAvailableBackendList;
+backends := GetDispatchableBackendList;  // 语义更明确的等价入口
+
+// 查询 CPU/OS 支持的后端（不保证当前二进制一定会选中它）
+backends := GetSupportedBackendList;
+backends := GetAvailableBackends;  // cpuinfo 语义：supported-on-cpu
 
 // 获取后端信息
 info := GetBackendInfo(sbSSE2);

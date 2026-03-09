@@ -5,6 +5,8 @@ set "ROOT=%~dp0"
 set "TESTS_ROOT=%ROOT%.."
 set "LOG_DIR=%ROOT%logs"
 set "OUT_LOG=%LOG_DIR%\windows_b07_gate.log"
+set "SUMMARY_JSON=%LOG_DIR%\gate_summary.json"
+set "SUMMARY_EXPORT_LOG=%LOG_DIR%\windows_b07_gate_summary_export.log"
 set "SUMMARY_FILE=%TESTS_ROOT%\run_all_tests_summary.txt"
 set "CMD_VER="
 
@@ -23,6 +25,19 @@ echo. >> "%OUT_LOG%"
 
 call "%ROOT%buildOrTest.bat" gate >> "%OUT_LOG%" 2>&1
 set "GATE_RC=%ERRORLEVEL%"
+
+if exist "%SUMMARY_JSON%" del /f /q "%SUMMARY_JSON%" >nul 2>nul
+set "SIMD_GATE_SUMMARY_JSON=1"
+call "%ROOT%buildOrTest.bat" gate-summary > "%SUMMARY_EXPORT_LOG%" 2>&1
+set "SUMMARY_RC=%ERRORLEVEL%"
+if exist "%SUMMARY_JSON%" (
+  echo [B07] GateSummaryJson: %SUMMARY_JSON% >> "%OUT_LOG%"
+) else (
+  echo [B07] GateSummaryJson: missing >> "%OUT_LOG%"
+)
+echo [B07] GateSummaryExportRc: %SUMMARY_RC% >> "%OUT_LOG%"
+if not "%SUMMARY_RC%"=="0" set "GATE_RC=%SUMMARY_RC%"
+if not exist "%SUMMARY_JSON%" set "GATE_RC=1"
 
 echo. >> "%OUT_LOG%"
 echo [B07] GATE_EXIT_CODE=%GATE_RC% >> "%OUT_LOG%"
