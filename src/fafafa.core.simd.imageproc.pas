@@ -96,6 +96,7 @@ var
 
 function BytesPerPixel(const aFormat: TImageFormat): Integer; inline;
 begin
+  Result := 0;
   case aFormat of
     ifRGB24: Result := 3;
     ifRGBA32: Result := 4;

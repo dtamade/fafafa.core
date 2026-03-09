@@ -2046,6 +2046,8 @@ end;
 // === Initialization ===
 
 initialization
+  g_VectorAsmToggleLock := Default(TRTLCriticalSection);
+  g_DispatchHooksLock := Default(TRTLCriticalSection);
   InitCriticalSection(g_VectorAsmToggleLock);
   InitCriticalSection(g_DispatchHooksLock);
 
@@ -2055,4 +2057,3 @@ finalization
   DoneCriticalSection(g_VectorAsmToggleLock);
 
 end.
-
