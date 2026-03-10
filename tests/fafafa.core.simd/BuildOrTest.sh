@@ -109,6 +109,7 @@ build_project() {
   mkdir -p "${BIN_DIR}" "${UNIT_DIR}" "${LOG_DIR}"
   if [[ -n "${LLazarusDir}" ]]; then
     if "${LAZBUILD_BIN}" "${LZ_Q[@]}" --lazarusdir="${LLazarusDir}" --build-mode="${MODE}" --build-all --opt="-FE${BIN_DIR}" --opt="-FU${UNIT_DIR}" "${PROJ}" >"${BUILD_LOG}" 2>&1; then
+      normalize_built_binary
       echo "[BUILD] OK"
     else
       local rc=$?
@@ -119,12 +120,70 @@ build_project() {
   fi
 
   if "${LAZBUILD_BIN}" "${LZ_Q[@]}" --build-mode="${MODE}" --build-all --opt="-FE${BIN_DIR}" --opt="-FU${UNIT_DIR}" "${PROJ}" >"${BUILD_LOG}" 2>&1; then
+    normalize_built_binary
     echo "[BUILD] OK"
   else
     local rc=$?
     echo "[BUILD] FAILED rc=${rc} (see ${BUILD_LOG})"
     return "${rc}"
   fi
+}
+
+resolve_binary_from_build_log() {
+  local LLine
+  local LCandidate
+  local LBase
+
+  if [[ ! -f "${BUILD_LOG}" ]]; then
+    return 1
+  fi
+
+  LLine="$(grep -E '\(9015\)[[:space:]]+Linking[[:space:]]+' "${BUILD_LOG}" | tail -n 1 || true)"
+  if [[ -z "${LLine}" ]]; then
+    return 1
+  fi
+
+  LCandidate="$(printf '%s\n' "${LLine}" | sed -E 's/.*\(9015\)[[:space:]]+Linking[[:space:]]+//')"
+  LCandidate="$(printf '%s' "${LCandidate}" | tr -d '\r')"
+  if [[ -z "${LCandidate}" ]]; then
+    return 1
+  fi
+
+  if [[ "${LCandidate}" == /* && -f "${LCandidate}" ]]; then
+    echo "${LCandidate}"
+    return 0
+  fi
+
+  for LBase in "${ROOT}" "${OUTPUT_ROOT}" "${REPO_ROOT}" "$(pwd)"; do
+    if [[ -f "${LBase}/${LCandidate}" ]]; then
+      echo "${LBase}/${LCandidate}"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+normalize_built_binary() {
+  local LResolved
+
+  if [[ -f "${BIN}" || -f "${BIN}.exe" ]]; then
+    return 0
+  fi
+
+  LResolved="$(resolve_binary_from_build_log)" || return 0
+  if [[ -z "${LResolved}" || ! -f "${LResolved}" ]]; then
+    return 0
+  fi
+
+  if [[ "${LResolved}" == "${BIN}" || "${LResolved}" == "${BIN}.exe" ]]; then
+    return 0
+  fi
+
+  mkdir -p "${BIN_DIR}"
+  cp "${LResolved}" "${BIN}"
+  chmod +x "${BIN}" 2>/dev/null || true
+  echo "[BUILD] Binary normalized: ${LResolved} -> ${BIN}"
 }
 
 check_build_log() {
@@ -195,6 +254,12 @@ run_tests() {
 
   LBinPath="$(resolve_test_binary)" || {
     echo "[TEST] Missing binary: ${BIN} (did build succeed?)"
+    echo "[TEST] Build log tail:"
+    tail -n 40 "${BUILD_LOG}" || true
+    echo "[TEST] Bin dirs:"
+    ls -la "${BIN_DIR}" 2>/dev/null || true
+    ls -la "${REPO_ROOT}/bin2" 2>/dev/null || true
+    echo "[TEST] Candidate files:"
     find "${OUTPUT_ROOT}" "${ROOT}" "${REPO_ROOT}" -maxdepth 4 -type f \
       \( -name 'fafafa.core.simd.test' -o -name 'fafafa.core.simd.test.exe' -o -name 'fafafa.core.simd.test.*' \) \
       ! -name '*.lpi' \
