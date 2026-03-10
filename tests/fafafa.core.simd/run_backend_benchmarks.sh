@@ -31,6 +31,26 @@ if [[ -n "${BENCH_FPC_EXTRA_ARGS_STRING}" ]]; then
   read -r -a BENCH_FPC_EXTRA_ARGS <<< "${BENCH_FPC_EXTRA_ARGS_STRING}"
 fi
 
+should_skip_compile_failure() {
+  local aName="$1"
+  local aBuildLog="$2"
+
+  if [[ ! -f "${aBuildLog}" ]]; then
+    return 1
+  fi
+
+  case "${aName}" in
+    AVX512_vs_AVX2)
+      if grep -Eq 'Unrecognized opcode|Assembler syntax error|Unknown identifier "ZMM|Unknown identifier "K1"' "${aBuildLog}" && \
+         grep -Eq 'fafafa\.core\.simd\.avx512|avx512\.facade\.inc' "${aBuildLog}"; then
+        return 0
+      fi
+      ;;
+  esac
+
+  return 1
+}
+
 run_one() {
   local aSource="$1"
   local aName="$2"
@@ -63,6 +83,11 @@ run_one() {
   LBuildRc="${LBuildRc:-0}"
 
   if [[ "${LBuildRc}" -ne 0 ]]; then
+    if should_skip_compile_failure "${aName}" "${LBuildLog}"; then
+      echo "[BENCH] SKIP ${aName} (compiler does not support required backend opcodes)" | tee -a "${RUNNER_LOG}"
+      tail -n 40 "${LBuildLog}" || true
+      return 0
+    fi
     echo "[BENCH] FAILED (compile rc=${LBuildRc}): ${aName}" | tee -a "${RUNNER_LOG}"
     tail -n 80 "${LBuildLog}" || true
     return "${LBuildRc}"
