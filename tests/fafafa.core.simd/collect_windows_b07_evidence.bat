@@ -8,6 +8,10 @@ set "OUT_LOG=%LOG_DIR%\windows_b07_gate.log"
 set "SUMMARY_JSON=%LOG_DIR%\gate_summary.json"
 set "SUMMARY_EXPORT_LOG=%LOG_DIR%\windows_b07_gate_summary_export.log"
 set "SUMMARY_FILE=%TESTS_ROOT%\run_all_tests_summary.txt"
+set "RUNALL_TOTAL=0"
+set "RUNALL_PASSED=0"
+set "RUNALL_FAILED=0"
+set "RUNALL_FAILED_LIST="
 set "BIN=%ROOT%bin2\fafafa.core.simd.test.exe"
 set "CMD_VER="
 set "GATE_COMMAND_MARKER=buildOrTest.bat gate"
@@ -133,10 +137,24 @@ if errorlevel 1 (
 popd
 
 echo [GATE] 6/6 Filtered run_all chain >> "%OUT_LOG%"
-set "STOP_ON_FAIL=1"
-set "RUN_ACTION=check"
-call "%TESTS_ROOT%\run_all_tests.bat" =fafafa.core.simd =fafafa.core.simd.cpuinfo =fafafa.core.simd.cpuinfo.x86 =fafafa.core.simd.intrinsics.sse =fafafa.core.simd.intrinsics.mmx >> "%OUT_LOG%" 2>&1
-if errorlevel 1 (
+call :run_windows_evidence_step "fafafa.core.simd" "%ROOT%buildOrTest.bat" check >> "%OUT_LOG%" 2>&1
+call :run_windows_evidence_step "fafafa.core.simd.cpuinfo" "%TESTS_ROOT%\fafafa.core.simd.cpuinfo\buildOrTest.bat" check >> "%OUT_LOG%" 2>&1
+call :run_windows_evidence_step "fafafa.core.simd.cpuinfo.x86" "%TESTS_ROOT%\fafafa.core.simd.cpuinfo.x86\buildOrTest.bat" check >> "%OUT_LOG%" 2>&1
+call :run_windows_evidence_step "fafafa.core.simd.intrinsics.sse" "%TESTS_ROOT%\fafafa.core.simd.intrinsics.sse\buildOrTest.bat" check >> "%OUT_LOG%" 2>&1
+call :run_windows_evidence_step "fafafa.core.simd.intrinsics.mmx" "%TESTS_ROOT%\fafafa.core.simd.intrinsics.mmx\buildOrTest.bat" check >> "%OUT_LOG%" 2>&1
+
+>"%SUMMARY_FILE%" (
+  echo ========================================
+  echo Run-all summary ^(%DATE% %TIME%^)
+  echo Logs dir: %LOG_DIR%
+  echo ========================================
+  echo Total:  %RUNALL_TOTAL%
+  echo Passed: %RUNALL_PASSED%
+  echo Failed: %RUNALL_FAILED%
+  if defined RUNALL_FAILED_LIST echo Failed modules: %RUNALL_FAILED_LIST%
+)
+type "%SUMMARY_FILE%" >> "%OUT_LOG%"
+if not "%RUNALL_FAILED%"=="0" (
   set "GATE_RC=1"
   goto :after_gate
 )
@@ -176,3 +194,23 @@ echo [B07] Evidence log: %OUT_LOG%
 type "%OUT_LOG%"
 
 exit /b %GATE_RC%
+
+:run_windows_evidence_step
+set "STEP_NAME=%~1"
+set "STEP_SCRIPT=%~2"
+set "STEP_ACTION=%~3"
+set /a RUNALL_TOTAL+=1
+call "%STEP_SCRIPT%" %STEP_ACTION%
+if errorlevel 1 (
+  set /a RUNALL_FAILED+=1
+  echo [FAIL] %STEP_NAME% ^(rc=%ERRORLEVEL%^)
+  if defined RUNALL_FAILED_LIST (
+    set "RUNALL_FAILED_LIST=%RUNALL_FAILED_LIST%,%STEP_NAME%"
+  ) else (
+    set "RUNALL_FAILED_LIST=%STEP_NAME%"
+  )
+) else (
+  set /a RUNALL_PASSED+=1
+  echo [PASS] %STEP_NAME% ^(rc=0^)
+)
+exit /b 0
