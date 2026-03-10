@@ -176,6 +176,14 @@ run_tests() {
     done < <(
       find "${OUTPUT_ROOT}" "${ROOT}" -maxdepth 4 -type f \
         \( -name 'fafafa.core.simd.test' -o -name 'fafafa.core.simd.test.exe' -o -name 'fafafa.core.simd.test.*' \) \
+        ! -name '*.lpi' \
+        ! -name '*.lpr' \
+        ! -name '*.pas' \
+        ! -name '*.ppu' \
+        ! -name '*.o' \
+        ! -name '*.compiled' \
+        ! -name '*.res' \
+        ! -name '*.rsj' \
         2>/dev/null | sort -u
     )
 
@@ -186,6 +194,14 @@ run_tests() {
     echo "[TEST] Missing binary: ${BIN} (did build succeed?)"
     find "${OUTPUT_ROOT}" "${ROOT}" -maxdepth 4 -type f \
       \( -name 'fafafa.core.simd.test' -o -name 'fafafa.core.simd.test.exe' -o -name 'fafafa.core.simd.test.*' \) \
+      ! -name '*.lpi' \
+      ! -name '*.lpr' \
+      ! -name '*.pas' \
+      ! -name '*.ppu' \
+      ! -name '*.o' \
+      ! -name '*.compiled' \
+      ! -name '*.res' \
+      ! -name '*.rsj' \
       2>/dev/null | sort -u || true
     return 2
   }
