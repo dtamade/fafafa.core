@@ -24,8 +24,70 @@ echo [B07] Working dir: %ROOT% >> "%OUT_LOG%"
 echo [B07] Command: %GATE_COMMAND_MARKER% >> "%OUT_LOG%"
 echo. >> "%OUT_LOG%"
 
-call "%ROOT%buildOrTest.bat" gate >> "%OUT_LOG%" 2>&1
-set "GATE_RC=%ERRORLEVEL%"
+set "GATE_RC=0"
+echo [GATE] Profile: fast-gate ^(routine/base gate^) >> "%OUT_LOG%"
+echo [GATE] Experimental boundary: default entry chain keeps experimental intrinsics isolated. >> "%OUT_LOG%"
+echo [GATE] Note: gate/gate-strict PASS does not imply every experimental path is release-grade. >> "%OUT_LOG%"
+
+echo [GATE] 1/6 Build + check SIMD module >> "%OUT_LOG%"
+call "%ROOT%buildOrTest.bat" check >> "%OUT_LOG%" 2>&1
+if errorlevel 1 (
+  set "GATE_RC=1"
+  goto :after_gate
+)
+
+echo [GATE] 2/6 SIMD list suites >> "%OUT_LOG%"
+call "%ROOT%buildOrTest.bat" test --list-suites >> "%OUT_LOG%" 2>&1
+if errorlevel 1 (
+  set "GATE_RC=1"
+  goto :after_gate
+)
+
+echo [GATE] 3/6 SIMD AVX2 fallback suite >> "%OUT_LOG%"
+call "%ROOT%buildOrTest.bat" test --suite=TTestCase_VecI32x8 >> "%OUT_LOG%" 2>&1
+if errorlevel 1 set "GATE_RC=1"
+if not "%GATE_RC%"=="0" goto :after_gate
+call "%ROOT%buildOrTest.bat" test --suite=TTestCase_VecU32x8 >> "%OUT_LOG%" 2>&1
+if errorlevel 1 set "GATE_RC=1"
+if not "%GATE_RC%"=="0" goto :after_gate
+call "%ROOT%buildOrTest.bat" test --suite=TTestCase_VecF64x4 >> "%OUT_LOG%" 2>&1
+if errorlevel 1 (
+  set "GATE_RC=1"
+  goto :after_gate
+)
+
+echo [GATE] 4/6 CPUInfo portable suites >> "%OUT_LOG%"
+call "%TESTS_ROOT%\fafafa.core.simd.cpuinfo\buildOrTest.bat" test --list-suites >> "%OUT_LOG%" 2>&1
+if errorlevel 1 set "GATE_RC=1"
+if not "%GATE_RC%"=="0" goto :after_gate
+call "%TESTS_ROOT%\fafafa.core.simd.cpuinfo\buildOrTest.bat" test --suite=TTestCase_PlatformSpecific >> "%OUT_LOG%" 2>&1
+if errorlevel 1 (
+  set "GATE_RC=1"
+  goto :after_gate
+)
+
+echo [GATE] 5/6 CPUInfo x86 suites >> "%OUT_LOG%"
+call "%TESTS_ROOT%\fafafa.core.simd.cpuinfo.x86\buildOrTest.bat" test --list-suites >> "%OUT_LOG%" 2>&1
+if errorlevel 1 set "GATE_RC=1"
+if not "%GATE_RC%"=="0" goto :after_gate
+call "%TESTS_ROOT%\fafafa.core.simd.cpuinfo.x86\buildOrTest.bat" test --suite=TTestCase_Global >> "%OUT_LOG%" 2>&1
+if errorlevel 1 (
+  set "GATE_RC=1"
+  goto :after_gate
+)
+
+echo [GATE] 6/6 Filtered run_all chain >> "%OUT_LOG%"
+set "STOP_ON_FAIL=1"
+set "RUN_ACTION=check"
+call "%TESTS_ROOT%\run_all_tests.bat" =fafafa.core.simd =fafafa.core.simd.cpuinfo =fafafa.core.simd.cpuinfo.x86 =fafafa.core.simd.intrinsics.sse =fafafa.core.simd.intrinsics.mmx >> "%OUT_LOG%" 2>&1
+if errorlevel 1 (
+  set "GATE_RC=1"
+  goto :after_gate
+)
+
+echo [GATE] OK >> "%OUT_LOG%"
+
+:after_gate
 
 if exist "%SUMMARY_JSON%" del /f /q "%SUMMARY_JSON%" >nul 2>nul
 set "SIMD_GATE_SUMMARY_JSON=1"
