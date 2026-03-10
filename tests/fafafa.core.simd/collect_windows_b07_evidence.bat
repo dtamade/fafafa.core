@@ -79,29 +79,38 @@ if errorlevel 1 (
 )
 
 echo [GATE] 4/6 CPUInfo portable suites >> "%OUT_LOG%"
-set "SIMD_SCRIPT_ROOT=%TESTS_ROOT%\fafafa.core.simd.cpuinfo\"
-call "%TESTS_ROOT%\fafafa.core.simd.cpuinfo\buildOrTest.bat" test --list-suites >> "%OUT_LOG%" 2>&1
+pushd "%TESTS_ROOT%\fafafa.core.simd.cpuinfo"
+call ".\buildOrTest.bat" test --list-suites >> "%OUT_LOG%" 2>&1
 if errorlevel 1 set "GATE_RC=1"
-if not "%GATE_RC%"=="0" goto :after_gate
-call "%TESTS_ROOT%\fafafa.core.simd.cpuinfo\buildOrTest.bat" test --suite=TTestCase_PlatformSpecific >> "%OUT_LOG%" 2>&1
-if errorlevel 1 (
-  set "GATE_RC=1"
+if not "%GATE_RC%"=="0" (
+  popd
   goto :after_gate
 )
+call ".\buildOrTest.bat" test --suite=TTestCase_PlatformSpecific >> "%OUT_LOG%" 2>&1
+if errorlevel 1 (
+  set "GATE_RC=1"
+  popd
+  goto :after_gate
+)
+popd
 
 echo [GATE] 5/6 CPUInfo x86 suites >> "%OUT_LOG%"
-set "SIMD_SCRIPT_ROOT=%TESTS_ROOT%\fafafa.core.simd.cpuinfo.x86\"
-call "%TESTS_ROOT%\fafafa.core.simd.cpuinfo.x86\buildOrTest.bat" test --list-suites >> "%OUT_LOG%" 2>&1
+pushd "%TESTS_ROOT%\fafafa.core.simd.cpuinfo.x86"
+call ".\buildOrTest.bat" test --list-suites >> "%OUT_LOG%" 2>&1
 if errorlevel 1 set "GATE_RC=1"
-if not "%GATE_RC%"=="0" goto :after_gate
-call "%TESTS_ROOT%\fafafa.core.simd.cpuinfo.x86\buildOrTest.bat" test --suite=TTestCase_Global >> "%OUT_LOG%" 2>&1
-if errorlevel 1 (
-  set "GATE_RC=1"
+if not "%GATE_RC%"=="0" (
+  popd
   goto :after_gate
 )
+call ".\buildOrTest.bat" test --suite=TTestCase_Global >> "%OUT_LOG%" 2>&1
+if errorlevel 1 (
+  set "GATE_RC=1"
+  popd
+  goto :after_gate
+)
+popd
 
 echo [GATE] 6/6 Filtered run_all chain >> "%OUT_LOG%"
-set "SIMD_SCRIPT_ROOT=%ROOT%"
 set "STOP_ON_FAIL=1"
 set "RUN_ACTION=check"
 call "%TESTS_ROOT%\run_all_tests.bat" =fafafa.core.simd =fafafa.core.simd.cpuinfo =fafafa.core.simd.cpuinfo.x86 =fafafa.core.simd.intrinsics.sse =fafafa.core.simd.intrinsics.mmx >> "%OUT_LOG%" 2>&1
