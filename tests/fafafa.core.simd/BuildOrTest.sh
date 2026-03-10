@@ -102,13 +102,26 @@ detect_lazarusdir() {
 
 build_project() {
   local LLazarusDir
+  local -a LLazbuildArgs
   LLazarusDir="$(detect_lazarusdir)"
 
   echo "[BUILD] Project: ${PROJ} (mode=${MODE}, output_root=${OUTPUT_ROOT})"
   : >"${BUILD_LOG}"
   mkdir -p "${BIN_DIR}" "${UNIT_DIR}" "${LOG_DIR}"
+  LLazbuildArgs=("${LZ_Q[@]}")
   if [[ -n "${LLazarusDir}" ]]; then
-    if "${LAZBUILD_BIN}" "${LZ_Q[@]}" --lazarusdir="${LLazarusDir}" --build-mode="${MODE}" --build-all --opt="-FE${BIN_DIR}" --opt="-FU${UNIT_DIR}" "${PROJ}" >"${BUILD_LOG}" 2>&1; then
+    LLazbuildArgs=("--lazarusdir=${LLazarusDir}" "${LLazbuildArgs[@]}")
+  fi
+  LLazbuildArgs+=("--build-mode=${MODE}" "--build-all")
+
+  if "${LAZBUILD_BIN}" --help 2>&1 | grep -q -- '--opt'; then
+    LLazbuildArgs+=("--opt=-FE${BIN_DIR}" "--opt=-FU${UNIT_DIR}")
+  elif [[ "${OUTPUT_ROOT}" != "${ROOT}" ]]; then
+    echo "[BUILD] WARN: lazbuild without --opt support; fallback to project-local bin2/lib2 layout" | tee -a "${BUILD_LOG}"
+  fi
+
+  if [[ -n "${LLazarusDir}" ]]; then
+    if "${LAZBUILD_BIN}" "${LLazbuildArgs[@]}" "${PROJ}" >"${BUILD_LOG}" 2>&1; then
       normalize_built_binary
       echo "[BUILD] OK"
     else
@@ -119,7 +132,7 @@ build_project() {
     return 0
   fi
 
-  if "${LAZBUILD_BIN}" "${LZ_Q[@]}" --build-mode="${MODE}" --build-all --opt="-FE${BIN_DIR}" --opt="-FU${UNIT_DIR}" "${PROJ}" >"${BUILD_LOG}" 2>&1; then
+  if "${LAZBUILD_BIN}" "${LLazbuildArgs[@]}" "${PROJ}" >"${BUILD_LOG}" 2>&1; then
     normalize_built_binary
     echo "[BUILD] OK"
   else
