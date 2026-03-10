@@ -39,7 +39,7 @@ else
   } > "${OUT_DIR}/qemu_experimental_baseline.log"
 fi
 run_step perf_smoke bash tests/fafafa.core.simd/BuildOrTest.sh perf-smoke
-run_step gate_strict env SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict
+run_step gate_strict env SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_EXPERIMENTAL_TESTS=0 bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict
 run_step gate_summary_json env SIMD_GATE_SUMMARY_JSON=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate-summary
 run_step freeze_status_linux env SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status-linux
 

@@ -120,6 +120,13 @@ nightly 固定口径：
 - `SIMD_COVERAGE_STRICT_EXTRA=1`
 - `SIMD_GATE_WIRING_SYNC=1`
 - `SIMD_WIRING_SYNC_STRICT_EXTRA=1`
+- `SIMD_GATE_EXPERIMENTAL_TESTS=0`
+
+说明：
+
+- nightly closeout 以 stable lane 为准，继续强制 coverage、wiring、cpuinfo non-x86 与 Windows evidence。
+- `experimental intrinsics tests` 仍保留为独立长期线，不再作为 nightly closeout 的默认阻塞项。
+- experimental boundary 仍通过 `experimental-intrinsics` 隔离检查维持，不等于放弃对实验路径的后续收敛。
 
 归档产物：
 
