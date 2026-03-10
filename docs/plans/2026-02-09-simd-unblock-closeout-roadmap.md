@@ -62,8 +62,8 @@ Batch82 已补齐并验证以下 5 项：
   - `bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - `bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize SIMD-YYYYMMDD-152`
   - `bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
-- [ ] 归档 `windows_b07_gate.log` 到 `tests/fafafa.core.simd/logs/`
-- [ ] 更新 RC 清单 P0 项为 `[x]`
+- [x] 归档 `windows_b07_gate.log` 到 `tests/fafafa.core.simd/logs/`
+- [x] 更新 RC 清单 P0 项为 `[x]`
 
 **DoD:** 跨平台证据链闭环（Linux + Windows）。
 
@@ -90,3 +90,11 @@ Batch82 已补齐并验证以下 5 项：
 - 当前开发主线可继续推进（接口层阻塞已解除）。
 - 将 Windows 实机证据作为**单独收口任务**，避免打断 Linux 迭代节奏。
 - 后端扩展按专题推进，不与门面接口清单混线，持续保持“小批次 + 固定门禁 + 文档回填”。
+
+<!-- SIMD-WIN-CLOSEOUT-2026-03-10 -->
+### Windows 实机证据（2026-03-10）
+
+- 状态：已完成
+- Evidence Log: tests/fafafa.core.simd/logs/windows_b07_gate.log
+- Closeout Summary: tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md
+- 结论：P0 “Windows 实机证据未归档” 已关闭。

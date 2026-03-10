@@ -343,4 +343,4 @@
 - Linux 侧：功能与门禁已达到发布候选状态。
 - Linux 侧：代码质量基线已收敛到 testcase 0 warning/hint。
 - Linux 侧：arm/arm64/riscv non-x86 QEMU 证据链（Release）已闭环通过。
-- Windows 侧：待补实机日志后完成跨平台证据闭环。
+- Windows 侧：实机日志已归档，跨平台证据闭环完成。

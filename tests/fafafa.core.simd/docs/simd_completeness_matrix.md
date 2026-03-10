@@ -13,7 +13,7 @@
   - `FAFAFA_BUILD_MODE=Release SIMD_GATE_NONX86_IEEE754=1 SIMD_GATE_QEMU_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - `gate PASS @ 2026-03-02 09:43:02`
 - Linux 证据包：已生成（`logs/evidence-*`）
-- Windows 证据：脚本入口 + 校验入口已就绪（待 Windows 实机日志）
+- Windows 证据：实机日志已归档（脚本入口 + 校验入口）
 - 机器检查：`check_interface_implementation_completeness.py --strict` 通过（`dispatch=558, P0=0/P1=0/P2=0`）
 - 机器检查产物：
   - `tests/fafafa.core.simd/logs/interface_completeness.json`
@@ -48,7 +48,7 @@
 - [x] 性能烟测通过
 - [x] Linux 证据完整（含摘要）
 - [x] Linux non-x86（arm/v7, arm64, riscv64）QEMU Release 证据通过
-- [~] Windows 证据脚本+校验器就绪（待实机执行产出）
+- [x] Windows 实机证据已归档（脚本+校验器+日志）
 
 ## 5) Linux Non-x86 闭环（2026-03-02）
 
@@ -129,3 +129,9 @@
 - 结论：
   - 关键链路（会导致接口不可用/语义高风险）未发现 P0/P1/P2。
   - 语义一致性仍以 suite 回归与跨后端对照测试作为最终依据。
+
+<!-- SIMD-WIN-CLOSEOUT-2026-03-10 -->
+- Windows 实机证据：已归档（2026-03-10）
+  - Log: tests/fafafa.core.simd/logs/windows_b07_gate.log
+  - Summary: tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md
+  - 验证：verify_windows_b07_evidence PASS

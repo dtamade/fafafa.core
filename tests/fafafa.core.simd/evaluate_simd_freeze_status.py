@@ -93,7 +93,7 @@ QEMU_CPUINFO_NONX86_REQUIRED_PLATFORMS = (
 QEMU_CPUINFO_NONX86_SCENARIO = "cpuinfo-nonx86-evidence"
 QEMU_CPUINFO_NONX86_FULL_SCENARIO = "cpuinfo-nonx86-full-evidence"
 QEMU_CPUINFO_NONX86_FULL_REPEAT_SCENARIO = "cpuinfo-nonx86-full-repeat"
-QEMU_MULTIARCH_DIR_RE = re.compile(r"^qemu-multiarch-(\d{8})-(\d{6})$")
+QEMU_MULTIARCH_DIR_RE = re.compile(r"^qemu-multiarch-(\d{8})-(\d{6})(?:-.+)?$")
 
 
 @dataclass

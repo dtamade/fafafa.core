@@ -5,6 +5,7 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 LOG_PATH="${1:-${ROOT}/logs/windows_b07_gate.log}"
 SUMMARY_JSON_PATH="${2:-}"
 SUMMARY_JSON_VERIFIER="${ROOT}/verify_gate_summary_json.py"
+CHECK_LOG_PATH=""
 
 print_usage() {
   echo "Usage: $0 [evidence-log-path] [gate-summary-json-path]"
@@ -22,6 +23,15 @@ if [[ ! -f "${LOG_PATH}" ]]; then
   exit 2
 fi
 
+CHECK_LOG_PATH="$(mktemp)"
+cleanup() {
+  if [[ -n "${CHECK_LOG_PATH}" && -f "${CHECK_LOG_PATH}" ]]; then
+    rm -f "${CHECK_LOG_PATH}"
+  fi
+}
+trap cleanup EXIT
+tr -d '\r' < "${LOG_PATH}" > "${CHECK_LOG_PATH}"
+
 trim_value() {
   echo "${1:-}" | sed -E 's/^[[:space:]]+|[[:space:]]+$//g'
 }
@@ -30,7 +40,7 @@ check_fixed() {
   local aPattern
 
   aPattern="$1"
-  if grep -F -- "${aPattern}" "${LOG_PATH}" >/dev/null; then
+  if grep -F -- "${aPattern}" "${CHECK_LOG_PATH}" >/dev/null; then
     return 0
   fi
 
@@ -42,7 +52,7 @@ check_regex() {
   local aPattern
 
   aPattern="$1"
-  if grep -E -- "${aPattern}" "${LOG_PATH}" >/dev/null; then
+  if grep -E -- "${aPattern}" "${CHECK_LOG_PATH}" >/dev/null; then
     return 0
   fi
 
@@ -55,9 +65,9 @@ extract_metric() {
   local LLine
 
   aMetric="$1"
-  LLine="$(grep -E -- "^\\[B07\\][[:space:]]+${aMetric}:[[:space:]]*[0-9]+$" "${LOG_PATH}" | tail -n 1 || true)"
+  LLine="$(grep -E -- "^\\[B07\\][[:space:]]+${aMetric}:[[:space:]]*[0-9]+$" "${CHECK_LOG_PATH}" | tail -n 1 || true)"
   if [[ -z "${LLine}" ]]; then
-    LLine="$(grep -E -- "^${aMetric}:[[:space:]]*[0-9]+$" "${LOG_PATH}" | tail -n 1 || true)"
+    LLine="$(grep -E -- "^${aMetric}:[[:space:]]*[0-9]+$" "${CHECK_LOG_PATH}" | tail -n 1 || true)"
   fi
 
   if [[ -z "${LLine}" ]]; then
@@ -73,7 +83,7 @@ extract_b07_value() {
   local LLine
 
   aKey="$1"
-  LLine="$(grep -E -- "^\\[B07\\][[:space:]]+${aKey}:[[:space:]].*$" "${LOG_PATH}" | tail -n 1 || true)"
+  LLine="$(grep -E -- "^\\[B07\\][[:space:]]+${aKey}:[[:space:]].*$" "${CHECK_LOG_PATH}" | tail -n 1 || true)"
   if [[ -z "${LLine}" ]]; then
     echo ""
     return 0
@@ -130,20 +140,20 @@ check_regex '^\[B07\][[:space:]]+Source:[[:space:]]+collect_windows_b07_evidence
 check_regex '^\[B07\][[:space:]]+HostOS:[[:space:]]+Windows_NT[[:space:]]*$' || LFail=1
 check_regex '^\[B07\][[:space:]]+CmdVer:[[:space:]]+Microsoft[[:space:]]+Windows.*$' || LFail=1
 check_regex '^\[B07\][[:space:]]+Working dir:[[:space:]]+[A-Za-z]:\\.*$' || LFail=1
-if ! grep -F -- "[B07] Command: buildOrTest.bat gate" "${LOG_PATH}" >/dev/null && \
-   ! grep -F -- "[B07] Command: BuildOrTest.sh gate" "${LOG_PATH}" >/dev/null; then
+  if ! grep -F -- "[B07] Command: buildOrTest.bat gate" "${CHECK_LOG_PATH}" >/dev/null && \
+   ! grep -F -- "[B07] Command: BuildOrTest.sh gate" "${CHECK_LOG_PATH}" >/dev/null; then
   echo "[EVIDENCE] Missing command marker for gate entry"
   LFail=1
 fi
 check_fixed "[GATE] OK" || LFail=1
 check_fixed "[B07] GATE_EXIT_CODE=0" || LFail=1
 
-if grep -E -- '^\[B07\][[:space:]]+Simulated:[[:space:]]+yes$' "${LOG_PATH}" >/dev/null; then
+if grep -E -- '^\[B07\][[:space:]]+Simulated:[[:space:]]+yes$' "${CHECK_LOG_PATH}" >/dev/null; then
   echo "[EVIDENCE] Invalid source: simulated marker detected"
   LFail=1
 fi
 
-if grep -E -- '^\[B07\][[:space:]]+Source:[[:space:]]+simulate_windows_b07_evidence\.sh$' "${LOG_PATH}" >/dev/null; then
+if grep -E -- '^\[B07\][[:space:]]+Source:[[:space:]]+simulate_windows_b07_evidence\.sh$' "${CHECK_LOG_PATH}" >/dev/null; then
   echo "[EVIDENCE] Invalid source: simulator source marker detected"
   LFail=1
 fi
