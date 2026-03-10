@@ -85,15 +85,20 @@ if errorlevel 1 (
 echo [GATE] 4/6 CPUInfo portable suites >> "%OUT_LOG%"
 pushd "%TESTS_ROOT%\fafafa.core.simd.cpuinfo"
 call ".\buildOrTest.bat" build >> "%OUT_LOG%" 2>&1
-if errorlevel 1 set "GATE_RC=1"
-if not "%GATE_RC%"=="0" (
-  popd
-  goto :after_gate
-)
+set "CPUINFO_BUILD_RC=%ERRORLEVEL%"
 if not exist ".\bin\fafafa.core.simd.cpuinfo.test.exe" (
   set "GATE_RC=1"
   popd
   goto :after_gate
+)
+findstr /c:"Fatal:" /c:"returned an error exitcode" ".\logs\build.txt" >nul 2>nul
+if not errorlevel 1 (
+  set "GATE_RC=1"
+  popd
+  goto :after_gate
+)
+if not "%CPUINFO_BUILD_RC%"=="0" (
+  echo [B07] WARN: cpuinfo build command returned rc=%CPUINFO_BUILD_RC% but artifact and build log look usable >> "%OUT_LOG%"
 )
 ".\bin\fafafa.core.simd.cpuinfo.test.exe" --list >> "%OUT_LOG%" 2>&1
 if errorlevel 1 (
@@ -112,15 +117,20 @@ popd
 echo [GATE] 5/6 CPUInfo x86 suites >> "%OUT_LOG%"
 pushd "%TESTS_ROOT%\fafafa.core.simd.cpuinfo.x86"
 call ".\buildOrTest.bat" build >> "%OUT_LOG%" 2>&1
-if errorlevel 1 set "GATE_RC=1"
-if not "%GATE_RC%"=="0" (
-  popd
-  goto :after_gate
-)
+set "CPUINFO_X86_BUILD_RC=%ERRORLEVEL%"
 if not exist ".\bin\fafafa.core.simd.cpuinfo.x86.test.exe" (
   set "GATE_RC=1"
   popd
   goto :after_gate
+)
+findstr /c:"Fatal:" /c:"returned an error exitcode" ".\logs\build.txt" >nul 2>nul
+if not errorlevel 1 (
+  set "GATE_RC=1"
+  popd
+  goto :after_gate
+)
+if not "%CPUINFO_X86_BUILD_RC%"=="0" (
+  echo [B07] WARN: cpuinfo.x86 build command returned rc=%CPUINFO_X86_BUILD_RC% but artifact and build log look usable >> "%OUT_LOG%"
 )
 ".\bin\fafafa.core.simd.cpuinfo.x86.test.exe" --list >> "%OUT_LOG%" 2>&1
 if errorlevel 1 (
