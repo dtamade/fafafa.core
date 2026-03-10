@@ -38,6 +38,7 @@ run_one() {
   local LBuildLog
   local LRunLog
   local LBinary
+  local LBuildRc
   local LRunRc
 
   LBase="${aSource%.lpr}"
@@ -58,13 +59,21 @@ run_one() {
       "${BENCH_FPC_EXTRA_DEFINES[@]}" \
       "${BENCH_FPC_EXTRA_ARGS[@]}" \
       "${aSource}"
-  ) >"${LBuildLog}" 2>&1
+  ) >"${LBuildLog}" 2>&1 || LBuildRc=$?
+  LBuildRc="${LBuildRc:-0}"
+
+  if [[ "${LBuildRc}" -ne 0 ]]; then
+    echo "[BENCH] FAILED (compile rc=${LBuildRc}): ${aName}" | tee -a "${RUNNER_LOG}"
+    tail -n 80 "${LBuildLog}" || true
+    return "${LBuildRc}"
+  fi
 
   if [[ ! -x "${LBinary}" && -x "${LBinary}.exe" ]]; then
     LBinary="${LBinary}.exe"
   fi
   if [[ ! -x "${LBinary}" ]]; then
     echo "[BENCH] FAILED (binary missing): ${aSource}" | tee -a "${RUNNER_LOG}"
+    ls -la "${BIN_DIR}" || true
     return 1
   fi
 
