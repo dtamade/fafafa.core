@@ -148,15 +148,56 @@ check_build_log() {
 }
 
 run_tests() {
-  if [[ ! -x "${BIN}" ]]; then
+  local LBinPath
+
+  resolve_test_binary() {
+    local LCandidate
+
+    for LCandidate in \
+      "${BIN}" \
+      "${BIN}.exe" \
+      "${ROOT}/bin2/fafafa.core.simd.test" \
+      "${ROOT}/bin2/fafafa.core.simd.test.exe" \
+      "${OUTPUT_ROOT}/bin2/bin2/fafafa.core.simd.test" \
+      "${OUTPUT_ROOT}/bin2/bin2/fafafa.core.simd.test.exe"; do
+      if [[ -f "${LCandidate}" ]]; then
+        chmod +x "${LCandidate}" 2>/dev/null || true
+        echo "${LCandidate}"
+        return 0
+      fi
+    done
+
+    while IFS= read -r LCandidate; do
+      if [[ -n "${LCandidate}" && -f "${LCandidate}" ]]; then
+        chmod +x "${LCandidate}" 2>/dev/null || true
+        echo "${LCandidate}"
+        return 0
+      fi
+    done < <(
+      find "${OUTPUT_ROOT}" "${ROOT}" -maxdepth 4 -type f \
+        \( -name 'fafafa.core.simd.test' -o -name 'fafafa.core.simd.test.exe' -o -name 'fafafa.core.simd.test.*' \) \
+        2>/dev/null | sort -u
+    )
+
+    return 1
+  }
+
+  LBinPath="$(resolve_test_binary)" || {
     echo "[TEST] Missing binary: ${BIN} (did build succeed?)"
+    find "${OUTPUT_ROOT}" "${ROOT}" -maxdepth 4 -type f \
+      \( -name 'fafafa.core.simd.test' -o -name 'fafafa.core.simd.test.exe' -o -name 'fafafa.core.simd.test.*' \) \
+      2>/dev/null | sort -u || true
     return 2
+  }
+
+  if [[ "${LBinPath}" != "${BIN}" ]]; then
+    echo "[TEST] Resolved binary fallback: ${LBinPath}"
   fi
 
-  echo "[TEST] Running: ${BIN} $*"
+  echo "[TEST] Running: ${LBinPath} $*"
   : >"${TEST_LOG}"
 
-  if "${BIN}" "$@" >"${TEST_LOG}" 2>&1; then
+  if "${LBinPath}" "$@" >"${TEST_LOG}" 2>&1; then
     :
   else
     local rc=$?
