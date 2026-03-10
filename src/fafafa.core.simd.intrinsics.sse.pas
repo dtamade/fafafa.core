@@ -158,14 +158,16 @@ begin
     movups xmm0, [rax]
     movups [Result], xmm0
   end;
-{$ELSEIF Defined(CPU386)}
+{$ELSE}
+  {$IFDEF CPU386}
   asm
     mov eax, LPtr
     movups xmm0, [eax]
     movups [Result], xmm0
   end;
-{$ELSE}
+  {$ELSE}
   Move(PByte(LPtr)^, Result, SizeOf(Result));
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -185,14 +187,16 @@ begin
     movups xmm0, [rax]
     movups [Result], xmm0
   end;
-{$ELSEIF Defined(CPU386)}
+{$ELSE}
+  {$IFDEF CPU386}
   asm
     mov eax, LPtr
     movups xmm0, [eax]
     movups [Result], xmm0
   end;
-{$ELSE}
+  {$ELSE}
   Move(PByte(LPtr)^, Result, SizeOf(Result));
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -213,15 +217,17 @@ begin
     movss xmm0, [rax]
     movups [Result], xmm0
   end;
-{$ELSEIF Defined(CPU386)}
+{$ELSE}
+  {$IFDEF CPU386}
   asm
     mov eax, LPtr
     xorps xmm0, xmm0
     movss xmm0, [eax]
     movups [Result], xmm0
   end;
-{$ELSE}
+  {$ELSE}
   Result.m128_f32[0] := PSingle(LPtr)^;
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -244,19 +250,21 @@ begin
     shufps xmm0, xmm0, 0
     movups [Result], xmm0
   end;
-{$ELSEIF Defined(CPU386)}
+{$ELSE}
+  {$IFDEF CPU386}
   asm
     mov eax, LPtr
     movss xmm0, [eax]
     shufps xmm0, xmm0, 0
     movups [Result], xmm0
   end;
-{$ELSE}
+  {$ELSE}
   LValue := PSingle(LPtr)^;
   Result.m128_f32[0] := LValue;
   Result.m128_f32[1] := LValue;
   Result.m128_f32[2] := LValue;
   Result.m128_f32[3] := LValue;
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -277,15 +285,17 @@ begin
     movq xmm0, [rax]
     movups [Result], xmm0
   end;
-{$ELSEIF Defined(CPU386)}
+{$ELSE}
+  {$IFDEF CPU386}
   asm
     mov eax, LPtr
     xorps xmm0, xmm0
     movq xmm0, [eax]
     movups [Result], xmm0
   end;
-{$ELSE}
+  {$ELSE}
   Result.m128i_u64[0] := PUInt64(LPtr)^;
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -304,15 +314,17 @@ begin
     movq xmm0, [rdx]
     movq [rax], xmm0
   end;
-{$ELSEIF Defined(CPU386)}
+{$ELSE}
+  {$IFDEF CPU386}
   asm
     mov eax, LDest
     mov edx, LSrc
     movq xmm0, [edx]
     movq [eax], xmm0
   end;
-{$ELSE}
+  {$ELSE}
   PUInt64(LDest)^ := PUInt64(LSrc)^;
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -331,15 +343,17 @@ begin
     movups xmm0, [rdx]
     movups [rax], xmm0
   end;
-{$ELSEIF Defined(CPU386)}
+{$ELSE}
+  {$IFDEF CPU386}
   asm
     mov eax, LDest
     mov edx, LSrc
     movups xmm0, [edx]
     movups [eax], xmm0
   end;
-{$ELSE}
+  {$ELSE}
   Move(PByte(LSrc)^, Dest, SizeOf(TM128));
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -358,15 +372,17 @@ begin
     movups xmm0, [rdx]
     movups [rax], xmm0
   end;
-{$ELSEIF Defined(CPU386)}
+{$ELSE}
+  {$IFDEF CPU386}
   asm
     mov eax, LDest
     mov edx, LSrc
     movups xmm0, [edx]
     movups [eax], xmm0
   end;
-{$ELSE}
+  {$ELSE}
   Move(PByte(LSrc)^, Dest, SizeOf(TM128));
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -385,15 +401,17 @@ begin
     movss xmm0, [rdx]
     movss [rax], xmm0
   end;
-{$ELSEIF Defined(CPU386)}
+{$ELSE}
+  {$IFDEF CPU386}
   asm
     mov eax, LDest
     mov edx, LSrc
     movss xmm0, [edx]
     movss [eax], xmm0
   end;
-{$ELSE}
+  {$ELSE}
   PSingle(LDest)^ := PSingle(LSrc)^;
+  {$ENDIF}
 {$ENDIF}
 end;
 
@@ -415,7 +433,8 @@ begin
     shufps xmm0, xmm0, 0
     movups [rax], xmm0
   end;
-{$ELSEIF Defined(CPU386)}
+{$ELSE}
+  {$IFDEF CPU386}
   asm
     mov eax, LDestPtr
     mov edx, LSrc
@@ -423,13 +442,14 @@ begin
     shufps xmm0, xmm0, 0
     movups [eax], xmm0
   end;
-{$ELSE}
+  {$ELSE}
   LDest := PSingle(LDestPtr);
   LValue := PSingle(LSrc)^;
   LDest[0] := LValue;
   LDest[1] := LValue;
   LDest[2] := LValue;
   LDest[3] := LValue;
+  {$ENDIF}
 {$ENDIF}
 end;
 
