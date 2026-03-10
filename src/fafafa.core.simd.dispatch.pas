@@ -1059,6 +1059,7 @@ var
   LBackend: TSimdBackend;
   LCount: Integer;
 begin
+  Result := nil;
   SetLength(Result, Length(SIMD_BACKEND_PRIORITY_ORDER));
   LCount := 0;
   for LBackend in SIMD_BACKEND_PRIORITY_ORDER do
