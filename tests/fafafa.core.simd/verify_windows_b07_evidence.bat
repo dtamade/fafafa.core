@@ -28,20 +28,13 @@ set "METRIC_PASSED="
 set "METRIC_FAILED="
 
 call :check_fixed "[B07] Windows evidence capture"
-call :check_regex "^\[B07\] Source: collect_windows_b07_evidence\.bat$"
-call :check_regex "^\[B07\] HostOS: Windows_NT$"
-call :check_regex "^\[B07\] CmdVer: Microsoft Windows"
-call :check_regex "^\[B07\] Working dir: [A-Za-z]:\\"
-call :check_regex "^\[B07\] Command: \(buildOrTest\.bat\|BuildOrTest\.sh\) gate$"
+call :check_regex "^\[B07\] Source: collect_windows_b07_evidence\.bat *$"
+call :check_regex "^\[B07\] HostOS: Windows_NT *$"
+call :check_regex "^\[B07\] CmdVer: Microsoft Windows.*$"
+call :check_regex "^\[B07\] Working dir: [A-Za-z]:\\.*$"
+call :check_command_marker
 call :check_fixed "[GATE] OK"
 call :check_fixed "[B07] GATE_EXIT_CODE=0"
-
-call :check_fixed "Total:"
-call :check_fixed "Passed:"
-call :check_fixed "Failed:"
-call :check_fixed "[B07] Total:"
-call :check_fixed "[B07] Passed:"
-call :check_fixed "[B07] Failed:"
 
 findstr /r /c:"^\[B07\] Simulated: yes$" "%LOG_PATH%" >nul 2>nul
 if not errorlevel 1 (
@@ -137,6 +130,15 @@ if errorlevel 1 (
   echo [EVIDENCE] Missing regex: %PATTERN%
   set "FAIL=1"
 )
+exit /b 0
+
+:check_command_marker
+findstr /l /c:"[B07] Command: buildOrTest.bat gate" "%LOG_PATH%" >nul 2>nul
+if not errorlevel 1 exit /b 0
+findstr /l /c:"[B07] Command: BuildOrTest.sh gate" "%LOG_PATH%" >nul 2>nul
+if not errorlevel 1 exit /b 0
+echo [EVIDENCE] Missing command marker for gate entry
+set "FAIL=1"
 exit /b 0
 
 :extract_metric

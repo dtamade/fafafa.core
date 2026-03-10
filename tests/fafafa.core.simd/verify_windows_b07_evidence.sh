@@ -126,32 +126,17 @@ LPassed=""
 LFailed=""
 
 check_fixed "[B07] Windows evidence capture" || LFail=1
-check_regex '^\[B07\][[:space:]]+Source:[[:space:]]+collect_windows_b07_evidence\.bat$' || LFail=1
-check_regex '^\[B07\][[:space:]]+HostOS:[[:space:]]+Windows_NT$' || LFail=1
-check_regex '^\[B07\][[:space:]]+CmdVer:[[:space:]]+Microsoft[[:space:]]+Windows' || LFail=1
-check_regex '^\[B07\][[:space:]]+Working dir:[[:space:]]+[A-Za-z]:\\' || LFail=1
-check_regex '^\[B07\][[:space:]]+Command:[[:space:]]+(buildOrTest\.bat|BuildOrTest\.sh)[[:space:]]+gate$' || LFail=1
+check_regex '^\[B07\][[:space:]]+Source:[[:space:]]+collect_windows_b07_evidence\.bat[[:space:]]*$' || LFail=1
+check_regex '^\[B07\][[:space:]]+HostOS:[[:space:]]+Windows_NT[[:space:]]*$' || LFail=1
+check_regex '^\[B07\][[:space:]]+CmdVer:[[:space:]]+Microsoft[[:space:]]+Windows.*$' || LFail=1
+check_regex '^\[B07\][[:space:]]+Working dir:[[:space:]]+[A-Za-z]:\\.*$' || LFail=1
+if ! grep -F -- "[B07] Command: buildOrTest.bat gate" "${LOG_PATH}" >/dev/null && \
+   ! grep -F -- "[B07] Command: BuildOrTest.sh gate" "${LOG_PATH}" >/dev/null; then
+  echo "[EVIDENCE] Missing command marker for gate entry"
+  LFail=1
+fi
 check_fixed "[GATE] OK" || LFail=1
 check_fixed "[B07] GATE_EXIT_CODE=0" || LFail=1
-
-check_regex '^Total:[[:space:]]+[0-9]+$' || LFail=1
-check_regex '^Passed:[[:space:]]+[0-9]+$' || LFail=1
-check_regex '^Failed:[[:space:]]+0$' || LFail=1
-
-if ! grep -E -- '^\[B07\][[:space:]]+Total:[[:space:]]+[0-9]+$' "${LOG_PATH}" >/dev/null; then
-  echo "[EVIDENCE] Missing regex: ^\\[B07\\][[:space:]]+Total:[[:space:]]+[0-9]+$"
-  LFail=1
-fi
-
-if ! grep -E -- '^\[B07\][[:space:]]+Passed:[[:space:]]+[0-9]+$' "${LOG_PATH}" >/dev/null; then
-  echo "[EVIDENCE] Missing regex: ^\\[B07\\][[:space:]]+Passed:[[:space:]]+[0-9]+$"
-  LFail=1
-fi
-
-if ! grep -E -- '^\[B07\][[:space:]]+Failed:[[:space:]]+0$' "${LOG_PATH}" >/dev/null; then
-  echo "[EVIDENCE] Missing regex: ^\\[B07\\][[:space:]]+Failed:[[:space:]]+0$"
-  LFail=1
-fi
 
 if grep -E -- '^\[B07\][[:space:]]+Simulated:[[:space:]]+yes$' "${LOG_PATH}" >/dev/null; then
   echo "[EVIDENCE] Invalid source: simulated marker detected"
