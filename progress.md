@@ -87,3 +87,20 @@
 
 ### 阶段状态
 - 跨平台冻结条件满足。
+
+<!-- SIMD-NIGHTLY-CLOSEOUT-2026-03-10 -->
+### 批次
+- SIMD-NIGHTLY-20260310
+
+### 执行动作
+- 建立独立 `simd-nightly-closeout` workflow，拆分 Linux evidence、Windows evidence、freeze audit 三段。
+- 修正 Linux runner / Windows closeout helper / freeze 判定链路中的实际落地问题。
+- 将 nightly 口径收回 stable lane，experimental 继续隔离跟踪。
+
+### 关键结果
+- GitHub Actions `22918810451`：`SIMD Nightly Closeout` 全绿。
+- GitHub Actions `22919783249`：`SIMD Nightly Closeout` 全绿。
+- 当前连续通过计数：`2/3`。
+
+### 阶段状态
+- Stage B 已完成 nightly 接线与 evidence 归档固化，剩余项仅为连续通过次数补足到 `3/3`。

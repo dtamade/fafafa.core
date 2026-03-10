@@ -69,11 +69,13 @@ Batch82 已补齐并验证以下 5 项：
 
 ### Stage B（1 天，流程防回退）
 
-- [ ] 在 CI（建议 nightly）启用：
+- [x] 在 CI（nightly）启用：
   - `SIMD_GATE_COVERAGE=1`
   - `SIMD_COVERAGE_STRICT_EXTRA=1`
-- [ ] 固化 `evidence-linux` 产物上传（含 `summary.md`）
+- [x] 固化 `evidence-linux` 产物上传（含 `summary.md`）
 - [ ] 验证 3 次连续通过（避免偶发波动）
+  - 当前进度：`2/3`
+  - 已通过 run：`22918810451`（2026-03-10）、`22919783249`（2026-03-10）
 
 **DoD:** 新增 intrinsics 漏测可在 gate 前被拦截。
 
