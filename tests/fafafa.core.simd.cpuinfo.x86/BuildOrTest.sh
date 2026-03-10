@@ -5,6 +5,7 @@ ACTION="${1:-test}"
 shift || true
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "${ROOT}/../.." && pwd)"
 OUTPUT_ROOT="${SIMD_OUTPUT_ROOT:-${ROOT}}"
 PROJ="${ROOT}/fafafa.core.simd.cpuinfo.x86.test.lpi"
 FPC_BIN="${FPC_BIN:-fpc}"
@@ -141,6 +142,7 @@ build_project() {
   : >"${BUILD_LOG}"
   if [[ -n "${LLazarusDir}" ]]; then
     if "${LAZBUILD_BIN}" "${LZ_Q[@]}" --lazarusdir="${LLazarusDir}" --build-mode="${LBuildMode}" --build-all "${PROJ}" >"${BUILD_LOG}" 2>&1; then
+      normalize_built_binary
       echo "[BUILD] OK"
       return 0
     else
@@ -152,6 +154,7 @@ build_project() {
   fi
 
   if "${LAZBUILD_BIN}" "${LZ_Q[@]}" --build-mode="${LBuildMode}" --build-all "${PROJ}" >"${BUILD_LOG}" 2>&1; then
+    normalize_built_binary
     echo "[BUILD] OK"
   else
     local rc=$?
@@ -159,6 +162,63 @@ build_project() {
     tail -n 120 "${BUILD_LOG}" || true
     return "${rc}"
   fi
+}
+
+resolve_binary_from_build_log() {
+  local LLine
+  local LCandidate
+  local LBase
+
+  if [[ ! -f "${BUILD_LOG}" ]]; then
+    return 1
+  fi
+
+  LLine="$(grep -E '\(9015\)[[:space:]]+Linking[[:space:]]+' "${BUILD_LOG}" | tail -n 1 || true)"
+  if [[ -z "${LLine}" ]]; then
+    return 1
+  fi
+
+  LCandidate="$(printf '%s\n' "${LLine}" | sed -E 's/.*\(9015\)[[:space:]]+Linking[[:space:]]+//')"
+  LCandidate="$(printf '%s' "${LCandidate}" | tr -d '\r')"
+  if [[ -z "${LCandidate}" ]]; then
+    return 1
+  fi
+
+  if [[ "${LCandidate}" == /* && -f "${LCandidate}" ]]; then
+    echo "${LCandidate}"
+    return 0
+  fi
+
+  for LBase in "${ROOT}" "${OUTPUT_ROOT}" "${REPO_ROOT}" "$(pwd)"; do
+    if [[ -f "${LBase}/${LCandidate}" ]]; then
+      echo "${LBase}/${LCandidate}"
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+normalize_built_binary() {
+  local LResolved
+
+  if [[ -f "${BIN}" || -f "${BIN}.exe" ]]; then
+    return 0
+  fi
+
+  LResolved="$(resolve_binary_from_build_log)" || return 0
+  if [[ -z "${LResolved}" || ! -f "${LResolved}" ]]; then
+    return 0
+  fi
+
+  if [[ "${LResolved}" == "${BIN}" || "${LResolved}" == "${BIN}.exe" ]]; then
+    return 0
+  fi
+
+  mkdir -p "${BIN_DIR}"
+  cp "${LResolved}" "${BIN}"
+  chmod +x "${BIN}" 2>/dev/null || true
+  echo "[BUILD] Binary normalized: ${LResolved} -> ${BIN}"
 }
 
 normalize_test_args() {
@@ -196,11 +256,47 @@ check_build_log() {
 run_tests() {
   local LArg
   local -a LArgs=()
+  local LBinPath
 
-  if [[ ! -x "${BIN}" ]]; then
+  resolve_test_binary() {
+    local LCandidate
+
+    for LCandidate in \
+      "${BIN}" \
+      "${BIN}.exe" \
+      "${ROOT}/bin/fafafa.core.simd.cpuinfo.x86.test" \
+      "${ROOT}/bin/fafafa.core.simd.cpuinfo.x86.test.exe" \
+      "${REPO_ROOT}/bin/fafafa.core.simd.cpuinfo.x86.test" \
+      "${REPO_ROOT}/bin/fafafa.core.simd.cpuinfo.x86.test.exe"; do
+      if [[ -f "${LCandidate}" ]]; then
+        chmod +x "${LCandidate}" 2>/dev/null || true
+        echo "${LCandidate}"
+        return 0
+      fi
+    done
+
+    while IFS= read -r LCandidate; do
+      if [[ -n "${LCandidate}" && -f "${LCandidate}" ]]; then
+        chmod +x "${LCandidate}" 2>/dev/null || true
+        echo "${LCandidate}"
+        return 0
+      fi
+    done < <(
+      find "${OUTPUT_ROOT}" "${ROOT}" "${REPO_ROOT}" -maxdepth 4 -type f \
+        \( -name 'fafafa.core.simd.cpuinfo.x86.test' -o -name 'fafafa.core.simd.cpuinfo.x86.test.exe' -o -name 'fafafa.core.simd.cpuinfo.x86.test.*' \) \
+        ! -name '*.lpi' ! -name '*.lpr' ! -name '*.pas' ! -name '*.ppu' ! -name '*.o' ! -name '*.compiled' ! -name '*.res' ! -name '*.rsj' \
+        2>/dev/null | sort -u
+    )
+
+    return 1
+  }
+
+  LBinPath="$(resolve_test_binary)" || {
     echo "[TEST] Missing binary: ${BIN}"
+    tail -n 40 "${BUILD_LOG}" || true
+    ls -la "${BIN_DIR}" 2>/dev/null || true
     return 2
-  fi
+  }
 
   for LArg in "$@"; do
     if [[ "${LArg}" == "--list-suites" ]]; then
@@ -210,10 +306,10 @@ run_tests() {
     fi
   done
 
-  echo "[TEST] Running: ${BIN} ${LArgs[*]}"
+  echo "[TEST] Running: ${LBinPath} ${LArgs[*]}"
   : >"${TEST_LOG}"
 
-  if "${BIN}" "${LArgs[@]}" >"${TEST_LOG}" 2>&1; then
+  if "${LBinPath}" "${LArgs[@]}" >"${TEST_LOG}" 2>&1; then
     if grep -nE '^Invalid option' "${TEST_LOG}" >/dev/null; then
       echo "[TEST] FAILED: unsupported test argument (see ${TEST_LOG})"
       tail -n 120 "${TEST_LOG}" || true
