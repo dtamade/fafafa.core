@@ -55,20 +55,24 @@ if not errorlevel 1 (
 echo [CHECK] OK ^(no SIMD-unit warnings/hints on stable path^) >> "%OUT_LOG%"
 
 echo [GATE] 2/6 SIMD list suites >> "%OUT_LOG%"
-call "%ROOT%buildOrTest.bat" test --list-suites >> "%OUT_LOG%" 2>&1
+if not exist "%BIN%" (
+  set "GATE_RC=1"
+  goto :after_gate
+)
+"%BIN%" --list-suites >> "%OUT_LOG%" 2>&1
 if errorlevel 1 (
   set "GATE_RC=1"
   goto :after_gate
 )
 
 echo [GATE] 3/6 SIMD AVX2 fallback suite >> "%OUT_LOG%"
-call "%ROOT%buildOrTest.bat" test --suite=TTestCase_VecI32x8 >> "%OUT_LOG%" 2>&1
+"%BIN%" --suite=TTestCase_VecI32x8 >> "%OUT_LOG%" 2>&1
 if errorlevel 1 set "GATE_RC=1"
 if not "%GATE_RC%"=="0" goto :after_gate
-call "%ROOT%buildOrTest.bat" test --suite=TTestCase_VecU32x8 >> "%OUT_LOG%" 2>&1
+"%BIN%" --suite=TTestCase_VecU32x8 >> "%OUT_LOG%" 2>&1
 if errorlevel 1 set "GATE_RC=1"
 if not "%GATE_RC%"=="0" goto :after_gate
-call "%ROOT%buildOrTest.bat" test --suite=TTestCase_VecF64x4 >> "%OUT_LOG%" 2>&1
+"%BIN%" --suite=TTestCase_VecF64x4 >> "%OUT_LOG%" 2>&1
 if errorlevel 1 (
   set "GATE_RC=1"
   goto :after_gate
