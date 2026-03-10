@@ -100,7 +100,8 @@
 ### 关键结果
 - GitHub Actions `22918810451`：`SIMD Nightly Closeout` 全绿。
 - GitHub Actions `22919783249`：`SIMD Nightly Closeout` 全绿。
-- 当前连续通过计数：`2/3`。
+- GitHub Actions `22921866560`：`SIMD Nightly Closeout` 全绿。
+- 当前连续通过计数：`3/3`。
 
 ### 阶段状态
-- Stage B 已完成 nightly 接线与 evidence 归档固化，剩余项仅为连续通过次数补足到 `3/3`。
+- Stage B 已完成：nightly 接线、evidence 归档固化、以及 `3/3` 连续通过验证。
