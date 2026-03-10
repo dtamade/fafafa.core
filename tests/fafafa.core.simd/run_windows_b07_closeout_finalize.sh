@@ -15,6 +15,24 @@ LTARGET_ROOT="${SIMD_WIN_CLOSEOUT_TARGET_ROOT:-}"
 LFREEZE_JSON="${SIMD_WIN_FREEZE_STATUS_JSON_FILE:-${ROOT}/logs/freeze_status.json}"
 LBATCH_DIR="${SIMD_WIN_CLOSEOUT_BATCH_DIR:-}"
 
+same_path() {
+  local aLeft
+  local aRight
+  local LLeftReal
+  local LRightReal
+
+  aLeft="$1"
+  aRight="$2"
+
+  if [[ ! -e "${aLeft}" || ! -e "${aRight}" ]]; then
+    return 1
+  fi
+
+  LLeftReal="$(realpath "${aLeft}" 2>/dev/null || true)"
+  LRightReal="$(realpath "${aRight}" 2>/dev/null || true)"
+  [[ -n "${LLeftReal}" && -n "${LRightReal}" && "${LLeftReal}" == "${LRightReal}" ]]
+}
+
 if [[ ! -x "${FINALIZE_SCRIPT}" ]]; then
   echo "[CLOSEOUT] Missing finalize script: ${FINALIZE_SCRIPT}"
   exit 2
@@ -78,10 +96,12 @@ fi
 echo "[CLOSEOUT] apply-after-freeze: ${APPLY_SCRIPT} ${LAPPLY_ARGS[*]}"
 "${APPLY_SCRIPT}" "${LAPPLY_ARGS[@]}"
 
-if [[ "${LSUMMARY_FILE}" != "${ROOT}/logs/windows_b07_closeout_summary.md" && -f "${LSUMMARY_FILE}" ]]; then
+if [[ "${LSUMMARY_FILE}" != "${ROOT}/logs/windows_b07_closeout_summary.md" && -f "${LSUMMARY_FILE}" ]] && \
+   ! same_path "${LSUMMARY_FILE}" "${ROOT}/logs/windows_b07_closeout_summary.md"; then
   cp "${LSUMMARY_FILE}" "${ROOT}/logs/windows_b07_closeout_summary.md"
 fi
 
-if [[ "${LFREEZE_JSON}" != "${ROOT}/logs/freeze_status.json" && -f "${LFREEZE_JSON}" ]]; then
+if [[ "${LFREEZE_JSON}" != "${ROOT}/logs/freeze_status.json" && -f "${LFREEZE_JSON}" ]] && \
+   ! same_path "${LFREEZE_JSON}" "${ROOT}/logs/freeze_status.json"; then
   cp "${LFREEZE_JSON}" "${ROOT}/logs/freeze_status.json"
 fi
