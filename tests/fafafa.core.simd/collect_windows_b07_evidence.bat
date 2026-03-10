@@ -30,11 +30,19 @@ echo [GATE] Experimental boundary: default entry chain keeps experimental intrin
 echo [GATE] Note: gate/gate-strict PASS does not imply every experimental path is release-grade. >> "%OUT_LOG%"
 
 echo [GATE] 1/6 Build + check SIMD module >> "%OUT_LOG%"
-call "%ROOT%buildOrTest.bat" check >> "%OUT_LOG%" 2>&1
+call "%ROOT%buildOrTest.bat" build >> "%OUT_LOG%" 2>&1
 if errorlevel 1 (
   set "GATE_RC=1"
   goto :after_gate
 )
+findstr /r /c:"src\fafafa\.core\.simd\..*Warning:" /c:"src\fafafa\.core\.simd\..*Hint:" "%ROOT%logs\build.txt" | findstr /v /c:"src\fafafa.core.simd.intrinsics.avx2.pas" >nul 2>nul
+if not errorlevel 1 (
+  echo [CHECK] Found warnings/hints from stable SIMD units in build log >> "%OUT_LOG%"
+  type "%ROOT%logs\build.txt" >> "%OUT_LOG%"
+  set "GATE_RC=1"
+  goto :after_gate
+)
+echo [CHECK] OK ^(no SIMD-unit warnings/hints on stable path^) >> "%OUT_LOG%"
 
 echo [GATE] 2/6 SIMD list suites >> "%OUT_LOG%"
 call "%ROOT%buildOrTest.bat" test --list-suites >> "%OUT_LOG%" 2>&1
