@@ -5,6 +5,7 @@ ACTION="${1:-test}"
 shift || true
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "${ROOT}/../.." && pwd)"
 OUTPUT_ROOT="${SIMD_OUTPUT_ROOT:-${ROOT}}"
 PROJ="${ROOT}/fafafa.core.simd.test.lpi"
 FPC_BIN="${FPC_BIN:-fpc}"
@@ -158,6 +159,8 @@ run_tests() {
       "${BIN}.exe" \
       "${ROOT}/bin2/fafafa.core.simd.test" \
       "${ROOT}/bin2/fafafa.core.simd.test.exe" \
+      "${REPO_ROOT}/bin2/fafafa.core.simd.test" \
+      "${REPO_ROOT}/bin2/fafafa.core.simd.test.exe" \
       "${OUTPUT_ROOT}/bin2/bin2/fafafa.core.simd.test" \
       "${OUTPUT_ROOT}/bin2/bin2/fafafa.core.simd.test.exe"; do
       if [[ -f "${LCandidate}" ]]; then
@@ -174,7 +177,7 @@ run_tests() {
         return 0
       fi
     done < <(
-      find "${OUTPUT_ROOT}" "${ROOT}" -maxdepth 4 -type f \
+      find "${OUTPUT_ROOT}" "${ROOT}" "${REPO_ROOT}" -maxdepth 4 -type f \
         \( -name 'fafafa.core.simd.test' -o -name 'fafafa.core.simd.test.exe' -o -name 'fafafa.core.simd.test.*' \) \
         ! -name '*.lpi' \
         ! -name '*.lpr' \
@@ -192,7 +195,7 @@ run_tests() {
 
   LBinPath="$(resolve_test_binary)" || {
     echo "[TEST] Missing binary: ${BIN} (did build succeed?)"
-    find "${OUTPUT_ROOT}" "${ROOT}" -maxdepth 4 -type f \
+    find "${OUTPUT_ROOT}" "${ROOT}" "${REPO_ROOT}" -maxdepth 4 -type f \
       \( -name 'fafafa.core.simd.test' -o -name 'fafafa.core.simd.test.exe' -o -name 'fafafa.core.simd.test.*' \) \
       ! -name '*.lpi' \
       ! -name '*.lpr' \
