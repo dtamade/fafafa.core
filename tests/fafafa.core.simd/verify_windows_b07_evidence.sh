@@ -130,7 +130,7 @@ check_regex '^\[B07\][[:space:]]+Source:[[:space:]]+collect_windows_b07_evidence
 check_regex '^\[B07\][[:space:]]+HostOS:[[:space:]]+Windows_NT$' || LFail=1
 check_regex '^\[B07\][[:space:]]+CmdVer:[[:space:]]+Microsoft[[:space:]]+Windows' || LFail=1
 check_regex '^\[B07\][[:space:]]+Working dir:[[:space:]]+[A-Za-z]:\\' || LFail=1
-check_fixed "[B07] Command: buildOrTest.bat gate" || LFail=1
+check_regex '^\[B07\][[:space:]]+Command:[[:space:]]+(buildOrTest\.bat|BuildOrTest\.sh)[[:space:]]+gate$' || LFail=1
 check_fixed "[GATE] OK" || LFail=1
 check_fixed "[B07] GATE_EXIT_CODE=0" || LFail=1
 

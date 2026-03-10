@@ -32,7 +32,7 @@ call :check_regex "^\[B07\] Source: collect_windows_b07_evidence\.bat$"
 call :check_regex "^\[B07\] HostOS: Windows_NT$"
 call :check_regex "^\[B07\] CmdVer: Microsoft Windows"
 call :check_regex "^\[B07\] Working dir: [A-Za-z]:\\"
-call :check_fixed "[B07] Command: buildOrTest.bat gate"
+call :check_regex "^\[B07\] Command: \(buildOrTest\.bat\|BuildOrTest\.sh\) gate$"
 call :check_fixed "[GATE] OK"
 call :check_fixed "[B07] GATE_EXIT_CODE=0"
 
