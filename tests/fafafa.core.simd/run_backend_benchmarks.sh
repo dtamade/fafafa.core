@@ -38,6 +38,7 @@ run_one() {
   local LBuildLog
   local LRunLog
   local LBinary
+  local LRunRc
 
   LBase="${aSource%.lpr}"
   LBuildLog="${OUT_DIR}/${LBase}.build.log"
@@ -70,10 +71,15 @@ run_one() {
   (
     cd "${OUT_DIR}"
     "${LBinary}"
-  ) >"${LRunLog}" 2>&1
+  ) >"${LRunLog}" 2>&1 || LRunRc=$?
+  LRunRc="${LRunRc:-0}"
 
   if grep -q '^\[SKIP\]' "${LRunLog}"; then
     echo "[BENCH] SKIP ${aName}" | tee -a "${RUNNER_LOG}"
+  elif [[ "${LRunRc}" -ne 0 ]]; then
+    echo "[BENCH] FAILED (run rc=${LRunRc}): ${aName}" | tee -a "${RUNNER_LOG}"
+    tail -n 80 "${LRunLog}" || true
+    return "${LRunRc}"
   else
     echo "[BENCH] PASS ${aName}" | tee -a "${RUNNER_LOG}"
   fi
