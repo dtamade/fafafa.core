@@ -199,11 +199,18 @@ exit /b %GATE_RC%
 set "STEP_NAME=%~1"
 set "STEP_SCRIPT=%~2"
 set "STEP_ACTION=%~3"
+for %%I in ("%STEP_SCRIPT%") do (
+  set "STEP_DIR=%%~dpI"
+  set "STEP_FILE=%%~nxI"
+)
 set /a RUNALL_TOTAL+=1
-call "%STEP_SCRIPT%" %STEP_ACTION%
-if errorlevel 1 (
+pushd "%STEP_DIR%"
+call ".\%STEP_FILE%" %STEP_ACTION%
+set "STEP_RC=%ERRORLEVEL%"
+popd
+if not "%STEP_RC%"=="0" (
   set /a RUNALL_FAILED+=1
-  echo [FAIL] %STEP_NAME% ^(rc=%ERRORLEVEL%^)
+  echo [FAIL] %STEP_NAME% ^(rc=%STEP_RC%^)
   if defined RUNALL_FAILED_LIST (
     set "RUNALL_FAILED_LIST=%RUNALL_FAILED_LIST%,%STEP_NAME%"
   ) else (
