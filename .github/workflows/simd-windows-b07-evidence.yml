@@ -2,11 +2,19 @@ name: SIMD Windows B07 Evidence
 
 on:
   workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+env:
+  FAFAFA_BUILD_MODE: Release
 
 jobs:
   prepare-windows-b07-source:
     runs-on: ubuntu-latest
     name: Prepare Windows SIMD Source
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
@@ -44,6 +52,7 @@ jobs:
     needs: prepare-windows-b07-source
     runs-on: windows-latest
     name: Collect Windows B07 Evidence
+    timeout-minutes: 60
 
     steps:
       - name: Download prepared SIMD source
@@ -98,11 +107,12 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: simd-windows-b07-evidence
-          if-no-files-found: error
-          retention-days: 7
+          if-no-files-found: warn
+          retention-days: 14
           path: |
             tests/fafafa.core.simd/logs/windows_b07_gate.log
             tests/fafafa.core.simd/logs/gate_summary.md
+            tests/fafafa.core.simd/logs/gate_summary.json
             tests/fafafa.core.simd/logs/build.txt
             tests/fafafa.core.simd/logs/test.txt
             tests/run_all_tests_summary.txt

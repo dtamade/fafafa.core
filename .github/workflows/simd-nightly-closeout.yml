@@ -1,0 +1,128 @@
+name: SIMD Nightly Closeout
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '17 18 * * *'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: simd-nightly-closeout-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  FAFAFA_BUILD_MODE: Release
+
+jobs:
+  linux-evidence:
+    name: Linux SIMD Evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64,riscv64,arm
+
+      - name: Install FreePascal + Lazarus
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fpc lazarus
+
+      - name: Collect Linux SIMD evidence
+        run: |
+          bash tests/fafafa.core.simd/BuildOrTest.sh evidence-linux
+
+      - name: Upload Linux SIMD evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: simd-linux-evidence
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            tests/fafafa.core.simd/logs/evidence-*
+            tests/fafafa.core.simd/logs/gate_summary.md
+            tests/fafafa.core.simd/logs/gate_summary.json
+            tests/fafafa.core.simd/logs/freeze_status.json
+            tests/fafafa.core.simd/logs/qemu-multiarch-*
+
+  windows-evidence:
+    name: Windows SIMD Evidence
+    uses: ./.github/workflows/simd-windows-b07-evidence.yml
+    secrets: inherit
+
+  freeze-audit:
+    name: Cross-Platform Freeze Audit
+    needs:
+      - linux-evidence
+      - windows-evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Prepare batch id
+        run: |
+          echo "SIMD_BATCH_ID=SIMD-$(date +%Y%m%d)-nightly-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "${GITHUB_ENV}"
+
+      - name: Download Linux SIMD evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: simd-linux-evidence
+          path: ${{ runner.temp }}/simd-linux-evidence
+
+      - name: Download Windows SIMD evidence
+        uses: actions/download-artifact@v4
+        with:
+          name: simd-windows-b07-evidence
+          path: ${{ runner.temp }}/simd-windows-b07-evidence
+
+      - name: Restore nightly evidence snapshot
+        run: |
+          bash tests/fafafa.core.simd/restore_nightly_evidence_artifacts.sh \
+            "${RUNNER_TEMP}/simd-linux-evidence" \
+            "${RUNNER_TEMP}/simd-windows-b07-evidence"
+
+      - name: Verify Windows evidence against gate summary
+        run: |
+          bash tests/fafafa.core.simd/verify_windows_b07_evidence.sh \
+            tests/fafafa.core.simd/logs/windows_b07_gate.log \
+            tests/fafafa.core.simd/logs/gate_summary.json
+
+      - name: Finalize Windows closeout for nightly audit
+        run: |
+          export SIMD_WIN_CLOSEOUT_BATCH_DIR="tests/fafafa.core.simd/logs/windows-closeout/${SIMD_BATCH_ID}"
+          export SIMD_WIN_EVIDENCE_LOG_FILE="tests/fafafa.core.simd/logs/windows_b07_gate.log"
+          export SIMD_WIN_CLOSEOUT_SUMMARY_FILE="tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md"
+          export SIMD_WIN_FREEZE_STATUS_JSON_FILE="tests/fafafa.core.simd/logs/freeze_status.json"
+          export SIMD_FREEZE_WINDOWS_LOG_FILE="tests/fafafa.core.simd/logs/windows_b07_gate.log"
+          export SIMD_FREEZE_WINDOWS_CLOSEOUT_SUMMARY_FILE="tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md"
+          bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize "${SIMD_BATCH_ID}"
+
+      - name: Re-run cross-platform freeze status
+        run: |
+          bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status
+
+      - name: Upload freeze audit artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: simd-freeze-audit
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            tests/fafafa.core.simd/logs/windows_b07_gate.log
+            tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md
+            tests/fafafa.core.simd/logs/freeze_status.json
+            tests/fafafa.core.simd/logs/gate_summary.md
+            tests/fafafa.core.simd/logs/gate_summary.json
+            tests/fafafa.core.simd/logs/windows-closeout/*

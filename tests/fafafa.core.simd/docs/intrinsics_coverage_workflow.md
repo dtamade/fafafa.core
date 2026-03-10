@@ -97,6 +97,36 @@ bash tests/fafafa.core.simd/BuildOrTest.sh evidence-linux
 输出目录：`tests/fafafa.core.simd/logs/evidence-<timestamp>/`
 摘要文件：`summary.md`
 
+该入口现已作为 nightly 证据链的 Linux 段使用；默认以 Release 口径运行，并与后续 Windows 实机证据、cross-platform `freeze-status` 组合成完整收口链。
+
+
+## Nightly / GitHub Actions 证据归档
+
+为了避免把重门禁塞进每次 push / PR，SIMD 现使用独立 workflow 做 nightly / 手工归档：
+
+- `.github/workflows/simd-nightly-closeout.yml`
+  - 触发：`schedule` + `workflow_dispatch`
+  - Linux 段：`BuildOrTest.sh evidence-linux`
+  - Windows 段：复用 `.github/workflows/simd-windows-b07-evidence.yml`
+  - 审计段：恢复 artifacts 到 canonical `logs/`，执行 `win-closeout-finalize` 与 cross-platform `freeze-status`
+- `.github/workflows/simd-windows-b07-evidence.yml`
+  - 触发：`workflow_dispatch` + `workflow_call`
+  - 作用：只负责采集并校验 Windows B07 实机 evidence，不承担 Linux freeze 判定
+
+nightly 固定口径：
+
+- `FAFAFA_BUILD_MODE=Release`
+- `SIMD_GATE_COVERAGE=1`
+- `SIMD_COVERAGE_STRICT_EXTRA=1`
+- `SIMD_GATE_WIRING_SYNC=1`
+- `SIMD_WIRING_SYNC_STRICT_EXTRA=1`
+
+归档产物：
+
+- `simd-linux-evidence`
+- `simd-windows-b07-evidence`
+- `simd-freeze-audit`
+
 
 
 ## Wiring 对账与门禁摘要
