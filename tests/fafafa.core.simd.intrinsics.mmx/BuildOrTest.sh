@@ -22,6 +22,10 @@ if [[ "${FAFAFA_BUILD_QUIET:-1}" != "0" ]]; then
 fi
 
 detect_lazarusdir() {
+  local LLazbuildPath
+  local LMaybeRoot
+  local LCandidate
+
   # Prefer explicit override.
   if [[ -n "${FAFAFA_LAZARUSDIR:-}" ]]; then
     echo "${FAFAFA_LAZARUSDIR}"
@@ -35,16 +39,22 @@ detect_lazarusdir() {
   fi
 
   # Best-effort: infer from lazbuild location if it sits in the Lazarus source root.
-  local LLazbuildPath
-  local LMaybeRoot
   LLazbuildPath="$(command -v "${LAZBUILD_BIN}" 2>/dev/null || true)"
   if [[ -n "${LLazbuildPath}" ]]; then
+    LLazbuildPath="$(readlink -f "${LLazbuildPath}" 2>/dev/null || echo "${LLazbuildPath}")"
     LMaybeRoot="$(cd "$(dirname "${LLazbuildPath}")" && pwd)"
     if [[ -d "${LMaybeRoot}/lcl" ]]; then
       echo "${LMaybeRoot}"
       return 0
     fi
   fi
+
+  for LCandidate in /usr/lib/lazarus/* /usr/local/lib/lazarus/*; do
+    if [[ -d "${LCandidate}/lcl" ]]; then
+      echo "${LCandidate}"
+      return 0
+    fi
+  done
 
   echo ""
   return 0
