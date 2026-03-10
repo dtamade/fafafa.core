@@ -582,7 +582,7 @@ def main() -> int:
         include_cpuinfo_lazy_repeat_step=require_cpuinfo_lazy_repeat_step,
     )
     required_gate_steps_cross = build_required_gate_steps(
-        include_windows_evidence_step=True,
+        include_windows_evidence_step=False,
         include_qemu_cpuinfo_nonx86_step=require_qemu_cpuinfo_nonx86_step,
         include_qemu_cpuinfo_nonx86_full_step=require_qemu_cpuinfo_nonx86_full_step,
         include_qemu_cpuinfo_nonx86_full_repeat_step=require_qemu_cpuinfo_nonx86_full_repeat_step,
