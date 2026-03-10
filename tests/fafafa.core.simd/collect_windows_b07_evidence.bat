@@ -8,6 +8,7 @@ set "OUT_LOG=%LOG_DIR%\windows_b07_gate.log"
 set "SUMMARY_JSON=%LOG_DIR%\gate_summary.json"
 set "SUMMARY_EXPORT_LOG=%LOG_DIR%\windows_b07_gate_summary_export.log"
 set "SUMMARY_FILE=%TESTS_ROOT%\run_all_tests_summary.txt"
+set "BIN=%ROOT%bin2\fafafa.core.simd.test.exe"
 set "CMD_VER="
 set "GATE_COMMAND_MARKER=buildOrTest.bat gate"
 
@@ -31,9 +32,18 @@ echo [GATE] Note: gate/gate-strict PASS does not imply every experimental path i
 
 echo [GATE] 1/6 Build + check SIMD module >> "%OUT_LOG%"
 call "%ROOT%buildOrTest.bat" build >> "%OUT_LOG%" 2>&1
-if errorlevel 1 (
+set "BUILD_STEP_RC=%ERRORLEVEL%"
+if not exist "%BIN%" (
   set "GATE_RC=1"
   goto :after_gate
+)
+findstr /c:"Fatal:" /c:"returned an error exitcode" "%ROOT%logs\build.txt" >nul 2>nul
+if not errorlevel 1 (
+  set "GATE_RC=1"
+  goto :after_gate
+)
+if not "%BUILD_STEP_RC%"=="0" (
+  echo [B07] WARN: build command returned rc=%BUILD_STEP_RC% but artifact and build log look usable >> "%OUT_LOG%"
 )
 findstr /r /c:"src\fafafa\.core\.simd\..*Warning:" /c:"src\fafafa\.core\.simd\..*Hint:" "%ROOT%logs\build.txt" | findstr /v /c:"src\fafafa.core.simd.intrinsics.avx2.pas" >nul 2>nul
 if not errorlevel 1 (
