@@ -1,6 +1,6 @@
 # SIMD 发布候选检查单（Linux）
 
-更新时间：2026-03-04
+更新时间：2026-03-10
 
 ## A. 设计与接口
 
@@ -324,14 +324,15 @@
   - `bash tests/fafafa.core.simd/BuildOrTest.sh qemu-experimental-baseline-check`
   - 产物：`tests/fafafa.core.simd/docs/experimental_asm_blockers.md`
   - 基线：`tests/fafafa.core.simd/docs/experimental_asm_expected_failures.json`
-- [ ] Windows 实机证据日志待归档（当前缺口）
+- [x] Windows 实机证据日志已归档
   - 目标文件：`tests/fafafa.core.simd/logs/windows_b07_gate.log`
-  - 推荐闭环顺序（按 freeze-status next-actions）：
+  - 已完成闭环顺序（按 freeze-status next-actions）：
     - `bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight`
     - `tests\fafafa.core.simd\buildOrTest.bat evidence-win-verify`
     - `bash tests/fafafa.core.simd/BuildOrTest.sh gate`
     - `bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize SIMD-YYYYMMDD-152`
     - `bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+  - 结果：`cross-ready=True`，并生成 `tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md`
   - 快捷打印（复制即跑）：
     - `bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-3cmd SIMD-YYYYMMDD-152`
   - 分步兜底：

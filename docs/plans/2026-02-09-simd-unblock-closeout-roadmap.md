@@ -1,6 +1,6 @@
 # SIMD Unblock Closeout & Next Attack Roadmap
 
-更新时间：2026-02-09
+更新时间：2026-03-10
 
 ## 1. 当前阻塞状态（结论先行）
 
@@ -27,11 +27,11 @@ Batch82 已补齐并验证以下 5 项：
 
 ## 3. 剩余阻塞与风险清单（按优先级）
 
-### P0（当前唯一阻塞）
+### P0（已关闭）
 
-- [ ] **Windows 实机证据未归档（GitHub Windows runner 计费阻塞）**
+- [x] **Windows 实机证据已归档**
   - 目标文件：`tests/fafafa.core.simd/logs/windows_b07_gate.log`
-  - 现状：Linux gate 可 `SKIP`，不阻塞本机开发；但跨平台发布证据链未闭合。
+  - 关闭依据：`win-closeout-finalize` 已完成，`freeze-status` 已达 `cross-ready=True`。
   - 来源：`tests/fafafa.core.simd/docs/simd_release_candidate_checklist.md`
 
 ### P1（不阻塞开发，但建议尽快纳入流程）
@@ -54,9 +54,9 @@ Batch82 已补齐并验证以下 5 项：
 
 ## 4. 下一阶段“逐一攻克”目标清单（可直接开干）
 
-### Stage A（0.5 天，收口发布证据）
+### Stage A（已完成，收口发布证据）
 
-- [ ] 按推荐顺序执行证据闭环：
+- [x] 按推荐顺序完成证据闭环：
   - `bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight`
   - `tests\fafafa.core.simd\buildOrTest.bat evidence-win-verify`
   - `bash tests/fafafa.core.simd/BuildOrTest.sh gate`
@@ -87,8 +87,8 @@ Batch82 已补齐并验证以下 5 项：
 
 ## 5. 推荐执行策略
 
-- 当前开发主线可继续推进（接口层阻塞已解除）。
-- 将 Windows 实机证据作为**单独收口任务**，避免打断 Linux 迭代节奏。
+- 当前开发主线可继续推进（接口层阻塞已解除，Windows closeout 已收口）。
+- Windows 实机证据已闭环，后续保持“一条命令采集、一条命令 finalize”的固定入口即可。
 - 后端扩展按专题推进，不与门面接口清单混线，持续保持“小批次 + 固定门禁 + 文档回填”。
 
 <!-- SIMD-WIN-CLOSEOUT-2026-03-10 -->
