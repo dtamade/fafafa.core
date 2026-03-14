@@ -151,3 +151,9 @@
   - Log: tests/fafafa.core.simd/logs/windows_b07_gate.log
   - Summary: tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md
   - 验证：verify_windows_b07_evidence PASS
+
+<!-- SIMD-WIN-CLOSEOUT-2026-03-14 -->
+- Windows 实机证据：已归档（2026-03-14）
+  - Log: tests/fafafa.core.simd/logs/windows_b07_gate.log
+  - Summary: tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md
+  - 验证：verify_windows_b07_evidence PASS

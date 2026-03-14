@@ -221,3 +221,27 @@
   - 仅低成本观察：`VecU32x16Mul`
   - 降级观察，不再主动深挖：`VecU64x8Add`、`VecF32x4Add`
   - 继续主线收口：stable boundary、evidence contract、文档真相源统一
+
+<!-- SIMD-WIN-CLOSEOUT-2026-03-14 -->
+### 批次
+- SIMD-20260314-156
+
+### 执行动作
+- 在 Windows 实机完成 buildOrTest.bat evidence-win-verify。
+- 生成并归档收口摘要：finalize-win-evidence。
+- 回填 roadmap / matrix / progress，关闭跨平台证据缺口。
+
+### 命令与结果
+| Command | Result |
+|---|---|
+| tests\fafafa.core.simd\buildOrTest.bat evidence-win-verify | PASS |
+| bash tests/fafafa.core.simd/BuildOrTest.sh finalize-win-evidence | PASS |
+| bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status | PASS |
+| bash tests/fafafa.core.simd/apply_windows_b07_closeout_updates.sh --apply --freeze-json tests/fafafa.core.simd/logs/freeze_status.json | PASS |
+
+### 关键证据
+- Log: tests/fafafa.core.simd/logs/windows_b07_gate.log
+- Summary: tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md
+
+### 阶段状态
+- 跨平台冻结条件满足。

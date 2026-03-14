@@ -60,7 +60,9 @@ echo "[CLOSEOUT] finalize: log=${LEVIDENCE_LOG}, summary=${LSUMMARY_FILE}"
 if [[ -n "${LBATCH_DIR}" ]]; then
   mkdir -p "${LBATCH_DIR}"
   if [[ -f "${LEVIDENCE_LOG}" ]]; then
-    cp "${LEVIDENCE_LOG}" "${LBATCH_DIR}/windows_b07_gate.log"
+    if ! same_path "${LEVIDENCE_LOG}" "${LBATCH_DIR}/windows_b07_gate.log"; then
+      cp "${LEVIDENCE_LOG}" "${LBATCH_DIR}/windows_b07_gate.log"
+    fi
   fi
   if [[ -f "${ROOT}/logs/gate_summary.md" ]]; then
     cp "${ROOT}/logs/gate_summary.md" "${LBATCH_DIR}/gate_summary.md"
