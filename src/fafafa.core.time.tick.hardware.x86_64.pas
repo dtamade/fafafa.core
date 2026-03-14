@@ -57,12 +57,16 @@ uses
   fafafa.core.time.cpu
   {$IFDEF MSWINDOWS}
   , fafafa.core.time.tick.windows
-  {$ELSEIF DEFINED(DARWIN)}
-  , fafafa.core.time.tick.darwin
-  {$ELSEIF DEFINED(UNIX)}
-  , fafafa.core.time.tick.unix
   {$ELSE}
-    {$MESSAGE ERROR 'Unsupported platform for fafafa.core.time.tick.hardware.x86_64'}
+    {$IFDEF DARWIN}
+  , fafafa.core.time.tick.darwin
+    {$ELSE}
+      {$IFDEF UNIX}
+  , fafafa.core.time.tick.unix
+      {$ELSE}
+        {$MESSAGE ERROR 'Unsupported platform for fafafa.core.time.tick.hardware.x86_64'}
+      {$ENDIF}
+    {$ENDIF}
   {$ENDIF};
 
 var
