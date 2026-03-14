@@ -43,10 +43,14 @@ uses
   fafafa.core.time.tick.base
   {$IFDEF WINDOWS}
   , fafafa.core.time.tick.windows
-  {$ELSEIF DEFINED(DARWIN)}
+  {$ELSE}
+    {$IFDEF DARWIN}
   , fafafa.core.time.tick.darwin
-  {$ELSEIF DEFINED(UNIX)}
+    {$ELSE}
+      {$IFDEF UNIX}
   , fafafa.core.time.tick.unix
+      {$ENDIF}
+    {$ENDIF}
   {$ENDIF}
   , fafafa.core.time.tick.hardware
   ;
@@ -209,12 +213,16 @@ function MakeStdTick: ITick;
 begin
   {$IFDEF WINDOWS}
   Result := fafafa.core.time.tick.windows.MakeTick();
-  {$ELSEIF DEFINED(DARWIN)}
-  Result := fafafa.core.time.tick.darwin.MakeTick();
-  {$ELSEIF DEFINED(UNIX)}
-  Result := fafafa.core.time.tick.unix.MakeTick();
   {$ELSE}
-    {$ERROR 'Unsupported platform for fafafa.core.time.tick.MakeStandardTick'}
+    {$IFDEF DARWIN}
+  Result := fafafa.core.time.tick.darwin.MakeTick();
+    {$ELSE}
+      {$IFDEF UNIX}
+  Result := fafafa.core.time.tick.unix.MakeTick();
+      {$ELSE}
+        {$ERROR 'Unsupported platform for fafafa.core.time.tick.MakeStandardTick'}
+      {$ENDIF}
+    {$ENDIF}
   {$ENDIF}
 end;
 
@@ -222,12 +230,16 @@ function MakeHDTick: ITick;
 begin
   {$IFDEF WINDOWS}
   Result := fafafa.core.time.tick.windows.MakeHDTick();
-  {$ELSEIF DEFINED(DARWIN)}
-  Result := fafafa.core.time.tick.darwin.MakeHDTick();
-  {$ELSEIF DEFINED(UNIX)}
-  Result := fafafa.core.time.tick.unix.MakeHDTick();
   {$ELSE}
-    {$ERROR 'Unsupported platform for fafafa.core.time.tick.MakeHDTick'}
+    {$IFDEF DARWIN}
+  Result := fafafa.core.time.tick.darwin.MakeHDTick();
+    {$ELSE}
+      {$IFDEF UNIX}
+  Result := fafafa.core.time.tick.unix.MakeHDTick();
+      {$ELSE}
+        {$ERROR 'Unsupported platform for fafafa.core.time.tick.MakeHDTick'}
+      {$ENDIF}
+    {$ENDIF}
   {$ENDIF}
 end;
 
