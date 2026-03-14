@@ -135,10 +135,12 @@ begin
   // 未知架构的后备方案
   {$IFDEF MSWINDOWS}
   SwitchToThread();
-  {$ELSEIF defined(UNIX)}
-  fpSleep(0);  // FPC 的 Unix 让出时间片函数
   {$ELSE}
+    {$IFDEF UNIX}
+  fpSleep(0);  // FPC 的 Unix 让出时间片函数
+    {$ELSE}
   // 最后的后备方案：什么都不做
+    {$ENDIF}
   {$ENDIF}
 end;
 {$ENDIF}
