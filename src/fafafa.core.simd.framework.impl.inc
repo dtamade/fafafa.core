@@ -23,6 +23,31 @@ begin
   Result := GetBestBackendOnCPU;
 end;
 
+function IsBackendRegisteredInBinary(aBackend: TSimdBackend): Boolean;
+begin
+  Result := IsBackendRegistered(aBackend);
+end;
+
+function GetRegisteredBackendList: TSimdBackendArray;
+var
+  LBackend: TSimdBackend;
+  LCount: Integer;
+begin
+  LCount := 0;
+  for LBackend := Low(TSimdBackend) to High(TSimdBackend) do
+    if IsBackendRegisteredInBinary(LBackend) then
+      Inc(LCount);
+
+  SetLength(Result, LCount);
+  LCount := 0;
+  for LBackend := Low(TSimdBackend) to High(TSimdBackend) do
+    if IsBackendRegisteredInBinary(LBackend) then
+    begin
+      Result[LCount] := LBackend;
+      Inc(LCount);
+    end;
+end;
+
 function GetDispatchableBackendList: TSimdBackendArray;
 begin
   Result := GetDispatchableBackends;

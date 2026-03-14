@@ -1,6 +1,6 @@
 # SIMD Interface/Implementation Completeness Report
 
-- generated_at: 2026-03-07T00:23:40
+- generated_at: 2026-03-11T10:11:37
 - dispatch_slots_total: `558`
 - strict: `True`
 - strict_level: `p2`
@@ -14,10 +14,10 @@
 - ssse3: `2/558`
 - sse41: `28/558`
 - sse42: `1/558`
-- avx2: `487/558`
+- avx2: `491/558`
 - avx512: `187/558`
-- neon: `485/558`
-- riscvv: `482/558`
+- neon: `558/558`
+- riscvv: `558/558`
 
 ## Severity Summary
 

@@ -301,6 +301,12 @@ begin
     dispatchTable.CmpGeU64x4 := @AVX2CmpGeU64x4;
     dispatchTable.CmpNeU64x4 := @AVX2CmpNeU64x4;
 
+    // Benchmark-targeted 512-bit wide emulation on AVX2
+    dispatchTable.AddI16x32 := @AVX2AddI16x32;
+    dispatchTable.MulU32x16 := @AVX2MulU32x16;
+    dispatchTable.AddU64x8 := @AVX2AddU64x8;
+    dispatchTable.MaxU8x64 := @AVX2MaxU8x64;
+
     // ✅ NEW: F64x4 Extended Math
     dispatchTable.RcpF64x4 := @AVX2RcpF64x4;
 

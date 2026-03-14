@@ -27,6 +27,7 @@
 说明：
 - `win-evidence-via-gh` 会把批次快照写到 `tests/fafafa.core.simd/logs/windows-closeout/<batch-id>/`，并同步回写 canonical `logs/` 指针，方便 `freeze-status` 默认入口直接消费。
 - `win-evidence-via-gh` 只消费远端 ref。如果本地还有未提交或未推送的 closeout 修复，请先提交并推到目标 ref；否则脚本会直接拒绝 dispatch，避免浪费一轮 Windows runner。
+- `win-closeout-finalize` 是推荐主入口；它内部顺序固定为 `finalize -> freeze-status -> apply`。`finalize-win-evidence` 仅保留给拆分诊断或低层 helper 调用。
 
 ## 手工 Windows 实机路径（兜底）
 
@@ -50,6 +51,7 @@
 说明：
 - `win-evidence-via-gh` 内部会先执行 `win-evidence-preflight`（可通过 `SIMD_WIN_EVIDENCE_PREFLIGHT=0` 关闭）。
 - 该路径依赖 `gh` 已登录，且仓库存在可用 workflow：`.github/workflows/simd-windows-b07-evidence.yml`。
+- 如果你只是想单独重生 closeout summary 而不执行 freeze/apply，可使用低层 helper：`BuildOrTest.sh finalize-win-evidence`。
 
 ## 快捷入口
 

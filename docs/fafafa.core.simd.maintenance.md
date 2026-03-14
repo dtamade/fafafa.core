@@ -63,8 +63,8 @@
 当前更值得关注的真相源：
 
 - `src/fafafa.core.simd.dispatch.pas`：`TSimdDispatchTable` 与 base fallback 的事实真相源
-- `src/fafafa.core.simd.cpuinfo.pas`：可用后端判断与 CPU/OS 能力入口
-- `src/fafafa.core.simd.STABLE`：稳定 ABI / 公开边界约束
+- `src/fafafa.core.simd.cpuinfo.pas`：CPU/OS 支持视图与能力判断入口
+- `src/fafafa.core.simd.STABLE`：公开 façade、in-repo dispatch contract 与 stable boundary 的真相源
 
 ### 后端层
 
@@ -208,7 +208,22 @@ bash tests/fafafa.core.simd/BuildOrTest.sh gate
 说明：
 
 - `check` 负责编译卫生、基础 runner parity，以及默认启用的轻量静态检查。
-- `gate` 负责日常改动使用的快门禁 / 基础门禁；它会串联主要模块回归，但不会默认打开所有重检查。
+- `gate` 负责日常改动使用的快门禁 / 基础门禁；它会串联主要模块回归，并默认包含 `contract-signature` 与 `publicabi-signature` 这类结构护栏，但不会默认打开所有重检查。
+- 如果你明确改了 `TSimdBackendInfo` / `TSimdDispatchTable` 的声明形状，先单独跑：
+
+```bash
+bash tests/fafafa.core.simd/BuildOrTest.sh contract-signature
+python3 tests/fafafa.core.simd/check_dispatch_contract_signature.py --dump-current
+```
+
+只有在这是**有意的 in-repo contract 变更**时，才更新 checker 里的 expected signature。
+
+如果你明确改了 public ABI wrapper 的声明/常量/consumer mirror，再额外跑：
+
+```bash
+bash tests/fafafa.core.simd/BuildOrTest.sh publicabi-signature
+python3 tests/fafafa.core.simd/check_public_abi_signature.py --dump-current
+```
 
 准备 closeout / release 时，再补这一条：
 

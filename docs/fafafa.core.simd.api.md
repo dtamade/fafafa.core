@@ -6,7 +6,7 @@
 >
 > 本文档描述的是 `fafafa.core.simd` / `fafafa.core.simd.api` 对外公开的 façade。像 `TSimdDispatchTable`、`TSimdBackendOps`、后端 `*_Scalar` / `*_AVX2` / `*_SSE2` 之类符号，属于实现细节或后端扩展接口，不是常规使用入口。
 >
-> 这里的“稳定”首先指公开 façade 与 ABI 约束；并不表示每个 backend 都具有同样的成熟度或验证深度。特别是 `sbRISCVV` 仍应视为 experimental / 受限成熟度后端。
+> 这里的“稳定”首先指公开 façade，与仓库内已声明稳定的 dispatch contract；并不表示每个 backend 都具有同样的成熟度或验证深度。特别是 `sbRISCVV` 仍应视为 experimental / 受限成熟度后端。
 
 ## 概述
 
@@ -31,7 +31,7 @@
 
 ### Stable / Experimental 口径
 
-- **稳定面**：公开 façade、已声明稳定的 ABI 边界，以及默认入口链
+- **稳定面**：公开 façade、已声明稳定的 in-repo dispatch contract，以及默认入口链
 - **实验面**：实验性 intrinsics 与受限成熟度 backend，不默认计入 stable surface
 - **默认隔离**：experimental intrinsics 默认入口链已隔离；默认 façade 可见，不等于这些实验单元自动进入发布级保证
 
@@ -184,6 +184,28 @@ begin
 end;
 ```
 
+### 四层状态语义
+
+```pascal
+// 1) supported_on_cpu: 只看 CPU/OS 能力
+supported := GetSupportedBackendList;
+
+// 2) registered: 只看当前二进制里有没有注册这个 backend
+registered := GetRegisteredBackendList;
+ok := IsBackendRegisteredInBinary(sbAVX2);
+
+// 3) dispatchable: CPU 支持 + 已注册 + BackendInfo.Available=True
+dispatchable := GetDispatchableBackendList;
+dispatchable := GetAvailableBackendList; // 兼容别名
+
+// 4) active: 当前真正生效的 backend
+active := GetCurrentBackend;
+```
+
+`GetAvailableBackends`（来自 `cpuinfo`）和 `GetAvailableBackendList`（来自 façade）不是同一语义：
+- 前者是 `supported_on_cpu`
+- 后者是 `dispatchable`
+
 ### 强制后端
 
 ```pascal
@@ -235,6 +257,8 @@ begin
     WriteLn('有效 UTF-8');
 end;
 ```
+
+如果你是在做 external/public ABI 调用方，不要在循环里重复 `GetSimdPublicApi`；先取一次 table，再缓存后直调。详细约束见 `docs/fafafa.core.simd.publicabi.md`。
 
 ### 高级扩展：`TSimdBackendOps`
 

@@ -69,6 +69,7 @@ begin
 
   WriteLn('=== RISCVV vs Scalar Performance Benchmark ===');
   WriteLn;
+  SetVectorAsmEnabled(True);
   WriteLn('Running Scalar backend tests...');
   SetActiveBackend(sbScalar);
   LScalarResults := RunAllBenchmarks;
@@ -176,4 +177,3 @@ begin
   GenerateMarkdownReport(LResults, 'RISCVV_vs_Scalar_Benchmark_Report.md');
   WriteLn('[BENCH] Benchmark completed successfully.');
 end.
-

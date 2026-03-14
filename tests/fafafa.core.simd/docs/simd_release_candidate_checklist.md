@@ -1,6 +1,6 @@
 # SIMD 发布候选检查单（Linux）
 
-更新时间：2026-03-10
+更新时间：2026-03-11
 
 ## A. 设计与接口
 
@@ -11,6 +11,14 @@
   - `python3 tests/fafafa.core.simd/check_interface_implementation_completeness.py --strict`
   - 当前快照：`dispatch=558, P0=0, P1=0, P2=0`
   - 说明：该检查属于 token/赋值启发式扫描，用于发现缺口；不等价于完整语义证明。
+- [x] dispatch contract signature guard 已接入并可复验
+  - `python3 tests/fafafa.core.simd/check_dispatch_contract_signature.py --summary-line`
+  - 当前快照：`backend_info_fields=6, dispatch_table_fields=560`
+  - 说明：该检查用于守住仓库内 `TSimdBackendInfo` / `TSimdDispatchTable` 声明签名，不把当前 record layout 当成 public binary ABI。
+- [x] public ABI signature/layout guard 已接入并可复验
+  - `python3 tests/fafafa.core.simd/check_public_abi_signature.py --summary-line`
+  - 当前快照：`backends=10, capabilities=12, backend_pod_fields=5, public_api_fields=15, pascal_api=7, export_aliases=7`
+  - 说明：该检查用于守住 public ABI wrapper 的 Pascal 声明、ABI 常量、backend/capability ID 映射，以及 `publicabi_smoke.h` 的 consumer-side contract。
 
 ## B. 正确性
 
@@ -41,6 +49,9 @@
   - 默认强制：`SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=1`、`SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=1`。
   - 默认轮次：`SIMD_QEMU_CPUINFO_REPEAT_ROUNDS=1`（可显式覆盖）。
   - non-x86 默认平台：`linux/arm/v7 linux/arm64 linux/riscv64`（可用 `SIMD_QEMU_PLATFORMS_NONX86` 覆盖，不影响 `arch-matrix-evidence` 的固定全矩阵要求）。
+- [x] 最新 closeout 口径 `gate-strict` 复验通过（2026-03-11，含 `contract-signature` / `publicabi-signature` / `publicabi-smoke`）
+  - 命令：`SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_EXPERIMENTAL_TESTS=0 SIMD_GATE_PERF_SMOKE=1 SIMD_PERF_VECTOR_ASM=auto bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict`
+  - 对应 QEMU 证据：`tests/fafafa.core.simd/logs/qemu-multiarch-20260311-211136-2040384/summary.md`
 - [x] 最新 `gate-strict` 复验通过（Release，收紧默认生效）
   - 结果：`tests/fafafa.core.simd/logs/gate_summary.md`（`gate PASS @ 2026-03-03 20:09:01`）。
   - 对应 QEMU 证据：`tests/fafafa.core.simd/logs/qemu-multiarch-20260303-195057/summary.md`（cpuinfo-nonx86-full-evidence）、`tests/fafafa.core.simd/logs/qemu-multiarch-20260303-195237/summary.md`（cpuinfo-nonx86-full-repeat）、`tests/fafafa.core.simd/logs/qemu-multiarch-20260303-195412/summary.md`（arch-matrix-evidence）。

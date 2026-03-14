@@ -73,6 +73,356 @@ begin
   Result := ScalarAddI64x8(a, b);
 end;
 
+function NEONAddI16x32(const a, b: TVecI16x32): TVecI16x32;
+begin
+  Result := ScalarAddI16x32(a, b);
+end;
+
+function NEONSubI16x32(const a, b: TVecI16x32): TVecI16x32;
+begin
+  Result := ScalarSubI16x32(a, b);
+end;
+
+function NEONAndI16x32(const a, b: TVecI16x32): TVecI16x32;
+begin
+  Result := ScalarAndI16x32(a, b);
+end;
+
+function NEONOrI16x32(const a, b: TVecI16x32): TVecI16x32;
+begin
+  Result := ScalarOrI16x32(a, b);
+end;
+
+function NEONXorI16x32(const a, b: TVecI16x32): TVecI16x32;
+begin
+  Result := ScalarXorI16x32(a, b);
+end;
+
+function NEONNotI16x32(const a: TVecI16x32): TVecI16x32;
+begin
+  Result := ScalarNotI16x32(a);
+end;
+
+function NEONAndNotI16x32(const a, b: TVecI16x32): TVecI16x32;
+begin
+  Result := ScalarAndNotI16x32(a, b);
+end;
+
+function NEONCmpEqI16x32(const a, b: TVecI16x32): TMask32;
+begin
+  Result := ScalarCmpEqI16x32(a, b);
+end;
+
+function NEONCmpLtI16x32(const a, b: TVecI16x32): TMask32;
+begin
+  Result := ScalarCmpLtI16x32(a, b);
+end;
+
+function NEONCmpGtI16x32(const a, b: TVecI16x32): TMask32;
+begin
+  Result := ScalarCmpGtI16x32(a, b);
+end;
+
+function NEONMinI16x32(const a, b: TVecI16x32): TVecI16x32;
+begin
+  Result := ScalarMinI16x32(a, b);
+end;
+
+function NEONMaxI16x32(const a, b: TVecI16x32): TVecI16x32;
+begin
+  Result := ScalarMaxI16x32(a, b);
+end;
+
+function NEONShiftLeftI16x32(const a: TVecI16x32; count: Integer): TVecI16x32;
+begin
+  Result := ScalarShiftLeftI16x32(a, count);
+end;
+
+function NEONShiftRightI16x32(const a: TVecI16x32; count: Integer): TVecI16x32;
+begin
+  Result := ScalarShiftRightI16x32(a, count);
+end;
+
+function NEONShiftRightArithI16x32(const a: TVecI16x32; count: Integer): TVecI16x32;
+begin
+  Result := ScalarShiftRightArithI16x32(a, count);
+end;
+
+function NEONAddI8x64(const a, b: TVecI8x64): TVecI8x64;
+begin
+  Result := ScalarAddI8x64(a, b);
+end;
+
+function NEONSubI8x64(const a, b: TVecI8x64): TVecI8x64;
+begin
+  Result := ScalarSubI8x64(a, b);
+end;
+
+function NEONAndI8x64(const a, b: TVecI8x64): TVecI8x64;
+begin
+  Result := ScalarAndI8x64(a, b);
+end;
+
+function NEONOrI8x64(const a, b: TVecI8x64): TVecI8x64;
+begin
+  Result := ScalarOrI8x64(a, b);
+end;
+
+function NEONXorI8x64(const a, b: TVecI8x64): TVecI8x64;
+begin
+  Result := ScalarXorI8x64(a, b);
+end;
+
+function NEONNotI8x64(const a: TVecI8x64): TVecI8x64;
+begin
+  Result := ScalarNotI8x64(a);
+end;
+
+function NEONAndNotI8x64(const a, b: TVecI8x64): TVecI8x64;
+begin
+  Result := ScalarAndNotI8x64(a, b);
+end;
+
+function NEONCmpEqI8x64(const a, b: TVecI8x64): TMask64;
+begin
+  Result := ScalarCmpEqI8x64(a, b);
+end;
+
+function NEONCmpLtI8x64(const a, b: TVecI8x64): TMask64;
+begin
+  Result := ScalarCmpLtI8x64(a, b);
+end;
+
+function NEONCmpGtI8x64(const a, b: TVecI8x64): TMask64;
+begin
+  Result := ScalarCmpGtI8x64(a, b);
+end;
+
+function NEONMinI8x64(const a, b: TVecI8x64): TVecI8x64;
+begin
+  Result := ScalarMinI8x64(a, b);
+end;
+
+function NEONMaxI8x64(const a, b: TVecI8x64): TVecI8x64;
+begin
+  Result := ScalarMaxI8x64(a, b);
+end;
+
+function NEONAddU8x64(const a, b: TVecU8x64): TVecU8x64;
+begin
+  Result := ScalarAddU8x64(a, b);
+end;
+
+function NEONSubU8x64(const a, b: TVecU8x64): TVecU8x64;
+begin
+  Result := ScalarSubU8x64(a, b);
+end;
+
+function NEONAndU8x64(const a, b: TVecU8x64): TVecU8x64;
+begin
+  Result := ScalarAndU8x64(a, b);
+end;
+
+function NEONOrU8x64(const a, b: TVecU8x64): TVecU8x64;
+begin
+  Result := ScalarOrU8x64(a, b);
+end;
+
+function NEONXorU8x64(const a, b: TVecU8x64): TVecU8x64;
+begin
+  Result := ScalarXorU8x64(a, b);
+end;
+
+function NEONNotU8x64(const a: TVecU8x64): TVecU8x64;
+begin
+  Result := ScalarNotU8x64(a);
+end;
+
+function NEONCmpEqU8x64(const a, b: TVecU8x64): TMask64;
+begin
+  Result := ScalarCmpEqU8x64(a, b);
+end;
+
+function NEONCmpLtU8x64(const a, b: TVecU8x64): TMask64;
+begin
+  Result := ScalarCmpLtU8x64(a, b);
+end;
+
+function NEONCmpGtU8x64(const a, b: TVecU8x64): TMask64;
+begin
+  Result := ScalarCmpGtU8x64(a, b);
+end;
+
+function NEONMinU8x64(const a, b: TVecU8x64): TVecU8x64;
+begin
+  Result := ScalarMinU8x64(a, b);
+end;
+
+function NEONMaxU8x64(const a, b: TVecU8x64): TVecU8x64;
+begin
+  Result := ScalarMaxU8x64(a, b);
+end;
+
+function NEONAddU32x16(const a, b: TVecU32x16): TVecU32x16;
+begin
+  Result := ScalarAddU32x16(a, b);
+end;
+
+function NEONSubU32x16(const a, b: TVecU32x16): TVecU32x16;
+begin
+  Result := ScalarSubU32x16(a, b);
+end;
+
+function NEONMulU32x16(const a, b: TVecU32x16): TVecU32x16;
+begin
+  Result := ScalarMulU32x16(a, b);
+end;
+
+function NEONAndU32x16(const a, b: TVecU32x16): TVecU32x16;
+begin
+  Result := ScalarAndU32x16(a, b);
+end;
+
+function NEONOrU32x16(const a, b: TVecU32x16): TVecU32x16;
+begin
+  Result := ScalarOrU32x16(a, b);
+end;
+
+function NEONXorU32x16(const a, b: TVecU32x16): TVecU32x16;
+begin
+  Result := ScalarXorU32x16(a, b);
+end;
+
+function NEONNotU32x16(const a: TVecU32x16): TVecU32x16;
+begin
+  Result := ScalarNotU32x16(a);
+end;
+
+function NEONAndNotU32x16(const a, b: TVecU32x16): TVecU32x16;
+begin
+  Result := ScalarAndNotU32x16(a, b);
+end;
+
+function NEONShiftLeftU32x16(const a: TVecU32x16; count: Integer): TVecU32x16;
+begin
+  Result := ScalarShiftLeftU32x16(a, count);
+end;
+
+function NEONShiftRightU32x16(const a: TVecU32x16; count: Integer): TVecU32x16;
+begin
+  Result := ScalarShiftRightU32x16(a, count);
+end;
+
+function NEONCmpEqU32x16(const a, b: TVecU32x16): TMask16;
+begin
+  Result := ScalarCmpEqU32x16(a, b);
+end;
+
+function NEONCmpLtU32x16(const a, b: TVecU32x16): TMask16;
+begin
+  Result := ScalarCmpLtU32x16(a, b);
+end;
+
+function NEONCmpGtU32x16(const a, b: TVecU32x16): TMask16;
+begin
+  Result := ScalarCmpGtU32x16(a, b);
+end;
+
+function NEONCmpLeU32x16(const a, b: TVecU32x16): TMask16;
+begin
+  Result := ScalarCmpLeU32x16(a, b);
+end;
+
+function NEONCmpGeU32x16(const a, b: TVecU32x16): TMask16;
+begin
+  Result := ScalarCmpGeU32x16(a, b);
+end;
+
+function NEONCmpNeU32x16(const a, b: TVecU32x16): TMask16;
+begin
+  Result := ScalarCmpNeU32x16(a, b);
+end;
+
+function NEONMinU32x16(const a, b: TVecU32x16): TVecU32x16;
+begin
+  Result := ScalarMinU32x16(a, b);
+end;
+
+function NEONMaxU32x16(const a, b: TVecU32x16): TVecU32x16;
+begin
+  Result := ScalarMaxU32x16(a, b);
+end;
+
+function NEONAddU64x8(const a, b: TVecU64x8): TVecU64x8;
+begin
+  Result := ScalarAddU64x8(a, b);
+end;
+
+function NEONSubU64x8(const a, b: TVecU64x8): TVecU64x8;
+begin
+  Result := ScalarSubU64x8(a, b);
+end;
+
+function NEONAndU64x8(const a, b: TVecU64x8): TVecU64x8;
+begin
+  Result := ScalarAndU64x8(a, b);
+end;
+
+function NEONOrU64x8(const a, b: TVecU64x8): TVecU64x8;
+begin
+  Result := ScalarOrU64x8(a, b);
+end;
+
+function NEONXorU64x8(const a, b: TVecU64x8): TVecU64x8;
+begin
+  Result := ScalarXorU64x8(a, b);
+end;
+
+function NEONNotU64x8(const a: TVecU64x8): TVecU64x8;
+begin
+  Result := ScalarNotU64x8(a);
+end;
+
+function NEONShiftLeftU64x8(const a: TVecU64x8; count: Integer): TVecU64x8;
+begin
+  Result := ScalarShiftLeftU64x8(a, count);
+end;
+
+function NEONShiftRightU64x8(const a: TVecU64x8; count: Integer): TVecU64x8;
+begin
+  Result := ScalarShiftRightU64x8(a, count);
+end;
+
+function NEONCmpEqU64x8(const a, b: TVecU64x8): TMask8;
+begin
+  Result := ScalarCmpEqU64x8(a, b);
+end;
+
+function NEONCmpLtU64x8(const a, b: TVecU64x8): TMask8;
+begin
+  Result := ScalarCmpLtU64x8(a, b);
+end;
+
+function NEONCmpGtU64x8(const a, b: TVecU64x8): TMask8;
+begin
+  Result := ScalarCmpGtU64x8(a, b);
+end;
+
+function NEONCmpLeU64x8(const a, b: TVecU64x8): TMask8;
+begin
+  Result := ScalarCmpLeU64x8(a, b);
+end;
+
+function NEONCmpGeU64x8(const a, b: TVecU64x8): TMask8;
+begin
+  Result := ScalarCmpGeU64x8(a, b);
+end;
+
+function NEONCmpNeU64x8(const a, b: TVecU64x8): TMask8;
+begin
+  Result := ScalarCmpNeU64x8(a, b);
+end;
+
 function NEONAddU32x4(const a, b: TVecU32x4): TVecU32x4;
 begin
   Result := ScalarAddU32x4(a, b);
@@ -1917,4 +2267,3 @@ begin
   Result := ScalarZeroI64x4;
   {$ENDIF}
 end;
-

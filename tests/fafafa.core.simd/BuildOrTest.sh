@@ -25,6 +25,9 @@ BUILD_LOG="${LOG_DIR}/build.txt"
 TEST_LOG="${LOG_DIR}/test.txt"
 COVERAGE_SCRIPT="${ROOT}/check_intrinsics_coverage.py"
 INTERFACE_COMPLETENESS_SCRIPT="${ROOT}/check_interface_implementation_completeness.py"
+DISPATCH_CONTRACT_SIGNATURE_SCRIPT="${ROOT}/check_dispatch_contract_signature.py"
+PUBLIC_ABI_SIGNATURE_SCRIPT="${ROOT}/check_public_abi_signature.py"
+PERF_SMOKE_CHECK_SCRIPT="${ROOT}/check_perf_smoke_log.py"
 ADAPTER_SYNC_SCRIPT="${ROOT}/check_backend_adapter_sync.py"
 EXPERIMENTAL_INTRINSICS_SCRIPT="${ROOT}/check_intrinsics_experimental_status.py"
 WIRING_SYNC_SCRIPT="${ROOT}/check_nonx86_wiring_sync.py"
@@ -32,6 +35,10 @@ QEMU_EXPERIMENTAL_REPORT_SCRIPT="${ROOT}/report_qemu_experimental_blockers.py"
 QEMU_EXPERIMENTAL_BASELINE_SCRIPT="${ROOT}/check_experimental_failure_baseline.py"
 INTERFACE_COMPLETENESS_JSON_LOG="${LOG_DIR}/interface_completeness.json"
 INTERFACE_COMPLETENESS_MD_LOG="${LOG_DIR}/interface_completeness.md"
+DISPATCH_CONTRACT_SIGNATURE_LOG="${LOG_DIR}/dispatch_contract_signature.txt"
+DISPATCH_CONTRACT_SIGNATURE_JSON_LOG="${LOG_DIR}/dispatch_contract_signature.json"
+PUBLIC_ABI_SIGNATURE_LOG="${LOG_DIR}/public_abi_signature.txt"
+PUBLIC_ABI_SIGNATURE_JSON_LOG="${LOG_DIR}/public_abi_signature.json"
 ADAPTER_SYNC_LOG="${LOG_DIR}/backend_adapter_sync.txt"
 ADAPTER_SYNC_JSON_LOG="${LOG_DIR}/backend_adapter_sync.json"
 WIRING_SYNC_LOG="${LOG_DIR}/wiring_sync.txt"
@@ -49,6 +56,7 @@ FREEZE_STATUS_SCRIPT="${ROOT}/evaluate_simd_freeze_status.py"
 WIN_CLOSEOUT_FINALIZE_SCRIPT="${ROOT}/run_windows_b07_closeout_finalize.sh"
 FREEZE_REHEARSAL_SCRIPT="${ROOT}/rehearse_freeze_status.sh"
 WIN_EVIDENCE_PREFLIGHT_SCRIPT="${ROOT}/preflight_windows_b07_evidence_gh.sh"
+PUBLICABI_RUNNER_SCRIPT="${ROOT}/../fafafa.core.simd.publicabi/BuildOrTest.sh"
 
 mkdir -p "${BIN_DIR}" "${UNIT_DIR}" "${LOG_DIR}"
 
@@ -477,6 +485,9 @@ check_windows_runner_parity() {
     'if /I "%ACTION%"=="gate" goto :gate'
     'if /I "%ACTION%"=="gate-strict" goto :gate_strict'
     'if /I "%ACTION%"=="interface-completeness" goto :interface_completeness'
+    'if /I "%ACTION%"=="contract-signature" goto :contract_signature'
+    'if /I "%ACTION%"=="publicabi-signature" goto :publicabi_signature'
+    'if /I "%ACTION%"=="publicabi-smoke" goto :publicabi_smoke'
     'if /I "%ACTION%"=="adapter-sync-pascal" goto :adapter_sync_pascal'
     'if /I "%ACTION%"=="adapter-sync" goto :adapter_sync'
     'if /I "%ACTION%"=="parity-suites" goto :parity_suites'
@@ -506,7 +517,7 @@ check_windows_runner_parity() {
     'if /I "%ACTION%"=="gate-summary-inject" goto :gate_summary_inject'
     'if /I "%ACTION%"=="gate-summary-rollback" goto :gate_summary_rollback'
     'if /I "%ACTION%"=="gate-summary-backups" goto :gate_summary_backups'
-    'echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|interface-completeness^|adapter-sync-pascal^|adapter-sync^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|perf-smoke^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-win^|win-evidence-preflight^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-3cmd^|win-closeout-finalize] [test-args...]'
+    'echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|interface-completeness^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|perf-smoke^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-win^|win-evidence-preflight^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-3cmd^|win-closeout-finalize] [test-args...]'
     'findstr /r /c:"src\fafafa\.core\.simd\..*Warning:" /c:"src\fafafa\.core\.simd\..*Hint:" "%BUILD_LOG%" | findstr /v /c:"src\fafafa.core.simd.intrinsics.avx2.pas" >nul 2>nul'
     'findstr /b /c:"Invalid option" "%TEST_LOG%" >nul 2>nul'
     'findstr /r /c:"Number of failures:[ ]*[1-9][0-9]*" /c:"Number of errors:[ ]*[1-9][0-9]*" /c:"Time:.* E:[1-9][0-9]*" /c:"Time:.* F:[1-9][0-9]*" "%TEST_LOG%" >nul 2>nul'
@@ -570,12 +581,23 @@ check_windows_runner_parity() {
     'if "%SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE%"=="" set "SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0"'
     'if "%SIMD_QEMU_CPUINFO_REPEAT_ROUNDS%"=="" set "SIMD_QEMU_CPUINFO_REPEAT_ROUNDS=1"'
     'set "SIMD_GATE_INTERFACE_COMPLETENESS=1"'
+    'set "SIMD_GATE_CONTRACT_SIGNATURE=1"'
+    'set "SIMD_GATE_PUBLICABI_SIGNATURE=1"'
+    'set "SIMD_GATE_PUBLICABI_SMOKE=1"'
     'set "SIMD_GATE_ADAPTER_SYNC_PASCAL=1"'
     'set "SIMD_GATE_ADAPTER_SYNC=1"'
     'set "SIMD_GATE_PARITY_SUITES=1"'
     'call "%ROOT%buildOrTest.bat" gate'
     'echo [GATE] Optional interface completeness check'
     'call "%SELF%" interface-completeness'
+    'echo [GATE] Optional dispatch contract signature'
+    'call "%SELF%" contract-signature'
+    'echo [GATE] Optional public ABI signature'
+    'call "%SELF%" publicabi-signature'
+    'echo [GATE] Optional public ABI smoke'
+    'call "%SELF%" publicabi-smoke'
+    'if "%SIMD_GATE_PUBLICABI_SIGNATURE%"=="" set "SIMD_GATE_PUBLICABI_SIGNATURE=1"'
+    'if "%SIMD_GATE_PUBLICABI_SMOKE%"=="" set "SIMD_GATE_PUBLICABI_SMOKE=1"'
     'echo [GATE] Optional backend adapter sync Pascal smoke'
     'call "%SELF%" adapter-sync-pascal'
     'echo [GATE] Optional backend adapter sync'
@@ -683,6 +705,11 @@ check_perf_log() {
   local LZeroSpeedup
   local LMemRegressions
 
+  if [[ -f "${PERF_SMOKE_CHECK_SCRIPT}" ]] && command -v python3 >/dev/null 2>&1; then
+    python3 "${PERF_SMOKE_CHECK_SCRIPT}" "${TEST_LOG}"
+    return $?
+  fi
+
   if ! grep -F '=== SIMD Benchmark (' "${TEST_LOG}" >/dev/null; then
     echo "[PERF] FAILED: benchmark header not found in ${TEST_LOG}"
     return 1
@@ -739,6 +766,80 @@ run_interface_completeness() {
 
   echo "[INTERFACE-CHECK] Running: python3 ${INTERFACE_COMPLETENESS_SCRIPT} ${LArgs[*]}"
   python3 "${INTERFACE_COMPLETENESS_SCRIPT}" "${LArgs[@]}"
+}
+
+run_dispatch_contract_signature() {
+  if [[ ! -f "${DISPATCH_CONTRACT_SIGNATURE_SCRIPT}" ]]; then
+    echo "[DISPATCH-CONTRACT] Missing checker: ${DISPATCH_CONTRACT_SIGNATURE_SCRIPT}"
+    return 2
+  fi
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "[DISPATCH-CONTRACT] SKIP (python3 not found)"
+    return 0
+  fi
+
+  local LContractLog
+  local LContractJsonLog
+  local LMainRC
+  local LSummaryLine
+
+  LContractLog="${SIMD_DISPATCH_CONTRACT_LOG_FILE:-${DISPATCH_CONTRACT_SIGNATURE_LOG}}"
+  LContractJsonLog="${SIMD_DISPATCH_CONTRACT_JSON_FILE:-${DISPATCH_CONTRACT_SIGNATURE_JSON_LOG}}"
+
+  echo "[DISPATCH-CONTRACT] Running: python3 ${DISPATCH_CONTRACT_SIGNATURE_SCRIPT} --summary-line --json-file ${LContractJsonLog}"
+  : > "${LContractLog}"
+  python3 "${DISPATCH_CONTRACT_SIGNATURE_SCRIPT}" --summary-line --json-file "${LContractJsonLog}" 2>&1 | tee "${LContractLog}"
+  LMainRC="${PIPESTATUS[0]}"
+
+  LSummaryLine="$(grep -E '^DISPATCH_CONTRACT_SIGNATURE ' "${LContractLog}" | tail -n 1 || true)"
+  if [[ -n "${LSummaryLine}" ]]; then
+    echo "[DISPATCH-CONTRACT] Summary: ${LSummaryLine#DISPATCH_CONTRACT_SIGNATURE }"
+  fi
+
+  return "${LMainRC}"
+}
+
+run_public_abi_signature() {
+  if [[ ! -f "${PUBLIC_ABI_SIGNATURE_SCRIPT}" ]]; then
+    echo "[PUBLIC-ABI] Missing checker: ${PUBLIC_ABI_SIGNATURE_SCRIPT}"
+    return 2
+  fi
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "[PUBLIC-ABI] SKIP (python3 not found)"
+    return 0
+  fi
+
+  local LContractLog
+  local LContractJsonLog
+  local LMainRC
+  local LSummaryLine
+
+  LContractLog="${SIMD_PUBLIC_ABI_LOG_FILE:-${PUBLIC_ABI_SIGNATURE_LOG}}"
+  LContractJsonLog="${SIMD_PUBLIC_ABI_JSON_FILE:-${PUBLIC_ABI_SIGNATURE_JSON_LOG}}"
+
+  echo "[PUBLIC-ABI] Running: python3 ${PUBLIC_ABI_SIGNATURE_SCRIPT} --summary-line --json-file ${LContractJsonLog}"
+  : > "${LContractLog}"
+  python3 "${PUBLIC_ABI_SIGNATURE_SCRIPT}" --summary-line --json-file "${LContractJsonLog}" 2>&1 | tee "${LContractLog}"
+  LMainRC="${PIPESTATUS[0]}"
+
+  LSummaryLine="$(grep -E '^PUBLIC_ABI_SIGNATURE ' "${LContractLog}" | tail -n 1 || true)"
+  if [[ -n "${LSummaryLine}" ]]; then
+    echo "[PUBLIC-ABI] Summary: ${LSummaryLine#PUBLIC_ABI_SIGNATURE }"
+  fi
+
+  return "${LMainRC}"
+}
+
+run_publicabi_smoke() {
+  if [[ ! -f "${PUBLICABI_RUNNER_SCRIPT}" ]]; then
+    echo "[PUBLICABI] Missing runner: ${PUBLICABI_RUNNER_SCRIPT}"
+    return 2
+  fi
+
+  echo "[PUBLICABI] Running: bash ${PUBLICABI_RUNNER_SCRIPT} test"
+  bash "${PUBLICABI_RUNNER_SCRIPT}" test
 }
 
 run_backend_adapter_sync() {
@@ -991,6 +1092,18 @@ gate_step_interface_completeness() {
   run_interface_completeness || return $?
 }
 
+gate_step_contract_signature() {
+  run_dispatch_contract_signature || return $?
+}
+
+gate_step_public_abi_signature() {
+  run_public_abi_signature || return $?
+}
+
+gate_step_publicabi_smoke() {
+  run_publicabi_smoke || return $?
+}
+
 gate_step_adapter_sync_pascal() {
   run_backend_adapter_sync_pascal || return $?
 }
@@ -1160,8 +1273,19 @@ run_wiring_sync() {
 }
 
 run_perf_smoke() {
+  local -a LPerfArgs
+
   build_project || return $?
-  run_tests --bench-only || return $?
+
+  LPerfArgs=(--bench-only)
+  if [[ "${SIMD_PERF_VECTOR_ASM:-auto}" != "0" ]]; then
+    if [[ "${SIMD_PERF_VECTOR_ASM:-auto}" == "1" || "${TARGET_CPU}" == "x86_64" || "${TARGET_CPU}" == "amd64" ]]; then
+      LPerfArgs+=(--vector-asm)
+    fi
+  fi
+
+  echo "[PERF] Args: ${LPerfArgs[*]}"
+  run_tests "${LPerfArgs[@]}" || return $?
   check_heap_leaks || return $?
   check_perf_log || return $?
 }
@@ -1317,6 +1441,9 @@ run_gate() {
   local LRunAllLogDir
   local LRunAllSummary
   local LGateInterfaceCompleteness
+  local LGateContractSignature
+  local LGatePublicAbiSignature
+  local LGatePublicAbiSmoke
   local LGateAdapterSyncPascal
   local LGateAdapterSync
   local LCpuinfoArtifactsRoot
@@ -1339,6 +1466,9 @@ run_gate() {
   LRunAllSummary="${LTestsRoot}/run_all_tests_summary_sh.txt"
   LGateStartMs="$(now_ms)"
   LGateInterfaceCompleteness="${SIMD_GATE_INTERFACE_COMPLETENESS:-1}"
+  LGateContractSignature="${SIMD_GATE_CONTRACT_SIGNATURE:-1}"
+  LGatePublicAbiSignature="${SIMD_GATE_PUBLICABI_SIGNATURE:-1}"
+  LGatePublicAbiSmoke="${SIMD_GATE_PUBLICABI_SMOKE:-1}"
   LGateAdapterSyncPascal="${SIMD_GATE_ADAPTER_SYNC_PASCAL:-1}"
   LGateAdapterSync="${SIMD_GATE_ADAPTER_SYNC:-1}"
   LGateParitySuites="${SIMD_GATE_PARITY_SUITES:-1}"
@@ -1351,7 +1481,7 @@ run_gate() {
     reset_gate_summary
   fi
 
-  append_gate_summary "gate" "START" "profile=${LGateProfile}; mode=${MODE}; interface-completeness=${LGateInterfaceCompleteness}; adapter-sync-pascal=${LGateAdapterSyncPascal}; adapter-sync=${LGateAdapterSync}; parity-suites=${LGateParitySuites}; wiring=${LGateWiringSync}; coverage=${LGateCoverage}; perf=${SIMD_GATE_PERF_SMOKE:-0}; experimental=${SIMD_GATE_EXPERIMENTAL:-1}; experimental-tests=${SIMD_GATE_EXPERIMENTAL_TESTS:-0}; nonx86-ieee754=${SIMD_GATE_NONX86_IEEE754:-0}; cpuinfo-lazy-repeat=${SIMD_GATE_CPUINFO_LAZY_REPEAT:-0}; qemu-nonx86-evidence=${SIMD_GATE_QEMU_NONX86_EVIDENCE:-0}; qemu-cpuinfo-nonx86-evidence=${SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE:-0}; qemu-cpuinfo-nonx86-full-evidence=${SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE:-0}; qemu-cpuinfo-nonx86-full-repeat=${SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT:-0}; qemu-arch-matrix=${SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE:-0}; require-win-evidence=${SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE:-0}; concurrent-repeat=${SIMD_GATE_CONCURRENT_REPEAT:-0}" "-" "START" "${BUILD_LOG}; ${TEST_LOG}; ${SIMD_WIRING_SYNC_LOG_FILE:-${WIRING_SYNC_LOG}}"
+  append_gate_summary "gate" "START" "profile=${LGateProfile}; mode=${MODE}; interface-completeness=${LGateInterfaceCompleteness}; contract-signature=${LGateContractSignature}; publicabi-signature=${LGatePublicAbiSignature}; publicabi-smoke=${LGatePublicAbiSmoke}; adapter-sync-pascal=${LGateAdapterSyncPascal}; adapter-sync=${LGateAdapterSync}; parity-suites=${LGateParitySuites}; wiring=${LGateWiringSync}; coverage=${LGateCoverage}; perf=${SIMD_GATE_PERF_SMOKE:-0}; experimental=${SIMD_GATE_EXPERIMENTAL:-1}; experimental-tests=${SIMD_GATE_EXPERIMENTAL_TESTS:-0}; nonx86-ieee754=${SIMD_GATE_NONX86_IEEE754:-0}; cpuinfo-lazy-repeat=${SIMD_GATE_CPUINFO_LAZY_REPEAT:-0}; qemu-nonx86-evidence=${SIMD_GATE_QEMU_NONX86_EVIDENCE:-0}; qemu-cpuinfo-nonx86-evidence=${SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE:-0}; qemu-cpuinfo-nonx86-full-evidence=${SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE:-0}; qemu-cpuinfo-nonx86-full-repeat=${SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT:-0}; qemu-arch-matrix=${SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE:-0}; require-win-evidence=${SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE:-0}; concurrent-repeat=${SIMD_GATE_CONCURRENT_REPEAT:-0}" "-" "START" "${BUILD_LOG}; ${TEST_LOG}; ${SIMD_WIRING_SYNC_LOG_FILE:-${WIRING_SYNC_LOG}}"
 
   if [[ "${LGateProfile}" == "release-gate" ]]; then
     echo "[GATE] Profile: release-gate (发布/closeout 完整门禁)"
@@ -1379,6 +1509,42 @@ run_gate() {
     fi
   else
     append_gate_summary "interface-completeness" "SKIP" "SIMD_GATE_INTERFACE_COMPLETENESS=0" "-" "SKIP" "${SIMD_INTERFACE_COMPLETENESS_JSON_FILE:-${INTERFACE_COMPLETENESS_JSON_LOG}}; ${SIMD_INTERFACE_COMPLETENESS_MD_FILE:-${INTERFACE_COMPLETENESS_MD_LOG}}"
+  fi
+
+  if [[ "${LGateContractSignature}" != "0" ]]; then
+    echo "[GATE] Optional dispatch contract signature"
+    if ! run_gate_step "contract-signature" "dispatch contract signature passed" "dispatch contract signature failed" "${SIMD_DISPATCH_CONTRACT_LOG_FILE:-${DISPATCH_CONTRACT_SIGNATURE_LOG}}; ${SIMD_DISPATCH_CONTRACT_JSON_FILE:-${DISPATCH_CONTRACT_SIGNATURE_JSON_LOG}}" gate_step_contract_signature; then
+      LGateEndMs="$(now_ms)"
+      LGateDurationMs="$(( LGateEndMs - LGateStartMs ))"
+      append_gate_summary "gate" "FAIL" "failed-step=contract-signature" "${LGateDurationMs}" "FAILED"
+      return 1
+    fi
+  else
+    append_gate_summary "contract-signature" "SKIP" "SIMD_GATE_CONTRACT_SIGNATURE=0" "-" "SKIP" "${SIMD_DISPATCH_CONTRACT_LOG_FILE:-${DISPATCH_CONTRACT_SIGNATURE_LOG}}; ${SIMD_DISPATCH_CONTRACT_JSON_FILE:-${DISPATCH_CONTRACT_SIGNATURE_JSON_LOG}}"
+  fi
+
+  if [[ "${LGatePublicAbiSignature}" != "0" ]]; then
+    echo "[GATE] Optional public ABI signature"
+    if ! run_gate_step "publicabi-signature" "public ABI signature passed" "public ABI signature failed" "${SIMD_PUBLIC_ABI_LOG_FILE:-${PUBLIC_ABI_SIGNATURE_LOG}}; ${SIMD_PUBLIC_ABI_JSON_FILE:-${PUBLIC_ABI_SIGNATURE_JSON_LOG}}" gate_step_public_abi_signature; then
+      LGateEndMs="$(now_ms)"
+      LGateDurationMs="$(( LGateEndMs - LGateStartMs ))"
+      append_gate_summary "gate" "FAIL" "failed-step=publicabi-signature" "${LGateDurationMs}" "FAILED"
+      return 1
+    fi
+  else
+    append_gate_summary "publicabi-signature" "SKIP" "SIMD_GATE_PUBLICABI_SIGNATURE=0" "-" "SKIP" "${SIMD_PUBLIC_ABI_LOG_FILE:-${PUBLIC_ABI_SIGNATURE_LOG}}; ${SIMD_PUBLIC_ABI_JSON_FILE:-${PUBLIC_ABI_SIGNATURE_JSON_LOG}}"
+  fi
+
+  if [[ "${LGatePublicAbiSmoke}" != "0" ]]; then
+    echo "[GATE] Optional public ABI smoke"
+    if ! run_gate_step "publicabi-smoke" "public ABI smoke passed" "public ABI smoke failed" "${ROOT}/../fafafa.core.simd.publicabi/logs/test.txt" gate_step_publicabi_smoke; then
+      LGateEndMs="$(now_ms)"
+      LGateDurationMs="$(( LGateEndMs - LGateStartMs ))"
+      append_gate_summary "gate" "FAIL" "failed-step=publicabi-smoke" "${LGateDurationMs}" "FAILED"
+      return 1
+    fi
+  else
+    append_gate_summary "publicabi-smoke" "SKIP" "SIMD_GATE_PUBLICABI_SMOKE=0" "-" "SKIP" "${ROOT}/../fafafa.core.simd.publicabi/logs/test.txt"
   fi
 
   if [[ "${LGateAdapterSyncPascal}" != "0" ]]; then
@@ -1682,6 +1848,9 @@ run_gate_strict() {
   echo "[GATE] Note: release-gate adds stronger evidence, but experimental paths still keep a separate maturity boundary"
   require_release_gate_prereqs || return $?
   SIMD_GATE_INTERFACE_COMPLETENESS=1 \
+  SIMD_GATE_CONTRACT_SIGNATURE=1 \
+  SIMD_GATE_PUBLICABI_SIGNATURE=1 \
+  SIMD_GATE_PUBLICABI_SMOKE=1 \
   SIMD_GATE_ADAPTER_SYNC_PASCAL=1 \
   SIMD_GATE_ADAPTER_SYNC=1 \
   SIMD_GATE_PARITY_SUITES=1 \
@@ -2251,6 +2420,15 @@ case "${ACTION}" in
   coverage)
     run_coverage
     ;;
+  contract-signature)
+    run_dispatch_contract_signature
+    ;;
+  publicabi-signature)
+    run_public_abi_signature
+    ;;
+  publicabi-smoke)
+    run_publicabi_smoke
+    ;;
   experimental-intrinsics)
     run_intrinsics_experimental_status
     ;;
@@ -2297,7 +2475,7 @@ case "${ACTION}" in
     run_freeze_status_rehearsal "$@"
     ;;
   *)
-    echo "Usage: $0 [clean|build|check|test|test-concurrent-repeat|cpuinfo-lazy-repeat|debug|release|gate|gate-strict|interface-completeness|adapter-sync-pascal|adapter-sync|parity-suites|gate-summary|gate-summary-sample|gate-summary-rehearsal|gate-summary-inject|gate-summary-rollback|gate-summary-backups|gate-summary-selfcheck|perf-smoke|nonx86-ieee754|backend-bench|qemu-nonx86-evidence|qemu-cpuinfo-nonx86-evidence|qemu-cpuinfo-nonx86-full-evidence|qemu-cpuinfo-nonx86-full-repeat|qemu-cpuinfo-nonx86-suite-repeat|qemu-arch-matrix-evidence|qemu-nonx86-experimental-asm|riscvv-opcode-lane|qemu-experimental-report|qemu-experimental-baseline-check|coverage|wiring-sync|experimental-intrinsics|experimental-intrinsics-tests|evidence-linux|win-evidence-preflight|win-evidence-via-gh|verify-win-evidence|finalize-win-evidence|win-closeout-dryrun|win-closeout-snippets|win-closeout-3cmd|freeze-status|freeze-status-linux|win-closeout-finalize|freeze-status-rehearsal] [test-args...]"
+    echo "Usage: $0 [clean|build|check|test|test-concurrent-repeat|cpuinfo-lazy-repeat|debug|release|gate|gate-strict|interface-completeness|contract-signature|publicabi-signature|publicabi-smoke|adapter-sync-pascal|adapter-sync|parity-suites|gate-summary|gate-summary-sample|gate-summary-rehearsal|gate-summary-inject|gate-summary-rollback|gate-summary-backups|gate-summary-selfcheck|perf-smoke|nonx86-ieee754|backend-bench|qemu-nonx86-evidence|qemu-cpuinfo-nonx86-evidence|qemu-cpuinfo-nonx86-full-evidence|qemu-cpuinfo-nonx86-full-repeat|qemu-cpuinfo-nonx86-suite-repeat|qemu-arch-matrix-evidence|qemu-nonx86-experimental-asm|riscvv-opcode-lane|qemu-experimental-report|qemu-experimental-baseline-check|coverage|wiring-sync|experimental-intrinsics|experimental-intrinsics-tests|evidence-linux|win-evidence-preflight|win-evidence-via-gh|verify-win-evidence|finalize-win-evidence|win-closeout-dryrun|win-closeout-snippets|win-closeout-3cmd|freeze-status|freeze-status-linux|win-closeout-finalize|freeze-status-rehearsal] [test-args...]"
     echo "  Experimental note: default entry chain isolates experimental intrinsics behind dedicated checks."
     echo "  gate/gate-strict PASS is not blanket release-grade approval for every experimental path."
     echo "  gate         Fast/base gate for routine SIMD changes"

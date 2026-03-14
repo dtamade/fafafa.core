@@ -26,8 +26,8 @@
 
 ### 后端管理
 - **自动选择**: 根据 CPU 特性自动选择最佳 SIMD 后端
-- **可用性检查**: 检查特定后端是否可用
-- **优先级排序**: 按性能优先级排列可用后端
+- **支持性检查**: 检查特定后端是否受当前 CPU/OS 支持
+- **优先级排序**: 按性能优先级排列 CPU/OS 支持的后端
 
 ### RISC-V 处理器信息
 - `GetRISCVProcessorInfo` 默认返回 `rv64i/rv32i` 基线，并尽力从 `/proc/cpuinfo` 与 Linux 设备树 `riscv,isa` 回填 `Architecture/XLEN/ISA`；当 `/proc/cpuinfo` 存在多个 ISA 键时按“含 RV 基线 + 键优先级 + 信息量”选择最佳候选；当缺失 ISA 字符串但存在可解析 `misa` 数值位图时可合成基线 ISA（如 `rv64imafdcv`）；Linux 下还会合并 `auxv(AT_HWCAP/AT_HWCAP2)` 作为 ISA 合成的兜底/补充证据
@@ -58,10 +58,10 @@
 // 获取 CPU 信息（线程安全）
 function GetCPUInfo: TCPUInfo;
 
-// 检查后端可用性（基于 CPU 特性）
+// 检查后端可用性（基于 CPU/OS 特性）
 function IsBackendAvailableOnCPU(backend: TSimdBackend): Boolean;
 
-// 获取 CPU/OS 语义下可用的后端列表（按优先级排序）
+// 获取 CPU/OS 语义下支持的后端列表（按优先级排序）
 function GetAvailableBackends: TSimdBackendArray;
 
 // 获取 CPU/OS 语义下的最佳后端（不受运行时 active backend 影响）
@@ -205,9 +205,9 @@ begin
   cpuInfo := GetCPUInfo;
   WriteLn('CPU: ', cpuInfo.Vendor, ' ', cpuInfo.Model);
   
-  // 获取 CPU/OS 语义下的最佳后端
+  // 获取 CPU/OS 语义下支持的最佳后端
   bestBackend := GetBestBackendOnCPU;
-  WriteLn('Best SIMD backend: ', GetBackendName(bestBackend));
+  WriteLn('Best CPU-supported SIMD backend: ', GetBackendName(bestBackend));
   
   // 检查特定特性
   if cpuInfo.X86.HasAVX2 then
@@ -247,10 +247,10 @@ var
   info: TSimdBackendInfo;
   i: Integer;
 begin
-  // 获取 CPU/OS 语义下所有可用后端
+  // 获取 CPU/OS 语义下所有支持的后端
   backends := GetAvailableBackends;
   
-  WriteLn('Available SIMD backends:');
+  WriteLn('CPU-supported SIMD backends:');
   for i := 0 to Length(backends) - 1 do
   begin
     backend := backends[i];
@@ -259,8 +259,10 @@ begin
   end;
   
   // 注意：这里的“available”只表示 CPU/OS 支持。
-  // 若要查询“当前二进制真正可派发”的后端，请使用 fafafa.core.simd /
-  // fafafa.core.simd.dispatch 提供的 dispatchable 视图。
+  // 若要查询“当前二进制真正可派发”的后端，请使用
+  // fafafa.core.simd / fafafa.core.simd.dispatch 提供的 dispatchable 视图。
+  // 若要查询“当前二进制是否已注册某个 backend”，请使用
+  // fafafa.core.simd.GetRegisteredBackendList / IsBackendRegisteredInBinary。
 
   // 选择特定后端
   if IsBackendAvailableOnCPU(sbAVX2) then

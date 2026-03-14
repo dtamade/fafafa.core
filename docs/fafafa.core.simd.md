@@ -26,6 +26,8 @@
 
 - **使用者入口**：`src/fafafa.core.simd.README.md`
 - **公开 API 参考**：`docs/fafafa.core.simd.api.md`
+- **public ABI wrapper**：`docs/fafafa.core.simd.publicabi.md`
+- **public ABI 稳定承诺**：`docs/fafafa.core.simd.publicabi.stability.md`
 - **阅读地图**：`docs/fafafa.core.simd.map.md`
 - **维护策略**：`docs/fafafa.core.simd.maintenance.md`
 - **极简行动清单**：`docs/fafafa.core.simd.checklist.md`
@@ -46,7 +48,21 @@
 - **`sbRISCVV` 默认不进 umbrella**：当前只有在定义 `SIMD_EXPERIMENTAL_RISCVV` 时，`fafafa.core.simd` 才会接线 `fafafa.core.simd.riscvv`；默认 stable 入口链不会因为平台满足就自动带入实验后端
 - **experimental intrinsics 默认不在稳定面内**：这些单元已有默认入口隔离检查，默认入口链只保证它们不会泄漏进常规 façade，而不意味着它们已经自动进入发布级保证范围
 
-如果你在维护时需要一句最短判断，可以用这句：**stable 的是公开 façade 与其 ABI 约束，不是“所有 backend 都已达到相同成熟度”。**
+如果你在维护时需要一句最短判断，可以用这句：**stable 的是公开 façade 与仓库内 dispatch contract，不是“所有 backend 都已达到相同成熟度”，更不是“当前 record layout 已经是 public binary ABI”。**
+
+## Backend 状态语义
+
+当前建议把 backend 状态分成 4 层理解，不再用一个含糊的 “available” 混过去：
+
+- `supported_on_cpu`：CPU/OS 语义上支持。入口：`cpuinfo` 的 `GetAvailableBackends` / `GetBestBackendOnCPU`
+- `registered`：当前二进制里已经注册。入口：`GetRegisteredBackendList` / `IsBackendRegisteredInBinary`
+- `dispatchable`：CPU/OS 支持 + 已注册 + `BackendInfo.Available=True`。入口：`GetDispatchableBackendList` / `GetAvailableBackendList`
+- `active`：当前真正生效的 backend。入口：`GetCurrentBackend` / `GetCurrentBackendInfo`
+
+这四层里最容易混的是前两层与第三层：
+
+- `cpuinfo` 的 `GetAvailableBackends` 只说明 “这台机器支持”
+- façade 的 `GetAvailableBackendList` 才说明 “这份二进制现在真的可派发”
 
 ## 架构设计
 
@@ -97,23 +113,22 @@ src/
 | LEVEL_2 | AVX2 | NEON+CRC/AES | 增强 SIMD 支持 |
 | LEVEL_3 | AVX-512 | SVE/SVE2 | 高端 SIMD 支持 |
 
-### 后端质量状态 (2026-02-05)
+### 后端质量状态 (2026-03-11)
 
 经过多轮质量迭代优化后的后端状态：
 
-| 后端 | ASM 块 | 函数数 | ASM 率 | 质量评级 |
-|------|--------|--------|--------|----------|
-| AVX-512 | 94 | 107 | 87.8% | ✅ 优秀 |
-| AVX2 | 359 | 448 | 80.1% | ✅ 优秀 |
-| NEON | 326 | 765 | 42.6% | ✅ 良好 |
-| SSE2 | 225 | 726 | 30.9% | ✅ 改进 |
-| RISC-V V | 19 | 481 | 4% | ⚠️ 实验性 / 受限成熟度（含 FPC 编译器限制） |
+| 后端 | Dispatch 覆盖 | 当前状态 | 质量评级 |
+|------|---------------|----------|----------|
+| AVX-512 | 187 / 558 | 受构建与验证范围限制 | ⚠️ 受限 |
+| AVX2 | 491 / 558 | 稳定主线 | ✅ 优秀 |
+| NEON | 558 / 558 | 当前机器检查口径下已满覆盖 | ✅ 优秀 |
+| SSE2 | 463 / 558 | 稳定主线 | ✅ 良好 |
+| RISC-V V | 558 / 558 | 当前机器检查口径下已满覆盖，默认仍按 experimental 成熟度看待 | ⚠️ 受限成熟度 |
 
 **说明**：
-- **ASM 块**：使用真正 SIMD 汇编指令的函数数量
-- **函数数**：后端实现的总函数数（包含 Scalar fallback）
-- **ASM 率**：ASM 块 / 函数数，反映 SIMD 优化程度
-- **质量评级**：≥80% 优秀，≥40% 良好，≥20% 改进，<20% 受限
+- 这里展示的是当前更有决策价值的 dispatch 覆盖与成熟度，不再使用早期的 ASM 块占比口径。
+- `558 / 558` 表示在 `check_interface_implementation_completeness.py` 的当前机器检查口径下，该 backend 已为全部 dispatch 槽位提供赋值。
+- `sbRISCVV` 虽然当前覆盖已补满，但默认成熟度仍受编译器/汇编链路限制约束，不能简单等同于 AVX2/NEON 主线成熟度。
 
 ### 性能基准 (4096 字节, 1M 次迭代)
 
@@ -127,6 +142,30 @@ src/
 | BitsetPopCount | 26591ms | - | 537ms | **49.5x** |
 | Utf8Validate | 2936ms | - | 318ms | **9.2x** |
 | AsciiIEqual | 5894ms | - | 247ms | **23.9x** |
+
+**当前补充说明（2026-03-11）**：
+- 当前稳定 benchmark 证据见 `tests/fafafa.core.simd/logs/backend-bench-20260311-103804/summary.md`。
+- 这份 summary 通过 `run_backend_benchmarks.sh` 的 `AVX2_vs_Scalar` 稳定路径采集，x86_64 上直接复用 `fafafa.core.simd.test --bench-only --vector-asm`。
+- 新补齐的宽整型路径已进入 benchmark 样本：`VecI16x32Add`、`VecU32x16Mul`、`VecU64x8Add`、`VecU8x64Max`。
+- 默认 `--bench-only` 更接近“当前默认运行口径”；若要测 AVX2 向量路径，请使用 `--bench-only --vector-asm` 或 dedicated bench runner。
+- 当前 `perf-smoke` 在 `x86_64/AMD64` 上默认已切到 `--bench-only --vector-asm` 口径。
+- 最新 summary 里的关键行：
+  - `VecU8x64Max`：`3.96x`；`VecU8x64MaxRaw`：`4.31x`
+  - `VecI16x32Add`：`3.35x`；`VecI16x32AddRaw`：`3.07x`
+  - `VecU32x16Mul`：`0.99x`；`VecU32x16MulRaw`：`1.00x`
+  - `VecU64x8Add`：`0.76x`；`VecU64x8AddRaw`：`0.80x`
+  - `VecF32x4Add`：`0.76x`；`VecF32x4AddRaw`：`0.89x`
+- 当前性能结论：
+  - `VecI16x32Add` 与 `VecU8x64Max` 已经证明有继续保留/复用 AVX2 fast-path 的价值。
+  - `VecU32x16Mul` 在 façade fast-path 读序减负后已经回到接近持平；这类宽整型算子后续更适合“观察 + 只做低成本微调”，不再是优先事故。
+  - `VecU64x8Add` 连 raw 口径都未超过 scalar，不适合继续作为高优先级优化目标。
+  - `VecF32x4Add` 这类极小粒度算子仍不具备当前轮次的优化 ROI。
+
+**当前推荐的后续动作排序（2026-03-11）**：
+- 第一优先级：继续复用 `VecI16x32Add`、`VecU8x64Max` 这类已经证明 ROI 的 fast-path 模式
+- 第二优先级：`VecU32x16Mul` 保持观察，只接受低成本微调
+- 第三优先级：`VecU64x8Add`、`VecF32x4Add` 降级为观察项，不再占主线优化时间
+- 第四优先级：把精力放回 stable boundary、evidence contract 与 closeout 文档一致性
 
 ### 质量迭代成果
 

@@ -669,6 +669,16 @@ begin
 
       AssertEquals('Roundtrip backend field mismatch', Ord(LSourceTable.Backend), Ord(LRoundTripTable.Backend));
       AssertEquals('Roundtrip BackendInfo.Backend mismatch', Ord(LSourceTable.BackendInfo.Backend), Ord(LRoundTripTable.BackendInfo.Backend));
+      AssertEquals('Roundtrip BackendInfo.Name mismatch', LSourceTable.BackendInfo.Name, LRoundTripTable.BackendInfo.Name);
+      AssertEquals('Roundtrip BackendInfo.Description mismatch', LSourceTable.BackendInfo.Description, LRoundTripTable.BackendInfo.Description);
+      AssertEquals('Roundtrip BackendInfo.Available mismatch',
+        LSourceTable.BackendInfo.Available, LRoundTripTable.BackendInfo.Available);
+      AssertEquals('Roundtrip BackendInfo.Priority mismatch',
+        LSourceTable.BackendInfo.Priority, LRoundTripTable.BackendInfo.Priority);
+      AssertTrue('Roundtrip BackendInfo.Capabilities mismatch',
+        LSourceTable.BackendInfo.Capabilities = LRoundTripTable.BackendInfo.Capabilities);
+      AssertTrue('BackendInfo.Name should stay non-empty for registered backend',
+        LRoundTripTable.BackendInfo.Name <> '');
 
       // Contract smoke: representative core slots must keep exact function-pointer identity.
       AssertTrue('AddF32x4 pointer changed after roundtrip', LSourceTable.AddF32x4 = LRoundTripTable.AddF32x4);

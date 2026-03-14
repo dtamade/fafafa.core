@@ -17,6 +17,10 @@
 - 后端注册区收口：主要 backend 的 register / initialization 区块已拆出。
 - 后端辅助区收口：`AVX2`、`AVX-512`、`NEON` 的 facade / fallback / family 已经拆到较细粒度。
 - 测试文件保持稳定：测试文件拆分尝试已回滚，不再继续沿那条路推进。
+- 稳定边界已收紧：公开 façade 是稳定入口，`TSimdDispatchTable` 只按 in-repo dispatch contract 理解，不再误读成 public binary ABI。
+- backend 状态语义已拉直：现在明确区分 `supported_on_cpu / registered / dispatchable / active` 四层视图。
+- 性能收口已完成主判断：`VecI16x32Add`、`VecU8x64Max` 保留复用；`VecU32x16Mul` 仅观察；`VecU64x8Add`、`VecF32x4Add` 降级观察。
+- dispatch contract 已补 machine-readable signature guard：`gate` 默认会校验 `TSimdBackendInfo` / `TSimdDispatchTable` 的声明签名没有漂移。
 
 ## 现在哪些地方比较稳
 
@@ -65,6 +69,20 @@ bash tests/fafafa.core.simd/BuildOrTest.sh gate
 - direct dispatch 是否仍跟随主 dispatch
 - gate / completeness / adapter / wiring / coverage 是否还稳定
 
+如果是 release / closeout 收口，再补这两条：
+
+```bash
+bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict
+bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status
+```
+
+如果需要 Windows 证据闭环，优先主入口：
+
+```bash
+FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh SIMD-YYYYMMDD-152
+FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize SIMD-YYYYMMDD-152
+```
+
 ## 常见假失败
 
 有些失败看起来像回归，其实只是运行方式问题。
@@ -101,9 +119,16 @@ bash tests/fafafa.core.simd/BuildOrTest.sh gate
 - `docs/fafafa.core.simd.maintenance.md`
 - `docs/fafafa.core.simd.map.md`
 
-### 2. 小范围、按需改动
+### 2. 只做高 ROI 改动
 
-如果未来要加功能或修 bug，建议只改真正需要动的层：
+如果未来要加功能或修 bug，建议只改真正需要动的层，且优先级按下面排：
+
+- 第一优先级：稳定边界、evidence contract、runbook/真相源文档一致性
+- 第二优先级：继续复用已证实 ROI 的 fast-path 模式（`VecI16x32Add`、`VecU8x64Max`）
+- 第三优先级：`VecU32x16Mul` 仅低成本观察
+- 降级观察：`VecU64x8Add`、`VecF32x4Add`
+
+落到代码层时，仍然建议：
 
 - 先看 `dispatch` / `cpuinfo`
 - 再看对应 backend 的 `register.inc`
@@ -126,4 +151,4 @@ bash tests/fafafa.core.simd/BuildOrTest.sh gate
 
 ## 一句话交接
 
-当前 `SIMD` 子系统已经完成了大部分高价值、低风险的结构收口；继续维护时，优先做文档同步、小范围修正和按需阅读，不建议再对 `SSE2` 做激进物理拆分。
+当前 `SIMD` 子系统已经完成了大部分高价值、低风险的结构收口；继续维护时，优先做 stable boundary / evidence / 文档真相源同步，以及少量高 ROI 改动，不建议再对 `SSE2` 做激进物理拆分，也不建议把低 ROI benchmark 项重新拉回主线。

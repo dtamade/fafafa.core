@@ -3,6 +3,8 @@ function GetCurrentBackendInfo: TSimdBackendInfo;
 function GetCPUInformation: TCPUInfo;
 function GetSupportedBackendList: TSimdBackendArray;
 function GetBestSupportedBackend: TSimdBackend;
+function IsBackendRegisteredInBinary(aBackend: TSimdBackend): Boolean;
+function GetRegisteredBackendList: TSimdBackendArray;
 function GetDispatchableBackendList: TSimdBackendArray;
 function GetBestDispatchableBackend: TSimdBackend;
 function GetAvailableBackendList: TSimdBackendArray;

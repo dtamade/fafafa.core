@@ -50,6 +50,7 @@ begin
 
   WriteLn('=== AVX-512 vs AVX2 Performance Benchmark ===');
   WriteLn;
+  SetVectorAsmEnabled(True);
   WriteLn('Running AVX2 backend tests...');
   SetActiveBackend(sbAVX2);
   AVX2Results := RunAllBenchmarks;

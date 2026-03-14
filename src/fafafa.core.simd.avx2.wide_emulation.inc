@@ -807,3 +807,86 @@ begin
     Result.i[index] := value;
 end;
 
+function AVX2AddI16x32(const a, b: TVecI16x32): TVecI16x32;
+var
+  pa, pb, pr: Pointer;
+begin
+  pa := @a;
+  pb := @b;
+  pr := @Result;
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vmovdqu ymm1, [rdx+32]
+    vpaddw  ymm0, ymm0, [rcx]
+    vpaddw  ymm1, ymm1, [rcx+32]
+    vmovdqu [rax], ymm0
+    vmovdqu [rax+32], ymm1
+    vzeroupper
+  end;
+end;
+
+function AVX2MulU32x16(const a, b: TVecU32x16): TVecU32x16;
+var
+  pa, pb, pr: Pointer;
+begin
+  pa := @a;
+  pb := @b;
+  pr := @Result;
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vmovdqu ymm1, [rdx+32]
+    vpmulld ymm0, ymm0, [rcx]
+    vpmulld ymm1, ymm1, [rcx+32]
+    vmovdqu [rax], ymm0
+    vmovdqu [rax+32], ymm1
+    vzeroupper
+  end;
+end;
+
+function AVX2AddU64x8(const a, b: TVecU64x8): TVecU64x8;
+var
+  pa, pb, pr: Pointer;
+begin
+  pa := @a;
+  pb := @b;
+  pr := @Result;
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vmovdqu ymm1, [rdx+32]
+    vpaddq  ymm0, ymm0, [rcx]
+    vpaddq  ymm1, ymm1, [rcx+32]
+    vmovdqu [rax], ymm0
+    vmovdqu [rax+32], ymm1
+    vzeroupper
+  end;
+end;
+
+function AVX2MaxU8x64(const a, b: TVecU8x64): TVecU8x64;
+var
+  pa, pb, pr: Pointer;
+begin
+  pa := @a;
+  pb := @b;
+  pr := @Result;
+  asm
+    mov     rax, pr
+    mov     rdx, pa
+    mov     rcx, pb
+    vmovdqu ymm0, [rdx]
+    vmovdqu ymm1, [rdx+32]
+    vpmaxub ymm0, ymm0, [rcx]
+    vpmaxub ymm1, ymm1, [rcx+32]
+    vmovdqu [rax], ymm0
+    vmovdqu [rax+32], ymm1
+    vzeroupper
+  end;
+end;

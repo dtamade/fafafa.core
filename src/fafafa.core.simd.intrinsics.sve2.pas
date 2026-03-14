@@ -62,7 +62,8 @@ function sve2_maxp_u32_z(const pred: TSVEPredicate; const a, b: TSVEVector): TSV
 var
   i: Integer;
 begin
-  // 简化的成对最大值实�?  for i := 0 to 7 do
+  // 简化的成对最大值实�?
+  for i := 0 to 7 do
     if pred.pred_mask[i] then
     begin
       if a.sve_u32[i * 2] > a.sve_u32[i * 2 + 1] then
@@ -78,7 +79,8 @@ function sve2_minp_u32_z(const pred: TSVEPredicate; const a, b: TSVEVector): TSV
 var
   i: Integer;
 begin
-  // 简化的成对最小值实�?  for i := 0 to 7 do
+  // 简化的成对最小值实�?
+  for i := 0 to 7 do
     if pred.pred_mask[i] then
     begin
       if a.sve_u32[i * 2] < a.sve_u32[i * 2 + 1] then

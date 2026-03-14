@@ -105,3 +105,119 @@
 
 ### 阶段状态
 - Stage B 已完成：nightly 接线、evidence 归档固化、以及 `3/3` 连续通过验证。
+
+<!-- SIMD-STAGEC-NONX86-COVERAGE-2026-03-11 -->
+### 批次
+- SIMD-STAGEC-20260311
+
+### 执行动作
+- 以小批次连续补齐 non-x86（`sbNEON` / `sbRISCVV`）dispatch 缺口。
+- 新增并验证 `AndNot narrow`、`RVV dot`、`I16x32`、`I8x64`、`U32x16`、`U64x8`、`U8x64` 与 `I16x32 shift` 等高 ROI 槽位。
+- 将 non-x86 高 ROI 目标槽位接入 `check_interface_implementation_completeness.py`，固定“先红后绿”的本地红灯。
+
+### 关键结果
+- `python3 tests/fafafa.core.simd/check_interface_implementation_completeness.py --strict --json`：PASS
+- `bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`：PASS
+- `bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAllSlots`：PASS
+- `bash tests/fafafa.core.simd/BuildOrTest.sh gate`：PASS
+- `SIMD_GATE_PERF_SMOKE=1 SIMD_PERF_VECTOR_ASM=auto bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict`：已确认 `perf=1` 进入 gate 摘要，且 `perf-smoke` 记录为 `PASS`
+- 当前机器检查覆盖：`dispatch=558, neon=558, riscvv=558, P0=0/P1=0/P2=0`
+- 已新增 fixed-seed fuzz parity：覆盖 `I16x32/I8x64/U32x16/U64x8/U8x64` 的宽整型语义护栏。
+- 已扩展 benchmark 样本：`VecI16x32Add / VecU32x16Mul / VecU64x8Add / VecU8x64Max`
+- 已给 benchmark runner 增加口径提示：默认 `--bench-only` 若 `vector-asm` 关闭，会明确提示部分向量行可能仍是 scalar fallback。
+- 已给 `run_backend_benchmarks.sh` 增加 x86_64 `AVX2_vs_Scalar` 稳定路径，并已刷新最新 summary：`tests/fafafa.core.simd/logs/backend-bench-20260311-103804/summary.md`
+- 已将 `perf-smoke` 默认口径对齐到 `x86_64/AMD64 -> --bench-only --vector-asm`，并实跑通过。
+- 已新增 raw-dispatch 基准行：
+  - `VecF32x4AddRaw`
+  - `VecI16x32AddRaw`
+  - `VecU32x16MulRaw`
+  - `VecU64x8AddRaw`
+  - `VecU8x64MaxRaw`
+- 已为热点门面接入 hook 绑定的 cached fast-path：`VecF32x4Add / VecI16x32Add / VecU32x16Mul / VecU64x8Add / VecU8x64Max`
+- 已新增 raw-dispatch benchmark 对照：用于区分“门面/dispatch 开销”与“后端算子本体开销”。
+- 已将 façade fast-path 的热路径读取从显式 `mo_acquire` 收紧为平台默认读序：
+  - `x86/x86_64` 走 relaxed，去掉 `_compiler_barrier` 调用
+  - 弱序平台仍保留 acquire 级别默认语义
+- 已在 façade 层补齐 backend 状态四层语义入口：
+  - `supported_on_cpu`：`GetSupportedBackendList` / `GetBestSupportedBackend`
+  - `registered`：`GetRegisteredBackendList` / `IsBackendRegisteredInBinary`
+  - `dispatchable`：`GetDispatchableBackendList` / `GetAvailableBackendList`
+  - `active`：`GetCurrentBackend` / `GetCurrentBackendInfo`
+- 已扩展 `DispatchAPI` 一致性测试，固定 `supported ⊇ registered ⊇ dispatchable` 与 `active ∈ dispatchable`
+- 已在类型定义与 roundtrip 测试里补齐 dispatch contract guard：
+  - `TSimdBackendInfo` / `TSimdDispatchTable` 明确声明为 in-repo contract，而非 public binary ABI
+  - `DispatchAllSlots` 现固定校验 `BackendInfo.Name/Description/Capabilities/Available/Priority` roundtrip 不漂移
+- 已新增 machine-readable dispatch contract signature guard：
+  - 脚本：`tests/fafafa.core.simd/check_dispatch_contract_signature.py`
+  - 产物：`tests/fafafa.core.simd/logs/dispatch_contract_signature.json`
+  - `gate` 默认已带上 `contract-signature` 结构检查
+- 已新增 machine-readable public ABI signature/layout guard：
+  - 脚本：`tests/fafafa.core.simd/check_public_abi_signature.py`
+  - 产物：`tests/fafafa.core.simd/logs/public_abi_signature.json`
+  - `gate` / `gate-strict` 默认已带上 `publicabi-signature` 结构检查
+- 已确认 `contract-signature` 已进入 release-gate / `gate-strict` 完整门禁，并通过 closeout 口径复验：
+  - `SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_EXPERIMENTAL_TESTS=0 SIMD_GATE_PERF_SMOKE=1 SIMD_PERF_VECTOR_ASM=auto bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict`
+  - QEMU 证据：`tests/fafafa.core.simd/logs/qemu-multiarch-20260311-211136-2040384/summary.md`
+- 新阶段开始：public ABI wrapper / signature 设计转入实现。
+- 已在 `fafafa.core.simd` 单元内落下第一版 public ABI skeleton：
+  - `TFafafaSimdBackendPodInfo`
+  - `TFafafaSimdPublicApi`
+  - `GetSimdAbiVersionMajor/Minor`
+  - `GetSimdAbiSignature`
+  - `TryGetSimdBackendPodInfo`
+  - `GetSimdBackendNamePtr` / `GetSimdBackendDescriptionPtr`
+  - `GetSimdPublicApi`
+- 已实现“绑定后直调”的 public data-plane：
+  - `GetSimdPublicApi` 返回缓存后的 public API table
+  - 当前 table 已绑定 `MemEqual / MemFindByte / MemDiffRange / SumBytes / CountByte / BitsetPopCount / Utf8Validate / AsciiIEqual`
+  - backend 切换后通过 dispatch hook 自动重绑
+- 已把 public API table 切到 C ABI shim：
+  - public function pointer 类型显式 `cdecl`
+  - shim 调用缓存后的 bound 函数指针，不重复查内部 dispatch table
+- 已把 public ABI 热点调用范式做成 bench 证据：
+  - `tests/fafafa.core.simd/fafafa.core.simd.bench.pas`
+  - 新增 32-byte hot-path 行：`HotMemEqPubCache / HotMemEqPubGet / HotMemEqDispGet / HotSumPubCache / HotSumPubGet / HotSumDispGet`
+  - 用于持续对比 façade、缓存后的 public API table、重复 `GetSimdPublicApi`、重复 `GetDispatchTable` 这几种写法
+- 已把 public ABI 热点调用关系接进 `perf-smoke` 自动校验：
+  - 脚本：`tests/fafafa.core.simd/check_perf_smoke_log.py`
+  - shell / batch runner 都会在有 Python 时复用它
+  - 当前护栏：`PubCache` 不应明显慢于 `PubGet`，且 `PubGet` 应明显快于 `DispGet`
+- 已新增 `TTestCase_PublicAbi`，覆盖：
+  - public API table metadata
+  - backend POD flags 一致性
+  - façade data-plane parity
+- 已新增 external smoke 模块：`tests/fafafa.core.simd.publicabi/`
+  - 共享库：`fafafa.core.simd.publicabi.lpr`
+  - C header：`publicabi_smoke.h`
+  - C harness：`publicabi_smoke.c`
+  - `BuildOrTest.sh test` 已可完成 `shared library + dlsym + public api table` smoke
+- 已将 `publicabi-smoke` 接入主 `gate`
+  - shell gate 默认会跑 `tests/fafafa.core.simd.publicabi/BuildOrTest.sh test`
+  - 这样 public ABI wrapper 不再只是独立 smoke，而是主模块日常门禁的一部分
+- 已为 public ABI 模块补导出符号校验：
+  - `BuildOrTest.sh validate-exports`
+  - 通过 `readelf --wide --dyn-syms` 校验 `fafafa_simd_*` 必要符号
+- 已补 Windows external smoke 入口：
+  - `tests/fafafa.core.simd.publicabi/BuildOrTest.bat`
+  - `tests/fafafa.core.simd.publicabi/publicabi_smoke.ps1`
+  - Windows 路径通过 PowerShell + C# P/Invoke 做导出与最小 data-plane smoke
+- 最新稳定 backend benchmark（`tests/fafafa.core.simd/logs/backend-bench-20260311-103804/summary.md`）：
+  - `VecI16x32Add`：`3.35x`；`VecI16x32AddRaw`：`3.07x`
+  - `VecU32x16Mul`：`0.99x`；`VecU32x16MulRaw`：`1.00x`
+  - `VecU64x8Add`：`0.76x`；`VecU64x8AddRaw`：`0.80x`
+  - `VecU8x64Max`：`3.96x`；`VecU8x64MaxRaw`：`4.31x`
+  - `VecF32x4Add`：`0.76x`；`VecF32x4AddRaw`：`0.89x`
+- 当前 benchmark 结论已经可以收口：
+  - `VecI16x32Add`：门面与 raw 都已确认正收益，且 façade 热路径进一步减负后收益更明显。
+  - `VecU32x16Mul`：已从明确负收益拉回到接近持平；现阶段不再是高优先级性能事故。
+  - `VecU64x8Add`：raw 仍低于 scalar，说明 AVX2 宽仿真本体尚未证明 ROI，优化优先级下降。
+  - `VecU8x64Max`：门面与 raw 都持续正收益，仍可作为宽字节类 fast-path 样板。
+  - `VecF32x4Add`：raw 与门面都不占优，不应作为下一轮优化重点。
+
+### 阶段状态
+- Stage C 第一轮能力扩展已形成阶段性收口：non-x86 在当前机器检查口径下达到满覆盖，并保持 gate 通过。
+- 下一阶段重点应转向“高 ROI 维护清单”，不再把低价值优化当主线：
+  - 保留并复用：`VecI16x32Add`、`VecU8x64Max`
+  - 仅低成本观察：`VecU32x16Mul`
+  - 降级观察，不再主动深挖：`VecU64x8Add`、`VecF32x4Add`
+  - 继续主线收口：stable boundary、evidence contract、文档真相源统一

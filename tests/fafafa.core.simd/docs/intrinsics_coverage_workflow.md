@@ -88,7 +88,7 @@ set SIMD_COVERAGE_STRICT_EXTRA=1 && tests\fafafa.core.simd\buildOrTest.bat cover
 
 ## Linux 证据一键收集
 
-可通过 `evidence-linux` action 串行收集一批完整证据（coverage/strict/advanced/perf/gate）：
+可通过 `evidence-linux` action 串行收集一批完整 Linux closeout 证据（coverage/strict/advanced/backend-bench/perf/gate-summary/freeze-status-linux）：
 
 ```bash
 bash tests/fafafa.core.simd/BuildOrTest.sh evidence-linux
@@ -98,6 +98,28 @@ bash tests/fafafa.core.simd/BuildOrTest.sh evidence-linux
 摘要文件：`summary.md`
 
 该入口现已作为 nightly 证据链的 Linux 段使用；默认以 Release 口径运行，并与后续 Windows 实机证据、cross-platform `freeze-status` 组合成完整收口链。
+它会固定产出：
+
+- `backend_bench.log`
+- `gate_strict.log`
+- `gate_summary_json.log`
+- `freeze_status_linux.log`
+- 汇总摘要 `summary.md`
+
+当前 `evidence-linux` 内部的 `gate-strict` 已固定启用：
+
+- `SIMD_GATE_PERF_SMOKE=1`
+- `SIMD_PERF_VECTOR_ASM=auto`
+
+也就是说，Linux 证据链里的 `perf-smoke` 不再只是独立附带步骤，而是会进入 `gate-strict` 摘要口径。
+但这仍然只是 Linux 段证据；cross-platform closeout 仍要回到 Windows evidence + `freeze-status` 主线。
+
+本地验证（2026-03-11）：
+
+- `SIMD_GATE_PERF_SMOKE=1 SIMD_PERF_VECTOR_ASM=auto bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict`
+- 在 `tests/fafafa.core.simd/logs/gate_summary.md` 中可见：
+  - gate `START` 详情里 `perf=1`
+  - `perf-smoke | PASS`
 
 
 ## Nightly / GitHub Actions 证据归档

@@ -116,8 +116,8 @@
 - Windows 实机证据后续按独立收口任务补齐（当前不阻塞 Linux 迭代）。
 
 
-## 6) 冻结判定（Linux）
+## 6) 冻结判定（Linux / Cross-platform）
 
-- 结论：截至 2026-02-10，non-x86 路径在 Linux 已满足冻结条件。
+- 结论：截至 2026-03-11，non-x86 路径在 Linux 与跨平台 closeout 口径下均已满足当前冻结条件。
 - 证据：`DispatchAPI + coverage + gate` 多轮稳定通过，且清单 `P0/P1 + Runtime Parity` 全部勾选。
-- 残余项：仅 Windows 实机证据待补（不阻塞当前 Linux 主线开发）。
+- 残余项：无发布阻断残项；后续重点转向语义/性能收口，而不是继续补 dispatch 空槽。

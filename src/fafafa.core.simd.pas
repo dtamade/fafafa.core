@@ -1018,6 +1018,7 @@ function VecU16x8SatSub(const a, b: TVecU16x8): TVecU16x8; inline;
 
 // Get current backend information
 {$I fafafa.core.simd.framework.intf.inc}
+{$I fafafa.core.simd.public_abi.intf.inc}
 
 // === Shuffle/Permute Operations (re-exported from simd.utils) ===
 
@@ -1092,15 +1093,59 @@ function VecF32x4CastToI32x4(const a: TVecF32x4): TVecI32x4; inline;
 implementation
 
 uses
+  fafafa.core.atomic,
   fafafa.core.simd.memutils;
+
+type
+  TVecF32x4AddFunc = function(const a, b: TVecF32x4): TVecF32x4;
+  TVecI16x32AddFunc = function(const a, b: TVecI16x32): TVecI16x32;
+  TVecU32x16MulFunc = function(const a, b: TVecU32x16): TVecU32x16;
+  TVecU64x8AddFunc = function(const a, b: TVecU64x8): TVecU64x8;
+  TVecU8x64MaxFunc = function(const a, b: TVecU8x64): TVecU8x64;
+
+var
+  g_FastVecF32x4AddPtr: Pointer = nil;
+  g_FastVecI16x32AddPtr: Pointer = nil;
+  g_FastVecU32x16MulPtr: Pointer = nil;
+  g_FastVecU64x8AddPtr: Pointer = nil;
+  g_FastVecU8x64MaxPtr: Pointer = nil;
+
+procedure RebindSimdFacadeFastPaths;
+var
+  LDispatch: PSimdDispatchTable;
+begin
+  LDispatch := GetDispatchTable;
+  if LDispatch = nil then
+    Exit;
+
+  atomic_store_ptr(g_FastVecF32x4AddPtr, Pointer(LDispatch^.AddF32x4), mo_release);
+  atomic_store_ptr(g_FastVecI16x32AddPtr, Pointer(LDispatch^.AddI16x32), mo_release);
+  atomic_store_ptr(g_FastVecU32x16MulPtr, Pointer(LDispatch^.MulU32x16), mo_release);
+  atomic_store_ptr(g_FastVecU64x8AddPtr, Pointer(LDispatch^.AddU64x8), mo_release);
+  atomic_store_ptr(g_FastVecU8x64MaxPtr, Pointer(LDispatch^.MaxU8x64), mo_release);
+end;
+
+function LoadSimdFacadeFastPath(var aFuncPtr: Pointer): Pointer; inline;
+begin
+  // Use the platform default load order on the hot path:
+  // x86/x86_64 stays relaxed (no compiler-barrier call), while weakly ordered
+  // targets still get acquire semantics through fafafa.core.atomic defaults.
+  Result := atomic_load_ptr(aFuncPtr);
+end;
 
 // === High-Level Vector Operations Implementation ===
 
-function VecF32x4Add(const a, b: TVecF32x4): TVecF32x4;
-var dispatch: PSimdDispatchTable;
+function VecF32x4Add(const a, b: TVecF32x4): TVecF32x4; inline;
+var
+  LFunc: TVecF32x4AddFunc;
 begin
-  dispatch := GetDispatchTable;
-  Result := dispatch^.AddF32x4(a, b);
+  LFunc := TVecF32x4AddFunc(LoadSimdFacadeFastPath(g_FastVecF32x4AddPtr));
+  if not Assigned(LFunc) then
+  begin
+    RebindSimdFacadeFastPaths;
+    LFunc := TVecF32x4AddFunc(LoadSimdFacadeFastPath(g_FastVecF32x4AddPtr));
+  end;
+  Result := LFunc(a, b);
 end;
 
 function VecF32x4Sub(const a, b: TVecF32x4): TVecF32x4;
@@ -6632,12 +6677,17 @@ begin
   Result := LDispatch^.SubU32x16(a, b);
 end;
 
-function VecU32x16Mul(const a, b: TVecU32x16): TVecU32x16;
+function VecU32x16Mul(const a, b: TVecU32x16): TVecU32x16; inline;
 var
-  LDispatch: PSimdDispatchTable;
+  LFunc: TVecU32x16MulFunc;
 begin
-  LDispatch := GetDispatchTable;
-  Result := LDispatch^.MulU32x16(a, b);
+  LFunc := TVecU32x16MulFunc(LoadSimdFacadeFastPath(g_FastVecU32x16MulPtr));
+  if not Assigned(LFunc) then
+  begin
+    RebindSimdFacadeFastPaths;
+    LFunc := TVecU32x16MulFunc(LoadSimdFacadeFastPath(g_FastVecU32x16MulPtr));
+  end;
+  Result := LFunc(a, b);
 end;
 
 function VecU32x16And(const a, b: TVecU32x16): TVecU32x16;
@@ -6760,12 +6810,17 @@ begin
   Result := LDispatch^.MaxU32x16(a, b);
 end;
 
-function VecU64x8Add(const a, b: TVecU64x8): TVecU64x8;
+function VecU64x8Add(const a, b: TVecU64x8): TVecU64x8; inline;
 var
-  LDispatch: PSimdDispatchTable;
+  LFunc: TVecU64x8AddFunc;
 begin
-  LDispatch := GetDispatchTable;
-  Result := LDispatch^.AddU64x8(a, b);
+  LFunc := TVecU64x8AddFunc(LoadSimdFacadeFastPath(g_FastVecU64x8AddPtr));
+  if not Assigned(LFunc) then
+  begin
+    RebindSimdFacadeFastPaths;
+    LFunc := TVecU64x8AddFunc(LoadSimdFacadeFastPath(g_FastVecU64x8AddPtr));
+  end;
+  Result := LFunc(a, b);
 end;
 
 function VecU64x8Sub(const a, b: TVecU64x8): TVecU64x8;
@@ -6872,12 +6927,17 @@ begin
   Result := LDispatch^.CmpNeU64x8(a, b);
 end;
 
-function VecI16x32Add(const a, b: TVecI16x32): TVecI16x32;
+function VecI16x32Add(const a, b: TVecI16x32): TVecI16x32; inline;
 var
-  LDispatch: PSimdDispatchTable;
+  LFunc: TVecI16x32AddFunc;
 begin
-  LDispatch := GetDispatchTable;
-  Result := LDispatch^.AddI16x32(a, b);
+  LFunc := TVecI16x32AddFunc(LoadSimdFacadeFastPath(g_FastVecI16x32AddPtr));
+  if not Assigned(LFunc) then
+  begin
+    RebindSimdFacadeFastPaths;
+    LFunc := TVecI16x32AddFunc(LoadSimdFacadeFastPath(g_FastVecI16x32AddPtr));
+  end;
+  Result := LFunc(a, b);
 end;
 
 function VecI16x32Sub(const a, b: TVecI16x32): TVecI16x32;
@@ -7168,12 +7228,17 @@ begin
   Result := LDispatch^.MinU8x64(a, b);
 end;
 
-function VecU8x64Max(const a, b: TVecU8x64): TVecU8x64;
+function VecU8x64Max(const a, b: TVecU8x64): TVecU8x64; inline;
 var
-  LDispatch: PSimdDispatchTable;
+  LFunc: TVecU8x64MaxFunc;
 begin
-  LDispatch := GetDispatchTable;
-  Result := LDispatch^.MaxU8x64(a, b);
+  LFunc := TVecU8x64MaxFunc(LoadSimdFacadeFastPath(g_FastVecU8x64MaxPtr));
+  if not Assigned(LFunc) then
+  begin
+    RebindSimdFacadeFastPaths;
+    LFunc := TVecU8x64MaxFunc(LoadSimdFacadeFastPath(g_FastVecU8x64MaxPtr));
+  end;
+  Result := LFunc(a, b);
 end;
 
 // === ✅ P2-1: Saturating Arithmetic Implementation ===
@@ -7292,6 +7357,16 @@ begin
 end;
 
 {$I fafafa.core.simd.framework.impl.inc}
+{$I fafafa.core.simd.public_abi.impl.inc}
+
+initialization
+  AddDispatchChangedHook(@RebindSimdFacadeFastPaths);
+  RebindSimdFacadeFastPaths;
+  AddDispatchChangedHook(@RebindSimdPublicApi);
+  RebindSimdPublicApi;
+
+finalization
+  RemoveDispatchChangedHook(@RebindSimdPublicApi);
+  RemoveDispatchChangedHook(@RebindSimdFacadeFastPaths);
 
 end.
-

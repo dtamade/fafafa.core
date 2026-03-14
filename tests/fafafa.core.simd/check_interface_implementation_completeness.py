@@ -20,6 +20,88 @@ INCLUDE_RE = re.compile(r"\{\$I\s+([^}]+)\}", re.IGNORECASE)
 
 CRITICAL_PREFIXES = ("Round", "Trunc", "Floor", "Ceil")
 CRITICAL_SUFFIXES = ("F32x4", "F64x2", "F32x8", "F64x4", "F32x16", "F64x8")
+NONX86_CHECKLIST_REL = "docs/plans/2026-02-09-simd-nonx86-interface-target-checklist.md"
+RISCVV_DOT_TARGET_SLOTS = frozenset(("DotF32x8", "DotF64x2", "DotF64x4"))
+NONX86_I16X32_TARGET_SLOTS = frozenset((
+    "AddI16x32",
+    "SubI16x32",
+    "AndI16x32",
+    "OrI16x32",
+    "XorI16x32",
+    "NotI16x32",
+    "AndNotI16x32",
+    "ShiftLeftI16x32",
+    "ShiftRightI16x32",
+    "ShiftRightArithI16x32",
+    "CmpEqI16x32",
+    "CmpLtI16x32",
+    "CmpGtI16x32",
+    "MinI16x32",
+    "MaxI16x32",
+))
+NONX86_I8X64_TARGET_SLOTS = frozenset((
+    "AddI8x64",
+    "SubI8x64",
+    "AndI8x64",
+    "OrI8x64",
+    "XorI8x64",
+    "NotI8x64",
+    "AndNotI8x64",
+    "CmpEqI8x64",
+    "CmpLtI8x64",
+    "CmpGtI8x64",
+    "MinI8x64",
+    "MaxI8x64",
+))
+NONX86_U32X16_TARGET_SLOTS = frozenset((
+    "AddU32x16",
+    "SubU32x16",
+    "MulU32x16",
+    "AndU32x16",
+    "OrU32x16",
+    "XorU32x16",
+    "NotU32x16",
+    "AndNotU32x16",
+    "ShiftLeftU32x16",
+    "ShiftRightU32x16",
+    "CmpEqU32x16",
+    "CmpLtU32x16",
+    "CmpGtU32x16",
+    "CmpLeU32x16",
+    "CmpGeU32x16",
+    "CmpNeU32x16",
+    "MinU32x16",
+    "MaxU32x16",
+))
+NONX86_U64X8_TARGET_SLOTS = frozenset((
+    "AddU64x8",
+    "SubU64x8",
+    "AndU64x8",
+    "OrU64x8",
+    "XorU64x8",
+    "NotU64x8",
+    "ShiftLeftU64x8",
+    "ShiftRightU64x8",
+    "CmpEqU64x8",
+    "CmpLtU64x8",
+    "CmpGtU64x8",
+    "CmpLeU64x8",
+    "CmpGeU64x8",
+    "CmpNeU64x8",
+))
+NONX86_U8X64_TARGET_SLOTS = frozenset((
+    "AddU8x64",
+    "SubU8x64",
+    "AndU8x64",
+    "OrU8x64",
+    "XorU8x64",
+    "NotU8x64",
+    "CmpEqU8x64",
+    "CmpLtU8x64",
+    "CmpGtU8x64",
+    "MinU8x64",
+    "MaxU8x64",
+))
 
 
 @dataclass(frozen=True)
@@ -85,17 +167,94 @@ def build_test_token_counter(tests_root: Path) -> dict[str, int]:
     return counter
 
 
+def extract_nonx86_p0_target_slots(checklist_path: Path) -> set[str]:
+    if not checklist_path.exists():
+        return set()
+
+    text = checklist_path.read_text(encoding="utf-8", errors="ignore")
+    start_marker = "## 3) P0 清单"
+    end_marker = "## 4) P1 清单"
+    start = text.find(start_marker)
+    if start < 0:
+        return set()
+    end = text.find(end_marker, start)
+    if end < 0:
+        end = len(text)
+
+    section = text[start:end]
+    return set(re.findall(r"`([A-Za-z_][A-Za-z0-9_]*)`", section))
+
+
 def is_critical_slot(slot: str) -> bool:
     return slot.startswith(CRITICAL_PREFIXES) and slot.endswith(CRITICAL_SUFFIXES)
 
 
-def classify_slot(slot: str, assigned_backends: list[str], test_refs: int) -> tuple[str, str]:
+def classify_slot(
+    slot: str,
+    assigned_backends: list[str],
+    test_refs: int,
+    nonx86_target_slots: set[str],
+) -> tuple[str, str]:
     has_scalar = "scalar" in assigned_backends
     simd_backends = [x for x in assigned_backends if x != "scalar"]
     has_nonx86 = ("neon" in assigned_backends) or ("riscvv" in assigned_backends)
 
     if not has_scalar:
         return ("P0", "missing scalar dispatch assignment")
+
+    if slot in RISCVV_DOT_TARGET_SLOTS and "riscvv" not in assigned_backends:
+        return ("P1", "riscvv high-roi dot slot missing backend assignment")
+
+    if slot in NONX86_I16X32_TARGET_SLOTS:
+        missing_nonx86 = [x for x in ("neon", "riscvv") if x not in assigned_backends]
+        if missing_nonx86:
+            return (
+                "P1",
+                "non-x86 high-roi I16x32 slot missing backend assignment: " + ",".join(missing_nonx86),
+            )
+
+    if slot in NONX86_I8X64_TARGET_SLOTS:
+        missing_nonx86 = [x for x in ("neon", "riscvv") if x not in assigned_backends]
+        if missing_nonx86:
+            return (
+                "P1",
+                "non-x86 high-roi I8x64 slot missing backend assignment: " + ",".join(missing_nonx86),
+            )
+
+    if slot in NONX86_U32X16_TARGET_SLOTS:
+        missing_nonx86 = [x for x in ("neon", "riscvv") if x not in assigned_backends]
+        if missing_nonx86:
+            return (
+                "P1",
+                "non-x86 high-roi U32x16 slot missing backend assignment: " + ",".join(missing_nonx86),
+            )
+
+    if slot in NONX86_U64X8_TARGET_SLOTS:
+        missing_nonx86 = [x for x in ("neon", "riscvv") if x not in assigned_backends]
+        if missing_nonx86:
+            return (
+                "P1",
+                "non-x86 high-roi U64x8 slot missing backend assignment: " + ",".join(missing_nonx86),
+            )
+
+    if slot in NONX86_U8X64_TARGET_SLOTS:
+        missing_nonx86 = [x for x in ("neon", "riscvv") if x not in assigned_backends]
+        if missing_nonx86:
+            return (
+                "P1",
+                "non-x86 high-roi U8x64 slot missing backend assignment: " + ",".join(missing_nonx86),
+            )
+
+    if slot in nonx86_target_slots:
+        missing_nonx86 = [x for x in ("neon", "riscvv") if x not in assigned_backends]
+        if missing_nonx86:
+            return (
+                "P1",
+                "non-x86 P0 target missing backend assignment: " + ",".join(missing_nonx86),
+            )
+        if test_refs == 0:
+            return ("P2", "non-x86 P0 target has no tests token references")
+        return ("OK", "non-x86 P0 target covered")
 
     if is_critical_slot(slot):
         if test_refs == 0:
@@ -206,6 +365,7 @@ def main() -> int:
     repo_root = Path(__file__).resolve().parents[2]
     dispatch_file = repo_root / "src" / "fafafa.core.simd.dispatch.pas"
     tests_root = repo_root / "tests" / "fafafa.core.simd"
+    nonx86_checklist = repo_root / NONX86_CHECKLIST_REL
 
     backend_files = {
         "scalar": dispatch_file,
@@ -223,6 +383,7 @@ def main() -> int:
     slots = extract_dispatch_slots(dispatch_file)
     slot_set = set(slots)
     test_counter = build_test_token_counter(tests_root)
+    nonx86_target_slots = extract_nonx86_p0_target_slots(nonx86_checklist) & slot_set
 
     backend_assigned: dict[str, set[str]] = {}
     for backend, file in backend_files.items():
@@ -232,7 +393,12 @@ def main() -> int:
     severity_counts = {"P0": 0, "P1": 0, "P2": 0}
     for slot in sorted(slots):
         assigned_backends = [backend for backend in backend_files.keys() if slot in backend_assigned[backend]]
-        severity, reason = classify_slot(slot=slot, assigned_backends=assigned_backends, test_refs=test_counter.get(slot, 0))
+        severity, reason = classify_slot(
+            slot=slot,
+            assigned_backends=assigned_backends,
+            test_refs=test_counter.get(slot, 0),
+            nonx86_target_slots=nonx86_target_slots,
+        )
         items.append(
             SlotCoverage(
                 slot=slot,

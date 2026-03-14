@@ -345,6 +345,9 @@ type
   TSimdCapabilities  = set of TSimdCapability;
   TSimdCapabilitySet = TSimdCapabilities; // 别名
 
+  // Backend metadata is part of the in-repo dispatch contract, not a public
+  // binary ABI surface. Name/Description are managed strings, so this record
+  // must not be treated as POD-stable across compilers/runtimes.
   TSimdBackendInfo = record
     Backend: TSimdBackend;
     Name: string;

@@ -93,6 +93,7 @@ tests/*/copytree_symlink_*/
 *.pas.backup*
 *.lpr.backup*
 .ace-tool/
+.claude/worktrees/
 
 # Temporary files
 temp_*.txt

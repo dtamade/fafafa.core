@@ -30,9 +30,47 @@
 - ✅ `docs/fafafa.core.simd.cpuinfo.md`：`TSimdBackend` 枚举、`IsBackendAvailableOnCPU` 命名已与代码一致
 - ✅ `docs/fafafa.core.simd.md`：已不再引用不存在的 `simd.types`
 - ✅ `src/fafafa.core.simd.STABLE`：`simd.types` → `simd.base`
+- ✅ 2026-03-11：non-x86 当前机器检查口径已达 `dispatch=558, neon=558, riscvv=558, P0=0/P1=0/P2=0`
+- ✅ 2026-03-11：`bash tests/fafafa.core.simd/BuildOrTest.sh gate` 通过；Windows 实机 evidence 已闭环
+- ✅ 2026-03-11：`gate-strict`（含 perf/QEMU cpuinfo non-x86 evidence）通过
+- ✅ 2026-03-11：稳定边界口径已统一为“公开 façade + in-repo dispatch contract”，不再把 `TSimdDispatchTable` 误读成 public binary ABI
+- ✅ 2026-03-11：backend 状态语义已统一为 `supported_on_cpu / registered / dispatchable / active`
+- ✅ 2026-03-11：Windows closeout 主线已统一为 `win-evidence-via-gh` / `win-closeout-finalize`
+- ✅ 2026-03-11：性能主线已收口为高 ROI 清单：
+  - 保留复用：`VecI16x32Add`、`VecU8x64Max`
+  - 仅观察：`VecU32x16Mul`
+  - 降级观察：`VecU64x8Add`、`VecF32x4Add`
+
+> 说明：
+> 下文第 3 章中的覆盖率数字是 2026-02-05 审计当时的历史快照，不代表当前状态。
 - ✅ `build.bat`：改为 wrapper，重定向到 `tests\\fafafa.core.simd\\buildOrTest.bat`
 - ✅ `src/fafafa.core.simd.next-steps.md`：标记为早期草案（历史参考），并改为 `simd.base`
 - ✅ `examples/example_simd_dispatch.pas`：uses 已使用 `fafafa.core.simd.base`（不再引用 `simd.types`）
+
+## Current Readout（2026-03-11）
+
+如果你今天要继续维护，而不是复盘 2026-02-05 的历史快照，优先记住这 4 件事：
+
+1. 当前主线真相源不是这份报告，而是：
+   - `src/fafafa.core.simd.STABLE`
+   - `docs/fafafa.core.simd.md`
+   - `docs/fafafa.core.simd.closeout.md`
+   - `docs/fafafa.core.simd.checklist.md`
+
+2. `TSimdDispatchTable` 现在只按仓库内稳定 dispatch contract 理解。
+   - `TSimdBackendInfo` 含 managed string
+   - 因此当前 record layout 不是 public binary ABI
+
+3. backend 状态必须分 4 层看：
+   - `supported_on_cpu`
+   - `registered`
+   - `dispatchable`
+   - `active`
+
+4. 当前主线工作已经不再是“继续补更多 benchmark 项”，而是：
+   - stable boundary
+   - evidence contract
+   - runbook / 文档真相源一致性
 
 ## 1. 文档审计摘要 (a2e2b70)
 

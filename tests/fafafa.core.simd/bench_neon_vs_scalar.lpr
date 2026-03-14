@@ -43,6 +43,7 @@ begin
 
   WriteLn('=== NEON vs Scalar Performance Benchmark ===');
   WriteLn;
+  SetVectorAsmEnabled(True);
   WriteLn('Running Scalar backend tests...');
   SetActiveBackend(sbScalar);
   ScalarResults := RunAllBenchmarks;

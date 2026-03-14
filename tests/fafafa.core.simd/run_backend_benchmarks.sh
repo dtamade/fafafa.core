@@ -119,9 +119,87 @@ run_one() {
   fi
 }
 
+run_one_from_test_binary() {
+  local aName="$1"
+  local LBuildLog
+  local LRunLog
+  local LBinary
+  local LBuildRc
+  local LRunRc
+
+  LBuildLog="${OUT_DIR}/simd_test_binary.build.log"
+  LRunLog="${OUT_DIR}/simd_test_binary.run.log"
+  LBinary="${SCRIPT_DIR}/bin2/fafafa.core.simd.test"
+
+  echo "[BENCH] >>> ${aName}" | tee -a "${RUNNER_LOG}"
+
+  (
+    cd "${ROOT_DIR}"
+    bash tests/fafafa.core.simd/BuildOrTest.sh build
+  ) >"${LBuildLog}" 2>&1 || LBuildRc=$?
+  LBuildRc="${LBuildRc:-0}"
+
+  if [[ "${LBuildRc}" -ne 0 ]]; then
+    echo "[BENCH] FAILED (build rc=${LBuildRc}): ${aName}" | tee -a "${RUNNER_LOG}"
+    tail -n 80 "${LBuildLog}" || true
+    return "${LBuildRc}"
+  fi
+
+  if [[ ! -x "${LBinary}" ]]; then
+    echo "[BENCH] FAILED (test binary missing): ${LBinary}" | tee -a "${RUNNER_LOG}"
+    return 1
+  fi
+
+  (
+    cd "${OUT_DIR}"
+    "${LBinary}" --bench-only --vector-asm
+  ) >"${LRunLog}" 2>&1 || LRunRc=$?
+  LRunRc="${LRunRc:-0}"
+
+  if [[ "${LRunRc}" -ne 0 ]]; then
+    echo "[BENCH] FAILED (run rc=${LRunRc}): ${aName}" | tee -a "${RUNNER_LOG}"
+    tail -n 80 "${LRunLog}" || true
+    return "${LRunRc}"
+  fi
+
+  if ! grep -q 'SIMD Benchmark (x86_64/AVX2)' "${LRunLog}"; then
+    echo "[BENCH] SKIP ${aName} (active backend is not AVX2)" | tee -a "${RUNNER_LOG}"
+    tail -n 40 "${LRunLog}" || true
+    return 0
+  fi
+
+  echo "[BENCH] PASS ${aName}" | tee -a "${RUNNER_LOG}"
+}
+
+append_benchmark_excerpt() {
+  local aRunLog="$1"
+  if [[ ! -f "${aRunLog}" ]]; then
+    return 0
+  fi
+
+  awk '
+    BEGIN { capture=0; blank_count=0 }
+    /^=== SIMD Benchmark/ {
+      capture=1
+    }
+    capture {
+      print
+      if ($0 == "") {
+        blank_count++
+        if (blank_count >= 2) {
+          exit
+        }
+      } else {
+        blank_count=0
+      }
+    }
+  ' "${aRunLog}" || true
+}
+
 declare -a TARGETS
 if [[ "${SIMD_BENCH_ALL_BACKENDS:-0}" != "0" ]]; then
   TARGETS=(
+    "__simd_test_binary_avx2__:AVX2_vs_Scalar:^(x86_64|amd64)$"
     "bench_avx512_vs_avx2.lpr:AVX512_vs_AVX2:^(x86_64|amd64)$"
     "bench_neon_vs_scalar.lpr:NEON_vs_Scalar:^(aarch64|arm64)$"
     "bench_riscvv_vs_scalar.lpr:RISCVV_vs_Scalar:^riscv64$"
@@ -129,7 +207,10 @@ if [[ "${SIMD_BENCH_ALL_BACKENDS:-0}" != "0" ]]; then
 else
   case "${HOST_ARCH}" in
     x86_64|amd64)
-      TARGETS=("bench_avx512_vs_avx2.lpr:AVX512_vs_AVX2:^(x86_64|amd64)$")
+      TARGETS=(
+        "__simd_test_binary_avx2__:AVX2_vs_Scalar:^(x86_64|amd64)$"
+        "bench_avx512_vs_avx2.lpr:AVX512_vs_AVX2:^(x86_64|amd64)$"
+      )
       ;;
     aarch64|arm64)
       TARGETS=("bench_neon_vs_scalar.lpr:NEON_vs_Scalar:^(aarch64|arm64)$")
@@ -154,7 +235,11 @@ for LTarget in "${TARGETS[@]}"; do
     echo "[BENCH] SKIP ${LName} (host arch ${HOST_ARCH} does not match ${LHostRegex})" | tee -a "${RUNNER_LOG}"
     continue
   fi
-  run_one "${LSource}" "${LName}"
+  if [[ "${LSource}" == "__simd_test_binary_avx2__" ]]; then
+    run_one_from_test_binary "${LName}"
+  else
+    run_one "${LSource}" "${LName}"
+  fi
 done
 
 if [[ -n "${BENCH_FPC_EXTRA_DEFINES_STRING}" ]]; then
@@ -172,14 +257,20 @@ fi
   echo
   for LTarget in "${TARGETS[@]}"; do
     IFS=':' read -r LSource LName LHostRegex <<< "${LTarget}"
-    LBase="${LSource%.lpr}"
     echo "## ${LName}"
-    if [[ -f "${OUT_DIR}/${LBase}.build.log" ]]; then
-      echo "- Build log: ${OUT_DIR}/${LBase}.build.log"
-      echo "- Run log: ${OUT_DIR}/${LBase}.run.log"
-      grep -E '^\[SKIP\]|^\[BENCH\]|^===|^Average Speedup:' "${OUT_DIR}/${LBase}.run.log" || true
+    if [[ "${LSource}" == "__simd_test_binary_avx2__" ]]; then
+      echo "- Build log: ${OUT_DIR}/simd_test_binary.build.log"
+      echo "- Run log: ${OUT_DIR}/simd_test_binary.run.log"
+      append_benchmark_excerpt "${OUT_DIR}/simd_test_binary.run.log"
     else
-      echo "- SKIP: host arch ${HOST_ARCH} not in ${LHostRegex}"
+      LBase="${LSource%.lpr}"
+      if [[ -f "${OUT_DIR}/${LBase}.build.log" ]]; then
+        echo "- Build log: ${OUT_DIR}/${LBase}.build.log"
+        echo "- Run log: ${OUT_DIR}/${LBase}.run.log"
+        append_benchmark_excerpt "${OUT_DIR}/${LBase}.run.log"
+      else
+        echo "- SKIP: host arch ${HOST_ARCH} not in ${LHostRegex}"
+      fi
     fi
     echo
   done

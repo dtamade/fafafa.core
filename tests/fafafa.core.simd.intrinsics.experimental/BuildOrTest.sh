@@ -11,8 +11,10 @@ FPC_BIN="${FPC_BIN:-fpc}"
 CPU="$(${FPC_BIN} -iTP 2>/dev/null | tr '[:upper:]' '[:lower:]' || true)"
 OS="$(${FPC_BIN} -iTO 2>/dev/null | tr '[:upper:]' '[:lower:]' || true)"
 TRIPLET="${CPU}-${OS}"
+EXPERIMENTAL_FLAG="${FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS:-0}"
 BIN_DIR="${ROOT}/bin"
-LIB_DIR="${ROOT}/lib/${TRIPLET}"
+MODE_TAG="exp${EXPERIMENTAL_FLAG}"
+LIB_DIR="${ROOT}/lib/${TRIPLET}/${MODE_TAG}"
 BIN="${BIN_DIR}/fafafa.core.simd.intrinsics.experimental.test"
 LOG_DIR="${ROOT}/logs"
 BUILD_LOG="${LOG_DIR}/build.txt"
@@ -41,7 +43,6 @@ AVX512_SMOKE_BIN="${BIN_DIR}/avx512_smoke"
 FMA3_SMOKE_LOG="${LOG_DIR}/fma3_smoke.txt"
 FMA3_SMOKE_SOURCE="${LOG_DIR}/fma3_smoke.pas"
 FMA3_SMOKE_BIN="${BIN_DIR}/fma3_smoke"
-EXPERIMENTAL_FLAG="${FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS:-0}"
 HYGIENE_CHECKER="${REPO_ROOT}/tests/fafafa.core.simd/check_intrinsics_comment_swallow.py"
 
 mkdir -p "${BIN_DIR}" "${LIB_DIR}" "${LOG_DIR}"
@@ -387,6 +388,12 @@ case "${ACTION}" in
     check_avx2_backend_smoke
     check_avx512_backend_smoke
     check_fma3_backend_smoke
+    ;;
+  test-all)
+    echo "[TEST-ALL] Running default mode (experimental=0)"
+    FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=0 bash "$0" test "$@"
+    echo "[TEST-ALL] Running experimental mode (experimental=1)"
+    FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=1 bash "$0" test "$@"
     ;;
   debug|release|test|test-all)
     build_project

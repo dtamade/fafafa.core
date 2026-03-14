@@ -572,6 +572,11 @@ asm
   umov  x1, v0.d[1]
 end;
 
+function NEONAndNotI8x16(const a, b: TVecI8x16): TVecI8x16;
+begin
+  Result := NEONAndI8x16(NEONNotI8x16(a), b);
+end;
+
 // I8x16 有符号最小值 (smin v.16b)
 function NEONMinI8x16(const a, b: TVecI8x16): TVecI8x16; assembler; nostackframe;
 asm
@@ -723,6 +728,11 @@ asm
   umov  x1, v0.d[1]
 end;
 
+function NEONAndNotU16x8(const a, b: TVecU16x8): TVecU16x8;
+begin
+  Result := NEONAndU16x8(NEONNotU16x8(a), b);
+end;
+
 // U16x8 无符号最小值 (umin v.8h)
 function NEONMinU16x8(const a, b: TVecU16x8): TVecU16x8; assembler; nostackframe;
 asm
@@ -855,6 +865,11 @@ asm
 
   umov  x0, v0.d[0]
   umov  x1, v0.d[1]
+end;
+
+function NEONAndNotU8x16(const a, b: TVecU8x16): TVecU8x16;
+begin
+  Result := NEONAndU8x16(NEONNotU8x16(a), b);
 end;
 
 // U8x16 无符号最小值 (umin v.16b)
@@ -3476,4 +3491,3 @@ asm
   orr   w0, w0, w3, lsl #14
   orr   w0, w0, w4, lsl #15
 end;
-

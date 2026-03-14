@@ -72,21 +72,25 @@ end;
 function sse42_cmpestri(const a: TM128; la: Integer; const b: TM128; lb: Integer; imm8: Byte): Integer;
 begin
   // 简化实�?- 返回第一个匹配的索引
-  Result := 16; // 表示未找�?end;
+  Result := 16; // 表示未找�?
+end;
 
 function sse42_cmpestrc(const a: TM128; la: Integer; const b: TM128; lb: Integer; imm8: Byte): Boolean;
 begin
-  // 简化实�?- 返回是否有匹�?  Result := False;
+  // 简化实�?- 返回是否有匹�?
+  Result := False;
 end;
 
 function sse42_cmpestro(const a: TM128; la: Integer; const b: TM128; lb: Integer; imm8: Byte): Boolean;
 begin
-  // 简化实�?- 返回结果的奇偶�?  Result := False;
+  // 简化实�?- 返回结果的奇偶�?
+  Result := False;
 end;
 
 function sse42_cmpestrs(const a: TM128; la: Integer; const b: TM128; lb: Integer; imm8: Byte): Boolean;
 begin
-  // 简化实�?- 返回结果的符�?  Result := False;
+  // 简化实�?- 返回结果的符�?
+  Result := False;
 end;
 
 function sse42_cmpestrz(const a: TM128; la: Integer; const b: TM128; lb: Integer; imm8: Byte): Boolean;
@@ -97,12 +101,14 @@ end;
 
 function sse42_cmpistrm(const a, b: TM128; imm8: Byte): TM128;
 begin
-  // 简化实�?- 隐式长度字符串比�?  FillChar(Result, SizeOf(Result), 0);
+  // 简化实�?- 隐式长度字符串比�?
+  FillChar(Result, SizeOf(Result), 0);
 end;
 
 function sse42_cmpistri(const a, b: TM128; imm8: Byte): Integer;
 begin
-  // 简化实�?  Result := 16;
+  // 简化实�?
+  Result := 16;
 end;
 
 function sse42_cmpistrc(const a, b: TM128; imm8: Byte): Boolean;

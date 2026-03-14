@@ -7,6 +7,10 @@
 如果你是第一次进入这个模块，建议按下面顺序读：
 
 - **想直接使用公开 API**：先看 `docs/fafafa.core.simd.api.md`，再看 `examples/simd_ops_demo.lpr`
+- **想看 external/public ABI wrapper**：看 `docs/fafafa.core.simd.publicabi.md`
+  - Linux smoke：`bash tests/fafafa.core.simd.publicabi/BuildOrTest.sh test`
+  - Windows smoke：`tests\fafafa.core.simd.publicabi\BuildOrTest.bat test`
+  - 稳定承诺：`docs/fafafa.core.simd.publicabi.stability.md`
 - **想理解模块全貌**：看 `docs/fafafa.core.simd.md`
 - **想维护或修改实现**：看 `docs/fafafa.core.simd.map.md`、`docs/fafafa.core.simd.maintenance.md`、`docs/fafafa.core.simd.checklist.md`
 - **想知道当前稳定边界**：看 `docs/fafafa.core.simd.handoff.md` 与 `src/fafafa.core.simd.STABLE`
@@ -24,14 +28,14 @@
 
 ## Stable / Experimental 边界
 
-先看结论：`fafafa.core.simd` 的**公开 façade / ABI** 可以按稳定入口来理解，但**后端成熟度并不完全相同**。
+先看结论：`fafafa.core.simd` 的**公开 façade** 可以按稳定入口来理解，`TSimdDispatchTable` 当前只应视为**仓库内稳定 dispatch contract**，不是 public binary ABI；后端成熟度也并不完全相同。
 
-- **稳定面**：`fafafa.core.simd` / `fafafa.core.simd.api` 对外暴露的公开 façade，以及 `TSimdDispatchTable` 这类已明确写入稳定约束的 ABI 边界
+- **稳定面**：`fafafa.core.simd` / `fafafa.core.simd.api` 对外暴露的公开 façade，以及 `TSimdDispatchTable` 这类已明确写入稳定约束的 in-repo dispatch contract
 - **后端成熟度有差异**：`Scalar`、`SSE2`、`AVX2`、`NEON` 更接近当前默认维护主线；`AVX-512` 受构建配置和验证范围影响；`sbRISCVV` 仍应视为 experimental / 受限成熟度后端
 - **`sbRISCVV` 现在是显式 opt-in**：即使平台满足，`fafafa.core.simd` 也不会默认接线 `riscvv`；只有定义 `SIMD_EXPERIMENTAL_RISCVV` 时才会把它接入 umbrella unit
 - **experimental intrinsics 默认隔离**：实验性 intrinsics 已有默认入口隔离检查，不属于默认 stable surface；默认入口链路不会把这些实验单元直接暴露成常规公开入口
 
-这意味着：**可以把公开 API 当成稳定入口使用，但不要把每个 backend 都默认理解成同等成熟、同等验证深度。**
+这意味着：**可以把公开 API 当成稳定入口使用，但不要把当前 `TSimdDispatchTable` 误读成 public binary ABI，也不要把每个 backend 都默认理解成同等成熟、同等验证深度。**
 
 ## 特性
 
@@ -173,6 +177,16 @@ backend := GetActiveBackend;  // 返回 TSimdBackend 枚举
 
 // 强制使用特定后端
 SetActiveBackend(sbAVX2);
+
+// 四层状态语义：
+// supported_on_cpu  -> GetSupportedBackendList / GetAvailableBackends(cpuinfo)
+// registered        -> GetRegisteredBackendList / IsBackendRegisteredInBinary
+// dispatchable      -> GetDispatchableBackendList / GetAvailableBackendList
+// active            -> GetCurrentBackend / GetActiveBackend
+
+// 查询当前二进制里已经注册的后端（不等同于 CPU 一定支持）
+backends := GetRegisteredBackendList;
+ok := IsBackendRegisteredInBinary(sbAVX2);
 
 // 查询当前二进制里真正可派发的后端（CPU 支持 + 已注册 + 标记可用）
 backends := GetAvailableBackendList;

@@ -62,7 +62,9 @@ procedure RegisterBackendRebuilder(backend: TSimdBackend; rebuilder: TBackendReb
 
 // === Function Dispatch Tables ===
 type
-  // Dispatch table for all SIMD operations
+  // Dispatch table for all SIMD operations.
+  // This is a stable in-repo dispatch contract for fafafa.core itself, but not
+  // a public binary ABI: BackendInfo carries managed string fields.
   TSimdDispatchTable = record
     // Backend information
     Backend: TSimdBackend;
@@ -791,7 +793,7 @@ type
   PSimdDispatchTable = ^TSimdDispatchTable;
 
 // Get current dispatch table
-function GetDispatchTable: PSimdDispatchTable;
+function GetDispatchTable: PSimdDispatchTable; inline;
 
 // === Backend Registration ===
 
@@ -1180,9 +1182,12 @@ begin
   end;
 end;
 
-function GetDispatchTable: PSimdDispatchTable;
+function GetDispatchTable: PSimdDispatchTable; inline;
 begin
-  InitializeDispatch;
+  if g_DispatchState <> 2 then
+    InitializeDispatch
+  else
+    ReadBarrier;
   Result := g_CurrentDispatch;
 end;
 

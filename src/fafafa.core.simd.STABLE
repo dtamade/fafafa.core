@@ -20,6 +20,13 @@ BOUNDARY NOTES
 - If an external/public binary ABI is needed in the future, introduce a POD-only wrapper/signature layer first; do not treat the current managed-field record layout as that ABI.
 - Backend maturity differs. `Scalar`, `SSE2`, `AVX2`, and `NEON` are closer to the default maintenance path; `sbRISCVV` remains experimental / limited-maturity.
 - Experimental intrinsics are kept out of the default entry chain and are not part of the default stable surface.
+- Backend state must be read in four layers, not a single ambiguous "available":
+  - `supported_on_cpu`: CPU/OS supports it
+  - `registered`: this binary registered it
+  - `dispatchable`: supported_on_cpu + registered + `BackendInfo.Available=True`
+  - `active`: current live dispatch selection
+- The in-repo dispatch contract is also guarded by a machine-readable signature check:
+  `tests/fafafa.core.simd/check_dispatch_contract_signature.py`
 
 
 MODIFICATION POLICY
@@ -34,13 +41,28 @@ Before modifying any file under src/fafafa.core.simd.*:
    bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DirectDispatch
 3. Run the fast/base gate for routine changes:
    bash tests/fafafa.core.simd/BuildOrTest.sh gate
+   - This now includes the `contract-signature` guard for `TSimdBackendInfo` / `TSimdDispatchTable`.
+   - It also includes the `publicabi-signature` guard for the public ABI wrapper contract.
 4. (Optional) Run the repo test runner restricted to this module:
    bash tests/run_all_tests.sh fafafa.core.simd
 5. Before release/closeout, run Linux "strict gate" (release/closeout profile):
    bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict
-   (equivalent to:)
-   SIMD_GATE_WIRING_SYNC=1 SIMD_WIRING_SYNC_STRICT_EXTRA=1 SIMD_GATE_COVERAGE=1 SIMD_COVERAGE_STRICT_EXTRA=1 SIMD_GATE_PERF_SMOKE=1 \
-     bash tests/fafafa.core.simd/BuildOrTest.sh gate
+   - `perf-smoke` remains explicit unless you set `SIMD_GATE_PERF_SMOKE=1`, or use `evidence-linux`
+6. For cross-platform closeout, prefer the current Windows evidence mainline:
+   FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh SIMD-YYYYMMDD-152
+   FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize SIMD-YYYYMMDD-152
+   FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status
+7. If you intentionally change the in-repo dispatch contract:
+   python3 tests/fafafa.core.simd/check_dispatch_contract_signature.py --dump-current
+   - update the expected signatures in the checker
+   - update `src/fafafa.core.simd.STABLE` / closeout docs if the contract meaning changed
+   - rerun `gate` and `gate-strict`
+8. If you intentionally change the public ABI wrapper contract:
+   python3 tests/fafafa.core.simd/check_public_abi_signature.py --dump-current
+   - update the expected signatures in the checker
+   - update `tests/fafafa.core.simd.publicabi/publicabi_smoke.h` and related consumer mirrors if needed
+   - rerun `bash tests/fafafa.core.simd.publicabi/BuildOrTest.sh test`
+   - rerun `gate` and `gate-strict`
 
 COVERED PUBLIC ENTRY POINTS
 ---------------------------

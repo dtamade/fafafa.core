@@ -20,6 +20,7 @@ uses
   fafafa.core.simd.ieee754.testcase,
   fafafa.core.simd.dispatchapi.testcase,
   fafafa.core.simd.dispatchslots.testcase,
+  fafafa.core.simd.publicabi.testcase,
   fafafa.core.simd.edgecases.testcase,
   fafafa.core.simd.vec512types.testcase,
   fafafa.core.simd.imageproc.testcase,
@@ -29,6 +30,7 @@ uses
   fafafa.core.simd.intrinsics.avx2.testcase,
   fafafa.core.simd.concurrent.testcase,  // ✅ Phase 5.4: Concurrent SIMD tests (12 tests)
   fafafa.core.simd.bench,
+  fafafa.core.simd.base,
   fafafa.core.simd.cpuinfo,
   fafafa.core.simd.dispatch,
   fafafa.core.simd.api,
@@ -60,7 +62,15 @@ procedure ProcessAllSuites(const aListOnly: Boolean; aTargetSuite: TTestSuite); 
 procedure RunBenchmarks;
 var
   Results: TBenchResults;
+  LBackend: TSimdBackend;
 begin
+  LBackend := GetActiveBackend;
+  if (not IsVectorAsmEnabled) and (LBackend in [sbAVX2, sbAVX512, sbNEON, sbRISCVV]) then
+  begin
+    WriteLn('[BENCH] Note: vector-asm is OFF; vector-op rows may still reflect scalar fallback paths.');
+    WriteLn('[BENCH] For backend vector throughput, prefer --bench-only --vector-asm or dedicated bench_*.lpr runners.');
+    WriteLn;
+  end;
   Results := fafafa.core.simd.bench.RunAllBenchmarks;
   PrintBenchResults(Results);
 end;
@@ -185,6 +195,7 @@ begin
   HandleSuite('TTestCase_NonX86BackendParity', TTestCase_NonX86BackendParity.Suite, aListOnly, aTargetSuite);
   HandleSuite('TTestCase_DispatchAPI', TTestCase_DispatchAPI.Suite, aListOnly, aTargetSuite);
   HandleSuite('TTestCase_DispatchAllSlots', TTestCase_DispatchAllSlots.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_PublicAbi', TTestCase_PublicAbi.Suite, aListOnly, aTargetSuite);
   {$IFDEF SIMD_X86_AVAILABLE}
   HandleSuite('TTestCase_DirectDispatch', TTestCase_DirectDispatch.Suite, aListOnly, aTargetSuite);
   {$ENDIF}

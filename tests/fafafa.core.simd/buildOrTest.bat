@@ -68,6 +68,9 @@ if /I "%ACTION%"=="release" (
 if /I "%ACTION%"=="gate" goto :gate
 if /I "%ACTION%"=="gate-strict" goto :gate_strict
 if /I "%ACTION%"=="interface-completeness" goto :interface_completeness
+if /I "%ACTION%"=="contract-signature" goto :contract_signature
+if /I "%ACTION%"=="publicabi-signature" goto :publicabi_signature
+if /I "%ACTION%"=="publicabi-smoke" goto :publicabi_smoke
 if /I "%ACTION%"=="adapter-sync-pascal" goto :adapter_sync_pascal
 if /I "%ACTION%"=="adapter-sync" goto :adapter_sync
 if /I "%ACTION%"=="parity-suites" goto :parity_suites
@@ -129,7 +132,7 @@ if /I "%ACTION%"=="finalize-win-evidence" goto :finalize_win_evidence
 if /I "%ACTION%"=="win-closeout-3cmd" goto :win_closeout_3cmd
 if /I "%ACTION%"=="win-closeout-finalize" goto :win_closeout_finalize
 
-echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|interface-completeness^|adapter-sync-pascal^|adapter-sync^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|perf-smoke^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-win^|win-evidence-preflight^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-3cmd^|win-closeout-finalize] [test-args...]
+echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|interface-completeness^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|perf-smoke^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-win^|win-evidence-preflight^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-3cmd^|win-closeout-finalize] [test-args...]
 echo   Experimental note: default entry chain isolates experimental intrinsics behind dedicated checks.
 echo   gate/gate-strict PASS is not blanket release-grade approval for every experimental path.
 echo   gate         Fast/base gate for routine SIMD changes
@@ -237,6 +240,65 @@ if not errorlevel 1 (
 
 echo [INTERFACE-CHECK] SKIP (python runtime not found)
 exit /b 0
+
+:contract_signature
+set "CONTRACT_SCRIPT=%ROOT%check_dispatch_contract_signature.py"
+if not exist "%CONTRACT_SCRIPT%" (
+  echo [DISPATCH-CONTRACT] Missing checker: %CONTRACT_SCRIPT%
+  exit /b 2
+)
+if "%SIMD_DISPATCH_CONTRACT_JSON_FILE%"=="" set "SIMD_DISPATCH_CONTRACT_JSON_FILE=%LOG_DIR%\dispatch_contract_signature.json"
+
+where py >nul 2>nul
+if not errorlevel 1 (
+  echo [DISPATCH-CONTRACT] Running: py -3 %CONTRACT_SCRIPT% --summary-line --json-file "%SIMD_DISPATCH_CONTRACT_JSON_FILE%"
+  py -3 "%CONTRACT_SCRIPT%" --summary-line --json-file "%SIMD_DISPATCH_CONTRACT_JSON_FILE%"
+  exit /b %ERRORLEVEL%
+)
+
+where python >nul 2>nul
+if not errorlevel 1 (
+  echo [DISPATCH-CONTRACT] Running: python %CONTRACT_SCRIPT% --summary-line --json-file "%SIMD_DISPATCH_CONTRACT_JSON_FILE%"
+  python "%CONTRACT_SCRIPT%" --summary-line --json-file "%SIMD_DISPATCH_CONTRACT_JSON_FILE%"
+  exit /b %ERRORLEVEL%
+)
+
+echo [DISPATCH-CONTRACT] SKIP (python runtime not found)
+exit /b 0
+
+:publicabi_signature
+set "PUBLIC_ABI_SCRIPT=%ROOT%check_public_abi_signature.py"
+if not exist "%PUBLIC_ABI_SCRIPT%" (
+  echo [PUBLIC-ABI] Missing checker: %PUBLIC_ABI_SCRIPT%
+  exit /b 2
+)
+if "%SIMD_PUBLIC_ABI_JSON_FILE%"=="" set "SIMD_PUBLIC_ABI_JSON_FILE=%LOG_DIR%\public_abi_signature.json"
+
+where py >nul 2>nul
+if not errorlevel 1 (
+  echo [PUBLIC-ABI] Running: py -3 %PUBLIC_ABI_SCRIPT% --summary-line --json-file "%SIMD_PUBLIC_ABI_JSON_FILE%"
+  py -3 "%PUBLIC_ABI_SCRIPT%" --summary-line --json-file "%SIMD_PUBLIC_ABI_JSON_FILE%"
+  exit /b %ERRORLEVEL%
+)
+
+where python >nul 2>nul
+if not errorlevel 1 (
+  echo [PUBLIC-ABI] Running: python %PUBLIC_ABI_SCRIPT% --summary-line --json-file "%SIMD_PUBLIC_ABI_JSON_FILE%"
+  python "%PUBLIC_ABI_SCRIPT%" --summary-line --json-file "%SIMD_PUBLIC_ABI_JSON_FILE%"
+  exit /b %ERRORLEVEL%
+)
+
+echo [PUBLIC-ABI] SKIP (python runtime not found)
+exit /b 0
+
+:publicabi_smoke
+set "PUBLICABI_RUNNER=%ROOT%..\fafafa.core.simd.publicabi\BuildOrTest.bat"
+if not exist "%PUBLICABI_RUNNER%" (
+  echo [PUBLICABI] Missing runner: %PUBLICABI_RUNNER%
+  exit /b 2
+)
+call "%PUBLICABI_RUNNER%" test
+exit /b %ERRORLEVEL%
 
 :adapter_sync_pascal
 echo [ADAPTER-SYNC-PASCAL] suite=TTestCase_DispatchAPI
@@ -788,9 +850,18 @@ if not exist "%BIN%" (
   exit /b 2
 )
 
-echo [PERF] Running: %BIN% --bench-only
+set "PERF_ARGS=--bench-only"
+if /I not "%SIMD_PERF_VECTOR_ASM%"=="0" (
+  if /I "%SIMD_PERF_VECTOR_ASM%"=="1" (
+    set "PERF_ARGS=%PERF_ARGS% --vector-asm"
+  ) else if /I "%PROCESSOR_ARCHITECTURE%"=="AMD64" (
+    set "PERF_ARGS=%PERF_ARGS% --vector-asm"
+  )
+)
+
+echo [PERF] Running: %BIN% %PERF_ARGS%
 echo. > "%TEST_LOG%"
-"%BIN%" --bench-only > "%TEST_LOG%" 2>&1
+"%BIN%" %PERF_ARGS% > "%TEST_LOG%" 2>&1
 if errorlevel 1 (
   echo [PERF] FAILED (see %TEST_LOG%)
   type "%TEST_LOG%"
@@ -820,6 +891,20 @@ if not errorlevel 1 (
   exit /b 0
 )
 
+set "PERF_CHECK_SCRIPT=%ROOT%check_perf_smoke_log.py"
+if exist "%PERF_CHECK_SCRIPT%" (
+  where py >nul 2>nul
+  if not errorlevel 1 (
+    py -3 "%PERF_CHECK_SCRIPT%" "%TEST_LOG%"
+    exit /b %ERRORLEVEL%
+  )
+  where python >nul 2>nul
+  if not errorlevel 1 (
+    python "%PERF_CHECK_SCRIPT%" "%TEST_LOG%"
+    exit /b %ERRORLEVEL%
+  )
+)
+
 echo [PERF] OK
 exit /b 0
 
@@ -846,6 +931,9 @@ echo [GATE] Note: release-gate adds stronger evidence, but experimental paths st
 call :require_release_gate_prereqs
 if errorlevel 1 exit /b %ERRORLEVEL%
 set "SIMD_GATE_INTERFACE_COMPLETENESS=1"
+set "SIMD_GATE_CONTRACT_SIGNATURE=1"
+set "SIMD_GATE_PUBLICABI_SIGNATURE=1"
+set "SIMD_GATE_PUBLICABI_SMOKE=1"
 set "SIMD_GATE_ADAPTER_SYNC_PASCAL=1"
 set "SIMD_GATE_ADAPTER_SYNC=1"
 set "SIMD_GATE_PARITY_SUITES=1"
@@ -875,6 +963,9 @@ exit /b %ERRORLEVEL%
 set "SELF=%ROOT%buildOrTest.bat"
 set "TESTS_ROOT=%ROOT%.."
 if "%SIMD_GATE_INTERFACE_COMPLETENESS%"=="" set "SIMD_GATE_INTERFACE_COMPLETENESS=1"
+if "%SIMD_GATE_CONTRACT_SIGNATURE%"=="" set "SIMD_GATE_CONTRACT_SIGNATURE=1"
+if "%SIMD_GATE_PUBLICABI_SIGNATURE%"=="" set "SIMD_GATE_PUBLICABI_SIGNATURE=1"
+if "%SIMD_GATE_PUBLICABI_SMOKE%"=="" set "SIMD_GATE_PUBLICABI_SMOKE=1"
 if "%SIMD_GATE_ADAPTER_SYNC_PASCAL%"=="" set "SIMD_GATE_ADAPTER_SYNC_PASCAL=1"
 if "%SIMD_GATE_ADAPTER_SYNC%"=="" set "SIMD_GATE_ADAPTER_SYNC=1"
 if "%SIMD_GATE_PARITY_SUITES%"=="" set "SIMD_GATE_PARITY_SUITES=1"
@@ -899,6 +990,30 @@ if /I "%SIMD_GATE_INTERFACE_COMPLETENESS%"=="1" (
   if errorlevel 1 exit /b 1
 ) else (
   echo [GATE] SKIP optional interface completeness ^(set SIMD_GATE_INTERFACE_COMPLETENESS=1 to enable^)
+)
+
+if /I "%SIMD_GATE_CONTRACT_SIGNATURE%"=="1" (
+  echo [GATE] Optional dispatch contract signature
+  call "%SELF%" contract-signature
+  if errorlevel 1 exit /b 1
+) else (
+  echo [GATE] SKIP optional dispatch contract signature ^(set SIMD_GATE_CONTRACT_SIGNATURE=1 to enable^)
+)
+
+if /I "%SIMD_GATE_PUBLICABI_SIGNATURE%"=="1" (
+  echo [GATE] Optional public ABI signature
+  call "%SELF%" publicabi-signature
+  if errorlevel 1 exit /b 1
+) else (
+  echo [GATE] SKIP optional public ABI signature ^(set SIMD_GATE_PUBLICABI_SIGNATURE=1 to enable^)
+)
+
+if /I "%SIMD_GATE_PUBLICABI_SMOKE%"=="1" (
+  echo [GATE] Optional public ABI smoke
+  call "%SELF%" publicabi-smoke
+  if errorlevel 1 exit /b 1
+) else (
+  echo [GATE] SKIP optional public ABI smoke ^(set SIMD_GATE_PUBLICABI_SMOKE=1 to enable^)
 )
 
 if /I "%SIMD_GATE_ADAPTER_SYNC_PASCAL%"=="1" (
