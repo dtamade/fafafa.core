@@ -23,6 +23,56 @@ TARGET_TEST_LOG="${TARGET_LOG_DIR}/test.txt"
 
 mkdir -p "${BIN_DIR}" "${LIB_DIR}" "${LOG_DIR}" "${TARGET_LOG_DIR}"
 
+is_msys_shell() {
+  case "$(uname -s 2>/dev/null || echo unknown)" in
+    MINGW*|MSYS*|CYGWIN*)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+to_windows_path() {
+  local aPath
+  local LDrive
+  local LRest
+
+  aPath="${1:-}"
+  if [[ -z "${aPath}" ]]; then
+    echo ""
+    return 0
+  fi
+
+  if [[ "${aPath}" =~ ^/([a-zA-Z])/(.*)$ ]]; then
+    LDrive="${BASH_REMATCH[1]}"
+    LRest="${BASH_REMATCH[2]//\//\\}"
+    LDrive="$(printf '%s' "${LDrive}" | tr '[:lower:]' '[:upper:]')"
+    echo "${LDrive}:\\${LRest}"
+    return 0
+  fi
+
+  if [[ "${aPath}" =~ ^[a-zA-Z]:[\\/].* ]]; then
+    echo "${aPath//\//\\}"
+    return 0
+  fi
+
+  echo "${aPath}"
+}
+
+fpc_path_arg() {
+  if is_msys_shell; then
+    to_windows_path "${1:-}"
+  else
+    echo "${1:-}"
+  fi
+}
+
+if is_msys_shell; then
+  BIN="${BIN}.exe"
+fi
+
 UNITS_ROOT=""
 PPC_BIN="$(command -v ppcx64 || command -v ppc$(getconf LONG_BIT 2>/dev/null || echo 64) || true)"
 if [[ -n "${PPC_BIN}" ]]; then
@@ -53,12 +103,12 @@ FI=()
 add_fu() {
   local LDir
   LDir="$1"
-  [[ -d "${LDir}" ]] && FU+=("-Fu${LDir}")
+  [[ -d "${LDir}" ]] && FU+=("-Fu$(fpc_path_arg "${LDir}")")
 }
 
 add_fu "${REPO_ROOT}/src"
 add_fu "${ROOT}"
-FI+=("-Fi${REPO_ROOT}/src" "-Fi${ROOT}")
+FI+=("-Fi$(fpc_path_arg "${REPO_ROOT}/src")" "-Fi$(fpc_path_arg "${ROOT}")")
 if [[ -n "${UNITS_ROOT}" ]]; then
   add_fu "${UNITS_ROOT}/rtl"
   add_fu "${UNITS_ROOT}/rtl-objpas"
@@ -67,15 +117,24 @@ if [[ -n "${UNITS_ROOT}" ]]; then
 fi
 
 build_project() {
+  local LProjArg
+  local LBinDirArg
+  local LLibDirArg
+  local LBinArg
+
   echo "[BUILD] Project: ${PROJ} (mode=FPC, output_root=${OUTPUT_ROOT})"
   : >"${BUILD_LOG}"
+  LProjArg="$(fpc_path_arg "${PROJ}")"
+  LBinDirArg="$(fpc_path_arg "${BIN_DIR}")"
+  LLibDirArg="$(fpc_path_arg "${LIB_DIR}")"
+  LBinArg="$(fpc_path_arg "${BIN}")"
   if "${FPC_BIN}" \
     "${FU[@]}" \
     "${FI[@]}" \
-    -FE"${BIN_DIR}" \
-    -FU"${LIB_DIR}" \
-    -o"${BIN}" \
-    "${PROJ}" >"${BUILD_LOG}" 2>&1; then
+    -FE"${LBinDirArg}" \
+    -FU"${LLibDirArg}" \
+    -o"${LBinArg}" \
+    "${LProjArg}" >"${BUILD_LOG}" 2>&1; then
     echo "[BUILD] OK"
   else
     local LRC=$?
@@ -113,10 +172,11 @@ run_tests() {
   local -a LArgs
   local LArg
 
-  if [[ ! -x "${BIN}" ]]; then
+  if [[ ! -f "${BIN}" ]]; then
     echo "[TEST] Missing binary: ${BIN} (did build succeed?)"
     return 2
   fi
+  chmod +x "${BIN}" 2>/dev/null || true
 
   LArgs=()
   if [[ $# -gt 0 ]]; then
