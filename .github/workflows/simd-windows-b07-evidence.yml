@@ -35,10 +35,22 @@ jobs:
           cp -a "${ROOT}/tests/fafafa.core.simd" "${STAGE}/tests/"
           cp -a "${ROOT}/tests/fafafa.core.simd.cpuinfo" "${STAGE}/tests/"
           cp -a "${ROOT}/tests/fafafa.core.simd.cpuinfo.x86" "${STAGE}/tests/"
+          if [[ -d "${ROOT}/tests/fafafa.core.simd.publicabi" ]]; then
+            cp -a "${ROOT}/tests/fafafa.core.simd.publicabi" "${STAGE}/tests/"
+          fi
+          if [[ -d "${ROOT}/tests/fafafa.core.simd.intrinsics.sse" ]]; then
+            cp -a "${ROOT}/tests/fafafa.core.simd.intrinsics.sse" "${STAGE}/tests/"
+          fi
+          if [[ -d "${ROOT}/tests/fafafa.core.simd.intrinsics.mmx" ]]; then
+            cp -a "${ROOT}/tests/fafafa.core.simd.intrinsics.mmx" "${STAGE}/tests/"
+          fi
           if [[ -d "${ROOT}/tests/fafafa.core.simd.intrinsics.experimental" ]]; then
             cp -a "${ROOT}/tests/fafafa.core.simd.intrinsics.experimental" "${STAGE}/tests/"
           fi
           cp "${ROOT}/tests/run_all_tests.bat" "${STAGE}/tests/"
+          if [[ -f "${ROOT}/tests/run_all_tests.sh" ]]; then
+            cp "${ROOT}/tests/run_all_tests.sh" "${STAGE}/tests/"
+          fi
 
       - name: Upload staged SIMD source
         uses: actions/upload-artifact@v4
