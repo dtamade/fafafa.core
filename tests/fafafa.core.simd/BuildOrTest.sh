@@ -93,14 +93,14 @@ to_windows_path() {
 
   if [[ "${aPath}" =~ ^/([a-zA-Z])/(.*)$ ]]; then
     LDrive="${BASH_REMATCH[1]}"
-    LRest="${BASH_REMATCH[2]}"
+    LRest="${BASH_REMATCH[2]//\//\\}"
     LDrive="$(printf '%s' "${LDrive}" | tr '[:lower:]' '[:upper:]')"
-    echo "${LDrive}:/${LRest}"
+    echo "${LDrive}:\\${LRest}"
     return 0
   fi
 
   if [[ "${aPath}" =~ ^[a-zA-Z]:[\\/].* ]]; then
-    echo "${aPath//\\//}"
+    echo "${aPath//\//\\}"
     return 0
   fi
 
