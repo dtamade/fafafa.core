@@ -62,8 +62,31 @@ jobs:
           path: ${{ github.workspace }}
 
       - name: Install FreePascal + Lazarus
+        shell: pwsh
         run: |
-          choco install freepascal lazarus --yes
+          $ErrorActionPreference = 'Stop'
+
+          function Install-ChocoPackage([string]$name) {
+            $attempts = 3
+            for ($i = 1; $i -le $attempts; $i++) {
+              Write-Host "[CHOCO] install $name attempt $i/$attempts"
+              & choco install $name --yes --no-progress
+              if ($LASTEXITCODE -eq 0) {
+                Write-Host "[CHOCO] OK: $name"
+                return
+              }
+              if ($i -lt $attempts) {
+                $sleep = 10 * $i
+                Write-Host "[CHOCO] RETRY in ${sleep}s (exit=$LASTEXITCODE)"
+                Start-Sleep -Seconds $sleep
+              } else {
+                throw "[CHOCO] Failed installing $name after $attempts attempts (exit=$LASTEXITCODE)"
+              }
+            }
+          }
+
+          Install-ChocoPackage 'freepascal'
+          Install-ChocoPackage 'lazarus'
 
       - name: Resolve lazbuild path
         shell: pwsh
