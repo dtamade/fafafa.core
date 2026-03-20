@@ -44,7 +44,8 @@ if /I "%ACTION%"=="clean" (
 
 if /I "%ACTION%"=="build" (
   call :build
-  exit /b %ERRORLEVEL%
+  set "ACTION_RC=!ERRORLEVEL!"
+  exit /b !ACTION_RC!
 )
 
 if /I "%ACTION%"=="validate-exports" (
@@ -55,9 +56,11 @@ if /I "%ACTION%"=="validate-exports" (
     exit /b 2
   )
   call :resolve_powershell
-  if errorlevel 1 exit /b %ERRORLEVEL%
-  "%POWERSHELL_EXE%" -NoProfile -ExecutionPolicy Bypass -File "%PS_SCRIPT%" -LibraryPath "%LIB_PATH%" -ValidateOnly
-  exit /b %ERRORLEVEL%
+  set "ACTION_RC=!ERRORLEVEL!"
+  if not "!ACTION_RC!"=="0" exit /b !ACTION_RC!
+  "!POWERSHELL_EXE!" -NoProfile -ExecutionPolicy Bypass -File "%PS_SCRIPT%" -LibraryPath "!LIB_PATH!" -ValidateOnly
+  set "ACTION_RC=!ERRORLEVEL!"
+  exit /b !ACTION_RC!
 )
 
 if /I "%ACTION%"=="test" (
@@ -68,9 +71,10 @@ if /I "%ACTION%"=="test" (
     exit /b 2
   )
   call :resolve_powershell
-  if errorlevel 1 exit /b %ERRORLEVEL%
+  set "ACTION_RC=!ERRORLEVEL!"
+  if not "!ACTION_RC!"=="0" exit /b !ACTION_RC!
   echo. > "%TEST_LOG%"
-  "%POWERSHELL_EXE%" -NoProfile -ExecutionPolicy Bypass -File "%PS_SCRIPT%" -LibraryPath "%LIB_PATH%" > "%TEST_LOG%" 2>&1
+  "!POWERSHELL_EXE!" -NoProfile -ExecutionPolicy Bypass -File "%PS_SCRIPT%" -LibraryPath "!LIB_PATH!" > "%TEST_LOG%" 2>&1
   if errorlevel 1 (
     echo [TEST] FAILED ^(see %TEST_LOG%^)
     type "%TEST_LOG%"
