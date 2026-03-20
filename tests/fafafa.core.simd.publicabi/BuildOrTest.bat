@@ -4,6 +4,7 @@ setlocal EnableExtensions EnableDelayedExpansion
 set "ACTION=%~1"
 if "%ACTION%"=="" set "ACTION=test"
 if not "%~1"=="" shift
+if /I "%ACTION%"=="run" set "ACTION=test"
 
 set "ROOT=%~dp0"
 if not "%ROOT:~-1%"=="\" set "ROOT=%ROOT%\"
@@ -34,11 +35,50 @@ if not exist "%BIN_DIR%" mkdir "%BIN_DIR%"
 if not exist "%LIB_DIR%" mkdir "%LIB_DIR%"
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
 
-if /I "%ACTION%"=="clean" goto :clean
-if /I "%ACTION%"=="build" goto :build
-if /I "%ACTION%"=="validate-exports" goto :validate_exports
-if /I "%ACTION%"=="test" goto :test
-if /I "%ACTION%"=="run" goto :test
+if /I "%ACTION%"=="clean" (
+  if exist "%BIN_DIR%" rmdir /s /q "%BIN_DIR%"
+  if exist "%LIB_DIR%" rmdir /s /q "%LIB_DIR%"
+  if exist "%LOG_DIR%" rmdir /s /q "%LOG_DIR%"
+  exit /b 0
+)
+
+if /I "%ACTION%"=="build" (
+  call :build
+  exit /b %ERRORLEVEL%
+)
+
+if /I "%ACTION%"=="validate-exports" (
+  call :build
+  if errorlevel 1 exit /b 1
+  if not exist "%PS_SCRIPT%" (
+    echo [PUBLICABI] Missing PowerShell smoke script: %PS_SCRIPT%
+    exit /b 2
+  )
+  call :resolve_powershell
+  if errorlevel 1 exit /b %ERRORLEVEL%
+  "%POWERSHELL_EXE%" -NoProfile -ExecutionPolicy Bypass -File "%PS_SCRIPT%" -LibraryPath "%LIB_PATH%" -ValidateOnly
+  exit /b %ERRORLEVEL%
+)
+
+if /I "%ACTION%"=="test" (
+  call :build
+  if errorlevel 1 exit /b 1
+  if not exist "%PS_SCRIPT%" (
+    echo [PUBLICABI] Missing PowerShell smoke script: %PS_SCRIPT%
+    exit /b 2
+  )
+  call :resolve_powershell
+  if errorlevel 1 exit /b %ERRORLEVEL%
+  echo. > "%TEST_LOG%"
+  "%POWERSHELL_EXE%" -NoProfile -ExecutionPolicy Bypass -File "%PS_SCRIPT%" -LibraryPath "%LIB_PATH%" > "%TEST_LOG%" 2>&1
+  if errorlevel 1 (
+    echo [TEST] FAILED ^(see %TEST_LOG%^)
+    type "%TEST_LOG%"
+    exit /b 1
+  )
+  echo [TEST] OK
+  exit /b 0
+)
 
 echo Usage: %~nx0 [clean^|build^|validate-exports^|test^|run]
 exit /b 2
@@ -87,41 +127,4 @@ if errorlevel 1 (
   exit /b 1
 )
 echo [BUILD] OK ^(!LIB_PATH!^)
-exit /b 0
-
-:validate_exports
-call :build
-if errorlevel 1 exit /b 1
-if not exist "%PS_SCRIPT%" (
-  echo [PUBLICABI] Missing PowerShell smoke script: %PS_SCRIPT%
-  exit /b 2
-)
-call :resolve_powershell
-if errorlevel 1 exit /b %ERRORLEVEL%
-"%POWERSHELL_EXE%" -NoProfile -ExecutionPolicy Bypass -File "%PS_SCRIPT%" -LibraryPath "%LIB_PATH%" -ValidateOnly
-exit /b %ERRORLEVEL%
-
-:test
-call :build
-if errorlevel 1 exit /b 1
-if not exist "%PS_SCRIPT%" (
-  echo [PUBLICABI] Missing PowerShell smoke script: %PS_SCRIPT%
-  exit /b 2
-)
-call :resolve_powershell
-if errorlevel 1 exit /b %ERRORLEVEL%
-echo. > "%TEST_LOG%"
-"%POWERSHELL_EXE%" -NoProfile -ExecutionPolicy Bypass -File "%PS_SCRIPT%" -LibraryPath "%LIB_PATH%" > "%TEST_LOG%" 2>&1
-if errorlevel 1 (
-  echo [TEST] FAILED ^(see %TEST_LOG%^)
-  type "%TEST_LOG%"
-  exit /b 1
-)
-echo [TEST] OK
-exit /b 0
-
-:clean
-if exist "%BIN_DIR%" rmdir /s /q "%BIN_DIR%"
-if exist "%LIB_DIR%" rmdir /s /q "%LIB_DIR%"
-if exist "%LOG_DIR%" rmdir /s /q "%LOG_DIR%"
 exit /b 0
