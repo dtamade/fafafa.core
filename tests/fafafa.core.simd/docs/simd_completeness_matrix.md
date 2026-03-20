@@ -129,7 +129,8 @@
 - Linux 冻结判定：non-x86（NEON/RISCVV）已完成 wiring + runtime parity 双层闭环；Windows 实机证据也已闭环。
 - 已新增 Windows 证据批量收口能力：
   - `buildOrTest.bat verify-win-evidence`（日志校验）
-  - `buildOrTest.bat evidence-win-verify`（采集 + 校验一键闭环）
+  - `buildOrTest.bat evidence-win-verify`（采集 + 校验证据包；手工路径仍需后续 fail-close cross gate + finalize）
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh SIMD-YYYYMMDD-152`（推荐的一键 GH 闭环）
   - Runbook：`tests/fafafa.core.simd/docs/windows_b07_closeout_runbook.md`
 
 ## 8) 机器检查快照（2026-03-11）
@@ -156,4 +157,10 @@
 - Windows 实机证据：已归档（2026-03-14）
   - Log: tests/fafafa.core.simd/logs/windows_b07_gate.log
   - Summary: tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md
+  - 验证：verify_windows_b07_evidence PASS
+
+<!-- SIMD-WIN-CLOSEOUT-2026-03-21 -->
+- Windows 实机证据：已归档（2026-03-21）
+  - Log: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260320-152/windows_b07_gate.log
+  - Summary: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260320-152/windows_b07_closeout_summary.md
   - 验证：verify_windows_b07_evidence PASS

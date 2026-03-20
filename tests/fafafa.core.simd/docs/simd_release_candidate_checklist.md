@@ -80,10 +80,10 @@
 - [x] gate 摘要包含耗时与事件标记（DurationMs/Event）
 - [x] gate 摘要包含 artifacts 路径（build/test/wiring/run-all）
 - [x] gate-summary 支持 `FAIL/SLOW` 过滤视图（Linux）
-- [x] gate-summary 支持 JSON 导出（Linux）
+- [x] gate-summary 支持 JSON 导出（Linux，启用导出时缺 Python 会 fail-close）
 - [x] Linux 支持 `gate-summary-selfcheck` 快速自检
 - [x] Windows 脚本层支持 gate-summary 过滤视图（FAIL/SLOW）
-- [x] Windows 脚本层支持 gate-summary JSON 导出（依赖 Python）
+- [x] Windows 脚本层支持 gate-summary JSON 导出（依赖 Python，缺失时 fail-close）
 - [x] gate-summary 样本生成与阈值演练脚本可用（Linux）
 - [x] Windows 脚本层具备样本生成与演练入口（`gate-summary-sample` / `gate-summary-rehearsal`）
 - [x] Linux/Windows 脚本层具备非侵入式注入与回滚入口（`gate-summary-inject` / `gate-summary-rollback` / `gate-summary-backups`）
@@ -338,14 +338,14 @@
 - [x] Windows 实机证据日志已归档
   - 目标文件：`tests/fafafa.core.simd/logs/windows_b07_gate.log`
   - 已完成闭环顺序（按 freeze-status next-actions）：
-    - `bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight`
+    - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight`
     - `tests\fafafa.core.simd\buildOrTest.bat evidence-win-verify`
-    - `bash tests/fafafa.core.simd/BuildOrTest.sh gate`
-    - `bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize SIMD-YYYYMMDD-152`
-    - `bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+    - `FAFAFA_BUILD_MODE=Release SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+    - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize SIMD-YYYYMMDD-152`
+    - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
   - 结果：`cross-ready=True`，并生成 `tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md`
   - 快捷打印（复制即跑）：
-    - `bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-3cmd SIMD-YYYYMMDD-152`
+    - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-3cmd SIMD-YYYYMMDD-152`
   - 分步兜底：
     - `tests\fafafa.core.simd\buildOrTest.bat evidence-win`
     - `tests\fafafa.core.simd\buildOrTest.bat verify-win-evidence`

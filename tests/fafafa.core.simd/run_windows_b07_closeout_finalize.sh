@@ -15,22 +15,49 @@ LTARGET_ROOT="${SIMD_WIN_CLOSEOUT_TARGET_ROOT:-}"
 LFREEZE_JSON="${SIMD_WIN_FREEZE_STATUS_JSON_FILE:-${ROOT}/logs/freeze_status.json}"
 LBATCH_DIR="${SIMD_WIN_CLOSEOUT_BATCH_DIR:-}"
 
-same_path() {
+paths_equal() {
   local aLeft
   local aRight
-  local LLeftReal
-  local LRightReal
 
   aLeft="$1"
   aRight="$2"
 
-  if [[ ! -e "${aLeft}" || ! -e "${aRight}" ]]; then
-    return 1
+  python3 - "${aLeft}" "${aRight}" <<'PY'
+from pathlib import Path
+import os
+import sys
+
+
+def normalize(value: str) -> str:
+    path = Path(value).expanduser()
+    try:
+        return str(path.resolve(strict=False))
+    except Exception:
+        return os.path.abspath(os.path.expanduser(str(path)))
+
+
+sys.exit(0 if normalize(sys.argv[1]) == normalize(sys.argv[2]) else 1)
+PY
+}
+
+extract_b07_value() {
+  local aKey
+  local aFile
+  local LLine
+
+  aKey="$1"
+  aFile="$2"
+
+  if [[ ! -f "${aFile}" ]]; then
+    return 0
   fi
 
-  LLeftReal="$(realpath "${aLeft}" 2>/dev/null || true)"
-  LRightReal="$(realpath "${aRight}" 2>/dev/null || true)"
-  [[ -n "${LLeftReal}" && -n "${LRightReal}" && "${LLeftReal}" == "${LRightReal}" ]]
+  LLine="$(grep -E -- "^\\[B07\\][[:space:]]+${aKey}:[[:space:]].*$" "${aFile}" | tail -n 1 || true)"
+  if [[ -z "${LLine}" ]]; then
+    return 0
+  fi
+
+  printf '%s' "${LLine}" | tr -d '\r' | sed -E "s/^\\[B07\\][[:space:]]+${aKey}:[[:space:]]*//" | sed -E 's/^[[:space:]]+|[[:space:]]+$//g'
 }
 
 if [[ ! -x "${FINALIZE_SCRIPT}" ]]; then
@@ -55,20 +82,47 @@ fi
 
 echo "[CLOSEOUT] batch=${LBATCH_ID}"
 echo "[CLOSEOUT] finalize: log=${LEVIDENCE_LOG}, summary=${LSUMMARY_FILE}"
-"${FINALIZE_SCRIPT}" "${LEVIDENCE_LOG}" "${LSUMMARY_FILE}"
+LFINALIZE_ARGS=("${LEVIDENCE_LOG}" "${LSUMMARY_FILE}")
+if [[ "${LALLOW_SIMULATED}" != "0" ]]; then
+  LFINALIZE_ARGS+=("--allow-simulated")
+fi
+"${FINALIZE_SCRIPT}" "${LFINALIZE_ARGS[@]}"
 
 if [[ -n "${LBATCH_DIR}" ]]; then
+  LGateRunnerMode="$(extract_b07_value "GateRunnerMode" "${LEVIDENCE_LOG}")"
+  LBatchEvidenceLog="${LBATCH_DIR}/windows_b07_gate.log"
+  LBatchGateSummaryMd="${LBATCH_DIR}/gate_summary.md"
+  LBatchGateSummaryJson="${LBATCH_DIR}/gate_summary.json"
+  LCanonicalGateSummaryMd="${ROOT}/logs/gate_summary.md"
+  LCanonicalGateSummaryJson="${ROOT}/logs/gate_summary.json"
   mkdir -p "${LBATCH_DIR}"
   if [[ -f "${LEVIDENCE_LOG}" ]]; then
-    if ! same_path "${LEVIDENCE_LOG}" "${LBATCH_DIR}/windows_b07_gate.log"; then
-      cp "${LEVIDENCE_LOG}" "${LBATCH_DIR}/windows_b07_gate.log"
+    if ! paths_equal "${LEVIDENCE_LOG}" "${LBatchEvidenceLog}"; then
+      cp "${LEVIDENCE_LOG}" "${LBatchEvidenceLog}"
     fi
   fi
-  if [[ -f "${ROOT}/logs/gate_summary.md" ]]; then
-    cp "${ROOT}/logs/gate_summary.md" "${LBATCH_DIR}/gate_summary.md"
-  fi
-  if [[ -f "${ROOT}/logs/gate_summary.json" ]]; then
-    cp "${ROOT}/logs/gate_summary.json" "${LBATCH_DIR}/gate_summary.json"
+  if [[ "${LGateRunnerMode}" == "bash-optin" ]]; then
+    if [[ -f "${LCanonicalGateSummaryMd}" ]]; then
+      if ! paths_equal "${LCanonicalGateSummaryMd}" "${LBatchGateSummaryMd}"; then
+        cp "${LCanonicalGateSummaryMd}" "${LBatchGateSummaryMd}"
+      fi
+    elif ! paths_equal "${LCanonicalGateSummaryMd}" "${LBatchGateSummaryMd}"; then
+      rm -f "${LBatchGateSummaryMd}"
+    fi
+    if [[ -f "${LCanonicalGateSummaryJson}" ]]; then
+      if ! paths_equal "${LCanonicalGateSummaryJson}" "${LBatchGateSummaryJson}"; then
+        cp "${LCanonicalGateSummaryJson}" "${LBatchGateSummaryJson}"
+      fi
+    elif ! paths_equal "${LCanonicalGateSummaryJson}" "${LBatchGateSummaryJson}"; then
+      rm -f "${LBatchGateSummaryJson}"
+    fi
+  else
+    if ! paths_equal "${LCanonicalGateSummaryMd}" "${LBatchGateSummaryMd}"; then
+      rm -f "${LBatchGateSummaryMd}"
+    fi
+    if ! paths_equal "${LCanonicalGateSummaryJson}" "${LBatchGateSummaryJson}"; then
+      rm -f "${LBatchGateSummaryJson}"
+    fi
   fi
 fi
 
@@ -84,7 +138,10 @@ SIMD_FREEZE_WINDOWS_CLOSEOUT_SUMMARY_FILE="${LSUMMARY_FILE}" \
 python3 "${FREEZE_SCRIPT}" --root "${ROOT}" --json-file "${LFREEZE_JSON}"
 
 if [[ -n "${LBATCH_DIR}" && -f "${LFREEZE_JSON}" ]]; then
-  cp "${LFREEZE_JSON}" "${LBATCH_DIR}/freeze_status.json"
+  LBatchFreezeJson="${LBATCH_DIR}/freeze_status.json"
+  if ! paths_equal "${LFREEZE_JSON}" "${LBatchFreezeJson}"; then
+    cp "${LFREEZE_JSON}" "${LBatchFreezeJson}"
+  fi
 fi
 
 LAPPLY_ARGS=("${LSUMMARY_FILE}" "--apply" "--batch-id" "${LBATCH_ID}" "--freeze-json" "${LFREEZE_JSON}")
@@ -99,11 +156,11 @@ echo "[CLOSEOUT] apply-after-freeze: ${APPLY_SCRIPT} ${LAPPLY_ARGS[*]}"
 "${APPLY_SCRIPT}" "${LAPPLY_ARGS[@]}"
 
 if [[ "${LSUMMARY_FILE}" != "${ROOT}/logs/windows_b07_closeout_summary.md" && -f "${LSUMMARY_FILE}" ]] && \
-   ! same_path "${LSUMMARY_FILE}" "${ROOT}/logs/windows_b07_closeout_summary.md"; then
+   ! paths_equal "${LSUMMARY_FILE}" "${ROOT}/logs/windows_b07_closeout_summary.md"; then
   cp "${LSUMMARY_FILE}" "${ROOT}/logs/windows_b07_closeout_summary.md"
 fi
 
 if [[ "${LFREEZE_JSON}" != "${ROOT}/logs/freeze_status.json" && -f "${LFREEZE_JSON}" ]] && \
-   ! same_path "${LFREEZE_JSON}" "${ROOT}/logs/freeze_status.json"; then
+   ! paths_equal "${LFREEZE_JSON}" "${ROOT}/logs/freeze_status.json"; then
   cp "${LFREEZE_JSON}" "${ROOT}/logs/freeze_status.json"
 fi
