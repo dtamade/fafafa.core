@@ -2,13 +2,33 @@
 setlocal EnableExtensions EnableDelayedExpansion
 
 set "ROOT=%~dp0"
-set "LOG_PATH=%~1"
-if "%LOG_PATH%"=="" set "LOG_PATH=%ROOT%logs\windows_b07_gate.log"
-set "SUMMARY_JSON_PATH=%~2"
+set "LOG_PATH="
+set "SUMMARY_JSON_PATH="
 set "SUMMARY_JSON_VERIFIER=%ROOT%verify_gate_summary_json.py"
+set "ALLOW_SIMULATED=0"
 
-if /I "%LOG_PATH%"=="-h" goto :usage
-if /I "%LOG_PATH%"=="--help" goto :usage
+:parse_args
+if "%~1"=="" goto :args_done
+if /I "%~1"=="-h" goto :usage
+if /I "%~1"=="--help" goto :usage
+if /I "%~1"=="--allow-simulated" (
+  set "ALLOW_SIMULATED=1"
+  shift
+  goto :parse_args
+)
+if "%LOG_PATH%"=="" (
+  set "LOG_PATH=%~1"
+) else if "%SUMMARY_JSON_PATH%"=="" (
+  set "SUMMARY_JSON_PATH=%~1"
+) else (
+  echo [EVIDENCE] Unexpected argument: %~1
+  exit /b 2
+)
+shift
+goto :parse_args
+
+:args_done
+if "%LOG_PATH%"=="" set "LOG_PATH=%ROOT%logs\windows_b07_gate.log"
 
 if not exist "%LOG_PATH%" (
   echo [EVIDENCE] Missing log: %LOG_PATH%
@@ -31,32 +51,53 @@ call :check_fixed "[B07] Windows evidence capture"
 call :check_fixed "[B07] Source: collect_windows_b07_evidence.bat"
 call :check_fixed "[B07] HostOS: Windows_NT"
 call :check_fixed "[B07] CmdVer: Microsoft Windows"
-call :check_fixed "[B07] Working dir: "
+call :check_windows_working_dir
 call :check_command_marker
 call :check_fixed "[GATE] OK"
 call :check_fixed "[B07] GATE_EXIT_CODE=0"
 
 findstr /r /c:"^\[B07\] Simulated: yes$" "%LOG_PATH%" >nul 2>nul
 if not errorlevel 1 (
-  echo [EVIDENCE] Invalid source: simulated marker detected
-  set "FAIL=1"
+  if not "%ALLOW_SIMULATED%"=="1" (
+    echo [EVIDENCE] Invalid source: simulated evidence requires --allow-simulated
+    set "FAIL=1"
+  )
+)
+
+findstr /r /c:"^\[SIMULATE\]" "%LOG_PATH%" >nul 2>nul
+if not errorlevel 1 (
+  if not "%ALLOW_SIMULATED%"=="1" (
+    echo [EVIDENCE] Invalid source: simulated evidence requires --allow-simulated
+    set "FAIL=1"
+  )
+)
+
+echo %LOG_PATH% | findstr /i /c:".simulated." >nul 2>nul
+if not errorlevel 1 (
+  if not "%ALLOW_SIMULATED%"=="1" (
+    echo [EVIDENCE] Invalid source: simulated evidence requires --allow-simulated
+    set "FAIL=1"
+  )
 )
 
 findstr /r /c:"^\[B07\] Source: simulate_windows_b07_evidence\.sh$" "%LOG_PATH%" >nul 2>nul
 if not errorlevel 1 (
-  echo [EVIDENCE] Invalid source: simulator source marker detected
-  set "FAIL=1"
+  if not "%ALLOW_SIMULATED%"=="1" (
+    echo [EVIDENCE] Invalid source: simulator source marker detected
+    set "FAIL=1"
+  )
 )
 
 call :verify_summary_json_if_present
 set "SUMMARY_JSON_RC=%ERRORLEVEL%"
 if "%SUMMARY_JSON_RC%"=="10" (
-  call :check_fixed "[GATE] 1/6 Build + check SIMD module"
-  call :check_fixed "[GATE] 2/6 SIMD list suites"
-  call :check_fixed "[GATE] 3/6 SIMD AVX2 fallback suite"
-  call :check_fixed "[GATE] 4/6 CPUInfo portable suites"
-  call :check_fixed "[GATE] 5/6 CPUInfo x86 suites"
-  call :check_fixed "[GATE] 6/6 Filtered run_all chain"
+  call :check_fixed "[GATE] 1/7 Build + check SIMD module"
+  call :check_fixed "[GATE] 2/7 SIMD list suites"
+  call :check_fixed "[GATE] 3/7 SIMD AVX2 fallback suite"
+  call :check_fixed "[GATE] 4/7 CPUInfo portable suites"
+  call :check_fixed "[GATE] 5/7 CPUInfo x86 suites"
+  call :check_fixed "[GATE] 6/7 Windows public ABI smoke"
+  call :check_fixed "[GATE] 7/7 Filtered run_all chain"
 ) else if not "%SUMMARY_JSON_RC%"=="0" (
   set "FAIL=1"
 )
@@ -110,8 +151,9 @@ echo [EVIDENCE] OK: %LOG_PATH%
 exit /b 0
 
 :usage
-echo Usage: %~nx0 [evidence-log-path] [gate-summary-json-path]
+echo Usage: %~nx0 [evidence-log-path] [gate-summary-json-path] [--allow-simulated]
 echo Default log: %ROOT%logs\windows_b07_gate.log
+echo --allow-simulated: allow simulated evidence for dryrun/rehearsal only
 exit /b 0
 
 :check_fixed
@@ -138,6 +180,25 @@ if not errorlevel 1 exit /b 0
 findstr /l /c:"[B07] Command: BuildOrTest.sh gate" "%LOG_PATH%" >nul 2>nul
 if not errorlevel 1 exit /b 0
 echo [EVIDENCE] Missing command marker for gate entry
+set "FAIL=1"
+exit /b 0
+
+:check_windows_working_dir
+set "WORKING_DIR="
+call :extract_b07_value "Working dir" WORKING_DIR
+if not defined WORKING_DIR (
+  echo [EVIDENCE] Missing B07 value: Working dir
+  set "FAIL=1"
+  exit /b 0
+)
+if not "!WORKING_DIR:~1,1!"==":" goto :invalid_working_dir
+if not "!WORKING_DIR:~2,1!"=="\" goto :invalid_working_dir
+echo(!WORKING_DIR:~0,1!| findstr /r /c:"^[A-Za-z]$" >nul 2>nul
+if errorlevel 1 goto :invalid_working_dir
+exit /b 0
+
+:invalid_working_dir
+echo [EVIDENCE] Invalid Windows working dir: !WORKING_DIR!
 set "FAIL=1"
 exit /b 0
 

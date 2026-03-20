@@ -6,6 +6,7 @@ set "TESTS_ROOT=%ROOT%.."
 set "LOG_DIR=%ROOT%logs"
 set "OUT_LOG=%LOG_DIR%\windows_b07_gate.log"
 set "TMP_LOG=%LOG_DIR%\windows_b07_gate.tmp"
+set "GATE_SUMMARY_LOG=%LOG_DIR%\gate_summary.md"
 set "SUMMARY_JSON=%LOG_DIR%\gate_summary.json"
 set "SUMMARY_EXPORT_LOG=%LOG_DIR%\windows_b07_gate_summary_export.log"
 set "SUMMARY_FILE=%TESTS_ROOT%\run_all_tests_summary.txt"
@@ -17,15 +18,19 @@ set "RUNALL_FAILED_LIST="
 set "BIN=%ROOT%bin2\fafafa.core.simd.test.exe"
 set "CMD_VER="
 set "GATE_COMMAND_MARKER=buildOrTest.bat gate"
+set "USE_BASH_GATE_REQUEST=%SIMD_WIN_EVIDENCE_USE_BASH_GATE%"
+if "%USE_BASH_GATE_REQUEST%"=="" set "USE_BASH_GATE_REQUEST=0"
 set "USE_BASH_GATE=0"
 
-where bash >nul 2>nul
-if not errorlevel 1 (
-  if exist "%TESTS_ROOT%\run_all_tests.sh" (
-    if exist "%ROOT%BuildOrTest.sh" (
-      if exist "%TESTS_ROOT%\fafafa.core.simd.publicabi\publicabi_smoke.h" (
-        set "GATE_COMMAND_MARKER=BuildOrTest.sh gate"
-        set "USE_BASH_GATE=1"
+if /I "%USE_BASH_GATE_REQUEST%"=="1" (
+  where bash >nul 2>nul
+  if not errorlevel 1 (
+    if exist "%TESTS_ROOT%\run_all_tests.sh" (
+      if exist "%ROOT%BuildOrTest.sh" (
+        if exist "%TESTS_ROOT%\fafafa.core.simd.publicabi\publicabi_smoke.h" (
+          set "GATE_COMMAND_MARKER=BuildOrTest.sh gate"
+          set "USE_BASH_GATE=1"
+        )
       )
     )
   )
@@ -33,6 +38,10 @@ if not errorlevel 1 (
 
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
 if exist "%TMP_LOG%" del /f /q "%TMP_LOG%" >nul 2>nul
+if exist "%SUMMARY_JSON%" del /f /q "%SUMMARY_JSON%" >nul 2>nul
+if exist "%SUMMARY_FILE%" del /f /q "%SUMMARY_FILE%" >nul 2>nul
+if exist "%SUMMARY_SH_FILE%" del /f /q "%SUMMARY_SH_FILE%" >nul 2>nul
+if exist "%SUMMARY_EXPORT_LOG%" del /f /q "%SUMMARY_EXPORT_LOG%" >nul 2>nul
 for /f "delims=" %%V in ('ver') do set "CMD_VER=%%V"
 if "%CMD_VER%"=="" set "CMD_VER=unknown"
 
@@ -43,6 +52,14 @@ echo [B07] CmdVer: %CMD_VER% >> "%TMP_LOG%"
 echo [B07] Started: %DATE% %TIME% >> "%TMP_LOG%"
 echo [B07] Working dir: %ROOT% >> "%TMP_LOG%"
 echo [B07] Command: %GATE_COMMAND_MARKER% >> "%TMP_LOG%"
+if /I "%USE_BASH_GATE%"=="1" (
+  echo [B07] GateRunnerMode: bash-optin >> "%TMP_LOG%"
+) else (
+  echo [B07] GateRunnerMode: batch-default >> "%TMP_LOG%"
+  if /I "%USE_BASH_GATE_REQUEST%"=="1" (
+    echo [B07] WARN: SIMD_WIN_EVIDENCE_USE_BASH_GATE=1 but prerequisites are incomplete; fallback to native batch gate >> "%TMP_LOG%"
+  )
+)
 echo. >> "%TMP_LOG%"
 
 set "GATE_RC=0"
@@ -52,7 +69,7 @@ echo [GATE] Note: gate/gate-strict PASS does not imply every experimental path i
 
 if "%USE_BASH_GATE%"=="1" goto :bash_gate
 
-echo [GATE] 1/6 Build + check SIMD module >> "%TMP_LOG%"
+echo [GATE] 1/7 Build + check SIMD module >> "%TMP_LOG%"
 call "%ROOT%buildOrTest.bat" build >> "%TMP_LOG%" 2>&1
 set "BUILD_STEP_RC=%ERRORLEVEL%"
 if not exist "%BIN%" (
@@ -76,7 +93,7 @@ if not errorlevel 1 (
 )
 echo [CHECK] OK ^(no SIMD-unit warnings/hints on stable path^) >> "%TMP_LOG%"
 
-echo [GATE] 2/6 SIMD list suites >> "%TMP_LOG%"
+echo [GATE] 2/7 SIMD list suites >> "%TMP_LOG%"
 if not exist "%BIN%" (
   set "GATE_RC=1"
   goto :after_gate
@@ -87,7 +104,7 @@ if errorlevel 1 (
   goto :after_gate
 )
 
-echo [GATE] 3/6 SIMD AVX2 fallback suite >> "%TMP_LOG%"
+echo [GATE] 3/7 SIMD AVX2 fallback suite >> "%TMP_LOG%"
 "%BIN%" --suite=TTestCase_VecI32x8 >> "%TMP_LOG%" 2>&1
 if errorlevel 1 set "GATE_RC=1"
 if not "%GATE_RC%"=="0" goto :after_gate
@@ -100,7 +117,7 @@ if errorlevel 1 (
   goto :after_gate
 )
 
-echo [GATE] 4/6 CPUInfo portable suites >> "%TMP_LOG%"
+echo [GATE] 4/7 CPUInfo portable suites >> "%TMP_LOG%"
 pushd "%TESTS_ROOT%\fafafa.core.simd.cpuinfo"
 call ".\buildOrTest.bat" build >> "%TMP_LOG%" 2>&1
 set "CPUINFO_BUILD_RC=%ERRORLEVEL%"
@@ -132,7 +149,7 @@ if errorlevel 1 (
 )
 popd
 
-echo [GATE] 5/6 CPUInfo x86 suites >> "%TMP_LOG%"
+echo [GATE] 5/7 CPUInfo x86 suites >> "%TMP_LOG%"
 pushd "%TESTS_ROOT%\fafafa.core.simd.cpuinfo.x86"
 call ".\buildOrTest.bat" build >> "%TMP_LOG%" 2>&1
 set "CPUINFO_X86_BUILD_RC=%ERRORLEVEL%"
@@ -164,7 +181,22 @@ if errorlevel 1 (
 )
 popd
 
-echo [GATE] 6/6 Filtered run_all chain >> "%TMP_LOG%"
+echo [GATE] 6/7 Windows public ABI smoke >> "%TMP_LOG%"
+pushd "%TESTS_ROOT%\fafafa.core.simd.publicabi"
+if not exist ".\BuildOrTest.bat" (
+  set "GATE_RC=1"
+  popd
+  goto :after_gate
+)
+call ".\BuildOrTest.bat" test >> "%TMP_LOG%" 2>&1
+if errorlevel 1 (
+  set "GATE_RC=1"
+  popd
+  goto :after_gate
+)
+popd
+
+echo [GATE] 7/7 Filtered run_all chain >> "%TMP_LOG%"
 set "RUNALL_TOTAL=5"
 set "RUNALL_PASSED=5"
 set "RUNALL_FAILED=0"
@@ -192,9 +224,20 @@ echo [GATE] OK >> "%TMP_LOG%"
 :after_gate
 
 if exist "%SUMMARY_JSON%" del /f /q "%SUMMARY_JSON%" >nul 2>nul
-set "SIMD_GATE_SUMMARY_JSON=1"
-call "%ROOT%buildOrTest.bat" gate-summary > "%SUMMARY_EXPORT_LOG%" 2>&1
-set "SUMMARY_RC=%ERRORLEVEL%"
+if "%USE_BASH_GATE%"=="1" (
+  set "SIMD_GATE_SUMMARY_JSON=1"
+  pushd "%TESTS_ROOT%"
+  bash "fafafa.core.simd/BuildOrTest.sh" gate-summary > "%SUMMARY_EXPORT_LOG%" 2>&1
+  set "SUMMARY_RC=!ERRORLEVEL!"
+  popd
+) else (
+  set "SUMMARY_RC=skipped-native-batch"
+  > "%SUMMARY_EXPORT_LOG%" (
+    echo [B07] Skip gate-summary export for native batch evidence collection
+    echo [B07] Reason: batch path does not generate a fresh gate_summary.md; exporting here risks reusing stale summary artifacts.
+    if exist "%GATE_SUMMARY_LOG%" echo [B07] Existing gate summary left untouched: %GATE_SUMMARY_LOG%
+  )
+)
 if exist "%SUMMARY_JSON%" (
   echo [B07] GateSummaryJson: %SUMMARY_JSON% >> "%TMP_LOG%"
 ) else (

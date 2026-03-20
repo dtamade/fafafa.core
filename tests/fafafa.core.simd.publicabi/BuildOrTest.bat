@@ -18,14 +18,17 @@ set "TARGET_OS="
 for /f "delims=" %%I in ('%FPC_BIN% -iTO 2^>nul') do if not defined TARGET_OS set "TARGET_OS=%%I"
 if not defined TARGET_OS set "TARGET_OS=nativeos"
 
-set "BIN_DIR=%ROOT%bin"
-set "LIB_DIR=%ROOT%lib\%TARGET_CPU%-%TARGET_OS%"
-set "LOG_DIR=%ROOT%logs"
+set "OUTPUT_ROOT=%SIMD_OUTPUT_ROOT%"
+if "%OUTPUT_ROOT%"=="" set "OUTPUT_ROOT=%ROOT%"
+set "BIN_DIR=%OUTPUT_ROOT%bin"
+set "LIB_DIR=%OUTPUT_ROOT%lib\%TARGET_CPU%-%TARGET_OS%"
+set "LOG_DIR=%OUTPUT_ROOT%logs"
 set "PROJ=%ROOT%fafafa.core.simd.publicabi.lpr"
 set "BUILD_LOG=%LOG_DIR%\build.txt"
 set "TEST_LOG=%LOG_DIR%\test.txt"
 set "PS_SCRIPT=%ROOT%publicabi_smoke.ps1"
 set "LIB_PATH="
+set "POWERSHELL_EXE="
 
 if not exist "%BIN_DIR%" mkdir "%BIN_DIR%"
 if not exist "%LIB_DIR%" mkdir "%LIB_DIR%"
@@ -53,6 +56,21 @@ if not defined LIB_PATH (
 if not defined LIB_PATH exit /b 1
 exit /b 0
 
+:resolve_powershell
+set "POWERSHELL_EXE="
+where pwsh >nul 2>nul
+if not errorlevel 1 (
+  set "POWERSHELL_EXE=pwsh"
+  exit /b 0
+)
+where powershell >nul 2>nul
+if not errorlevel 1 (
+  set "POWERSHELL_EXE=powershell"
+  exit /b 0
+)
+echo [PUBLICABI] FAILED ^(PowerShell runtime not found; tried pwsh and powershell^)
+exit /b 2
+
 :build
 echo [BUILD] Project: %PROJ%
 echo. > "%BUILD_LOG%"
@@ -78,12 +96,9 @@ if not exist "%PS_SCRIPT%" (
   echo [PUBLICABI] Missing PowerShell smoke script: %PS_SCRIPT%
   exit /b 2
 )
-where powershell >nul 2>nul
-if errorlevel 1 (
-  echo [PUBLICABI] SKIP ^(powershell not found^)
-  exit /b 0
-)
-powershell -ExecutionPolicy Bypass -File "%PS_SCRIPT%" -LibraryPath "%LIB_PATH%" -ValidateOnly
+call :resolve_powershell
+if errorlevel 1 exit /b %ERRORLEVEL%
+"%POWERSHELL_EXE%" -NoProfile -ExecutionPolicy Bypass -File "%PS_SCRIPT%" -LibraryPath "%LIB_PATH%" -ValidateOnly
 exit /b %ERRORLEVEL%
 
 :test
@@ -93,13 +108,10 @@ if not exist "%PS_SCRIPT%" (
   echo [PUBLICABI] Missing PowerShell smoke script: %PS_SCRIPT%
   exit /b 2
 )
-where powershell >nul 2>nul
-if errorlevel 1 (
-  echo [PUBLICABI] SKIP ^(powershell not found^)
-  exit /b 0
-)
+call :resolve_powershell
+if errorlevel 1 exit /b %ERRORLEVEL%
 echo. > "%TEST_LOG%"
-powershell -ExecutionPolicy Bypass -File "%PS_SCRIPT%" -LibraryPath "%LIB_PATH%" > "%TEST_LOG%" 2>&1
+"%POWERSHELL_EXE%" -NoProfile -ExecutionPolicy Bypass -File "%PS_SCRIPT%" -LibraryPath "%LIB_PATH%" > "%TEST_LOG%" 2>&1
 if errorlevel 1 (
   echo [TEST] FAILED ^(see %TEST_LOG%^)
   type "%TEST_LOG%"

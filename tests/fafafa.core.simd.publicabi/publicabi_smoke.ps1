@@ -130,6 +130,12 @@ public delegate void FafafaSimdMinMaxBytesFn(IntPtr p, UIntPtr len, out Byte min
 
 Add-Type -TypeDefinition $TypeSource
 
+[UInt32]$FAF_SIMD_ABI_FLAG_SUPPORTED_ON_CPU = 1
+[UInt32]$FAF_SIMD_ABI_FLAG_REGISTERED = 2
+[UInt32]$FAF_SIMD_ABI_FLAG_DISPATCHABLE = 4
+[UInt32]$FAF_SIMD_ABI_FLAG_ACTIVE = 8
+[UInt32]$FAF_SIMD_ABI_FLAG_EXPERIMENTAL = 16
+
 $abiMajor = [FafafaSimdNative]::AbiVersionMajor()
 $abiMinor = [FafafaSimdNative]::AbiVersionMinor()
 if ($abiMajor -le 0) {
@@ -150,6 +156,18 @@ if ($ok -eq 0) {
 }
 if ($backendInfo.StructSize -ne [System.Runtime.InteropServices.Marshal]::SizeOf([type][FafafaSimdBackendPodInfo])) {
   throw "[PUBLICABI] backend pod struct size mismatch"
+}
+if ($backendInfo.BackendId -ne 0) {
+  throw "[PUBLICABI] scalar backend id mismatch"
+}
+if (($backendInfo.Flags -band $FAF_SIMD_ABI_FLAG_SUPPORTED_ON_CPU) -eq 0) {
+  throw "[PUBLICABI] scalar backend should be supported_on_cpu"
+}
+if (($backendInfo.Flags -band $FAF_SIMD_ABI_FLAG_REGISTERED) -eq 0) {
+  throw "[PUBLICABI] scalar backend should be registered"
+}
+if (($backendInfo.Flags -band $FAF_SIMD_ABI_FLAG_DISPATCHABLE) -eq 0) {
+  throw "[PUBLICABI] scalar backend should be dispatchable"
 }
 
 $backendNamePtr = [FafafaSimdNative]::BackendName(0)
@@ -175,6 +193,48 @@ if ($api.AbiVersionMajor -ne $abiMajor -or $api.AbiVersionMinor -ne $abiMinor) {
 }
 if ($api.AbiSignatureHi -ne $sigHi -or $api.AbiSignatureLo -ne $sigLo) {
   throw "[PUBLICABI] public api signature mismatch"
+}
+if ($api.ActiveFlags -eq 0) {
+  throw "[PUBLICABI] public api active flags should not be zero"
+}
+if (($api.ActiveFlags -band $FAF_SIMD_ABI_FLAG_SUPPORTED_ON_CPU) -eq 0) {
+  throw "[PUBLICABI] public api active flags should include supported_on_cpu"
+}
+if (($api.ActiveFlags -band $FAF_SIMD_ABI_FLAG_REGISTERED) -eq 0) {
+  throw "[PUBLICABI] public api active flags should include registered"
+}
+if (($api.ActiveFlags -band $FAF_SIMD_ABI_FLAG_DISPATCHABLE) -eq 0) {
+  throw "[PUBLICABI] public api active flags should include dispatchable"
+}
+if (($api.ActiveFlags -band $FAF_SIMD_ABI_FLAG_ACTIVE) -eq 0) {
+  throw "[PUBLICABI] public api active flags should include active"
+}
+
+$activeBackendInfo = New-Object FafafaSimdBackendPodInfo
+$ok = [FafafaSimdNative]::GetBackendPodInfo($api.ActiveBackendId, [ref]$activeBackendInfo)
+if ($ok -eq 0) {
+  throw "[PUBLICABI] active backend pod info query failed"
+}
+if ($activeBackendInfo.StructSize -ne [System.Runtime.InteropServices.Marshal]::SizeOf([type][FafafaSimdBackendPodInfo])) {
+  throw "[PUBLICABI] active backend pod struct size mismatch"
+}
+if ($activeBackendInfo.BackendId -ne $api.ActiveBackendId) {
+  throw "[PUBLICABI] active backend id mismatch"
+}
+if ($activeBackendInfo.Flags -ne $api.ActiveFlags) {
+  throw "[PUBLICABI] active backend flags should match public api active flags"
+}
+
+$activeBackendNamePtr = [FafafaSimdNative]::BackendName($api.ActiveBackendId)
+$activeBackendDescPtr = [FafafaSimdNative]::BackendDescription($api.ActiveBackendId)
+if ($activeBackendNamePtr -eq [IntPtr]::Zero -or [System.Runtime.InteropServices.Marshal]::PtrToStringAnsi($activeBackendNamePtr) -eq "") {
+  throw "[PUBLICABI] active backend name missing"
+}
+if ($activeBackendDescPtr -eq [IntPtr]::Zero -or [System.Runtime.InteropServices.Marshal]::PtrToStringAnsi($activeBackendDescPtr) -eq "") {
+  throw "[PUBLICABI] active backend description missing"
+}
+if ($api.ActiveBackendId -ne 0 -and (($backendInfo.Flags -band $FAF_SIMD_ABI_FLAG_ACTIVE) -ne 0)) {
+  throw "[PUBLICABI] scalar backend should not be active when active backend differs"
 }
 
 if ($ValidateOnly) {
