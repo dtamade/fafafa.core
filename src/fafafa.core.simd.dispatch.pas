@@ -916,6 +916,15 @@ var
   // toggles change (e.g. vector-asm on/off).
   g_BackendRebuilders: array[TSimdBackend] of TBackendRebuilder;
 
+  // Batch control-plane rebuilds (for example vector-asm toggles) should not
+  // let each intermediate RegisterBackend call re-select a transient active
+  // backend. Reinitialize once after the batch completes instead.
+  g_RegisterBackendReinitializeSuspendDepth: LongInt = 0;
+
+  // Readers that see g_DispatchState=0 during a control-plane batch rebuild
+  // must not initialize against the half-rebuilt backend set.
+  g_DispatchBatchRebuildState: LongInt = 0;
+
 // === Initialization ===
 
 function DefaultBackendName(const aBackend: TSimdBackend): string; inline;
@@ -1010,14 +1019,8 @@ begin
     Exit;
   end;
 
-  LState := GetPublishedBackendDispatchState(aDispatchTable^.Backend);
-  if LState = nil then
-  begin
-    g_CurrentDispatch := nil;
-    atomic_store_ptr(g_CurrentDispatchStatePtr, nil, mo_release);
-    Exit;
-  end;
-
+  LState := CreateDispatchPublishedState;
+  LState^.Table := aDispatchTable^;
   g_CurrentDispatch := @LState^.Table;
   atomic_store_ptr(g_CurrentDispatchStatePtr, Pointer(LState), mo_release);
 end;
@@ -1063,11 +1066,19 @@ var
   LBackend: TSimdBackend;
   LRebuilder: TBackendRebuilder;
 begin
-  for LBackend := Low(TSimdBackend) to High(TSimdBackend) do
-  begin
-    LRebuilder := g_BackendRebuilders[LBackend];
-    if Assigned(LRebuilder) then
-      LRebuilder;
+  InterlockedExchange(g_DispatchBatchRebuildState, 1);
+  InterlockedIncrement(g_RegisterBackendReinitializeSuspendDepth);
+  try
+    for LBackend := Low(TSimdBackend) to High(TSimdBackend) do
+    begin
+      LRebuilder := g_BackendRebuilders[LBackend];
+      if Assigned(LRebuilder) then
+        LRebuilder;
+    end;
+  finally
+    InterlockedDecrement(g_RegisterBackendReinitializeSuspendDepth);
+    WriteBarrier;
+    InterlockedExchange(g_DispatchBatchRebuildState, 0);
   end;
 
   // Ensure best-backend selection is recalculated once rebuilders finish.
@@ -1084,6 +1095,7 @@ var
   LBestBackend: TSimdBackend;
   LBackend: TSimdBackend;
   LBestDispatchTable: PSimdDispatchTable;
+  LCandidateDispatchTable: PSimdDispatchTable;
   LBackendSupportedOnCPU: array[TSimdBackend] of Boolean;
   LIndex: Integer;
   LOldState: LongInt;
@@ -1091,6 +1103,12 @@ begin
   // 快速路径: 已完成初始化
   if g_DispatchState = 2 then
     Exit;
+
+  while InterlockedCompareExchange(g_DispatchBatchRebuildState, 0, 0) <> 0 do
+  begin
+    ReadBarrier;
+    ThreadSwitch;
+  end;
 
   LOldState := InterlockedCompareExchange(g_DispatchState, 1, 0);
   if LOldState = 0 then
@@ -1108,6 +1126,7 @@ begin
     if g_BackendForced then
     begin
       LBestBackend := g_ForcedBackend;
+      LBestDispatchTable := nil;
 
       // Forced backend must be:
       //   - registered in this binary
@@ -1117,35 +1136,48 @@ begin
       begin
         if not LBackendSupportedOnCPU[LBestBackend] then
           LBestBackend := sbScalar
-        else if not IsBackendMarkedAvailableForDispatch(LBestBackend) then
-          LBestBackend := sbScalar;
+        else
+        begin
+          LBestDispatchTable := GetPublishedBackendDispatchTable(LBestBackend);
+          if (LBestDispatchTable = nil) or (not LBestDispatchTable^.BackendInfo.Available) then
+            LBestBackend := sbScalar;
+        end;
       end;
+
+      if LBestBackend = sbScalar then
+        LBestDispatchTable := GetPublishedBackendDispatchTable(sbScalar);
     end
     else
     begin
       LBestBackend := sbScalar;
+      LBestDispatchTable := GetPublishedBackendDispatchTable(sbScalar);
 
       for LIndex := Low(SIMD_BACKEND_PRIORITY_ORDER) to High(SIMD_BACKEND_PRIORITY_ORDER) do
       begin
         LBackend := SIMD_BACKEND_PRIORITY_ORDER[LIndex];
         if LBackendSupportedOnCPU[LBackend] then
-          if IsBackendMarkedAvailableForDispatch(LBackend) then
+        begin
+          LCandidateDispatchTable := GetPublishedBackendDispatchTable(LBackend);
+          if (LCandidateDispatchTable <> nil) and LCandidateDispatchTable^.BackendInfo.Available then
           begin
             LBestBackend := LBackend;
+            LBestDispatchTable := LCandidateDispatchTable;
             Break;
           end;
+        end;
       end;
     end;
 
-    // Publish an immutable snapshot for the active dispatch so readers never
-    // observe a backend slot while RegisterBackend is rewriting it in place.
-    if IsBackendRegistered(LBestBackend) then
+    // Publish the exact snapshot selected above so readers never observe a
+    // newer backend-state rewrite under the same backend id.
+    if LBestDispatchTable <> nil then
     begin
-      LBestDispatchTable := GetPublishedBackendDispatchTable(LBestBackend);
       PublishCurrentDispatchTable(LBestDispatchTable);
     end
     else
+    begin
       PublishCurrentDispatchTable(nil);
+    end;
 
     g_DispatchInitialized := True;
     WriteBarrier;
@@ -1371,7 +1403,8 @@ begin
   WriteBarrier;  // Ensure registration is visible before clearing initialized flag
 
   // Re-select immediately only after dispatch has already been initialized.
-  LShouldReinitialize := g_DispatchState = 2;
+  LShouldReinitialize := (g_DispatchState = 2) and
+    (InterlockedCompareExchange(g_RegisterBackendReinitializeSuspendDepth, 0, 0) = 0);
   g_DispatchInitialized := False;
   InterlockedExchange(g_DispatchState, 0);  // ✅ Reset atomic state
   atomic_thread_fence(mo_seq_cst); // Full barrier before re-initialization

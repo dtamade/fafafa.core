@@ -4,7 +4,7 @@
 审查 `fafafa.core.simd` 及其 `cpuinfo` 相关模块，找出可验证的问题并完成至少一轮根因修复，同时产出可连续执行的后续修复与审查计划。
 
 ## Current Phase
-Phase 44 complete; `RegisterBackend(...)` now canonicalizes empty backend text before publishing immutable snapshots, so raw registered tables and higher-level helpers share one text truth source again
+Phase 45 complete; current active dispatch/public API metadata now publish the exact selected snapshot and no longer expose half-rebuilt toggle states or latest-state drift during concurrent re-register
 
 ## Phases
 
@@ -576,3 +576,42 @@ Phase 44 complete; `RegisterBackend(...)` now canonicalizes empty backend text b
 | What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
 | What have I learned? | 这轮证明，只修 helper 还不够。如果 shared dispatch source 本身仍保留空文本或旧状态，底层 raw API 迟早会把问题重新露出来。能前推到 `RegisterBackend(...)` 的 canonicalization，应该尽量前推。 |
 | What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 registered snapshot text source drift：`RegisterBackend(...)` 现在会在发布 immutable snapshot 前补齐 canonical backend 文本。 |
+
+### Phase 45: active dispatch snapshot publication and batch-rebuild consistency hardening
+- [x] 在 `tests/fafafa.core.simd/fafafa.core.simd.concurrent.testcase.pas` 新增 `Test_Concurrent_PublicApiActiveMetadata_VectorAsmToggle_ReadConsistency` 与 `Test_Concurrent_CurrentBackendInfo_VectorAsmToggle_ReadConsistency`，锁定 vector-asm batch rebuild 期间 active metadata 只能落在 enabled/disabled 两种完整状态
+- [x] 用 fresh release `TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework` 先拿 red，确认问题不只是 helper 断言过严，而是 current active dispatch/public API 真的会暴露 `SSE2/SSSE3` 这类半重建 backend；同时已有 `CurrentBackendInfo_RegisterBackend_ReadConsistency` 也重新打出更底层 mixed snapshot
+- [x] 确认 `src/fafafa.core.simd.dispatch.pas` 存在两层根因：
+- [x] `RegisterBackend(...)` 在 batch rebuild 中会让每次中间重注册都尝试重新选主，reader 看到 `g_DispatchState=0` 时也能抢跑 `InitializeDispatch`，从而按半重建 backend 集合选出中间 active backend
+- [x] `DoInitializeDispatch` 在选定 `LBestBackend` 后又重新按 backend id 追最新 published state，导致并发 re-register 时可能把“旧 backend id + 新 disabled metadata”重新发布成 current snapshot
+- [x] 将 `PublishCurrentDispatchTable(...)` 改为复制传入的精确 snapshot；`DoInitializeDispatch` 扫描时直接捕获并发布 `LBestDispatchTable`
+- [x] 为 `SetVectorAsmEnabled(...)` 的 batch rebuild 加入两层控制：
+- [x] `g_RegisterBackendReinitializeSuspendDepth` 抑制中间 `RegisterBackend(...)` 的反复 reinitialize，只在 batch 结束后统一选主
+- [x] `g_DispatchBatchRebuildState` 让 reader 在 batch rebuild 期间等待，避免按半重建 backend 集合抢跑 `InitializeDispatch`
+- [x] 用 fresh release `TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework`、fresh `TTestCase_DispatchAPI,TTestCase_PublicAbi,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework`、fresh `check`、fresh `gate` 复验
+- **Status:** complete
+
+- 2026-03-22 最新 active dispatch snapshot / batch rebuild closeout 证据：
+  - red: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-toggle-activemeta-red-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework` -> FAIL（命中 `public api active metadata mixed snapshot ... id=1 flags=15 expectedA=(6,15) expectedB=(0,15)`、`current backend info mixed snapshot ... backend=1/3/4`，以及已有 `CurrentBackendInfo_RegisterBackend_ReadConsistency` 的 `backend=6 available=False caps=0`）
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-toggle-activemeta-green-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework` -> PASS，`[LEAK] OK`
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-toggle-contract-green-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework` -> PASS，`[LEAK] OK`
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-toggle-check-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh check` -> PASS
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-toggle-gate-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh gate` -> PASS，最终 `[GATE] OK`，run-all summary 时间 `2026-03-22 04:22:54`
+- 这轮根因已经不再是单个 helper 字段 fallback，而是 current active dispatch publication 本身不具备 batch-safe / snapshot-stable 语义：
+  - batch rebuild 期间，reader 会在 `g_DispatchState=0` 时按半重建 backend 集合抢跑 `InitializeDispatch`
+  - concurrent re-register 期间，`DoInitializeDispatch` 又会把“先选中的 backend id”与“稍后重新抓到的最新 published state”混成同一份 current snapshot
+- 最小修复继续遵守“控制面只在边界重新选主，数据面只读单份已选 snapshot”的原则：
+  - batch rebuild 只在末尾统一 reinitialize
+  - current dispatch/public API metadata 都绑定到真正被选中的那份 snapshot，而不是 backend id 对应的后续最新状态
+- 下一轮连续计划优先级更新为：
+  1. 继续深审 remaining current-active readers，优先检查还有没有其它入口在 control-plane batch rebuild 期间绕开等待闸门直接抢跑初始化
+  2. 继续核对 `CloneDispatchTable` / `GetActiveBackend` / external consumer smoke 周边是否还存在“先选 backend id，再追最新状态”的类似 pattern
+  3. 继续坚持 fresh red 优先，不把 pointer lifetime / invalid-id / external-only 边界猜测提前记成已确认 bug
+
+## 5-Question Reboot Check (Phase 45 Update)
+| Question | Answer |
+|----------|--------|
+| Where am I? | Linux fresh `TTestCase_SimdConcurrentPublicAbi`、fresh `TTestCase_SimdConcurrentFramework`、fresh `TTestCase_DispatchAPI`、fresh `TTestCase_PublicAbi`、fresh `check`、fresh `gate` 都已重新通过；本轮最新又收敛了一条 active-dispatch core drift：旧 current snapshot/public API metadata 会在 toggle/re-register 并发窗口里暴露半重建或 latest-state mixed snapshot。 |
+| Where am I going? | 下一轮继续从实现层深审，优先找下一条 current-active reader / clone / external-consumer 边界上的真实 snapshot drift，重点继续看 `CloneDispatchTable`、`GetActiveBackend`、public ABI external smoke 和 remaining toggle/re-register 相邻路径。 |
+| What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
+| What have I learned? | 这轮证明，单靠 immutable backend snapshot 还不够。如果 current dispatch 的选主、发布和 batch rebuild 节奏不是同一个 observation point，active metadata 仍会裂成“旧选择 + 新状态”或“中间 backend”这类不可能组合。 |
+| What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 active dispatch snapshot/batch rebuild drift：current dispatch 现在发布精确选中 snapshot，vector-asm batch rebuild 也不再让 reader 抢跑到半重建状态。 |

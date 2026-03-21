@@ -1778,3 +1778,53 @@
 | What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
 | What have I learned? | 这轮证明，只修 helper 还不够。如果 shared dispatch source 本身仍保留空文本或旧状态，底层 raw API 迟早会把问题重新露出来。能前推到 `RegisterBackend(...)` 的 canonicalization，应该尽量前推。 |
 | What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 registered snapshot text source drift：`RegisterBackend(...)` 现在会在发布 immutable snapshot 前补齐 canonical backend 文本。 |
+
+### Phase 45: active dispatch snapshot publication and batch-rebuild consistency hardening
+- **Status:** complete
+- Actions taken:
+  - 继续深审 current-active metadata 的 toggle/re-register 并发合同后，先在现有 concurrent suite 里补两条新的 deterministic red，而不是直接改 dispatch：
+    - `tests/fafafa.core.simd/fafafa.core.simd.concurrent.testcase.pas` 新增 `Test_Concurrent_PublicApiActiveMetadata_VectorAsmToggle_ReadConsistency`
+    - `tests/fafafa.core.simd/fafafa.core.simd.concurrent.testcase.pas` 新增 `Test_Concurrent_CurrentBackendInfo_VectorAsmToggle_ReadConsistency`
+    - 两条测试都只允许 active metadata 落在 vector-asm enabled / disabled 两种完整状态，而不能暴露 `SSE2/SSSE3/SSE4.1` 这类半重建中间 backend
+  - fresh red 复验：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-toggle-activemeta-red-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework`
+    - 失败点直接命中：
+      - `public api active metadata mixed snapshot ... id=1 flags=15 expectedA=(6,15) expectedB=(0,15)`
+      - `current backend info mixed snapshot ... backend=1/3/4`
+      - 以及既有 `CurrentBackendInfo_RegisterBackend_ReadConsistency` 一并重新打成 `backend=6 available=False caps=0`
+  - 根因确认后，做最小实现修复：
+    - `src/fafafa.core.simd.dispatch.pas` 的 `PublishCurrentDispatchTable(...)` 之前会按 `aDispatchTable^.Backend` 再追一次最新 published backend state，而不是发布真正被选中的那份 snapshot
+    - `DoInitializeDispatch` 之前也只先记 `LBestBackend`，随后再重新取一次该 backend 的 published table；这让 concurrent `RegisterBackend(...)` 时出现“旧 backend id + 新 disabled metadata”混搭
+    - 同时，`SetVectorAsmEnabled(...)` 的 batch rebuild 期间虽然 writer 已持锁，但 reader 看到 `g_DispatchState=0` 仍可直接抢跑 `InitializeDispatch`，于是按半重建 backend 集合选出 `SSE2/SSSE3/SSE4.1`
+    - 现已把控制面收紧为：
+      - `PublishCurrentDispatchTable(...)` 复制传入的精确 snapshot，而不是按 backend id 重查最新状态
+      - `DoInitializeDispatch` 扫描时直接捕获 `LBestDispatchTable`，最终发布这份单一 observation point 的 snapshot
+      - 新增 `g_RegisterBackendReinitializeSuspendDepth`，让 vector-asm batch rebuild 内部的中间 `RegisterBackend(...)` 不再反复 reinitialize，只在 batch 完成后统一选主
+      - 新增 `g_DispatchBatchRebuildState`，让 reader 在 batch rebuild 期间等待，避免在半重建 backend 集合上抢跑初始化
+  - fresh green / release 复验：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-toggle-activemeta-green-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-toggle-contract-green-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-toggle-check-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-toggle-gate-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 记录关键运行结果：
+    - fresh concurrent suite PASS，`[LEAK] OK`
+    - fresh `DispatchAPI/PublicAbi + concurrent` PASS，`[LEAK] OK`
+    - fresh `check` PASS
+    - fresh `gate` 最终 `[GATE] OK`
+    - run-all summary 时间：`2026-03-22 04:22:54`
+- Files created/modified:
+  - `src/fafafa.core.simd.dispatch.pas` (modified again)
+  - `tests/fafafa.core.simd/fafafa.core.simd.concurrent.testcase.pas` (modified)
+  - `task_plan.md` (modified)
+  - `findings.md` (modified)
+  - `progress.md` (modified)
+  - `workers/worker0.md` (modified)
+
+## 5-Question Reboot Check (Phase 45 Update)
+| Question | Answer |
+|----------|--------|
+| Where am I? | Linux fresh `TTestCase_SimdConcurrentPublicAbi`、fresh `TTestCase_SimdConcurrentFramework`、fresh `TTestCase_DispatchAPI`、fresh `TTestCase_PublicAbi`、fresh `check`、fresh `gate` 都已重新通过；本轮最新又收敛了一条 active-dispatch core drift：旧 current snapshot/public API metadata 会在 toggle/re-register 并发窗口里暴露半重建或 latest-state mixed snapshot。 |
+| Where am I going? | 下一轮继续从实现层深审，优先找下一条 current-active reader / clone / external-consumer 边界上的真实 snapshot drift，重点继续看 `CloneDispatchTable`、`GetActiveBackend`、public ABI external smoke 和 remaining toggle/re-register 相邻路径。 |
+| What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
+| What have I learned? | 这轮证明，单靠 immutable backend snapshot 还不够。如果 current dispatch 的选主、发布和 batch rebuild 节奏不是同一个 observation point，active metadata 仍会裂成“旧选择 + 新状态”或“中间 backend”这类不可能组合。 |
+| What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 active dispatch snapshot/batch rebuild drift：current dispatch 现在发布精确选中 snapshot，vector-asm batch rebuild 也不再让 reader 抢跑到半重建状态。 |

@@ -80,6 +80,8 @@ type
     procedure Test_Concurrent_PublicAbiPodInfo_RegisterBackend_ReadConsistency;
     {** public API active metadata 与 RegisterBackend 并发读写保护 *}
     procedure Test_Concurrent_PublicApiActiveMetadata_RegisterBackend_ReadConsistency;
+    {** public API active metadata 与 vector-asm toggle 并发读写保护 *}
+    procedure Test_Concurrent_PublicApiActiveMetadata_VectorAsmToggle_ReadConsistency;
   end;
 
   {** @abstract(framework active metadata 并发回归套件) *}
@@ -89,6 +91,8 @@ type
     procedure Test_Concurrent_CurrentBackendInfo_RegisterBackend_ReadConsistency;
     {** dispatchable helper 与 vector-asm toggle 并发读写保护 *}
     procedure Test_Concurrent_DispatchableHelpers_VectorAsmToggle_ReadConsistency;
+    {** current backend info 与 vector-asm toggle 并发读写保护 *}
+    procedure Test_Concurrent_CurrentBackendInfo_VectorAsmToggle_ReadConsistency;
   end;
 
   {** @abstract(首次注册路径的并发回归套件) *}
@@ -2407,6 +2411,101 @@ begin
   end;
 end;
 
+procedure TTestCase_SimdConcurrentPublicAbi.Test_Concurrent_PublicApiActiveMetadata_VectorAsmToggle_ReadConsistency;
+const
+  WRITER_THREADS = 4;
+  WRITER_ITERATIONS = 4000;
+  READER_THREADS = 6;
+  READER_ITERATIONS = 30000;
+var
+  LWriters: array of TVectorAsmMultiToggleWorker;
+  LReaders: array of TPublicApiActiveMetadataReadWorker;
+  LExpectedEnabledBackend: TSimdBackend;
+  LExpectedDisabledBackend: TSimdBackend;
+  LExpectedEnabledFlags: TFafafaSimdAbiFlags;
+  LExpectedDisabledFlags: TFafafaSimdAbiFlags;
+  LCurrentInfo: TSimdBackendInfo;
+  LIndex: Integer;
+  LAllSuccess: Boolean;
+  LErrorMsgs: string;
+  LOldVectorAsm: Boolean;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  LWriters := nil;
+  LReaders := nil;
+  LExpectedEnabledBackend := sbScalar;
+  LExpectedDisabledBackend := sbScalar;
+  LExpectedEnabledFlags := 0;
+  LExpectedDisabledFlags := 0;
+  LCurrentInfo := Default(TSimdBackendInfo);
+
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LExpectedEnabledBackend := GetCurrentBackend;
+    LCurrentInfo := GetCurrentBackendInfo;
+    LExpectedEnabledFlags := BuildExpectedAbiFlagsLocal(
+      LExpectedEnabledBackend, IsBackendAvailableOnCPU(LExpectedEnabledBackend), True,
+      LCurrentInfo.Available and IsBackendAvailableOnCPU(LExpectedEnabledBackend), True);
+
+    SetVectorAsmEnabled(False);
+    ResetToAutomaticBackend;
+    LExpectedDisabledBackend := GetCurrentBackend;
+    LCurrentInfo := GetCurrentBackendInfo;
+    LExpectedDisabledFlags := BuildExpectedAbiFlagsLocal(
+      LExpectedDisabledBackend, IsBackendAvailableOnCPU(LExpectedDisabledBackend), True,
+      LCurrentInfo.Available and IsBackendAvailableOnCPU(LExpectedDisabledBackend), True);
+
+    if (LExpectedEnabledBackend = LExpectedDisabledBackend) and
+       (LExpectedEnabledFlags = LExpectedDisabledFlags) then
+      Exit;
+
+    SetLength(LWriters, WRITER_THREADS);
+    SetLength(LReaders, READER_THREADS);
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex] := TVectorAsmMultiToggleWorker.Create(WRITER_ITERATIONS, LIndex);
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex] := TPublicApiActiveMetadataReadWorker.Create(
+        READER_ITERATIONS, LExpectedEnabledBackend, LExpectedDisabledBackend,
+        LExpectedEnabledFlags, LExpectedDisabledFlags);
+
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].Start;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].Start;
+
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].WaitFor;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].WaitFor;
+
+    LAllSuccess := True;
+    LErrorMsgs := '';
+    for LIndex := 0 to High(LWriters) do
+      if not LWriters[LIndex].Success then
+      begin
+        LAllSuccess := False;
+        LErrorMsgs := LErrorMsgs + LWriters[LIndex].ErrorMsg + '; ';
+      end;
+    for LIndex := 0 to High(LReaders) do
+      if not LReaders[LIndex].Success then
+      begin
+        LAllSuccess := False;
+        LErrorMsgs := LErrorMsgs + LReaders[LIndex].ErrorMsg + '; ';
+      end;
+
+    AssertTrue('Concurrent public-api-active-metadata toggle/read failed: ' + LErrorMsgs,
+      LAllSuccess);
+  finally
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].Free;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].Free;
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
 procedure TTestCase_SimdConcurrentFramework.Test_Concurrent_CurrentBackendInfo_RegisterBackend_ReadConsistency;
 const
   WRITER_THREADS = 2;
@@ -2499,6 +2598,85 @@ begin
   finally
     if LBackend <> sbScalar then
       RegisterBackend(LBackend, LOriginalTable);
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].Free;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].Free;
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_SimdConcurrentFramework.Test_Concurrent_CurrentBackendInfo_VectorAsmToggle_ReadConsistency;
+const
+  WRITER_THREADS = 4;
+  WRITER_ITERATIONS = 4000;
+  READER_THREADS = 6;
+  READER_ITERATIONS = 30000;
+var
+  LWriters: array of TVectorAsmMultiToggleWorker;
+  LReaders: array of TCurrentBackendInfoReadWorker;
+  LExpectedEnabledInfo: TSimdBackendInfo;
+  LExpectedDisabledInfo: TSimdBackendInfo;
+  LIndex: Integer;
+  LAllSuccess: Boolean;
+  LErrorMsgs: string;
+  LOldVectorAsm: Boolean;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  LWriters := nil;
+  LReaders := nil;
+  LExpectedEnabledInfo := Default(TSimdBackendInfo);
+  LExpectedDisabledInfo := Default(TSimdBackendInfo);
+
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LExpectedEnabledInfo := GetCurrentBackendInfo;
+
+    SetVectorAsmEnabled(False);
+    ResetToAutomaticBackend;
+    LExpectedDisabledInfo := GetCurrentBackendInfo;
+
+    if BackendInfoMatchesLocal(LExpectedEnabledInfo, LExpectedDisabledInfo) then
+      Exit;
+
+    SetLength(LWriters, WRITER_THREADS);
+    SetLength(LReaders, READER_THREADS);
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex] := TVectorAsmMultiToggleWorker.Create(WRITER_ITERATIONS, LIndex);
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex] := TCurrentBackendInfoReadWorker.Create(
+        READER_ITERATIONS, LExpectedEnabledInfo, LExpectedDisabledInfo);
+
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].Start;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].Start;
+
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].WaitFor;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].WaitFor;
+
+    LAllSuccess := True;
+    LErrorMsgs := '';
+    for LIndex := 0 to High(LWriters) do
+      if not LWriters[LIndex].Success then
+      begin
+        LAllSuccess := False;
+        LErrorMsgs := LErrorMsgs + LWriters[LIndex].ErrorMsg + '; ';
+      end;
+    for LIndex := 0 to High(LReaders) do
+      if not LReaders[LIndex].Success then
+      begin
+        LAllSuccess := False;
+        LErrorMsgs := LErrorMsgs + LReaders[LIndex].ErrorMsg + '; ';
+      end;
+
+    AssertTrue('Concurrent current-backend-info toggle/read failed: ' + LErrorMsgs,
+      LAllSuccess);
+  finally
     for LIndex := 0 to High(LWriters) do
       LWriters[LIndex].Free;
     for LIndex := 0 to High(LReaders) do
