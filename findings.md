@@ -7,6 +7,25 @@
 - 形成连续的修复与审查计划
 
 ## Research Findings
+- 最新一轮继续深审 public API active metadata 并发合同后，又确认一条新的真实 mixed-snapshot：
+  - `src/fafafa.core.simd.public_abi.impl.inc` 的 `RebindSimdPublicApi` 虽然已经先取了 `GetDispatchTable` 的 current published snapshot
+  - 但旧实现仍然 `LState^.Api.ActiveFlags := SimdBackendToAbiFlags(LDispatch^.Backend)`
+  - 这会让 `ActiveBackendId` 来自 current dispatch snapshot，而 `ActiveFlags` 又回退到 live `IsBackendDispatchable(...)` / `GetCurrentBackend` 查询
+  - 结果是只要 writer 并发 `RegisterBackend(...)` 把当前 backend 在 enabled/disabled 两套 table 间重注册并触发重选，`GetSimdPublicApi` 就会暴露 impossible combo，例如 active backend id 已切到 fallback，但 active bit 丢失
+  - fresh red 证据：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-publicapi-activeflags-red-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrentPublicAbi`：FAIL
+    - 失败点直接命中 mixed snapshot：
+      - `public api active metadata mixed snapshot at iter 124: id=5 flags=7 expectedA=(6,15) expectedB=(5,15)`
+      - `public api active metadata mixed snapshot at iter 128: id=5 flags=7 expectedA=(6,15) expectedB=(5,15)`
+      - `public api active metadata mixed snapshot at iter 40: id=5 flags=7 expectedA=(6,15) expectedB=(5,15)`
+  - 最小修复方式：
+    - 删除 `RebindSimdPublicApi` 对 live `SimdBackendToAbiFlags(...)` 的依赖
+    - 改为直接从同一份 `LDispatch^.BackendInfo` 计算 `dispatchable`，再用 `BuildSimdBackendAbiFlagsFromSnapshot(LDispatch^.Backend, True, LDispatchable, True)` 派生 `ActiveFlags`
+    - 这样 `ActiveBackendId` 与 `ActiveFlags` 都只来自同一份 current dispatch snapshot
+  - fresh green / 复验证据：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-publicapi-activeflags-green-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrentPublicAbi,TTestCase_PublicAbi`：PASS，`[LEAK] OK`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-publicapi-activeflags-check-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh check`：PASS
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-publicapi-activeflags-gate-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh gate`：PASS，最终 `[GATE] OK`，run-all summary 时间 `2026-03-22 00:21:45`
 - 最新一轮继续深审 runtime toggle / dispatch helper 合同后，又确认一条新的真实 half-rebuilt snapshot：
   - 本轮原始目标是检查 `GetBestDispatchableBackend` / `GetDispatchableBackendList` / `GetAvailableBackendList` 在 `SetVectorAsmEnabled(False <-> True)` 并发窗口里会不会暴露半重建中间态
   - 在 `tests/fafafa.core.simd/fafafa.core.simd.concurrent.testcase.pas` 新增 `TTestCase_SimdConcurrentFramework.Test_Concurrent_DispatchableHelpers_VectorAsmToggle_ReadConsistency` 后，fresh red 不只打出了新的 helper bug，也把旧 `GetCurrentBackendInfo` 路径的 deeper root cause 一并重新打了出来

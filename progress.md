@@ -1503,3 +1503,45 @@
 | What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
 | What have I learned? | 这轮证明，仅把 selection predicate 切到 published snapshot 还不够；只要最后一步 publication 还从 mutable slot 复制，reader 仍能拿到 impossible combo。另外，`SetVectorAsmEnabled` 这种多-backend 顺序重建路径下，list/best helper 不加同步就天然会把中间态暴露出去，哪怕单个 backend snapshot 自己已经是 immutable publication。 |
 | What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续把计划文件与 fresh 证据同步到位。本轮最新又确认并修复了 dispatch selection / dispatchable helper toggle snapshot drift：`DoInitializeDispatch` 现在从 selected backend 的 published snapshot 发布 current dispatch，`GetDispatchableBackends/GetBestDispatchableBackend` 也已被 `g_VectorAsmToggleLock` 保护，`TTestCase_SimdConcurrentFramework` 已守住这条合同。 |
+
+### Phase 39: public API active metadata snapshot consistency hardening
+- **Status:** complete
+- Actions taken:
+  - 继续深审 public ABI active metadata 并发合同时，优先复用了已有并发回归，而不是先发明新测试：
+    - 直接重跑 `tests/fafafa.core.simd/fafafa.core.simd.concurrent.testcase.pas` 里的 `TTestCase_SimdConcurrentPublicAbi.Test_Concurrent_PublicApiActiveMetadata_RegisterBackend_ReadConsistency`
+    - 该测试已经覆盖 writer 持续 `RegisterBackend(...)` 切换当前 backend enable/disable、reader 持续断言 `GetSimdPublicApi.ActiveBackendId/ActiveFlags` 只能等于 enabled current 态或 disabled 后 fallback current 态
+  - fresh red 复验：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-publicapi-activeflags-red-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrentPublicAbi`
+    - 失败点直接命中：
+      - `public api active metadata mixed snapshot at iter 124: id=5 flags=7 expectedA=(6,15) expectedB=(5,15)`
+      - `public api active metadata mixed snapshot at iter 128: id=5 flags=7 expectedA=(6,15) expectedB=(5,15)`
+      - `public api active metadata mixed snapshot at iter 40: id=5 flags=7 expectedA=(6,15) expectedB=(5,15)`
+  - 根因确认后，做最小实现修复：
+    - `src/fafafa.core.simd.public_abi.impl.inc` 的 `RebindSimdPublicApi` 之前虽然先读 `GetDispatchTable`，但仍然 `ActiveFlags := SimdBackendToAbiFlags(LDispatch^.Backend)`
+    - 这使得 `ActiveBackendId` 来自 current published dispatch snapshot，而 `ActiveFlags` 又回退到 live `IsBackendDispatchable(...)` / `GetCurrentBackend` 查询
+    - 现已改为直接从同一份 `LDispatch^.BackendInfo` 计算 `LDispatchable`，再用 `BuildSimdBackendAbiFlagsFromSnapshot(LDispatch^.Backend, True, LDispatchable, True)` 派生 `ActiveFlags`
+  - fresh green / release 复验：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-publicapi-activeflags-green-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrentPublicAbi,TTestCase_PublicAbi`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-publicapi-activeflags-check-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-publicapi-activeflags-gate-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 记录关键运行结果：
+    - fresh `TTestCase_SimdConcurrentPublicAbi,TTestCase_PublicAbi` PASS，`[LEAK] OK`
+    - fresh `check` PASS
+    - fresh `gate` 最终 `[GATE] OK`
+    - run-all summary 时间：`2026-03-22 00:21:45`
+  - 为了把并行协作文档带回当前工作分支，还将 worktree 从 `main` fast-forward 到 `c1bf1d66`，这样本分支也包含主线新增的 `workers/` 目录，可同步更新 `worker0` 状态
+- Files created/modified:
+  - `src/fafafa.core.simd.public_abi.impl.inc` (modified again)
+  - `task_plan.md` (modified)
+  - `findings.md` (modified)
+  - `progress.md` (modified)
+  - `workers/worker0.md` (modified)
+
+## 5-Question Reboot Check (Phase 39 Update)
+| Question | Answer |
+|----------|--------|
+| Where am I? | Linux fresh `TTestCase_SimdConcurrentPublicAbi,TTestCase_PublicAbi`、fresh `check`、fresh `gate` 都已重新通过；本轮最新又收敛了一条新的 public ABI active metadata mixed-snapshot：旧 `RebindSimdPublicApi` 让 `ActiveBackendId` 来自 current snapshot，但 `ActiveFlags` 又回退到 live flag 查询。 |
+| Where am I going? | 下一轮继续从实现层深审，优先找下一条 “单个对外 helper/list/pod/public-API 结果仍由多次 live 查询拼装” 的真实问题，重点继续看 registered-view/list helpers、public ABI text pointer 生命周期、以及 x86/non-x86 `SetVectorAsmEnabled` / `RegisterBackend` 相邻路径里是否还有 snapshot drift。 |
+| What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
+| What have I learned? | 这轮再次证明，哪怕 `GetSimdPublicApi` 本身已经采用 snapshot publication，只要 rebind 阶段还把 metadata 的一部分绕回 live helper，就仍会把“同一张 public API table”的字段拆成两份真相源。修这类问题的关键不是再加更多锁，而是让单个对外结果尽量从同一份 published snapshot 派生完。 |
+| What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并把 plan/findings/progress 持续同步。本轮最新又确认并修复了 public API active metadata mixed-snapshot：`RebindSimdPublicApi` 现在从同一份 current dispatch snapshot 派生 `ActiveBackendId/ActiveFlags`，`TTestCase_SimdConcurrentPublicAbi` 已守住这条并发合同。 |

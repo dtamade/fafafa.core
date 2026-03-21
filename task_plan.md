@@ -4,7 +4,7 @@
 审查 `fafafa.core.simd` 及其 `cpuinfo` 相关模块，找出可验证的问题并完成至少一轮根因修复，同时产出可连续执行的后续修复与审查计划。
 
 ## Current Phase
-Phase 38 complete; `DoInitializeDispatch` now publishes current dispatch from the immutable backend snapshot it selected, and dispatchable helper scans are serialized with runtime toggle rebuilds, so `GetCurrentBackendInfo` and dispatchable list/best helpers no longer expose half-rebuilt toggle state
+Phase 39 complete; `RebindSimdPublicApi` now derives `ActiveFlags` from the same current dispatch snapshot that provides `ActiveBackendId`, so `GetSimdPublicApi` no longer mixes published active-backend identity with live flag queries during concurrent `RegisterBackend(...)` reselects
 
 ## Phases
 
@@ -260,6 +260,13 @@ Phase 38 complete; `DoInitializeDispatch` now publishes current dispatch from th
 - [x] 在 `tests/fafafa.core.simd/fafafa.core.simd.concurrent.testcase.pas` 为 `TTestCase_SimdConcurrentFramework` 补 `Test_Concurrent_DispatchableHelpers_VectorAsmToggle_ReadConsistency`，锁定 “dispatchable helper 只能返回 enabled 全量态或 disabled 全量态，不能返回半重建中间态”
 - [x] 将 `src/fafafa.core.simd.dispatch.pas` 的 current dispatch publication 改为复用 `GetPublishedBackendDispatchTable(LBestBackend)`，并让 `GetDispatchableBackends` / `GetBestDispatchableBackend` 在扫描期间持有 `g_VectorAsmToggleLock`
 - [x] 用 fresh `TTestCase_SimdConcurrentFramework`、fresh `check`、fresh `gate` 复验
+- **Status:** complete
+
+### Phase 39: public API active metadata snapshot consistency hardening
+- [x] 确认 `src/fafafa.core.simd.public_abi.impl.inc` 的 `RebindSimdPublicApi` 虽已先取 `GetDispatchTable` published snapshot，但旧实现仍用 `SimdBackendToAbiFlags(LDispatch^.Backend)` 做 live `registered/dispatchable/active` 查询，导致 `ActiveBackendId` 与 `ActiveFlags` 仍可能跨两个观察点混搭
+- [x] 复用现有并发回归 `TTestCase_SimdConcurrentPublicAbi.Test_Concurrent_PublicApiActiveMetadata_RegisterBackend_ReadConsistency` 先拿 fresh red，而不是先补新测试
+- [x] 将 `RebindSimdPublicApi` 的 `ActiveFlags` 收紧为直接基于同一份 `LDispatch^.BackendInfo` + `BuildSimdBackendAbiFlagsFromSnapshot(...)` 派生，确保 current public API metadata 只来自单份 current dispatch snapshot
+- [x] 用 fresh `TTestCase_SimdConcurrentPublicAbi,TTestCase_PublicAbi`、fresh `check`、fresh `gate` 复验
 - **Status:** complete
 
 ## Key Questions

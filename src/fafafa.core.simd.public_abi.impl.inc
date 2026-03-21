@@ -77,21 +77,6 @@ begin
       Result := Result or (UInt64(1) shl Ord(LCap));
 end;
 
-function SimdBackendToAbiFlags(aBackend: TSimdBackend): TFafafaSimdAbiFlags;
-begin
-  Result := 0;
-  if IsBackendAvailableOnCPU(aBackend) then
-    Result := Result or FAF_SIMD_ABI_FLAG_SUPPORTED_ON_CPU;
-  if IsBackendRegisteredInBinary(aBackend) then
-    Result := Result or FAF_SIMD_ABI_FLAG_REGISTERED;
-  if IsBackendDispatchable(aBackend) then
-    Result := Result or FAF_SIMD_ABI_FLAG_DISPATCHABLE;
-  if GetCurrentBackend = aBackend then
-    Result := Result or FAF_SIMD_ABI_FLAG_ACTIVE;
-  if aBackend = sbRISCVV then
-    Result := Result or FAF_SIMD_ABI_FLAG_EXPERIMENTAL;
-end;
-
 function BuildSimdBackendAbiFlagsFromSnapshot(const aBackend: TSimdBackend;
   const aRegistered, aDispatchable, aActive: Boolean): TFafafaSimdAbiFlags;
 begin
@@ -408,6 +393,7 @@ procedure RebindSimdPublicApi;
 var
   LDispatch: PSimdDispatchTable;
   LState: PSimdPublicApiBindingState;
+  LDispatchable: Boolean;
 begin
   EnterCriticalSection(g_SimdPublicApiRebindLock);
   try
@@ -422,7 +408,9 @@ begin
     LState^.Api.AbiSignatureHi := FAFAFA_SIMD_PUBLIC_ABI_SIGNATURE_HI;
     LState^.Api.AbiSignatureLo := FAFAFA_SIMD_PUBLIC_ABI_SIGNATURE_LO;
     LState^.Api.ActiveBackendId := UInt32(Ord(LDispatch^.Backend));
-    LState^.Api.ActiveFlags := SimdBackendToAbiFlags(LDispatch^.Backend);
+    LDispatchable := LDispatch^.BackendInfo.Available and IsBackendAvailableOnCPU(LDispatch^.Backend);
+    LState^.Api.ActiveFlags := BuildSimdBackendAbiFlagsFromSnapshot(
+      LDispatch^.Backend, True, LDispatchable, True);
     LState^.MemEqualBound := LDispatch^.MemEqual;
     LState^.MemFindByteBound := LDispatch^.MemFindByte;
     LState^.MemDiffRangeBound := LDispatch^.MemDiffRange;
