@@ -1638,3 +1638,49 @@
 | What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
 | What have I learned? | 这轮证明，metadata drift 不只会出现在 capability/flags，也会出现在文本字段上。只要 dispatch/public ABI 各自持有不同 fallback 规则，未注册 backend 就会对外暴露两份“canonical”字符串。 |
 | What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 unregistered backend text drift：`GetBackendInfo` 现在统一对空文本做 canonical fallback，`TTestCase_DispatchAPI` 已守住这条合同。 |
+
+### Phase 42: current backend info canonical text metadata alignment
+- **Status:** complete
+- Actions taken:
+  - 继续深审 façade helper 时，先在现有 `DispatchAPI` suite 里补了一条新的 deterministic red，而不是先改实现：
+    - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `Test_CurrentBackendInfo_PreservesCanonicalTextMetadata_After_ReRegister`
+    - 测试先取当前 active backend 的原始表，再故意把 `BackendInfo.Name/Description` 清空后重注册
+    - 随后断言 `GetCurrentBackendInfo` 仍必须返回非空文本，并与 `GetBackendInfo` / `GetSimdBackendNamePtr` / `GetSimdBackendDescriptionPtr` 对齐
+  - fresh red 复验：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-currentbackend-text-red-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+    - 失败点直接命中：
+      - `TTestCase_DispatchAPI.Test_CurrentBackendInfo_PreservesCanonicalTextMetadata_After_ReRegister: GetCurrentBackendInfo should preserve non-empty name after re-register`
+  - 根因确认后，做最小实现修复：
+    - `src/fafafa.core.simd.framework.impl.inc` 的 `GetCurrentBackendInfo` 之前直接返回 `LDispatch^.BackendInfo`
+    - 这保留了 current snapshot 的实时状态位，但在 active backend 被重注册为空文本 metadata 时，会把空 `Name/Description` 直接暴露给 façade 调用方
+    - 现已把 helper 收紧为：
+      - 继续从 current dispatch snapshot 读取 `Available/Capabilities`
+      - 同时把 `Backend` 显式对齐到 `LDispatch^.Backend`
+      - 若 `Name/Description` 为空，则回退到 `GetBackendInfo(LDispatch^.Backend)` 的 canonical 文本
+  - fresh green / release 复验：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-currentbackend-text-green-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-currentbackend-text-concurrent-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrentFramework`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-currentbackend-text-check-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-currentbackend-text-gate-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 记录关键运行结果：
+    - fresh `TTestCase_DispatchAPI` PASS，`[LEAK] OK`
+    - fresh `TTestCase_SimdConcurrentFramework` PASS，`[LEAK] OK`
+    - fresh `check` PASS
+    - fresh `gate` 最终 `[GATE] OK`
+    - run-all summary 时间：`2026-03-22 03:26:39`
+- Files created/modified:
+  - `src/fafafa.core.simd.framework.impl.inc` (modified again)
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` (modified again)
+  - `task_plan.md` (modified)
+  - `findings.md` (modified)
+  - `progress.md` (modified)
+  - `workers/worker0.md` (modified)
+
+## 5-Question Reboot Check (Phase 42 Update)
+| Question | Answer |
+|----------|--------|
+| Where am I? | Linux fresh `TTestCase_DispatchAPI`、fresh `TTestCase_SimdConcurrentFramework`、fresh `check`、fresh `gate` 都已重新通过；本轮最新又收敛了一条新的 façade helper drift：旧 `GetCurrentBackendInfo` 会把 active backend 的空文本 metadata 直接暴露出去。 |
+| Where am I going? | 下一轮继续从实现层深审，优先找下一条 “helper/list/pod/public-API 结果仍由多份真相源拼装” 的真实问题，重点继续看 framework/view helper、toggle/re-register 相邻路径，以及 external-consumer metadata 对齐。 |
+| What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
+| What have I learned? | 这轮证明，current snapshot 一致并不等于 façade helper 一致。只要 helper 自己没把 metadata 的 canonical fallback 规则补齐，就仍会把 active backend 的实时状态和文本 contract 撕成两份真相。 |
+| What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 `GetCurrentBackendInfo` 的 current-text drift：framework helper 现在在保持 current snapshot 状态位的同时，对空文本回退 canonical backend metadata。 |

@@ -6,10 +6,22 @@ end;
 function GetCurrentBackendInfo: TSimdBackendInfo;
 var
   LDispatch: PSimdDispatchTable;
+  LCanonicalInfo: TSimdBackendInfo;
 begin
   LDispatch := GetDispatchTable;
   if LDispatch <> nil then
-    Result := LDispatch^.BackendInfo
+  begin
+    Result := LDispatch^.BackendInfo;
+    Result.Backend := LDispatch^.Backend;
+    if (Result.Name = '') or (Result.Description = '') then
+    begin
+      LCanonicalInfo := GetBackendInfo(LDispatch^.Backend);
+      if Result.Name = '' then
+        Result.Name := LCanonicalInfo.Name;
+      if Result.Description = '' then
+        Result.Description := LCanonicalInfo.Description;
+    end;
+  end
   else
     Result := GetBackendInfo(GetActiveBackend);
 end;

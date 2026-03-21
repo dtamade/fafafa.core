@@ -46,6 +46,7 @@ type
     procedure Test_GetAvailableBackendList_AliasesDispatchableView;
     procedure Test_RegisteredBackendPriority_MatchesCanonicalPriority;
     procedure Test_UnregisteredBackendInfo_PreservesCanonicalTextMetadata;
+    procedure Test_CurrentBackendInfo_PreservesCanonicalTextMetadata_After_ReRegister;
     procedure Test_VecI64x2_DispatchAssigned_And_Parity;
     procedure Test_VecU64x2_DispatchAssigned_And_Parity;
     procedure Test_VecU32x8_DispatchAssigned_And_Parity;
@@ -711,6 +712,59 @@ begin
 
   AssertTrue('At least one unregistered backend should exist for metadata coverage',
     LFoundUnregistered);
+end;
+
+procedure TTestCase_DispatchAPI.Test_CurrentBackendInfo_PreservesCanonicalTextMetadata_After_ReRegister;
+var
+  LBackend: TSimdBackend;
+  LOriginalTable: TSimdDispatchTable;
+  LModifiedTable: TSimdDispatchTable;
+  LCurrentInfo: TSimdBackendInfo;
+  LCanonicalInfo: TSimdBackendInfo;
+  LNamePtr: PAnsiChar;
+  LDescriptionPtr: PAnsiChar;
+begin
+  ResetToAutomaticBackend;
+  LBackend := GetCurrentBackend;
+
+  AssertTrue('Current backend should be registered for current-info canonical text test',
+    TryGetRegisteredBackendDispatchTable(LBackend, LOriginalTable));
+
+  LModifiedTable := LOriginalTable;
+  LModifiedTable.BackendInfo.Name := '';
+  LModifiedTable.BackendInfo.Description := '';
+  RegisterBackend(LBackend, LModifiedTable);
+  try
+    AssertEquals('Re-registering the active backend should preserve the active backend id',
+      Ord(LBackend), Ord(GetCurrentBackend));
+
+    LCurrentInfo := GetCurrentBackendInfo;
+    LCanonicalInfo := GetBackendInfo(LBackend);
+    LNamePtr := GetSimdBackendNamePtr(LBackend);
+    LDescriptionPtr := GetSimdBackendDescriptionPtr(LBackend);
+
+    AssertTrue('GetCurrentBackendInfo should preserve non-empty name after re-register',
+      LCurrentInfo.Name <> '');
+    AssertTrue('GetCurrentBackendInfo should preserve non-empty description after re-register',
+      LCurrentInfo.Description <> '');
+    AssertNotNull('Public ABI backend name pointer should not be nil for current backend after re-register',
+      Pointer(LNamePtr));
+    AssertNotNull('Public ABI backend description pointer should not be nil for current backend after re-register',
+      Pointer(LDescriptionPtr));
+    AssertEquals('GetCurrentBackendInfo.Backend should stay canonical after re-register',
+      Ord(LBackend), Ord(LCurrentInfo.Backend));
+    AssertEquals('Current backend info name should stay aligned with canonical backend info after re-register',
+      LCanonicalInfo.Name, LCurrentInfo.Name);
+    AssertEquals('Current backend info description should stay aligned with canonical backend info after re-register',
+      LCanonicalInfo.Description, LCurrentInfo.Description);
+    AssertEquals('Current backend info name should stay aligned with public ABI text getter after re-register',
+      LCurrentInfo.Name, string(StrPas(LNamePtr)));
+    AssertEquals('Current backend info description should stay aligned with public ABI text getter after re-register',
+      LCurrentInfo.Description, string(StrPas(LDescriptionPtr)));
+  finally
+    RegisterBackend(LBackend, LOriginalTable);
+    ResetToAutomaticBackend;
+  end;
 end;
 
 procedure TTestCase_DispatchAPI.Test_VecI64x2_DispatchAssigned_And_Parity;

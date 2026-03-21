@@ -486,3 +486,33 @@ Phase 40 complete; `GetRegisteredBackendList` now materializes the registered vi
 | What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
 | What have I learned? | 这轮证明，不只是 capability/flags 会漂移，连 backend 文本 metadata 也可能在 dispatch/public ABI 两侧各自 fallback 成不同 contract。修这类问题最稳的办法仍然是把 canonical 规则收口到 shared dispatch metadata source，而不是在 wrapper 层额外兜底。 |
 | What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 unregistered backend text metadata drift：`GetBackendInfo` 现在统一为空文本回退 canonical 默认值，`TTestCase_DispatchAPI` 已守住这条合同。 |
+
+### Phase 42: current backend info canonical text metadata alignment
+- [x] 在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `Test_CurrentBackendInfo_PreservesCanonicalTextMetadata_After_ReRegister`，锁定 active/current backend 被重新注册为空文本 metadata 后，`GetCurrentBackendInfo` 仍必须与 canonical backend info / public ABI text getter 对齐
+- [x] 用 fresh release `TTestCase_DispatchAPI` 先拿 red，确认这不是 Phase 41 的重复推测
+- [x] 确认 `src/fafafa.core.simd.framework.impl.inc` 的 `GetCurrentBackendInfo` 直接返回 current dispatch snapshot 的 `BackendInfo`，没有对空 `Name/Description` 做 canonical fallback
+- [x] 将 `GetCurrentBackendInfo` 收紧为：继续保留 current dispatch snapshot 的实时 `Available/Capabilities`，但在空文本时回退到 `GetBackendInfo(LDispatch^.Backend)` 的 canonical `Name/Description`
+- [x] 用 fresh release `TTestCase_DispatchAPI`、fresh `TTestCase_SimdConcurrentFramework`、fresh `check`、fresh `gate` 复验
+- **Status:** complete
+
+- 2026-03-22 最新 current backend text metadata closeout 证据：
+  - red: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-currentbackend-text-red-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` -> FAIL（`GetCurrentBackendInfo should preserve non-empty name after re-register`）
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-currentbackend-text-green-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` -> PASS，`[LEAK] OK`
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-currentbackend-text-concurrent-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrentFramework` -> PASS，`[LEAK] OK`
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-currentbackend-text-check-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh check` -> PASS
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-currentbackend-text-gate-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh gate` -> PASS，最终 `[GATE] OK`，run-all summary 时间 `2026-03-22 03:26:39`
+- 这轮根因位于 façade helper，而不是 dispatch/public ABI core path：current dispatch snapshot 会如实保留当前 active table 的 `BackendInfo`，但 `GetCurrentBackendInfo` 之前把这份 snapshot 直接暴露给调用方，导致一旦 active backend 被重新注册为“空 Name/Description”，framework helper 会再次与 `GetBackendInfo` / public ABI text getter 分叉。
+- 最小修复继续遵守“保持 current snapshot 的实时状态位，只对空文本做 canonical fallback”的原则：`Available/Capabilities` 仍来自 current dispatch snapshot，只有 `Name/Description` 在为空时回退到 shared backend metadata source。
+- 下一轮连续计划优先级更新为：
+  1. 继续深审 remaining façade/framework helper，优先找下一条 “current/registered/unregistered 视图里仍由 snapshot + secondary helper 混拼”的真实问题
+  2. 继续检查 `RegisterBackend` / `SetVectorAsmEnabled` 相邻路径里，除了文本字段外，是否还有 `Priority/Capabilities/Flags` 级别的 drift
+  3. 对 external consumer / text pointer lifetime 风险仍坚持 fresh red 优先，不再把 speculative 现象提前记为已确认 bug
+
+## 5-Question Reboot Check (Phase 42 Update)
+| Question | Answer |
+|----------|--------|
+| Where am I? | Linux fresh `TTestCase_DispatchAPI`、fresh `TTestCase_SimdConcurrentFramework`、fresh `check`、fresh `gate` 都已重新通过；本轮最新又收敛了一条新的 façade helper drift：`GetCurrentBackendInfo` 在 active backend 被重新注册为空文本 metadata 后会暴露空 `Name/Description`。 |
+| Where am I going? | 下一轮继续从实现层深审，优先找下一条 “单个 helper/list/pod/public-API 结果仍由多份真相源拼装” 的真实问题，重点继续看 framework/view helper、toggle/re-register 相邻路径，以及 external-consumer metadata 对齐。 |
+| What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
+| What have I learned? | 这轮证明，哪怕 current dispatch snapshot 本身是一致的，只要 façade helper 对其中某些字段再缺少 canonical fallback，就仍会把同一个 active backend 拆成“current state 正确、文本 metadata 错误”的半漂移结果。 |
+| What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 `GetCurrentBackendInfo` 的 current-text drift：framework helper 现在在保持 current snapshot 状态位的同时，对空文本回退 canonical backend metadata。 |
