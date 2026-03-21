@@ -4,7 +4,7 @@
 审查 `fafafa.core.simd` 及其 `cpuinfo` 相关模块，找出可验证的问题并完成至少一轮根因修复，同时产出可连续执行的后续修复与审查计划。
 
 ## Current Phase
-Phase 40 complete; `GetRegisteredBackendList` now materializes the registered view from a single scan, so concurrent first-time `RegisterBackend(...)` no longer splices list length and payload across two observation points
+Phase 43 complete; `GetBackendOps(backend)` now preserves canonical text metadata for registered backends after empty-text re-registers while keeping the current snapshot's `Available/Capabilities`
 
 ## Phases
 
@@ -516,3 +516,32 @@ Phase 40 complete; `GetRegisteredBackendList` now materializes the registered vi
 | What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
 | What have I learned? | 这轮证明，哪怕 current dispatch snapshot 本身是一致的，只要 façade helper 对其中某些字段再缺少 canonical fallback，就仍会把同一个 active backend 拆成“current state 正确、文本 metadata 错误”的半漂移结果。 |
 | What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 `GetCurrentBackendInfo` 的 current-text drift：framework helper 现在在保持 current snapshot 状态位的同时，对空文本回退 canonical backend metadata。 |
+
+### Phase 43: registered backend adapter canonical text metadata alignment
+- [x] 在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchslots.testcase.pas` 新增 `Test_BackendAdapter_RegisteredBackendOps_PreserveCanonicalTextMetadata_After_ReRegister`，锁定 registered backend 被空文本重注册后，`GetBackendOps(backend)` 仍必须与 canonical backend text 对齐
+- [x] 用 fresh release `TTestCase_DispatchAllSlots` 先拿 red，确认问题不是 Phase 41/42 的重复猜测
+- [x] 确认 `src/fafafa.core.simd.backend.adapter.pas` 的 registered 路径此前直接把 `DispatchTableToBackendOps(...)` 的 `BackendInfo` 原样暴露，没有对空 `Name/Description` 做 canonical fallback
+- [x] 将 registered adapter 路径收紧为：显式对齐 `Backend/BackendInfo.Backend`，并在空文本时回退到 `GetBackendInfo(backend)` 的 canonical `Name/Description`，同时保留当前 snapshot 的 `Available/Capabilities`
+- [x] 用 fresh release `TTestCase_DispatchAllSlots`、fresh `check`、fresh `gate` 复验
+- **Status:** complete
+
+- 2026-03-22 最新 registered adapter text metadata closeout 证据：
+  - red: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-adapter-currenttext-red-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAllSlots` -> FAIL（`GetBackendOps should preserve non-empty name for registered backend after re-register`）
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-adapter-currenttext-green-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAllSlots` -> PASS，`[LEAK] OK`
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-adapter-currenttext-check-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh check` -> PASS
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-adapter-currenttext-gate-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh gate` -> PASS，最终 `[GATE] OK`，run-all summary 时间 `2026-03-22 03:41:13`
+- 这轮根因位于 backend adapter 的 registered-view helper，而不是 shared dispatch metadata source：`GetBackendInfo` / `GetCurrentBackendInfo` 已经统一为空文本做 canonical fallback，但 `GetBackendOps(backend)` 仍会把 published snapshot 里的空 `Name/Description` 直接暴露给 adapter 调用方。
+- 最小修复继续遵守“保留当前 snapshot 的状态位，只对文本做 canonical fallback”的原则：registered adapter 仍保留 re-register 后的 `Available/Capabilities`，但不再把空 `Name/Description` 暴露成第三套 contract。
+- 下一轮连续计划优先级更新为：
+  1. 继续深审 remaining adapter/framework/view helper，优先找下一条 “registered/current/unregistered 视图里仍由 snapshot + secondary helper 混拼”的真实问题
+  2. 继续检查 `RegisterBackend` / `SetVectorAsmEnabled` 相邻路径里，除了文本字段外，是否还有 `Priority/Capabilities/Flags` 级别的 drift
+  3. 继续核对 public ABI `CapabilityBits` / text getter / helper 返回值在 re-register 与 toggle 后是否还存在 helper 侧漂移
+
+## 5-Question Reboot Check (Phase 43 Update)
+| Question | Answer |
+|----------|--------|
+| Where am I? | Linux fresh `TTestCase_DispatchAllSlots`、fresh `check`、fresh `gate` 都已重新通过；本轮最新又收敛了一条新的 adapter helper drift：旧 `GetBackendOps(backend)` 会把 registered backend 的空文本 metadata 直接暴露出去。 |
+| Where am I going? | 下一轮继续从实现层深审，优先找下一条 “adapter/framework/view helper 结果仍由多份真相源拼装” 的真实问题，重点继续看 registered/current/unregistered helper、toggle/re-register 相邻路径，以及 public ABI external-consumer 对齐。 |
+| What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
+| What have I learned? | 这轮证明，即使 shared dispatch metadata source 已经收口，helper 层只要继续直接暴露 snapshot 文本，就仍可能在 re-register 后重新裂出第三套 contract。adapter helper 也必须遵守同一份 canonical text fallback 规则。 |
+| What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 registered adapter text drift：`GetBackendOps(backend)` 现在在保留当前 snapshot 状态位的同时，对空文本回退 canonical backend metadata。 |

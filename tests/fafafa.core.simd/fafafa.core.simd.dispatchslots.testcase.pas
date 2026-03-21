@@ -26,6 +26,7 @@ type
     procedure Test_BackendAdapter_EmptyOps_Fallback_AllDispatchSlots_Assigned;
     procedure Test_BackendAdapter_ActiveBackend_RoundTrip_NoNilAndCorePointersStable;
     procedure Test_BackendAdapter_UnregisteredBackendOps_PreserveCanonicalMetadata;
+    procedure Test_BackendAdapter_RegisteredBackendOps_PreserveCanonicalTextMetadata_After_ReRegister;
     procedure Test_SSE42_Inherits_SSE41_DispatchSlots;
   end;
 
@@ -734,6 +735,50 @@ begin
 
   AssertTrue('At least one unregistered backend should exist for adapter metadata coverage',
     LFoundUnregistered);
+end;
+
+procedure TTestCase_DispatchAllSlots.Test_BackendAdapter_RegisteredBackendOps_PreserveCanonicalTextMetadata_After_ReRegister;
+var
+  LBackend: TSimdBackend;
+  LOriginalTable: TSimdDispatchTable;
+  LModifiedTable: TSimdDispatchTable;
+  LOps: TSimdBackendOps;
+  LCanonicalInfo: TSimdBackendInfo;
+begin
+  ResetToAutomaticBackend;
+  LBackend := GetActiveBackend;
+
+  AssertTrue('Current backend should be registered for adapter canonical text test',
+    TryGetRegisteredBackendDispatchTable(LBackend, LOriginalTable));
+
+  LModifiedTable := LOriginalTable;
+  LModifiedTable.BackendInfo.Name := '';
+  LModifiedTable.BackendInfo.Description := '';
+  RegisterBackend(LBackend, LModifiedTable);
+  try
+    LOps := GetBackendOps(LBackend);
+    LCanonicalInfo := GetBackendInfo(LBackend);
+
+    AssertEquals('GetBackendOps should preserve the requested backend id after re-register',
+      Ord(LBackend), Ord(LOps.Backend));
+    AssertEquals('GetBackendOps should preserve BackendInfo.Backend after re-register',
+      Ord(LBackend), Ord(LOps.BackendInfo.Backend));
+    AssertTrue('GetBackendOps should preserve non-empty name for registered backend after re-register',
+      LOps.BackendInfo.Name <> '');
+    AssertTrue('GetBackendOps should preserve non-empty description for registered backend after re-register',
+      LOps.BackendInfo.Description <> '');
+    AssertEquals('GetBackendOps should stay aligned with canonical backend name after re-register',
+      LCanonicalInfo.Name, LOps.BackendInfo.Name);
+    AssertEquals('GetBackendOps should stay aligned with canonical backend description after re-register',
+      LCanonicalInfo.Description, LOps.BackendInfo.Description);
+    AssertEquals('GetBackendOps should preserve current availability state after re-register',
+      LModifiedTable.BackendInfo.Available, LOps.BackendInfo.Available);
+    AssertTrue('GetBackendOps should preserve current capability set after re-register',
+      LOps.BackendInfo.Capabilities = LModifiedTable.BackendInfo.Capabilities);
+  finally
+    RegisterBackend(LBackend, LOriginalTable);
+    ResetToAutomaticBackend;
+  end;
 end;
 
 procedure TTestCase_DispatchAllSlots.Test_SSE42_Inherits_SSE41_DispatchSlots;

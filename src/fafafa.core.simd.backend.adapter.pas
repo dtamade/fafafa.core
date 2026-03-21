@@ -102,12 +102,23 @@ end;
 function GetBackendOps(backend: TSimdBackend): TSimdBackendOps;
 var
   LTable: TSimdDispatchTable;
+  LCanonicalInfo: TSimdBackendInfo;
 begin
   Result := Default(TSimdBackendOps);
 
   if TryGetRegisteredBackendDispatchTable(backend, LTable) then
   begin
     DispatchTableToBackendOps(LTable, Result);
+    Result.Backend := backend;
+    Result.BackendInfo.Backend := backend;
+    if (Result.BackendInfo.Name = '') or (Result.BackendInfo.Description = '') then
+    begin
+      LCanonicalInfo := GetBackendInfo(backend);
+      if Result.BackendInfo.Name = '' then
+        Result.BackendInfo.Name := LCanonicalInfo.Name;
+      if Result.BackendInfo.Description = '' then
+        Result.BackendInfo.Description := LCanonicalInfo.Description;
+    end;
   end
   else
   begin

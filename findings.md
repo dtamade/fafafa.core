@@ -7,6 +7,31 @@
 - 形成连续的修复与审查计划
 
 ## Research Findings
+- 最新一轮继续深审 backend adapter / registered-view helper 合同后，又确认一条新的真实 metadata drift：
+  - `src/fafafa.core.simd.backend.adapter.pas` 的 `GetBackendOps(backend)` 在 registered backend 路径上虽然会先拿 `TryGetRegisteredBackendDispatchTable(...)`
+  - 但旧实现随后直接 `DispatchTableToBackendOps(LTable, Result)`，把 published dispatch snapshot 里的 `BackendInfo` 原样暴露给 adapter 调用方
+  - 这意味着只要某个 registered backend 被 `RegisterBackend(...)` 重注册为空 `Name/Description`，就会出现新的 helper 分叉：
+    - `GetBackendInfo(backend)` 已经会做 canonical 文本 fallback
+    - `GetCurrentBackendInfo` 也已在 active/current 路径补过相同规则
+    - 但 `GetBackendOps(backend)` registered 路径仍会把空文本直接漏出去
+  - 为了先把合同打红，本轮补了一条最小 deterministic regression：
+    - `tests/fafafa.core.simd/fafafa.core.simd.dispatchslots.testcase.pas` 新增 `Test_BackendAdapter_RegisteredBackendOps_PreserveCanonicalTextMetadata_After_ReRegister`
+    - 测试先取当前 active backend 的原始 dispatch table，再故意把 `BackendInfo.Name/Description` 清空后重注册
+    - 随后断言 `GetBackendOps(LBackend)` 仍必须保留 requested backend id、非空文本，并与 `GetBackendInfo(LBackend)` 返回的 canonical `Name/Description` 对齐，同时继续保留当前 snapshot 的 `Available/Capabilities`
+  - fresh red 证据：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-adapter-currenttext-red-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAllSlots`：FAIL
+    - 失败点直接命中：
+      - `TTestCase_DispatchAllSlots.Test_BackendAdapter_RegisteredBackendOps_PreserveCanonicalTextMetadata_After_ReRegister: GetBackendOps should preserve non-empty name for registered backend after re-register`
+  - 最小修复方式：
+    - 将 `src/fafafa.core.simd.backend.adapter.pas` 的 registered 路径收紧为：
+      - `DispatchTableToBackendOps(LTable, Result)` 后显式回写 `Result.Backend := backend`
+      - 同时把 `Result.BackendInfo.Backend := backend`
+      - 若 `Result.BackendInfo.Name` 或 `Description` 为空，则回退到 `GetBackendInfo(backend)` 的 canonical 文本
+    - 这样 adapter 继续保留 registered/current snapshot 的实时 `Available/Capabilities`，但不再把空文本 metadata 暴露成第三套真相
+  - fresh green / 复验证据：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-adapter-currenttext-green-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAllSlots`：PASS，`[LEAK] OK`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-adapter-currenttext-check-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh check`：PASS
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-adapter-currenttext-gate-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh gate`：PASS，最终 `[GATE] OK`，run-all summary 时间 `2026-03-22 03:41:13`
 - 最新一轮继续深审 registered-view helper 并发合同后，又确认一条新的真实 mixed-snapshot：
   - `src/fafafa.core.simd.framework.impl.inc` 的 `GetRegisteredBackendList` 之前采用双遍 live 扫描：
     - 第一遍只做 `IsBackendRegisteredInBinary(...)` 计数
@@ -901,6 +926,7 @@
 | `GetRegisteredBackendList` 之前先 count 再 fill，两遍都做 live `IsBackendRegisteredInBinary(...)` 查询，导致首次注册 previously-unregistered backend 的并发窗口里暴露 impossible list snapshot | 已在 `tests/fafafa.core.simd/fafafa.core.simd.concurrent.testcase.pas` 新增 `TTestCase_SimdConcurrentRegistration.Test_Concurrent_RegisteredBackendList_FirstRegistration_ReadConsistency` 打红；fresh red 直接命中 `got=[0,1,2,3,4,5,6,8]` 但合法状态里必须要么没有新增 backend、要么先出现 `9`。随后把 `src/fafafa.core.simd.framework.impl.inc` 的 helper 改成“预分配上限 + 单遍填充 + 最后 shrink”，并用 fresh `TTestCase_SimdConcurrentRegistration`、fresh framework sanity、fresh `check`、fresh `gate` 全部复验通过 |
 | `GetBackendInfo(backend)` 在未注册 backend 路径上没有补 canonical `Name/Description`，导致 dispatch metadata 与 public ABI text getter 的默认文本 fallback 分叉 | 已在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 补 `Test_UnregisteredBackendInfo_PreservesCanonicalTextMetadata` 打红；fresh red 直接命中 `GetBackendInfo should preserve non-empty name for unregistered backend=7`。随后把 `src/fafafa.core.simd.dispatch.pas` 的 canonical metadata helper 扩到默认 `Name/Description`，并让 `GetBackendInfo` 对 registered/unregistered 两条路径都在空文本时回退 default backend text；fresh `TTestCase_DispatchAPI`、fresh `TTestCase_PublicAbi`、fresh `check`、fresh `gate` 全部复验通过 |
 | `GetCurrentBackendInfo` 直接暴露 current dispatch snapshot 的 `BackendInfo`，在 active backend 被重新注册为空 `Name/Description` 时没有做 canonical 文本 fallback，导致 framework helper 与 `GetBackendInfo` / public ABI text getter 再次分叉 | 已在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 补 `Test_CurrentBackendInfo_PreservesCanonicalTextMetadata_After_ReRegister` 打红；fresh red 直接命中 `GetCurrentBackendInfo should preserve non-empty name after re-register`。随后把 `src/fafafa.core.simd.framework.impl.inc` 的 `GetCurrentBackendInfo` 收紧为保留 current snapshot 的实时状态位，但在空文本时回退到 `GetBackendInfo(LDispatch^.Backend)` 的 canonical `Name/Description`；fresh `TTestCase_DispatchAPI`、fresh `TTestCase_SimdConcurrentFramework`、fresh `check`、fresh `gate` 全部复验通过 |
+| `GetBackendOps(backend)` 在 registered backend 路径上直接回传 published dispatch snapshot 的 `BackendInfo`，backend 被重新注册为空 `Name/Description` 时没有做 canonical 文本 fallback，导致 adapter helper 与 `GetBackendInfo` / `GetCurrentBackendInfo` 再次分叉 | 已在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchslots.testcase.pas` 补 `Test_BackendAdapter_RegisteredBackendOps_PreserveCanonicalTextMetadata_After_ReRegister` 打红；fresh red 直接命中 `GetBackendOps should preserve non-empty name for registered backend after re-register`。随后把 `src/fafafa.core.simd.backend.adapter.pas` 的 registered 路径收紧为保留当前 snapshot 的 `Available/Capabilities`，但在空 `Name/Description` 时回退到 `GetBackendInfo(backend)` 的 canonical 文本，并显式对齐 `Backend/BackendInfo.Backend`；fresh `TTestCase_DispatchAllSlots`、fresh `check`、fresh `gate` 全部复验通过 |
 | `SetVectorAsmEnabled(False <-> True)` 并发窗口里，dispatchable helper 会暴露半重建中间态；同时 `DoInitializeDispatch` 选中 backend 后仍从 mutable `g_BackendTables[...]` 复制 current snapshot，导致 `GetCurrentBackendInfo` 继续可能读到旧 backend id + 新 disabled metadata | 已在 `tests/fafafa.core.simd/fafafa.core.simd.concurrent.testcase.pas` 新增 `Test_Concurrent_DispatchableHelpers_VectorAsmToggle_ReadConsistency`，fresh red 同时命中 `best dispatchable backend mixed snapshot`、`dispatchable helper mixed snapshot` 和旧 `current backend info mixed snapshot`。随后把 `src/fafafa.core.simd.dispatch.pas` 的 current dispatch publication 改为复用 `GetPublishedBackendDispatchTable(LBestBackend)`，并让 `GetDispatchableBackends` / `GetBestDispatchableBackend` 在扫描期间持有 `g_VectorAsmToggleLock`；fresh `TTestCase_SimdConcurrentFramework`、fresh `check`、fresh `gate` 全部复验通过 |
 | `NEON/RISCVV` 在 non-asm build、test-only fallback 注册态，以及 native asm build 的 runtime-disabled rebuild 路径下仍高报 `scIntegerOps`，把 scalar/common fallback 整数槽位误包装成 vector integer capability | 已在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 与 `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 补 `NEON/RISCVV` 的 `scIntegerOps` red/green 合同测试，并把 native `SetVectorAsmEnabled(False)` 路径也纳入清零断言；随后将 `src/fafafa.core.simd.neon.register.inc` 与 `src/fafafa.core.simd.riscvv.register.inc` 的 `scIntegerOps` 宣称改为仅在 `LUseVectorAsm=True` 时成立；fresh `NEON`/`RISCVV` opt-in suite、fresh `check`、fresh `gate` 全部通过 |
 | `AVX512` 在 runtime `SetVectorAsmEnabled(False)` 后仍保留 native 宽槽位与 `scFMA/scIntegerOps/scMaskedOps/sc512BitOps`，导致 dispatch/public ABI 双侧 stale capability | 已在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 与 `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 补 AVX512 runtime-disabled red/green 合同测试；随后将 `src/fafafa.core.simd.avx512.register.inc` 改为仅在 `LEnableVectorAsm=True` 时覆写 native AVX512 slots 并加入 gated capabilities，`vector asm=False` 时保留 fallback table；同时把旧 AVX512 native-path testcase 改成显式 `SetVectorAsmEnabled(True)` 后再断言 native 映射；fresh opt-in suite、fresh opt-in `check`、fresh opt-in `gate` 全部通过 |

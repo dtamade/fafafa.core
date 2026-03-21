@@ -1684,3 +1684,49 @@
 | What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
 | What have I learned? | 这轮证明，current snapshot 一致并不等于 façade helper 一致。只要 helper 自己没把 metadata 的 canonical fallback 规则补齐，就仍会把 active backend 的实时状态和文本 contract 撕成两份真相。 |
 | What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 `GetCurrentBackendInfo` 的 current-text drift：framework helper 现在在保持 current snapshot 状态位的同时，对空文本回退 canonical backend metadata。 |
+
+### Phase 43: registered backend adapter canonical text metadata alignment
+- **Status:** complete
+- Actions taken:
+  - 继续深审 backend adapter / registered-view helper 时，先在现有 `DispatchAllSlots` suite 里补了一条新的 deterministic red，而不是先改实现：
+    - `tests/fafafa.core.simd/fafafa.core.simd.dispatchslots.testcase.pas` 新增 `Test_BackendAdapter_RegisteredBackendOps_PreserveCanonicalTextMetadata_After_ReRegister`
+    - 测试先取当前 active backend 的原始 dispatch table，再故意把 `BackendInfo.Name/Description` 清空后重注册
+    - 随后断言 `GetBackendOps(LBackend)` 仍必须返回 requested backend id、非空文本，并与 `GetBackendInfo(LBackend)` 的 canonical `Name/Description` 对齐，同时继续保留当前 snapshot 的 `Available/Capabilities`
+  - fresh red 复验：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-adapter-currenttext-red-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAllSlots`
+    - 失败点直接命中：
+      - `TTestCase_DispatchAllSlots.Test_BackendAdapter_RegisteredBackendOps_PreserveCanonicalTextMetadata_After_ReRegister: GetBackendOps should preserve non-empty name for registered backend after re-register`
+  - 根因确认后，做最小实现修复：
+    - `src/fafafa.core.simd.backend.adapter.pas` 的 registered 路径之前直接 `DispatchTableToBackendOps(LTable, Result)`
+    - 这会把 published dispatch snapshot 中的 `BackendInfo` 原样暴露给 adapter 调用方
+    - 一旦 registered backend 被空文本重注册，`GetBackendOps(backend)` 就会再次与 `GetBackendInfo` / `GetCurrentBackendInfo` 分叉
+    - 现已把 helper 收紧为：
+      - 显式回写 `Result.Backend := backend`
+      - 同时把 `Result.BackendInfo.Backend := backend`
+      - 若 `Name/Description` 为空，则回退到 `GetBackendInfo(backend)` 的 canonical 文本
+      - `Available/Capabilities` 仍保留当前 registered snapshot 的实时状态
+  - fresh green / release 复验：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-adapter-currenttext-green-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAllSlots`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-adapter-currenttext-check-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-adapter-currenttext-gate-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 记录关键运行结果：
+    - fresh `TTestCase_DispatchAllSlots` PASS，`[LEAK] OK`
+    - fresh `check` PASS
+    - fresh `gate` 最终 `[GATE] OK`
+    - run-all summary 时间：`2026-03-22 03:41:13`
+- Files created/modified:
+  - `src/fafafa.core.simd.backend.adapter.pas` (modified)
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchslots.testcase.pas` (modified)
+  - `task_plan.md` (modified)
+  - `findings.md` (modified)
+  - `progress.md` (modified)
+  - `workers/worker0.md` (modified)
+
+## 5-Question Reboot Check (Phase 43 Update)
+| Question | Answer |
+|----------|--------|
+| Where am I? | Linux fresh `TTestCase_DispatchAllSlots`、fresh `check`、fresh `gate` 都已重新通过；本轮最新又收敛了一条新的 adapter helper drift：旧 `GetBackendOps(backend)` 会把 registered backend 的空文本 metadata 直接暴露出去。 |
+| Where am I going? | 下一轮继续从实现层深审，优先找下一条 “adapter/framework/view helper 结果仍由多份真相源拼装” 的真实问题，重点继续看 registered/current/unregistered helper、toggle/re-register 相邻路径，以及 public ABI external-consumer metadata 对齐。 |
+| What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
+| What have I learned? | 这轮证明，哪怕 shared dispatch metadata source 已经统一了 canonical 文本，adapter helper 只要继续直接暴露 registered snapshot，就仍会在空文本 re-register 后裂出第三套 contract。helper 层也必须遵守同一份 canonical text fallback 规则。 |
+| What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 registered adapter text drift：`GetBackendOps(backend)` 现在在保留当前 snapshot 状态位的同时，对空文本回退 canonical backend metadata。 |
