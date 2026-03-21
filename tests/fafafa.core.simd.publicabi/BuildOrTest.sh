@@ -6,6 +6,7 @@ shift || true
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 REPO_ROOT="$(cd "${ROOT}/../.." && pwd)"
+OUTPUT_ROOT="${SIMD_OUTPUT_ROOT:-${ROOT}}"
 FPC_BIN="${FPC_BIN:-fpc}"
 CC_BIN="${CC:-cc}"
 TARGET_CPU="$(${FPC_BIN} -iTP 2>/dev/null | tr '[:upper:]' '[:lower:]' || true)"
@@ -17,9 +18,9 @@ if [[ -z "${TARGET_OS}" ]]; then
   TARGET_OS="nativeos"
 fi
 
-BIN_DIR="${ROOT}/bin"
-LIB_DIR="${ROOT}/lib/${TARGET_CPU}-${TARGET_OS}"
-LOG_DIR="${ROOT}/logs"
+BIN_DIR="${OUTPUT_ROOT}/bin"
+LIB_DIR="${OUTPUT_ROOT}/lib/${TARGET_CPU}-${TARGET_OS}"
+LOG_DIR="${OUTPUT_ROOT}/logs"
 PROJ="${ROOT}/fafafa.core.simd.publicabi.lpr"
 LIB_PATH=""
 HARNESS_SRC="${ROOT}/publicabi_smoke.c"
@@ -91,8 +92,8 @@ validate_exports() {
     echo "[EXPORT] Running: nm -D --defined-only ${LIB_PATH}"
     nm -D --defined-only "${LIB_PATH}" > "${EXPORT_LOG}" 2>&1
   else
-    echo "[EXPORT] SKIP (readelf/nm not found)"
-    return 0
+    echo "[EXPORT] FAILED (readelf/nm not found; validate-exports requires a symbol inspection tool)"
+    return 2
   fi
 
   for LSymbol in "${REQUIRED_SYMBOLS[@]}"; do

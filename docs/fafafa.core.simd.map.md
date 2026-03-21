@@ -27,9 +27,9 @@
 
 ## 第三层：后端入口
 
-想知道某个后端“注册了什么能力”，优先看 `*.register.inc`：
+想知道某个后端“注册了什么能力”，多数情况下优先看 `*.register.inc`；`SSE2` 例外，直接看 `src/fafafa.core.simd.sse2.pas`：
 
-- `src/fafafa.core.simd.sse2.register.inc`
+- `src/fafafa.core.simd.sse2.pas`
 - `src/fafafa.core.simd.avx2.register.inc`
 - `src/fafafa.core.simd.avx512.register.inc`
 - `src/fafafa.core.simd.neon.register.inc`
@@ -67,7 +67,7 @@
 1. `simd.pas`
 2. `dispatch.pas`
 3. `cpuinfo.pas`
-4. 对应 backend 的 `register.inc`
+4. 对应 backend 的注册入口（多数是 `register.inc`，`SSE2` 直接看 `sse2.pas`）
 5. 对应 backend 的 `facade.inc`
 6. 最后才看具体 family 实现
 

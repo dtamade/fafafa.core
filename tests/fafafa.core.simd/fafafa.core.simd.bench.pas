@@ -28,6 +28,11 @@ type
 
   TBenchResults = array of TBenchResult;
 
+// Try to activate a specific backend for benchmarking.
+// Returns False with a human-readable skip reason when the backend is only
+// CPU-supported but not actually dispatchable/active in this binary.
+function TryActivateBenchmarkBackend(aBackend: TSimdBackend; out aSkipReason: string): Boolean;
+
 // Run all benchmarks, returns results array
 function RunAllBenchmarks: TBenchResults;
 
@@ -43,6 +48,23 @@ implementation
 uses
   fafafa.core.time.stopwatch;
 
+function GetBenchmarkBackendName(aBackend: TSimdBackend): string;
+begin
+  Result := 'Unknown';
+  case aBackend of
+    sbScalar: Result := 'Scalar';
+    sbSSE2: Result := 'SSE2';
+    sbSSE3: Result := 'SSE3';
+    sbSSSE3: Result := 'SSSE3';
+    sbSSE41: Result := 'SSE4.1';
+    sbSSE42: Result := 'SSE4.2';
+    sbAVX2: Result := 'AVX2';
+    sbAVX512: Result := 'AVX-512';
+    sbNEON: Result := 'NEON';
+    sbRISCVV: Result := 'RISC-V V';
+  end;
+end;
+
 const
   // Benchmark parameters
   WARMUP_ITERATIONS = 100;
@@ -53,11 +75,48 @@ const
   // Data sizes
   MEM_SIZE = 4096;  // 4KB for memory benchmarks
   PUBLIC_ABI_HOT_SIZE = 32;  // Small hot-path payload to expose call overhead
+  PUBLIC_ABI_HOT_INNER = 256;  // Amplify public-ABI hot-loop call-pattern signal
   NARROW_ANDNOT_INNER = 256;  // Amplify tiny vector-op differences
   WIDE_VECTOR_INNER = 256;    // Amplify wide-vector benchmark signal
 
 type
   TBenchFunc = function: Int64;
+
+function TryActivateBenchmarkBackend(aBackend: TSimdBackend; out aSkipReason: string): Boolean;
+var
+  LActiveBackend: TSimdBackend;
+begin
+  aSkipReason := '';
+
+  if not IsBackendAvailableOnCPU(aBackend) then
+  begin
+    aSkipReason := GetBenchmarkBackendName(aBackend) + ' backend is not available on this CPU';
+    Exit(False);
+  end;
+
+  if not IsBackendDispatchable(aBackend) then
+  begin
+    aSkipReason := GetBenchmarkBackendName(aBackend) +
+      ' backend is CPU-supported but not dispatchable in this binary';
+    Exit(False);
+  end;
+
+  if not TrySetActiveBackend(aBackend) then
+  begin
+    aSkipReason := GetBenchmarkBackendName(aBackend) + ' backend activation was rejected by dispatch';
+    Exit(False);
+  end;
+
+  LActiveBackend := GetActiveBackend;
+  if LActiveBackend <> aBackend then
+  begin
+    aSkipReason := GetBenchmarkBackendName(aBackend) + ' backend activation fell back to ' +
+      GetBenchmarkBackendName(LActiveBackend);
+    Exit(False);
+  end;
+
+  Result := True;
+end;
 
 function MeasureOpsPerSec(Func: TBenchFunc; var TotalOps: Int64): Double;
 var
@@ -113,6 +172,31 @@ begin
     aResult.Speedup := aCandidateOps / aBaselineOps
   else
     aResult.Speedup := 0;
+end;
+
+procedure MeasureRotatedPublicAbiTriplet(aCacheFunc, aGetterFunc, aDispatchFunc: TBenchFunc;
+  var aTotalOps: Int64; out aCacheOps, aGetterOps, aDispatchOps: Double);
+begin
+  aCacheOps := 0.0;
+  aGetterOps := 0.0;
+  aDispatchOps := 0.0;
+
+  // Rotate measurement order so each call pattern sees early/mid/late positions once.
+  aCacheOps := aCacheOps + MeasureOpsPerSec(aCacheFunc, aTotalOps);
+  aGetterOps := aGetterOps + MeasureOpsPerSec(aGetterFunc, aTotalOps);
+  aDispatchOps := aDispatchOps + MeasureOpsPerSec(aDispatchFunc, aTotalOps);
+
+  aGetterOps := aGetterOps + MeasureOpsPerSec(aGetterFunc, aTotalOps);
+  aDispatchOps := aDispatchOps + MeasureOpsPerSec(aDispatchFunc, aTotalOps);
+  aCacheOps := aCacheOps + MeasureOpsPerSec(aCacheFunc, aTotalOps);
+
+  aDispatchOps := aDispatchOps + MeasureOpsPerSec(aDispatchFunc, aTotalOps);
+  aCacheOps := aCacheOps + MeasureOpsPerSec(aCacheFunc, aTotalOps);
+  aGetterOps := aGetterOps + MeasureOpsPerSec(aGetterFunc, aTotalOps);
+
+  aCacheOps := aCacheOps / 3.0;
+  aGetterOps := aGetterOps / 3.0;
+  aDispatchOps := aDispatchOps / 3.0;
 end;
 
 // === Memory Operation Benchmarks ===
@@ -323,7 +407,6 @@ end;
 
 var
   g_PublicAbiBuf1, g_PublicAbiBuf2: array[0..PUBLIC_ABI_HOT_SIZE - 1] of Byte;
-  g_PublicAbiApi: PFafafaSimdPublicApi;
   g_PublicAbiDummyEq: LongBool;
   g_PublicAbiDummySum: UInt64;
 
@@ -331,7 +414,6 @@ procedure InitPublicAbiBufs;
 var
   LIndex: Integer;
 begin
-  g_PublicAbiApi := GetSimdPublicApi;
   for LIndex := 0 to PUBLIC_ABI_HOT_SIZE - 1 do
   begin
     g_PublicAbiBuf1[LIndex] := Byte((LIndex * 13) and $FF);
@@ -340,58 +422,91 @@ begin
 end;
 
 function BenchHotMemEqual_Facade: Int64;
+var
+  LIndex: Integer;
 begin
-  g_PublicAbiDummyEq := MemEqual(@g_PublicAbiBuf1[0], @g_PublicAbiBuf2[0], PUBLIC_ABI_HOT_SIZE);
-  Result := 1;
+  for LIndex := 1 to PUBLIC_ABI_HOT_INNER do
+    g_PublicAbiDummyEq := MemEqual(@g_PublicAbiBuf1[0], @g_PublicAbiBuf2[0], PUBLIC_ABI_HOT_SIZE);
+  Result := PUBLIC_ABI_HOT_INNER;
 end;
 
 function BenchHotMemEqual_PublicCached: Int64;
+var
+  LApi: PFafafaSimdPublicApi;
+  LIndex: Integer;
 begin
-  g_PublicAbiDummyEq := g_PublicAbiApi^.MemEqual(@g_PublicAbiBuf1[0], @g_PublicAbiBuf2[0], PUBLIC_ABI_HOT_SIZE);
-  Result := 1;
+  LApi := GetSimdPublicApi;
+  for LIndex := 1 to PUBLIC_ABI_HOT_INNER do
+    g_PublicAbiDummyEq := LApi^.MemEqual(@g_PublicAbiBuf1[0], @g_PublicAbiBuf2[0], PUBLIC_ABI_HOT_SIZE);
+  Result := PUBLIC_ABI_HOT_INNER;
 end;
 
 function BenchHotMemEqual_PublicGetter: Int64;
+var
+  LIndex: Integer;
 begin
-  g_PublicAbiDummyEq := GetSimdPublicApi^.MemEqual(@g_PublicAbiBuf1[0], @g_PublicAbiBuf2[0], PUBLIC_ABI_HOT_SIZE);
-  Result := 1;
+  for LIndex := 1 to PUBLIC_ABI_HOT_INNER do
+    g_PublicAbiDummyEq := GetSimdPublicApi^.MemEqual(@g_PublicAbiBuf1[0], @g_PublicAbiBuf2[0], PUBLIC_ABI_HOT_SIZE);
+  Result := PUBLIC_ABI_HOT_INNER;
 end;
 
 function BenchHotMemEqual_DispatchGetter: Int64;
+var
+  LIndex: Integer;
 begin
-  g_PublicAbiDummyEq := GetDispatchTable^.MemEqual(@g_PublicAbiBuf1[0], @g_PublicAbiBuf2[0], PUBLIC_ABI_HOT_SIZE);
-  Result := 1;
+  for LIndex := 1 to PUBLIC_ABI_HOT_INNER do
+    g_PublicAbiDummyEq := GetDispatchTable^.MemEqual(@g_PublicAbiBuf1[0], @g_PublicAbiBuf2[0], PUBLIC_ABI_HOT_SIZE);
+  Result := PUBLIC_ABI_HOT_INNER;
 end;
 
 function BenchHotSumBytes_Facade: Int64;
+var
+  LIndex: Integer;
 begin
-  g_PublicAbiDummySum := SumBytes(@g_PublicAbiBuf1[0], PUBLIC_ABI_HOT_SIZE);
-  Result := 1;
+  for LIndex := 1 to PUBLIC_ABI_HOT_INNER do
+    g_PublicAbiDummySum := SumBytes(@g_PublicAbiBuf1[0], PUBLIC_ABI_HOT_SIZE);
+  Result := PUBLIC_ABI_HOT_INNER;
 end;
 
 function BenchHotSumBytes_PublicCached: Int64;
+var
+  LApi: PFafafaSimdPublicApi;
+  LIndex: Integer;
 begin
-  g_PublicAbiDummySum := g_PublicAbiApi^.SumBytes(@g_PublicAbiBuf1[0], PUBLIC_ABI_HOT_SIZE);
-  Result := 1;
+  LApi := GetSimdPublicApi;
+  for LIndex := 1 to PUBLIC_ABI_HOT_INNER do
+    g_PublicAbiDummySum := LApi^.SumBytes(@g_PublicAbiBuf1[0], PUBLIC_ABI_HOT_SIZE);
+  Result := PUBLIC_ABI_HOT_INNER;
 end;
 
 function BenchHotSumBytes_PublicGetter: Int64;
+var
+  LIndex: Integer;
 begin
-  g_PublicAbiDummySum := GetSimdPublicApi^.SumBytes(@g_PublicAbiBuf1[0], PUBLIC_ABI_HOT_SIZE);
-  Result := 1;
+  for LIndex := 1 to PUBLIC_ABI_HOT_INNER do
+    g_PublicAbiDummySum := GetSimdPublicApi^.SumBytes(@g_PublicAbiBuf1[0], PUBLIC_ABI_HOT_SIZE);
+  Result := PUBLIC_ABI_HOT_INNER;
 end;
 
 function BenchHotSumBytes_DispatchGetter: Int64;
+var
+  LIndex: Integer;
 begin
-  g_PublicAbiDummySum := GetDispatchTable^.SumBytes(@g_PublicAbiBuf1[0], PUBLIC_ABI_HOT_SIZE);
-  Result := 1;
+  for LIndex := 1 to PUBLIC_ABI_HOT_INNER do
+    g_PublicAbiDummySum := GetDispatchTable^.SumBytes(@g_PublicAbiBuf1[0], PUBLIC_ABI_HOT_SIZE);
+  Result := PUBLIC_ABI_HOT_INNER;
 end;
 
 function BenchPublicAbiCallPatterns: TBenchResults;
 var
   LMemFacadeOps: Double;
+  LMemCacheOps: Double;
+  LMemGetterOps: Double;
+  LMemDispatchOps: Double;
   LSumFacadeOps: Double;
-  LCandidateOps: Double;
+  LSumCacheOps: Double;
+  LSumGetterOps: Double;
+  LSumDispatchOps: Double;
   LTotalOps: Int64;
 begin
   InitPublicAbiBufs;
@@ -400,32 +515,24 @@ begin
   LTotalOps := 0;
 
   LMemFacadeOps := MeasureOpsPerSec(@BenchHotMemEqual_Facade, LTotalOps);
-
-  LCandidateOps := MeasureOpsPerSec(@BenchHotMemEqual_PublicCached, LTotalOps);
+  MeasureRotatedPublicAbiTriplet(@BenchHotMemEqual_PublicCached, @BenchHotMemEqual_PublicGetter,
+    @BenchHotMemEqual_DispatchGetter, LTotalOps, LMemCacheOps, LMemGetterOps, LMemDispatchOps);
   InitBenchResult(Result[0], 'HotMemEqPubCache', PUBLIC_ABI_HOT_SIZE,
-    'Facade', 'PubCache', LMemFacadeOps, LCandidateOps);
-
-  LCandidateOps := MeasureOpsPerSec(@BenchHotMemEqual_PublicGetter, LTotalOps);
+    'Facade', 'PubCache', LMemFacadeOps, LMemCacheOps);
   InitBenchResult(Result[1], 'HotMemEqPubGet', PUBLIC_ABI_HOT_SIZE,
-    'Facade', 'PubGet', LMemFacadeOps, LCandidateOps);
-
-  LCandidateOps := MeasureOpsPerSec(@BenchHotMemEqual_DispatchGetter, LTotalOps);
+    'Facade', 'PubGet', LMemFacadeOps, LMemGetterOps);
   InitBenchResult(Result[2], 'HotMemEqDispGet', PUBLIC_ABI_HOT_SIZE,
-    'Facade', 'DispGet', LMemFacadeOps, LCandidateOps);
+    'Facade', 'DispGet', LMemFacadeOps, LMemDispatchOps);
 
   LSumFacadeOps := MeasureOpsPerSec(@BenchHotSumBytes_Facade, LTotalOps);
-
-  LCandidateOps := MeasureOpsPerSec(@BenchHotSumBytes_PublicCached, LTotalOps);
+  MeasureRotatedPublicAbiTriplet(@BenchHotSumBytes_PublicCached, @BenchHotSumBytes_PublicGetter,
+    @BenchHotSumBytes_DispatchGetter, LTotalOps, LSumCacheOps, LSumGetterOps, LSumDispatchOps);
   InitBenchResult(Result[3], 'HotSumPubCache', PUBLIC_ABI_HOT_SIZE,
-    'Facade', 'PubCache', LSumFacadeOps, LCandidateOps);
-
-  LCandidateOps := MeasureOpsPerSec(@BenchHotSumBytes_PublicGetter, LTotalOps);
+    'Facade', 'PubCache', LSumFacadeOps, LSumCacheOps);
   InitBenchResult(Result[4], 'HotSumPubGet', PUBLIC_ABI_HOT_SIZE,
-    'Facade', 'PubGet', LSumFacadeOps, LCandidateOps);
-
-  LCandidateOps := MeasureOpsPerSec(@BenchHotSumBytes_DispatchGetter, LTotalOps);
+    'Facade', 'PubGet', LSumFacadeOps, LSumGetterOps);
   InitBenchResult(Result[5], 'HotSumDispGet', PUBLIC_ABI_HOT_SIZE,
-    'Facade', 'DispGet', LSumFacadeOps, LCandidateOps);
+    'Facade', 'DispGet', LSumFacadeOps, LSumDispatchOps);
 
   if g_PublicAbiDummyEq then;
   if g_PublicAbiDummySum > 0 then;
@@ -890,22 +997,10 @@ end;
 
 function GetBackendName: string;
 var
-  Backend: TSimdBackend;
+  LBackend: TSimdBackend;
 begin
-  Backend := GetActiveBackend;
-  Result := 'Unknown';
-  case Backend of
-    sbScalar: Result := 'Scalar';
-    sbSSE2:   Result := 'SSE2';
-    sbSSE3:   Result := 'SSE3';
-    sbSSSE3:  Result := 'SSSE3';
-    sbSSE41:  Result := 'SSE4.1';
-    sbSSE42:  Result := 'SSE4.2';
-    sbAVX2:   Result := 'AVX2';
-    sbAVX512: Result := 'AVX-512';
-    sbNEON:   Result := 'NEON';
-    sbRISCVV: Result := 'RISC-V V';
-  end;
+  LBackend := GetActiveBackend;
+  Result := GetBenchmarkBackendName(LBackend);
 end;
 
 function GetArchName: string;

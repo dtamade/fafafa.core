@@ -131,12 +131,27 @@ type
 // Parse Linux sysfs cache-size text into KB.
 // Supports K/KB/KiB, M/MB/MiB, G/GB/GiB and raw bytes.
 // Saturates at High(Integer) on overflow.
+// Shared x86 backend requirement helpers live here so cpuinfo predicates and
+// backend registration reuse one contract without circular dependencies.
+function X86HasAVX512BackendRequiredFeatures(const aX86: TX86Features): Boolean; inline;
+function X86SupportsAVX512BackendOnCPU(const aX86: TX86Features; const aHasUsableAVX512: Boolean): Boolean; inline;
 function ParseCacheSizeTextToKB(const aText: string): Integer;
 
 implementation
 
 uses
   SysUtils;
+
+function X86HasAVX512BackendRequiredFeatures(const aX86: TX86Features): Boolean; inline;
+begin
+  Result := aX86.HasAVX2 and aX86.HasAVX512F and aX86.HasAVX512BW and
+            aX86.HasPOPCNT and aX86.HasFMA;
+end;
+
+function X86SupportsAVX512BackendOnCPU(const aX86: TX86Features; const aHasUsableAVX512: Boolean): Boolean; inline;
+begin
+  Result := aHasUsableAVX512 and X86HasAVX512BackendRequiredFeatures(aX86);
+end;
 
 function ParseCacheSizeTextToKB(const aText: string): Integer;
 var

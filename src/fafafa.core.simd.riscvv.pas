@@ -4914,6 +4914,8 @@ asm
   vse64.v v0, (a1)
 end;
 
+{$ENDIF} // RISCVV_ASSEMBLY
+
 {$I fafafa.core.simd.riscvv.facade.inc}
 
 {$I fafafa.core.simd.riscvv.helpers.inc}
@@ -4923,6 +4925,5 @@ end;
 // =============================================================
 
 {$I fafafa.core.simd.riscvv.register.inc}
-
 
 end.

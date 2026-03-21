@@ -179,7 +179,7 @@ backend := GetActiveBackend;  // 返回 TSimdBackend 枚举
 SetActiveBackend(sbAVX2);
 
 // 四层状态语义：
-// supported_on_cpu  -> GetSupportedBackendList / GetAvailableBackends(cpuinfo)
+// supported_on_cpu  -> GetSupportedBackendList / GetBestSupportedBackend (cpuinfo 推荐名)
 // registered        -> GetRegisteredBackendList / IsBackendRegisteredInBinary
 // dispatchable      -> GetDispatchableBackendList / GetAvailableBackendList
 // active            -> GetCurrentBackend / GetActiveBackend
@@ -195,6 +195,8 @@ backends := GetDispatchableBackendList;  // 语义更明确的等价入口
 // 查询 CPU/OS 支持的后端（不保证当前二进制一定会选中它）
 backends := GetSupportedBackendList;
 backends := GetAvailableBackends;  // cpuinfo 语义：supported-on-cpu
+best := GetBestSupportedBackend;
+best := GetBestBackendOnCPU;       // 兼容旧名
 
 // 获取后端信息
 info := GetBackendInfo(sbSSE2);
@@ -273,7 +275,7 @@ BitsetPopCount(p, len)     // 位集合 popcount
 - `AVX2`、`AVX-512`、`NEON` 的 register / facade / family / fallback 区块已经按注释边界拆出。
 - `SSE2` 仍然保留更多主体实现；这是有意为之，因为它已经接近“继续物理拆分风险大于收益”的边界。
 
-如果你要理解当前实现，建议先从 `fafafa.core.simd.pas`、`fafafa.core.simd.dispatch.pas`、`fafafa.core.simd.cpuinfo.pas` 读起，再看各 backend 的 `*.register.inc` 和 `*.facade.inc`。
+如果你要理解当前实现，建议先从 `fafafa.core.simd.pas`、`fafafa.core.simd.dispatch.pas`、`fafafa.core.simd.cpuinfo.pas` 读起，再看各 backend 的注册入口与 `*.facade.inc`。其中多数 backend 的注册入口在 `*.register.inc`，但 `SSE2` 当前直接保留在 `fafafa.core.simd.sse2.pas`。
 
 更偏维护视角的说明，见 `docs/fafafa.core.simd.maintenance.md`；更短的阅读地图见 `docs/fafafa.core.simd.map.md`。
 

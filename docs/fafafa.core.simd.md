@@ -54,14 +54,15 @@
 
 当前建议把 backend 状态分成 4 层理解，不再用一个含糊的 “available” 混过去：
 
-- `supported_on_cpu`：CPU/OS 语义上支持。入口：`cpuinfo` 的 `GetAvailableBackends` / `GetBestBackendOnCPU`
+- `supported_on_cpu`：CPU/OS 语义上支持。推荐入口：`cpuinfo` 的 `GetSupportedBackendList` / `GetBestSupportedBackend`
 - `registered`：当前二进制里已经注册。入口：`GetRegisteredBackendList` / `IsBackendRegisteredInBinary`
 - `dispatchable`：CPU/OS 支持 + 已注册 + `BackendInfo.Available=True`。入口：`GetDispatchableBackendList` / `GetAvailableBackendList`
 - `active`：当前真正生效的 backend。入口：`GetCurrentBackend` / `GetCurrentBackendInfo`
 
 这四层里最容易混的是前两层与第三层：
 
-- `cpuinfo` 的 `GetAvailableBackends` 只说明 “这台机器支持”
+- `cpuinfo` 的 `GetSupportedBackendList` 只说明 “这台机器支持”
+- `GetAvailableBackends` / `GetBestBackendOnCPU` 继续保留，但仅作为兼容别名理解
 - façade 的 `GetAvailableBackendList` 才说明 “这份二进制现在真的可派发”
 
 ## 架构设计
@@ -371,6 +372,8 @@ function AsciiIEqual(a, b: Pointer; len: SizeUInt): Boolean;
 实现与配置（以代码为准）
 - 后端选择/强制：使用 `fafafa.core.simd.dispatch` 的 `SetActiveBackend` / `TrySetActiveBackend` / `ResetToAutomaticBackend`。
 - VectorAsm 开关：编译期定义 `SIMD_VECTOR_ASM_DISABLED`；运行时可调用 `SetVectorAsmEnabled`（支持初始化后切换，并触发 backend 重建；建议用于启动/测试阶段，而非业务热路径并发写切换）。
+  - 对 `SSE* / AVX*` 这类 runtime-gated backend，会在重建时切换 fast path / fallback 能力位。
+  - 对当前 `NEON / RISCVV` asm build，runtime 关闭后会重建为 scalar-backed table，以避免保留 stale asm dispatch；这条路径仍需在 arm64 / riscv64 asm-ready 主机上补 fresh execution evidence。
 - 测试入口：
   - bash tests/fafafa.core.simd/BuildOrTest.sh check
   - bash tests/fafafa.core.simd/BuildOrTest.sh test

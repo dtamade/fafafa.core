@@ -1,8 +1,8 @@
 # SIMD Interface/Implementation Completeness Report
 
-- generated_at: 2026-03-11T10:11:37
+- generated_at: 2026-03-20T04:18:35
 - dispatch_slots_total: `558`
-- strict: `True`
+- strict: `False`
 - strict_level: `p2`
 - analyzer: `heuristic token/assignment scan (not semantic proof)`
 

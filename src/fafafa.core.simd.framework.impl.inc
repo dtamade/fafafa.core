@@ -4,8 +4,14 @@ begin
 end;
 
 function GetCurrentBackendInfo: TSimdBackendInfo;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result := GetBackendInfo(GetActiveBackend);
+  LDispatch := GetDispatchTable;
+  if LDispatch <> nil then
+    Result := LDispatch^.BackendInfo
+  else
+    Result := GetBackendInfo(GetActiveBackend);
 end;
 
 function GetCPUInformation: TCPUInfo;

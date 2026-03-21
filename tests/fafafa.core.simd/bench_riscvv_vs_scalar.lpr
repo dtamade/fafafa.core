@@ -58,40 +58,47 @@ function RunBackendComparison: TBackendBenchResults;
 var
   LScalarResults, LRISCVVResults: TBenchResults;
   LIndex: Integer;
+  LSkipReason: string;
 begin
   Result := nil;
-
-  if not IsBackendAvailableOnCPU(sbRISCVV) then
-  begin
-    WriteLn('[SKIP] RISCVV backend is not available on this CPU');
-    Exit;
-  end;
 
   WriteLn('=== RISCVV vs Scalar Performance Benchmark ===');
   WriteLn;
   SetVectorAsmEnabled(True);
-  WriteLn('Running Scalar backend tests...');
-  SetActiveBackend(sbScalar);
-  LScalarResults := RunAllBenchmarks;
+  try
+    WriteLn('Running Scalar backend tests...');
+    LSkipReason := '';
+    if not TryActivateBenchmarkBackend(sbScalar, LSkipReason) then
+    begin
+      WriteLn('[SKIP] ', LSkipReason);
+      Exit;
+    end;
+    LScalarResults := RunAllBenchmarks;
 
-  WriteLn('Running RISCVV backend tests...');
-  SetActiveBackend(sbRISCVV);
-  LRISCVVResults := RunAllBenchmarks;
+    WriteLn('Running RISCVV backend tests...');
+    LSkipReason := '';
+    if not TryActivateBenchmarkBackend(sbRISCVV, LSkipReason) then
+    begin
+      WriteLn('[SKIP] ', LSkipReason);
+      Exit;
+    end;
+    LRISCVVResults := RunAllBenchmarks;
 
-  SetLength(Result, Length(LScalarResults));
-  for LIndex := 0 to High(LScalarResults) do
-  begin
-    Result[LIndex].Name := LScalarResults[LIndex].Name;
-    Result[LIndex].Size := LScalarResults[LIndex].Size;
-    Result[LIndex].ScalarOpsPerSec := LScalarResults[LIndex].ActiveOpsPerSec;
-    Result[LIndex].RISCVVOpsPerSec := LRISCVVResults[LIndex].ActiveOpsPerSec;
-    if Result[LIndex].ScalarOpsPerSec > 0 then
-      Result[LIndex].Speedup := Result[LIndex].RISCVVOpsPerSec / Result[LIndex].ScalarOpsPerSec
-    else
-      Result[LIndex].Speedup := 0;
+    SetLength(Result, Length(LScalarResults));
+    for LIndex := 0 to High(LScalarResults) do
+    begin
+      Result[LIndex].Name := LScalarResults[LIndex].Name;
+      Result[LIndex].Size := LScalarResults[LIndex].Size;
+      Result[LIndex].ScalarOpsPerSec := LScalarResults[LIndex].ActiveOpsPerSec;
+      Result[LIndex].RISCVVOpsPerSec := LRISCVVResults[LIndex].ActiveOpsPerSec;
+      if Result[LIndex].ScalarOpsPerSec > 0 then
+        Result[LIndex].Speedup := Result[LIndex].RISCVVOpsPerSec / Result[LIndex].ScalarOpsPerSec
+      else
+        Result[LIndex].Speedup := 0;
+    end;
+  finally
+    ResetToAutomaticBackend;
   end;
-
-  ResetToAutomaticBackend;
 end;
 
 procedure PrintResults(const aResults: TBackendBenchResults);

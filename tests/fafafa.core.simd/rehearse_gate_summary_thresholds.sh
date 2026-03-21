@@ -56,7 +56,7 @@ if ! rg -q "matched_rows=[1-9][0-9]*" "${SLOW_OUT}"; then
   echo "[REHEARSAL] FAILED: SLOW filter matched_rows expected > 0"
   exit 1
 fi
-if ! rg -q "SLOW_WARN|SLOW_FAIL" "${SLOW_OUT}"; then
+if ! rg -q "SLOW_WARN|SLOW_CRIT" "${SLOW_OUT}"; then
   echo "[REHEARSAL] FAILED: SLOW rows not shown"
   exit 1
 fi

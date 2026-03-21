@@ -98,6 +98,8 @@ for %%D in ("%~dp1.") do set "MOD_LEAF=%%~nD"
 call :should_run "!MOD_FULL!" "!MOD_LEAF!"
 if errorlevel 1 goto :eof
 set "LOG_FILE=%LOG_DIR%\!MOD_FULL!.log"
+set "MODULE_SIMD_OUTPUT_ROOT="
+if defined SIMD_OUTPUT_ROOT if /I "!MOD_FULL:~0,16!"=="fafafa.core.simd" set "MODULE_SIMD_OUTPUT_ROOT=%SIMD_OUTPUT_ROOT%\run_all\!MOD_FULL!"
 
 echo.>"%LOG_FILE%"
 echo ========================================>>"%LOG_FILE%"
@@ -105,12 +107,22 @@ echo Module: !MOD_FULL!>>"%LOG_FILE%"
 echo Basename: !MOD_LEAF!>>"%LOG_FILE%"
 echo Script: %SCRIPT%>>"%LOG_FILE%"
 echo Started: %DATE% %TIME%>>"%LOG_FILE%"
+if defined MODULE_SIMD_OUTPUT_ROOT echo SIMD_OUTPUT_ROOT: !MODULE_SIMD_OUTPUT_ROOT!>>"%LOG_FILE%"
 echo ========================================>>"%LOG_FILE%"
 
 set /a TOTAL+=1
+set "ACTION=%RUN_ACTION%"
+if not defined ACTION set "ACTION=test"
 pushd "%~dp1" >nul
-call "%SCRIPT%" >>"%LOG_FILE%" 2>&1
+set "PREV_SIMD_OUTPUT_ROOT=%SIMD_OUTPUT_ROOT%"
+if defined MODULE_SIMD_OUTPUT_ROOT set "SIMD_OUTPUT_ROOT=!MODULE_SIMD_OUTPUT_ROOT!"
+echo Action: !ACTION!>>"%LOG_FILE%"
+call "%SCRIPT%" "!ACTION!" >>"%LOG_FILE%" 2>&1
 set "RC=%ERRORLEVEL%"
+set "SIMD_OUTPUT_ROOT=%PREV_SIMD_OUTPUT_ROOT%"
+set "PREV_SIMD_OUTPUT_ROOT="
+set "MODULE_SIMD_OUTPUT_ROOT="
+set "ACTION="
 popd >nul
 
 if "%RC%"=="0" (

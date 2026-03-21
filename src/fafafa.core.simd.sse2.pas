@@ -8,7 +8,8 @@ interface
 
 uses
   fafafa.core.simd.base,
-  fafafa.core.simd.dispatch;
+  fafafa.core.simd.dispatch,
+  fafafa.core.simd.backend.priority;
 
 // === SSE2 Backend Implementation ===
 // Provides SIMD-accelerated operations using x86-64 SSE2 instructions.
@@ -10522,9 +10523,14 @@ begin
     Backend := sbSSE2;
     Name := 'SSE2';
     Description := 'x86-64 SSE2 SIMD implementation';
-    Capabilities := [scBasicArithmetic, scComparison, scMathFunctions, scReduction, scLoadStore];
-    Available := True;
-    Priority := 10; // Higher than scalar
+    Capabilities := [scBasicArithmetic, scComparison, scMathFunctions, scReduction,
+                     scLoadStore];
+    if IsVectorAsmEnabled then
+      Include(Capabilities, scShuffle);
+    if IsVectorAsmEnabled then
+      Include(Capabilities, scIntegerOps);
+    Available := IsVectorAsmEnabled;
+    Priority := GetSimdBackendPriorityValue(sbSSE2);
   end;
 
   // Vector-related operations default to Scalar reference implementations.

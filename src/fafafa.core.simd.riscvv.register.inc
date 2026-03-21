@@ -1,28 +1,50 @@
 procedure RegisterRISCVVBackend;
 var
   table: TSimdDispatchTable;
+  LCapabilities: TSimdCapabilities;
+  LAsmCapable: Boolean;
+  LUseVectorAsm: Boolean;
 begin
   // ✅ 使用 FillBaseDispatchTable 填充标量后备实现，而不是 FillChar
   // 这确保所有未注册的函数都有有效的后备实现，避免空指针异常
   table := Default(TSimdDispatchTable);
   FillBaseDispatchTable(table);
 
+  LAsmCapable := False;
+  {$IFDEF RISCVV_ASSEMBLY}
+  LAsmCapable := True;
+  {$ENDIF}
+  LUseVectorAsm := False;
+  if LAsmCapable then
+    LUseVectorAsm := IsVectorAsmEnabled;
+
   // Backend info
   table.Backend := sbRISCVV;
   table.BackendInfo.Backend := sbRISCVV;
   table.BackendInfo.Name := 'RISC-V V';
   table.BackendInfo.Description := 'RISC-V Vector Extension (RVV)';
-  table.BackendInfo.Available := True;
+  table.BackendInfo.Available := (not LAsmCapable) or LUseVectorAsm;
   table.BackendInfo.Priority := GetSimdBackendPriorityValue(sbRISCVV);
-  table.BackendInfo.Capabilities := [
+  LCapabilities := [
     scBasicArithmetic,
     scComparison,
     scMathFunctions,
     scReduction,
-    scShuffle,
-    scIntegerOps,
     scLoadStore
   ];
+  if LUseVectorAsm then
+    Include(LCapabilities, scIntegerOps);
+  if LUseVectorAsm then
+  Include(LCapabilities, scShuffle);
+  if LUseVectorAsm then
+  Include(LCapabilities, scFMA);
+  table.BackendInfo.Capabilities := LCapabilities;
+
+  if LAsmCapable and (not LUseVectorAsm) then
+  begin
+    RegisterBackend(sbRISCVV, table);
+    Exit;
+  end;
 
   // === F32x4 Operations ===
   table.AddF32x4 := @RISCVVAddF32x4;
@@ -731,6 +753,12 @@ end;
 // Auto-register on RISC-V platforms with V extension
 
 initialization
+  {$IFDEF FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND}
+  // Test-only opt-in path: allow non-native hosts to register RVV scalar/common
+  // implementations so DispatchAPI/PublicAbi suites can verify metadata contracts.
+  RegisterRISCVVBackend;
+  RegisterBackendRebuilder(sbRISCVV, @RegisterRISCVVBackend);
+  {$ELSE}
   {$IFDEF CPURISCV64}
   // On RISC-V 64-bit, attempt to register
   // In practice, runtime detection of V extension would be needed
@@ -742,4 +770,5 @@ initialization
   RegisterRISCVVBackend;
   // ✅ P1-D: Register rebuilder callback for VectorAsmEnabled changes
   RegisterBackendRebuilder(sbRISCVV, @RegisterRISCVVBackend);
+  {$ENDIF}
   {$ENDIF}

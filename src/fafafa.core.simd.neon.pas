@@ -49,9 +49,7 @@ unit fafafa.core.simd.neon;
 interface
 
 uses
-  fafafa.core.simd.backend.priority;
-
-uses
+  fafafa.core.simd.backend.priority,
   fafafa.core.simd.base,
   fafafa.core.simd.dispatch;
 
@@ -2259,6 +2257,8 @@ end;
 {$I fafafa.core.simd.neon.compare.inc}
 
 {$I fafafa.core.simd.neon.facade_asm.inc}
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 {$I fafafa.core.simd.neon.scalar_fallback.inc}
 

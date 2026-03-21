@@ -57,7 +57,8 @@
 
 - 正常使用者可以把公开 API 当作稳定入口
 - 当前 `TSimdDispatchTable` 可以按仓库内稳定 contract 理解，但不应被当成 public binary ABI
-- `cpuinfo` 的 `GetAvailableBackends` / `GetBestBackendOnCPU` 反映的是 `supported_on_cpu` 视图
+- `cpuinfo` 的 `GetSupportedBackendList` / `GetBestSupportedBackend` 是 `supported_on_cpu` 视图的推荐入口
+- `GetAvailableBackends` / `GetBestBackendOnCPU` 继续保留，但只按兼容别名理解
 - façade 层的 `GetRegisteredBackendList` / `IsBackendRegisteredInBinary` 反映的是 `registered` 视图
 - façade 层的 `GetAvailableBackendList` / `GetDispatchableBackendList` 反映的是 `dispatchable` 视图
 - `GetCurrentBackend` / `GetCurrentBackendInfo` 反映的是 `active` 视图
@@ -228,16 +229,23 @@ tests\fafafa.core.simd\buildOrTest.bat gate-strict
    tests\fafafa.core.simd\buildOrTest.bat evidence-win-verify
    ```
 
+   Then run the required fail-close cross gate:
+   ```bash
+   FAFAFA_BUILD_MODE=Release SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate
+   ```
+
    Then:
    ```bash
-   bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize SIMD-YYYYMMDD-152
+   FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize SIMD-YYYYMMDD-152
+   ```
+
+   这里不能直接从 `evidence-win-verify` 跳到 `win-closeout-finalize`，因为 native batch evidence 不会生成 fresh `gate_summary.md/json`；如果少了这步 cross gate，`freeze-status` 看到的仍可能是旧摘要。
 
    如果你只是在拆分诊断 closeout helper，才单独使用：
 
    ```bash
    bash tests/fafafa.core.simd/BuildOrTest.sh finalize-win-evidence
    bash tests/fafafa.core.simd/apply_windows_b07_closeout_updates.sh --apply --batch-id SIMD-YYYYMMDD-152
-   ```
    ```
 
 4. **非 x86 / QEMU 证据链仍然是发布前话题**

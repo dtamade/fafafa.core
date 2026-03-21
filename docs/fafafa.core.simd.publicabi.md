@@ -68,7 +68,13 @@
 
 ## Public API Table
 
-`GetSimdPublicApi` 返回的是一张新的 public API table，不是当前内部 `TSimdDispatchTable`。
+`GetSimdPublicApi` 返回的是一张**缓存的、已绑定的 public API table 指针**，不是当前内部 `TSimdDispatchTable`。
+
+这意味着：
+
+- 它返回的是 public-ABI 视图，不是内部 dispatch table 本体
+- 后端切换后，内部会发布一张新的已绑定 snapshot
+- 调用方可以缓存这个指针做 data-plane 直调；如果需要最新 metadata，应在 backend 切换后重新取表
 
 当前已绑定这些高 ROI façade：
 
@@ -89,6 +95,8 @@
 - `MinMaxBytes`
 
 这些函数指针使用 `cdecl`，适合外部 C ABI 调用。
+
+其中带原地写入语义的入口，例如 `MemCopy`、`MemSet`、`ToLowerAscii`、`ToUpperAscii`、`MemReverse`，要求调用方提供**可写 buffer**；不要把只读或共享字符串存储直接当作原地修改目标。
 
 ## 性能语义
 
@@ -153,12 +161,17 @@ bash tests/fafafa.core.simd/BuildOrTest.sh test --bench-only
 - 循环内重复 `GetSimdPublicApi`
 - 循环内重复 `GetDispatchTable`
 
-目的不是追求某个固定倍数，而是持续守住“缓存 table 后直调”这条使用范式。
+benchmark 本身现在会把每个热点回调扩成 inner loop，并对 `PubCache / PubGet / DispGet`
+做轮转采样，尽量减小固定顺序带来的热身偏置。
+
+目的不是追求某个固定倍数，而是持续观察 public ABI 热点路径的几种调用形态。
 
 当前 `perf-smoke` 也已经把这件事纳入自动检查：
 
-- `PubCache` 不能明显慢于 `PubGet`
 - `PubGet` 必须明显快于 `DispGet`
+- `PubCache` / `PubGet` 仍会输出并保留为观察项，但当前不再作为 hard fail
+  因为 `GetSimdPublicApi` 是极薄的 inline getter，编译器可能把重复 getter 优化到与
+  table cache 等价，甚至在个别样本里略快
 
 也就是说，public ABI 热点路径现在不只是靠人工看 benchmark。
 
@@ -214,6 +227,8 @@ Windows smoke 通过 `publicabi_smoke.ps1` 完成：
 - 调用 ABI version / signature / backend query
 - 获取 public API table
 - 执行最小 data-plane parity smoke
+- batch runner 优先使用 `pwsh`，回退到 `powershell`；若两者都不存在则非零退出，避免 `publicabi-smoke` 被静默跳过
+- shell / batch runner 都支持 `SIMD_OUTPUT_ROOT`；如果通过主 `simd` gate 链路调用，它会自动落到隔离根下的 `publicabi/` 子目录
 
 ### Machine-readable contract guard
 

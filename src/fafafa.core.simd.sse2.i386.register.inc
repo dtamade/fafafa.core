@@ -17,8 +17,13 @@ begin
   dispatchTable.BackendInfo.Backend := sbSSE2;
   dispatchTable.BackendInfo.Name := 'SSE2-i386';
   dispatchTable.BackendInfo.Description := 'i386 SSE2 SIMD implementation (128-bit)';
-  dispatchTable.BackendInfo.Capabilities := [scBasicArithmetic, scComparison, scMathFunctions, scReduction, scLoadStore];
-  dispatchTable.BackendInfo.Available := True;
+  dispatchTable.BackendInfo.Capabilities := [scBasicArithmetic, scComparison, scMathFunctions,
+                                             scReduction, scLoadStore];
+  if IsVectorAsmEnabled then
+    Include(dispatchTable.BackendInfo.Capabilities, scShuffle);
+  if IsVectorAsmEnabled then
+    Include(dispatchTable.BackendInfo.Capabilities, scIntegerOps);
+  dispatchTable.BackendInfo.Available := IsVectorAsmEnabled;
   dispatchTable.BackendInfo.Priority := GetSimdBackendPriorityValue(sbSSE2);
 
   // Override facade functions with SSE2-accelerated versions

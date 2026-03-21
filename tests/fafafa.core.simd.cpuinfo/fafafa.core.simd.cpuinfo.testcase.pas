@@ -31,6 +31,7 @@ type
     procedure Test_IsBackendAvailable;
     procedure Test_BackendSupportPredicateConsistency;
     procedure Test_GetAvailableBackends;
+    procedure Test_ClearSupportedAliases_PreserveCpuOnlySemantics;
     procedure Test_GetBestBackend;
     procedure Test_GetBestBackendOnCPU_IndependentFromActiveBackend;
     procedure Test_GetBackendInfo;
@@ -467,6 +468,43 @@ begin
   end;
 end;
 
+procedure TTestCase_Global.Test_ClearSupportedAliases_PreserveCpuOnlySemantics;
+var
+  LSupportedLegacy: TSimdBackendArray;
+  LSupportedAlias: TSimdBackendArray;
+  LAvailableLegacy: TSimdBackendArray;
+  LIndex: Integer;
+  LBestLegacy: TSimdBackend;
+  LBestAlias: TSimdBackend;
+  LBestCompat: TSimdBackend;
+begin
+  LSupportedLegacy := GetSupportedBackends;
+  LSupportedAlias := GetSupportedBackendList;
+  LAvailableLegacy := GetAvailableBackends;
+
+  AssertEquals('GetSupportedBackendList length should match GetSupportedBackends',
+    Length(LSupportedLegacy), Length(LSupportedAlias));
+  AssertEquals('GetAvailableBackends length should match GetSupportedBackends',
+    Length(LSupportedLegacy), Length(LAvailableLegacy));
+
+  for LIndex := 0 to High(LSupportedLegacy) do
+  begin
+    AssertEquals('GetSupportedBackendList should preserve CPU-supported ordering',
+      Ord(LSupportedLegacy[LIndex]), Ord(LSupportedAlias[LIndex]));
+    AssertEquals('GetAvailableBackends should remain a compatibility alias for CPU-supported ordering',
+      Ord(LSupportedLegacy[LIndex]), Ord(LAvailableLegacy[LIndex]));
+  end;
+
+  LBestLegacy := GetBestBackendOnCPU;
+  LBestAlias := GetBestSupportedBackend;
+  LBestCompat := GetBestBackend;
+
+  AssertEquals('GetBestSupportedBackend should alias GetBestBackendOnCPU',
+    Ord(LBestLegacy), Ord(LBestAlias));
+  AssertEquals('GetBestBackend should remain a compatibility alias',
+    Ord(LBestLegacy), Ord(LBestCompat));
+end;
+
 procedure TTestCase_Global.Test_GetBestBackend;
 var
   bestBackend: TSimdBackend;
@@ -761,6 +799,7 @@ var
   LCPUInfo: TCPUInfo;
   LBackends: TSimdBackendArray;
   LIndex: Integer;
+  LExpectedAVX512Backend: Boolean;
 begin
   LCPUInfo := GetCPUInfo;
   LBackends := GetSupportedBackends;
@@ -774,10 +813,13 @@ begin
   {$IFDEF SIMD_X86_AVAILABLE}
   if LCPUInfo.Arch = caX86 then
   begin
+    LExpectedAVX512Backend := X86SupportsAVX512BackendOnCPU(LCPUInfo.X86, gfSimd512 in LCPUInfo.GenericUsable);
+
     // Direction B1: x86 intrinsics facade -> backend list
     AssertEquals('SSE2 backend presence should match simd_has_sse2', simd_has_sse2, BackendInArray(sbSSE2, LBackends));
     AssertEquals('AVX2 backend presence should match simd_has_avx2', simd_has_avx2, BackendInArray(sbAVX2, LBackends));
-    AssertEquals('AVX512 backend presence should match simd_has_avx512f', simd_has_avx512f, BackendInArray(sbAVX512, LBackends));
+    AssertEquals('AVX512 backend presence should match backend-supported predicate, not raw simd_has_avx512f semantics',
+      LExpectedAVX512Backend, BackendInArray(sbAVX512, LBackends));
 
     // Direction B2: backend list -> x86 intrinsics facade
     if BackendInArray(sbSSE2, LBackends) then
@@ -785,7 +827,8 @@ begin
     if BackendInArray(sbAVX2, LBackends) then
       AssertTrue('AVX2 backend listed implies simd_has_avx2', simd_has_avx2);
     if BackendInArray(sbAVX512, LBackends) then
-      AssertTrue('AVX512 backend listed implies simd_has_avx512f', simd_has_avx512f);
+      AssertTrue('AVX512 backend listed implies backend-supported predicate',
+        LExpectedAVX512Backend);
   end
   else
   begin

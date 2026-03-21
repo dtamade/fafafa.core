@@ -7360,6 +7360,7 @@ end;
 {$I fafafa.core.simd.public_abi.impl.inc}
 
 initialization
+  InitializeSimdPublicApiBinding;
   AddDispatchChangedHook(@RebindSimdFacadeFastPaths);
   RebindSimdFacadeFastPaths;
   AddDispatchChangedHook(@RebindSimdPublicApi);
@@ -7368,5 +7369,6 @@ initialization
 finalization
   RemoveDispatchChangedHook(@RebindSimdPublicApi);
   RemoveDispatchChangedHook(@RebindSimdFacadeFastPaths);
+  FinalizeSimdPublicApiBinding;
 
 end.

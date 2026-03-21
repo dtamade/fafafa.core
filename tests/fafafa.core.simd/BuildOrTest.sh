@@ -31,6 +31,7 @@ PERF_SMOKE_CHECK_SCRIPT="${ROOT}/check_perf_smoke_log.py"
 ADAPTER_SYNC_SCRIPT="${ROOT}/check_backend_adapter_sync.py"
 REGISTER_INCLUDE_CHECK_SCRIPT="${ROOT}/check_backend_register_include_consistency.py"
 SUITE_MANIFEST_CHECK_SCRIPT="${ROOT}/check_suite_manifest_sync.py"
+DISPATCH_PREINIT_SMOKE_SRC="${ROOT}/fafafa.core.simd.dispatch_preinit_smoke.pas"
 EXPERIMENTAL_INTRINSICS_SCRIPT="${ROOT}/check_intrinsics_experimental_status.py"
 WIRING_SYNC_SCRIPT="${ROOT}/check_nonx86_wiring_sync.py"
 QEMU_EXPERIMENTAL_REPORT_SCRIPT="${ROOT}/report_qemu_experimental_blockers.py"
@@ -457,6 +458,14 @@ experimental_intrinsics_output_root() {
   fi
 }
 
+dispatch_preinit_smoke_output_root() {
+  if [[ "${OUTPUT_ROOT}" == "${ROOT}" ]]; then
+    echo "${ROOT}/dispatch.preinit.smoke"
+  else
+    echo "${OUTPUT_ROOT}/dispatch.preinit.smoke"
+  fi
+}
+
 nonx86_optin_output_root() {
   local aBackend
   aBackend="${1}"
@@ -470,7 +479,7 @@ nonx86_optin_output_root() {
 run_clean() {
   local -a LPaths
 
-  LPaths=("${BIN_DIR}" "${OUTPUT_ROOT}/lib2" "${LOG_DIR}" "${OUTPUT_ROOT}/nonx86.optin")
+  LPaths=("${BIN_DIR}" "${OUTPUT_ROOT}/lib2" "${LOG_DIR}" "${OUTPUT_ROOT}/nonx86.optin" "${OUTPUT_ROOT}/dispatch.preinit.smoke")
   if [[ "${OUTPUT_ROOT}" != "${ROOT}" ]]; then
     LPaths+=(
       "${OUTPUT_ROOT}/bin"
@@ -485,6 +494,63 @@ run_clean() {
 
   echo "[CLEAN] Removing ${LPaths[*]}"
   rm -rf "${LPaths[@]}"
+}
+
+run_dispatch_preinit_smoke() {
+  local LSmokeOutputRoot
+  local LSmokeBinDir
+  local LSmokeLibDir
+  local LSmokeLogDir
+  local LSmokeBuildLog
+  local LSmokeTestLog
+  local LSmokeBin
+
+  if [[ ! -f "${DISPATCH_PREINIT_SMOKE_SRC}" ]]; then
+    echo "[DISPATCH-PREINIT] Missing smoke source: ${DISPATCH_PREINIT_SMOKE_SRC}"
+    return 2
+  fi
+
+  LSmokeOutputRoot="$(dispatch_preinit_smoke_output_root)"
+  LSmokeBinDir="${LSmokeOutputRoot}/bin"
+  LSmokeLibDir="${LSmokeOutputRoot}/lib/${TARGET_CPU}-${TARGET_OS}"
+  LSmokeLogDir="${LSmokeOutputRoot}/logs"
+  LSmokeBuildLog="${LSmokeLogDir}/build.txt"
+  LSmokeTestLog="${LSmokeLogDir}/test.txt"
+  LSmokeBin="${LSmokeBinDir}/fafafa.core.simd.dispatch_preinit_smoke"
+
+  mkdir -p "${LSmokeBinDir}" "${LSmokeLibDir}" "${LSmokeLogDir}"
+
+  echo "[DISPATCH-PREINIT] Building standalone smoke: ${DISPATCH_PREINIT_SMOKE_SRC}"
+  if ! "${FPC_BIN}" -B -Mobjfpc -Scghi -O3 \
+      -Fi"${REPO_ROOT}/src" \
+      -Fu"${REPO_ROOT}/src" \
+      -Fu"${ROOT}" \
+      -FE"${LSmokeBinDir}" \
+      -FU"${LSmokeLibDir}" \
+      "${DISPATCH_PREINIT_SMOKE_SRC}" > "${LSmokeBuildLog}" 2>&1; then
+    echo "[DISPATCH-PREINIT] BUILD FAILED (see ${LSmokeBuildLog})"
+    tail -n 80 "${LSmokeBuildLog}" || true
+    return 1
+  fi
+
+  if [[ ! -x "${LSmokeBin}" && -x "${LSmokeBin}.exe" ]]; then
+    LSmokeBin="${LSmokeBin}.exe"
+  fi
+
+  if [[ ! -x "${LSmokeBin}" ]]; then
+    echo "[DISPATCH-PREINIT] BUILD FAILED (binary missing: ${LSmokeBin})"
+    tail -n 80 "${LSmokeBuildLog}" || true
+    return 1
+  fi
+
+  echo "[DISPATCH-PREINIT] Running standalone smoke: ${LSmokeBin}"
+  if ! "${LSmokeBin}" > "${LSmokeTestLog}" 2>&1; then
+    echo "[DISPATCH-PREINIT] FAILED (see ${LSmokeTestLog})"
+    cat "${LSmokeTestLog}" || true
+    return 1
+  fi
+
+  echo "[DISPATCH-PREINIT] OK"
 }
 
 run_cpuinfo_lazy_repeat() {
@@ -2641,6 +2707,7 @@ check_isolated_clean_coverage() {
 
   LMainShellRequired=(
     'run_clean() {'
+    '"${OUTPUT_ROOT}/dispatch.preinit.smoke"'
     'if [[ "${OUTPUT_ROOT}" != "${ROOT}" ]]; then'
     '"${OUTPUT_ROOT}/bin"'
     '"${OUTPUT_ROOT}/lib"'
@@ -2651,6 +2718,7 @@ check_isolated_clean_coverage() {
     '"${OUTPUT_ROOT}/run_all"'
   )
   LMainBatRequired=(
+    'if exist "%OUTPUT_ROOT%\dispatch.preinit.smoke" rmdir /s /q "%OUTPUT_ROOT%\dispatch.preinit.smoke"'
     'if /I not "%OUTPUT_ROOT%"=="%ROOT%" ('
     'if exist "%OUTPUT_ROOT%\bin" rmdir /s /q "%OUTPUT_ROOT%\bin"'
     'if exist "%OUTPUT_ROOT%\lib" rmdir /s /q "%OUTPUT_ROOT%\lib"'
@@ -2899,6 +2967,77 @@ check_experimental_intrinsics_output_isolation() {
   fi
 
   echo "[CHECK] OK (experimental intrinsics output isolation present)"
+}
+
+check_dispatch_preinit_smoke_runner_guard() {
+  local LMainShell
+  local LMainBat
+  local LSmokeSrc
+  local LPattern
+  local LMissing
+  local -a LShellRequired
+  local -a LBatRequired
+  local -a LSmokeRequired
+
+  LMainShell="${ROOT}/BuildOrTest.sh"
+  LMainBat="${ROOT}/buildOrTest.bat"
+  LSmokeSrc="${ROOT}/fafafa.core.simd.dispatch_preinit_smoke.pas"
+  LMissing=0
+
+  for LPattern in "${LMainShell}" "${LMainBat}" "${LSmokeSrc}"; do
+    if [[ ! -f "${LPattern}" ]]; then
+      echo "[CHECK] Missing dispatch preinit smoke target: ${LPattern}"
+      return 1
+    fi
+  done
+
+  LShellRequired=(
+    'dispatch_preinit_smoke_output_root() {'
+    'run_dispatch_preinit_smoke() {'
+    'LSmokeOutputRoot="$(dispatch_preinit_smoke_output_root)"'
+    '"${FPC_BIN}" -B -Mobjfpc -Scghi -O3 \'
+    '"${DISPATCH_PREINIT_SMOKE_SRC}" > "${LSmokeBuildLog}" 2>&1; then'
+    'run_dispatch_preinit_smoke || return $?'
+  )
+  LBatRequired=(
+    'set "DISPATCH_PREINIT_SMOKE_SRC=%ROOT%fafafa.core.simd.dispatch_preinit_smoke.pas"'
+    'call :run_dispatch_preinit_smoke_internal'
+    ':run_dispatch_preinit_smoke_internal'
+    'fpc -B -Mobjfpc -Scghi -O3 -Fi"%ROOT%..\..\src" -Fu"%ROOT%..\..\src" -Fu"%ROOT%" -FE"%DISPATCH_PREINIT_BIN_DIR%" -FU"%DISPATCH_PREINIT_LIB_DIR%" "%DISPATCH_PREINIT_SMOKE_SRC%" > "%DISPATCH_PREINIT_BUILD_LOG%" 2>&1'
+  )
+  LSmokeRequired=(
+    'SetVectorAsmEnabled(False);'
+    'GetBestDispatchableBackend <> sbScalar'
+    'GetActiveBackend <> sbScalar'
+    'TryGetRegisteredBackendDispatchTable(aBackend, LTable)'
+  )
+
+  for LPattern in "${LShellRequired[@]}"; do
+    if ! grep -F -- "${LPattern}" "${LMainShell}" >/dev/null; then
+      echo "[CHECK] Dispatch preinit shell smoke guard missing pattern: ${LPattern}"
+      LMissing=1
+    fi
+  done
+
+  for LPattern in "${LBatRequired[@]}"; do
+    if ! grep -F -- "${LPattern}" "${LMainBat}" >/dev/null; then
+      echo "[CHECK] Dispatch preinit batch smoke guard missing pattern: ${LPattern}"
+      LMissing=1
+    fi
+  done
+
+  for LPattern in "${LSmokeRequired[@]}"; do
+    if ! grep -F -- "${LPattern}" "${LSmokeSrc}" >/dev/null; then
+      echo "[CHECK] Dispatch preinit smoke source missing pattern: ${LPattern}"
+      LMissing=1
+    fi
+  done
+
+  if [[ "${LMissing}" != "0" ]]; then
+    return 1
+  fi
+
+  echo "[CHECK] OK (dispatch preinit smoke guard present)"
 }
 
 check_linux_evidence_output_isolation() {
@@ -3408,12 +3547,14 @@ gate_step_build_check() {
   check_run_all_output_isolation || return $?
   check_intrinsics_runner_output_isolation || return $?
   check_experimental_intrinsics_output_isolation || return $?
+  check_dispatch_preinit_smoke_runner_guard || return $?
   check_linux_evidence_output_isolation || return $?
   check_freeze_status_output_isolation || return $?
   check_cpuinfo_runner_parity || return $?
   run_register_include_check || return $?
   run_suite_manifest_check || return $?
   run_nonx86_optin_list_suites || return $?
+  run_dispatch_preinit_smoke || return $?
 }
 
 gate_step_interface_completeness() {
@@ -3462,6 +3603,8 @@ gate_step_cross_backend_parity() {
   run_tests --suite=TTestCase_DispatchAPI || return $?
   check_heap_leaks || return $?
   run_tests --suite=TTestCase_DirectDispatch || return $?
+  check_heap_leaks || return $?
+  run_tests --suite=TTestCase_DirectDispatchConcurrent || return $?
   check_heap_leaks || return $?
 }
 
@@ -4678,12 +4821,14 @@ case "${ACTION}" in
     check_run_all_output_isolation
     check_intrinsics_runner_output_isolation
     check_experimental_intrinsics_output_isolation
+    check_dispatch_preinit_smoke_runner_guard
     check_linux_evidence_output_isolation
     check_freeze_status_output_isolation
     check_cpuinfo_runner_parity
     run_register_include_check
     run_suite_manifest_check
     run_nonx86_optin_list_suites
+    run_dispatch_preinit_smoke
     if [[ "${SIMD_CHECK_WIRING_SYNC:-0}" != "0" ]]; then
       echo "[CHECK] Optional wiring-sync enabled"
       run_wiring_sync

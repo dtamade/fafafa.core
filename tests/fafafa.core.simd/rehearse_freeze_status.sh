@@ -51,19 +51,21 @@ EOM
 cat > "${LCaseNotReady}/logs/windows_b07_gate.simulated.log" <<'EOM'
 [B07] Windows evidence capture
 [B07] Command: buildOrTest.bat gate
-[GATE] 1/6 Build + check SIMD module
-[GATE] 2/6 SIMD list suites
-[GATE] 3/6 SIMD AVX2 fallback suite
-[GATE] 4/6 CPUInfo portable suites
-[GATE] 5/6 CPUInfo x86 suites
-[GATE] 6/6 Filtered run_all chain
+[B07] GateSummaryJson: /tmp/rehearse.windows_b07_gate.simulated.summary-json.missing
+[GATE] 1/7 Build + check SIMD module
+[GATE] 2/7 SIMD list suites
+[GATE] 3/7 SIMD AVX2 fallback suite
+[GATE] 4/7 CPUInfo portable suites
+[GATE] 5/7 CPUInfo x86 suites
+[GATE] 6/7 Windows public ABI smoke
+[GATE] 7/7 Filtered run_all chain
 [GATE] OK
 [B07] GATE_EXIT_CODE=0
-Total:  3
-Passed: 3
+Total:  5
+Passed: 5
 Failed: 0
-[B07] Total: 3
-[B07] Passed: 3
+[B07] Total: 5
+[B07] Passed: 5
 [B07] Failed: 0
 EOM
 
@@ -143,19 +145,21 @@ cat > "${LCaseReady}/logs/windows_b07_gate.log" <<'EOM'
 [B07] Started: 2026/02/10 00:00:00.00
 [B07] Working dir: C:\simd\tests\fafafa.core.simd\
 [B07] Command: buildOrTest.bat gate
-[GATE] 1/6 Build + check SIMD module
-[GATE] 2/6 SIMD list suites
-[GATE] 3/6 SIMD AVX2 fallback suite
-[GATE] 4/6 CPUInfo portable suites
-[GATE] 5/6 CPUInfo x86 suites
-[GATE] 6/6 Filtered run_all chain
+[B07] GateSummaryJson: /tmp/rehearse.windows_b07_gate.summary-json.missing
+[GATE] 1/7 Build + check SIMD module
+[GATE] 2/7 SIMD list suites
+[GATE] 3/7 SIMD AVX2 fallback suite
+[GATE] 4/7 CPUInfo portable suites
+[GATE] 5/7 CPUInfo x86 suites
+[GATE] 6/7 Windows public ABI smoke
+[GATE] 7/7 Filtered run_all chain
 [GATE] OK
 [B07] GATE_EXIT_CODE=0
-Total:  3
-Passed: 3
+Total:  5
+Passed: 5
 Failed: 0
-[B07] Total: 3
-[B07] Passed: 3
+[B07] Total: 5
+[B07] Passed: 5
 [B07] Failed: 0
 EOM
 
@@ -632,13 +636,21 @@ cat > "${LCaseSourceFresh}/logs/windows_b07_gate.log" <<'EOM'
 [B07] Started: 2026/02/10 00:00:00.00
 [B07] Working dir: C:\simd\tests\fafafa.core.simd\
 [B07] Command: buildOrTest.bat gate
+[B07] GateSummaryJson: /tmp/rehearse.windows_b07_gate.source-fresh.summary-json.missing
+[GATE] 1/7 Build + check SIMD module
+[GATE] 2/7 SIMD list suites
+[GATE] 3/7 SIMD AVX2 fallback suite
+[GATE] 4/7 CPUInfo portable suites
+[GATE] 5/7 CPUInfo x86 suites
+[GATE] 6/7 Windows public ABI smoke
+[GATE] 7/7 Filtered run_all chain
 [GATE] OK
 [B07] GATE_EXIT_CODE=0
-Total:  3
-Passed: 3
+Total:  5
+Passed: 5
 Failed: 0
-[B07] Total: 3
-[B07] Passed: 3
+[B07] Total: 5
+[B07] Passed: 5
 [B07] Failed: 0
 EOM
 

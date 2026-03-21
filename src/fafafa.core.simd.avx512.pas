@@ -22,7 +22,7 @@ procedure RegisterAVX512Backend;
 
 // Pure logical predicate: returns True iff the CPU has all sub-features required by this backend.
 // NOTE: This does NOT include OS enabling checks (XCR0), which are handled separately via HasAVX512.
-function X86HasAVX512BackendRequiredFeatures(const X86: TX86Features): Boolean; inline;
+function X86HasAVX512BackendRequiredFeatures(const aX86: TX86Features): Boolean; inline;
 
 // === AVX-512 门面函数声明 ===
 
@@ -116,13 +116,9 @@ uses
 
 // === Backend Registration ===
 
-function X86HasAVX512BackendRequiredFeatures(const X86: TX86Features): Boolean; inline;
+function X86HasAVX512BackendRequiredFeatures(const aX86: TX86Features): Boolean; inline;
 begin
-  // This backend uses:
-  //   - AVX-512F + AVX-512BW (byte/word ops like vpcmpeqb/vpcmpub/vpminub/...)
-  //   - AVX2 256-bit integer ops in fallback paths
-  //   - POPCNT for bit counting (mask popcount)
-  Result := X86.HasAVX2 and X86.HasAVX512F and X86.HasAVX512BW and X86.HasPOPCNT;
+  Result := fafafa.core.simd.cpuinfo.base.X86HasAVX512BackendRequiredFeatures(aX86);
 end;
 
 {$I fafafa.core.simd.avx512.register.inc}

@@ -113,6 +113,7 @@ begin
   begin
     ClearBackendOps(Result);
     Result.Backend := backend;
+    Result.BackendInfo := GetBackendInfo(backend);
   end;
 end;
 

@@ -3,6 +3,8 @@
 // =============================================================
 // Keep facade APIs available in asm branch by delegating to scalar helpers.
 
+{$IFDEF RISCVV_ASSEMBLY}
+
 function MemEqual_RISCVV(a, b: Pointer; len: SizeUInt): LongBool;
 begin
   Result := MemEqual_Scalar(a, b, len);
@@ -4479,3 +4481,5 @@ function BitsetPopCount_RISCVV(p: Pointer; byteLen: SizeUInt): SizeUInt;
 begin
   Result := BitsetPopCount_Scalar(p, byteLen);
 end;
+
+{$ENDIF} // RISCVV_ASSEMBLY

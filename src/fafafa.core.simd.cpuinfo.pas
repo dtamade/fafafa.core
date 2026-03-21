@@ -42,10 +42,12 @@ function DetectCPUArchitecture: TCPUArch;
 function HasFeature(feature: TGenericFeature): Boolean;
 function IsBackendSupportedOnCPU(aBackend: TSimdBackend): Boolean;
 function GetSupportedBackends: TSimdBackendArray;
+function GetSupportedBackendList: TSimdBackendArray; // preferred alias
 function GetAvailableBackends: TSimdBackendArray; // alias for backward compatibility
 
 // Get best backend allowed by current CPU/OS capabilities.
 function GetBestBackendOnCPU: TSimdBackend;
+function GetBestSupportedBackend: TSimdBackend; // preferred alias
 // Backward-compatible alias.
 function GetBestBackend: TSimdBackend;
 
@@ -598,7 +600,8 @@ begin
     sbAVX512:
       begin
         {$IFDEF SIMD_X86_AVAILABLE}
-        Result := (LCPUInfo.Arch = caX86) and LHasSimd512 and LCPUInfo.X86.HasAVX512F;
+        Result := (LCPUInfo.Arch = caX86) and
+                  X86SupportsAVX512BackendOnCPU(LCPUInfo.X86, LHasSimd512);
         {$ELSE}
         Result := False;
         {$ENDIF}

@@ -6,6 +6,7 @@ REPO_ROOT="$(cd "${ROOT}/../.." && pwd)"
 WORKFLOW_FILE="simd-windows-b07-evidence.yml"
 ARTIFACT_NAME="${SIMD_WIN_EVIDENCE_ARTIFACT_NAME:-simd-windows-b07-evidence}"
 EVIDENCE_LOG="${SIMD_WIN_EVIDENCE_LOG_FILE:-${ROOT}/logs/windows_b07_gate.log}"
+CANONICAL_EVIDENCE_LOG="${ROOT}/logs/windows_b07_gate.log"
 BATCH_ID="${1:-SIMD-$(date '+%Y%m%d')-152}"
 RUN_ID_INPUT="${2:-}"
 PREFLIGHT_SCRIPT="${ROOT}/preflight_windows_b07_evidence_gh.sh"
@@ -22,6 +23,7 @@ Usage: $0 [batch-id] [run-id]
 
 Default batch-id: SIMD-YYYYMMDD-152
 Default run-id: auto-dispatch + auto-detect latest workflow_dispatch run for current HEAD
+Explicit run-id: skip workflow dispatch and reuse an existing GH Actions run for download/verify/finalize
 
 Environment:
   SIMD_WIN_EVIDENCE_REF              Git ref used for workflow dispatch (default: current branch)
@@ -45,6 +47,31 @@ require_cmd() {
     echo "[WIN-EVIDENCE-GH] Missing command: ${aCmd}"
     exit 2
   fi
+}
+
+paths_equal() {
+  local aLeft
+  local aRight
+
+  aLeft="$1"
+  aRight="$2"
+
+  python3 - "${aLeft}" "${aRight}" <<'PY'
+from pathlib import Path
+import os
+import sys
+
+
+def normalize(value: str) -> str:
+    path = Path(value).expanduser()
+    try:
+        return str(path.resolve(strict=False))
+    except Exception:
+        return os.path.abspath(os.path.expanduser(str(path)))
+
+
+sys.exit(0 if normalize(sys.argv[1]) == normalize(sys.argv[2]) else 1)
+PY
 }
 
 is_billing_block_output() {
@@ -196,20 +223,12 @@ PY
 
 require_cmd gh
 require_cmd python3
-require_cmd git
 
 if ! gh auth status >/dev/null 2>&1; then
   echo "[WIN-EVIDENCE-GH] gh auth required"
   exit 2
 fi
 
-LRef="${SIMD_WIN_EVIDENCE_REF:-$(git -C "${REPO_ROOT}" branch --show-current || true)}"
-if [[ -z "${LRef}" ]]; then
-  LRef="$(git -C "${REPO_ROOT}" rev-parse HEAD)"
-fi
-LHeadShaLocal="$(git -C "${REPO_ROOT}" rev-parse "${LRef}" 2>/dev/null || true)"
-LHeadShaRemote="$(git -C "${REPO_ROOT}" ls-remote --heads origin "${LRef}" 2>/dev/null | awk '{print $1}' | head -n 1 || true)"
-LHeadSha="${LHeadShaRemote:-${LHeadShaLocal}}"
 LPollSeconds="${SIMD_WIN_EVIDENCE_POLL_SECONDS:-5}"
 LPollMaxTries="${SIMD_WIN_EVIDENCE_POLL_MAX_TRIES:-60}"
 LDispatchRetries="${SIMD_WIN_EVIDENCE_DISPATCH_RETRIES:-3}"
@@ -217,20 +236,29 @@ LDispatchBackoffSeconds="${SIMD_WIN_EVIDENCE_DISPATCH_BACKOFF_SECONDS:-2}"
 LRunId="${RUN_ID_INPUT}"
 LDispatchEpoch=0
 
-if [[ -n "$(git -C "${REPO_ROOT}" status --short --untracked-files=no)" ]]; then
-  echo "[WIN-EVIDENCE-GH] Refuse dispatch: local worktree has uncommitted changes."
-  echo "[WIN-EVIDENCE-GH] Commit/push or stash local SIMD changes before using GH Windows evidence."
-  exit 2
-fi
-
-if [[ -n "${LHeadShaRemote}" && -n "${LHeadShaLocal}" && "${LHeadShaRemote}" != "${LHeadShaLocal}" ]]; then
-  echo "[WIN-EVIDENCE-GH] Refuse dispatch: remote ref does not match local HEAD."
-  echo "[WIN-EVIDENCE-GH] ref=${LRef} local=${LHeadShaLocal} remote=${LHeadShaRemote}"
-  echo "[WIN-EVIDENCE-GH] Push the local closeout fixes first, then rerun win-evidence-via-gh."
-  exit 2
-fi
-
 if [[ -z "${LRunId}" ]]; then
+  require_cmd git
+  LRef="${SIMD_WIN_EVIDENCE_REF:-$(git -C "${REPO_ROOT}" branch --show-current || true)}"
+  if [[ -z "${LRef}" ]]; then
+    LRef="$(git -C "${REPO_ROOT}" rev-parse HEAD)"
+  fi
+  LHeadShaLocal="$(git -C "${REPO_ROOT}" rev-parse "${LRef}" 2>/dev/null || true)"
+  LHeadShaRemote="$(git -C "${REPO_ROOT}" ls-remote --heads origin "${LRef}" 2>/dev/null | awk '{print $1}' | head -n 1 || true)"
+  LHeadSha="${LHeadShaRemote:-${LHeadShaLocal}}"
+
+  if [[ -n "$(git -C "${REPO_ROOT}" status --short --untracked-files=no)" ]]; then
+    echo "[WIN-EVIDENCE-GH] Refuse dispatch: local worktree has uncommitted changes."
+    echo "[WIN-EVIDENCE-GH] Commit/push or stash local SIMD changes before using GH Windows evidence."
+    exit 2
+  fi
+
+  if [[ -n "${LHeadShaRemote}" && -n "${LHeadShaLocal}" && "${LHeadShaRemote}" != "${LHeadShaLocal}" ]]; then
+    echo "[WIN-EVIDENCE-GH] Refuse dispatch: remote ref does not match local HEAD."
+    echo "[WIN-EVIDENCE-GH] ref=${LRef} local=${LHeadShaLocal} remote=${LHeadShaRemote}"
+    echo "[WIN-EVIDENCE-GH] Push the local closeout fixes first, then rerun win-evidence-via-gh."
+    exit 2
+  fi
+
   if [[ "${SIMD_WIN_EVIDENCE_PREFLIGHT:-1}" != "0" ]]; then
     if [[ ! -x "${PREFLIGHT_SCRIPT}" ]]; then
       echo "[WIN-EVIDENCE-GH] Missing preflight script: ${PREFLIGHT_SCRIPT}"
@@ -251,6 +279,8 @@ if [[ -z "${LRunId}" ]]; then
     fi
     sleep "${LPollSeconds}"
   done
+else
+  echo "[WIN-EVIDENCE-GH] Reuse existing workflow run: ${LRunId}"
 fi
 
 if [[ -z "${LRunId}" ]]; then
@@ -282,30 +312,57 @@ fi
 LSourceGateSummaryMd="$(find "${LTempDir}" -type f -name 'gate_summary.md' | head -n 1 || true)"
 LSourceGateSummaryJson="$(find "${LTempDir}" -type f -name 'gate_summary.json' | head -n 1 || true)"
 
-mkdir -p "$(dirname "${EVIDENCE_LOG}")" "${BATCH_DIR}"
-cp "${LSourceLog}" "${BATCH_EVIDENCE_LOG}"
-cp "${LSourceLog}" "${EVIDENCE_LOG}"
+mkdir -p "$(dirname "${EVIDENCE_LOG}")" "$(dirname "${CANONICAL_EVIDENCE_LOG}")" "${BATCH_DIR}"
+if ! paths_equal "${BATCH_GATE_SUMMARY_MD}" "${ROOT}/logs/gate_summary.md"; then
+  rm -f "${BATCH_GATE_SUMMARY_MD}"
+fi
+if ! paths_equal "${BATCH_GATE_SUMMARY_JSON}" "${ROOT}/logs/gate_summary.json"; then
+  rm -f "${BATCH_GATE_SUMMARY_JSON}"
+fi
+if ! paths_equal "${LSourceLog}" "${BATCH_EVIDENCE_LOG}"; then
+  cp "${LSourceLog}" "${BATCH_EVIDENCE_LOG}"
+fi
+if ! paths_equal "${LSourceLog}" "${CANONICAL_EVIDENCE_LOG}"; then
+  cp "${LSourceLog}" "${CANONICAL_EVIDENCE_LOG}"
+fi
+if ! paths_equal "${EVIDENCE_LOG}" "${CANONICAL_EVIDENCE_LOG}" && ! paths_equal "${LSourceLog}" "${EVIDENCE_LOG}"; then
+  cp "${LSourceLog}" "${EVIDENCE_LOG}"
+fi
 echo "[WIN-EVIDENCE-GH] Evidence log updated: ${EVIDENCE_LOG}"
+echo "[WIN-EVIDENCE-GH] Canonical evidence log: ${CANONICAL_EVIDENCE_LOG}"
 echo "[WIN-EVIDENCE-GH] Batch evidence log: ${BATCH_EVIDENCE_LOG}"
 
 if [[ -n "${LSourceGateSummaryMd}" ]]; then
-  cp "${LSourceGateSummaryMd}" "${BATCH_GATE_SUMMARY_MD}"
-  cp "${LSourceGateSummaryMd}" "${ROOT}/logs/gate_summary.md"
+  if ! paths_equal "${LSourceGateSummaryMd}" "${BATCH_GATE_SUMMARY_MD}"; then
+    cp "${LSourceGateSummaryMd}" "${BATCH_GATE_SUMMARY_MD}"
+  fi
+  if ! paths_equal "${LSourceGateSummaryMd}" "${ROOT}/logs/gate_summary.md"; then
+    cp "${LSourceGateSummaryMd}" "${ROOT}/logs/gate_summary.md"
+  fi
   echo "[WIN-EVIDENCE-GH] Batch gate summary md: ${BATCH_GATE_SUMMARY_MD}"
 else
-  echo "[WIN-EVIDENCE-GH] WARN: gate_summary.md missing in downloaded artifact; fallback to local canonical gate summary"
+  echo "[WIN-EVIDENCE-GH] WARN: gate_summary.md missing in downloaded artifact; batch snapshot cleared and freeze-status will fallback to local canonical gate summary if needed"
 fi
 
 if [[ -n "${LSourceGateSummaryJson}" ]]; then
-  cp "${LSourceGateSummaryJson}" "${BATCH_GATE_SUMMARY_JSON}"
-  cp "${LSourceGateSummaryJson}" "${ROOT}/logs/gate_summary.json"
+  if ! paths_equal "${LSourceGateSummaryJson}" "${BATCH_GATE_SUMMARY_JSON}"; then
+    cp "${LSourceGateSummaryJson}" "${BATCH_GATE_SUMMARY_JSON}"
+  fi
+  if ! paths_equal "${LSourceGateSummaryJson}" "${ROOT}/logs/gate_summary.json"; then
+    cp "${LSourceGateSummaryJson}" "${ROOT}/logs/gate_summary.json"
+  fi
   echo "[WIN-EVIDENCE-GH] Batch gate summary json: ${BATCH_GATE_SUMMARY_JSON}"
 else
-  echo "[WIN-EVIDENCE-GH] WARN: gate_summary.json missing in downloaded artifact; verifier will fallback to log-only mode"
+  echo "[WIN-EVIDENCE-GH] WARN: gate_summary.json missing in downloaded artifact; batch snapshot cleared and verifier will fallback to log-only mode"
 fi
 
 echo "[WIN-EVIDENCE-GH] Verify downloaded evidence"
 bash "${ROOT}/verify_windows_b07_evidence.sh" "${BATCH_EVIDENCE_LOG}" "${BATCH_GATE_SUMMARY_JSON}"
+
+echo "[WIN-EVIDENCE-GH] Backfill cross gate (SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1)"
+FAFAFA_BUILD_MODE="${FAFAFA_BUILD_MODE:-Release}" \
+SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 \
+bash "${ROOT}/BuildOrTest.sh" gate
 
 echo "[WIN-EVIDENCE-GH] Run closeout finalize"
 export SIMD_WIN_EVIDENCE_LOG_FILE="${BATCH_EVIDENCE_LOG}"

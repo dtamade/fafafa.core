@@ -31,49 +31,48 @@ function RunBackendComparison: TBackendBenchResults;
 var
   AVX2Results, AVX512Results: TBenchResults;
   LIndex: Integer;
+  LSkipReason: string;
 begin
   Result := nil;
-
-  // Check if AVX-512 is available
-  if not IsBackendAvailableOnCPU(sbAVX512) then
-  begin
-    WriteLn('[SKIP] AVX-512 backend is not available on this CPU');
-    Exit;
-  end;
-
-  // Check if AVX2 is available
-  if not IsBackendAvailableOnCPU(sbAVX2) then
-  begin
-    WriteLn('[SKIP] AVX2 backend is not available on this CPU');
-    Exit;
-  end;
 
   WriteLn('=== AVX-512 vs AVX2 Performance Benchmark ===');
   WriteLn;
   SetVectorAsmEnabled(True);
-  WriteLn('Running AVX2 backend tests...');
-  SetActiveBackend(sbAVX2);
-  AVX2Results := RunAllBenchmarks;
+  try
+    WriteLn('Running AVX2 backend tests...');
+    LSkipReason := '';
+    if not TryActivateBenchmarkBackend(sbAVX2, LSkipReason) then
+    begin
+      WriteLn('[SKIP] ', LSkipReason);
+      Exit;
+    end;
+    AVX2Results := RunAllBenchmarks;
 
-  WriteLn('Running AVX-512 backend tests...');
-  SetActiveBackend(sbAVX512);
-  AVX512Results := RunAllBenchmarks;
+    WriteLn('Running AVX-512 backend tests...');
+    LSkipReason := '';
+    if not TryActivateBenchmarkBackend(sbAVX512, LSkipReason) then
+    begin
+      WriteLn('[SKIP] ', LSkipReason);
+      Exit;
+    end;
+    AVX512Results := RunAllBenchmarks;
 
-  // Combine results
-  SetLength(Result, Length(AVX2Results));
-  for LIndex := 0 to High(AVX2Results) do
-  begin
-    Result[LIndex].Name := AVX2Results[LIndex].Name;
-    Result[LIndex].Size := AVX2Results[LIndex].Size;
-    Result[LIndex].AVX2OpsPerSec := AVX2Results[LIndex].ActiveOpsPerSec;
-    Result[LIndex].AVX512OpsPerSec := AVX512Results[LIndex].ActiveOpsPerSec;
-    if Result[LIndex].AVX2OpsPerSec > 0 then
-      Result[LIndex].Speedup := Result[LIndex].AVX512OpsPerSec / Result[LIndex].AVX2OpsPerSec
-    else
-      Result[LIndex].Speedup := 0;
+    // Combine results
+    SetLength(Result, Length(AVX2Results));
+    for LIndex := 0 to High(AVX2Results) do
+    begin
+      Result[LIndex].Name := AVX2Results[LIndex].Name;
+      Result[LIndex].Size := AVX2Results[LIndex].Size;
+      Result[LIndex].AVX2OpsPerSec := AVX2Results[LIndex].ActiveOpsPerSec;
+      Result[LIndex].AVX512OpsPerSec := AVX512Results[LIndex].ActiveOpsPerSec;
+      if Result[LIndex].AVX2OpsPerSec > 0 then
+        Result[LIndex].Speedup := Result[LIndex].AVX512OpsPerSec / Result[LIndex].AVX2OpsPerSec
+      else
+        Result[LIndex].Speedup := 0;
+    end;
+  finally
+    ResetToAutomaticBackend;
   end;
-
-  ResetToAutomaticBackend;
 end;
 
 function FormatOps(Ops: Double): string;
@@ -154,8 +153,9 @@ begin
     WriteLn(F);
     {$IFDEF CPUX86_64}
     WriteLn(F, '- Architecture: x86_64');
-    WriteLn(F, '- AVX2 Support: ', HasAVX2);
-    WriteLn(F, '- AVX-512 Support: ', HasAVX512);
+    WriteLn(F, '- AVX2 Backend Support: ', IsBackendAvailableOnCPU(sbAVX2));
+    WriteLn(F, '- AVX-512 Backend Support: ', IsBackendAvailableOnCPU(sbAVX512));
+    WriteLn(F, '- Usable AVX-512F: ', HasAVX512);
     {$ELSE}
     WriteLn(F, '- Architecture: ', GetArchName);
     WriteLn(F, '- AVX-512 Support: Not available on this platform');

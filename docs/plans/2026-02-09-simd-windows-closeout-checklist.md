@@ -1,6 +1,6 @@
 # SIMD Windows 收口执行清单（待实机）
 
-更新时间：2026-02-09
+更新时间：2026-03-20
 
 ## 目标
 
@@ -31,33 +31,43 @@
 0) 先输出“复制即跑”三命令（推荐）
 - `bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-3cmd SIMD-20260210-150`
 
-0.1) 或直接使用单命令闭环（推荐）
-- `bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize SIMD-20260210-152`
+0.1) 或直接使用 GH 单命令闭环（推荐）
+- `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh SIMD-20260320-152`
 
 1) 一键生成并校验证据包（推荐）
 - `tests\fafafa.core.simd\buildOrTest.bat evidence-win-verify`
 
-2) 等价的分步执行（用于排障）
+2) Git Bash / WSL 回灌 fail-close cross gate（必需）
+- `FAFAFA_BUILD_MODE=Release SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+
+3) 一键收口（必须在 cross gate PASS 后执行）
+- `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize SIMD-20260320-152`
+
+4) 等价的分步执行（用于排障）
 - `tests\fafafa.core.simd\buildOrTest.bat evidence-win`
 - `tests\fafafa.core.simd\buildOrTest.bat verify-win-evidence`
 
-3) 如需单独复跑 gate（可选）
+5) 如需单独复跑 native batch gate（诊断用，可选）
 - `tests\fafafa.core.simd\buildOrTest.bat gate`
 
-4) 确认关键日志存在
+6) 确认关键日志存在
 - `tests\fafafa.core.simd\logs\windows_b07_gate.log`
 
-5) 可选：再跑一次 strict coverage（留痕）
+7) 可选：再跑一次 strict coverage（留痕）
 - `set SIMD_COVERAGE_STRICT_EXTRA=1 && tests\fafafa.core.simd\buildOrTest.bat coverage`
 
-6) 回到 Linux/WSL 运行冻结判定（推荐）
+8) 回到 Linux/WSL 运行冻结判定（推荐）
 - `bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
 - 期望：`ready=True`
+
+说明：
+- native batch evidence 不会生成 fresh `gate_summary.md/json`，所以不能从 `evidence-win-verify` 直接跳到 `win-closeout-finalize`。
+- 真正决定 `cross-ready=True` 的是 Linux/WSL 侧这条 fail-close cross gate，而不是 Windows batch `gate` 自身。
 
 ## 通过判据
 
 - `buildOrTest.bat evidence-win-verify` 或 `verify-win-evidence` 返回码为 0。
-- `buildOrTest.bat gate` 返回码为 0。
+- `FAFAFA_BUILD_MODE=Release SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate` 返回码为 0。
 - `windows_b07_gate.log` 存在且包含 `GATE OK`。
 - （可选）coverage 输出：
   - `sse declared=79 tested=79 missing=0 extra=0`
@@ -108,7 +118,7 @@
 若要直接自动追加到目标文档（幂等、带 marker，且仅在 `freeze-status` 为 `ready=True` 时允许）：
 
 - `bash tests/fafafa.core.simd/apply_windows_b07_closeout_updates.sh --apply`
-- 或直接一键收口（推荐）：
+- 或在 cross gate PASS 后执行一键收口：
   - `bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize <BATCH_ID>`
 
 可选参数：

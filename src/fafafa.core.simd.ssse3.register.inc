@@ -20,8 +20,12 @@ begin
     Name := 'SSSE3';
     Description := 'x86-64 SSSE3 SIMD implementation (PSHUFB, PABS, PALIGNR)';
     Capabilities := [scBasicArithmetic, scComparison, scMathFunctions, scReduction,
-                     scShuffle, scIntegerOps, scLoadStore];
-    Available := True;
+                     scLoadStore];
+    if IsVectorAsmEnabled then
+      Include(Capabilities, scShuffle);
+    if IsVectorAsmEnabled then
+      Include(Capabilities, scIntegerOps);
+    Available := IsVectorAsmEnabled;
     Priority := GetSimdBackendPriorityValue(sbSSSE3);
   end;
 
@@ -46,3 +50,4 @@ end;
 
 initialization
   RegisterSSSE3Backend;
+  RegisterBackendRebuilder(sbSSSE3, @RegisterSSSE3Backend);

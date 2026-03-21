@@ -94,7 +94,8 @@ set SIMD_COVERAGE_STRICT_EXTRA=1 && tests\fafafa.core.simd\buildOrTest.bat cover
 bash tests/fafafa.core.simd/BuildOrTest.sh evidence-linux
 ```
 
-输出目录：`tests/fafafa.core.simd/logs/evidence-<timestamp>/`
+默认输出目录：`tests/fafafa.core.simd/logs/evidence-<timestamp>/`
+若显式设置 `SIMD_OUTPUT_ROOT=/tmp/simd-run-123`，则 evidence bundle 与内部 `backend-bench-*` 子目录都会改写到 `/tmp/simd-run-123/logs/` 下，避免污染默认模块目录。
 摘要文件：`summary.md`
 
 该入口现已作为 nightly 证据链的 Linux 段使用；默认以 Release 口径运行，并与后续 Windows 实机证据、cross-platform `freeze-status` 组合成完整收口链。
@@ -112,6 +113,7 @@ bash tests/fafafa.core.simd/BuildOrTest.sh evidence-linux
 - `SIMD_PERF_VECTOR_ASM=auto`
 
 也就是说，Linux 证据链里的 `perf-smoke` 不再只是独立附带步骤，而是会进入 `gate-strict` 摘要口径。
+若 active backend 仍然是 `Scalar`，`perf-smoke` 现在会直接失败，而不是 `SKIP 0`，避免把“没有 SIMD 性能证据”的状态误记成 closeout 通过。
 但这仍然只是 Linux 段证据；cross-platform closeout 仍要回到 Windows evidence + `freeze-status` 主线。
 
 本地验证（2026-03-11）：
@@ -183,7 +185,7 @@ bash tests/fafafa.core.simd/BuildOrTest.sh gate-summary
 - JSON 快照：`tests/fafafa.core.simd/logs/wiring_sync.json`
 - gate 摘要：`tests/fafafa.core.simd/logs/gate_summary.md`
 - `gate_summary.md` 列：`Time / Step / Status / DurationMs / Event / Detail / Artifacts`
-- 事件标记：`NORMAL / SLOW_WARN / SLOW_FAIL / FAILED / SKIP`
+- 事件标记：`NORMAL / SLOW_WARN / SLOW_CRIT / FAILED / SKIP`
 - 阈值：`SIMD_GATE_STEP_WARN_MS`（默认 20000）与 `SIMD_GATE_STEP_FAIL_MS`（默认 120000）
 
 ### Windows
@@ -206,7 +208,7 @@ tests\fafafa.core.simd\buildOrTest.bat gate-summary
 - `SIMD_GATE_SUMMARY_TAIL=120`：`gate-summary` 查看尾部行数
 - `SIMD_WIRING_SYNC_JSON=0`：关闭 wiring-sync JSON 快照生成
 - `SIMD_GATE_SUMMARY_FILTER=ALL|FAIL|SLOW`：`gate-summary` 视图过滤（默认 `ALL`）
-- `SIMD_GATE_SUMMARY_JSON=1`：导出 machine-readable 摘要 JSON
+- `SIMD_GATE_SUMMARY_JSON=1`：导出 machine-readable 摘要 JSON（需 Python 运行时；缺失时 fail-close）
 - `SIMD_GATE_SUMMARY_JSON_FILE`：自定义摘要 JSON 路径（默认 `tests/fafafa.core.simd/logs/gate_summary.json`）
 - `BuildOrTest.sh gate-summary-selfcheck`：快速自检 gate-summary 过滤/导出能力
 - 共享导出器：`tests/fafafa.core.simd/export_gate_summary_json.py`
@@ -239,10 +241,12 @@ SIMD_GATE_SUMMARY_FILTER=FAIL SIMD_GATE_SUMMARY_JSON=1 bash tests/fafafa.core.si
 
 输出：`tests/fafafa.core.simd/logs/gate_summary.json`
 
+若启用 `SIMD_GATE_SUMMARY_JSON=1` 但当前环境缺少 Python 运行时，`gate-summary` 会直接返回非零，避免把“未导出 JSON”误判成成功。
+
 ### 排障建议
 
 1. 先看 `FAIL` 视图定位首个失败 step。  
-2. 再看 `SLOW` 视图识别慢链路（`SLOW_WARN/SLOW_FAIL`）。  
+2. 再看 `SLOW` 视图识别慢链路（`SLOW_WARN/SLOW_CRIT`）。
 3. 用 `Artifacts` 列直接跳转相关日志（`build.txt/test.txt/wiring_sync*.txt/json`、`run_all_tests_summary_sh.txt`）。  
 4. 如 detail 过长，用 `SIMD_GATE_SUMMARY_MAX_DETAIL` 控制摘要长度。  
 

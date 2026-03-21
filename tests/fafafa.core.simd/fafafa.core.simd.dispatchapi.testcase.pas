@@ -13,10 +13,15 @@ uses
   Classes, SysUtils, fafafa.core.math, fpcunit, testregistry,
   fafafa.core.simd,
   fafafa.core.simd.base,
+  fafafa.core.simd.bench,
+  fafafa.core.simd.cpuinfo,
+  fafafa.core.simd.cpuinfo.base,
   fafafa.core.simd.utils,
   fafafa.core.simd.ops,
   fafafa.core.simd.api,
   fafafa.core.simd.dispatch,
+  fafafa.core.simd.backend.priority,
+  fafafa.core.simd.public_smoke_support,
   fafafa.core.simd.scalar;
 
 type
@@ -29,11 +34,17 @@ type
     procedure Test_TryForceBackend_Unavailable_NoChange;
     procedure Test_TrySetActiveBackend_Scalar_ReturnsTrue;
     procedure Test_TrySetActiveBackend_Unavailable_NoChange;
+    procedure Test_TrySetActiveBackend_Fails_When_HookReRegister_ReSelects_Away;
     procedure Test_SetActiveBackend_Unavailable_FallsBackToScalar;
     procedure Test_DispatchChangedHooks_MultiSubscriber_Dedup_And_Remove;
     procedure Test_BackendInfoAvailableFalse_IsNotSelectable;
+    procedure Test_RegisterBackend_Canonicalizes_TableIdentity_For_ForcedSelection;
+    procedure Test_SupportedAliases_StayCpuOnly_WhenBackendBecomesNonDispatchable;
+    procedure Test_PublicSmokeDefaultBackendPredictor_Tracks_CanonicalDispatchPriority;
+    procedure Test_VectorAsmDisabled_ReSelects_Away_From_ScalarBacked_CurrentBackend;
     procedure Test_BackendConceptViews_AreSelfConsistent;
     procedure Test_GetAvailableBackendList_AliasesDispatchableView;
+    procedure Test_RegisteredBackendPriority_MatchesCanonicalPriority;
     procedure Test_VecI64x2_DispatchAssigned_And_Parity;
     procedure Test_VecU64x2_DispatchAssigned_And_Parity;
     procedure Test_VecU32x8_DispatchAssigned_And_Parity;
@@ -56,11 +67,36 @@ type
     procedure Test_AVX512_I16x32_I8x64_U8x64_MappingAndParity;
     procedure Test_AVX512_F32x16_F64x8_IEEE754_MappingAndParity;
     procedure Test_BackendCapabilities_DoNotOverclaim_512BitOps;
+    procedure Test_BackendCapabilities_DoNotUnderclaim_IntegerOps;
+    procedure Test_BackendCapabilities_DoNotUnderclaim_Shuffle;
+    procedure Test_BackendCapabilities_Clear_IntegerOps_When_VectorAsmDisabled;
+    procedure Test_AVX2_BackendCapabilities_Expose_FMA_When_FusedPathUsable;
+    procedure Test_AVX2_BackendCapabilities_Clear_FMA_When_VectorAsmDisabled;
+    procedure Test_AVX2_BackendCapabilities_Expose_Shuffle_When_NativeShuffleSlotsUsable;
+    procedure Test_AVX2_BackendCapabilities_Clear_Shuffle_When_VectorAsmDisabled;
+    procedure Test_X86_BackendCapabilities_Clear_Shuffle_When_VectorAsmDisabled;
+    procedure Test_AVX512_BackendCapabilities_Expose_FMA_When_WideFmaSlots_AreNative;
+    procedure Test_AVX512_BackendCapabilities_Expose_Shuffle_When_WideSelectSlots_AreNative;
+    procedure Test_AVX512_BackendCapabilities_Clear_VectorAsmGatedBits_When_VectorAsmDisabled;
+    procedure Test_NEON_BackendCapabilities_Expose_Shuffle_When_RepresentativeSlots_AreNonScalar;
+    procedure Test_NEON_BackendCapabilities_Expose_IntegerOps_When_IntegerSlots_AreNative;
+    procedure Test_NEON_BackendCapabilities_Expose_FMA_When_FmaSlots_AreNative;
+    procedure Test_NEON_BackendCapabilities_Clear_VectorAsmGatedBits_When_VectorAsmDisabled;
+    procedure Test_RISCVV_BackendCapabilities_Expose_IntegerOps_When_IntegerSlots_AreNative;
+    procedure Test_RISCVV_BackendCapabilities_Expose_FMA_When_FmaSlots_AreNonScalar;
+    procedure Test_RISCVV_BackendCapabilities_Expose_Shuffle_When_RepresentativeSlots_AreNonScalar;
+    procedure Test_RISCVV_BackendCapabilities_Clear_VectorAsmGatedBits_When_VectorAsmDisabled;
+    procedure Test_BenchmarkActivation_Rejects_CpuSupportedButNonDispatchable_Backend;
     procedure Test_AVX2_BenchmarkWideOps_NotScalar;
     procedure Test_NonX86_DispatchTable_WiringChecklist_Grouped;
     procedure Test_NonX86_DispatchTable_WiringChecklist;
     procedure Test_NonX86_NativeWideFloorCeil_Slots_NotScalar_IfAvailable;
     procedure Test_X86_DispatchTable_WiringChecklist_Grouped;
+  end;
+
+  TTestCase_X86MaskedFmaContract = class(TTestCase)
+  published
+    procedure Test_AVX2_FmaSlots_StayScalar_When_HardwareFmaUnavailable;
   end;
 
   // Non-x86 backend semantic parity smoke (NEON/RISCVV if available).
@@ -83,6 +119,11 @@ implementation
 var
   GDispatchHookCountA: Integer = 0;
   GDispatchHookCountB: Integer = 0;
+  GDispatchHookDisableBackendEnabled: Boolean = False;
+  GDispatchHookDisableBackendArmed: Boolean = False;
+  GDispatchHookDisableBackendDone: Boolean = False;
+  GDispatchHookDisableBackendTarget: TSimdBackend = sbScalar;
+  GDispatchHookDisableBackendOriginalTable: TSimdDispatchTable;
 
 procedure DispatchHookProbeA;
 begin
@@ -92,6 +133,28 @@ end;
 procedure DispatchHookProbeB;
 begin
   Inc(GDispatchHookCountB);
+end;
+
+procedure DispatchHookDisableBackendOnce;
+var
+  LModifiedTable: TSimdDispatchTable;
+begin
+  if not GDispatchHookDisableBackendEnabled then
+    Exit;
+
+  if not GDispatchHookDisableBackendArmed then
+  begin
+    GDispatchHookDisableBackendArmed := True;
+    Exit;
+  end;
+
+  if GDispatchHookDisableBackendDone then
+    Exit;
+
+  GDispatchHookDisableBackendDone := True;
+  LModifiedTable := GDispatchHookDisableBackendOriginalTable;
+  LModifiedTable.BackendInfo.Available := False;
+  RegisterBackend(GDispatchHookDisableBackendTarget, LModifiedTable);
 end;
 
 { TTestCase_DispatchAPI }
@@ -160,6 +223,54 @@ begin
   end;
 end;
 
+procedure TTestCase_DispatchAPI.Test_TrySetActiveBackend_Fails_When_HookReRegister_ReSelects_Away;
+var
+  LRequestedBackend: TSimdBackend;
+  LOriginalTable: TSimdDispatchTable;
+  LOldVectorAsm: Boolean;
+begin
+  try
+    LOldVectorAsm := IsVectorAsmEnabled;
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LRequestedBackend := GetActiveBackend;
+    if LRequestedBackend = sbScalar then
+      Exit;
+
+    AssertTrue('Requested backend should be registered for hook-driven reselection test',
+      TryGetRegisteredBackendDispatchTable(LRequestedBackend, LOriginalTable));
+    AssertTrue('Requested backend should start dispatchable before hook-driven mutation',
+      IsBackendDispatchable(LRequestedBackend));
+
+    GDispatchHookDisableBackendOriginalTable := LOriginalTable;
+    GDispatchHookDisableBackendTarget := LRequestedBackend;
+    GDispatchHookDisableBackendEnabled := True;
+    GDispatchHookDisableBackendArmed := False;
+    GDispatchHookDisableBackendDone := False;
+    AddDispatchChangedHook(@DispatchHookDisableBackendOnce);
+    try
+      AssertFalse('TrySetActiveBackend should fail when a dispatch-changed hook re-registers the requested backend as non-dispatchable before the call completes',
+        TrySetActiveBackend(LRequestedBackend));
+      AssertFalse('Hook-driven re-register should leave the requested backend non-dispatchable',
+        IsBackendDispatchable(LRequestedBackend));
+      AssertTrue('Final active backend should move away from the requested backend after hook-driven re-selection',
+        GetActiveBackend <> LRequestedBackend);
+      AssertEquals('Forced selection should fall back to Scalar when the requested backend becomes non-dispatchable before the call completes',
+        Ord(sbScalar), Ord(GetActiveBackend));
+    finally
+      RemoveDispatchChangedHook(@DispatchHookDisableBackendOnce);
+      GDispatchHookDisableBackendEnabled := False;
+      GDispatchHookDisableBackendArmed := False;
+      GDispatchHookDisableBackendDone := False;
+      RegisterBackend(LRequestedBackend, LOriginalTable);
+      ResetToAutomaticBackend;
+    end;
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
 procedure TTestCase_DispatchAPI.Test_SetActiveBackend_Unavailable_FallsBackToScalar;
 begin
   try
@@ -216,6 +327,259 @@ begin
   finally
     // Restore original table.
     RegisterBackend(originalBackend, dtOrig);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_RegisterBackend_Canonicalizes_TableIdentity_For_ForcedSelection;
+var
+  LOriginalBackend: TSimdBackend;
+  LOriginalTable: TSimdDispatchTable;
+  LModifiedTable: TSimdDispatchTable;
+  LOldVectorAsm: Boolean;
+begin
+  try
+    GetDispatchTable;
+    LOldVectorAsm := IsVectorAsmEnabled;
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LOriginalBackend := GetActiveBackend;
+    if LOriginalBackend = sbScalar then
+      Exit;
+
+    AssertTrue('Original active backend should be registered for canonical identity test',
+      TryGetRegisteredBackendDispatchTable(LOriginalBackend, LOriginalTable));
+
+    LModifiedTable := LOriginalTable;
+    LModifiedTable.Backend := sbScalar;
+    LModifiedTable.BackendInfo.Backend := sbScalar;
+    RegisterBackend(LOriginalBackend, LModifiedTable);
+    try
+      AssertTrue('Synthetic identity-mismatch setup should keep the backend dispatchable',
+        IsBackendDispatchable(LOriginalBackend));
+      AssertTrue('TrySetActiveBackend should still report success for the requested backend slot',
+        TrySetActiveBackend(LOriginalBackend));
+      AssertEquals('Forced selection should expose the requested backend id, not the stale table Backend field',
+        Ord(LOriginalBackend), Ord(GetActiveBackend));
+      AssertEquals('GetBackendInfo should expose the canonical backend id after RegisterBackend',
+        Ord(LOriginalBackend), Ord(GetBackendInfo(LOriginalBackend).Backend));
+    finally
+      RegisterBackend(LOriginalBackend, LOriginalTable);
+      ResetToAutomaticBackend;
+    end;
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_SupportedAliases_StayCpuOnly_WhenBackendBecomesNonDispatchable;
+var
+  LOriginalBackend: TSimdBackend;
+  LOriginalBestSupported: TSimdBackend;
+  LAfterAuto: TSimdBackend;
+  LSupportedView: TSimdBackendArray;
+  LSupportedCompatView: TSimdBackendArray;
+  LDispatchableView: TSimdBackendArray;
+  LAvailableView: TSimdBackendArray;
+  LOriginalTable: TSimdDispatchTable;
+  LModifiedTable: TSimdDispatchTable;
+
+  function BackendInArray(const aItems: TSimdBackendArray; aBackend: TSimdBackend): Boolean;
+  var
+    LItemIndex: Integer;
+  begin
+    for LItemIndex := 0 to High(aItems) do
+      if aItems[LItemIndex] = aBackend then
+        Exit(True);
+    Result := False;
+  end;
+begin
+  ResetToAutomaticBackend;
+  LOriginalBackend := GetActiveBackend;
+
+  // On targets where Scalar is the only meaningful runtime backend, this
+  // semantic split cannot be exercised.
+  if LOriginalBackend = sbScalar then
+    Exit;
+
+  AssertTrue('Original active backend should be CPU-supported',
+    IsBackendAvailableOnCPU(LOriginalBackend));
+  AssertTrue('Original active backend should be dispatchable',
+    IsBackendDispatchable(LOriginalBackend));
+  AssertEquals('Automatic selection should start from best dispatchable backend',
+    Ord(LOriginalBackend), Ord(GetBestDispatchableBackend));
+  LOriginalBestSupported := fafafa.core.simd.GetBestSupportedBackend;
+
+  AssertTrue('Original active backend should be registered',
+    TryGetRegisteredBackendDispatchTable(LOriginalBackend, LOriginalTable));
+
+  LSupportedView := fafafa.core.simd.GetSupportedBackendList;
+  LSupportedCompatView := fafafa.core.simd.cpuinfo.GetAvailableBackends;
+  LDispatchableView := fafafa.core.simd.GetDispatchableBackendList;
+  LAvailableView := fafafa.core.simd.GetAvailableBackendList;
+  AssertTrue('Supported view should include original active backend',
+    BackendInArray(LSupportedView, LOriginalBackend));
+  AssertTrue('cpuinfo compatibility alias should include original active backend',
+    BackendInArray(LSupportedCompatView, LOriginalBackend));
+  AssertTrue('Dispatchable view should include original active backend',
+    BackendInArray(LDispatchableView, LOriginalBackend));
+  AssertTrue('Available backend list should include original active backend',
+    BackendInArray(LAvailableView, LOriginalBackend));
+
+  LModifiedTable := LOriginalTable;
+  LModifiedTable.BackendInfo.Available := False;
+  RegisterBackend(LOriginalBackend, LModifiedTable);
+  try
+    AssertTrue('CPU-supported predicate should not change when dispatch wiring is disabled',
+      IsBackendAvailableOnCPU(LOriginalBackend));
+    AssertFalse('Dispatchable predicate should clear when BackendInfo.Available=False',
+      IsBackendDispatchable(LOriginalBackend));
+
+    LSupportedView := fafafa.core.simd.GetSupportedBackendList;
+    LSupportedCompatView := fafafa.core.simd.cpuinfo.GetAvailableBackends;
+    LDispatchableView := fafafa.core.simd.GetDispatchableBackendList;
+    LAvailableView := fafafa.core.simd.GetAvailableBackendList;
+
+    AssertTrue('Supported view should remain CPU-only when dispatchability changes',
+      BackendInArray(LSupportedView, LOriginalBackend));
+    AssertTrue('cpuinfo compatibility alias should remain CPU-only when dispatchability changes',
+      BackendInArray(LSupportedCompatView, LOriginalBackend));
+    AssertFalse('Dispatchable view should exclude backend marked unavailable for dispatch',
+      BackendInArray(LDispatchableView, LOriginalBackend));
+    AssertFalse('Available backend list should continue to alias dispatchable view',
+      BackendInArray(LAvailableView, LOriginalBackend));
+    AssertEquals('Best supported backend should remain tied to CPU-only semantics',
+      Ord(LOriginalBestSupported), Ord(fafafa.core.simd.GetBestSupportedBackend));
+
+    ResetToAutomaticBackend;
+    LAfterAuto := GetActiveBackend;
+    AssertTrue('Automatic selection should move away from backend marked unavailable',
+      LAfterAuto <> LOriginalBackend);
+    AssertEquals('Best supported backend should remain stable after automatic reselection',
+      Ord(LOriginalBestSupported), Ord(fafafa.core.simd.GetBestSupportedBackend));
+  finally
+    RegisterBackend(LOriginalBackend, LOriginalTable);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_PublicSmokeDefaultBackendPredictor_Tracks_CanonicalDispatchPriority;
+var
+  LAVX2Table: TSimdDispatchTable;
+  LModifiedAVX2Table: TSimdDispatchTable;
+  LOldVectorAsm: Boolean;
+begin
+  {$IFNDEF SIMD_X86_AVAILABLE}
+  Exit;
+  {$ENDIF}
+
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    if not IsVectorAsmEnabled then
+      Exit;
+    if not IsBackendDispatchable(sbAVX2) then
+      Exit;
+    if not IsBackendDispatchable(sbSSE42) then
+      Exit;
+
+    AssertEquals('Public smoke default backend predictor should initially match canonical dispatch priority',
+      Ord(GetBestDispatchableBackend), Ord(GetExpectedPublicSmokeDefaultBackend));
+
+    AssertTrue('AVX2 backend should be registered for synthetic dispatch-priority split',
+      TryGetRegisteredBackendDispatchTable(sbAVX2, LAVX2Table));
+
+    LModifiedAVX2Table := LAVX2Table;
+    LModifiedAVX2Table.BackendInfo.Available := False;
+    RegisterBackend(sbAVX2, LModifiedAVX2Table);
+    try
+      AssertEquals('Canonical dispatch priority should move to SSE4.2 when AVX2 becomes non-dispatchable',
+        Ord(sbSSE42), Ord(GetBestDispatchableBackend));
+      AssertEquals('Public smoke default backend predictor should follow canonical dispatch priority after AVX2 becomes non-dispatchable',
+        Ord(GetBestDispatchableBackend), Ord(GetExpectedPublicSmokeDefaultBackend));
+    finally
+      RegisterBackend(sbAVX2, LAVX2Table);
+      ResetToAutomaticBackend;
+    end;
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_VectorAsmDisabled_ReSelects_Away_From_ScalarBacked_CurrentBackend;
+var
+  LOriginalBackend: TSimdBackend;
+  LOriginalTable: TSimdDispatchTable;
+  LScalarTable: TSimdDispatchTable;
+  LDispatchableView: TSimdBackendArray;
+  LAvailableView: TSimdBackendArray;
+  LOldVectorAsm: Boolean;
+  LIndex: Integer;
+
+  function BackendInArray(const aItems: TSimdBackendArray; aBackend: TSimdBackend): Boolean;
+  var
+    LItemIndex: Integer;
+  begin
+    for LItemIndex := 0 to High(aItems) do
+      if aItems[LItemIndex] = aBackend then
+        Exit(True);
+    Result := False;
+  end;
+
+  function IsScalarBackedForRepresentativeSlots(const aBackendTable, aScalarTable: TSimdDispatchTable): Boolean;
+  begin
+    Result :=
+      (Pointer(aBackendTable.AddF32x4) = Pointer(aScalarTable.AddF32x4)) and
+      (Pointer(aBackendTable.MulF32x4) = Pointer(aScalarTable.MulF32x4)) and
+      (Pointer(aBackendTable.AddI32x4) = Pointer(aScalarTable.AddI32x4)) and
+      (Pointer(aBackendTable.SelectF32x4) = Pointer(aScalarTable.SelectF32x4));
+  end;
+begin
+  ResetToAutomaticBackend;
+  LOriginalBackend := GetCurrentBackend;
+  if LOriginalBackend = sbScalar then
+    Exit;
+
+  AssertTrue('Original active backend should be registered',
+    TryGetRegisteredBackendDispatchTable(LOriginalBackend, LOriginalTable));
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    SetVectorAsmEnabled(False);
+    AssertFalse('Vector asm should be disabled for current-backend reselection test', IsVectorAsmEnabled);
+
+    AssertTrue('Original active backend should remain registered after runtime rebuild',
+      TryGetRegisteredBackendDispatchTable(LOriginalBackend, LOriginalTable));
+
+    if not IsScalarBackedForRepresentativeSlots(LOriginalTable, LScalarTable) then
+      Exit;
+
+    AssertFalse('Scalar-backed backend should not remain dispatchable after vector asm disable',
+      IsBackendDispatchable(LOriginalBackend));
+    AssertTrue('Automatic selection should move away from scalar-backed original backend after vector asm disable',
+      GetCurrentBackend <> LOriginalBackend);
+    AssertEquals('Best dispatchable backend should track current backend after vector asm disable reselection',
+      Ord(GetBestDispatchableBackend), Ord(GetCurrentBackend));
+
+    LDispatchableView := GetDispatchableBackendList;
+    LAvailableView := fafafa.core.simd.GetAvailableBackendList;
+    AssertFalse('Dispatchable view should exclude scalar-backed original backend after vector asm disable',
+      BackendInArray(LDispatchableView, LOriginalBackend));
+    AssertFalse('Available backend list should continue to alias dispatchable view after vector asm disable',
+      BackendInArray(LAvailableView, LOriginalBackend));
+
+    for LIndex := 0 to High(LDispatchableView) do
+      AssertTrue('Dispatchable view should only contain dispatchable backends after vector asm disable',
+        IsBackendDispatchable(LDispatchableView[LIndex]));
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
     ResetToAutomaticBackend;
   end;
 end;
@@ -294,6 +658,21 @@ begin
   for LIndex := 0 to High(LAvailable) do
     AssertEquals('Available backend list should alias dispatchable ordering at index ' + IntToStr(LIndex),
       Ord(LDispatchable[LIndex]), Ord(LAvailable[LIndex]));
+end;
+
+procedure TTestCase_DispatchAPI.Test_RegisteredBackendPriority_MatchesCanonicalPriority;
+var
+  LBackend: TSimdBackend;
+  LTable: TSimdDispatchTable;
+begin
+  for LBackend := Low(TSimdBackend) to High(TSimdBackend) do
+  begin
+    if not TryGetRegisteredBackendDispatchTable(LBackend, LTable) then
+      Continue;
+
+    AssertEquals('Registered table priority should match canonical priority for backend=' + IntToStr(Ord(LBackend)),
+      GetSimdBackendPriorityValue(LBackend), LTable.BackendInfo.Priority);
+  end;
 end;
 
 procedure TTestCase_DispatchAPI.Test_VecI64x2_DispatchAssigned_And_Parity;
@@ -2354,6 +2733,7 @@ var
   LScalar: TSimdDispatchTable;
   LAVX512: TSimdDispatchTable;
   LCanRunAVX512: Boolean;
+  LOldVectorAsm: Boolean;
   LIndex: Integer;
   LU32A, LU32B, LU32Result, LU32Expected: TVecU32x16;
   LU64A, LU64B, LU64Result, LU64Expected: TVecU64x8;
@@ -2363,88 +2743,98 @@ begin
   AssertTrue('Scalar dispatch table should be registered',
     TryGetRegisteredBackendDispatchTable(sbScalar, LScalar));
 
-  if not TryGetRegisteredBackendDispatchTable(sbAVX512, LAVX512) then
-    Exit;
-
-  // Mapping check: these slots must no longer point to scalar fallback.
-  AssertTrue('AVX512 AddU32x16 should not be scalar slot',
-    Pointer(LAVX512.AddU32x16) <> Pointer(LScalar.AddU32x16));
-  AssertTrue('AVX512 CmpEqU32x16 should not be scalar slot',
-    Pointer(LAVX512.CmpEqU32x16) <> Pointer(LScalar.CmpEqU32x16));
-  AssertTrue('AVX512 ShiftRightU32x16 should not be scalar slot',
-    Pointer(LAVX512.ShiftRightU32x16) <> Pointer(LScalar.ShiftRightU32x16));
-  AssertTrue('AVX512 AddU64x8 should not be scalar slot',
-    Pointer(LAVX512.AddU64x8) <> Pointer(LScalar.AddU64x8));
-  AssertTrue('AVX512 CmpEqU64x8 should not be scalar slot',
-    Pointer(LAVX512.CmpEqU64x8) <> Pointer(LScalar.CmpEqU64x8));
-  AssertTrue('AVX512 ShiftRightU64x8 should not be scalar slot',
-    Pointer(LAVX512.ShiftRightU64x8) <> Pointer(LScalar.ShiftRightU64x8));
-
-  // Parity check only on hosts where AVX512 backend is dispatch-available.
-  LCanRunAVX512 := LAVX512.BackendInfo.Available and TrySetActiveBackend(sbAVX512);
-  if not LCanRunAVX512 then
-    Exit;
-
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
   try
-    for LIndex := 0 to 15 do
-    begin
-      LU32A.u[LIndex] := DWord($F0000000 + DWord(LIndex) * DWord($1111111));
-      LU32B.u[LIndex] := DWord($0F0F0F0F + DWord(LIndex) * DWord(97));
-    end;
+    SetVectorAsmEnabled(True);
+    if not IsVectorAsmEnabled then
+      Exit;
 
-    for LIndex := 0 to 7 do
-    begin
-      LU64A.u[LIndex] := QWord($F000000000000000) + QWord(LIndex) * QWord($0102030405060708);
-      LU64B.u[LIndex] := QWord($00FF00FF00FF00FF) + QWord(LIndex) * QWord($0001000100010001);
-    end;
+    if not TryGetRegisteredBackendDispatchTable(sbAVX512, LAVX512) then
+      Exit;
 
-    LU32Result := LAVX512.AddU32x16(LU32A, LU32B);
-    LU32Expected := ScalarAddU32x16(LU32A, LU32B);
-    for LIndex := 0 to 15 do
-      AssertEquals('AVX512 AddU32x16 lane ' + IntToStr(LIndex), LU32Expected.u[LIndex], LU32Result.u[LIndex]);
+    // Mapping check: these slots must no longer point to scalar fallback.
+    AssertTrue('AVX512 AddU32x16 should not be scalar slot',
+      Pointer(LAVX512.AddU32x16) <> Pointer(LScalar.AddU32x16));
+    AssertTrue('AVX512 CmpEqU32x16 should not be scalar slot',
+      Pointer(LAVX512.CmpEqU32x16) <> Pointer(LScalar.CmpEqU32x16));
+    AssertTrue('AVX512 ShiftRightU32x16 should not be scalar slot',
+      Pointer(LAVX512.ShiftRightU32x16) <> Pointer(LScalar.ShiftRightU32x16));
+    AssertTrue('AVX512 AddU64x8 should not be scalar slot',
+      Pointer(LAVX512.AddU64x8) <> Pointer(LScalar.AddU64x8));
+    AssertTrue('AVX512 CmpEqU64x8 should not be scalar slot',
+      Pointer(LAVX512.CmpEqU64x8) <> Pointer(LScalar.CmpEqU64x8));
+    AssertTrue('AVX512 ShiftRightU64x8 should not be scalar slot',
+      Pointer(LAVX512.ShiftRightU64x8) <> Pointer(LScalar.ShiftRightU64x8));
 
-    LU32Result := LAVX512.AndU32x16(LU32A, LU32B);
-    LU32Expected := ScalarAndU32x16(LU32A, LU32B);
-    for LIndex := 0 to 15 do
-      AssertEquals('AVX512 AndU32x16 lane ' + IntToStr(LIndex), LU32Expected.u[LIndex], LU32Result.u[LIndex]);
+    // Parity check only on hosts where AVX512 backend is dispatch-available.
+    LCanRunAVX512 := LAVX512.BackendInfo.Available and TrySetActiveBackend(sbAVX512);
+    if not LCanRunAVX512 then
+      Exit;
 
-    LU32Result := LAVX512.ShiftRightU32x16(LU32A, 5);
-    LU32Expected := ScalarShiftRightU32x16(LU32A, 5);
-    for LIndex := 0 to 15 do
-      AssertEquals('AVX512 ShiftRightU32x16 lane ' + IntToStr(LIndex), LU32Expected.u[LIndex], LU32Result.u[LIndex]);
+    try
+      for LIndex := 0 to 15 do
+      begin
+        LU32A.u[LIndex] := DWord($F0000000 + DWord(LIndex) * DWord($1111111));
+        LU32B.u[LIndex] := DWord($0F0F0F0F + DWord(LIndex) * DWord(97));
+      end;
 
-    LMask16Result := LAVX512.CmpEqU32x16(LU32A, LU32B);
-    LMask16Expected := ScalarCmpEqU32x16(LU32A, LU32B);
-    AssertEquals('AVX512 CmpEqU32x16 mask parity', Integer(LMask16Expected), Integer(LMask16Result));
+      for LIndex := 0 to 7 do
+      begin
+        LU64A.u[LIndex] := QWord($F000000000000000) + QWord(LIndex) * QWord($0102030405060708);
+        LU64B.u[LIndex] := QWord($00FF00FF00FF00FF) + QWord(LIndex) * QWord($0001000100010001);
+      end;
 
-    LMask16Result := LAVX512.CmpGtU32x16(LU32A, LU32B);
-    LMask16Expected := ScalarCmpGtU32x16(LU32A, LU32B);
-    AssertEquals('AVX512 CmpGtU32x16 mask parity', Integer(LMask16Expected), Integer(LMask16Result));
+      LU32Result := LAVX512.AddU32x16(LU32A, LU32B);
+      LU32Expected := ScalarAddU32x16(LU32A, LU32B);
+      for LIndex := 0 to 15 do
+        AssertEquals('AVX512 AddU32x16 lane ' + IntToStr(LIndex), LU32Expected.u[LIndex], LU32Result.u[LIndex]);
 
-    LU64Result := LAVX512.AddU64x8(LU64A, LU64B);
-    LU64Expected := ScalarAddU64x8(LU64A, LU64B);
-    for LIndex := 0 to 7 do
-      AssertEquals('AVX512 AddU64x8 lane ' + IntToStr(LIndex), LU64Expected.u[LIndex], LU64Result.u[LIndex]);
+      LU32Result := LAVX512.AndU32x16(LU32A, LU32B);
+      LU32Expected := ScalarAndU32x16(LU32A, LU32B);
+      for LIndex := 0 to 15 do
+        AssertEquals('AVX512 AndU32x16 lane ' + IntToStr(LIndex), LU32Expected.u[LIndex], LU32Result.u[LIndex]);
 
-    LU64Result := LAVX512.XorU64x8(LU64A, LU64B);
-    LU64Expected := ScalarXorU64x8(LU64A, LU64B);
-    for LIndex := 0 to 7 do
-      AssertEquals('AVX512 XorU64x8 lane ' + IntToStr(LIndex), LU64Expected.u[LIndex], LU64Result.u[LIndex]);
+      LU32Result := LAVX512.ShiftRightU32x16(LU32A, 5);
+      LU32Expected := ScalarShiftRightU32x16(LU32A, 5);
+      for LIndex := 0 to 15 do
+        AssertEquals('AVX512 ShiftRightU32x16 lane ' + IntToStr(LIndex), LU32Expected.u[LIndex], LU32Result.u[LIndex]);
 
-    LU64Result := LAVX512.ShiftRightU64x8(LU64A, 11);
-    LU64Expected := ScalarShiftRightU64x8(LU64A, 11);
-    for LIndex := 0 to 7 do
-      AssertEquals('AVX512 ShiftRightU64x8 lane ' + IntToStr(LIndex), LU64Expected.u[LIndex], LU64Result.u[LIndex]);
+      LMask16Result := LAVX512.CmpEqU32x16(LU32A, LU32B);
+      LMask16Expected := ScalarCmpEqU32x16(LU32A, LU32B);
+      AssertEquals('AVX512 CmpEqU32x16 mask parity', Integer(LMask16Expected), Integer(LMask16Result));
 
-    LMask8Result := LAVX512.CmpEqU64x8(LU64A, LU64B);
-    LMask8Expected := ScalarCmpEqU64x8(LU64A, LU64B);
-    AssertEquals('AVX512 CmpEqU64x8 mask parity', Integer(LMask8Expected), Integer(LMask8Result));
+      LMask16Result := LAVX512.CmpGtU32x16(LU32A, LU32B);
+      LMask16Expected := ScalarCmpGtU32x16(LU32A, LU32B);
+      AssertEquals('AVX512 CmpGtU32x16 mask parity', Integer(LMask16Expected), Integer(LMask16Result));
+
+      LU64Result := LAVX512.AddU64x8(LU64A, LU64B);
+      LU64Expected := ScalarAddU64x8(LU64A, LU64B);
+      for LIndex := 0 to 7 do
+        AssertEquals('AVX512 AddU64x8 lane ' + IntToStr(LIndex), LU64Expected.u[LIndex], LU64Result.u[LIndex]);
+
+      LU64Result := LAVX512.XorU64x8(LU64A, LU64B);
+      LU64Expected := ScalarXorU64x8(LU64A, LU64B);
+      for LIndex := 0 to 7 do
+        AssertEquals('AVX512 XorU64x8 lane ' + IntToStr(LIndex), LU64Expected.u[LIndex], LU64Result.u[LIndex]);
+
+      LU64Result := LAVX512.ShiftRightU64x8(LU64A, 11);
+      LU64Expected := ScalarShiftRightU64x8(LU64A, 11);
+      for LIndex := 0 to 7 do
+        AssertEquals('AVX512 ShiftRightU64x8 lane ' + IntToStr(LIndex), LU64Expected.u[LIndex], LU64Result.u[LIndex]);
+
+      LMask8Result := LAVX512.CmpEqU64x8(LU64A, LU64B);
+      LMask8Expected := ScalarCmpEqU64x8(LU64A, LU64B);
+      AssertEquals('AVX512 CmpEqU64x8 mask parity', Integer(LMask8Expected), Integer(LMask8Result));
 
     LMask8Result := LAVX512.CmpLtU64x8(LU64A, LU64B);
     LMask8Expected := ScalarCmpLtU64x8(LU64A, LU64B);
     AssertEquals('AVX512 CmpLtU64x8 mask parity', Integer(LMask8Expected), Integer(LMask8Result));
+    finally
+      ResetToAutomaticBackend;
+    end;
   finally
-    ResetToAutomaticBackend;
+    SetVectorAsmEnabled(LOldVectorAsm);
   end;
 end;
 
@@ -2491,6 +2881,7 @@ var
   LScalar: TSimdDispatchTable;
   LAVX512: TSimdDispatchTable;
   LCanRunAVX512: Boolean;
+  LOldVectorAsm: Boolean;
   LIndex: Integer;
   LI16A, LI16B, LI16Result, LI16Expected: TVecI16x32;
   LI8A, LI8B, LI8Result, LI8Expected: TVecI8x64;
@@ -2501,8 +2892,15 @@ begin
   AssertTrue('Scalar dispatch table should be registered',
     TryGetRegisteredBackendDispatchTable(sbScalar, LScalar));
 
-  if not TryGetRegisteredBackendDispatchTable(sbAVX512, LAVX512) then
-    Exit;
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    if not IsVectorAsmEnabled then
+      Exit;
+
+    if not TryGetRegisteredBackendDispatchTable(sbAVX512, LAVX512) then
+      Exit;
 
   AssertTrue('AVX512 AddI16x32 should not be scalar slot',
     Pointer(LAVX512.AddI16x32) <> Pointer(LScalar.AddI16x32));
@@ -2523,11 +2921,11 @@ begin
   AssertTrue('AVX512 MaxU8x64 should not be scalar slot',
     Pointer(LAVX512.MaxU8x64) <> Pointer(LScalar.MaxU8x64));
 
-  LCanRunAVX512 := LAVX512.BackendInfo.Available and TrySetActiveBackend(sbAVX512);
-  if not LCanRunAVX512 then
-    Exit;
+    LCanRunAVX512 := LAVX512.BackendInfo.Available and TrySetActiveBackend(sbAVX512);
+    if not LCanRunAVX512 then
+      Exit;
 
-  try
+    try
     for LIndex := 0 to 31 do
     begin
       LI16A.i[LIndex] := Int16(LIndex * 97 - 1400);
@@ -2578,8 +2976,11 @@ begin
     LMask64Result := LAVX512.CmpLtU8x64(LU8A, LU8B);
     LMask64Expected := ScalarCmpLtU8x64(LU8A, LU8B);
     AssertEquals('AVX512 CmpLtU8x64 mask parity', Int64(LMask64Expected), Int64(LMask64Result));
+    finally
+      ResetToAutomaticBackend;
+    end;
   finally
-    ResetToAutomaticBackend;
+    SetVectorAsmEnabled(LOldVectorAsm);
   end;
 end;
 
@@ -2590,6 +2991,7 @@ var
   LAVX512: TSimdDispatchTable;
   LHasAVX2: Boolean;
   LCanRunAVX512: Boolean;
+  LOldVectorAsm: Boolean;
   LIndex: Integer;
 
   LInF32x16, LRoundF32x16, LTruncF32x16, LFloorF32x16, LCeilF32x16: TVecF32x16;
@@ -2629,10 +3031,17 @@ begin
   AssertTrue('Scalar dispatch table should be registered',
     TryGetRegisteredBackendDispatchTable(sbScalar, LScalar));
 
-  if not TryGetRegisteredBackendDispatchTable(sbAVX512, LAVX512) then
-    Exit;
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    if not IsVectorAsmEnabled then
+      Exit;
 
-  LHasAVX2 := TryGetRegisteredBackendDispatchTable(sbAVX2, LAVX2);
+    if not TryGetRegisteredBackendDispatchTable(sbAVX512, LAVX512) then
+      Exit;
+
+    LHasAVX2 := TryGetRegisteredBackendDispatchTable(sbAVX2, LAVX2);
 
   AssertTrue('AVX512 RoundF32x16 should not be scalar slot',
     Pointer(LAVX512.RoundF32x16) <> Pointer(LScalar.RoundF32x16));
@@ -2673,11 +3082,11 @@ begin
       Pointer(LAVX512.CeilF64x8) <> Pointer(LAVX2.CeilF64x8));
   end;
 
-  LCanRunAVX512 := LAVX512.BackendInfo.Available and TrySetActiveBackend(sbAVX512);
-  if not LCanRunAVX512 then
-    Exit;
+    LCanRunAVX512 := LAVX512.BackendInfo.Available and TrySetActiveBackend(sbAVX512);
+    if not LCanRunAVX512 then
+      Exit;
 
-  try
+    try
     for LIndex := 0 to 15 do
     begin
       case (LIndex mod 5) of
@@ -2773,8 +3182,11 @@ begin
     AssertEquals('AVX512 ReduceMulF64x8 parity', LExpectedReduceMulF64x8, LActualReduceMulF64x8, 1e-10);
     AssertEquals('AVX512 ReduceMinF64x8 parity', LExpectedReduceMinF64x8, LActualReduceMinF64x8, 1e-12);
     AssertEquals('AVX512 ReduceMaxF64x8 parity', LExpectedReduceMaxF64x8, LActualReduceMaxF64x8, 1e-12);
+    finally
+      ResetToAutomaticBackend;
+    end;
   finally
-    ResetToAutomaticBackend;
+    SetVectorAsmEnabled(LOldVectorAsm);
   end;
 end;
 
@@ -2843,8 +3255,829 @@ begin
   end;
 
   if TryGetRegisteredBackendDispatchTable(sbAVX512, LTable) then
-    AssertTrue('AVX512 should advertise sc512BitOps once wide integer matrix is non-scalar',
-      sc512BitOps in LTable.BackendInfo.Capabilities);
+    if (Pointer(LTable.AddU32x16) <> Pointer(LScalar.AddU32x16)) and
+       (Pointer(LTable.AddI16x32) <> Pointer(LScalar.AddI16x32)) and
+       (Pointer(LTable.AddU8x64) <> Pointer(LScalar.AddU8x64)) then
+      AssertTrue('AVX512 should advertise sc512BitOps once wide integer matrix is non-scalar',
+        sc512BitOps in LTable.BackendInfo.Capabilities)
+    else
+      AssertFalse('AVX512 should not advertise sc512BitOps when wide integer matrix is scalar fallback',
+        sc512BitOps in LTable.BackendInfo.Capabilities);
+end;
+
+procedure TTestCase_DispatchAPI.Test_BackendCapabilities_DoNotUnderclaim_IntegerOps;
+var
+  LBackend: TSimdBackend;
+  LTable: TSimdDispatchTable;
+  LScalar: TSimdDispatchTable;
+  LHasNonScalarIntegerSlots: Boolean;
+
+  function BackendName(const aBackend: TSimdBackend): string;
+  begin
+    case aBackend of
+      sbScalar: Result := 'Scalar';
+      sbSSE2: Result := 'SSE2';
+      sbSSE3: Result := 'SSE3';
+      sbSSSE3: Result := 'SSSE3';
+      sbSSE41: Result := 'SSE41';
+      sbSSE42: Result := 'SSE42';
+      sbAVX2: Result := 'AVX2';
+      sbAVX512: Result := 'AVX512';
+      sbNEON: Result := 'NEON';
+      sbRISCVV: Result := 'RISCVV';
+      else Result := IntToStr(Ord(aBackend));
+    end;
+  end;
+
+  procedure ObserveRepresentativeSlot(const aSlotName: string; aScalarSlot, aBackendSlot: Pointer);
+  begin
+    AssertTrue(aSlotName + ' missing: ' + BackendName(LBackend), aBackendSlot <> nil);
+    if aBackendSlot <> aScalarSlot then
+      LHasNonScalarIntegerSlots := True;
+  end;
+begin
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalar));
+
+  if not IsVectorAsmEnabled then
+    Exit;
+
+  for LBackend := Low(TSimdBackend) to High(TSimdBackend) do
+  begin
+    if LBackend = sbScalar then
+      Continue;
+    if not TryGetRegisteredBackendDispatchTable(LBackend, LTable) then
+      Continue;
+
+    LHasNonScalarIntegerSlots := False;
+    ObserveRepresentativeSlot('AddI32x4', Pointer(LScalar.AddI32x4), Pointer(LTable.AddI32x4));
+    ObserveRepresentativeSlot('AndI32x4', Pointer(LScalar.AndI32x4), Pointer(LTable.AndI32x4));
+    ObserveRepresentativeSlot('CmpEqI32x4', Pointer(LScalar.CmpEqI32x4), Pointer(LTable.CmpEqI32x4));
+    ObserveRepresentativeSlot('AddU32x16', Pointer(LScalar.AddU32x16), Pointer(LTable.AddU32x16));
+    ObserveRepresentativeSlot('MaxI8x64', Pointer(LScalar.MaxI8x64), Pointer(LTable.MaxI8x64));
+
+    if not LHasNonScalarIntegerSlots then
+      Continue;
+
+    AssertTrue('scIntegerOps missing while representative integer slots are non-scalar: ' + BackendName(LBackend),
+      scIntegerOps in LTable.BackendInfo.Capabilities);
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_BackendCapabilities_DoNotUnderclaim_Shuffle;
+var
+  LBackend: TSimdBackend;
+  LTable: TSimdDispatchTable;
+  LScalar: TSimdDispatchTable;
+  LHasNonScalarShuffleSlots: Boolean;
+  LOldVectorAsm: Boolean;
+
+  function BackendName(const aBackend: TSimdBackend): string;
+  begin
+    case aBackend of
+      sbScalar: Result := 'Scalar';
+      sbSSE2: Result := 'SSE2';
+      sbSSE3: Result := 'SSE3';
+      sbSSSE3: Result := 'SSSE3';
+      sbSSE41: Result := 'SSE41';
+      sbSSE42: Result := 'SSE42';
+      sbAVX2: Result := 'AVX2';
+      sbAVX512: Result := 'AVX512';
+      sbNEON: Result := 'NEON';
+      sbRISCVV: Result := 'RISCVV';
+      else Result := IntToStr(Ord(aBackend));
+    end;
+  end;
+
+  procedure ObserveRepresentativeSlot(const aSlotName: string; aScalarSlot, aBackendSlot: Pointer);
+  begin
+    AssertTrue(aSlotName + ' missing: ' + BackendName(LBackend), aBackendSlot <> nil);
+    if aBackendSlot <> aScalarSlot then
+      LHasNonScalarShuffleSlots := True;
+  end;
+begin
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalar));
+
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    if not IsVectorAsmEnabled then
+      Exit;
+
+    for LBackend := Low(TSimdBackend) to High(TSimdBackend) do
+    begin
+      if LBackend = sbScalar then
+        Continue;
+      if not TryGetRegisteredBackendDispatchTable(LBackend, LTable) then
+        Continue;
+
+      LHasNonScalarShuffleSlots := False;
+      ObserveRepresentativeSlot('SelectF32x4', Pointer(LScalar.SelectF32x4), Pointer(LTable.SelectF32x4));
+      ObserveRepresentativeSlot('InsertF32x4', Pointer(LScalar.InsertF32x4), Pointer(LTable.InsertF32x4));
+      ObserveRepresentativeSlot('ExtractF32x4', Pointer(LScalar.ExtractF32x4), Pointer(LTable.ExtractF32x4));
+      ObserveRepresentativeSlot('SelectF32x8', Pointer(LScalar.SelectF32x8), Pointer(LTable.SelectF32x8));
+      ObserveRepresentativeSlot('SelectF64x4', Pointer(LScalar.SelectF64x4), Pointer(LTable.SelectF64x4));
+
+      if not LHasNonScalarShuffleSlots then
+        Continue;
+
+      AssertTrue('scShuffle missing while representative shuffle slots are non-scalar: ' + BackendName(LBackend),
+        scShuffle in LTable.BackendInfo.Capabilities);
+    end;
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_BackendCapabilities_Clear_IntegerOps_When_VectorAsmDisabled;
+var
+  LBackend: TSimdBackend;
+  LTable: TSimdDispatchTable;
+  LScalar: TSimdDispatchTable;
+  LOldVectorAsm: Boolean;
+  LHasNonScalarIntegerSlots: Boolean;
+
+  function BackendName(const aBackend: TSimdBackend): string;
+  begin
+    case aBackend of
+      sbScalar: Result := 'Scalar';
+      sbSSE2: Result := 'SSE2';
+      sbSSE3: Result := 'SSE3';
+      sbSSSE3: Result := 'SSSE3';
+      sbSSE41: Result := 'SSE41';
+      sbSSE42: Result := 'SSE42';
+      sbAVX2: Result := 'AVX2';
+      sbAVX512: Result := 'AVX512';
+      sbNEON: Result := 'NEON';
+      sbRISCVV: Result := 'RISCVV';
+      else Result := IntToStr(Ord(aBackend));
+    end;
+  end;
+
+  function IsVectorAsmGatedX86Backend(aBackend: TSimdBackend): Boolean;
+  begin
+    case aBackend of
+      sbSSE2, sbSSE3, sbSSSE3, sbSSE41, sbSSE42, sbAVX2:
+        Exit(True);
+      else
+        Exit(False);
+    end;
+  end;
+
+  procedure ObserveRepresentativeSlot(const aSlotName: string; aScalarSlot, aBackendSlot: Pointer);
+  begin
+    AssertTrue(aSlotName + ' missing: ' + BackendName(LBackend), aBackendSlot <> nil);
+    if aBackendSlot <> aScalarSlot then
+      LHasNonScalarIntegerSlots := True;
+  end;
+begin
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalar));
+
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    SetVectorAsmEnabled(False);
+    AssertFalse('Vector asm should be disabled for capability rebuild test', IsVectorAsmEnabled);
+
+    for LBackend := Low(TSimdBackend) to High(TSimdBackend) do
+    begin
+      if not IsVectorAsmGatedX86Backend(LBackend) then
+        Continue;
+      if not TryGetRegisteredBackendDispatchTable(LBackend, LTable) then
+        Continue;
+
+      LHasNonScalarIntegerSlots := False;
+      ObserveRepresentativeSlot('AddI32x4', Pointer(LScalar.AddI32x4), Pointer(LTable.AddI32x4));
+      ObserveRepresentativeSlot('AndI32x4', Pointer(LScalar.AndI32x4), Pointer(LTable.AndI32x4));
+      ObserveRepresentativeSlot('CmpEqI32x4', Pointer(LScalar.CmpEqI32x4), Pointer(LTable.CmpEqI32x4));
+      ObserveRepresentativeSlot('AddU32x16', Pointer(LScalar.AddU32x16), Pointer(LTable.AddU32x16));
+      ObserveRepresentativeSlot('MaxI8x64', Pointer(LScalar.MaxI8x64), Pointer(LTable.MaxI8x64));
+
+      if LHasNonScalarIntegerSlots then
+        Continue;
+
+      AssertFalse('scIntegerOps should clear when representative integer slots are scalar after vector asm disable: ' + BackendName(LBackend),
+        scIntegerOps in LTable.BackendInfo.Capabilities);
+    end;
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_AVX2_BackendCapabilities_Expose_FMA_When_FusedPathUsable;
+var
+  LTable: TSimdDispatchTable;
+  LA, LB, LC: TVecF32x4;
+  LResult: TVecF32x4;
+  LLane: Integer;
+  LOldVectorAsm: Boolean;
+
+  function SingleFromBitsLocal(const aBits: DWord): Single; inline;
+  begin
+    Move(aBits, Result, SizeOf(Result));
+  end;
+begin
+  if not HasFeature(gfFMA) then
+    Exit;
+
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    if not IsVectorAsmEnabled then
+      Exit;
+    if not TryGetRegisteredBackendDispatchTable(sbAVX2, LTable) then
+      Exit;
+
+    AssertTrue('AVX2 FmaF32x4 should be assigned', Assigned(LTable.FmaF32x4));
+
+    // This input distinguishes fused FMA from separate mul+add.
+    LA := VecF32x4Splat(SingleFromBitsLocal($3F800001));
+    LB := LA;
+    LC := VecF32x4Splat(SingleFromBitsLocal($BF800002));
+    LResult := LTable.FmaF32x4(LA, LB, LC);
+
+    for LLane := 0 to 3 do
+      AssertEquals('AVX2 fused FMA witness lane ' + IntToStr(LLane),
+        SingleFromBitsLocal($28800000), VecF32x4Extract(LResult, LLane), 0.0);
+
+    AssertTrue('AVX2 should advertise scFMA once FmaF32x4 is using fused hardware instructions',
+      scFMA in LTable.BackendInfo.Capabilities);
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_AVX2_BackendCapabilities_Clear_FMA_When_VectorAsmDisabled;
+var
+  LTable: TSimdDispatchTable;
+  LOldVectorAsm: Boolean;
+begin
+  if not HasFeature(gfFMA) then
+    Exit;
+
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(False);
+    AssertFalse('Vector asm should be disabled for AVX2 FMA capability rebuild test', IsVectorAsmEnabled);
+    if not TryGetRegisteredBackendDispatchTable(sbAVX2, LTable) then
+      Exit;
+
+    AssertFalse('scFMA should clear when AVX2 falls back to scalar FMA after vector asm disable',
+      scFMA in LTable.BackendInfo.Capabilities);
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+  end;
+end;
+
+procedure TTestCase_X86MaskedFmaContract.Test_AVX2_FmaSlots_StayScalar_When_HardwareFmaUnavailable;
+var
+  LScalarTable: TSimdDispatchTable;
+  LAVX2Table: TSimdDispatchTable;
+  LInfo: TFafafaSimdBackendPodInfo;
+  LOldVectorAsm: Boolean;
+begin
+  if not HasAVX2 then
+    Exit;
+  if HasFeature(gfFMA) then
+    Exit;
+
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    if not IsVectorAsmEnabled then
+      Exit;
+
+    AssertTrue('AVX2 backend should stay registered when AVX2 is available but FMA is masked off',
+      TryGetRegisteredBackendDispatchTable(sbAVX2, LAVX2Table));
+
+    AssertFalse('AVX2 should not advertise scFMA when hardware FMA is unavailable',
+      scFMA in LAVX2Table.BackendInfo.Capabilities);
+
+    AssertEquals('AVX2 FmaF32x4 slot should stay scalar when hardware FMA is unavailable',
+      PtrUInt(LScalarTable.FmaF32x4), PtrUInt(LAVX2Table.FmaF32x4));
+    AssertEquals('AVX2 FmaF64x2 slot should stay scalar when hardware FMA is unavailable',
+      PtrUInt(LScalarTable.FmaF64x2), PtrUInt(LAVX2Table.FmaF64x2));
+    AssertEquals('AVX2 FmaF32x8 slot should stay scalar when hardware FMA is unavailable',
+      PtrUInt(LScalarTable.FmaF32x8), PtrUInt(LAVX2Table.FmaF32x8));
+    AssertEquals('AVX2 FmaF64x4 slot should stay scalar when hardware FMA is unavailable',
+      PtrUInt(LScalarTable.FmaF64x4), PtrUInt(LAVX2Table.FmaF64x4));
+    AssertEquals('AVX2 FmaF32x16 slot should stay scalar when hardware FMA is unavailable',
+      PtrUInt(LScalarTable.FmaF32x16), PtrUInt(LAVX2Table.FmaF32x16));
+    AssertEquals('AVX2 FmaF64x8 slot should stay scalar when hardware FMA is unavailable',
+      PtrUInt(LScalarTable.FmaF64x8), PtrUInt(LAVX2Table.FmaF64x8));
+
+    AssertTrue('TryGetSimdBackendPodInfo should succeed for sbAVX2',
+      TryGetSimdBackendPodInfo(sbAVX2, LInfo));
+    AssertTrue('Public ABI CapabilityBits should keep AVX2 scFMA clear when hardware FMA is unavailable',
+      (LInfo.CapabilityBits and (UInt64(1) shl Ord(scFMA))) = 0);
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_AVX512_BackendCapabilities_Expose_FMA_When_WideFmaSlots_AreNative;
+var
+  LScalarTable: TSimdDispatchTable;
+  LAVX512Table: TSimdDispatchTable;
+  LOldVectorAsm: Boolean;
+begin
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    if not IsVectorAsmEnabled then
+      Exit;
+    if not TryGetRegisteredBackendDispatchTable(sbAVX512, LAVX512Table) then
+      Exit;
+
+    AssertTrue('AVX512 FmaF32x16 should be assigned', Assigned(LAVX512Table.FmaF32x16));
+    AssertTrue('AVX512 FmaF64x8 should be assigned', Assigned(LAVX512Table.FmaF64x8));
+
+    if (Pointer(LAVX512Table.FmaF32x16) = Pointer(LScalarTable.FmaF32x16)) and
+       (Pointer(LAVX512Table.FmaF64x8) = Pointer(LScalarTable.FmaF64x8)) then
+      Exit;
+
+    AssertTrue('AVX512 should advertise scFMA once wide FMA slots are non-scalar',
+      scFMA in LAVX512Table.BackendInfo.Capabilities);
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_AVX512_BackendCapabilities_Expose_Shuffle_When_WideSelectSlots_AreNative;
+var
+  LScalarTable: TSimdDispatchTable;
+  LAVX512Table: TSimdDispatchTable;
+  LOldVectorAsm: Boolean;
+begin
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    if not IsVectorAsmEnabled then
+      Exit;
+    if not TryGetRegisteredBackendDispatchTable(sbAVX512, LAVX512Table) then
+      Exit;
+
+    AssertTrue('AVX512 SelectF32x16 should be assigned', Assigned(LAVX512Table.SelectF32x16));
+    AssertTrue('AVX512 SelectF64x8 should be assigned', Assigned(LAVX512Table.SelectF64x8));
+
+    if (Pointer(LAVX512Table.SelectF32x16) = Pointer(LScalarTable.SelectF32x16)) and
+       (Pointer(LAVX512Table.SelectF64x8) = Pointer(LScalarTable.SelectF64x8)) then
+      Exit;
+
+    AssertTrue('AVX512 should advertise scShuffle once wide select slots are non-scalar',
+      scShuffle in LAVX512Table.BackendInfo.Capabilities);
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_AVX512_BackendCapabilities_Clear_VectorAsmGatedBits_When_VectorAsmDisabled;
+var
+  LScalarTable: TSimdDispatchTable;
+  LAVX512Table: TSimdDispatchTable;
+  LOldVectorAsm: Boolean;
+begin
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  if not TryGetRegisteredBackendDispatchTable(sbAVX512, LAVX512Table) then
+    Exit;
+
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    if not IsVectorAsmEnabled then
+      Exit;
+    SetVectorAsmEnabled(False);
+    AssertFalse('Vector asm should be disabled for AVX512 capability rebuild test', IsVectorAsmEnabled);
+    AssertTrue('AVX512 backend should remain registered after runtime rebuild',
+      TryGetRegisteredBackendDispatchTable(sbAVX512, LAVX512Table));
+
+    AssertEquals('AVX512 FmaF32x16 should fall back to scalar when vector asm is disabled',
+      PtrUInt(LScalarTable.FmaF32x16), PtrUInt(LAVX512Table.FmaF32x16));
+    AssertEquals('AVX512 AddU32x16 should fall back to scalar when vector asm is disabled',
+      PtrUInt(LScalarTable.AddU32x16), PtrUInt(LAVX512Table.AddU32x16));
+
+    AssertFalse('AVX512 scFMA should clear when vector asm is disabled',
+      scFMA in LAVX512Table.BackendInfo.Capabilities);
+    AssertFalse('AVX512 scShuffle should clear when vector asm is disabled',
+      scShuffle in LAVX512Table.BackendInfo.Capabilities);
+    AssertFalse('AVX512 scIntegerOps should clear when vector asm is disabled',
+      scIntegerOps in LAVX512Table.BackendInfo.Capabilities);
+    AssertFalse('AVX512 scMaskedOps should clear when vector asm is disabled',
+      scMaskedOps in LAVX512Table.BackendInfo.Capabilities);
+    AssertFalse('AVX512 sc512BitOps should clear when vector asm is disabled',
+      sc512BitOps in LAVX512Table.BackendInfo.Capabilities);
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_NEON_BackendCapabilities_Expose_Shuffle_When_RepresentativeSlots_AreNonScalar;
+var
+  LScalarTable: TSimdDispatchTable;
+  LNEONTable: TSimdDispatchTable;
+begin
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  {$IFDEF FAFAFA_SIMD_TEST_REGISTER_NEON_BACKEND}
+  AssertTrue('NEON opt-in test registration should be present',
+    TryGetRegisteredBackendDispatchTable(sbNEON, LNEONTable));
+  {$ELSE}
+  if not TryGetRegisteredBackendDispatchTable(sbNEON, LNEONTable) then
+    Exit;
+  {$ENDIF}
+
+  AssertTrue('NEON SelectF32x4 should be assigned', Assigned(LNEONTable.SelectF32x4));
+  AssertTrue('NEON InsertF32x4 should be assigned', Assigned(LNEONTable.InsertF32x4));
+  AssertTrue('NEON ExtractF32x4 should be assigned', Assigned(LNEONTable.ExtractF32x4));
+
+  if (Pointer(LNEONTable.SelectF32x4) = Pointer(LScalarTable.SelectF32x4)) and
+     (Pointer(LNEONTable.InsertF32x4) = Pointer(LScalarTable.InsertF32x4)) and
+     (Pointer(LNEONTable.ExtractF32x4) = Pointer(LScalarTable.ExtractF32x4)) and
+     (Pointer(LNEONTable.SelectF32x8) = Pointer(LScalarTable.SelectF32x8)) and
+     (Pointer(LNEONTable.SelectF64x4) = Pointer(LScalarTable.SelectF64x4)) then
+    Exit;
+
+  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+  AssertTrue('NEON should advertise scShuffle when NEON asm-backed representative shuffle slots are non-scalar',
+    scShuffle in LNEONTable.BackendInfo.Capabilities);
+  {$ELSE}
+  AssertFalse('NEON should not advertise scShuffle when only scalar fallback shuffle slots are compiled',
+    scShuffle in LNEONTable.BackendInfo.Capabilities);
+  {$ENDIF}
+end;
+
+procedure TTestCase_DispatchAPI.Test_NEON_BackendCapabilities_Expose_FMA_When_FmaSlots_AreNative;
+var
+  LNEONTable: TSimdDispatchTable;
+begin
+  {$IFDEF FAFAFA_SIMD_TEST_REGISTER_NEON_BACKEND}
+  AssertTrue('NEON opt-in test registration should be present',
+    TryGetRegisteredBackendDispatchTable(sbNEON, LNEONTable));
+  {$ELSE}
+  if not TryGetRegisteredBackendDispatchTable(sbNEON, LNEONTable) then
+    Exit;
+  {$ENDIF}
+
+  AssertTrue('NEON FmaF32x4 should be assigned', Assigned(LNEONTable.FmaF32x4));
+  AssertTrue('NEON FmaF32x8 should be assigned', Assigned(LNEONTable.FmaF32x8));
+  AssertTrue('NEON FmaF64x2 should be assigned', Assigned(LNEONTable.FmaF64x2));
+  AssertTrue('NEON FmaF64x4 should be assigned', Assigned(LNEONTable.FmaF64x4));
+
+  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+  AssertTrue('NEON should advertise scFMA when NEON asm-backed FMA slots are compiled',
+    scFMA in LNEONTable.BackendInfo.Capabilities);
+  {$ELSE}
+  AssertFalse('NEON should not advertise scFMA when only scalar/common fallback FMA slots are compiled',
+    scFMA in LNEONTable.BackendInfo.Capabilities);
+  {$ENDIF}
+end;
+
+procedure TTestCase_DispatchAPI.Test_NEON_BackendCapabilities_Expose_IntegerOps_When_IntegerSlots_AreNative;
+var
+  LNEONTable: TSimdDispatchTable;
+begin
+  {$IFDEF FAFAFA_SIMD_TEST_REGISTER_NEON_BACKEND}
+  AssertTrue('NEON opt-in test registration should be present',
+    TryGetRegisteredBackendDispatchTable(sbNEON, LNEONTable));
+  {$ELSE}
+  if not TryGetRegisteredBackendDispatchTable(sbNEON, LNEONTable) then
+    Exit;
+  {$ENDIF}
+
+  AssertTrue('NEON AddI32x4 should be assigned', Assigned(LNEONTable.AddI32x4));
+  AssertTrue('NEON AndI32x4 should be assigned', Assigned(LNEONTable.AndI32x4));
+  AssertTrue('NEON AddI16x8 should be assigned', Assigned(LNEONTable.AddI16x8));
+
+  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+  AssertTrue('NEON should advertise scIntegerOps when NEON asm-backed integer slots are compiled',
+    scIntegerOps in LNEONTable.BackendInfo.Capabilities);
+  {$ELSE}
+  AssertFalse('NEON should not advertise scIntegerOps when only scalar/common fallback integer slots are compiled',
+    scIntegerOps in LNEONTable.BackendInfo.Capabilities);
+  {$ENDIF}
+end;
+
+procedure TTestCase_DispatchAPI.Test_NEON_BackendCapabilities_Clear_VectorAsmGatedBits_When_VectorAsmDisabled;
+var
+  LScalarTable: TSimdDispatchTable;
+  LNEONTable: TSimdDispatchTable;
+  LOldVectorAsm: Boolean;
+begin
+  {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+  Exit;
+  {$ENDIF}
+
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    SetVectorAsmEnabled(False);
+    AssertFalse('Vector asm should be disabled for NEON capability rebuild test', IsVectorAsmEnabled);
+    AssertTrue('NEON backend should remain registered after runtime rebuild',
+      TryGetRegisteredBackendDispatchTable(sbNEON, LNEONTable));
+
+    AssertEquals('NEON FmaF32x4 should fall back to scalar when vector asm is disabled',
+      PtrUInt(LScalarTable.FmaF32x4), PtrUInt(LNEONTable.FmaF32x4));
+    AssertEquals('NEON SelectF32x4 should fall back to scalar when vector asm is disabled',
+      PtrUInt(LScalarTable.SelectF32x4), PtrUInt(LNEONTable.SelectF32x4));
+    AssertEquals('NEON InsertF32x4 should fall back to scalar when vector asm is disabled',
+      PtrUInt(LScalarTable.InsertF32x4), PtrUInt(LNEONTable.InsertF32x4));
+    AssertEquals('NEON ExtractF32x4 should fall back to scalar when vector asm is disabled',
+      PtrUInt(LScalarTable.ExtractF32x4), PtrUInt(LNEONTable.ExtractF32x4));
+
+    AssertFalse('NEON scFMA should clear when vector asm is disabled',
+      scFMA in LNEONTable.BackendInfo.Capabilities);
+    AssertFalse('NEON scIntegerOps should clear when vector asm is disabled',
+      scIntegerOps in LNEONTable.BackendInfo.Capabilities);
+    AssertFalse('NEON scShuffle should clear when vector asm is disabled',
+      scShuffle in LNEONTable.BackendInfo.Capabilities);
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_RISCVV_BackendCapabilities_Expose_IntegerOps_When_IntegerSlots_AreNative;
+var
+  LRISCVVTable: TSimdDispatchTable;
+begin
+  {$IFDEF FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND}
+  AssertTrue('RISCVV opt-in test registration should be present',
+    TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable));
+  {$ELSE}
+  if not TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable) then
+    Exit;
+  {$ENDIF}
+
+  AssertTrue('RISCVV AddI32x4 should be assigned', Assigned(LRISCVVTable.AddI32x4));
+  AssertTrue('RISCVV AndI32x4 should be assigned', Assigned(LRISCVVTable.AndI32x4));
+  AssertTrue('RISCVV AddI64x2 should be assigned', Assigned(LRISCVVTable.AddI64x2));
+
+  {$IFDEF RISCVV_ASSEMBLY}
+  AssertTrue('RISCVV should advertise scIntegerOps when RVV asm-backed integer slots are compiled',
+    scIntegerOps in LRISCVVTable.BackendInfo.Capabilities);
+  {$ELSE}
+  AssertFalse('RISCVV should not advertise scIntegerOps when only scalar/common fallback integer slots are compiled',
+    scIntegerOps in LRISCVVTable.BackendInfo.Capabilities);
+  {$ENDIF}
+end;
+
+procedure TTestCase_DispatchAPI.Test_RISCVV_BackendCapabilities_Expose_FMA_When_FmaSlots_AreNonScalar;
+var
+  LScalarTable: TSimdDispatchTable;
+  LRISCVVTable: TSimdDispatchTable;
+begin
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  {$IFDEF FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND}
+  AssertTrue('RISCVV opt-in test registration should be present',
+    TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable));
+  {$ELSE}
+  if not TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable) then
+    Exit;
+  {$ENDIF}
+
+  AssertTrue('RISCVV FmaF32x4 should be assigned', Assigned(LRISCVVTable.FmaF32x4));
+  AssertTrue('RISCVV FmaF32x8 should be assigned', Assigned(LRISCVVTable.FmaF32x8));
+  AssertTrue('RISCVV FmaF64x4 should be assigned', Assigned(LRISCVVTable.FmaF64x4));
+
+  if (Pointer(LRISCVVTable.FmaF32x4) = Pointer(LScalarTable.FmaF32x4)) and
+     (Pointer(LRISCVVTable.FmaF32x8) = Pointer(LScalarTable.FmaF32x8)) and
+     (Pointer(LRISCVVTable.FmaF64x2) = Pointer(LScalarTable.FmaF64x2)) and
+     (Pointer(LRISCVVTable.FmaF64x4) = Pointer(LScalarTable.FmaF64x4)) and
+     (Pointer(LRISCVVTable.FmaF32x16) = Pointer(LScalarTable.FmaF32x16)) and
+     (Pointer(LRISCVVTable.FmaF64x8) = Pointer(LScalarTable.FmaF64x8)) then
+    Exit;
+
+  {$IFDEF RISCVV_ASSEMBLY}
+  AssertTrue('RISCVV should advertise scFMA when RVV asm-backed representative FMA slots are non-scalar',
+    scFMA in LRISCVVTable.BackendInfo.Capabilities);
+  {$ELSE}
+  AssertFalse('RISCVV should not advertise scFMA when only scalar fallback FMA slots are compiled',
+    scFMA in LRISCVVTable.BackendInfo.Capabilities);
+  {$ENDIF}
+end;
+
+procedure TTestCase_DispatchAPI.Test_RISCVV_BackendCapabilities_Expose_Shuffle_When_RepresentativeSlots_AreNonScalar;
+var
+  LRISCVVTable: TSimdDispatchTable;
+begin
+  {$IFDEF FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND}
+  AssertTrue('RISCVV opt-in test registration should be present',
+    TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable));
+  {$ELSE}
+  if not TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable) then
+    Exit;
+  {$ENDIF}
+
+  AssertTrue('RISCVV SelectF32x4 should be assigned', Assigned(LRISCVVTable.SelectF32x4));
+  AssertTrue('RISCVV InsertF32x4 should be assigned', Assigned(LRISCVVTable.InsertF32x4));
+  AssertTrue('RISCVV ExtractF32x4 should be assigned', Assigned(LRISCVVTable.ExtractF32x4));
+
+  {$IFDEF RISCVV_ASSEMBLY}
+  AssertTrue('RISCVV should advertise scShuffle when RVV asm-backed representative shuffle slots are compiled',
+    scShuffle in LRISCVVTable.BackendInfo.Capabilities);
+  {$ELSE}
+  AssertFalse('RISCVV should not advertise scShuffle when only scalar/common fallback shuffle slots are compiled',
+    scShuffle in LRISCVVTable.BackendInfo.Capabilities);
+  {$ENDIF}
+end;
+
+procedure TTestCase_DispatchAPI.Test_RISCVV_BackendCapabilities_Clear_VectorAsmGatedBits_When_VectorAsmDisabled;
+var
+  LScalarTable: TSimdDispatchTable;
+  LRISCVVTable: TSimdDispatchTable;
+  LOldVectorAsm: Boolean;
+begin
+  {$IFNDEF RISCVV_ASSEMBLY}
+  Exit;
+  {$ENDIF}
+
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    SetVectorAsmEnabled(False);
+    AssertFalse('Vector asm should be disabled for RISCVV capability rebuild test', IsVectorAsmEnabled);
+    AssertTrue('RISCVV backend should remain registered after runtime rebuild',
+      TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable));
+
+    AssertEquals('RISCVV FmaF32x4 should fall back to scalar when vector asm is disabled',
+      PtrUInt(LScalarTable.FmaF32x4), PtrUInt(LRISCVVTable.FmaF32x4));
+    AssertEquals('RISCVV SelectF32x4 should fall back to scalar when vector asm is disabled',
+      PtrUInt(LScalarTable.SelectF32x4), PtrUInt(LRISCVVTable.SelectF32x4));
+    AssertEquals('RISCVV InsertF32x4 should fall back to scalar when vector asm is disabled',
+      PtrUInt(LScalarTable.InsertF32x4), PtrUInt(LRISCVVTable.InsertF32x4));
+    AssertEquals('RISCVV ExtractF32x4 should fall back to scalar when vector asm is disabled',
+      PtrUInt(LScalarTable.ExtractF32x4), PtrUInt(LRISCVVTable.ExtractF32x4));
+
+    AssertFalse('RISCVV scFMA should clear when vector asm is disabled',
+      scFMA in LRISCVVTable.BackendInfo.Capabilities);
+    AssertFalse('RISCVV scIntegerOps should clear when vector asm is disabled',
+      scIntegerOps in LRISCVVTable.BackendInfo.Capabilities);
+    AssertFalse('RISCVV scShuffle should clear when vector asm is disabled',
+      scShuffle in LRISCVVTable.BackendInfo.Capabilities);
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_AVX2_BackendCapabilities_Expose_Shuffle_When_NativeShuffleSlotsUsable;
+var
+  LScalarTable: TSimdDispatchTable;
+  LAVX2Table: TSimdDispatchTable;
+  LOldVectorAsm: Boolean;
+begin
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    if not IsVectorAsmEnabled then
+      Exit;
+    if not TryGetRegisteredBackendDispatchTable(sbAVX2, LAVX2Table) then
+      Exit;
+
+    AssertTrue('AVX2 SelectF32x4 should be assigned', Assigned(LAVX2Table.SelectF32x4));
+    AssertTrue('AVX2 InsertF32x4 should be assigned', Assigned(LAVX2Table.InsertF32x4));
+    AssertTrue('AVX2 ExtractF32x4 should be assigned', Assigned(LAVX2Table.ExtractF32x4));
+
+    if (Pointer(LAVX2Table.SelectF32x4) = Pointer(LScalarTable.SelectF32x4)) and
+       (Pointer(LAVX2Table.InsertF32x4) = Pointer(LScalarTable.InsertF32x4)) and
+       (Pointer(LAVX2Table.ExtractF32x4) = Pointer(LScalarTable.ExtractF32x4)) and
+       (Pointer(LAVX2Table.SelectF32x8) = Pointer(LScalarTable.SelectF32x8)) and
+       (Pointer(LAVX2Table.SelectF64x4) = Pointer(LScalarTable.SelectF64x4)) then
+      Exit;
+
+    AssertTrue('AVX2 should advertise scShuffle once representative shuffle slots are non-scalar',
+      scShuffle in LAVX2Table.BackendInfo.Capabilities);
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_AVX2_BackendCapabilities_Clear_Shuffle_When_VectorAsmDisabled;
+var
+  LScalarTable: TSimdDispatchTable;
+  LAVX2Table: TSimdDispatchTable;
+  LOldVectorAsm: Boolean;
+begin
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(False);
+    AssertFalse('Vector asm should be disabled for AVX2 shuffle capability rebuild test', IsVectorAsmEnabled);
+    if not TryGetRegisteredBackendDispatchTable(sbAVX2, LAVX2Table) then
+      Exit;
+
+    AssertEquals('AVX2 SelectF32x4 should fall back to scalar when vector asm is disabled',
+      PtrUInt(LScalarTable.SelectF32x4), PtrUInt(LAVX2Table.SelectF32x4));
+    AssertEquals('AVX2 InsertF32x4 should fall back to scalar when vector asm is disabled',
+      PtrUInt(LScalarTable.InsertF32x4), PtrUInt(LAVX2Table.InsertF32x4));
+    AssertEquals('AVX2 ExtractF32x4 should fall back to scalar when vector asm is disabled',
+      PtrUInt(LScalarTable.ExtractF32x4), PtrUInt(LAVX2Table.ExtractF32x4));
+    AssertEquals('AVX2 SelectF32x8 should fall back to scalar when vector asm is disabled',
+      PtrUInt(LScalarTable.SelectF32x8), PtrUInt(LAVX2Table.SelectF32x8));
+    AssertEquals('AVX2 SelectF64x4 should fall back to scalar when vector asm is disabled',
+      PtrUInt(LScalarTable.SelectF64x4), PtrUInt(LAVX2Table.SelectF64x4));
+
+    AssertFalse('scShuffle should clear when AVX2 shuffle slots fall back to scalar after vector asm disable',
+      scShuffle in LAVX2Table.BackendInfo.Capabilities);
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_X86_BackendCapabilities_Clear_Shuffle_When_VectorAsmDisabled;
+var
+  LBackend: TSimdBackend;
+  LScalarTable: TSimdDispatchTable;
+  LBackendTable: TSimdDispatchTable;
+  LOldVectorAsm: Boolean;
+
+  function BackendName(const aBackend: TSimdBackend): string;
+  begin
+    case aBackend of
+      sbSSE41: Result := 'SSE41';
+      sbSSE42: Result := 'SSE42';
+      sbAVX2: Result := 'AVX2';
+      else Result := IntToStr(Ord(aBackend));
+    end;
+  end;
+
+  function IsShuffleCapabilityGatedBackend(const aBackend: TSimdBackend): Boolean;
+  begin
+    case aBackend of
+      sbSSE41, sbSSE42, sbAVX2:
+        Exit(True);
+      else
+        Exit(False);
+    end;
+  end;
+begin
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    SetVectorAsmEnabled(False);
+    AssertFalse('Vector asm should be disabled for x86 shuffle capability rebuild test', IsVectorAsmEnabled);
+
+    for LBackend := Low(TSimdBackend) to High(TSimdBackend) do
+    begin
+      if not IsShuffleCapabilityGatedBackend(LBackend) then
+        Continue;
+      if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
+        Continue;
+
+      AssertEquals(BackendName(LBackend) + ' SelectF32x4 should fall back to scalar when vector asm is disabled',
+        PtrUInt(LScalarTable.SelectF32x4), PtrUInt(LBackendTable.SelectF32x4));
+      AssertEquals(BackendName(LBackend) + ' InsertF32x4 should fall back to scalar when vector asm is disabled',
+        PtrUInt(LScalarTable.InsertF32x4), PtrUInt(LBackendTable.InsertF32x4));
+      AssertEquals(BackendName(LBackend) + ' ExtractF32x4 should fall back to scalar when vector asm is disabled',
+        PtrUInt(LScalarTable.ExtractF32x4), PtrUInt(LBackendTable.ExtractF32x4));
+
+      AssertFalse('scShuffle should clear when representative shuffle slots are scalar after vector asm disable: ' + BackendName(LBackend),
+        scShuffle in LBackendTable.BackendInfo.Capabilities);
+    end;
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+  end;
 end;
 
 procedure TTestCase_DispatchAPI.Test_AVX2_BenchmarkWideOps_NotScalar;
@@ -2871,6 +4104,50 @@ begin
   AssertNonScalarSlot('MulU32x16', Pointer(LScalar.MulU32x16), Pointer(LAVX2.MulU32x16));
   AssertNonScalarSlot('AddU64x8', Pointer(LScalar.AddU64x8), Pointer(LAVX2.AddU64x8));
   AssertNonScalarSlot('MaxU8x64', Pointer(LScalar.MaxU8x64), Pointer(LAVX2.MaxU8x64));
+end;
+
+procedure TTestCase_DispatchAPI.Test_BenchmarkActivation_Rejects_CpuSupportedButNonDispatchable_Backend;
+var
+  LOriginalBackend: TSimdBackend;
+  LOriginalTable: TSimdDispatchTable;
+  LModifiedTable: TSimdDispatchTable;
+  LBeforeActive: TSimdBackend;
+  LSkipReason: string;
+begin
+  ResetToAutomaticBackend;
+  LOriginalBackend := GetActiveBackend;
+  if LOriginalBackend = sbScalar then
+    Exit;
+
+  AssertTrue('Original backend should remain CPU-supported for benchmark activation contract test',
+    IsBackendAvailableOnCPU(LOriginalBackend));
+  AssertTrue('Original backend should be registered',
+    TryGetRegisteredBackendDispatchTable(LOriginalBackend, LOriginalTable));
+
+  LModifiedTable := LOriginalTable;
+  LModifiedTable.BackendInfo.Available := False;
+  RegisterBackend(LOriginalBackend, LModifiedTable);
+  try
+    AssertTrue('CPU support should remain true after disabling dispatch wiring',
+      IsBackendAvailableOnCPU(LOriginalBackend));
+    AssertFalse('Dispatchable predicate should clear after disabling dispatch wiring',
+      IsBackendDispatchable(LOriginalBackend));
+
+    LBeforeActive := GetActiveBackend;
+    AssertTrue('Synthetic non-dispatchable backend should no longer stay active',
+      LBeforeActive <> LOriginalBackend);
+
+    LSkipReason := '';
+    AssertFalse('Benchmark activation should reject CPU-supported but non-dispatchable backend',
+      TryActivateBenchmarkBackend(LOriginalBackend, LSkipReason));
+    AssertTrue('Benchmark activation failure should explain dispatchability',
+      Pos('dispatch', LowerCase(LSkipReason)) > 0);
+    AssertEquals('Failed benchmark activation should not change the current active backend',
+      Ord(LBeforeActive), Ord(GetActiveBackend));
+  finally
+    RegisterBackend(LOriginalBackend, LOriginalTable);
+    ResetToAutomaticBackend;
+  end;
 end;
 
 procedure TTestCase_DispatchAPI.Test_NonX86_DispatchTable_WiringChecklist_Grouped;
@@ -4962,6 +6239,7 @@ end;
 
 initialization
   RegisterTest(TTestCase_DispatchAPI);
+  RegisterTest(TTestCase_X86MaskedFmaContract);
   RegisterTest(TTestCase_NonX86BackendParity);
 
 end.

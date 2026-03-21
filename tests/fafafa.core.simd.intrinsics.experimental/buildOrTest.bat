@@ -7,20 +7,12 @@ if not "%~1"=="" shift
 set "TEST_ARGS=%*"
 
 set "ROOT=%~dp0"
-set "PROG=%ROOT%fafafa.core.simd.intrinsics.experimental.test.lpr"
-set "BIN_DIR=%ROOT%bin"
-set "LIB_DIR=%ROOT%lib"
-set "BIN=%BIN_DIR%\fafafa.core.simd.intrinsics.experimental.test.exe"
-set "LOG_DIR=%ROOT%logs"
-set "BUILD_LOG=%LOG_DIR%\build.txt"
-set "TEST_LOG=%LOG_DIR%\test.txt"
-
-if not exist "%BIN_DIR%" mkdir "%BIN_DIR%"
-if not exist "%LIB_DIR%" mkdir "%LIB_DIR%"
-if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
-
-set "FPC_BIN=%FPC%"
-if "%FPC_BIN%"=="" set "FPC_BIN=fpc"
+set "OUTPUT_ROOT=%SIMD_OUTPUT_ROOT%"
+if "%OUTPUT_ROOT%"=="" set "OUTPUT_ROOT=%ROOT%"
+set "BIN_DIR=%OUTPUT_ROOT%bin"
+set "LIB_DIR=%OUTPUT_ROOT%lib"
+set "LOG_DIR=%OUTPUT_ROOT%logs"
+set "CANONICAL_RUNNER=%ROOT%BuildOrTest.sh"
 
 if /I "%ACTION%"=="clean" goto :clean
 if /I "%ACTION%"=="build" goto :build
@@ -31,60 +23,62 @@ if /I "%ACTION%"=="test-experimental" goto :test_experimental
 if /I "%ACTION%"=="test-all" goto :test_all
 
 echo Usage: %~nx0 [clean^|build^|build-experimental^|check^|test^|test-experimental^|test-all] [test-args...]
+echo [INFO] Canonical runner: tests\fafafa.core.simd.intrinsics.experimental\BuildOrTest.sh
 exit /b 2
 
-:build_core
-set "EXTRA_DEFINE=%~1"
-echo [BUILD] Target: %PROG% (define=%EXTRA_DEFINE%)
->"%BUILD_LOG%" (
-  "%FPC_BIN%" -B -Mobjfpc -Sc -Si -O1 -g -gl -dDEBUG %EXTRA_DEFINE% -Fu"%ROOT%" -Fu"%ROOT%..\..\src" -Fi"%ROOT%..\..\src" -FE"%BIN_DIR%" -FU"%LIB_DIR%" -o"%BIN%" "%PROG%"
-)
-if errorlevel 1 (
-  echo [BUILD] FAILED (see %BUILD_LOG%)
-  type "%BUILD_LOG%"
-  exit /b 1
-)
-echo [BUILD] OK
-exit /b 0
-
-:check_build_log
-findstr /r /c:"src\\fafafa\.core\.simd\..*Warning:" /c:"src\\fafafa\.core\.simd\..*Hint:" "%BUILD_LOG%" >nul 2>nul
-if not errorlevel 1 (
-  echo [CHECK] Found warnings/hints from SIMD units in build log
-  type "%BUILD_LOG%"
-  exit /b 1
-)
-echo [CHECK] OK (no SIMD-unit warnings/hints)
-exit /b 0
-
-:run_tests
-if not exist "%BIN%" (
-  echo [TEST] Missing binary: %BIN%
+:require_canonical_runner
+if not exist "%CANONICAL_RUNNER%" (
+  echo [CANONICAL] Missing runner: %CANONICAL_RUNNER%
   exit /b 2
 )
-set "NORMALIZED_TEST_ARGS=%TEST_ARGS:--list-suites=--list%"
-echo [TEST] Running: %BIN% %NORMALIZED_TEST_ARGS%
-"%BIN%" %NORMALIZED_TEST_ARGS% >"%TEST_LOG%" 2>&1
+exit /b 0
+
+:require_bash_runtime
+where bash >nul 2>nul
 if errorlevel 1 (
-  echo [TEST] FAILED (see %TEST_LOG%)
-  type "%TEST_LOG%"
-  exit /b 1
-)
-findstr /b /c:"Invalid option" "%TEST_LOG%" >nul 2>nul
-if not errorlevel 1 (
-  echo [TEST] FAILED: unsupported test argument
-  type "%TEST_LOG%"
+  echo [CANONICAL] FAILED ^(bash runtime not found; direct batch experimental runner requires bash to preserve shell parity^)
   exit /b 2
 )
-echo [TEST] OK
-findstr /r /c:"^[1-9][0-9]* unfreed memory blocks" "%TEST_LOG%" >nul 2>nul
-if not errorlevel 1 (
-  echo [LEAK] FAILED: heaptrc reports unfreed blocks
-  type "%TEST_LOG%"
-  exit /b 1
-)
-echo [LEAK] OK
 exit /b 0
+
+:run_canonical
+set "CANONICAL_ACTION=%~1"
+set "CANONICAL_EXPERIMENTAL_FLAG=%~2"
+call :require_canonical_runner
+if errorlevel 1 exit /b 2
+call :require_bash_runtime
+if errorlevel 1 exit /b 2
+
+set "PREV_SIMD_OUTPUT_ROOT=%SIMD_OUTPUT_ROOT%"
+set "PREV_FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=%FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS%"
+set "SIMD_OUTPUT_ROOT=%OUTPUT_ROOT%"
+if "%CANONICAL_EXPERIMENTAL_FLAG%"=="" (
+  set "FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS="
+) else (
+  set "FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=%CANONICAL_EXPERIMENTAL_FLAG%"
+)
+
+echo [CANONICAL] Running: bash %CANONICAL_RUNNER% %CANONICAL_ACTION% %TEST_ARGS%
+bash "%CANONICAL_RUNNER%" "%CANONICAL_ACTION%" %TEST_ARGS%
+set "CANONICAL_RC=%ERRORLEVEL%"
+
+if defined PREV_FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS (
+  set "FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS=%PREV_FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS%"
+) else (
+  set "FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS="
+)
+
+if defined PREV_SIMD_OUTPUT_ROOT (
+  set "SIMD_OUTPUT_ROOT=%PREV_SIMD_OUTPUT_ROOT%"
+) else (
+  set "SIMD_OUTPUT_ROOT="
+)
+
+set "PREV_FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS="
+set "PREV_SIMD_OUTPUT_ROOT="
+set "CANONICAL_ACTION="
+set "CANONICAL_EXPERIMENTAL_FLAG="
+exit /b %CANONICAL_RC%
 
 :clean
 echo [CLEAN] Removing bin/, lib/, logs/
@@ -94,38 +88,25 @@ if exist "%LOG_DIR%" rmdir /s /q "%LOG_DIR%"
 exit /b 0
 
 :build
-call :build_core ""
-exit /b %errorlevel%
+call :run_canonical "build" "0"
+exit /b %ERRORLEVEL%
 
 :build_experimental
-call :build_core "-dFAFAFA_SIMD_EXPERIMENTAL_INTRINSICS -dFAFAFA_SIMD_EXPERIMENTAL_TEST_BUILD"
-exit /b %errorlevel%
+call :run_canonical "build" "1"
+exit /b %ERRORLEVEL%
 
 :check
-call :build_core ""
-if errorlevel 1 exit /b 1
-call :check_build_log
-exit /b %errorlevel%
+call :run_canonical "check" "0"
+exit /b %ERRORLEVEL%
 
 :test
-call :build_core ""
-if errorlevel 1 exit /b 1
-call :check_build_log
-if errorlevel 1 exit /b 1
-call :run_tests
-exit /b %errorlevel%
+call :run_canonical "test" "0"
+exit /b %ERRORLEVEL%
 
 :test_experimental
-call :build_core "-dFAFAFA_SIMD_EXPERIMENTAL_INTRINSICS -dFAFAFA_SIMD_EXPERIMENTAL_TEST_BUILD"
-if errorlevel 1 exit /b 1
-call :check_build_log
-if errorlevel 1 exit /b 1
-call :run_tests
-exit /b %errorlevel%
+call :run_canonical "test" "1"
+exit /b %ERRORLEVEL%
 
 :test_all
-call "%~f0" test %TEST_ARGS%
-if errorlevel 1 exit /b 1
-call "%~f0" test-experimental %TEST_ARGS%
-if errorlevel 1 exit /b 1
-exit /b 0
+call :run_canonical "test-all" "0"
+exit /b %ERRORLEVEL%

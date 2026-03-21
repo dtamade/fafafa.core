@@ -582,7 +582,7 @@ def main() -> int:
         include_cpuinfo_lazy_repeat_step=require_cpuinfo_lazy_repeat_step,
     )
     required_gate_steps_cross = build_required_gate_steps(
-        include_windows_evidence_step=False,
+        include_windows_evidence_step=not args.linux_only,
         include_qemu_cpuinfo_nonx86_step=require_qemu_cpuinfo_nonx86_step,
         include_qemu_cpuinfo_nonx86_full_step=require_qemu_cpuinfo_nonx86_full_step,
         include_qemu_cpuinfo_nonx86_full_repeat_step=require_qemu_cpuinfo_nonx86_full_repeat_step,
@@ -682,7 +682,7 @@ def main() -> int:
                 )
             )
             if not required_ok_cross:
-                next_actions.append("bash tests/fafafa.core.simd/BuildOrTest.sh gate")
+                next_actions.append(CROSS_GATE_FAIL_CLOSE_CMD)
 
         qemu_cpuinfo_nonx86_row = find_latest_step_row(
             latest_gate_run, QEMU_CPUINFO_NONX86_STEP

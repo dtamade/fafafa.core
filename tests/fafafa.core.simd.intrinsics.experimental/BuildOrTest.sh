@@ -12,11 +12,12 @@ CPU="$(${FPC_BIN} -iTP 2>/dev/null | tr '[:upper:]' '[:lower:]' || true)"
 OS="$(${FPC_BIN} -iTO 2>/dev/null | tr '[:upper:]' '[:lower:]' || true)"
 TRIPLET="${CPU}-${OS}"
 EXPERIMENTAL_FLAG="${FAFAFA_SIMD_EXPERIMENTAL_INTRINSICS:-0}"
-BIN_DIR="${ROOT}/bin"
+OUTPUT_ROOT="${SIMD_OUTPUT_ROOT:-${ROOT}}"
+BIN_DIR="${OUTPUT_ROOT}/bin"
 MODE_TAG="exp${EXPERIMENTAL_FLAG}"
-LIB_DIR="${ROOT}/lib/${TRIPLET}/${MODE_TAG}"
+LIB_DIR="${OUTPUT_ROOT}/lib/${TRIPLET}/${MODE_TAG}"
 BIN="${BIN_DIR}/fafafa.core.simd.intrinsics.experimental.test"
-LOG_DIR="${ROOT}/logs"
+LOG_DIR="${OUTPUT_ROOT}/logs"
 BUILD_LOG="${LOG_DIR}/build.txt"
 TEST_LOG="${LOG_DIR}/test.txt"
 X86_SMOKE_LOG="${LOG_DIR}/x86_sse2_smoke.txt"
@@ -370,8 +371,8 @@ check_heap_leaks() {
 
 case "${ACTION}" in
   clean)
-    echo "[CLEAN] Removing bin/, lib/, logs/"
-    rm -rf "${ROOT}/bin" "${ROOT}/lib" "${ROOT}/logs"
+    echo "[CLEAN] Removing ${BIN_DIR}, ${OUTPUT_ROOT}/lib, ${LOG_DIR}"
+    rm -rf "${BIN_DIR}" "${OUTPUT_ROOT}/lib" "${LOG_DIR}"
     ;;
   build)
     build_project

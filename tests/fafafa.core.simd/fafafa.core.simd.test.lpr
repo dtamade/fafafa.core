@@ -152,6 +152,7 @@ begin
   {$IFDEF CPUX86_64}
   HandleSuite('TTestCase_BackendConsistency', TTestCase_BackendConsistency.Suite, aListOnly, aTargetSuite);
   HandleSuite('TTestCase_BackendVectorConsistency', TTestCase_BackendVectorConsistency.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_X86BackendPredicates', TTestCase_X86BackendPredicates.Suite, aListOnly, aTargetSuite);
   {$ENDIF}
   HandleSuite('TTestCase_BackendSmoke', TTestCase_BackendSmoke.Suite, aListOnly, aTargetSuite);
   {$IFDEF CPUX86_64}
@@ -194,13 +195,17 @@ begin
   HandleSuite('TTestCase_NonX86IEEE754', TTestCase_NonX86IEEE754.Suite, aListOnly, aTargetSuite);
   HandleSuite('TTestCase_NonX86BackendParity', TTestCase_NonX86BackendParity.Suite, aListOnly, aTargetSuite);
   HandleSuite('TTestCase_DispatchAPI', TTestCase_DispatchAPI.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_X86MaskedFmaContract', TTestCase_X86MaskedFmaContract.Suite, aListOnly, aTargetSuite);
   HandleSuite('TTestCase_DispatchAllSlots', TTestCase_DispatchAllSlots.Suite, aListOnly, aTargetSuite);
   HandleSuite('TTestCase_PublicAbi', TTestCase_PublicAbi.Suite, aListOnly, aTargetSuite);
   {$IFDEF SIMD_X86_AVAILABLE}
   HandleSuite('TTestCase_DirectDispatch', TTestCase_DirectDispatch.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_DirectDispatchConcurrent', TTestCase_DirectDispatchConcurrent.Suite, aListOnly, aTargetSuite);
   {$ENDIF}
   HandleSuite('TTestCase_AVX2IntrinsicsFallback', TTestCase_AVX2IntrinsicsFallback.Suite, aListOnly, aTargetSuite);
   HandleSuite('TTestCase_SimdConcurrent', TTestCase_SimdConcurrent.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_SimdConcurrentPublicAbi', TTestCase_SimdConcurrentPublicAbi.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_SimdConcurrentFramework', TTestCase_SimdConcurrentFramework.Suite, aListOnly, aTargetSuite);
 end;
 
 procedure ParseArgs;

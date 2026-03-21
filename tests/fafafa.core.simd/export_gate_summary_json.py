@@ -46,7 +46,8 @@ def apply_filter(rows: list[dict[str, str]], filter_mode: str) -> list[dict[str,
     if filter_mode == "FAIL":
         return [row for row in rows if row.get("status") == "FAIL"]
     if filter_mode == "SLOW":
-        return [row for row in rows if row.get("event") in {"SLOW_WARN", "SLOW_FAIL"}]
+        # Keep SLOW_FAIL for backward compatibility with older rehearsals/snapshots.
+        return [row for row in rows if row.get("event") in {"SLOW_WARN", "SLOW_CRIT", "SLOW_FAIL"}]
     return rows
 
 

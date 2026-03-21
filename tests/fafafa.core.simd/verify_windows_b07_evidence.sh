@@ -2,20 +2,46 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
-LOG_PATH="${1:-${ROOT}/logs/windows_b07_gate.log}"
-SUMMARY_JSON_PATH="${2:-}"
+DEFAULT_LOG_PATH="${ROOT}/logs/windows_b07_gate.log"
+LOG_PATH=""
+SUMMARY_JSON_PATH=""
 SUMMARY_JSON_VERIFIER="${ROOT}/verify_gate_summary_json.py"
 CHECK_LOG_PATH=""
+ALLOW_SIMULATED=0
 
 print_usage() {
-  echo "Usage: $0 [evidence-log-path] [gate-summary-json-path]"
+  echo "Usage: $0 [evidence-log-path] [gate-summary-json-path] [--allow-simulated]"
   echo "Default log: ${ROOT}/logs/windows_b07_gate.log"
   echo "Default gate summary json: <sibling gate_summary.json or [B07] GateSummaryJson marker>"
+  echo "--allow-simulated: allow simulated evidence for dryrun/rehearsal only"
 }
 
-if [[ "${LOG_PATH}" == "-h" || "${LOG_PATH}" == "--help" ]]; then
-  print_usage
-  exit 0
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    -h|--help)
+      print_usage
+      exit 0
+      ;;
+    --allow-simulated)
+      ALLOW_SIMULATED=1
+      shift
+      ;;
+    *)
+      if [[ -z "${LOG_PATH}" ]]; then
+        LOG_PATH="$1"
+      elif [[ -z "${SUMMARY_JSON_PATH}" ]]; then
+        SUMMARY_JSON_PATH="$1"
+      else
+        echo "[EVIDENCE] Unexpected argument: $1"
+        exit 2
+      fi
+      shift
+      ;;
+  esac
+done
+
+if [[ -z "${LOG_PATH}" ]]; then
+  LOG_PATH="${DEFAULT_LOG_PATH}"
 fi
 
 if [[ ! -f "${LOG_PATH}" ]]; then
@@ -148,14 +174,20 @@ fi
 check_fixed "[GATE] OK" || LFail=1
 check_fixed "[B07] GATE_EXIT_CODE=0" || LFail=1
 
-if grep -E -- '^\[B07\][[:space:]]+Simulated:[[:space:]]+yes$' "${CHECK_LOG_PATH}" >/dev/null; then
-  echo "[EVIDENCE] Invalid source: simulated marker detected"
-  LFail=1
+if grep -E -- '^\[B07\][[:space:]]+Simulated:[[:space:]]+yes$' "${CHECK_LOG_PATH}" >/dev/null || \
+   grep -E -- '^\[SIMULATE\]' "${CHECK_LOG_PATH}" >/dev/null || \
+   [[ "${LOG_PATH}" == *".simulated."* ]]; then
+  if [[ "${ALLOW_SIMULATED}" != "1" ]]; then
+    echo "[EVIDENCE] Invalid source: simulated evidence requires --allow-simulated"
+    LFail=1
+  fi
 fi
 
 if grep -E -- '^\[B07\][[:space:]]+Source:[[:space:]]+simulate_windows_b07_evidence\.sh$' "${CHECK_LOG_PATH}" >/dev/null; then
-  echo "[EVIDENCE] Invalid source: simulator source marker detected"
-  LFail=1
+  if [[ "${ALLOW_SIMULATED}" != "1" ]]; then
+    echo "[EVIDENCE] Invalid source: simulator source marker detected"
+    LFail=1
+  fi
 fi
 
 set +e
@@ -167,12 +199,13 @@ case "${LSummaryJsonRc}" in
   0)
     ;;
   10)
-    check_fixed "[GATE] 1/6 Build + check SIMD module" || LFail=1
-    check_fixed "[GATE] 2/6 SIMD list suites" || LFail=1
-    check_fixed "[GATE] 3/6 SIMD AVX2 fallback suite" || LFail=1
-    check_fixed "[GATE] 4/6 CPUInfo portable suites" || LFail=1
-    check_fixed "[GATE] 5/6 CPUInfo x86 suites" || LFail=1
-    check_fixed "[GATE] 6/6 Filtered run_all chain" || LFail=1
+    check_fixed "[GATE] 1/7 Build + check SIMD module" || LFail=1
+    check_fixed "[GATE] 2/7 SIMD list suites" || LFail=1
+    check_fixed "[GATE] 3/7 SIMD AVX2 fallback suite" || LFail=1
+    check_fixed "[GATE] 4/7 CPUInfo portable suites" || LFail=1
+    check_fixed "[GATE] 5/7 CPUInfo x86 suites" || LFail=1
+    check_fixed "[GATE] 6/7 Windows public ABI smoke" || LFail=1
+    check_fixed "[GATE] 7/7 Filtered run_all chain" || LFail=1
     ;;
   *)
     LFail=1

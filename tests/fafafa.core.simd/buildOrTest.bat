@@ -11,7 +11,7 @@ if "%~1"=="" goto :args_done
 if /I "%~1"=="--list" (
   set "NORMALIZED_TEST_ARGS=!NORMALIZED_TEST_ARGS! --list-suites"
 ) else (
-  set "NORMALIZED_TEST_ARGS=!NORMALIZED_TEST_ARGS! %~1"
+  set "NORMALIZED_TEST_ARGS=!NORMALIZED_TEST_ARGS! %1"
 )
 shift
 goto :collect_args
@@ -40,6 +40,7 @@ set "BUILD_LOG=%LOG_DIR%\build.txt"
 set "TEST_LOG=%LOG_DIR%\test.txt"
 set "GATE_SUMMARY_LOG=%LOG_DIR%\gate_summary.md"
 set "GATE_SUMMARY_JSON_LOG=%LOG_DIR%\gate_summary.json"
+set "DISPATCH_PREINIT_SMOKE_SRC=%ROOT%fafafa.core.simd.dispatch_preinit_smoke.pas"
 
 if not exist "%BIN_DIR%" mkdir "%BIN_DIR%"
 if not exist "%UNIT_DIR%" mkdir "%UNIT_DIR%"
@@ -81,6 +82,7 @@ if /I "%ACTION%"=="gate-summary-inject" goto :gate_summary_inject
 if /I "%ACTION%"=="gate-summary-rollback" goto :gate_summary_rollback
 if /I "%ACTION%"=="gate-summary-backups" goto :gate_summary_backups
 if /I "%ACTION%"=="perf-smoke" goto :perf_smoke
+if /I "%ACTION%"=="nonx86-optin-list-suites" goto :nonx86_optin_list_suites
 if /I "%ACTION%"=="nonx86-ieee754" goto :nonx86_ieee754
 if /I "%ACTION%"=="backend-bench" goto :backend_bench
 if /I "%ACTION%"=="qemu-nonx86-evidence" goto :qemu_nonx86_evidence
@@ -102,19 +104,21 @@ if /I "%ACTION%"=="win-evidence-preflight" goto :win_evidence_preflight
 if /I "%ACTION%"=="verify-win-evidence" (
   set "VERIFY_SCRIPT=%ROOT%verify_windows_b07_evidence.bat"
   set "VERIFY_ARGS=%NORMALIZED_TEST_ARGS%"
-  if "%VERIFY_ARGS%"=="" set "VERIFY_ARGS=%ROOT%logs\windows_b07_gate.log"
   if not exist "%VERIFY_SCRIPT%" (
     echo [EVIDENCE] Missing verifier: %VERIFY_SCRIPT%
     exit /b 2
   )
-  call "%VERIFY_SCRIPT%" "%VERIFY_ARGS%"
+  if "%VERIFY_ARGS%"=="" (
+    call "%VERIFY_SCRIPT%" "%ROOT%logs\windows_b07_gate.log"
+  ) else (
+    call "%VERIFY_SCRIPT%" %VERIFY_ARGS%
+  )
   exit /b %ERRORLEVEL%
 )
 if /I "%ACTION%"=="evidence-win-verify" (
   set "EVIDENCE_SCRIPT=%ROOT%collect_windows_b07_evidence.bat"
   set "VERIFY_SCRIPT=%ROOT%verify_windows_b07_evidence.bat"
   set "VERIFY_ARGS=%NORMALIZED_TEST_ARGS%"
-  if "%VERIFY_ARGS%"=="" set "VERIFY_ARGS=%ROOT%logs\windows_b07_gate.log"
   if not exist "%EVIDENCE_SCRIPT%" (
     echo [EVIDENCE] Missing collector: %EVIDENCE_SCRIPT%
     exit /b 2
@@ -125,14 +129,18 @@ if /I "%ACTION%"=="evidence-win-verify" (
   )
   call "%EVIDENCE_SCRIPT%"
   if errorlevel 1 exit /b 1
-  call "%VERIFY_SCRIPT%" "%VERIFY_ARGS%"
+  if "%VERIFY_ARGS%"=="" (
+    call "%VERIFY_SCRIPT%" "%ROOT%logs\windows_b07_gate.log"
+  ) else (
+    call "%VERIFY_SCRIPT%" %VERIFY_ARGS%
+  )
   exit /b %ERRORLEVEL%
 )
 if /I "%ACTION%"=="finalize-win-evidence" goto :finalize_win_evidence
 if /I "%ACTION%"=="win-closeout-3cmd" goto :win_closeout_3cmd
 if /I "%ACTION%"=="win-closeout-finalize" goto :win_closeout_finalize
 
-echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|interface-completeness^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|perf-smoke^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-win^|win-evidence-preflight^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-3cmd^|win-closeout-finalize] [test-args...]
+echo Usage: %~nx0 [clean^|build^|check^|test^|test-concurrent-repeat^|cpuinfo-lazy-repeat^|debug^|release^|gate^|gate-strict^|interface-completeness^|contract-signature^|publicabi-signature^|publicabi-smoke^|adapter-sync-pascal^|adapter-sync^|parity-suites^|gate-summary^|gate-summary-sample^|gate-summary-rehearsal^|gate-summary-inject^|gate-summary-rollback^|gate-summary-backups^|perf-smoke^|nonx86-optin-list-suites^|nonx86-ieee754^|backend-bench^|qemu-nonx86-evidence^|qemu-cpuinfo-nonx86-evidence^|qemu-cpuinfo-nonx86-full-evidence^|qemu-cpuinfo-nonx86-full-repeat^|qemu-cpuinfo-nonx86-suite-repeat^|qemu-arch-matrix-evidence^|qemu-nonx86-experimental-asm^|qemu-experimental-report^|qemu-experimental-baseline-check^|coverage^|wiring-sync^|experimental-intrinsics^|experimental-intrinsics-tests^|evidence-win^|win-evidence-preflight^|verify-win-evidence^|evidence-win-verify^|finalize-win-evidence^|win-closeout-3cmd^|win-closeout-finalize] [test-args...]
 echo   Experimental note: default entry chain isolates experimental intrinsics behind dedicated checks.
 echo   gate/gate-strict PASS is not blanket release-grade approval for every experimental path.
 echo   gate         Fast/base gate for routine SIMD changes
@@ -140,6 +148,9 @@ echo   gate-strict  Release/closeout gate with perf, repeats, and evidence check
 echo Suggested flow: check -^> targeted suites -^> gate; use gate-strict before release/closeout.
 echo QEMU env: SIMD_QEMU_BUILD_POLICY=always^|if-missing^|skip ^(default: if-missing^)
 echo Isolation env: SIMD_OUTPUT_ROOT=C:\temp\simd-run-123 ^(override bin2/lib2/logs root^)
+echo Build env: SIMD_ENABLE_NEON_BACKEND=1 ^(compile NEON backend into the test binary for opt-in verification/fallback coverage^)
+echo Build env: SIMD_ENABLE_RISCVV_BACKEND=1 ^(compile RISCV-V backend into the test binary for opt-in verification/fallback coverage^)
+echo Build env: SIMD_ENABLE_AVX512_BACKEND=1 ^(compile AVX-512 backend into the test binary for opt-in verification^)
 exit /b 2
 
 :clean
@@ -147,6 +158,18 @@ echo [CLEAN] Removing %BIN_DIR%, %LIB_DIR%, %LOG_DIR%
 if exist "%BIN_DIR%" rmdir /s /q "%BIN_DIR%"
 if exist "%LIB_DIR%" rmdir /s /q "%LIB_DIR%"
 if exist "%LOG_DIR%" rmdir /s /q "%LOG_DIR%"
+if exist "%OUTPUT_ROOT%\nonx86.optin" rmdir /s /q "%OUTPUT_ROOT%\nonx86.optin"
+if exist "%OUTPUT_ROOT%\dispatch.preinit.smoke" rmdir /s /q "%OUTPUT_ROOT%\dispatch.preinit.smoke"
+if /I not "%OUTPUT_ROOT%"=="%ROOT%" (
+  echo [CLEAN] Removing isolated child outputs under %OUTPUT_ROOT%
+  if exist "%OUTPUT_ROOT%\bin" rmdir /s /q "%OUTPUT_ROOT%\bin"
+  if exist "%OUTPUT_ROOT%\lib" rmdir /s /q "%OUTPUT_ROOT%\lib"
+  if exist "%OUTPUT_ROOT%\cpuinfo" rmdir /s /q "%OUTPUT_ROOT%\cpuinfo"
+  if exist "%OUTPUT_ROOT%\cpuinfo.x86" rmdir /s /q "%OUTPUT_ROOT%\cpuinfo.x86"
+  if exist "%OUTPUT_ROOT%\intrinsics.experimental" rmdir /s /q "%OUTPUT_ROOT%\intrinsics.experimental"
+  if exist "%OUTPUT_ROOT%\publicabi" rmdir /s /q "%OUTPUT_ROOT%\publicabi"
+  if exist "%OUTPUT_ROOT%\run_all" rmdir /s /q "%OUTPUT_ROOT%\run_all"
+)
 exit /b 0
 
 :build
@@ -157,6 +180,9 @@ if not exist "%UNIT_DIR%" mkdir "%UNIT_DIR%"
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%"
 set "LAZBUILD_EXTRA_OPTS="
 if /I "%SIMD_SUPPRESS_BUILD_WARNINGS%"=="1" set "LAZBUILD_EXTRA_OPTS=--opt=-vw- --opt=-vh- --opt=-vn-"
+if /I "%SIMD_ENABLE_NEON_BACKEND%"=="1" set "LAZBUILD_EXTRA_OPTS=%LAZBUILD_EXTRA_OPTS% --opt=-dSIMD_BACKEND_NEON --opt=-dFAFAFA_SIMD_TEST_REGISTER_NEON_BACKEND"
+if /I "%SIMD_ENABLE_RISCVV_BACKEND%"=="1" set "LAZBUILD_EXTRA_OPTS=%LAZBUILD_EXTRA_OPTS% --opt=-dSIMD_RISCV_AVAILABLE --opt=-dSIMD_EXPERIMENTAL_RISCVV --opt=-dSIMD_BACKEND_RISCVV --opt=-dFAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND"
+if /I "%SIMD_ENABLE_AVX512_BACKEND%"=="1" set "LAZBUILD_EXTRA_OPTS=%LAZBUILD_EXTRA_OPTS% --opt=-dSIMD_BACKEND_AVX512"
 "%LAZBUILD_EXE%" --build-mode=%MODE% --build-all "--opt=-FE%BIN_DIR%" "--opt=-FU%UNIT_DIR%" %LAZBUILD_EXTRA_OPTS% "%PROJ%" > "%BUILD_LOG%" 2>&1
 set "BUILD_RC=%ERRORLEVEL%"
 if /I "%SIMD_SUPPRESS_BUILD_WARNINGS%"=="1" (
@@ -196,6 +222,18 @@ findstr /r /c:"src\fafafa\.core\.simd\..*Warning:" /c:"src\fafafa\.core\.simd\..
 if not errorlevel 1 echo [CHECK] Ignoring experimental intrinsics hints from src\fafafa.core.simd.intrinsics.avx2.pas
 echo [CHECK] OK (no SIMD-unit warnings/hints on stable path)
 
+call :register_include_check
+if errorlevel 1 exit /b 1
+
+call :suite_manifest_check
+if errorlevel 1 exit /b 1
+
+call "%ROOT%buildOrTest.bat" nonx86-optin-list-suites
+if errorlevel 1 exit /b 1
+
+call :run_dispatch_preinit_smoke_internal
+if errorlevel 1 exit /b 1
+
 if /I "%SIMD_CHECK_WIRING_SYNC%"=="1" (
   echo [CHECK] Optional wiring-sync enabled
   call "%ROOT%buildOrTest.bat" wiring-sync
@@ -213,6 +251,54 @@ if /I "%SIMD_CHECK_EXPERIMENTAL%"=="0" (
 )
 
 exit /b 0
+
+:register_include_check
+set "REGISTER_INCLUDE_SCRIPT=%ROOT%check_backend_register_include_consistency.py"
+if not exist "%REGISTER_INCLUDE_SCRIPT%" (
+  echo [REGISTER-INCLUDE] Missing checker: %REGISTER_INCLUDE_SCRIPT%
+  exit /b 2
+)
+
+where py >nul 2>nul
+if not errorlevel 1 (
+  echo [REGISTER-INCLUDE] Running: py -3 %REGISTER_INCLUDE_SCRIPT% --summary-line
+  py -3 "%REGISTER_INCLUDE_SCRIPT%" --summary-line
+  exit /b %ERRORLEVEL%
+)
+
+where python >nul 2>nul
+if not errorlevel 1 (
+  echo [REGISTER-INCLUDE] Running: python %REGISTER_INCLUDE_SCRIPT% --summary-line
+  python "%REGISTER_INCLUDE_SCRIPT%" --summary-line
+  exit /b %ERRORLEVEL%
+)
+
+echo [REGISTER-INCLUDE] FAILED (python runtime not found; tried py and python)
+exit /b 2
+
+:suite_manifest_check
+set "SUITE_MANIFEST_SCRIPT=%ROOT%check_suite_manifest_sync.py"
+if not exist "%SUITE_MANIFEST_SCRIPT%" (
+  echo [SUITE-MANIFEST] Missing checker: %SUITE_MANIFEST_SCRIPT%
+  exit /b 2
+)
+
+where py >nul 2>nul
+if not errorlevel 1 (
+  echo [SUITE-MANIFEST] Running: py -3 %SUITE_MANIFEST_SCRIPT% --summary-line
+  py -3 "%SUITE_MANIFEST_SCRIPT%" --summary-line
+  exit /b %ERRORLEVEL%
+)
+
+where python >nul 2>nul
+if not errorlevel 1 (
+  echo [SUITE-MANIFEST] Running: python %SUITE_MANIFEST_SCRIPT% --summary-line
+  python "%SUITE_MANIFEST_SCRIPT%" --summary-line
+  exit /b %ERRORLEVEL%
+)
+
+echo [SUITE-MANIFEST] FAILED (python runtime not found; tried py and python)
+exit /b 2
 
 :interface_completeness
 set "INTERFACE_SCRIPT=%ROOT%check_interface_implementation_completeness.py"
@@ -238,8 +324,8 @@ if not errorlevel 1 (
   exit /b %ERRORLEVEL%
 )
 
-echo [INTERFACE-CHECK] SKIP (python runtime not found)
-exit /b 0
+echo [INTERFACE-CHECK] FAILED (python runtime not found; tried py and python)
+exit /b 2
 
 :contract_signature
 set "CONTRACT_SCRIPT=%ROOT%check_dispatch_contract_signature.py"
@@ -263,8 +349,8 @@ if not errorlevel 1 (
   exit /b %ERRORLEVEL%
 )
 
-echo [DISPATCH-CONTRACT] SKIP (python runtime not found)
-exit /b 0
+echo [DISPATCH-CONTRACT] FAILED (python runtime not found; tried py and python)
+exit /b 2
 
 :publicabi_signature
 set "PUBLIC_ABI_SCRIPT=%ROOT%check_public_abi_signature.py"
@@ -288,8 +374,8 @@ if not errorlevel 1 (
   exit /b %ERRORLEVEL%
 )
 
-echo [PUBLIC-ABI] SKIP (python runtime not found)
-exit /b 0
+echo [PUBLIC-ABI] FAILED (python runtime not found; tried py and python)
+exit /b 2
 
 :publicabi_smoke
 set "PUBLICABI_RUNNER=%ROOT%..\fafafa.core.simd.publicabi\BuildOrTest.bat"
@@ -297,8 +383,21 @@ if not exist "%PUBLICABI_RUNNER%" (
   echo [PUBLICABI] Missing runner: %PUBLICABI_RUNNER%
   exit /b 2
 )
+if "%TESTS_ROOT%"=="" set "TESTS_ROOT=%ROOT%.."
+set "PUBLICABI_OUTPUT_ROOT="
+if /I "%OUTPUT_ROOT%"=="%ROOT%" (
+  set "PUBLICABI_OUTPUT_ROOT=%TESTS_ROOT%\fafafa.core.simd.publicabi"
+) else (
+  set "PUBLICABI_OUTPUT_ROOT=%OUTPUT_ROOT%\publicabi"
+)
+set "PREV_SIMD_OUTPUT_ROOT=%SIMD_OUTPUT_ROOT%"
+set "SIMD_OUTPUT_ROOT=%PUBLICABI_OUTPUT_ROOT%"
 call "%PUBLICABI_RUNNER%" test
-exit /b %ERRORLEVEL%
+set "PUBLICABI_RC=%ERRORLEVEL%"
+set "SIMD_OUTPUT_ROOT=%PREV_SIMD_OUTPUT_ROOT%"
+set "PREV_SIMD_OUTPUT_ROOT="
+set "PUBLICABI_OUTPUT_ROOT="
+exit /b %PUBLICABI_RC%
 
 :adapter_sync_pascal
 echo [ADAPTER-SYNC-PASCAL] suite=TTestCase_DispatchAPI
@@ -342,13 +441,15 @@ if not errorlevel 1 (
   exit /b %ERRORLEVEL%
 )
 
-echo [ADAPTER-SYNC] SKIP (python runtime not found)
-exit /b 0
+echo [ADAPTER-SYNC] FAILED (python runtime not found; tried py and python)
+exit /b 2
 
 :parity_suites
 call "%ROOT%buildOrTest.bat" test --suite=TTestCase_DispatchAPI
 if errorlevel 1 exit /b 1
-call "%ROOT%buildOrTest.bat" test --suite=TTestCase_DispatchAPI
+call "%ROOT%buildOrTest.bat" test --suite=TTestCase_DirectDispatch
+if errorlevel 1 exit /b 1
+call "%ROOT%buildOrTest.bat" test --suite=TTestCase_DirectDispatchConcurrent
 if errorlevel 1 exit /b 1
 echo [PARITY] OK
 exit /b 0
@@ -378,8 +479,8 @@ if not errorlevel 1 (
   exit /b %ERRORLEVEL%
 )
 
-echo [COVERAGE] SKIP (python runtime not found)
-exit /b 0
+echo [COVERAGE] FAILED (python runtime not found; tried py and python)
+exit /b 2
 
 
 :experimental_intrinsics
@@ -403,8 +504,8 @@ if not errorlevel 1 (
   exit /b %ERRORLEVEL%
 )
 
-echo [EXPERIMENTAL] SKIP (python runtime not found)
-exit /b 0
+echo [EXPERIMENTAL] FAILED (python runtime not found; tried py and python)
+exit /b 2
 
 :experimental_intrinsics_tests
 set "EXPERIMENTAL_TESTS_RUNNER=%ROOT%..\fafafa.core.simd.intrinsics.experimental\BuildOrTest.sh"
@@ -412,14 +513,26 @@ if not exist "%EXPERIMENTAL_TESTS_RUNNER%" (
   echo [EXPERIMENTAL-TESTS] Missing runner: %EXPERIMENTAL_TESTS_RUNNER%
   exit /b 2
 )
+set "EXPERIMENTAL_OUTPUT_ROOT="
+if /I "%OUTPUT_ROOT%"=="%ROOT%" (
+  set "EXPERIMENTAL_OUTPUT_ROOT=%TESTS_ROOT%\fafafa.core.simd.intrinsics.experimental"
+) else (
+  set "EXPERIMENTAL_OUTPUT_ROOT=%OUTPUT_ROOT%\intrinsics.experimental"
+)
 where bash >nul 2>nul
 if errorlevel 1 (
-  echo [EXPERIMENTAL-TESTS] SKIP (bash not found)
-  exit /b 0
+  echo [EXPERIMENTAL-TESTS] FAILED ^(bash runtime not found; native batch experimental runner parity is not guaranteed^)
+  exit /b 2
 )
+set "PREV_SIMD_OUTPUT_ROOT=%SIMD_OUTPUT_ROOT%"
+set "SIMD_OUTPUT_ROOT=%EXPERIMENTAL_OUTPUT_ROOT%"
 echo [EXPERIMENTAL-TESTS] Running: bash %EXPERIMENTAL_TESTS_RUNNER% test-all
 bash "%EXPERIMENTAL_TESTS_RUNNER%" test-all
-exit /b %ERRORLEVEL%
+set "EXPERIMENTAL_TESTS_RC=%ERRORLEVEL%"
+set "SIMD_OUTPUT_ROOT=%PREV_SIMD_OUTPUT_ROOT%"
+set "PREV_SIMD_OUTPUT_ROOT="
+set "EXPERIMENTAL_OUTPUT_ROOT="
+exit /b %EXPERIMENTAL_TESTS_RC%
 
 
 :wiring_sync
@@ -445,8 +558,8 @@ if not errorlevel 1 (
   exit /b %ERRORLEVEL%
 )
 
-echo [WIRING-SYNC] SKIP (python runtime not found)
-exit /b 0
+echo [WIRING-SYNC] FAILED (python runtime not found; tried py and python)
+exit /b 2
 
 :check_heap_leaks
 findstr /r /c:"^[1-9][0-9]* unfreed memory blocks" "%TEST_LOG%" >nul 2>nul
@@ -601,6 +714,89 @@ for /L %%I in (1,1,%CPUINFO_REPEAT_ROUNDS%) do (
 echo [CPUINFO-LAZY] OK suite=TTestCase_LazyCPUInfo rounds=%CPUINFO_REPEAT_ROUNDS%
 exit /b 0
 
+:nonx86_optin_list_suites
+call :run_nonx86_optin_list_suites_for neon
+if errorlevel 1 exit /b 1
+call :run_nonx86_optin_list_suites_for riscvv
+exit /b %ERRORLEVEL%
+
+:run_nonx86_optin_list_suites_for
+if "%~1"=="" (
+  echo [NONX86-OPTIN] Missing backend selector
+  exit /b 2
+)
+if /I "%OUTPUT_ROOT%"=="%ROOT%" (
+  set "NONX86_OPTIN_OUTPUT_ROOT=%ROOT%nonx86.optin\%~1"
+) else (
+  set "NONX86_OPTIN_OUTPUT_ROOT=%OUTPUT_ROOT%\nonx86.optin\%~1"
+)
+set "PREV_SIMD_OUTPUT_ROOT=%SIMD_OUTPUT_ROOT%"
+set "PREV_SIMD_ENABLE_NEON_BACKEND=%SIMD_ENABLE_NEON_BACKEND%"
+set "PREV_SIMD_ENABLE_RISCVV_BACKEND=%SIMD_ENABLE_RISCVV_BACKEND%"
+set "SIMD_OUTPUT_ROOT=%NONX86_OPTIN_OUTPUT_ROOT%"
+if /I "%~1"=="neon" (
+  set "SIMD_ENABLE_NEON_BACKEND=1"
+  set "SIMD_ENABLE_RISCVV_BACKEND="
+) else if /I "%~1"=="riscvv" (
+  set "SIMD_ENABLE_NEON_BACKEND="
+  set "SIMD_ENABLE_RISCVV_BACKEND=1"
+) else (
+  echo [NONX86-OPTIN] Unknown backend: %~1
+  set "SIMD_OUTPUT_ROOT=%PREV_SIMD_OUTPUT_ROOT%"
+  set "SIMD_ENABLE_NEON_BACKEND=%PREV_SIMD_ENABLE_NEON_BACKEND%"
+  set "SIMD_ENABLE_RISCVV_BACKEND=%PREV_SIMD_ENABLE_RISCVV_BACKEND%"
+  exit /b 2
+)
+echo [NONX86-OPTIN] %~1: test --list-suites
+call "%ROOT%buildOrTest.bat" test --list-suites
+set "NONX86_OPTIN_RC=%ERRORLEVEL%"
+set "SIMD_OUTPUT_ROOT=%PREV_SIMD_OUTPUT_ROOT%"
+set "SIMD_ENABLE_NEON_BACKEND=%PREV_SIMD_ENABLE_NEON_BACKEND%"
+set "SIMD_ENABLE_RISCVV_BACKEND=%PREV_SIMD_ENABLE_RISCVV_BACKEND%"
+set "PREV_SIMD_OUTPUT_ROOT="
+set "PREV_SIMD_ENABLE_NEON_BACKEND="
+set "PREV_SIMD_ENABLE_RISCVV_BACKEND="
+set "NONX86_OPTIN_OUTPUT_ROOT="
+exit /b %NONX86_OPTIN_RC%
+
+:run_dispatch_preinit_smoke_internal
+if not exist "%DISPATCH_PREINIT_SMOKE_SRC%" (
+  echo [DISPATCH-PREINIT] Missing smoke source: %DISPATCH_PREINIT_SMOKE_SRC%
+  exit /b 2
+)
+set "DISPATCH_PREINIT_OUTPUT_ROOT=%OUTPUT_ROOT%\dispatch.preinit.smoke"
+if /I "%OUTPUT_ROOT%"=="%ROOT%" set "DISPATCH_PREINIT_OUTPUT_ROOT=%ROOT%dispatch.preinit.smoke"
+set "DISPATCH_PREINIT_BIN_DIR=%DISPATCH_PREINIT_OUTPUT_ROOT%\bin"
+set "DISPATCH_PREINIT_LIB_DIR=%DISPATCH_PREINIT_OUTPUT_ROOT%\lib\%TARGET_CPU%-%TARGET_OS%"
+set "DISPATCH_PREINIT_LOG_DIR=%DISPATCH_PREINIT_OUTPUT_ROOT%\logs"
+set "DISPATCH_PREINIT_BUILD_LOG=%DISPATCH_PREINIT_LOG_DIR%\build.txt"
+set "DISPATCH_PREINIT_TEST_LOG=%DISPATCH_PREINIT_LOG_DIR%\test.txt"
+set "DISPATCH_PREINIT_BIN=%DISPATCH_PREINIT_BIN_DIR%\fafafa.core.simd.dispatch_preinit_smoke.exe"
+if not exist "%DISPATCH_PREINIT_BIN_DIR%" mkdir "%DISPATCH_PREINIT_BIN_DIR%"
+if not exist "%DISPATCH_PREINIT_LIB_DIR%" mkdir "%DISPATCH_PREINIT_LIB_DIR%"
+if not exist "%DISPATCH_PREINIT_LOG_DIR%" mkdir "%DISPATCH_PREINIT_LOG_DIR%"
+echo [DISPATCH-PREINIT] Building standalone smoke: %DISPATCH_PREINIT_SMOKE_SRC%
+fpc -B -Mobjfpc -Scghi -O3 -Fi"%ROOT%..\..\src" -Fu"%ROOT%..\..\src" -Fu"%ROOT%" -FE"%DISPATCH_PREINIT_BIN_DIR%" -FU"%DISPATCH_PREINIT_LIB_DIR%" "%DISPATCH_PREINIT_SMOKE_SRC%" > "%DISPATCH_PREINIT_BUILD_LOG%" 2>&1
+if errorlevel 1 (
+  echo [DISPATCH-PREINIT] BUILD FAILED ^(see %DISPATCH_PREINIT_BUILD_LOG%^)
+  type "%DISPATCH_PREINIT_BUILD_LOG%"
+  exit /b 1
+)
+if not exist "%DISPATCH_PREINIT_BIN%" (
+  echo [DISPATCH-PREINIT] BUILD FAILED ^(binary missing: %DISPATCH_PREINIT_BIN%^)
+  type "%DISPATCH_PREINIT_BUILD_LOG%"
+  exit /b 1
+)
+echo [DISPATCH-PREINIT] Running standalone smoke: %DISPATCH_PREINIT_BIN%
+"%DISPATCH_PREINIT_BIN%" > "%DISPATCH_PREINIT_TEST_LOG%" 2>&1
+if errorlevel 1 (
+  echo [DISPATCH-PREINIT] FAILED ^(see %DISPATCH_PREINIT_TEST_LOG%^)
+  type "%DISPATCH_PREINIT_TEST_LOG%"
+  exit /b 1
+)
+echo [DISPATCH-PREINIT] OK
+exit /b 0
+
 :nonx86_ieee754
 call "%ROOT%buildOrTest.bat" test --list-suites
 if errorlevel 1 exit /b 1
@@ -619,15 +815,28 @@ if not exist "%BENCH_SCRIPT%" (
   exit /b 2
 )
 
-where bash >nul 2>nul
-if errorlevel 1 (
-  echo [BENCH] SKIP ^(bash not found^)
-  exit /b 0
-)
+call :require_backend_bench_bash_runtime
+if errorlevel 1 exit /b 2
 
 echo [BENCH] Running: bash %BENCH_SCRIPT%
 bash "%BENCH_SCRIPT%" %NORMALIZED_TEST_ARGS%
 exit /b %ERRORLEVEL%
+
+:require_backend_bench_bash_runtime
+where bash >nul 2>nul
+if errorlevel 1 (
+  echo [BENCH] FAILED ^(bash runtime not found; backend-bench requires bash to preserve shell parity^)
+  exit /b 2
+)
+exit /b 0
+
+:require_qemu_bash_runtime
+where bash >nul 2>nul
+if errorlevel 1 (
+  echo [QEMU] FAILED ^(bash runtime not found; qemu multiarch actions require bash to preserve shell parity^)
+  exit /b 2
+)
+exit /b 0
 
 :qemu_nonx86_evidence
 set "QEMU_SCRIPT=%ROOT%docker\run_multiarch_qemu.sh"
@@ -636,11 +845,8 @@ if not exist "%QEMU_SCRIPT%" (
   exit /b 2
 )
 
-where bash >nul 2>nul
-if errorlevel 1 (
-  echo [QEMU] SKIP ^(bash not found^)
-  exit /b 0
-)
+call :require_qemu_bash_runtime
+if errorlevel 1 exit /b 2
 
 set "QEMU_BUILD_POLICY=%SIMD_QEMU_BUILD_POLICY%"
 if "!QEMU_BUILD_POLICY!"=="" set "QEMU_BUILD_POLICY=if-missing"
@@ -656,11 +862,8 @@ if not exist "%QEMU_SCRIPT%" (
   exit /b 2
 )
 
-where bash >nul 2>nul
-if errorlevel 1 (
-  echo [QEMU] SKIP ^(bash not found^)
-  exit /b 0
-)
+call :require_qemu_bash_runtime
+if errorlevel 1 exit /b 2
 
 set "QEMU_BUILD_POLICY=%SIMD_QEMU_BUILD_POLICY%"
 if "!QEMU_BUILD_POLICY!"=="" set "QEMU_BUILD_POLICY=if-missing"
@@ -676,11 +879,8 @@ if not exist "%QEMU_SCRIPT%" (
   exit /b 2
 )
 
-where bash >nul 2>nul
-if errorlevel 1 (
-  echo [QEMU] SKIP ^(bash not found^)
-  exit /b 0
-)
+call :require_qemu_bash_runtime
+if errorlevel 1 exit /b 2
 
 set "QEMU_BUILD_POLICY=%SIMD_QEMU_BUILD_POLICY%"
 if "!QEMU_BUILD_POLICY!"=="" set "QEMU_BUILD_POLICY=if-missing"
@@ -696,11 +896,8 @@ if not exist "%QEMU_SCRIPT%" (
   exit /b 2
 )
 
-where bash >nul 2>nul
-if errorlevel 1 (
-  echo [QEMU] SKIP ^(bash not found^)
-  exit /b 0
-)
+call :require_qemu_bash_runtime
+if errorlevel 1 exit /b 2
 
 set "QEMU_BUILD_POLICY=%SIMD_QEMU_BUILD_POLICY%"
 if "!QEMU_BUILD_POLICY!"=="" set "QEMU_BUILD_POLICY=if-missing"
@@ -716,11 +913,8 @@ if not exist "%QEMU_SCRIPT%" (
   exit /b 2
 )
 
-where bash >nul 2>nul
-if errorlevel 1 (
-  echo [QEMU] SKIP ^(bash not found^)
-  exit /b 0
-)
+call :require_qemu_bash_runtime
+if errorlevel 1 exit /b 2
 
 set "QEMU_BUILD_POLICY=%SIMD_QEMU_BUILD_POLICY%"
 if "!QEMU_BUILD_POLICY!"=="" set "QEMU_BUILD_POLICY=if-missing"
@@ -736,11 +930,8 @@ if not exist "%QEMU_SCRIPT%" (
   exit /b 2
 )
 
-where bash >nul 2>nul
-if errorlevel 1 (
-  echo [QEMU] SKIP ^(bash not found^)
-  exit /b 0
-)
+call :require_qemu_bash_runtime
+if errorlevel 1 exit /b 2
 
 set "QEMU_BUILD_POLICY=%SIMD_QEMU_BUILD_POLICY%"
 if "!QEMU_BUILD_POLICY!"=="" set "QEMU_BUILD_POLICY=if-missing"
@@ -756,11 +947,8 @@ if not exist "%QEMU_SCRIPT%" (
   exit /b 2
 )
 
-where bash >nul 2>nul
-if errorlevel 1 (
-  echo [QEMU] SKIP ^(bash not found^)
-  exit /b 0
-)
+call :require_qemu_bash_runtime
+if errorlevel 1 exit /b 2
 
 set "QEMU_BUILD_POLICY=%SIMD_QEMU_BUILD_POLICY%"
 if "!QEMU_BUILD_POLICY!"=="" set "QEMU_BUILD_POLICY=if-missing"
@@ -797,8 +985,8 @@ if not errorlevel 1 (
   exit /b %ERRORLEVEL%
 )
 
-echo [QEMU-EXPERIMENTAL-REPORT] SKIP ^(python runtime not found^)
-exit /b 0
+echo [QEMU-EXPERIMENTAL-REPORT] FAILED ^(python runtime not found; tried py and python^)
+exit /b 2
 
 :qemu_experimental_baseline_check
 set "QEMU_EXP_BASELINE_SCRIPT=%ROOT%check_experimental_failure_baseline.py"
@@ -821,8 +1009,8 @@ if not errorlevel 1 (
   exit /b %ERRORLEVEL%
 )
 
-echo [QEMU-EXPERIMENTAL-BASELINE] SKIP ^(python runtime not found^)
-exit /b 0
+echo [QEMU-EXPERIMENTAL-BASELINE] FAILED ^(python runtime not found; tried py and python^)
+exit /b 2
 
 :riscvv_opcode_lane
 set "RVV_LANE_SCRIPT=%ROOT%docker\run_riscvv_opcode_lane.sh"
@@ -831,15 +1019,20 @@ if not exist "%RVV_LANE_SCRIPT%" (
   exit /b 2
 )
 
-where bash >nul 2>nul
-if errorlevel 1 (
-  echo [RVV-LANE] SKIP ^(bash not found^)
-  exit /b 0
-)
+call :require_rvv_lane_bash_runtime
+if errorlevel 1 exit /b 2
 
 echo [RVV-LANE] Running: bash %RVV_LANE_SCRIPT% %NORMALIZED_TEST_ARGS%
 bash "%RVV_LANE_SCRIPT%" %NORMALIZED_TEST_ARGS%
 exit /b %ERRORLEVEL%
+
+:require_rvv_lane_bash_runtime
+where bash >nul 2>nul
+if errorlevel 1 (
+  echo [RVV-LANE] FAILED ^(bash runtime not found; riscvv-opcode-lane requires bash to preserve shell parity^)
+  exit /b 2
+)
+exit /b 0
 
 :perf_smoke
 call :build
@@ -887,8 +1080,8 @@ if errorlevel 1 (
 
 findstr /c:"/Scalar)" "%TEST_LOG%" >nul 2>nul
 if not errorlevel 1 (
-  echo [PERF] SKIP ^(active backend is Scalar^)
-  exit /b 0
+  echo [PERF] FAILED ^(active backend is Scalar; perf-smoke requires non-scalar backend evidence^)
+  exit /b 1
 )
 
 set "PERF_CHECK_SCRIPT=%ROOT%check_perf_smoke_log.py"
@@ -1051,7 +1244,9 @@ if /I "%SIMD_GATE_PARITY_SUITES%"=="0" (
   echo [GATE] Optional cross-backend parity suites
   call "%SELF%" test --suite=TTestCase_DispatchAPI
   if errorlevel 1 exit /b 1
-  call "%SELF%" test --suite=TTestCase_DispatchAPI
+  call "%SELF%" test --suite=TTestCase_DirectDispatch
+  if errorlevel 1 exit /b 1
+  call "%SELF%" test --suite=TTestCase_DirectDispatchConcurrent
   if errorlevel 1 exit /b 1
 )
 
@@ -1244,12 +1439,15 @@ exit /b %ERRORLEVEL%
 :verify_win_evidence
 set "VERIFY_SCRIPT=%ROOT%verify_windows_b07_evidence.bat"
 set "VERIFY_ARGS=%NORMALIZED_TEST_ARGS%"
-if "%VERIFY_ARGS%"=="" set "VERIFY_ARGS=%ROOT%logs\windows_b07_gate.log"
 if not exist "%VERIFY_SCRIPT%" (
   echo [EVIDENCE] Missing verifier: %VERIFY_SCRIPT%
   exit /b 2
 )
-call "%VERIFY_SCRIPT%" "%VERIFY_ARGS%"
+if "%VERIFY_ARGS%"=="" (
+  call "%VERIFY_SCRIPT%" "%ROOT%logs\windows_b07_gate.log"
+) else (
+  call "%VERIFY_SCRIPT%" %VERIFY_ARGS%
+)
 exit /b %ERRORLEVEL%
 
 :evidence_win_verify
@@ -1266,8 +1464,11 @@ if not exist "%VERIFY_SCRIPT%" (
 call "%EVIDENCE_SCRIPT%"
 if errorlevel 1 exit /b 1
 set "VERIFY_ARGS=%NORMALIZED_TEST_ARGS%"
-if "%VERIFY_ARGS%"=="" set "VERIFY_ARGS=%ROOT%logs\windows_b07_gate.log"
-call "%VERIFY_SCRIPT%" "%VERIFY_ARGS%"
+if "%VERIFY_ARGS%"=="" (
+  call "%VERIFY_SCRIPT%" "%ROOT%logs\windows_b07_gate.log"
+) else (
+  call "%VERIFY_SCRIPT%" %VERIFY_ARGS%
+)
 exit /b %ERRORLEVEL%
 
 :finalize_win_evidence
@@ -1362,8 +1563,8 @@ if not errorlevel 1 (
   exit /b 0
 )
 
-echo [GATE-SUMMARY-SAMPLE] SKIP ^(python runtime not found^)
-exit /b 0
+echo [GATE-SUMMARY-SAMPLE] FAILED ^(python runtime not found; gate-summary-sample requires python^)
+exit /b 2
 
 :gate_summary_rehearsal
 set "REHEARSAL_SCRIPT=%ROOT%rehearse_gate_summary_thresholds.sh"
@@ -1374,8 +1575,8 @@ if not exist "%REHEARSAL_SCRIPT%" (
 
 where bash >nul 2>nul
 if errorlevel 1 (
-  echo [GATE-SUMMARY-REHEARSAL] SKIP ^(bash not found^)
-  exit /b 0
+  echo [GATE-SUMMARY-REHEARSAL] FAILED ^(bash runtime not found; gate-summary-rehearsal requires bash^)
+  exit /b 2
 )
 
 bash "%REHEARSAL_SCRIPT%"
@@ -1414,8 +1615,8 @@ if not errorlevel 1 (
   goto :gate_summary_inject_apply
 )
 
-echo [GATE-SUMMARY-INJECT] SKIP ^(python runtime not found^)
-exit /b 0
+echo [GATE-SUMMARY-INJECT] FAILED ^(python runtime not found; gate-summary-inject requires python^)
+exit /b 2
 
 :gate_summary_inject_apply
 if /I "%SIMD_GATE_SUMMARY_APPLY%"=="1" (
@@ -1534,7 +1735,8 @@ if /I "%SIMD_GATE_SUMMARY_JSON%"=="1" (
     exit /b 0
   )
 
-  echo [GATE-SUMMARY] SKIP JSON export ^(python runtime not found^)
+  echo [GATE-SUMMARY] FAILED ^(python runtime not found; SIMD_GATE_SUMMARY_JSON=1 requires python^)
+  exit /b 2
 )
 
 exit /b 0

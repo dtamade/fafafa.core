@@ -92,14 +92,14 @@ public ABI wrapper 继续沿用当前已经统一的四层语义：
 当前语义是：
 
 - backend 变化后，内部通过 dispatch hook 重绑 public API table
-- `GetSimdPublicApi` 返回的是当前最新绑定结果
+- `GetSimdPublicApi` 返回的是当前最新绑定 snapshot
 
 调用方如果长时间缓存 table，应该把它理解成：
 
-- **进程内稳定**
-- **backend 切换后可刷新**
+- **拿到的 snapshot 在进程内可继续安全调用**
+- **backend 切换后如需最新 metadata，应重新取表**
 
-不要把当前实现理解成“拿一次就永远不会变”。
+不要把当前实现理解成“拿一次就永远不会变，且地址恒定不变”。
 
 ## 兼容性规则
 
@@ -154,6 +154,9 @@ bash tests/fafafa.core.simd.publicabi/BuildOrTest.sh test
 ```bat
 tests\fafafa.core.simd.publicabi\BuildOrTest.bat test
 ```
+
+该入口现在优先使用 `pwsh`，回退到 `powershell`；若 PowerShell runtime 缺失，会直接失败而不是静默 `SKIP`，以守住 native batch gate 的 external smoke 承诺。
+当通过主 `simd` gate 在隔离根下运行时，`publicabi` external smoke 也会自动写入 `SIMD_OUTPUT_ROOT/publicabi/`，避免并发回归互相覆盖。
 
 ## 什么时候才考虑扩到 vector ABI
 

@@ -92,7 +92,7 @@ end;
 
 ### 后端注册机制
 
-当前实现中，后端注册代码通常已经从主单元抽到 `*.register.inc`，主文件保留接入点，便于控制单文件体积并减少 review 噪音。
+当前实现中，大多数后端注册代码已经从主单元抽到 `*.register.inc`，主文件保留接入点，便于控制单文件体积并减少 review 噪音。`SSE2` 是刻意保留在主单元内的例外，因为继续物理拆分它的风险已经高于收益。
 
 ```pascal
 // 后端自注册模式
@@ -108,7 +108,7 @@ begin
   RegisterBackend(sbSSE2, dispatchTable);
 end;
 
-// 单元初始化时自动注册（实际项目中通常位于 `*.register.inc`）
+// 单元初始化时自动注册（多数 backend 位于 `*.register.inc`；SSE2 当前保留在主单元）
 initialization
   RegisterSSE2Backend;
 ```

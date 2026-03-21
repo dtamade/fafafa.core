@@ -1,6 +1,6 @@
 # Windows B07 证据闭环 Runbook（cross-ready）
 
-更新时间：2026-03-06
+更新时间：2026-03-20
 
 ## 目标
 
@@ -26,19 +26,24 @@
 
 说明：
 - `win-evidence-via-gh` 会把批次快照写到 `tests/fafafa.core.simd/logs/windows-closeout/<batch-id>/`，并同步回写 canonical `logs/` 指针，方便 `freeze-status` 默认入口直接消费。
-- `win-evidence-via-gh` 只消费远端 ref。如果本地还有未提交或未推送的 closeout 修复，请先提交并推到目标 ref；否则脚本会直接拒绝 dispatch，避免浪费一轮 Windows runner。
+- 默认 `win-evidence-via-gh` 会消费远端 ref。如果本地还有未提交或未推送的 closeout 修复，请先提交并推到目标 ref；否则脚本会直接拒绝 dispatch，避免浪费一轮 Windows runner。
+- 若你已经有可复用的 GH Actions `run-id`，可执行 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh SIMD-YYYYMMDD-152 <run-id>`。这条旁路会跳过 dispatch，只做下载、校验与 finalize，因此不会再因为本地 dirty worktree / remote ref mismatch 被误拒。
+- `win-evidence-via-gh` 在下载并校验证据后，会自动补一轮 `SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1` 的 Linux cross gate，再进入 `win-closeout-finalize`。
 - `win-closeout-finalize` 是推荐主入口；它内部顺序固定为 `finalize -> freeze-status -> apply`。`finalize-win-evidence` 仅保留给拆分诊断或低层 helper 调用。
+- `win-evidence-preflight` 现在会先扫描最近 failed run 的 `gh run view` 文本，再检查 Windows job 的 `check_run_url` annotations；只要命中 billing/quota/runner block 关键词，就会 fail-close 为 `RECENT_BILLING_BLOCK`。
 
 ## 手工 Windows 实机路径（兜底）
 
-1. GH/额度预检（Git Bash / WSL）  
+1. GH/额度预检（Git Bash / WSL）
    `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight`
-2. 采集 + 校验（Windows PowerShell）  
-   `$env:FAFAFA_BUILD_MODE = 'Release'`  
+2. 采集 + 校验（Windows PowerShell）
+   `$env:FAFAFA_BUILD_MODE = 'Release'`
    `tests\fafafa.core.simd\buildOrTest.bat evidence-win-verify`
-3. 一键收口（Git Bash / WSL）  
+3. 回灌 cross gate（Git Bash / WSL，必需）
+   `FAFAFA_BUILD_MODE=Release SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+4. 一键收口（Git Bash / WSL）
    `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize SIMD-YYYYMMDD-152`
-4. 最终冻结确认（Git Bash / WSL）  
+5. 最终冻结确认（Git Bash / WSL）
    `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
 
 ## 无 Windows 实机时（GH Windows Runner 路径）
@@ -51,7 +56,11 @@
 说明：
 - `win-evidence-via-gh` 内部会先执行 `win-evidence-preflight`（可通过 `SIMD_WIN_EVIDENCE_PREFLIGHT=0` 关闭）。
 - 该路径依赖 `gh` 已登录，且仓库存在可用 workflow：`.github/workflows/simd-windows-b07-evidence.yml`。
+- 若传入显式 `run-id`，脚本会直接复用现成 workflow run，不再执行 dispatch 前的 dirty worktree / remote ref 一致性拒绝；适合在本地继续修脚本、但要先消费既有 Windows artifact 的场景。
 - 如果你只是想单独重生 closeout summary 而不执行 freeze/apply，可使用低层 helper：`BuildOrTest.sh finalize-win-evidence`。
+- `collect_windows_b07_evidence.bat` / `buildOrTest.bat evidence-win-verify` 现在默认优先走 native batch gate，避免静默绕开 Windows 自己的 `publicabi-smoke` 路径。只有在显式设置 `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1` 时，才会切到 bash gate 口径做诊断性预演。
+- native batch 采集路径不会额外导出 `gate_summary.json`；这是有意为之，因为该路径本身不生成一份新的 `gate_summary.md`，强行导出只会冒着复用旧摘要的风险。若你需要归档 `gate_summary.md/json`，请走 `win-evidence-via-gh` 或显式 opt-in `SIMD_WIN_EVIDENCE_USE_BASH_GATE=1`。
+- 因此手工 Windows 实机路径在 finalize 前必须显式补跑 fail-close cross gate；否则 `freeze-status` 只会继续消费旧的 `gate_summary.md`。
 
 ## 快捷入口
 

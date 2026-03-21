@@ -19,8 +19,13 @@ begin
     Backend := sbSSE3;
     Name := 'SSE3';
     Description := 'x86-64 SSE3 SIMD implementation (horizontal ops, HADD)';
-    Capabilities := [scBasicArithmetic, scComparison, scMathFunctions, scReduction, scLoadStore];
-    Available := True;
+    Capabilities := [scBasicArithmetic, scComparison, scMathFunctions, scReduction,
+                     scLoadStore];
+    if IsVectorAsmEnabled then
+      Include(Capabilities, scShuffle);
+    if IsVectorAsmEnabled then
+      Include(Capabilities, scIntegerOps);
+    Available := IsVectorAsmEnabled;
     Priority := GetSimdBackendPriorityValue(sbSSE3);
   end;
 
@@ -52,3 +57,4 @@ end;
 
 initialization
   RegisterSSE3Backend;
+  RegisterBackendRebuilder(sbSSE3, @RegisterSSE3Backend);

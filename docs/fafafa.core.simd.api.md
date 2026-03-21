@@ -202,7 +202,7 @@ dispatchable := GetAvailableBackendList; // 兼容别名
 active := GetCurrentBackend;
 ```
 
-`GetAvailableBackends`（来自 `cpuinfo`）和 `GetAvailableBackendList`（来自 façade）不是同一语义：
+`GetSupportedBackendList`（来自 `cpuinfo`，`GetAvailableBackends` 为兼容别名）和 `GetAvailableBackendList`（来自 façade）不是同一语义：
 - 前者是 `supported_on_cpu`
 - 后者是 `dispatchable`
 

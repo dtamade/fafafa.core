@@ -3,8 +3,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+OUTPUT_ROOT="${SIMD_OUTPUT_ROOT:-${SCRIPT_DIR}}"
 TS="$(date +%Y%m%d-%H%M%S)"
-OUT_DIR="${SCRIPT_DIR}/logs/backend-bench-${TS}"
+OUT_DIR="${OUTPUT_ROOT}/logs/backend-bench-${TS}"
 BIN_DIR="${OUT_DIR}/bin"
 LIB_DIR="${OUT_DIR}/lib"
 SUMMARY_FILE="${OUT_DIR}/summary.md"
@@ -129,13 +130,13 @@ run_one_from_test_binary() {
 
   LBuildLog="${OUT_DIR}/simd_test_binary.build.log"
   LRunLog="${OUT_DIR}/simd_test_binary.run.log"
-  LBinary="${SCRIPT_DIR}/bin2/fafafa.core.simd.test"
+  LBinary="${OUTPUT_ROOT}/bin2/fafafa.core.simd.test"
 
   echo "[BENCH] >>> ${aName}" | tee -a "${RUNNER_LOG}"
 
   (
     cd "${ROOT_DIR}"
-    bash tests/fafafa.core.simd/BuildOrTest.sh build
+    SIMD_OUTPUT_ROOT="${OUTPUT_ROOT}" bash tests/fafafa.core.simd/BuildOrTest.sh build
   ) >"${LBuildLog}" 2>&1 || LBuildRc=$?
   LBuildRc="${LBuildRc:-0}"
 

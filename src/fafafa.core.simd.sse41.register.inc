@@ -21,8 +21,12 @@ begin
     Name := 'SSE4.1';
     Description := 'x86-64 SSE4.1 SIMD (PMULLD, ROUNDPS, DPPS, PMINSD/PMAXSD)';
     Capabilities := [scBasicArithmetic, scComparison, scMathFunctions, scReduction,
-                     scShuffle, scIntegerOps, scLoadStore];
-    Available := True;
+                     scLoadStore];
+    if IsVectorAsmEnabled then
+      Include(Capabilities, scShuffle);
+    if IsVectorAsmEnabled then
+      Include(Capabilities, scIntegerOps);
+    Available := IsVectorAsmEnabled;
     Priority := GetSimdBackendPriorityValue(sbSSE41);
   end;
 
@@ -90,3 +94,4 @@ end;
 
 initialization
   RegisterSSE41Backend;
+  RegisterBackendRebuilder(sbSSE41, @RegisterSSE41Backend);

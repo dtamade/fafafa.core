@@ -1,19 +1,43 @@
 procedure RegisterNEONBackend;
 var
   table: TSimdDispatchTable;
+  LCapabilities: TSimdCapabilities;
+  LAsmCapable: Boolean;
+  LUseVectorAsm: Boolean;
 begin
   // Fill with base scalar implementations (provides fallback for unimplemented operations)
   FillBaseDispatchTable(table);
 
+  LAsmCapable := False;
+  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+  LAsmCapable := True;
+  {$ENDIF}
+  LUseVectorAsm := False;
+  if LAsmCapable then
+    LUseVectorAsm := IsVectorAsmEnabled;
+
   // Backend info
   table.Backend := sbNEON;
   table.BackendInfo.Backend := sbNEON;
-  table.BackendInfo.Available := True;
+  table.BackendInfo.Available := (not LAsmCapable) or LUseVectorAsm;
   table.BackendInfo.Name := 'NEON';
   table.BackendInfo.Description := 'ARM NEON 128-bit SIMD';
-  table.BackendInfo.Capabilities := [scBasicArithmetic, scComparison, scMathFunctions,
-                                     scReduction, scIntegerOps, scLoadStore, scFMA];
+  LCapabilities := [scBasicArithmetic, scComparison, scMathFunctions,
+                    scReduction, scLoadStore];
+  if LUseVectorAsm then
+    Include(LCapabilities, scIntegerOps);
+  if LUseVectorAsm then
+    Include(LCapabilities, scFMA);
+  if LUseVectorAsm then
+    Include(LCapabilities, scShuffle);
+  table.BackendInfo.Capabilities := LCapabilities;
   table.BackendInfo.Priority := GetSimdBackendPriorityValue(sbNEON);
+
+  if LAsmCapable and (not LUseVectorAsm) then
+  begin
+    RegisterBackend(sbNEON, table);
+    Exit;
+  end;
 
   // Override with NEON-accelerated operations
   // Arithmetic operations - F32x4
@@ -629,6 +653,12 @@ begin
 end;
 
 initialization
+  // Test-only opt-in path: allow non-native hosts to register NEON scalar-fallback
+  // implementations so DispatchAPI/PublicAbi suites can verify metadata contracts.
+  {$IFDEF FAFAFA_SIMD_TEST_REGISTER_NEON_BACKEND}
+    RegisterNEONBackend;
+    RegisterBackendRebuilder(sbNEON, @RegisterNEONBackend);
+  {$ELSE}
   // Only register NEON backend when ASM is available.
   // FPC 3.2.2 does NOT support AArch64 NEON inline assembly (causes ICE).
   // Without ASM, the scalar fallback + dispatch overhead makes performance WORSE.
@@ -642,4 +672,5 @@ initialization
     RegisterNEONBackend;
     RegisterBackendRebuilder(sbNEON, @RegisterNEONBackend);
     {$ENDIF}
+  {$ENDIF}
   {$ENDIF}

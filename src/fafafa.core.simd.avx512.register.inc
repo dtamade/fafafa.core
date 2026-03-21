@@ -2,10 +2,12 @@ procedure RegisterAVX512Backend;
 var
   dispatchTable: TSimdDispatchTable;
   isAvailable: Boolean;
+  LEnableVectorAsm: Boolean;
 begin
   // Always register so the dispatch table can be inspected (e.g. on non-AVX-512 machines).
   // Runtime dispatch/forcing still prevents executing AVX-512 on unsupported CPUs.
   isAvailable := HasAVX512 and X86HasAVX512BackendRequiredFeatures(GetX86CPUInfo);
+  LEnableVectorAsm := IsVectorAsmEnabled;
 
   // ✅ AVX-512 inherits all 128-bit and 256-bit operations from AVX2
   // This provides full coverage for F32x4, F64x2, I32x4, I64x2, F32x8, F64x4, etc.
@@ -21,32 +23,44 @@ begin
     Backend := sbAVX512;
     Name := 'AVX-512';
     Description := 'x86-64 AVX-512 SIMD implementation (512-bit)';
-    // sc512BitOps is now advertised: wide 512-bit integer families
-    // (I16x32/I8x64/U32x16/U64x8/U8x64) are mapped to AVX-512 slots.
     Capabilities := [scBasicArithmetic, scComparison, scMathFunctions, scReduction,
-                     scLoadStore, scMaskedOps, sc512BitOps];
-    Available := isAvailable;
+                     scLoadStore];
+    if LEnableVectorAsm then
+      Include(Capabilities, scShuffle);
+    if LEnableVectorAsm then
+      Include(Capabilities, scIntegerOps);
+    if LEnableVectorAsm then
+      Include(Capabilities, scMaskedOps);
+    if LEnableVectorAsm then
+      Include(Capabilities, sc512BitOps);
+    if LEnableVectorAsm then
+      Include(Capabilities, scFMA);
+    Available := isAvailable and LEnableVectorAsm;
     Priority := GetSimdBackendPriorityValue(sbAVX512);
   end;
 
-  // Override facade functions with AVX-512 accelerated versions
-  dispatchTable.MemEqual := @MemEqual_AVX512;
-  dispatchTable.MemFindByte := @MemFindByte_AVX512;
-  dispatchTable.SumBytes := @SumBytes_AVX512;
-  dispatchTable.CountByte := @CountByte_AVX512;
-  dispatchTable.MinMaxBytes := @MinMaxBytes_AVX512;
-  dispatchTable.BitsetPopCount := @BitsetPopCount_AVX512;
-  dispatchTable.MemCopy := @MemCopy_AVX512;
-  dispatchTable.MemSet := @MemSet_AVX512;
-  dispatchTable.ToLowerAscii := @ToLowerAscii_AVX512;
-  dispatchTable.ToUpperAscii := @ToUpperAscii_AVX512;
-  dispatchTable.AsciiIEqual := @AsciiIEqual_AVX512;
+  // Keep the cloned fallback table when vector asm is disabled so runtime
+  // toggle/rebuild paths do not retain stale AVX-512 slots or capabilities.
+  if LEnableVectorAsm then
+  begin
+    // Override facade functions with AVX-512 accelerated versions
+    dispatchTable.MemEqual := @MemEqual_AVX512;
+    dispatchTable.MemFindByte := @MemFindByte_AVX512;
+    dispatchTable.SumBytes := @SumBytes_AVX512;
+    dispatchTable.CountByte := @CountByte_AVX512;
+    dispatchTable.MinMaxBytes := @MinMaxBytes_AVX512;
+    dispatchTable.BitsetPopCount := @BitsetPopCount_AVX512;
+    dispatchTable.MemCopy := @MemCopy_AVX512;
+    dispatchTable.MemSet := @MemSet_AVX512;
+    dispatchTable.ToLowerAscii := @ToLowerAscii_AVX512;
+    dispatchTable.ToUpperAscii := @ToUpperAscii_AVX512;
+    dispatchTable.AsciiIEqual := @AsciiIEqual_AVX512;
 
-  // Functions using AVX2 fallback (complex algorithms)
-  dispatchTable.Utf8Validate := @Utf8Validate_AVX512;
-  dispatchTable.MemReverse := @MemReverse_AVX512;
-  dispatchTable.MemDiffRange := @MemDiffRange_AVX512;
-  dispatchTable.BytesIndexOf := @BytesIndexOf_AVX512;
+    // Functions using AVX2 fallback (complex algorithms)
+    dispatchTable.Utf8Validate := @Utf8Validate_AVX512;
+    dispatchTable.MemReverse := @MemReverse_AVX512;
+    dispatchTable.MemDiffRange := @MemDiffRange_AVX512;
+    dispatchTable.BytesIndexOf := @BytesIndexOf_AVX512;
 
   // === 512-bit Vector Type Operations ===
 
@@ -265,6 +279,8 @@ begin
   dispatchTable.U8x16SatSub := @AVX512U8x16SatSub;
   dispatchTable.U16x8SatAdd := @AVX512U16x8SatAdd;
   dispatchTable.U16x8SatSub := @AVX512U16x8SatSub;
+
+  end;
 
   // Register the backend
   RegisterBackend(sbAVX512, dispatchTable);

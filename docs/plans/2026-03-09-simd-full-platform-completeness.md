@@ -291,8 +291,8 @@ Do not use ambiguous wording.
 If the goal is strictly “make the platform completeness claim true with minimum additional work”, the critical path is:
 
 1. Windows `evidence-win-verify`
-2. `finalize-win-evidence`
-3. `apply_windows_b07_closeout_updates.sh --apply`
-4. `freeze-status`
+2. `FAFAFA_BUILD_MODE=Release SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+3. `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize SIMD-YYYYMMDD-152`
+4. `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
 
 Everything else is already in place on the Linux side.

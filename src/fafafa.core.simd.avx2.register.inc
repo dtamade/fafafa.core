@@ -2,10 +2,20 @@ procedure RegisterAVX2Backend;
 var
   dispatchTable: TSimdDispatchTable;
   LEnableVectorAsm: Boolean;
+  LHasHardwareFma: Boolean;
 begin
   // Only register if AVX2 is available
   if not HasAVX2 then
     Exit;
+
+  // You can enable AVX2 vector ops for experimentation via SetVectorAsmEnabled(True)
+  // (note: AVX2 asm path is not yet fully validated under FPC's calling conventions).
+  LEnableVectorAsm := IsVectorAsmEnabled;
+  {$IFDEF WINDOWS}
+  // Win64 lane: keep AVX2 registered, but avoid vector-asm path until ABI validation is complete.
+  LEnableVectorAsm := False;
+  {$ENDIF}
+  LHasHardwareFma := HasFeature(gfFMA);
 
   // Fill with base scalar implementations (provides fallback for all operations)
   dispatchTable := Default(TSimdDispatchTable);
@@ -16,18 +26,16 @@ begin
   dispatchTable.BackendInfo.Backend := sbAVX2;
   dispatchTable.BackendInfo.Name := 'AVX2';
   dispatchTable.BackendInfo.Description := 'x86-64 AVX2 SIMD implementation (256-bit)';
-  dispatchTable.BackendInfo.Capabilities := [scBasicArithmetic, scComparison, scMathFunctions, scReduction, scLoadStore];
-  dispatchTable.BackendInfo.Available := True;
+  dispatchTable.BackendInfo.Capabilities := [scBasicArithmetic, scComparison, scMathFunctions,
+                                             scReduction, scLoadStore];
+  if LEnableVectorAsm then
+    Include(dispatchTable.BackendInfo.Capabilities, scShuffle);
+  if LEnableVectorAsm then
+    Include(dispatchTable.BackendInfo.Capabilities, scIntegerOps);
+  if LEnableVectorAsm and LHasHardwareFma then
+    Include(dispatchTable.BackendInfo.Capabilities, scFMA);
+  dispatchTable.BackendInfo.Available := LEnableVectorAsm;
   dispatchTable.BackendInfo.Priority := GetSimdBackendPriorityValue(sbAVX2);
-
-  // Vector-related operations default to Scalar reference implementations.
-  // You can enable AVX2 vector ops for experimentation via SetVectorAsmEnabled(True)
-  // (note: AVX2 asm path is not yet fully validated under FPC's calling conventions).
-  LEnableVectorAsm := IsVectorAsmEnabled;
-  {$IFDEF WINDOWS}
-  // Win64 lane: keep AVX2 registered, but avoid vector-asm path until ABI validation is complete.
-  LEnableVectorAsm := False;
-  {$ENDIF}
 
   if LEnableVectorAsm then
   begin
@@ -341,7 +349,8 @@ begin
     dispatchTable.MaxF32x4 := @AVX2MaxF32x4;
 
     // Override with AVX2 extended math functions
-    dispatchTable.FmaF32x4 := @AVX2FmaF32x4;
+    if LHasHardwareFma then
+      dispatchTable.FmaF32x4 := @AVX2FmaF32x4;
     dispatchTable.RcpF32x4 := @AVX2RcpF32x4;
     dispatchTable.RsqrtF32x4 := @AVX2RsqrtF32x4;
     dispatchTable.FloorF32x4 := @AVX2FloorF32x4;
@@ -392,7 +401,8 @@ begin
     dispatchTable.CmpNeF64x2 := @AVX2CmpNeF64x2;
 
     // F64x2 Extended Math (128-bit)
-    dispatchTable.FmaF64x2 := @AVX2FmaF64x2;
+    if LHasHardwareFma then
+      dispatchTable.FmaF64x2 := @AVX2FmaF64x2;
     dispatchTable.FloorF64x2 := @AVX2FloorF64x2;
     dispatchTable.CeilF64x2 := @AVX2CeilF64x2;
     dispatchTable.RoundF64x2 := @AVX2RoundF64x2;
@@ -418,7 +428,8 @@ begin
     dispatchTable.ReduceMulF32x8 := @AVX2ReduceMulF32x8;
 
     // F32x8 Extended Math (256-bit AVX)
-    dispatchTable.FmaF32x8 := @AVX2FmaF32x8;
+    if LHasHardwareFma then
+      dispatchTable.FmaF32x8 := @AVX2FmaF32x8;
     dispatchTable.FloorF32x8 := @AVX2FloorF32x8;
     dispatchTable.CeilF32x8 := @AVX2CeilF32x8;
     dispatchTable.RoundF32x8 := @AVX2RoundF32x8;
@@ -444,7 +455,8 @@ begin
     dispatchTable.ReduceMulF64x4 := @AVX2ReduceMulF64x4;
 
     // F64x4 Extended Math (256-bit AVX)
-    dispatchTable.FmaF64x4 := @AVX2FmaF64x4;
+    if LHasHardwareFma then
+      dispatchTable.FmaF64x4 := @AVX2FmaF64x4;
     dispatchTable.FloorF64x4 := @AVX2FloorF64x4;
     dispatchTable.CeilF64x4 := @AVX2CeilF64x4;
     dispatchTable.RoundF64x4 := @AVX2RoundF64x4;
@@ -472,7 +484,8 @@ begin
     dispatchTable.ClampF32x16 := @AVX2ClampF32x16;
 
     // F32x16 Extended Math (512-bit)
-    dispatchTable.FmaF32x16 := @AVX2FmaF32x16;
+    if LHasHardwareFma then
+      dispatchTable.FmaF32x16 := @AVX2FmaF32x16;
     dispatchTable.FloorF32x16 := @AVX2FloorF32x16;
     dispatchTable.CeilF32x16 := @AVX2CeilF32x16;
     dispatchTable.RoundF32x16 := @AVX2RoundF32x16;
@@ -513,7 +526,8 @@ begin
     dispatchTable.ClampF64x8 := @AVX2ClampF64x8;
 
     // F64x8 Extended Math (512-bit)
-    dispatchTable.FmaF64x8 := @AVX2FmaF64x8;
+    if LHasHardwareFma then
+      dispatchTable.FmaF64x8 := @AVX2FmaF64x8;
     dispatchTable.FloorF64x8 := @AVX2FloorF64x8;
     dispatchTable.CeilF64x8 := @AVX2CeilF64x8;
     dispatchTable.RoundF64x8 := @AVX2RoundF64x8;

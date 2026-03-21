@@ -28,7 +28,10 @@ int main(int argc, char** argv) {
   uint64_t sig_hi = 0;
   uint64_t sig_lo = 0;
   fafafa_simd_backend_pod_info_t scalar_info;
+  fafafa_simd_backend_pod_info_t active_info;
   const fafafa_simd_public_api_t* api;
+  const char* active_name;
+  const char* active_description;
   unsigned char a[32];
   unsigned char b[32];
   unsigned char c[32];
@@ -77,8 +80,14 @@ int main(int argc, char** argv) {
     fail("scalar backend info query failed");
   if (scalar_info.struct_size != sizeof(scalar_info))
     fail("backend pod struct size mismatch");
+  if (scalar_info.backend_id != 0u)
+    fail("scalar backend id mismatch");
+  if (!(scalar_info.flags & FAF_SIMD_ABI_FLAG_SUPPORTED_ON_CPU))
+    fail("scalar backend should be supported_on_cpu");
   if (!(scalar_info.flags & FAF_SIMD_ABI_FLAG_REGISTERED))
     fail("scalar backend should be registered");
+  if (!(scalar_info.flags & FAF_SIMD_ABI_FLAG_DISPATCHABLE))
+    fail("scalar backend should be dispatchable");
   if (!backend_name(0u) || backend_name(0u)[0] == '\0')
     fail("scalar backend name missing");
   if (!backend_description(0u) || backend_description(0u)[0] == '\0')
@@ -93,6 +102,33 @@ int main(int argc, char** argv) {
     fail("public api version mismatch");
   if (api->abi_signature_hi != sig_hi || api->abi_signature_lo != sig_lo)
     fail("public api signature mismatch");
+  if (api->active_flags == 0u)
+    fail("public api active flags should not be zero");
+  if (!(api->active_flags & FAF_SIMD_ABI_FLAG_SUPPORTED_ON_CPU))
+    fail("public api active flags should include supported_on_cpu");
+  if (!(api->active_flags & FAF_SIMD_ABI_FLAG_REGISTERED))
+    fail("public api active flags should include registered");
+  if (!(api->active_flags & FAF_SIMD_ABI_FLAG_DISPATCHABLE))
+    fail("public api active flags should include dispatchable");
+  if (!(api->active_flags & FAF_SIMD_ABI_FLAG_ACTIVE))
+    fail("public api active flags should include active");
+  memset(&active_info, 0, sizeof(active_info));
+  if (!get_backend_info(api->active_backend_id, &active_info))
+    fail("active backend info query failed");
+  if (active_info.struct_size != sizeof(active_info))
+    fail("active backend pod struct size mismatch");
+  if (active_info.backend_id != api->active_backend_id)
+    fail("active backend id mismatch");
+  if (active_info.flags != api->active_flags)
+    fail("active backend flags should match public api active flags");
+  active_name = backend_name(api->active_backend_id);
+  if (!active_name || active_name[0] == '\0')
+    fail("active backend name missing");
+  active_description = backend_description(api->active_backend_id);
+  if (!active_description || active_description[0] == '\0')
+    fail("active backend description missing");
+  if (api->active_backend_id != 0u && (scalar_info.flags & FAF_SIMD_ABI_FLAG_ACTIVE))
+    fail("scalar backend should not be active when active backend differs");
   if (!api->mem_equal || !api->mem_find_byte || !api->mem_diff_range || !api->sum_bytes || !api->count_byte ||
       !api->bitset_popcount || !api->utf8_validate || !api->ascii_iequal || !api->bytes_index_of || !api->mem_copy ||
       !api->mem_set || !api->to_lower_ascii || !api->to_upper_ascii || !api->mem_reverse || !api->min_max_bytes)

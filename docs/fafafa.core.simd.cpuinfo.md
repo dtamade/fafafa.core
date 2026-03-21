@@ -58,20 +58,23 @@
 // 获取 CPU 信息（线程安全）
 function GetCPUInfo: TCPUInfo;
 
-// 检查后端可用性（基于 CPU/OS 特性）
-function IsBackendAvailableOnCPU(backend: TSimdBackend): Boolean;
+// 检查后端是否受当前 CPU/OS 支持
+function IsBackendSupportedOnCPU(aBackend: TSimdBackend): Boolean;
 
-// 获取 CPU/OS 语义下支持的后端列表（按优先级排序）
+// 获取 CPU/OS 语义下支持的后端列表（按优先级排序，推荐名称）
+function GetSupportedBackendList: TSimdBackendArray;
+
+// 向后兼容别名（等价于 GetSupportedBackendList）
 function GetAvailableBackends: TSimdBackendArray;
 
-// 获取 CPU/OS 语义下的最佳后端（不受运行时 active backend 影响）
+// 获取 CPU/OS 语义下支持的最佳后端（推荐名称，不受运行时 active backend 影响）
+function GetBestSupportedBackend: TSimdBackend;
+
+// 原始名称（等价于 GetBestSupportedBackend）
 function GetBestBackendOnCPU: TSimdBackend;
 
 // 向后兼容别名（等价于 GetBestBackendOnCPU）
 function GetBestBackend: TSimdBackend;
-
-// 获取后端详细信息
-function GetBackendInfo(backend: TSimdBackend): TSimdBackendInfo;
 
 // 重置 CPU 信息（用于测试）
 procedure ResetCPUInfo;
@@ -195,7 +198,10 @@ TSimdBackend = (
 ### 基本用法
 
 ```pascal
-uses fafafa.core.simd.cpuinfo;
+uses
+  fafafa.core.simd.base,
+  fafafa.core.simd.cpuinfo.base,
+  fafafa.core.simd.cpuinfo;
 
 var
   cpuInfo: TCPUInfo;
@@ -204,43 +210,49 @@ begin
   // 获取 CPU 信息
   cpuInfo := GetCPUInfo;
   WriteLn('CPU: ', cpuInfo.Vendor, ' ', cpuInfo.Model);
-  
+
   // 获取 CPU/OS 语义下支持的最佳后端
-  bestBackend := GetBestBackendOnCPU;
-  WriteLn('Best CPU-supported SIMD backend: ', GetBackendName(bestBackend));
-  
+  bestBackend := GetBestSupportedBackend;
+  WriteLn('Best CPU-supported SIMD backend enum: ', Ord(bestBackend));
+
   // 检查特定特性
-  if cpuInfo.X86.HasAVX2 then
+  if HasAVX2 then
     WriteLn('AVX2 is supported');
-    
-  if cpuInfo.ARM.HasNEON then
+
+  if HasNEON then
     WriteLn('NEON is supported');
 end;
 ```
 
 ### CPU 最佳后端 vs 当前 active 后端
 
-`GetBestBackendOnCPU` 只反映“当前 CPU/OS 能用的最优后端”，不会因为 `SetActiveBackend` 被强制切换而变化。
+`GetBestSupportedBackend` / `GetBestBackendOnCPU` 只反映“当前 CPU/OS 能用的最优后端”，不会因为 `SetActiveBackend` 被强制切换而变化。
 
 ```pascal
 uses
+  fafafa.core.simd.base,
   fafafa.core.simd.cpuinfo,
   fafafa.core.simd.dispatch;
 
 var
   LBestOnCPU: TSimdBackend;
 begin
-  LBestOnCPU := GetBestBackendOnCPU;
+  LBestOnCPU := GetBestSupportedBackend;
 
   SetActiveBackend(sbScalar); // 仅影响当前 dispatch 路径
   // 这里仍然是 CPU 能力上的最优后端，不会变成 sbScalar
-  Assert(GetBestBackendOnCPU = LBestOnCPU);
+  Assert(GetBestSupportedBackend = LBestOnCPU);
 end;
 ```
 
 ### 后端选择
 
 ```pascal
+uses
+  fafafa.core.simd.base,
+  fafafa.core.simd.cpuinfo,
+  fafafa.core.simd.dispatch;
+
 var
   backends: TSimdBackendArray;
   backend: TSimdBackend;
@@ -248,29 +260,30 @@ var
   i: Integer;
 begin
   // 获取 CPU/OS 语义下所有支持的后端
-  backends := GetAvailableBackends;
+  backends := GetSupportedBackendList;
   
   WriteLn('CPU-supported SIMD backends:');
   for i := 0 to Length(backends) - 1 do
   begin
     backend := backends[i];
-    info := GetBackendInfo(backend);
+    info := fafafa.core.simd.dispatch.GetBackendInfo(backend);
     WriteLn('  ', info.Name, ' (Priority: ', info.Priority, ')');
   end;
   
-  // 注意：这里的“available”只表示 CPU/OS 支持。
+  // 注意：GetAvailableBackends 只是向后兼容别名；
+  // 这里的语义始终是“CPU/OS 支持”，不是“当前二进制可派发”。
   // 若要查询“当前二进制真正可派发”的后端，请使用
   // fafafa.core.simd / fafafa.core.simd.dispatch 提供的 dispatchable 视图。
   // 若要查询“当前二进制是否已注册某个 backend”，请使用
   // fafafa.core.simd.GetRegisteredBackendList / IsBackendRegisteredInBinary。
 
   // 选择特定后端
-  if IsBackendAvailableOnCPU(sbAVX2) then
+  if IsBackendSupportedOnCPU(sbAVX2) then
   begin
     WriteLn('Using AVX2 backend');
     // 使用 AVX2 实现
   end
-  else if IsBackendAvailableOnCPU(sbSSE2) then
+  else if IsBackendSupportedOnCPU(sbSSE2) then
   begin
     WriteLn('Using SSE2 backend');
     // 使用 SSE2 实现

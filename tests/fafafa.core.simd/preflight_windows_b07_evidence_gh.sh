@@ -119,6 +119,31 @@ pass_with() {
   exit 0
 }
 
+extract_billing_block_message() {
+  local aText
+
+  aText="${1:-}"
+  python3 - "${aText}" <<'PY'
+import re
+import sys
+
+patterns = [
+    r"billing\s*&\s*plans",
+    r"spending limit needs to be increased",
+    r"recent account payments have failed",
+    r"job was not started",
+]
+
+text = sys.argv[1] if len(sys.argv) > 1 else ""
+for line in text.splitlines():
+    low = line.lower()
+    if any(re.search(pattern, low) for pattern in patterns):
+        print(line.strip())
+        sys.exit(0)
+sys.exit(1)
+PY
+}
+
 while [[ $# -gt 0 ]]; do
   case "$1" in
     -h|--help)
@@ -257,12 +282,18 @@ fi
 
 for LRunRow in "${LCandidateRuns[@]}"; do
   IFS=$'\t' read -r LRunId LAgeHours LRunUrl <<<"${LRunRow}"
+  LRunViewText="$(gh run view "${LRunId}" 2>/dev/null || true)"
+  LBillingMsg="$(extract_billing_block_message "${LRunViewText}" || true)"
+  if [[ -n "${LBillingMsg}" ]]; then
+    fail_with 31 "RECENT_BILLING_BLOCK" "workflow=${WORKFLOW_FILE}; run=${LRunId}; age_hours=${LAgeHours}; url=${LRunUrl}; message=${LBillingMsg}"
+  fi
+
   LJobsJson="$(gh api "repos/${LRepo}/actions/runs/${LRunId}/jobs" 2>/dev/null || true)"
   if [[ -z "${LJobsJson}" ]]; then
     continue
   fi
 
-  mapfile -t LWinJobIds < <(
+  mapfile -t LWinCheckRuns < <(
     python3 - "${LJobsJson}" <<'PY'
 import json
 import sys
@@ -271,16 +302,24 @@ obj = json.loads(sys.argv[1])
 for job in obj.get("jobs", []):
     labels = [str(v).lower() for v in job.get("labels", [])]
     if any("windows" in item for item in labels):
-        print(str(job.get("id", "")))
+        print(f"{job.get('id', '')}\t{job.get('check_run_url', '')}")
 PY
   )
 
-  for LJobId in "${LWinJobIds[@]}"; do
+  for LCheckRunRow in "${LWinCheckRuns[@]}"; do
+    LCheckRunAnnotationsEndpoint=""
+    IFS=$'\t' read -r LJobId LCheckRunUrl <<<"${LCheckRunRow}"
     if [[ -z "${LJobId}" ]]; then
       continue
     fi
 
-    LAnnoJson="$(gh api "repos/${LRepo}/check-runs/${LJobId}/annotations" 2>/dev/null || true)"
+    if [[ -n "${LCheckRunUrl}" ]]; then
+      LCheckRunAnnotationsEndpoint="${LCheckRunUrl#https://api.github.com/}"
+      LCheckRunAnnotationsEndpoint="${LCheckRunAnnotationsEndpoint}/annotations"
+      LAnnoJson="$(gh api "${LCheckRunAnnotationsEndpoint}" 2>/dev/null || true)"
+    else
+      LAnnoJson="$(gh api "repos/${LRepo}/check-runs/${LJobId}/annotations" 2>/dev/null || true)"
+    fi
     if [[ -z "${LAnnoJson}" ]]; then
       continue
     fi
@@ -288,25 +327,18 @@ PY
     LBillingMsg="$(
       python3 - "${LAnnoJson}" <<'PY'
 import json
-import re
 import sys
 
 rows = json.loads(sys.argv[1])
-patterns = [
-    r"billing\s*&\s*plans",
-    r"spending limit needs to be increased",
-    r"recent account payments have failed",
-    r"job was not started",
-]
-
+messages = []
 for row in rows:
     msg = str(row.get("message", "")).strip()
-    low = msg.lower()
-    if any(re.search(p, low) for p in patterns):
-        print(msg)
-        sys.exit(0)
+    if msg:
+        messages.append(msg)
+print("\n".join(messages))
 PY
     )"
+    LBillingMsg="$(extract_billing_block_message "${LBillingMsg}" || true)"
 
     if [[ -n "${LBillingMsg}" ]]; then
       fail_with 31 "RECENT_BILLING_BLOCK" "workflow=${WORKFLOW_FILE}; run=${LRunId}; age_hours=${LAgeHours}; job=${LJobId}; url=${LRunUrl}; message=${LBillingMsg}"

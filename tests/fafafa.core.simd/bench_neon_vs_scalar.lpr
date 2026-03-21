@@ -31,42 +31,48 @@ function RunBackendComparison: TBackendBenchResults;
 var
   ScalarResults, NEONResults: TBenchResults;
   LIndex: Integer;
+  LSkipReason: string;
 begin
   Result := nil;
-
-  // Check if NEON is available
-  if not IsBackendAvailableOnCPU(sbNEON) then
-  begin
-    WriteLn('[SKIP] NEON backend is not available on this CPU');
-    Exit;
-  end;
 
   WriteLn('=== NEON vs Scalar Performance Benchmark ===');
   WriteLn;
   SetVectorAsmEnabled(True);
-  WriteLn('Running Scalar backend tests...');
-  SetActiveBackend(sbScalar);
-  ScalarResults := RunAllBenchmarks;
+  try
+    WriteLn('Running Scalar backend tests...');
+    LSkipReason := '';
+    if not TryActivateBenchmarkBackend(sbScalar, LSkipReason) then
+    begin
+      WriteLn('[SKIP] ', LSkipReason);
+      Exit;
+    end;
+    ScalarResults := RunAllBenchmarks;
 
-  WriteLn('Running NEON backend tests...');
-  SetActiveBackend(sbNEON);
-  NEONResults := RunAllBenchmarks;
+    WriteLn('Running NEON backend tests...');
+    LSkipReason := '';
+    if not TryActivateBenchmarkBackend(sbNEON, LSkipReason) then
+    begin
+      WriteLn('[SKIP] ', LSkipReason);
+      Exit;
+    end;
+    NEONResults := RunAllBenchmarks;
 
-  // Combine results
-  SetLength(Result, Length(ScalarResults));
-  for LIndex := 0 to High(ScalarResults) do
-  begin
-    Result[LIndex].Name := ScalarResults[LIndex].Name;
-    Result[LIndex].Size := ScalarResults[LIndex].Size;
-    Result[LIndex].ScalarOpsPerSec := ScalarResults[LIndex].ActiveOpsPerSec;
-    Result[LIndex].NEONOpsPerSec := NEONResults[LIndex].ActiveOpsPerSec;
-    if Result[LIndex].ScalarOpsPerSec > 0 then
-      Result[LIndex].Speedup := Result[LIndex].NEONOpsPerSec / Result[LIndex].ScalarOpsPerSec
-    else
-      Result[LIndex].Speedup := 0;
+    // Combine results
+    SetLength(Result, Length(ScalarResults));
+    for LIndex := 0 to High(ScalarResults) do
+    begin
+      Result[LIndex].Name := ScalarResults[LIndex].Name;
+      Result[LIndex].Size := ScalarResults[LIndex].Size;
+      Result[LIndex].ScalarOpsPerSec := ScalarResults[LIndex].ActiveOpsPerSec;
+      Result[LIndex].NEONOpsPerSec := NEONResults[LIndex].ActiveOpsPerSec;
+      if Result[LIndex].ScalarOpsPerSec > 0 then
+        Result[LIndex].Speedup := Result[LIndex].NEONOpsPerSec / Result[LIndex].ScalarOpsPerSec
+      else
+        Result[LIndex].Speedup := 0;
+    end;
+  finally
+    ResetToAutomaticBackend;
   end;
-
-  ResetToAutomaticBackend;
 end;
 
 function FormatOps(Ops: Double): string;

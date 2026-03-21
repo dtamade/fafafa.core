@@ -8,8 +8,13 @@ begin
 
   dispatchTable := Default(TSimdDispatchTable);
 
-  // Start with base scalar implementations
-  FillBaseDispatchTable(dispatchTable);
+  // SSE4.2 is an incremental extension over SSE4.1 and must retain the
+  // higher-level dispatch wiring from prior x86 backends.
+  if not CloneDispatchTable(sbSSE41, dispatchTable) then
+    if not CloneDispatchTable(sbSSSE3, dispatchTable) then
+      if not CloneDispatchTable(sbSSE3, dispatchTable) then
+        if not CloneDispatchTable(sbSSE2, dispatchTable) then
+          FillBaseDispatchTable(dispatchTable);
 
   // Set backend info
   dispatchTable.Backend := sbSSE42;
@@ -19,8 +24,12 @@ begin
     Name := 'SSE4.2';
     Description := 'x86-64 SSE4.2 SIMD implementation (CRC32, string ops)';
     Capabilities := [scBasicArithmetic, scComparison, scMathFunctions, scReduction,
-                     scShuffle, scIntegerOps, scLoadStore];
-    Available := True;
+                     scLoadStore];
+    if IsVectorAsmEnabled then
+      Include(Capabilities, scShuffle);
+    if IsVectorAsmEnabled then
+      Include(Capabilities, scIntegerOps);
+    Available := IsVectorAsmEnabled;
     Priority := GetSimdBackendPriorityValue(sbSSE42);
   end;
 

@@ -10,8 +10,10 @@ uses
   SysUtils,
   fafafa.core.simd,
   fafafa.core.simd.base,
+  fafafa.core.simd.dispatch,
   fafafa.core.simd.cpuinfo,
-  fafafa.core.simd.cpuinfo.base;
+  fafafa.core.simd.cpuinfo.base,
+  fafafa.core.simd.public_smoke_support;
 
 function BackendName(b: TSimdBackend): string;
 begin
@@ -44,12 +46,9 @@ begin
   WriteLn('CPU model:  ', C.Model);
   WriteLn('Backend:    ', Ord(backend), ' (', BackendName(backend), ')');
 
-  // Expected default backend preference (when available): AVX2 > SSE2 > Scalar.
-  expected := sbScalar;
-  {$IFDEF SIMD_X86_AVAILABLE}
-  if HasSSE2 then expected := sbSSE2;
-  if HasAVX2 then expected := sbAVX2;
-  {$ENDIF}
+  // Expected default backend preference follows the same canonical
+  // dispatchable semantics used by the runtime selector.
+  expected := GetExpectedPublicSmokeDefaultBackend;
 
   if backend <> expected then
     Fail('Expected default backend ' + BackendName(expected) + ', got ' + BackendName(backend));

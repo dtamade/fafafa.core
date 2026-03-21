@@ -1,24 +1,27 @@
 # SIMD Windows 实机后回填模板（Batch 模板）
 
-更新时间：2026-02-09
+更新时间：2026-03-20
 
 ## 使用方式
 
 1. 在 Windows 实机执行：
    - `tests\fafafa.core.simd\buildOrTest.bat evidence-win-verify`
-2. 在 Linux/macOS（或 WSL）执行摘要生成：
-   - `bash tests/fafafa.core.simd/BuildOrTest.sh finalize-win-evidence`
-2.1 建议紧接着跑冻结判定：
-   - `bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
-3. 打开摘要文件（默认）：
+2. 在 Linux/macOS（或 WSL）先回灌 fail-close cross gate：
+   - `FAFAFA_BUILD_MODE=Release SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+3. 再执行一键收口：
+   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize <BATCH_ID>`
+4. 如只想重生摘要而不执行 freeze/apply，才单独使用：
+   - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh finalize-win-evidence`
+5. 打开摘要文件（默认）：
    - `tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md`
-4. 按下方模板替换占位符后，回填到对应文档。
+6. 按下方模板替换占位符后，回填到对应文档。
 
 可选（先打印三命令闭环）:
 - `bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-3cmd <BATCH_ID>`
 
-可选（单命令闭环，Windows 日志已就绪时）:
-- `bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize <BATCH_ID>`
+说明：
+- native batch evidence 不会生成 fresh `gate_summary.md/json`，所以不能从 `evidence-win-verify` 直接跳到 `finalize-win-evidence` 或 `win-closeout-finalize`。
+- 真正决定 `cross-ready=True` 的是 Linux/WSL 侧这条 fail-close cross gate。
 
 占位符说明：
 - `<WINDOWS_DATE>`：Windows 实机执行日期（例如 `2026-02-10`）

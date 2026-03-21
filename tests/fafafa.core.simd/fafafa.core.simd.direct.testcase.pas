@@ -48,7 +48,364 @@ type
     procedure Test_DirectDispatchTable_MultiBackend_MemSearchFuzzSeed_Parity;
   end;
 
+  TTestCase_DirectDispatchConcurrent = class(TTestCase)
+  published
+    procedure Test_DirectDispatchTable_Concurrent_ReRegister_SnapshotConsistency;
+  end;
+
 implementation
+
+uses
+  Classes;
+
+type
+  TDirectDispatchMutationWorker = class(TThread)
+  private
+    FIterations: Integer;
+    FWriterPhase: Integer;
+    FBackend: TSimdBackend;
+    FTableA: TSimdDispatchTable;
+    FTableB: TSimdDispatchTable;
+    FSuccess: Boolean;
+    FErrorMsg: string;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(aIterations, aWriterPhase: Integer; aBackend: TSimdBackend;
+      const aTableA, aTableB: TSimdDispatchTable);
+    property Success: Boolean read FSuccess;
+    property ErrorMsg: string read FErrorMsg;
+  end;
+
+  TDirectDispatchReadWorker = class(TThread)
+  private
+    FIterations: Integer;
+    FSuccess: Boolean;
+    FErrorMsg: string;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(aIterations: Integer);
+    property Success: Boolean read FSuccess;
+    property ErrorMsg: string read FErrorMsg;
+  end;
+
+function DirectDispatchSyntheticAddImpl(const a, b: TVecF32x4): TVecF32x4;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 3 do
+    Result.f[LIndex] := a.f[LIndex] + b.f[LIndex];
+end;
+
+function DirectDispatchSyntheticAddA(const a, b: TVecF32x4): TVecF32x4;
+begin
+  Result := DirectDispatchSyntheticAddImpl(a, b);
+end;
+
+function DirectDispatchSyntheticAddB(const a, b: TVecF32x4): TVecF32x4;
+begin
+  Result := DirectDispatchSyntheticAddImpl(a, b);
+end;
+
+function DirectDispatchSyntheticReduceAddImpl(const a: TVecF32x4): Single;
+begin
+  Result := a.f[0] + a.f[1] + a.f[2] + a.f[3];
+end;
+
+function DirectDispatchSyntheticReduceAddA(const a: TVecF32x4): Single;
+begin
+  Result := DirectDispatchSyntheticReduceAddImpl(a);
+end;
+
+function DirectDispatchSyntheticReduceAddB(const a: TVecF32x4): Single;
+begin
+  Result := DirectDispatchSyntheticReduceAddImpl(a);
+end;
+
+function DirectDispatchSyntheticMemEqualImpl(a, b: Pointer; len: SizeUInt): LongBool;
+var
+  LLeft: PByte;
+  LRight: PByte;
+  LIndex: SizeUInt;
+begin
+  LLeft := PByte(a);
+  LRight := PByte(b);
+  for LIndex := 0 to len - 1 do
+    if LLeft[LIndex] <> LRight[LIndex] then
+      Exit(False);
+  Result := True;
+end;
+
+function DirectDispatchSyntheticMemEqualA(a, b: Pointer; len: SizeUInt): LongBool;
+begin
+  Result := DirectDispatchSyntheticMemEqualImpl(a, b, len);
+end;
+
+function DirectDispatchSyntheticMemEqualB(a, b: Pointer; len: SizeUInt): LongBool;
+begin
+  Result := DirectDispatchSyntheticMemEqualImpl(a, b, len);
+end;
+
+function DirectDispatchSyntheticSumBytesImpl(p: Pointer; len: SizeUInt): UInt64;
+var
+  LBytes: PByte;
+  LIndex: SizeUInt;
+begin
+  Result := 0;
+  LBytes := PByte(p);
+  for LIndex := 0 to len - 1 do
+    Inc(Result, LBytes[LIndex]);
+end;
+
+function DirectDispatchSyntheticSumBytesA(p: Pointer; len: SizeUInt): UInt64;
+begin
+  Result := DirectDispatchSyntheticSumBytesImpl(p, len);
+end;
+
+function DirectDispatchSyntheticSumBytesB(p: Pointer; len: SizeUInt): UInt64;
+begin
+  Result := DirectDispatchSyntheticSumBytesImpl(p, len);
+end;
+
+function DirectDispatchSyntheticCountByteImpl(p: Pointer; len: SizeUInt; value: Byte): SizeUInt;
+var
+  LBytes: PByte;
+  LIndex: SizeUInt;
+begin
+  Result := 0;
+  LBytes := PByte(p);
+  for LIndex := 0 to len - 1 do
+    if LBytes[LIndex] = value then
+      Inc(Result);
+end;
+
+function DirectDispatchSyntheticCountByteA(p: Pointer; len: SizeUInt; value: Byte): SizeUInt;
+begin
+  Result := DirectDispatchSyntheticCountByteImpl(p, len, value);
+end;
+
+function DirectDispatchSyntheticCountByteB(p: Pointer; len: SizeUInt; value: Byte): SizeUInt;
+begin
+  Result := DirectDispatchSyntheticCountByteImpl(p, len, value);
+end;
+
+function DirectDispatchSyntheticBitsetPopCountImpl(p: Pointer; byteLen: SizeUInt): SizeUInt;
+const
+  CPopCountTable: array[0..15] of Byte = (0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4);
+var
+  LBytes: PByte;
+  LIndex: SizeUInt;
+  LValue: Byte;
+begin
+  Result := 0;
+  LBytes := PByte(p);
+  for LIndex := 0 to byteLen - 1 do
+  begin
+    LValue := LBytes[LIndex];
+    Inc(Result, CPopCountTable[LValue and $0F] + CPopCountTable[LValue shr 4]);
+  end;
+end;
+
+function DirectDispatchSyntheticBitsetPopCountA(p: Pointer; byteLen: SizeUInt): SizeUInt;
+begin
+  Result := DirectDispatchSyntheticBitsetPopCountImpl(p, byteLen);
+end;
+
+function DirectDispatchSyntheticBitsetPopCountB(p: Pointer; byteLen: SizeUInt): SizeUInt;
+begin
+  Result := DirectDispatchSyntheticBitsetPopCountImpl(p, byteLen);
+end;
+
+procedure ConfigureDirectDispatchSyntheticTableA(var aDispatchTable: TSimdDispatchTable);
+begin
+  aDispatchTable.AddF32x4 := @DirectDispatchSyntheticAddA;
+  aDispatchTable.ReduceAddF32x4 := @DirectDispatchSyntheticReduceAddA;
+  aDispatchTable.MemEqual := @DirectDispatchSyntheticMemEqualA;
+  aDispatchTable.SumBytes := @DirectDispatchSyntheticSumBytesA;
+  aDispatchTable.CountByte := @DirectDispatchSyntheticCountByteA;
+  aDispatchTable.BitsetPopCount := @DirectDispatchSyntheticBitsetPopCountA;
+end;
+
+procedure ConfigureDirectDispatchSyntheticTableB(var aDispatchTable: TSimdDispatchTable);
+begin
+  aDispatchTable.AddF32x4 := @DirectDispatchSyntheticAddB;
+  aDispatchTable.ReduceAddF32x4 := @DirectDispatchSyntheticReduceAddB;
+  aDispatchTable.MemEqual := @DirectDispatchSyntheticMemEqualB;
+  aDispatchTable.SumBytes := @DirectDispatchSyntheticSumBytesB;
+  aDispatchTable.CountByte := @DirectDispatchSyntheticCountByteB;
+  aDispatchTable.BitsetPopCount := @DirectDispatchSyntheticBitsetPopCountB;
+end;
+
+function IsDirectDispatchSyntheticSnapshotA(aDispatchTable: PSimdDispatchTable): Boolean;
+begin
+  Result :=
+    (Pointer(aDispatchTable^.AddF32x4) = Pointer(@DirectDispatchSyntheticAddA)) and
+    (Pointer(aDispatchTable^.ReduceAddF32x4) = Pointer(@DirectDispatchSyntheticReduceAddA)) and
+    (Pointer(aDispatchTable^.MemEqual) = Pointer(@DirectDispatchSyntheticMemEqualA)) and
+    (Pointer(aDispatchTable^.SumBytes) = Pointer(@DirectDispatchSyntheticSumBytesA)) and
+    (Pointer(aDispatchTable^.CountByte) = Pointer(@DirectDispatchSyntheticCountByteA)) and
+    (Pointer(aDispatchTable^.BitsetPopCount) = Pointer(@DirectDispatchSyntheticBitsetPopCountA));
+end;
+
+function IsDirectDispatchSyntheticSnapshotB(aDispatchTable: PSimdDispatchTable): Boolean;
+begin
+  Result :=
+    (Pointer(aDispatchTable^.AddF32x4) = Pointer(@DirectDispatchSyntheticAddB)) and
+    (Pointer(aDispatchTable^.ReduceAddF32x4) = Pointer(@DirectDispatchSyntheticReduceAddB)) and
+    (Pointer(aDispatchTable^.MemEqual) = Pointer(@DirectDispatchSyntheticMemEqualB)) and
+    (Pointer(aDispatchTable^.SumBytes) = Pointer(@DirectDispatchSyntheticSumBytesB)) and
+    (Pointer(aDispatchTable^.CountByte) = Pointer(@DirectDispatchSyntheticCountByteB)) and
+    (Pointer(aDispatchTable^.BitsetPopCount) = Pointer(@DirectDispatchSyntheticBitsetPopCountB));
+end;
+
+function DescribeDirectDispatchSyntheticSnapshot(aDispatchTable: PSimdDispatchTable): string;
+begin
+  Result :=
+    'Add=' + BoolToStr(Pointer(aDispatchTable^.AddF32x4) = Pointer(@DirectDispatchSyntheticAddA), True) + '/' +
+      BoolToStr(Pointer(aDispatchTable^.AddF32x4) = Pointer(@DirectDispatchSyntheticAddB), True) +
+    ', ReduceAdd=' + BoolToStr(Pointer(aDispatchTable^.ReduceAddF32x4) = Pointer(@DirectDispatchSyntheticReduceAddA), True) + '/' +
+      BoolToStr(Pointer(aDispatchTable^.ReduceAddF32x4) = Pointer(@DirectDispatchSyntheticReduceAddB), True) +
+    ', MemEqual=' + BoolToStr(Pointer(aDispatchTable^.MemEqual) = Pointer(@DirectDispatchSyntheticMemEqualA), True) + '/' +
+      BoolToStr(Pointer(aDispatchTable^.MemEqual) = Pointer(@DirectDispatchSyntheticMemEqualB), True) +
+    ', SumBytes=' + BoolToStr(Pointer(aDispatchTable^.SumBytes) = Pointer(@DirectDispatchSyntheticSumBytesA), True) + '/' +
+      BoolToStr(Pointer(aDispatchTable^.SumBytes) = Pointer(@DirectDispatchSyntheticSumBytesB), True) +
+    ', CountByte=' + BoolToStr(Pointer(aDispatchTable^.CountByte) = Pointer(@DirectDispatchSyntheticCountByteA), True) + '/' +
+      BoolToStr(Pointer(aDispatchTable^.CountByte) = Pointer(@DirectDispatchSyntheticCountByteB), True) +
+    ', BitsetPopCount=' + BoolToStr(Pointer(aDispatchTable^.BitsetPopCount) = Pointer(@DirectDispatchSyntheticBitsetPopCountA), True) + '/' +
+      BoolToStr(Pointer(aDispatchTable^.BitsetPopCount) = Pointer(@DirectDispatchSyntheticBitsetPopCountB), True);
+end;
+
+constructor TDirectDispatchMutationWorker.Create(aIterations, aWriterPhase: Integer;
+  aBackend: TSimdBackend; const aTableA, aTableB: TSimdDispatchTable);
+begin
+  inherited Create(True);
+  FreeOnTerminate := False;
+  FIterations := aIterations;
+  FWriterPhase := aWriterPhase;
+  FBackend := aBackend;
+  FTableA := aTableA;
+  FTableB := aTableB;
+  FSuccess := False;
+  FErrorMsg := '';
+end;
+
+procedure TDirectDispatchMutationWorker.Execute;
+var
+  LIndex: Integer;
+begin
+  try
+    for LIndex := 0 to FIterations - 1 do
+      if ((LIndex + FWriterPhase) and 1) = 0 then
+        RegisterBackend(FBackend, FTableA)
+      else
+        RegisterBackend(FBackend, FTableB);
+    FSuccess := True;
+  except
+    on E: Exception do
+      FErrorMsg := 'direct mutation worker exception: ' + E.Message;
+  end;
+end;
+
+constructor TDirectDispatchReadWorker.Create(aIterations: Integer);
+begin
+  inherited Create(True);
+  FreeOnTerminate := False;
+  FIterations := aIterations;
+  FSuccess := False;
+  FErrorMsg := '';
+end;
+
+procedure TDirectDispatchReadWorker.Execute;
+var
+  LIndex: Integer;
+  LDispatchTable: PSimdDispatchTable;
+  LAddPtr: Pointer;
+  LReduceAddPtr: Pointer;
+  LMemEqualPtr: Pointer;
+  LSumBytesPtr: Pointer;
+  LCountBytePtr: Pointer;
+  LBitsetPopCountPtr: Pointer;
+  LAddIsA: Boolean;
+  LAddIsB: Boolean;
+  LReduceAddIsA: Boolean;
+  LReduceAddIsB: Boolean;
+  LMemEqualIsA: Boolean;
+  LMemEqualIsB: Boolean;
+  LSumBytesIsA: Boolean;
+  LSumBytesIsB: Boolean;
+  LCountByteIsA: Boolean;
+  LCountByteIsB: Boolean;
+  LBitsetPopCountIsA: Boolean;
+  LBitsetPopCountIsB: Boolean;
+  LSnapshotA: Boolean;
+  LSnapshotB: Boolean;
+begin
+  try
+    for LIndex := 0 to FIterations - 1 do
+    begin
+      LDispatchTable := GetDirectDispatchTable;
+      if LDispatchTable = nil then
+      begin
+        FErrorMsg := Format('direct dispatch table is nil at iter %d', [LIndex]);
+        Exit;
+      end;
+
+      // Deliberately yield between field reads so a concurrent in-place table
+      // rewrite cannot hide behind a single tight read sequence.
+      LAddPtr := Pointer(LDispatchTable^.AddF32x4);
+      ThreadSwitch;
+      LReduceAddPtr := Pointer(LDispatchTable^.ReduceAddF32x4);
+      ThreadSwitch;
+      LMemEqualPtr := Pointer(LDispatchTable^.MemEqual);
+      ThreadSwitch;
+      LSumBytesPtr := Pointer(LDispatchTable^.SumBytes);
+      ThreadSwitch;
+      LCountBytePtr := Pointer(LDispatchTable^.CountByte);
+      ThreadSwitch;
+      LBitsetPopCountPtr := Pointer(LDispatchTable^.BitsetPopCount);
+
+      LAddIsA := LAddPtr = Pointer(@DirectDispatchSyntheticAddA);
+      LAddIsB := LAddPtr = Pointer(@DirectDispatchSyntheticAddB);
+      LReduceAddIsA := LReduceAddPtr = Pointer(@DirectDispatchSyntheticReduceAddA);
+      LReduceAddIsB := LReduceAddPtr = Pointer(@DirectDispatchSyntheticReduceAddB);
+      LMemEqualIsA := LMemEqualPtr = Pointer(@DirectDispatchSyntheticMemEqualA);
+      LMemEqualIsB := LMemEqualPtr = Pointer(@DirectDispatchSyntheticMemEqualB);
+      LSumBytesIsA := LSumBytesPtr = Pointer(@DirectDispatchSyntheticSumBytesA);
+      LSumBytesIsB := LSumBytesPtr = Pointer(@DirectDispatchSyntheticSumBytesB);
+      LCountByteIsA := LCountBytePtr = Pointer(@DirectDispatchSyntheticCountByteA);
+      LCountByteIsB := LCountBytePtr = Pointer(@DirectDispatchSyntheticCountByteB);
+      LBitsetPopCountIsA := LBitsetPopCountPtr = Pointer(@DirectDispatchSyntheticBitsetPopCountA);
+      LBitsetPopCountIsB := LBitsetPopCountPtr = Pointer(@DirectDispatchSyntheticBitsetPopCountB);
+
+      LSnapshotA :=
+        LAddIsA and LReduceAddIsA and LMemEqualIsA and
+        LSumBytesIsA and LCountByteIsA and LBitsetPopCountIsA;
+      LSnapshotB :=
+        LAddIsB and LReduceAddIsB and LMemEqualIsB and
+        LSumBytesIsB and LCountByteIsB and LBitsetPopCountIsB;
+
+      if (not LSnapshotA) and (not LSnapshotB) then
+      begin
+        FErrorMsg :=
+          Format('direct dispatch synthetic snapshot mixed at iter %d: ' +
+            'Add=%s/%s ReduceAdd=%s/%s MemEqual=%s/%s SumBytes=%s/%s CountByte=%s/%s BitsetPopCount=%s/%s',
+            [LIndex,
+             BoolToStr(LAddIsA, True), BoolToStr(LAddIsB, True),
+             BoolToStr(LReduceAddIsA, True), BoolToStr(LReduceAddIsB, True),
+             BoolToStr(LMemEqualIsA, True), BoolToStr(LMemEqualIsB, True),
+             BoolToStr(LSumBytesIsA, True), BoolToStr(LSumBytesIsB, True),
+             BoolToStr(LCountByteIsA, True), BoolToStr(LCountByteIsB, True),
+             BoolToStr(LBitsetPopCountIsA, True), BoolToStr(LBitsetPopCountIsB, True)]);
+        Exit;
+      end;
+    end;
+    FSuccess := True;
+  except
+    on E: Exception do
+      FErrorMsg := 'direct read worker exception: ' + E.Message;
+  end;
+end;
 
 procedure TTestCase_DirectDispatch.Test_DirectDispatchTable_Assigned;
 begin
@@ -3826,7 +4183,94 @@ begin
   end;
 end;
 
+procedure RunDirectDispatchConcurrentReRegisterSnapshotConsistency;
+const
+  WRITER_THREADS = 4;
+  WRITER_ITERATIONS = 200;
+  READER_THREADS = 6;
+  READER_ITERATIONS = 2500;
+var
+  LOriginalTable: TSimdDispatchTable;
+  LTableA: TSimdDispatchTable;
+  LTableB: TSimdDispatchTable;
+  LWriters: array of TDirectDispatchMutationWorker;
+  LReaders: array of TDirectDispatchReadWorker;
+  LIndex: Integer;
+  LAllSuccess: Boolean;
+  LErrorMsgs: string;
+begin
+  if not TryGetRegisteredBackendDispatchTable(sbScalar, LOriginalTable) then
+    raise Exception.Create('Scalar backend should be registered for synthetic direct-dispatch re-register test');
+
+  LTableA := LOriginalTable;
+  LTableB := LOriginalTable;
+  ConfigureDirectDispatchSyntheticTableA(LTableA);
+  ConfigureDirectDispatchSyntheticTableB(LTableB);
+
+  SetActiveBackend(sbScalar);
+  RegisterBackend(sbScalar, LTableA);
+  RebindDirectDispatch;
+
+  if not IsDirectDispatchSyntheticSnapshotA(GetDirectDispatchTable) then
+    raise Exception.Create('Synthetic table A should be active before concurrent read/write');
+
+  SetLength(LWriters, WRITER_THREADS);
+  SetLength(LReaders, READER_THREADS);
+  for LIndex := 0 to High(LWriters) do
+    LWriters[LIndex] := TDirectDispatchMutationWorker.Create(
+      WRITER_ITERATIONS, LIndex, sbScalar, LTableA, LTableB);
+  for LIndex := 0 to High(LReaders) do
+    LReaders[LIndex] := TDirectDispatchReadWorker.Create(READER_ITERATIONS);
+
+  try
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].Start;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].Start;
+
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].WaitFor;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].WaitFor;
+
+    LAllSuccess := True;
+    LErrorMsgs := '';
+
+    for LIndex := 0 to High(LWriters) do
+      if not LWriters[LIndex].Success then
+      begin
+        LAllSuccess := False;
+        LErrorMsgs := LErrorMsgs + LWriters[LIndex].ErrorMsg + '; ';
+      end;
+
+    for LIndex := 0 to High(LReaders) do
+      if not LReaders[LIndex].Success then
+      begin
+        LAllSuccess := False;
+        LErrorMsgs := LErrorMsgs + LReaders[LIndex].ErrorMsg + '; ';
+      end;
+
+    if not LAllSuccess then
+      raise Exception.Create('Concurrent direct-dispatch re-register/read failed: ' + LErrorMsgs);
+  finally
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].Free;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].Free;
+
+    RegisterBackend(sbScalar, LOriginalTable);
+    ResetToAutomaticBackend;
+    RebindDirectDispatch;
+  end;
+end;
+
+procedure TTestCase_DirectDispatchConcurrent.Test_DirectDispatchTable_Concurrent_ReRegister_SnapshotConsistency;
+begin
+  RunDirectDispatchConcurrentReRegisterSnapshotConsistency;
+end;
+
 initialization
   RegisterTest(TTestCase_DirectDispatch);
+  RegisterTest(TTestCase_DirectDispatchConcurrent);
 
 end.

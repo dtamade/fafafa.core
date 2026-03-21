@@ -3,8 +3,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+OUTPUT_ROOT="${SIMD_OUTPUT_ROOT:-${SCRIPT_DIR}}"
 TS="$(date +%Y%m%d-%H%M%S)"
-OUT_DIR="${SCRIPT_DIR}/logs/evidence-${TS}"
+OUT_DIR="${OUTPUT_ROOT}/logs/evidence-${TS}"
 mkdir -p "${OUT_DIR}"
 ENABLE_QEMU_EXPERIMENTAL="${SIMD_EVIDENCE_QEMU_EXPERIMENTAL:-0}"
 
@@ -41,7 +42,7 @@ fi
 run_step perf_smoke env SIMD_PERF_VECTOR_ASM=auto bash tests/fafafa.core.simd/BuildOrTest.sh perf-smoke
 run_step gate_strict env SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_EXPERIMENTAL_TESTS=0 SIMD_GATE_PERF_SMOKE=1 SIMD_PERF_VECTOR_ASM=auto bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict
 run_step gate_summary_json env SIMD_GATE_SUMMARY_JSON=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate-summary
-run_step freeze_status_linux env SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status-linux
+run_step freeze_status_linux env SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_FREEZE_GATE_SUMMARY_FILE="${OUTPUT_ROOT}/logs/gate_summary.md" SIMD_FREEZE_STATUS_JSON_FILE="${OUTPUT_ROOT}/logs/freeze_status.json" bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status-linux
 
 {
   echo "# SIMD Linux Evidence (${TS})"

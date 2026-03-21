@@ -869,9 +869,19 @@ uses
   fafafa.core.atomic,
   fafafa.core.simd.backend.priority; // atomic_thread_fence (MemoryBarrier replacement)
 
+type
+  PSimdDispatchPublishedState = ^TSimdDispatchPublishedState;
+  TSimdDispatchPublishedState = record
+    NextOwned: PSimdDispatchPublishedState;
+    Table: TSimdDispatchTable;
+  end;
+
 var
   // Current active dispatch table
   g_CurrentDispatch: PSimdDispatchTable;
+  g_CurrentDispatchStatePtr: Pointer = nil;
+  g_CurrentDispatchOwnedHead: PSimdDispatchPublishedState = nil;
+  g_BackendDispatchStatePtrs: array[TSimdBackend] of Pointer;
   
   // Registered backend dispatch tables
   g_BackendTables: array[TSimdBackend] of TSimdDispatchTable;
@@ -908,24 +918,115 @@ var
 
 // === Initialization ===
 
+function GetCurrentDispatchPublishedState: PSimdDispatchPublishedState; inline;
+begin
+  Result := PSimdDispatchPublishedState(atomic_load_ptr(g_CurrentDispatchStatePtr, mo_acquire));
+end;
+
+function GetCurrentPublishedDispatchTable: PSimdDispatchTable; inline;
+var
+  LState: PSimdDispatchPublishedState;
+begin
+  LState := GetCurrentDispatchPublishedState;
+  if LState <> nil then
+    Result := @LState^.Table
+  else
+    Result := nil;
+end;
+
+function GetPublishedBackendDispatchState(const aBackend: TSimdBackend): PSimdDispatchPublishedState; inline;
+begin
+  Result := PSimdDispatchPublishedState(atomic_load_ptr(g_BackendDispatchStatePtrs[aBackend], mo_acquire));
+end;
+
+function GetPublishedBackendDispatchTable(const aBackend: TSimdBackend): PSimdDispatchTable; inline;
+var
+  LState: PSimdDispatchPublishedState;
+begin
+  LState := GetPublishedBackendDispatchState(aBackend);
+  if LState <> nil then
+    Result := @LState^.Table
+  else
+    Result := nil;
+end;
+
+function CreateDispatchPublishedState: PSimdDispatchPublishedState;
+begin
+  New(Result);
+  FillChar(Result^, SizeOf(Result^), 0);
+  Result^.NextOwned := g_CurrentDispatchOwnedHead;
+  g_CurrentDispatchOwnedHead := Result;
+end;
+
+procedure PublishBackendDispatchTable(const aBackend: TSimdBackend; const aDispatchTable: TSimdDispatchTable);
+var
+  LState: PSimdDispatchPublishedState;
+begin
+  LState := CreateDispatchPublishedState;
+  LState^.Table := aDispatchTable;
+  atomic_store_ptr(g_BackendDispatchStatePtrs[aBackend], Pointer(LState), mo_release);
+end;
+
+procedure PublishCurrentDispatchTable(const aDispatchTable: PSimdDispatchTable);
+var
+  LState: PSimdDispatchPublishedState;
+begin
+  if aDispatchTable = nil then
+  begin
+    g_CurrentDispatch := nil;
+    atomic_store_ptr(g_CurrentDispatchStatePtr, nil, mo_release);
+    Exit;
+  end;
+
+  LState := GetPublishedBackendDispatchState(aDispatchTable^.Backend);
+  if LState = nil then
+  begin
+    g_CurrentDispatch := nil;
+    atomic_store_ptr(g_CurrentDispatchStatePtr, nil, mo_release);
+    Exit;
+  end;
+
+  g_CurrentDispatch := @LState^.Table;
+  atomic_store_ptr(g_CurrentDispatchStatePtr, Pointer(LState), mo_release);
+end;
+
+procedure FinalizeDispatchPublishedStates;
+var
+  LState: PSimdDispatchPublishedState;
+  LNext: PSimdDispatchPublishedState;
+begin
+  atomic_store_ptr(g_CurrentDispatchStatePtr, nil, mo_release);
+  g_CurrentDispatch := nil;
+  LState := g_CurrentDispatchOwnedHead;
+  g_CurrentDispatchOwnedHead := nil;
+  while LState <> nil do
+  begin
+    LNext := LState^.NextOwned;
+    Dispose(LState);
+    LState := LNext;
+  end;
+end;
+
 function IsBackendMarkedAvailableForDispatch(backend: TSimdBackend): Boolean; inline;
+var
+  LDispatchTable: PSimdDispatchTable;
 begin
   // Scalar is always usable.
   if backend = sbScalar then
     Exit(True);
 
-  // Observe registration + dispatch table with a single read barrier.
-  // RegisterBackend publishes g_BackendTables before g_BackendRegistered using WriteBarrier.
+  // Observe registration + published backend snapshot with a single read barrier.
   ReadBarrier;
   if not g_BackendRegistered[backend] then
     Exit(False);
 
-  Result := g_BackendTables[backend].BackendInfo.Available;
+  LDispatchTable := GetPublishedBackendDispatchTable(backend);
+  Result := (LDispatchTable <> nil) and LDispatchTable^.BackendInfo.Available;
 end;
 
 {$I fafafa.core.simd.dispatch.hooks.impl.inc}
 
-procedure RebuildBackendsAfterFeatureToggle;
+procedure RebuildBackendsAfterFeatureToggle(const aReinitializeDispatch: Boolean);
 var
   LBackend: TSimdBackend;
   LRebuilder: TBackendRebuilder;
@@ -941,7 +1042,8 @@ begin
   g_DispatchInitialized := False;
   InterlockedExchange(g_DispatchState, 0);
   atomic_thread_fence(mo_seq_cst);
-  InitializeDispatch;
+  if aReinitializeDispatch then
+    InitializeDispatch;
 end;
 
 // ✅ Thread-safe dispatch initialization using atomic operations
@@ -949,6 +1051,7 @@ procedure DoInitializeDispatch;
 var
   LBestBackend: TSimdBackend;
   LBackend: TSimdBackend;
+  LBestDispatchTable: PSimdDispatchTable;
   LBackendSupportedOnCPU: array[TSimdBackend] of Boolean;
   LIndex: Integer;
   LOldState: LongInt;
@@ -1002,11 +1105,15 @@ begin
       end;
     end;
 
-    // Set active dispatch table
+    // Publish an immutable snapshot for the active dispatch so readers never
+    // observe a backend slot while RegisterBackend is rewriting it in place.
     if IsBackendRegistered(LBestBackend) then
-      g_CurrentDispatch := @g_BackendTables[LBestBackend]
+    begin
+      LBestDispatchTable := GetPublishedBackendDispatchTable(LBestBackend);
+      PublishCurrentDispatchTable(LBestDispatchTable);
+    end
     else
-      g_CurrentDispatch := nil;
+      PublishCurrentDispatchTable(nil);
 
     g_DispatchInitialized := True;
     WriteBarrier;
@@ -1036,10 +1143,13 @@ end;
 // === Public Interface ===
 
 function GetActiveBackend: TSimdBackend;
+var
+  LDispatch: PSimdDispatchTable;
 begin
   InitializeDispatch;
-  if g_CurrentDispatch <> nil then
-    Result := g_CurrentDispatch^.Backend
+  LDispatch := GetCurrentPublishedDispatchTable;
+  if LDispatch <> nil then
+    Result := LDispatch^.Backend
   else
     Result := sbScalar;
 end;
@@ -1061,33 +1171,45 @@ var
   LBackend: TSimdBackend;
   LCount: Integer;
 begin
-  Result := nil;
-  SetLength(Result, Length(SIMD_BACKEND_PRIORITY_ORDER));
-  LCount := 0;
-  for LBackend in SIMD_BACKEND_PRIORITY_ORDER do
-  begin
-    if IsBackendDispatchable(LBackend) then
+  EnterCriticalSection(g_VectorAsmToggleLock);
+  try
+    Result := nil;
+    SetLength(Result, Length(SIMD_BACKEND_PRIORITY_ORDER));
+    LCount := 0;
+    for LBackend in SIMD_BACKEND_PRIORITY_ORDER do
     begin
-      Result[LCount] := LBackend;
-      Inc(LCount);
+      if IsBackendDispatchable(LBackend) then
+      begin
+        Result[LCount] := LBackend;
+        Inc(LCount);
+      end;
     end;
+    SetLength(Result, LCount);
+  finally
+    LeaveCriticalSection(g_VectorAsmToggleLock);
   end;
-  SetLength(Result, LCount);
 end;
 
 function GetBestDispatchableBackend: TSimdBackend;
 var
   LBackend: TSimdBackend;
 begin
-  for LBackend in SIMD_BACKEND_PRIORITY_ORDER do
-    if IsBackendDispatchable(LBackend) then
-      Exit(LBackend);
+  EnterCriticalSection(g_VectorAsmToggleLock);
+  try
+    for LBackend in SIMD_BACKEND_PRIORITY_ORDER do
+      if IsBackendDispatchable(LBackend) then
+        Exit(LBackend);
 
-  Result := sbScalar;
+    Result := sbScalar;
+  finally
+    LeaveCriticalSection(g_VectorAsmToggleLock);
+  end;
 end;
 
 // ✅ P1: TrySetActiveBackend - returns True if backend was successfully set
 function TrySetActiveBackend(backend: TSimdBackend): Boolean;
+var
+  LDispatch: PSimdDispatchTable;
 begin
   EnterCriticalSection(g_VectorAsmToggleLock);
   try
@@ -1107,7 +1229,9 @@ begin
     InterlockedExchange(g_DispatchState, 0);
     atomic_thread_fence(mo_seq_cst);
     InitializeDispatch;
-    Result := True;
+    ReadBarrier;
+    LDispatch := GetCurrentPublishedDispatchTable;
+    Result := (LDispatch <> nil) and (LDispatch^.Backend = backend);
   finally
     LeaveCriticalSection(g_VectorAsmToggleLock);
   end;
@@ -1172,11 +1296,9 @@ begin
     InterlockedExchange(g_VectorAsmEnabledState, LExpectedState);
     WriteBarrier;
 
-    // Before first dispatch init there is nothing to rebuild.
-    if g_DispatchState = 0 then
-      Exit;
-
-    RebuildBackendsAfterFeatureToggle;
+    // Backend tables are published during unit initialization, so a pre-init
+    // runtime toggle still needs to rebuild their Available/capability view.
+    RebuildBackendsAfterFeatureToggle(g_DispatchState <> 0);
   finally
     LeaveCriticalSection(g_VectorAsmToggleLock);
   end;
@@ -1188,17 +1310,27 @@ begin
     InitializeDispatch
   else
     ReadBarrier;
-  Result := g_CurrentDispatch;
+  Result := GetCurrentPublishedDispatchTable;
 end;
 
 // === Backend Registration ===
 
 procedure RegisterBackend(backend: TSimdBackend; const dispatchTable: TSimdDispatchTable);
 var
+  LCanonicalTable: TSimdDispatchTable;
   LShouldReinitialize: Boolean;
 begin
-  g_BackendTables[backend] := dispatchTable;
-  WriteBarrier;  // Ensure table is fully written before marking as registered
+  // The registration slot id is the canonical backend identity.
+  // Dynamic re-registration is allowed, but callers should not be able to
+  // drift the stored table identity away from the slot they are updating.
+  LCanonicalTable := dispatchTable;
+  LCanonicalTable.Backend := backend;
+  LCanonicalTable.BackendInfo.Backend := backend;
+  LCanonicalTable.BackendInfo.Priority := GetSimdBackendPriorityValue(backend);
+
+  g_BackendTables[backend] := LCanonicalTable;
+  PublishBackendDispatchTable(backend, LCanonicalTable);
+  WriteBarrier;  // Ensure published snapshot is visible before marking as registered
   g_BackendRegistered[backend] := True;
   WriteBarrier;  // Ensure registration is visible before clearing initialized flag
 
@@ -1218,14 +1350,20 @@ begin
 end;
 
 function GetBackendInfo(backend: TSimdBackend): TSimdBackendInfo;
+var
+  LDispatchTable: PSimdDispatchTable;
 begin
   Result := Default(TSimdBackendInfo);
 
-  // Ensure consistent view of registration flag and table contents.
+  // Ensure consistent view of registration flag and published table contents.
   ReadBarrier;
   if g_BackendRegistered[backend] then
   begin
-    Result := g_BackendTables[backend].BackendInfo;
+    LDispatchTable := GetPublishedBackendDispatchTable(backend);
+    if LDispatchTable <> nil then
+      Result := LDispatchTable^.BackendInfo
+    else
+      Result.Backend := backend;
     Result.Priority := GetSimdBackendPriorityValue(backend);
   end
   else
@@ -1238,16 +1376,22 @@ begin
 end;
 
 function TryGetRegisteredBackendDispatchTable(backend: TSimdBackend; out dispatchTable: TSimdDispatchTable): Boolean;
+var
+  LPublishedTable: PSimdDispatchTable;
 begin
   dispatchTable := Default(TSimdDispatchTable);
 
-  // Ensure we see a consistent snapshot of the registration + table.
+  // Ensure we see a consistent snapshot of the registration + published table.
   ReadBarrier;
 
   if g_BackendRegistered[backend] then
   begin
-    dispatchTable := g_BackendTables[backend];
-    Exit(True);
+    LPublishedTable := GetPublishedBackendDispatchTable(backend);
+    if LPublishedTable <> nil then
+    begin
+      dispatchTable := LPublishedTable^;
+      Exit(True);
+    end;
   end;
 
   Result := False;
@@ -2033,9 +2177,17 @@ begin
 
   if g_BackendRegistered[fromBackend] then
   begin
-    // 从源后端复制整个派发表
-    dispatchTable := g_BackendTables[fromBackend];
-    Result := True;
+    if GetPublishedBackendDispatchTable(fromBackend) <> nil then
+    begin
+      // 从源后端复制整个派发表
+      dispatchTable := GetPublishedBackendDispatchTable(fromBackend)^;
+      Result := True;
+    end
+    else
+    begin
+      FillBaseDispatchTable(dispatchTable);
+      Result := False;
+    end;
   end
   else
   begin
@@ -2058,6 +2210,7 @@ initialization
   InitCriticalSection(g_DispatchHooksLock);
 
 finalization
+  FinalizeDispatchPublishedStates;
   SetLength(g_DispatchChangedHooks, 0);
   DoneCriticalSection(g_DispatchHooksLock);
   DoneCriticalSection(g_VectorAsmToggleLock);

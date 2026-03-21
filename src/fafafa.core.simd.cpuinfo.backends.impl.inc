@@ -18,6 +18,11 @@ begin
   Result := LBackends;
 end;
 
+function GetSupportedBackendList: TSimdBackendArray;
+begin
+  Result := GetSupportedBackends;
+end;
+
 function GetAvailableBackends: TSimdBackendArray;
 begin
   Result := GetSupportedBackends;
@@ -32,6 +37,11 @@ begin
       Exit(LBackend);
 
   Result := sbScalar;
+end;
+
+function GetBestSupportedBackend: TSimdBackend;
+begin
+  Result := GetBestBackendOnCPU;
 end;
 
 function GetBestBackend: TSimdBackend;

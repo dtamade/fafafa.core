@@ -540,5 +540,3 @@ asm
 .Lnotequal:
   mov   w0, #0
 end;
-
-{$ELSE}

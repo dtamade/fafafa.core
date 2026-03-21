@@ -93,7 +93,7 @@ def build_rows(scenario: str, warn_ms: int, fail_ms: int) -> list[dict[str, str]
                     "step": "gate",
                     "status": "PASS",
                     "duration": str(fail_ms + 5000),
-                    "event": "SLOW_FAIL",
+                    "event": "SLOW_CRIT",
                     "detail": "all steps passed",
                     "artifacts": "-",
                 },

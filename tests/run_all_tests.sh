@@ -65,6 +65,24 @@ should_run() {
   return 1
 }
 
+simd_module_output_root() {
+  local module="$1"
+
+  if [[ -z "${SIMD_OUTPUT_ROOT:-}" ]]; then
+    echo ""
+    return 0
+  fi
+
+  case "${module}" in
+    fafafa.core.simd*)
+      echo "${SIMD_OUTPUT_ROOT}/run_all/${module}"
+      ;;
+    *)
+      echo ""
+      ;;
+  esac
+}
+
 run_one() {
   local script="$1"
   local dir
@@ -72,7 +90,9 @@ run_one() {
   local rel_dir="${dir#"$TESTS_ROOT"/}"
   local module="${rel_dir//\//.}"
   local basename
+  local module_output_root
   basename="$(basename "$dir")"
+  module_output_root="$(simd_module_output_root "$module")"
 
   if ! should_run "$module" "$basename"; then return 0; fi
   local log_file="$LOG_DIR/$module.log"
@@ -83,6 +103,9 @@ run_one() {
     echo "Basename: $basename"
     echo "Script: $script"
     echo "Started: $(date '+%Y-%m-%d %H:%M:%S')"
+    if [[ -n "${module_output_root}" ]]; then
+      echo "SIMD_OUTPUT_ROOT: ${module_output_root}"
+    fi
     echo "========================================"
   } >"$log_file"
 
@@ -93,10 +116,18 @@ run_one() {
 
   # Run module script from within its directory so relative paths work.
   # Capture failures without letting `set -e` abort the whole run.
-  if ( cd "$dir"; bash "./$(basename "$script")" "$action" ) >>"$log_file" 2>&1; then
-    rc=0
+  if [[ -n "${module_output_root}" ]]; then
+    if ( cd "$dir"; SIMD_OUTPUT_ROOT="${module_output_root}" bash "./$(basename "$script")" "$action" ) >>"$log_file" 2>&1; then
+      rc=0
+    else
+      rc=$?
+    fi
   else
-    rc=$?
+    if ( cd "$dir"; bash "./$(basename "$script")" "$action" ) >>"$log_file" 2>&1; then
+      rc=0
+    else
+      rc=$?
+    fi
   fi
 
   if [ $rc -eq 0 ]; then

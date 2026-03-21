@@ -123,11 +123,19 @@ type
   end;
 
   {$IFDEF CPUX86_64}
-  {$IFDEF SIMD_BACKEND_AVX512}
-  // AVX-512 后端需求判定测试（纯逻辑，不依赖当前硬件）
-  TTestCase_AVX512BackendRequirements = class(TTestCase)
+  // x86 后端谓词测试（纯逻辑，不依赖可执行的 AVX-512 后端）
+  TTestCase_X86BackendPredicates = class(TTestCase)
   published
     procedure Test_X86HasAVX512BackendRequiredFeatures_AVX512FOnly_Disabled;
+    procedure Test_X86HasAVX512BackendRequiredFeatures_RequiresFMA;
+    procedure Test_X86SupportsAVX512BackendOnCPU_RequiresUsable512AndBackendFeatureSet;
+    procedure Test_X86DirectAVX512ExecutionGate_RequiresBackendSupportedPredicate;
+  end;
+
+  {$IFDEF SIMD_BACKEND_AVX512}
+  // AVX-512 后端接线测试（依赖 backend 已编进当前构建）
+  TTestCase_AVX512BackendRequirements = class(TTestCase)
+  published
     procedure Test_AVX512Backend_RegisteredDispatchTable_IsAccessible;
     procedure Test_AVX512Backend_DispatchTable_Overrides512BitLoadStoreAndSelect;
     procedure Test_AVX512Backend_DispatchTable_Overrides512BitFloatCompare;
@@ -593,6 +601,30 @@ type
 
 implementation
 
+{$IFDEF CPUX86_64}
+function X86AllowsDirectAVX512Execution(const aX86: TX86Features;
+  const aHasUsableAVX512: Boolean): Boolean; inline;
+begin
+  Result := X86SupportsAVX512BackendOnCPU(aX86, aHasUsableAVX512);
+end;
+
+{$IFDEF SIMD_BACKEND_AVX512}
+function AVX512DirectOpsAvailableOnCurrentCPU: Boolean; inline;
+var
+  LCPUInfo: TCPUInfo;
+begin
+  LCPUInfo := GetCPUInfo;
+  Result := (LCPUInfo.Arch = caX86) and
+            X86AllowsDirectAVX512Execution(LCPUInfo.X86, gfSimd512 in LCPUInfo.GenericUsable);
+end;
+
+function AVX512BackendDispatchableForVectorAsmTests: Boolean; inline;
+begin
+  Result := AVX512DirectOpsAvailableOnCurrentCPU and IsBackendDispatchable(sbAVX512);
+end;
+{$ENDIF}
+{$ENDIF}
+
 { TTestCase_Global }
 
 // === 内存操作函数测试 ===
@@ -1052,7 +1084,7 @@ begin
   else
     resAVX2 := resScalar;
   {$IFDEF SIMD_BACKEND_AVX512}
-  if HasAVX512 then
+  if AVX512DirectOpsAvailableOnCurrentCPU then
     resAVX512 := MemEqual_AVX512(@buf1[0], @buf2[0], 256)
   else
     resAVX512 := resScalar;
@@ -1074,7 +1106,7 @@ begin
   else
     resAVX2 := resScalar;
   {$IFDEF SIMD_BACKEND_AVX512}
-  if HasAVX512 then
+  if AVX512DirectOpsAvailableOnCurrentCPU then
     resAVX512 := MemEqual_AVX512(@buf1[0], @buf2[0], 256)
   else
     resAVX512 := resScalar;
@@ -1105,7 +1137,7 @@ begin
   else
     resAVX2 := resScalar;
   {$IFDEF SIMD_BACKEND_AVX512}
-  if HasAVX512 then
+  if AVX512DirectOpsAvailableOnCurrentCPU then
     resAVX512 := MemFindByte_AVX512(@buf[0], 256, 64)
   else
     resAVX512 := resScalar;
@@ -1125,7 +1157,7 @@ begin
   else
     resAVX2 := resScalar;
   {$IFDEF SIMD_BACKEND_AVX512}
-  if HasAVX512 then
+  if AVX512DirectOpsAvailableOnCurrentCPU then
     resAVX512 := MemFindByte_AVX512(@buf[0], 256, 200)
   else
     resAVX512 := resScalar;
@@ -1154,7 +1186,7 @@ begin
   else
     resAVX2 := resScalar;
   {$IFDEF SIMD_BACKEND_AVX512}
-  if HasAVX512 then
+  if AVX512DirectOpsAvailableOnCurrentCPU then
     resAVX512 := SumBytes_AVX512(@buf[0], 256)
   else
     resAVX512 := resScalar;
@@ -1185,7 +1217,7 @@ begin
   else
     resAVX2 := resScalar;
   {$IFDEF SIMD_BACKEND_AVX512}
-  if HasAVX512 then
+  if AVX512DirectOpsAvailableOnCurrentCPU then
     resAVX512 := CountByte_AVX512(@buf[0], 256, 5)
   else
     resAVX512 := resScalar;
@@ -1217,7 +1249,7 @@ begin
     maxAVX2 := maxScalar;
   end;
   {$IFDEF SIMD_BACKEND_AVX512}
-  if HasAVX512 then
+  if AVX512DirectOpsAvailableOnCurrentCPU then
     MinMaxBytes_AVX512(@buf[0], 256, minAVX512, maxAVX512)
   else
   begin
@@ -1251,7 +1283,7 @@ begin
   else
     resAVX2 := resScalar;
   {$IFDEF SIMD_BACKEND_AVX512}
-  if HasAVX512 then
+  if AVX512DirectOpsAvailableOnCurrentCPU then
     resAVX512 := BitsetPopCount_AVX512(@buf[0], 256)
   else
     resAVX512 := resScalar;
@@ -1870,8 +1902,7 @@ end;
 procedure TTestCase_BackendSmoke.Test_ForceSSE2_VecF32x4_Smoke;
 begin
   ForceBackend(sbSSE2);
-  // Need both CPU feature AND compiled backend
-  if HasSSE2 and IsBackendRegistered(sbSSE2) then
+  if IsBackendDispatchable(sbSSE2) then
     AssertEquals('Active backend should be SSE2', Ord(sbSSE2), Ord(GetCurrentBackend))
   else
     AssertEquals('Fallback backend should be Scalar', Ord(sbScalar), Ord(GetCurrentBackend));
@@ -1881,8 +1912,7 @@ end;
 procedure TTestCase_BackendSmoke.Test_ForceSSE3_VecF32x4_Smoke;
 begin
   ForceBackend(sbSSE3);
-  // Need both CPU feature AND compiled backend
-  if HasSSE3 and IsBackendRegistered(sbSSE3) then
+  if IsBackendDispatchable(sbSSE3) then
     AssertEquals('Active backend should be SSE3', Ord(sbSSE3), Ord(GetCurrentBackend))
   else
     AssertEquals('Fallback backend should be Scalar', Ord(sbScalar), Ord(GetCurrentBackend));
@@ -1892,8 +1922,7 @@ end;
 procedure TTestCase_BackendSmoke.Test_ForceSSSE3_VecF32x4_Smoke;
 begin
   ForceBackend(sbSSSE3);
-  // Need both CPU feature AND compiled backend
-  if HasSSSE3 and IsBackendRegistered(sbSSSE3) then
+  if IsBackendDispatchable(sbSSSE3) then
     AssertEquals('Active backend should be SSSE3', Ord(sbSSSE3), Ord(GetCurrentBackend))
   else
     AssertEquals('Fallback backend should be Scalar', Ord(sbScalar), Ord(GetCurrentBackend));
@@ -1903,8 +1932,7 @@ end;
 procedure TTestCase_BackendSmoke.Test_ForceSSE41_VecF32x4_Smoke;
 begin
   ForceBackend(sbSSE41);
-  // Need both CPU feature AND compiled backend
-  if HasSSE41 and IsBackendRegistered(sbSSE41) then
+  if IsBackendDispatchable(sbSSE41) then
     AssertEquals('Active backend should be SSE4.1', Ord(sbSSE41), Ord(GetCurrentBackend))
   else
     AssertEquals('Fallback backend should be Scalar', Ord(sbScalar), Ord(GetCurrentBackend));
@@ -1914,8 +1942,7 @@ end;
 procedure TTestCase_BackendSmoke.Test_ForceSSE42_VecF32x4_Smoke;
 begin
   ForceBackend(sbSSE42);
-  // Need both CPU feature AND compiled backend
-  if HasSSE42 and IsBackendRegistered(sbSSE42) then
+  if IsBackendDispatchable(sbSSE42) then
     AssertEquals('Active backend should be SSE4.2', Ord(sbSSE42), Ord(GetCurrentBackend))
   else
     AssertEquals('Fallback backend should be Scalar', Ord(sbScalar), Ord(GetCurrentBackend));
@@ -1925,8 +1952,7 @@ end;
 procedure TTestCase_BackendSmoke.Test_ForceAVX2_VecF32x4_Smoke;
 begin
   ForceBackend(sbAVX2);
-  // Need both CPU feature AND compiled backend
-  if HasAVX2 and IsBackendRegistered(sbAVX2) then
+  if IsBackendDispatchable(sbAVX2) then
     AssertEquals('Active backend should be AVX2', Ord(sbAVX2), Ord(GetCurrentBackend))
   else
     AssertEquals('Fallback backend should be Scalar', Ord(sbScalar), Ord(GetCurrentBackend));
@@ -1936,8 +1962,7 @@ end;
 procedure TTestCase_BackendSmoke.Test_ForceAVX512_VecF32x4_Smoke;
 begin
   ForceBackend(sbAVX512);
-  // Need both CPU feature AND compiled backend
-  if HasAVX512 and IsBackendRegistered(sbAVX512) then
+  if IsBackendDispatchable(sbAVX512) then
     AssertEquals('Active backend should be AVX-512', Ord(sbAVX512), Ord(GetCurrentBackend))
   else
     AssertEquals('Fallback backend should be Scalar', Ord(sbScalar), Ord(GetCurrentBackend));
@@ -1945,11 +1970,9 @@ begin
 end;
 
 {$IFDEF CPUX86_64}
-{$IFDEF SIMD_BACKEND_AVX512}
+{ TTestCase_X86BackendPredicates }
 
-{ TTestCase_AVX512BackendRequirements }
-
-procedure TTestCase_AVX512BackendRequirements.Test_X86HasAVX512BackendRequiredFeatures_AVX512FOnly_Disabled;
+procedure TTestCase_X86BackendPredicates.Test_X86HasAVX512BackendRequiredFeatures_AVX512FOnly_Disabled;
 var
   F: TX86Features;
 begin
@@ -1967,8 +1990,98 @@ begin
   AssertFalse('AVX-512 backend should require POPCNT', X86HasAVX512BackendRequiredFeatures(F));
 
   F.HasPOPCNT := True;
-  AssertTrue('AVX-512 backend should be usable with AVX2 + AVX512F + AVX512BW + POPCNT', X86HasAVX512BackendRequiredFeatures(F));
+  AssertFalse('AVX-512 backend should still require FMA after AVX2 + AVX512F + AVX512BW + POPCNT are present',
+    X86HasAVX512BackendRequiredFeatures(F));
+
+  F.HasFMA := True;
+  AssertTrue('AVX-512 backend should be usable with AVX2 + AVX512F + AVX512BW + POPCNT + FMA',
+    X86HasAVX512BackendRequiredFeatures(F));
 end;
+
+procedure TTestCase_X86BackendPredicates.Test_X86HasAVX512BackendRequiredFeatures_RequiresFMA;
+var
+  LF: TX86Features;
+begin
+  FillChar(LF, SizeOf(LF), 0);
+
+  // NOTE: 本测试只验证“需求判定逻辑”，不触发任何 AVX-512 指令执行。
+  LF.HasAVX2 := True;
+  LF.HasAVX512F := True;
+  LF.HasAVX512BW := True;
+  LF.HasPOPCNT := True;
+
+  AssertFalse('AVX-512 backend should require FMA because AVX512FmaF32x16/F64x8 use vfmadd* directly',
+    X86HasAVX512BackendRequiredFeatures(LF));
+
+  LF.HasFMA := True;
+  AssertTrue('AVX-512 backend should become usable once FMA is also present',
+    X86HasAVX512BackendRequiredFeatures(LF));
+end;
+
+procedure TTestCase_X86BackendPredicates.Test_X86SupportsAVX512BackendOnCPU_RequiresUsable512AndBackendFeatureSet;
+var
+  LF: TX86Features;
+begin
+  FillChar(LF, SizeOf(LF), 0);
+
+  LF.HasAVX2 := True;
+  LF.HasAVX512F := True;
+  LF.HasAVX512BW := True;
+  LF.HasPOPCNT := True;
+
+  AssertFalse('AVX-512 backend should remain unsupported when usable 512-bit state is absent',
+    X86SupportsAVX512BackendOnCPU(LF, False));
+  AssertFalse('AVX-512 backend should still require FMA even when usable 512-bit state is present',
+    X86SupportsAVX512BackendOnCPU(LF, True));
+
+  LF.HasFMA := True;
+  AssertTrue('AVX-512 backend should be supported when usable 512-bit state and backend features are present',
+    X86SupportsAVX512BackendOnCPU(LF, True));
+
+  LF.HasAVX512BW := False;
+  AssertFalse('AVX-512 backend should require AVX512BW even when 512-bit usable state is present',
+    X86SupportsAVX512BackendOnCPU(LF, True));
+
+  LF.HasAVX512BW := True;
+  LF.HasPOPCNT := False;
+  AssertFalse('AVX-512 backend should require POPCNT even when 512-bit usable state is present',
+    X86SupportsAVX512BackendOnCPU(LF, True));
+
+  LF.HasPOPCNT := True;
+  LF.HasFMA := False;
+  AssertFalse('AVX-512 backend should require FMA even when 512-bit usable state is present',
+    X86SupportsAVX512BackendOnCPU(LF, True));
+
+  LF.HasFMA := True;
+  AssertTrue('AVX-512 backend should become supported once FMA is present and 512-bit state is usable',
+    X86SupportsAVX512BackendOnCPU(LF, True));
+end;
+
+procedure TTestCase_X86BackendPredicates.Test_X86DirectAVX512ExecutionGate_RequiresBackendSupportedPredicate;
+var
+  LF: TX86Features;
+begin
+  FillChar(LF, SizeOf(LF), 0);
+
+  LF.HasAVX512F := True;
+
+  AssertFalse('Direct AVX-512 execution gates must require backend-supported feature set, not just raw usable AVX512F',
+    X86AllowsDirectAVX512Execution(LF, True));
+
+  LF.HasAVX2 := True;
+  LF.HasAVX512BW := True;
+  LF.HasPOPCNT := True;
+  AssertFalse('Direct AVX-512 execution gates must still require FMA',
+    X86AllowsDirectAVX512Execution(LF, True));
+
+  LF.HasFMA := True;
+  AssertTrue('Direct AVX-512 execution gates should allow execution once backend-required features are all present',
+    X86AllowsDirectAVX512Execution(LF, True));
+end;
+
+{$IFDEF SIMD_BACKEND_AVX512}
+
+{ TTestCase_AVX512BackendRequirements }
 
 procedure TTestCase_AVX512BackendRequirements.Test_AVX512Backend_RegisteredDispatchTable_IsAccessible;
 var
@@ -7794,7 +7907,7 @@ var
   i, iter: Integer;
   eps: Single;
 begin
-  if not HasAVX512 then
+  if not AVX512BackendDispatchableForVectorAsmTests then
     Exit;
 
   AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
@@ -7873,7 +7986,7 @@ var
   end;
 
 begin
-  if not HasAVX512 then
+  if not AVX512BackendDispatchableForVectorAsmTests then
     Exit;
 
   AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
@@ -7935,7 +8048,7 @@ var
   i, iter: Integer;
   eps: Double;
 begin
-  if not HasAVX512 then
+  if not AVX512BackendDispatchableForVectorAsmTests then
     Exit;
 
   AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
@@ -8013,7 +8126,7 @@ var
   end;
 
 begin
-  if not HasAVX512 then
+  if not AVX512BackendDispatchableForVectorAsmTests then
     Exit;
 
   AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
@@ -8074,7 +8187,7 @@ var
   expV, actV: TVecI32x16;
   iter, i: Integer;
 begin
-  if not HasAVX512 then
+  if not AVX512BackendDispatchableForVectorAsmTests then
     Exit;
 
   AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
@@ -8126,7 +8239,7 @@ var
   expV, actV: TVecI32x16;
   i: Integer;
 begin
-  if not HasAVX512 then
+  if not AVX512BackendDispatchableForVectorAsmTests then
     Exit;
 
   AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
@@ -8179,7 +8292,7 @@ var
   expV, actV: TVecI32x16;
   iter, i: Integer;
 begin
-  if not HasAVX512 then
+  if not AVX512BackendDispatchableForVectorAsmTests then
     Exit;
 
   AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
@@ -8236,7 +8349,7 @@ var
   expV, actV: TVecI32x16;
   iter, i, shift: Integer;
 begin
-  if not HasAVX512 then
+  if not AVX512BackendDispatchableForVectorAsmTests then
     Exit;
 
   AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
@@ -8280,7 +8393,7 @@ var
   expMask, actMask: TMask16;
   iter, i: Integer;
 begin
-  if not HasAVX512 then
+  if not AVX512BackendDispatchableForVectorAsmTests then
     Exit;
 
   AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
@@ -8329,7 +8442,7 @@ var
   expV, actV: TVecI32x16;
   iter, i: Integer;
 begin
-  if not HasAVX512 then
+  if not AVX512BackendDispatchableForVectorAsmTests then
     Exit;
 
   AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
@@ -8368,7 +8481,7 @@ var
   expMask, actMask: TMask16;
   iter, i: Integer;
 begin
-  if not HasAVX512 then
+  if not AVX512BackendDispatchableForVectorAsmTests then
     Exit;
 
   AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
@@ -8416,7 +8529,7 @@ var
   expV, actV: TVecI8x16;
   iter, i: Integer;
 begin
-  if not HasAVX512 then
+  if not AVX512BackendDispatchableForVectorAsmTests then
     Exit;
 
   AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
@@ -8457,7 +8570,7 @@ var
   expV, actV: TVecI16x8;
   iter, i: Integer;
 begin
-  if not HasAVX512 then
+  if not AVX512BackendDispatchableForVectorAsmTests then
     Exit;
 
   AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
@@ -8498,7 +8611,7 @@ var
   expV, actV: TVecU8x16;
   iter, i: Integer;
 begin
-  if not HasAVX512 then
+  if not AVX512BackendDispatchableForVectorAsmTests then
     Exit;
 
   AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
@@ -8539,7 +8652,7 @@ var
   expV, actV: TVecU16x8;
   iter, i: Integer;
 begin
-  if not HasAVX512 then
+  if not AVX512BackendDispatchableForVectorAsmTests then
     Exit;
 
   AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
@@ -8580,7 +8693,7 @@ var
   i, iter: Integer;
   expRes, actRes: LongBool;
 begin
-  if not HasAVX512 then
+  if not AVX512BackendDispatchableForVectorAsmTests then
     Exit;
 
   AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
@@ -8622,7 +8735,7 @@ var
   searchByte: Byte;
   expRes, actRes: PtrInt;
 begin
-  if not HasAVX512 then
+  if not AVX512BackendDispatchableForVectorAsmTests then
     Exit;
 
   AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
@@ -8659,7 +8772,7 @@ var
   i, iter: Integer;
   expSum, actSum: UInt64;
 begin
-  if not HasAVX512 then
+  if not AVX512BackendDispatchableForVectorAsmTests then
     Exit;
 
   AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
@@ -8689,7 +8802,7 @@ var
   searchByte: Byte;
   expCnt, actCnt: SizeUInt;
 begin
-  if not HasAVX512 then
+  if not AVX512BackendDispatchableForVectorAsmTests then
     Exit;
 
   AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
@@ -8719,7 +8832,7 @@ var
   i, iter: Integer;
   expMin, expMax, actMin, actMax: Byte;
 begin
-  if not HasAVX512 then
+  if not AVX512BackendDispatchableForVectorAsmTests then
     Exit;
 
   AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
@@ -8749,7 +8862,7 @@ var
   i, iter: Integer;
   expCnt, actCnt: SizeUInt;
 begin
-  if not HasAVX512 then
+  if not AVX512BackendDispatchableForVectorAsmTests then
     Exit;
 
   AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
@@ -8777,7 +8890,7 @@ var
   src, dstExp, dstAct: array[0..511] of Byte;
   i, iter: Integer;
 begin
-  if not HasAVX512 then
+  if not AVX512BackendDispatchableForVectorAsmTests then
     Exit;
 
   AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
@@ -8812,7 +8925,7 @@ var
   i, iter: Integer;
   setValue: Byte;
 begin
-  if not HasAVX512 then
+  if not AVX512BackendDispatchableForVectorAsmTests then
     Exit;
 
   AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
@@ -8847,7 +8960,7 @@ var
   bufExp, bufAct: array[0..127] of Byte;
   i, iter: Integer;
 begin
-  if not HasAVX512 then
+  if not AVX512BackendDispatchableForVectorAsmTests then
     Exit;
 
   AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
@@ -8880,7 +8993,7 @@ var
   bufExp, bufAct: array[0..127] of Byte;
   i, iter: Integer;
 begin
-  if not HasAVX512 then
+  if not AVX512BackendDispatchableForVectorAsmTests then
     Exit;
 
   AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
@@ -8914,7 +9027,7 @@ var
   i, iter: Integer;
   expRes, actRes: Boolean;
 begin
-  if not HasAVX512 then
+  if not AVX512BackendDispatchableForVectorAsmTests then
     Exit;
 
   AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
@@ -8959,7 +9072,7 @@ var
   a, b, resultV: TVecF32x16;
   i: Integer;
 begin
-  if not HasAVX512 then
+  if not AVX512BackendDispatchableForVectorAsmTests then
     Exit;
 
   AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
@@ -9002,7 +9115,7 @@ var
   a, b, resultV: TVecI32x16;
   i: Integer;
 begin
-  if not HasAVX512 then
+  if not AVX512BackendDispatchableForVectorAsmTests then
     Exit;
 
   AssertEquals('Active backend should be AVX512', Ord(sbAVX512), Ord(GetCurrentBackend));
@@ -11969,6 +12082,7 @@ initialization
   {$IFDEF CPUX86_64}
   RegisterTest(TTestCase_BackendConsistency);
   RegisterTest(TTestCase_BackendVectorConsistency);
+  RegisterTest(TTestCase_X86BackendPredicates);
   {$IFDEF SIMD_BACKEND_AVX512}
   RegisterTest(TTestCase_AVX512BackendRequirements);
   {$ENDIF}

@@ -4,6 +4,8 @@
 // - CPUAARCH64 but FAFAFA_SIMD_NEON_ASM is not enabled, or
 // - SIMD_VECTOR_ASM_DISABLED is defined.
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONAddF32x4(const a, b: TVecF32x4): TVecF32x4;
 var i: Integer;
 begin
@@ -122,13 +124,12 @@ end;
 
 {$I fafafa.core.simd.neon.scalar.utility.inc}
 
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
+
 {$I fafafa.core.simd.neon.scalar.autowrap.inc}
 
+{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 {$I fafafa.core.simd.neon.scalar.wide_reduce.inc}
 
 {$I fafafa.core.simd.neon.scalar.wide_memory.inc}
-
-{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED (256/512-bit ASM implementations)
-
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
-

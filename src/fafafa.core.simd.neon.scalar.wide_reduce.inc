@@ -336,3 +336,4 @@ asm
   fmul  d0, d0, d4
 end;
 
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED

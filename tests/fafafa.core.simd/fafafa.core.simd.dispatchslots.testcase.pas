@@ -25,6 +25,8 @@ type
     procedure Test_AllSelectableBackends_AllDispatchSlots_Assigned;
     procedure Test_BackendAdapter_EmptyOps_Fallback_AllDispatchSlots_Assigned;
     procedure Test_BackendAdapter_ActiveBackend_RoundTrip_NoNilAndCorePointersStable;
+    procedure Test_BackendAdapter_UnregisteredBackendOps_PreserveCanonicalMetadata;
+    procedure Test_SSE42_Inherits_SSE41_DispatchSlots;
   end;
 
 implementation
@@ -699,6 +701,59 @@ begin
   end;
 
   AssertTrue('At least one backend should be checked', LChecked > 0);
+end;
+
+procedure TTestCase_DispatchAllSlots.Test_BackendAdapter_UnregisteredBackendOps_PreserveCanonicalMetadata;
+var
+  LBackend: TSimdBackend;
+  LOps: TSimdBackendOps;
+  LExpectedInfo: TSimdBackendInfo;
+  LFoundUnregistered: Boolean;
+begin
+  LFoundUnregistered := False;
+  for LBackend := Low(TSimdBackend) to High(TSimdBackend) do
+  begin
+    if IsBackendRegistered(LBackend) then
+      Continue;
+
+    LFoundUnregistered := True;
+    LExpectedInfo := GetBackendInfo(LBackend);
+    LOps := GetBackendOps(LBackend);
+
+    AssertEquals('GetBackendOps should preserve the requested backend id for unregistered backend=' + IntToStr(Ord(LBackend)),
+      Ord(LBackend), Ord(LOps.Backend));
+    AssertEquals('GetBackendOps should preserve BackendInfo.Backend for unregistered backend=' + IntToStr(Ord(LBackend)),
+      Ord(LExpectedInfo.Backend), Ord(LOps.BackendInfo.Backend));
+    AssertEquals('GetBackendOps should preserve canonical priority for unregistered backend=' + IntToStr(Ord(LBackend)),
+      LExpectedInfo.Priority, LOps.BackendInfo.Priority);
+    AssertEquals('GetBackendOps should preserve canonical availability for unregistered backend=' + IntToStr(Ord(LBackend)),
+      LExpectedInfo.Available, LOps.BackendInfo.Available);
+    AssertTrue('GetBackendOps should preserve empty capability set for unregistered backend=' + IntToStr(Ord(LBackend)),
+      LOps.BackendInfo.Capabilities = LExpectedInfo.Capabilities);
+  end;
+
+  AssertTrue('At least one unregistered backend should exist for adapter metadata coverage',
+    LFoundUnregistered);
+end;
+
+procedure TTestCase_DispatchAllSlots.Test_SSE42_Inherits_SSE41_DispatchSlots;
+var
+  LSSE41: TSimdDispatchTable;
+  LSSE42: TSimdDispatchTable;
+begin
+  if not TryGetRegisteredBackendDispatchTable(sbSSE41, LSSE41) then
+    Exit;
+  if not TryGetRegisteredBackendDispatchTable(sbSSE42, LSSE42) then
+    Exit;
+
+  AssertEquals('SSE4.2 should inherit SSE4.1 MulI32x4',
+    PtrUInt(LSSE41.MulI32x4), PtrUInt(LSSE42.MulI32x4));
+  AssertEquals('SSE4.2 should inherit SSE4.1 DotF32x4',
+    PtrUInt(LSSE41.DotF32x4), PtrUInt(LSSE42.DotF32x4));
+  AssertEquals('SSE4.2 should inherit SSE4.1 RoundF32x4',
+    PtrUInt(LSSE41.RoundF32x4), PtrUInt(LSSE42.RoundF32x4));
+  AssertEquals('SSE4.2 should inherit SSE4.1 SelectF32x4',
+    PtrUInt(LSSE41.SelectF32x4), PtrUInt(LSSE42.SelectF32x4));
 end;
 
 initialization
