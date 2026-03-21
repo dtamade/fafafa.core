@@ -46,6 +46,7 @@ type
     procedure Test_GetAvailableBackendList_AliasesDispatchableView;
     procedure Test_RegisteredBackendPriority_MatchesCanonicalPriority;
     procedure Test_UnregisteredBackendInfo_PreservesCanonicalTextMetadata;
+    procedure Test_RegisteredBackendDispatchTable_PreservesCanonicalTextMetadata_After_ReRegister;
     procedure Test_CurrentBackendInfo_PreservesCanonicalTextMetadata_After_ReRegister;
     procedure Test_VecI64x2_DispatchAssigned_And_Parity;
     procedure Test_VecU64x2_DispatchAssigned_And_Parity;
@@ -712,6 +713,52 @@ begin
 
   AssertTrue('At least one unregistered backend should exist for metadata coverage',
     LFoundUnregistered);
+end;
+
+procedure TTestCase_DispatchAPI.Test_RegisteredBackendDispatchTable_PreservesCanonicalTextMetadata_After_ReRegister;
+var
+  LBackend: TSimdBackend;
+  LOriginalTable: TSimdDispatchTable;
+  LModifiedTable: TSimdDispatchTable;
+  LReloadedTable: TSimdDispatchTable;
+  LCanonicalInfo: TSimdBackendInfo;
+begin
+  ResetToAutomaticBackend;
+  LBackend := GetCurrentBackend;
+
+  AssertTrue('Current backend should be registered for registered-table canonical text test',
+    TryGetRegisteredBackendDispatchTable(LBackend, LOriginalTable));
+
+  LModifiedTable := LOriginalTable;
+  LModifiedTable.BackendInfo.Name := '';
+  LModifiedTable.BackendInfo.Description := '';
+  RegisterBackend(LBackend, LModifiedTable);
+  try
+    AssertTrue('Registered backend table should still be readable after re-register',
+      TryGetRegisteredBackendDispatchTable(LBackend, LReloadedTable));
+
+    LCanonicalInfo := GetBackendInfo(LBackend);
+
+    AssertEquals('Registered table backend id should stay canonical after re-register',
+      Ord(LBackend), Ord(LReloadedTable.Backend));
+    AssertEquals('Registered table BackendInfo.Backend should stay canonical after re-register',
+      Ord(LBackend), Ord(LReloadedTable.BackendInfo.Backend));
+    AssertTrue('Registered backend table should preserve non-empty name after re-register',
+      LReloadedTable.BackendInfo.Name <> '');
+    AssertTrue('Registered backend table should preserve non-empty description after re-register',
+      LReloadedTable.BackendInfo.Description <> '');
+    AssertEquals('Registered backend table name should stay aligned with canonical backend info after re-register',
+      LCanonicalInfo.Name, LReloadedTable.BackendInfo.Name);
+    AssertEquals('Registered backend table description should stay aligned with canonical backend info after re-register',
+      LCanonicalInfo.Description, LReloadedTable.BackendInfo.Description);
+    AssertEquals('Registered backend table should preserve current availability after re-register',
+      LModifiedTable.BackendInfo.Available, LReloadedTable.BackendInfo.Available);
+    AssertTrue('Registered backend table should preserve current capability set after re-register',
+      LReloadedTable.BackendInfo.Capabilities = LModifiedTable.BackendInfo.Capabilities);
+  finally
+    RegisterBackend(LBackend, LOriginalTable);
+    ResetToAutomaticBackend;
+  end;
 end;
 
 procedure TTestCase_DispatchAPI.Test_CurrentBackendInfo_PreservesCanonicalTextMetadata_After_ReRegister;

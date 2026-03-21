@@ -1359,6 +1359,10 @@ begin
   LCanonicalTable.Backend := backend;
   LCanonicalTable.BackendInfo.Backend := backend;
   LCanonicalTable.BackendInfo.Priority := GetSimdBackendPriorityValue(backend);
+  if LCanonicalTable.BackendInfo.Name = '' then
+    LCanonicalTable.BackendInfo.Name := DefaultBackendName(backend);
+  if LCanonicalTable.BackendInfo.Description = '' then
+    LCanonicalTable.BackendInfo.Description := DefaultBackendDescription(backend);
 
   g_BackendTables[backend] := LCanonicalTable;
   PublishBackendDispatchTable(backend, LCanonicalTable);

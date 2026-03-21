@@ -4,7 +4,7 @@
 审查 `fafafa.core.simd` 及其 `cpuinfo` 相关模块，找出可验证的问题并完成至少一轮根因修复，同时产出可连续执行的后续修复与审查计划。
 
 ## Current Phase
-Phase 43 complete; `GetBackendOps(backend)` now preserves canonical text metadata for registered backends after empty-text re-registers while keeping the current snapshot's `Available/Capabilities`
+Phase 44 complete; `RegisterBackend(...)` now canonicalizes empty backend text before publishing immutable snapshots, so raw registered tables and higher-level helpers share one text truth source again
 
 ## Phases
 
@@ -545,3 +545,34 @@ Phase 43 complete; `GetBackendOps(backend)` now preserves canonical text metadat
 | What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
 | What have I learned? | 这轮证明，即使 shared dispatch metadata source 已经收口，helper 层只要继续直接暴露 snapshot 文本，就仍可能在 re-register 后重新裂出第三套 contract。adapter helper 也必须遵守同一份 canonical text fallback 规则。 |
 | What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 registered adapter text drift：`GetBackendOps(backend)` 现在在保留当前 snapshot 状态位的同时，对空文本回退 canonical backend metadata。 |
+
+### Phase 44: registered dispatch snapshot canonical text source alignment
+- [x] 在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `Test_RegisteredBackendDispatchTable_PreservesCanonicalTextMetadata_After_ReRegister`，锁定 raw registered snapshot 在空文本重注册后仍必须保留 canonical backend 文本
+- [x] 用 fresh release `TTestCase_DispatchAPI` 先拿 red，确认 shared dispatch source 本身还留着空文本，而不是 helper 误判
+- [x] 确认 `src/fafafa.core.simd.dispatch.pas` 的 `RegisterBackend(...)` 之前只 canonicalize `Backend/BackendInfo.Backend/Priority`，没有 canonicalize 空的 `Name/Description`
+- [x] 将 canonical text 收口到注册层：`RegisterBackend(...)` 在发布 immutable snapshot 前对空 `Name/Description` 写回 `DefaultBackendName/DefaultBackendDescription`
+- [x] 用 fresh release `TTestCase_DispatchAPI`、fresh `TTestCase_DispatchAllSlots`、fresh `TTestCase_PublicAbi`、fresh `check`、fresh `gate` 复验
+- **Status:** complete
+
+- 2026-03-22 最新 registered snapshot text source closeout 证据：
+  - red: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-registeredtable-text-red-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` -> FAIL（`Registered backend table should preserve non-empty name after re-register`）
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-registeredtable-text-dispatchapi-green-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` -> PASS，`[LEAK] OK`
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-registeredtable-text-dispatchslots-green-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAllSlots` -> PASS，`[LEAK] OK`
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-registeredtable-text-publicabi-green-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi` -> PASS，`[LEAK] OK`
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-registeredtable-text-check-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh check` -> PASS
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-registeredtable-text-gate-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh gate` -> PASS，最终 `[GATE] OK`，run-all summary 时间 `2026-03-22 03:54:33`
+- 这轮根因位于 shared dispatch metadata source 本身，而不再只是 helper 包装层：`GetBackendInfo` / `GetCurrentBackendInfo` / `GetBackendOps` 虽然都能把空文本兜回来，但 raw `TryGetRegisteredBackendDispatchTable(...)` 仍能直接读到空文本 published snapshot，说明注册层没有真正收口 canonical text。
+- 最小修复继续遵守“canonical 规则尽量回到共享真相源”的原则：把空文本补齐动作前推到 `RegisterBackend(...)`，这样 raw registered snapshot、current snapshot、adapter helper 和 public ABI text getter 全部复用同一份 canonical backend 文本，而不再靠每个 helper 各自修补。
+- 下一轮连续计划优先级更新为：
+  1. 继续深审 remaining raw/helper view，优先找下一条 “raw snapshot / helper / public ABI 之间仍由多份真相源拼装” 的真实问题
+  2. 继续检查 `CloneDispatchTable`、public ABI text cache、以及 re-register/toggle 相邻路径里是否还有 `Priority/Capabilities/Flags` 级别的底层漂移
+  3. 若后续怀疑 pointer lifetime / concurrent text refresh 风险，仍坚持 fresh red 优先，不把 speculative 风险提前记成已确认 bug
+
+## 5-Question Reboot Check (Phase 44 Update)
+| Question | Answer |
+|----------|--------|
+| Where am I? | Linux fresh `TTestCase_DispatchAPI`、fresh `TTestCase_DispatchAllSlots`、fresh `TTestCase_PublicAbi`、fresh `check`、fresh `gate` 都已重新通过；本轮最新又收敛了一条新的 shared-source drift：旧 `RegisterBackend(...)` 会把空文本写进 raw registered snapshot。 |
+| Where am I going? | 下一轮继续从实现层深审，优先找下一条 “raw snapshot/helper/public ABI 结果仍由多份真相源拼装” 的真实问题，重点继续看 `CloneDispatchTable`、public ABI text cache、registered/current/unregistered helper 与 toggle/re-register 相邻路径。 |
+| What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
+| What have I learned? | 这轮证明，只修 helper 还不够。如果 shared dispatch source 本身仍保留空文本或旧状态，底层 raw API 迟早会把问题重新露出来。能前推到 `RegisterBackend(...)` 的 canonicalization，应该尽量前推。 |
+| What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 registered snapshot text source drift：`RegisterBackend(...)` 现在会在发布 immutable snapshot 前补齐 canonical backend 文本。 |
