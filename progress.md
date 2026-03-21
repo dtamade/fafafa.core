@@ -1595,3 +1595,46 @@
 | What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
 | What have I learned? | 这轮证明，哪怕只是一个简单 list helper，只要先 count 再 fill 且两遍都走 live 查询，在首次注册这种结构变化路径下也会对外暴露 impossible snapshot。对这类 helper，最稳的办法通常不是额外加锁，而是把单个 outward result 收口到一次顺序扫描里完成。 |
 | What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 registered backend list mixed-snapshot：`GetRegisteredBackendList` 现在采用单遍填充，`TTestCase_SimdConcurrentRegistration` 已守住首次注册并发合同。 |
+
+### Phase 41: unregistered backend canonical text metadata alignment
+- **Status:** complete
+- Actions taken:
+  - 继续深审 metadata/view helper 时，先在现有 `DispatchAPI` suite 里补了一条新的 deterministic red，而不是先改实现：
+    - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `Test_UnregisteredBackendInfo_PreservesCanonicalTextMetadata`
+    - 测试枚举当前未注册 backend，断言 `GetBackendInfo(backend).Name/Description` 必须非空，并与 `GetSimdBackendNamePtr/GetSimdBackendDescriptionPtr` 暴露的文本保持一致
+  - fresh red 复验：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-unregistered-text-red-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+    - 失败点直接命中：
+      - `TTestCase_DispatchAPI.Test_UnregisteredBackendInfo_PreservesCanonicalTextMetadata: GetBackendInfo should preserve non-empty name for unregistered backend=7`
+  - 根因确认后，做最小实现修复：
+    - `src/fafafa.core.simd.dispatch.pas` 的 `GetBackendInfo` 之前在未注册路径只回写 `Backend/Available/Priority`
+    - 现已在 dispatch 层新增 `DefaultBackendName/DefaultBackendDescription`
+    - `GetBackendInfo` 无论走 registered 还是 unregistered 路径，最终都会对空 `Name/Description` 做 canonical fallback
+    - 这样 dispatch metadata 与 public ABI text getter 重新统一到同一份 backend 文本规则，而不是各自兜底
+  - fresh green / release 复验：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-unregistered-text-green-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-unregistered-text-publicabi-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-unregistered-text-check-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-unregistered-text-gate-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 记录关键运行结果：
+    - fresh `TTestCase_DispatchAPI` PASS，`[LEAK] OK`
+    - fresh `TTestCase_PublicAbi` PASS，`[LEAK] OK`
+    - fresh `check` PASS
+    - fresh `gate` 最终 `[GATE] OK`
+    - run-all summary 时间：`2026-03-22 03:08:32`
+- Files created/modified:
+  - `src/fafafa.core.simd.dispatch.pas` (modified again)
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` (modified again)
+  - `task_plan.md` (modified)
+  - `findings.md` (modified)
+  - `progress.md` (modified)
+  - `workers/worker0.md` (modified)
+
+## 5-Question Reboot Check (Phase 41 Update)
+| Question | Answer |
+|----------|--------|
+| Where am I? | Linux fresh `TTestCase_DispatchAPI`、fresh `TTestCase_PublicAbi`、fresh `check`、fresh `gate` 都已重新通过；本轮最新又收敛了一条新的 unregistered metadata drift：旧 `GetBackendInfo` 会把 canonical backend 文本留空。 |
+| Where am I going? | 下一轮继续从实现层深审，优先找下一条 “helper/list/pod/public-API 结果仍由多次 live 查询或不一致 fallback 拼装” 的真实问题，重点继续看 unregistered/registered 边界、toggle/re-register 相邻 helper、以及 external-consumer metadata 对齐。 |
+| What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
+| What have I learned? | 这轮证明，metadata drift 不只会出现在 capability/flags，也会出现在文本字段上。只要 dispatch/public ABI 各自持有不同 fallback 规则，未注册 backend 就会对外暴露两份“canonical”字符串。 |
+| What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 unregistered backend text drift：`GetBackendInfo` 现在统一对空文本做 canonical fallback，`TTestCase_DispatchAPI` 已守住这条合同。 |

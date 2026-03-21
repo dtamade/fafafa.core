@@ -45,6 +45,7 @@ type
     procedure Test_BackendConceptViews_AreSelfConsistent;
     procedure Test_GetAvailableBackendList_AliasesDispatchableView;
     procedure Test_RegisteredBackendPriority_MatchesCanonicalPriority;
+    procedure Test_UnregisteredBackendInfo_PreservesCanonicalTextMetadata;
     procedure Test_VecI64x2_DispatchAssigned_And_Parity;
     procedure Test_VecU64x2_DispatchAssigned_And_Parity;
     procedure Test_VecU32x8_DispatchAssigned_And_Parity;
@@ -673,6 +674,43 @@ begin
     AssertEquals('Registered table priority should match canonical priority for backend=' + IntToStr(Ord(LBackend)),
       GetSimdBackendPriorityValue(LBackend), LTable.BackendInfo.Priority);
   end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_UnregisteredBackendInfo_PreservesCanonicalTextMetadata;
+var
+  LBackend: TSimdBackend;
+  LInfo: TSimdBackendInfo;
+  LNamePtr: PAnsiChar;
+  LDescriptionPtr: PAnsiChar;
+  LFoundUnregistered: Boolean;
+begin
+  LFoundUnregistered := False;
+  for LBackend := Low(TSimdBackend) to High(TSimdBackend) do
+  begin
+    if IsBackendRegistered(LBackend) then
+      Continue;
+
+    LFoundUnregistered := True;
+    LInfo := GetBackendInfo(LBackend);
+    LNamePtr := GetSimdBackendNamePtr(LBackend);
+    LDescriptionPtr := GetSimdBackendDescriptionPtr(LBackend);
+
+    AssertTrue('GetBackendInfo should preserve non-empty name for unregistered backend=' + IntToStr(Ord(LBackend)),
+      LInfo.Name <> '');
+    AssertTrue('GetBackendInfo should preserve non-empty description for unregistered backend=' + IntToStr(Ord(LBackend)),
+      LInfo.Description <> '');
+    AssertNotNull('Public ABI backend name pointer should not be nil for unregistered backend=' + IntToStr(Ord(LBackend)),
+      Pointer(LNamePtr));
+    AssertNotNull('Public ABI backend description pointer should not be nil for unregistered backend=' + IntToStr(Ord(LBackend)),
+      Pointer(LDescriptionPtr));
+    AssertEquals('Dispatch/public ABI backend name should stay aligned for unregistered backend=' + IntToStr(Ord(LBackend)),
+      LInfo.Name, string(StrPas(LNamePtr)));
+    AssertEquals('Dispatch/public ABI backend description should stay aligned for unregistered backend=' + IntToStr(Ord(LBackend)),
+      LInfo.Description, string(StrPas(LDescriptionPtr)));
+  end;
+
+  AssertTrue('At least one unregistered backend should exist for metadata coverage',
+    LFoundUnregistered);
 end;
 
 procedure TTestCase_DispatchAPI.Test_VecI64x2_DispatchAssigned_And_Parity;

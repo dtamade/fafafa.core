@@ -456,3 +456,33 @@ Phase 40 complete; `GetRegisteredBackendList` now materializes the registered vi
   3. fresh Windows native evidence `1/7..7/7` 复验，确认 `publicabi-smoke` 已真实进入 closeout 证据链
   4. 若后续进入具备 `avx512f/avx512bw` + OS/XCR0 条件的主机，再补 AVX-512 native execution 证据，并继续判定 `AVX-512` availability predicate 是否漏了前置条件
   5. 若未来升级 FPC/toolchain，再重做 `GetSimdPublicApi` hot-path codegen 取证，而不是继续依赖 benchmark 直觉
+
+### Phase 41: unregistered backend canonical text metadata alignment
+- [x] 在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `Test_UnregisteredBackendInfo_PreservesCanonicalTextMetadata`，锁定未注册 backend 上 `GetBackendInfo` 与 public ABI text getter 必须暴露同一份 canonical `Name/Description`
+- [x] 用 fresh release `TTestCase_DispatchAPI` 先拿 red，确认问题不是历史猜测
+- [x] 确认 `src/fafafa.core.simd.dispatch.pas` 的 `GetBackendInfo` 未注册路径只回写 `Backend/Available/Priority`，没有补 canonical `Name/Description`
+- [x] 在 dispatch 层新增 default backend text helper，并让 `GetBackendInfo` 对 registered/unregistered 两条路径都在空文本时 fallback 到 canonical 默认值，避免 dispatch/public ABI metadata 分叉
+- [x] 用 fresh release `TTestCase_DispatchAPI`、fresh `TTestCase_PublicAbi`、fresh `check`、fresh `gate` 复验
+- **Status:** complete
+
+- 2026-03-22 最新 unregistered text metadata closeout 证据：
+  - red: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-unregistered-text-red-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` -> FAIL（`GetBackendInfo should preserve non-empty name for unregistered backend=7`）
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-unregistered-text-green-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` -> PASS，`[LEAK] OK`
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-unregistered-text-publicabi-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi` -> PASS，`[LEAK] OK`
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-unregistered-text-check-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh check` -> PASS
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-unregistered-text-gate-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh gate` -> PASS，最终 `[GATE] OK`，run-all summary 时间 `2026-03-22 03:08:32`
+- 这轮根因不在 public ABI text cache，而在 dispatch canonical metadata source 本身：`GetSimdBackendNamePtr/GetSimdBackendDescriptionPtr` 已经会回退到默认 backend 文本，但 `GetBackendInfo` 的未注册路径此前仍把 `Name/Description` 留空，导致同一个 backend 在 dispatch/public ABI 两侧同时存在两份“canonical 文本”。
+- 最小修复继续放在 shared dispatch contract，而不是再复制一份 wrapper 专属规则：`GetBackendInfo` 现在统一对空 `Name/Description` 做 default fallback，因此未注册 backend、registered snapshot 缺文本、以及 public ABI text getter 都重新对齐到同一套 canonical backend 文本。
+- 下一轮连续计划优先级更新为：
+  1. 继续深审 remaining metadata/view helper，优先找下一条 “unregistered/registered 边界上仍由多份真相源拼装”的真实问题，特别是 text/list/pod/helper 组合路径
+  2. 继续检查 `SetVectorAsmEnabled` / `RegisterBackend` 相邻 helper 是否还有 stale `Name/Description/CapabilityBits` 视图
+  3. 对 public ABI text getter pointer-lifetime / refresh 只接受 fresh red 证据，不再把 speculative 风险误记为已确认问题
+
+## 5-Question Reboot Check (Phase 41 Update)
+| Question | Answer |
+|----------|--------|
+| Where am I? | Linux fresh `TTestCase_DispatchAPI`、fresh `TTestCase_PublicAbi`、fresh `check`、fresh `gate` 都已重新通过；本轮最新又收敛了一条新的 metadata drift：`GetBackendInfo` 在未注册 backend 上没有保留 canonical 文本。 |
+| Where am I going? | 下一轮继续从实现层深审，优先找下一条 “单个 helper/list/pod/public-API 结果仍由多次 live 查询或不一致 fallback 拼装” 的真实问题，重点继续看 unregistered/registered 边界、toggle/re-register 相邻 helper、以及 external-consumer metadata 对齐。 |
+| What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
+| What have I learned? | 这轮证明，不只是 capability/flags 会漂移，连 backend 文本 metadata 也可能在 dispatch/public ABI 两侧各自 fallback 成不同 contract。修这类问题最稳的办法仍然是把 canonical 规则收口到 shared dispatch metadata source，而不是在 wrapper 层额外兜底。 |
+| What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 unregistered backend text metadata drift：`GetBackendInfo` 现在统一为空文本回退 canonical 默认值，`TTestCase_DispatchAPI` 已守住这条合同。 |

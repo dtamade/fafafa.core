@@ -918,6 +918,38 @@ var
 
 // === Initialization ===
 
+function DefaultBackendName(const aBackend: TSimdBackend): string; inline;
+begin
+  case aBackend of
+    sbScalar: Result := 'Scalar';
+    sbSSE2: Result := 'SSE2';
+    sbSSE3: Result := 'SSE3';
+    sbSSSE3: Result := 'SSSE3';
+    sbSSE41: Result := 'SSE4.1';
+    sbSSE42: Result := 'SSE4.2';
+    sbAVX2: Result := 'AVX2';
+    sbAVX512: Result := 'AVX-512';
+    sbNEON: Result := 'NEON';
+    sbRISCVV: Result := 'RISC-V V';
+  end;
+end;
+
+function DefaultBackendDescription(const aBackend: TSimdBackend): string; inline;
+begin
+  case aBackend of
+    sbScalar: Result := 'Pure scalar reference implementation';
+    sbSSE2: Result := 'x86-64 SSE2 SIMD implementation';
+    sbSSE3: Result := 'x86-64 SSE3 SIMD implementation';
+    sbSSSE3: Result := 'x86-64 SSSE3 SIMD implementation';
+    sbSSE41: Result := 'x86-64 SSE4.1 SIMD implementation';
+    sbSSE42: Result := 'x86-64 SSE4.2 SIMD implementation';
+    sbAVX2: Result := 'x86-64 AVX2 SIMD implementation';
+    sbAVX512: Result := 'x86-64 AVX-512 SIMD implementation';
+    sbNEON: Result := 'ARM NEON 128-bit SIMD';
+    sbRISCVV: Result := 'RISC-V Vector Extension (RVV)';
+  end;
+end;
+
 function GetCurrentDispatchPublishedState: PSimdDispatchPublishedState; inline;
 begin
   Result := PSimdDispatchPublishedState(atomic_load_ptr(g_CurrentDispatchStatePtr, mo_acquire));
@@ -1368,11 +1400,19 @@ begin
   end
   else
   begin
-    // Return empty info for unregistered backend
+    // Preserve canonical metadata for unregistered backends too so dispatch and
+    // public ABI text getters do not drift apart.
     Result.Backend := backend;
     Result.Available := False;
     Result.Priority := GetSimdBackendPriorityValue(backend);
   end;
+
+  Result.Backend := backend;
+  Result.Priority := GetSimdBackendPriorityValue(backend);
+  if Result.Name = '' then
+    Result.Name := DefaultBackendName(backend);
+  if Result.Description = '' then
+    Result.Description := DefaultBackendDescription(backend);
 end;
 
 function TryGetRegisteredBackendDispatchTable(backend: TSimdBackend; out dispatchTable: TSimdDispatchTable): Boolean;
