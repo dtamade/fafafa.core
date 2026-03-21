@@ -206,6 +206,7 @@ begin
   HandleSuite('TTestCase_SimdConcurrent', TTestCase_SimdConcurrent.Suite, aListOnly, aTargetSuite);
   HandleSuite('TTestCase_SimdConcurrentPublicAbi', TTestCase_SimdConcurrentPublicAbi.Suite, aListOnly, aTargetSuite);
   HandleSuite('TTestCase_SimdConcurrentFramework', TTestCase_SimdConcurrentFramework.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_SimdConcurrentRegistration', TTestCase_SimdConcurrentRegistration.Suite, aListOnly, aTargetSuite);
 end;
 
 procedure ParseArgs;

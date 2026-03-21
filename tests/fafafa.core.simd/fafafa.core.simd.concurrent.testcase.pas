@@ -91,6 +91,16 @@ type
     procedure Test_Concurrent_DispatchableHelpers_VectorAsmToggle_ReadConsistency;
   end;
 
+  {** @abstract(首次注册路径的并发回归套件) *}
+  TTestCase_SimdConcurrentRegistration = class(TTestCase)
+  published
+    {** registered backend list 与首次 RegisterBackend 并发读写保护 *}
+    procedure Test_Concurrent_RegisteredBackendList_FirstRegistration_ReadConsistency;
+  end;
+
+  TSimdDispatchTableArray = array of TSimdDispatchTable;
+  TSimdBackendArrayStates = array of TSimdBackendArray;
+
   // === Worker Thread Classes ===
 
   {** F32x4 加法工作线程 *}
@@ -382,6 +392,37 @@ type
     property ErrorMsg: string read FErrorMsg;
   end;
 
+  {** 首次注册序列写线程（按给定顺序把 previously-unregistered backend 注册进 binary） *}
+  TBackendFirstRegisterSequenceWorker = class(TThread)
+  private
+    FBackends: TSimdBackendArray;
+    FTables: TSimdDispatchTableArray;
+    FSuccess: Boolean;
+    FErrorMsg: string;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(const aBackends: TSimdBackendArray;
+      const aTables: TSimdDispatchTableArray);
+    property Success: Boolean read FSuccess;
+    property ErrorMsg: string read FErrorMsg;
+  end;
+
+  {** registered backend list 只读线程（与首次 RegisterBackend 写线程并发） *}
+  TRegisteredBackendListReadWorker = class(TThread)
+  private
+    FIterations: Integer;
+    FExpectedStates: TSimdBackendArrayStates;
+    FSuccess: Boolean;
+    FErrorMsg: string;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(aIterations: Integer; const aExpectedStates: TSimdBackendArrayStates);
+    property Success: Boolean read FSuccess;
+    property ErrorMsg: string read FErrorMsg;
+  end;
+
   {** dispatch 控制面混合并发线程 *}
   TDispatchMixedControlWorker = class(TThread)
   private
@@ -504,6 +545,49 @@ begin
     Result := Result + IntToStr(Ord(aBackends[LIndex]));
   end;
   Result := Result + ']';
+end;
+
+function DescribeBackendArrayStatesLocal(const aStates: TSimdBackendArrayStates): string;
+var
+  LIndex: Integer;
+begin
+  Result := '{';
+  for LIndex := 0 to High(aStates) do
+  begin
+    if LIndex > 0 then
+      Result := Result + ' | ';
+    Result := Result + DescribeBackendArrayLocal(aStates[LIndex]);
+  end;
+  Result := Result + '}';
+end;
+
+function BuildRegisteredBackendSnapshotLocal(const aBaseRegistered,
+  aRegistrationOrder: TSimdBackendArray; aRegisteredCount: Integer): TSimdBackendArray;
+var
+  LPresent: array[TSimdBackend] of Boolean;
+  LBackend: TSimdBackend;
+  LIndex: Integer;
+  LCount: Integer;
+begin
+  FillChar(LPresent, SizeOf(LPresent), 0);
+  for LIndex := 0 to High(aBaseRegistered) do
+    LPresent[aBaseRegistered[LIndex]] := True;
+  for LIndex := 0 to aRegisteredCount - 1 do
+    LPresent[aRegistrationOrder[LIndex]] := True;
+
+  LCount := 0;
+  for LBackend := Low(TSimdBackend) to High(TSimdBackend) do
+    if LPresent[LBackend] then
+      Inc(LCount);
+
+  SetLength(Result, LCount);
+  LCount := 0;
+  for LBackend := Low(TSimdBackend) to High(TSimdBackend) do
+    if LPresent[LBackend] then
+    begin
+      Result[LCount] := LBackend;
+      Inc(LCount);
+    end;
 end;
 
 function TryFindInactiveSupportedBackendForPodInfoMutation(out aBackend: TSimdBackend;
@@ -1436,6 +1520,94 @@ begin
   FExpectedFlagsB := aExpectedFlagsB;
   FSuccess := False;
   FErrorMsg := '';
+end;
+
+constructor TBackendFirstRegisterSequenceWorker.Create(const aBackends: TSimdBackendArray;
+  const aTables: TSimdDispatchTableArray);
+var
+  LIndex: Integer;
+begin
+  inherited Create(True);
+  FreeOnTerminate := False;
+  SetLength(FBackends, Length(aBackends));
+  for LIndex := 0 to High(aBackends) do
+    FBackends[LIndex] := aBackends[LIndex];
+  SetLength(FTables, Length(aTables));
+  for LIndex := 0 to High(aTables) do
+    FTables[LIndex] := aTables[LIndex];
+  FSuccess := False;
+  FErrorMsg := '';
+end;
+
+procedure TBackendFirstRegisterSequenceWorker.Execute;
+var
+  LIndex: Integer;
+begin
+  try
+    for LIndex := 0 to High(FBackends) do
+    begin
+      RegisterBackend(FBackends[LIndex], FTables[LIndex]);
+      ThreadSwitch;
+    end;
+    FSuccess := True;
+  except
+    on E: Exception do
+      FErrorMsg := 'first-register sequence worker exception: ' + E.Message;
+  end;
+end;
+
+constructor TRegisteredBackendListReadWorker.Create(aIterations: Integer;
+  const aExpectedStates: TSimdBackendArrayStates);
+var
+  LIndex: Integer;
+begin
+  inherited Create(True);
+  FreeOnTerminate := False;
+  FIterations := aIterations;
+  SetLength(FExpectedStates, Length(aExpectedStates));
+  for LIndex := 0 to High(aExpectedStates) do
+    FExpectedStates[LIndex] := Copy(aExpectedStates[LIndex]);
+  FSuccess := False;
+  FErrorMsg := '';
+end;
+
+procedure TRegisteredBackendListReadWorker.Execute;
+var
+  LIndex: Integer;
+  LStateIndex: Integer;
+  LRegistered: TSimdBackendArray;
+  LMatchesState: Boolean;
+begin
+  try
+    for LIndex := 0 to FIterations - 1 do
+    begin
+      if (LIndex and 3) = 0 then
+        ThreadSwitch;
+
+      LRegistered := fafafa.core.simd.GetRegisteredBackendList;
+      LMatchesState := False;
+      for LStateIndex := 0 to High(FExpectedStates) do
+        if SameBackendArrayLocal(LRegistered, FExpectedStates[LStateIndex]) then
+        begin
+          LMatchesState := True;
+          Break;
+        end;
+
+      if not LMatchesState then
+      begin
+        FErrorMsg := Format(
+          'registered backend list mixed snapshot at iter %d: got=%s expectedStates=%s',
+          [LIndex, DescribeBackendArrayLocal(LRegistered),
+           DescribeBackendArrayStatesLocal(FExpectedStates)]);
+        Exit;
+      end;
+    end;
+
+    FSuccess := True;
+  except
+    on E: Exception do
+      FErrorMsg := 'registered backend list reader exception: ' + E.Message;
+  end;
 end;
 
 procedure TPublicApiActiveMetadataReadWorker.Execute;
@@ -2420,6 +2592,102 @@ begin
   end;
 end;
 
+procedure TTestCase_SimdConcurrentRegistration.Test_Concurrent_RegisteredBackendList_FirstRegistration_ReadConsistency;
+const
+  READER_THREADS = 8;
+  READER_ITERATIONS = 1000000;
+var
+  LReaders: array of TRegisteredBackendListReadWorker;
+  LWriter: TBackendFirstRegisterSequenceWorker;
+  LBaseRegistered: TSimdBackendArray;
+  LRegistrationOrder: TSimdBackendArray;
+  LExpectedStates: TSimdBackendArrayStates;
+  LRegisterTables: TSimdDispatchTableArray;
+  LSeedTable: TSimdDispatchTable;
+  LBackend: TSimdBackend;
+  LIndex: Integer;
+  LAllSuccess: Boolean;
+  LErrorMsgs: string;
+begin
+  LReaders := nil;
+  LWriter := nil;
+  LBaseRegistered := fafafa.core.simd.GetRegisteredBackendList;
+  LRegistrationOrder := nil;
+  LExpectedStates := nil;
+  LRegisterTables := nil;
+  LSeedTable := Default(TSimdDispatchTable);
+
+  for LBackend := High(TSimdBackend) downto Low(TSimdBackend) do
+    if not IsBackendRegisteredInBinary(LBackend) then
+    begin
+      SetLength(LRegistrationOrder, Length(LRegistrationOrder) + 1);
+      LRegistrationOrder[High(LRegistrationOrder)] := LBackend;
+    end;
+
+  if Length(LRegistrationOrder) < 2 then
+    Exit;
+
+  AssertTrue('Scalar backend should be registered before first-registration concurrent test',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LSeedTable));
+  LSeedTable.BackendInfo.Available := False;
+  LSeedTable.BackendInfo.Capabilities := [];
+
+  SetLength(LRegisterTables, Length(LRegistrationOrder));
+  for LIndex := 0 to High(LRegistrationOrder) do
+  begin
+    LRegisterTables[LIndex] := LSeedTable;
+    LRegisterTables[LIndex].BackendInfo.Name := 'ConcurrentFirstRegister_' +
+      IntToStr(Ord(LRegistrationOrder[LIndex]));
+    LRegisterTables[LIndex].BackendInfo.Description := 'Synthetic first-registration state for backend ' +
+      IntToStr(Ord(LRegistrationOrder[LIndex]));
+  end;
+
+  SetLength(LExpectedStates, Length(LRegistrationOrder) + 1);
+  for LIndex := 0 to High(LExpectedStates) do
+    LExpectedStates[LIndex] := BuildRegisteredBackendSnapshotLocal(
+      LBaseRegistered, LRegistrationOrder, LIndex);
+
+  SetLength(LReaders, READER_THREADS);
+  for LIndex := 0 to High(LReaders) do
+    LReaders[LIndex] := TRegisteredBackendListReadWorker.Create(
+      READER_ITERATIONS, LExpectedStates);
+  LWriter := TBackendFirstRegisterSequenceWorker.Create(LRegistrationOrder, LRegisterTables);
+
+  try
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].Start;
+    LWriter.Start;
+
+    LWriter.WaitFor;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].WaitFor;
+
+    LAllSuccess := True;
+    LErrorMsgs := '';
+    if not LWriter.Success then
+    begin
+      LAllSuccess := False;
+      LErrorMsgs := LErrorMsgs + LWriter.ErrorMsg + '; ';
+    end;
+    for LIndex := 0 to High(LReaders) do
+      if not LReaders[LIndex].Success then
+      begin
+        LAllSuccess := False;
+        LErrorMsgs := LErrorMsgs + LReaders[LIndex].ErrorMsg + '; ';
+      end;
+
+    AssertTrue('Concurrent registered-backend-list first-register/read failed: ' + LErrorMsgs,
+      LAllSuccess);
+    AssertTrue('Final registered backend list should reach the fully registered state after first registrations',
+      SameBackendArrayLocal(fafafa.core.simd.GetRegisteredBackendList,
+        LExpectedStates[High(LExpectedStates)]));
+  finally
+    LWriter.Free;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].Free;
+  end;
+end;
+
 procedure TTestCase_SimdConcurrent.Test_Concurrent_DispatchMixed_ControlPlane;
 const
   ROUNDS = 4;
@@ -2757,5 +3025,6 @@ initialization
   RegisterTest(TTestCase_SimdConcurrent);
   RegisterTest(TTestCase_SimdConcurrentPublicAbi);
   RegisterTest(TTestCase_SimdConcurrentFramework);
+  RegisterTest(TTestCase_SimdConcurrentRegistration);
 
 end.

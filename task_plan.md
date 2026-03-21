@@ -4,7 +4,7 @@
 审查 `fafafa.core.simd` 及其 `cpuinfo` 相关模块，找出可验证的问题并完成至少一轮根因修复，同时产出可连续执行的后续修复与审查计划。
 
 ## Current Phase
-Phase 39 complete; `RebindSimdPublicApi` now derives `ActiveFlags` from the same current dispatch snapshot that provides `ActiveBackendId`, so `GetSimdPublicApi` no longer mixes published active-backend identity with live flag queries during concurrent `RegisterBackend(...)` reselects
+Phase 40 complete; `GetRegisteredBackendList` now materializes the registered view from a single scan, so concurrent first-time `RegisterBackend(...)` no longer splices list length and payload across two observation points
 
 ## Phases
 
@@ -267,6 +267,13 @@ Phase 39 complete; `RebindSimdPublicApi` now derives `ActiveFlags` from the same
 - [x] 复用现有并发回归 `TTestCase_SimdConcurrentPublicAbi.Test_Concurrent_PublicApiActiveMetadata_RegisterBackend_ReadConsistency` 先拿 fresh red，而不是先补新测试
 - [x] 将 `RebindSimdPublicApi` 的 `ActiveFlags` 收紧为直接基于同一份 `LDispatch^.BackendInfo` + `BuildSimdBackendAbiFlagsFromSnapshot(...)` 派生，确保 current public API metadata 只来自单份 current dispatch snapshot
 - [x] 用 fresh `TTestCase_SimdConcurrentPublicAbi,TTestCase_PublicAbi`、fresh `check`、fresh `gate` 复验
+- **Status:** complete
+
+### Phase 40: registered backend list first-registration snapshot hardening
+- [x] 确认 `src/fafafa.core.simd.framework.impl.inc` 的 `GetRegisteredBackendList` 之前采用“两遍扫描”：先数 `IsBackendRegisteredInBinary(...)` 的个数，再第二遍填充数组；在 previously-unregistered backend 首次 `RegisterBackend(...)` 的并发窗口里会暴露 impossible list snapshot
+- [x] 在 `tests/fafafa.core.simd/fafafa.core.simd.concurrent.testcase.pas` 新增 `TTestCase_SimdConcurrentRegistration.Test_Concurrent_RegisteredBackendList_FirstRegistration_ReadConsistency`，并把该 stateful suite 接入 `tests/fafafa.core.simd/fafafa.core.simd.test.lpr`
+- [x] 将 `GetRegisteredBackendList` 收紧为“按 backend 总数预分配 -> 单遍扫描填充 -> 最后 shrink”，确保单次 helper 调用只基于一个 observation sequence 产出 registered list
+- [x] 用 fresh `TTestCase_SimdConcurrentRegistration`、fresh `TTestCase_SimdConcurrentFramework` sanity、fresh `check`、fresh `gate` 复验
 - **Status:** complete
 
 ## Key Questions

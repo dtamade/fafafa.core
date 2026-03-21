@@ -1545,3 +1545,53 @@
 | What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
 | What have I learned? | 这轮再次证明，哪怕 `GetSimdPublicApi` 本身已经采用 snapshot publication，只要 rebind 阶段还把 metadata 的一部分绕回 live helper，就仍会把“同一张 public API table”的字段拆成两份真相源。修这类问题的关键不是再加更多锁，而是让单个对外结果尽量从同一份 published snapshot 派生完。 |
 | What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并把 plan/findings/progress 持续同步。本轮最新又确认并修复了 public API active metadata mixed-snapshot：`RebindSimdPublicApi` 现在从同一份 current dispatch snapshot 派生 `ActiveBackendId/ActiveFlags`，`TTestCase_SimdConcurrentPublicAbi` 已守住这条并发合同。 |
+
+### Phase 40: registered backend list first-registration snapshot hardening
+- **Status:** complete
+- Actions taken:
+  - 继续深审 registered-view/list helper 时，先补了一条新的并发 red：
+    - 在 `tests/fafafa.core.simd/fafafa.core.simd.concurrent.testcase.pas` 新增 `TTestCase_SimdConcurrentRegistration`
+    - 新增 `Test_Concurrent_RegisteredBackendList_FirstRegistration_ReadConsistency`
+    - writer `TBackendFirstRegisterSequenceWorker` 以降序把 previously-unregistered backend 逐个首次 `RegisterBackend(...)`
+    - reader `TRegisteredBackendListReadWorker` 持续断言 `GetRegisteredBackendList` 只能等于 base state 或若干合法前缀注册态，不能出现 impossible combo
+  - 同步 runner manifest：
+    - `tests/fafafa.core.simd/fafafa.core.simd.test.lpr` 新增 `HandleSuite('TTestCase_SimdConcurrentRegistration', ...)`
+    - 这样主 runner 的 `--list-suites` / `--suite=` 路径都能直接访问这条新 suite
+  - fresh red 复验：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-registeredlist-red-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrentRegistration`
+    - 失败点直接命中：
+      - `registered backend list mixed snapshot at iter 63: got=[0,1,2,3,4,5,6,8] expectedStates={[0,1,2,3,4,5,6] | [0,1,2,3,4,5,6,9] | [0,1,2,3,4,5,6,8,9] | [0,1,2,3,4,5,6,7,8,9]}`
+  - 根因确认后，做最小实现修复：
+    - `src/fafafa.core.simd.framework.impl.inc` 的旧 `GetRegisteredBackendList` 先 count 后 fill，两遍都做 live `IsBackendRegisteredInBinary(...)`
+    - 现已改成按 backend 总数预分配上限容量、单遍扫描时直接填充 `Result`，最后再 `SetLength(Result, LCount)` shrink
+    - 这样单次 helper 调用不再把数组长度和内容拆到两个观察点
+  - fresh green / release 复验：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-registeredlist-green-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrentRegistration`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-framework-recheck-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrentFramework`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-registeredlist-check-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-registeredlist-gate-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 记录关键运行结果：
+    - fresh `TTestCase_SimdConcurrentRegistration` PASS，`[LEAK] OK`
+    - fresh `TTestCase_SimdConcurrentFramework` sanity PASS，`[LEAK] OK`
+    - fresh `check` PASS
+    - fresh `gate` 最终 `[GATE] OK`
+    - run-all summary 时间：`2026-03-22 02:30:17`
+  - 记录新的测试组织约束：
+    - `TTestCase_SimdConcurrentRegistration` 会永久注册此前未注册的 backend，属于 stateful suite
+    - 因此它必须保持独立，并尽量放在 runner handle 顺序末尾，避免污染其他 suite 的 same-process 假设
+- Files created/modified:
+  - `src/fafafa.core.simd.framework.impl.inc` (modified)
+  - `tests/fafafa.core.simd/fafafa.core.simd.concurrent.testcase.pas` (modified again)
+  - `tests/fafafa.core.simd/fafafa.core.simd.test.lpr` (modified)
+  - `task_plan.md` (modified)
+  - `findings.md` (modified)
+  - `progress.md` (modified)
+
+## 5-Question Reboot Check (Phase 40 Update)
+| Question | Answer |
+|----------|--------|
+| Where am I? | Linux fresh `TTestCase_SimdConcurrentRegistration`、fresh framework sanity、fresh `check`、fresh `gate` 都已重新通过；本轮最新又收敛了一条新的 registered-view mixed-snapshot：旧 `GetRegisteredBackendList` 把 count/fill 拆成两次 live 观察。 |
+| Where am I going? | 下一轮继续从实现层深审，优先找下一条 “helper/list/pod/public-API 结果仍由多次 live 查询拼装” 的真实问题，重点继续看 remaining registered-view helpers、public ABI text getter refresh/lifetime、以及 stateful registration suite 相邻路径里是否还有同类 snapshot drift。 |
+| What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
+| What have I learned? | 这轮证明，哪怕只是一个简单 list helper，只要先 count 再 fill 且两遍都走 live 查询，在首次注册这种结构变化路径下也会对外暴露 impossible snapshot。对这类 helper，最稳的办法通常不是额外加锁，而是把单个 outward result 收口到一次顺序扫描里完成。 |
+| What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 registered backend list mixed-snapshot：`GetRegisteredBackendList` 现在采用单遍填充，`TTestCase_SimdConcurrentRegistration` 已守住首次注册并发合同。 |

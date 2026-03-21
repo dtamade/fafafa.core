@@ -39,12 +39,8 @@ var
   LBackend: TSimdBackend;
   LCount: Integer;
 begin
-  LCount := 0;
-  for LBackend := Low(TSimdBackend) to High(TSimdBackend) do
-    if IsBackendRegisteredInBinary(LBackend) then
-      Inc(LCount);
-
-  SetLength(Result, LCount);
+  Result := nil;
+  SetLength(Result, Ord(High(TSimdBackend)) - Ord(Low(TSimdBackend)) + 1);
   LCount := 0;
   for LBackend := Low(TSimdBackend) to High(TSimdBackend) do
     if IsBackendRegisteredInBinary(LBackend) then
@@ -52,6 +48,7 @@ begin
       Result[LCount] := LBackend;
       Inc(LCount);
     end;
+  SetLength(Result, LCount);
 end;
 
 function GetDispatchableBackendList: TSimdBackendArray;
