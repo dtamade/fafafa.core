@@ -1,0 +1,32 @@
+# worker0
+
+- Owner: Codex
+- Scope: `fafafa.core.simd` 模块的 capability / dispatch / public ABI 合同审查与修复
+- Status: `active`
+- Branch: `simd-contract-audit`
+- Worktree: `/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit`
+- Base commit: `ba16f5fa251582a59bd38e1146d7babe6646a355`
+- Current focus:
+  - 继续 Phase 38 之后的 SIMD 实现层深审
+  - 优先找下一条“helper / list / metadata 在 runtime toggle、re-register 或 unregistered/registered 迁移里仍观察到多份真相源”的真实问题
+  - 重点关注 `dispatch` / `framework` / `public_abi` / registered-list helper
+- Source of truth:
+  - `task_plan.md`
+  - `findings.md`
+  - `progress.md`
+- Working rules:
+  - SIMD 开发默认只在上面的 worktree 内进行，不直接在主线工作目录改 SIMD 代码
+  - 验证继续采用 release 策略
+  - 证据驱动：先补 fresh red，再做最小修复，再跑 fresh green / check / gate
+- Fresh verification:
+  - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-worktree-baseline-20260321 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：`[GATE] OK`
+  - 时间：`2026-03-21 23:47:37`
+- Risks / blockers:
+  - 当前宿主机没有 native `avx512*` 执行条件，所以 AVX-512 只有 opt-in build/registration/public ABI 证据，没有 native execution 证据
+  - `arm64` / `riscv64` asm-ready 主机证据仍待补
+  - Windows `1/7..7/7` native evidence 仍需单独补齐
+- Next step:
+  - 继续深审剩余 helper/list/text/public ABI active metadata 是否还有 snapshot drift
+  - 找到 fresh red 后在本 worker 的 worktree 内闭环修复
+- Last updated: `2026-03-21`
