@@ -46,6 +46,7 @@ type
     procedure Test_PublicApi_RollbackRestore_ReSelects_RequestedBackend_Before_Return;
     procedure Test_PublicApi_RollbackRestore_Success_Preserves_ForcedSelection;
     procedure Test_PublicApi_SetActiveBackend_HookLateFailure_Preserves_PreviousForcedBackend;
+    procedure Test_PublicApi_ResetToAutomaticBackend_HookLateForce_Restores_AutomaticBackend;
     procedure Test_PublicApi_Refreshes_WhenVectorAsmDisabled_ReSelects_Away_From_ScalarBacked_CurrentBackend;
     procedure Test_PublicApi_DataPlane_Parity;
   end;
@@ -70,6 +71,9 @@ var
   GPublicAbiHookRollbackForceSuccessHigherCount: Integer = 0;
   GPublicAbiHookRollbackForceSuccessHigherBackends: array[0..Ord(High(TSimdBackend))] of TSimdBackend;
   GPublicAbiHookRollbackForceSuccessHigherTables: array[0..Ord(High(TSimdBackend))] of TSimdDispatchTable;
+  GPublicAbiHookReForceBackendEnabled: Boolean = False;
+  GPublicAbiHookReForceBackendStage: Integer = 0;
+  GPublicAbiHookReForceBackendTarget: TSimdBackend = sbScalar;
 
 procedure PublicAbiHookDisableBackendOnce;
 var
@@ -174,6 +178,26 @@ begin
         finally
           GPublicAbiHookRollbackForceSuccessInMutation := False;
         end;
+        Exit;
+      end;
+  end;
+end;
+
+procedure PublicAbiHookReForceBackendOnce;
+begin
+  if not GPublicAbiHookReForceBackendEnabled then
+    Exit;
+
+  case GPublicAbiHookReForceBackendStage of
+    0:
+      begin
+        GPublicAbiHookReForceBackendStage := 1;
+        Exit;
+      end;
+    1:
+      begin
+        GPublicAbiHookReForceBackendStage := 2;
+        SetActiveBackend(GPublicAbiHookReForceBackendTarget);
         Exit;
       end;
   end;
@@ -1837,6 +1861,55 @@ begin
   finally
     if LRequestedTableCaptured then
       RegisterBackend(LRequestedBackend, LRequestedOriginalTable);
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_PublicAbi.Test_PublicApi_ResetToAutomaticBackend_HookLateForce_Restores_AutomaticBackend;
+var
+  LApi: PFafafaSimdPublicApi;
+  LAutomaticBackend: TSimdBackend;
+  LOldVectorAsm: Boolean;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LAutomaticBackend := GetBestDispatchableBackend;
+    if LAutomaticBackend = sbScalar then
+      Exit;
+
+    AssertTrue('Scalar force setup should succeed before public ABI ResetToAutomaticBackend late-force test',
+      TrySetActiveBackend(sbScalar));
+    LApi := GetSimdPublicApi;
+    AssertNotNull('Public API table should remain available after scalar force setup for ResetToAutomaticBackend late-force test', LApi);
+    AssertEquals('Public API active backend should reflect scalar before ResetToAutomaticBackend late-force test',
+      Ord(sbScalar), Integer(LApi^.ActiveBackendId));
+
+    GPublicAbiHookReForceBackendTarget := sbScalar;
+    GPublicAbiHookReForceBackendEnabled := True;
+    GPublicAbiHookReForceBackendStage := 0;
+    AddDispatchChangedHook(@PublicAbiHookReForceBackendOnce);
+    try
+      ResetToAutomaticBackend;
+      AssertEquals('Synthetic public ABI late-force hook should run through the real ResetToAutomaticBackend callback sequence',
+        2, GPublicAbiHookReForceBackendStage);
+      LApi := GetSimdPublicApi;
+      AssertNotNull('Public API table should remain available after ResetToAutomaticBackend late-force test', LApi);
+      AssertEquals('Public API active backend should restore automatic best backend even if a late hook re-forces scalar during reset',
+        Ord(LAutomaticBackend), Integer(LApi^.ActiveBackendId));
+      AssertEquals('Public API active backend should keep tracking the actual current backend after ResetToAutomaticBackend late-force test',
+        Ord(GetCurrentBackend), Integer(LApi^.ActiveBackendId));
+      AssertTrue('Public API active backend should not remain stuck on scalar after ResetToAutomaticBackend late-force test',
+        Integer(LApi^.ActiveBackendId) <> Ord(sbScalar));
+    finally
+      RemoveDispatchChangedHook(@PublicAbiHookReForceBackendOnce);
+      GPublicAbiHookReForceBackendEnabled := False;
+      GPublicAbiHookReForceBackendStage := 0;
+      GPublicAbiHookReForceBackendTarget := sbScalar;
+    end;
+  finally
     SetVectorAsmEnabled(LOldVectorAsm);
     ResetToAutomaticBackend;
   end;

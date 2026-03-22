@@ -2195,3 +2195,48 @@
 | What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
 | What have I learned? | 这轮证明，只修底层 `TrySetActiveBackend(...)` 还不够。如果 wrapper 继续把所有失败粗暴归类成“直接退 scalar”，它仍然会覆盖掉底层已经恢复好的 caller state。 |
 | What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 SetActiveBackend late-failure drift：wrapper 现在不会再在 hook-driven late failure 后把 previous forced backend 静默降成 scalar fallback。 |
+
+### Phase 54: ResetToAutomaticBackend late-hook automatic-state restoration closeout
+- **Status:** complete
+- Actions taken:
+  - 继续沿 `ResetToAutomaticBackend(...)` / rebuild-hook 嵌套路径深审后，先补一条新的 deterministic red，而不是直接改实现：
+    - 在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `Test_ResetToAutomaticBackend_HookLateForce_Restores_AutomaticBackend`
+    - 在 `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 新增 `Test_PublicApi_ResetToAutomaticBackend_HookLateForce_Restores_AutomaticBackend`
+    - 两条测试都显式 `SetVectorAsmEnabled(True)`，先 forced 到 `sbScalar`，再挂一个一次性的 synthetic hook：arm -> 在真正的 reset 回调里再做一次 `SetActiveBackend(sbScalar)`
+    - 然后直接断言：只要 automatic best backend 不是 scalar，`ResetToAutomaticBackend(...)` return-time active/public ABI 就必须回到 automatic best，而不能停在 hook 重新 force 的 scalar
+  - fresh red 复验：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-resetauto-lateforce-red-20260323 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi`
+    - 失败点直接命中：
+      - `ResetToAutomaticBackend should restore automatic best backend even if a late hook re-forces scalar during notification`，`expected: <6> but was: <0>`
+      - `Public API active backend should restore automatic best backend even if a late hook re-forces scalar during reset`，`expected: <6> but was: <0>`
+  - 根因确认后，做最小实现修复：
+    - 旧 `src/fafafa.core.simd.dispatch.pas` 的 `ResetToAutomaticBackend(...)` 只在入口清一次 `g_BackendForced`
+    - automatic `InitializeDispatch` 之后完全没有像 `TrySetActiveBackend(...)` / `SetActiveBackend(...)` 那样做 hook 之后的 postcondition closure
+    - 这会让 dispatch-changed hook 在通知阶段再做一次 nested `SetActiveBackend(sbScalar)` 时，把 return-time active/public ABI 劫持回 scalar forced fallback
+    - 现已把 `ResetToAutomaticBackend(...)` 收紧为：入口同时清 `g_BackendForced/g_ForcedBackend`；第一次 automatic `InitializeDispatch` 完成后若检测到 forced state 被 hook 复活，则在同一持锁路径里再次清 forced 并重建一次 automatic dispatch
+  - fresh green / release 复验：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-resetauto-lateforce-green-20260323 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-resetauto-lateforce-check-20260323 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-resetauto-lateforce-gate-20260323 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 记录关键运行结果：
+    - fresh `TTestCase_DispatchAPI,TTestCase_PublicAbi` PASS，`[LEAK] OK`
+    - fresh `check` PASS
+    - fresh `gate` 最终 `[GATE] OK`
+    - run-all summary 时间：`2026-03-23 03:46:52`
+- Files created/modified:
+  - `src/fafafa.core.simd.dispatch.pas` (modified again)
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` (modified again)
+  - `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` (modified again)
+  - `task_plan.md` (modified)
+  - `findings.md` (modified)
+  - `progress.md` (modified)
+  - `workers/worker0.md` (modified)
+
+## 5-Question Reboot Check (Phase 54 Update)
+| Question | Answer |
+|----------|--------|
+| Where am I? | Linux fresh `TTestCase_DispatchAPI,TTestCase_PublicAbi`、fresh `check`、fresh `gate` 都已重新通过；本轮最新又收敛了一条 ResetToAutomaticBackend postcondition drift：旧 `ResetToAutomaticBackend(...)` 在 late hook 重新 force scalar 后会返回 stale scalar，而不是 automatic best backend。 |
+| Where am I going? | 下一轮继续从实现层深审，优先找下一条 `SetVectorAsmEnabled` / `RegisterBackend` / helper wrapper 在 forced/automatic 切换、rebuild-hook 嵌套、或 observation-point 漂移上的真实持续一致性问题。 |
+| What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
+| What have I learned? | 这轮证明，reset-to-automatic 也必须做 return-time postcondition closure。只要 dispatch-changed hook 能在通知阶段做 nested force，入口处那一次“清 forced”并不足以保证 API 返回的是 automatic state。 |
+| What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 ResetToAutomaticBackend late-hook drift：reset 现在不会再在通知阶段被一次 scalar re-force 劫持成 stale forced fallback。 |

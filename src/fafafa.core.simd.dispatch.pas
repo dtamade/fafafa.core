@@ -1378,11 +1378,26 @@ begin
   EnterCriticalSection(g_VectorAsmToggleLock);
   try
     g_BackendForced := False;
+    g_ForcedBackend := sbScalar;
     WriteBarrier;  // Ensure write is visible before clearing initialized flag
     g_DispatchInitialized := False; // Force re-initialization
     InterlockedExchange(g_DispatchState, 0);  // ✅ Reset atomic state
     atomic_thread_fence(mo_seq_cst); // Full barrier before re-initialization
     InitializeDispatch;
+
+    ReadBarrier;
+    if g_BackendForced then
+    begin
+      // Reset-to-automatic must not return with a hook-driven forced selection
+      // resurrected during dispatch-changed notification.
+      g_BackendForced := False;
+      g_ForcedBackend := sbScalar;
+      WriteBarrier;
+      g_DispatchInitialized := False;
+      InterlockedExchange(g_DispatchState, 0);
+      atomic_thread_fence(mo_seq_cst);
+      InitializeDispatch;
+    end;
   finally
     LeaveCriticalSection(g_VectorAsmToggleLock);
   end;
