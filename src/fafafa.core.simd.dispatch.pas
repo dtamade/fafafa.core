@@ -1270,13 +1270,13 @@ begin
   end;
 end;
 
-// ✅ P1: TrySetActiveBackend - returns True if backend was successfully set
-function TrySetActiveBackend(backend: TSimdBackend): Boolean;
+function TrySetActiveBackendInternal(backend: TSimdBackend; out aAttemptedSelection: Boolean): Boolean;
 var
   LDispatch: PSimdDispatchTable;
   LPreviousBackendForced: Boolean;
   LPreviousForcedBackend: TSimdBackend;
 begin
+  aAttemptedSelection := False;
   EnterCriticalSection(g_VectorAsmToggleLock);
   try
     // Fast fail on backends that are not registered or not wired available.
@@ -1287,6 +1287,7 @@ begin
     if not IsBackendAvailableOnCPU(backend) then
       Exit(False);
 
+    aAttemptedSelection := True;
     LPreviousBackendForced := g_BackendForced;
     LPreviousForcedBackend := g_ForcedBackend;
 
@@ -1347,16 +1348,29 @@ begin
   end;
 end;
 
+// ✅ P1: TrySetActiveBackend - returns True if backend was successfully set
+function TrySetActiveBackend(backend: TSimdBackend): Boolean;
+var
+  LAttemptedSelection: Boolean;
+begin
+  Result := TrySetActiveBackendInternal(backend, LAttemptedSelection);
+end;
+
 // ✅ P1: SetActiveBackend - now with safety check, falls back to Scalar if unavailable
 procedure SetActiveBackend(backend: TSimdBackend);
+var
+  LAttemptedSelection: Boolean;
 begin
   // Try to set the requested backend
-  if TrySetActiveBackend(backend) then
+  if TrySetActiveBackendInternal(backend, LAttemptedSelection) then
     Exit;
 
-  // If requested backend is not available, fall back to Scalar
-  // (always available, always registered)
-  TrySetActiveBackend(sbScalar);
+  // Only precondition-unavailable requests should silently degrade to Scalar.
+  // If the backend was initially selectable but failed later during hook-driven
+  // rebuild/rollback, preserve the state that TrySetActiveBackend already
+  // restored instead of clobbering it with a scalar forced-selection.
+  if not LAttemptedSelection then
+    TrySetActiveBackend(sbScalar);
 end;
 
 procedure ResetToAutomaticBackend;

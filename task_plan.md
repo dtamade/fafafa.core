@@ -4,7 +4,7 @@
 审查 `fafafa.core.simd` 及其 `cpuinfo` 相关模块，找出可验证的问题并完成至少一轮根因修复，同时产出可连续执行的后续修复与审查计划。
 
 ## Current Phase
-Phase 52 complete; hook-driven late failure now restores the caller's previous forced backend instead of drifting to automatic best backend
+Phase 53 complete; SetActiveBackend no longer clobbers a pre-existing forced backend with scalar fallback after a hook-driven late failure
 
 ## Phases
 
@@ -831,3 +831,38 @@ Phase 52 complete; hook-driven late failure now restores the caller's previous f
 | What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
 | What have I learned? | 这轮证明，“失败后回到 automatic”只对调用前原本就是 automatic mode 的调用者成立。一旦控制面进入 pre-existing forced state，late-failure rollback 也必须保持调用前状态不变，否则 API 会把已有用户意图静默抹掉。 |
 | What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 previous-forced rollback drift：`TrySetActiveBackend(...)` 现在会在 late failure 仍失败时恢复调用前 forced backend，不再一律漂回 automatic best backend。 |
+
+### Phase 53: SetActiveBackend late-failure preserves previous forced backend closeout
+- [x] 在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 与 `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 新增 red tests，锁定 “调用前已经 forced 在 backend A 时，`SetActiveBackend(B)` 若在 hook-driven late failure 中失败，不能把 A 静默打成 scalar fallback”
+- [x] 用 fresh release `TTestCase_DispatchAPI,TTestCase_PublicAbi` 先拿 red，确认问题不是 Phase 52 的重复表述，而是 `SetActiveBackend(...)` wrapper 自己把 `TrySetActiveBackend(...)` 已恢复好的状态又覆盖成了 scalar forced-selection
+- [x] 确认 `src/fafafa.core.simd.dispatch.pas` 的根因位于 `SetActiveBackend(...)` 对所有 `TrySetActiveBackend(...)` 失败一律执行 `TrySetActiveBackend(sbScalar)`，没有区分 “调用前就不可选” 与 “late failure 才失败”
+- [x] 将实现收紧为：`SetActiveBackend(...)` 仅在 requested backend 在调用开始前就不可选时才退到 scalar；若 backend 在尝试期间经历 hook-driven late failure，则保留 `TrySetActiveBackend(...)` 已恢复好的 current state
+- [x] 用 fresh release `TTestCase_DispatchAPI,TTestCase_PublicAbi`、fresh `check`、fresh `gate` 复验
+- **Status:** complete
+
+- 2026-03-22 最新 SetActiveBackend late-failure closeout 证据：
+  - red: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-setactive-late-failure-red-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi` -> FAIL（命中 `SetActiveBackend should preserve the previous forced backend when a late hook-driven failure rejects the requested backend` 与 `Public API active backend should preserve the previous forced backend when SetActiveBackend hits a late hook-driven failure`，`expected: <5> but was: <0>`）
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-setactive-late-failure-green-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi` -> PASS，`[LEAK] OK`
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-setactive-late-failure-check-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh check` -> PASS
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-setactive-late-failure-gate-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh gate` -> PASS，最终 `[GATE] OK`，run-all summary 时间 `2026-03-22 23:38:36`
+- 这轮根因位于 `SetActiveBackend(...)` wrapper 的 failure classification，而不是 `TrySetActiveBackend(...)` 的 rollback 本体：
+  - Phase 52 修复后，`TrySetActiveBackend(...)` 在 late failure 仍失败时已经会恢复 pre-call forced backend
+  - 但旧 `SetActiveBackend(...)` 继续把所有失败都当成“requested backend 不可用”，无条件再执行一次 `TrySetActiveBackend(sbScalar)`
+  - 结果是 wrapper 把 `TrySetActiveBackend(...)` 已经恢复好的 previous forced backend 又静默打成了 scalar forced-selection；由于 `SetActiveBackend(...)` 没有返回值，这条漂移更难被调用方察觉
+- 最小修复继续遵守“late failure 不得破坏调用前控制态，但 precondition unavailable 仍保持 scalar fallback”原则：
+  - 新增内部 helper 区分 requested backend 是否真正进入了 selection attempt
+  - `SetActiveBackend(...)` 只对 `aAttemptedSelection=False` 的 precondition-unavailable 路径保留 scalar fallback
+  - 对 `aAttemptedSelection=True` 但最终失败的 late-failure 路径，则保留 `TrySetActiveBackend(...)` 已恢复好的 current state
+- 下一轮连续计划优先级更新为：
+  1. 继续深审 `SetVectorAsmEnabled(True->False->True)`、`ResetToAutomaticBackend`、以及 `RegisterBackend(...)` 在 pre-existing forced state 下的嵌套 rebuild/toggle 路径，优先找下一条“wrapper/helper 继续覆盖底层已恢复状态”的真实问题
+  2. 继续核对 public ABI text getter/cache、registered/current snapshot adapter，以及 external-consumer helper 在 forced/automatic 多次切换后的持续一致性
+  3. 若没有 fresh red，再回到 same-process concurrent / toggle / re-register 相邻路径，继续做证据驱动排查
+
+## 5-Question Reboot Check (Phase 53 Update)
+| Question | Answer |
+|----------|--------|
+| Where am I? | Linux fresh `TTestCase_DispatchAPI,TTestCase_PublicAbi`、fresh `check`、fresh `gate` 都已重新通过；本轮最新又收敛了一条 SetActiveBackend wrapper drift：旧 `SetActiveBackend(...)` 在 late failure 后会把 `TrySetActiveBackend(...)` 已恢复好的 previous forced backend 又静默打成 scalar。 |
+| Where am I going? | 下一轮继续从实现层深审，优先找下一条 `SetVectorAsmEnabled` / `ResetToAutomaticBackend` / `RegisterBackend` / helper wrapper 在 pre-existing forced state、rebuild-hook 嵌套、或 observation-point 漂移上的真实持续一致性问题。 |
+| What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
+| What have I learned? | 这轮证明，只修底层 `TrySetActiveBackend(...)` 还不够。如果 wrapper 继续把所有失败粗暴归类成“直接退 scalar”，它仍然会覆盖掉底层已经恢复好的 caller state。 |
+| What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 SetActiveBackend late-failure drift：wrapper 现在不会再在 hook-driven late failure 后把 previous forced backend 静默降成 scalar fallback。 |
