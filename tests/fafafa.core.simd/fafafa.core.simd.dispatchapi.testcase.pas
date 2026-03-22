@@ -37,6 +37,7 @@ type
     procedure Test_TrySetActiveBackend_Fails_When_HookReRegister_ReSelects_Away;
     procedure Test_TrySetActiveBackend_FailedHookMutation_DoesNotLeave_LingeringForcedSelection;
     procedure Test_TrySetActiveBackend_FailedHookMutation_Restores_AutomaticBackend;
+    procedure Test_TrySetActiveBackend_FailedHookMutation_Restores_PreviousForcedBackend;
     procedure Test_TrySetActiveBackend_RollbackRestore_ReSelects_RequestedBackend_Before_Return;
     procedure Test_TrySetActiveBackend_RollbackRestore_Success_Preserves_ForcedSelection;
     procedure Test_SetActiveBackend_Unavailable_FallsBackToScalar;
@@ -507,6 +508,93 @@ begin
       ResetToAutomaticBackend;
     end;
   finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_TrySetActiveBackend_FailedHookMutation_Restores_PreviousForcedBackend;
+var
+  LDispatchable: TSimdBackendArray;
+  LAutomaticBackend: TSimdBackend;
+  LPreviousForcedBackend: TSimdBackend;
+  LRequestedBackend: TSimdBackend;
+  LRequestedOriginalTable: TSimdDispatchTable;
+  LOldVectorAsm: Boolean;
+  LRequestedTableCaptured: Boolean;
+  LSelectedCount: Integer;
+  LIndex: Integer;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  LRequestedTableCaptured := False;
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LDispatchable := GetDispatchableBackendList;
+    if Length(LDispatchable) < 3 then
+      Exit;
+
+    LAutomaticBackend := GetBestDispatchableBackend;
+    LPreviousForcedBackend := sbScalar;
+    LRequestedBackend := sbScalar;
+    LSelectedCount := 0;
+    for LIndex := 0 to High(LDispatchable) do
+      if (LDispatchable[LIndex] <> LAutomaticBackend) and (LDispatchable[LIndex] <> sbScalar) then
+      begin
+        Inc(LSelectedCount);
+        if LSelectedCount = 1 then
+          LPreviousForcedBackend := LDispatchable[LIndex]
+        else
+        begin
+          LRequestedBackend := LDispatchable[LIndex];
+          Break;
+        end;
+      end;
+
+    if (LPreviousForcedBackend = sbScalar) or (LRequestedBackend = sbScalar) then
+      Exit;
+
+    AssertTrue('Previous forced backend should differ from automatic best backend in previous-forced rollback test',
+      LPreviousForcedBackend <> LAutomaticBackend);
+    AssertTrue('Previous forced backend setup should succeed before late-failure rollback test',
+      TrySetActiveBackend(LPreviousForcedBackend));
+    AssertEquals('Previous forced backend should be active before attempting the failing switch',
+      Ord(LPreviousForcedBackend), Ord(GetActiveBackend));
+
+    AssertTrue('Requested backend should be registered for previous-forced rollback test',
+      TryGetRegisteredBackendDispatchTable(LRequestedBackend, LRequestedOriginalTable));
+    LRequestedTableCaptured := True;
+    AssertTrue('Requested backend should start dispatchable before previous-forced rollback test',
+      IsBackendDispatchable(LRequestedBackend));
+
+    GDispatchHookDisableBackendOriginalTable := LRequestedOriginalTable;
+    GDispatchHookDisableBackendTarget := LRequestedBackend;
+    GDispatchHookDisableBackendEnabled := True;
+    GDispatchHookDisableBackendArmed := False;
+    GDispatchHookDisableBackendDone := False;
+    AddDispatchChangedHook(@DispatchHookDisableBackendOnce);
+    try
+      AssertFalse('TrySetActiveBackend should fail when hook-driven mutation makes the requested backend non-dispatchable after a different backend was already forced',
+        TrySetActiveBackend(LRequestedBackend));
+      AssertFalse('Hook-driven mutation should leave the requested backend non-dispatchable until the test restores its table',
+        IsBackendDispatchable(LRequestedBackend));
+      AssertEquals('A failed TrySetActiveBackend must restore the previously forced backend instead of reverting to automatic best backend',
+        Ord(LPreviousForcedBackend), Ord(GetActiveBackend));
+    finally
+      RemoveDispatchChangedHook(@DispatchHookDisableBackendOnce);
+      GDispatchHookDisableBackendEnabled := False;
+      GDispatchHookDisableBackendArmed := False;
+      GDispatchHookDisableBackendDone := False;
+    end;
+
+    RegisterBackend(LRequestedBackend, LRequestedOriginalTable);
+    AssertTrue('Requested backend should become dispatchable again after restoring its original table in previous-forced rollback test',
+      IsBackendDispatchable(LRequestedBackend));
+    AssertEquals('Restoring the requested backend table after a failed switch must keep the previous forced backend active',
+      Ord(LPreviousForcedBackend), Ord(GetActiveBackend));
+  finally
+    if LRequestedTableCaptured then
+      RegisterBackend(LRequestedBackend, LRequestedOriginalTable);
     SetVectorAsmEnabled(LOldVectorAsm);
     ResetToAutomaticBackend;
   end;

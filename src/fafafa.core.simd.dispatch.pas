@@ -1274,6 +1274,8 @@ end;
 function TrySetActiveBackend(backend: TSimdBackend): Boolean;
 var
   LDispatch: PSimdDispatchTable;
+  LPreviousBackendForced: Boolean;
+  LPreviousForcedBackend: TSimdBackend;
 begin
   EnterCriticalSection(g_VectorAsmToggleLock);
   try
@@ -1284,6 +1286,9 @@ begin
     // CPU/OS capability gate (independent from dispatch-table wiring gate).
     if not IsBackendAvailableOnCPU(backend) then
       Exit(False);
+
+    LPreviousBackendForced := g_BackendForced;
+    LPreviousForcedBackend := g_ForcedBackend;
 
     // Backend is valid, force it
     g_ForcedBackend := backend;
@@ -1322,6 +1327,19 @@ begin
         g_ForcedBackend := backend;
         g_BackendForced := True;
         WriteBarrier;
+      end
+      else if LPreviousBackendForced then
+      begin
+        // A failed switch must not destroy the caller's previously established
+        // forced-selection intent. Restore both the control-plane intent and
+        // the published dispatch snapshot to the pre-call forced backend.
+        g_ForcedBackend := LPreviousForcedBackend;
+        g_BackendForced := True;
+        WriteBarrier;
+        g_DispatchInitialized := False;
+        InterlockedExchange(g_DispatchState, 0);
+        atomic_thread_fence(mo_seq_cst);
+        InitializeDispatch;
       end;
     end;
   finally

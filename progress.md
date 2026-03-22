@@ -2104,3 +2104,49 @@
 | What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
 | What have I learned? | 这轮证明，`TrySetActiveBackend=True` 的合同不能只停在 return-time active backend 相等。只要 success path 没把 control-plane forced intent 一起保住，后续 unrelated `RegisterBackend(...)` / rebuild 一样会把 active/public ABI 漂回 automatic best backend。 |
 | What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 rollback-restore success forced-intent drift：`TrySetActiveBackend(...)` 现在在 rollback automatic reinit 已重新选回 requested backend 时，会同步恢复 forced-selection intent，不再在后续高优先级 backend 恢复后漂走。 |
+
+### Phase 52: failed late switch restores previous forced backend closeout
+- **Status:** complete
+- Actions taken:
+  - 继续沿 `TrySetActiveBackend(...)` late-failure rollback 路径深审后，先补一条新的 deterministic red，而不是直接改实现：
+    - 在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `Test_TrySetActiveBackend_FailedHookMutation_Restores_PreviousForcedBackend`
+    - 在 `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 新增 `Test_PublicApi_FailedHookMutation_Restores_PreviousForcedBackend`
+    - 两条测试都显式 `SetVectorAsmEnabled(True)`，先从 automatic best backend 起步，选择两个不同于 automatic best 的 non-scalar dispatchable backend，先 forced 到 `A`，再尝试切到 `B`
+    - 随后挂接一次性的 disable hook，在 `TrySetActiveBackend(B)` 的 dispatch-changed 回调里把 `B` 重注册成 `Available=False`
+    - 然后直接断言：这次切换必须返回 `False`，并且 `GetActiveBackend` / `GetSimdPublicApi.ActiveBackendId` 都必须恢复到调用前 already-forced 的 `A`，而不是漂回 automatic best backend
+  - fresh red 复验：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-previous-forced-rollback-red-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi`
+    - 失败点直接命中：
+      - `A failed TrySetActiveBackend must restore the previously forced backend instead of reverting to automatic best backend`，`expected: <5> but was: <6>`
+      - `Public API active backend must restore the previously forced backend instead of reverting to automatic best backend`，`expected: <5> but was: <6>`
+  - 根因确认后，做最小实现修复：
+    - Phase 49/50/51 已经让 failure rollback 会先清 forced、再跑 automatic `InitializeDispatch`，并保留 requested backend 在 return 前重新成功的可能性
+    - 但旧实现默认调用前就是 automatic mode，完全没有保存 pre-call forced context
+    - 这会让调用前已经 forced 在 backend A 的调用者，在失败切到 backend B 后被静默降级回 automatic best backend
+    - 现已把 `src/fafafa.core.simd.dispatch.pas` 收紧为：入口保存 `LPreviousBackendForced/LPreviousForcedBackend`；failure rollback 继续先做 automatic reinit；若 return-time final backend 仍不等于 requested 且调用前本来就是 forced mode，则恢复 pre-call forced state 并重新 `InitializeDispatch`
+  - fresh green / release 复验：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-previous-forced-rollback-green-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-previous-forced-rollback-check-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-previous-forced-rollback-gate-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 记录关键运行结果：
+    - fresh `TTestCase_DispatchAPI,TTestCase_PublicAbi` PASS，`[LEAK] OK`
+    - fresh `check` PASS
+    - fresh `gate` 最终 `[GATE] OK`
+    - run-all summary 时间：`2026-03-22 22:23:44`
+- Files created/modified:
+  - `src/fafafa.core.simd.dispatch.pas` (modified again)
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` (modified again)
+  - `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` (modified again)
+  - `task_plan.md` (modified)
+  - `findings.md` (modified)
+  - `progress.md` (modified)
+  - `workers/worker0.md` (modified)
+
+## 5-Question Reboot Check (Phase 52 Update)
+| Question | Answer |
+|----------|--------|
+| Where am I? | Linux fresh `TTestCase_DispatchAPI,TTestCase_PublicAbi`、fresh `check`、fresh `gate` 都已重新通过；本轮最新又收敛了一条 previous-forced rollback drift：旧 `TrySetActiveBackend(...)` 在调用前已经 forced 到 backend A 时，失败切到 backend B 仍会漂回 automatic best backend。 |
+| Where am I going? | 下一轮继续从实现层深审，优先找下一条 `TrySetActiveBackend/SetActiveBackend/ResetToAutomaticBackend/SetVectorAsmEnabled` 在 pre-existing forced state、rebuild-hook 嵌套、或 helper/cache 观察点上的真实持续一致性问题。 |
+| What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
+| What have I learned? | 这轮证明，“失败后回到 automatic”只适用于调用前原本就在 automatic mode 的调用者。控制面一旦已经有了 forced backend，late-failure rollback 也必须恢复调用前状态，否则 API 会把既有用户意图静默抹掉。 |
+| What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 previous-forced rollback drift：`TrySetActiveBackend(...)` 现在会在 late failure 仍失败时恢复调用前 forced backend，不再一律漂回 automatic best backend。 |
