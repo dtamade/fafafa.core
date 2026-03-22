@@ -1310,6 +1310,9 @@ begin
       InterlockedExchange(g_DispatchState, 0);
       atomic_thread_fence(mo_seq_cst);
       InitializeDispatch;
+      ReadBarrier;
+      LDispatch := GetCurrentPublishedDispatchTable;
+      Result := (LDispatch <> nil) and (LDispatch^.Backend = backend);
     end;
   finally
     LeaveCriticalSection(g_VectorAsmToggleLock);

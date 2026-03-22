@@ -37,6 +37,7 @@ type
     procedure Test_TrySetActiveBackend_Fails_When_HookReRegister_ReSelects_Away;
     procedure Test_TrySetActiveBackend_FailedHookMutation_DoesNotLeave_LingeringForcedSelection;
     procedure Test_TrySetActiveBackend_FailedHookMutation_Restores_AutomaticBackend;
+    procedure Test_TrySetActiveBackend_RollbackRestore_ReSelects_RequestedBackend_Before_Return;
     procedure Test_SetActiveBackend_Unavailable_FallsBackToScalar;
     procedure Test_DispatchChangedHooks_MultiSubscriber_Dedup_And_Remove;
     procedure Test_BackendInfoAvailableFalse_IsNotSelectable;
@@ -129,6 +130,10 @@ var
   GDispatchHookDisableBackendDone: Boolean = False;
   GDispatchHookDisableBackendTarget: TSimdBackend = sbScalar;
   GDispatchHookDisableBackendOriginalTable: TSimdDispatchTable;
+  GDispatchHookRestoreBackendEnabled: Boolean = False;
+  GDispatchHookRestoreBackendStage: Integer = 0;
+  GDispatchHookRestoreBackendTarget: TSimdBackend = sbScalar;
+  GDispatchHookRestoreBackendOriginalTable: TSimdDispatchTable;
 
 procedure DispatchHookProbeA;
 begin
@@ -160,6 +165,49 @@ begin
   LModifiedTable := GDispatchHookDisableBackendOriginalTable;
   LModifiedTable.BackendInfo.Available := False;
   RegisterBackend(GDispatchHookDisableBackendTarget, LModifiedTable);
+end;
+
+procedure DispatchHookDisableThenRestoreBackendOnRollback;
+var
+  LModifiedTable: TSimdDispatchTable;
+begin
+  if not GDispatchHookRestoreBackendEnabled then
+    Exit;
+
+  case GDispatchHookRestoreBackendStage of
+    0:
+      begin
+        // Immediate callback on AddDispatchChangedHook arms the synthetic sequence.
+        GDispatchHookRestoreBackendStage := 1;
+        Exit;
+      end;
+    1:
+      begin
+        // First real dispatch-change callback: make requested backend unavailable
+        // so the forced-selection attempt fails.
+        GDispatchHookRestoreBackendStage := 2;
+        LModifiedTable := GDispatchHookRestoreBackendOriginalTable;
+        LModifiedTable.BackendInfo.Available := False;
+        RegisterBackend(GDispatchHookRestoreBackendTarget, LModifiedTable);
+        Exit;
+      end;
+    2:
+      begin
+        // Nested forced-fallback reinitialize callback triggered by the disable
+        // RegisterBackend. Ignore it and wait for the failure-rollback callback.
+        GDispatchHookRestoreBackendStage := 3;
+        Exit;
+      end;
+    3:
+      begin
+        // Failure rollback has already cleared forced mode and re-entered
+        // automatic selection. Restore the requested backend before the API
+        // returns so return-value and return-time state must agree.
+        GDispatchHookRestoreBackendStage := 4;
+        RegisterBackend(GDispatchHookRestoreBackendTarget, GDispatchHookRestoreBackendOriginalTable);
+        Exit;
+      end;
+  end;
 end;
 
 { TTestCase_DispatchAPI }
@@ -395,6 +443,52 @@ begin
       GDispatchHookDisableBackendEnabled := False;
       GDispatchHookDisableBackendArmed := False;
       GDispatchHookDisableBackendDone := False;
+      RegisterBackend(LRequestedBackend, LOriginalTable);
+      ResetToAutomaticBackend;
+    end;
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_TrySetActiveBackend_RollbackRestore_ReSelects_RequestedBackend_Before_Return;
+var
+  LRequestedBackend: TSimdBackend;
+  LOriginalTable: TSimdDispatchTable;
+  LOldVectorAsm: Boolean;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LRequestedBackend := GetActiveBackend;
+    if LRequestedBackend = sbScalar then
+      Exit;
+
+    AssertEquals('Automatic selection should start from best dispatchable backend before rollback-restore consistency test',
+      Ord(LRequestedBackend), Ord(GetBestDispatchableBackend));
+    AssertTrue('Requested backend should be registered for rollback-restore consistency test',
+      TryGetRegisteredBackendDispatchTable(LRequestedBackend, LOriginalTable));
+    AssertTrue('Requested backend should start dispatchable before rollback-restore consistency test',
+      IsBackendDispatchable(LRequestedBackend));
+
+    GDispatchHookRestoreBackendOriginalTable := LOriginalTable;
+    GDispatchHookRestoreBackendTarget := LRequestedBackend;
+    GDispatchHookRestoreBackendEnabled := True;
+    GDispatchHookRestoreBackendStage := 0;
+    AddDispatchChangedHook(@DispatchHookDisableThenRestoreBackendOnRollback);
+    try
+      AssertTrue('TrySetActiveBackend should report success when rollback-time restore makes the requested backend active again before return',
+        TrySetActiveBackend(LRequestedBackend));
+      AssertEquals('Return-time active backend should stay on the requested backend after rollback-time restore',
+        Ord(LRequestedBackend), Ord(GetActiveBackend));
+      AssertEquals('Synthetic rollback-restore hook should complete all expected stages',
+        4, GDispatchHookRestoreBackendStage);
+    finally
+      RemoveDispatchChangedHook(@DispatchHookDisableThenRestoreBackendOnRollback);
+      GDispatchHookRestoreBackendEnabled := False;
+      GDispatchHookRestoreBackendStage := 0;
       RegisterBackend(LRequestedBackend, LOriginalTable);
       ResetToAutomaticBackend;
     end;

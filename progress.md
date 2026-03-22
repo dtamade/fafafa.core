@@ -2011,11 +2011,49 @@
   - `progress.md` (modified)
   - `workers/worker0.md` (modified)
 
-## 5-Question Reboot Check (Phase 49 Update)
+### Phase 50: rollback-restore return-value recomputation closeout
+- **Status:** complete
+- Actions taken:
+  - 继续沿 `TrySetActiveBackend(...)` failure rollback 路径深审后，先补一条新的 deterministic red，而不是直接改实现：
+    - 在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `Test_TrySetActiveBackend_RollbackRestore_ReSelects_RequestedBackend_Before_Return`
+    - 在 `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 新增 `Test_PublicApi_RollbackRestore_ReSelects_RequestedBackend_Before_Return`
+    - 两条测试都显式 `SetVectorAsmEnabled(True)`，从 automatic best backend 起步，并挂接一个四阶段 synthetic hook：arm -> 先把 requested backend 重注册成 `Available=False` -> 忽略 nested forced-fallback callback -> 在 failure rollback 的 automatic callback 里恢复 requested backend 原表
+    - 然后直接断言：如果 return-time active/public ABI 已重新回到 requested backend，`TrySetActiveBackend(...)` 也必须报告 success
+  - fresh red 复验：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-rollback-restore-result-red-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi`
+    - 失败点直接命中：
+      - `TrySetActiveBackend should report success when rollback-time restore makes the requested backend active again before return`
+      - `TrySetActiveBackend should report success when rollback-time restore makes the requested backend active again before public ABI observation`
+  - 根因确认后，做最小实现修复：
+    - Phase 49 已经让 failure rollback 会在 return 前重新跑一次 automatic `InitializeDispatch`
+    - 但旧实现仍沿用第一次 forced-attempt `InitializeDispatch` 之后算出的 `Result`
+    - 这会让 return-time final active backend 已恢复 requested backend 时，API 返回值仍停在 stale `False`
+    - 现已把 `src/fafafa.core.simd.dispatch.pas` 收紧为：failure rollback 的 `InitializeDispatch` 之后重新读取 published current dispatch，并用 final backend 是否等于 requested backend 重算 `Result`
+  - fresh green / release 复验：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-rollback-restore-result-green-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-rollback-restore-result-direct-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-rollback-restore-result-check-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-rollback-restore-result-gate-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 记录关键运行结果：
+    - fresh `TTestCase_DispatchAPI,TTestCase_PublicAbi` PASS，`[LEAK] OK`
+    - fresh `TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent` PASS，`[LEAK] OK`
+    - fresh `check` PASS
+    - fresh `gate` 最终 `[GATE] OK`
+    - run-all summary 时间：`2026-03-22 19:44:49`
+- Files created/modified:
+  - `src/fafafa.core.simd.dispatch.pas` (modified again)
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` (modified again)
+  - `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` (modified again)
+  - `task_plan.md` (modified)
+  - `findings.md` (modified)
+  - `progress.md` (modified)
+  - `workers/worker0.md` (modified)
+
+## 5-Question Reboot Check (Phase 50 Update)
 | Question | Answer |
 |----------|--------|
-| Where am I? | Linux fresh `TTestCase_DispatchAPI,TTestCase_PublicAbi`、fresh `TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent`、fresh `check`、fresh `gate` 都已重新通过；本轮最新又收敛了一条 return-time stale active-state bug：failed `TrySetActiveBackend(...)` 之前会把 active/public ABI 留在 transient scalar fallback。 |
-| Where am I going? | 下一轮继续从实现层深审，优先找下一条 `GetActiveBackend` / `CloneDispatchTable` / rebuild-hook 嵌套路径上的真实 postcondition drift，尤其是“API 已返回失败且控制态已回滚，但 return-time observation point 仍残留旧 snapshot”的问题。 |
+| Where am I? | Linux fresh `TTestCase_DispatchAPI,TTestCase_PublicAbi`、fresh `TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent`、fresh `check`、fresh `gate` 都已重新通过；本轮最新又收敛了一条 return-value drift：rollback automatic restore 已在 return 前重新选回 requested backend 时，旧 `TrySetActiveBackend(...)` 仍会返回 `False`。 |
+| Where am I going? | 下一轮继续从实现层深审，优先找下一条 `GetActiveBackend` / `CloneDispatchTable` / rebuild-hook 嵌套路径上的真实 postcondition drift，尤其是“final state 已收口，但 helper / return value / cache 仍残留旧 observation point”的问题。 |
 | What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
-| What have I learned? | 这轮证明，只把 delayed lingering intent 清掉还不够。failure path 如果不把 current dispatch/public ABI 也重新收口到 automatic selection，调用虽然已经返回 `False`，调用方仍会立刻观察到 stale scalar fallback。 |
-| What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 failed forced-selection immediate stale-active bug：失败的 `TrySetActiveBackend(...)` 现在会立即回到 automatic best backend，而不是停在 transient scalar fallback。 |
+| What have I learned? | 这轮证明，final state 收口正确也不代表 API 合同已经闭环。只要 helper/返回值还停在 earlier observation point，nested rollback/reinit 一样会让“状态成功、返回失败”这种 postcondition drift 暴露给调用方。 |
+| What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 rollback-restore return-value drift：`TrySetActiveBackend(...)` 现在会按 return-time final backend 重算 success，不再在 automatic rollback 已重新选回 requested backend 时误报失败。 |

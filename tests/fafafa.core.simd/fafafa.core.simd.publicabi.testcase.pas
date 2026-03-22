@@ -42,6 +42,7 @@ type
     procedure Test_PublicApi_ActiveBackendId_Tracks_FinalState_When_HookReRegister_Overrides_ForcedSelection;
     procedure Test_PublicApi_FailedHookMutation_DoesNotRevive_PreviouslyRequestedBackend_AfterRestore;
     procedure Test_PublicApi_FailedHookMutation_Restores_AutomaticBackend_Immediately;
+    procedure Test_PublicApi_RollbackRestore_ReSelects_RequestedBackend_Before_Return;
     procedure Test_PublicApi_Refreshes_WhenVectorAsmDisabled_ReSelects_Away_From_ScalarBacked_CurrentBackend;
     procedure Test_PublicApi_DataPlane_Parity;
   end;
@@ -54,6 +55,10 @@ var
   GPublicAbiHookDisableBackendDone: Boolean = False;
   GPublicAbiHookDisableBackendTarget: TSimdBackend = sbScalar;
   GPublicAbiHookDisableBackendOriginalTable: TSimdDispatchTable;
+  GPublicAbiHookRestoreBackendEnabled: Boolean = False;
+  GPublicAbiHookRestoreBackendStage: Integer = 0;
+  GPublicAbiHookRestoreBackendTarget: TSimdBackend = sbScalar;
+  GPublicAbiHookRestoreBackendOriginalTable: TSimdDispatchTable;
 
 procedure PublicAbiHookDisableBackendOnce;
 var
@@ -75,6 +80,41 @@ begin
   LModifiedTable := GPublicAbiHookDisableBackendOriginalTable;
   LModifiedTable.BackendInfo.Available := False;
   RegisterBackend(GPublicAbiHookDisableBackendTarget, LModifiedTable);
+end;
+
+procedure PublicAbiHookDisableThenRestoreBackendOnRollback;
+var
+  LModifiedTable: TSimdDispatchTable;
+begin
+  if not GPublicAbiHookRestoreBackendEnabled then
+    Exit;
+
+  case GPublicAbiHookRestoreBackendStage of
+    0:
+      begin
+        GPublicAbiHookRestoreBackendStage := 1;
+        Exit;
+      end;
+    1:
+      begin
+        GPublicAbiHookRestoreBackendStage := 2;
+        LModifiedTable := GPublicAbiHookRestoreBackendOriginalTable;
+        LModifiedTable.BackendInfo.Available := False;
+        RegisterBackend(GPublicAbiHookRestoreBackendTarget, LModifiedTable);
+        Exit;
+      end;
+    2:
+      begin
+        GPublicAbiHookRestoreBackendStage := 3;
+        Exit;
+      end;
+    3:
+      begin
+        GPublicAbiHookRestoreBackendStage := 4;
+        RegisterBackend(GPublicAbiHookRestoreBackendTarget, GPublicAbiHookRestoreBackendOriginalTable);
+        Exit;
+      end;
+  end;
 end;
 
 function RestoreOriginalActiveBackend(aOriginalBackend: TSimdBackend): Boolean;
@@ -1338,6 +1378,59 @@ begin
       if GetCurrentBackend <> LAutomaticBackend then
         AssertTrue('Restoring original automatic backend after public ABI failed-hook restore test should succeed',
           RestoreOriginalActiveBackend(LAutomaticBackend));
+    end;
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_PublicAbi.Test_PublicApi_RollbackRestore_ReSelects_RequestedBackend_Before_Return;
+var
+  LApi: PFafafaSimdPublicApi;
+  LRequestedBackend: TSimdBackend;
+  LOriginalTable: TSimdDispatchTable;
+  LOldVectorAsm: Boolean;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LRequestedBackend := GetCurrentBackend;
+    if LRequestedBackend = sbScalar then
+      Exit;
+
+    AssertEquals('Automatic selection should start from best dispatchable backend before public ABI rollback-restore consistency test',
+      Ord(LRequestedBackend), Ord(GetBestDispatchableBackend));
+    AssertTrue('Requested backend should be registered for public ABI rollback-restore consistency test',
+      TryGetRegisteredBackendDispatchTable(LRequestedBackend, LOriginalTable));
+    AssertTrue('Requested backend should start dispatchable before public ABI rollback-restore consistency test',
+      IsBackendDispatchable(LRequestedBackend));
+
+    GPublicAbiHookRestoreBackendOriginalTable := LOriginalTable;
+    GPublicAbiHookRestoreBackendTarget := LRequestedBackend;
+    GPublicAbiHookRestoreBackendEnabled := True;
+    GPublicAbiHookRestoreBackendStage := 0;
+    AddDispatchChangedHook(@PublicAbiHookDisableThenRestoreBackendOnRollback);
+    try
+      AssertTrue('TrySetActiveBackend should report success when rollback-time restore makes the requested backend active again before public ABI observation',
+        TrySetActiveBackend(LRequestedBackend));
+      LApi := GetSimdPublicApi;
+      AssertNotNull('Public API table should remain available after rollback-time restore consistency test', LApi);
+      AssertEquals('Public API active backend id should match the requested backend when rollback-time restore re-selects it before return',
+        Ord(LRequestedBackend), Integer(LApi^.ActiveBackendId));
+      AssertEquals('Public API active backend should keep tracking the actual current backend after rollback-time restore',
+        Ord(GetCurrentBackend), Integer(LApi^.ActiveBackendId));
+      AssertEquals('Synthetic public ABI rollback-restore hook should complete all expected stages',
+        4, GPublicAbiHookRestoreBackendStage);
+    finally
+      RemoveDispatchChangedHook(@PublicAbiHookDisableThenRestoreBackendOnRollback);
+      GPublicAbiHookRestoreBackendEnabled := False;
+      GPublicAbiHookRestoreBackendStage := 0;
+      RegisterBackend(LRequestedBackend, LOriginalTable);
+      if GetCurrentBackend <> LRequestedBackend then
+        AssertTrue('Restoring original requested backend after public ABI rollback-restore consistency test should succeed',
+          RestoreOriginalActiveBackend(LRequestedBackend));
     end;
   finally
     SetVectorAsmEnabled(LOldVectorAsm);

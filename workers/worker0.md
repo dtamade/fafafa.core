@@ -7,9 +7,9 @@
 - Worktree: `/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit`
 - Base commit: `c1bf1d66b2e2990e10a8fabe53c2043852c865dc`
 - Current focus:
-  - 继续 Phase 49 之后的 SIMD 实现层深审
+  - 继续 Phase 50 之后的 SIMD 实现层深审
   - 优先找下一条 `GetActiveBackend` / `CloneDispatchTable` / rebuild-hook 嵌套路径上的真实 postcondition drift
-  - 重点关注 failure/rollback 已发生但 return-time observation point 仍残留 stale snapshot 的路径，以及 remaining `toggle/re-register` 相邻路径
+  - 重点关注 final state 已收口但 helper / return value / cache 仍残留旧 observation point 的路径，以及 remaining `toggle/re-register` 相邻路径
 - Source of truth:
   - `task_plan.md`
   - `findings.md`
@@ -19,15 +19,15 @@
   - 验证继续采用 release 策略
   - 证据驱动：先补 fresh red，再做最小修复，再跑 fresh green / check / gate
 - Fresh verification:
-  - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-failed-hook-auto-restore-gate-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-rollback-restore-result-gate-20260322-rerun bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：`[GATE] OK`
-  - 时间：`2026-03-22 18:19:32`
+  - 时间：`2026-03-22 20:20:14`
 - Risks / blockers:
   - 当前宿主机没有 native `avx512*` 执行条件，所以 AVX-512 只有 opt-in build/registration/public ABI 证据，没有 native execution 证据
   - `arm64` / `riscv64` asm-ready 主机证据仍待补
   - Windows `1/7..7/7` native evidence 仍需单独补齐
   - `TTestCase_SimdConcurrentRegistration` 会永久注册 previously-unregistered backend，属于 stateful suite；后续若做 same-process 组合并发验证，需要显式考虑顺序污染
 - Next step:
-  - 继续深审 `GetActiveBackend`、`CloneDispatchTable`、public ABI text cache、以及 rebuild-hook 嵌套路径里是否还有 “控制态已回滚但 return-time current/public 视图仍残留旧 snapshot” 的合同缺口
+  - 继续深审 `GetActiveBackend`、`CloneDispatchTable`、public ABI text cache、以及 rebuild-hook 嵌套路径里是否还有 “final state 已恢复但 helper / return / cache 仍残留旧 snapshot” 的合同缺口
   - 找到 fresh red 后在本 worker 的 worktree 内闭环修复，并继续保持 release `check/gate` 复验
 - Last updated: `2026-03-22`
