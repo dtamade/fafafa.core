@@ -35,6 +35,8 @@ type
     procedure Test_TrySetActiveBackend_Scalar_ReturnsTrue;
     procedure Test_TrySetActiveBackend_Unavailable_NoChange;
     procedure Test_TrySetActiveBackend_Fails_When_HookReRegister_ReSelects_Away;
+    procedure Test_TrySetActiveBackend_FailedHookMutation_DoesNotLeave_LingeringForcedSelection;
+    procedure Test_TrySetActiveBackend_FailedHookMutation_Restores_AutomaticBackend;
     procedure Test_SetActiveBackend_Unavailable_FallsBackToScalar;
     procedure Test_DispatchChangedHooks_MultiSubscriber_Dedup_And_Remove;
     procedure Test_BackendInfoAvailableFalse_IsNotSelectable;
@@ -258,8 +260,136 @@ begin
         IsBackendDispatchable(LRequestedBackend));
       AssertTrue('Final active backend should move away from the requested backend after hook-driven re-selection',
         GetActiveBackend <> LRequestedBackend);
-      AssertEquals('Forced selection should fall back to Scalar when the requested backend becomes non-dispatchable before the call completes',
-        Ord(sbScalar), Ord(GetActiveBackend));
+      AssertEquals('Failed forced selection should return to the best remaining automatic backend when the requested backend becomes non-dispatchable before the call completes',
+        Ord(GetBestDispatchableBackend), Ord(GetActiveBackend));
+    finally
+      RemoveDispatchChangedHook(@DispatchHookDisableBackendOnce);
+      GDispatchHookDisableBackendEnabled := False;
+      GDispatchHookDisableBackendArmed := False;
+      GDispatchHookDisableBackendDone := False;
+      RegisterBackend(LRequestedBackend, LOriginalTable);
+      ResetToAutomaticBackend;
+    end;
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_TrySetActiveBackend_FailedHookMutation_DoesNotLeave_LingeringForcedSelection;
+var
+  LAutomaticBackend: TSimdBackend;
+  LRequestedBackend: TSimdBackend;
+  LDispatchable: TSimdBackendArray;
+  LOriginalTable: TSimdDispatchTable;
+  LOldVectorAsm: Boolean;
+  LIndex: Integer;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LAutomaticBackend := GetActiveBackend;
+    LRequestedBackend := LAutomaticBackend;
+    LDispatchable := GetDispatchableBackendList;
+    for LIndex := 0 to High(LDispatchable) do
+      if LDispatchable[LIndex] <> LAutomaticBackend then
+      begin
+        LRequestedBackend := LDispatchable[LIndex];
+        Break;
+      end;
+
+    if LRequestedBackend = LAutomaticBackend then
+      Exit;
+
+    AssertTrue('Requested backend should be registered for lingering forced-selection test',
+      TryGetRegisteredBackendDispatchTable(LRequestedBackend, LOriginalTable));
+    AssertTrue('Requested backend should start dispatchable before hook-driven lingering-force test',
+      IsBackendDispatchable(LRequestedBackend));
+
+    GDispatchHookDisableBackendOriginalTable := LOriginalTable;
+    GDispatchHookDisableBackendTarget := LRequestedBackend;
+    GDispatchHookDisableBackendEnabled := True;
+    GDispatchHookDisableBackendArmed := False;
+    GDispatchHookDisableBackendDone := False;
+    AddDispatchChangedHook(@DispatchHookDisableBackendOnce);
+    try
+      AssertFalse('TrySetActiveBackend should fail when hook-driven re-register makes the requested backend non-dispatchable before completion',
+        TrySetActiveBackend(LRequestedBackend));
+      AssertEquals('Failed forced selection should immediately return to automatic best backend after rollback',
+        Ord(LAutomaticBackend), Ord(GetActiveBackend));
+    finally
+      RemoveDispatchChangedHook(@DispatchHookDisableBackendOnce);
+      GDispatchHookDisableBackendEnabled := False;
+      GDispatchHookDisableBackendArmed := False;
+      GDispatchHookDisableBackendDone := False;
+    end;
+
+    RegisterBackend(LRequestedBackend, LOriginalTable);
+    AssertTrue('Requested backend should become dispatchable again after restoring its original table',
+      IsBackendDispatchable(LRequestedBackend));
+    AssertEquals('A failed TrySetActiveBackend must not leave lingering forced state that revives the requested backend on later re-register',
+      Ord(LAutomaticBackend), Ord(GetActiveBackend));
+    AssertTrue('Current backend should stay away from the previously failed requested backend after restore',
+      GetActiveBackend <> LRequestedBackend);
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_TrySetActiveBackend_FailedHookMutation_Restores_AutomaticBackend;
+var
+  LAutomaticBackend: TSimdBackend;
+  LRequestedBackend: TSimdBackend;
+  LDispatchable: TSimdBackendArray;
+  LOriginalTable: TSimdDispatchTable;
+  LOldVectorAsm: Boolean;
+  LIndex: Integer;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LAutomaticBackend := GetActiveBackend;
+    if LAutomaticBackend = sbScalar then
+      Exit;
+
+    AssertEquals('Automatic selection should start from best dispatchable backend before failed hook-mutation restore test',
+      Ord(LAutomaticBackend), Ord(GetBestDispatchableBackend));
+
+    LRequestedBackend := sbScalar;
+    LDispatchable := GetDispatchableBackendList;
+    for LIndex := 0 to High(LDispatchable) do
+      if (LDispatchable[LIndex] <> LAutomaticBackend) and (LDispatchable[LIndex] <> sbScalar) then
+      begin
+        LRequestedBackend := LDispatchable[LIndex];
+        Break;
+      end;
+
+    if LRequestedBackend = sbScalar then
+      Exit;
+
+    AssertTrue('Requested backend should be registered for failed-hook automatic-restore test',
+      TryGetRegisteredBackendDispatchTable(LRequestedBackend, LOriginalTable));
+    AssertTrue('Requested backend should start dispatchable before failed-hook automatic-restore test',
+      IsBackendDispatchable(LRequestedBackend));
+
+    GDispatchHookDisableBackendOriginalTable := LOriginalTable;
+    GDispatchHookDisableBackendTarget := LRequestedBackend;
+    GDispatchHookDisableBackendEnabled := True;
+    GDispatchHookDisableBackendArmed := False;
+    GDispatchHookDisableBackendDone := False;
+    AddDispatchChangedHook(@DispatchHookDisableBackendOnce);
+    try
+      AssertFalse('TrySetActiveBackend should fail when hook-driven mutation makes the requested backend non-dispatchable before automatic restore',
+        TrySetActiveBackend(LRequestedBackend));
+      AssertFalse('Hook-driven mutation should leave the requested backend non-dispatchable until the test restores its table',
+        IsBackendDispatchable(LRequestedBackend));
+      AssertEquals('A failed TrySetActiveBackend should restore automatic best backend instead of leaving scalar forced fallback active',
+        Ord(LAutomaticBackend), Ord(GetActiveBackend));
+      AssertTrue('Failed hook-driven selection should not leave Scalar active when automatic mode has a better backend',
+        GetActiveBackend <> sbScalar);
     finally
       RemoveDispatchChangedHook(@DispatchHookDisableBackendOnce);
       GDispatchHookDisableBackendEnabled := False;

@@ -4,7 +4,7 @@
 审查 `fafafa.core.simd` 及其 `cpuinfo` 相关模块，找出可验证的问题并完成至少一轮根因修复，同时产出可连续执行的后续修复与审查计划。
 
 ## Current Phase
-Phase 46 complete; current active backend public ABI pod info now binds to a single current-dispatch snapshot and no longer exposes disabled-active or other mixed pod states during concurrent re-register
+Phase 49 complete; failed `TrySetActiveBackend(...)` calls now both roll back lingering forced-selection intent and immediately restore automatic best-backend selection instead of leaving active/public ABI stuck on transient scalar fallback
 
 ## Phases
 
@@ -653,3 +653,92 @@ Phase 46 complete; current active backend public ABI pod info now binds to a sin
 | What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
 | What have I learned? | 这轮证明，即使 Phase 45 已把 current dispatch/public API metadata 绑定到精确选中的 snapshot，current backend 的 public ABI pod getter 只要还把 registered/current 两份 observation point 拼在一起，仍会重新裂出 impossible combo。 |
 | What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 current active backend pod snapshot drift：active backend 的 `CapabilityBits/dispatchable/priority/active` 现在都从同一份 current dispatch snapshot 派生。 |
+
+### Phase 47: public ABI bound-table data-plane rebind contract closeout
+- [x] 在 `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 新增 `Test_PublicApi_Table_Rebinds_DataPlane_FunctionPointers_AfterBackendSwitch`，锁定 “当底层 dispatch slot 已实际切换时，fresh `GetSimdPublicApi` table 的对应 data-plane 函数指针也必须切换”
+- [x] 用 fresh release `TTestCase_PublicAbi` 先拿 red，确认问题不是测试口径过严，而是 public API table 真的只刷新了 metadata，没有刷新 data-plane 函数指针
+- [x] 确认 `src/fafafa.core.simd.public_abi.impl.inc` 的根因位于 `RebindSimdPublicApi` 虽然先缓存了 `LState^.MemEqualBound/...` 等 snapshot-bound backend 函数，但真正发布到 `TFafafaSimdPublicApi` 的仍统一是 `@PublicAbi*` wrapper
+- [x] 将 `RebindSimdPublicApi` 收紧为：在主力 64-bit 目标（`CPUX86_64/CPUAARCH64/CPURISCV64`）上直接发布 snapshot-bound backend entry points；其他目标继续保留现有 wrapper fallback
+- [x] 用 fresh release `TTestCase_PublicAbi`、fresh external `tests/fafafa.core.simd.publicabi/BuildOrTest.sh test`、fresh `check`、fresh `gate` 复验
+- **Status:** complete
+
+- 2026-03-22 最新 public ABI data-plane rebind closeout 证据：
+  - red: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-publicapi-bind-red2-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi` -> FAIL（命中 `Fresh public API table should publish rebound function pointer for MemEqual`）
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-publicapi-bind-green-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi` -> PASS，`[LEAK] OK`
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-publicapi-bind-external-20260322 bash tests/fafafa.core.simd.publicabi/BuildOrTest.sh test` -> PASS，`[TEST] OK`
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-publicapi-bind-check-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh check` -> PASS
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-publicapi-bind-gate-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh gate` -> PASS，最终 `[GATE] OK`，run-all summary 时间 `2026-03-22 14:07:47`
+- 这轮根因位于 public ABI data-plane 发布层，而不是 metadata getter：
+  - `RebindSimdPublicApi` 已经把当前 snapshot-bound backend 函数缓存到 `LState^.MemEqualBound/...`
+  - 但旧实现仍把 `TFafafaSimdPublicApi` 的 `MemEqual/MemFindByte/...` 统一写成全局 `@PublicAbi*` wrapper
+  - 结果是 backend 切换后 fresh table 的 `ActiveBackendId/ActiveFlags` 会刷新，但 data-plane 指针地址保持不变，违背了文档与设计里“绑定后直调 / 缓存 table 可作为 snapshot data-plane”合同
+- 最小修复继续遵守“table metadata 与 data-plane 指向同一份 snapshot-bound backend implementation”的原则：
+  - 主力 64-bit 平台直接发布该次 snapshot 的 backend 函数地址
+  - 只有其他目标继续保留现有 wrapper fallback，避免扩大 calling-convention 风险面
+- 下一轮连续计划优先级更新为：
+  1. 继续深审 `GetActiveBackend`、`CloneDispatchTable` 与 public ABI text cache 并发刷新路径，优先找下一条仍跨 observation point 取字段的真实 drift
+  2. 继续核对 external-consumer 侧还有没有“metadata 已刷新但 consumer-bound helper 仍未跟随”的 contract gap
+  3. 若继续碰到 speculative 并发/lifetime 怀疑点，仍坚持先拿 fresh red，再决定是否收口为真实问题
+
+### Phase 48: failed forced-selection lingering state rollback closeout
+- [x] 在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 与 `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 新增 red tests，锁定 “hook-driven `TrySetActiveBackend(...)` 失败后，不得留下 lingering forced-selection state 并在后续 `RegisterBackend(...)` 时悄悄复活 previously-requested backend”
+- [x] 用 fresh release `TTestCase_DispatchAPI,TTestCase_PublicAbi` 先拿 red，确认问题不是测试口径过严，而是 post-failure 的 `g_BackendForced/g_ForcedBackend` 真的会残留
+- [x] 确认 `src/fafafa.core.simd.dispatch.pas` 的根因位于 `TrySetActiveBackend(...)` 先写入 `g_ForcedBackend/g_BackendForced`，但后验最终态若发现 active backend 已偏离 requested，只返回 `False`，没有回滚 forced-selection state
+- [x] 将 `TrySetActiveBackend(...)` 收紧为：postcondition failure 时显式清理 `g_BackendForced`，并把 `g_ForcedBackend` 复位为 canonical `sbScalar`，避免后续 re-register/rebuild 误复活旧失败请求
+- [x] 用 fresh release `TTestCase_DispatchAPI,TTestCase_PublicAbi`、fresh `TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent`、fresh `check`、fresh `gate` 复验
+- **Status:** complete
+
+- 2026-03-22 最新 failed-forced-selection lingering-state closeout 证据：
+  - red: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-lingering-force-red-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi` -> FAIL（命中 `A failed TrySetActiveBackend must not leave lingering forced state that revives the requested backend on later re-register` 与 `Public API active backend should return to automatic selection instead of reviving the previously failed requested backend`）
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-lingering-force-green-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi` -> PASS，`[LEAK] OK`
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-lingering-force-direct-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent` -> PASS，`[LEAK] OK`
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-lingering-force-check-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh check` -> PASS
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-lingering-force-gate-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh gate` -> PASS，最终 `[GATE] OK`，run-all summary 时间 `2026-03-22 15:32:17`
+- 这轮根因位于 forced-selection 控制面自己的失败回滚，而不是 dispatch/public ABI reader：
+  - `TrySetActiveBackend(...)` 在进入重选前会先写下 requested backend 的 forced-selection intent
+  - Phase 32 只把 success 判定收紧为后验最终 active backend，但旧实现仍让失败调用留下了 `g_BackendForced=True`
+  - 于是只要后续有 `RegisterBackend(...)` / rebuild 重新让 requested backend 变回 dispatchable，旧失败请求就会在没有新 API 调用的情况下被悄悄复活
+- 最小修复继续遵守“返回 False 的控制面调用不得留下继续生效的隐藏意图”原则：
+  - failing `TrySetActiveBackend(...)` 现在会在持锁路径内立即回滚 forced-selection state
+  - 但这一步只先解决了 delayed revival；Phase 49 又继续确认，failure return 之后 current active/public ABI 仍停在 scalar fallback 也是另一条真实 stale-state bug
+  - Phase 49 完成后，failed call 的 immediate final state 也会重新回到 automatic selection，而不会再留下 transient scalar fallback
+- 下一轮连续计划优先级更新为：
+  1. 继续深审 `GetActiveBackend`、`CloneDispatchTable` 与 remaining control-plane postcondition 路径，优先找下一条“调用已报告失败，但隐藏控制态仍残留”的真实问题
+  2. 继续核对 `RegisterBackend(...)` / rebuild / hook 嵌套调用下，direct/public ABI/external-consumer 是否还有“最终态已收敛，但 side-effect state 没回滚”的合同缺口
+  3. 若没有 fresh red，再回到 `CloneDispatchTable`、public ABI text cache 与 external smoke 的 snapshot-source 边界继续做证据驱动排查
+
+### Phase 49: failed forced-selection immediate automatic-restore closeout
+- [x] 在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 与 `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 新增 red tests，锁定 “hook-driven `TrySetActiveBackend(...)` 失败后，不仅要回滚 forced intent，还必须立即恢复 automatic best backend，而不能把 active/public ABI 留在 transient scalar fallback”
+- [x] 用 fresh release `TTestCase_DispatchAPI,TTestCase_PublicAbi` 先拿 red，确认问题不是 lingering-force 的重复表述，而是 post-failure 的 current active/public ABI 确实还停在 stale scalar snapshot
+- [x] 确认 `src/fafafa.core.simd.dispatch.pas` 的根因位于 `TrySetActiveBackend(...)` failure path 之前只清理 `g_BackendForced/g_ForcedBackend`，却没有在同一持锁路径内重新跑 automatic selection
+- [x] 将 `TrySetActiveBackend(...)` 收紧为：postcondition failure 回滚 forced state 后，立刻清空初始化状态并重新 `InitializeDispatch`，让 failure return 的最终 active/public ABI 重新对齐 automatic best backend
+- [x] 同步把 `Phase 32`/`Phase 48` 中旧的 “失败后停在 Scalar” testcase 口径收敛为 “失败后回到 best dispatchable backend”
+- [x] 用 fresh release `TTestCase_DispatchAPI,TTestCase_PublicAbi`、fresh `TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent`、fresh `check`、fresh `gate` 复验
+- **Status:** complete
+
+- 2026-03-22 最新 failed-forced-selection immediate-restore closeout 证据：
+  - red: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-failed-hook-auto-restore-red-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi` -> FAIL（命中 `A failed TrySetActiveBackend should restore automatic best backend instead of leaving scalar forced fallback active` 与 `Public API active backend should immediately return to automatic best backend after failed hook-driven selection`）
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-failed-hook-auto-restore-green2-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi` -> PASS，`[LEAK] OK`
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-failed-hook-auto-restore-direct-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent` -> PASS，`[LEAK] OK`
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-failed-hook-auto-restore-check-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh check` -> PASS
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-failed-hook-auto-restore-gate-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh gate` -> PASS，最终 `[GATE] OK`，run-all summary 时间 `2026-03-22 18:19:32`
+- 这轮根因位于 failure rollback 后的 current active/public ABI finalization，而不是 lingering forced intent 本身：
+  - Phase 48 修复后，`TrySetActiveBackend(...)` 在 postcondition failure 时已经会清掉 `g_BackendForced/g_ForcedBackend`
+  - 但旧实现仍把当前 dispatch 停在 forced path 为这次失败请求临时选出的 `Scalar` fallback snapshot
+  - 结果是 API 已经返回 `False` 且 forced intent 已回滚，`GetActiveBackend` / `GetSimdPublicApi.ActiveBackendId` 却还停在 stale scalar，而不是 automatic best backend
+- 最小修复继续遵守“失败控制面调用的 return-time final state 必须与 automatic mode 一致”原则：
+  - rollback forced state 后立即重新清空 dispatch 初始化状态并执行一次 automatic `InitializeDispatch`
+  - 这样 failure return 的最终 active backend、public ABI active backend id、以及 direct/public fast path rebind 都会重新与 best dispatchable backend 对齐
+- 下一轮连续计划优先级更新为：
+  1. 继续深审 `GetActiveBackend`、`CloneDispatchTable` 与 remaining control-plane postcondition 路径，优先找下一条“failure/rollback 已发生，但 return-time observation point 仍残留 stale snapshot”的真实问题
+  2. 继续核对 `RegisterBackend(...)` / rebuild / hook 嵌套调用下，direct/public ABI/external-consumer 是否还有“current state 已应恢复 automatic，但 helper/cache 仍停在旧 snapshot”的合同缺口
+  3. 若没有 fresh red，再回到 `CloneDispatchTable`、public ABI text cache 与 external smoke 的 snapshot-source 边界继续做证据驱动排查
+
+## 5-Question Reboot Check (Phase 49 Update)
+| Question | Answer |
+|----------|--------|
+| Where am I? | Linux fresh `TTestCase_DispatchAPI,TTestCase_PublicAbi`、fresh `TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent`、fresh `check`、fresh `gate` 都已重新通过；本轮最新又收敛了一条 return-time stale active-state bug：失败的 `TrySetActiveBackend(...)` 之前会让 active/public ABI 停在 transient scalar fallback。 |
+| Where am I going? | 下一轮继续从实现层深审，优先找下一条 `GetActiveBackend` / `CloneDispatchTable` / rebuild-hook 嵌套路径上的真实 postcondition drift，尤其是“API 已返回失败且控制态已回滚，但 return-time observation point 仍残留旧 snapshot”的问题。 |
+| What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
+| What have I learned? | 这轮证明，只把 delayed lingering intent 清掉还不够。failure path 如果不把 current dispatch/public ABI 也重新收口到 automatic selection，调用虽然已经返回 `False`，调用方仍会立刻观察到 stale scalar fallback。 |
+| What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 failed forced-selection immediate stale-active bug：失败的 `TrySetActiveBackend(...)` 现在会立即回到 automatic best backend，而不是停在 transient scalar fallback。 |

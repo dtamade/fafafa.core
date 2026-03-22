@@ -1296,6 +1296,21 @@ begin
     ReadBarrier;
     LDispatch := GetCurrentPublishedDispatchTable;
     Result := (LDispatch <> nil) and (LDispatch^.Backend = backend);
+    if not Result then
+    begin
+      // A failed TrySetActiveBackend must not leave a stale forced-selection
+      // intent behind; otherwise later re-register/rebuild events can revive a
+      // backend that this call already reported as not successfully selected.
+      // It also must not leave the active dispatch stuck on the transient
+      // scalar fallback chosen during the failed forced-selection attempt.
+      g_BackendForced := False;
+      g_ForcedBackend := sbScalar;
+      WriteBarrier;
+      g_DispatchInitialized := False;
+      InterlockedExchange(g_DispatchState, 0);
+      atomic_thread_fence(mo_seq_cst);
+      InitializeDispatch;
+    end;
   finally
     LeaveCriticalSection(g_VectorAsmToggleLock);
   end;

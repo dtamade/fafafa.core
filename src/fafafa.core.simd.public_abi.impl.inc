@@ -441,6 +441,27 @@ begin
     LState^.Api.ToUpperAscii := @PublicAbiToUpperAscii;
     LState^.Api.MemReverse := @PublicAbiMemReverse;
     LState^.Api.MinMaxBytes := @PublicAbiMinMaxBytes;
+    {$IF Defined(CPUX86_64) or Defined(CPUAARCH64) or Defined(CPURISCV64)}
+    // On the primary 64-bit targets, default Pascal calling convention matches
+    // the public ABI well enough to publish the snapshot-bound entry points
+    // directly. This preserves the documented "cached table = bound data-plane"
+    // contract instead of funneling every call back through the global wrapper.
+    LState^.Api.MemEqual := TFafafaSimdMemEqualFunc(Pointer(LState^.MemEqualBound));
+    LState^.Api.MemFindByte := TFafafaSimdMemFindByteFunc(Pointer(LState^.MemFindByteBound));
+    LState^.Api.MemDiffRange := TFafafaSimdMemDiffRangeFunc(Pointer(LState^.MemDiffRangeBound));
+    LState^.Api.SumBytes := TFafafaSimdSumBytesFunc(Pointer(LState^.SumBytesBound));
+    LState^.Api.CountByte := TFafafaSimdCountByteFunc(Pointer(LState^.CountByteBound));
+    LState^.Api.BitsetPopCount := TFafafaSimdBitsetPopCountFunc(Pointer(LState^.BitsetPopCountBound));
+    LState^.Api.Utf8Validate := TFafafaSimdUtf8ValidateFunc(Pointer(LState^.Utf8ValidateBound));
+    LState^.Api.AsciiIEqual := TFafafaSimdAsciiIEqualFunc(Pointer(LState^.AsciiIEqualBound));
+    LState^.Api.BytesIndexOf := TFafafaSimdBytesIndexOfFunc(Pointer(LState^.BytesIndexOfBound));
+    LState^.Api.MemCopy := TFafafaSimdMemCopyFunc(Pointer(LState^.MemCopyBound));
+    LState^.Api.MemSet := TFafafaSimdMemSetFunc(Pointer(LState^.MemSetBound));
+    LState^.Api.ToLowerAscii := TFafafaSimdToLowerAsciiFunc(Pointer(LState^.ToLowerAsciiBound));
+    LState^.Api.ToUpperAscii := TFafafaSimdToUpperAsciiFunc(Pointer(LState^.ToUpperAsciiBound));
+    LState^.Api.MemReverse := TFafafaSimdMemReverseFunc(Pointer(LState^.MemReverseBound));
+    LState^.Api.MinMaxBytes := TFafafaSimdMinMaxBytesFunc(Pointer(LState^.MinMaxBytesBound));
+    {$ENDIF}
 
     atomic_store_ptr(g_SimdPublicApiStatePtr, Pointer(LState), mo_release);
   finally

@@ -19,6 +19,7 @@ type
     procedure Test_PublicApi_Table_IsBound_And_Metadata_IsPresent;
     procedure Test_PublicApi_CachedTable_RemainsCallable_Across_Rebind;
     procedure Test_PublicApi_Table_Refreshes_AfterBackendSwitch;
+    procedure Test_PublicApi_Table_Rebinds_DataPlane_FunctionPointers_AfterBackendSwitch;
     procedure Test_PublicApi_BackendPodInfo_Flags_AreSelfConsistent;
     procedure Test_PublicAbi_BackendText_Getters_Refresh_After_RegisterBackend;
     procedure Test_PublicAbi_BackendText_Getters_PreviousPointers_RemainValid_After_Refresh;
@@ -39,6 +40,8 @@ type
     procedure Test_PublicApi_BackendPodInfo_Refreshes_WhenBackendBecomesNonDispatchable;
     procedure Test_PublicApi_ActiveBackendId_Tracks_RegisterSlot_After_ReRegister;
     procedure Test_PublicApi_ActiveBackendId_Tracks_FinalState_When_HookReRegister_Overrides_ForcedSelection;
+    procedure Test_PublicApi_FailedHookMutation_DoesNotRevive_PreviouslyRequestedBackend_AfterRestore;
+    procedure Test_PublicApi_FailedHookMutation_Restores_AutomaticBackend_Immediately;
     procedure Test_PublicApi_Refreshes_WhenVectorAsmDisabled_ReSelects_Away_From_ScalarBacked_CurrentBackend;
     procedure Test_PublicApi_DataPlane_Parity;
   end;
@@ -81,6 +84,97 @@ begin
     Exit(True);
 
   Result := TrySetActiveBackend(aOriginalBackend);
+end;
+
+function GetPublicApiFuncPointer(const aApi: PFafafaSimdPublicApi; aSlotIndex: Integer): Pointer;
+begin
+  if aApi = nil then
+    Exit(nil);
+
+  case aSlotIndex of
+    0: Result := Pointer(aApi^.MemEqual);
+    1: Result := Pointer(aApi^.MemFindByte);
+    2: Result := Pointer(aApi^.MemDiffRange);
+    3: Result := Pointer(aApi^.SumBytes);
+    4: Result := Pointer(aApi^.CountByte);
+    5: Result := Pointer(aApi^.BitsetPopCount);
+    6: Result := Pointer(aApi^.Utf8Validate);
+    7: Result := Pointer(aApi^.AsciiIEqual);
+    8: Result := Pointer(aApi^.BytesIndexOf);
+    9: Result := Pointer(aApi^.MemCopy);
+    10: Result := Pointer(aApi^.MemSet);
+    11: Result := Pointer(aApi^.ToLowerAscii);
+    12: Result := Pointer(aApi^.ToUpperAscii);
+    13: Result := Pointer(aApi^.MemReverse);
+    14: Result := Pointer(aApi^.MinMaxBytes);
+  else
+    Result := nil;
+  end;
+end;
+
+function GetDispatchTableFuncPointer(const aDispatch: PSimdDispatchTable; aSlotIndex: Integer): Pointer;
+begin
+  if aDispatch = nil then
+    Exit(nil);
+
+  case aSlotIndex of
+    0: Result := Pointer(aDispatch^.MemEqual);
+    1: Result := Pointer(aDispatch^.MemFindByte);
+    2: Result := Pointer(aDispatch^.MemDiffRange);
+    3: Result := Pointer(aDispatch^.SumBytes);
+    4: Result := Pointer(aDispatch^.CountByte);
+    5: Result := Pointer(aDispatch^.BitsetPopCount);
+    6: Result := Pointer(aDispatch^.Utf8Validate);
+    7: Result := Pointer(aDispatch^.AsciiIEqual);
+    8: Result := Pointer(aDispatch^.BytesIndexOf);
+    9: Result := Pointer(aDispatch^.MemCopy);
+    10: Result := Pointer(aDispatch^.MemSet);
+    11: Result := Pointer(aDispatch^.ToLowerAscii);
+    12: Result := Pointer(aDispatch^.ToUpperAscii);
+    13: Result := Pointer(aDispatch^.MemReverse);
+    14: Result := Pointer(aDispatch^.MinMaxBytes);
+  else
+    Result := nil;
+  end;
+end;
+
+function GetPublicApiFuncName(aSlotIndex: Integer): string;
+begin
+  case aSlotIndex of
+    0: Result := 'MemEqual';
+    1: Result := 'MemFindByte';
+    2: Result := 'MemDiffRange';
+    3: Result := 'SumBytes';
+    4: Result := 'CountByte';
+    5: Result := 'BitsetPopCount';
+    6: Result := 'Utf8Validate';
+    7: Result := 'AsciiIEqual';
+    8: Result := 'BytesIndexOf';
+    9: Result := 'MemCopy';
+    10: Result := 'MemSet';
+    11: Result := 'ToLowerAscii';
+    12: Result := 'ToUpperAscii';
+    13: Result := 'MemReverse';
+    14: Result := 'MinMaxBytes';
+  else
+    Result := 'UnknownSlot';
+  end;
+end;
+
+function FindDifferingPublicApiDispatchSlot(const aLeft, aRight: PSimdDispatchTable;
+  out aSlotIndex: Integer): Boolean;
+var
+  LIndex: Integer;
+begin
+  for LIndex := 0 to 14 do
+    if GetDispatchTableFuncPointer(aLeft, LIndex) <> GetDispatchTableFuncPointer(aRight, LIndex) then
+    begin
+      aSlotIndex := LIndex;
+      Exit(True);
+    end;
+
+  aSlotIndex := -1;
+  Result := False;
 end;
 
 procedure TTestCase_PublicAbi.Test_PublicApi_Table_IsBound_And_Metadata_IsPresent;
@@ -199,6 +293,77 @@ begin
     Ord(GetCurrentBackend), Integer(GetSimdPublicApi^.ActiveBackendId));
 end;
 
+procedure TTestCase_PublicAbi.Test_PublicApi_Table_Rebinds_DataPlane_FunctionPointers_AfterBackendSwitch;
+var
+  LApiBefore: PFafafaSimdPublicApi;
+  LApiAfter: PFafafaSimdPublicApi;
+  LDispatchBefore: PSimdDispatchTable;
+  LDispatchAfter: PSimdDispatchTable;
+  LDispatchable: TSimdBackendArray;
+  LOriginalBackend: TSimdBackend;
+  LTargetBackend: TSimdBackend;
+  LOldVectorAsm: Boolean;
+  LSlotIndex: Integer;
+  LIndex: Integer;
+  LFoundDifferentBinding: Boolean;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  LOriginalBackend := GetCurrentBackend;
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LOriginalBackend := GetCurrentBackend;
+    LApiBefore := GetSimdPublicApi;
+    LDispatchBefore := GetDispatchTable;
+    AssertNotNull('Public API table should not be nil before data-plane rebind test', LApiBefore);
+    AssertNotNull('Dispatch table should not be nil before data-plane rebind test', LDispatchBefore);
+
+    LDispatchable := GetDispatchableBackendList;
+    LFoundDifferentBinding := False;
+    LTargetBackend := LOriginalBackend;
+    LSlotIndex := -1;
+
+    for LIndex := 0 to High(LDispatchable) do
+    begin
+      if LDispatchable[LIndex] = LOriginalBackend then
+        Continue;
+      if not TrySetActiveBackend(LDispatchable[LIndex]) then
+        Continue;
+
+      LDispatchAfter := GetDispatchTable;
+      if FindDifferingPublicApiDispatchSlot(LDispatchBefore, LDispatchAfter, LSlotIndex) then
+      begin
+        LFoundDifferentBinding := True;
+        LTargetBackend := LDispatchable[LIndex];
+        Break;
+      end;
+    end;
+
+    if not LFoundDifferentBinding then
+      Exit;
+
+    LApiAfter := GetSimdPublicApi;
+    LDispatchAfter := GetDispatchTable;
+    AssertNotNull('Fresh public API table should not be nil after backend switch', LApiAfter);
+    AssertNotNull('Dispatch table should not be nil after backend switch', LDispatchAfter);
+    AssertEquals('Public API active backend should track switched backend in data-plane rebind test',
+      Ord(LTargetBackend), Integer(LApiAfter^.ActiveBackendId));
+    AssertTrue('Underlying dispatch slot should actually change in data-plane rebind test',
+      GetDispatchTableFuncPointer(LDispatchBefore, LSlotIndex) <>
+      GetDispatchTableFuncPointer(LDispatchAfter, LSlotIndex));
+    AssertTrue('Fresh public API table should publish rebound function pointer for ' +
+      GetPublicApiFuncName(LSlotIndex),
+      GetPublicApiFuncPointer(LApiBefore, LSlotIndex) <>
+      GetPublicApiFuncPointer(LApiAfter, LSlotIndex));
+  finally
+    if GetCurrentBackend <> LOriginalBackend then
+      AssertTrue('Restoring original active backend should succeed after data-plane rebind test',
+        RestoreOriginalActiveBackend(LOriginalBackend));
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
 procedure TTestCase_PublicAbi.Test_PublicApi_BackendPodInfo_Flags_AreSelfConsistent;
 var
   LBackend: TSimdBackend;
@@ -302,32 +467,34 @@ const
 var
   LBackend: TSimdBackend;
   LOriginalTable: TSimdDispatchTable;
-  LFirstTable: TSimdDispatchTable;
-  LSecondTable: TSimdDispatchTable;
-  LNameBefore: AnsiString;
-  LDescriptionBefore: AnsiString;
-  LNameAfter: AnsiString;
-  LDescriptionAfter: AnsiString;
   LNamePtrBefore: PAnsiChar;
   LDescriptionPtrBefore: PAnsiChar;
   LNamePtrAfter: PAnsiChar;
   LDescriptionPtrAfter: PAnsiChar;
+  LNameSnapshotBefore: AnsiString;
+  LDescriptionSnapshotBefore: AnsiString;
+  LNameSnapshotAfter: AnsiString;
+  LDescriptionSnapshotAfter: AnsiString;
   LChurn: array of AnsiString;
   LIndex: Integer;
+
+  procedure RegisterBackendText(const aNamePrefix, aDescriptionPrefix: AnsiString;
+    const aNameFill, aDescriptionFill: Char);
+  var
+    LWorkingTable: TSimdDispatchTable;
+  begin
+    LWorkingTable := LOriginalTable;
+    LWorkingTable.BackendInfo.Name := string(aNamePrefix + StringOfChar(aNameFill, TEXT_LEN));
+    LWorkingTable.BackendInfo.Description := string(aDescriptionPrefix + StringOfChar(aDescriptionFill, TEXT_LEN));
+    RegisterBackend(LBackend, LWorkingTable);
+  end;
 begin
   LBackend := GetCurrentBackend;
   AssertTrue('Backend should be registered before backend text pointer lifetime test',
     TryGetRegisteredBackendDispatchTable(LBackend, LOriginalTable));
 
-  LNameBefore := 'PointerLifetimeNameA_' + StringOfChar('A', TEXT_LEN);
-  LDescriptionBefore := 'PointerLifetimeDescriptionA_' + StringOfChar('a', TEXT_LEN);
-  LNameAfter := 'PointerLifetimeNameB_' + StringOfChar('B', TEXT_LEN);
-  LDescriptionAfter := 'PointerLifetimeDescriptionB_' + StringOfChar('b', TEXT_LEN);
   try
-    LFirstTable := LOriginalTable;
-    LFirstTable.BackendInfo.Name := string(LNameBefore);
-    LFirstTable.BackendInfo.Description := string(LDescriptionBefore);
-    RegisterBackend(LBackend, LFirstTable);
+    RegisterBackendText('PointerLifetimeNameA_', 'PointerLifetimeDescriptionA_', 'A', 'a');
 
     LNamePtrBefore := GetSimdBackendNamePtr(LBackend);
     LDescriptionPtrBefore := GetSimdBackendDescriptionPtr(LBackend);
@@ -335,15 +502,14 @@ begin
       Pointer(LNamePtrBefore));
     AssertNotNull('Original backend description pointer should not be nil in pointer lifetime test',
       Pointer(LDescriptionPtrBefore));
+    LNameSnapshotBefore := AnsiString(StrPas(LNamePtrBefore));
+    LDescriptionSnapshotBefore := AnsiString(StrPas(LDescriptionPtrBefore));
     AssertEquals('Original backend name should match seeded text in pointer lifetime test',
-      string(LNameBefore), string(StrPas(LNamePtrBefore)));
+      'PointerLifetimeNameA_' + StringOfChar('A', TEXT_LEN), string(LNameSnapshotBefore));
     AssertEquals('Original backend description should match seeded text in pointer lifetime test',
-      string(LDescriptionBefore), string(StrPas(LDescriptionPtrBefore)));
+      'PointerLifetimeDescriptionA_' + StringOfChar('a', TEXT_LEN), string(LDescriptionSnapshotBefore));
 
-    LSecondTable := LOriginalTable;
-    LSecondTable.BackendInfo.Name := string(LNameAfter);
-    LSecondTable.BackendInfo.Description := string(LDescriptionAfter);
-    RegisterBackend(LBackend, LSecondTable);
+    RegisterBackendText('PointerLifetimeNameB_', 'PointerLifetimeDescriptionB_', 'B', 'b');
 
     LNamePtrAfter := GetSimdBackendNamePtr(LBackend);
     LDescriptionPtrAfter := GetSimdBackendDescriptionPtr(LBackend);
@@ -351,19 +517,21 @@ begin
       Pointer(LNamePtrAfter));
     AssertNotNull('Refreshed backend description pointer should not be nil in pointer lifetime test',
       Pointer(LDescriptionPtrAfter));
+    LNameSnapshotAfter := AnsiString(StrPas(LNamePtrAfter));
+    LDescriptionSnapshotAfter := AnsiString(StrPas(LDescriptionPtrAfter));
     AssertEquals('Refreshed backend name should match updated text in pointer lifetime test',
-      string(LNameAfter), string(StrPas(LNamePtrAfter)));
+      'PointerLifetimeNameB_' + StringOfChar('B', TEXT_LEN), string(LNameSnapshotAfter));
     AssertEquals('Refreshed backend description should match updated text in pointer lifetime test',
-      string(LDescriptionAfter), string(StrPas(LDescriptionPtrAfter)));
+      'PointerLifetimeDescriptionB_' + StringOfChar('b', TEXT_LEN), string(LDescriptionSnapshotAfter));
 
     SetLength(LChurn, CHURN_COUNT);
     for LIndex := 0 to High(LChurn) do
       LChurn[LIndex] := IntToStr(LIndex) + StringOfChar(Chr(Ord('C') + (LIndex mod 3)), TEXT_LEN);
 
     AssertEquals('Previously returned backend name pointer should remain process-lifetime valid after refresh',
-      string(LNameBefore), string(StrPas(LNamePtrBefore)));
+      string(LNameSnapshotBefore), string(StrPas(LNamePtrBefore)));
     AssertEquals('Previously returned backend description pointer should remain process-lifetime valid after refresh',
-      string(LDescriptionBefore), string(StrPas(LDescriptionPtrBefore)));
+      string(LDescriptionSnapshotBefore), string(StrPas(LDescriptionPtrBefore)));
   finally
     RegisterBackend(LBackend, LOriginalTable);
   end;
@@ -1030,6 +1198,146 @@ begin
       if GetCurrentBackend <> LRequestedBackend then
         AssertTrue('Restoring original active backend should succeed',
           RestoreOriginalActiveBackend(LRequestedBackend));
+    end;
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_PublicAbi.Test_PublicApi_FailedHookMutation_DoesNotRevive_PreviouslyRequestedBackend_AfterRestore;
+var
+  LApi: PFafafaSimdPublicApi;
+  LAutomaticBackend: TSimdBackend;
+  LRequestedBackend: TSimdBackend;
+  LDispatchable: TSimdBackendArray;
+  LOriginalTable: TSimdDispatchTable;
+  LOldVectorAsm: Boolean;
+  LIndex: Integer;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LAutomaticBackend := GetCurrentBackend;
+    LRequestedBackend := LAutomaticBackend;
+    LDispatchable := GetDispatchableBackendList;
+    for LIndex := 0 to High(LDispatchable) do
+      if LDispatchable[LIndex] <> LAutomaticBackend then
+      begin
+        LRequestedBackend := LDispatchable[LIndex];
+        Break;
+      end;
+
+    if LRequestedBackend = LAutomaticBackend then
+      Exit;
+
+    AssertTrue('Requested backend should be registered for public ABI lingering-force test',
+      TryGetRegisteredBackendDispatchTable(LRequestedBackend, LOriginalTable));
+    AssertTrue('Requested backend should start dispatchable before public ABI lingering-force test',
+      IsBackendDispatchable(LRequestedBackend));
+
+    GPublicAbiHookDisableBackendOriginalTable := LOriginalTable;
+    GPublicAbiHookDisableBackendTarget := LRequestedBackend;
+    GPublicAbiHookDisableBackendEnabled := True;
+    GPublicAbiHookDisableBackendArmed := False;
+    GPublicAbiHookDisableBackendDone := False;
+    AddDispatchChangedHook(@PublicAbiHookDisableBackendOnce);
+    try
+      AssertFalse('TrySetActiveBackend should fail when hook-driven mutation makes the requested backend non-dispatchable before completion',
+        TrySetActiveBackend(LRequestedBackend));
+    finally
+      RemoveDispatchChangedHook(@PublicAbiHookDisableBackendOnce);
+      GPublicAbiHookDisableBackendEnabled := False;
+      GPublicAbiHookDisableBackendArmed := False;
+      GPublicAbiHookDisableBackendDone := False;
+    end;
+
+    RegisterBackend(LRequestedBackend, LOriginalTable);
+    LApi := GetSimdPublicApi;
+    AssertNotNull('Public API table should remain available after restoring the requested backend table', LApi);
+    AssertEquals('Public API active backend should return to automatic selection instead of reviving the previously failed requested backend',
+      Ord(LAutomaticBackend), Integer(LApi^.ActiveBackendId));
+    AssertTrue('Public API active backend should stay away from the previously failed requested backend after restore',
+      Integer(LApi^.ActiveBackendId) <> Ord(LRequestedBackend));
+    AssertEquals('Public API active backend id should keep tracking the actual current backend after restore',
+      Ord(GetCurrentBackend), Integer(LApi^.ActiveBackendId));
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_PublicAbi.Test_PublicApi_FailedHookMutation_Restores_AutomaticBackend_Immediately;
+var
+  LApi: PFafafaSimdPublicApi;
+  LActiveInfo: TFafafaSimdBackendPodInfo;
+  LAutomaticBackend: TSimdBackend;
+  LRequestedBackend: TSimdBackend;
+  LDispatchable: TSimdBackendArray;
+  LOriginalTable: TSimdDispatchTable;
+  LOldVectorAsm: Boolean;
+  LIndex: Integer;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LAutomaticBackend := GetCurrentBackend;
+    if LAutomaticBackend = sbScalar then
+      Exit;
+
+    AssertEquals('Automatic selection should start from best dispatchable backend before public ABI failed-hook restore test',
+      Ord(LAutomaticBackend), Ord(GetBestDispatchableBackend));
+
+    LRequestedBackend := sbScalar;
+    LDispatchable := GetDispatchableBackendList;
+    for LIndex := 0 to High(LDispatchable) do
+      if (LDispatchable[LIndex] <> LAutomaticBackend) and (LDispatchable[LIndex] <> sbScalar) then
+      begin
+        LRequestedBackend := LDispatchable[LIndex];
+        Break;
+      end;
+
+    if LRequestedBackend = sbScalar then
+      Exit;
+
+    AssertTrue('Requested backend should be registered for public ABI failed-hook automatic-restore test',
+      TryGetRegisteredBackendDispatchTable(LRequestedBackend, LOriginalTable));
+    AssertTrue('Requested backend should start dispatchable before public ABI failed-hook automatic-restore test',
+      IsBackendDispatchable(LRequestedBackend));
+
+    GPublicAbiHookDisableBackendOriginalTable := LOriginalTable;
+    GPublicAbiHookDisableBackendTarget := LRequestedBackend;
+    GPublicAbiHookDisableBackendEnabled := True;
+    GPublicAbiHookDisableBackendArmed := False;
+    GPublicAbiHookDisableBackendDone := False;
+    AddDispatchChangedHook(@PublicAbiHookDisableBackendOnce);
+    try
+      AssertFalse('TrySetActiveBackend should fail when hook-driven mutation makes the requested backend non-dispatchable before public ABI automatic restore',
+        TrySetActiveBackend(LRequestedBackend));
+
+      LApi := GetSimdPublicApi;
+      AssertNotNull('Public API table should remain available after failed hook-driven automatic restore', LApi);
+      AssertEquals('Public API active backend should immediately return to automatic best backend after failed hook-driven selection',
+        Ord(LAutomaticBackend), Integer(LApi^.ActiveBackendId));
+      AssertEquals('Public API active backend id should keep tracking the actual current backend after failed hook-driven selection',
+        Ord(GetCurrentBackend), Integer(LApi^.ActiveBackendId));
+      AssertTrue('Public API active backend should not remain Scalar when automatic mode has a better backend',
+        Integer(LApi^.ActiveBackendId) <> Ord(sbScalar));
+      AssertTrue('Backend pod info for the restored automatic backend should remain queryable',
+        TryGetSimdBackendPodInfo(LAutomaticBackend, LActiveInfo));
+      AssertEquals('Public API active flags should stay aligned with the automatic backend pod flags after failed hook-driven selection',
+        LActiveInfo.Flags, LApi^.ActiveFlags);
+    finally
+      RemoveDispatchChangedHook(@PublicAbiHookDisableBackendOnce);
+      GPublicAbiHookDisableBackendEnabled := False;
+      GPublicAbiHookDisableBackendArmed := False;
+      GPublicAbiHookDisableBackendDone := False;
+      RegisterBackend(LRequestedBackend, LOriginalTable);
+      if GetCurrentBackend <> LAutomaticBackend then
+        AssertTrue('Restoring original automatic backend after public ABI failed-hook restore test should succeed',
+          RestoreOriginalActiveBackend(LAutomaticBackend));
     end;
   finally
     SetVectorAsmEnabled(LOldVectorAsm);
