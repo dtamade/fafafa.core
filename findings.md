@@ -7,6 +7,32 @@
 - 形成连续的修复与审查计划
 
 ## Research Findings
+- 最新一轮继续深审 `SetVectorAsmEnabled(...)` / rebuild-hook 嵌套路径后，又确认一条新的真实 control-plane drift：
+  - `src/fafafa.core.simd.dispatch.pas` 的 `SetVectorAsmEnabled(...)` 旧实现只会保存 vector-asm bit 自身，不会保存 pre-toggle forced/automatic mode
+  - `RebuildBackendsAfterFeatureToggle(...)` 虽然会重建 backend 表并在 dispatch 已初始化时做一次 `InitializeDispatch`
+  - 但 `DoInitializeDispatch -> NotifyDispatchChangedHooks` 允许 dispatch-changed hook 在 toggle 返回前 nested `ResetToAutomaticBackend(...)`
+  - 结果是只要调用前已经 forced 在 backend A，而 hook 在 `SetVectorAsmEnabled(False)` 的通知阶段把 control-plane reset 成 automatic：
+    - `vector asm=False` 期间 current backend 暂时落到 fallback/automatic 结果，这本身不是问题
+    - 可旧实现不会在 toggle 返回前恢复 pre-toggle forced intent
+    - 所以后续 `SetVectorAsmEnabled(True)` 会直接漂回 automatic best backend，而不是恢复 backend A
+  - 为了先把合同打红，本轮补了两条新的 deterministic regression：
+    - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `Test_SetVectorAsmEnabled_HookLateAutomaticReset_Preserves_PreviousForcedBackend`
+    - `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 新增 `Test_PublicApi_SetVectorAsmEnabled_HookLateAutomaticReset_Preserves_PreviousForcedBackend`
+  - fresh red 证据：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-toggle-latereset-red-20260323 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi`：FAIL
+    - 失败点直接命中：
+      - `Re-enabling vector asm should preserve the previously forced backend even if a late hook resets to automatic during disable`，`expected: <1> but was: <6>`
+      - `Public API should preserve the previously forced backend after vector-asm re-enable even if a late hook reset to automatic during disable`，`expected: <1> but was: <6>`
+  - 最小修复方式：
+    - 将 `src/fafafa.core.simd.dispatch.pas` 的 `SetVectorAsmEnabled(...)` 收紧为：
+      - 入口保存 `LPreviousBackendForced/LPreviousForcedBackend`
+      - rebuild/reinit 完成后检查 hook 是否改写了 `g_BackendForced/g_ForcedBackend`
+      - 若 control-plane mode 与 pre-toggle 不一致，则恢复 pre-toggle intent 并再做一次 `InitializeDispatch`
+    - 这样 `vector asm=False` 的临时 fallback 仍成立，但 toggle 返回后不会丢失调用前 forced/automatic 模式；重新启用 vector asm 时，forced backend 会按预期重新生效
+  - fresh green / 复验证据：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-toggle-latereset-green-20260323 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi`：PASS，`[LEAK] OK`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-toggle-latereset-check-20260323 bash tests/fafafa.core.simd/BuildOrTest.sh check`：PASS
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-toggle-latereset-gate-20260323 bash tests/fafafa.core.simd/BuildOrTest.sh gate`：PASS，最终 `[GATE] OK`，run-all summary 时间 `2026-03-23 04:13:47`
 - 最新一轮继续深审 current-active public ABI reader 合同后，又确认一条新的真实 mixed-snapshot：
   - `src/fafafa.core.simd.public_abi.impl.inc` 的 `TryGetSimdBackendPodInfo(...)` 虽然 Phase 35 已把非 active backend 的 `CapabilityBits/dispatchable/priority` 收口到单份 registered snapshot
   - 但旧实现在 current active backend 路径上仍会把：

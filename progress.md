@@ -2240,3 +2240,49 @@
 | What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
 | What have I learned? | 这轮证明，reset-to-automatic 也必须做 return-time postcondition closure。只要 dispatch-changed hook 能在通知阶段做 nested force，入口处那一次“清 forced”并不足以保证 API 返回的是 automatic state。 |
 | What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 ResetToAutomaticBackend late-hook drift：reset 现在不会再在通知阶段被一次 scalar re-force 劫持成 stale forced fallback。 |
+
+### Phase 55: SetVectorAsmEnabled late-hook forced-intent preservation closeout
+- **Status:** complete
+- Actions taken:
+  - 继续沿 `SetVectorAsmEnabled(...)` / rebuild-hook 嵌套路径深审后，先补一条新的 deterministic red，而不是直接改实现：
+    - 在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `Test_SetVectorAsmEnabled_HookLateAutomaticReset_Preserves_PreviousForcedBackend`
+    - 在 `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 新增 `Test_PublicApi_SetVectorAsmEnabled_HookLateAutomaticReset_Preserves_PreviousForcedBackend`
+    - 两条测试都显式 `SetVectorAsmEnabled(True)`，先从 automatic best backend 起步，选一个不同于 automatic best 的 non-scalar dispatchable backend 作为 pre-existing forced backend
+    - 随后挂接一次性的 synthetic hook：arm -> 在真正的 `SetVectorAsmEnabled(False)` 通知回调里 nested `ResetToAutomaticBackend(...)`
+    - 然后直接断言：重新 `SetVectorAsmEnabled(True)` 后，dispatch API 与 public ABI 都必须恢复到调用前 forced backend，而不能漂回 automatic best backend
+  - fresh red 复验：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-toggle-latereset-red-20260323 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi`
+    - 失败点直接命中：
+      - `Re-enabling vector asm should preserve the previously forced backend even if a late hook resets to automatic during disable`，`expected: <1> but was: <6>`
+      - `Public API should preserve the previously forced backend after vector-asm re-enable even if a late hook reset to automatic during disable`，`expected: <1> but was: <6>`
+  - 根因确认后，做最小实现修复：
+    - 旧 `src/fafafa.core.simd.dispatch.pas` 的 `SetVectorAsmEnabled(...)` 只会保存 vector-asm bit 自身，不会保存 pre-toggle control-plane mode
+    - `RebuildBackendsAfterFeatureToggle(...)` 虽然会重建 backend 表并在 dispatch 已初始化时做一次 `InitializeDispatch`
+    - 但 `DoInitializeDispatch -> NotifyDispatchChangedHooks` 允许 hook 在 toggle 返回前 nested `ResetToAutomaticBackend(...)`，旧实现没有任何 hook 之后的 closure
+    - 现已把 `SetVectorAsmEnabled(...)` 收紧为：入口保存 `LPreviousBackendForced/LPreviousForcedBackend`；rebuild/reinit 完成后若发现 hook 改写了 `g_BackendForced/g_ForcedBackend`，则恢复 pre-toggle forced/automatic intent 并重新 `InitializeDispatch`
+  - fresh green / release 复验：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-toggle-latereset-green-20260323 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-toggle-latereset-check-20260323 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-toggle-latereset-gate-20260323 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 记录关键运行结果：
+    - fresh `TTestCase_DispatchAPI,TTestCase_PublicAbi` PASS，`[LEAK] OK`
+    - fresh `check` PASS
+    - fresh `gate` 最终 `[GATE] OK`
+    - run-all summary 时间：`2026-03-23 04:13:47`
+- Files created/modified:
+  - `src/fafafa.core.simd.dispatch.pas` (modified again)
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` (modified again)
+  - `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` (modified again)
+  - `task_plan.md` (modified)
+  - `findings.md` (modified)
+  - `progress.md` (modified)
+  - `workers/worker0.md` (modified)
+
+## 5-Question Reboot Check (Phase 55 Update)
+| Question | Answer |
+|----------|--------|
+| Where am I? | Linux fresh `TTestCase_DispatchAPI,TTestCase_PublicAbi`、fresh `check`、fresh `gate` 都已重新通过；本轮最新又收敛了一条 vector-asm toggle control-plane drift：旧 `SetVectorAsmEnabled(False)` 在 late hook nested `ResetToAutomaticBackend(...)` 后会把 pre-toggle forced intent 静默清掉，重新启用 vector asm 时从 forced backend 漂回 automatic best backend。 |
+| Where am I going? | 下一轮继续从实现层深审，优先找下一条 `SetVectorAsmEnabled` / `RegisterBackend` / helper wrapper 在 forced/automatic 切换、rebuild-hook 嵌套、或 observation-point 漂移上的真实持续一致性问题，尤其是 toggle/register 前后的 pre-call intent 是否被 hook 覆盖。 |
+| What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
+| What have I learned? | 这轮证明，`SetVectorAsmEnabled(...)` 也必须做 return-time control-plane closure。只要 dispatch-changed hook 能在通知阶段做 nested reset，单次 rebuild 并不能保证 toggle 返回后仍保留调用前 forced intent。 |
+| What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 vector-asm late-reset drift：toggle 现在不会再在通知阶段被一次 automatic reset 静默抹掉 pre-toggle forced backend。 |

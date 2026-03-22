@@ -43,6 +43,7 @@ type
     procedure Test_SetActiveBackend_Unavailable_FallsBackToScalar;
     procedure Test_SetActiveBackend_HookLateFailure_Preserves_PreviousForcedBackend;
     procedure Test_ResetToAutomaticBackend_HookLateForce_Restores_AutomaticBackend;
+    procedure Test_SetVectorAsmEnabled_HookLateAutomaticReset_Preserves_PreviousForcedBackend;
     procedure Test_DispatchChangedHooks_MultiSubscriber_Dedup_And_Remove;
     procedure Test_BackendInfoAvailableFalse_IsNotSelectable;
     procedure Test_RegisterBackend_Canonicalizes_TableIdentity_For_ForcedSelection;
@@ -149,6 +150,8 @@ var
   GDispatchHookReForceBackendEnabled: Boolean = False;
   GDispatchHookReForceBackendStage: Integer = 0;
   GDispatchHookReForceBackendTarget: TSimdBackend = sbScalar;
+  GDispatchHookResetToAutomaticEnabled: Boolean = False;
+  GDispatchHookResetToAutomaticStage: Integer = 0;
 
 procedure DispatchHookProbeA;
 begin
@@ -291,6 +294,26 @@ begin
       begin
         GDispatchHookReForceBackendStage := 2;
         SetActiveBackend(GDispatchHookReForceBackendTarget);
+        Exit;
+      end;
+  end;
+end;
+
+procedure DispatchHookResetToAutomaticOnce;
+begin
+  if not GDispatchHookResetToAutomaticEnabled then
+    Exit;
+
+  case GDispatchHookResetToAutomaticStage of
+    0:
+      begin
+        GDispatchHookResetToAutomaticStage := 1;
+        Exit;
+      end;
+    1:
+      begin
+        GDispatchHookResetToAutomaticStage := 2;
+        ResetToAutomaticBackend;
         Exit;
       end;
   end;
@@ -942,6 +965,65 @@ begin
       GDispatchHookReForceBackendStage := 0;
       GDispatchHookReForceBackendTarget := sbScalar;
     end;
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_SetVectorAsmEnabled_HookLateAutomaticReset_Preserves_PreviousForcedBackend;
+var
+  LDispatchable: TSimdBackendArray;
+  LAutomaticBackend: TSimdBackend;
+  LPreviousForcedBackend: TSimdBackend;
+  LOldVectorAsm: Boolean;
+  LIndex: Integer;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LDispatchable := GetDispatchableBackendList;
+    if Length(LDispatchable) < 2 then
+      Exit;
+
+    LAutomaticBackend := GetBestDispatchableBackend;
+    LPreviousForcedBackend := sbScalar;
+    for LIndex := High(LDispatchable) downto 0 do
+      if (LDispatchable[LIndex] <> sbScalar) and (LDispatchable[LIndex] <> LAutomaticBackend) then
+      begin
+        LPreviousForcedBackend := LDispatchable[LIndex];
+        Break;
+      end;
+
+    if LPreviousForcedBackend = sbScalar then
+      Exit;
+
+    AssertTrue('Previous forced backend should differ from automatic best backend in vector-asm late-reset test',
+      LPreviousForcedBackend <> LAutomaticBackend);
+    AssertTrue('Previous forced backend setup should succeed before vector-asm late-reset test',
+      TrySetActiveBackend(LPreviousForcedBackend));
+    AssertEquals('Previous forced backend should be active before vector-asm late-reset test',
+      Ord(LPreviousForcedBackend), Ord(GetActiveBackend));
+
+    GDispatchHookResetToAutomaticEnabled := True;
+    GDispatchHookResetToAutomaticStage := 0;
+    AddDispatchChangedHook(@DispatchHookResetToAutomaticOnce);
+    try
+      SetVectorAsmEnabled(False);
+      AssertEquals('Synthetic vector-asm late-reset hook should run through the real SetVectorAsmEnabled callback sequence',
+        2, GDispatchHookResetToAutomaticStage);
+      AssertTrue('Disabling vector asm should move current backend away from the previously forced backend when it becomes non-dispatchable',
+        GetActiveBackend <> LPreviousForcedBackend);
+    finally
+      RemoveDispatchChangedHook(@DispatchHookResetToAutomaticOnce);
+      GDispatchHookResetToAutomaticEnabled := False;
+      GDispatchHookResetToAutomaticStage := 0;
+    end;
+
+    SetVectorAsmEnabled(True);
+    AssertEquals('Re-enabling vector asm should preserve the previously forced backend even if a late hook resets to automatic during disable',
+      Ord(LPreviousForcedBackend), Ord(GetActiveBackend));
   finally
     SetVectorAsmEnabled(LOldVectorAsm);
     ResetToAutomaticBackend;

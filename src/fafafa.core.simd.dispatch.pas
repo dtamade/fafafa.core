@@ -1415,6 +1415,9 @@ procedure SetVectorAsmEnabled(enabled: Boolean);
 var
   LExpectedState: LongInt;
   LCurrentState: LongInt;
+  LDispatchWasInitialized: Boolean;
+  LPreviousBackendForced: Boolean;
+  LPreviousForcedBackend: TSimdBackend;
 begin
   if enabled then
     LExpectedState := 1
@@ -1432,12 +1435,39 @@ begin
     if LCurrentState = LExpectedState then
       Exit;
 
+    LDispatchWasInitialized := g_DispatchState <> 0;
+    LPreviousBackendForced := g_BackendForced;
+    LPreviousForcedBackend := g_ForcedBackend;
+
     InterlockedExchange(g_VectorAsmEnabledState, LExpectedState);
     WriteBarrier;
 
     // Backend tables are published during unit initialization, so a pre-init
     // runtime toggle still needs to rebuild their Available/capability view.
-    RebuildBackendsAfterFeatureToggle(g_DispatchState <> 0);
+    RebuildBackendsAfterFeatureToggle(LDispatchWasInitialized);
+
+    if LDispatchWasInitialized then
+    begin
+      ReadBarrier;
+      if (g_BackendForced <> LPreviousBackendForced) or
+         (LPreviousBackendForced and (g_ForcedBackend <> LPreviousForcedBackend)) then
+      begin
+        // A feature toggle should preserve the caller's pre-existing
+        // forced-vs-automatic selection intent. Late dispatch hooks may
+        // temporarily reset or replace it during notification, so reapply the
+        // original control-plane mode before returning.
+        g_BackendForced := LPreviousBackendForced;
+        if LPreviousBackendForced then
+          g_ForcedBackend := LPreviousForcedBackend
+        else
+          g_ForcedBackend := sbScalar;
+        WriteBarrier;
+        g_DispatchInitialized := False;
+        InterlockedExchange(g_DispatchState, 0);
+        atomic_thread_fence(mo_seq_cst);
+        InitializeDispatch;
+      end;
+    end;
   finally
     LeaveCriticalSection(g_VectorAsmToggleLock);
   end;
