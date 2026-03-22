@@ -476,22 +476,33 @@ begin
   aInfo.StructSize := SizeOf(aInfo);
   aInfo.BackendId := UInt32(Ord(aBackend));
 
-  LRegistered := TryGetRegisteredBackendDispatchTable(aBackend, LDispatchTable);
-  if LRegistered then
+  LCurrentDispatch := GetDispatchTable;
+  LActive := (LCurrentDispatch <> nil) and (LCurrentDispatch^.Backend = aBackend);
+
+  if LActive then
   begin
-    aInfo.CapabilityBits := SimdCapabilitiesToAbiBits(LDispatchTable.BackendInfo.Capabilities);
-    LDispatchable := LDispatchTable.BackendInfo.Available and IsBackendAvailableOnCPU(aBackend);
-    aInfo.Priority := LDispatchTable.BackendInfo.Priority;
+    aInfo.CapabilityBits := SimdCapabilitiesToAbiBits(LCurrentDispatch^.BackendInfo.Capabilities);
+    LDispatchable := LCurrentDispatch^.BackendInfo.Available and IsBackendAvailableOnCPU(aBackend);
+    aInfo.Priority := LCurrentDispatch^.BackendInfo.Priority;
+    LRegistered := True;
   end
   else
   begin
-    aInfo.CapabilityBits := 0;
-    LDispatchable := False;
-    aInfo.Priority := GetBackendInfo(aBackend).Priority;
+    LRegistered := TryGetRegisteredBackendDispatchTable(aBackend, LDispatchTable);
+    if LRegistered then
+    begin
+      aInfo.CapabilityBits := SimdCapabilitiesToAbiBits(LDispatchTable.BackendInfo.Capabilities);
+      LDispatchable := LDispatchTable.BackendInfo.Available and IsBackendAvailableOnCPU(aBackend);
+      aInfo.Priority := LDispatchTable.BackendInfo.Priority;
+    end
+    else
+    begin
+      aInfo.CapabilityBits := 0;
+      LDispatchable := False;
+      aInfo.Priority := GetBackendInfo(aBackend).Priority;
+    end;
   end;
 
-  LCurrentDispatch := GetDispatchTable;
-  LActive := (LCurrentDispatch <> nil) and (LCurrentDispatch^.Backend = aBackend);
   aInfo.Flags := BuildSimdBackendAbiFlagsFromSnapshot(aBackend, LRegistered, LDispatchable, LActive);
   Result := True;
 end;

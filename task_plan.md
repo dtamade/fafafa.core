@@ -4,7 +4,7 @@
 审查 `fafafa.core.simd` 及其 `cpuinfo` 相关模块，找出可验证的问题并完成至少一轮根因修复，同时产出可连续执行的后续修复与审查计划。
 
 ## Current Phase
-Phase 45 complete; current active dispatch/public API metadata now publish the exact selected snapshot and no longer expose half-rebuilt toggle states or latest-state drift during concurrent re-register
+Phase 46 complete; current active backend public ABI pod info now binds to a single current-dispatch snapshot and no longer exposes disabled-active or other mixed pod states during concurrent re-register
 
 ## Phases
 
@@ -615,3 +615,41 @@ Phase 45 complete; current active dispatch/public API metadata now publish the e
 | What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
 | What have I learned? | 这轮证明，单靠 immutable backend snapshot 还不够。如果 current dispatch 的选主、发布和 batch rebuild 节奏不是同一个 observation point，active metadata 仍会裂成“旧选择 + 新状态”或“中间 backend”这类不可能组合。 |
 | What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 active dispatch snapshot/batch rebuild drift：current dispatch 现在发布精确选中 snapshot，vector-asm batch rebuild 也不再让 reader 抢跑到半重建状态。 |
+
+### Phase 46: current active backend public ABI pod snapshot consistency hardening
+- [x] 在 `tests/fafafa.core.simd/fafafa.core.simd.concurrent.testcase.pas` 新增 `Test_Concurrent_PublicAbiPodInfo_CurrentBackend_RegisterBackend_ReadConsistency`，锁定 current active backend 的 pod info 在 concurrent `RegisterBackend(...)` 下只能落在 `enabled-active` / `enabled-inactive` / `disabled-inactive` 三种完整状态
+- [x] 用 fresh release `TTestCase_SimdConcurrentPublicAbi` 先拿 red，确认问题不只是旧 testcase 断言过严，而是 `TryGetSimdBackendPodInfo(current_backend)` 真的会暴露 `disabled-active` 这类 impossible combo
+- [x] 确认 `src/fafafa.core.simd.public_abi.impl.inc` 的根因位于 active backend 路径仍混用了两份 snapshot：
+- [x] `CapabilityBits` / `dispatchable` / `Priority` 仍来自 registered snapshot
+- [x] `active` bit 却来自 current dispatch snapshot
+- [x] 将 `TryGetSimdBackendPodInfo(...)` 收紧为：若 `aBackend` 正是当前 active backend，则 `CapabilityBits` / `dispatchable` / `Priority` / `active` 全部从同一份 `GetDispatchTable` current snapshot 派生；只有非 active backend 才继续读取 registered snapshot
+- [x] 用 fresh release `TTestCase_SimdConcurrentPublicAbi`、fresh `TTestCase_PublicAbi,TTestCase_SimdConcurrentPublicAbi`、fresh `check`、fresh `gate` 复验
+- **Status:** complete
+
+- 2026-03-22 最新 current-backend public ABI pod closeout 证据：
+  - red: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-currentpod-red-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrentPublicAbi` -> FAIL（命中 `backend pod info mixed snapshot at iter 0: caps=447 flags=7 expectedA=(447,15) expectedB=(0,3)` 与更关键的 `backend pod info mixed snapshot at iter 12: caps=0 flags=11 expectedA=(447,15) expectedB=(0,3)`）
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-currentpod-green3-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrentPublicAbi` -> PASS，`[LEAK] OK`
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-currentpod-contract-green-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi,TTestCase_SimdConcurrentPublicAbi` -> PASS，`[LEAK] OK`
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-currentpod-check-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh check` -> PASS
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-currentpod-gate-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh gate` -> PASS，最终 `[GATE] OK`，run-all summary 时间 `2026-03-22 12:08:47`
+- 这轮根因位于 current active backend 的 public ABI pod getter 仍未绑定到单一 observation point：
+  - registered snapshot 给出了 `CapabilityBits/dispatchable/priority`
+  - current dispatch snapshot 给出了 `active`
+  - 于是 concurrent re-register 时，单个 `TFafafaSimdBackendPodInfo` 仍可能裂成 “disabled snapshot + active bit” 这类根本不可能出现的组合
+- 最小修复继续遵守“active reader 只读 current snapshot，non-active reader 才读 registered snapshot”的原则：
+  - active backend pod info 现在直接复用 current dispatch snapshot 的 `BackendInfo`
+  - 并发测试口径也同步收紧为三态合同：`enabled-active`、`enabled-inactive`、`disabled-inactive`
+  - 其中 `disabled-active` 被明确定义为 impossible combo，必须持续禁止
+- 下一轮连续计划优先级更新为：
+  1. 继续深审 remaining current-active readers，优先检查 `GetActiveBackend`、`CloneDispatchTable` 和 public ABI external consumer 是否还在 “先判 active backend，再跨另一份 snapshot 取字段”
+  2. 继续核对 `toggle/re-register` 相邻 helper 是否还有 stale `dispatchable/priority/capabilities` 组合，但仍坚持先补 fresh red 再修
+  3. 若 external smoke 需要加强 current-backend metadata 约束，优先补 consumer-side 合同测试，而不是先猜测实现缺陷
+
+## 5-Question Reboot Check (Phase 46 Update)
+| Question | Answer |
+|----------|--------|
+| Where am I? | Linux fresh `TTestCase_SimdConcurrentPublicAbi`、fresh `TTestCase_PublicAbi`、fresh `check`、fresh `gate` 都已重新通过；本轮最新又收敛了一条 current-active public ABI pod drift：旧 `TryGetSimdBackendPodInfo(current_backend)` 会在 concurrent re-register 窗口里暴露 mixed pod snapshot。 |
+| Where am I going? | 下一轮继续从实现层深审，优先找下一条 current-active reader / clone / external-consumer 边界上的真实 snapshot drift，重点继续看 `GetActiveBackend`、`CloneDispatchTable`、public ABI external smoke 和 remaining toggle/re-register 相邻路径。 |
+| What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
+| What have I learned? | 这轮证明，即使 Phase 45 已把 current dispatch/public API metadata 绑定到精确选中的 snapshot，current backend 的 public ABI pod getter 只要还把 registered/current 两份 observation point 拼在一起，仍会重新裂出 impossible combo。 |
+| What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 current active backend pod snapshot drift：active backend 的 `CapabilityBits/dispatchable/priority/active` 现在都从同一份 current dispatch snapshot 派生。 |

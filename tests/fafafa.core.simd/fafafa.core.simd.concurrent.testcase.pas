@@ -78,6 +78,8 @@ type
   published
     {** public ABI backend pod info 与 RegisterBackend 并发读写保护 *}
     procedure Test_Concurrent_PublicAbiPodInfo_RegisterBackend_ReadConsistency;
+    {** current active backend pod info 与 RegisterBackend 并发读写保护 *}
+    procedure Test_Concurrent_PublicAbiPodInfo_CurrentBackend_RegisterBackend_ReadConsistency;
     {** public API active metadata 与 RegisterBackend 并发读写保护 *}
     procedure Test_Concurrent_PublicApiActiveMetadata_RegisterBackend_ReadConsistency;
     {** public API active metadata 与 vector-asm toggle 并发读写保护 *}
@@ -336,6 +338,29 @@ type
     constructor Create(aIterations: Integer; aBackend: TSimdBackend;
       aExpectedCapsA, aExpectedCapsB: UInt64;
       aExpectedFlagsA, aExpectedFlagsB: TFafafaSimdAbiFlags);
+    property Success: Boolean read FSuccess;
+    property ErrorMsg: string read FErrorMsg;
+  end;
+
+  {** current backend pod info 只读线程（允许 enabled-active / enabled-inactive / disabled-inactive 三态） *}
+  TCurrentBackendPodInfoReadWorker = class(TThread)
+  private
+    FIterations: Integer;
+    FBackend: TSimdBackend;
+    FExpectedCapsEnabled: UInt64;
+    FExpectedCapsDisabled: UInt64;
+    FExpectedFlagsEnabledActive: TFafafaSimdAbiFlags;
+    FExpectedFlagsEnabledInactive: TFafafaSimdAbiFlags;
+    FExpectedFlagsDisabledInactive: TFafafaSimdAbiFlags;
+    FSuccess: Boolean;
+    FErrorMsg: string;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(aIterations: Integer; aBackend: TSimdBackend;
+      aExpectedCapsEnabled, aExpectedCapsDisabled: UInt64;
+      aExpectedFlagsEnabledActive, aExpectedFlagsEnabledInactive,
+      aExpectedFlagsDisabledInactive: TFafafaSimdAbiFlags);
     property Success: Boolean read FSuccess;
     property ErrorMsg: string read FErrorMsg;
   end;
@@ -1414,6 +1439,24 @@ begin
   FErrorMsg := '';
 end;
 
+constructor TCurrentBackendPodInfoReadWorker.Create(aIterations: Integer; aBackend: TSimdBackend;
+  aExpectedCapsEnabled, aExpectedCapsDisabled: UInt64;
+  aExpectedFlagsEnabledActive, aExpectedFlagsEnabledInactive,
+  aExpectedFlagsDisabledInactive: TFafafaSimdAbiFlags);
+begin
+  inherited Create(True);
+  FreeOnTerminate := False;
+  FIterations := aIterations;
+  FBackend := aBackend;
+  FExpectedCapsEnabled := aExpectedCapsEnabled;
+  FExpectedCapsDisabled := aExpectedCapsDisabled;
+  FExpectedFlagsEnabledActive := aExpectedFlagsEnabledActive;
+  FExpectedFlagsEnabledInactive := aExpectedFlagsEnabledInactive;
+  FExpectedFlagsDisabledInactive := aExpectedFlagsDisabledInactive;
+  FSuccess := False;
+  FErrorMsg := '';
+end;
+
 procedure TCurrentBackendInfoReadWorker.Execute;
 var
   LIndex: Integer;
@@ -1441,6 +1484,65 @@ begin
   except
     on E: Exception do
       FErrorMsg := 'current backend info reader exception: ' + E.Message;
+  end;
+end;
+
+procedure TCurrentBackendPodInfoReadWorker.Execute;
+var
+  LIndex: Integer;
+  LInfo: TFafafaSimdBackendPodInfo;
+  LMatchesEnabledActive: Boolean;
+  LMatchesEnabledInactive: Boolean;
+  LMatchesDisabledInactive: Boolean;
+begin
+  try
+    for LIndex := 0 to FIterations - 1 do
+    begin
+      if (LIndex and 3) = 0 then
+        ThreadSwitch;
+
+      if not TryGetSimdBackendPodInfo(FBackend, LInfo) then
+      begin
+        FErrorMsg := Format('current backend pod info query failed at iter %d', [LIndex]);
+        Exit;
+      end;
+      if LInfo.StructSize <> SizeOf(TFafafaSimdBackendPodInfo) then
+      begin
+        FErrorMsg := Format('current backend pod info StructSize torn at iter %d: expected=%d got=%d',
+          [LIndex, SizeOf(TFafafaSimdBackendPodInfo), LInfo.StructSize]);
+        Exit;
+      end;
+      if LInfo.BackendId <> UInt32(Ord(FBackend)) then
+      begin
+        FErrorMsg := Format('current backend pod info BackendId torn at iter %d: expected=%d got=%d',
+          [LIndex, Ord(FBackend), LInfo.BackendId]);
+        Exit;
+      end;
+
+      LMatchesEnabledActive := (LInfo.CapabilityBits = FExpectedCapsEnabled) and
+        (LInfo.Flags = FExpectedFlagsEnabledActive);
+      LMatchesEnabledInactive := (LInfo.CapabilityBits = FExpectedCapsEnabled) and
+        (LInfo.Flags = FExpectedFlagsEnabledInactive);
+      LMatchesDisabledInactive := (LInfo.CapabilityBits = FExpectedCapsDisabled) and
+        (LInfo.Flags = FExpectedFlagsDisabledInactive);
+      if (not LMatchesEnabledActive) and
+         (not LMatchesEnabledInactive) and
+         (not LMatchesDisabledInactive) then
+      begin
+        FErrorMsg := Format(
+          'current backend pod info mixed snapshot at iter %d: caps=%d flags=%d expected={enabled-active=(%d,%d) | enabled-inactive=(%d,%d) | disabled-inactive=(%d,%d)}',
+          [LIndex, LInfo.CapabilityBits, LInfo.Flags,
+           FExpectedCapsEnabled, FExpectedFlagsEnabledActive,
+           FExpectedCapsEnabled, FExpectedFlagsEnabledInactive,
+           FExpectedCapsDisabled, FExpectedFlagsDisabledInactive]);
+        Exit;
+      end;
+    end;
+
+    FSuccess := True;
+  except
+    on E: Exception do
+      FErrorMsg := 'current backend pod info reader exception: ' + E.Message;
   end;
 end;
 
@@ -2497,6 +2599,115 @@ begin
     AssertTrue('Concurrent public-api-active-metadata toggle/read failed: ' + LErrorMsgs,
       LAllSuccess);
   finally
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].Free;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].Free;
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_SimdConcurrentPublicAbi.Test_Concurrent_PublicAbiPodInfo_CurrentBackend_RegisterBackend_ReadConsistency;
+const
+  WRITER_THREADS = 2;
+  WRITER_ITERATIONS = 160;
+  READER_THREADS = 3;
+  READER_ITERATIONS = 4000;
+var
+  LWriters: array of TBackendRegisterToggleWorker;
+  LReaders: array of TCurrentBackendPodInfoReadWorker;
+  LIndex: Integer;
+  LAllSuccess: Boolean;
+  LErrorMsgs: string;
+  LOldVectorAsm: Boolean;
+  LBackend: TSimdBackend;
+  LOriginalTable: TSimdDispatchTable;
+  LDisabledTable: TSimdDispatchTable;
+  LExpectedCapsEnabled: UInt64;
+  LExpectedCapsDisabled: UInt64;
+  LExpectedFlagsEnabledActive: TFafafaSimdAbiFlags;
+  LExpectedFlagsEnabledInactive: TFafafaSimdAbiFlags;
+  LExpectedFlagsDisabledInactive: TFafafaSimdAbiFlags;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  LWriters := nil;
+  LReaders := nil;
+  LBackend := sbScalar;
+  LOriginalTable := Default(TSimdDispatchTable);
+  LDisabledTable := Default(TSimdDispatchTable);
+  LExpectedCapsEnabled := 0;
+  LExpectedCapsDisabled := 0;
+  LExpectedFlagsEnabledActive := 0;
+  LExpectedFlagsEnabledInactive := 0;
+  LExpectedFlagsDisabledInactive := 0;
+
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LBackend := GetCurrentBackend;
+    if LBackend = sbScalar then
+      Exit;
+    if not TryGetRegisteredBackendDispatchTable(LBackend, LOriginalTable) then
+      Exit;
+    if (not LOriginalTable.BackendInfo.Available) or
+       (LOriginalTable.BackendInfo.Capabilities = []) then
+      Exit;
+
+    LDisabledTable := LOriginalTable;
+    LDisabledTable.BackendInfo.Available := False;
+    LDisabledTable.BackendInfo.Capabilities := [];
+
+    LExpectedCapsEnabled := CapabilitiesToAbiBitsLocal(LOriginalTable.BackendInfo.Capabilities);
+    LExpectedCapsDisabled := CapabilitiesToAbiBitsLocal(LDisabledTable.BackendInfo.Capabilities);
+    LExpectedFlagsEnabledActive := BuildExpectedAbiFlagsLocal(
+      LBackend, IsBackendAvailableOnCPU(LBackend), True, True, True);
+    LExpectedFlagsEnabledInactive := BuildExpectedAbiFlagsLocal(
+      LBackend, IsBackendAvailableOnCPU(LBackend), True, True, False);
+    LExpectedFlagsDisabledInactive := BuildExpectedAbiFlagsLocal(
+      LBackend, IsBackendAvailableOnCPU(LBackend), True, False, False);
+
+    SetLength(LWriters, WRITER_THREADS);
+    SetLength(LReaders, READER_THREADS);
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex] := TBackendRegisterToggleWorker.Create(
+        WRITER_ITERATIONS, LBackend, LOriginalTable, LDisabledTable);
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex] := TCurrentBackendPodInfoReadWorker.Create(
+        READER_ITERATIONS, LBackend, LExpectedCapsEnabled, LExpectedCapsDisabled,
+        LExpectedFlagsEnabledActive, LExpectedFlagsEnabledInactive,
+        LExpectedFlagsDisabledInactive);
+
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].Start;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].Start;
+
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].WaitFor;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].WaitFor;
+
+    LAllSuccess := True;
+    LErrorMsgs := '';
+    for LIndex := 0 to High(LWriters) do
+      if not LWriters[LIndex].Success then
+      begin
+        LAllSuccess := False;
+        LErrorMsgs := LErrorMsgs + LWriters[LIndex].ErrorMsg + '; ';
+      end;
+    for LIndex := 0 to High(LReaders) do
+      if not LReaders[LIndex].Success then
+      begin
+        LAllSuccess := False;
+        LErrorMsgs := LErrorMsgs + LReaders[LIndex].ErrorMsg + '; ';
+      end;
+
+    AssertTrue('Concurrent current-backend public ABI pod info/register read failed: ' + LErrorMsgs,
+      LAllSuccess);
+  finally
+    if LBackend <> sbScalar then
+      RegisterBackend(LBackend, LOriginalTable);
     for LIndex := 0 to High(LWriters) do
       LWriters[LIndex].Free;
     for LIndex := 0 to High(LReaders) do

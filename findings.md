@@ -7,6 +7,38 @@
 - 形成连续的修复与审查计划
 
 ## Research Findings
+- 最新一轮继续深审 current-active public ABI reader 合同后，又确认一条新的真实 mixed-snapshot：
+  - `src/fafafa.core.simd.public_abi.impl.inc` 的 `TryGetSimdBackendPodInfo(...)` 虽然 Phase 35 已把非 active backend 的 `CapabilityBits/dispatchable/priority` 收口到单份 registered snapshot
+  - 但旧实现在 current active backend 路径上仍会把：
+    - registered snapshot 的 `CapabilityBits/dispatchable/priority`
+    - current dispatch snapshot 的 `active`
+    - 拼成单个 `TFafafaSimdBackendPodInfo`
+  - 结果是只要 writer 并发 `RegisterBackend(...)` 在当前 active backend 的 enabled/disabled table 间切换，reader 就仍可能观察到不可能组合，尤其是 `caps=0 flags=11` 这种 `disabled-active`
+  - 为了先把合同打红，本轮补了一条新的并发 regression：
+    - `tests/fafafa.core.simd/fafafa.core.simd.concurrent.testcase.pas` 新增 `Test_Concurrent_PublicAbiPodInfo_CurrentBackend_RegisterBackend_ReadConsistency`
+    - 新增 `TCurrentBackendPodInfoReadWorker`
+    - 读线程把 current-backend pod info 的允许状态收紧为三态：`enabled-active`、`enabled-inactive`、`disabled-inactive`
+    - 其中 `disabled-active` 明确定义为 impossible combo，必须打红
+  - fresh red 证据：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-currentpod-red-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrentPublicAbi`：FAIL
+    - 失败点直接命中 mixed snapshot：
+      - `backend pod info mixed snapshot at iter 0: caps=447 flags=7 expectedA=(447,15) expectedB=(0,3)`
+      - `backend pod info mixed snapshot at iter 12: caps=0 flags=11 expectedA=(447,15) expectedB=(0,3)`
+    - 其中 `caps=0 flags=11` 才是最关键的 witness，因为它等价于 disabled snapshot 却仍带 active bit
+  - 最小修复方式：
+    - 将 `src/fafafa.core.simd.public_abi.impl.inc` 的 `TryGetSimdBackendPodInfo(...)` 收紧为先抓 `LCurrentDispatch := GetDispatchTable`
+    - 如果 `aBackend` 正是当前 active backend：
+      - `CapabilityBits`
+      - `dispatchable`
+      - `Priority`
+      - `active`
+      - 全部从同一份 current dispatch snapshot 派生
+    - 只有 non-active backend 才继续走 registered snapshot
+  - fresh green / 复验证据：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-currentpod-green3-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrentPublicAbi`：PASS，`[LEAK] OK`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-currentpod-contract-green-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi,TTestCase_SimdConcurrentPublicAbi`：PASS，`[LEAK] OK`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-currentpod-check-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh check`：PASS
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-currentpod-gate-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh gate`：PASS，最终 `[GATE] OK`，run-all summary 时间 `2026-03-22 12:08:47`
 - 最新一轮继续深审 raw registered snapshot / dispatch contract 后，又确认一条新的真实 metadata drift：
   - `src/fafafa.core.simd.dispatch.pas` 的 `RegisterBackend(...)` 虽然已经会 canonicalize `Backend` / `BackendInfo.Backend` / `Priority`
   - 但旧实现不会 canonicalize 空的 `BackendInfo.Name/Description`
@@ -958,6 +990,7 @@
 | `RegisterBackend(...)` 不会 canonicalize 空的 `BackendInfo.Name/Description`，导致 `TryGetRegisteredBackendDispatchTable(...)` 暴露的 raw published snapshot 仍保留空文本，而 `GetBackendInfo` / `GetCurrentBackendInfo` / `GetBackendOps` 已各自 fallback 成非空文本 | 已在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 补 `Test_RegisteredBackendDispatchTable_PreservesCanonicalTextMetadata_After_ReRegister` 打红；fresh red 直接命中 `Registered backend table should preserve non-empty name after re-register`。随后把 `src/fafafa.core.simd.dispatch.pas` 的 `RegisterBackend(...)` 收紧为在发布 immutable snapshot 前对空 `Name/Description` 写回 `DefaultBackendName/DefaultBackendDescription`；fresh `TTestCase_DispatchAPI`、fresh `TTestCase_DispatchAllSlots`、fresh `TTestCase_PublicAbi`、fresh `check`、fresh `gate` 全部复验通过 |
 | `SetVectorAsmEnabled(False <-> True)` 并发窗口里，dispatchable helper 会暴露半重建中间态；同时 `DoInitializeDispatch` 选中 backend 后仍从 mutable `g_BackendTables[...]` 复制 current snapshot，导致 `GetCurrentBackendInfo` 继续可能读到旧 backend id + 新 disabled metadata | 已在 `tests/fafafa.core.simd/fafafa.core.simd.concurrent.testcase.pas` 新增 `Test_Concurrent_DispatchableHelpers_VectorAsmToggle_ReadConsistency`，fresh red 同时命中 `best dispatchable backend mixed snapshot`、`dispatchable helper mixed snapshot` 和旧 `current backend info mixed snapshot`。随后把 `src/fafafa.core.simd.dispatch.pas` 的 current dispatch publication 改为复用 `GetPublishedBackendDispatchTable(LBestBackend)`，并让 `GetDispatchableBackends` / `GetBestDispatchableBackend` 在扫描期间持有 `g_VectorAsmToggleLock`；fresh `TTestCase_SimdConcurrentFramework`、fresh `check`、fresh `gate` 全部复验通过 |
 | current active dispatch/public API metadata 在更深一层的并发窗口里仍会暴露 mixed snapshot：1) `SetVectorAsmEnabled(False <-> True)` 的 batch rebuild 期间，reader 看到 `g_DispatchState=0` 会按半重建 backend 集合抢跑 `InitializeDispatch`，把 `SSE2/SSSE3/SSE4.1` 这类中间 backend 暴露成 active state；2) `DoInitializeDispatch` 先选 `LBestBackend` 再按 backend id 重抓最新 published state，导致 concurrent `RegisterBackend(...)` 时可能把“旧 backend id + 新 disabled metadata”重新发布成 current snapshot | 已在 `tests/fafafa.core.simd/fafafa.core.simd.concurrent.testcase.pas` 新增 `Test_Concurrent_PublicApiActiveMetadata_VectorAsmToggle_ReadConsistency` 与 `Test_Concurrent_CurrentBackendInfo_VectorAsmToggle_ReadConsistency` 打红；fresh red `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-toggle-activemeta-red-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework` 直接命中 `public api active metadata mixed snapshot ... id=1 flags=15 expectedA=(6,15) expectedB=(0,15)`、`current backend info mixed snapshot ... backend=1/3/4`，并把既有 `CurrentBackendInfo_RegisterBackend_ReadConsistency` 一并重新打成 `backend=6 available=False caps=0`。随后把 `src/fafafa.core.simd.dispatch.pas` 收紧为：`PublishCurrentDispatchTable(...)` 复制精确选中 snapshot；`DoInitializeDispatch` 扫描时直接捕获并发布 `LBestDispatchTable`；`SetVectorAsmEnabled(...)` 的 batch rebuild 通过 `g_RegisterBackendReinitializeSuspendDepth` 抑制中间 reinitialize，并用 `g_DispatchBatchRebuildState` 阻止 reader 在半重建 backend 集合上抢跑初始化。fresh `TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework`、fresh `TTestCase_DispatchAPI,TTestCase_PublicAbi,TTestCase_SimdConcurrentPublicAbi,TTestCase_SimdConcurrentFramework`、fresh `check`、fresh `gate` 全部复验通过，最终 `[GATE] OK`，run-all summary 时间 `2026-03-22 04:22:54` |
+| `TryGetSimdBackendPodInfo(current_backend)` 在并发 `RegisterBackend(...)` 切换当前 active backend 的 enabled/disabled table 时，仍会把 registered snapshot 的 `CapabilityBits/dispatchable/priority` 与 current dispatch 的 `active` bit 混成单个 POD，暴露 `disabled-active` 这类 impossible combo | 已在 `tests/fafafa.core.simd/fafafa.core.simd.concurrent.testcase.pas` 新增 `Test_Concurrent_PublicAbiPodInfo_CurrentBackend_RegisterBackend_ReadConsistency` 与 `TCurrentBackendPodInfoReadWorker` 打红；fresh red `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-currentpod-red-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrentPublicAbi` 直接命中 `caps=0 flags=11`。随后把 `src/fafafa.core.simd.public_abi.impl.inc` 的 current-active 路径收紧为：若 `aBackend` 就是 `GetDispatchTable^.Backend`，则 `CapabilityBits/dispatchable/priority/active` 全部从同一份 current dispatch snapshot 派生；并把并发合同收紧为仅允许 `enabled-active` / `enabled-inactive` / `disabled-inactive` 三态。fresh `TTestCase_SimdConcurrentPublicAbi`、fresh `TTestCase_PublicAbi,TTestCase_SimdConcurrentPublicAbi`、fresh `check`、fresh `gate` 全部复验通过，最终 `[GATE] OK`，run-all summary 时间 `2026-03-22 12:08:47` |
 | `NEON/RISCVV` 在 non-asm build、test-only fallback 注册态，以及 native asm build 的 runtime-disabled rebuild 路径下仍高报 `scIntegerOps`，把 scalar/common fallback 整数槽位误包装成 vector integer capability | 已在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 与 `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 补 `NEON/RISCVV` 的 `scIntegerOps` red/green 合同测试，并把 native `SetVectorAsmEnabled(False)` 路径也纳入清零断言；随后将 `src/fafafa.core.simd.neon.register.inc` 与 `src/fafafa.core.simd.riscvv.register.inc` 的 `scIntegerOps` 宣称改为仅在 `LUseVectorAsm=True` 时成立；fresh `NEON`/`RISCVV` opt-in suite、fresh `check`、fresh `gate` 全部通过 |
 | `AVX512` 在 runtime `SetVectorAsmEnabled(False)` 后仍保留 native 宽槽位与 `scFMA/scIntegerOps/scMaskedOps/sc512BitOps`，导致 dispatch/public ABI 双侧 stale capability | 已在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 与 `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 补 AVX512 runtime-disabled red/green 合同测试；随后将 `src/fafafa.core.simd.avx512.register.inc` 改为仅在 `LEnableVectorAsm=True` 时覆写 native AVX512 slots 并加入 gated capabilities，`vector asm=False` 时保留 fallback table；同时把旧 AVX512 native-path testcase 改成显式 `SetVectorAsmEnabled(True)` 后再断言 native 映射；fresh opt-in suite、fresh opt-in `check`、fresh opt-in `gate` 全部通过 |
 | `AVX512` 在 `vector asm=True` 时已把 `SelectF32x16/SelectF64x8` 接到原生实现，但 capability metadata / public ABI `CapabilityBits` 仍低报 `scShuffle` | 已在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 与 `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 补 AVX512 `scShuffle` expose/clear 合同测试；随后将 `src/fafafa.core.simd.avx512.register.inc` 的 `scShuffle` 宣称改为跟随 `LEnableVectorAsm`；fresh opt-in suite、fresh opt-in `check`、fresh opt-in `gate` 全部通过 |

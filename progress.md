@@ -1828,3 +1828,52 @@
 | What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
 | What have I learned? | 这轮证明，单靠 immutable backend snapshot 还不够。如果 current dispatch 的选主、发布和 batch rebuild 节奏不是同一个 observation point，active metadata 仍会裂成“旧选择 + 新状态”或“中间 backend”这类不可能组合。 |
 | What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 active dispatch snapshot/batch rebuild drift：current dispatch 现在发布精确选中 snapshot，vector-asm batch rebuild 也不再让 reader 抢跑到半重建状态。 |
+
+### Phase 46: current active backend public ABI pod snapshot consistency hardening
+- **Status:** complete
+- Actions taken:
+  - 继续深审 current-active public ABI pod getter 的并发合同后，先在现有 concurrent suite 里补一条新的 deterministic red，而不是直接改实现：
+    - `tests/fafafa.core.simd/fafafa.core.simd.concurrent.testcase.pas` 新增 `Test_Concurrent_PublicAbiPodInfo_CurrentBackend_RegisterBackend_ReadConsistency`
+    - 同文件新增 `TCurrentBackendPodInfoReadWorker`
+    - 这条 reader 把 current active backend pod info 的允许状态收紧为三态：`enabled-active`、`enabled-inactive`、`disabled-inactive`
+    - 其中 `disabled-active` 被明确定义为 impossible combo，必须持续打红
+  - fresh red 复验：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-currentpod-red-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrentPublicAbi`
+    - 失败点直接命中：
+      - `backend pod info mixed snapshot at iter 0: caps=447 flags=7 expectedA=(447,15) expectedB=(0,3)`
+      - `backend pod info mixed snapshot at iter 12: caps=0 flags=11 expectedA=(447,15) expectedB=(0,3)`
+    - 其中 `caps=0 flags=11` 是最关键的 witness，因为它等价于 disabled snapshot 仍带 active bit
+  - 根因确认后，做最小实现修复：
+    - `src/fafafa.core.simd.public_abi.impl.inc` 的 `TryGetSimdBackendPodInfo(...)` 虽然已经把 non-active backend 收口到 registered snapshot
+    - 但旧 current-active 路径仍把 registered snapshot 的 `CapabilityBits/dispatchable/priority` 与 current dispatch 的 `active` 混成同一个 POD
+    - 现已把 current-active 路径收紧为：
+      - 先抓 `LCurrentDispatch := GetDispatchTable`
+      - 若 `aBackend = LCurrentDispatch^.Backend`，则 `CapabilityBits` / `dispatchable` / `Priority` / `active` 全部从同一份 current dispatch snapshot 派生
+      - 只有 non-active backend 才继续读取 registered snapshot
+  - fresh green / release 复验：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-currentpod-green3-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrentPublicAbi`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-currentpod-contract-green-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi,TTestCase_SimdConcurrentPublicAbi`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-currentpod-check-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-currentpod-gate-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 记录关键运行结果：
+    - fresh `TTestCase_SimdConcurrentPublicAbi` PASS，`[LEAK] OK`
+    - fresh `TTestCase_PublicAbi,TTestCase_SimdConcurrentPublicAbi` PASS，`[LEAK] OK`
+    - fresh `check` PASS
+    - fresh `gate` 最终 `[GATE] OK`
+    - run-all summary 时间：`2026-03-22 12:08:47`
+- Files created/modified:
+  - `src/fafafa.core.simd.public_abi.impl.inc` (modified)
+  - `tests/fafafa.core.simd/fafafa.core.simd.concurrent.testcase.pas` (modified again)
+  - `task_plan.md` (modified)
+  - `findings.md` (modified)
+  - `progress.md` (modified)
+  - `workers/worker0.md` (modified)
+
+## 5-Question Reboot Check (Phase 46 Update)
+| Question | Answer |
+|----------|--------|
+| Where am I? | Linux fresh `TTestCase_SimdConcurrentPublicAbi`、fresh `TTestCase_PublicAbi`、fresh `check`、fresh `gate` 都已重新通过；本轮最新又收敛了一条 current-active public ABI pod drift：旧 `TryGetSimdBackendPodInfo(current_backend)` 会在 concurrent re-register 窗口里暴露 mixed pod snapshot。 |
+| Where am I going? | 下一轮继续从实现层深审，优先找下一条 current-active reader / clone / external-consumer 边界上的真实 snapshot drift，重点继续看 `GetActiveBackend`、`CloneDispatchTable`、public ABI external smoke 和 remaining toggle/re-register 相邻路径。 |
+| What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
+| What have I learned? | 这轮证明，即使 Phase 45 已经修复 current dispatch/public API metadata 的发布语义，只要 current active backend 的 pod getter 仍跨 registered/current 两份 observation point 拼字段，public ABI 仍会重新裂出 impossible combo。 |
+| What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 current active backend pod snapshot drift：active backend 的 `CapabilityBits/dispatchable/priority/active` 现在都从同一份 current dispatch snapshot 派生。 |
