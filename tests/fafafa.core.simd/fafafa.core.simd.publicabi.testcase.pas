@@ -43,6 +43,7 @@ type
     procedure Test_PublicApi_FailedHookMutation_DoesNotRevive_PreviouslyRequestedBackend_AfterRestore;
     procedure Test_PublicApi_FailedHookMutation_Restores_AutomaticBackend_Immediately;
     procedure Test_PublicApi_RollbackRestore_ReSelects_RequestedBackend_Before_Return;
+    procedure Test_PublicApi_RollbackRestore_Success_Preserves_ForcedSelection;
     procedure Test_PublicApi_Refreshes_WhenVectorAsmDisabled_ReSelects_Away_From_ScalarBacked_CurrentBackend;
     procedure Test_PublicApi_DataPlane_Parity;
   end;
@@ -59,6 +60,14 @@ var
   GPublicAbiHookRestoreBackendStage: Integer = 0;
   GPublicAbiHookRestoreBackendTarget: TSimdBackend = sbScalar;
   GPublicAbiHookRestoreBackendOriginalTable: TSimdDispatchTable;
+  GPublicAbiHookRollbackForceSuccessEnabled: Boolean = False;
+  GPublicAbiHookRollbackForceSuccessStage: Integer = 0;
+  GPublicAbiHookRollbackForceSuccessInMutation: Boolean = False;
+  GPublicAbiHookRollbackForceSuccessTarget: TSimdBackend = sbScalar;
+  GPublicAbiHookRollbackForceSuccessTargetTable: TSimdDispatchTable;
+  GPublicAbiHookRollbackForceSuccessHigherCount: Integer = 0;
+  GPublicAbiHookRollbackForceSuccessHigherBackends: array[0..Ord(High(TSimdBackend))] of TSimdBackend;
+  GPublicAbiHookRollbackForceSuccessHigherTables: array[0..Ord(High(TSimdBackend))] of TSimdDispatchTable;
 
 procedure PublicAbiHookDisableBackendOnce;
 var
@@ -112,6 +121,57 @@ begin
       begin
         GPublicAbiHookRestoreBackendStage := 4;
         RegisterBackend(GPublicAbiHookRestoreBackendTarget, GPublicAbiHookRestoreBackendOriginalTable);
+        Exit;
+      end;
+  end;
+end;
+
+procedure PublicAbiHookRollbackForceSuccessWithoutForcedIntent;
+var
+  LModifiedTable: TSimdDispatchTable;
+  LIndex: Integer;
+begin
+  if not GPublicAbiHookRollbackForceSuccessEnabled then
+    Exit;
+
+  if GPublicAbiHookRollbackForceSuccessInMutation then
+    Exit;
+
+  case GPublicAbiHookRollbackForceSuccessStage of
+    0:
+      begin
+        GPublicAbiHookRollbackForceSuccessStage := 1;
+        Exit;
+      end;
+    1:
+      begin
+        GPublicAbiHookRollbackForceSuccessStage := 2;
+        GPublicAbiHookRollbackForceSuccessInMutation := True;
+        try
+          LModifiedTable := GPublicAbiHookRollbackForceSuccessTargetTable;
+          LModifiedTable.BackendInfo.Available := False;
+          RegisterBackend(GPublicAbiHookRollbackForceSuccessTarget, LModifiedTable);
+        finally
+          GPublicAbiHookRollbackForceSuccessInMutation := False;
+        end;
+        Exit;
+      end;
+    2:
+      begin
+        GPublicAbiHookRollbackForceSuccessStage := 3;
+        GPublicAbiHookRollbackForceSuccessInMutation := True;
+        try
+          RegisterBackend(GPublicAbiHookRollbackForceSuccessTarget,
+            GPublicAbiHookRollbackForceSuccessTargetTable);
+          for LIndex := 0 to GPublicAbiHookRollbackForceSuccessHigherCount - 1 do
+          begin
+            LModifiedTable := GPublicAbiHookRollbackForceSuccessHigherTables[LIndex];
+            LModifiedTable.BackendInfo.Available := False;
+            RegisterBackend(GPublicAbiHookRollbackForceSuccessHigherBackends[LIndex], LModifiedTable);
+          end;
+        finally
+          GPublicAbiHookRollbackForceSuccessInMutation := False;
+        end;
         Exit;
       end;
   end;
@@ -503,30 +563,91 @@ end;
 procedure TTestCase_PublicAbi.Test_PublicAbi_BackendText_Getters_PreviousPointers_RemainValid_After_Refresh;
 const
   TEXT_LEN = 1024;
-  CHURN_COUNT = 2048;
+  REFRESH_COUNT = 32;
+  CHURN_COUNT = 4096;
 var
   LBackend: TSimdBackend;
   LOriginalTable: TSimdDispatchTable;
-  LNamePtrBefore: PAnsiChar;
-  LDescriptionPtrBefore: PAnsiChar;
-  LNamePtrAfter: PAnsiChar;
-  LDescriptionPtrAfter: PAnsiChar;
-  LNameSnapshotBefore: AnsiString;
-  LDescriptionSnapshotBefore: AnsiString;
-  LNameSnapshotAfter: AnsiString;
-  LDescriptionSnapshotAfter: AnsiString;
-  LChurn: array of AnsiString;
+  LNamePtrHistory: array of PAnsiChar;
+  LDescriptionPtrHistory: array of PAnsiChar;
+  LNameSnapshotHistory: array of AnsiString;
+  LDescriptionSnapshotHistory: array of AnsiString;
+  LNameChurn: array of AnsiString;
+  LDescriptionChurn: array of AnsiString;
+  LNameTextLen: Integer;
+  LDescriptionTextLen: Integer;
   LIndex: Integer;
+  LRefreshIndex: Integer;
 
-  procedure RegisterBackendText(const aNamePrefix, aDescriptionPrefix: AnsiString;
-    const aNameFill, aDescriptionFill: Char);
+  function BuildFixedLengthText(const aPrefix: AnsiString; const aFill: Char;
+    const aTargetLen: Integer): AnsiString;
+  var
+    LFillLen: Integer;
+  begin
+    Result := aPrefix;
+    if Length(Result) < aTargetLen then
+    begin
+      LFillLen := aTargetLen - Length(Result);
+      Result := Result + AnsiString(StringOfChar(aFill, LFillLen));
+    end
+    else
+      SetLength(Result, aTargetLen);
+  end;
+
+  procedure RegisterBackendText(const aNameText, aDescriptionText: AnsiString);
   var
     LWorkingTable: TSimdDispatchTable;
   begin
     LWorkingTable := LOriginalTable;
-    LWorkingTable.BackendInfo.Name := string(aNamePrefix + StringOfChar(aNameFill, TEXT_LEN));
-    LWorkingTable.BackendInfo.Description := string(aDescriptionPrefix + StringOfChar(aDescriptionFill, TEXT_LEN));
+    LWorkingTable.BackendInfo.Name := string(aNameText);
+    LWorkingTable.BackendInfo.Description := string(aDescriptionText);
     RegisterBackend(LBackend, LWorkingTable);
+  end;
+
+  procedure CaptureBackendTextHistory(const aIndex: Integer;
+    const aExpectedName, aExpectedDescription: AnsiString);
+  begin
+    LNamePtrHistory[aIndex] := GetSimdBackendNamePtr(LBackend);
+    LDescriptionPtrHistory[aIndex] := GetSimdBackendDescriptionPtr(LBackend);
+    AssertNotNull('Backend name pointer should not be nil in pointer lifetime history capture',
+      Pointer(LNamePtrHistory[aIndex]));
+    AssertNotNull('Backend description pointer should not be nil in pointer lifetime history capture',
+      Pointer(LDescriptionPtrHistory[aIndex]));
+    LNameSnapshotHistory[aIndex] := AnsiString(StrPas(LNamePtrHistory[aIndex]));
+    LDescriptionSnapshotHistory[aIndex] := AnsiString(StrPas(LDescriptionPtrHistory[aIndex]));
+    AssertEquals('Captured backend name should match the just-registered text',
+      string(aExpectedName), string(LNameSnapshotHistory[aIndex]));
+    AssertEquals('Captured backend description should match the just-registered text',
+      string(aExpectedDescription), string(LDescriptionSnapshotHistory[aIndex]));
+  end;
+
+  procedure AssertHistoryStillValid(const aMaxIndex: Integer; const aContext: string);
+  var
+    LHistoryIndex: Integer;
+  begin
+    for LHistoryIndex := 0 to aMaxIndex do
+    begin
+      AssertEquals('Previously returned backend name pointer should remain process-lifetime valid after ' + aContext +
+        ' history_index=' + IntToStr(LHistoryIndex),
+        string(LNameSnapshotHistory[LHistoryIndex]), string(StrPas(LNamePtrHistory[LHistoryIndex])));
+      AssertEquals('Previously returned backend description pointer should remain process-lifetime valid after ' + aContext +
+        ' history_index=' + IntToStr(LHistoryIndex),
+        string(LDescriptionSnapshotHistory[LHistoryIndex]), string(StrPas(LDescriptionPtrHistory[LHistoryIndex])));
+    end;
+  end;
+
+  function BuildRefreshNameText(const aRefreshIndex: Integer): AnsiString;
+  begin
+    Result := BuildFixedLengthText(
+      'PointerLifetimeNameRefresh_' + AnsiString(IntToStr(aRefreshIndex)) + '_',
+      Chr(Ord('A') + (aRefreshIndex mod 20)), LNameTextLen);
+  end;
+
+  function BuildRefreshDescriptionText(const aRefreshIndex: Integer): AnsiString;
+  begin
+    Result := BuildFixedLengthText(
+      'PointerLifetimeDescriptionRefresh_' + AnsiString(IntToStr(aRefreshIndex)) + '_',
+      Chr(Ord('a') + (aRefreshIndex mod 20)), LDescriptionTextLen);
   end;
 begin
   LBackend := GetCurrentBackend;
@@ -534,44 +655,44 @@ begin
     TryGetRegisteredBackendDispatchTable(LBackend, LOriginalTable));
 
   try
-    RegisterBackendText('PointerLifetimeNameA_', 'PointerLifetimeDescriptionA_', 'A', 'a');
+    LNameTextLen := Length('PointerLifetimeNameA_' + StringOfChar('A', TEXT_LEN));
+    LDescriptionTextLen := Length('PointerLifetimeDescriptionA_' + StringOfChar('a', TEXT_LEN));
+    SetLength(LNamePtrHistory, REFRESH_COUNT + 1);
+    SetLength(LDescriptionPtrHistory, REFRESH_COUNT + 1);
+    SetLength(LNameSnapshotHistory, REFRESH_COUNT + 1);
+    SetLength(LDescriptionSnapshotHistory, REFRESH_COUNT + 1);
 
-    LNamePtrBefore := GetSimdBackendNamePtr(LBackend);
-    LDescriptionPtrBefore := GetSimdBackendDescriptionPtr(LBackend);
-    AssertNotNull('Original backend name pointer should not be nil in pointer lifetime test',
-      Pointer(LNamePtrBefore));
-    AssertNotNull('Original backend description pointer should not be nil in pointer lifetime test',
-      Pointer(LDescriptionPtrBefore));
-    LNameSnapshotBefore := AnsiString(StrPas(LNamePtrBefore));
-    LDescriptionSnapshotBefore := AnsiString(StrPas(LDescriptionPtrBefore));
-    AssertEquals('Original backend name should match seeded text in pointer lifetime test',
-      'PointerLifetimeNameA_' + StringOfChar('A', TEXT_LEN), string(LNameSnapshotBefore));
-    AssertEquals('Original backend description should match seeded text in pointer lifetime test',
-      'PointerLifetimeDescriptionA_' + StringOfChar('a', TEXT_LEN), string(LDescriptionSnapshotBefore));
+    RegisterBackendText(
+      BuildFixedLengthText('PointerLifetimeNameA_', 'A', LNameTextLen),
+      BuildFixedLengthText('PointerLifetimeDescriptionA_', 'a', LDescriptionTextLen));
+    CaptureBackendTextHistory(0,
+      BuildFixedLengthText('PointerLifetimeNameA_', 'A', LNameTextLen),
+      BuildFixedLengthText('PointerLifetimeDescriptionA_', 'a', LDescriptionTextLen));
 
-    RegisterBackendText('PointerLifetimeNameB_', 'PointerLifetimeDescriptionB_', 'B', 'b');
+    for LRefreshIndex := 1 to REFRESH_COUNT do
+    begin
+      RegisterBackendText(
+        BuildRefreshNameText(LRefreshIndex),
+        BuildRefreshDescriptionText(LRefreshIndex));
+      CaptureBackendTextHistory(LRefreshIndex,
+        BuildRefreshNameText(LRefreshIndex),
+        BuildRefreshDescriptionText(LRefreshIndex));
+      AssertHistoryStillValid(LRefreshIndex - 1, 'refresh ' + IntToStr(LRefreshIndex));
+    end;
 
-    LNamePtrAfter := GetSimdBackendNamePtr(LBackend);
-    LDescriptionPtrAfter := GetSimdBackendDescriptionPtr(LBackend);
-    AssertNotNull('Refreshed backend name pointer should not be nil in pointer lifetime test',
-      Pointer(LNamePtrAfter));
-    AssertNotNull('Refreshed backend description pointer should not be nil in pointer lifetime test',
-      Pointer(LDescriptionPtrAfter));
-    LNameSnapshotAfter := AnsiString(StrPas(LNamePtrAfter));
-    LDescriptionSnapshotAfter := AnsiString(StrPas(LDescriptionPtrAfter));
-    AssertEquals('Refreshed backend name should match updated text in pointer lifetime test',
-      'PointerLifetimeNameB_' + StringOfChar('B', TEXT_LEN), string(LNameSnapshotAfter));
-    AssertEquals('Refreshed backend description should match updated text in pointer lifetime test',
-      'PointerLifetimeDescriptionB_' + StringOfChar('b', TEXT_LEN), string(LDescriptionSnapshotAfter));
+    SetLength(LNameChurn, CHURN_COUNT);
+    SetLength(LDescriptionChurn, CHURN_COUNT);
+    for LIndex := 0 to CHURN_COUNT - 1 do
+    begin
+      LNameChurn[LIndex] := BuildFixedLengthText(
+        'NameChurn_' + AnsiString(IntToStr(LIndex)) + '_',
+        Chr(Ord('Q') + (LIndex mod 7)), LNameTextLen);
+      LDescriptionChurn[LIndex] := BuildFixedLengthText(
+        'DescriptionChurn_' + AnsiString(IntToStr(LIndex)) + '_',
+        Chr(Ord('q') + (LIndex mod 7)), LDescriptionTextLen);
+    end;
 
-    SetLength(LChurn, CHURN_COUNT);
-    for LIndex := 0 to High(LChurn) do
-      LChurn[LIndex] := IntToStr(LIndex) + StringOfChar(Chr(Ord('C') + (LIndex mod 3)), TEXT_LEN);
-
-    AssertEquals('Previously returned backend name pointer should remain process-lifetime valid after refresh',
-      string(LNameSnapshotBefore), string(StrPas(LNamePtrBefore)));
-    AssertEquals('Previously returned backend description pointer should remain process-lifetime valid after refresh',
-      string(LDescriptionSnapshotBefore), string(StrPas(LDescriptionPtrBefore)));
+    AssertHistoryStillValid(REFRESH_COUNT, 'same-sized churn');
   finally
     RegisterBackend(LBackend, LOriginalTable);
   end;
@@ -1433,6 +1554,100 @@ begin
           RestoreOriginalActiveBackend(LRequestedBackend));
     end;
   finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_PublicAbi.Test_PublicApi_RollbackRestore_Success_Preserves_ForcedSelection;
+var
+  LApi: PFafafaSimdPublicApi;
+  LDispatchable: TSimdBackendArray;
+  LAutomaticBackend: TSimdBackend;
+  LRequestedBackend: TSimdBackend;
+  LBackend: TSimdBackend;
+  LOldVectorAsm: Boolean;
+  LIndex: Integer;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LDispatchable := GetDispatchableBackendList;
+    if Length(LDispatchable) < 2 then
+      Exit;
+
+    LAutomaticBackend := GetBestDispatchableBackend;
+    LRequestedBackend := sbScalar;
+    for LIndex := High(LDispatchable) downto 0 do
+      if (LDispatchable[LIndex] <> sbScalar) and (LDispatchable[LIndex] <> LAutomaticBackend) then
+      begin
+        LRequestedBackend := LDispatchable[LIndex];
+        Break;
+      end;
+    if LRequestedBackend = sbScalar then
+      Exit;
+
+    AssertTrue('Requested backend should be registered for public ABI rollback forced-success preservation test',
+      TryGetRegisteredBackendDispatchTable(LRequestedBackend, GPublicAbiHookRollbackForceSuccessTargetTable));
+
+    GPublicAbiHookRollbackForceSuccessHigherCount := 0;
+    for LBackend in LDispatchable do
+    begin
+      if LBackend = LRequestedBackend then
+        Break;
+      if LBackend = sbScalar then
+        Continue;
+      AssertTrue('Higher-priority backend should be registered for public ABI rollback forced-success preservation test',
+        TryGetRegisteredBackendDispatchTable(LBackend,
+          GPublicAbiHookRollbackForceSuccessHigherTables[GPublicAbiHookRollbackForceSuccessHigherCount]));
+      GPublicAbiHookRollbackForceSuccessHigherBackends[GPublicAbiHookRollbackForceSuccessHigherCount] := LBackend;
+      Inc(GPublicAbiHookRollbackForceSuccessHigherCount);
+    end;
+    AssertTrue('Public ABI rollback forced-success preservation test requires at least one higher-priority backend to suppress',
+      GPublicAbiHookRollbackForceSuccessHigherCount > 0);
+
+    GPublicAbiHookRollbackForceSuccessTarget := LRequestedBackend;
+    GPublicAbiHookRollbackForceSuccessEnabled := True;
+    GPublicAbiHookRollbackForceSuccessStage := 0;
+    GPublicAbiHookRollbackForceSuccessInMutation := False;
+    AddDispatchChangedHook(@PublicAbiHookRollbackForceSuccessWithoutForcedIntent);
+    try
+      AssertTrue('TrySetActiveBackend should report success when rollback-time restore reselects the requested backend before public ABI observation',
+        TrySetActiveBackend(LRequestedBackend));
+      LApi := GetSimdPublicApi;
+      AssertNotNull('Public API table should remain available in rollback forced-success preservation test', LApi);
+      AssertEquals('Return-time public API active backend should equal the requested backend in rollback forced-success preservation test',
+        Ord(LRequestedBackend), Integer(LApi^.ActiveBackendId));
+      AssertEquals('Synthetic public ABI rollback forced-success hook should complete all expected stages',
+        3, GPublicAbiHookRollbackForceSuccessStage);
+    finally
+      RemoveDispatchChangedHook(@PublicAbiHookRollbackForceSuccessWithoutForcedIntent);
+      GPublicAbiHookRollbackForceSuccessEnabled := False;
+      GPublicAbiHookRollbackForceSuccessInMutation := False;
+    end;
+
+    for LIndex := 0 to GPublicAbiHookRollbackForceSuccessHigherCount - 1 do
+      RegisterBackend(GPublicAbiHookRollbackForceSuccessHigherBackends[LIndex],
+        GPublicAbiHookRollbackForceSuccessHigherTables[LIndex]);
+
+    LApi := GetSimdPublicApi;
+    AssertNotNull('Public API table should remain available after restoring higher-priority backends', LApi);
+    AssertEquals('A successful TrySetActiveBackend must keep the requested backend active in public ABI after higher-priority backends are restored',
+      Ord(LRequestedBackend), Integer(LApi^.ActiveBackendId));
+    AssertEquals('Public API active backend should keep tracking the actual current backend after restoring higher-priority backends',
+      Ord(GetCurrentBackend), Integer(LApi^.ActiveBackendId));
+  finally
+    RegisterBackend(GPublicAbiHookRollbackForceSuccessTarget,
+      GPublicAbiHookRollbackForceSuccessTargetTable);
+    for LIndex := 0 to GPublicAbiHookRollbackForceSuccessHigherCount - 1 do
+      RegisterBackend(GPublicAbiHookRollbackForceSuccessHigherBackends[LIndex],
+        GPublicAbiHookRollbackForceSuccessHigherTables[LIndex]);
+    GPublicAbiHookRollbackForceSuccessHigherCount := 0;
+    GPublicAbiHookRollbackForceSuccessTarget := sbScalar;
+    GPublicAbiHookRollbackForceSuccessStage := 0;
+    GPublicAbiHookRollbackForceSuccessEnabled := False;
+    GPublicAbiHookRollbackForceSuccessInMutation := False;
     SetVectorAsmEnabled(LOldVectorAsm);
     ResetToAutomaticBackend;
   end;

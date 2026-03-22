@@ -1313,6 +1313,16 @@ begin
       ReadBarrier;
       LDispatch := GetCurrentPublishedDispatchTable;
       Result := (LDispatch <> nil) and (LDispatch^.Backend = backend);
+      if Result then
+      begin
+        // Rollback-time automatic selection may already have reselected the
+        // requested backend before this API returns. Preserve the success
+        // contract by restoring forced intent as well, so later backend
+        // re-register/rebuild events cannot drift to a higher-priority backend.
+        g_ForcedBackend := backend;
+        g_BackendForced := True;
+        WriteBarrier;
+      end;
     end;
   finally
     LeaveCriticalSection(g_VectorAsmToggleLock);

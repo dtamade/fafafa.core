@@ -4,7 +4,7 @@
 审查 `fafafa.core.simd` 及其 `cpuinfo` 相关模块，找出可验证的问题并完成至少一轮根因修复，同时产出可连续执行的后续修复与审查计划。
 
 ## Current Phase
-Phase 50 complete; hook-driven rollback restore now recomputes `TrySetActiveBackend(...)` success from the return-time final backend, so return value no longer drifts when automatic rollback re-selects the requested backend before return
+Phase 51 complete; hook-driven rollback restore now preserves forced-selection intent when `TrySetActiveBackend(...)` returns success after automatic rollback re-selects the requested backend before return
 
 ## Phases
 
@@ -761,11 +761,37 @@ Phase 50 complete; hook-driven rollback restore now recomputes `TrySetActiveBack
   2. 重点核对 public ABI text getter/cache、registered/current snapshot adapter，以及 external-consumer helper 是否还存在 return-time state 已更新但返回数据仍取自旧缓存的合同缺口
   3. 若没有 fresh red，再回到 same-process concurrent / toggle / re-register 相邻路径，继续做证据驱动排查
 
-## 5-Question Reboot Check (Phase 50 Update)
+### Phase 51: rollback-restore success forced-intent preservation closeout
+- [x] 在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 与 `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 新增 red tests，锁定 “hook-driven `TrySetActiveBackend(...)` failure rollback 若在 return 前重新选回 requested backend，`True` 不仅要和 return-time active backend 一致，还必须保住后续的 forced-selection intent”
+- [x] 用 fresh release `TTestCase_DispatchAPI,TTestCase_PublicAbi` 先拿 red，确认问题不是 Phase 50 的重复表述，而是 `TrySetActiveBackend(...)` 已经返回 success，但更高优先级 backend 恢复后 active/public ABI 仍会漂回 automatic best backend
+- [x] 确认 `src/fafafa.core.simd.dispatch.pas` 的根因位于 `TrySetActiveBackend(...)` failure rollback 路径先清掉 `g_BackendForced/g_ForcedBackend`，随后只按 return-time final backend 重算 `Result`，却没有在 `Result=True` 时恢复 forced-selection intent
+- [x] 将 `TrySetActiveBackend(...)` 收紧为：若 rollback automatic reinit 后 return-time final backend 等于 requested backend，则同步恢复 `g_ForcedBackend/g_BackendForced`，让 success 语义和持续 forced-selection intent 对齐
+- [x] 用 fresh release `TTestCase_DispatchAPI,TTestCase_PublicAbi`、fresh `check`、fresh `gate` 复验
+- **Status:** complete
+
+- 2026-03-22 最新 rollback-restore success forced-intent closeout 证据：
+  - red: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-force-success-intent-red-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi` -> FAIL（命中 `A successful TrySetActiveBackend must keep the requested backend forced even after higher-priority backends are restored` 与 `A successful TrySetActiveBackend must keep the requested backend active in public ABI after higher-priority backends are restored`，`expected: <1> but was: <6>`）
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-force-success-intent-green-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi` -> PASS，`[LEAK] OK`
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-force-success-intent-check-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh check` -> PASS
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-force-success-intent-gate-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh gate` -> PASS，最终 `[GATE] OK`，run-all summary 时间 `2026-03-22 20:48:19`
+- 这轮根因位于 success path 的 control-plane intent，而不是 return-time final backend / public ABI active backend 的瞬时值：
+  - Phase 50 修复后，rollback automatic reinit 已经会在 return 前把 current active/public ABI 重新选回 requested backend，并让 `TrySetActiveBackend(...)` 返回 `True`
+  - 但 failure rollback 路径更早已经把 `g_BackendForced := False` 与 `g_ForcedBackend := sbScalar` 清掉
+  - 结果是这次 success 只代表 return-time active backend 短暂等于 requested backend；一旦更高优先级 backend 在函数返回后恢复，active/public ABI 就又漂回 automatic best backend
+- 最小修复继续遵守“success 既要对齐 return-time final state，也要保住持续 forced-selection intent”原则：
+  - rollback automatic reinit 后若 final backend 仍等于 requested backend，就在同一持锁路径内恢复 `g_ForcedBackend/g_BackendForced`
+  - 不再额外重建当前 dispatch，因为 return-time active snapshot 已经是 requested backend
+  - 这样后续 `RegisterBackend(...)` / rebuild 重新选主时，dispatch API 和 public ABI 都会继续保持在 requested backend，而不会因 automatic mode 漂走
+- 下一轮连续计划优先级更新为：
+  1. 继续深审 `TrySetActiveBackend` / `SetActiveBackend` / `ResetToAutomaticBackend` 与 rebuild-hook 嵌套路径，优先找下一条“return-time success/active 已对齐，但 helper/cache/持续 intent 仍残留旧 observation point”的真实问题
+  2. 重点核对 public ABI text getter/cache、registered/current snapshot adapter、以及 external-consumer helper 在 forced/automatic 切换后的持续一致性
+  3. 若没有 fresh red，再回到 `CloneDispatchTable`、same-process concurrent / toggle / re-register 相邻路径，继续做证据驱动排查
+
+## 5-Question Reboot Check (Phase 51 Update)
 | Question | Answer |
 |----------|--------|
-| Where am I? | Linux fresh `TTestCase_DispatchAPI,TTestCase_PublicAbi`、fresh `TTestCase_DirectDispatch,TTestCase_DirectDispatchConcurrent`、fresh `check`、fresh `gate` 都已重新通过；本轮最新又收敛了一条 return-value drift：rollback automatic restore 已在 return 前重新选回 requested backend 时，旧 `TrySetActiveBackend(...)` 仍会返回 `False`。 |
-| Where am I going? | 下一轮继续从实现层深审，优先找下一条 `GetActiveBackend` / `CloneDispatchTable` / rebuild-hook 嵌套路径上的真实 postcondition drift，尤其是“final state 已收口，但 helper / return value / cache 仍残留旧 observation point”的问题。 |
+| Where am I? | Linux fresh `TTestCase_DispatchAPI,TTestCase_PublicAbi`、fresh `check`、fresh `gate` 都已重新通过；本轮最新又收敛了一条 rollback-restore success drift：旧 `TrySetActiveBackend(...)` 即使在 return 前已经重新选回 requested backend 并返回 `True`，后续更高优先级 backend 恢复后 active/public ABI 仍会漂回 automatic best backend。 |
+| Where am I going? | 下一轮继续从实现层深审，优先找下一条 `TrySetActiveBackend/SetActiveBackend/ResetToAutomaticBackend`、public ABI text cache、或 rebuild-hook 嵌套路径上的真实持续一致性问题，尤其是“return-time 状态正确，但后续 helper / cache / intent 又漂走”的问题。 |
 | What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
-| What have I learned? | 这轮证明，final state 收口正确也不代表 API 合同已经闭环。只要 helper/返回值还停在 earlier observation point，nested rollback/reinit 一样会让“状态成功、返回失败”这种 postcondition drift 暴露给调用方。 |
-| What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 rollback-restore return-value drift：`TrySetActiveBackend(...)` 现在会按 return-time final backend 重算 success，不再在 automatic rollback 已重新选回 requested backend 时误报失败。 |
+| What have I learned? | 这轮证明，`TrySetActiveBackend=True` 的合同不能只停在 return-time active backend 相等。只要 success path 没把 control-plane forced intent 一起保住，后续 unrelated `RegisterBackend(...)` / rebuild 一样会把 active/public ABI 漂回 automatic best backend。 |
+| What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 rollback-restore success forced-intent drift：`TrySetActiveBackend(...)` 现在在 rollback automatic reinit 已重新选回 requested backend 时，会同步恢复 forced-selection intent，不再在后续高优先级 backend 恢复后漂走。 |

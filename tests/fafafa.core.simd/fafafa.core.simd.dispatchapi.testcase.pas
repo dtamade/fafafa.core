@@ -38,6 +38,7 @@ type
     procedure Test_TrySetActiveBackend_FailedHookMutation_DoesNotLeave_LingeringForcedSelection;
     procedure Test_TrySetActiveBackend_FailedHookMutation_Restores_AutomaticBackend;
     procedure Test_TrySetActiveBackend_RollbackRestore_ReSelects_RequestedBackend_Before_Return;
+    procedure Test_TrySetActiveBackend_RollbackRestore_Success_Preserves_ForcedSelection;
     procedure Test_SetActiveBackend_Unavailable_FallsBackToScalar;
     procedure Test_DispatchChangedHooks_MultiSubscriber_Dedup_And_Remove;
     procedure Test_BackendInfoAvailableFalse_IsNotSelectable;
@@ -134,6 +135,14 @@ var
   GDispatchHookRestoreBackendStage: Integer = 0;
   GDispatchHookRestoreBackendTarget: TSimdBackend = sbScalar;
   GDispatchHookRestoreBackendOriginalTable: TSimdDispatchTable;
+  GDispatchHookRollbackForceSuccessEnabled: Boolean = False;
+  GDispatchHookRollbackForceSuccessStage: Integer = 0;
+  GDispatchHookRollbackForceSuccessInMutation: Boolean = False;
+  GDispatchHookRollbackForceSuccessTarget: TSimdBackend = sbScalar;
+  GDispatchHookRollbackForceSuccessTargetTable: TSimdDispatchTable;
+  GDispatchHookRollbackForceSuccessHigherCount: Integer = 0;
+  GDispatchHookRollbackForceSuccessHigherBackends: array[0..Ord(High(TSimdBackend))] of TSimdBackend;
+  GDispatchHookRollbackForceSuccessHigherTables: array[0..Ord(High(TSimdBackend))] of TSimdDispatchTable;
 
 procedure DispatchHookProbeA;
 begin
@@ -205,6 +214,57 @@ begin
         // returns so return-value and return-time state must agree.
         GDispatchHookRestoreBackendStage := 4;
         RegisterBackend(GDispatchHookRestoreBackendTarget, GDispatchHookRestoreBackendOriginalTable);
+        Exit;
+      end;
+  end;
+end;
+
+procedure DispatchHookRollbackForceSuccessWithoutForcedIntent;
+var
+  LModifiedTable: TSimdDispatchTable;
+  LIndex: Integer;
+begin
+  if not GDispatchHookRollbackForceSuccessEnabled then
+    Exit;
+
+  if GDispatchHookRollbackForceSuccessInMutation then
+    Exit;
+
+  case GDispatchHookRollbackForceSuccessStage of
+    0:
+      begin
+        GDispatchHookRollbackForceSuccessStage := 1;
+        Exit;
+      end;
+    1:
+      begin
+        GDispatchHookRollbackForceSuccessStage := 2;
+        GDispatchHookRollbackForceSuccessInMutation := True;
+        try
+          LModifiedTable := GDispatchHookRollbackForceSuccessTargetTable;
+          LModifiedTable.BackendInfo.Available := False;
+          RegisterBackend(GDispatchHookRollbackForceSuccessTarget, LModifiedTable);
+        finally
+          GDispatchHookRollbackForceSuccessInMutation := False;
+        end;
+        Exit;
+      end;
+    2:
+      begin
+        GDispatchHookRollbackForceSuccessStage := 3;
+        GDispatchHookRollbackForceSuccessInMutation := True;
+        try
+          RegisterBackend(GDispatchHookRollbackForceSuccessTarget,
+            GDispatchHookRollbackForceSuccessTargetTable);
+          for LIndex := 0 to GDispatchHookRollbackForceSuccessHigherCount - 1 do
+          begin
+            LModifiedTable := GDispatchHookRollbackForceSuccessHigherTables[LIndex];
+            LModifiedTable.BackendInfo.Available := False;
+            RegisterBackend(GDispatchHookRollbackForceSuccessHigherBackends[LIndex], LModifiedTable);
+          end;
+        finally
+          GDispatchHookRollbackForceSuccessInMutation := False;
+        end;
         Exit;
       end;
   end;
@@ -493,6 +553,93 @@ begin
       ResetToAutomaticBackend;
     end;
   finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_TrySetActiveBackend_RollbackRestore_Success_Preserves_ForcedSelection;
+var
+  LDispatchable: TSimdBackendArray;
+  LAutomaticBackend: TSimdBackend;
+  LRequestedBackend: TSimdBackend;
+  LBackend: TSimdBackend;
+  LOldVectorAsm: Boolean;
+  LIndex: Integer;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LDispatchable := GetDispatchableBackendList;
+    if Length(LDispatchable) < 2 then
+      Exit;
+
+    LAutomaticBackend := GetBestDispatchableBackend;
+    LRequestedBackend := sbScalar;
+    for LIndex := High(LDispatchable) downto 0 do
+      if (LDispatchable[LIndex] <> sbScalar) and (LDispatchable[LIndex] <> LAutomaticBackend) then
+      begin
+        LRequestedBackend := LDispatchable[LIndex];
+        Break;
+      end;
+    if LRequestedBackend = sbScalar then
+      Exit;
+
+    AssertTrue('Requested backend should be registered for rollback forced-success preservation test',
+      TryGetRegisteredBackendDispatchTable(LRequestedBackend, GDispatchHookRollbackForceSuccessTargetTable));
+
+    GDispatchHookRollbackForceSuccessHigherCount := 0;
+    for LBackend in LDispatchable do
+    begin
+      if LBackend = LRequestedBackend then
+        Break;
+      if LBackend = sbScalar then
+        Continue;
+      AssertTrue('Higher-priority backend should be registered for rollback forced-success preservation test',
+        TryGetRegisteredBackendDispatchTable(LBackend,
+          GDispatchHookRollbackForceSuccessHigherTables[GDispatchHookRollbackForceSuccessHigherCount]));
+      GDispatchHookRollbackForceSuccessHigherBackends[GDispatchHookRollbackForceSuccessHigherCount] := LBackend;
+      Inc(GDispatchHookRollbackForceSuccessHigherCount);
+    end;
+    AssertTrue('Rollback forced-success preservation test requires at least one higher-priority backend to suppress',
+      GDispatchHookRollbackForceSuccessHigherCount > 0);
+
+    GDispatchHookRollbackForceSuccessTarget := LRequestedBackend;
+    GDispatchHookRollbackForceSuccessEnabled := True;
+    GDispatchHookRollbackForceSuccessStage := 0;
+    GDispatchHookRollbackForceSuccessInMutation := False;
+    AddDispatchChangedHook(@DispatchHookRollbackForceSuccessWithoutForcedIntent);
+    try
+      AssertTrue('TrySetActiveBackend should report success when rollback-time restore reselects the requested backend',
+        TrySetActiveBackend(LRequestedBackend));
+      AssertEquals('Return-time active backend should equal the requested backend in rollback forced-success preservation test',
+        Ord(LRequestedBackend), Ord(GetActiveBackend));
+      AssertEquals('Synthetic rollback forced-success hook should complete all expected stages',
+        3, GDispatchHookRollbackForceSuccessStage);
+    finally
+      RemoveDispatchChangedHook(@DispatchHookRollbackForceSuccessWithoutForcedIntent);
+      GDispatchHookRollbackForceSuccessEnabled := False;
+      GDispatchHookRollbackForceSuccessInMutation := False;
+    end;
+
+    for LIndex := 0 to GDispatchHookRollbackForceSuccessHigherCount - 1 do
+      RegisterBackend(GDispatchHookRollbackForceSuccessHigherBackends[LIndex],
+        GDispatchHookRollbackForceSuccessHigherTables[LIndex]);
+
+    AssertEquals('A successful TrySetActiveBackend must keep the requested backend forced even after higher-priority backends are restored',
+      Ord(LRequestedBackend), Ord(GetActiveBackend));
+  finally
+    RegisterBackend(GDispatchHookRollbackForceSuccessTarget,
+      GDispatchHookRollbackForceSuccessTargetTable);
+    for LIndex := 0 to GDispatchHookRollbackForceSuccessHigherCount - 1 do
+      RegisterBackend(GDispatchHookRollbackForceSuccessHigherBackends[LIndex],
+        GDispatchHookRollbackForceSuccessHigherTables[LIndex]);
+    GDispatchHookRollbackForceSuccessHigherCount := 0;
+    GDispatchHookRollbackForceSuccessTarget := sbScalar;
+    GDispatchHookRollbackForceSuccessStage := 0;
+    GDispatchHookRollbackForceSuccessEnabled := False;
+    GDispatchHookRollbackForceSuccessInMutation := False;
     SetVectorAsmEnabled(LOldVectorAsm);
     ResetToAutomaticBackend;
   end;
