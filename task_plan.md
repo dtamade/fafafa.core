@@ -1043,3 +1043,38 @@ Phase 57 complete; TrySetActiveBackend rollback restore no longer loses previous
 | What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
 | What have I learned? | 这轮证明，`TrySetActiveBackend(...)` 的 automatic rollback 分支也必须像 previous-forced restore 一样做 hook 之后的 control-plane closure。只要 notify callback 里还能 nested force，一次 automatic reinit 仍然不够。 |
 | What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 automatic rollback late-force drift：`TrySetActiveBackend(...)` 现在不会再在 automatic rollback callback 里被再次劫持成 stale scalar forced fallback。 |
+
+### Phase 59: RegisterBackend previous-forced restore late-reset preservation closeout
+- [x] 在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 与 `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 新增 red tests，锁定 “调用前已经 forced 在 backend A 时，`RegisterBackend(A, ...)` 若在 restore callback 中又被 late `ResetToAutomaticBackend(...)` 劫持，return-time 仍必须恢复 A”
+- [x] 用 fresh release `TTestCase_DispatchAPI,TTestCase_PublicAbi` 先拿 red，确认问题不是 Phase 55/56/58 的重复表述，而是 `RegisterBackend(...)` 自己的 restore reinit 分支仍缺少第二层 hook 之后的 control-plane closure
+- [x] 确认 `src/fafafa.core.simd.dispatch.pas` 的根因位于 `RegisterBackend(...)` 首次 `InitializeDispatch` 后虽然会恢复 pre-call intent，但 restore reinit 完成后没有再次检查 hook 是否又把 forced/automatic mode 改写
+- [x] 将 `RegisterBackend(...)` 收紧为：restore reinit 完成后若 hook 再次改写了 forced/automatic mode，则恢复 pre-call intent 并再做一次 `InitializeDispatch`
+- [x] 用 fresh release `TTestCase_DispatchAPI,TTestCase_PublicAbi`、fresh `check`、fresh `gate` 复验
+- **Status:** complete
+
+- 2026-03-23 最新 RegisterBackend previous-forced restore late-reset closeout 证据：
+  - red: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-register-restore-latereset-red-20260323 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi` -> FAIL（命中 `RegisterBackend should preserve the previous forced backend even if a late hook resets to automatic during restore notification` 与 `Public API active backend should preserve the previous forced backend even if a late hook resets to automatic during RegisterBackend restore notification`，`expected: <5> but was: <6>`）
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-register-restore-latereset-green-20260323 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi` -> PASS，`[LEAK] OK`
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-register-restore-latereset-check-20260323 bash tests/fafafa.core.simd/BuildOrTest.sh check` -> PASS
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-register-restore-latereset-gate-20260323 bash tests/fafafa.core.simd/BuildOrTest.sh gate` -> PASS，最终 `[GATE] OK`，run-all summary 时间 `2026-03-23 21:22:28`
+- 这轮根因位于 `RegisterBackend(...)` 的 previous-forced restore postcondition，而不是首次 late-reset 漂移本身：
+  - Phase 56 已让 `RegisterBackend(...)` 在 hook 首次改写 control-plane mode 时恢复 pre-call intent
+  - 但旧实现的 restore reinit 仍只做一次，没有像 `TrySetActiveBackend(...)` 那样在 restore callback 之后再次核对 mode
+  - 所以 dispatch-changed hook 只要在这次 restore callback 里再 nested `ResetToAutomaticBackend(...)`，return-time current/public ABI 就会再次停在 automatic best backend，而不是 previous forced backend A
+- 最小修复继续遵守“RegisterBackend 不得破坏调用前 forced intent”原则：
+  - restore reinit 之后立即检查 `g_BackendForced/g_ForcedBackend`
+  - 若 hook 再次改写 control-plane mode，则恢复 `LPreviousBackendForced/LPreviousForcedBackend` 并再做一次 `InitializeDispatch`
+  - 这样 `RegisterBackend(...)` 仍保持 Phase 56 的 automatic-mode 收口语义，但不会在 previous-forced restore callback 里再次被 late automatic reset 劫持
+- 下一轮连续计划优先级更新为：
+  1. 继续深审 `RegisterBackend(...)` / `SetVectorAsmEnabled(...)` / public ABI getter-cache 在 nested hook 路径上是否还有“return-time 正确，但 helper/cache/intent 后续仍漂走”的合同缺口
+  2. 优先尝试把 `RegisterBackend(...)` previous-forced restore 回调里的 late `SetActiveBackend(sbScalar)` 路径打成独立 regression guard，确认这类二次 force/reset 都被守住
+  3. 若没有 fresh red，再回到 same-process concurrent / toggle / re-register 相邻路径，继续做证据驱动排查
+
+## 5-Question Reboot Check (Phase 59 Update)
+| Question | Answer |
+|----------|--------|
+| Where am I? | Linux fresh `TTestCase_DispatchAPI,TTestCase_PublicAbi`、fresh `check`、fresh `gate` 都已重新通过；本轮最新又收敛了一条 `RegisterBackend(...)` previous-forced restore drift：旧实现会在 restore callback 中再次被 late `ResetToAutomaticBackend(...)` 劫持回 automatic best backend。 |
+| Where am I going? | 下一轮继续从实现层深审，优先找下一条 `RegisterBackend` / `SetVectorAsmEnabled` / public ABI/helper cache 在 nested hook 路径上的真实持续一致性问题。 |
+| What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
+| What have I learned? | 这轮证明，`RegisterBackend(...)` 的 previous-forced restore 分支也必须像 `TrySetActiveBackend(...)` 一样做第二层 hook 之后的 control-plane closure。只要 restore callback 里还能 nested reset，一次 restore reinit 仍然不够。 |
+| What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 RegisterBackend restore late-reset drift：`RegisterBackend(...)` 现在不会再在 previous-forced restore callback 里被再次劫持成 automatic best backend。 |

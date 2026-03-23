@@ -1567,6 +1567,25 @@ begin
       InterlockedExchange(g_DispatchState, 0);
       atomic_thread_fence(mo_seq_cst);
       InitializeDispatch;
+      ReadBarrier;
+      if (g_BackendForced <> LPreviousBackendForced) or
+         (LPreviousBackendForced and (g_ForcedBackend <> LPreviousForcedBackend)) then
+      begin
+        // The restore reinitialize is itself another control-plane
+        // transition. If a hook mutates forced-vs-automatic mode again during
+        // that restore notification, re-apply the caller's original intent
+        // before returning.
+        g_BackendForced := LPreviousBackendForced;
+        if LPreviousBackendForced then
+          g_ForcedBackend := LPreviousForcedBackend
+        else
+          g_ForcedBackend := sbScalar;
+        WriteBarrier;
+        g_DispatchInitialized := False;
+        InterlockedExchange(g_DispatchState, 0);
+        atomic_thread_fence(mo_seq_cst);
+        InitializeDispatch;
+      end;
     end;
   end;
 end;
