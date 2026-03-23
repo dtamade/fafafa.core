@@ -4,7 +4,7 @@
 审查 `fafafa.core.simd` 及其 `cpuinfo` 相关模块，找出可验证的问题并完成至少一轮根因修复，同时产出可连续执行的后续修复与审查计划。
 
 ## Current Phase
-Phase 62 complete; TrySetActiveBackend automatic rollback no longer returns stale scalar after a second late hook scalar re-force during rollback restore
+Phase 63 complete; previous-forced restore late-force symmetry is now covered by fresh regression guards, and current second-layer closure already holds on both RegisterBackend and SetVectorAsmEnabled
 
 ## Phases
 
@@ -1183,3 +1183,32 @@ Phase 62 complete; TrySetActiveBackend automatic rollback no longer returns stal
 | What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
 | What have I learned? | 这轮证明，`TrySetActiveBackend(...)` 的 automatic rollback 分支也需要第二层 hook 之后的 control-plane closure。只要 restore callback 里还能再次 nested force，一次 closure 仍然不够。 |
 | What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 automatic-rollback-restore late-force drift：failed `TrySetActiveBackend(...)` 现在不会再在第二次 rollback restore callback 里被再次劫持成 stale scalar forced fallback。 |
+
+### Phase 63: previous-forced restore late-force symmetry regression guard closeout
+- [x] 在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 与 `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 新增四条 deterministic guards，显式覆盖 `RegisterBackend(...)` / `SetVectorAsmEnabled(...)` 的 previous-forced restore callback 中再次 late `SetActiveBackend(sbScalar)` 的对称路径
+- [x] 用 fresh release `TTestCase_DispatchAPI,TTestCase_PublicAbi` 先验证这四条新护栏是 fresh red 还是即刻 green，避免对已守住的生产代码做重复补丁
+- [x] 确认当前 `src/fafafa.core.simd.dispatch.pas` 的 second-layer closure 已经覆盖这两条路径，本轮不修改生产代码
+- [x] 用 fresh release `check`、fresh release `gate` 复验新增护栏没有引入回归
+- **Status:** complete
+
+- 2026-03-24 最新 previous-forced restore late-force symmetry closeout 证据：
+  - targeted suite: `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch63-lateforce-restore-red-or-green-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi` -> PASS，`[LEAK] OK`
+  - check: `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch63-lateforce-restore-check-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh check` -> PASS
+  - gate: `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch63-lateforce-restore-gate-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh gate` -> PASS，最终 `[GATE] OK`，run-all summary 时间 `2026-03-24 01:03:16`
+- 这轮结论是“测试护栏缺口”，不是新的生产 bug：
+  - `RegisterBackend(...)` 与 `SetVectorAsmEnabled(...)` 之前虽然已经分别在 previous-forced restore 路径上补过 late-reset second-layer closure
+  - 但还缺少一组独立回归护栏来证明“如果 hook 不是 `ResetToAutomaticBackend(...)`，而是再次 `SetActiveBackend(sbScalar)`，return-time state 也不会再被劫持”
+  - 新增四条护栏后，fresh targeted suite 直接转绿，说明当前实现里的 second-layer closure 已经把这条对称 late-force 路径守住
+- 下一轮连续计划优先级更新为：
+  1. 从 `RegisterBackend` / `SetVectorAsmEnabled` 的 late-force 候选切换到 public ABI getter-cache / helper wrapper / external consumer 的 return-after-drift 路径
+  2. 优先查 `GetSimdPublicApi` / backend pod info / helper wrapper 在 nested hook 之后是否还存在“控制面已收口，但 consumer 可见 metadata/helper 仍漂移”的 fresh red
+  3. 继续维持 worktree-local `SIMD_OUTPUT_ROOT/TMPDIR`，避免 `/tmp` tmpfs 对长链 gate 造成噪音
+
+## 5-Question Reboot Check (Phase 63 Update)
+| Question | Answer |
+|----------|--------|
+| Where am I? | Linux fresh `TTestCase_DispatchAPI,TTestCase_PublicAbi`、fresh `check`、fresh `gate` 都已重新通过；本轮最新把 `RegisterBackend(...)` / `SetVectorAsmEnabled(...)` previous-forced restore callback 里的 late scalar force 做成了独立 regression guards。 |
+| Where am I going? | 下一轮转向 public ABI getter-cache / helper wrapper / external consumer return-after-drift，优先找 fresh red，而不是继续在已证实闭环的 restore late-force 路径上重复挖。 |
+| What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
+| What have I learned? | 这轮证明，`RegisterBackend(...)` / `SetVectorAsmEnabled(...)` 当前 second-layer closure 已经守住 previous-forced restore + late `SetActiveBackend(sbScalar)` 的对称路径，缺的是独立 regression guard，而不是生产代码本身。 |
+| What have I done? | 已新增四条对称护栏并完成 fresh release suite/check/gate 复验，把这条候选从“怀疑缺口”收敛成“已证实受保护”，随后可安全切换到新的 public ABI/helper drift 候选。 |

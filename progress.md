@@ -2425,6 +2425,46 @@
 | What have I learned? | 这轮证明，`TrySetActiveBackend(...)` 的 automatic rollback 分支也需要第二层 hook 之后的 control-plane closure。只要 restore callback 里还能再次 nested force，一次 closure 仍然不够。 |
 | What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 automatic-rollback-restore late-force drift：failed `TrySetActiveBackend(...)` 现在不会再在第二次 rollback restore callback 里被再次劫持成 stale scalar forced fallback。 |
 
+### Phase 63: previous-forced restore late-force symmetry regression guard closeout
+- **Status:** complete
+- Actions taken:
+  - 继续沿 `RegisterBackend(...)` / `SetVectorAsmEnabled(...)` previous-forced restore 路径深审时，没有直接改生产代码，而是先补 fresh deterministic guards：
+    - 在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增
+      - `Test_SetVectorAsmEnabled_HookLateForce_DuringRestore_Preserves_PreviousForcedBackend`
+      - `Test_RegisterBackend_HookLateForce_DuringRestore_Preserves_PreviousForcedBackend`
+    - 在 `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 新增
+      - `Test_PublicApi_SetVectorAsmEnabled_HookLateForce_DuringRestore_Preserves_PreviousForcedBackend`
+      - `Test_PublicApi_RegisterBackend_HookLateForce_DuringRestore_Preserves_PreviousForcedBackend`
+  - 四条测试都复用现有的 second-late-force synthetic hook，显式覆盖“hook 在 previous-forced restore 通知里再次 `SetActiveBackend(sbScalar)`”这条此前没有独立守住的对称路径
+  - fresh release 定向 suite 结果不是 red，而是即刻 green：
+    - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch63-lateforce-restore-red-or-green-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi`
+    - 结果：PASS，`[LEAK] OK`
+  - 因为 fresh guard 直接转绿，结论收敛为：当前 `src/fafafa.core.simd.dispatch.pas` 的 second-layer closure 已经把这两条 previous-forced restore late-force 对称路径守住，本轮无需再碰生产实现
+  - 随后按完整批次收尾，继续跑 fresh release `check` / `gate`：
+    - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch63-lateforce-restore-check-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+    - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch63-lateforce-restore-gate-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 记录关键运行结果：
+    - fresh `TTestCase_DispatchAPI,TTestCase_PublicAbi` PASS，`[LEAK] OK`
+    - fresh `check` PASS
+    - fresh `gate` 最终 `[GATE] OK`
+    - run-all summary 时间：`2026-03-24 01:03:16`
+- Files created/modified:
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` (modified again)
+  - `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` (modified again)
+  - `task_plan.md` (modified)
+  - `findings.md` (modified)
+  - `progress.md` (modified)
+  - `workers/worker0.md` (modified)
+
+## 5-Question Reboot Check (Phase 63 Update)
+| Question | Answer |
+|----------|--------|
+| Where am I? | Linux fresh `TTestCase_DispatchAPI,TTestCase_PublicAbi`、fresh `check`、fresh `gate` 都已重新通过；本轮最新把 `RegisterBackend(...)` / `SetVectorAsmEnabled(...)` previous-forced restore callback 的 late-force 对称路径做成了独立 regression guards。 |
+| Where am I going? | 下一轮切到 public ABI getter-cache / helper wrapper / external consumer return-after-drift，优先找 fresh red，而不是继续在已证实闭环的 restore late-force 路径上重复挖。 |
+| What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
+| What have I learned? | 这轮证明，`RegisterBackend(...)` / `SetVectorAsmEnabled(...)` 当前 second-layer closure 已经守住 previous-forced restore + late scalar force；缺的是独立 regression guard，而不是新的生产代码补丁。 |
+| What have I done? | 已新增四条对称护栏，并用 fresh release suite/check/gate 把这条候选从“可能缺口”收敛成“已证实受保护”；下一轮可以安全切到新的 public ABI/helper drift 候选。 |
+
 ### Phase 61: ResetToAutomaticBackend restore-callback late-force second-layer closure closeout
 - **Status:** complete
 - Actions taken:
