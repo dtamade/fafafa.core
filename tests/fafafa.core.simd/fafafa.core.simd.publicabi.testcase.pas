@@ -50,6 +50,7 @@ type
     procedure Test_PublicApi_SetActiveBackend_HookLateFailure_Preserves_PreviousForcedBackend;
     procedure Test_PublicApi_ResetToAutomaticBackend_HookLateForce_Restores_AutomaticBackend;
     procedure Test_PublicApi_SetVectorAsmEnabled_HookLateAutomaticReset_Preserves_PreviousForcedBackend;
+    procedure Test_PublicApi_SetVectorAsmEnabled_HookLateAutomaticReset_DuringRestore_Preserves_PreviousForcedBackend;
     procedure Test_PublicApi_RegisterBackend_HookLateForce_Restores_AutomaticBackend;
     procedure Test_PublicApi_RegisterBackend_HookLateAutomaticReset_Preserves_PreviousForcedBackend;
     procedure Test_PublicApi_Refreshes_WhenVectorAsmDisabled_ReSelects_Away_From_ScalarBacked_CurrentBackend;
@@ -81,6 +82,8 @@ var
   GPublicAbiHookReForceBackendTarget: TSimdBackend = sbScalar;
   GPublicAbiHookResetToAutomaticEnabled: Boolean = False;
   GPublicAbiHookResetToAutomaticStage: Integer = 0;
+  GPublicAbiHookToggleRestoreResetEnabled: Boolean = False;
+  GPublicAbiHookToggleRestoreResetStage: Integer = 0;
   GPublicAbiHookRollbackLateForceEnabled: Boolean = False;
   GPublicAbiHookRollbackLateForceStage: Integer = 0;
   GPublicAbiHookRollbackLateForceRequestedBackend: TSimdBackend = sbScalar;
@@ -235,6 +238,42 @@ begin
       begin
         GPublicAbiHookResetToAutomaticStage := 2;
         ResetToAutomaticBackend;
+        Exit;
+      end;
+  end;
+end;
+
+procedure PublicAbiHookResetToAutomaticOnToggleRestore;
+begin
+  if not GPublicAbiHookToggleRestoreResetEnabled then
+    Exit;
+
+  case GPublicAbiHookToggleRestoreResetStage of
+    0:
+      begin
+        GPublicAbiHookToggleRestoreResetStage := 1;
+        Exit;
+      end;
+    1:
+      begin
+        GPublicAbiHookToggleRestoreResetStage := 2;
+        ResetToAutomaticBackend;
+        Exit;
+      end;
+    2:
+      begin
+        GPublicAbiHookToggleRestoreResetStage := 3;
+        Exit;
+      end;
+    3:
+      begin
+        GPublicAbiHookToggleRestoreResetStage := 4;
+        ResetToAutomaticBackend;
+        Exit;
+      end;
+    4:
+      begin
+        GPublicAbiHookToggleRestoreResetStage := 5;
         Exit;
       end;
   end;
@@ -2385,6 +2424,70 @@ begin
       Ord(LPreviousForcedBackend), Integer(LApi^.ActiveBackendId));
     AssertEquals('Public API active backend should keep tracking the actual current backend after vector-asm late-reset test',
       Ord(GetCurrentBackend), Integer(LApi^.ActiveBackendId));
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_PublicAbi.Test_PublicApi_SetVectorAsmEnabled_HookLateAutomaticReset_DuringRestore_Preserves_PreviousForcedBackend;
+var
+  LApi: PFafafaSimdPublicApi;
+  LDispatchable: TSimdBackendArray;
+  LAutomaticBackend: TSimdBackend;
+  LPreviousForcedBackend: TSimdBackend;
+  LOldVectorAsm: Boolean;
+  LIndex: Integer;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LDispatchable := GetDispatchableBackendList;
+    if Length(LDispatchable) < 2 then
+      Exit;
+
+    LAutomaticBackend := GetBestDispatchableBackend;
+    LPreviousForcedBackend := sbScalar;
+    for LIndex := High(LDispatchable) downto 0 do
+      if (LDispatchable[LIndex] <> sbScalar) and (LDispatchable[LIndex] <> LAutomaticBackend) then
+      begin
+        LPreviousForcedBackend := LDispatchable[LIndex];
+        Break;
+      end;
+
+    if LPreviousForcedBackend = sbScalar then
+      Exit;
+
+    AssertTrue('Previous forced backend should differ from automatic best backend in public ABI vector-asm restore-callback late-reset test',
+      LPreviousForcedBackend <> LAutomaticBackend);
+    AssertTrue('Previous forced backend setup should succeed before public ABI vector-asm restore-callback late-reset test',
+      TrySetActiveBackend(LPreviousForcedBackend));
+    LApi := GetSimdPublicApi;
+    AssertNotNull('Public API table should remain available after setting up previous forced backend for vector-asm restore-callback late-reset test', LApi);
+    AssertEquals('Public API active backend should reflect the previous forced backend before vector-asm restore-callback late-reset test',
+      Ord(LPreviousForcedBackend), Integer(LApi^.ActiveBackendId));
+
+    GPublicAbiHookToggleRestoreResetEnabled := True;
+    GPublicAbiHookToggleRestoreResetStage := 0;
+    AddDispatchChangedHook(@PublicAbiHookResetToAutomaticOnToggleRestore);
+    try
+      SetVectorAsmEnabled(False);
+      AssertEquals('Synthetic public ABI vector-asm restore-callback late-reset hook should run through the full callback sequence',
+        5, GPublicAbiHookToggleRestoreResetStage);
+      AssertTrue('Disabling vector asm should move current backend away from the previously forced backend when it becomes non-dispatchable in public ABI restore-callback late-reset test',
+        GetCurrentBackend <> LPreviousForcedBackend);
+    finally
+      RemoveDispatchChangedHook(@PublicAbiHookResetToAutomaticOnToggleRestore);
+      GPublicAbiHookToggleRestoreResetEnabled := False;
+      GPublicAbiHookToggleRestoreResetStage := 0;
+    end;
+
+    SetVectorAsmEnabled(True);
+    LApi := GetSimdPublicApi;
+    AssertNotNull('Public API table should remain available after vector-asm restore-callback late-reset test', LApi);
+    AssertEquals('Public API should preserve the previously forced backend after vector-asm re-enable even if a late hook resets to automatic during restore callback',
+      Ord(LPreviousForcedBackend), Integer(LApi^.ActiveBackendId));
   finally
     SetVectorAsmEnabled(LOldVectorAsm);
     ResetToAutomaticBackend;

@@ -46,6 +46,7 @@ type
     procedure Test_SetActiveBackend_HookLateFailure_Preserves_PreviousForcedBackend;
     procedure Test_ResetToAutomaticBackend_HookLateForce_Restores_AutomaticBackend;
     procedure Test_SetVectorAsmEnabled_HookLateAutomaticReset_Preserves_PreviousForcedBackend;
+    procedure Test_SetVectorAsmEnabled_HookLateAutomaticReset_DuringRestore_Preserves_PreviousForcedBackend;
     procedure Test_RegisterBackend_HookLateForce_Restores_AutomaticBackend;
     procedure Test_RegisterBackend_HookLateAutomaticReset_Preserves_PreviousForcedBackend;
     procedure Test_DispatchChangedHooks_MultiSubscriber_Dedup_And_Remove;
@@ -156,6 +157,8 @@ var
   GDispatchHookReForceBackendTarget: TSimdBackend = sbScalar;
   GDispatchHookResetToAutomaticEnabled: Boolean = False;
   GDispatchHookResetToAutomaticStage: Integer = 0;
+  GDispatchHookToggleRestoreResetEnabled: Boolean = False;
+  GDispatchHookToggleRestoreResetStage: Integer = 0;
   GDispatchHookRollbackLateForceEnabled: Boolean = False;
   GDispatchHookRollbackLateForceStage: Integer = 0;
   GDispatchHookRollbackLateForceRequestedBackend: TSimdBackend = sbScalar;
@@ -328,6 +331,42 @@ begin
       begin
         GDispatchHookResetToAutomaticStage := 2;
         ResetToAutomaticBackend;
+        Exit;
+      end;
+  end;
+end;
+
+procedure DispatchHookResetToAutomaticOnToggleRestore;
+begin
+  if not GDispatchHookToggleRestoreResetEnabled then
+    Exit;
+
+  case GDispatchHookToggleRestoreResetStage of
+    0:
+      begin
+        GDispatchHookToggleRestoreResetStage := 1;
+        Exit;
+      end;
+    1:
+      begin
+        GDispatchHookToggleRestoreResetStage := 2;
+        ResetToAutomaticBackend;
+        Exit;
+      end;
+    2:
+      begin
+        GDispatchHookToggleRestoreResetStage := 3;
+        Exit;
+      end;
+    3:
+      begin
+        GDispatchHookToggleRestoreResetStage := 4;
+        ResetToAutomaticBackend;
+        Exit;
+      end;
+    4:
+      begin
+        GDispatchHookToggleRestoreResetStage := 5;
         Exit;
       end;
   end;
@@ -1318,6 +1357,65 @@ begin
 
     SetVectorAsmEnabled(True);
     AssertEquals('Re-enabling vector asm should preserve the previously forced backend even if a late hook resets to automatic during disable',
+      Ord(LPreviousForcedBackend), Ord(GetActiveBackend));
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_SetVectorAsmEnabled_HookLateAutomaticReset_DuringRestore_Preserves_PreviousForcedBackend;
+var
+  LDispatchable: TSimdBackendArray;
+  LAutomaticBackend: TSimdBackend;
+  LPreviousForcedBackend: TSimdBackend;
+  LOldVectorAsm: Boolean;
+  LIndex: Integer;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LDispatchable := GetDispatchableBackendList;
+    if Length(LDispatchable) < 2 then
+      Exit;
+
+    LAutomaticBackend := GetBestDispatchableBackend;
+    LPreviousForcedBackend := sbScalar;
+    for LIndex := High(LDispatchable) downto 0 do
+      if (LDispatchable[LIndex] <> sbScalar) and (LDispatchable[LIndex] <> LAutomaticBackend) then
+      begin
+        LPreviousForcedBackend := LDispatchable[LIndex];
+        Break;
+      end;
+
+    if LPreviousForcedBackend = sbScalar then
+      Exit;
+
+    AssertTrue('Previous forced backend should differ from automatic best backend in vector-asm restore-callback late-reset test',
+      LPreviousForcedBackend <> LAutomaticBackend);
+    AssertTrue('Previous forced backend setup should succeed before vector-asm restore-callback late-reset test',
+      TrySetActiveBackend(LPreviousForcedBackend));
+    AssertEquals('Previous forced backend should be active before vector-asm restore-callback late-reset test',
+      Ord(LPreviousForcedBackend), Ord(GetActiveBackend));
+
+    GDispatchHookToggleRestoreResetEnabled := True;
+    GDispatchHookToggleRestoreResetStage := 0;
+    AddDispatchChangedHook(@DispatchHookResetToAutomaticOnToggleRestore);
+    try
+      SetVectorAsmEnabled(False);
+      AssertEquals('Synthetic vector-asm restore-callback late-reset hook should run through the full callback sequence',
+        5, GDispatchHookToggleRestoreResetStage);
+      AssertTrue('Disabling vector asm should move current backend away from the previously forced backend when it becomes non-dispatchable',
+        GetActiveBackend <> LPreviousForcedBackend);
+    finally
+      RemoveDispatchChangedHook(@DispatchHookResetToAutomaticOnToggleRestore);
+      GDispatchHookToggleRestoreResetEnabled := False;
+      GDispatchHookToggleRestoreResetStage := 0;
+    end;
+
+    SetVectorAsmEnabled(True);
+    AssertEquals('Re-enabling vector asm should preserve the previously forced backend even if a late hook resets to automatic during restore callback',
       Ord(LPreviousForcedBackend), Ord(GetActiveBackend));
   finally
     SetVectorAsmEnabled(LOldVectorAsm);
