@@ -1316,6 +1316,20 @@ begin
       InterlockedExchange(g_DispatchState, 0);
       atomic_thread_fence(mo_seq_cst);
       InitializeDispatch;
+      if (not LPreviousBackendForced) and g_BackendForced then
+      begin
+        // Automatic rollback is also a control-plane transition. If a
+        // dispatch-changed hook re-enters and forces another backend during
+        // the rollback notification, restore automatic intent before the API
+        // reports its final state.
+        g_BackendForced := False;
+        g_ForcedBackend := sbScalar;
+        WriteBarrier;
+        g_DispatchInitialized := False;
+        InterlockedExchange(g_DispatchState, 0);
+        atomic_thread_fence(mo_seq_cst);
+        InitializeDispatch;
+      end;
       ReadBarrier;
       LDispatch := GetCurrentPublishedDispatchTable;
       Result := (LDispatch <> nil) and (LDispatch^.Backend = backend);

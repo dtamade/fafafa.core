@@ -7,9 +7,9 @@
 - Worktree: `/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit`
 - Base commit: `c1bf1d66b2e2990e10a8fabe53c2043852c865dc`
 - Current focus:
-  - 继续 Phase 57 之后的 SIMD 实现层深审
-  - 优先找下一条 `TrySetActiveBackend` failure rollback automatic 分支、`RegisterBackend`、`SetVectorAsmEnabled`、或 helper wrapper 在 forced/automatic 切换、automatic reset、与 rebuild-hook 嵌套路径上的真实持续一致性问题
-  - 重点关注 failure rollback 已开始恢复，但 hook/re-register 又在通知阶段覆盖 caller intent 的路径，以及 return-time state 已收口但 helper / cache / forced intent 仍可能在后续 `toggle/re-register` 中漂走的路径
+  - 继续 Phase 58 之后的 SIMD 实现层深审
+  - 优先找下一条 `RegisterBackend` pre-existing forced state、`SetVectorAsmEnabled`、public ABI getter/cache、或 helper wrapper 在 forced/automatic 切换、automatic reset、与 rebuild-hook 嵌套路径上的真实持续一致性问题
+  - 重点关注 automatic/forced rollback 已开始恢复，但 hook/re-register 又在通知阶段覆盖 caller intent 的路径，以及 return-time state 已收口但 helper / cache / forced intent 仍可能在后续 `toggle/re-register` 中漂走的路径
 - Source of truth:
   - `task_plan.md`
   - `findings.md`
@@ -19,16 +19,16 @@
   - 验证继续采用 release 策略
   - 证据驱动：先补 fresh red，再做最小修复，再跑 fresh green / check / gate
 - Fresh verification:
-  - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-rollback-lateforce-gate-20260323 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-automatic-rollback-lateforce-gate-20260323 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：`[GATE] OK`
-  - 时间：`2026-03-23 20:01:24`
+  - 时间：`2026-03-23 20:36:42`
 - Risks / blockers:
   - 当前宿主机没有 native `avx512*` 执行条件，所以 AVX-512 只有 opt-in build/registration/public ABI 证据，没有 native execution 证据
   - `arm64` / `riscv64` asm-ready 主机证据仍待补
   - Windows `1/7..7/7` native evidence 仍需单独补齐
   - `TTestCase_SimdConcurrentRegistration` 会永久注册 previously-unregistered backend，属于 stateful suite；后续若做 same-process 组合并发验证，需要显式考虑顺序污染
 - Next step:
-  - 继续深审 `TrySetActiveBackend` failure rollback automatic 分支、`RegisterBackend`、`SetVectorAsmEnabled`、public ABI getter/cache、以及 rebuild-hook 嵌套路径里是否还有 “toggle/register/rollback helper 覆盖 pre-call intent” 或 “return-time 正确但后续 helper / cache / intent 仍漂走” 的合同缺口
-  - 优先尝试把 `TrySetActiveBackend(...)` automatic rollback 分支在 late `SetActiveBackend/ResetToAutomaticBackend` 后留下 stale forced/current state 的对称路径打成 fresh red
+  - 继续深审 `RegisterBackend` pre-existing forced state、`SetVectorAsmEnabled`、public ABI getter/cache、以及 rebuild-hook 嵌套路径里是否还有 “toggle/register/rollback helper 覆盖 pre-call intent” 或 “return-time 正确但后续 helper / cache / intent 仍漂走” 的合同缺口
+  - 优先尝试把 `RegisterBackend(...)` 在 pre-existing forced state 下被 late `ResetToAutomaticBackend(...)` / `SetActiveBackend(...)` 覆盖 pre-call intent 的路径打成 fresh red
   - 找到 fresh red 后在本 worker 的 worktree 内闭环修复，并继续保持 release `check/gate` 复验
 - Last updated: `2026-03-23`
