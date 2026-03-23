@@ -45,6 +45,7 @@ type
     procedure Test_PublicApi_FailedHookMutation_Restores_PreviousForcedBackend;
     procedure Test_PublicApi_RollbackRestore_ReSelects_RequestedBackend_Before_Return;
     procedure Test_PublicApi_RollbackRestore_Success_Preserves_ForcedSelection;
+    procedure Test_PublicApi_RollbackRestore_LateForce_Preserves_PreviousForcedBackend;
     procedure Test_PublicApi_SetActiveBackend_HookLateFailure_Preserves_PreviousForcedBackend;
     procedure Test_PublicApi_ResetToAutomaticBackend_HookLateForce_Restores_AutomaticBackend;
     procedure Test_PublicApi_SetVectorAsmEnabled_HookLateAutomaticReset_Preserves_PreviousForcedBackend;
@@ -78,6 +79,10 @@ var
   GPublicAbiHookReForceBackendTarget: TSimdBackend = sbScalar;
   GPublicAbiHookResetToAutomaticEnabled: Boolean = False;
   GPublicAbiHookResetToAutomaticStage: Integer = 0;
+  GPublicAbiHookRollbackLateForceEnabled: Boolean = False;
+  GPublicAbiHookRollbackLateForceStage: Integer = 0;
+  GPublicAbiHookRollbackLateForceRequestedBackend: TSimdBackend = sbScalar;
+  GPublicAbiHookRollbackLateForceRequestedTable: TSimdDispatchTable;
 
 procedure PublicAbiHookDisableBackendOnce;
 var
@@ -222,6 +227,51 @@ begin
       begin
         GPublicAbiHookResetToAutomaticStage := 2;
         ResetToAutomaticBackend;
+        Exit;
+      end;
+  end;
+end;
+
+procedure PublicAbiHookDisableRequestedThenLateForceOnPreviousRestore;
+var
+  LModifiedTable: TSimdDispatchTable;
+begin
+  if not GPublicAbiHookRollbackLateForceEnabled then
+    Exit;
+
+  case GPublicAbiHookRollbackLateForceStage of
+    0:
+      begin
+        GPublicAbiHookRollbackLateForceStage := 1;
+        Exit;
+      end;
+    1:
+      begin
+        GPublicAbiHookRollbackLateForceStage := 2;
+        LModifiedTable := GPublicAbiHookRollbackLateForceRequestedTable;
+        LModifiedTable.BackendInfo.Available := False;
+        RegisterBackend(GPublicAbiHookRollbackLateForceRequestedBackend, LModifiedTable);
+        Exit;
+      end;
+    2:
+      begin
+        GPublicAbiHookRollbackLateForceStage := 3;
+        Exit;
+      end;
+    3:
+      begin
+        GPublicAbiHookRollbackLateForceStage := 4;
+        Exit;
+      end;
+    4:
+      begin
+        GPublicAbiHookRollbackLateForceStage := 5;
+        SetActiveBackend(sbScalar);
+        Exit;
+      end;
+    5:
+      begin
+        GPublicAbiHookRollbackLateForceStage := 6;
         Exit;
       end;
   end;
@@ -1881,6 +1931,101 @@ begin
     LApi := GetSimdPublicApi;
     AssertNotNull('Public API table should remain available after restoring the requested backend table in SetActiveBackend late-failure test', LApi);
     AssertEquals('Restoring the requested backend table after SetActiveBackend late failure must keep the previous forced backend active in public ABI',
+      Ord(LPreviousForcedBackend), Integer(LApi^.ActiveBackendId));
+  finally
+    if LRequestedTableCaptured then
+      RegisterBackend(LRequestedBackend, LRequestedOriginalTable);
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_PublicAbi.Test_PublicApi_RollbackRestore_LateForce_Preserves_PreviousForcedBackend;
+var
+  LApi: PFafafaSimdPublicApi;
+  LDispatchable: TSimdBackendArray;
+  LAutomaticBackend: TSimdBackend;
+  LPreviousForcedBackend: TSimdBackend;
+  LRequestedBackend: TSimdBackend;
+  LRequestedOriginalTable: TSimdDispatchTable;
+  LOldVectorAsm: Boolean;
+  LRequestedTableCaptured: Boolean;
+  LSelectedCount: Integer;
+  LIndex: Integer;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  LRequestedTableCaptured := False;
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LDispatchable := GetDispatchableBackendList;
+    if Length(LDispatchable) < 3 then
+      Exit;
+
+    LAutomaticBackend := GetBestDispatchableBackend;
+    LPreviousForcedBackend := sbScalar;
+    LRequestedBackend := sbScalar;
+    LSelectedCount := 0;
+    for LIndex := 0 to High(LDispatchable) do
+      if (LDispatchable[LIndex] <> LAutomaticBackend) and (LDispatchable[LIndex] <> sbScalar) then
+      begin
+        Inc(LSelectedCount);
+        if LSelectedCount = 1 then
+          LPreviousForcedBackend := LDispatchable[LIndex]
+        else
+        begin
+          LRequestedBackend := LDispatchable[LIndex];
+          Break;
+        end;
+      end;
+
+    if (LPreviousForcedBackend = sbScalar) or (LRequestedBackend = sbScalar) then
+      Exit;
+
+    AssertTrue('Previous forced backend should differ from automatic best backend in public ABI rollback late-force test',
+      LPreviousForcedBackend <> LAutomaticBackend);
+    AssertTrue('Previous forced backend setup should succeed before public ABI rollback late-force test',
+      TrySetActiveBackend(LPreviousForcedBackend));
+    LApi := GetSimdPublicApi;
+    AssertNotNull('Public API table should remain available after setting up previous forced backend for rollback late-force test', LApi);
+    AssertEquals('Public API active backend should reflect the previous forced backend before rollback late-force test',
+      Ord(LPreviousForcedBackend), Integer(LApi^.ActiveBackendId));
+
+    AssertTrue('Requested backend should be registered for public ABI rollback late-force test',
+      TryGetRegisteredBackendDispatchTable(LRequestedBackend, LRequestedOriginalTable));
+    LRequestedTableCaptured := True;
+    AssertTrue('Requested backend should start dispatchable before public ABI rollback late-force test',
+      IsBackendDispatchable(LRequestedBackend));
+
+    GPublicAbiHookRollbackLateForceRequestedBackend := LRequestedBackend;
+    GPublicAbiHookRollbackLateForceRequestedTable := LRequestedOriginalTable;
+    GPublicAbiHookRollbackLateForceEnabled := True;
+    GPublicAbiHookRollbackLateForceStage := 0;
+    AddDispatchChangedHook(@PublicAbiHookDisableRequestedThenLateForceOnPreviousRestore);
+    try
+      AssertFalse('TrySetActiveBackend should still report failure when requested backend is disabled by hook before public ABI rollback late-force observation',
+        TrySetActiveBackend(LRequestedBackend));
+      AssertEquals('Synthetic public ABI rollback late-force hook should run through the full callback sequence',
+        6, GPublicAbiHookRollbackLateForceStage);
+      LApi := GetSimdPublicApi;
+      AssertNotNull('Public API table should remain available after rollback late-force test', LApi);
+      AssertEquals('Public API active backend should preserve the previous forced backend even if a late hook re-forces scalar during rollback restore',
+        Ord(LPreviousForcedBackend), Integer(LApi^.ActiveBackendId));
+      AssertEquals('Public API active backend should keep tracking the actual current backend after rollback late-force test',
+        Ord(GetCurrentBackend), Integer(LApi^.ActiveBackendId));
+      AssertTrue('Public API active backend should not remain stuck on scalar after rollback late-force test',
+        Integer(LApi^.ActiveBackendId) <> Ord(sbScalar));
+    finally
+      RemoveDispatchChangedHook(@PublicAbiHookDisableRequestedThenLateForceOnPreviousRestore);
+      GPublicAbiHookRollbackLateForceEnabled := False;
+      GPublicAbiHookRollbackLateForceStage := 0;
+      GPublicAbiHookRollbackLateForceRequestedBackend := sbScalar;
+    end;
+
+    RegisterBackend(LRequestedBackend, LRequestedOriginalTable);
+    LApi := GetSimdPublicApi;
+    AssertNotNull('Public API table should remain available after restoring requested backend table in rollback late-force test', LApi);
+    AssertEquals('Restoring the requested backend table after rollback late-force failure must keep the previous forced backend active in public ABI',
       Ord(LPreviousForcedBackend), Integer(LApi^.ActiveBackendId));
   finally
     if LRequestedTableCaptured then

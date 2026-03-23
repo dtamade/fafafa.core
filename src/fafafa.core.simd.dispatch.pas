@@ -1341,6 +1341,21 @@ begin
         InterlockedExchange(g_DispatchState, 0);
         atomic_thread_fence(mo_seq_cst);
         InitializeDispatch;
+        ReadBarrier;
+        if (not g_BackendForced) or (g_ForcedBackend <> LPreviousForcedBackend) then
+        begin
+          // The rollback restore path is also a control-plane transition.
+          // If a dispatch-changed hook mutates forced mode again during the
+          // restore notification, re-apply the caller's previous forced intent
+          // before returning.
+          g_ForcedBackend := LPreviousForcedBackend;
+          g_BackendForced := True;
+          WriteBarrier;
+          g_DispatchInitialized := False;
+          InterlockedExchange(g_DispatchState, 0);
+          atomic_thread_fence(mo_seq_cst);
+          InitializeDispatch;
+        end;
       end;
     end;
   finally
