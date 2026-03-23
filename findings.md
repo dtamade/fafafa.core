@@ -7,6 +7,31 @@
 - 形成连续的修复与审查计划
 
 ## Research Findings
+- 最新一轮继续深审 `RegisterBackend(...)` / rebuild-hook 嵌套路径后，又确认一条新的真实 control-plane drift：
+  - `src/fafafa.core.simd.dispatch.pas` 的 `RegisterBackend(...)` 旧实现虽然已经会 canonicalize table identity / priority / canonical text，并在需要时做一次 `InitializeDispatch`
+  - 但 `DoInitializeDispatch -> NotifyDispatchChangedHooks` 允许 dispatch-changed hook 在 `RegisterBackend(...)` 返回前 nested `SetActiveBackend(sbScalar)`
+  - 结果是只要调用前处于 automatic mode，且 automatic best backend 不是 scalar：
+    - `RegisterBackend(...)` 中间那次 reinit 本来已经能选回 automatic best backend，这本身不是问题
+    - 可旧实现不会在返回前恢复 pre-call control-plane mode
+    - 所以 hook 只要在通知阶段 re-force scalar，函数 return-time active/public ABI 就会停在 stale scalar forced fallback，而不是 automatic best backend
+  - 为了先把合同打红，本轮补了两条新的 deterministic regression：
+    - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `Test_RegisterBackend_HookLateForce_Restores_AutomaticBackend`
+    - `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 新增 `Test_PublicApi_RegisterBackend_HookLateForce_Restores_AutomaticBackend`
+  - fresh red 证据：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-register-lateforce-red-20260323 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi`：FAIL
+    - 失败点直接命中：
+      - `RegisterBackend should restore automatic best backend even if a late hook re-forces scalar during notification`，`expected: <6> but was: <0>`
+      - `Public API active backend should restore automatic best backend even if a late hook re-forces scalar during RegisterBackend`，`expected: <6> but was: <0>`
+  - 最小修复方式：
+    - 将 `src/fafafa.core.simd.dispatch.pas` 的 `RegisterBackend(...)` 收紧为：
+      - 入口保存 `LPreviousBackendForced/LPreviousForcedBackend`
+      - 首次 `InitializeDispatch` 完成后检查 hook 是否改写了 `g_BackendForced/g_ForcedBackend`
+      - 若 control-plane mode 与 pre-call intent 不一致，则恢复 pre-call intent 并再做一次 `InitializeDispatch`
+    - 这样 `RegisterBackend(...)` 仍会发布 snapshot 并通知 hook，但不会在 automatic caller 语义下把 return-time state 劫持成 scalar forced fallback
+  - fresh green / 复验证据：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-register-lateforce-green-20260323 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi`：PASS，`[LEAK] OK`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-register-lateforce-check-20260323 bash tests/fafafa.core.simd/BuildOrTest.sh check`：PASS
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-register-lateforce-gate-20260323 bash tests/fafafa.core.simd/BuildOrTest.sh gate`：PASS，最终 `[GATE] OK`，run-all summary 时间 `2026-03-23 19:30:01`
 - 最新一轮继续深审 `SetVectorAsmEnabled(...)` / rebuild-hook 嵌套路径后，又确认一条新的真实 control-plane drift：
   - `src/fafafa.core.simd.dispatch.pas` 的 `SetVectorAsmEnabled(...)` 旧实现只会保存 vector-asm bit 自身，不会保存 pre-toggle forced/automatic mode
   - `RebuildBackendsAfterFeatureToggle(...)` 虽然会重建 backend 表并在 dispatch 已初始化时做一次 `InitializeDispatch`
@@ -1037,6 +1062,7 @@
 | `TrySetActiveBackend(...)` 在调用前已经 forced 在 backend A 时，若随后切换到 backend B 并在 hook-driven late failure 中失败，旧实现会把 rollback 一律收口到 automatic best backend，而不是恢复调用前的 forced backend A | 已在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `Test_TrySetActiveBackend_FailedHookMutation_Restores_PreviousForcedBackend`，并在 `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 新增 `Test_PublicApi_FailedHookMutation_Restores_PreviousForcedBackend` 打红；fresh red `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-previous-forced-rollback-red-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi` 直接命中 `expected: <5> but was: <6>`。随后把 `src/fafafa.core.simd.dispatch.pas` 的 `TrySetActiveBackend(...)` 收紧为：入口先保存 pre-call `g_BackendForced/g_ForcedBackend`；failure rollback 先保留现有 automatic reinit 的 success-recovery 语义；只有当 return-time final backend 仍不等于 requested 且调用前本来就是 forced mode 时，才恢复 pre-call forced state 并重建 dispatch。fresh `TTestCase_DispatchAPI,TTestCase_PublicAbi`、fresh `check`、fresh `gate` 全部复验通过，最终 `[GATE] OK`，run-all summary 时间 `2026-03-22 22:23:44` |
 | `SetActiveBackend(...)` 在 hook-driven late failure 场景下，会把 `TrySetActiveBackend(...)` 已经恢复好的 previous forced backend 又无条件覆盖成 scalar fallback | 已在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `Test_SetActiveBackend_HookLateFailure_Preserves_PreviousForcedBackend`，并在 `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 新增 `Test_PublicApi_SetActiveBackend_HookLateFailure_Preserves_PreviousForcedBackend` 打红；fresh red `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-setactive-late-failure-red-20260322 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi` 直接命中 `expected: <5> but was: <0>`。随后把 `src/fafafa.core.simd.dispatch.pas` 的 `SetActiveBackend(...)` 收紧为：只对调用开始前就不可选的 requested backend 保留 scalar fallback；若 backend 已进入 selection attempt 但在 hook-driven late failure 中失败，则保留 `TrySetActiveBackend(...)` 已恢复好的 current state。fresh `TTestCase_DispatchAPI,TTestCase_PublicAbi`、fresh `check`、fresh `gate` 全部复验通过，最终 `[GATE] OK`，run-all summary 时间 `2026-03-22 23:38:36` |
 | `ResetToAutomaticBackend(...)` 在 dispatch-changed hook 的通知阶段若被一次 late `SetActiveBackend(sbScalar)` 重新 force，旧实现会在 return 后留下 scalar forced fallback，而不是恢复 automatic best backend | 已在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `Test_ResetToAutomaticBackend_HookLateForce_Restores_AutomaticBackend`，并在 `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 新增 `Test_PublicApi_ResetToAutomaticBackend_HookLateForce_Restores_AutomaticBackend` 打红；fresh red `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-resetauto-lateforce-red-20260323 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi` 直接命中 `expected: <6> but was: <0>`。随后把 `src/fafafa.core.simd.dispatch.pas` 的 `ResetToAutomaticBackend(...)` 收紧为：入口显式清 `g_BackendForced/g_ForcedBackend`，第一次 automatic `InitializeDispatch` 后若发现 hook 又复活 forced state，则在同一持锁路径里再次清 forced 并重建 automatic dispatch；fresh `TTestCase_DispatchAPI,TTestCase_PublicAbi`、fresh `check`、fresh `gate` 全部复验通过，最终 `[GATE] OK`，run-all summary 时间 `2026-03-23 03:46:52` |
+| `RegisterBackend(...)` 在 automatic mode 下若在 dispatch-changed hook 的通知阶段被一次 late `SetActiveBackend(sbScalar)` 重新 force，旧实现会在 return 后留下 scalar forced fallback，而不是恢复 automatic best backend | 已在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `Test_RegisterBackend_HookLateForce_Restores_AutomaticBackend`，并在 `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 新增 `Test_PublicApi_RegisterBackend_HookLateForce_Restores_AutomaticBackend` 打红；fresh red `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-register-lateforce-red-20260323 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi` 直接命中 `expected: <6> but was: <0>`。随后把 `src/fafafa.core.simd.dispatch.pas` 的 `RegisterBackend(...)` 收紧为：入口保存 pre-call `g_BackendForced/g_ForcedBackend`，首次 `InitializeDispatch` 后若发现 hook 改写了 control-plane mode，则恢复 pre-call intent 并再做一次 dispatch 初始化；fresh `TTestCase_DispatchAPI,TTestCase_PublicAbi`、fresh `check`、fresh `gate` 全部复验通过，最终 `[GATE] OK`，run-all summary 时间 `2026-03-23 19:30:01` |
 
 ## Resources
 - `docs/fafafa.core.simd.md`

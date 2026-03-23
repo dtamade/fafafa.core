@@ -4,7 +4,7 @@
 审查 `fafafa.core.simd` 及其 `cpuinfo` 相关模块，找出可验证的问题并完成至少一轮根因修复，同时产出可连续执行的后续修复与审查计划。
 
 ## Current Phase
-Phase 55 complete; SetVectorAsmEnabled no longer loses pre-toggle forced intent after late hook automatic reset
+Phase 56 complete; RegisterBackend no longer loses automatic mode after late hook scalar re-force
 
 ## Phases
 
@@ -910,6 +910,14 @@ Phase 55 complete; SetVectorAsmEnabled no longer loses pre-toggle forced intent 
 - [x] 用 fresh release `TTestCase_DispatchAPI,TTestCase_PublicAbi`、fresh `check`、fresh `gate` 复验
 - **Status:** complete
 
+### Phase 56: RegisterBackend late-hook automatic-state restoration closeout
+- [x] 在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 与 `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 新增 red tests，锁定 “automatic mode 下的 `RegisterBackend(...)` 即使在 dispatch-changed hook 通知阶段被一次 late `SetActiveBackend(sbScalar)` 重新 force，也必须在 return 时恢复 automatic best backend”
+- [x] 用 fresh release `TTestCase_DispatchAPI,TTestCase_PublicAbi` 先拿 red，确认问题不是 Phase 54/55 的重复表述，而是 `RegisterBackend(...)` 自身没有做 hook 之后的 control-plane closure
+- [x] 确认 `src/fafafa.core.simd.dispatch.pas` 的根因位于 `RegisterBackend(...)` 只发布 snapshot 并做一次 `InitializeDispatch`，没有在 hook 通知之后检查 `g_BackendForced/g_ForcedBackend` 是否被 late force 改写
+- [x] 将 `RegisterBackend(...)` 收紧为：入口保存 pre-call forced/automatic 状态；首次 reinit 完成后若 hook 改写了 control-plane mode，则恢复 pre-call intent 并再做一次 `InitializeDispatch`
+- [x] 用 fresh release `TTestCase_DispatchAPI,TTestCase_PublicAbi`、fresh `check`、fresh `gate` 复验
+- **Status:** complete
+
 - 2026-03-23 最新 vector-asm late-reset forced-intent closeout 证据：
   - red: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-toggle-latereset-red-20260323 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi` -> FAIL（命中 `Re-enabling vector asm should preserve the previously forced backend even if a late hook resets to automatic during disable` 与 `Public API should preserve the previously forced backend after vector-asm re-enable even if a late hook reset to automatic during disable`，`expected: <1> but was: <6>`）
   - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-toggle-latereset-green-20260323 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi` -> PASS，`[LEAK] OK`
@@ -937,3 +945,31 @@ Phase 55 complete; SetVectorAsmEnabled no longer loses pre-toggle forced intent 
 | What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
 | What have I learned? | 这轮证明，`SetVectorAsmEnabled(...)` 也必须像 `TrySetActiveBackend(...)` / `ResetToAutomaticBackend(...)` 一样做 return-time control-plane closure。只要 dispatch-changed hook 能在通知阶段做 nested reset，单次 rebuild 并不能保证 toggle 返回后仍保留调用前 forced intent。 |
 | What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 vector-asm late-reset drift：toggle 现在不会再在通知阶段被一次 automatic reset 静默抹掉 pre-toggle forced backend。 |
+
+- 2026-03-23 最新 RegisterBackend late-force automatic-state closeout 证据：
+  - red: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-register-lateforce-red-20260323 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi` -> FAIL（命中 `RegisterBackend should restore automatic best backend even if a late hook re-forces scalar during notification` 与 `Public API active backend should restore automatic best backend even if a late hook re-forces scalar during RegisterBackend`，`expected: <6> but was: <0>`）
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-register-lateforce-green-20260323 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi` -> PASS，`[LEAK] OK`
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-register-lateforce-check-20260323 bash tests/fafafa.core.simd/BuildOrTest.sh check` -> PASS
+  - green: `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-register-lateforce-gate-20260323 bash tests/fafafa.core.simd/BuildOrTest.sh gate` -> PASS，最终 `[GATE] OK`，run-all summary 时间 `2026-03-23 19:30:01`
+- 这轮根因位于 `RegisterBackend(...)` 的 control-plane postcondition，而不是 backend slot 重注册本身：
+  - old path 会 canonicalize table、发布 registered snapshot、再做一次 `InitializeDispatch`
+  - 但 `DoInitializeDispatch -> NotifyDispatchChangedHooks` 允许 hook 在 `RegisterBackend(...)` 返回前 nested `SetActiveBackend(sbScalar)`
+  - 旧实现没有像 Phase 54/55 那样在 hook 返回后重新核对 forced/automatic mode，导致 return-time active/public ABI 会停在 stale scalar forced fallback
+- 最小修复继续遵守“RegisterBackend 不能改写调用前控制态”原则：
+  - 入口先保存 `LPreviousBackendForced/LPreviousForcedBackend`
+  - 首次 `InitializeDispatch` 后检查 `g_BackendForced/g_ForcedBackend` 是否被 hook 改写
+  - 若已漂移，则恢复 pre-call intent 并再做一次 `InitializeDispatch`
+  - 这样 `RegisterBackend(...)` 仍会发布新 snapshot 并通知 hook，但不会在 automatic caller 语义下把 return-time state 劫持成 scalar forced fallback
+- 下一轮连续计划优先级更新为：
+  1. 继续深审 `RegisterBackend(...)` 在 pre-existing forced state 下的 late `ResetToAutomaticBackend(...)` / late `SetActiveBackend(...)` 路径，优先找下一条“重注册返回时控制态应保持调用前 intent，却被 hook 覆盖”的真实问题
+  2. 继续核对 `RegisterBackend` / `SetVectorAsmEnabled` / public ABI getter-cache / registered-current adapter 是否还存在“return-time 已收口，但后续 helper / cache / external consumer 仍漂走”的路径
+  3. 若没有 fresh red，再回到 same-process concurrent / toggle / re-register 相邻路径，继续做证据驱动排查
+
+## 5-Question Reboot Check (Phase 56 Update)
+| Question | Answer |
+|----------|--------|
+| Where am I? | Linux fresh `TTestCase_DispatchAPI,TTestCase_PublicAbi`、fresh `check`、fresh `gate` 都已重新通过；本轮最新又收敛了一条 `RegisterBackend(...)` control-plane drift：旧实现会在 late hook nested `SetActiveBackend(sbScalar)` 后返回 stale scalar，而不是调用前的 automatic best backend。 |
+| Where am I going? | 下一轮继续从实现层深审，优先找下一条 `RegisterBackend` / `SetVectorAsmEnabled` / helper wrapper 在 pre-existing forced state、automatic reset、或 rebuild-hook 嵌套路径上的真实持续一致性问题。 |
+| What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
+| What have I learned? | 这轮证明，`RegisterBackend(...)` 也是控制面入口，而不只是数据面 snapshot 发布 helper。只要 dispatch-changed hook 能在通知阶段做 nested force，它同样必须做 return-time control-plane closure。 |
+| What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 RegisterBackend late-force drift：重注册现在不会再在通知阶段被一次 scalar re-force 劫持成 stale forced fallback。 |

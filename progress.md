@@ -2286,3 +2286,48 @@
 | What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
 | What have I learned? | 这轮证明，`SetVectorAsmEnabled(...)` 也必须做 return-time control-plane closure。只要 dispatch-changed hook 能在通知阶段做 nested reset，单次 rebuild 并不能保证 toggle 返回后仍保留调用前 forced intent。 |
 | What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 vector-asm late-reset drift：toggle 现在不会再在通知阶段被一次 automatic reset 静默抹掉 pre-toggle forced backend。 |
+
+### Phase 56: RegisterBackend late-hook automatic-state restoration closeout
+- **Status:** complete
+- Actions taken:
+  - 继续沿 `RegisterBackend(...)` / rebuild-hook 嵌套路径深审后，先补一条新的 deterministic red，而不是直接改实现：
+    - 在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `Test_RegisterBackend_HookLateForce_Restores_AutomaticBackend`
+    - 在 `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 新增 `Test_PublicApi_RegisterBackend_HookLateForce_Restores_AutomaticBackend`
+    - 两条测试都显式 `SetVectorAsmEnabled(True)` 并先 `ResetToAutomaticBackend`，从真实 automatic best backend 起步
+    - 随后挂接一次性的 synthetic hook：arm -> 在真正的 `RegisterBackend(...)` 通知回调里 nested `SetActiveBackend(sbScalar)`
+    - 然后直接断言：只要 automatic best backend 不是 scalar，`RegisterBackend(...)` return-time dispatch API 与 public ABI 都必须回到 automatic best backend，而不能停在 hook 重新 force 的 scalar
+  - fresh red 复验：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-register-lateforce-red-20260323 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi`
+    - 失败点直接命中：
+      - `RegisterBackend should restore automatic best backend even if a late hook re-forces scalar during notification`，`expected: <6> but was: <0>`
+      - `Public API active backend should restore automatic best backend even if a late hook re-forces scalar during RegisterBackend`，`expected: <6> but was: <0>`
+  - 根因确认后，做最小实现修复：
+    - 旧 `src/fafafa.core.simd.dispatch.pas` 的 `RegisterBackend(...)` 会 canonicalize/publish table 并在需要时做一次 `InitializeDispatch`
+    - 但 `DoInitializeDispatch -> NotifyDispatchChangedHooks` 允许 hook 在返回前再做一次 nested `SetActiveBackend(sbScalar)`，旧实现没有任何 hook 之后的 control-plane closure
+    - 现已把 `RegisterBackend(...)` 收紧为：入口保存 `LPreviousBackendForced/LPreviousForcedBackend`；第一次 `InitializeDispatch` 完成后若发现 hook 改写了 `g_BackendForced/g_ForcedBackend`，则恢复 pre-call forced/automatic intent 并重新 `InitializeDispatch`
+  - fresh green / release 复验：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-register-lateforce-green-20260323 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-register-lateforce-check-20260323 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-register-lateforce-gate-20260323 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 记录关键运行结果：
+    - fresh `TTestCase_DispatchAPI,TTestCase_PublicAbi` PASS，`[LEAK] OK`
+    - fresh `check` PASS
+    - fresh `gate` 最终 `[GATE] OK`
+    - run-all summary 时间：`2026-03-23 19:30:01`
+- Files created/modified:
+  - `src/fafafa.core.simd.dispatch.pas` (modified again)
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` (modified again)
+  - `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` (modified again)
+  - `task_plan.md` (modified)
+  - `findings.md` (modified)
+  - `progress.md` (modified)
+  - `workers/worker0.md` (modified)
+
+## 5-Question Reboot Check (Phase 56 Update)
+| Question | Answer |
+|----------|--------|
+| Where am I? | Linux fresh `TTestCase_DispatchAPI,TTestCase_PublicAbi`、fresh `check`、fresh `gate` 都已重新通过；本轮最新又收敛了一条 `RegisterBackend(...)` control-plane drift：旧实现会在 late hook nested `SetActiveBackend(sbScalar)` 后返回 stale scalar，而不是调用前的 automatic best backend。 |
+| Where am I going? | 下一轮继续从实现层深审，优先找下一条 `RegisterBackend` / `SetVectorAsmEnabled` / helper wrapper 在 pre-existing forced state、automatic reset、或 rebuild-hook 嵌套路径上的真实持续一致性问题。 |
+| What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
+| What have I learned? | 这轮证明，`RegisterBackend(...)` 也是控制面入口，而不只是发布 backend snapshot 的数据面 helper。只要 dispatch-changed hook 能在通知阶段做 nested force，它同样必须做 return-time control-plane closure。 |
+| What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 RegisterBackend late-force drift：重注册现在不会再在通知阶段被一次 scalar re-force 劫持成 stale forced fallback。 |

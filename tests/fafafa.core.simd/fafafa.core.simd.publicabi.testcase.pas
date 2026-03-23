@@ -48,6 +48,7 @@ type
     procedure Test_PublicApi_SetActiveBackend_HookLateFailure_Preserves_PreviousForcedBackend;
     procedure Test_PublicApi_ResetToAutomaticBackend_HookLateForce_Restores_AutomaticBackend;
     procedure Test_PublicApi_SetVectorAsmEnabled_HookLateAutomaticReset_Preserves_PreviousForcedBackend;
+    procedure Test_PublicApi_RegisterBackend_HookLateForce_Restores_AutomaticBackend;
     procedure Test_PublicApi_Refreshes_WhenVectorAsmDisabled_ReSelects_Away_From_ScalarBacked_CurrentBackend;
     procedure Test_PublicApi_DataPlane_Parity;
   end;
@@ -2074,6 +2075,56 @@ begin
       Ord(LPreviousForcedBackend), Integer(LApi^.ActiveBackendId));
     AssertEquals('Public API active backend should keep tracking the actual current backend after vector-asm late-reset test',
       Ord(GetCurrentBackend), Integer(LApi^.ActiveBackendId));
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_PublicAbi.Test_PublicApi_RegisterBackend_HookLateForce_Restores_AutomaticBackend;
+var
+  LApi: PFafafaSimdPublicApi;
+  LAutomaticBackend: TSimdBackend;
+  LOriginalTable: TSimdDispatchTable;
+  LOldVectorAsm: Boolean;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LAutomaticBackend := GetBestDispatchableBackend;
+    if LAutomaticBackend = sbScalar then
+      Exit;
+
+    LApi := GetSimdPublicApi;
+    AssertNotNull('Public API table should remain available before RegisterBackend late-force test', LApi);
+    AssertEquals('Public API active backend should reflect automatic best backend before RegisterBackend late-force test',
+      Ord(LAutomaticBackend), Integer(LApi^.ActiveBackendId));
+    AssertTrue('Automatic backend table should be registered for public ABI RegisterBackend late-force test',
+      TryGetRegisteredBackendDispatchTable(LAutomaticBackend, LOriginalTable));
+
+    GPublicAbiHookReForceBackendTarget := sbScalar;
+    GPublicAbiHookReForceBackendEnabled := True;
+    GPublicAbiHookReForceBackendStage := 0;
+    AddDispatchChangedHook(@PublicAbiHookReForceBackendOnce);
+    try
+      RegisterBackend(LAutomaticBackend, LOriginalTable);
+      AssertEquals('Synthetic public ABI RegisterBackend late-force hook should run through the real callback sequence',
+        2, GPublicAbiHookReForceBackendStage);
+      LApi := GetSimdPublicApi;
+      AssertNotNull('Public API table should remain available after RegisterBackend late-force test', LApi);
+      AssertEquals('Public API active backend should restore automatic best backend even if a late hook re-forces scalar during RegisterBackend',
+        Ord(LAutomaticBackend), Integer(LApi^.ActiveBackendId));
+      AssertEquals('Public API active backend should keep tracking the actual current backend after RegisterBackend late-force test',
+        Ord(GetCurrentBackend), Integer(LApi^.ActiveBackendId));
+      AssertTrue('Public API active backend should not remain stuck on scalar after RegisterBackend late-force test',
+        Integer(LApi^.ActiveBackendId) <> Ord(sbScalar));
+    finally
+      RemoveDispatchChangedHook(@PublicAbiHookReForceBackendOnce);
+      GPublicAbiHookReForceBackendEnabled := False;
+      GPublicAbiHookReForceBackendStage := 0;
+      GPublicAbiHookReForceBackendTarget := sbScalar;
+    end;
   finally
     SetVectorAsmEnabled(LOldVectorAsm);
     ResetToAutomaticBackend;

@@ -1488,6 +1488,8 @@ procedure RegisterBackend(backend: TSimdBackend; const dispatchTable: TSimdDispa
 var
   LCanonicalTable: TSimdDispatchTable;
   LShouldReinitialize: Boolean;
+  LPreviousBackendForced: Boolean;
+  LPreviousForcedBackend: TSimdBackend;
 begin
   // The registration slot id is the canonical backend identity.
   // Dynamic re-registration is allowed, but callers should not be able to
@@ -1500,6 +1502,8 @@ begin
     LCanonicalTable.BackendInfo.Name := DefaultBackendName(backend);
   if LCanonicalTable.BackendInfo.Description = '' then
     LCanonicalTable.BackendInfo.Description := DefaultBackendDescription(backend);
+  LPreviousBackendForced := g_BackendForced;
+  LPreviousForcedBackend := g_ForcedBackend;
 
   g_BackendTables[backend] := LCanonicalTable;
   PublishBackendDispatchTable(backend, LCanonicalTable);
@@ -1514,7 +1518,28 @@ begin
   InterlockedExchange(g_DispatchState, 0);  // ✅ Reset atomic state
   atomic_thread_fence(mo_seq_cst); // Full barrier before re-initialization
   if LShouldReinitialize then
+  begin
     InitializeDispatch;
+    ReadBarrier;
+    if (g_BackendForced <> LPreviousBackendForced) or
+       (LPreviousBackendForced and (g_ForcedBackend <> LPreviousForcedBackend)) then
+    begin
+      // RegisterBackend is a data/control publication helper, not a
+      // user-visible control-plane selection API. If a dispatch-changed hook
+      // mutates forced-vs-automatic mode during notification, restore the
+      // caller's pre-call intent before returning.
+      g_BackendForced := LPreviousBackendForced;
+      if LPreviousBackendForced then
+        g_ForcedBackend := LPreviousForcedBackend
+      else
+        g_ForcedBackend := sbScalar;
+      WriteBarrier;
+      g_DispatchInitialized := False;
+      InterlockedExchange(g_DispatchState, 0);
+      atomic_thread_fence(mo_seq_cst);
+      InitializeDispatch;
+    end;
+  end;
 end;
 
 function IsBackendRegistered(backend: TSimdBackend): Boolean;
