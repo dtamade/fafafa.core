@@ -2378,6 +2378,52 @@
 | What have I learned? | 这轮证明，`TrySetActiveBackend(...)` 的 rollback restore 分支也必须像 `ResetToAutomaticBackend(...)` / `SetVectorAsmEnabled(...)` / `RegisterBackend(...)` 一样做 hook 之后的 control-plane closure。只要 notify callback 里还能 nested force，一次 restore reinit 还不够。 |
 | What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 rollback-restore late-force drift：`TrySetActiveBackend(...)` 现在不会再在 previous forced backend 的最后一次 restore callback 里被再次劫持成 stale scalar forced fallback。 |
 
+### Phase 61: ResetToAutomaticBackend restore-callback late-force second-layer closure closeout
+- **Status:** complete
+- Actions taken:
+  - 继续沿 `ResetToAutomaticBackend(...)` automatic restore 路径深审后，先补一条新的 deterministic red，而不是直接改实现：
+    - 在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `Test_ResetToAutomaticBackend_HookLateForce_DuringRestore_Restores_AutomaticBackend`
+    - 在 `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 新增 `Test_PublicApi_ResetToAutomaticBackend_HookLateForce_DuringRestore_Restores_AutomaticBackend`
+    - 两条测试都显式 `SetVectorAsmEnabled(True)`，先 `ResetToAutomaticBackend` 进入真实 automatic best backend，再 forced 到 `sbScalar`
+    - 随后挂接一个新的 synthetic hook：arm -> 忽略第一次 automatic callback -> 在第一次 restore callback 里 nested `SetActiveBackend(sbScalar)` -> 忽略第二次 automatic callback -> 在第二次 restore callback 里再次 nested `SetActiveBackend(sbScalar)`
+    - 然后直接断言：`ResetToAutomaticBackend(...)` 即使在 restore callback 里被二次 late force，dispatch API 与 public ABI 仍必须回到 automatic best backend，而不能再次停在 scalar
+  - fresh red 复验：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-reset-restore-lateforce-red-20260323 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi`
+    - 失败点直接命中：
+      - `ResetToAutomaticBackend should still restore automatic best backend even if a late hook re-forces scalar during restore callback`，`expected: <6> but was: <0>`
+      - `Public API active backend should still restore automatic best backend even if a late hook re-forces scalar during restore callback`，`expected: <6> but was: <0>`
+  - 根因确认后，做最小实现修复：
+    - Phase 54 已让 `ResetToAutomaticBackend(...)` 在第一次 automatic reinit 之后清掉一次 resurrect 的 forced mode
+    - 但旧 `src/fafafa.core.simd.dispatch.pas` 的 automatic restore 分支仍只有这一层 closure，没有覆盖第二次 restore callback 里的再次 late force
+    - 这会让 dispatch-changed hook 在第二次 restore callback 里再做一次 nested `SetActiveBackend(sbScalar)` 时，把 return-time current/public ABI 又重新劫持回 scalar
+    - 现已把 `ResetToAutomaticBackend(...)` 收紧为：第二次 automatic restore reinit 完成后若发现 hook 再次改写了 `g_BackendForced/g_ForcedBackend`，则再次清回 automatic intent 并再做一次 `InitializeDispatch`
+  - fresh green / release 复验：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-reset-restore-lateforce-green-20260323 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-reset-restore-lateforce-check-20260323 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-reset-restore-lateforce-gate-20260323-rerun bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 记录关键运行结果：
+    - fresh `TTestCase_DispatchAPI,TTestCase_PublicAbi` PASS，`[LEAK] OK`
+    - fresh `check` PASS
+    - fresh `gate` 最终 `[GATE] OK`
+    - run-all summary 时间：`2026-03-23 22:18:51`
+- Files created/modified:
+  - `src/fafafa.core.simd.dispatch.pas` (modified again)
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` (modified again)
+  - `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` (modified again)
+  - `task_plan.md` (modified)
+  - `findings.md` (modified)
+  - `progress.md` (modified)
+  - `workers/worker0.md` (modified)
+
+## 5-Question Reboot Check (Phase 61 Update)
+| Question | Answer |
+|----------|--------|
+| Where am I? | Linux fresh `TTestCase_DispatchAPI,TTestCase_PublicAbi`、fresh `check`、fresh `gate` 都已重新通过；本轮最新又收敛了一条 `ResetToAutomaticBackend(...)` automatic restore drift：旧实现会在第二次 restore callback 中再次被 late `SetActiveBackend(sbScalar)` 劫持回 scalar。 |
+| Where am I going? | 下一轮继续从实现层深审，优先找下一条 `RegisterBackend` / `SetVectorAsmEnabled` restore callback 里的 late scalar force，或者 public ABI/helper cache 在 nested hook 路径上的真实持续一致性问题。 |
+| What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
+| What have I learned? | 这轮证明，`ResetToAutomaticBackend(...)` 的 automatic restore 分支也需要第二层 hook 之后的 control-plane closure。只要 restore callback 里还能再次 nested force，一次 closure 仍然不够。 |
+| What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 reset-restore late-force drift：`ResetToAutomaticBackend(...)` 现在不会再在第二次 automatic restore callback 里被再次劫持成 stale scalar forced fallback。 |
+
 ### Phase 58: TrySetActiveBackend automatic rollback late-force automatic-state restoration closeout
 - **Status:** complete
 - Actions taken:

@@ -1426,6 +1426,20 @@ begin
       InterlockedExchange(g_DispatchState, 0);
       atomic_thread_fence(mo_seq_cst);
       InitializeDispatch;
+      ReadBarrier;
+      if g_BackendForced then
+      begin
+        // The restore reinitialize is also a control-plane transition. If a
+        // dispatch-changed hook resurrects forced mode again during that
+        // restore notification, clear it once more before returning.
+        g_BackendForced := False;
+        g_ForcedBackend := sbScalar;
+        WriteBarrier;
+        g_DispatchInitialized := False;
+        InterlockedExchange(g_DispatchState, 0);
+        atomic_thread_fence(mo_seq_cst);
+        InitializeDispatch;
+      end;
     end;
   finally
     LeaveCriticalSection(g_VectorAsmToggleLock);

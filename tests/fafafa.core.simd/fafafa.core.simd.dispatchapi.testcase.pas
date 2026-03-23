@@ -45,6 +45,7 @@ type
     procedure Test_SetActiveBackend_Unavailable_FallsBackToScalar;
     procedure Test_SetActiveBackend_HookLateFailure_Preserves_PreviousForcedBackend;
     procedure Test_ResetToAutomaticBackend_HookLateForce_Restores_AutomaticBackend;
+    procedure Test_ResetToAutomaticBackend_HookLateForce_DuringRestore_Restores_AutomaticBackend;
     procedure Test_SetVectorAsmEnabled_HookLateAutomaticReset_Preserves_PreviousForcedBackend;
     procedure Test_SetVectorAsmEnabled_HookLateAutomaticReset_DuringRestore_Preserves_PreviousForcedBackend;
     procedure Test_RegisterBackend_HookLateForce_Restores_AutomaticBackend;
@@ -157,6 +158,9 @@ var
   GDispatchHookReForceBackendTarget: TSimdBackend = sbScalar;
   GDispatchHookResetToAutomaticEnabled: Boolean = False;
   GDispatchHookResetToAutomaticStage: Integer = 0;
+  GDispatchHookResetLateForceEnabled: Boolean = False;
+  GDispatchHookResetLateForceStage: Integer = 0;
+  GDispatchHookResetLateForceTarget: TSimdBackend = sbScalar;
   GDispatchHookToggleRestoreResetEnabled: Boolean = False;
   GDispatchHookToggleRestoreResetStage: Integer = 0;
   GDispatchHookRollbackLateForceEnabled: Boolean = False;
@@ -331,6 +335,42 @@ begin
       begin
         GDispatchHookResetToAutomaticStage := 2;
         ResetToAutomaticBackend;
+        Exit;
+      end;
+  end;
+end;
+
+procedure DispatchHookReForceBackendOnAutomaticRestore;
+begin
+  if not GDispatchHookResetLateForceEnabled then
+    Exit;
+
+  case GDispatchHookResetLateForceStage of
+    0:
+      begin
+        GDispatchHookResetLateForceStage := 1;
+        Exit;
+      end;
+    1:
+      begin
+        GDispatchHookResetLateForceStage := 2;
+        SetActiveBackend(GDispatchHookResetLateForceTarget);
+        Exit;
+      end;
+    2:
+      begin
+        GDispatchHookResetLateForceStage := 3;
+        Exit;
+      end;
+    3:
+      begin
+        GDispatchHookResetLateForceStage := 4;
+        SetActiveBackend(GDispatchHookResetLateForceTarget);
+        Exit;
+      end;
+    4:
+      begin
+        GDispatchHookResetLateForceStage := 5;
         Exit;
       end;
   end;
@@ -1298,6 +1338,50 @@ begin
       GDispatchHookReForceBackendEnabled := False;
       GDispatchHookReForceBackendStage := 0;
       GDispatchHookReForceBackendTarget := sbScalar;
+    end;
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_ResetToAutomaticBackend_HookLateForce_DuringRestore_Restores_AutomaticBackend;
+var
+  LAutomaticBackend: TSimdBackend;
+  LOldVectorAsm: Boolean;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LAutomaticBackend := GetBestDispatchableBackend;
+    if LAutomaticBackend = sbScalar then
+      Exit;
+
+    AssertTrue('Scalar force setup should succeed before ResetToAutomaticBackend restore-callback late-force test',
+      TrySetActiveBackend(sbScalar));
+    AssertEquals('Scalar should be active before ResetToAutomaticBackend restore-callback late-force test',
+      Ord(sbScalar), Ord(GetActiveBackend));
+
+    GDispatchHookResetLateForceTarget := sbScalar;
+    GDispatchHookResetLateForceEnabled := True;
+    GDispatchHookResetLateForceStage := 0;
+    AddDispatchChangedHook(@DispatchHookReForceBackendOnAutomaticRestore);
+    try
+      ResetToAutomaticBackend;
+      AssertEquals('Synthetic second-late-force hook should run through the full ResetToAutomaticBackend callback sequence',
+        5, GDispatchHookResetLateForceStage);
+      AssertEquals('ResetToAutomaticBackend should still restore automatic best backend even if a late hook re-forces scalar during restore callback',
+        Ord(LAutomaticBackend), Ord(GetActiveBackend));
+      AssertTrue('ResetToAutomaticBackend restore-callback late-force path should not return with stale scalar forced fallback when a better automatic backend exists',
+        GetActiveBackend <> sbScalar);
+      AssertEquals('ResetToAutomaticBackend restore-callback late-force path should leave active backend aligned with best dispatchable backend',
+        Ord(GetBestDispatchableBackend), Ord(GetActiveBackend));
+    finally
+      RemoveDispatchChangedHook(@DispatchHookReForceBackendOnAutomaticRestore);
+      GDispatchHookResetLateForceEnabled := False;
+      GDispatchHookResetLateForceStage := 0;
+      GDispatchHookResetLateForceTarget := sbScalar;
     end;
   finally
     SetVectorAsmEnabled(LOldVectorAsm);
