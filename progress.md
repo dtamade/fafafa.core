@@ -2378,6 +2378,53 @@
 | What have I learned? | 这轮证明，`TrySetActiveBackend(...)` 的 rollback restore 分支也必须像 `ResetToAutomaticBackend(...)` / `SetVectorAsmEnabled(...)` / `RegisterBackend(...)` 一样做 hook 之后的 control-plane closure。只要 notify callback 里还能 nested force，一次 restore reinit 还不够。 |
 | What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 rollback-restore late-force drift：`TrySetActiveBackend(...)` 现在不会再在 previous forced backend 的最后一次 restore callback 里被再次劫持成 stale scalar forced fallback。 |
 
+### Phase 62: TrySetActiveBackend automatic rollback restore-callback late-force second-layer closure closeout
+- **Status:** complete
+- Actions taken:
+  - 继续沿 `TrySetActiveBackend(...)` automatic rollback / restore 路径深审后，先补一条新的 deterministic red，而不是直接改实现：
+    - 在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `Test_TrySetActiveBackend_RollbackRestore_LateForce_DuringRestore_Restores_AutomaticBackend`
+    - 在 `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 新增 `Test_PublicApi_RollbackRestore_LateForce_DuringRestore_Restores_AutomaticBackend`
+    - 两条测试都显式 `SetVectorAsmEnabled(True)`，先从 automatic best backend 起步，选择一个不同于 automatic best 的 non-scalar dispatchable backend作为 requested
+    - 随后挂接一个新的七阶段 synthetic hook：arm -> 在第一次 callback 里把 requested backend 重注册成 `Available=False` -> 忽略 nested disable callback -> 在第一次 automatic rollback callback 里 nested `SetActiveBackend(sbScalar)` -> 忽略 nested scalar callback -> 在第二次 automatic restore callback 里再次 nested `SetActiveBackend(sbScalar)`
+    - 然后直接断言：`TrySetActiveBackend(requested)` 仍必须失败，但 return-time dispatch API 与 public ABI 都要回到 automatic best backend，不能再次停在 scalar
+  - fresh red 复验：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-automatic-rollback-restore-lateforce-red-20260323 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi`
+    - 失败点直接命中：
+      - `A failed TrySetActiveBackend in automatic mode must still restore automatic best backend even if a late hook re-forces scalar during rollback restore callback`，`expected: <6> but was: <0>`
+      - `Public API active backend should still restore automatic best backend even if a late hook re-forces scalar during rollback restore callback`，`expected: <6> but was: <0>`
+  - 根因确认后，做最小实现修复：
+    - Phase 58 已让 `TrySetActiveBackend(...)` 在第一次 automatic rollback callback 之后清掉一次 resurrect 的 forced mode
+    - 但旧 `src/fafafa.core.simd.dispatch.pas` 的 automatic rollback 分支仍只有这一层 closure，没有覆盖第二次 restore callback 里的再次 late force
+    - 这会让 dispatch-changed hook 在第二次 rollback restore callback 里再做一次 nested `SetActiveBackend(sbScalar)` 时，把 return-time current/public ABI 又重新劫持回 scalar
+    - 现已把 automatic rollback 分支收紧为：第二次 automatic restore reinit 完成后若发现 hook 再次改写了 `g_BackendForced/g_ForcedBackend`，则再次清回 automatic intent 并再做一次 `InitializeDispatch`
+  - fresh green / release 复验：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-automatic-rollback-restore-lateforce-green-20260323 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-automatic-rollback-restore-lateforce-check-20260323 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+    - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/automatic-rollback-restore-lateforce-gate-20260323-rerun bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 记录关键运行结果：
+    - fresh `TTestCase_DispatchAPI,TTestCase_PublicAbi` PASS，`[LEAK] OK`
+    - fresh `check` PASS
+    - 首次 `gate` 因 `/tmp` tmpfs 满而在 `publicabi_smoke.c` / `intrinsics.sse` 外部工具链临时文件写入处失败，不属于代码回归
+    - 改用 worktree-local `SIMD_OUTPUT_ROOT` 与 `TMPDIR` 后，fresh `gate` 最终 `[GATE] OK`
+    - run-all summary 时间：`2026-03-23 23:03:40`
+- Files created/modified:
+  - `src/fafafa.core.simd.dispatch.pas` (modified again)
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` (modified again)
+  - `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` (modified again)
+  - `task_plan.md` (modified)
+  - `findings.md` (modified)
+  - `progress.md` (modified)
+  - `workers/worker0.md` (modified)
+
+## 5-Question Reboot Check (Phase 62 Update)
+| Question | Answer |
+|----------|--------|
+| Where am I? | Linux fresh `TTestCase_DispatchAPI,TTestCase_PublicAbi`、fresh `check`、fresh `gate` 都已重新通过；本轮最新又收敛了一条 `TrySetActiveBackend(...)` automatic rollback restore drift：旧实现会在第二次 rollback restore callback 中再次被 late `SetActiveBackend(sbScalar)` 劫持回 scalar。 |
+| Where am I going? | 下一轮继续从实现层深审，优先找下一条 `RegisterBackend` / `SetVectorAsmEnabled` restore callback 里的 late scalar force，或者 public ABI/helper cache 在 nested hook 路径上的真实持续一致性问题。 |
+| What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
+| What have I learned? | 这轮证明，`TrySetActiveBackend(...)` 的 automatic rollback 分支也需要第二层 hook 之后的 control-plane closure。只要 restore callback 里还能再次 nested force，一次 closure 仍然不够。 |
+| What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 automatic-rollback-restore late-force drift：failed `TrySetActiveBackend(...)` 现在不会再在第二次 rollback restore callback 里被再次劫持成 stale scalar forced fallback。 |
+
 ### Phase 61: ResetToAutomaticBackend restore-callback late-force second-layer closure closeout
 - **Status:** complete
 - Actions taken:

@@ -1329,6 +1329,20 @@ begin
         InterlockedExchange(g_DispatchState, 0);
         atomic_thread_fence(mo_seq_cst);
         InitializeDispatch;
+        ReadBarrier;
+        if g_BackendForced then
+        begin
+          // The restore reinitialize is itself another automatic-state
+          // publication. If a hook re-forces scalar again during that restore
+          // callback, clear forced mode once more before returning.
+          g_BackendForced := False;
+          g_ForcedBackend := sbScalar;
+          WriteBarrier;
+          g_DispatchInitialized := False;
+          InterlockedExchange(g_DispatchState, 0);
+          atomic_thread_fence(mo_seq_cst);
+          InitializeDispatch;
+        end;
       end;
       ReadBarrier;
       LDispatch := GetCurrentPublishedDispatchTable;
