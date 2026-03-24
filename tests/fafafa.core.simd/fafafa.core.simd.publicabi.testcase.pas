@@ -18,6 +18,7 @@ type
   published
     procedure Test_PublicApi_Table_IsBound_And_Metadata_IsPresent;
     procedure Test_PublicApi_CachedTable_RemainsCallable_Across_Rebind;
+    procedure Test_PublicApi_CachedTable_Preserves_PreviousSnapshot_Metadata_Across_Rebind;
     procedure Test_PublicApi_Table_Refreshes_AfterBackendSwitch;
     procedure Test_PublicApi_Table_Rebinds_DataPlane_FunctionPointers_AfterBackendSwitch;
     procedure Test_PublicApi_BackendPodInfo_Flags_AreSelfConsistent;
@@ -657,6 +658,70 @@ begin
   finally
     if GetCurrentBackend <> LOriginalBackend then
       AssertTrue('Restoring original active backend should succeed',
+        RestoreOriginalActiveBackend(LOriginalBackend));
+  end;
+end;
+
+procedure TTestCase_PublicAbi.Test_PublicApi_CachedTable_Preserves_PreviousSnapshot_Metadata_Across_Rebind;
+var
+  LApiBefore: PFafafaSimdPublicApi;
+  LApiAfter: PFafafaSimdPublicApi;
+  LOriginalBackend: TSimdBackend;
+  LTargetBackend: TSimdBackend;
+  LBeforeFlags: TFafafaSimdAbiFlags;
+  LDispatchable: TSimdBackendArray;
+  LFoundDifferent: Boolean;
+  LIndex: Integer;
+begin
+  LApiBefore := GetSimdPublicApi;
+  AssertNotNull('Public API table should not be nil before snapshot-preservation test', LApiBefore);
+  LOriginalBackend := GetCurrentBackend;
+  LBeforeFlags := LApiBefore^.ActiveFlags;
+  LTargetBackend := LOriginalBackend;
+  LFoundDifferent := False;
+
+  if LOriginalBackend <> sbScalar then
+  begin
+    LTargetBackend := sbScalar;
+    LFoundDifferent := True;
+  end
+  else
+  begin
+    LDispatchable := GetDispatchableBackendList;
+    for LIndex := 0 to High(LDispatchable) do
+      if LDispatchable[LIndex] <> LOriginalBackend then
+      begin
+        LTargetBackend := LDispatchable[LIndex];
+        LFoundDifferent := True;
+        Break;
+      end;
+  end;
+
+  if not LFoundDifferent then
+    Exit;
+
+  try
+    AssertTrue('TrySetActiveBackend(target) should succeed in snapshot-preservation test',
+      TrySetActiveBackend(LTargetBackend));
+
+    LApiAfter := GetSimdPublicApi;
+    AssertNotNull('Fresh public API table should not be nil after snapshot-preservation rebind', LApiAfter);
+    AssertTrue('Fresh getter should publish a different table pointer after rebind',
+      PtrUInt(LApiBefore) <> PtrUInt(LApiAfter));
+    AssertEquals('Cached pre-rebind table should preserve previous active backend metadata after rebind',
+      Ord(LOriginalBackend), Integer(LApiBefore^.ActiveBackendId));
+    AssertEquals('Cached pre-rebind table should preserve previous active flags after rebind',
+      LBeforeFlags, LApiBefore^.ActiveFlags);
+    AssertEquals('Fresh public API table should expose the new active backend after rebind',
+      Ord(LTargetBackend), Integer(LApiAfter^.ActiveBackendId));
+    AssertTrue('Fresh public API table active flags should remain non-zero after rebind',
+      LApiAfter^.ActiveFlags <> 0);
+    AssertTrue('Rebind should produce fresh metadata instead of mutating the cached snapshot in place',
+      (LApiAfter^.ActiveBackendId <> LApiBefore^.ActiveBackendId) or
+      (LApiAfter^.ActiveFlags <> LApiBefore^.ActiveFlags));
+  finally
+    if GetCurrentBackend <> LOriginalBackend then
+      AssertTrue('Restoring original active backend should succeed after snapshot-preservation test',
         RestoreOriginalActiveBackend(LOriginalBackend));
   end;
 end;

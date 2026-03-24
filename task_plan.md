@@ -4,7 +4,7 @@
 审查 `fafafa.core.simd` 及其 `cpuinfo` 相关模块，找出可验证的问题并完成至少一轮根因修复，同时产出可连续执行的后续修复与审查计划。
 
 ## Current Phase
-Phase 64 complete; public ABI backend text getters are now covered by fresh concurrent regression guards, and current published text snapshot path stayed consistent under repeated RegisterBackend churn
+Phase 65 complete; public ABI cached-table snapshot metadata is now covered by fresh regression guards, and current rebind publication keeps old cached tables stable while publishing a fresh table pointer
 
 ## Phases
 
@@ -1242,3 +1242,32 @@ Phase 64 complete; public ABI backend text getters are now covered by fresh conc
 | What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
 | What have I learned? | 这轮证明，Phase 19 修过 stale-cache 之后，public ABI backend text getter 在现有宿主机上没有暴露新的并发 text drift；缺的是可持续守住这条语义的 machine-readable guard。 |
 | What have I done? | 已为 public ABI backend text getter 补上并发读写护栏，并用 fresh release targeted suite、5 轮重复压测、check、gate 把这条候选收口为“guard green”，随后可继续切到下一条真实 getter/helper drift 候选。 |
+
+### Phase 65: public ABI cached-table snapshot metadata guard closeout
+- [x] 在 `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 新增 `Test_PublicApi_CachedTable_Preserves_PreviousSnapshot_Metadata_Across_Rebind`，锁定“重绑后 fresh getter 必须发布新 table，而旧 cached table 的 `ActiveBackendId/ActiveFlags` 仍保持旧 snapshot”
+- [x] 用 fresh release `TTestCase_PublicAbi` 先验证这条 cached-table consumer 合同是 fresh red 还是即刻 green，避免在没有证据前改动 `public_abi.impl.inc`
+- [x] 确认当前 `src/fafafa.core.simd.public_abi.impl.inc` 的 owned-state 发布模型已经满足这条 cached-table snapshot 语义，本轮不修改生产实现
+- [x] 用 fresh release `check`、fresh release `gate` 复验新增护栏没有引入回归
+- **Status:** complete
+
+- 2026-03-24 最新 public ABI cached-table snapshot closeout 证据：
+  - targeted suite: `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch65-publicapi-cachedtable-red-or-green-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi` -> PASS，`[LEAK] OK`
+  - check: `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch65-publicapi-cachedtable-check-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh check` -> PASS
+  - gate: `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch65-publicapi-cachedtable-gate-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh gate` -> PASS，最终 `[GATE] OK`，run-all summary 时间 `2026-03-24 09:14:13`
+- 这轮结论仍是“测试护栏缺口”，不是新的生产 bug：
+  - 文档一直承诺 `GetSimdPublicApi` 在 backend 切换后会发布一张 fresh table，而调用方手里的旧 cached table 仍可作为旧 snapshot 使用
+  - 之前已有 `Test_PublicApi_CachedTable_RemainsCallable_Across_Rebind`，但它只证明旧 table 还能调用 data-plane，没有证明 metadata 是否也保持旧 snapshot，更没有证明 fresh getter 会返回不同 table 指针
+  - 新增测试后，fresh suite 直接转绿，说明当前 `g_SimdPublicApiStatePtr + g_SimdPublicApiOwnedHead` 的 owned-state 发布模型已经把“fresh table != old cached table，且旧 metadata 不会被原地改写”这条 consumer-side 语义守住
+- 下一轮连续计划优先级更新为：
+  1. 继续深审 current-active helper / backend adapter / external consumer 边界，优先找 `GetBackendOps(backend)` 并发读取、current-active helper、以及 text-pointer lifetime 的 fresh red
+  2. 继续核对 public ABI getter/cache 在 repeated re-register / toggle 之后，是否还存在“旧 pointer 仍可调用，但 helper 语义已悄悄漂移”的真实问题
+  3. 持续使用 worktree-local `SIMD_OUTPUT_ROOT/TMPDIR`，并保持“fresh red-or-green -> check -> gate -> 文档 -> commit”的批次节奏
+
+## 5-Question Reboot Check (Phase 65 Update)
+| Question | Answer |
+|----------|--------|
+| Where am I? | Linux fresh `TTestCase_PublicAbi`、fresh `check`、fresh `gate` 都已重新通过；本轮最新把 public ABI cached-table snapshot metadata 的 consumer-side 合同补成了独立 regression guard。 |
+| Where am I going? | 下一轮继续深审 current-active helper / backend adapter / external consumer 边界，优先找 `GetBackendOps(backend)` 并发读取、current-active helper、以及 text-pointer lifetime 的 fresh red。 |
+| What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
+| What have I learned? | 这轮证明，当前 public ABI owned-state 发布模型不仅能让旧 cached table 继续 callable，也已经能保证旧 metadata 保持旧 snapshot、fresh getter 返回不同 table 指针。 |
+| What have I done? | 已为 public ABI cached-table snapshot metadata 补上更强的 consumer-side guard，并用 fresh release suite/check/gate 把这条候选收口为“guard green”，随后可继续切向更可能是实现缺陷的 helper/pointer lifetime 候选。 |
