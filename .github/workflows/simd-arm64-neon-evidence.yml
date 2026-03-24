@@ -8,6 +8,7 @@ permissions:
 
 env:
   FAFAFA_BUILD_MODE: Release
+  FPC_ARM64_SNAPSHOT_URL: https://downloads.freepascal.org/fpc/snapshot/trunk/aarch64-linux/fpc-3.3.1.aarch64-linux.tar.gz
 
 jobs:
   collect-arm64-neon-evidence:
@@ -19,14 +20,35 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install FreePascal + Lazarus
+      - name: Install ARM64 FPC 3.3.1 snapshot
         run: |
           sudo apt-get update
-          sudo apt-get install -y fpc lazarus
+          sudo apt-get install -y --no-install-recommends \
+            binutils \
+            ca-certificates \
+            curl \
+            gzip \
+            libc6-dev \
+            tar
+
+          sudo mkdir -p /opt/fpc
+          curl -L --retry 5 --retry-delay 2 --speed-limit 500 --speed-time 120 \
+            -o /tmp/fpc-arm64.tar.gz "${FPC_ARM64_SNAPSHOT_URL}"
+          sudo tar -xzf /tmp/fpc-arm64.tar.gz -C /opt/fpc
+          sudo ln -sf /opt/fpc/bin/fpc /usr/local/bin/fpc
+          sudo ln -sf /opt/fpc/lib/fpc/3.3.1/ppca64 /usr/local/bin/ppca64
+          printf '%s\n' '-Fu/opt/fpc/lib/fpc/3.3.1/units/aarch64-linux/*' | sudo tee /etc/fpc.cfg >/dev/null
+          printf '%s\n' '-Fl/opt/fpc/lib/fpc/3.3.1/units/aarch64-linux/rtl' | sudo tee -a /etc/fpc.cfg >/dev/null
+          rm -f /tmp/fpc-arm64.tar.gz
+          fpc -iV
+          fpc -iTP
+          fpc -iTO
 
       - name: Collect ARM64 NEON native evidence
         env:
           SIMD_OUTPUT_ROOT: ${{ runner.temp }}/simd-arm64-neon-evidence
+          SIMD_NATIVE_EVIDENCE_RUNNER: direct-fpc
+          SIMD_NATIVE_EVIDENCE_ENABLE_BACKEND_ASM: 1
         run: |
           bash tests/fafafa.core.simd/collect_nonx86_native_evidence.sh neon
 
