@@ -1901,13 +1901,14 @@ begin
     LRequestedBackend := LAutomaticBackend;
     LDispatchable := GetDispatchableBackendList;
     for LIndex := 0 to High(LDispatchable) do
-      if LDispatchable[LIndex] <> LAutomaticBackend then
+      if (LDispatchable[LIndex] <> LAutomaticBackend) and
+         (LDispatchable[LIndex] <> sbScalar) then
       begin
         LRequestedBackend := LDispatchable[LIndex];
         Break;
       end;
 
-    if LRequestedBackend = LAutomaticBackend then
+    if (LRequestedBackend = LAutomaticBackend) or (LRequestedBackend = sbScalar) then
       Exit;
 
     AssertTrue('Requested backend should be registered for public ABI lingering-force test',
