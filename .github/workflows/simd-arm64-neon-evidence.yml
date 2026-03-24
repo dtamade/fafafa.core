@@ -1,0 +1,41 @@
+name: SIMD ARM64 NEON Evidence
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  FAFAFA_BUILD_MODE: Release
+
+jobs:
+  collect-arm64-neon-evidence:
+    runs-on: ubuntu-24.04-arm
+    name: Collect ARM64 NEON Native Evidence
+    timeout-minutes: 90
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install FreePascal + Lazarus
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y fpc lazarus
+
+      - name: Collect ARM64 NEON native evidence
+        env:
+          SIMD_OUTPUT_ROOT: ${{ runner.temp }}/simd-arm64-neon-evidence
+        run: |
+          bash tests/fafafa.core.simd/collect_nonx86_native_evidence.sh neon
+
+      - name: Upload ARM64 NEON native evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: simd-arm64-neon-evidence
+          if-no-files-found: warn
+          retention-days: 14
+          path: |
+            ${{ runner.temp }}/simd-arm64-neon-evidence/logs/native-evidence-neon-*
