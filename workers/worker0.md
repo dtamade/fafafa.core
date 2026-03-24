@@ -7,15 +7,14 @@
 - Worktree: `/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence`
 - Base commit: `870ee1a9d786`
 - Current focus:
-  - 当前批次已从“non-x86 native evidence helper 正式接上 runner/doc”继续推进到“nightly artifact restore helper 正式接上 runner/doc”：
-    - `restore_nightly_evidence_artifacts.sh` 现在有正式入口：`bash tests/fafafa.core.simd/BuildOrTest.sh restore-nightly-evidence <linux-artifact-dir> <windows-artifact-dir>`
-    - fresh `check` 已包含 `[CHECK] OK (nightly evidence restore runner guard present)`
-    - `restore-nightly-evidence` 现在在缺参时会准确落到 helper 自己的 `[RESTORE] Missing linux artifact directory`，不再掉回主 runner `Usage: ...`
-  - 候选排查结论也已收敛：
-    - `generate_interface_checklist_v2.py` 当前是手工报告生成器，不是主 runner discoverability gap
-    - 当前真正剩余的阻塞重新回到环境侧或新的真实合同 red：
-      - `riscv64` asm-ready native host 仍待外部环境
-      - 若继续本地深审，应回到 capability / dispatch / rebuild 合同问题，而不是继续扩张 helper 入口
+  - 当前批次已从 helper/discoverability 收口切回真实 capability/dispatch 合同：
+    - 最新已确认并修复一条真实 x86 capability bug：`scMaskedOps` 之前只在 `AVX512 vector asm=True` 时宣称，导致 `SSE2..SSE42/AVX2` 与 `AVX512 vector asm=False` 都对外低报 native `Mask*` helper family
+    - fresh release targeted/check/gate 已全部通过，当前这条 x86 `scMaskedOps` underclaim 已收口
+  - 当前候选边界也已更清楚：
+    - `NEON` 当前 `Mask*` helper 位于 `src/fafafa.core.simd.neon.scalar.utility.inc`，本质仍是 scalar wrapper，不能把这轮 x86 结论直接外推到 non-x86
+    - 若继续推进，优先级应转到：
+      - `riscv64` asm-ready host 上验证 `RISCVV` asm path 是否也应宣称 `scMaskedOps`
+      - 继续深审 non-x86 capability 语义，区分 backend-local scalar wrapper 与真实 native helper family
 - Source of truth:
   - `task_plan.md`
   - `findings.md`
@@ -25,19 +24,20 @@
   - 验证继续采用 release 策略
   - 证据驱动：先补 fresh red，再做最小修复，再跑 fresh green / check / gate
 - Fresh verification:
-  - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/verify-phase75-check-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh check`
-  - 结果：PASS，包含 `[CHECK] OK (nightly evidence restore runner guard present)`
-  - `bash tests/fafafa.core.simd/BuildOrTest.sh restore-nightly-evidence`
-  - 结果：exit 2，`[RESTORE] Missing linux artifact directory`
-  - synthetic restore：
-    - `bash tests/fafafa.core.simd/BuildOrTest.sh restore-nightly-evidence <linux-artifact-dir> <windows-artifact-dir>`
-    - 结果：PASS，已确认 canonical `gate_summary.md/json`、`windows_b07_gate.log` 与 `qemu-multiarch-*` 会被正确恢复
+  - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-x86-maskedops-red-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi`
+  - 结果：fresh red，4 failures，统一命中 `SSE2 scMaskedOps` underclaim
+  - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-x86-maskedops-green-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi`
+  - 结果：PASS，`[LEAK] OK`
+  - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-x86-maskedops-check-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - 结果：PASS
+  - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-x86-maskedops-gate-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：PASS，最终 `[GATE] OK`，run-all summary 时间 `2026-03-24 18:51:26`
 - Risks / blockers:
   - 当前宿主机和现有 SSH host 仍都是 `x86_64`；`riscv64` asm-ready 主机证据仍待外部环境
   - 当前 ARM64 run 已 green，但这不自动替代 `RISCVV` native asm host execution evidence
-  - `restore-nightly-evidence` 仍是故意的 shell-only action；如果未来要支持 Windows 原生恢复 nightly artifacts，需要单独设计 batch 语义
+  - `NEON` 的 `Mask*` 当前仍是 scalar wrapper；若未来要扩 `scMaskedOps` 到 non-x86，必须先拿 native asm 证据或实现层升级，不能仅凭符号名判断
 - Next step:
-  - 保持当前 worktree clean，并将 Phase 75 的 runner/doc 接线提交到 `simd-external-evidence`
-  - 若拿到 `riscv64` 或其他可用 native host，优先跑 `bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence riscvv`
-  - 若继续本地深审，实现层优先回到真实 capability / dispatch / rebuild 红，而不是继续扩张 helper discoverability 收口
+  - 保持当前 worktree clean，并将 Phase 76 的 x86 `scMaskedOps` capability 修复提交到 `simd-external-evidence`
+  - 若拿到 `riscv64` 或其他可用 native host，优先验证 `RISCVV` asm path 的 `scMaskedOps` 语义
+  - 若继续本地深审，优先寻找下一条 non-x86 capability / dispatch / rebuild 真实红，重点排查 scalar wrapper 与 capability bits 是否漂移
 - Last updated: `2026-03-24`

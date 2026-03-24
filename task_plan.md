@@ -1554,3 +1554,62 @@ Phase 75 complete; the nightly artifact restore helper is now wired into the she
 | What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
 | What have I learned? | 这轮证明，当前 published backend snapshot + adapter round-trip 读取链已经能守住 `GetBackendOps` 的并发一致性：helper 可见 metadata 与代表性 slots 不会在 `RegisterBackend(...)` churn 下混搭。 |
 | What have I done? | 已为 `GetBackendOps(backend)` 补上 concurrent re-register 护栏，并用 fresh release suite/check/gate 把这条候选收口为“guard green”；随后可继续切到 current-active helper / public-view pair 的更深层 drift 候选。 |
+
+### Phase 76: x86 `scMaskedOps` capability underclaim closeout
+- **Status:** complete
+- Actions taken:
+  - 从 `scMaskedOps` 候选开始先收语义，而不是直接改 capability：
+    - 确认 `TSimdDispatchTable` 中真正对应的可观测 contract 是 `Mask2/4/8/16(All/Any/None/PopCount/FirstSet)` helper family
+    - 确认 `SSE2/AVX2` 以及继承它们的 `SSE3/SSSE3/SSE4.1/SSE4.2/AVX512` 都有 native x86 mask helper wiring
+    - 同时确认 `NEON` 当前 `Mask*` 仍落在 `src/fafafa.core.simd.neon.scalar.utility.inc` 的 scalar wrapper，不能把这轮结论错误外推到 non-x86
+  - 先按 TDD 补 fresh red，而不是先改实现：
+    - 在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增
+      - `Test_X86_BackendCapabilities_DoNotUnderclaim_MaskedOps`
+      - `Test_X86_BackendCapabilities_Keep_MaskedOps_When_VectorAsmDisabled`
+    - 在 `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 新增
+      - `Test_PublicApi_BackendPodInfo_CapabilityBits_DoNotUnderclaim_X86MaskedOps`
+      - `Test_PublicApi_BackendPodInfo_CapabilityBits_Keep_X86MaskedOps_WhenVectorAsmDisabled`
+    - 同时把旧 `AVX512 vector asm=False -> scMaskedOps should clear` 断言移除，因为 `AVX512` 的 runtime-disabled 路径会继承 `AVX2` 的 x86 native mask helpers，这条旧断言本身就是错误合同
+  - fresh red 复验：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-x86-maskedops-red-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi`
+    - 失败点直接命中：
+      - `scMaskedOps missing while representative x86 mask helper slots are non-scalar: SSE2`
+      - `scMaskedOps should stay set while representative x86 mask helper slots remain non-scalar after vector asm disable: SSE2`
+      - public ABI 对应两条 `CapabilityBits` 断言同步打红
+  - 根因确认后，做最小实现修复：
+    - `scMaskedOps` 之前只在 `src/fafafa.core.simd.avx512.register.inc` 里宣称，导致 `SSE2` family / `AVX2` / `AVX512 runtime-disabled` 全部低报
+    - 已把以下 x86 backend capability set 补齐为显式包含 `scMaskedOps`：
+      - `src/fafafa.core.simd.sse2.pas`
+      - `src/fafafa.core.simd.sse3.register.inc`
+      - `src/fafafa.core.simd.ssse3.register.inc`
+      - `src/fafafa.core.simd.sse41.register.inc`
+      - `src/fafafa.core.simd.sse42.register.inc`
+      - `src/fafafa.core.simd.avx2.register.inc`
+      - `src/fafafa.core.simd.avx512.register.inc`
+    - `AVX512` 的 `scMaskedOps` 也改成不再跟随 `LEnableVectorAsm` 清零，因为 runtime-disabled fallback 仍继承 x86 native mask helpers
+  - fresh green / release 复验：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-x86-maskedops-green-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-x86-maskedops-check-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-x86-maskedops-gate-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 记录关键运行结果：
+    - fresh `TTestCase_DispatchAPI,TTestCase_PublicAbi` PASS，`[LEAK] OK`
+    - fresh `check` PASS
+    - fresh `gate` 最终 `[GATE] OK`
+    - run-all summary 时间：`2026-03-24 18:51:26`
+- 这轮结论是新的真实 capability/public-ABI 合同 bug，不是测试假红：
+  - 真实 x86 native `Mask*` helper family 已经长期存在
+  - capability/public ABI 却只在 `AVX512` 上零散宣称，且在 `AVX512 vector asm=False` 路径还错误清零
+  - 这会让外部 consumer 把仍可用的 x86 native mask helper 误判成“不支持”
+- 下一轮连续计划优先级更新为：
+  1. 若能拿到 `riscv64` asm-ready host，优先验证 `RISCVV` asm path 是否也应宣称 `scMaskedOps`
+  2. 继续深审 non-x86 capability 语义，重点区分“backend-local scalar wrapper”与“真实 native helper family”，避免把 `NEON` 这类 wrapper 误报成 capability
+  3. 保持 release + fresh red/green/check/gate 的节奏，不再继续扩 helper discoverability
+
+## 5-Question Reboot Check (Phase 76 Update)
+| Question | Answer |
+|----------|--------|
+| Where am I? | `simd-external-evidence@2359adfd` 之上，本轮 fresh `TTestCase_DispatchAPI,TTestCase_PublicAbi`、fresh `check`、fresh `gate` 已全部重新通过；最新收口的是 x86 `scMaskedOps` capability/public-ABI underclaim。 |
+| Where am I going? | 下一步回到 non-x86/native evidence 与 capability 语义边界，优先验证 `RISCVV` asm host；本地继续审时重点防止把 scalar wrapper 误判成 native capability。 |
+| What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
+| What have I learned? | `scMaskedOps` 不能按“凡是有 `Mask*` 符号就算支持”粗暴判定；`NEON` 当前仍是 scalar wrapper，而 x86 `SSE2..AVX512` 则确实有 native helper family。 capability 语义必须贴着真实 helper 实现层落。 |
+| What have I done? | 已先用 fresh red 证明 x86 `scMaskedOps` 低报，再把 `SSE2..SSE42/AVX2/AVX512` capability set 补齐，并修正 `AVX512 vector asm=False` 的错误旧断言；最后用 fresh release targeted/check/gate 全链复验通过。 |

@@ -107,7 +107,9 @@ type
     procedure Test_BackendCapabilities_DoNotOverclaim_512BitOps;
     procedure Test_BackendCapabilities_DoNotUnderclaim_IntegerOps;
     procedure Test_BackendCapabilities_DoNotUnderclaim_Shuffle;
+    procedure Test_X86_BackendCapabilities_DoNotUnderclaim_MaskedOps;
     procedure Test_BackendCapabilities_Clear_IntegerOps_When_VectorAsmDisabled;
+    procedure Test_X86_BackendCapabilities_Keep_MaskedOps_When_VectorAsmDisabled;
     procedure Test_AVX2_BackendCapabilities_Expose_FMA_When_FusedPathUsable;
     procedure Test_AVX2_BackendCapabilities_Clear_FMA_When_VectorAsmDisabled;
     procedure Test_AVX2_BackendCapabilities_Expose_Shuffle_When_NativeShuffleSlotsUsable;
@@ -5191,6 +5193,83 @@ begin
   end;
 end;
 
+procedure TTestCase_DispatchAPI.Test_X86_BackendCapabilities_DoNotUnderclaim_MaskedOps;
+var
+  LBackend: TSimdBackend;
+  LTable: TSimdDispatchTable;
+  LScalar: TSimdDispatchTable;
+  LHasNonScalarMaskedSlots: Boolean;
+  LOldVectorAsm: Boolean;
+
+  function BackendName(const aBackend: TSimdBackend): string;
+  begin
+    case aBackend of
+      sbScalar: Result := 'Scalar';
+      sbSSE2: Result := 'SSE2';
+      sbSSE3: Result := 'SSE3';
+      sbSSSE3: Result := 'SSSE3';
+      sbSSE41: Result := 'SSE41';
+      sbSSE42: Result := 'SSE42';
+      sbAVX2: Result := 'AVX2';
+      sbAVX512: Result := 'AVX512';
+      sbNEON: Result := 'NEON';
+      sbRISCVV: Result := 'RISCVV';
+      else Result := IntToStr(Ord(aBackend));
+    end;
+  end;
+
+  function IsX86MaskedOpsBackend(const aBackend: TSimdBackend): Boolean;
+  begin
+    case aBackend of
+      sbSSE2, sbSSE3, sbSSSE3, sbSSE41, sbSSE42, sbAVX2, sbAVX512:
+        Exit(True);
+      else
+        Exit(False);
+    end;
+  end;
+
+  procedure ObserveRepresentativeSlot(const aSlotName: string; aScalarSlot, aBackendSlot: Pointer);
+  begin
+    AssertTrue(aSlotName + ' missing: ' + BackendName(LBackend), aBackendSlot <> nil);
+    if aBackendSlot <> aScalarSlot then
+      LHasNonScalarMaskedSlots := True;
+  end;
+begin
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalar));
+
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    if not IsVectorAsmEnabled then
+      Exit;
+
+    for LBackend := Low(TSimdBackend) to High(TSimdBackend) do
+    begin
+      if not IsX86MaskedOpsBackend(LBackend) then
+        Continue;
+      if not TryGetRegisteredBackendDispatchTable(LBackend, LTable) then
+        Continue;
+
+      LHasNonScalarMaskedSlots := False;
+      ObserveRepresentativeSlot('Mask2All', Pointer(LScalar.Mask2All), Pointer(LTable.Mask2All));
+      ObserveRepresentativeSlot('Mask4PopCount', Pointer(LScalar.Mask4PopCount), Pointer(LTable.Mask4PopCount));
+      ObserveRepresentativeSlot('Mask8All', Pointer(LScalar.Mask8All), Pointer(LTable.Mask8All));
+      ObserveRepresentativeSlot('Mask8PopCount', Pointer(LScalar.Mask8PopCount), Pointer(LTable.Mask8PopCount));
+      ObserveRepresentativeSlot('Mask16FirstSet', Pointer(LScalar.Mask16FirstSet), Pointer(LTable.Mask16FirstSet));
+
+      if not LHasNonScalarMaskedSlots then
+        Continue;
+
+      AssertTrue('scMaskedOps missing while representative x86 mask helper slots are non-scalar: ' + BackendName(LBackend),
+        scMaskedOps in LTable.BackendInfo.Capabilities);
+    end;
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+  end;
+end;
+
 procedure TTestCase_DispatchAPI.Test_BackendCapabilities_Clear_IntegerOps_When_VectorAsmDisabled;
 var
   LBackend: TSimdBackend;
@@ -5262,6 +5341,85 @@ begin
 
       AssertFalse('scIntegerOps should clear when representative integer slots are scalar after vector asm disable: ' + BackendName(LBackend),
         scIntegerOps in LTable.BackendInfo.Capabilities);
+    end;
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_X86_BackendCapabilities_Keep_MaskedOps_When_VectorAsmDisabled;
+var
+  LBackend: TSimdBackend;
+  LTable: TSimdDispatchTable;
+  LScalar: TSimdDispatchTable;
+  LHasNonScalarMaskedSlots: Boolean;
+  LOldVectorAsm: Boolean;
+
+  function BackendName(const aBackend: TSimdBackend): string;
+  begin
+    case aBackend of
+      sbScalar: Result := 'Scalar';
+      sbSSE2: Result := 'SSE2';
+      sbSSE3: Result := 'SSE3';
+      sbSSSE3: Result := 'SSSE3';
+      sbSSE41: Result := 'SSE41';
+      sbSSE42: Result := 'SSE42';
+      sbAVX2: Result := 'AVX2';
+      sbAVX512: Result := 'AVX512';
+      sbNEON: Result := 'NEON';
+      sbRISCVV: Result := 'RISCVV';
+      else Result := IntToStr(Ord(aBackend));
+    end;
+  end;
+
+  function IsX86MaskedOpsBackend(const aBackend: TSimdBackend): Boolean;
+  begin
+    case aBackend of
+      sbSSE2, sbSSE3, sbSSSE3, sbSSE41, sbSSE42, sbAVX2, sbAVX512:
+        Exit(True);
+      else
+        Exit(False);
+    end;
+  end;
+
+  procedure ObserveRepresentativeSlot(const aSlotName: string; aScalarSlot, aBackendSlot: Pointer);
+  begin
+    AssertTrue(aSlotName + ' missing: ' + BackendName(LBackend), aBackendSlot <> nil);
+    if aBackendSlot <> aScalarSlot then
+      LHasNonScalarMaskedSlots := True;
+  end;
+begin
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalar));
+
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    if not IsVectorAsmEnabled then
+      Exit;
+    SetVectorAsmEnabled(False);
+    AssertFalse('Vector asm should be disabled for x86 masked-ops capability rebuild test', IsVectorAsmEnabled);
+
+    for LBackend := Low(TSimdBackend) to High(TSimdBackend) do
+    begin
+      if not IsX86MaskedOpsBackend(LBackend) then
+        Continue;
+      if not TryGetRegisteredBackendDispatchTable(LBackend, LTable) then
+        Continue;
+
+      LHasNonScalarMaskedSlots := False;
+      ObserveRepresentativeSlot('Mask2All', Pointer(LScalar.Mask2All), Pointer(LTable.Mask2All));
+      ObserveRepresentativeSlot('Mask4PopCount', Pointer(LScalar.Mask4PopCount), Pointer(LTable.Mask4PopCount));
+      ObserveRepresentativeSlot('Mask8All', Pointer(LScalar.Mask8All), Pointer(LTable.Mask8All));
+      ObserveRepresentativeSlot('Mask8PopCount', Pointer(LScalar.Mask8PopCount), Pointer(LTable.Mask8PopCount));
+      ObserveRepresentativeSlot('Mask16FirstSet', Pointer(LScalar.Mask16FirstSet), Pointer(LTable.Mask16FirstSet));
+
+      if not LHasNonScalarMaskedSlots then
+        Continue;
+
+      AssertTrue('scMaskedOps should stay set while representative x86 mask helper slots remain non-scalar after vector asm disable: ' + BackendName(LBackend),
+        scMaskedOps in LTable.BackendInfo.Capabilities);
     end;
   finally
     SetVectorAsmEnabled(LOldVectorAsm);
@@ -5483,8 +5641,6 @@ begin
       scShuffle in LAVX512Table.BackendInfo.Capabilities);
     AssertFalse('AVX512 scIntegerOps should clear when vector asm is disabled',
       scIntegerOps in LAVX512Table.BackendInfo.Capabilities);
-    AssertFalse('AVX512 scMaskedOps should clear when vector asm is disabled',
-      scMaskedOps in LAVX512Table.BackendInfo.Capabilities);
     AssertFalse('AVX512 sc512BitOps should clear when vector asm is disabled',
       sc512BitOps in LAVX512Table.BackendInfo.Capabilities);
   finally

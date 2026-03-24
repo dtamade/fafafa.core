@@ -28,6 +28,7 @@ begin
   dispatchTable.BackendInfo.Description := 'x86-64 AVX2 SIMD implementation (256-bit)';
   dispatchTable.BackendInfo.Capabilities := [scBasicArithmetic, scComparison, scMathFunctions,
                                              scReduction, scLoadStore];
+  Include(dispatchTable.BackendInfo.Capabilities, scMaskedOps);
   if LEnableVectorAsm then
     Include(dispatchTable.BackendInfo.Capabilities, scShuffle);
   if LEnableVectorAsm then

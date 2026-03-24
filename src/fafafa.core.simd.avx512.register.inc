@@ -25,12 +25,11 @@ begin
     Description := 'x86-64 AVX-512 SIMD implementation (512-bit)';
     Capabilities := [scBasicArithmetic, scComparison, scMathFunctions, scReduction,
                      scLoadStore];
+    Include(Capabilities, scMaskedOps);
     if LEnableVectorAsm then
       Include(Capabilities, scShuffle);
     if LEnableVectorAsm then
       Include(Capabilities, scIntegerOps);
-    if LEnableVectorAsm then
-      Include(Capabilities, scMaskedOps);
     if LEnableVectorAsm then
       Include(Capabilities, sc512BitOps);
     if LEnableVectorAsm then

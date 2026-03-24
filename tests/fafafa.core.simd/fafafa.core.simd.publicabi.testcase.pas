@@ -42,11 +42,13 @@ type
     procedure Test_PublicAbi_BackendText_Getters_Refresh_After_RegisterBackend;
     procedure Test_PublicAbi_BackendText_Getters_PreviousPointers_RemainValid_After_Refresh;
     procedure Test_PublicApi_BackendPodInfo_CapabilityBits_DoNotUnderclaim_Shuffle;
+    procedure Test_PublicApi_BackendPodInfo_CapabilityBits_DoNotUnderclaim_X86MaskedOps;
     procedure Test_PublicApi_BackendPodInfo_CapabilityBits_Expose_AVX2Shuffle_WhenNativeSlotsPresent;
     procedure Test_PublicApi_BackendPodInfo_CapabilityBits_Clear_X86Shuffle_WhenVectorAsmDisabled;
     procedure Test_PublicApi_BackendPodInfo_CapabilityBits_Expose_AVX512FMA_WhenNativeSlotsPresent;
     procedure Test_PublicApi_BackendPodInfo_CapabilityBits_Expose_AVX512Shuffle_WhenNativeSlotsPresent;
     procedure Test_PublicApi_BackendPodInfo_CapabilityBits_Clear_AVX512VectorAsmGatedBits_WhenVectorAsmDisabled;
+    procedure Test_PublicApi_BackendPodInfo_CapabilityBits_Keep_X86MaskedOps_WhenVectorAsmDisabled;
     procedure Test_PublicApi_BackendPodInfo_CapabilityBits_Expose_NEONShuffle_WhenNativeSlotsPresent;
     procedure Test_PublicApi_BackendPodInfo_CapabilityBits_Expose_NEONIntegerOps_WhenNativeSlotsPresent;
     procedure Test_PublicApi_BackendPodInfo_CapabilityBits_Expose_NEONFMA_WhenNativeSlotsPresent;
@@ -1169,6 +1171,68 @@ begin
   end;
 end;
 
+procedure TTestCase_PublicAbi.Test_PublicApi_BackendPodInfo_CapabilityBits_DoNotUnderclaim_X86MaskedOps;
+var
+  LBackend: TSimdBackend;
+  LScalarTable: TSimdDispatchTable;
+  LBackendTable: TSimdDispatchTable;
+  LInfo: TFafafaSimdBackendPodInfo;
+  LHasNonScalarMaskedSlots: Boolean;
+  LOldVectorAsm: Boolean;
+
+  function IsX86MaskedOpsBackend(const aBackend: TSimdBackend): Boolean;
+  begin
+    case aBackend of
+      sbSSE2, sbSSE3, sbSSSE3, sbSSE41, sbSSE42, sbAVX2, sbAVX512:
+        Exit(True);
+      else
+        Exit(False);
+    end;
+  end;
+
+  procedure ObserveRepresentativeSlot(aScalarSlot, aBackendSlot: Pointer);
+  begin
+    if aBackendSlot <> aScalarSlot then
+      LHasNonScalarMaskedSlots := True;
+  end;
+begin
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    if not IsVectorAsmEnabled then
+      Exit;
+
+    for LBackend := Low(TSimdBackend) to High(TSimdBackend) do
+    begin
+      if not IsX86MaskedOpsBackend(LBackend) then
+        Continue;
+      if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
+        Continue;
+      if not TryGetSimdBackendPodInfo(LBackend, LInfo) then
+        Continue;
+
+      LHasNonScalarMaskedSlots := False;
+      ObserveRepresentativeSlot(Pointer(LScalarTable.Mask2All), Pointer(LBackendTable.Mask2All));
+      ObserveRepresentativeSlot(Pointer(LScalarTable.Mask4PopCount), Pointer(LBackendTable.Mask4PopCount));
+      ObserveRepresentativeSlot(Pointer(LScalarTable.Mask8All), Pointer(LBackendTable.Mask8All));
+      ObserveRepresentativeSlot(Pointer(LScalarTable.Mask8PopCount), Pointer(LBackendTable.Mask8PopCount));
+      ObserveRepresentativeSlot(Pointer(LScalarTable.Mask16FirstSet), Pointer(LBackendTable.Mask16FirstSet));
+
+      if not LHasNonScalarMaskedSlots then
+        Continue;
+
+      AssertTrue('Public ABI CapabilityBits missing scMaskedOps while representative x86 mask helper slots are non-scalar for backend=' + IntToStr(Ord(LBackend)),
+        (LInfo.CapabilityBits and (UInt64(1) shl Ord(scMaskedOps))) <> 0);
+    end;
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+  end;
+end;
+
 procedure TTestCase_PublicAbi.Test_PublicApi_BackendPodInfo_CapabilityBits_Expose_AVX2Shuffle_WhenNativeSlotsPresent;
 var
   LScalarTable: TSimdDispatchTable;
@@ -1351,10 +1415,72 @@ begin
       (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) = 0);
     AssertTrue('Public ABI CapabilityBits should clear AVX512 scIntegerOps when vector asm is disabled',
       (LInfo.CapabilityBits and (UInt64(1) shl Ord(scIntegerOps))) = 0);
-    AssertTrue('Public ABI CapabilityBits should clear AVX512 scMaskedOps when vector asm is disabled',
-      (LInfo.CapabilityBits and (UInt64(1) shl Ord(scMaskedOps))) = 0);
     AssertTrue('Public ABI CapabilityBits should clear AVX512 sc512BitOps when vector asm is disabled',
       (LInfo.CapabilityBits and (UInt64(1) shl Ord(sc512BitOps))) = 0);
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+  end;
+end;
+
+procedure TTestCase_PublicAbi.Test_PublicApi_BackendPodInfo_CapabilityBits_Keep_X86MaskedOps_WhenVectorAsmDisabled;
+var
+  LBackend: TSimdBackend;
+  LScalarTable: TSimdDispatchTable;
+  LBackendTable: TSimdDispatchTable;
+  LInfo: TFafafaSimdBackendPodInfo;
+  LHasNonScalarMaskedSlots: Boolean;
+  LOldVectorAsm: Boolean;
+
+  function IsX86MaskedOpsBackend(const aBackend: TSimdBackend): Boolean;
+  begin
+    case aBackend of
+      sbSSE2, sbSSE3, sbSSSE3, sbSSE41, sbSSE42, sbAVX2, sbAVX512:
+        Exit(True);
+      else
+        Exit(False);
+    end;
+  end;
+
+  procedure ObserveRepresentativeSlot(aScalarSlot, aBackendSlot: Pointer);
+  begin
+    if aBackendSlot <> aScalarSlot then
+      LHasNonScalarMaskedSlots := True;
+  end;
+begin
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    if not IsVectorAsmEnabled then
+      Exit;
+    SetVectorAsmEnabled(False);
+    AssertFalse('Vector asm should be disabled for x86 masked-ops public ABI rebuild test', IsVectorAsmEnabled);
+
+    for LBackend := Low(TSimdBackend) to High(TSimdBackend) do
+    begin
+      if not IsX86MaskedOpsBackend(LBackend) then
+        Continue;
+      if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
+        Continue;
+      if not TryGetSimdBackendPodInfo(LBackend, LInfo) then
+        Continue;
+
+      LHasNonScalarMaskedSlots := False;
+      ObserveRepresentativeSlot(Pointer(LScalarTable.Mask2All), Pointer(LBackendTable.Mask2All));
+      ObserveRepresentativeSlot(Pointer(LScalarTable.Mask4PopCount), Pointer(LBackendTable.Mask4PopCount));
+      ObserveRepresentativeSlot(Pointer(LScalarTable.Mask8All), Pointer(LBackendTable.Mask8All));
+      ObserveRepresentativeSlot(Pointer(LScalarTable.Mask8PopCount), Pointer(LBackendTable.Mask8PopCount));
+      ObserveRepresentativeSlot(Pointer(LScalarTable.Mask16FirstSet), Pointer(LBackendTable.Mask16FirstSet));
+
+      if not LHasNonScalarMaskedSlots then
+        Continue;
+
+      AssertTrue('Public ABI CapabilityBits should keep scMaskedOps while representative x86 mask helper slots remain non-scalar after vector asm disable for backend=' + IntToStr(Ord(LBackend)),
+        (LInfo.CapabilityBits and (UInt64(1) shl Ord(scMaskedOps))) <> 0);
+    end;
   finally
     SetVectorAsmEnabled(LOldVectorAsm);
   end;

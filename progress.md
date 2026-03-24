@@ -1114,6 +1114,62 @@
 ### 阶段状态
 - 跨平台冻结条件满足。
 
+### Phase 76: x86 `scMaskedOps` capability/public-ABI underclaim closeout
+- **Status:** complete
+- Actions taken:
+  - 继续从 capability/dispatch 合同层深审 `scMaskedOps`，没有直接把所有 `Mask*` 注册都算成 capability，而是先确认 backend 语义边界：
+    - `SSE2/AVX2` 及其 x86 继承链存在 native `Mask*` helper family
+    - `NEON` 当前 `Mask*` 实现在 `src/fafafa.core.simd.neon.scalar.utility.inc`，本质仍是 scalar wrapper，不属于这轮 capability 证据
+  - 先按 TDD 补最小 fresh red：
+    - 在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增
+      - `Test_X86_BackendCapabilities_DoNotUnderclaim_MaskedOps`
+      - `Test_X86_BackendCapabilities_Keep_MaskedOps_When_VectorAsmDisabled`
+    - 在 `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 新增
+      - `Test_PublicApi_BackendPodInfo_CapabilityBits_DoNotUnderclaim_X86MaskedOps`
+      - `Test_PublicApi_BackendPodInfo_CapabilityBits_Keep_X86MaskedOps_WhenVectorAsmDisabled`
+    - 同时移除了旧 `AVX512 vector asm=False -> scMaskedOps clear` 断言，因为这条断言和 `AVX512` 继承的 `AVX2` mask helper 事实相冲突
+  - fresh red 复验：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-x86-maskedops-red-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi`
+    - 命中 4 条失败：
+      - `TTestCase_DispatchAPI.Test_X86_BackendCapabilities_DoNotUnderclaim_MaskedOps`
+      - `TTestCase_DispatchAPI.Test_X86_BackendCapabilities_Keep_MaskedOps_When_VectorAsmDisabled`
+      - `TTestCase_PublicAbi.Test_PublicApi_BackendPodInfo_CapabilityBits_DoNotUnderclaim_X86MaskedOps`
+      - `TTestCase_PublicAbi.Test_PublicApi_BackendPodInfo_CapabilityBits_Keep_X86MaskedOps_WhenVectorAsmDisabled`
+    - 失败文案统一指向 `SSE2`：`scMaskedOps missing while representative x86 mask helper slots are non-scalar`
+  - 根因确认后，做最小实现修复：
+    - 将 `scMaskedOps` 补入以下 x86 backend capability set：
+      - `src/fafafa.core.simd.sse2.pas`
+      - `src/fafafa.core.simd.sse3.register.inc`
+      - `src/fafafa.core.simd.ssse3.register.inc`
+      - `src/fafafa.core.simd.sse41.register.inc`
+      - `src/fafafa.core.simd.sse42.register.inc`
+      - `src/fafafa.core.simd.avx2.register.inc`
+      - `src/fafafa.core.simd.avx512.register.inc`
+    - `AVX512` 的 `scMaskedOps` 改为不再跟随 `LEnableVectorAsm` 清零，因为 runtime-disabled table 仍会保留 x86 native mask helpers
+  - fresh green / release 复验：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-x86-maskedops-green-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-x86-maskedops-check-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-x86-maskedops-gate-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 记录关键运行结果：
+    - fresh `TTestCase_DispatchAPI,TTestCase_PublicAbi` PASS，`[LEAK] OK`
+    - fresh `check` PASS
+    - fresh `gate` PASS，最终 `[GATE] OK`
+    - run-all summary 时间：`2026-03-24 18:51:26`
+- Files created/modified:
+  - `src/fafafa.core.simd.sse2.pas` (modified)
+  - `src/fafafa.core.simd.sse3.register.inc` (modified)
+  - `src/fafafa.core.simd.ssse3.register.inc` (modified)
+  - `src/fafafa.core.simd.sse41.register.inc` (modified)
+  - `src/fafafa.core.simd.sse42.register.inc` (modified)
+  - `src/fafafa.core.simd.avx2.register.inc` (modified)
+  - `src/fafafa.core.simd.avx512.register.inc` (modified)
+  - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` (modified)
+  - `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` (modified)
+  - `task_plan.md` (modified)
+  - `findings.md` (modified)
+  - `progress.md` (modified)
+  - `workers/worker0.md` (modified)
+
 ### Phase 72: ARM64 NEON external evidence doc sync and closeout capture
 - **Status:** complete
 - Actions taken:

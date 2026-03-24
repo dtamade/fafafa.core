@@ -22,6 +22,7 @@ begin
     Description := 'x86-64 SSE4.1 SIMD (PMULLD, ROUNDPS, DPPS, PMINSD/PMAXSD)';
     Capabilities := [scBasicArithmetic, scComparison, scMathFunctions, scReduction,
                      scLoadStore];
+    Include(Capabilities, scMaskedOps);
     if IsVectorAsmEnabled then
       Include(Capabilities, scShuffle);
     if IsVectorAsmEnabled then
