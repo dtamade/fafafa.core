@@ -1574,6 +1574,8 @@ begin
   LCanonicalTable.Backend := backend;
   LCanonicalTable.BackendInfo.Backend := backend;
   LCanonicalTable.BackendInfo.Priority := GetSimdBackendPriorityValue(backend);
+  if backend = sbScalar then
+    LCanonicalTable.BackendInfo.Available := True;
   if LCanonicalTable.BackendInfo.Name = '' then
     LCanonicalTable.BackendInfo.Name := DefaultBackendName(backend);
   if LCanonicalTable.BackendInfo.Description = '' then
