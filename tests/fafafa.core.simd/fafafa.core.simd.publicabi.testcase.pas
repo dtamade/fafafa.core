@@ -40,6 +40,7 @@ type
     procedure Test_PublicApi_BackendPodInfo_CapabilityBits_Clear_RISCVVVectorAsmGatedBits_WhenVectorAsmDisabled;
     procedure Test_PublicApi_BackendPodInfo_Refreshes_WhenBackendBecomesNonDispatchable;
     procedure Test_PublicApi_ActiveBackendId_Tracks_RegisterSlot_After_ReRegister;
+    procedure Test_PublicApi_StableState_Tracks_CurrentBackend_After_ControlPlaneSwitches;
     procedure Test_PublicApi_ActiveBackendId_Tracks_FinalState_When_HookReRegister_Overrides_ForcedSelection;
     procedure Test_PublicApi_FailedHookMutation_DoesNotRevive_PreviouslyRequestedBackend_AfterRestore;
     procedure Test_PublicApi_FailedHookMutation_Restores_AutomaticBackend_Immediately;
@@ -1709,6 +1710,104 @@ begin
         AssertTrue('Restoring original active backend should succeed',
           RestoreOriginalActiveBackend(LOriginalBackend));
     end;
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_PublicAbi.Test_PublicApi_StableState_Tracks_CurrentBackend_After_ControlPlaneSwitches;
+var
+  LOldVectorAsm: Boolean;
+  LAvailableBackends: TSimdBackendArray;
+  LForcedBackend: TSimdBackend;
+  LIndex: Integer;
+  LHasForcedBackend: Boolean;
+
+  procedure AssertStableCurrentState(const aContext: string; const aExpectAutomatic: Boolean);
+  var
+    LApi: PFafafaSimdPublicApi;
+    LCurrentBackend: TSimdBackend;
+    LCurrentInfo: TSimdBackendInfo;
+    LCurrentPodInfo: TFafafaSimdBackendPodInfo;
+    LDispatchableBackends: TSimdBackendArray;
+    LFoundCurrent: Boolean;
+    LListIndex: Integer;
+    LNamePtr: PAnsiChar;
+    LDescriptionPtr: PAnsiChar;
+  begin
+    LCurrentBackend := GetCurrentBackend;
+    LCurrentInfo := GetCurrentBackendInfo;
+    AssertTrue(aContext + ': active backend pod info should remain queryable',
+      TryGetSimdBackendPodInfo(LCurrentBackend, LCurrentPodInfo));
+    LApi := GetSimdPublicApi;
+    AssertNotNull(aContext + ': public API table should not be nil', LApi);
+    LNamePtr := GetSimdBackendNamePtr(LCurrentBackend);
+    LDescriptionPtr := GetSimdBackendDescriptionPtr(LCurrentBackend);
+    LDispatchableBackends := GetAvailableBackendList;
+
+    AssertEquals(aContext + ': public API active backend id should match current backend',
+      Ord(LCurrentBackend), Integer(LApi^.ActiveBackendId));
+    AssertEquals(aContext + ': public API active flags should match active backend pod flags',
+      LCurrentPodInfo.Flags, LApi^.ActiveFlags);
+    AssertEquals(aContext + ': current backend info backend should match current backend',
+      Ord(LCurrentBackend), Ord(LCurrentInfo.Backend));
+    AssertTrue(aContext + ': public API active flags should include dispatchable',
+      (LApi^.ActiveFlags and FAF_SIMD_ABI_FLAG_DISPATCHABLE) <> 0);
+    AssertTrue(aContext + ': public API active flags should include active',
+      (LApi^.ActiveFlags and FAF_SIMD_ABI_FLAG_ACTIVE) <> 0);
+    AssertNotNull(aContext + ': backend name pointer should not be nil', Pointer(LNamePtr));
+    AssertNotNull(aContext + ': backend description pointer should not be nil', Pointer(LDescriptionPtr));
+    AssertEquals(aContext + ': current backend info name should stay aligned with public ABI text getter',
+      LCurrentInfo.Name, string(StrPas(LNamePtr)));
+    AssertEquals(aContext + ': current backend info description should stay aligned with public ABI text getter',
+      LCurrentInfo.Description, string(StrPas(LDescriptionPtr)));
+
+    LFoundCurrent := False;
+    for LListIndex := 0 to High(LDispatchableBackends) do
+      if LDispatchableBackends[LListIndex] = LCurrentBackend then
+      begin
+        LFoundCurrent := True;
+        Break;
+      end;
+    AssertTrue(aContext + ': dispatchable list should contain current backend in stable state',
+      LFoundCurrent);
+
+    if aExpectAutomatic then
+      AssertEquals(aContext + ': best dispatchable backend should match current backend in automatic stable state',
+        Ord(GetBestDispatchableBackend), Ord(LCurrentBackend));
+  end;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  LForcedBackend := sbScalar;
+  LHasForcedBackend := False;
+
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    AssertStableCurrentState('vector asm enabled automatic', True);
+
+    LAvailableBackends := GetAvailableBackendList;
+    for LIndex := 0 to High(LAvailableBackends) do
+      if LAvailableBackends[LIndex] <> GetCurrentBackend then
+      begin
+        LForcedBackend := LAvailableBackends[LIndex];
+        LHasForcedBackend := True;
+        Break;
+      end;
+
+    if LHasForcedBackend then
+    begin
+      SetActiveBackend(LForcedBackend);
+      AssertStableCurrentState('forced backend stable state', False);
+    end;
+
+    ResetToAutomaticBackend;
+    AssertStableCurrentState('automatic reset stable state', True);
+
+    SetVectorAsmEnabled(False);
+    ResetToAutomaticBackend;
+    AssertStableCurrentState('vector asm disabled automatic', True);
   finally
     SetVectorAsmEnabled(LOldVectorAsm);
     ResetToAutomaticBackend;

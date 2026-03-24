@@ -96,6 +96,8 @@ type
     procedure Test_Concurrent_BackendOps_RegisterBackend_ReadConsistency;
     {** current backend 与 RegisterBackend 并发读写保护 *}
     procedure Test_Concurrent_CurrentBackend_RegisterBackend_ReadConsistency;
+    {** current backend 与 vector-asm toggle 并发读写保护 *}
+    procedure Test_Concurrent_CurrentBackend_VectorAsmToggle_ReadConsistency;
     {** current backend info 与 RegisterBackend 并发读写保护 *}
     procedure Test_Concurrent_CurrentBackendInfo_RegisterBackend_ReadConsistency;
     {** dispatchable helper 与 vector-asm toggle 并发读写保护 *}
@@ -3449,6 +3451,85 @@ begin
       end;
 
     AssertTrue('Concurrent current-backend-info toggle/read failed: ' + LErrorMsgs,
+      LAllSuccess);
+  finally
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].Free;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].Free;
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_SimdConcurrentFramework.Test_Concurrent_CurrentBackend_VectorAsmToggle_ReadConsistency;
+const
+  WRITER_THREADS = 4;
+  WRITER_ITERATIONS = 4000;
+  READER_THREADS = 6;
+  READER_ITERATIONS = 30000;
+var
+  LWriters: array of TVectorAsmMultiToggleWorker;
+  LReaders: array of TCurrentBackendReadWorker;
+  LExpectedEnabledBackend: TSimdBackend;
+  LExpectedDisabledBackend: TSimdBackend;
+  LIndex: Integer;
+  LAllSuccess: Boolean;
+  LErrorMsgs: string;
+  LOldVectorAsm: Boolean;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  LWriters := nil;
+  LReaders := nil;
+  LExpectedEnabledBackend := sbScalar;
+  LExpectedDisabledBackend := sbScalar;
+
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LExpectedEnabledBackend := GetCurrentBackend;
+
+    SetVectorAsmEnabled(False);
+    ResetToAutomaticBackend;
+    LExpectedDisabledBackend := GetCurrentBackend;
+
+    if LExpectedEnabledBackend = LExpectedDisabledBackend then
+      Exit;
+
+    SetLength(LWriters, WRITER_THREADS);
+    SetLength(LReaders, READER_THREADS);
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex] := TVectorAsmMultiToggleWorker.Create(WRITER_ITERATIONS, LIndex);
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex] := TCurrentBackendReadWorker.Create(
+        READER_ITERATIONS, LExpectedEnabledBackend, LExpectedDisabledBackend);
+
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].Start;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].Start;
+
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].WaitFor;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].WaitFor;
+
+    LAllSuccess := True;
+    LErrorMsgs := '';
+    for LIndex := 0 to High(LWriters) do
+      if not LWriters[LIndex].Success then
+      begin
+        LAllSuccess := False;
+        LErrorMsgs := LErrorMsgs + LWriters[LIndex].ErrorMsg + '; ';
+      end;
+    for LIndex := 0 to High(LReaders) do
+      if not LReaders[LIndex].Success then
+      begin
+        LAllSuccess := False;
+        LErrorMsgs := LErrorMsgs + LReaders[LIndex].ErrorMsg + '; ';
+      end;
+
+    AssertTrue('Concurrent current-backend toggle/read failed: ' + LErrorMsgs,
       LAllSuccess);
   finally
     for LIndex := 0 to High(LWriters) do

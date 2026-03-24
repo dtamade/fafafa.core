@@ -65,6 +65,7 @@ type
     procedure Test_UnregisteredBackendInfo_PreservesCanonicalTextMetadata;
     procedure Test_RegisteredBackendDispatchTable_PreservesCanonicalTextMetadata_After_ReRegister;
     procedure Test_CurrentBackendInfo_PreservesCanonicalTextMetadata_After_ReRegister;
+    procedure Test_CurrentBackendHelpers_StayAligned_After_ControlPlaneSwitches;
     procedure Test_VecI64x2_DispatchAssigned_And_Parity;
     procedure Test_VecU64x2_DispatchAssigned_And_Parity;
     procedure Test_VecU32x8_DispatchAssigned_And_Parity;
@@ -2361,6 +2362,97 @@ begin
       LCurrentInfo.Description, string(StrPas(LDescriptionPtr)));
   finally
     RegisterBackend(LBackend, LOriginalTable);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_DispatchAPI.Test_CurrentBackendHelpers_StayAligned_After_ControlPlaneSwitches;
+var
+  LOldVectorAsm: Boolean;
+  LAvailableBackends: TSimdBackendArray;
+  LForcedBackend: TSimdBackend;
+  LIndex: Integer;
+  LHasForcedBackend: Boolean;
+
+  procedure AssertStableCurrentState(const aContext: string; const aExpectAutomatic: Boolean);
+  var
+    LCurrentBackend: TSimdBackend;
+    LCurrentInfo: TSimdBackendInfo;
+    LCanonicalInfo: TSimdBackendInfo;
+    LDispatch: PSimdDispatchTable;
+    LDispatchableBackends: TSimdBackendArray;
+    LFoundCurrent: Boolean;
+    LListIndex: Integer;
+  begin
+    LCurrentBackend := GetCurrentBackend;
+    LCurrentInfo := GetCurrentBackendInfo;
+    LCanonicalInfo := GetBackendInfo(LCurrentBackend);
+    LDispatch := GetDispatchTable;
+    LDispatchableBackends := GetAvailableBackendList;
+
+    AssertNotNull(aContext + ': dispatch table should not be nil', LDispatch);
+    AssertEquals(aContext + ': current backend info backend should match current backend',
+      Ord(LCurrentBackend), Ord(LCurrentInfo.Backend));
+    AssertEquals(aContext + ': dispatch table backend should match current backend',
+      Ord(LCurrentBackend), Ord(LDispatch^.Backend));
+    AssertEquals(aContext + ': dispatch table backend info backend should match current backend',
+      Ord(LCurrentBackend), Ord(LDispatch^.BackendInfo.Backend));
+    AssertEquals(aContext + ': current backend info name should stay canonical',
+      LCanonicalInfo.Name, LCurrentInfo.Name);
+    AssertEquals(aContext + ': current backend info description should stay canonical',
+      LCanonicalInfo.Description, LCurrentInfo.Description);
+    AssertEquals(aContext + ': current backend info availability should match current dispatch snapshot',
+      LDispatch^.BackendInfo.Available, LCurrentInfo.Available);
+    AssertTrue(aContext + ': current backend info capabilities should match current dispatch snapshot',
+      LCurrentInfo.Capabilities = LDispatch^.BackendInfo.Capabilities);
+
+    LFoundCurrent := False;
+    for LListIndex := 0 to High(LDispatchableBackends) do
+      if LDispatchableBackends[LListIndex] = LCurrentBackend then
+      begin
+        LFoundCurrent := True;
+        Break;
+      end;
+    AssertTrue(aContext + ': dispatchable list should contain current backend in stable state',
+      LFoundCurrent);
+
+    if aExpectAutomatic then
+      AssertEquals(aContext + ': best dispatchable backend should match current backend in automatic stable state',
+        Ord(GetBestDispatchableBackend), Ord(LCurrentBackend));
+  end;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  LForcedBackend := sbScalar;
+  LHasForcedBackend := False;
+
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    AssertStableCurrentState('vector asm enabled automatic', True);
+
+    LAvailableBackends := GetAvailableBackendList;
+    for LIndex := 0 to High(LAvailableBackends) do
+      if LAvailableBackends[LIndex] <> GetCurrentBackend then
+      begin
+        LForcedBackend := LAvailableBackends[LIndex];
+        LHasForcedBackend := True;
+        Break;
+      end;
+
+    if LHasForcedBackend then
+    begin
+      SetActiveBackend(LForcedBackend);
+      AssertStableCurrentState('forced backend stable state', False);
+    end;
+
+    ResetToAutomaticBackend;
+    AssertStableCurrentState('automatic reset stable state', True);
+
+    SetVectorAsmEnabled(False);
+    ResetToAutomaticBackend;
+    AssertStableCurrentState('vector asm disabled automatic', True);
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
     ResetToAutomaticBackend;
   end;
 end;

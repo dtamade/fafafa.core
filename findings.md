@@ -7,6 +7,26 @@
 - 形成连续的修复与审查计划
 
 ## Research Findings
+- 最新一轮按 closeout roadmap 收口后，没有再打出新的生产缺陷，而是确认了两条需要补齐的合同/护栏边界：
+  - `GetCurrentBackend` 在 repeated `SetVectorAsmEnabled(...)` 并发 toggle 下之前还没有独立 regression guard；现已在 `tests/fafafa.core.simd/fafafa.core.simd.concurrent.testcase.pas` 新增 `Test_Concurrent_CurrentBackend_VectorAsmToggle_ReadConsistency`
+  - fresh release 定向 suite：
+    - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch69-currentbackend-toggle-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrentFramework`：PASS，`[LEAK] OK`
+  - 结论：当前 `GetCurrentBackend -> GetActiveBackend -> current published dispatch snapshot` 读取链已经守住 vector-asm batch rebuild 下的 helper-level read consistency；这轮仍是 guard gap，不是新的实现 bug
+  - 同轮又确认当前剩余边界主要是文档层：single-call snapshot 和 cross-call atomic pairing 之前没有在 API/public ABI 文档里写死，容易把“并发 control-plane 写入下的跨调用 pair drift”误读成实现缺陷
+  - 现已在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 与 `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 新增 deterministic stable-state parity tests，显式守住“控制面 API 返回后、且没有新的并发 control-plane mutation 时，`GetCurrentBackend` / `GetCurrentBackendInfo` / `GetDispatchTable` / `GetSimdPublicApi` / `TryGetSimdBackendPodInfo(current_backend)` 必须重新收敛”
+  - `docs/fafafa.core.simd.api.md` 与 `docs/fafafa.core.simd.publicabi.md` 现在也已明确：
+    - 单个 helper/getter 调用返回的是一份 published snapshot
+    - 不承诺并发 control-plane 写入下两个独立调用之间的跨调用原子配对
+    - 但 control-plane API 返回后、且无新的并发 mutation 时，stable-state parity 必须成立
+  - fresh release 收口证据：
+    - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch70-stablestate-targeted-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi,TTestCase_SimdConcurrentFramework`：PASS，`[LEAK] OK`
+    - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch70-stablestate-check-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh check`：PASS
+    - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch70-stablestate-gate-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh gate`：PASS，最终 `[GATE] OK`，run-all summary 时间 `2026-03-24 11:49:31`
+  - 这轮没有生产代码改动，收口结果是：
+    - 并发 toggle/read guard 补齐
+    - stable-state parity regression guard 补齐
+    - snapshot boundary 文档补齐
+    - 当前 SIMD 审计批次进入 merge-ready 状态
 - 最新一轮继续深审 `TrySetActiveBackend(...)` failure rollback / restore 路径后，又确认一条新的真实 control-plane drift：
   - `src/fafafa.core.simd.dispatch.pas` 的 `TrySetActiveBackendInternal(...)` 虽然在 Phase 52 已能在 late failure 后恢复 previous forced backend
   - 但旧实现的 `else if LPreviousBackendForced then ... InitializeDispatch` 只做了一次 rollback restore reinit

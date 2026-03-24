@@ -75,6 +75,7 @@
 - 它返回的是 public-ABI 视图，不是内部 dispatch table 本体
 - 后端切换后，内部会发布一张新的已绑定 snapshot
 - 调用方可以缓存这个指针做 data-plane 直调；如果需要最新 metadata，应在 backend 切换后重新取表
+- 单次 `GetSimdPublicApi` 返回的 table 自身应当是自洽的 published snapshot
 
 当前已绑定这些高 ROI façade：
 
@@ -109,6 +110,36 @@
 也就是说，**不会在每次外部调用时重复查内部 dispatch table**。
 
 只有极少数兜底路径，才会回读当前 dispatch table。
+
+### Snapshot Boundary
+
+这里要把边界说死：
+
+- `GetSimdPublicApi` 的单次返回值承诺是**单份 published snapshot**
+- 这个 snapshot 内部的 `ActiveBackendId / ActiveFlags / function pointers` 应当彼此自洽
+- 但它**不承诺**和另一个独立时刻调用的 `GetCurrentBackend` / `GetCurrentBackendInfo` 自动组成跨调用原子配对
+
+也就是说，如果有并发 control-plane 写入正在发生：
+
+- `RegisterBackend(...)`
+- `SetActiveBackend(...)`
+- `ResetToAutomaticBackend`
+- `SetVectorAsmEnabled(...)`
+
+那么两次独立 getter 观察到的是两个不同 published snapshot，并不自动构成 bug。
+
+稳定态合同是：
+
+- 控制面 API 已经返回
+- 且没有新的并发 control-plane mutation
+
+这时下面这些观察点应该重新收敛：
+
+- `GetSimdPublicApi^.ActiveBackendId`
+- `GetSimdPublicApi^.ActiveFlags`
+- `GetCurrentBackend`
+- `GetCurrentBackendInfo`
+- `TryGetSimdBackendPodInfo(current_backend, ...)`
 
 ### 热点路径建议
 

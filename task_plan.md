@@ -4,7 +4,7 @@
 审查 `fafafa.core.simd` 及其 `cpuinfo` 相关模块，找出可验证的问题并完成至少一轮根因修复，同时产出可连续执行的后续修复与审查计划。
 
 ## Current Phase
-Phase 68 complete; framework helper `GetCurrentBackend` is now covered by a concurrent re-register guard, and current active backend selection stays within the complete enabled/disabled reselection states under `RegisterBackend(...)` churn
+Phase 70 complete; SIMD closeout roadmap is implemented, with `GetCurrentBackend` toggle/read guard, snapshot-boundary docs, and stable-state parity guards all green under fresh release verification
 
 ## Phases
 
@@ -1336,6 +1336,49 @@ Phase 68 complete; framework helper `GetCurrentBackend` is now covered by a conc
 | What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
 | What have I learned? | 这轮证明，当前 `GetCurrentBackend -> GetActiveBackend -> current published dispatch snapshot` 读取链已经守住 re-register churn 下的 helper 级一致性：reader 不会掉进第三种 impossible backend id。 |
 | What have I done? | 已为 `GetCurrentBackend` 补上 concurrent register/read 护栏，并用 fresh release suite/check/gate 把这条候选收口为“guard green”；当前 worktree 只增加测试证据，没有生产代码改动。 |
+
+### Phase 69: framework helper `GetCurrentBackend` concurrent vector-asm toggle/read guard closeout
+- [x] 在 `tests/fafafa.core.simd/fafafa.core.simd.concurrent.testcase.pas` 新增 `Test_Concurrent_CurrentBackend_VectorAsmToggle_ReadConsistency`，对 repeated `SetVectorAsmEnabled(True/False)` 并发 churn 下的 `GetCurrentBackend` 做独立 guard
+- [x] 用 fresh release `TTestCase_SimdConcurrentFramework` 先验证这条 current-active helper 候选是 fresh red 还是即刻 green，避免对已有 published snapshot 读取链做无证据补丁
+- [x] 确认当前 `GetCurrentBackend -> GetActiveBackend -> current published dispatch snapshot` 路径已经满足这条更强语义：reader 只观察到 enabled/disabled 两种完整 active backend 状态，而不会掉进第三种 impossible backend id
+- [x] 将这轮结果收口为 closeout roadmap 与 planning/worker 同步的 Phase 69，而不是新的生产修复
+- **Status:** complete
+
+- 2026-03-24 最新 Batch 69 证据：
+  - targeted suite: `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch69-currentbackend-toggle-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrentFramework` -> PASS，`[LEAK] OK`
+- 这轮结论仍是“测试护栏缺口”，不是新的生产 bug：
+  - repeated `SetVectorAsmEnabled(...)` batch rebuild 场景此前已经在 `GetCurrentBackendInfo` / public ABI active metadata 上有护栏，但 `GetCurrentBackend` 自身还缺少独立的 machine-readable toggle/read 压测
+  - fresh targeted suite 直接转绿，说明当前 helper 读取链已经守住了 vector-asm toggle 下的 helper-level read consistency
+
+### Phase 70: snapshot-boundary documentation and stable-state parity closeout
+- [x] 新建 `docs/plans/2026-03-24-simd-audit-closeout-roadmap.md`，把这轮收口目标、非阻塞项和验收标准写死
+- [x] 更新 `docs/fafafa.core.simd.api.md` 与 `docs/fafafa.core.simd.publicabi.md`，明确 single-call snapshot 与 cross-call atomic pairing 的边界
+- [x] 在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 与 `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 新增 deterministic stable-state parity tests，显式守住控制面返回后的稳定态收敛
+- [x] 用 fresh release targeted suite、fresh release `check`、fresh release `gate` 复验这一轮 closeout 只引入 docs/test 护栏，没有新回归
+- [x] 同步更新 `task_plan.md`、`findings.md`、`progress.md`、`workers/worker0.md`
+- **Status:** complete
+
+- 2026-03-24 最新 Batch 70 证据：
+  - targeted suite: `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch70-stablestate-targeted-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi,TTestCase_SimdConcurrentFramework` -> PASS，`[LEAK] OK`
+  - check: `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch70-stablestate-check-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh check` -> PASS
+  - gate: `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch70-stablestate-gate-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh gate` -> PASS，最终 `[GATE] OK`，run-all summary 时间 `2026-03-24 11:49:31`
+- 这轮结论是 closeout，不是继续深审：
+  - 新增测试证明控制面 API 返回后，`GetCurrentBackend` / `GetCurrentBackendInfo` / `GetDispatchTable` / `GetSimdPublicApi` / `TryGetSimdBackendPodInfo(current)` 会重新收敛到同一稳定态
+  - 新增文档明确“单次 getter 的 published snapshot”与“并发 control-plane 写入下不承诺跨调用原子配对”的边界
+  - 这轮没有生产代码改动，当前 SIMD 审计批次已进入 merge-ready 状态
+- 下一轮连续计划优先级更新为：
+  1. 先合并/交接当前 `simd-contract-audit` worktree 的 closeout 结果，不再把无限深审当默认路径
+  2. 非阻塞 follow-up 只剩外部证据类事项：`arm64` / `riscv64` asm host evidence 与 Windows native evidence
+  3. 只有出现 fresh red、明确的新合同问题，或用户明确要求重新深挖时，才重开下一轮实现层深审
+
+## 5-Question Reboot Check (Phase 70 Update)
+| Question | Answer |
+|----------|--------|
+| Where am I? | Linux fresh `TTestCase_DispatchAPI,TTestCase_PublicAbi,TTestCase_SimdConcurrentFramework`、fresh `check`、fresh `gate` 都已重新通过；本轮最新把 toggle/read guard、snapshot-boundary 文档和 stable-state parity 护栏一起收口了。 |
+| Where am I going? | 默认下一步不再继续无限深审，而是合并/交接当前 closeout；仅把外部 evidence 当作后续非阻塞项。 |
+| What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
+| What have I learned? | 当前剩余风险不在 single-call snapshot 自洽性，而在“调用方是否把并发 control-plane 写入下的跨调用 pair drift 误读成 bug”；这已经通过文档边界和 deterministic stable-state parity tests 明确收口。 |
+| What have I done? | 已实现 closeout roadmap：补齐 `GetCurrentBackend` toggle/read guard、补齐 stable-state parity regression、补齐 snapshot-boundary 文档，并用 fresh release targeted/check/gate 复验，当前批次 merge-ready。 |
 
 - 2026-03-24 最新 backend adapter concurrent guard closeout 证据：
   - targeted suite: `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch67-backendops-concurrent-red-or-green-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrentFramework` -> PASS，`[LEAK] OK`

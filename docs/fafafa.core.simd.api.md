@@ -220,6 +220,32 @@ ResetToAutomaticBackend;
 
 对外语义上，dispatch 初始化是线程安全的；但**运行时切换后端**更适合发生在启动阶段、测试阶段，或者受控切换点，而不是高并发热路径中。调用方应把 `SetActiveBackend` / `ResetToAutomaticBackend` 视为“控制面操作”，不要把它们当作普通数据面 API 高频调用。
 
+更具体地说：
+
+- `GetCurrentBackend`
+- `GetCurrentBackendInfo`
+- `GetDispatchTable`
+- `GetAvailableBackendList`
+- `GetBestDispatchableBackend`
+
+这些 helper/getter 各自都会返回一份**已发布的单次 snapshot**。单个调用内部不应暴露 torn snapshot 或 half-rebuilt state。
+
+但这不等于承诺“两个独立 helper 调用在并发 control-plane 写入下会自动原子配对”。如果别的线程正在同时执行：
+
+- `RegisterBackend(...)`
+- `SetActiveBackend(...)`
+- `ResetToAutomaticBackend`
+- `SetVectorAsmEnabled(...)`
+
+那么分两次读出来的结果可能分别对应两个不同的已发布 snapshot。这是文档边界，不是默认 bug。
+
+稳定态合同是：
+
+- 控制面 API 返回后
+- 且没有新的并发 control-plane mutation
+
+此时 `GetCurrentBackend`、`GetCurrentBackendInfo.Backend` 与 `GetDispatchTable^.Backend` 应该收敛到同一个 active backend。
+
 ## 使用示例
 
 ### 基础向量运算
