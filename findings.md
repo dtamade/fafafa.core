@@ -7,6 +7,35 @@
 - 形成连续的修复与审查计划
 
 ## Research Findings
+- 最新一轮 external evidence 又从 “Windows closeout 已闭环” 继续推进到了 “ARM64 NEON native evidence fresh green”：
+  - 实际 refs 已经不是旧文档里的 `ad445cb5`：
+    - `origin/main` / 主仓库 `main` 当前都是 `90b346ca33fa`
+    - SIMD worktree `simd-external-evidence` 当前 head 是 `cff7395c5acf`
+  - 这条 ARM64 NEON 收口链的 remote run 演进是：
+    - `23480331356`：6 failures
+    - `23480706416`：4 failures
+    - `23480929101`：1 failure
+    - `23481240212`：success
+  - 四个新增提交各自解决的是不同层级的问题：
+    - `002059f9` `fix(simd): stabilize neon select contract`
+      - 真实生产 bug：`NEONSelectF32x4` 在 native ARM64 上的合同不稳定，修复方式是改回标量语义实现
+      - 同时也确认 testcase 不能直接读 `FAFAFA_SIMD_NEON_ASM_ENABLED`，因为这是 `src/fafafa.core.simd.neon.pas` 实现区局部 define；测试侧必须镜像自己的全局条件
+    - `fff1b541` `test(simd): skip scalar-only hook disable paths`
+      - lingering-force 两条 ARM64 red 不是生产 bug，而是 testcase 把 `sbScalar` 错当成“应该能被 hook disable 的 requested backend”
+      - 正确口径是：只有真正的 non-scalar requested backend 才有这条 disable/restore 合同
+    - `49b54aa5` `fix(simd): canonicalize scalar availability`
+      - 真实 contract drift：dispatch 层一直把 scalar 当作永远可派发，但注册/public ABI 还能把 `sbScalar.Available` 写成 `False`
+      - 修复方式是把 `RegisterBackend(...)` 收紧到统一 canonicalize `sbScalar.BackendInfo.Available := True`
+    - `cff7395c` `test(simd): compare neon fallback against base table`
+      - 最后一条 ARM64 red 不是实现 bug，而是观测真相源选错了
+      - runtime-disabled NEON fallback 在 native ARM64 上应该直接对比 `FillBaseDispatchTable(...)`，而不是对比“之前注册过的 scalar snapshot”
+  - 这轮 closeout 的关键结论是：
+    - ARM64 external evidence 这次同时遇到了真实 bug、contract drift、以及 test-side 假红
+    - 只有把三类问题分开归因，fresh failure 才能从 `6 -> 4 -> 1 -> 0` 正常收敛
+    - 当前 ARM64 NEON 链已经 green，不应再把它当成默认深审入口
+  - fresh 本地交接验证也已补齐：
+    - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_ENABLE_NEON_BACKEND=1 SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/verify-phase72-neon-targeted-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi`：PASS，`[LEAK] OK`
+    - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/verify-phase72-check-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh check`：PASS
 - 最新一轮 external evidence closeout 没有再打出新的生产实现缺陷，而是把“推主线 -> fresh Windows native evidence -> cross freeze ready”这条链路完整跑通了：
   - 主线推进：
     - `git push origin main`：PASS

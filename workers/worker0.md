@@ -5,14 +5,17 @@
 - Status: `handoff-ready`
 - Branch: `simd-external-evidence`
 - Worktree: `/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence`
-- Base commit: `ad445cb5fcdc2a5d6889a0bd1cd5459e99a1c5a2`
+- Base commit: `90b346ca33fa`
 - Current focus:
-  - 当前批次已从“merge-ready”推进到“external evidence closeout completed”：
-    - `main` 已推到 `origin/main@ad445cb5`
-    - fresh Windows batch `SIMD-20260324-152` 已成功收回并通过 verifier
-    - 追加 `qemu-cpuinfo-nonx86-evidence` gate 后，fresh `freeze-status` 已回到 `ready=True, mainline-ready=True, cross-ready=True`
-  - 本轮没有新的生产代码改动，只有 evidence / closeout / 协作文档同步
-  - 当前剩余外部证据不再是 Windows，而是 `arm64/riscv64` asm-ready 真机执行证据
+  - 当前批次已从“Windows closeout completed”继续推进到“ARM64 NEON external evidence fresh green”：
+    - `origin/main` 当前是 `90b346ca33fa`
+    - worktree head 当前是 `cff7395c5acf`
+    - ARM64 remote run 已从 `23480331356/6 fails` -> `23480706416/4 fails` -> `23480929101/1 fail` 收口到 `23481240212/success`
+  - 这轮不是单一类型问题，而是一起清掉了：
+    - 1 条真实 native bug：`NEONSelectF32x4` 合同不稳
+    - 1 条 shared contract drift：`sbScalar.Available` 漂移
+    - 2 类 test-side 假红：scalar-only hook disable 预期错误、runtime-disabled fallback 真相源选错
+  - 当前 ARM64 NEON 链已经 green；剩余非阻塞外部证据主要转向 `riscv64` asm-ready host 与其他 native evidence
 - Source of truth:
   - `task_plan.md`
   - `findings.md`
@@ -22,24 +25,18 @@
   - 验证继续采用 release 策略
   - 证据驱动：先补 fresh red，再做最小修复，再跑 fresh green / check / gate
 - Fresh verification:
-  - `FAFAFA_BUILD_MODE=Release SIMD_WIN_EVIDENCE_REF=main bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight`
-  - 结果：`STATUS=PASS CODE=OK`
-  - `FAFAFA_BUILD_MODE=Release SIMD_WIN_EVIDENCE_REF=main bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh SIMD-20260324-152`
-  - 结果：fresh `windows_b07_gate.log` 下载并校验通过；workflow `23475183856` success
-  - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
-  - 结果：`[GATE] OK`，QEMU summary=`tests/fafafa.core.simd/logs/qemu-multiarch-20260324-144555-2749661/summary.md`
-  - `FAFAFA_BUILD_MODE=Release SIMD_WIN_CLOSEOUT_BATCH_DIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260324-152 bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize SIMD-20260324-152`
-  - 结果：`freeze-status ready=True, mainline-ready=True, cross-ready=True`
-  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+  - remote ARM64 run: `23481240212`
+  - 结果：success
+  - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_ENABLE_NEON_BACKEND=1 SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/verify-phase72-neon-targeted-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi`
+  - 结果：PASS，`[LEAK] OK`
+  - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/verify-phase72-check-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh check`
   - 结果：PASS
 - Risks / blockers:
-  - 当前宿主机没有 native `avx512*` 执行条件，所以 AVX-512 只有 opt-in build/registration/public ABI 证据，没有 native execution 证据
-  - `arm64` / `riscv64` asm-ready 主机证据仍待补；当前本机 `uname -m=x86_64`，唯一已配置 SSH host `888933.xyz` 也为 `x86_64`
-  - 当前 `QEMU CPUInfo` PASS 只解决 closeout/freeze 依赖，不替代 `NEON/RISCVV` native asm host execution evidence
-  - `TTestCase_SimdConcurrentRegistration` 会永久注册 previously-unregistered backend，属于 stateful suite；后续若做 same-process 组合并发验证，需要显式考虑顺序污染
-  - 当前宿主机 `/tmp` 是 32G tmpfs，长链 `gate` 可能因外部工具链临时文件写入而打满；需要优先使用 worktree-local `SIMD_OUTPUT_ROOT/TMPDIR`
+  - 当前宿主机和现有 SSH host 仍都是 `x86_64`；`riscv64` asm-ready 主机证据仍待外部环境
+  - 当前 ARM64 run 已 green，但这不自动替代 `RISCVV` native asm host execution evidence
+  - 主仓库与 worktree 里都有本地 `.simd-output/` 产物，收口到主线前还需要把仓库状态清干净
 - Next step:
-  - 当前优先级是把这轮 external evidence 的文档/状态同步合回主线，并恢复主仓库干净状态
-  - 如需继续推进，下一个非阻塞批次只处理真实 `arm64` / `riscv64` asm-ready host evidence
-  - 只有出现 fresh red、拿到可用真机，或用户明确要求继续深审时，才重新打开新的实现层批次
+  - 先把 Phase 72 文档同步与分支结果合回 `main`
+  - 然后清理主仓库/worktree 的 git 状态
+  - 如继续推进，实现层默认暂停；只在拿到 fresh red 或可用真机后，再打开新的 SIMD 批次
 - Last updated: `2026-03-24`

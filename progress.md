@@ -1114,6 +1114,31 @@
 ### 阶段状态
 - 跨平台冻结条件满足。
 
+### Phase 72: ARM64 NEON external evidence doc sync and closeout capture
+- **Status:** complete
+- Actions taken:
+  - 核对真实 git refs，确认旧文档里的 `ad445cb5` 已过时：
+    - 主仓库 `/home/dtamade/projects/fafafa.core` 当前 `main=90b346ca33fa`
+    - worktree `/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence` 当前 `HEAD=cff7395c5acf`
+    - `main` / `origin/main` 均为 `90b346ca33fa`
+  - 检查 worktree `git status --short --branch`，确认本轮开始时只有未跟踪 `.simd-output/`，没有新的实现层脏改
+  - 读取 `task_plan.md` / `findings.md` / `progress.md` / `workers/worker0.md`，确认它们仍停在 Windows closeout 后，尚未写入 ARM64 NEON `6 -> 4 -> 1 -> 0` 收口链
+  - 运行 fresh release 定向 suite，补齐交接前本地验证：
+    - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_ENABLE_NEON_BACKEND=1 SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/verify-phase72-neon-targeted-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi`
+    - 结果：PASS，`[LEAK] OK`
+  - 运行 fresh release `check`，确认这次文档同步前的分支状态仍然稳定：
+    - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/verify-phase72-check-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+    - 结果：PASS
+  - 将 ARM64 remote run 链与四个新增提交同步进 planning 文档：
+    - runs：`23480331356 (6 fails)` -> `23480706416 (4 fails)` -> `23480929101 (1 fail)` -> `23481240212 (success)`
+    - commits：`002059f9` / `fff1b541` / `49b54aa5` / `cff7395c`
+  - 更新 `workers/worker0.md`，把 base commit、current focus、fresh verification 与下一步收束到当前真实状态
+- Files created/modified:
+  - `task_plan.md` (modified)
+  - `findings.md` (modified)
+  - `progress.md` (modified)
+  - `workers/worker0.md` (modified)
+
 ### Phase 31: dynamic register-backend identity drift closeout
 - **Status:** complete
 - Actions taken:

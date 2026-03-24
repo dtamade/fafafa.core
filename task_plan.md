@@ -4,7 +4,7 @@
 审查 `fafafa.core.simd` 及其 `cpuinfo` 相关模块，找出可验证的问题并完成至少一轮根因修复，同时产出可连续执行的后续修复与审查计划。
 
 ## Current Phase
-Phase 71 complete; `main` has been pushed to `origin/main`, fresh Windows native evidence has been recollected on `SIMD-20260324-152`, and cross-platform `freeze-status` is back to `ready=True` after replaying the required QEMU CPUInfo non-x86 evidence gate
+Phase 72 complete; `simd-external-evidence@cff7395c` has recollected fresh ARM64 NEON external evidence green on top of `origin/main@90b346ca`, and the planning/worker documents are now synced for merge-back
 
 ## Phases
 
@@ -1395,6 +1395,38 @@ Phase 71 complete; `main` has been pushed to `origin/main`, fresh Windows native
   2. 等待可用的 `arm64` / `riscv64` asm-ready 主机后，再按 targeted `DispatchAPI/PublicAbi + check` 回收 native execution evidence
   3. 若没有真实 host，就不要把 QEMU 或 x86_64 compile-only 证据误写成 native asm host 完成
 
+### Phase 72: ARM64 NEON external evidence closeout sync
+- [x] 校正文档基线到真实 refs：`origin/main=90b346ca`，`simd-external-evidence=cff7395c`
+- [x] 将 ARM64 external evidence 的收口链 `23480331356 -> 23480706416 -> 23480929101 -> 23481240212` 与失败数 `6 -> 4 -> 1 -> 0` 同步到 planning/worker 文档
+- [x] 记录四个新增提交 `002059f9` / `fff1b541` / `49b54aa5` / `cff7395c` 的作用、根因边界与“真实 bug / contract drift / test 假红”分类
+- [x] 用 fresh release 本地验证补齐本轮交接证据：`SIMD_ENABLE_NEON_BACKEND=1` 定向 `DispatchAPI/PublicAbi` 与主 `check`
+- [x] 将下一轮优先级收束到 `riscv64` asm-ready host evidence 与其他非阻塞 external evidence，不再回头重开已绿的 ARM64 NEON 链
+- **Status:** complete
+
+- 2026-03-24 最新 ARM64 NEON external evidence 证据：
+  - refs: `git rev-parse --short=12 HEAD/main/origin/main` -> `cff7395c5acf` / `90b346ca33fa` / `90b346ca33fa`
+  - remote runs:
+    - `23480331356` -> 6 failures
+    - `23480706416` -> 4 failures
+    - `23480929101` -> 1 failure
+    - `23481240212` -> success
+  - commits:
+    - `002059f9` `fix(simd): stabilize neon select contract`
+    - `fff1b541` `test(simd): skip scalar-only hook disable paths`
+    - `49b54aa5` `fix(simd): canonicalize scalar availability`
+    - `cff7395c` `test(simd): compare neon fallback against base table`
+  - fresh local targeted suite: `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_ENABLE_NEON_BACKEND=1 SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/verify-phase72-neon-targeted-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi` -> PASS，`[LEAK] OK`
+  - fresh local check: `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/verify-phase72-check-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh check` -> PASS
+- 这轮结论是“fresh ARM64 evidence 已绿 + 文档状态已追平”，而不是再开新的实现层深审：
+  - `002059f9` 真正修掉的是 native ARM64 `NEONSelectF32x4` 行为合同 bug，做法是把 select 收回到标量语义实现
+  - `fff1b541` 收掉的是 testcase 对 `sbScalar` 的错误 disable 预期，不是生产实现 bug
+  - `49b54aa5` 修的是 `sbScalar.Available` 在 dispatch/public ABI 之间的合同漂移
+  - `cff7395c` 收掉的是 runtime-disabled fallback 观测方式错误，改为直接对比 `FillBaseDispatchTable(...)`
+- 下一轮连续计划优先级更新为：
+  1. 将 `simd-external-evidence` 分支合回 `main`，保持主仓库状态干净
+  2. 如需继续外部证据，只处理 `riscv64` asm-ready host evidence 或 Windows/native 侧非阻塞证据
+  3. 没有 fresh red 或可用真机前，不再回头重开已绿的 ARM64 NEON 链
+
 ## 5-Question Reboot Check (Phase 71 Update)
 | Question | Answer |
 |----------|--------|
@@ -1403,6 +1435,15 @@ Phase 71 complete; `main` has been pushed to `origin/main`, fresh Windows native
 | What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
 | What have I learned? | 这轮证明 Windows closeout 的剩余阻塞并不在 Windows runner 本身，而在 closeout 之后消费的 Linux/QEMU CPUInfo gate；只要补上这条 gate，fresh Windows artifact 就能重新把 cross freeze 拉回 ready。 |
 | What have I done? | 已按顺序完成 push main、fresh Windows native evidence、QEMU CPUInfo gate replay、fresh closeout finalize 和 final freeze 复验；同时确认当前环境里还没有可用的 `arm64/riscv64` asm-ready 外部主机。 |
+
+## 5-Question Reboot Check (Phase 72 Update)
+| Question | Answer |
+|----------|--------|
+| Where am I? | `simd-external-evidence@cff7395c` 已在 `origin/main@90b346ca` 之上把 ARM64 NEON external evidence 收口到 fresh green；remote run `23481240212` success，且本地 fresh `SIMD_ENABLE_NEON_BACKEND=1` 定向 suite 与 fresh `check` 都已重新通过。 |
+| Where am I going? | 先把 Phase 72 的文档/worker 同步合回 `main`；如继续推进，则只剩 `riscv64` asm-ready host evidence 和其他非阻塞 external evidence。 |
+| What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
+| What have I learned? | 这轮同时证明了三类问题必须分开看：真实 native bug、shared contract drift、以及 test 观测/预期本身的假红。把它们混在一起只会让 external evidence 收口变慢。 |
+| What have I done? | 已把 ARM64 failure 链从 `6 -> 4 -> 1 -> 0` 收口，记录四个新增提交的职责边界，并补上 fresh 本地 release 验证与 planning/worker 同步。 |
 
 ## 5-Question Reboot Check (Phase 70 Update)
 | Question | Answer |
