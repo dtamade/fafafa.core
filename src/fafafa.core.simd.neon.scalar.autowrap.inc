@@ -1,6 +1,8 @@
 // === Auto-generated NEON Wrapper Functions (Scalar Fallback) ===
 // These wrappers delegate to scalar implementations for 100% coverage
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONAbsF32x16(const a: TVecF32x16): TVecF32x16;
 begin
   Result.lo.lo := NEONAbsF32x4(a.lo.lo);
@@ -33,6 +35,8 @@ begin
   Result.hi := NEONAbsF64x4(a.hi);
 end;
 
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
+
 function NEONAddF32x16(const a, b: TVecF32x16): TVecF32x16;
 begin
   Result.lo.lo := NEONAddF32x4(a.lo.lo, b.lo.lo);
@@ -41,11 +45,15 @@ begin
   Result.hi.hi := NEONAddF32x4(a.hi.hi, b.hi.hi);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONAddF64x4(const a, b: TVecF64x4): TVecF64x4;
 begin
   Result.lo := NEONAddF64x2(a.lo, b.lo);
   Result.hi := NEONAddF64x2(a.hi, b.hi);
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONAddF64x8(const a, b: TVecF64x8): TVecF64x8;
 begin
@@ -58,10 +66,14 @@ begin
   Result := ScalarAddI32x16(a, b);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONAddI32x8(const a, b: TVecI32x8): TVecI32x8;
 begin
   Result := ScalarAddI32x8(a, b);
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONAddI64x4(const a, b: TVecI64x4): TVecI64x4;
 begin
@@ -423,6 +435,8 @@ begin
   Result := ScalarCmpNeU64x8(a, b);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONAddU32x4(const a, b: TVecU32x4): TVecU32x4;
 begin
   Result := ScalarAddU32x4(a, b);
@@ -438,10 +452,14 @@ begin
   Result := ScalarAddU64x4(a, b);
 end;
 
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
+
 function NEONAndI32x16(const a, b: TVecI32x16): TVecI32x16;
 begin
   Result := ScalarAndI32x16(a, b);
 end;
+
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
 function NEONAndI32x4(const a, b: TVecI32x4): TVecI32x4;
 begin
@@ -458,6 +476,8 @@ begin
   Result := ScalarAndI64x4(a, b);
 end;
 
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
+
 function NEONAndI64x8(const a, b: TVecI64x8): TVecI64x8;
 begin
   Result := ScalarAndI64x8(a, b);
@@ -467,6 +487,8 @@ function NEONAndNotI32x16(const a, b: TVecI32x16): TVecI32x16;
 begin
   Result := ScalarAndNotI32x16(a, b);
 end;
+
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
 function NEONAndNotI32x4(const a, b: TVecI32x4): TVecI32x4;
 begin
@@ -606,6 +628,8 @@ begin
   Result.hi := NEONClampF64x4(a.hi, minVal.hi, maxVal.hi);
 end;
 
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
+
 function NEONCmpEqF32x16(const a, b: TVecF32x16): TMask16;
 begin
   Result := ScalarCmpEqF32x16(a, b);
@@ -616,12 +640,16 @@ begin
   Result := ScalarCmpEqF32x8(a, b);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONCmpEqF64x2(const a, b: TVecF64x2): TMask2;
 begin
   Result := 0;
   if a.d[0] = b.d[0] then Result := Result or 1;
   if a.d[1] = b.d[1] then Result := Result or 2;
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONCmpEqF64x4(const a, b: TVecF64x4): TMask4;
 begin
@@ -633,20 +661,28 @@ begin
   Result := ScalarCmpEqF64x8(a, b);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONCmpEqI16x8(const a, b: TVecI16x8): TMask8;
 begin
   Result := ScalarCmpEqI16x8(a, b);
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONCmpEqI32x16(const a, b: TVecI32x16): TMask16;
 begin
   Result := ScalarCmpEqI32x16(a, b);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONCmpEqI32x4(const a, b: TVecI32x4): TMask4;
 begin
   Result := ScalarCmpEqI32x4(a, b);
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONCmpEqI32x8(const a, b: TVecI32x8): TMask8;
 begin
@@ -663,6 +699,8 @@ begin
   Result := ScalarCmpEqI64x8(a, b);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONCmpEqI8x16(const a, b: TVecI8x16): TMask16;
 begin
   Result := ScalarCmpEqI8x16(a, b);
@@ -678,6 +716,8 @@ begin
   Result := ScalarCmpEqU32x4(a, b);
 end;
 
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
+
 function NEONCmpEqU32x8(const a, b: TVecU32x8): TMask8;
 begin
   Result := ScalarCmpEqU32x8(a, b);
@@ -688,10 +728,14 @@ begin
   Result := ScalarCmpEqU64x4(a, b);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONCmpEqU8x16(const a, b: TVecU8x16): TMask16;
 begin
   Result := ScalarCmpEqU8x16(a, b);
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONCmpGeF32x16(const a, b: TVecF32x16): TMask16;
 begin
@@ -703,12 +747,16 @@ begin
   Result := ScalarCmpGeF32x8(a, b);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONCmpGeF64x2(const a, b: TVecF64x2): TMask2;
 begin
   Result := 0;
   if a.d[0] >= b.d[0] then Result := Result or 1;
   if a.d[1] >= b.d[1] then Result := Result or 2;
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONCmpGeF64x4(const a, b: TVecF64x4): TMask4;
 begin
@@ -720,20 +768,28 @@ begin
   Result := ScalarCmpGeF64x8(a, b);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONCmpGeI16x8(const a, b: TVecI16x8): TMask8;
 begin
   Result := ScalarCmpGeI16x8(a, b);
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONCmpGeI32x16(const a, b: TVecI32x16): TMask16;
 begin
   Result := ScalarCmpGeI32x16(a, b);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONCmpGeI32x4(const a, b: TVecI32x4): TMask4;
 begin
   Result := ScalarCmpGeI32x4(a, b);
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONCmpGeI32x8(const a, b: TVecI32x8): TMask8;
 begin
@@ -750,6 +806,8 @@ begin
   Result := ScalarCmpGeI64x8(a, b);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONCmpGeI8x16(const a, b: TVecI8x16): TMask16;
 begin
   Result := ScalarCmpGeI8x16(a, b);
@@ -765,6 +823,8 @@ begin
   Result := ScalarCmpGeU32x4(a, b);
 end;
 
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
+
 function NEONCmpGeU32x8(const a, b: TVecU32x8): TMask8;
 begin
   Result := ScalarCmpGeU32x8(a, b);
@@ -775,10 +835,14 @@ begin
   Result := ScalarCmpGeU64x4(a, b);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONCmpGeU8x16(const a, b: TVecU8x16): TMask16;
 begin
   Result := ScalarCmpGeU8x16(a, b);
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONCmpGtF32x16(const a, b: TVecF32x16): TMask16;
 begin
@@ -790,12 +854,16 @@ begin
   Result := ScalarCmpGtF32x8(a, b);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONCmpGtF64x2(const a, b: TVecF64x2): TMask2;
 begin
   Result := 0;
   if a.d[0] > b.d[0] then Result := Result or 1;
   if a.d[1] > b.d[1] then Result := Result or 2;
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONCmpGtF64x4(const a, b: TVecF64x4): TMask4;
 begin
@@ -807,20 +875,28 @@ begin
   Result := ScalarCmpGtF64x8(a, b);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONCmpGtI16x8(const a, b: TVecI16x8): TMask8;
 begin
   Result := ScalarCmpGtI16x8(a, b);
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONCmpGtI32x16(const a, b: TVecI32x16): TMask16;
 begin
   Result := ScalarCmpGtI32x16(a, b);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONCmpGtI32x4(const a, b: TVecI32x4): TMask4;
 begin
   Result := ScalarCmpGtI32x4(a, b);
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONCmpGtI32x8(const a, b: TVecI32x8): TMask8;
 begin
@@ -837,6 +913,8 @@ begin
   Result := ScalarCmpGtI64x8(a, b);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONCmpGtI8x16(const a, b: TVecI8x16): TMask16;
 begin
   Result := ScalarCmpGtI8x16(a, b);
@@ -852,6 +930,8 @@ begin
   Result := ScalarCmpGtU32x4(a, b);
 end;
 
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
+
 function NEONCmpGtU32x8(const a, b: TVecU32x8): TMask8;
 begin
   Result := ScalarCmpGtU32x8(a, b);
@@ -862,10 +942,14 @@ begin
   Result := ScalarCmpGtU64x4(a, b);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONCmpGtU8x16(const a, b: TVecU8x16): TMask16;
 begin
   Result := ScalarCmpGtU8x16(a, b);
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONCmpLeF32x16(const a, b: TVecF32x16): TMask16;
 begin
@@ -877,12 +961,16 @@ begin
   Result := ScalarCmpLeF32x8(a, b);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONCmpLeF64x2(const a, b: TVecF64x2): TMask2;
 begin
   Result := 0;
   if a.d[0] <= b.d[0] then Result := Result or 1;
   if a.d[1] <= b.d[1] then Result := Result or 2;
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONCmpLeF64x4(const a, b: TVecF64x4): TMask4;
 begin
@@ -894,20 +982,28 @@ begin
   Result := ScalarCmpLeF64x8(a, b);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONCmpLeI16x8(const a, b: TVecI16x8): TMask8;
 begin
   Result := ScalarCmpLeI16x8(a, b);
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONCmpLeI32x16(const a, b: TVecI32x16): TMask16;
 begin
   Result := ScalarCmpLeI32x16(a, b);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONCmpLeI32x4(const a, b: TVecI32x4): TMask4;
 begin
   Result := ScalarCmpLeI32x4(a, b);
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONCmpLeI32x8(const a, b: TVecI32x8): TMask8;
 begin
@@ -924,6 +1020,8 @@ begin
   Result := ScalarCmpLeI64x8(a, b);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONCmpLeI8x16(const a, b: TVecI8x16): TMask16;
 begin
   Result := ScalarCmpLeI8x16(a, b);
@@ -939,6 +1037,8 @@ begin
   Result := ScalarCmpLeU32x4(a, b);
 end;
 
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
+
 function NEONCmpLeU32x8(const a, b: TVecU32x8): TMask8;
 begin
   Result := ScalarCmpLeU32x8(a, b);
@@ -949,10 +1049,14 @@ begin
   Result := ScalarCmpLeU64x4(a, b);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONCmpLeU8x16(const a, b: TVecU8x16): TMask16;
 begin
   Result := ScalarCmpLeU8x16(a, b);
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONCmpLtF32x16(const a, b: TVecF32x16): TMask16;
 begin
@@ -964,12 +1068,16 @@ begin
   Result := ScalarCmpLtF32x8(a, b);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONCmpLtF64x2(const a, b: TVecF64x2): TMask2;
 begin
   Result := 0;
   if a.d[0] < b.d[0] then Result := Result or 1;
   if a.d[1] < b.d[1] then Result := Result or 2;
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONCmpLtF64x4(const a, b: TVecF64x4): TMask4;
 begin
@@ -981,20 +1089,28 @@ begin
   Result := ScalarCmpLtF64x8(a, b);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONCmpLtI16x8(const a, b: TVecI16x8): TMask8;
 begin
   Result := ScalarCmpLtI16x8(a, b);
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONCmpLtI32x16(const a, b: TVecI32x16): TMask16;
 begin
   Result := ScalarCmpLtI32x16(a, b);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONCmpLtI32x4(const a, b: TVecI32x4): TMask4;
 begin
   Result := ScalarCmpLtI32x4(a, b);
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONCmpLtI32x8(const a, b: TVecI32x8): TMask8;
 begin
@@ -1011,6 +1127,8 @@ begin
   Result := ScalarCmpLtI64x8(a, b);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONCmpLtI8x16(const a, b: TVecI8x16): TMask16;
 begin
   Result := ScalarCmpLtI8x16(a, b);
@@ -1026,6 +1144,8 @@ begin
   Result := ScalarCmpLtU32x4(a, b);
 end;
 
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
+
 function NEONCmpLtU32x8(const a, b: TVecU32x8): TMask8;
 begin
   Result := ScalarCmpLtU32x8(a, b);
@@ -1036,10 +1156,14 @@ begin
   Result := ScalarCmpLtU64x4(a, b);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONCmpLtU8x16(const a, b: TVecU8x16): TMask16;
 begin
   Result := ScalarCmpLtU8x16(a, b);
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONCmpNeF32x16(const a, b: TVecF32x16): TMask16;
 begin
@@ -1051,12 +1175,16 @@ begin
   Result := ScalarCmpNeF32x8(a, b);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONCmpNeF64x2(const a, b: TVecF64x2): TMask2;
 begin
   Result := 0;
   if a.d[0] <> b.d[0] then Result := Result or 1;
   if a.d[1] <> b.d[1] then Result := Result or 2;
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONCmpNeF64x4(const a, b: TVecF64x4): TMask4;
 begin
@@ -1068,20 +1196,28 @@ begin
   Result := ScalarCmpNeF64x8(a, b);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONCmpNeI16x8(const a, b: TVecI16x8): TMask8;
 begin
   Result := ScalarCmpNeI16x8(a, b);
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONCmpNeI32x16(const a, b: TVecI32x16): TMask16;
 begin
   Result := ScalarCmpNeI32x16(a, b);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONCmpNeI32x4(const a, b: TVecI32x4): TMask4;
 begin
   Result := ScalarCmpNeI32x4(a, b);
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONCmpNeI32x8(const a, b: TVecI32x8): TMask8;
 begin
@@ -1098,6 +1234,8 @@ begin
   Result := ScalarCmpNeI64x8(a, b);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONCmpNeI8x16(const a, b: TVecI8x16): TMask16;
 begin
   Result := ScalarCmpNeI8x16(a, b);
@@ -1107,6 +1245,8 @@ function NEONCmpNeU16x8(const a, b: TVecU16x8): TMask8;
 begin
   Result := ScalarCmpNeU16x8(a, b);
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONCmpNeU32x8(const a, b: TVecU32x8): TMask8;
 begin
@@ -1118,10 +1258,14 @@ begin
   Result := ScalarCmpNeU64x4(a, b);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONCmpNeU8x16(const a, b: TVecU8x16): TMask16;
 begin
   Result := ScalarCmpNeU8x16(a, b);
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONDivF32x16(const a, b: TVecF32x16): TVecF32x16;
 begin
@@ -1131,11 +1275,15 @@ begin
   Result.hi.hi := NEONDivF32x4(a.hi.hi, b.hi.hi);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONDivF64x4(const a, b: TVecF64x4): TVecF64x4;
 begin
   Result.lo := NEONDivF64x2(a.lo, b.lo);
   Result.hi := NEONDivF64x2(a.hi, b.hi);
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONDivF64x8(const a, b: TVecF64x8): TVecF64x8;
 begin
@@ -1153,6 +1301,8 @@ begin
   Result := ScalarExtractF32x8(a, index);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONExtractF64x2(const a: TVecF64x2; index: Integer): Double;
 var idx: Integer;
 begin
@@ -1161,6 +1311,8 @@ begin
   else idx := index;
   Result := a.d[idx];
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONExtractF64x4(const a: TVecF64x4; index: Integer): Double;
 begin
@@ -1191,6 +1343,8 @@ function NEONExtractI64x4(const a: TVecI64x4; index: Integer): Int64;
 begin
   Result := ScalarExtractI64x4(a, index);
 end;
+
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
 function NEONFloorF32x16(const a: TVecF32x16): TVecF32x16;
 var
@@ -1283,6 +1437,8 @@ begin
   Result.hi := NEONFmaF64x4(a.hi, b.hi, c.hi);
 end;
 
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
+
 function NEONInsertF32x16(const a: TVecF32x16; value: Single; index: Integer): TVecF32x16;
 begin
   Result := ScalarInsertF32x16(a, value, index);
@@ -1293,6 +1449,8 @@ begin
   Result := ScalarInsertF32x8(a, value, index);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONInsertF64x2(const a: TVecF64x2; value: Double; index: Integer): TVecF64x2;
 var idx: Integer;
 begin
@@ -1302,6 +1460,8 @@ begin
   Result := a;
   Result.d[idx] := value;
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONInsertF64x4(const a: TVecF64x4; value: Double; index: Integer): TVecF64x4;
 begin
@@ -1351,10 +1511,14 @@ begin
   {$ENDIF}
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONLoadF64x2(p: PDouble): TVecF64x2;
 begin
   Move(p^, Result.d[0], 16);
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONLoadF64x4(p: PDouble): TVecF64x4;
 begin
@@ -1391,6 +1555,8 @@ begin
   Result.hi.hi := NEONMaxF32x4(a.hi.hi, b.hi.hi);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONMaxF32x8(const a, b: TVecF32x8): TVecF32x8;
 begin
   Result.lo := NEONMaxF32x4(a.lo, b.lo);
@@ -1408,6 +1574,8 @@ begin
   Result.lo := NEONMaxF64x2(a.lo, b.lo);
   Result.hi := NEONMaxF64x2(a.hi, b.hi);
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONMaxF64x8(const a, b: TVecF64x8): TVecF64x8;
 begin
@@ -1430,6 +1598,8 @@ begin
   Result := ScalarMaxI32x8(a, b);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONMaxU32x4(const a, b: TVecU32x4): TVecU32x4;
 begin
   Result := ScalarMaxU32x4(a, b);
@@ -1440,6 +1610,8 @@ begin
   Result := ScalarMaxU32x8(a, b);
 end;
 
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
+
 function NEONMinF32x16(const a, b: TVecF32x16): TVecF32x16;
 begin
   Result.lo.lo := NEONMinF32x4(a.lo.lo, b.lo.lo);
@@ -1447,6 +1619,8 @@ begin
   Result.hi.lo := NEONMinF32x4(a.hi.lo, b.hi.lo);
   Result.hi.hi := NEONMinF32x4(a.hi.hi, b.hi.hi);
 end;
+
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
 function NEONMinF32x8(const a, b: TVecF32x8): TVecF32x8;
 begin
@@ -1465,6 +1639,8 @@ begin
   Result.lo := NEONMinF64x2(a.lo, b.lo);
   Result.hi := NEONMinF64x2(a.hi, b.hi);
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONMinF64x8(const a, b: TVecF64x8): TVecF64x8;
 begin
@@ -1487,6 +1663,8 @@ begin
   Result := ScalarMinI32x8(a, b);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONMinU32x4(const a, b: TVecU32x4): TVecU32x4;
 begin
   Result := ScalarMinU32x4(a, b);
@@ -1497,6 +1675,8 @@ begin
   Result := ScalarMinU32x8(a, b);
 end;
 
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
+
 function NEONMulF32x16(const a, b: TVecF32x16): TVecF32x16;
 begin
   Result.lo.lo := NEONMulF32x4(a.lo.lo, b.lo.lo);
@@ -1505,11 +1685,15 @@ begin
   Result.hi.hi := NEONMulF32x4(a.hi.hi, b.hi.hi);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONMulF64x4(const a, b: TVecF64x4): TVecF64x4;
 begin
   Result.lo := NEONMulF64x2(a.lo, b.lo);
   Result.hi := NEONMulF64x2(a.hi, b.hi);
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONMulF64x8(const a, b: TVecF64x8): TVecF64x8;
 begin
@@ -1522,10 +1706,14 @@ begin
   Result := ScalarMulI32x16(a, b);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONMulI32x8(const a, b: TVecI32x8): TVecI32x8;
 begin
   Result := ScalarMulI32x8(a, b);
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONMulU32x4(const a, b: TVecU32x4): TVecU32x4;
 begin
@@ -1542,6 +1730,8 @@ begin
   Result := ScalarNotI32x16(a);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONNotI32x4(const a: TVecI32x4): TVecI32x4;
 begin
   Result := ScalarNotI32x4(a);
@@ -1557,10 +1747,14 @@ begin
   Result := ScalarNotI64x4(a);
 end;
 
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
+
 function NEONNotI64x8(const a: TVecI64x8): TVecI64x8;
 begin
   Result := ScalarNotI64x8(a);
 end;
+
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
 function NEONNotU32x4(const a: TVecU32x4): TVecU32x4;
 begin
@@ -1577,10 +1771,14 @@ begin
   Result := ScalarNotU64x4(a);
 end;
 
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
+
 function NEONOrI32x16(const a, b: TVecI32x16): TVecI32x16;
 begin
   Result := ScalarOrI32x16(a, b);
 end;
+
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
 function NEONOrI32x4(const a, b: TVecI32x4): TVecI32x4;
 begin
@@ -1597,10 +1795,14 @@ begin
   Result := ScalarOrI64x4(a, b);
 end;
 
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
+
 function NEONOrI64x8(const a, b: TVecI64x8): TVecI64x8;
 begin
   Result := ScalarOrI64x8(a, b);
 end;
+
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
 function NEONOrU32x4(const a, b: TVecU32x4): TVecU32x4;
 begin
@@ -1616,6 +1818,8 @@ function NEONOrU64x4(const a, b: TVecU64x4): TVecU64x4;
 begin
   Result := ScalarOrU64x4(a, b);
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONRcpF64x4(const a: TVecF64x4): TVecF64x4;
 begin
@@ -1640,10 +1844,14 @@ begin
   {$ENDIF}
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONReduceAddF64x2(const a: TVecF64x2): Double;
 begin
   Result := a.d[0] + a.d[1];
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONReduceAddF64x4(const a: TVecF64x4): Double;
 begin
@@ -1681,10 +1889,14 @@ begin
   {$ENDIF}
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONReduceMaxF64x2(const a: TVecF64x2): Double;
 begin
   if a.d[0] > a.d[1] then Result := a.d[0] else Result := a.d[1];
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONReduceMaxF64x4(const a: TVecF64x4): Double;
 begin
@@ -1722,10 +1934,14 @@ begin
   {$ENDIF}
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONReduceMinF64x2(const a: TVecF64x2): Double;
 begin
   if a.d[0] < a.d[1] then Result := a.d[0] else Result := a.d[1];
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONReduceMinF64x4(const a: TVecF64x4): Double;
 begin
@@ -1763,10 +1979,14 @@ begin
   {$ENDIF}
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONReduceMulF64x2(const a: TVecF64x2): Double;
 begin
   Result := a.d[0] * a.d[1];
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONReduceMulF64x4(const a: TVecF64x4): Double;
 begin
@@ -1785,6 +2005,8 @@ begin
   Result := ScalarReduceMulF64x8(a);
   {$ENDIF}
 end;
+
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
 function NEONRoundF32x16(const a: TVecF32x16): TVecF32x16;
 begin
@@ -1818,6 +2040,8 @@ begin
   Result.hi := NEONRoundF64x4(a.hi);
 end;
 
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
+
 function NEONSelectF32x16(const mask: TMask16; const a, b: TVecF32x16): TVecF32x16;
 begin
   Result := ScalarSelectF32x16(mask, a, b);
@@ -1842,6 +2066,8 @@ function NEONSelectI32x4(const mask: TVecI32x4; const a, b: TVecI32x4): TVecI32x
 begin
   Result := ScalarSelectI32x4(mask, a, b);
 end;
+
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
 function NEONShiftLeftI16x8(const a: TVecI16x8; count: Integer): TVecI16x8;
 begin
@@ -1958,6 +2184,8 @@ begin
   Result := ScalarShiftRightU64x4(a, count);
 end;
 
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
+
 function NEONSplatF32x16(value: Single): TVecF32x16;
 begin
   {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
@@ -1976,11 +2204,15 @@ begin
   {$ENDIF}
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONSplatF64x2(value: Double): TVecF64x2;
 begin
   Result.d[0] := value;
   Result.d[1] := value;
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONSplatF64x4(value: Double): TVecF64x4;
 begin
@@ -2008,6 +2240,8 @@ begin
   Result := ScalarSplatI64x4(value);
   {$ENDIF}
 end;
+
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
 function NEONSqrtF32x16(const a: TVecF32x16): TVecF32x16;
 begin
@@ -2041,6 +2275,8 @@ begin
   Result.hi := NEONSqrtF64x4(a.hi);
 end;
 
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
+
 procedure NEONStoreF32x16(p: PSingle; const a: TVecF32x16);
 begin
   {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
@@ -2059,10 +2295,14 @@ begin
   {$ENDIF}
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 procedure NEONStoreF64x2(p: PDouble; const a: TVecF64x2);
 begin
   Move(a.d[0], p^, 16);
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 procedure NEONStoreF64x4(p: PDouble; const a: TVecF64x4);
 begin
@@ -2099,11 +2339,15 @@ begin
   Result.hi.hi := NEONSubF32x4(a.hi.hi, b.hi.hi);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONSubF64x4(const a, b: TVecF64x4): TVecF64x4;
 begin
   Result.lo := NEONSubF64x2(a.lo, b.lo);
   Result.hi := NEONSubF64x2(a.hi, b.hi);
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONSubF64x8(const a, b: TVecF64x8): TVecF64x8;
 begin
@@ -2116,10 +2360,14 @@ begin
   Result := ScalarSubI32x16(a, b);
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONSubI32x8(const a, b: TVecI32x8): TVecI32x8;
 begin
   Result := ScalarSubI32x8(a, b);
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONSubI64x4(const a, b: TVecI64x4): TVecI64x4;
 begin
@@ -2130,6 +2378,8 @@ function NEONSubI64x8(const a, b: TVecI64x8): TVecI64x8;
 begin
   Result := ScalarSubI64x8(a, b);
 end;
+
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
 function NEONSubU32x4(const a, b: TVecU32x4): TVecU32x4;
 begin
@@ -2178,10 +2428,14 @@ begin
   Result.hi := NEONTruncF64x4(a.hi);
 end;
 
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
+
 function NEONXorI32x16(const a, b: TVecI32x16): TVecI32x16;
 begin
   Result := ScalarXorI32x16(a, b);
 end;
+
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
 function NEONXorI32x4(const a, b: TVecI32x4): TVecI32x4;
 begin
@@ -2198,10 +2452,14 @@ begin
   Result := ScalarXorI64x4(a, b);
 end;
 
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
+
 function NEONXorI64x8(const a, b: TVecI64x8): TVecI64x8;
 begin
   Result := ScalarXorI64x8(a, b);
 end;
+
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
 
 function NEONXorU32x4(const a, b: TVecU32x4): TVecU32x4;
 begin
@@ -2217,6 +2475,8 @@ function NEONXorU64x4(const a, b: TVecU64x4): TVecU64x4;
 begin
   Result := ScalarXorU64x4(a, b);
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONZeroF32x16: TVecF32x16;
 begin
@@ -2236,10 +2496,14 @@ begin
   {$ENDIF}
 end;
 
+{$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+
 function NEONZeroF64x2: TVecF64x2;
 begin
   FillChar(Result, SizeOf(Result), 0);
 end;
+
+{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 function NEONZeroF64x4: TVecF64x4;
 begin
