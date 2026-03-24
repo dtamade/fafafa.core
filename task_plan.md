@@ -4,7 +4,7 @@
 审查 `fafafa.core.simd` 及其 `cpuinfo` 相关模块，找出可验证的问题并完成至少一轮根因修复，同时产出可连续执行的后续修复与审查计划。
 
 ## Current Phase
-Phase 72 complete; `simd-external-evidence@cff7395c` has recollected fresh ARM64 NEON external evidence green on top of `origin/main@90b346ca`, and the planning/worker documents are now synced for merge-back
+Phase 73 complete; Phase 72 has been merged back to `main`, merged-result release verification is green, and local git status is clean via `.git/info/exclude` for `.simd-output/`
 
 ## Phases
 
@@ -1427,6 +1427,23 @@ Phase 72 complete; `simd-external-evidence@cff7395c` has recollected fresh ARM64
   2. 如需继续外部证据，只处理 `riscv64` asm-ready host evidence 或 Windows/native 侧非阻塞证据
   3. 没有 fresh red 或可用真机前，不再回头重开已绿的 ARM64 NEON 链
 
+### Phase 73: merge-back and repo-state hygiene finalize
+- [x] 将 `simd-external-evidence` fast-forward 合回本地 `main`
+- [x] 在合并后的 `main` 上 fresh 运行 release `SIMD_ENABLE_NEON_BACKEND=1` 定向 suite 与主 `check`
+- [x] 将本地 `.simd-output/` 加入共享 `.git/info/exclude`，在不删除证据产物的前提下恢复主仓库和 worktree 的 clean status
+- [x] 将 worker 当前状态从“待合回主线”更新为“已合回主线，等待下一轮 external evidence 条件”
+- **Status:** complete
+
+- 2026-03-24 最新 merge-back / hygiene 证据：
+  - merge: `git -C /home/dtamade/projects/fafafa.core merge --ff-only simd-external-evidence` -> PASS，`main` fast-forward 到 `fe4379bf`
+  - merged targeted suite: `TMPDIR=/home/dtamade/projects/fafafa.core/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_ENABLE_NEON_BACKEND=1 SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.simd-output/verify-main-neon-targeted-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi` -> PASS，`[LEAK] OK`
+  - merged check: `TMPDIR=/home/dtamade/projects/fafafa.core/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.simd-output/verify-main-check-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh check` -> PASS
+  - status cleanup: `.git/info/exclude` 新增 `.simd-output/` 后，`git status --short --branch` 在主仓库与 SIMD worktree 都已不再显示未跟踪产物
+- 下一轮连续计划优先级更新为：
+  1. 推送 `main`，让这轮 ARM64 NEON closeout 与文档同步进入主线
+  2. 如需继续 SIMD 外部证据，只处理 `riscv64` asm-ready host evidence 或其他真实 native host 入口
+  3. 没有 fresh red 或可用真机前，不再重开已绿的 ARM64 NEON 链
+
 ## 5-Question Reboot Check (Phase 71 Update)
 | Question | Answer |
 |----------|--------|
@@ -1444,6 +1461,15 @@ Phase 72 complete; `simd-external-evidence@cff7395c` has recollected fresh ARM64
 | What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
 | What have I learned? | 这轮同时证明了三类问题必须分开看：真实 native bug、shared contract drift、以及 test 观测/预期本身的假红。把它们混在一起只会让 external evidence 收口变慢。 |
 | What have I done? | 已把 ARM64 failure 链从 `6 -> 4 -> 1 -> 0` 收口，记录四个新增提交的职责边界，并补上 fresh 本地 release 验证与 planning/worker 同步。 |
+
+## 5-Question Reboot Check (Phase 73 Update)
+| Question | Answer |
+|----------|--------|
+| Where am I? | Phase 72 已经 fast-forward 合回本地 `main`；合并后的 fresh NEON 定向 suite 与 fresh `check` 都已通过，主仓库/worktree 的 `git status` 也已恢复干净。 |
+| Where am I going? | 先把 `main` 推到远端；之后默认不再重开 ARM64 NEON 链，只在有真机或 fresh red 时开启新的 external evidence 批次。 |
+| What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
+| What have I learned? | 对并行协作来说，证据产物与代码改动要分开处理：`.simd-output/` 这类本地证据最好走本地 exclude，而不是反复制造脏工作区或误删收口材料。 |
+| What have I done? | 已完成 merge-back、合并后 fresh release 验证，以及本地 repo hygiene 清理；当前主线只差一次 push。 |
 
 ## 5-Question Reboot Check (Phase 70 Update)
 | Question | Answer |

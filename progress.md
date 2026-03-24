@@ -1139,6 +1139,26 @@
   - `progress.md` (modified)
   - `workers/worker0.md` (modified)
 
+### Phase 73: merge-back and repo-state hygiene finalize
+- **Status:** complete
+- Actions taken:
+  - 在主仓库执行 `git -C /home/dtamade/projects/fafafa.core merge --ff-only simd-external-evidence`，将 Phase 72 fast-forward 合回 `main`
+  - 在合并后的 `main` 上运行 fresh release 定向 suite：
+    - `TMPDIR=/home/dtamade/projects/fafafa.core/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_ENABLE_NEON_BACKEND=1 SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.simd-output/verify-main-neon-targeted-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi`
+    - 结果：PASS，`[LEAK] OK`
+  - 在合并后的 `main` 上运行 fresh release `check`：
+    - `TMPDIR=/home/dtamade/projects/fafafa.core/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.simd-output/verify-main-check-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+    - 结果：PASS
+  - 检查主仓库与 worktree 的 `.simd-output/` 体积，确认分别约 `18M` / `65M`，不适合为了“清状态”直接粗暴删除
+  - 确认主仓库与 worktree 共用 `/home/dtamade/projects/fafafa.core/.git/info/exclude`
+  - 通过 `apply_patch` 在 `.git/info/exclude` 新增 `.simd-output/`，恢复主仓库与 SIMD worktree 的 clean `git status`，同时保留本轮验证产物
+  - 把 `task_plan.md` 与 `workers/worker0.md` 的下一步从“待合回主线”收束为“待 push main / 待下轮 external evidence 条件”
+- Files created/modified:
+  - `task_plan.md` (modified)
+  - `progress.md` (modified)
+  - `workers/worker0.md` (modified)
+  - `.git/info/exclude` (local metadata, modified)
+
 ### Phase 31: dynamic register-backend identity drift closeout
 - **Status:** complete
 - Actions taken:

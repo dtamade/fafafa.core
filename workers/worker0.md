@@ -2,20 +2,20 @@
 
 - Owner: Codex
 - Scope: `fafafa.core.simd` 模块的 capability / dispatch / public ABI 合同审查与修复
-- Status: `handoff-ready`
+- Status: `blocked`
 - Branch: `simd-external-evidence`
 - Worktree: `/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence`
 - Base commit: `90b346ca33fa`
 - Current focus:
-  - 当前批次已从“Windows closeout completed”继续推进到“ARM64 NEON external evidence fresh green”：
-    - `origin/main` 当前是 `90b346ca33fa`
-    - worktree head 当前是 `cff7395c5acf`
-    - ARM64 remote run 已从 `23480331356/6 fails` -> `23480706416/4 fails` -> `23480929101/1 fail` 收口到 `23481240212/success`
+  - 当前批次已从“ARM64 NEON external evidence fresh green”推进到“已合回本地 main 且 merged-result fresh 验证通过”：
+    - `main` 已 fast-forward 到 `fe4379bf`
+    - ARM64 remote run 已在 `23481240212` 收口为 success
+    - 合并后的 fresh `SIMD_ENABLE_NEON_BACKEND=1` 定向 suite 与 fresh `check` 都已重新通过
   - 这轮不是单一类型问题，而是一起清掉了：
     - 1 条真实 native bug：`NEONSelectF32x4` 合同不稳
     - 1 条 shared contract drift：`sbScalar.Available` 漂移
     - 2 类 test-side 假红：scalar-only hook disable 预期错误、runtime-disabled fallback 真相源选错
-  - 当前 ARM64 NEON 链已经 green；剩余非阻塞外部证据主要转向 `riscv64` asm-ready host 与其他 native evidence
+  - 当前 ARM64 NEON 链已经 green 且已合回主线；剩余阻塞主要是 `riscv64` asm-ready host 与其他真实 native host 入口
 - Source of truth:
   - `task_plan.md`
   - `findings.md`
@@ -34,9 +34,9 @@
 - Risks / blockers:
   - 当前宿主机和现有 SSH host 仍都是 `x86_64`；`riscv64` asm-ready 主机证据仍待外部环境
   - 当前 ARM64 run 已 green，但这不自动替代 `RISCVV` native asm host execution evidence
-  - 主仓库与 worktree 里都有本地 `.simd-output/` 产物，收口到主线前还需要把仓库状态清干净
+  - `.simd-output/` 现已通过本地 `.git/info/exclude` 排除出 `git status`；如需跨机器共享这套 hygiene 约束，需要单独决定是否提交仓库级 ignore 规则
 - Next step:
-  - 先把 Phase 72 文档同步与分支结果合回 `main`
-  - 然后清理主仓库/worktree 的 git 状态
-  - 如继续推进，实现层默认暂停；只在拿到 fresh red 或可用真机后，再打开新的 SIMD 批次
+  - 先把 `main` 推到远端
+  - 然后等待 `riscv64` 或其他可用 native host，再开启下一轮 external evidence
+  - 没有 fresh red 或真机前，不再重开 ARM64 NEON 已绿链路
 - Last updated: `2026-03-24`
