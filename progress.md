@@ -1192,6 +1192,48 @@
   - `progress.md` (modified)
   - `workers/worker0.md` (modified)
 
+### Phase 75: nightly artifact restore entrypoint closeout
+- **Status:** complete
+- Actions taken:
+  - 继续盘点剩余 helper 候选，先确认 `generate_interface_checklist_v2.py` 当前只被计划文档和 `simd_completeness_matrix.md` 手工引用，不属于主 runner discoverability gap
+  - 读取 `.github/workflows/simd-nightly-closeout.yml`、`restore_nightly_evidence_artifacts.sh`、`BuildOrTest.sh` 与文档入口，确认真实缺口落在 nightly freeze-audit helper：
+    - workflow 长期直接调用 `restore_nightly_evidence_artifacts.sh`
+    - 但主 runner / parity allowlist / docs 都没有正式入口
+  - 运行 fresh red：
+    - `bash tests/fafafa.core.simd/BuildOrTest.sh restore-nightly-evidence`
+    - 结果：`Usage: ...`
+    - 对照：`bash tests/fafafa.core.simd/restore_nightly_evidence_artifacts.sh`
+    - 结果：`[RESTORE] Missing linux artifact directory`
+    - 结论：helper 本身可运行，但主 runner 没有入口
+  - 修改 `tests/fafafa.core.simd/BuildOrTest.sh`：
+    - shell-only allowlist 加入 `restore-nightly-evidence`
+    - 新增 `run_restore_nightly_evidence()`
+    - shell case/usage 接上 `restore-nightly-evidence`
+    - 新增 `check_restore_nightly_evidence_runner_guard()`，并把它接入 `check` 与 `gate_step_build_check`
+  - 修改文档：
+    - `docs/CI.md` 增加“下载 nightly artifacts 后如何恢复 canonical logs/”示例
+    - `docs/fafafa.core.simd.checklist.md` 增加本地复演 `freeze-status` / `win-closeout-finalize` 前的 restore 用法
+  - 运行 fresh green：
+    - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/verify-phase75-check-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+    - 结果：PASS
+    - 关键输出：`[CHECK] OK (nightly evidence restore runner guard present)`
+  - 运行 fresh runtime closeout 验证：
+    - `bash tests/fafafa.core.simd/BuildOrTest.sh restore-nightly-evidence`
+    - 结果：exit 2，`[RESTORE] Missing linux artifact directory`
+    - 结论：现在 action 已接线，并会准确落到 helper 自己的 fail-close 用法
+  - 运行 synthetic restore 复验：
+    - 临时构造 Linux/Windows artifact 目录与 `qemu-multiarch-phase75-restore-test/summary.md`
+    - 运行 `bash tests/fafafa.core.simd/BuildOrTest.sh restore-nightly-evidence <linux-artifact-dir> <windows-artifact-dir>`
+    - 结果：PASS，canonical `gate_summary.md/json`、`windows_b07_gate.log` 与 `qemu-multiarch-*` 均被正确恢复；测试结束后已回滚原有 `logs/` 内容
+- Files created/modified:
+  - `tests/fafafa.core.simd/BuildOrTest.sh` (modified)
+  - `docs/CI.md` (modified)
+  - `docs/fafafa.core.simd.checklist.md` (modified)
+  - `task_plan.md` (modified)
+  - `findings.md` (modified)
+  - `progress.md` (modified)
+  - `workers/worker0.md` (modified)
+
 ### Phase 31: dynamic register-backend identity drift closeout
 - **Status:** complete
 - Actions taken:

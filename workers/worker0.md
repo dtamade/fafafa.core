@@ -2,18 +2,20 @@
 
 - Owner: Codex
 - Scope: `fafafa.core.simd` 模块的 capability / dispatch / public ABI 合同审查与修复
-- Status: `handoff-ready`
+- Status: `active`
 - Branch: `simd-external-evidence`
 - Worktree: `/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence`
-- Base commit: `90b346ca33fa`
+- Base commit: `870ee1a9d786`
 - Current focus:
-  - 当前批次已从“ARM64 NEON external evidence fresh green”继续推进到“non-x86 native evidence helper 正式接上 runner/doc”：
-    - `collect_nonx86_native_evidence.sh` 现在有正式入口：`bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence`
-    - fresh `check` 已包含 `[CHECK] OK (non-x86 native evidence runner guard present)`
-    - 当前 `native-evidence` 在 x86_64 上会准确报 `Unsupported host/backend combination`
-  - ARM64 NEON 链仍保持 green；当前真正剩余的阻塞重新回到环境侧：
-    - `riscv64` asm-ready native host 仍待外部环境
-    - 如需 backend-asm 真工具链证据，可在真机上叠加 `SIMD_NATIVE_EVIDENCE_RUNNER=direct-fpc` 与 `SIMD_NATIVE_EVIDENCE_ENABLE_BACKEND_ASM=1`
+  - 当前批次已从“non-x86 native evidence helper 正式接上 runner/doc”继续推进到“nightly artifact restore helper 正式接上 runner/doc”：
+    - `restore_nightly_evidence_artifacts.sh` 现在有正式入口：`bash tests/fafafa.core.simd/BuildOrTest.sh restore-nightly-evidence <linux-artifact-dir> <windows-artifact-dir>`
+    - fresh `check` 已包含 `[CHECK] OK (nightly evidence restore runner guard present)`
+    - `restore-nightly-evidence` 现在在缺参时会准确落到 helper 自己的 `[RESTORE] Missing linux artifact directory`，不再掉回主 runner `Usage: ...`
+  - 候选排查结论也已收敛：
+    - `generate_interface_checklist_v2.py` 当前是手工报告生成器，不是主 runner discoverability gap
+    - 当前真正剩余的阻塞重新回到环境侧或新的真实合同 red：
+      - `riscv64` asm-ready native host 仍待外部环境
+      - 若继续本地深审，应回到 capability / dispatch / rebuild 合同问题，而不是继续扩张 helper 入口
 - Source of truth:
   - `task_plan.md`
   - `findings.md`
@@ -23,16 +25,19 @@
   - 验证继续采用 release 策略
   - 证据驱动：先补 fresh red，再做最小修复，再跑 fresh green / check / gate
 - Fresh verification:
-  - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/verify-phase74-check-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh check`
-  - 结果：PASS，包含 `[CHECK] OK (non-x86 native evidence runner guard present)`
-  - `bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence`
-  - 结果：exit 2，`Unsupported host/backend combination: host=x86_64, requested=auto`
+  - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/verify-phase75-check-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - 结果：PASS，包含 `[CHECK] OK (nightly evidence restore runner guard present)`
+  - `bash tests/fafafa.core.simd/BuildOrTest.sh restore-nightly-evidence`
+  - 结果：exit 2，`[RESTORE] Missing linux artifact directory`
+  - synthetic restore：
+    - `bash tests/fafafa.core.simd/BuildOrTest.sh restore-nightly-evidence <linux-artifact-dir> <windows-artifact-dir>`
+    - 结果：PASS，已确认 canonical `gate_summary.md/json`、`windows_b07_gate.log` 与 `qemu-multiarch-*` 会被正确恢复
 - Risks / blockers:
   - 当前宿主机和现有 SSH host 仍都是 `x86_64`；`riscv64` asm-ready 主机证据仍待外部环境
   - 当前 ARM64 run 已 green，但这不自动替代 `RISCVV` native asm host execution evidence
-  - shell runner 已接好入口，但 batch runner 仍故意没有等价 action；如果未来要支持 Windows-on-ARM/RISC-V 原生采集，需要单独设计 native batch 语义
+  - `restore-nightly-evidence` 仍是故意的 shell-only action；如果未来要支持 Windows 原生恢复 nightly artifacts，需要单独设计 batch 语义
 - Next step:
-  - 将 Phase 74 的 runner/doc 接线合回 `main`
-  - 等待 `riscv64` 或其他可用 native host 后，直接跑 `bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence riscvv`
-  - 若需要 backend-asm 真工具链证据，再叠加 `SIMD_NATIVE_EVIDENCE_RUNNER=direct-fpc` 与 `SIMD_NATIVE_EVIDENCE_ENABLE_BACKEND_ASM=1`
+  - 保持当前 worktree clean，并将 Phase 75 的 runner/doc 接线提交到 `simd-external-evidence`
+  - 若拿到 `riscv64` 或其他可用 native host，优先跑 `bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence riscvv`
+  - 若继续本地深审，实现层优先回到真实 capability / dispatch / rebuild 红，而不是继续扩张 helper discoverability 收口
 - Last updated: `2026-03-24`

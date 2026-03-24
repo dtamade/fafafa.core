@@ -700,6 +700,7 @@ check_windows_runner_parity() {
   LAllowedShellOnly=(
     evidence-linux
     native-evidence
+    restore-nightly-evidence
     freeze-status
     freeze-status-linux
     freeze-status-rehearsal
@@ -2058,6 +2059,60 @@ check_nonx86_native_evidence_runner_guard() {
   fi
 
   echo "[CHECK] OK (non-x86 native evidence runner guard present)"
+}
+
+check_restore_nightly_evidence_runner_guard() {
+  local LShell
+  local LHelper
+  local LPattern
+  local LMissing
+  local -a LShellRequired
+
+  LShell="${ROOT}/BuildOrTest.sh"
+  LHelper="${ROOT}/restore_nightly_evidence_artifacts.sh"
+  LMissing=0
+
+  if [[ ! -f "${LShell}" ]]; then
+    echo "[CHECK] Missing shell runner for nightly evidence restore guard: ${LShell}"
+    return 1
+  fi
+  if [[ ! -f "${LHelper}" ]]; then
+    echo "[CHECK] Missing nightly evidence restore helper: ${LHelper}"
+    return 1
+  fi
+
+  LShellRequired=(
+    'run_restore_nightly_evidence() {'
+    'LRestoreScript="${ROOT}/restore_nightly_evidence_artifacts.sh"'
+    'echo "[RESTORE] Missing nightly evidence restore helper: ${LRestoreScript}"'
+    'bash "${LRestoreScript}" "$@"'
+    'restore-nightly-evidence)'
+    'run_restore_nightly_evidence "$@"'
+    'restore-nightly-evidence|'
+  )
+
+  for LPattern in "${LShellRequired[@]}"; do
+    if ! grep -F -- "${LPattern}" "${LShell}" >/dev/null; then
+      echo "[CHECK] nightly evidence restore runner guard missing pattern: ${LPattern}"
+      LMissing=1
+    fi
+  done
+
+  if ! grep -F -- 'Usage: restore_nightly_evidence_artifacts.sh <linux-artifact-dir> <windows-artifact-dir>' "${LHelper}" >/dev/null; then
+    echo "[CHECK] nightly evidence restore helper missing usage contract"
+    LMissing=1
+  fi
+  if ! grep -F -- 'tests/fafafa.core.simd/BuildOrTest.sh freeze-status' "${LHelper}" >/dev/null || \
+     ! grep -F -- 'tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize' "${LHelper}" >/dev/null; then
+    echo "[CHECK] nightly evidence restore helper missing canonical restore targets"
+    LMissing=1
+  fi
+
+  if [[ "${LMissing}" != "0" ]]; then
+    return 1
+  fi
+
+  echo "[CHECK] OK (nightly evidence restore runner guard present)"
 }
 
 check_qemu_experimental_python_helper_guard() {
@@ -3595,6 +3650,7 @@ gate_step_build_check() {
   check_windows_qemu_runner_guard || return $?
   check_windows_bash_helper_runner_guard || return $?
   check_nonx86_native_evidence_runner_guard || return $?
+  check_restore_nightly_evidence_runner_guard || return $?
   check_qemu_experimental_python_helper_guard || return $?
   check_python_checker_runtime_guard || return $?
   check_publicabi_output_isolation || return $?
@@ -4698,6 +4754,19 @@ run_nonx86_native_evidence() {
   bash "${LNativeEvidenceScript}" "$@"
 }
 
+run_restore_nightly_evidence() {
+  local LRestoreScript
+
+  LRestoreScript="${ROOT}/restore_nightly_evidence_artifacts.sh"
+
+  if [[ ! -f "${LRestoreScript}" ]]; then
+    echo "[RESTORE] Missing nightly evidence restore helper: ${LRestoreScript}"
+    return 2
+  fi
+
+  bash "${LRestoreScript}" "$@"
+}
+
 verify_windows_evidence() {
   local LEvidenceVerifier
 
@@ -4883,6 +4952,7 @@ case "${ACTION}" in
   check_windows_qemu_runner_guard
   check_windows_bash_helper_runner_guard
   check_nonx86_native_evidence_runner_guard
+  check_restore_nightly_evidence_runner_guard
   check_qemu_experimental_python_helper_guard
   check_python_checker_runtime_guard
     check_publicabi_output_isolation
@@ -5053,6 +5123,9 @@ case "${ACTION}" in
   native-evidence)
     run_nonx86_native_evidence "$@"
     ;;
+  restore-nightly-evidence)
+    run_restore_nightly_evidence "$@"
+    ;;
   win-evidence-preflight)
     run_win_evidence_preflight "$@"
     ;;
@@ -5087,7 +5160,7 @@ case "${ACTION}" in
     run_freeze_status_rehearsal "$@"
     ;;
   *)
-    echo "Usage: $0 [clean|build|check|test|test-concurrent-repeat|cpuinfo-lazy-repeat|debug|release|gate|gate-strict|interface-completeness|contract-signature|publicabi-signature|publicabi-smoke|adapter-sync-pascal|adapter-sync|parity-suites|gate-summary|gate-summary-sample|gate-summary-rehearsal|gate-summary-inject|gate-summary-rollback|gate-summary-backups|gate-summary-selfcheck|perf-smoke|nonx86-optin-list-suites|nonx86-ieee754|backend-bench|qemu-nonx86-evidence|qemu-cpuinfo-nonx86-evidence|qemu-cpuinfo-nonx86-full-evidence|qemu-cpuinfo-nonx86-full-repeat|qemu-cpuinfo-nonx86-suite-repeat|qemu-arch-matrix-evidence|qemu-nonx86-experimental-asm|riscvv-opcode-lane|qemu-experimental-report|qemu-experimental-baseline-check|coverage|wiring-sync|experimental-intrinsics|experimental-intrinsics-tests|evidence-linux|native-evidence|win-evidence-preflight|win-evidence-via-gh|verify-win-evidence|finalize-win-evidence|win-closeout-dryrun|win-closeout-snippets|win-closeout-3cmd|freeze-status|freeze-status-linux|win-closeout-finalize|freeze-status-rehearsal] [test-args...]"
+    echo "Usage: $0 [clean|build|check|test|test-concurrent-repeat|cpuinfo-lazy-repeat|debug|release|gate|gate-strict|interface-completeness|contract-signature|publicabi-signature|publicabi-smoke|adapter-sync-pascal|adapter-sync|parity-suites|gate-summary|gate-summary-sample|gate-summary-rehearsal|gate-summary-inject|gate-summary-rollback|gate-summary-backups|gate-summary-selfcheck|perf-smoke|nonx86-optin-list-suites|nonx86-ieee754|backend-bench|qemu-nonx86-evidence|qemu-cpuinfo-nonx86-evidence|qemu-cpuinfo-nonx86-full-evidence|qemu-cpuinfo-nonx86-full-repeat|qemu-cpuinfo-nonx86-suite-repeat|qemu-arch-matrix-evidence|qemu-nonx86-experimental-asm|riscvv-opcode-lane|qemu-experimental-report|qemu-experimental-baseline-check|coverage|wiring-sync|experimental-intrinsics|experimental-intrinsics-tests|evidence-linux|native-evidence|restore-nightly-evidence|win-evidence-preflight|win-evidence-via-gh|verify-win-evidence|finalize-win-evidence|win-closeout-dryrun|win-closeout-snippets|win-closeout-3cmd|freeze-status|freeze-status-linux|win-closeout-finalize|freeze-status-rehearsal] [test-args...]"
     echo "  Experimental note: default entry chain isolates experimental intrinsics behind dedicated checks."
     echo "  gate/gate-strict PASS is not blanket release-grade approval for every experimental path."
     echo "  gate         Fast/base gate for routine SIMD changes"

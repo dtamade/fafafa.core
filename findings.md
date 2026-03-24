@@ -7,6 +7,34 @@
 - 形成连续的修复与审查计划
 
 ## Research Findings
+- 最新一轮继续排查剩余 helper/runner 候选后，又确认一条新的真实自动化缺口，同时排除了一个容易误判的伪候选：
+  - `generate_interface_checklist_v2.py` 当前只被计划文档与 `tests/fafafa.core.simd/docs/simd_completeness_matrix.md` 当作手工报告生成器引用
+    - 没有 `BuildOrTest.sh` / workflow / 其他 runner 直接依赖它
+    - 因此它不是新的 discoverability gap，不应该被强行挂进主 runner
+  - 真正的新缺口落在 `tests/fafafa.core.simd/restore_nightly_evidence_artifacts.sh`：
+    - `.github/workflows/simd-nightly-closeout.yml` 的 freeze-audit job 长期直接调用它，把下载的 Linux/Windows artifacts 恢复到 canonical `logs/`
+    - 但在修复前：
+      - `BuildOrTest.sh` 没有 `restore-nightly-evidence` action
+      - `check_windows_runner_parity` 的 shell-only allowlist 也没有显式记账这条 helper
+      - `docs/CI.md` 与 `docs/fafafa.core.simd.checklist.md` 都没有告诉维护者如何在本地复演 nightly artifact restore
+  - fresh red 证据同样很直接：
+    - `bash tests/fafafa.core.simd/BuildOrTest.sh restore-nightly-evidence` 返回通用 `Usage: ...`
+    - `bash tests/fafafa.core.simd/restore_nightly_evidence_artifacts.sh` 则会立刻给出 `[RESTORE] Missing linux artifact directory`
+    - 这说明问题不在 helper 本身，而是在主 runner 根本没有入口
+  - 这轮最小修复同样没有改 helper 语义，只做 discoverability / guard / docs 接线：
+    - `tests/fafafa.core.simd/BuildOrTest.sh` 新增 `run_restore_nightly_evidence()`
+    - shell case/usage 正式加入 `restore-nightly-evidence`
+    - `check_windows_runner_parity` 把它记成 intentional shell-only action
+    - 新增 `check_restore_nightly_evidence_runner_guard()`，把 helper 文件、shell action、usage 文案与 canonical restore 目标一起守住
+    - `docs/CI.md` 与 `docs/fafafa.core.simd.checklist.md` 补了“下载 nightly artifacts 后如何恢复 canonical logs/ 再继续 `freeze-status` / `win-closeout-finalize`”的用法
+  - fresh green 结果：
+    - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/verify-phase75-check-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh check`：PASS，并出现 `[CHECK] OK (nightly evidence restore runner guard present)`
+    - `bash tests/fafafa.core.simd/BuildOrTest.sh restore-nightly-evidence`：现在不再掉 runner usage，而是准确返回 helper 自己的 `[RESTORE] Missing linux artifact directory`
+    - synthetic restore 也已通过：临时构造 Linux/Windows artifact 目录后，`restore-nightly-evidence` 会正确恢复 canonical `gate_summary.md/json`、`windows_b07_gate.log` 与 `qemu-multiarch-*`
+  - 这轮结论仍不是新的 SIMD 实现 bug，而是 nightly freeze-audit 入口层的 discoverability gap：
+    - helper 与 workflow 早就有
+    - 缺的是 runner/doc 接线与 guard
+    - 现在这层已经收口，后续优先级应回到真实 native host 证据或新的 capability/dispatch/rebuild 合同 red
 - 最新一轮继续推进 `riscv64` / non-x86 external evidence 前，又确认一条新的真实自动化缺口：
   - 仓库里其实已经有 `tests/fafafa.core.simd/collect_nonx86_native_evidence.sh`
   - 但在修复前：

@@ -126,6 +126,12 @@ bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence
 SIMD_NATIVE_EVIDENCE_RUNNER=direct-fpc \
 SIMD_NATIVE_EVIDENCE_ENABLE_BACKEND_ASM=1 \
 bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence riscvv
+
+# 若已从 nightly workflow 下载 linux/windows artifacts，可先恢复 canonical logs/
+# 再继续本地 freeze-status / win-closeout-finalize 复验
+bash tests/fafafa.core.simd/BuildOrTest.sh restore-nightly-evidence \
+  /tmp/simd-linux-evidence \
+  /tmp/simd-windows-b07-evidence
 ```
 
 ### 一键脚本
