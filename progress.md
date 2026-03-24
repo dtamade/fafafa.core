@@ -2976,3 +2976,27 @@
 | What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
 | What have I learned? | 这轮证明，`TrySetActiveBackend(...)` 的 rollback restore 分支也必须像 `ResetToAutomaticBackend(...)` / `SetVectorAsmEnabled(...)` / `RegisterBackend(...)` 一样做 hook 之后的 control-plane closure。只要 notify callback 里还能 nested force，一次 restore reinit 还不够。 |
 | What have I done? | 已完成多轮 runner/guard、capability/rebuild、dispatch/public ABI 合同修复，并持续同步计划文件。本轮最新又确认并修复了 rollback-restore late-force drift：`TrySetActiveBackend(...)` 现在不会再在 previous forced backend 的最后一次 restore callback 里被再次劫持成 stale scalar forced fallback。 |
+
+<!-- SIMD-WIN-CLOSEOUT-2026-03-24 -->
+### 批次
+- SIMD-20260324-152
+
+### 执行动作
+- 在 Windows 实机完成 buildOrTest.bat evidence-win-verify。
+- 生成并归档收口摘要：finalize-win-evidence。
+- 回填 roadmap / matrix / progress，关闭跨平台证据缺口。
+
+### 命令与结果
+| Command | Result |
+|---|---|
+| tests\fafafa.core.simd\buildOrTest.bat evidence-win-verify | PASS |
+| bash tests/fafafa.core.simd/BuildOrTest.sh finalize-win-evidence | PASS |
+| bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status | PASS |
+| bash tests/fafafa.core.simd/apply_windows_b07_closeout_updates.sh --apply --freeze-json tests/fafafa.core.simd/logs/freeze_status.json | PASS |
+
+### 关键证据
+- Log: tests/fafafa.core.simd/logs/windows_b07_gate.log
+- Summary: tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md
+
+### 阶段状态
+- 跨平台冻结条件满足。

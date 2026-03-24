@@ -7,6 +7,34 @@
 - 形成连续的修复与审查计划
 
 ## Research Findings
+- 最新一轮 external evidence closeout 没有再打出新的生产实现缺陷，而是把“推主线 -> fresh Windows native evidence -> cross freeze ready”这条链路完整跑通了：
+  - 主线推进：
+    - `git push origin main`：PASS
+    - `git ls-remote --heads origin main`：`ad445cb5fcdc2a5d6889a0bd1cd5459e99a1c5a2 refs/heads/main`
+  - fresh Windows native evidence：
+    - `FAFAFA_BUILD_MODE=Release SIMD_WIN_EVIDENCE_REF=main bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight`：PASS，`STATUS=PASS CODE=OK`
+    - `FAFAFA_BUILD_MODE=Release SIMD_WIN_EVIDENCE_REF=main bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh SIMD-20260324-152`：下载并校验 fresh `windows_b07_gate.log` 通过；对应 GH workflow `23475183856` 最终 `conclusion=success`
+    - 这说明之前“必须先 push 当前 ref 才能拿到 fresh `1/7..7/7` Windows artifact”的判断是正确的；旧 `2026-03-14` 历史 artifact 已不再是主路径
+  - 首次 closeout finalize 的真实阻塞点也被证实了：
+    - Windows artifact 自身是 PASS
+    - 但 `win-evidence-via-gh` 内部那轮 cross gate 默认没带 `SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1`
+    - 于是 fresh `freeze-status` 首次失败不是因为 Windows runner，而是因为最新 gate summary 中 `qemu-cpuinfo-nonx86-evidence=SKIP`
+  - 为了验证这不是新的实现 bug，而是 closeout 依赖缺项，本轮直接补跑了建议的 release gate：
+    - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 bash tests/fafafa.core.simd/BuildOrTest.sh gate`：PASS
+    - fresh QEMU summary：`tests/fafafa.core.simd/logs/qemu-multiarch-20260324-144555-2749661/summary.md`
+    - 关键结果：`linux/arm/v7`、`linux/arm64`、`linux/riscv64` 三平台 `cpuinfo-nonx86-evidence` 均为 PASS
+  - 在 fresh QEMU CPUInfo gate 落地后，再跑：
+    - `FAFAFA_BUILD_MODE=Release SIMD_WIN_CLOSEOUT_BATCH_DIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260324-152 bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize SIMD-20260324-152`：PASS
+    - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`：PASS，`ready=True, mainline-ready=True, cross-ready=True`
+  - 这轮最重要的新结论是：
+    - fresh Windows native evidence 已经补齐，不再是 pending
+    - current closeout contract 下，Windows closeout 仍依赖一条 fresh Linux/QEMU CPUInfo gate 才能把 `freeze-status` 拉回 ready
+    - 这是真实流程依赖，不是新的 runtime/dispatch/capability 代码缺陷
+  - 仍未完成的外部证据也已经被明确成“环境阻塞”，而不是仓库待修 bug：
+    - 当前工作机 `uname -m` 为 `x86_64`
+    - 当前唯一已配置 SSH host `888933.xyz` 的 `uname -m` 也为 `x86_64`
+    - 仓库里没有现成可直接 dispatch 的 `arm64/riscv64 asm-ready host` 真机入口
+    - 因此 `NEON/RISCVV` native asm host execution evidence 仍待外部主机，不应被这轮 QEMU CPUInfo PASS 误替代
 - 最新一轮按 closeout roadmap 收口后，没有再打出新的生产缺陷，而是确认了两条需要补齐的合同/护栏边界：
   - `GetCurrentBackend` 在 repeated `SetVectorAsmEnabled(...)` 并发 toggle 下之前还没有独立 regression guard；现已在 `tests/fafafa.core.simd/fafafa.core.simd.concurrent.testcase.pas` 新增 `Test_Concurrent_CurrentBackend_VectorAsmToggle_ReadConsistency`
   - fresh release 定向 suite：

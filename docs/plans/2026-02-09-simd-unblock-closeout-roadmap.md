@@ -139,3 +139,11 @@ Batch82 已补齐并验证以下 5 项：
 - Evidence Log: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260320-152/windows_b07_gate.log
 - Closeout Summary: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260320-152/windows_b07_closeout_summary.md
 - 结论：P0 “Windows 实机证据未归档” 已关闭。
+
+<!-- SIMD-WIN-CLOSEOUT-2026-03-24 -->
+### Windows 实机证据（2026-03-24）
+
+- 状态：已完成
+- Evidence Log: tests/fafafa.core.simd/logs/windows_b07_gate.log
+- Closeout Summary: tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md
+- 结论：P0 “Windows 实机证据未归档” 已关闭。

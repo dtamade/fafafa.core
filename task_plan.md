@@ -4,7 +4,7 @@
 审查 `fafafa.core.simd` 及其 `cpuinfo` 相关模块，找出可验证的问题并完成至少一轮根因修复，同时产出可连续执行的后续修复与审查计划。
 
 ## Current Phase
-Phase 70 complete; SIMD closeout roadmap is implemented, with `GetCurrentBackend` toggle/read guard, snapshot-boundary docs, and stable-state parity guards all green under fresh release verification
+Phase 71 complete; `main` has been pushed to `origin/main`, fresh Windows native evidence has been recollected on `SIMD-20260324-152`, and cross-platform `freeze-status` is back to `ready=True` after replaying the required QEMU CPUInfo non-x86 evidence gate
 
 ## Phases
 
@@ -1370,6 +1370,39 @@ Phase 70 complete; SIMD closeout roadmap is implemented, with `GetCurrentBackend
   1. 先合并/交接当前 `simd-contract-audit` worktree 的 closeout 结果，不再把无限深审当默认路径
   2. 非阻塞 follow-up 只剩外部证据类事项：`arm64` / `riscv64` asm host evidence 与 Windows native evidence
   3. 只有出现 fresh red、明确的新合同问题，或用户明确要求重新深挖时，才重开下一轮实现层深审
+
+### Phase 71: pushed-main external evidence closeout
+- [x] 将当前 `main` 推送到 `origin/main`，确认远端头推进到 `ad445cb5`
+- [x] 在 `.claude/worktrees/simd-external-evidence` 上派发 fresh Windows `1/7..7/7` native evidence，批次 `SIMD-20260324-152` / workflow run `23475183856`
+- [x] 确认 Windows artifact 本身已 fresh 通过，但首次 `freeze-status` 卡在 `qemu-cpuinfo-nonx86-evidence=SKIP`
+- [x] 补跑 release `gate` with `SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1`，拿到 `linux/arm/v7 + linux/arm64 + linux/riscv64` PASS 的 fresh QEMU CPUInfo 证据
+- [x] 重新执行 `win-closeout-finalize SIMD-20260324-152`，确认 cross-platform `freeze-status` 回到 `ready=True, mainline-ready=True, cross-ready=True`
+- [x] 核对当前环境的 native host 通道：本机 `uname -m=x86_64`，唯一已配置 SSH 主机 `888933.xyz` 也为 `x86_64`，因此 `arm64/riscv64` asm-ready host evidence 仍待外部主机
+- **Status:** complete
+
+- 2026-03-24 最新 external evidence 证据：
+  - push: `git push origin main` -> PASS，`origin/main` 更新到 `ad445cb5fcdc2a5d6889a0bd1cd5459e99a1c5a2`
+  - Windows preflight: `FAFAFA_BUILD_MODE=Release SIMD_WIN_EVIDENCE_REF=main bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight` -> `STATUS=PASS CODE=OK`
+  - Windows evidence: `FAFAFA_BUILD_MODE=Release SIMD_WIN_EVIDENCE_REF=main bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh SIMD-20260324-152` -> fresh `windows_b07_gate.log` 下载并校验通过；GH workflow `23475183856` 两个 job 全部 success
+  - QEMU CPUInfo gate: `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 bash tests/fafafa.core.simd/BuildOrTest.sh gate` -> PASS，QEMU summary `tests/fafafa.core.simd/logs/qemu-multiarch-20260324-144555-2749661/summary.md`
+  - closeout finalize: `FAFAFA_BUILD_MODE=Release SIMD_WIN_CLOSEOUT_BATCH_DIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260324-152 bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize SIMD-20260324-152` -> PASS，`freeze-status ready=True`
+  - final freeze: `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status` -> PASS，`ready=True, mainline-ready=True, cross-ready=True`
+- 这轮结论从“Windows evidence pending”推进到“Windows evidence fresh complete + cross freeze ready”：
+  - 当前真正完成的是 fresh Windows native evidence 与 cross-platform closeout 重新闭环
+  - 当前没有完成的仍是 `arm64/riscv64` asm-ready 真机执行证据；QEMU CPUInfo PASS 只解决 `freeze-status` 的现有门禁依赖，不等同于 NEON/RISCVV native asm host execution evidence
+- 下一轮连续计划优先级更新为：
+  1. 合并 `simd-external-evidence` worktree 的文档/状态同步回主线，保持主仓库干净
+  2. 等待可用的 `arm64` / `riscv64` asm-ready 主机后，再按 targeted `DispatchAPI/PublicAbi + check` 回收 native execution evidence
+  3. 若没有真实 host，就不要把 QEMU 或 x86_64 compile-only 证据误写成 native asm host 完成
+
+## 5-Question Reboot Check (Phase 71 Update)
+| Question | Answer |
+|----------|--------|
+| Where am I? | `main` 已推到 `origin/main@ad445cb5`；fresh Windows batch `SIMD-20260324-152` 已成功归档；补完 `qemu-cpuinfo-nonx86-evidence` 后，当前 `freeze-status` 已重新回到 `ready=True`。 |
+| Where am I going? | 下一步不再继续深审实现层，而是把这轮 external evidence 的状态同步合回主线；真正剩下的外部证据只剩 `arm64/riscv64` asm-ready 主机。 |
+| What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
+| What have I learned? | 这轮证明 Windows closeout 的剩余阻塞并不在 Windows runner 本身，而在 closeout 之后消费的 Linux/QEMU CPUInfo gate；只要补上这条 gate，fresh Windows artifact 就能重新把 cross freeze 拉回 ready。 |
+| What have I done? | 已按顺序完成 push main、fresh Windows native evidence、QEMU CPUInfo gate replay、fresh closeout finalize 和 final freeze 复验；同时确认当前环境里还没有可用的 `arm64/riscv64` asm-ready 外部主机。 |
 
 ## 5-Question Reboot Check (Phase 70 Update)
 | Question | Answer |
