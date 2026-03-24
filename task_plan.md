@@ -4,7 +4,7 @@
 审查 `fafafa.core.simd` 及其 `cpuinfo` 相关模块，找出可验证的问题并完成至少一轮根因修复，同时产出可连续执行的后续修复与审查计划。
 
 ## Current Phase
-Phase 67 complete; backend adapter `GetBackendOps(backend)` is now covered by a concurrent re-register guard, and current published snapshot plus adapter round-trip keeps helper-visible metadata and representative slots stable under `RegisterBackend(...)` churn
+Phase 68 complete; framework helper `GetCurrentBackend` is now covered by a concurrent re-register guard, and current active backend selection stays within the complete enabled/disabled reselection states under `RegisterBackend(...)` churn
 
 ## Phases
 
@@ -1307,6 +1307,35 @@ Phase 67 complete; backend adapter `GetBackendOps(backend)` is now covered by a 
 - [x] 确认当前 `src/fafafa.core.simd.backend.adapter.pas` + `TryGetRegisteredBackendDispatchTable(...)` 的 published-snapshot 读取路径已经满足这条更强语义：`GetBackendOps` round-trip 回 dispatch table 后，metadata 与代表性 slots 始终落在完整的 enabled/disabled snapshot，而不会混搭
 - [x] 用 fresh release `check`、fresh release `gate` 复验新增护栏没有引入回归
 - **Status:** complete
+
+### Phase 68: framework helper `GetCurrentBackend` concurrent register/read guard closeout
+- [x] 在 `tests/fafafa.core.simd/fafafa.core.simd.concurrent.testcase.pas` 新增 `TCurrentBackendReadWorker` 与 `Test_Concurrent_CurrentBackend_RegisterBackend_ReadConsistency`，对当前 non-scalar backend 持续 `RegisterBackend(...)` 切换 enabled/disabled 两套 table，同时并发读取 `GetCurrentBackend`
+- [x] 用 fresh release `TTestCase_SimdConcurrentFramework` 先验证这条 current-active helper 候选是 fresh red 还是即刻 green，避免把跨 helper 的独立调用漂移误判成 `GetCurrentBackend` 自身 bug
+- [x] 确认当前 `src/fafafa.core.simd.framework.impl.inc` 的 `GetCurrentBackend -> GetActiveBackend -> current published dispatch snapshot` 读取链已经满足这条 helper 级语义：reader 只观察到完整的 enabled active backend 或 disabled 后的 fallback backend，不会掉进第三种 impossible backend id
+- [x] 用 fresh release `check`、fresh release `gate` 复验新增护栏没有引入回归
+- **Status:** complete
+
+- 2026-03-24 最新 `GetCurrentBackend` concurrent guard closeout 证据：
+  - targeted suite: `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch68-currentbackend-concurrent-red-or-green-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrentFramework` -> PASS，`[LEAK] OK`
+  - check: `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch68-currentbackend-concurrent-check-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh check` -> PASS
+  - gate: `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch68-currentbackend-concurrent-gate-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh gate` -> PASS，最终 `[GATE] OK`，run-all summary 时间 `2026-03-24 10:59:32`
+- 这轮结论仍是“测试护栏缺口”，不是新的生产 bug：
+  - `GetCurrentBackendInfo`、public ABI active metadata、active backend pod info 之前都已经补过 concurrent snapshot 修复或护栏，但 `GetCurrentBackend` 这个最薄 façade 还没有独立的 machine-readable re-register 压测
+  - 新测试显式把当前 active backend 重注册成 disabled table，要求 reader 只能看到“原 active backend”或“真实 fallback backend”两种完整状态
+  - fresh targeted suite、fresh `check`、fresh `gate` 全绿，说明当前 active backend selection 已稳定落在 published current dispatch snapshot 上，没有暴露新的 helper-level impossible backend id
+- 下一轮连续计划优先级更新为：
+  1. 继续沿 current-active helper 边界深审，优先补 `GetCurrentBackend` 在 `SetVectorAsmEnabled(...)` repeated toggle 下的独立 guard，确认 helper 在 batch rebuild 场景下也没有回退到半重建 backend id
+  2. 若单 helper 继续全绿，再转向 external consumer/back-to-back helper usage 的文档边界，明确哪些跨 API 独立调用不承诺原子配对，避免把预期外的 pair drift 误记成实现 bug
+  3. 持续使用 worktree-local `SIMD_OUTPUT_ROOT/TMPDIR`，并保持“fresh red-or-green -> check -> gate -> 文档 -> commit”的批次节奏
+
+## 5-Question Reboot Check (Phase 68 Update)
+| Question | Answer |
+|----------|--------|
+| Where am I? | Linux fresh `TTestCase_SimdConcurrentFramework`、fresh `check`、fresh `gate` 都已重新通过；本轮最新把 framework helper `GetCurrentBackend` 的 concurrent re-register 合同补成了独立 regression guard。 |
+| Where am I going? | 下一轮继续深审 current-active helper 边界，优先看 `GetCurrentBackend` 在 vector-asm batch rebuild 下是否也需要独立 guard；若 helper 级别继续全绿，再转向 external consumer/back-to-back helper 的文档边界。 |
+| What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
+| What have I learned? | 这轮证明，当前 `GetCurrentBackend -> GetActiveBackend -> current published dispatch snapshot` 读取链已经守住 re-register churn 下的 helper 级一致性：reader 不会掉进第三种 impossible backend id。 |
+| What have I done? | 已为 `GetCurrentBackend` 补上 concurrent register/read 护栏，并用 fresh release suite/check/gate 把这条候选收口为“guard green”；当前 worktree 只增加测试证据，没有生产代码改动。 |
 
 - 2026-03-24 最新 backend adapter concurrent guard closeout 证据：
   - targeted suite: `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch67-backendops-concurrent-red-or-green-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrentFramework` -> PASS，`[LEAK] OK`

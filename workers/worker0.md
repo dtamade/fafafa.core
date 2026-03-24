@@ -7,9 +7,9 @@
 - Worktree: `/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit`
 - Base commit: `c1bf1d66b2e2990e10a8fabe53c2043852c865dc`
 - Current focus:
-  - Phase 67 已完成：backend adapter `GetBackendOps(backend)` 已补成 concurrent `RegisterBackend(...)` read-consistency regression guard
-  - 当前结论：fresh `TTestCase_SimdConcurrentFramework`、fresh `check`、fresh `gate` 全绿，说明当前 published backend snapshot + adapter round-trip 已经守住 helper 可见 metadata 与 representative slots 的并发一致性；本轮无生产代码改动
-  - 下一步继续深审 current-active helper / public-view pair drift，优先找 `GetCurrentBackend`、`GetCurrentBackendInfo`、以及 public ABI active metadata 在 repeated control-plane churn 下的 fresh red
+  - Phase 68 已完成：framework helper `GetCurrentBackend` 已补成 concurrent `RegisterBackend(...)` read-consistency regression guard
+  - 当前结论：fresh `TTestCase_SimdConcurrentFramework`、fresh `check`、fresh `gate` 全绿，说明当前 `GetCurrentBackend -> GetActiveBackend -> current published dispatch snapshot` 读取链已经守住 helper 级 active backend 选择的一致性；本轮无生产代码改动
+  - 下一步继续深审 current-active helper 边界，优先看 `GetCurrentBackend` 在 `SetVectorAsmEnabled(...)` repeated toggle / batch rebuild 下是否也需要独立 guard；若 helper 级继续全绿，再转向 external consumer/back-to-back helper 的文档边界
 - Source of truth:
   - `task_plan.md`
   - `findings.md`
@@ -19,9 +19,9 @@
   - 验证继续采用 release 策略
   - 证据驱动：先补 fresh red，再做最小修复，再跑 fresh green / check / gate
 - Fresh verification:
-  - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch67-backendops-concurrent-gate-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch68-currentbackend-concurrent-gate-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：`[GATE] OK`
-  - 时间：`2026-03-24 10:43:07`
+  - 时间：`2026-03-24 10:59:32`
 - Risks / blockers:
   - 当前宿主机没有 native `avx512*` 执行条件，所以 AVX-512 只有 opt-in build/registration/public ABI 证据，没有 native execution 证据
   - `arm64` / `riscv64` asm-ready 主机证据仍待补
@@ -29,7 +29,7 @@
   - `TTestCase_SimdConcurrentRegistration` 会永久注册 previously-unregistered backend，属于 stateful suite；后续若做 same-process 组合并发验证，需要显式考虑顺序污染
   - 当前宿主机 `/tmp` 是 32G tmpfs，长链 `gate` 可能因外部工具链临时文件写入而打满；需要优先使用 worktree-local `SIMD_OUTPUT_ROOT/TMPDIR`
 - Next step:
-  - 从 `GetBackendOps(backend)` guard closeout 继续切到 current-active helper / public-view pair return-after-drift 候选
-  - 优先找 fresh red，确认是否还存在“控制面 return-time 已收口，但 consumer 可见 active helper/public-view pair 仍漂移”的真实问题，首查 `GetCurrentBackend` / `GetCurrentBackendInfo` / public ABI active metadata 的 repeated churn
+  - 从 `GetCurrentBackend` register/read guard closeout 继续切到 vector-asm toggle / batch rebuild 场景
+  - 优先找 fresh red，确认 `GetCurrentBackend` 在 repeated `SetVectorAsmEnabled(...)` 下是否还会掉进 enabled/disabled 两态之外的 helper-level impossible backend id
   - 继续在本 worker 的 worktree 内闭环：先证据、再最小修复、再 release `check/gate`
 - Last updated: `2026-03-24`

@@ -94,6 +94,8 @@ type
   published
     {** backend adapter ops 与 RegisterBackend 并发读写保护 *}
     procedure Test_Concurrent_BackendOps_RegisterBackend_ReadConsistency;
+    {** current backend 与 RegisterBackend 并发读写保护 *}
+    procedure Test_Concurrent_CurrentBackend_RegisterBackend_ReadConsistency;
     {** current backend info 与 RegisterBackend 并发读写保护 *}
     procedure Test_Concurrent_CurrentBackendInfo_RegisterBackend_ReadConsistency;
     {** dispatchable helper 与 vector-asm toggle 并发读写保护 *}
@@ -387,6 +389,23 @@ type
       aExpectedCapsEnabled, aExpectedCapsDisabled: UInt64;
       aExpectedFlagsEnabledActive, aExpectedFlagsEnabledInactive,
       aExpectedFlagsDisabledInactive: TFafafaSimdAbiFlags);
+    property Success: Boolean read FSuccess;
+    property ErrorMsg: string read FErrorMsg;
+  end;
+
+  {** current backend info 只读线程（与 RegisterBackend 写线程并发） *}
+  TCurrentBackendReadWorker = class(TThread)
+  private
+    FIterations: Integer;
+    FExpectedBackendA: TSimdBackend;
+    FExpectedBackendB: TSimdBackend;
+    FSuccess: Boolean;
+    FErrorMsg: string;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(aIterations: Integer;
+      aExpectedBackendA, aExpectedBackendB: TSimdBackend);
     property Success: Boolean read FSuccess;
     property ErrorMsg: string read FErrorMsg;
   end;
@@ -1572,6 +1591,18 @@ begin
   FErrorMsg := '';
 end;
 
+constructor TCurrentBackendReadWorker.Create(aIterations: Integer;
+  aExpectedBackendA, aExpectedBackendB: TSimdBackend);
+begin
+  inherited Create(True);
+  FreeOnTerminate := False;
+  FIterations := aIterations;
+  FExpectedBackendA := aExpectedBackendA;
+  FExpectedBackendB := aExpectedBackendB;
+  FSuccess := False;
+  FErrorMsg := '';
+end;
+
 constructor TBackendOpsReadWorker.Create(aIterations: Integer; aBackend: TSimdBackend;
   const aExpectedTableA, aExpectedTableB: TSimdDispatchTable);
 begin
@@ -1601,6 +1632,35 @@ begin
   FExpectedFlagsDisabledInactive := aExpectedFlagsDisabledInactive;
   FSuccess := False;
   FErrorMsg := '';
+end;
+
+procedure TCurrentBackendReadWorker.Execute;
+var
+  LIndex: Integer;
+  LBackend: TSimdBackend;
+begin
+  try
+    for LIndex := 0 to FIterations - 1 do
+    begin
+      if (LIndex and 3) = 0 then
+        ThreadSwitch;
+
+      LBackend := GetCurrentBackend;
+      if (LBackend <> FExpectedBackendA) and
+         (LBackend <> FExpectedBackendB) then
+      begin
+        FErrorMsg := Format(
+          'current backend mixed snapshot at iter %d: got=%d expectedA=%d expectedB=%d',
+          [LIndex, Ord(LBackend), Ord(FExpectedBackendA), Ord(FExpectedBackendB)]);
+        Exit;
+      end;
+    end;
+
+    FSuccess := True;
+  except
+    on E: Exception do
+      FErrorMsg := 'current backend reader exception: ' + E.Message;
+  end;
 end;
 
 procedure TCurrentBackendInfoReadWorker.Execute;
@@ -3006,6 +3066,104 @@ begin
 
     AssertTrue('Concurrent current-backend public ABI pod info/register read failed: ' + LErrorMsgs,
       LAllSuccess);
+  finally
+    if LBackend <> sbScalar then
+      RegisterBackend(LBackend, LOriginalTable);
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].Free;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].Free;
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_SimdConcurrentFramework.Test_Concurrent_CurrentBackend_RegisterBackend_ReadConsistency;
+const
+  WRITER_THREADS = 2;
+  WRITER_ITERATIONS = 160;
+  READER_THREADS = 3;
+  READER_ITERATIONS = 4000;
+var
+  LWriters: array of TBackendRegisterToggleWorker;
+  LReaders: array of TCurrentBackendReadWorker;
+  LIndex: Integer;
+  LAllSuccess: Boolean;
+  LErrorMsgs: string;
+  LOldVectorAsm: Boolean;
+  LBackend: TSimdBackend;
+  LExpectedDisabledBackend: TSimdBackend;
+  LOriginalTable: TSimdDispatchTable;
+  LDisabledTable: TSimdDispatchTable;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  LWriters := nil;
+  LReaders := nil;
+  LBackend := sbScalar;
+  LExpectedDisabledBackend := sbScalar;
+  LOriginalTable := Default(TSimdDispatchTable);
+  LDisabledTable := Default(TSimdDispatchTable);
+
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LBackend := GetCurrentBackend;
+    if LBackend = sbScalar then
+      Exit;
+    if not TryGetRegisteredBackendDispatchTable(LBackend, LOriginalTable) then
+      Exit;
+    if (not LOriginalTable.BackendInfo.Available) or
+       (LOriginalTable.BackendInfo.Capabilities = []) then
+      Exit;
+
+    LDisabledTable := LOriginalTable;
+    LDisabledTable.BackendInfo.Available := False;
+    LDisabledTable.BackendInfo.Capabilities := [];
+
+    RegisterBackend(LBackend, LDisabledTable);
+    LExpectedDisabledBackend := GetCurrentBackend;
+    AssertTrue('Disabled current backend should reselect away from the mutated backend',
+      LExpectedDisabledBackend <> LBackend);
+
+    RegisterBackend(LBackend, LOriginalTable);
+    AssertEquals('Restored backend should become current again',
+      Ord(LBackend), Ord(GetCurrentBackend));
+
+    SetLength(LWriters, WRITER_THREADS);
+    SetLength(LReaders, READER_THREADS);
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex] := TBackendRegisterToggleWorker.Create(
+        WRITER_ITERATIONS, LBackend, LOriginalTable, LDisabledTable);
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex] := TCurrentBackendReadWorker.Create(
+        READER_ITERATIONS, LBackend, LExpectedDisabledBackend);
+
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].Start;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].Start;
+
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].WaitFor;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].WaitFor;
+
+    LAllSuccess := True;
+    LErrorMsgs := '';
+    for LIndex := 0 to High(LWriters) do
+      if not LWriters[LIndex].Success then
+      begin
+        LAllSuccess := False;
+        LErrorMsgs := LErrorMsgs + LWriters[LIndex].ErrorMsg + '; ';
+      end;
+    for LIndex := 0 to High(LReaders) do
+      if not LReaders[LIndex].Success then
+      begin
+        LAllSuccess := False;
+        LErrorMsgs := LErrorMsgs + LReaders[LIndex].ErrorMsg + '; ';
+      end;
+
+    AssertTrue('Concurrent current-backend register/read failed: ' + LErrorMsgs, LAllSuccess);
   finally
     if LBackend <> sbScalar then
       RegisterBackend(LBackend, LOriginalTable);

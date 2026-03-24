@@ -2638,6 +2638,48 @@
 | What have I learned? | 这轮证明，当前 published backend snapshot + adapter round-trip 读取链已经能守住 `GetBackendOps` 的并发一致性：helper 可见 metadata 与代表性 slots 不会在 `RegisterBackend(...)` churn 下混搭。 |
 | What have I done? | 已为 `GetBackendOps(backend)` 补上 concurrent re-register 护栏，并用 fresh release suite/check/gate 把这条候选收口为“guard green”；随后可继续切到 current-active helper / public-view pair 的更深层 drift 候选。 |
 
+### Phase 68: framework helper `GetCurrentBackend` concurrent register/read guard closeout
+- **Status:** complete
+- Actions taken:
+  - 继续沿 current-active helper 边界深审后，没有直接改 `src/fafafa.core.simd.framework.impl.inc`，而是先给 `GetCurrentBackend` 补一条独立的 machine-readable 并发护栏：
+    - 在 `tests/fafafa.core.simd/fafafa.core.simd.concurrent.testcase.pas` 的 `TTestCase_SimdConcurrentFramework` 新增 `Test_Concurrent_CurrentBackend_RegisterBackend_ReadConsistency`
+    - 同文件新增 `TCurrentBackendReadWorker`
+    - 该 reader 每轮都执行 `GetCurrentBackend`，只接受完整的 enabled active backend 或 disabled 后 fallback backend 两态
+  - 新测试显式选择一个当前 non-scalar backend，构造两套会触发重选的 backend table：
+    - enabled table 直接复用原始 registered snapshot
+    - disabled table 只收紧 `BackendInfo.Available := False` 与 `Capabilities := []`
+    - writer 持续在这两套 table 间 `RegisterBackend(...)`
+    - reader 持续断言不会读到第三种 impossible backend id
+  - fresh red-or-green 结果：
+    - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch68-currentbackend-concurrent-red-or-green-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrentFramework`
+    - 结果直接转绿：`[TEST] OK`，`[LEAK] OK`
+  - 因 targeted suite 没有打出 fresh red，本轮不改生产代码，结论收口为 helper guard closeout：
+    - 当前 `GetCurrentBackend -> GetActiveBackend -> GetCurrentPublishedDispatchTable` 读取链已经稳定落在 published active snapshot 上
+    - 在当前宿主机和压力级别下，没有观察到 current-active helper 掉进 enabled/fallback 之外的第三种 backend id
+  - fresh green / release 复验：
+    - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch68-currentbackend-concurrent-check-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+    - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch68-currentbackend-concurrent-gate-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 记录关键运行结果：
+    - fresh `TTestCase_SimdConcurrentFramework` PASS，`[LEAK] OK`
+    - fresh `check` PASS
+    - fresh `gate` 最终 `[GATE] OK`
+    - run-all summary 时间：`2026-03-24 10:59:32`
+- Files created/modified:
+  - `tests/fafafa.core.simd/fafafa.core.simd.concurrent.testcase.pas` (modified)
+  - `task_plan.md` (modified)
+  - `findings.md` (modified)
+  - `progress.md` (modified)
+  - `workers/worker0.md` (modified)
+
+## 5-Question Reboot Check (Phase 68 Update)
+| Question | Answer |
+|----------|--------|
+| Where am I? | Linux fresh `TTestCase_SimdConcurrentFramework`、fresh `check`、fresh `gate` 都已重新通过；本轮最新把 `GetCurrentBackend` 的 concurrent re-register 合同补成了独立 regression guard。 |
+| Where am I going? | 下一轮继续深审 current-active helper 边界，优先看 `GetCurrentBackend` 在 vector-asm batch rebuild 下是否也需要独立 guard；若 helper 级别继续全绿，再转向 external consumer/back-to-back helper 的文档边界。 |
+| What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
+| What have I learned? | 这轮证明，当前 `GetCurrentBackend` 读取链已经稳定锚定 published active snapshot：在 concurrent `RegisterBackend(...)` churn 下没有暴露新的 helper-level impossible backend id。 |
+| What have I done? | 已为 `GetCurrentBackend` 补上 concurrent register/read 护栏，并用 fresh release suite/check/gate 把这条候选收口为“guard green”；本轮没有生产代码改动。 |
+
 ### Phase 61: ResetToAutomaticBackend restore-callback late-force second-layer closure closeout
 - **Status:** complete
 - Actions taken:
