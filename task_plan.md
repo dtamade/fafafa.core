@@ -4,7 +4,7 @@
 审查 `fafafa.core.simd` 及其 `cpuinfo` 相关模块，找出可验证的问题并完成至少一轮根因修复，同时产出可连续执行的后续修复与审查计划。
 
 ## Current Phase
-Phase 73 complete; Phase 72 has been merged back to `main`, merged-result release verification is green, and local git status is clean via `.git/info/exclude` for `.simd-output/`
+Phase 74 complete; the hidden non-x86 native evidence helper is now wired into the shell runner and docs, and the remaining blocker is back to native host availability rather than entry-point discoverability
 
 ## Phases
 
@@ -1444,6 +1444,25 @@ Phase 73 complete; Phase 72 has been merged back to `main`, merged-result releas
   2. 如需继续 SIMD 外部证据，只处理 `riscv64` asm-ready host evidence 或其他真实 native host 入口
   3. 没有 fresh red 或可用真机前，不再重开已绿的 ARM64 NEON 链
 
+### Phase 74: non-x86 native evidence entrypoint closeout
+- [x] 证实当前仓库虽然已有 `tests/fafafa.core.simd/collect_nonx86_native_evidence.sh`，但 `BuildOrTest.sh` / 文档里没有正式入口，直接 `BuildOrTest.sh native-evidence` 只会掉到 usage
+- [x] 将现有 helper 接成正式 shell action `native-evidence`，并补 runner-level static guard，防止以后再次变成隐藏 helper
+- [x] 在 `docs/CI.md` 与 `docs/fafafa.core.simd.checklist.md` 补 native host evidence 用法，明确 `arm64/riscv64` 原生主机与 `direct-fpc/backend-asm` 环境变量
+- [x] 用 fresh release `check` 复验新 guard 已接入主线，并用 fresh `native-evidence` 运行结果证明入口现在能准确 fail-close 到“当前 host 不支持”
+- **Status:** complete
+
+- 2026-03-24 最新 non-x86 native evidence entrypoint 证据：
+  - red: `bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence` -> `Usage: ...`，说明 action 未接线而不是 helper 真正执行
+  - green-check: `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/verify-phase74-check-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh check` -> PASS，包含 `[CHECK] OK (non-x86 native evidence runner guard present)`
+  - green-runtime: `bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence` -> `Unsupported host/backend combination: host=x86_64, requested=auto`
+- 这轮结论是“入口与文档缺口已收口”，不是新的 SIMD 实现 bug：
+  - helper 本身之前已经存在，缺的是主 runner discoverability、usage 文案和 closeout 手册入口
+  - 现在真正剩下的阻塞重新回到环境侧：`riscv64` 或其他 native host 什么时候可用
+- 下一轮连续计划优先级更新为：
+  1. 将 Phase 74 的 runner/doc 接线合回 `main`
+  2. 一旦拿到 `riscv64` native host，直接用 `bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence riscvv` 回收真机证据
+  3. 若需要 backend-asm 真工具链证据，再叠加 `SIMD_NATIVE_EVIDENCE_RUNNER=direct-fpc` 与 `SIMD_NATIVE_EVIDENCE_ENABLE_BACKEND_ASM=1`
+
 ## 5-Question Reboot Check (Phase 71 Update)
 | Question | Answer |
 |----------|--------|
@@ -1470,6 +1489,15 @@ Phase 73 complete; Phase 72 has been merged back to `main`, merged-result releas
 | What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
 | What have I learned? | 对并行协作来说，证据产物与代码改动要分开处理：`.simd-output/` 这类本地证据最好走本地 exclude，而不是反复制造脏工作区或误删收口材料。 |
 | What have I done? | 已完成 merge-back、合并后 fresh release 验证，以及本地 repo hygiene 清理；当前主线只差一次 push。 |
+
+## 5-Question Reboot Check (Phase 74 Update)
+| Question | Answer |
+|----------|--------|
+| Where am I? | non-x86 native evidence helper 现在已经有正式 shell action 和文档入口；fresh `check` 已通过，且 `native-evidence` 在 x86_64 上会准确报“不支持的 host/backend 组合”，不再掉回 usage。 |
+| Where am I going? | 把这轮 runner/doc 接线合回 `main`；之后等待真实 `riscv64` 或其他 native host，再直接跑 `native-evidence` 回收真机证据。 |
+| What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
+| What have I learned? | external evidence 的常见阻塞不只是“没有主机”，也可能是仓库里其实已有 helper，但因为没接 runner/文档而不可发现。这个层次的问题值得先收掉。 |
+| What have I done? | 已将 `collect_nonx86_native_evidence.sh` 接到 `BuildOrTest.sh native-evidence`，补上 static guard 与文档用法，并用 fresh red/green 证明入口从“未接线”变成“准确 fail-close”。 |
 
 ## 5-Question Reboot Check (Phase 70 Update)
 | Question | Answer |

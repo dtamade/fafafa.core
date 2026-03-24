@@ -7,6 +7,28 @@
 - 形成连续的修复与审查计划
 
 ## Research Findings
+- 最新一轮继续推进 `riscv64` / non-x86 external evidence 前，又确认一条新的真实自动化缺口：
+  - 仓库里其实已经有 `tests/fafafa.core.simd/collect_nonx86_native_evidence.sh`
+  - 但在修复前：
+    - `BuildOrTest.sh` 没有 `native-evidence` action
+    - `buildOrTest.bat` / parity allowlist 也没有显式记账这条 shell-only helper
+    - `docs/CI.md` 与 `docs/fafafa.core.simd.checklist.md` 都没有告诉维护者这条入口存在
+  - fresh red 证据很直接：
+    - `bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence` 返回的是通用 `Usage: ...`
+    - 这说明问题不是“当前主机不支持”，而是入口根本没有接上 shell runner
+  - 这轮最小修复没有改 helper 语义，只做 discoverability / guard / docs 接线：
+    - `tests/fafafa.core.simd/BuildOrTest.sh` 新增 `run_nonx86_native_evidence()`
+    - shell case/usage 正式加入 `native-evidence`
+    - `check_windows_runner_parity` 把它记成 intentional shell-only action
+    - 新增 `check_nonx86_native_evidence_runner_guard()`，把 helper 文件、shell action、usage 文案和 env 提示一起守住
+    - `docs/CI.md` 与 `docs/fafafa.core.simd.checklist.md` 也补了 native host evidence 用法
+  - fresh green 结果：
+    - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/verify-phase74-check-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh check`：PASS，并出现 `[CHECK] OK (non-x86 native evidence runner guard present)`
+    - `bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence`：现在不再掉 usage，而是准确返回 `Unsupported host/backend combination: host=x86_64, requested=auto`
+  - 这轮结论不是新的 SIMD 实现 bug，而是 external evidence 入口层的 discoverability gap：
+    - helper 早就有
+    - 缺的是 runner/doc 接线与 guard
+    - 现在真正剩余的阻塞重新回到“没有可用 `riscv64` 原生主机”
 - 最新一轮 external evidence 又从 “Windows closeout 已闭环” 继续推进到了 “ARM64 NEON native evidence fresh green”：
   - 实际 refs 已经不是旧文档里的 `ad445cb5`：
     - `origin/main` / 主仓库 `main` 当前都是 `90b346ca33fa`

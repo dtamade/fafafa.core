@@ -2,20 +2,18 @@
 
 - Owner: Codex
 - Scope: `fafafa.core.simd` 模块的 capability / dispatch / public ABI 合同审查与修复
-- Status: `blocked`
+- Status: `handoff-ready`
 - Branch: `simd-external-evidence`
 - Worktree: `/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence`
 - Base commit: `90b346ca33fa`
 - Current focus:
-  - 当前批次已从“ARM64 NEON external evidence fresh green”推进到“已合回本地 main 且 merged-result fresh 验证通过”：
-    - `main` 已 fast-forward 到 `fe4379bf`
-    - ARM64 remote run 已在 `23481240212` 收口为 success
-    - 合并后的 fresh `SIMD_ENABLE_NEON_BACKEND=1` 定向 suite 与 fresh `check` 都已重新通过
-  - 这轮不是单一类型问题，而是一起清掉了：
-    - 1 条真实 native bug：`NEONSelectF32x4` 合同不稳
-    - 1 条 shared contract drift：`sbScalar.Available` 漂移
-    - 2 类 test-side 假红：scalar-only hook disable 预期错误、runtime-disabled fallback 真相源选错
-  - 当前 ARM64 NEON 链已经 green 且已合回主线；剩余阻塞主要是 `riscv64` asm-ready host 与其他真实 native host 入口
+  - 当前批次已从“ARM64 NEON external evidence fresh green”继续推进到“non-x86 native evidence helper 正式接上 runner/doc”：
+    - `collect_nonx86_native_evidence.sh` 现在有正式入口：`bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence`
+    - fresh `check` 已包含 `[CHECK] OK (non-x86 native evidence runner guard present)`
+    - 当前 `native-evidence` 在 x86_64 上会准确报 `Unsupported host/backend combination`
+  - ARM64 NEON 链仍保持 green；当前真正剩余的阻塞重新回到环境侧：
+    - `riscv64` asm-ready native host 仍待外部环境
+    - 如需 backend-asm 真工具链证据，可在真机上叠加 `SIMD_NATIVE_EVIDENCE_RUNNER=direct-fpc` 与 `SIMD_NATIVE_EVIDENCE_ENABLE_BACKEND_ASM=1`
 - Source of truth:
   - `task_plan.md`
   - `findings.md`
@@ -25,18 +23,16 @@
   - 验证继续采用 release 策略
   - 证据驱动：先补 fresh red，再做最小修复，再跑 fresh green / check / gate
 - Fresh verification:
-  - remote ARM64 run: `23481240212`
-  - 结果：success
-  - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_ENABLE_NEON_BACKEND=1 SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/verify-phase72-neon-targeted-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi`
-  - 结果：PASS，`[LEAK] OK`
-  - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/verify-phase72-check-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh check`
-  - 结果：PASS
+  - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/verify-phase74-check-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - 结果：PASS，包含 `[CHECK] OK (non-x86 native evidence runner guard present)`
+  - `bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence`
+  - 结果：exit 2，`Unsupported host/backend combination: host=x86_64, requested=auto`
 - Risks / blockers:
   - 当前宿主机和现有 SSH host 仍都是 `x86_64`；`riscv64` asm-ready 主机证据仍待外部环境
   - 当前 ARM64 run 已 green，但这不自动替代 `RISCVV` native asm host execution evidence
-  - `.simd-output/` 现已通过本地 `.git/info/exclude` 排除出 `git status`；如需跨机器共享这套 hygiene 约束，需要单独决定是否提交仓库级 ignore 规则
+  - shell runner 已接好入口，但 batch runner 仍故意没有等价 action；如果未来要支持 Windows-on-ARM/RISC-V 原生采集，需要单独设计 native batch 语义
 - Next step:
-  - 先把 `main` 推到远端
-  - 然后等待 `riscv64` 或其他可用 native host，再开启下一轮 external evidence
-  - 没有 fresh red 或真机前，不再重开 ARM64 NEON 已绿链路
+  - 将 Phase 74 的 runner/doc 接线合回 `main`
+  - 等待 `riscv64` 或其他可用 native host 后，直接跑 `bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence riscvv`
+  - 若需要 backend-asm 真工具链证据，再叠加 `SIMD_NATIVE_EVIDENCE_RUNNER=direct-fpc` 与 `SIMD_NATIVE_EVIDENCE_ENABLE_BACKEND_ASM=1`
 - Last updated: `2026-03-24`

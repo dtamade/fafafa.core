@@ -1159,6 +1159,39 @@
   - `workers/worker0.md` (modified)
   - `.git/info/exclude` (local metadata, modified)
 
+### Phase 74: non-x86 native evidence entrypoint closeout
+- **Status:** complete
+- Actions taken:
+  - 用 `rg` 和语义搜索确认现状：`tests/fafafa.core.simd/collect_nonx86_native_evidence.sh` 已存在，但主 runner 与文档都没有正式入口
+  - 运行 fresh red：
+    - `bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence`
+    - 结果：`Usage: ...`
+    - 结论：当前是 action 未接线，不是 host mismatch fail-close
+  - 修改 `tests/fafafa.core.simd/BuildOrTest.sh`：
+    - 新增 `run_nonx86_native_evidence()`
+    - shell case/usage 接上 `native-evidence`
+    - shell-only allowlist 加入 `native-evidence`
+    - 新增 `check_nonx86_native_evidence_runner_guard()`，并把它接入 `check` 与 `gate_step_build_check`
+  - 修改文档：
+    - `docs/CI.md` 增加 native host evidence 示例
+    - `docs/fafafa.core.simd.checklist.md` 增加 `native-evidence` 和 `direct-fpc/backend-asm` 用法
+  - 运行 fresh green：
+    - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/verify-phase74-check-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+    - 结果：PASS
+    - 关键输出：`[CHECK] OK (non-x86 native evidence runner guard present)`
+  - 运行 fresh runtime closeout 验证：
+    - `bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence`
+    - 结果：exit 2，`Unsupported host/backend combination: host=x86_64, requested=auto`
+    - 结论：现在 action 已生效，并能正确把阻塞点落回“当前主机不是 arm64/riscv64 native host”
+- Files created/modified:
+  - `tests/fafafa.core.simd/BuildOrTest.sh` (modified)
+  - `docs/CI.md` (modified)
+  - `docs/fafafa.core.simd.checklist.md` (modified)
+  - `task_plan.md` (modified)
+  - `findings.md` (modified)
+  - `progress.md` (modified)
+  - `workers/worker0.md` (modified)
+
 ### Phase 31: dynamic register-backend identity drift closeout
 - **Status:** complete
 - Actions taken:

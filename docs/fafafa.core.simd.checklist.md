@@ -61,6 +61,20 @@ bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict
 bash tests/fafafa.core.simd/BuildOrTest.sh nonx86-optin-list-suites
 ```
 
+如果你手里已经有真实 `arm64` / `riscv64` 原生主机，而不是 QEMU / x86_64 compile-only 环境，native execution evidence 现在有正式入口：
+
+```bash
+bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence
+```
+
+需要显式切到 backend-asm / direct-fpc 采集时，可再加：
+
+```bash
+SIMD_NATIVE_EVIDENCE_RUNNER=direct-fpc \
+SIMD_NATIVE_EVIDENCE_ENABLE_BACKEND_ASM=1 \
+bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence riscvv
+```
+
 `perf-smoke` 默认仍是显式开关；若要把它纳入 closeout 门禁，请设置 `SIMD_GATE_PERF_SMOKE=1`，或直接走 `evidence-linux`。若 active backend 仍落在 `Scalar`，当前会直接失败，因为这意味着没有拿到可用于 closeout 的 SIMD 性能证据。
 
 如果你是在同一台机器上并发跑多个 `SIMD` helper，或者只是想做不落默认产物目录的 dry-run，优先设置 `SIMD_OUTPUT_ROOT`。
