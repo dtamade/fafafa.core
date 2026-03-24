@@ -7,6 +7,23 @@ unit fafafa.core.simd.dispatchapi.testcase;
 // Keep parity with the original testcase compilation behavior.
 {$R-}{$Q-}
 
+// Mirror the global conditions that make NEON asm compile in the backend unit.
+{$IFDEF CPUAARCH64}
+  {$IFDEF FPC}
+    {$IF FPC_FULLVERSION >= 030301}
+      {$IFNDEF SIMD_VECTOR_ASM_DISABLED}
+        {$IFDEF FAFAFA_SIMD_EXPERIMENTAL_BACKEND_ASM}
+          {$IFDEF FAFAFA_SIMD_ENABLE_NEON_ASM}
+            {$IFDEF FAFAFA_SIMD_NEON_ASM_COMPILER_READY}
+              {$DEFINE FAFAFA_SIMD_TEST_NEON_ASM_COMPILED}
+            {$ENDIF}
+          {$ENDIF}
+        {$ENDIF}
+      {$ENDIF}
+    {$ENDIF}
+  {$ENDIF}
+{$ENDIF}
+
 interface
 
 uses
@@ -5501,7 +5518,7 @@ begin
      (Pointer(LNEONTable.SelectF64x4) = Pointer(LScalarTable.SelectF64x4)) then
     Exit;
 
-  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+  {$IFDEF FAFAFA_SIMD_TEST_NEON_ASM_COMPILED}
   AssertTrue('NEON should advertise scShuffle when NEON asm-backed representative shuffle slots are non-scalar',
     scShuffle in LNEONTable.BackendInfo.Capabilities);
   {$ELSE}
@@ -5527,7 +5544,7 @@ begin
   AssertTrue('NEON FmaF64x2 should be assigned', Assigned(LNEONTable.FmaF64x2));
   AssertTrue('NEON FmaF64x4 should be assigned', Assigned(LNEONTable.FmaF64x4));
 
-  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+  {$IFDEF FAFAFA_SIMD_TEST_NEON_ASM_COMPILED}
   AssertTrue('NEON should advertise scFMA when NEON asm-backed FMA slots are compiled',
     scFMA in LNEONTable.BackendInfo.Capabilities);
   {$ELSE}
@@ -5552,7 +5569,7 @@ begin
   AssertTrue('NEON AndI32x4 should be assigned', Assigned(LNEONTable.AndI32x4));
   AssertTrue('NEON AddI16x8 should be assigned', Assigned(LNEONTable.AddI16x8));
 
-  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+  {$IFDEF FAFAFA_SIMD_TEST_NEON_ASM_COMPILED}
   AssertTrue('NEON should advertise scIntegerOps when NEON asm-backed integer slots are compiled',
     scIntegerOps in LNEONTable.BackendInfo.Capabilities);
   {$ELSE}
@@ -5567,7 +5584,7 @@ var
   LNEONTable: TSimdDispatchTable;
   LOldVectorAsm: Boolean;
 begin
-  {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+  {$IFNDEF FAFAFA_SIMD_TEST_NEON_ASM_COMPILED}
   Exit;
   {$ENDIF}
 

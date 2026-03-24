@@ -4,6 +4,23 @@ unit fafafa.core.simd.publicabi.testcase;
 {$I ../../src/fafafa.core.settings.inc}
 {$CODEPAGE UTF8}
 
+// Mirror the global conditions that make NEON asm compile in the backend unit.
+{$IFDEF CPUAARCH64}
+  {$IFDEF FPC}
+    {$IF FPC_FULLVERSION >= 030301}
+      {$IFNDEF SIMD_VECTOR_ASM_DISABLED}
+        {$IFDEF FAFAFA_SIMD_EXPERIMENTAL_BACKEND_ASM}
+          {$IFDEF FAFAFA_SIMD_ENABLE_NEON_ASM}
+            {$IFDEF FAFAFA_SIMD_NEON_ASM_COMPILER_READY}
+              {$DEFINE FAFAFA_SIMD_TEST_NEON_ASM_COMPILED}
+            {$ENDIF}
+          {$ENDIF}
+        {$ENDIF}
+      {$ENDIF}
+    {$ENDIF}
+  {$ENDIF}
+{$ENDIF}
+
 interface
 
 uses
@@ -1371,7 +1388,7 @@ begin
      (Pointer(LNEONTable.SelectF64x4) = Pointer(LScalarTable.SelectF64x4)) then
     Exit;
 
-  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+  {$IFDEF FAFAFA_SIMD_TEST_NEON_ASM_COMPILED}
   AssertTrue('Public ABI CapabilityBits should expose NEON scShuffle when NEON asm-backed representative shuffle slots are non-scalar',
     (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) <> 0);
   {$ELSE}
@@ -1402,7 +1419,7 @@ begin
   AssertTrue('NEON FmaF64x2 should be assigned', Assigned(LNEONTable.FmaF64x2));
   AssertTrue('NEON FmaF64x4 should be assigned', Assigned(LNEONTable.FmaF64x4));
 
-  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+  {$IFDEF FAFAFA_SIMD_TEST_NEON_ASM_COMPILED}
   AssertTrue('Public ABI CapabilityBits should expose NEON scFMA when NEON asm-backed FMA slots are compiled',
     (LInfo.CapabilityBits and (UInt64(1) shl Ord(scFMA))) <> 0);
   {$ELSE}
@@ -1432,7 +1449,7 @@ begin
   AssertTrue('NEON AndI32x4 should be assigned', Assigned(LNEONTable.AndI32x4));
   AssertTrue('NEON AddI16x8 should be assigned', Assigned(LNEONTable.AddI16x8));
 
-  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+  {$IFDEF FAFAFA_SIMD_TEST_NEON_ASM_COMPILED}
   AssertTrue('Public ABI CapabilityBits should expose NEON scIntegerOps when NEON asm-backed integer slots are compiled',
     (LInfo.CapabilityBits and (UInt64(1) shl Ord(scIntegerOps))) <> 0);
   {$ELSE}
@@ -1447,7 +1464,7 @@ var
   LInfo: TFafafaSimdBackendPodInfo;
   LOldVectorAsm: Boolean;
 begin
-  {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
+  {$IFNDEF FAFAFA_SIMD_TEST_NEON_ASM_COMPILED}
   Exit;
   {$ENDIF}
 

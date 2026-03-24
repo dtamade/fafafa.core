@@ -2158,53 +2158,11 @@ end;
 
 // === Selection Operation ===
 
-function NEONSelectF32x4(const mask: TMask4; const a, b: TVecF32x4): TVecF32x4; assembler; nostackframe;
-asm
-  // ABI: mask in w0, a: x1..x2, b: x3..x4, return: x0..x1
-  fmov  d0, x1
-  fmov  d4, x2
-  ins   v0.d[1], v4.d[0]
-
-  fmov  d1, x3
-  fmov  d4, x4
-  ins   v1.d[1], v4.d[0]
-
-  // Expand 4-bit mask to 128-bit mask
-  movi  v2.4s, #0
-
-  // Bit 0
-  tst   w0, #1
-  b.eq  .Lbit0_zero
-  movi  v3.4s, #-1
-  ins   v2.s[0], v3.s[0]
-.Lbit0_zero:
-
-  // Bit 1
-  tst   w0, #2
-  b.eq  .Lbit1_zero
-  movi  v3.4s, #-1
-  ins   v2.s[1], v3.s[0]
-.Lbit1_zero:
-
-  // Bit 2
-  tst   w0, #4
-  b.eq  .Lbit2_zero
-  movi  v3.4s, #-1
-  ins   v2.s[2], v3.s[0]
-.Lbit2_zero:
-
-  // Bit 3
-  tst   w0, #8
-  b.eq  .Lbit3_zero
-  movi  v3.4s, #-1
-  ins   v2.s[3], v3.s[0]
-.Lbit3_zero:
-
-  // Bit select: result = (a AND mask) OR (b AND NOT mask)
-  bsl   v2.16b, v0.16b, v1.16b
-
-  umov  x0, v2.d[0]
-  umov  x1, v2.d[1]
+function NEONSelectF32x4(const mask: TMask4; const a, b: TVecF32x4): TVecF32x4;
+begin
+  // Keep correct lane semantics until the mixed scalar/vector AArch64 ABI is
+  // proven stable for this wrapper on native NEON hosts.
+  Result := ScalarSelectF32x4(mask, a, b);
 end;
 
 function NEONInsertF32x4(const a: TVecF32x4; value: Single; index: Integer): TVecF32x4; assembler; nostackframe;
