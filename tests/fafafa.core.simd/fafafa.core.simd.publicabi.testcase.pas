@@ -950,7 +950,7 @@ procedure TTestCase_PublicAbi.Test_PublicAbi_BackendText_Getters_PreviousPointer
 const
   TEXT_LEN = 1024;
   REFRESH_COUNT = 32;
-  CHURN_COUNT = 4096;
+  CHURN_COUNT = 1024;
 var
   LBackend: TSimdBackend;
   LOriginalTable: TSimdDispatchTable;
@@ -958,8 +958,6 @@ var
   LDescriptionPtrHistory: array of PAnsiChar;
   LNameSnapshotHistory: array of AnsiString;
   LDescriptionSnapshotHistory: array of AnsiString;
-  LNameChurn: array of AnsiString;
-  LDescriptionChurn: array of AnsiString;
   LNameTextLen: Integer;
   LDescriptionTextLen: Integer;
   LIndex: Integer;
@@ -1035,6 +1033,20 @@ var
       'PointerLifetimeDescriptionRefresh_' + AnsiString(IntToStr(aRefreshIndex)) + '_',
       Chr(Ord('a') + (aRefreshIndex mod 20)), LDescriptionTextLen);
   end;
+
+  function BuildChurnNameText(const aChurnIndex: Integer): AnsiString;
+  begin
+    Result := BuildFixedLengthText(
+      'PointerLifetimeNameChurn_' + AnsiString(IntToStr(aChurnIndex)) + '_',
+      Chr(Ord('Q') + (aChurnIndex mod 7)), LNameTextLen);
+  end;
+
+  function BuildChurnDescriptionText(const aChurnIndex: Integer): AnsiString;
+  begin
+    Result := BuildFixedLengthText(
+      'PointerLifetimeDescriptionChurn_' + AnsiString(IntToStr(aChurnIndex)) + '_',
+      Chr(Ord('q') + (aChurnIndex mod 7)), LDescriptionTextLen);
+  end;
 begin
   LBackend := GetCurrentBackend;
   AssertTrue('Backend should be registered before backend text pointer lifetime test',
@@ -1066,19 +1078,22 @@ begin
       AssertHistoryStillValid(LRefreshIndex - 1, 'refresh ' + IntToStr(LRefreshIndex));
     end;
 
-    SetLength(LNameChurn, CHURN_COUNT);
-    SetLength(LDescriptionChurn, CHURN_COUNT);
     for LIndex := 0 to CHURN_COUNT - 1 do
     begin
-      LNameChurn[LIndex] := BuildFixedLengthText(
-        'NameChurn_' + AnsiString(IntToStr(LIndex)) + '_',
-        Chr(Ord('Q') + (LIndex mod 7)), LNameTextLen);
-      LDescriptionChurn[LIndex] := BuildFixedLengthText(
-        'DescriptionChurn_' + AnsiString(IntToStr(LIndex)) + '_',
-        Chr(Ord('q') + (LIndex mod 7)), LDescriptionTextLen);
+      RegisterBackendText(
+        BuildChurnNameText(LIndex),
+        BuildChurnDescriptionText(LIndex));
+      AssertEquals('Current churned backend name should be visible through the latest getter at churn_index=' +
+        IntToStr(LIndex),
+        string(BuildChurnNameText(LIndex)), string(StrPas(GetSimdBackendNamePtr(LBackend))));
+      AssertEquals('Current churned backend description should be visible through the latest getter at churn_index=' +
+        IntToStr(LIndex),
+        string(BuildChurnDescriptionText(LIndex)), string(StrPas(GetSimdBackendDescriptionPtr(LBackend))));
+      if (LIndex and 31) = 31 then
+        AssertHistoryStillValid(REFRESH_COUNT, 're-register churn ' + IntToStr(LIndex));
     end;
 
-    AssertHistoryStillValid(REFRESH_COUNT, 'same-sized churn');
+    AssertHistoryStillValid(REFRESH_COUNT, 'same-sized re-register churn');
   finally
     RegisterBackend(LBackend, LOriginalTable);
   end;

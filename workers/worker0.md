@@ -7,9 +7,9 @@
 - Worktree: `/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit`
 - Base commit: `c1bf1d66b2e2990e10a8fabe53c2043852c865dc`
 - Current focus:
-  - Phase 65 已完成：public ABI cached-table snapshot metadata 已补独立 regression guard
-  - 当前结论：fresh `TTestCase_PublicAbi`、fresh `check/gate` 全绿，说明当前 owned-state rebind publication 已经守住“fresh getter 返回新 table，旧 cached table metadata 保持旧 snapshot”这条 consumer-side 语义；本轮无生产代码改动
-  - 下一步继续深审 current-active helper / backend adapter / external consumer 边界，优先找 `GetBackendOps(backend)` 并发读取、current-active helper、以及 text-pointer lifetime 的 fresh red
+  - Phase 66 已完成：public ABI backend text pointer lifetime 已补成真实 repeated `RegisterBackendText(...)` churn regression guard
+  - 当前结论：fresh `TTestCase_PublicAbi`、fresh `check`、fresh `gate` 全绿，说明当前 owned-state publication 不仅能让 latest getter 跟随当前 churn 文本，也能让历史 text pointers 在 repeated refresh pressure 下保持有效；本轮无生产代码改动
+  - 下一步继续深审 current-active helper / backend adapter / external consumer 边界，优先找 `GetBackendOps(backend)` 并发读取、current-active helper、以及 helper/public-view stale drift 的 fresh red
 - Source of truth:
   - `task_plan.md`
   - `findings.md`
@@ -19,9 +19,9 @@
   - 验证继续采用 release 策略
   - 证据驱动：先补 fresh red，再做最小修复，再跑 fresh green / check / gate
 - Fresh verification:
-  - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch65-publicapi-cachedtable-gate-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch66-text-pointer-lifetime-gate-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：`[GATE] OK`
-  - 时间：`2026-03-24 09:14:13`
+  - 时间：`2026-03-24 10:26:49`
 - Risks / blockers:
   - 当前宿主机没有 native `avx512*` 执行条件，所以 AVX-512 只有 opt-in build/registration/public ABI 证据，没有 native execution 证据
   - `arm64` / `riscv64` asm-ready 主机证据仍待补
@@ -29,7 +29,7 @@
   - `TTestCase_SimdConcurrentRegistration` 会永久注册 previously-unregistered backend，属于 stateful suite；后续若做 same-process 组合并发验证，需要显式考虑顺序污染
   - 当前宿主机 `/tmp` 是 32G tmpfs，长链 `gate` 可能因外部工具链临时文件写入而打满；需要优先使用 worktree-local `SIMD_OUTPUT_ROOT/TMPDIR`
 - Next step:
-  - 从 cached-table snapshot guard closeout 继续切到 current-active helper / backend adapter / external consumer return-after-drift 候选
-  - 优先找 fresh red，确认是否还存在“控制面 return-time 已收口，但 consumer 可见 metadata/helper/pointer 仍漂移”的真实问题，首查 `GetBackendOps(backend)` 并发读取 / text-pointer lifetime / current-active helper
+  - 从 text-pointer lifetime guard closeout 继续切到 current-active helper / backend adapter / external consumer return-after-drift 候选
+  - 优先找 fresh red，确认是否还存在“控制面 return-time 已收口，但 consumer 可见 metadata/helper 仍漂移”的真实问题，首查 `GetBackendOps(backend)` 并发读取 / current-active helper / public-view stale drift
   - 继续在本 worker 的 worktree 内闭环：先证据、再最小修复、再 release `check/gate`
 - Last updated: `2026-03-24`

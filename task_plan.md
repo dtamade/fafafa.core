@@ -4,7 +4,7 @@
 审查 `fafafa.core.simd` 及其 `cpuinfo` 相关模块，找出可验证的问题并完成至少一轮根因修复，同时产出可连续执行的后续修复与审查计划。
 
 ## Current Phase
-Phase 65 complete; public ABI cached-table snapshot metadata is now covered by fresh regression guards, and current rebind publication keeps old cached tables stable while publishing a fresh table pointer
+Phase 66 complete; public ABI backend text pointer lifetime is now covered by a real repeated re-register churn guard, and current owned-state publication keeps both fresh text refresh and old pointer validity stable under refresh pressure
 
 ## Phases
 
@@ -1271,3 +1271,32 @@ Phase 65 complete; public ABI cached-table snapshot metadata is now covered by f
 | What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
 | What have I learned? | 这轮证明，当前 public ABI owned-state 发布模型不仅能让旧 cached table 继续 callable，也已经能保证旧 metadata 保持旧 snapshot、fresh getter 返回不同 table 指针。 |
 | What have I done? | 已为 public ABI cached-table snapshot metadata 补上更强的 consumer-side guard，并用 fresh release suite/check/gate 把这条候选收口为“guard green”，随后可继续切向更可能是实现缺陷的 helper/pointer lifetime 候选。 |
+
+### Phase 66: public ABI backend text pointer lifetime re-register churn guard closeout
+- [x] 将 `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 的 `Test_PublicAbi_BackendText_Getters_PreviousPointers_RemainValid_After_Refresh` 从“仅做同尺寸字符串分配 churn”升级为“真实 repeated `RegisterBackendText(...)` refresh churn”
+- [x] 用 fresh release `TTestCase_PublicAbi` 先验证这条 pointer-lifetime 候选是 fresh red 还是即刻 green，避免在没有证据前改动 `src/fafafa.core.simd.public_abi.impl.inc`
+- [x] 确认当前 owned-state publication 已满足更强语义：latest getter 每轮都刷新到当前 churn 文本，而历史 `PAnsiChar` 指针在 repeated refresh 压力下仍保持有效；本轮不修改生产实现
+- [x] 用 fresh release `check`、fresh release `gate` 复验新增护栏没有引入回归
+- **Status:** complete
+
+- 2026-03-24 最新 public ABI backend text pointer lifetime churn closeout 证据：
+  - targeted suite: `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch66-text-pointer-lifetime-red-or-green-rerun-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_PublicAbi` -> PASS，`[LEAK] OK`
+  - check: `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch66-text-pointer-lifetime-check-rerun-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh check` -> PASS
+  - gate: `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch66-text-pointer-lifetime-gate-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh gate` -> PASS，最终 `[GATE] OK`，run-all summary 时间 `2026-03-24 10:26:49`
+- 这轮结论仍是“测试护栏缺口”，不是新的生产 bug：
+  - 旧 pointer-lifetime 测试虽然会制造大量 churn 文本，但它没有真实触发 backend text refresh publication，因此只能半证明“堆内存 churn 不会马上打坏旧指针”
+  - 新测试把 churn 改成真实 repeated `RegisterBackendText(...)`，并在每轮断言 latest getter 立即看到当前文本、每 32 轮回看一次完整 history，直接覆盖了 consumer 真正关心的 refresh-after-pointer-observe 路径
+  - fresh targeted suite、fresh `check`、fresh `gate` 全绿，说明当前 `g_SimdPublicApiOwnedHead` / backend text owned-state 机制在现有宿主机上已经守住“新 getter 跟新文本，旧 pointer 仍有效”这条更强 consumer-side 语义
+- 下一轮连续计划优先级更新为：
+  1. 从 text-pointer lifetime 候选切回 current-active helper / backend adapter / external consumer 边界，优先找 `GetBackendOps(backend)` 并发读取与 current-active helper 的 fresh red
+  2. 继续核对 repeated `RegisterBackend(...)` / toggle / hook 之后，是否还存在“控制面 return-time 已收口，但 helper/public view 仍漂移”的真实问题
+  3. 持续使用 worktree-local `SIMD_OUTPUT_ROOT/TMPDIR`，并保持“fresh red-or-green -> check -> gate -> 文档 -> commit”的批次节奏
+
+## 5-Question Reboot Check (Phase 66 Update)
+| Question | Answer |
+|----------|--------|
+| Where am I? | Linux fresh `TTestCase_PublicAbi`、fresh `check`、fresh `gate` 都已重新通过；本轮最新把 public ABI backend text pointer lifetime 的 refresh-churn 合同补成了真实 repeated re-register regression guard。 |
+| Where am I going? | 下一轮继续深审 current-active helper / backend adapter / external consumer 边界，优先找 `GetBackendOps(backend)` 并发读取、current-active helper、以及 helper/public-view stale drift 的 fresh red。 |
+| What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
+| What have I learned? | 这轮证明，当前 owned-state publication 不只是能扛住“无害 heap churn”，也能扛住真实 backend text refresh churn：fresh getter 会跟随当前文本，历史 text pointers 仍保持有效。 |
+| What have I done? | 已把 pointer-lifetime 测试升级成真实 repeated re-register churn 护栏，并用 fresh release suite/check/gate 把这条候选收口为“guard green”；随后可继续切回更像实现缺陷的 helper/adapter 候选。 |
