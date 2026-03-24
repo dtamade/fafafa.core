@@ -5581,7 +5581,7 @@ end;
 
 procedure TTestCase_DispatchAPI.Test_NEON_BackendCapabilities_Clear_VectorAsmGatedBits_When_VectorAsmDisabled;
 var
-  LScalarTable: TSimdDispatchTable;
+  LExpectedBaseTable: TSimdDispatchTable;
   LNEONTable: TSimdDispatchTable;
   LOldVectorAsm: Boolean;
 begin
@@ -5589,8 +5589,11 @@ begin
   Exit;
   {$ENDIF}
 
-  AssertTrue('Scalar dispatch table should be registered',
-    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+  FillBaseDispatchTable(LExpectedBaseTable);
+  AssertTrue('Base fallback FmaF32x4 should be assigned',
+    Assigned(LExpectedBaseTable.FmaF32x4));
+  AssertTrue('Base fallback SelectF32x4 should be assigned',
+    Assigned(LExpectedBaseTable.SelectF32x4));
 
   GetDispatchTable;
   LOldVectorAsm := IsVectorAsmEnabled;
@@ -5601,14 +5604,14 @@ begin
     AssertTrue('NEON backend should remain registered after runtime rebuild',
       TryGetRegisteredBackendDispatchTable(sbNEON, LNEONTable));
 
-    AssertEquals('NEON FmaF32x4 should fall back to scalar when vector asm is disabled',
-      PtrUInt(LScalarTable.FmaF32x4), PtrUInt(LNEONTable.FmaF32x4));
-    AssertEquals('NEON SelectF32x4 should fall back to scalar when vector asm is disabled',
-      PtrUInt(LScalarTable.SelectF32x4), PtrUInt(LNEONTable.SelectF32x4));
-    AssertEquals('NEON InsertF32x4 should fall back to scalar when vector asm is disabled',
-      PtrUInt(LScalarTable.InsertF32x4), PtrUInt(LNEONTable.InsertF32x4));
-    AssertEquals('NEON ExtractF32x4 should fall back to scalar when vector asm is disabled',
-      PtrUInt(LScalarTable.ExtractF32x4), PtrUInt(LNEONTable.ExtractF32x4));
+    AssertEquals('NEON FmaF32x4 should fall back to the base scalar table when vector asm is disabled',
+      PtrUInt(LExpectedBaseTable.FmaF32x4), PtrUInt(LNEONTable.FmaF32x4));
+    AssertEquals('NEON SelectF32x4 should fall back to the base scalar table when vector asm is disabled',
+      PtrUInt(LExpectedBaseTable.SelectF32x4), PtrUInt(LNEONTable.SelectF32x4));
+    AssertEquals('NEON InsertF32x4 should fall back to the base scalar table when vector asm is disabled',
+      PtrUInt(LExpectedBaseTable.InsertF32x4), PtrUInt(LNEONTable.InsertF32x4));
+    AssertEquals('NEON ExtractF32x4 should fall back to the base scalar table when vector asm is disabled',
+      PtrUInt(LExpectedBaseTable.ExtractF32x4), PtrUInt(LNEONTable.ExtractF32x4));
 
     AssertFalse('NEON scFMA should clear when vector asm is disabled',
       scFMA in LNEONTable.BackendInfo.Capabilities);
