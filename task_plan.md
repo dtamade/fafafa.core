@@ -4,7 +4,7 @@
 审查 `fafafa.core.simd` 及其 `cpuinfo` 相关模块，找出可验证的问题并完成至少一轮根因修复，同时产出可连续执行的后续修复与审查计划。
 
 ## Current Phase
-Phase 63 complete; previous-forced restore late-force symmetry is now covered by fresh regression guards, and current second-layer closure already holds on both RegisterBackend and SetVectorAsmEnabled
+Phase 64 complete; public ABI backend text getters are now covered by fresh concurrent regression guards, and current published text snapshot path stayed consistent under repeated RegisterBackend churn
 
 ## Phases
 
@@ -1212,3 +1212,33 @@ Phase 63 complete; previous-forced restore late-force symmetry is now covered by
 | What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
 | What have I learned? | 这轮证明，`RegisterBackend(...)` / `SetVectorAsmEnabled(...)` 当前 second-layer closure 已经守住 previous-forced restore + late `SetActiveBackend(sbScalar)` 的对称路径，缺的是独立 regression guard，而不是生产代码本身。 |
 | What have I done? | 已新增四条对称护栏并完成 fresh release suite/check/gate 复验，把这条候选从“怀疑缺口”收敛成“已证实受保护”，随后可安全切换到新的 public ABI/helper drift 候选。 |
+
+### Phase 64: public ABI backend text getter concurrent snapshot guard closeout
+- [x] 在 `tests/fafafa.core.simd/fafafa.core.simd.concurrent.testcase.pas` 新增 `TPublicAbiBackendTextReadWorker` 与 `Test_Concurrent_PublicAbiBackendText_RegisterBackend_ReadConsistency`，用两套固定长度的 A/B name/description payload 对同一 backend 做持续 `RegisterBackend(...)` 切换，同时并发读取 `GetSimdBackendNamePtr/GetSimdBackendDescriptionPtr`
+- [x] 用 fresh release `TTestCase_SimdConcurrentPublicAbi` 先验证这条候选是 fresh red 还是即刻 green，避免把并发怀疑直接误记成生产 bug
+- [x] 确认当前 `src/fafafa.core.simd.public_abi.impl.inc` 的 text getter 路径在现有宿主机和压力级别下没有复现新的 nil / torn / mixed text 问题，本轮收口为 regression guard closeout，而不是生产实现补丁
+- [x] 继续做 5 轮重复压测，并用 fresh release `check` / `gate` 完整收尾
+- **Status:** complete
+
+- 2026-03-24 最新 public ABI backend text concurrent guard closeout 证据：
+  - targeted suite: `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch64-publicabi-textcache-concurrent-red-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrentPublicAbi` -> PASS，`[LEAK] OK`
+  - repeated stress: `.simd-output/batch64-publicabi-textcache-repeat-20260324-{1..5}` 共 5 轮，全部 `All tests passed!`
+  - check: `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch64-publicabi-textcache-check-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh check` -> PASS
+  - gate: `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch64-publicabi-textcache-gate-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh gate` -> PASS，最终 `[GATE] OK`，run-all summary 时间 `2026-03-24 08:57:37`
+- 这轮结论仍是“测试护栏缺口”，不是新的生产 bug：
+  - Phase 19 已经修过 text getter 的 stale-cache 问题，fresh getter 会刷新到最新 `BackendInfo.Name/Description`
+  - 本轮真正缺的是 machine-readable 并发护栏，去证明 `RegisterBackend(...)` 持续切换两套文本快照时，外部 `PAnsiChar` getter 不会吐出 `nil`、残缺字符串、或 A/B 混搭文本
+  - 新增 fixed-length payload + `ThreadSwitch` 压测后，fresh targeted suite 与 5 轮重复压测都只观察到完整的 A/B snapshot，因此当前实现至少在现有宿主机上没有暴露新的 text getter 并发缺陷
+- 下一轮连续计划优先级更新为：
+  1. 继续沿 public ABI getter-cache / helper wrapper / external consumer 路径深审，优先找 `GetBackendOps(backend)`、consumer-side cached table、和 current-active helper 的 fresh red
+  2. 继续核对 nested hook / re-register / toggle 之后，是否还存在“控制面 return-time 已收口，但 consumer 可见 getter/helper 仍漂移”的真实问题
+  3. 持续使用 worktree-local `SIMD_OUTPUT_ROOT/TMPDIR`，避免 `/tmp` tmpfs 噪音影响长链 gate
+
+## 5-Question Reboot Check (Phase 64 Update)
+| Question | Answer |
+|----------|--------|
+| Where am I? | Linux fresh `TTestCase_SimdConcurrentPublicAbi`、5 轮重复压测、fresh `check`、fresh `gate` 都已重新通过；本轮最新把 public ABI backend text getter 的 concurrent `RegisterBackend(...)` 候选收口成了独立 regression guard。 |
+| Where am I going? | 下一轮继续深审 public ABI getter-cache / helper wrapper / external consumer return-after-drift，优先找 `GetBackendOps(backend)`、consumer-side cached table、以及 current-active helper 的 fresh red。 |
+| What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
+| What have I learned? | 这轮证明，Phase 19 修过 stale-cache 之后，public ABI backend text getter 在现有宿主机上没有暴露新的并发 text drift；缺的是可持续守住这条语义的 machine-readable guard。 |
+| What have I done? | 已为 public ABI backend text getter 补上并发读写护栏，并用 fresh release targeted suite、5 轮重复压测、check、gate 把这条候选收口为“guard green”，随后可继续切到下一条真实 getter/helper drift 候选。 |

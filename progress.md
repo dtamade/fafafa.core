@@ -2465,6 +2465,52 @@
 | What have I learned? | 这轮证明，`RegisterBackend(...)` / `SetVectorAsmEnabled(...)` 当前 second-layer closure 已经守住 previous-forced restore + late scalar force；缺的是独立 regression guard，而不是新的生产代码补丁。 |
 | What have I done? | 已新增四条对称护栏，并用 fresh release suite/check/gate 把这条候选从“可能缺口”收敛成“已证实受保护”；下一轮可以安全切到新的 public ABI/helper drift 候选。 |
 
+### Phase 64: public ABI backend text getter concurrent snapshot guard closeout
+- **Status:** complete
+- Actions taken:
+  - 从上一轮切到 public ABI getter-cache / helper wrapper 路径后，没有直接改生产代码，而是先给 backend text getter 补一条独立并发护栏：
+    - 在 `tests/fafafa.core.simd/fafafa.core.simd.concurrent.testcase.pas` 新增
+      - `TPublicAbiBackendTextReadWorker`
+      - `Test_Concurrent_PublicAbiBackendText_RegisterBackend_ReadConsistency`
+  - 新测试显式选择一个 supported 但当前 inactive 的 backend，构造两套仅文本不同的 backend table：
+    - `BackendInfo.Name` 使用 1024 字节固定长度的 `ConcurrentPublicAbiName_A_/B_...`
+    - `BackendInfo.Description` 使用 2048 字节固定长度的 `ConcurrentPublicAbiDescription_A_/B_...`
+    - writer 线程持续在 A/B table 之间 `RegisterBackend(...)` 切换
+    - reader 线程持续读取 `GetSimdBackendNamePtr/GetSimdBackendDescriptionPtr`，并在多处 `ThreadSwitch` 后断言读到的文本只能是完整 A 或完整 B，不能出现 `nil`、残缺、或 A/B 混搭
+  - fresh release 定向 suite 结果不是 red，而是即刻 green：
+    - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch64-publicabi-textcache-concurrent-red-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrentPublicAbi`
+    - 结果：PASS，`[LEAK] OK`
+  - 为避免一次通过只是偶然，又继续做 5 轮重复压测：
+    - `.simd-output/batch64-publicabi-textcache-repeat-20260324-{1..5}`
+    - 5 轮 `logs/test.txt` 都记录 `Tests run: 5` / `All tests passed!`
+  - 结合已有 Phase 19 文本缓存修复，当前结论收敛为：
+    - 本轮不是 fresh 证实的生产 bug
+    - 而是补齐一条 machine-readable concurrent guard，证明当前 published text snapshot 路径在现有宿主机和压力级别下没有暴露新的 nil / torn / mixed-text 问题
+  - 随后按完整批次收尾，确认 fresh release `check` / `gate` 也保持通过：
+    - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch64-publicabi-textcache-check-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+    - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch64-publicabi-textcache-gate-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 记录关键运行结果：
+    - fresh `TTestCase_SimdConcurrentPublicAbi` PASS，`[LEAK] OK`
+    - repeated stress x5 全绿
+    - fresh `check` PASS
+    - fresh `gate` 最终 `[GATE] OK`
+    - run-all summary 时间：`2026-03-24 08:57:37`
+- Files created/modified:
+  - `tests/fafafa.core.simd/fafafa.core.simd.concurrent.testcase.pas` (modified)
+  - `task_plan.md` (modified)
+  - `findings.md` (modified)
+  - `progress.md` (modified)
+  - `workers/worker0.md` (modified)
+
+## 5-Question Reboot Check (Phase 64 Update)
+| Question | Answer |
+|----------|--------|
+| Where am I? | Linux fresh `TTestCase_SimdConcurrentPublicAbi`、5 轮重复压测、fresh `check`、fresh `gate` 都已重新通过；本轮最新把 public ABI backend text getter 的 concurrent `RegisterBackend(...)` 路径补成了独立 regression guard。 |
+| Where am I going? | 下一轮继续切在 public ABI getter-cache / helper wrapper / external consumer return-after-drift，优先找 `GetBackendOps(backend)`、consumer-side cached table、以及 current-active helper 的 fresh red。 |
+| What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
+| What have I learned? | 这轮证明，Phase 19 修过 stale-cache 之后，public ABI backend text getter 在现有宿主机上没有暴露新的并发 text drift；缺的是持续守住这条语义的 machine-readable guard。 |
+| What have I done? | 已新增 backend text getter 并发护栏，并用 fresh release targeted suite、5 轮重复压测、check、gate 把这条候选收口为“guard green”；下一轮可以继续转向更像真实缺陷的 getter/helper drift 候选。 |
+
 ### Phase 61: ResetToAutomaticBackend restore-callback late-force second-layer closure closeout
 - **Status:** complete
 - Actions taken:

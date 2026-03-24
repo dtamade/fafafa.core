@@ -76,6 +76,8 @@ type
   {** @abstract(public ABI 并发回归套件) *}
   TTestCase_SimdConcurrentPublicAbi = class(TTestCase)
   published
+    {** public ABI backend text getter 与 RegisterBackend 并发读写保护 *}
+    procedure Test_Concurrent_PublicAbiBackendText_RegisterBackend_ReadConsistency;
     {** public ABI backend pod info 与 RegisterBackend 并发读写保护 *}
     procedure Test_Concurrent_PublicAbiPodInfo_RegisterBackend_ReadConsistency;
     {** current active backend pod info 与 RegisterBackend 并发读写保护 *}
@@ -338,6 +340,27 @@ type
     constructor Create(aIterations: Integer; aBackend: TSimdBackend;
       aExpectedCapsA, aExpectedCapsB: UInt64;
       aExpectedFlagsA, aExpectedFlagsB: TFafafaSimdAbiFlags);
+    property Success: Boolean read FSuccess;
+    property ErrorMsg: string read FErrorMsg;
+  end;
+
+  {** public ABI backend text getter 只读线程（与 RegisterBackend 写线程并发） *}
+  TPublicAbiBackendTextReadWorker = class(TThread)
+  private
+    FIterations: Integer;
+    FBackend: TSimdBackend;
+    FExpectedNameA: AnsiString;
+    FExpectedNameB: AnsiString;
+    FExpectedDescriptionA: AnsiString;
+    FExpectedDescriptionB: AnsiString;
+    FSuccess: Boolean;
+    FErrorMsg: string;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(aIterations: Integer; aBackend: TSimdBackend;
+      const aExpectedNameA, aExpectedNameB, aExpectedDescriptionA,
+      aExpectedDescriptionB: AnsiString);
     property Success: Boolean read FSuccess;
     property ErrorMsg: string read FErrorMsg;
   end;
@@ -1376,6 +1399,22 @@ begin
   FErrorMsg := '';
 end;
 
+constructor TPublicAbiBackendTextReadWorker.Create(aIterations: Integer; aBackend: TSimdBackend;
+  const aExpectedNameA, aExpectedNameB, aExpectedDescriptionA,
+  aExpectedDescriptionB: AnsiString);
+begin
+  inherited Create(True);
+  FreeOnTerminate := False;
+  FIterations := aIterations;
+  FBackend := aBackend;
+  FExpectedNameA := aExpectedNameA;
+  FExpectedNameB := aExpectedNameB;
+  FExpectedDescriptionA := aExpectedDescriptionA;
+  FExpectedDescriptionB := aExpectedDescriptionB;
+  FSuccess := False;
+  FErrorMsg := '';
+end;
+
 procedure TPublicAbiPodInfoReadWorker.Execute;
 var
   LIndex: Integer;
@@ -1424,6 +1463,68 @@ begin
   except
     on E: Exception do
       FErrorMsg := 'backend pod info reader exception: ' + E.Message;
+  end;
+end;
+
+procedure TPublicAbiBackendTextReadWorker.Execute;
+var
+  LIndex: Integer;
+  LNamePtr: PAnsiChar;
+  LDescriptionPtr: PAnsiChar;
+  LNameText: AnsiString;
+  LDescriptionText: AnsiString;
+begin
+  try
+    for LIndex := 0 to FIterations - 1 do
+    begin
+      if (LIndex and 3) = 0 then
+        ThreadSwitch;
+
+      LNamePtr := GetSimdBackendNamePtr(FBackend);
+      if Pointer(LNamePtr) = nil then
+      begin
+        FErrorMsg := Format('backend text getter returned nil name pointer at iter %d', [LIndex]);
+        Exit;
+      end;
+
+      if (LIndex and 1) = 0 then
+        ThreadSwitch;
+
+      LNameText := AnsiString(StrPas(LNamePtr));
+      if (LNameText <> FExpectedNameA) and (LNameText <> FExpectedNameB) then
+      begin
+        FErrorMsg := Format(
+          'backend text getter mixed name snapshot at iter %d: got=%s expectedA=%s expectedB=%s',
+          [LIndex, string(LNameText), string(FExpectedNameA), string(FExpectedNameB)]);
+        Exit;
+      end;
+
+      LDescriptionPtr := GetSimdBackendDescriptionPtr(FBackend);
+      if Pointer(LDescriptionPtr) = nil then
+      begin
+        FErrorMsg := Format('backend text getter returned nil description pointer at iter %d', [LIndex]);
+        Exit;
+      end;
+
+      if (LIndex and 1) = 0 then
+        ThreadSwitch;
+
+      LDescriptionText := AnsiString(StrPas(LDescriptionPtr));
+      if (LDescriptionText <> FExpectedDescriptionA) and
+         (LDescriptionText <> FExpectedDescriptionB) then
+      begin
+        FErrorMsg := Format(
+          'backend text getter mixed description snapshot at iter %d: got=%s expectedA=%s expectedB=%s',
+          [LIndex, string(LDescriptionText), string(FExpectedDescriptionA),
+           string(FExpectedDescriptionB)]);
+        Exit;
+      end;
+    end;
+
+    FSuccess := True;
+  except
+    on E: Exception do
+      FErrorMsg := 'backend text reader exception: ' + E.Message;
   end;
 end;
 
@@ -2398,6 +2499,123 @@ begin
       LReaders[LIndex].Free;
     if LBackend <> sbScalar then
       RegisterBackend(LBackend, LOriginalTable);
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_SimdConcurrentPublicAbi.Test_Concurrent_PublicAbiBackendText_RegisterBackend_ReadConsistency;
+const
+  WRITER_THREADS = 4;
+  WRITER_ITERATIONS = 800;
+  READER_THREADS = 6;
+  READER_ITERATIONS = 16000;
+  NAME_LEN = 1024;
+  DESCRIPTION_LEN = 2048;
+var
+  LWriters: array of TBackendRegisterToggleWorker;
+  LReaders: array of TPublicAbiBackendTextReadWorker;
+  LIndex: Integer;
+  LAllSuccess: Boolean;
+  LErrorMsgs: string;
+  LOldVectorAsm: Boolean;
+  LBackend: TSimdBackend;
+  LRestoreTable: TSimdDispatchTable;
+  LTextTableA: TSimdDispatchTable;
+  LTextTableB: TSimdDispatchTable;
+  LNameA: AnsiString;
+  LNameB: AnsiString;
+  LDescriptionA: AnsiString;
+  LDescriptionB: AnsiString;
+
+  function BuildFixedLengthText(const aPrefix: AnsiString; const aFill: Char;
+    const aTargetLen: Integer): AnsiString;
+  var
+    LFillLen: Integer;
+  begin
+    Result := aPrefix;
+    if Length(Result) < aTargetLen then
+    begin
+      LFillLen := aTargetLen - Length(Result);
+      Result := Result + AnsiString(StringOfChar(aFill, LFillLen));
+    end
+    else
+      SetLength(Result, aTargetLen);
+  end;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  LWriters := nil;
+  LReaders := nil;
+  LBackend := sbScalar;
+  LRestoreTable := Default(TSimdDispatchTable);
+  LTextTableA := Default(TSimdDispatchTable);
+  LTextTableB := Default(TSimdDispatchTable);
+
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+
+    if not TryFindInactiveSupportedBackendForPodInfoMutation(LBackend, LRestoreTable) then
+      Exit;
+
+    LNameA := BuildFixedLengthText('ConcurrentPublicAbiName_A_', 'A', NAME_LEN);
+    LNameB := BuildFixedLengthText('ConcurrentPublicAbiName_B_', 'B', NAME_LEN);
+    LDescriptionA := BuildFixedLengthText('ConcurrentPublicAbiDescription_A_', 'a', DESCRIPTION_LEN);
+    LDescriptionB := BuildFixedLengthText('ConcurrentPublicAbiDescription_B_', 'b', DESCRIPTION_LEN);
+
+    LTextTableA := LRestoreTable;
+    LTextTableA.BackendInfo.Name := string(LNameA);
+    LTextTableA.BackendInfo.Description := string(LDescriptionA);
+
+    LTextTableB := LRestoreTable;
+    LTextTableB.BackendInfo.Name := string(LNameB);
+    LTextTableB.BackendInfo.Description := string(LDescriptionB);
+
+    RegisterBackend(LBackend, LTextTableA);
+
+    SetLength(LWriters, WRITER_THREADS);
+    SetLength(LReaders, READER_THREADS);
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex] := TBackendRegisterToggleWorker.Create(
+        WRITER_ITERATIONS, LBackend, LTextTableA, LTextTableB);
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex] := TPublicAbiBackendTextReadWorker.Create(
+        READER_ITERATIONS, LBackend, LNameA, LNameB, LDescriptionA, LDescriptionB);
+
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].Start;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].Start;
+
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].WaitFor;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].WaitFor;
+
+    LAllSuccess := True;
+    LErrorMsgs := '';
+    for LIndex := 0 to High(LWriters) do
+      if not LWriters[LIndex].Success then
+      begin
+        LAllSuccess := False;
+        LErrorMsgs := LErrorMsgs + LWriters[LIndex].ErrorMsg + '; ';
+      end;
+    for LIndex := 0 to High(LReaders) do
+      if not LReaders[LIndex].Success then
+      begin
+        LAllSuccess := False;
+        LErrorMsgs := LErrorMsgs + LReaders[LIndex].ErrorMsg + '; ';
+      end;
+
+    AssertTrue('Concurrent public ABI backend text/register read failed: ' + LErrorMsgs,
+      LAllSuccess);
+  finally
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].Free;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].Free;
+    if LBackend <> sbScalar then
+      RegisterBackend(LBackend, LRestoreTable);
     SetVectorAsmEnabled(LOldVectorAsm);
     ResetToAutomaticBackend;
   end;

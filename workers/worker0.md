@@ -7,9 +7,9 @@
 - Worktree: `/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit`
 - Base commit: `c1bf1d66b2e2990e10a8fabe53c2043852c865dc`
 - Current focus:
-  - Phase 63 已完成：`RegisterBackend(...)` / `SetVectorAsmEnabled(...)` previous-forced restore callback 的 late `SetActiveBackend(sbScalar)` 对称路径已补独立 regression guards
-  - 当前结论：fresh guards 直接转绿，说明 second-layer closure 已覆盖这两条路径，本轮无生产代码改动
-  - 下一步转向 public ABI getter/cache、helper wrapper、以及 external consumer 观察到的 return-after-drift 问题
+  - Phase 64 已完成：public ABI backend text getter 的 concurrent `RegisterBackend(...)` 路径已补独立 regression guard
+  - 当前结论：fresh targeted suite、5 轮重复压测、fresh `check/gate` 全绿，说明当前 published text snapshot 路径在现有宿主机上没有暴露新的 nil / torn / mixed-text 问题；本轮无生产代码改动
+  - 下一步继续深审 public ABI getter/cache、helper wrapper、以及 external consumer 观察到的 return-after-drift 问题，优先找 `GetBackendOps(backend)` / consumer-side cached table 的 fresh red
 - Source of truth:
   - `task_plan.md`
   - `findings.md`
@@ -19,9 +19,9 @@
   - 验证继续采用 release 策略
   - 证据驱动：先补 fresh red，再做最小修复，再跑 fresh green / check / gate
 - Fresh verification:
-  - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch63-lateforce-restore-gate-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch64-publicabi-textcache-gate-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：`[GATE] OK`
-  - 时间：`2026-03-24 01:03:16`
+  - 时间：`2026-03-24 08:57:37`
 - Risks / blockers:
   - 当前宿主机没有 native `avx512*` 执行条件，所以 AVX-512 只有 opt-in build/registration/public ABI 证据，没有 native execution 证据
   - `arm64` / `riscv64` asm-ready 主机证据仍待补
@@ -29,7 +29,7 @@
   - `TTestCase_SimdConcurrentRegistration` 会永久注册 previously-unregistered backend，属于 stateful suite；后续若做 same-process 组合并发验证，需要显式考虑顺序污染
   - 当前宿主机 `/tmp` 是 32G tmpfs，长链 `gate` 可能因外部工具链临时文件写入而打满；需要优先使用 worktree-local `SIMD_OUTPUT_ROOT/TMPDIR`
 - Next step:
-  - 从已证实闭环的 restore late-force 路径切到 public ABI getter-cache / helper wrapper / external consumer return-after-drift 候选
-  - 优先找 fresh red，确认是否还存在“控制面 return-time 已收口，但 consumer 可见 metadata/helper 仍漂移”的真实问题
+  - 从 backend text getter guard closeout 继续切到 public ABI getter-cache / helper wrapper / external consumer return-after-drift 候选
+  - 优先找 fresh red，确认是否还存在“控制面 return-time 已收口，但 consumer 可见 metadata/helper 仍漂移”的真实问题，首查 `GetBackendOps(backend)` / consumer-side cached table
   - 继续在本 worker 的 worktree 内闭环：先证据、再最小修复、再 release `check/gate`
 - Last updated: `2026-03-24`
