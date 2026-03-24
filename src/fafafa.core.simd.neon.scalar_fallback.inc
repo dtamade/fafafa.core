@@ -127,9 +127,3 @@ end;
 {$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED
 
 {$I fafafa.core.simd.neon.scalar.autowrap.inc}
-
-{$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-{$I fafafa.core.simd.neon.scalar.wide_reduce.inc}
-
-{$I fafafa.core.simd.neon.scalar.wide_memory.inc}
-{$ENDIF} // FAFAFA_SIMD_NEON_ASM_ENABLED

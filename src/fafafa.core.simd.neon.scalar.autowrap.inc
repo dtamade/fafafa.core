@@ -1495,20 +1495,12 @@ end;
 
 function NEONLoadF32x16(p: PSingle): TVecF32x16;
 begin
-  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-  Result := NEONLoadF32x16_ASM(p);
-  {$ELSE}
   Result := ScalarLoadF32x16(p);
-  {$ENDIF}
 end;
 
 function NEONLoadF32x8(p: PSingle): TVecF32x8;
 begin
-  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-  Result := NEONLoadF32x8_ASM(p);
-  {$ELSE}
   Result := ScalarLoadF32x8(p);
-  {$ENDIF}
 end;
 
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
@@ -1522,29 +1514,17 @@ end;
 
 function NEONLoadF64x4(p: PDouble): TVecF64x4;
 begin
-  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-  Result := NEONLoadF64x4_ASM(p);
-  {$ELSE}
   Result := ScalarLoadF64x4(p);
-  {$ENDIF}
 end;
 
 function NEONLoadF64x8(p: PDouble): TVecF64x8;
 begin
-  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-  Result := NEONLoadF64x8_ASM(p);
-  {$ELSE}
   Result := ScalarLoadF64x8(p);
-  {$ENDIF}
 end;
 
 function NEONLoadI64x4(p: PInt64): TVecI64x4;
 begin
-  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-  Result := NEONLoadI64x4_ASM(p);
-  {$ELSE}
   Result := ScalarLoadI64x4(p);
-  {$ENDIF}
 end;
 
 function NEONMaxF32x16(const a, b: TVecF32x16): TVecF32x16;
@@ -1828,20 +1808,12 @@ end;
 
 function NEONReduceAddF32x16(const a: TVecF32x16): Single;
 begin
-  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-  Result := NEONReduceAddF32x16_ASM(a);
-  {$ELSE}
   Result := ScalarReduceAddF32x16(a);
-  {$ENDIF}
 end;
 
 function NEONReduceAddF32x8(const a: TVecF32x8): Single;
 begin
-  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-  Result := NEONReduceAddF32x8_ASM(a);
-  {$ELSE}
   Result := ScalarReduceAddF32x8(a);
-  {$ENDIF}
 end;
 
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
@@ -1855,38 +1827,22 @@ end;
 
 function NEONReduceAddF64x4(const a: TVecF64x4): Double;
 begin
-  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-  Result := NEONReduceAddF64x4_ASM(a);
-  {$ELSE}
   Result := ScalarReduceAddF64x4(a);
-  {$ENDIF}
 end;
 
 function NEONReduceAddF64x8(const a: TVecF64x8): Double;
 begin
-  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-  Result := NEONReduceAddF64x8_ASM(a);
-  {$ELSE}
   Result := ScalarReduceAddF64x8(a);
-  {$ENDIF}
 end;
 
 function NEONReduceMaxF32x16(const a: TVecF32x16): Single;
 begin
-  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-  Result := NEONReduceMaxF32x16_ASM(a);
-  {$ELSE}
   Result := ScalarReduceMaxF32x16(a);
-  {$ENDIF}
 end;
 
 function NEONReduceMaxF32x8(const a: TVecF32x8): Single;
 begin
-  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-  Result := NEONReduceMaxF32x8_ASM(a);
-  {$ELSE}
   Result := ScalarReduceMaxF32x8(a);
-  {$ENDIF}
 end;
 
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
@@ -1900,38 +1856,22 @@ end;
 
 function NEONReduceMaxF64x4(const a: TVecF64x4): Double;
 begin
-  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-  Result := NEONReduceMaxF64x4_ASM(a);
-  {$ELSE}
   Result := ScalarReduceMaxF64x4(a);
-  {$ENDIF}
 end;
 
 function NEONReduceMaxF64x8(const a: TVecF64x8): Double;
 begin
-  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-  Result := NEONReduceMaxF64x8_ASM(a);
-  {$ELSE}
   Result := ScalarReduceMaxF64x8(a);
-  {$ENDIF}
 end;
 
 function NEONReduceMinF32x16(const a: TVecF32x16): Single;
 begin
-  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-  Result := NEONReduceMinF32x16_ASM(a);
-  {$ELSE}
   Result := ScalarReduceMinF32x16(a);
-  {$ENDIF}
 end;
 
 function NEONReduceMinF32x8(const a: TVecF32x8): Single;
 begin
-  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-  Result := NEONReduceMinF32x8_ASM(a);
-  {$ELSE}
   Result := ScalarReduceMinF32x8(a);
-  {$ENDIF}
 end;
 
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
@@ -1945,38 +1885,22 @@ end;
 
 function NEONReduceMinF64x4(const a: TVecF64x4): Double;
 begin
-  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-  Result := NEONReduceMinF64x4_ASM(a);
-  {$ELSE}
   Result := ScalarReduceMinF64x4(a);
-  {$ENDIF}
 end;
 
 function NEONReduceMinF64x8(const a: TVecF64x8): Double;
 begin
-  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-  Result := NEONReduceMinF64x8_ASM(a);
-  {$ELSE}
   Result := ScalarReduceMinF64x8(a);
-  {$ENDIF}
 end;
 
 function NEONReduceMulF32x16(const a: TVecF32x16): Single;
 begin
-  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-  Result := NEONReduceMulF32x16_ASM(a);
-  {$ELSE}
   Result := ScalarReduceMulF32x16(a);
-  {$ENDIF}
 end;
 
 function NEONReduceMulF32x8(const a: TVecF32x8): Single;
 begin
-  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-  Result := NEONReduceMulF32x8_ASM(a);
-  {$ELSE}
   Result := ScalarReduceMulF32x8(a);
-  {$ENDIF}
 end;
 
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
@@ -1990,20 +1914,12 @@ end;
 
 function NEONReduceMulF64x4(const a: TVecF64x4): Double;
 begin
-  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-  Result := NEONReduceMulF64x4_ASM(a);
-  {$ELSE}
   Result := ScalarReduceMulF64x4(a);
-  {$ENDIF}
 end;
 
 function NEONReduceMulF64x8(const a: TVecF64x8): Double;
 begin
-  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-  Result := NEONReduceMulF64x8_ASM(a);
-  {$ELSE}
   Result := ScalarReduceMulF64x8(a);
-  {$ENDIF}
 end;
 
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
@@ -2188,20 +2104,12 @@ end;
 
 function NEONSplatF32x16(value: Single): TVecF32x16;
 begin
-  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-  Result := NEONSplatF32x16_ASM(value);
-  {$ELSE}
   Result := ScalarSplatF32x16(value);
-  {$ENDIF}
 end;
 
 function NEONSplatF32x8(value: Single): TVecF32x8;
 begin
-  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-  Result := NEONSplatF32x8_ASM(value);
-  {$ELSE}
   Result := ScalarSplatF32x8(value);
-  {$ENDIF}
 end;
 
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
@@ -2216,29 +2124,17 @@ end;
 
 function NEONSplatF64x4(value: Double): TVecF64x4;
 begin
-  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-  Result := NEONSplatF64x4_ASM(value);
-  {$ELSE}
   Result := ScalarSplatF64x4(value);
-  {$ENDIF}
 end;
 
 function NEONSplatF64x8(value: Double): TVecF64x8;
 begin
-  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-  Result := NEONSplatF64x8_ASM(value);
-  {$ELSE}
   Result := ScalarSplatF64x8(value);
-  {$ENDIF}
 end;
 
 function NEONSplatI64x4(value: Int64): TVecI64x4;
 begin
-  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-  Result := NEONSplatI64x4_ASM(value);
-  {$ELSE}
   Result := ScalarSplatI64x4(value);
-  {$ENDIF}
 end;
 
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
@@ -2279,20 +2175,12 @@ end;
 
 procedure NEONStoreF32x16(p: PSingle; const a: TVecF32x16);
 begin
-  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-  NEONStoreF32x16_ASM(p, a);
-  {$ELSE}
   ScalarStoreF32x16(p, a);
-  {$ENDIF}
 end;
 
 procedure NEONStoreF32x8(p: PSingle; const a: TVecF32x8);
 begin
-  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-  NEONStoreF32x8_ASM(p, a);
-  {$ELSE}
   ScalarStoreF32x8(p, a);
-  {$ENDIF}
 end;
 
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
@@ -2306,29 +2194,17 @@ end;
 
 procedure NEONStoreF64x4(p: PDouble; const a: TVecF64x4);
 begin
-  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-  NEONStoreF64x4_ASM(p, a);
-  {$ELSE}
   ScalarStoreF64x4(p, a);
-  {$ENDIF}
 end;
 
 procedure NEONStoreF64x8(p: PDouble; const a: TVecF64x8);
 begin
-  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-  NEONStoreF64x8_ASM(p, a);
-  {$ELSE}
   ScalarStoreF64x8(p, a);
-  {$ENDIF}
 end;
 
 procedure NEONStoreI64x4(p: PInt64; const a: TVecI64x4);
 begin
-  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-  NEONStoreI64x4_ASM(p, a);
-  {$ELSE}
   ScalarStoreI64x4(p, a);
-  {$ENDIF}
 end;
 
 function NEONSubF32x16(const a, b: TVecF32x16): TVecF32x16;
@@ -2480,20 +2356,12 @@ end;
 
 function NEONZeroF32x16: TVecF32x16;
 begin
-  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-  Result := NEONZeroF32x16_ASM;
-  {$ELSE}
   Result := ScalarZeroF32x16;
-  {$ENDIF}
 end;
 
 function NEONZeroF32x8: TVecF32x8;
 begin
-  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-  Result := NEONZeroF32x8_ASM;
-  {$ELSE}
   Result := ScalarZeroF32x8;
-  {$ENDIF}
 end;
 
 {$IFNDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
@@ -2507,27 +2375,15 @@ end;
 
 function NEONZeroF64x4: TVecF64x4;
 begin
-  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-  Result := NEONZeroF64x4_ASM;
-  {$ELSE}
   Result := ScalarZeroF64x4;
-  {$ENDIF}
 end;
 
 function NEONZeroF64x8: TVecF64x8;
 begin
-  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-  Result := NEONZeroF64x8_ASM;
-  {$ELSE}
   Result := ScalarZeroF64x8;
-  {$ENDIF}
 end;
 
 function NEONZeroI64x4: TVecI64x4;
 begin
-  {$IFDEF FAFAFA_SIMD_NEON_ASM_ENABLED}
-  Result := NEONZeroI64x4_ASM;
-  {$ELSE}
   Result := ScalarZeroI64x4;
-  {$ENDIF}
 end;
