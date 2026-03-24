@@ -26,6 +26,7 @@ uses
   fpcunit, testregistry,
   fafafa.core.simd,
   fafafa.core.simd.base,
+  fafafa.core.simd.backend.adapter,
   fafafa.core.simd.dispatch;
 
 type
@@ -91,6 +92,8 @@ type
   {** @abstract(framework active metadata 并发回归套件) *}
   TTestCase_SimdConcurrentFramework = class(TTestCase)
   published
+    {** backend adapter ops 与 RegisterBackend 并发读写保护 *}
+    procedure Test_Concurrent_BackendOps_RegisterBackend_ReadConsistency;
     {** current backend info 与 RegisterBackend 并发读写保护 *}
     procedure Test_Concurrent_CurrentBackendInfo_RegisterBackend_ReadConsistency;
     {** dispatchable helper 与 vector-asm toggle 并发读写保护 *}
@@ -405,6 +408,24 @@ type
     property ErrorMsg: string read FErrorMsg;
   end;
 
+  {** backend adapter ops 只读线程（与 RegisterBackend 写线程并发） *}
+  TBackendOpsReadWorker = class(TThread)
+  private
+    FIterations: Integer;
+    FBackend: TSimdBackend;
+    FExpectedTableA: TSimdDispatchTable;
+    FExpectedTableB: TSimdDispatchTable;
+    FSuccess: Boolean;
+    FErrorMsg: string;
+  protected
+    procedure Execute; override;
+  public
+    constructor Create(aIterations: Integer; aBackend: TSimdBackend;
+      const aExpectedTableA, aExpectedTableB: TSimdDispatchTable);
+    property Success: Boolean read FSuccess;
+    property ErrorMsg: string read FErrorMsg;
+  end;
+
   {** dispatchable helper 只读线程（与 vector-asm toggle 写线程并发） *}
   TDispatchableHelpersReadWorker = class(TThread)
   private
@@ -569,6 +590,17 @@ begin
   Result := Format('backend=%d available=%s caps=%d priority=%d name=%s',
     [Ord(aInfo.Backend), BoolToStr(aInfo.Available, True),
      CapabilitiesToAbiBitsLocal(aInfo.Capabilities), aInfo.Priority, aInfo.Name]);
+end;
+
+function DispatchTableRepresentativeSliceMatchesLocal(const aTable,
+  aExpected: TSimdDispatchTable): Boolean;
+begin
+  Result := (aTable.Backend = aExpected.Backend) and
+    BackendInfoMatchesLocal(aTable.BackendInfo, aExpected.BackendInfo) and
+    (Pointer(aTable.AddF32x4) = Pointer(aExpected.AddF32x4)) and
+    (Pointer(aTable.MulF32x4) = Pointer(aExpected.MulF32x4)) and
+    (Pointer(aTable.AddI32x4) = Pointer(aExpected.AddI32x4)) and
+    (Pointer(aTable.SelectF32x4) = Pointer(aExpected.SelectF32x4));
 end;
 
 function SameBackendArrayLocal(const aLeft, aRight: TSimdBackendArray): Boolean;
@@ -1540,6 +1572,19 @@ begin
   FErrorMsg := '';
 end;
 
+constructor TBackendOpsReadWorker.Create(aIterations: Integer; aBackend: TSimdBackend;
+  const aExpectedTableA, aExpectedTableB: TSimdDispatchTable);
+begin
+  inherited Create(True);
+  FreeOnTerminate := False;
+  FIterations := aIterations;
+  FBackend := aBackend;
+  FExpectedTableA := aExpectedTableA;
+  FExpectedTableB := aExpectedTableB;
+  FSuccess := False;
+  FErrorMsg := '';
+end;
+
 constructor TCurrentBackendPodInfoReadWorker.Create(aIterations: Integer; aBackend: TSimdBackend;
   aExpectedCapsEnabled, aExpectedCapsDisabled: UInt64;
   aExpectedFlagsEnabledActive, aExpectedFlagsEnabledInactive,
@@ -1585,6 +1630,44 @@ begin
   except
     on E: Exception do
       FErrorMsg := 'current backend info reader exception: ' + E.Message;
+  end;
+end;
+
+procedure TBackendOpsReadWorker.Execute;
+var
+  LIndex: Integer;
+  LObservedTable: TSimdDispatchTable;
+begin
+  try
+    for LIndex := 0 to FIterations - 1 do
+    begin
+      if (LIndex and 3) = 0 then
+        ThreadSwitch;
+
+      BackendOpsToDispatchTable(GetBackendOps(FBackend), LObservedTable);
+      if (not DispatchTableRepresentativeSliceMatchesLocal(LObservedTable, FExpectedTableA)) and
+         (not DispatchTableRepresentativeSliceMatchesLocal(LObservedTable, FExpectedTableB)) then
+      begin
+        FErrorMsg := Format(
+          'backend ops mixed snapshot at iter %d: info=(%s) add=[A:%s B:%s] mul=[A:%s B:%s] addi=[A:%s B:%s] select=[A:%s B:%s]',
+          [LIndex,
+           DescribeBackendInfoLocal(LObservedTable.BackendInfo),
+           BoolToStr(Pointer(LObservedTable.AddF32x4) = Pointer(FExpectedTableA.AddF32x4), True),
+           BoolToStr(Pointer(LObservedTable.AddF32x4) = Pointer(FExpectedTableB.AddF32x4), True),
+           BoolToStr(Pointer(LObservedTable.MulF32x4) = Pointer(FExpectedTableA.MulF32x4), True),
+           BoolToStr(Pointer(LObservedTable.MulF32x4) = Pointer(FExpectedTableB.MulF32x4), True),
+           BoolToStr(Pointer(LObservedTable.AddI32x4) = Pointer(FExpectedTableA.AddI32x4), True),
+           BoolToStr(Pointer(LObservedTable.AddI32x4) = Pointer(FExpectedTableB.AddI32x4), True),
+           BoolToStr(Pointer(LObservedTable.SelectF32x4) = Pointer(FExpectedTableA.SelectF32x4), True),
+           BoolToStr(Pointer(LObservedTable.SelectF32x4) = Pointer(FExpectedTableB.SelectF32x4), True)]);
+        Exit;
+      end;
+    end;
+
+    FSuccess := True;
+  except
+    on E: Exception do
+      FErrorMsg := 'backend ops reader exception: ' + E.Message;
   end;
 end;
 
@@ -3024,6 +3107,110 @@ begin
       end;
 
     AssertTrue('Concurrent current-backend-info register/read failed: ' + LErrorMsgs, LAllSuccess);
+  finally
+    if LBackend <> sbScalar then
+      RegisterBackend(LBackend, LOriginalTable);
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].Free;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].Free;
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_SimdConcurrentFramework.Test_Concurrent_BackendOps_RegisterBackend_ReadConsistency;
+const
+  WRITER_THREADS = 2;
+  WRITER_ITERATIONS = 160;
+  READER_THREADS = 3;
+  READER_ITERATIONS = 4000;
+var
+  LWriters: array of TBackendRegisterToggleWorker;
+  LReaders: array of TBackendOpsReadWorker;
+  LIndex: Integer;
+  LAllSuccess: Boolean;
+  LErrorMsgs: string;
+  LOldVectorAsm: Boolean;
+  LBackend: TSimdBackend;
+  LOriginalTable: TSimdDispatchTable;
+  LDisabledTable: TSimdDispatchTable;
+  LScalarTable: TSimdDispatchTable;
+
+  function IsScalarBackedForRepresentativeSlots(const aBackendTable,
+    aScalarTable: TSimdDispatchTable): Boolean;
+  begin
+    Result :=
+      (Pointer(aBackendTable.AddF32x4) = Pointer(aScalarTable.AddF32x4)) and
+      (Pointer(aBackendTable.MulF32x4) = Pointer(aScalarTable.MulF32x4)) and
+      (Pointer(aBackendTable.AddI32x4) = Pointer(aScalarTable.AddI32x4)) and
+      (Pointer(aBackendTable.SelectF32x4) = Pointer(aScalarTable.SelectF32x4));
+  end;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  LWriters := nil;
+  LReaders := nil;
+  LBackend := sbScalar;
+  LOriginalTable := Default(TSimdDispatchTable);
+  LDisabledTable := Default(TSimdDispatchTable);
+  LScalarTable := Default(TSimdDispatchTable);
+
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LBackend := GetCurrentBackend;
+    if LBackend = sbScalar then
+      Exit;
+    if not TryGetRegisteredBackendDispatchTable(LBackend, LOriginalTable) then
+      Exit;
+    if not TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable) then
+      Exit;
+    if IsScalarBackedForRepresentativeSlots(LOriginalTable, LScalarTable) then
+      Exit;
+
+    LDisabledTable := LOriginalTable;
+    LDisabledTable.BackendInfo.Available := False;
+    LDisabledTable.BackendInfo.Capabilities := [];
+    LDisabledTable.AddF32x4 := LScalarTable.AddF32x4;
+    LDisabledTable.MulF32x4 := LScalarTable.MulF32x4;
+    LDisabledTable.AddI32x4 := LScalarTable.AddI32x4;
+    LDisabledTable.SelectF32x4 := LScalarTable.SelectF32x4;
+
+    SetLength(LWriters, WRITER_THREADS);
+    SetLength(LReaders, READER_THREADS);
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex] := TBackendRegisterToggleWorker.Create(
+        WRITER_ITERATIONS, LBackend, LOriginalTable, LDisabledTable);
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex] := TBackendOpsReadWorker.Create(
+        READER_ITERATIONS, LBackend, LOriginalTable, LDisabledTable);
+
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].Start;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].Start;
+
+    for LIndex := 0 to High(LWriters) do
+      LWriters[LIndex].WaitFor;
+    for LIndex := 0 to High(LReaders) do
+      LReaders[LIndex].WaitFor;
+
+    LAllSuccess := True;
+    LErrorMsgs := '';
+    for LIndex := 0 to High(LWriters) do
+      if not LWriters[LIndex].Success then
+      begin
+        LAllSuccess := False;
+        LErrorMsgs := LErrorMsgs + LWriters[LIndex].ErrorMsg + '; ';
+      end;
+    for LIndex := 0 to High(LReaders) do
+      if not LReaders[LIndex].Success then
+      begin
+        LAllSuccess := False;
+        LErrorMsgs := LErrorMsgs + LReaders[LIndex].ErrorMsg + '; ';
+      end;
+
+    AssertTrue('Concurrent backend-ops register/read failed: ' + LErrorMsgs, LAllSuccess);
   finally
     if LBackend <> sbScalar then
       RegisterBackend(LBackend, LOriginalTable);

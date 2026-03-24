@@ -2595,6 +2595,49 @@
 | What have I learned? | 这轮证明，当前 owned-state publication 不只是能扛住无关 heap churn，也能扛住真实 backend text refresh churn：fresh getter 会跟随当前文本，历史 text pointers 仍保持有效。 |
 | What have I done? | 已把 pointer-lifetime 测试升级成真实 repeated re-register churn 护栏，并用 fresh release suite/check/gate 把这条候选收口为“guard green”；随后可继续切回更像实现缺陷的 helper/adapter 候选。 |
 
+### Phase 67: backend adapter `GetBackendOps` concurrent register/read guard closeout
+- **Status:** complete
+- Actions taken:
+  - 继续沿 backend adapter / helper wrapper 路径深审后，没有直接改 `src/fafafa.core.simd.backend.adapter.pas`，而是先补一条 machine-readable 并发护栏：
+    - 在 `tests/fafafa.core.simd/fafafa.core.simd.concurrent.testcase.pas` 的 `TTestCase_SimdConcurrentFramework` 新增 `Test_Concurrent_BackendOps_RegisterBackend_ReadConsistency`
+    - 同文件新增 `TBackendOpsReadWorker`
+    - 该 reader 每轮都执行 `GetBackendOps(FBackend)`，再 `BackendOpsToDispatchTable(...)` round-trip 回 dispatch table，只接受完整的 enabled/disabled 两态
+  - 新测试显式选择一个当前 non-scalar backend，构造两套真实会分叉的 backend table：
+    - enabled table 直接复用原始 registered snapshot
+    - disabled table 把 `BackendInfo.Available/Capabilities` 收紧到 disabled 态
+    - 同时把 `AddF32x4/MulF32x4/AddI32x4/SelectF32x4` 四个代表槽位切到 scalar-backed 指针
+    - writer 线程持续在两套 table 间 `RegisterBackend(...)` 切换
+  - fresh red-or-green 定向复验：
+    - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch67-backendops-concurrent-red-or-green-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrentFramework`
+    - 结果：PASS，`[LEAK] OK`
+  - 由此确认当前实现已经满足这条更强语义：
+    - `GetBackendOps(backend)` 的 helper 可见 metadata 与 representative slots 不会在 concurrent `RegisterBackend(...)` churn 下拼成 mixed snapshot
+    - 现有 `TryGetRegisteredBackendDispatchTable(...)` published snapshot 读取链与 adapter round-trip 已经把这条 contract 守住
+    - 这轮收口的是 guard gap，而不是新的生产 bug
+  - 随后按完整批次收尾，继续跑 fresh release `check` / `gate`：
+    - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch67-backendops-concurrent-check-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+    - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch67-backendops-concurrent-gate-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 记录关键运行结果：
+    - fresh `TTestCase_SimdConcurrentFramework` PASS，`[LEAK] OK`
+    - fresh `check` PASS
+    - fresh `gate` 最终 `[GATE] OK`
+    - run-all summary 时间：`2026-03-24 10:43:07`
+- Files created/modified:
+  - `tests/fafafa.core.simd/fafafa.core.simd.concurrent.testcase.pas` (modified again)
+  - `task_plan.md` (modified)
+  - `findings.md` (modified)
+  - `progress.md` (modified)
+  - `workers/worker0.md` (modified)
+
+## 5-Question Reboot Check (Phase 67 Update)
+| Question | Answer |
+|----------|--------|
+| Where am I? | Linux fresh `TTestCase_SimdConcurrentFramework`、fresh `check`、fresh `gate` 都已重新通过；本轮最新把 backend adapter `GetBackendOps(backend)` 的 concurrent register/read 合同补成了独立 regression guard。 |
+| Where am I going? | 下一轮继续深审 current-active helper / public-view pair drift，优先找 `GetCurrentBackend`、`GetCurrentBackendInfo`、以及 public ABI active metadata 在 repeated control-plane churn 下的 fresh red。 |
+| What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
+| What have I learned? | 这轮证明，当前 published backend snapshot + adapter round-trip 读取链已经能守住 `GetBackendOps` 的并发一致性：helper 可见 metadata 与代表性 slots 不会在 `RegisterBackend(...)` churn 下混搭。 |
+| What have I done? | 已为 `GetBackendOps(backend)` 补上 concurrent re-register 护栏，并用 fresh release suite/check/gate 把这条候选收口为“guard green”；随后可继续切到 current-active helper / public-view pair 的更深层 drift 候选。 |
+
 ### Phase 61: ResetToAutomaticBackend restore-callback late-force second-layer closure closeout
 - **Status:** complete
 - Actions taken:

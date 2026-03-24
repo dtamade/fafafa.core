@@ -4,7 +4,7 @@
 审查 `fafafa.core.simd` 及其 `cpuinfo` 相关模块，找出可验证的问题并完成至少一轮根因修复，同时产出可连续执行的后续修复与审查计划。
 
 ## Current Phase
-Phase 66 complete; public ABI backend text pointer lifetime is now covered by a real repeated re-register churn guard, and current owned-state publication keeps both fresh text refresh and old pointer validity stable under refresh pressure
+Phase 67 complete; backend adapter `GetBackendOps(backend)` is now covered by a concurrent re-register guard, and current published snapshot plus adapter round-trip keeps helper-visible metadata and representative slots stable under `RegisterBackend(...)` churn
 
 ## Phases
 
@@ -1300,3 +1300,32 @@ Phase 66 complete; public ABI backend text pointer lifetime is now covered by a 
 | What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
 | What have I learned? | 这轮证明，当前 owned-state publication 不只是能扛住“无害 heap churn”，也能扛住真实 backend text refresh churn：fresh getter 会跟随当前文本，历史 text pointers 仍保持有效。 |
 | What have I done? | 已把 pointer-lifetime 测试升级成真实 repeated re-register churn 护栏，并用 fresh release suite/check/gate 把这条候选收口为“guard green”；随后可继续切回更像实现缺陷的 helper/adapter 候选。 |
+
+### Phase 67: backend adapter `GetBackendOps` concurrent register/read guard closeout
+- [x] 在 `tests/fafafa.core.simd/fafafa.core.simd.concurrent.testcase.pas` 新增 `TBackendOpsReadWorker` 与 `Test_Concurrent_BackendOps_RegisterBackend_ReadConsistency`，对同一 backend 持续 `RegisterBackend(...)` 切换 enabled/disabled 两套 table，同时并发读取 `GetBackendOps(backend)`
+- [x] 用 fresh release `TTestCase_SimdConcurrentFramework` 先验证这条 adapter/helper 候选是 fresh red 还是即刻 green，避免对已切到 published snapshot 的实现做无证据补丁
+- [x] 确认当前 `src/fafafa.core.simd.backend.adapter.pas` + `TryGetRegisteredBackendDispatchTable(...)` 的 published-snapshot 读取路径已经满足这条更强语义：`GetBackendOps` round-trip 回 dispatch table 后，metadata 与代表性 slots 始终落在完整的 enabled/disabled snapshot，而不会混搭
+- [x] 用 fresh release `check`、fresh release `gate` 复验新增护栏没有引入回归
+- **Status:** complete
+
+- 2026-03-24 最新 backend adapter concurrent guard closeout 证据：
+  - targeted suite: `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch67-backendops-concurrent-red-or-green-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_SimdConcurrentFramework` -> PASS，`[LEAK] OK`
+  - check: `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch67-backendops-concurrent-check-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh check` -> PASS
+  - gate: `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-contract-audit/.simd-output/batch67-backendops-concurrent-gate-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh gate` -> PASS，最终 `[GATE] OK`，run-all summary 时间 `2026-03-24 10:43:07`
+- 这轮结论仍是“测试护栏缺口”，不是新的生产 bug：
+  - 之前 deterministic adapter 测试已经补齐了 unregistered metadata 与 registered empty-text drift，但还没有 machine-readable 证据去证明 `GetBackendOps(backend)` 在 concurrent `RegisterBackend(...)` churn 下不会把 metadata 和 representative slots 拼成 mixed snapshot
+  - 新测试显式选择一个当前 non-scalar backend，把 disabled table 的 `Available/Capabilities` 和 `AddF32x4/MulF32x4/AddI32x4/SelectF32x4` 收紧到 scalar-backed 代表态，再让 reader 把 `GetBackendOps` round-trip 回 dispatch table 只接受完整 A/B 两态
+  - fresh targeted suite、fresh `check`、fresh `gate` 全绿，说明当前 published backend snapshot + adapter round-trip 读取路径在现有宿主机上没有暴露新的 adapter mixed snapshot
+- 下一轮连续计划优先级更新为：
+  1. 从 `GetBackendOps(backend)` guard closeout 继续切到 current-active helper / public-view pair drift，优先找 `GetCurrentBackend`、`GetCurrentBackendInfo`、public ABI active metadata 三者之间在 repeated control-plane churn 下的 fresh red
+  2. 继续核对 external consumer cached table / helper 在 repeated `RegisterBackend(...)` / hook / toggle 之后，是否还存在“控制面已收口，但 helper/public-view pair 仍漂移”的真实问题
+  3. 持续使用 worktree-local `SIMD_OUTPUT_ROOT/TMPDIR`，并保持“fresh red-or-green -> check -> gate -> 文档 -> commit”的批次节奏
+
+## 5-Question Reboot Check (Phase 67 Update)
+| Question | Answer |
+|----------|--------|
+| Where am I? | Linux fresh `TTestCase_SimdConcurrentFramework`、fresh `check`、fresh `gate` 都已重新通过；本轮最新把 backend adapter `GetBackendOps(backend)` 的 concurrent register/read 合同补成了独立 regression guard。 |
+| Where am I going? | 下一轮继续深审 current-active helper / public-view pair drift，优先找 `GetCurrentBackend`、`GetCurrentBackendInfo`、以及 public ABI active metadata 在 repeated control-plane churn 下的 fresh red。 |
+| What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
+| What have I learned? | 这轮证明，当前 published backend snapshot + adapter round-trip 读取链已经能守住 `GetBackendOps` 的并发一致性：helper 可见 metadata 与代表性 slots 不会在 `RegisterBackend(...)` churn 下混搭。 |
+| What have I done? | 已为 `GetBackendOps(backend)` 补上 concurrent re-register 护栏，并用 fresh release suite/check/gate 把这条候选收口为“guard green”；随后可继续切到 current-active helper / public-view pair 的更深层 drift 候选。 |
