@@ -19,6 +19,7 @@ type
   TTestCase_AtomicCompatContract = class(TTestCase)
   published
     procedure Test_api_compat_compile_contract;
+    procedure Test_api_compat_runtime_smoke;
   end;
 
 procedure TTestCase_AtomicCompatContract.Test_api_compat_compile_contract;
@@ -58,6 +59,50 @@ begin
   // silence unused warnings
   if ok and (p <> nil) then
     p := p;
+end;
+
+procedure TTestCase_AtomicCompatContract.Test_api_compat_runtime_smoke;
+var
+  p: Pointer;
+  oldP: Pointer;
+  expP: Pointer;
+  tagged: atomic_tagged_ptr_t;
+  loaded: atomic_tagged_ptr_t;
+  expectedTagged: atomic_tagged_ptr_t;
+  ok: Boolean;
+begin
+  p := Pointer(PtrUInt(16));
+
+  oldP := atomic_fetch_add(p, Pointer(PtrUInt(8)));
+  CheckEquals(PtrUInt(16), PtrUInt(oldP));
+  CheckEquals(PtrUInt(24), PtrUInt(p));
+
+  oldP := atomic_fetch_sub(p, Pointer(PtrUInt(4)));
+  CheckEquals(PtrUInt(24), PtrUInt(oldP));
+  CheckEquals(PtrUInt(20), PtrUInt(p));
+
+  atomic_store_ptr(p, Pointer(PtrUInt(64)), mo_release);
+  CheckEquals(PtrUInt(64), PtrUInt(atomic_load_ptr(p, mo_acquire)));
+
+  expP := Pointer(PtrUInt(64));
+  ok := atomic_compare_exchange_strong_ptr(p, expP, Pointer(PtrUInt(96)));
+  CheckTrue(ok, 'compat pointer CAS should succeed');
+  CheckEquals(PtrUInt(96), PtrUInt(p));
+
+  tagged := make_atomic_tagged_ptr_t(Pointer(PtrUInt(128)), 1);
+  loaded := atomic_load_atomic_tagged_ptr_t(tagged, mo_acquire);
+  CheckEquals(PtrUInt(128), PtrUInt(atomic_tagged_ptr_get_ptr(loaded)));
+  CheckEquals(1, atomic_tagged_ptr_get_tag(loaded));
+
+  expectedTagged := loaded;
+  ok := atomic_compare_exchange_strong_atomic_tagged_ptr_t(
+    tagged,
+    expectedTagged,
+    make_atomic_tagged_ptr_t(Pointer(PtrUInt(256)), 2)
+  );
+  CheckTrue(ok, 'compat tagged CAS should succeed');
+  CheckEquals(PtrUInt(256), PtrUInt(atomic_tagged_ptr_get_ptr(tagged)));
+  CheckEquals(2, atomic_tagged_ptr_get_tag(tagged));
 end;
 
 procedure RegisterAtomicCompatContractTests;

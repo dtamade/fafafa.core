@@ -61,6 +61,8 @@ type
     procedure Test_Flatten;
     procedure Test_And_;
     procedure Test_Or_;
+    procedure Test_AndResult_Deprecated_Compatibility;
+    procedure Test_OrResult_Deprecated_Compatibility;
     procedure Test_Contains;
     procedure Test_ContainsErr;
     procedure Test_FilterOrElse;
@@ -958,6 +960,44 @@ begin
   CheckEquals(1, C.Unwrap);
 end;
 
+procedure TTestCase_TResult_Combinators.Test_AndResult_Deprecated_Compatibility;
+var
+  A, B, C: TIntResult;
+begin
+  {$PUSH}
+  {$WARN 5066 OFF} // legacy compat path intentionally kept under test
+  A := TIntResult.Ok(1);
+  B := TIntResult.Ok(2);
+  C := A.AndResult(B);
+  CheckTrue(C.IsOk);
+  CheckEquals(2, C.Unwrap);
+
+  A := TIntResult.Err('legacy-and');
+  C := A.AndResult(B);
+  CheckTrue(C.IsErr);
+  CheckEquals('legacy-and', C.UnwrapErr);
+  {$POP}
+end;
+
+procedure TTestCase_TResult_Combinators.Test_OrResult_Deprecated_Compatibility;
+var
+  A, B, C: TIntResult;
+begin
+  {$PUSH}
+  {$WARN 5066 OFF} // legacy compat path intentionally kept under test
+  A := TIntResult.Err('legacy-or');
+  B := TIntResult.Ok(99);
+  C := A.OrResult(B);
+  CheckTrue(C.IsOk);
+  CheckEquals(99, C.Unwrap);
+
+  A := TIntResult.Ok(7);
+  C := A.OrResult(B);
+  CheckTrue(C.IsOk);
+  CheckEquals(7, C.Unwrap);
+  {$POP}
+end;
+
 procedure TTestCase_TResult_Combinators.Test_Contains;
 var
   R: TIntResult;
@@ -1490,8 +1530,9 @@ begin
   end;
   {$ELSE}
   // Release 模式：nil 检查已移除，测试自动通过
-  if R.IsOk then; // suppress unused variable warning
-  if F = F then;  // suppress unused variable warning
+  R := TIntResult.Ok(0);
+  F := nil;
+  if R.IsOk and (F = nil) then; // suppress unused variable warning
   {$ENDIF}
 end;
 
@@ -1513,8 +1554,9 @@ begin
   end;
   {$ELSE}
   // Release 模式：nil 检查已移除，测试自动通过
-  if R.IsErr then; // suppress unused variable warning
-  if F = F then;   // suppress unused variable warning
+  R := TIntResult.Err('release-skip');
+  F := nil;
+  if R.IsErr and (F = nil) then; // suppress unused variable warning
   {$ENDIF}
 end;
 
@@ -1536,8 +1578,9 @@ begin
   end;
   {$ELSE}
   // Release 模式：nil 检查已移除，测试自动通过
-  if R.IsOk then; // suppress unused variable warning
-  if F = F then;  // suppress unused variable warning
+  R := TIntResult.Ok(0);
+  F := nil;
+  if R.IsOk and (F = nil) then; // suppress unused variable warning
   {$ENDIF}
 end;
 
@@ -1559,8 +1602,9 @@ begin
   end;
   {$ELSE}
   // Release 模式：nil 检查已移除，测试自动通过
-  if R.IsErr then; // suppress unused variable warning
-  if F = F then;   // suppress unused variable warning
+  R := TIntResult.Err('release-skip');
+  F := nil;
+  if R.IsErr and (F = nil) then; // suppress unused variable warning
   {$ENDIF}
 end;
 
@@ -1584,9 +1628,10 @@ begin
   end;
   {$ELSE}
   // Release 模式：nil 检查已移除，测试自动通过
-  if R.IsOk then; // suppress unused variable warning
-  if F = F then;  // suppress unused variable warning
-  V := 0;         // suppress unused variable warning
+  R := TIntResult.Ok(0);
+  F := nil;
+  V := 0;
+  if R.IsOk and (F = nil) and (V = 0) then; // suppress unused variable warning
   {$ENDIF}
 end;
 
@@ -3827,6 +3872,7 @@ begin
   R3 := R3.InspectErr(
     procedure(const E: string)
     begin
+      if E = E then; // suppress unused parameter hint for Err-only branch
       InspectErrCalled := True;
     end
   );
@@ -3843,6 +3889,7 @@ begin
   R2 := R.Inspect(
     procedure(const V: Integer)
     begin
+      if V = V then; // suppress unused parameter hint for Ok-only branch
       InspectCalled := True;
     end
   );
@@ -4135,6 +4182,9 @@ var
   Success: Boolean;
 begin
   // 测试空数组的 collect
+  Arr := nil;
+  OutArr := nil;
+  OutErr := '';
   SetLength(Arr, 0);
   Success := specialize TryCollectPtrIntoArray<Integer, string>(nil, 0, OutArr, OutErr);
 

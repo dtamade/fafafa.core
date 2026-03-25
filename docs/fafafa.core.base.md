@@ -1,5 +1,16 @@
 # fafafa.core.base — 基础约定与统一别名
 
+> 当前 strict L0 语义以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准。
+> `fafafa.core.base` 是 strict non-SIMD L0 的基础语义单元，不应承载容器、IO、线程或服务层语义。
+
+## 当前 source-of-truth
+
+1. `docs/fafafa.core.l0.foundation.md`
+2. `docs/ARCHITECTURE_LAYERS.md`
+3. `src/fafafa.core.base.pas`
+4. `tests/fafafa.core.base/README.md`
+5. `tests/fafafa.core.base/BuildOrTest.sh`
+
 ## 概述
 
 `fafafa.core.base` 是 fafafa.core 框架的基础模块，定义了全框架共享的类型别名、常量、异常体系和工具函数。所有其他模块都依赖此模块。

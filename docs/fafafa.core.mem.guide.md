@@ -1,732 +1,186 @@
 # fafafa.core.mem 使用指南
 
-## 概述
+这份指南只讲当前还适合直接继承的用法，不再重复历史 closeout、固定性能数字或过时目录结构。
 
-`fafafa.core.mem` 是 fafafa.core 框架的内存管理模块，提供：
-- 统一的分配器接口（IAllocator）
-- 多种内存池实现（Slab、Fixed、Growing Arena、Object Pool）
-- 高性能内存分配策略
-- 零碎片内存管理
+## 当前 source-of-truth
 
-## 快速入门
+先看：
 
-### 1. 使用 RTL 分配器
+1. `docs/fafafa.core.mem.md`
+2. `src/fafafa.core.mem.pas`
+3. `src/fafafa.core.mem.allocator.foundation.pas`
+4. `src/fafafa.core.mem.allocator.pas`
+5. `src/fafafa.core.mem.memPool.pas`
+6. `src/fafafa.core.mem.stackPool.pas`
+7. `src/fafafa.core.mem.pool.slab.pas`
+
+## 先选哪一层
+
+### 只需要基础内存操作
+
+用 `fafafa.core.mem`、`fafafa.core.mem.alloc`、`fafafa.core.mem.aligned`。
+
+适合：
+
+- 显式分配 / 释放
+- 对齐分配
+- `Fill`、`Copy`、`Zero` 这类基础操作
+
+### 需要固定块池
+
+用 `fafafa.core.mem.memPool`。
+
+适合：
+
+- 等大小对象
+- 节点池
+- 生命周期相对独立的重复分配
+
+### 需要作用域式顺序分配
+
+用 `fafafa.core.mem.stackPool` 和 `fafafa.core.mem.stack_scope_helpers`。
+
+适合：
+
+- 一次性批处理
+- 临时解析缓冲
+- 明确的 mark / restore 语义
+
+### 需要多尺寸小对象分配
+
+用 `fafafa.core.mem.pool.slab`。
+
+适合：
+
+- 小对象频繁分配 / 释放
+- 需要 fallback 大对象路径
+- 需要只读统计快照
+
+### 需要并发变体
+
+直接 uses 对应并发或分片子单元：
+
+- `fafafa.core.mem.blockpool.concurrent`
+- `fafafa.core.mem.blockpool.sharded`
+- `fafafa.core.mem.pool.slab.concurrent`
+- `fafafa.core.mem.pool.slab.sharded`
+
+不要把默认的 `TMemPool`、`TStackPool`、`TSlabPool` 误当成通用线程安全实现。
+
+### 需要 strict L0 allocator contract
+
+优先用 `fafafa.core.mem.allocator.foundation`。
+
+适合：
+
+- 只想依赖 allocator contract + minimal backend
+- 不希望把 `mimalloc` / `crtAllocator` 之类可选后端带进 strict L0 依赖面
+- 为 `base` / `option` / `result` / `atomic` 一类基础模块提供最小 allocator 入口
+
+## 当前推荐用法
+
+### 分配器优先
 
 ```pascal
 uses
-  fafafa.core.mem.allocator;
+  fafafa.core.mem,
+  fafafa.core.mem.allocator.foundation;
 
 var
-  Allocator: IAllocator;
-  Ptr: Pointer;
+  LAllocator: IAllocator;
+  LPtr: Pointer;
 begin
-  // 获取 RTL 分配器（使用 FreePascal 的 GetMem/FreeMem）
-  Allocator := GetRtlAllocator;
-
-  // 分配内存
-  Ptr := Allocator.GetMem(1024);
+  LAllocator := GetRtlAllocator;
+  LPtr := LAllocator.GetMem(1024);
   try
-    // 使用内存...
+    Fill(LPtr, 1024, $5A);
   finally
-    Allocator.FreeMem(Ptr);
+    LAllocator.FreeMem(LPtr);
   end;
 end;
 ```
 
-### 2. 使用 Slab 内存池
+### StackPool 作用域恢复
 
 ```pascal
 uses
-  fafafa.core.mem.pool.slab;
+  fafafa.core.mem.stackPool,
+  fafafa.core.mem.stack_scope_helpers;
 
 var
-  Pool: TSlabPool;
-  Ptr: Pointer;
+  LPool: TStackPool;
+  LGuard: TStackScopeGuard;
+  LPtr: Pointer;
 begin
-  // 创建 Slab 池（初始容量 4KB）
-  Pool := TSlabPool.Create(4096);
+  LPool := TStackPool.Create(4096);
   try
-    // 分配小对象（64 字节）
-    Ptr := Pool.GetMem(64);
+    LGuard := TStackScopeGuard.Enter(LPool);
     try
-      // 使用内存...
+      LPtr := LPool.Alloc(256, 16);
+      Fill(LPtr, 256, $11);
     finally
-      Pool.FreeMem(Ptr);
+      LGuard.Leave;
     end;
   finally
-    Pool.Free;
+    LPool.Free;
   end;
 end;
 ```
 
-### 3. 使用 Growing Arena
+### SlabPool 配合只读统计
 
 ```pascal
 uses
-  fafafa.core.mem.arena.growable,
-  fafafa.core.mem.layout;
+  fafafa.core.mem.pool.slab,
+  fafafa.core.mem.stats;
 
 var
-  Arena: TGrowingArena;
-  Config: TGrowingArenaConfig;
-  Ptr1, Ptr2: Pointer;
-  Mark: TArenaMarker;
+  LPool: TSlabPool;
+  LStats: TSlabPoolStats;
+  LPtr: Pointer;
 begin
-  // 创建 Arena（几何增长策略）
-  Config := TGrowingArenaConfig.Default(4096);
-  Config.GrowthKind := agkGeometric;
-  Config.GrowthFactor := 2.0;
-  Arena := TGrowingArena.Create(Config);
+  LPool := TSlabPool.Create(4096);
   try
-    // 快速分配多个对象
-    Ptr1 := Arena.Alloc(TMemLayout.Create(64, 8)).Ptr;
-    Ptr2 := Arena.Alloc(TMemLayout.Create(128, 16)).Ptr;
-
-    // 保存标记点
-    Mark := Arena.SaveMark;
-
-    // 更多分配...
-
-    // 恢复到标记点（批量释放）
-    Arena.RestoreToMark(Mark);
-
-    // 或者重置整个 Arena
-    Arena.Reset;
-  finally
-    Arena.Free;
-  end;
-end;
-```
-
-### 4. 使用对象池
-
-```pascal
-uses
-  fafafa.core.mem.pool.objectPool;
-
-type
-  TConnection = class
-    Host: string;
-    Port: Integer;
-    procedure Connect;
-    procedure Disconnect;
-  end;
-
-var
-  Pool: specialize TObjectPool<TConnection>;
-  Conn: TConnection;
-begin
-  // 创建对象池（使用 Builder 模式）
-  Pool := specialize TObjectPool<TConnection>.Create(
-    specialize TObjectPool<TConnection>.TConfig.Default
-      .WithMaxSize(10)
-      .WithCreator(
-        function: TConnection
-        begin
-          Result := TConnection.Create;
-        end)
-      .WithInit(
-        procedure(C: TConnection)
-        begin
-          C.Connect;
-        end)
-      .WithFinalize(
-        procedure(C: TConnection)
-        begin
-          C.Disconnect;
-        end)
-  );
-  try
-    // 获取对象
-    if Pool.AcquireObject(Conn) then
-    begin
-      try
-        // 使用连接...
-      finally
-        Pool.ReleaseObject(Conn);
-      end;
-    end;
-  finally
-    Pool.Free;
-  end;
-end;
-```
-
-## 常见使用场景
-
-### 场景 1: 频繁分配小对象（使用 Slab Pool）
-
-```pascal
-type
-  TNode = record
-    Value: Integer;
-    Next: Pointer;
-  end;
-  PNode = ^TNode;
-
-var
-  Pool: TSlabPool;
-  Node: PNode;
-  I: Integer;
-begin
-  // 创建 Slab 池
-  Pool := TSlabPool.Create(8192);
-  try
-    // 频繁分配节点
-    for I := 1 to 1000 do
-    begin
-      Node := PNode(Pool.GetMem(SizeOf(TNode)));
-      Node^.Value := I;
-      // 使用节点...
-    end;
-
-    // 批量释放（重置池）
-    Pool.Reset;
-  finally
-    Pool.Free;
-  end;
-end;
-```
-
-### 场景 2: 临时对象批量分配（使用 Growing Arena）
-
-```pascal
-// 编译器 AST 节点的临时分配
-type
-  TASTNode = record
-    NodeType: Integer;
-    Value: string;
-    Children: array of Pointer;
-  end;
-  PASTNode = ^TASTNode;
-
-procedure ParseExpression(Arena: TGrowingArena);
-var
-  Node: PASTNode;
-  Mark: TArenaMarker;
-begin
-  // 保存标记点
-  Mark := Arena.SaveMark;
-  try
-    // 分配 AST 节点
-    Node := PASTNode(Arena.Alloc(TMemLayout.Create(SizeOf(TASTNode), 8)).Ptr);
-    Node^.NodeType := 1;
-    Node^.Value := 'expression';
-
-    // 解析子表达式...
-
-    // 如果解析失败，恢复到标记点
-    if ParseFailed then
-      Arena.RestoreToMark(Mark);
-  except
-    // 异常时恢复
-    Arena.RestoreToMark(Mark);
-    raise;
-  end;
-end;
-```
-
-### 场景 3: 数据库连接池（使用 Object Pool）
-
-```pascal
-type
-  TDBConnection = class
-  private
-    FConnected: Boolean;
-  public
-    Host: string;
-    Port: Integer;
-    Database: string;
-    procedure Connect;
-    procedure Disconnect;
-    function ExecuteQuery(const SQL: string): Boolean;
-  end;
-
-var
-  ConnectionPool: specialize TObjectPool<TDBConnection>;
-
-procedure InitializeConnectionPool;
-begin
-  ConnectionPool := specialize TObjectPool<TDBConnection>.Create(
-    specialize TObjectPool<TDBConnection>.TConfig.Default
-      .WithMaxSize(20)  // 最多 20 个连接
-      .WithCreator(
-        function: TDBConnection
-        begin
-          Result := TDBConnection.Create;
-          Result.Host := 'localhost';
-          Result.Port := 5432;
-          Result.Database := 'mydb';
-        end)
-      .WithInit(
-        procedure(Conn: TDBConnection)
-        begin
-          Conn.Connect;  // 获取时自动连接
-        end)
-      .WithFinalize(
-        procedure(Conn: TDBConnection)
-        begin
-          // 释放时不断开连接，保持连接池
-        end)
-  );
-end;
-
-procedure ExecuteDatabaseQuery(const SQL: string);
-var
-  Conn: TDBConnection;
-begin
-  if ConnectionPool.AcquireObject(Conn) then
-  begin
+    LPtr := LPool.Alloc(64);
     try
-      Conn.ExecuteQuery(SQL);
+      LStats := GetSlabPoolStats(LPool);
     finally
-      ConnectionPool.ReleaseObject(Conn);
-    end;
-  end
-  else
-    raise Exception.Create('No available connections');
-end;
-```
-
-### 场景 4: 固定大小块分配（使用 Fixed Pool）
-
-```pascal
-uses
-  fafafa.core.mem.pool.fixed;
-
-type
-  TMessage = record
-    ID: Integer;
-    Timestamp: Int64;
-    Data: array[0..255] of Byte;
-  end;
-  PMessage = ^TMessage;
-
-var
-  MessagePool: TFixedPool;
-  Msg: PMessage;
-begin
-  // 创建固定块池（256 字节块，容量 1000）
-  MessagePool := TFixedPool.Create(SizeOf(TMessage), 1000);
-  try
-    // 分配消息
-    Msg := PMessage(MessagePool.Alloc);
-    if Msg <> nil then
-    begin
-      Msg^.ID := 1;
-      Msg^.Timestamp := GetTickCount64;
-      // 使用消息...
-
-      // 释放消息
-      MessagePool.ReleasePtr(Msg);
+      LPool.Free(LPtr);
     end;
   finally
-    MessagePool.Free;
+    LPool.Free;
   end;
 end;
 ```
 
-## 最佳实践
+## 当前使用约束
 
-### 1. 选择合适的内存池
+- `Destroy`、`Clear`、`Reset` 这类生命周期动作，应在没有并发访问时执行。
+- `fafafa.core.mem.interfaces` 当前是补充合同，不应替代对具体类行为的理解。
+- `fafafa.core.mem.allocator.foundation` 是 strict L0 入口；如果需要可选后端，再显式使用 `fafafa.core.mem.allocator`。
+- `mimalloc` 相关模块属于可选集成，能否启用取决于当前环境和构建配置。
+- `mapped` / `shared memory` 相关旧示例仍可用于追背景，但今天的框架边界优先去 `fs` 域理解。
 
-✅ **推荐做法**：
-```pascal
-// 小对象频繁分配 -> Slab Pool
-if ObjectSize <= 2048 then
-  Pool := TSlabPool.Create(InitialCapacity);
+## 当前验证入口
 
-// 临时对象批量分配 -> Growing Arena
-if TemporaryObjects then
-  Arena := TGrowingArena.Create(InitialSize);
+测试入口：
 
-// 固定大小对象 -> Fixed Pool
-if FixedSizeObjects then
-  Pool := TFixedPool.Create(ObjectSize, Capacity);
+- Windows: `tests\\fafafa.core.mem\\BuildOrTest.bat test`
+- Linux/macOS: `bash tests/fafafa.core.mem/BuildOrTest.sh`
 
-// 可重用对象 -> Object Pool
-if ReusableObjects then
-  Pool := TObjectPool<T>.Create(Config);
-```
+示例入口：
 
-❌ **避免做法**：
-```pascal
-// 不要为大对象使用 Slab Pool
-Pool := TSlabPool.Create(1024);
-Ptr := Pool.GetMem(10 * 1024 * 1024);  // 太大，应该使用标准分配器
+- Windows: `examples\\fafafa.core.mem\\BuildAndRun.bat release run`
+- Linux/macOS: `./examples/fafafa.core.mem/BuildAndRun.sh release run`
 
-// 不要为长期对象使用 Arena
-Arena := TGrowingArena.Create(4096);
-GlobalData := Arena.Alloc(...);  // Arena 适合临时对象
-```
+更详细的脚本差异和目录说明，直接看：
 
-### 2. 内存池生命周期管理
+- `tests/fafafa.core.mem/README.md`
+- `examples/fafafa.core.mem/README.md`
+- `docs/mem/guides/directory-structure.md`
 
-✅ **推荐做法**：
-```pascal
-// 使用 try-finally 确保释放
-var
-  Pool: TSlabPool;
-begin
-  Pool := TSlabPool.Create(4096);
-  try
-    // 使用池...
-  finally
-    Pool.Free;
-  end;
-end;
+## 当前边界
 
-// 或者使用接口自动管理
-var
-  Allocator: IAllocator;
-begin
-  Allocator := GetRtlAllocator;
-  // 使用 Allocator...
-  // 自动释放
-end;
-```
-
-❌ **避免做法**：
-```pascal
-// 不要忘记释放池
-Pool := TSlabPool.Create(4096);
-// 使用池...
-// 忘记 Pool.Free; - 内存泄漏！
-```
-
-### 3. Arena 标记使用
-
-✅ **推荐做法**：
-```pascal
-// 使用标记进行嵌套分配
-procedure ProcessData(Arena: TGrowingArena);
-var
-  Mark: TArenaMarker;
-begin
-  Mark := Arena.SaveMark;
-  try
-    // 临时分配...
-    ProcessSubData(Arena);
-  finally
-    Arena.RestoreToMark(Mark);  // 确保恢复
-  end;
-end;
-```
-
-❌ **避免做法**：
-```pascal
-// 不要忘记恢复标记
-Mark := Arena.SaveMark;
-// 分配...
-// 忘记 Arena.RestoreToMark(Mark); - 内存泄漏！
-```
-
-### 4. 对象池配置
-
-✅ **推荐做法**：
-```pascal
-// 使用 Builder 模式配置
-Pool := TObjectPool<T>.Create(
-  TObjectPool<T>.TConfig.Default
-    .WithMaxSize(100)
-    .WithCreator(@CreateObject)
-    .WithInit(@InitObject)
-    .WithFinalize(@FinalizeObject)
-);
-
-// 提供有意义的回调
-function CreateConnection: TConnection;
-begin
-  Result := TConnection.Create;
-  Result.Timeout := 30;
-end;
-```
-
-❌ **避免做法**：
-```pascal
-// 不要使用空回调
-Pool := TObjectPool<T>.Create(
-  TObjectPool<T>.TConfig.Default
-    .WithCreator(nil)  // 错误！必须提供创建函数
-);
-```
-
-## 常见陷阱和解决方案
-
-### 陷阱 1: 忘记释放内存
-
-❌ **问题代码**：
-```pascal
-var
-  Pool: TSlabPool;
-  Ptr: Pointer;
-begin
-  Pool := TSlabPool.Create(4096);
-  Ptr := Pool.GetMem(64);
-  // 使用 Ptr...
-  Pool.Free;  // 忘记释放 Ptr！
-end;
-```
-
-✅ **解决方案**：
-```pascal
-var
-  Pool: TSlabPool;
-  Ptr: Pointer;
-begin
-  Pool := TSlabPool.Create(4096);
-  try
-    Ptr := Pool.GetMem(64);
-    try
-      // 使用 Ptr...
-    finally
-      Pool.FreeMem(Ptr);  // 确保释放
-    end;
-  finally
-    Pool.Free;
-  end;
-end;
-```
-
-### 陷阱 2: Arena 标记混乱
-
-❌ **问题代码**：
-```pascal
-var
-  Arena: TGrowingArena;
-  Mark1, Mark2: TArenaMarker;
-begin
-  Arena := TGrowingArena.Create(4096);
-  Mark1 := Arena.SaveMark;
-  // 分配...
-  Mark2 := Arena.SaveMark;
-  // 分配...
-  Arena.RestoreToMark(Mark1);  // 跳过 Mark2，可能导致问题
-end;
-```
-
-✅ **解决方案**：
-```pascal
-var
-  Arena: TGrowingArena;
-  Mark1, Mark2: TArenaMarker;
-begin
-  Arena := TGrowingArena.Create(4096);
-  Mark1 := Arena.SaveMark;
-  try
-    // 分配...
-    Mark2 := Arena.SaveMark;
-    try
-      // 分配...
-    finally
-      Arena.RestoreToMark(Mark2);  // 先恢复内层标记
-    end;
-  finally
-    Arena.RestoreToMark(Mark1);  // 再恢复外层标记
-  end;
-end;
-```
-
-### 陷阱 3: 对象池容量不足
-
-❌ **问题代码**：
-```pascal
-var
-  Pool: specialize TObjectPool<TConnection>;
-  Conns: array[0..99] of TConnection;
-  I: Integer;
-begin
-  // 创建容量为 10 的池
-  Pool := specialize TObjectPool<TConnection>.Create(
-    specialize TObjectPool<TConnection>.TConfig.Default
-      .WithMaxSize(10)
-  );
-
-  // 尝试获取 100 个连接
-  for I := 0 to 99 do
-    Pool.AcquireObject(Conns[I]);  // 超过容量后失败
-end;
-```
-
-✅ **解决方案**：
-```pascal
-var
-  Pool: specialize TObjectPool<TConnection>;
-  Conn: TConnection;
-begin
-  // 设置合适的容量
-  Pool := specialize TObjectPool<TConnection>.Create(
-    specialize TObjectPool<TConnection>.TConfig.Default
-      .WithMaxSize(100)  // 根据实际需求设置
-  );
-
-  // 使用完立即释放
-  if Pool.AcquireObject(Conn) then
-  begin
-    try
-      // 使用连接...
-    finally
-      Pool.ReleaseObject(Conn);  // 立即释放，供其他代码使用
-    end;
-  end;
-end;
-```
-
-### 陷阱 4: 混用不同分配器
-
-❌ **问题代码**：
-```pascal
-var
-  Pool: TSlabPool;
-  Ptr: Pointer;
-begin
-  Pool := TSlabPool.Create(4096);
-  Ptr := Pool.GetMem(64);
-  FreeMem(Ptr);  // 错误！使用了 RTL 的 FreeMem
-end;
-```
-
-✅ **解决方案**：
-```pascal
-var
-  Pool: TSlabPool;
-  Ptr: Pointer;
-begin
-  Pool := TSlabPool.Create(4096);
-  Ptr := Pool.GetMem(64);
-  Pool.FreeMem(Ptr);  // 正确！使用池的 FreeMem
-end;
-```
-
-## 性能考虑
-
-### 1. 内存池性能对比
-
-| 内存池类型 | 分配速度 | 释放速度 | 内存开销 | 适用场景 |
-|-----------|---------|---------|---------|---------|
-| Slab Pool | O(1) | O(1) | 5-10% | 小对象频繁分配 |
-| Fixed Pool | O(1) | O(1) | 1-2% | 固定大小对象 |
-| Growing Arena | O(1) | O(1) 批量 | 2-5% | 临时对象批量分配 |
-| Object Pool | O(1) | O(1) | 8 字节/对象 | 可重用对象 |
-
-### 2. 性能优化建议
-
-✅ **推荐做法**：
-```pascal
-// 预分配足够的容量
-Pool := TSlabPool.Create(64 * 1024);  // 64KB 初始容量
-
-// 批量操作
-Arena := TGrowingArena.Create(4096);
-for I := 1 to 1000 do
-  Ptrs[I] := Arena.Alloc(...);
-Arena.Reset;  // 批量释放，比逐个释放快
-
-// 重用对象池
-Pool := TObjectPool<T>.Create(Config);
-// 长期持有池，重复使用
-```
-
-❌ **避免做法**：
-```pascal
-// 不要频繁创建/销毁池
-for I := 1 to 1000 do
-begin
-  Pool := TSlabPool.Create(4096);  // 每次都创建新池，性能差
-  Ptr := Pool.GetMem(64);
-  Pool.Free;
-end;
-
-// 不要使用过小的初始容量
-Pool := TSlabPool.Create(64);  // 太小，会频繁扩展
-```
-
-### 3. 内存对齐
-
-```pascal
-// SIMD 操作需要对齐内存
-var
-  Allocator: IAllocator;
-  AlignedPtr: Pointer;
-begin
-  Allocator := GetRtlAllocator;
-
-  // 分配 32 字节对齐的内存（用于 AVX）
-  AlignedPtr := Allocator.AllocAligned(256, 32);
-  try
-    // 使用对齐内存进行 SIMD 操作...
-  finally
-    Allocator.FreeAligned(AlignedPtr);
-  end;
-end;
-```
-
-## 调试和诊断
-
-### 1. 内存泄漏检测
-
-```pascal
-// 使用 HeapTrc 检测泄漏
-{$IFDEF DEBUG}
-{$DEFINE HEAPTRC}
-{$ENDIF}
-
-program MemoryLeakTest;
-
-{$IFDEF HEAPTRC}
-uses
-  HeapTrc;
-{$ENDIF}
-
-var
-  Pool: TSlabPool;
-begin
-  {$IFDEF HEAPTRC}
-  SetHeapTraceOutput('heaptrc.log');
-  {$ENDIF}
-
-  Pool := TSlabPool.Create(4096);
-  try
-    // 测试代码...
-  finally
-    Pool.Free;
-  end;
-end.
-```
-
-### 2. 性能统计
-
-```pascal
-var
-  Arena: TGrowingArena;
-begin
-  Arena := TGrowingArena.Create(4096);
-  try
-    // 使用 Arena...
-
-    // 查看统计信息
-    WriteLn('Peak Used: ', Arena.PeakUsed);
-    WriteLn('Total Allocs: ', Arena.TotalAllocCount);
-    WriteLn('Segment Count: ', Arena.SegmentCount);
-  finally
-    Arena.Free;
-  end;
-end;
-```
-
-## 相关文档
-
-- [fafafa.core.mem API 参考](fafafa.core.mem.md) - 完整的 API 文档
-- [内存管理架构](fafafa.core.mem.architecture.md) - 架构设计文档
-- [性能优化指南](fafafa.core.mem.advanced-features.md) - 高级特性和优化
-
-## 总结
-
-`fafafa.core.mem` 提供了多种高性能内存管理策略：
-
-1. **Slab Pool**：适合频繁分配小对象（8B-2048B）
-2. **Fixed Pool**：适合固定大小对象，O(1) 分配/释放
-3. **Growing Arena**：适合临时对象批量分配，支持标记/恢复
-4. **Object Pool**：适合可重用对象，减少创建/销毁开销
-
-选择合适的内存池，遵循最佳实践，可以显著提升应用性能并减少内存碎片。
+- 这份指南只覆盖当前 still-supported 的入口，不对旧报告中的“全部完成”“100%”“工业级+”做继承性背书。
+- 若文档与源码冲突，以源码和当前测试入口为准。
+- 若需要追溯旧阶段材料，请改看 `docs/mem/README.md` 下的 reports / legacy。

@@ -1,5 +1,24 @@
 # fafafa.core.result — 结果类型（Result<T,E>）
 
+> 当前 strict L0 语义以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准。
+> `fafafa.core.result` / `fafafa.core.result.facade` 属于 strict non-SIMD L0；`fafafa.core.result.collect` 因依赖 collections 不属于 strict L0。
+
+## 当前 source-of-truth
+
+1. `docs/fafafa.core.l0.foundation.md`
+2. `docs/ARCHITECTURE_LAYERS.md`
+3. `src/fafafa.core.result.pas`
+4. `src/fafafa.core.result.facade.pas`
+5. `tests/fafafa.core.result/README.md`
+6. `tests/fafafa.core.result/BuildOrTest.sh`
+
+## 当前兼容策略
+
+- `And_` / `Or_` 是 today contract 的推荐方法式 API。
+- `AndResult` / `OrResult` 继续保留为 deprecated compatibility API，用于平滑迁移。
+- 新代码应优先使用 `And_` / `Or_`；兼容 API 仍由当前测试入口覆盖，避免无意回归。
+- 兼容测试会在 legacy 调用点附近局部抑制 deprecated warning，这样 build log 仍能把注意力集中在非兼容路径的真实回归上。
+
 ## 目标
 
 - 提供跨平台、零依赖、现代化的错误处理原语：`Result<T,E>`
@@ -62,7 +81,7 @@ end;
 - `function ContainsErr(E, Eq): Boolean` — Err 且值等于 E
 - `function Equals(Other, EqT, EqE): Boolean` — 比较两个 Result 是否相等
 
-> **弃用提示**: `AndResult`/`OrResult` 已标记为 deprecated，请迁移至 `And_`/`Or_`。
+> **弃用提示**: `AndResult`/`OrResult` 已标记为 deprecated，并继续作为兼容 API 保留；新代码请迁移至 `And_`/`Or_`。
 
 ## 顶层组合子
 

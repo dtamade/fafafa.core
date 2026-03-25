@@ -1,205 +1,154 @@
 # fafafa.core 架构分层文档
 
-本文档描述 fafafa.core 框架的模块分层架构。分层原则是：**低层模块不依赖高层模块，同层模块间允许依赖**。
+本文档定义 `fafafa.core` 当前有效的模块分层。这里的层级定义优先于历史阶段文档。
+
+> 注意：
+> `docs/legacy/phase0/PHASE0_*.md` 记录的是历史阶段和 API 冻结语境，不再作为当前 Layer 分配的唯一依据。
+> 当前 L0 的详细定义以 `docs/fafafa.core.l0.foundation.md` 为准。
 
 ## 分层总览
 
-```
-┌─────────────────────────────────────────────────────────────────────────────┐
-│                              Layer 3: Applications                          │
-│                         (用户应用层，依赖下层所有模块)                         │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                              Layer 2: Features                              │
-│   crypto, json, process, socket, lockfree, fs, ...                         │
-│                         (高级功能模块，依赖 Layer 0/1)                        │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                              Layer 1: Services                              │
-│   collections, math, io, time, thread, ...                                 │
-│                         (服务模块，依赖 Layer 0)                              │
-├─────────────────────────────────────────────────────────────────────────────┤
-│                              Layer 0: Foundation                            │
-│   base, atomic, option, result, mem.allocator, simd                        │
-│                         (基础模块，仅依赖 RTL)                                │
-└─────────────────────────────────────────────────────────────────────────────┘
-```
-
----
-
-## Layer 0: Foundation（基础层）
-
-**原则**: 仅依赖 Free Pascal RTL，不依赖框架内其他模块（同层除外）。
-
-| 模块 | 文件 | 描述 | 依赖 |
-|------|------|------|------|
-| **base** | `fafafa.core.base.pas` | 基础类型、异常、工具函数 | RTL |
-| **atomic** | `fafafa.core.atomic*.pas` | 原子操作、内存屏障 | RTL |
-| **option** | `fafafa.core.option*.pas` | Rust 风格 Option<T> 类型 | base |
-| **result** | `fafafa.core.result*.pas` | Rust 风格 Result<T,E> 类型 | base |
-| **mem.allocator** | `fafafa.core.mem.allocator*.pas` | 内存分配器接口 | base |
-| **simd** | `fafafa.core.simd*.pas` (59个文件) | SIMD 向量运算 | atomic, RTL Math |
-
-### Layer 0 依赖图
-
-```
-                    ┌─────────┐
-                    │   RTL   │
-                    └────┬────┘
-                         │
-         ┌───────────────┼───────────────┐
-         │               │               │
-         ▼               ▼               ▼
-    ┌────────┐      ┌────────┐      ┌────────┐
-    │  base  │      │ atomic │      │RTL Math│
-    └───┬────┘      └───┬────┘      └───┬────┘
-        │               │               │
-        ▼               │               │
-   ┌─────────┐          │               │
-   │ option  │          │               │
-   │ result  │          │               │
-   │mem.alloc│          │               │
-   └─────────┘          │               │
-                        ▼               │
-                   ┌────────┐           │
-                   │  simd  │◄──────────┘
-                   └────────┘
+```text
++------------------------------------------------------------------+
+| Layer 3: Applications                                            |
+| 用户应用、集成代码、产品层组合逻辑                                |
++------------------------------------------------------------------+
+| Layer 2: Features                                                |
+| crypto, json, process, socket, fs, archiver, lockfree, ...       |
++------------------------------------------------------------------+
+| Layer 1: Core Services                                           |
+| simd, math, collections, bytes, io, sync, thread, time,          |
+| mem (non-allocator), ...                                         |
++------------------------------------------------------------------+
+| Layer 0: Foundation Kernel                                       |
+| settings, base, bits, layout, endian, atomic, option, result,    |
+| mem.allocator contract                                           |
++------------------------------------------------------------------+
 ```
 
-### 测试状态
+分层原则：
 
-| 模块 | 测试状态 | 测试数 | 备注 |
-|------|----------|--------|------|
-| base | ✅ PASS | - | 基础测试 |
-| atomic | ✅ PASS | - | 原子操作测试 |
-| option | ✅ PASS | 63 | 含契约检查测试 |
-| result | ✅ PASS | - | Result 类型测试 |
-| simd | ✅ PASS | - | SIMD 后端测试 |
+- 低层不能依赖高层。
+- 同层允许单向依赖，但仍应避免循环依赖。
+- L0 不是“先做出来的模块集合”，而是全框架共享的最小基础内核。
 
----
+## Layer 0: Foundation Kernel
 
-## Layer 1: Services（服务层）
+L0 只容纳真正的基础语义、内存模型和分配契约。它必须足够小，但又足够强，能稳定支撑上层模块。
 
-**原则**: 可依赖 Layer 0 模块，不依赖 Layer 2。
+当前 L0 的核心组成：
 
-| 模块 | 文件 | 描述 | 依赖 |
-|------|------|------|------|
-| **math** | `fafafa.core.math*.pas` | 数学运算、安全整数 | base, simd |
-| **collections** | `fafafa.core.collections*.pas` | 集合类型 (Vec, HashMap, VecDeque) | base, mem.allocator |
-| **io** | `fafafa.core.io*.pas` | IO 接口和实现 | base |
-| **bytes** | `fafafa.core.bytes.pas` | 字节缓冲区操作 | base, io |
-| **thread** | `fafafa.core.thread*.pas` | 线程、线程池 | base, atomic, sync |
-| **sync** | `fafafa.core.sync*.pas` | 同步原语 (Mutex, RWLock, Barrier, etc.) | base, atomic |
-| **time** | `fafafa.core.time*.pas` | 时间、时钟、定时器 | base, thread |
+| 类别 | 单元 | 说明 |
+|------|------|------|
+| 构建与契约入口 | `fafafa.core.settings.inc` | 统一承载基础宏、契约开关和平台特性开关 |
+| 基础语义 | `fafafa.core.base` | 基础类型、异常、函数类型、元组、通用约定 |
+| 可空语义 | `fafafa.core.option.base`, `fafafa.core.option` | `Option<T>` 语义与组合子 |
+| 结果语义 | `fafafa.core.result`, `fafafa.core.result.facade` | `Result<T, E>` 语义与稳定门面 |
+| 位级基础 | `fafafa.core.bits` | 对齐、幂次判断与基础整数布局 helper |
+| 布局契约 | `fafafa.core.layout` | `TMemLayout`、`TAllocCaps` 与默认对齐 / cache line / page size 契约 |
+| 字节序语义 | `fafafa.core.endian` | endian 枚举、native 解析和 byte-swap |
+| 原子与内存模型 | `fafafa.core.atomic.base`, `fafafa.core.atomic.compat`, `fafafa.core.atomic` | 原子操作、内存序、兼容层 |
+| 分配契约 | `fafafa.core.mem.allocator.foundation`, `fafafa.core.mem.allocator.base`, `fafafa.core.mem.allocator.rtlAllocator`, `fafafa.core.mem.allocator.callbackAllocator` | `foundation` 是 strict L0 入口，`base + minimal backends` 提供分配器契约与最小实现 |
 
-### Layer 1 依赖图
+L0 的明确边界：
 
-```
-Layer 0
-   │
-   ▼
-┌──────────────────────────────────────────────────┐
-│                    Layer 1                        │
-│                                                   │
-│  ┌──────┐    ┌─────────────┐    ┌──────────┐     │
-│  │ math │    │ collections │    │    io    │     │
-│  └──┬───┘    └──────┬──────┘    └────┬─────┘     │
-│     │               │                │           │
-│     │               │                ▼           │
-│     │               │           ┌────────┐       │
-│     │               │           │ bytes  │       │
-│     │               │           └────────┘       │
-│     │               │                            │
-│  ┌──┴───┐    ┌──────┴──────┐    ┌──────────┐    │
-│  │ simd │◄───│ sync        │◄───│  thread  │    │
-│  └──────┘    └─────────────┘    └────┬─────┘    │
-│                                      │          │
-│                                      ▼          │
-│                                 ┌────────┐      │
-│                                 │  time  │      │
-│                                 └────────┘      │
-└──────────────────────────────────────────────────┘
+- `simd` 不属于 L0。它包含 capability、dispatch、public ABI 和多后端实现，属于核心服务层。
+- `math` 不属于 L0。它是领域算法和数值工具层，不是最小语义内核。
+- `collections` 不属于 L0。它引入容量策略、迭代器、所有权容器和更复杂的 API 表面。
+- `bytes` / `io` / `sync` / `thread` / `time` 不属于 L0。它们已经是面向服务的上层能力。
+- `fafafa.core.result.collect` 不属于 L0，因为它依赖 `fafafa.core.collections.vec`。
+- `fafafa.core.mem.allocator.mimalloc`、`fafafa.core.mem.allocator.crtAllocator`、`fafafa.core.mem.allocator.instrumentation` 不属于严格 L0，它们是可选后端或调试扩展。
+
+L0 的依赖关系可以概括为：
+
+```text
+                 RTL
+                  |
+      +-----------+-----------+
+      |           |           |
+ settings.inc    base      atomic.base
+      |           |           |
+      |       +---+---+       +--> atomic.compat --> atomic
+      |       |       |
+      |    option   result --> result.facade
+      |
+      +--> mem.allocator.base --> rtlAllocator / callbackAllocator --> allocator.foundation
 ```
 
----
+关于 `mem.allocator` 的现状说明：
 
-## Layer 2: Features（功能层）
+- `fafafa.core.mem.allocator.foundation`、`*.base`、`rtlAllocator`、`callbackAllocator` 符合严格 L0 的定位。
+- `fafafa.core.mem.allocator.pas` 继续作为兼容 / 扩展门面统一重导出可选后端。
+- 因为这个兼容门面会牵出 `mimalloc` 和条件编译的 `crtAllocator`，所以它不应再被当作 strict L0 的唯一入口。
+- 当前架构文档把 “分配契约中心” 放在 `allocator.foundation + *.base + minimal backends` 上，而不是把所有 allocator 后端都视作纯 L0。
 
-**原则**: 可依赖 Layer 0/1 模块。
+## Layer 1: Core Services
 
-| 模块 | 文件 | 描述 | 依赖 |
-|------|------|------|------|
-| **crypto** | `fafafa.core.crypto*.pas` | 密码学 (AES, SHA, ChaCha20, etc.) | base, simd, bytes |
-| **json** | `fafafa.core.json*.pas` | JSON 解析/序列化 | base, collections |
-| **process** | `fafafa.core.process*.pas` | 进程管理 | base, io, thread |
-| **socket** | `fafafa.core.socket*.pas` | 网络套接字 | base, io |
-| **fs** | `fafafa.core.fs*.pas` | 文件系统操作 | base, io |
-| **lockfree** | `fafafa.core.lockfree*.pas` | 无锁数据结构 | base, atomic, mem |
-| **mem** | `fafafa.core.mem*.pas` (除 allocator) | 高级内存管理 | base, mem.allocator, atomic |
+Layer 1 承载“框架级服务能力”。它可以依赖 L0，但不应反向下沉到 L0。
 
----
+典型模块：
+
+| 模块族 | 说明 |
+|--------|------|
+| `fafafa.core.simd*` | 向量能力、runtime dispatch、public ABI、后端选择 |
+| `fafafa.core.math*` | 数学函数、安全整数、数值工具 |
+| `fafafa.core.collections*` | 容器、序列、容量与迭代抽象 |
+| `fafafa.core.bytes*`, `fafafa.core.io*` | 字节视图、读写抽象、缓冲 |
+| `fafafa.core.sync*`, `fafafa.core.thread*`, `fafafa.core.time*` | 并发、线程、时间相关服务 |
+| `fafafa.core.mem*`（除 allocator contract） | 内存池、管理器、对齐桥接、性能扩展 |
+
+`simd` 在当前架构中明确归 Layer 1，而不是 Layer 0。原因不是它“不重要”，而是它已经承担了比基础内核更多的职责。
+
+## Layer 2: Features
+
+Layer 2 承载更贴近业务或子系统的功能模块。它们通常组合多个 L0/L1 能力形成完整功能。
+
+典型模块：
+
+| 模块族 | 说明 |
+|--------|------|
+| `fafafa.core.crypto*` | 密码学与加密能力 |
+| `fafafa.core.json*` | JSON 解析与序列化 |
+| `fafafa.core.process*` | 进程抽象与管理 |
+| `fafafa.core.socket*`, `fafafa.core.fs*` | 网络与文件系统 |
+| `fafafa.core.archiver*` | 归档、容器格式与压缩组合 |
+| `fafafa.core.lockfree*` | 无锁数据结构与高级并发构件 |
+
+## Layer 3: Applications
+
+Layer 3 是框架使用者的应用层、集成层和产品层逻辑。它可以组合下层模块，但不反向影响分层边界。
 
 ## 分层规则
 
 ### 1. 依赖方向
 
-```
-Layer N 只能依赖 Layer N-1, N-2, ... 0
+```text
+Layer N 可以依赖 Layer N-1, N-2, ... , Layer 0
 Layer N 不能依赖 Layer N+1, N+2, ...
 ```
 
-### 2. 同层依赖
+### 2. L0 准入规则
 
-同层模块间可以互相依赖，但需避免循环依赖：
-- ✅ `math` → `simd` (单向)
-- ❌ `math` ↔ `simd` (双向循环)
+一个模块想进入 L0，至少要同时满足以下条件：
 
-### 3. RTL 依赖
+- 仅依赖 Free Pascal RTL 和已确认的 L0 单元。
+- 提供的是跨框架复用的基础语义、内存模型、布局契约或分配契约。
+- 不拥有线程、IO、文件系统、网络、runtime dispatch、容器策略或注册中心。
+- API 面足够小，稳定性要求高，适合作为上层长期依赖点。
 
-所有层都可以依赖 Free Pascal RTL：
-- `SysUtils`, `Classes`, `Math`, `BaseUnix`, `Windows` 等
+### 3. 平台与架构实现
 
-### 4. 接口优先
+- 平台差异优先通过 `.inc` 或低层专用单元承载。
+- 平台实现可以进入 L0，但前提是它只是在实现已有基础契约，而不是引入新的服务层语义。
 
-跨层交互优先使用接口（interface）而非具体类型：
-- `IAllocator` 替代 `TAllocator`
-- `IReader`/`IWriter` 替代具体流类型
+### 4. 接口优先，门面克制
 
----
+- 跨层交互优先暴露稳定接口、记录或平坦函数。
+- 门面单元可以存在，但不能把可选后端和调试扩展伪装成“天然基础层”。
 
-## 分层变更历史
+## 变更记录
 
 | 日期 | 变更 | 说明 |
 |------|------|------|
-| 2026-02-05 | simd → Layer 0 | 解耦 simd 与 math 的循环依赖，simd 改用 RTL Math |
-| 2026-02-05 | 添加 FAFAFA_CORE_CONTRACTS | 框架控制的契约检查宏 |
-
----
-
-## 附录：模块文件清单
-
-### Layer 0 文件统计
-
-| 模块 | 文件数 | 代码行数 (约) |
-|------|--------|--------------|
-| base | 1 | ~1,500 |
-| atomic | 3 | ~3,000 |
-| option | 2 | ~800 |
-| result | 2 | ~600 |
-| mem.allocator | 3 | ~1,500 |
-| simd | 59 | ~25,000 |
-| **合计** | **70** | **~32,400** |
-
-### 解耦修改清单 (2026-02-05)
-
-以下文件中的 `fafafa.core.math` 已替换为 RTL `Math`：
-
-1. `fafafa.core.simd.pas` - 删除无用的 math 引用
-2. `fafafa.core.simd.scalar.pas` - Math 替换
-3. `fafafa.core.simd.sse2.pas` - Math 替换
-4. `fafafa.core.simd.neon.pas` - Math 替换
-5. `fafafa.core.simd.utils.pas` - Math 替换
-6. `fafafa.core.simd.riscvv.pas` - Math 替换
-7. `fafafa.core.simd.intrinsics.avx.pas` - Math 替换
-8. `fafafa.core.simd.intrinsics.sse2.pas` - Math 替换
-9. `fafafa.core.simd.intrinsics.sse41.pas` - Math 替换
-10. `fafafa.core.simd.intrinsics.sse.pas` - Math 替换
-11. `fafafa.core.simd.imageproc.pas` - Math 替换
+| 2026-03-21 | 重新定义 L0 为 Foundation Kernel | 将 `simd` 移出 L0，明确 L0 只承载基础语义、原子内存模型和分配契约 |
+| 2026-02-05 | 历史上曾将 `simd` 归入旧 L0 叙述 | 当时主要目的是切断 `simd` 与 `math` 的循环依赖 |

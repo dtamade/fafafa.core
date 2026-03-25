@@ -1,0 +1,57 @@
+# fafafa.core.atomic Tests
+
+这个目录是 `fafafa.core.atomic` 当前测试入口。它负责说明 shell / Windows 两条 root runner、当前测试工程，以及支持脚本和历史产物之间的边界。
+
+## 当前 source-of-truth
+
+1. `docs/fafafa.core.atomic.md`
+2. `tests/fafafa.core.atomic/BuildOrTest.sh`
+3. `tests/fafafa.core.atomic/BuildOrTest.bat`
+4. `tests/fafafa.core.atomic/tests_atomic.lpi`
+
+## 当前测试集合
+
+当前目录主要分成三组：
+
+- 主测试工程
+  - `tests_atomic.lpi` / `.lpr`
+- 常规 testcase
+  - `Test_fafafa.core.atomic.pas`
+  - `Test_fafafa.core.atomic.base.pas`
+  - `Test_fafafa.core.atomic.contract.pas`
+  - `Test_fafafa.core.atomic.compat.contract.pas`
+- 支持材料
+  - `VerifyMultiArchDocker.sh`
+  - `atomic_heaptrc_full_output.txt`
+
+## 当前推荐入口
+
+- Windows：`tests\\fafafa.core.atomic\\BuildOrTest.bat test`
+- Linux/macOS：`bash tests/fafafa.core.atomic/BuildOrTest.sh test`
+
+如果你只想做构建检查：
+
+- Linux/macOS：`bash tests/fafafa.core.atomic/BuildOrTest.sh check`
+
+## 当前脚本行为
+
+### BuildOrTest.sh
+
+- 使用 `tools/lazbuild.sh` 或 PATH 中的 `lazbuild`
+- 构建目标：`tests_atomic.lpi`
+- 产物：`bin/tests_atomic[.exe]`
+- 支持 `build` / `check` / `test`
+- `check` / `test` 会检查 build log 中当前模块相关 `src/` 的 warning / hint；`test` 还会检查 heaptrc 泄漏输出
+
+### BuildOrTest.bat
+
+- 构建目标：`tests_atomic.lpi`
+- 产物：`bin\\tests_atomic[.exe]`
+- 支持 `build` / `check` / `test` / `clean` / `rebuild`
+
+## 当前边界
+
+- `Test_fafafa.core.atomic.compat.contract.pas` 只负责锁定 legacy pointer/tagged-pointer helper 仍可用，不代表 `fafafa.core.atomic.compat` 是新代码推荐入口。
+- `VerifyMultiArchDocker.sh` 是多架构辅助脚本，不是仓库级 current entry。
+- 这个目录只覆盖 `atomic` 域当前根测试入口，不负责更高层模块的聚合 gate。
+- 如果 README、脚本和工程文件冲突，以脚本与工程文件现状为准。

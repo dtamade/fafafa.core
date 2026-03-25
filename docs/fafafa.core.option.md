@@ -1,5 +1,16 @@
 # fafafa.core.option — 可选类型（Option<T>）
 
+> 当前 strict L0 语义以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准。
+> `fafafa.core.option.base` + `fafafa.core.option` 属于 strict non-SIMD L0，可空语义应停留在这一层，不下沉服务型能力。
+
+当前 source-of-truth
+- `docs/fafafa.core.l0.foundation.md`
+- `docs/ARCHITECTURE_LAYERS.md`
+- `src/fafafa.core.option.base.pas`
+- `src/fafafa.core.option.pas`
+- `tests/fafafa.core.option/README.md`
+- `tests/fafafa.core.option/BuildOrTest.sh`
+
 目标
 - 提供零依赖、跨平台、零额外分配的 Option<T>（Some/None）
 - 借鉴 Rust Option 的语义与 API，贴合 FPC 泛型/闭包特性
@@ -55,8 +66,8 @@ WriteLn(O.ToDebugString(function (const X: Integer): string begin Result := IntT
 测试
 - 位置：tests/fafafa.core.option/
 - 构建与运行：
-  - build: buildOrTest.bat
-  - test:  buildOrTest.bat test
+  - Linux/macOS: `bash tests/fafafa.core.option/BuildOrTest.sh test`
+  - Windows: `tests\\fafafa.core.option\\BuildOrTest.bat test`
 - 覆盖：Some/None/查询/解包/默认值 + 组合子 + Result 互转
 
 ## 测试覆盖率 (Phase 3.1)

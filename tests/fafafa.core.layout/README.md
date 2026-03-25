@@ -1,0 +1,49 @@
+# fafafa.core.layout Tests
+
+这个目录是 `fafafa.core.layout` 当前测试入口。它负责锁定布局常量、布局记录和分配能力描述的 L0 合同。
+
+## 当前 source-of-truth
+
+1. `docs/fafafa.core.layout.md`
+2. `tests/fafafa.core.layout/BuildOrTest.sh`
+3. `tests/fafafa.core.layout/BuildOrTest.bat`
+4. `tests/fafafa.core.layout/fafafa.core.layout.test.lpi`
+5. `tests/fafafa.core.layout/fafafa.core.layout.testcase.pas`
+
+## 当前测试集合
+
+- 主测试工程
+  - `fafafa.core.layout.test.lpi` / `.lpr`
+- 常规 testcase
+  - `fafafa.core.layout.testcase.pas`
+
+## 当前推荐入口
+
+- Windows：`tests\\fafafa.core.layout\\BuildOrTest.bat test`
+- Linux/macOS：`bash tests/fafafa.core.layout/BuildOrTest.sh test`
+
+如果你只想做构建检查：
+
+- Linux/macOS：`bash tests/fafafa.core.layout/BuildOrTest.sh check`
+
+## 当前脚本行为
+
+### BuildOrTest.sh
+
+- 使用 `tools/lazbuild.sh` 或 PATH 中的 `lazbuild`
+- 构建目标：`fafafa.core.layout.test.lpi`
+- 产物：`bin/fafafa.core.layout.test[.exe]`
+- 支持 `build` / `check` / `test`
+- `check` / `test` 会检查 build log 中当前模块相关 `src/` 的 warning / hint；`test` 还会检查 heaptrc 泄漏输出
+
+### BuildOrTest.bat
+
+- 构建目标：`fafafa.core.layout.test.lpi`
+- 产物：`bin\\fafafa.core.layout.test[.exe]`
+- 支持 `build` / `check` / `test` / `clean` / `rebuild`
+
+## 当前边界
+
+- 这个目录只锁定 `layout` 的 L0 契约，不替代 `mem` 域更高层的 allocator、arena 和 pool 测试。
+- `src/fafafa.core.mem.layout.pas` 继续承担 compat 角色，但布局合同的 today contract 以 `docs/fafafa.core.layout.md` 和当前测试入口为准。
+- `bin/`、`lib/`、`logs/` 是产物目录，不属于合同本体。

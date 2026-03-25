@@ -1,117 +1,85 @@
-# 文档总索引（Docs Index）
+# 文档总索引
 
-本页汇总本仓库的主要文档、示例与贡献指南入口，方便快速导航。
+本页只保留长期有效的入口，不再手工维护一份庞大的“全量清单”。
 
+## 开始阅读
 
-## 最近更新（手动维护）
-- 颜色模块（fafafa.core.color）
-  - Palette 统一采样（单点/多点/非均匀 positions + 归一化）与性质测试（端点幂等、单调性、OKLCH hue 最短路径）
-  - OKLCH→sRGB 色域策略：新增 GMT_PreserveHueDesaturate，采用“最大在域内 C”的二分搜索；测试改用性质断言并收紧 in-gamut 判定
-  - Palette 策略对象化：新增 IPaletteStrategy/TPaletteStrategy（可序列化/可共享），示例与单元测试已覆盖
-  - 新增示例：examples/fafafa.core.color/palette_demo.lpi（含 bat/ps1/sh 一键脚本）
-  - 文档与示例入口优化：docs/fafafa.core.color.md、docs/CONTRIBUTING.color.md
+- 文档治理与放置规则：`docs/README.md`
+- 架构分层：`docs/ARCHITECTURE_LAYERS.md`
+- L0 详细定义：`docs/fafafa.core.l0.foundation.md`
+- L0 收口路线图：`docs/plans/2026-03-24-l0-docs-closeout-roadmap.md`
+- 工程规范：`docs/standards/ENGINEERING_STANDARDS.md`
+- 目录规范：`docs/standards/DIRECTORY_STANDARDS.md`
+- 命名规范：`docs/standards/NAMING_CONVENTION_PROJECT.md`
+- 测试指南：`docs/TESTING.md`
+- CI 指南：`docs/CI.md`
+- 示例总览：`docs/EXAMPLES.md`
+- 变更日志：`docs/CHANGELOG.md`
 
+## 模块文档入口
 
-## 贡献指南（Contribution Guides）
-- 专项规范（fafafa.core.color）：[docs/CONTRIBUTING.color.md](CONTRIBUTING.color.md)
-- 通用贡献流程与模板：[CONTRIBUTING.md](../CONTRIBUTING.md)
+模块主文档使用统一命名：
 
-## 开发规范与流程
-- 文档说明（入口）：[docs/README.md](README.md)
-- 目录结构规范：[docs/standards/DIRECTORY_STANDARDS.md](standards/DIRECTORY_STANDARDS.md)
-- 工程规范：[docs/standards/ENGINEERING_STANDARDS.md](standards/ENGINEERING_STANDARDS.md)
-- 命名规范：[docs/standards/NAMING_CONVENTION_PROJECT.md](standards/NAMING_CONVENTION_PROJECT.md)
+- `docs/fafafa.core.<module>.md`
 
-## Layer 1（atomic + sync.*）
-- 接口审查报告：[docs/layer1/LAYER1_INTERFACE_REVIEW_REPORT.md](layer1/LAYER1_INTERFACE_REVIEW_REPORT.md)
+模块扩展文档使用：
 
-## 颜色模块（fafafa.core.color）
-- 模块文档：[docs/fafafa.core.color.md](fafafa.core.color.md)
-- 示例工程与脚本：
-  - 工程：examples/fafafa.core.color/palette_demo.lpi
-  - 主程序：examples/fafafa.core.color/palette_demo.lpr
-  - Windows 批处理：examples\fafafa.core.color\RunDemo.bat
-  - Windows PowerShell：./examples/fafafa.core.color/RunDemo.ps1
-  - Unix/macOS：bash examples/fafafa.core.color/run_demo.sh
-  - 对照示例（Clip vs Preserve）：examples/fafafa.core.color/example_clip_vs_preserve.lpr
-  - 一键运行（Clip vs Preserve）：examples\\fafafa.core.color\\RunClipVsPreserve.bat
-- 单元测试：tests/fafafa.core.color/
+- `docs/fafafa.core.<module>.<topic>.md`
 
-## 文件系统模块（fafafa.core.fs）
-- 模块文档：docs/fafafa.core.fs.md
-- 快速演示与一键脚本：
-  - Windows：examples\\fafafa.core.fs\\example_resolve_and_walk\\buildOrRun.bat
-  - Unix/macOS：examples/fafafa.core.fs/example_resolve_and_walk/buildOrRun.sh
+例如：
 
-## 字节模块（fafafa.core.bytes）
-- 模块文档：[docs/fafafa.core.bytes.md](fafafa.core.bytes.md)
-- BytesBuilder/Buffer 说明：[docs/fafafa.core.bytes.buf.md](fafafa.core.bytes.buf.md)
-- 单元测试：tests/fafafa.core.bytes/
-  - Linux/macOS：`bash tests/fafafa.core.bytes/BuildOrTest.sh check` / `bash tests/fafafa.core.bytes/BuildOrTest.sh test`
-  - 统一发现：`RUN_ACTION=check bash tests/run_all_tests.sh fafafa.core.bytes` / `bash tests/run_all_tests.sh fafafa.core.bytes`
-  - 直接运行：`./tests/fafafa.core.bytes/bin/fafafa.core.bytes.test --all --format=plainnotiming`
+- `docs/fafafa.core.base.md`
+- `docs/fafafa.core.bits.md`
+- `docs/fafafa.core.layout.md`
+- `docs/fafafa.core.endian.md`
+- `docs/fafafa.core.atomic.md`
+- `docs/fafafa.core.option.md`
+- `docs/fafafa.core.result.md`
+- `docs/fafafa.core.mem.md`
+- `docs/fafafa.core.collections.md`
+- `docs/fafafa.core.fs.md`
+- `docs/fafafa.core.simd.md`
 
-## 字符串构建器模块（fafafa.core.stringBuilder）
-- 模块文档：[docs/fafafa.core.stringBuilder.md](fafafa.core.stringBuilder.md)
-- 单元测试：tests/fafafa.core.stringBuilder/
-  - Linux/macOS：`bash tests/fafafa.core.stringBuilder/BuildOrTest.sh check` / `bash tests/fafafa.core.stringBuilder/BuildOrTest.sh test`
-  - 统一发现：`RUN_ACTION=check bash tests/run_all_tests.sh fafafa.core.stringBuilder` / `bash tests/run_all_tests.sh fafafa.core.stringBuilder`
-  - 直接运行：`./tests/fafafa.core.stringBuilder/bin/fafafa.core.stringBuilder.test --all --format=plainnotiming`
+## 领域子目录
 
-## 环境模块（fafafa.core.env）
-- 模块文档：docs/fafafa.core.env.md
-- 发布说明：docs/RELEASE-NOTES-env.md
-- 路线图：docs/fafafa.core.env.roadmap.md
-- 单元测试：tests/fafafa.core.env/
-  - Windows：`tests\run_all_tests.bat fafafa.core.env`（或 `tests\fafafa.core.env\BuildOrTest.bat`）
-  - Linux/macOS：`bash tests/run_all_tests.sh fafafa.core.env`
-  - 直接运行：`./tests/fafafa.core.env/bin/fafafa.core.env.test --all --format=plainnotiming`
-- 示例：
-  - Windows：`examples\fafafa.core.env\BuildOrRun.bat` / `BuildOrRun_Overrides.bat` / `BuildOrRun_Security.bat`
-  - Linux/macOS：`bash examples/fafafa.core.env/BuildOrRun.sh run all`
-- 文档示例验证：`./benchmarks/fafafa.core.env/bin/doc_examples_test`
-- 基准：benchmarks/fafafa.core.env/BASELINE.md
+当一个主题形成完整文档体系时，放到独立子目录中：
 
-## 终端模块（fafafa.core.term）
-- 合约文档：docs/fafafa.core.term.contracts.md
-- 事件语义与合并策略：docs/fafafa.core.term.events.md
-- UI 帧循环与双缓冲 diff：docs/fafafa.core.term.ui_loop.md
-- 更多（变更/指南）：docs/CHANGELOG_fafafa.core.term.md，docs/fafafa.core.term.md（若存在）
+- `docs/collections/`
+- `docs/lockfree/`
+- `docs/mem/`
+- `docs/fs/`
+- `docs/term/`
+- `docs/simd/`
+- `docs/benchmarks/`
+- `docs/adr/`
+- `docs/standards/`
+- `docs/reports/`
+- `docs/reviews/`
+- `docs/audits/`
+- `docs/plans/`
+- `docs/legacy/`
+- `docs/refactoring/`
 
-  - Paste 后端微基准与推荐：docs/benchmarks.md#term-paste-backends-微基准legacy-vs-ring，docs/fafafa.core.term.md#paste-后端选择与推荐配置
-  - 速查分片（最佳实践）：docs/partials/term.paste.best_practices.md
+## 如何判断一份文档是否权威
 
+按下面顺序判断：
 
-## 线程与并发（fafafa.core.thread / lockfree）
-- 指南与最佳实践：docs/fafafa.core.thread.md
-- LockFree 门面与 API：docs/topics/lockfree/README_LOCKFREE.md，docs/topics/lockfree/LockFree_API.md
+1. `docs/standards/*.md`
+2. `docs/ARCHITECTURE_LAYERS.md`
+3. `docs/fafafa.core.<module>.md`
+4. 领域子目录中的长期文档
+5. `docs/plans/`、`docs/reports/`、`docs/reviews/`
+6. `docs/legacy/` 与 `archive/reports/`
 
-## 网络与其他模块
-- Socket 模块：docs/fafafa.core.socket.md（含“测试与示例快速开始”）
-- 进程模块最佳实践：docs/fafafa.core.process.bestpractices.md
+## 当前特别说明
 
-## JSON / YAML 等数据模块
-- JSON 模块：docs/fafafa.core.json.md（含 Flags 索引与注意事项）
-- JSON Core 运行说明：docs/topics/json/json-core-usage-notes.md
-- YAML 模块说明：docs/topics/yaml/yaml-parser-notes.md
-
-## 最佳实践与常用参考
-- 最佳实践速查（中文/英文）：docs/BestPractices-Cheatsheet.md，docs/BestPractices-Cheatsheet.en.md
-- 终端测试速查：docs/partials/term.testing.md（EN：docs/partials/term.testing.en.md）
-- Collections 最佳实践分片：docs/partials/collections.best_practices.md
-
-## 示例与索引
-- 示例总索引：docs/EXAMPLES.md
-  - Crypto 一键串联入口：Windows scripts\run-crypto-examples.bat / Linux/macOS ./scripts/run-crypto-examples.sh（支持 --clean）
-
-- 示例代码根目录：examples/
-
-## CI 与性能
-- CI 指南：docs/CI.md（样例工作流与建议）
-- 基准框架 Quickstart：docs/fafafa.core.benchmark.md
-
-## FAQ 与其他
-- 常见问题（FAQ）：docs/FAQ.md（英文：FAQ.en.md）
-- 项目工作状态：`WORKING.md`
-
-—— 若有新增模块或文档，请同步更新本索引页。
+- `docs/Architecture.md` 这种歧义命名已经停止作为全局架构入口使用。
+- 历史 `PHASE0_*` 文档已归档到 `docs/legacy/phase0/`；当前 L0 以 `docs/fafafa.core.l0.foundation.md` 为准。
+- 当前 L0 文档治理总图已落到 `docs/plans/2026-03-24-l0-docs-closeout-roadmap.md`；`task_plan.md` 只继续记录执行镜像。
+- VecDeque 相关设计文档已归位到 `docs/collections/design/vecdeque-architecture.md`。
+- lockfree 领域的 guide/design/report 文档已归位到 `docs/lockfree/`。
+- mem 领域的报告与旧版指南已下沉到 `docs/mem/`，根目录只保留稳定入口。
+- fs 领域的研究、开发者说明和旧 topic 文档已归位到 `docs/fs/`。
+- term 领域的旧 guide、报告和计划文档已归位到 `docs/term/`。
+- simd 领域的专题 guide、计划、报告和 closeout/handoff 文档已归位到 `docs/simd/`。
+- 已完成的根目录修复报告已迁移到 `archive/reports/`。

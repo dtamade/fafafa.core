@@ -1,294 +1,72 @@
-# fafafa.core.mem 架构文档
+# fafafa.core.mem 架构说明
 
-## 📋 架构概述
+这份文档只描述当前还成立的组织方式，不再复述旧阶段的规模统计或“终极完成”语气。
 
-`fafafa.core.mem` 采用了标准的门面模式架构，符合 fafafa 框架的统一设计理念。
+## 当前 source-of-truth
 
-### 🏗️ 模块结构
+1. `src/fafafa.core.mem.pas`
+2. `src/fafafa.core.mem.allocator.foundation.pas`
+3. `src/fafafa.core.mem.allocator.pas`
+4. `src/fafafa.core.mem.memPool.pas`
+5. `src/fafafa.core.mem.stackPool.pas`
+6. `src/fafafa.core.mem.pool.slab.pas`
+7. `src/fafafa.core.mem.stats.pas`
+8. `src/fafafa.core.mem.interfaces.pas`
 
-```
-fafafa.core.mem/
-├── fafafa.core.mem.pas           # 主门面模块 (140行)
-├── fafafa.core.mem.memPool.pas   # 通用内存池 (200行)
-├── fafafa.core.mem.stackPool.pas # 栈式内存池 (180行)
-└── fafafa.core.mem.pool.slab.pas  # Slab分配器 (425行)
-```
+## 当前分层
 
-## 🎯 设计原则
-
-1. **职责分离** - 每个模块功能单一，易于维护
-2. **可选使用** - 用户可以只使用需要的功能模块
-3. **扩展性好** - 可以轻松添加新的池类型
-4. **中规中矩** - 遵循传统的设计模式，避免过度复杂
-
-## 📝 模块详细说明
-
-### fafafa.core.mem (主门面)
-
-**职责**: 重新导出基础内存操作和分配器功能
-
-**功能**:
-- 重新导出 `fafafa.core.mem.utils` 的内存操作函数
-- 重新导出 `fafafa.core.mem.allocator` 的分配器接口和类
-- 提供统一的访问入口
-
-**API**:
-```pascal
-// 内存操作函数
-function IsOverlap(aPtr1: Pointer; aSize1: SizeUInt; aPtr2: Pointer; aSize2: SizeUInt): Boolean;
-procedure Copy(aSrc, aDst: Pointer; aSize: SizeUInt);
-procedure Fill(aDst: Pointer; aCount: SizeUInt; aValue: UInt8);
-procedure Zero(aDst: Pointer; aSize: SizeUInt);
-function Compare(aPtr1, aPtr2: Pointer; aCount: SizeUInt): Integer;
-function Equal(aPtr1, aPtr2: Pointer; aSize: SizeUInt): Boolean;
-function IsAligned(aPtr: Pointer; aAlignment: SizeUInt = SizeOf(Pointer)): Boolean;
-function AlignUp(aPtr: Pointer; aAlignment: SizeUInt = SIZE_PTR): Pointer;
-
-// 分配器类型
-type
-  IAllocator = fafafa.core.mem.allocator.IAllocator;
-  TAllocator = fafafa.core.mem.allocator.TAllocator;
-  // ...
-
-// 注意：Pool 类统一使用 IAllocator 接口
-
-// 分配器获取函数
-function GetRtlAllocator: IAllocator;
-function GetCrtAllocator: IAllocator; // 条件编译
-function GetMimallocAllocator: IAllocator;
-function TryGetMimallocAllocator(out A: IAllocator): Boolean;
+```text
+fafafa.core.mem
+├── facade
+│   └── fafafa.core.mem
+├── allocators
+│   ├── strict L0
+│   │   ├── fafafa.core.mem.allocator.foundation
+│   │   ├── fafafa.core.mem.allocator.base
+│   │   ├── fafafa.core.mem.allocator.rtlAllocator
+│   │   └── fafafa.core.mem.allocator.callbackAllocator
+│   └── compatibility / optional
+│       ├── fafafa.core.mem.allocator
+│       ├── fafafa.core.mem.allocator.crtAllocator
+│       └── fafafa.core.mem.allocator.mimalloc
+├── pools
+│   ├── fafafa.core.mem.memPool
+│   ├── fafafa.core.mem.stackPool
+│   ├── fafafa.core.mem.pool.slab
+│   ├── fafafa.core.mem.blockpool*
+│   └── fafafa.core.mem.pool.fixed*
+├── add-ons
+│   ├── fafafa.core.mem.stats
+│   ├── fafafa.core.mem.interfaces
+│   ├── fafafa.core.mem.adapter*
+│   └── fafafa.core.mem.stack_scope_helpers
+└── optional / specialized
+    ├── fafafa.core.mem.mimalloc*
+    ├── fafafa.core.mem.memoryMap
+    ├── fafafa.core.mem.mapped*
+    └── fafafa.core.mem.pool.objectPool
 ```
 
-### fafafa.core.mem.memPool (通用内存池)
+## 当前设计取向
 
-**职责**: 提供固定大小块的通用内存池
+- 根门面负责定锚，不负责把所有内存相关能力都重新包装一遍。
+- `fafafa.core.mem.allocator.foundation` 负责 strict L0 allocator 入口；`fafafa.core.mem.allocator` 负责兼容 / 扩展聚合。
+- 具体池类型仍直接放在各自单元里；使用者应根据场景显式 `uses`。
+- `stats` 维持只读快照角色，避免把观测逻辑和池行为耦合到一起。
+- `interfaces` 只承担补充合同，不应倒推出“现有实现已经全部接口化”。
 
-**特点**:
-- 预分配固定数量的固定大小内存块
-- 快速分配和释放
-- 支持容量管理和统计
+## 当前依赖方向
 
-**API**:
-```pascal
-type
-  TMemPool = class
-    constructor Create(aBlockSize: SizeUInt; aCapacity: Integer; aAllocator: IAllocator = nil);
-    destructor Destroy; override;
-    
-    function Alloc: Pointer;
-    procedure ReleasePtr(aPtr: Pointer);
-    procedure Reset;
-    
-    property BlockSize: SizeUInt read FBlockSize;
-    property Capacity: Integer read FCapacity;
-    property AllocatedCount: Integer read FAllocatedCount;
-    property Available: Integer read GetAvailable;
-  end;
-```
+从低到高可大致理解为：
 
-**使用场景**:
-- 频繁分配/释放固定大小对象
-- 需要控制内存使用量的场景
-- 避免内存碎片的场景
+1. `alloc` / `layout` / `error`
+2. `allocator.*`
+3. `memPool` / `stackPool` / `pool.slab` / `blockpool*`
+4. `stats` / `adapter*` / `stack_scope_helpers`
+5. 示例、测试和补充文档
 
-### fafafa.core.mem.stackPool (栈式内存池)
+## 当前边界
 
-**职责**: 提供快速顺序分配的栈式内存池
-
-**特点**:
-- 顺序分配，快速释放
-- 支持状态保存和恢复
-- 支持对齐要求
-
-**API**:
-```pascal
-type
-  TStackPool = class
-    constructor Create(aSize: SizeUInt; aAllocator: IAllocator = nil);
-    destructor Destroy; override;
-    
-    function Alloc(aSize: SizeUInt; aAlignment: SizeUInt = SizeOf(Pointer)): Pointer;
-    procedure Reset;
-    
-    function SaveState: SizeUInt;
-    procedure RestoreState(aState: SizeUInt);
-    
-    property TotalSize: SizeUInt read FSize;
-    property UsedSize: SizeUInt read FOffset;
-    property AvailableSize: SizeUInt read GetAvailableSize;
-    
-    function IsEmpty: Boolean;
-    function IsFull: Boolean;
-  end;
-```
-
-**使用场景**:
-- 临时对象分配
-- 需要批量释放的场景
-- 解析器、编译器等需要大量临时内存的场景
-
-### fafafa.core.mem.pool.slab (nginx风格Slab分配器)
-
-**职责**: 提供 nginx 风格的页面管理 Slab 分配器
-
-**特点**:
-- 参考 nginx 的 slab 分配器设计
-- 基于页面的内存管理 (4KB 页面)
-- 预定义的大小类别 (8, 16, 32, 64, 128, 256, 512, 1024, 2048)
-- 位图管理空闲块
-- 高效的 O(1) 分配和释放
-
-**API**:
-```pascal
-type
-  TSlabPool = class
-    constructor Create(aCapacity: SizeUInt; aAllocator: IAllocator = nil; aMinShift: SizeUInt = 3);
-    destructor Destroy; override;
-
-    function Alloc(aSize: SizeUInt): Pointer;
-    procedure ReleasePtr(aPtr: Pointer);
-    procedure Reset;
-
-    function Stats: TSlabPoolStats;
-    function GetPerfCounters: TSlabPerfCounters;
-    property TotalAllocs: SizeUInt read FTotalAllocs;
-    property TotalFrees: SizeUInt read FTotalFrees;
-    property SegmentCount: Integer read GetSegmentCount;
-    property FallbackAllocCount: Integer read GetFallbackAllocCount;
-  end;
-```
-
-**使用场景**:
-- 需要分配不同大小对象的场景
-- 高性能服务器程序
-- 减少内存碎片的场景
-- 需要详细统计信息的场景
-
-## 🔧 使用示例
-
-### 基本使用
-
-```pascal
-uses
-  fafafa.core.mem;
-
-var
-  LAllocator: IAllocator;
-  LPtr: Pointer;
-begin
-  // 使用重新导出的分配器
-  LAllocator := GetRtlAllocator;
-  LPtr := LAllocator.GetMem(100);
-  
-  // 使用重新导出的内存操作
-  Fill(LPtr, 100, 0);
-  
-  LAllocator.FreeMem(LPtr);
-end;
-```
-
-### 内存池使用
-
-```pascal
-uses
-  fafafa.core.mem.memPool;
-
-var
-  LPool: TMemPool;
-  LPtr: Pointer;
-begin
-  LPool := TMemPool.Create(64, 100); // 64字节块，100个容量
-  try
-    LPtr := LPool.Alloc;
-    // 使用内存...
-    LPool.ReleasePtr(LPtr);
-  finally
-    LPool.Free;
-  end;
-end;
-```
-
-### 栈池使用
-
-```pascal
-uses
-  fafafa.core.mem.stackPool;
-
-var
-  LPool: TStackPool;
-  LPtr1, LPtr2: Pointer;
-  LState: SizeUInt;
-begin
-  LPool := TStackPool.Create(4096); // 4KB栈
-  try
-    LPtr1 := LPool.Alloc(100);
-    LState := LPool.SaveState;
-    
-    LPtr2 := LPool.Alloc(200);
-    // 使用内存...
-    
-    LPool.RestoreState(LState); // 批量释放
-  finally
-    LPool.Free;
-  end;
-end;
-```
-
-### nginx风格Slab池使用
-
-```pascal
-uses
-  fafafa.core.mem.pool.slab,
-  fafafa.core.mem.stats;
-
-var
-  LPool: TSlabPool;
-  LPtr1, LPtr2: Pointer;
-  LStats: TSlabPoolStats;
-  LPerf: TSlabPerfCounters;
-begin
-  LPool := TSlabPool.Create(8192); // 2个页面的池
-  try
-    LPtr1 := LPool.Alloc(64);   // 分配64字节
-    LPtr2 := LPool.Alloc(128);  // 分配128字节
-
-    // 使用内存...
-
-    LPool.ReleasePtr(LPtr1);
-    LPool.ReleasePtr(LPtr2);
-
-    // 查看统计信息
-    LStats := GetSlabPoolStats(LPool);
-    LPerf := LPool.GetPerfCounters;
-    WriteLn('容量: ', LStats.TotalUsed, '/', LStats.TotalCapacity);
-    WriteLn('Fallback: ', LStats.FallbackAllocCount);
-    WriteLn('分配/释放: ', LPerf.AllocCalls, '/', LPerf.FreeCalls);
-  finally
-    LPool.Free;
-  end;
-end;
-```
-
-## 🎯 架构优势
-
-1. **清晰的职责分离** - 每个模块都有明确的职责
-2. **易于扩展** - 可以轻松添加新的池类型
-3. **可选使用** - 用户只需要引用需要的模块
-4. **性能优化** - 每种池都针对特定场景优化
-5. **内存安全** - 完整的错误处理和资源管理
-
-## 📊 性能特点
-
-- **TMemPool**: 固定时间分配/释放 O(1)
-- **TStackPool**: 极快的顺序分配 O(1)，批量释放 O(1)
-- **TSlabPool**: nginx风格页面管理，O(1)分配/释放，减少碎片，支持多种大小类别
-
-## 🔮 扩展方向
-
-未来可以考虑添加的模块：
-- `fafafa.core.mem.ringPool` - 环形缓冲区池
-- `fafafa.core.mem.objectPool` - 泛型对象池
-- `fafafa.core.mem.threadPool` - 线程安全内存池
-- `fafafa.core.mem.monitor` - 内存使用监控
-
-这个架构为 fafafa 框架提供了强大而灵活的内存管理基础。
+- 并发池、分片池是专门子单元，不应由根门面默认抽象掉差异。
+- `memory map`、共享内存和跨进程映射，今天的长期框架入口优先放在 `fs` 域理解；mem 侧旧实现更适合作为专项或历史材料。
+- `docs/mem/reports/` 中的报告只能解释某个开发阶段，不再定义当前架构。

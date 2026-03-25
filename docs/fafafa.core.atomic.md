@@ -1,5 +1,25 @@
 # fafafa.core.atomic
 
+> 当前 strict L0 语义以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准。
+> `fafafa.core.atomic.base`、`fafafa.core.atomic`、`fafafa.core.atomic.compat` 都属于 strict non-SIMD L0，但 `atomic.compat` 只承担 legacy compatibility surface，不是新代码的主入口。
+
+## 当前 source-of-truth
+
+1. `docs/fafafa.core.l0.foundation.md`
+2. `docs/ARCHITECTURE_LAYERS.md`
+3. `src/fafafa.core.atomic.base.pas`
+4. `src/fafafa.core.atomic.pas`
+5. `src/fafafa.core.atomic.compat.pas`
+6. `tests/fafafa.core.atomic/README.md`
+7. `tests/fafafa.core.atomic/BuildOrTest.sh`
+
+## 当前入口约定
+
+- 新代码优先直接使用 `fafafa.core.atomic` 与 `fafafa.core.atomic.base`。
+- `fafafa.core.atomic.compat` 只保留旧指针 RMW overload、legacy tagged-pointer helper 命名和旧调用点兼容桥接。
+- `tests/fafafa.core.atomic/Test_fafafa.core.atomic.compat.contract.pas` 会继续锁定这部分 compat surface，防止兼容桥接被无意打断。
+- 如果某个 API 只有在 `atomic.compat` 里才存在，应默认把它视作 legacy surface，而不是 today contract 的推荐写法。
+
 现代化、高性能、跨平台的 FreePascal 原子操作库，提供无锁编程的基础设施。
 
 ## 概述

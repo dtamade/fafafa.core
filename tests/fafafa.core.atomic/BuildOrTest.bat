@@ -1,50 +1,113 @@
 @echo off
-setlocal enabledelayedexpansion
+setlocal ENABLEDELAYEDEXPANSION
+pushd "%~dp0"
 
-echo ==========================================
-echo fafafa.core.atomic test
-echo ==========================================
+set "ACTION=%~1"
+if "%ACTION%"=="" set "ACTION=test"
 
-set "PROJECT=%~dp0tests_atomic.lpi"
-set "TEST_EXE=%~dp0bin\tests_atomic.exe"
+set "PROJECT=tests_atomic.lpi"
+set "TEST_EXECUTABLE=bin\tests_atomic"
+set "TEST_EXECUTABLE_ALT=bin\tests_atomic.exe"
+set "CLEAN_DIRS=lib bin logs"
+set "LAZBUILD=..\..\tools\lazbuild.bat"
+set "SRC_WARN_PATTERNS=/C:\"src/.*fafafa.core.atomic.*Warning:\" /C:\"src/.*fafafa.core.atomic.*Hint:\" /C:\"\src\.*fafafa.core.atomic.*Warning:\" /C:\"\src\.*fafafa.core.atomic.*Hint:\""
 
-if not exist "%PROJECT%" (
-    echo error: project file is not exist: %PROJECT%
-    if "%FAFAFA_INTERACTIVE%"=="1" pause
-    exit /b 1
+if /i "%ACTION%"=="clean" goto :CLEAN
+if /i "%ACTION%"=="rebuild" set "DO_CLEAN=1"
+
+if defined DO_CLEAN (
+  for %%D in (%CLEAN_DIRS%) do if exist "%%D" rmdir /s /q "%%D" 2>nul
 )
 
-echo building...
-lazbuild -B "%PROJECT%"
+if not exist logs mkdir logs >nul 2>nul
+set "BUILD_LOG=logs\build.txt"
+set "TEST_LOG=logs\test.txt"
+if exist "%BUILD_LOG%" del /q "%BUILD_LOG%" >nul 2>nul
+if exist "%TEST_LOG%" del /q "%TEST_LOG%" >nul 2>nul
 
-if %ERRORLEVEL% neq 0 (
-    echo error: build failed, return code %ERRORLEVEL%
-    if "%FAFAFA_INTERACTIVE%"=="1" pause
-    exit /b 1
+set "LZ_Q="
+if /i not "%FAFAFA_BUILD_QUIET%"=="0" set "LZ_Q=--quiet"
+
+set "EXIT_ERR=1"
+if exist "%LAZBUILD%" (
+  echo [BUILD] Project: %PROJECT%
+  call "%LAZBUILD%" %LZ_Q% --build-all "%PROJECT%" >"%BUILD_LOG%" 2>&1
+  set "EXIT_ERR=!ERRORLEVEL!"
+) else (
+  where lazbuild >nul 2>nul
+  if !ERRORLEVEL! EQU 0 (
+    echo [BUILD] Project: %PROJECT%
+    lazbuild %LZ_Q% --build-all "%PROJECT%" >"%BUILD_LOG%" 2>&1
+    set "EXIT_ERR=!ERRORLEVEL!"
+  ) else (
+    echo [ERROR] tools\lazbuild.bat not found and lazbuild not in PATH.
+    set "EXIT_ERR=1"
+  )
 )
 
-echo build success!
-
-if not exist "%TEST_EXE%" (
-    echo error: file is not exist: %TEST_EXE%
-    if "%FAFAFA_INTERACTIVE%"=="1" pause
-    exit /b 1
+if not !EXIT_ERR! EQU 0 (
+  echo [BUILD] FAILED code=!EXIT_ERR!  ^(see "%BUILD_LOG%"^)
+  goto :END
 )
 
-echo testing...
-echo.
-"%TEST_EXE%"
+echo [BUILD] OK
 
-if %ERRORLEVEL% neq 0 (
-    echo.
-    echo error: test failed, return code %ERRORLEVEL%
-    if "%FAFAFA_INTERACTIVE%"=="1" pause
-    exit /b %ERRORLEVEL%
+if /i "%ACTION%"=="check" (
+  findstr /R %SRC_WARN_PATTERNS% "%BUILD_LOG%" >nul
+  if !ERRORLEVEL! EQU 0 (
+    echo [CHECK] FAILED: found current-module src warnings/hints. See "%BUILD_LOG%".
+    set "EXIT_ERR=1"
+    goto :END
+  )
+  echo [CHECK] OK
+  set "EXIT_ERR=0"
+  goto :END
 )
 
-echo.
-echo ==========================================
-echo bye!
-echo ==========================================
-if "%FAFAFA_INTERACTIVE%"=="1" pause
+if /i "%ACTION%"=="build" (
+  set "EXIT_ERR=0"
+  goto :END
+)
 
+if /i "%ACTION%"=="test" (
+  if exist "%TEST_EXECUTABLE%" (
+    "%TEST_EXECUTABLE%" --all --format=plain >"%TEST_LOG%" 2>&1
+    set "EXIT_ERR=!ERRORLEVEL!"
+  ) else if exist "%TEST_EXECUTABLE_ALT%" (
+    "%TEST_EXECUTABLE_ALT%" --all --format=plain >"%TEST_LOG%" 2>&1
+    set "EXIT_ERR=!ERRORLEVEL!"
+  ) else (
+    echo [ERROR] Test executable not found: %TEST_EXECUTABLE%[.exe]
+    set "EXIT_ERR=1"
+    goto :END
+  )
+
+  if !EXIT_ERR! EQU 0 (
+    echo [TEST] OK
+    findstr /R /C:"^[1-9][0-9]* unfreed memory blocks" "%TEST_LOG%" >nul
+    if !ERRORLEVEL! EQU 0 (
+      echo [LEAK] FAILED: heaptrc reports unfreed blocks. See "%TEST_LOG%".
+      set "EXIT_ERR=1"
+      goto :END
+    )
+    echo [LEAK] OK
+  ) else (
+    echo [TEST] FAILED code=!EXIT_ERR!  ^(see "%TEST_LOG%"^)
+  )
+  goto :END
+)
+
+echo Usage: %~nx0 [build^|check^|test^|clean^|rebuild]
+set "EXIT_ERR=2"
+
+:END
+popd
+endlocal
+exit /b %EXIT_ERR%
+
+:CLEAN
+for %%D in (%CLEAN_DIRS%) do if exist "%%D" rmdir /s /q "%%D" 2>nul
+set "EXIT_ERR=0"
+popd
+endlocal
+exit /b %EXIT_ERR%
