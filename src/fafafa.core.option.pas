@@ -87,6 +87,7 @@ interface
 uses
   SysUtils,
   fafafa.core.base,              // TTuple2 类型定义
+  fafafa.core.contracts,
   fafafa.core.option.base,       // TOption<T> 核心定义
   fafafa.core.result;
 
@@ -152,9 +153,7 @@ begin
   if aO.IsSome then
   begin
     {$IFDEF FAFAFA_CORE_CONTRACTS}
-    // 契约：启用合约检查时，禁止 nil 回调
-    if aF = nil then
-      raise EArgumentNil.Create('aF is nil');
+    ContractsRequireAssigned(aF <> nil, 'aF');
     {$ENDIF}
     Exit(specialize TOption<U>.Some(aF(aO.GetValueUnchecked)));
   end;
@@ -167,9 +166,7 @@ begin
   if aO.IsSome then
   begin
     {$IFDEF FAFAFA_CORE_CONTRACTS}
-    // 契约：启用合约检查时，禁止 nil 回调
-    if aF = nil then
-      raise EArgumentNil.Create('aF is nil');
+    ContractsRequireAssigned(aF <> nil, 'aF');
     {$ENDIF}
     Exit(aF(aO.GetValueUnchecked));
   end;
@@ -182,9 +179,7 @@ begin
   if aO.IsSome then
   begin
     {$IFDEF FAFAFA_CORE_CONTRACTS}
-    // 契约：启用合约检查时，禁止 nil 回调
-    if aF = nil then
-      raise EArgumentNil.Create('aF is nil');
+    ContractsRequireAssigned(aF <> nil, 'aF');
     {$ENDIF}
     Exit(aF(aO.GetValueUnchecked));
   end;
@@ -197,17 +192,13 @@ begin
   if aO.IsSome then
   begin
     {$IFDEF FAFAFA_CORE_CONTRACTS}
-    // 契约：启用合约检查时，禁止 nil 回调
-    if aFok = nil then
-      raise EArgumentNil.Create('aFok is nil');
+    ContractsRequireAssigned(aFok <> nil, 'aFok');
     {$ENDIF}
     Exit(aFok(aO.GetValueUnchecked));
   end;
 
   {$IFDEF FAFAFA_CORE_CONTRACTS}
-  // 契约：启用合约检查时，禁止 nil 回调
-  if aFnone = nil then
-    raise EArgumentNil.Create('aFnone is nil');
+  ContractsRequireAssigned(aFnone <> nil, 'aFnone');
   {$ENDIF}
 
   Result := aFnone();
@@ -218,9 +209,7 @@ begin
   if aO.IsSome then
   begin
     {$IFDEF FAFAFA_CORE_CONTRACTS}
-    // 契约：启用合约检查时，禁止 nil 回调
-    if aPred = nil then
-      raise EArgumentNil.Create('aPred is nil');
+    ContractsRequireAssigned(aPred <> nil, 'aPred');
     {$ENDIF}
 
     if aPred(aO.GetValueUnchecked) then
@@ -265,9 +254,7 @@ begin
   if aA.IsSome and aB.IsSome then
   begin
     {$IFDEF FAFAFA_CORE_CONTRACTS}
-    // 契约：启用合约检查时，禁止 nil 回调
-    if aF = nil then
-      raise EArgumentNil.Create('aF is nil');
+    ContractsRequireAssigned(aF <> nil, 'aF');
     {$ENDIF}
 
     P.First := aA.GetValueUnchecked;
@@ -290,9 +277,7 @@ begin
     Exit(specialize TResult<T,E>.Ok(aO.GetValueUnchecked));
 
   {$IFDEF FAFAFA_CORE_CONTRACTS}
-  // 契约：启用合约检查时，禁止 nil 回调
-  if aFerrThunk = nil then
-    raise EArgumentNil.Create('aFerrThunk is nil');
+  ContractsRequireAssigned(aFerrThunk <> nil, 'aFerrThunk');
   {$ENDIF}
 
   Result := specialize TResult<T,E>.Err(aFerrThunk());

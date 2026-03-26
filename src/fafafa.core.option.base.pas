@@ -20,7 +20,8 @@ interface
 
 uses
   SysUtils,
-  fafafa.core.base;  // ✅ OPT-001: 引入 ECore 基类
+  fafafa.core.base,  // ✅ OPT-001: 引入 ECore 基类
+  fafafa.core.contracts;
 
 const
   {** 模块版本 | Module version *}
@@ -152,8 +153,7 @@ begin
   if FHas then
     Exit(FValue);
 
-  if aF = nil then
-    raise EArgumentNil.Create('aF is nil');
+  ContractsRequireAssigned(aF <> nil, 'aF');
 
   Result := aF();
 end;
@@ -196,8 +196,7 @@ function TOption.Inspect(const aF: specialize TOptionProc<T>): TOption;
 begin
   if FHas then
   begin
-    if aF = nil then
-      raise EArgumentNil.Create('aF is nil');
+    ContractsRequireAssigned(aF <> nil, 'aF');
     aF(FValue);
   end;
   Result := Self;
@@ -220,8 +219,7 @@ function TOption.IsSomeAnd(const aPred: specialize TOptionFunc<T, Boolean>): Boo
 begin
   if FHas then
   begin
-    if aPred = nil then
-      raise EArgumentNil.Create('aPred is nil');
+    ContractsRequireAssigned(aPred <> nil, 'aPred');
     Result := aPred(FValue);
   end
   else
@@ -232,8 +230,7 @@ function TOption.Contains(const aValue: T; const aEq: specialize TOptionBiPred<T
 begin
   if FHas then
   begin
-    if aEq = nil then
-      raise EArgumentNil.Create('aEq is nil');
+    ContractsRequireAssigned(aEq <> nil, 'aEq');
     Result := aEq(FValue, aValue);
   end
   else

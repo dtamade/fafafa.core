@@ -21,7 +21,8 @@
 | mem (non-allocator), ...                                         |
 +------------------------------------------------------------------+
 | Layer 0: Foundation Kernel                                       |
-| settings, base, bits, layout, endian, atomic, option, result,    |
+| settings, base, contracts, bits, layout, endian, atomic, option, |
+| result,                                                          |
 | mem.allocator contract                                           |
 +------------------------------------------------------------------+
 ```
@@ -42,6 +43,7 @@ L0 只容纳真正的基础语义、内存模型和分配契约。它必须足�
 |------|------|------|
 | 构建与契约入口 | `fafafa.core.settings.inc` | 统一承载基础宏、契约开关和平台特性开关 |
 | 基础语义 | `fafafa.core.base` | 基础类型、异常、函数类型、元组、通用约定 |
+| 前置条件 helper | `fafafa.core.contracts` | strict L0 的 precondition helper，统一 `EArgumentNil` / `EInvalidArgument` 抛出入口 |
 | 可空语义 | `fafafa.core.option.base`, `fafafa.core.option` | `Option<T>` 语义与组合子 |
 | 结果语义 | `fafafa.core.result`, `fafafa.core.result.facade` | `Result<T, E>` 语义与稳定门面 |
 | 位级基础 | `fafafa.core.bits` | 对齐、幂次判断与基础整数布局 helper |

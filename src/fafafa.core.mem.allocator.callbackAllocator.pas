@@ -7,7 +7,9 @@ interface
 
 uses
   SysUtils,
+  {$IFDEF FAFAFA_CORE_CONTRACTS}
   fafafa.core.base,
+  {$ENDIF}
   fafafa.core.mem.allocator.base;
 
 type
@@ -47,7 +49,11 @@ constructor TCallbackAllocator.Init(aGetMem: TGetMemCallback; aAllocMem: TAllocM
 begin
   inherited Create;
   if (aGetMem = nil) or (aAllocMem = nil) or (aReallocMem = nil) or (aFreeMem = nil) then
+  begin
+    {$IFDEF FAFAFA_CORE_CONTRACTS}
     raise EArgumentNil.Create('TCallbackAllocator.Create: aGetMem, aAllocMem, aReallocMem, aFreeMem cannot be nil.');
+    {$ENDIF}
+  end;
   FGetMemCallback     := aGetMem;
   FAllocMemCallback   := aAllocMem;
   FReallocMemCallback := aReallocMem;

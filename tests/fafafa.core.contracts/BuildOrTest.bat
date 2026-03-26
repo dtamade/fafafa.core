@@ -1,0 +1,127 @@
+@echo off
+setlocal ENABLEDELAYEDEXPANSION
+pushd "%~dp0"
+
+set "ACTION=%~1"
+if "%ACTION%"=="" set "ACTION=test"
+
+set "PROJECT=fafafa.core.contracts.test.lpi"
+set "CLEAN_DIRS=lib bin logs"
+set "SRC_WARN_PATTERNS=/C:\"src/.*fafafa.core.contracts.*Warning:\" /C:\"src/.*fafafa.core.contracts.*Hint:\" /C:\"\src\.*fafafa.core.contracts.*Warning:\" /C:\"\src\.*fafafa.core.contracts.*Hint:\""
+
+set "BUILD_MODE=Debug"
+set "TEST_EXECUTABLE=bin\fafafa.core.contracts.test_debug"
+set "TEST_EXECUTABLE_ALT=bin\fafafa.core.contracts.test_debug.exe"
+set "TEST_EXECUTABLE_FALLBACK=bin\fafafa.core.contracts.test"
+set "TEST_EXECUTABLE_FALLBACK_ALT=bin\fafafa.core.contracts.test.exe"
+
+if /i "%ACTION%"=="build-no-contracts" (
+  set "BUILD_MODE=NoContracts"
+  set "TEST_EXECUTABLE=bin\fafafa.core.contracts.test_nocontracts"
+  set "TEST_EXECUTABLE_ALT=bin\fafafa.core.contracts.test_nocontracts.exe"
+)
+if /i "%ACTION%"=="check-no-contracts" (
+  set "BUILD_MODE=NoContracts"
+  set "TEST_EXECUTABLE=bin\fafafa.core.contracts.test_nocontracts"
+  set "TEST_EXECUTABLE_ALT=bin\fafafa.core.contracts.test_nocontracts.exe"
+)
+if /i "%ACTION%"=="test-no-contracts" (
+  set "BUILD_MODE=NoContracts"
+  set "TEST_EXECUTABLE=bin\fafafa.core.contracts.test_nocontracts"
+  set "TEST_EXECUTABLE_ALT=bin\fafafa.core.contracts.test_nocontracts.exe"
+)
+
+if /i "%ACTION%"=="clean" goto :CLEAN
+if /i "%ACTION%"=="rebuild" set "DO_CLEAN=1"
+
+if defined DO_CLEAN (
+  for %%D in (%CLEAN_DIRS%) do if exist "%%D" rmdir /s /q "%%D" 2>nul
+)
+
+if not exist logs mkdir logs >nul 2>nul
+set "BUILD_LOG=logs\build.txt"
+set "TEST_LOG=logs\test.txt"
+if exist "%BUILD_LOG%" del /q "%BUILD_LOG%" >nul 2>nul
+if exist "%TEST_LOG%" del /q "%TEST_LOG%" >nul 2>nul
+
+set "LZ_Q="
+if /i not "%FAFAFA_BUILD_QUIET%"=="0" set "LZ_Q=--quiet"
+
+set "EXIT_ERR=1"
+where lazbuild >nul 2>nul
+if %ERRORLEVEL%==0 (
+  echo [BUILD] Project: %PROJECT% (mode=%BUILD_MODE%)
+  lazbuild %LZ_Q% --bm=%BUILD_MODE% --build-all "%PROJECT%" >"%BUILD_LOG%" 2>&1
+  set "EXIT_ERR=!ERRORLEVEL!"
+) else (
+  echo [ERROR] lazbuild not found in PATH.
+  set "EXIT_ERR=1"
+)
+
+if not !EXIT_ERR! EQU 0 (
+  echo [BUILD] FAILED code=!EXIT_ERR! ^(see "%BUILD_LOG%"^)
+  goto :END
+)
+
+echo [BUILD] OK
+
+if /i "%ACTION%"=="build" goto :END_OK
+if /i "%ACTION%"=="build-no-contracts" goto :END_OK
+
+findstr /R %SRC_WARN_PATTERNS% "%BUILD_LOG%" >nul
+if !ERRORLEVEL! EQU 0 (
+  echo [CHECK] FAILED: found current-module src warnings/hints. See "%BUILD_LOG%".
+  set "EXIT_ERR=1"
+  goto :END
+)
+echo [CHECK] OK
+
+if /i "%ACTION%"=="check" goto :END_OK
+if /i "%ACTION%"=="check-no-contracts" goto :END_OK
+
+if exist "%TEST_EXECUTABLE%" (
+  "%TEST_EXECUTABLE%" --all --format=plain >"%TEST_LOG%" 2>&1
+  set "EXIT_ERR=!ERRORLEVEL!"
+) else if exist "%TEST_EXECUTABLE_ALT%" (
+  "%TEST_EXECUTABLE_ALT%" --all --format=plain >"%TEST_LOG%" 2>&1
+  set "EXIT_ERR=!ERRORLEVEL!"
+) else if exist "%TEST_EXECUTABLE_FALLBACK%" (
+  "%TEST_EXECUTABLE_FALLBACK%" --all --format=plain >"%TEST_LOG%" 2>&1
+  set "EXIT_ERR=!ERRORLEVEL!"
+) else if exist "%TEST_EXECUTABLE_FALLBACK_ALT%" (
+  "%TEST_EXECUTABLE_FALLBACK_ALT%" --all --format=plain >"%TEST_LOG%" 2>&1
+  set "EXIT_ERR=!ERRORLEVEL!"
+) else (
+  echo [ERROR] Test executable not found: %TEST_EXECUTABLE%[.exe] or %TEST_EXECUTABLE_FALLBACK%[.exe]
+  set "EXIT_ERR=1"
+  goto :END
+)
+
+if !EXIT_ERR! EQU 0 (
+  echo [TEST] OK
+  findstr /R /C:"^[1-9][0-9]* unfreed memory blocks" "%TEST_LOG%" >nul
+  if !ERRORLEVEL! EQU 0 (
+    echo [LEAK] FAILED: heaptrc reports unfreed blocks. See "%TEST_LOG%".
+    set "EXIT_ERR=1"
+    goto :END
+  )
+  echo [LEAK] OK
+) else (
+  echo [TEST] FAILED code=!EXIT_ERR! ^(see "%TEST_LOG%"^)
+)
+goto :END
+
+:END_OK
+set "EXIT_ERR=0"
+
+:END
+popd
+endlocal
+exit /b %EXIT_ERR%
+
+:CLEAN
+for %%D in (%CLEAN_DIRS%) do if exist "%%D" rmdir /s /q "%%D" 2>nul
+set "EXIT_ERR=0"
+popd
+endlocal
+exit /b %EXIT_ERR%

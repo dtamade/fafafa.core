@@ -101,6 +101,7 @@ interface
 uses
   SysUtils,
   fafafa.core.base,
+  fafafa.core.contracts,
   fafafa.core.option.base;
 
 const
@@ -451,8 +452,7 @@ begin
   if FIsOk then
     Exit(FOk);
 
-  if F = nil then
-    raise EArgumentNil.Create('aF is nil');
+  ContractsRequireAssigned(F <> nil, 'aF');
 
   Result := F();
 end;
@@ -591,7 +591,7 @@ begin
     Exit(True);
 
   if ItemsPtr = nil then
-    raise EArgumentNil.Create('ItemsPtr is nil');
+    ContractsRequireAssigned(ItemsPtr <> nil, 'ItemsPtr');
 
   SetLength(OutValues, N);
 
@@ -619,8 +619,7 @@ begin
   if R.IsOk then
   begin
     {$IFDEF DEBUG}
-    if F = nil then
-      raise EArgumentNil.Create('aF is nil');
+    ContractsRequireAssigned(F <> nil, 'aF');
     {$ENDIF}
     Result := specialize TResult<U, E>.Ok(F(R.GetOkUnchecked));
   end
@@ -636,8 +635,7 @@ begin
   else
   begin
     {$IFDEF DEBUG}
-    if F = nil then
-      raise EArgumentNil.Create('aF is nil');
+    ContractsRequireAssigned(F <> nil, 'aF');
     {$ENDIF}
     Result := specialize TResult<T, E2>.Err(F(R.GetErrUnchecked));
   end;
@@ -649,8 +647,7 @@ begin
   if R.IsOk then
   begin
     {$IFDEF DEBUG}
-    if F = nil then
-      raise EArgumentNil.Create('aF is nil');
+    ContractsRequireAssigned(F <> nil, 'aF');
     {$ENDIF}
     Result := F(R.GetOkUnchecked);
   end
@@ -666,8 +663,7 @@ begin
   else
   begin
     {$IFDEF DEBUG}
-    if F = nil then
-      raise EArgumentNil.Create('aF is nil');
+    ContractsRequireAssigned(F <> nil, 'aF');
     {$ENDIF}
     Result := F(R.GetErrUnchecked);
   end;
@@ -679,8 +675,7 @@ begin
   if R.IsOk then
   begin
     {$IFDEF DEBUG}
-    if F = nil then
-      raise EArgumentNil.Create('aF is nil');
+    ContractsRequireAssigned(F <> nil, 'aF');
     {$ENDIF}
     Result := F(R.GetOkUnchecked);
   end
@@ -694,16 +689,14 @@ begin
   if R.IsOk then
   begin
     {$IFDEF DEBUG}
-    if Fok = nil then
-      raise EArgumentNil.Create('aFok is nil');
+    ContractsRequireAssigned(Fok <> nil, 'aFok');
     {$ENDIF}
     Result := Fok(R.GetOkUnchecked);
   end
   else
   begin
     {$IFDEF DEBUG}
-    if Ferr = nil then
-      raise EArgumentNil.Create('aFerr is nil');
+    ContractsRequireAssigned(Ferr <> nil, 'aFerr');
     {$ENDIF}
     Result := Ferr(R.GetErrUnchecked);
   end;
@@ -715,16 +708,14 @@ begin
   if R.IsOk then
   begin
     {$IFDEF DEBUG}
-    if Fok = nil then
-      raise EArgumentNil.Create('aFok is nil');
+    ContractsRequireAssigned(Fok <> nil, 'aFok');
     {$ENDIF}
     Result := Fok(R.GetOkUnchecked);
   end
   else
   begin
     {$IFDEF DEBUG}
-    if Ferr = nil then
-      raise EArgumentNil.Create('aFerr is nil');
+    ContractsRequireAssigned(Ferr <> nil, 'aFerr');
     {$ENDIF}
     Result := Ferr(R.GetErrUnchecked);
   end;
@@ -758,16 +749,14 @@ begin
   if R.IsOk then
   begin
     {$IFDEF DEBUG}
-    if Fok = nil then
-      raise EArgumentNil.Create('aFok is nil');
+    ContractsRequireAssigned(Fok <> nil, 'aFok');
     {$ENDIF}
     Result := specialize TResult<U, F>.Ok(Fok(R.GetOkUnchecked));
   end
   else
   begin
     {$IFDEF DEBUG}
-    if Ferr = nil then
-      raise EArgumentNil.Create('aFerr is nil');
+    ContractsRequireAssigned(Ferr <> nil, 'aFerr');
     {$ENDIF}
     Result := specialize TResult<U, F>.Err(Ferr(R.GetErrUnchecked));
   end;
@@ -782,8 +771,7 @@ begin
   if R.IsOk then
   begin
     {$IFDEF DEBUG}
-    if Pred = nil then
-      raise EArgumentNil.Create('aPred is nil');
+    ContractsRequireAssigned(Pred <> nil, 'aPred');
     {$ENDIF}
 
     V := R.GetOkUnchecked;
@@ -792,8 +780,7 @@ begin
     else
     begin
       {$IFDEF DEBUG}
-      if Ferr = nil then
-        raise EArgumentNil.Create('aFerr is nil');
+      ContractsRequireAssigned(Ferr <> nil, 'aFerr');
       {$ENDIF}
       Result := specialize TResult<T, E>.Err(Ferr(V));
     end;
@@ -829,7 +816,7 @@ begin
     Exit(Self);
 
   if F = nil then
-    raise EArgumentNil.Create('aF is nil');
+    ContractsRequireAssigned(F <> nil, 'aF');
 
   Result := F();
 end;
@@ -838,8 +825,7 @@ function TResult.Inspect(const F: specialize TResultProc<T>): TResult;
 begin
   if IsOk then
   begin
-    if F = nil then
-      raise EArgumentNil.Create('aF is nil');
+    ContractsRequireAssigned(F <> nil, 'aF');
     F(GetOkUnchecked);
   end;
   Result := Self;
@@ -849,8 +835,7 @@ function TResult.InspectErr(const F: specialize TResultProc<E>): TResult;
 begin
   if IsErr then
   begin
-    if F = nil then
-      raise EArgumentNil.Create('aF is nil');
+    ContractsRequireAssigned(F <> nil, 'aF');
     F(GetErrUnchecked);
   end;
   Result := Self;
@@ -860,8 +845,7 @@ function TResult.IsOkAnd(const Pred: specialize TResultFunc<T, Boolean>): Boolea
 begin
   if IsOk then
   begin
-    if Pred = nil then
-      raise EArgumentNil.Create('aPred is nil');
+    ContractsRequireAssigned(Pred <> nil, 'aPred');
     Result := Pred(GetOkUnchecked);
   end
   else
@@ -872,8 +856,7 @@ function TResult.IsErrAnd(const Pred: specialize TResultFunc<E, Boolean>): Boole
 begin
   if IsErr then
   begin
-    if Pred = nil then
-      raise EArgumentNil.Create('aPred is nil');
+    ContractsRequireAssigned(Pred <> nil, 'aPred');
     Result := Pred(GetErrUnchecked);
   end
   else
@@ -884,8 +867,7 @@ function TResult.Contains(const V: T; const Eq: specialize TResultBiPred<T, T>):
 begin
   if IsOk then
   begin
-    if Eq = nil then
-      raise EArgumentNil.Create('aEq is nil');
+    ContractsRequireAssigned(Eq <> nil, 'aEq');
     Result := Eq(GetOkUnchecked, V);
   end
   else
@@ -896,8 +878,7 @@ function TResult.ContainsErr(const EVal: E; const Eq: specialize TResultBiPred<E
 begin
   if IsErr then
   begin
-    if Eq = nil then
-      raise EArgumentNil.Create('aEq is nil');
+    ContractsRequireAssigned(Eq <> nil, 'aEq');
     Result := Eq(GetErrUnchecked, EVal);
   end
   else
@@ -909,14 +890,12 @@ function TResult.Equals(const Other: TResult; const EqT: specialize TResultBiPre
 begin
   if IsOk and Other.IsOk then
   begin
-    if EqT = nil then
-      raise EArgumentNil.Create('aEqT is nil');
+    ContractsRequireAssigned(EqT <> nil, 'aEqT');
     Result := EqT(GetOkUnchecked, Other.GetOkUnchecked);
   end
   else if IsErr and Other.IsErr then
   begin
-    if EqE = nil then
-      raise EArgumentNil.Create('aEqE is nil');
+    ContractsRequireAssigned(EqE <> nil, 'aEqE');
     Result := EqE(GetErrUnchecked, Other.GetErrUnchecked);
   end
   else
@@ -934,7 +913,7 @@ begin
   else
   begin
     if MapE = nil then
-      raise EArgumentNil.Create('MapE is nil');
+      ContractsRequireAssigned(MapE <> nil, 'MapE');
     raise MapE(R.GetErrUnchecked);
   end;
 end;
@@ -943,7 +922,7 @@ generic function ResultFromTry<T, E>(const Work: specialize TResultThunk<T>;
   const MapEx: specialize TResultFunc<Exception, E>): specialize TResult<T, E>;
 begin
   if Work = nil then
-    raise EArgumentNil.Create('Work is nil');
+    ContractsRequireAssigned(Work <> nil, 'Work');
 
   try
     Result := specialize TResult<T, E>.Ok(Work());
@@ -951,7 +930,7 @@ begin
     on Ex: Exception do
     begin
       if MapEx = nil then
-        raise EArgumentNil.Create('MapEx is nil');
+        ContractsRequireAssigned(MapEx <> nil, 'MapEx');
       Result := specialize TResult<T, E>.Err(MapEx(Ex));
     end;
   end;
@@ -979,7 +958,7 @@ begin
   else
   begin
     if ErrThunk = nil then
-      raise EArgumentNil.Create('ErrThunk is nil');
+      ContractsRequireAssigned(ErrThunk <> nil, 'ErrThunk');
     Result := specialize TResult<TUnit, E>.Err(ErrThunk());
   end;
 end;
@@ -1010,7 +989,7 @@ begin
   else
   begin
     if ErrThunk = nil then
-      raise EArgumentNil.Create('ErrThunk is nil');
+      ContractsRequireAssigned(ErrThunk <> nil, 'ErrThunk');
     Result := specialize TResult<T, E>.Err(ErrThunk());
   end;
 end;
@@ -1047,7 +1026,7 @@ begin
     Exit(TResultU.Err(B.GetErrUnchecked));
 
   if F = nil then
-    raise EArgumentNil.Create('aF is nil');
+    ContractsRequireAssigned(F <> nil, 'aF');
 
   P := TTup.Create(A.GetOkUnchecked, B.GetOkUnchecked);
   Result := TResultU.Ok(F(P));
@@ -1071,7 +1050,7 @@ begin
   else
   begin
     if CtxFunc = nil then
-      raise EArgumentNil.Create('CtxFunc is nil');
+      ContractsRequireAssigned(CtxFunc <> nil, 'CtxFunc');
     Exit(specialize TResult<T, string>.Err(CtxFunc(R.GetErrUnchecked)));
   end;
 end;
@@ -1101,7 +1080,7 @@ begin
   else
   begin
     if CtxFunc = nil then
-      raise EArgumentNil.Create('CtxFunc is nil');
+      ContractsRequireAssigned(CtxFunc <> nil, 'CtxFunc');
 
     ErrVal := R.GetErrUnchecked;
     Result := TResultCtx.Err(TErrCtx.Create(CtxFunc(ErrVal), ErrVal));

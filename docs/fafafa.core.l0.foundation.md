@@ -60,6 +60,7 @@ L0 不负责以下事情：
 |------|------|-------------|
 | 构建契约 | `fafafa.core.settings.inc` | 统一承载基础宏、契约开关、平台特性开关 |
 | 基础语义 | `fafafa.core.base` | 所有上层共享的类型、异常、函数类型、元组与通用约定 |
+| 前置条件 helper | `fafafa.core.contracts` | 统一承载 strict L0 的 precondition helper，给 `option` / `result` / allocator contract 复用 |
 | 可空语义 | `fafafa.core.option.base`, `fafafa.core.option` | `Option<T>` 是框架级基础语义，而不是某个服务模块的附属品 |
 | 结果语义 | `fafafa.core.result`, `fafafa.core.result.facade` | `Result<T, E>` 是错误传播和组合的基础表达方式 |
 | 位级基础 | `fafafa.core.bits` | 对齐、幂次判断和基础整数布局辅助属于所有上层都可能复用的 bit-level 语义 |
@@ -159,9 +160,8 @@ L0 继续保持 `fafafa.core` 现有的开发范式，但要求更严格。
 
 ## L0 后续仍可评估的能力
 
-在 `bits/layout/endian` 已经落地之后，后续只有在满足“RTL-only、跨模块通用、语义非常基础、API 面可控”时，以下能力才适合继续考虑进入 L0：
+在 `bits/layout/endian/contracts` 已经落地之后，后续只有在满足“RTL-only、跨模块通用、语义非常基础、API 面可控”时，以下能力才适合继续考虑进入 L0：
 
-- `contracts`
 - `platform`
 - `span`
 

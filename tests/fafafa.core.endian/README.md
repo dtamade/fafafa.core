@@ -1,14 +1,16 @@
 # fafafa.core.endian Tests
 
-这个目录是 `fafafa.core.endian` 当前测试入口。它负责锁定端序枚举、native 解析和字节交换的 L0 合同。
+这个目录是 `fafafa.core.endian` 当前测试入口。它负责锁定 strict non-SIMD L0 `endian` 模块的 today contract，而不是替代 `bytes` 域更高层的读写与集成测试。
 
 ## 当前 source-of-truth
 
 1. `docs/fafafa.core.endian.md`
-2. `tests/fafafa.core.endian/BuildOrTest.sh`
-3. `tests/fafafa.core.endian/BuildOrTest.bat`
-4. `tests/fafafa.core.endian/fafafa.core.endian.test.lpi`
-5. `tests/fafafa.core.endian/fafafa.core.endian.testcase.pas`
+2. `docs/fafafa.core.l0.foundation.md`
+3. `docs/ARCHITECTURE_LAYERS.md`
+4. `tests/fafafa.core.endian/BuildOrTest.sh`
+5. `tests/fafafa.core.endian/BuildOrTest.bat`
+6. `tests/fafafa.core.endian/fafafa.core.endian.test.lpi`
+7. `tests/fafafa.core.endian/fafafa.core.endian.testcase.pas`
 
 ## 当前测试集合
 
@@ -46,4 +48,5 @@
 
 - 这个目录只锁定 `endian` 的基础契约，不替代 `bytes` 模块对端序读写接口的集成测试。
 - `src/fafafa.core.bytes.pas` 当前会消费 `fafafa.core.endian` 并保留兼容别名，但 `endian` 的 today contract 以 `docs/fafafa.core.endian.md` 和当前测试入口为准。
+- 这里不承载 `platform` / `span` 的候选讨论；那是 L0 后续准入问题，不属于 `endian` 当前测试职责。
 - `bin/`、`lib/`、`logs/` 是产物目录，不属于合同本体。

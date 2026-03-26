@@ -1,14 +1,16 @@
 # fafafa.core.layout Tests
 
-这个目录是 `fafafa.core.layout` 当前测试入口。它负责锁定布局常量、布局记录和分配能力描述的 L0 合同。
+这个目录是 `fafafa.core.layout` 当前测试入口。它负责锁定 strict non-SIMD L0 `layout` 模块的 today contract，而不是替代更高层 allocator / arena / pool 测试。
 
 ## 当前 source-of-truth
 
 1. `docs/fafafa.core.layout.md`
-2. `tests/fafafa.core.layout/BuildOrTest.sh`
-3. `tests/fafafa.core.layout/BuildOrTest.bat`
-4. `tests/fafafa.core.layout/fafafa.core.layout.test.lpi`
-5. `tests/fafafa.core.layout/fafafa.core.layout.testcase.pas`
+2. `docs/fafafa.core.l0.foundation.md`
+3. `docs/ARCHITECTURE_LAYERS.md`
+4. `tests/fafafa.core.layout/BuildOrTest.sh`
+5. `tests/fafafa.core.layout/BuildOrTest.bat`
+6. `tests/fafafa.core.layout/fafafa.core.layout.test.lpi`
+7. `tests/fafafa.core.layout/fafafa.core.layout.testcase.pas`
 
 ## 当前测试集合
 
@@ -46,4 +48,5 @@
 
 - 这个目录只锁定 `layout` 的 L0 契约，不替代 `mem` 域更高层的 allocator、arena 和 pool 测试。
 - `src/fafafa.core.mem.layout.pas` 继续承担 compat 角色，但布局合同的 today contract 以 `docs/fafafa.core.layout.md` 和当前测试入口为准。
+- 这里不承载 `platform` / `span` 的候选讨论；那不是 `layout` 当前测试入口的责任边界。
 - `bin/`、`lib/`、`logs/` 是产物目录，不属于合同本体。

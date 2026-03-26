@@ -7,7 +7,10 @@ interface
 
 uses
   SysUtils,
-  fafafa.core.base
+  fafafa.core.contracts
+  {$IFDEF FAFAFA_CORE_STRICT_NULL_FREE}
+  , fafafa.core.base
+  {$ENDIF}
   {$IFDEF FAFAFA_CORE_ALLOCATOR_INSTRUMENTATION}
   , fafafa.core.mem.allocator.instrumentation
   {$ENDIF}
@@ -252,7 +255,7 @@ var
 begin
   if aSize = 0 then Exit(nil);
   if (aAlignment < SizeOf(Pointer)) or (not IsPowerOfTwo(aAlignment)) then
-    raise EInvalidArgument.Create('AllocAligned: alignment must be power of two and >= pointer size');
+    ContractsRequire(False, 'AllocAligned: alignment must be power of two and >= pointer size');
   // Over-allocate and store the original pointer just before the aligned block
   LNeeded := aSize + aAlignment - 1 + SizeOf(Pointer);
   LRaw := GetMem(LNeeded);
