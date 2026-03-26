@@ -3,6 +3,8 @@ setlocal EnableDelayedExpansion
 
 REM Root of the tests directory (this script is placed under tests\)
 set "TESTS_ROOT=%~dp0"
+for %%D in ("%TESTS_ROOT%..") do set "REPO_ROOT=%%~fD"
+set "HYGIENE_CHECKER=%TESTS_ROOT%check_repo_hygiene.bat"
 set "LOG_DIR=%TESTS_ROOT%_run_all_logs"
 set "SUMMARY_FILE=%TESTS_ROOT%run_all_tests_summary.txt"
 if not exist "%LOG_DIR%" mkdir "%LOG_DIR%" >nul 2>&1
@@ -145,6 +147,13 @@ goto :eof
 echo Running module test scripts under: %TESTS_ROOT%
 echo Logs: %LOG_DIR%
 echo.
+if not exist "%HYGIENE_CHECKER%" (
+  echo [CHECK] Missing hygiene checker: %HYGIENE_CHECKER%
+  exit /b 2
+)
+
+call "%HYGIENE_CHECKER%" "%REPO_ROOT%"
+if errorlevel 1 exit /b %ERRORLEVEL%
 
 for /R "%TESTS_ROOT%" %%F in (BuildOrTest.bat) do call :run_one "%%~fF"
 for /R "%TESTS_ROOT%" %%F in (BuildAndTest.bat) do call :run_one "%%~fF"

@@ -4,7 +4,7 @@
 审查 `fafafa.core.simd` 及其 `cpuinfo` 相关模块，找出可验证的问题并完成至少一轮根因修复，同时产出可连续执行的后续修复与审查计划。
 
 ## Current Phase
-Phase 77 complete; L0 control-plane closeout has backfilled the missing roadmap into main, made the L0 owner visible in the main worktree, and cleaned `src/` generated artifacts while keeping strict L0 fresh green
+Phase 78 complete; repo hygiene guard is now wired into `run_all_tests.{sh,bat}`, verified red-to-green, and keeps strict L0 fresh green with a preflight `src/` artifact check
 
 ## Phases
 

@@ -7,6 +7,20 @@
 - 形成连续的修复与审查计划
 
 ## Research Findings
+- 2026-03-27 repo hygiene guard 落地快照（small-batch fix，TDD 完成）：
+  - 先新增 `tests/test_repo_hygiene_guard.sh`，在 checker 尚不存在时 fresh red：`[FAIL] missing checker`
+  - 随后新增 `tests/check_repo_hygiene.sh` 与 `tests/check_repo_hygiene.bat`，并把它们接到 `tests/run_all_tests.sh` / `tests/run_all_tests.bat` 的最前面，让统一测试入口在真正跑模块前先检查 `src/` 下是否残留 `.o/.ppu/.bak`
+  - fresh green 结果：
+    - `bash -n tests/check_repo_hygiene.sh tests/test_repo_hygiene_guard.sh tests/run_all_tests.sh`：PASS
+    - `bash tests/test_repo_hygiene_guard.sh`：PASS
+    - `bash tests/check_repo_hygiene.sh`：PASS，输出 `[CHECK] OK (src tree hygiene: no .o/.ppu/.bak artifacts)`
+    - `STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.base fafafa.core.contracts fafafa.core.bits fafafa.core.layout fafafa.core.endian fafafa.core.span fafafa.core.option fafafa.core.result fafafa.core.atomic fafafa.core.mem.allocator.foundation`：PASS，`10/10`
+    - `git diff --check`：PASS
+  - 文档侧已同步：
+    - `docs/TESTING.md` 现在写明 `run_all_tests.{sh,bat}` 会先跑 `src/` hygiene preflight
+    - `docs/standards/ENGINEERING_STANDARDS.md` 的快速检查命令已加入 `bash tests/check_repo_hygiene.sh`
+  - 当前 guard 只锁定 `src/` 下的 `.o/.ppu/.bak`，不主动处理 `tests/` 目录中的历史编译产物；这是刻意收窄范围，避免把仓库里已有的测试侧噪音一次性拉进本批
+
 - 2026-03-27 L0 control-plane closeout 实施快照（small-batch fix，不扩张 L0 边界）：
   - 已将缺失的 `docs/plans/2026-03-24-l0-docs-closeout-roadmap.md` 从 `l0-foundation` worktree 回流到主线，`docs/INDEX.md` 的 L0 路线图入口不再断链
   - 已在主线新增 `workers/worker1.md`，把 L0 owner / worktree / source-of-truth / fresh verification 显式化；不再让 L0 状态只存在于 worktree 内

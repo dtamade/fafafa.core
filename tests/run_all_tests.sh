@@ -3,6 +3,8 @@ set -euo pipefail
 
 # Root: this script lives under tests/
 TESTS_ROOT="$(cd "$(dirname "$0")" && pwd)"
+REPO_ROOT="$(cd "${TESTS_ROOT}/.." && pwd)"
+HYGIENE_CHECKER="${TESTS_ROOT}/check_repo_hygiene.sh"
 LOG_DIR="$TESTS_ROOT/_run_all_logs_sh"
 SUMMARY_FILE="$TESTS_ROOT/run_all_tests_summary_sh.txt"
 mkdir -p "$LOG_DIR"
@@ -145,6 +147,13 @@ run_one() {
 
 echo "Running module test scripts under: $TESTS_ROOT"
 echo "Logs: $LOG_DIR"
+
+if [[ ! -x "${HYGIENE_CHECKER}" ]]; then
+  echo "[CHECK] Missing hygiene checker: ${HYGIENE_CHECKER}" >&2
+  exit 2
+fi
+
+"${HYGIENE_CHECKER}" "${REPO_ROOT}"
 
 declare -a scripts
 
