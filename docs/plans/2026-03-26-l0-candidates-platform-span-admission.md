@@ -2,6 +2,12 @@
 
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
+> **Status update (2026-03-26):**
+> - `Task 1` 已完成审查，结论是 `platform` 继续 deferred；当前不进入 `Task 3`
+> - `Task 2` 已完成审查，`span` 获批
+> - `Task 4` / `Task 5` 中与 `span` 相关的实现和 L0 gate 纳入已完成
+> - 因此本计划剩余未完成项，只剩“未来若要继续推进 `platform`，先收敛 API 壳面，再重新申请实现”
+
 **Goal:** 在不盲目扩张 strict L0 的前提下，先完成 `platform` / `span` 的准入设计与最小原型边界定义；只有在审查结论通过后，才进入实现。
 
 **Architecture:** 这轮不是直接把 `platform` / `span` 塞进 L0，而是先做 admission-driven implementation。也就是说，先证明“模块边界、依赖面、API 面、测试入口”都满足 L0 规则，再最小实现。`platform` 和 `span` 必须拆成两个独立候选，不允许在同一批里互相放大复杂度。
@@ -61,6 +67,8 @@
 
 ### Task 3: platform 最小原型（仅在 Task 1 结论允许时）
 
+> 当前状态：**未获准进入本任务**
+
 **Files:**
 - Create: `src/fafafa.core.platform.pas`
 - Create: `docs/fafafa.core.platform.md`
@@ -89,6 +97,8 @@ bash tests/fafafa.core.platform/BuildOrTest.sh test
 ```
 
 ### Task 4: span 最小原型（仅在 Task 2 结论允许时）
+
+> 当前状态：**已完成**
 
 **Files:**
 - Create: `src/fafafa.core.span.pas`
@@ -119,6 +129,10 @@ bash tests/fafafa.core.span/BuildOrTest.sh test
 
 ### Task 5: 若原型成立，再尝试纳入 strict L0 gate
 
+> 当前状态：
+> - `span` 相关部分已完成
+> - `platform` 相关部分仍不进入本任务
+
 **Files:**
 - Modify: `docs/fafafa.core.l0.foundation.md`
 - Modify: `docs/ARCHITECTURE_LAYERS.md`
@@ -141,10 +155,15 @@ STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.base fafafa.core.contract
 
 ## 当前执行限制
 
-本计划当前只完成到“admission-ready”阶段。
+本计划最初写下时，只完成到“admission-ready”阶段。
 
 原因是：
 
 - `platform` / `span` 都属于新的 L0 准入动作
 - 这属于架构扩张，不应未经批准直接实做
 - 目前仓库证据显示它们都还没有现成的 strict L0 模块形态
+
+但当前实际进展已经更新为：
+
+- `span` 已不再停留在 admission-ready，而是已经完成最小 strict L0 落地
+- `platform` 仍停留在 admission 结论阶段，且结论是继续 deferred

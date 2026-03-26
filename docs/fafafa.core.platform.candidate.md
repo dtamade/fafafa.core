@@ -3,6 +3,15 @@
 > 当前 strict non-SIMD L0 的总边界以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准。
 > 本页不代表 `fafafa.core.platform` 已经存在；它只负责审查“如果要做，这个候选是否值得进入 strict L0”。
 
+## 当前 source-of-truth
+
+1. `docs/fafafa.core.l0.foundation.md`
+2. `docs/ARCHITECTURE_LAYERS.md`
+3. `docs/fafafa.core.l0.candidates.platform-span.review.md`
+4. `src/fafafa.core.os.pas`
+5. `tests/fafafa.core.os/BuildOrTest.sh`
+6. `tests/fafafa.core.os/fafafa.core.os.testcase.pas`
+
 ## 当前结论
 
 当前不建议直接把 `platform` 做成 strict L0 新模块。
@@ -58,6 +67,18 @@
 - container / CI / admin 检测
 
 这类 API 很难长期保持“小而硬”的基础表达层定位。
+
+### 现有测试入口也证明它是 system facade，而不是最小 platform 壳
+
+`tests/fafafa.core.os/BuildOrTest.sh` 和 `tests/fafafa.core.os/fafafa.core.os.testcase.pas` 当前锁定的并不是一个极小平台枚举合同，而是一整组 OS / system probe 行为，包括：
+
+- `os_getenv` / `os_setenv` / `os_unsetenv` / `os_environ`
+- `os_hostname` / `os_home_dir` / `os_temp_dir` / `os_exe_path`
+- `os_kernel_version` / `os_uptime` / `os_boot_time` / `os_timezone`
+- `os_cpu_info` / `os_memory_info_detailed` / `os_storage_info` / `os_network_interfaces`
+- `os_is_admin` / `os_is_wsl` / `os_is_container` / `os_is_ci`
+
+这说明 today 仓库里最接近 `platform` 的现有入口，本质上是“OS helper + system info + capability probe”测试面，而不是 strict L0 应有的最小静态表达层。
 
 ## 为什么它现在不适合进 strict L0
 
@@ -144,12 +165,21 @@
 
 这些都更像 `os` 域，而不是 strict L0 foundation kernel。
 
+### 如果未来真的要进入实现，先满足这几个前置条件
+
+- 先产生独立的 `src/fafafa.core.platform.pas`，而不是复用 `fafafa.core.os`
+- 只依赖 RTL + 已确认 L0，不能反向依赖 `result` / `os` facade
+- 先有独立测试入口 `tests/fafafa.core.platform/BuildOrTest.*`
+- 测试只锁定静态 platform contract，不锁定 env/path/system probe 行为
+- 只有在这些条件都成立后，才值得考虑把它加入 strict L0 gate
+
 ## 当前建议
 
 当前最合理的判断是：
 
 - `fafafa.core.os` 不应整体下沉到 strict L0
 - `platform` 只有在被压缩成极小静态表达层后，才值得继续评估
+- 当前不应进入 `docs/plans/2026-03-26-l0-candidates-platform-span-admission.md` 里的 Task 3 原型实现阶段
 
 换句话说：
 

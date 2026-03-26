@@ -24,11 +24,12 @@
 - 未发现 `src/fafafa.core.platform*.pas`
 - 未发现 `tests/fafafa.core.platform/BuildOrTest.sh`
 - 现有命中主要是：
-  - 平台相关测试名字
-  - 平台说明文档
+  - `src/fafafa.core.os.pas` 里的 `TPlatformInfo` 与 `os_platform_info`
+  - `tests/fafafa.core.os/BuildOrTest.sh` 与 `fafafa.core.os.testcase.pas`
   - 平台差异 include / 平台实现细节
+  - `docs/fafafa.core.platform.candidate.md`
 
-这说明 `platform` 现在更像一个横切关注点，而不是一个已经收敛成“可稳定暴露的小 API 模块”的候选。
+这说明 `platform` 现在更像一个横切关注点，而不是一个已经收敛成“可稳定暴露的小 API 模块”的候选。更重要的是，today 仓库里的现实承载者其实是 `fafafa.core.os` 这种 system facade，而不是一个极小 platform contract。
 
 ### `span`
 
@@ -66,6 +67,7 @@
 - 还没有明确模块边界
 - 很容易把“平台实现细节集合”误做成“大而泛”的工具箱
 - 如果直接准入，风险是把 OS / runtime / feature detection 之类非 L0 语义一起带进来
+- 现有测试入口覆盖的是 env/path/system probe/capability 行为，不是独立的最小 platform contract
 
 ### `span` 被切窄后，阻塞已经解除
 
@@ -100,6 +102,13 @@
 
 只有当答案收敛成一个极小且稳定的 API 面时，才值得产生 `fafafa.core.platform`。
 
+如果后续真要从 deferred 变成可实施，最少也要先满足：
+
+- 独立源码入口：`src/fafafa.core.platform.pas`
+- 独立测试入口：`tests/fafafa.core.platform/BuildOrTest.*`
+- API 只锁定静态平台表达，不混入 env/path/system probe
+- 不复用 `fafafa.core.os` 作为“伪 platform 模块”
+
 ### `span` 的后续推荐切法
 
 当前第一版已经按这个原则落地。后续如果还要扩展，只能单独评估：
@@ -120,8 +129,8 @@
 
 下一轮如果继续推进，建议目标改成：
 
-- **Task A：platform 候选 API 审查**
+- **Task A：platform 候选 API 壳面收敛**
 - **Task B：segmented span / span2 是否值得独立候选**
 - **Task C：只在新的批准后扩张 `span` 边界**
 
-换句话说，当前该收口的已经收口；下一轮的本质不再是“补一个最小 span 原型”，而是“谨慎决定要不要扩张它”。
+换句话说，当前该收口的已经收口；`platform` 这边也已经完成“为什么继续 deferred”的证据闭环。下一轮如果还想推进，重点不该是直接写原型，而是先把 API 壳面压到足够小。
