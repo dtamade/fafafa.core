@@ -4,9 +4,10 @@
 
 ## L0 的定位
 
-L0 负责四类事情：
+L0 负责五类事情：
 
 - 基础语义
+- 基础视图表达
 - bit / layout / endian 这类原始数据语义
 - 原子与内存模型
 - 分配契约
@@ -38,15 +39,14 @@ L0 不负责以下事情：
 | build contract |  | shared semantics |  | endian         |  | memory model         |
 +----------------+  +--------+---------+  +--------+-------+  +----------+-----------+
                              |                     |                     |
-                +------------+------------+        |                     v
-                |                         |        |            +------------------+
-                v                         v        |            | atomic.compat    |
-       +------------------+      +------------------+          +--------+---------+
-       | option.base      |      | result           |                   |
-       | option           |      | result.facade    |                   v
-       +------------------+      +------------------+          +------------------+
-                                                                  | atomic           |
-                                                                  +------------------+
+                +------------+------------+------------+        |            +------------------+
+                |                         |            |        |            | atomic.compat    |
+                v                         v            v        |            +--------+---------+
+       +------------------+      +------------------+ +------------------+          |
+       | option.base      |      | result           | | span             |          v
+       | option           |      | result.facade    | | read-only view   | +------------------+
+       +------------------+      +------------------+ +------------------+ | atomic           |
+                                                                             +------------------+
 
                              +-----------------------------------------------+
                              | mem.allocator.base                            |
@@ -63,15 +63,16 @@ L0 不负责以下事情：
 | 前置条件 helper | `fafafa.core.contracts` | 统一承载 strict L0 的 precondition helper，给 `option` / `result` / allocator contract 复用 |
 | 可空语义 | `fafafa.core.option.base`, `fafafa.core.option` | `Option<T>` 是框架级基础语义，而不是某个服务模块的附属品 |
 | 结果语义 | `fafafa.core.result`, `fafafa.core.result.facade` | `Result<T, E>` 是错误传播和组合的基础表达方式 |
+| 视图表达 | `fafafa.core.span` | 提供最小只读单段、不拥有内存的基础视图 contract，给 collections / bytes 等上层复用 |
 | 位级基础 | `fafafa.core.bits` | 对齐、幂次判断和基础整数布局辅助属于所有上层都可能复用的 bit-level 语义 |
 | 布局契约 | `fafafa.core.layout` | `TMemLayout`、`TAllocCaps` 与默认对齐 / cache line / page size 都是跨 allocator / bytes / collections 共享的底层布局合同 |
 | 字节序语义 | `fafafa.core.endian` | endian 枚举、native 解析与 byteswap 属于独立的基础数据语义，不应继续埋在 `bytes` consumer 里 |
 | 原子模型 | `fafafa.core.atomic.base`, `fafafa.core.atomic.compat`, `fafafa.core.atomic` | 定义原子操作、内存序和兼容层，是并发系统的底层前提 |
 | 分配契约 | `fafafa.core.mem.allocator.foundation`, `fafafa.core.mem.allocator.base`, `fafafa.core.mem.allocator.rtlAllocator`, `fafafa.core.mem.allocator.callbackAllocator` | `foundation` 提供 strict L0 稳定入口，`base + minimal backends` 提供最小契约与最小实现 |
 
-## 本轮已落地的 L0 基础能力
+## 当前已落地的 L0 基础能力
 
-这轮不是只在文档里“宣布候选方向”，而是已经把 `bits/layout/endian` 真正落地到代码里。
+当前不是只在文档里“宣布候选方向”，而是已经把 `bits/layout/endian` 和最小 `span` contract 真正落地到代码里。
 
 - `fafafa.core.bits`
   - 负责 `DivRoundUp`、`IsPowerOfTwo`、`NextPowerOfTwo`、`AlignUp`、`AlignDown`、`IsAligned`
@@ -79,6 +80,10 @@ L0 不负责以下事情：
   - 负责 `TMemLayout`、`TAllocCaps`、`MEM_DEFAULT_ALIGN`、`MEM_CACHE_LINE_SIZE`、`MEM_PAGE_SIZE`、`TryNextPowerOfTwo`
 - `fafafa.core.endian`
   - 负责 `TEndianness`、`NativeEndianness`、`ResolveEndianness`、`IsLittleEndian`、`IsBigEndian`、`ByteSwap16`、`ByteSwap32`、`ByteSwap64`
+- `fafafa.core.span`
+  - 负责最小只读单段 `TReadOnlySpan<T>`
+  - 当前稳定 API：`FromPointer`、`Count`、`IsEmpty`、`Get`、`TryGet`、`GetPtr`、`SubSpan`
+  - 明确不承载 `Span2`、`GetBlock`、deque 双段视图和容器 `SliceView` 裁剪语义
 
 同时，旧入口已经明确降为 compat / consumer：
 
@@ -100,9 +105,11 @@ L0 不负责以下事情：
 | `fafafa.core.sync*`, `fafafa.core.thread*`, `fafafa.core.time*` | 是上层系统服务，不是最小底层契约 |
 | `fafafa.core.lockfree*` | 尽管底层，但属于高级并发数据结构，不是所有模块都必须依赖的基础语言 |
 | `fafafa.core.result.collect` | 依赖 `fafafa.core.collections.vec`，已经跨出 L0 |
+| `fafafa.core.collections.slice` 中的 `TReadOnlySpan2<T>` / `GetBlock` / 容器 `SliceView` 行为 | 双段和容器视图仍属于 collections 域，不应借 `span` 之名直接并入 strict L0 |
 | `fafafa.core.mem.allocator.mimalloc` | 依赖可选后端，不应和基础契约绑定 |
 | `fafafa.core.mem.allocator.crtAllocator` | 条件编译的外部后端，不应作为纯 L0 必备实现 |
 | `fafafa.core.mem.allocator.instrumentation` | 属于调试和观测扩展，不属于严格 L0 |
+| `fafafa.core.platform` | 仍未收敛成稳定的小 API 模块，继续保持 deferred |
 
 ## L0 的开发范式
 
@@ -160,12 +167,12 @@ L0 继续保持 `fafafa.core` 现有的开发范式，但要求更严格。
 
 ## L0 后续仍可评估的能力
 
-在 `bits/layout/endian/contracts` 已经落地之后，后续只有在满足“RTL-only、跨模块通用、语义非常基础、API 面可控”时，以下能力才适合继续考虑进入 L0：
+在 `bits/layout/endian/contracts/span` 已经落地之后，后续只有在满足“RTL-only、跨模块通用、语义非常基础、API 面可控”时，以下能力才适合继续考虑进入 L0：
 
 - `platform`
-- `span`
+- `segmented span / span2`
 
-这些名字代表的是下一批候选方向，不代表应该立刻继续扩张 L0。
+这里的 `segmented span / span2` 指的是 deque / ring-buffer 双段视图方向，不代表今天的 `fafafa.core.span` 还处于未准入状态。
 
 ## L0 准入清单
 

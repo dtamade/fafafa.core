@@ -6,8 +6,9 @@
 ## 本轮目标
 
 - 把当前 strict non-SIMD L0 收口为可合并状态。
-- 补齐 `bits` / `layout` / `endian` / `contracts` 的 README / 文档 / 测试入口一致性。
+- 补齐 `bits` / `layout` / `endian` / `contracts` / `span` 的 README / 文档 / 测试入口一致性。
 - 确认 `option` / `result` / `atomic` / `mem.allocator.foundation` 在当前 L0 边界下回归通过。
+- 只把经过批准的最小 `span` contract 纳入 strict L0，不扩大到 segmented span 或 `platform`。
 
 ## 当前 strict L0 实际范围
 
@@ -16,6 +17,7 @@
 - `fafafa.core.settings.inc`
 - `fafafa.core.base`
 - `fafafa.core.contracts`
+- `fafafa.core.span`
 - `fafafa.core.bits`
 - `fafafa.core.layout`
 - `fafafa.core.endian`
@@ -40,7 +42,7 @@
 ### 本轮明确 deferred
 
 - `platform`
-- `span`
+- `segmented span / span2`
 - 所有 SIMD 相关能力与审查
 
 ## 本轮新增 / 收紧内容
@@ -65,6 +67,13 @@
 - `atomic` / `result.UnwrapUnchecked`
   - 继续使用内部 invariant / `Assert` 语义，不迁入 `contracts`
 
+### 新纳入的最小视图 contract
+
+- `fafafa.core.span`
+  - 只承认 `TReadOnlySpan<T>` 的最小只读单段、不拥有内存合同
+  - 当前稳定 API：`FromPointer`、`Count`、`IsEmpty`、`Get`、`TryGet`、`GetPtr`、`SubSpan`
+  - 当前明确不纳入：`TReadOnlySpan2<T>`、`GetBlock`、deque 双段视图和容器 `SliceView` 裁剪语义
+
 ## README / 文档一致性结果
 
 ### 已对齐
@@ -73,6 +82,8 @@
 - `tests/fafafa.core.layout/README.md`
 - `tests/fafafa.core.endian/README.md`
 - `tests/fafafa.core.contracts/README.md`
+- `tests/fafafa.core.span/README.md`
+- `docs/fafafa.core.span.md`
 
 ### 一致性原则
 
@@ -82,7 +93,9 @@
   - `docs/ARCHITECTURE_LAYERS.md`
   - 对应模块文档
   - 对应测试入口脚本 / testcase
-- README 边界明确写出 `platform` / `span` 不是当前测试入口范围。
+- README 边界必须明确写出：
+  - `span` 入口只覆盖最小单段只读 contract
+  - `platform`、`span2` / segmented view 与 SIMD 不在当前入口范围内
 
 ## 验证结果
 
@@ -91,63 +104,59 @@
 ```bash
 bash tests/fafafa.core.contracts/BuildOrTest.sh test
 bash tests/fafafa.core.contracts/BuildOrTest.sh test-no-contracts
+bash tests/fafafa.core.span/BuildOrTest.sh test
 bash tests/fafafa.core.option/BuildOrTest.sh test
 bash tests/fafafa.core.result/BuildOrTest.sh test
 bash tests/fafafa.core.mem.allocator.foundation/BuildOrTest.sh test
 bash tests/fafafa.core.atomic/BuildOrTest.sh test
-STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.base fafafa.core.contracts fafafa.core.bits fafafa.core.layout fafafa.core.endian fafafa.core.option fafafa.core.result fafafa.core.atomic fafafa.core.mem.allocator.foundation
+STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.base fafafa.core.contracts fafafa.core.bits fafafa.core.layout fafafa.core.endian fafafa.core.span fafafa.core.option fafafa.core.result fafafa.core.atomic fafafa.core.mem.allocator.foundation
 git diff --check
 ```
 
 ### 汇总结果
 
-- strict L0 gate：`9/9 passed`
+- strict L0 gate：`10/10 passed`
+- `span` 单模块 gate：通过
 - `contracts` 双模式 smoke：通过
 - `git diff --check`：通过
 
 ## 合并前注意事项
 
 - 当前工作树位于 `main`
-- 当前改动尚未提交，也尚未合并
-- 这轮收口的正确下一步是提交 / 合并当前工作树改动，而不是继续扩张到 `platform` / `span` / SIMD
+- 当前这批改动应作为一个独立提交收口
+- 由于当前就在 `main`，提交后无需再做分支合并到主线
+- 这轮收口的正确下一步是提交当前工作树改动，而不是继续扩张到 `platform` / `span2` / SIMD
 
 ## 建议提交方式
 
 ### 推荐 commit 标题
 
 ```text
-feat(core): close out strict L0 contracts wave
+feat(core): admit minimal span into strict L0
 ```
 
 ### 推荐 commit 正文要点
 
-- add `fafafa.core.contracts` as strict non-SIMD L0 precondition helper
-- align `option` / `result` / allocator contract call sites with the new helper
-- sync `bits` / `layout` / `endian` / `contracts` README and L0 docs
-- record final strict L0 closeout checklist and gate results
+- add `fafafa.core.span` as the minimal strict L0 read-only single-segment view contract
+- keep `TReadOnlySpan2<T>` / `GetBlock` / container `SliceView` semantics in collections scope
+- sync `span` docs, candidate review, architecture layers, and L0 closeout records
+- rerun strict L0 gate including `fafafa.core.span`
 
 ### 推荐纳入本次提交的路径
 
-- `src/fafafa.core.contracts.pas`
-- `src/fafafa.core.option.base.pas`
-- `src/fafafa.core.option.pas`
-- `src/fafafa.core.result.pas`
-- `src/fafafa.core.mem.allocator.base.pas`
-- `src/fafafa.core.mem.allocator.callbackAllocator.pas`
-- `tests/fafafa.core.contracts/`
-- `tests/fafafa.core.bits/README.md`
-- `tests/fafafa.core.layout/README.md`
-- `tests/fafafa.core.endian/README.md`
-- `docs/fafafa.core.contracts.md`
+- `src/fafafa.core.span.pas`
+- `tests/fafafa.core.span/`
+- `docs/fafafa.core.span.md`
 - `docs/fafafa.core.l0.foundation.md`
 - `docs/ARCHITECTURE_LAYERS.md`
+- `docs/fafafa.core.l0.candidates.platform-span.review.md`
+- `docs/fafafa.core.span.candidate.md`
 - `docs/fafafa.core.l0.merge-closeout.md`
-- `docs/plans/2026-03-26-strict-l0-merge-closeout.md`
 
 ### 不应混入本次提交的范围
 
 - `platform`
-- `span`
+- `span2` / segmented view
 - 所有 SIMD 改动
 - 与 strict L0 收口无关的其他模块顺手修改
 
@@ -160,9 +169,9 @@ feat(core): close out strict L0 contracts wave
 - 代码与文档边界已经收紧
 - 测试入口与 README 已对齐
 - strict L0 gate 已通过
+- `span` 已以批准过的最小 cut 进入 L0
 
 这里的“可合并”不指：
 
-- 已自动创建 commit
 - 已自动发起 merge
 - 已批准继续扩张 L0 范围

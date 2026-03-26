@@ -8,14 +8,12 @@
 当前结论很明确：
 
 - `platform`：**尚未形成可直接准入的单独模块**
-- `span`：**已有分散语义，但尚未形成可直接准入的 strict L0 模块**
+- `span`：**已按批准 cut 落地为 strict L0 的最小只读单段模块**
 
-因此，下一轮正确动作是：
+也就是说，这轮评审最终得到了两个不同结果：
 
-1. 先完成准入设计
-2. 再经批准进入实现
-
-而不是直接把它们塞进 L0。
+1. `platform` 继续 deferred
+2. `span` 只以最小 read-only single-segment contract 的形态准入并实现
 
 ## 证据摘要
 
@@ -34,20 +32,27 @@
 
 ### `span`
 
-当前仓库里也没有发现独立的 `src/fafafa.core.span.pas`：
+当前已经存在独立的 `span` strict L0 模块与测试入口：
 
-- 未发现 `src/fafafa.core.span*.pas`
-- 未发现 `tests/fafafa.core.span/BuildOrTest.sh`
-- 已发现的“span 语义”主要存在于：
-  - `fafafa.core.collections.slice`
-  - `TVec.SliceView`
-  - `TVecDeque.SliceView`
-  - `tests/fafafa.core.collections/vec/Test_vec_span.pas`
-  - `tests/fafafa.core.collections/vecdeque/Test_vecdeque_span.pas`
+- `src/fafafa.core.span.pas`
+- `docs/fafafa.core.span.md`
+- `tests/fafafa.core.span/BuildOrTest.sh`
+- `tests/fafafa.core.span/fafafa.core.span.testcase.pas`
 
-这说明 `span` 今天不是一个 strict L0 基础模块，而是依附在 collections 体系里的视图语义。
+当前落地的 API 严格限制为：
 
-## 为什么现在不能直接进 L0
+- `TReadOnlySpan<T>`
+  - `FromPointer`
+  - `Count`
+  - `IsEmpty`
+  - `Get`
+  - `TryGet`
+  - `GetPtr`
+  - `SubSpan`
+
+这说明 `span` 已经完成从 collections today semantics 到 strict L0 基础视图 contract 的最小切分。
+
+## 为什么只有这个 cut 能进 L0
 
 根据 `docs/ARCHITECTURE_LAYERS.md` 与 `docs/fafafa.core.l0.foundation.md` 的准入规则，一个模块进入 L0 至少要满足：
 
@@ -62,16 +67,26 @@
 - 很容易把“平台实现细节集合”误做成“大而泛”的工具箱
 - 如果直接准入，风险是把 OS / runtime / feature detection 之类非 L0 语义一起带进来
 
-### `span` 当前的主要阻塞
+### `span` 被切窄后，阻塞已经解除
 
-- 现有语义绑定在 `collections.slice` 与容器视图上
-- 还没证明它可以脱离 collections 成为“跨模块共用的基础表达”
-- 如果直接抽，会碰到：
-  - 单段 span 与双段 span 的边界如何定义
-  - 只读 / 可写语义如何切
-  - 是否牵出 allocator、slice、mem.utils 等非 L0 依赖
+- 新模块只依赖 RTL + `fafafa.core.base`
+- 只承认最小只读单段视图，不接管容器策略
+- API 面已经收缩到稳定的小合同
+- 越界异常合同被测试入口锁定，具备 today contract 的可验证性
 
-## 如果未来要推进，该怎么切
+## 当前仍然不进入 L0 的 `span` 相关内容
+
+以下内容继续留在 collections 域或后续候选审查里：
+
+- `TReadOnlySpan2<T>`
+- `GetBlock`
+- deque / ring-buffer 双段视图
+- `TVec` / `TVecDeque` 的 `SliceView` today behavior
+- 直接把 `fafafa.core.collections.slice` 改名搬迁进 `fafafa.core.span`
+
+换句话说，这轮准入通过的不是“整个 span 世界”，而只是一个够小、够硬的基础表达层 cut。
+
+## 如果未来还要推进，该怎么切
 
 ### `platform` 的推荐切法
 
@@ -85,39 +100,28 @@
 
 只有当答案收敛成一个极小且稳定的 API 面时，才值得产生 `fafafa.core.platform`。
 
-### `span` 的推荐切法
+### `span` 的后续推荐切法
 
-不要直接把 `collections.slice` 原样搬进 L0。
+当前第一版已经按这个原则落地。后续如果还要扩展，只能单独评估：
 
-更合理的方式是先把候选形态限制为：
-
-- 纯只读视图优先
-- 尽量先做单段 span
-- 双段 / ring-buffer 视图放在后续评估
-- 不直接复用容器命名和容器行为
-
-也就是说，如果未来真要做，第一版应该是一个极小、纯表达层的 `span contract`，而不是集合工具包。
+- `span2` / segmented view 是否真的属于 L0
+- 可写视图是否需要独立合同
+- collections 容器接口与 L0 视图合同之间的边界是否仍然清晰
 
 ## 当前建议
-
-### 可以继续做的
-
-- 写准入设计文档
-- 写批准后实施计划
-- 罗列依赖与切分原则
 
 ### 现在不该直接做的
 
 - 直接新建 `fafafa.core.platform`
-- 直接把 `collections.slice` 改名搬进 `fafafa.core.span`
-- 未经批准就扩大 strict L0 范围
+- 直接把 `TReadOnlySpan2<T>` / `GetBlock` / 容器 `SliceView` 一起塞进 `fafafa.core.span`
+- 未经新的准入审查继续扩大 strict L0 范围
 
 ## 下一步建议
 
 下一轮如果继续推进，建议目标改成：
 
 - **Task A：platform 候选 API 审查**
-- **Task B：span 候选 API 审查**
-- **Task C：只在批准后实现最小 strict L0 原型**
+- **Task B：segmented span / span2 是否值得独立候选**
+- **Task C：只在新的批准后扩张 `span` 边界**
 
-换句话说，下一轮的本质不是“补实现”，而是“先完成架构准入设计”。
+换句话说，当前该收口的已经收口；下一轮的本质不再是“补一个最小 span 原型”，而是“谨慎决定要不要扩张它”。

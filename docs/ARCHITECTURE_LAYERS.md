@@ -21,8 +21,8 @@
 | mem (non-allocator), ...                                         |
 +------------------------------------------------------------------+
 | Layer 0: Foundation Kernel                                       |
-| settings, base, contracts, bits, layout, endian, atomic, option, |
-| result,                                                          |
+| settings, base, contracts, option, result, span, bits, layout,   |
+| endian, atomic,                                                  |
 | mem.allocator contract                                           |
 +------------------------------------------------------------------+
 ```
@@ -46,6 +46,7 @@ L0 只容纳真正的基础语义、内存模型和分配契约。它必须足�
 | 前置条件 helper | `fafafa.core.contracts` | strict L0 的 precondition helper，统一 `EArgumentNil` / `EInvalidArgument` 抛出入口 |
 | 可空语义 | `fafafa.core.option.base`, `fafafa.core.option` | `Option<T>` 语义与组合子 |
 | 结果语义 | `fafafa.core.result`, `fafafa.core.result.facade` | `Result<T, E>` 语义与稳定门面 |
+| 视图表达 | `fafafa.core.span` | 最小只读单段、不拥有内存的基础视图 contract |
 | 位级基础 | `fafafa.core.bits` | 对齐、幂次判断与基础整数布局 helper |
 | 布局契约 | `fafafa.core.layout` | `TMemLayout`、`TAllocCaps` 与默认对齐 / cache line / page size 契约 |
 | 字节序语义 | `fafafa.core.endian` | endian 枚举、native 解析和 byte-swap |
@@ -57,9 +58,11 @@ L0 的明确边界：
 - `simd` 不属于 L0。它包含 capability、dispatch、public ABI 和多后端实现，属于核心服务层。
 - `math` 不属于 L0。它是领域算法和数值工具层，不是最小语义内核。
 - `collections` 不属于 L0。它引入容量策略、迭代器、所有权容器和更复杂的 API 表面。
+- `fafafa.core.span` 当前只包含最小只读单段 contract；`collections.slice` 里的 `TReadOnlySpan2<T>`、`GetBlock` 和容器 `SliceView` 语义仍属于 Layer 1 collections 域。
 - `bytes` / `io` / `sync` / `thread` / `time` 不属于 L0。它们已经是面向服务的上层能力。
 - `fafafa.core.result.collect` 不属于 L0，因为它依赖 `fafafa.core.collections.vec`。
 - `fafafa.core.mem.allocator.mimalloc`、`fafafa.core.mem.allocator.crtAllocator`、`fafafa.core.mem.allocator.instrumentation` 不属于严格 L0，它们是可选后端或调试扩展。
+- `platform` 仍处于候选审查阶段，尚未形成独立的 strict L0 模块。
 
 L0 的依赖关系可以概括为：
 
@@ -71,8 +74,8 @@ L0 的依赖关系可以概括为：
  settings.inc    base      atomic.base
       |           |           |
       |       +---+---+       +--> atomic.compat --> atomic
-      |       |       |
-      |    option   result --> result.facade
+      |       |   |   |
+      |    option span result --> result.facade
       |
       +--> mem.allocator.base --> rtlAllocator / callbackAllocator --> allocator.foundation
 ```
@@ -94,7 +97,7 @@ Layer 1 承载“框架级服务能力”。它可以依赖 L0，但不应反向
 |--------|------|
 | `fafafa.core.simd*` | 向量能力、runtime dispatch、public ABI、后端选择 |
 | `fafafa.core.math*` | 数学函数、安全整数、数值工具 |
-| `fafafa.core.collections*` | 容器、序列、容量与迭代抽象 |
+| `fafafa.core.collections*` | 容器、序列、容量与迭代抽象；`collections.slice` 的双段视图和容器裁剪语义也继续留在这里 |
 | `fafafa.core.bytes*`, `fafafa.core.io*` | 字节视图、读写抽象、缓冲 |
 | `fafafa.core.sync*`, `fafafa.core.thread*`, `fafafa.core.time*` | 并发、线程、时间相关服务 |
 | `fafafa.core.mem*`（除 allocator contract） | 内存池、管理器、对齐桥接、性能扩展 |
