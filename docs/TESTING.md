@@ -7,6 +7,13 @@
 
 它们会递归扫描子模块测试脚本并执行，输出各模块日志与最终汇总。
 
+从本轮开始，`run_all_tests.{sh,bat}` 在真正执行模块测试前，还会先做一次 `src/` 源码树 hygiene preflight：
+
+- Linux/macOS：`bash tests/check_repo_hygiene.sh`
+- Windows：`tests\check_repo_hygiene.bat`
+
+如果 `src/` 下残留 `.o`、`.ppu`、`.bak` 一类编译/备份产物，统一入口会先失败，避免把生成物噪音带进后续审查和搜索。
+
 ---
 
 ### 先决条件
@@ -99,6 +106,12 @@
 4) 是否有“测试规范命名”？
 - 子模块测试脚本建议采用以下之一：`BuildOrTest.bat` / `BuildAndTest.bat`（Windows），`BuildOrTest.sh` / `BuildAndTest.sh`（Linux/macOS）
 - 统一脚本会自动发现并执行上述命名脚本
+
+5) `run_all_tests` 一开始就失败，并提示 `src` hygiene？
+- 先直接运行：
+  - Linux/macOS：`bash tests/check_repo_hygiene.sh`
+  - Windows：`tests\check_repo_hygiene.bat`
+- 如果输出列出了 `src/` 下的 `.o` / `.ppu` / `.bak`，先清理这些生成物，再重新执行 `run_all_tests`
 
 ---
 

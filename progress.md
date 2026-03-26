@@ -2,6 +2,26 @@
 
 ## Session: 2026-03-27
 
+### Phase 78: repo hygiene guard
+- **Status:** complete
+- Actions taken:
+  - 新增 `tests/test_repo_hygiene_guard.sh`，先以 “checker 缺失” 回收 red
+  - 新增 `tests/check_repo_hygiene.sh` 与 `tests/check_repo_hygiene.bat`，让 checker 支持直接检查任意 repo root 的 `src/`
+  - 修改 `tests/run_all_tests.sh` 与 `tests/run_all_tests.bat`，在真正执行模块测试前先运行 hygiene checker
+  - 修改 `docs/TESTING.md` 与 `docs/standards/ENGINEERING_STANDARDS.md`，把 preflight 与 direct checker 命令写入长期入口
+  - fresh 运行 shell 语法检查、repo hygiene guard 自测、direct checker、strict L0 run_all gate 与 `git diff --check`
+- Files created/modified:
+  - `tests/check_repo_hygiene.sh` (new)
+  - `tests/check_repo_hygiene.bat` (new)
+  - `tests/test_repo_hygiene_guard.sh` (new)
+  - `tests/run_all_tests.sh` (modified)
+  - `tests/run_all_tests.bat` (modified)
+  - `docs/TESTING.md` (modified)
+  - `docs/standards/ENGINEERING_STANDARDS.md` (modified)
+  - `task_plan.md` (modified)
+  - `findings.md` (modified)
+  - `progress.md` (modified)
+
 ### Phase 77: L0 control-plane closeout
 - **Status:** complete
 - Actions taken:

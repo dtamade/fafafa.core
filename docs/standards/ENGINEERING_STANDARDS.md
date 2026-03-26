@@ -396,6 +396,9 @@ Layer 2 (功能层):
 # 检查源码目录清洁度
 find src/ -name "*.o" -o -name "*.ppu" | wc -l
 
+# 使用统一 checker 验证 src/ 没有 .o/.ppu/.bak 生成物
+bash tests/check_repo_hygiene.sh
+
 # 编译所有测试
 for lpi in tests/*/BuildOrTest.lpi; do
   lazbuild "$lpi"
