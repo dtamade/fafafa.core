@@ -1,0 +1,123 @@
+# strict L0 候选审查：platform / span
+
+> 当前 strict non-SIMD L0 的正式边界仍以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准。
+> 本页只负责回答一个问题：`platform` / `span` 这两个名字，是否已经具备进入 strict L0 的实施条件。
+
+## 审查结论
+
+当前结论很明确：
+
+- `platform`：**尚未形成可直接准入的单独模块**
+- `span`：**已有分散语义，但尚未形成可直接准入的 strict L0 模块**
+
+因此，下一轮正确动作是：
+
+1. 先完成准入设计
+2. 再经批准进入实现
+
+而不是直接把它们塞进 L0。
+
+## 证据摘要
+
+### `platform`
+
+当前仓库里没有发现明确的 `src/fafafa.core.platform.pas` 或对应测试入口：
+
+- 未发现 `src/fafafa.core.platform*.pas`
+- 未发现 `tests/fafafa.core.platform/BuildOrTest.sh`
+- 现有命中主要是：
+  - 平台相关测试名字
+  - 平台说明文档
+  - 平台差异 include / 平台实现细节
+
+这说明 `platform` 现在更像一个横切关注点，而不是一个已经收敛成“可稳定暴露的小 API 模块”的候选。
+
+### `span`
+
+当前仓库里也没有发现独立的 `src/fafafa.core.span.pas`：
+
+- 未发现 `src/fafafa.core.span*.pas`
+- 未发现 `tests/fafafa.core.span/BuildOrTest.sh`
+- 已发现的“span 语义”主要存在于：
+  - `fafafa.core.collections.slice`
+  - `TVec.SliceView`
+  - `TVecDeque.SliceView`
+  - `tests/fafafa.core.collections/vec/Test_vec_span.pas`
+  - `tests/fafafa.core.collections/vecdeque/Test_vecdeque_span.pas`
+
+这说明 `span` 今天不是一个 strict L0 基础模块，而是依附在 collections 体系里的视图语义。
+
+## 为什么现在不能直接进 L0
+
+根据 `docs/ARCHITECTURE_LAYERS.md` 与 `docs/fafafa.core.l0.foundation.md` 的准入规则，一个模块进入 L0 至少要满足：
+
+- 只依赖 RTL 和已确认 L0
+- 解决的是全框架共用的基础表达问题
+- API 面足够小、长期稳定
+- 不是容器、服务、dispatch 或 registry
+
+### `platform` 当前的主要阻塞
+
+- 还没有明确模块边界
+- 很容易把“平台实现细节集合”误做成“大而泛”的工具箱
+- 如果直接准入，风险是把 OS / runtime / feature detection 之类非 L0 语义一起带进来
+
+### `span` 当前的主要阻塞
+
+- 现有语义绑定在 `collections.slice` 与容器视图上
+- 还没证明它可以脱离 collections 成为“跨模块共用的基础表达”
+- 如果直接抽，会碰到：
+  - 单段 span 与双段 span 的边界如何定义
+  - 只读 / 可写语义如何切
+  - 是否牵出 allocator、slice、mem.utils 等非 L0 依赖
+
+## 如果未来要推进，该怎么切
+
+### `platform` 的推荐切法
+
+不要先做“大一统 platform”。
+
+更合理的方式是先回答三个问题：
+
+1. 到底要暴露哪一类平台信息？
+2. 这些信息是否真的是跨模块、跨域共用的基础语义？
+3. 这些 API 能否只依赖 RTL + L0，而不把 IO / env / time / sync 的实现细节带进来？
+
+只有当答案收敛成一个极小且稳定的 API 面时，才值得产生 `fafafa.core.platform`。
+
+### `span` 的推荐切法
+
+不要直接把 `collections.slice` 原样搬进 L0。
+
+更合理的方式是先把候选形态限制为：
+
+- 纯只读视图优先
+- 尽量先做单段 span
+- 双段 / ring-buffer 视图放在后续评估
+- 不直接复用容器命名和容器行为
+
+也就是说，如果未来真要做，第一版应该是一个极小、纯表达层的 `span contract`，而不是集合工具包。
+
+## 当前建议
+
+### 可以继续做的
+
+- 写准入设计文档
+- 写批准后实施计划
+- 罗列依赖与切分原则
+
+### 现在不该直接做的
+
+- 直接新建 `fafafa.core.platform`
+- 直接把 `collections.slice` 改名搬进 `fafafa.core.span`
+- 未经批准就扩大 strict L0 范围
+
+## 下一步建议
+
+下一轮如果继续推进，建议目标改成：
+
+- **Task A：platform 候选 API 审查**
+- **Task B：span 候选 API 审查**
+- **Task C：只在批准后实现最小 strict L0 原型**
+
+换句话说，下一轮的本质不是“补实现”，而是“先完成架构准入设计”。
