@@ -7,6 +7,43 @@
 - 形成连续的修复与审查计划
 
 ## Research Findings
+- 2026-03-27 L0 control-plane closeout 实施快照（small-batch fix，不扩张 L0 边界）：
+  - 已将缺失的 `docs/plans/2026-03-24-l0-docs-closeout-roadmap.md` 从 `l0-foundation` worktree 回流到主线，`docs/INDEX.md` 的 L0 路线图入口不再断链
+  - 已在主线新增 `workers/worker1.md`，把 L0 owner / worktree / source-of-truth / fresh verification 显式化；不再让 L0 状态只存在于 worktree 内
+  - 已在 `backlog.md` 显式加入 `strict L0 control-plane closeout` 条目，让 “strict L0 已 green、当前只收口控制面与 hygiene、`platform` 继续 deferred” 变成可见 backlog 状态，而不是隐含结论
+  - 已清理主线 `src/` 下 `107` 个未跟踪 `.o/.ppu/.bak` 生成物，当前 `find src -type f \( -name '*.o' -o -name '*.ppu' -o -name '*.bak' \)` 返回空
+  - fresh 验证结果：
+    - `test -f docs/plans/2026-03-24-l0-docs-closeout-roadmap.md && rg -n "2026-03-24-l0-docs-closeout-roadmap|workers/worker1.md" docs/INDEX.md docs/plans/2026-03-24-l0-docs-closeout-roadmap.md`：PASS
+    - `git diff --check`：PASS
+    - `STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.base fafafa.core.contracts fafafa.core.bits fafafa.core.layout fafafa.core.endian fafafa.core.span fafafa.core.option fafafa.core.result fafafa.core.atomic fafafa.core.mem.allocator.foundation`：PASS，`10/10`
+    - `bash tests/fafafa.core.contracts/BuildOrTest.sh test-no-contracts`：PASS
+  - 当前仍保留一个非本批处理项：
+    - 主线工作树仍有未跟踪目录 `tests/fafafa.core.simd/nonx86.optin/`；由于这属于 SIMD sidecar，本批没有擅动
+
+- 2026-03-27 补充项目/L0 审查快照（review-only，无生产代码修改）：
+  - fresh `STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.base fafafa.core.contracts fafafa.core.bits fafafa.core.layout fafafa.core.endian fafafa.core.span fafafa.core.option fafafa.core.result fafafa.core.atomic fafafa.core.mem.allocator.foundation`：PASS，`10/10`
+  - fresh `bash tests/fafafa.core.contracts/BuildOrTest.sh test-no-contracts`：PASS
+  - fresh `git diff --check`：PASS
+  - L0 文档与验证口径在主线基本自洽：`docs/fafafa.core.l0.foundation.md` 与 `docs/fafafa.core.l0.merge-closeout.md` 明确 `span` 已纳入 strict L0、`platform` 继续 deferred，且 closeout 文档要求的 strict L0 gate 与本轮 fresh 结果一致
+  - 但主线文档入口存在一条高优先级断链：`docs/INDEX.md` 仍把 `docs/plans/2026-03-24-l0-docs-closeout-roadmap.md` 当作当前 L0 总路线图，仓库主线却不存在该文件；当前真实路线图只在 `.claude/worktrees/l0-foundation/` 中可见
+  - L0 worktree 的 source-of-truth 与人员分工也存在漂移：
+    - 主线 `workers/worker0.md` 仍绑定 `simd-external-evidence`
+    - L0 实际状态写在 `.claude/worktrees/l0-foundation/workers/worker1.md`
+    - `l0-foundation` worktree 当前 `git status --short | wc -l` 为 `509`，说明它更像“大批量待收口分支”，还不适合作为已整理完成的交接面
+  - 仓库卫生问题仍然真实存在：
+    - `src/` 根目录仍残留大量 `.o/.ppu/.bak` 产物
+    - 主线当前工作树仍有 `task_plan.md/findings.md/progress.md` 修改以及未跟踪目录 `tests/fafafa.core.simd/nonx86.optin/`
+
+- 2026-03-26 SIMD 审查快照（review-only，无生产代码修改）：
+  - fresh `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`：PASS
+  - fresh `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi,TTestCase_SimdConcurrentFramework`：PASS，`[LEAK] OK`
+  - fresh `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`：FAIL，但失败原因不是新的实现回归，而是 closeout 证据/摘要已过 72 小时 freshness gate，且最新源文件时间已晚于现存 `gate_summary.md` / Windows evidence
+  - 路线图/文档口径已出现两类分叉：
+    - `docs/plans/2026-03-24-simd-audit-closeout-roadmap.md` 的 Batch 70 仍写成待做，但 `docs/fafafa.core.simd.api.md`、`docs/fafafa.core.simd.publicabi.md`、`tests/fafafa.core.simd/*testcase.pas` 已经落地对应文档与 stable-state parity tests
+    - `tests/fafafa.core.simd/docs/simd_completeness_matrix.md` / `simd_release_candidate_checklist.md` 的页头更新时间仍停在 `2026-03-11`，但正文已写入 `2026-03-21/24` 的 closeout 记录，降低文档可信度
+  - 仓库卫生仍有明确噪音源：
+    - `src/` 根目录残留大量被 `.gitignore` 忽略的 `.o/.ppu/.bak` 产物（含 simd 相关单元），这与项目“中间文件应进入 `lib/`”的约束不一致，也会污染搜索与人工审查
+
 - 最新一轮继续推进 `riscv64` / non-x86 external evidence 前，又确认一条新的真实自动化缺口：
   - 仓库里其实已经有 `tests/fafafa.core.simd/collect_nonx86_native_evidence.sh`
   - 但在修复前：

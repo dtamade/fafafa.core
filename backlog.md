@@ -9,6 +9,8 @@
 - 收尾：将三文件归档到 `plans/archive/YYYY-MM-DD-<topic>/`，并在本条目下补归档链接
 
 ## Now（进行中）
+- [ ] **P0 / strict L0 control-plane closeout**：把 L0 路线图、worker 可见度与主线仓库卫生收成一个最小可回流批次
+  进度：strict L0 gate 已 fresh `10/10 PASS`，`bash tests/fafafa.core.contracts/BuildOrTest.sh test-no-contracts` 已 PASS；当前剩余工作是把 `docs/plans/2026-03-24-l0-docs-closeout-roadmap.md` 回流主线、补主线 `workers/worker1.md`、清理 `src/` 下未跟踪 `.o/.ppu/.bak` 生成物。`platform` 继续 deferred，不扩张 L0 边界。
 - [ ] **P0 / layer0+layer1+layer2 自主维护推进**：建立“每轮自主发现 1 个任务 + 完成 1 个子任务”的连续闭环机制（不中断）  
   进度：batch1 已完成“脚本入口规范化 + Layer2 首轮失败矩阵”；batch2 已完成“process/socket 编译阻断修复与回归路径打通”（`process` 编译通过，`socket` 编译通过）；当前状态：`yaml PASS`，`toml/xml` 仍为断言失败，`socket` 在本沙箱因禁网触发运行期失败。
 - [ ] **P0 / sync**：继续 Layer1 验证：修复 `Condvar` / `Barrier` / `Once` / `Spin` 并补回归  

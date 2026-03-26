@@ -1,5 +1,59 @@
 # Progress Log
 
+## Session: 2026-03-27
+
+### Phase 77: L0 control-plane closeout
+- **Status:** complete
+- Actions taken:
+  - 新增 `docs/plans/2026-03-27-l0-control-plane-closeout.md`，把本轮修复限定为路线图回流、worker/backlog 可见度和 `src/` 生成物清理
+  - 将 `.claude/worktrees/l0-foundation/docs/plans/2026-03-24-l0-docs-closeout-roadmap.md` 回流到主线 `docs/plans/2026-03-24-l0-docs-closeout-roadmap.md`
+  - 修改 `docs/INDEX.md`，显式补上 `workers/worker1.md` 作为 L0 协作入口
+  - 修改 `backlog.md`，新增 `strict L0 control-plane closeout` 进行中条目
+  - 新增 `workers/worker1.md`，将 L0 owner、source-of-truth、风险与 next step 显式化
+  - 在确认 `git ls-files 'src/*.o' 'src/*.ppu' 'src/*.bak'` 无输出后，删除 `src/` 下 `107` 个未跟踪 `.o/.ppu/.bak` 生成物
+  - fresh 验证路线图入口、worker/backlog 可见度、`git diff --check`、strict L0 gate 与 `contracts` no-contracts smoke
+- Files created/modified:
+  - `docs/plans/2026-03-24-l0-docs-closeout-roadmap.md` (new in main worktree, copied from `l0-foundation`)
+  - `docs/plans/2026-03-27-l0-control-plane-closeout.md` (new)
+  - `docs/INDEX.md` (modified)
+  - `backlog.md` (modified)
+  - `workers/worker1.md` (new)
+  - `task_plan.md` (modified)
+  - `findings.md` (modified)
+  - `progress.md` (modified)
+
+### Phase 76: 项目/L0 审查与路线图评审补充快照
+- **Status:** complete
+- Actions taken:
+  - 复核 `docs/fafafa.core.l0.foundation.md`、`docs/fafafa.core.l0.merge-closeout.md`、`docs/INDEX.md`、`backlog.md`
+  - 检查主线 `workers/worker0.md` 与 `l0-foundation` worktree 的 `workers/worker1.md`，确认当前 worker/worktree 角色分配存在漂移
+  - 读取 `.claude/worktrees/l0-foundation/docs/plans/2026-03-24-l0-docs-closeout-roadmap.md`，确认主线索引引用的路线图文件尚未回流到主工作树
+  - fresh 运行 `STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.base fafafa.core.contracts fafafa.core.bits fafafa.core.layout fafafa.core.endian fafafa.core.span fafafa.core.option fafafa.core.result fafafa.core.atomic fafafa.core.mem.allocator.foundation`
+  - fresh 运行 `bash tests/fafafa.core.contracts/BuildOrTest.sh test-no-contracts`
+  - fresh 运行 `git diff --check`
+  - 盘点 `src/` 根目录编译产物，确认存在大量 `.o/.ppu/.bak` 残留
+- Files created/modified:
+  - `task_plan.md` (modified)
+  - `findings.md` (modified)
+  - `progress.md` (modified)
+
+## Session: 2026-03-26
+
+### Phase 75: SIMD 项目审查与路线图评审
+- **Status:** complete
+- Actions taken:
+  - 复核 `src/fafafa.core.simd.STABLE`、`docs/fafafa.core.simd.handoff.md`、`docs/plans/2026-03-24-simd-audit-closeout-roadmap.md`、`docs/plans/2026-02-24-simd-development-roadmap.md`
+  - 核对 Batch 70 是否已实际落地到文档与测试：确认 `docs/fafafa.core.simd.api.md`、`docs/fafafa.core.simd.publicabi.md`、`tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`、`tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 已覆盖 snapshot boundary 与 stable-state parity
+  - fresh 运行 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - fresh 运行 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi,TTestCase_SimdConcurrentFramework`
+  - fresh 运行 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+  - 审查 `src/` 下的 ignored build artifacts，确认存在大量 `.o/.ppu/.bak` 残留在源码目录
+- Files created/modified:
+  - `task_plan.md` (modified)
+  - `findings.md` (modified)
+  - `progress.md` (modified)
+
+
 ## Session: 2026-03-20
 
 ### Phase 1: 范围确认与结构梳理
