@@ -1,5 +1,12 @@
 # 2026-03-24 SIMD Audit Closeout Roadmap
 
+> Status: completed historical batch.
+>
+> This document records the Batch 69/70 closeout scope that was valid on 2026-03-24.
+> It is no longer the active queue for the current `simd-external-evidence` worktree.
+> For current SIMD priorities, use `backlog.md` as the queue truth source, and
+> use `task_plan.md` / `workers/worker0.md` for the active branch execution state.
+
 ## 目标
 
 把当前 `fafafa.core.simd` 的 capability / dispatch / public ABI 合同审查收口到 merge-ready。
@@ -67,6 +74,13 @@
 - fresh release `gate` PASS
 - `task_plan.md` / `findings.md` / `progress.md` / `workers/worker0.md` 已同步
 - worktree 最终 clean
+
+## 2026-03-27 Readout
+
+- Batch 69/70 should now be read as a closed closeout record, not the current active roadmap.
+- Current active SIMD queue has already moved to `SIMD-B21(candidate)` in `backlog.md`.
+- The "worktree 最终 clean" requirement above applied to this closeout batch itself.
+  The current worktree may legitimately be dirty again while later batches are in flight.
 
 ## 本轮不作为阻塞项
 

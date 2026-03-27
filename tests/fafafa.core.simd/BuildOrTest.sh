@@ -2007,6 +2007,48 @@ check_windows_bash_helper_runner_guard() {
   echo "[CHECK] OK (Windows bash helper runner guard present)"
 }
 
+check_riscvv_opcode_lane_contract_guard() {
+  local LScript
+  local LMissing
+  local LPattern
+  local -a LRequired
+
+  LScript="${ROOT}/docker/run_riscvv_opcode_lane.sh"
+  if [[ ! -f "${LScript}" ]]; then
+    echo "[CHECK] Missing RVV opcode lane script: ${LScript}"
+    return 1
+  fi
+
+  LMissing=0
+  LRequired=(
+    'RISCV_EXPERIMENTAL_DEFINE="${SIMD_QEMU_EXPERIMENTAL_RISCVV_FEATURE_DEFINE:--dSIMD_EXPERIMENTAL_RISCVV}"'
+    'RISCV_OPCODE_DEFINE="${SIMD_QEMU_EXPERIMENTAL_RISCV64_OPCODE_DEFINE:--dFAFAFA_SIMD_RISCVV_ASM_OPCODE_READY}"'
+    'LANE_DEFINES="${SIMD_RVV_LANE_DEFINES:-${RISCV_EXPERIMENTAL_DEFINE} ${BASE_DEFINE} ${RISCV_BACKEND_DEFINE} ${RISCV_COMPILER_DEFINE} ${RISCV_OPCODE_DEFINE}}"'
+    'COMPILE_DEFINES="${SIMD_RVV_COMPILE_DEFINES:-${LANE_DEFINES}}"'
+    'RUNTIME_DEFINES="${SIMD_RVV_RUNTIME_DEFINES:-${LANE_DEFINES}}"'
+    'COMPILE_USE_PREBUILT_COMPILER="${SIMD_RVV_COMPILE_USE_PREBUILT_COMPILER:-${USE_PREBUILT_COMPILER}}"'
+    'SUITE_USE_PREBUILT_COMPILER="${SIMD_RVV_SUITE_USE_PREBUILT_COMPILER:-${USE_PREBUILT_COMPILER}}"'
+    'BENCH_USE_PREBUILT_COMPILER="${SIMD_RVV_BENCH_USE_PREBUILT_COMPILER:-${USE_PREBUILT_COMPILER}}"'
+    "Callers that intentionally want a weaker runtime lane can still override"
+    "SIMD_RVV_RUNTIME_DEFINES explicitly."
+    "SIMD_FPC_EXTRA_DEFINES='\${RUNTIME_DEFINES}' bash tests/fafafa.core.simd/docker/run_fpc_tests.sh --suite=\${LANE_SUITE}"
+    "SIMD_BENCH_FPC_EXTRA_DEFINES='\${RUNTIME_DEFINES}' bash tests/fafafa.core.simd/run_backend_benchmarks.sh"
+  )
+
+  for LPattern in "${LRequired[@]}"; do
+    if ! grep -F -- "${LPattern}" "${LScript}" >/dev/null; then
+      echo "[CHECK] RVV opcode lane contract guard missing pattern: ${LPattern}"
+      LMissing=1
+    fi
+  done
+
+  if [[ "${LMissing}" != "0" ]]; then
+    return 1
+  fi
+
+  echo "[CHECK] OK (RVV opcode lane compile/runtime contract guard present)"
+}
+
 check_nonx86_native_evidence_runner_guard() {
   local LShell
   local LHelper
@@ -3649,6 +3691,7 @@ gate_step_build_check() {
   check_perf_smoke_public_abi_shape_guard || return $?
   check_windows_qemu_runner_guard || return $?
   check_windows_bash_helper_runner_guard || return $?
+  check_riscvv_opcode_lane_contract_guard || return $?
   check_nonx86_native_evidence_runner_guard || return $?
   check_restore_nightly_evidence_runner_guard || return $?
   check_qemu_experimental_python_helper_guard || return $?
@@ -4951,6 +4994,7 @@ case "${ACTION}" in
   check_perf_smoke_public_abi_shape_guard
   check_windows_qemu_runner_guard
   check_windows_bash_helper_runner_guard
+  check_riscvv_opcode_lane_contract_guard
   check_nonx86_native_evidence_runner_guard
   check_restore_nightly_evidence_runner_guard
   check_qemu_experimental_python_helper_guard

@@ -4,7 +4,7 @@
 审查 `fafafa.core.simd` 及其 `cpuinfo` 相关模块，找出可验证的问题并完成至少一轮根因修复，同时产出可连续执行的后续修复与审查计划。
 
 ## Current Phase
-Phase 75 complete; the nightly artifact restore helper is now wired into the shell runner/docs, `generate_interface_checklist_v2.py` has been confirmed as an intentional manual generator rather than a runner gap, and the remaining blocker is back to native host availability or the next real SIMD contract red
+Phase 106 complete; fresh `Release` `check` and `gate` are green again, Linux/QEMU CPUInfo non-x86 evidence has been refreshed, and `freeze-status` is now blocked only by stale Windows evidence. The active SIMD queue remains `SIMD-B23(candidate)`, but the remaining blocker is operational: dispatching fresh Windows evidence for the current dirty-but-uncommitted worktree requires either a Windows host or a commit/push before `win-evidence-via-gh`.
 
 ## Phases
 
@@ -218,6 +218,13 @@ Phase 75 complete; the nightly artifact restore helper is now wired into the she
 - [x] 在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 和 `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 先补 synthetic red，锁定 “hook 二次重建后最终 active backend 已偏离 requested 时，`TrySetActiveBackend` 必须返回 False”
 - [x] 将 `src/fafafa.core.simd.dispatch.pas` 的 `TrySetActiveBackend` 收紧为以后验最终 active backend 为准，而不是无条件返回 `True`
 - [x] 用 fresh `TTestCase_DispatchAPI,TTestCase_PublicAbi`、fresh `check`、fresh `gate` 复验
+- **Status:** complete
+
+### Phase 102: Windows evidence automation truth-source reconciliation
+- [x] 审查 `collect_windows_b07_evidence` / `verify_windows_b07_evidence` / `finalize-win-evidence` / `win-evidence-via-gh` / runbook 的现态，确认 `SIMD-B20(candidate)` 描述的自动化链已在仓库内落地
+- [x] 用 fresh release 入口复验 `verify_windows_b07_evidence.sh` 与 `BuildOrTest.sh finalize-win-evidence`，确认现有 canonical 证据可直接通过
+- [x] 运行 `BuildOrTest.sh freeze-status`，确认剩余红项来自 “source newer than archived evidence”，不是 B20 自动化缺口
+- [x] 回写 backlog / findings / progress / worker notes，关闭 `SIMD-B20(candidate)` 的真相源漂移
 - **Status:** complete
 
 ### Phase 33: public ABI concurrent publication hardening
@@ -1613,3 +1620,965 @@ Phase 75 complete; the nightly artifact restore helper is now wired into the she
 | What's the goal? | 审查 simd，修复确认问题，并输出连续修复/审查方案 |
 | What have I learned? | `scMaskedOps` 不能按“凡是有 `Mask*` 符号就算支持”粗暴判定；`NEON` 当前仍是 scalar wrapper，而 x86 `SSE2..AVX512` 则确实有 native helper family。 capability 语义必须贴着真实 helper 实现层落。 |
 | What have I done? | 已先用 fresh red 证明 x86 `scMaskedOps` 低报，再把 `SSE2..SSE42/AVX2/AVX512` capability set 补齐，并修正 `AVX512 vector asm=False` 的错误旧断言；最后用 fresh release targeted/check/gate 全链复验通过。 |
+
+### Phase 77: RVV fallback rollback-restore success cleanup pollution closeout
+- **Status:** complete
+- Actions taken:
+  - 继续沿 riscv64 fallback lane 的 historical `TTestCase_DispatchAPI` broad failure 深挖后，先补 fresh red，而不是直接改生产实现：
+    - 在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `TTestCase_RISCVFallbackDispatchContract.Test_RollbackRestoreSuccess_Keep_RepresentativeWideSlots_Assigned`
+    - 这条 regression 直接守住：执行 `Test_TrySetActiveBackend_RollbackRestore_Success_Preserves_ForcedSelection` 后，registered scalar table 与 current dispatch 的 representative wide slots 仍必须保持 assigned
+  - fresh red 复验：
+    - `FAFAFA_BUILD_MODE=Release SIMD_RVV_COMPILE_TARGET=project SIMD_RVV_LANE_SUITE=TTestCase_RISCVFallbackDispatchContract SIMD_RVV_LANE_SKIP_BENCH=1 SIMD_RVV_SUITE_USE_PREBUILT_COMPILER=1 SIMD_RVV_COMPILE_USE_PREBUILT_COMPILER=1 bash tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+    - 失败点直接命中：
+      - `Registered scalar AndNotI64x2 should remain assigned after rollback-restore success probe`
+    - 同时 historical broad suite 也已被证明命中同区：
+      - `TTestCase_DispatchAPI.Test_VecI64x2_DispatchAssigned_And_Parity: Dispatch.AndNotI64x2 should be assigned`
+  - 根因确认后，做最小实现修复：
+    - 问题不在生产 dispatch/rebuild，而在 `Test_TrySetActiveBackend_RollbackRestore_Success_Preserves_ForcedSelection`
+    - 旧测试在 fallback 早退路径里仍无条件执行 `RegisterBackend(GDispatchHookRollbackForceSuccessTarget, GDispatchHookRollbackForceSuccessTargetTable)`
+    - 此时 global target 仍是默认 `sbScalar`，target table 仍是 `Default(TSimdDispatchTable)`，从而把 scalar 注册表直接冲坏
+    - 现已将 testcase 收紧为：
+      - 入口显式清理 rollback-force-success globals
+      - 仅在 `LTargetTableCaptured=True` 时才执行 restore 回写
+  - fresh green / release 复验：
+    - `python3 tests/fafafa.core.simd/check_suite_manifest_sync.py --summary-line`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-dispatchapi-host-20260324-b bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+    - `FAFAFA_BUILD_MODE=Release SIMD_RVV_COMPILE_TARGET=project SIMD_RVV_LANE_SUITE=TTestCase_RISCVFallbackDispatchContract SIMD_RVV_LANE_SKIP_BENCH=1 SIMD_RVV_SUITE_USE_PREBUILT_COMPILER=1 SIMD_RVV_COMPILE_USE_PREBUILT_COMPILER=1 bash tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+    - `FAFAFA_BUILD_MODE=Release SIMD_RVV_COMPILE_TARGET=project SIMD_RVV_LANE_SUITE=TTestCase_DispatchAPI SIMD_RVV_LANE_SKIP_BENCH=1 SIMD_RVV_SUITE_USE_PREBUILT_COMPILER=1 SIMD_RVV_COMPILE_USE_PREBUILT_COMPILER=1 bash tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+- 这轮结论是新的真实 test-cleanup bug，不是新的生产 dispatch bug：
+  - broad RVV failure 之前是被 testcase 自己的 early-exit restore 污染放大的
+  - 生产 dispatch 表并没有在这条路径里真实丢 wide slots
+  - 这轮收口后，后续 non-x86 capability/dispatch 深审应先排除 test-only 污染，再判断是否存在真正实现缺陷
+
+### Phase 78: RVV public ABI rollback forced-success cleanup pollution closeout
+- **Status:** complete
+- Actions taken:
+  - 继续沿 `RVV asm + OPCODE_READY` 的 fresh `TTestCase_PublicAbi` red 深挖后，先补失败点定位，而不是直接改实现：
+    - 同一条 red 命令：
+      - `FAFAFA_BUILD_MODE=Release SIMD_RVV_COMPILE_TARGET=project SIMD_RVV_LANE_SUITE=TTestCase_PublicAbi SIMD_RVV_LANE_SKIP_BENCH=1 SIMD_RVV_RUNTIME_DEFINES='-dFAFAFA_SIMD_EXPERIMENTAL_BACKEND_ASM -dFAFAFA_SIMD_ENABLE_RISCVV_ASM -dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY -dFAFAFA_SIMD_RISCVV_ASM_OPCODE_READY' SIMD_RVV_SUITE_USE_PREBUILT_COMPILER=1 SIMD_RVV_COMPILE_USE_PREBUILT_COMPILER=1 bash tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+    - 先把 `Test_PublicApi_DataPlane_Parity` 的 AV 缩到 `MemEqual(facade)`，随后确认 failure 时：
+      - `VectorAsm=False`
+      - `CurrentBackend=Scalar`
+      - `Dispatch.MemEqual=nil`
+      - `Scalar.MemEqual=nil`
+    - 这说明不是 RVV public ABI direct-bind 本身炸，而是更早的 testcase restore 已经把 scalar slot 污染成空表
+  - 根因确认后，做最小实现修复：
+    - 问题不在 `src/` 生产实现，而在 `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 的
+      `Test_PublicApi_RollbackRestore_Success_Preserves_ForcedSelection`
+    - 旧测试在 RVV lane 只有 `Scalar + RISCVV` 两个 dispatchable backend 时会 early-exit，但 `finally` 里仍无条件执行：
+      - `RegisterBackend(GPublicAbiHookRollbackForceSuccessTarget, GPublicAbiHookRollbackForceSuccessTargetTable)`
+    - 此时 global target 仍是默认 `sbScalar`，target table 仍是 `Default(TSimdDispatchTable)`，于是把 scalar registered/current snapshot 直接冲成零值表，后续 `DataPlane_Parity` 才会在 `MemEqual(facade)` 处 AV
+    - 现已将这条 public ABI testcase 收紧为：
+      - 入口显式清理 rollback-force-success globals
+      - 新增 `LTargetTableCaptured`
+      - 仅在真正捕获过 requested backend 原表时才执行 restore 回写
+    - 同时撤回上一轮错误假设修改，把 `src/fafafa.core.simd.public_abi.impl.inc` 的 64-bit direct-bind 范围恢复为重新包含 `CPURISCV64`
+  - fresh green / release 复验：
+    - `FAFAFA_BUILD_MODE=Release SIMD_RVV_COMPILE_TARGET=project SIMD_RVV_LANE_SUITE=TTestCase_PublicAbi SIMD_RVV_LANE_SKIP_BENCH=1 SIMD_RVV_RUNTIME_DEFINES='-dFAFAFA_SIMD_EXPERIMENTAL_BACKEND_ASM -dFAFAFA_SIMD_ENABLE_RISCVV_ASM -dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY -dFAFAFA_SIMD_RISCVV_ASM_OPCODE_READY' SIMD_RVV_SUITE_USE_PREBUILT_COMPILER=1 SIMD_RVV_COMPILE_USE_PREBUILT_COMPILER=1 bash tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+    - `FAFAFA_BUILD_MODE=Release SIMD_RVV_COMPILE_TARGET=project SIMD_RVV_LANE_SUITE=TTestCase_DispatchAPI SIMD_RVV_LANE_SKIP_BENCH=1 SIMD_RVV_RUNTIME_DEFINES='-dFAFAFA_SIMD_EXPERIMENTAL_BACKEND_ASM -dFAFAFA_SIMD_ENABLE_RISCVV_ASM -dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY -dFAFAFA_SIMD_RISCVV_ASM_OPCODE_READY' SIMD_RVV_SUITE_USE_PREBUILT_COMPILER=1 SIMD_RVV_COMPILE_USE_PREBUILT_COMPILER=1 bash tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+  - 记录关键运行结果：
+    - fresh `TTestCase_PublicAbi` PASS，`[LEAK] OK`
+    - fresh `TTestCase_DispatchAPI` PASS，`[LEAK] OK`
+    - 两条 lane 最终都输出 `[RVV-LANE] PASS`
+- 这轮结论是新的真实 test-cleanup bug，不是新的生产 RVV/public-ABI bug：
+  - `MemEqual(facade)` AV 只是 scalar slot 被测试自己提前污染后的后继症状
+  - `CPURISCV64` public ABI direct-bind 之前被怀疑是根因，但 fresh 证据已证伪
+  - 后续 non-x86 capability / dispatch / rebuild 深审仍应先排除 suite 自身 restore 污染，再判断是否存在真实实现缺陷
+- 下一轮连续计划优先级更新为：
+  1. 回到真正的 non-x86 capability 语义审查，优先验证 `RISCVV/NEON` 还有没有“native helper 已接线但 capability 漏报 / 误报”的真实问题
+  2. 若能拿到 native `arm64/riscv64` asm host，继续补 external evidence，尤其是 `RISCVV scMaskedOps` / opcode-ready 路径
+  3. 保持 worktree-local release 验证节奏，先排除 testcase cleanup 污染，再扩大 `check/gate` 面
+
+### Phase 79: RVV native lane real-enable and `scMaskedOps` underclaim closeout
+- **Status:** complete
+- Actions taken:
+  - 先梳理当前 `DispatchAPI/test.lpr` 候选改动，确认 `TTestCase_RISCVVMaskedOpsContract` 之前并没有真的覆盖到 native asm 路径：
+    - testcase 里使用了 `{$IFNDEF RISCVV_ASSEMBLY}` 守卫
+    - 但这个宏只在 `src/fafafa.core.simd.riscvv.pas` 单元内部定义，测试单元不可见，所以 suite 一直是直接 `Exit` 的伪绿
+  - 先按 TDD 把 masked-ops suite 收紧为真正 native-target contract：
+    - 将 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 里的 `TTestCase_RISCVVMaskedOpsContract` 改成仅在 `CPURISCV64/CPURISCV32` target 上启用
+    - 去掉 `SetVectorAsmEnabled(True)` 后的 silent early-exit，改成显式断言 vector-asm flag 与 backend registration
+  - fresh red 第 1 层并没有先打到 capability，而是暴露 native evidence harness 本身是假绿：
+    - `FAFAFA_BUILD_MODE=Release SIMD_RVV_COMPILE_TARGET=project SIMD_RVV_LANE_SUITE=TTestCase_RISCVVMaskedOpsContract SIMD_RVV_LANE_SKIP_BENCH=1 SIMD_RVV_RUNTIME_DEFINES='-dFAFAFA_SIMD_EXPERIMENTAL_BACKEND_ASM -dFAFAFA_SIMD_ENABLE_RISCVV_ASM -dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY -dFAFAFA_SIMD_RISCVV_ASM_OPCODE_READY' SIMD_RVV_SUITE_USE_PREBUILT_COMPILER=1 SIMD_RVV_COMPILE_USE_PREBUILT_COMPILER=1 bash tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+    - 失败点直接命中：
+      - `RISCVV backend should be registered in mask capability contract test`
+      - `RISCVV backend should be registered for public ABI mask contract test`
+    - 根因确认：`tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh` 的默认 define 链漏了 `-dSIMD_EXPERIMENTAL_RISCVV`，导致 `src/fafafa.core.simd.pas` 根本没把 `fafafa.core.simd.riscvv` unit 编进 umbrella unit；之前的 RVV `DispatchAPI/PublicAbi` lane PASS 之所以成立，只是因为那些 testcase 在 backend 未注册时会直接 `Exit`
+  - 做最小 native-lane wiring 修复后，fresh red 第 2 层继续暴露真正的编译阻断：
+    - `src/fafafa.core.simd.riscvv.pas` 之前在 `RISCVV_ASSEMBLY` build 下仍无条件 include `riscvv.helpers.inc`，会与主文件里的 asm implementation 重复声明
+    - 同时 `src/fafafa.core.simd.riscvv.register.inc` 还会在 asm build 里引用一批只有 fallback facade 才存在的 wide helper symbol
+    - 最小修复方式：
+      - `tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh` 默认 compile/runtime define 集补入 `-dSIMD_EXPERIMENTAL_RISCVV`
+      - `src/fafafa.core.simd.riscvv.pas` 把 `riscvv.helpers.inc` 收紧为 non-asm only include
+      - `src/fafafa.core.simd.riscvv.register.inc` 在 `RISCVV_ASSEMBLY` 下保留 `FillBaseDispatchTable(...)` 的 scalar base wiring，不再覆写 `DotF32x8/DotF64x2/DotF64x4` 与 `I16x32/I8x64/U8x64/U32x16/U64x8` 这批 asm-visible 不存在的 fallback-only helper slot
+    - 这样 native RVV opcode lane 才第一次真正进入“backend 已编进且可构建”的状态
+  - 在 compile-only 真正转绿后，再次 fresh red，终于命中目标 capability bug：
+    - `FAFAFA_BUILD_MODE=Release SIMD_RVV_COMPILE_TARGET=project SIMD_RVV_LANE_SUITE=TTestCase_RISCVVMaskedOpsContract SIMD_RVV_LANE_SKIP_BENCH=1 SIMD_RVV_RUNTIME_DEFINES='-dSIMD_EXPERIMENTAL_RISCVV -dFAFAFA_SIMD_EXPERIMENTAL_BACKEND_ASM -dFAFAFA_SIMD_ENABLE_RISCVV_ASM -dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY -dFAFAFA_SIMD_RISCVV_ASM_OPCODE_READY' SIMD_RVV_SUITE_USE_PREBUILT_COMPILER=1 SIMD_RVV_COMPILE_USE_PREBUILT_COMPILER=1 bash tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+    - 失败点直接命中：
+      - `RISCVV scMaskedOps should be set while representative mask helper slots are native`
+      - `Public ABI CapabilityBits should expose RISCVV scMaskedOps while representative mask helper slots are native`
+    - 根因确认：`src/fafafa.core.simd.riscvv.register.inc` 在 `LUseVectorAsm=True` 时已把 `Mask2All/Mask8PopCount/Mask16FirstSet` 等代表性 mask helper slot 绑到 RVV asm implementation，但 `BackendInfo.Capabilities` 仍缺 `scMaskedOps`
+  - 做最小生产修复：
+    - `src/fafafa.core.simd.riscvv.register.inc` 现已把 `scMaskedOps` 收紧为与 `scIntegerOps/scShuffle/scFMA` 同一语义，只在 `LUseVectorAsm=True` 时宣称
+  - fresh green / release 复验：
+    - `FAFAFA_BUILD_MODE=Release SIMD_RVV_COMPILE_TARGET=project SIMD_RVV_LANE_SUITE=TTestCase_RISCVVMaskedOpsContract SIMD_RVV_LANE_SKIP_BENCH=1 SIMD_RVV_RUNTIME_DEFINES='-dSIMD_EXPERIMENTAL_RISCVV -dFAFAFA_SIMD_EXPERIMENTAL_BACKEND_ASM -dFAFAFA_SIMD_ENABLE_RISCVV_ASM -dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY -dFAFAFA_SIMD_RISCVV_ASM_OPCODE_READY' SIMD_RVV_SUITE_USE_PREBUILT_COMPILER=1 SIMD_RVV_COMPILE_USE_PREBUILT_COMPILER=1 bash tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-rvv-maskedops-check-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+  - 记录关键运行结果：
+    - fresh RVV `TTestCase_RISCVVMaskedOpsContract` PASS，`[TEST] OK`、`[LEAK] OK`、`[RVV-LANE] PASS`
+    - fresh release `check` PASS，`[CHECK] OK`
+- 这轮结论包含两层重要事实：
+  - 之前的 RVV native opcode-ready lane 并没有把 experimental backend 真正编进来，所以那部分 broad PASS 不能再直接当作 native capability evidence 使用
+  - 在 native lane 真正接通之后，`RISCVV` 的 `Mask*` helper family 确实已经是 asm-backed native implementation，因此 `scMaskedOps` 少报是新的真实 capability/public-ABI underclaim
+- 下一轮连续计划优先级更新为：
+  1. 系统性替换 `DispatchAPI/PublicAbi` 里剩余依赖 `RISCVV_ASSEMBLY` 的 testcase 宏守卫，避免 native RVV suite 继续出现伪绿
+  2. 在真实 native RVV lane 上重新验证 `scIntegerOps/scShuffle/scFMA` 与 runtime-disabled rebuild 合同，把之前因 harness 假绿失真的证据链补真
+  3. 继续沿 non-x86 capability 语义审查，但保持“先修 native evidence harness，再判定生产 bug”的顺序
+
+### Phase 80: RVV native broad contract de-pseudogreen and wide rounding wiring closeout
+- **Status:** complete
+- Actions taken:
+  - 延续 Phase 79 之后的 RVV native evidence 收口，先把 broad suite 里剩余的伪守卫和 runtime 前置条件补真，而不是先碰生产实现：
+    - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas`
+    - `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas`
+    - 两个 testcase 单元顶部都补了测试可见的 `FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED`
+    - `RISCVV scIntegerOps/scFMA/scShuffle` expose 合同和 non-x86 native wide floor/ceil 合同，统一改成显式 `SetVectorAsmEnabled(True)` 后再断言，避免默认 scalar-backed 注册态造成假红/假绿
+  - fresh RVV native broad suite 继续收窄后，真正暴露出的生产问题不是 capability metadata，而是宽 rounding 槽位 stale wiring：
+    - fresh red 代表命令：
+      - `FAFAFA_BUILD_MODE=Release SIMD_RVV_COMPILE_TARGET=project SIMD_RVV_LANE_SUITE=TTestCase_DispatchAPI,TTestCase_PublicAbi,TTestCase_VecF32x8,TTestCase_VecF64x4 SIMD_RVV_LANE_SKIP_BENCH=1 SIMD_RVV_RUNTIME_DEFINES='-dSIMD_EXPERIMENTAL_RISCVV -dFAFAFA_SIMD_EXPERIMENTAL_BACKEND_ASM -dFAFAFA_SIMD_ENABLE_RISCVV_ASM -dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY -dFAFAFA_SIMD_RISCVV_ASM_OPCODE_READY' SIMD_RVV_SUITE_USE_PREBUILT_COMPILER=1 SIMD_RVV_COMPILE_USE_PREBUILT_COMPILER=1 bash tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+    - 失败点收敛到：
+      - `TTestCase_DispatchAPI.Test_NonX86_NativeWideFloorCeil_Slots_NotScalar_IfAvailable`
+      - `FloorF32x8 unexpectedly falls back to scalar slot: RISCVV`
+    - 根因确认：
+      - `src/fafafa.core.simd.riscvv.register.inc` 在 `RISCVV_ASSEMBLY` 分支里仍把 `Ceil/Floor/Round/Trunc` 的 `F32x16/F32x8/F64x2/F64x4/F64x8` 槽位绑到 `Scalar*`
+      - 但 `src/fafafa.core.simd.riscvv.pas` 已经存在对应的 `RISCVV*` asm implementation，所以这是注册层 stale wiring，而不是实现缺失
+  - 做最小生产修复：
+    - `src/fafafa.core.simd.riscvv.register.inc` 现在已把上述宽 rounding 槽位在 `RISCVV_ASSEMBLY` 下改回绑定 `RISCVV*`
+    - `tests/fafafa.core.simd/fafafa.core.simd.test.lpr` 同步挂入 `TTestCase_RISCVVMaskedOpsContract` 与 `TTestCase_RISCVFallbackDispatchContract`，避免 runner 列表与 testcase 注册继续漂移
+  - fresh green / release 复验：
+    - x86 host fallback spot-check：
+      - `FAFAFA_BUILD_MODE=Release SIMD_ENABLE_RISCVV_BACKEND=1 SIMD_OUTPUT_ROOT=/tmp/simd-riscvv-shuffle-red-20260324 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi`
+    - native RVV broad lane：
+      - `FAFAFA_BUILD_MODE=Release SIMD_RVV_COMPILE_TARGET=project SIMD_RVV_LANE_SUITE=TTestCase_DispatchAPI,TTestCase_PublicAbi,TTestCase_RISCVVMaskedOpsContract,TTestCase_RISCVFallbackDispatchContract,TTestCase_VecF32x8,TTestCase_VecF64x4 SIMD_RVV_LANE_SKIP_BENCH=1 SIMD_RVV_RUNTIME_DEFINES='-dSIMD_EXPERIMENTAL_RISCVV -dFAFAFA_SIMD_EXPERIMENTAL_BACKEND_ASM -dFAFAFA_SIMD_ENABLE_RISCVV_ASM -dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY -dFAFAFA_SIMD_RISCVV_ASM_OPCODE_READY' SIMD_RVV_SUITE_USE_PREBUILT_COMPILER=1 SIMD_RVV_COMPILE_USE_PREBUILT_COMPILER=1 bash tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+    - fresh release `check`：
+      - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-check-20260324-continue bash tests/fafafa.core.simd/BuildOrTest.sh check`
+    - fresh release `gate`：
+      - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-gate-20260324-phase80 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 记录关键运行结果：
+    - fallback host `TTestCase_DispatchAPI,TTestCase_PublicAbi`：PASS，`[TEST] OK`、`[LEAK] OK`
+    - broad RVV lane：PASS，`[TEST] OK`、`[LEAK] OK`、`[RVV-LANE] PASS`
+    - fresh release `check`：PASS，`[CHECK] OK`
+    - fresh release `gate`：PASS，最终 `[GATE] OK`，run-all summary 时间 `2026-03-24 23:59:32`
+- 这轮结论包含两层关键信息：
+  - summary 里怀疑的 generic shuffle underclaim 假红在当前 worktree 已不再复现，当前 x86 host fallback suite 直接为绿，因此这轮不需要继续改 generic shuffle testcase 口径
+  - 真实生产问题是 `RISCVV` native asm 注册层把宽 rounding 槽位误接回 `Scalar*`，一旦 broad suite 的 testcase 守卫和 runtime 前置条件补真，就会稳定暴露出来
+- 下一轮连续计划优先级更新为：
+  1. 继续沿 non-x86 capability / rebuild 合同往下审，优先找下一条“native helper 已接线但 capability 漏报/误报”的真实问题
+  2. 保持 worktree-local release 验证节奏，继续坚持 `suite -> check -> gate` 的闭环，而不是只拿单条 lane 结果
+  3. 先区分 testcase cleanup/harness 问题与生产 wiring/capability 问题，再决定是否改 `src/`
+
+### Phase 81: RVV narrow `F64x2` rounding native garbage-value closeout
+- **Status:** complete
+- Actions taken:
+  - 先继续按 TDD 收紧 native RVV IEEE754 证据，而不是先改生产实现：
+    - 在 `tests/fafafa.core.simd/fafafa.core.simd.ieee754.testcase.pas` 新增 `TTestCase_NonX86IEEE754.Test_NonX86_NarrowF64x2_RoundTruncFloorCeil_Finite_IfAvailable`
+    - testcase 使用固定 finite 非整数输入 `1.25/-1.25/1.75/-1.75/2.5/-2.5`
+    - 同时显式 `SetVectorAsmEnabled(True)`，避免默认 `vectorAsm=False` 再次把 narrow native lane 误测成 scalar-backed 伪绿
+  - fresh red 代表命令：
+    - `FAFAFA_BUILD_MODE=Release SIMD_RVV_COMPILE_TARGET=project SIMD_RVV_LANE_SUITE=TTestCase_NonX86IEEE754 SIMD_RVV_LANE_SKIP_BENCH=1 SIMD_RVV_RUNTIME_DEFINES='-dSIMD_EXPERIMENTAL_RISCVV -dFAFAFA_SIMD_EXPERIMENTAL_BACKEND_ASM -dFAFAFA_SIMD_ENABLE_RISCVV_ASM -dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY -dFAFAFA_SIMD_RISCVV_ASM_OPCODE_READY' SIMD_RVV_SUITE_USE_PREBUILT_COMPILER=1 SIMD_RVV_COMPILE_USE_PREBUILT_COMPILER=1 bash tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+  - 失败点稳定命中：
+    - `TTestCase_NonX86IEEE754.Test_NonX86_NarrowF64x2_RoundTruncFloorCeil_Finite_IfAvailable`
+    - `9 Case 0 RoundF64x2[0] finite compare expected: <1> but was: <6.9e-310>`
+    - 连续 3 次 retry 都是同类 garbage-value failure，不是一次性噪音
+  - 根因确认与最小修复策略：
+    - 当前 fresh 证据已经足够证明 `RISCVV_ASSEMBLY` 下 native `F64x2` 窄 rounding slot 不满足对外合同
+    - 在没有 fresh asm-level ABI/语义证明前，最保守且最小的修复是不再把这四个 slot 暴露给 native lane
+    - `src/fafafa.core.simd.riscvv.register.inc` 现已把 `Ceil/Floor/Round/TruncF64x2` 在 `RISCVV_ASSEMBLY` 下收回到 `Scalar*`
+    - `F32x4` 的同类窄 rounding slot 之前已经采用同一安全策略，因此这次收口把 `F64x2` 也对齐回同一口径
+  - fresh green / release 复验：
+    - fresh RVV narrow IEEE754 lane：
+      - `FAFAFA_BUILD_MODE=Release SIMD_RVV_COMPILE_TARGET=project SIMD_RVV_LANE_SUITE=TTestCase_NonX86IEEE754 SIMD_RVV_LANE_SKIP_BENCH=1 SIMD_RVV_RUNTIME_DEFINES='-dSIMD_EXPERIMENTAL_RISCVV -dFAFAFA_SIMD_EXPERIMENTAL_BACKEND_ASM -dFAFAFA_SIMD_ENABLE_RISCVV_ASM -dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY -dFAFAFA_SIMD_RISCVV_ASM_OPCODE_READY' SIMD_RVV_SUITE_USE_PREBUILT_COMPILER=1 SIMD_RVV_COMPILE_USE_PREBUILT_COMPILER=1 bash tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+    - fresh release `check`：
+      - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-check-20260325-phase81 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+    - fresh release `gate`：
+      - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-gate-20260325-phase81-serial bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 记录关键运行结果：
+    - fresh RVV narrow IEEE754 lane：PASS，`[TEST] OK`、`[LEAK] OK`、`[RVV-LANE] PASS`
+    - fresh release `check`：PASS，`[CHECK] OK`
+    - fresh release `gate`：PASS，最终 `[GATE] OK`，run-all summary 时间 `2026-03-25 08:38:12`
+    - 首次并行触发的 `gate` 失败已确认为本地 `lazbuild` fallback 到共享 `bin2/lib2` 后的链接竞争噪音，不是代码回归；串行重跑后已转绿
+- 这轮结论包含两层关键信息：
+  - `TTestCase_NonX86IEEE754` 之前对 narrow RVV path 缺少显式 `vector asm=True` 前置条件，因此这部分 native 合同一直处在伪绿盲区
+  - 一旦把 narrow finite case 真正压到 RVV asm lane，`F64x2` rounding slot 会直接返回 garbage value；因此当前 native asm 实现不能继续对外暴露
+- 下一轮连续计划优先级更新为：
+  1. 继续沿 RVV narrow surface 往下审，优先确认 `F64x2` 之外是否还有同类 native asm slot 仍在以错误 ABI/输入指针语义暴露
+  2. 把 `NonX86IEEE754` 里其余 narrow/wide native evidence 逐步补齐显式 `vector asm=True` 前置条件，继续压缩伪绿面
+  3. 在确认更多 red 之前，保持“先收紧注册层暴露面，再决定是否深入改 asm 本体”的最小风险策略
+
+### Phase 82: RVV narrow `F32x4/F64x2` float core ABI wrapper closeout
+- **Status:** complete
+- Actions taken:
+  - 继续沿 Phase 81 之后的 RVV narrow asm surface 往下钻，没有先动生产代码，而是先把 native narrow float core parity 真正补真：
+    - 在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `TTestCase_NonX86BackendParity.Test_NativeNarrowFloatCoreParity_WithVectorAsm_IfAvailable`
+    - testcase 显式 `SetVectorAsmEnabled(True)`，并要求 `RISCVV/NEON` 的 `Add/Abs/Fma/ClampF32x4` 与 `Add/Abs/Fma/ClampF64x2` slot 在 asm lane 上既非 scalar，又要与 scalar reference 保持 parity
+  - fresh red 代表命令：
+    - `FAFAFA_BUILD_MODE=Release SIMD_RVV_COMPILE_TARGET=project SIMD_RVV_LANE_SUITE=TTestCase_NonX86BackendParity SIMD_RVV_LANE_SKIP_BENCH=1 SIMD_RVV_RUNTIME_DEFINES='-dSIMD_EXPERIMENTAL_RISCVV -dFAFAFA_SIMD_EXPERIMENTAL_BACKEND_ASM -dFAFAFA_SIMD_ENABLE_RISCVV_ASM -dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY -dFAFAFA_SIMD_RISCVV_ASM_OPCODE_READY' SIMD_RVV_SUITE_USE_PREBUILT_COMPILER=1 SIMD_RVV_COMPILE_USE_PREBUILT_COMPILER=1 bash tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+  - 失败点稳定命中：
+    - `TTestCase_NonX86BackendParity.Test_NativeNarrowFloatCoreParity_WithVectorAsm_IfAvailable`
+    - `AddF32x4 parity lane 0: RISCVV expected: <-2.75> but was: <1.42746747382458E-24>`
+    - 同条 lane 连续 3 次 retry 都命中不同 garbage value，不是一次性噪音
+  - 根因确认与最小生产修复：
+    - 对照 `src/fafafa.core.simd.riscvv.pas` 里已有的 `Load/Splat/Select` 以及 `tests/test_riscvv_wrapper_unit.pas` 的 working sample 后，确认问题不只是某个算术指令，而是 `fpc/riscv64` 下窄向量 `function(...): TVec*; assembler; nostackframe` 返回 ABI 不稳定
+    - 当前已验证可靠的模式是：内部 asm 使用 `procedure(...; var r)`，外层再用普通 Pascal wrapper 暴露原有 `function` 签名
+    - 因此把 `src/fafafa.core.simd.riscvv.pas` 中 `F32x4/F64x2` 的代表性 narrow float vector-return core ops 改为 wrapper 模式：
+      - `Add/Sub/Mul/Div`
+      - `Abs/Sqrt/Min/Max/Neg`
+      - `Fma`
+      - `Clamp`
+      - 以及 `Rcp/RsqrtF32x4`
+    - 同时将 `FmaF32x4/FmaF64x2` 收敛到与 working wrapper sample 一致的 `vfmacc` 累加写法，避免继续依赖不确定的 direct-return 语义
+  - fresh green / release 复验：
+    - fresh RVV narrow parity lane：
+      - `FAFAFA_BUILD_MODE=Release SIMD_RVV_COMPILE_TARGET=project SIMD_RVV_LANE_SUITE=TTestCase_NonX86BackendParity SIMD_RVV_LANE_SKIP_BENCH=1 SIMD_RVV_RUNTIME_DEFINES='-dSIMD_EXPERIMENTAL_RISCVV -dFAFAFA_SIMD_EXPERIMENTAL_BACKEND_ASM -dFAFAFA_SIMD_ENABLE_RISCVV_ASM -dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY -dFAFAFA_SIMD_RISCVV_ASM_OPCODE_READY' SIMD_RVV_SUITE_USE_PREBUILT_COMPILER=1 SIMD_RVV_COMPILE_USE_PREBUILT_COMPILER=1 bash tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+    - fresh RVV narrow parity + IEEE754 lane：
+      - `FAFAFA_BUILD_MODE=Release SIMD_RVV_COMPILE_TARGET=project SIMD_RVV_LANE_SUITE=TTestCase_NonX86IEEE754,TTestCase_NonX86BackendParity SIMD_RVV_LANE_SKIP_BENCH=1 SIMD_RVV_RUNTIME_DEFINES='-dSIMD_EXPERIMENTAL_RISCVV -dFAFAFA_SIMD_EXPERIMENTAL_BACKEND_ASM -dFAFAFA_SIMD_ENABLE_RISCVV_ASM -dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY -dFAFAFA_SIMD_RISCVV_ASM_OPCODE_READY' SIMD_RVV_SUITE_USE_PREBUILT_COMPILER=1 SIMD_RVV_COMPILE_USE_PREBUILT_COMPILER=1 bash tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+    - fresh release `check`：
+      - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-check-20260325-phase82 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+    - fresh release `gate`：
+      - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-gate-20260325-phase82-serial bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 记录关键运行结果：
+    - fresh RVV narrow parity lane：PASS，`[TEST] OK`、`[LEAK] OK`、`[RVV-LANE] PASS`
+    - fresh RVV `NonX86IEEE754,TTestCase_NonX86BackendParity` combined lane：PASS，`[TEST] OK`、`[LEAK] OK`、`[RVV-LANE] PASS`
+    - fresh release `check`：PASS，`[CHECK] OK`
+    - fresh release `gate`：PASS，最终 `[GATE] OK`，run-all summary 时间 `2026-03-25 09:52:25`
+- 这轮结论包含两层关键信息：
+  - `RVV` narrow float core path 的真实问题不是单个 `AddF32x4` 指令接错，而是 direct vector-return asm ABI 本身不稳定；只改结果寄存器位置会继续落到 garbage/AV
+  - 已有仓内 working sample 已经证明 wrapper 模式能稳住这类调用，所以这轮选择把代表性 `F32x4/F64x2` float core surface 迁回 wrapper，而不是继续暴露不稳定的 direct-return asm
+- 下一轮连续计划优先级更新为：
+  1. 继续沿 RVV narrow surface 往下审，优先确认 `I32x4/I64x2/U32x4/U64x2` 等 integer/vector-return core ops 是否也存在同类 direct-return ABI drift
+  2. 若 integer narrow surface 继续命中同根因，优先按同一 wrapper 模式迁移，而不是再做寄存器猜测式修补
+  3. 保持 `RVV lane -> release check -> serial gate` 的闭环，避免只靠 host 路径把 experimental backend 数据面问题误收成绿
+
+### Phase 83: RVV narrow `I32x4/I64x2/U32x4/U64x2` integer core ABI wrapper closeout
+- [x] 在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `TTestCase_NonX86BackendParity.Test_NativeNarrowIntegerCoreParity_WithVectorAsm_IfAvailable`，显式 `SetVectorAsmEnabled(True)`，并要求 `Add/And/ShiftLeft/ShiftRightArithI32x4`、`Add/AndI64x2`、`AddU32x4`、`AddU64x2` 在 native asm lane 上既非 scalar 又与 scalar parity
+- [x] 用 fresh RVV opcode-ready lane 连续 3 次复现同一条 `AddI32x4` narrow integer red，确认不是编译噪音而是稳定 garbage-value 数据面错误
+- [x] 将 `src/fafafa.core.simd.riscvv.pas` 中代表性的 narrow integer core ops 迁到 `procedure(...; var r)` + Pascal wrapper 模式，覆盖：
+  - `I32x4`：`Add/Sub/Mul/And/Or/Xor/Not/AndNot/Min/Max/ShiftLeft/ShiftRight/ShiftRightArith`
+  - `I64x2`：`Add/Sub/And/Or/Xor/Not/ShiftLeft/ShiftRight/ShiftRightArith`
+  - `U32x4`：`Add/Sub/Mul/Min/Max/And/Or/Xor/Not/ShiftLeft/ShiftRight`
+  - `U64x2`：`Add/Sub/And/Or/Xor/Not/ShiftLeft/ShiftRight`
+- [x] 用 fresh RVV narrow parity lane、fresh combined `NonX86IEEE754 + NonX86BackendParity` lane、fresh release `check`、fresh serial `gate` 复验
+- **Status:** complete
+- Notes:
+  - fresh red 代表命令：
+    - `FAFAFA_BUILD_MODE=Release SIMD_RVV_COMPILE_TARGET=project SIMD_RVV_LANE_SUITE=TTestCase_NonX86BackendParity SIMD_RVV_LANE_SKIP_BENCH=1 SIMD_RVV_RUNTIME_DEFINES='-dSIMD_EXPERIMENTAL_RISCVV -dFAFAFA_SIMD_EXPERIMENTAL_BACKEND_ASM -dFAFAFA_SIMD_ENABLE_RISCVV_ASM -dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY -dFAFAFA_SIMD_RISCVV_ASM_OPCODE_READY' SIMD_RVV_SUITE_USE_PREBUILT_COMPILER=1 SIMD_RVV_COMPILE_USE_PREBUILT_COMPILER=1 bash tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+  - 失败点稳定命中：
+    - `TTestCase_NonX86BackendParity.Test_NativeNarrowIntegerCoreParity_WithVectorAsm_IfAvailable`
+    - `AddI32x4 parity lane 0: RISCVV expected: <358326759> but was: <-1547910192>`
+    - 同条 lane 连续 3 次 retry 都命中 `AddI32x4`，但 bad value 每次不同，说明问题仍是 direct-return ABI/data-plane 漂移，不是一次性运行噪音
+  - 根因确认：
+    - 这次 red 与 Phase 82 的 narrow float red 形态一致，继续证明 `fpc/riscv64` 下 direct `function(...): TVec*; assembler; nostackframe` 不是 narrow vector-return core path 的稳定 ABI
+    - 对照 `tests/test_riscvv_wrapper_unit.pas` 的 working sample，以及 Phase 82 已经验证过的 float wrapper 路径后，当前可靠模式仍然是 `procedure(...; var r)` + Pascal wrapper
+  - fresh green / release 复验：
+    - fresh RVV narrow parity lane：
+      - `FAFAFA_BUILD_MODE=Release SIMD_RVV_COMPILE_TARGET=project SIMD_RVV_LANE_SUITE=TTestCase_NonX86BackendParity SIMD_RVV_LANE_SKIP_BENCH=1 SIMD_RVV_RUNTIME_DEFINES='-dSIMD_EXPERIMENTAL_RISCVV -dFAFAFA_SIMD_EXPERIMENTAL_BACKEND_ASM -dFAFAFA_SIMD_ENABLE_RISCVV_ASM -dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY -dFAFAFA_SIMD_RISCVV_ASM_OPCODE_READY' SIMD_RVV_SUITE_USE_PREBUILT_COMPILER=1 SIMD_RVV_COMPILE_USE_PREBUILT_COMPILER=1 bash tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+    - fresh RVV narrow parity + IEEE754 lane：
+      - `FAFAFA_BUILD_MODE=Release SIMD_RVV_COMPILE_TARGET=project SIMD_RVV_LANE_SUITE=TTestCase_NonX86IEEE754,TTestCase_NonX86BackendParity SIMD_RVV_LANE_SKIP_BENCH=1 SIMD_RVV_RUNTIME_DEFINES='-dSIMD_EXPERIMENTAL_RISCVV -dFAFAFA_SIMD_EXPERIMENTAL_BACKEND_ASM -dFAFAFA_SIMD_ENABLE_RISCVV_ASM -dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY -dFAFAFA_SIMD_RISCVV_ASM_OPCODE_READY' SIMD_RVV_SUITE_USE_PREBUILT_COMPILER=1 SIMD_RVV_COMPILE_USE_PREBUILT_COMPILER=1 bash tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+    - fresh release `check`：
+      - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-check-20260325-phase83 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+    - fresh release `gate`：
+      - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-gate-20260325-phase83-serial bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 记录关键运行结果：
+    - fresh RVV narrow parity lane：PASS，`[TEST] OK`、`[LEAK] OK`、`[RVV-LANE] PASS`
+    - fresh RVV `TTestCase_NonX86IEEE754,TTestCase_NonX86BackendParity` combined lane：PASS，`[TEST] OK`、`[LEAK] OK`、`[RVV-LANE] PASS`
+    - fresh release `check`：PASS，`[CHECK] OK`
+    - fresh release `gate`：PASS，最终 `[GATE] OK`，run-all summary 时间 `2026-03-25 10:40:19`
+- 这轮结论包含两层关键信息：
+  - `RVV` narrow integer core path 与 narrow float core path 一样，真实问题不是某条整数指令接错，而是 direct vector-return asm ABI 本身不稳定
+  - 这轮只收口了已有 native parity 证据覆盖到的代表性 integer core surface；`Load/Splat/Select/Insert/AndNot` 等 helper-like narrow integer surface 仍需下一轮继续审
+- 下一轮连续计划优先级更新为：
+  1. 继续沿 `RISCVV` narrow integer helper surface 往下审，优先确认 `Load/Splat/Select/Insert` 等 still-direct-return slot 是否也需要 wrapper 化
+  2. 若 helper surface 继续命中同根因，再补最小 red 把这些路径从“core 已绿”推进到“narrow integer surface 更完整”
+  3. 继续保持 `RVV lane -> release check -> serial gate` 的闭环，不在同一 worktree 并行跑共享 `bin2/lib2` 的构建
+
+### Phase 84: RVV narrow `InsertI32x4/InsertI64x2` helper lane-preservation closeout
+- [x] 在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `TTestCase_NonX86BackendParity.Test_NativeNarrowIntegerHelperParity_WithVectorAsm_IfAvailable`，显式 `SetVectorAsmEnabled(True)`，并要求 `InsertI32x4/InsertI64x2` 的 dispatch-table / facade 路径与 scalar parity，同时补 `ExtractI32x4/ExtractI64x2` 基线
+- [x] 用 fresh RVV opcode-ready lane 连续复现 `InsertI32x4` helper red，确认 Phase 83 之后暴露出来的已不是 direct-return ABI 噪音，而是稳定的 lane 污染
+- [x] 将 `src/fafafa.core.simd.riscvv.pas` 中 `RISCVVInsertI32x4Asm` / `RISCVVInsertI64x2Asm` 从 `vslideup.vx` 序列改为“整向量复制到结果 + 单 lane 标量覆写”，并在 Pascal wrapper 中补 index clamp，保持与 scalar 语义一致
+- [x] 用 fresh targeted RVV lane、fresh combined `NonX86IEEE754 + NonX86BackendParity` lane、fresh release `check`、fresh serial `gate` 复验
+- **Status:** complete
+- Notes:
+  - fresh red 代表命令：
+    - `FAFAFA_BUILD_MODE=Release SIMD_RVV_COMPILE_TARGET=project SIMD_RVV_LANE_SUITE=TTestCase_NonX86BackendParity SIMD_RVV_LANE_SKIP_BENCH=1 SIMD_RVV_RUNTIME_DEFINES='-dSIMD_EXPERIMENTAL_RISCVV -dFAFAFA_SIMD_EXPERIMENTAL_BACKEND_ASM -dFAFAFA_SIMD_ENABLE_RISCVV_ASM -dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY -dFAFAFA_SIMD_RISCVV_ASM_OPCODE_READY' SIMD_RVV_SUITE_USE_PREBUILT_COMPILER=1 SIMD_RVV_COMPILE_USE_PREBUILT_COMPILER=1 bash tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+  - 失败点稳定命中：
+    - `TTestCase_NonX86BackendParity.Test_NativeNarrowIntegerHelperParity_WithVectorAsm_IfAvailable`
+    - `InsertI32x4 dispatch-table parity lane 3: RISCVV expected: <-404> but was: <0>`
+    - 说明 `InsertI32x4(index=2)` 会把原本应保留的 lane 3 一起写坏，不再是 ABI 级 garbage-value / AV
+  - 根因确认：
+    - `RISCVVInsertI32x4Asm` / `RISCVVInsertI64x2Asm` 之前用 `vslideup.vx` 从只初始化了首 lane 的临时向量拷贝数据
+    - 在 `index > 0` 时，目标位置之后的 lane 会继续从临时向量的后续元素取值，导致未初始化/零值把原始 lane 覆盖掉
+    - 因此这轮问题属于真实 helper 算法错误，而不是 Phase 82/83 已经收口过的 direct-return ABI 漂移
+  - 最小生产修复：
+    - `RISCVVInsertI32x4Asm` / `RISCVVInsertI64x2Asm` 现已改成先 `vle*.v` / `vse*.v` 整向量复制到结果，再用 `sw` / `sd` 只覆写目标 lane
+    - 对外函数 `RISCVVInsertI32x4` / `RISCVVInsertI64x2` 现会先 clamp `index`，保持与 scalar fallback 一致
+    - `InsertI64x2` 这轮虽然没有单独 fresh 打红，但与 `InsertI32x4` 共用同一错误模式，因此一起按同一最小修复收口
+  - fresh green / release 复验：
+    - fresh RVV narrow parity lane：
+      - `FAFAFA_BUILD_MODE=Release SIMD_RVV_COMPILE_TARGET=project SIMD_RVV_LANE_SUITE=TTestCase_NonX86BackendParity SIMD_RVV_LANE_SKIP_BENCH=1 SIMD_RVV_RUNTIME_DEFINES='-dSIMD_EXPERIMENTAL_RISCVV -dFAFAFA_SIMD_EXPERIMENTAL_BACKEND_ASM -dFAFAFA_SIMD_ENABLE_RISCVV_ASM -dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY -dFAFAFA_SIMD_RISCVV_ASM_OPCODE_READY' SIMD_RVV_SUITE_USE_PREBUILT_COMPILER=1 SIMD_RVV_COMPILE_USE_PREBUILT_COMPILER=1 bash tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+    - fresh RVV narrow parity + IEEE754 lane：
+      - `FAFAFA_BUILD_MODE=Release SIMD_RVV_COMPILE_TARGET=project SIMD_RVV_LANE_SUITE=TTestCase_NonX86IEEE754,TTestCase_NonX86BackendParity SIMD_RVV_LANE_SKIP_BENCH=1 SIMD_RVV_RUNTIME_DEFINES='-dSIMD_EXPERIMENTAL_RISCVV -dFAFAFA_SIMD_EXPERIMENTAL_BACKEND_ASM -dFAFAFA_SIMD_ENABLE_RISCVV_ASM -dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY -dFAFAFA_SIMD_RISCVV_ASM_OPCODE_READY' SIMD_RVV_SUITE_USE_PREBUILT_COMPILER=1 SIMD_RVV_COMPILE_USE_PREBUILT_COMPILER=1 bash tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+    - fresh release `check`：
+      - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-check-20260325-phase84 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+    - fresh release `gate`：
+      - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-gate-20260325-phase84-serial bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 记录关键运行结果：
+    - fresh RVV narrow parity lane：PASS，`[TEST] OK`、`[LEAK] OK`、`[RVV-LANE] PASS`
+    - fresh RVV `TTestCase_NonX86IEEE754,TTestCase_NonX86BackendParity` combined lane：PASS，`[TEST] OK`、`[LEAK] OK`、`[RVV-LANE] PASS`
+    - fresh release `check`：PASS，`[CHECK] OK`
+    - fresh release `gate`：PASS，最终 `[GATE] OK`，run-all summary 时间 `2026-03-25 11:38:38`
+- 这轮结论包含两层关键信息：
+  - Phase 83 之后，RVV narrow integer helper surface 暴露出的下一条真实问题已经从 ABI 漂移切换成 helper 算法错误
+  - `vslideup.vx` 不能拿来做“只插一 lane、其余 lane 保持不变”的实现，除非源向量的后续元素也被正确初始化
+- 下一轮连续计划优先级更新为：
+  1. 继续沿 RVV helper surface 往下审，优先确认 `InsertF32x4/InsertF64x2` 以及其余 `Insert*` 宽度是否也存在同类 `vslideup` lane 污染
+  2. 再看 `Load/Splat/Select/Extract` 这批 helper-like narrow surface 是否还有 direct-return ABI 或 stale slot 问题
+  3. 继续保持 `RVV lane -> release check -> serial gate` 的闭环，不在同一 worktree 并行跑共享 `bin2/lib2` 的构建
+
+### Phase 85: RVV narrow `InsertF32x4/InsertF64x2` float helper ABI wrapper closeout
+- [x] 在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `TTestCase_NonX86BackendParity.Test_NativeNarrowFloatHelperParity_WithVectorAsm_IfAvailable`，显式 `SetVectorAsmEnabled(True)`，并要求 `InsertF32x4/InsertF64x2` 的 dispatch-table / facade 路径与 scalar parity，同时继续保留 `ExtractF32x4/ExtractF64x2` 基线
+- [x] 用 fresh RVV opcode-ready lane 复现 `Test_NativeNarrowFloatHelperParity_WithVectorAsm_IfAvailable` 的稳定 `Access violation`，确认 narrow float insert helper 仍落在 direct-return vector-return ABI 风险上
+- [x] 将 `src/fafafa.core.simd.riscvv.pas` 中 `RISCVVInsertF32x4` / `RISCVVInsertF64x2` 改为 `procedure(...; var r)` + Pascal wrapper，并补 index clamp，保持与 scalar 语义一致
+- [x] 用 fresh targeted RVV lane 复验 narrow float helper surface 转绿
+- **Status:** complete
+- Notes:
+  - fresh red 代表命令：
+    - `FAFAFA_BUILD_MODE=Release SIMD_RVV_COMPILE_TARGET=project SIMD_RVV_LANE_SUITE=TTestCase_NonX86BackendParity SIMD_RVV_LANE_SKIP_BENCH=1 SIMD_RVV_RUNTIME_DEFINES='-dSIMD_EXPERIMENTAL_RISCVV -dFAFAFA_SIMD_EXPERIMENTAL_BACKEND_ASM -dFAFAFA_SIMD_ENABLE_RISCVV_ASM -dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY -dFAFAFA_SIMD_RISCVV_ASM_OPCODE_READY' SIMD_RVV_SUITE_USE_PREBUILT_COMPILER=1 SIMD_RVV_COMPILE_USE_PREBUILT_COMPILER=1 bash tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+  - 失败点稳定命中：
+    - `TTestCase_NonX86BackendParity.Test_NativeNarrowFloatHelperParity_WithVectorAsm_IfAvailable: Access violation`
+  - 根因确认：
+    - `InsertF32x4/InsertF64x2` 仍保留 narrow vector-return direct asm 入口，而 Phase 82 已证明 `fpc/riscv64` 下这类入口 ABI 不稳定
+    - 最小可靠模式仍然是 `procedure(...; var r)` + Pascal wrapper
+  - fresh green / release 复验：
+    - fresh RVV narrow parity lane：PASS，`[TEST] OK`、`[LEAK] OK`、`[RVV-LANE] PASS`
+
+### Phase 86: RVV wider `Insert*` helper ABI wrapper closeout
+- [x] 在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `TTestCase_NonX86BackendParity.Test_NativeWideInsertHelperParity_WithVectorAsm_IfAvailable`，把 widened insert helper surface 拉进 fresh native evidence
+- [x] 用 fresh RVV opcode-ready lane 复现 `Test_NativeWideInsertHelperParity_WithVectorAsm_IfAvailable` 的稳定 `Access violation`，确认 wider insert family 也存在同类 direct-return ABI 风险
+- [x] 将 `src/fafafa.core.simd.riscvv.pas` 中 `RISCVVInsertF32x8`、`RISCVVInsertF32x16`、`RISCVVInsertF64x4`、`RISCVVInsertI32x8`、`RISCVVInsertI32x16`、`RISCVVInsertI64x4` 统一迁到 `procedure(...; var r)` + Pascal wrapper，并补 index clamp
+- [x] 用 fresh targeted RVV lane 复验 wider insert helper surface 转绿
+- **Status:** complete
+- Notes:
+  - fresh red 代表命令：
+    - `FAFAFA_BUILD_MODE=Release SIMD_RVV_COMPILE_TARGET=project SIMD_RVV_LANE_SUITE=TTestCase_NonX86BackendParity SIMD_RVV_LANE_SKIP_BENCH=1 SIMD_RVV_RUNTIME_DEFINES='-dSIMD_EXPERIMENTAL_RISCVV -dFAFAFA_SIMD_EXPERIMENTAL_BACKEND_ASM -dFAFAFA_SIMD_ENABLE_RISCVV_ASM -dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY -dFAFAFA_SIMD_RISCVV_ASM_OPCODE_READY' SIMD_RVV_SUITE_USE_PREBUILT_COMPILER=1 SIMD_RVV_COMPILE_USE_PREBUILT_COMPILER=1 bash tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+  - 失败点稳定命中：
+    - `TTestCase_NonX86BackendParity.Test_NativeWideInsertHelperParity_WithVectorAsm_IfAvailable: Access violation`
+  - 根因确认：
+    - wider insert family 与 Phase 85 的 narrow float insert 共用 direct-return vector-return 模式，根因仍是 `fpc/riscv64` ABI 不稳定，而不是新算法错误
+  - fresh green / release 复验：
+    - fresh RVV narrow parity lane：PASS，`[TEST] OK`、`[LEAK] OK`、`[RVV-LANE] PASS`
+
+### Phase 87: RVV narrow helper surface dispatch-contract shrink + ABI wrapper closeout
+- [x] 在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `TTestCase_NonX86BackendParity.Test_NativeNarrowHelperSurfaceParity_WithVectorAsm_IfAvailable`，尝试覆盖 narrow `Load/Splat/Select/Extract` helper surface
+- [x] 用 fresh RVV opcode-ready lane 先复现 compile red，确认 testcase 初版把不存在于 `TSimdDispatchTable` 的 internal/helper-like symbol 当成 dispatch contract：`LoadI32x4`、`SplatI32x4`、`LoadI64x2`、`SplatI64x2`、`SelectI64x2`
+- [x] 将 Phase 87 测试面收缩到真实公开的 dispatch slots：
+  - `F32x4`：`Load/Splat/Select/Extract`
+  - `F64x2`：`Load/Splat/Select/Extract`
+  - `I32x4`：`Select/Extract`
+  - `I64x2`：`Extract`
+- [x] 用 fresh RVV opcode-ready lane 再次复现 runtime red：`Test_NativeNarrowHelperSurfaceParity_WithVectorAsm_IfAvailable: Access violation`
+- [x] 将本轮测试实际覆盖到、且仍保留 direct-return vector-return asm 的 6 个 helper 收口到 `procedure(...; var r)` + wrapper：
+  - `RISCVVLoadF32x4`
+  - `RISCVVSplatF32x4`
+  - `RISCVVSelectF32x4`
+  - `RISCVVLoadF64x2`
+  - `RISCVVSplatF64x2`
+  - `RISCVVSelectF64x2`
+- [x] 用 fresh targeted RVV lane、fresh combined `NonX86IEEE754 + NonX86BackendParity` lane、fresh release `check`、fresh serial `gate` 复验
+- **Status:** complete
+- Notes:
+  - fresh compile red 代表命令：
+    - `FAFAFA_BUILD_MODE=Release SIMD_RVV_COMPILE_TARGET=project SIMD_RVV_LANE_SUITE=TTestCase_NonX86BackendParity SIMD_RVV_LANE_SKIP_BENCH=1 SIMD_RVV_RUNTIME_DEFINES='-dSIMD_EXPERIMENTAL_RISCVV -dFAFAFA_SIMD_EXPERIMENTAL_BACKEND_ASM -dFAFAFA_SIMD_ENABLE_RISCVV_ASM -dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY -dFAFAFA_SIMD_RISCVV_ASM_OPCODE_READY' SIMD_RVV_SUITE_USE_PREBUILT_COMPILER=1 SIMD_RVV_COMPILE_USE_PREBUILT_COMPILER=1 bash tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+  - 第 1 层失败点：
+    - `Identifier idents no member "LoadI32x4"`
+    - `Identifier idents no member "SplatI32x4"`
+    - `Identifier idents no member "LoadI64x2"`
+    - `Identifier idents no member "SplatI64x2"`
+    - `Identifier idents no member "SelectI64x2"`
+  - 第 2 层失败点：
+    - `TTestCase_NonX86BackendParity.Test_NativeNarrowHelperSurfaceParity_WithVectorAsm_IfAvailable: Access violation`
+  - 根因确认：
+    - 第 1 层不是生产 bug，而是测试自己把不属于 `TSimdDispatchTable` 的符号误当成公开 dispatch contract
+    - 真正的 production red 来自 Phase 87 剩余 narrow helper surface 里的 direct-return asm；其实现形态与 Phase 82/85/86 已验证不稳定的 wrapper 前状态一致
+  - fresh green / release 复验：
+    - fresh RVV narrow parity lane：
+      - `FAFAFA_BUILD_MODE=Release SIMD_RVV_COMPILE_TARGET=project SIMD_RVV_LANE_SUITE=TTestCase_NonX86BackendParity SIMD_RVV_LANE_SKIP_BENCH=1 SIMD_RVV_RUNTIME_DEFINES='-dSIMD_EXPERIMENTAL_RISCVV -dFAFAFA_SIMD_EXPERIMENTAL_BACKEND_ASM -dFAFAFA_SIMD_ENABLE_RISCVV_ASM -dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY -dFAFAFA_SIMD_RISCVV_ASM_OPCODE_READY' SIMD_RVV_SUITE_USE_PREBUILT_COMPILER=1 SIMD_RVV_COMPILE_USE_PREBUILT_COMPILER=1 bash tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+    - fresh RVV narrow parity + IEEE754 lane：
+      - `FAFAFA_BUILD_MODE=Release SIMD_RVV_COMPILE_TARGET=project SIMD_RVV_LANE_SUITE=TTestCase_NonX86IEEE754,TTestCase_NonX86BackendParity SIMD_RVV_LANE_SKIP_BENCH=1 SIMD_RVV_RUNTIME_DEFINES='-dSIMD_EXPERIMENTAL_RISCVV -dFAFAFA_SIMD_EXPERIMENTAL_BACKEND_ASM -dFAFAFA_SIMD_ENABLE_RISCVV_ASM -dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY -dFAFAFA_SIMD_RISCVV_ASM_OPCODE_READY' SIMD_RVV_SUITE_USE_PREBUILT_COMPILER=1 SIMD_RVV_COMPILE_USE_PREBUILT_COMPILER=1 bash tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+    - fresh release `check`：
+      - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-check-20260325-phase85-87 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+    - fresh release `gate`：
+      - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-gate-20260325-phase85-87-serial bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 记录关键运行结果：
+    - fresh RVV narrow parity lane：PASS，`[TEST] OK`、`[LEAK] OK`、`[RVV-LANE] PASS`
+    - fresh RVV `TTestCase_NonX86IEEE754,TTestCase_NonX86BackendParity` combined lane：PASS，`[TEST] OK`、`[LEAK] OK`、`[RVV-LANE] PASS`
+    - fresh release `check`：PASS，`[CHECK] OK`
+    - fresh release `gate`：PASS，最终 `[GATE] OK`，run-all summary 时间 `2026-03-25 12:53:56`
+- 这轮结论包含两层关键信息：
+  - non-x86 helper surface 审查必须先守住 `TSimdDispatchTable` 的真实 contract，不能把 backend unit 里的 internal helper 符号误当成 public dispatch slot
+  - `RVV` narrow helper surface 里剩余的 `Load/Splat/Select` float helper，根因与前几轮 core/insert path 一样，仍是 direct-return vector-return asm ABI 不稳定
+- 下一轮连续计划优先级更新为：
+  1. 继续做 RVV helper surface 扫描，优先看 `LoadF32x4Aligned`、`ZeroF32x4/ZeroF64x2` 以及不在 dispatch contract 里的 direct helper 是否还需要同类 wrapper 收口
+  2. 把视角从 RVV 扩到 x86/non-x86 runtime rebuild/toggle 路径，继续找 `SetVectorAsmEnabled(True -> False)` 后的 stale dispatch / stale capability 证据
+  3. 若下一条真实问题不再落在 RVV narrow ABI，就回到 capability/public ABI 漂移审查，优先查 `BackendInfo.Capabilities` 与 `CapabilityBits` 是否还有 host-specific 偏移
+
+### Phase 88: RVV aligned-load and zero helper ABI wrapper closeout
+- [x] 在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `TTestCase_NonX86BackendParity.Test_NativeAlignedLoadAndZeroParity_WithVectorAsm_IfAvailable`，把 `LoadF32x4Aligned`、`ZeroF32x4`、`ZeroF64x2` 纳入 native asm parity guard
+- [x] 用 fresh RVV opcode-ready lane 复现 runtime red：`TTestCase_NonX86BackendParity.Test_NativeAlignedLoadAndZeroParity_WithVectorAsm_IfAvailable: Access violation`
+- [x] 将 `src/fafafa.core.simd.riscvv.pas` 中 `RISCVVLoadF32x4Aligned`、`RISCVVZeroF32x4`、`RISCVVZeroF64x2` 统一迁到 `procedure(...; var r)` + Pascal wrapper
+- [x] 用 fresh targeted RVV lane、fresh release `check`、fresh serial `gate` 复验
+- **Status:** complete
+- Notes:
+  - fresh red / green 代表命令：
+    - `FAFAFA_BUILD_MODE=Release SIMD_RVV_COMPILE_TARGET=project SIMD_RVV_LANE_SUITE=TTestCase_NonX86BackendParity SIMD_RVV_LANE_SKIP_BENCH=1 SIMD_RVV_RUNTIME_DEFINES='-dSIMD_EXPERIMENTAL_RISCVV -dFAFAFA_SIMD_EXPERIMENTAL_BACKEND_ASM -dFAFAFA_SIMD_ENABLE_RISCVV_ASM -dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY -dFAFAFA_SIMD_RISCVV_ASM_OPCODE_READY' SIMD_RVV_SUITE_USE_PREBUILT_COMPILER=1 SIMD_RVV_COMPILE_USE_PREBUILT_COMPILER=1 bash tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+  - 第 1 次 fresh red 失败点：
+    - `TTestCase_NonX86BackendParity.Test_NativeAlignedLoadAndZeroParity_WithVectorAsm_IfAvailable: Access violation`
+  - 根因确认：
+    - `LoadF32x4Aligned` 与 `ZeroF32x4/ZeroF64x2` 仍保留 Phase 82/85/86/87 已多次证明不稳定的 direct-return vector asm 形态
+    - 这说明 RVV helper surface 的 ABI 风险并没有在公开 narrow contract 收口后自然消失，而是继续残留在 aligned-load/zero 这类小 helper 上
+  - fresh green / release 复验：
+    - fresh RVV targeted lane：PASS，`[TEST] OK`、`[LEAK] OK`、`[RVV-LANE] PASS`
+    - fresh release `check`：
+      - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-check-20260325-phase88 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+      - 结果：PASS，`[CHECK] OK`
+    - fresh release `gate`：
+      - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-gate-20260325-phase88-serial bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+      - 结果：PASS，最终 `[GATE] OK`，run-all summary 时间 `2026-03-25 19:53:28`
+- 这轮结论：
+  - RVV helper ABI 风险继续证明是“direct-return vector asm 模式本身不稳”，而不是只集中在 insert/load/select 那几组高频 helper
+  - 在 aligned-load/zero 这组三个 slot 收口后，下一轮应该优先转向其余不在公开 dispatch contract 中的 internal helper，或直接切到 toggle/rebuild stale state 审查
+
+### Phase 89: RVV wide load/zero helper ABI wrapper closeout
+- [x] 在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `TTestCase_NonX86BackendParity.Test_NativeWideLoadAndZeroParity_WithVectorAsm_IfAvailable`，把 `LoadF32x8/F32x16/F64x4/F64x8/I64x4` 与 `ZeroF32x8/F32x16/F64x4/F64x8/I64x4` 纳入 native asm parity guard
+- [x] 用 fresh RVV opcode-ready lane 复现 runtime red；失败点在 retry 中先后命中 `LoadI64x4 facade parity` 与 `LoadF32x16 facade parity`
+- [x] 将 `src/fafafa.core.simd.riscvv.pas` 中 wide `Load*/Zero*` helper 全部迁到 `procedure(...; var r)` + Pascal wrapper
+- [x] 用 fresh targeted RVV lane、fresh release `check`、fresh serial `gate` 复验
+- **Status:** complete
+- Notes:
+  - fresh red / green 代表命令：
+    - `FAFAFA_BUILD_MODE=Release SIMD_RVV_COMPILE_TARGET=project SIMD_RVV_LANE_SUITE=TTestCase_NonX86BackendParity SIMD_RVV_LANE_SKIP_BENCH=1 SIMD_RVV_RUNTIME_DEFINES='-dSIMD_EXPERIMENTAL_RISCVV -dFAFAFA_SIMD_EXPERIMENTAL_BACKEND_ASM -dFAFAFA_SIMD_ENABLE_RISCVV_ASM -dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY -dFAFAFA_SIMD_RISCVV_ASM_OPCODE_READY' SIMD_RVV_SUITE_USE_PREBUILT_COMPILER=1 SIMD_RVV_COMPILE_USE_PREBUILT_COMPILER=1 bash tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+  - fresh red 关键失败点：
+    - `TTestCase_NonX86BackendParity.Test_NativeWideLoadAndZeroParity_WithVectorAsm_IfAvailable: "LoadI64x4 facade parity lane 0: RISCVV" expected: <0> but was: <140263427446688>`
+    - retry 后仍继续命中 `LoadF32x16 facade parity lane 0` garbage-value red
+  - 根因确认：
+    - RVV wide `Load*/Zero*` helper 仍保留 Phase 82/85/86/87/88 已多次证明不稳定的 direct-return vector asm 形态
+    - 这说明 helper ABI 风险并不只停留在 narrow helper 或 aligned-load 小 helper，而是同样延伸到公开 dispatch contract 中的 wide load/zero 家族
+  - fresh green / release 复验：
+    - fresh RVV targeted lane：PASS，`[TEST] OK`、`[LEAK] OK`、`[RVV-LANE] PASS`
+    - fresh release `check`：
+      - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-check-20260325-phase89 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+      - 结果：PASS，`[CHECK] OK`
+    - fresh release `gate`：
+      - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-gate-20260325-phase89-serial bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+      - 结果：PASS，最终 `[GATE] OK`，run-all summary 时间 `2026-03-25 21:12:07`
+- 这轮结论：
+  - RVV direct-return vector asm 风险继续扩展到 wide `Load*/Zero*` 公开 dispatch slots，证明这不是少数 helper 的偶发问题，而是一类实现形态级缺陷
+  - 在 wide load/zero 收口后，下一轮优先级应转到同一区块的 wide `Splat*`，以及 backend unit 中不在当前 dispatch contract 里的 internal helper；随后再切回 toggle/rebuild stale state 审查
+
+### Phase 90: RVV wide splat helper ABI wrapper closeout
+- [x] 在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `TTestCase_NonX86BackendParity.Test_NativeWideSplatParity_WithVectorAsm_IfAvailable`，把 `SplatF32x8/F32x16/F64x4/F64x8/I64x4` 纳入 native asm parity guard
+- [x] 用 fresh RVV opcode-ready lane 复现 runtime red：`TTestCase_NonX86BackendParity.Test_NativeWideSplatParity_WithVectorAsm_IfAvailable: Access violation`
+- [x] 将 `src/fafafa.core.simd.riscvv.pas` 中 wide `Splat*` helper 全部迁到 `procedure(...; var r)` + Pascal wrapper
+- [x] 用 fresh targeted RVV lane、fresh release `check`、fresh serial `gate` 复验
+- **Status:** complete
+- Notes:
+  - fresh red / green 代表命令：
+    - `FAFAFA_BUILD_MODE=Release SIMD_RVV_COMPILE_TARGET=project SIMD_RVV_LANE_SUITE=TTestCase_NonX86BackendParity SIMD_RVV_LANE_SKIP_BENCH=1 SIMD_RVV_RUNTIME_DEFINES='-dSIMD_EXPERIMENTAL_RISCVV -dFAFAFA_SIMD_EXPERIMENTAL_BACKEND_ASM -dFAFAFA_SIMD_ENABLE_RISCVV_ASM -dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY -dFAFAFA_SIMD_RISCVV_ASM_OPCODE_READY' SIMD_RVV_SUITE_USE_PREBUILT_COMPILER=1 SIMD_RVV_COMPILE_USE_PREBUILT_COMPILER=1 bash tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+  - 第 1 次 fresh red 失败点：
+    - `TTestCase_NonX86BackendParity.Test_NativeWideSplatParity_WithVectorAsm_IfAvailable: Access violation`
+  - 根因确认：
+    - RVV wide `Splat*` helper 仍保留前几轮已反复证明不稳定的 direct-return vector asm 形态
+    - 这说明 RVV helper ABI 风险已经覆盖到同一区块的 `Load/Zero/Splat` 三类公开 dispatch slot，而不是局部小面
+  - fresh green / release 复验：
+    - fresh RVV targeted lane：PASS，`[TEST] OK`、`[LEAK] OK`、`[RVV-LANE] PASS`
+    - fresh release `check`：
+      - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-check-20260326-phase90 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+      - 结果：PASS，`[CHECK] OK`
+    - fresh release `gate`：
+      - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-gate-20260326-phase90-serial bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+      - 结果：PASS，最终 `[GATE] OK`，run-all summary 时间 `2026-03-26 07:32:06`
+- 这轮结论：
+  - RVV direct-return vector asm 风险继续被证明为实现形态级问题；wide `Splat*` 收口后，公开 dispatch contract 中同一区块的高频 helper 已基本从这类风险中清掉
+  - 下一轮优先级应转向 backend unit 中不在当前 dispatch contract 的 internal helper，或直接切到 `SetVectorAsmEnabled(True -> False)` rebuild stale-state 审查
+
+### Phase 91: RVV vector-math ABI and reduction-seed closeout
+- [x] 在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `TTestCase_NonX86BackendParity.Test_NativeVectorMathParity_WithVectorAsm_IfAvailable`，把 `CrossF32x3`、`NormalizeF32x3`、`NormalizeF32x4` 纳入 native asm parity guard
+- [x] 用 fresh RVV opcode-ready lane 复现真实 production red，并继续沿根因逐层收窄
+- [x] 将 `src/fafafa.core.simd.riscvv.pas` 中 `CrossF32x3/NormalizeF32x3/NormalizeF32x4` 先收口到 `procedure(...; var r)` + Pascal wrapper，再修正 vector-math 族的算法/seed 语义
+- [x] 用 fresh targeted RVV lane、fresh release `check`、fresh serial `gate` 复验
+- **Status:** complete
+- Notes:
+  - fresh red / green 代表命令：
+    - `FAFAFA_BUILD_MODE=Release SIMD_RVV_COMPILE_TARGET=project SIMD_RVV_LANE_SUITE=TTestCase_NonX86BackendParity SIMD_RVV_LANE_SKIP_BENCH=1 SIMD_RVV_RUNTIME_DEFINES='-dSIMD_EXPERIMENTAL_RISCVV -dFAFAFA_SIMD_EXPERIMENTAL_BACKEND_ASM -dFAFAFA_SIMD_ENABLE_RISCVV_ASM -dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY -dFAFAFA_SIMD_RISCVV_ASM_OPCODE_READY' SIMD_RVV_SUITE_USE_PREBUILT_COMPILER=1 SIMD_RVV_COMPILE_USE_PREBUILT_COMPILER=1 bash tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+  - 第 1 次 fresh red 失败点：
+    - `TTestCase_NonX86BackendParity.Test_NativeVectorMathParity_WithVectorAsm_IfAvailable: Access violation`
+  - 第 2 层 fresh red 失败点：
+    - `CrossF32x3 dispatch-table parity lane 1: RISCVV expected: <-26.375> but was: <1285.25>`
+  - 第 3 层 fresh red 失败点：
+    - `NormalizeF32x3 dispatch-table parity lane 0: RISCVV expected: <0.233713164925575> but was: <Nan>`
+  - 根因确认：
+    - `CrossF32x3/NormalizeF32x3/NormalizeF32x4` 初始仍保留 direct-return vector-return asm，先继续命中与前几轮一致的 `fpc/riscv64` ABI 风险
+    - ABI 收口后，`CrossF32x3` 暴露出原有 shuffle/rotate 算法本身语义错误
+    - 继续收窄后，`NormalizeF32x3` 暴露出 `Dot/Length/Normalize` 这一小簇共享的 reduction seed 错误：把未定义的 `f10` 当作零初值，导致和约不稳定，进而打出 `NaN`
+  - 最小生产修复：
+    - `src/fafafa.core.simd.riscvv.pas` 中以下 vector-return 入口已迁到 `procedure(...; var r)` + Pascal wrapper：
+      - `RISCVVCrossF32x3`
+      - `RISCVVNormalizeF32x3`
+      - `RISCVVNormalizeF32x4`
+    - `RISCVVCrossF32x3Asm` 已改为直接按 `ax/ay/az`、`bx/by/bz` 公式计算并写回结果，去掉错误的 rotate/shuffle 序列
+    - `RISCVVDotF32x3/F32x4`、`RISCVVLengthF32x3/F32x4`、`RISCVVNormalizeF32x3/F32x4` 已统一改为显式零 seed，不再依赖未初始化的 `f10`
+    - `NormalizeF32x3/F32x4` 的零长度分支也已显式收口到 `feq.s ... zero` 判定，避免 fresh lane 中的 `NaN` 扩散
+  - fresh green / release 复验：
+    - fresh RVV targeted lane：PASS，`[TEST] OK`、`[LEAK] OK`、`[RVV-LANE] PASS`
+    - fresh release `check`：
+      - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-check-20260326-phase91 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+      - 结果：PASS，`[CHECK] OK`
+    - fresh release `gate`：
+      - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-gate-20260326-phase91-serial bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+      - 结果：PASS，最终 `[GATE] OK`，run-all summary 时间 `2026-03-26 08:11:32`
+- 这轮结论：
+  - RVV vector math 这组公开 dispatch slot 证明不止存在 direct-return ABI 风险；ABI 收口之后，算法正确性与 reduction seed 初始化也会继续暴露真实生产缺陷
+  - 现在更适合把后续路线收窄为：
+    1. 继续检查 vector math 剩余 contract，优先看零向量/极小向量 normalize 与 F64 vector math 是否还有合同漂移
+    2. 然后切回 `SetVectorAsmEnabled(True -> False)` rebuild stale-state 审查，继续查 stale dispatch / stale capability
+
+### Phase 92: RVV F64 dot native-slot closeout
+- [x] 在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `TTestCase_NonX86BackendParity.Test_NativeF64DotParity_WithVectorAsm_IfAvailable`，把 `DotF64x2`、`DotF64x4` 纳入 native asm parity guard
+- [x] 用 fresh RVV opcode-ready lane 复现真实 production red，并收窄到 slot wiring 与实现稳定性
+- [x] 将 `src/fafafa.core.simd.riscvv.register.inc` 中 `DotF64x2/DotF64x4` 接入 asm build 注册，并把 `src/fafafa.core.simd.riscvv.pas` 中这两个入口收口为 backend-local 稳定实现
+- [x] 用 fresh targeted RVV lane、fresh release `check`、fresh serial `gate` 复验
+- **Status:** complete
+- Notes:
+  - fresh red / green 代表命令：
+    - `FAFAFA_BUILD_MODE=Release SIMD_RVV_COMPILE_TARGET=project SIMD_RVV_LANE_SUITE=TTestCase_NonX86BackendParity SIMD_RVV_LANE_SKIP_BENCH=1 SIMD_RVV_RUNTIME_DEFINES='-dSIMD_EXPERIMENTAL_RISCVV -dFAFAFA_SIMD_EXPERIMENTAL_BACKEND_ASM -dFAFAFA_SIMD_ENABLE_RISCVV_ASM -dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY -dFAFAFA_SIMD_RISCVV_ASM_OPCODE_READY' SIMD_RVV_SUITE_USE_PREBUILT_COMPILER=1 SIMD_RVV_COMPILE_USE_PREBUILT_COMPILER=1 bash tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+  - 第 1 次 fresh red 失败点：
+    - `DotF64x2 unexpectedly falls back to scalar slot: RISCVV`
+  - 第 2 层 fresh red 失败点：
+    - `TTestCase_NonX86BackendParity.Test_NativeF64DotParity_WithVectorAsm_IfAvailable: Access violation`
+  - 根因确认：
+    - `src/fafafa.core.simd.riscvv.register.inc` 在 `RISCVV_ASSEMBLY` 下根本没有把 `DotF64x2/DotF64x4` 接到 RVV backend，导致公开 dispatch slot 在 asm build 里仍静默沿用 scalar base slot
+    - 把两者直接接到新写的 RVV reduce-style asm 后，fresh lane 继续稳定打出 `Access violation`，说明这两个 F64 dot 入口在当前形态下仍不适合继续走那版直写 asm
+  - 最小生产修复：
+    - `src/fafafa.core.simd.riscvv.register.inc` 现在会在 asm build 下注册 `DotF64x2/DotF64x4`
+    - `src/fafafa.core.simd.riscvv.pas` 中 `RISCVVDotF64x2/RISCVVDotF64x4` 已收口为 backend-local Pascal 实现，先保证公开 contract 的非-scalar wiring 与语义正确性
+  - fresh green / release 复验：
+    - fresh RVV targeted lane：PASS，`[TEST] OK`、`[LEAK] OK`、`[RVV-LANE] PASS`
+    - fresh release `check`：
+      - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-check-20260326-phase92 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+      - 结果：PASS，`[CHECK] OK`
+    - fresh release `gate`：
+      - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-gate-20260326-phase92-serial bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+      - 结果：PASS，最终 `[GATE] OK`，run-all summary 时间 `2026-03-26 08:55:03`
+- 这轮结论：
+  - `F64` vector math 至少在 dot 这一支上，之前不是“结果可能不准”，而是 asm build 下根本没有 native slot wiring；fresh red 先把这个公开 contract 空洞钉了出来
+  - 在当前阶段，先用 backend-local 稳定实现把 contract 补齐是更稳的做法；下一轮应回到 zero/tiny normalize edge contract，再决定是否要把 `DotF64x2/DotF64x4` 继续下沉成真正的 RVV reduce 实现
+
+### Phase 93: RVV normalize edge tail-lane closeout
+- [x] 在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `TTestCase_NonX86BackendParity.Test_NativeNormalizeEdgeParity_WithVectorAsm_IfAvailable`，把 `NormalizeF32x3/NormalizeF32x4` 的 zero / tiny 输入纳入 native asm parity guard
+- [x] 用 fresh RVV opcode-ready lane 复现真实 production red，并确认问题不是 compile noise
+- [x] 将 `src/fafafa.core.simd.riscvv.pas` 中 `RISCVVNormalizeF32x3` 的 Pascal wrapper 收紧为显式零初始化并钉死 `w=0`
+- [x] 用 fresh targeted RVV lane、fresh release `check`、fresh serial `gate` 复验
+- **Status:** complete
+- Notes:
+  - fresh red / green 代表命令：
+    - `FAFAFA_BUILD_MODE=Release SIMD_RVV_COMPILE_TARGET=project SIMD_RVV_LANE_SUITE=TTestCase_NonX86BackendParity SIMD_RVV_LANE_SKIP_BENCH=1 SIMD_RVV_RUNTIME_DEFINES='-dSIMD_EXPERIMENTAL_RISCVV -dFAFAFA_SIMD_EXPERIMENTAL_BACKEND_ASM -dFAFAFA_SIMD_ENABLE_RISCVV_ASM -dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY -dFAFAFA_SIMD_RISCVV_ASM_OPCODE_READY' SIMD_RVV_SUITE_USE_PREBUILT_COMPILER=1 SIMD_RVV_COMPILE_USE_PREBUILT_COMPILER=1 bash tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+  - fresh red 失败点：
+    - `NormalizeF32x3 zero dispatch-table parity lane 3: RISCVV expected: <0> but was: <4.55e-41>`
+    - 同一条 lane 连续 3 次重试都稳定失败，只是脏值不同，说明这不是算法误差，而是 tail lane 未定义
+  - 根因确认：
+    - `ScalarNormalizeF32x3` 的稳定合同一直是 `w=0`
+    - `RISCVVNormalizeF32x3Asm` 的 zero-length 分支只在 `vl=3` 下写回 3 个 lane，导致 wrapper 返回时 `Result.f[3]` 保留未初始化脏值
+  - 最小生产修复：
+    - `src/fafafa.core.simd.riscvv.pas` 中 `RISCVVNormalizeF32x3` 现在会先把 `Result` 四个 lane 清零，再调用 asm，并在返回后再次显式 `Result.f[3] := 0.0`
+    - 这样把 `NormalizeF32x3` 的尾 lane 合同固定在 wrapper 层，不再依赖 RVV zero branch 是否完整写回第 4 个 lane
+  - fresh green / release 复验：
+    - fresh RVV targeted lane：
+      - `tests/fafafa.core.simd/logs/rvv-opcode-lane-20260326-100140/summary.md`
+      - 结果：PASS，`[TEST] OK`、`[LEAK] OK`、`[RVV-LANE] PASS`
+    - fresh release `check`：
+      - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-check-20260326-phase93 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+      - 结果：PASS，`[CHECK] OK`
+    - fresh release `gate`：
+      - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-gate-20260326-phase93-serial bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+      - 结果：PASS，最终 `[GATE] OK`，run-all summary 时间 `2026-03-26 10:06:28`
+- 这轮结论：
+  - 前一轮已经把 normalize 的算法/seed 语义收口，但 zero-length 边界仍然能继续暴露“返回值组装合同”层面的真实 bug
+  - 现在这条 vector math edge 已经补齐；下一轮更值得回到 `SetVectorAsmEnabled(True -> False)` rebuild stale-state 审查，而不是继续在同一个 normalize slice 上重复深挖
+
+### Phase 94: vector-asm automatic-mode late-force coverage closeout
+- [x] 在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `Test_SetVectorAsmEnabled_HookLateForce_Restores_AutomaticBackend` 与 `Test_SetVectorAsmEnabled_HookLateForce_DuringRestore_Restores_AutomaticBackend`
+- [x] 在 `tests/fafafa.core.simd/fafafa.core.simd.publicabi.testcase.pas` 新增对应 public ABI guard，锁定 automatic-mode `SetVectorAsmEnabled(False -> True)` 不得被 late scalar force 劫持
+- [x] 用 fresh release `TTestCase_DispatchAPI,TTestCase_PublicAbi` 验证本地主机 contract
+- [x] 用 fresh RVV opcode-ready lane 验证同一组 contract 在 native RISCVV lane 上仍保持 green
+- [x] 用 fresh release `check` 确认 suite manifest / static gate 未被新 guard 破坏
+- **Status:** complete
+- Notes:
+  - 这轮是 coverage closeout，不是生产修复；新增 testcase 没有打出 fresh red
+  - fresh verification：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-toggle-auto-guard-20260326 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi`
+      - 结果：PASS，`[TEST] OK`、`[LEAK] OK`
+    - `FAFAFA_BUILD_MODE=Release SIMD_RVV_COMPILE_TARGET=project SIMD_RVV_LANE_SUITE=TTestCase_DispatchAPI,TTestCase_PublicAbi SIMD_RVV_LANE_SKIP_BENCH=1 SIMD_RVV_RUNTIME_DEFINES='-dSIMD_EXPERIMENTAL_RISCVV -dFAFAFA_SIMD_EXPERIMENTAL_BACKEND_ASM -dFAFAFA_SIMD_ENABLE_RISCVV_ASM -dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY -dFAFAFA_SIMD_RISCVV_ASM_OPCODE_READY' SIMD_RVV_SUITE_USE_PREBUILT_COMPILER=1 SIMD_RVV_COMPILE_USE_PREBUILT_COMPILER=1 bash tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+      - summary：`tests/fafafa.core.simd/logs/rvv-opcode-lane-20260326-103401/summary.md`
+      - 结果：PASS，`[TEST] OK`、`[LEAK] OK`、`[RVV-LANE] PASS`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-check-20260326-phase94 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+      - 结果：PASS，`[CHECK] OK`
+- 这轮结论：
+  - automatic-mode 的 vector-asm re-enable 路径，在本地主机和 native RVV lane 上都已被 machine-readable guard 证明不会被 late scalar force 留在 stale fallback
+  - 下一轮更值得转向新的 fresh native red，而不是继续在这条 toggle automatic-mode 合同上加同类变体；当前最优先候选是 `F64` vector-math surface beyond `Dot*`
+
+### Phase 95: `VecF64x4Reduce*` façade/current-dispatch drift closeout
+- [x] 先对 `F64` vector-math 后续候选做 fresh 证据分流，确认 `ReduceAdd` seed-contamination 假设不是当前 RVV blocker
+- [x] 用 synthetic `RegisterBackend(...)` current-dispatch testcase 打红 `VecF64x4ReduceAdd/Min/Max/Mul` façade 仍绕开 dispatch table 的合同漂移
+- [x] 将 `src/fafafa.core.simd.pas` 中 `VecF64x4Reduce*` 收口为 dispatch-first + scalar fallback，并用 fresh release `DispatchAPI/check/gate` 复验
+- **Status:** complete
+- Notes:
+  - 先补的 fresh RVV native guard：
+    - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `TTestCase_NonX86BackendParity.Test_NativeF64ReduceAddSeedParity_WithVectorAsm_IfAvailable`
+    - `FAFAFA_BUILD_MODE=Release SIMD_RVV_COMPILE_TARGET=project SIMD_RVV_LANE_SUITE=TTestCase_NonX86BackendParity SIMD_RVV_LANE_SKIP_BENCH=1 SIMD_RVV_RUNTIME_DEFINES='-dSIMD_EXPERIMENTAL_RISCVV -dFAFAFA_SIMD_EXPERIMENTAL_BACKEND_ASM -dFAFAFA_SIMD_ENABLE_RISCVV_ASM -dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY -dFAFAFA_SIMD_RISCVV_ASM_OPCODE_READY' SIMD_RVV_SUITE_USE_PREBUILT_COMPILER=1 SIMD_RVV_COMPILE_USE_PREBUILT_COMPILER=1 bash tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+    - 结果：PASS，说明“`ReduceMax` 返回值自然污染 `f10` 进而拖偏 `ReduceAdd`”这条假设在当前 RVV lane 上没有 fresh red，不应据此改生产实现
+  - 真正的 fresh red 改为 stable-boundary contract drift：
+    - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增 `TTestCase_DispatchAPI.Test_VecF64x4ReduceFacade_Tracks_CurrentDispatchTable_After_ReRegister`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-f64x4-reduce-facade-red-20260326 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+    - 失败点：
+      - `VecF64x4ReduceAdd should track current dispatch table after re-register expected: <401.25> but was: <-2>`
+  - 根因确认：
+    - `src/fafafa.core.simd.pas` 中 `VecF64x4ReduceAdd/ReduceMin/ReduceMax/ReduceMul` 仍直接执行手写 scalar reduction
+    - 与同文件里已经 dispatch-first 的多数 façade，以及 `VecF64x8Reduce*` 的 current-dispatch 语义发生漂移；synthetic current-backend re-register 后，`GetDispatchTable^.Reduce*F64x4` 已切到新 slot，但 façade 仍返回旧 scalar 结果
+  - 最小生产修复：
+    - `src/fafafa.core.simd.pas` 中 `VecF64x4ReduceAdd`
+    - `src/fafafa.core.simd.pas` 中 `VecF64x4ReduceMin`
+    - `src/fafafa.core.simd.pas` 中 `VecF64x4ReduceMax`
+    - `src/fafafa.core.simd.pas` 中 `VecF64x4ReduceMul`
+    - 现已统一改成 `GetDispatchTable -> Assigned(slot) -> dispatch slot`，仅在 dispatch 缺失时回退到原来的 scalar 公式
+  - fresh green / release 复验：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-f64x4-reduce-facade-green-20260326 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+      - 结果：PASS，`[TEST] OK`、`[LEAK] OK`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-f64x4-reduce-gate-20260326 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+      - 结果：PASS，最终 `[GATE] OK`，run-all summary 时间 `2026-03-26 22:59:30`
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-f64x4-reduce-check-serial-20260326 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+      - 结果：PASS，`[CHECK]` 链与 non-x86 opt-in smoke 全绿
+  - 注意：
+    - 本轮第一次 `check` 失败来自我把 `check` 和 `gate` 并行跑，互踩了同一 worktree 的 `bin2/lib2`；不是代码回归
+    - 之后按 `worker0` 既有约束改为串行复验，问题消失
+
+### Phase 96: `VecF32x8Reduce*` façade/current-dispatch drift closeout
+- [x] 复用 `F64x4` 的 synthetic re-register contract 方法，为 `VecF32x8ReduceAdd/Min/Max/Mul` 补 fresh red
+- [x] 将 `src/fafafa.core.simd.pas` 中 `VecF32x8Reduce*` 收口为 dispatch-first + scalar fallback
+- [x] 用 fresh release `DispatchAPI/DirectDispatch/check/gate` 复验，并同步最小 roadmap 真相源
+- **Status:** complete
+- Notes:
+  - fresh red：
+    - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+    - 失败点：
+      - `VecF32x8ReduceAdd should track current dispatch table after re-register expected: <123.5> but was: <-3.25>`
+  - 根因确认：
+    - `src/fafafa.core.simd.dispatch.pas` 已存在 `ReduceAdd/Min/Max/MulF32x8` slot
+    - `GetDispatchTable^.Reduce*F32x8` 在 synthetic re-register 后已切到新 slot
+    - 但 `src/fafafa.core.simd.pas` 中 `VecF32x8ReduceAdd/ReduceMin/ReduceMax/ReduceMul` 仍直接执行手写 scalar reduction，没有读取 current dispatch snapshot
+  - 计划中的最小修复：
+    - 只改 `VecF32x8ReduceAdd/ReduceMin/ReduceMax/ReduceMul`
+    - 与 `VecF64x4Reduce*` 保持一致：`GetDispatchTable -> Assigned(slot) -> dispatch slot`，仅在 dispatch 缺失时回退到原公式
+  - fresh green / release 复验：
+    - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+      - 结果：PASS，`[TEST] OK`、`[LEAK] OK`
+    - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/phase96-direct bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DirectDispatch`
+      - 结果：PASS，`[TEST] OK`、`[LEAK] OK`
+    - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/phase96-check bash tests/fafafa.core.simd/BuildOrTest.sh check`
+      - 结果：PASS，`[CHECK] OK`
+    - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/phase96-gate bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+      - 结果：PASS，最终 `[GATE] OK`
+  - roadmap truth-source 最小同步：
+    - `backlog.md` 不再把 `SIMD-B07` 作为 active queue 项
+    - 新增 `SIMD-B21(candidate)`，明确当前 active 话题已经切换为 reduction façade / current-dispatch contract sweep
+
+### Phase 97: `VecF64x2Reduce*` façade/current-dispatch drift closeout
+- [x] 复用 `F64x4/F32x8` 的 synthetic re-register contract 方法，为 `VecF64x2ReduceAdd/Min/Max/Mul` 补 fresh red
+- [x] 将 `src/fafafa.core.simd.pas` 中 `VecF64x2Reduce*` 收口为 dispatch-first + scalar fallback
+- [x] 用 fresh release `DispatchAPI/DirectDispatch/check/gate` 复验，并同步最小 roadmap 真相源
+- **Status:** complete
+- Notes:
+  - fresh red：
+    - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+    - 失败点：
+      - `VecF64x2ReduceAdd should track current dispatch table after re-register expected: <77.5> but was: <5.25>`
+  - 根因确认：
+    - `src/fafafa.core.simd.dispatch.pas` 已存在 `ReduceAdd/Min/Max/MulF64x2` slot
+    - synthetic re-register 后，`GetDispatchTable^.Reduce*F64x2` 已切到新 slot
+    - 但 `src/fafafa.core.simd.pas` 中 `VecF64x2ReduceAdd/ReduceMin/ReduceMax/ReduceMul` 仍直接执行手写 scalar reduction，没有读取 current dispatch snapshot
+  - 计划中的最小修复：
+    - 只改 `VecF64x2ReduceAdd/ReduceMin/ReduceMax/ReduceMul`
+    - 与 `VecF64x4Reduce*` / `VecF32x8Reduce*` 保持一致：`GetDispatchTable -> Assigned(slot) -> dispatch slot`，仅在 dispatch 缺失时回退到原公式
+  - fresh green / release 复验：
+    - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+      - 结果：PASS，`[TEST] OK`、`[LEAK] OK`
+    - `TMPDIR=/tmp/simd-f64x2-reduce-directdispatch-20260327 FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-f64x2-reduce-directdispatch-20260327 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DirectDispatch`
+      - 结果：PASS，`[TEST] OK`、`[LEAK] OK`
+    - `TMPDIR=/tmp/simd-f64x2-reduce-check-20260327 FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-f64x2-reduce-check-20260327 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+      - 结果：PASS，`[CHECK] OK`
+    - `TMPDIR=/tmp/simd-f64x2-reduce-gate-20260327 FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-f64x2-reduce-gate-20260327 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+      - 结果：PASS，最终 `[GATE] OK`
+  - roadmap truth-source 最小同步：
+    - `backlog.md` 中 `SIMD-B21(candidate)` 的已收口范围补入 `VecF64x2Reduce*`
+
+### Phase 98: RVV opcode-lane contract and roadmap truth-source hygiene
+- [x] 修正 `run_riscvv_opcode_lane.sh` 默认 define 链，使 runtime 默认口径与 compile/lane 都保持 opcode-ready 对齐
+- [x] 收掉 `tests/fafafa.core.simd/nonx86.optin/` 的 worktree 污染风险，并把它明确纳入忽略规则
+- [x] 将 `docs/plans/2026-03-24-simd-audit-closeout-roadmap.md` 降级为历史批次记录，并用 fresh release `check` 复验主线未回归
+- **Status:** complete
+- Notes:
+  - 问题确认：
+    - `tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh` 之前的默认 define 组合存在 contract drift：
+      - `LANE_DEFINES` / `COMPILE_DEFINES` 默认包含 `-dFAFAFA_SIMD_RISCVV_ASM_OPCODE_READY`
+      - `RUNTIME_DEFINES` 默认却只到 `-dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY`
+    - 但当前 testcase / lane 语义已经把 `FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED` 与 opcode-ready 视为同一可运行合同，所以默认 runtime lane 比 compile lane 更弱会制造脚本级假分叉
+  - 最小修复：
+    - `tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+      - 新增 `RISCV_EXPERIMENTAL_DEFINE`
+      - 让 `LANE_DEFINES` 默认显式包含 `SIMD_EXPERIMENTAL_RISCVV`
+      - 让 `RUNTIME_DEFINES` 默认直接继承 `LANE_DEFINES`，只把“降级 runtime lane”保留给显式 override
+    - `.gitignore`
+      - 新增 `tests/fafafa.core.simd/nonx86.optin/`，避免 fresh `check/gate` 的隔离产物再次回流到 worktree
+    - `docs/plans/2026-03-24-simd-audit-closeout-roadmap.md`
+      - 补 `Status: completed historical batch`
+      - 明确当前 active queue 以 `backlog.md` / `task_plan.md` / `workers/worker0.md` 为准
+  - fresh release / hygiene 复验：
+    - `bash -n tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+      - 结果：PASS
+    - `git check-ignore -v tests/fafafa.core.simd/nonx86.optin/riscvv/logs/test.txt`
+      - 结果：PASS，命中新增 `.gitignore` 规则
+    - `TMPDIR=/tmp/simd-check-20260327-phase98-tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-check-20260327-phase98 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+      - 结果：PASS，`[CHECK] OK`
+      - 关键信号：`NONX86-OPTIN neon/riscvv` 两条 compile smoke 都在隔离根下 fresh 运行并通过
+    - `TMPDIR=/tmp/simd-gate-20260327-phase98-tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-gate-20260327-phase98 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+      - 结果：PASS，最终 `[GATE] OK`
+      - 备注：末尾 Windows evidence verify 仍按默认口径 `SKIP optional`，因为本轮没有设置 `SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1`
+
+### Phase 99: wide reduction sibling guard sweep
+- [x] 为尚未纳入 re-register contract 的 wide sibling façade 补 fresh guard evidence
+- [x] 用 fresh release `DispatchAPI` 验证 `VecF64x8Reduce*` / `VecF32x16Reduce*` 是否仍跟随 current dispatch table
+- [x] 将 B21 的剩余范围从“未知是否有 wide sibling 遗漏”收窄到“已确认两组 wide sibling 正常，仅剩其他未审 sibling”
+- **Status:** complete
+- Notes:
+  - 先做 sibling sweep 定位后，确认当前还没有 machine-readable 守住的公开 reduction façade 主要是：
+    - `VecF64x8ReduceAdd/Min/Max/Mul`
+    - `VecF32x16ReduceAdd/Min/Max/Mul`
+  - 静态代码检查结果：
+    - `src/fafafa.core.simd.pas` 中这两组 façade 已经是 direct dispatch 形式：
+      - `VecF64x8Reduce* -> GetDispatchTable^.Reduce*F64x8`
+      - `VecF32x16Reduce* -> GetDispatchTable^.Reduce*F32x16`
+    - 因此这轮先不假设有新的 production bug，而是按 guard 扩面处理
+  - 最小测试扩面：
+    - 在 `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 新增：
+      - `TTestCase_DispatchAPI.Test_VecF64x8ReduceFacade_Tracks_CurrentDispatchTable_After_ReRegister`
+      - `TTestCase_DispatchAPI.Test_VecF32x16ReduceFacade_Tracks_CurrentDispatchTable_After_ReRegister`
+    - 同时新增对应 synthetic sentinel：
+      - `SyntheticReduceAdd/Min/Max/MulF64x8CurrentDispatch`
+      - `SyntheticReduceAdd/Min/Max/MulF32x16CurrentDispatch`
+  - fresh release 复验：
+    - `TMPDIR=/tmp/simd-b21-sibling-dispatchapi-20260327-tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-b21-sibling-dispatchapi-20260327 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+      - 结果：PASS，`[TEST] OK`、`[LEAK] OK`
+      - 结论：`VecF64x8Reduce*` / `VecF32x16Reduce*` 在 synthetic re-register 后仍与 current dispatch table 保持一致，没有打出新的 façade drift
+    - `TMPDIR=/tmp/simd-b21-sibling-check-20260327-tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-b21-sibling-check-20260327 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+      - 结果：PASS，`[CHECK] OK`
+  - roadmap truth-source 同步：
+    - `backlog.md` 中 `SIMD-B21(candidate)` 已补充这两组 wide sibling 的 fresh guard 结论
+
+### Phase 100: `VecF32x4Reduce*` coverage audit closeout
+- [x] 复查 `VecF32x4Reduce*` 是否仍是 B21 未覆盖 sibling
+- [x] 用 fresh release `DispatchAPI` / `check` 复验当前 guard 与主门禁都保持绿态
+- [x] 将结论同步回 backlog / worker：公开 float reduction façade 已全部进入“已修复或已守卫”状态
+- **Status:** complete
+- Notes:
+  - sibling sweep 原计划是继续为 `VecF32x4Reduce*` 补一条 current-dispatch re-register contract
+  - 但在实际落手时确认：
+    - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 里早就已经存在
+      `TTestCase_DispatchAPI.Test_VecF32x4ReduceFacade_Tracks_CurrentDispatchTable_After_ReRegister`
+    - 对应的 `SyntheticReduce*F32x4CurrentDispatch` sentinel 也早已存在并被当前 suite 使用
+  - 本轮中途误补了一份重复定义，随后立即通过 build log 诊断并移除；最终没有新增生产代码，也没有净新增测试逻辑
+  - fresh release 复验：
+    - `TMPDIR=/tmp/simd-b21-f32x4-dispatchapi-20260327-tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-b21-f32x4-dispatchapi-20260327 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+      - 结果：PASS，`[TEST] OK`、`[LEAK] OK`
+    - `TMPDIR=/tmp/simd-b21-f32x4-checkfix3-20260327-tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-b21-f32x4-checkfix3-20260327 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+      - 结果：PASS，`[CHECK] OK`
+  - 结论：
+    - 公开 float reduction façade：`VecF32x4/F64x2/F32x8/F64x4/F64x8/F32x16 Reduce*`
+      现在都已经处于“之前 bug 已修”或“已有 machine-readable guard”状态
+
+### Phase 101: `SIMD-B21(candidate)` closeout
+- [x] 用 fresh release `gate` 为 B21 提供最终关闭证据
+- [x] 将 `SIMD-B21(candidate)` 从 active queue 正式移入 done
+- [x] 将 worker / findings / progress 同步到“公开 float reduction façade 已全部收口”的状态
+- **Status:** complete
+- Notes:
+  - 范围确认：
+    - `src/fafafa.core.simd.pas` 中公开 `ReduceAdd/Min/Max/Mul` façade 仅存在于 float 家族：
+      - `VecF32x4`
+      - `VecF64x2`
+      - `VecF32x8`
+      - `VecF64x4`
+      - `VecF64x8`
+      - `VecF32x16`
+    - 没有额外的公开 non-float reduction façade 需要继续按 B21 路径收口
+  - fresh release closeout 复验：
+    - `TMPDIR=/tmp/simd-b21-closeout-gate-20260327-tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-b21-closeout-gate-20260327 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+      - 结果：PASS，最终 `[GATE] OK`
+      - 关键信号：
+        - `DispatchAPI` / `DirectDispatch` / `DirectDispatchConcurrent` 全绿
+        - public ABI smoke 全绿
+        - `nonx86.optin neon/riscvv` smoke 全绿
+        - Windows evidence verify 仍按默认口径 `SKIP optional`
+  - closeout 结论：
+    - `SIMD-B21(candidate)` 可以视为完成，不再保留为 active SIMD queue 项
+    - 下一轮 SIMD 选题应切换到新的 candidate，而不是继续围绕 reduction façade sibling sweep
+
+### Phase 103: `SIMD-B22(candidate)` F64x2 math façade current-dispatch closeout
+- [x] 用 TDD 为 `VecF64x2Abs/Sqrt/Min/Max` 补 re-register contract red test
+- [x] 以最小实现修复 `src/fafafa.core.simd.pas` 中 4 个 façade 的 dispatch drift
+- [x] 收掉 `DispatchAPI` 中两条已声明未实现的 guard，并用 fresh release `DispatchAPI` / `check` / `gate` 完成复验
+- **Status:** complete
+- Notes:
+  - 新 candidate 范围：
+    - `src/fafafa.core.simd.dispatch.pas` 已明确定义 `AbsF64x2`、`SqrtF64x2`、`MinF64x2`、`MaxF64x2` slot
+    - 但 `src/fafafa.core.simd.pas` 的 `VecF64x2Abs/Sqrt/Min/Max` 在修复前仍直接执行本地标量实现，没有读取 current dispatch snapshot
+  - fresh red：
+    - `TMPDIR=/tmp/simd-b22-f64x2math-red-20260327-tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-b22-f64x2math-red-20260327 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+      - 结果：FAIL
+      - 命中点：
+        - `VecF64x2Abs should track current dispatch table after re-register lane 0`
+        - `expected: <17.25> but was: <9.5>`
+  - 最小修复：
+    - `src/fafafa.core.simd.pas`
+      - `VecF64x2Abs`
+      - `VecF64x2Sqrt`
+      - `VecF64x2Min`
+      - `VecF64x2Max`
+    - 这 4 个 façade 现在统一改为 dispatch-first，并在 `dispatch=nil` 或 slot 未绑定时才回退到原先标量实现
+  - 顺手收口的测试治理缺口：
+    - `tests/fafafa.core.simd/fafafa.core.simd.dispatchapi.testcase.pas` 里原先已经声明、但未实现的两条 guard：
+      - `Test_VecF32VectorMathFacade_Tracks_CurrentDispatchTable_After_ReRegister`
+      - `Test_VecWideFloatDotFacade_Tracks_CurrentDispatchTable_After_ReRegister`
+    - 本轮补齐后，它们现在也随 `DispatchAPI` fresh 绿；中途误补出重复实现，随后已通过 build log 诊断并移除重复体
+  - fresh release 复验：
+    - `TMPDIR=/tmp/simd-b22-f64x2math-green-20260327-tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-b22-f64x2math-green-20260327 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI`
+      - 结果：PASS，`[TEST] OK`、`[LEAK] OK`
+    - `TMPDIR=/tmp/simd-b22-f64x2math-check-20260327-tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-b22-f64x2math-check-20260327 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+      - 结果：PASS，`[CHECK] OK`
+    - `TMPDIR=/tmp/simd-b22-f64x2math-gate2-20260327-tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-b22-f64x2math-gate2-20260327 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+      - 结果：PASS，最终 `[GATE] OK`
+
+### Phase 104: RVV opcode lane compile/runtime contract guard
+- [x] 将 `run_riscvv_opcode_lane.sh` 的默认 opcode-ready define 合同转成 machine-readable static guard
+- [x] 把 guard 接入默认 release `check` / `gate_step_build_check`
+- [x] 用 fresh release `check` 验证 guard 生效且不破坏现有 non-x86 smoke
+- **Status:** complete
+- Notes:
+  - 选题依据：
+    - `Phase 98` 已确认真实风险不在 RVV lane 脚本“有没有修过”，而在“修过之后有没有持续 guard”
+    - 现态 `run_riscvv_opcode_lane.sh` 已经把 `RUNTIME_DEFINES` 默认对齐到 `LANE_DEFINES`
+    - 但此前默认 `check/gate` 并不会静态验证这个合同，因此后续很容易再次回退成“compile opcode-ready、runtime 非 opcode-ready”的静默漂移
+  - 最小实现：
+    - 在 `tests/fafafa.core.simd/BuildOrTest.sh` 新增 `check_riscvv_opcode_lane_contract_guard()`
+    - guard 固定校验以下 contract 片段仍存在：
+      - `SIMD_EXPERIMENTAL_RISCVV` 默认已进入 `LANE_DEFINES`
+      - `FAFAFA_SIMD_RISCVV_ASM_OPCODE_READY` 默认已进入 `LANE_DEFINES`
+      - `COMPILE_DEFINES` / `RUNTIME_DEFINES` 默认都从 `LANE_DEFINES` 派生
+      - suite / bench runtime 继续显式消费 `${RUNTIME_DEFINES}`
+    - 同时把这条 guard 接入 `gate_step_build_check()` 与 `check` action 主链
+  - 中途诊断：
+    - 首次 fresh `check` 被 `set -u` 打红，根因是 guard 内的 pattern 字符串错误展开了 `${RUNTIME_DEFINES}`
+    - 随后已把 pattern 改成字面量匹配，重新复验通过
+  - fresh release 复验：
+    - `bash -n tests/fafafa.core.simd/BuildOrTest.sh`
+      - 结果：PASS
+    - `bash -n tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+      - 结果：PASS
+    - `TMPDIR=/tmp/simd-check-20260327-phase104b-tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/tmp/simd-check-20260327-phase104b bash tests/fafafa.core.simd/BuildOrTest.sh check`
+      - 结果：PASS，关键输出包含：
+        - `[CHECK] OK (RVV opcode lane compile/runtime contract guard present)`
+        - `NONX86-OPTIN neon/riscvv` smoke 仍然全绿
+
+### Phase 105: RVV opcode lane prebuilt compiler default parity
+- [x] 用默认 `Release` RVV opcode lane fresh 复现真实失败，不先猜实现层问题
+- [x] 先把 suite/bench prebuilt 编译器继承关系写进静态 guard，拿到 red
+- [x] 收口脚本默认值，并用 fresh `check` / default RVV lane / default `gate` 完成 green 复验
+- **Status:** complete
+- Notes:
+  - fresh red：
+    - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_RVV_LANE_SKIP_BENCH=1 bash tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+      - 结果：FAIL
+      - 失败点：
+        - suite 阶段用到 `/usr/local/bin/ppcrv64`
+        - `fafafa.core.simd.riscvv.pas` 多处报 `Error: Unrecognized opcode vsetivli`
+  - 根因确认：
+    - `tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh` 修复前只有 compile-only 默认继承 `SIMD_RVV_USE_PREBUILT_COMPILER=1`
+    - `SUITE_USE_PREBUILT_COMPILER` / `BENCH_USE_PREBUILT_COMPILER` 却仍默认 `0`
+    - 结果是 compile-only 用带 RVV opcode patch 的 prebuilt compiler，suite/bench 却回退到容器内默认 `ppcrv64`，从而制造脚本级假红
+  - TDD / guard red：
+    - `tests/fafafa.core.simd/BuildOrTest.sh` 的 `check_riscvv_opcode_lane_contract_guard()` 先新增两条必需 pattern：
+      - `SUITE_USE_PREBUILT_COMPILER="${SIMD_RVV_SUITE_USE_PREBUILT_COMPILER:-${USE_PREBUILT_COMPILER}}"`
+      - `BENCH_USE_PREBUILT_COMPILER="${SIMD_RVV_BENCH_USE_PREBUILT_COMPILER:-${USE_PREBUILT_COMPILER}}"`
+    - fresh `check`：
+      - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/red-rvv-prebuilt-guard-20260327 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+      - 结果：FAIL
+      - 命中 guard 缺失上述两条 pattern
+  - 最小修复：
+    - `tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+      - `SUITE_USE_PREBUILT_COMPILER` 默认改为继承 `${USE_PREBUILT_COMPILER}`
+      - `BENCH_USE_PREBUILT_COMPILER` 默认改为继承 `${USE_PREBUILT_COMPILER}`
+      - 补注释说明：默认 suite/bench 必须与 compile-only 保持同一条 RVV-capable toolchain；需要降级时只能显式 override
+  - fresh release 复验：
+    - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/green-rvv-prebuilt-guard-20260327 bash tests/fafafa.core.simd/BuildOrTest.sh check`
+      - 结果：PASS
+    - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_RVV_LANE_SKIP_BENCH=1 bash tests/fafafa.core.simd/docker/run_riscvv_opcode_lane.sh`
+      - 结果：PASS，`[TEST] OK`、`[LEAK] OK`、`[RVV-LANE] PASS`
+    - `TMPDIR=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/tmp FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/postfix-rvv-prebuilt-gate-20260327 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+      - 结果：PASS，最终 `[GATE] OK`
+
+### Phase 106: `SIMD-B23(candidate)` Linux evidence refresh and Windows blocker confirmation
+- [x] 用 fresh `Release` `check` / `gate` 先确认当前 SIMD 主线没有新的代码级红点
+- [x] 按 `freeze-status` 提示补齐 `qemu-cpuinfo-nonx86-evidence`，验证 Linux 主线 evidence 恢复为 PASS
+- [x] 确认当前 cross freeze 剩余 blocker 仅为 stale Windows evidence，并核实 `win-evidence-via-gh` 对 dirty worktree 的 dispatch 拒绝条件
+- **Status:** complete
+- Notes:
+  - fresh 主线复验：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/review-20260327-check bash tests/fafafa.core.simd/BuildOrTest.sh check`
+      - 结果：PASS
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/review-20260327-gate bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+      - 结果：PASS，最终 `[GATE] OK`
+  - fresh freeze red（补 Linux evidence 之前）：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/review-20260327-gate bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+      - 结果：FAIL
+      - 首要失败点：
+        - `linux_qemu_cpuinfo_nonx86_evidence: step status=SKIP`
+        - `windows_evidence_freshness: stale`
+        - `linux_sources_not_newer_than_windows_evidence`
+  - 环境预检：
+    - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight`
+      - 结果：PASS，`workflow=simd-windows-b07-evidence.yml, repo=dtamade/fafafa.core`
+    - `docker info --format '{{.ServerVersion}}'`
+      - 结果：PASS，Docker daemon 可用
+    - `gh auth status`
+      - 结果：PASS，账号 `dtamade` 已登录且具备 `workflow` scope
+  - Linux/QEMU evidence refresh：
+    - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/review-20260327-qemu-gate SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+      - 结果：PASS
+      - fresh summary：`tests/fafafa.core.simd/logs/qemu-multiarch-20260327-215104-1405094/summary.md`
+    - 随后复跑：
+      - `FAFAFA_BUILD_MODE=Release SIMD_OUTPUT_ROOT=/home/dtamade/projects/fafafa.core/.claude/worktrees/simd-external-evidence/.simd-output/review-20260327-qemu-gate bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+      - 结果：FAIL，但失败只剩：
+        - `windows_evidence_freshness: stale mtime=2026-03-24 13:55:04`
+        - `linux_sources_not_newer_than_windows_evidence`
+  - 剩余 blocker 结论：
+    - `tests/fafafa.core.simd/run_windows_b07_closeout_via_github_actions.sh` 在未传 `run-id` 的 dispatch 路径下会显式检查：
+      - `git status --short --untracked-files=no` 非空时拒绝：`Refuse dispatch: local worktree has uncommitted changes.`
+      - remote ref 与 local HEAD 不一致时拒绝：`Refuse dispatch: remote ref does not match local HEAD.`
+    - 当前 `git rev-list --left-right --count @{u}...HEAD` 为 `0 0`，说明 branch 已跟踪 `origin/simd-external-evidence`
+    - 但 worktree 仍有大量未提交修改（含 `src/fafafa.core.simd.pas` / `src/fafafa.core.simd.riscvv*.pas` / tests），所以 fresh Windows evidence 现在不是“脚本坏了”，而是“需要先把当前本地状态变成可 dispatch 的 ref”，或者改走真实 Windows 实机

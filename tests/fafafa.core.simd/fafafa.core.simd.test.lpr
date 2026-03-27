@@ -196,6 +196,8 @@ begin
   HandleSuite('TTestCase_NonX86BackendParity', TTestCase_NonX86BackendParity.Suite, aListOnly, aTargetSuite);
   HandleSuite('TTestCase_DispatchAPI', TTestCase_DispatchAPI.Suite, aListOnly, aTargetSuite);
   HandleSuite('TTestCase_X86MaskedFmaContract', TTestCase_X86MaskedFmaContract.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_RISCVVMaskedOpsContract', TTestCase_RISCVVMaskedOpsContract.Suite, aListOnly, aTargetSuite);
+  HandleSuite('TTestCase_RISCVFallbackDispatchContract', TTestCase_RISCVFallbackDispatchContract.Suite, aListOnly, aTargetSuite);
   HandleSuite('TTestCase_DispatchAllSlots', TTestCase_DispatchAllSlots.Suite, aListOnly, aTargetSuite);
   HandleSuite('TTestCase_PublicAbi', TTestCase_PublicAbi.Suite, aListOnly, aTargetSuite);
   {$IFDEF SIMD_X86_AVAILABLE}

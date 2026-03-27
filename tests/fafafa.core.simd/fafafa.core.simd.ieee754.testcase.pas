@@ -114,6 +114,7 @@ type
   TTestCase_NonX86IEEE754 = class(TTestCase)
   published
     procedure Test_NonX86_RoundTruncFloorCeil_NaNInf_IfAvailable;
+    procedure Test_NonX86_NarrowF64x2_RoundTruncFloorCeil_Finite_IfAvailable;
     procedure Test_NonX86_Wide_RoundTruncFloorCeil_NaNInf_IfAvailable;
     procedure Test_NonX86_FloorCeil_PropertyLike_FixedSeed_IfAvailable;
     procedure Test_NonX86_RoundTrunc_PropertyLike_FixedSeed_IfAvailable;
@@ -3046,6 +3047,116 @@ begin
 
   if LCheckedBackends = 0 then
     AssertTrue('No non-x86 backend available on this host (allowed)', True);
+end;
+
+procedure TTestCase_NonX86IEEE754.Test_NonX86_NarrowF64x2_RoundTruncFloorCeil_Finite_IfAvailable;
+const
+  NON_X86_BACKENDS: array[0..1] of TSimdBackend = (sbNEON, sbRISCVV);
+  SAMPLE_CASE_COUNT = 3;
+var
+  LBackend: TSimdBackend;
+  LCheckedBackends: Integer;
+  LDispatch: PSimdDispatchTable;
+  LCaseIndex: Integer;
+  LLaneIndex: Integer;
+  LOldVectorAsm: Boolean;
+  LInputs: array[0..SAMPLE_CASE_COUNT - 1] of TVecF64x2;
+  LExpectedRound: array[0..SAMPLE_CASE_COUNT - 1] of TVecF64x2;
+  LExpectedTrunc: array[0..SAMPLE_CASE_COUNT - 1] of TVecF64x2;
+  LExpectedFloor: array[0..SAMPLE_CASE_COUNT - 1] of TVecF64x2;
+  LExpectedCeil: array[0..SAMPLE_CASE_COUNT - 1] of TVecF64x2;
+  LActualRound: array[0..SAMPLE_CASE_COUNT - 1] of TVecF64x2;
+  LActualTrunc: array[0..SAMPLE_CASE_COUNT - 1] of TVecF64x2;
+  LActualFloor: array[0..SAMPLE_CASE_COUNT - 1] of TVecF64x2;
+  LActualCeil: array[0..SAMPLE_CASE_COUNT - 1] of TVecF64x2;
+
+  procedure AssertDoubleSemantics(const aPrefix: string; const aExpected, aActual: Double);
+  begin
+    if IsNaNDouble(aExpected) then
+      AssertTrue(aPrefix + ' expected NaN', IsNaNDouble(aActual))
+    else if IsInfinite(aExpected) then
+      AssertTrue(aPrefix + ' expected Inf sign',
+        IsInfinite(aActual) and ((aActual > 0) = (aExpected > 0)))
+    else
+      AssertEquals(aPrefix + ' finite compare', aExpected, aActual, 0.0);
+  end;
+begin
+  LCheckedBackends := 0;
+  LOldVectorAsm := IsVectorAsmEnabled;
+
+  LInputs[0].d[0] := 1.25;
+  LInputs[0].d[1] := -1.25;
+  LInputs[1].d[0] := 1.75;
+  LInputs[1].d[1] := -1.75;
+  LInputs[2].d[0] := 2.5;
+  LInputs[2].d[1] := -2.5;
+
+  try
+    SetVectorAsmEnabled(True);
+
+    for LBackend in NON_X86_BACKENDS do
+    begin
+      if not IsBackendRegistered(LBackend) then
+        Continue;
+      if not TrySetActiveBackend(LBackend) then
+        Continue;
+
+      Inc(LCheckedBackends);
+      try
+        LDispatch := GetDispatchTable;
+        AssertNotNull('Dispatch table should be available', LDispatch);
+        AssertTrue('Round/Trunc/Floor/Ceil F64x2 should be assigned',
+          Assigned(LDispatch^.RoundF64x2) and Assigned(LDispatch^.TruncF64x2) and
+          Assigned(LDispatch^.FloorF64x2) and Assigned(LDispatch^.CeilF64x2));
+
+        SetActiveBackend(sbScalar);
+        LDispatch := GetDispatchTable;
+        AssertNotNull('Scalar dispatch should be available', LDispatch);
+        for LCaseIndex := 0 to SAMPLE_CASE_COUNT - 1 do
+        begin
+          LExpectedRound[LCaseIndex] := LDispatch^.RoundF64x2(LInputs[LCaseIndex]);
+          LExpectedTrunc[LCaseIndex] := LDispatch^.TruncF64x2(LInputs[LCaseIndex]);
+          LExpectedFloor[LCaseIndex] := LDispatch^.FloorF64x2(LInputs[LCaseIndex]);
+          LExpectedCeil[LCaseIndex] := LDispatch^.CeilF64x2(LInputs[LCaseIndex]);
+        end;
+
+        SetActiveBackend(LBackend);
+        LDispatch := GetDispatchTable;
+        AssertNotNull('Non-x86 dispatch should be available', LDispatch);
+        for LCaseIndex := 0 to SAMPLE_CASE_COUNT - 1 do
+        begin
+          LActualRound[LCaseIndex] := LDispatch^.RoundF64x2(LInputs[LCaseIndex]);
+          LActualTrunc[LCaseIndex] := LDispatch^.TruncF64x2(LInputs[LCaseIndex]);
+          LActualFloor[LCaseIndex] := LDispatch^.FloorF64x2(LInputs[LCaseIndex]);
+          LActualCeil[LCaseIndex] := LDispatch^.CeilF64x2(LInputs[LCaseIndex]);
+        end;
+
+        for LCaseIndex := 0 to SAMPLE_CASE_COUNT - 1 do
+          for LLaneIndex := 0 to 1 do
+          begin
+            AssertDoubleSemantics(IntToStr(Ord(LBackend)) + ' Case ' + IntToStr(LCaseIndex) +
+              ' RoundF64x2[' + IntToStr(LLaneIndex) + ']',
+              LExpectedRound[LCaseIndex].d[LLaneIndex], LActualRound[LCaseIndex].d[LLaneIndex]);
+            AssertDoubleSemantics(IntToStr(Ord(LBackend)) + ' Case ' + IntToStr(LCaseIndex) +
+              ' TruncF64x2[' + IntToStr(LLaneIndex) + ']',
+              LExpectedTrunc[LCaseIndex].d[LLaneIndex], LActualTrunc[LCaseIndex].d[LLaneIndex]);
+            AssertDoubleSemantics(IntToStr(Ord(LBackend)) + ' Case ' + IntToStr(LCaseIndex) +
+              ' FloorF64x2[' + IntToStr(LLaneIndex) + ']',
+              LExpectedFloor[LCaseIndex].d[LLaneIndex], LActualFloor[LCaseIndex].d[LLaneIndex]);
+            AssertDoubleSemantics(IntToStr(Ord(LBackend)) + ' Case ' + IntToStr(LCaseIndex) +
+              ' CeilF64x2[' + IntToStr(LLaneIndex) + ']',
+              LExpectedCeil[LCaseIndex].d[LLaneIndex], LActualCeil[LCaseIndex].d[LLaneIndex]);
+          end;
+      finally
+        ResetToAutomaticBackend;
+      end;
+    end;
+
+    if LCheckedBackends = 0 then
+      AssertTrue('No non-x86 backend available on this host (allowed)', True);
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+  end;
 end;
 
 procedure TTestCase_NonX86IEEE754.Test_NonX86_Wide_RoundTruncFloorCeil_NaNInf_IfAvailable;

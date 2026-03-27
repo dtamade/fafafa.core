@@ -50,9 +50,13 @@
 - [x] **SIMD-B01**：AVX2 缺失实现补齐（已完成）
 - [x] **SIMD-B02**：AVX2 边界覆盖第一轮（scale/负索引/掩码/imm8）
 - [x] **SIMD-B03**：`gather_epi64` / `gather_pd` 负索引与参数防御测试补齐
+- [x] **SIMD-B20(candidate)**：Windows 证据闭环自动化已完成；当前 `verify -> finalize` 主链 fresh 可跑通，`freeze-status` 剩余红项仅是 2026-03-27 源码晚于 2026-03-24 归档证据，不再是自动化缺口
+- [x] **SIMD-B21(candidate)**：reduction façade / current-dispatch contract sweep（`VecF32x4/F64x2/F32x8/F64x4/F64x8/F32x16 Reduce*` 已全部处于“已修复或已守卫”状态；2026-03-27 fresh release `gate` 通过）
+- [x] **SIMD-B22(candidate)**：`VecF64x2 Abs/Sqrt/Min/Max` façade / current-dispatch contract sweep（真实 drift 已修复；`DispatchAPI` 中预声明的 `VecF32` vector-math / wide-float-dot guards 也已补齐；2026-03-27 fresh release `gate` 通过）
 
 ### Queue
-- [ ] **SIMD-B07**：Windows `.bat` 执行证据补齐
+- [ ] **SIMD-B23(candidate)**：fresh Linux/Windows evidence refresh，把 `freeze-status` 从 freshness/source-newer-than-evidence 红态拉回绿态。
+- 完成条件：fresh release `gate` 产物时间不早于当前 `src/fafafa.core.simd*` 改动，fresh Windows evidence 通过 verifier，并且 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status` 返回 `ready=True`。
 
 ### SIMD Program Board Update (2026-02-07 06:10)
 - [x] **SIMD-B04**：pack/unpack 极值组合与 lane 隔离测试补齐（已完成）。
@@ -119,6 +123,16 @@
 
 ### Done (SIMD 增量)
 - [x] 2026-02-07：**SIMD-B10** 完成（`tests/fafafa.core.simd/BuildOrTest.sh gate` 门禁收敛，修复 `avx2_setzero_si256` 初始化 hint，6/6 通过）。
+- [x] 2026-03-24：**SIMD-B07** 完成（Windows `.bat` 执行证据与 closeout 校验已闭环，当前 backlog 不再把它当作 active blocker）。
+- [x] 2026-03-27：**SIMD-B21(candidate)** 完成（公开 float reduction façade / current-dispatch sweep 收口：`VecF64x4Reduce*`、`VecF32x8Reduce*`、`VecF64x2Reduce*` 修复闭环，`VecF32x4Reduce*`、`VecF64x8Reduce*`、`VecF32x16Reduce*` fresh guard 绿）。
+- [x] 2026-03-27：**SIMD-B22(candidate)** 完成（`VecF64x2Abs/Sqrt/Min/Max` façade drift 修复闭环；`VecF32` vector-math / wide-float-dot 两条 DispatchAPI guards 也已补齐并通过 fresh release `gate`）。
+
+### SIMD Program Board Update (2026-03-27 01:40)
+- [x] **SIMD-B07**：状态收口完成，Windows evidence 不再是当前 active blocker。
+- [~] **SIMD-B21(candidate)**：已收口 `VecF64x4Reduce*`、`VecF32x8Reduce*`；剩余工作是继续确认 sibling wide reduction façade 是否还有历史遗漏。
+
+### SIMD Program Board Update (2026-03-27 01:55)
+- [~] **SIMD-B21(candidate)**：已新增 `VecF64x2Reduce*` contract evidence 并完成 façade/current-dispatch 收口；下一步继续确认是否还剩其他 sibling reduction façade 历史遗漏。
 
 ### SIMD Program Board Update (2026-02-07 09:23)
 - [x] **SIMD-B14(candidate)**：`cpuinfo.x86` Linux runner parity 静态守护补齐并通过全链路回归。
@@ -147,4 +161,4 @@
 - [x] **SIMD-B19(candidate)**：`DotF32x8` API 路径专项优化完成，并与批量口径对齐（API/Batch 均稳定 > `1.00x`）。
 - [x] **SIMD-B17(candidate)**：状态保持 completed（`VecF32x4Dot` 持续稳定 >= `1.00x`）。
 - [~] **SIMD-B07**：状态不变（仅剩 Windows 实机日志证据）。
-- [ ] **SIMD-B20(candidate)**：Windows 证据闭环自动化（日志采集 + Linux 校验 + 归档模板）。
+- [x] **SIMD-B20(candidate)**：Windows 证据闭环自动化（日志采集 + Linux 校验 + 归档模板）已收口；2026-03-27 fresh `verify_windows_b07_evidence.sh` 与 `finalize-win-evidence` 均 PASS，当前 `freeze-status` 红项仅剩证据 freshness。

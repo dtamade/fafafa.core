@@ -38,6 +38,8 @@ begin
   Include(LCapabilities, scShuffle);
   if LUseVectorAsm then
   Include(LCapabilities, scFMA);
+  if LUseVectorAsm then
+  Include(LCapabilities, scMaskedOps);
   table.BackendInfo.Capabilities := LCapabilities;
 
   if LAsmCapable and (not LUseVectorAsm) then
@@ -78,9 +80,11 @@ begin
   // F32x4 Vector Math
   table.DotF32x4 := @RISCVVDotF32x4;
   table.DotF32x3 := @RISCVVDotF32x3;
-  table.DotF32x8 := @RISCVVDotF32x8;
   table.DotF64x2 := @RISCVVDotF64x2;
   table.DotF64x4 := @RISCVVDotF64x4;
+  {$IFNDEF RISCVV_ASSEMBLY}
+  table.DotF32x8 := @RISCVVDotF32x8;
+  {$ENDIF}
   table.CrossF32x3 := @RISCVVCrossF32x3;
   table.LengthF32x4 := @RISCVVLengthF32x4;
   table.LengthF32x3 := @RISCVVLengthF32x3;
@@ -339,26 +343,26 @@ begin
 
   // Wide Float Extended Math (Ceil, Floor, Round, Trunc, Fma)
   {$IFDEF RISCVV_ASSEMBLY}
-  table.CeilF32x16 := @ScalarCeilF32x16;
-  table.CeilF32x8 := @ScalarCeilF32x8;
+  table.CeilF32x16 := @RISCVVCeilF32x16;
+  table.CeilF32x8 := @RISCVVCeilF32x8;
   table.CeilF64x2 := @ScalarCeilF64x2;
-  table.CeilF64x4 := @ScalarCeilF64x4;
-  table.CeilF64x8 := @ScalarCeilF64x8;
-  table.FloorF32x16 := @ScalarFloorF32x16;
-  table.FloorF32x8 := @ScalarFloorF32x8;
+  table.CeilF64x4 := @RISCVVCeilF64x4;
+  table.CeilF64x8 := @RISCVVCeilF64x8;
+  table.FloorF32x16 := @RISCVVFloorF32x16;
+  table.FloorF32x8 := @RISCVVFloorF32x8;
   table.FloorF64x2 := @ScalarFloorF64x2;
-  table.FloorF64x4 := @ScalarFloorF64x4;
-  table.FloorF64x8 := @ScalarFloorF64x8;
-  table.RoundF32x16 := @ScalarRoundF32x16;
-  table.RoundF32x8 := @ScalarRoundF32x8;
+  table.FloorF64x4 := @RISCVVFloorF64x4;
+  table.FloorF64x8 := @RISCVVFloorF64x8;
+  table.RoundF32x16 := @RISCVVRoundF32x16;
+  table.RoundF32x8 := @RISCVVRoundF32x8;
   table.RoundF64x2 := @ScalarRoundF64x2;
-  table.RoundF64x4 := @ScalarRoundF64x4;
-  table.RoundF64x8 := @ScalarRoundF64x8;
-  table.TruncF32x16 := @ScalarTruncF32x16;
-  table.TruncF32x8 := @ScalarTruncF32x8;
+  table.RoundF64x4 := @RISCVVRoundF64x4;
+  table.RoundF64x8 := @RISCVVRoundF64x8;
+  table.TruncF32x16 := @RISCVVTruncF32x16;
+  table.TruncF32x8 := @RISCVVTruncF32x8;
   table.TruncF64x2 := @ScalarTruncF64x2;
-  table.TruncF64x4 := @ScalarTruncF64x4;
-  table.TruncF64x8 := @ScalarTruncF64x8;
+  table.TruncF64x4 := @RISCVVTruncF64x4;
+  table.TruncF64x8 := @RISCVVTruncF64x8;
   {$ELSE}
   table.CeilF32x16 := @RISCVVCeilF32x16;
   table.CeilF32x8 := @RISCVVCeilF32x8;
@@ -501,6 +505,8 @@ begin
   table.CmpGeI64x8 := @RISCVVCmpGeI64x8;
   table.CmpNeI64x8 := @RISCVVCmpNeI64x8;
 
+  // Keep scalar base wiring for these wide fallback-only helpers in RVV asm builds.
+  {$IFNDEF RISCVV_ASSEMBLY}
   // I16x32 Operations
   table.AddI16x32 := @RISCVVAddI16x32;
   table.AddI8x64 := @RISCVVAddI8x64;
@@ -572,6 +578,7 @@ begin
   table.CmpLeU64x8 := @RISCVVCmpLeU64x8;
   table.CmpGeU64x8 := @RISCVVCmpGeU64x8;
   table.CmpNeU64x8 := @RISCVVCmpNeU64x8;
+  {$ENDIF}
 
   // I32x4/I32x8/I32x16 Extract/Insert
   table.ExtractI32x4 := @RISCVVExtractI32x4;
