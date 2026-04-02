@@ -2,6 +2,8 @@ unit fafafa.core.test.listener.json;
 
 {$mode objfpc}{$H+}
 {$I fafafa.core.settings.inc}
+{$push}
+{$warn 5024 off}
 
 interface
 
@@ -22,12 +24,12 @@ type
     constructor Create(const AWriterFactory: TJsonWriterFactory; const AFileName: string);
 {$push}
 {$warn 5024 off}
-    procedure OnStart(ATotal: Integer);
-    procedure OnTestStart(const AName: string);
+    procedure OnStart({%H-}ATotal: Integer);
+    procedure OnTestStart(const {%H-}AName: string);
     procedure OnTestSuccess(const AName: string; AElapsedMs: QWord);
     procedure OnTestFailure(const AName, AMessage: string; AElapsedMs: QWord);
     procedure OnTestSkipped(const AName: string; AElapsedMs: QWord);
-    procedure OnEnd(ATotal, AFailed: Integer; AElapsedMs: QWord);
+    procedure OnEnd({%H-}ATotal, {%H-}AFailed: Integer; {%H-}AElapsedMs: QWord);
 {$pop}
   end;
 
@@ -43,7 +45,9 @@ begin
     FWriter := nil;
 end;
 
-procedure TJsonTestListener.OnStart(ATotal: Integer);
+{$pop}
+
+procedure TJsonTestListener.OnStart({%H-}ATotal: Integer);
 begin
   FStartTick := GetTickCount64;
   FFailures := 0;
@@ -55,7 +59,7 @@ begin
     FWriter.BeginSuite('fafafa.core.test', FTimestamp, FHost);
 end;
 
-procedure TJsonTestListener.OnTestStart(const AName: string);
+procedure TJsonTestListener.OnTestStart(const {%H-}AName: string);
 begin
 end;
 
@@ -122,7 +126,7 @@ begin
   end;
 end;
 
-procedure TJsonTestListener.OnEnd(ATotal, AFailed: Integer; AElapsedMs: QWord);
+procedure TJsonTestListener.OnEnd({%H-}ATotal, {%H-}AFailed: Integer; {%H-}AElapsedMs: QWord);
 begin
   if FWriter <> nil then
   begin

@@ -2,6 +2,8 @@ unit fafafa.core.test.runner;
 
 {$mode objfpc}{$H+}
 {$I fafafa.core.settings.inc}
+{$push}
+{$warn 5024 off}
 
 interface
 
@@ -36,12 +38,12 @@ uses
       procedure AddRec(const AName: string; const AElapsed: QWord);
     public
       // ITestListener
-      procedure OnStart(ATotal: Integer);
-      procedure OnTestStart(const AName: string);
+      procedure OnStart({%H-}ATotal: Integer);
+      procedure OnTestStart(const {%H-}AName: string);
       procedure OnTestSuccess(const AName: string; AElapsedMs: QWord);
-      procedure OnTestFailure(const AName, AMessage: string; AElapsedMs: QWord);
-      procedure OnTestSkipped(const AName: string; AElapsedMs: QWord);
-      procedure OnEnd(ATotal, AFailed: Integer; AElapsedMs: QWord);
+      procedure OnTestFailure(const AName, {%H-}AMessage: string; AElapsedMs: QWord);
+      procedure OnTestSkipped(const {%H-}AName: string; {%H-}AElapsedMs: QWord);
+      procedure OnEnd({%H-}ATotal, {%H-}AFailed: Integer; {%H-}AElapsedMs: QWord);
       // Accessors
       function GetSkipped: Integer;
       procedure GetTopSlowest(N: Integer; var Names: array of string; var Times: array of QWord);
@@ -56,13 +58,13 @@ uses
     FRecs[L].Elapsed := AElapsed;
   end;
 
-  procedure TRunnerMetrics.OnStart(ATotal: Integer);
+  procedure TRunnerMetrics.OnStart({%H-}ATotal: Integer);
   begin
     FSkipped := 0;
     SetLength(FRecs, 0);
   end;
 
-  procedure TRunnerMetrics.OnTestStart(const AName: string);
+  procedure TRunnerMetrics.OnTestStart(const {%H-}AName: string);
   begin
   end;
 
@@ -71,17 +73,17 @@ uses
     AddRec(AName, AElapsedMs);
   end;
 
-  procedure TRunnerMetrics.OnTestFailure(const AName, AMessage: string; AElapsedMs: QWord);
+  procedure TRunnerMetrics.OnTestFailure(const AName, {%H-}AMessage: string; AElapsedMs: QWord);
   begin
     AddRec(AName, AElapsedMs);
   end;
 
-  procedure TRunnerMetrics.OnTestSkipped(const AName: string; AElapsedMs: QWord);
+  procedure TRunnerMetrics.OnTestSkipped(const {%H-}AName: string; {%H-}AElapsedMs: QWord);
   begin
     Inc(FSkipped);
   end;
 
-  procedure TRunnerMetrics.OnEnd(ATotal, AFailed: Integer; AElapsedMs: QWord);
+  procedure TRunnerMetrics.OnEnd({%H-}ATotal, {%H-}AFailed: Integer; {%H-}AElapsedMs: QWord);
   begin
   end;
 
@@ -97,6 +99,7 @@ uses
   begin
     Count := Length(FRecs);
     if N <= 0 then Exit;
+    used := nil;
     SetLength(used, Count);
     if Length(Names) < N then Exit;
     if Length(Times) < N then Exit;
@@ -245,6 +248,8 @@ var
 begin
   // inform core that our custom runner is active so that Skip/Assume raise ETestSkip
   _SetRunnerActive(True);
+  SlowNames := nil;
+  SlowTimes := nil;
   // parse args
   if CliIsHelpRequested then
   begin
@@ -490,6 +495,8 @@ begin
 
   if (Failed > 0) or (FailOnSkip and (Metrics.GetSkipped > 0)) then Halt(1) else Halt(0);
 end;
+
+{$pop}
 
 end.
 

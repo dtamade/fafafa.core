@@ -2,11 +2,13 @@ unit fafafa.core.test.listener.junit;
 
 {$mode objfpc}{$H+}
 {$I fafafa.core.settings.inc}
+{$push}
+{$warn 5024 off}
 
 interface
 
 uses
-  SysUtils, Classes, DateUtils, fafafa.core.test.core, fafafa.core.base, fafafa.core.xml, fafafa.core.report.common;
+  SysUtils, Classes, DateUtils, fafafa.core.test.core, fafafa.core.xml, fafafa.core.report.common;
 
 type
   TJUnitTestListener = class(TInterfacedObject, ITestListener)
@@ -26,12 +28,12 @@ type
     destructor Destroy; override;
 {$push}
 {$warn 5024 off}
-    procedure OnStart(ATotal: Integer);
-    procedure OnTestStart(const AName: string);
+    procedure OnStart({%H-}ATotal: Integer);
+    procedure OnTestStart(const {%H-}AName: string);
     procedure OnTestSuccess(const AName: string; AElapsedMs: QWord);
     procedure OnTestFailure(const AName, AMessage: string; AElapsedMs: QWord);
     procedure OnTestSkipped(const AName: string; AElapsedMs: QWord);
-    procedure OnEnd(ATotal, AFailed: Integer; AElapsedMs: QWord);
+    procedure OnEnd({%H-}ATotal, {%H-}AFailed: Integer; {%H-}AElapsedMs: QWord);
 {$pop}
   end;
 
@@ -42,6 +44,8 @@ begin
   // Use strict mode to ensure XML 1.0 compliance for external tools
   Result := XmlEscapeXML10Strict(S);
 end;
+
+{$pop}
 
 constructor TJUnitTestListener.Create(const AFileName: string);
 begin
@@ -57,7 +61,7 @@ begin
   inherited Destroy;
 end;
 
-procedure TJUnitTestListener.OnStart(ATotal: Integer);
+procedure TJUnitTestListener.OnStart({%H-}ATotal: Integer);
 begin
   FStartTick := GetTickCount64;
   FFailures := 0;
@@ -74,7 +78,7 @@ begin
   FOut.Add('<<HEADER>>');
 end;
 
-procedure TJUnitTestListener.OnTestStart(const AName: string);
+procedure TJUnitTestListener.OnTestStart(const {%H-}AName: string);
 begin
   // no-op
 end;
@@ -179,7 +183,7 @@ begin
   FOut.Add('  </testcase>');
 end;
 
-procedure TJUnitTestListener.OnEnd(ATotal, AFailed: Integer; AElapsedMs: QWord);
+procedure TJUnitTestListener.OnEnd({%H-}ATotal, {%H-}AFailed: Integer; {%H-}AElapsedMs: QWord);
 var i: Integer; suiteHdr: string; totalSec: Double;
 begin
   totalSec := (GetTickCount64 - FStartTick) / 1000.0;
