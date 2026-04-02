@@ -43,6 +43,7 @@ tests/*/*.ppu
 tests/*/*/lib
 tests/*/*/bin
 release
+tests/fafafa.core.simd/nonx86.optin/
 
 tests/*/backup/
 tests/fafafa.core.csv/tmp/

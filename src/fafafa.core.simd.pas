@@ -1990,27 +1990,59 @@ begin
 end;
 
 function VecF64x2Abs(const a: TVecF64x2): TVecF64x2;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result.d[0] := Abs(a.d[0]);
-  Result.d[1] := Abs(a.d[1]);
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.AbsF64x2) then
+    Result := LDispatch^.AbsF64x2(a)
+  else
+  begin
+    Result.d[0] := Abs(a.d[0]);
+    Result.d[1] := Abs(a.d[1]);
+  end;
 end;
 
 function VecF64x2Sqrt(const a: TVecF64x2): TVecF64x2;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result.d[0] := Sqrt(a.d[0]);
-  Result.d[1] := Sqrt(a.d[1]);
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.SqrtF64x2) then
+    Result := LDispatch^.SqrtF64x2(a)
+  else
+  begin
+    Result.d[0] := Sqrt(a.d[0]);
+    Result.d[1] := Sqrt(a.d[1]);
+  end;
 end;
 
 function VecF64x2Min(const a, b: TVecF64x2): TVecF64x2;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  if a.d[0] < b.d[0] then Result.d[0] := a.d[0] else Result.d[0] := b.d[0];
-  if a.d[1] < b.d[1] then Result.d[1] := a.d[1] else Result.d[1] := b.d[1];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.MinF64x2) then
+    Result := LDispatch^.MinF64x2(a, b)
+  else
+  begin
+    if a.d[0] < b.d[0] then Result.d[0] := a.d[0] else Result.d[0] := b.d[0];
+    if a.d[1] < b.d[1] then Result.d[1] := a.d[1] else Result.d[1] := b.d[1];
+  end;
 end;
 
 function VecF64x2Max(const a, b: TVecF64x2): TVecF64x2;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  if a.d[0] > b.d[0] then Result.d[0] := a.d[0] else Result.d[0] := b.d[0];
-  if a.d[1] > b.d[1] then Result.d[1] := a.d[1] else Result.d[1] := b.d[1];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.MaxF64x2) then
+    Result := LDispatch^.MaxF64x2(a, b)
+  else
+  begin
+    if a.d[0] > b.d[0] then Result.d[0] := a.d[0] else Result.d[0] := b.d[0];
+    if a.d[1] > b.d[1] then Result.d[1] := a.d[1] else Result.d[1] := b.d[1];
+  end;
 end;
 
 // === F64x2 Extended Math Functions ===
@@ -2053,23 +2085,51 @@ begin
 end;
 
 function VecF64x2ReduceAdd(const a: TVecF64x2): Double;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result := a.d[0] + a.d[1];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.ReduceAddF64x2) then
+    Result := LDispatch^.ReduceAddF64x2(a)
+  else
+    Result := a.d[0] + a.d[1];
 end;
 
 function VecF64x2ReduceMin(const a: TVecF64x2): Double;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  if a.d[0] < a.d[1] then Result := a.d[0] else Result := a.d[1];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.ReduceMinF64x2) then
+    Result := LDispatch^.ReduceMinF64x2(a)
+  else if a.d[0] < a.d[1] then
+    Result := a.d[0]
+  else
+    Result := a.d[1];
 end;
 
 function VecF64x2ReduceMax(const a: TVecF64x2): Double;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  if a.d[0] > a.d[1] then Result := a.d[0] else Result := a.d[1];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.ReduceMaxF64x2) then
+    Result := LDispatch^.ReduceMaxF64x2(a)
+  else if a.d[0] > a.d[1] then
+    Result := a.d[0]
+  else
+    Result := a.d[1];
 end;
 
 function VecF64x2ReduceMul(const a: TVecF64x2): Double;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result := a.d[0] * a.d[1];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.ReduceMulF64x2) then
+    Result := LDispatch^.ReduceMulF64x2(a)
+  else
+    Result := a.d[0] * a.d[1];
 end;
 
 // ✅ P2-3: F64x2 memory operations
@@ -3602,35 +3662,69 @@ begin
 end;
 
 function VecF32x8ReduceAdd(const a: TVecF32x8): Single;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
 begin
-  Result := a.f[0];
-  for i := 1 to 7 do
-    Result := Result + a.f[i];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.ReduceAddF32x8) then
+    Result := LDispatch^.ReduceAddF32x8(a)
+  else
+  begin
+    Result := a.f[0];
+    for LIndex := 1 to 7 do
+      Result := Result + a.f[LIndex];
+  end;
 end;
 
 function VecF32x8ReduceMin(const a: TVecF32x8): Single;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
 begin
-  Result := a.f[0];
-  for i := 1 to 7 do
-    if a.f[i] < Result then Result := a.f[i];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.ReduceMinF32x8) then
+    Result := LDispatch^.ReduceMinF32x8(a)
+  else
+  begin
+    Result := a.f[0];
+    for LIndex := 1 to 7 do
+      if a.f[LIndex] < Result then
+        Result := a.f[LIndex];
+  end;
 end;
 
 function VecF32x8ReduceMax(const a: TVecF32x8): Single;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
 begin
-  Result := a.f[0];
-  for i := 1 to 7 do
-    if a.f[i] > Result then Result := a.f[i];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.ReduceMaxF32x8) then
+    Result := LDispatch^.ReduceMaxF32x8(a)
+  else
+  begin
+    Result := a.f[0];
+    for LIndex := 1 to 7 do
+      if a.f[LIndex] > Result then
+        Result := a.f[LIndex];
+  end;
 end;
 
 function VecF32x8ReduceMul(const a: TVecF32x8): Single;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
 begin
-  Result := a.f[0];
-  for i := 1 to 7 do
-    Result := Result * a.f[i];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.ReduceMulF32x8) then
+    Result := LDispatch^.ReduceMulF32x8(a)
+  else
+  begin
+    Result := a.f[0];
+    for LIndex := 1 to 7 do
+      Result := Result * a.f[LIndex];
+  end;
 end;
 
 // === I32x8 Operations Implementation ===
@@ -5727,29 +5821,59 @@ begin
 end;
 
 function VecF64x4ReduceAdd(const a: TVecF64x4): Double;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result := a.d[0] + a.d[1] + a.d[2] + a.d[3];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.ReduceAddF64x4) then
+    Result := LDispatch^.ReduceAddF64x4(a)
+  else
+    Result := a.d[0] + a.d[1] + a.d[2] + a.d[3];
 end;
 
 function VecF64x4ReduceMin(const a: TVecF64x4): Double;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
 begin
-  Result := a.d[0];
-  for i := 1 to 3 do
-    if a.d[i] < Result then Result := a.d[i];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.ReduceMinF64x4) then
+    Result := LDispatch^.ReduceMinF64x4(a)
+  else
+  begin
+    Result := a.d[0];
+    for LIndex := 1 to 3 do
+      if a.d[LIndex] < Result then
+        Result := a.d[LIndex];
+  end;
 end;
 
 function VecF64x4ReduceMax(const a: TVecF64x4): Double;
-var i: Integer;
+var
+  LDispatch: PSimdDispatchTable;
+  LIndex: Integer;
 begin
-  Result := a.d[0];
-  for i := 1 to 3 do
-    if a.d[i] > Result then Result := a.d[i];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.ReduceMaxF64x4) then
+    Result := LDispatch^.ReduceMaxF64x4(a)
+  else
+  begin
+    Result := a.d[0];
+    for LIndex := 1 to 3 do
+      if a.d[LIndex] > Result then
+        Result := a.d[LIndex];
+  end;
 end;
 
 function VecF64x4ReduceMul(const a: TVecF64x4): Double;
+var
+  LDispatch: PSimdDispatchTable;
 begin
-  Result := a.d[0] * a.d[1] * a.d[2] * a.d[3];
+  LDispatch := GetDispatchTable;
+  if (LDispatch <> nil) and Assigned(LDispatch^.ReduceMulF64x4) then
+    Result := LDispatch^.ReduceMulF64x4(a)
+  else
+    Result := a.d[0] * a.d[1] * a.d[2] * a.d[3];
 end;
 
 // === F64x8 Operations Implementation ===

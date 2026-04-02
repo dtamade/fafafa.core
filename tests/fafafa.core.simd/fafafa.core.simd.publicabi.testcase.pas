@@ -21,6 +21,23 @@ unit fafafa.core.simd.publicabi.testcase;
   {$ENDIF}
 {$ENDIF}
 
+// Mirror the global conditions that make RISCVV asm compile in the backend unit.
+{$IF DEFINED(CPURISCV64) OR DEFINED(CPURISCV32)}
+  {$IFDEF FPC}
+    {$IFNDEF SIMD_VECTOR_ASM_DISABLED}
+      {$IFDEF FAFAFA_SIMD_EXPERIMENTAL_BACKEND_ASM}
+        {$IFDEF FAFAFA_SIMD_ENABLE_RISCVV_ASM}
+          {$IFDEF FAFAFA_SIMD_RISCVV_ASM_COMPILER_READY}
+            {$IFDEF FAFAFA_SIMD_RISCVV_ASM_OPCODE_READY}
+              {$DEFINE FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
+            {$ENDIF}
+          {$ENDIF}
+        {$ENDIF}
+      {$ENDIF}
+    {$ENDIF}
+  {$ENDIF}
+{$ENDIF}
+
 interface
 
 uses
@@ -42,11 +59,13 @@ type
     procedure Test_PublicAbi_BackendText_Getters_Refresh_After_RegisterBackend;
     procedure Test_PublicAbi_BackendText_Getters_PreviousPointers_RemainValid_After_Refresh;
     procedure Test_PublicApi_BackendPodInfo_CapabilityBits_DoNotUnderclaim_Shuffle;
+    procedure Test_PublicApi_BackendPodInfo_CapabilityBits_DoNotUnderclaim_X86MaskedOps;
     procedure Test_PublicApi_BackendPodInfo_CapabilityBits_Expose_AVX2Shuffle_WhenNativeSlotsPresent;
     procedure Test_PublicApi_BackendPodInfo_CapabilityBits_Clear_X86Shuffle_WhenVectorAsmDisabled;
     procedure Test_PublicApi_BackendPodInfo_CapabilityBits_Expose_AVX512FMA_WhenNativeSlotsPresent;
     procedure Test_PublicApi_BackendPodInfo_CapabilityBits_Expose_AVX512Shuffle_WhenNativeSlotsPresent;
     procedure Test_PublicApi_BackendPodInfo_CapabilityBits_Clear_AVX512VectorAsmGatedBits_WhenVectorAsmDisabled;
+    procedure Test_PublicApi_BackendPodInfo_CapabilityBits_Keep_X86MaskedOps_WhenVectorAsmDisabled;
     procedure Test_PublicApi_BackendPodInfo_CapabilityBits_Expose_NEONShuffle_WhenNativeSlotsPresent;
     procedure Test_PublicApi_BackendPodInfo_CapabilityBits_Expose_NEONIntegerOps_WhenNativeSlotsPresent;
     procedure Test_PublicApi_BackendPodInfo_CapabilityBits_Expose_NEONFMA_WhenNativeSlotsPresent;
@@ -70,6 +89,8 @@ type
     procedure Test_PublicApi_SetActiveBackend_HookLateFailure_Preserves_PreviousForcedBackend;
     procedure Test_PublicApi_ResetToAutomaticBackend_HookLateForce_Restores_AutomaticBackend;
     procedure Test_PublicApi_ResetToAutomaticBackend_HookLateForce_DuringRestore_Restores_AutomaticBackend;
+    procedure Test_PublicApi_SetVectorAsmEnabled_HookLateForce_Restores_AutomaticBackend;
+    procedure Test_PublicApi_SetVectorAsmEnabled_HookLateForce_DuringRestore_Restores_AutomaticBackend;
     procedure Test_PublicApi_SetVectorAsmEnabled_HookLateAutomaticReset_Preserves_PreviousForcedBackend;
     procedure Test_PublicApi_SetVectorAsmEnabled_HookLateAutomaticReset_DuringRestore_Preserves_PreviousForcedBackend;
     procedure Test_PublicApi_SetVectorAsmEnabled_HookLateForce_DuringRestore_Preserves_PreviousForcedBackend;
@@ -1169,6 +1190,68 @@ begin
   end;
 end;
 
+procedure TTestCase_PublicAbi.Test_PublicApi_BackendPodInfo_CapabilityBits_DoNotUnderclaim_X86MaskedOps;
+var
+  LBackend: TSimdBackend;
+  LScalarTable: TSimdDispatchTable;
+  LBackendTable: TSimdDispatchTable;
+  LInfo: TFafafaSimdBackendPodInfo;
+  LHasNonScalarMaskedSlots: Boolean;
+  LOldVectorAsm: Boolean;
+
+  function IsX86MaskedOpsBackend(const aBackend: TSimdBackend): Boolean;
+  begin
+    case aBackend of
+      sbSSE2, sbSSE3, sbSSSE3, sbSSE41, sbSSE42, sbAVX2, sbAVX512:
+        Exit(True);
+      else
+        Exit(False);
+    end;
+  end;
+
+  procedure ObserveRepresentativeSlot(aScalarSlot, aBackendSlot: Pointer);
+  begin
+    if aBackendSlot <> aScalarSlot then
+      LHasNonScalarMaskedSlots := True;
+  end;
+begin
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    if not IsVectorAsmEnabled then
+      Exit;
+
+    for LBackend := Low(TSimdBackend) to High(TSimdBackend) do
+    begin
+      if not IsX86MaskedOpsBackend(LBackend) then
+        Continue;
+      if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
+        Continue;
+      if not TryGetSimdBackendPodInfo(LBackend, LInfo) then
+        Continue;
+
+      LHasNonScalarMaskedSlots := False;
+      ObserveRepresentativeSlot(Pointer(LScalarTable.Mask2All), Pointer(LBackendTable.Mask2All));
+      ObserveRepresentativeSlot(Pointer(LScalarTable.Mask4PopCount), Pointer(LBackendTable.Mask4PopCount));
+      ObserveRepresentativeSlot(Pointer(LScalarTable.Mask8All), Pointer(LBackendTable.Mask8All));
+      ObserveRepresentativeSlot(Pointer(LScalarTable.Mask8PopCount), Pointer(LBackendTable.Mask8PopCount));
+      ObserveRepresentativeSlot(Pointer(LScalarTable.Mask16FirstSet), Pointer(LBackendTable.Mask16FirstSet));
+
+      if not LHasNonScalarMaskedSlots then
+        Continue;
+
+      AssertTrue('Public ABI CapabilityBits missing scMaskedOps while representative x86 mask helper slots are non-scalar for backend=' + IntToStr(Ord(LBackend)),
+        (LInfo.CapabilityBits and (UInt64(1) shl Ord(scMaskedOps))) <> 0);
+    end;
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+  end;
+end;
+
 procedure TTestCase_PublicAbi.Test_PublicApi_BackendPodInfo_CapabilityBits_Expose_AVX2Shuffle_WhenNativeSlotsPresent;
 var
   LScalarTable: TSimdDispatchTable;
@@ -1351,10 +1434,72 @@ begin
       (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) = 0);
     AssertTrue('Public ABI CapabilityBits should clear AVX512 scIntegerOps when vector asm is disabled',
       (LInfo.CapabilityBits and (UInt64(1) shl Ord(scIntegerOps))) = 0);
-    AssertTrue('Public ABI CapabilityBits should clear AVX512 scMaskedOps when vector asm is disabled',
-      (LInfo.CapabilityBits and (UInt64(1) shl Ord(scMaskedOps))) = 0);
     AssertTrue('Public ABI CapabilityBits should clear AVX512 sc512BitOps when vector asm is disabled',
       (LInfo.CapabilityBits and (UInt64(1) shl Ord(sc512BitOps))) = 0);
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+  end;
+end;
+
+procedure TTestCase_PublicAbi.Test_PublicApi_BackendPodInfo_CapabilityBits_Keep_X86MaskedOps_WhenVectorAsmDisabled;
+var
+  LBackend: TSimdBackend;
+  LScalarTable: TSimdDispatchTable;
+  LBackendTable: TSimdDispatchTable;
+  LInfo: TFafafaSimdBackendPodInfo;
+  LHasNonScalarMaskedSlots: Boolean;
+  LOldVectorAsm: Boolean;
+
+  function IsX86MaskedOpsBackend(const aBackend: TSimdBackend): Boolean;
+  begin
+    case aBackend of
+      sbSSE2, sbSSE3, sbSSSE3, sbSSE41, sbSSE42, sbAVX2, sbAVX512:
+        Exit(True);
+      else
+        Exit(False);
+    end;
+  end;
+
+  procedure ObserveRepresentativeSlot(aScalarSlot, aBackendSlot: Pointer);
+  begin
+    if aBackendSlot <> aScalarSlot then
+      LHasNonScalarMaskedSlots := True;
+  end;
+begin
+  AssertTrue('Scalar dispatch table should be registered',
+    TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
+
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    if not IsVectorAsmEnabled then
+      Exit;
+    SetVectorAsmEnabled(False);
+    AssertFalse('Vector asm should be disabled for x86 masked-ops public ABI rebuild test', IsVectorAsmEnabled);
+
+    for LBackend := Low(TSimdBackend) to High(TSimdBackend) do
+    begin
+      if not IsX86MaskedOpsBackend(LBackend) then
+        Continue;
+      if not TryGetRegisteredBackendDispatchTable(LBackend, LBackendTable) then
+        Continue;
+      if not TryGetSimdBackendPodInfo(LBackend, LInfo) then
+        Continue;
+
+      LHasNonScalarMaskedSlots := False;
+      ObserveRepresentativeSlot(Pointer(LScalarTable.Mask2All), Pointer(LBackendTable.Mask2All));
+      ObserveRepresentativeSlot(Pointer(LScalarTable.Mask4PopCount), Pointer(LBackendTable.Mask4PopCount));
+      ObserveRepresentativeSlot(Pointer(LScalarTable.Mask8All), Pointer(LBackendTable.Mask8All));
+      ObserveRepresentativeSlot(Pointer(LScalarTable.Mask8PopCount), Pointer(LBackendTable.Mask8PopCount));
+      ObserveRepresentativeSlot(Pointer(LScalarTable.Mask16FirstSet), Pointer(LBackendTable.Mask16FirstSet));
+
+      if not LHasNonScalarMaskedSlots then
+        Continue;
+
+      AssertTrue('Public ABI CapabilityBits should keep scMaskedOps while representative x86 mask helper slots remain non-scalar after vector asm disable for backend=' + IntToStr(Ord(LBackend)),
+        (LInfo.CapabilityBits and (UInt64(1) shl Ord(scMaskedOps))) <> 0);
+    end;
   finally
     SetVectorAsmEnabled(LOldVectorAsm);
   end;
@@ -1494,30 +1639,41 @@ procedure TTestCase_PublicAbi.Test_PublicApi_BackendPodInfo_CapabilityBits_Expos
 var
   LRISCVVTable: TSimdDispatchTable;
   LInfo: TFafafaSimdBackendPodInfo;
+  LOldVectorAsm: Boolean;
 begin
-  {$IFDEF FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND}
-  AssertTrue('RISCVV opt-in test registration should be present',
-    TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable));
-  AssertTrue('RISCVV opt-in public ABI pod info should be present',
-    TryGetSimdBackendPodInfo(sbRISCVV, LInfo));
-  {$ELSE}
-  if not TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable) then
-    Exit;
-  if not TryGetSimdBackendPodInfo(sbRISCVV, LInfo) then
-    Exit;
-  {$ENDIF}
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    if not IsVectorAsmEnabled then
+      Exit;
 
-  AssertTrue('RISCVV AddI32x4 should be assigned', Assigned(LRISCVVTable.AddI32x4));
-  AssertTrue('RISCVV AndI32x4 should be assigned', Assigned(LRISCVVTable.AndI32x4));
-  AssertTrue('RISCVV AddI64x2 should be assigned', Assigned(LRISCVVTable.AddI64x2));
+    {$IFDEF FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND}
+    AssertTrue('RISCVV opt-in test registration should be present',
+      TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable));
+    AssertTrue('RISCVV opt-in public ABI pod info should be present',
+      TryGetSimdBackendPodInfo(sbRISCVV, LInfo));
+    {$ELSE}
+    if not TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable) then
+      Exit;
+    if not TryGetSimdBackendPodInfo(sbRISCVV, LInfo) then
+      Exit;
+    {$ENDIF}
 
-  {$IFDEF RISCVV_ASSEMBLY}
-  AssertTrue('Public ABI CapabilityBits should expose RISCVV scIntegerOps when RVV asm-backed integer slots are compiled',
-    (LInfo.CapabilityBits and (UInt64(1) shl Ord(scIntegerOps))) <> 0);
-  {$ELSE}
-  AssertTrue('Public ABI CapabilityBits should clear RISCVV scIntegerOps when only scalar/common fallback integer slots are compiled',
-    (LInfo.CapabilityBits and (UInt64(1) shl Ord(scIntegerOps))) = 0);
-  {$ENDIF}
+    AssertTrue('RISCVV AddI32x4 should be assigned', Assigned(LRISCVVTable.AddI32x4));
+    AssertTrue('RISCVV AndI32x4 should be assigned', Assigned(LRISCVVTable.AndI32x4));
+    AssertTrue('RISCVV AddI64x2 should be assigned', Assigned(LRISCVVTable.AddI64x2));
+
+    {$IFDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
+    AssertTrue('Public ABI CapabilityBits should expose RISCVV scIntegerOps when RVV asm-backed integer slots are compiled',
+      (LInfo.CapabilityBits and (UInt64(1) shl Ord(scIntegerOps))) <> 0);
+    {$ELSE}
+    AssertTrue('Public ABI CapabilityBits should clear RISCVV scIntegerOps when only scalar/common fallback integer slots are compiled',
+      (LInfo.CapabilityBits and (UInt64(1) shl Ord(scIntegerOps))) = 0);
+    {$ENDIF}
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+  end;
 end;
 
 procedure TTestCase_PublicAbi.Test_PublicApi_BackendPodInfo_CapabilityBits_Expose_RISCVVFMA_WhenNativeSlotsPresent;
@@ -1525,67 +1681,89 @@ var
   LScalarTable: TSimdDispatchTable;
   LRISCVVTable: TSimdDispatchTable;
   LInfo: TFafafaSimdBackendPodInfo;
+  LOldVectorAsm: Boolean;
 begin
   AssertTrue('Scalar dispatch table should be registered',
     TryGetRegisteredBackendDispatchTable(sbScalar, LScalarTable));
 
-  {$IFDEF FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND}
-  AssertTrue('RISCVV opt-in test registration should be present',
-    TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable));
-  AssertTrue('RISCVV opt-in public ABI pod info should be present',
-    TryGetSimdBackendPodInfo(sbRISCVV, LInfo));
-  {$ELSE}
-  if not TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable) then
-    Exit;
-  if not TryGetSimdBackendPodInfo(sbRISCVV, LInfo) then
-    Exit;
-  {$ENDIF}
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    if not IsVectorAsmEnabled then
+      Exit;
 
-  if (Pointer(LRISCVVTable.FmaF32x4) = Pointer(LScalarTable.FmaF32x4)) and
-     (Pointer(LRISCVVTable.FmaF32x8) = Pointer(LScalarTable.FmaF32x8)) and
-     (Pointer(LRISCVVTable.FmaF64x2) = Pointer(LScalarTable.FmaF64x2)) and
-     (Pointer(LRISCVVTable.FmaF64x4) = Pointer(LScalarTable.FmaF64x4)) and
-     (Pointer(LRISCVVTable.FmaF32x16) = Pointer(LScalarTable.FmaF32x16)) and
-     (Pointer(LRISCVVTable.FmaF64x8) = Pointer(LScalarTable.FmaF64x8)) then
-    Exit;
+    {$IFDEF FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND}
+    AssertTrue('RISCVV opt-in test registration should be present',
+      TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable));
+    AssertTrue('RISCVV opt-in public ABI pod info should be present',
+      TryGetSimdBackendPodInfo(sbRISCVV, LInfo));
+    {$ELSE}
+    if not TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable) then
+      Exit;
+    if not TryGetSimdBackendPodInfo(sbRISCVV, LInfo) then
+      Exit;
+    {$ENDIF}
 
-  {$IFDEF RISCVV_ASSEMBLY}
-  AssertTrue('Public ABI CapabilityBits should expose RISCVV scFMA when RVV asm-backed representative FMA slots are non-scalar',
-    (LInfo.CapabilityBits and (UInt64(1) shl Ord(scFMA))) <> 0);
-  {$ELSE}
-  AssertTrue('Public ABI CapabilityBits should clear RISCVV scFMA when only scalar fallback FMA slots are compiled',
-    (LInfo.CapabilityBits and (UInt64(1) shl Ord(scFMA))) = 0);
-  {$ENDIF}
+    if (Pointer(LRISCVVTable.FmaF32x4) = Pointer(LScalarTable.FmaF32x4)) and
+       (Pointer(LRISCVVTable.FmaF32x8) = Pointer(LScalarTable.FmaF32x8)) and
+       (Pointer(LRISCVVTable.FmaF64x2) = Pointer(LScalarTable.FmaF64x2)) and
+       (Pointer(LRISCVVTable.FmaF64x4) = Pointer(LScalarTable.FmaF64x4)) and
+       (Pointer(LRISCVVTable.FmaF32x16) = Pointer(LScalarTable.FmaF32x16)) and
+       (Pointer(LRISCVVTable.FmaF64x8) = Pointer(LScalarTable.FmaF64x8)) then
+      Exit;
+
+    {$IFDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
+    AssertTrue('Public ABI CapabilityBits should expose RISCVV scFMA when RVV asm-backed representative FMA slots are non-scalar',
+      (LInfo.CapabilityBits and (UInt64(1) shl Ord(scFMA))) <> 0);
+    {$ELSE}
+    AssertTrue('Public ABI CapabilityBits should clear RISCVV scFMA when only scalar fallback FMA slots are compiled',
+      (LInfo.CapabilityBits and (UInt64(1) shl Ord(scFMA))) = 0);
+    {$ENDIF}
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+  end;
 end;
 
 procedure TTestCase_PublicAbi.Test_PublicApi_BackendPodInfo_CapabilityBits_Expose_RISCVVShuffle_WhenNativeSlotsPresent;
 var
   LRISCVVTable: TSimdDispatchTable;
   LInfo: TFafafaSimdBackendPodInfo;
+  LOldVectorAsm: Boolean;
 begin
-  {$IFDEF FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND}
-  AssertTrue('RISCVV opt-in test registration should be present',
-    TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable));
-  AssertTrue('RISCVV opt-in public ABI pod info should be present',
-    TryGetSimdBackendPodInfo(sbRISCVV, LInfo));
-  {$ELSE}
-  if not TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable) then
-    Exit;
-  if not TryGetSimdBackendPodInfo(sbRISCVV, LInfo) then
-    Exit;
-  {$ENDIF}
+  GetDispatchTable;
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    if not IsVectorAsmEnabled then
+      Exit;
 
-  AssertTrue('RISCVV SelectF32x4 should be assigned', Assigned(LRISCVVTable.SelectF32x4));
-  AssertTrue('RISCVV InsertF32x4 should be assigned', Assigned(LRISCVVTable.InsertF32x4));
-  AssertTrue('RISCVV ExtractF32x4 should be assigned', Assigned(LRISCVVTable.ExtractF32x4));
+    {$IFDEF FAFAFA_SIMD_TEST_REGISTER_RISCVV_BACKEND}
+    AssertTrue('RISCVV opt-in test registration should be present',
+      TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable));
+    AssertTrue('RISCVV opt-in public ABI pod info should be present',
+      TryGetSimdBackendPodInfo(sbRISCVV, LInfo));
+    {$ELSE}
+    if not TryGetRegisteredBackendDispatchTable(sbRISCVV, LRISCVVTable) then
+      Exit;
+    if not TryGetSimdBackendPodInfo(sbRISCVV, LInfo) then
+      Exit;
+    {$ENDIF}
 
-  {$IFDEF RISCVV_ASSEMBLY}
-  AssertTrue('Public ABI CapabilityBits should expose RISCVV scShuffle when RVV asm-backed representative shuffle slots are compiled',
-    (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) <> 0);
-  {$ELSE}
-  AssertTrue('Public ABI CapabilityBits should clear RISCVV scShuffle when only scalar/common fallback shuffle slots are compiled',
-    (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) = 0);
-  {$ENDIF}
+    AssertTrue('RISCVV SelectF32x4 should be assigned', Assigned(LRISCVVTable.SelectF32x4));
+    AssertTrue('RISCVV InsertF32x4 should be assigned', Assigned(LRISCVVTable.InsertF32x4));
+    AssertTrue('RISCVV ExtractF32x4 should be assigned', Assigned(LRISCVVTable.ExtractF32x4));
+
+    {$IFDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
+    AssertTrue('Public ABI CapabilityBits should expose RISCVV scShuffle when RVV asm-backed representative shuffle slots are compiled',
+      (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) <> 0);
+    {$ELSE}
+    AssertTrue('Public ABI CapabilityBits should clear RISCVV scShuffle when only scalar/common fallback shuffle slots are compiled',
+      (LInfo.CapabilityBits and (UInt64(1) shl Ord(scShuffle))) = 0);
+    {$ENDIF}
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+  end;
 end;
 
 procedure TTestCase_PublicAbi.Test_PublicApi_BackendPodInfo_CapabilityBits_Clear_RISCVVVectorAsmGatedBits_WhenVectorAsmDisabled;
@@ -1594,7 +1772,7 @@ var
   LInfo: TFafafaSimdBackendPodInfo;
   LOldVectorAsm: Boolean;
 begin
-  {$IFNDEF RISCVV_ASSEMBLY}
+  {$IFNDEF FAFAFA_SIMD_TEST_RISCVV_ASM_COMPILED}
   Exit;
   {$ENDIF}
 
@@ -2179,9 +2357,17 @@ var
   LRequestedBackend: TSimdBackend;
   LBackend: TSimdBackend;
   LOldVectorAsm: Boolean;
+  LTargetTableCaptured: Boolean;
   LIndex: Integer;
 begin
   LOldVectorAsm := IsVectorAsmEnabled;
+  LTargetTableCaptured := False;
+  GPublicAbiHookRollbackForceSuccessHigherCount := 0;
+  GPublicAbiHookRollbackForceSuccessTarget := sbScalar;
+  GPublicAbiHookRollbackForceSuccessTargetTable := Default(TSimdDispatchTable);
+  GPublicAbiHookRollbackForceSuccessStage := 0;
+  GPublicAbiHookRollbackForceSuccessEnabled := False;
+  GPublicAbiHookRollbackForceSuccessInMutation := False;
   try
     SetVectorAsmEnabled(True);
     ResetToAutomaticBackend;
@@ -2202,6 +2388,7 @@ begin
 
     AssertTrue('Requested backend should be registered for public ABI rollback forced-success preservation test',
       TryGetRegisteredBackendDispatchTable(LRequestedBackend, GPublicAbiHookRollbackForceSuccessTargetTable));
+    LTargetTableCaptured := True;
 
     GPublicAbiHookRollbackForceSuccessHigherCount := 0;
     for LBackend in LDispatchable do
@@ -2250,8 +2437,9 @@ begin
     AssertEquals('Public API active backend should keep tracking the actual current backend after restoring higher-priority backends',
       Ord(GetCurrentBackend), Integer(LApi^.ActiveBackendId));
   finally
-    RegisterBackend(GPublicAbiHookRollbackForceSuccessTarget,
-      GPublicAbiHookRollbackForceSuccessTargetTable);
+    if LTargetTableCaptured then
+      RegisterBackend(GPublicAbiHookRollbackForceSuccessTarget,
+        GPublicAbiHookRollbackForceSuccessTargetTable);
     for LIndex := 0 to GPublicAbiHookRollbackForceSuccessHigherCount - 1 do
       RegisterBackend(GPublicAbiHookRollbackForceSuccessHigherBackends[LIndex],
         GPublicAbiHookRollbackForceSuccessHigherTables[LIndex]);
@@ -2787,6 +2975,104 @@ begin
   end;
 end;
 
+procedure TTestCase_PublicAbi.Test_PublicApi_SetVectorAsmEnabled_HookLateForce_Restores_AutomaticBackend;
+var
+  LApi: PFafafaSimdPublicApi;
+  LAutomaticBackend: TSimdBackend;
+  LOldVectorAsm: Boolean;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LAutomaticBackend := GetBestDispatchableBackend;
+    if LAutomaticBackend = sbScalar then
+      Exit;
+
+    SetVectorAsmEnabled(False);
+    ResetToAutomaticBackend;
+    LApi := GetSimdPublicApi;
+    AssertNotNull('Public API table should remain available after vector-asm disable precondition for late-force test', LApi);
+    AssertEquals('Public API vector-asm disable precondition should keep active backend aligned with automatic best backend',
+      Ord(GetBestDispatchableBackend), Integer(LApi^.ActiveBackendId));
+
+    GPublicAbiHookReForceBackendTarget := sbScalar;
+    GPublicAbiHookReForceBackendEnabled := True;
+    GPublicAbiHookReForceBackendStage := 0;
+    AddDispatchChangedHook(@PublicAbiHookReForceBackendOnce);
+    try
+      SetVectorAsmEnabled(True);
+      AssertEquals('Synthetic public ABI vector-asm late-force hook should run through the real SetVectorAsmEnabled callback sequence',
+        2, GPublicAbiHookReForceBackendStage);
+      LApi := GetSimdPublicApi;
+      AssertNotNull('Public API table should remain available after vector-asm re-enable late-force test', LApi);
+      AssertEquals('Public API should restore automatic best backend even if a late hook re-forces scalar during vector-asm re-enable notification',
+        Ord(LAutomaticBackend), Integer(LApi^.ActiveBackendId));
+      AssertEquals('Public API active backend should keep tracking the actual current backend after vector-asm re-enable late-force test',
+        Ord(GetCurrentBackend), Integer(LApi^.ActiveBackendId));
+      AssertTrue('Public API vector-asm re-enable late-force path should not remain stuck on scalar when a better automatic backend exists',
+        Integer(LApi^.ActiveBackendId) <> Ord(sbScalar));
+    finally
+      RemoveDispatchChangedHook(@PublicAbiHookReForceBackendOnce);
+      GPublicAbiHookReForceBackendEnabled := False;
+      GPublicAbiHookReForceBackendStage := 0;
+      GPublicAbiHookReForceBackendTarget := sbScalar;
+    end;
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
+procedure TTestCase_PublicAbi.Test_PublicApi_SetVectorAsmEnabled_HookLateForce_DuringRestore_Restores_AutomaticBackend;
+var
+  LApi: PFafafaSimdPublicApi;
+  LAutomaticBackend: TSimdBackend;
+  LOldVectorAsm: Boolean;
+begin
+  LOldVectorAsm := IsVectorAsmEnabled;
+  try
+    SetVectorAsmEnabled(True);
+    ResetToAutomaticBackend;
+    LAutomaticBackend := GetBestDispatchableBackend;
+    if LAutomaticBackend = sbScalar then
+      Exit;
+
+    SetVectorAsmEnabled(False);
+    ResetToAutomaticBackend;
+    LApi := GetSimdPublicApi;
+    AssertNotNull('Public API table should remain available after vector-asm disable precondition for restore-callback late-force test', LApi);
+    AssertEquals('Public API vector-asm disable precondition should keep active backend aligned with automatic best backend before restore-callback late-force test',
+      Ord(GetBestDispatchableBackend), Integer(LApi^.ActiveBackendId));
+
+    GPublicAbiHookResetLateForceTarget := sbScalar;
+    GPublicAbiHookResetLateForceEnabled := True;
+    GPublicAbiHookResetLateForceStage := 0;
+    AddDispatchChangedHook(@PublicAbiHookReForceBackendOnAutomaticRestore);
+    try
+      SetVectorAsmEnabled(True);
+      AssertEquals('Synthetic public ABI vector-asm second-late-force hook should run through the full SetVectorAsmEnabled callback sequence',
+        5, GPublicAbiHookResetLateForceStage);
+      LApi := GetSimdPublicApi;
+      AssertNotNull('Public API table should remain available after vector-asm restore-callback late-force test', LApi);
+      AssertEquals('Public API should still restore automatic best backend even if a late hook re-forces scalar during vector-asm restore callback',
+        Ord(LAutomaticBackend), Integer(LApi^.ActiveBackendId));
+      AssertEquals('Public API active backend should keep tracking the actual current backend after vector-asm restore-callback late-force test',
+        Ord(GetCurrentBackend), Integer(LApi^.ActiveBackendId));
+      AssertTrue('Public API vector-asm restore-callback late-force path should not remain stuck on scalar when a better automatic backend exists',
+        Integer(LApi^.ActiveBackendId) <> Ord(sbScalar));
+    finally
+      RemoveDispatchChangedHook(@PublicAbiHookReForceBackendOnAutomaticRestore);
+      GPublicAbiHookResetLateForceEnabled := False;
+      GPublicAbiHookResetLateForceStage := 0;
+      GPublicAbiHookResetLateForceTarget := sbScalar;
+    end;
+  finally
+    SetVectorAsmEnabled(LOldVectorAsm);
+    ResetToAutomaticBackend;
+  end;
+end;
+
 procedure TTestCase_PublicAbi.Test_PublicApi_SetVectorAsmEnabled_HookLateAutomaticReset_Preserves_PreviousForcedBackend;
 var
   LApi: PFafafaSimdPublicApi;
@@ -3190,6 +3476,7 @@ end;
 procedure TTestCase_PublicAbi.Test_PublicApi_DataPlane_Parity;
 var
   LApi: PFafafaSimdPublicApi;
+  LStage: string;
   LA, LB: array[0..31] of Byte;
   LIdx: Integer;
   LSumApi, LSumFacade: UInt64;
@@ -3217,119 +3504,142 @@ begin
   LApi := GetSimdPublicApi;
   AssertNotNull('Public API table should not be nil', LApi);
 
-  for LIdx := 0 to High(LA) do
-  begin
-    LA[LIdx] := Byte((LIdx * 7) and $FF);
-    LB[LIdx] := LA[LIdx];
+  LStage := 'init';
+  try
+    for LIdx := 0 to High(LA) do
+    begin
+      LA[LIdx] := Byte((LIdx * 7) and $FF);
+      LB[LIdx] := LA[LIdx];
+    end;
+    LB[17] := $AA;
+
+    LStage := 'MemEqual(facade)';
+    LEqFacade := MemEqual(@LA[0], @LA[0], Length(LA));
+    LStage := 'MemEqual(public-abi)';
+    LEqApi := LApi^.MemEqual(@LA[0], @LA[0], Length(LA));
+    AssertEquals('MemEqual parity', LEqFacade, LEqApi);
+
+    LStage := 'MemFindByte';
+    LFindApi := LApi^.MemFindByte(@LB[0], Length(LB), $AA);
+    LFindFacade := MemFindByte(@LB[0], Length(LB), $AA);
+    AssertEquals('MemFindByte parity', LFindFacade, LFindApi);
+
+    LStage := 'MemDiffRange';
+    LFirstApi := 0;
+    LLastApi := 0;
+    LFirstFacade := 0;
+    LLastFacade := 0;
+    LDiffApi := LApi^.MemDiffRange(@LA[0], @LB[0], Length(LA), LFirstApi, LLastApi);
+    LDiffFacade := MemDiffRange(@LA[0], @LB[0], Length(LA), LFirstFacade, LLastFacade);
+    AssertEquals('MemDiffRange parity(hasDiff)', LDiffFacade, LDiffApi);
+    AssertEquals('MemDiffRange parity(firstDiff)', LFirstFacade, LFirstApi);
+    AssertEquals('MemDiffRange parity(lastDiff)', LLastFacade, LLastApi);
+
+    LStage := 'SumBytes';
+    LSumApi := LApi^.SumBytes(@LA[0], Length(LA));
+    LSumFacade := SumBytes(@LA[0], Length(LA));
+    AssertEquals('SumBytes parity', LSumFacade, LSumApi);
+
+    LStage := 'CountByte';
+    LCountApi := LApi^.CountByte(@LB[0], Length(LB), $AA);
+    LCountFacade := CountByte(@LB[0], Length(LB), $AA);
+    AssertEquals('CountByte parity', LCountFacade, LCountApi);
+
+    LStage := 'BitsetPopCount';
+    LPopApi := LApi^.BitsetPopCount(@LA[0], Length(LA));
+    LPopFacade := BitsetPopCount(@LA[0], Length(LA));
+    AssertEquals('BitsetPopCount parity', LPopFacade, LPopApi);
+
+    LStage := 'Utf8Validate';
+    LUtf8Text := UTF8Encode('simd-测试-123');
+    LUtfApi := LApi^.Utf8Validate(@LUtf8Text[1], Length(LUtf8Text));
+    LUtfFacade := Utf8Validate(@LUtf8Text[1], Length(LUtf8Text));
+    AssertEquals('Utf8Validate parity', LUtfFacade, LUtfApi);
+
+    LStage := 'AsciiIEqual';
+    LAsciiA := 'AbCdEf012';
+    LAsciiB := 'aBcDeF012';
+    LAsciiApi := LApi^.AsciiIEqual(@LAsciiA[1], @LAsciiB[1], Length(LAsciiA));
+    LAsciiFacade := AsciiIEqual(@LAsciiA[1], @LAsciiB[1], Length(LAsciiA));
+    AssertEquals('AsciiIEqual parity', LAsciiFacade, LAsciiApi);
+
+    LStage := 'BytesIndexOf(hit)';
+    LNeedle[0] := LA[7];
+    LNeedle[1] := LA[8];
+    LNeedle[2] := LA[9];
+    LBytesApi := LApi^.BytesIndexOf(@LA[0], Length(LA), @LNeedle[0], Length(LNeedle));
+    LBytesFacade := BytesIndexOf(@LA[0], Length(LA), @LNeedle[0], Length(LNeedle));
+    AssertEquals('BytesIndexOf parity(hit)', LBytesFacade, LBytesApi);
+
+    LStage := 'BytesIndexOf(miss)';
+    LNeedle[0] := $FE;
+    LNeedle[1] := $ED;
+    LNeedle[2] := $DC;
+    LBytesApi := LApi^.BytesIndexOf(@LA[0], Length(LA), @LNeedle[0], Length(LNeedle));
+    LBytesFacade := BytesIndexOf(@LA[0], Length(LA), @LNeedle[0], Length(LNeedle));
+    AssertEquals('BytesIndexOf parity(miss)', LBytesFacade, LBytesApi);
+
+    LStage := 'MemCopy';
+    FillChar(LCopyApi[0], SizeOf(LCopyApi), 0);
+    FillChar(LCopyFacade[0], SizeOf(LCopyFacade), 0);
+    LApi^.MemCopy(@LA[0], @LCopyApi[0], Length(LA));
+    MemCopy(@LA[0], @LCopyFacade[0], Length(LA));
+    AssertTrue('MemCopy parity', MemEqual(@LCopyApi[0], @LCopyFacade[0], Length(LA)));
+
+    LStage := 'MemSet';
+    FillChar(LFillApi[0], SizeOf(LFillApi), 0);
+    FillChar(LFillFacade[0], SizeOf(LFillFacade), 0);
+    LApi^.MemSet(@LFillApi[0], Length(LFillApi), $5A);
+    MemSet(@LFillFacade[0], Length(LFillFacade), $5A);
+    AssertTrue('MemSet parity', MemEqual(@LFillApi[0], @LFillFacade[0], Length(LFillApi)));
+
+    LStage := 'ToLowerAscii';
+    LLowerApi := 'AbCdEf012';
+    LLowerFacade := LLowerApi;
+    UniqueString(LLowerApi);
+    UniqueString(LLowerFacade);
+    LApi^.ToLowerAscii(PAnsiChar(LLowerApi), Length(LLowerApi));
+    ToLowerAscii(PAnsiChar(LLowerFacade), Length(LLowerFacade));
+    AssertEquals('ToLowerAscii parity', LLowerFacade, LLowerApi);
+    AssertEquals('ToLowerAscii expected', 'abcdef012', LLowerApi);
+
+    LStage := 'ToUpperAscii';
+    LUpperApi := 'AbCdEf012';
+    LUpperFacade := LUpperApi;
+    UniqueString(LUpperApi);
+    UniqueString(LUpperFacade);
+    LApi^.ToUpperAscii(PAnsiChar(LUpperApi), Length(LUpperApi));
+    ToUpperAscii(PAnsiChar(LUpperFacade), Length(LUpperFacade));
+    AssertEquals('ToUpperAscii parity', LUpperFacade, LUpperApi);
+    AssertEquals('ToUpperAscii expected', 'ABCDEF012', LUpperApi);
+
+    LStage := 'MemReverse';
+    LRevApi[0] := 1;
+    LRevApi[1] := 2;
+    LRevApi[2] := 3;
+    LRevApi[3] := 4;
+    LRevApi[4] := 5;
+    LRevApi[5] := 6;
+    LRevApi[6] := 7;
+    LRevApi[7] := 8;
+    LRevFacade := LRevApi;
+    LApi^.MemReverse(@LRevApi[0], Length(LRevApi));
+    MemReverse(@LRevFacade[0], Length(LRevFacade));
+    AssertTrue('MemReverse parity', MemEqual(@LRevApi[0], @LRevFacade[0], Length(LRevApi)));
+
+    LStage := 'MinMaxBytes';
+    LMinApi := 0;
+    LMaxApi := 0;
+    LMinFacade := 0;
+    LMaxFacade := 0;
+    LApi^.MinMaxBytes(@LA[0], Length(LA), LMinApi, LMaxApi);
+    MinMaxBytes(@LA[0], Length(LA), LMinFacade, LMaxFacade);
+    AssertEquals('MinMaxBytes parity(min)', LMinFacade, LMinApi);
+    AssertEquals('MinMaxBytes parity(max)', LMaxFacade, LMaxApi);
+  except
+    on E: Exception do
+      Fail(Format('Public ABI data-plane stage %s raised %s: %s', [LStage, E.ClassName, E.Message]));
   end;
-  LB[17] := $AA;
-
-  LEqApi := LApi^.MemEqual(@LA[0], @LA[0], Length(LA));
-  LEqFacade := MemEqual(@LA[0], @LA[0], Length(LA));
-  AssertEquals('MemEqual parity', LEqFacade, LEqApi);
-
-  LFindApi := LApi^.MemFindByte(@LB[0], Length(LB), $AA);
-  LFindFacade := MemFindByte(@LB[0], Length(LB), $AA);
-  AssertEquals('MemFindByte parity', LFindFacade, LFindApi);
-
-  LFirstApi := 0;
-  LLastApi := 0;
-  LFirstFacade := 0;
-  LLastFacade := 0;
-  LDiffApi := LApi^.MemDiffRange(@LA[0], @LB[0], Length(LA), LFirstApi, LLastApi);
-  LDiffFacade := MemDiffRange(@LA[0], @LB[0], Length(LA), LFirstFacade, LLastFacade);
-  AssertEquals('MemDiffRange parity(hasDiff)', LDiffFacade, LDiffApi);
-  AssertEquals('MemDiffRange parity(firstDiff)', LFirstFacade, LFirstApi);
-  AssertEquals('MemDiffRange parity(lastDiff)', LLastFacade, LLastApi);
-
-  LSumApi := LApi^.SumBytes(@LA[0], Length(LA));
-  LSumFacade := SumBytes(@LA[0], Length(LA));
-  AssertEquals('SumBytes parity', LSumFacade, LSumApi);
-
-  LCountApi := LApi^.CountByte(@LB[0], Length(LB), $AA);
-  LCountFacade := CountByte(@LB[0], Length(LB), $AA);
-  AssertEquals('CountByte parity', LCountFacade, LCountApi);
-
-  LPopApi := LApi^.BitsetPopCount(@LA[0], Length(LA));
-  LPopFacade := BitsetPopCount(@LA[0], Length(LA));
-  AssertEquals('BitsetPopCount parity', LPopFacade, LPopApi);
-
-  LUtf8Text := UTF8Encode('simd-测试-123');
-  LUtfApi := LApi^.Utf8Validate(@LUtf8Text[1], Length(LUtf8Text));
-  LUtfFacade := Utf8Validate(@LUtf8Text[1], Length(LUtf8Text));
-  AssertEquals('Utf8Validate parity', LUtfFacade, LUtfApi);
-
-  LAsciiA := 'AbCdEf012';
-  LAsciiB := 'aBcDeF012';
-  LAsciiApi := LApi^.AsciiIEqual(@LAsciiA[1], @LAsciiB[1], Length(LAsciiA));
-  LAsciiFacade := AsciiIEqual(@LAsciiA[1], @LAsciiB[1], Length(LAsciiA));
-  AssertEquals('AsciiIEqual parity', LAsciiFacade, LAsciiApi);
-
-  LNeedle[0] := LA[7];
-  LNeedle[1] := LA[8];
-  LNeedle[2] := LA[9];
-  LBytesApi := LApi^.BytesIndexOf(@LA[0], Length(LA), @LNeedle[0], Length(LNeedle));
-  LBytesFacade := BytesIndexOf(@LA[0], Length(LA), @LNeedle[0], Length(LNeedle));
-  AssertEquals('BytesIndexOf parity(hit)', LBytesFacade, LBytesApi);
-
-  LNeedle[0] := $FE;
-  LNeedle[1] := $ED;
-  LNeedle[2] := $DC;
-  LBytesApi := LApi^.BytesIndexOf(@LA[0], Length(LA), @LNeedle[0], Length(LNeedle));
-  LBytesFacade := BytesIndexOf(@LA[0], Length(LA), @LNeedle[0], Length(LNeedle));
-  AssertEquals('BytesIndexOf parity(miss)', LBytesFacade, LBytesApi);
-
-  FillChar(LCopyApi[0], SizeOf(LCopyApi), 0);
-  FillChar(LCopyFacade[0], SizeOf(LCopyFacade), 0);
-  LApi^.MemCopy(@LA[0], @LCopyApi[0], Length(LA));
-  MemCopy(@LA[0], @LCopyFacade[0], Length(LA));
-  AssertTrue('MemCopy parity', MemEqual(@LCopyApi[0], @LCopyFacade[0], Length(LA)));
-
-  FillChar(LFillApi[0], SizeOf(LFillApi), 0);
-  FillChar(LFillFacade[0], SizeOf(LFillFacade), 0);
-  LApi^.MemSet(@LFillApi[0], Length(LFillApi), $5A);
-  MemSet(@LFillFacade[0], Length(LFillFacade), $5A);
-  AssertTrue('MemSet parity', MemEqual(@LFillApi[0], @LFillFacade[0], Length(LFillApi)));
-
-  LLowerApi := 'AbCdEf012';
-  LLowerFacade := LLowerApi;
-  UniqueString(LLowerApi);
-  UniqueString(LLowerFacade);
-  LApi^.ToLowerAscii(PAnsiChar(LLowerApi), Length(LLowerApi));
-  ToLowerAscii(PAnsiChar(LLowerFacade), Length(LLowerFacade));
-  AssertEquals('ToLowerAscii parity', LLowerFacade, LLowerApi);
-  AssertEquals('ToLowerAscii expected', 'abcdef012', LLowerApi);
-
-  LUpperApi := 'AbCdEf012';
-  LUpperFacade := LUpperApi;
-  UniqueString(LUpperApi);
-  UniqueString(LUpperFacade);
-  LApi^.ToUpperAscii(PAnsiChar(LUpperApi), Length(LUpperApi));
-  ToUpperAscii(PAnsiChar(LUpperFacade), Length(LUpperFacade));
-  AssertEquals('ToUpperAscii parity', LUpperFacade, LUpperApi);
-  AssertEquals('ToUpperAscii expected', 'ABCDEF012', LUpperApi);
-
-  LRevApi[0] := 1;
-  LRevApi[1] := 2;
-  LRevApi[2] := 3;
-  LRevApi[3] := 4;
-  LRevApi[4] := 5;
-  LRevApi[5] := 6;
-  LRevApi[6] := 7;
-  LRevApi[7] := 8;
-  LRevFacade := LRevApi;
-  LApi^.MemReverse(@LRevApi[0], Length(LRevApi));
-  MemReverse(@LRevFacade[0], Length(LRevFacade));
-  AssertTrue('MemReverse parity', MemEqual(@LRevApi[0], @LRevFacade[0], Length(LRevApi)));
-
-  LMinApi := 0;
-  LMaxApi := 0;
-  LMinFacade := 0;
-  LMaxFacade := 0;
-  LApi^.MinMaxBytes(@LA[0], Length(LA), LMinApi, LMaxApi);
-  MinMaxBytes(@LA[0], Length(LA), LMinFacade, LMaxFacade);
-  AssertEquals('MinMaxBytes parity(min)', LMinFacade, LMinApi);
-  AssertEquals('MinMaxBytes parity(max)', LMaxFacade, LMaxApi);
 end;
 
 initialization

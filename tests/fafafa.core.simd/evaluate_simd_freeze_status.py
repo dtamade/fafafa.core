@@ -9,7 +9,7 @@ import subprocess
 from dataclasses import dataclass, asdict
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, Iterable, List, Optional
 
 
 REQUIRED_GATE_STEPS_BASE = [
@@ -72,6 +72,13 @@ QEMU_CPUINFO_NONX86_FULL_REPEAT_GATE_CMD = (
 )
 CROSS_GATE_FAIL_CLOSE_CMD = (
     "FAFAFA_BUILD_MODE=Release "
+    + QEMU_CPUINFO_NONX86_PLATFORM_ENV
+    +
+    "SIMD_GATE_QEMU_NONX86_EVIDENCE=0 "
+    "SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 "
+    "SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 "
+    "SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 "
+    "SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 "
     "SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 "
     "bash tests/fafafa.core.simd/BuildOrTest.sh gate"
 )
@@ -307,6 +314,18 @@ def freshness_check(name: str, path: Path, max_age_hours: float, required: bool 
             f"threshold_hours={max_age_hours:.2f}"
         ),
     )
+
+
+SOURCE_CANDIDATE_SUFFIXES = {".pas", ".pp", ".inc", ".stable"}
+
+
+def iter_simd_source_candidates(src_root: Path) -> Iterable[Path]:
+    for path in sorted(src_root.glob("fafafa.core.simd*")):
+        if not path.is_file():
+            continue
+        if path.suffix.lower() not in SOURCE_CANDIDATE_SUFFIXES:
+            continue
+        yield path
 
 
 def sources_not_newer_than_artifact_check(
@@ -591,7 +610,7 @@ def main() -> int:
     required_gate_steps = (
         required_gate_steps_mainline if args.linux_only else required_gate_steps_cross
     )
-    simd_source_candidates = sorted((repo_root / "src").glob("fafafa.core.simd*"))
+    simd_source_candidates = list(iter_simd_source_candidates(repo_root / "src"))
 
     rows = parse_gate_summary_rows(gate_summary)
     latest_gate_run = extract_latest_gate_run(rows)
@@ -700,7 +719,9 @@ def main() -> int:
                 )
             )
             if require_qemu_cpuinfo_nonx86_step:
-                next_actions.append(QEMU_CPUINFO_NONX86_GATE_CMD)
+                next_actions.append(
+                    QEMU_CPUINFO_NONX86_GATE_CMD if args.linux_only else CROSS_GATE_FAIL_CLOSE_CMD
+                )
         else:
             qemu_cpuinfo_nonx86_status = qemu_cpuinfo_nonx86_row.get("status", "")
             qemu_cpuinfo_nonx86_detail = qemu_cpuinfo_nonx86_row.get("detail", "")
@@ -728,7 +749,9 @@ def main() -> int:
                 )
                 checks.append(coverage_check)
                 if coverage_check.status == "FAIL":
-                    next_actions.append(QEMU_CPUINFO_NONX86_GATE_CMD)
+                    next_actions.append(
+                        QEMU_CPUINFO_NONX86_GATE_CMD if args.linux_only else CROSS_GATE_FAIL_CLOSE_CMD
+                    )
             elif (
                 qemu_cpuinfo_nonx86_status == "SKIP"
                 and not require_qemu_cpuinfo_nonx86_step
@@ -756,7 +779,9 @@ def main() -> int:
                         ),
                     )
                 )
-                next_actions.append(QEMU_CPUINFO_NONX86_GATE_CMD)
+                next_actions.append(
+                    QEMU_CPUINFO_NONX86_GATE_CMD if args.linux_only else CROSS_GATE_FAIL_CLOSE_CMD
+                )
 
         qemu_cpuinfo_nonx86_full_row = find_latest_step_row(
             latest_gate_run, QEMU_CPUINFO_NONX86_FULL_STEP

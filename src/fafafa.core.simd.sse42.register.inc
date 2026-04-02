@@ -25,6 +25,7 @@ begin
     Description := 'x86-64 SSE4.2 SIMD implementation (CRC32, string ops)';
     Capabilities := [scBasicArithmetic, scComparison, scMathFunctions, scReduction,
                      scLoadStore];
+    Include(Capabilities, scMaskedOps);
     if IsVectorAsmEnabled then
       Include(Capabilities, scShuffle);
     if IsVectorAsmEnabled then

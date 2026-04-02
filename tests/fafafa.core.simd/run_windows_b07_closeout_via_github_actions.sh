@@ -311,12 +311,18 @@ fi
 
 LSourceGateSummaryMd="$(find "${LTempDir}" -type f -name 'gate_summary.md' | head -n 1 || true)"
 LSourceGateSummaryJson="$(find "${LTempDir}" -type f -name 'gate_summary.json' | head -n 1 || true)"
+LCanonicalGateSummaryMd="${ROOT}/logs/gate_summary.md"
+LCanonicalGateSummaryJson="${ROOT}/logs/gate_summary.json"
+LBackfillOutputRoot="${SIMD_OUTPUT_ROOT:-${ROOT}}"
+LBackfillGateSummaryMd="${LBackfillOutputRoot}/logs/gate_summary.md"
+LBackfillGateSummaryJson="${LBackfillOutputRoot}/logs/gate_summary.json"
+LFreezeGateSummaryFile=""
 
 mkdir -p "$(dirname "${EVIDENCE_LOG}")" "$(dirname "${CANONICAL_EVIDENCE_LOG}")" "${BATCH_DIR}"
-if ! paths_equal "${BATCH_GATE_SUMMARY_MD}" "${ROOT}/logs/gate_summary.md"; then
+if ! paths_equal "${BATCH_GATE_SUMMARY_MD}" "${LCanonicalGateSummaryMd}"; then
   rm -f "${BATCH_GATE_SUMMARY_MD}"
 fi
-if ! paths_equal "${BATCH_GATE_SUMMARY_JSON}" "${ROOT}/logs/gate_summary.json"; then
+if ! paths_equal "${BATCH_GATE_SUMMARY_JSON}" "${LCanonicalGateSummaryJson}"; then
   rm -f "${BATCH_GATE_SUMMARY_JSON}"
 fi
 if ! paths_equal "${LSourceLog}" "${BATCH_EVIDENCE_LOG}"; then
@@ -336,10 +342,11 @@ if [[ -n "${LSourceGateSummaryMd}" ]]; then
   if ! paths_equal "${LSourceGateSummaryMd}" "${BATCH_GATE_SUMMARY_MD}"; then
     cp "${LSourceGateSummaryMd}" "${BATCH_GATE_SUMMARY_MD}"
   fi
-  if ! paths_equal "${LSourceGateSummaryMd}" "${ROOT}/logs/gate_summary.md"; then
-    cp "${LSourceGateSummaryMd}" "${ROOT}/logs/gate_summary.md"
+  if ! paths_equal "${LSourceGateSummaryMd}" "${LCanonicalGateSummaryMd}"; then
+    cp "${LSourceGateSummaryMd}" "${LCanonicalGateSummaryMd}"
   fi
   echo "[WIN-EVIDENCE-GH] Batch gate summary md: ${BATCH_GATE_SUMMARY_MD}"
+  LFreezeGateSummaryFile="${BATCH_GATE_SUMMARY_MD}"
 else
   echo "[WIN-EVIDENCE-GH] WARN: gate_summary.md missing in downloaded artifact; batch snapshot cleared and freeze-status will fallback to local canonical gate summary if needed"
 fi
@@ -348,8 +355,8 @@ if [[ -n "${LSourceGateSummaryJson}" ]]; then
   if ! paths_equal "${LSourceGateSummaryJson}" "${BATCH_GATE_SUMMARY_JSON}"; then
     cp "${LSourceGateSummaryJson}" "${BATCH_GATE_SUMMARY_JSON}"
   fi
-  if ! paths_equal "${LSourceGateSummaryJson}" "${ROOT}/logs/gate_summary.json"; then
-    cp "${LSourceGateSummaryJson}" "${ROOT}/logs/gate_summary.json"
+  if ! paths_equal "${LSourceGateSummaryJson}" "${LCanonicalGateSummaryJson}"; then
+    cp "${LSourceGateSummaryJson}" "${LCanonicalGateSummaryJson}"
   fi
   echo "[WIN-EVIDENCE-GH] Batch gate summary json: ${BATCH_GATE_SUMMARY_JSON}"
 else
@@ -361,8 +368,29 @@ bash "${ROOT}/verify_windows_b07_evidence.sh" "${BATCH_EVIDENCE_LOG}" "${BATCH_G
 
 echo "[WIN-EVIDENCE-GH] Backfill cross gate (SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1)"
 FAFAFA_BUILD_MODE="${FAFAFA_BUILD_MODE:-Release}" \
+SIMD_QEMU_PLATFORMS="${SIMD_QEMU_PLATFORMS:-linux/arm/v7 linux/arm64 linux/riscv64}" \
+SIMD_GATE_QEMU_NONX86_EVIDENCE="${SIMD_GATE_QEMU_NONX86_EVIDENCE:-0}" \
+SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE="${SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE:-1}" \
+SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE="${SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE:-0}" \
+SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT="${SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT:-0}" \
+SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE="${SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE:-0}" \
 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 \
 bash "${ROOT}/BuildOrTest.sh" gate
+
+if [[ -f "${LBackfillGateSummaryMd}" ]]; then
+  if ! paths_equal "${LBackfillGateSummaryMd}" "${LCanonicalGateSummaryMd}"; then
+    cp "${LBackfillGateSummaryMd}" "${LCanonicalGateSummaryMd}"
+  fi
+  echo "[WIN-EVIDENCE-GH] Backfill gate summary md: ${LBackfillGateSummaryMd}"
+  LFreezeGateSummaryFile="${LCanonicalGateSummaryMd}"
+fi
+
+if [[ -f "${LBackfillGateSummaryJson}" ]]; then
+  if ! paths_equal "${LBackfillGateSummaryJson}" "${LCanonicalGateSummaryJson}"; then
+    cp "${LBackfillGateSummaryJson}" "${LCanonicalGateSummaryJson}"
+  fi
+  echo "[WIN-EVIDENCE-GH] Backfill gate summary json: ${LBackfillGateSummaryJson}"
+fi
 
 echo "[WIN-EVIDENCE-GH] Run closeout finalize"
 export SIMD_WIN_EVIDENCE_LOG_FILE="${BATCH_EVIDENCE_LOG}"
@@ -371,8 +399,8 @@ export SIMD_WIN_FREEZE_STATUS_JSON_FILE="${BATCH_FREEZE_JSON}"
 export SIMD_FREEZE_WINDOWS_LOG_FILE="${BATCH_EVIDENCE_LOG}"
 export SIMD_FREEZE_WINDOWS_CLOSEOUT_SUMMARY_FILE="${BATCH_CLOSEOUT_SUMMARY}"
 export SIMD_WIN_CLOSEOUT_BATCH_DIR="${BATCH_DIR}"
-if [[ -f "${BATCH_GATE_SUMMARY_MD}" ]]; then
-  export SIMD_FREEZE_GATE_SUMMARY_FILE="${BATCH_GATE_SUMMARY_MD}"
+if [[ -n "${LFreezeGateSummaryFile}" && -f "${LFreezeGateSummaryFile}" ]]; then
+  export SIMD_FREEZE_GATE_SUMMARY_FILE="${LFreezeGateSummaryFile}"
 else
   unset SIMD_FREEZE_GATE_SUMMARY_FILE || true
 fi

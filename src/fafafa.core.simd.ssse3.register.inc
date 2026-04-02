@@ -21,6 +21,7 @@ begin
     Description := 'x86-64 SSSE3 SIMD implementation (PSHUFB, PABS, PALIGNR)';
     Capabilities := [scBasicArithmetic, scComparison, scMathFunctions, scReduction,
                      scLoadStore];
+    Include(Capabilities, scMaskedOps);
     if IsVectorAsmEnabled then
       Include(Capabilities, scShuffle);
     if IsVectorAsmEnabled then

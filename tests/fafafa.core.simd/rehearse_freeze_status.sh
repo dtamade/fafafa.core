@@ -702,6 +702,112 @@ if ! grep -F -- "linux_sources_not_newer_than_gate: artifact older than latest s
   exit 1
 fi
 
+# ---------- Case G: IGNORED COMPILE ARTIFACT NEWER THAN EVIDENCE (should stay ready) ----------
+LCaseIgnoredArtifact="${LTmpRoot}/case_ignored_artifact/tests/fafafa.core.simd"
+mkdir -p "${LCaseIgnoredArtifact}/logs" "${LCaseIgnoredArtifact}/docs" "${LTmpRoot}/case_ignored_artifact/docs/plans" "${LTmpRoot}/case_ignored_artifact/src"
+cp "${LTmpRoot}/case_ready/tests/fafafa.core.simd/evaluate_simd_freeze_status.py" "${LCaseIgnoredArtifact}/evaluate_simd_freeze_status.py"
+cp "${LTmpRoot}/case_ready/tests/fafafa.core.simd/verify_windows_b07_evidence.sh" "${LCaseIgnoredArtifact}/verify_windows_b07_evidence.sh"
+
+cat > "${LCaseIgnoredArtifact}/logs/gate_summary.md" <<'EOM'
+| Time | Step | Status | DurationMs | Event | Detail | Artifacts |
+|---|---|---|---|---|---|---|
+| 2026-02-10 00:00:00 | gate | START | - | START | mode=Debug | - |
+| 2026-02-10 00:00:01 | build-check | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:02 | interface-completeness | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:03 | cross-backend-parity | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:04 | wiring-sync | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:05 | coverage | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:06 | simd-list-suites | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:07 | simd-avx2-fallback | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:08 | cpuinfo-portable | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:09 | cpuinfo-x86 | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:10 | run-all-chain | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:11 | evidence-verify | PASS | 100 | NORMAL | ok | - |
+| 2026-02-10 00:00:00 | gate | PASS | 1000 | NORMAL | all steps passed | - |
+EOM
+
+cat > "${LCaseIgnoredArtifact}/logs/windows_b07_gate.log" <<'EOM'
+[B07] Windows evidence capture
+[B07] Source: collect_windows_b07_evidence.bat
+[B07] HostOS: Windows_NT
+[B07] CmdVer: Microsoft Windows [Version 10.0.22631.4602]
+[B07] Started: 2026/02/10 00:00:00.00
+[B07] Working dir: C:\simd\tests\fafafa.core.simd\
+[B07] Command: buildOrTest.bat gate
+[B07] GateSummaryJson: /tmp/rehearse.windows_b07_gate.ignored-artifact.summary-json.missing
+[GATE] 1/7 Build + check SIMD module
+[GATE] 2/7 SIMD list suites
+[GATE] 3/7 SIMD AVX2 fallback suite
+[GATE] 4/7 CPUInfo portable suites
+[GATE] 5/7 CPUInfo x86 suites
+[GATE] 6/7 Windows public ABI smoke
+[GATE] 7/7 Filtered run_all chain
+[GATE] OK
+[B07] GATE_EXIT_CODE=0
+Total:  5
+Passed: 5
+Failed: 0
+[B07] Total: 5
+[B07] Passed: 5
+[B07] Failed: 0
+EOM
+
+cat > "${LCaseIgnoredArtifact}/logs/windows_b07_closeout_summary.md" <<'EOM'
+# SIMD Windows B07 Closeout Summary
+
+## Verification
+
+- Verifier: verify_windows_b07_evidence.sh
+- Command: bash verify_windows_b07_evidence.sh "logs/windows_b07_gate.log"
+- Result: PASS
+EOM
+
+cat > "${LTmpRoot}/case_ignored_artifact/docs/plans/2026-02-09-simd-unblock-closeout-roadmap.md" <<'EOM'
+- [x] **Windows 实机证据已归档**
+EOM
+
+cat > "${LCaseIgnoredArtifact}/docs/simd_release_candidate_checklist.md" <<'EOM'
+- [x] Windows 实机证据日志已归档
+EOM
+
+cat > "${LCaseIgnoredArtifact}/docs/simd_completeness_matrix.md" <<'EOM'
+- Windows 证据：实机日志已归档（脚本入口 + 校验入口）
+EOM
+
+cat > "${LTmpRoot}/case_ignored_artifact/src/fafafa.core.simd.pas" <<'EOM'
+unit fafafa.core.simd;
+EOM
+cat > "${LTmpRoot}/case_ignored_artifact/src/fafafa.core.simd.riscvv.ppu" <<'EOM'
+compiled artifact placeholder
+EOM
+
+python3 - "${LCaseIgnoredArtifact}/logs/gate_summary.md" "${LTmpRoot}/case_ignored_artifact/src/fafafa.core.simd.pas" "${LTmpRoot}/case_ignored_artifact/src/fafafa.core.simd.riscvv.ppu" <<'PY'
+from pathlib import Path
+import os
+import sys
+
+artifact = Path(sys.argv[1])
+real_source = Path(sys.argv[2])
+compiled_artifact = Path(sys.argv[3])
+base = artifact.stat().st_mtime
+os.utime(real_source, (base - 30, base - 30))
+os.utime(compiled_artifact, (base + 30, base + 30))
+PY
+
+SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_EVIDENCE=0 python3 "${LCaseIgnoredArtifact}/evaluate_simd_freeze_status.py" --root "${LCaseIgnoredArtifact}" --json-file "${LCaseIgnoredArtifact}/logs/freeze_status_ignored_artifact.json" > "${LCaseIgnoredArtifact}/logs/freeze_stdout_ignored_artifact.txt" 2>&1
+
+if ! grep -F -- "ready=True" "${LCaseIgnoredArtifact}/logs/freeze_stdout_ignored_artifact.txt" >/dev/null; then
+  echo "[FREEZE-REHEARSAL] FAILED: case_ignored_artifact should stay ready=True"
+  cat "${LCaseIgnoredArtifact}/logs/freeze_stdout_ignored_artifact.txt"
+  exit 1
+fi
+
+if grep -F -- "latest_source=" "${LCaseIgnoredArtifact}/logs/freeze_stdout_ignored_artifact.txt" | grep -F ".ppu" >/dev/null; then
+  echo "[FREEZE-REHEARSAL] FAILED: case_ignored_artifact should not treat .ppu as latest source"
+  cat "${LCaseIgnoredArtifact}/logs/freeze_stdout_ignored_artifact.txt"
+  exit 1
+fi
+
 echo "[FREEZE-REHEARSAL] OK"
 echo "[FREEZE-REHEARSAL] case_not_ready_rc=${LNotReadyRc}"
 echo "[FREEZE-REHEARSAL] case_stale_summary_rc=${LStaleRc}"
@@ -709,3 +815,4 @@ echo "[FREEZE-REHEARSAL] case_verify_fail_rc=${LVerifyFailRc}"
 echo "[FREEZE-REHEARSAL] case_linux_lazy_missing_rc=${LLazyMissingRc}"
 echo "[FREEZE-REHEARSAL] case_linux_platform_missing_rc=${LPlatformMissingRc}"
 echo "[FREEZE-REHEARSAL] case_source_newer_rc=${LSourceNewerRc}"
+echo "[FREEZE-REHEARSAL] case_ignored_artifact_rc=0"
