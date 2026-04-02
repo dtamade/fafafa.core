@@ -22,6 +22,10 @@
   - GitHub Actions run `23911571289`（head `3836e4cee60f0a78858d9605a0a8ee9a6cdf86e7`）
   - artifact：`simd-arm64-neon-evidence / native-evidence-neon-20260402-164750`
   - `dispatch_publicabi.log`：`[TEST] OK`
+- 2026-04-03 fresh fail-close gate + Windows closeout refresh：通过（current freeze baseline）
+  - `gate PASS @ 2026-04-03 02:13:10`
+  - Windows batch：`SIMD-20260403-152`，GitHub Actions run `23914427193`
+  - `freeze-status`：`ready=True, mainline_ready=True, cross_ready=True`
 - Linux 证据包：已生成（`logs/evidence-*`）
 - Windows 证据：实机日志已归档（脚本入口 + 校验入口）
 - 2026-04-02 fresh QEMU 摘要：
@@ -30,7 +34,7 @@
   - `tests/fafafa.core.simd/logs/qemu-multiarch-20260402-223524-3203813/summary.md`（cpuinfo-nonx86-full-evidence）
   - `tests/fafafa.core.simd/logs/qemu-multiarch-20260402-224520-3276860/summary.md`（cpuinfo-nonx86-full-repeat）
   - `tests/fafafa.core.simd/logs/qemu-multiarch-20260402-231618-3469977/summary.md`（arch-matrix-evidence）
-- 2026-04-02 Windows canonical 证据：
+- 2026-04-03 Windows canonical 证据：
   - `tests/fafafa.core.simd/logs/windows_b07_gate.log`
   - `tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md`
 - 机器检查：`check_interface_implementation_completeness.py --strict` 通过（`dispatch=558, P0=0/P1=0/P2=0`）
@@ -194,4 +198,10 @@
 - Windows 实机证据：已归档（2026-04-02）
   - Log: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260402-152/windows_b07_gate.log
   - Summary: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260402-152/windows_b07_closeout_summary.md
+  - 验证：verify_windows_b07_evidence PASS
+
+<!-- SIMD-WIN-CLOSEOUT-2026-04-03 -->
+- Windows 实机证据：已归档（2026-04-03）
+  - Log: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260403-152/windows_b07_gate.log
+  - Summary: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260403-152/windows_b07_closeout_summary.md
   - 验证：verify_windows_b07_evidence PASS

@@ -285,6 +285,7 @@ tests\fafafa.core.simd\buildOrTest.bat gate-strict
 - 结果：`tests/fafafa.core.simd/logs/freeze_status.json` 现为 `ready=true`、`freeze_ready=true`、`mainline_ready=true`、`cross_ready=true`。
 - 2026-04-03 又补跑了一轮 compiler-ready `qemu-nonx86-experimental-asm`：`linux/arm64`、`linux/riscv64` 全 PASS，且 `qemu-experimental-baseline-check --latest` 为 `errors=0, warnings=0`，`qemu-experimental-report --latest` 显示 `parsed_errors=0`。
 - 2026-04-03 fresh ARM64 NEON native evidence 也已补齐：GitHub Actions run `23911571289`（head `3836e4cee60f0a78858d9605a0a8ee9a6cdf86e7`）产出的 artifact `simd-arm64-neon-evidence/native-evidence-neon-20260402-164750/` 中，`DispatchAPI + PublicAbi` 已恢复为 `[TEST] OK`，对应这轮 native wide-float slot wiring 修复。
+- 2026-04-03 同步完成了一轮 fresh Linux/Windows evidence refresh：Windows batch `SIMD-20260403-152`（GitHub Actions run `23914427193`）已通过 verifier；回灌的 fail-close `gate` 已刷新为 `gate PASS @ 2026-04-03 02:13:10`，随后 `freeze-status` 再次回到 `ready=true`、`mainline_ready=true`、`cross_ready=true`。
 - 后续只有在 dispatch contract / public ABI / Windows evidence payload 变化时，才需要重收 Windows closeout evidence。`native-evidence` 与 `qemu-nonx86-experimental-asm` 继续作为增强证据，不纳入当前 freeze 硬门禁。
 
 ## 收口后的主线优先级

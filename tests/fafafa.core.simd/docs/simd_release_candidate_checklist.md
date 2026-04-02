@@ -35,7 +35,7 @@
 - [x] `gate` 在 Release + nonx86/qemu 选项下通过
   - 命令：`FAFAFA_BUILD_MODE=Release SIMD_GATE_NONX86_IEEE754=1 SIMD_GATE_QEMU_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：`tests/fafafa.core.simd/logs/gate_summary.md`（`gate PASS @ 2026-03-02 09:43:02`）
-- [x] 2026-04-02 closeout refresh 已完成（当前 freshest evidence）
+- [x] 2026-04-02 closeout heavy refresh 已完成（heavy evidence baseline）
   - 命令：`FAFAFA_BUILD_MODE=Release SIMD_PERF_VECTOR_ASM=auto SIMD_GATE_PERF_SMOKE=1 SIMD_GATE_QEMU_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=1 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=1 SIMD_QEMU_CPUINFO_REPEAT_ROUNDS=3 bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict`
   - 结果：`tests/fafafa.core.simd/logs/gate_summary.md`（`gate PASS @ 2026-04-02 23:31:59`）
   - 对应 QEMU 证据：
@@ -48,12 +48,19 @@
   - GitHub Actions run id：`23911571289`（head `3836e4cee60f0a78858d9605a0a8ee9a6cdf86e7`）
   - artifact：`simd-arm64-neon-evidence / native-evidence-neon-20260402-164750`
   - 关键结果：`dispatch_publicabi.log` 中 `DispatchAPI + PublicAbi` 已恢复为 `[TEST] OK`
-- [x] 2026-04-02 强约束 `freeze-status` 通过（cross-platform）
+- [x] 2026-04-03 fresh Linux/Windows evidence refresh 已完成（当前 freshest freeze evidence）
+  - Linux fail-close gate：`FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：`tests/fafafa.core.simd/logs/gate_summary.md`（`gate PASS @ 2026-04-03 02:13:10`）
+  - Windows closeout：batch `SIMD-20260403-152`，GitHub Actions run id `23914427193`
+- [x] 2026-04-03 当前 `freeze-status` 通过（cross-platform）
+  - 命令：`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+  - 输出：`tests/fafafa.core.simd/logs/freeze_status.json`（`ready=True, mainline_ready=True, cross_ready=True`）
+- [x] 2026-04-02 强约束 `freeze-status` 通过（cross-platform heavy baseline）
   - 命令：`SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=1 SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_FULL_REPEAT=1 SIMD_FREEZE_REQUIRE_CPUINFO_LAZY_REPEAT=1 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
   - 输出：`tests/fafafa.core.simd/logs/freeze_status.json`（`ready=True, freeze_ready=True, mainline_ready=True, cross_ready=True`）
-- [x] 2026-04-02 Windows closeout evidence 已归档
-  - batch：`SIMD-20260402-152`
-  - GitHub Actions run id：`23889752534`
+- [x] 2026-04-03 Windows closeout evidence 已归档（current freshest Windows evidence）
+  - batch：`SIMD-20260403-152`
+  - GitHub Actions run id：`23914427193`
   - preflight：`tests/fafafa.core.simd/logs/win_preflight_latest.md`
   - canonical log / summary：`tests/fafafa.core.simd/logs/windows_b07_gate.log`、`tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md`
 - [x] 最新 gate 复验通过（Release，启用 `SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1`）
