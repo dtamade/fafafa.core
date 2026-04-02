@@ -3209,3 +3209,29 @@
 ### 阶段状态
 - canonical closeout 摘要与强约束 freeze 已刷新到 2026-04-02 口径。
 - `native-evidence` 与 `qemu-nonx86-experimental-asm` 维持增强证据角色，不纳入当前 freeze 硬门禁。
+
+<!-- SIMD-ARM64-NEON-NATIVE-EVIDENCE-2026-04-03 -->
+### 批次
+- SIMD-ARM64-NEON-NATIVE-EVIDENCE-2026-04-03
+
+### 执行动作
+- 定位 ARM64 native-evidence 失败根因到 `src/fafafa.core.simd.neon.register.inc` 的条件编译缺口。
+- 在 `FAFAFA_SIMD_NEON_ASM_ENABLED` 路径下补齐 NEON wide float slot 注册，避免 registered table 泄漏 base scalar slot。
+- 本地回收宿主机 Release `DispatchAPI` 回归，并用 arm64 asm-enabled 单元编译确认修复文件可通过。
+- 推送 `simd-foundation` 提交 `3836e4cee60f0a78858d9605a0a8ee9a6cdf86e7`，再触发 fresh GitHub ARM64 native evidence。
+
+### 命令与结果
+| Command | Result |
+|---|---|
+| `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` | PASS |
+| `docker run --rm --platform linux/arm64 ... fpc -B ... ../../src/fafafa.core.simd.neon.pas` | PASS |
+| `gh workflow run .github/workflows/simd-arm64-neon-evidence.yml --ref simd-foundation` | PASS (`run 23911571289`) |
+
+### 关键证据
+- Commit: `3836e4cee60f0a78858d9605a0a8ee9a6cdf86e7` (`fix(simd): wire native neon wide float slots`)
+- GitHub Actions: `https://github.com/dtamade/fafafa.core/actions/runs/23911571289`
+- Artifact: `simd-arm64-neon-evidence/native-evidence-neon-20260402-164750/summary.md`
+- `dispatch_publicabi.log`: `[TEST] Running: bin2/fafafa.core.simd.test --vector-asm --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi` -> `[TEST] OK`
+
+### 阶段状态
+- ARM64 NEON native wide-float dispatch/public ABI blocker closed.

@@ -1,6 +1,6 @@
 # SIMD 完成度矩阵（Linux 视角）
 
-更新时间：2026-04-02
+更新时间：2026-04-03
 
 ## 1) 总体门禁状态
 
@@ -18,6 +18,10 @@
 - 2026-04-02 strong freeze：通过
   - `SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=1 SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_FULL_REPEAT=1 SIMD_FREEZE_REQUIRE_CPUINFO_LAZY_REPEAT=1 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
   - `ready=True, freeze_ready=True, mainline_ready=True, cross_ready=True`
+- 2026-04-03 ARM64 NEON native evidence：通过（enhanced evidence）
+  - GitHub Actions run `23911571289`（head `3836e4cee60f0a78858d9605a0a8ee9a6cdf86e7`）
+  - artifact：`simd-arm64-neon-evidence / native-evidence-neon-20260402-164750`
+  - `dispatch_publicabi.log`：`[TEST] OK`
 - Linux 证据包：已生成（`logs/evidence-*`）
 - Windows 证据：实机日志已归档（脚本入口 + 校验入口）
 - 2026-04-02 fresh QEMU 摘要：

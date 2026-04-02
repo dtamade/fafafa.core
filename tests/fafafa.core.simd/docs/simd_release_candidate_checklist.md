@@ -44,6 +44,10 @@
     - `tests/fafafa.core.simd/logs/qemu-multiarch-20260402-223524-3203813/summary.md`（cpuinfo-nonx86-full-evidence）
     - `tests/fafafa.core.simd/logs/qemu-multiarch-20260402-224520-3276860/summary.md`（cpuinfo-nonx86-full-repeat，rounds=3）
     - `tests/fafafa.core.simd/logs/qemu-multiarch-20260402-231618-3469977/summary.md`（arch-matrix-evidence）
+- [x] 2026-04-03 ARM64 NEON native-evidence refresh 通过（enhanced evidence）
+  - GitHub Actions run id：`23911571289`（head `3836e4cee60f0a78858d9605a0a8ee9a6cdf86e7`）
+  - artifact：`simd-arm64-neon-evidence / native-evidence-neon-20260402-164750`
+  - 关键结果：`dispatch_publicabi.log` 中 `DispatchAPI + PublicAbi` 已恢复为 `[TEST] OK`
 - [x] 2026-04-02 强约束 `freeze-status` 通过（cross-platform）
   - 命令：`SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=1 SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_FULL_REPEAT=1 SIMD_FREEZE_REQUIRE_CPUINFO_LAZY_REPEAT=1 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
   - 输出：`tests/fafafa.core.simd/logs/freeze_status.json`（`ready=True, freeze_ready=True, mainline_ready=True, cross_ready=True`）
