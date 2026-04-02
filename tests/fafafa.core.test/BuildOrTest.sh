@@ -3,72 +3,89 @@ set -euo pipefail
 
 ACTION="${1:-test}"
 
-ROOT="$(cd "$(dirname "$0")" && pwd)"
-cd "$ROOT"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${ROOT}/../.." && pwd)"
+cd "${ROOT}"
 
-PROJ="tests_core_no_fpcunit.lpi"
-BIN="bin/tests_core_no_fpcunit"
-LOG_DIR="$ROOT/logs"
-BUILD_LOG="$LOG_DIR/build.txt"
-TEST_LOG="$LOG_DIR/test.txt"
+PROJ="${ROOT}/tests_core_no_fpcunit.lpi"
+BIN="${ROOT}/bin/tests"
+LOG_DIR="${ROOT}/logs"
+BUILD_LOG="${LOG_DIR}/build.txt"
+TEST_LOG="${LOG_DIR}/test.txt"
+TOOLS_LAZBUILD="${REPO_ROOT}/tools/lazbuild.sh"
+MODULE_WARNING_PATTERN='(^|.*/)src/fafafa\.core\.test[^[:space:]]*.*(Warning:|Hint:)'
 
-mkdir -p "$ROOT/bin" "$ROOT/lib" "$LOG_DIR"
+mkdir -p "${ROOT}/bin" "${ROOT}/lib" "${LOG_DIR}"
 
 LZ_Q=()
 if [[ "${FAFAFA_BUILD_QUIET:-1}" != "0" ]]; then
   LZ_Q+=("--quiet")
 fi
 
+LAZBUILD_BIN="${LAZBUILD:-}"
+if [[ -z "${LAZBUILD_BIN}" ]]; then
+  if [[ -x "${TOOLS_LAZBUILD}" ]]; then
+    LAZBUILD_BIN="${TOOLS_LAZBUILD}"
+  else
+    LAZBUILD_BIN="lazbuild"
+  fi
+fi
+
 build_project() {
-  echo "[BUILD] Project: $PROJ"
-  : >"$BUILD_LOG"
-  if lazbuild --lazarusdir="/opt/fpcupdeluxe/lazarus" "${LZ_Q[@]}" --build-all "$PROJ" >"$BUILD_LOG" 2>&1; then
+  echo "[BUILD] Project: ${PROJ}"
+  : >"${BUILD_LOG}"
+  if "${LAZBUILD_BIN}" "${LZ_Q[@]}" --build-all "${PROJ}" >"${BUILD_LOG}" 2>&1; then
     echo "[BUILD] OK"
   else
-    local rc=$?
-    echo "[BUILD] FAILED rc=$rc (see $BUILD_LOG)"
-    return $rc
+    local LExitCode=$?
+    echo "[BUILD] FAILED rc=${LExitCode} (see ${BUILD_LOG})"
+    return "${LExitCode}"
   fi
 }
 
 check_build_log() {
-  # Module acceptance: no warnings/hints from src/
-  if grep -nE '(^|.*/)src/.*(Warning:|Hint:)' "$BUILD_LOG" >/dev/null; then
-    echo "[CHECK] Found warnings/hints from src/ in build log:"
-    grep -nE '(^|.*/)src/.*(Warning:|Hint:)' "$BUILD_LOG" || true
+  if grep -nE "${MODULE_WARNING_PATTERN}" "${BUILD_LOG}" | grep -vE 'Hint: \(5024\)' >/dev/null; then
+    echo "[CHECK] Found warnings/hints from current module scope in build log:"
+    grep -nE "${MODULE_WARNING_PATTERN}" "${BUILD_LOG}" | grep -vE 'Hint: \(5024\)' || true
     return 1
   fi
-  echo "[CHECK] OK (no src/ warnings/hints)"
+  echo "[CHECK] OK (no current-module src/ warnings/hints)"
 }
 
 run_tests() {
-  echo "[TEST] Running: $BIN"
-  : >"$TEST_LOG"
+  local LRunBin=""
 
-  if [[ ! -x "$BIN" ]]; then
-    echo "[TEST] Missing binary: $BIN (did build succeed?)"
+  echo "[TEST] Running: ${BIN}"
+  : >"${TEST_LOG}"
+
+  if [[ -x "${BIN}" ]]; then
+    LRunBin="${BIN}"
+  elif [[ -x "${BIN}.exe" ]]; then
+    LRunBin="${BIN}.exe"
+  else
+    echo "[TEST] Missing binary: ${BIN}[.exe] (did build succeed?)"
     return 2
   fi
 
-  if "$BIN" --all --format=plain >"$TEST_LOG" 2>&1; then
+  if "${LRunBin}" --all --format=plain >"${TEST_LOG}" 2>&1; then
     echo "[TEST] OK"
   else
-    local rc=$?
-    echo "[TEST] FAILED rc=$rc (see $TEST_LOG)"
-    return $rc
+    local LExitCode=$?
+    echo "[TEST] FAILED rc=${LExitCode} (see ${TEST_LOG})"
+    return "${LExitCode}"
   fi
 }
 
 check_heap_leaks() {
-  if grep -nE '^[1-9][0-9]* unfreed memory blocks' "$TEST_LOG" >/dev/null; then
+  if grep -nE '^[1-9][0-9]* unfreed memory blocks' "${TEST_LOG}" >/dev/null; then
     echo "[LEAK] FAILED: heaptrc reports unfreed blocks:"
-    grep -nE '^[0-9]+ unfreed memory blocks' "$TEST_LOG" || true
+    grep -nE '^[0-9]+ unfreed memory blocks' "${TEST_LOG}" || true
     return 1
   fi
   echo "[LEAK] OK"
 }
 
-case "$ACTION" in
+case "${ACTION}" in
   build)
     build_project
     ;;

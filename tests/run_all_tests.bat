@@ -89,6 +89,7 @@ set "SCRIPT=%~1"
 REM Skip BuildAndTest.bat when BuildOrTest.bat exists in the same module dir
 if /I "%~nx1"=="BuildAndTest.bat" (
   if exist "%~dp1BuildOrTest.bat" goto :eof
+  if exist "%~dp1buildOrTest.bat" goto :eof
 )
 
 set "DIR=%~dp1"
@@ -96,6 +97,10 @@ set "REL_DIR=!DIR:%TESTS_ROOT%=!"
 if "!REL_DIR:~-1!"=="\" set "REL_DIR=!REL_DIR:~0,-1!"
 set "MOD_FULL=!REL_DIR:\=.!"
 for %%D in ("%~dp1.") do set "MOD_LEAF=%%~nD"
+call set "__RUN_ALREADY=%%RUN_SEEN_!MOD_FULL!%%"
+if defined __RUN_ALREADY goto :eof
+set "RUN_SEEN_!MOD_FULL!=1"
+set "__RUN_ALREADY="
 
 call :should_run "!MOD_FULL!" "!MOD_LEAF!"
 if errorlevel 1 goto :eof
@@ -156,6 +161,7 @@ call "%HYGIENE_CHECKER%" "%REPO_ROOT%"
 if errorlevel 1 exit /b %ERRORLEVEL%
 
 for /R "%TESTS_ROOT%" %%F in (BuildOrTest.bat) do call :run_one "%%~fF"
+for /R "%TESTS_ROOT%" %%F in (buildOrTest.bat) do call :run_one "%%~fF"
 for /R "%TESTS_ROOT%" %%F in (BuildAndTest.bat) do call :run_one "%%~fF"
 
 :finish

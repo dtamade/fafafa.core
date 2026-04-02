@@ -32,18 +32,9 @@ function CreateRtlJsonWriterV2(const AFileName: string): IJsonReportWriter;
 
 implementation
 
-uses
-  fafafa.core.math;
-
 function FormatCleanupTimestampRFC3339(const ALocalNow: TDateTime): string;
 {$IFDEF FAFAFA_TEST_JSON_CLEANUP_TS_TZ_LOCAL_OFFSET}
-const
-  BASE_FMT_SEC = 'yyyy"-"mm"-"dd"T"hh":"nn":"ss';
-  BASE_FMT_MS  = 'yyyy"-"mm"-"dd"T"hh":"nn":"ss"."zzz';
 {$ELSE}
-const
-  BASE_FMT_SEC = 'yyyy"-"mm"-"dd"T"hh":"nn":"ss"Z"';
-  BASE_FMT_MS  = 'yyyy"-"mm"-"dd"T"hh":"nn":"ss"."zzz"Z"';
 {$ENDIF}
 var
   dt: TDateTime;
@@ -56,9 +47,9 @@ begin
   // 本地偏移：不转换到 UTC，输出 +HH:MM/-HH:MM
   dt := ALocalNow;
   {$IFDEF FAFAFA_TEST_JSON_CLEANUP_TS_PRECISION_SEC}
-  Result := FormatDateTime(BASE_FMT_SEC, dt);
+  Result := FormatDateTime('yyyy"-"mm"-"dd"T"hh":"nn":"ss', dt);
   {$ELSE}
-  Result := FormatDateTime(BASE_FMT_MS, dt);
+  Result := FormatDateTime('yyyy"-"mm"-"dd"T"hh":"nn":"ss"."zzz', dt);
   {$ENDIF}
   offsetMin := GetLocalTimeOffset();
   if offsetMin < 0 then sign := '-' else sign := '+';
@@ -69,9 +60,9 @@ begin
   // UTC：转换到 UTC 并以 Z 结尾
   dt := IncMinute(ALocalNow, -GetLocalTimeOffset());
   {$IFDEF FAFAFA_TEST_JSON_CLEANUP_TS_PRECISION_SEC}
-  Result := FormatDateTime(BASE_FMT_SEC, dt);
+  Result := FormatDateTime('yyyy"-"mm"-"dd"T"hh":"nn":"ss"Z"', dt);
   {$ELSE}
-  Result := FormatDateTime(BASE_FMT_MS, dt);
+  Result := FormatDateTime('yyyy"-"mm"-"dd"T"hh":"nn":"ss"."zzz"Z"', dt);
   {$ENDIF}
 {$ENDIF}
 end;

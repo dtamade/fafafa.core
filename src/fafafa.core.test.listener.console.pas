@@ -2,6 +2,8 @@ unit fafafa.core.test.listener.console;
 
 {$mode objfpc}{$H+}
 {$I fafafa.core.settings.inc}
+{$push}
+{$warn 5024 off}
 
 interface
 
@@ -17,12 +19,12 @@ type
   public
 {$push}
 {$warn 5024 off}
-    procedure OnStart(ATotal: Integer);
-    procedure OnTestStart(const AName: string);
+    procedure OnStart({%H-}ATotal: Integer);
+    procedure OnTestStart(const {%H-}AName: string);
     procedure OnTestSuccess(const AName: string; AElapsedMs: QWord);
     procedure OnTestFailure(const AName, AMessage: string; AElapsedMs: QWord);
     procedure OnTestSkipped(const AName: string; AElapsedMs: QWord);
-    procedure OnEnd(ATotal, AFailed: Integer; AElapsedMs: QWord);
+    procedure OnEnd({%H-}ATotal, {%H-}AFailed: Integer; {%H-}AElapsedMs: QWord);
 {$pop}
   end;
 
@@ -30,12 +32,6 @@ implementation
 
 const
   CONSOLE_TIME_COL_WIDTH = 5;
-
-
-// Helpers to silence unused-parameter hints without changing behavior
-procedure UnusedInt(const v: Integer); inline; begin end;
-procedure UnusedQ(const v: QWord); inline; begin end;
-procedure UnusedStr(const v: string); inline; begin end;
 
 var
   GConsoleTimeColWidth: Integer = CONSOLE_TIME_COL_WIDTH;
@@ -79,10 +75,9 @@ begin
   MainMsg := Msg;
 end;
 
-procedure TConsoleTestListener.OnStart(ATotal: Integer);
+procedure TConsoleTestListener.OnStart({%H-}ATotal: Integer);
 var s: string; v: Integer;
 begin
-  UnusedInt(ATotal);
   FStartTick := GetTickCount64;
   FTotalSeen := 0;
   FFailed := 0;
@@ -101,11 +96,12 @@ begin
   WriteLn('== Running tests ==');
 end;
 
-procedure TConsoleTestListener.OnTestStart(const AName: string);
+procedure TConsoleTestListener.OnTestStart(const {%H-}AName: string);
 begin
-  UnusedStr(AName);
   // no-op or could print starting message
 end;
+
+{$pop}
 
 procedure TConsoleTestListener.OnTestSuccess(const AName: string; AElapsedMs: QWord);
 begin
@@ -147,12 +143,9 @@ begin
   WriteLn(Format('[SKIP] %s (%*d ms)', [AName, GConsoleTimeColWidth, AElapsedMs]));
 end;
 
-procedure TConsoleTestListener.OnEnd(ATotal, AFailed: Integer; AElapsedMs: QWord);
+procedure TConsoleTestListener.OnEnd({%H-}ATotal, {%H-}AFailed: Integer; {%H-}AElapsedMs: QWord);
 var TotalTime: QWord;
 begin
-  UnusedInt(ATotal);
-  UnusedInt(AFailed);
-  UnusedQ(AElapsedMs);
   TotalTime := GetTickCount64 - FStartTick;
   if FFailed = 0 then
     WriteLn(Format('== All %d test(s) passed in %d ms ==', [FTotalSeen, TotalTime]))
