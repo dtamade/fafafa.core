@@ -1,6 +1,8 @@
 # SIMD 发布候选检查单（Linux）
 
-更新时间：2026-03-11
+更新时间：2026-04-02
+
+说明：本页保留历史账本。当前 freshest closeout evidence 以本节新增的 `2026-04-02 closeout refresh` 为准，旧条目继续保留作回归轨迹。
 
 ## A. 设计与接口
 
@@ -17,7 +19,7 @@
   - 说明：该检查用于守住仓库内 `TSimdBackendInfo` / `TSimdDispatchTable` 声明签名，不把当前 record layout 当成 public binary ABI。
 - [x] public ABI signature/layout guard 已接入并可复验
   - `python3 tests/fafafa.core.simd/check_public_abi_signature.py --summary-line`
-  - 当前快照：`backends=10, capabilities=12, backend_pod_fields=5, public_api_fields=15, pascal_api=7, export_aliases=7`
+  - 当前快照：`backends=10, capabilities=12, backend_pod_fields=5, public_api_fields=22, pascal_api=7, export_aliases=7`
   - 说明：该检查用于守住 public ABI wrapper 的 Pascal 声明、ABI 常量、backend/capability ID 映射，以及 `publicabi_smoke.h` 的 consumer-side contract。
 
 ## B. 正确性
@@ -33,6 +35,23 @@
 - [x] `gate` 在 Release + nonx86/qemu 选项下通过
   - 命令：`FAFAFA_BUILD_MODE=Release SIMD_GATE_NONX86_IEEE754=1 SIMD_GATE_QEMU_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：`tests/fafafa.core.simd/logs/gate_summary.md`（`gate PASS @ 2026-03-02 09:43:02`）
+- [x] 2026-04-02 closeout refresh 已完成（当前 freshest evidence）
+  - 命令：`FAFAFA_BUILD_MODE=Release SIMD_PERF_VECTOR_ASM=auto SIMD_GATE_PERF_SMOKE=1 SIMD_GATE_QEMU_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=1 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=1 SIMD_QEMU_CPUINFO_REPEAT_ROUNDS=3 bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict`
+  - 结果：`tests/fafafa.core.simd/logs/gate_summary.md`（`gate PASS @ 2026-04-02 23:31:59`）
+  - 对应 QEMU 证据：
+    - `tests/fafafa.core.simd/logs/qemu-multiarch-20260402-220753-3063889/summary.md`（nonx86-evidence）
+    - `tests/fafafa.core.simd/logs/qemu-multiarch-20260402-222736-3168905/summary.md`（cpuinfo-nonx86-evidence）
+    - `tests/fafafa.core.simd/logs/qemu-multiarch-20260402-223524-3203813/summary.md`（cpuinfo-nonx86-full-evidence）
+    - `tests/fafafa.core.simd/logs/qemu-multiarch-20260402-224520-3276860/summary.md`（cpuinfo-nonx86-full-repeat，rounds=3）
+    - `tests/fafafa.core.simd/logs/qemu-multiarch-20260402-231618-3469977/summary.md`（arch-matrix-evidence）
+- [x] 2026-04-02 强约束 `freeze-status` 通过（cross-platform）
+  - 命令：`SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=1 SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_FULL_REPEAT=1 SIMD_FREEZE_REQUIRE_CPUINFO_LAZY_REPEAT=1 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+  - 输出：`tests/fafafa.core.simd/logs/freeze_status.json`（`ready=True, freeze_ready=True, mainline_ready=True, cross_ready=True`）
+- [x] 2026-04-02 Windows closeout evidence 已归档
+  - batch：`SIMD-20260402-152`
+  - GitHub Actions run id：`23889752534`
+  - preflight：`tests/fafafa.core.simd/logs/win_preflight_latest.md`
+  - canonical log / summary：`tests/fafafa.core.simd/logs/windows_b07_gate.log`、`tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md`
 - [x] 最新 gate 复验通过（Release，启用 `SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1`）
   - 结果：`tests/fafafa.core.simd/logs/gate_summary.md`（`gate PASS @ 2026-03-02 23:28:16`）
 - [x] 最新 gate 复验通过（Release，启用 `SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1`）
@@ -45,10 +64,10 @@
   - 结果：`tests/fafafa.core.simd/logs/gate_summary.md`（`gate PASS @ 2026-03-03 13:32:37`）
 - [x] 最新 gate 复验通过（Release，启用 `SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=1`）
   - 结果：`tests/fafafa.core.simd/logs/gate_summary.md`（`gate PASS @ 2026-03-03 14:50:07`）
-- [x] `gate-strict` 默认已收紧（2026-03-03）：
-  - 默认强制：`SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=1`、`SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=1`。
-  - 默认轮次：`SIMD_QEMU_CPUINFO_REPEAT_ROUNDS=1`（可显式覆盖）。
-  - non-x86 默认平台：`linux/arm/v7 linux/arm64 linux/riscv64`（可用 `SIMD_QEMU_PLATFORMS_NONX86` 覆盖，不影响 `arch-matrix-evidence` 的固定全矩阵要求）。
+- [x] `gate-strict` 当前默认口径已与脚本对齐
+  - 默认强制：`SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1`、`SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1`、`SIMD_GATE_CPUINFO_LAZY_REPEAT=3`
+  - 默认关闭：`SIMD_GATE_QEMU_NONX86_EVIDENCE=0`、`SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0`、`SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0`、`SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0`、`SIMD_GATE_PERF_SMOKE=0`
+  - closeout heavy 口径需要显式打开这些重证据开关；`SIMD_QEMU_CPUINFO_REPEAT_ROUNDS` 默认仍为 `1`，可按需覆盖。
 - [x] 最新 closeout 口径 `gate-strict` 复验通过（2026-03-11，含 `contract-signature` / `publicabi-signature` / `publicabi-smoke`）
   - 命令：`SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_EXPERIMENTAL_TESTS=0 SIMD_GATE_PERF_SMOKE=1 SIMD_PERF_VECTOR_ASM=auto bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict`
   - 对应 QEMU 证据：`tests/fafafa.core.simd/logs/qemu-multiarch-20260311-211136-2040384/summary.md`

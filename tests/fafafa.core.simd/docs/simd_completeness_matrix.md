@@ -1,6 +1,6 @@
 # SIMD 完成度矩阵（Linux 视角）
 
-更新时间：2026-03-11
+更新时间：2026-04-02
 
 ## 1) 总体门禁状态
 
@@ -12,8 +12,23 @@
 - Release 全链 gate（含 nonx86/qemu 选项）：通过
   - `FAFAFA_BUILD_MODE=Release SIMD_GATE_NONX86_IEEE754=1 SIMD_GATE_QEMU_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - `gate PASS @ 2026-03-02 09:43:02`
+- 2026-04-02 closeout heavy `gate-strict`：通过
+  - `FAFAFA_BUILD_MODE=Release SIMD_PERF_VECTOR_ASM=auto SIMD_GATE_PERF_SMOKE=1 SIMD_GATE_QEMU_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=1 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=1 SIMD_QEMU_CPUINFO_REPEAT_ROUNDS=3 bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict`
+  - `gate PASS @ 2026-04-02 23:31:59`
+- 2026-04-02 strong freeze：通过
+  - `SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=1 SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_FULL_REPEAT=1 SIMD_FREEZE_REQUIRE_CPUINFO_LAZY_REPEAT=1 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+  - `ready=True, freeze_ready=True, mainline_ready=True, cross_ready=True`
 - Linux 证据包：已生成（`logs/evidence-*`）
 - Windows 证据：实机日志已归档（脚本入口 + 校验入口）
+- 2026-04-02 fresh QEMU 摘要：
+  - `tests/fafafa.core.simd/logs/qemu-multiarch-20260402-220753-3063889/summary.md`（nonx86-evidence）
+  - `tests/fafafa.core.simd/logs/qemu-multiarch-20260402-222736-3168905/summary.md`（cpuinfo-nonx86-evidence）
+  - `tests/fafafa.core.simd/logs/qemu-multiarch-20260402-223524-3203813/summary.md`（cpuinfo-nonx86-full-evidence）
+  - `tests/fafafa.core.simd/logs/qemu-multiarch-20260402-224520-3276860/summary.md`（cpuinfo-nonx86-full-repeat）
+  - `tests/fafafa.core.simd/logs/qemu-multiarch-20260402-231618-3469977/summary.md`（arch-matrix-evidence）
+- 2026-04-02 Windows canonical 证据：
+  - `tests/fafafa.core.simd/logs/windows_b07_gate.log`
+  - `tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md`
 - 机器检查：`check_interface_implementation_completeness.py --strict` 通过（`dispatch=558, P0=0/P1=0/P2=0`）
 - 机器检查产物：
   - `tests/fafafa.core.simd/logs/interface_completeness.json`

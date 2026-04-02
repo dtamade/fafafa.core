@@ -3176,3 +3176,36 @@
 
 ### 阶段状态
 - 跨平台冻结条件满足。
+
+<!-- SIMD-CLOSEOUT-REFRESH-2026-04-02 -->
+### 批次
+- SIMD-CLOSEOUT-REFRESH-2026-04-02
+
+### 执行动作
+- 修复 worktree 下 repo hygiene preflight 误报，恢复 `gate` / `gate-strict` 在 simd worktree 的 fail-close 语义。
+- 修复 cross-arch hardware tick 条件编译，恢复 `linux/386` 等 `arch-matrix-evidence` 编译链。
+- 以 full heavy closeout 口径重跑 `gate-strict`，恢复 canonical `tests/fafafa.core.simd/logs/gate_summary.md`。
+- 以强约束重跑 `freeze-status`，确认 `ready / freeze_ready / mainline_ready / cross_ready` 全部为 `True`。
+
+### 命令与结果
+| Command | Result |
+|---|---|
+| `FAFAFA_BUILD_MODE=Release SIMD_PERF_VECTOR_ASM=auto SIMD_GATE_PERF_SMOKE=1 SIMD_GATE_QEMU_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=1 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=1 SIMD_QEMU_CPUINFO_REPEAT_ROUNDS=3 bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict` | PASS |
+| `SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=1 SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_FULL_REPEAT=1 SIMD_FREEZE_REQUIRE_CPUINFO_LAZY_REPEAT=1 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status` | PASS |
+
+### 关键证据
+- Gate summary: `tests/fafafa.core.simd/logs/gate_summary.md`（`gate PASS @ 2026-04-02 23:31:59`）
+- Freeze summary: `tests/fafafa.core.simd/logs/freeze_status.json`（`ready=True, freeze_ready=True, mainline_ready=True, cross_ready=True`）
+- QEMU summaries:
+  - `tests/fafafa.core.simd/logs/qemu-multiarch-20260402-220753-3063889/summary.md`
+  - `tests/fafafa.core.simd/logs/qemu-multiarch-20260402-222736-3168905/summary.md`
+  - `tests/fafafa.core.simd/logs/qemu-multiarch-20260402-223524-3203813/summary.md`
+  - `tests/fafafa.core.simd/logs/qemu-multiarch-20260402-224520-3276860/summary.md`
+  - `tests/fafafa.core.simd/logs/qemu-multiarch-20260402-231618-3469977/summary.md`
+- Windows canonical evidence:
+  - `tests/fafafa.core.simd/logs/windows_b07_gate.log`
+  - `tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md`
+
+### 阶段状态
+- canonical closeout 摘要与强约束 freeze 已刷新到 2026-04-02 口径。
+- `native-evidence` 与 `qemu-nonx86-experimental-asm` 维持增强证据角色，不纳入当前 freeze 硬门禁。
