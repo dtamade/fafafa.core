@@ -115,9 +115,14 @@ bash tests/fafafa.core.simd/BuildOrTest.sh qemu-cpuinfo-nonx86-evidence
 SIMD_QEMU_BUILD_POLICY=if-missing \
 SIMD_QEMU_ENABLE_BACKEND_ASM=1 \
 SIMD_QEMU_BACKEND_ASM_PROBE_MODE=0 \
+SIMD_QEMU_PLATFORMS='linux/arm64 linux/riscv64' \
 SIMD_QEMU_EXPERIMENTAL_ARM64_COMPILER_DEFINE='-dFAFAFA_SIMD_NEON_ASM_COMPILER_READY' \
 SIMD_QEMU_EXPERIMENTAL_RISCV64_COMPILER_DEFINE='-dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY' \
 bash tests/fafafa.core.simd/BuildOrTest.sh qemu-nonx86-experimental-asm
+
+# 推荐紧跟 fresh lane 做基线与 blocker 报告
+bash tests/fafafa.core.simd/BuildOrTest.sh qemu-experimental-baseline-check --latest
+bash tests/fafafa.core.simd/BuildOrTest.sh qemu-experimental-report --latest
 
 # 真机 non-x86 native evidence（只能在 arm64/riscv64 原生主机上跑）
 bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence

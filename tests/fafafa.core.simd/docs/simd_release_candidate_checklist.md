@@ -354,6 +354,11 @@
   - `bash tests/fafafa.core.simd/BuildOrTest.sh qemu-experimental-baseline-check`
   - 产物：`tests/fafafa.core.simd/docs/experimental_asm_blockers.md`
   - 基线：`tests/fafafa.core.simd/docs/experimental_asm_expected_failures.json`
+- [x] 2026-04-03 experimental asm compiler-ready 增强证据 fresh 复验通过（non-blocking enhanced evidence）
+  - 命令：`FAFAFA_BUILD_MODE=Release SIMD_QEMU_BUILD_POLICY=if-missing SIMD_QEMU_ENABLE_BACKEND_ASM=1 SIMD_QEMU_BACKEND_ASM_PROBE_MODE=0 SIMD_QEMU_PLATFORMS='linux/arm64 linux/riscv64' SIMD_QEMU_EXPERIMENTAL_ARM64_COMPILER_DEFINE='-dFAFAFA_SIMD_NEON_ASM_COMPILER_READY' SIMD_QEMU_EXPERIMENTAL_RISCV64_COMPILER_DEFINE='-dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY' bash tests/fafafa.core.simd/BuildOrTest.sh qemu-nonx86-experimental-asm`
+  - 摘要：`tests/fafafa.core.simd/logs/qemu-multiarch-20260403-001103-3652254/summary.md`
+  - blocker snapshot：`tests/fafafa.core.simd/docs/experimental_asm_compiler_ready_blockers.md`
+  - baseline/report：`errors=0, warnings=0, parsed_errors=0`
 - [x] Windows 实机证据日志已归档
   - 目标文件：`tests/fafafa.core.simd/logs/windows_b07_gate.log`
   - 已完成闭环顺序（按 freeze-status next-actions）：
