@@ -283,6 +283,7 @@ tests\fafafa.core.simd\buildOrTest.bat gate-strict
   bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status
   ```
 - 结果：`tests/fafafa.core.simd/logs/freeze_status.json` 现为 `ready=true`、`freeze_ready=true`、`mainline_ready=true`、`cross_ready=true`。
+- 2026-04-03 又补跑了一轮 compiler-ready `qemu-nonx86-experimental-asm`：`linux/arm64`、`linux/riscv64` 全 PASS，且 `qemu-experimental-baseline-check --latest` 为 `errors=0, warnings=0`，`qemu-experimental-report --latest` 显示 `parsed_errors=0`。
 - 后续只有在 dispatch contract / public ABI / Windows evidence payload 变化时，才需要重收 Windows closeout evidence。`native-evidence` 与 `qemu-nonx86-experimental-asm` 继续作为增强证据，不纳入当前 freeze 硬门禁。
 
 ## 收口后的主线优先级
