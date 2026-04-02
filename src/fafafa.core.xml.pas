@@ -82,6 +82,7 @@ type
   IXmlWriter = interface;
   IXmlNode = interface;
   IXmlDocument = interface;
+  IXmlReaderBuildDocument = interface;
 
   // DOM 抽象（占位，后续细化）
   IXmlNode = interface
@@ -129,6 +130,11 @@ type
 
     property Root: IXmlNode read GetRoot;
     property Allocator: TAllocator read GetAllocator;
+  end;
+
+  IXmlReaderBuildDocument = interface
+  ['{D7D1A50D-C4A9-4B77-8F4B-9B4F2A9A2C71}']
+    function GetBuildDocument: IXmlDocument;
   end;
   // 解析异常（结构化，含定位）
   EXmlParseError = class(Exception)
@@ -365,23 +371,27 @@ begin
 end;
 
 function XmlReadAllToDocument(const R: IXmlReader): IXmlDocument; overload;
-var DocImpl: TXmlDocumentImpl; Doc: IXmlDocument; Depth: SizeUInt;
+var
+  LDoc: IXmlDocument;
+  LDepth: SizeUInt;
+  LBuildDocumentReader: IXmlReaderBuildDocument;
 begin
-  DocImpl := nil; Doc := nil; Depth := 0;
+  LDoc := nil;
+  LDepth := 0;
+  Supports(R, IXmlReaderBuildDocument, LBuildDocumentReader);
   while R.Read do
   begin
     case R.Token of
       xtStartElement:
         begin
-          if DocImpl = nil then DocImpl := TXmlDocumentImpl.Create;
-          // Freeze 会把节点追加到 DocImpl；返回的接口可不使用
           R.FreezeCurrentNode;
-          if Doc = nil then Doc := DocImpl;
-          Inc(Depth);
+          if (LDoc = nil) and (LBuildDocumentReader <> nil) then
+            LDoc := LBuildDocumentReader.GetBuildDocument;
+          Inc(LDepth);
         end;
       xtEndElement:
         begin
-          if Depth > 0 then Dec(Depth);
+          if LDepth > 0 then Dec(LDepth);
         end;
       xtEndDocument:
         Break;
@@ -389,7 +399,226 @@ begin
       ;
     end;
   end;
-  Result := Doc;
+  Result := LDoc;
+end;
+
+type
+  TDetectedEnc = (deUnknown, deUTF8, deUTF16, deUTF32);
+
+procedure XmlAppendUtf8CodePoint(var aOut: RawByteString; const aCodePoint: Cardinal);
+begin
+  if aCodePoint <= $7F then
+    aOut += AnsiChar(aCodePoint)
+  else if aCodePoint <= $7FF then
+  begin
+    aOut += AnsiChar($C0 or (aCodePoint shr 6));
+    aOut += AnsiChar($80 or (aCodePoint and $3F));
+  end
+  else if aCodePoint <= $FFFF then
+  begin
+    aOut += AnsiChar($E0 or (aCodePoint shr 12));
+    aOut += AnsiChar($80 or ((aCodePoint shr 6) and $3F));
+    aOut += AnsiChar($80 or (aCodePoint and $3F));
+  end
+  else if aCodePoint <= $10FFFF then
+  begin
+    aOut += AnsiChar($F0 or (aCodePoint shr 18));
+    aOut += AnsiChar($80 or ((aCodePoint shr 12) and $3F));
+    aOut += AnsiChar($80 or ((aCodePoint shr 6) and $3F));
+    aOut += AnsiChar($80 or (aCodePoint and $3F));
+  end
+  else
+    aOut += AnsiChar('?');
+end;
+
+function XmlDecodeUtf16BytesToUtf8(const aBytes: RawByteString; const aLittleEndian, aAllowInvalidUnicode: Boolean): RawByteString;
+var
+  LIndex: SizeInt;
+  LCodeUnit: Word;
+  LNextCodeUnit: Word;
+  LCodePoint: Cardinal;
+begin
+  Result := '';
+  LIndex := 1;
+  while LIndex <= Length(aBytes) do
+  begin
+    if (LIndex + 1) > Length(aBytes) then
+    begin
+      if aAllowInvalidUnicode then
+      begin
+        XmlAppendUtf8CodePoint(Result, $FFFD);
+        Break;
+      end;
+      raise EXmlParseError.Create(xecInvalidEncoding, 'Invalid UTF-16 payload length', 0, 1, 1);
+    end;
+
+    if aLittleEndian then
+      LCodeUnit := Byte(aBytes[LIndex]) or (Byte(aBytes[LIndex + 1]) shl 8)
+    else
+      LCodeUnit := (Byte(aBytes[LIndex]) shl 8) or Byte(aBytes[LIndex + 1]);
+    Inc(LIndex, 2);
+
+    if (LCodeUnit >= $D800) and (LCodeUnit <= $DBFF) then
+    begin
+      if (LIndex + 1) <= Length(aBytes) then
+      begin
+        if aLittleEndian then
+          LNextCodeUnit := Byte(aBytes[LIndex]) or (Byte(aBytes[LIndex + 1]) shl 8)
+        else
+          LNextCodeUnit := (Byte(aBytes[LIndex]) shl 8) or Byte(aBytes[LIndex + 1]);
+        if (LNextCodeUnit >= $DC00) and (LNextCodeUnit <= $DFFF) then
+        begin
+          Inc(LIndex, 2);
+          LCodePoint := $10000 + ((Cardinal(LCodeUnit) - $D800) shl 10) + (Cardinal(LNextCodeUnit) - $DC00);
+          XmlAppendUtf8CodePoint(Result, LCodePoint);
+          Continue;
+        end;
+      end;
+
+      if aAllowInvalidUnicode then
+      begin
+        XmlAppendUtf8CodePoint(Result, $FFFD);
+        Continue;
+      end;
+      raise EXmlParseError.Create(xecInvalidEncoding, 'Invalid UTF-16 surrogate pair', 0, 1, 1);
+    end;
+
+    if (LCodeUnit >= $DC00) and (LCodeUnit <= $DFFF) then
+    begin
+      if aAllowInvalidUnicode then
+      begin
+        XmlAppendUtf8CodePoint(Result, $FFFD);
+        Continue;
+      end;
+      raise EXmlParseError.Create(xecInvalidEncoding, 'Unexpected UTF-16 low surrogate', 0, 1, 1);
+    end;
+
+    XmlAppendUtf8CodePoint(Result, LCodeUnit);
+  end;
+end;
+
+function XmlDecodeUtf32BytesToUtf8(const aBytes: RawByteString; const aLittleEndian, aAllowInvalidUnicode: Boolean): RawByteString;
+var
+  LIndex: SizeInt;
+  LCodePoint: Cardinal;
+begin
+  Result := '';
+  LIndex := 1;
+  while LIndex <= Length(aBytes) do
+  begin
+    if (LIndex + 3) > Length(aBytes) then
+    begin
+      if aAllowInvalidUnicode then
+      begin
+        XmlAppendUtf8CodePoint(Result, $FFFD);
+        Break;
+      end;
+      raise EXmlParseError.Create(xecInvalidEncoding, 'Invalid UTF-32 payload length', 0, 1, 1);
+    end;
+
+    if aLittleEndian then
+      LCodePoint := Cardinal(Byte(aBytes[LIndex]))
+        or (Cardinal(Byte(aBytes[LIndex + 1])) shl 8)
+        or (Cardinal(Byte(aBytes[LIndex + 2])) shl 16)
+        or (Cardinal(Byte(aBytes[LIndex + 3])) shl 24)
+    else
+      LCodePoint := (Cardinal(Byte(aBytes[LIndex])) shl 24)
+        or (Cardinal(Byte(aBytes[LIndex + 1])) shl 16)
+        or (Cardinal(Byte(aBytes[LIndex + 2])) shl 8)
+        or Cardinal(Byte(aBytes[LIndex + 3]));
+    Inc(LIndex, 4);
+
+    if (LCodePoint > $10FFFF) or ((LCodePoint >= $D800) and (LCodePoint <= $DFFF)) then
+    begin
+      if aAllowInvalidUnicode then
+      begin
+        XmlAppendUtf8CodePoint(Result, $FFFD);
+        Continue;
+      end;
+      raise EXmlParseError.Create(xecInvalidEncoding, 'Invalid UTF-32 code point', 0, 1, 1);
+    end;
+
+    XmlAppendUtf8CodePoint(Result, LCodePoint);
+  end;
+end;
+
+function XmlDecodeStreamBytesToUtf8(
+  const aBytes: RawByteString;
+  const aFlags: TXmlReadFlags;
+  out aDetectedEnc: TDetectedEnc;
+  out aDeferredReadError: TXmlError
+): RawByteString;
+begin
+  aDetectedEnc := deUnknown;
+  aDeferredReadError.Clear;
+
+  if Length(aBytes) >= 4 then
+  begin
+    if (Byte(aBytes[1]) = $00) and (Byte(aBytes[2]) = $00) and (Byte(aBytes[3]) = $FE) and (Byte(aBytes[4]) = $FF) then
+    begin
+      aDetectedEnc := deUTF32;
+      if xrfAutoDecodeEncoding in aFlags then
+        Exit(XmlDecodeUtf32BytesToUtf8(Copy(aBytes, 5, MaxInt), False, xrfAllowInvalidUnicode in aFlags));
+      aDeferredReadError.Code := xecInvalidEncoding;
+      aDeferredReadError.Message := 'Unsupported encoding: UTF-32 BOM detected (only UTF-8 supported currently)';
+      aDeferredReadError.Position := 0;
+      aDeferredReadError.Line := 1;
+      aDeferredReadError.Column := 1;
+      Exit('');
+    end;
+
+    if (Byte(aBytes[1]) = $FF) and (Byte(aBytes[2]) = $FE) and (Byte(aBytes[3]) = $00) and (Byte(aBytes[4]) = $00) then
+    begin
+      aDetectedEnc := deUTF32;
+      if xrfAutoDecodeEncoding in aFlags then
+        Exit(XmlDecodeUtf32BytesToUtf8(Copy(aBytes, 5, MaxInt), True, xrfAllowInvalidUnicode in aFlags));
+      aDeferredReadError.Code := xecInvalidEncoding;
+      aDeferredReadError.Message := 'Unsupported encoding: UTF-32 BOM detected (only UTF-8 supported currently)';
+      aDeferredReadError.Position := 0;
+      aDeferredReadError.Line := 1;
+      aDeferredReadError.Column := 1;
+      Exit('');
+    end;
+  end;
+
+  if Length(aBytes) >= 3 then
+    if (Byte(aBytes[1]) = $EF) and (Byte(aBytes[2]) = $BB) and (Byte(aBytes[3]) = $BF) then
+    begin
+      aDetectedEnc := deUTF8;
+      Exit(Copy(aBytes, 4, MaxInt));
+    end;
+
+  if Length(aBytes) >= 2 then
+  begin
+    if (Byte(aBytes[1]) = $FE) and (Byte(aBytes[2]) = $FF) then
+    begin
+      aDetectedEnc := deUTF16;
+      if xrfAutoDecodeEncoding in aFlags then
+        Exit(XmlDecodeUtf16BytesToUtf8(Copy(aBytes, 3, MaxInt), False, xrfAllowInvalidUnicode in aFlags));
+      aDeferredReadError.Code := xecInvalidEncoding;
+      aDeferredReadError.Message := 'Unsupported encoding: UTF-16 BOM detected (enable xrfAutoDecodeEncoding to decode)';
+      aDeferredReadError.Position := 0;
+      aDeferredReadError.Line := 1;
+      aDeferredReadError.Column := 1;
+      Exit('');
+    end;
+
+    if (Byte(aBytes[1]) = $FF) and (Byte(aBytes[2]) = $FE) then
+    begin
+      aDetectedEnc := deUTF16;
+      if xrfAutoDecodeEncoding in aFlags then
+        Exit(XmlDecodeUtf16BytesToUtf8(Copy(aBytes, 3, MaxInt), True, xrfAllowInvalidUnicode in aFlags));
+      aDeferredReadError.Code := xecInvalidEncoding;
+      aDeferredReadError.Message := 'Unsupported encoding: UTF-16 BOM detected (enable xrfAutoDecodeEncoding to decode)';
+      aDeferredReadError.Position := 0;
+      aDeferredReadError.Line := 1;
+      aDeferredReadError.Column := 1;
+      Exit('');
+    end;
+  end;
+
+  aDetectedEnc := deUTF8;
+  Result := aBytes;
 end;
 
 
@@ -478,9 +707,6 @@ type
 
 { TXmlError }
 
-type
-  TDetectedEnc = (deUnknown, deUTF8, deUTF16, deUTF32);
-
 procedure TXmlError.Clear;
 begin
   Code := xecSuccess;
@@ -490,7 +716,7 @@ begin
   Column := 0;
 end;
 type
-  TXmlReaderImpl = class(TInterfacedObject, IXmlReader)
+  TXmlReaderImpl = class(TInterfacedObject, IXmlReader, IXmlReaderBuildDocument)
   private
     FText: String;       // 保持所有权，确保 PChar 有效
     FBuf: PChar;
@@ -505,6 +731,7 @@ type
     FTokColumn: SizeUInt;
     // Detected input encoding via BOM (stream path)
     FDetectedEnc: TDetectedEnc;
+    FDeferredReadError: TXmlError;
     // 渐进式行列定位缓存（字符串路径）
     FLCScanP: PChar;
     FLCLine: SizeUInt;
@@ -539,6 +766,7 @@ type
     FAttrCount: SizeUInt;
     // 冻结构建：共享文档与节点索引栈（用于 FreezeCurrentNode/遍历）
     FBuildDoc: TXmlDocumentImpl;
+    FBuildDocRef: IXmlDocument;
     FNodeIdxStack: array of SizeUInt;
     FNodeIdxLen: SizeUInt;
 
@@ -650,6 +878,7 @@ type
     function TryGetAttributeN(const AName: PChar; ANameLen: SizeUInt; out P: PChar; out Len: SizeUInt): Boolean; inline;
 
     function FreezeCurrentNode: IXmlNode;
+    function GetBuildDocument: IXmlDocument;
     function GetLine: SizeUInt; inline;
     function GetColumn: SizeUInt; inline;
     function GetPosition: SizeUInt; inline;
@@ -959,9 +1188,6 @@ end;
 function TXmlReaderImpl.NSResolve(const APrefix: String): String;
 var i: SizeInt;
 begin
-  // 简单缓存：与上次解析相同的前缀，直接返回上次结果（字符串比较成本较低）
-  if (Length(FNSUriOwned)>0) and (FNSStack[FNSLen-1].Prefix = APrefix) then
-    Exit(String(FNSUriOwned));
   // 先查快速表
   if NSMapTryGet(APrefix, Result) then begin FNSUriOwned := AnsiString(Result); Exit; end;
   // 回退线性扫描（兼容极端退化场景）
@@ -1516,42 +1742,52 @@ begin
 end;
 
 function TXmlReaderImpl.ReadFromStream(AStream: TStream; AFlags: TXmlReadFlags; InitialBufCap: SizeUInt): IXmlReader;
+var
+  LRawInput: RawByteString;
+  LUtf8Input: RawByteString;
+  LChunk: array[0..8191] of Byte;
+  LRead: LongInt;
+  LDetectedEnc: TDetectedEnc;
+  LDeferredReadError: TXmlError;
 begin
-  // 真流式入口（Step 1）：初始化流源与解析状态；实际解析在 Read 中的流式分支进行
-  ReleaseStreamSource; // 清理旧的流式资源（如有）
-  if InitialBufCap = 0 then InitialBufCap := 256*1024;
-  InitStreamSource(AStream, InitialBufCap);
+  InitialBufCap := InitialBufCap;
+  LRawInput := '';
+  LDeferredReadError.Clear;
 
-  // 初始化解析公共状态
-  FText := '';
-  FBuf := PChar(FRingBuf + FRingStart);
-  FCur := FBuf;
-  FEnd := FBuf + FRingLen;
-  FToken := xtStartDocument;
-  FDepth := 0;
-  FFlags := AFlags;
-  FLine := 1; FColumn := 1;
-  FPosP := nil; FTokP := nil;
-  FNameP := nil; FNameLen := 0;
-  FValueP := nil; FValueLen := 0;
-  FEmpty := False;
-  FPendingAutoEnd := False;
-  FStackLen := 0;
-  SetLength(FStack, 0);
-  SetLength(FNSStack, 0); FNSLen := 0;
-  // 初始化编码检测状态
-  FDetectedEnc := deUnknown;
+  repeat
+    LRead := AStream.Read(LChunk, SizeOf(LChunk));
+    if LRead > 0 then
+    begin
+      SetLength(LRawInput, Length(LRawInput) + LRead);
+      Move(LChunk[0], LRawInput[Length(LRawInput) - LRead + 1], LRead);
+    end;
+  until LRead = 0;
 
-  // 标记来源为流
-  FSourceKind := skStream;
-  // 初始化转码模式与暂存
-  FTransMode := tmNone; FCarryLen := 0; SetLength(FTransPendingRaw, 0);
+  try
+    LUtf8Input := XmlDecodeStreamBytesToUtf8(LRawInput, AFlags, LDetectedEnc, LDeferredReadError);
+  except
+    on E: EXmlParseError do
+    begin
+      LUtf8Input := '';
+      LDeferredReadError.Code := E.Code;
+      LDeferredReadError.Message := E.Message;
+      LDeferredReadError.Position := E.Position;
+      LDeferredReadError.Line := E.Line;
+      LDeferredReadError.Column := E.Column;
+      LDetectedEnc := deUnknown;
+    end;
+  end;
 
-  Result := Self;
+  Result := ReadFromString(String(LUtf8Input), AFlags);
+  FSourceKind := skString;
+  FDetectedEnc := LDetectedEnc;
+  FDeferredReadError := LDeferredReadError;
 end;
 
 function TXmlReaderImpl.ReadFromString(const AText: String; AFlags: TXmlReadFlags): IXmlReader;
 begin
+  ReleaseStreamSource;
+  FSourceKind := skString;
   FText := AText;
   FBuf := PChar(FText);
   FCur := FBuf;
@@ -1571,8 +1807,13 @@ begin
   SetLength(FNSStack, 0); FNSLen := 0;
   SetLength(FAttrs, 0); FAttrCount := 0;
   SetLength(FScratch, 0);
+  FDetectedEnc := deUnknown;
+  FDeferredReadError.Clear;
   // 初始化 Freeze 构建状态
-  FBuildDoc := nil; SetLength(FNodeIdxStack, 0); FNodeIdxLen := 0;
+  FBuildDoc := nil;
+  FBuildDocRef := nil;
+  SetLength(FNodeIdxStack, 0);
+  FNodeIdxLen := 0;
   Result := Self;
 end;
 
@@ -1603,17 +1844,33 @@ end;
 function TXmlReaderImpl.ReadFromFile(const AFileName: String; AFlags: TXmlReadFlags; InitialBufCap: SizeUInt): IXmlReader;
 var FS: TFileStream;
 begin
-  // 直接走流式路径，避免一次性读入内存，且由 Reader 负责释放文件流
+  // 当前以全量缓冲 fallback 兜底，读取后立即释放文件句柄
   FS := TFileStream.Create(AFileName, fmOpenRead or fmShareDenyNone);
-  Result := ReadFromStream(FS, AFlags, InitialBufCap);
-  // Reader 接管流所有权以确保生命周期
-  FOwnsStream := True;
+  try
+    Result := ReadFromStream(FS, AFlags, InitialBufCap);
+  finally
+    FS.Free;
+  end;
 end;
 
 function TXmlReaderImpl.Read: Boolean;
 var S: PChar; idx, jj: SizeUInt; PfxLen: SizeUInt; Pfx: String; Coalesce: Boolean;
     StartDecl: PChar; DeclLen: SizeUInt; Seg: AnsiString; encPos, eqPos, endq: SizeInt; rest, encName: String; q: Char; SegBuf: AnsiString;
+    LDeferredReadError: TXmlError;
 begin
+  if FDeferredReadError.HasError then
+  begin
+    LDeferredReadError := FDeferredReadError;
+    FDeferredReadError.Clear;
+    raise EXmlParseError.Create(
+      LDeferredReadError.Code,
+      LDeferredReadError.Message,
+      LDeferredReadError.Position,
+      LDeferredReadError.Line,
+      LDeferredReadError.Column
+    );
+  end;
+
   // 流式路径：如标记需要压实则压实后再进入流式循环
   if FSourceKind = skStream then
   begin
@@ -2857,7 +3114,11 @@ begin
   Result := nil;
   if FToken<>xtStartElement then Exit;
   // 懒创建文档容器（跨多次 Freeze 复用）
-  if FBuildDoc=nil then FBuildDoc := TXmlDocumentImpl.Create;
+  if FBuildDoc=nil then
+  begin
+    FBuildDoc := TXmlDocumentImpl.Create;
+    FBuildDocRef := FBuildDoc;
+  end;
   // 构造节点
   FillChar(N, SizeOf(N), 0);
   N.Kind := xtStartElement;
@@ -2990,6 +3251,11 @@ end;
 function TXmlReaderImpl.ReadAllToDocument: IXmlDocument;
 begin
   Result := XmlReadAllToDocument(Self);
+end;
+
+function TXmlReaderImpl.GetBuildDocument: IXmlDocument;
+begin
+  Result := FBuildDocRef;
 end;
 
 

@@ -46,8 +46,7 @@ begin
     while R.Read do
       if R.Token = xtText then begin SetLength(Texts, Length(Texts)+1); Texts[High(Texts)] := R.Value; end;
     AssertTrue('should see at least one text', Length(Texts) >= 1);
-    AssertTrue('entity decoded', Pos('&', Texts[0]) = 0);
-    AssertTrue('content contains abcd', Pos('abcd', Texts[0]) > 0);
+    AssertEquals('decoded text', 'ab&cd', Texts[0]);
   finally
     MS.Free;
   end;
