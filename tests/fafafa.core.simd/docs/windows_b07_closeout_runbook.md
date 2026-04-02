@@ -11,7 +11,7 @@
 
 - Linux/Git Bash/WSL 侧命令统一前缀：`FAFAFA_BUILD_MODE=Release`
 - Windows PowerShell 先设置：`$env:FAFAFA_BUILD_MODE = 'Release'`
-- Gate 回灌阶段启用 fail-close：`SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1`
+- Gate 回灌阶段启用 fail-close，并补 fresh cpuinfo non-x86 evidence：`SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1` + `SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1`
 
 ## 推荐顺序（主路径）
 
@@ -28,7 +28,7 @@
 - `win-evidence-via-gh` 会把批次快照写到 `tests/fafafa.core.simd/logs/windows-closeout/<batch-id>/`，并同步回写 canonical `logs/` 指针，方便 `freeze-status` 默认入口直接消费。
 - 默认 `win-evidence-via-gh` 会消费远端 ref。如果本地还有未提交或未推送的 closeout 修复，请先提交并推到目标 ref；否则脚本会直接拒绝 dispatch，避免浪费一轮 Windows runner。
 - 若你已经有可复用的 GH Actions `run-id`，可执行 `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh SIMD-YYYYMMDD-152 <run-id>`。这条旁路会跳过 dispatch，只做下载、校验与 finalize，因此不会再因为本地 dirty worktree / remote ref mismatch 被误拒。
-- `win-evidence-via-gh` 在下载并校验证据后，会自动补一轮 `SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1` 的 Linux cross gate，再进入 `win-closeout-finalize`。
+- `win-evidence-via-gh` 在下载并校验证据后，会自动补一轮 `SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1` + `SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1` 的 Linux cross gate，再进入 `win-closeout-finalize`。
 - `win-closeout-finalize` 是推荐主入口；它内部顺序固定为 `finalize -> freeze-status -> apply`。`finalize-win-evidence` 仅保留给拆分诊断或低层 helper 调用。
 - `win-evidence-preflight` 现在会先扫描最近 failed run 的 `gh run view` 文本，再检查 Windows job 的 `check_run_url` annotations；只要命中 billing/quota/runner block 关键词，就会 fail-close 为 `RECENT_BILLING_BLOCK`。
 
@@ -40,7 +40,7 @@
    `$env:FAFAFA_BUILD_MODE = 'Release'`
    `tests\fafafa.core.simd\buildOrTest.bat evidence-win-verify`
 3. 回灌 cross gate（Git Bash / WSL，必需）
-   `FAFAFA_BUILD_MODE=Release SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+   `FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
 4. 一键收口（Git Bash / WSL）
    `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize SIMD-YYYYMMDD-152`
 5. 最终冻结确认（Git Bash / WSL）
@@ -77,7 +77,7 @@
 0. `powershell -NoProfile -Command "$env:FAFAFA_BUILD_MODE='Release'"`
 1. `tests\fafafa.core.simd\buildOrTest.bat evidence-win`
 2. `tests\fafafa.core.simd\buildOrTest.bat verify-win-evidence`
-3. `FAFAFA_BUILD_MODE=Release SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+3. `FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
 4. `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize SIMD-YYYYMMDD-152`
 5. `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
 

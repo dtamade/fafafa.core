@@ -1323,6 +1323,39 @@ check_windows_gate_summary_helper_guard() {
   echo "[CHECK] OK (Windows gate-summary helper guard present)"
 }
 
+check_windows_manual_closeout_guard_source_safety() {
+  local LShell
+
+  LShell="${ROOT}/BuildOrTest.sh"
+  if [[ ! -f "${LShell}" ]]; then
+    echo "[CHECK] Missing Windows manual closeout guard source-safety target: ${LShell}"
+    return 1
+  fi
+
+  if ! python3 - "${LShell}" <<'PY'
+from pathlib import Path
+import re
+import sys
+
+text = Path(sys.argv[1]).read_text()
+match = re.search(r'^check_windows_manual_closeout_guard\(\) \{.*?^}$', text, re.S | re.M)
+if match is None:
+    print("[CHECK] Missing check_windows_manual_closeout_guard body")
+    sys.exit(1)
+
+body = match.group(0).replace("\\`", "")
+if re.search(r'"[^"\n]*`[^"\n]*"', body):
+    sys.exit(1)
+PY
+  then
+    echo "[CHECK] Windows manual closeout guard contains raw backticks inside double-quoted literals"
+    echo "[CHECK] Escape inline-code backticks or switch to a non-interpolating literal to avoid command substitution"
+    return 1
+  fi
+
+  echo "[CHECK] OK (Windows manual closeout guard source-safe)"
+}
+
 check_windows_manual_closeout_guard() {
   local L3Cmd
   local LRunbook
@@ -1371,44 +1404,52 @@ check_windows_manual_closeout_guard() {
   LMissing=0
   L3CmdRequired=(
     '2.2 Git Bash / WSL 回灌 cross gate（必需，native batch evidence 不会生成 fresh gate_summary）'
-    'FAFAFA_BUILD_MODE=Release SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate'
-    '- 手工 Windows 实机路径必须先显式补一轮 `SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1` 的 Linux cross gate；`win-closeout-finalize` 自己不会回灌 gate。'
+    "FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate"
+    'SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1'
+    '- 手工 Windows 实机路径必须先显式补一轮 `SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1` + `SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1` 的 Linux cross gate；`win-closeout-finalize` 自己不会回灌 gate。'
   )
   LRunbookRequired=(
     '3. 回灌 cross gate（Git Bash / WSL，必需）'
-    '`FAFAFA_BUILD_MODE=Release SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate`'
+    "\`FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate\`"
+    'SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1'
     '- 因此手工 Windows 实机路径在 finalize 前必须显式补跑 fail-close cross gate；否则 `freeze-status` 只会继续消费旧的 `gate_summary.md`。'
   )
   LCloseoutDocRequired=(
     'Then run the required fail-close cross gate:'
-    'FAFAFA_BUILD_MODE=Release SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate'
+    "FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate"
+    'SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1'
     'native batch evidence 不会生成 fresh `gate_summary.md/json`'
   )
   LCloseoutChecklistRequired=(
     '0.1) 或直接使用 GH 单命令闭环（推荐）'
     'FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh SIMD-20260320-152'
     '2) Git Bash / WSL 回灌 fail-close cross gate（必需）'
-    'FAFAFA_BUILD_MODE=Release SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate'
+    "FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate"
+    'SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1'
     '不能从 `evidence-win-verify` 直接跳到 `win-closeout-finalize`'
   )
   LCloseoutRoadmapRequired=(
     'FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight'
-    'FAFAFA_BUILD_MODE=Release SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate'
+    "FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate"
+    'SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1'
     'FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize SIMD-YYYYMMDD-152'
   )
   LCloseoutTemplateRequired=(
     '先回灌 fail-close cross gate'
-    'FAFAFA_BUILD_MODE=Release SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate'
+    "FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate"
+    'SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1'
     '不能从 `evidence-win-verify` 直接跳到 `finalize-win-evidence` 或 `win-closeout-finalize`'
   )
   LHandoffRequired=(
     'FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh SIMD-YYYYMMDD-152'
     'FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status'
-    'evidence-win-verify -> SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 gate -> win-closeout-finalize -> freeze-status'
+    'SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1'
+    'evidence-win-verify -> SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 + SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 gate -> win-closeout-finalize -> freeze-status'
   )
   LReleaseChecklistRequired=(
     'FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-preflight'
-    'FAFAFA_BUILD_MODE=Release SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate'
+    "FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate"
+    'SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1'
     'FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status'
   )
   LCompletenessMatrixRequired=(
@@ -1416,12 +1457,14 @@ check_windows_manual_closeout_guard() {
     'FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh SIMD-YYYYMMDD-152'
   )
   LFullPlatformPlanRequired=(
-    'FAFAFA_BUILD_MODE=Release SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate'
+    "FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate"
+    'SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1'
     'FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize SIMD-YYYYMMDD-152'
   )
   LTopChecklistRequired=(
     '真正的 Windows 收口主线应优先使用 `win-evidence-via-gh`。'
-    '若走手工 Windows 实机路径，则必须先跑 `FAFAFA_BUILD_MODE=Release SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate`，再执行 `win-closeout-finalize`。'
+    "若走手工 Windows 实机路径，则必须先跑 \`FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate\`，再执行 \`win-closeout-finalize\`。"
+    'SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1'
   )
 
   for LPattern in "${L3CmdRequired[@]}"; do
@@ -1533,9 +1576,9 @@ check_windows_closeout_helper_runtime_guard() {
 
   LRequired=(
     'FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-evidence-via-gh SIMD-CHECK-3CMD'
-    'FAFAFA_BUILD_MODE=Release SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate'
+    "FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate"
     '- `win-evidence-via-gh` 现在会把中间态快照落到 `tests/fafafa.core.simd/logs/windows-closeout/SIMD-CHECK-3CMD/`，同时回写 canonical `logs/` 指针。'
-    '- 手工 Windows 实机路径必须先显式补一轮 `SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1` 的 Linux cross gate；`win-closeout-finalize` 自己不会回灌 gate。'
+    '- 手工 Windows 实机路径必须先显式补一轮 `SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1` + `SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1` 的 Linux cross gate；`win-closeout-finalize` 自己不会回灌 gate。'
   )
 
   for LPattern in "${LRequired[@]}"; do
@@ -1546,6 +1589,44 @@ check_windows_closeout_helper_runtime_guard() {
   done
 
   echo "[CHECK] OK (Windows closeout helper runtime guard present)"
+}
+
+check_windows_via_gh_cross_gate_guard() {
+  local LViaGHScript
+  local LPattern
+  local -a LRequired
+
+  LViaGHScript="${ROOT}/run_windows_b07_closeout_via_github_actions.sh"
+  if [[ ! -f "${LViaGHScript}" ]]; then
+    echo "[CHECK] Missing Windows via-gh cross gate target: ${LViaGHScript}"
+    return 1
+  fi
+
+  LRequired=(
+    'SIMD_QEMU_PLATFORMS="${SIMD_QEMU_PLATFORMS:-linux/arm/v7 linux/arm64 linux/riscv64}" \'
+    'SIMD_GATE_QEMU_NONX86_EVIDENCE="${SIMD_GATE_QEMU_NONX86_EVIDENCE:-0}" \'
+    'SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE="${SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE:-1}" \'
+    'SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE="${SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE:-0}" \'
+    'SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT="${SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT:-0}" \'
+    'SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE="${SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE:-0}" \'
+    'SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 \'
+    'bash "${ROOT}/BuildOrTest.sh" gate'
+    'LBackfillOutputRoot="${SIMD_OUTPUT_ROOT:-${ROOT}}"'
+    'LBackfillGateSummaryMd="${LBackfillOutputRoot}/logs/gate_summary.md"'
+    'LBackfillGateSummaryJson="${LBackfillOutputRoot}/logs/gate_summary.json"'
+    'echo "[WIN-EVIDENCE-GH] Backfill gate summary md: ${LBackfillGateSummaryMd}"'
+    'LFreezeGateSummaryFile="${LCanonicalGateSummaryMd}"'
+    'export SIMD_FREEZE_GATE_SUMMARY_FILE="${LFreezeGateSummaryFile}"'
+  )
+
+  for LPattern in "${LRequired[@]}"; do
+    if ! grep -F -- "${LPattern}" "${LViaGHScript}" >/dev/null; then
+      echo "[CHECK] Windows via-gh cross gate missing pattern: ${LPattern}"
+      return 1
+    fi
+  done
+
+  echo "[CHECK] OK (Windows via-gh cross gate guard present)"
 }
 
 check_gate_summary_json_runtime_guard() {
@@ -3684,8 +3765,10 @@ gate_step_build_check() {
   check_windows_evidence_collector_guard || return $?
   check_windows_simulated_evidence_guard || return $?
   check_windows_gate_summary_helper_guard || return $?
+  check_windows_manual_closeout_guard_source_safety || return $?
   check_windows_manual_closeout_guard || return $?
   check_windows_closeout_helper_runtime_guard || return $?
+  check_windows_via_gh_cross_gate_guard || return $?
   check_gate_summary_json_runtime_guard || return $?
   check_perf_smoke_scalar_guard || return $?
   check_perf_smoke_public_abi_shape_guard || return $?
@@ -4987,8 +5070,10 @@ case "${ACTION}" in
   check_windows_evidence_collector_guard
   check_windows_simulated_evidence_guard
   check_windows_gate_summary_helper_guard
+  check_windows_manual_closeout_guard_source_safety
   check_windows_manual_closeout_guard
   check_windows_closeout_helper_runtime_guard
+  check_windows_via_gh_cross_gate_guard
   check_gate_summary_json_runtime_guard
   check_perf_smoke_scalar_guard
   check_perf_smoke_public_abi_shape_guard

@@ -1,5 +1,6 @@
 unit fafafa.core.simd.bench;
 
+{$mode objfpc}{$H+}
 {$I ../../src/fafafa.core.settings.inc}
 {$CODEPAGE UTF8}
 
