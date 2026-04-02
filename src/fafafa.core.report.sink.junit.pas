@@ -2,6 +2,8 @@ unit fafafa.core.report.sink.junit;
 
 {$mode objfpc}{$H+}
 {$I fafafa.core.settings.inc}
+{$push}
+{$warn 5024 off}
 
 interface
 
@@ -22,23 +24,38 @@ type
     FWriteSystemOut: Boolean;
     function JUnitXmlEscape(const S: string): string; inline;
     procedure EnsureHeaderPlaceholder;
-    procedure ReplaceHeader(const ATotalFailed: Integer);
+    procedure ReplaceHeader;
     procedure SplitMessage(const AMessage: string; out AMain, ADetails: string);
   public
     constructor Create(const AFileName: string);
     destructor Destroy; override;
 {$push}
 {$warn 5024 off}
-    procedure SuiteStart(ATotal: Integer);
-    procedure CaseStart(const AName: string);
+    procedure SuiteStart({%H-}ATotal: Integer);
+    procedure CaseStart(const {%H-}AName: string);
     procedure CaseSuccess(const AName: string; AElapsedMs: QWord);
     procedure CaseFailure(const AName, AMessage: string; AElapsedMs: QWord);
     procedure CaseSkipped(const AName: string; AElapsedMs: QWord);
-    procedure SuiteEnd(ATotal, AFailed: Integer; AElapsedMs: QWord);
+    procedure SuiteEnd({%H-}ATotal, {%H-}AFailed: Integer; {%H-}AElapsedMs: QWord);
 {$pop}
   end;
 
 implementation
+
+procedure IgnoreInt(const AValue: Integer); inline;
+begin
+  if AValue = Low(Integer) then ;
+end;
+
+procedure IgnoreQWord(const AValue: QWord); inline;
+begin
+  if AValue = High(QWord) then ;
+end;
+
+procedure IgnoreString(const AValue: string); inline;
+begin
+  if AValue = '' then ;
+end;
 
 constructor TReportJUnitSink.Create(const AFileName: string);
 begin
@@ -69,7 +86,7 @@ begin
   end;
 end;
 
-procedure TReportJUnitSink.ReplaceHeader(const ATotalFailed: Integer);
+procedure TReportJUnitSink.ReplaceHeader;
 var i: Integer; totalSec: Double; suiteHdr: string;
 begin
   totalSec := (GetTickCount64 - FStartTick) / 1000.0;
@@ -103,6 +120,7 @@ end;
 
 procedure TReportJUnitSink.SuiteStart({%H-}ATotal: Integer);
 begin
+  IgnoreInt(ATotal);
   FStartTick := GetTickCount64;
   FFailures := 0; FSkipped := 0; FSeen := 0;
   FHost := GetHostNameCross;
@@ -112,6 +130,7 @@ end;
 
 procedure TReportJUnitSink.CaseStart(const {%H-}AName: string);
 begin
+  IgnoreString(AName);
   // no-op
 end;
 
@@ -185,10 +204,15 @@ end;
 
 procedure TReportJUnitSink.SuiteEnd({%H-}ATotal, {%H-}AFailed: Integer; {%H-}AElapsedMs: QWord);
 begin
-  ReplaceHeader(AFailed);
+  IgnoreInt(ATotal);
+  IgnoreInt(AFailed);
+  IgnoreQWord(AElapsedMs);
+  ReplaceHeader;
   FOut.Add('</testsuite>');
   if FOutFile <> '' then FOut.SaveToFile(FOutFile) else WriteLn(FOut.Text);
 end;
+
+{$pop}
 
 end.
 

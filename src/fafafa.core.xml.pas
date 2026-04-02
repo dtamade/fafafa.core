@@ -12,7 +12,6 @@ interface
 
 uses
   SysUtils, Classes,
-  fafafa.core.base,
   fafafa.core.mem.allocator;
 
 type
@@ -152,15 +151,15 @@ type
   ['{A4B5C6D7-E8F9-4A0B-9123-4567890ABCDE}']
     // 源读取
     function ReadFromString(const AText: String): IXmlReader; overload;
-    function ReadFromString(const AText: String; AFlags: TXmlReadFlags): IXmlReader; overload;
+    function ReadFromString(const {%H-}AText: String; {%H-}AFlags: TXmlReadFlags): IXmlReader; overload;
     function ReadFromStringN(ABuf: PChar; ALength: SizeUInt): IXmlReader; overload;
-    function ReadFromStringN(ABuf: PChar; ALength: SizeUInt; AFlags: TXmlReadFlags): IXmlReader; overload;
+    function ReadFromStringN({%H-}ABuf: PChar; {%H-}ALength: SizeUInt; {%H-}AFlags: TXmlReadFlags): IXmlReader; overload;
     function ReadFromStream(AStream: TStream): IXmlReader; overload;
     function ReadFromStream(AStream: TStream; AFlags: TXmlReadFlags): IXmlReader; overload;
-    function ReadFromStream(AStream: TStream; AFlags: TXmlReadFlags; InitialBufCap: SizeUInt): IXmlReader; overload;
+    function ReadFromStream({%H-}AStream: TStream; {%H-}AFlags: TXmlReadFlags; {%H-}InitialBufCap: SizeUInt): IXmlReader; overload;
     function ReadFromFile(const AFileName: String): IXmlReader; overload;
-    function ReadFromFile(const AFileName: String; AFlags: TXmlReadFlags): IXmlReader; overload;
-    function ReadFromFile(const AFileName: String; AFlags: TXmlReadFlags; InitialBufCap: SizeUInt): IXmlReader; overload;
+    function ReadFromFile(const {%H-}AFileName: String; {%H-}AFlags: TXmlReadFlags): IXmlReader; overload;
+    function ReadFromFile(const {%H-}AFileName: String; {%H-}AFlags: TXmlReadFlags; {%H-}InitialBufCap: SizeUInt): IXmlReader; overload;
 
     // 便捷：读完构建最小 DOM
     function ReadAllToDocument: IXmlDocument; inline;
@@ -321,7 +320,7 @@ function XmlReadAllToDocument(const R: IXmlReader): IXmlDocument; overload;
 function XmlEscapeXML10Strict(const S: String): String;
 
 // 工厂
-function CreateXmlReader(AAllocator: IAllocator = nil): IXmlReader;
+function CreateXmlReader({%H-}AAllocator: IAllocator = nil): IXmlReader;
 function CreateXmlWriter: IXmlWriter;
 
 implementation
@@ -637,6 +636,8 @@ const
   XMLNS_URI    = 'http://www.w3.org/2000/xmlns/';
 
 
+{$push}
+{$warn 5057 off}
 function ReadAllToAnsiString(AStream: TStream): AnsiString;
 const
   BUF_SIZE = 256 * 1024; // 256KB
@@ -648,6 +649,7 @@ var
   ReadBytes: SizeInt;
   Buf: array[0..BUF_SIZE-1] of AnsiChar;
 begin
+  Acc := '';
   // 尝试快速路径：已知剩余大小
   try
     Remain := AStream.Size - AStream.Position;
@@ -667,7 +669,7 @@ begin
   Cap := 0;
   SetLength(Acc, 0);
   repeat
-    ReadBytes := AStream.Read(Buf, SizeOf(Buf));
+    ReadBytes := AStream.Read(Buf[0], SizeOf(Buf));
     if ReadBytes > 0 then
     begin
       OldLen := Length(Acc);
@@ -684,6 +686,7 @@ begin
   until ReadBytes = 0;
   Result := Acc;
 end;
+{$pop}
 
 
 type
@@ -824,7 +827,7 @@ type
     function RingWritableSize: SizeUInt; inline;
     function RingReadableSize: SizeUInt; inline;
     function RefillAtLeast(AMin: SizeUInt): Boolean; // 确保至少 AMin 可读（必要时压实）
-    function TranscodeRefill(AMin: SizeUInt): Boolean; // 当启用转码模式时，增量补给 UTF-8
+    function TranscodeRefill({%H-}AMin: SizeUInt): Boolean; // 当启用转码模式时，增量补给 UTF-8
     procedure CompactWindow; // 在 token 边界压实；保证切片在下一次 Read 前有效
     procedure ReleaseStreamSource; inline;
     procedure AdvanceWindowToCur; inline; // 丢弃 [窗口起点, FCur) 数据并压实
@@ -858,24 +861,24 @@ type
     function IsEmptyElement: Boolean; inline;
 
     function GetAttributeCount: SizeUInt; inline;
-    function GetAttributeName(AIndex: SizeUInt): String; inline;
-    function GetAttributeLocalName(AIndex: SizeUInt): String; inline;
-    function GetAttributePrefix(AIndex: SizeUInt): String; inline;
-    function GetAttributeNamespaceURI(AIndex: SizeUInt): String; inline;
-    function GetAttributeValue(AIndex: SizeUInt): String; inline;
-    function TryGetAttribute(const AName: String; out AValue: String): Boolean; inline;
+    function GetAttributeName({%H-}AIndex: SizeUInt): String; inline;
+    function GetAttributeLocalName({%H-}AIndex: SizeUInt): String; inline;
+    function GetAttributePrefix({%H-}AIndex: SizeUInt): String; inline;
+    function GetAttributeNamespaceURI({%H-}AIndex: SizeUInt): String; inline;
+    function GetAttributeValue({%H-}AIndex: SizeUInt): String; inline;
+    function TryGetAttribute(const {%H-}AName: String; out AValue: String): Boolean; inline;
 
     function GetNameN(out P: PChar; out Len: SizeUInt): Boolean; inline;
     function GetLocalNameN(out P: PChar; out Len: SizeUInt): Boolean; inline;
     function GetPrefixN(out P: PChar; out Len: SizeUInt): Boolean; inline;
     function GetNamespaceURIN(out P: PChar; out Len: SizeUInt): Boolean; inline;
     function GetValueN(out P: PChar; out Len: SizeUInt): Boolean; inline;
-    function GetAttributeNameN(AIndex: SizeUInt; out P: PChar; out Len: SizeUInt): Boolean; inline;
-    function GetAttributeLocalNameN(AIndex: SizeUInt; out P: PChar; out Len: SizeUInt): Boolean; inline;
-    function GetAttributePrefixN(AIndex: SizeUInt; out P: PChar; out Len: SizeUInt): Boolean; inline;
-    function GetAttributeNamespaceURIN(AIndex: SizeUInt; out P: PChar; out Len: SizeUInt): Boolean; inline;
-    function GetAttributeValueN(AIndex: SizeUInt; out P: PChar; out Len: SizeUInt): Boolean; inline;
-    function TryGetAttributeN(const AName: PChar; ANameLen: SizeUInt; out P: PChar; out Len: SizeUInt): Boolean; inline;
+    function GetAttributeNameN({%H-}AIndex: SizeUInt; out P: PChar; out Len: SizeUInt): Boolean; inline;
+    function GetAttributeLocalNameN({%H-}AIndex: SizeUInt; out P: PChar; out Len: SizeUInt): Boolean; inline;
+    function GetAttributePrefixN({%H-}AIndex: SizeUInt; out P: PChar; out Len: SizeUInt): Boolean; inline;
+    function GetAttributeNamespaceURIN({%H-}AIndex: SizeUInt; out P: PChar; out Len: SizeUInt): Boolean; inline;
+    function GetAttributeValueN({%H-}AIndex: SizeUInt; out P: PChar; out Len: SizeUInt): Boolean; inline;
+    function TryGetAttributeN(const {%H-}AName: PChar; {%H-}ANameLen: SizeUInt; out P: PChar; out Len: SizeUInt): Boolean; inline;
 
     function FreezeCurrentNode: IXmlNode;
     function GetBuildDocument: IXmlDocument;
@@ -902,6 +905,9 @@ begin
   Result := Format('Code=%d, Line=%d, Col=%d, Pos=%d, Msg=%s',
     [Ord(Code), Line, Column, Position, Message]);
 end;
+
+{$push}
+{$warn 5024 off}
 
 // 简易占位实现：返回空实现，便于后续逐步替换
 
@@ -1063,6 +1069,8 @@ function TXmlReaderStub.ReadAllToDocument: IXmlDocument; inline;
 begin
   Result := XmlReadAllToDocument(Self);
 end;
+
+{$pop}
 
 
 type
@@ -1741,6 +1749,8 @@ begin
   Result := ReadFromStream(AStream, AFlags, INIT_CAP);
 end;
 
+{$push}
+{$warn 5057 off}
 function TXmlReaderImpl.ReadFromStream(AStream: TStream; AFlags: TXmlReadFlags; InitialBufCap: SizeUInt): IXmlReader;
 var
   LRawInput: RawByteString;
@@ -1755,7 +1765,7 @@ begin
   LDeferredReadError.Clear;
 
   repeat
-    LRead := AStream.Read(LChunk, SizeOf(LChunk));
+    LRead := AStream.Read(LChunk[0], SizeOf(LChunk));
     if LRead > 0 then
     begin
       SetLength(LRawInput, Length(LRawInput) + LRead);
@@ -1783,6 +1793,7 @@ begin
   FDetectedEnc := LDetectedEnc;
   FDeferredReadError := LDeferredReadError;
 end;
+{$pop}
 
 function TXmlReaderImpl.ReadFromString(const AText: String; AFlags: TXmlReadFlags): IXmlReader;
 begin
@@ -2461,8 +2472,9 @@ begin
   end;
 end;
 
-function TXmlReaderImpl.TranscodeRefill(AMin: SizeUInt): Boolean;
+function TXmlReaderImpl.TranscodeRefill({%H-}AMin: SizeUInt): Boolean;
 begin
+  if AMin = 0 then ;
   Result := False;
   raise EXmlParseError.Create(xecInvalidEncoding,
     'Internal error: TranscodeRefill called but transcoding is not implemented',
@@ -3120,7 +3132,7 @@ begin
     FBuildDocRef := FBuildDoc;
   end;
   // 构造节点
-  FillChar(N, SizeOf(N), 0);
+  N := Default(TXmlNodeRec);
   N.Kind := xtStartElement;
   N.Parent := High(SizeUInt);
   N.FirstChild := High(SizeUInt);
@@ -3280,6 +3292,9 @@ var
   SB: TStringBuilder;
 begin
   // 拷贝到临时数组进行排序/去重，不影响后续组
+  Arr := nil;
+  OutArr := nil;
+  EscVals := nil;
   C := G.Count;
   SetLength(Arr, C);
   for i := 0 to C-1 do Arr[i] := G.Attrs[i];
@@ -3962,8 +3977,9 @@ begin
   end;
 end;
 
-function CreateXmlReader(AAllocator: IAllocator): IXmlReader;
+function CreateXmlReader({%H-}AAllocator: IAllocator): IXmlReader;
 begin
+  if AAllocator <> nil then ;
   Result := TXmlReaderImpl.Create;
 end;
 

@@ -2,6 +2,8 @@ unit fafafa.core.report.sink.console;
 
 {$mode objfpc}{$H+}
 {$I fafafa.core.settings.inc}
+{$push}
+{$warn 5024 off}
 
 interface
 
@@ -30,16 +32,31 @@ type
     constructor Create;
 {$push}
 {$warn 5024 off}
-    procedure SuiteStart(ATotal: Integer);
-    procedure CaseStart(const AName: string);
+    procedure SuiteStart({%H-}ATotal: Integer);
+    procedure CaseStart(const {%H-}AName: string);
     procedure CaseSuccess(const AName: string; AElapsedMs: QWord);
     procedure CaseFailure(const AName, AMessage: string; AElapsedMs: QWord);
     procedure CaseSkipped(const AName: string; AElapsedMs: QWord);
-    procedure SuiteEnd(ATotal, AFailed: Integer; AElapsedMs: QWord);
+    procedure SuiteEnd({%H-}ATotal, {%H-}AFailed: Integer; {%H-}AElapsedMs: QWord);
 {$pop}
   end;
 
 implementation
+
+procedure IgnoreInt(const AValue: Integer); inline;
+begin
+  if AValue = Low(Integer) then ;
+end;
+
+procedure IgnoreQWord(const AValue: QWord); inline;
+begin
+  if AValue = High(QWord) then ;
+end;
+
+procedure IgnoreString(const AValue: string); inline;
+begin
+  if AValue = '' then ;
+end;
 
 constructor TReportConsoleSink.Create;
 begin
@@ -54,6 +71,7 @@ end;
 procedure TReportConsoleSink.SuiteStart({%H-}ATotal: Integer);
 var s: string; v: Integer;
 begin
+  IgnoreInt(ATotal);
   FStartTick := GetTickCount64;
   FSeen := 0; FFailed := 0;
   // optional runtime override for time column width
@@ -71,6 +89,7 @@ end;
 
 procedure TReportConsoleSink.CaseStart(const {%H-}AName: string);
 begin
+  IgnoreString(AName);
   // no-op for now
 end;
 
@@ -110,6 +129,9 @@ end;
 procedure TReportConsoleSink.SuiteEnd({%H-}ATotal, {%H-}AFailed: Integer; {%H-}AElapsedMs: QWord);
 var total: QWord;
 begin
+  IgnoreInt(ATotal);
+  IgnoreInt(AFailed);
+  IgnoreQWord(AElapsedMs);
   total := GetTickCount64 - FStartTick;
   if FFailed = 0 then
     OutLine(Format('== All %d test(s) passed in %d ms ==', [FSeen, total]))
@@ -166,5 +188,6 @@ begin
 end;
 {$ENDIF}
 
+{$pop}
 
 end.
