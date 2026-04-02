@@ -66,12 +66,16 @@ uses
   fafafa.core.time.cpu
   {$IFDEF MSWINDOWS}
   , fafafa.core.time.tick.windows
-  {$ELSEIF DEFINED(DARWIN)}
-  , fafafa.core.time.tick.darwin
-  {$ELSEIF DEFINED(UNIX)}
-  , fafafa.core.time.tick.unix
   {$ELSE}
-    {$MESSAGE ERROR 'Unsupported platform for fafafa.core.time.tick.hardware.armv7a'}
+    {$IFDEF DARWIN}
+  , fafafa.core.time.tick.darwin
+    {$ELSE}
+      {$IFDEF UNIX}
+  , fafafa.core.time.tick.unix
+      {$ELSE}
+        {$MESSAGE ERROR 'Unsupported platform for fafafa.core.time.tick.hardware.armv7a'}
+      {$ENDIF}
+    {$ENDIF}
   {$ENDIF};
 
 {$if defined(CPUARM) and defined(ARMV7A) and defined(FAFAFA_USE_ARCH_TIMER)}
