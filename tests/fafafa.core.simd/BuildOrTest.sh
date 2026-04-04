@@ -2170,6 +2170,8 @@ check_nonx86_native_evidence_runner_guard() {
     'run_nonx86_native_evidence "$@"'
     'native-evidence-via-gh)'
     'run_nonx86_native_evidence_via_gh "$@"'
+    'check_nonx86_native_evidence_via_gh_runtime_guard() {'
+    'check_nonx86_native_evidence_via_gh_runtime_guard || return $?'
     'native-evidence|'
     'native-evidence-via-gh|'
     'echo "Native host env: SIMD_NATIVE_EVIDENCE_RUNNER=canonical|direct-fpc, SIMD_NATIVE_EVIDENCE_ENABLE_BACKEND_ASM=1"'
@@ -2200,6 +2202,231 @@ check_nonx86_native_evidence_runner_guard() {
   fi
 
   echo "[CHECK] OK (non-x86 native evidence runner guard present)"
+}
+
+check_nonx86_native_evidence_via_gh_runtime_guard() {
+  local LGhHelper
+  local LTmpRoot
+  local LReuseBinDir
+  local LReuseDownloadRoot
+  local LReuseOutput
+  local LReuseRC
+  local LReusePattern
+  local LReuseRunFile
+  local LReuseSummary
+  local LDirtyBinDir
+  local LDirtyDownloadRoot
+  local LDirtyOutput
+  local LDirtyRC
+  local LDirtyPattern
+  local -a LReuseRequired
+  local -a LDirtyRequired
+
+  LGhHelper="${ROOT}/run_nonx86_native_evidence_via_github_actions.sh"
+  if [[ ! -f "${LGhHelper}" ]]; then
+    echo "[CHECK] Missing non-x86 native evidence GH helper runtime target: ${LGhHelper}"
+    return 1
+  fi
+
+  LTmpRoot="$(mktemp -d)"
+  LReuseBinDir="${LTmpRoot}/reuse/bin"
+  LReuseDownloadRoot="${LTmpRoot}/reuse/downloads"
+  LDirtyBinDir="${LTmpRoot}/dirty/bin"
+  LDirtyDownloadRoot="${LTmpRoot}/dirty/downloads"
+  mkdir -p "${LReuseBinDir}" "${LDirtyBinDir}"
+
+  cat > "${LReuseBinDir}/git" <<'EOF'
+#!/usr/bin/env bash
+echo "UNEXPECTED_GIT_CALL $*" >&2
+exit 99
+EOF
+
+  cat > "${LReuseBinDir}/gh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "${1:-}" == "auth" && "${2:-}" == "status" ]]; then
+  exit 0
+fi
+
+if [[ "${1:-}" == "run" && "${2:-}" == "view" ]]; then
+  if [[ "${4:-}" == "--json" ]]; then
+    printf '%s\n' '{"status":"completed","conclusion":"success","url":"https://example.invalid/runs/424242"}'
+    exit 0
+  fi
+fi
+
+if [[ "${1:-}" == "run" && "${2:-}" == "download" ]]; then
+  LTargetDir=""
+  while (($# > 0)); do
+    case "${1}" in
+      -D)
+        LTargetDir="${2:-}"
+        shift 2
+        ;;
+      *)
+        shift
+        ;;
+    esac
+  done
+
+  if [[ -z "${LTargetDir}" ]]; then
+    echo "MISSING_DOWNLOAD_DIR" >&2
+    exit 98
+  fi
+
+  mkdir -p "${LTargetDir}"
+  cat > "${LTargetDir}/summary.md" <<'EOF_ARTIFACT'
+# summary
+backend=riscvv
+run_id=424242
+EOF_ARTIFACT
+  printf '%s\n' 'dispatch publicabi ok' > "${LTargetDir}/dispatch_publicabi.log"
+  exit 0
+fi
+
+echo "UNEXPECTED_GH_CALL $*" >&2
+exit 99
+EOF
+
+  cat > "${LDirtyBinDir}/git" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "${1:-}" == "-C" ]]; then
+  shift 2
+fi
+
+if [[ "${1:-}" == "branch" && "${2:-}" == "--show-current" ]]; then
+  printf '%s\n' 'simd-foundation'
+  exit 0
+fi
+
+if [[ "${1:-}" == "rev-parse" ]]; then
+  printf '%s\n' '0123456789abcdef0123456789abcdef01234567'
+  exit 0
+fi
+
+if [[ "${1:-}" == "ls-remote" ]]; then
+  printf '%s\trefs/heads/%s\n' '0123456789abcdef0123456789abcdef01234567' 'simd-foundation'
+  exit 0
+fi
+
+if [[ "${1:-}" == "status" ]]; then
+  printf '%s\n' ' M src/fafafa.core.simd.pas'
+  exit 0
+fi
+
+echo "UNEXPECTED_GIT_CALL $*" >&2
+exit 99
+EOF
+
+  cat > "${LDirtyBinDir}/gh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "${1:-}" == "auth" && "${2:-}" == "status" ]]; then
+  exit 0
+fi
+
+echo "UNEXPECTED_GH_CALL $*" >&2
+exit 99
+EOF
+
+  chmod +x \
+    "${LReuseBinDir}/git" \
+    "${LReuseBinDir}/gh" \
+    "${LDirtyBinDir}/git" \
+    "${LDirtyBinDir}/gh"
+
+  set +e
+  LReuseOutput="$(PATH="${LReuseBinDir}:${PATH}" \
+    SIMD_NATIVE_EVIDENCE_DOWNLOAD_ROOT="${LReuseDownloadRoot}" \
+    bash "${LGhHelper}" riscvv 424242 2>&1)"
+  LReuseRC=$?
+  set -e
+  if [[ "${LReuseRC}" != "0" ]]; then
+    echo "[CHECK] non-x86 native evidence via-gh runtime failed on run-id reuse rc=${LReuseRC}"
+    printf '%s\n' "${LReuseOutput}"
+    rm -rf "${LTmpRoot}"
+    return 1
+  fi
+
+  LReuseRequired=(
+    '[NATIVE-EVIDENCE-GH] Reuse existing workflow run: 424242'
+    '[NATIVE-EVIDENCE-GH] Download artifact: simd-riscvv-native-evidence'
+    "[NATIVE-EVIDENCE-GH] Local snapshot: ${LReuseDownloadRoot}/riscvv/run-424242"
+    "[NATIVE-EVIDENCE-GH] Summary: ${LReuseDownloadRoot}/riscvv/run-424242/summary.md"
+    "[NATIVE-EVIDENCE-GH] Dispatch/PublicAbi log: ${LReuseDownloadRoot}/riscvv/run-424242/dispatch_publicabi.log"
+  )
+  for LReusePattern in "${LReuseRequired[@]}"; do
+    if ! grep -F -- "${LReusePattern}" <<<"${LReuseOutput}" >/dev/null; then
+      echo "[CHECK] non-x86 native evidence via-gh runtime missing reuse output pattern: ${LReusePattern}"
+      printf '%s\n' "${LReuseOutput}"
+      rm -rf "${LTmpRoot}"
+      return 1
+    fi
+  done
+  if grep -F -- 'UNEXPECTED_GIT_CALL' <<<"${LReuseOutput}" >/dev/null; then
+    echo "[CHECK] non-x86 native evidence via-gh run-id reuse unexpectedly touched git hygiene"
+    printf '%s\n' "${LReuseOutput}"
+    rm -rf "${LTmpRoot}"
+    return 1
+  fi
+
+  LReuseSummary="${LReuseDownloadRoot}/riscvv/run-424242/summary.md"
+  LReuseRunFile="${LReuseDownloadRoot}/riscvv/run-424242/gh_run.txt"
+  if [[ ! -f "${LReuseSummary}" ]]; then
+    echo "[CHECK] non-x86 native evidence via-gh runtime missing downloaded summary: ${LReuseSummary}"
+    rm -rf "${LTmpRoot}"
+    return 1
+  fi
+  if [[ ! -f "${LReuseRunFile}" ]]; then
+    echo "[CHECK] non-x86 native evidence via-gh runtime missing gh_run.txt: ${LReuseRunFile}"
+    rm -rf "${LTmpRoot}"
+    return 1
+  fi
+  if ! grep -F -- 'backend=riscvv' "${LReuseRunFile}" >/dev/null || ! grep -F -- 'run_id=424242' "${LReuseRunFile}" >/dev/null; then
+    echo "[CHECK] non-x86 native evidence via-gh runtime wrote unexpected gh_run.txt payload"
+    cat "${LReuseRunFile}" || true
+    rm -rf "${LTmpRoot}"
+    return 1
+  fi
+
+  set +e
+  LDirtyOutput="$(PATH="${LDirtyBinDir}:${PATH}" \
+    SIMD_NATIVE_EVIDENCE_DOWNLOAD_ROOT="${LDirtyDownloadRoot}" \
+    bash "${LGhHelper}" riscvv 2>&1)"
+  LDirtyRC=$?
+  set -e
+  if [[ "${LDirtyRC}" != "2" ]]; then
+    echo "[CHECK] non-x86 native evidence via-gh runtime dirty-dispatch guard returned rc=${LDirtyRC} (expected 2)"
+    printf '%s\n' "${LDirtyOutput}"
+    rm -rf "${LTmpRoot}"
+    return 1
+  fi
+
+  LDirtyRequired=(
+    '[NATIVE-EVIDENCE-GH] Refuse dispatch: local worktree has uncommitted changes.'
+    '[NATIVE-EVIDENCE-GH] Commit/push or stash local SIMD changes before using GH native evidence.'
+  )
+  for LDirtyPattern in "${LDirtyRequired[@]}"; do
+    if ! grep -F -- "${LDirtyPattern}" <<<"${LDirtyOutput}" >/dev/null; then
+      echo "[CHECK] non-x86 native evidence via-gh runtime missing dirty-dispatch output pattern: ${LDirtyPattern}"
+      printf '%s\n' "${LDirtyOutput}"
+      rm -rf "${LTmpRoot}"
+      return 1
+    fi
+  done
+  if grep -F -- '[NATIVE-EVIDENCE-GH] Dispatch workflow:' <<<"${LDirtyOutput}" >/dev/null; then
+    echo "[CHECK] non-x86 native evidence via-gh runtime dirty-dispatch guard still reached workflow dispatch"
+    printf '%s\n' "${LDirtyOutput}"
+    rm -rf "${LTmpRoot}"
+    return 1
+  fi
+
+  rm -rf "${LTmpRoot}"
+  echo "[CHECK] OK (non-x86 native evidence via-gh runtime guard present)"
 }
 
 check_restore_nightly_evidence_runner_guard() {
@@ -3794,6 +4021,7 @@ gate_step_build_check() {
   check_windows_bash_helper_runner_guard || return $?
   check_riscvv_opcode_lane_contract_guard || return $?
   check_nonx86_native_evidence_runner_guard || return $?
+  check_nonx86_native_evidence_via_gh_runtime_guard || return $?
   check_restore_nightly_evidence_runner_guard || return $?
   check_qemu_experimental_python_helper_guard || return $?
   check_python_checker_runtime_guard || return $?
@@ -5112,6 +5340,7 @@ case "${ACTION}" in
   check_windows_bash_helper_runner_guard
   check_riscvv_opcode_lane_contract_guard
   check_nonx86_native_evidence_runner_guard
+  check_nonx86_native_evidence_via_gh_runtime_guard
   check_restore_nightly_evidence_runner_guard
   check_qemu_experimental_python_helper_guard
   check_python_checker_runtime_guard
