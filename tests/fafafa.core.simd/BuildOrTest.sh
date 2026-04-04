@@ -2457,6 +2457,10 @@ check_restore_nightly_evidence_runner_guard() {
     'restore-nightly-evidence)'
     'run_restore_nightly_evidence "$@"'
     'restore-nightly-evidence|'
+    'check_restore_nightly_evidence_runtime_guard() {'
+    'check_restore_nightly_evidence_runtime_guard || return $?'
+    'check_nightly_native_evidence_workflow_guard() {'
+    'check_nightly_native_evidence_workflow_guard || return $?'
   )
 
   for LPattern in "${LShellRequired[@]}"; do
@@ -2486,6 +2490,179 @@ check_restore_nightly_evidence_runner_guard() {
   fi
 
   echo "[CHECK] OK (nightly evidence restore runner guard present)"
+}
+
+check_restore_nightly_evidence_runtime_guard() {
+  local LHelper
+  local LTmpRoot
+  local LHelperCopy
+  local LLinuxArtifactDir
+  local LWindowsArtifactDir
+  local LNeonArtifactDir
+  local LRiscvvArtifactDir
+  local LOutput
+  local LRC
+  local LPattern
+  local -a LRequired
+
+  LHelper="${ROOT}/restore_nightly_evidence_artifacts.sh"
+  if [[ ! -f "${LHelper}" ]]; then
+    echo "[CHECK] Missing nightly evidence restore helper runtime target: ${LHelper}"
+    return 1
+  fi
+
+  LTmpRoot="$(mktemp -d)"
+  LHelperCopy="${LTmpRoot}/restore_nightly_evidence_artifacts.sh"
+  LLinuxArtifactDir="${LTmpRoot}/artifacts/linux"
+  LWindowsArtifactDir="${LTmpRoot}/artifacts/windows"
+  LNeonArtifactDir="${LTmpRoot}/artifacts/neon"
+  LRiscvvArtifactDir="${LTmpRoot}/artifacts/riscvv"
+
+  cp "${LHelper}" "${LHelperCopy}"
+  chmod +x "${LHelperCopy}"
+
+  mkdir -p \
+    "${LLinuxArtifactDir}/qemu-multiarch-20260405-guard" \
+    "${LLinuxArtifactDir}/evidence-linux-20260405" \
+    "${LWindowsArtifactDir}" \
+    "${LNeonArtifactDir}/native-evidence-neon-20260405" \
+    "${LRiscvvArtifactDir}/native-evidence-riscvv-20260405"
+
+  printf '%s\n' 'gate-summary-md' > "${LLinuxArtifactDir}/gate_summary.md"
+  printf '%s\n' 'gate-summary-json' > "${LLinuxArtifactDir}/gate_summary.json"
+  printf '%s\n' 'windows-log' > "${LWindowsArtifactDir}/windows_b07_gate.log"
+  printf '%s\n' 'qemu-summary' > "${LLinuxArtifactDir}/qemu-multiarch-20260405-guard/summary.md"
+  printf '%s\n' 'linux-evidence-summary' > "${LLinuxArtifactDir}/evidence-linux-20260405/summary.md"
+  printf '%s\n' 'neon-native-summary' > "${LNeonArtifactDir}/native-evidence-neon-20260405/summary.md"
+  printf '%s\n' 'riscvv-native-summary' > "${LRiscvvArtifactDir}/native-evidence-riscvv-20260405/summary.md"
+
+  set +e
+  LOutput="$(bash "${LHelperCopy}" \
+    "${LLinuxArtifactDir}" \
+    "${LWindowsArtifactDir}" \
+    "${LNeonArtifactDir}" \
+    "${LRiscvvArtifactDir}" 2>&1)"
+  LRC=$?
+  set -e
+  if [[ "${LRC}" != "0" ]]; then
+    echo "[CHECK] nightly evidence restore helper runtime failed rc=${LRC}"
+    printf '%s\n' "${LOutput}"
+    rm -rf "${LTmpRoot}"
+    return 1
+  fi
+
+  LRequired=(
+    '[RESTORE] OK'
+    'native-evidence-neon-20260405'
+    'native-evidence-riscvv-20260405'
+  )
+  for LPattern in "${LRequired[@]}"; do
+    if ! grep -F -- "${LPattern}" <<<"${LOutput}" >/dev/null; then
+      echo "[CHECK] nightly evidence restore helper runtime missing output pattern: ${LPattern}"
+      printf '%s\n' "${LOutput}"
+      rm -rf "${LTmpRoot}"
+      return 1
+    fi
+  done
+
+  if [[ ! -f "${LTmpRoot}/logs/gate_summary.md" ]] || \
+     [[ ! -f "${LTmpRoot}/logs/gate_summary.json" ]] || \
+     [[ ! -f "${LTmpRoot}/logs/windows_b07_gate.log" ]]; then
+    echo "[CHECK] nightly evidence restore helper runtime missing canonical restored files"
+    rm -rf "${LTmpRoot}"
+    return 1
+  fi
+  if [[ ! -f "${LTmpRoot}/logs/qemu-multiarch-20260405-guard/summary.md" ]] || \
+     [[ ! -f "${LTmpRoot}/logs/evidence-linux-20260405/summary.md" ]] || \
+     [[ ! -f "${LTmpRoot}/logs/native-evidence-neon-20260405/summary.md" ]] || \
+     [[ ! -f "${LTmpRoot}/logs/native-evidence-riscvv-20260405/summary.md" ]]; then
+    echo "[CHECK] nightly evidence restore helper runtime missing restored evidence directories"
+    rm -rf "${LTmpRoot}"
+    return 1
+  fi
+  if ! grep -F -- 'neon-native-summary' "${LTmpRoot}/logs/native-evidence-neon-20260405/summary.md" >/dev/null || \
+     ! grep -F -- 'riscvv-native-summary' "${LTmpRoot}/logs/native-evidence-riscvv-20260405/summary.md" >/dev/null; then
+    echo "[CHECK] nightly evidence restore helper runtime restored unexpected native evidence payload"
+    rm -rf "${LTmpRoot}"
+    return 1
+  fi
+
+  rm -rf "${LTmpRoot}"
+  echo "[CHECK] OK (nightly evidence restore helper runtime guard present)"
+}
+
+check_nightly_native_evidence_workflow_guard() {
+  local LNightlyWorkflow
+  local LNeonWorkflow
+  local LRiscvvWorkflow
+  local LPattern
+  local LMissing
+  local -a LNightlyRequired
+  local -a LNeonRequired
+  local -a LRiscvvRequired
+
+  LNightlyWorkflow="${REPO_ROOT}/.github/workflows/simd-nightly-closeout.yml"
+  LNeonWorkflow="${REPO_ROOT}/.github/workflows/simd-arm64-neon-evidence.yml"
+  LRiscvvWorkflow="${REPO_ROOT}/.github/workflows/simd-riscvv-native-evidence.yml"
+  LMissing=0
+
+  for LPattern in "${LNightlyWorkflow}" "${LNeonWorkflow}" "${LRiscvvWorkflow}"; do
+    if [[ ! -f "${LPattern}" ]]; then
+      echo "[CHECK] Missing nightly/native evidence workflow guard target: ${LPattern}"
+      return 1
+    fi
+  done
+
+  LNightlyRequired=(
+    'arm64-neon-native-evidence:'
+    'uses: ./.github/workflows/simd-arm64-neon-evidence.yml'
+    '- arm64-neon-native-evidence'
+    'name: simd-arm64-neon-evidence'
+    'path: ${{ runner.temp }}/simd-arm64-neon-evidence'
+    'bash tests/fafafa.core.simd/restore_nightly_evidence_artifacts.sh \'
+    '"${RUNNER_TEMP}/simd-arm64-neon-evidence"'
+    'tests/fafafa.core.simd/logs/native-evidence-*'
+  )
+  for LPattern in "${LNightlyRequired[@]}"; do
+    if ! grep -F -- "${LPattern}" "${LNightlyWorkflow}" >/dev/null; then
+      echo "[CHECK] nightly native evidence workflow missing pattern: ${LPattern}"
+      LMissing=1
+    fi
+  done
+
+  LNeonRequired=(
+    'workflow_call:'
+    'name: simd-arm64-neon-evidence'
+    'SIMD_OUTPUT_ROOT: ${{ runner.temp }}/simd-arm64-neon-evidence'
+    'bash tests/fafafa.core.simd/collect_nonx86_native_evidence.sh neon'
+    '${{ runner.temp }}/simd-arm64-neon-evidence/logs/native-evidence-neon-*'
+  )
+  for LPattern in "${LNeonRequired[@]}"; do
+    if ! grep -F -- "${LPattern}" "${LNeonWorkflow}" >/dev/null; then
+      echo "[CHECK] ARM64 NEON native evidence workflow missing pattern: ${LPattern}"
+      LMissing=1
+    fi
+  done
+
+  LRiscvvRequired=(
+    'workflow_call:'
+    'name: simd-riscvv-native-evidence'
+    'SIMD_OUTPUT_ROOT: ${{ runner.temp }}/simd-riscvv-native-evidence'
+    'bash tests/fafafa.core.simd/collect_nonx86_native_evidence.sh riscvv'
+    '${{ runner.temp }}/simd-riscvv-native-evidence/logs/native-evidence-riscvv-*'
+  )
+  for LPattern in "${LRiscvvRequired[@]}"; do
+    if ! grep -F -- "${LPattern}" "${LRiscvvWorkflow}" >/dev/null; then
+      echo "[CHECK] RISCVV native evidence workflow missing pattern: ${LPattern}"
+      LMissing=1
+    fi
+  done
+
+  if [[ "${LMissing}" != "0" ]]; then
+    return 1
+  fi
+
+  echo "[CHECK] OK (nightly native evidence workflow guard present)"
 }
 
 check_qemu_experimental_python_helper_guard() {
@@ -4028,6 +4205,8 @@ gate_step_build_check() {
   check_nonx86_native_evidence_runner_guard || return $?
   check_nonx86_native_evidence_via_gh_runtime_guard || return $?
   check_restore_nightly_evidence_runner_guard || return $?
+  check_restore_nightly_evidence_runtime_guard || return $?
+  check_nightly_native_evidence_workflow_guard || return $?
   check_qemu_experimental_python_helper_guard || return $?
   check_python_checker_runtime_guard || return $?
   check_publicabi_output_isolation || return $?
@@ -5347,6 +5526,8 @@ case "${ACTION}" in
   check_nonx86_native_evidence_runner_guard
   check_nonx86_native_evidence_via_gh_runtime_guard
   check_restore_nightly_evidence_runner_guard
+  check_restore_nightly_evidence_runtime_guard
+  check_nightly_native_evidence_workflow_guard
   check_qemu_experimental_python_helper_guard
   check_python_checker_runtime_guard
     check_publicabi_output_isolation
