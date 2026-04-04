@@ -2466,13 +2466,18 @@ check_restore_nightly_evidence_runner_guard() {
     fi
   done
 
-  if ! grep -F -- 'Usage: restore_nightly_evidence_artifacts.sh <linux-artifact-dir> <windows-artifact-dir>' "${LHelper}" >/dev/null; then
+  if ! grep -F -- 'Usage: restore_nightly_evidence_artifacts.sh <linux-artifact-dir> <windows-artifact-dir> [arm64-neon-artifact-dir] [riscvv-native-artifact-dir]' "${LHelper}" >/dev/null; then
     echo "[CHECK] nightly evidence restore helper missing usage contract"
     LMissing=1
   fi
   if ! grep -F -- 'tests/fafafa.core.simd/BuildOrTest.sh freeze-status' "${LHelper}" >/dev/null || \
      ! grep -F -- 'tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize' "${LHelper}" >/dev/null; then
     echo "[CHECK] nightly evidence restore helper missing canonical restore targets"
+    LMissing=1
+  fi
+  if ! grep -F -- "native-evidence-neon-*" "${LHelper}" >/dev/null || \
+     ! grep -F -- "native-evidence-riscvv-*" "${LHelper}" >/dev/null; then
+    echo "[CHECK] nightly evidence restore helper missing native evidence restore patterns"
     LMissing=1
   fi
 

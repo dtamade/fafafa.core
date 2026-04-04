@@ -5,14 +5,20 @@ ROOT="$(cd "$(dirname "$0")" && pwd)"
 LOG_ROOT="${ROOT}/logs"
 LINUX_ARTIFACT_DIR="${1:-}"
 WINDOWS_ARTIFACT_DIR="${2:-}"
+NEON_NATIVE_ARTIFACT_DIR="${3:-}"
+RISCVV_NATIVE_ARTIFACT_DIR="${4:-}"
 
 print_usage() {
   cat <<'EOF'
-Usage: restore_nightly_evidence_artifacts.sh <linux-artifact-dir> <windows-artifact-dir>
+Usage: restore_nightly_evidence_artifacts.sh <linux-artifact-dir> <windows-artifact-dir> [arm64-neon-artifact-dir] [riscvv-native-artifact-dir]
 
 Restore nightly CI artifacts into the canonical paths expected by:
 - tests/fafafa.core.simd/BuildOrTest.sh freeze-status
 - tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize
+
+Optional native artifact dirs let you restore extra non-x86 native evidence snapshots:
+- ARM64 NEON: native-evidence-neon-*
+- RISCVV: native-evidence-riscvv-*
 EOF
 }
 
@@ -81,6 +87,12 @@ copy_optional_dirs() {
 
 require_arg_dir "linux artifact" "${LINUX_ARTIFACT_DIR}"
 require_arg_dir "windows artifact" "${WINDOWS_ARTIFACT_DIR}"
+if [[ -n "${NEON_NATIVE_ARTIFACT_DIR}" ]]; then
+  require_arg_dir "arm64 neon native artifact" "${NEON_NATIVE_ARTIFACT_DIR}"
+fi
+if [[ -n "${RISCVV_NATIVE_ARTIFACT_DIR}" ]]; then
+  require_arg_dir "riscvv native artifact" "${RISCVV_NATIVE_ARTIFACT_DIR}"
+fi
 
 mkdir -p "${LOG_ROOT}"
 
@@ -100,5 +112,17 @@ if ! copy_optional_dirs "${LINUX_ARTIFACT_DIR}" 'qemu-multiarch-*'; then
 fi
 
 copy_optional_dirs "${LINUX_ARTIFACT_DIR}" 'evidence-*' || true
+if [[ -n "${NEON_NATIVE_ARTIFACT_DIR}" ]]; then
+  if ! copy_optional_dirs "${NEON_NATIVE_ARTIFACT_DIR}" 'native-evidence-neon-*'; then
+    echo "[RESTORE] Missing native-evidence-neon-* directories in ${NEON_NATIVE_ARTIFACT_DIR}"
+    exit 1
+  fi
+fi
+if [[ -n "${RISCVV_NATIVE_ARTIFACT_DIR}" ]]; then
+  if ! copy_optional_dirs "${RISCVV_NATIVE_ARTIFACT_DIR}" 'native-evidence-riscvv-*'; then
+    echo "[RESTORE] Missing native-evidence-riscvv-* directories in ${RISCVV_NATIVE_ARTIFACT_DIR}"
+    exit 1
+  fi
+fi
 
 echo "[RESTORE] OK"

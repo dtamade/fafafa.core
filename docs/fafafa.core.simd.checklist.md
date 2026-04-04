@@ -71,9 +71,9 @@ bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence
 `TTestCase_NonX86IEEE754` 与 `TTestCase_NonX86BackendParity`；如果某个构建配置下 suite 不存在，
 summary 里会显式记成 `SKIP`，避免把“没采到”误读成“已经验证过”。
 
-若要走 GitHub Actions 原生证据路径，当前仓库已有两条手动 workflow：
-- `.github/workflows/simd-arm64-neon-evidence.yml`：hosted `ubuntu-24.04-arm`
-- `.github/workflows/simd-riscvv-native-evidence.yml`：需要 self-hosted `Linux+riscv64` runner
+若要走 GitHub Actions 原生证据路径，当前仓库已有两条 workflow：
+- `.github/workflows/simd-arm64-neon-evidence.yml`：`workflow_dispatch` + `workflow_call`，hosted `ubuntu-24.04-arm`；`simd-nightly-closeout` 会复用这条 lane
+- `.github/workflows/simd-riscvv-native-evidence.yml`：`workflow_dispatch` + `workflow_call`，需要 self-hosted `Linux+riscv64` runner
 
 需要显式切到 backend-asm / direct-fpc 采集时，可再加：
 
@@ -86,21 +86,28 @@ bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence riscvv
 如果想直接通过 GitHub Actions 触发并把 artifact 下载回本地，可使用：
 
 ```bash
+bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence-via-gh neon
 bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence-via-gh riscvv
 ```
+
+默认 dispatch 路径会先检查本地 worktree 干净，且 remote ref 与本地一致；如果你只是想复用现成 artifact，直接传 `run-id` 旁路即可。
 
 若已知现成 `run-id`，也可复用旧 run：
 
 ```bash
+bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence-via-gh neon 12345678901
 bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence-via-gh riscvv 12345678901
 ```
 
-如果你已经从 nightly / `simd-freeze-audit` 下载了 Linux + Windows artifacts，想在本地继续复验 `freeze-status` 或 `win-closeout-finalize`，先恢复 canonical `logs/`：
+如果你想在本地继续复验 `freeze-status` 或 `win-closeout-finalize`，`restore-nightly-evidence` 的输入应是原始 artifact 目录，例如 `simd-linux-evidence`、`simd-windows-b07-evidence`，以及可选的 `simd-arm64-neon-evidence` / `simd-riscvv-native-evidence`；不要把聚合后的 `simd-freeze-audit` 当成 restore 输入。
+
+例如，先恢复 canonical `logs/`：
 
 ```bash
 bash tests/fafafa.core.simd/BuildOrTest.sh restore-nightly-evidence \
   /tmp/simd-linux-evidence \
-  /tmp/simd-windows-b07-evidence
+  /tmp/simd-windows-b07-evidence \
+  /tmp/simd-arm64-neon-evidence
 ```
 
 `perf-smoke` 默认仍是显式开关；若要把它纳入 closeout 门禁，请设置 `SIMD_GATE_PERF_SMOKE=1`，或直接走 `evidence-linux`。若 active backend 仍落在 `Scalar`，当前会直接失败，因为这意味着没有拿到可用于 closeout 的 SIMD 性能证据。

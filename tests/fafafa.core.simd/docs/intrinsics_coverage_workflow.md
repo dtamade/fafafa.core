@@ -132,10 +132,17 @@ bash tests/fafafa.core.simd/BuildOrTest.sh evidence-linux
   - 触发：`schedule` + `workflow_dispatch`
   - Linux 段：`BuildOrTest.sh evidence-linux`
   - Windows 段：复用 `.github/workflows/simd-windows-b07-evidence.yml`
-  - 审计段：恢复 artifacts 到 canonical `logs/`，执行 `win-closeout-finalize` 与 cross-platform `freeze-status`
+  - ARM64 NEON native 段：复用 `.github/workflows/simd-arm64-neon-evidence.yml`
+  - 审计段：恢复 linux/windows/optional native artifacts 到 canonical `logs/`，执行 `win-closeout-finalize` 与 cross-platform `freeze-status`
 - `.github/workflows/simd-windows-b07-evidence.yml`
   - 触发：`workflow_dispatch` + `workflow_call`
   - 作用：只负责采集并校验 Windows B07 实机 evidence，不承担 Linux freeze 判定
+- `.github/workflows/simd-arm64-neon-evidence.yml`
+  - 触发：`workflow_dispatch` + `workflow_call`
+  - 作用：采集 ARM64 NEON native enhanced evidence；可独立手工运行，也可被 nightly closeout 复用
+- `.github/workflows/simd-riscvv-native-evidence.yml`
+  - 触发：`workflow_dispatch` + `workflow_call`
+  - 作用：采集 RISCVV native enhanced evidence；当前仍依赖 self-hosted `Linux+riscv64` runner，因此未纳入默认 nightly lane
 
 nightly 固定口径：
 

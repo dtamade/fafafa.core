@@ -22,10 +22,10 @@
   - GitHub Actions run `23911571289`（head `3836e4cee60f0a78858d9605a0a8ee9a6cdf86e7`）
   - artifact：`simd-arm64-neon-evidence / native-evidence-neon-20260402-164750`
   - `dispatch_publicabi.log`：`[TEST] OK`
-- 2026-04-05 RISCVV native evidence workflow：已接线（enhanced evidence carrier）
+- 2026-04-05 RISCVV native evidence workflow：已接线（enhanced evidence carrier，不等于 fresh native artifact）
   - workflow：`.github/workflows/simd-riscvv-native-evidence.yml`
-  - 模式：`workflow_dispatch` + self-hosted `Linux+riscv64` runner
-  - 当前状态：执行载体已存在，待 fresh native artifact
+  - 模式：`workflow_dispatch` + `workflow_call` + self-hosted `Linux+riscv64` runner
+  - 当前状态：执行载体已存在，待 fresh native artifact；不计入当前 freeze 硬门禁
 - 2026-04-03 fresh fail-close gate + Windows closeout refresh：通过（current freeze baseline）
   - `gate PASS @ 2026-04-03 02:13:10`
   - Windows batch：`SIMD-20260403-152`，GitHub Actions run `23914427193`

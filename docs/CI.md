@@ -132,8 +132,8 @@ bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence
 # 若某个 suite 不在当前构建中，会在 summary 里显式标记 SKIP。
 #
 # GitHub Actions:
-# - ARM64 NEON: `.github/workflows/simd-arm64-neon-evidence.yml`（hosted `ubuntu-24.04-arm`）
-# - RISCVV: `.github/workflows/simd-riscvv-native-evidence.yml`（manual `workflow_dispatch`，需要 self-hosted `Linux+riscv64` runner）
+# - ARM64 NEON: `.github/workflows/simd-arm64-neon-evidence.yml`（`workflow_dispatch` + `workflow_call`；hosted `ubuntu-24.04-arm`，nightly closeout 会复用）
+# - RISCVV: `.github/workflows/simd-riscvv-native-evidence.yml`（`workflow_dispatch` + `workflow_call`；需要 self-hosted `Linux+riscv64` runner）
 
 # 若要显式跑 backend-asm / direct-fpc 入口
 SIMD_NATIVE_EVIDENCE_RUNNER=direct-fpc \
@@ -141,13 +141,23 @@ SIMD_NATIVE_EVIDENCE_ENABLE_BACKEND_ASM=1 \
 bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence riscvv
 
 # 若本地已配置 gh，并且仓库有对应 native runner，可直接 dispatch/download
+# backend 支持 neon / riscvv；默认 dispatch 会先检查本地 worktree 干净且 remote ref 与本地一致。
+bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence-via-gh neon
 bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence-via-gh riscvv
 
-# 若已从 nightly workflow 下载 linux/windows artifacts，可先恢复 canonical logs/
+# 若已知现成 run-id，可复用旧 run；这条旁路只做 download，不会再触发 git hygiene / ref 一致性拒绝
+bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence-via-gh neon 12345678901
+
+# restore-nightly-evidence 的输入应是原始 artifact 目录（例如 `simd-linux-evidence`、
+# `simd-windows-b07-evidence`、可选 `simd-arm64-neon-evidence` / `simd-riscvv-native-evidence`），
+# 不是聚合后的 `simd-freeze-audit` 包。
+#
+# 若已从 nightly workflow 下载 linux/windows/native artifacts，可先恢复 canonical logs/
 # 再继续本地 freeze-status / win-closeout-finalize 复验
 bash tests/fafafa.core.simd/BuildOrTest.sh restore-nightly-evidence \
   /tmp/simd-linux-evidence \
-  /tmp/simd-windows-b07-evidence
+  /tmp/simd-windows-b07-evidence \
+  /tmp/simd-arm64-neon-evidence
 ```
 
 ### 一键脚本
