@@ -700,6 +700,7 @@ check_windows_runner_parity() {
   LAllowedShellOnly=(
     evidence-linux
     native-evidence
+    native-evidence-via-gh
     restore-nightly-evidence
     freeze-status
     freeze-status-linux
@@ -2133,12 +2134,14 @@ check_riscvv_opcode_lane_contract_guard() {
 check_nonx86_native_evidence_runner_guard() {
   local LShell
   local LHelper
+  local LGhHelper
   local LPattern
   local LMissing
   local -a LShellRequired
 
   LShell="${ROOT}/BuildOrTest.sh"
   LHelper="${ROOT}/collect_nonx86_native_evidence.sh"
+  LGhHelper="${ROOT}/run_nonx86_native_evidence_via_github_actions.sh"
   LMissing=0
 
   if [[ ! -f "${LShell}" ]]; then
@@ -2149,15 +2152,26 @@ check_nonx86_native_evidence_runner_guard() {
     echo "[CHECK] Missing non-x86 native evidence helper: ${LHelper}"
     return 1
   fi
+  if [[ ! -f "${LGhHelper}" ]]; then
+    echo "[CHECK] Missing non-x86 native evidence GH helper: ${LGhHelper}"
+    return 1
+  fi
 
   LShellRequired=(
     'run_nonx86_native_evidence() {'
     'LNativeEvidenceScript="${NONX86_NATIVE_EVIDENCE_SCRIPT:-${ROOT}/collect_nonx86_native_evidence.sh}"'
     'echo "[NATIVE-EVIDENCE] Missing collector: ${LNativeEvidenceScript}"'
     'bash "${LNativeEvidenceScript}" "$@"'
+    'run_nonx86_native_evidence_via_gh() {'
+    'LGhHelperScript="${NONX86_NATIVE_EVIDENCE_GH_HELPER:-${ROOT}/run_nonx86_native_evidence_via_github_actions.sh}"'
+    'echo "[NATIVE-EVIDENCE-GH] Missing helper: ${LGhHelperScript}"'
+    'bash "${LGhHelperScript}" "$@"'
     'native-evidence)'
     'run_nonx86_native_evidence "$@"'
+    'native-evidence-via-gh)'
+    'run_nonx86_native_evidence_via_gh "$@"'
     'native-evidence|'
+    'native-evidence-via-gh|'
     'echo "Native host env: SIMD_NATIVE_EVIDENCE_RUNNER=canonical|direct-fpc, SIMD_NATIVE_EVIDENCE_ENABLE_BACKEND_ASM=1"'
   )
 
@@ -2174,6 +2188,10 @@ check_nonx86_native_evidence_runner_guard() {
   fi
   if ! grep -F -- 'arm64)' "${LHelper}" >/dev/null || ! grep -F -- 'riscv64)' "${LHelper}" >/dev/null; then
     echo "[CHECK] non-x86 native evidence helper missing arm64/riscv64 host mapping"
+    LMissing=1
+  fi
+  if ! grep -F -- 'simd-arm64-neon-evidence.yml' "${LGhHelper}" >/dev/null || ! grep -F -- 'simd-riscvv-native-evidence.yml' "${LGhHelper}" >/dev/null; then
+    echo "[CHECK] non-x86 native evidence GH helper missing workflow mapping"
     LMissing=1
   fi
 
@@ -4880,6 +4898,19 @@ run_nonx86_native_evidence() {
   bash "${LNativeEvidenceScript}" "$@"
 }
 
+run_nonx86_native_evidence_via_gh() {
+  local LGhHelperScript
+
+  LGhHelperScript="${NONX86_NATIVE_EVIDENCE_GH_HELPER:-${ROOT}/run_nonx86_native_evidence_via_github_actions.sh}"
+
+  if [[ ! -f "${LGhHelperScript}" ]]; then
+    echo "[NATIVE-EVIDENCE-GH] Missing helper: ${LGhHelperScript}"
+    return 2
+  fi
+
+  bash "${LGhHelperScript}" "$@"
+}
+
 run_restore_nightly_evidence() {
   local LRestoreScript
 
@@ -5252,6 +5283,9 @@ case "${ACTION}" in
   native-evidence)
     run_nonx86_native_evidence "$@"
     ;;
+  native-evidence-via-gh)
+    run_nonx86_native_evidence_via_gh "$@"
+    ;;
   restore-nightly-evidence)
     run_restore_nightly_evidence "$@"
     ;;
@@ -5289,7 +5323,7 @@ case "${ACTION}" in
     run_freeze_status_rehearsal "$@"
     ;;
   *)
-    echo "Usage: $0 [clean|build|check|test|test-concurrent-repeat|cpuinfo-lazy-repeat|debug|release|gate|gate-strict|interface-completeness|contract-signature|publicabi-signature|publicabi-smoke|adapter-sync-pascal|adapter-sync|parity-suites|gate-summary|gate-summary-sample|gate-summary-rehearsal|gate-summary-inject|gate-summary-rollback|gate-summary-backups|gate-summary-selfcheck|perf-smoke|nonx86-optin-list-suites|nonx86-ieee754|backend-bench|qemu-nonx86-evidence|qemu-cpuinfo-nonx86-evidence|qemu-cpuinfo-nonx86-full-evidence|qemu-cpuinfo-nonx86-full-repeat|qemu-cpuinfo-nonx86-suite-repeat|qemu-arch-matrix-evidence|qemu-nonx86-experimental-asm|riscvv-opcode-lane|qemu-experimental-report|qemu-experimental-baseline-check|coverage|wiring-sync|experimental-intrinsics|experimental-intrinsics-tests|evidence-linux|native-evidence|restore-nightly-evidence|win-evidence-preflight|win-evidence-via-gh|verify-win-evidence|finalize-win-evidence|win-closeout-dryrun|win-closeout-snippets|win-closeout-3cmd|freeze-status|freeze-status-linux|win-closeout-finalize|freeze-status-rehearsal] [test-args...]"
+    echo "Usage: $0 [clean|build|check|test|test-concurrent-repeat|cpuinfo-lazy-repeat|debug|release|gate|gate-strict|interface-completeness|contract-signature|publicabi-signature|publicabi-smoke|adapter-sync-pascal|adapter-sync|parity-suites|gate-summary|gate-summary-sample|gate-summary-rehearsal|gate-summary-inject|gate-summary-rollback|gate-summary-backups|gate-summary-selfcheck|perf-smoke|nonx86-optin-list-suites|nonx86-ieee754|backend-bench|qemu-nonx86-evidence|qemu-cpuinfo-nonx86-evidence|qemu-cpuinfo-nonx86-full-evidence|qemu-cpuinfo-nonx86-full-repeat|qemu-cpuinfo-nonx86-suite-repeat|qemu-arch-matrix-evidence|qemu-nonx86-experimental-asm|riscvv-opcode-lane|qemu-experimental-report|qemu-experimental-baseline-check|coverage|wiring-sync|experimental-intrinsics|experimental-intrinsics-tests|evidence-linux|native-evidence|native-evidence-via-gh|restore-nightly-evidence|win-evidence-preflight|win-evidence-via-gh|verify-win-evidence|finalize-win-evidence|win-closeout-dryrun|win-closeout-snippets|win-closeout-3cmd|freeze-status|freeze-status-linux|win-closeout-finalize|freeze-status-rehearsal] [test-args...]"
     echo "  Experimental note: default entry chain isolates experimental intrinsics behind dedicated checks."
     echo "  gate/gate-strict PASS is not blanket release-grade approval for every experimental path."
     echo "  gate         Fast/base gate for routine SIMD changes"
@@ -5297,6 +5331,7 @@ case "${ACTION}" in
     echo "Suggested flow: check -> targeted suites -> gate; use gate-strict before release/closeout."
     echo "QEMU env: SIMD_QEMU_BUILD_POLICY=always|if-missing|skip (default: if-missing)"
     echo "Native host env: SIMD_NATIVE_EVIDENCE_RUNNER=canonical|direct-fpc, SIMD_NATIVE_EVIDENCE_ENABLE_BACKEND_ASM=1"
+    echo "GitHub native evidence helper: native-evidence-via-gh <neon|riscvv> [run-id]"
     echo "Isolation env: SIMD_OUTPUT_ROOT=/tmp/simd-run-123 (override bin2/lib2/logs root)"
     echo "Build env: SIMD_ENABLE_NEON_BACKEND=1 (compile NEON backend into the test binary for opt-in verification/fallback coverage)"
     echo "Build env: SIMD_ENABLE_RISCVV_BACKEND=1 (compile RISCV-V backend into the test binary for opt-in verification/fallback coverage)"

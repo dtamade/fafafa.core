@@ -83,6 +83,18 @@ SIMD_NATIVE_EVIDENCE_ENABLE_BACKEND_ASM=1 \
 bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence riscvv
 ```
 
+如果想直接通过 GitHub Actions 触发并把 artifact 下载回本地，可使用：
+
+```bash
+bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence-via-gh riscvv
+```
+
+若已知现成 `run-id`，也可复用旧 run：
+
+```bash
+bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence-via-gh riscvv 12345678901
+```
+
 如果你已经从 nightly / `simd-freeze-audit` 下载了 Linux + Windows artifacts，想在本地继续复验 `freeze-status` 或 `win-closeout-finalize`，先恢复 canonical `logs/`：
 
 ```bash
