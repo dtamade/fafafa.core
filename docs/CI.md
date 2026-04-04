@@ -130,6 +130,8 @@ bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence
 # collector 会先跑 DispatchAPI/PublicAbi，并在 suite 可见时继续采
 # TTestCase_NonX86IEEE754 与 TTestCase_NonX86BackendParity；
 # 若某个 suite 不在当前构建中，会在 summary 里显式标记 SKIP。
+# 每个 native artifact 还会附带 `environment.txt` 与 `source_revision.txt`，
+# 用于记录 host/FPC/backend 以及 `git_commit/git_ref_hint` 来源锚点。
 #
 # GitHub Actions:
 # - ARM64 NEON: `.github/workflows/simd-arm64-neon-evidence.yml`（`workflow_dispatch` + `workflow_call`；hosted `ubuntu-24.04-arm`，nightly closeout 会复用）
@@ -147,6 +149,7 @@ bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence-via-gh riscvv
 
 # 若已知现成 run-id，可复用旧 run；这条旁路只做 download，不会再触发 git hygiene / ref 一致性拒绝
 bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence-via-gh neon 12345678901
+# helper 下载成功后会输出 `summary.md` / `dispatch_publicabi.log`，以及存在时的 `source_revision.txt` 路径
 
 # restore-nightly-evidence 的输入应是原始 artifact 目录（例如 `simd-linux-evidence`、
 # `simd-windows-b07-evidence`、可选 `simd-arm64-neon-evidence` / `simd-riscvv-native-evidence`），

@@ -151,6 +151,7 @@ RUN_OUTPUT_ROOT="${OUT_DIR}/run"
 RUN_TMPDIR="${OUT_DIR}/tmp"
 SUMMARY_FILE="${OUT_DIR}/summary.md"
 ENV_FILE="${OUT_DIR}/environment.txt"
+SOURCE_FILE="${OUT_DIR}/source_revision.txt"
 mkdir -p "${OUT_DIR}" "${RUN_OUTPUT_ROOT}" "${RUN_TMPDIR}"
 
 FPC_VERSION="$(fpc -iV 2>/dev/null || true)"
@@ -171,6 +172,21 @@ if [[ "${RUNNER_KIND}" == "direct-fpc" && "${ENABLE_BACKEND_ASM}" == "1" ]]; the
     echo "[NATIVE-EVIDENCE] backend asm evidence for ${BACKEND} requires FPC >= 3.3.1; got ${FPC_VERSION}"
     exit 2
   fi
+fi
+
+COLLECTED_AT_UTC="$(date -u '+%Y-%m-%dT%H:%M:%SZ')"
+GIT_COMMIT="$(git -C "${ROOT_DIR}" rev-parse HEAD 2>/dev/null || true)"
+GIT_REF_HINT="${SIMD_NATIVE_EVIDENCE_REF_HINT:-${GITHUB_REF_NAME:-$(git -C "${ROOT_DIR}" branch --show-current 2>/dev/null || true)}}"
+GIT_TREE_STATE="unknown"
+if git -C "${ROOT_DIR}" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  if [[ -n "$(git -C "${ROOT_DIR}" status --short --untracked-files=no 2>/dev/null || true)" ]]; then
+    GIT_TREE_STATE="dirty"
+  else
+    GIT_TREE_STATE="clean"
+  fi
+fi
+if [[ -z "${GIT_REF_HINT}" ]]; then
+  GIT_REF_HINT="${GIT_COMMIT:-detached}"
 fi
 
 run_step() {
@@ -245,7 +261,25 @@ run_optional_suite_step() {
   echo "fpc_target_os=$(fpc -iTO 2>/dev/null || true)"
   echo "lazbuild=${LAZBUILD_PATH}"
   echo "lazbuild_has_opt=${LAZBUILD_HAS_OPT}"
+  echo "git_commit=${GIT_COMMIT}"
+  echo "git_ref_hint=${GIT_REF_HINT}"
+  echo "git_tree_state=${GIT_TREE_STATE}"
+  echo "github_repository=${GITHUB_REPOSITORY:-}"
+  echo "github_workflow=${GITHUB_WORKFLOW:-}"
+  echo "github_run_id=${GITHUB_RUN_ID:-}"
+  echo "github_run_attempt=${GITHUB_RUN_ATTEMPT:-}"
 } > "${ENV_FILE}"
+
+{
+  echo "collected_at_utc=${COLLECTED_AT_UTC}"
+  echo "git_commit=${GIT_COMMIT}"
+  echo "git_ref_hint=${GIT_REF_HINT}"
+  echo "git_tree_state=${GIT_TREE_STATE}"
+  echo "github_repository=${GITHUB_REPOSITORY:-}"
+  echo "github_workflow=${GITHUB_WORKFLOW:-}"
+  echo "github_run_id=${GITHUB_RUN_ID:-}"
+  echo "github_run_attempt=${GITHUB_RUN_ATTEMPT:-}"
+} > "${SOURCE_FILE}"
 
 if [[ "${RUNNER_KIND}" == "direct-fpc" ]]; then
   run_step list_suites \
@@ -285,6 +319,7 @@ fi
   echo "- Backend: ${BACKEND_LABEL}"
   echo "- Output Root: ${RUN_OUTPUT_ROOT}"
   echo "- Environment: ${ENV_FILE}"
+  echo "- Source Revision: ${SOURCE_FILE}"
   echo
   echo "## list-suites"
   grep -E "\[BUILD\]|\[TEST\]|\[LEAK\]|TTestCase_" "${OUT_DIR}/list_suites.log" || true
@@ -319,3 +354,4 @@ fi
 
 echo "[NATIVE-EVIDENCE] DONE: ${OUT_DIR}"
 echo "[NATIVE-EVIDENCE] SUMMARY: ${SUMMARY_FILE}"
+echo "[NATIVE-EVIDENCE] SOURCE: ${SOURCE_FILE}"

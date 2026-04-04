@@ -2192,8 +2192,21 @@ check_nonx86_native_evidence_runner_guard() {
     echo "[CHECK] non-x86 native evidence helper missing arm64/riscv64 host mapping"
     LMissing=1
   fi
+  if ! grep -F -- 'SOURCE_FILE="${OUT_DIR}/source_revision.txt"' "${LHelper}" >/dev/null || \
+     ! grep -F -- 'echo "git_commit=${GIT_COMMIT}"' "${LHelper}" >/dev/null || \
+     ! grep -F -- 'echo "git_ref_hint=${GIT_REF_HINT}"' "${LHelper}" >/dev/null || \
+     ! grep -F -- 'echo "- Source Revision: ${SOURCE_FILE}"' "${LHelper}" >/dev/null || \
+     ! grep -F -- 'echo "[NATIVE-EVIDENCE] SOURCE: ${SOURCE_FILE}"' "${LHelper}" >/dev/null; then
+    echo "[CHECK] non-x86 native evidence helper missing source revision metadata contract"
+    LMissing=1
+  fi
   if ! grep -F -- 'simd-arm64-neon-evidence.yml' "${LGhHelper}" >/dev/null || ! grep -F -- 'simd-riscvv-native-evidence.yml' "${LGhHelper}" >/dev/null; then
     echo "[CHECK] non-x86 native evidence GH helper missing workflow mapping"
+    LMissing=1
+  fi
+  if ! grep -F -- "find \"\${LLocalSnapshotDir}\" -type f -name 'source_revision.txt'" "${LGhHelper}" >/dev/null || \
+     ! grep -F -- 'echo "[NATIVE-EVIDENCE-GH] Source revision: ${LSourceRevisionPath}"' "${LGhHelper}" >/dev/null; then
+    echo "[CHECK] non-x86 native evidence GH helper missing source revision surfacing"
     LMissing=1
   fi
 
@@ -2214,6 +2227,7 @@ check_nonx86_native_evidence_via_gh_runtime_guard() {
   local LReusePattern
   local LReuseRunFile
   local LReuseSummary
+  local LReuseSourceFile
   local LDirtyBinDir
   local LDirtyDownloadRoot
   local LDirtyOutput
@@ -2282,6 +2296,12 @@ backend=riscvv
 run_id=424242
 EOF_ARTIFACT
   printf '%s\n' 'dispatch publicabi ok' > "${LTargetDir}/dispatch_publicabi.log"
+  cat > "${LTargetDir}/source_revision.txt" <<'EOF_SOURCE'
+collected_at_utc=2026-04-05T00:00:00Z
+git_commit=0123456789abcdef0123456789abcdef01234567
+git_ref_hint=simd-foundation
+git_tree_state=clean
+EOF_SOURCE
   exit 0
 fi
 
@@ -2358,6 +2378,7 @@ EOF
     "[NATIVE-EVIDENCE-GH] Local snapshot: ${LReuseDownloadRoot}/riscvv/run-424242"
     "[NATIVE-EVIDENCE-GH] Summary: ${LReuseDownloadRoot}/riscvv/run-424242/summary.md"
     "[NATIVE-EVIDENCE-GH] Dispatch/PublicAbi log: ${LReuseDownloadRoot}/riscvv/run-424242/dispatch_publicabi.log"
+    "[NATIVE-EVIDENCE-GH] Source revision: ${LReuseDownloadRoot}/riscvv/run-424242/source_revision.txt"
   )
   for LReusePattern in "${LReuseRequired[@]}"; do
     if ! grep -F -- "${LReusePattern}" <<<"${LReuseOutput}" >/dev/null; then
@@ -2376,6 +2397,7 @@ EOF
 
   LReuseSummary="${LReuseDownloadRoot}/riscvv/run-424242/summary.md"
   LReuseRunFile="${LReuseDownloadRoot}/riscvv/run-424242/gh_run.txt"
+  LReuseSourceFile="${LReuseDownloadRoot}/riscvv/run-424242/source_revision.txt"
   if [[ ! -f "${LReuseSummary}" ]]; then
     echo "[CHECK] non-x86 native evidence via-gh runtime missing downloaded summary: ${LReuseSummary}"
     rm -rf "${LTmpRoot}"
@@ -2386,9 +2408,21 @@ EOF
     rm -rf "${LTmpRoot}"
     return 1
   fi
+  if [[ ! -f "${LReuseSourceFile}" ]]; then
+    echo "[CHECK] non-x86 native evidence via-gh runtime missing source_revision.txt: ${LReuseSourceFile}"
+    rm -rf "${LTmpRoot}"
+    return 1
+  fi
   if ! grep -F -- 'backend=riscvv' "${LReuseRunFile}" >/dev/null || ! grep -F -- 'run_id=424242' "${LReuseRunFile}" >/dev/null; then
     echo "[CHECK] non-x86 native evidence via-gh runtime wrote unexpected gh_run.txt payload"
     cat "${LReuseRunFile}" || true
+    rm -rf "${LTmpRoot}"
+    return 1
+  fi
+  if ! grep -F -- 'git_commit=0123456789abcdef0123456789abcdef01234567' "${LReuseSourceFile}" >/dev/null || \
+     ! grep -F -- 'git_ref_hint=simd-foundation' "${LReuseSourceFile}" >/dev/null; then
+    echo "[CHECK] non-x86 native evidence via-gh runtime wrote unexpected source revision payload"
+    cat "${LReuseSourceFile}" || true
     rm -rf "${LTmpRoot}"
     return 1
   fi

@@ -69,7 +69,8 @@ bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence
 
 当前 collector 默认会先跑 `DispatchAPI + PublicAbi`，并在 suite 出现在 `--list-suites` 时继续补跑
 `TTestCase_NonX86IEEE754` 与 `TTestCase_NonX86BackendParity`；如果某个构建配置下 suite 不存在，
-summary 里会显式记成 `SKIP`，避免把“没采到”误读成“已经验证过”。
+summary 里会显式记成 `SKIP`，避免把“没采到”误读成“已经验证过”。当前 artifact 还会额外写
+`environment.txt` 与 `source_revision.txt`，用于记录 host/FPC/backend 与 `git_commit/git_ref_hint` 来源锚点。
 
 若要走 GitHub Actions 原生证据路径，当前仓库已有两条 workflow：
 - `.github/workflows/simd-arm64-neon-evidence.yml`：`workflow_dispatch` + `workflow_call`，hosted `ubuntu-24.04-arm`；`simd-nightly-closeout` 会复用这条 lane
@@ -91,6 +92,7 @@ bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence-via-gh riscvv
 ```
 
 默认 dispatch 路径会先检查本地 worktree 干净，且 remote ref 与本地一致；如果你只是想复用现成 artifact，直接传 `run-id` 旁路即可。
+helper 下载成功后会打印 `summary.md`、`dispatch_publicabi.log`，以及存在时的 `source_revision.txt` 路径。
 
 若已知现成 `run-id`，也可复用旧 run：
 

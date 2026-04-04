@@ -329,6 +329,7 @@ copy_downloaded_artifact "${LTempDir}" "${LLocalSnapshotDir}"
 
 LSummaryPath="$(find "${LLocalSnapshotDir}" -type f -name 'summary.md' | sort | head -n 1 || true)"
 LDispatchLogPath="$(find "${LLocalSnapshotDir}" -type f -name 'dispatch_publicabi.log' | sort | head -n 1 || true)"
+LSourceRevisionPath="$(find "${LLocalSnapshotDir}" -type f -name 'source_revision.txt' | sort | head -n 1 || true)"
 
 if [[ -z "${LSummaryPath}" ]]; then
   echo "[NATIVE-EVIDENCE-GH] Missing summary.md in downloaded artifact snapshot: ${LLocalSnapshotDir}"
@@ -347,4 +348,7 @@ echo "[NATIVE-EVIDENCE-GH] Local snapshot: ${LLocalSnapshotDir}"
 echo "[NATIVE-EVIDENCE-GH] Summary: ${LSummaryPath}"
 if [[ -n "${LDispatchLogPath}" ]]; then
   echo "[NATIVE-EVIDENCE-GH] Dispatch/PublicAbi log: ${LDispatchLogPath}"
+fi
+if [[ -n "${LSourceRevisionPath}" ]]; then
+  echo "[NATIVE-EVIDENCE-GH] Source revision: ${LSourceRevisionPath}"
 fi
