@@ -48,6 +48,11 @@
   - GitHub Actions run id：`23911571289`（head `3836e4cee60f0a78858d9605a0a8ee9a6cdf86e7`）
   - artifact：`simd-arm64-neon-evidence / native-evidence-neon-20260402-164750`
   - 关键结果：`dispatch_publicabi.log` 中 `DispatchAPI + PublicAbi` 已恢复为 `[TEST] OK`
+- [x] RISCVV native-evidence workflow carrier 已补齐（enhanced evidence entrypoint）
+  - workflow：`.github/workflows/simd-riscvv-native-evidence.yml`
+  - 触发：`workflow_dispatch`
+  - runner 要求：self-hosted `Linux+riscv64`
+  - 当前状态：执行载体已具备；fresh artifact 仍待 native runner 产出
 - [x] 2026-04-03 fresh Linux/Windows evidence refresh 已完成（当前 freshest freeze evidence）
   - Linux fail-close gate：`FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：`tests/fafafa.core.simd/logs/gate_summary.md`（`gate PASS @ 2026-04-03 02:13:10`）

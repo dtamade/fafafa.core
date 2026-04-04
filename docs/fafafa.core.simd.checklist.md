@@ -71,6 +71,10 @@ bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence
 `TTestCase_NonX86IEEE754` 与 `TTestCase_NonX86BackendParity`；如果某个构建配置下 suite 不存在，
 summary 里会显式记成 `SKIP`，避免把“没采到”误读成“已经验证过”。
 
+若要走 GitHub Actions 原生证据路径，当前仓库已有两条手动 workflow：
+- `.github/workflows/simd-arm64-neon-evidence.yml`：hosted `ubuntu-24.04-arm`
+- `.github/workflows/simd-riscvv-native-evidence.yml`：需要 self-hosted `Linux+riscv64` runner
+
 需要显式切到 backend-asm / direct-fpc 采集时，可再加：
 
 ```bash

@@ -130,6 +130,10 @@ bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence
 # collector 会先跑 DispatchAPI/PublicAbi，并在 suite 可见时继续采
 # TTestCase_NonX86IEEE754 与 TTestCase_NonX86BackendParity；
 # 若某个 suite 不在当前构建中，会在 summary 里显式标记 SKIP。
+#
+# GitHub Actions:
+# - ARM64 NEON: `.github/workflows/simd-arm64-neon-evidence.yml`（hosted `ubuntu-24.04-arm`）
+# - RISCVV: `.github/workflows/simd-riscvv-native-evidence.yml`（manual `workflow_dispatch`，需要 self-hosted `Linux+riscv64` runner）
 
 # 若要显式跑 backend-asm / direct-fpc 入口
 SIMD_NATIVE_EVIDENCE_RUNNER=direct-fpc \
