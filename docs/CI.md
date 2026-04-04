@@ -127,6 +127,10 @@ bash tests/fafafa.core.simd/BuildOrTest.sh qemu-experimental-report --latest
 # 真机 non-x86 native evidence（只能在 arm64/riscv64 原生主机上跑）
 bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence
 
+# collector 会先跑 DispatchAPI/PublicAbi，并在 suite 可见时继续采
+# TTestCase_NonX86IEEE754 与 TTestCase_NonX86BackendParity；
+# 若某个 suite 不在当前构建中，会在 summary 里显式标记 SKIP。
+
 # 若要显式跑 backend-asm / direct-fpc 入口
 SIMD_NATIVE_EVIDENCE_RUNNER=direct-fpc \
 SIMD_NATIVE_EVIDENCE_ENABLE_BACKEND_ASM=1 \

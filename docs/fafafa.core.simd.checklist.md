@@ -67,6 +67,10 @@ bash tests/fafafa.core.simd/BuildOrTest.sh nonx86-optin-list-suites
 bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence
 ```
 
+当前 collector 默认会先跑 `DispatchAPI + PublicAbi`，并在 suite 出现在 `--list-suites` 时继续补跑
+`TTestCase_NonX86IEEE754` 与 `TTestCase_NonX86BackendParity`；如果某个构建配置下 suite 不存在，
+summary 里会显式记成 `SKIP`，避免把“没采到”误读成“已经验证过”。
+
 需要显式切到 backend-asm / direct-fpc 采集时，可再加：
 
 ```bash
