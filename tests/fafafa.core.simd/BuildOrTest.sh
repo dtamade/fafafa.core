@@ -2356,6 +2356,21 @@ check_nonx86_native_evidence_runner_guard() {
     LMissing=1
   fi
 
+  LGhHelperRequired=(
+    'diagnose_queued_run_no_matching_runner() {'
+    'gh run view "${aRunId}" --json status,conclusion,url,jobs'
+    'gh api "repos/${LRepo}/actions/jobs/${LJobId}"'
+    'gh api "repos/${LRepo}/actions/runners"'
+    'No matching self-hosted runner available for labels:'
+    'return 32'
+  )
+  for LPattern in "${LGhHelperRequired[@]}"; do
+    if ! grep -F -- "${LPattern}" "${LGhHelper}" >/dev/null; then
+      echo "[CHECK] non-x86 native evidence GH helper missing queued-runner pattern: ${LPattern}"
+      LMissing=1
+    fi
+  done
+
   if [[ "${LMissing}" != "0" ]]; then
     return 1
   fi
@@ -2389,10 +2404,16 @@ check_nonx86_native_evidence_via_gh_runtime_guard() {
   local LMissingOutput
   local LMissingRC
   local LMissingPattern
+  local LQueuedBinDir
+  local LQueuedDownloadRoot
+  local LQueuedOutput
+  local LQueuedRC
+  local LQueuedPattern
   local -a LReuseRequired
   local -a LDuplicateRequired
   local -a LDirtyRequired
   local -a LMissingRequired
+  local -a LQueuedRequired
 
   LGhHelper="${ROOT}/run_nonx86_native_evidence_via_github_actions.sh"
   if [[ ! -f "${LGhHelper}" ]]; then
@@ -2409,7 +2430,9 @@ check_nonx86_native_evidence_via_gh_runtime_guard() {
   LDirtyDownloadRoot="${LTmpRoot}/dirty/downloads"
   LMissingBinDir="${LTmpRoot}/missing/bin"
   LMissingDownloadRoot="${LTmpRoot}/missing/downloads"
-  mkdir -p "${LReuseBinDir}" "${LDuplicateBinDir}" "${LDirtyBinDir}" "${LMissingBinDir}"
+  LQueuedBinDir="${LTmpRoot}/queued/bin"
+  LQueuedDownloadRoot="${LTmpRoot}/queued/downloads"
+  mkdir -p "${LReuseBinDir}" "${LDuplicateBinDir}" "${LDirtyBinDir}" "${LMissingBinDir}" "${LQueuedBinDir}"
 
   cat > "${LReuseBinDir}/git" <<'EOF'
 #!/usr/bin/env bash
@@ -2624,6 +2647,44 @@ echo "UNEXPECTED_GH_CALL $*" >&2
 exit 99
 EOF
 
+  cat > "${LQueuedBinDir}/git" <<'EOF'
+#!/usr/bin/env bash
+echo "UNEXPECTED_GIT_CALL $*" >&2
+exit 99
+EOF
+
+  cat > "${LQueuedBinDir}/gh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "${1:-}" == "auth" && "${2:-}" == "status" ]]; then
+  exit 0
+fi
+
+if [[ "${1:-}" == "run" && "${2:-}" == "view" ]]; then
+  if [[ "${4:-}" == "--json" ]]; then
+    printf '%s\n' '{"status":"queued","conclusion":"","url":"https://github.com/example/fafafa.core/actions/runs/565656","jobs":[{"databaseId":56565601,"name":"Collect RISCVV Native Evidence","status":"queued","conclusion":"","url":"https://github.com/example/fafafa.core/actions/runs/565656/job/56565601"}]}'
+    exit 0
+  fi
+fi
+
+if [[ "${1:-}" == "api" ]]; then
+  case "${2:-}" in
+    repos/example/fafafa.core/actions/jobs/56565601)
+      printf '%s\n' '{"id":56565601,"status":"queued","conclusion":null,"labels":["self-hosted","Linux","riscv64"],"runner_id":0,"runner_name":"","runner_group_id":0,"runner_group_name":""}'
+      exit 0
+      ;;
+    repos/example/fafafa.core/actions/runners)
+      printf '%s\n' '{"total_count":0,"runners":[]}'
+      exit 0
+      ;;
+  esac
+fi
+
+echo "UNEXPECTED_GH_CALL $*" >&2
+exit 99
+EOF
+
   chmod +x \
     "${LReuseBinDir}/git" \
     "${LReuseBinDir}/gh" \
@@ -2632,7 +2693,9 @@ EOF
     "${LDirtyBinDir}/git" \
     "${LDirtyBinDir}/gh" \
     "${LMissingBinDir}/git" \
-    "${LMissingBinDir}/gh"
+    "${LMissingBinDir}/gh" \
+    "${LQueuedBinDir}/git" \
+    "${LQueuedBinDir}/gh"
 
   set +e
   LReuseOutput="$(PATH="${LReuseBinDir}:${PATH}" \
@@ -2805,6 +2868,49 @@ EOF
   if grep -F -- '[NATIVE-EVIDENCE-GH] Watching run:' <<<"${LMissingOutput}" >/dev/null; then
     echo "[CHECK] non-x86 native evidence via-gh runtime missing-workflow guard still reached run watch"
     printf '%s\n' "${LMissingOutput}"
+    rm -rf "${LTmpRoot}"
+    return 1
+  fi
+
+  set +e
+  LQueuedOutput="$(PATH="${LQueuedBinDir}:${PATH}" \
+    SIMD_NATIVE_EVIDENCE_DOWNLOAD_ROOT="${LQueuedDownloadRoot}" \
+    SIMD_NATIVE_EVIDENCE_POLL_SECONDS=0 \
+    SIMD_NATIVE_EVIDENCE_POLL_MAX_TRIES=1 \
+    bash "${LGhHelper}" riscvv 565656 2>&1)"
+  LQueuedRC=$?
+  set -e
+  if [[ "${LQueuedRC}" != "32" ]]; then
+    echo "[CHECK] non-x86 native evidence via-gh queued/no-runner guard returned rc=${LQueuedRC} (expected 32)"
+    printf '%s\n' "${LQueuedOutput}"
+    rm -rf "${LTmpRoot}"
+    return 1
+  fi
+
+  LQueuedRequired=(
+    '[NATIVE-EVIDENCE-GH] Reuse existing workflow run: 565656'
+    '[NATIVE-EVIDENCE-GH] Watching run: 565656'
+    '[NATIVE-EVIDENCE-GH] No matching self-hosted runner available for labels: self-hosted, Linux, riscv64'
+    '[NATIVE-EVIDENCE-GH] Repo runner inventory has no registered self-hosted runner covering those labels.'
+  )
+  for LQueuedPattern in "${LQueuedRequired[@]}"; do
+    if ! grep -F -- "${LQueuedPattern}" <<<"${LQueuedOutput}" >/dev/null; then
+      echo "[CHECK] non-x86 native evidence via-gh runtime missing queued/no-runner output pattern: ${LQueuedPattern}"
+      printf '%s\n' "${LQueuedOutput}"
+      rm -rf "${LTmpRoot}"
+      return 1
+    fi
+  done
+  if grep -F -- '[NATIVE-EVIDENCE-GH] Download artifact:' <<<"${LQueuedOutput}" >/dev/null; then
+    echo "[CHECK] non-x86 native evidence via-gh queued/no-runner guard still reached artifact download"
+    printf '%s\n' "${LQueuedOutput}"
+    rm -rf "${LTmpRoot}"
+    return 1
+  fi
+  if grep -F -- 'UNEXPECTED_GIT_CALL' <<<"${LQueuedOutput}" >/dev/null || \
+     grep -F -- 'UNEXPECTED_GH_CALL' <<<"${LQueuedOutput}" >/dev/null; then
+    echo "[CHECK] non-x86 native evidence via-gh queued/no-runner guard hit unexpected helper calls"
+    printf '%s\n' "${LQueuedOutput}"
     rm -rf "${LTmpRoot}"
     return 1
   fi

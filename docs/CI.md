@@ -141,9 +141,12 @@ bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence
 # - ARM64 NEON: `.github/workflows/simd-arm64-neon-evidence.yml`（`workflow_dispatch` + `workflow_call`；hosted `ubuntu-24.04-arm`，nightly closeout 会复用）
 # - RISCVV: `.github/workflows/simd-riscvv-native-evidence.yml`（`workflow_dispatch` + `workflow_call`；需要 self-hosted `Linux+riscv64` runner）
 #
-# 注意：`riscvv` 这条 lane 不只要求仓库里存在 workflow 文件，还要求 GitHub 已在默认分支注册它。
-# 如果 default branch 还没有这份 workflow，`gh workflow run simd-riscvv-native-evidence.yml --ref <branch>` 仍会返回 `404`；
-# helper 现在会把这类失败明确诊断成 `Workflow is not registered on GitHub Actions`。
+# 注意：`riscvv` 这条 lane 需要两层条件同时满足：
+# 1. workflow 已在 default branch 注册；如果没有，`gh workflow run simd-riscvv-native-evidence.yml --ref <branch>` 会返回 `404`，
+#    helper 会明确诊断成 `Workflow is not registered on GitHub Actions`。
+# 2. repo 里还必须有匹配标签的 self-hosted runner；截至 2026-04-06，
+#    `gh api repos/dtamade/fafafa.core/actions/runners` 仍返回 `{"total_count":0,"runners":[]}`，
+#    helper 会对 queued run fail-close 成 `No matching self-hosted runner available for labels: self-hosted, Linux, riscv64`。
 
 # 若要显式跑 backend-asm / direct-fpc 入口
 SIMD_NATIVE_EVIDENCE_RUNNER=direct-fpc \

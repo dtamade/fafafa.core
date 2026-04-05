@@ -85,11 +85,12 @@
   - 关键结果：`dispatch_publicabi.log` 中 `DispatchAPI + PublicAbi` 为 `[TEST] OK`
   - 关键契约：artifact 内含 `source_revision.txt`，可被 `SIMD_NATIVE_EVIDENCE_EXPECT_COMMIT` / `SIMD_NATIVE_EVIDENCE_EXPECT_REF` / `SIMD_NATIVE_EVIDENCE_REQUIRE_SOURCE_REVISION=1` 严格复验
   - 历史说明：旧 run `23911571289` 早于 `source_revision.txt` 锚点支持，仍可做功能参考，但不适合作严格来源校验样本
-- [x] RISCVV native-evidence workflow carrier 已补齐，但当前 GH dispatch 仍未注册（enhanced evidence entrypoint，不等于 fresh native artifact）
+- [x] RISCVV native-evidence workflow carrier 已补齐，且截至 2026-04-06 workflow 注册已恢复（enhanced evidence entrypoint，不等于 fresh native artifact）
   - workflow：`.github/workflows/simd-riscvv-native-evidence.yml`
   - 触发：`workflow_dispatch` + `workflow_call`
   - runner 要求：self-hosted `Linux+riscv64`
-  - 当前状态：本地 helper 会明确提示 `Workflow is not registered on GitHub Actions`，因为该 workflow 还不在 default branch 的已注册列表里；fresh artifact 仍待 default-branch 注册或 native runner 产出；不计入当前 freeze 硬门禁
+  - 当前状态：`gh workflow view simd-riscvv-native-evidence.yml --ref main --yaml` 已可访问，说明 default-branch 注册已恢复；但 `gh api repos/dtamade/fafafa.core/actions/runners` 仍返回 `{"total_count":0,"runners":[]}`，canonical run `24005074684` 因无匹配 runner 持续 `queued`
+  - helper 现会把这类场景明确诊断成 `No matching self-hosted runner available for labels: self-hosted, Linux, riscv64`；fresh artifact 仍待 native runner 真正产出；不计入当前 freeze 硬门禁
 - [x] 2026-04-03 fresh Linux/Windows evidence refresh 已完成（当前 freshest freeze evidence）
   - Linux fail-close gate：`FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - 结果：`tests/fafafa.core.simd/logs/gate_summary.md`（`gate PASS @ 2026-04-03 02:13:10`）

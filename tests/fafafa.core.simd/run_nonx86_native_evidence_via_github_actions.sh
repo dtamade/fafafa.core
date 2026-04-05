@@ -27,6 +27,13 @@ Environment:
   SIMD_NATIVE_EVIDENCE_REQUIRE_SOURCE_REVISION  Force source_revision.txt to exist even on run-id reuse
   SIMD_NATIVE_EVIDENCE_POLL_SECONDS    Poll interval in seconds (default: 5)
   SIMD_NATIVE_EVIDENCE_POLL_MAX_TRIES  Poll retries (default: 120)
+
+Exit codes:
+  0   success
+  1   workflow failed / timed out / artifact contract mismatch
+  2   invalid usage / missing workflow / auth or local ref hygiene guard
+  31  billing or quota runner block
+  32  queued run has no matching self-hosted runner in repo inventory
 EOF
 }
 
@@ -166,6 +173,186 @@ run_workflow_dispatch() {
   return "${LRC}"
 }
 
+extract_repo_slug_from_github_url() {
+  local aUrl
+
+  aUrl="${1:-}"
+  python3 - "${aUrl}" <<'PY'
+import sys
+from urllib.parse import urlparse
+
+url = sys.argv[1].strip()
+if not url:
+    sys.exit(0)
+
+parts = [segment for segment in urlparse(url).path.split("/") if segment]
+if len(parts) >= 2:
+    print(f"{parts[0]}/{parts[1]}")
+PY
+}
+
+diagnose_queued_run_no_matching_runner() {
+  local aRunId
+  local aRunJson
+  local LRunUrl
+  local LRepo
+  local LJobId
+  local LJobJson
+  local LJobStatus
+  local LJobLabels
+  local LRunnerId
+  local LEncodedLabels
+  local LRunnersJson
+  local LVisibleRunners
+  local LMatchingRunners
+
+  aRunId="${1:-}"
+  aRunJson="${2:-}"
+  if [[ -z "${aRunId}" || -z "${aRunJson}" ]]; then
+    return 1
+  fi
+
+  LRunUrl="$(python3 - "${aRunJson}" <<'PY'
+import json
+import sys
+
+raw = sys.argv[1].strip()
+if not raw:
+    sys.exit(0)
+
+obj = json.loads(raw)
+print(str(obj.get("url", "") or "").strip())
+PY
+)"
+  if [[ -z "${LRunUrl}" ]]; then
+    return 1
+  fi
+
+  LRepo="$(extract_repo_slug_from_github_url "${LRunUrl}")"
+  if [[ -z "${LRepo}" ]]; then
+    return 1
+  fi
+
+  while IFS= read -r LJobId; do
+    if [[ -z "${LJobId}" ]]; then
+      continue
+    fi
+
+    LJobJson="$(gh api "repos/${LRepo}/actions/jobs/${LJobId}" 2>/dev/null || true)"
+    if [[ -z "${LJobJson}" ]]; then
+      continue
+    fi
+
+    IFS=$'\t' read -r LJobStatus LJobLabels LRunnerId < <(python3 - "${LJobJson}" <<'PY'
+import json
+import sys
+
+raw = sys.argv[1].strip()
+if not raw:
+    print("\t\t")
+    sys.exit(0)
+
+obj = json.loads(raw)
+status = str(obj.get("status", "") or "").strip()
+labels = []
+for entry in obj.get("labels", []) or []:
+    if isinstance(entry, dict):
+        name = str(entry.get("name", "")).strip()
+    else:
+        name = str(entry).strip()
+    if name:
+        labels.append(name)
+
+runner_id = obj.get("runner_id")
+if runner_id in (None, "", 0, "0"):
+    runner_id = "0"
+else:
+    runner_id = str(runner_id)
+
+print(f"{status}\t{', '.join(labels)}\t{runner_id}")
+PY
+)
+
+    if [[ "${LJobStatus,,}" != "queued" ]]; then
+      continue
+    fi
+    if [[ "${LJobLabels,,}" != *"self-hosted"* ]]; then
+      continue
+    fi
+    if [[ "${LRunnerId}" != "0" ]]; then
+      continue
+    fi
+
+    LEncodedLabels="$(printf '%s\n' "${LJobLabels}" | tr ',' '\n' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | awk 'NF' | paste -sd'|' -)"
+    if [[ -z "${LEncodedLabels}" ]]; then
+      continue
+    fi
+
+    LRunnersJson="$(gh api "repos/${LRepo}/actions/runners" 2>/dev/null || true)"
+    if [[ -z "${LRunnersJson}" ]]; then
+      continue
+    fi
+
+    IFS=$'\t' read -r LVisibleRunners LMatchingRunners < <(python3 - "${LRunnersJson}" "${LEncodedLabels}" <<'PY'
+import json
+import sys
+
+raw = sys.argv[1].strip()
+required = [item for item in sys.argv[2].split("|") if item]
+if not raw:
+    print("0\t0")
+    sys.exit(0)
+
+obj = json.loads(raw)
+runners = obj.get("runners", []) or []
+visible = obj.get("total_count")
+if visible in (None, ""):
+    visible = len(runners)
+
+matching = 0
+for runner in runners:
+    labels = set()
+    for entry in runner.get("labels", []) or []:
+        if isinstance(entry, dict):
+            name = str(entry.get("name", "")).strip()
+        else:
+            name = str(entry).strip()
+        if name:
+            labels.add(name)
+    if all(item in labels for item in required):
+        matching += 1
+
+print(f"{visible}\t{matching}")
+PY
+)
+
+    if [[ "${LMatchingRunners:-0}" == "0" ]]; then
+      echo "[NATIVE-EVIDENCE-GH] No matching self-hosted runner available for labels: ${LJobLabels}"
+      echo "[NATIVE-EVIDENCE-GH] Repo runner inventory has no registered self-hosted runner covering those labels."
+      return 0
+    fi
+  done < <(python3 - "${aRunJson}" <<'PY'
+import json
+import sys
+
+raw = sys.argv[1].strip()
+if not raw:
+    sys.exit(0)
+
+obj = json.loads(raw)
+for job in obj.get("jobs", []) or []:
+    status = str(job.get("status", "") or "").strip().lower()
+    job_id = job.get("databaseId")
+    if job_id is None:
+        job_id = job.get("id")
+    if status == "queued" and job_id is not None:
+        print(job_id)
+PY
+)
+
+  return 1
+}
+
 wait_for_run_completion() {
   local aRunId
   local aPollSeconds
@@ -180,7 +367,7 @@ wait_for_run_completion() {
   aPollMaxTries="${3:-120}"
 
   for ((LTry = 1; LTry <= aPollMaxTries; LTry++)); do
-    LJson="$(gh run view "${aRunId}" --json status,conclusion,url 2>/dev/null || true)"
+    LJson="$(gh run view "${aRunId}" --json status,conclusion,url,jobs 2>/dev/null || true)"
     if [[ -n "${LJson}" ]]; then
       read -r LStatus LConclusion < <(python3 - "${LJson}" <<'PY'
 import json
@@ -212,6 +399,12 @@ PY
           return 31
         fi
         return 1
+      fi
+
+      if [[ "${LStatus}" == "queued" ]]; then
+        if diagnose_queued_run_no_matching_runner "${aRunId}" "${LJson}"; then
+          return 32
+        fi
       fi
     fi
     sleep "${aPollSeconds}"
