@@ -75,7 +75,8 @@ summary 里会显式记成 `SKIP`，避免把“没采到”误读成“已经�
 若要走 GitHub Actions 原生证据路径，当前仓库已有两条 workflow：
 - `.github/workflows/simd-arm64-neon-evidence.yml`：`workflow_dispatch` + `workflow_call`，hosted `ubuntu-24.04-arm`；`simd-nightly-closeout` 会复用这条 lane
 - `.github/workflows/simd-riscvv-native-evidence.yml`：`workflow_dispatch` + `workflow_call`，需要 self-hosted `Linux+riscv64` runner
-  - 注意：`gh workflow run ...` 只有在该 workflow 已被 GitHub 按仓库 default branch 注册后才能成功；如果 helper 明确报 `Workflow is not registered on GitHub Actions`，优先先把 workflow 同步到 default branch，或直接复用现成 `run-id`
+  - 截至 `2026-04-06`，这条 workflow 已经在 default branch 上完成注册；当前真实 blocker 变成 repo 侧 self-hosted runner 供给
+  - 如果 helper 明确报 `No matching self-hosted runner available for labels: self-hosted, Linux, riscv64`，说明 `riscv64` runner 当前不在 repo inventory 中，优先拉起对应 runner，或直接复用现成 `run-id`
 
 需要显式切到 backend-asm / direct-fpc 采集时，可再加：
 

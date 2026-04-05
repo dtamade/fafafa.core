@@ -57,10 +57,10 @@
   - `dispatch_publicabi.log`：`[TEST] OK`
   - `source_revision.txt`：存在，可被 `SIMD_NATIVE_EVIDENCE_EXPECT_COMMIT` / `SIMD_NATIVE_EVIDENCE_EXPECT_REF` / `SIMD_NATIVE_EVIDENCE_REQUIRE_SOURCE_REVISION=1` 严格校验
   - 历史说明：旧 run `23911571289` 仍可作功能性参考，但产物早于 `source_revision.txt` 锚点支持，不能满足严格 source-revision 复验
-- 2026-04-05 RISCVV native evidence workflow：已接线，但 GitHub dispatch 仍未注册
+- 2026-04-06 RISCVV native evidence workflow：已接线，且 workflow 注册已恢复
   - workflow：`.github/workflows/simd-riscvv-native-evidence.yml`
   - 模式：`workflow_dispatch` + `workflow_call` + self-hosted `Linux+riscv64` runner
-  - 当前状态：本地 helper 会明确提示 “Workflow is not registered on GitHub Actions”，因为该 workflow 仍未出现在仓库 default branch 的已注册列表中；fresh native artifact 仍待 default-branch 注册或原生 runner 产出
+  - 当前状态：`gh workflow view simd-riscvv-native-evidence.yml --ref main --yaml` 已可直接访问；但 `gh api repos/dtamade/fafafa.core/actions/runners` 仍返回 `{"total_count":0,"runners":[]}`，所以 helper 现会 fail-close 成 `No matching self-hosted runner available for labels: self-hosted, Linux, riscv64`
   - freeze 口径：不计入当前 freeze 硬门禁
 - 2026-04-03 fresh fail-close gate + Windows closeout refresh：通过（current freeze baseline）
   - `gate PASS @ 2026-04-03 02:13:10`
