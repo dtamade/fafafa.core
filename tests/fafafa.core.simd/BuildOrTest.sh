@@ -1413,13 +1413,15 @@ check_windows_manual_closeout_guard() {
     '3. 回灌 cross gate（Git Bash / WSL，必需）'
     "\`FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate\`"
     'SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1'
-    '- 因此手工 Windows 实机路径在 finalize 前必须显式补跑 fail-close cross gate；否则 `freeze-status` 只会继续消费旧的 `gate_summary.md`。'
+    'cross_gate_not_older_than_windows_evidence'
+    'windows_closeout_not_older_than_windows_evidence'
   )
   LCloseoutDocRequired=(
     'Then run the required fail-close cross gate:'
     "FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate"
     'SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1'
     'native batch evidence 不会生成 fresh `gate_summary.md/json`'
+    'windows_closeout_not_older_than_windows_evidence'
   )
   LCloseoutChecklistRequired=(
     '0.1) 或直接使用 GH 单命令闭环（推荐）'
@@ -4066,6 +4068,59 @@ check_freeze_status_output_isolation() {
   echo "[CHECK] OK (freeze-status output isolation present)"
 }
 
+check_freeze_windows_timestamp_guards() {
+  local LFreezeScript
+  local LRehearsalScript
+  local LMissing
+  local LPattern
+  local -a LFreezeRequired
+  local -a LRehearsalRequired
+
+  LFreezeScript="${ROOT}/evaluate_simd_freeze_status.py"
+  LRehearsalScript="${ROOT}/rehearse_freeze_status.sh"
+  for LPattern in "${LFreezeScript}" "${LRehearsalScript}"; do
+    if [[ ! -f "${LPattern}" ]]; then
+      echo "[CHECK] Missing freeze timestamp guard target: ${LPattern}"
+      return 1
+    fi
+  done
+
+  LMissing=0
+  LFreezeRequired=(
+    'cross_gate_not_older_than_windows_evidence'
+    'windows_closeout_not_older_than_windows_evidence'
+    'artifact_not_older_than_artifact_check('
+  )
+  LRehearsalRequired=(
+    'LCrossGateStaleRc=$?'
+    'grep -F -- "cross_gate_not_older_than_windows_evidence"'
+    'LCloseoutStaleRc=$?'
+    'grep -F -- "windows_closeout_not_older_than_windows_evidence"'
+    'case_cross_gate_stale_rc=${LCrossGateStaleRc}'
+    'case_closeout_stale_rc=${LCloseoutStaleRc}'
+  )
+
+  for LPattern in "${LFreezeRequired[@]}"; do
+    if ! grep -F -- "${LPattern}" "${LFreezeScript}" >/dev/null; then
+      echo "[CHECK] Freeze status script missing timestamp guard pattern: ${LPattern}"
+      LMissing=1
+    fi
+  done
+
+  for LPattern in "${LRehearsalRequired[@]}"; do
+    if ! grep -F -- "${LPattern}" "${LRehearsalScript}" >/dev/null; then
+      echo "[CHECK] Freeze rehearsal missing timestamp guard pattern: ${LPattern}"
+      LMissing=1
+    fi
+  done
+
+  if [[ "${LMissing}" != "0" ]]; then
+    return 1
+  fi
+
+  echo "[CHECK] OK (freeze Windows timestamp guards present)"
+}
+
 check_windows_experimental_tests_runner_guard() {
   local LBat
   local LMissing
@@ -4453,6 +4508,7 @@ gate_step_build_check() {
   check_dispatch_preinit_smoke_runner_guard || return $?
   check_linux_evidence_output_isolation || return $?
   check_freeze_status_output_isolation || return $?
+  check_freeze_windows_timestamp_guards || return $?
   check_cpuinfo_runner_parity || return $?
   check_cpuinfo_qemu_isolation_guard || return $?
   run_register_include_check || return $?
@@ -5794,6 +5850,7 @@ case "${ACTION}" in
     check_dispatch_preinit_smoke_runner_guard
     check_linux_evidence_output_isolation
     check_freeze_status_output_isolation
+    check_freeze_windows_timestamp_guards
     check_cpuinfo_runner_parity
     check_cpuinfo_qemu_isolation_guard
     run_register_include_check
