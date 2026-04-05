@@ -308,6 +308,30 @@ copy_downloaded_artifact() {
   cp -a "${aSourceDir}/." "${aTargetDir}/"
 }
 
+find_unique_downloaded_file() {
+  local aSearchRoot
+  local aName
+  local aLabel
+  local -a LCandidates
+
+  aSearchRoot="${1:-}"
+  aName="${2:-}"
+  aLabel="${3:-${aName}}"
+
+  mapfile -t LCandidates < <(find "${aSearchRoot}" -type f -name "${aName}" | sort)
+  if [[ "${#LCandidates[@]}" == "0" ]]; then
+    return 10
+  fi
+
+  if [[ "${#LCandidates[@]}" != "1" ]]; then
+    echo "[NATIVE-EVIDENCE-GH] Refuse artifact: multiple ${aLabel} files found in snapshot:" >&2
+    printf '  - %s\n' "${LCandidates[@]}" >&2
+    return 11
+  fi
+
+  printf '%s\n' "${LCandidates[0]}"
+}
+
 read_metadata_value() {
   local aFile
   local aKey
@@ -416,16 +440,54 @@ gh run download "${LRunId}" -n "${ARTIFACT_NAME}" -D "${LTempDir}"
 
 copy_downloaded_artifact "${LTempDir}" "${LLocalSnapshotDir}"
 
-LSummaryPath="$(find "${LLocalSnapshotDir}" -type f -name 'summary.md' | sort | head -n 1 || true)"
-LDispatchLogPath="$(find "${LLocalSnapshotDir}" -type f -name 'dispatch_publicabi.log' | sort | head -n 1 || true)"
-LSourceRevisionPath="$(find "${LLocalSnapshotDir}" -type f -name 'source_revision.txt' | sort | head -n 1 || true)"
+set +e
+LSummaryPath="$(find_unique_downloaded_file "${LLocalSnapshotDir}" 'summary.md' 'summary')"
+LSummaryRc=$?
+set -e
+case "${LSummaryRc}" in
+  0)
+    ;;
+  10)
+    echo "[NATIVE-EVIDENCE-GH] Missing summary.md in downloaded artifact snapshot: ${LLocalSnapshotDir}"
+    exit 1
+    ;;
+  *)
+    exit 1
+    ;;
+esac
+
+set +e
+LDispatchLogPath="$(find_unique_downloaded_file "${LLocalSnapshotDir}" 'dispatch_publicabi.log' 'dispatch publicabi log')"
+LDispatchLogRc=$?
+set -e
+case "${LDispatchLogRc}" in
+  0)
+    ;;
+  10)
+    LDispatchLogPath=""
+    ;;
+  *)
+    exit 1
+    ;;
+esac
+
+set +e
+LSourceRevisionPath="$(find_unique_downloaded_file "${LLocalSnapshotDir}" 'source_revision.txt' 'source revision')"
+LSourceRevisionRc=$?
+set -e
+case "${LSourceRevisionRc}" in
+  0)
+    ;;
+  10)
+    LSourceRevisionPath=""
+    ;;
+  *)
+    exit 1
+    ;;
+esac
+
 LSourceGitCommit=""
 LSourceGitRefHint=""
-
-if [[ -z "${LSummaryPath}" ]]; then
-  echo "[NATIVE-EVIDENCE-GH] Missing summary.md in downloaded artifact snapshot: ${LLocalSnapshotDir}"
-  exit 1
-fi
 
 if [[ -n "${LSourceRevisionPath}" ]]; then
   LSourceGitCommit="$(read_metadata_value "${LSourceRevisionPath}" git_commit)"

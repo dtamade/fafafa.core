@@ -74,6 +74,41 @@ sys.exit(0 if normalize(sys.argv[1]) == normalize(sys.argv[2]) else 1)
 PY
 }
 
+copy_file_preserve_mtime() {
+  local aSource
+  local aTarget
+
+  aSource="$1"
+  aTarget="$2"
+
+  mkdir -p "$(dirname "${aTarget}")"
+  cp -p "${aSource}" "${aTarget}"
+}
+
+find_unique_downloaded_file() {
+  local aSearchRoot
+  local aName
+  local aLabel
+  local -a LCandidates
+
+  aSearchRoot="${1:-}"
+  aName="${2:-}"
+  aLabel="${3:-${aName}}"
+
+  mapfile -t LCandidates < <(find "${aSearchRoot}" -type f -name "${aName}" | sort)
+  if [[ "${#LCandidates[@]}" == "0" ]]; then
+    return 10
+  fi
+
+  if [[ "${#LCandidates[@]}" != "1" ]]; then
+    echo "[WIN-EVIDENCE-GH] Refuse artifact: multiple ${aLabel} files found in download:" >&2
+    printf '  - %s\n' "${LCandidates[@]}" >&2
+    return 11
+  fi
+
+  printf '%s\n' "${LCandidates[0]}"
+}
+
 is_billing_block_output() {
   local aText
   local LNormalized
@@ -303,14 +338,56 @@ trap cleanup EXIT
 echo "[WIN-EVIDENCE-GH] Download artifact: ${ARTIFACT_NAME}"
 gh run download "${LRunId}" -n "${ARTIFACT_NAME}" -D "${LTempDir}"
 
-LSourceLog="$(find "${LTempDir}" -type f -name 'windows_b07_gate.log' | head -n 1 || true)"
+set +e
+LSourceLog="$(find_unique_downloaded_file "${LTempDir}" 'windows_b07_gate.log' 'windows evidence log')"
+LSourceLogRc=$?
+set -e
+case "${LSourceLogRc}" in
+  0)
+    ;;
+  10)
+    echo "[WIN-EVIDENCE-GH] Missing windows_b07_gate.log in downloaded artifact"
+    exit 1
+    ;;
+  *)
+    exit 1
+    ;;
+esac
+
+set +e
+LSourceGateSummaryMd="$(find_unique_downloaded_file "${LTempDir}" 'gate_summary.md' 'gate summary md')"
+LSummaryMdRc=$?
+set -e
+case "${LSummaryMdRc}" in
+  0)
+    ;;
+  10)
+    LSourceGateSummaryMd=""
+    ;;
+  *)
+    exit 1
+    ;;
+esac
+
+set +e
+LSourceGateSummaryJson="$(find_unique_downloaded_file "${LTempDir}" 'gate_summary.json' 'gate summary json')"
+LSummaryJsonRc=$?
+set -e
+case "${LSummaryJsonRc}" in
+  0)
+    ;;
+  10)
+    LSourceGateSummaryJson=""
+    ;;
+  *)
+    exit 1
+    ;;
+esac
+
 if [[ -z "${LSourceLog}" ]]; then
-  echo "[WIN-EVIDENCE-GH] Missing windows_b07_gate.log in downloaded artifact"
   exit 1
 fi
 
-LSourceGateSummaryMd="$(find "${LTempDir}" -type f -name 'gate_summary.md' | head -n 1 || true)"
-LSourceGateSummaryJson="$(find "${LTempDir}" -type f -name 'gate_summary.json' | head -n 1 || true)"
 LCanonicalGateSummaryMd="${ROOT}/logs/gate_summary.md"
 LCanonicalGateSummaryJson="${ROOT}/logs/gate_summary.json"
 LBackfillOutputRoot="${SIMD_OUTPUT_ROOT:-${ROOT}}"
@@ -326,13 +403,13 @@ if ! paths_equal "${BATCH_GATE_SUMMARY_JSON}" "${LCanonicalGateSummaryJson}"; th
   rm -f "${BATCH_GATE_SUMMARY_JSON}"
 fi
 if ! paths_equal "${LSourceLog}" "${BATCH_EVIDENCE_LOG}"; then
-  cp "${LSourceLog}" "${BATCH_EVIDENCE_LOG}"
+  copy_file_preserve_mtime "${LSourceLog}" "${BATCH_EVIDENCE_LOG}"
 fi
 if ! paths_equal "${LSourceLog}" "${CANONICAL_EVIDENCE_LOG}"; then
-  cp "${LSourceLog}" "${CANONICAL_EVIDENCE_LOG}"
+  copy_file_preserve_mtime "${LSourceLog}" "${CANONICAL_EVIDENCE_LOG}"
 fi
 if ! paths_equal "${EVIDENCE_LOG}" "${CANONICAL_EVIDENCE_LOG}" && ! paths_equal "${LSourceLog}" "${EVIDENCE_LOG}"; then
-  cp "${LSourceLog}" "${EVIDENCE_LOG}"
+  copy_file_preserve_mtime "${LSourceLog}" "${EVIDENCE_LOG}"
 fi
 echo "[WIN-EVIDENCE-GH] Evidence log updated: ${EVIDENCE_LOG}"
 echo "[WIN-EVIDENCE-GH] Canonical evidence log: ${CANONICAL_EVIDENCE_LOG}"
@@ -340,10 +417,10 @@ echo "[WIN-EVIDENCE-GH] Batch evidence log: ${BATCH_EVIDENCE_LOG}"
 
 if [[ -n "${LSourceGateSummaryMd}" ]]; then
   if ! paths_equal "${LSourceGateSummaryMd}" "${BATCH_GATE_SUMMARY_MD}"; then
-    cp "${LSourceGateSummaryMd}" "${BATCH_GATE_SUMMARY_MD}"
+    copy_file_preserve_mtime "${LSourceGateSummaryMd}" "${BATCH_GATE_SUMMARY_MD}"
   fi
   if ! paths_equal "${LSourceGateSummaryMd}" "${LCanonicalGateSummaryMd}"; then
-    cp "${LSourceGateSummaryMd}" "${LCanonicalGateSummaryMd}"
+    copy_file_preserve_mtime "${LSourceGateSummaryMd}" "${LCanonicalGateSummaryMd}"
   fi
   echo "[WIN-EVIDENCE-GH] Batch gate summary md: ${BATCH_GATE_SUMMARY_MD}"
   LFreezeGateSummaryFile="${BATCH_GATE_SUMMARY_MD}"
@@ -353,10 +430,10 @@ fi
 
 if [[ -n "${LSourceGateSummaryJson}" ]]; then
   if ! paths_equal "${LSourceGateSummaryJson}" "${BATCH_GATE_SUMMARY_JSON}"; then
-    cp "${LSourceGateSummaryJson}" "${BATCH_GATE_SUMMARY_JSON}"
+    copy_file_preserve_mtime "${LSourceGateSummaryJson}" "${BATCH_GATE_SUMMARY_JSON}"
   fi
   if ! paths_equal "${LSourceGateSummaryJson}" "${LCanonicalGateSummaryJson}"; then
-    cp "${LSourceGateSummaryJson}" "${LCanonicalGateSummaryJson}"
+    copy_file_preserve_mtime "${LSourceGateSummaryJson}" "${LCanonicalGateSummaryJson}"
   fi
   echo "[WIN-EVIDENCE-GH] Batch gate summary json: ${BATCH_GATE_SUMMARY_JSON}"
 else
@@ -379,7 +456,7 @@ bash "${ROOT}/BuildOrTest.sh" gate
 
 if [[ -f "${LBackfillGateSummaryMd}" ]]; then
   if ! paths_equal "${LBackfillGateSummaryMd}" "${LCanonicalGateSummaryMd}"; then
-    cp "${LBackfillGateSummaryMd}" "${LCanonicalGateSummaryMd}"
+    copy_file_preserve_mtime "${LBackfillGateSummaryMd}" "${LCanonicalGateSummaryMd}"
   fi
   echo "[WIN-EVIDENCE-GH] Backfill gate summary md: ${LBackfillGateSummaryMd}"
   LFreezeGateSummaryFile="${LCanonicalGateSummaryMd}"
@@ -387,7 +464,7 @@ fi
 
 if [[ -f "${LBackfillGateSummaryJson}" ]]; then
   if ! paths_equal "${LBackfillGateSummaryJson}" "${LCanonicalGateSummaryJson}"; then
-    cp "${LBackfillGateSummaryJson}" "${LCanonicalGateSummaryJson}"
+    copy_file_preserve_mtime "${LBackfillGateSummaryJson}" "${LCanonicalGateSummaryJson}"
   fi
   echo "[WIN-EVIDENCE-GH] Backfill gate summary json: ${LBackfillGateSummaryJson}"
 fi
@@ -407,9 +484,9 @@ fi
 bash "${ROOT}/run_windows_b07_closeout_finalize.sh" "${BATCH_ID}"
 
 if [[ -f "${BATCH_CLOSEOUT_SUMMARY}" ]]; then
-  cp "${BATCH_CLOSEOUT_SUMMARY}" "${ROOT}/logs/windows_b07_closeout_summary.md"
+  copy_file_preserve_mtime "${BATCH_CLOSEOUT_SUMMARY}" "${ROOT}/logs/windows_b07_closeout_summary.md"
 fi
 
 if [[ -f "${BATCH_FREEZE_JSON}" ]]; then
-  cp "${BATCH_FREEZE_JSON}" "${ROOT}/logs/freeze_status.json"
+  copy_file_preserve_mtime "${BATCH_FREEZE_JSON}" "${ROOT}/logs/freeze_status.json"
 fi

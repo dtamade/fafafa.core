@@ -1608,6 +1608,11 @@ check_windows_via_gh_cross_gate_guard() {
   fi
 
   LRequired=(
+    'find_unique_downloaded_file() {'
+    'echo "[WIN-EVIDENCE-GH] Refuse artifact: multiple ${aLabel} files found in download:" >&2'
+    'find_unique_downloaded_file "${LTempDir}" '\''windows_b07_gate.log'\'' '\''windows evidence log'\'''
+    'find_unique_downloaded_file "${LTempDir}" '\''gate_summary.md'\'' '\''gate summary md'\'''
+    'find_unique_downloaded_file "${LTempDir}" '\''gate_summary.json'\'' '\''gate summary json'\'''
     'SIMD_QEMU_PLATFORMS="${SIMD_QEMU_PLATFORMS:-linux/arm/v7 linux/arm64 linux/riscv64}" \'
     'SIMD_GATE_QEMU_NONX86_EVIDENCE="${SIMD_GATE_QEMU_NONX86_EVIDENCE:-0}" \'
     'SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE="${SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE:-1}" \'
@@ -1632,6 +1637,139 @@ check_windows_via_gh_cross_gate_guard() {
   done
 
   echo "[CHECK] OK (Windows via-gh cross gate guard present)"
+}
+
+check_windows_via_gh_runtime_guard() {
+  local LViaGHScript
+  local LTmpRoot
+  local LHelperCopy
+  local LBinDir
+  local LOutput
+  local LRC
+  local LPattern
+  local -a LRequired
+
+  LViaGHScript="${ROOT}/run_windows_b07_closeout_via_github_actions.sh"
+  if [[ ! -f "${LViaGHScript}" ]]; then
+    echo "[CHECK] Missing Windows via-gh runtime target: ${LViaGHScript}"
+    return 1
+  fi
+
+  LTmpRoot="$(mktemp -d)"
+  LHelperCopy="${LTmpRoot}/run_windows_b07_closeout_via_github_actions.sh"
+  LBinDir="${LTmpRoot}/bin"
+  mkdir -p "${LBinDir}" "${LTmpRoot}/artifact/a-old" "${LTmpRoot}/artifact/z-new"
+
+  cp "${LViaGHScript}" "${LHelperCopy}"
+  chmod +x "${LHelperCopy}"
+
+  cat > "${LTmpRoot}/verify_windows_b07_evidence.sh" <<'EOF'
+#!/usr/bin/env bash
+echo "UNEXPECTED_VERIFY_CALL $*" >&2
+exit 99
+EOF
+
+  cat > "${LTmpRoot}/BuildOrTest.sh" <<'EOF'
+#!/usr/bin/env bash
+echo "UNEXPECTED_GATE_CALL $*" >&2
+exit 99
+EOF
+
+  cat > "${LTmpRoot}/run_windows_b07_closeout_finalize.sh" <<'EOF'
+#!/usr/bin/env bash
+echo "UNEXPECTED_FINALIZE_CALL $*" >&2
+exit 99
+EOF
+
+  cat > "${LBinDir}/gh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "${1:-}" == "auth" && "${2:-}" == "status" ]]; then
+  exit 0
+fi
+
+if [[ "${1:-}" == "run" && "${2:-}" == "view" ]]; then
+  if [[ "${4:-}" == "--json" ]]; then
+    printf '%s\n' '{"status":"completed","conclusion":"success","url":"https://example.invalid/runs/525252"}'
+    exit 0
+  fi
+fi
+
+if [[ "${1:-}" == "run" && "${2:-}" == "download" ]]; then
+  LTargetDir=""
+  while (($# > 0)); do
+    case "${1}" in
+      -D)
+        LTargetDir="${2:-}"
+        shift 2
+        ;;
+      *)
+        shift
+        ;;
+    esac
+  done
+
+  if [[ -z "${LTargetDir}" ]]; then
+    echo "MISSING_DOWNLOAD_DIR" >&2
+    exit 98
+  fi
+
+  cp -a "${WINDOWS_DUPLICATE_ARTIFACT_DIR}/." "${LTargetDir}/"
+  exit 0
+fi
+
+echo "UNEXPECTED_GH_CALL $*" >&2
+exit 99
+EOF
+
+  chmod +x \
+    "${LTmpRoot}/verify_windows_b07_evidence.sh" \
+    "${LTmpRoot}/BuildOrTest.sh" \
+    "${LTmpRoot}/run_windows_b07_closeout_finalize.sh" \
+    "${LBinDir}/gh"
+
+  printf '%s\n' 'old windows log' > "${LTmpRoot}/artifact/a-old/windows_b07_gate.log"
+  printf '%s\n' 'new windows log' > "${LTmpRoot}/artifact/z-new/windows_b07_gate.log"
+
+  set +e
+  LOutput="$(PATH="${LBinDir}:${PATH}" \
+    WINDOWS_DUPLICATE_ARTIFACT_DIR="${LTmpRoot}/artifact" \
+    bash "${LHelperCopy}" SIMD-CHECK-WIN-DUP 525252 2>&1)"
+  LRC=$?
+  set -e
+  if [[ "${LRC}" != "1" ]]; then
+    echo "[CHECK] Windows via-gh duplicate-artifact guard returned rc=${LRC} (expected 1)"
+    printf '%s\n' "${LOutput}"
+    rm -rf "${LTmpRoot}"
+    return 1
+  fi
+
+  LRequired=(
+    '[WIN-EVIDENCE-GH] Reuse existing workflow run: 525252'
+    '[WIN-EVIDENCE-GH] Download artifact: simd-windows-b07-evidence'
+    '[WIN-EVIDENCE-GH] Refuse artifact: multiple windows evidence log files found in download:'
+  )
+  for LPattern in "${LRequired[@]}"; do
+    if ! grep -F -- "${LPattern}" <<<"${LOutput}" >/dev/null; then
+      echo "[CHECK] Windows via-gh runtime missing duplicate-artifact output pattern: ${LPattern}"
+      printf '%s\n' "${LOutput}"
+      rm -rf "${LTmpRoot}"
+      return 1
+    fi
+  done
+  if grep -F -- 'UNEXPECTED_VERIFY_CALL' <<<"${LOutput}" >/dev/null || \
+     grep -F -- 'UNEXPECTED_GATE_CALL' <<<"${LOutput}" >/dev/null || \
+     grep -F -- 'UNEXPECTED_FINALIZE_CALL' <<<"${LOutput}" >/dev/null || \
+     grep -F -- 'UNEXPECTED_GH_CALL' <<<"${LOutput}" >/dev/null; then
+    echo "[CHECK] Windows via-gh duplicate-artifact guard still reached downstream helper calls"
+    printf '%s\n' "${LOutput}"
+    rm -rf "${LTmpRoot}"
+    return 1
+  fi
+
+  rm -rf "${LTmpRoot}"
+  echo "[CHECK] OK (Windows via-gh runtime guard present)"
 }
 
 check_gate_summary_json_runtime_guard() {
@@ -2208,7 +2346,11 @@ check_nonx86_native_evidence_runner_guard() {
     echo "[CHECK] non-x86 native evidence GH helper missing workflow mapping"
     LMissing=1
   fi
-  if ! grep -F -- "find \"\${LLocalSnapshotDir}\" -type f -name 'source_revision.txt'" "${LGhHelper}" >/dev/null || \
+  if ! grep -F -- 'find_unique_downloaded_file() {' "${LGhHelper}" >/dev/null || \
+     ! grep -F -- 'echo "[NATIVE-EVIDENCE-GH] Refuse artifact: multiple ${aLabel} files found in snapshot:" >&2' "${LGhHelper}" >/dev/null || \
+     ! grep -F -- 'find_unique_downloaded_file "${LLocalSnapshotDir}" '\''summary.md'\'' '\''summary'\''' "${LGhHelper}" >/dev/null || \
+     ! grep -F -- 'find_unique_downloaded_file "${LLocalSnapshotDir}" '\''dispatch_publicabi.log'\'' '\''dispatch publicabi log'\''' "${LGhHelper}" >/dev/null || \
+     ! grep -F -- 'find_unique_downloaded_file "${LLocalSnapshotDir}" '\''source_revision.txt'\'' '\''source revision'\''' "${LGhHelper}" >/dev/null || \
      ! grep -F -- 'echo "[NATIVE-EVIDENCE-GH] Source revision: ${LSourceRevisionPath}"' "${LGhHelper}" >/dev/null; then
     echo "[CHECK] non-x86 native evidence GH helper missing source revision surfacing"
     LMissing=1
@@ -2232,6 +2374,11 @@ check_nonx86_native_evidence_via_gh_runtime_guard() {
   local LReuseRunFile
   local LReuseSummary
   local LReuseSourceFile
+  local LDuplicateBinDir
+  local LDuplicateDownloadRoot
+  local LDuplicateOutput
+  local LDuplicateRC
+  local LDuplicatePattern
   local LDirtyBinDir
   local LDirtyDownloadRoot
   local LDirtyOutput
@@ -2243,6 +2390,7 @@ check_nonx86_native_evidence_via_gh_runtime_guard() {
   local LMissingRC
   local LMissingPattern
   local -a LReuseRequired
+  local -a LDuplicateRequired
   local -a LDirtyRequired
   local -a LMissingRequired
 
@@ -2255,11 +2403,13 @@ check_nonx86_native_evidence_via_gh_runtime_guard() {
   LTmpRoot="$(mktemp -d)"
   LReuseBinDir="${LTmpRoot}/reuse/bin"
   LReuseDownloadRoot="${LTmpRoot}/reuse/downloads"
+  LDuplicateBinDir="${LTmpRoot}/duplicate/bin"
+  LDuplicateDownloadRoot="${LTmpRoot}/duplicate/downloads"
   LDirtyBinDir="${LTmpRoot}/dirty/bin"
   LDirtyDownloadRoot="${LTmpRoot}/dirty/downloads"
   LMissingBinDir="${LTmpRoot}/missing/bin"
   LMissingDownloadRoot="${LTmpRoot}/missing/downloads"
-  mkdir -p "${LReuseBinDir}" "${LDirtyBinDir}" "${LMissingBinDir}"
+  mkdir -p "${LReuseBinDir}" "${LDuplicateBinDir}" "${LDirtyBinDir}" "${LMissingBinDir}"
 
   cat > "${LReuseBinDir}/git" <<'EOF'
 #!/usr/bin/env bash
@@ -2314,6 +2464,67 @@ git_commit=0123456789abcdef0123456789abcdef01234567
 git_ref_hint=simd-foundation
 git_tree_state=clean
 EOF_SOURCE
+  exit 0
+fi
+
+echo "UNEXPECTED_GH_CALL $*" >&2
+exit 99
+EOF
+
+  cat > "${LDuplicateBinDir}/git" <<'EOF'
+#!/usr/bin/env bash
+echo "UNEXPECTED_GIT_CALL $*" >&2
+exit 99
+EOF
+
+  cat > "${LDuplicateBinDir}/gh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "${1:-}" == "auth" && "${2:-}" == "status" ]]; then
+  exit 0
+fi
+
+if [[ "${1:-}" == "run" && "${2:-}" == "view" ]]; then
+  if [[ "${4:-}" == "--json" ]]; then
+    printf '%s\n' '{"status":"completed","conclusion":"success","url":"https://example.invalid/runs/434343"}'
+    exit 0
+  fi
+fi
+
+if [[ "${1:-}" == "run" && "${2:-}" == "download" ]]; then
+  LTargetDir=""
+  while (($# > 0)); do
+    case "${1}" in
+      -D)
+        LTargetDir="${2:-}"
+        shift 2
+        ;;
+      *)
+        shift
+        ;;
+    esac
+  done
+
+  if [[ -z "${LTargetDir}" ]]; then
+    echo "MISSING_DOWNLOAD_DIR" >&2
+    exit 98
+  fi
+
+  mkdir -p "${LTargetDir}/a-old" "${LTargetDir}/z-new"
+  printf '%s\n' 'shared summary' > "${LTargetDir}/summary.md"
+  cat > "${LTargetDir}/a-old/source_revision.txt" <<'EOF_SOURCE_OLD'
+collected_at_utc=2026-04-05T00:00:00Z
+git_commit=1111111111111111111111111111111111111111
+git_ref_hint=old-ref
+git_tree_state=clean
+EOF_SOURCE_OLD
+  cat > "${LTargetDir}/z-new/source_revision.txt" <<'EOF_SOURCE_NEW'
+collected_at_utc=2026-04-05T00:00:00Z
+git_commit=2222222222222222222222222222222222222222
+git_ref_hint=new-ref
+git_tree_state=clean
+EOF_SOURCE_NEW
   exit 0
 fi
 
@@ -2416,6 +2627,8 @@ EOF
   chmod +x \
     "${LReuseBinDir}/git" \
     "${LReuseBinDir}/gh" \
+    "${LDuplicateBinDir}/git" \
+    "${LDuplicateBinDir}/gh" \
     "${LDirtyBinDir}/git" \
     "${LDirtyBinDir}/gh" \
     "${LMissingBinDir}/git" \
@@ -2485,6 +2698,48 @@ EOF
      ! grep -F -- 'git_ref_hint=simd-foundation' "${LReuseSourceFile}" >/dev/null; then
     echo "[CHECK] non-x86 native evidence via-gh runtime wrote unexpected source revision payload"
     cat "${LReuseSourceFile}" || true
+    rm -rf "${LTmpRoot}"
+    return 1
+  fi
+
+  set +e
+  LDuplicateOutput="$(PATH="${LDuplicateBinDir}:${PATH}" \
+    SIMD_NATIVE_EVIDENCE_DOWNLOAD_ROOT="${LDuplicateDownloadRoot}" \
+    SIMD_NATIVE_EVIDENCE_EXPECT_COMMIT=2222222222222222222222222222222222222222 \
+    SIMD_NATIVE_EVIDENCE_REQUIRE_SOURCE_REVISION=1 \
+    bash "${LGhHelper}" riscvv 434343 2>&1)"
+  LDuplicateRC=$?
+  set -e
+  if [[ "${LDuplicateRC}" != "1" ]]; then
+    echo "[CHECK] non-x86 native evidence via-gh duplicate-artifact guard returned rc=${LDuplicateRC} (expected 1)"
+    printf '%s\n' "${LDuplicateOutput}"
+    rm -rf "${LTmpRoot}"
+    return 1
+  fi
+
+  LDuplicateRequired=(
+    '[NATIVE-EVIDENCE-GH] Reuse existing workflow run: 434343'
+    '[NATIVE-EVIDENCE-GH] Download artifact: simd-riscvv-native-evidence'
+    '[NATIVE-EVIDENCE-GH] Refuse artifact: multiple source revision files found in snapshot:'
+  )
+  for LDuplicatePattern in "${LDuplicateRequired[@]}"; do
+    if ! grep -F -- "${LDuplicatePattern}" <<<"${LDuplicateOutput}" >/dev/null; then
+      echo "[CHECK] non-x86 native evidence via-gh runtime missing duplicate-artifact output pattern: ${LDuplicatePattern}"
+      printf '%s\n' "${LDuplicateOutput}"
+      rm -rf "${LTmpRoot}"
+      return 1
+    fi
+  done
+  if grep -F -- 'Source revision git_commit mismatch' <<<"${LDuplicateOutput}" >/dev/null; then
+    echo "[CHECK] non-x86 native evidence via-gh duplicate-artifact guard still fell through to source revision mismatch"
+    printf '%s\n' "${LDuplicateOutput}"
+    rm -rf "${LTmpRoot}"
+    return 1
+  fi
+  if grep -F -- 'UNEXPECTED_GIT_CALL' <<<"${LDuplicateOutput}" >/dev/null || \
+     grep -F -- 'UNEXPECTED_GH_CALL' <<<"${LDuplicateOutput}" >/dev/null; then
+    echo "[CHECK] non-x86 native evidence via-gh duplicate-artifact guard hit unexpected helper calls"
+    printf '%s\n' "${LDuplicateOutput}"
     rm -rf "${LTmpRoot}"
     return 1
   fi
@@ -4595,6 +4850,7 @@ gate_step_build_check() {
   check_windows_manual_closeout_guard || return $?
   check_windows_closeout_helper_runtime_guard || return $?
   check_windows_via_gh_cross_gate_guard || return $?
+  check_windows_via_gh_runtime_guard || return $?
   check_gate_summary_json_runtime_guard || return $?
   check_perf_smoke_scalar_guard || return $?
   check_perf_smoke_public_abi_shape_guard || return $?
@@ -5951,6 +6207,7 @@ case "${ACTION}" in
   check_windows_manual_closeout_guard
   check_windows_closeout_helper_runtime_guard
   check_windows_via_gh_cross_gate_guard
+  check_windows_via_gh_runtime_guard
   check_gate_summary_json_runtime_guard
   check_perf_smoke_scalar_guard
   check_perf_smoke_public_abi_shape_guard
