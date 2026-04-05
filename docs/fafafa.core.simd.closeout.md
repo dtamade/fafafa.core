@@ -72,6 +72,7 @@
 #### 日常改动
 
 Run:
+
 ```bash
 bash tests/fafafa.core.simd/BuildOrTest.sh check
 bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI
@@ -80,6 +81,7 @@ bash tests/fafafa.core.simd/BuildOrTest.sh gate
 ```
 
 这组命令适合：
+
 - 文档同步
 - façade 小修
 - dispatch / cpuinfo 的局部修改
@@ -88,6 +90,7 @@ bash tests/fafafa.core.simd/BuildOrTest.sh gate
 #### `cpuinfo` 便携路径
 
 Run:
+
 ```bash
 bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh test --suite=TTestCase_PlatformSpecific
 bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh test --suite=TTestCase_LazyCPUInfo
@@ -96,6 +99,7 @@ bash tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh test --suite=TTestCase_LazyCP
 #### `cpuinfo.x86` 样本驱动路径
 
 Run:
+
 ```bash
 bash tests/fafafa.core.simd.cpuinfo.x86/BuildOrTest.sh test --suite=TTestCase_SampleDriven
 bash tests/fafafa.core.simd.cpuinfo.x86/BuildOrTest.sh test --suite=TTestCase_Global
@@ -104,6 +108,7 @@ bash tests/fafafa.core.simd.cpuinfo.x86/BuildOrTest.sh test --suite=TTestCase_Gl
 #### adapter wiring / experimental boundary
 
 Run:
+
 ```bash
 bash tests/fafafa.core.simd/BuildOrTest.sh adapter-sync
 bash tests/fafafa.core.simd/BuildOrTest.sh experimental-intrinsics
@@ -112,6 +117,7 @@ bash tests/fafafa.core.simd/BuildOrTest.sh experimental-intrinsics
 #### 发布前 / closeout
 
 Run:
+
 ```bash
 bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict
 ```
@@ -122,11 +128,13 @@ bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict
 如果你是在 Linux 上做 dry-run、对比不同脚本口径，或者同一轮里要并发跑 `gate` / `gate-strict` / `evidence-linux`，建议显式设置 `SIMD_OUTPUT_ROOT`，避免互相覆盖默认 `bin2/lib2/logs`。
 
 Run:
+
 ```bash
 SIMD_OUTPUT_ROOT=/tmp/simd-closeout-123 bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict
 ```
 
 或者：
+
 ```bash
 SIMD_OUTPUT_ROOT=/tmp/simd-closeout-123 bash tests/fafafa.core.simd/BuildOrTest.sh evidence-linux
 ```
@@ -140,6 +148,7 @@ SIMD_OUTPUT_ROOT=/tmp/simd-closeout-123 bash tests/fafafa.core.simd/BuildOrTest.
 #### 日常改动
 
 Run:
+
 ```bat
 tests\fafafa.core.simd\buildOrTest.bat check
 tests\fafafa.core.simd\buildOrTest.bat test --suite=TTestCase_DispatchAPI
@@ -150,6 +159,7 @@ tests\fafafa.core.simd\buildOrTest.bat gate
 #### `cpuinfo` 便携路径
 
 Run:
+
 ```bat
 tests\fafafa.core.simd.cpuinfo\buildOrTest.bat test --suite=TTestCase_PlatformSpecific
 tests\fafafa.core.simd.cpuinfo\buildOrTest.bat test --suite=TTestCase_LazyCPUInfo
@@ -158,6 +168,7 @@ tests\fafafa.core.simd.cpuinfo\buildOrTest.bat test --suite=TTestCase_LazyCPUInf
 #### `cpuinfo.x86` 样本驱动路径
 
 Run:
+
 ```bat
 tests\fafafa.core.simd.cpuinfo.x86\buildOrTest.bat test --suite=TTestCase_SampleDriven
 tests\fafafa.core.simd.cpuinfo.x86\buildOrTest.bat test --suite=TTestCase_Global
@@ -166,6 +177,7 @@ tests\fafafa.core.simd.cpuinfo.x86\buildOrTest.bat test --suite=TTestCase_Global
 #### adapter wiring / experimental boundary
 
 Run:
+
 ```bat
 tests\fafafa.core.simd\buildOrTest.bat adapter-sync
 tests\fafafa.core.simd\buildOrTest.bat experimental-intrinsics
@@ -174,6 +186,7 @@ tests\fafafa.core.simd\buildOrTest.bat experimental-intrinsics
 #### 发布前 / closeout
 
 Run:
+
 ```bat
 tests\fafafa.core.simd\buildOrTest.bat gate-strict
 ```
@@ -225,16 +238,19 @@ tests\fafafa.core.simd\buildOrTest.bat gate-strict
    Windows 日志一旦到位，按这个顺序收口：
 
    Run:
+
    ```bat
    tests\fafafa.core.simd\buildOrTest.bat evidence-win-verify
    ```
 
    Then run the required fail-close cross gate:
+
    ```bash
    FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=0 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate
    ```
 
    Then:
+
    ```bash
    FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize SIMD-YYYYMMDD-152
    ```
@@ -311,6 +327,15 @@ tests\fafafa.core.simd\buildOrTest.bat gate-strict
   - 但 GitHub Actions 当前还没有把它注册进 default branch 的 workflow 列表，所以 `gh workflow run simd-riscvv-native-evidence.yml --ref simd-foundation` 会返回 404
   - helper 现在会把这个场景解释成明确配置问题：`Workflow is not registered on GitHub Actions`
   - 这不是实现逻辑失败，而是 workflow 注册/托管条件未满足；因此 RISCVV enhanced evidence 继续保留为非 freeze 硬门禁项
+- native/windows via-gh helper 的 artifact 选择也已改成 fail-close：
+  - 如果下载快照里出现重复同名必需文件，helper 不再“取第一个”
+  - `run_nonx86_native_evidence_via_github_actions.sh` 会拒绝重复的 `summary.md` / `dispatch_publicabi.log` / `source_revision.txt`
+  - `run_windows_b07_closeout_via_github_actions.sh` 会拒绝重复的 `windows_b07_gate.log` / `gate_summary.md` / `gate_summary.json`
+  - 这样旧文件混在 artifact 下载目录里时，不会再误吃 stale 文件给出假绿
+- `restore-nightly-evidence` 的 canonical file 语义也已补强：
+  - `restore_nightly_evidence_artifacts.sh` 现在会保留 `gate_summary.*` 与 `windows_b07_gate.log` 的原始 mtime
+  - 同时会拒绝重复同名必需文件，而不是沿用“多命中取第一个”
+  - 原因是 `freeze-status` 依赖这些文件的 mtime 做 freshness 和 ordering 判定；如果 restore 把时间戳刷成“现在”，会制造假新鲜度
 - 2026-04-05 还补了一轮 fresh closeout 验证：
   - `bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict`
   - 结果：canonical `tests/fafafa.core.simd/logs/gate_summary.md` 已刷新为 `gate PASS @ 2026-04-05 15:48:03`
@@ -334,6 +359,17 @@ tests\fafafa.core.simd\buildOrTest.bat gate-strict
 - canonical Windows closeout 摘要也已通过 `bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize SIMD-20260403-152` 重新写回：
   - `tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md`
   - 生成时间：`2026-04-05 15:26:32 +0800`
+- 2026-04-05 23:24:39 还补齐了一轮 strongest closeout baseline：
+  - 命令：`FAFAFA_BUILD_MODE=Release SIMD_QEMU_PLATFORMS='linux/arm/v7 linux/arm64 linux/riscv64' SIMD_GATE_CPUINFO_LAZY_REPEAT=5 SIMD_GATE_QEMU_NONX86_EVIDENCE=0 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=1 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=0 SIMD_GATE_REQUIRE_WINDOWS_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
+  - 结果：canonical `tests/fafafa.core.simd/logs/gate_summary.md` 已刷新为 `gate PASS @ 2026-04-05 23:24:39`
+  - 关键 cross 证据：
+    - `tests/fafafa.core.simd/logs/qemu-multiarch-20260405-225600-2895543/summary.md`（cpuinfo-nonx86-evidence）
+    - `tests/fafafa.core.simd/logs/qemu-multiarch-20260405-230214-2912595/summary.md`（cpuinfo-nonx86-full-evidence）
+    - `tests/fafafa.core.simd/logs/qemu-multiarch-20260405-230747-2933907/summary.md`（cpuinfo-nonx86-full-repeat）
+  - 同一份 latest gate summary 内还包含 `cpuinfo-lazy-repeat=PASS (rounds=5)`，因此强约束 required steps 已在 single freshest baseline 中闭环
+- 随后的 strongest `freeze-status` 也再次通过：
+  - `SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=1 SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_FULL_REPEAT=1 SIMD_FREEZE_REQUIRE_CPUINFO_LAZY_REPEAT=1 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+  - 结果：`tests/fafafa.core.simd/logs/freeze_status.json` 现为 `ready=True`、`freeze_ready=True`、`mainline_ready=True`、`cross_ready=True`
 - 当前 freeze baseline 没变：freshest Windows closeout baseline 仍是 2026-04-03 的 `SIMD-20260403-152` + fail-close cross gate；2026-04-05 这一轮主要是 Linux gate 重验、QEMU cpuinfo 隔离 hardening 与 native-evidence helper 契约补强，不需要重复收 Windows 证据。
 
 ## 收口后的主线优先级
