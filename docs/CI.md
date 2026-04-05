@@ -171,6 +171,9 @@ bash tests/fafafa.core.simd/BuildOrTest.sh restore-nightly-evidence \
   /tmp/simd-linux-evidence \
   /tmp/simd-windows-b07-evidence \
   /tmp/simd-arm64-neon-evidence
+
+# restore helper 会保留 gate_summary.* / windows_b07_gate.log 的原始 mtime，
+# 这样 freeze-status 仍按下载证据自身的时间判 freshness，不会把本地 restore 时刻误算成 fresh。
 ```
 
 ### 一键脚本

@@ -2859,7 +2859,14 @@ check_restore_nightly_evidence_runner_guard() {
     LMissing=1
   fi
   if ! grep -F -- 'tests/fafafa.core.simd/BuildOrTest.sh freeze-status' "${LHelper}" >/dev/null || \
-     ! grep -F -- 'tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize' "${LHelper}" >/dev/null; then
+     ! grep -F -- 'tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize' "${LHelper}" >/dev/null || \
+     ! grep -F -- 'find_unique_file() {' "${LHelper}" >/dev/null || \
+     ! grep -F -- 'echo "[RESTORE] Refuse artifact: multiple ${aLabel} files found in ${aDir}" >&2' "${LHelper}" >/dev/null || \
+     ! grep -F -- 'find_unique_file "${LINUX_ARTIFACT_DIR}" '\''gate_summary.md'\'' '\''linux gate summary md'\''' "${LHelper}" >/dev/null || \
+     ! grep -F -- 'find_unique_file "${LINUX_ARTIFACT_DIR}" '\''gate_summary.json'\'' '\''linux gate summary json'\''' "${LHelper}" >/dev/null || \
+     ! grep -F -- 'find_unique_file "${WINDOWS_ARTIFACT_DIR}" '\''windows_b07_gate.log'\'' '\''windows evidence log'\''' "${LHelper}" >/dev/null || \
+     ! grep -F -- 'copy_file_preserve_mtime() {' "${LHelper}" >/dev/null || \
+     ! grep -F -- 'cp -p "${aSource}" "${aTarget}"' "${LHelper}" >/dev/null; then
     echo "[CHECK] nightly evidence restore helper missing canonical restore targets"
     LMissing=1
   fi
@@ -2892,9 +2899,13 @@ check_restore_nightly_evidence_runtime_guard() {
   local LWindowsArtifactDir
   local LNeonArtifactDir
   local LRiscvvArtifactDir
+  local LDuplicateLinuxArtifactDir
+  local LDuplicateWindowsArtifactDir
   local LOutput
   local LRC
   local LPattern
+  local LDuplicateOutput
+  local LDuplicateRC
   local -a LRequired
 
   LHelper="${ROOT}/restore_nightly_evidence_artifacts.sh"
@@ -2909,6 +2920,8 @@ check_restore_nightly_evidence_runtime_guard() {
   LWindowsArtifactDir="${LTmpRoot}/artifacts/windows"
   LNeonArtifactDir="${LTmpRoot}/artifacts/neon"
   LRiscvvArtifactDir="${LTmpRoot}/artifacts/riscvv"
+  LDuplicateLinuxArtifactDir="${LTmpRoot}/artifacts-duplicate/linux"
+  LDuplicateWindowsArtifactDir="${LTmpRoot}/artifacts-duplicate/windows"
 
   cp "${LHelper}" "${LHelperCopy}"
   chmod +x "${LHelperCopy}"
@@ -2918,15 +2931,27 @@ check_restore_nightly_evidence_runtime_guard() {
     "${LLinuxArtifactDir}/evidence-linux-20260405" \
     "${LWindowsArtifactDir}" \
     "${LNeonArtifactDir}/native-evidence-neon-20260405" \
-    "${LRiscvvArtifactDir}/native-evidence-riscvv-20260405"
+    "${LRiscvvArtifactDir}/native-evidence-riscvv-20260405" \
+    "${LDuplicateLinuxArtifactDir}/a-old" \
+    "${LDuplicateLinuxArtifactDir}/z-new" \
+    "${LDuplicateLinuxArtifactDir}/qemu-multiarch-20260405-guard" \
+    "${LDuplicateWindowsArtifactDir}"
 
   printf '%s\n' 'gate-summary-md' > "${LLinuxArtifactDir}/gate_summary.md"
   printf '%s\n' 'gate-summary-json' > "${LLinuxArtifactDir}/gate_summary.json"
   printf '%s\n' 'windows-log' > "${LWindowsArtifactDir}/windows_b07_gate.log"
+  touch -t 202601020304.05 "${LLinuxArtifactDir}/gate_summary.md"
+  touch -t 202601020305.06 "${LLinuxArtifactDir}/gate_summary.json"
+  touch -t 202601020306.07 "${LWindowsArtifactDir}/windows_b07_gate.log"
   printf '%s\n' 'qemu-summary' > "${LLinuxArtifactDir}/qemu-multiarch-20260405-guard/summary.md"
   printf '%s\n' 'linux-evidence-summary' > "${LLinuxArtifactDir}/evidence-linux-20260405/summary.md"
   printf '%s\n' 'neon-native-summary' > "${LNeonArtifactDir}/native-evidence-neon-20260405/summary.md"
   printf '%s\n' 'riscvv-native-summary' > "${LRiscvvArtifactDir}/native-evidence-riscvv-20260405/summary.md"
+  printf '%s\n' 'old-gate-summary-md' > "${LDuplicateLinuxArtifactDir}/a-old/gate_summary.md"
+  printf '%s\n' 'new-gate-summary-md' > "${LDuplicateLinuxArtifactDir}/z-new/gate_summary.md"
+  printf '%s\n' 'gate-summary-json' > "${LDuplicateLinuxArtifactDir}/gate_summary.json"
+  printf '%s\n' 'qemu-summary' > "${LDuplicateLinuxArtifactDir}/qemu-multiarch-20260405-guard/summary.md"
+  printf '%s\n' 'windows-log' > "${LDuplicateWindowsArtifactDir}/windows_b07_gate.log"
   mkdir -p \
     "${LTmpRoot}/logs/qemu-multiarch-stale-20260301" \
     "${LTmpRoot}/logs/evidence-linux-stale-20260301" \
@@ -2973,6 +2998,29 @@ check_restore_nightly_evidence_runtime_guard() {
     rm -rf "${LTmpRoot}"
     return 1
   fi
+  if ! python3 - \
+    "${LLinuxArtifactDir}/gate_summary.md" "${LTmpRoot}/logs/gate_summary.md" \
+    "${LLinuxArtifactDir}/gate_summary.json" "${LTmpRoot}/logs/gate_summary.json" \
+    "${LWindowsArtifactDir}/windows_b07_gate.log" "${LTmpRoot}/logs/windows_b07_gate.log" <<'PY'
+from pathlib import Path
+import sys
+
+pairs = [(Path(sys.argv[i]), Path(sys.argv[i + 1])) for i in range(1, len(sys.argv), 2)]
+for source, target in pairs:
+    source_mtime = int(source.stat().st_mtime)
+    target_mtime = int(target.stat().st_mtime)
+    if source_mtime != target_mtime:
+        print(
+            f"mtime mismatch: source={source} ({source_mtime}) target={target} ({target_mtime})",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+PY
+  then
+    echo "[CHECK] nightly evidence restore helper runtime failed to preserve evidence mtimes"
+    rm -rf "${LTmpRoot}"
+    return 1
+  fi
   if [[ ! -f "${LTmpRoot}/logs/qemu-multiarch-20260405-guard/summary.md" ]] || \
      [[ ! -f "${LTmpRoot}/logs/evidence-linux-20260405/summary.md" ]] || \
      [[ ! -f "${LTmpRoot}/logs/native-evidence-neon-20260405/summary.md" ]] || \
@@ -2993,6 +3041,25 @@ check_restore_nightly_evidence_runtime_guard() {
      [[ -e "${LTmpRoot}/logs/native-evidence-riscvv-stale-20260301" ]]; then
     echo "[CHECK] nightly evidence restore helper runtime left stale evidence directories behind"
     printf '%s\n' "${LOutput}"
+    rm -rf "${LTmpRoot}"
+    return 1
+  fi
+
+  set +e
+  LDuplicateOutput="$(bash "${LHelperCopy}" \
+    "${LDuplicateLinuxArtifactDir}" \
+    "${LDuplicateWindowsArtifactDir}" 2>&1)"
+  LDuplicateRC=$?
+  set -e
+  if [[ "${LDuplicateRC}" != "1" ]]; then
+    echo "[CHECK] nightly evidence restore helper duplicate-artifact guard returned rc=${LDuplicateRC} (expected 1)"
+    printf '%s\n' "${LDuplicateOutput}"
+    rm -rf "${LTmpRoot}"
+    return 1
+  fi
+  if ! grep -F -- '[RESTORE] Refuse artifact: multiple linux gate summary md files found in' <<<"${LDuplicateOutput}" >/dev/null; then
+    echo "[CHECK] nightly evidence restore helper runtime missing duplicate-artifact refusal"
+    printf '%s\n' "${LDuplicateOutput}"
     rm -rf "${LTmpRoot}"
     return 1
   fi

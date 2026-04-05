@@ -40,13 +40,27 @@ require_arg_dir() {
   fi
 }
 
-find_first_file() {
+find_unique_file() {
   local aDir
   local aName
+  local aLabel
+  local -a LCandidates
 
   aDir="$1"
   aName="$2"
-  find "${aDir}" -type f -name "${aName}" | sort | head -n 1 || true
+  aLabel="${3:-${aName}}"
+
+  mapfile -t LCandidates < <(find "${aDir}" -type f -name "${aName}" | sort)
+  if [[ "${#LCandidates[@]}" == "0" ]]; then
+    return 10
+  fi
+  if [[ "${#LCandidates[@]}" != "1" ]]; then
+    echo "[RESTORE] Refuse artifact: multiple ${aLabel} files found in ${aDir}" >&2
+    printf '  - %s\n' "${LCandidates[@]}" >&2
+    return 11
+  fi
+
+  printf '%s\n' "${LCandidates[0]}"
 }
 
 has_matching_dirs() {
@@ -56,6 +70,17 @@ has_matching_dirs() {
   aSourceDir="$1"
   aPattern="$2"
   find "${aSourceDir}" -type d -name "${aPattern}" -print -quit | grep -q .
+}
+
+copy_file_preserve_mtime() {
+  local aSource
+  local aTarget
+
+  aSource="$1"
+  aTarget="$2"
+
+  mkdir -p "$(dirname "${aTarget}")"
+  cp -p "${aSource}" "${aTarget}"
 }
 
 copy_required_file() {
@@ -70,8 +95,7 @@ copy_required_file() {
     exit 1
   fi
 
-  mkdir -p "$(dirname "${aTarget}")"
-  cp "${aSource}" "${aTarget}"
+  copy_file_preserve_mtime "${aSource}" "${aTarget}"
   echo "[RESTORE] file: ${aSource} -> ${aTarget}"
 }
 
@@ -116,22 +140,48 @@ fi
 
 mkdir -p "${LOG_ROOT}"
 
-LINUX_GATE_SUMMARY_MD="$(find_first_file "${LINUX_ARTIFACT_DIR}" 'gate_summary.md')"
-LINUX_GATE_SUMMARY_JSON="$(find_first_file "${LINUX_ARTIFACT_DIR}" 'gate_summary.json')"
-WINDOWS_EVIDENCE_LOG="$(find_first_file "${WINDOWS_ARTIFACT_DIR}" 'windows_b07_gate.log')"
+set +e
+LINUX_GATE_SUMMARY_MD="$(find_unique_file "${LINUX_ARTIFACT_DIR}" 'gate_summary.md' 'linux gate summary md')"
+LLinuxGateSummaryMdRc=$?
+LINUX_GATE_SUMMARY_JSON="$(find_unique_file "${LINUX_ARTIFACT_DIR}" 'gate_summary.json' 'linux gate summary json')"
+LLinuxGateSummaryJsonRc=$?
+WINDOWS_EVIDENCE_LOG="$(find_unique_file "${WINDOWS_ARTIFACT_DIR}" 'windows_b07_gate.log' 'windows evidence log')"
+LWindowsEvidenceLogRc=$?
+set -e
 
-if [[ -z "${LINUX_GATE_SUMMARY_MD}" || ! -f "${LINUX_GATE_SUMMARY_MD}" ]]; then
-  echo "[RESTORE] Missing required file for ${LOG_ROOT}/gate_summary.md"
-  exit 1
-fi
-if [[ -z "${LINUX_GATE_SUMMARY_JSON}" || ! -f "${LINUX_GATE_SUMMARY_JSON}" ]]; then
-  echo "[RESTORE] Missing required file for ${LOG_ROOT}/gate_summary.json"
-  exit 1
-fi
-if [[ -z "${WINDOWS_EVIDENCE_LOG}" || ! -f "${WINDOWS_EVIDENCE_LOG}" ]]; then
-  echo "[RESTORE] Missing required file for ${LOG_ROOT}/windows_b07_gate.log"
-  exit 1
-fi
+case "${LLinuxGateSummaryMdRc}" in
+  0)
+    ;;
+  10)
+    echo "[RESTORE] Missing required file for ${LOG_ROOT}/gate_summary.md"
+    exit 1
+    ;;
+  *)
+    exit 1
+    ;;
+esac
+case "${LLinuxGateSummaryJsonRc}" in
+  0)
+    ;;
+  10)
+    echo "[RESTORE] Missing required file for ${LOG_ROOT}/gate_summary.json"
+    exit 1
+    ;;
+  *)
+    exit 1
+    ;;
+esac
+case "${LWindowsEvidenceLogRc}" in
+  0)
+    ;;
+  10)
+    echo "[RESTORE] Missing required file for ${LOG_ROOT}/windows_b07_gate.log"
+    exit 1
+    ;;
+  *)
+    exit 1
+    ;;
+esac
 if ! has_matching_dirs "${LINUX_ARTIFACT_DIR}" 'qemu-multiarch-*'; then
   echo "[RESTORE] Missing qemu-multiarch-* directories in ${LINUX_ARTIFACT_DIR}"
   exit 1

@@ -123,6 +123,8 @@ bash tests/fafafa.core.simd/BuildOrTest.sh restore-nightly-evidence \
   /tmp/simd-arm64-neon-evidence
 ```
 
+`restore-nightly-evidence` 会保留 `gate_summary.*` 与 `windows_b07_gate.log` 的原始 mtime；`freeze-status` 仍然按 artifact 自身时间而不是本地 restore 时刻判断 fresh/stale。
+
 `perf-smoke` 默认仍是显式开关；若要把它纳入 closeout 门禁，请设置 `SIMD_GATE_PERF_SMOKE=1`，或直接走 `evidence-linux`。若 active backend 仍落在 `Scalar`，当前会直接失败，因为这意味着没有拿到可用于 closeout 的 SIMD 性能证据。
 
 如果你是在同一台机器上并发跑多个 `SIMD` helper，或者只是想做不落默认产物目录的 dry-run，优先设置 `SIMD_OUTPUT_ROOT`。
