@@ -848,7 +848,7 @@ check_windows_runner_parity() {
     'echo [GATE] Optional backend adapter sync Pascal smoke'
     'call "%SELF%" adapter-sync-pascal'
     'echo [GATE] Optional backend adapter sync'
-    'set "SIMD_ADAPTER_SYNC_PASCAL_SMOKE=0"'
+    'call :adapter_sync_checker_only'
     'call "%SELF%" adapter-sync'
     'echo [GATE] Optional cross-backend parity suites'
     'call "%SELF%" test --suite=TTestCase_DispatchAPI'
@@ -2233,8 +2233,14 @@ check_nonx86_native_evidence_via_gh_runtime_guard() {
   local LDirtyOutput
   local LDirtyRC
   local LDirtyPattern
+  local LMissingBinDir
+  local LMissingDownloadRoot
+  local LMissingOutput
+  local LMissingRC
+  local LMissingPattern
   local -a LReuseRequired
   local -a LDirtyRequired
+  local -a LMissingRequired
 
   LGhHelper="${ROOT}/run_nonx86_native_evidence_via_github_actions.sh"
   if [[ ! -f "${LGhHelper}" ]]; then
@@ -2247,7 +2253,9 @@ check_nonx86_native_evidence_via_gh_runtime_guard() {
   LReuseDownloadRoot="${LTmpRoot}/reuse/downloads"
   LDirtyBinDir="${LTmpRoot}/dirty/bin"
   LDirtyDownloadRoot="${LTmpRoot}/dirty/downloads"
-  mkdir -p "${LReuseBinDir}" "${LDirtyBinDir}"
+  LMissingBinDir="${LTmpRoot}/missing/bin"
+  LMissingDownloadRoot="${LTmpRoot}/missing/downloads"
+  mkdir -p "${LReuseBinDir}" "${LDirtyBinDir}" "${LMissingBinDir}"
 
   cat > "${LReuseBinDir}/git" <<'EOF'
 #!/usr/bin/env bash
@@ -2353,11 +2361,61 @@ echo "UNEXPECTED_GH_CALL $*" >&2
 exit 99
 EOF
 
+  cat > "${LMissingBinDir}/git" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "${1:-}" == "-C" ]]; then
+  shift 2
+fi
+
+if [[ "${1:-}" == "branch" && "${2:-}" == "--show-current" ]]; then
+  printf '%s\n' 'simd-foundation'
+  exit 0
+fi
+
+if [[ "${1:-}" == "rev-parse" ]]; then
+  printf '%s\n' '0123456789abcdef0123456789abcdef01234567'
+  exit 0
+fi
+
+if [[ "${1:-}" == "ls-remote" ]]; then
+  printf '%s\trefs/heads/%s\n' '0123456789abcdef0123456789abcdef01234567' 'simd-foundation'
+  exit 0
+fi
+
+if [[ "${1:-}" == "status" ]]; then
+  exit 0
+fi
+
+echo "UNEXPECTED_GIT_CALL $*" >&2
+exit 99
+EOF
+
+  cat > "${LMissingBinDir}/gh" <<'EOF'
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [[ "${1:-}" == "auth" && "${2:-}" == "status" ]]; then
+  exit 0
+fi
+
+if [[ "${1:-}" == "workflow" && "${2:-}" == "run" ]]; then
+  echo "HTTP 404: Not Found (https://api.github.com/repos/example/fafafa.core/actions/workflows/simd-riscvv-native-evidence.yml)" >&2
+  exit 1
+fi
+
+echo "UNEXPECTED_GH_CALL $*" >&2
+exit 99
+EOF
+
   chmod +x \
     "${LReuseBinDir}/git" \
     "${LReuseBinDir}/gh" \
     "${LDirtyBinDir}/git" \
-    "${LDirtyBinDir}/gh"
+    "${LDirtyBinDir}/gh" \
+    "${LMissingBinDir}/git" \
+    "${LMissingBinDir}/gh"
 
   set +e
   LReuseOutput="$(PATH="${LReuseBinDir}:${PATH}" \
@@ -2455,6 +2513,39 @@ EOF
   if grep -F -- '[NATIVE-EVIDENCE-GH] Dispatch workflow:' <<<"${LDirtyOutput}" >/dev/null; then
     echo "[CHECK] non-x86 native evidence via-gh runtime dirty-dispatch guard still reached workflow dispatch"
     printf '%s\n' "${LDirtyOutput}"
+    rm -rf "${LTmpRoot}"
+    return 1
+  fi
+
+  set +e
+  LMissingOutput="$(PATH="${LMissingBinDir}:${PATH}" \
+    SIMD_NATIVE_EVIDENCE_DOWNLOAD_ROOT="${LMissingDownloadRoot}" \
+    bash "${LGhHelper}" riscvv 2>&1)"
+  LMissingRC=$?
+  set -e
+  if [[ "${LMissingRC}" != "2" ]]; then
+    echo "[CHECK] non-x86 native evidence via-gh runtime missing-workflow guard returned rc=${LMissingRC} (expected 2)"
+    printf '%s\n' "${LMissingOutput}"
+    rm -rf "${LTmpRoot}"
+    return 1
+  fi
+
+  LMissingRequired=(
+    '[NATIVE-EVIDENCE-GH] Workflow dispatch failed: simd-riscvv-native-evidence.yml'
+    '[NATIVE-EVIDENCE-GH] Workflow is not registered on GitHub Actions.'
+    '[NATIVE-EVIDENCE-GH] GitHub only exposes workflow_dispatch for workflows present on the repository default branch.'
+  )
+  for LMissingPattern in "${LMissingRequired[@]}"; do
+    if ! grep -F -- "${LMissingPattern}" <<<"${LMissingOutput}" >/dev/null; then
+      echo "[CHECK] non-x86 native evidence via-gh runtime missing missing-workflow output pattern: ${LMissingPattern}"
+      printf '%s\n' "${LMissingOutput}"
+      rm -rf "${LTmpRoot}"
+      return 1
+    fi
+  done
+  if grep -F -- '[NATIVE-EVIDENCE-GH] Watching run:' <<<"${LMissingOutput}" >/dev/null; then
+    echo "[CHECK] non-x86 native evidence via-gh runtime missing-workflow guard still reached run watch"
+    printf '%s\n' "${LMissingOutput}"
     rm -rf "${LTmpRoot}"
     return 1
   fi
@@ -2835,7 +2926,7 @@ check_python_checker_runtime_guard() {
   LInterfaceFunction="$(sed -n '/^run_interface_completeness()/,/^}/p' "${LShell}")"
   LContractFunction="$(sed -n '/^run_dispatch_contract_signature()/,/^}/p' "${LShell}")"
   LPublicAbiFunction="$(sed -n '/^run_public_abi_signature()/,/^}/p' "${LShell}")"
-  LAdapterFunction="$(sed -n '/^run_backend_adapter_sync()/,/^}/p' "${LShell}")"
+  LAdapterFunction="$(sed -n '/^run_backend_adapter_sync_checker_only()/,/^}/p' "${LShell}")"
   LCoverageFunction="$(sed -n '/^run_coverage()/,/^}/p' "${LShell}")"
   LExperimentalFunction="$(sed -n '/^run_intrinsics_experimental_status()/,/^}/p' "${LShell}")"
   LWiringFunction="$(sed -n '/^run_wiring_sync()/,/^}/p' "${LShell}")"
@@ -3025,6 +3116,75 @@ check_python_checker_runtime_guard() {
   fi
 
   echo "[CHECK] OK (Python checker runtime guard present)"
+}
+
+check_adapter_sync_python_only_guard() {
+  local LShell
+  local LBat
+  local LMissing
+  local LShellPythonOnlyFunction
+  local LShellCheckerOnlyFunction
+  local LPattern
+  local -a LBatRequired
+  local -a LBatForbidden
+
+  LShell="${ROOT}/BuildOrTest.sh"
+  LBat="${ROOT}/buildOrTest.bat"
+
+  for LPattern in "${LShell}" "${LBat}"; do
+    if [[ ! -f "${LPattern}" ]]; then
+      echo "[CHECK] Missing adapter-sync python-only guard target: ${LPattern}"
+      return 1
+    fi
+  done
+
+  LMissing=0
+  LShellPythonOnlyFunction="$(sed -n '/^gate_step_adapter_sync_python_only()/,/^}/p' "${LShell}")"
+  LShellCheckerOnlyFunction="$(sed -n '/^run_backend_adapter_sync_checker_only()/,/^}/p' "${LShell}")"
+
+  if ! grep -F -- 'run_backend_adapter_sync_checker_only || return $?' <<<"${LShellPythonOnlyFunction}" >/dev/null; then
+    echo "[CHECK] Shell adapter-sync python-only helper must call checker-only runner"
+    LMissing=1
+  fi
+
+  if [[ -z "${LShellCheckerOnlyFunction}" ]]; then
+    echo "[CHECK] Shell adapter-sync checker-only runner missing"
+    LMissing=1
+  fi
+
+  for LPattern in 'build_project || return $?' 'run_backend_adapter_sync_pascal || return $?'; do
+    if grep -F -- "${LPattern}" <<<"${LShellCheckerOnlyFunction}" >/dev/null; then
+      echo "[CHECK] Shell adapter-sync checker-only runner still performs Pascal build/smoke: ${LPattern}"
+      LMissing=1
+    fi
+  done
+
+  LBatRequired=(
+    'call :adapter_sync_checker_only'
+  )
+  LBatForbidden=(
+    'set "SIMD_ADAPTER_SYNC_PASCAL_SMOKE=0"'
+  )
+
+  for LPattern in "${LBatRequired[@]}"; do
+    if ! grep -F -- "${LPattern}" "${LBat}" >/dev/null; then
+      echo "[CHECK] Windows adapter-sync python-only guard missing pattern: ${LPattern}"
+      LMissing=1
+    fi
+  done
+
+  for LPattern in "${LBatForbidden[@]}"; do
+    if grep -F -- "${LPattern}" "${LBat}" >/dev/null; then
+      echo "[CHECK] Windows adapter-sync gate still reuses env-var skip pattern: ${LPattern}"
+      LMissing=1
+    fi
+  done
+
+  if [[ "${LMissing}" != "0" ]]; then
+    return 1
+  fi
+
+  echo "[CHECK] OK (adapter-sync python-only guard present)"
 }
 
 check_cpuinfo_runner_parity() {
@@ -3982,6 +4142,16 @@ run_backend_adapter_sync() {
     echo "[ADAPTER-SYNC] SKIP Pascal smoke (SIMD_ADAPTER_SYNC_PASCAL_SMOKE=0)"
   fi
 
+  run_backend_adapter_sync_checker_only || return $?
+}
+
+run_backend_adapter_sync_checker_only() {
+  local LSyncLog
+  local LSyncJsonLog
+  local LSummaryLine
+  local LMainRC
+  local -a LArgs
+
   if [[ ! -f "${ADAPTER_SYNC_SCRIPT}" ]]; then
     echo "[ADAPTER-SYNC] Missing checker: ${ADAPTER_SYNC_SCRIPT}"
     return 2
@@ -3991,12 +4161,6 @@ run_backend_adapter_sync() {
     echo "[ADAPTER-SYNC] FAILED (python3 runtime not found; adapter-sync requires python3)"
     return 2
   fi
-
-  local LSyncLog
-  local LSyncJsonLog
-  local LSummaryLine
-  local LMainRC
-  local -a LArgs
 
   LSyncLog="${SIMD_ADAPTER_SYNC_LOG_FILE:-${ADAPTER_SYNC_LOG}}"
   LSyncJsonLog="${SIMD_ADAPTER_SYNC_JSON_FILE:-${ADAPTER_SYNC_JSON_LOG}}"
@@ -4243,6 +4407,7 @@ gate_step_build_check() {
   check_nightly_native_evidence_workflow_guard || return $?
   check_qemu_experimental_python_helper_guard || return $?
   check_python_checker_runtime_guard || return $?
+  check_adapter_sync_python_only_guard || return $?
   check_publicabi_output_isolation || return $?
   check_publicabi_shell_export_guard || return $?
   check_isolated_clean_coverage || return $?
@@ -4284,7 +4449,7 @@ gate_step_adapter_sync() {
 }
 
 gate_step_adapter_sync_python_only() {
-  SIMD_ADAPTER_SYNC_PASCAL_SMOKE=0 run_backend_adapter_sync || return $?
+  run_backend_adapter_sync_checker_only || return $?
 }
 
 gate_step_simd_list_suites() {

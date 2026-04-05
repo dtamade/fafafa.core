@@ -416,6 +416,11 @@ if /I "%SIMD_ADAPTER_SYNC_PASCAL_SMOKE%"=="0" (
   if errorlevel 1 exit /b 1
 )
 
+call :adapter_sync_checker_only
+exit /b %ERRORLEVEL%
+
+:adapter_sync_checker_only
+
 set "ADAPTER_SYNC_SCRIPT=%ROOT%check_backend_adapter_sync.py"
 if not exist "%ADAPTER_SYNC_SCRIPT%" (
   echo [ADAPTER-SYNC] Missing checker: %ADAPTER_SYNC_SCRIPT%
@@ -1213,14 +1218,17 @@ if /I "%SIMD_GATE_ADAPTER_SYNC_PASCAL%"=="1" (
   echo [GATE] Optional backend adapter sync Pascal smoke
   call "%SELF%" adapter-sync-pascal
   if errorlevel 1 exit /b 1
-  set "SIMD_ADAPTER_SYNC_PASCAL_SMOKE=0"
 ) else (
   echo [GATE] SKIP optional backend adapter sync Pascal smoke ^(set SIMD_GATE_ADAPTER_SYNC_PASCAL=1 to enable^)
 )
 
 if /I "%SIMD_GATE_ADAPTER_SYNC%"=="1" (
   echo [GATE] Optional backend adapter sync
-  call "%SELF%" adapter-sync
+  if /I "%SIMD_GATE_ADAPTER_SYNC_PASCAL%"=="1" (
+    call :adapter_sync_checker_only
+  ) else (
+    call "%SELF%" adapter-sync
+  )
   if errorlevel 1 exit /b 1
 ) else (
   echo [GATE] SKIP optional backend adapter sync ^(set SIMD_GATE_ADAPTER_SYNC=1 to enable^)
