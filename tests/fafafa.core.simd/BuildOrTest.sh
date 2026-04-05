@@ -2608,6 +2608,14 @@ check_restore_nightly_evidence_runner_guard() {
     echo "[CHECK] nightly evidence restore helper missing canonical restore targets"
     LMissing=1
   fi
+  if ! grep -F -- 'has_matching_dirs() {' "${LHelper}" >/dev/null || \
+     ! grep -F -- "clear_matching_target_dirs 'qemu-multiarch-*'" "${LHelper}" >/dev/null || \
+     ! grep -F -- "clear_matching_target_dirs 'evidence-*'" "${LHelper}" >/dev/null || \
+     ! grep -F -- "clear_matching_target_dirs 'native-evidence-neon-*'" "${LHelper}" >/dev/null || \
+     ! grep -F -- "clear_matching_target_dirs 'native-evidence-riscvv-*'" "${LHelper}" >/dev/null; then
+    echo "[CHECK] nightly evidence restore helper missing stale directory scrub guard"
+    LMissing=1
+  fi
   if ! grep -F -- "native-evidence-neon-*" "${LHelper}" >/dev/null || \
      ! grep -F -- "native-evidence-riscvv-*" "${LHelper}" >/dev/null; then
     echo "[CHECK] nightly evidence restore helper missing native evidence restore patterns"
@@ -2664,6 +2672,15 @@ check_restore_nightly_evidence_runtime_guard() {
   printf '%s\n' 'linux-evidence-summary' > "${LLinuxArtifactDir}/evidence-linux-20260405/summary.md"
   printf '%s\n' 'neon-native-summary' > "${LNeonArtifactDir}/native-evidence-neon-20260405/summary.md"
   printf '%s\n' 'riscvv-native-summary' > "${LRiscvvArtifactDir}/native-evidence-riscvv-20260405/summary.md"
+  mkdir -p \
+    "${LTmpRoot}/logs/qemu-multiarch-stale-20260301" \
+    "${LTmpRoot}/logs/evidence-linux-stale-20260301" \
+    "${LTmpRoot}/logs/native-evidence-neon-stale-20260301" \
+    "${LTmpRoot}/logs/native-evidence-riscvv-stale-20260301"
+  printf '%s\n' 'stale-qemu-summary' > "${LTmpRoot}/logs/qemu-multiarch-stale-20260301/summary.md"
+  printf '%s\n' 'stale-linux-summary' > "${LTmpRoot}/logs/evidence-linux-stale-20260301/summary.md"
+  printf '%s\n' 'stale-neon-summary' > "${LTmpRoot}/logs/native-evidence-neon-stale-20260301/summary.md"
+  printf '%s\n' 'stale-riscvv-summary' > "${LTmpRoot}/logs/native-evidence-riscvv-stale-20260301/summary.md"
 
   set +e
   LOutput="$(bash "${LHelperCopy}" \
@@ -2712,6 +2729,15 @@ check_restore_nightly_evidence_runtime_guard() {
   if ! grep -F -- 'neon-native-summary' "${LTmpRoot}/logs/native-evidence-neon-20260405/summary.md" >/dev/null || \
      ! grep -F -- 'riscvv-native-summary' "${LTmpRoot}/logs/native-evidence-riscvv-20260405/summary.md" >/dev/null; then
     echo "[CHECK] nightly evidence restore helper runtime restored unexpected native evidence payload"
+    rm -rf "${LTmpRoot}"
+    return 1
+  fi
+  if [[ -e "${LTmpRoot}/logs/qemu-multiarch-stale-20260301" ]] || \
+     [[ -e "${LTmpRoot}/logs/evidence-linux-stale-20260301" ]] || \
+     [[ -e "${LTmpRoot}/logs/native-evidence-neon-stale-20260301" ]] || \
+     [[ -e "${LTmpRoot}/logs/native-evidence-riscvv-stale-20260301" ]]; then
+    echo "[CHECK] nightly evidence restore helper runtime left stale evidence directories behind"
+    printf '%s\n' "${LOutput}"
     rm -rf "${LTmpRoot}"
     return 1
   fi

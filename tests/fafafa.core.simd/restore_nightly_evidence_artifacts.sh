@@ -49,6 +49,15 @@ find_first_file() {
   find "${aDir}" -type f -name "${aName}" | sort | head -n 1 || true
 }
 
+has_matching_dirs() {
+  local aSourceDir
+  local aPattern
+
+  aSourceDir="$1"
+  aPattern="$2"
+  find "${aSourceDir}" -type d -name "${aPattern}" -print -quit | grep -q .
+}
+
 copy_required_file() {
   local aSource
   local aTarget
@@ -85,6 +94,17 @@ copy_optional_dirs() {
   return "${LFoundAny}"
 }
 
+clear_matching_target_dirs() {
+  local aPattern
+  local LDir
+
+  aPattern="$1"
+  while IFS= read -r -d '' LDir; do
+    rm -rf "${LDir}"
+    echo "[RESTORE] clear: ${LDir}"
+  done < <(find "${LOG_ROOT}" -maxdepth 1 -type d -name "${aPattern}" -print0 | sort -z)
+}
+
 require_arg_dir "linux artifact" "${LINUX_ARTIFACT_DIR}"
 require_arg_dir "windows artifact" "${WINDOWS_ARTIFACT_DIR}"
 if [[ -n "${NEON_NATIVE_ARTIFACT_DIR}" ]]; then
@@ -96,15 +116,43 @@ fi
 
 mkdir -p "${LOG_ROOT}"
 
-copy_required_file \
-  "$(find_first_file "${LINUX_ARTIFACT_DIR}" 'gate_summary.md')" \
-  "${LOG_ROOT}/gate_summary.md"
-copy_required_file \
-  "$(find_first_file "${LINUX_ARTIFACT_DIR}" 'gate_summary.json')" \
-  "${LOG_ROOT}/gate_summary.json"
-copy_required_file \
-  "$(find_first_file "${WINDOWS_ARTIFACT_DIR}" 'windows_b07_gate.log')" \
-  "${LOG_ROOT}/windows_b07_gate.log"
+LINUX_GATE_SUMMARY_MD="$(find_first_file "${LINUX_ARTIFACT_DIR}" 'gate_summary.md')"
+LINUX_GATE_SUMMARY_JSON="$(find_first_file "${LINUX_ARTIFACT_DIR}" 'gate_summary.json')"
+WINDOWS_EVIDENCE_LOG="$(find_first_file "${WINDOWS_ARTIFACT_DIR}" 'windows_b07_gate.log')"
+
+if [[ -z "${LINUX_GATE_SUMMARY_MD}" || ! -f "${LINUX_GATE_SUMMARY_MD}" ]]; then
+  echo "[RESTORE] Missing required file for ${LOG_ROOT}/gate_summary.md"
+  exit 1
+fi
+if [[ -z "${LINUX_GATE_SUMMARY_JSON}" || ! -f "${LINUX_GATE_SUMMARY_JSON}" ]]; then
+  echo "[RESTORE] Missing required file for ${LOG_ROOT}/gate_summary.json"
+  exit 1
+fi
+if [[ -z "${WINDOWS_EVIDENCE_LOG}" || ! -f "${WINDOWS_EVIDENCE_LOG}" ]]; then
+  echo "[RESTORE] Missing required file for ${LOG_ROOT}/windows_b07_gate.log"
+  exit 1
+fi
+if ! has_matching_dirs "${LINUX_ARTIFACT_DIR}" 'qemu-multiarch-*'; then
+  echo "[RESTORE] Missing qemu-multiarch-* directories in ${LINUX_ARTIFACT_DIR}"
+  exit 1
+fi
+if [[ -n "${NEON_NATIVE_ARTIFACT_DIR}" ]] && ! has_matching_dirs "${NEON_NATIVE_ARTIFACT_DIR}" 'native-evidence-neon-*'; then
+  echo "[RESTORE] Missing native-evidence-neon-* directories in ${NEON_NATIVE_ARTIFACT_DIR}"
+  exit 1
+fi
+if [[ -n "${RISCVV_NATIVE_ARTIFACT_DIR}" ]] && ! has_matching_dirs "${RISCVV_NATIVE_ARTIFACT_DIR}" 'native-evidence-riscvv-*'; then
+  echo "[RESTORE] Missing native-evidence-riscvv-* directories in ${RISCVV_NATIVE_ARTIFACT_DIR}"
+  exit 1
+fi
+
+clear_matching_target_dirs 'qemu-multiarch-*'
+clear_matching_target_dirs 'evidence-*'
+clear_matching_target_dirs 'native-evidence-neon-*'
+clear_matching_target_dirs 'native-evidence-riscvv-*'
+
+copy_required_file "${LINUX_GATE_SUMMARY_MD}" "${LOG_ROOT}/gate_summary.md"
+copy_required_file "${LINUX_GATE_SUMMARY_JSON}" "${LOG_ROOT}/gate_summary.json"
+copy_required_file "${WINDOWS_EVIDENCE_LOG}" "${LOG_ROOT}/windows_b07_gate.log"
 
 if ! copy_optional_dirs "${LINUX_ARTIFACT_DIR}" 'qemu-multiarch-*'; then
   echo "[RESTORE] Missing qemu-multiarch-* directories in ${LINUX_ARTIFACT_DIR}"
