@@ -4,7 +4,16 @@
 审查 `fafafa.core.simd` 及其 `cpuinfo` 相关模块，找出可验证的问题并完成至少一轮根因修复，同时产出可连续执行的后续修复与审查计划。
 
 ## Current Phase
-Phase 78 complete; repo hygiene guard is now wired into `run_all_tests.{sh,bat}`, verified red-to-green, and keeps strict L0 fresh green with a preflight `src/` artifact check
+Phase 82 complete; SIMD closeout now fail-closes both stale cross-gate and stale closeout-summary misuse
+
+- Phase 82 summary:
+  - `cpuinfo` QEMU runner now isolates `bin/${TRIPLET}` / `lib/${TRIPLET}` and uses runtime-copy execution for QEMU `cpuinfo-*` scenarios
+  - fresh `gate-strict` passed at `2026-04-05 15:48:03`
+  - fresh `freeze-status` is back to `ready=True, mainline-ready=True, cross-ready=True`
+  - fresh optional heavy replay also passed: `qemu-cpuinfo-nonx86-full-evidence` and `qemu-cpuinfo-nonx86-full-repeat`
+  - `evaluate_simd_freeze_status.py --json` now keeps stdout machine-readable by moving human summary lines to stderr
+  - `freeze-status` now rejects `windows_b07_gate.log` that is newer than the current cross gate, closing the old manual-closeout false-green gap
+  - `freeze-status` now also rejects `windows_b07_closeout_summary.md` that is older than the current Windows evidence log
 
 ## Phases
 

@@ -122,6 +122,95 @@ PY
     || true
 }
 
+resolve_repo_relative_path() {
+  local aPath
+
+  aPath="$1"
+  if [[ -z "${aPath}" ]]; then
+    echo ""
+    return 0
+  fi
+
+  if [[ "${aPath}" == /* ]]; then
+    echo "${aPath}"
+    return 0
+  fi
+
+  echo "${REPO_ROOT}/${aPath}"
+}
+
+file_mtime_epoch_ns() {
+  local aPath
+  local LValue
+
+  aPath="$1"
+  if [[ ! -f "${aPath}" ]]; then
+    echo ""
+    return 1
+  fi
+
+  if command -v python3 >/dev/null 2>&1; then
+    python3 - "${aPath}" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+try:
+    print(path.stat().st_mtime_ns)
+except Exception:
+    print("")
+PY
+    return 0
+  fi
+
+  if LValue="$(stat -c '%Y' "${aPath}" 2>/dev/null)"; then
+    echo "$((LValue * 1000000000))"
+    return 0
+  fi
+
+  if LValue="$(stat -f '%m' "${aPath}" 2>/dev/null)"; then
+    echo "$((LValue * 1000000000))"
+    return 0
+  fi
+
+  echo ""
+  return 1
+}
+
+require_file_not_older_than() {
+  local aSubjectPath
+  local aAnchorPath
+  local aAnchorLabel
+  local LSubjectEpoch
+  local LAnchorEpoch
+
+  aSubjectPath="$1"
+  aAnchorPath="$2"
+  aAnchorLabel="$3"
+
+  if [[ ! -f "${aSubjectPath}" ]]; then
+    echo "[CLOSEOUT] Refuse apply: freeze json missing: ${aSubjectPath}"
+    exit 2
+  fi
+  if [[ ! -f "${aAnchorPath}" ]]; then
+    echo "[CLOSEOUT] Refuse apply: ${aAnchorLabel} missing: ${aAnchorPath}"
+    exit 2
+  fi
+
+  LSubjectEpoch="$(file_mtime_epoch_ns "${aSubjectPath}" | tr -d '\r' | xargs)"
+  LAnchorEpoch="$(file_mtime_epoch_ns "${aAnchorPath}" | tr -d '\r' | xargs)"
+  if [[ -z "${LSubjectEpoch}" || -z "${LAnchorEpoch}" ]]; then
+    echo "[CLOSEOUT] Refuse apply: unable to read mtime for freeze/apply inputs"
+    exit 2
+  fi
+
+  if (( LSubjectEpoch < LAnchorEpoch )); then
+    echo "[CLOSEOUT] Refuse apply: freeze json older than ${aAnchorLabel}: ${aSubjectPath} < ${aAnchorPath}"
+    echo "[CLOSEOUT] Run first: bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status"
+    exit 1
+  fi
+}
+
 require_freeze_ready_for_apply() {
   local LMode
   local LFreezeReady
@@ -148,6 +237,19 @@ require_freeze_ready_for_apply() {
   fi
 
   echo "[CLOSEOUT] Freeze guard OK: mode=${LMode}, freeze_ready=${LFreezeReady}"
+}
+
+require_freeze_json_fresh_for_apply() {
+  local LResolvedEvidencePath
+  local LResolvedSummaryPath
+
+  LResolvedSummaryPath="$(realpath "${SUMMARY_PATH}")"
+  LResolvedEvidencePath="$(resolve_repo_relative_path "${LEvidencePath}")"
+
+  require_file_not_older_than "${FREEZE_JSON_PATH}" "${LResolvedSummaryPath}" "closeout summary"
+  require_file_not_older_than "${FREEZE_JSON_PATH}" "${LResolvedEvidencePath}" "windows evidence log"
+
+  echo "[CLOSEOUT] Freeze freshness OK: json >= summary/log"
 }
 
 if [[ ! -f "${SUMMARY_PATH}" ]]; then
@@ -434,6 +536,7 @@ if [[ "${APPLY_MODE}" != "1" ]]; then
 fi
 
 require_freeze_ready_for_apply
+require_freeze_json_fresh_for_apply
 
 ROADMAP_FILE="${REPO_ROOT}/docs/plans/2026-02-09-simd-unblock-closeout-roadmap.md"
 MATRIX_FILE="${REPO_ROOT}/tests/fafafa.core.simd/docs/simd_completeness_matrix.md"

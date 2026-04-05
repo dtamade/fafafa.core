@@ -1188,6 +1188,73 @@
 ### 阶段状态
 - 跨平台冻结条件满足。
 
+<!-- SIMD-CLOSEOUT-HEAVY-2026-04-05 -->
+### 批次
+- SIMD-20260405-heavy-replay
+
+### 执行动作
+- fresh 重跑 `qemu-cpuinfo-nonx86-full-evidence` 与 `qemu-cpuinfo-nonx86-full-repeat`，确认 CPUInfo QEMU 隔离 hardening 不只覆盖默认 gate 路径，也覆盖 optional heavy path。
+- 修正 `freeze-status --json` 的 stdout/stderr 合同，使 stdout 保持纯 JSON，人类可读摘要改走 stderr。
+- 回填 closeout / matrix / RC checklist / findings / task_plan，收紧 2026-04-05 当前真相源。
+
+### 命令与结果
+| Command | Result |
+|---|---|
+| FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh qemu-cpuinfo-nonx86-full-evidence | PASS |
+| FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh qemu-cpuinfo-nonx86-full-repeat | PASS |
+
+### 关键证据
+- QEMU full-evidence: tests/fafafa.core.simd/logs/qemu-multiarch-20260405-161147-1097510/summary.md
+- QEMU full-repeat: tests/fafafa.core.simd/logs/qemu-multiarch-20260405-161729-1111280/summary.md
+
+### 阶段状态
+- optional heavy CPUInfo QEMU evidence 已重新锚定为 fresh green；`freeze-status --json` stdout 现在可直接被自动化解析。
+
+<!-- SIMD-FREEZE-CROSS-GATE-GUARD-2026-04-05 -->
+### 批次
+- SIMD-20260405-cross-gate-guard
+
+### 执行动作
+- 用当前仓库真实 green 产物构造最小复现，只将 `windows_b07_gate.log` 的 mtime 推到 `gate_summary.md` 之后，确认旧 `freeze-status` 仍会误判 `ready=True`。
+- 在 `evaluate_simd_freeze_status.py` 新增 required check `cross_gate_not_older_than_windows_evidence`，把手工 Windows closeout 漏跑 fail-close cross gate 的场景改成明确 fail-close。
+- 在 `rehearse_freeze_status.sh` 新增 `case_cross_gate_stale`，并同步回填 closeout/runbook/checklist/matrix/findings/task_plan。
+
+### 命令与结果
+| Command | Result |
+|---|---|
+| 真实产物最小复现：复制当前 green artifacts 到临时目录，仅让 `windows_b07_gate.log` 新于 `gate_summary.md` 后运行 `evaluate_simd_freeze_status.py` | 旧逻辑复现假绿：`RC=0`，`ready=True, cross-ready=True` |
+| bash tests/fafafa.core.simd/rehearse_freeze_status.sh | PASS（新增 `case_cross_gate_stale_rc=1`） |
+
+### 关键证据
+- 新 guard：tests/fafafa.core.simd/evaluate_simd_freeze_status.py
+- 回归：tests/fafafa.core.simd/rehearse_freeze_status.sh
+
+### 阶段状态
+- `freeze-status` 现在会拒绝“Windows evidence 比当前 cross gate 更新”的 stale closeout 假绿。
+
+<!-- SIMD-FREEZE-CLOSEOUT-GUARD-2026-04-05 -->
+### 批次
+- SIMD-20260405-closeout-summary-guard
+
+### 执行动作
+- 用当前仓库真实 green 产物继续构造最小复现，保持 `gate_summary.md >= windows_b07_gate.log`，只让 `windows_b07_closeout_summary.md` 早于 `windows_b07_gate.log`，确认旧逻辑仍会误判 `ready=True`。
+- 在 `evaluate_simd_freeze_status.py` 新增 required check `windows_closeout_not_older_than_windows_evidence`，把 closeout summary 没有在最新 evidence 之后重生的场景改成明确 fail-close。
+- 在 `rehearse_freeze_status.sh` 新增 `case_closeout_stale`，并同步回填 closeout/runbook/checklist/matrix/findings/task_plan。
+
+### 命令与结果
+| Command | Result |
+|---|---|
+| 真实产物最小复现：复制当前 green artifacts 到临时目录，仅让 `windows_b07_closeout_summary.md` 旧于 `windows_b07_gate.log` 后运行 `evaluate_simd_freeze_status.py` | 旧逻辑复现假绿：`RC=0`，`ready=True, cross-ready=True` |
+| bash tests/fafafa.core.simd/rehearse_freeze_status.sh | PASS（新增 `case_closeout_stale_rc=1`） |
+| FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status | PASS（真实仓库当前仍 `ready=True`） |
+
+### 关键证据
+- 新 guard：tests/fafafa.core.simd/evaluate_simd_freeze_status.py
+- 回归：tests/fafafa.core.simd/rehearse_freeze_status.sh
+
+### 阶段状态
+- `freeze-status` 现在会同时拒绝 stale cross-gate 和 stale closeout-summary 两类 Windows closeout 假绿。
+
 ### Phase 72: ARM64 NEON external evidence doc sync and closeout capture
 - **Status:** complete
 - Actions taken:
@@ -3147,8 +3214,142 @@
 | bash tests/fafafa.core.simd/apply_windows_b07_closeout_updates.sh --apply --freeze-json tests/fafafa.core.simd/logs/freeze_status.json | PASS |
 
 ### 关键证据
+- Log: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260320-152/windows_b07_gate.log
+- Summary: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260320-152/windows_b07_closeout_summary.md
+
+### 阶段状态
+- 跨平台冻结条件满足。
+
+<!-- SIMD-WIN-CLOSEOUT-2026-04-02 -->
+### 批次
+- SIMD-20260402-152
+
+### 执行动作
+- 在 Windows 实机完成 buildOrTest.bat evidence-win-verify。
+- 生成并归档收口摘要：finalize-win-evidence。
+- 回填 roadmap / matrix / progress，关闭跨平台证据缺口。
+
+### 命令与结果
+| Command | Result |
+|---|---|
+| tests\fafafa.core.simd\buildOrTest.bat evidence-win-verify | PASS |
+| bash tests/fafafa.core.simd/BuildOrTest.sh finalize-win-evidence | PASS |
+| bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status | PASS |
+| bash tests/fafafa.core.simd/apply_windows_b07_closeout_updates.sh --apply --freeze-json tests/fafafa.core.simd/logs/freeze_status.json | PASS |
+
+### 关键证据
+- Log: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260402-152/windows_b07_gate.log
+- Summary: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260402-152/windows_b07_closeout_summary.md
+
+### 阶段状态
+- 跨平台冻结条件满足。
+
+<!-- SIMD-CLOSEOUT-REFRESH-2026-04-02 -->
+### 批次
+- SIMD-CLOSEOUT-REFRESH-2026-04-02
+
+### 执行动作
+- 修复 worktree 下 repo hygiene preflight 误报，恢复 `gate` / `gate-strict` 在 simd worktree 的 fail-close 语义。
+- 修复 cross-arch hardware tick 条件编译，恢复 `linux/386` 等 `arch-matrix-evidence` 编译链。
+- 以 full heavy closeout 口径重跑 `gate-strict`，恢复 canonical `tests/fafafa.core.simd/logs/gate_summary.md`。
+- 以强约束重跑 `freeze-status`，确认 `ready / freeze_ready / mainline_ready / cross_ready` 全部为 `True`。
+
+### 命令与结果
+| Command | Result |
+|---|---|
+| `FAFAFA_BUILD_MODE=Release SIMD_PERF_VECTOR_ASM=auto SIMD_GATE_PERF_SMOKE=1 SIMD_GATE_QEMU_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=1 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=1 SIMD_QEMU_CPUINFO_REPEAT_ROUNDS=3 bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict` | PASS |
+| `SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=1 SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_FULL_REPEAT=1 SIMD_FREEZE_REQUIRE_CPUINFO_LAZY_REPEAT=1 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status` | PASS |
+
+### 关键证据
+- Gate summary: `tests/fafafa.core.simd/logs/gate_summary.md`（`gate PASS @ 2026-04-02 23:31:59`）
+- Freeze summary: `tests/fafafa.core.simd/logs/freeze_status.json`（`ready=True, freeze_ready=True, mainline_ready=True, cross_ready=True`）
+- QEMU summaries:
+  - `tests/fafafa.core.simd/logs/qemu-multiarch-20260402-220753-3063889/summary.md`
+  - `tests/fafafa.core.simd/logs/qemu-multiarch-20260402-222736-3168905/summary.md`
+  - `tests/fafafa.core.simd/logs/qemu-multiarch-20260402-223524-3203813/summary.md`
+  - `tests/fafafa.core.simd/logs/qemu-multiarch-20260402-224520-3276860/summary.md`
+  - `tests/fafafa.core.simd/logs/qemu-multiarch-20260402-231618-3469977/summary.md`
+- Windows canonical evidence:
+  - `tests/fafafa.core.simd/logs/windows_b07_gate.log`
+  - `tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md`
+
+### 阶段状态
+- canonical closeout 摘要与强约束 freeze 已刷新到 2026-04-02 口径。
+- `native-evidence` 与 `qemu-nonx86-experimental-asm` 维持增强证据角色，不纳入当前 freeze 硬门禁。
+
+<!-- SIMD-ARM64-NEON-NATIVE-EVIDENCE-2026-04-03 -->
+### 批次
+- SIMD-ARM64-NEON-NATIVE-EVIDENCE-2026-04-03
+
+### 执行动作
+- 定位 ARM64 native-evidence 失败根因到 `src/fafafa.core.simd.neon.register.inc` 的条件编译缺口。
+- 在 `FAFAFA_SIMD_NEON_ASM_ENABLED` 路径下补齐 NEON wide float slot 注册，避免 registered table 泄漏 base scalar slot。
+- 本地回收宿主机 Release `DispatchAPI` 回归，并用 arm64 asm-enabled 单元编译确认修复文件可通过。
+- 推送 `simd-foundation` 提交 `3836e4cee60f0a78858d9605a0a8ee9a6cdf86e7`，再触发 fresh GitHub ARM64 native evidence。
+
+### 命令与结果
+| Command | Result |
+|---|---|
+| `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh test --suite=TTestCase_DispatchAPI` | PASS |
+| `docker run --rm --platform linux/arm64 ... fpc -B ... ../../src/fafafa.core.simd.neon.pas` | PASS |
+| `gh workflow run .github/workflows/simd-arm64-neon-evidence.yml --ref simd-foundation` | PASS (`run 23911571289`) |
+
+### 关键证据
+- Commit: `3836e4cee60f0a78858d9605a0a8ee9a6cdf86e7` (`fix(simd): wire native neon wide float slots`)
+- GitHub Actions: `https://github.com/dtamade/fafafa.core/actions/runs/23911571289`
+- Artifact: `simd-arm64-neon-evidence/native-evidence-neon-20260402-164750/summary.md`
+- `dispatch_publicabi.log`: `[TEST] Running: bin2/fafafa.core.simd.test --vector-asm --suite=TTestCase_DispatchAPI,TTestCase_PublicAbi` -> `[TEST] OK`
+
+### 阶段状态
+- ARM64 NEON native wide-float dispatch/public ABI blocker closed.
+
+<!-- SIMD-WIN-CLOSEOUT-2026-04-03 -->
+### 批次
+- SIMD-20260403-152
+
+### 执行动作
+- 在 Windows 实机完成 buildOrTest.bat evidence-win-verify。
+- 生成并归档收口摘要：finalize-win-evidence。
+- 回填 roadmap / matrix / progress，关闭跨平台证据缺口。
+
+### 命令与结果
+| Command | Result |
+|---|---|
+| tests\fafafa.core.simd\buildOrTest.bat evidence-win-verify | PASS |
+| bash tests/fafafa.core.simd/BuildOrTest.sh finalize-win-evidence | PASS |
+| bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status | PASS |
+| bash tests/fafafa.core.simd/apply_windows_b07_closeout_updates.sh --apply --freeze-json tests/fafafa.core.simd/logs/freeze_status.json | PASS |
+
+### 关键证据
+- Log: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260403-152/windows_b07_gate.log
+- Summary: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260403-152/windows_b07_closeout_summary.md
+
+### 阶段状态
+- 跨平台冻结条件满足。
+
+<!-- SIMD-WIN-CLOSEOUT-2026-04-05 -->
+### 批次
+- SIMD-20260403-152
+
+### 执行动作
+- 修复 `cpuinfo` QEMU closeout 链的目标隔离与 runtime-copy 合同，收紧 `BuildOrTest.sh` / `run_multiarch_qemu.sh` / 主 runner guard。
+- 通过 `win-closeout-finalize SIMD-20260403-152` 重写 canonical Windows closeout 摘要。
+- fresh 重跑 `gate` / `gate-strict` / `freeze-status`，确认 closeout 主链重新回到绿色。
+- 回填 roadmap / matrix / progress，关闭跨平台证据缺口。
+
+### 命令与结果
+| Command | Result |
+|---|---|
+| bash tests/fafafa.core.simd/BuildOrTest.sh gate | PASS |
+| bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict | PASS |
+| bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status | PASS |
+| bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize SIMD-20260403-152 | PASS |
+
+### 关键证据
+- Gate summary: tests/fafafa.core.simd/logs/gate_summary.md (`gate PASS @ 2026-04-05 15:48:03`)
+- QEMU summary: tests/fafafa.core.simd/logs/qemu-multiarch-20260405-154057-1022104/summary.md
 - Log: tests/fafafa.core.simd/logs/windows_b07_gate.log
-- Summary: tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md
+- Summary: tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md (`Generated: 2026-04-05 15:26:32 +0800`)
 
 ### 阶段状态
 - 跨平台冻结条件满足。

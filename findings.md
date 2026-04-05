@@ -7,6 +7,47 @@
 - 形成连续的修复与审查计划
 
 ## Research Findings
+- 2026-04-05 SIMD closeout 重新锚定快照（CPUInfo QEMU isolation + fresh freeze）：
+  - fresh 证据：
+    - `bash tests/fafafa.core.simd/BuildOrTest.sh gate`：PASS（日志结尾 `[GATE] OK`）
+    - `bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict`：PASS；canonical `tests/fafafa.core.simd/logs/gate_summary.md` 现为 `gate PASS @ 2026-04-05 15:48:03`
+    - `bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`：PASS；`ready=True, mainline-ready=True, cross-ready=True`
+    - 最新 cross 证据锚点：`tests/fafafa.core.simd/logs/qemu-multiarch-20260405-154057-1022104/summary.md`，三平台 `linux/arm/v7`、`linux/arm64`、`linux/riscv64` 全 PASS
+    - canonical Windows summary：`tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md`，`Generated: 2026-04-05 15:26:32 +0800`
+    - optional heavy replay：`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh qemu-cpuinfo-nonx86-full-evidence` 与 `... qemu-cpuinfo-nonx86-full-repeat` 均 PASS；对应摘要 `tests/fafafa.core.simd/logs/qemu-multiarch-20260405-161147-1097510/summary.md`、`tests/fafafa.core.simd/logs/qemu-multiarch-20260405-161729-1111280/summary.md`
+  - 根因确认：
+    - `tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh` 之前把不同 target 都编到共享 `bin/`，QEMU bind-mount 执行时会放大成 `Text file busy` / 映射不稳定
+    - 问题不在 CPUInfo 解析逻辑本身，而在 closeout runner 对跨 target build/runtime 的隔离不够
+  - 最小修复：
+    - `cpuinfo` runner 改为 target-specific `bin/${TRIPLET}` / `lib/${TRIPLET}`，并额外同步 `TARGET_BUILD_LOG`
+    - runner 新增 `SIMD_CPUINFO_RUNTIME_COPY`，QEMU `cpuinfo-*` 场景统一显式启用
+    - 主 `simd` runner 新增 `check_cpuinfo_qemu_isolation_guard()`，防止 future regression 把共享输出路径或 runtime-copy 契约删回去
+  - 结论：
+    - 当前 closeout 主链重新回到 fresh green，且这次 green 覆盖了最容易抖动的 `riscv64` CPUInfo QEMU 路径
+    - optional heavy evidence（`full-evidence/full-repeat`）也已在当前隔离修复下重新验证通过；本地没有新的 SIMD closeout blocker
+    - 额外顺手修正了 `freeze-status --json` 的 stdout 合同，避免 JSON 后继续混入 `[FREEZE]` 文本破坏自动化消费
+
+- 2026-04-05 `freeze-status` stale cross-gate 假绿已收口：
+  - fresh 复现：
+    - 直接复用仓库当前 green 产物复制到临时目录，只把 `windows_b07_gate.log` 的 mtime 推到 `gate_summary.md` 之后
+    - 旧逻辑在 `SIMD_FREEZE_MAX_AGE_HOURS=99999` 下仍返回 `ready=True, cross-ready=True`，说明它只验证了 Linux gate 与 Windows evidence 各自新鲜，却没有验证“当前 cross gate 是否晚于这份 Windows evidence”
+  - 最小修复：
+    - `tests/fafafa.core.simd/evaluate_simd_freeze_status.py` 新增 required check `cross_gate_not_older_than_windows_evidence`
+    - 当 `gate_summary.md` 早于 `windows_b07_gate.log` 时，next-actions 会重新指向必需的 fail-close cross gate，而不是继续接受旧 gate
+    - `tests/fafafa.core.simd/rehearse_freeze_status.sh` 新增 `case_cross_gate_stale`
+  - 结论：
+    - 手工 Windows closeout 现在不再只靠文档约束；即使用户忘了在 `evidence-win-verify` 之后补 cross gate，`freeze-status` 也会 fail-close
+
+- 2026-04-05 `freeze-status` stale closeout-summary 假绿已收口：
+  - fresh 复现：
+    - 继续复用仓库当前 green 产物复制到临时目录，保持 `gate_summary.md >= windows_b07_gate.log`，只把 `windows_b07_closeout_summary.md` 的 mtime 推到 `windows_b07_gate.log` 之前
+    - 旧逻辑在 `SIMD_FREEZE_MAX_AGE_HOURS=99999` 下仍返回 `ready=True, cross-ready=True`，说明它只验证了 summary 文本是否与 verifier 结果一致，却没有验证 summary 是否是在这份 Windows evidence 之后重新生成
+  - 最小修复：
+    - `tests/fafafa.core.simd/evaluate_simd_freeze_status.py` 新增 required check `windows_closeout_not_older_than_windows_evidence`
+    - `tests/fafafa.core.simd/rehearse_freeze_status.sh` 新增 `case_closeout_stale`
+  - 结论：
+    - 现在不止 cross gate 不能旧，closeout summary 也不能旧；手工 closeout 少跑 `win-closeout-finalize` 同样会被 freeze 明确拦住
+
 - 2026-03-27 repo hygiene guard 落地快照（small-batch fix，TDD 完成）：
   - 先新增 `tests/test_repo_hygiene_guard.sh`，在 checker 尚不存在时 fresh red：`[FAIL] missing checker`
   - 随后新增 `tests/check_repo_hygiene.sh` 与 `tests/check_repo_hygiene.bat`，并把它们接到 `tests/run_all_tests.sh` / `tests/run_all_tests.bat` 的最前面，让统一测试入口在真正跑模块前先检查 `src/` 下是否残留 `.o/.ppu/.bak`

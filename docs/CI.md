@@ -111,27 +111,69 @@ bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict
 SIMD_QEMU_BUILD_POLICY=if-missing \
 bash tests/fafafa.core.simd/BuildOrTest.sh qemu-cpuinfo-nonx86-evidence
 
+# 说明：`cpuinfo-*` 的 QEMU 场景现在会在 runner 内部显式启用
+# `SIMD_CPUINFO_RUNTIME_COPY=1`，并使用 target-specific `bin/<cpu>-<os>` /
+# `lib/<cpu>-<os>`，避免 bind-mount 直执行导致的 `Text file busy` / 产物互踩。
+
 # 真 asm 工具链专项（compiler-ready）
 SIMD_QEMU_BUILD_POLICY=if-missing \
 SIMD_QEMU_ENABLE_BACKEND_ASM=1 \
 SIMD_QEMU_BACKEND_ASM_PROBE_MODE=0 \
+SIMD_QEMU_PLATFORMS='linux/arm64 linux/riscv64' \
 SIMD_QEMU_EXPERIMENTAL_ARM64_COMPILER_DEFINE='-dFAFAFA_SIMD_NEON_ASM_COMPILER_READY' \
 SIMD_QEMU_EXPERIMENTAL_RISCV64_COMPILER_DEFINE='-dFAFAFA_SIMD_RISCVV_ASM_COMPILER_READY' \
 bash tests/fafafa.core.simd/BuildOrTest.sh qemu-nonx86-experimental-asm
 
+# 推荐紧跟 fresh lane 做基线与 blocker 报告
+bash tests/fafafa.core.simd/BuildOrTest.sh qemu-experimental-baseline-check --latest
+bash tests/fafafa.core.simd/BuildOrTest.sh qemu-experimental-report --latest
+
 # 真机 non-x86 native evidence（只能在 arm64/riscv64 原生主机上跑）
 bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence
+
+# collector 会先跑 DispatchAPI/PublicAbi，并在 suite 可见时继续采
+# TTestCase_NonX86IEEE754 与 TTestCase_NonX86BackendParity；
+# 若某个 suite 不在当前构建中，会在 summary 里显式标记 SKIP。
+# 每个 native artifact 还会附带 `environment.txt` 与 `source_revision.txt`，
+# 用于记录 host/FPC/backend 以及 `git_commit/git_ref_hint` 来源锚点。
+#
+# GitHub Actions:
+# - ARM64 NEON: `.github/workflows/simd-arm64-neon-evidence.yml`（`workflow_dispatch` + `workflow_call`；hosted `ubuntu-24.04-arm`，nightly closeout 会复用）
+# - RISCVV: `.github/workflows/simd-riscvv-native-evidence.yml`（`workflow_dispatch` + `workflow_call`；需要 self-hosted `Linux+riscv64` runner）
+#
+# 注意：`riscvv` 这条 lane 不只要求仓库里存在 workflow 文件，还要求 GitHub 已在默认分支注册它。
+# 如果 default branch 还没有这份 workflow，`gh workflow run simd-riscvv-native-evidence.yml --ref <branch>` 仍会返回 `404`；
+# helper 现在会把这类失败明确诊断成 `Workflow is not registered on GitHub Actions`。
 
 # 若要显式跑 backend-asm / direct-fpc 入口
 SIMD_NATIVE_EVIDENCE_RUNNER=direct-fpc \
 SIMD_NATIVE_EVIDENCE_ENABLE_BACKEND_ASM=1 \
 bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence riscvv
 
-# 若已从 nightly workflow 下载 linux/windows artifacts，可先恢复 canonical logs/
+# 若本地已配置 gh，并且仓库有对应 native runner，可直接 dispatch/download
+# backend 支持 neon / riscvv；默认 dispatch 会先检查本地 worktree 干净且 remote ref 与本地一致。
+bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence-via-gh neon
+bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence-via-gh riscvv
+
+# 若已知现成 run-id，可复用旧 run；这条旁路只做 download，不会再触发 git hygiene / ref 一致性拒绝
+bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence-via-gh neon 12345678901
+# helper 下载成功后会输出 `summary.md` / `dispatch_publicabi.log`，以及存在时的 `source_revision.txt` 路径
+# 若要把复用 run 的源码来源锚死到指定 commit/ref，可额外设置：
+# `SIMD_NATIVE_EVIDENCE_EXPECT_COMMIT`、`SIMD_NATIVE_EVIDENCE_EXPECT_REF`、`SIMD_NATIVE_EVIDENCE_REQUIRE_SOURCE_REVISION=1`
+
+# restore-nightly-evidence 的输入应是原始 artifact 目录（例如 `simd-linux-evidence`、
+# `simd-windows-b07-evidence`、可选 `simd-arm64-neon-evidence` / `simd-riscvv-native-evidence`），
+# 不是聚合后的 `simd-freeze-audit` 包。
+#
+# 若已从 nightly workflow 下载 linux/windows/native artifacts，可先恢复 canonical logs/
 # 再继续本地 freeze-status / win-closeout-finalize 复验
 bash tests/fafafa.core.simd/BuildOrTest.sh restore-nightly-evidence \
   /tmp/simd-linux-evidence \
-  /tmp/simd-windows-b07-evidence
+  /tmp/simd-windows-b07-evidence \
+  /tmp/simd-arm64-neon-evidence
+
+# restore helper 会保留 gate_summary.* / windows_b07_gate.log 的原始 mtime，
+# 这样 freeze-status 仍按下载证据自身的时间判 freshness，不会把本地 restore 时刻误算成 fresh。
 ```
 
 ### 一键脚本
