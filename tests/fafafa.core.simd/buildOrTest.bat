@@ -1516,7 +1516,7 @@ echo 4^) Confirm freeze status ^(Git Bash / WSL^)
 echo    bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status
 echo.
 echo Notes:
-echo    Step 3 runs finalize ^> freeze-status ^> apply, and apply is blocked unless freeze_ready=true.
+echo    Step 3 runs finalize ^> freeze-status ^> apply, and apply is blocked unless freeze_ready=true and freeze_status.json is fresh versus the current summary/evidence.
 echo    If step 0 returns RECENT_BILLING_BLOCK, fix GitHub Billing/quota first.
 exit /b 0
 

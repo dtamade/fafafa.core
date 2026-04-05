@@ -58,6 +58,7 @@ WIN_CLOSEOUT_3CMD_SCRIPT="${ROOT}/print_windows_b07_closeout_3cmd.sh"
 FREEZE_STATUS_SCRIPT="${ROOT}/evaluate_simd_freeze_status.py"
 WIN_CLOSEOUT_FINALIZE_SCRIPT="${ROOT}/run_windows_b07_closeout_finalize.sh"
 FREEZE_REHEARSAL_SCRIPT="${ROOT}/rehearse_freeze_status.sh"
+WIN_CLOSEOUT_APPLY_REHEARSAL_SCRIPT="${ROOT}/rehearse_apply_windows_closeout.sh"
 WIN_EVIDENCE_PREFLIGHT_SCRIPT="${ROOT}/preflight_windows_b07_evidence_gh.sh"
 PUBLICABI_RUNNER_SCRIPT="${ROOT}/../fafafa.core.simd.publicabi/BuildOrTest.sh"
 
@@ -707,6 +708,7 @@ check_windows_runner_parity() {
     freeze-status-rehearsal
     gate-summary-selfcheck
     win-closeout-dryrun
+    win-closeout-apply-rehearsal
     win-closeout-snippets
     win-evidence-via-gh
   )
@@ -4121,6 +4123,88 @@ check_freeze_windows_timestamp_guards() {
   echo "[CHECK] OK (freeze Windows timestamp guards present)"
 }
 
+check_windows_closeout_apply_freeze_timestamp_guards() {
+  local LApplyScript
+  local LRehearsalScript
+  local LThreeCmdScript
+  local LRunbook
+  local LMissing
+  local LPattern
+  local -a LApplyRequired
+  local -a LRehearsalRequired
+  local -a LThreeCmdRequired
+  local -a LRunbookRequired
+
+  LApplyScript="${ROOT}/apply_windows_b07_closeout_updates.sh"
+  LRehearsalScript="${ROOT}/rehearse_apply_windows_closeout.sh"
+  LThreeCmdScript="${ROOT}/print_windows_b07_closeout_3cmd.sh"
+  LRunbook="${ROOT}/docs/windows_b07_closeout_runbook.md"
+  for LPattern in "${LApplyScript}" "${LRehearsalScript}" "${LThreeCmdScript}" "${LRunbook}"; do
+    if [[ ! -f "${LPattern}" ]]; then
+      echo "[CHECK] Missing closeout apply freshness guard target: ${LPattern}"
+      return 1
+    fi
+  done
+
+  LMissing=0
+  LApplyRequired=(
+    'require_freeze_json_fresh_for_apply'
+    'Refuse apply: freeze json older than ${aAnchorLabel}: ${aSubjectPath} < ${aAnchorPath}'
+    'require_file_not_older_than "${FREEZE_JSON_PATH}" "${LResolvedSummaryPath}" "closeout summary"'
+    'require_file_not_older_than "${FREEZE_JSON_PATH}" "${LResolvedEvidencePath}" "windows evidence log"'
+  )
+  LRehearsalRequired=(
+    'LCaseReadyRc="$(run_case "${LCaseReady}")"'
+    'LCaseStaleSummaryRc="$(run_case "${LCaseStaleSummary}")"'
+    'grep -F -- "Refuse apply: freeze json older than closeout summary"'
+    'LCaseStaleEvidenceRc="$(run_case "${LCaseStaleEvidence}")"'
+    'grep -F -- "Refuse apply: freeze json older than windows evidence log"'
+    'case_ready_rc=${LCaseReadyRc}'
+    'case_stale_summary_rc=${LCaseStaleSummaryRc}'
+    'case_stale_evidence_rc=${LCaseStaleEvidenceRc}'
+  )
+  LThreeCmdRequired=(
+    '- apply_windows_b07_closeout_updates.sh 默认强制读取 freeze_status.json，拒绝未冻结或陈旧的 freeze_status.json 写文档（必须不早于当前 closeout summary / Windows evidence）。'
+  )
+  LRunbookRequired=(
+    '- 注意：`apply_windows_b07_closeout_updates.sh --apply` 在 Windows 证据校验失败时，或在 `freeze_status.json` 早于当前 summary / Windows evidence 时，会拒绝写入“已完成”状态。'
+  )
+
+  for LPattern in "${LApplyRequired[@]}"; do
+    if ! grep -F -- "${LPattern}" "${LApplyScript}" >/dev/null; then
+      echo "[CHECK] Closeout apply script missing freshness guard pattern: ${LPattern}"
+      LMissing=1
+    fi
+  done
+
+  for LPattern in "${LRehearsalRequired[@]}"; do
+    if ! grep -F -- "${LPattern}" "${LRehearsalScript}" >/dev/null; then
+      echo "[CHECK] Closeout apply rehearsal missing freshness guard pattern: ${LPattern}"
+      LMissing=1
+    fi
+  done
+
+  for LPattern in "${LThreeCmdRequired[@]}"; do
+    if ! grep -F -- "${LPattern}" "${LThreeCmdScript}" >/dev/null; then
+      echo "[CHECK] Closeout 3cmd helper missing freshness guard pattern: ${LPattern}"
+      LMissing=1
+    fi
+  done
+
+  for LPattern in "${LRunbookRequired[@]}"; do
+    if ! grep -F -- "${LPattern}" "${LRunbook}" >/dev/null; then
+      echo "[CHECK] Closeout runbook missing freshness guard pattern: ${LPattern}"
+      LMissing=1
+    fi
+  done
+
+  if [[ "${LMissing}" != "0" ]]; then
+    return 1
+  fi
+
+  echo "[CHECK] OK (closeout apply freshness guards present)"
+}
+
 check_windows_experimental_tests_runner_guard() {
   local LBat
   local LMissing
@@ -4509,6 +4593,7 @@ gate_step_build_check() {
   check_linux_evidence_output_isolation || return $?
   check_freeze_status_output_isolation || return $?
   check_freeze_windows_timestamp_guards || return $?
+  check_windows_closeout_apply_freeze_timestamp_guards || return $?
   check_cpuinfo_runner_parity || return $?
   check_cpuinfo_qemu_isolation_guard || return $?
   run_register_include_check || return $?
@@ -5763,6 +5848,18 @@ run_freeze_status_rehearsal() {
   bash "${LRehearsalScript}" "$@"
 }
 
+run_windows_closeout_apply_rehearsal() {
+  local LRehearsalScript
+
+  LRehearsalScript="${WIN_CLOSEOUT_APPLY_REHEARSAL_SCRIPT:-${ROOT}/rehearse_apply_windows_closeout.sh}"
+  if [[ ! -f "${LRehearsalScript}" ]]; then
+    echo "[APPLY-REHEARSAL] Missing script: ${LRehearsalScript}"
+    return 2
+  fi
+
+  bash "${LRehearsalScript}" "$@"
+}
+
 run_win_evidence_preflight() {
   local LPreflightScript
 
@@ -5789,7 +5886,7 @@ run_win_evidence_via_gh() {
 
 print_usage() {
   cat <<EOF
-Usage: $0 [clean|build|check|test|test-concurrent-repeat|cpuinfo-lazy-repeat|debug|release|gate|gate-strict|interface-completeness|contract-signature|publicabi-signature|publicabi-smoke|adapter-sync-pascal|adapter-sync|parity-suites|gate-summary|gate-summary-sample|gate-summary-rehearsal|gate-summary-inject|gate-summary-rollback|gate-summary-backups|gate-summary-selfcheck|perf-smoke|nonx86-optin-list-suites|nonx86-ieee754|backend-bench|qemu-nonx86-evidence|qemu-cpuinfo-nonx86-evidence|qemu-cpuinfo-nonx86-full-evidence|qemu-cpuinfo-nonx86-full-repeat|qemu-cpuinfo-nonx86-suite-repeat|qemu-arch-matrix-evidence|qemu-nonx86-experimental-asm|riscvv-opcode-lane|qemu-experimental-report|qemu-experimental-baseline-check|coverage|wiring-sync|experimental-intrinsics|experimental-intrinsics-tests|evidence-linux|native-evidence|native-evidence-via-gh|restore-nightly-evidence|win-evidence-preflight|win-evidence-via-gh|verify-win-evidence|finalize-win-evidence|win-closeout-dryrun|win-closeout-snippets|win-closeout-3cmd|freeze-status|freeze-status-linux|win-closeout-finalize|freeze-status-rehearsal] [test-args...]
+Usage: $0 [clean|build|check|test|test-concurrent-repeat|cpuinfo-lazy-repeat|debug|release|gate|gate-strict|interface-completeness|contract-signature|publicabi-signature|publicabi-smoke|adapter-sync-pascal|adapter-sync|parity-suites|gate-summary|gate-summary-sample|gate-summary-rehearsal|gate-summary-inject|gate-summary-rollback|gate-summary-backups|gate-summary-selfcheck|perf-smoke|nonx86-optin-list-suites|nonx86-ieee754|backend-bench|qemu-nonx86-evidence|qemu-cpuinfo-nonx86-evidence|qemu-cpuinfo-nonx86-full-evidence|qemu-cpuinfo-nonx86-full-repeat|qemu-cpuinfo-nonx86-suite-repeat|qemu-arch-matrix-evidence|qemu-nonx86-experimental-asm|riscvv-opcode-lane|qemu-experimental-report|qemu-experimental-baseline-check|coverage|wiring-sync|experimental-intrinsics|experimental-intrinsics-tests|evidence-linux|native-evidence|native-evidence-via-gh|restore-nightly-evidence|win-evidence-preflight|win-evidence-via-gh|verify-win-evidence|finalize-win-evidence|win-closeout-dryrun|win-closeout-apply-rehearsal|win-closeout-snippets|win-closeout-3cmd|freeze-status|freeze-status-linux|win-closeout-finalize|freeze-status-rehearsal] [test-args...]
   Experimental note: default entry chain isolates experimental intrinsics behind dedicated checks.
   gate/gate-strict PASS is not blanket release-grade approval for every experimental path.
   gate         Fast/base gate for routine SIMD changes
@@ -5851,6 +5948,7 @@ case "${ACTION}" in
     check_linux_evidence_output_isolation
     check_freeze_status_output_isolation
     check_freeze_windows_timestamp_guards
+    check_windows_closeout_apply_freeze_timestamp_guards
     check_cpuinfo_runner_parity
     check_cpuinfo_qemu_isolation_guard
     run_register_include_check
@@ -6031,6 +6129,9 @@ case "${ACTION}" in
     ;;
   win-closeout-dryrun)
     run_windows_closeout_dryrun
+    ;;
+  win-closeout-apply-rehearsal)
+    run_windows_closeout_apply_rehearsal "$@"
     ;;
   win-closeout-snippets)
     windows_closeout_snippets "$@"
