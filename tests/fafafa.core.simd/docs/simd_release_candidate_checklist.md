@@ -2,7 +2,7 @@
 
 更新时间：2026-04-05
 
-说明：本页保留历史账本。当前 freshest closeout evidence 以 `2026-04-03 Windows freeze baseline + 2026-04-05 Linux/native helper refresh` 的组合口径为准，旧条目继续保留作回归轨迹。
+说明：本页保留历史账本。当前 freshest closeout evidence 以 `2026-04-03 Windows freeze baseline + 2026-04-05 Linux/native helper refresh + heavy CPUInfo QEMU replay` 的组合口径为准，旧条目继续保留作回归轨迹。
 
 ## A. 设计与接口
 
@@ -57,6 +57,14 @@
   - `tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh` 改为 target-specific `bin/${TRIPLET}` / `lib/${TRIPLET}`，并支持 `SIMD_CPUINFO_RUNTIME_COPY`
   - `tests/fafafa.core.simd/docker/run_multiarch_qemu.sh` 的 `cpuinfo-*` 场景显式启用 `SIMD_CPUINFO_RUNTIME_COPY=1`
   - fresh `gate-strict` 已证明这条路径在 `linux/arm/v7`、`linux/arm64`、`linux/riscv64` 三平台都不再触发旧的 bind-mount 执行问题
+- [x] 2026-04-05 optional heavy CPUInfo QEMU replay 再次通过
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh qemu-cpuinfo-nonx86-full-evidence`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh qemu-cpuinfo-nonx86-full-repeat`
+  - 对应摘要：`tests/fafafa.core.simd/logs/qemu-multiarch-20260405-161147-1097510/summary.md`、`tests/fafafa.core.simd/logs/qemu-multiarch-20260405-161729-1111280/summary.md`
+  - 结果：`linux/arm/v7`、`linux/arm64`、`linux/riscv64` 全 PASS
+- [x] 2026-04-05 `freeze-status --json` stdout 合同已修正
+  - `tests/fafafa.core.simd/evaluate_simd_freeze_status.py --json` 现在只向 stdout 输出 JSON payload
+  - 人类可读摘要改走 stderr，`rehearse_freeze_status.sh` 已补 parseable stdout 回归
 - [x] 2026-04-05 ARM64 NEON native-evidence refresh 通过（enhanced evidence）
   - GitHub Actions run id：`23995214071`（head `bb061475c721d776690721a7751dff099ca6597e`）
   - artifact：`simd-arm64-neon-evidence / native-evidence-neon-*`

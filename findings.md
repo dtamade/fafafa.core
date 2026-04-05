@@ -14,6 +14,7 @@
     - `bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`：PASS；`ready=True, mainline-ready=True, cross-ready=True`
     - 最新 cross 证据锚点：`tests/fafafa.core.simd/logs/qemu-multiarch-20260405-154057-1022104/summary.md`，三平台 `linux/arm/v7`、`linux/arm64`、`linux/riscv64` 全 PASS
     - canonical Windows summary：`tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md`，`Generated: 2026-04-05 15:26:32 +0800`
+    - optional heavy replay：`FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh qemu-cpuinfo-nonx86-full-evidence` 与 `... qemu-cpuinfo-nonx86-full-repeat` 均 PASS；对应摘要 `tests/fafafa.core.simd/logs/qemu-multiarch-20260405-161147-1097510/summary.md`、`tests/fafafa.core.simd/logs/qemu-multiarch-20260405-161729-1111280/summary.md`
   - 根因确认：
     - `tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh` 之前把不同 target 都编到共享 `bin/`，QEMU bind-mount 执行时会放大成 `Text file busy` / 映射不稳定
     - 问题不在 CPUInfo 解析逻辑本身，而在 closeout runner 对跨 target build/runtime 的隔离不够
@@ -23,7 +24,8 @@
     - 主 `simd` runner 新增 `check_cpuinfo_qemu_isolation_guard()`，防止 future regression 把共享输出路径或 runtime-copy 契约删回去
   - 结论：
     - 当前 closeout 主链重新回到 fresh green，且这次 green 覆盖了最容易抖动的 `riscv64` CPUInfo QEMU 路径
-    - 剩余非绿色项只剩显式未启用的 optional heavy evidence（`full-evidence/full-repeat`），不是新的主线阻塞
+    - optional heavy evidence（`full-evidence/full-repeat`）也已在当前隔离修复下重新验证通过；本地没有新的 SIMD closeout blocker
+    - 额外顺手修正了 `freeze-status --json` 的 stdout 合同，避免 JSON 后继续混入 `[FREEZE]` 文本破坏自动化消费
 
 - 2026-03-27 repo hygiene guard 落地快照（small-batch fix，TDD 完成）：
   - 先新增 `tests/test_repo_hygiene_guard.sh`，在 checker 尚不存在时 fresh red：`[FAIL] missing checker`

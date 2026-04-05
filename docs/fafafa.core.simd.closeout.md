@@ -117,7 +117,7 @@ bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict
 ```
 
 `gate-strict` 是发布门禁，不是日常快门禁。它会补上更重的 repeat 与结构一致性路径。
-当前默认口径会强制 coverage / wiring / interface-completeness / adapter-sync / `cpuinfo-lazy-repeat` / `qemu-cpuinfo-nonx86-evidence` / Windows evidence 等发布前检查；`qemu-nonx86-evidence`、`qemu-cpuinfo-nonx86-full-evidence`、`qemu-cpuinfo-nonx86-full-repeat`、`qemu-arch-matrix-evidence` 与 `perf-smoke` 仍是显式可选项，需要通过对应 `SIMD_GATE_*` 开关开启。
+当前默认口径会强制 coverage / wiring / interface-completeness / adapter-sync / `cpuinfo-lazy-repeat` / `qemu-cpuinfo-nonx86-evidence` / Windows evidence 等发布前检查；仍然保持显式可选的只包括 `qemu-nonx86-evidence`、`qemu-cpuinfo-nonx86-full-evidence`、`qemu-cpuinfo-nonx86-full-repeat`、`qemu-arch-matrix-evidence` 与 `perf-smoke`，需要通过对应 `SIMD_GATE_*` 开关开启。
 
 如果你是在 Linux 上做 dry-run、对比不同脚本口径，或者同一轮里要并发跑 `gate` / `gate-strict` / `evidence-linux`，建议显式设置 `SIMD_OUTPUT_ROOT`，避免互相覆盖默认 `bin2/lib2/logs`。
 
@@ -132,7 +132,7 @@ SIMD_OUTPUT_ROOT=/tmp/simd-closeout-123 bash tests/fafafa.core.simd/BuildOrTest.
 ```
 
 这类隔离运行适合预演和并发回归，但**不会替代** Windows 实机 evidence。真正收口应优先走 `win-evidence-via-gh` / `win-closeout-finalize` 主线；`finalize-win-evidence` 只保留给拆分诊断或低层脚本调用。
-`perf-smoke`、QEMU / Windows evidence 仍保留为显式可选项；如果你要把这些重证据也纳入发布门禁，可先设置对应 `SIMD_GATE_*` 开关再运行。
+`perf-smoke`、`qemu-nonx86-evidence`、`qemu-cpuinfo-nonx86-full-evidence`、`qemu-cpuinfo-nonx86-full-repeat` 与 `qemu-arch-matrix-evidence` 仍保留为显式可选项；如果你要把这些重证据也纳入发布门禁，可先设置对应 `SIMD_GATE_*` 开关再运行。
 它也会把 `wiring-sync`、`interface-completeness`、`adapter-sync` 这类结构一致性检查一起带上。
 
 ### Windows
@@ -316,6 +316,13 @@ tests\fafafa.core.simd\buildOrTest.bat gate-strict
   - 结果：canonical `tests/fafafa.core.simd/logs/gate_summary.md` 已刷新为 `gate PASS @ 2026-04-05 15:48:03`
   - 关键 cross 证据：`qemu-cpuinfo-nonx86-evidence PASS @ 2026-04-05 15:48:03`，对应摘要 `tests/fafafa.core.simd/logs/qemu-multiarch-20260405-154057-1022104/summary.md`
   - 随后 `bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status` 也再次返回 `ready=True`、`mainline-ready=True`、`cross-ready=True`
+- 2026-04-05 还对 optional heavy CPUInfo QEMU 路径补做了 fresh replay：
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh qemu-cpuinfo-nonx86-full-evidence`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh qemu-cpuinfo-nonx86-full-repeat`
+  - 结果：`tests/fafafa.core.simd/logs/qemu-multiarch-20260405-161147-1097510/summary.md` 与 `tests/fafafa.core.simd/logs/qemu-multiarch-20260405-161729-1111280/summary.md` 均显示 `linux/arm/v7`、`linux/arm64`、`linux/riscv64` 全 PASS，说明隔离 hardening 对 heavy path 也成立
+- `freeze-status --json` 的 stdout 合同也已补正：
+  - `tests/fafafa.core.simd/evaluate_simd_freeze_status.py --json` 现在只向 stdout 输出纯 JSON
+  - 人类可读的 `[FREEZE] ...` 摘要改走 stderr，不再破坏自动化直接 `json.loads(stdout)` 的消费路径
 - canonical Windows closeout 摘要也已通过 `bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize SIMD-20260403-152` 重新写回：
   - `tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md`
   - 生成时间：`2026-04-05 15:26:32 +0800`

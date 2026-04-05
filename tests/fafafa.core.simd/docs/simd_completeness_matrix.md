@@ -35,6 +35,14 @@
   - `tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh` 改为 target-specific `bin/${TRIPLET}` / `lib/${TRIPLET}`
   - `tests/fafafa.core.simd/docker/run_multiarch_qemu.sh` 在 `cpuinfo-*` 场景显式启用 `SIMD_CPUINFO_RUNTIME_COPY=1`
   - `tests/fafafa.core.simd/BuildOrTest.sh` 已接入 `check_cpuinfo_qemu_isolation_guard`
+- 2026-04-05 optional heavy CPUInfo QEMU replay：通过
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh qemu-cpuinfo-nonx86-full-evidence`
+  - `FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh qemu-cpuinfo-nonx86-full-repeat`
+  - `tests/fafafa.core.simd/logs/qemu-multiarch-20260405-161147-1097510/summary.md`：`linux/arm/v7`、`linux/arm64`、`linux/riscv64` 全 PASS
+  - `tests/fafafa.core.simd/logs/qemu-multiarch-20260405-161729-1111280/summary.md`：`linux/arm/v7`、`linux/arm64`、`linux/riscv64` 全 PASS
+- 2026-04-05 `freeze-status --json` stdout 合同：已修复
+  - `tests/fafafa.core.simd/evaluate_simd_freeze_status.py --json` stdout 现在是纯 JSON
+  - 人类可读摘要改走 stderr，`rehearse_freeze_status.sh` 已覆盖这条合同
 - 2026-04-05 ARM64 NEON native evidence：通过（enhanced evidence）
   - GitHub Actions run `23995214071`（head `bb061475c721d776690721a7751dff099ca6597e`）
   - artifact：`simd-arm64-neon-evidence / native-evidence-neon-*`

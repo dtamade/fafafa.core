@@ -211,6 +211,29 @@ if payload.get("linux_only") is not False:
     sys.exit(1)
 PY
 
+SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_EVIDENCE=0 \
+python3 "${LCaseReady}/evaluate_simd_freeze_status.py" --root "${LCaseReady}" --json > "${LCaseReady}/logs/freeze_stdout_json.txt" 2> "${LCaseReady}/logs/freeze_stderr_json.txt"
+
+python3 - "${LCaseReady}/logs/freeze_stdout_json.txt" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+payload = json.loads(Path(sys.argv[1]).read_text(encoding="utf-8"))
+if payload.get("ready") is not True:
+    print("[FREEZE-REHEARSAL] FAILED: case_ready --json stdout ready should be true")
+    sys.exit(1)
+if payload.get("mode") != "cross-platform":
+    print("[FREEZE-REHEARSAL] FAILED: case_ready --json stdout mode should be cross-platform")
+    sys.exit(1)
+PY
+
+if ! grep -F -- "[FREEZE] mode=cross-platform, ready=True" "${LCaseReady}/logs/freeze_stderr_json.txt" >/dev/null; then
+  echo "[FREEZE-REHEARSAL] FAILED: case_ready --json stderr missing freeze summary"
+  cat "${LCaseReady}/logs/freeze_stderr_json.txt"
+  exit 1
+fi
+
 # ---------- Case C: STALE SUMMARY (must fail) ----------
 cat > "${LCaseReady}/logs/windows_b07_closeout_summary.md" <<'EOM'
 # SIMD Windows B07 Closeout Summary

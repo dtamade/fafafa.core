@@ -6,6 +6,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 from dataclasses import dataclass, asdict
 from datetime import datetime
 from pathlib import Path
@@ -1338,20 +1339,23 @@ def main() -> int:
             if "windows" not in item.name and not item.name.startswith("cross_")
         ]
 
-    print("[FREEZE] SIMD freeze status")
+    status_stream = sys.stderr if args.json else sys.stdout
+
+    print("[FREEZE] SIMD freeze status", file=status_stream)
     cross_ready_display = "N/A" if cross_ready is None else str(cross_ready)
     print(
         f"[FREEZE] mode={payload['mode']}, ready={payload['freeze_ready']}, "
         f"mainline-ready={mainline_ready}, cross-ready={cross_ready_display}, "
-        f"fresh_hours={payload['fresh_hours']:.2f}"
+        f"fresh_hours={payload['fresh_hours']:.2f}",
+        file=status_stream,
     )
     for item in display_checks:
-        print(f"[FREEZE] {item.status:<7} {item.name}: {item.detail}")
+        print(f"[FREEZE] {item.status:<7} {item.name}: {item.detail}", file=status_stream)
 
     if dedup_actions:
-        print("[FREEZE] next-actions:")
+        print("[FREEZE] next-actions:", file=status_stream)
         for action in dedup_actions:
-            print(f"  - {action}")
+            print(f"  - {action}", file=status_stream)
 
     return 0 if freeze_ready else 1
 

@@ -1188,6 +1188,28 @@
 ### 阶段状态
 - 跨平台冻结条件满足。
 
+<!-- SIMD-CLOSEOUT-HEAVY-2026-04-05 -->
+### 批次
+- SIMD-20260405-heavy-replay
+
+### 执行动作
+- fresh 重跑 `qemu-cpuinfo-nonx86-full-evidence` 与 `qemu-cpuinfo-nonx86-full-repeat`，确认 CPUInfo QEMU 隔离 hardening 不只覆盖默认 gate 路径，也覆盖 optional heavy path。
+- 修正 `freeze-status --json` 的 stdout/stderr 合同，使 stdout 保持纯 JSON，人类可读摘要改走 stderr。
+- 回填 closeout / matrix / RC checklist / findings / task_plan，收紧 2026-04-05 当前真相源。
+
+### 命令与结果
+| Command | Result |
+|---|---|
+| FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh qemu-cpuinfo-nonx86-full-evidence | PASS |
+| FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh qemu-cpuinfo-nonx86-full-repeat | PASS |
+
+### 关键证据
+- QEMU full-evidence: tests/fafafa.core.simd/logs/qemu-multiarch-20260405-161147-1097510/summary.md
+- QEMU full-repeat: tests/fafafa.core.simd/logs/qemu-multiarch-20260405-161729-1111280/summary.md
+
+### 阶段状态
+- optional heavy CPUInfo QEMU evidence 已重新锚定为 fresh green；`freeze-status --json` stdout 现在可直接被自动化解析。
+
 ### Phase 72: ARM64 NEON external evidence doc sync and closeout capture
 - **Status:** complete
 - Actions taken:
