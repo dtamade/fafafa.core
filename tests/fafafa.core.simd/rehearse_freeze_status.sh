@@ -173,6 +173,8 @@ cat > "${LCaseReady}/logs/windows_b07_closeout_summary.md" <<'EOM'
 - Result: PASS
 EOM
 
+touch "${LCaseReady}/logs/gate_summary.md" "${LCaseReady}/logs/windows_b07_gate.log" "${LCaseReady}/logs/windows_b07_closeout_summary.md"
+
 cat > "${LTmpRoot}/case_ready/docs/plans/2026-02-09-simd-unblock-closeout-roadmap.md" <<'EOM'
 - [x] **Windows 实机证据已归档**
 EOM
@@ -233,6 +235,37 @@ if ! grep -F -- "[FREEZE] mode=cross-platform, ready=True" "${LCaseReady}/logs/f
   cat "${LCaseReady}/logs/freeze_stderr_json.txt"
   exit 1
 fi
+
+python3 - "${LCaseReady}/logs/gate_summary.md" "${LCaseReady}/logs/windows_b07_gate.log" <<'PY'
+from pathlib import Path
+import os
+import sys
+
+gate_summary = Path(sys.argv[1])
+windows_log = Path(sys.argv[2])
+gate_mtime = gate_summary.stat().st_mtime
+os.utime(windows_log, (gate_mtime + 30, gate_mtime + 30))
+PY
+
+set +e
+SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_EVIDENCE=0 \
+python3 "${LCaseReady}/evaluate_simd_freeze_status.py" --root "${LCaseReady}" --json-file "${LCaseReady}/logs/freeze_status_cross_gate_stale.json" > "${LCaseReady}/logs/freeze_stdout_cross_gate_stale.txt" 2>&1
+LCrossGateStaleRc=$?
+set -e
+
+if [[ "${LCrossGateStaleRc}" -eq 0 ]]; then
+  echo "[FREEZE-REHEARSAL] FAILED: case_cross_gate_stale should return non-zero"
+  cat "${LCaseReady}/logs/freeze_stdout_cross_gate_stale.txt"
+  exit 1
+fi
+
+if ! grep -F -- "cross_gate_not_older_than_windows_evidence" "${LCaseReady}/logs/freeze_stdout_cross_gate_stale.txt" >/dev/null; then
+  echo "[FREEZE-REHEARSAL] FAILED: case_cross_gate_stale missing gate-vs-windows guard"
+  cat "${LCaseReady}/logs/freeze_stdout_cross_gate_stale.txt"
+  exit 1
+fi
+
+touch "${LCaseReady}/logs/gate_summary.md" "${LCaseReady}/logs/windows_b07_gate.log" "${LCaseReady}/logs/windows_b07_closeout_summary.md"
 
 # ---------- Case C: STALE SUMMARY (must fail) ----------
 cat > "${LCaseReady}/logs/windows_b07_closeout_summary.md" <<'EOM'
@@ -785,6 +818,8 @@ cat > "${LCaseIgnoredArtifact}/logs/windows_b07_closeout_summary.md" <<'EOM'
 - Result: PASS
 EOM
 
+touch "${LCaseIgnoredArtifact}/logs/gate_summary.md" "${LCaseIgnoredArtifact}/logs/windows_b07_gate.log" "${LCaseIgnoredArtifact}/logs/windows_b07_closeout_summary.md"
+
 cat > "${LTmpRoot}/case_ignored_artifact/docs/plans/2026-02-09-simd-unblock-closeout-roadmap.md" <<'EOM'
 - [x] **Windows 实机证据已归档**
 EOM
@@ -833,6 +868,7 @@ fi
 
 echo "[FREEZE-REHEARSAL] OK"
 echo "[FREEZE-REHEARSAL] case_not_ready_rc=${LNotReadyRc}"
+echo "[FREEZE-REHEARSAL] case_cross_gate_stale_rc=${LCrossGateStaleRc}"
 echo "[FREEZE-REHEARSAL] case_stale_summary_rc=${LStaleRc}"
 echo "[FREEZE-REHEARSAL] case_verify_fail_rc=${LVerifyFailRc}"
 echo "[FREEZE-REHEARSAL] case_linux_lazy_missing_rc=${LLazyMissingRc}"

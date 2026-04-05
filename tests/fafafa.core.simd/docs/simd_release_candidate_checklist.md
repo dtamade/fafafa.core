@@ -65,6 +65,9 @@
 - [x] 2026-04-05 `freeze-status --json` stdout 合同已修正
   - `tests/fafafa.core.simd/evaluate_simd_freeze_status.py --json` 现在只向 stdout 输出 JSON payload
   - 人类可读摘要改走 stderr，`rehearse_freeze_status.sh` 已补 parseable stdout 回归
+- [x] 2026-04-05 `freeze-status` 已拒绝 stale cross-gate 假绿
+  - 新增 required check：`cross_gate_not_older_than_windows_evidence`
+  - `rehearse_freeze_status.sh` 已覆盖 “Windows evidence 新于 gate summary” 回归，确保手工 Windows closeout 漏跑 fail-close cross gate 时不会再误判 `ready=True`
 - [x] 2026-04-05 ARM64 NEON native-evidence refresh 通过（enhanced evidence）
   - GitHub Actions run id：`23995214071`（head `bb061475c721d776690721a7751dff099ca6597e`）
   - artifact：`simd-arm64-neon-evidence / native-evidence-neon-*`

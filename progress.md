@@ -1210,6 +1210,28 @@
 ### 阶段状态
 - optional heavy CPUInfo QEMU evidence 已重新锚定为 fresh green；`freeze-status --json` stdout 现在可直接被自动化解析。
 
+<!-- SIMD-FREEZE-CROSS-GATE-GUARD-2026-04-05 -->
+### 批次
+- SIMD-20260405-cross-gate-guard
+
+### 执行动作
+- 用当前仓库真实 green 产物构造最小复现，只将 `windows_b07_gate.log` 的 mtime 推到 `gate_summary.md` 之后，确认旧 `freeze-status` 仍会误判 `ready=True`。
+- 在 `evaluate_simd_freeze_status.py` 新增 required check `cross_gate_not_older_than_windows_evidence`，把手工 Windows closeout 漏跑 fail-close cross gate 的场景改成明确 fail-close。
+- 在 `rehearse_freeze_status.sh` 新增 `case_cross_gate_stale`，并同步回填 closeout/runbook/checklist/matrix/findings/task_plan。
+
+### 命令与结果
+| Command | Result |
+|---|---|
+| 真实产物最小复现：复制当前 green artifacts 到临时目录，仅让 `windows_b07_gate.log` 新于 `gate_summary.md` 后运行 `evaluate_simd_freeze_status.py` | 旧逻辑复现假绿：`RC=0`，`ready=True, cross-ready=True` |
+| bash tests/fafafa.core.simd/rehearse_freeze_status.sh | PASS（新增 `case_cross_gate_stale_rc=1`） |
+
+### 关键证据
+- 新 guard：tests/fafafa.core.simd/evaluate_simd_freeze_status.py
+- 回归：tests/fafafa.core.simd/rehearse_freeze_status.sh
+
+### 阶段状态
+- `freeze-status` 现在会拒绝“Windows evidence 比当前 cross gate 更新”的 stale closeout 假绿。
+
 ### Phase 72: ARM64 NEON external evidence doc sync and closeout capture
 - **Status:** complete
 - Actions taken:

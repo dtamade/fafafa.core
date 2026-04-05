@@ -239,7 +239,7 @@ tests\fafafa.core.simd\buildOrTest.bat gate-strict
    FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize SIMD-YYYYMMDD-152
    ```
 
-   这里不能直接从 `evidence-win-verify` 跳到 `win-closeout-finalize`，因为 native batch evidence 不会生成 fresh `gate_summary.md/json`；如果少了这步 cross gate，`freeze-status` 看到的仍可能是旧摘要。
+   这里不能直接从 `evidence-win-verify` 跳到 `win-closeout-finalize`，因为 native batch evidence 不会生成 fresh `gate_summary.md/json`；如果少了这步 cross gate，`freeze-status` 现在会以 `cross_gate_not_older_than_windows_evidence` 明确拒绝，而不是再误吃旧摘要给出假绿。
 
    如果你只是在拆分诊断 closeout helper，才单独使用：
 
@@ -323,6 +323,10 @@ tests\fafafa.core.simd\buildOrTest.bat gate-strict
 - `freeze-status --json` 的 stdout 合同也已补正：
   - `tests/fafafa.core.simd/evaluate_simd_freeze_status.py --json` 现在只向 stdout 输出纯 JSON
   - 人类可读的 `[FREEZE] ...` 摘要改走 stderr，不再破坏自动化直接 `json.loads(stdout)` 的消费路径
+- `freeze-status` 的手工 Windows closeout 语义也进一步收紧：
+  - 新增 required check：`cross_gate_not_older_than_windows_evidence`
+  - 含义：cross gate 对应的 `gate_summary.md` 不得早于当前 `windows_b07_gate.log`
+  - 这样即使源码没变、旧 gate 仍在 freshness 窗口内，只要你少跑了那一步 fail-close cross gate，`freeze-status` 也会 fail-close，而不是沿用旧 cross gate 假装当前 Windows evidence 已纳入冻结判定
 - canonical Windows closeout 摘要也已通过 `bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize SIMD-20260403-152` 重新写回：
   - `tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md`
   - 生成时间：`2026-04-05 15:26:32 +0800`

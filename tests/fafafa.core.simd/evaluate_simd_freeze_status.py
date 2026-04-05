@@ -317,6 +317,40 @@ def freshness_check(name: str, path: Path, max_age_hours: float, required: bool 
     )
 
 
+def artifact_not_older_than_artifact_check(
+    name: str, artifact_path: Path, baseline_path: Path, required: bool = True
+) -> CheckItem:
+    if not artifact_path.is_file():
+        return CheckItem(name=name, required=required, status="FAIL", detail=f"missing {artifact_path}")
+    if not baseline_path.is_file():
+        return CheckItem(name=name, required=required, status="FAIL", detail=f"missing {baseline_path}")
+
+    artifact_mtime = datetime.fromtimestamp(artifact_path.stat().st_mtime)
+    baseline_mtime = datetime.fromtimestamp(baseline_path.stat().st_mtime)
+
+    if artifact_mtime >= baseline_mtime:
+        return CheckItem(
+            name=name,
+            required=required,
+            status="PASS",
+            detail=(
+                f"artifact mtime={artifact_mtime:%Y-%m-%d %H:%M:%S}, "
+                f"baseline={baseline_path} ({baseline_mtime:%Y-%m-%d %H:%M:%S})"
+            ),
+        )
+
+    return CheckItem(
+        name=name,
+        required=required,
+        status="FAIL",
+        detail=(
+            f"artifact older than baseline: artifact={artifact_path} "
+            f"({artifact_mtime:%Y-%m-%d %H:%M:%S}), baseline={baseline_path} "
+            f"({baseline_mtime:%Y-%m-%d %H:%M:%S})"
+        ),
+    )
+
+
 SOURCE_CANDIDATE_SUFFIXES = {".pas", ".pp", ".inc", ".stable"}
 
 
@@ -1052,6 +1086,16 @@ def main() -> int:
     if checks[-1].status != "PASS":
         next_actions.append("tests\\fafafa.core.simd\\buildOrTest.bat evidence-win-verify")
     if not args.linux_only:
+        checks.append(
+            artifact_not_older_than_artifact_check(
+                "cross_gate_not_older_than_windows_evidence",
+                gate_summary,
+                windows_log,
+                required=True,
+            )
+        )
+        if checks[-1].status != "PASS":
+            next_actions.append(CROSS_GATE_FAIL_CLOSE_CMD)
         checks.append(
             sources_not_newer_than_artifact_check(
                 "linux_sources_not_newer_than_windows_evidence",
