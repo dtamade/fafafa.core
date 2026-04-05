@@ -1,6 +1,6 @@
 # SIMD 完成度矩阵（Linux 视角）
 
-更新时间：2026-04-03
+更新时间：2026-04-05
 
 ## 1) 总体门禁状态
 
@@ -9,23 +9,43 @@
 - `AdvancedAlgorithms`：通过
 - `perf-smoke`：通过（non-scalar backend healthy）
 - `gate`：通过（simd + cpuinfo + cpuinfo.x86）
+- 2026-04-05 fresh `gate`：通过
+  - `bash tests/fafafa.core.simd/BuildOrTest.sh gate`
 - Release 全链 gate（含 nonx86/qemu 选项）：通过
   - `FAFAFA_BUILD_MODE=Release SIMD_GATE_NONX86_IEEE754=1 SIMD_GATE_QEMU_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=1 bash tests/fafafa.core.simd/BuildOrTest.sh gate`
   - `gate PASS @ 2026-03-02 09:43:02`
 - 2026-04-02 closeout heavy `gate-strict`：通过
   - `FAFAFA_BUILD_MODE=Release SIMD_PERF_VECTOR_ASM=auto SIMD_GATE_PERF_SMOKE=1 SIMD_GATE_QEMU_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=1 SIMD_GATE_QEMU_CPUINFO_NONX86_FULL_REPEAT=1 SIMD_GATE_QEMU_ARCH_MATRIX_EVIDENCE=1 SIMD_QEMU_CPUINFO_REPEAT_ROUNDS=3 bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict`
   - `gate PASS @ 2026-04-02 23:31:59`
+- 2026-04-05 fresh `gate-strict`：通过
+  - `bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict`
+  - `gate PASS @ 2026-04-05 15:48:03`
+  - `qemu-cpuinfo-nonx86-evidence PASS @ 2026-04-05 15:48:03`
+  - QEMU 摘要：`tests/fafafa.core.simd/logs/qemu-multiarch-20260405-154057-1022104/summary.md`
 - 2026-04-02 strong freeze：通过
   - `SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_EVIDENCE=1 SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_FULL_EVIDENCE=1 SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_FULL_REPEAT=1 SIMD_FREEZE_REQUIRE_CPUINFO_LAZY_REPEAT=1 FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
   - `ready=True, freeze_ready=True, mainline_ready=True, cross_ready=True`
-- 2026-04-03 ARM64 NEON native evidence：通过（enhanced evidence）
-  - GitHub Actions run `23911571289`（head `3836e4cee60f0a78858d9605a0a8ee9a6cdf86e7`）
-  - artifact：`simd-arm64-neon-evidence / native-evidence-neon-20260402-164750`
+- 2026-04-05 fresh `freeze-status`：通过
+  - `bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status`
+  - `ready=True, freeze_ready=True, mainline_ready=True, cross_ready=True`
+- 2026-04-05 adapter-sync python-only gate 路径：已修复重复 build 回归
+  - Linux shell runner 改为 checker-only helper；Windows batch runner 同步改为 `adapter_sync_checker_only`
+  - `gate` / `gate-strict` 已补 runtime guard，避免 python-only 路径再次隐式触发第二次 Lazarus build
+- 2026-04-05 cpuinfo QEMU 隔离路径：已修复 bind-mount 执行抖动
+  - `tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh` 改为 target-specific `bin/${TRIPLET}` / `lib/${TRIPLET}`
+  - `tests/fafafa.core.simd/docker/run_multiarch_qemu.sh` 在 `cpuinfo-*` 场景显式启用 `SIMD_CPUINFO_RUNTIME_COPY=1`
+  - `tests/fafafa.core.simd/BuildOrTest.sh` 已接入 `check_cpuinfo_qemu_isolation_guard`
+- 2026-04-05 ARM64 NEON native evidence：通过（enhanced evidence）
+  - GitHub Actions run `23995214071`（head `bb061475c721d776690721a7751dff099ca6597e`）
+  - artifact：`simd-arm64-neon-evidence / native-evidence-neon-*`
   - `dispatch_publicabi.log`：`[TEST] OK`
-- 2026-04-05 RISCVV native evidence workflow：已接线（enhanced evidence carrier，不等于 fresh native artifact）
+  - `source_revision.txt`：存在，可被 `SIMD_NATIVE_EVIDENCE_EXPECT_COMMIT` / `SIMD_NATIVE_EVIDENCE_EXPECT_REF` / `SIMD_NATIVE_EVIDENCE_REQUIRE_SOURCE_REVISION=1` 严格校验
+  - 历史说明：旧 run `23911571289` 仍可作功能性参考，但产物早于 `source_revision.txt` 锚点支持，不能满足严格 source-revision 复验
+- 2026-04-05 RISCVV native evidence workflow：已接线，但 GitHub dispatch 仍未注册
   - workflow：`.github/workflows/simd-riscvv-native-evidence.yml`
   - 模式：`workflow_dispatch` + `workflow_call` + self-hosted `Linux+riscv64` runner
-  - 当前状态：执行载体已存在，待 fresh native artifact；不计入当前 freeze 硬门禁
+  - 当前状态：本地 helper 会明确提示 “Workflow is not registered on GitHub Actions”，因为该 workflow 仍未出现在仓库 default branch 的已注册列表中；fresh native artifact 仍待 default-branch 注册或原生 runner 产出
+  - freeze 口径：不计入当前 freeze 硬门禁
 - 2026-04-03 fresh fail-close gate + Windows closeout refresh：通过（current freeze baseline）
   - `gate PASS @ 2026-04-03 02:13:10`
   - Windows batch：`SIMD-20260403-152`，GitHub Actions run `23914427193`
@@ -41,6 +61,9 @@
 - 2026-04-03 Windows canonical 证据：
   - `tests/fafafa.core.simd/logs/windows_b07_gate.log`
   - `tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md`
+- 2026-04-05 canonical Windows closeout 摘要已重写：
+  - `tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md`
+  - Generated: `2026-04-05 15:26:32 +0800`
 - 机器检查：`check_interface_implementation_completeness.py --strict` 通过（`dispatch=558, P0=0/P1=0/P2=0`）
 - 机器检查产物：
   - `tests/fafafa.core.simd/logs/interface_completeness.json`
@@ -208,4 +231,11 @@
 - Windows 实机证据：已归档（2026-04-03）
   - Log: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260403-152/windows_b07_gate.log
   - Summary: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260403-152/windows_b07_closeout_summary.md
+  - 验证：verify_windows_b07_evidence PASS
+
+<!-- SIMD-WIN-CLOSEOUT-2026-04-05 -->
+- Windows 实机证据：已归档（2026-04-05）
+  - Log: tests/fafafa.core.simd/logs/windows_b07_gate.log
+  - Summary: tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md
+  - Batch: SIMD-20260403-152（canonical summary regenerated at `2026-04-05 15:26:32 +0800`）
   - 验证：verify_windows_b07_evidence PASS

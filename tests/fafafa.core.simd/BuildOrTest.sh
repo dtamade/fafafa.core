@@ -3229,6 +3229,42 @@ check_cpuinfo_runner_parity() {
   echo "[CHECK] OK (cpuinfo runner parity signatures present)"
 }
 
+check_cpuinfo_qemu_isolation_guard() {
+  local LScript
+  local LPattern
+  local LMissing
+  local -a LRequired
+
+  LScript="${ROOT}/../fafafa.core.simd.cpuinfo/BuildOrTest.sh"
+  if [[ ! -f "${LScript}" ]]; then
+    echo "[CHECK] Missing cpuinfo qemu isolation target: ${LScript}"
+    return 1
+  fi
+
+  LRequired=(
+    'BIN_DIR="${OUTPUT_ROOT}/bin/${TRIPLET}"'
+    'TARGET_BUILD_LOG="${TARGET_LOG_DIR}/build.txt"'
+    'should_use_runtime_copy() {'
+    'mktemp -d "${TMPDIR:-/tmp}/fafafa.core.simd.cpuinfo.run.${TRIPLET}.XXXXXX"'
+    'cp "${BUILD_LOG}" "${TARGET_BUILD_LOG}" || true'
+    'cleanup_runtime_binary_copy "${LRuntimeBin}"'
+  )
+
+  LMissing=0
+  for LPattern in "${LRequired[@]}"; do
+    if ! grep -F -- "${LPattern}" "${LScript}" >/dev/null; then
+      echo "[CHECK] cpuinfo qemu isolation guard missing pattern (${LScript}): ${LPattern}"
+      LMissing=1
+    fi
+  done
+
+  if [[ "${LMissing}" != "0" ]]; then
+    return 1
+  fi
+
+  echo "[CHECK] OK (cpuinfo qemu isolation guard present)"
+}
+
 run_register_include_check() {
   if [[ ! -f "${REGISTER_INCLUDE_CHECK_SCRIPT}" ]]; then
     echo "[REGISTER-INCLUDE] Missing checker: ${REGISTER_INCLUDE_CHECK_SCRIPT}"
@@ -4418,6 +4454,7 @@ gate_step_build_check() {
   check_linux_evidence_output_isolation || return $?
   check_freeze_status_output_isolation || return $?
   check_cpuinfo_runner_parity || return $?
+  check_cpuinfo_qemu_isolation_guard || return $?
   run_register_include_check || return $?
   run_suite_manifest_check || return $?
   run_nonx86_optin_list_suites || return $?
@@ -5205,6 +5242,7 @@ run_gate() {
   LGateEvent="$(gate_step_event "${LGateDurationMs}")"
   append_gate_summary "gate" "PASS" "all steps passed" "${LGateDurationMs}" "${LGateEvent}"
   echo "[GATE] OK"
+  return 0
 }
 
 run_gate_strict() {
@@ -5693,6 +5731,24 @@ run_win_evidence_via_gh() {
   bash "${LViaGHScript}" "$@"
 }
 
+print_usage() {
+  cat <<EOF
+Usage: $0 [clean|build|check|test|test-concurrent-repeat|cpuinfo-lazy-repeat|debug|release|gate|gate-strict|interface-completeness|contract-signature|publicabi-signature|publicabi-smoke|adapter-sync-pascal|adapter-sync|parity-suites|gate-summary|gate-summary-sample|gate-summary-rehearsal|gate-summary-inject|gate-summary-rollback|gate-summary-backups|gate-summary-selfcheck|perf-smoke|nonx86-optin-list-suites|nonx86-ieee754|backend-bench|qemu-nonx86-evidence|qemu-cpuinfo-nonx86-evidence|qemu-cpuinfo-nonx86-full-evidence|qemu-cpuinfo-nonx86-full-repeat|qemu-cpuinfo-nonx86-suite-repeat|qemu-arch-matrix-evidence|qemu-nonx86-experimental-asm|riscvv-opcode-lane|qemu-experimental-report|qemu-experimental-baseline-check|coverage|wiring-sync|experimental-intrinsics|experimental-intrinsics-tests|evidence-linux|native-evidence|native-evidence-via-gh|restore-nightly-evidence|win-evidence-preflight|win-evidence-via-gh|verify-win-evidence|finalize-win-evidence|win-closeout-dryrun|win-closeout-snippets|win-closeout-3cmd|freeze-status|freeze-status-linux|win-closeout-finalize|freeze-status-rehearsal] [test-args...]
+  Experimental note: default entry chain isolates experimental intrinsics behind dedicated checks.
+  gate/gate-strict PASS is not blanket release-grade approval for every experimental path.
+  gate         Fast/base gate for routine SIMD changes
+  gate-strict  Release/closeout gate with perf, repeats, and evidence checks
+Suggested flow: check -> targeted suites -> gate; use gate-strict before release/closeout.
+QEMU env: SIMD_QEMU_BUILD_POLICY=always|if-missing|skip (default=if-missing)
+Native host env: SIMD_NATIVE_EVIDENCE_RUNNER=canonical|direct-fpc, SIMD_NATIVE_EVIDENCE_ENABLE_BACKEND_ASM=1
+GitHub native evidence helper: native-evidence-via-gh <neon|riscvv> [run-id]
+Isolation env: SIMD_OUTPUT_ROOT=/tmp/simd-run-123 (override bin2/lib2/logs root)
+Build env: SIMD_ENABLE_NEON_BACKEND=1 (compile NEON backend into the test binary for opt-in verification/fallback coverage)
+Build env: SIMD_ENABLE_RISCVV_BACKEND=1 (compile RISCV-V backend into the test binary for opt-in verification/fallback coverage)
+Build env: SIMD_ENABLE_AVX512_BACKEND=1 (compile AVX-512 backend into the test binary for opt-in verification)
+EOF
+}
+
 case "${ACTION}" in
   clean)
     run_clean
@@ -5739,6 +5795,7 @@ case "${ACTION}" in
     check_linux_evidence_output_isolation
     check_freeze_status_output_isolation
     check_cpuinfo_runner_parity
+    check_cpuinfo_qemu_isolation_guard
     run_register_include_check
     run_suite_manifest_check
     run_nonx86_optin_list_suites
@@ -5937,19 +5994,7 @@ case "${ACTION}" in
     run_freeze_status_rehearsal "$@"
     ;;
   *)
-    echo "Usage: $0 [clean|build|check|test|test-concurrent-repeat|cpuinfo-lazy-repeat|debug|release|gate|gate-strict|interface-completeness|contract-signature|publicabi-signature|publicabi-smoke|adapter-sync-pascal|adapter-sync|parity-suites|gate-summary|gate-summary-sample|gate-summary-rehearsal|gate-summary-inject|gate-summary-rollback|gate-summary-backups|gate-summary-selfcheck|perf-smoke|nonx86-optin-list-suites|nonx86-ieee754|backend-bench|qemu-nonx86-evidence|qemu-cpuinfo-nonx86-evidence|qemu-cpuinfo-nonx86-full-evidence|qemu-cpuinfo-nonx86-full-repeat|qemu-cpuinfo-nonx86-suite-repeat|qemu-arch-matrix-evidence|qemu-nonx86-experimental-asm|riscvv-opcode-lane|qemu-experimental-report|qemu-experimental-baseline-check|coverage|wiring-sync|experimental-intrinsics|experimental-intrinsics-tests|evidence-linux|native-evidence|native-evidence-via-gh|restore-nightly-evidence|win-evidence-preflight|win-evidence-via-gh|verify-win-evidence|finalize-win-evidence|win-closeout-dryrun|win-closeout-snippets|win-closeout-3cmd|freeze-status|freeze-status-linux|win-closeout-finalize|freeze-status-rehearsal] [test-args...]"
-    echo "  Experimental note: default entry chain isolates experimental intrinsics behind dedicated checks."
-    echo "  gate/gate-strict PASS is not blanket release-grade approval for every experimental path."
-    echo "  gate         Fast/base gate for routine SIMD changes"
-    echo "  gate-strict  Release/closeout gate with perf, repeats, and evidence checks"
-    echo "Suggested flow: check -> targeted suites -> gate; use gate-strict before release/closeout."
-    echo "QEMU env: SIMD_QEMU_BUILD_POLICY=always|if-missing|skip (default: if-missing)"
-    echo "Native host env: SIMD_NATIVE_EVIDENCE_RUNNER=canonical|direct-fpc, SIMD_NATIVE_EVIDENCE_ENABLE_BACKEND_ASM=1"
-    echo "GitHub native evidence helper: native-evidence-via-gh <neon|riscvv> [run-id]"
-    echo "Isolation env: SIMD_OUTPUT_ROOT=/tmp/simd-run-123 (override bin2/lib2/logs root)"
-    echo "Build env: SIMD_ENABLE_NEON_BACKEND=1 (compile NEON backend into the test binary for opt-in verification/fallback coverage)"
-    echo "Build env: SIMD_ENABLE_RISCVV_BACKEND=1 (compile RISCV-V backend into the test binary for opt-in verification/fallback coverage)"
-    echo "Build env: SIMD_ENABLE_AVX512_BACKEND=1 (compile AVX-512 backend into the test binary for opt-in verification)"
+    print_usage
     exit 2
     ;;
 esac

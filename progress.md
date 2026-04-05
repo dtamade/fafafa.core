@@ -3147,8 +3147,8 @@
 | bash tests/fafafa.core.simd/apply_windows_b07_closeout_updates.sh --apply --freeze-json tests/fafafa.core.simd/logs/freeze_status.json | PASS |
 
 ### 关键证据
-- Log: tests/fafafa.core.simd/logs/windows_b07_gate.log
-- Summary: tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md
+- Log: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260320-152/windows_b07_gate.log
+- Summary: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260320-152/windows_b07_closeout_summary.md
 
 ### 阶段状态
 - 跨平台冻结条件满足。
@@ -3256,6 +3256,33 @@
 ### 关键证据
 - Log: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260403-152/windows_b07_gate.log
 - Summary: tests/fafafa.core.simd/logs/windows-closeout/SIMD-20260403-152/windows_b07_closeout_summary.md
+
+### 阶段状态
+- 跨平台冻结条件满足。
+
+<!-- SIMD-WIN-CLOSEOUT-2026-04-05 -->
+### 批次
+- SIMD-20260403-152
+
+### 执行动作
+- 修复 `cpuinfo` QEMU closeout 链的目标隔离与 runtime-copy 合同，收紧 `BuildOrTest.sh` / `run_multiarch_qemu.sh` / 主 runner guard。
+- 通过 `win-closeout-finalize SIMD-20260403-152` 重写 canonical Windows closeout 摘要。
+- fresh 重跑 `gate` / `gate-strict` / `freeze-status`，确认 closeout 主链重新回到绿色。
+- 回填 roadmap / matrix / progress，关闭跨平台证据缺口。
+
+### 命令与结果
+| Command | Result |
+|---|---|
+| bash tests/fafafa.core.simd/BuildOrTest.sh gate | PASS |
+| bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict | PASS |
+| bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status | PASS |
+| bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize SIMD-20260403-152 | PASS |
+
+### 关键证据
+- Gate summary: tests/fafafa.core.simd/logs/gate_summary.md (`gate PASS @ 2026-04-05 15:48:03`)
+- QEMU summary: tests/fafafa.core.simd/logs/qemu-multiarch-20260405-154057-1022104/summary.md
+- Log: tests/fafafa.core.simd/logs/windows_b07_gate.log
+- Summary: tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md (`Generated: 2026-04-05 15:26:32 +0800`)
 
 ### 阶段状态
 - 跨平台冻结条件满足。

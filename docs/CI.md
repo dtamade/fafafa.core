@@ -111,6 +111,10 @@ bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict
 SIMD_QEMU_BUILD_POLICY=if-missing \
 bash tests/fafafa.core.simd/BuildOrTest.sh qemu-cpuinfo-nonx86-evidence
 
+# 说明：`cpuinfo-*` 的 QEMU 场景现在会在 runner 内部显式启用
+# `SIMD_CPUINFO_RUNTIME_COPY=1`，并使用 target-specific `bin/<cpu>-<os>` /
+# `lib/<cpu>-<os>`，避免 bind-mount 直执行导致的 `Text file busy` / 产物互踩。
+
 # 真 asm 工具链专项（compiler-ready）
 SIMD_QEMU_BUILD_POLICY=if-missing \
 SIMD_QEMU_ENABLE_BACKEND_ASM=1 \
@@ -136,6 +140,10 @@ bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence
 # GitHub Actions:
 # - ARM64 NEON: `.github/workflows/simd-arm64-neon-evidence.yml`（`workflow_dispatch` + `workflow_call`；hosted `ubuntu-24.04-arm`，nightly closeout 会复用）
 # - RISCVV: `.github/workflows/simd-riscvv-native-evidence.yml`（`workflow_dispatch` + `workflow_call`；需要 self-hosted `Linux+riscv64` runner）
+#
+# 注意：`riscvv` 这条 lane 不只要求仓库里存在 workflow 文件，还要求 GitHub 已在默认分支注册它。
+# 如果 default branch 还没有这份 workflow，`gh workflow run simd-riscvv-native-evidence.yml --ref <branch>` 仍会返回 `404`；
+# helper 现在会把这类失败明确诊断成 `Workflow is not registered on GitHub Actions`。
 
 # 若要显式跑 backend-asm / direct-fpc 入口
 SIMD_NATIVE_EVIDENCE_RUNNER=direct-fpc \
@@ -150,6 +158,8 @@ bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence-via-gh riscvv
 # 若已知现成 run-id，可复用旧 run；这条旁路只做 download，不会再触发 git hygiene / ref 一致性拒绝
 bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence-via-gh neon 12345678901
 # helper 下载成功后会输出 `summary.md` / `dispatch_publicabi.log`，以及存在时的 `source_revision.txt` 路径
+# 若要把复用 run 的源码来源锚死到指定 commit/ref，可额外设置：
+# `SIMD_NATIVE_EVIDENCE_EXPECT_COMMIT`、`SIMD_NATIVE_EVIDENCE_EXPECT_REF`、`SIMD_NATIVE_EVIDENCE_REQUIRE_SOURCE_REVISION=1`
 
 # restore-nightly-evidence 的输入应是原始 artifact 目录（例如 `simd-linux-evidence`、
 # `simd-windows-b07-evidence`、可选 `simd-arm64-neon-evidence` / `simd-riscvv-native-evidence`），

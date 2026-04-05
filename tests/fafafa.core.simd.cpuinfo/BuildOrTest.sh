@@ -12,13 +12,14 @@ FPC_BIN="${FPC_BIN:-fpc}"
 CPU="$(${FPC_BIN} -iTP 2>/dev/null | tr '[:upper:]' '[:lower:]' || true)"
 OS="$(${FPC_BIN} -iTO 2>/dev/null | tr '[:upper:]' '[:lower:]' || true)"
 TRIPLET="${CPU}-${OS}"
-BIN_DIR="${OUTPUT_ROOT}/bin"
+BIN_DIR="${OUTPUT_ROOT}/bin/${TRIPLET}"
 LIB_DIR="${OUTPUT_ROOT}/lib/${TRIPLET}"
 BIN="${BIN_DIR}/fafafa.core.simd.cpuinfo.test"
 LOG_DIR="${OUTPUT_ROOT}/logs"
 TARGET_LOG_DIR="${LOG_DIR}/${TRIPLET}"
 BUILD_LOG="${LOG_DIR}/build.txt"
 TEST_LOG="${LOG_DIR}/test.txt"
+TARGET_BUILD_LOG="${TARGET_LOG_DIR}/build.txt"
 TARGET_TEST_LOG="${TARGET_LOG_DIR}/test.txt"
 
 mkdir -p "${BIN_DIR}" "${LIB_DIR}" "${LOG_DIR}" "${TARGET_LOG_DIR}"
@@ -67,6 +68,63 @@ fpc_path_arg() {
   else
     echo "${1:-}"
   fi
+}
+
+should_use_runtime_copy() {
+  local LMode
+
+  LMode="${SIMD_CPUINFO_RUNTIME_COPY:-auto}"
+  case "${LMode}" in
+    1|true|TRUE|yes|YES|on|ON)
+      return 0
+      ;;
+    0|false|FALSE|no|NO|off|OFF)
+      return 1
+      ;;
+    auto|"")
+      if is_msys_shell; then
+        return 1
+      fi
+      return 0
+      ;;
+    *)
+      echo "[TEST] WARN: unsupported SIMD_CPUINFO_RUNTIME_COPY=${LMode}; fallback to auto"
+      if is_msys_shell; then
+        return 1
+      fi
+      return 0
+      ;;
+  esac
+}
+
+create_runtime_binary_copy() {
+  local aSourceBin
+  local LRuntimeRoot
+  local LRuntimeBin
+
+  aSourceBin="${1:-}"
+  if [[ -z "${aSourceBin}" ]] || [[ ! -f "${aSourceBin}" ]]; then
+    return 1
+  fi
+
+  LRuntimeRoot="$(mktemp -d "${TMPDIR:-/tmp}/fafafa.core.simd.cpuinfo.run.${TRIPLET}.XXXXXX")"
+  LRuntimeBin="${LRuntimeRoot}/$(basename "${aSourceBin}")"
+  cp "${aSourceBin}" "${LRuntimeBin}"
+  chmod +x "${LRuntimeBin}" 2>/dev/null || true
+  printf '%s\n' "${LRuntimeBin}"
+}
+
+cleanup_runtime_binary_copy() {
+  local aRuntimeBin
+  local LRuntimeRoot
+
+  aRuntimeBin="${1:-}"
+  if [[ -z "${aRuntimeBin}" ]]; then
+    return 0
+  fi
+
+  LRuntimeRoot="$(dirname "${aRuntimeBin}")"
+  rm -rf "${LRuntimeRoot}" 2>/dev/null || true
 }
 
 if is_msys_shell; then
@@ -135,9 +193,11 @@ build_project() {
     -FU"${LLibDirArg}" \
     -o"${LBinArg}" \
     "${LProjArg}" >"${BUILD_LOG}" 2>&1; then
+    cp "${BUILD_LOG}" "${TARGET_BUILD_LOG}" || true
     echo "[BUILD] OK"
   else
     local LRC=$?
+    cp "${BUILD_LOG}" "${TARGET_BUILD_LOG}" || true
     echo "[BUILD] FAILED rc=${LRC} (see ${BUILD_LOG})"
     return "${LRC}"
   fi
@@ -171,12 +231,25 @@ check_build_log() {
 run_tests() {
   local -a LArgs
   local LArg
+  local LExecBin
+  local LRC
+  local LRuntimeBin
 
   if [[ ! -f "${BIN}" ]]; then
     echo "[TEST] Missing binary: ${BIN} (did build succeed?)"
     return 2
   fi
   chmod +x "${BIN}" 2>/dev/null || true
+  LExecBin="${BIN}"
+  LRuntimeBin=""
+
+  if should_use_runtime_copy; then
+    LRuntimeBin="$(create_runtime_binary_copy "${BIN}")" || return $?
+    if [[ -n "${LRuntimeBin}" ]]; then
+      LExecBin="${LRuntimeBin}"
+      echo "[TEST] Runtime copy: ${LExecBin}"
+    fi
+  fi
 
   LArgs=()
   if [[ $# -gt 0 ]]; then
@@ -185,18 +258,21 @@ run_tests() {
     done < <(normalize_test_args "$@")
   fi
 
-  echo "[TEST] Running: ${BIN} ${LArgs[*]}"
+  echo "[TEST] Running: ${LExecBin} ${LArgs[*]}"
   : >"${TEST_LOG}"
-  if "${BIN}" "${LArgs[@]}" >"${TEST_LOG}" 2>&1; then
+  if "${LExecBin}" "${LArgs[@]}" >"${TEST_LOG}" 2>&1; then
     cp "${TEST_LOG}" "${TARGET_TEST_LOG}" || true
     echo "[TEST] OK"
   else
-    local LRC=$?
+    LRC=$?
     cp "${TEST_LOG}" "${TARGET_TEST_LOG}" || true
     echo "[TEST] FAILED rc=${LRC} (see ${TEST_LOG})"
     tail -n 120 "${TEST_LOG}" || true
+    cleanup_runtime_binary_copy "${LRuntimeBin}"
     return "${LRC}"
   fi
+
+  cleanup_runtime_binary_copy "${LRuntimeBin}"
 
   if grep -nE '^Invalid option' "${TEST_LOG}" >/dev/null; then
     echo "[TEST] FAILED: invalid option reported by test runner"

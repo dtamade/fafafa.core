@@ -75,6 +75,7 @@ summary 里会显式记成 `SKIP`，避免把“没采到”误读成“已经�
 若要走 GitHub Actions 原生证据路径，当前仓库已有两条 workflow：
 - `.github/workflows/simd-arm64-neon-evidence.yml`：`workflow_dispatch` + `workflow_call`，hosted `ubuntu-24.04-arm`；`simd-nightly-closeout` 会复用这条 lane
 - `.github/workflows/simd-riscvv-native-evidence.yml`：`workflow_dispatch` + `workflow_call`，需要 self-hosted `Linux+riscv64` runner
+  - 注意：`gh workflow run ...` 只有在该 workflow 已被 GitHub 按仓库 default branch 注册后才能成功；如果 helper 明确报 `Workflow is not registered on GitHub Actions`，优先先把 workflow 同步到 default branch，或直接复用现成 `run-id`
 
 需要显式切到 backend-asm / direct-fpc 采集时，可再加：
 
@@ -93,6 +94,16 @@ bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence-via-gh riscvv
 
 默认 dispatch 路径会先检查本地 worktree 干净，且 remote ref 与本地一致；如果你只是想复用现成 artifact，直接传 `run-id` 旁路即可。
 helper 下载成功后会打印 `summary.md`、`dispatch_publicabi.log`，以及存在时的 `source_revision.txt` 路径。
+如果你要把 artifact 来源锚死到某个 commit/ref，可额外设置：
+
+```bash
+SIMD_NATIVE_EVIDENCE_EXPECT_COMMIT=<full-sha> \
+SIMD_NATIVE_EVIDENCE_EXPECT_REF=<ref-name> \
+SIMD_NATIVE_EVIDENCE_REQUIRE_SOURCE_REVISION=1 \
+bash tests/fafafa.core.simd/BuildOrTest.sh native-evidence-via-gh neon 12345678901
+```
+
+注意：较老的历史 artifact 可能早于 `source_revision.txt` 产物支持；这类 run 仍可作功能性参考，但不能满足严格 source-revision 校验。
 
 若已知现成 `run-id`，也可复用旧 run：
 
@@ -152,7 +163,7 @@ SIMD_OUTPUT_ROOT=/tmp/simd-run-123 bash tests/fafafa.core.simd/BuildOrTest.sh ev
 
 ## 如果看到这些错误
 
-- `Text file busy`：先顺序重跑，再判断是不是代码回归
+- `Text file busy`：先确认是不是旧 runner / 旧产物；当前 `cpuinfo` QEMU 路径已切到 target-specific 输出 + runtime copy，若仍出现，多半是外部挂载或并发环境问题
 - `Function nesting > 31`：先恢复到最近稳定状态，不要继续叠加拆分
 - `backend_slot_counts` 下降：先检查脚本有没有跟上 `{$I ...}` include
 

@@ -4,7 +4,12 @@
 审查 `fafafa.core.simd` 及其 `cpuinfo` 相关模块，找出可验证的问题并完成至少一轮根因修复，同时产出可连续执行的后续修复与审查计划。
 
 ## Current Phase
-Phase 78 complete; repo hygiene guard is now wired into `run_all_tests.{sh,bat}`, verified red-to-green, and keeps strict L0 fresh green with a preflight `src/` artifact check
+Phase 79 complete; SIMD closeout evidence is back to fresh green after hardening the CPUInfo QEMU isolation path and re-anchoring the canonical Windows summary
+
+- Phase 79 summary:
+  - `cpuinfo` QEMU runner now isolates `bin/${TRIPLET}` / `lib/${TRIPLET}` and uses runtime-copy execution for QEMU `cpuinfo-*` scenarios
+  - fresh `gate-strict` passed at `2026-04-05 15:48:03`
+  - fresh `freeze-status` is back to `ready=True, mainline-ready=True, cross-ready=True`
 
 ## Phases
 

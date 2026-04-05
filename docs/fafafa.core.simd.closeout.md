@@ -284,10 +284,42 @@ tests\fafafa.core.simd\buildOrTest.bat gate-strict
   ```
 - 结果：`tests/fafafa.core.simd/logs/freeze_status.json` 现为 `ready=true`、`freeze_ready=true`、`mainline_ready=true`、`cross_ready=true`。
 - 2026-04-03 又补跑了一轮 compiler-ready `qemu-nonx86-experimental-asm`：`linux/arm64`、`linux/riscv64` 全 PASS，且 `qemu-experimental-baseline-check --latest` 为 `errors=0, warnings=0`，`qemu-experimental-report --latest` 显示 `parsed_errors=0`。
-- 2026-04-03 fresh ARM64 NEON native evidence 也已补齐：GitHub Actions run `23911571289`（head `3836e4cee60f0a78858d9605a0a8ee9a6cdf86e7`）产出的 artifact `simd-arm64-neon-evidence/native-evidence-neon-20260402-164750/` 中，`DispatchAPI + PublicAbi` 已恢复为 `[TEST] OK`，对应这轮 native wide-float slot wiring 修复。
-- 2026-04-05 RISCVV native evidence 的执行载体也已补齐：仓库新增 `.github/workflows/simd-riscvv-native-evidence.yml`，可在具备 self-hosted `Linux+riscv64` runner 时通过 `workflow_dispatch` 直接采集 enhanced evidence；当前 fresh artifact 仍待 native runner 产出。
+- 2026-04-03 fresh ARM64 NEON native evidence 已补齐过一轮历史 run：GitHub Actions run `23911571289`（head `3836e4cee60f0a78858d9605a0a8ee9a6cdf86e7`）产出的 artifact `simd-arm64-neon-evidence/native-evidence-neon-20260402-164750/` 中，`DispatchAPI + PublicAbi` 已恢复为 `[TEST] OK`，对应当时那轮 native wide-float slot wiring 修复。注意：这条 run 早于 `source_revision.txt` 产物锚点支持，当前严格来源校验应以 2026-04-05 addendum 里的新 run 为准。
+- 2026-04-05 RISCVV native evidence 的执行载体也已补齐：仓库新增 `.github/workflows/simd-riscvv-native-evidence.yml`。它是 enhanced evidence carrier，但是否能直接 `workflow_dispatch` 还取决于 GitHub 是否已在 default branch 注册该 workflow；当前 fresh artifact 仍待 native runner / workflow registration 闭环。
 - 2026-04-03 同步完成了一轮 fresh Linux/Windows evidence refresh：Windows batch `SIMD-20260403-152`（GitHub Actions run `23914427193`）已通过 verifier；回灌的 fail-close `gate` 已刷新为 `gate PASS @ 2026-04-03 02:13:10`，随后 `freeze-status` 再次回到 `ready=true`、`mainline_ready=true`、`cross_ready=true`。
 - 后续只有在 dispatch contract / public ABI / Windows evidence payload 变化时，才需要重收 Windows closeout evidence。`native-evidence` 与 `qemu-nonx86-experimental-asm` 继续作为增强证据，不纳入当前 freeze 硬门禁。
+
+## 2026-04-05 Closeout Addendum
+
+- `gate` / `gate-strict` 的 `adapter-sync` python-only 分支已做真正的 checker-only 收敛：
+  - Linux shell runner 新增 `run_backend_adapter_sync_checker_only()`，`gate_step_adapter_sync_python_only()` 不再隐式回调 `build_project`
+  - Windows batch runner 同步切到 `:adapter_sync_checker_only`
+  - `tests/fafafa.core.simd/BuildOrTest.sh` 现有 runtime guard，专门防止 python-only 路径再次偷偷触发第二次 Lazarus build
+- 这次修复的实际收益是把 `gate` / `gate-strict` 的 adapter-sync 步骤收敛成真正的“结构对账”，不再因为重复 build 把偶发 linker 问题伪装成 adapter-sync 失败。
+- `cpuinfo` 的 QEMU closeout 链也完成了一轮实质性 hardening：
+  - 根因是 `tests/fafafa.core.simd.cpuinfo/BuildOrTest.sh` 之前把不同 target 都编到共享 `bin/` 路径，QEMU bind-mount 执行时会放大成 `Text file busy` / 可执行映射不稳定
+  - 当前 runner 已改为 target-specific `bin/${TRIPLET}` / `lib/${TRIPLET}`，并为 QEMU 场景启用 `SIMD_CPUINFO_RUNTIME_COPY=1`
+  - `tests/fafafa.core.simd/BuildOrTest.sh` 也新增了 `check_cpuinfo_qemu_isolation_guard()`，避免这条隔离契约再次回退
+- ARM64 NEON enhanced evidence 已补到带 source anchor 的 fresh run：
+  - GitHub Actions run `23995214071`
+  - head commit：`bb061475c721d776690721a7751dff099ca6597e`
+  - helper 现支持 `SIMD_NATIVE_EVIDENCE_EXPECT_COMMIT`、`SIMD_NATIVE_EVIDENCE_EXPECT_REF`、`SIMD_NATIVE_EVIDENCE_REQUIRE_SOURCE_REVISION`
+  - 复验时可以强制要求 artifact 内存在 `source_revision.txt`，并校验 `git_commit/git_ref_hint`
+  - 历史 run `23911571289` 仍可保留作功能性参考，但它早于 `source_revision.txt` 产物锚点，不再适合作严格来源校验样本
+- RISCVV native evidence 的现状需要明确分成“两层”：
+  - 仓库内 workflow 文件已经存在：`.github/workflows/simd-riscvv-native-evidence.yml`
+  - 但 GitHub Actions 当前还没有把它注册进 default branch 的 workflow 列表，所以 `gh workflow run simd-riscvv-native-evidence.yml --ref simd-foundation` 会返回 404
+  - helper 现在会把这个场景解释成明确配置问题：`Workflow is not registered on GitHub Actions`
+  - 这不是实现逻辑失败，而是 workflow 注册/托管条件未满足；因此 RISCVV enhanced evidence 继续保留为非 freeze 硬门禁项
+- 2026-04-05 还补了一轮 fresh closeout 验证：
+  - `bash tests/fafafa.core.simd/BuildOrTest.sh gate-strict`
+  - 结果：canonical `tests/fafafa.core.simd/logs/gate_summary.md` 已刷新为 `gate PASS @ 2026-04-05 15:48:03`
+  - 关键 cross 证据：`qemu-cpuinfo-nonx86-evidence PASS @ 2026-04-05 15:48:03`，对应摘要 `tests/fafafa.core.simd/logs/qemu-multiarch-20260405-154057-1022104/summary.md`
+  - 随后 `bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status` 也再次返回 `ready=True`、`mainline-ready=True`、`cross-ready=True`
+- canonical Windows closeout 摘要也已通过 `bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize SIMD-20260403-152` 重新写回：
+  - `tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md`
+  - 生成时间：`2026-04-05 15:26:32 +0800`
+- 当前 freeze baseline 没变：freshest Windows closeout baseline 仍是 2026-04-03 的 `SIMD-20260403-152` + fail-close cross gate；2026-04-05 这一轮主要是 Linux gate 重验、QEMU cpuinfo 隔离 hardening 与 native-evidence helper 契约补强，不需要重复收 Windows 证据。
 
 ## 收口后的主线优先级
 
