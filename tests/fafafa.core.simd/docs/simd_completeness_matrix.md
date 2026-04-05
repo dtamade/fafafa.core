@@ -47,6 +47,10 @@
   - `freeze-status` 新增 required check `cross_gate_not_older_than_windows_evidence`
   - 含义：手工 Windows evidence 若晚于当前 `gate_summary.md`，则必须先补 fail-close cross gate，否则 freeze 直接 FAIL
   - `rehearse_freeze_status.sh` 已覆盖该回归
+- 2026-04-05 stale closeout-summary 假绿：已修复
+  - `freeze-status` 新增 required check `windows_closeout_not_older_than_windows_evidence`
+  - 含义：`windows_b07_closeout_summary.md` 若早于当前 `windows_b07_gate.log`，则必须先重跑 `win-closeout-finalize`
+  - `rehearse_freeze_status.sh` 已覆盖该回归
 - 2026-04-05 ARM64 NEON native evidence：通过（enhanced evidence）
   - GitHub Actions run `23995214071`（head `bb061475c721d776690721a7751dff099ca6597e`）
   - artifact：`simd-arm64-neon-evidence / native-evidence-neon-*`

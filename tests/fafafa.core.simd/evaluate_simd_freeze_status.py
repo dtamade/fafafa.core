@@ -1268,6 +1268,20 @@ def main() -> int:
             f"bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize {default_batch_id}"
         )
 
+    if not args.linux_only:
+        checks.append(
+            artifact_not_older_than_artifact_check(
+                "windows_closeout_not_older_than_windows_evidence",
+                closeout_summary,
+                windows_log,
+                required=True,
+            )
+        )
+        if checks[-1].status != "PASS":
+            next_actions.append(
+                f"bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize {default_batch_id}"
+            )
+
     checks.append(freshness_check("windows_closeout_freshness", closeout_summary, args.fresh_hours, required=True))
     if checks[-1].status != "PASS":
         next_actions.append(

@@ -1232,6 +1232,29 @@
 ### 阶段状态
 - `freeze-status` 现在会拒绝“Windows evidence 比当前 cross gate 更新”的 stale closeout 假绿。
 
+<!-- SIMD-FREEZE-CLOSEOUT-GUARD-2026-04-05 -->
+### 批次
+- SIMD-20260405-closeout-summary-guard
+
+### 执行动作
+- 用当前仓库真实 green 产物继续构造最小复现，保持 `gate_summary.md >= windows_b07_gate.log`，只让 `windows_b07_closeout_summary.md` 早于 `windows_b07_gate.log`，确认旧逻辑仍会误判 `ready=True`。
+- 在 `evaluate_simd_freeze_status.py` 新增 required check `windows_closeout_not_older_than_windows_evidence`，把 closeout summary 没有在最新 evidence 之后重生的场景改成明确 fail-close。
+- 在 `rehearse_freeze_status.sh` 新增 `case_closeout_stale`，并同步回填 closeout/runbook/checklist/matrix/findings/task_plan。
+
+### 命令与结果
+| Command | Result |
+|---|---|
+| 真实产物最小复现：复制当前 green artifacts 到临时目录，仅让 `windows_b07_closeout_summary.md` 旧于 `windows_b07_gate.log` 后运行 `evaluate_simd_freeze_status.py` | 旧逻辑复现假绿：`RC=0`，`ready=True, cross-ready=True` |
+| bash tests/fafafa.core.simd/rehearse_freeze_status.sh | PASS（新增 `case_closeout_stale_rc=1`） |
+| FAFAFA_BUILD_MODE=Release bash tests/fafafa.core.simd/BuildOrTest.sh freeze-status | PASS（真实仓库当前仍 `ready=True`） |
+
+### 关键证据
+- 新 guard：tests/fafafa.core.simd/evaluate_simd_freeze_status.py
+- 回归：tests/fafafa.core.simd/rehearse_freeze_status.sh
+
+### 阶段状态
+- `freeze-status` 现在会同时拒绝 stale cross-gate 和 stale closeout-summary 两类 Windows closeout 假绿。
+
 ### Phase 72: ARM64 NEON external evidence doc sync and closeout capture
 - **Status:** complete
 - Actions taken:

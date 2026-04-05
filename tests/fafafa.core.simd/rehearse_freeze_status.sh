@@ -267,6 +267,37 @@ fi
 
 touch "${LCaseReady}/logs/gate_summary.md" "${LCaseReady}/logs/windows_b07_gate.log" "${LCaseReady}/logs/windows_b07_closeout_summary.md"
 
+python3 - "${LCaseReady}/logs/windows_b07_gate.log" "${LCaseReady}/logs/windows_b07_closeout_summary.md" <<'PY'
+from pathlib import Path
+import os
+import sys
+
+windows_log = Path(sys.argv[1])
+windows_summary = Path(sys.argv[2])
+log_mtime = windows_log.stat().st_mtime
+os.utime(windows_summary, (log_mtime - 30, log_mtime - 30))
+PY
+
+set +e
+SIMD_FREEZE_REQUIRE_QEMU_CPUINFO_NONX86_EVIDENCE=0 \
+python3 "${LCaseReady}/evaluate_simd_freeze_status.py" --root "${LCaseReady}" --json-file "${LCaseReady}/logs/freeze_status_closeout_stale.json" > "${LCaseReady}/logs/freeze_stdout_closeout_stale.txt" 2>&1
+LCloseoutStaleRc=$?
+set -e
+
+if [[ "${LCloseoutStaleRc}" -eq 0 ]]; then
+  echo "[FREEZE-REHEARSAL] FAILED: case_closeout_stale should return non-zero"
+  cat "${LCaseReady}/logs/freeze_stdout_closeout_stale.txt"
+  exit 1
+fi
+
+if ! grep -F -- "windows_closeout_not_older_than_windows_evidence" "${LCaseReady}/logs/freeze_stdout_closeout_stale.txt" >/dev/null; then
+  echo "[FREEZE-REHEARSAL] FAILED: case_closeout_stale missing closeout-vs-windows guard"
+  cat "${LCaseReady}/logs/freeze_stdout_closeout_stale.txt"
+  exit 1
+fi
+
+touch "${LCaseReady}/logs/gate_summary.md" "${LCaseReady}/logs/windows_b07_gate.log" "${LCaseReady}/logs/windows_b07_closeout_summary.md"
+
 # ---------- Case C: STALE SUMMARY (must fail) ----------
 cat > "${LCaseReady}/logs/windows_b07_closeout_summary.md" <<'EOM'
 # SIMD Windows B07 Closeout Summary
@@ -869,6 +900,7 @@ fi
 echo "[FREEZE-REHEARSAL] OK"
 echo "[FREEZE-REHEARSAL] case_not_ready_rc=${LNotReadyRc}"
 echo "[FREEZE-REHEARSAL] case_cross_gate_stale_rc=${LCrossGateStaleRc}"
+echo "[FREEZE-REHEARSAL] case_closeout_stale_rc=${LCloseoutStaleRc}"
 echo "[FREEZE-REHEARSAL] case_stale_summary_rc=${LStaleRc}"
 echo "[FREEZE-REHEARSAL] case_verify_fail_rc=${LVerifyFailRc}"
 echo "[FREEZE-REHEARSAL] case_linux_lazy_missing_rc=${LLazyMissingRc}"

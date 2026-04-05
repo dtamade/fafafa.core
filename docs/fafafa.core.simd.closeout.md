@@ -327,6 +327,10 @@ tests\fafafa.core.simd\buildOrTest.bat gate-strict
   - 新增 required check：`cross_gate_not_older_than_windows_evidence`
   - 含义：cross gate 对应的 `gate_summary.md` 不得早于当前 `windows_b07_gate.log`
   - 这样即使源码没变、旧 gate 仍在 freshness 窗口内，只要你少跑了那一步 fail-close cross gate，`freeze-status` 也会 fail-close，而不是沿用旧 cross gate 假装当前 Windows evidence 已纳入冻结判定
+- `freeze-status` 现在还会拒绝 stale closeout summary：
+  - 新增 required check：`windows_closeout_not_older_than_windows_evidence`
+  - 含义：`windows_b07_closeout_summary.md` 必须晚于或等于当前 `windows_b07_gate.log`
+  - 这样即使 summary 文本仍然写着 `- Result: PASS`、verifier 也仍然通过，只要 summary 没有在最新 Windows evidence 之后重新生成，freeze 仍会 fail-close
 - canonical Windows closeout 摘要也已通过 `bash tests/fafafa.core.simd/BuildOrTest.sh win-closeout-finalize SIMD-20260403-152` 重新写回：
   - `tests/fafafa.core.simd/logs/windows_b07_closeout_summary.md`
   - 生成时间：`2026-04-05 15:26:32 +0800`
