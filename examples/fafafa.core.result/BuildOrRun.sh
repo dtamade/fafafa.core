@@ -1,26 +1,73 @@
-#!/bin/bash
-set -e
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-cd "$SCRIPT_DIR"
+#!/usr/bin/env bash
+set -euo pipefail
 
-# 查找 lazbuild
-LAZBUILD="${LAZBUILD:-lazbuild}"
-if ! command -v "$LAZBUILD" &> /dev/null; then
-    if [ -x "/opt/fpcupdeluxe/lazarus/lazbuild" ]; then
-        LAZBUILD="/opt/fpcupdeluxe/lazarus/lazbuild --lazarusdir=/opt/fpcupdeluxe/lazarus"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+cd "${SCRIPT_DIR}"
+
+ACTION="${1:-run}"
+TOOLS_LAZBUILD="${REPO_ROOT}/tools/lazbuild.sh"
+PROJECTS=(
+  example_chain.lpi
+  example_result_basics.lpi
+  example_result_chain.lpi
+  example_result_filters_and_try.lpi
+)
+
+resolve_lazbuild() {
+  if [[ -n "${LAZBUILD:-}" ]]; then
+    echo "${LAZBUILD}"
+    return 0
+  fi
+
+  if [[ -x "${TOOLS_LAZBUILD}" ]]; then
+    echo "${TOOLS_LAZBUILD}"
+    return 0
+  fi
+
+  if command -v lazbuild >/dev/null 2>&1; then
+    command -v lazbuild
+    return 0
+  fi
+
+  echo "[ERROR] lazbuild not found (expected ${TOOLS_LAZBUILD} or lazbuild in PATH)" >&2
+  exit 127
+}
+
+build_examples() {
+  local LLazbuild
+  local LProject
+
+  LLazbuild="$(resolve_lazbuild)"
+  echo "Building examples..."
+  for LProject in "${PROJECTS[@]}"; do
+    "${LLazbuild}" --build-all "${LProject}"
+  done
+}
+
+run_examples() {
+  local LExe
+
+  echo "Running examples..."
+  for LExe in ./bin/*; do
+    if [[ -x "${LExe}" && -f "${LExe}" ]]; then
+      echo "=== Running $(basename "${LExe}") ==="
+      "${LExe}"
+      echo
     fi
-fi
+  done
+}
 
-# 编译
-echo "Building examples..."
-$LAZBUILD *.lpi
-
-# 运行示例
-echo "Running examples..."
-for exe in ./bin/*; do
-    if [ -x "$exe" ] && [ -f "$exe" ]; then
-        echo "=== Running $(basename "$exe") ==="
-        "$exe"
-        echo ""
-    fi
-done
+case "${ACTION}" in
+  build)
+    build_examples
+    ;;
+  run)
+    build_examples
+    run_examples
+    ;;
+  *)
+    echo "Usage: $0 [build|run]" >&2
+    exit 2
+    ;;
+esac

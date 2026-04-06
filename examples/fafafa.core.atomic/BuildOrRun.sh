@@ -1,15 +1,34 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-cd "$(dirname "${BASH_SOURCE[0]}")"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+cd "${SCRIPT_DIR}"
 
 ACTION="${1:-run}"
-LAZBUILD_BIN="${LAZBUILD:-lazbuild}"
+TOOLS_LAZBUILD="${REPO_ROOT}/tools/lazbuild.sh"
 
-if ! command -v "${LAZBUILD_BIN}" >/dev/null 2>&1; then
-  echo "[ERROR] lazbuild not found in PATH" >&2
-  exit 1
-fi
+resolve_lazbuild() {
+  if [[ -n "${LAZBUILD:-}" ]]; then
+    echo "${LAZBUILD}"
+    return 0
+  fi
+
+  if [[ -x "${TOOLS_LAZBUILD}" ]]; then
+    echo "${TOOLS_LAZBUILD}"
+    return 0
+  fi
+
+  if command -v lazbuild >/dev/null 2>&1; then
+    command -v lazbuild
+    return 0
+  fi
+
+  echo "[ERROR] lazbuild not found (expected ${TOOLS_LAZBUILD} or lazbuild in PATH)" >&2
+  exit 127
+}
+
+LAZBUILD_BIN="$(resolve_lazbuild)"
 
 # Deterministic outputs
 rm -rf ./bin ./lib/*-*/
