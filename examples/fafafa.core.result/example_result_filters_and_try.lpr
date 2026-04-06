@@ -11,42 +11,52 @@ uses
   {$ENDIF}
   SysUtils,
   fafafa.core.result,
-  fafafa.core.option;
+  fafafa.core.option.base;
 
 var
-  R, R2: specialize TResult<Integer,String>;
-  RO: specialize TResult< specialize TOption<Integer>, String>;
-  ORs: specialize TOption< specialize TResult<Integer,String> >;
-  V: Integer;
+  LResult: specialize TResult<Integer, String>;
+  LFiltered: specialize TResult<Integer, String>;
+  LResultOption: specialize TResult<specialize TOption<Integer>, String>;
+  LOptionResult: specialize TOption<specialize TResult<Integer, String>>;
+  LValue: Integer;
 begin
   // FilterOrElse: Ok(3) 且谓词不满足 -> Err('odd')
-  R := specialize TResult<Integer,String>.Ok(3);
-  R2 := specialize ResultFilterOrElse<Integer,String>(R,
+  LResult := specialize TResult<Integer, String>.Ok(3);
+  LFiltered := specialize ResultFilterOrElse<Integer, String>(LResult,
     function (const X: Integer): Boolean begin Result := (X mod 2)=0; end,
     function (const X: Integer): String begin Result := 'odd'; end);
-  if R2.IsErr then WriteLn('FilterOrElse -> Err(', R2.UnwrapErr, ')') else WriteLn('FilterOrElse -> Ok(', R2.Unwrap, ')');
+  if LFiltered.IsErr then
+    WriteLn('FilterOrElse -> Err(', LFiltered.UnwrapErr, ')')
+  else
+    WriteLn('FilterOrElse -> Ok(', LFiltered.Unwrap, ')');
 
   // ResultToTry: Err -> raise 映射异常
-  R := specialize TResult<Integer,String>.Err('bad');
+  LResult := specialize TResult<Integer, String>.Err('bad');
   try
-    V := specialize ResultToTry<Integer,String>(R,
+    LValue := specialize ResultToTry<Integer, String>(LResult,
       function (const E: String): Exception begin Result := Exception.Create('mapped:'+E); end);
-    WriteLn('ToTry(Err) -> ', V);
-  except on Ex: Exception do WriteLn('ToTry(Err) raised: ', Ex.Message); end;
+    WriteLn('ToTry(Err) -> ', LValue);
+  except
+    on Ex: Exception do
+      WriteLn('ToTry(Err) raised: ', Ex.Message);
+  end;
 
   // ResultToTry: Ok -> 返回值
-  R := specialize TResult<Integer,String>.Ok(9);
-  V := specialize ResultToTry<Integer,String>(R,
+  LResult := specialize TResult<Integer, String>.Ok(9);
+  LValue := specialize ResultToTry<Integer, String>(LResult,
     function (const E: String): Exception begin Result := Exception.Create(E); end);
-  WriteLn('ToTry(Ok) -> ', V);
+  WriteLn('ToTry(Ok) -> ', LValue);
 
   // Transpose: Result<Option<T>,E> -> Option<Result<T,E>>
-  RO := specialize TResult< specialize TOption<Integer>, String>.Ok(specialize TOption<Integer>.Some(5));
-  ORs := specialize ResultTransposeOption<Integer,String>(RO);
-  if ORs.IsSome then
+  LResultOption := specialize TResult<specialize TOption<Integer>, String>.Ok(
+    specialize TOption<Integer>.Some(5));
+  LOptionResult := specialize ResultTranspose<Integer, String>(LResultOption);
+  if LOptionResult.IsSome then
   begin
-    if ORs.Unwrap.IsOk then WriteLn('Transpose -> Some(Ok(', ORs.Unwrap.Unwrap, '))')
-    else WriteLn('Transpose -> Some(Err(', ORs.Unwrap.UnwrapErr, '))');
+    if LOptionResult.Unwrap.IsOk then
+      WriteLn('Transpose -> Some(Ok(', LOptionResult.Unwrap.Unwrap, '))')
+    else
+      WriteLn('Transpose -> Some(Err(', LOptionResult.Unwrap.UnwrapErr, '))');
   end
   else
     WriteLn('Transpose -> None');
