@@ -36,12 +36,10 @@ var
   LPair2: TStrStrPair;
 begin
   WriteLn('=== TTuple2 泛型元组 ===');
-  
   // 创建 Integer-String 元组
   LPair1 := TIntStrPair.Create(42, 'hello');
   WriteLn('Pair1.First: ', LPair1.First);
   WriteLn('Pair1.Second: ', LPair1.Second);
-  
   // 创建 String-String 元组
   LPair2 := TStrStrPair.Create('key', 'value');
   WriteLn('Pair2.First: ', LPair2.First);
@@ -52,7 +50,7 @@ end;
 procedure DemoExceptions;
 begin
   WriteLn('=== 异常体系 ===');
-  
+
   // 演示 EOutOfRange
   try
     raise EOutOfRange.Create('索引 10 超出范围 [0..5]');
@@ -60,7 +58,7 @@ begin
     on E: ECore do
       WriteLn('捕获 ECore 异常: ', E.Message);
   end;
-  
+
   // 演示 EArgumentNil
   try
     raise EArgumentNil.Create('参数 Data 不能为 nil');
@@ -68,7 +66,7 @@ begin
     on E: EArgumentNil do
       WriteLn('捕获 EArgumentNil: ', E.Message);
   end;
-  
+
   // 演示 EInvalidArgument
   try
     raise EInvalidArgument.Create('无效的参数值');
@@ -76,7 +74,7 @@ begin
     on E: EInvalidArgument do
       WriteLn('捕获 EInvalidArgument: ', E.Message);
   end;
-  
+
   WriteLn;
 end;
 
@@ -84,11 +82,11 @@ begin
   WriteLn('fafafa.core.base 示例程序');
   WriteLn('========================');
   WriteLn;
-  
+
   DemoVersion;
   DemoConstants;
   DemoTuple2;
   DemoExceptions;
-  
+
   WriteLn('示例程序完成!');
 end.
