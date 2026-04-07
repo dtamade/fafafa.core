@@ -21,8 +21,8 @@
 **Files:**
 - Read: `docs/ARCHITECTURE_LAYERS.md`
 - Read: `docs/fafafa.core.l0.foundation.md`
-- Read: `docs/fafafa.core.l0.candidates.platform-span.review.md`
-- Create: `docs/fafafa.core.platform.candidate.md`
+- Read: `docs/fafafa.core.l0.candidates.platform-span.review.md`（现已归档至 `docs/legacy/l0/fafafa.core.l0.candidates.platform-span.review.md`）
+- Create: `docs/fafafa.core.platform.candidate.md`（现已归档至 `docs/legacy/l0/fafafa.core.platform.candidate.md`）
 
 **Step 1: 列出 platform 候选 API**
 
@@ -43,10 +43,10 @@
 ### Task 2: span 候选准入设计
 
 **Files:**
-- Read: `docs/fafafa.core.l0.candidates.platform-span.review.md`
+- Read: `docs/fafafa.core.l0.candidates.platform-span.review.md`（现已归档至 `docs/legacy/l0/fafafa.core.l0.candidates.platform-span.review.md`）
 - Read: `tests/fafafa.core.collections/vec/Test_vec_span.pas`
 - Read: `tests/fafafa.core.collections/vecdeque/Test_vecdeque_span.pas`
-- Create: `docs/fafafa.core.span.candidate.md`
+- Create: `docs/fafafa.core.span.candidate.md`（现已归档至 `docs/legacy/l0/fafafa.core.span.candidate.md`）
 
 **Step 1: 区分 today semantics 与 L0 candidate**
 
@@ -136,7 +136,7 @@ bash tests/fafafa.core.span/BuildOrTest.sh test
 **Files:**
 - Modify: `docs/fafafa.core.l0.foundation.md`
 - Modify: `docs/ARCHITECTURE_LAYERS.md`
-- Modify: `docs/fafafa.core.l0.merge-closeout.md`
+- Modify: `docs/fafafa.core.l0.merge-closeout.md`（现已归档至 `docs/legacy/l0/fafafa.core.l0.merge-closeout.md`）
 
 **Step 1: 更新边界文档**
 

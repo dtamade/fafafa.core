@@ -2,151 +2,90 @@
 
 > 当前 strict L0 语义以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准。
 > `fafafa.core.option.base` + `fafafa.core.option` 属于 strict non-SIMD L0，可空语义应停留在这一层，不下沉服务型能力。
+> 用法示例请看 `docs/fafafa.core.option.guide.md`；若示例与源码冲突，以源码和当前测试入口为准。
 
-当前 source-of-truth
-- `docs/fafafa.core.l0.foundation.md`
-- `docs/ARCHITECTURE_LAYERS.md`
-- `src/fafafa.core.option.base.pas`
-- `src/fafafa.core.option.pas`
-- `tests/fafafa.core.option/README.md`
-- `tests/fafafa.core.option/BuildOrTest.sh`
+## 当前 source-of-truth
 
-目标
-- 提供零依赖、跨平台、零额外分配的 Option<T>（Some/None）
-- 借鉴 Rust Option 的语义与 API，贴合 FPC 泛型/闭包特性
+1. `docs/fafafa.core.l0.foundation.md`
+2. `docs/ARCHITECTURE_LAYERS.md`
+3. `src/fafafa.core.option.base.pas`
+4. `src/fafafa.core.option.pas`
+5. `tests/fafafa.core.option/README.md`
+6. `tests/fafafa.core.option/BuildOrTest.sh`
 
-快速开始
-```pascal
-uses fafafa.core.option.base, fafafa.core.option;
+## 目标
 
-var O: specialize TOption<Integer>;
-O := specialize TOption<Integer>.Some(7);
-if O.IsSome then WriteLn(O.Unwrap); // 7
-WriteLn(O.UnwrapOr(9)); // 7
+- 提供零依赖、跨平台、零额外分配的 `Option<T>`（`Some` / `None`）。
+- 保持 Rust 风格的显式可空语义，同时贴合 FPC 泛型与闭包能力。
+- 让 `base`、`result`、`collections` 之上的模块都能共享同一套值级缺失表达，而不是各自发明 nil / sentinel 约定。
 
-O := specialize TOption<Integer>.None;
-WriteLn(O.UnwrapOr(9)); // 9
-```
+## 当前 API 面
 
-API 概览
-- 构造：class function Some/None
-- 查询：IsSome/IsNone
-- 取值：Unwrap（None -> EOptionUnwrapError）/UnwrapOr
-- 组合子：
-  - 顶层：OptionMap / OptionAndThen
-  - 方法：Inspect（副作用，返回 Self）、ToDebugString（调试输出）
+- `TOption<T>` 核心构造与查询：
+  - `Some`
+  - `None`
+  - `IsSome`
+  - `IsNone`
+  - `IsSomeAnd`
+  - `Contains`
+- `TOption<T>` 取值与调试：
+  - `Unwrap`
+  - `UnwrapOr`
+  - `UnwrapOrElse`
+  - `UnwrapOrDefault`
+  - `Expect`
+  - `TryUnwrap`
+  - `Inspect`
+  - `ToDebugString`
+- `TOption<T>` 逻辑组合：
+  - `Or_`
+  - `And_`
+  - `Xor_`
+- 顶层组合子：
+  - `OptionMap`
+  - `OptionAndThen`
+  - `OptionMapOr`
+  - `OptionMapOrElse`
+  - `OptionFilter`
+  - `OptionFlatten`
+  - `OptionZip`
+  - `OptionZipWith`
+- 与 `Result` 互转：
+  - `OptionToResult`
+  - `OptionToResultElse`
+  - `ResultToOption`
+  - `ResultErrOption`
+  - `ResultTransposeOption`
+  - `OptionTransposeResult`
+- 构造 helper：
+  - `OptionFromBool`
+  - `OptionFromString`
+  - `OptionFromValue`
+  - `OptionFromInterface`
 
-> 注意：回调参数按惰性语义处理——仅当需要调用该回调时才要求非 nil；若 nil 回调被实际调用，将抛出 `EArgumentNil('<Name> is nil')`（定义于 `fafafa.core.base`）。
-> `ToDebugString` 的 Printer 允许为 nil（会输出 `Some(?)`）。
-- 与 Result 互转：
-  - OptionToResult(Some->Ok / None->Err(E))
-  - ResultToOption(Ok->Some / Err->None)
+详细签名与泛型参数顺序以 `src/fafafa.core.option.base.pas` 和 `src/fafafa.core.option.pas` 为准。
 
-组合子示例
-```pascal
-var O: specialize TOption<Integer> := specialize TOption<Integer>.Some(3);
-var O2: specialize TOption<Integer>;
-O2 := specialize OptionMap<Integer,Integer>(O,
-  function (const X: Integer): Integer begin Result := X+1; end); // Some(4)
-O2 := specialize OptionAndThen<Integer,Integer>(O,
-  function (const X: Integer): specialize TOption<Integer>
-  begin
-    if X>0 then Result := specialize TOption<Integer>.Some(X*2)
-    else Result := specialize TOption<Integer>.None;
-  end); // Some(6)
-O := O.Inspect(procedure (const X: Integer) begin WriteLn('seen=', X); end);
-```
+## 当前行为约定
 
-调试输出
-```pascal
-var O: specialize TOption<Integer> := specialize TOption<Integer>.Some(3);
-WriteLn(O.ToDebugString(function (const X: Integer): string begin Result := IntToStr(X); end)); // Some(3)
-```
+- `Unwrap` / `Expect` 在 `None` 上会抛出 `EOptionUnwrapError`。
+- 回调参数按惰性语义处理，只有在实际需要调用时才要求非 nil；若 nil 回调被调用，会抛出 `EArgumentNil('<Name> is nil')`。
+- `ToDebugString` 的 printer 允许为 nil，此时输出占位符 `Some(?)`。
 
-测试
-- 位置：tests/fafafa.core.option/
-- 构建与运行：
-  - Linux/macOS: `bash tests/fafafa.core.option/BuildOrTest.sh test`
-  - Windows: `tests\\fafafa.core.option\\BuildOrTest.bat test`
-- 覆盖：Some/None/查询/解包/默认值 + 组合子 + Result 互转
+## 当前边界
 
-## 测试覆盖率 (Phase 3.1)
+- 这里定义的是值级 optional contract，不是容器、服务、配置系统或对象生命周期管理框架。
+- strict L0 只保留 `fafafa.core.option.base` + `fafafa.core.option` 这一层；更高层的 nullable policy 不应回流到这里。
+- tutorial、迁移示例和使用范式请放在 `docs/fafafa.core.option.guide.md`，不要再把阶段性进度、覆盖率宣传或路线图堆回根文档。
 
-**统计数据** (更新时间: 2026-01-18):
-- **测试用例数**: 63 个测试 (从 14 个增长 +350%)
-- **API 覆盖率**: 97% (34/35 APIs)
-- **测试通过率**: 100%
-- **内存泄漏**: 0
+## 测试
 
-**测试套件组成**:
-- `TTestCase_Option`: 52 个测试（核心功能）
-- `TTestCase_Option_CallbackContracts`: 11 个测试（回调契约验证）
+- Linux/macOS：`bash tests/fafafa.core.option/BuildOrTest.sh test`
+- Windows：`tests\\fafafa.core.option\\BuildOrTest.bat test`
+- 当前测试入口锁定构造、查询、解包、逻辑组合、顶层组合子和 `Result` 互转语义。
 
-**已覆盖 API** (34/35):
+## 关联文档
 
-*TOption<T> 核心方法*:
-- ✅ Some/None - 构造
-- ✅ IsSome/IsNone - 查询
-- ✅ Unwrap/UnwrapOr/UnwrapOrElse/UnwrapOrDefault/Expect/TryUnwrap - 解包
-- ✅ Inspect/ToDebugString - 调试
-- ✅ IsSomeAnd/Contains - 谓词检查
-- ✅ Or_/And_/Xor_ - 逻辑组合
-
-*全局组合子*:
-- ✅ OptionMap/OptionAndThen/OptionMapOr/OptionMapOrElse - 转换
-- ✅ OptionFilter - 过滤
-- ✅ OptionFlatten/OptionZip/OptionZipWith - 组合
-- ✅ OptionToResult/OptionToResultElse/ResultToOption/ResultErrOption - Result 互转
-- ✅ ResultTransposeOption/OptionTransposeResult - 转置
-- ✅ OptionFromBool/OptionFromString/OptionFromValue/OptionFromInterface - 构造
-
-**测试质量**:
-- ✅ 正常路径覆盖完整
-- ✅ 边界情况覆盖完整
-- ✅ 错误处理覆盖完整
-- ✅ Nil 回调验证完整
-- ✅ 类型安全验证完整
-- ✅ 内存安全验证（HeapTrc）
-
-FromNullable 与链式分流（示例）
-```pascal
-uses SysUtils, fafafa.core.option.base, fafafa.core.option, fafafa.core.result;
-
-function GetEnvOpt(const Name: string): specialize TOption<string>;
-begin
-  Result := OptionFromString(GetEnvironmentVariable(Name), True);
-end;
-
-function ParseIntOpt(const S: string): specialize TOption<Integer>;
-begin
-  if TryStrToInt(S, Result.FValue) then
-  begin
-    Result.FHas := True;
-  end
-  else
-    Result := specialize TOption<Integer>.None;
-end;
-
-function NonZero(const X: Integer): Boolean; begin Result := X<>0; end;
-
-var OStr: specialize TOption<string>;
-    OInt: specialize TOption<Integer>;
-    R: specialize TResult<Integer,string>;
-begin
-  OStr := GetEnvOpt('MY_PORT');
-  OInt := specialize OptionAndThen<string,Integer>(OStr, @ParseIntOpt);
-  OInt := specialize OptionFilter<Integer>(OInt, @NonZero);
-  // 注入错误信息，得到 Result 以便上游消费
-  R := specialize OptionToResult<Integer,string>(OInt, 'invalid port');
-  if R.IsOk then WriteLn('port=', R.Unwrap) else WriteLn('ERR: ', R.UnwrapErr);
-end;
-```
-
-别名与辅助（aliases）
-- 参见 docs/fafafa.core.aliases.md：Some/None、常用类型别名、Ok/Err 泛型辅助
-
-后续路线
-- 扩展组合子（MapOr/MapOrElse/Filter）
-- 与 Result 更丰富的互操作（OkOr/ErrOrNone 等）
-- 文档补充更多范式与实践建议
+- `docs/fafafa.core.option.guide.md`：用法与示例
+- `docs/fafafa.core.result.md`：`Result<T, E>` 合同
+- `docs/fafafa.core.aliases.md`：常用别名与泛型辅助
 

@@ -961,7 +961,7 @@ end;
 
 function GetCurrentDispatchPublishedState: PSimdDispatchPublishedState; inline;
 begin
-  Result := PSimdDispatchPublishedState(atomic_load_ptr(g_CurrentDispatchStatePtr, mo_acquire));
+  Result := PSimdDispatchPublishedState(atomic_load(g_CurrentDispatchStatePtr, mo_acquire));
 end;
 
 function GetCurrentPublishedDispatchTable: PSimdDispatchTable; inline;
@@ -977,7 +977,7 @@ end;
 
 function GetPublishedBackendDispatchState(const aBackend: TSimdBackend): PSimdDispatchPublishedState; inline;
 begin
-  Result := PSimdDispatchPublishedState(atomic_load_ptr(g_BackendDispatchStatePtrs[aBackend], mo_acquire));
+  Result := PSimdDispatchPublishedState(atomic_load(g_BackendDispatchStatePtrs[aBackend], mo_acquire));
 end;
 
 function GetPublishedBackendDispatchTable(const aBackend: TSimdBackend): PSimdDispatchTable; inline;
@@ -1005,7 +1005,7 @@ var
 begin
   LState := CreateDispatchPublishedState;
   LState^.Table := aDispatchTable;
-  atomic_store_ptr(g_BackendDispatchStatePtrs[aBackend], Pointer(LState), mo_release);
+  atomic_store(g_BackendDispatchStatePtrs[aBackend], Pointer(LState), mo_release);
 end;
 
 procedure PublishCurrentDispatchTable(const aDispatchTable: PSimdDispatchTable);
@@ -1015,14 +1015,14 @@ begin
   if aDispatchTable = nil then
   begin
     g_CurrentDispatch := nil;
-    atomic_store_ptr(g_CurrentDispatchStatePtr, nil, mo_release);
+    atomic_store(g_CurrentDispatchStatePtr, nil, mo_release);
     Exit;
   end;
 
   LState := CreateDispatchPublishedState;
   LState^.Table := aDispatchTable^;
   g_CurrentDispatch := @LState^.Table;
-  atomic_store_ptr(g_CurrentDispatchStatePtr, Pointer(LState), mo_release);
+  atomic_store(g_CurrentDispatchStatePtr, Pointer(LState), mo_release);
 end;
 
 procedure FinalizeDispatchPublishedStates;
@@ -1030,7 +1030,7 @@ var
   LState: PSimdDispatchPublishedState;
   LNext: PSimdDispatchPublishedState;
 begin
-  atomic_store_ptr(g_CurrentDispatchStatePtr, nil, mo_release);
+  atomic_store(g_CurrentDispatchStatePtr, nil, mo_release);
   g_CurrentDispatch := nil;
   LState := g_CurrentDispatchOwnedHead;
   g_CurrentDispatchOwnedHead := nil;

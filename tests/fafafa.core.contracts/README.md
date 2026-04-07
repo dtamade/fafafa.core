@@ -49,4 +49,4 @@
 
 - 这里锁定的是 strict L0 的前置条件 helper，只负责 `EArgumentNil` / `EInvalidArgument` 这一层的统一入口。
 - 这里不替代 `atomic` / `result` 中的内部 invariant `Assert`。
-- 这里不承载 `platform` / `span` 的候选讨论；那两者当前不在本批准入范围。
+- 这里不承载 `platform` 或其他 L0 模块边界讨论；`span` 已经是同层 L0 模块，但不属于本目录职责。

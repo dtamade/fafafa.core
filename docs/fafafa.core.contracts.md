@@ -28,7 +28,7 @@
 
 - 这里定义的是 precondition helper，不是通用 assertion 框架。
 - `atomic` / `result.UnwrapUnchecked` 一类内部 invariant 继续使用 `Assert` 或模块自身语义，不迁到这里。
-- 这里不负责 `platform` / `span` 候选方向；它们当前仍不在 strict L0 准入范围。
+- `fafafa.core.platform` / `fafafa.core.span` 已各自拥有独立的 strict L0 contract 文档；这里不代替它们给出准入结论，也不回收它们的模块语义。
 
 ## 测试
 

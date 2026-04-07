@@ -48,5 +48,5 @@
 
 - 这个目录只锁定 `endian` 的基础契约，不替代 `bytes` 模块对端序读写接口的集成测试。
 - `src/fafafa.core.bytes.pas` 当前会消费 `fafafa.core.endian` 并保留兼容别名，但 `endian` 的 today contract 以 `docs/fafafa.core.endian.md` 和当前测试入口为准。
-- 这里不承载 `platform` / `span` 的候选讨论；那是 L0 后续准入问题，不属于 `endian` 当前测试职责。
+- 这里不承载 `platform` 或其他 L0 准入讨论；那不属于 `endian` 当前测试职责。
 - `bin/`、`lib/`、`logs/` 是产物目录，不属于合同本体。
