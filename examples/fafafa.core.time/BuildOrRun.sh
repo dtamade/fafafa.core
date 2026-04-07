@@ -9,7 +9,6 @@ FPC_BIN="${FPC:-fpc}"
 ACTION="${1:-run}"
 TARGET="${2:-all}"
 
-# Allow shorthand: ./BuildOrRun.sh quickstart|periodic|options|all
 case "${ACTION}" in
   quickstart|periodic|options|all)
     TARGET="${ACTION}"
@@ -17,40 +16,62 @@ case "${ACTION}" in
     ;;
 esac
 
-build_one() {
-  local base="$1"
-  local lpi="${base}.lpi"
-  local lpr="${base}.lpr"
-
-  if command -v "${LAZBUILD_BIN}" >/dev/null 2>&1 && [[ -f "${lpi}" ]]; then
-    echo "[BUILD] lazbuild --build-mode=Debug ${lpi}"
-    "${LAZBUILD_BIN}" --build-mode=Debug "${lpi}"
+resolve_lazbuild() {
+  if command -v "${LAZBUILD_BIN}" >/dev/null 2>&1; then
+    echo "${LAZBUILD_BIN}"
     return 0
   fi
 
+  return 1
+}
+
+build_with_lazbuild() {
+  local lpi="$1"
+  local laz
+
+  laz="$(resolve_lazbuild)" || return 1
+  echo "[BUILD] lazbuild ${lpi} (project default mode)"
+  "${laz}" "${lpi}"
+}
+
+build_with_fpc() {
+  local lpr="$1"
+
   echo "[BUILD] fpc ${lpr}"
-  mkdir -p "bin" "lib/fpc"
+  mkdir -p "lib/fpc"
   "${FPC_BIN}" -Mobjfpc -Sh -O1 -g -gl \
     -I../../src -Fu../../src -Fu. \
     -FUlib/fpc -FEbin \
     "${lpr}"
 }
 
+build_one() {
+  local base="$1"
+  local lpi="${base}.lpi"
+  local lpr="${base}.lpr"
+
+  if ! build_with_lazbuild "${lpi}"; then
+    echo "[WARN] lazbuild not found; falling back to fpc for ${base}" >&2
+    build_with_fpc "${lpr}"
+  fi
+}
+
 run_exe() {
   local base="$1"
   local exe="./bin/${base}"
+
   [[ -x "${exe}" ]] || exe="./bin/${base}.exe"
   if [[ ! -x "${exe}" ]]; then
     echo "[ERROR] executable not found: ${base} (looked for ./bin/${base} and ./bin/${base}.exe)" >&2
     exit 100
   fi
+
   echo "[RUN] ${exe}"
   "${exe}"
 }
 
-# Deterministic outputs
 rm -rf ./bin
-rm -rf ./lib
+rm -rf ./lib/fpc ./lib/*-*/
 mkdir -p ./bin ./lib
 
 case "${ACTION}" in

@@ -2,6 +2,7 @@
 <CONFIG>
   <ProjectOptions>
     <Version Value="12"/>
+    <PathDelim Value="\"/>
     <General>
       <Flags>
         <MainUnitHasCreateFormStatements Value="False"/>
@@ -9,6 +10,7 @@
         <MainUnitHasScaledStatement Value="False"/>
       </Flags>
       <SessionStorage Value="InProjectDir"/>
+      <MainUnit Value="0"/>
       <Title Value="collections_performance_benchmark"/>
       <UseAppBundle Value="False"/>
       <ResourceType Value="res"/>
@@ -56,6 +58,13 @@
     <RunParams>
       <FormatVersion Value="2"/>
     </RunParams>
+    <Units Count="1">
+      <Unit0>
+        <Filename Value="simple_benchmark.lpr"/>
+        <IsPartOfProject Value="True"/>
+        <UnitName Value="simple_collections_benchmark"/>
+      </Unit0>
+    </Units>
   </ProjectOptions>
   <CompilerOptions>
     <Version Value="11"/>
@@ -76,10 +85,4 @@
       </Verbosity>
     </Other>
   </CompilerOptions>
-  <Units>
-    <Unit>
-      <Filename Value="simple_benchmark.lpr"/>
-      <IsPartOfProject Value="True"/>
-    </Unit>
-  </Units>
 </CONFIG>

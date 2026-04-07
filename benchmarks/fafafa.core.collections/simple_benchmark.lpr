@@ -1,182 +1,181 @@
-{$MODE OBJFPC}{$H+}
+{$CODEPAGE UTF8}
 program simple_collections_benchmark;
 
+{$mode objfpc}{$H+}
+{$I ../../src/fafafa.core.settings.inc}
+{$UNITPATH ../../src}
+
 uses
-  SysUtils, Classes,
-  fafafa.core.base,
+  SysUtils,
   fafafa.core.collections,
   fafafa.core.collections.hashmap,
-  fafafa.core.collections.vec,
-  fafafa.core.collections.vecdeque,
   fafafa.core.collections.list,
-  fafafa.core.collections.priorityqueue;
+  fafafa.core.collections.queue,
+  fafafa.core.collections.vec;
 
-type
-  {**
-   * 简单的集合类型性能基准测试
-   * 使用高精度计时器测量操作性能
-   *}
+const
+  DEFAULT_ITERATIONS = 10000;
+  LOOKUP_KEY_SPACE = 1000;
 
-function GetTickCountMicro: Int64;
-{$IFDEF WINDOWS}
-var
-  F: Int64;
+function SafeElapsedMs(aStartMs: QWord): QWord;
 begin
-  QueryPerformanceCounter(F);
-  Result := F;
+  Result := GetTickCount64 - aStartMs;
+  if Result = 0 then
+    Result := 1;
 end;
-{$ELSE}
-var
-  T: TimeVal;
+
+function OpsPerSecond(aOps: QWord; aElapsedMs: QWord): Double;
 begin
-  fpGetTimeOfDay(@T, nil);
-  Result := Int64(T.TV_USec) + Int64(T.TV_Sec) * 1000000;
+  if aElapsedMs = 0 then
+    aElapsedMs := 1;
+  Result := (Double(aOps) * 1000.0) / Double(aElapsedMs);
 end;
-{$ENDIF}
+
+procedure PrintBenchmarkStats(const aName: string; aIterations: Integer; aElapsedMs: QWord; aPayload: string = '');
+begin
+  WriteLn('[Benchmark] ', aName);
+  WriteLn(Format('  Time: %d ms', [aElapsedMs]));
+  WriteLn(Format('  Rate: %.0f ops/sec', [OpsPerSecond(QWord(aIterations), aElapsedMs)]));
+  if aPayload <> '' then
+    WriteLn('  ', aPayload);
+  WriteLn;
+end;
 
 procedure BenchmarkHashMapInsert;
 var
   LMap: specialize IHashMap<Integer, Integer>;
-  I, StartTick, EndTick: Int64;
-  Duration: Double;
-  Iterations: Integer;
+  LIndex: Integer;
+  LStartMs: QWord;
+  LElapsedMs: QWord;
 begin
-  WriteLn('[Benchmark] HashMap Insert 10000 elements');
-  LMap := specialize MakeHashMap<Integer, Integer>(10000);
-  Iterations := 10000;
+  LMap := specialize MakeHashMap<Integer, Integer>(DEFAULT_ITERATIONS);
 
-  StartTick := GetTickCountMicro;
-  for I := 0 to Iterations - 1 do
-    LMap.Add(I, I * 2);
-  EndTick := GetTickCountMicro;
+  LStartMs := GetTickCount64;
+  for LIndex := 0 to DEFAULT_ITERATIONS - 1 do
+    LMap.Add(LIndex, LIndex * 2);
+  LElapsedMs := SafeElapsedMs(LStartMs);
 
-  Duration := (EndTick - StartTick) / 1000.0; // ms
-  WriteLn(Format('  Time: %.2f ms', [Duration]));
-  WriteLn(Format('  Rate: %.0f ops/sec', [Iterations / (Duration / 1000.0)]));
-  WriteLn;
-
-  LMap.Free;
+  PrintBenchmarkStats(
+    'HashMap Insert 10000 elements',
+    DEFAULT_ITERATIONS,
+    LElapsedMs,
+    Format('Count=%d', [LMap.Count])
+  );
 end;
 
 procedure BenchmarkHashMapLookup;
 var
   LMap: specialize IHashMap<Integer, Integer>;
-  I, V, StartTick, EndTick: Int64;
-  Duration: Double;
-  Iterations: Integer;
+  LIndex: Integer;
+  LValue: Integer;
+  LChecksum: Int64;
+  LStartMs: QWord;
+  LElapsedMs: QWord;
 begin
-  WriteLn('[Benchmark] HashMap Lookup 10000 elements');
-  LMap := specialize MakeHashMap<Integer, Integer>(1000);
-  for I := 0 to 999 do
-    LMap.Add(I, I * 2);
+  LMap := specialize MakeHashMap<Integer, Integer>(LOOKUP_KEY_SPACE);
+  for LIndex := 0 to LOOKUP_KEY_SPACE - 1 do
+    LMap.Add(LIndex, LIndex * 2);
 
-  Iterations := 10000;
-  StartTick := GetTickCountMicro;
-  for I := 0 to Iterations - 1 do
-    LMap.TryGetValue(I mod 1000, V);
-  EndTick := GetTickCountMicro;
+  LChecksum := 0;
+  LStartMs := GetTickCount64;
+  for LIndex := 0 to DEFAULT_ITERATIONS - 1 do
+    if LMap.TryGetValue(LIndex mod LOOKUP_KEY_SPACE, LValue) then
+      Inc(LChecksum, LValue);
+  LElapsedMs := SafeElapsedMs(LStartMs);
 
-  Duration := (EndTick - StartTick) / 1000.0; // ms
-  WriteLn(Format('  Time: %.2f ms', [Duration]));
-  WriteLn(Format('  Rate: %.0f ops/sec', [Iterations / (Duration / 1000.0)]));
-  WriteLn;
-
-  LMap.Free;
+  PrintBenchmarkStats(
+    'HashMap Lookup 10000 elements',
+    DEFAULT_ITERATIONS,
+    LElapsedMs,
+    Format('Checksum=%d', [LChecksum])
+  );
 end;
 
-procedure BenchmarkVecInsert;
+procedure BenchmarkVecPush;
 var
   LVec: specialize IVec<Integer>;
-  I, StartTick, EndTick: Int64;
-  Duration: Double;
-  Iterations: Integer;
+  LIndex: Integer;
+  LStartMs: QWord;
+  LElapsedMs: QWord;
 begin
-  WriteLn('[Benchmark] Vec Insert 10000 elements');
-  LVec := specialize MakeVec<Integer>(0);
-  Iterations := 10000;
+  LVec := specialize MakeVec<Integer>(DEFAULT_ITERATIONS);
 
-  StartTick := GetTickCountMicro;
-  for I := 0 to Iterations - 1 do
-    LVec.Add(I);
-  EndTick := GetTickCountMicro;
+  LStartMs := GetTickCount64;
+  for LIndex := 0 to DEFAULT_ITERATIONS - 1 do
+    LVec.Push(LIndex);
+  LElapsedMs := SafeElapsedMs(LStartMs);
 
-  Duration := (EndTick - StartTick) / 1000.0; // ms
-  WriteLn(Format('  Time: %.2f ms', [Duration]));
-  WriteLn(Format('  Rate: %.0f ops/sec', [Iterations / (Duration / 1000.0)]));
-  WriteLn;
-
-  LVec.Free;
+  PrintBenchmarkStats(
+    'Vec Push 10000 elements',
+    DEFAULT_ITERATIONS,
+    LElapsedMs,
+    Format('Count=%d', [LVec.Count])
+  );
 end;
 
-procedure BenchmarkVecDequePushBack;
+procedure BenchmarkDequePushBack;
 var
   LDeque: specialize IDeque<Integer>;
-  I, StartTick, EndTick: Int64;
-  Duration: Double;
-  Iterations: Integer;
+  LIndex: Integer;
+  LStartMs: QWord;
+  LElapsedMs: QWord;
 begin
-  WriteLn('[Benchmark] VecDeque PushBack 10000 elements');
-  LDeque := specialize MakeVecDeque<Integer>(0);
-  Iterations := 10000;
+  LDeque := specialize MakeVecDeque<Integer>(DEFAULT_ITERATIONS);
 
-  StartTick := GetTickCountMicro;
-  for I := 0 to Iterations - 1 do
-    LDeque.PushBack(I);
-  EndTick := GetTickCountMicro;
+  LStartMs := GetTickCount64;
+  for LIndex := 0 to DEFAULT_ITERATIONS - 1 do
+    LDeque.PushBack(LIndex);
+  LElapsedMs := SafeElapsedMs(LStartMs);
 
-  Duration := (EndTick - StartTick) / 1000.0; // ms
-  WriteLn(Format('  Time: %.2f ms', [Duration]));
-  WriteLn(Format('  Rate: %.0f ops/sec', [Iterations / (Duration / 1000.0)]));
-  WriteLn;
-
-  LDeque.Free;
+  PrintBenchmarkStats(
+    'VecDeque PushBack 10000 elements',
+    DEFAULT_ITERATIONS,
+    LElapsedMs,
+    Format('Count=%d', [LDeque.Count])
+  );
 end;
 
 procedure BenchmarkListPushBack;
 var
   LList: specialize IList<Integer>;
-  I, StartTick, EndTick: Int64;
-  Duration: Double;
-  Iterations: Integer;
+  LIndex: Integer;
+  LStartMs: QWord;
+  LElapsedMs: QWord;
 begin
-  WriteLn('[Benchmark] List PushBack 10000 elements');
   LList := specialize MakeList<Integer>;
-  Iterations := 10000;
 
-  StartTick := GetTickCountMicro;
-  for I := 0 to Iterations - 1 do
-    LList.Add(I);
-  EndTick := GetTickCountMicro;
+  LStartMs := GetTickCount64;
+  for LIndex := 0 to DEFAULT_ITERATIONS - 1 do
+    LList.PushBack(LIndex);
+  LElapsedMs := SafeElapsedMs(LStartMs);
 
-  Duration := (EndTick - StartTick) / 1000.0; // ms
-  WriteLn(Format('  Time: %.2f ms', [Duration]));
-  WriteLn(Format('  Rate: %.0f ops/sec', [Iterations / (Duration / 1000.0)]));
-  WriteLn;
-
-  LList.Free;
+  PrintBenchmarkStats(
+    'List PushBack 10000 elements',
+    DEFAULT_ITERATIONS,
+    LElapsedMs,
+    Format('Count=%d', [LList.Count])
+  );
 end;
 
 var
-  LStart, LEnd: Int64;
-  LDuration: Double;
+  LStartMs: QWord;
+  LElapsedMs: QWord;
 begin
   WriteLn('===========================================');
-  WriteLn('fafafa.core.collections 简单性能基准测试');
+  WriteLn('fafafa.core.collections simple benchmark');
   WriteLn('===========================================');
   WriteLn;
 
-  LStart := GetTickCountMicro;
+  LStartMs := GetTickCount64;
 
   BenchmarkHashMapInsert;
   BenchmarkHashMapLookup;
-  BenchmarkVecInsert;
-  BenchmarkVecDequePushBack;
+  BenchmarkVecPush;
+  BenchmarkDequePushBack;
   BenchmarkListPushBack;
 
-  LEnd := GetTickCountMicro;
-  LDuration := (LEnd - LStart) / 1000.0;
-
+  LElapsedMs := SafeElapsedMs(LStartMs);
   WriteLn('===========================================');
-  WriteLn(Format('总执行时间: %.2f ms', [LDuration]));
+  WriteLn(Format('Total elapsed: %d ms', [LElapsedMs]));
   WriteLn('===========================================');
 end.

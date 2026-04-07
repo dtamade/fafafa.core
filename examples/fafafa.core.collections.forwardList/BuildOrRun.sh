@@ -2,39 +2,68 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LAZBUILD="$SCRIPT_DIR/../../tools/lazbuild.bat"
-PROJECT="$SCRIPT_DIR/example_forwardList.lpi"
-DEBUG_EXE="$SCRIPT_DIR/../../bin/example_forwardList_debug"
-RELEASE_EXE="$SCRIPT_DIR/../../bin/example_forwardList"
+LAZBUILD_BIN="${LAZBUILD:-lazbuild}"
+PROJECT="${SCRIPT_DIR}/example_forwardList.lpi"
+DEFAULT_EXE="${SCRIPT_DIR}/../../bin/example_forwardList"
+DEBUG_EXE="${SCRIPT_DIR}/../../bin/example_forwardList_debug"
 
-# On Linux, lazbuild is usually available as lazbuild; allow override
-if command -v lazbuild >/dev/null 2>&1; then
-  LAZBUILD_BIN="lazbuild"
-else
-  LAZBUILD_BIN="$LAZBUILD"
+if ! command -v "${LAZBUILD_BIN}" >/dev/null 2>&1; then
+  echo "lazbuild not found: ${LAZBUILD_BIN}" >&2
+  exit 1
 fi
 
-echo "Building project (Debug): $PROJECT"
-"$LAZBUILD_BIN" "$PROJECT" --build-mode=Debug
+build_default() {
+  echo "[BUILD] lazbuild ${PROJECT} (project default mode)"
+  "${LAZBUILD_BIN}" "${PROJECT}"
+}
 
-echo
-if [[ "${1:-}" == "run" ]]; then
-  echo "Running example (prefer Debug executable)..."
-  if [[ -x "$DEBUG_EXE" ]]; then
-    "$DEBUG_EXE"
-  elif [[ -x "$RELEASE_EXE" ]]; then
-    "$RELEASE_EXE"
-  else
-    echo "Executable not found in ../../bin/"
-    echo "You can build Release with: $0 release"
+build_release() {
+  echo "[BUILD] lazbuild --build-mode=Release ${PROJECT}"
+  "${LAZBUILD_BIN}" --build-mode=Release "${PROJECT}"
+}
+
+run_example() {
+  local exe="${DEFAULT_EXE}"
+
+  if [[ ! -x "${exe}" && -x "${exe}.exe" ]]; then
+    exe="${exe}.exe"
   fi
-elif [[ "${1:-}" == "release" ]]; then
-  echo "Building project (Release): $PROJECT"
-  "$LAZBUILD_BIN" "$PROJECT" --build-mode=Release
-  echo "Build (Release) successful: $RELEASE_EXE"
-else
-  echo "Usage:"
-  echo "  $(basename "$0") run       (Build Debug and run example)"
-  echo "  $(basename "$0") release   (Build Release executable)"
-fi
 
+  if [[ ! -x "${exe}" ]]; then
+    exe="${DEBUG_EXE}"
+  fi
+
+  if [[ ! -x "${exe}" && -x "${exe}.exe" ]]; then
+    exe="${exe}.exe"
+  fi
+
+  if [[ ! -x "${exe}" ]]; then
+    echo "Executable not found in ../../bin/" >&2
+    exit 1
+  fi
+
+  echo "[RUN] ${exe}"
+  "${exe}"
+}
+
+case "${1:-build}" in
+  build)
+    build_default
+    ;;
+  run)
+    build_default
+    echo
+    run_example
+    ;;
+  release)
+    build_release
+    echo "Build (Release) successful: ${DEFAULT_EXE}"
+    ;;
+  *)
+    echo "Usage:"
+    echo "  $(basename "$0") build     (Build with the project default mode)"
+    echo "  $(basename "$0") run       (Build with the project default mode and run)"
+    echo "  $(basename "$0") release   (Build Release executable)"
+    exit 1
+    ;;
+esac

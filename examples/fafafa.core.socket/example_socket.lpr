@@ -175,38 +175,47 @@ begin
 
     // 读取4字节小端长度
     // Fallback precise receive loop
-while true do begin
-  var got := Srv.Receive(@Header[0], 4);
-  if got = 4 then break;
-  if got <= 0 then raise Exception.Create('Receive header failed');
-end;
+    while True do
+    begin
+      Got := Srv.Receive(@Header[0], 4);
+      if Got = 4 then
+        Break;
+      if Got <= 0 then
+        raise Exception.Create('Receive header failed');
+    end;
     Len := LongWord(Header[0]) or (LongWord(Header[1]) shl 8) or (LongWord(Header[2]) shl 16) or (LongWord(Header[3]) shl 24);
     SetLength(Payload, Len);
     // 精确接收 Payload
     // Fallback precise receive loop for payload
-var readTotal := 0;
-while readTotal < Integer(Len) do begin
-  var r := Srv.Receive(@Payload[readTotal], Integer(Len) - readTotal);
-  if r <= 0 then raise Exception.Create('Receive payload failed');
-  Inc(readTotal, r);
-end;
+    ReadTotal := 0;
+    while ReadTotal < Integer(Len) do
+    begin
+      TmpInt := Srv.Receive(@Payload[ReadTotal], Integer(Len) - ReadTotal);
+      if TmpInt <= 0 then
+        raise Exception.Create('Receive payload failed');
+      Inc(ReadTotal, TmpInt);
+    end;
     WriteLn('收到长度: ', Len, ' 文本: ', TEncoding.UTF8.GetString(Payload));
 
     // 回显：先发长度头，再发正文
     // Fallback send-all loop for header
-var sent := 0;
-while sent < 4 do begin
-  var s := Srv.Send(@Header[sent], 4 - sent);
-  if s <= 0 then raise Exception.Create('Send header failed');
-  Inc(sent, s);
-end;
+    Sent := 0;
+    while Sent < 4 do
+    begin
+      TmpInt := Srv.Send(@Header[Sent], 4 - Sent);
+      if TmpInt <= 0 then
+        raise Exception.Create('Send header failed');
+      Inc(Sent, TmpInt);
+    end;
     // Fallback send-all loop for payload
-sent := 0;
-while sent < Integer(Len) do begin
-  var s := Srv.Send(@Payload[sent], Integer(Len) - sent);
-  if s <= 0 then raise Exception.Create('Send payload failed');
-  Inc(sent, s);
-end;
+    Sent := 0;
+    while Sent < Integer(Len) do
+    begin
+      TmpInt := Srv.Send(@Payload[Sent], Integer(Len) - Sent);
+      if TmpInt <= 0 then
+        raise Exception.Create('Send payload failed');
+      Inc(Sent, TmpInt);
+    end;
     Srv.Close;
   finally
     Listener.Stop;
@@ -219,6 +228,7 @@ var
   Header: array[0..3] of Byte;
   Len: LongWord;
   Payload, Echo: TBytes;
+  Sent2, Got2, Read2, TmpInt: Integer;
 begin
   Cli := TSocket.TCP;
   Cli.Connect(TSocketAddress.IPv4(aHost, StrToInt(aPort)));
@@ -236,38 +246,46 @@ begin
 
   // 发送：长度 + 正文
   // Fallback send-all loop for header
-var sent2 := 0;
-while sent2 < 4 do begin
-  var s2 := Cli.Send(@Header[sent2], 4 - sent2);
-  if s2 <= 0 then raise Exception.Create('Send header failed');
-  Inc(sent2, s2);
-end;
+  Sent2 := 0;
+  while Sent2 < 4 do
+  begin
+    TmpInt := Cli.Send(@Header[Sent2], 4 - Sent2);
+    if TmpInt <= 0 then
+      raise Exception.Create('Send header failed');
+    Inc(Sent2, TmpInt);
+  end;
   // Fallback send-all loop for payload
-sent2 := 0;
-while sent2 < Integer(Len) do begin
-  var s2 := Cli.Send(@Payload[sent2], Integer(Len) - sent2);
-  if s2 <= 0 then raise Exception.Create('Send payload failed');
-  Inc(sent2, s2);
-end;
+  Sent2 := 0;
+  while Sent2 < Integer(Len) do
+  begin
+    TmpInt := Cli.Send(@Payload[Sent2], Integer(Len) - Sent2);
+    if TmpInt <= 0 then
+      raise Exception.Create('Send payload failed');
+    Inc(Sent2, TmpInt);
+  end;
   WriteLn('已发送长度: ', Len);
 
   // 接收回显：长度 + 正文
   // Fallback precise receive loop for header
-var got2 := 0;
-while got2 < 4 do begin
-  var r2 := Cli.Receive(@Header[got2], 4 - got2);
-  if r2 <= 0 then raise Exception.Create('Receive header failed');
-  Inc(got2, r2);
-end;
+  Got2 := 0;
+  while Got2 < 4 do
+  begin
+    TmpInt := Cli.Receive(@Header[Got2], 4 - Got2);
+    if TmpInt <= 0 then
+      raise Exception.Create('Receive header failed');
+    Inc(Got2, TmpInt);
+  end;
   Len := LongWord(Header[0]) or (LongWord(Header[1]) shl 8) or (LongWord(Header[2]) shl 16) or (LongWord(Header[3]) shl 24);
   // Fallback to manual exact receive for echo
-SetLength(Echo, Len);
-var read2 := 0;
-while read2 < Integer(Len) do begin
-  var r3 := Cli.Receive(@Echo[read2], Integer(Len) - read2);
-  if r3 <= 0 then raise Exception.Create('Receive echo failed');
-  Inc(read2, r3);
-end;
+  SetLength(Echo, Len);
+  Read2 := 0;
+  while Read2 < Integer(Len) do
+  begin
+    TmpInt := Cli.Receive(@Echo[Read2], Integer(Len) - Read2);
+    if TmpInt <= 0 then
+      raise Exception.Create('Receive echo failed');
+    Inc(Read2, TmpInt);
+  end;
   WriteLn('收到回显长度: ', Len, ' 文本: ', TEncoding.UTF8.GetString(Echo));
   Cli.Close;
 end;
