@@ -4,6 +4,12 @@
 
 `fafafa.core.sync.mutex` 模块提供了高性能、跨平台的互斥锁（Mutex）实现，用于线程间的资源同步和保护。
 
+## 当前专题导航
+
+- API 参考：`docs/topics/sync/mutex/mutex_api_reference.md`
+- 使用指南：`docs/topics/sync/mutex/mutex_usage_guide.md`
+- 实现说明：`docs/topics/sync/mutex/mutex_implementation.md`
+
 ## 核心特性
 
 - **跨平台支持**: Windows（CRITICAL_SECTION/SRWLOCK）、Unix/Linux（pthread/futex）

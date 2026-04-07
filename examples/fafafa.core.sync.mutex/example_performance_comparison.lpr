@@ -154,7 +154,7 @@ begin
     WriteLn;
     WriteLn('更多信息请参考：');
     WriteLn('  - docs/fafafa.core.sync.mutex.md - API 文档');
-    WriteLn('  - docs/MUTEX_IMPLEMENTATION.md - 实现说明');
+    WriteLn('  - docs/topics/sync/mutex/mutex_implementation.md - 实现说明');
   except
     on E: Exception do
     begin
