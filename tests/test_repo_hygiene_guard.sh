@@ -37,5 +37,7 @@ if ! rg -n "check_repo_hygiene" "${SCRIPT_DIR}/run_all_tests.sh" "${SCRIPT_DIR}/
 fi
 
 bash "${SCRIPT_DIR}/test_fs_perf_shell_scripts.sh" >/dev/null
+bash "${SCRIPT_DIR}/test_active_shell_runners.sh" >/dev/null
+bash "${SCRIPT_DIR}/test_socket_smoke_runner.sh" >/dev/null
 
 echo "[PASS] repo hygiene guard contract verified"

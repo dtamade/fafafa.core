@@ -14,9 +14,9 @@ if ! command -v lazbuild >/dev/null 2>&1; then
   exit 1
 fi
 
-# Build (Debug by default)
+# Build with the project's default mode
 echo "== 构建测试工程: $LPI =="
-lazbuild --build-mode=Debug "$LPI"
+lazbuild "$LPI"
 
 # Resolve test executable
 TEST_EXE="$BIN_DIR/tests_socket"
@@ -34,11 +34,14 @@ chmod +x "$TEST_EXE" 2>/dev/null || true
 ARGS=()
 for s in $SMOKE_SUITES; do
   ARGS+=("--suite=$s")
-fi
+done
 
 LOG="$BIN_DIR/tests_socket_smoke.log"
 echo "== 运行 Smoke 用例: $SMOKE_SUITES =="
-"$TEST_EXE" "${ARGS[@]}" --progress --format=plain > "$LOG" 2>&1 || RC=$? || true
+set +e
+"$TEST_EXE" "${ARGS[@]}" --progress --format=plain > "$LOG" 2>&1
+RC=$?
+set -e
 RC=${RC:-0}
 
 SUMMARY=$(grep -E 'OK:|Failures|Errors' "$LOG" | tail -n 1 || true)
@@ -49,4 +52,3 @@ if [ "$RC" != "0" ]; then
   tail -n 50 "$LOG" || true
 fi
 exit "$RC"
-

@@ -42,11 +42,11 @@ get_terminal_info() {
 run_compatibility_test() {
     local terminal_type=$(detect_terminal)
     local report_file="$REPORT_DIR/compatibility_${terminal_type}_${TIMESTAMP}.txt"
-    
+
     echo "Running compatibility test for $terminal_type..."
     echo "Report will be saved to: $report_file"
     echo
-    
+
     # 保存终端信息到报告
     {
         get_terminal_info
@@ -54,18 +54,18 @@ run_compatibility_test() {
         echo "========================="
         echo
     } > "$report_file"
-    
+
     # 运行测试并追加到报告
     if [ -x "$BIN_DIR/terminal_compatibility_test" ]; then
         "$BIN_DIR/terminal_compatibility_test" >> "$report_file" 2>&1
         local exit_code=$?
-        
+
         if [ $exit_code -eq 0 ]; then
             echo "Compatibility test completed successfully"
         else
             echo "Compatibility test failed with exit code: $exit_code"
         fi
-        
+
         return $exit_code
     else
         echo "Error: terminal_compatibility_test not found in $BIN_DIR"
@@ -79,7 +79,7 @@ run_interactive_test() {
     echo "Starting interactive test..."
     echo "This test requires user interaction"
     echo
-    
+
     if [ -x "$BIN_DIR/interactive_test" ]; then
         "$BIN_DIR/interactive_test"
         return $?
@@ -126,19 +126,19 @@ main() {
             get_terminal_info
             echo "Running all integration tests..."
             echo
-            
+
             echo "1. Running compatibility test..."
             run_compatibility_test
             local compat_result=$?
-            
+
             echo
             echo "2. Running interactive test..."
             echo "Press Enter to continue or Ctrl+C to skip..."
             read
-            
+
             run_interactive_test
             local interactive_result=$?
-            
+
             echo
             echo "Test Summary:"
             echo "============="

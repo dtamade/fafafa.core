@@ -18,13 +18,13 @@ EXECUTABLE="$BIN_DIR/tests_benchmark"
 # 函数：构建项目
 build_project() {
     echo "🔨 构建测试项目..."
-    
+
     # 确保输出目录存在
     mkdir -p "$BIN_DIR"
-    
+
     echo "   项目文件: $PROJECT_FILE"
     echo "   输出目录: $BIN_DIR"
-    
+
     # 使用 lazbuild 构建项目
     if lazbuild --build-mode=Debug "$PROJECT_FILE"; then
         echo "✅ 构建成功"
@@ -48,10 +48,10 @@ run_test() {
         echo "   文件路径: $EXECUTABLE"
         return 1
     fi
-    
+
     echo "🧪 运行测试: $EXECUTABLE"
     cd "$PROJECT_ROOT"
-    
+
     if "$EXECUTABLE" --all --format=plain --progress; then
         echo
         echo "✅ 所有测试通过！"
@@ -67,17 +67,17 @@ run_test() {
 # 函数：清理构建文件
 clean_build() {
     echo "🧹 清理构建文件..."
-    
+
     if [ -d "$TEST_DIR/lib" ]; then
         rm -rf "$TEST_DIR/lib"
         echo "   已删除: $TEST_DIR/lib"
     fi
-    
+
     if [ -f "$EXECUTABLE" ]; then
         rm -f "$EXECUTABLE"
         echo "   已删除: $EXECUTABLE"
     fi
-    
+
     echo "✅ 清理完成"
 }
 

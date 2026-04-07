@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # =============================================================================
 # lint_math_facade.sh
-# 
+#
 # Phase 2.5 防回退检测：确保框架代码不直接使用 RTL Math 单元
-# 
+#
 # 用法:
 #   ./lint_math_facade.sh        # 检测 src/ 下是否有违规
 #   ./lint_math_facade.sh --fix  # 显示如何修复
@@ -45,7 +45,7 @@ while IFS= read -r -d '' file; do
   if is_whitelisted "$file"; then
     continue
   fi
-  
+
   # 检测 uses 子句中的独立 Math 单元（不是 fafafa.core.math）
   # 匹配模式：uses ... Math ... ; 或 uses Math; 或 , Math,
   if grep -qE '\buses\b.*\bMath\b' "$file" 2>/dev/null; then
@@ -80,7 +80,7 @@ else
     done
   done
   echo ""
-  
+
   if [[ "${1:-}" == "--fix" ]]; then
     echo "修复建议："
     echo "  1. 将 'uses Math' 改为 'uses fafafa.core.math'"
@@ -89,6 +89,6 @@ else
   else
     echo "运行 '$0 --fix' 查看修复建议"
   fi
-  
+
   exit 1
 fi

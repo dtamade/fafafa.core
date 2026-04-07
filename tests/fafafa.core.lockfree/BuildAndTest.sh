@@ -39,7 +39,7 @@ case "$ACTION" in
         rm -rf "$SCRIPT_DIR/lib"
         echo "清理完成"
         ;;
-        
+
     "test")
         echo "开始测试流程..."
         echo
@@ -63,7 +63,7 @@ case "$ACTION" in
         echo
         echo "✅ 所有测试通过！"
         ;;
-        
+
     "benchmark")
         echo "开始性能基准测试..."
         echo
@@ -79,7 +79,7 @@ case "$ACTION" in
         echo
         echo "✅ 性能基准测试完成！"
         ;;
-        
+
     "all")
         echo "开始完整构建和测试流程..."
         echo

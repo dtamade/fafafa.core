@@ -10,7 +10,7 @@
   - 收掉 `docs/` 根下最后一批 non-SIMD 历史状态/总结/实施文档，并把它们迁到 `archive/reports/docs-root/`
   - 继续把 `benchmark v2` 这类历史完成总结从根层下沉到 archive，避免和当前模块入口竞争
   - 把 still-current 的实现说明从 `docs/` 根层归位到对应主题目录，而不是继续堆在根层
-  - 修掉 Linux shell runner 的 CRLF 语法炸点，把回归接进稳定 guard
+  - 收口 `tests/` 侧活跃 shell runner 的 LF/语法/默认 build mode 合同，并把回归接进稳定 guard
   - 继续守住 strict L0 边界，不混入 SIMD 实现线
 - Source of truth:
   - `docs/fafafa.core.l0.foundation.md`
@@ -54,7 +54,7 @@
   - `git check-ignore -v --no-index tests/fafafa.core.fs/performance-data/latest.txt tests/fafafa.core.fs/performance-data/perf_2025-12-31_23-59.txt tests/fafafa.core.fs/performance-data/perf_all_latest.txt tests/fafafa.core.fs/performance-data/perf_resolve_2025-12-31_23-59-59-99.txt tests/fafafa.core.fs/performance-data/perf_resolve_latest.txt tests/fafafa.core.fs/performance-data/perf_walk_latest.txt`
   - 结果：PASS（`latest` / 时间戳历史 / `perf_*_latest` 全部命中目录级 `.gitignore`）
   - `bash tests/fafafa.core.fs/BuildOrRunPerf.sh`
-  - 结果：现存 CRLF 脚本格式问题导致 Linux shell 入口在 `set -euo pipefail` 处提前失败；本批不改脚本，仅清理已跟踪产物
+  - 结果：首跑曾因 CRLF 脚本格式问题在 `set -euo pipefail` 处提前失败；后续已由 fs perf runner hygiene 批次修复，见下方 fresh guard 结果
   - `rg -n "docs/collections/reports/|docs/benchmarks/reports/" -S docs archive --glob '!.git/**'`
   - 结果：仅剩新建 README 指路页命中；外部活引用已切到 archive 路径
   - `git diff --check`
@@ -87,11 +87,19 @@
   - 结果：`ArchivePerfResult.sh`、`BuildOrRunPerf.sh`、`BuildOrRunPerfAll.sh`、`BuildOrRunResolvePerf.sh` 都已不再带 CRLF 行尾
   - `bash tests/fafafa.core.fs/BuildOrRunPerf.sh`
   - 结果：PASS；已能正常编译并执行 benchmark，不再在 `set -euo pipefail` 处提前失败
+  - `bash tests/test_active_shell_runners.sh`
+  - 结果：PASS（`tests/` 侧 16 个活跃 shell runner 都已能通过 `bash -n`，无 CRLF/语法炸点）
+  - `bash tests/test_socket_smoke_runner.sh`
+  - 结果：PASS（`tests/fafafa.core.socket/smoke.sh` 不再强绑不存在的 `Debug` build mode，suite/format 参数能透传）
+  - `./tests/test_repo_hygiene_guard.sh`
+  - 结果：PASS（已统一串起 fs perf / active test runners / socket smoke 三条守卫）
+  - `bash tests/fafafa.core.socket/smoke.sh`
+  - 结果：PASS；fresh 实跑已越过旧的 `Error: invalid build mode "Debug"` 假阻塞点，在当前 Linux 沙箱完成真实编译与 smoke 执行
 - Risks / blockers:
   - 根目录 `main` 工作树仍然是用户脏状态，不能直接作为执行面
   - SIMD-only 残留仍需要由对应 owner 接手，L0 这里只保留边界与 handoff 说明
   - Layer0/Layer1 的大批量失败矩阵不应借这条 root-cleanup 支线一起扩张
 - Next step:
-  - 为 `fs` perf shell runner 这批 follow-up 收成独立提交
-  - 若继续推进 tail cleanup，优先处理脚本 hygiene / current-entry runner 合同，而不是再碰 SIMD 文档
+  - 把 `tests/` 侧 active shell runner hygiene 这批收成独立提交并推送
+  - 继续沿 `examples/` / `benchmarks/` 的 non-SIMD 活跃 runner 做下一批 LF/语法/默认 build mode 合同扫描
 - Last updated: `2026-04-08`
