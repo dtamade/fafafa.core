@@ -196,10 +196,10 @@ end;
 
 - `tests/fafafa.core.mem/README.md`
 - `examples/fafafa.core.mem/README.md`
-- `docs/mem/guides/directory-structure.md`
+- `docs/fafafa.core.mem.directory-structure.md`
 
 ## 当前边界
 
 - 这份指南只覆盖当前 still-supported 的入口，不对旧报告中的“全部完成”“100%”“工业级+”做继承性背书。
 - 若文档与源码冲突，以源码和当前测试入口为准。
-- 若需要追溯旧阶段材料，请改看 `docs/mem/README.md` 下的 reports / legacy。
+- 若需要追溯旧阶段材料，请改看 `archive/reports/docs-root/` 下的 `fafafa.core.mem.*` 历史快照。

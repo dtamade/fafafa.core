@@ -18,7 +18,6 @@
 10. `tests/fafafa.core.mem.allocator.foundation/README.md`
 11. `tests/fafafa.core.mem/README.md`
 12. `examples/fafafa.core.mem/README.md`
-13. `docs/mem/README.md`
 
 ## 当前模块结构
 
@@ -68,8 +67,8 @@
 
 如果你要追历史材料：
 
-1. 看 `docs/mem/README.md`
-2. 再进入 `docs/mem/reports/`、`docs/mem/legacy/`
+1. 看 `archive/reports/docs-root/` 下以 `fafafa.core.mem.*` 命名的历史快照
+2. 重点关注 `summary`、`final-status`、`final-verification`、`test-summary` 这类阶段性材料，不要把它们当 current-entry
 
 ## 当前公开语义
 
@@ -102,5 +101,5 @@
 - 当前长期有效的 mem 域重点是内存操作、分配器合同、池实现、只读统计和适配层。
 - allocator contract 与低层 backend 仍由 `tests/fafafa.core.mem.allocator.foundation/` 单独回归，但这个入口现在代表 mem 域低层 facade，而不是 strict L0 本体。
 - `memory map`、共享内存、跨进程映射这类能力，当前框架层面的长期入口优先放在 `fs` 子域理解；mem 侧旧实现和旧示例更适合当专项材料或历史背景。
-- `docs/mem/reports/` 中的完成报告、测试报告、生产级结论都只能当历史快照，不再直接代表今天的模块状态。
+- `archive/reports/docs-root/` 下的 mem 完成报告、测试报告、生产级结论都只能当历史快照，不再直接代表今天的模块状态。
 - 任何固定通过率、固定性能收益、固定“生产就绪”结论，都不应绕开源码和当前 tests/examples 入口单独传播。

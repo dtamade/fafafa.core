@@ -44,16 +44,11 @@
 - `docs/fafafa.core.fs.md`
 - `docs/fafafa.core.simd.md`
 
-## 领域子目录
+## 当前稳定子目录
 
-当一个主题形成完整文档体系时，放到独立子目录中：
+当前仓库里真实存在、可以直接当导航入口使用的子目录包括：
 
 - `docs/collections/`
-- `docs/lockfree/`
-- `docs/mem/`
-- `docs/fs/`
-- `docs/term/`
-- `docs/simd/`
 - `docs/benchmarks/`
 - `docs/adr/`
 - `docs/standards/`
@@ -63,6 +58,15 @@
 - `docs/plans/`
 - `docs/legacy/`
 - `docs/refactoring/`
+- `docs/topics/`
+- `docs/design/`
+- `docs/designs/`
+
+说明：
+
+- `mem`、`fs`、`term`、`lockfree`、`simd` 当前仍以 `docs/fafafa.core.<module>.md` 这类根入口定锚。
+- 不要把旧路线图里的 `docs/mem/`、`docs/term/`、`docs/fs/`、`docs/lockfree/`、`docs/simd/` 当成当前仓库里已经存在的目录。
+- 这些主题的历史阶段报告优先下沉到 `archive/reports/`，而不是再在 `docs/` 根层扩散。
 
 ## 如何判断一份文档是否权威
 
@@ -71,7 +75,7 @@
 1. `docs/standards/*.md`
 2. `docs/ARCHITECTURE_LAYERS.md`
 3. `docs/fafafa.core.<module>.md`
-4. 领域子目录中的长期文档
+4. 真实存在的领域子目录中的长期文档
 5. `docs/plans/`、`docs/reports/`、`docs/reviews/`
 6. `docs/legacy/` 与 `archive/reports/`
 
@@ -86,11 +90,9 @@
 - 旧的 L0 candidate / merge-closeout 文档已经归档到 `docs/legacy/l0/`，不要再把那批候选结论当作 current-entry。
 - `fafafa.core.span2` / `fafafa.core.collections.slice` 不等同于当前 strict L0 的最小 `span`，不要把更宽 slice 语义误读成已进入 L0。
 - VecDeque 相关设计文档已归位到 `docs/collections/design/vecdeque-architecture.md`。
-- lockfree 领域的 guide/design/report 文档已归位到 `docs/lockfree/`。
-- mem 领域的报告与旧版指南已下沉到 `docs/mem/`，根目录只保留稳定入口。
-- fs 领域的研究、开发者说明和旧 topic 文档已归位到 `docs/fs/`。
-- term 领域的旧 guide、报告和计划文档已归位到 `docs/term/`。
-- simd 领域的专题 guide、计划、报告和 closeout/handoff 文档已归位到 `docs/simd/`。
+- `lockfree`、`mem`、`fs`、`term`、`simd` 当前仍以各自的 `docs/fafafa.core.<module>.md` 根文档作为 current-entry；不要从旧 closeout 文档里继承不存在的 `docs/<domain>/` 路径。
+- `mem` / `term` / `sync` / `collections` 的历史完成报告、状态总结和实施总结，当前统一下沉到 `archive/reports/docs-root/`。
+- SIMD 专题材料仍由 SIMD owner 维护；L0 这里只保留边界、审计和 handoff 说明。
 - 已完成的根目录修复报告已迁移到 `archive/reports/`。
 - collections / benchmarks 的阶段性 campaign 报告已迁移到 `archive/reports/docs-collections/` 与 `archive/reports/docs-benchmarks/`；原目录只保留归档指路页。
 - `docs/reports/` 根下 dated fix/checkpoint/verification/audit 报告已基本迁移到 `archive/reports/docs-root/`；当前只保留 `docs/reports/time/` 这样的主题子目录与说明页。

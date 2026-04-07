@@ -95,4 +95,4 @@ end;
 - 想看推荐用法：`docs/fafafa.core.mem.guide.md`
 - 想看架构和边界：`docs/fafafa.core.mem.architecture.md`
 - 想看 allocator contract + 低层 facade 测试入口：`tests/fafafa.core.mem.allocator.foundation/README.md`
-- 想看历史材料：`docs/mem/README.md`
+- 想看历史材料：`archive/reports/docs-root/` 下的 `fafafa.core.mem.*` 快照

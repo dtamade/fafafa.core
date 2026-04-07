@@ -7,13 +7,15 @@
 - Worktree: `/home/dtamade/projects/fafafa.core/.claude/worktrees/l0-main-promotion-20260407`
 - Base commit: `d5187ea4`
 - Current focus:
-  - 收掉 `docs/` 根下最后一批明显属于历史阶段产物的模块完成/测试报告，并把它们迁到 `archive/reports/docs-root/`
-  - 维持 merge 后的 current-entry 对齐，不让 `backlog` / worker 状态重新漂回旧分支语义
+  - 收掉 `docs/` 根下最后一批 non-SIMD 历史状态/总结/实施文档，并把它们迁到 `archive/reports/docs-root/`
+  - 修正 `docs/INDEX.md` 与 mem current-entry 对不存在 `docs/<domain>/` 目录的假导航
   - 继续守住 strict L0 边界，不混入 SIMD 实现线
 - Source of truth:
   - `docs/fafafa.core.l0.foundation.md`
   - `docs/audits/2026-04-07-l0-rescue-triage-audit.md`
   - `docs/plans/2026-04-07-l0-rescue-split-closeout.md`
+  - `docs/audits/2026-04-08-l0-tail-docs-audit.md`
+  - `docs/plans/2026-04-08-l0-tail-docs-closeout.md`
   - `plans/archive/2026-04-07-mainline-working-set/README.md`
   - `examples/fafafa.core.sync/README.md`
 - Fresh verification:
@@ -65,11 +67,19 @@
   - 结果：PASS（旧路径已全部清空；`UnChecked` 引用已切到 `docs/collections/guides/UnChecked_Methods_Summary.md`）
   - `rg -n "docs/fafafa\\.core\\.(lockfree|mem|term)\\.(completion-report|performance-report|test-report)\\.md|docs/test_report_week1_day2\\.md" -S . --glob '!.git/**'`
   - 结果：PASS（root-level 模块阶段报告旧路径已清空或仅保留 archive 路径）
+  - `find docs -maxdepth 1 -type f | sed 's#^docs/##' | sort | rg '^(COMPILATION_FIX_REPORT\\.md|fafafa\\.core\\.mem\\.(checklist|development-status|final-status|final-verification|summary|test-summary|ultimate-completion)\\.md|fafafa\\.core\\.term\\.(cleanup-success|final-success|integration-summary)\\.md|fafafa\\.core\\.collections\\.forwardList\\.(ENHANCED_TESTING_REPORT|ELITE_REPORT)\\.md|fafafa\\.core\\.sync\\.rwlock\\.IMPLEMENTATION_SUMMARY\\.md)$'`
+  - 结果：PASS（`docs/` 根层已不再保留本批 14 份 non-SIMD 历史文档）
+  - `rg -n "docs/(mem|term|fs|lockfree|simd)/" docs/fafafa.core.mem*.md docs/fafafa.core.term*.md docs/fafafa.core.fs*.md docs/fafafa.core.lockfree*.md docs/fafafa.core.simd*.md`
+  - 结果：PASS（模块 current-entry 已不再把不存在的 `docs/<domain>/` 目录当成现存入口）
+  - `rg -n "fafafa\\.core\\.sync\\.rwlock\\.IMPLEMENTATION_SUMMARY\\.md|SYNC_PRODUCTION_READINESS_REPORT\\.md" docs/topics/sync/api/SYNC_API_REFERENCE.md`
+  - 结果：PASS（两条引用都已切到 `archive/reports/docs-root/`）
+  - `./tests/test_repo_hygiene_guard.sh`
+  - 结果：PASS
 - Risks / blockers:
   - 根目录 `main` 工作树仍然是用户脏状态，不能直接作为执行面
   - SIMD-only 残留仍需要由对应 owner 接手，L0 这里只保留边界与 handoff 说明
   - Layer0/Layer1 的大批量失败矩阵不应借这条 root-cleanup 支线一起扩张
 - Next step:
-  - 继续做 residual sweep：检查 `docs/` 根下剩余 SIMD/mem/term/status 类历史快照是否也应继续下沉到 `archive/` 或对应领域目录
-  - 将 docs/report 归档与 tests/examples 生成物清理保持拆批，不混成大提交
+  - 这批 archive / current-entry 修正已经完成 fresh verification
+  - 若继续推进 tail cleanup，优先处理脚本 hygiene / current-entry runner 合同，而不是再碰 SIMD 文档
 - Last updated: `2026-04-08`

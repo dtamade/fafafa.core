@@ -646,6 +646,6 @@ TWaitResult = (
 
 ## 参考链接
 
-- [生产就绪性报告](SYNC_PRODUCTION_READINESS_REPORT.md)
-- [RWLock 实现总结](fafafa.core.sync.rwlock.IMPLEMENTATION_SUMMARY.md)
+- [生产就绪性报告](../../../../archive/reports/docs-root/SYNC_PRODUCTION_READINESS_REPORT.md)
+- [RWLock 实现总结](../../../../archive/reports/docs-root/fafafa.core.sync.rwlock.IMPLEMENTATION_SUMMARY.md)
 - [自旋锁设计](fafafa.core.sync.spin.md)

@@ -14,7 +14,7 @@
 - [ ] **P0 / sync**：继续 Layer1 验证：修复 `Condvar` / `Barrier` / `Once` / `Spin` 并补回归  
   进度：`tests/fafafa.core.sync` 在 `FAFAFA_FORCE_NAMED_SYNC_TESTS=1` 下全链路 `46/46 PASS`；`parkinglot` 性能断言抗抖已加；`named*` 在 `/dev/shm` 不可写环境自动 `SKIP`（可强制运行）
 - [ ] **P1 / repo**：梳理并最小化“运行产物进入版本库”的风险（例如已跟踪的 logs/reports）  
-  进度：已完成十二批运行产物清理，累计去追踪 **631** 项（`tests/` 97 + `examples/` 147 + `bin/` 2 + `reference/lockfree-develop` 53 + `reference/xxHash-dev` 89 + `reference/DCPcrypt` 92 + `reference/tomlc99-master` 151），并补充 `.gitignore` 防回潮；最近四批已摘掉 `tests/fafafa.core.sync.barrier/` 下 6 个已跟踪运行输出、`tests/fafafa.core.atomic/` 与 `tests/fafafa.core.mem.manager.rtl/` 下 3 个已跟踪生成物、`tests/fafafa.core.archiver/` / `tests/fafafa.core.env/` 下 3 个历史运行日志，以及 `tests/fafafa.core.fs/performance-data/` 下 18 个 latest/history 性能结果文件（保留 baseline 类基线文件）。本轮另已把 `docs/collections/reports/` 与 `docs/benchmarks/reports/` 下 17 份阶段性 campaign 报告归档到 `archive/reports/`，原目录只保留指路 README；并把 `docs/reports/` 根下 13 份无活引用或仅历史互引的 dated fix/checkpoint/verification/audit 报告迁到 `archive/reports/docs-root/`，同时把 `UnChecked_Methods_Summary.md` 转正到 `docs/collections/guides/`；另外又把 6 份 root-level 的模块完成/测试日报迁到 `archive/reports/docs-root/`。
+  进度：已完成十二批运行产物清理，累计去追踪 **631** 项（`tests/` 97 + `examples/` 147 + `bin/` 2 + `reference/lockfree-develop` 53 + `reference/xxHash-dev` 89 + `reference/DCPcrypt` 92 + `reference/tomlc99-master` 151），并补充 `.gitignore` 防回潮；最近四批已摘掉 `tests/fafafa.core.sync.barrier/` 下 6 个已跟踪运行输出、`tests/fafafa.core.atomic/` 与 `tests/fafafa.core.mem.manager.rtl/` 下 3 个已跟踪生成物、`tests/fafafa.core.archiver/` / `tests/fafafa.core.env/` 下 3 个历史运行日志，以及 `tests/fafafa.core.fs/performance-data/` 下 18 个 latest/history 性能结果文件（保留 baseline 类基线文件）。本轮另已把 `docs/collections/reports/` 与 `docs/benchmarks/reports/` 下 17 份阶段性 campaign 报告归档到 `archive/reports/`，原目录只保留指路 README；并把 `docs/reports/` 根下 13 份无活引用或仅历史互引的 dated fix/checkpoint/verification/audit 报告迁到 `archive/reports/docs-root/`，同时把 `UnChecked_Methods_Summary.md` 转正到 `docs/collections/guides/`；另外又把 6 份 root-level 的模块完成/测试日报迁到 `archive/reports/docs-root/`。最新一批继续把 `docs/` 根下 14 份 non-SIMD 历史状态/总结/实施文档迁到 `archive/reports/docs-root/`，并修正 `docs/INDEX.md` 与 mem current-entry 中对 `docs/mem/`、`docs/term/`、`docs/fs/`、`docs/lockfree/`、`docs/simd/` 的假导航表述。
 
 ## Next（下一步）
 - [ ] **P0 / layer0+layer1+layer2 自主维护推进（batch3）**：按“公共根因优先”拆解 `toml` 断言失败并做最小修复
@@ -30,6 +30,7 @@
 - [ ] CI 结构化输出（JUnit/JSON）统一化与稳定路径约定落地
 
 ## Done（已完成）
+- [x] 2026-04-08：non-SIMD root docs tail cleanup 完成首轮落地（`mem` / `term` / `forwardList` / `sync.rwlock` / `COMPILATION_FIX_REPORT` 共 14 份历史文档归档到 `archive/reports/docs-root/`，并修复 current-entry 假导航）
 - [x] 2026-04-08：strict L0 rescue split closeout 已通过 PR `#7` 合并到 `main`（root 控制面清污、non-SIMD rescue 拆批、SIMD handoff 边界固化）（PR：`https://github.com/dtamade/fafafa.core/pull/7`）
 - [x] 2026-02-07：layer0/layer1/layer2 自主维护推进 batch1（脚本入口规范化 + Layer2 首轮失败矩阵）（归档：`plans/archive/2026-02-07-layer012-autonomous-maintenance-batch1/`）
 - [x] 2026-02-07：layer0/layer1/layer2 自主维护推进 batch2（`process`/`socket` 编译阻断修复；`toml`/`xml` 失败类型分流；受限环境口径确认）（归档：`plans/archive/2026-02-07-layer012-autonomous-maintenance-batch2/`）
