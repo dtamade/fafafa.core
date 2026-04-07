@@ -7,7 +7,7 @@
 - Worktree: `/home/dtamade/projects/fafafa.core/.claude/worktrees/l0-main-promotion-20260407`
 - Base commit: `d5187ea4`
 - Current focus:
-  - 收掉 `tests/fafafa.core.archiver/`、`tests/fafafa.core.env/` 下已跟踪历史运行日志，并补目录级忽略规则
+  - 收掉 `tests/fafafa.core.fs/performance-data/` 下已跟踪的 latest/history 性能结果文件，并保留 baseline 类基线文件
   - 维持 merge 后的 current-entry 对齐，不让 `backlog` / worker 状态重新漂回旧分支语义
   - 继续守住 strict L0 边界，不混入 SIMD 实现线
 - Source of truth:
@@ -47,11 +47,15 @@
   - 结果：PASS，`16/16`，heaptrc `0 unfreed`
   - `git check-ignore -v --no-index tests/fafafa.core.archiver/last-run.txt tests/fafafa.core.env/build_log.txt tests/fafafa.core.env/fpcdebug.txt`
   - 结果：PASS（全部命中目录级 `.gitignore`）
+  - `git check-ignore -v --no-index tests/fafafa.core.fs/performance-data/latest.txt tests/fafafa.core.fs/performance-data/perf_2025-12-31_23-59.txt tests/fafafa.core.fs/performance-data/perf_all_latest.txt tests/fafafa.core.fs/performance-data/perf_resolve_2025-12-31_23-59-59-99.txt tests/fafafa.core.fs/performance-data/perf_resolve_latest.txt tests/fafafa.core.fs/performance-data/perf_walk_latest.txt`
+  - 结果：PASS（`latest` / 时间戳历史 / `perf_*_latest` 全部命中目录级 `.gitignore`）
+  - `bash tests/fafafa.core.fs/BuildOrRunPerf.sh`
+  - 结果：现存 CRLF 脚本格式问题导致 Linux shell 入口在 `set -euo pipefail` 处提前失败；本批不改脚本，仅清理已跟踪产物
 - Risks / blockers:
   - 根目录 `main` 工作树仍然是用户脏状态，不能直接作为执行面
   - SIMD-only 残留仍需要由对应 owner 接手，L0 这里只保留边界与 handoff 说明
   - Layer0/Layer1 的大批量失败矩阵不应借这条 root-cleanup 支线一起扩张
 - Next step:
-  - 继续扫描 `tests/` 下剩余已跟踪运行残留（优先 `tests/fafafa.core.fs/performance-data/` 的 latest/history 一类明显生成物）
+  - 继续扫描 `tests/` 下剩余已跟踪运行残留（优先 `lockfree` 一类 summary/latest 聚合日志）
   - 将 docs/report 归档与 tests/examples 生成物清理保持拆批，不混成大提交
 - Last updated: `2026-04-08`
