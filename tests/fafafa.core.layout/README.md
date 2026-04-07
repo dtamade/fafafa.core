@@ -48,5 +48,5 @@
 
 - 这个目录只锁定 `layout` 的 L0 契约，不替代 `mem` 域更高层的 allocator、arena 和 pool 测试。
 - `src/fafafa.core.mem.layout.pas` 继续承担 compat 角色，但布局合同的 today contract 以 `docs/fafafa.core.layout.md` 和当前测试入口为准。
-- 这里不承载 `platform` / `span` 的候选讨论；那不是 `layout` 当前测试入口的责任边界。
+- 这里不承载 `platform` 或其他 L0 准入讨论；那不是 `layout` 当前测试入口的责任边界。
 - `bin/`、`lib/`、`logs/` 是产物目录，不属于合同本体。

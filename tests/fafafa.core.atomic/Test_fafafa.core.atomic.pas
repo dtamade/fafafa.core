@@ -8,8 +8,7 @@ interface
 
 uses
   SysUtils, Classes, fpcunit, testregistry,
-  fafafa.core.atomic,
-  fafafa.core.atomic.compat;
+  fafafa.core.atomic;
 
 procedure RegisterAtomicTests;
 
@@ -1206,16 +1205,13 @@ begin
 end;
 
 procedure TTestCase_Global.Test_ptruint_pointer_fetch_smoke;
-var pu, ru: PtrUInt; pp, rp: Pointer;
+var
+  pu, ru: PtrUInt;
 begin
-  // PtrUInt fetch_and/or/xor
+  // raw API still owns PtrUInt bitwise RMW
   pu := PtrUInt($FF00); ru := atomic_fetch_and_ptr(pu, PtrUInt($0F0F)); AssertEquals(PtrUInt($FF00), ru); AssertEquals(PtrUInt($0F00), pu);
   ru := atomic_fetch_or_ptr(pu, PtrUInt($00F0)); AssertEquals(PtrUInt($0F00), ru); AssertEquals(PtrUInt($0FF0), pu);
   ru := atomic_fetch_xor_ptr(pu, PtrUInt($00FF)); AssertEquals(PtrUInt($0FF0), ru); AssertEquals(PtrUInt($0F0F), pu);
-  // Pointer fetch_and/or/xor 通过整数桥接（不关心位义，只测路径）
-  pp := Pointer(PtrUInt($FF00)); rp := atomic_fetch_and(pp, Pointer(PtrUInt($0F0F))); AssertEquals(PtrUInt($FF00), PtrUInt(rp)); AssertEquals(PtrUInt($0F00), PtrUInt(pp));
-  rp := atomic_fetch_or(pp, Pointer(PtrUInt($00F0))); AssertEquals(PtrUInt($0F00), PtrUInt(rp)); AssertEquals(PtrUInt($0FF0), PtrUInt(pp));
-  rp := atomic_fetch_xor(pp, Pointer(PtrUInt($00FF))); AssertEquals(PtrUInt($0FF0), PtrUInt(rp)); AssertEquals(PtrUInt($0F0F), PtrUInt(pp));
 end;
 
 {$IF DEFINED(CPU64) OR DEFINED(CPUX86)}

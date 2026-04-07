@@ -35,17 +35,22 @@ L0 不负责以下事情：
       |             |             |             |             |
       v             v             v             v             v
 +----------------+  +------------------+  +----------------+  +----------------------+
-| settings.inc   |  | fafafa.core.base |  | bits/layout/   |  | atomic.base          |
-| build contract |  | shared semantics |  | endian         |  | memory model         |
+| settings.inc   |  | fafafa.core.base |  | bits/layout/   |  | atomic.core          |
+| build contract |  | shared semantics |  | endian         |  | memory-order core    |
 +----------------+  +--------+---------+  +--------+-------+  +----------+-----------+
                              |                     |                     |
                 +------------+------------+------------+        |            +------------------+
-                |                         |            |        |            | atomic.compat    |
+                |                         |            |        |            | atomic.base      |
                 v                         v            v        |            +--------+---------+
        +------------------+      +------------------+ +------------------+          |
        | option.base      |      | result           | | span             |          v
        | option           |      | result.facade    | | read-only view   | +------------------+
        +------------------+      +------------------+ +------------------+ | atomic           |
+                                                                             +--------+---------+
+                                                                                      |
+                                                                                      v
+                                                                             +------------------+
+                                                                             | atomic.compat    |
                                                                              +------------------+
 
                              +-----------------------------------------------+
@@ -65,21 +70,29 @@ L0 不负责以下事情：
 | 结果语义 | `fafafa.core.result`, `fafafa.core.result.facade` | `Result<T, E>` 是错误传播和组合的基础表达方式 |
 | 视图表达 | `fafafa.core.span` | 提供最小只读单段、不拥有内存的基础视图 contract，给 collections / bytes 等上层复用 |
 | 位级基础 | `fafafa.core.bits` | 对齐、幂次判断和基础整数布局辅助属于所有上层都可能复用的 bit-level 语义 |
+| 平台表达 | `fafafa.core.platform` | OS family、arch、pointer width 与 native endian 这类静态平台表达是 `simd` / `sync` / `io` 的共同底座，但不应混成 system probe |
 | 布局契约 | `fafafa.core.layout` | `TMemLayout`、`TAllocCaps` 与默认对齐 / cache line / page size 都是跨 allocator / bytes / collections 共享的底层布局合同 |
 | 字节序语义 | `fafafa.core.endian` | endian 枚举、native 解析与 byteswap 属于独立的基础数据语义，不应继续埋在 `bytes` consumer 里 |
-| 原子模型 | `fafafa.core.atomic.base`, `fafafa.core.atomic.compat`, `fafafa.core.atomic` | 定义原子操作、内存序和兼容层，是并发系统的底层前提 |
-| 分配契约 | `fafafa.core.mem.allocator.foundation`, `fafafa.core.mem.allocator.base`, `fafafa.core.mem.allocator.rtlAllocator`, `fafafa.core.mem.allocator.callbackAllocator` | `foundation` 提供 strict L0 稳定入口，`base + minimal backends` 提供最小契约与最小实现 |
+| 原子模型 | `fafafa.core.atomic.core`, `fafafa.core.atomic.base`, `fafafa.core.atomic.compat`, `fafafa.core.atomic` | `atomic.core` 承载最小 memory-order / pause / fence / tagged-pointer packing contract；`atomic` 承载 raw primitive；`atomic.base` 承载 typed wrapper；`compat` 承载 legacy bridge |
+| 分配契约 | `fafafa.core.mem.allocator.base` | strict L0 只保留 allocator contract 与抽象基类；具体 backend 与 convenience facade 留在 mem 域上层 |
 
 ## 当前已落地的 L0 基础能力
 
-当前不是只在文档里“宣布候选方向”，而是已经把 `bits/layout/endian` 和最小 `span` contract 真正落地到代码里。
+当前不是只在文档里“宣布候选方向”，而是已经把 `bits/platform/layout/endian` 和最小 `span` contract 真正落地到代码里。
 
 - `fafafa.core.bits`
   - 负责 `DivRoundUp`、`IsPowerOfTwo`、`NextPowerOfTwo`、`AlignUp`、`AlignDown`、`IsAligned`
+- `fafafa.core.platform`
+  - 负责 `TPlatformOS`、`TPlatformArch`、`TPlatformTarget`、`PlatformOS`、`PlatformArch`、`PlatformPointerBits`
+  - 通过 `PlatformEndianness` / `PlatformTarget` 组合现有 endian 事实，但不引入新的 probe
+  - 明确不承载 env/path/system probe/feature detection
 - `fafafa.core.layout`
   - 负责 `TMemLayout`、`TAllocCaps`、`MEM_DEFAULT_ALIGN`、`MEM_CACHE_LINE_SIZE`、`MEM_PAGE_SIZE`、`TryNextPowerOfTwo`
 - `fafafa.core.endian`
   - 负责 `TEndianness`、`NativeEndianness`、`ResolveEndianness`、`IsLittleEndian`、`IsBigEndian`、`ByteSwap16`、`ByteSwap32`、`ByteSwap64`
+- `fafafa.core.atomic.core`
+  - 负责 `memory_order_t`、`cpu_pause`、`atomic_thread_fence`、`atomic_signal_fence`
+  - 负责 `atomic_tagged_ptr_t` 的 packing helper：`atomic_tagged_ptr`、`atomic_tagged_ptr_get_ptr`、`atomic_tagged_ptr_get_tag`、`atomic_tagged_ptr_next`
 - `fafafa.core.span`
   - 负责最小只读单段 `TReadOnlySpan<T>`
   - 当前稳定 API：`FromPointer`、`Count`、`IsEmpty`、`Get`、`TryGet`、`GetPtr`、`SubSpan`
@@ -106,10 +119,11 @@ L0 不负责以下事情：
 | `fafafa.core.lockfree*` | 尽管底层，但属于高级并发数据结构，不是所有模块都必须依赖的基础语言 |
 | `fafafa.core.result.collect` | 依赖 `fafafa.core.collections.vec`，已经跨出 L0 |
 | `fafafa.core.collections.slice` 中的 `TReadOnlySpan2<T>` / `GetBlock` / 容器 `SliceView` 行为 | 双段和容器视图仍属于 collections 域，不应借 `span` 之名直接并入 strict L0 |
+| `fafafa.core.mem.allocator.foundation` | 仍然保留为 mem 域低层 convenience facade，但不再定义 strict L0 边界 |
+| `fafafa.core.mem.allocator.rtlAllocator` / `callbackAllocator` | 小而实用，但它们是具体 backend，不再算 strict L0 contract 本体 |
 | `fafafa.core.mem.allocator.mimalloc` | 依赖可选后端，不应和基础契约绑定 |
 | `fafafa.core.mem.allocator.crtAllocator` | 条件编译的外部后端，不应作为纯 L0 必备实现 |
 | `fafafa.core.mem.allocator.instrumentation` | 属于调试和观测扩展，不属于严格 L0 |
-| `fafafa.core.platform` | 仍未收敛成稳定的小 API 模块，继续保持 deferred |
 
 ## L0 的开发范式
 
@@ -148,28 +162,25 @@ L0 继续保持 `fafafa.core` 现有的开发范式，但要求更严格。
 
 当前实现里：
 
-- `fafafa.core.mem.allocator.foundation` 提供 strict L0 的纯门面。
-- `fafafa.core.mem.allocator.base` 提供核心接口和抽象基类。
-- `rtlAllocator` 和 `callbackAllocator` 是最小可依赖实现。
-- `mimalloc`、`crtAllocator`、instrumentation 则是可选后端或扩展能力。
+- `fafafa.core.mem.allocator.base` 提供 strict L0 真正保留的核心接口和抽象基类。
+- `fafafa.core.mem.allocator.foundation` 提供 mem 域低层 convenience facade。
+- `rtlAllocator` 和 `callbackAllocator` 继续保留为小型具体 backend。
+- `mimalloc`、`crtAllocator`、`instrumentation` 则是可选后端或扩展能力。
 
 因此，当前最合理的 L0 说法是：
 
-- **L0 持有 allocator contract**
-- **L0 不自动持有所有 allocator backend**
+- **L0 只持有 allocator contract**
+- **具体 backend 与 convenience facade 留在 mem 域上层**
 
-当前实现已经收敛为两条入口：
+当前实现对应两条入口：
 
-1. `fafafa.core.mem.allocator.foundation`：只重导出 contract + minimal backend，属于 strict L0。
-2. `fafafa.core.mem.allocator`：继续保留兼容 / 扩展聚合角色，可牵出 `mimalloc`、`crt` 等可选能力。
-
-因此本轮不仅是文档边界先立住，代码入口也已经对应收紧。
+1. `fafafa.core.mem.allocator.base`：strict L0 的 contract core。
+2. `fafafa.core.mem.allocator.foundation` / `fafafa.core.mem.allocator`：mem 域低层可用入口与兼容 / 扩展聚合入口。
 
 ## L0 后续仍可评估的能力
 
-在 `bits/layout/endian/contracts/span` 已经落地之后，后续只有在满足“RTL-only、跨模块通用、语义非常基础、API 面可控”时，以下能力才适合继续考虑进入 L0：
+在 `bits/platform/layout/endian/contracts/span` 已经落地之后，后续只有在满足“RTL-only、跨模块通用、语义非常基础、API 面可控”时，以下能力才适合继续考虑进入 L0：
 
-- `platform`
 - `segmented span / span2`
 
 这里的 `segmented span / span2` 指的是 deque / ring-buffer 双段视图方向，不代表今天的 `fafafa.core.span` 还处于未准入状态。

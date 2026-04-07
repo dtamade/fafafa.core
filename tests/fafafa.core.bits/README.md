@@ -44,5 +44,5 @@
 
 - 这个目录只覆盖 `bits` 的 L0 契约，不替代 `math` 或 `mem` 的兼容层测试。
 - `src/fafafa.core.math.intutil.pas` 继续承担 compat 角色，但 `bits` 的 today contract 以 `docs/fafafa.core.bits.md` 和当前测试入口为准。
-- 这里不承载 `platform` / `span` 的候选讨论；那是后续 L0 准入问题，不属于 `bits` 当前测试入口。
+- 这里不承载 `platform` 或其他 L0 准入讨论；那不是 `bits` 当前测试入口的职责。
 - `bin/`、`lib/`、`logs/` 是产物目录，不属于合同本体。

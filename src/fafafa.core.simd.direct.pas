@@ -46,13 +46,13 @@ var
   p: Pointer;
 begin
   // Fast path: already bound.
-  p := atomic_load_ptr(g_DirectDispatchPtr, mo_acquire);
+  p := atomic_load(g_DirectDispatchPtr, mo_acquire);
   if p <> nil then
     Exit(PSimdDispatchTable(p));
 
   // Lazy bind (should be rare): make sure dispatch is initialized and bind once.
   RebindDirectDispatch;
-  p := atomic_load_ptr(g_DirectDispatchPtr, mo_acquire);
+  p := atomic_load(g_DirectDispatchPtr, mo_acquire);
   Result := PSimdDispatchTable(p);
 end;
 
@@ -62,7 +62,7 @@ var
 begin
   // GetDispatchTable performs dispatch initialization if needed.
   p := GetDispatchTable;
-  atomic_store_ptr(g_DirectDispatchPtr, p, mo_release);
+  atomic_store(g_DirectDispatchPtr, p, mo_release);
 end;
 
 initialization

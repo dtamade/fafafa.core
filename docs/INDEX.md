@@ -29,13 +29,16 @@
 例如：
 
 - `docs/fafafa.core.base.md`
+- `docs/fafafa.core.contracts.md`
 - `docs/fafafa.core.bits.md`
+- `docs/fafafa.core.platform.md`
 - `docs/fafafa.core.layout.md`
 - `docs/fafafa.core.endian.md`
 - `docs/fafafa.core.atomic.md`
 - `docs/fafafa.core.option.md`
 - `docs/fafafa.core.result.md`
 - `docs/fafafa.core.mem.md`
+- `docs/fafafa.core.span.md`
 - `docs/fafafa.core.collections.md`
 - `docs/fafafa.core.fs.md`
 - `docs/fafafa.core.simd.md`
@@ -77,6 +80,9 @@
 - 历史 `PHASE0_*` 文档已归档到 `docs/legacy/phase0/`；当前 L0 以 `docs/fafafa.core.l0.foundation.md` 为准。
 - 当前 L0 文档治理总图已落到 `docs/plans/2026-03-24-l0-docs-closeout-roadmap.md`；`task_plan.md` 只继续记录执行镜像。
 - 当前 L0 协作 owner 与执行镜像见 `workers/worker1.md`。
+- `docs/fafafa.core.span.md`、`docs/fafafa.core.contracts.md` 和 `docs/fafafa.core.platform.md` 现在都对应 strict L0 的实体入口。
+- 旧的 L0 candidate / merge-closeout 文档已经归档到 `docs/legacy/l0/`，不要再把那批候选结论当作 current-entry。
+- `fafafa.core.span2` / `fafafa.core.collections.slice` 不等同于当前 strict L0 的最小 `span`，不要把更宽 slice 语义误读成已进入 L0。
 - VecDeque 相关设计文档已归位到 `docs/collections/design/vecdeque-architecture.md`。
 - lockfree 领域的 guide/design/report 文档已归位到 `docs/lockfree/`。
 - mem 领域的报告与旧版指南已下沉到 `docs/mem/`，根目录只保留稳定入口。

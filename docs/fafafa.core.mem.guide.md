@@ -7,12 +7,13 @@
 先看：
 
 1. `docs/fafafa.core.mem.md`
-2. `src/fafafa.core.mem.pas`
+2. `src/fafafa.core.mem.allocator.base.pas`
 3. `src/fafafa.core.mem.allocator.foundation.pas`
-4. `src/fafafa.core.mem.allocator.pas`
-5. `src/fafafa.core.mem.memPool.pas`
-6. `src/fafafa.core.mem.stackPool.pas`
-7. `src/fafafa.core.mem.pool.slab.pas`
+4. `src/fafafa.core.mem.pas`
+5. `src/fafafa.core.mem.allocator.pas`
+6. `src/fafafa.core.mem.memPool.pas`
+7. `src/fafafa.core.mem.stackPool.pas`
+8. `src/fafafa.core.mem.pool.slab.pas`
 
 ## 先选哪一层
 
@@ -69,17 +70,19 @@
 
 ### 需要 strict L0 allocator contract
 
-优先用 `fafafa.core.mem.allocator.foundation`。
+优先依赖 `fafafa.core.mem.allocator.base`。
 
 适合：
 
-- 只想依赖 allocator contract + minimal backend
-- 不希望把 `mimalloc` / `crtAllocator` 之类可选后端带进 strict L0 依赖面
-- 为 `base` / `option` / `result` / `atomic` 一类基础模块提供最小 allocator 入口
+- 只想依赖 `IAllocator` / `TAllocator` / 对齐分配语义这些 strict L0 contract
+- 不希望把 convenience facade 或可选后端固化进 strict L0 依赖面
+- 为 `base` / `option` / `result` / `atomic` 一类基础模块提供最小 allocator 抽象
+
+如果你同时还需要默认 RTL allocator 或 callback allocator 这类小 concrete backend，再额外使用 `fafafa.core.mem.allocator.foundation`。
 
 ## 当前推荐用法
 
-### 分配器优先
+### allocator contract + 小 concrete backend
 
 ```pascal
 uses
@@ -99,6 +102,11 @@ begin
   end;
 end;
 ```
+
+说明：
+
+- 上面的 `GetRtlAllocator` 来自 `fafafa.core.mem.allocator.foundation`。
+- 返回值遵循的 contract 仍以 `src/fafafa.core.mem.allocator.base.pas` 为准。
 
 ### StackPool 作用域恢复
 
@@ -157,7 +165,8 @@ end;
 
 - `Destroy`、`Clear`、`Reset` 这类生命周期动作，应在没有并发访问时执行。
 - `fafafa.core.mem.interfaces` 当前是补充合同，不应替代对具体类行为的理解。
-- `fafafa.core.mem.allocator.foundation` 是 strict L0 入口；如果需要可选后端，再显式使用 `fafafa.core.mem.allocator`。
+- `fafafa.core.mem.allocator.base` 才是 strict L0 allocator contract。
+- `fafafa.core.mem.allocator.foundation` 只在需要 `GetRtlAllocator` / callback allocator 这类小 concrete backend 时引入；如果需要可选后端，再显式使用 `fafafa.core.mem.allocator`。
 - `mimalloc` 相关模块属于可选集成，能否启用取决于当前环境和构建配置。
 - `mapped` / `shared memory` 相关旧示例仍可用于追背景，但今天的框架边界优先去 `fs` 域理解。
 

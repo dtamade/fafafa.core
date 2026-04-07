@@ -104,7 +104,7 @@ end;
 
 function GetCurrentSimdPublicApiBindingState: PSimdPublicApiBindingState; inline;
 begin
-  Result := PSimdPublicApiBindingState(atomic_load_ptr(g_SimdPublicApiStatePtr, mo_acquire));
+  Result := PSimdPublicApiBindingState(atomic_load(g_SimdPublicApiStatePtr, mo_acquire));
 end;
 
 function CreateSimdPublicApiBindingState: PSimdPublicApiBindingState;
@@ -127,7 +127,7 @@ var
 begin
   EnterCriticalSection(g_SimdPublicApiRebindLock);
   try
-    atomic_store_ptr(g_SimdPublicApiStatePtr, nil, mo_release);
+    atomic_store(g_SimdPublicApiStatePtr, nil, mo_release);
     LState := g_SimdPublicApiOwnedHead;
     g_SimdPublicApiOwnedHead := nil;
   finally
@@ -463,7 +463,7 @@ begin
     LState^.Api.MinMaxBytes := TFafafaSimdMinMaxBytesFunc(Pointer(LState^.MinMaxBytesBound));
     {$ENDIF}
 
-    atomic_store_ptr(g_SimdPublicApiStatePtr, Pointer(LState), mo_release);
+    atomic_store(g_SimdPublicApiStatePtr, Pointer(LState), mo_release);
   finally
     LeaveCriticalSection(g_SimdPublicApiRebindLock);
   end;

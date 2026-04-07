@@ -1118,11 +1118,11 @@ begin
   if LDispatch = nil then
     Exit;
 
-  atomic_store_ptr(g_FastVecF32x4AddPtr, Pointer(LDispatch^.AddF32x4), mo_release);
-  atomic_store_ptr(g_FastVecI16x32AddPtr, Pointer(LDispatch^.AddI16x32), mo_release);
-  atomic_store_ptr(g_FastVecU32x16MulPtr, Pointer(LDispatch^.MulU32x16), mo_release);
-  atomic_store_ptr(g_FastVecU64x8AddPtr, Pointer(LDispatch^.AddU64x8), mo_release);
-  atomic_store_ptr(g_FastVecU8x64MaxPtr, Pointer(LDispatch^.MaxU8x64), mo_release);
+  atomic_store(g_FastVecF32x4AddPtr, Pointer(LDispatch^.AddF32x4), mo_release);
+  atomic_store(g_FastVecI16x32AddPtr, Pointer(LDispatch^.AddI16x32), mo_release);
+  atomic_store(g_FastVecU32x16MulPtr, Pointer(LDispatch^.MulU32x16), mo_release);
+  atomic_store(g_FastVecU64x8AddPtr, Pointer(LDispatch^.AddU64x8), mo_release);
+  atomic_store(g_FastVecU8x64MaxPtr, Pointer(LDispatch^.MaxU8x64), mo_release);
 end;
 
 function LoadSimdFacadeFastPath(var aFuncPtr: Pointer): Pointer; inline;
@@ -1130,7 +1130,7 @@ begin
   // Use the platform default load order on the hot path:
   // x86/x86_64 stays relaxed (no compiler-barrier call), while weakly ordered
   // targets still get acquire semantics through fafafa.core.atomic defaults.
-  Result := atomic_load_ptr(aFuncPtr);
+  Result := atomic_load(aFuncPtr);
 end;
 
 // === High-Level Vector Operations Implementation ===
