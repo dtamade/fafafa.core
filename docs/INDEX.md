@@ -7,7 +7,8 @@
 - 文档治理与放置规则：`docs/README.md`
 - 架构分层：`docs/ARCHITECTURE_LAYERS.md`
 - L0 详细定义：`docs/fafafa.core.l0.foundation.md`
-- L0 收口路线图：`docs/plans/2026-03-24-l0-docs-closeout-roadmap.md`
+- L0 rescue 收口路线图：`docs/plans/2026-04-07-l0-rescue-split-closeout.md`
+- L0 rescue 审计：`docs/audits/2026-04-07-l0-rescue-triage-audit.md`
 - 工程规范：`docs/standards/ENGINEERING_STANDARDS.md`
 - 目录规范：`docs/standards/DIRECTORY_STANDARDS.md`
 - 命名规范：`docs/standards/NAMING_CONVENTION_PROJECT.md`
@@ -78,8 +79,9 @@
 
 - `docs/Architecture.md` 这种歧义命名已经停止作为全局架构入口使用。
 - 历史 `PHASE0_*` 文档已归档到 `docs/legacy/phase0/`；当前 L0 以 `docs/fafafa.core.l0.foundation.md` 为准。
-- 当前 L0 文档治理总图已落到 `docs/plans/2026-03-24-l0-docs-closeout-roadmap.md`；`task_plan.md` 只继续记录执行镜像。
-- 当前 L0 协作 owner 与执行镜像见 `workers/worker1.md`。
+- `docs/plans/2026-03-24-l0-docs-closeout-roadmap.md` 现在是已完成的历史 closeout；当前 follow-up 以 `docs/plans/2026-04-07-l0-rescue-split-closeout.md` 为准。
+- 根目录 `task_plan.md`、`findings.md`、`progress.md` 已从主线移除；最后一份快照归档在 `plans/archive/2026-04-07-mainline-working-set/`。
+- 当前 L0 协作入口见 `workers/worker1.md`，当前 triage 判断见 `docs/audits/2026-04-07-l0-rescue-triage-audit.md`。
 - `docs/fafafa.core.span.md`、`docs/fafafa.core.contracts.md` 和 `docs/fafafa.core.platform.md` 现在都对应 strict L0 的实体入口。
 - 旧的 L0 candidate / merge-closeout 文档已经归档到 `docs/legacy/l0/`，不要再把那批候选结论当作 current-entry。
 - `fafafa.core.span2` / `fafafa.core.collections.slice` 不等同于当前 strict L0 的最小 `span`，不要把更宽 slice 语义误读成已进入 L0。

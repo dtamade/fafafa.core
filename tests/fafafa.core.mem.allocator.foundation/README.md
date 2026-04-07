@@ -29,6 +29,11 @@
 - Windows：`tests\\fafafa.core.mem.allocator.foundation\\BuildOrTest.bat test`
 - Linux/macOS：`bash tests/fafafa.core.mem.allocator.foundation/BuildOrTest.sh test`
 
+如果你要验证关闭 contracts 开关后的 smoke：
+
+- Windows：`tests\\fafafa.core.mem.allocator.foundation\\BuildOrTest.bat test-no-contracts`
+- Linux/macOS：`bash tests/fafafa.core.mem.allocator.foundation/BuildOrTest.sh test-no-contracts`
+
 如果你只想做构建检查：
 
 - Linux/macOS：`bash tests/fafafa.core.mem.allocator.foundation/BuildOrTest.sh check`
@@ -38,9 +43,10 @@
 ### BuildOrTest.sh
 
 - 使用 `tools/lazbuild.sh` 或 PATH 中的 `lazbuild`
-- 固定以 `Debug` build mode 构建 `fafafa.core.mem.allocator.foundation.test.lpi`
-- 产物：`bin/fafafa.core.mem.allocator.foundation.test_debug[.exe]`
-- 支持 `build` / `check` / `test`
+- 默认以 `Debug` build mode 构建 `fafafa.core.mem.allocator.foundation.test.lpi`
+- `test-no-contracts` / `check-no-contracts` 会切到 `NoContracts` build mode
+- 产物：`bin/fafafa.core.mem.allocator.foundation.test_debug[.exe]` 或 `bin/fafafa.core.mem.allocator.foundation.test_nocontracts[.exe]`
+- 支持 `build` / `check` / `test` / `build-no-contracts` / `check-no-contracts` / `test-no-contracts`
 - `check` / `test` 会检查 strict L0 allocator 相关 `src/` 的 warning / hint；`test` 还会检查 heaptrc 泄漏输出
 
 ### BuildOrTest.bat
@@ -51,13 +57,14 @@
 
 ### buildOrTest.bat
 
-- 固定以 `Debug` build mode 构建 `fafafa.core.mem.allocator.foundation.test.lpi`
-- 产物：`bin\\fafafa.core.mem.allocator.foundation.test_debug[.exe]`
-- 支持 `build` / `check` / `test` / `clean` / `rebuild`
+- 支持 `Debug` / `NoContracts` 两个 build mode
+- 产物：`bin\\fafafa.core.mem.allocator.foundation.test_debug[.exe]` 或 `bin\\fafafa.core.mem.allocator.foundation.test_nocontracts[.exe]`
+- 支持 `build` / `check` / `test` / `build-no-contracts` / `check-no-contracts` / `test-no-contracts` / `clean` / `rebuild`
 
 ## 当前边界
 
 - `fafafa.core.mem.allocator.base` 才是 strict L0 allocator contract 的 source-of-truth；这个目录负责验证该 contract 在 mem 域低层 facade 中的可用形态。
 - 这个目录只覆盖 allocator contract + 小型 concrete backend 的 mem 域低层 facade，不负责 `mimalloc` / `crtAllocator` 这类可选后端集成测试。
 - `tests/fafafa.core.mem/` 仍负责 broader mem 域入口；`tests/fafafa.core.mem.manager.rtl/` 仍负责 RTL allocator manager 的专项验证。
+- callback allocator 的 nil callback 行为跟随 `fafafa.core.contracts`：默认构建抛 `EArgumentNil`，`NoContracts` 下只保证 smoke 可运行，不再承诺 friendly exception。
 - 如果 README、脚本和工程文件冲突，以脚本与工程文件现状为准。

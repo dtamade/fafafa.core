@@ -6,8 +6,7 @@ unit fafafa.core.mem.allocator.callbackAllocator;
 interface
 
 uses
-  SysUtils,
-  fafafa.core.base,
+  fafafa.core.contracts,
   fafafa.core.mem.allocator.base;
 
 type
@@ -46,8 +45,10 @@ implementation
 constructor TCallbackAllocator.Init(aGetMem: TGetMemCallback; aAllocMem: TAllocMemCallback; aReallocMem: TReallocMemCallback; aFreeMem: TFreeMemCallback);
 begin
   inherited Create;
-  if (aGetMem = nil) or (aAllocMem = nil) or (aReallocMem = nil) or (aFreeMem = nil) then
-    raise EArgumentNil.Create('TCallbackAllocator.Create: aGetMem, aAllocMem, aReallocMem, aFreeMem cannot be nil.');
+  ContractsRequireAssigned(aGetMem <> nil, 'aGetMem');
+  ContractsRequireAssigned(aAllocMem <> nil, 'aAllocMem');
+  ContractsRequireAssigned(aReallocMem <> nil, 'aReallocMem');
+  ContractsRequireAssigned(aFreeMem <> nil, 'aFreeMem');
   FGetMemCallback     := aGetMem;
   FAllocMemCallback   := aAllocMem;
   FReallocMemCallback := aReallocMem;

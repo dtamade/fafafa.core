@@ -50,6 +50,11 @@ detect_lazarusdir() {
     return 0
   fi
 
+  if [[ -n "${LAZARUS_DIR:-}" && -d "${LAZARUS_DIR}/lcl" ]]; then
+    echo "${LAZARUS_DIR}"
+    return 0
+  fi
+
   if [[ -d "/opt/fpcupdeluxe/lazarus/lcl" ]]; then
     echo "/opt/fpcupdeluxe/lazarus"
     return 0

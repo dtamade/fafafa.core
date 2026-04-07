@@ -40,24 +40,31 @@
 - Windows：`tests\\fafafa.core.mem\\BuildOrTest.bat test`
 - Linux/macOS：`bash tests/fafafa.core.mem/BuildOrTest.sh`
 
+如果你要验证关闭 contracts 开关后的 allocator smoke：
+
+- Windows：`tests\\fafafa.core.mem\\BuildOrTest.bat test-no-contracts`
+- Linux/macOS：`bash tests/fafafa.core.mem/BuildOrTest.sh test-no-contracts`
+
 如果你需要精确选择工程：
 
-- 想跑主 Lazarus 测试工程：看 `tests_mem.lpi`
-- 想跑当前 shell 脚本默认路径：看 `tests_mem_allocator_only.lpi`
+- shell / bat 当前都以 `tests_mem_allocator_only.lpi` 为主入口
+- `NoContracts` 模式会把 runner 收窄为 allocator smoke，不再承诺 broader mem 套件全量语义
 
 ## 当前脚本行为
 
 ### BuildOrTest.bat
 
-- 构建目标：`tests_mem.lpi`
-- 构建模式：`Debug`
-- 只有传入 `test` 参数时才运行 `bin\\tests_mem_debug.exe`
+- 构建目标：`tests_mem_allocator_only.lpi`
+- 支持 `Debug` / `NoContracts` 两个 build mode
+- 支持 `build` / `check` / `test` / `build-no-contracts` / `check-no-contracts` / `test-no-contracts`
+- `NoContracts` 模式当前只锁定 allocator smoke，不替代 full mem regression
 
 ### BuildOrTest.sh
 
 - 构建目标：`tests_mem_allocator_only.lpi`
-- 当前脚本里显示为 `Debug`
-- 构建成功后会直接运行 `bin/tests_mem_allocator_only --all --format=plain`
+- 默认以 `Debug` 模式构建；`test-no-contracts` / `check-no-contracts` 会切到 `NoContracts`
+- 支持 `build` / `check` / `test` / `build-no-contracts` / `check-no-contracts` / `test-no-contracts`
+- `NoContracts` 模式当前只跑 allocator smoke，避免把 contract-sensitive 的 broader mem case 混进来
 
 ### 其他脚本
 
@@ -67,5 +74,6 @@
 
 - 这个目录描述的是“现在怎么验证”，不是历史成果展板。
 - strict L0 allocator facade 现在有独立入口：`tests/fafafa.core.mem.allocator.foundation/`；这里不再单独承担那部分回归职责。
+- callback allocator 的 nil callback 行为跟随 `fafafa.core.contracts`：默认构建抛 `EArgumentNil`，`NoContracts` 只保留 smoke。
 - `COMPLETION_REPORT.md` 和 `FINAL_STATUS_REPORT.md` 已退回历史快照，不再代表今天的放行结论。
 - 如果测试 README、根文档和源码冲突，以源码和实际脚本行为为准。
