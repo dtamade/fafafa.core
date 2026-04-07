@@ -209,7 +209,7 @@ type
      *
      * @remark
      *   **UnChecked 统一约定：** 不进行参数/边界/空指针检查；调用方需保证前置条件。
-     *   详见 docs/UnChecked_Methods_Summary.md。
+     *   详见 docs/collections/guides/UnChecked_Methods_Summary.md。
      *   传递无效索引将导致未定义行为.
      *}
     procedure OverWriteUnChecked(aIndex: SizeUInt; const aSrc: Pointer; aCount: SizeUInt); overload;
@@ -244,7 +244,7 @@ type
      *
      * @remark
      *   **UnChecked 统一约定：** 不进行参数/边界/空指针检查；调用方需保证前置条件。
-     *   详见 docs/UnChecked_Methods_Summary.md。
+     *   详见 docs/collections/guides/UnChecked_Methods_Summary.md。
      *   传递无效索引将导致未定义行为.
      *}
     procedure OverWriteUnChecked(aIndex: SizeUInt; const aSrc: array of T); overload;
@@ -296,7 +296,7 @@ type
      *
      * @remark
      *   **UnChecked 统一约定：** 不进行参数/边界/空指针检查；调用方需保证前置条件。
-     *   详见 docs/UnChecked_Methods_Summary.md。
+     *   详见 docs/collections/guides/UnChecked_Methods_Summary.md。
      *   传递无效索引将导致未定义行为.
      *}
     procedure OverWriteUnChecked(aIndex:SizeUInt; const aSrc: TCollection; aCount: SizeUInt); overload;
@@ -334,7 +334,7 @@ type
      *
      * @remark
      *   **UnChecked 统一约定：** 不进行参数/边界/空指针检查；调用方需保证前置条件。
-     *   详见 docs/UnChecked_Methods_Summary.md。
+     *   详见 docs/collections/guides/UnChecked_Methods_Summary.md。
      *   传递无效索引将导致未定义行为.
      *}
     procedure ReadUnChecked(aIndex: SizeUInt; aDst: Pointer; aCount: SizeUInt); overload;
@@ -377,7 +377,7 @@ type
      *
      * @remark
      *   **UnChecked 统一约定：** 不进行参数/边界/空指针检查；调用方需保证前置条件。
-     *   详见 docs/UnChecked_Methods_Summary.md。
+     *   详见 docs/collections/guides/UnChecked_Methods_Summary.md。
      *   传递无效索引将导致未定义行为.
      *}
     procedure ReadUnChecked(aIndex: SizeUInt; var aDst: specialize TGenericArray<T>; aCount: SizeUInt); overload;
@@ -411,7 +411,7 @@ type
      *
      * @remark
      *   **UnChecked 统一约定：** 不进行参数/边界/空指针检查；调用方需保证前置条件。
-     *   详见 docs/UnChecked_Methods_Summary.md。
+     *   详见 docs/collections/guides/UnChecked_Methods_Summary.md。
      *   调用者必须自行确保索引有效且不相等.
      *   传递无效参数将导致未定义行为.
      *}
@@ -548,7 +548,7 @@ type
      *
      * @remark
      *   **UnChecked 统一约定：** 不进行参数/边界/空指针检查；调用方需保证前置条件。
-     *   详见 docs/UnChecked_Methods_Summary.md。
+     *   详见 docs/collections/guides/UnChecked_Methods_Summary.md。
      *   此操作会覆盖指定范围内的所有现有元素.
      *}
     procedure FillUnChecked(aIndex, aCount: SizeUInt; const aElement: T);
@@ -598,7 +598,7 @@ type
      *
      * @remark
      *   **UnChecked 统一约定：** 不进行参数/边界/空指针检查；调用方需保证前置条件。
-     *   详见 docs/UnChecked_Methods_Summary.md。
+     *   详见 docs/collections/guides/UnChecked_Methods_Summary.md。
      *}
     procedure ZeroUnChecked(aIndex, aCount: SizeUInt); overload;
 
@@ -643,7 +643,7 @@ type
      *
      * @remark
      *   **UnChecked 统一约定：** 不进行参数/边界/空指针检查；调用方需保证前置条件。
-     *   详见 docs/UnChecked_Methods_Summary.md。
+     *   详见 docs/collections/guides/UnChecked_Methods_Summary.md。
      *}
     procedure ReverseUnChecked(aStartIndex, aCount: SizeUInt);
 
@@ -794,7 +794,7 @@ type
      *
      * @remark
      *   **UnChecked 统一约定：** 不进行参数/边界/空指针检查；调用方需保证前置条件。
-     *   详见 docs/UnChecked_Methods_Summary.md。
+     *   详见 docs/collections/guides/UnChecked_Methods_Summary.md。
      *}
     function ForEachUnChecked(aStartIndex, aCount: SizeUInt; aPredicate: specialize TPredicateFunc<T>; aData: Pointer): Boolean; overload;
 
@@ -813,7 +813,7 @@ type
      *
      * @remark
      *   **UnChecked 统一约定：** 不进行参数/边界/空指针检查；调用方需保证前置条件。
-     *   详见 docs/UnChecked_Methods_Summary.md。
+     *   详见 docs/collections/guides/UnChecked_Methods_Summary.md。
      *}
     function ForEachUnChecked(aStartIndex, aCount: SizeUInt; aPredicate: specialize TPredicateMethod<T>; aData: Pointer): Boolean; overload;
 
@@ -832,7 +832,7 @@ type
      *
      * @remark
      *   **UnChecked 统一约定：** 不进行参数/边界/空指针检查；调用方需保证前置条件。
-     *   详见 docs/UnChecked_Methods_Summary.md。
+     *   详见 docs/collections/guides/UnChecked_Methods_Summary.md。
      *   此重载版本需要在 fpc 3.3.1 及以上并启用 `FAFAFA_CORE_ANONYMOUS_REFERENCES` 编译指令.
      *}
     function ForEachUnChecked(aStartIndex, aCount: SizeUInt; aPredicate: specialize TPredicateRefFunc<T>): Boolean; overload;
@@ -1032,7 +1032,7 @@ type
      *   此接口内部会根据元素类型自动选择合适的默认比较器.
      *   对于复杂类型, 强烈建议使用提供自定义比较器的重载版本.
      *   **UnChecked 统一约定：** 不进行参数/边界/空指针检查；调用方需保证前置条件。
-     *   详见 docs/UnChecked_Methods_Summary.md。
+     *   详见 docs/collections/guides/UnChecked_Methods_Summary.md。
      *}
     function ContainsUnChecked(const aElement: T; aStartIndex, aCount: SizeUInt): Boolean; overload;
 
@@ -1053,7 +1053,7 @@ type
      * @remark
      *   回调 `aEquals` 应在两元素相等时返回 `True`.
      *   **UnChecked 统一约定：** 不进行参数/边界/空指针检查；调用方需保证前置条件。
-     *   详见 docs/UnChecked_Methods_Summary.md。
+     *   详见 docs/collections/guides/UnChecked_Methods_Summary.md。
      *}
     function ContainsUnChecked(const aElement: T; aStartIndex, aCount: SizeUInt; aEquals: specialize TEqualsFunc<T>; aData: Pointer): Boolean; overload;
 
@@ -1074,7 +1074,7 @@ type
      * @remark
      *   回调 `aEquals` 应在两元素相等时返回 `True`.
      *   **UnChecked 统一约定：** 不进行参数/边界/空指针检查；调用方需保证前置条件。
-     *   详见 docs/UnChecked_Methods_Summary.md。
+     *   详见 docs/collections/guides/UnChecked_Methods_Summary.md。
      *}
     function ContainsUnChecked(const aElement: T; aStartIndex, aCount: SizeUInt; aEquals: specialize TEqualsMethod<T>; aData: Pointer): Boolean; overload;
 
@@ -1095,7 +1095,7 @@ type
      * @remark
      *   回调 `aEquals` 应在两元素相等时返回 `True`.
      *   **UnChecked 统一约定：** 不进行参数/边界/空指针检查；调用方需保证前置条件。
-     *   详见 docs/UnChecked_Methods_Summary.md。
+     *   详见 docs/collections/guides/UnChecked_Methods_Summary.md。
      *   此重载版本需要在 fpc 3.3.1 及以上并启用 `FAFAFA_CORE_ANONYMOUS_REFERENCES` 编译指令.
      *}
     function ContainsUnChecked(const aElement: T; aStartIndex, aCount: SizeUInt; aEquals: specialize TEqualsRefFunc<T>): Boolean; overload;
@@ -1116,7 +1116,7 @@ type
      *
      * @remark
      *   **UnChecked 统一约定：** 不进行参数/边界/空指针检查；调用方需保证前置条件。
-     *   详见 docs/UnChecked_Methods_Summary.md。
+     *   详见 docs/collections/guides/UnChecked_Methods_Summary.md。
      *}
     function FindIFUnChecked(aStartIndex, aCount: SizeUInt; aPredicate: specialize TPredicateFunc<T>; aData: Pointer): SizeInt; overload;
     function FindIFUnChecked(aStartIndex, aCount: SizeUInt; aPredicate: specialize TPredicateMethod<T>; aData: Pointer): SizeInt; overload;
@@ -1139,7 +1139,7 @@ type
      *
      * @remark
      *   **UnChecked 统一约定：** 不进行参数/边界/空指针检查；调用方需保证前置条件。
-     *   详见 docs/UnChecked_Methods_Summary.md。
+     *   详见 docs/collections/guides/UnChecked_Methods_Summary.md。
      *}
     function FindIFNotUnChecked(aStartIndex, aCount: SizeUInt; aPredicate: specialize TPredicateFunc<T>; aData: Pointer): SizeInt; overload;
     function FindIFNotUnChecked(aStartIndex, aCount: SizeUInt; aPredicate: specialize TPredicateMethod<T>; aData: Pointer): SizeInt; overload;
@@ -1163,7 +1163,7 @@ type
      *
      * @remark
      *   **UnChecked 统一约定：** 不进行参数/边界/空指针检查；调用方需保证前置条件。
-     *   详见 docs/UnChecked_Methods_Summary.md。
+     *   详见 docs/collections/guides/UnChecked_Methods_Summary.md。
      *}
     function FindLastUnChecked(const aElement: T; aStartIndex, aCount: SizeUInt): SizeInt; overload;
     function FindLastUnChecked(const aElement: T; aStartIndex, aCount: SizeUInt; aEquals: specialize TEqualsFunc<T>; aData: Pointer): SizeInt; overload;
@@ -1187,7 +1187,7 @@ type
      *
      * @remark
      *   **UnChecked 统一约定：** 不进行参数/边界/空指针检查；调用方需保证前置条件。
-     *   详见 docs/UnChecked_Methods_Summary.md。
+     *   详见 docs/collections/guides/UnChecked_Methods_Summary.md。
      *}
     function FindLastIFUnChecked(aStartIndex, aCount: SizeUInt; aPredicate: specialize TPredicateFunc<T>; aData: Pointer): SizeInt; overload;
     function FindLastIFUnChecked(aStartIndex, aCount: SizeUInt; aPredicate: specialize TPredicateMethod<T>; aData: Pointer): SizeInt; overload;
@@ -1210,7 +1210,7 @@ type
      *
      * @remark
      *   **UnChecked 统一约定：** 不进行参数/边界/空指针检查；调用方需保证前置条件。
-     *   详见 docs/UnChecked_Methods_Summary.md。
+     *   详见 docs/collections/guides/UnChecked_Methods_Summary.md。
      *}
     function FindLastIFNotUnChecked(aStartIndex, aCount: SizeUInt; aPredicate: specialize TPredicateFunc<T>; aData: Pointer): SizeInt; overload;
     function FindLastIFNotUnChecked(aStartIndex, aCount: SizeUInt; aPredicate: specialize TPredicateMethod<T>; aData: Pointer): SizeInt; overload;
@@ -1234,7 +1234,7 @@ type
      *
      * @remark
      *   **UnChecked 统一约定：** 不进行参数/边界/空指针检查；调用方需保证前置条件。
-     *   详见 docs/UnChecked_Methods_Summary.md。
+     *   详见 docs/collections/guides/UnChecked_Methods_Summary.md。
      *}
     function CountOfUnChecked(const aElement: T; aStartIndex, aCount: SizeUInt): SizeUInt; overload;
     function CountOfUnChecked(const aElement: T; aStartIndex, aCount: SizeUInt; aEquals: specialize TEqualsFunc<T>; aData: Pointer): SizeUInt; overload;
@@ -1258,7 +1258,7 @@ type
      *
      * @remark
      *   **UnChecked 统一约定：** 不进行参数/边界/空指针检查；调用方需保证前置条件。
-     *   详见 docs/UnChecked_Methods_Summary.md。
+     *   详见 docs/collections/guides/UnChecked_Methods_Summary.md。
      *}
     function CountIfUnChecked(aStartIndex, aCount: SizeUInt; aPredicate: specialize TPredicateFunc<T>; aData: Pointer): SizeUInt; overload;
     function CountIfUnChecked(aStartIndex, aCount: SizeUInt; aPredicate: specialize TPredicateMethod<T>; aData: Pointer): SizeUInt; overload;
@@ -1283,7 +1283,7 @@ type
      *
      * @remark
      *   **UnChecked 统一约定：** 不进行参数/边界/空指针检查；调用方需保证前置条件。
-     *   详见 docs/UnChecked_Methods_Summary.md。
+     *   详见 docs/collections/guides/UnChecked_Methods_Summary.md。
      *}
     function ReplaceUnChecked(const aElement, aNewElement: T; aStartIndex, aCount: SizeUInt): SizeUInt; overload;
     function ReplaceUnChecked(const aElement, aNewElement: T; aStartIndex, aCount: SizeUInt; aEquals: specialize TEqualsFunc<T>; aData: Pointer): SizeUInt; overload;
@@ -1308,7 +1308,7 @@ type
      *
      * @remark
      *   **UnChecked 统一约定：** 不进行参数/边界/空指针检查；调用方需保证前置条件。
-     *   详见 docs/UnChecked_Methods_Summary.md。
+     *   详见 docs/collections/guides/UnChecked_Methods_Summary.md。
      *}
     function ReplaceIFUnChecked(const aNewElement: T; aStartIndex, aCount: SizeUInt; aPredicate: specialize TPredicateFunc<T>; aData: Pointer): SizeUInt; overload;
     function ReplaceIFUnChecked(const aNewElement: T; aStartIndex, aCount: SizeUInt; aPredicate: specialize TPredicateMethod<T>; aData: Pointer): SizeUInt; overload;
@@ -1331,7 +1331,7 @@ type
      *
      * @remark
      *   **UnChecked 统一约定：** 不进行参数/边界/空指针检查；调用方需保证前置条件。
-     *   详见 docs/UnChecked_Methods_Summary.md。
+     *   详见 docs/collections/guides/UnChecked_Methods_Summary.md。
      *}
     function IsSortedUnChecked(aStartIndex, aCount: SizeUInt): Boolean; overload;
     function IsSortedUnChecked(aStartIndex, aCount: SizeUInt; aComparer: specialize TCompareFunc<T>; aData: Pointer): Boolean; overload;
@@ -1356,7 +1356,7 @@ type
      *
      * @remark
      *   **UnChecked 统一约定：** 不进行参数/边界/空指针检查；调用方需保证前置条件。
-     *   详见 docs/UnChecked_Methods_Summary.md。
+     *   详见 docs/collections/guides/UnChecked_Methods_Summary.md。
      *   调用者必须确保范围内的元素已排序.
      *}
     function BinarySearchUnChecked(const aElement: T; aStartIndex, aCount: SizeUInt): SizeInt; overload;
@@ -1382,7 +1382,7 @@ type
      *
      * @remark
      *   **UnChecked 统一约定：** 不进行参数/边界/空指针检查；调用方需保证前置条件。
-     *   详见 docs/UnChecked_Methods_Summary.md。
+     *   详见 docs/collections/guides/UnChecked_Methods_Summary.md。
      *   调用者必须确保范围内的元素已排序.
      *}
     function BinarySearchInsertUnChecked(const aElement: T; aStartIndex, aCount: SizeUInt): SizeInt; overload;
@@ -1405,7 +1405,7 @@ type
      *
      * @remark
      *   **UnChecked 统一约定：** 不进行参数/边界/空指针检查；调用方需保证前置条件。
-     *   详见 docs/UnChecked_Methods_Summary.md。
+     *   详见 docs/collections/guides/UnChecked_Methods_Summary.md。
      *}
     procedure ShuffleUnChecked(aStartIndex, aCount: SizeUInt); overload;
     procedure ShuffleUnChecked(aStartIndex, aCount: SizeUInt; aRandomGenerator: TRandomGeneratorFunc; aData: Pointer); overload;
@@ -1729,7 +1729,7 @@ type
      *
      * @remark
      *   **UnChecked 统一约定：** 不进行参数/边界/空指针检查；调用方需保证前置条件。
-     *   详见 docs/UnChecked_Methods_Summary.md。
+     *   详见 docs/collections/guides/UnChecked_Methods_Summary.md。
      *   调用者必须确保 aStartIndex 和 aCount 参数的有效性, 否则可能导致程序崩溃.
      *   此接口内部会根据元素类型自动选择合适的默认比较器.
      *}
@@ -1751,7 +1751,7 @@ type
      *
      * @remark
      *   **UnChecked 统一约定：** 不进行参数/边界/空指针检查；调用方需保证前置条件。
-     *   详见 docs/UnChecked_Methods_Summary.md。
+     *   详见 docs/collections/guides/UnChecked_Methods_Summary.md。
      *   调用者必须确保 aStartIndex 和 aCount 参数的有效性, 否则可能导致程序崩溃.
      *   回调 `aEquals` 应在两元素相等时返回 `True`.
      *}
@@ -1773,7 +1773,7 @@ type
      *
      * @remark
      *   **UnChecked 统一约定：** 不进行参数/边界/空指针检查；调用方需保证前置条件。
-     *   详见 docs/UnChecked_Methods_Summary.md。
+     *   详见 docs/collections/guides/UnChecked_Methods_Summary.md。
      *   调用者必须确保 aStartIndex 和 aCount 参数的有效性, 否则可能导致程序崩溃.
      *   回调 `aEquals` 应在两元素相等时返回 `True`.
      *}
@@ -1795,7 +1795,7 @@ type
      *
      * @remark
      *   **UnChecked 统一约定：** 不进行参数/边界/空指针检查；调用方需保证前置条件。
-     *   详见 docs/UnChecked_Methods_Summary.md。
+     *   详见 docs/collections/guides/UnChecked_Methods_Summary.md。
      *   调用者必须确保 aStartIndex 和 aCount 参数的有效性, 否则可能导致程序崩溃.
      *   回调 `aEquals` 应在两元素相等时返回 `True`.
      *   此重载版本需要在 fpc 3.3.1 及以上并启用 `FAFAFA_CORE_ANONYMOUS_REFERENCES` 编译指令.
@@ -2597,7 +2597,7 @@ type
      *
      * @remark
      *   **UnChecked 统一约定：** 不进行参数/边界/空指针检查；调用方需保证前置条件。
-     *   详见 docs/UnChecked_Methods_Summary.md。
+     *   详见 docs/collections/guides/UnChecked_Methods_Summary.md。
      *   调用者必须确保 aStartIndex 和 aCount 参数的有效性, 否则可能导致程序崩溃.
      *   此接口内部会根据元素类型自动选择合适的默认比较器.
      *   排序算法为稳定的快速排序, 平均时间复杂度为 O(n log n).
@@ -2617,7 +2617,7 @@ type
      *
      * @remark
      *   **UnChecked 统一约定：** 不进行参数/边界/空指针检查；调用方需保证前置条件。
-     *   详见 docs/UnChecked_Methods_Summary.md。
+     *   详见 docs/collections/guides/UnChecked_Methods_Summary.md。
      *   调用者必须确保 aStartIndex 和 aCount 参数的有效性, 否则可能导致程序崩溃.
      *   回调 `aComparer` 应在第一个元素小于第二个元素时返回负值, 相等时返回 0, 大于时返回正值.
      *   排序算法为稳定的快速排序, 平均时间复杂度为 O(n log n).
@@ -2637,7 +2637,7 @@ type
      *
      * @remark
      *   **UnChecked 统一约定：** 不进行参数/边界/空指针检查；调用方需保证前置条件。
-     *   详见 docs/UnChecked_Methods_Summary.md。
+     *   详见 docs/collections/guides/UnChecked_Methods_Summary.md。
      *   调用者必须确保 aStartIndex 和 aCount 参数的有效性, 否则可能导致程序崩溃.
      *   回调 `aComparer` 应在第一个元素小于第二个元素时返回负值, 相等时返回 0, 大于时返回正值.
      *   排序算法为稳定的快速排序, 平均时间复杂度为 O(n log n).
@@ -2657,7 +2657,7 @@ type
      *
      * @remark
      *   **UnChecked 统一约定：** 不进行参数/边界/空指针检查；调用方需保证前置条件。
-     *   详见 docs/UnChecked_Methods_Summary.md。
+     *   详见 docs/collections/guides/UnChecked_Methods_Summary.md。
      *   调用者必须确保 aStartIndex 和 aCount 参数的有效性, 否则可能导致程序崩溃.
      *   回调 `aComparer` 应在第一个元素小于第二个元素时返回负值, 相等时返回 0, 大于时返回正值.
      *   排序算法为稳定的快速排序, 平均时间复杂度为 O(n log n).
@@ -6783,7 +6783,7 @@ end;
   { UnChecked 统一约定：
     - 不进行参数/边界/空指针检查；调用方需保证前置条件
     - open array 版本要求 aSrc 非空，否则 @aSrc[0] 未定义
-    - 详见 docs/UnChecked_Methods_Summary.md }
+    - 详见 docs/collections/guides/UnChecked_Methods_Summary.md }
 
 procedure TArray.OverWriteUnChecked(aIndex: SizeUInt; const aSrc: array of T);
 begin

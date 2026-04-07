@@ -61,7 +61,7 @@ end.
 - 指针重载注意事项：
   - OverWrite/Read 的指针版本要求指针对齐到元素大小；当源/目的与自身内存重叠时，内部会自动选择安全路径。
   - 传入的外部内存区域必须已分配且足够大；调用方负责其生命周期。
-- UnChecked 统一约定（简版）：不做边界/空指针/重叠等检查，仅用于性能敏感且已验证参数合法的路径。详见 docs/UnChecked_Methods_Summary.md。
+- UnChecked 统一约定（简版）：不做边界/空指针/重叠等检查，仅用于性能敏感且已验证参数合法的路径。详见 docs/collections/guides/UnChecked_Methods_Summary.md。
 
 
 ## 与 Vec/VecDeque 的关系
@@ -85,7 +85,7 @@ end.
 
 ## 参考
 - 源码：src/fafafa.core.collections.arr.pas
-- UnChecked 契约：docs/UnChecked_Methods_Summary.md
+- UnChecked 契约：docs/collections/guides/UnChecked_Methods_Summary.md
 - 增长策略（供 Vec 参考）：src/fafafa.core.collections.base.pas
 - Best Practices（策略组合与对齐建议）：docs/partials/collections.best_practices.md
 

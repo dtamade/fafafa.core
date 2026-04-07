@@ -118,7 +118,7 @@
 - 已把 `examples/fafafa.core.benchmark/MULTITHREADED_USAGE.md` 收敛为当前补充页，只保留多线程入口、示例和验证路径，不再继续维持旧式“最佳实践大全”结构。
 - 已把 `examples/fafafa.core.benchmark/VALIDATION_REPORT.md` 收回为 `2025-08-07` 的历史验证快照，不再继续传播固定示例数、固定通过率和“生产就绪”结论。
 - `Phase 108` exit scan 已完成：`docs/topics/time/`、`docs/benchmarks/`、`docs/refactoring/time*`、`docs/designs/thread.md`、`tests/fafafa.core.time/*.md`、`examples/fafafa.core.benchmark/`、`examples/fafafa.core.thread/README.md` 范围内没有再发现新的 current-competitor 文档。
-- 剩余更可疑的 time 文档主要落在 generic 桶里，例如 `docs/audits/2025-10-02_time_module_comprehensive_audit.md`、`docs/reports/time/TIME_PRODUCTION_READINESS_REPORT.md`、`docs/reports/ISSUE-29-30-31-36-doc-fix-report.md`；这些更适合并入 `Phase 110` 的 residual sweep，而不是继续留在 `Phase 108`。
+- 剩余更可疑的 time 文档主要落在 generic 桶里，例如 `docs/audits/2025-10-02_time_module_comprehensive_audit.md`、`docs/reports/time/TIME_PRODUCTION_READINESS_REPORT.md`、`archive/reports/docs-root/ISSUE-29-30-31-36-doc-fix-report.md`；这些更适合并入 `Phase 110` 的 residual sweep，而不是继续留在 `Phase 108`。
 - 因此，`Phase 108` 可以视为完成，下一步转入 `Phase 109` 的 `fs / mem / lockfree / term` 域收口。
 
 ## Phase 109: FS, Mem, Lockfree, Term
@@ -162,7 +162,7 @@
 当前批次进展：
 
 - 已把 `docs/audits/2025-10-02_time_module_comprehensive_audit.md` 改写为 `time` 域历史审计快照。
-- 已把 `docs/reports/ISSUE-29-30-31-36-doc-fix-report.md` 改写为 `time.format` / `time.parse` 的历史文档修补快照。
+- 已把 `archive/reports/docs-root/ISSUE-29-30-31-36-doc-fix-report.md` 改写为 `time.format` / `time.parse` 的历史文档修补快照。
 - 已把 `docs/patches/fafafa.core.term.doc_patch.draft.md` 改写为 `term` 域历史 patch 草案。
 - 已复核 `docs/reports/time/TIME_PRODUCTION_READINESS_REPORT.md`，确认它当前已经符合历史生产评估快照定位，因此本阶段不再重复改写。
 - 因此，`Phase 110` 已完成；最后一批 generic/错位文档已回退到补充或历史层，不再与当前根入口竞争。
