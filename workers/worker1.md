@@ -7,8 +7,8 @@
 - Worktree: `/home/dtamade/projects/fafafa.core/.claude/worktrees/l0-main-promotion-20260407`
 - Base commit: `d5187ea4`
 - Current focus:
-  - 收掉根目录已无入口、且已被正式 sync examples/tests 覆盖的孤儿 scratch 程序
-  - 把已经 merge 的 L0 rescue split closeout 从 `backlog` / worker current-entry 中切到完成态
+  - 收掉 `tests/fafafa.core.sync.barrier/` 下已跟踪的运行输出文件，并补目录级忽略规则
+  - 维持 merge 后的 current-entry 对齐，不让 `backlog` / worker 状态重新漂回旧分支语义
   - 继续守住 strict L0 边界，不混入 SIMD 实现线
 - Source of truth:
   - `docs/fafafa.core.l0.foundation.md`
@@ -27,11 +27,15 @@
   - 结果：PASS（保留现有 upstream warnings/hints，不构成本批 blocker）
   - `./tools/lazbuild.sh --build-all examples/fafafa.core.sync/example_condvar.lpi`
   - 结果：PASS（存在既有 sync warnings/hints，不构成本批 blocker）
+  - `bash tests/fafafa.core.sync.barrier/BuildOrTest.sh test`
+  - 结果：PASS，`42/42`
+  - `git check-ignore -v --no-index tests/fafafa.core.sync.barrier/{all_test_output.txt,barrier_heaptrc_full_output.txt,barrier_heaptrc_output.txt,global_test_output.txt,ibarrier_test_output.txt,test_output.txt}`
+  - 结果：PASS（全部命中 `tests/fafafa.core.sync.barrier/.gitignore`）
 - Risks / blockers:
   - 根目录 `main` 工作树仍然是用户脏状态，不能直接作为执行面
   - SIMD-only 残留仍需要由对应 owner 接手，L0 这里只保留边界与 handoff 说明
   - Layer0/Layer1 的大批量失败矩阵不应借这条 root-cleanup 支线一起扩张
 - Next step:
-  - 完成 root orphan scratch 清理并验证正式 sync example/test 入口仍可直接执行
-  - 再决定是否继续拆下一批 root/doc hygiene 尾项
+  - 完成 `sync.barrier` 运行输出去追踪并验证 barrier 正式 runner 不受影响
+  - 再决定是否继续拆下一批 tests/examples 运行产物尾项
 - Last updated: `2026-04-08`
