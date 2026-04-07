@@ -12,6 +12,7 @@
 - `workerN.md` 只写当前有效信息，不写长篇历史；历史细节继续放各自模块的计划/进度文件
 - 开始接手一个工作流时先创建或更新自己的 worker 文件
 - 负责人、分支、worktree、当前状态、验证命令、下一步必须写清楚
+- `Source of truth` 优先指向稳定文档（`docs/plans/`、`docs/audits/`、模块主文档）；不要再把主线根目录 scratch log 当作 current truth
 
 建议模板：
 
@@ -35,6 +36,5 @@
 说明：
 - `Scope` 写当前负责的模块或子系统
 - `Status` 建议使用：`active` / `blocked` / `handoff-ready` / `done`
-- `Source of truth` 写该 worker 主要维护的计划/进度文件
+- `Source of truth` 写该 worker 当前依赖的稳定入口文档
 - `Fresh verification` 只记录最近一轮真正执行过的命令和结果
-

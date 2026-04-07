@@ -1,23 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-cd "$(dirname "${BASH_SOURCE[0]}")"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+cd "${SCRIPT_DIR}"
 
 ACTION="${1:-run}"
-LAZBUILD_BIN="${LAZBUILD:-lazbuild}"
-
-if ! command -v "${LAZBUILD_BIN}" >/dev/null 2>&1; then
-  echo "[ERROR] lazbuild not found in PATH" >&2
-  exit 1
-fi
-
-# Deterministic outputs
-rm -rf ./bin ./lib/*-*/
-mkdir -p ./bin ./lib
-
-echo "=== Building fafafa.core.atomic Examples ==="
-echo
-
+TOOLS_LAZBUILD="${REPO_ROOT}/tools/lazbuild.sh"
 EXAMPLES=(
   "example_basic_operations"
   "example_producer_consumer"
@@ -25,16 +14,48 @@ EXAMPLES=(
   "example_thread_counter"
 )
 
-for example in "${EXAMPLES[@]}"; do
-  echo "[BUILD] ${LAZBUILD_BIN} --build-mode=Release ${example}.lpi"
-  "${LAZBUILD_BIN}" --build-mode=Release "${example}.lpi"
-done
+resolve_lazbuild() {
+  if [[ -n "${LAZBUILD:-}" ]]; then
+    echo "${LAZBUILD}"
+    return 0
+  fi
 
-echo
-echo "=== All examples built successfully! ==="
-echo
+  if [[ -x "${TOOLS_LAZBUILD}" ]]; then
+    echo "${TOOLS_LAZBUILD}"
+    return 0
+  fi
 
-if [[ "${ACTION}" == "run" ]]; then
+  if command -v lazbuild >/dev/null 2>&1; then
+    command -v lazbuild
+    return 0
+  fi
+
+  echo "[ERROR] lazbuild not found (expected ${TOOLS_LAZBUILD} or lazbuild in PATH)" >&2
+  exit 127
+}
+
+build_examples() {
+  local LLazbuild
+  local example
+
+  LLazbuild="$(resolve_lazbuild)"
+  rm -rf ./bin ./lib/*-*/
+  mkdir -p ./bin ./lib
+
+  echo "=== Building fafafa.core.atomic Examples ==="
+  echo
+
+  for example in "${EXAMPLES[@]}"; do
+    echo "[BUILD] ${LLazbuild} --build-mode=Release ${example}.lpi"
+    "${LLazbuild}" --build-mode=Release "${example}.lpi"
+  done
+
+  echo
+  echo "=== All examples built successfully! ==="
+  echo
+}
+
+run_examples() {
   echo "=== Running Examples ==="
   echo
 
@@ -51,10 +72,18 @@ if [[ "${ACTION}" == "run" ]]; then
       echo "[WARN] Executable not found: bin/${example}[.exe]" >&2
     fi
   done
-else
-  echo "[INFO] Build-only mode (${ACTION})"
-  echo "You can run the examples manually:"
-  for example in "${EXAMPLES[@]}"; do
-    echo "  ./bin/${example}"
-  done
-fi
+}
+
+case "${ACTION}" in
+  build)
+    build_examples
+    ;;
+  run)
+    build_examples
+    run_examples
+    ;;
+  *)
+    echo "Usage: $0 [build|run]" >&2
+    exit 2
+    ;;
+esac

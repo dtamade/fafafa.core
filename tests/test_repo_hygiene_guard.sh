@@ -4,7 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CHECKER="${SCRIPT_DIR}/check_repo_hygiene.sh"
 
-if [[ ! -f "${CHECKER}" ]]; then
+if [[ ! -x "${CHECKER}" ]]; then
   echo "[FAIL] missing checker: ${CHECKER}" >&2
   exit 1
 fi
@@ -16,13 +16,13 @@ CLEAN_REPO="${TMPDIR_ROOT}/clean-repo"
 DIRTY_REPO="${TMPDIR_ROOT}/dirty-repo"
 mkdir -p "${CLEAN_REPO}/src" "${DIRTY_REPO}/src"
 
-if ! bash "${CHECKER}" "${CLEAN_REPO}" >/dev/null; then
+if ! "${CHECKER}" "${CLEAN_REPO}" >/dev/null; then
   echo "[FAIL] clean repo should pass hygiene check" >&2
   exit 1
 fi
 
 touch "${DIRTY_REPO}/src/fake.ppu"
-if bash "${CHECKER}" "${DIRTY_REPO}" >/dev/null 2>&1; then
+if "${CHECKER}" "${DIRTY_REPO}" >/dev/null 2>&1; then
   echo "[FAIL] dirty repo should fail hygiene check" >&2
   exit 1
 fi

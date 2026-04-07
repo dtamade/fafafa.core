@@ -148,12 +148,12 @@ run_one() {
 echo "Running module test scripts under: $TESTS_ROOT"
 echo "Logs: $LOG_DIR"
 
-if [[ ! -f "${HYGIENE_CHECKER}" ]]; then
+if [[ ! -x "${HYGIENE_CHECKER}" ]]; then
   echo "[CHECK] Missing hygiene checker: ${HYGIENE_CHECKER}" >&2
   exit 2
 fi
 
-bash "${HYGIENE_CHECKER}" "${REPO_ROOT}"
+"${HYGIENE_CHECKER}" "${REPO_ROOT}"
 
 declare -a scripts
 

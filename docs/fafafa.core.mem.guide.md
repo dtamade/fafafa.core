@@ -80,6 +80,11 @@
 
 如果你同时还需要默认 RTL allocator 或 callback allocator 这类小 concrete backend，再额外使用 `fafafa.core.mem.allocator.foundation`。
 
+callback allocator 的 nil callback 行为跟随 `fafafa.core.contracts`：
+
+- 默认构建下，`CreateCallbackAllocator` / `TCallbackAllocator.Init` 会对 nil callback 抛 `EArgumentNil`
+- 若显式定义 `FAFAFA_CORE_NO_CONTRACTS`，这些前置条件检查退化为 no-op，不再承诺 friendly exception
+
 ## 当前推荐用法
 
 ### allocator contract + 小 concrete backend
@@ -167,6 +172,7 @@ end;
 - `fafafa.core.mem.interfaces` 当前是补充合同，不应替代对具体类行为的理解。
 - `fafafa.core.mem.allocator.base` 才是 strict L0 allocator contract。
 - `fafafa.core.mem.allocator.foundation` 只在需要 `GetRtlAllocator` / callback allocator 这类小 concrete backend 时引入；如果需要可选后端，再显式使用 `fafafa.core.mem.allocator`。
+- `NoContracts` 下不要把 broader mem test runner 当成完整回归；今天只把它当 allocator smoke。
 - `mimalloc` 相关模块属于可选集成，能否启用取决于当前环境和构建配置。
 - `mapped` / `shared memory` 相关旧示例仍可用于追背景，但今天的框架边界优先去 `fs` 域理解。
 
@@ -176,6 +182,10 @@ end;
 
 - Windows: `tests\\fafafa.core.mem\\BuildOrTest.bat test`
 - Linux/macOS: `bash tests/fafafa.core.mem/BuildOrTest.sh`
+- Windows（allocator NoContracts smoke）: `tests\\fafafa.core.mem\\BuildOrTest.bat test-no-contracts`
+- Linux/macOS（allocator NoContracts smoke）: `bash tests/fafafa.core.mem/BuildOrTest.sh test-no-contracts`
+- Windows（foundation NoContracts smoke）: `tests\\fafafa.core.mem.allocator.foundation\\BuildOrTest.bat test-no-contracts`
+- Linux/macOS（foundation NoContracts smoke）: `bash tests/fafafa.core.mem.allocator.foundation/BuildOrTest.sh test-no-contracts`
 
 示例入口：
 

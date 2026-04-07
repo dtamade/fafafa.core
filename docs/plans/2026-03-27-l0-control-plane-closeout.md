@@ -1,5 +1,10 @@
 # L0 Control-Plane Closeout Implementation Plan
 
+> Status: completed historical batch.
+>
+> 当前 follow-up 以 `docs/plans/2026-04-07-l0-rescue-split-closeout.md` 为准。
+> 本文中的 worker/worktree 说明只代表当时批次，不代表当前主线状态。
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** 补回主线 L0 路线图入口与协作控制面，收紧 backlog/worker 可见度，并清理可安全删除的源码树生成物。
@@ -18,7 +23,7 @@
 
 **Step 1: 回流缺失路线图**
 
-- 以 `l0-foundation` worktree 中现有 `docs/plans/2026-03-24-l0-docs-closeout-roadmap.md` 为来源，回流到主工作树同路径。
+- 以当时的 `l0-foundation` worktree 真相源为来源，回流 `docs/plans/2026-03-24-l0-docs-closeout-roadmap.md` 到主工作树。
 
 **Step 2: 校准索引口径**
 
@@ -41,7 +46,7 @@ rg -n "2026-03-24-l0-docs-closeout-roadmap" docs/INDEX.md docs/plans/2026-03-24-
 **Step 1: 补主线 L0 worker**
 
 - 新建 `workers/worker1.md`，明确 L0 owner、worktree、source-of-truth、当前状态与下一步。
-- 保留现有 `workers/worker0.md` 的 SIMD 职责，不混改。
+- 当时保留 SIMD worker 文件不混改；这条约束只适用于那一轮批次，不代表当前主线布局。
 
 **Step 2: 让 backlog 显式反映 L0 状态**
 

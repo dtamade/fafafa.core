@@ -1,6 +1,8 @@
 program example_base;
 
 {$mode objfpc}{$H+}
+{$IFDEF WINDOWS}{$CODEPAGE UTF8}{$ENDIF}
+{$I ../../src/fafafa.core.settings.inc}
 
 uses
   SysUtils,
@@ -30,38 +32,20 @@ end;
 
 procedure DemoTuple2;
 var
-  Pair1: TIntStrPair;
-  Pair2: TStrStrPair;
+  LPair1: TIntStrPair;
+  LPair2: TStrStrPair;
 begin
   WriteLn('=== TTuple2 泛型元组 ===');
   
   // 创建 Integer-String 元组
-  Pair1 := TIntStrPair.Create(42, 'hello');
-  WriteLn('Pair1.First: ', Pair1.First);
-  WriteLn('Pair1.Second: ', Pair1.Second);
+  LPair1 := TIntStrPair.Create(42, 'hello');
+  WriteLn('Pair1.First: ', LPair1.First);
+  WriteLn('Pair1.Second: ', LPair1.Second);
   
   // 创建 String-String 元组
-  Pair2 := TStrStrPair.Create('key', 'value');
-  WriteLn('Pair2.First: ', Pair2.First);
-  WriteLn('Pair2.Second: ', Pair2.Second);
-  WriteLn;
-end;
-
-procedure DemoXmlEscape;
-var
-  Input, Output: string;
-begin
-  WriteLn('=== XML 转义 ===');
-  
-  Input := '<div class="test">Hello & World</div>';
-  Output := XmlEscape(Input);
-  WriteLn('输入: ', Input);
-  WriteLn('输出: ', Output);
-  
-  Input := 'Tom & Jerry''s "Adventure"';
-  Output := XmlEscape(Input);
-  WriteLn('输入: ', Input);
-  WriteLn('输出: ', Output);
+  LPair2 := TStrStrPair.Create('key', 'value');
+  WriteLn('Pair2.First: ', LPair2.First);
+  WriteLn('Pair2.Second: ', LPair2.Second);
   WriteLn;
 end;
 
@@ -104,7 +88,6 @@ begin
   DemoVersion;
   DemoConstants;
   DemoTuple2;
-  DemoXmlEscape;
   DemoExceptions;
   
   WriteLn('示例程序完成!');

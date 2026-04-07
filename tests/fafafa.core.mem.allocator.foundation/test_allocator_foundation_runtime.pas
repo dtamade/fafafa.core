@@ -17,7 +17,7 @@ type
     procedure Test_GetRtlAllocator_ReallocNil_Allocates;
     procedure Test_GetRtlAllocator_ReallocZero_Frees;
     procedure Test_CreateCallbackAllocator_ForwardsCalls;
-    procedure Test_CreateCallbackAllocator_RejectsNilCallbacks;
+    procedure Test_CreateCallbackAllocator_NilCallbacks_FollowContractsPolicy;
   end;
 
 implementation
@@ -123,12 +123,23 @@ begin
   end;
 end;
 
-procedure TTestCase_AllocatorFoundationRuntime.Test_CreateCallbackAllocator_RejectsNilCallbacks;
+procedure TTestCase_AllocatorFoundationRuntime.Test_CreateCallbackAllocator_NilCallbacks_FollowContractsPolicy;
+var
+  LAllocator: TCallbackAllocator;
 begin
+  {$IFDEF FAFAFA_CORE_CONTRACTS}
   AssertException('CreateCallbackAllocator should reject nil callbacks', EArgumentNil, procedure
   begin
     CreateCallbackAllocator(nil, @RuntimeAllocMem, @RuntimeReallocMem, @RuntimeFreeMem).Free;
   end);
+  {$ELSE}
+  LAllocator := CreateCallbackAllocator(nil, @RuntimeAllocMem, @RuntimeReallocMem, @RuntimeFreeMem);
+  try
+    AssertNotNull('CreateCallbackAllocator should stay constructible when contracts are disabled', LAllocator);
+  finally
+    LAllocator.Free;
+  end;
+  {$ENDIF}
 end;
 
 initialization
