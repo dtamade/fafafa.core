@@ -1,56 +1,37 @@
 # worker1
 
 - Owner: Codex
-- Scope: strict non-SIMD L0 的 merged-main follow-up、rescue triage 与控制面清污
+- Scope: strict non-SIMD L0 的 post-merge tail cleanup 与 current-entry 校准
 - Status: `active`
-- Branch: `l0-main-followup-20260407`
+- Branch: `l0-main-tail-cleanup-20260408`
 - Worktree: `/home/dtamade/projects/fafafa.core/.claude/worktrees/l0-main-promotion-20260407`
-- Base commit: `7b5e9e7f`
+- Base commit: `d5187ea4`
 - Current focus:
-  - 维持 strict L0 在 merged main 上稳定，不回退到旧 promotion 分支
-  - 将 `l0-main-rescue` 拆成可审查的小批次，而不是整树合并
-  - 清理主线控制面噪音：根目录 working-log、过期索引指针、过期 worker 指针、root 历史报告
+  - 收掉根目录已无入口、且已被正式 sync examples/tests 覆盖的孤儿 scratch 程序
+  - 把已经 merge 的 L0 rescue split closeout 从 `backlog` / worker current-entry 中切到完成态
   - 继续守住 strict L0 边界，不混入 SIMD 实现线
 - Source of truth:
   - `docs/fafafa.core.l0.foundation.md`
   - `docs/audits/2026-04-07-l0-rescue-triage-audit.md`
   - `docs/plans/2026-04-07-l0-rescue-split-closeout.md`
   - `plans/archive/2026-04-07-mainline-working-set/README.md`
+  - `examples/fafafa.core.sync/README.md`
 - Fresh verification:
-  - `STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.base fafafa.core.contracts fafafa.core.bits fafafa.core.layout fafafa.core.endian fafafa.core.span fafafa.core.option fafafa.core.result fafafa.core.atomic fafafa.core.mem.allocator.foundation fafafa.core.platform`
-  - 结果：PASS，`11/11`
-  - `bash tests/fafafa.core.contracts/BuildOrTest.sh test-no-contracts`
+  - `./tests/test_repo_hygiene_guard.sh`
   - 结果：PASS
-  - `bash examples/fafafa.core.contracts/BuildOrRun.sh run`
+  - `STOP_ON_FAIL=1 ./tests/run_all_tests.sh fafafa.core.base`
+  - 结果：PASS，`1/1`
+  - `./examples/fafafa.core.base/BuildOrRun.sh build`
   - 结果：PASS
-  - `bash examples/fafafa.core.platform/BuildOrRun.sh run`
-  - 结果：PASS
-  - `bash examples/fafafa.core.atomic/BuildOrRun.sh build`
+  - `./examples/fafafa.core.atomic/BuildOrRun.sh build`
   - 结果：PASS（保留现有 upstream warnings/hints，不构成本批 blocker）
-  - `bash examples/fafafa.core.base/BuildOrRun.sh build`
-  - 结果：PASS
-  - `bash examples/fafafa.core.option/BuildOrRun.sh build`
-  - 结果：PASS
-  - `bash examples/fafafa.core.result/BuildOrRun.sh build`
-  - 结果：PASS
-  - `bash tests/fafafa.core.mem.allocator.foundation/BuildOrTest.sh test`
-  - 结果：PASS
-  - `bash tests/fafafa.core.mem.allocator.foundation/BuildOrTest.sh test-no-contracts`
-  - 结果：PASS
-  - `bash tests/fafafa.core.mem/BuildOrTest.sh test`
-  - 结果：PASS
-  - `bash tests/fafafa.core.mem/BuildOrTest.sh test-no-contracts`
-  - 结果：PASS
-  - `bash tests/fafafa.core.time.tick/BuildOrTest.sh test`
-  - 结果：PASS
-  - `git diff --check`
-  - 结果：PASS
+  - `./tools/lazbuild.sh --build-all examples/fafafa.core.sync/example_condvar.lpi`
+  - 结果：PASS（存在既有 sync warnings/hints，不构成本批 blocker）
 - Risks / blockers:
-  - 根目录 `main` 工作树仍然是用户脏状态且落后远端，不能直接作为执行面
-  - `l0-main-rescue` 仍混有大量 SIMD/CI/evidence 文件，不能 broad merge
+  - 根目录 `main` 工作树仍然是用户脏状态，不能直接作为执行面
   - SIMD-only 残留仍需要由对应 owner 接手，L0 这里只保留边界与 handoff 说明
+  - Layer0/Layer1 的大批量失败矩阵不应借这条 root-cleanup 支线一起扩张
 - Next step:
-  - 做最终 diff / verification 复核，确保当前批次可 review
-  - 保持 SIMD-only 残留只走 handoff，不通过 L0 线回流
-  - 等用户决定是合并这条 worktree，还是继续在此分支做下一轮非 SIMD 清污
-- Last updated: `2026-04-07`
+  - 完成 root orphan scratch 清理并验证正式 sync example/test 入口仍可直接执行
+  - 再决定是否继续拆下一批 root/doc hygiene 尾项
+- Last updated: `2026-04-08`

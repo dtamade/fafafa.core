@@ -9,8 +9,6 @@
 - 收尾：将执行镜像归档到 `plans/archive/YYYY-MM-DD-<topic>/`，并把稳定结论提升到 `docs/plans/`、`docs/audits/` 或 `workers/`
 
 ## Now（进行中）
-- [ ] **P0 / strict L0 rescue split closeout**：在 `PR #6` 合并后继续收口 L0 控制面，并把 `l0-main-rescue` 压回“只可拆批、不可整合并”的状态
-  进度：root working-log 清理、worker/index 刷新、root 历史报告归档、`tools/tests/docs`、`examples`、`mem/time` 三批非 SIMD rescue 拆批都已完成并各自补 fresh verification。当前只剩 merge-ready review 与 SIMD-only 残留 handoff，不再继续通过 L0 扩张范围。
 - [ ] **P0 / layer0+layer1+layer2 自主维护推进**：建立“每轮自主发现 1 个任务 + 完成 1 个子任务”的连续闭环机制（不中断）  
   进度：batch1 已完成“脚本入口规范化 + Layer2 首轮失败矩阵”；batch2 已完成“process/socket 编译阻断修复与回归路径打通”（`process` 编译通过，`socket` 编译通过）；当前状态：`yaml PASS`，`toml/xml` 仍为断言失败，`socket` 在本沙箱因禁网触发运行期失败。
 - [ ] **P0 / sync**：继续 Layer1 验证：修复 `Condvar` / `Barrier` / `Once` / `Spin` 并补回归  
@@ -32,6 +30,7 @@
 - [ ] CI 结构化输出（JUnit/JSON）统一化与稳定路径约定落地
 
 ## Done（已完成）
+- [x] 2026-04-08：strict L0 rescue split closeout 已通过 PR `#7` 合并到 `main`（root 控制面清污、non-SIMD rescue 拆批、SIMD handoff 边界固化）（PR：`https://github.com/dtamade/fafafa.core/pull/7`）
 - [x] 2026-02-07：layer0/layer1/layer2 自主维护推进 batch1（脚本入口规范化 + Layer2 首轮失败矩阵）（归档：`plans/archive/2026-02-07-layer012-autonomous-maintenance-batch1/`）
 - [x] 2026-02-07：layer0/layer1/layer2 自主维护推进 batch2（`process`/`socket` 编译阻断修复；`toml`/`xml` 失败类型分流；受限环境口径确认）（归档：`plans/archive/2026-02-07-layer012-autonomous-maintenance-batch2/`）
 - [x] 2026-02-06：`run_all_tests` runner 改进 + FS/SIMD 0 warnings/hints 回归 + 关键模块回归（归档：`plans/archive/2026-02-06-fafafa-core/`）
