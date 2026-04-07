@@ -7,7 +7,7 @@
 - Worktree: `/home/dtamade/projects/fafafa.core/.claude/worktrees/l0-main-promotion-20260407`
 - Base commit: `d5187ea4`
 - Current focus:
-  - 收掉 `tests/fafafa.core.fs/performance-data/` 下已跟踪的 latest/history 性能结果文件，并保留 baseline 类基线文件
+  - 收掉 `docs/collections/reports/`、`docs/benchmarks/reports/` 下阶段性 campaign 报告，把它们迁到 `archive/reports/`
   - 维持 merge 后的 current-entry 对齐，不让 `backlog` / worker 状态重新漂回旧分支语义
   - 继续守住 strict L0 边界，不混入 SIMD 实现线
 - Source of truth:
@@ -51,11 +51,15 @@
   - 结果：PASS（`latest` / 时间戳历史 / `perf_*_latest` 全部命中目录级 `.gitignore`）
   - `bash tests/fafafa.core.fs/BuildOrRunPerf.sh`
   - 结果：现存 CRLF 脚本格式问题导致 Linux shell 入口在 `set -euo pipefail` 处提前失败；本批不改脚本，仅清理已跟踪产物
+  - `rg -n "docs/collections/reports/|docs/benchmarks/reports/" -S docs archive --glob '!.git/**'`
+  - 结果：仅剩新建 README 指路页命中；外部活引用已切到 archive 路径
+  - `git diff --check`
+  - 结果：PASS
 - Risks / blockers:
   - 根目录 `main` 工作树仍然是用户脏状态，不能直接作为执行面
   - SIMD-only 残留仍需要由对应 owner 接手，L0 这里只保留边界与 handoff 说明
   - Layer0/Layer1 的大批量失败矩阵不应借这条 root-cleanup 支线一起扩张
 - Next step:
-  - 继续扫描 `tests/` 下剩余已跟踪运行残留（优先 `lockfree` 一类 summary/latest 聚合日志）
+  - 继续收口 `docs/reports/` 根下那批 dated fix/audit/verification 报告，优先拆掉互相引用最少的一组
   - 将 docs/report 归档与 tests/examples 生成物清理保持拆批，不混成大提交
 - Last updated: `2026-04-08`

@@ -78,10 +78,10 @@
 
 当前优先处理：
 
-- `docs/collections/reports/COLLECTIONS_100_PERCENT_COMPLETION_REPORT.md`
-- `docs/collections/reports/COLLECTIONS_CLEANUP_COMPLETION_REPORT.md`
-- `docs/collections/reports/COLLECTIONS_QUALITY_IMPROVEMENT_COMPLETION_REPORT.md`
-- `docs/collections/reports/COLLECTIONS_BUGFIX_WORK_SUMMARY.md`
+- `archive/reports/docs-collections/COLLECTIONS_100_PERCENT_COMPLETION_REPORT.md`
+- `archive/reports/docs-collections/COLLECTIONS_CLEANUP_COMPLETION_REPORT.md`
+- `archive/reports/docs-collections/COLLECTIONS_QUALITY_IMPROVEMENT_COMPLETION_REPORT.md`
+- `archive/reports/docs-collections/COLLECTIONS_BUGFIX_WORK_SUMMARY.md`
 - `docs/collections/reviews/COLLECTIONS_API_CONSISTENCY_REVIEW_2025-11-03.md`
 - `docs/collections/reviews/COLLECTIONS_CODE_QUALITY_REVIEW_2025-11-03.md`
 - `docs/collections/plans/COLLECTIONS_NEW_CONTAINERS_PLAN_2025-11-03.md`

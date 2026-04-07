@@ -92,3 +92,4 @@
 - term 领域的旧 guide、报告和计划文档已归位到 `docs/term/`。
 - simd 领域的专题 guide、计划、报告和 closeout/handoff 文档已归位到 `docs/simd/`。
 - 已完成的根目录修复报告已迁移到 `archive/reports/`。
+- collections / benchmarks 的阶段性 campaign 报告已迁移到 `archive/reports/docs-collections/` 与 `archive/reports/docs-benchmarks/`；原目录只保留归档指路页。

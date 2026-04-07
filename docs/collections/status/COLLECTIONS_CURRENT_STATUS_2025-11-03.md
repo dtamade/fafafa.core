@@ -26,7 +26,7 @@
 
 ### 1. 质量改进（2025-10-28）
 
-根据 `COLLECTIONS_QUALITY_IMPROVEMENT_COMPLETION_REPORT.md`：
+根据 `archive/reports/docs-collections/COLLECTIONS_QUALITY_IMPROVEMENT_COMPLETION_REPORT.md`：
 
 #### Plan 1: 性能基准测试框架 ✅
 - HashMap vs TreeMap vs LinkedHashMap 全面对比
@@ -402,8 +402,8 @@ TAllocator / TRtlAllocator / TCrtAllocator / TCallbackAllocator
 - `docs/TESTING.md` - 测试指南
 
 ### Collections 专项文档
-- `COLLECTIONS_QUALITY_IMPROVEMENT_COMPLETION_REPORT.md` - 质量改进完成报告
-- `COLLECTIONS_PERFORMANCE_ANALYSIS.md` - 性能分析
+- `archive/reports/docs-collections/COLLECTIONS_QUALITY_IMPROVEMENT_COMPLETION_REPORT.md` - 质量改进完成报告
+- `archive/reports/docs-collections/COLLECTIONS_PERFORMANCE_ANALYSIS.md` - 性能分析
 - `COLLECTIONS_DECISION_TREE.md` - 容器选择决策树
 - `COLLECTIONS_REFINEMENT_PLAN.md` - 完善计划（本次制定）
 - `HASHMAP_HEAPTRC_REPORT.md` - HashMap 内存验证报告

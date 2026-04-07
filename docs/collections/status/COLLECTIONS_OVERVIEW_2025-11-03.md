@@ -334,12 +334,12 @@ fafafa.core.mem.allocator.crtAllocator
 ### 分析类文档
 
 - **`COLLECTIONS_CODE_QUALITY_REVIEW_2025-11-03.md`** - 代码质量审查
-- **`COLLECTIONS_PERFORMANCE_ANALYSIS.md`** - 性能分析（已存在）
+- **`archive/reports/docs-collections/COLLECTIONS_PERFORMANCE_ANALYSIS.md`** - 性能分析（历史归档）
 - **`COLLECTIONS_DECISION_TREE.md`** - 容器选择决策树（已存在）
 
 ### 报告类文档
 
-- **`COLLECTIONS_QUALITY_IMPROVEMENT_COMPLETION_REPORT.md`** - 质量改进报告（已存在）
+- **`archive/reports/docs-collections/COLLECTIONS_QUALITY_IMPROVEMENT_COMPLETION_REPORT.md`** - 质量改进报告（历史归档）
 - **`HASHMAP_HEAPTRC_REPORT.md`** - HashMap内存验证（已存在）
 
 ### 测试类文件

@@ -12,7 +12,7 @@
 
 1. **测试覆盖**: 25个测试模块全部通过（100% pass rate）
 2. **性能基准**: HashMap/LinkedHashMap/TreeMap 性能对比完成
-3. **质量文档**: `COLLECTIONS_QUALITY_IMPROVEMENT_COMPLETION_REPORT.md` 已完成
+3. **质量文档**: `archive/reports/docs-collections/COLLECTIONS_QUALITY_IMPROVEMENT_COMPLETION_REPORT.md` 已完成
 4. **示例代码**: 12个实用示例覆盖主要使用场景
 5. **决策树**: `COLLECTIONS_DECISION_TREE.md` 帮助用户选择容器
 
@@ -397,7 +397,7 @@ procedure PushBack(const AValue: T);
 - `docs/TESTING.md` - 测试指南
 - `docs/Architecture.md` - 架构设计
 - `docs/COLLECTIONS_DECISION_TREE.md` - 容器选择指南
-- `docs/COLLECTIONS_QUALITY_IMPROVEMENT_COMPLETION_REPORT.md` - 已完成工作
+- `archive/reports/docs-collections/COLLECTIONS_QUALITY_IMPROVEMENT_COMPLETION_REPORT.md` - 已完成工作
 - `CLAUDE.md` - 项目开发指南
 
 ---

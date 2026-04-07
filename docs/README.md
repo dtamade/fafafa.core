@@ -21,6 +21,7 @@
 - **ADR**：`docs/adr/`
 - **可复用片段**：`docs/partials/`
 - **执行日志 / scratch 计划**：不要长期留在仓库根目录；需要入库时，直接归档到 `plans/archive/`，稳定结论再提升到 `docs/plans/` 或 `docs/audits/`
+- **已过时的阶段性 campaign 报告**：优先归档到 `archive/reports/`，不要继续堆在 `docs/` 的主视图目录
 
 > 目标：`docs/` 根目录只保留“长期有效”的入口与模块文档，过程性文档集中到子目录，避免越堆越乱。
 
