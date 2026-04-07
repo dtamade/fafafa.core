@@ -11,7 +11,6 @@ interface
 
 uses
   SysUtils,
-  fafafa.core.mem.allocator,
   fafafa.core.json.core,
   fafafa.core.json; // 引入门面，供接口别名使用
 
@@ -32,10 +31,29 @@ type
   // 异常别名（如有历史代码引用）
   EJsonParseError = fafafa.core.json.EJsonParseError;
 
+const
+  // 继续对外暴露 flags 枚举值，避免历史代码在 uses alias 层时丢失常量名
+  jrfDefault = fafafa.core.json.core.jrfDefault;
+  jrfAllowComments = fafafa.core.json.core.jrfAllowComments;
+  jrfAllowTrailingCommas = fafafa.core.json.core.jrfAllowTrailingCommas;
+  jrfAllowInfAndNan = fafafa.core.json.core.jrfAllowInfAndNan;
+  jrfNumberAsRaw = fafafa.core.json.core.jrfNumberAsRaw;
+  jrfBignumAsRaw = fafafa.core.json.core.jrfBignumAsRaw;
+  jrfAllowInvalidUnicode = fafafa.core.json.core.jrfAllowInvalidUnicode;
+  jrfAllowBOM = fafafa.core.json.core.jrfAllowBOM;
+  jrfStopWhenDone = fafafa.core.json.core.jrfStopWhenDone;
 
-  // 额外导出 UTF-8 友好的字符串 API
-  function JsonGetStrUtf8(AVal: PJsonValue): UTF8String; inline; export name 'JsonGetStrUtf8';
-  function JsonEqualsStrUtf8(AVal: PJsonValue; const S: UTF8String): Boolean; inline; export name 'JsonEqualsStrUtf8';
+  jwfDefault = fafafa.core.json.core.jwfDefault;
+  jwfPretty = fafafa.core.json.core.jwfPretty;
+  jwfEscapeUnicode = fafafa.core.json.core.jwfEscapeUnicode;
+  jwfEscapeSlashes = fafafa.core.json.core.jwfEscapeSlashes;
+  jwfAllowInfAndNan = fafafa.core.json.core.jwfAllowInfAndNan;
+  jwfInfAndNanAsNull = fafafa.core.json.core.jwfInfAndNanAsNull;
+  jwfAllowInvalidUnicode = fafafa.core.json.core.jwfAllowInvalidUnicode;
+
+  // 额外暴露 UTF-8 友好的字符串 API
+  function JsonGetStrUtf8(AVal: PJsonValue): UTF8String; inline;
+  function JsonEqualsStrUtf8(AVal: PJsonValue; const S: UTF8String): Boolean; inline;
 
 // 工厂与便捷函数请直接 uses fafafa.core.json 调用
 

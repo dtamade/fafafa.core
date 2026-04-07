@@ -10,7 +10,7 @@
   - 收掉 `docs/` 根下最后一批 non-SIMD 历史状态/总结/实施文档，并把它们迁到 `archive/reports/docs-root/`
   - 继续把 `benchmark v2` 这类历史完成总结从根层下沉到 archive，避免和当前模块入口竞争
   - 把 still-current 的实现说明从 `docs/` 根层归位到对应主题目录，而不是继续堆在根层
-  - 收口 `tests/` 与 `examples/benchmarks` 侧活跃 shell runner 的 LF/语法/默认 build mode 合同，并把回归接进稳定 guard
+  - 继续沿 non-SIMD examples 工程清理 alias/runner/source drift，优先做可小步闭环的 example contract 收口
   - 继续守住 strict L0 边界，不混入 SIMD 实现线
 - Source of truth:
   - `docs/fafafa.core.l0.foundation.md`
@@ -102,17 +102,16 @@
   - `bash examples/fafafa.core.json/BuildOrRun_Min.sh`
   - 结果：PASS；`example_reader_flags` / `example_stop_when_done` 的 Linux `.lpi` 路径已修正，fresh build+run 成功
   - `bash examples/fafafa.core.json/BuildOrRun.sh`
-  - 结果：FAIL，但已越过旧的 `.lpi` 读取损坏与 runner build-mode 问题；当前真实 blocker 收敛为 `example_json.lpr` 对 `JsonArrIterInit/JsonObjIterInit` 的 API 漂移调用以及缺失 `GetRtlAllocator`
+  - 结果：PASS；`example_json.lpr` 已对齐当前 iterator API，并补齐 `GetRtlAllocator`
   - `bash examples/fafafa.core.json/BuildOrRun_NoExcept.sh`
-  - 结果：FAIL；runner 与 `.lpi` 路径合同已收口，当前真实 blocker 收敛为 `src/fafafa.core.json.interfaces.pas(37)` 的 `export inline` 语法冲突
+  - 结果：PASS；`fafafa.core.json.interfaces` 已去掉不合法的 `export` 并补齐 flags alias，`noexcept` example 可 fresh build+run
   - `bash examples/fafafa.core.json/BuildOrRun_NoExcept_Writer.sh`
-  - 结果：FAIL；与 `BuildOrRun_NoExcept.sh` 同源，当前真实 blocker 同样是 `src/fafafa.core.json.interfaces.pas(37)` 的 `export inline` 语法冲突
+  - 结果：PASS；与 `BuildOrRun_NoExcept.sh` 同源问题已闭环，writer example 可 fresh build+run
 - Risks / blockers:
   - 根目录 `main` 工作树仍然是用户脏状态，不能直接作为执行面
   - SIMD-only 残留仍需要由对应 owner 接手，L0 这里只保留边界与 handoff 说明
   - Layer0/Layer1 的大批量失败矩阵不应借这条 root-cleanup 支线一起扩张
-  - `examples/fafafa.core.json` 已不再是 runner hygiene 问题，剩余阻塞是源代码/API drift，需要单独拆批处理
 - Next step:
-  - 把 `examples/` / `benchmarks/` runner hygiene 这批收成独立提交并推送
-  - 单独拆 `examples/fafafa.core.json` 的 source-level blocker：先修 `example_json.lpr` API 漂移，再处理 `fafafa.core.json.interfaces.pas` 的 `export inline` 语法冲突
+  - 把 `examples/fafafa.core.json` 这批 source-level drift 修复收成独立提交并推送
+  - 继续沿 `examples/` 目录筛下一批 non-SIMD 的小步闭环目标，优先 alias/runner/source 轻量漂移，不扩张到 SIMD
 - Last updated: `2026-04-08`
