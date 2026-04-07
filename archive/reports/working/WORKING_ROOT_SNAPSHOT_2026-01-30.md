@@ -131,8 +131,8 @@
 
 ## 相关文档
 
-- `docs/reports/LAYER1_GATE0_SESSION_2026-01-30.md` - Gate 0 会话报告
-- `docs/reports/LAYER1_VERIFICATION_2026-01-30.md` - Layer 1 验证报告
+- `archive/reports/docs-root/LAYER1_GATE0_SESSION_2026-01-30.md` - Gate 0 会话报告
+- `archive/reports/docs-root/LAYER1_VERIFICATION_2026-01-30.md` - Layer 1 验证报告
 - `docs/MUTEX_IMPLEMENTATION.md` - Mutex 实现文档
 
 ---

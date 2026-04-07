@@ -393,7 +393,7 @@ Fatal: Syntax error, "class" expected but "identifier CLASS" found
 **文档**:
 - `docs/MUTEX_IMPLEMENTATION.md`
 - `docs/fafafa.core.sync.mutex.md`
-- `docs/reports/LAYER1_GATE0_SESSION_2026-01-30.md`
+- `archive/reports/docs-root/LAYER1_GATE0_SESSION_2026-01-30.md`
 
 ---
 

@@ -7,7 +7,7 @@
 - Worktree: `/home/dtamade/projects/fafafa.core/.claude/worktrees/l0-main-promotion-20260407`
 - Base commit: `d5187ea4`
 - Current focus:
-  - 收掉 `docs/reports/` 根下无活引用的 dated fix/checkpoint 报告，把它们迁到 `archive/reports/docs-root/`
+  - 收掉 `docs/reports/` 根下无活引用或仅历史互引的 dated fix/checkpoint/verification 报告，把它们迁到 `archive/reports/docs-root/`
   - 维持 merge 后的 current-entry 对齐，不让 `backlog` / worker 状态重新漂回旧分支语义
   - 继续守住 strict L0 边界，不混入 SIMD 实现线
 - Source of truth:
@@ -57,11 +57,13 @@
   - 结果：PASS
   - `rg -n "archive/reports/docs-root/|docs/reports/" -S docs archive --glob '!.git/**'`
   - 结果：PASS（本批迁走的 6 份 dated fix/checkpoint 报告已切到 `archive/reports/docs-root/`；未发现除当前状态记录外的旧路径活引用）
+  - `rg -n "archive/reports/docs-root/LAYER1_|archive/reports/docs-root/SYNC_PRODUCTION_READINESS_REPORT|docs/reports/LAYER1_|docs/reports/SYNC_PRODUCTION_READINESS_REPORT" -S . --glob '!.git/**'`
+  - 结果：仅保留 archive 路径命中；旧 `docs/reports/` 路径已从活引用中移除
 - Risks / blockers:
   - 根目录 `main` 工作树仍然是用户脏状态，不能直接作为执行面
   - SIMD-only 残留仍需要由对应 owner 接手，L0 这里只保留边界与 handoff 说明
   - Layer0/Layer1 的大批量失败矩阵不应借这条 root-cleanup 支线一起扩张
 - Next step:
-  - 继续收口 `docs/reports/` 根下剩余 dated fix/audit/verification 报告，优先拆掉 `ISSUE-1-2` / `ISSUE-29-30-31-36` 以外互引更轻的一组
+  - 继续收口 `docs/reports/` 根下剩余 dated audit/report 报告，重点评估 `PRE_PRODUCTION_AUDIT_2025_01_10.md` / `VEC_PRODUCTION_AUDIT_2025_01_10.md` 与 time 文档链是否值得整组迁档
   - 将 docs/report 归档与 tests/examples 生成物清理保持拆批，不混成大提交
 - Last updated: `2026-04-08`
