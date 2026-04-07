@@ -23,7 +23,8 @@
   - `Test_fafafa.core.atomic.compat.contract.pas`
 - 支持材料
   - `VerifyMultiArchDocker.sh`
-  - `atomic_heaptrc_full_output.txt`
+- 运行期产物
+  - `logs/` 下的 build/test 日志与 heaptrc 输出仅用于本地验证，不纳入版本库
 
 ## 当前推荐入口
 

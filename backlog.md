@@ -14,7 +14,7 @@
 - [ ] **P0 / sync**：继续 Layer1 验证：修复 `Condvar` / `Barrier` / `Once` / `Spin` 并补回归  
   进度：`tests/fafafa.core.sync` 在 `FAFAFA_FORCE_NAMED_SYNC_TESTS=1` 下全链路 `46/46 PASS`；`parkinglot` 性能断言抗抖已加；`named*` 在 `/dev/shm` 不可写环境自动 `SKIP`（可强制运行）
 - [ ] **P1 / repo**：梳理并最小化“运行产物进入版本库”的风险（例如已跟踪的 logs/reports）  
-  进度：已完成八批清理，累计去追踪 **601** 项（`tests/` 67 + `examples/` 147 + `bin/` 2 + `reference/lockfree-develop` 53 + `reference/xxHash-dev` 89 + `reference/DCPcrypt` 92 + `reference/tomlc99-master` 151），并补充 `.gitignore` 防回潮；本轮已摘掉 `tests/fafafa.core.sync.barrier/` 下 6 个已跟踪运行输出文件，并补目录级忽略规则。
+  进度：已完成十批清理，累计去追踪 **610** 项（`tests/` 76 + `examples/` 147 + `bin/` 2 + `reference/lockfree-develop` 53 + `reference/xxHash-dev` 89 + `reference/DCPcrypt` 92 + `reference/tomlc99-master` 151），并补充 `.gitignore` 防回潮；最近两批已摘掉 `tests/fafafa.core.sync.barrier/` 下 6 个已跟踪运行输出，以及 `tests/fafafa.core.atomic/`、`tests/fafafa.core.mem.manager.rtl/` 下 3 个已跟踪生成物。
 
 ## Next（下一步）
 - [ ] **P0 / layer0+layer1+layer2 自主维护推进（batch3）**：按“公共根因优先”拆解 `toml` 断言失败并做最小修复
