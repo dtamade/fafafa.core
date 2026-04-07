@@ -10,6 +10,7 @@
   - 收掉 `docs/` 根下最后一批 non-SIMD 历史状态/总结/实施文档，并把它们迁到 `archive/reports/docs-root/`
   - 继续把 `benchmark v2` 这类历史完成总结从根层下沉到 archive，避免和当前模块入口竞争
   - 把 still-current 的实现说明从 `docs/` 根层归位到对应主题目录，而不是继续堆在根层
+  - 修掉 Linux shell runner 的 CRLF 语法炸点，把回归接进稳定 guard
   - 继续守住 strict L0 边界，不混入 SIMD 实现线
 - Source of truth:
   - `docs/fafafa.core.l0.foundation.md`
@@ -80,11 +81,17 @@
   - 结果：迁移前仅命中文档自引用；可安全下沉
   - `rg -n "docs/MUTEX_IMPLEMENTATION\\.md|MUTEX_IMPLEMENTATION\\.md" . --glob '!.git/**'`
   - 结果：唯一活引用在 `examples/fafafa.core.sync.mutex/example_performance_comparison.lpr`；其余命中都在 archive 历史材料
+  - `bash tests/test_fs_perf_shell_scripts.sh`
+  - 结果：首跑 FAIL，`BuildOrRunPerf.sh` 因 `\r` 行尾在 `bash -n` 下报语法错误；修复后 PASS
+  - `file tests/fafafa.core.fs/*.sh`
+  - 结果：`ArchivePerfResult.sh`、`BuildOrRunPerf.sh`、`BuildOrRunPerfAll.sh`、`BuildOrRunResolvePerf.sh` 都已不再带 CRLF 行尾
+  - `bash tests/fafafa.core.fs/BuildOrRunPerf.sh`
+  - 结果：PASS；已能正常编译并执行 benchmark，不再在 `set -euo pipefail` 处提前失败
 - Risks / blockers:
   - 根目录 `main` 工作树仍然是用户脏状态，不能直接作为执行面
   - SIMD-only 残留仍需要由对应 owner 接手，L0 这里只保留边界与 handoff 说明
   - Layer0/Layer1 的大批量失败矩阵不应借这条 root-cleanup 支线一起扩张
 - Next step:
-  - 为 `MUTEX_IMPLEMENTATION` 归位这批 follow-up 跑 fresh verification，并在通过后收成独立提交
+  - 为 `fs` perf shell runner 这批 follow-up 收成独立提交
   - 若继续推进 tail cleanup，优先处理脚本 hygiene / current-entry runner 合同，而不是再碰 SIMD 文档
 - Last updated: `2026-04-08`
