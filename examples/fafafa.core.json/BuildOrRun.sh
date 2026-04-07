@@ -6,7 +6,7 @@ PROJECT="$SCRIPT_DIR/example_json.lpr"
 BIN_DIR="$SCRIPT_DIR/bin"
 mkdir -p "$BIN_DIR"
 
-echo "[BUILD] $PROJECT"; "$LAZBUILD" "$PROJECT" --bm=Debug --ws=nogui || { echo "[BUILD] FAILED $PROJECT"; exit 1; }
+echo "[BUILD] $PROJECT"; "$LAZBUILD" "$PROJECT" --ws=nogui || { echo "[BUILD] FAILED $PROJECT"; exit 1; }
 
 EXE="$BIN_DIR/example_json"
 if [[ -x "$EXE" || -f "$EXE" ]]; then
@@ -15,4 +15,3 @@ if [[ -x "$EXE" || -f "$EXE" ]]; then
 else
   echo "[RUN] NOT_FOUND $EXE"; exit 1
 fi
-

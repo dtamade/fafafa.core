@@ -27,9 +27,9 @@
       <Filename Value="bin/example_reader_flags"/>
     </Target>
     <SearchPaths>
-      <IncludeFiles Value="..\..\src;lib\$(TargetCPU)-$(TargetOS)"/>
-      <OtherUnitFiles Value="..\..\src"/>
-      <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+      <IncludeFiles Value="../../src;lib/$(TargetCPU)-$(TargetOS)"/>
+      <OtherUnitFiles Value="../../src"/>
+      <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Parsing>
       <SyntaxOptions>

@@ -10,7 +10,7 @@
   - 收掉 `docs/` 根下最后一批 non-SIMD 历史状态/总结/实施文档，并把它们迁到 `archive/reports/docs-root/`
   - 继续把 `benchmark v2` 这类历史完成总结从根层下沉到 archive，避免和当前模块入口竞争
   - 把 still-current 的实现说明从 `docs/` 根层归位到对应主题目录，而不是继续堆在根层
-  - 收口 `tests/` 侧活跃 shell runner 的 LF/语法/默认 build mode 合同，并把回归接进稳定 guard
+  - 收口 `tests/` 与 `examples/benchmarks` 侧活跃 shell runner 的 LF/语法/默认 build mode 合同，并把回归接进稳定 guard
   - 继续守住 strict L0 边界，不混入 SIMD 实现线
 - Source of truth:
   - `docs/fafafa.core.l0.foundation.md`
@@ -95,11 +95,24 @@
   - 结果：PASS（已统一串起 fs perf / active test runners / socket smoke 三条守卫）
   - `bash tests/fafafa.core.socket/smoke.sh`
   - 结果：PASS；fresh 实跑已越过旧的 `Error: invalid build mode "Debug"` 假阻塞点，在当前 Linux 沙箱完成真实编译与 smoke 执行
+  - `bash tests/test_example_benchmark_shell_runners.sh`
+  - 结果：PASS（`examples/` / `benchmarks/` 侧目标 runner 已无 CRLF/语法炸点，且不再强绑 `Debug` build mode）
+  - `bash examples/fafafa.core.env/BuildOrRun.sh build quickstart`
+  - 结果：PASS；fresh 实跑确认默认工程模式构建可用，`build` 模式不再因 `set -e` 误退
+  - `bash examples/fafafa.core.json/BuildOrRun_Min.sh`
+  - 结果：PASS；`example_reader_flags` / `example_stop_when_done` 的 Linux `.lpi` 路径已修正，fresh build+run 成功
+  - `bash examples/fafafa.core.json/BuildOrRun.sh`
+  - 结果：FAIL，但已越过旧的 `.lpi` 读取损坏与 runner build-mode 问题；当前真实 blocker 收敛为 `example_json.lpr` 对 `JsonArrIterInit/JsonObjIterInit` 的 API 漂移调用以及缺失 `GetRtlAllocator`
+  - `bash examples/fafafa.core.json/BuildOrRun_NoExcept.sh`
+  - 结果：FAIL；runner 与 `.lpi` 路径合同已收口，当前真实 blocker 收敛为 `src/fafafa.core.json.interfaces.pas(37)` 的 `export inline` 语法冲突
+  - `bash examples/fafafa.core.json/BuildOrRun_NoExcept_Writer.sh`
+  - 结果：FAIL；与 `BuildOrRun_NoExcept.sh` 同源，当前真实 blocker 同样是 `src/fafafa.core.json.interfaces.pas(37)` 的 `export inline` 语法冲突
 - Risks / blockers:
   - 根目录 `main` 工作树仍然是用户脏状态，不能直接作为执行面
   - SIMD-only 残留仍需要由对应 owner 接手，L0 这里只保留边界与 handoff 说明
   - Layer0/Layer1 的大批量失败矩阵不应借这条 root-cleanup 支线一起扩张
+  - `examples/fafafa.core.json` 已不再是 runner hygiene 问题，剩余阻塞是源代码/API drift，需要单独拆批处理
 - Next step:
-  - 把 `tests/` 侧 active shell runner hygiene 这批收成独立提交并推送
-  - 继续沿 `examples/` / `benchmarks/` 的 non-SIMD 活跃 runner 做下一批 LF/语法/默认 build mode 合同扫描
+  - 把 `examples/` / `benchmarks/` runner hygiene 这批收成独立提交并推送
+  - 单独拆 `examples/fafafa.core.json` 的 source-level blocker：先修 `example_json.lpr` API 漂移，再处理 `fafafa.core.json.interfaces.pas` 的 `export inline` 语法冲突
 - Last updated: `2026-04-08`

@@ -29,8 +29,8 @@ build_with_lazbuild() {
   local lpi="$1"
   local laz
   laz="$(resolve_lazbuild)" || return 1
-  echo "[BUILD] lazbuild --build-mode=Debug ${lpi}"
-  "${laz}" --build-mode=Debug "${lpi}"
+  echo "[BUILD] lazbuild ${lpi} (project default mode)"
+  "${laz}" "${lpi}"
 }
 
 build_with_fpc() {
@@ -75,15 +75,21 @@ target_build_and_run() {
   case "${target}" in
     quickstart)
       build_one quickstart "example_quickstart.lpi" "example_quickstart.lpr"
-      [[ "${ACTION}" == "run" ]] && run_one "./bin/example_quickstart"
+      if [[ "${ACTION}" == "run" ]]; then
+        run_one "./bin/example_quickstart"
+      fi
       ;;
     overrides)
       build_one overrides "example_overrides_showcase.lpi" "example_overrides_showcase.lpr"
-      [[ "${ACTION}" == "run" ]] && run_one "./bin/example_overrides_showcase"
+      if [[ "${ACTION}" == "run" ]]; then
+        run_one "./bin/example_overrides_showcase"
+      fi
       ;;
     security)
       build_one security "example_security_showcase.lpi" "example_security_showcase.lpr"
-      [[ "${ACTION}" == "run" ]] && run_one "./bin/example_security_showcase"
+      if [[ "${ACTION}" == "run" ]]; then
+        run_one "./bin/example_security_showcase"
+      fi
       ;;
     all)
       target_build_and_run quickstart
@@ -104,7 +110,7 @@ target_build_and_run() {
 }
 
 case "${ACTION}" in
-  build|run) ;; 
+  build|run) ;;
   *)
     echo "Usage: $0 [build|run] [quickstart|overrides|security|all]" >&2
     exit 2

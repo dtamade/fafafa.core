@@ -39,5 +39,6 @@ fi
 bash "${SCRIPT_DIR}/test_fs_perf_shell_scripts.sh" >/dev/null
 bash "${SCRIPT_DIR}/test_active_shell_runners.sh" >/dev/null
 bash "${SCRIPT_DIR}/test_socket_smoke_runner.sh" >/dev/null
+bash "${SCRIPT_DIR}/test_example_benchmark_shell_runners.sh" >/dev/null
 
 echo "[PASS] repo hygiene guard contract verified"

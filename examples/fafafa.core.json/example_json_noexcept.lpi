@@ -32,9 +32,9 @@
       <Filename Value="bin/example_json_noexcept"/>
     </Target>
     <SearchPaths>
-      <IncludeFiles Value="..\..\src;lib\$(TargetCPU)-$(TargetOS)"/>
-      <OtherUnitFiles Value="..\..\src"/>
-      <UnitOutputDirectory Value="lib\$(TargetCPU)-$(TargetOS)"/>
+      <IncludeFiles Value="../../src;lib/$(TargetCPU)-$(TargetOS)"/>
+      <OtherUnitFiles Value="../../src"/>
+      <UnitOutputDirectory Value="lib/$(TargetCPU)-$(TargetOS)"/>
     </SearchPaths>
     <Parsing>
       <SyntaxOptions>
