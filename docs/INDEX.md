@@ -95,3 +95,4 @@
 - collections / benchmarks 的阶段性 campaign 报告已迁移到 `archive/reports/docs-collections/` 与 `archive/reports/docs-benchmarks/`；原目录只保留归档指路页。
 - `docs/reports/` 根下 dated fix/checkpoint/verification/audit 报告已基本迁移到 `archive/reports/docs-root/`；当前只保留 `docs/reports/time/` 这样的主题子目录与说明页。
 - `UnChecked_Methods_Summary.md` 已从 `docs/reports/` 转正到 `docs/collections/guides/UnChecked_Methods_Summary.md`。
+- 一批 root-level 的阶段性模块完成/测试报告也已迁到 `archive/reports/docs-root/`；不要再把 `completion-report` / `test-report` / `week*` 日报留在 `docs/` 根目录。

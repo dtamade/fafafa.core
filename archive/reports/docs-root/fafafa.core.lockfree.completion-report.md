@@ -140,7 +140,7 @@
 
 ### 文档
 - `docs/fafafa.core.lockfree.md` - 完整技术文档
-- `docs/fafafa.core.lockfree.completion-report.md` - 本完成报告
+- `archive/reports/docs-root/fafafa.core.lockfree.completion-report.md` - 本完成报告
 - `src/fafafa.core.lockfree.todo.md` - 工作记录和TODO
 
 ## 🚀 使用建议

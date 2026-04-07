@@ -7,7 +7,7 @@
 - Worktree: `/home/dtamade/projects/fafafa.core/.claude/worktrees/l0-main-promotion-20260407`
 - Base commit: `d5187ea4`
 - Current focus:
-  - 收掉 `docs/reports/` 根下最后一批 dated report，并把 `UnChecked_Methods_Summary.md` 转正到 `docs/collections/guides/`
+  - 收掉 `docs/` 根下最后一批明显属于历史阶段产物的模块完成/测试报告，并把它们迁到 `archive/reports/docs-root/`
   - 维持 merge 后的 current-entry 对齐，不让 `backlog` / worker 状态重新漂回旧分支语义
   - 继续守住 strict L0 边界，不混入 SIMD 实现线
 - Source of truth:
@@ -63,11 +63,13 @@
   - 结果：相关引用已切到 `archive/reports/docs-root/` 或留在 `docs/reports/time/` 的历史链说明，不再要求这些报告继续占据 `docs/reports/` 根目录
   - `rg -n "docs/UnChecked_Methods_Summary\\.md|docs/reports/ISSUE-29-30-31-36-doc-fix-report\\.md" -S . --glob '!.git/**'`
   - 结果：PASS（旧路径已全部清空；`UnChecked` 引用已切到 `docs/collections/guides/UnChecked_Methods_Summary.md`）
+  - `rg -n "docs/fafafa\\.core\\.(lockfree|mem|term)\\.(completion-report|performance-report|test-report)\\.md|docs/test_report_week1_day2\\.md" -S . --glob '!.git/**'`
+  - 结果：PASS（root-level 模块阶段报告旧路径已清空或仅保留 archive 路径）
 - Risks / blockers:
   - 根目录 `main` 工作树仍然是用户脏状态，不能直接作为执行面
   - SIMD-only 残留仍需要由对应 owner 接手，L0 这里只保留边界与 handoff 说明
   - Layer0/Layer1 的大批量失败矩阵不应借这条 root-cleanup 支线一起扩张
 - Next step:
-  - 继续做 residual sweep：检查 `docs/reports/time/` 是否需要进一步归档，或明确其“历史快照但保留”定位
+  - 继续做 residual sweep：检查 `docs/` 根下剩余 SIMD/mem/term/status 类历史快照是否也应继续下沉到 `archive/` 或对应领域目录
   - 将 docs/report 归档与 tests/examples 生成物清理保持拆批，不混成大提交
 - Last updated: `2026-04-08`

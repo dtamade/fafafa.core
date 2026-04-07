@@ -28,7 +28,7 @@
 - ✅ `docs/fafafa.core.mem.quickstart.md` - 快速入门存在
 - ✅ `docs/fafafa.core.mem.user-manual.md` - 用户手册存在
 - ✅ `docs/fafafa.core.mem.summary.md` - 项目总结存在
-- ✅ `docs/fafafa.core.mem.completion-report.md` - 完成报告存在
+- ✅ `archive/reports/docs-root/fafafa.core.mem.completion-report.md` - 完成报告存在
 - ✅ `docs/fafafa.core.mem.code-analysis.md` - 代码分析存在
 - ✅ `docs/fafafa.core.mem.simulated-test-output.md` - 模拟测试输出存在
 
