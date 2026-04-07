@@ -29,7 +29,7 @@
 ### ✅ fafafa.core.time - **已批准生产** (85% B+级)
 
 **状态**: ✅ 生产就绪
-**详细报告**: `docs/reports/PRE_PRODUCTION_AUDIT_2025_01_10.md`
+**详细报告**: `archive/reports/docs-root/PRE_PRODUCTION_AUDIT_2025_01_10.md`
 
 **关键指标**:
 - **编译**: 28,221 行，0 错误，7 警告 ✅
@@ -78,7 +78,7 @@
 ### ❌ fafafa.core.collections.vec - **不推荐** (40% D级)
 
 **状态**: ❌ 测试失败，不建议生产部署
-**详细报告**: `docs/reports/VEC_PRODUCTION_AUDIT_2025_01_10.md`
+**详细报告**: `archive/reports/docs-root/VEC_PRODUCTION_AUDIT_2025_01_10.md`
 
 **关键指标**:
 - **编译**: 48,666 行，0 错误，79 警告 ⚠️

@@ -93,4 +93,4 @@
 - simd 领域的专题 guide、计划、报告和 closeout/handoff 文档已归位到 `docs/simd/`。
 - 已完成的根目录修复报告已迁移到 `archive/reports/`。
 - collections / benchmarks 的阶段性 campaign 报告已迁移到 `archive/reports/docs-collections/` 与 `archive/reports/docs-benchmarks/`；原目录只保留归档指路页。
-- `docs/reports/` 根下第一批 dated fix/checkpoint/verification 报告已迁移到 `archive/reports/docs-root/`；保留在 `docs/reports/` 的文件应视为仍有领域引用或仍需二次收口的历史报告。
+- `docs/reports/` 根下大部分 dated fix/checkpoint/verification/audit 报告已迁移到 `archive/reports/docs-root/`；保留在 `docs/reports/` 的文件应视为仍有领域引用或仍需二次收口的历史报告。

@@ -524,7 +524,7 @@ AssertEquals(High(Int64), result.AsNs);
 
 ### 📚 文档
 
-- 新增详细修复报告：`docs/reports/ISSUE-1-2-fix-report.md`
+- 新增详细修复报告：`archive/reports/docs-root/ISSUE-1-2-fix-report.md`
 - 更新问题追踪看板
 ```
 

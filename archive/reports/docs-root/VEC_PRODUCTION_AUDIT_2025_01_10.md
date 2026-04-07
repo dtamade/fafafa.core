@@ -276,7 +276,7 @@ end;
 - `tests/fafafa.core.collections.vec/Test_vec.pas` - 主测试单元
 
 ### 对比参考
-- `docs/reports/PRE_PRODUCTION_AUDIT_2025_01_10.md` - Time 模块审查报告（85% B+级）
+- `archive/reports/docs-root/PRE_PRODUCTION_AUDIT_2025_01_10.md` - Time 模块审查报告（85% B+级）
 - `tests/HASHMAP_HEAPTRC_REPORT.md` - HashMap 内存泄漏报告（0 泄漏）
 
 ---

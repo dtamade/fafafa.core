@@ -3,7 +3,7 @@
 **评估日期**: 2025-10-27  
 **评估者**: AI Agent (Warp)  
 **版本**: 基于 2025-01-10 预生产审查 + 当前验证  
-**前置报告**: `docs/reports/PRE_PRODUCTION_AUDIT_2025_01_10.md`
+**前置报告**: `archive/reports/docs-root/PRE_PRODUCTION_AUDIT_2025_01_10.md`
 
 ---
 
@@ -173,7 +173,7 @@ function ReadTSC: UInt64; assembler; nostackframe;
 ### 6. 文档质量 ⭐⭐⭐⭐ (4/5)
 
 #### 已有文档
-- ✅ `docs/reports/PRE_PRODUCTION_AUDIT_2025_01_10.md` - 预生产审查（22 页）
+- ✅ `archive/reports/docs-root/PRE_PRODUCTION_AUDIT_2025_01_10.md` - 预生产审查（22 页）
 - ✅ `ISSUE_TRACKER.csv` - 问题追踪（ISSUE-1/2 已修复）
 - ✅ 源码注释 - 关键算法说明
 - ⚠️ API 参考手册 - 待补充
@@ -306,7 +306,7 @@ git tag time-audit-2025-01-10  # 引用历史审查
 ## 📚 参考资源
 
 ### 历史文档
-- **预生产审查**: `docs/reports/PRE_PRODUCTION_AUDIT_2025_01_10.md`
+- **预生产审查**: `archive/reports/docs-root/PRE_PRODUCTION_AUDIT_2025_01_10.md`
 - **问题追踪**: `ISSUE_TRACKER.csv` (ISSUE-1/2/39/49)
 - **性能优化**: ISSUE-26 (ForEachTask 59% 提升)
 
