@@ -6,9 +6,11 @@
 
 1. `docs/fafafa.core.mem.md`
 2. `docs/fafafa.core.mem.guide.md`
-3. `src/fafafa.core.mem.pas`
-4. `tests/fafafa.core.mem/README.md`
-5. `examples/fafafa.core.mem/README.md`
+3. `src/fafafa.core.mem.allocator.base.pas`
+4. `src/fafafa.core.mem.allocator.foundation.pas`
+5. `src/fafafa.core.mem.pas`
+6. `tests/fafafa.core.mem/README.md`
+7. `examples/fafafa.core.mem/README.md`
 
 ## 5 分钟上手
 
@@ -53,7 +55,8 @@ Linux/macOS:
 ## 3. 选对入口
 
 - 只要基础分配器和内存操作：`fafafa.core.mem`
-- 只要 strict L0 allocator contract：`fafafa.core.mem.allocator.foundation`
+- 只要 strict L0 allocator contract：`fafafa.core.mem.allocator.base`
+- 还需要最小 concrete backend / convenience facade：`fafafa.core.mem.allocator.foundation`
 - 需要兼容 / 扩展 allocator 聚合入口：`fafafa.core.mem.allocator`
 - 固定块池：`fafafa.core.mem.memPool`
 - 作用域式分配：`fafafa.core.mem.stackPool`
@@ -82,9 +85,14 @@ begin
 end;
 ```
 
+说明：
+
+- 示例里用 `foundation` 是为了直接拿到 `GetRtlAllocator`。
+- 该接口的 strict L0 contract 仍以 `src/fafafa.core.mem.allocator.base.pas` 为准。
+
 ## 下一步
 
 - 想看推荐用法：`docs/fafafa.core.mem.guide.md`
 - 想看架构和边界：`docs/fafafa.core.mem.architecture.md`
-- 想看 strict L0 allocator 测试入口：`tests/fafafa.core.mem.allocator.foundation/README.md`
+- 想看 allocator contract + 低层 facade 测试入口：`tests/fafafa.core.mem.allocator.foundation/README.md`
 - 想看历史材料：`docs/mem/README.md`

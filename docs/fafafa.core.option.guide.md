@@ -1,5 +1,8 @@
 # fafafa.core.option 使用指南
 
+> 这是一份使用指南，不是 `fafafa.core.option` 的 today contract source-of-truth。
+> 当前权威边界和 API 以 `docs/fafafa.core.option.md`、`src/fafafa.core.option.base.pas`、`src/fafafa.core.option.pas` 和 `tests/fafafa.core.option/README.md` 为准。
+
 ## 概述
 
 `fafafa.core.option` 是 fafafa.core 框架的 Option 类型模块，提供：
