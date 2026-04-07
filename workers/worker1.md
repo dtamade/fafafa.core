@@ -7,7 +7,7 @@
 - Worktree: `/home/dtamade/projects/fafafa.core/.claude/worktrees/l0-main-promotion-20260407`
 - Base commit: `d5187ea4`
 - Current focus:
-  - 收掉 `tests/fafafa.core.atomic/`、`tests/fafafa.core.mem.manager.rtl/` 下已跟踪生成物，并补目录级忽略规则
+  - 收掉 `tests/fafafa.core.archiver/`、`tests/fafafa.core.env/` 下已跟踪历史运行日志，并补目录级忽略规则
   - 维持 merge 后的 current-entry 对齐，不让 `backlog` / worker 状态重新漂回旧分支语义
   - 继续守住 strict L0 边界，不混入 SIMD 实现线
 - Source of truth:
@@ -39,11 +39,19 @@
   - 结果：重跑 PASS，`10/10`
   - `git check-ignore -v --no-index tests/fafafa.core.atomic/atomic_heaptrc_full_output.txt tests/fafafa.core.atomic/tests_atomic tests/fafafa.core.mem.manager.rtl/mem_manager_heaptrc_output.txt`
   - 结果：PASS（全部命中目录级 `.gitignore`）
+  - `bash tests/fafafa.core.env/BuildOrTest.sh test`
+  - 结果：PASS，`96/96`
+  - `bash tests/fafafa.core.archiver/BuildOrTest.sh test`
+  - 结果：build OK，但 `check_build_log` 被现存 `src/fafafa.core.simd.cpuinfo.backends.impl.inc(7,22)` hint 泄漏拦下
+  - `tests/fafafa.core.archiver/lib/x86_64-linux/fafafa.core.archiver.test --all --format=plain`
+  - 结果：PASS，`16/16`，heaptrc `0 unfreed`
+  - `git check-ignore -v --no-index tests/fafafa.core.archiver/last-run.txt tests/fafafa.core.env/build_log.txt tests/fafafa.core.env/fpcdebug.txt`
+  - 结果：PASS（全部命中目录级 `.gitignore`）
 - Risks / blockers:
   - 根目录 `main` 工作树仍然是用户脏状态，不能直接作为执行面
   - SIMD-only 残留仍需要由对应 owner 接手，L0 这里只保留边界与 handoff 说明
   - Layer0/Layer1 的大批量失败矩阵不应借这条 root-cleanup 支线一起扩张
 - Next step:
-  - 继续扫描 `tests/` 下剩余已跟踪运行残留（优先 archiver/env/fs 一类明显生成物）
+  - 继续扫描 `tests/` 下剩余已跟踪运行残留（优先 `tests/fafafa.core.fs/performance-data/` 的 latest/history 一类明显生成物）
   - 将 docs/report 归档与 tests/examples 生成物清理保持拆批，不混成大提交
 - Last updated: `2026-04-08`
