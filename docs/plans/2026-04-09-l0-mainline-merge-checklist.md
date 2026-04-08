@@ -29,12 +29,14 @@
 Run:
 
 ```bash
+bash tests/test_windows_lazbuild_bootstrap.sh
 STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.base fafafa.core.contracts fafafa.core.bits fafafa.core.layout fafafa.core.endian fafafa.core.span fafafa.core.option fafafa.core.result fafafa.core.atomic fafafa.core.mem.allocator.foundation fafafa.core.platform
 git diff --check
 ```
 
 当前结果：
 
+- Windows `lazbuild` bootstrap contract：PASS
 - strict L0 聚合 gate：PASS，`11/11`
 - `git diff --check`：PASS
 
@@ -114,9 +116,10 @@ git diff --check
 当前状态：
 
 - 上述 integration branch 已建立
+- `bash tests/test_windows_lazbuild_bootstrap.sh` 已 fresh 通过
 - strict L0 聚合 gate 已 fresh 通过，`11/11`
 - `git diff --check` 已通过
-- 当前还没有 fresh Windows smoke 结果
+- 当前还没有 fresh 的 Windows 模块级 smoke 结果；目前只有 bootstrap contract 结果
 
 ## Windows smoke 建议
 

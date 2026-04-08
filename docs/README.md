@@ -8,6 +8,7 @@
 - L0 稳定路线图：`docs/fafafa.core.l0.roadmap.md`
 - L0 详细定义：`docs/fafafa.core.l0.foundation.md`
 - 当前 L0 审计：`docs/audits/2026-04-09-l0-current-state-audit.md`
+- 当前 L0 合并清单：`docs/plans/2026-04-09-l0-mainline-merge-checklist.md`
 - 最近 L0 批次 closeout：`docs/plans/2026-04-09-l0-kernel-span2-closeout.md`
 - 测试指南：`docs/TESTING.md`
 - CI 指南：`docs/CI.md`
@@ -19,7 +20,7 @@
 
 - L0 的稳定文档栈固定为：`docs/ARCHITECTURE_LAYERS.md` + `docs/fafafa.core.l0.foundation.md` + `docs/fafafa.core.l0.roadmap.md` + 最新 `docs/audits/*l0*.md`
 - strict L0 模块入口统一收在 `docs/INDEX.md` 的 `Strict L0 模块入口` 区段
-- dated `docs/plans/*l0*.md` 只保留批次 closeout 语境，不再承担长期导航
+- dated `docs/plans/*l0*.md` 不承担长期导航；只有在对应批次或合并窗口里，才作为执行清单使用
 
 ## 文档放置约定（清理后的结构）
 
@@ -34,4 +35,3 @@
 - **执行日志 / scratch 计划**：不要长期留在仓库根目录；需要入库时，直接归档到 `plans/archive/`，稳定结论再提升到 `docs/plans/` 或 `docs/audits/`
 
 > 目标：`docs/` 根目录只保留“长期有效”的入口与模块文档，过程性文档集中到子目录，避免越堆越乱。
-

@@ -5,7 +5,7 @@
 - 当前 strict non-SIMD L0 的权威边界仍以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准。
 - 当前 strict non-SIMD L0 的稳定路线图现在固定为 `docs/fafafa.core.l0.roadmap.md`。
 - `fafafa.core.span` 现在正式承载最小只读单段 `span` 与双段 `span2` contract。
-- 当前 L0 执行面仍然是 `l0-main-tail-cleanup-20260408` worktree。
+- 当前 L0 执行面已经切到当前唯一的 L0 worktree 上的 `l0-mainline-integration-20260409` 分支；`l0-main-tail-cleanup-20260408-final` 只保留为已保存的 strict L0 源分支 tip。
 - 原先混入该 worktree 的 sync/fs/socket runner sidecar 已安全转移到临时 branch `l0-sidecar-handoff-20260409`，不再阻塞 strict L0 继续推进。
 - 当前没有新的获批 L0 准入候选；“还缺什么”主要是 merge hygiene、跨平台验证一致性和 compat surface 继续收口，而不是再加模块。
 
@@ -19,13 +19,13 @@
 
 ## Current Module Map
 
-| 组 | 当前模块 | 当前判断 |
-|----|----------|----------|
-| 基础语义 | `fafafa.core.base` / `fafafa.core.contracts` / `fafafa.core.option*` / `fafafa.core.result*` | 已稳定，职责清楚，当前重点不是扩 API，而是继续收紧 compat 叙述 |
-| 视图表达 | `fafafa.core.span` | 已稳定承载最小 `span` / `span2` 只读 contract，不再等同于 collections `SliceView` |
-| 原始数据语义 | `fafafa.core.bits` / `fafafa.core.platform` / `fafafa.core.layout` / `fafafa.core.endian` | 已形成独立 L0 组，source-of-truth 和测试入口已收口 |
-| 内存模型 | `fafafa.core.atomic.core` / `base` / `atomic` / `compat` | 代码面可用，当前主要改进空间在 compat surface 标识和长期波动证据保留 |
-| 分配契约 | `fafafa.core.mem.allocator.base` | contract 边界清楚；`foundation` 与具体 backend 已明确退回 mem 域低层 facade / backend 语义 |
+| 组           | 当前模块                                                                                     | 当前判断                                                                                   |
+| ------------ | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| 基础语义     | `fafafa.core.base` / `fafafa.core.contracts` / `fafafa.core.option*` / `fafafa.core.result*` | 已稳定，职责清楚，当前重点不是扩 API，而是继续收紧 compat 叙述                             |
+| 视图表达     | `fafafa.core.span`                                                                           | 已稳定承载最小 `span` / `span2` 只读 contract，不再等同于 collections `SliceView`          |
+| 原始数据语义 | `fafafa.core.bits` / `fafafa.core.platform` / `fafafa.core.layout` / `fafafa.core.endian`    | 已形成独立 L0 组，source-of-truth 和测试入口已收口                                         |
+| 内存模型     | `fafafa.core.atomic.core` / `base` / `atomic` / `compat`                                     | 代码面可用，当前主要改进空间在 compat surface 标识和长期波动证据保留                       |
+| 分配契约     | `fafafa.core.mem.allocator.base`                                                             | contract 边界清楚；`foundation` 与具体 backend 已明确退回 mem 域低层 facade / backend 语义 |
 
 ## What Is Not Missing
 
@@ -52,7 +52,8 @@ L0 当前真正还缺的是硬化项，而不是模块数：
 ### 2. Cross-platform verification is not symmetric yet
 
 - 当前 fresh gate 是在 Linux/macOS shell 路径上完成的。
-- Windows `.bat` 路径，尤其是 mem 相关 runner，仍然存在脚本行为差异。
+- 仓库内的 Windows bootstrap 已补齐，并且 `bash tests/test_windows_lazbuild_bootstrap.sh` 已 fresh 通过。
+- Windows `.bat` 路径，尤其是 mem 相关 runner，仍然还缺一份基于真实 Windows `lazbuild.exe` 的模块级 smoke。
 - 这不是当前 L0 文档治理的 blocker，但它仍然是合并到主线前应补的一项 confidence gap。
 
 ### 3. Compat surface still needs continued discipline
