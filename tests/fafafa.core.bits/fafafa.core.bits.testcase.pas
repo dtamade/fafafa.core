@@ -1,6 +1,7 @@
 unit fafafa.core.bits.testcase;
 
 {$mode objfpc}{$H+}
+{$I ../../src/fafafa.core.settings.inc}
 
 interface
 
