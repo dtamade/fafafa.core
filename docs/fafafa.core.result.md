@@ -17,6 +17,7 @@
 - `And_` / `Or_` 是 today contract 的推荐方法式 API。
 - `AndResult` / `OrResult` 继续保留为 deprecated compatibility API，用于平滑迁移。
 - 新代码应优先使用 `And_` / `Or_`；兼容 API 仍由当前测试入口覆盖，避免无意回归。
+- 除 `tests/fafafa.core.result/fafafa.core.result.testcase.pas` 的 legacy compat 覆盖外，仓库中不应再新增 `AndResult` / `OrResult` 调用点。
 - 兼容测试会在 legacy 调用点附近局部抑制 deprecated warning，这样 build log 仍能把注意力集中在非兼容路径的真实回归上。
 
 ## 目标

@@ -5,6 +5,8 @@
 ## 快速入口
 
 - 文档总索引：`docs/INDEX.md`
+- 当前 L0 审计：`docs/audits/2026-04-09-l0-current-state-audit.md`
+- 当前 L0 实施计划：`docs/plans/2026-04-09-l0-kernel-span2-closeout.md`
 - 测试指南：`docs/TESTING.md`
 - CI 指南：`docs/CI.md`
 - 目录结构规范：`docs/standards/DIRECTORY_STANDARDS.md`

@@ -1,117 +1,34 @@
 # worker1
 
 - Owner: Codex
-- Scope: strict non-SIMD L0 的 post-merge tail cleanup 与 current-entry 校准
+- Scope: strict non-SIMD L0 的当前真相收口、span2 准入与控制面同步
 - Status: `active`
 - Branch: `l0-main-tail-cleanup-20260408`
 - Worktree: `/home/dtamade/projects/fafafa.core/.claude/worktrees/l0-main-promotion-20260407`
-- Base commit: `d5187ea4`
+- Base commit: `06d4dfd1`
 - Current focus:
-  - 收掉 `docs/` 根下最后一批 non-SIMD 历史状态/总结/实施文档，并把它们迁到 `archive/reports/docs-root/`
-  - 继续把 `benchmark v2` 这类历史完成总结从根层下沉到 archive，避免和当前模块入口竞争
-  - 把 still-current 的实现说明从 `docs/` 根层归位到对应主题目录，而不是继续堆在根层
-  - 继续沿 non-SIMD examples 工程清理 alias/runner/source drift，优先做可小步闭环的 example contract 收口
-  - 继续守住 strict L0 边界，不混入 SIMD 实现线
+  - 保持当前执行面只包含 strict L0 与 L0 控制面，不再混入 sync/fs/socket runner sidecar
+  - 把 `span2` 以最小 read-only segmented view contract 形式并入 `fafafa.core.span`
+  - 收紧 `atomic` / `result` / `mem allocator` 的 today contract 与 compat 叙述
+  - 更新 `worker1` / `INDEX` / `README` / dated audit+plan，让 source-of-truth 与当前分支现实一致
 - Source of truth:
   - `docs/fafafa.core.l0.foundation.md`
-  - `docs/audits/2026-04-07-l0-rescue-triage-audit.md`
-  - `docs/plans/2026-04-07-l0-rescue-split-closeout.md`
-  - `docs/audits/2026-04-08-l0-tail-docs-audit.md`
-  - `docs/plans/2026-04-08-l0-tail-docs-closeout.md`
-  - `plans/archive/2026-04-07-mainline-working-set/README.md`
-  - `examples/fafafa.core.sync/README.md`
+  - `docs/ARCHITECTURE_LAYERS.md`
+  - `docs/audits/2026-04-09-l0-current-state-audit.md`
+  - `docs/plans/2026-04-09-l0-kernel-span2-closeout.md`
+  - `docs/fafafa.core.span.md`
+  - `docs/fafafa.core.atomic.md`
+  - `docs/fafafa.core.result.md`
 - Fresh verification:
-  - `./tests/test_repo_hygiene_guard.sh`
+  - `bash tests/fafafa.core.span/BuildOrTest.sh test`
   - 结果：PASS
-  - `STOP_ON_FAIL=1 ./tests/run_all_tests.sh fafafa.core.base`
-  - 结果：PASS，`1/1`
-  - `./examples/fafafa.core.base/BuildOrRun.sh build`
-  - 结果：PASS
-  - `./examples/fafafa.core.atomic/BuildOrRun.sh build`
-  - 结果：PASS（保留现有 upstream warnings/hints，不构成本批 blocker）
-  - `./tools/lazbuild.sh --build-all examples/fafafa.core.sync/example_condvar.lpi`
-  - 结果：PASS（存在既有 sync warnings/hints，不构成本批 blocker）
-  - `bash tests/fafafa.core.sync.barrier/BuildOrTest.sh test`
-  - 结果：PASS，`42/42`
-  - `git check-ignore -v --no-index tests/fafafa.core.sync.barrier/{all_test_output.txt,barrier_heaptrc_full_output.txt,barrier_heaptrc_output.txt,global_test_output.txt,ibarrier_test_output.txt,test_output.txt}`
-  - 结果：PASS（全部命中 `tests/fafafa.core.sync.barrier/.gitignore`）
-  - `bash tests/fafafa.core.mem.manager.rtl/BuildOrTest.sh test`
-  - 结果：PASS，`7/7`
-  - `bash tests/fafafa.core.atomic/BuildOrTest.sh test`
-  - 结果：首跑命中既有并发波动点 `TTestCase_Concurrent.Test_seq_cst_total_order_three_threads`
-  - `tests/fafafa.core.atomic/bin/tests_atomic --suite=TTestCase_Concurrent --format=plain`
-  - 结果：重跑 PASS，`10/10`
-  - `git check-ignore -v --no-index tests/fafafa.core.atomic/atomic_heaptrc_full_output.txt tests/fafafa.core.atomic/tests_atomic tests/fafafa.core.mem.manager.rtl/mem_manager_heaptrc_output.txt`
-  - 结果：PASS（全部命中目录级 `.gitignore`）
-  - `bash tests/fafafa.core.env/BuildOrTest.sh test`
-  - 结果：PASS，`96/96`
-  - `bash tests/fafafa.core.archiver/BuildOrTest.sh test`
-  - 结果：build OK，但 `check_build_log` 被现存 `src/fafafa.core.simd.cpuinfo.backends.impl.inc(7,22)` hint 泄漏拦下
-  - `tests/fafafa.core.archiver/lib/x86_64-linux/fafafa.core.archiver.test --all --format=plain`
-  - 结果：PASS，`16/16`，heaptrc `0 unfreed`
-  - `git check-ignore -v --no-index tests/fafafa.core.archiver/last-run.txt tests/fafafa.core.env/build_log.txt tests/fafafa.core.env/fpcdebug.txt`
-  - 结果：PASS（全部命中目录级 `.gitignore`）
-  - `git check-ignore -v --no-index tests/fafafa.core.fs/performance-data/latest.txt tests/fafafa.core.fs/performance-data/perf_2025-12-31_23-59.txt tests/fafafa.core.fs/performance-data/perf_all_latest.txt tests/fafafa.core.fs/performance-data/perf_resolve_2025-12-31_23-59-59-99.txt tests/fafafa.core.fs/performance-data/perf_resolve_latest.txt tests/fafafa.core.fs/performance-data/perf_walk_latest.txt`
-  - 结果：PASS（`latest` / 时间戳历史 / `perf_*_latest` 全部命中目录级 `.gitignore`）
-  - `bash tests/fafafa.core.fs/BuildOrRunPerf.sh`
-  - 结果：首跑曾因 CRLF 脚本格式问题在 `set -euo pipefail` 处提前失败；后续已由 fs perf runner hygiene 批次修复，见下方 fresh guard 结果
-  - `rg -n "docs/collections/reports/|docs/benchmarks/reports/" -S docs archive --glob '!.git/**'`
-  - 结果：仅剩新建 README 指路页命中；外部活引用已切到 archive 路径
-  - `git diff --check`
-  - 结果：PASS
-  - `rg -n "archive/reports/docs-root/|docs/reports/" -S docs archive --glob '!.git/**'`
-  - 结果：PASS（本批迁走的 6 份 dated fix/checkpoint 报告已切到 `archive/reports/docs-root/`；未发现除当前状态记录外的旧路径活引用）
-  - `rg -n "archive/reports/docs-root/LAYER1_|archive/reports/docs-root/SYNC_PRODUCTION_READINESS_REPORT|docs/reports/LAYER1_|docs/reports/SYNC_PRODUCTION_READINESS_REPORT" -S . --glob '!.git/**'`
-  - 结果：仅保留 archive 路径命中；旧 `docs/reports/` 路径已从活引用中移除
-  - `rg -n "PRE_PRODUCTION_AUDIT_2025_01_10|VEC_PRODUCTION_AUDIT_2025_01_10|ISSUE-1-2-fix-report" -S . --glob '!.git/**'`
-  - 结果：相关引用已切到 `archive/reports/docs-root/` 或留在 `docs/reports/time/` 的历史链说明，不再要求这些报告继续占据 `docs/reports/` 根目录
-  - `rg -n "docs/UnChecked_Methods_Summary\\.md|docs/reports/ISSUE-29-30-31-36-doc-fix-report\\.md" -S . --glob '!.git/**'`
-  - 结果：PASS（旧路径已全部清空；`UnChecked` 引用已切到 `docs/collections/guides/UnChecked_Methods_Summary.md`）
-  - `rg -n "docs/fafafa\\.core\\.(lockfree|mem|term)\\.(completion-report|performance-report|test-report)\\.md|docs/test_report_week1_day2\\.md" -S . --glob '!.git/**'`
-  - 结果：PASS（root-level 模块阶段报告旧路径已清空或仅保留 archive 路径）
-  - `find docs -maxdepth 1 -type f | sed 's#^docs/##' | sort | rg '^(COMPILATION_FIX_REPORT\\.md|fafafa\\.core\\.mem\\.(checklist|development-status|final-status|final-verification|summary|test-summary|ultimate-completion)\\.md|fafafa\\.core\\.term\\.(cleanup-success|final-success|integration-summary)\\.md|fafafa\\.core\\.collections\\.forwardList\\.(ENHANCED_TESTING_REPORT|ELITE_REPORT)\\.md|fafafa\\.core\\.sync\\.rwlock\\.IMPLEMENTATION_SUMMARY\\.md)$'`
-  - 结果：PASS（`docs/` 根层已不再保留本批 14 份 non-SIMD 历史文档）
-  - `rg -n "docs/(mem|term|fs|lockfree|simd)/" docs/fafafa.core.mem*.md docs/fafafa.core.term*.md docs/fafafa.core.fs*.md docs/fafafa.core.lockfree*.md docs/fafafa.core.simd*.md`
-  - 结果：PASS（模块 current-entry 已不再把不存在的 `docs/<domain>/` 目录当成现存入口）
-  - `rg -n "fafafa\\.core\\.sync\\.rwlock\\.IMPLEMENTATION_SUMMARY\\.md|SYNC_PRODUCTION_READINESS_REPORT\\.md" docs/topics/sync/api/SYNC_API_REFERENCE.md`
-  - 结果：PASS（两条引用都已切到 `archive/reports/docs-root/`）
-  - `./tests/test_repo_hygiene_guard.sh`
-  - 结果：PASS
-  - `rg -n "fafafa\\.core\\.benchmark\\.v2\\.final(\\.complete)?\\.md" docs backlog.md workers/worker1.md archive README.md tests examples src`
-  - 结果：迁移前仅命中文档自引用；可安全下沉
-  - `rg -n "docs/MUTEX_IMPLEMENTATION\\.md|MUTEX_IMPLEMENTATION\\.md" . --glob '!.git/**'`
-  - 结果：唯一活引用在 `examples/fafafa.core.sync.mutex/example_performance_comparison.lpr`；其余命中都在 archive 历史材料
-  - `bash tests/test_fs_perf_shell_scripts.sh`
-  - 结果：首跑 FAIL，`BuildOrRunPerf.sh` 因 `\r` 行尾在 `bash -n` 下报语法错误；修复后 PASS
-  - `file tests/fafafa.core.fs/*.sh`
-  - 结果：`ArchivePerfResult.sh`、`BuildOrRunPerf.sh`、`BuildOrRunPerfAll.sh`、`BuildOrRunResolvePerf.sh` 都已不再带 CRLF 行尾
-  - `bash tests/fafafa.core.fs/BuildOrRunPerf.sh`
-  - 结果：PASS；已能正常编译并执行 benchmark，不再在 `set -euo pipefail` 处提前失败
-  - `bash tests/test_active_shell_runners.sh`
-  - 结果：PASS（`tests/` 侧 16 个活跃 shell runner 都已能通过 `bash -n`，无 CRLF/语法炸点）
-  - `bash tests/test_socket_smoke_runner.sh`
-  - 结果：PASS（`tests/fafafa.core.socket/smoke.sh` 不再强绑不存在的 `Debug` build mode，suite/format 参数能透传）
-  - `./tests/test_repo_hygiene_guard.sh`
-  - 结果：PASS（已统一串起 fs perf / active test runners / socket smoke 三条守卫）
-  - `bash tests/fafafa.core.socket/smoke.sh`
-  - 结果：PASS；fresh 实跑已越过旧的 `Error: invalid build mode "Debug"` 假阻塞点，在当前 Linux 沙箱完成真实编译与 smoke 执行
-  - `bash tests/test_example_benchmark_shell_runners.sh`
-  - 结果：PASS（`examples/` / `benchmarks/` 侧目标 runner 已无 CRLF/语法炸点，且不再强绑 `Debug` build mode）
-  - `bash examples/fafafa.core.env/BuildOrRun.sh build quickstart`
-  - 结果：PASS；fresh 实跑确认默认工程模式构建可用，`build` 模式不再因 `set -e` 误退
-  - `bash examples/fafafa.core.json/BuildOrRun_Min.sh`
-  - 结果：PASS；`example_reader_flags` / `example_stop_when_done` 的 Linux `.lpi` 路径已修正，fresh build+run 成功
-  - `bash examples/fafafa.core.json/BuildOrRun.sh`
-  - 结果：PASS；`example_json.lpr` 已对齐当前 iterator API，并补齐 `GetRtlAllocator`
-  - `bash examples/fafafa.core.json/BuildOrRun_NoExcept.sh`
-  - 结果：PASS；`fafafa.core.json.interfaces` 已去掉不合法的 `export` 并补齐 flags alias，`noexcept` example 可 fresh build+run
-  - `bash examples/fafafa.core.json/BuildOrRun_NoExcept_Writer.sh`
-  - 结果：PASS；与 `BuildOrRun_NoExcept.sh` 同源问题已闭环，writer example 可 fresh build+run
+  - `STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.base fafafa.core.contracts fafafa.core.bits fafafa.core.layout fafafa.core.endian fafafa.core.span fafafa.core.option fafafa.core.result fafafa.core.atomic fafafa.core.mem.allocator.foundation fafafa.core.platform`
+  - 结果：PASS，`11/11`
 - Risks / blockers:
   - 根目录 `main` 工作树仍然是用户脏状态，不能直接作为执行面
-  - SIMD-only 残留仍需要由对应 owner 接手，L0 这里只保留边界与 handoff 说明
-  - Layer0/Layer1 的大批量失败矩阵不应借这条 root-cleanup 支线一起扩张
+  - sidecar sync/fs/socket runner 改动已转移到临时 branch `l0-sidecar-handoff-20260409`，后续需由对应 owner 接手
+  - SIMD-only 残留仍需要由 SIMD owner 继续维护，L0 这里只保留边界与 handoff 说明
 - Next step:
-  - 把 `examples/fafafa.core.json` 这批 source-level drift 修复收成独立提交并推送
-  - 继续沿 `examples/` 目录筛下一批 non-SIMD 的小步闭环目标，优先 alias/runner/source 轻量漂移，不扩张到 SIMD
-- Last updated: `2026-04-08`
+  - 完成 `span2` 准入后的文档、README 与聚合验证收口
+  - 继续只沿 strict L0 线推进，不把 sidecar 或 SIMD 工作重新混回当前 worktree
+- Last updated: `2026-04-09`

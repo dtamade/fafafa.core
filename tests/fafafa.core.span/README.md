@@ -1,6 +1,6 @@
 # fafafa.core.span Tests
 
-这个目录是 `fafafa.core.span` 当前测试入口。它负责锁定 strict non-SIMD L0 `span` 模块的 today contract，而不是替代 collections 域的 `SliceView` / `Span2` 语义测试。
+这个目录是 `fafafa.core.span` 当前测试入口。它负责锁定 strict non-SIMD L0 `span` 模块的 today contract，而不是替代 collections 域的容器 `SliceView` 语义测试。
 
 ## 当前 source-of-truth
 
@@ -42,6 +42,6 @@
 
 ## 当前边界
 
-- 这里锁定的是最小只读单段 `span` contract，不替代 `collections.slice` 的 today semantics。
-- `TReadOnlySpan2<T>`、`GetBlock`、deque 双段视图和容器 `SliceView` 仍属于 collections 域，不在当前 L0 `span` 入口里。
-- `platform` 仍是单独候选方向，不属于这里的测试职责。
+- 这里锁定的是最小只读 `span` / `span2` contract，不替代 `collections.slice` 的 today semantics。
+- `collections.slice` 里的容器 `SliceView`、裁剪行为和更宽的 collections 语义仍属于 Layer 1，不在当前 L0 `span` 入口里。
+- `platform` 虽然也是 strict L0 模块，但有自己的独立测试入口，不属于这里的测试职责。
