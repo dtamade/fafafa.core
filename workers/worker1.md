@@ -20,6 +20,8 @@
   - `docs/fafafa.core.atomic.md`
   - `docs/fafafa.core.result.md`
 - Fresh verification:
+  - `bash tests/test_windows_lazbuild_bootstrap.sh`
+  - 结果：PASS；bootstrap 已补齐，Unix `LAZBUILD_EXE` 会被清晰拒绝
   - `STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.base fafafa.core.contracts fafafa.core.bits fafafa.core.layout fafafa.core.endian fafafa.core.span fafafa.core.option fafafa.core.result fafafa.core.atomic fafafa.core.mem.allocator.foundation fafafa.core.platform`
   - 结果：PASS，`11/11`
   - `git diff --check`
