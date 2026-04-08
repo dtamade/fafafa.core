@@ -4,6 +4,12 @@
 
 在不扩张到 container/service 语义的前提下，把 `span2` 以最小 read-only segmented view contract 形式纳入 strict non-SIMD L0，并同步收口当前 L0 控制面。
 
+## Execution Status
+
+- Batch 1-5 已完成。
+- 当前 strict non-SIMD L0 已稳定覆盖：`settings/base/contracts/option/result/span/span2/bits/platform/layout/endian/atomic/mem.allocator.base`。
+- 当前没有新的明确准入候选；后续若继续推进，应优先做 hygiene、稳定性和 source-of-truth 收口，而不是继续扩张 L0 面。
+
 ## Batch Scope
 
 ### Batch 1: clear the execution surface
@@ -50,3 +56,12 @@
 - `bash tests/fafafa.core.mem.allocator.foundation/BuildOrTest.sh test`
 - `STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.base fafafa.core.contracts fafafa.core.bits fafafa.core.layout fafafa.core.endian fafafa.core.span fafafa.core.option fafafa.core.result fafafa.core.atomic fafafa.core.mem.allocator.foundation fafafa.core.platform`
 - `git diff --check`
+
+## Fresh Closeout Snapshot
+
+- `STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.base fafafa.core.contracts fafafa.core.bits fafafa.core.layout fafafa.core.endian fafafa.core.span fafafa.core.option fafafa.core.result fafafa.core.atomic fafafa.core.mem.allocator.foundation fafafa.core.platform`
+  - 结果：PASS，`11/11`
+- `tests/fafafa.core.atomic/bin/tests_atomic --all --format=plain`
+  - 结果：连续 `8` 轮 PASS，未复现早先单次聚合波动
+- `git diff --check`
+  - 结果：PASS

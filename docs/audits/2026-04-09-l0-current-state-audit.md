@@ -40,9 +40,13 @@
 - `bash tests/fafafa.core.span/BuildOrTest.sh test`
 - `bash tests/fafafa.core.collections/BuildOrTest.sh test`
 - `STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.base fafafa.core.contracts fafafa.core.bits fafafa.core.layout fafafa.core.endian fafafa.core.span fafafa.core.option fafafa.core.result fafafa.core.atomic fafafa.core.mem.allocator.foundation fafafa.core.platform`
+- 上述聚合 gate 当前 fresh 结果：PASS，`11/11`
+- `tests/fafafa.core.atomic/bin/tests_atomic --all --format=plain` 连续 `8` 轮：PASS，未复现早先单次聚合波动
+- `git diff --check`：PASS
 
 ## Remaining Risks
 
 - 根 `main` 工作树仍然是用户脏状态，不应拿来直接承载 L0 收口。
 - 临时 branch `l0-sidecar-handoff-20260409` 只是 sidecar 交接面，不应再并回当前 L0 实施面。
 - SIMD 仍由 SIMD owner 负责；L0 这里只处理边界和非 SIMD contract。
+- `atomic` 早先只出现过一次未复现的聚合波动；当前没有足够证据支持生产代码修复，若后续再次出现应优先保留失败日志并锁定具体 testcase 顺序。

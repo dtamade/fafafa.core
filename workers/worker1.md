@@ -1,16 +1,16 @@
 # worker1
 
 - Owner: Codex
-- Scope: strict non-SIMD L0 的当前真相收口、span2 准入与控制面同步
+- Scope: strict non-SIMD L0 的当前真相固化、质量加固与控制面同步
 - Status: `active`
 - Branch: `l0-main-tail-cleanup-20260408`
 - Worktree: `/home/dtamade/projects/fafafa.core/.claude/worktrees/l0-main-promotion-20260407`
 - Base commit: `06d4dfd1`
 - Current focus:
   - 保持当前执行面只包含 strict L0 与 L0 控制面，不再混入 sync/fs/socket runner sidecar
-  - 把 `span2` 以最小 read-only segmented view contract 形式并入 `fafafa.core.span`
+  - 维持 `span2` 已进入 strict L0 之后的边界，不再继续无根据扩张 L0 面
   - 收紧 `atomic` / `result` / `mem allocator` 的 today contract 与 compat 叙述
-  - 更新 `worker1` / `INDEX` / `README` / dated audit+plan，让 source-of-truth 与当前分支现实一致
+  - 持续校验 L0 hygiene、历史文档准确性与 `atomic` 测试稳定性
 - Source of truth:
   - `docs/fafafa.core.l0.foundation.md`
   - `docs/ARCHITECTURE_LAYERS.md`
@@ -24,11 +24,15 @@
   - 结果：PASS
   - `STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.base fafafa.core.contracts fafafa.core.bits fafafa.core.layout fafafa.core.endian fafafa.core.span fafafa.core.option fafafa.core.result fafafa.core.atomic fafafa.core.mem.allocator.foundation fafafa.core.platform`
   - 结果：PASS，`11/11`
+  - `tests/fafafa.core.atomic/bin/tests_atomic --all --format=plain` × `8`
+  - 结果：PASS，`8/8`
+  - `git diff --check`
+  - 结果：PASS
 - Risks / blockers:
   - 根目录 `main` 工作树仍然是用户脏状态，不能直接作为执行面
   - sidecar sync/fs/socket runner 改动已转移到临时 branch `l0-sidecar-handoff-20260409`，后续需由对应 owner 接手
   - SIMD-only 残留仍需要由 SIMD owner 继续维护，L0 这里只保留边界与 handoff 说明
 - Next step:
-  - 完成 `span2` 准入后的文档、README 与聚合验证收口
   - 继续只沿 strict L0 线推进，不把 sidecar 或 SIMD 工作重新混回当前 worktree
+  - 在没有新的明确 L0 候选前，优先做 hygiene / stability / source-of-truth 级收口，而不是继续扩模块
 - Last updated: `2026-04-09`
