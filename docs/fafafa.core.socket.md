@@ -162,8 +162,9 @@ end;
 
 - 示例工程
   - 一键构建示例：`examples/fafafa.core.socket/build_examples.bat`
+  - Linux/macOS 一键构建：`examples/fafafa.core.socket/build_examples.sh`
   - 运行示例：`examples/fafafa.core.socket/bin/example_socket.exe ...`
-  - 若 Debug/Release 模式不存在，脚本会自动回落到默认构建模式
+  - 当前构建脚本直接使用工程默认构建模式，不再显式切换 Debug/Release
 
 - Best Practices 示例（长度前缀帧化 + 非阻塞/超时 循环范式）
   - Windows：`examples\fafafa.core.socket\bin\best_practices_nonblocking.exe --demo`

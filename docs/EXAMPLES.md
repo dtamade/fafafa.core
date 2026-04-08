@@ -297,10 +297,11 @@ end;
 ## 🌐 fafafa.core.socket 示例索引
 
 - 文档：docs/fafafa.core.socket.md → “测试与示例：快速开始” 与 “平台差异速览（Windows vs Unix）”
-- 一键构建示例（Windows）：examples\fafafa.core.socket\build_examples.bat（Debug/Release 不存在将自动回退）
+- 一键构建示例（Windows）：examples\fafafa.core.socket\build_examples.bat
+- 一键构建示例（Linux/macOS）：examples/fafafa.core.socket/build_examples.sh
 - 示例可执行：examples/fafafa.core.socket/bin（example_socket/echo_server/echo_client/udp_server/udp_client）
 - 运行示例（Windows）：examples\fafafa.core.socket\run_example_socket.bat address-demo
-- 运行示例（Linux/macOS）：使用 lazbuild 构建 .lpi 或参考 example_socket.lpr 源码
+- 运行示例（Linux/macOS）：examples/fafafa.core.socket/run_example_socket.sh address-demo
 - 测试入口（Windows）：tests\fafafa.core.socket\buildOrTest.bat test/adv/test-perf
 - 测试入口（Linux/macOS）：tests/fafafa.core.socket/buildOrTest.sh test/adv/perf
 - 快速冒烟：tests\fafafa.core.socket\smoke.bat / tests/fafafa.core.socket/smoke.sh
