@@ -120,6 +120,8 @@ L0 当前真正还缺的是硬化项，而不是模块数：
 - 上述聚合 gate 当前 fresh 结果：PASS，`11/11`
 - `git diff --check`：PASS
 - 当前执行分支：`l0-mainline-integration-20260409`
+- `wine cmd /c "cd /d Z:\\...\\tests\\fafafa.core.platform && BuildOrTest.bat test"`
+- 结果：未进入模块测试；当前环境缺少 `tools\\lazbuild.bat` 且 Windows PATH 下无 `lazbuild`
 
 ## Remaining Risks
 
@@ -127,4 +129,5 @@ L0 当前真正还缺的是硬化项，而不是模块数：
 - 临时 branch `l0-sidecar-handoff-20260409` 只是 sidecar 交接面，不应再并回当前 L0 实施面。
 - SIMD 仍由 SIMD owner 负责；L0 这里只处理边界和非 SIMD contract。
 - Windows `.bat` 路径与 shell 路径在 mem runner 上仍有行为差异；这更像合并前的 confidence gap，而不是当前 L0 边界 blocker。
+- 当前 Linux 环境虽然有 `wine`，但没有 Windows `lazbuild` bootstrap，所以 `.bat` smoke 现在先卡在环境层，而不是卡在 strict L0 模块逻辑。
 - `atomic` 早先只出现过一次未复现的聚合波动；当前没有足够证据支持生产代码修复，若后续再次出现应优先保留失败日志并锁定具体 testcase 顺序。

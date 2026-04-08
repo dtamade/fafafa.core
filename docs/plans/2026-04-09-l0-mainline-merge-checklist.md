@@ -137,6 +137,12 @@ tests\fafafa.core.mem\BuildOrTest.bat test
 - `platform` 是这轮新进入 strict L0 的静态表达层
 - `mem` / `mem.allocator.foundation` 在 `.bat` 与 shell 路径上仍存在 runner 行为差异
 
+当前已知情况：
+
+- 已尝试在当前 Linux 环境下通过 `wine cmd /c` 跑 `tests\\fafafa.core.platform\\BuildOrTest.bat test`
+- 失败原因不是 `platform` 模块测试失败，而是当前 integration branch 不包含 `tools\\lazbuild.bat`，且 Windows PATH 下也没有 `lazbuild`
+- 因此，这一轮还不能把 Windows smoke 记成已完成；当前只能把它记成环境 bootstrap blocker
+
 ## 当前不要做的事
 
 - 不要直接在根 `main` 工作树上 merge 当前 L0 branch
@@ -162,6 +168,7 @@ tests\fafafa.core.mem\BuildOrTest.bat test
 - 根 `main` 工作树是用户脏状态
 - 根 `main` 相对 `origin/main` 落后较多
 - 当前 branch 上存在一段不完全等于 strict L0 本体的 hygiene / runner 提交，需要明确是否同批带走
+- 当前 Linux 环境虽然有 `wine`，但没有可供 `.bat` 路径使用的 Windows `lazbuild` bootstrap；Windows smoke 暂时卡在环境层
 
 ## 相关文档
 
