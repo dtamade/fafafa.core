@@ -12,12 +12,13 @@
 - 根工作树当前是用户脏状态
 - 根 `main` 当前相对 `origin/main` 是 `ahead 2, behind 38`
 - 当前 L0 分支不只有 strict L0 语义提交，还带着一段 runner / archive / hygiene 提交，需要明确决定是整段合并还是只摘取 strict L0 核心序列
+- 用户已经明确要求当前仓库只保留一个 `simd` worktree 和一个 `L0` worktree，所以不要再新增第三个 integration worktree
 
 ## 当前执行面
 
 - 当前 L0 worktree：`/home/dtamade/projects/fafafa.core/.claude/worktrees/l0-main-promotion-20260407`
 - 当前 L0 branch：`l0-main-tail-cleanup-20260408`
-- 当前 L0 HEAD：`58976e8a`
+- 当前 L0 HEAD：执行本清单前请用 `git rev-parse --short HEAD` 重新确认
 - 当前 L0 分叉点：`d5187ea4`（`merge-base HEAD origin/main`）
 
 ## 当前验证状态
@@ -52,11 +53,13 @@ git diff --check
 - `e1cf6577` `docs(l0): establish stable roadmap and doc stack`
 - `377533a7` `docs(l0): normalize roadmap and module navigation`
 - `58976e8a` `docs(l0): capture module gaps and merge readiness`
+- `26d937a6` `docs(l0): add mainline merge checklist`
 
 其中：
 
-- `fde7c4ff` 到 `58976e8a` 是 strict L0 当前边界、测试入口、文档和控制面的核心收口
+- `fde7c4ff` 之后这一段是 strict L0 当前边界、测试入口、文档和控制面的核心收口
 - `8570356a` 与 `06d4dfd1` 是 supporting fix，主要保证 L0 相关构建入口和示例入口不掉链子
+- 若在真正切 integration branch 前，当前 L0 branch 又新增了 L0-only 提交，保留保存后的 branch tip，并用范围 cherry-pick 一起带走，不要手工漏拣
 
 ### B. 更早的 hygiene / archive / runner 提交
 
@@ -73,14 +76,21 @@ git diff --check
 
 ## 推荐合并形态
 
-当前推荐优先使用“新建干净 integration worktree + cherry-pick strict L0 核心提交”，而不是直接把当前 L0 branch merge 到用户脏的根 `main`。
+当前推荐优先使用“复用当前 L0 worktree，切到临时 integration branch，再 cherry-pick strict L0 核心提交”，而不是直接把当前 L0 branch merge 到用户脏的根 `main`。
 
 推荐顺序：
 
-1. 基于最新 `origin/main` 新建一个干净 integration worktree
-2. 先只 replay A 段 strict L0 核心提交
-3. 在 integration worktree 重新跑 strict L0 聚合 gate
-4. 如果一切通过，再决定是否需要把 B 段 hygiene / runner 提交一并补上
+1. 先在当前 L0 worktree 记录一个分支名，保住当前 `HEAD`
+2. 基于最新 `origin/main` 在同一个 L0 worktree 里切出临时 integration branch
+3. 先只 replay A 段 strict L0 核心提交
+4. 在 integration branch 重新跑 strict L0 聚合 gate
+5. 如果一切通过，再决定是否需要把 B 段 hygiene / runner 提交一并补上
+
+这样做的原因很直接：
+
+- 满足“只保留一个 L0 worktree”的要求
+- 不会碰用户脏的根 `main`
+- 仍然可以把 strict L0 核心提交和更早的 hygiene 提交分开处理
 
 ## 推荐执行步骤
 
@@ -88,11 +98,12 @@ Run:
 
 ```bash
 git fetch origin
-git worktree add -b l0-mainline-integration-20260409 .claude/worktrees/l0-mainline-integration origin/main
-git -C .claude/worktrees/l0-mainline-integration cherry-pick 8570356a 06d4dfd1 fde7c4ff 4e8774bf 9216f320 e1cf6577 377533a7 58976e8a
+git -C .claude/worktrees/l0-main-promotion-20260407 branch l0-main-tail-cleanup-20260408-final HEAD
+git -C .claude/worktrees/l0-main-promotion-20260407 switch -c l0-mainline-integration-20260409 origin/main
+git -C .claude/worktrees/l0-main-promotion-20260407 cherry-pick 8570356a^..l0-main-tail-cleanup-20260408-final
 ```
 
-然后在 integration worktree 跑：
+然后在当前 L0 worktree 的 integration branch 上跑：
 
 ```bash
 STOP_ON_FAIL=1 bash tests/run_all_tests.sh fafafa.core.base fafafa.core.contracts fafafa.core.bits fafafa.core.layout fafafa.core.endian fafafa.core.span fafafa.core.option fafafa.core.result fafafa.core.atomic fafafa.core.mem.allocator.foundation fafafa.core.platform
@@ -129,7 +140,7 @@ tests\fafafa.core.mem\BuildOrTest.bat test
 
 以下条件全部满足，才适合把这条 L0 线继续往主线推进：
 
-- integration worktree 基于最新 `origin/main`
+- 当前唯一的 L0 worktree 已切到基于最新 `origin/main` 的 integration branch
 - strict L0 核心提交 replay 成功
 - strict L0 聚合 gate fresh 通过
 - `git diff --check` 通过
