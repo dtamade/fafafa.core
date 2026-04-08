@@ -12,6 +12,7 @@ SHELL_TARGETS=(
   "${ROOT}/examples/fafafa.core.sync.namedSemaphore/BuildAndRun.sh"
   "${ROOT}/examples/fafafa.core.sync.rwlock/BuildAndRun.sh"
   "${ROOT}/examples/fafafa.core.sync.namedRWLock/BuildAndRun.sh"
+  "${ROOT}/examples/fafafa.core.sync.namedBarrier/BuildOrRun.sh"
 )
 
 BAT_TARGETS=(
@@ -20,6 +21,8 @@ BAT_TARGETS=(
   "${ROOT}/examples/fafafa.core.sync.namedSemaphore/BuildAndRun.bat"
   "${ROOT}/examples/fafafa.core.sync.rwlock/BuildAndRun.bat"
   "${ROOT}/examples/fafafa.core.sync.namedRWLock/BuildAndRun.bat"
+  "${ROOT}/examples/fafafa.core.sync/RunRwLock.bat"
+  "${ROOT}/examples/fafafa.core.sync/BuildAllExamples.bat"
 )
 
 DOC_TARGETS=(
@@ -61,6 +64,15 @@ EOF
   chmod +x "${target}"
 }
 
+prepare_runner_bin() {
+  local runner="$1"
+  local runner_dir
+
+  runner_dir="$(dirname "${runner}")"
+  prepare_output_path "${runner_dir}/bin"
+  mkdir -p "${runner_dir}/bin"
+}
+
 cleanup() {
   local entry
   local target
@@ -85,11 +97,43 @@ cat > "${FAKE_BIN}/lazbuild" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
 
+create_fake_output() {
+  local target="$1"
+
+  mkdir -p "$(dirname "${target}")"
+  cat > "${target}" <<'EOR'
+#!/usr/bin/env bash
+set -euo pipefail
+exit 0
+EOR
+  chmod +x "${target}"
+}
+
+LPrevWasOutput=0
 for LArg in "$@"; do
+  if [[ "${LPrevWasOutput}" == 1 ]]; then
+    create_fake_output "${LArg}"
+    LPrevWasOutput=0
+    continue
+  fi
+
   if [[ "${LArg}" == --build-mode=Debug || "${LArg}" == --bm=Debug ]]; then
     echo "[FAIL] unexpected debug build flag: ${LArg}" >&2
     exit 99
   fi
+
+  case "${LArg}" in
+    -o)
+      LPrevWasOutput=1
+      ;;
+    -o*)
+      create_fake_output "${LArg#-o}"
+      ;;
+    *.lpi)
+      LBase="$(basename "${LArg}" .lpi)"
+      create_fake_output "bin/${LBase}"
+      ;;
+  esac
 done
 
 exit 0
@@ -99,6 +143,37 @@ chmod +x "${FAKE_BIN}/lazbuild"
 cat > "${FAKE_BIN}/fpc" <<'EOF'
 #!/usr/bin/env bash
 set -euo pipefail
+
+create_fake_output() {
+  local target="$1"
+
+  mkdir -p "$(dirname "${target}")"
+  cat > "${target}" <<'EOR'
+#!/usr/bin/env bash
+set -euo pipefail
+exit 0
+EOR
+  chmod +x "${target}"
+}
+
+LPrevWasOutput=0
+for LArg in "$@"; do
+  if [[ "${LPrevWasOutput}" == 1 ]]; then
+    create_fake_output "${LArg}"
+    exit 0
+  fi
+
+  case "${LArg}" in
+    -o)
+      LPrevWasOutput=1
+      ;;
+    -o*)
+      create_fake_output "${LArg#-o}"
+      exit 0
+      ;;
+  esac
+done
+
 exit 0
 EOF
 chmod +x "${FAKE_BIN}/fpc"
@@ -122,6 +197,11 @@ for LTarget in "${BAT_TARGETS[@]}"; do
   fi
 done
 
+if grep -Fq 'example_semaphore.lpi' "${ROOT}/examples/fafafa.core.sync/BuildAllExamples.bat"; then
+  echo "[FAIL] stale sync example name remains in BuildAllExamples.bat" >&2
+  exit 1
+fi
+
 for LTarget in "${DOC_TARGETS[@]}"; do
   if grep -Fq 'Debug/Release 不存在将自动回退' "${LTarget}"; then
     echo "[FAIL] stale socket fallback wording remains: ${LTarget}" >&2
@@ -140,9 +220,7 @@ for LTarget in "${DOC_TARGETS[@]}"; do
 done
 
 for LTarget in "${SHELL_TARGETS[@]}"; do
-  prepare_output_path "$(dirname "${LTarget}")/bin"
-  mkdir -p "$(dirname "${LTarget}")/bin"
-  create_fake_exe "$(dirname "${LTarget}")/bin/fake_example"
+  prepare_runner_bin "${LTarget}"
 
   if ! PATH="${FAKE_BIN}:$PATH" LAZBUILD="${FAKE_BIN}/lazbuild" FPC="${FAKE_BIN}/fpc" \
     bash "${LTarget}" >/dev/null 2>&1; then

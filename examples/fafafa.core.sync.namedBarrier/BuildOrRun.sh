@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -eu
+set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")"
 
@@ -11,7 +11,6 @@ if ! command -v "${LAZBUILD_BIN}" >/dev/null 2>&1; then
   exit 1
 fi
 
-# Deterministic outputs
 rm -rf ./bin ./lib/*-*/
 mkdir -p ./bin ./lib
 
@@ -24,8 +23,8 @@ echo "=== Building fafafa.core.sync.namedBarrier Examples ==="
 echo
 
 for example in "${EXAMPLES[@]}"; do
-  echo "[BUILD] ${LAZBUILD_BIN} --build-mode=Debug ${example}.lpi"
-  "${LAZBUILD_BIN}" --build-mode=Debug "${example}.lpi"
+  echo "[BUILD] ${LAZBUILD_BIN} ${example}.lpi (project default mode)"
+  "${LAZBUILD_BIN}" "${example}.lpi"
 done
 
 echo

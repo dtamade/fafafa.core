@@ -17,11 +17,11 @@ if not defined LAZBUILD (
 
 echo Using LAZBUILD="%LAZBUILD%"
 
-set EXAMPLES=example_sync.lpi example_semaphore.lpi example_autolock.lpi example_rwlock.lpi example_condvar.lpi example_condvar_broadcast.lpi example_smoketest.lpi
+set EXAMPLES=example_sync.lpi example_sem.lpi example_autolock.lpi example_rwlock.lpi example_condvar.lpi example_condvar_broadcast.lpi example_smoketest.lpi
 
 for %%P in (%EXAMPLES%) do (
   echo Building %%P ...
-  "%LAZBUILD%" --build-mode=Debug "%DIR%%%P" || exit /b 1
+  "%LAZBUILD%" "%DIR%%%P" || exit /b 1
 )
 
 echo All examples built successfully.
