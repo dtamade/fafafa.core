@@ -3,6 +3,7 @@
 ## Summary
 
 - 当前 strict non-SIMD L0 的权威边界仍以 `docs/fafafa.core.l0.foundation.md` 和 `docs/ARCHITECTURE_LAYERS.md` 为准。
+- 当前 strict non-SIMD L0 的稳定路线图现在固定为 `docs/fafafa.core.l0.roadmap.md`。
 - `fafafa.core.span` 现在正式承载最小只读单段 `span` 与双段 `span2` contract。
 - 当前 L0 执行面仍然是 `l0-main-tail-cleanup-20260408` worktree。
 - 原先混入该 worktree 的 sync/fs/socket runner sidecar 已安全转移到临时 branch `l0-sidecar-handoff-20260409`，不再阻塞 strict L0 继续推进。
@@ -32,8 +33,8 @@
 ### 3. Control-plane drift was real
 
 - `workers/worker1.md` 在本轮之前仍携带过多 tail-cleanup / non-L0 historical noise。
-- `docs/INDEX.md` 仍把 `2026-04-07` rescue 文档当作当前 follow-up 入口。
-- 需要一个新的 dated audit + plan 把当前 truth 重新钉住。
+- `docs/INDEX.md` 之前曾把 `2026-04-07` rescue 文档当作当前 follow-up 入口；现在已改为稳定的 `foundation + roadmap + audit` 三件套。
+- dated closeout 现在只保留批次执行语境，不再继续承担长期路线图职责。
 
 ## Verification Snapshot
 

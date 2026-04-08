@@ -5,8 +5,10 @@
 ## 快速入口
 
 - 文档总索引：`docs/INDEX.md`
+- L0 稳定路线图：`docs/fafafa.core.l0.roadmap.md`
+- L0 详细定义：`docs/fafafa.core.l0.foundation.md`
 - 当前 L0 审计：`docs/audits/2026-04-09-l0-current-state-audit.md`
-- 当前 L0 实施计划：`docs/plans/2026-04-09-l0-kernel-span2-closeout.md`
+- 最近 L0 批次 closeout：`docs/plans/2026-04-09-l0-kernel-span2-closeout.md`
 - 测试指南：`docs/TESTING.md`
 - CI 指南：`docs/CI.md`
 - 目录结构规范：`docs/standards/DIRECTORY_STANDARDS.md`
@@ -18,7 +20,8 @@
 - **模块文档（主入口）**：`docs/fafafa.core.<module>.md`
 - **模块扩展文档**：`docs/fafafa.core.<module>.*.md`（例如 best-practices / troubleshooting / api）
 - **规范/清单**：`docs/standards/`
-- **设计与计划**：优先放 `docs/design/` 或 `docs/designs/`
+- **稳定路线图 / 主题设计**：优先使用长期可维护的主题入口，例如 `docs/fafafa.core.l0.roadmap.md`
+- **执行批次计划**：放 `docs/plans/YYYY-MM-DD-*.md`，只描述某一轮 dated batch，不再承担长期 current-entry
 - **报告/复盘/审计/评审**：放 `docs/reports/`、`docs/audits/`、`docs/reviews/`（不要堆在 `docs/` 根目录）
 - **ADR**：`docs/adr/`
 - **可复用片段**：`docs/partials/`

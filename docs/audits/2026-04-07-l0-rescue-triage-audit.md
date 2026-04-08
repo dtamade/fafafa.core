@@ -130,5 +130,5 @@ git diff --check
 
 - L0 定义：`docs/fafafa.core.l0.foundation.md`
 - L0 审计：`docs/audits/2026-04-07-l0-rescue-triage-audit.md`
-- L0 路线图：`docs/plans/2026-04-07-l0-rescue-split-closeout.md`
+- L0 路线图：`docs/fafafa.core.l0.roadmap.md`
 - 当前 L0 worker：`workers/worker1.md`

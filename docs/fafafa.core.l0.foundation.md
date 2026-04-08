@@ -2,6 +2,23 @@
 
 本文档定义 `fafafa.core` 的 L0。目标不是做一个“什么都能塞进去的基础层”，而是做一个小而强、稳定、可长期复用的基础内核。
 
+## 当前 L0 文档组
+
+L0 相关文档从现在起按固定分工维护：
+
+1. `docs/ARCHITECTURE_LAYERS.md`
+   说明 L0 在全仓架构分层里的位置。
+2. `docs/fafafa.core.l0.foundation.md`
+   说明 L0 当前到底包含什么、不包含什么。
+3. `docs/fafafa.core.l0.roadmap.md`
+   说明 L0 接下来该按什么原则继续推进。
+4. `docs/audits/2026-04-09-l0-current-state-audit.md`
+   说明当前已验证的执行状态。
+5. `docs/plans/2026-04-09-l0-kernel-span2-closeout.md`
+   只保留最近一轮 L0 batch 的执行 closeout 语境。
+
+如果这些文档之间出现冲突，优先级按上面的顺序判断。
+
 ## L0 的定位
 
 L0 负责五类事情：

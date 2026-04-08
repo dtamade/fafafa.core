@@ -6,9 +6,10 @@
 
 - 文档治理与放置规则：`docs/README.md`
 - 架构分层：`docs/ARCHITECTURE_LAYERS.md`
+- L0 稳定路线图：`docs/fafafa.core.l0.roadmap.md`
 - L0 详细定义：`docs/fafafa.core.l0.foundation.md`
-- L0 当前实施计划：`docs/plans/2026-04-09-l0-kernel-span2-closeout.md`
 - L0 当前审计：`docs/audits/2026-04-09-l0-current-state-audit.md`
+- 最近 L0 批次 closeout：`docs/plans/2026-04-09-l0-kernel-span2-closeout.md`
 - 工程规范：`docs/standards/ENGINEERING_STANDARDS.md`
 - 目录规范：`docs/standards/DIRECTORY_STANDARDS.md`
 - 命名规范：`docs/standards/NAMING_CONVENTION_PROJECT.md`
@@ -44,16 +45,11 @@
 - `docs/fafafa.core.fs.md`
 - `docs/fafafa.core.simd.md`
 
-## 领域子目录
+## 当前稳定子目录
 
-当一个主题形成完整文档体系时，放到独立子目录中：
+当前仓库里真实存在、可以直接当导航入口使用的子目录包括：
 
 - `docs/collections/`
-- `docs/lockfree/`
-- `docs/mem/`
-- `docs/fs/`
-- `docs/term/`
-- `docs/simd/`
 - `docs/benchmarks/`
 - `docs/adr/`
 - `docs/standards/`
@@ -63,6 +59,15 @@
 - `docs/plans/`
 - `docs/legacy/`
 - `docs/refactoring/`
+- `docs/topics/`
+- `docs/design/`
+- `docs/designs/`
+
+说明：
+
+- `mem`、`fs`、`term`、`lockfree`、`simd` 当前仍以 `docs/fafafa.core.<module>.md` 这类根入口定锚。
+- 不要把旧路线图里的 `docs/mem/`、`docs/term/`、`docs/fs/`、`docs/lockfree/`、`docs/simd/` 当成当前仓库里已经存在的目录。
+- 这些主题的历史阶段报告优先下沉到 `archive/reports/`，而不是再在 `docs/` 根层扩散。
 
 ## 如何判断一份文档是否权威
 
@@ -70,25 +75,28 @@
 
 1. `docs/standards/*.md`
 2. `docs/ARCHITECTURE_LAYERS.md`
-3. `docs/fafafa.core.<module>.md`
-4. 领域子目录中的长期文档
-5. `docs/plans/`、`docs/reports/`、`docs/reviews/`
-6. `docs/legacy/` 与 `archive/reports/`
+3. `docs/fafafa.core.l0.foundation.md` / `docs/fafafa.core.l0.roadmap.md` 这类稳定主题入口
+4. `docs/fafafa.core.<module>.md`
+5. 真实存在的领域子目录中的长期文档
+6. `docs/audits/`、`docs/plans/`、`docs/reports/`、`docs/reviews/`
+7. `docs/legacy/` 与 `archive/reports/`
 
 ## 当前特别说明
 
 - `docs/Architecture.md` 这种歧义命名已经停止作为全局架构入口使用。
 - 历史 `PHASE0_*` 文档已归档到 `docs/legacy/phase0/`；当前 L0 以 `docs/fafafa.core.l0.foundation.md` 为准。
-- `docs/plans/2026-03-24-l0-docs-closeout-roadmap.md` 和 `docs/plans/2026-04-07-l0-rescue-split-closeout.md` 现在都属于历史阶段材料；当前 follow-up 以 `docs/plans/2026-04-09-l0-kernel-span2-closeout.md` 为准。
+- L0 的长期路线图现在固定为 `docs/fafafa.core.l0.roadmap.md`；dated `docs/plans/2026-03-24-l0-docs-closeout-roadmap.md`、`docs/plans/2026-04-07-l0-rescue-split-closeout.md` 和 `docs/plans/2026-04-09-l0-kernel-span2-closeout.md` 都只保留批次语境。
 - 根目录 `task_plan.md`、`findings.md`、`progress.md` 已从主线移除；最后一份快照归档在 `plans/archive/2026-04-07-mainline-working-set/`。
 - 当前 L0 协作入口见 `workers/worker1.md`，当前 triage 判断见 `docs/audits/2026-04-09-l0-current-state-audit.md`。
 - `docs/fafafa.core.span.md`、`docs/fafafa.core.contracts.md` 和 `docs/fafafa.core.platform.md` 现在都对应 strict L0 的实体入口。
 - 旧的 L0 candidate / merge-closeout 文档已经归档到 `docs/legacy/l0/`，不要再把那批候选结论当作 current-entry。
 - `fafafa.core.span` 现在同时承载最小 `span` / `span2` contract；但 `fafafa.core.collections.slice` 仍然不等同于 strict L0，不要把 collections 的容器 `SliceView` 语义误读成已下沉到 L0。
 - VecDeque 相关设计文档已归位到 `docs/collections/design/vecdeque-architecture.md`。
-- lockfree 领域的 guide/design/report 文档已归位到 `docs/lockfree/`。
-- mem 领域的报告与旧版指南已下沉到 `docs/mem/`，根目录只保留稳定入口。
-- fs 领域的研究、开发者说明和旧 topic 文档已归位到 `docs/fs/`。
-- term 领域的旧 guide、报告和计划文档已归位到 `docs/term/`。
-- simd 领域的专题 guide、计划、报告和 closeout/handoff 文档已归位到 `docs/simd/`。
+- `lockfree`、`mem`、`fs`、`term`、`simd` 当前仍以各自的 `docs/fafafa.core.<module>.md` 根文档作为 current-entry；不要从旧 closeout 文档里继承不存在的 `docs/<domain>/` 路径。
+- `mem` / `term` / `sync` / `collections` 的历史完成报告、状态总结和实施总结，当前统一下沉到 `archive/reports/docs-root/`。
+- SIMD 专题材料仍由 SIMD owner 维护；L0 这里只保留边界、审计和 handoff 说明。
 - 已完成的根目录修复报告已迁移到 `archive/reports/`。
+- collections / benchmarks 的阶段性 campaign 报告已迁移到 `archive/reports/docs-collections/` 与 `archive/reports/docs-benchmarks/`；原目录只保留归档指路页。
+- `docs/reports/` 根下 dated fix/checkpoint/verification/audit 报告已基本迁移到 `archive/reports/docs-root/`；当前只保留 `docs/reports/time/` 这样的主题子目录与说明页。
+- `UnChecked_Methods_Summary.md` 已从 `docs/reports/` 转正到 `docs/collections/guides/UnChecked_Methods_Summary.md`。
+- 一批 root-level 的阶段性模块完成/测试报告也已迁到 `archive/reports/docs-root/`；不要再把 `completion-report` / `test-report` / `week*` 日报留在 `docs/` 根目录。
